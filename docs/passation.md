@@ -46,7 +46,14 @@
 - Scan de « Fulmine » (italien, appli en français) : reconnu après le redémarrage Node.
 - **Interrupteurs EDHREC / Archidekt** : `EDHREC_OFF=1` / `ARCHIDEKT_OFF=1` sur Hostinger (`README.md`), sans nouvelle APK. Fichier EDH filtré (`edhFilter`, `src/edhbin.js`) ou refusé (410), import de liens refusé, l'appli cache et efface.
 
+## Fait la nuit du 10 au 11 octobre
+- **Édition par ligne** (comme ManaBox) : « 2 Sol Ring (CMM) 400 *FR* », choisie dans Carte en grand › Illustrations (symbole, extension, prix sous chaque illustration) ; prix de l'édition sur la ligne et dans la valeur ; import ManaBox / Moxfield avec éditions, export CSV avec « Collector Number ».
+- **« Ajouter des cartes »** (bouton + de la collection) : recherche, carte en grand, édition, quantité, langue, Ajouter ; extension collante ; liste du lot modifiable ; Scanner vers le lot.
+- **Scan mobile** : PC › Ajouter des cartes › Scan mobile › Activer ; le téléphone (même compte) propose « Scanner » et chaque carte arrive dans le lot du PC (document Firestore `meta/scan`).
+- Tests `edition-e2e`, `lot-e2e`, `mobscan-e2e`, règles (`rules-test.mjs`, vérifiées sur l'émulateur Firestore).
+
 ## Actions du propriétaire en attente
+- **Republier les règles Firestore** (Firebase › Firestore › Règles › coller `firestore.rules` › Publier) : document `scan` du scan mobile. Sans ça, le scan mobile affiche « Règles Firestore à publier ».
 - **Refaire l'APK** (`android-app` : `git pull`, `npm run setup`, puis `npm run apk` ou Run ▶) et tester le widget « QR code d'échange » : liste de contrôle dans `docs/a-faire.md`. Puis vérifier que le bandeau de pub n'apparaît plus pendant la saisie et les résultats.
 - Firebase › Authentication › Modèles › Vérification de l'adresse e-mail : nom d'expéditeur « Mana Orbit », langue française.
 - Firebase › Authentication › Domaines autorisés : `card.m2s-photo.fr` (et le futur domaine).

@@ -60,6 +60,7 @@ service cloud.firestore {
     //  · history    : valeur de la collection dans le temps ({ pts: [{ t, v: centimes, n: cartes, q: exemplaires }, …] }, un par jour, 420 au plus ; pas de tableaux imbriqués dans Firestore)
     //  · trade      : liste d'échange ({ keep: réserve, kept: [cartes gardées], wish: { carte: { n, q } }, share: id du lien, dsh: { deck: id du lien } })
     //  · profile    : pseudo (30 caractères) et photo (data:image, ≤ 40 Ko), affichés sur les liens partagés
+    //  · scan       : scan mobile ({ on, s, dev, by, at, items: [{ i, k, n, q, l }] ≤ 60 }) : le PC attend, le téléphone y dépose les cartes scannées
     match /users/{uid}/meta/{docId} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
@@ -87,6 +88,14 @@ service cloud.firestore {
             && request.resource.data.wish is map && request.resource.data.wish.size() <= 2000
             && request.resource.data.share is string && request.resource.data.share.size() <= 40
             && request.resource.data.dsh is map && request.resource.data.dsh.size() <= 200)
+          || (docId == 'scan'
+            && request.resource.data.keys().hasOnly(['on', 's', 'dev', 'by', 'at', 'items', 'updatedAt'])
+            && request.resource.data.on is bool
+            && request.resource.data.s is string && request.resource.data.s.size() <= 40
+            && request.resource.data.dev is string && request.resource.data.dev.size() <= 40
+            && request.resource.data.by is string && request.resource.data.by.size() <= 60
+            && request.resource.data.at is number
+            && request.resource.data.items is list && request.resource.data.items.size() <= 60)
           || (docId == 'profile'
             && request.resource.data.keys().hasOnly(['name', 'photo', 'updatedAt'])
             && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is number)

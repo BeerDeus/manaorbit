@@ -126,6 +126,11 @@ function makeCloud(m) {
       return m.fs.onSnapshot(m.fs.doc(db, 'users', uid, 'meta', id), { includeMetadataChanges: true }, s => onData(s.exists() ? s.data() : null, s.metadata.hasPendingWrites, s.metadata.fromCache), onErr);
     },
     saveMeta: (uid, id, data) => m.fs.setDoc(m.fs.doc(db, 'users', uid, 'meta', id), data),
+    /** Modification de quelques champs (le reste du document est gardé). */
+    updMeta: (uid, id, data) => m.fs.updateDoc(m.fs.doc(db, 'users', uid, 'meta', id), data),
+    /** Scan mobile (users/{uid}/meta/scan) : le téléphone ajoute des cartes, le PC retire celles qu'il a reçues ; arrayUnion / arrayRemove : aucun conflit entre les deux. */
+    scanPush: (uid, items) => m.fs.updateDoc(m.fs.doc(db, 'users', uid, 'meta', 'scan'), { items: m.fs.arrayUnion(...items), updatedAt: Date.now() }),
+    scanTake: (uid, items) => m.fs.updateDoc(m.fs.doc(db, 'users', uid, 'meta', 'scan'), { items: m.fs.arrayRemove(...items), updatedAt: Date.now() }),
     pullMeta: (uid, id) => m.fs.getDocFromServer(m.fs.doc(db, 'users', uid, 'meta', id)).then(s => ({ data: s.exists() ? s.data() : null })),
     saveMany(uid, items) { const b = m.fs.writeBatch(db); items.forEach(d => b.set(m.fs.doc(col(uid), d.id), d.data)); return b.commit(); },
     /** Partages publics (shares/{id}) : identifiant aléatoire (non devinable), écriture, suppression. Lus par le visiteur via l'API REST (shareFetch). */

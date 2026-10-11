@@ -138,6 +138,7 @@ function scanPaintList() {
   const go = $('.dv-foot [data-act="done"]', el);
   go.disabled = !t.n; go.textContent = t.n ? TN(t.n, 'Ajouter {n} carte', 'Ajouter {n} cartes') : T('Ajouter');
   $('.sc-sub', el).textContent = SC.items.size ? TN(t.n, '{n} reconnue', '{n} reconnues') + (t.maybe ? ' · ' + T('{n} à vérifier', { n: t.maybe }) : '') : T('Nom et mana dans la bande');
+  if (SC.remote) { go.disabled = false; go.textContent = T('Terminer'); mobSync(); scanPaintRemote(); }      // scan mobile : chaque carte (et chaque correction) part vers le PC
   const prog = $('.sc-prog', el); prog.hidden = !SC.pend.length; prog.textContent = T('Lecture : {n} en attente', { n: SC.pend.length });
   if (SC.recap) SC.recap();
 }
@@ -710,12 +711,14 @@ function scanPhotos(files, cam) {
 }
 
 function closeScan() { if (SC.el) SC.el.__close(); }
-/** o.lot : scan ouvert depuis « Ajouter des cartes » : « Ajouter » envoie les cartes dans le lot (extension collante) au lieu de la collection seule. */
+/** o.lot : scan ouvert depuis « Ajouter des cartes » : « Ajouter » envoie les cartes dans le lot (extension collante) au lieu de la collection seule.
+ *  o.remote : « Scan mobile » (téléphone) : chaque carte reconnue part tout de suite vers le lot du PC (mobscan.js), rien n'est ajouté ici ; « Terminer » ferme. */
 function openScan(o) {
   closeScan();
   const wrap = document.createElement('div'); wrap.className = 'dv scan'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Scanner des cartes'));
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer le scan')}"><svg class="i"><use href="#i-back"/></svg></button>
       <div class="dv-title"><b>${T('Scanner des cartes')}</b><span class="sc-sub">${T('Nom et mana dans la bande')}</span></div><button class="icon-btn sc-pmode" type="button" data-act="pmode" aria-label="${T('Prix rapide : lire une carte sans l\'ajouter')}" aria-pressed="false">€</button><button class="icon-btn sc-help" type="button" data-act="note" aria-label="${T('Afficher l\'aide')}" aria-pressed="false">?</button></header>
+    <div class="sc-remote" hidden aria-live="polite"></div>
     <div class="sc-stage" data-cam="wait"><video class="sc-video" playsinline muted autoplay></video>
       <div class="sc-guide" aria-hidden="true"><span class="sc-cap">${T('Nom · mana')}</span></div>
       <div class="sc-flash"></div>
@@ -731,11 +734,12 @@ function openScan(o) {
       <label class="btn ghost small sc-photo"><svg class="i"><use href="#i-image"/></svg>${T('Photos')}<input type="file" id="scFile" accept="image/*" multiple></label>
       <button class="sc-shot" type="button" data-act="shot" aria-label="${T('Prendre la photo de la carte')}"><i></i></button>
       <label class="btn ghost small sc-native"><svg class="i"><use href="#i-camera"/></svg>${T('Appareil')}<input type="file" id="scCam" accept="image/*" capture="environment"></label></div>`;
-  SC.lot = !!(o && o.lot); SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
+  SC.lot = !!(o && o.lot); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
   const stop = () => { SC.alive = false; SC.warm = false; clearInterval(SC.diagT); clearTimeout(SC.hintT); SC.queue.forEach(j => scanFree(j.src)); SC.queue = []; SC.pend = []; if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; } natStop(); };
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); wrap.__close(); } };
   wrap.__close = () => {
     if (SC.el !== wrap) return; SC.el = null; stop(); othFree(); document.removeEventListener('keydown', onKey, true);
+    if (SC.remote) { SC.remote = false; setTimeout(mobBar, 400); }      // scan mobile terminé : le bandeau revient tant que le PC attend
     wrap.classList.remove('on'); setTimeout(() => wrap.remove(), reduceMotion() ? 0 : 240); releaseApp();
     try { if (prevFocus && prevFocus.focus && prevFocus.isConnected) prevFocus.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
   };
@@ -760,7 +764,7 @@ function openScan(o) {
       else if (act === 'frc') frcStart(true);
       else if (act === 'note') scNoteShow($('.sc-note', wrap).hidden);
       else if (act === 'pmode') { haptic('tap'); scanPriceMode(!SC.pm); }
-      else if (act === 'done') scanRecap();
+      else if (act === 'done') { if (SC.remote) wrap.__close(); else scanRecap(); }
       return;
     }
     if (SC.pm && e.target.closest('.sc-item.pr [data-a]')) {                      // liste de prix : garder la carte (+) ou la retirer de la liste

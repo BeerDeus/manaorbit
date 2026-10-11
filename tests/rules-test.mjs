@@ -99,6 +99,23 @@ await T.assertFails(setDoc(doc(u1, 'users/u1/meta/trade'), drop(trade(), 'wish')
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/trade'), drop(trade(), 'updatedAt')));
 ok('liste d\'échange : bornes (5 000 gardées, 2 000 souhaits, 200 decks partagés, identifiant ≤ 40), types, champs exigés');
 
+const scanDoc = (extra = {}) => ({ on: true, s: 'abc123', dev: 'dev1', by: 'Chrome · Windows', at: Date.now(), items: [], updatedAt: Date.now(), ...extra });
+const card = i => ({ i: 'c' + i, k: 'sol ring', n: 'Sol Ring', q: 1, l: 'fr' });
+await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/scan'), scanDoc()));
+await T.assertSucceeds(updateDoc(doc(u1, 'users/u1/meta/scan'), { items: F.arrayUnion(card(1), card(2)), updatedAt: Date.now() }));      // le téléphone dépose
+await T.assertSucceeds(updateDoc(doc(u1, 'users/u1/meta/scan'), { items: F.arrayRemove(card(1)), updatedAt: Date.now() }));      // le PC retire ce qu'il a reçu
+await T.assertSucceeds(updateDoc(doc(u1, 'users/u1/meta/scan'), { on: false, updatedAt: Date.now() }));
+await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/scan'), scanDoc({ items: Array.from({ length: 60 }, (_, i) => card(i)), by: 'x'.repeat(60) })));
+await T.assertFails(setDoc(doc(u2, 'users/u1/meta/scan'), scanDoc()));
+await T.assertFails(getDoc(doc(u2, 'users/u1/meta/scan')));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/scan'), scanDoc({ items: Array.from({ length: 61 }, (_, i) => card(i)) })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/scan'), scanDoc({ by: 'x'.repeat(61) })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/scan'), scanDoc({ on: 'oui' })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/scan'), scanDoc({ evil: 1 })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/scan'), drop(scanDoc(), 'dev')));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/scan'), drop(scanDoc(), 'updatedAt')));
+ok('scan mobile : le compte seul, 60 cartes en attente au plus, champs et types contrôlés, dépôt et retrait par arrayUnion / arrayRemove');
+
 const prof = (extra = {}) => ({ name: 'Martin', photo: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==', updatedAt: Date.now(), ...extra });
 const photo = (n, type = 'jpeg') => { const p = `data:image/${type};base64,`; return p + 'A'.repeat(n - p.length); };      // n caractères en tout
 await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/profile'), prof()));

@@ -167,7 +167,11 @@ async function lotFromScan(items) {
     collBump(c.k, c.n, c.q, { lang: g, paint: false });
     out.push({ id: 'l' + Date.now().toString(36) + (++LOT.seq), k: c.k, n: c.n, p: '', g, q: c.q, t: Date.now(), im: c.pick ? c.pick.th : '', eu: lotEu(c) });
   }
-  LOT.list = [...out.reverse(), ...LOT.list].slice(0, LOT_MAX); lotSave(); collEnrich(); collPaintSoon();
+  for (const x of out) {      // la même carte, même ligne, que la dernière du lot (« + » au scan, scan mobile) : un seul exemplaire de plus sur cette ligne
+    const top = LOT.list[0];
+    if (top && top.k === x.k && top.g === x.g) { top.q = Math.min(999, top.q + x.q); top.t = x.t; if (x.im) top.im = x.im; } else LOT.list.unshift(x);
+  }
+  LOT.list = LOT.list.slice(0, LOT_MAX); lotSave(); collEnrich(); collPaintSoon();
   lotPaintList(); lotPaintHead();
   return out.length;
 }
@@ -185,6 +189,7 @@ function openLot() {
       <div class="lot-search field-in"><label class="label" for="caName">${T('Nom de la carte')}</label><input type="text" id="caName" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(nmExample())}" enterkeyhint="search"></div>
       <div class="ca-list" id="caList" role="listbox" aria-label="${T('Suggestions')}"></div>
       <div class="status" id="caStatus" data-ok="0" hidden><span class="dot"></span><span></span></div>
+      <div class="mob-pc" hidden></div>
       <div class="lot-sticky" hidden></div>
       <section class="lot-card" hidden aria-live="polite"></section>
       <div class="lot-lh" hidden><h3 class="cs-h">${T('Ce lot')}</h3><button class="link-btn" type="button" data-act="new">${T('Nouveau lot')}</button></div>
@@ -193,7 +198,7 @@ function openLot() {
   LOT.el = wrap; const prevFocus = document.activeElement;
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length && !SC.el) { e.stopPropagation(); wrap.__close(); } };
   wrap.__close = () => {
-    if (LOT.el !== wrap) return; LOT.el = null; LOT.cur = null; document.removeEventListener('keydown', onKey, true); FRN.on.delete(onFr);
+    if (LOT.el !== wrap) return; LOT.el = null; LOT.cur = null; document.removeEventListener('keydown', onKey, true); FRN.on.delete(onFr); if (MOB.pc) mobStop();      // le scan mobile s'arrête avec la page
     wrap.classList.remove('on'); setTimeout(() => wrap.remove(), reduceMotion() ? 0 : 240); releaseApp();
     try { if (prevFocus && prevFocus.focus && prevFocus.isConnected) prevFocus.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
   };
@@ -226,6 +231,8 @@ function openLot() {
     else if (act === 'add') lotAdd();
     else if (act === 'cancel') { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
     else if (act === 'zoom' && c) openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : lotImg(c), big: lotImg(c), lang: c.pick ? ({ ja: 'jp', zhs: 'zh-CN' }[c.pick.l] || c.pick.l) : 'en', plain: true, extra: '' }], 0);
+    else if (act === 'mobgo') mobStart();
+    else if (act === 'mobstop') { haptic('tap'); mobStop(); }
     else if (act === 'unstick') { LOT.set = ''; lotSave(); haptic('tap'); lotPaintHead(); }
     else if (act === 'new') {
       const before = LOT.list; if (!before.length) return;
@@ -240,6 +247,7 @@ function openLot() {
     }
   });
   document.body.appendChild(wrap); holdApp(); lotPaintHead(); lotPaintList(); lotPaintCard();
+  { const mb = $('.mob-pc', wrap); mb.hidden = !mobPcLike() && !MOB.pc; mobPaint(); }      // scan mobile : sur un ordinateur
   setIcLoad(() => { if (LOT.el === wrap) { lotPaintHead(); lotPaintList(); } });
   collCatalog().then(cat => { LOT.cat = cat; if (LOT.el === wrap) lotSuggest(); }).catch(e => { if (LOT.el === wrap) lotSay(e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'), false); });
   if (!COLL.names) lotSay(T('Chargement du catalogue (une seule fois)…'), false);
