@@ -54,8 +54,7 @@
 - Tests `edition-e2e`, `lot-e2e`, `mobscan-e2e`, règles (`rules-test.mjs`, vérifiées sur l'émulateur Firestore).
 
 ## Actions du propriétaire en attente
-- **Republier les règles Firestore** (Firebase › Firestore › Règles › coller `firestore.rules` › Publier) : document `scan` du scan mobile. Sans ça, le scan mobile affiche « Règles Firestore à publier ».
-- **Refaire l'APK** (`android-app` : `git pull`, `npm run setup`, puis `npm run apk` ou Run ▶) et tester le widget « QR code d'échange » : liste de contrôle dans `docs/a-faire.md`. Puis vérifier que le bandeau de pub n'apparaît plus pendant la saisie et les résultats.
+- Fait le 11 octobre : règles Firestore republiées (scan mobile), widget « QR code d'échange » testé et validé, bandeau de pub gardé en continu sur les écrans de consultation.
 - Firebase › Authentication › Modèles › Vérification de l'adresse e-mail : nom d'expéditeur « Mana Orbit », langue française.
 - Firebase › Authentication › Domaines autorisés : `card.m2s-photo.fr` (et le futur domaine).
 - **Mails EDHREC et Archidekt toujours sans réponse** (`docs/mails-partenaires.md`). Stratégie retenue :
@@ -65,5 +64,4 @@
   - en cas de refus : plan B (decks préconstruits MTGJSON, decks générés depuis Scryfall, EDHTop16 pour le cEDH) — détail dans `docs/a-faire.md`.
 
 ## Prochaine étape proposée
-1. Retour du propriétaire sur le widget QR (nouvelle APK) et le bandeau « par moments ».
-2. Préparation Play Store : nom de domaine, test fermé, AdMob réel (`docs/a-faire.md` › « Avant la publication »).
+1. Préparation Play Store : nom de domaine, test fermé, AdMob réel (`docs/a-faire.md` › « Avant la publication »).
