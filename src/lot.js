@@ -33,13 +33,25 @@ const lotEu = c => { if (c.pick) return c.pick.eu > 0 ? c.pick.eu : c.pick.ef > 
 function lotImg(c) {
   if (c.pick) return c.pick.urls[0] || c.pick.th;
   const sl = SCRY_LANG[lotLangOf(c)] || 'en', p = (c.prints || []).find(x => x.l === sl) || (c.prints || [])[0];
-  return p ? p.urls[0] || p.th : 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(c.n) + '&format=image&version=normal';
+  if (p) return p.urls[0] || p.th;
+  // impressions pas encore lues : l'image déjà connue (ligne du lot, édition, collection), en version moyenne du même serveur d'images ; l'API Scryfall en dernier recours (limitée, peut attendre)
+  const known = c.im || collLineImage(c.k, lotLine(c), (COLL.meta[c.k] || DM[c.k] || {}).im).src;
+  return known ? known.replace('/small/', '/normal/') : 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(c.n) + '&format=image&version=normal';
+}
+/** Infos Scryfall des cartes qui viennent d'arriver dans le lot (image, prix…) : tout de suite, devant les lectures de fond. */
+async function lotMeta(keys) {
+  const need = [...new Set(keys)].filter(k => COLL.map[k] && !COLL.meta[k]); if (!need.length) return;
+  try {
+    const got = await scryCollection(need.map(k => COLL.map[k].n), undefined, null, true);
+    for (const k of need) { const g = got.get(k); if (g) COLL.meta[k] = g; else if (!(k in COLL.meta)) COLL.meta[k] = null; }
+    collMetaSave(); lotPaintList(); lotPaintCard(); collPaintSoon();
+  } catch (e) { collEnrich(); }      // pause Scryfall : la lecture habituelle s'en chargera
 }
 
 /** Choisit une carte (suggestion touchée, ligne du lot à modifier) : impressions dans sa langue lues, puis extension collante appliquée si la carte y existe. */
 async function lotPick(n, p, o = {}) {
   const k = ownKey(n); if (!k) return;
-  const c = LOT.cur = { k, n, p: p || '', l: o.l !== undefined ? o.l : LOT.lang || (p && FRX.l !== 'en' ? FRX.l : ''), q: o.q || 1, e: o.e || '', pick: null, prints: null, err: '', id: ++LOT.seq };
+  const c = LOT.cur = { k, n, p: p || '', l: o.l !== undefined ? o.l : LOT.lang || (p && FRX.l !== 'en' ? FRX.l : ''), q: o.q || 1, e: o.e || '', im: o.im || '', pick: null, prints: null, err: '', id: ++LOT.seq };
   lotPaintCard(); frLoad();
   await lotPrints(c, !o.e);
   if (o.e && LOT.cur === c && c.prints) { const x = c.prints.find(y => edKey(y.set, y.num) === o.e); if (x) { c.pick = x; lotPaintCard(); } }
@@ -105,7 +117,7 @@ function lotAdd() {
   const g = lotLine(c), l = lineLang(g), was = LOT.edit && LOT.list.find(x => x.id === LOT.edit);
   if (c.e && c.pick) edRemember(c.k, l, c.e, edInfoOf(c.pick, l));
   if (was) collBump(was.k, was.n, -was.q, { lang: was.g, paint: false });
-  collBump(c.k, c.n, c.q, { lang: g }); collEnrich(); haptic('ok');
+  collBump(c.k, c.n, c.q, { lang: g }); lotMeta([c.k]); haptic('ok');
   const x = { id: was ? was.id : 'l' + Date.now().toString(36) + (++LOT.seq), k: c.k, n: c.n, p: c.p, g, q: c.q, t: was ? was.t : Date.now(), im: c.pick ? c.pick.th : '', eu: lotEu(c) };
   if (was) LOT.list = LOT.list.map(y => (y.id === was.id ? x : y)); else LOT.list.unshift(x);
   LOT.edit = ''; lotSave();
@@ -171,7 +183,7 @@ async function lotFromScan(items) {
     const top = LOT.list[0];
     if (top && top.k === x.k && top.g === x.g) { top.q = Math.min(999, top.q + x.q); top.t = x.t; if (x.im) top.im = x.im; } else LOT.list.unshift(x);
   }
-  LOT.list = LOT.list.slice(0, LOT_MAX); lotSave(); collEnrich(); collPaintSoon();
+  LOT.list = LOT.list.slice(0, LOT_MAX); lotSave(); lotMeta(out.map(x => x.k)); collPaintSoon();
   lotPaintList(); lotPaintHead();
   return out.length;
 }
@@ -242,7 +254,7 @@ function openLot() {
       const row = b.closest('.lot-it'), x = row && LOT.list.find(y => y.id === row.dataset.id); if (!x) return;
       if (act === 'drop') return lotDrop(x.id);
       haptic('tap'); LOT.edit = x.id; inp.value = x.p || x.n;
-      lotPick(x.n, x.p, { l: lineLang(x.g), q: x.q, e: lineEd(x.g) });
+      lotPick(x.n, x.p, { l: lineLang(x.g), q: x.q, e: lineEd(x.g), im: x.im });
       $('.lot-card', wrap).scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' });
     }
   });

@@ -294,12 +294,12 @@ async function scryPrintsIn(n, sl, signal) {
 }
 
 /** Infos Scryfall d'une liste de cartes par leur nom (75 par requête) : Map(clé de collection → { cm, mc, tl, cl, ci, cd, im, eu, ar } | null si inconnue). ar : artiste de l'illustration (crédit des orbes de l'accueil). */
-async function scryCollection(names, signal, onProgress) {
+async function scryCollection(names, signal, onProgress, prio = false) {
   const out = new Map(), uniq = [...new Map(names.map(n => [ownKey(n), n])).entries()];
   for (let i = 0; i < uniq.length; i += 75) {
     const chunk = uniq.slice(i, i + 75);
     const body = JSON.stringify({ identifiers: chunk.map(([, n]) => ({ name: String(n).split('//')[0].trim() })) });
-    const j = await httpJson(limScry, 'https://api.scryfall.com/cards/collection', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body }, signal);
+    const j = await httpJson(limScry, 'https://api.scryfall.com/cards/collection', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body }, signal, 4, prio);
     for (const c of j.data || []) { const m = metaOf(c); out.set(ownKey(c.name), { cm: m.cmc, mc: m.mc, tl: m.tl, cl: m.cl, ci: (c.color_identity || []).join(''), cd: canBeCommander(c), im: imgOf(c) || '', eu: eurCents(c.prices && c.prices.eur), ar: c.artist || '' }); }
     for (const [k] of chunk) if (!out.has(k)) out.set(k, null);
     if (onProgress) onProgress(Math.min(uniq.length, i + 75), uniq.length);
@@ -342,7 +342,7 @@ async function scrySolo(names, signal) {
 /** Tous les noms de cartes (anglais) : sert à reconnaître un nom lu par OCR. Gardé 14 jours sur l'appareil (~1 Mo). */
 async function scryCatalogNames(signal) {
   const hit = await Cache.get('sc:names', 14 * DAY); if (hit && hit.length > 1000) return hit;
-  const j = await httpJson(limScry, 'https://api.scryfall.com/catalog/card-names', SCRY_JSON, signal);
+  const j = await httpJson(limScry, 'https://api.scryfall.com/catalog/card-names', SCRY_JSON, signal, 4, true);      // attendu à l'écran (saisie, scan) : devant les lectures de fond
   const list = Array.isArray(j && j.data) ? j.data.filter(x => typeof x === 'string') : [];
   if (list.length > 1000) await Cache.set('sc:names', list);
   return list;

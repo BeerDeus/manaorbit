@@ -5,7 +5,8 @@
    · symboles des extensions (/sets, puis les fichiers SVG des extensions de la collection et des prochaines sorties) ;
    · catalogues des noms (Scryfall, noms imprimés) : « Ajouter des cartes » et le scan s'ouvrent sans attente ;
    · petites images (146 px) des lignes de la collection, des decks et de la liste de souhaits : gardées par le service worker (cache des images).
-   Sans faire ramer l'appli : une étape à la fois, jamais pendant une recherche ou un scan, pause dès que l'écran bouge (toucher, défilement, frappe
+   Sans faire ramer l'appli : une étape à la fois, seulement sur l'accueil (aucun écran ni feuille ouverts : ni collection, ni ajout de cartes, ni scan mobile),
+   jamais pendant une recherche ou un scan, pause dès que l'écran bouge (toucher, défilement, frappe
    depuis moins de 1,5 s), appli cachée ou hors ligne ; requêtes Scryfall dans la file normale (celles de l'écran passent devant) ; images 3 par 3,
    seulement en Wi-Fi (ou connexion inconnue), jamais en mode économie de données ni batterie faible (< 20 %, hors charge).
    Reprend où il en était si l'appli se ferme. Réglages › Hors ligne : date du dernier préchargement, « Précharger maintenant ». */
@@ -19,7 +20,7 @@ function warmSave() { try { localStorage.setItem(WARM_KEY, JSON.stringify(WARM.s
 function warmNet() { const c = typeof navigator !== 'undefined' && navigator.connection; return { save: !!(c && c.saveData), cell: !!(c && (c.type === 'cellular' || /(^|-)2g$/.test(c.effectiveType || ''))) }; }
 async function warmBattery() { try { if (!navigator.getBattery) return true; const b = await navigator.getBattery(); return b.charging || b.level >= 0.2; } catch (e) { return true; } }
 /** L'appli est au repos : visible, en ligne, ni recherche ni scan, aucun geste depuis 1,5 s, pas de pause Scryfall. */
-const warmIdle = () => !document.hidden && navigator.onLine !== false && !(S.run && S.run.status === 'running') && !SC.el && Date.now() - WARM.touch > WARM_IDLE && scryLeft() <= 0;
+const warmIdle = () => !document.hidden && navigator.onLine !== false && !(S.run && S.run.status === 'running') && !SC.el && !LOT.el && !MOB.pc && !sheets.length && !imgView && !$$('body > .dv.on').length && Date.now() - WARM.touch > WARM_IDLE && scryLeft() <= 0;      // un écran ouvert (collection, ajout, scan, decks…), une feuille : il attend que tu reviennes à l'accueil
 async function warmWait() {
   while (!WARM.stop && !warmIdle()) await sleep(1000);
   if (WARM.stop) throw Object.assign(new Error('arrêté'), { name: 'AbortError' });
