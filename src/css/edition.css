@@ -38,3 +38,6 @@
 @media (max-width:400px){.sc-item.ed{gap:6px}.sc-item.ed .sc-ed{width:34px;height:34px}.sc-item.ed .qstep button{width:30px}.sc-item.ed .qstep b{min-width:20px}.sc-item.ed .sc-x{width:30px}}
 .rc-ask{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--warn-soft);color:var(--ink);font-size:13.5px;line-height:1.4}
 .rc-ask b{color:var(--warn)}
+.sc-h{margin:6px 2px 0;font-size:11.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.sc-h.todo{color:var(--warn)}
+.sc-h:first-child{margin-top:0}

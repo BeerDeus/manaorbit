@@ -535,33 +535,72 @@ function collCatalog() {
   if (!COLL.namesP) COLL.namesP = scryCatalogNames().then(list => { COLL.names = { list, idx: nameIndex(list), norm: list.map(n => normPart(n)) }; return COLL.names; }).catch(e => { COLL.namesP = null; throw e; });
   return COLL.namesP;
 }
-/** Suggestions de noms pour un texte saisi, en anglais ou en français (index chargé) : commence par · contient tous les mots. [{ n (anglais), p? (nom imprimé français, quand c'est lui qui correspond) }], une fois par carte. */
-function collSuggestX(cat, text, n = 12) {
+/* ── Noms imprimés de toutes les langues pour la saisie (« Ajouter des cartes », « Ajouter une carte ») : names-all.tsv (anglais, fr, de, es, it, pt), le fichier du scan.
+   Gardé sur l'appareil (téléchargé par le scan, sinon ici à la première recherche qui en a besoin, hors réseau mobile) ; index construit par tranches, gardé en mémoire
+   tant que l'appli est ouverte (≈ 150 000 noms : clés normalisées + renvoi à la ligne du fichier). Carte choisie par son nom italien (allemand…) : exemplaire dans cette langue. */
+const NMX = { ks: null, refs: null, rows: null, langs: null, p: null, fail: 0 };
+function nmxLoad() {
+  if (NMX.ks) return Promise.resolve(true);
+  if (NMX.p) return NMX.p;
+  if (Date.now() - NMX.fail < 60000) return Promise.resolve(false);
+  NMX.p = (async () => {
+    let t = await namesAllText().catch(() => null);
+    if (!t && !frcMetered() && navigator.onLine !== false && (await namesAllFetch().catch(() => 0))) t = await namesAllText().catch(() => null);
+    if (!t) { NMX.fail = Date.now(); return false; }
+    const rows = t.split('\n'), langs = rows[0] && rows[0][0] === '#' ? rows[0].split('\t').slice(1).map(x => x.trim()) : NAMES_LANGS, ks = [], refs = [];
+    for (let i = 0; i < rows.length; i += 2000) {
+      for (let j = i, end = Math.min(rows.length, i + 2000); j < end; j++) {
+        const r = rows[j]; if (!r || r[0] === '#') continue;
+        const c = r.split('\t');
+        for (let col = 1; col < c.length && col < 8; col++) {
+          if (!c[col] || !NAMES_LANGS.includes(langs[col - 1])) continue;
+          const ps = c[col].split('|'); for (let x = 0; x < ps.length && x < 8; x++) { const k = ps[x] && normPart(frFront(ps[x])); if (k && k.length >= 2) { ks.push(k); refs.push(j * 64 + col * 8 + x); } }
+        }
+      }
+      await new Promise(r => setTimeout(r, 0));      // l'écran respire
+    }
+    Object.assign(NMX, { rows, langs, ks, refs }); return true;
+  })().catch(() => { NMX.fail = Date.now(); return false; }).finally(() => { NMX.p = null; });
+  return NMX.p;
+}
+/** Entrée i de l'index : { n (anglais), p (imprimé), l (langue) }. */
+function nmxAt(i) {
+  const r = NMX.refs[i], c = NMX.rows[Math.floor(r / 64)].split('\t'), col = (r >> 3) & 7, p = (c[col] || '').split('|')[r & 7] || '';
+  return c[0] && p ? { n: c[0], p: frFront(p), l: NMX.langs[col - 1] } : null;
+}
+/** Suggestions de noms pour un texte saisi : anglais, langue des noms de l'appli (index chargé), puis les autres langues (names-all.tsv, chargé à la première recherche
+ *  qui trouve peu) ; commence par · contient tous les mots. [{ n (anglais), p? (nom imprimé, quand c'est lui qui correspond), l? (sa langue, hors langue des noms) }], une fois par carte.
+ *  again : rappelé quand l'index des autres langues arrive (la liste se repeint). */
+function collSuggestX(cat, text, n = 12, again) {
   const q = normPart(text); if (q.length < 2) return [];
   if (!FRX.ix) frLoad();      // noms français : dès que l'index est là (la frappe suivante en profite)
-  const words = q.split(' ').filter(Boolean), a = [], b = [], seen = new Set();
+  const words = q.split(' ').filter(Boolean), ex = [], a = [], b = [], seen = new Set();
   const take = (arr, x) => { const k = ownKey(x.n); if (!seen.has(k)) { seen.add(k); arr.push(x); } };
-  for (let i = 0; i < cat.norm.length && a.length < n; i++) {
-    const s = cat.norm[i];
-    if (s.startsWith(q)) take(a, { n: cat.list[i] }); else if (b.length < n && words.every(w => s.includes(w))) take(b, { n: cat.list[i] });
-  }
+  const tier = (s, x, loose) => { if (s === q) take(ex, x); else if (s.startsWith(q)) { if (a.length < n) take(a, x); } else if (b.length < n && (loose ? words.every(w => s.includes(w)) : wordsAt(s, words))) take(b, x); };      // nom exact · commence par · contient les mots
+  for (let i = 0; i < cat.norm.length; i++) tier(cat.norm[i], { n: cat.list[i] }, true);
   const fl = FRX.ix ? FRX.ix.list : [];
-  for (let i = 0; i < fl.length && a.length < n; i++) {
-    const e = fl[i];
-    if (e.k.startsWith(q)) take(a, { n: e.en, p: e.n }); else if (b.length < n && words.every(w => e.k.includes(w))) take(b, { n: e.en, p: e.n });
-  }
-  return a.concat(b).slice(0, n);
+  for (let i = 0; i < fl.length; i++) { const e = fl[i]; tier(e.k, { n: e.en, p: e.n }, true); }
+  if (NMX.ks) {      // autres langues : quand l'anglais et la langue des noms trouvent peu ; mots tapés = débuts de mots du nom (« elfos de llan »)
+    const loose = !ex.length && !a.length;      // nom anglais (français…) déjà trouvé par son début : pas de « contient » des autres langues (« sol r » ≠ « Rituel solennel »)
+    if (ex.length + a.length + b.length < 6) for (let i = 0, ks = NMX.ks; i < ks.length; i++) {
+      const s = ks[i]; if (!(s === q || (a.length < n && s.startsWith(q)) || (loose && b.length < n && wordsAt(s, words)))) continue;
+      const x = nmxAt(i); if (x && (loose || s === q || s.startsWith(q))) tier(s, x.l === FRX.l && FRX.ix ? { n: x.n, p: x.p } : x, false);
+    }
+  } else if (q.length >= 3 && ex.length + a.length + b.length < 3) nmxLoad().then(ok => { if (ok && again) again(); });      // peu ou rien trouvé : les autres langues (puis la liste se repeint)
+  return ex.concat(a, b).slice(0, n);
 }
+/** Chaque mot tapé commence un mot du nom (normalisé). */
+const wordsAt = (s, words) => { const ws = s.split(' '); return words.every(w => ws.some(x => x.startsWith(w))); };
 /** Mêmes suggestions, noms anglais seuls (liste de souhaits, éditeur de deck) : un nom français tapé y trouve aussi sa carte. */
 const collSuggest = (cat, text, n = 12) => collSuggestX(cat, text, n).map(x => x.n);
 /** Libellé HTML (échappé) d'une suggestion : le nom imprimé français, l'anglais en petit, quand c'est le français qui correspond au texte tapé ; sinon le nom anglais.
  *  p : nom français déjà connu (collSuggestX) ; sans lui, retrouvé depuis le nom anglais et le texte q. */
-function sugHtml(n, q, p) {
+function sugHtml(n, q, p, l) {
   if (p === undefined) {
     const f = enToFr(n), t = normPart(q), w = t.split(' ').filter(Boolean), hit = s => !!t && (s.startsWith(t) || w.every(x => s.includes(x)));
     p = f && hit(normPart(f)) && !hit(normPart(n)) ? f : '';
   }
-  return p ? `${esc(p)} <small class="ca-en">${esc(n)}</small>` : esc(n);
+  return p ? `${l ? flag(l) + ' ' : ''}${esc(p)} <small class="ca-en">${esc(n)}</small>` : esc(n);      // l : nom d'une autre langue que celle de l'appli (drapeau)
 }
 
 /* ── Section de la page de saisie ─────────────────────────────────────────────────────────────── */
@@ -1102,13 +1141,13 @@ function openCollAdd() {
     const paint = () => {
       const q = inp.value.trim();
       if (!cat) { list.innerHTML = ''; return; }
-      const sug = collSuggestX(cat, q);
-      list.innerHTML = sug.map(x => { const k = ownKey(x.n), have = collQty(k); return `<button type="button" class="ca-opt" role="option" data-n="${esc(x.n)}"${x.p ? ` data-p="${esc(x.p)}"` : ''}><span>${sugHtml(x.n, q, x.p || '')}</span><i>${have ? `× ${have}` : '+'}</i></button>`; }).join('')
-        || (q.length >= 2 ? '<p class="hint">' + (FRX.ix || !namesLang() ? T('Aucune carte de ce nom. Vérifie l\'orthographe.') : nmT('Aucune carte de ce nom. Vérifie l\'orthographe (les noms français arrivent dès que leur liste est chargée).', 'Aucune carte de ce nom. Vérifie l\'orthographe (les noms en {lang} arrivent dès que leur liste est chargée).')) + '</p>' : '');
+      const sug = collSuggestX(cat, q, 12, () => { if (inp.isConnected) paint(); });
+      list.innerHTML = sug.map(x => { const k = ownKey(x.n), have = collQty(k); return `<button type="button" class="ca-opt" role="option" data-n="${esc(x.n)}"${x.p ? ` data-p="${esc(x.p)}"` : ''}${x.l ? ` data-l="${esc(x.l)}"` : ''}><span>${sugHtml(x.n, q, x.p || '', x.l)}</span><i>${have ? `× ${have}` : '+'}</i></button>`; }).join('')
+        || (q.length >= 2 && NMX.p ? '<p class="hint">' + T('Recherche dans les autres langues…') + '</p>' : q.length >= 2 ? '<p class="hint">' + (FRX.ix || !namesLang() ? T('Aucune carte de ce nom. Vérifie l\'orthographe.') : nmT('Aucune carte de ce nom. Vérifie l\'orthographe (les noms français arrivent dès que leur liste est chargée).', 'Aucune carte de ce nom. Vérifie l\'orthographe (les noms en {lang} arrivent dès que leur liste est chargée).')) + '</p>' : '');
     };
     list.onclick = e => {
       const b = e.target.closest('.ca-opt'); if (!b) return;
-      const n = b.dataset.n, p = b.dataset.p || '', k = ownKey(n), l = lang.value || (p ? FRX.l : '');      // nom français (allemand…) choisi : exemplaire dans cette langue (sauf langue choisie au-dessus)
+      const n = b.dataset.n, p = b.dataset.p || '', k = ownKey(n), l = lang.value || b.dataset.l || (p ? FRX.l : '');      // nom français (allemand, italien…) choisi : exemplaire dans cette langue (sauf langue choisie au-dessus)
       collBump(k, n, 1, l ? { lang: l } : undefined); const q = collQty(k); haptic('ok');
       const i = $('i', b); i.textContent = '× ' + q; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
       say(T('{name} · {q} dans ta collection', { name: p || n, q }), true); collEnrich();

@@ -52,6 +52,8 @@ await add('Swords to Plowshares'); await settle();
 assert.equal((await lines())['swords to plowshares'], 'pend ×1', 'ni en DSK (collante) ni en BLB (majorité) : à choisir');
 await add('Sol Ring'); await settle();
 assert.equal((await lines())['sol ring dsk|202'], 'man ×2', '2e Sol Ring : même édition (collante), même ligne');
+assert.deepEqual(await p.$$eval('.sc-list > *', r => r.map(x => x.classList.contains('sc-h') ? '# ' + x.textContent : x.dataset.k)),
+  ['# 1 édition à choisir', 'swords to plowshares', '# Éditions posées', 'sol ring', 'llanowar elves', 'rangers hawk', 'command tower', 'arcane signet'], 'à choisir en tête ; Sol Ring rescanné : remonté en haut');
 await pick('swords to plowshares', 'CMM 200');
 await add('Sol Ring'); await settle();
 L = await lines(); assert.equal(L['sol ring dsk|202'], 'man ×2'); assert.equal(L['sol ring cmm|200'], 'auto ×1', 'CMM collante : ce Sol Ring-là a sa propre ligne');
@@ -65,7 +67,7 @@ await p.click('.sc-item[data-k="command tower"] .sc-ed'); await p.waitForSelecto
 assert.deepEqual(await p.$$eval('.ced-sheet .ced-h, .ced-sheet .ced-t:not(.none) .ced-n', b => b.map(x => x.textContent)), ['Dans ce scan', 'CMM 200', 'BLB 201'], 'extensions du scan d\'abord (CMM collante, puis BLB)');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
 await p.screenshot({ path: 'shots/scan-editions.png' });
-ok('extension unique posée et collante ; majorité du scan ; même carte même ligne, autre édition autre ligne ; feuille : extensions du scan d\'abord');
+ok('extension unique posée et collante ; majorité du scan ; même carte même ligne (remontée en haut), autre édition autre ligne ; cartes à choisir en tête ; feuille : extensions du scan d\'abord');
 
 /* ── 3) récap : prix de l'édition, confirmation des cartes sans édition ─────────────────────────────────────────── */
 await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]');

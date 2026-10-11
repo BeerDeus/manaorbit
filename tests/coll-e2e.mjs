@@ -110,6 +110,7 @@ ok('ajout à la main : suggestions du catalogue, quantité déjà possédée, in
 /* ── 5) persistance ──────────────────────────────────────────────────────────────────────── */
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.coll'), null, { timeout: 3000 });
 assert.match(await txt(p, '#collSub'), /^4 cartes · 10 exemplaires$/);
+await p.waitForTimeout(3300);      // fond de l'accueil (terrains de base, lus 3 s après le retour à l'accueil ; inconnus du faux Scryfall) : avant le compte, pas pendant
 const callsBefore = scryCalls(/^POST \/cards\/collection/);
 await p.waitForTimeout(900);      // infos Scryfall enregistrées sur l'appareil 0,8 s après leur lecture (regroupées)
 await p.reload(); await p.waitForTimeout(900);

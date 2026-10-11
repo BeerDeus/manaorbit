@@ -118,6 +118,8 @@ function scanEdBtn(it) {
   const cls = e ? ' on' + (auto ? ' auto' : '') : it.es === 'load' ? ' load' : it.nx || it.es === 'none' ? '' : ' todo';
   return `<button type="button" class="row-ed sc-ed${cls}" data-a="ed" aria-label="${esc(lab)}" title="${esc(lab)}">${e ? setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>` : ''}</button>`;
 }
+/** Ligne dont l'édition reste à choisir (montrée en tête de la liste). */
+const scanEdIsTodo = x => !x.maybe && !x.e && !x.nx && (x.es === 'pend' || x.es === 'err');
 /** Exemplaires sans édition (« à choisir », en lecture, illisibles) : ce que « Ajouter » fait confirmer. « Sans édition » choisi à la main n'en fait pas partie. */
 function scanEdTodo() {
   let n = 0, load = 0; const lines = [];

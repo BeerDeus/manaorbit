@@ -2,8 +2,12 @@
 // extension collante (proposée d'office aux cartes suivantes qui existent dans cette extension) ; liste du lot (modifier, retirer, nouveau lot, gardée au rechargement) ; cartes du scan.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
+import { writeFileSync } from 'node:fs';
 import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
 
+// noms imprimés de toutes les langues (names-all.tsv, servi par le proxy des tests) : recherche dans une autre langue que l'anglais et le français
+writeFileSync(process.env.PWA_DIR + '/names-all.tsv', ['# anglais\tfr\tde\tes\tit\tpt', 'Llanowar Elves\tElfes de Llanowar\tLlanowarelfen\tElfos de Llanowar\tElfi di Llanowar\tElfos de Llanowar', 'Lightning Bolt\tÉclair\tBlitzschlag\tRelámpago\tFulmine\tRelâmpago', 'Arc Lightning\tÉclair en arc\tBogenblitz\tRelámpago en arco\tFulmine ad Arco\tRaio em Arco',
+  ...Array.from({ length: 600 }, (_, i) => `Filler Card ${i}\tCarte ${i}\t\t\t\t`)].join('\n') + '\n');
 const world = await startWorld({ port: 18995 });
 world.variants['Llanowar Elves'] = { fr: 0, en: 1 };
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -79,6 +83,19 @@ await p.reload(); await p.waitForTimeout(500); await toHome(p); await p.evaluate
 assert.equal(await p.$$eval('.lot-it', r => r.length), 5, 'lot gardé sur l\'appareil');
 await p.waitForFunction(() => /Double Masters 2022/.test(document.querySelector('.lot-sticky').textContent), null, { timeout: 5000 });
 ok('scan → lot (extension collante appliquée) ; lot et extension gardés au rechargement');
+
+/* ── 5) recherche dans les autres langues (names-all.tsv) : nom exact d'abord, drapeau, carte prise dans cette langue ─────────────── */
+await p.selectOption('.lot-lang', '').catch(() => {}); await p.evaluate(() => { LOT.lang = ''; lotSave(); });
+await p.fill('#caName', 'Fulmine'); await p.waitForSelector('.ca-opt[data-n="Lightning Bolt"]', { timeout: 8000 });
+assert.deepEqual(await p.$$eval('.ca-opt', b => b.map(x => [x.dataset.n, x.dataset.l || ''])), [['Lightning Bolt', 'it'], ['Arc Lightning', 'it']], 'nom italien : le nom exact d\'abord');
+assert.match(await txt(p, '.ca-opt[data-n="Lightning Bolt"]'), /Fulmine\s*Lightning Bolt/); assert.ok(await p.$('.ca-opt[data-n="Lightning Bolt"] .flag'), 'drapeau de la langue');
+await p.fill('#caName', 'Elfi di Llan'); await p.waitForSelector('.ca-opt[data-n="Llanowar Elves"][data-l="it"]');
+await p.click('.ca-opt[data-n="Llanowar Elves"]'); await p.waitForSelector('.lot-card:not([hidden]) #lotAdd');
+assert.equal(await p.$eval('.lot-lang', s => s.value), 'it', 'carte prise en italien'); assert.match(await txt(p, '.lot-name'), /Elfi di Llanowar/);
+await edReady(); await p.click('#lotAdd'); await p.waitForFunction(() => { const x = COLL.map['llanowar elves']; return x && x.x && Object.keys(x.x).some(g => g.startsWith('it')); });
+await p.fill('#caName', 'sol r'); await p.waitForSelector('.ca-opt[data-n="Sol Ring"]');
+assert.deepEqual(await p.$$eval('.ca-opt', b => b.map(x => x.dataset.n)), ['Sol Ring'], 'nom anglais trouvé : pas de bruit des autres langues');
+ok('recherche dans les autres langues : « Fulmine » (italien) → Lightning Bolt d\'abord, drapeau ; « Elfi di Llan » → carte ajoutée en italien ; « sol r » sans bruit');
 
 assert.deepEqual(errs, [], 'erreurs page : ' + errs.join(' | '));
 await browser.close(); world.stop();
