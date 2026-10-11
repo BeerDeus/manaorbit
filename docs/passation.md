@@ -10,7 +10,7 @@
 
 ## Façon de travailler (préférences du propriétaire)
 - Réponses en français, directes, en listes, sans préambule ; code d'abord.
-- Le propriétaire teste sur son téléphone : pousser sur `main` une fois les tests passés (branche de travail puis `main`).
+- **Pousser d'abord, tester ensuite** (demandé le 11 octobre) : dès qu'un changement est prêt (`node build.mjs` fait), pousser sur la branche de travail puis sur `main` ; ensuite la batterie de tests tourne en fond (`bash tests/run-tests.sh` et la CI). Un échec : corriger, repousser, relancer, jusqu'à tout vert. Le propriétaire teste sur son téléphone pendant ce temps.
 - Commits en français, terminés par les lignes d'attribution de la session. Aucun nom de modèle ailleurs.
 - Pas de pull request sauf demande.
 - Jamais dans le dépôt : `google-services.json`, clé du compte de service FCM, variables Hostinger. Ne jamais demander ni taper de mot de passe.

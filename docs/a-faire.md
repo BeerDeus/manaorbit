@@ -3,6 +3,7 @@
 ## Pour reprendre (nouvelle session)
 - Lire d'abord ce fichier et `docs/passation.md` (état au 9 octobre, actions du propriétaire en attente), puis `README.md` (fonctionnement), `DEV.md` (build, tests, CI), `docs/android.md` (APK, widget, natif) et `docs/store/` (fiche Play Store, test fermé).
 - Branche de travail, puis `main` (Hostinger déploie `main`). `node build.mjs` après chaque changement de `src/` ; `deck-deal.html` est committé.
+- **Pousser d'abord** (branche puis `main`), puis tests en fond ; échec → corriger, repousser, relancer jusqu'à tout vert (préférence du propriétaire, `docs/passation.md`).
 - Tests : `bash tests/run-tests.sh` (tous, ~30 min) ou une sélection ; la CI GitHub (`tests.yml`, `rules.yml`) les relance à chaque push.
 - Jamais dans le dépôt : `google-services.json`, la clé FCM, les variables Hostinger (voir `README.md`).
 - Code natif (Java, XML Android) modifié → le propriétaire refait l'APK (`android-app` : `npm run setup` puis `npm run apk`). Le reste (site) arrive dans l'APK sans la refaire.
