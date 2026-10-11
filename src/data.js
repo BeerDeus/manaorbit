@@ -264,24 +264,24 @@ async function scryImage({ set, num, lang }, signal) {
 
 /** Toutes les impressions papier d'une carte dans une langue, les plus récentes d'abord : [{ set, num, sn (extension), y (année), th (vignette), urls (grande image de chaque face), fx (particularités),
  *  eu / ef (prix Cardmarket de l'édition, non foil / foil, centimes, null si inconnu), r (rareté) }]. [] si Scryfall n'en a pas dans cette langue. Gardées 2 jours (les prix suivent). */
-async function scryArtPrints(name, lang, signal) {
+async function scryArtPrints(name, lang, signal, prio = true) {      // prio : devant les lectures de fond (écran qui attend) ; false : dans la file (scan)
   const sl = SCRY_LANG[lang] || 'en', n = String(name || '').split('//')[0].trim();
   if (!n || n.includes('"')) return [];
   const key = 'pr3:' + ownKey(n) + ':' + sl, hit = await Cache.get(key, 2 * DAY); if (hit) return hit;
-  const out = await scryPrintsIn(n, sl, signal);
+  const out = await scryPrintsIn(n, sl, signal, prio);
   if (sl !== 'en') {
-    const en = await scryPrintsIn(n, 'en', signal), by = new Map(en.map(p => [p.set + '/' + p.num, p])), have = new Set(out.map(p => p.set + '/' + p.num));
+    const en = await scryPrintsIn(n, 'en', signal, prio), by = new Map(en.map(p => [p.set + '/' + p.num, p])), have = new Set(out.map(p => p.set + '/' + p.num));
     for (const p of out) { const e = by.get(p.set + '/' + p.num); if (e) { p.eu = e.eu; p.ef = e.ef; } }      // Scryfall ne chiffre que l'impression anglaise : la tendance Cardmarket est celle de l'édition, toutes langues confondues
     for (const p of en) if (!have.has(p.set + '/' + p.num)) out.push({ ...p, l: 'en', fx: [...p.fx, T('anglais')] });      // impressions qui n'existent qu'en anglais (promos, séries spéciales…) : après celles de la langue affichée, marquées « anglais »
   }
   await Cache.set(key, out);
   return out;
 }
-async function scryPrintsIn(n, sl, signal) {
+async function scryPrintsIn(n, sl, signal, prio = true) {
   let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('!"' + n + '" lang:' + sl + ' game:paper') + '&unique=prints&order=released&dir=desc';
   const out = [], seen = new Set();
   for (let pg = 0; url && pg < 3; pg++) {
-    let j; try { j = await httpJson(limScry, url, SCRY_JSON, signal, 4, true); } catch (e) { if (e.code === '404') j = { data: [] }; else throw e; }
+    let j; try { j = await httpJson(limScry, url, SCRY_JSON, signal, 4, prio); } catch (e) { if (e.code === '404') j = { data: [] }; else throw e; }
     for (const c of j.data || []) {
       const urls = facesOf(c), im = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris) || {}, id = c.set + '/' + c.collector_number;
       if (!urls.length || seen.has(id)) continue; seen.add(id);

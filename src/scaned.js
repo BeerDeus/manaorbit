@@ -91,8 +91,9 @@ function scanEdNeed(it) {
   const pk = scanPk(it.key, it.l);
   if (SC.pr.has(pk)) { scanEdLoaded(pk); return; }
   if (SC.prq.has(pk)) return;
-  const sess = SC.session;
-  SC.prq.set(pk, scryArtPrints(it.name, it.l || 'en').then(list => list || [], () => 'err').then(r => {
+  const sess = SC.session, name = it.name, l = it.l || 'en';
+  const first = FRC.p && FRC.state === 'run' ? FRC.p.catch(() => {}) : Promise.resolve();      // catalogue des noms en téléchargement chez Scryfall : il passe d'abord (la lecture des noms en dépend)
+  SC.prq.set(pk, first.then(() => scryArtPrints(name, l, undefined, false)).then(list => list || [], () => 'err').then(r => {
     if (SC.session !== sess) return;
     SC.prq.delete(pk); SC.pr.set(pk, r); scanEdLoaded(pk); scanPaintList();
   }));

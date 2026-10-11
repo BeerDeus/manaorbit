@@ -222,7 +222,7 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
   await w2.evaluate(() => { IMG_LIM.bytes = 100000; IMG_LIM.big = 1; });      // grandes images : plus aucune place
   assert.equal(await q.evaluate(u => new Promise(res => { const i = new Image(); i.onload = () => res(true); i.src = u; }), 'https://cards.scryfall.io/small/front/a/b/s-2.jpg'), true);
   await q.waitForFunction(() => caches.keys().then(ks => caches.open(ks.find(k => /-img$/.test(k)))).then(c => c.keys()).then(ks => !ks.some(k => /\/large\//.test(k.url))), null, { polling: 50, timeout: 5000 });
-  const allImgs = () => q.evaluate(async () => { const k = (await caches.keys()).find(k => /-img$/.test(k)); return k ? (await (await caches.open(k)).keys()).map(r => r.url.split('/').pop()).sort() : []; });
+  const allImgs = () => q.evaluate(async () => { const k = (await caches.keys()).find(k => /-img$/.test(k)); return k ? (await (await caches.open(k)).keys()).map(r => r.url.split('/').pop()).filter(n => /^(s|big)-\d+\.jpg$/.test(n)).sort() : []; });      // images du test seulement (le fond de l'accueil peut en ajouter)
   assert.deepEqual(await allImgs(), ['s-1.jpg', 's-2.jpg'], 'les grandes partent, les petites restent');
   await w2.evaluate(() => { IMG_LIM.bytes = 100000; IMG_LIM.big = 40 * 1024 * 1024; });
   ok('images : les petites (aperçus) restent, les grandes (carte en grand) partent les premières');
