@@ -24,3 +24,17 @@
 .ced-t.none{border-style:dashed}
 .ced-q{display:grid;place-items:center;width:34px;height:34px;color:var(--ink-3)}
 .ced-q .i{width:24px;height:24px;opacity:.6}
+.ced-h{grid-column:1/-1;margin:2px 0 -2px;font-size:11.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+/* scan : symbole de l'édition à gauche de la quantité ; « à choisir » orangé, en lecture qui tourne, posée d'office avec un point */
+.sc-item.ed{grid-template-columns:auto minmax(0,1fr) auto auto auto;gap:8px}
+.sc-ed{width:38px;height:38px;position:relative}
+.sc-ed.todo{border:1.5px dashed var(--warn);background:var(--warn-soft);color:var(--warn)}
+.sc-ed.todo::after{content:"?";width:auto;height:auto;border:0;border-radius:0;transform:none;opacity:1;font-weight:800;font-size:16px;line-height:1}
+.sc-ed.load{border:2px solid var(--line);border-top-color:var(--accent);animation:scspin .8s linear infinite;cursor:default}
+.sc-ed.load::after{display:none}
+.sc-ed.auto::before{content:"";position:absolute;top:0;right:0;width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--surface)}
+.sc-item.hl{animation:schl 1.4s ease-out}
+@keyframes schl{0%,40%{box-shadow:0 0 0 2px var(--warn)}100%{box-shadow:0 0 0 0 transparent}}
+@media (max-width:400px){.sc-item.ed{gap:6px}.sc-item.ed .sc-ed{width:34px;height:34px}.sc-item.ed .qstep button{width:30px}.sc-item.ed .qstep b{min-width:20px}.sc-item.ed .sc-x{width:30px}}
+.rc-ask{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--warn-soft);color:var(--ink);font-size:13.5px;line-height:1.4}
+.rc-ask b{color:var(--warn)}

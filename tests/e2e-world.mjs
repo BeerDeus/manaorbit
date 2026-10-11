@@ -32,7 +32,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0 } = {}
   const prints = {}; CARDS.forEach(([n, , cmc, tl, mc, , colors, eur], i) => { prints[n] = [{ id: 's-' + slug(n), set: 'cmm', set_name: 'Commander Masters', collector_number: String(400 + i), name: n, cmc, type_line: tl, mana_cost: mc, colors, prices: { eur }, color_identity: colors, legalities: { commander: 'legal' },
     image_uris: { small: `https://cards.scryfall.io/small/front/a/b/${slug(n)}.jpg` } }]; });
   const bps = CARDS.map(([n, bp]) => ({ id: bp, name: n, scryfall_id: 's-' + slug(n) }));
-  const world = { edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, basics: false, en: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
+  const world = { edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, basics: false, en: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
   const up = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x'), path = u.pathname.replace('/api/v2/', ''); log.push({ path, q: Object.fromEntries(u.searchParams) });
     const send = (o, s = 200) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
@@ -84,6 +84,8 @@ export async function newPage(browser, world, opts = {}) {
     if (u.pathname === '/cards/search' && u.searchParams.get('unique') === 'prints' && u.searchParams.get('dir') === 'desc' && /lang:[a-z]+/.test(u.searchParams.get('q'))) {      // impressions d'une carte dans une langue : « !"Nom" lang:fr game:paper » (world.variants[nom] = { fr, en } nombre d'impressions)
       const q = u.searchParams.get('q'), l = (/lang:([a-z]+)/.exec(q) || [])[1] || 'en', nm = namesIn(q)[0], c = CARDS.find(x => nm && front(x[0]) === front(nm));
       world.printsReq = (world.printsReq || 0) + 1;
+      const ps = c && world.psets[c[0]];      // world.psets[nom] = ['dsk', 'blb', …] : une impression par extension (n° 200, 201…), dans toutes les langues ; 'p…' : promo
+      if (ps) return json({ object: 'list', has_more: false, data: ps.map((s, i) => ({ name: c[0], lang: l, set: s, set_name: s.toUpperCase() + ' Set', collector_number: String(200 + i), released_at: (2024 - i) + '-01-01', full_art: false, border_color: 'black', frame_effects: [], promo: s[0] === 'p', rarity: 'common', prices: { eur: l === 'en' ? '0.' + (10 + i) : null, eur_foil: null }, image_uris: { small: `https://cards.scryfall.io/small/front/${l}/${slug(c[0])}-${s}.jpg`, large: `https://cards.scryfall.io/large/front/${l}/${slug(c[0])}-${s}.jpg` } })) });
       const n = c && !(l === 'fr' && world.noFr.has(c[0])) ? ((world.variants[c[0]] || { fr: 3, en: 4 })[l] ?? 0) : 0;
       if (!n) return json({ object: 'error', code: 'not_found' }, 404);
       const sets = ED_SETS;
@@ -176,4 +178,10 @@ export async function signInFake(p, user = {}) {
     // identifiant neuf à chaque appel : cet appareil n'a encore rien « vu » de ce compte (sinon un compte vide passerait pour supprimé ailleurs)
     onUser({ uid: 'u-test-' + Math.random().toString(36).slice(2, 8), email: 'test@example.com', displayName: 'Test', emailVerified: true, providerData: [{ providerId: 'password' }], reload: async () => {}, getIdToken: async () => '', ...u });
   }, user);
+}
+/** « Ajouter » du récap du scan ; cartes sans édition (scaned.js) : « Ajouter quand même ». */
+export async function rcGo(p) {
+  await p.click('.rc-sheet [data-rc="go"]');
+  await p.waitForFunction(() => !document.querySelector('.rc-sheet') || document.querySelector('.rc-sheet [data-rc="force"]') || !sheets.some(s => s.wrap.classList.contains('rc-sheet')), null, { timeout: 5000 });
+  if (await p.$('.rc-sheet [data-rc="force"]')) await p.click('.rc-sheet [data-rc="force"]');
 }

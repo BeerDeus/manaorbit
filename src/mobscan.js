@@ -1,6 +1,7 @@
 /* ── mobscan.js : « Scan mobile » : le PC attend (page « Ajouter des cartes »), le téléphone scanne, chaque carte arrive dans le lot du PC ──────────────
    Même compte sur les deux appareils, rien à appairer. Document users/{uid}/meta/scan :
-     { on (le PC attend), s (session), dev (appareil du PC), by (son nom), at (dernier signe de vie, ms), items: [{ i, k, n, q, l }], updatedAt }.
+     { on (le PC attend), s (session), dev (appareil du PC), by (son nom), at (dernier signe de vie, ms), items: [{ i, k, n, q, l, e }], updatedAt }.
+     e : édition décidée sur le téléphone (scaned.js : posée d'office ou choisie ; '' : sans) ; absente (téléphone plus ancien) : l'extension collante du lot du PC.
    · PC : « Scan mobile » écrit { on: true, s, dev, by, at, items: [] }, puis renouvelle « at » chaque minute. Chaque carte reçue rejoint le lot
      (lotFromScan : extension collante ; q négatif : exemplaires retirés), puis sort du document (arrayRemove). « Arrêter », fermer la page : on = false.
    · Téléphone (connecté, autre appareil) : PC en attente depuis moins de 3 min → bandeau « Ton PC attend des cartes · Scanner ». Le scan s'ouvre
@@ -76,25 +77,36 @@ function mobLost() { MOB.pc = null; clearInterval(MOB.beatT); MOB.beatT = 0; mob
 async function mobTake(d) {
   const all = Array.isArray(d.items) ? d.items : [], fresh = all.filter(x => x && typeof x.i === 'string' && !MOB.seen.has(x.i)); if (!fresh.length) return;
   fresh.forEach(x => MOB.seen.add(x.i));
-  const ok = fresh.map(x => { const n = String(x.n || '').slice(0, 150), k = ownKey(n), q = Math.max(-99, Math.min(99, Math.round(Number(x.q) || 0))), l = CARD_LANG_LIST.includes(x.l) ? x.l : ''; return k && q ? { k, n, q, l } : null; }).filter(Boolean);
+  const ok = fresh.map(x => {
+    const n = String(x.n || '').slice(0, 150), k = ownKey(n), q = Math.max(-99, Math.min(99, Math.round(Number(x.q) || 0))), l = CARD_LANG_LIST.includes(x.l) ? x.l : '';
+    const e = typeof x.e !== 'string' ? undefined : x.e && edKey(edSet(x.e), edNum(x.e)) === x.e ? x.e : '';      // édition du téléphone (vérifiée) ; undefined : téléphone sans éditions au scan
+    return k && q ? { k, n, q, l, ...(e !== undefined ? { e } : {}) } : null;
+  }).filter(Boolean);
   const add = ok.filter(x => x.q > 0), sub = ok.filter(x => x.q < 0);
-  if (add.length && LOT.el) await lotFromScan(add);
-  else if (add.length) { for (const x of add) collBump(x.k, x.n, x.q, { lang: x.l, paint: false }); collEnrich(); }      // page fermée entre-temps : la collection quand même
-  for (const x of sub) lotTakeBack(x.k, x.n, x.l, -x.q);
+  let run = [];      // dans l'ordre d'envoi : une édition changée sur le téléphone = retrait de l'ancienne ligne, puis ajout sur la nouvelle
+  const flush = async () => {
+    if (!run.length) return; const r = run; run = [];
+    if (LOT.el) await lotFromScan(r);
+    else { for (const x of r) collBump(x.k, x.n, x.q, { lang: lineKey(x.l, x.e), paint: false }); collEnrich(); }      // page fermée entre-temps : la collection quand même
+  };
+  for (const x of ok) { if (x.q > 0) { run.push(x); continue; } await flush(); lotTakeBack(x.k, x.n, x.l, -x.q, x.e); }
+  await flush();
   MOB.got = Math.max(0, MOB.got + ok.reduce((a, x) => a + x.q, 0)); if (add.length) MOB.last = add[add.length - 1].n;      // corrections du téléphone comprises
-  mobPaint(); if (add.length) toast(add.length > 1 ? T('{n} cartes reçues du téléphone', { n: add.reduce((a, x) => a + x.q, 0) }) : T('{name} reçue du téléphone', { name: add[0].n }));
+  const fix = new Set(sub.map(x => x.k)), news = add.filter(x => !fix.has(x.k));      // une correction (édition, langue) n'est pas une carte reçue
+  mobPaint(); if (news.length) toast(news.length > 1 ? T('{n} cartes reçues du téléphone', { n: news.reduce((a, x) => a + x.q, 0) }) : T('{name} reçue du téléphone', { name: news[0].n }));
   if (D.user && D.cloud.scanTake) D.cloud.scanTake(D.user.uid, fresh).catch(() => {});      // les mêmes objets : arrayRemove les retrouve
 }
-/** Correction venue du téléphone (« − », retrait, autre langue) : q exemplaires de la carte (langue l) sortent du lot (les plus récents d'abord) et de la collection. */
-function lotTakeBack(k, n, l, q) {
-  let left = q;
+/** Correction venue du téléphone (« − », retrait, autre langue, autre édition) : q exemplaires de la carte (langue l, édition e si le téléphone la donne)
+ *  sortent du lot (les plus récents d'abord) et de la collection. */
+function lotTakeBack(k, n, l, q, e) {
+  let left = q; const g = e === undefined ? null : lineKey(lotLangOf({ k, l }), e);
   for (const x of LOT.list) {
     if (!left) break;
-    if (x.k !== k || lineLang(x.g) !== l) continue;
+    if (x.k !== k || (g !== null ? x.g !== g : lineLang(x.g) !== l)) continue;
     const t = Math.min(left, x.q); collBump(x.k, x.n, -t, { lang: x.g, paint: false }); x.q -= t; left -= t;
   }
   LOT.list = LOT.list.filter(x => x.q > 0); lotSave();
-  if (left) collBump(k, n, -left, { lang: l, paint: false });      // pas (plus) dans le lot : la ligne de cette langue
+  if (left) collBump(k, n, -left, { lang: g !== null ? g : l, paint: false });      // pas (plus) dans le lot : la ligne de cette langue (et édition)
   lotPaintList(); lotPaintHead(); collPaintSoon();
 }
 /** Sans compte : explication, puis connexion. */
@@ -139,14 +151,14 @@ function mobBar() {
 function mobSync() {
   if (!SC.remote) return;
   const want = new Map();
-  for (const e of SC.items.values()) if (!e.maybe) want.set(e.id, e);
+  for (const e of SC.items.values()) if (!e.maybe && (e.es !== 'load' || MOB.sent.has(e.id))) want.set(e.id, e);      // édition en lecture : la carte part avec elle (une seconde plus tard)
   const ids = new Set([...want.keys(), ...MOB.sent.keys()]);
   for (const id of ids) {
     const e = want.get(id), was = MOB.sent.get(id), have = was ? was.q : 0, q = e ? e.q : 0;
     if (q === have) continue;
     const it = e || was;
-    MOB.queue.push({ i: mobRand(), k: it.key || it.k, n: it.name || it.n, q: q - have, l: it.l || '' });
-    if (q) MOB.sent.set(id, { k: it.key || it.k, n: it.name || it.n, l: it.l || '', q }); else MOB.sent.delete(id);
+    MOB.queue.push({ i: mobRand(), k: it.key || it.k, n: it.name || it.n, q: q - have, l: it.l || '', e: it.e || '' });
+    if (q) MOB.sent.set(id, { k: it.key || it.k, n: it.name || it.n, l: it.l || '', e: it.e || '', q }); else MOB.sent.delete(id);
   }
   mobFlush();
 }

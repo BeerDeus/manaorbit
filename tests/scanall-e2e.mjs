@@ -7,7 +7,7 @@ import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { chromium, startWorld, newPage, ok, toHome, slug } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, toHome, slug, rcGo } from './e2e-world.mjs';
 import { namesAll } from '../gen-names-all.mjs';
 
 const TESS_DIR = process.env.TESS_DIR || new URL('../tests/node_modules', import.meta.url).pathname;
@@ -108,7 +108,7 @@ let ref;
   await shot(p, 'scanall-1-liste');
   ok('sans le serveur : « Fulmine » et « Contromagia » (it), « Blitzschlag » (de), « Espadas en guadañas » (es) → bonne carte, bonne langue, image de la langue, aucune requête');
   // ajout : exemplaires italiens, allemand et espagnol dans la collection, image de leur langue
-  await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]'); await p.click('.rc-sheet [data-rc="go"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+  await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]'); await rcGo(p); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
   const coll = await p.evaluate(() => Object.fromEntries(['lightning bolt', 'counterspell'].map(k => [k, collLines(COLL.map[k])])));
   assert.deepEqual(coll['lightning bolt'].map(x => x.join(':')).sort(), ['de:1', 'it:1']); assert.deepEqual(coll.counterspell, [['it', 1]]);
   await p.waitForFunction(() => { const i = document.querySelector('.crow[data-k="counterspell"] .thumb img'); return i && /\/it\/counterspell\.jpg$/.test(i.src); }, null, { timeout: 8000 });

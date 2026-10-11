@@ -114,31 +114,39 @@ function edRemember(k, l, e, info) {
   if (info.li && l && l !== 'en') COLL.li[liKey(l, k + '|' + e)] = info.li;
   collMetaSave();
 }
-/** Sélecteur d'édition d'une ligne de la liste : les éditions de la carte (symbole, code et numéro, prix ; dans la langue de la ligne, puis celles qui n'existent qu'en anglais) et « Sans édition ». */
-function collEdPick(k, g) {
-  const x = COLL.map[k]; if (!x) return;
-  const l = lineLang(g), cur = lineEd(g), name = frName(k, l) || x.n; haptic('tap'); setIcLoad();
-  openSheet(T('Édition de {name}', { name }), l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', api => {
+/** Feuille de choix d'une édition : une tuile par impression (symbole, code et numéro, prix, particularités) et « Sans édition ».
+ *  o : { name, sub, cur ('set|num', '' : sans édition), load () → Promise(impressions), front (extensions à montrer d'abord, sous frontLabel), onPick(impression | null) }. */
+function edSheet(o) {
+  setIcLoad();
+  return openSheet(T('Édition de {name}', { name: o.name }), o.sub || '', api => {
     api.wrap.classList.add('ced-sheet');
     let prints = null, err = '';
+    const tile = (p, i) => {
+      const e = edKey(p.set, p.num), px = p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', ic = setIcHtml(p.set);
+      return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
+    };
     const paint = () => {
       if (!sheets.includes(api)) return;
       if (!prints) { api.body.innerHTML = `<p class="hint">${err ? esc(err) : T('Éditions…')}</p>`; return; }
-      api.body.innerHTML = `<div class="ced-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name }))}">${prints.map((p, i) => {
-        const e = edKey(p.set, p.num), px = p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', ic = setIcHtml(p.set);
-        return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
-      }).join('')}<button type="button" class="ced-t none" role="radio" data-i="-1" aria-checked="${!cur}"><span class="ced-q" aria-hidden="true"><svg class="i"><use href="#i-stack"/></svg></span><span class="ced-n">${T('Sans édition')}</span></button></div>`;
+      const fr = (o.front || []).filter(s => prints.some(p => p.set === s)), all = prints.map((p, i) => [p, i]);
+      const top = fr.flatMap(s => all.filter(([p]) => p.set === s)), rest = top.length ? all.filter(([p]) => !fr.includes(p.set)) : all;
+      api.body.innerHTML = `<div class="ced-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: o.name }))}">${top.length ? `<p class="ced-h">${esc(o.frontLabel || '')}</p>${top.map(([p, i]) => tile(p, i)).join('')}${rest.length ? `<p class="ced-h">${T('Autres éditions')}</p>` : ''}` : ''}${rest.map(([p, i]) => tile(p, i)).join('')}<button type="button" class="ced-t none" role="radio" data-i="-1" aria-checked="${!o.cur}"><span class="ced-q" aria-hidden="true"><svg class="i"><use href="#i-stack"/></svg></span><span class="ced-n">${T('Sans édition')}</span></button></div>`;
     };
     paint(); setIcLoad(paint);
-    scryArtPrints(x.n, l || 'en').then(list => { prints = list; paint(); }, e => { err = scryLeft() > 0 ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Éditions indisponibles pour l\'instant (hors ligne ?)'); paint(); });
+    o.load().then(list => { prints = list || []; paint(); }, () => { err = scryLeft() > 0 ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Éditions indisponibles pour l\'instant (hors ligne ?)'); paint(); });
     api.body.addEventListener('click', e => {
       const b = e.target.closest('.ced-t'); if (!b || !prints) return;
-      const i = Number(b.dataset.i), p = i >= 0 ? prints[i] : null, ne = p ? edKey(p.set, p.num) : '';
-      haptic('ok'); api.close();
-      if (ne === cur) return;
-      collSetEd(k, g, ne, p ? edInfoOf(p, l) : null); collPaintBody(true);
+      const i = Number(b.dataset.i), p = i >= 0 ? prints[i] : null;
+      haptic('ok'); api.close(); o.onPick(p);
     });
   });
+}
+/** Sélecteur d'édition d'une ligne de la liste : les éditions de la carte (dans la langue de la ligne, puis celles qui n'existent qu'en anglais) et « Sans édition ». */
+function collEdPick(k, g) {
+  const x = COLL.map[k]; if (!x) return;
+  const l = lineLang(g), cur = lineEd(g), name = frName(k, l) || x.n; haptic('tap');
+  edSheet({ name, sub: l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', cur, load: () => scryArtPrints(x.n, l || 'en'),
+    onPick: p => { const ne = p ? edKey(p.set, p.num) : ''; if (ne === cur) return; collSetEd(k, g, ne, p ? edInfoOf(p, l) : null); collPaintBody(true); } });
 }
 
 /* ── Cartes imprimées une seule fois (en papier) : leur édition est forcément celle-là, posée d'office sur les lignes sans édition ──────────

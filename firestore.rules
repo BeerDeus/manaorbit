@@ -60,7 +60,7 @@ service cloud.firestore {
     //  · history    : valeur de la collection dans le temps ({ pts: [{ t, v: centimes, n: cartes, q: exemplaires }, …] }, un par jour, 420 au plus ; pas de tableaux imbriqués dans Firestore)
     //  · trade      : liste d'échange ({ keep: réserve, kept: [cartes gardées], wish: { carte: { n, q } }, share: id du lien, dsh: { deck: id du lien } })
     //  · profile    : pseudo (30 caractères) et photo (data:image, ≤ 40 Ko), affichés sur les liens partagés
-    //  · scan       : scan mobile ({ on, s, dev, by, at, items: [{ i, k, n, q, l }] ≤ 60 }) : le PC attend, le téléphone y dépose les cartes scannées
+    //  · scan       : scan mobile ({ on, s, dev, by, at, items: [{ i, k, n, q, l, e }] ≤ 60 }) : le PC attend, le téléphone y dépose les cartes scannées
     match /users/{uid}/meta/{docId} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid

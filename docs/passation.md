@@ -49,6 +49,7 @@
 ## Fait la nuit du 10 au 11 octobre
 - **Édition par ligne** (comme ManaBox) : « 2 Sol Ring (CMM) 400 *FR* », choisie dans Carte en grand › Illustrations (symbole, extension, prix sous chaque illustration) ; prix de l'édition sur la ligne et dans la valeur ; import ManaBox / Moxfield avec éditions, export CSV avec « Collector Number ».
 - **« Ajouter des cartes »** (bouton + de la collection) : recherche, carte en grand, édition, quantité, langue, Ajouter ; extension collante ; liste du lot modifiable ; Scanner vers le lot.
+- **Édition au scan** (`scaned.js`) : symbole d'édition par carte scannée, posée d'office (extension unique, collante, majorité du scan, même carte), sinon à choisir ; confirmation à l'ajout ; le téléphone du scan mobile envoie l'édition (`e`) avec chaque carte.
 - **Scan mobile** : PC › Ajouter des cartes › Scan mobile › Activer ; le téléphone (même compte) propose « Scanner » et chaque carte arrive dans le lot du PC (document Firestore `meta/scan`).
 - Tests `edition-e2e`, `lot-e2e`, `mobscan-e2e`, règles (`rules-test.mjs`, vérifiées sur l'émulateur Firestore).
 

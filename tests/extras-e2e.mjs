@@ -2,7 +2,7 @@
 // scan « prix rapide ». Faux CardTrader / Scryfall (e2e-world), vrai proxy.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, done, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, done, toInput, toHome, rcGo } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18950 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -263,7 +263,7 @@ const errsOf = [];
   await p.evaluate(() => scanAdd({ key: 'sol ring', name: 'Sol Ring', card: 'en', score: 0.98, raw: 'Sol Ring' }, 1, false)); await p.waitForFunction(() => document.querySelectorAll('.sc-item[data-k="sol ring"]').length === 2);
   await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]');
   assert.match(await txt(p, '.rc-sheet .rc-facts'), /Déjà possédées\s*1 carte · \+4 ex\./, 'une carte (pas deux lignes) déjà possédée'); assert.match(await txt(p, '.rc-sheet .cs-tiles'), /1\s*carte différente/);
-  await p.click('.rc-sheet [data-rc="go"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+  await rcGo(p); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
   assert.deepEqual(await p.evaluate(() => COLL.map['sol ring'].x), { fr: 4, en: 1 }, '1 FR déjà là + 3 FR scannés, 1 EN scannée : une ligne par langue');
   ok('scan : même carte en FR et en EN = deux lignes (quantités séparées), langue changée → fusion, ajout à la collection par ligne, fiche récap sans doublon de carte');
   await p.context().close();

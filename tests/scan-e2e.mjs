@@ -3,7 +3,7 @@ import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { chromium, startWorld, newPage, txt, ok, CARDS, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, CARDS, toInput, toHome, rcGo } from './e2e-world.mjs';
 
 const TESS_DIR = process.env.TESS_DIR || new URL('../tests/node_modules', import.meta.url).pathname;
 if (!existsSync(TESS_DIR + '/tesseract.js')) { console.log('· tesseract.js absent (TESS_DIR) : test OCR ignoré'); process.exit(0); }
@@ -96,7 +96,7 @@ if (cents) await p.waitForFunction(() => document.querySelectorAll('.rc-sheet .c
 await p.waitForTimeout(700); await p.screenshot({ path: 'shots/scan-recap.png' });
 await p.click('.rc-sheet .sheet-foot .btn.ghost'); await p.waitForFunction(() => !document.querySelector('.rc-sheet'), null, { timeout: 3000 }); assert.ok(await p.$('.scan'), 'Retour : le scan reste ouvert'); assert.equal(await p.evaluate(() => collCount()), 0, 'rien ajouté');
 await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]');
-await p.click('.rc-sheet [data-rc="go"]'); await p.waitForFunction(() => !document.querySelector('.scan') && !document.querySelector('.rc-sheet'), null, { timeout: 3000 });
+await rcGo(p); await p.waitForFunction(() => !document.querySelector('.scan') && !document.querySelector('.rc-sheet'), null, { timeout: 3000 });
 await p.waitForFunction(n => document.querySelectorAll('.crow').length === n, want.length, { timeout: 5000 });
 assert.equal(await p.evaluate(() => collQty('wrath of god')), 2); assert.equal(await p.evaluate(() => collQty('llanowar elves')), 0);
 assert.match(await txt(p, '#toast'), new RegExp(`${total} cartes ajoutées à ta collection`));
@@ -126,7 +126,7 @@ assert.match(await p.$eval('.sc-item[data-k="sol ring"] .sc-th', i => i.src), /\
 await p.selectOption('.sc-item[data-k="sol ring"] .lchip select', 'en'); assert.equal(await p.$eval('.sc-item[data-k="sol ring"] .sc-n b', e => e.textContent), 'Sol Ring', 'carte passée en anglais : nom anglais'); assert.match(await p.$eval('.sc-item[data-k="sol ring"] .sc-th', i => i.src), /api\.scryfall\.com\/cards\/named/, 'langue anglaise : miniature anglaise');
 await p.selectOption('.sc-item[data-k="sol ring"] .lchip select', 'fr'); assert.match(await p.$eval('.sc-item[data-k="sol ring"] .sc-th', i => i.src), /\/fr\/sol-ring\.jpg$/, 'retour au français : image gardée');
 await p.screenshot({ path: 'shots/scan-1c-langue.png' });
-await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]'); await p.click('.rc-sheet [data-rc="go"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]'); await rcGo(p); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
 assert.equal(await p.evaluate(() => COLL.map['sol ring'].l), 'fr'); assert.match(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t), /\d+ Sol Ring( \(D[0-9a-z]{6}\))? \*FR\*/, 'langue dans le texte enregistré (et envoyé au compte)');
 await p.waitForSelector('.crow[data-k="sol ring"] .lchip[data-l="fr"]'); await p.waitForFunction(() => { const i = document.querySelector('.crow[data-k="sol ring"] .thumb img'); return i && /\/fr\/sol-ring\.jpg$/.test(i.src); }, null, { timeout: 5000 });
 assert.equal(await p.$eval('.crow[data-k="craterhoof behemoth"] .lchip', e => e.dataset.l), 'en', 'carte lue en anglais : langue en');

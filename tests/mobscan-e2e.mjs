@@ -1,11 +1,13 @@
 // E2E « Scan mobile » : un PC (page « Ajouter des cartes », souris, grand écran) et un téléphone sur le même compte, face à un faux document Firestore partagé
 // users/u1/meta/scan (setDoc, updateDoc, arrayUnion, arrayRemove, écoute temps réel). Le PC attend ; le téléphone voit « Ton PC attend des cartes », scanne en mode
-// « vers ton PC » ; chaque carte (et chaque correction) arrive dans le lot du PC, avec l'extension collante ; « Arrêter », signe de vie trop vieux, compte absent.
+// « vers ton PC » ; chaque carte (et chaque correction, édition comprise) arrive dans le lot du PC, avec l'édition décidée sur le téléphone (scaned.js) ;
+// « Terminer » avec des cartes sans édition : confirmation ; « Arrêter », signe de vie trop vieux, compte absent.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { chromium, startWorld, newPage, ok, txt, toHome } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18997 });
+world.psets['Wrath of God'] = ['m21', 'lea'];      // pas en 2X2 : reste à choisir
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const server = { scan: null, subs: new Map(), pushes: 0, takes: 0, deny: false };
@@ -76,15 +78,20 @@ await sleep(300); assert.equal(await pc.$('#mobBar'), null, 'le PC ne se propose
 await ph.screenshot({ path: 'shots/mobscan-1-telephone.png' });
 ok('PC connecté : « Activer » écrit { on, s, dev, by, at, items: [] } ; le téléphone (même compte) voit « Ton PC attend des cartes · Chrome… », pas le PC');
 
-/* ── 3) le téléphone scanne « vers ton PC » : chaque carte arrive dans le lot du PC (extension collante) ; corrections suivies ─────── */
+/* ── 3) le téléphone scanne « vers ton PC » : chaque carte arrive dans le lot du PC avec l'édition du téléphone ; corrections suivies ─────── */
 await ph.click('#mobBar [data-act="go"]'); await ph.waitForSelector('.dv.scan.remote.on'); assert.equal(await ph.$('#mobBar'), null, 'bandeau caché pendant le scan');
 assert.equal(await txt(ph, '.dv-foot [data-act="done"]'), 'Terminer');
 await ph.evaluate(() => scanAdd({ key: 'sol ring', name: 'Sol Ring', card: 'fr', score: 1, raw: 'Anneau solaire' }, 1, false));
 await pc.waitForFunction(() => document.querySelectorAll('.lot-it').length === 1, null, { timeout: 8000 });
 await pc.waitForFunction(() => COLL.map['sol ring'], null, { timeout: 5000 });
-assert.deepEqual(await collX(pc, 'sol ring'), { 'fr|2x2|101': 1 }, 'langue lue au scan, extension collante du PC');
-assert.deepEqual((await lotRows(pc))[0].tags.slice(0, 1), ['Double Masters 2022 #101']);
+assert.deepEqual(await collX(pc, 'sol ring'), { fr: 1 }, 'langue lue au scan ; première carte du scan : édition à choisir (sur le téléphone), pas l\'extension du lot du PC');
 await pc.waitForFunction(() => /1 carte reçue · Sol Ring/.test(document.querySelector('.mob-pc').textContent));
+// édition choisie sur le téléphone : la ligne du lot du PC suit (retrait de la ligne sans édition, ajout sur celle de l'édition), sans « reçue » de plus
+await ph.click('.sc-item[data-k="sol ring"] .sc-ed.todo'); await ph.waitForSelector('.ced-sheet .ced-t[data-i]');
+await ph.locator('.ced-sheet .ced-t', { hasText: '2X2 101' }).first().click();
+await pc.waitForFunction(() => { const x = COLL.map['sol ring']; return x && x.x && x.x['fr|2x2|101'] === 1 && !x.x.fr; }, null, { timeout: 8000 });
+await pc.waitForFunction(() => document.querySelectorAll('.lot-it').length === 1 && /Double Masters 2022 #101/.test(document.querySelector('.lot-it').textContent), null, { timeout: 5000 });
+assert.match(await txt(pc, '.mob-pc'), /1 carte reçue · Sol Ring/, 'une correction n\'est pas une carte de plus');
 await ph.waitForFunction(() => /1 carte envoyée/.test((document.querySelector('.sc-remote') || {}).textContent || ''));
 await sleep(200); assert.deepEqual(server.scan.items, [], 'reçue : retirée du document par le PC'); assert.equal(await ph.evaluate(() => collQty('sol ring')), 0, 'rien dans la collection du téléphone');
 // « + » sur le téléphone : un exemplaire de plus sur la même ligne du lot
@@ -94,14 +101,18 @@ assert.equal(await pc.$$eval('.lot-it', r => r.length), 1, 'même carte, même l
 // deuxième carte, puis retirée (✕) sur le téléphone : elle repart du lot et de la collection du PC
 await ph.evaluate(() => scanAdd({ key: 'arcane signet', name: 'Arcane Signet', card: 'en', score: 1, raw: 'Arcane Signet' }, 1, false));
 await pc.waitForFunction(() => document.querySelectorAll('.lot-it').length === 2, null, { timeout: 8000 });
-assert.deepEqual(await collX(pc, 'arcane signet'), { 'en|2x2|101': 1 });
-await ph.click('.sc-item[data-id="arcane signet|en"] [data-a="del"]');
+assert.deepEqual(await collX(pc, 'arcane signet'), { 'en|2x2|101': 1 }, 'extension choisie sur le téléphone : posée d\'office sur la carte suivante, envoyée avec');
+await ph.click('.sc-item[data-k="arcane signet"] [data-a="del"]');
 await pc.waitForFunction(() => document.querySelectorAll('.lot-it').length === 1 && !COLL.map['arcane signet'], null, { timeout: 8000 });
 await pc.screenshot({ path: 'shots/mobscan-2-pc.png' });
-ok('téléphone → PC : carte reçue dans le lot (langue lue, extension collante), retirée du document ; « + » regroupé, ✕ retiré du lot et de la collection du PC');
+ok('téléphone → PC : carte reçue dans le lot (langue lue), édition choisie sur le téléphone suivie, posée d\'office sur la suivante ; retirée du document ; « + » regroupé, ✕ retiré du lot et de la collection du PC');
 
 /* ── 4) « Terminer » : le bandeau revient tant que le PC attend ; « Arrêter » ou PC muet : il disparaît ──────────────────────────── */
-await ph.click('.dv-foot [data-act="done"]'); await ph.waitForFunction(() => !document.querySelector('.dv.scan'));
+await ph.evaluate(() => scanAdd({ key: 'wrath of god', name: 'Wrath of God', card: 'en', score: 1, raw: 'Wrath of God' }, 1, false));
+await pc.waitForFunction(() => COLL.map['wrath of god'], null, { timeout: 8000 });
+await ph.click('.dv-foot [data-act="done"]'); await ph.waitForSelector('.sheet-wrap.open [data-go]');
+assert.match(await txt(ph, '.sheet-wrap.open .cf-msg'), /1 carte est partie vers ton PC sans édition/, 'Terminer : carte sans édition signalée');
+await ph.click('.sheet-wrap.open [data-go]'); await ph.waitForFunction(() => !document.querySelector('.dv.scan'));
 await ph.waitForSelector('#mobBar', { timeout: 3000 });
 await ph.click('#mobBar [data-act="no"]'); await ph.waitForFunction(() => !document.querySelector('#mobBar')); await sleep(300);
 assert.equal(await ph.$('#mobBar'), null, '« Plus tard » : caché pour cette session du PC');
@@ -122,7 +133,7 @@ await pc.evaluate(() => openLot()); await pc.waitForSelector('.lot.on .mob-pc');
 server.deny = true; await ph.click('#mobBar [data-act="go"]'); await ph.waitForSelector('.dv.scan.remote.on');
 await ph.evaluate(() => scanAdd({ key: 'sol ring', name: 'Sol Ring', card: 'fr', score: 1, raw: 'x' }, 1, false));
 await ph.waitForFunction(() => /règles Firestore à publier/.test((document.querySelector('.sc-remote') || {}).textContent || ''), null, { timeout: 5000 });
-server.deny = false; await pc.waitForFunction(() => COLL.map['sol ring'] && COLL.map['sol ring'].q === 3, null, { timeout: 9000 });
+server.deny = false; await pc.waitForFunction(() => COLL.map['sol ring'] && COLL.map['sol ring'].q === 3 && COLL.map['sol ring'].x.fr === 1, null, { timeout: 9000 });
 ok('page du PC fermée : attente arrêtée ; envoi refusé (règles) : signalé sur le téléphone, puis parti au nouvel essai');
 
 for (const [n, e] of [['PC', PC.errs], ['téléphone', PH.errs]]) assert.deepEqual(e.filter(x => !/getUserMedia|NotFoundError|Requested device|camera|Tesseract|worker/i.test(x)), [], `erreurs ${n} : ` + e.join(' | '));

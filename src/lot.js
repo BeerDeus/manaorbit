@@ -168,12 +168,17 @@ function lotSuggest() {
   list.innerHTML = sug.map(x => { const have = collQty(ownKey(x.n)); return `<button type="button" class="ca-opt" role="option" data-n="${esc(x.n)}"${x.p ? ` data-p="${esc(x.p)}"` : ''}><span>${sugHtml(x.n, q, x.p || '')}</span><i>${have ? `× ${have}` : '+'}</i></button>`; }).join('')
     || (q.length >= 2 ? '<p class="hint">' + (FRX.ix || !namesLang() ? T('Aucune carte de ce nom. Vérifie l\'orthographe.') : nmT('Aucune carte de ce nom. Vérifie l\'orthographe (les noms français arrivent dès que leur liste est chargée).', 'Aucune carte de ce nom. Vérifie l\'orthographe (les noms en {lang} arrivent dès que leur liste est chargée).')) + '</p>' : '');
 }
-/** Cartes du scan (« Ajouter » du récapitulatif, scan ouvert depuis le lot) : chacune rejoint la collection et le lot, avec l'extension collante si elle y existe. */
+/** Cartes du scan (« Ajouter » du récapitulatif, scan ouvert depuis le lot ; scan mobile) : chacune rejoint la collection et le lot.
+ *  it.e (édition décidée au scan, scaned.js ; '' : sans) : telle quelle, impression it.p si connue (sinon relue pour son image et son prix) ;
+ *  sans it.e (téléphone d'avant les éditions au scan) : l'extension collante du lot si la carte y existe. */
 async function lotFromScan(items) {
   const set = LOT.set, out = [];
   for (const it of items) {
     const c = { k: it.k, n: it.n, p: '', l: it.l || '', q: it.q, e: '', pick: null, prints: [] };
-    if (set) { try { c.prints = await scryArtPrints(c.n, lotLangOf(c) || 'en'); const x = lotInSet(c.prints, set, lotLangOf(c)); if (x) { c.pick = x; c.e = edKey(x.set, x.num); } } catch (e) { /* hors ligne : sans édition */ } }
+    if (typeof it.e === 'string') {
+      c.e = it.e; c.pick = it.e ? it.p || null : null;
+      if (c.e && !c.pick) { try { c.prints = await scryArtPrints(c.n, lotLangOf(c) || 'en'); c.pick = c.prints.find(x => edKey(x.set, x.num) === c.e) || null; } catch (e) { /* hors ligne : l'édition reste, ses infos viendront */ } }
+    } else if (set) { try { c.prints = await scryArtPrints(c.n, lotLangOf(c) || 'en'); const x = lotInSet(c.prints, set, lotLangOf(c)); if (x) { c.pick = x; c.e = edKey(x.set, x.num); } } catch (e) { /* hors ligne : sans édition */ } }
     const g = lotLine(c), l = lineLang(g);
     if (c.pick) edRemember(c.k, l, c.e, edInfoOf(c.pick, l));
     collBump(c.k, c.n, c.q, { lang: g, paint: false });

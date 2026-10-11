@@ -6,7 +6,7 @@ import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { chromium, startWorld, newPage, ok, toHome, slug } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, toHome, slug, rcGo } from './e2e-world.mjs';
 
 const TESS_DIR = process.env.TESS_DIR || new URL('../tests/node_modules', import.meta.url).pathname;
 if (!existsSync(TESS_DIR + '/tesseract.js')) { console.log('· tesseract.js absent (TESS_DIR) : test OCR ignoré'); process.exit(0); }
@@ -89,7 +89,7 @@ assert.match(await p.$eval('.imgv', e => e.textContent), /lu en italien/);
 await shot(p, 'scanlang-2-visionneuse');
 await p.click('.imgv-x'); await p.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 });
 // ajout : exemplaires italiens, allemand et espagnol dans la collection (texte *IT*, *DE*, *ES*)
-await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]'); await p.click('.rc-sheet [data-rc="go"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]'); await rcGo(p); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
 const coll = await p.evaluate(() => Object.fromEntries(['lightning bolt', 'counterspell', 'swords to plowshares'].map(k => [k, collLines(COLL.map[k])])));
 assert.deepEqual(coll['lightning bolt'].map(x => x.join(':')).sort(), ['de:1', 'it:1']); assert.deepEqual(coll.counterspell, [['it', 1]]);
 assert.ok(coll['swords to plowshares'].some(x => x[0] === 'es') && coll['swords to plowshares'].some(x => x[0] === 'en'));

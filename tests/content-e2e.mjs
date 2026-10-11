@@ -5,7 +5,7 @@
 // lien d'avis mailto encodé) ; demande de note neutre (coupée sans PLAY_URL, appli Android seulement, bons moments, fréquence, session sans erreur).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toHome, rcGo } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18990 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -396,10 +396,10 @@ ok('note : seulement dans l\'appli Android, après 4 jours d\'utilisation, 3 foi
 { // fin d'un scan : 5 exemplaires ajoutés ou plus = bon moment (la demande attend la fin du toast « Annuler ») ; moins de 5 : rien
   const { p, ctx } = await ratePage();
   const scanAdd = items => p.evaluate(items => { SC.items = new Map(items.map(([name, q], i) => ['s' + i, { id: 's' + i, key: ownKey(name), name, q, l: 'fr', maybe: false }])); scanRecap(); }, items);
-  await scanAdd([['Llanowar Elves', 2], ['Edgar Markov', 2]]); await p.waitForSelector('.rc-sheet.open [data-rc="go"]'); await p.click('.rc-sheet [data-rc="go"]');
+  await scanAdd([['Llanowar Elves', 2], ['Edgar Markov', 2]]); await p.waitForSelector('.rc-sheet.open [data-rc="go"]'); await rcGo(p);
   await p.waitForSelector('#toast.on'); await p.evaluate(() => document.querySelector('#toast').classList.remove('on')); await p.waitForTimeout(1500);
   assert.equal(await sheetUp(p), null, '4 exemplaires : pas assez');
-  await scanAdd([['Swords to Plowshares', 3], ['Llanowar Elves', 2]]); await p.waitForSelector('.rc-sheet.open [data-rc="go"]'); await p.click('.rc-sheet [data-rc="go"]');
+  await scanAdd([['Swords to Plowshares', 3], ['Llanowar Elves', 2]]); await p.waitForSelector('.rc-sheet.open [data-rc="go"]'); await rcGo(p);
   await p.waitForSelector('#toast.on'); await p.waitForTimeout(1200);
   assert.equal(await sheetUp(p), null, 'toast « Annuler » à l\'écran : la demande attend');
   await p.evaluate(() => document.querySelector('#toast').classList.remove('on'));
