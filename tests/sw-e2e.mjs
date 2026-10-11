@@ -201,7 +201,7 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
   // images : budget en octets (ici 100 000 au lieu de 60 Mo) → les plus anciennes partent, jusqu'à 85 %
   await q.goto(F); await q.waitForFunction(() => !!navigator.serviceWorker.controller);
   const w2 = c2.serviceWorkers().find(w => w.url().startsWith(F)); assert.ok(w2, 'worker du relais joignable');
-  assert.deepEqual(await w2.evaluate(() => IMG_LIM), { bytes: 120 * 1024 * 1024, max: 6000 }, 'budget réel : 120 Mo, 6 000 fichiers (préchargement hebdomadaire)');
+  assert.deepEqual(await w2.evaluate(() => IMG_LIM), { bytes: 120 * 1024 * 1024, max: 6000, big: 40 * 1024 * 1024 }, 'budget réel : 120 Mo, 6 000 fichiers, grandes images 40 Mo (préchargement hebdomadaire)');
   await w2.evaluate(() => { IMG_LIM.bytes = 100000; });
   const imgs = () => q.evaluate(async () => { const k = (await caches.keys()).find(k => /-img$/.test(k)); if (!k) return { out: [], total: 0 }; const c = await caches.open(k); const out = []; let total = 0; for (const k of await c.keys()) { const n = k.url.split('/').pop(); if (/^big-/.test(n)) out.push(n); total += (await (await c.match(k)).blob()).size; } return { out, total }; });
   for (const n of [1, 2, 3, 4, 5]) {
@@ -213,13 +213,26 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
   const kept = await imgs(); console.log('  images gardées :', kept.out.join(', '), '·', kept.total, 'octets');
   assert.deepEqual(kept.out, ['big-4.jpg', 'big-5.jpg'], 'les plus anciennes sont parties'); assert.ok(kept.total <= 100000);
   ok('images : plafond en octets, les plus anciennes partent d\'abord (descend à 85 % du budget)');
+  // petites images (aperçus) gardées avant les grandes : une grande plus récente part avant une petite plus ancienne
+  await w2.evaluate(() => { IMG_LIM.bytes = 1e9; });
+  for (const u of ['https://cards.scryfall.io/small/front/a/b/s-1.jpg', 'https://cards.scryfall.io/large/front/a/b/big-6.jpg']) {
+    assert.equal(await q.evaluate(u => new Promise(res => { const i = new Image(); i.onload = () => res(true); i.onerror = () => res(false); i.src = u; }), u), true);
+    await q.waitForFunction(u => caches.keys().then(ks => caches.open(ks.find(k => /-img$/.test(k)))).then(c => c.match(u)).then(Boolean), u, { polling: 50, timeout: 5000 }); await q.waitForTimeout(150);
+  }
+  await w2.evaluate(() => { IMG_LIM.bytes = 100000; IMG_LIM.big = 1; });      // grandes images : plus aucune place
+  assert.equal(await q.evaluate(u => new Promise(res => { const i = new Image(); i.onload = () => res(true); i.src = u; }), 'https://cards.scryfall.io/small/front/a/b/s-2.jpg'), true);
+  await q.waitForFunction(() => caches.keys().then(ks => caches.open(ks.find(k => /-img$/.test(k)))).then(c => c.keys()).then(ks => !ks.some(k => /\/large\//.test(k.url))), null, { polling: 50, timeout: 5000 });
+  const allImgs = () => q.evaluate(async () => { const k = (await caches.keys()).find(k => /-img$/.test(k)); return k ? (await (await caches.open(k)).keys()).map(r => r.url.split('/').pop()).sort() : []; });
+  assert.deepEqual(await allImgs(), ['s-1.jpg', 's-2.jpg'], 'les grandes partent, les petites restent');
+  await w2.evaluate(() => { IMG_LIM.bytes = 100000; IMG_LIM.big = 40 * 1024 * 1024; });
+  ok('images : les petites (aperçus) restent, les grandes (carte en grand) partent les premières');
 
   // nouvelle version du service worker : prend la main tout de suite (skipWaiting + claim), images et copie de la page conservées
   await q.evaluate(() => { window.__cc = 0; navigator.serviceWorker.addEventListener('controllerchange', () => window.__cc++); });
   fw.swTail = '\n// e2e : nouvelle version du service worker\n'; const nextW = c2.waitForEvent('serviceworker');
   await q.evaluate(() => navigator.serviceWorker.getRegistration().then(r => r.update()));
   await q.waitForFunction(() => window.__cc > 0, null, { timeout: 10000 }); const w3 = await nextW;
-  assert.deepEqual((await imgs()).out, ['big-4.jpg', 'big-5.jpg'], 'images conservées'); assert.equal((await shell()).build, 'b5e2e000', 'copie de la page conservée (rafraîchie à l\'installation)');
+  assert.deepEqual(await allImgs(), ['s-1.jpg', 's-2.jpg'], 'images conservées'); assert.equal((await shell()).build, 'b5e2e000', 'copie de la page conservée (rafraîchie à l\'installation)');
   fw.delay = 6000; t0 = Date.now(); await q.reload({ waitUntil: 'domcontentloaded' }); dt = Date.now() - t0; fw.delay = 0;
   assert.ok(dt < 2500, 'le nouveau service worker sert la copie d\'emblée : ' + dt + ' ms'); assert.equal(await build(), 'b5e2e000');
   ok('nouveau service worker : prend la main aussitôt, images et copie de la page conservées');

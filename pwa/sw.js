@@ -6,7 +6,8 @@
      Seule une vraie page de l'app (DD_BUILD présent) est gardée. /privacy et /api ne passent jamais par cette copie.
    • Icônes et manifeste : cache d'abord, rafraîchis en arrière-plan.
    • Images de cartes Scryfall (cards.scryfall.io) et symboles des extensions (svgs.scryfall.io) : cache d'abord → déjà vus (ou préchargés chaque semaine
-     par l'appli, warm.js) : plus jamais retéléchargés ; 120 Mo et 6 000 fichiers au plus (les plus anciens partent).
+     par l'appli, warm.js) : plus jamais retéléchargés ; 120 Mo et 6 000 fichiers au plus. Les petites images (aperçus, listes) passent avant :
+     les grandes (carte en grand : 40 Mo au plus) partent les premières, puis les plus anciennes.
    • Bibliothèques et polices aux adresses versionnées (SDK Firebase, Tesseract, fichiers de polices) : cache d'abord (elles ne changent jamais) ;
      feuille de style Google Fonts : copie locale tout de suite, rafraîchie en arrière-plan. → polices et scan disponibles hors ligne, démarrage plus rapide.
      Le cache vit dans le stockage du navigateur : il saute si tu effaces les données du site, puis se reremplit tout seul.
@@ -17,7 +18,9 @@ const V = 'deckdeal-v1';
 const SHELL = V + '-shell', STATIC = V + '-static', IMG = V + '-img', CDN = V + '-cdn';
 const IMG_HOSTS = ['cards.scryfall.io', 'svgs.scryfall.io'], CDN_MAX = 80;
 /** Images gardées : budget en octets (petites, normales, grandes et art_crop mélangées) ; le nombre borne aussi le coût de la mesure (≈ 0,1 s pour 1 200). */
-const IMG_LIM = { bytes: 120 * 1024 * 1024, max: 6000 };
+const IMG_LIM = { bytes: 120 * 1024 * 1024, max: 6000, big: 40 * 1024 * 1024 };
+/** Grande image (carte en grand) : se relit vite au besoin ; c'est elle qui part la première. */
+const isBig = u => /^https:\/\/cards\.scryfall\.io\/(large|normal|png|border_crop)\//.test(u);
 /** Copie de la page servie d'emblée tant qu'elle a moins de 7 jours (chaque ouverture réussie la rafraîchit) ; au-delà, réseau d'abord. */
 const SHELL_TTL = 7 * 864e5, BUILD_RE = /const DD_BUILD = '([\w-]+)'/;
 /** Ressources tierces immuables (adresse versionnée) ou presque (CSS Google Fonts) : 'imm' | 'swr' | null. */
@@ -120,12 +123,12 @@ async function imgFit(cache, url) {
     imgSizes = m;
   }
   if (!imgSizes.has(url)) imgSizes.set(url, await sizeOf(await cache.match(url)));
-  let total = 0; for (const n of imgSizes.values()) total += n;
-  if (total <= IMG_LIM.bytes && imgSizes.size <= IMG_LIM.max) return;
-  for (const k of await cache.keys()) {                      // ordre d'arrivée : les plus anciennes d'abord, jusqu'à 85 % (pas une purge par image)
-    if (total <= IMG_LIM.bytes * 0.85 && imgSizes.size <= IMG_LIM.max * 0.85) break;
-    await cache.delete(k); total -= imgSizes.get(k.url) || 0; imgSizes.delete(k.url);
-  }
+  let total = 0, big = 0; for (const [u, n] of imgSizes) { total += n; if (isBig(u)) big += n; }
+  if (total <= IMG_LIM.bytes && imgSizes.size <= IMG_LIM.max && big <= IMG_LIM.big) return;
+  const fits = () => total <= IMG_LIM.bytes * 0.85 && imgSizes.size <= IMG_LIM.max * 0.85 && big <= IMG_LIM.big * 0.85, keys = await cache.keys();
+  const drop = async k => { const n = imgSizes.get(k.url) || 0; await cache.delete(k); total -= n; if (isBig(k.url)) big -= n; imgSizes.delete(k.url); };
+  for (const k of keys) { if (fits()) return; if (isBig(k.url) && imgSizes.has(k.url)) await drop(k); }      // d'abord les grandes images, les plus anciennes d'abord, jusqu'à 85 % (pas une purge par image)
+  for (const k of keys) { if (fits()) return; if (imgSizes.has(k.url)) await drop(k); }                        // puis toutes, les plus anciennes d'abord
 }
 async function cardImage(e) {
   const req = e.request, cache = await caches.open(IMG), hit = await cache.match(req.url);
