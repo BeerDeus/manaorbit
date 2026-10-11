@@ -102,6 +102,13 @@ function openCardViewer(items, index) {
   const countEl = $('.imgv-count', wrap), prevB = $('.imgv-nav.prev', wrap), nextB = $('.imgv-nav.next', wrap);
   const wishB = $('.imgv-wish', wrap), artB = $('.imgv-art', wrap), varsEl = $('.imgv-vars', wrap), varsH = $('.imgv-vh', wrap), varsL = $('.imgv-vl', wrap);
   const prevFocus = document.activeElement, from = pressOrigin(), fromEl = from ? MO.press : null, idx0 = Math.max(0, Math.min(items.length - 1, index | 0));
+  const pfRow = prevFocus && prevFocus.closest ? prevFocus.closest('[data-id],[data-k]') : null, pfBox = pfRow && pfRow.parentElement, pfCls = pfRow && prevFocus !== pfRow && prevFocus.classList[0];
+  /** Élément à refocaliser : celui d'avant, sinon (liste repeinte entre-temps : édition posée au scan…) le même dans sa ligne (même data-id, sinon même data-k). */
+  const backTo = () => {
+    if (!prevFocus || prevFocus.isConnected || !pfRow || !pfBox || !pfBox.isConnected) return prevFocus;
+    const rows = [...pfBox.children], r = (pfRow.dataset.id && rows.find(x => x.dataset.id === pfRow.dataset.id)) || rows.find(x => x.dataset.k && x.dataset.k === pfRow.dataset.k);
+    return r ? (pfCls ? $('.' + CSS.escape(pfCls), r) : r) : null;
+  };
   const lk = l => ({ ja: 'jp', ko: 'kr', zhs: 'zh-CN', zht: 'zh-TW' }[l] || l);
   /** Note « version anglaise » dans la langue voulue l (texte français inchangé ; allemand, espagnol… nommés) ; miss : Scryfall n'a pas cette langue (sinon : image en échec). */
   const noImg = (l, miss) => { const c = lk(l); return c === 'fr' || !c ? T(miss ? 'Pas d\'image française sur Scryfall : version anglaise' : 'Image française indisponible : version anglaise') : T(miss ? 'Pas d\'image en {lang} sur Scryfall : version anglaise' : 'Image en {lang} indisponible : version anglaise', { lang: LANGS[c] ? T(LANGS[c]) : c }); };
@@ -114,7 +121,7 @@ function openCardViewer(items, index) {
     wrap.classList.remove('on'); document.removeEventListener('keydown', onKey, true);
     setTimeout(() => wrap.remove(), reduceMotion() ? 0 : 260);
     releaseApp();
-    try { if (prevFocus && prevFocus.focus && prevFocus.isConnected) prevFocus.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    try { const f = backTo(); if (f && f.focus && f.isConnected) f.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
   } };
   const caption = (l0, note) => { const l = lk(l0); shown = l; sub.innerHTML = `<span class="imgv-lang">${flag(l)}${esc(LANGS[l] || l)}</span>${where ? `<span>${esc(where)}</span>` : ''}${note ? `<em>${esc(note)}</em>` : ''}`; };
   /** Liste de souhaits : retient l'illustration affichée (image, « Extension · CODE 123 », langue). */
