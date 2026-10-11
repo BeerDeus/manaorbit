@@ -2,12 +2,14 @@
 .lot-body{display:flex;flex-direction:column;gap:10px}
 .lot-search{margin:0}
 .lot .ca-list:empty{display:none}
-.lot-sticky{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:7px 12px;border-radius:var(--r-md);background:var(--accent-soft);color:var(--ink-2);font-size:12.5px}
+.lot-sticky{display:grid;grid-template-columns:1fr auto;grid-template-areas:"l b" "v b";align-items:center;column-gap:10px;padding:7px 12px;border-radius:var(--r-md);background:var(--accent-soft);color:var(--ink-2);font-size:12px}
 .lot-sticky[hidden]{display:none}
-.lot-sticky b{color:var(--ink);font-weight:650}
-.lot-sticky .link-btn{margin-left:auto}
+.lot-sticky .ls-l{grid-area:l}
+.lot-sticky .ls-v{grid-area:v;display:flex;align-items:center;gap:6px;min-width:0}
+.lot-sticky b{color:var(--ink);font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lot-sticky .link-btn{grid-area:b}
 /* carte choisie : image à gauche, réglages à droite (une colonne sous 340 px) */
-.lot-card{display:grid;grid-template-columns:minmax(118px,38%) 1fr;gap:14px;padding:14px;border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.lot-card{display:grid;grid-template-columns:minmax(100px,35%) 1fr;gap:12px;padding:12px;border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
 .lot-card[hidden]{display:none}
 @media (max-width:340px){.lot-card{grid-template-columns:1fr}.lot-art{max-width:180px;margin:0 auto}}
 .lot-art{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0}
@@ -34,6 +36,8 @@
 .lot-err{margin:0}
 .lot-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:38px;font-size:13.5px;color:var(--ink-2)}
 .lot-row .sel{flex:0 1 60%;min-width:0}
+.lot-row.lang{flex-direction:column;align-items:stretch;gap:4px;min-height:0}      /* « Celle de la carte » : toute la largeur */
+.lot-row.lang .sel{flex:none;width:100%}
 .lot-row .sel select{width:100%}
 .lot-go{display:flex;gap:8px;margin-top:2px}
 .lot-go .btn{flex:1}
@@ -53,6 +57,7 @@
 .lot-lh .cs-h{margin:0}
 .lot-list{display:flex;flex-direction:column}
 .lot-it.crow{align-items:center}
+.lot-it.has-px>.lot-acts{grid-column:3;grid-row:2;align-self:start;justify-self:end}      /* prix au-dessus, ✎ 🗑 dessous (comme le prix et la quantité de la collection) */
 .lot-it .lchip.ro{pointer-events:none}
 .lot-when{font-weight:500;color:var(--ink-3)}
 .lot-acts{display:flex;gap:2px;flex:none}

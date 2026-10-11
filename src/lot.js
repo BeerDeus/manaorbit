@@ -72,7 +72,7 @@ function lotPaintCard() {
       <button type="button" class="lot-ed${c.pick ? ' on' : ''}${c.auto ? ' auto' : ''}" data-act="ed"${c.prints && !c.prints.length ? ' disabled' : ''} aria-haspopup="dialog">${edBtn}<i aria-hidden="true">▾</i></button>
       ${c.err ? `<p class="hint lot-err">${esc(c.err)} <button class="link-btn" type="button" data-act="retry">${T('Réessayer')}</button></p>` : ''}
       <div class="lot-row"><span>${T('Quantité')}</span><span class="qstep"><button type="button" data-act="qm" aria-label="${T('Un de moins')}"${c.q <= 1 ? ' disabled' : ''}>−</button><b>${c.q}</b><button type="button" data-act="qp" aria-label="${T('Un de plus')}">+</button></span></div>
-      <label class="lot-row"><span>${T('Langue')}</span><span class="sel"><select class="lot-lang" aria-label="${T('Langue des exemplaires ajoutés')}"><option value="">${T('Celle de la carte')}</option>${CARD_LANG_LIST.map(x => { const t = T(LANGS[x]); return `<option value="${x}"${x === c.l ? ' selected' : ''}>${esc(t[0].toUpperCase() + t.slice(1))}</option>`; }).join('')}</select></span></label>
+      <label class="lot-row lang"><span>${T('Langue')}</span><span class="sel"><select class="lot-lang" aria-label="${T('Langue des exemplaires ajoutés')}"><option value="">${T('Celle de la carte')}</option>${CARD_LANG_LIST.map(x => { const t = T(LANGS[x]); return `<option value="${x}"${x === c.l ? ' selected' : ''}>${esc(t[0].toUpperCase() + t.slice(1))}</option>`; }).join('')}</select></span></label>
       <div class="lot-go"><button class="btn" type="button" id="lotAdd" data-act="add">${edit ? T('Enregistrer') : '+ ' + T('Ajouter')}</button>${edit ? `<button class="btn ghost" type="button" data-act="cancel">${T('Annuler')}</button>` : ''}</div>
     </div>`;
 }
@@ -130,12 +130,12 @@ function lotPaintHead() {
   const t = lotTotals();
   $('.dv-title span', el).textContent = LOT.list.length ? TN(t.n, '{n} carte dans ce lot', '{n} cartes dans ce lot') + (t.v ? ' · ' + fmt(t.v, 'EUR') : '') : nmT('Tape son nom en anglais ou en français', 'Tape son nom en anglais ou en {lang}', 'Tape son nom en anglais');
   const sticky = $('.lot-sticky', el);
-  sticky.hidden = !LOT.set; if (LOT.set) sticky.innerHTML = `<span>${T('Extension proposée')}</span>${setIcHtml(LOT.set)}<b>${esc(setName(LOT.set) || LOT.set.toUpperCase())}</b><button type="button" class="link-btn" data-act="unstick" aria-label="${T('Ne plus proposer cette extension')}">${T('Retirer')}</button>`;
+  sticky.hidden = !LOT.set; if (LOT.set) sticky.innerHTML = `<span class="ls-l">${T('Extension proposée')}</span><span class="ls-v">${setIcHtml(LOT.set)}<b>${esc(setName(LOT.set) || LOT.set.toUpperCase())}</b></span><button type="button" class="link-btn" data-act="unstick" aria-label="${T('Ne plus proposer cette extension')}">${T('Retirer')}</button>`;
 }
 function lotRowHtml(x) {
   const e = lineEd(x.g), l = lineLang(x.g), set = edSet(e), sn = e ? setName(set) || (COLL.ed[e] || {}).sn || '' : '', u = collLineEu(x.k, x.g) ?? x.eu, img = x.im || collLineImage(x.k, x.g, (COLL.meta[x.k] || {}).im).src, nm = x.p || frName(x.k, l) || x.n;
   const when = new Date(x.t).toLocaleString(LOC(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  return `<div class="crow lot-it" data-id="${esc(x.id)}" data-k="${esc(x.k)}" data-ln="${esc(l)}"${x.g !== l ? ` data-g="${esc(x.g)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow lot-it${u > 0 ? ' has-px' : ''}" data-id="${esc(x.id)}" data-k="${esc(x.k)}" data-ln="${esc(l)}"${x.g !== l ? ` data-g="${esc(x.g)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${l ? `<span class="lchip ro">${flag(l)}</span>` : ''}</span>
       <span class="row-meta">${e ? `<span class="tag ed">${setIcHtml(set)}${esc(sn ? sn + ' #' + edNum(e) : edLabel(e))}</span>` : `<span class="tag">${T('Édition non précisée')}</span>`}${x.q > 1 ? `<span class="tag accent">× ${nf0(x.q)}</span>` : ''}<span class="tag lot-when">${esc(when)}</span></span></span>
     ${u > 0 ? `<span class="row-px"><span class="px cm"><b>${esc(fmt(u * x.q, 'EUR'))}</b></span></span>` : ''}
