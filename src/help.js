@@ -132,9 +132,10 @@ if (typeof window !== 'undefined') {
   window.addEventListener('error', () => { RATE.bad = true; });
   window.addEventListener('unhandledrejection', () => { RATE.bad = true; });
 }
-// « Ajouter N cartes » à la fin d'un scan (fiche récap de scan.js) : 5 exemplaires ou plus ajoutés = bon moment. Écouté en capture, avant l'ajout, pour compter avant / après.
+// « Ajouter N cartes » (ou « Ajouter quand même » : cartes sans édition) à la fin d'un scan (fiche récap de scan.js) : 5 exemplaires ou plus ajoutés = bon moment.
+// Écouté en capture, avant l'ajout, pour compter avant / après (« Ajouter » qui demande d'abord une confirmation n'ajoute rien : pas de demande).
 if (typeof document !== 'undefined') document.addEventListener('click', e => {
-  if (!rateOn() || !e.target || !e.target.closest || !e.target.closest('.rc-sheet [data-rc="go"]')) return;
+  if (!rateOn() || !e.target || !e.target.closest || !e.target.closest('.rc-sheet [data-rc="go"], .rc-sheet [data-rc="force"]')) return;
   const before = collCopies();
   setTimeout(() => { if (collCopies() - before >= RATE_SCAN) rateMoment('scan'); }, 0);
 }, true);

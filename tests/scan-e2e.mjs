@@ -104,7 +104,7 @@ ok('validation : quantité corrigée, carte retirée, ajout à la collection');
 
 // français d'abord (la plupart des cartes), puis anglais ; noms imprimés lus dans le catalogue français Scryfall gardé sur l'appareil
 await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on');
-const exactSearches = () => world.scry.filter(s => /\/cards\/search/.test(s) && /lang%3Afr/.test(s) && /name%3A|(%21|!)%22/.test(s)).length, ex0 = exactSearches();
+const exactSearches = () => world.scry.filter(s => /\/cards\/search/.test(s) && /lang%3Afr/.test(s) && /name%3A|(%21|!)%22/.test(s) && !/unique=prints/.test(s)).length, ex0 = exactSearches();      // impressions (édition au scan) : pas une recherche de nom
 await p.evaluate(() => { window.__ol = []; const o = ocrLines; ocrLines = (c, l, psm) => { window.__ol.push(l); return o(c, l, psm); }; });      // ordre des langues lues
 await p.setInputFiles('#scFile', [fx('anneau.jpg'), fx('epees.jpg')]); await idle(p, 200000);
 it = await items(p); console.log('  français (langue auto) :', it.map(x => `${x.name}${x.maybe ? ' (?)' : ''}`).join(' · '));
@@ -131,7 +131,7 @@ assert.equal(await p.evaluate(() => COLL.map['sol ring'].l), 'fr'); assert.match
 await p.waitForSelector('.crow[data-k="sol ring"] .lchip[data-l="fr"]'); await p.waitForFunction(() => { const i = document.querySelector('.crow[data-k="sol ring"] .thumb img'); return i && /\/fr\/sol-ring\.jpg$/.test(i.src); }, null, { timeout: 5000 });
 assert.equal(await p.$eval('.crow[data-k="craterhoof behemoth"] .lchip', e => e.dataset.l), 'en', 'carte lue en anglais : langue en');
 // collection : changer la langue d'une carte charge son image française (lot Scryfall) ; une carte sans impression française garde l'anglaise
-world.noFr.add('Arcane Signet'); const nSearch = () => world.scry.filter(s => /\/cards\/search/.test(s) && /lang%3Afr/.test(s) && /(%21|!)%22/.test(s)).length, n0 = nSearch();
+world.noFr.add('Arcane Signet'); const nSearch = () => world.scry.filter(s => /\/cards\/search/.test(s) && /lang%3Afr/.test(s) && /(%21|!)%22/.test(s) && !/unique=prints/.test(s)).length, n0 = nSearch();
 await p.selectOption('.crow[data-k="craterhoof behemoth"] .lchip select', 'fr'); await p.selectOption('.crow[data-k="arcane signet"] .lchip select', 'fr');
 await p.waitForFunction(() => { const i = document.querySelector('.crow[data-k="craterhoof behemoth"] .thumb img'); return i && /\/fr\/craterhoof-behemoth\.jpg$/.test(i.src); }, null, { timeout: 8000 });
 await p.waitForFunction(() => 'fr|arcane signet' in COLL.li && !COLL.enrich, null, { timeout: 8000 });      // la 2e carte est lue à la suite de la 1re
