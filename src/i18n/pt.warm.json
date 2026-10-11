@@ -1,0 +1,18 @@
+{
+  "infos de la collection": "dados da coleção",
+  "éditions uniques": "edições únicas",
+  "cartes des decks": "cartas dos decks",
+  "symboles des extensions": "símbolos das expansões",
+  "noms des cartes": "nomes das cartas",
+  "petites images": "imagens pequenas",
+  "Préchargement en cours · {phase}": "Pré-carregamento em andamento · {phase}",
+  "Dernier préchargement : {date}": "Último pré-carregamento: {date}",
+  "{n} image": "{n} imagem",
+  "{n} images": "{n} imagens",
+  "Pas encore de préchargement": "Ainda sem pré-carregamento",
+  "Images sautées : réseau mobile (elles se chargent en Wi-Fi).": "Imagens puladas: rede móvel (carregam no Wi-Fi).",
+  "Images sautées : économie de données activée.": "Imagens puladas: economia de dados ativada.",
+  "Images sautées : batterie faible.": "Imagens puladas: bateria fraca.",
+  "Une fois par semaine, quand tu ne t'en sers pas, l'appli lit d'avance les infos, éditions, symboles et petites images de ta collection et de tes decks : moins d'attente, et ta collection reste lisible hors ligne. Les images seulement en Wi-Fi.": "Uma vez por semana, quando você não está usando, o app lê antecipadamente os dados, edições, símbolos e imagens pequenas da sua coleção e dos seus decks: menos espera, e a coleção continua legível offline. Imagens só no Wi-Fi.",
+  "Précharger maintenant": "Pré-carregar agora"
+}

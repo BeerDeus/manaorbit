@@ -1,0 +1,18 @@
+{
+  "infos de la collection": "collection info",
+  "éditions uniques": "single-print editions",
+  "cartes des decks": "deck cards",
+  "symboles des extensions": "set symbols",
+  "noms des cartes": "card names",
+  "petites images": "small images",
+  "Préchargement en cours · {phase}": "Preloading · {phase}",
+  "Dernier préchargement : {date}": "Last preload: {date}",
+  "{n} image": "{n} image",
+  "{n} images": "{n} images",
+  "Pas encore de préchargement": "No preload yet",
+  "Images sautées : réseau mobile (elles se chargent en Wi-Fi).": "Images skipped: mobile network (they load on Wi-Fi).",
+  "Images sautées : économie de données activée.": "Images skipped: data saver on.",
+  "Images sautées : batterie faible.": "Images skipped: low battery.",
+  "Une fois par semaine, quand tu ne t'en sers pas, l'appli lit d'avance les infos, éditions, symboles et petites images de ta collection et de tes decks : moins d'attente, et ta collection reste lisible hors ligne. Les images seulement en Wi-Fi.": "Once a week, while you're not using it, the app reads ahead the info, editions, symbols and small images of your collection and decks: less waiting, and your collection stays readable offline. Images on Wi-Fi only.",
+  "Précharger maintenant": "Preload now"
+}

@@ -201,7 +201,7 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
   // images : budget en octets (ici 100 000 au lieu de 60 Mo) → les plus anciennes partent, jusqu'à 85 %
   await q.goto(F); await q.waitForFunction(() => !!navigator.serviceWorker.controller);
   const w2 = c2.serviceWorkers().find(w => w.url().startsWith(F)); assert.ok(w2, 'worker du relais joignable');
-  assert.equal(await w2.evaluate(() => IMG_LIM.bytes), 60 * 1024 * 1024, 'budget réel : 60 Mo');
+  assert.deepEqual(await w2.evaluate(() => IMG_LIM), { bytes: 120 * 1024 * 1024, max: 6000 }, 'budget réel : 120 Mo, 6 000 fichiers (préchargement hebdomadaire)');
   await w2.evaluate(() => { IMG_LIM.bytes = 100000; });
   const imgs = () => q.evaluate(async () => { const k = (await caches.keys()).find(k => /-img$/.test(k)); if (!k) return { out: [], total: 0 }; const c = await caches.open(k); const out = []; let total = 0; for (const k of await c.keys()) { const n = k.url.split('/').pop(); if (/^big-/.test(n)) out.push(n); total += (await (await c.match(k)).blob()).size; } return { out, total }; });
   for (const n of [1, 2, 3, 4, 5]) {

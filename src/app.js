@@ -990,6 +990,8 @@ function openSettings() {
       <label class="switch-row" for="setHaptic"><span class="t"><b>${T('Vibrations')}</b><span class="hint">${typeof navigator !== 'undefined' && navigator.vibrate ? T('Un petit retour au toucher et à la fin des tâches.') : T('Indisponible sur cet appareil (iPhone et iPad ne les exposent pas).')}</span></span>
         <span class="switch"><input type="checkbox" id="setHaptic" ${S.haptic ? 'checked' : ''}><i></i></span></label>
       <button class="btn ghost small" type="button" id="btnCache" style="align-self:flex-start">${T('Vider le cache du catalogue')}</button>
+      <div class="sec-title">${T('Hors ligne')}</div>
+      <div id="warmBox" class="installbox"></div>
       <div class="sec-title">${T('Notifications')}</div>
       <div class="installbox"><p class="hint">${T('Fin de recherche et alertes de prix.')}</p><button class="btn ghost small" type="button" id="btnNotif" style="align-self:flex-start">${T('Gérer les notifications')}</button></div>
       ${typeof isNativeApp === 'function' && isNativeApp() ? '' : `<div class="sec-title">${T('Application')}</div>
@@ -1004,7 +1006,7 @@ function openSettings() {
       <div id="cartBox" class="cartbox"></div>
       <p class="hint set-ver">${T('Version {v}', { v: esc(typeof DD_BUILD === 'string' ? DD_BUILD : 'dev') })}${typeof isNativeApp === 'function' && isNativeApp() ? ' · APK<span class="set-apkv"></span> : ' + NAT_PLUGINS.map(([n, l]) => (natPlugin(n) ? '✓' : '✗') + l).join(' ') + '<span class="set-fb"></span>' : ''}</p>
       <p class="hint fan">${FAN_CONTENT}</p>`;
-    const b = api.body;
+    const b = api.body; warmPaint();
     // APK : sa version et Firebase (google-services.json), lus auprès de la coque ; APK sans plugin ManaOrbit ou info() refusé : la ligne reste telle quelle
     { const mo = typeof natPlugin === 'function' && natPlugin('ManaOrbit');
       if (mo) Promise.resolve().then(() => mo.info()).then(i => { const v = $('.set-apkv', b), f = $('.set-fb', b); if (!i || !v || !f) return; if (i.version) v.textContent = ' ' + i.version + (i.build ? ' (' + i.build + ')' : ''); f.textContent = ' ' + (i.firebase ? '✓' : '✗') + 'Firebase'; }).catch(() => {}); }
@@ -1206,7 +1208,7 @@ function init() {
     catch (e) { ta.focus(); toast(T('Colle la liste dans le champ avec un appui long')); }
   };
   collInit();
-  valInit();
+  valInit(); warmInit();
   xsInit(); alInit(); trInit();
   initDecks();
   refreshDeck();

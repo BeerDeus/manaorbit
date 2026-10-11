@@ -5,7 +5,8 @@
      ?delete-account, notifications…), pas de copie, ou copie de plus de 7 jours (jamais bloqué sur une vieille version).
      Seule une vraie page de l'app (DD_BUILD présent) est gardée. /privacy et /api ne passent jamais par cette copie.
    • Icônes et manifeste : cache d'abord, rafraîchis en arrière-plan.
-   • Images de cartes Scryfall (cards.scryfall.io) : cache d'abord → une carte déjà vue ne se retélécharge plus ; 60 Mo au plus (les plus anciennes partent).
+   • Images de cartes Scryfall (cards.scryfall.io) et symboles des extensions (svgs.scryfall.io) : cache d'abord → déjà vus (ou préchargés chaque semaine
+     par l'appli, warm.js) : plus jamais retéléchargés ; 120 Mo et 6 000 fichiers au plus (les plus anciens partent).
    • Bibliothèques et polices aux adresses versionnées (SDK Firebase, Tesseract, fichiers de polices) : cache d'abord (elles ne changent jamais) ;
      feuille de style Google Fonts : copie locale tout de suite, rafraîchie en arrière-plan. → polices et scan disponibles hors ligne, démarrage plus rapide.
      Le cache vit dans le stockage du navigateur : il saute si tu effaces les données du site, puis se reremplit tout seul.
@@ -14,9 +15,9 @@
      toute requête qui n'est pas un GET. Aucune donnée de recherche, token ou clé n'est mise en cache ici (jamais l'API Firestore ni l'authentification). */
 const V = 'deckdeal-v1';
 const SHELL = V + '-shell', STATIC = V + '-static', IMG = V + '-img', CDN = V + '-cdn';
-const IMG_HOST = 'cards.scryfall.io', CDN_MAX = 80;
+const IMG_HOSTS = ['cards.scryfall.io', 'svgs.scryfall.io'], CDN_MAX = 80;
 /** Images gardées : budget en octets (petites, normales, grandes et art_crop mélangées) ; le nombre borne aussi le coût de la mesure (≈ 0,1 s pour 1 200). */
-const IMG_LIM = { bytes: 60 * 1024 * 1024, max: 3000 };
+const IMG_LIM = { bytes: 120 * 1024 * 1024, max: 6000 };
 /** Copie de la page servie d'emblée tant qu'elle a moins de 7 jours (chaque ouverture réussie la rafraîchit) ; au-delà, réseau d'abord. */
 const SHELL_TTL = 7 * 864e5, BUILD_RE = /const DD_BUILD = '([\w-]+)'/;
 /** Ressources tierces immuables (adresse versionnée) ou presque (CSS Google Fonts) : 'imm' | 'swr' | null. */
@@ -160,7 +161,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const u = new URL(req.url);
   if (u.origin !== self.location.origin) {
-    if (u.protocol === 'https:' && u.hostname === IMG_HOST && (req.destination === 'image' || /\.(jpe?g|png|webp)$/i.test(u.pathname))) e.respondWith(cardImage(e));
+    if (u.protocol === 'https:' && IMG_HOSTS.includes(u.hostname) && (req.destination === 'image' || /\.(jpe?g|png|webp|svg)$/i.test(u.pathname))) e.respondWith(cardImage(e));
     else { const k = cdnKind(u); if (k) e.respondWith(cdnAsset(e, k)); }
     return;
   }
