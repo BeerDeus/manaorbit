@@ -82,8 +82,9 @@ assert.match(await txt(p, '.coll-main .dv-empty'), /^Pas encore de cartes pour l
 assert.deepEqual(await p.$$eval('.coll-main .coll-cta .btn', b => b.map(x => [x.dataset.act, x.classList.contains('ghost')].join())), ['scan,false', 'import,true', 'add,true'], 'Scanner en premier (bouton plein)');
 assert.equal(await visible(p, '.coll-px'), false, 'pas de bouton « € » sans carte'); assert.equal(await visible(p, '.coll-fwrap'), false, 'ni recherche, ni filtres, ni tri');
 await shot(p, '1-cartes-vide');
-await p.click('.coll-main [data-act="add"]'); await sheetOpen(p); assert.ok(await p.$('.sheet-wrap.open')); await p.keyboard.press('Escape'); await sheetGone(p);
-ok('Cartes : « Pas encore de cartes pour l\'instant », Scanner / Importer / Ajouter à la main (feuille ouverte), ni € ni filtres');
+await p.click('.coll-main [data-act="add"]'); await p.waitForSelector('.lot.on #caName', { timeout: 5000 }); await p.keyboard.press('Escape');
+await p.waitForFunction(() => !document.querySelector('.lot'), null, { timeout: 5000 }); assert.ok(await p.$('.coll.on'), 'la collection reste ouverte');
+ok('Cartes : « Pas encore de cartes pour l\'instant », Scanner / Importer / Ajouter à la main (« Ajouter des cartes » ouvert), ni € ni filtres');
 await tab(p, 'stats');
 assert.match(await txt(p, '.coll-main .dv-empty'), /^Pas encore de stats .* Scanner des cartes$/); assert.ok(await p.$('.coll-main [data-act="scan"]'));
 await shot(p, '1b-stats-vide');
