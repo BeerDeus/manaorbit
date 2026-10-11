@@ -503,11 +503,20 @@ button.sync:active{background:var(--surface-2)}
 .imgv-vars[hidden]{display:none}
 .imgv-vh{min-height:1.3em;font-size:12px;text-align:center;color:rgba(255,255,255,.78)}
 .imgv-vl{display:flex;gap:9px;overflow-x:auto;padding:3px 3px 6px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
-.imgv-v{flex:none;width:66px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;border:0;background:transparent;color:rgba(255,255,255,.88);font:inherit;scroll-snap-align:center}
+.imgv-v{flex:none;width:74px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;border:0;background:transparent;color:rgba(255,255,255,.88);font:inherit;scroll-snap-align:center}
 .imgv-v img{width:66px;aspect-ratio:672/936;object-fit:cover;border-radius:5% / 3.6%;background:#1b2033;outline:2px solid transparent;outline-offset:2px;transition:outline-color .15s}
 .imgv-v[aria-pressed="true"] img{outline-color:#9db0ff}
-.imgv-v span{font-family:var(--font-mono);font-size:10.5px;font-weight:600}
-.imgv-v small{max-width:66px;font-size:10px;line-height:1.2;text-align:center;opacity:.72}
+.imgv-v span{display:inline-flex;align-items:center;gap:3px;font-family:var(--font-mono);font-size:10.5px;font-weight:600}
+.imgv-v small{max-width:74px;font-size:10px;line-height:1.2;text-align:center;opacity:.72}
+/* extension (2 lignes au plus) et prix de l'édition sous chaque illustration */
+.imgv-v .v-sn{max-width:74px;font-style:normal;font-size:10px;line-height:1.2;text-align:center;opacity:.86;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.imgv-v .v-px{font-size:11.5px;font-weight:700;color:#bfe0ff;font-variant-numeric:tabular-nums}
+/* symbole d'une extension (svgs.scryfall.io, noir) : fond d'un <i>, blanc sur fond sombre (« inv » ou thème sombre) */
+.set-ic{display:inline-block;width:1.15em;height:1.15em;flex:none;background:center/contain no-repeat}
+.set-ic.inv{filter:invert(1)}
+:root[data-theme="dark"] .set-ic:not(.inv){filter:invert(1) brightness(.92)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .set-ic:not(.inv){filter:invert(1) brightness(.92)}}
+.tag.ed{gap:4px;font-family:var(--font-mono);font-size:11px}
 .imgv-v.def i{width:66px;aspect-ratio:672/936;display:grid;place-items:center;padding:6px;border:1.5px dashed rgba(255,255,255,.4);border-radius:5% / 3.6%;font-style:normal;font-size:11px;line-height:1.2;text-align:center}
 .imgv.has-vars .imgv-card{width:min(88vw,calc((100dvh - 410px) * .7179),460px)}
 .imgv.has-vars.has-shot .imgv-card{width:min(88vw,calc((100dvh - 480px) * .7179),460px)}

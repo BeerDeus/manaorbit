@@ -74,9 +74,16 @@ function artSave() { try { localStorage.setItem(ART_KEY, JSON.stringify(artAll()
 function artSet(l, n, u, w, il) { const a = artAll(), k = artK(l, n); delete a[k]; a[k] = { u, w, ...(il && il !== l ? { il } : {}) }; const ks = Object.keys(a); for (const x of ks.slice(0, Math.max(0, ks.length - 400))) delete a[x]; artSave(); }
 function artDrop(l, n) { if (delete artAll()[artK(l, n)]) artSave(); }
 
+/** Tuile d'une impression (liste « Illustrations ») : vignette, symbole et « CMM 400 », extension, prix Cardmarket de l'édition (✦ : foil seulement), année et particularités. */
+function artTile(p, i, sel) {
+  const px = p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', code = String(p.set).toUpperCase() + ' ' + p.num;
+  return `<button type="button" class="imgv-v" data-i="${i}" aria-pressed="${i === sel}" aria-label="${esc(p.sn)} ${esc(code)}${px ? ', ' + esc(px) : ''}${p.fx.length ? ', ' + esc(p.fx.join(', ')) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set, 'inv')}${esc(code)}</span>${p.sn ? `<em class="v-sn">${esc(p.sn)}</em>` : ''}${px ? `<b class="v-px">${esc(px)}</b>` : ''}<small>${esc(p.y)}${p.fx.length ? ' · ' + esc(p.fx.join(', ')) : ''}</small></button>`;
+}
+
 /**
- * Visionneuse : items = [{ key, name, small, lang, set, num, setName, extra, wl, ln }] ; index de départ.
- * Bouton « Illustrations » : les impressions de la carte dans la langue affichée (Scryfall), au choix ; le choix est gardé quand l'aperçu n'est pas celui d'une offre.
+ * Visionneuse : items = [{ key, name, small, lang, set, num, setName, extra, wl, ln, coll? }] ; index de départ.
+ * Bouton « Illustrations » : les impressions de la carte dans la langue affichée (Scryfall), avec extension et prix de chaque édition, au choix ; le choix est gardé quand l'aperçu n'est pas celui d'une offre.
+ * coll : { k, g } — une ligne de la collection : choisir une illustration fixe l'édition de la ligne (synchronisée avec le compte, prix de l'édition) ; « Sans édition » la retire.
  * wl : langue souhaitée si la carte n'a pas la sienne (image seule en anglais, ou impression sans image dans la langue de l'offre) → la carte du même nom (ln : nom anglais à chercher) dans cette langue, si elle existe.
  * Précédent / suivant : boutons, flèches du clavier, glissement. Chaque carte est chargée dans sa langue (repli anglais signalé).
  */
@@ -160,8 +167,8 @@ function openCardViewer(items, index) {
       } else if (it.plain) { urls = [enBig]; caption(lang, wu === '' ? noImg(it.wl, true) : ''); }                                // image seule : la langue est celle de l'image fournie
       else { urls = [enBig]; caption('en', lang === 'en' ? '' : noImg(lang)); }
       canSave = !!(it.plain || wu);      // l'aperçu d'une offre garde l'impression de l'offre : on peut feuilleter les illustrations, pas les retenir
-      vl = shown;      // langue de la vue : les illustrations retenues lui sont rattachées, même une impression anglaise (promo…)
-      const pf = canSave ? artGet(vl, it.ln || it.name) : null;      // illustration choisie plus tôt pour cette carte (dans cette langue)
+      vl = it.coll && lineLang(it.coll.g) ? lineLang(it.coll.g) : shown;      // langue de la vue (ou de l'exemplaire) : les illustrations retenues lui sont rattachées, même une impression anglaise (promo…)
+      const pf = canSave && !(it.coll && it.set) ? artGet(vl, it.ln || it.name) : null;      // illustration choisie plus tôt pour cette carte (dans cette langue) ; une ligne de collection avec édition montre son édition
       if (pf) { urls = pf.u.slice(); where = pf.w || ''; caption(pf.il || shown, ''); flipB.hidden = urls.length < 2; flipB.textContent = T('Retourner la carte'); }
       show(0);
       varT = setTimeout(() => loadVars(mine, my), wantOpen ? 120 : 320);      // pas de requête pendant un glissé rapide d'une carte à l'autre
@@ -173,18 +180,20 @@ function openCardViewer(items, index) {
     let list = []; try { list = await scryArtPrints(it.ln || it.name, vl, my.signal); } catch (e) { return; }
     if (imgView !== api || it !== mine) return;
     vars = list;
-    if (list.length < 2) { varsEl.hidden = true; wrap.classList.remove('has-vars'); return; }
+    setIcLoad(() => { if (imgView === api && !varsEl.hidden) varsPaint(); });      // symboles des extensions : repeint dès qu'ils arrivent
+    if (list.length < (it.coll ? 1 : 2)) { varsEl.hidden = true; wrap.classList.remove('has-vars'); return; }      // collection : même une seule édition se choisit
     artB.hidden = false; artB.textContent = T('Illustrations · {n}', { n: list.length });
     if (wantOpen) varsOpen(true);      // la liste ouverte reste ouverte d'une carte à l'autre (sauf carte à une seule impression)
   };
   const baseOf = u => String(u || '').split('?')[0];
   const varsPaint = () => {
-    const cur = baseOf(urls[0]), sel = vars.findIndex(p => baseOf(p.urls[0]) === cur), pf = canSave && artGet(vl, it.ln || it.name);
+    const ce = it.coll && it.set, cur = baseOf(urls[0]), sel = ce ? vars.findIndex(p => p.set === it.set && p.num === it.num) : vars.findIndex(p => baseOf(p.urls[0]) === cur), pf = ce || (canSave && artGet(vl, it.ln || it.name));
     pickAt = sel;
-    varsL.innerHTML = (pf ? '<button type="button" class="imgv-v def" data-i="-1" aria-label="' + T('Revenir à l\'illustration par défaut') + '"><i>' + T('Par défaut') + '</i></button>' : '')
-      + vars.map((p, i) => `<button type="button" class="imgv-v" data-i="${i}" aria-pressed="${i === sel}" aria-label="${esc(p.sn)} ${esc(String(p.set).toUpperCase())} ${esc(p.num)}${p.fx.length ? ', ' + esc(p.fx.join(', ')) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span><small>${esc(p.y)}${p.fx.length ? ' · ' + esc(p.fx.join(', ')) : ''}</small></button>`).join('');
+    varsL.innerHTML = (pf ? '<button type="button" class="imgv-v def" data-i="-1" aria-label="' + (it.coll ? T('Retirer l\'édition de cet exemplaire') : T('Revenir à l\'illustration par défaut')) + '"><i>' + (it.coll ? T('Sans édition') : T('Par défaut')) + '</i></button>' : '')
+      + vars.map((p, i) => artTile(p, i, sel)).join('');
     const p = sel >= 0 ? vars[sel] : null;
-    varsH.textContent = p ? `${p.sn} · ${canSave ? T('retenue pour cette carte') : T('aperçu seulement : l\'offre garde son impression')}` : (pf ? T('Illustration par défaut') : canSave ? T('Touche une illustration') : T('Touche une illustration · aperçu seulement'));
+    varsH.textContent = it.coll ? (p ? `${p.sn} · ${T('édition de ta carte')}` : T('Touche l\'édition de ta carte : son prix compte dans ta collection'))
+      : p ? `${p.sn} · ${canSave ? T('retenue pour cette carte') : T('aperçu seulement : l\'offre garde son impression')}` : (pf ? T('Illustration par défaut') : canSave ? T('Touche une illustration') : T('Touche une illustration · aperçu seulement'));
     const on = varsL.querySelector('[aria-pressed="true"]'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
   };
   const varsOpen = on => {
@@ -195,11 +204,16 @@ function openCardViewer(items, index) {
   varsL.addEventListener('click', e => {
     const b = e.target.closest('.imgv-v'); if (!b) return; haptic('tap');
     const i = Number(b.dataset.i), name = it.ln || it.name;
-    if (i < 0) { artDrop(vl, name); go(idx); return; }      // « Par défaut » : l'aperçu repart de l'image d'origine
+    if (i < 0) {      // « Par défaut » : l'aperçu repart de l'image d'origine ; ligne de collection : sans édition
+      artDrop(vl, name);
+      if (it.coll) { collPickEd(it, ''); items[idx] = it = collViewItem(it.coll.k, it.coll.g) || it; }
+      go(idx); return;
+    }
     const p = vars[i]; if (!p) return;
     urls = p.urls.slice(); face = 0; where = [p.sn, String(p.set).toUpperCase() + ' ' + p.num].filter(Boolean).join(' · ');
     caption(p.l || vl, ''); flipB.hidden = urls.length < 2; flipB.textContent = T('Retourner la carte'); show(0);
     if (canSave) artSet(vl, name, urls.slice(), where, p.l);
+    if (it.coll) { collPickEd(it, p); extra.textContent = it.extra || ''; extra.hidden = !it.extra; }
     varsPaint();
   });
   const step = d => { const n = idx + d; if (!multi || n < 0 || n >= items.length) return; haptic('tap'); go(n); };

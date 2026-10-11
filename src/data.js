@@ -262,16 +262,17 @@ async function scryImage({ set, num, lang }, signal) {
   return r;
 }
 
-/** Toutes les impressions papier d'une carte dans une langue, les plus récentes d'abord : [{ set, num, sn (extension), y (année), th (vignette), urls (grande image de chaque face), fx (particularités) }].
- *  [] si Scryfall n'en a pas dans cette langue. Gardées 7 jours. */
+/** Toutes les impressions papier d'une carte dans une langue, les plus récentes d'abord : [{ set, num, sn (extension), y (année), th (vignette), urls (grande image de chaque face), fx (particularités),
+ *  eu / ef (prix Cardmarket de l'édition, non foil / foil, centimes, null si inconnu), r (rareté) }]. [] si Scryfall n'en a pas dans cette langue. Gardées 2 jours (les prix suivent). */
 async function scryArtPrints(name, lang, signal) {
   const sl = SCRY_LANG[lang] || 'en', n = String(name || '').split('//')[0].trim();
   if (!n || n.includes('"')) return [];
-  const key = 'pr2:' + ownKey(n) + ':' + sl, hit = await Cache.get(key, 7 * DAY); if (hit) return hit;
+  const key = 'pr3:' + ownKey(n) + ':' + sl, hit = await Cache.get(key, 2 * DAY); if (hit) return hit;
   const out = await scryPrintsIn(n, sl, signal);
-  if (sl !== 'en') {      // impressions qui n'existent qu'en anglais (promos, séries spéciales…) : après celles de la langue affichée, marquées « anglais »
-    const have = new Set(out.map(p => p.set + '/' + p.num));
-    for (const p of await scryPrintsIn(n, 'en', signal)) if (!have.has(p.set + '/' + p.num)) out.push({ ...p, l: 'en', fx: [...p.fx, T('anglais')] });
+  if (sl !== 'en') {
+    const en = await scryPrintsIn(n, 'en', signal), by = new Map(en.map(p => [p.set + '/' + p.num, p])), have = new Set(out.map(p => p.set + '/' + p.num));
+    for (const p of out) { const e = by.get(p.set + '/' + p.num); if (e) { p.eu = e.eu; p.ef = e.ef; } }      // Scryfall ne chiffre que l'impression anglaise : la tendance Cardmarket est celle de l'édition, toutes langues confondues
+    for (const p of en) if (!have.has(p.set + '/' + p.num)) out.push({ ...p, l: 'en', fx: [...p.fx, T('anglais')] });      // impressions qui n'existent qu'en anglais (promos, séries spéciales…) : après celles de la langue affichée, marquées « anglais »
   }
   await Cache.set(key, out);
   return out;
@@ -285,7 +286,7 @@ async function scryPrintsIn(n, sl, signal) {
       const urls = facesOf(c), im = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris) || {}, id = c.set + '/' + c.collector_number;
       if (!urls.length || seen.has(id)) continue; seen.add(id);
       const fe = c.frame_effects || [], fx = [c.full_art ? T('plein art') : '', c.border_color === 'borderless' ? T('sans bordure') : '', fe.includes('extendedart') ? T('étendue') : '', fe.includes('showcase') ? 'showcase' : '', c.promo ? 'promo' : ''].filter(Boolean);
-      out.push({ set: c.set, num: c.collector_number, sn: c.set_name || '', y: String(c.released_at || '').slice(0, 4), th: im.small || urls[0], urls, fx, l: sl });
+      out.push({ set: c.set, num: c.collector_number, sn: c.set_name || '', y: String(c.released_at || '').slice(0, 4), th: im.small || urls[0], urls, fx, l: sl, ...eurOf(c), r: c.rarity || '' });
     }
     url = j.has_more ? j.next_page : '';
   }
@@ -301,6 +302,20 @@ async function scryCollection(names, signal, onProgress) {
     const j = await httpJson(limScry, 'https://api.scryfall.com/cards/collection', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body }, signal);
     for (const c of j.data || []) { const m = metaOf(c); out.set(ownKey(c.name), { cm: m.cmc, mc: m.mc, tl: m.tl, cl: m.cl, ci: (c.color_identity || []).join(''), cd: canBeCommander(c), im: imgOf(c) || '', eu: eurCents(c.prices && c.prices.eur), ar: c.artist || '' }); }
     for (const [k] of chunk) if (!out.has(k)) out.set(k, null);
+    if (onProgress) onProgress(Math.min(uniq.length, i + 75), uniq.length);
+  }
+  return out;
+}
+/** Éditions précises ('cmm|400' : code d'extension et numéro de collection, 75 par requête) : Map(édition → { eu, ef (prix Cardmarket non foil / foil, centimes, null si inconnu),
+ *  im (petite image anglaise), sn (nom de l'extension), r (rareté) } | null si Scryfall ne la connaît pas). */
+async function scryEditions(eds, signal, onProgress) {
+  const out = new Map(), uniq = [...new Set((eds || []).filter(Boolean))];
+  for (let i = 0; i < uniq.length; i += 75) {
+    const chunk = uniq.slice(i, i + 75);
+    const body = JSON.stringify({ identifiers: chunk.map(e => ({ set: edSet(e), collector_number: edNum(e) })) });
+    const j = await httpJson(limScry, 'https://api.scryfall.com/cards/collection', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body }, signal);
+    for (const c of j.data || []) { const e = edKey(c.set, c.collector_number); if (e) out.set(e, { ...eurOf(c), im: imgOf(c) || '', sn: String(c.set_name || '').slice(0, 80), r: c.rarity || '' }); }
+    for (const e of chunk) if (!out.has(e)) out.set(e, null);
     if (onProgress) onProgress(Math.min(uniq.length, i + 75), uniq.length);
   }
   return out;

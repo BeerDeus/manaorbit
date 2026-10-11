@@ -95,6 +95,7 @@ async function setsFetch() {
     const j = await httpJson(limScry, 'https://api.scryfall.com/sets', SCRY_JSON, undefined, 1);
     const sets = setsKeep(j && j.data);
     SETS.list = sets; SETS.st = 'done'; Cache.set(SETS_KEY, { sets }); setsPaint();
+    setIcUse(setIcKeep(j && j.data), true);      // même réponse : symboles et noms de toutes les extensions (illustrations, éditions de la collection)
   } catch (e) { SETS.st = 'fail'; }
 }
 function setsPaint() {
@@ -114,3 +115,42 @@ function setsPaint() {
       aria-label="${esc(past ? T('Acheter {nom} sur Cardmarket', { nom: r.name }) : T('Précommander {nom} sur Cardmarket', { nom: r.name }))}"><span>${esc(past ? T('Acheter') : T('Précommander'))}<i aria-hidden="true">↗</i></span></a>` : ''}</span></li>`;
   }).join('');
 }
+
+/* ── Symboles et noms de toutes les extensions (illustrations d'une carte, édition des lignes de la collection) ──────────────────────
+   Même requête GET /sets (≈ 1 000 éditions), réduite à { code: [symbole, nom] } et gardée 30 jours ; relue au plus une fois par lancement, à la demande. */
+const SETIC_KEY = 'sets:ic:v1', SETIC_TTL = 30 * DAY;
+const SETIC = { m: null, p: null, on: new Set(), fail: 0 };
+/** Réponse /sets → { code: [symbole, nom] } ; symbole : nom du fichier svgs.scryfall.io (les promos partagent souvent celui d'une autre extension). */
+function setIcKeep(data) {
+  const m = {};
+  for (const s of Array.isArray(data) ? data : []) {
+    if (!s || typeof s.code !== 'string' || typeof s.name !== 'string') continue;
+    const code = s.code.toLowerCase(); if (!/^[a-z0-9]{2,6}$/.test(code)) continue;
+    const ic = /^https:\/\/svgs\.scryfall\.io\/sets\/([a-z0-9_-]{1,24})\.svg(\?|$)/.exec(s.icon_svg_uri || '');
+    m[code] = [ic ? ic[1] : '', s.name.slice(0, 80)];
+  }
+  return m;
+}
+function setIcUse(m, save) {
+  if (!m || !Object.keys(m).length) return;
+  SETIC.m = m; if (save) Cache.set(SETIC_KEY, { m });
+  for (const f of [...SETIC.on]) { try { f(); } catch (e) { /* écran fermé entre-temps */ } }
+}
+/** Charge les symboles (appareil, sinon Scryfall une fois) ; f : rappelé quand ils arrivent (repeint). */
+function setIcLoad(f) {
+  if (f && !SETIC.m) SETIC.on.add(f);
+  if (SETIC.m || SETIC.p) return SETIC.p || Promise.resolve(true);
+  if (Date.now() - SETIC.fail < 10 * 60e3) return Promise.resolve(false);      // échec récent (hors ligne, Scryfall injoignable) : pas de nouvel essai à chaque écran
+  SETIC.p = (async () => {
+    try { const hit = await Cache.get(SETIC_KEY, SETIC_TTL); if (hit && hit.m) { setIcUse(hit.m); return true; } } catch (e) { /* cache absent */ }
+    if ((typeof navigator !== 'undefined' && navigator.onLine === false) || scryLeft() > 0) return false;
+    try { const j = await httpJson(limScry, 'https://api.scryfall.com/sets', SCRY_JSON, undefined, 1); setIcUse(setIcKeep(j && j.data), true); if (!SETIC.m) SETIC.fail = Date.now(); return !!SETIC.m; } catch (e) { SETIC.fail = Date.now(); return false; }
+  })().finally(() => { SETIC.p = null; SETIC.on.clear(); });
+  return SETIC.p;
+}
+/** Adresse du symbole d'une extension ('' : inconnu ou pas encore chargé). */
+const setIcon = code => { const x = SETIC.m && SETIC.m[String(code || '').toLowerCase()]; return x && x[0] ? 'https://svgs.scryfall.io/sets/' + x[0] + '.svg' : ''; };
+/** Nom d'une extension ('' : inconnu). */
+const setName = code => { const x = SETIC.m && SETIC.m[String(code || '').toLowerCase()]; return x ? x[1] : ''; };
+/** Symbole en HTML (fond d'un <i> : aucune requête CORS, blanc sur fond sombre avec la classe « inv ») ; '' sans symbole connu. */
+const setIcHtml = (code, cls) => { const u = setIcon(code); return u ? `<i class="set-ic${cls ? ' ' + cls : ''}" aria-hidden="true" style="background-image:url('${u}')"></i>` : ''; };

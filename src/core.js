@@ -892,48 +892,84 @@ function csvSplit(line, d) {
 const NAME_COLS = ['name', 'card name', 'card', 'cardname', 'product name', 'simple name', 'nom', 'nom de la carte', 'carte'];
 const LANG_COLS = ['language', 'langue', 'lang', 'card language'];
 const QTY_COLS = ['quantity', 'qty', 'count', 'amount', 'quantite', 'reg qty', 'total qty', 'owned'];
+/** Colonnes de l'édition : code d'extension (dans cet ordre : « Set code » de ManaBox, « Edition » de Moxfield… ; un nom d'extension en toutes lettres est ignoré) et numéro de collection. */
+const SET_COLS = ['set code', 'edition code', 'expansion code', 'edition', 'set', 'code'];
+const NUM_COLS = ['collector number', 'card number', 'collector s number', 'collector', 'number', 'cn', 'nr', 'numero'];
 const colNorm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 /** Repère de date d'ajout dans le texte de la collection : « 3 Sol Ring (Dh7zqkx) *FR* », secondes en base 36. Une ligne que l'ancienne version lit encore : elle y voit un code d'extension et l'ignore. */
 const DATE_MARK_RE = /\s+\(D([0-9a-z]{5,7})\)(?=(?:\s+\*[A-Za-z]+(?:-[A-Za-z]+)?\*)?\s*$)/;
+/** Édition dans le texte de la collection, avant la date et la langue : « 2 Sol Ring (CMM) 400 (Dh7zqkx) *FR* » ; aussi « 1 Sol Ring (CMM) 400 *F* » (Moxfield, ManaBox).
+ *  L'ancienne version la lit comme un code d'extension et l'ignore (la carte et sa langue restent justes). */
+const ED_MARK_RE = /\s+\(([A-Za-z0-9]{2,6})\)\s+([^\s()|*,;"]{1,12})(?=(?:\s+\*[A-Za-z]+(?:-[A-Za-z]+)?\*)*\s*$)/;
 const dateNowSec = () => Math.floor(Date.now() / 1000);
-/* ── Une carte, plusieurs langues : entrée { n, q (total), l (langue la plus fournie), x? { langue: exemplaires } (seulement avec plusieurs langues), d? } ───
-   Chaque langue est une « ligne » (« 2 Sol Ring *FR* » + « 1 Sol Ring *EN* » dans le texte) ; la langue '' = non précisée. Les totaux (q) servent partout ailleurs (decks, paniers, valeur). */
+/* ── Une carte, plusieurs lignes : entrée { n, q (total), l (langue la plus fournie), x? { ligne: exemplaires } (plusieurs lignes, ou une ligne avec édition), d? } ───
+   Une ligne = une langue, et une édition si elle est connue (« 2 Sol Ring (CMM) 400 *FR* » + « 1 Sol Ring *EN* » dans le texte) ; la langue '' = non précisée.
+   Clé de ligne : 'fr' (sans édition) ou 'fr|cmm|400' (langue|code d'extension Scryfall|numéro de collection). Les totaux (q) servent partout ailleurs (decks, paniers). */
 const LINE_RANK = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', ''];
 const lineRank = l => { const i = LINE_RANK.indexOf(l || ''); return i < 0 ? LINE_RANK.length : i; };
-/** Lignes d'une entrée : [[langue, exemplaires]] dans l'ordre d'affichage (fr, en, autres, non précisée) ; toujours au moins une ligne si la carte existe. */
+/** Édition d'un exemplaire : 'cmm|400' (code d'extension en minuscules, numéro de collection tel qu'imprimé), '' si incomplète ou illisible. */
+const edKey = (set, num) => {
+  const s = String(set == null ? '' : set).trim().toLowerCase(), n = String(num == null ? '' : num).trim();
+  return /^[a-z0-9]{2,6}$/.test(s) && /^[^\s()|*,;"]{1,12}$/.test(n) ? s + '|' + n : '';
+};
+const edSet = e => String(e || '').split('|')[0];
+const edNum = e => { const s = String(e || ''), i = s.indexOf('|'); return i < 0 ? '' : s.slice(i + 1); };
+/** « CMM 400 » */
+const edLabel = e => (e ? edSet(e).toUpperCase() + ' ' + edNum(e) : '');
+const lineKey = (l, e) => (l || '') + (e ? '|' + e : '');
+const lineLang = g => { const s = String(g || ''), i = s.indexOf('|'); return i < 0 ? s : s.slice(0, i); };
+const lineEd = g => { const s = String(g || ''), i = s.indexOf('|'); return i < 0 ? '' : s.slice(i + 1); };
+/** Ordre d'affichage des lignes : langue (fr, en, autres, non précisée), puis sans édition, puis éditions par code et numéro. */
+const lineCmp = (a, b) => lineRank(lineLang(a)) - lineRank(lineLang(b)) || (lineEd(a) ? 1 : 0) - (lineEd(b) ? 1 : 0) || lineEd(a).localeCompare(lineEd(b), 'en', { numeric: true });
+/** Lignes d'une entrée : [[clé de ligne, exemplaires]] dans l'ordre d'affichage ; toujours au moins une ligne si la carte existe. */
 function collLines(x) {
   if (!x || !(x.q > 0)) return [];
   const ls = x.x ? Object.entries(x.x).filter(e => e[1] > 0) : [[x.l || '', x.q]];
-  return ls.sort((a, b) => lineRank(a[0]) - lineRank(b[0]));
+  return ls.sort((a, b) => lineCmp(a[0], b[0]));
 }
-/** Langue la plus fournie d'une liste de lignes ('' si c'est la non précisée) ; à égalité la première dans l'ordre d'affichage. */
+/** Ligne la plus fournie d'une liste de lignes (sa clé ; '' si c'est la non précisée) ; à égalité la première dans l'ordre d'affichage. */
 const collDomLang = lines => { let d = null; for (const e of lines) if (!d || e[1] > d[1]) d = e; return d ? d[0] : ''; };
-/** Entrée reconstruite depuis ses lignes (base : n, d… gardés) : q = total, x seulement avec plusieurs langues, l = langue la plus fournie. null s'il ne reste rien. */
+/** Langue la plus fournie (éditions confondues) ; à égalité la première dans l'ordre d'affichage. */
+const collMainLang = lines => { const by = new Map(); for (const [g, q] of lines.slice().sort((a, b) => lineCmp(a[0], b[0]))) { const l = lineLang(g); by.set(l, (by.get(l) || 0) + q); } let d = null; for (const e of by) if (!d || e[1] > d[1]) d = e; return d ? d[0] : ''; };
+/** Lignes regroupées par langue (éditions confondues) : [[langue, exemplaires]], dans l'ordre d'affichage. */
+const langLines = lines => { const m = new Map(); for (const [g, q] of lines.slice().sort((a, b) => lineCmp(a[0], b[0]))) { const l = lineLang(g); m.set(l, (m.get(l) || 0) + q); } return [...m]; };
+/** Entrée reconstruite depuis ses lignes (base : n, d… gardés) : q = total, x avec plusieurs lignes ou une édition, l = langue la plus fournie. null s'il ne reste rien. */
 function collFromLines(base, lines) {
   const m = new Map();
-  for (const [l, q] of lines) if (q > 0) m.set(l || '', Math.min(9999, (m.get(l || '') || 0) + q));
+  for (const [g, q] of lines) if (q > 0) m.set(g || '', Math.min(9999, (m.get(g || '') || 0) + q));
   if (!m.size) return null;
-  const ls = [...m].sort((a, b) => lineRank(a[0]) - lineRank(b[0])), out = { ...base }; delete out.x; delete out.l;
+  const ls = [...m].sort((a, b) => lineCmp(a[0], b[0])), out = { ...base }; delete out.x; delete out.l;
   out.q = ls.reduce((a, e) => a + e[1], 0);
-  const dom = collDomLang(ls); if (dom) out.l = dom;
-  if (ls.length > 1) out.x = Object.fromEntries(ls);
+  const dom = collMainLang(ls); if (dom) out.l = dom;
+  if (ls.length > 1 || lineEd(ls[0][0])) out.x = Object.fromEntries(ls);
   return out;
 }
-/** Union de deux répartitions de la même carte sans état commun connu : plus grande quantité par langue précisée ; les exemplaires « non précisée » ne s'ajoutent pas à une langue connue de l'autre côté (c'est probablement la même carte). */
+/** Union de deux répartitions de la même carte sans état commun connu, langue par langue : le plus grand total ; une édition, le plus grand nombre des deux côtés,
+ *  le reste de la langue sans édition (« 2 FR » d'un côté, « 2 FR CMM 400 » de l'autre : les mêmes cartes, l'édition en plus). Les exemplaires « non précisée »
+ *  ne s'ajoutent pas à une langue connue de l'autre côté (c'est probablement la même carte). */
 function unionLines(la, lb) {
-  const m = new Map(); let ta = 0, tb = 0;
-  for (const [g, q] of la) { ta += q; if (g) m.set(g, q); }
-  for (const [g, q] of lb) { tb += q; if (g) m.set(g, Math.max(m.get(g) || 0, q)); }
-  const spec = [...m.values()].reduce((a, q) => a + q, 0), none = Math.max(0, Math.max(ta, tb) - spec);
-  return [...m, ...(none ? [['', none]] : [])];
+  const by = new Map(); let ta = 0, tb = 0;
+  const put = (ls, s) => { for (const [g, q] of ls) { const l = lineLang(g), e = lineEd(g); let o = by.get(l); if (!o) by.set(l, o = { t: [0, 0], ed: new Map() }); o.t[s] += q; if (e) o.ed.set(e, Math.max(o.ed.get(e) || 0, q)); } };
+  for (const [, q] of la) ta += q;
+  for (const [, q] of lb) tb += q;
+  put(la, 0); put(lb, 1);
+  const out = []; let spec = 0;
+  for (const [l, o] of by) {
+    let es = 0; for (const [e, q] of o.ed) { out.push([lineKey(l, e), q]); es += q; }
+    spec += es;
+    if (l) { const plain = Math.max(0, Math.max(o.t[0], o.t[1]) - es); if (plain) out.push([l, plain]); spec += plain; }
+  }
+  const none = Math.max(0, Math.max(ta, tb) - spec);
+  return none ? [...out, ['', none]] : out;
 }
 /** Empreinte des lignes d'une entrée (comparaison, fusion). */
 const collSig = x => collLines(x).map(e => e[0] + ':' + e[1]).join(',');
 
 /**
  * Lit une collection : export CSV (ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield, TCGplayer…) ou texte « 3 Sol Ring ».
- * Retourne { items:[{k, n, q, l?, d?}] (l : langue si le fichier la donne : colonne « Language », ou « *FR* » en fin de ligne ; d : date d'ajout en secondes, seulement avec o.dates : repère « (Dxxxxxx) » écrit par collToText), lines, skipped, format:'csv'|'text', copies, fr, amb }. Les quantités d'une même carte (impressions différentes) s'additionnent.
+ * Retourne { items:[{k, n, q, l?, x?, d?}] (l : langue si le fichier la donne : colonne « Language », ou « *FR* » en fin de ligne ; x : lignes par langue et édition — colonnes « Set code » / « Collector number », ou « (CMM) 400 » ;
+ * d : date d'ajout en secondes, seulement avec o.dates : repère « (Dxxxxxx) » écrit par collToText), lines, skipped, format:'csv'|'text', copies, fr, amb }. Les quantités d'une même carte, langue et édition s'additionnent.
  * Import (o.fr, index français chargé) : un nom français devient la carte anglaise, exemplaire français sauf langue donnée par la ligne (fr : nombre de lignes lues ainsi ; amb : noms français de plusieurs cartes, laissés tels quels).
  * o.lang : langue des lignes qui n'en donnent pas (choix « Langue de ces cartes »). Sans o.fr ni o.lang (texte enregistré de la collection) : lecture inchangée, quel que soit l'index.
  */
@@ -941,19 +977,21 @@ function parseCollection(text, o) {
   const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/);
   let i0 = 0; while (i0 < lines.length && (!lines[i0].trim() || /^sep=.$/i.test(lines[i0].trim()))) i0++;
   const first = lines[i0] || '';
-  let delim = null, nameCol = -1, qtyCol = -1, langCol = -1;
+  let delim = null, nameCol = -1, qtyCol = -1, langCol = -1, setCol = -1, numCol = -1;
   for (const d of [',', ';', '\t']) {
     const cols = csvSplit(first, d).map(colNorm);
     if (cols.length < 2) continue;
     const ni = cols.findIndex(c => NAME_COLS.includes(c));
     if (ni < 0) continue;
     delim = d; nameCol = ni; langCol = cols.findIndex(c => LANG_COLS.includes(c));
+    for (const want of SET_COLS) { const i = cols.indexOf(want); if (i >= 0) { setCol = i; break; } }
+    for (const want of NUM_COLS) { const i = cols.indexOf(want); if (i >= 0) { numCol = i; break; } }
     for (const want of QTY_COLS) { const qi = cols.findIndex(c => c === want); if (qi >= 0) { qtyCol = qi; break; } }
     if (qtyCol < 0) qtyCol = cols.findIndex(c => /(quantity|qty|count)/.test(c) && !/(trade|tradelist|wish)/.test(c));
     break;
   }
   const map = new Map(), fr = !!(o && o.fr && FRX.ix), dl = (o && cardLang(o.lang)) || '', amb = []; let n = 0, skipped = 0, nfr = 0;
-  const add = (name, q, l, d) => {
+  const add = (name, q, l, d, e) => {
     name = String(name || '').trim(); q = Math.max(1, Math.min(9999, Math.round(q) || 1));
     if (fr && name) {
       const f = frLookup(name, (l || dl) === FRX.l);
@@ -961,30 +999,32 @@ function parseCollection(text, o) {
     }
     if (!l) l = dl;
     const k = ownKey(name); if (!name || !k) { skipped++; return; }
-    const cur = map.get(k), lg = l || ''; if (cur) { cur.b.set(lg, Math.min(9999, (cur.b.get(lg) || 0) + q)); if (d && !(cur.d <= d)) cur.d = d; } else if (map.size < COLL_MAX) map.set(k, { k, n: name, b: new Map([[lg, q]]), ...(d ? { d } : {}) });      // une ligne par langue
+    const cur = map.get(k), lg = lineKey(l, e); if (cur) { cur.b.set(lg, Math.min(9999, (cur.b.get(lg) || 0) + q)); if (d && !(cur.d <= d)) cur.d = d; } else if (map.size < COLL_MAX) map.set(k, { k, n: name, b: new Map([[lg, q]]), ...(d ? { d } : {}) });      // une ligne par langue et édition
   };
   if (delim) {
     for (let i = i0 + 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue; n++;
       const c = csvSplit(lines[i], delim), name = c[nameCol];
       if (!name) { skipped++; continue; }
-      add(name, qtyCol >= 0 ? parseInt(c[qtyCol], 10) || 1 : 1, langCol >= 0 ? cardLang(c[langCol]) : '');
+      add(name, qtyCol >= 0 ? parseInt(c[qtyCol], 10) || 1 : 1, langCol >= 0 ? cardLang(c[langCol]) : '', 0, setCol >= 0 && numCol >= 0 ? edKey(c[setCol], c[numCol]) : '');
     }
   } else {
     for (let raw of lines) {
       let d = 0;
+      let e = '';
       if (o && o.dates) raw = raw.replace(DATE_MARK_RE, (_, t) => { d = parseInt(t, 36) || 0; return ''; });
+      raw = raw.replace(ED_MARK_RE, (m, a, b) => { e = edKey(a, b); return e ? '' : m; });
       const p = parseLine(raw, { fr: false }); if (!p) continue; n++;      // noms français lus par add(), comme ceux d'un CSV
       if (p.ignored) { skipped++; continue; }
-      add(p.name, p.qty, p.lang, d);
+      add(p.name, p.qty, p.lang, d, e);
     }
   }
   const items = [...map.values()].map(({ b, ...base }) => collFromLines(base, [...b]));
   return { items, lines: n, skipped, format: delim ? 'csv' : 'text', copies: items.reduce((a, x) => a + x.q, 0), fr: nfr, amb };
 }
 
-/** Export CSV au format Moxfield (« Count,Tradelist Count,Name,Edition,Condition,Language,Foil ») : relu par Moxfield, ManaBox, Archidekt, Deckbox… et par cette appli.
- *  Une ligne par langue ; langue non précisée : colonne vide. « Tradelist Count » : exemplaires de cette langue à échanger (trade : tradeLists(…).have), 0 sinon. */
+/** Export CSV au format Moxfield (« Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number ») : relu par Moxfield, ManaBox, Archidekt, Deckbox… et par cette appli.
+ *  Une ligne par langue et édition ; langue ou édition non précisée : colonnes vides. « Tradelist Count » : exemplaires de cette ligne à échanger (trade : tradeLists(…).have), 0 sinon. */
 const CSV_LANG = { fr: 'French', en: 'English', de: 'German', es: 'Spanish', it: 'Italian', pt: 'Portuguese', jp: 'Japanese', 'zh-CN': 'Chinese Simplified', ko: 'Korean', ru: 'Russian' };
 /** Cellule texte : un nom venu d'une liste importée ou partagée qui commence par = + - @ (ou tabulation, retour) serait lu comme une formule par Excel ou LibreOffice → préfixé d'une apostrophe.
  *  Sauf « +2 Mace » et ses pareils (signe, chiffres, espace, puis des mots) : vrais noms de cartes, aucune formule possible. */
@@ -995,10 +1035,10 @@ const csvCell = v => {
 };
 // trade absent : dans l'appli, la liste d'échange de l'onglet « Échange » (trSpare, share.js, chargé après ce fichier) ; sous Node, aucune.
 function collToCsv(map, trade = typeof trSpare === 'function' ? trSpare(map) : null) {
-  const rows = ['Count,Tradelist Count,Name,Edition,Condition,Language,Foil'], tl = new Map();
+  const rows = ['Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number'], tl = new Map();
   for (const x of trade || []) if (x && x.k) tl.set(x.k, new Map(x.lines || []));
   for (const [k, x] of Object.entries(map || {}).filter(([, x]) => x && x.n).sort(([, a], [, b]) => a.n.localeCompare(b.n, 'en')))
-    for (const [l, q] of collLines(x)) rows.push([q, Math.min(q, (tl.get(k) && tl.get(k).get(l)) || 0), csvCell(x.n), '', 'Near Mint', CSV_LANG[l] || '', ''].join(','));
+    for (const [g, q] of collLines(x)) { const e = lineEd(g); rows.push([q, Math.min(q, (tl.get(k) && tl.get(k).get(g)) || 0), csvCell(x.n), edSet(e), 'Near Mint', CSV_LANG[lineLang(g)] || '', '', csvCell(edNum(e))].join(',')); }
   return rows.join('\n') + '\n';
 }
 
@@ -1006,17 +1046,17 @@ function collToCsv(map, trade = typeof trSpare === 'function' ? trSpare(map) : n
 function mergeColl(base, add, mode, now) {
   const out = mode === 'replace' ? {} : { ...base }, t = now || dateNowSec();
   for (const it of add) {
-    const prev = base[it.k], cur = out[it.k], lines = collLines(cur).map(e => e.slice()), dom = collDomLang(lines);
-    for (const [l, q] of collLines(it)) {
-      const lang = l || dom;      // sans langue précisée, les exemplaires rejoignent la langue déjà connue de la carte ; une langue lue (scan, CSV) a sa propre ligne
-      const e = lines.find(x => x[0] === lang); if (e) e[1] = Math.min(9999, e[1] + q); else lines.push([lang, q]);
+    const prev = base[it.k], cur = out[it.k], lines = collLines(cur).map(e => e.slice()), dom = collMainLang(lines);
+    for (const [g, q] of collLines(it)) {
+      const to = g || dom;      // sans langue ni édition, les exemplaires rejoignent la langue déjà connue de la carte (sans édition) ; une langue ou une édition lue (scan, CSV) a sa propre ligne
+      const e = lines.find(x => x[0] === to); if (e) e[1] = Math.min(9999, e[1] + q); else lines.push([to, q]);
     }
     out[it.k] = collFromLines({ ...(prev || {}), n: (prev && prev.n) || it.n, ...(!prev && (it.d || t) ? { d: it.d || t } : {}) }, lines);       // date d'ajout : posée à la première entrée de la carte, jamais modifiée ensuite (une carte retirée puis ré-ajoutée en reçoit une nouvelle)
   }
   return out;
 }
-/** Texte compact d'une collection (une carte par ligne, « 3 Sol Ring ») pour le cloud, et son inverse. dates : ajoute la date d'ajout « (Dxxxxxx) » (stockage et compte ; pas l'export). */
-const collToText = (coll, dates) => Object.values(coll).filter(x => x && x.q > 0 && x.n).sort((a, b) => a.n.localeCompare(b.n, 'en')).flatMap(x => collLines(x).map(([l, q]) => q + ' ' + x.n + (dates && x.d > 0 ? ' (D' + Math.floor(x.d).toString(36) + ')' : '') + (l ? ' *' + langCode(l) + '*' : ''))).join('\n');
+/** Texte compact d'une collection (une ligne par carte, langue et édition : « 3 Sol Ring (CMM) 400 *FR* ») pour le cloud, et son inverse. dates : ajoute la date d'ajout « (Dxxxxxx) » (stockage et compte ; pas l'export). */
+const collToText = (coll, dates) => Object.values(coll).filter(x => x && x.q > 0 && x.n).sort((a, b) => a.n.localeCompare(b.n, 'en')).flatMap(x => collLines(x).map(([g, q]) => { const l = lineLang(g), e = lineEd(g); return q + ' ' + x.n + (e ? ' (' + edSet(e).toUpperCase() + ') ' + edNum(e) : '') + (dates && x.d > 0 ? ' (D' + Math.floor(x.d).toString(36) + ')' : '') + (l ? ' *' + langCode(l) + '*' : ''); })).join('\n');
 const collFromText = text => { const o = {}; for (const it of parseCollection(text, { dates: true }).items) o[it.k] = { n: it.n, q: it.q, ...(it.l ? { l: it.l } : {}), ...(it.x ? { x: it.x } : {}), ...(it.d ? { d: it.d } : {}) }; return o; };
 
 /** Même carte au même état (quantité, langue) ? Deux absences sont identiques. */
@@ -1042,7 +1082,7 @@ function merge3(base, local, remote) {
     else {      // changé des deux côtés : ligne par ligne (une langue = une ligne) ; deux changements de quantité d'une même ligne s'additionnent
       const B = new Map(collLines(b)), L = new Map(collLines(l)), R = new Map(collLines(r)); let lines = [];
       if (!b) lines = unionLines(collLines(l), collLines(r));      // première connexion : pas d'état commun
-      else for (const g of new Set([...B.keys(), ...L.keys(), ...R.keys()])) {
+      else for (const g of new Set([...B.keys(), ...L.keys(), ...R.keys()])) {      // une ligne = une langue et une édition : une édition choisie ailleurs déplace ses exemplaires d'une ligne à l'autre
         const bq = B.get(g) || 0, lq = L.get(g) || 0, rq = R.get(g) || 0;
         lines.push([g, lq === rq ? lq : Math.max(0, rq + (lq - bq))]);
       }
@@ -1983,7 +2023,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
-    lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collSig, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
+    lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edLabel, lineKey, lineLang, lineEd, langLines, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient

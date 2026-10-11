@@ -33,7 +33,7 @@ const ZOOM_LISTS = {
     const row = th.closest('.crow'); if (!row) return null;
     return zoomFrom($$(':scope > .crow', row.parentNode), row, r => {
       const k = r.dataset.k, ln = r.dataset.ln || '', x = COLL.map[k];
-      return collViewItem(k, ln) || (x ? zoomNamed(k, zoomName(r) || x.n, x.n, ln || x.l) : null);
+      return collViewItem(k, rowG(r)) || (x ? zoomNamed(k, zoomName(r) || x.n, x.n, ln || x.l) : null);
     });
   },
   /* Liste d'échange : doublons (langue de l'exemplaire) et cartes recherchées (illustration souhaitée montrée telle quelle). */

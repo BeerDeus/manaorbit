@@ -645,6 +645,53 @@ test('une carte, plusieurs langues : lignes, texte (une ligne par langue), impor
   assert.deepEqual(C.unionColl(local, remote)['sol ring'].x, { fr: 3, en: 1 });
   assert.deepEqual(C.unionColl({ a: { n: 'A', q: 5 } }, { a: { n: 'A', q: 3, l: 'fr', x: { fr: 1, en: 1, '': 1 } } }).a.x, { fr: 1, en: 1, '': 3 }, 'non précisées : 5 contre 3 → 5 au total, les langues connues en font partie');
 });
+test('collection : édition par ligne (langue + extension + numéro) : texte, CSV ManaBox / Moxfield, fusion, union, ancienne version', () => {
+  assert.equal(C.edKey('CMM', '400'), 'cmm|400'); assert.equal(C.edKey('Commander Masters', '400'), '', 'nom d\'extension en toutes lettres : ignoré'); assert.equal(C.edKey('cmm', ''), '', 'sans numéro : pas d\'édition'); assert.equal(C.edKey('plst', 'CMM-400'), 'plst|CMM-400'); assert.equal(C.edKey('sld', '1 2'), '');
+  assert.equal(C.lineKey('fr', 'cmm|400'), 'fr|cmm|400'); assert.equal(C.lineKey('', 'cmm|400'), '|cmm|400'); assert.equal(C.lineKey('fr', ''), 'fr');
+  assert.equal(C.lineLang('fr|cmm|400'), 'fr'); assert.equal(C.lineEd('fr|cmm|400'), 'cmm|400'); assert.equal(C.lineLang('|cmm|400'), ''); assert.equal(C.lineEd('en'), ''); assert.equal(C.edLabel('cmm|400'), 'CMM 400');
+  // texte : « (CMM) 400 » avant la date et la langue ; aller-retour
+  const t = C.parseCollection('2 Sol Ring (CMM) 400 *FR*\n1 Sol Ring *FR*\n1 Sol Ring (C21) 263 (Dh7zqkx) *EN*\n4 Swords to Plowshares (STA) 10 *F*', { dates: true });
+  const sr = t.items.find(i => i.n === 'Sol Ring');
+  assert.deepEqual(sr.x, { fr: 1, 'fr|cmm|400': 2, 'en|c21|263': 1 }); assert.equal(sr.l, 'fr'); assert.equal(sr.q, 4); assert.ok(sr.d > 0, 'date lue derrière l\'édition');
+  assert.deepEqual(t.items.find(i => /Swords/.test(i.n)).x, { '|sta|10': 4 }, 'Moxfield « *F* » : édition gardée, sans langue');
+  assert.deepEqual(C.collLines(sr), [['fr', 1], ['fr|cmm|400', 2], ['en|c21|263', 1]], 'ordre : langue, sans édition, éditions');
+  const coll = { 'sol ring': { n: 'Sol Ring', q: 3, l: 'fr', x: { fr: 1, 'fr|cmm|400': 2 }, d: 1700000000 }, 'arcane signet': { n: 'Arcane Signet', q: 1, x: { '|cmm|380': 1 }, d: 1700000001 } };
+  const txt = C.collToText(coll, true);
+  assert.match(txt, /^1 Arcane Signet \(CMM\) 380 \(D[0-9a-z]+\)\n1 Sol Ring \(D[0-9a-z]+\) \*FR\*\n2 Sol Ring \(CMM\) 400 \(D[0-9a-z]+\) \*FR\*$/);
+  assert.deepEqual(C.collFromText(txt), coll, 'aller-retour exact'); assert.equal(C.collToText(coll), '1 Arcane Signet (CMM) 380\n1 Sol Ring *FR*\n2 Sol Ring (CMM) 400 *FR*');
+  // une seule ligne, avec édition : x gardé (sinon l'édition se perdrait)
+  assert.deepEqual(C.collFromLines({ n: 'X' }, [['fr|cmm|1', 2]]), { n: 'X', q: 2, l: 'fr', x: { 'fr|cmm|1': 2 } }); assert.deepEqual(C.collFromLines({ n: 'X' }, [['fr', 2]]), { n: 'X', q: 2, l: 'fr' });
+  assert.equal(C.collFromLines({ n: 'X' }, [['en', 2], ['fr|a|1', 1], ['fr|b|2', 1]]).l, 'fr', 'langue la plus fournie, éditions confondues : 2 FR contre 2 EN → la première affichée (FR)');
+  assert.equal(C.collFromLines({ n: 'X' }, [['en', 2], ['fr|a|1', 1]]).l, 'en');
+  // ancienne version : lit la carte et sa langue, ignore l'édition (même texte relu par l'ancienne expression)
+  const OLD_DATE = /\s+\(D([0-9a-z]{5,7})\)(?=(?:\s+\*[A-Za-z]+(?:-[A-Za-z]+)?\*)?\s*$)/;
+  for (const line of C.collToText(coll, true).split('\n')) { const p = C.parseLine(line.replace(OLD_DATE, '')); assert.ok(['Sol Ring', 'Arcane Signet'].includes(p.name), line); }
+  // CSV : ManaBox (Set code, Collector number), Moxfield (Edition, Collector Number), export relu
+  const mb = C.parseCollection('Name,Set code,Set name,Collector number,Foil,Quantity,Language\nSol Ring,cmm,Commander Masters,400,normal,2,fr\nSol Ring,c21,Commander 2021,263,normal,1,en\nSol Ring,cmm,Commander Masters,400,normal,1,fr');
+  assert.deepEqual(mb.items[0].x, { 'fr|cmm|400': 3, 'en|c21|263': 1 });
+  const mox = C.parseCollection('Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Tags,Last Modified,Collector Number\n1,0,Arcane Signet,cmm,Near Mint,English,,,2024-01-01,380');
+  assert.deepEqual(mox.items[0].x, { 'en|cmm|380': 1 });
+  assert.equal(C.parseCollection('Count,Name,Edition,Card Number\n1,Sol Ring,Commander Masters,400').items[0].x, undefined, 'Deckbox : nom d\'extension en toutes lettres → pas d\'édition');
+  const csv = C.collToCsv(coll).trim().split('\n');
+  assert.deepEqual(csv.slice(1), ['1,0,Arcane Signet,cmm,Near Mint,,,380', '1,0,Sol Ring,,Near Mint,French,,', '2,0,Sol Ring,cmm,Near Mint,French,,400']);
+  assert.deepEqual(C.parseCollection(C.collToCsv(coll)).items.find(i => i.n === 'Sol Ring').x, coll['sol ring'].x, 'export CSV relu');
+  // ajout : sans langue ni édition → la langue la plus fournie, sans édition ; une édition → sa ligne
+  let m = C.mergeColl(coll, [{ k: 'sol ring', n: 'Sol Ring', q: 1 }], 'add'); assert.deepEqual(m['sol ring'].x, { fr: 2, 'fr|cmm|400': 2 });
+  m = C.mergeColl(coll, [{ k: 'sol ring', n: 'Sol Ring', q: 1, l: 'fr', x: { 'fr|cmm|400': 1 } }], 'add'); assert.deepEqual(m['sol ring'].x, { fr: 1, 'fr|cmm|400': 3 });
+  // fusion entre appareils : édition choisie là-bas, exemplaire ajouté ici
+  const E = (...ls) => C.collFromLines({ n: 'Sol Ring' }, ls);
+  const B = { 'sol ring': E(['fr', 2]) };
+  let r = C.merge3(B, { 'sol ring': E(['fr', 3]) }, { 'sol ring': E(['fr|cmm|400', 2]) }); assert.deepEqual(r['sol ring'].x, { fr: 1, 'fr|cmm|400': 2 }, 'édition posée là-bas, +1 ici : les deux');
+  r = C.merge3(B, B, { 'sol ring': E(['fr|cmm|400', 2]) }); assert.deepEqual(r['sol ring'].x, { 'fr|cmm|400': 2 }, 'rien changé ici : édition du compte');
+  assert.ok(!C.sameColl({ 'sol ring': E(['fr', 2]) }, { 'sol ring': E(['fr|cmm|400', 2]) }), 'édition différente : collection différente');
+  // union (première connexion) : « 2 FR » et « 2 FR CMM 400 » sont les mêmes cartes
+  assert.deepEqual(C.unionLines([['fr', 2]], [['fr|cmm|400', 2]]), [['fr|cmm|400', 2]]);
+  assert.deepEqual(C.unionLines([['fr', 3]], [['fr|cmm|400', 2]]), [['fr|cmm|400', 2], ['fr', 1]]);
+  assert.deepEqual(C.unionLines([['fr|a|1', 1], ['en', 1]], [['fr|b|2', 1], ['', 2]]), [['fr|a|1', 1], ['fr|b|2', 1], ['en', 1]], 'deux éditions différentes : les deux ; non précisées absorbées');
+  assert.deepEqual(C.langLines([['fr|cmm|400', 2], ['en', 1], ['fr', 1]]), [['fr', 3], ['en', 1]]);
+  // échange : lignes par langue et édition (colonne « Tradelist Count » du CSV)
+  const tl = C.tradeLists({ 'sol ring': coll['sol ring'] }, new Map(), 1).have[0]; assert.deepEqual(tl.lines, [['fr|cmm|400', 2]], 'la réserve garde d\'abord la ligne sans édition');
+});
 test('prix réels : offre la moins chère achetable (critères, hub en Zero, langue), prix unitaire, valeur', () => {
   const o = (id, price, x = {}) => ({ id, price, qty: 2, cond: 'Near Mint', foil: false, lang: 'fr', hub: true, vac: false, graded: false, signed: false, altered: false, bundle: 1, cur: 'EUR', ...x });
   const opts = { cond: 'Slightly Played', foil: 'no', mode: 'zero', lang: 'fr' };
@@ -1294,8 +1341,8 @@ test('dkMatch : format et couleurs (toutes celles demandées)', () => {
 test('export CSV de la collection (format Moxfield) : relu par l\'import, une ligne par langue', () => {
   const map = { 'sol ring': { n: 'Sol Ring', q: 3, l: 'fr', x: { fr: 2, en: 1 } }, 'fire': { n: 'Fire // Ice', q: 1 }, 'x': { n: 'Krenko, "Tin" Lord', q: 2, l: 'de' } };
   const csv = C.collToCsv(map), lines = csv.trim().split('\n');
-  assert.equal(lines[0], 'Count,Tradelist Count,Name,Edition,Condition,Language,Foil');
-  assert.deepEqual(lines.slice(1), ['1,0,Fire // Ice,,Near Mint,,', '2,0,"Krenko, ""Tin"" Lord",,Near Mint,German,', '2,0,Sol Ring,,Near Mint,French,', '1,0,Sol Ring,,Near Mint,English,']);
+  assert.equal(lines[0], 'Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number');
+  assert.deepEqual(lines.slice(1), ['1,0,Fire // Ice,,Near Mint,,,', '2,0,"Krenko, ""Tin"" Lord",,Near Mint,German,,', '2,0,Sol Ring,,Near Mint,French,,', '1,0,Sol Ring,,Near Mint,English,,']);
   const back = C.parseCollection(csv);
   assert.equal(back.format, 'csv'); assert.equal(back.copies, 6);
   const sr = back.items.find(i => i.n === 'Sol Ring'); assert.deepEqual(sr.x, { fr: 2, en: 1 });
@@ -1304,16 +1351,16 @@ test('export CSV de la collection (format Moxfield) : relu par l\'import, une li
 });
 test('export CSV : un nom qui ressemble à une formule (Excel, LibreOffice) est neutralisé, les vrais noms « +2 Mace » restent intacts', () => {
   const row = n => C.collToCsv({ k: { n, q: 2 } }).trim().split('\n')[1];
-  assert.equal(row('=HYPERLINK("http://x","clic")'), '2,0,"\'=HYPERLINK(""http://x"",""clic"")",,Near Mint,,');
-  assert.equal(row('@SUM(A1)'), "2,0,'@SUM(A1),,Near Mint,,");
-  assert.equal(row('-2+3+cmd|\' /C calc\'!A0'), "2,0,'-2+3+cmd|' /C calc'!A0,,Near Mint,,", 'DDE : signe suivi d\'une formule');
-  assert.equal(row('+1'), "2,0,'+1,,Near Mint,,", 'signe et chiffres seuls : formule');
-  assert.equal(row('\tSol Ring'), "2,0,'\tSol Ring,,Near Mint,,");
-  assert.equal(row('\rSol Ring'), '2,0,"\'\rSol Ring",,Near Mint,,');
-  assert.equal(row('+2 Mace'), '2,0,+2 Mace,,Near Mint,,', 'vrai nom de carte : intact');
-  assert.equal(row('-1 Kobold\'s Lance, Hunter'), '2,0,"-1 Kobold\'s Lance, Hunter",,Near Mint,,', 'signe, chiffres, espace, mots : intact');
-  assert.equal(row('Sol Ring'), '2,0,Sol Ring,,Near Mint,,');
-  assert.equal(row('Fire // Ice'), '2,0,Fire // Ice,,Near Mint,,');
+  assert.equal(row('=HYPERLINK("http://x","clic")'), '2,0,"\'=HYPERLINK(""http://x"",""clic"")",,Near Mint,,,');
+  assert.equal(row('@SUM(A1)'), "2,0,'@SUM(A1),,Near Mint,,,");
+  assert.equal(row('-2+3+cmd|\' /C calc\'!A0'), "2,0,'-2+3+cmd|' /C calc'!A0,,Near Mint,,,", 'DDE : signe suivi d\'une formule');
+  assert.equal(row('+1'), "2,0,'+1,,Near Mint,,,", 'signe et chiffres seuls : formule');
+  assert.equal(row('\tSol Ring'), "2,0,'\tSol Ring,,Near Mint,,,");
+  assert.equal(row('\rSol Ring'), '2,0,"\'\rSol Ring",,Near Mint,,,');
+  assert.equal(row('+2 Mace'), '2,0,+2 Mace,,Near Mint,,,', 'vrai nom de carte : intact');
+  assert.equal(row('-1 Kobold\'s Lance, Hunter'), '2,0,"-1 Kobold\'s Lance, Hunter",,Near Mint,,,', 'signe, chiffres, espace, mots : intact');
+  assert.equal(row('Sol Ring'), '2,0,Sol Ring,,Near Mint,,,');
+  assert.equal(row('Fire // Ice'), '2,0,Fire // Ice,,Near Mint,,,');
   assert.match(C.collToCsv({ k: { n: 'Sol Ring', q: 3 } }), /\n3,0,Sol Ring,/, 'colonnes de nombres jamais touchées');
 });
 

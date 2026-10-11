@@ -16,7 +16,7 @@ function homeSoon(ms = 120) { if (typeof document === 'undefined') return; clear
 
 /** Valeur de la collection : somme des prix tendance (centimes) ; à défaut le dernier relevé de l'historique. */
 function homeValue() {
-  let v = 0; for (const [k, x] of Object.entries(COLL.map)) { const m = COLL.meta[k]; if (m && m.eu > 0) v += m.eu * x.q; }
+  let v = collValue();      // prix de l'édition de chaque ligne s'il est connu, sinon celui de la carte
   if (!v && VAL.hist.length) v = VAL.hist[VAL.hist.length - 1].v;
   return v;
 }

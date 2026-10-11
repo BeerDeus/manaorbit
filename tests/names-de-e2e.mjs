@@ -87,12 +87,12 @@ await shot(p, 'intl-de-collection');
 ok('import : allemand par défaut, 3 noms allemands reconnus, exemplaires allemands affichés sous leur nom allemand');
 
 /* ── 3) « Ajouter une carte » et liste de souhaits : noms allemands ─────────────────────────── */
-await p.click('.coll-tools [data-act="add"]'); await p.waitForSelector('#caName'); await p.waitForSelector('.sheet-wrap.open .sheet-head');
-assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Type its name in English or German/); assert.equal(await p.$eval('#caName', i => i.placeholder), 'Lightning Bolt or Blitzschlag');
+await p.click('.coll-tools [data-act="add"]'); await p.waitForSelector('.lot #caName');
+assert.match(await txt(p, '.lot .dv-title'), /Type its name in English or German/); assert.equal(await p.$eval('#caName', i => i.placeholder), 'Lightning Bolt or Blitzschlag');
 await p.fill('#caName', 'gegenz'); await p.waitForSelector('.ca-opt'); assert.equal(await p.$eval('.ca-opt span', s => s.innerText.replace(/\s+/g, ' ').trim()), 'Gegenzauber Counterspell');
-await p.click('.ca-opt'); await p.waitForTimeout(250); assert.match(await txt(p, '#caStatus'), /Gegenzauber · 1/);
+await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForTimeout(250); assert.match(await txt(p, '#caStatus'), /Gegenzauber · 1/);
 assert.equal(await p.evaluate(() => COLL.map.counterspell.l), 'de', 'nom allemand choisi : exemplaire allemand');
-await p.keyboard.press('Escape'); await sheetGone();
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('#caName'), null, { timeout: 3000 });
 await p.evaluate(() => openWishAdd()); await p.waitForSelector('#waName'); await p.waitForSelector('.sheet-wrap.open .sheet-head');
 assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /English or German name already known to Scryfall/);
 await p.fill('#waName', 'Riesenw'); await p.waitForSelector('.ca-opt'); assert.equal(await p.$eval('.ca-opt span', s => s.innerText.replace(/\s+/g, ' ').trim()), 'Riesenwuchs Giant Growth');

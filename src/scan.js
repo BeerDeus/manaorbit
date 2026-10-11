@@ -188,6 +188,11 @@ function scanRecap() {
     if (!e.target.closest('[data-rc="go"]')) return;
     const items = live(); if (!items.length) return;
     const before = COLL.map, n = items.reduce((a, x) => a + x.q, 0);
+    if (SC.lot && LOT.el) {      // depuis le lot : chaque carte y rejoint aussi la liste, avec l'extension collante si elle y existe
+      api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok');
+      lotFromScan(items).then(() => toast(TN(n, '{n} carte ajoutée au lot', '{n} cartes ajoutées au lot', { n })));
+      return;
+    }
     collAdd(items, 'add'); api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok');
     toast(TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
     collEnrich();
@@ -705,7 +710,8 @@ function scanPhotos(files, cam) {
 }
 
 function closeScan() { if (SC.el) SC.el.__close(); }
-function openScan() {
+/** o.lot : scan ouvert depuis « Ajouter des cartes » : « Ajouter » envoie les cartes dans le lot (extension collante) au lieu de la collection seule. */
+function openScan(o) {
   closeScan();
   const wrap = document.createElement('div'); wrap.className = 'dv scan'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Scanner des cartes'));
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer le scan')}"><svg class="i"><use href="#i-back"/></svg></button>
@@ -725,7 +731,7 @@ function openScan() {
       <label class="btn ghost small sc-photo"><svg class="i"><use href="#i-image"/></svg>${T('Photos')}<input type="file" id="scFile" accept="image/*" multiple></label>
       <button class="sc-shot" type="button" data-act="shot" aria-label="${T('Prendre la photo de la carte')}"><i></i></button>
       <label class="btn ghost small sc-native"><svg class="i"><use href="#i-camera"/></svg>${T('Appareil')}<input type="file" id="scCam" accept="image/*" capture="environment"></label></div>`;
-  SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
+  SC.lot = !!(o && o.lot); SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
   const stop = () => { SC.alive = false; SC.warm = false; clearInterval(SC.diagT); clearTimeout(SC.hintT); SC.queue.forEach(j => scanFree(j.src)); SC.queue = []; SC.pend = []; if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; } natStop(); };
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); wrap.__close(); } };
   wrap.__close = () => {

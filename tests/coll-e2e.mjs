@@ -17,11 +17,12 @@ await p.screenshot({ path: 'shots/coll-0-saisie.png' });
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
 assert.match(await txt(p, '.coll .dv-empty'), /Pas encore de cartes pour l'instant/); assert.equal(await p.$eval('#collSeg', e => !!e.offsetParent), true, 'onglets visibles sans carte'); assert.equal(await p.$eval('#app', a => a.inert), true);
 await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
-const CSV = `Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,ManaBox ID,Scryfall ID,Purchase price,Misprint,Altered,Condition,Language,Purchase price currency
-Sol Ring,CMM,Commander Masters,400,normal,uncommon,1,1,x,1.00,false,false,near_mint,en,EUR
-"Sol Ring",C21,Commander 2021,263,normal,uncommon,2,2,y,1.00,false,false,near_mint,en,EUR
-Swords to Plowshares,CMM,Commander Masters,401,foil,uncommon,1,3,z,2.00,false,false,near_mint,en,EUR
-Llanowar Elves,DOM,Dominaria,168,normal,common,4,4,w,0.20,false,false,near_mint,en,EUR`;
+// sans « Collector number » : pas d'édition, les impressions d'une même carte s'additionnent (éditions gardées : edition-e2e.mjs)
+const CSV = `Name,Set code,Set name,Foil,Rarity,Quantity,ManaBox ID,Scryfall ID,Purchase price,Misprint,Altered,Condition,Language,Purchase price currency
+Sol Ring,CMM,Commander Masters,normal,uncommon,1,1,x,1.00,false,false,near_mint,en,EUR
+"Sol Ring",C21,Commander 2021,normal,uncommon,2,2,y,1.00,false,false,near_mint,en,EUR
+Swords to Plowshares,CMM,Commander Masters,foil,uncommon,1,3,z,2.00,false,false,near_mint,en,EUR
+Llanowar Elves,DOM,Dominaria,normal,common,4,4,w,0.20,false,false,near_mint,en,EUR`;
 await p.fill('#ciText', CSV); await p.waitForTimeout(150);
 assert.match(await txt(p, '#ciSum'), /3 cartes différentes · 8 exemplaires Fichier CSV/); assert.equal(await p.$eval('#ciGo', b => b.disabled), false); assert.match(await txt(p, '#ciGo'), /Importer 3 cartes/);
 await p.screenshot({ path: 'shots/coll-1-import.png' });
@@ -97,11 +98,11 @@ await p.click('.crow[data-k="swords to plowshares"] [data-d="-1"]'); await p.wai
 await p.click('.sheet [data-ok]'); await p.waitForSelector('#toast.on .toast-act');
 assert.equal((await rows()).length, 2); assert.match(await txt(p, '#toast'), /Swords to Plowshares retirée/);
 await p.click('#toast .toast-act'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3); ok('+ / −, retrait à zéro et Annuler');
-await p.click('.coll-tools [data-act="add"]'); await p.waitForSelector('#caName'); await p.fill('#caName', 'arca');
+await p.click('.coll-tools [data-act="add"]'); await p.waitForSelector('.lot #caName'); await p.fill('#caName', 'arca');      // « Ajouter des cartes » (lot.js) : choisir, puis « Ajouter »
 await p.waitForSelector('.ca-opt'); assert.deepEqual(await p.$$eval('.ca-opt span', s => s.map(x => x.textContent)), ['Arcane Signet']);
-await p.click('.ca-opt'); await p.waitForTimeout(250); assert.match(await txt(p, '#caStatus'), /Arcane Signet · 1 dans ta collection/);
-await p.fill('#caName', 'ring'); assert.deepEqual(await p.$$eval('.ca-opt i', s => s.map(x => x.textContent)), ['× 3'], 'quantité déjà possédée affichée');
-await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('#caName'), null, { timeout: 3000 });
+await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForTimeout(250); assert.match(await txt(p, '#caStatus'), /Arcane Signet · 1 dans ta collection/);
+await p.fill('#caName', 'ring'); await p.waitForSelector('.ca-opt'); assert.deepEqual(await p.$$eval('.ca-opt i', s => s.map(x => x.textContent)), ['× 3'], 'quantité déjà possédée affichée');
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('#caName'), null, { timeout: 3000 }); await p.waitForSelector('.coll.on');
 await p.waitForFunction(() => document.querySelectorAll('.crow').length === 4); assert.match(await txt(p, '.coll .dv-title span'), /^4 cartes · 10 exemplaires/);
 await p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length === 4, null, { timeout: 8000 }); assert.equal(scryCalls(/^POST \/cards\/collection/), 2, 'seule la nouvelle carte est lue');
 ok('ajout à la main : suggestions du catalogue, quantité déjà possédée, infos lues pour la seule nouvelle carte');
@@ -110,6 +111,7 @@ ok('ajout à la main : suggestions du catalogue, quantité déjà possédée, in
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.coll'), null, { timeout: 3000 });
 assert.match(await txt(p, '#collSub'), /^4 cartes · 10 exemplaires$/);
 const callsBefore = scryCalls(/^POST \/cards\/collection/);
+await p.waitForTimeout(900);      // infos Scryfall enregistrées sur l'appareil 0,8 s après leur lecture (regroupées)
 await p.reload(); await p.waitForTimeout(900);
 assert.match(await txt(p, '#collSub'), /^4 cartes · 10 exemplaires$/); await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.crow .px.cm', { timeout: 5000 });
 assert.equal(scryCalls(/^POST \/cards\/collection/), callsBefore, 'infos Scryfall gardées (cache), rien à relire');
@@ -125,7 +127,7 @@ assert.match(dl.suggestedFilename(), /^ma-collection-\d{4}-\d{2}-\d{2}\.txt$/); 
 await p.waitForTimeout(400); await p.click('.coll-sync [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="csv"]');
 const [dc] = await Promise.all([p.waitForEvent('download'), p.click('.ex-opt[data-x="csv"]')]);
 assert.match(dc.suggestedFilename(), /^ma-collection-\d{4}-\d{2}-\d{2}\.csv$/); const csv = (await import('node:fs')).readFileSync(await dc.path(), 'utf8');
-assert.equal(csv.split('\n')[0], 'Count,Tradelist Count,Name,Edition,Condition,Language,Foil'); assert.match(csv, /\n3,2,Sol Ring,,Near Mint,English,\n/, 'Tradelist Count : 3 − 1 de réserve (aucun deck)');
+assert.equal(csv.split('\n')[0], 'Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number'); assert.match(csv, /\n3,2,Sol Ring,,Near Mint,English,,\n/, 'Tradelist Count : 3 − 1 de réserve (aucun deck)');
 { const r = csv.trim().split('\n').slice(1).map(l => l.split(',').map(Number)); assert.ok(r.every(([c, t]) => t === Math.max(0, c - 1)), 'chaque ligne : sa part de la liste d\'échange (' + csv + ')'); }
 const back = await p.evaluate(t => parseCollection(t).items.reduce((a, x) => a + x.q, 0), csv); assert.equal(back, await p.evaluate(() => collCopies()), 'le CSV se relit (mêmes exemplaires)');
 console.log('✓ export : texte ou CSV au format Moxfield, relu par l\'import');

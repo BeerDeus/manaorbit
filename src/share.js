@@ -90,7 +90,7 @@ function trCard(k, n, q, l) {
  *  La limite tient compte du pseudo et de la photo que trPut ajoute (jusqu'à 40 000 caractères) : le document reste sous la règle des 900 000. */
 function trPayload() {
   const max = TR_MAX - JSON.stringify(profShare()).length;
-  const st = trState(), have = st.have.flatMap(x => x.lines.map(([l, q]) => trCard(x.k, x.n, q, l))), want = st.want.map(x => { const o = trCard(x.k, x.n, x.q, ''); if (x.p) { o.i = scrySmall(x.p.i); o.w = x.p.w || ''; if (x.p.l && x.p.l !== 'en') o.l = x.p.l; } return o; });      // souhait : l'illustration retenue
+  const st = trState(), have = st.have.flatMap(x => langLines(x.lines).map(([l, q]) => trCard(x.k, x.n, q, l))), want = st.want.map(x => { const o = trCard(x.k, x.n, x.q, ''); if (x.p) { o.i = scrySmall(x.p.i); o.w = x.p.w || ''; if (x.p.l && x.p.l !== 'en') o.l = x.p.l; } return o; });      // souhait : l'illustration retenue
   for (const o of [...have, ...want]) if (o.i) { const sh = imgShort(o.i); if (sh) o.i = sh; else delete o.i; }      // adresses d'images raccourcies (≈ 2 fois moins de place)
   let body = { have, want };
   // trop gros : d'abord sans les images des doublons (le visiteur les relit sur Scryfall), puis sans les symboles ; jamais sans l'illustration d'une carte souhaitée
@@ -273,8 +273,8 @@ const trQxHtml = x => `<span class="tr-qx">${trPxHtml(x)}<b>× ${x.q}</b></span>
 /** « 5 € » sans centimes (filtre « ≥ 5 € »). */
 const trEur = c => new Intl.NumberFormat(LOC(), { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(c / 100);
 function trHaveRow(x) {
-  const it = trItem(x.k, x.n, x.q, x.lines[0] ? x.lines[0][0] : ''), nm = it.dn || it.n, img = collImage(x.k, it.l, it.im).src;
-  const langs = x.lines.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${x.lines.length > 1 ? ' × ' + q : ''}</span>`).join('');
+  const ll = langLines(x.lines), it = trItem(x.k, x.n, x.q, ll[0] ? ll[0][0] : ''), nm = it.dn || it.n, img = collImage(x.k, it.l, it.im).src;      // par langue, éditions confondues
+  const langs = ll.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${ll.length > 1 ? ' × ' + q : ''}</span>`).join('');
   return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(it.l)}"><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${langs}${it.dn ? `<span class="tag">${esc(x.n)}</span>` : ''}</span></span>
     <span class="tr-q">${trQxHtml(x)}<button class="link-btn" type="button" data-act="tkeep" aria-label="${T('Garder {name} (ne plus la proposer)', { name: esc(nm) })}">${T('Garder')}</button></span></div>`;
@@ -290,7 +290,7 @@ function trWantRow(x, mine) {
 function trPanelHtml() {
   const st = TR.st = trState(), f = COLL.f, sub = TR.sub, want = sub === 'want', held = st.held;
   const all = want ? st.want : st.have, min = want ? 0 : TR.min, act = filterActive(f) || min > 0;
-  const fil = filterItems(all.map(x => Object.assign(trItem(x.k, x.n, x.q, x.lines && x.lines[0] ? x.lines[0][0] : ''), { src: x })), f).map(i => i.src);
+  const fil = filterItems(all.map(x => Object.assign(trItem(x.k, x.n, x.q, x.lines && x.lines[0] ? lineLang(x.lines[0][0]) : ''), { src: x })), f).map(i => i.src);
   const { rows: list, sum } = tradeView(fil, { price: trPrice, sort: TR.sort, min }), shown = list.slice(0, TR.shown);
   return `${trShareBoxHtml(st)}
     <div class="tr-keep"><span class="label">${T('Garder en plus de mes decks : 0–4 exemplaires')}</span><div class="seg" id="trKeep" role="radiogroup" aria-label="${T('Garder en plus de mes decks')}"></div><p class="hint">${T('Tu proposes seulement ce que tu as en trop.')}</p></div>
@@ -554,7 +554,7 @@ function pubNote() {
 /** Ligne d'un bloc : sa carte (image, nom français), ce qui la rend intéressante, exemplaires échangeables et valeur. */
 function pubMatchRow(x, side) {
   const it = pubFill(x.it), nm = it.dn || it.n, img = it.im || '', alt = it.dn && it.dn !== it.n ? it.n : it.fn || '';
-  const ls = side === 'get' ? x.ls : x.s.lines.map(l => l[0]).filter(Boolean);      // ses langues / celles de mes doublons
+  const ls = side === 'get' ? x.ls : langLines(x.s.lines).map(l => l[0]).filter(Boolean);      // ses langues / celles de mes doublons
   const tags = side === 'get'
     ? `<span class="tag accent">${T('tu la cherches × {n}', { n: x.w.q })}</span>${x.w.p && x.w.p.w ? `<span class="tag" title="${T('Illustration recherchée')}">${T('illustration souhaitée : {name}', { name: esc(x.w.p.w) })}</span>` : ''}`
     : `<span class="tag good">${T('tu peux l\'échanger × {n}', { n: x.s.q })}</span>${it.pw ? `<span class="tag accent" title="${T('Illustration recherchée')}">${esc(it.pw)}</span>` : ''}`;

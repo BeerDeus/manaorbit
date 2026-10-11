@@ -19,6 +19,9 @@ export const CARDS = [
 ];
 export const slug = n => n.toLowerCase().replace(/[^a-z]+/g, '-');
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="672" height="936"><rect width="672" height="936" fill="#456"/></svg>';
+/** Extensions des impressions simulées (« Illustrations » : numéros 100, 101…) et prix Cardmarket de l'impression anglaise n° 100 + i (chaîne Scryfall, euros). */
+const ED_SETS = [['cmm', 'Commander Masters'], ['2x2', 'Double Masters 2022'], ['lea', 'Limited Edition Alpha'], ['m21', 'Core Set 2021'], ['neo', 'Kamigawa: Neon Dynasty']];
+const edEur = i => (1 + i * 2.5).toFixed(2);
 const namesIn = q => [...String(q).matchAll(/!"(.+?)"/g)].map(m => m[1]);
 const front = n => String(n).split('//')[0].trim().toLowerCase();
 
@@ -29,7 +32,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0 } = {}
   const prints = {}; CARDS.forEach(([n, , cmc, tl, mc, , colors, eur], i) => { prints[n] = [{ id: 's-' + slug(n), set: 'cmm', set_name: 'Commander Masters', collector_number: String(400 + i), name: n, cmc, type_line: tl, mana_cost: mc, colors, prices: { eur }, color_identity: colors, legalities: { commander: 'legal' },
     image_uris: { small: `https://cards.scryfall.io/small/front/a/b/${slug(n)}.jpg` } }]; });
   const bps = CARDS.map(([n, bp]) => ({ id: bp, name: n, scryfall_id: 's-' + slug(n) }));
-  const world = { carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, basics: false, en: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
+  const world = { edPrice: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, basics: false, en: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
   const up = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x'), path = u.pathname.replace('/api/v2/', ''); log.push({ path, q: Object.fromEntries(u.searchParams) });
     const send = (o, s = 200) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
@@ -83,8 +86,8 @@ export async function newPage(browser, world, opts = {}) {
       world.printsReq = (world.printsReq || 0) + 1;
       const n = c && !(l === 'fr' && world.noFr.has(c[0])) ? ((world.variants[c[0]] || { fr: 3, en: 4 })[l] ?? 0) : 0;
       if (!n) return json({ object: 'error', code: 'not_found' }, 404);
-      const sets = [['cmm', 'Commander Masters'], ['2x2', 'Double Masters 2022'], ['lea', 'Limited Edition Alpha'], ['m21', 'Core Set 2021'], ['neo', 'Kamigawa: Neon Dynasty']];
-      return json({ object: 'list', has_more: false, data: Array.from({ length: n }, (_, i) => ({ name: c[0], lang: l, set: sets[i % 5][0], set_name: sets[i % 5][1], collector_number: String(100 + i), released_at: (2023 - i) + '-01-01', full_art: i === 1, border_color: i === 2 ? 'borderless' : 'black', frame_effects: i === 0 ? ['extendedart'] : [], promo: false, image_uris: { small: `https://cards.scryfall.io/small/front/${l}/${slug(c[0])}-v${i}.jpg`, large: `https://cards.scryfall.io/large/front/${l}/${slug(c[0])}-v${i}.jpg` } })) });
+      const sets = ED_SETS;
+      return json({ object: 'list', has_more: false, data: Array.from({ length: n }, (_, i) => ({ name: c[0], lang: l, set: sets[i % 5][0], set_name: sets[i % 5][1], collector_number: String(100 + i), released_at: (2023 - i) + '-01-01', full_art: i === 1, border_color: i === 2 ? 'borderless' : 'black', frame_effects: i === 0 ? ['extendedart'] : [], promo: false, rarity: 'rare', prices: { eur: l === 'en' ? edEur(i) : null, eur_foil: null }, image_uris: { small: `https://cards.scryfall.io/small/front/${l}/${slug(c[0])}-v${i}.jpg`, large: `https://cards.scryfall.io/large/front/${l}/${slug(c[0])}-v${i}.jpg` } })) });
     }
     if (u.pathname === '/cards/search') {
       const q = u.searchParams.get('q'), lang = /lang:fr/.test(q);
@@ -114,6 +117,11 @@ export async function newPage(browser, world, opts = {}) {
     if (u.pathname === '/cards/collection' && req.method() === 'POST') {
       const ids = (JSON.parse(req.postData() || '{}').identifiers || []), data = [], nf = [];
       for (const i of ids) {
+        if (i.set) {      // édition précise (code + numéro) : impressions des « Illustrations » (numéros 100, 101…), prix edEur, sinon inconnue
+          const n = Number(i.collector_number) - 100, ok = n >= 0 && n < 5 && ED_SETS[n][0] === i.set;
+          if (ok) data.push({ set: i.set, set_name: ED_SETS[n][1], collector_number: i.collector_number, rarity: 'rare', prices: { eur: world.edPrice[i.set + '|' + i.collector_number] ?? edEur(n), eur_foil: null }, image_uris: { small: `https://cards.scryfall.io/small/front/en/ed-${i.set}-${i.collector_number}.jpg` } }); else nf.push(i);
+          continue;
+        }
         const hit = Object.entries(world.prints).find(([n]) => front(n) === front(i.name));
         if (hit) data.push(hit[1][0]);
         else if (world.basics && /^(snow-covered )?(plains|island|swamp|mountain|forest|wastes)$/i.test(i.name)) data.push({ id: 's-' + slug(i.name), set: 'cmm', set_name: 'Commander Masters', collector_number: '900', name: i.name, cmc: 0, type_line: 'Basic Land', mana_cost: '', colors: [], color_identity: [], prices: { eur: null }, image_uris: { small: `https://cards.scryfall.io/small/front/b/${slug(i.name)}.jpg` } });      // terrains de base : seulement si le test les demande (world.basics)
@@ -127,6 +135,7 @@ export async function newPage(browser, world, opts = {}) {
     if (m) { const lang = m[3] || 'en'; return json({ object: 'card', lang, image_uris: { large: `https://cards.scryfall.io/large/front/${m[1]}/${m[2]}-${lang}.jpg` } }); }
     return json({ object: 'error' }, 404);
   });
+  await p.route('https://svgs.scryfall.io/**', route => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>' }));
   await p.route('https://cards.scryfall.io/**', route => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: SVG }));
   await routeFonts(p);
   if (opts.init) await p.addInitScript(opts.init);

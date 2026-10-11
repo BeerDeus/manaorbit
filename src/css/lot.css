@@ -1,0 +1,60 @@
+/* ── lot.css : « Ajouter des cartes » (lot.js) : recherche, carte choisie (image, édition, quantité, langue), choix de l'édition, liste du lot ── */
+.lot-body{display:flex;flex-direction:column;gap:10px}
+.lot-search{margin:0}
+.lot .ca-list:empty{display:none}
+.lot-sticky{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:7px 12px;border-radius:var(--r-md);background:var(--accent-soft);color:var(--ink-2);font-size:12.5px}
+.lot-sticky[hidden]{display:none}
+.lot-sticky b{color:var(--ink);font-weight:650}
+.lot-sticky .link-btn{margin-left:auto}
+/* carte choisie : image à gauche, réglages à droite (une colonne sous 340 px) */
+.lot-card{display:grid;grid-template-columns:minmax(118px,38%) 1fr;gap:14px;padding:14px;border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.lot-card[hidden]{display:none}
+@media (max-width:340px){.lot-card{grid-template-columns:1fr}.lot-art{max-width:180px;margin:0 auto}}
+.lot-art{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0}
+.lot-img{display:block;width:100%;padding:0;border:0;background:var(--surface-2);border-radius:4.75% / 3.4%;overflow:hidden;aspect-ratio:672/936;cursor:zoom-in;box-shadow:0 8px 22px -10px rgba(16,21,43,.45)}
+.lot-img img{display:block;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .2s}
+.lot-img img.ok{opacity:1}
+.lot-px{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-variant-numeric:tabular-nums}
+.lot-px b{font-weight:700;color:var(--accent)}
+.lot-f{display:flex;flex-direction:column;gap:9px;min-width:0}
+.lot-name{display:flex;flex-direction:column;gap:2px;min-width:0}
+.lot-name b{font-family:var(--font-display);font-size:18px;line-height:1.15;font-weight:700;overflow-wrap:anywhere}
+.lot-name small{font-size:12px;color:var(--ink-3)}
+.lot-name em{font-style:normal;font-size:12px;color:var(--good);font-weight:600}
+/* bouton de l'édition : symbole, extension, code et numéro ; « auto » : proposée d'office (extension collante) */
+.lot-ed{display:flex;align-items:center;gap:9px;width:100%;min-height:48px;padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-3);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.lot-ed .set-ic{width:24px;height:24px}
+.lot-ed span{display:flex;flex-direction:column;min-width:0;flex:1}
+.lot-ed b{font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lot-ed small{font-size:11.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lot-ed i{font-style:normal;color:var(--ink-3)}
+.lot-ed.on{border-color:var(--accent);background:var(--accent-soft)}
+.lot-ed.auto{box-shadow:0 0 0 2px var(--ring)}
+.lot-ed:disabled{opacity:.6;cursor:default}
+.lot-err{margin:0}
+.lot-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:38px;font-size:13.5px;color:var(--ink-2)}
+.lot-row .sel{flex:0 1 60%;min-width:0}
+.lot-row .sel select{width:100%}
+.lot-go{display:flex;gap:8px;margin-top:2px}
+.lot-go .btn{flex:1}
+/* choix de l'édition (feuille) */
+.lot-eds{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:12px 10px;padding-bottom:6px}
+.lot-ev{display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;border:0;background:none;color:var(--ink);font:inherit;cursor:pointer}
+.lot-ev img{width:100%;aspect-ratio:672/936;object-fit:cover;border-radius:4.75% / 3.4%;background:var(--surface-2);outline:2px solid transparent;outline-offset:2px;transition:outline-color .15s}
+.lot-ev[aria-pressed="true"] img,.lot-ev.none[aria-pressed="true"] i{outline:2.5px solid var(--accent);outline-offset:2px}
+.lot-ev span{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:650}
+.lot-ev em{font-style:normal;font-size:10.5px;line-height:1.2;text-align:center;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lot-ev b{font-size:12px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.lot-ev small{font-size:10px;color:var(--ink-3);text-align:center}
+.lot-ev.none i{display:grid;place-items:center;width:100%;aspect-ratio:672/936;border:1.5px dashed var(--line);border-radius:4.75% / 3.4%;font-style:normal;font-size:12px;color:var(--ink-2);padding:6px;text-align:center}
+/* liste du lot */
+.lot-lh{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.lot-lh[hidden]{display:none}
+.lot-lh .cs-h{margin:0}
+.lot-list{display:flex;flex-direction:column}
+.lot-it.crow{align-items:center}
+.lot-it .lchip.ro{pointer-events:none}
+.lot-when{font-weight:500;color:var(--ink-3)}
+.lot-acts{display:flex;gap:2px;flex:none}
+.lot-acts .icon-btn{width:36px;height:36px}
+.lot-empty{margin:4px 2px}

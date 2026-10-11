@@ -31,7 +31,7 @@ const valSetSeen = d => { VAL.seen = d; try { localStorage.setItem(VAL_SEEN_KEY,
 async function valCommit() {
   await valLoad();
   const items = collItems(), now = Date.now(), p = {}; let v = 0, n = 0, q = 0;
-  for (const i of items) if (i.eu > 0) { v += i.eu * i.q; n++; q += i.q; p[i.k] = i.eu; }
+  for (const i of items) if (i.eu > 0) { v += collCardVal(i.k) || i.eu * i.q; n++; q += i.q; const r = (COLL.meta[i.k] || {}).eu; p[i.k] = r > 0 ? r : i.eu; }      // valeur : éditions comprises ; variations : prix de référence de la carte (changer d'édition n'est pas une variation du marché)
   if (!n) return false;
   VAL.hist = histPush(VAL.hist, { t: now, v, n, q });
   const nb = baseRoll(VAL.base, p, now), chg = nb !== VAL.base; VAL.base = nb;
@@ -54,6 +54,7 @@ async function valRefresh(opts) {
     try {
       const got = await scryCollection(keys.map(k => COLL.map[k].n), run.ctrl.signal, n => { run.done = n; collPaintHead(); });
       for (const k of keys) { const g = got.get(k), old = COLL.meta[k]; if (g && old && g.eu > 0) COLL.meta[k] = { ...old, eu: g.eu }; }
+      await edRefresh(true, run.ctrl.signal);      // prix des éditions des lignes, relus avec le reste
       COLL.freshAt = Date.now(); collMetaSave(); await valCommit();
     } catch (e) { if (e.name !== 'AbortError') VAL.err = e.code === 'rate' ? T('Scryfall limite les requêtes : réessaie dans une minute.') : T('Prix Cardmarket injoignables pour l\'instant.'); }
     finally { VAL.run = null; collPaint(); paintCollSection(); }

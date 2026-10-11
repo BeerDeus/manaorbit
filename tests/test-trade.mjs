@@ -158,10 +158,10 @@ const use = C.deckUse(decks);
 {
   // export CSV : « Tradelist Count » = doublons de la liste d'échange, langue par langue (Moxfield, Deckbox)
   const csv = C.collToCsv(coll, C.tradeLists(coll, use, 1, new Set()).have).trim().split('\n');
-  assert.ok(csv.includes('4,1,Sol Ring,,Near Mint,French,') && csv.includes('1,1,Sol Ring,,Near Mint,English,'), 'Sol Ring 5 − 2 (decks) − 1 (réserve) = 2 : 1 FR + 1 EN, gardées d\'abord en FR');
-  assert.ok(csv.includes('3,0,Lightning Bolt,,Near Mint,French,') && csv.includes('12,0,Forest,,Near Mint,,'), 'utilisée par un deck, terrain de base : 0');
+  assert.ok(csv.includes('4,1,Sol Ring,,Near Mint,French,,') && csv.includes('1,1,Sol Ring,,Near Mint,English,,'), 'Sol Ring 5 − 2 (decks) − 1 (réserve) = 2 : 1 FR + 1 EN, gardées d\'abord en FR');
+  assert.ok(csv.includes('3,0,Lightning Bolt,,Near Mint,French,,') && csv.includes('12,0,Forest,,Near Mint,,,'), 'utilisée par un deck, terrain de base : 0');
   const kept = C.collToCsv(coll, C.tradeLists(coll, use, 0, new Set(['sol ring'])).have);
-  assert.match(kept, /\n4,0,Sol Ring,,Near Mint,French,\n1,0,Sol Ring/, 'carte gardée à la main : 0'); assert.match(kept, /\n2,1,Counterspell,/);
+  assert.match(kept, /\n4,0,Sol Ring,,Near Mint,French,,\n1,0,Sol Ring/, 'carte gardée à la main : 0'); assert.match(kept, /\n2,1,Counterspell,/);
   assert.match(C.collToCsv(coll), /\n4,0,Sol Ring,/, 'sans liste d\'échange : 0 partout');
   assert.equal(C.parseCollection(C.collToCsv(coll, C.tradeLists(coll, use, 0, new Set()).have)).copies, C.parseCollection(C.collToCsv(coll)).copies, 'relu : « Count », jamais « Tradelist Count »');
   console.log('✓ collToCsv : « Tradelist Count » rempli depuis la liste d\'échange (langue par langue, réserve et « Garder » compris)');

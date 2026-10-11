@@ -34,8 +34,14 @@ await back(); await p.waitForFunction(() => !document.querySelector('.dks'), nul
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
 await back(); await p.waitForFunction(() => !document.querySelector('.coll'), null, { timeout: 3000 }); assert.equal(p.url(), url, 'même page');
 // 2) feuille au-dessus de la collection : Retour ferme la feuille d'abord, puis la collection
-await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll [data-act="add"]'); await p.waitForSelector('.sheet-wrap.open');
+await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll [data-act="import"]'); await p.waitForSelector('.sheet-wrap.open');
 await back(); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 }); assert.ok(await p.$('.coll.on'), 'la collection reste ouverte');
+await back(); await p.waitForFunction(() => !document.querySelector('.coll'), null, { timeout: 3000 });
+// 3) « Ajouter des cartes » au-dessus de la collection : Retour (et Échap) ferme seulement cette page
+await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll [data-act="add"]'); await p.waitForSelector('.lot.on');
+await back(); await p.waitForFunction(() => !document.querySelector('.lot'), null, { timeout: 3000 }); assert.ok(await p.$('.coll.on'), 'la collection reste ouverte');
+await p.click('.coll [data-act="add"]'); await p.waitForSelector('.lot.on'); await p.keyboard.press('Escape');
+await p.waitForFunction(() => !document.querySelector('.lot'), null, { timeout: 3000 }); assert.ok(await p.$('.coll.on'), 'Échap : la collection reste ouverte');
 await back(); await p.waitForFunction(() => !document.querySelector('.coll'), null, { timeout: 3000 });
 ok('Retour : ferme la feuille / l\'écran ouvert, sans quitter l\'app');
 
