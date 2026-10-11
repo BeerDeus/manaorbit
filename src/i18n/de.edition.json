@@ -26,5 +26,10 @@
   "Nouveau lot : les cartes restent dans ta collection": "Neuer Stapel: Die Karten bleiben in deiner Sammlung",
   "{n} carte ajoutée au lot": "{n} Karte zum Stapel hinzugefügt",
   "{n} cartes ajoutées au lot": "{n} Karten zum Stapel hinzugefügt",
-  "Celle de la carte": "Die der Karte"
+  "Celle de la carte": "Die der Karte",
+  "Exemplaires {lang}": "Exemplare {lang}",
+  "{n} carte imprimée une seule fois : son édition est posée": "{n} Karte nur einmal gedruckt: Ihre Edition ist gesetzt",
+  "{n} cartes imprimées une seule fois : leur édition est posée": "{n} Karten nur einmal gedruckt: Ihre Edition ist gesetzt",
+  "Édition : {ed}": "Edition: {ed}",
+  "Choisir l'édition de {name}": "Edition von {name} wählen"
 }

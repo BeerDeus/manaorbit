@@ -32,7 +32,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0 } = {}
   const prints = {}; CARDS.forEach(([n, , cmc, tl, mc, , colors, eur], i) => { prints[n] = [{ id: 's-' + slug(n), set: 'cmm', set_name: 'Commander Masters', collector_number: String(400 + i), name: n, cmc, type_line: tl, mana_cost: mc, colors, prices: { eur }, color_identity: colors, legalities: { commander: 'legal' },
     image_uris: { small: `https://cards.scryfall.io/small/front/a/b/${slug(n)}.jpg` } }]; });
   const bps = CARDS.map(([n, bp]) => ({ id: bp, name: n, scryfall_id: 's-' + slug(n) }));
-  const world = { edPrice: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, basics: false, en: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
+  const world = { edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, basics: false, en: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
   const up = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x'), path = u.pathname.replace('/api/v2/', ''); log.push({ path, q: Object.fromEntries(u.searchParams) });
     const send = (o, s = 200) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
@@ -88,6 +88,11 @@ export async function newPage(browser, world, opts = {}) {
       if (!n) return json({ object: 'error', code: 'not_found' }, 404);
       const sets = ED_SETS;
       return json({ object: 'list', has_more: false, data: Array.from({ length: n }, (_, i) => ({ name: c[0], lang: l, set: sets[i % 5][0], set_name: sets[i % 5][1], collector_number: String(100 + i), released_at: (2023 - i) + '-01-01', full_art: i === 1, border_color: i === 2 ? 'borderless' : 'black', frame_effects: i === 0 ? ['extendedart'] : [], promo: false, rarity: 'rare', prices: { eur: l === 'en' ? edEur(i) : null, eur_foil: null }, image_uris: { small: `https://cards.scryfall.io/small/front/${l}/${slug(c[0])}-v${i}.jpg`, large: `https://cards.scryfall.io/large/front/${l}/${slug(c[0])}-v${i}.jpg` } })) });
+    }
+    if (u.pathname === '/cards/search' && /paperprints=1/.test(u.searchParams.get('q'))) {      // cartes imprimées une seule fois : celles de world.solo (nom → numéro dans NEO), aucune par défaut
+      world.soloReq = (world.soloReq || 0) + 1;
+      const data = namesIn(u.searchParams.get('q')).filter(n => world.solo[n]).map(n => ({ name: n, set: 'neo', set_name: 'Kamigawa: Neon Dynasty', collector_number: String(world.solo[n]), rarity: 'common', prices: { eur: '0.30', eur_foil: null }, image_uris: { small: `https://cards.scryfall.io/small/front/en/solo-${slug(n)}.jpg` } }));
+      return data.length ? json({ object: 'list', has_more: false, data }) : json({ object: 'error', code: 'not_found' }, 404);
     }
     if (u.pathname === '/cards/search') {
       const q = u.searchParams.get('q'), lang = /lang:fr/.test(q);

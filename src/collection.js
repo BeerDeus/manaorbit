@@ -4,7 +4,7 @@
 const COLL_KEY = 'deckdeal:coll:v1', COLL_SRC_KEY = 'deckdeal:coll:src', COLL_META_KEY = 'coll:meta', COLL_LI_KEY = 'coll:li', COLL_ED_KEY = 'coll:ed', COLL_PAGE = 120;
 const COLL_RETRY = { off: 15000, err: 20000, live: 12000 };       // délais (ms) : nouvel essai hors ligne / en erreur, attente du serveur au démarrage
 const PX_KEY = 'deckdeal:px:v1', PX_TTL = 2 * DAY, PX_CHUNK = 40;
-const COLL = { ed: {}, edRun: null, px: {}, pxRun: null, pxMsg: null, map: {}, meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
+const COLL = { ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
 try { if (localStorage.getItem(COLL_SRC_KEY) === 'ct') COLL.src = 'ct'; } catch (e) { /* stockage indisponible */ }
 const collCount = () => Object.keys(COLL.map).length;
 const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k].q; return n; };
@@ -114,6 +114,74 @@ function edRemember(k, l, e, info) {
   if (info.li && l && l !== 'en') COLL.li[liKey(l, k + '|' + e)] = info.li;
   collMetaSave();
 }
+/** Sélecteur d'édition d'une ligne de la liste : les éditions de la carte (symbole, code et numéro, prix ; dans la langue de la ligne, puis celles qui n'existent qu'en anglais) et « Sans édition ». */
+function collEdPick(k, g) {
+  const x = COLL.map[k]; if (!x) return;
+  const l = lineLang(g), cur = lineEd(g), name = frName(k, l) || x.n; haptic('tap'); setIcLoad();
+  openSheet(T('Édition de {name}', { name }), l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', api => {
+    api.wrap.classList.add('ced-sheet');
+    let prints = null, err = '';
+    const paint = () => {
+      if (!sheets.includes(api)) return;
+      if (!prints) { api.body.innerHTML = `<p class="hint">${err ? esc(err) : T('Éditions…')}</p>`; return; }
+      api.body.innerHTML = `<div class="ced-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name }))}">${prints.map((p, i) => {
+        const e = edKey(p.set, p.num), px = p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', ic = setIcHtml(p.set);
+        return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
+      }).join('')}<button type="button" class="ced-t none" role="radio" data-i="-1" aria-checked="${!cur}"><span class="ced-q" aria-hidden="true"><svg class="i"><use href="#i-stack"/></svg></span><span class="ced-n">${T('Sans édition')}</span></button></div>`;
+    };
+    paint(); setIcLoad(paint);
+    scryArtPrints(x.n, l || 'en').then(list => { prints = list; paint(); }, e => { err = scryLeft() > 0 ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Éditions indisponibles pour l\'instant (hors ligne ?)'); paint(); });
+    api.body.addEventListener('click', e => {
+      const b = e.target.closest('.ced-t'); if (!b || !prints) return;
+      const i = Number(b.dataset.i), p = i >= 0 ? prints[i] : null, ne = p ? edKey(p.set, p.num) : '';
+      haptic('ok'); api.close();
+      if (ne === cur) return;
+      collSetEd(k, g, ne, p ? edInfoOf(p, l) : null); collPaintBody(true);
+    });
+  });
+}
+
+/* ── Cartes imprimées une seule fois (en papier) : leur édition est forcément celle-là, posée d'office sur les lignes sans édition ──────────
+   COLL.solo (gardé sur l'appareil) : clé → 'set|num' (une seule impression), '' (plusieurs), '-' (attribution annulée : plus jamais d'office).
+   Scryfall « paperprints=1 » par lots de noms (≈ 30 par requête) ; une carte vue deux fois dans la réponse n'est pas retenue. */
+const COLL_SOLO_KEY = 'coll:solo';
+let soloT = 0, soloRun = null;
+function collSoloSoon(ms = 2500) { clearTimeout(soloT); soloT = setTimeout(() => { collSolo().catch(() => {}); }, ms); }
+/** Lignes sans édition d'une carte. */
+const collNoEd = x => collLines(x).some(([g]) => !lineEd(g));
+async function collSolo() {
+  if (soloRun || COLL.enrich || collOffline() || scryLeft() > 0) return;
+  if (!COLL.soloLoaded) { COLL.soloLoaded = true; try { const m = await Cache.get(COLL_SOLO_KEY, 400 * DAY); if (m && typeof m === 'object') COLL.solo = { ...m, ...COLL.solo }; } catch (e) { /* cache absent */ } }
+  const todo = Object.keys(COLL.map).filter(k => COLL.meta[k] && !BASIC_NAMES.has(k) && !(k in COLL.solo) && collNoEd(COLL.map[k]) && !COLL.map[k].n.includes('"'));
+  soloRun = (async () => {
+    if (todo.length) {
+      try {
+        const got = await scrySolo(todo.map(k => COLL.map[k].n));
+        for (const k of todo) { const p = got.found.get(k); if (p) { const e = edKey(p.set, p.num); COLL.solo[k] = e; edPut(e, p); } else if (got.seen.has(k)) COLL.solo[k] = ''; }
+        Cache.set(COLL_SOLO_KEY, COLL.solo); collMetaSave();
+      } catch (e) { /* hors ligne, pause Scryfall : au prochain essai */ }
+    }
+    collSoloApply();
+  })().finally(() => { soloRun = null; });
+  return soloRun;
+}
+/** Pose l'édition unique sur les lignes sans édition des cartes concernées ; une seule écriture, annulable. */
+function collSoloApply() {
+  const before = {}, m = { ...COLL.map }; let n = 0;
+  for (const [k, x] of Object.entries(COLL.map)) {
+    const e = COLL.solo[k]; if (!e || e === '-' || !collNoEd(x)) continue;
+    const lines = []; for (const [g, q] of collLines(x)) { const to = lineEd(g) ? g : lineKey(lineLang(g), e), t = lines.find(y => y[0] === to); if (t) t[1] += q; else lines.push([to, q]); }
+    before[k] = x; m[k] = collFromLines(x, lines); n++;
+  }
+  if (!n) return 0;
+  COLL.map = m; collChanged({ paint: false }); collPaintSoon();
+  toast(TN(n, '{n} carte imprimée une seule fois : son édition est posée', '{n} cartes imprimées une seule fois : leur édition est posée', { n }), { label: T('Annuler'), fn: () => {
+    const r = { ...COLL.map }; for (const k in before) { r[k] = before[k]; COLL.solo[k] = '-'; }
+    COLL.map = r; Cache.set(COLL_SOLO_KEY, COLL.solo); collChanged();
+  } });
+  return n;
+}
+
 /** Aperçu en grand d'une ligne de la collection (it.coll : { k, g }) : l'impression p de la liste « Illustrations » devient l'édition de la ligne ('' : sans édition).
  *  L'élément de l'aperçu suit (ligne, extension, prix). */
 function collPickEd(it, p) {
@@ -164,7 +232,7 @@ function collChanged(o = {}) {
 }
 /** Après un changement : prix des éditions jamais lues (import, scan, choix d'une illustration), en un lot, un peu plus tard. */
 let edT = 0;
-function edSoon() { clearTimeout(edT); edT = setTimeout(() => { if (collEds(true).some(e => !COLL.ed[e])) edRefresh(); }, 1200); }
+function edSoon() { clearTimeout(edT); edT = setTimeout(() => { if (collEds(true).some(e => !COLL.ed[e])) edRefresh(); if (COLL.soloLoaded) collSoloSoon(400); }, 1200); }      // nouvelles cartes : impression unique ?
 function collAdd(items, mode) { COLL.map = mergeColl(COLL.map, items, mode); collChanged(); }
 /** Confirmation avant de retirer un exemplaire (« − » de la liste Cartes ou du scan) : petite fiche, jamais de confirm() natif. where : 'coll' | 'scan'. */
 function confirmMinus(name, q, where, onOk, line) {
@@ -439,7 +507,7 @@ async function collEnrich() {
     finally {
       clearInterval(st.tick); COLL.enrich = null; VAL.memo = null; collMetaSave(); collPaintHead(); if (COLL.el) collPaintBody(true);
       if (!COLL.enrichErr && !st.ctrl.signal.aborted && (collMissing().length || collLangMissingCount())) setTimeout(collEnrich, 50);      // cartes ajoutées ou langues changées pendant la lecture : on enchaîne
-      else if (!COLL.enrichErr && !st.ctrl.signal.aborted) valMaybe();
+      else if (!COLL.enrichErr && !st.ctrl.signal.aborted) { valMaybe(); collSoloSoon(); }
     }
   })();
   collPaintHead();
@@ -615,11 +683,11 @@ const CARD_LANG_LIST = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN'];
 function langChip(k, l, name, cls, g) {
   return `<label class="lchip${l ? '' : ' none'}${cls ? ' ' + cls : ''}" data-l="${esc(l)}"${g && g !== l ? ` data-g="${esc(g)}"` : ''}>${l ? flag(l) : '<span>' + T('Langue ?') + '</span>'}<select data-lk="${esc(k)}" aria-label="${T('Langue de {name}', { name: esc(name) })}"><option value=""${l ? '' : ' selected'}>${T('Non précisée')}</option>${CARD_LANG_LIST.map(x => { const n = T(LANGS[x]); return `<option value="${x}"${x === l ? ' selected' : ''}>${esc(n[0].toUpperCase() + n.slice(1))}</option>`; }).join('')}</select></label>`;
 }
-/** Étiquette de l'édition d'une ligne : symbole de l'extension, « CMM 400 », nom de l'extension en info-bulle. */
-function edTag(e) {
-  if (!e) return '';
-  const set = edSet(e), sn = setName(set) || (COLL.ed[e] || {}).sn || '';
-  return `<span class="tag ed"${sn ? ` title="${esc(sn)}"` : ''}>${setIcHtml(set)}${esc(edLabel(e))}</span>`;
+/** Sélecteur d'édition d'une ligne (à gauche de la quantité) : le symbole de l'extension seul (code tant que les symboles ne sont pas lus) ; sans édition : un rond en pointillés. */
+function edBtn(it, nm) {
+  const e = it.e || '', set = edSet(e), sn = e ? setName(set) || (COLL.ed[e] || {}).sn || '' : '', ic = e ? setIcHtml(set) : '';
+  const lab = e ? T('Édition : {ed}', { ed: [sn, edLabel(e)].filter(Boolean).join(' · ') }) : T('Choisir l\'édition de {name}', { name: nm });
+  return `<button type="button" class="row-ed${e ? ' on' : ''}" data-act="ed" aria-label="${esc(lab)}" title="${esc(lab)}">${e ? ic || `<span class="ed-code">${esc(set.toUpperCase())}</span>` : ''}</button>`;      // sans édition : rond en pointillés dessiné en CSS (pas de SVG par ligne : 5 000 lignes se repeignent pendant la lecture)
 }
 function crowHtml(it) {
   const g = it.g ?? it.l, nm = it.dn || it.n, hue = hash32(it.k) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase()), img = collLineImage(it.k, g, it.im).src, sub = it.li > 0;      // sub : 2e ligne (langue, édition) de la même carte
@@ -630,15 +698,14 @@ function crowHtml(it) {
   if (!sub && isDateSort() && it.d) tags.push(`<span class="tag" title="${T('Date d\'ajout à la collection')}">${esc(new Date(it.d * 1000).toLocaleString(LOC(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>`);
   const mvv = !sub && valMove(it.k); if (mvv) tags.push(valTag(mvv));
   const mnt = !sub && engTag(it.k); if (mnt) tags.push(mnt);
-  if (it.e) tags.unshift(edTag(it.e));      // l'édition d'abord : c'est elle qui distingue deux lignes de la même langue
   if (!it.l) tags.push(langChip(it.k, '', it.n, '', g));
   const px = [];      // prix : CM (tendance Cardmarket, estimation) au-dessus, CT (offre CardTrader la plus basse, lue à la demande) en dessous
   if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${T('Cardmarket : prix tendance')}"><i>CM</i> <b>${esc(fmt(it.eu, 'EUR'))}</b></span>`);
   if (Number.isFinite(it.rp)) px.push(`<span class="px ct" title="${T('CardTrader : offre la plus basse')}"><i>CT</i> <b>${esc(fmt(it.rp, it.rc || 'EUR'))}</b></span>`);
   else if (it.rp === null && it.rt) px.push(`<span class="px ct none" title="${T('CardTrader : aucune offre')}"><i>CT</i> <b>${T('aucune offre')}</b></span>`);
-  return `<div class="crow${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow ced${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? langChip(it.k, it.l, it.n, '', g) : ''}</span>${tags.length ? `<span class="row-meta">${tags.join('')}</span>` : ''}</span>
-    ${px.length ? `<span class="row-px">${px.join('')}</span>` : ''}
+    ${px.length ? `<span class="row-px">${px.join('')}</span>` : ''}${edBtn(it, nm)}
     <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button><b>${it.q}</b><button type="button" data-d="1" aria-label="${T('Ajouter un exemplaire de {name}', { name: esc(nm) })}">+</button></span></div>`;
 }
 /** État de la sauvegarde, en toutes lettres (le sous-titre du header est tronqué sur téléphone) : { k: 'ok'|'warn'|'bad', t, acts:[[act, label]] } ou null. */
@@ -862,6 +929,7 @@ function openCollection(tab) {
       const act = b.dataset.act;
       if (act === 'close') wrap.__close();
       else if (act === 'add') openLot();
+      else if (act === 'ed') { const r = b.closest('.crow'); if (r && r.dataset.k) collEdPick(r.dataset.k, rowG(r)); }
       else if (act === 'scan') openScan();
       else if (act === 'import') openCollImport();
       else if (act === 'enrich') { COLL.enrichErr = ''; collEnrich(); }
@@ -906,7 +974,7 @@ function openCollection(tab) {
   document.body.appendChild(wrap); holdApp(); collPaintHead(); collPaintBody(false);
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
   haptic('tap');
-  if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); else { valMaybe(); edRefresh(); }
+  if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); else { valMaybe(); edRefresh(); collSoloSoon(); }
   if (collEds().length) setIcLoad(() => { if (COLL.el) collPaintSoon(); });      // symboles des extensions (étiquettes d'édition) : seulement si des lignes en ont une
 }
 /** Ligne (clé langue|édition) d'une rangée de la liste. */

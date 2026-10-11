@@ -15,7 +15,7 @@ await p.route('https://api.scryfall.com/sets', route => { setsHits++; route.fulf
   { code: 'm21', name: 'Core Set 2021', icon_svg_uri: 'https://svgs.scryfall.io/sets/m21.svg?1700000000', set_type: 'core', released_at: '2020-07-03' },
 ] } }); });
 const stored = () => p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t.replace(/ \(D[0-9a-z]+\)/g, ''));
-const rows = () => p.$$eval('.coll .crow', r => r.map(x => ({ name: x.querySelector('.row-name').textContent, g: x.dataset.g || x.dataset.ln, q: Number(x.querySelector('.qstep b').textContent), ed: (x.querySelector('.tag.ed') || {}).textContent || '', ic: !!x.querySelector('.tag.ed .set-ic'), cm: (x.querySelector('.px.cm b') || {}).textContent || '' })));
+const rows = () => p.$$eval('.coll .crow', r => r.map(x => { const g = x.dataset.g || x.dataset.ln || '', e = g.split('|').slice(1); return { name: x.querySelector('.row-name').textContent, g, q: Number(x.querySelector('.qstep b').textContent), ed: e.length === 2 ? e[0].toUpperCase() + ' ' + e[1] : '', ic: !!x.querySelector('.row-ed.on .set-ic'), btn: !!x.querySelector('.row-ed'), tag: !!x.querySelector('.tag.ed'), cm: (x.querySelector('.px.cm b') || {}).textContent || '' }; }));      // édition : celle de la ligne (data-g) ; sélecteur .row-ed (symbole seul)
 const closeImg = async () => { await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 }); };
 const openRow = async n => { await p.click(`.coll .crow >> nth=${n} >> .thumb`); await p.waitForSelector('.imgv-img.ok', { timeout: 8000 }); };
 
@@ -47,9 +47,10 @@ assert.match(await txt(p, '.imgv-extra'), /prix Cardmarket 3,50/); assert.match(
 assert.equal(await stored(), '1 Edgar Markov *EN*\n2 Sol Ring (2X2) 101 *FR*', 'édition enregistrée avec la ligne (texte du compte)');
 assert.equal(await p.$eval('.imgv-v:not(.def) >> nth=1', e => e.getAttribute('aria-pressed')), 'true'); assert.equal(await txt(p, '.imgv-v.def'), 'Sans édition');
 await closeImg();
-await p.waitForFunction(() => /2X2 101/.test((document.querySelector('.coll .crow:nth-child(2) .tag.ed') || document.querySelector('.coll .tag.ed') || {}).textContent || ''), null, { timeout: 5000 });
+await p.waitForFunction(() => document.querySelector('.coll .crow[data-g="fr|2x2|101"] .row-ed.on .set-ic'), null, { timeout: 5000 });
 r = await rows(); const sol = r.find(isSol);
-assert.equal(sol.ed, '2X2 101'); assert.ok(sol.ic, 'symbole de l\'extension sur la ligne'); assert.equal(sol.cm.replace(/\s/g, ' '), '3,50 €', 'prix de la ligne : celui de l\'édition'); assert.equal(sol.g, 'fr|2x2|101');
+assert.equal(sol.ed, '2X2 101'); assert.ok(sol.ic, 'symbole de l\'extension sur la ligne (sélecteur)'); assert.ok(r.every(x => x.btn && !x.tag), 'chaque ligne : le sélecteur, plus d\'étiquette « 2X2 101 »');
+assert.match(await p.$eval('.coll .crow[data-g="fr|2x2|101"] .row-ed', b => b.getAttribute('aria-label')), /Édition : Double Masters 2022 · 2X2 101/); assert.equal(sol.cm.replace(/\s/g, ' '), '3,50 €', 'prix de la ligne : celui de l\'édition'); assert.equal(sol.g, 'fr|2x2|101');
 assert.equal(await p.evaluate(() => collValue()), 2 * 350 + 500, 'valeur : 2 × 3,50 € (édition) + Edgar (référence)');
 assert.equal(await p.evaluate(() => collItems().find(i => i.k === 'sol ring').eu), 350, 'tri par prix et stats : prix de l\'édition');
 const img = await p.$eval('.coll .crow:nth-child(2) .thumb img, .coll .crow .thumb img', () => [...document.querySelectorAll('.coll .crow .thumb img')].map(i => i.getAttribute('src')).find(s => /sol-ring/.test(s)) || '');
@@ -96,6 +97,32 @@ assert.deepEqual(await p.evaluate(() => COLL.map['arcane signet'].x), { 'en|cmm|
 assert.match(await stored(), /^2 Arcane Signet \(CMM\) 100 \*EN\*$/m);
 await p.screenshot({ path: 'shots/edition-2-lignes.png' });
 ok('import ManaBox : éditions gardées, prix lus par édition, une ligne par édition, « − » sur la bonne ligne');
+
+/* ── 4 bis) sélecteur d'édition de la ligne (symbole) : feuille des éditions de la carte, choix, « Sans édition » ─────────────────── */
+await p.click('.coll .crow[data-k="edgar markov"] .row-ed'); await p.waitForSelector('.sheet-wrap.open .ced-t:not(.none)');
+await p.waitForFunction(() => document.querySelectorAll('.ced-t .set-ic').length >= 2, null, { timeout: 5000 });
+assert.deepEqual(await p.$$eval('.ced-t:not(.none)', b => b.map(x => [x.querySelector('.ced-n').textContent, ((x.querySelector('b') || {}).textContent || '').replace(/\s/g, ' ')])), [['CMM 100', '1,00 €'], ['2X2 101', '3,50 €'], ['LEA 102', '6,00 €'], ['M21 103', '8,50 €']], 'éditions (anglais) : code, numéro, prix');
+assert.equal(await p.$eval('.ced-t.none', b => b.getAttribute('aria-checked')), 'true', 'aucune édition : « Sans édition » cochée');
+await p.screenshot({ path: 'shots/edition-3-selecteur.png' });
+await p.click('.ced-t:not(.none) >> nth=3'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+await p.waitForFunction(() => document.querySelector('.coll .crow[data-g="en|m21|103"] .row-ed.on'), null, { timeout: 5000 });
+assert.deepEqual(await p.evaluate(() => COLL.map['edgar markov'].x), { 'en|m21|103': 1 });
+await p.click('.coll .crow[data-g="en|m21|103"] .row-ed'); await p.waitForSelector('.sheet-wrap.open .ced-t[aria-checked="true"]:not(.none)');
+assert.equal(await p.$eval('.ced-t[aria-checked="true"] .ced-n', e => e.textContent), 'M21 103', 'édition de la ligne cochée');
+await p.click('.ced-t.none'); await p.waitForFunction(() => !COLL.map['edgar markov'].x, null, { timeout: 4000 });
+ok('sélecteur d\'édition (symbole seul) sur chaque ligne : feuille des éditions (code, numéro, prix), choix, « Sans édition »');
+
+/* ── 4 ter) carte imprimée une seule fois : son édition est posée d'office (annulable) ──────────────────────────────── */
+world.solo['Wrath of God'] = 12;
+await p.evaluate(() => { collAdd([{ k: 'wrath of god', n: 'Wrath of God', q: 1, l: 'fr' }], 'add'); collEnrich(); });
+await p.waitForFunction(() => COLL.map['wrath of god'] && COLL.map['wrath of god'].x && COLL.map['wrath of god'].x['fr|neo|12'] === 1, null, { timeout: 15000 });
+assert.match(await txt(p, '#toast'), /1 carte imprimée une seule fois : son édition est posée/);
+assert.ok(world.soloReq >= 1); assert.equal(await p.evaluate(() => COLL.solo['edgar markov']), '', 'plusieurs impressions : rien de posé');
+assert.equal(await p.evaluate(() => edEu('neo|12')), 30, 'prix de l\'édition lu avec');
+await p.click('#toast .toast-act'); await p.waitForFunction(() => !(COLL.map['wrath of god'].x || {})['fr|neo|12']);
+assert.equal(await p.evaluate(() => COLL.solo['wrath of god']), '-', 'annulée : plus jamais posée d\'office');
+await p.evaluate(() => collSolo()); await p.waitForTimeout(300); assert.equal(await p.evaluate(() => COLL.map['wrath of god'].x), undefined);
+ok('carte imprimée une seule fois (Scryfall paperprints=1) : édition posée d\'office sur ses lignes sans édition, annulable ; plusieurs impressions : rien');
 
 /* ── 5) export CSV : Edition et Collector Number ─────────────────────────────────────────────────────── */
 const csv = await p.evaluate(() => collToCsv(COLL.map, []));

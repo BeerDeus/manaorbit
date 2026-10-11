@@ -320,6 +320,25 @@ async function scryEditions(eds, signal, onProgress) {
   }
   return out;
 }
+/** Parmi ces noms, les cartes imprimées une seule fois en papier (Scryfall « paperprints=1 », ≈ 30 noms par requête) :
+ *  { found: Map(clé → { set, num, eu, ef, im, sn, r }), seen: Set(clés lues) }. Une carte présente deux fois dans la réponse est écartée (prudence). */
+async function scrySolo(names, signal) {
+  const found = new Map(), seen = new Set(), uniq = [...new Map(names.map(n => [ownKey(n), String(n).replace(/"/g, '')])).entries()], chunks = [];
+  let cur = [], len = 0;
+  for (const e of uniq) { const l = e[1].length + 8; if (cur.length && (cur.length >= 30 || len + l > 1200)) { chunks.push(cur); cur = []; len = 0; } cur.push(e); len += l; }
+  if (cur.length) chunks.push(cur);
+  for (const ch of chunks) {
+    const q = '(' + ch.map(([, n]) => '!"' + n + '"').join(' or ') + ') paperprints=1 game:paper', cnt = new Map(), info = new Map();
+    let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q) + '&unique=prints&order=name';
+    for (let pg = 0; url && pg < 3; pg++) {
+      let j; try { j = await httpJson(limScry, url, SCRY_JSON, signal); } catch (e) { if (e.code === '404') break; throw e; }
+      for (const c of j.data || []) { const k = ownKey(c.name); cnt.set(k, (cnt.get(k) || 0) + 1); info.set(k, { set: c.set, num: c.collector_number, ...eurOf(c), im: imgOf(c) || '', sn: String(c.set_name || '').slice(0, 80), r: c.rarity || '' }); }
+      url = j.has_more ? j.next_page : '';
+    }
+    for (const [k] of ch) { seen.add(k); if (cnt.get(k) === 1 && edKey(info.get(k).set, info.get(k).num)) found.set(k, info.get(k)); }
+  }
+  return { found, seen };
+}
 /** Tous les noms de cartes (anglais) : sert à reconnaître un nom lu par OCR. Gardé 14 jours sur l'appareil (~1 Mo). */
 async function scryCatalogNames(signal) {
   const hit = await Cache.get('sc:names', 14 * DAY); if (hit && hit.length > 1000) return hit;

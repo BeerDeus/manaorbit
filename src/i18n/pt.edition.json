@@ -26,5 +26,10 @@
   "Nouveau lot : les cartes restent dans ta collection": "Novo lote: as cartas continuam na sua coleção",
   "{n} carte ajoutée au lot": "{n} carta adicionada ao lote",
   "{n} cartes ajoutées au lot": "{n} cartas adicionadas ao lote",
-  "Celle de la carte": "A da carta"
+  "Celle de la carte": "A da carta",
+  "Exemplaires {lang}": "Exemplares {lang}",
+  "{n} carte imprimée une seule fois : son édition est posée": "{n} carta impressa uma única vez: a edição dela foi definida",
+  "{n} cartes imprimées une seule fois : leur édition est posée": "{n} cartas impressas uma única vez: a edição delas foi definida",
+  "Édition : {ed}": "Edição: {ed}",
+  "Choisir l'édition de {name}": "Escolher a edição de {name}"
 }

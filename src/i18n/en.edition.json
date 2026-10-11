@@ -26,5 +26,10 @@
   "Nouveau lot : les cartes restent dans ta collection": "New batch: the cards stay in your collection",
   "{n} carte ajoutée au lot": "{n} card added to the batch",
   "{n} cartes ajoutées au lot": "{n} cards added to the batch",
-  "Celle de la carte": "The card's own"
+  "Celle de la carte": "The card's own",
+  "Exemplaires {lang}": "{lang} copies",
+  "{n} carte imprimée une seule fois : son édition est posée": "{n} card printed only once: its edition is set",
+  "{n} cartes imprimées une seule fois : leur édition est posée": "{n} cards printed only once: their edition is set",
+  "Édition : {ed}": "Edition: {ed}",
+  "Choisir l'édition de {name}": "Choose the edition of {name}"
 }
