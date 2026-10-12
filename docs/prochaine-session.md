@@ -28,7 +28,14 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
 - **Avant de mettre la nouvelle navigation en production** : revoir le **scanner** (plus beau, plus simple, plus rapide, extension choisie dès la première carte). Maquettes à proposer, voir l'étape 1 bis.
 
 ## 1 bis. Scanner revu (après le choix des maquettes du scanner)
-- À faire avant la mise en production de la nouvelle navigation (demande du 12 octobre). Propositions et maquettes : page « Scanner » du canevas.
+- À faire avant la mise en production de la nouvelle navigation (demande du 12 octobre). Propositions et maquettes : pages « Scanner · proposition 2 » (retenue) et « Scanner · proposition 1 » du canevas.
+- **Fait le 12 octobre** (détails : README › « Scan des cartes » et « Édition des cartes scannées ») :
+  - caméra **compacte** (seul le nom est lu), boutons posés sur l'image, « Ajouter | Prix », pastille « Éditions », aide **fermée au départ** (« ? »), plus de bouton « Appareil » ;
+  - éditions par **extensions du scan** : 1re carte choisie à la main (sauf extension unique), carte d'une extension connue du scan → posée d'office, de plusieurs → la majorité, d'aucune → « **Nouvelle extension** » ; bandeau de choix en tête de la liste (« Plus tard ») ;
+  - **Réglages du scan** dans le compte (`users/{uid}/meta/prefs`) : éditions comme la 1re / carte par carte / sans édition, scan automatique (délai, même carte à la suite), langue imposée, vibration, son ; « Auto » en **interrupteur** (pas de barre « Manuelle | Auto ») ;
+  - écran **« Éditions à choisir »** à la fin (une carte à la fois, illustrations) ;
+  - **scan automatique** (nom immobile 0,4 s → lu, attend que la carte change ; « Encore X ? » +1 / Non) et **lampe**.
+  - **À faire par le propriétaire** : republier les **règles Firestore** (nouveau document `meta/prefs`) ; essayer l'auto et la lampe sur un vrai téléphone (seuils réglables dans `src/scanauto.js` : `AU_STILL`, `AU_SAME`, `AU_GONE`, `AU_INK`).
 
 ## 2. Onglet CardTrader toujours visible, même sans token (petit)
 - Aujourd'hui : le choix Cardmarket / CardTrader de « Nouveau panier » (`modeLabel`, `src/app.js`) est caché sans token (`ctReady()`), ainsi que la bascule CM / CT de la tuile valeur (Stats).

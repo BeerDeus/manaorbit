@@ -69,6 +69,7 @@
 3. 12 testeurs inscrits 14 jours d'affilée ; testeurs : ouvrir l'appli 2-3 fois par semaine, 2 petits questionnaires (ou 1 à la fin).
 4. Production vers le 20-25 novembre : demande d'accès, puis `ADMOB_BANNER_ID` sur Hostinger et liaison AdMob ↔ fiche Play.
 5. **Prochaine session : `docs/prochaine-session.md`** (maquettes, onglet CardTrader sans token, aide des Decks, bouton Filtres, nouvelle navigation avec Decks à part, decks publics).
+   - Fait le 12 octobre (soir) : maquettes choisies (§ 1) et **scanner revu** (§ 1 bis : extensions du scan, réglages dans le compte, « Éditions à choisir », scan automatique, lampe). **Règles Firestore à republier** (document `meta/prefs`).
 
 ## Actions du propriétaire en attente (avant le 12 octobre)
 - Fait le 11 octobre : règles Firestore republiées (scan mobile), widget « QR code d'échange » testé et validé, bandeau de pub gardé en continu sur les écrans de consultation.
