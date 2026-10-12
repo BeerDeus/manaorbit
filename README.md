@@ -33,7 +33,7 @@ Page (`deck-deal.html`) + proxy CardTrader (`proxy.mjs`, zéro dépendance, Node
 | `PUSH_GRACE_MS` | Délai avant d'envoyer « recherche terminée » (4000 ms : pas de notification si l'app est encore là) |
 | `EDHREC_OFF`, `ARCHIDEKT_OFF` | Interrupteurs (`1`) si EDHREC ou Archidekt refusent : annoncés par `/__ping` (`off`). EDHREC coupé : plus de fichier EDH (410) ni d'import de liens edhrec.com, l'appli cache les decks EDHREC (écran « indisponibles », tuile « Deck à monter » et filtre « Joués en commandant » retirés) et efface sa copie. Archidekt coupé : fichier EDH servi sans ses decks, import de liens archidekt.com refusé, l'appli les retire aussi de sa copie. Sans nouvelle APK |
 | `ADMOB_BANNER_ID` | Facultatif : bloc d'annonces AdMob du bandeau de l'appli Android (`ca-app-pub-…/…`, voir `docs/android.md` › Publicité). Vide : bandeau de test de Google |
-| `ADMOB_PUB_ID` (ou `ADMOB_APP_ID`) | Facultatif : identifiant d'éditeur AdMob (`pub-…`, ou l'ID d'application `ca-app-pub-…~…` dont il est tiré) : sert `/app-ads.txt` (`google.com, pub-…, DIRECT, f08c47fec0942fa0`), exigé par AdMob. Absent : 404 |
+| `ADMOB_PUB_ID` (ou `ADMOB_APP_ID`) | Facultatif : remplace l'identifiant d'éditeur AdMob servi par `/app-ads.txt` (`google.com, pub-…, DIRECT, f08c47fec0942fa0`, exigé par AdMob). Par défaut : celui de l'ID d'application Mana Orbit (`ca-app-pub-9859793504995886~7202291377`, aussi dans l'APK) |
 | `SITE_URL`, `OLD_HOSTS` | Adresse du site (défaut `https://manaorbit.app`) et anciennes adresses servies par le même serveur (défaut `card.m2s-photo.fr`, séparées par des virgules ; vide : aucune) : voir « Adresse du site » |
 | `FIREBASE_JWKS_URL` | Tests seulement : URL des clés publiques Google |
 | `SCRYFALL_UPSTREAM`, `ALERT_FIRST_MS`, `ALERT_SEED_MS`, `ALERT_CHECK_GAP_MS` | Tests seulement |
@@ -97,7 +97,7 @@ L'ancienne adresse `card.m2s-photo.fr` doit rester reliée au même site Hosting
 - **Ancienne APK** (WebView, adresse `card.m2s-photo.fr`) : rien ne change pour elle, l'appli reste servie à l'ancienne adresse tant qu'elle n'est pas mise à jour.
 - **Nouvelle APK** (`server.url` = `https://manaorbit.app`, `allowNavigation` : l'ancienne adresse) : au premier lancement, si rien n'est encore enregistré et que l'ancienne
   adresse répond (`/__mig`), un aller-retour par la page de déménagement ramène les données restées dans la WebView (une seule tentative).
-- `/app-ads.txt` : servi dès que `ADMOB_PUB_ID` (ou `ADMOB_APP_ID`) est renseigné sur Hostinger.
+- `/app-ads.txt` : servi d'office (éditeur `pub-9859793504995886`), vérifié par AdMob à l'examen de l'appli.
 
 ## Garde-fous (optionnels)
 

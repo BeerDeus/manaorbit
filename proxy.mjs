@@ -33,8 +33,8 @@ const ADMOB_RAW = (process.env.ADMOB_BANNER_ID || '').trim(), ADMOB_BANNER = /^c
 // ne garde pas l'ancienne copie), /__mig dit au nouveau site qu'elle répond ; tout le reste est servi comme avant (ancienne APK, liens déjà partagés).
 const SITE_URL = (process.env.SITE_URL || 'https://manaorbit.app').trim().replace(/\/+$/, '');
 const OLD_HOSTS = String(process.env.OLD_HOSTS ?? 'card.m2s-photo.fr').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
-// app-ads.txt (AdMob) : identifiant d'éditeur public pub-…, tiré de ADMOB_PUB_ID ou de l'ID d'application ADMOB_APP_ID (ca-app-pub-…~…) ; absent : 404.
-const ADMOB_PUB = (/pub-\d{10,20}/.exec(String(process.env.ADMOB_PUB_ID || process.env.ADMOB_APP_ID || '')) || [''])[0];
+// app-ads.txt (AdMob) : identifiant d'éditeur public pub-…, tiré de l'ID d'application Mana Orbit (le même que dans l'APK, public) ; ADMOB_PUB_ID ou ADMOB_APP_ID le remplacent.
+const ADMOB_PUB = (/pub-\d{10,20}/.exec(String(process.env.ADMOB_PUB_ID || process.env.ADMOB_APP_ID || 'ca-app-pub-9859793504995886~7202291377')) || [''])[0];
 // Interrupteurs EDHREC / Archidekt (plan B de docs/a-faire.md : si l'un refuse, sa fonction est coupée depuis Hostinger, sans nouvelle APK), annoncés par /__ping (off) :
 // EDHREC_OFF=1 : plus de fichier EDH (/edh.bin.gz, /edh.tsv : 410) ni d'import de liens edhrec.com ; l'appli cache les decks EDHREC et efface sa copie.
 // ARCHIDEKT_OFF=1 : fichier EDH servi sans les decks Archidekt (edhFilter), plus d'import de liens archidekt.com ; l'appli les retire aussi de sa copie.

@@ -4,6 +4,6 @@
     <string name="title_activity_main" translatable="false">Mana Orbit</string>
     <string name="package_name" translatable="false">app.manaorbit</string>
     <string name="custom_url_scheme" translatable="false">app.manaorbit</string>
-    <!-- AdMob : identifiant de TEST de Google, à remplacer par le tien (console AdMob › Applis › Paramètres). -->
-    <string name="admob_app_id" translatable="false">ca-app-pub-3940256099942544~3347511713</string>
+    <!-- AdMob : identifiant de l'appli Mana Orbit (console AdMob › Applis › Mana Orbit › Paramètres de l'appli). Pas secret : il est dans l'APK. -->
+    <string name="admob_app_id" translatable="false">ca-app-pub-9859793504995886~7202291377</string>
 </resources>

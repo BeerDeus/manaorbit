@@ -37,14 +37,14 @@
 - **Nom de domaine : `manaorbit.app`, fait le 12 octobre.** Acheté et relié au site par le propriétaire, contact `contact@manaorbit.app` créé ; dépôt GitHub renommé `BeerDeus/manaorbit`.
   - Code basculé : APK (`server.url`, `allowNavigation` vers l'ancienne adresse, page hors ligne, `PRICES_URL` du widget, QR d'aperçu régénéré), contact de l'aide, du signalement et de la politique de confidentialité, docs et fiche Play.
   - Ancienne adresse `card.m2s-photo.fr` : page de déménagement qui emporte les données de l'appareil, service worker qui se désinstalle, ancienne APK servie comme avant (`README.md` › « Adresse du site »). **Elle doit rester reliée au même site Hostinger.**
-  - **À faire par le propriétaire** : nouvelle APK ; Firebase › domaines autorisés : `manaorbit.app` ; `ADMOB_PUB_ID` sur Hostinger dès que l'appli AdMob existe (sert `/app-ads.txt`).
+  - **À faire par le propriétaire** : nouvelle APK ; Firebase › domaines autorisés : `manaorbit.app`.
   - À vérifier : ouvrir un ancien lien d'échange `https://card.m2s-photo.fr/?p=…` depuis un navigateur qui a des données → arrive sur manaorbit.app, liste affichée, toast « tes données ont suivi ».
 - **EDHREC et Archidekt** : réponses aux deux mails toujours en attente (`docs/mails-partenaires.md`).
   - Lancer le test fermé sans attendre (pas public, accord non nécessaire) ; envoyer la relance avec une échéance claire.
   - Sans réponse à la mise en production : publier avec crédit et lien (déjà là), lecture hebdomadaire par le serveur seulement, et l'interrupteur ci-dessus prêt. En cas de refus : basculer sur le plan B.
-- AdMob : remplacer les identifiants de test par les vrais.
-  - `admob_app_id` dans `android-app/android/app/src/main/res/values/strings.xml`.
-  - `ADMOB_BANNER_ID` sur Hostinger.
+- AdMob : identifiants réels.
+  - `admob_app_id` : fait le 12 octobre (`ca-app-pub-9859793504995886~7202291377`, `strings.xml`) ; `app-ads.txt` servi d'office avec cet éditeur.
+  - `ADMOB_BANNER_ID` sur Hostinger : à la mise en production seulement (ID du bloc « Bannière », retrouvable dans AdMob › Applis › Mana Orbit › Blocs d'annonces).
 - Créer la clé de signature release (`.jks`, à garder précieusement).
 - Après le premier `.aab`, ajouter dans Firebase le SHA-1 de la clé de signature Play (`docs/android.md`).
 - Vérifier auprès de l'URSSAF (ou d'un comptable) si l'édition d'une appli financée par la publicité doit être ajoutée aux activités de Martin Stuis EI.
@@ -55,7 +55,7 @@
   - Ne jamais toucher une vraie annonce ; appareils de test déclarés (`docs/android.md`).
   - Message de consentement Europe publié dans AdMob avant la production (`docs/android.md`, § 4).
 - **app-ads.txt** : exigé par l'examen de l'appli dans AdMob (sans lui, annonces limitées).
-  - Servi sur `https://manaorbit.app/app-ads.txt` (le site web de la fiche) dès que `ADMOB_PUB_ID` (`pub-…`) ou `ADMOB_APP_ID` (`ca-app-pub-…~…`) est renseigné sur Hostinger.
+  - Servi d'office sur `https://manaorbit.app/app-ads.txt` (le site web de la fiche), éditeur `pub-9859793504995886`.
   - Relier l'appli AdMob à la fiche Play dès la production.
 - **Contrôles de blocage AdMob** : bloquer les catégories sensibles (jeux d'argent, rencontres, argent facile…) : public de 13 ans et plus, et la Fan Content Policy interdit un sponsor nuisible à Wizards. `maxAdContentRating` est déjà à « accord parental » (`src/ads.js`).
 - **Statut de professionnel (DSA)** : une appli qui rapporte (pub, achats) se déclare en général « professionnel » dans la Play Console ; adresse, téléphone et e-mail s'affichent alors sur la fiche dans l'UE. Utiliser les coordonnées de Martin Stuis EI.

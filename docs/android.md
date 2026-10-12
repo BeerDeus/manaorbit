@@ -200,8 +200,9 @@ Tant que rien n'est configuré, l'appli affiche le bandeau de **test** de Google
 3. **Applis › Mana Orbit › Paramètres de l'application** : copie l'**ID d'application**. Il ressemble à `ca-app-pub-1234567890123456~1234567890` (avec un tilde `~`).
 
 ### 2. Mettre l'ID d'application dans l'appli (nouvelle version)
+Fait le 12 octobre : `admob_app_id` = `ca-app-pub-9859793504995886~7202291377` dans `android-app/android/app/src/main/res/values/strings.xml` ; le serveur sert aussi `https://manaorbit.app/app-ads.txt` avec cet éditeur. Pour le changer :
 1. Ouvre `android-app/android/app/src/main/res/values/strings.xml`.
-2. Remplace la valeur de `admob_app_id` (l'ID de test de Google) par ton ID d'application.
+2. Remplace la valeur de `admob_app_id` par l'ID d'application.
 3. Refais l'appli comme au § 4.3 : `versionCode` + 1, `npm run setup`, nouveau `.aab`. C'est la seule étape qui demande une nouvelle version.
 
 ### 3. Créer le bloc d'annonces (bannière)
