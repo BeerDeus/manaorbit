@@ -56,3 +56,45 @@
 .scan .sc-shot{width:80px;height:80px;border:0;padding:4px;background:var(--foil);box-shadow:0 12px 28px -12px rgba(127,176,255,.7)}
 .scan .sc-shot i{background:#f4f6ff;border:3px solid var(--bg)}
 .scan.pm .sc-shot i{background:#eafff6}
+/* pastille du réglage des éditions (en bas de l'image) */
+.sc-edm{flex:1;min-width:0;height:36px;display:flex;align-items:center;justify-content:center;gap:4px;padding:0 12px;border-radius:99px;border:1px solid rgba(255,255,255,.16);background:rgba(10,14,30,.66);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#dfe4f5;font:inherit;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-edm .i{width:14px;height:14px;transform:rotate(90deg)}
+.scan.pm .sc-edm{display:none}
+.sc-ed-off{width:0}
+/* écran « Éditions à choisir » (fin de scan) : une carte à la fois, ses impressions en illustrations */
+.sc-ef{z-index:82}
+.sc-ef .dv-head .btn{flex:none;margin-left:auto;white-space:nowrap}
+.sc-ef-top{flex:none;padding:4px 16px 0}
+.sc-ef-tt{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.sc-ef-tt h2{margin:0;font-family:var(--font-display);font-size:24px;font-weight:700;letter-spacing:-.02em}
+.sc-ef-n{flex:none;font-size:13px;font-weight:700;color:var(--ink-2)}
+.sc-ef-bar{height:4px;margin-top:8px;border-radius:2px;background:var(--surface-2);overflow:hidden}
+.sc-ef-bar i{display:block;height:100%;border-radius:2px;background:var(--accent);transition:width .3s}
+.sc-ef-body{padding:14px 16px 20px}
+.sc-ef-card{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sc-ef-card b{font-family:var(--font-display);font-size:19px;font-weight:700;letter-spacing:-.01em}
+.sc-ef-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;margin:12px 0}
+.sc-ef-t{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 6px 8px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;transition:transform .15s,border-color .2s}
+.sc-ef-t:active{transform:scale(.96)}
+.sc-ef-t img{width:100%;aspect-ratio:488/680;border-radius:6px;object-fit:cover;background:var(--line)}
+.sc-ef-t small{font-size:11px;font-weight:600;color:var(--ink-3)}
+.sc-ef-t em{font-style:normal;font-size:12px;font-weight:800;color:var(--accent)}
+.sc-ef-t[aria-checked="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.sc-ef-none{border-style:dashed}
+/* feuille « Réglages du scan » */
+.scs{display:flex;flex-direction:column;gap:10px;padding-bottom:6px}
+.scs-h{margin:6px 0 0;font-size:13.5px;font-weight:700;color:var(--ink-2)}
+.scs-eds{display:flex;flex-direction:column;gap:6px}
+.scs-ed{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:16px;border:1px solid var(--line);background:var(--surface-3);color:var(--ink);font:inherit;text-align:left}
+.scs-ed span{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.scs-ed b{font-size:14.5px}
+.scs-ed small{font-size:12px;line-height:1.35;color:var(--ink-3)}
+.scs-ed i{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--line)}
+.scs-ed[aria-checked="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.scs-ed[aria-checked="true"] i{border:6px solid var(--accent);background:var(--surface)}
+.scs-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13.5px;color:var(--ink-2)}
+.scs-chips{display:flex;flex-wrap:wrap;gap:6px}
+.scs-oth{position:relative;display:inline-flex;align-items:center;padding:0 6px}
+.scs-oth select{-webkit-appearance:none;appearance:none;height:100%;border:0;background:transparent;color:inherit;font:inherit;padding:0 6px;cursor:pointer}
+.scs-oth[data-on="1"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.scs-note{margin:-4px 0 0}

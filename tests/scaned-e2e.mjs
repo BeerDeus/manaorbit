@@ -4,7 +4,7 @@
 // cartes « à choisir » revues après chaque choix, une ligne par édition ; récap : prix de l'édition, confirmation des cartes sans édition (choisir / ajouter quand même).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toHome, signInFake } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18986 });
 Object.assign(world.psets, {
@@ -84,17 +84,18 @@ await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-
 assert.match(await txt(p, '.rc-facts'), /Éditions\s*1 sans édition · 8 posées/);
 await p.click('.rc-sheet [data-rc="go"]'); await p.waitForSelector('.rc-sheet .rc-ask');
 assert.match(await txt(p, '.rc-ask'), /1 carte n'a pas d'édition/); assert.ok(await p.$('.rc-sheet [data-rc="force"]')); assert.equal(await p.$('.scan.on') !== null, true, 'rien d\'ajouté');
-await p.click('.rc-sheet [data-rc="pick"]'); await p.waitForSelector('.ced-sheet .ced-t[data-i]');
-assert.match(await txt(p, '.ced-sheet h2'), /Wrath of God/, 'Choisir les éditions : la feuille de la carte sans édition s\'ouvre');
-await tile('M21 200'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
-await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]');
+await p.click('.rc-sheet [data-rc="pick"]'); await p.waitForSelector('.sc-ef.on .sc-ef-t');
+assert.match(await txt(p, '.sc-ef-card'), /Wrath of God/, 'Choisir les éditions : écran « Éditions à choisir », la carte sans édition');
+assert.equal(await txt(p, '.sc-ef-n'), '1 sur 1'); assert.equal(await txt(p, '.sc-ef [data-ef="next"]'), 'Terminer');
+await p.locator('.sc-ef-t', { hasText: 'M21' }).click(); await p.waitForSelector('.sc-ef', { state: 'detached' });
+await p.waitForSelector('.rc-sheet [data-rc="go"]');
 assert.match(await txt(p, '.rc-facts'), /Éditions\s*toutes posées/);
 await p.click('.rc-sheet [data-rc="go"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
 const coll = await p.evaluate(() => Object.fromEntries(Object.entries(COLL.map).map(([k, x]) => [k, x.x || { [x.l || '']: x.q }])));
 assert.deepEqual(coll['sol ring'], { 'en|dsk|202': 3 }, 'collection : l\'édition de chaque ligne');
 assert.deepEqual(coll['wrath of god'], { 'en|m21|200': 1 }); assert.deepEqual(coll['rangers hawk'], { 'en|blb|200': 1 });
 assert.equal(await p.evaluate(() => (COLL.ed['dsk|202'] || {}).sn), 'DSK Set', 'infos de l\'édition gardées');
-ok('récap : cartes sans édition → confirmation, « Choisir les éditions » ouvre la carte ; ajout avec une ligne par édition');
+ok('récap : cartes sans édition → confirmation, « Choisir les éditions » ouvre l\'écran « Éditions à choisir » puis revient au récap ; ajout avec une ligne par édition');
 
 /* ── 4) « Ajouter quand même » ; « Sans édition » choisi à la main ─────────────────────────────────────────────── */
 await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
@@ -107,6 +108,60 @@ await p.click('.rc-sheet [data-rc="go"]'); await p.waitForSelector('.rc-sheet .r
 await p.click('.rc-sheet [data-rc="force"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
 assert.deepEqual(await p.evaluate(() => COLL.map['swords to plowshares'].x), { 'en|cmm|200': 1, en: 1 }, 'ajoutée sans édition (à côté de celle du 1er scan)');
 ok('« Ajouter quand même » ; « Sans édition » choisi à la main ne redemande pas');
+
+/* ── 5) réglages du scan : carte par carte (rien demandé, écran « Éditions à choisir » à la fin), sans édition, langue imposée, compte ───────────── */
+await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
+assert.match(await txt(p, '.sc-edm'), /Éditions : comme la 1re/);
+await p.click('.sc-edm'); await p.waitForSelector('.scs-sheet .scs-ed');
+await p.click('.scs-ed[data-v="card"]');
+assert.equal(await p.evaluate(() => SCS.ed), 'card'); assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:scanset')).s.ed), 'card', 'gardé sur l\'appareil');
+assert.equal(await p.$eval('.scs-ed[data-v="card"]', b => b.getAttribute('aria-checked')), 'true');
+await p.click('label[for="scsAuto"] .switch'); assert.equal(await p.evaluate(() => SCS.auto), true); assert.ok(await p.$('.scs-sheet [data-s="delay"]'), 'automatique : délai et même carte proposés');
+await p.click('label[for="scsAuto"] .switch'); assert.equal(await p.evaluate(() => SCS.auto), false);
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+assert.match(await txt(p, '.sc-edm'), /Éditions : à la fin/);
+await add('Sol Ring'); await settle(); await add('Arcane Signet'); await settle(); await add("Ranger's Hawk"); await settle(); await add('Command Tower'); await settle();
+L = await lines();
+assert.deepEqual([L['sol ring'], L['arcane signet'], L['rangers hawk blb|200'], L['command tower']], ['pend ×1', 'pend ×1', 'solo ×1', 'pend ×1'], 'carte par carte : extension unique posée, rien d\'autre');
+assert.equal(await p.$('.sc-ask'), null, 'rien demandé pendant le scan');
+await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]');
+await p.click('.rc-sheet [data-rc="go"]'); await p.waitForSelector('.rc-sheet .rc-ask'); await p.click('.rc-sheet [data-rc="pick"]');
+await p.waitForSelector('.sc-ef.on .sc-ef-t');
+const ef = async () => [await txt(p, '.sc-ef-n'), (await txt(p, '.sc-ef-card')).replace(/\s+/g, ' ').trim()];
+assert.deepEqual(await ef(), ['1 sur 3', 'Sol Ring'], 'écran « Éditions à choisir » : la première');
+assert.equal(await p.$$eval('.sc-ef-t', t => t.length), 4, 'toutes ses éditions en illustrations');
+await p.locator('.sc-ef-t', { hasText: 'DSK' }).click(); await p.waitForFunction(() => /2 sur 3/.test(document.querySelector('.sc-ef-n').textContent));
+assert.deepEqual(await ef(), ['2 sur 3', 'Arcane Signet']);
+await p.click('.sc-ef [data-ef="prev"]'); assert.deepEqual(await ef(), ['1 sur 3', 'Sol Ring'], 'Précédente');
+assert.match(await p.$eval('.sc-ef-t[aria-checked="true"]', b => b.textContent), /DSK/, 'le choix fait est coché');
+await p.click('.sc-ef [data-ef="next"]'); assert.deepEqual(await ef(), ['2 sur 3', 'Arcane Signet']);
+await p.click('.sc-ef [data-ef="none"]'); await p.waitForFunction(() => /3 sur 3/.test(document.querySelector('.sc-ef-n').textContent));
+assert.deepEqual(await ef(), ['3 sur 3', 'Command Tower']); assert.equal(await txt(p, '.sc-ef [data-ef="next"]'), 'Terminer');
+await p.locator('.sc-ef-t', { hasText: 'BLB' }).click(); await p.waitForSelector('.sc-ef', { state: 'detached' });
+await p.waitForSelector('.rc-sheet [data-rc="go"]');
+L = await lines(); assert.deepEqual([L['sol ring dsk|202'], L['arcane signet'], L['command tower blb|201']], ['man ×1', 'pend ×1', 'man ×1'], 'choisies à la fin ; « Sans édition »');
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+ok('réglages : carte par carte → rien demandé pendant le scan, écran « Éditions à choisir » à la fin (Précédente, Sans édition, Terminer → récap)');
+// sans édition : rien lu ; retour au réglage normal : lue et décidée
+await p.evaluate(() => scsSet({ ed: 'none' })); assert.match(await txt(p, '.sc-edm'), /Sans édition/);
+await add('Swords to Plowshares');
+assert.equal((await lines())['swords to plowshares'], 'off ×1', 'sans édition : aucune impression lue'); assert.equal(await p.$$eval('.sc-item[data-k="swords to plowshares"] .sc-ed', b => b.length), 0, 'pas de symbole');
+await p.evaluate(() => scsSet({ ed: 'scan' })); await settle();
+assert.equal((await lines())['swords to plowshares'], 'pend ×1', 'réglage normal : lue, à choisir (aucune extension du scan)');
+assert.equal((await p.evaluate(() => { const a = document.querySelector('.sc-ask'); return a && a.dataset.id; })), 'swords to plowshares|en', 'demandée dans le bandeau');
+// langue imposée
+await p.evaluate(() => scsSet({ lang: 'de' })); await add('Wrath of God', 'en');
+assert.equal(await p.evaluate(() => [...SC.items.values()].find(x => x.key === 'wrath of god').l), 'de', 'langue imposée : la carte prend l\'allemand');
+await p.evaluate(() => scsSet({ lang: '' }));
+ok('réglages : sans édition (rien lu), retour au réglage normal, langue imposée');
+// compte : réglages de l'appareil envoyés au compte vide ; réglages plus récents du compte appliqués
+await signInFake(p); await p.waitForFunction(async () => { const d = (await D.cloud.pullMeta(D.uid, 'prefs')).data; return d && d.scan && d.scan.ed === 'scan'; }, null, { timeout: 5000 });
+await p.evaluate(async () => { await D.cloud.saveMeta(D.uid, 'prefs', { scan: { ...scsClean(SCS), ed: 'card', snd: true }, updatedAt: Date.now() + 5000 }); scsUser(D.user); });
+await p.waitForFunction(() => SCS.ed === 'card' && SCS.snd === true, null, { timeout: 5000 });
+assert.match(await txt(p, '.sc-edm'), /à la fin/, 'écran de scan ouvert : suit les réglages du compte');
+await p.evaluate(() => scsSet({ ed: 'scan', snd: false }));
+ok('réglages du scan dans le compte : envoyés au compte vide, ceux du compte (plus récents) appliqués');
+await p.click('.scan [data-act="close"]');
 
 assert.deepEqual(errs, [], 'erreurs page');
 await browser.close(); world.stop();

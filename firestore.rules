@@ -61,6 +61,7 @@ service cloud.firestore {
     //  · trade      : liste d'échange ({ keep: réserve, kept: [cartes gardées], wish: { carte: { n, q } }, share: id du lien, dsh: { deck: id du lien } })
     //  · profile    : pseudo (30 caractères) et photo (data:image, ≤ 40 Ko), affichés sur les liens partagés
     //  · scan       : scan mobile ({ on, s, dev, by, at, items: [{ i, k, n, q, l, e }] ≤ 60 }) : le PC attend, le téléphone y dépose les cartes scannées
+    //  · prefs      : réglages du compte ({ scan: { ed, auto, delay, same, lang, vib, snd } }) : réglages du scan, les mêmes sur tous les appareils
     match /users/{uid}/meta/{docId} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
@@ -96,6 +97,10 @@ service cloud.firestore {
             && request.resource.data.by is string && request.resource.data.by.size() <= 60
             && request.resource.data.at is number
             && request.resource.data.items is list && request.resource.data.items.size() <= 60)
+          || (docId == 'prefs'
+            && request.resource.data.keys().hasOnly(['scan', 'updatedAt'])
+            && request.resource.data.scan is map
+            && request.resource.data.scan.size() <= 12)
           || (docId == 'profile'
             && request.resource.data.keys().hasOnly(['name', 'photo', 'updatedAt'])
             && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is number)

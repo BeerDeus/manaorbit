@@ -116,6 +116,17 @@ await T.assertFails(setDoc(doc(u1, 'users/u1/meta/scan'), drop(scanDoc(), 'dev')
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/scan'), drop(scanDoc(), 'updatedAt')));
 ok('scan mobile : le compte seul, 60 cartes en attente au plus, champs et types contrôlés, dépôt et retrait par arrayUnion / arrayRemove');
 
+const prefs = (extra = {}) => ({ scan: { ed: 'scan', auto: false, delay: 1000, same: 'ask', lang: '', vib: true, snd: false }, updatedAt: Date.now(), ...extra });
+await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs()));
+await T.assertSucceeds(getDoc(doc(u1, 'users/u1/meta/prefs')));
+await T.assertFails(setDoc(doc(u2, 'users/u1/meta/prefs'), prefs()));
+await T.assertFails(getDoc(doc(u2, 'users/u1/meta/prefs')));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs({ evil: 1 })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs({ scan: 'x' })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs({ scan: Object.fromEntries(Array.from({ length: 13 }, (_, i) => ['k' + i, 1])) })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), drop(prefs(), 'updatedAt')));
+ok('réglages du compte (scan) : le compte seul, un objet « scan » de 12 champs au plus, rien d\'autre');
+
 const prof = (extra = {}) => ({ name: 'Martin', photo: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==', updatedAt: Date.now(), ...extra });
 const photo = (n, type = 'jpeg') => { const p = `data:image/${type};base64,`; return p + 'A'.repeat(n - p.length); };      // n caractères en tout
 await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/profile'), prof()));

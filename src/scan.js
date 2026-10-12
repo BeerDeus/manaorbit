@@ -15,7 +15,7 @@ const TESS = {
 };
 /** Moteur OCR de la langue des noms reconnus (collection.js › namesLang) ; lu d'abord, puis l'anglais. Cartes anglaises (aucun catalogue) : l'anglais seul. */
 const TESS_OF = { fr: 'fra', de: 'deu', es: 'spa', it: 'ita', pt: 'por' };
-const ocrLangs = () => { const t = TESS_OF[namesLang()]; return t ? [t, 'eng'] : ['eng']; };
+const ocrLangs = () => { if (SCS.lang === 'en') return ['eng']; const t = TESS_OF[SCS.lang || namesLang()]; return t ? [t, 'eng'] : ['eng']; };      // langue imposée dans les réglages du scan (scanset.js) : son moteur d'abord
 const OCR = { lib: null, workers: {}, onProg: null };
 /** Lettres admises dans un nom de carte : écarte les symboles de mana, filets et bruits que Tesseract prendrait pour du texte. */
 const LETTERS = { eng: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'’-:!", fra: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆàâäçéèêëîïôöùûüÿœæ ,'’-:!",
@@ -91,7 +91,14 @@ function scanSetLang(it, l) {
   scanEdNeed(scanRekey(it, scanId(it.key, l, it.e)));
 }
 function scanTotals() { let n = 0, maybe = 0; for (const e of SC.items.values()) { if (e.maybe) maybe++; else n += e.q; } return { n, maybe }; }
+/** Langue imposée dans les réglages du scan (scanset.js) : la carte lue prend cette langue (image de cette langue demandée à Scryfall). */
+function scanLangOf(m) {
+  if (!SCS.lang || m.card === SCS.lang) return m;
+  if (SCS.lang !== 'en') langImgFor(m.key, m.name, SCS.lang);
+  return { ...m, card: SCS.lang, img: '', via: '' };
+}
 function scanAdd(m, d, maybe, shot) {
+  m = scanLangOf(m);
   const l = m.card || 'en', ed = scanEdNew(m.key, m.name, l, maybe), id = scanId(m.key, l, ed.e), cur = SC.items.get(id);      // une ligne par carte, langue ET édition : la même carte lue en français puis en anglais fait deux lignes
   if (m.img && l !== 'en') { COLL.li[liKey(l, m.key)] = m.img; collMetaSave(); }       // image de la carte dans sa langue, vue pendant la lecture : gardée pour la collection
   else if (m.via && l !== 'en') langImgFor(m.key, m.name, l);      // trouvée sur l'appareil (catalogue sans images) : celle de sa langue demandée à Scryfall, l'anglaise en attendant
@@ -153,6 +160,12 @@ function scanPaintList() {
   if (SC.remote) { go.disabled = false; go.textContent = T('Terminer'); mobSync(); scanPaintRemote(); }      // scan mobile : chaque carte (et chaque correction) part vers le PC
   const prog = $('.sc-prog', el); prog.hidden = !SC.pend.length; prog.textContent = TN(SC.pend.length, '{n} en lecture', '{n} en lecture');
   if (SC.recap) SC.recap();
+  if (SC.ef) SC.ef();      // écran « Éditions à choisir » : les éditions arrivent
+}
+/** Boutons de l'écran de scan qui suivent les réglages (scanset.js) : pastille des éditions. */
+function scanPaintTools() {
+  const el = SC.el; if (!el) return;
+  const b = $('.sc-edm', el); if (b) { b.innerHTML = `${esc(scsEdLabel())}<svg class="i" aria-hidden="true"><use href="#i-chev"/></svg>`; b.setAttribute('aria-label', T('Réglages du scan') + ' · ' + scsEdLabel()); }
 }
 /** Fiche récap au tap sur « Ajouter » : exemplaires, valeur estimée Cardmarket, les plus chères, nouvelles / déjà possédées, langues. Suit la liste du scan en direct ; « Ajouter » dans la fiche fait l'ajout. Les prix des cartes pas encore lues par Scryfall sont lus ici (un lot). */
 function scanRecap() {
@@ -185,7 +198,7 @@ function scanRecap() {
       ${rows.length && !wait ? `<h3 class="cs-h">${T('Les plus chères')}</h3><div class="cs-top">${rows.slice(0, 3).map(({ x, eu }) => `<div class="crow ro" data-k="${esc(x.k)}" data-n="${esc(x.n)}" data-q="${x.q}" data-ln="${esc(x.l)}"><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('rc', x.n)}>${esc((x.n.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(scanThumb({ key: x.k, name: x.n, l: x.l, pk: x.p }))}"></span><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta">${x.e ? `<span class="tag ed">${setIcHtml(edSet(x.e))}${esc(edLabel(x.e))}</span>` : ''}${x.q > 1 ? `<span class="tag accent">× ${nf0(x.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(eu, 'EUR'))}</b>${x.q > 1 ? `<small>${T('{p} le lot', { p: esc(fmt(eu * x.q, 'EUR')) })}</small>` : ''}</span></div>`).join('')}</div>` : ''}
       <dl class="rc-facts"><div><dt>${T('Nouvelles dans ta collection')}</dt><dd>${TN(uniq.size - haveK.size, '{n} carte', '{n} cartes')}</dd></div>
         <div><dt>${T('Déjà possédées')}</dt><dd>${haveK.size ? TN(haveK.size, '{n} carte', '{n} cartes') + ' · ' + T('+{n} ex.', { n: nf0(haveN) }) : T('aucune')}</dd></div>
-        <div><dt>${T('Éditions')}</dt><dd>${td.n ? esc(TN(td.n, '{n} sans édition', '{n} sans édition')) + (edN ? ' · ' + esc(TN(edN, '{n} posée', '{n} posées')) : '') : T('toutes posées')}</dd></div>
+        <div><dt>${T('Éditions')}</dt><dd>${SCS.ed === 'none' && !edN ? T('sans (réglage du scan)') : td.n ? esc(TN(td.n, '{n} sans édition', '{n} sans édition')) + (edN ? ' · ' + esc(TN(edN, '{n} posée', '{n} posées')) : '') : T('toutes posées')}</dd></div>
         <div><dt>${T('Langues')}</dt><dd>${[...langs].sort((a, b) => b[1] - a[1]).map(([l, c]) => `${l ? esc(langCode(l)) : T('Langue ?')} × ${nf0(c)}`).join(' · ')}</dd></div></dl></div>`;
     api.setFoot(sure ? `<button class="btn ghost" type="button" data-rc="pick">${T('Choisir les éditions')}</button><button class="btn" type="button" data-rc="force">${T('Ajouter quand même')}</button>`
       : `<button class="btn ghost" type="button" data-close>${T('Retour')}</button><button class="btn" type="button" data-rc="go">${TN(n, 'Ajouter {n} carte', 'Ajouter {n} cartes')}</button>`);
@@ -246,6 +259,7 @@ function scanLotHtml(t) {
   return `<small>${T('Lot : {note}', { note: esc(note) })}</small><span class="lot-v">${part('CM', t.cm, t.cmN)}${t.ctOn ? part('CT', t.ct, t.ctN) : ''}</span>`;
 }
 function scanPriceAdd(m) {
+  m = scanLangOf(m);
   const l = m.card || 'en'; let e = SC.pq.find(x => x.key === m.key);
   if (e) { SC.pq = [e, ...SC.pq.filter(x => x !== e)]; e.n = (e.n || 1) + 1; e.maybe = m.score < 0.84; e.raw = m.raw; e.l = l; if (e.cm === 'err') e.cm = undefined; }
   else { e = { key: m.key, name: m.name, l, maybe: m.score < 0.84, raw: m.raw, cm: undefined, ct: undefined, t: Date.now() }; SC.pq.unshift(e); if (SC.pq.length > 40) SC.pq.length = 40; }
@@ -541,7 +555,7 @@ async function scanWork() {
       scanFree(job.src); job.src = null; job.file = null;
       if (!SC.el || job.s !== SC.session) continue;
       SC.ms = performance.now() - t0; SC.pend = SC.pend.filter(p => p.id !== job.id);
-      if (m && m.score >= 0.72) { if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, m.score < 0.84, job.shot); haptic('ok'); scanHint(m.score >= 0.84 ? '✓ ' + m.name : T('À vérifier : {name}', { name: m.name }), m.score >= 0.84 ? 'ok' : 'busy'); }
+      if (m && m.score >= 0.72) { if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, m.score < 0.84, job.shot); scsCue(); scanHint(m.score >= 0.84 ? '✓ ' + m.name : T('À vérifier : {name}', { name: m.name }), m.score >= 0.84 ? 'ok' : 'busy'); }
       else { SC.miss.push({ id: job.id, label: job.label, thumb: job.thumb || '', shot: job.shot || '', raw: (m && m.raw) || SC.raw || '' }); if (fail) scanHint(fail, 'bad'); scanPaintList(); }
     }
   } finally { SC.working = false; SC.workEnd = performance.now(); }
@@ -742,8 +756,8 @@ function openScan(o) {
       <p class="sc-hint" hidden></p><p class="sc-prog" hidden></p><p class="sc-diag" hidden></p>
       <p class="sc-nocam">${T('Pas d\'appareil photo : utilise « Photos » ci-dessous.')}</p>
       <div class="sc-tools"><button class="sc-ic" type="button" data-act="close" aria-label="${T('Fermer le scan')}"><svg class="i"><use href="#i-back"/></svg></button><h2 class="sc-ttl">${T('Scanner des cartes')}</h2>
-        <span class="sc-tr"><button class="sc-ic sc-help" type="button" data-act="note" aria-label="${T('Afficher l\'aide')}" aria-pressed="false">?</button></span></div>
-      <div class="sc-modes"><div class="sc-seg" role="radiogroup" aria-label="${T('Mode du scan')}"><button type="button" role="radio" class="sc-amode" data-act="pmode" data-v="0" aria-checked="true">${T('Ajouter')}</button><button type="button" role="radio" class="sc-pmode" data-act="pmode" data-v="1" aria-checked="false" aria-label="${T('Prix rapide : lire une carte sans l\'ajouter')}">${T('Prix')}</button></div></div></div>
+        <span class="sc-tr"><button class="sc-ic sc-set" type="button" data-act="scset" aria-label="${T('Réglages du scan')}"><svg class="i"><use href="#i-sliders"/></svg></button><button class="sc-ic sc-help" type="button" data-act="note" aria-label="${T('Afficher l\'aide')}" aria-pressed="false">?</button></span></div>
+      <div class="sc-modes"><div class="sc-seg" role="radiogroup" aria-label="${T('Mode du scan')}"><button type="button" role="radio" class="sc-amode" data-act="pmode" data-v="0" aria-checked="true">${T('Ajouter')}</button><button type="button" role="radio" class="sc-pmode" data-act="pmode" data-v="1" aria-checked="false" aria-label="${T('Prix rapide : lire une carte sans l\'ajouter')}">${T('Prix')}</button></div><button type="button" class="sc-edm" data-act="scset"></button></div></div>
     <div class="sc-remote" hidden aria-live="polite"></div>
     <div class="sc-cat coll-status" hidden></div>
     <div class="sc-note" hidden><p class="hint">${nmT('Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (français d\'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées.',
@@ -757,7 +771,7 @@ function openScan(o) {
       <span class="sc-bslot"></span></div>`;
   SC.lot = !!(o && o.lot); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
   const stop = () => { SC.alive = false; SC.warm = false; clearInterval(SC.diagT); clearTimeout(SC.hintT); SC.queue.forEach(j => scanFree(j.src)); SC.queue = []; SC.pend = []; if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; } natStop(); };
-  const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); wrap.__close(); } };
+  const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); if (SC.ef) $('.sc-ef [data-ef="close"]').click(); else wrap.__close(); } };      // écran « Éditions à choisir » ouvert : Échap le ferme seul
   wrap.__close = () => {
     if (SC.el !== wrap) return; SC.el = null; stop(); othFree(); document.removeEventListener('keydown', onKey, true);
     if (SC.remote) { SC.remote = false; setTimeout(mobBar, 400); }      // scan mobile terminé : le bandeau revient tant que le PC attend
@@ -783,6 +797,7 @@ function openScan(o) {
       else if (act === 'shot') scanCapture();
       else if (act === 'frc') frcStart(true);
       else if (act === 'note') scNoteShow($('.sc-note', wrap).hidden);
+      else if (act === 'scset') scsSheet();
       else if (act === 'pmode') { const on = b.dataset.v === '1'; if (on !== SC.pm) { haptic('tap'); scanPriceMode(on); } }
       else if (act === 'done') { if (SC.remote) scanEdDone(() => wrap.__close()); else scanRecap(); }      // cartes sans édition : confirmation (scaned.js)
       return;
@@ -824,7 +839,7 @@ function openScan(o) {
     scanEdPass(); scanPaintList();
   });
   scNoteShow(false);      // aide fermée au départ : « ? » l'ouvre
-  document.body.appendChild(wrap); holdApp(); scanPaintList();
+  document.body.appendChild(wrap); holdApp(); scanPaintTools(); scanPaintList();
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.sc-tools [data-act="close"]', wrap).focus({ preventScroll: true }); }));
   haptic('tap'); scanCamera().finally(scanWarm);
 }
