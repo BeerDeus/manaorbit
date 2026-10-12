@@ -158,7 +158,7 @@ Anglais (219) : `First Android release: on-device card scanning in any language,
 
 - **Type** : Application (pas Jeu). **Gratuite.**
 - **Catégorie** : **Divertissement** (appli compagnon d'un jeu de cartes). **Outils** convient aussi.
-- **Tags** (5 au plus, à choisir dans la liste que propose la Play Console) : cartes à collectionner / jeux de cartes, collection, comparateur de prix, outils de jeu, scanner. Garde ceux qui existent dans la liste, dans cet ordre de priorité.
+- **Tags** (5 au plus, liste fermée de la Play Console, rien sur les cartes ni les jeux pour une appli) : **Divertissement**, **Shopping** (prix et paniers Cardmarket / CardTrader), **Outils**. Pas « Lecteur de code-barres » ni « Appareil photo » : le scan lit des cartes, pas des codes-barres, et ne fait pas de photos ; un tag trompeur peut valoir un refus.
 - **Site web** : `https://manaorbit.app` · **E-mail** : `contact@manaorbit.app` (obligatoire, visible sur la fiche ; c'est aussi le contact de la politique de confidentialité) · **Règles de confidentialité** : `https://manaorbit.app/privacy`.
 
 ## 6. Classification du contenu (questionnaire IARC)
