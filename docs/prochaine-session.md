@@ -1,0 +1,60 @@
+# Prochaine session : épurer l'appli, Decks à part, decks publics
+
+Demandé par le propriétaire le 12 octobre 2026. Ordre à suivre : 1 → 6. **Maquettes d'abord** (étape 1) : rien ne change dans le code de navigation avant son choix.
+Règles habituelles : `docs/passation.md` (pousser d'abord, tests en fond jusqu'à tout vert, six langues pour chaque texte visible, jamais de secret dans le dépôt).
+L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez les testeurs à chaque push sur `main` (Hostinger), sans nouvelle APK. Rien ne doit casser ce qui marche.
+
+## Objectif général
+- Une appli **plus claire, plus épurée, centrée sur la collection et les échanges**.
+- Les **Decks** deviennent une section à part entière, au lieu d'être répartis entre l'onglet Decks de « Ma collection », « Mes decks », la tuile « Deck à monter » et « Nouveau panier ».
+
+---
+
+## 1. Maquettes (avant tout code de navigation)
+- Proposer **2 ou 3 variantes** en images, dans un artefact visuel, en thème sombre (celui de l'appli) et au format téléphone :
+  - la **navigation** : barre en bas avec Accueil · Collection · **Scanner** (gros bouton au centre) · Échange · Decks ; variante sans Accueil, ou avec Decks dans un menu ;
+  - l'**accueil épuré** : cote de la collection, échanges (« Pour toi », QR), prochaines extensions ; plus de tuile « Deck à monter » si Decks a sa section ;
+  - l'**onglet Decks** avec le bouton « Filtres » (point 4) et l'aide réécrite (point 5).
+- Le propriétaire choisit, puis on code. Il aime choisir entre 2 ou 3 versions pour le visuel.
+
+## 2. Onglet CardTrader toujours visible, même sans token (petit)
+- Aujourd'hui : le choix Cardmarket / CardTrader de « Nouveau panier » (`modeLabel`, `src/app.js`) est caché sans token (`ctReady()`), ainsi que la bascule CM / CT de la tuile valeur (Stats).
+- À faire : **CardTrader toujours sélectionnable**. Sans token, le choisir affiche un encart à la place des offres :
+  - « Pour voir les vrais prix CardTrader et remplir ton panier, il faut ton token CardTrader. » ;
+  - bouton **« Obtenir mon token »** → `https://www.cardtrader.com/fr-FR/full_api_app` (nouvel onglet ; adresse `/en/` pour une appli en anglais si elle existe) ;
+  - le **champ pour coller le token** directement dans l'encart (le même que Réglages › Prix), puis « Tester » ;
+  - avertissement : « Ce token donne accès à ton compte CardTrader : ne le partage avec personne. Mana Orbit le garde sur ton appareil et ne l'envoie qu'avec tes recherches CardTrader. »
+- Corriger aussi le texte de Réglages › Prix (« Paramètres › API ») avec le même lien.
+- Rien à changer dans la fiche Play (token déjà déclaré dans la sécurité des données).
+
+## 3. Texte d'aide des Decks (petit)
+- **Intro de l'onglet**, raccourcie : « Decks des commandants les plus joués, comparés à ta collection. Prix Cardmarket du {date}. »
+- **« Decks, tier, Game Changers et thèmes : comment lire »** : remis en forme, **une information par ligne** (nom en gras, puis l'explication), dans cet ordre : Moyen, Budget, Premium, cEDH, Populaire, (Communauté au point 6), Tier, Game Changers et bracket, Thèmes, Classer par… puis…, terrains de base ignorés, sources (EDHREC, Archidekt, EDHTop16).
+
+## 4. Onglet Decks : filtres sous un bouton « Filtres » (moyen)
+- Restent visibles : la **recherche** (commandant / carte) et le **tri** (« Classer par »).
+- Un bouton **« Filtres »** avec le nombre de filtres actifs (« Filtres (3) ») ouvre une feuille : type de deck, tier, couleurs permises, budget maximum, thèmes, « J'ai le commandant », « Puis par ».
+- Sous la barre : les filtres actifs en **pastilles** qu'on retire d'un ×, et « Tout effacer ».
+- Même principe visuel que le bouton Filtres de la collection.
+
+## 5. Nouvelle navigation : Decks à part, appli épurée (gros, après le choix du point 1)
+- Section **Decks** : decks à monter (EDHREC, Archidekt, Communauté), Mes decks, prix d'une liste (« Nouveau panier »).
+- **Collection** : cartes et stats ; **Échange** : sa propre section (ma liste, Je recherche, « Pour toi », lien, QR).
+- Retirer les doublons d'accès, alléger l'accueil, garder les raccourcis Android (scan, prix rapide, échange, nouveau panier) et le retour arrière (`back.js`) cohérents.
+- Ensuite : refaire les **captures de la fiche Play** (`node tools/store-assets.mjs`, ordre dans `docs/store/fiche.md` § 9), mettre à jour l'aide intégrée (`src/help.js`), le README et les tests touchés.
+- À faire **avant la production** (vers le 20-25 novembre) : les testeurs du test fermé donnent leur avis dessus.
+
+## 6. Decks publics des utilisateurs (gros, en dernier)
+- Un utilisateur connecté peut **publier** un de ses decks Commander. Les decks publics apparaissent dans la recherche de decks, comme un **type « Communauté »**, placé **juste avant « Moyen »** dans le filtre Decks.
+- **Regroupés par commandant**, avec le même calcul que les autres : cartes possédées / à acheter, **prix estimé** (tendance Cardmarket), tier du commandant, Game Changers et bracket.
+- **Modération (règles Google sur le contenu créé par les utilisateurs)** :
+  - **aucun texte libre** : pas de titre ni de description ; nom affiché « Commandant · deck de {pseudo} » ; les cartes viennent du catalogue Scryfall ;
+  - **« Signaler ce deck »** sur chaque deck public ; masqué automatiquement après quelques signalements ; le propriétaire de l'appli peut retirer un deck ;
+  - garde-fous : deck Commander valide (100 cartes, commandant reconnu), **quelques decks publics au plus par compte**, dépublier en un geste, deck supprimé = retiré.
+- **Technique proposée** : Firestore (document par deck public, écriture par son auteur seul, règles testées dans `tests/rules-test.mjs`) ; le **serveur** rassemble régulièrement les decks publics dans un petit fichier statique (comme `edh.bin.gz`), l'appli les classe avec le même moteur (`edhRank`). Pas de liste Firestore côté client (coût et abus).
+- **Documents** : politique de confidentialité (decks publics : ce qui est visible, comment retirer) ; mentions légales : « Règles de publication » ; fiche Play à revoir si besoin (description, sécurité des données : contenu publié par l'utilisateur lui-même).
+
+## Petits rappels
+- Chaque texte visible : dans les six `src/i18n/*.json` (`tests/test-i18n-langs.mjs`).
+- Code natif touché → `versionCode` + 1 et nouvel `.aab` par le propriétaire ; sinon rien à refaire côté Android.
+- Mettre à jour `docs/a-faire.md` et `docs/passation.md` au fil des étapes.
