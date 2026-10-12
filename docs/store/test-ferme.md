@@ -10,7 +10,7 @@ Tout ce qu'il faut est ici : les étapes, le groupe Google, où recruter, les te
 
 Les mails de demande disent « un projet personnel que j'utilise seul » (`docs/mails-partenaires.md`), alors que le site sert déjà leurs données à tout le monde. Recruter en public y amènera du monde.
 
-1. Envoie d'abord la **relance** à EDHREC et à Archidekt (`docs/mails-partenaires.md`, en bas).
+1. Envoie d'abord la **relance** à EDHREC et à Archidekt (`docs/mails-partenaires.md`, en bas), au plus tôt 10 jours ouvrés après le premier mail (envoyé le 8 octobre 2026 : vers le 20-22 octobre). En attendant, le test fermé peut démarrer avec ton entourage seulement (amis, groupe de jeu) : aucun message public avant la relance.
 2. Recrute uniquement par le **groupe Google** et le **lien d'inscription au test**. Ne donne jamais l'adresse du site dans les messages.
 3. Si l'un des deux refuse : coupe sa fonction pendant le test (interrupteur serveur à prévoir, `docs/a-faire.md`).
 

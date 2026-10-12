@@ -72,9 +72,9 @@ Mana Orbit · https://manaorbit.app
 
 ## Relance avant le test fermé (EDHREC et Archidekt)
 
-À envoyer à chacun, en réponse au premier mail, **avant tout message de recrutement** (`docs/store/test-ferme.md`). Remplace `[EDHREC / Archidekt]`, `[date]`, `[date limite]` et `[Ton prénom]`. La phrase sur le site dit qu'il n'a pas été partagé : retire-la si tu l'as déjà fait.
+À envoyer à chacun, en réponse au premier mail, **avant tout message de recrutement public** (`docs/store/test-ferme.md`), et **pas avant 10 jours ouvrés** après le premier mail : premier mail envoyé le 8 octobre 2026 → relance vers le **20-22 octobre**. Remplace `[EDHREC / Archidekt]`, `[date]`, `[date limite]` et `[Ton prénom]`. La phrase sur le site dit qu'il n'a pas été partagé : retire-la si tu l'as déjà fait.
 
-**Échéance** (`[date limite]`) : la date à partir de laquelle tu publieras sans leur réponse, environ 4 semaines après l'envoi (fin du test fermé + marge), par exemple « November 15 ». Elle remplace la promesse du premier mail (« pas de publication sans votre accord ») : sans elle, un silence bloquerait la publication indéfiniment. Le silence ne vaut pas autorisation : c'est pour ça que le mail rappelle qu'un simple message suffit pour couper la fonction, avant ou après la date.
+**Échéance** (`[date limite]`) : la date à partir de laquelle tu publieras sans leur réponse, environ 4 semaines après l'envoi de la relance (fin du test fermé + marge) : relance du 20-22 octobre → « November 19 ». Elle remplace la promesse du premier mail (« pas de publication sans votre accord ») : sans elle, un silence bloquerait la publication indéfiniment. Le silence ne vaut pas autorisation : c'est pour ça que le mail rappelle qu'un simple message suffit pour couper la fonction, avant ou après la date.
 
 **Objet :** Mana Orbit: small private test before any public release
 
