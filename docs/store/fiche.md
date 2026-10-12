@@ -205,7 +205,7 @@ Réponses générales :
 | L'appli collecte-t-elle ou partage-t-elle des données ? | **Oui** |
 | Données chiffrées en transit ? | **Oui** (HTTPS partout : site, serveur, Firebase, Google) |
 | Les utilisateurs peuvent-ils demander la suppression ? | **Oui** : dans l'appli (Compte › Supprimer mon compte) et sur le web : `https://manaorbit.app/?delete-account`. La suppression arrête aussi les alertes et notifications sur le serveur. |
-| Compte | Facultatif : **e-mail et mot de passe, ou Google** (Firebase Authentication). L'appli marche sans compte. |
+| Compte | Facultatif : **e-mail et mot de passe, ou Google** (Firebase Authentication). L'appli marche sans compte. Méthodes à cocher : **Nom d'utilisateur et mot de passe** + **OAuth**. |
 | Lien de suppression du compte (rubrique dédiée) | `https://manaorbit.app/?delete-account` |
 | Données vendues ? | Jamais |
 
@@ -219,9 +219,9 @@ Types de données à cocher :
 | Infos personnelles › **ID utilisateur** | Oui | Non | Oui (compte) | Fonctionnalités de l'appli, gestion du compte | Identifiant Firebase du compte. |
 | Activité dans l'appli › **Autre contenu généré par l'utilisateur** | Oui | Non | Oui (compte) | Fonctionnalités de l'appli | Collection, decks, historique de valeur, liste d'échange, dans le compte (Firestore). Les liens publics sont créés par l'utilisateur lui-même : ce n'est pas un « partage » au sens de Google. |
 | Activité dans l'appli › **Autres actions** | Oui | Non | Oui | Fonctionnalités de l'appli | Alertes de prix : cartes surveillées, seuils et nom des decks concernés, gardés sur le serveur tant que l'alerte est active. |
-| Identifiants › **ID de l'appareil ou autres** | Oui | **Oui** (publicité) | Non (pub) / Oui (notifications) | Publicité ou marketing ; fonctionnalités de l'appli | Identifiant publicitaire (SDK AdMob) ; jeton Firebase Cloud Messaging des notifications, gardé sur le serveur tant qu'elles sont actives (le texte des notifications, noms de cartes et de decks, passe par FCM chez Google, prestataire d'envoi). |
-| Position › **Position approximative** | Oui | **Oui** | Non | Publicité ou marketing, prévention des fraudes | Déduite de l'adresse IP par le SDK AdMob. |
-| Activité dans l'appli › **Interactions avec l'appli** | Oui | **Oui** | Non | Publicité ou marketing, statistiques | SDK AdMob (affichages et clics sur les annonces). |
+| Identifiants › **ID de l'appareil ou autres** | Oui | **Oui** (publicité) | Non (pub) / Oui (notifications) | Collecte : publicité ou marketing, statistiques, prévention des fraudes, fonctionnalités de l'appli. Partage : publicité ou marketing, statistiques, prévention des fraudes | Identifiant publicitaire (SDK AdMob) ; jeton Firebase Cloud Messaging des notifications, gardé sur le serveur tant qu'elles sont actives (le texte des notifications, noms de cartes et de decks, passe par FCM chez Google, prestataire d'envoi). |
+| Position › **Position approximative** | Oui | **Oui** | Non | Publicité ou marketing, statistiques, prévention des fraudes | Déduite de l'adresse IP par le SDK AdMob. |
+| Activité dans l'appli › **Interactions avec l'appli** | Oui | **Oui** | Non | Publicité ou marketing, statistiques, prévention des fraudes | SDK AdMob (affichages et clics sur les annonces). |
 | Infos et performances de l'appli › **Journaux de plantage, Diagnostics, Autres données de performances** | Oui | **Oui** | Non | Statistiques, publicité, prévention des fraudes | SDK AdMob. |
 | Infos personnelles › **Autres infos** | Oui, **traitement éphémère** | Non | Oui | Fonctionnalités de l'appli | Avec un token CardTrader seulement : envoyé au serveur avec les seules recherches CardTrader (jamais les alertes ni l'import), utilisé en mémoire le temps de la recherche ; le serveur n'en garde qu'une empreinte SHA-256 pour espacer les requêtes et ne l'écrit jamais sur disque, dans les journaux ni dans le compte. Cas limite : un token n'est pas une donnée personnelle classique, mais le déclarer ne coûte rien. |
 
