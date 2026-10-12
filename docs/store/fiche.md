@@ -40,7 +40,7 @@ Google n'affiche ni gras ni titres : les majuscules et les puces « • » serve
 Seules les premières lignes s'affichent avant « Plus » : elles disent l'essentiel (scan, cote, decks Commander, gratuit).
 La Play Console n'a pas de champ de mots-clés : ils sont dans le texte, 2 à 4 fois chacun (scanner de cartes, cartes Magic, cote, Commander / EDH, liste d'échange, doublons, alerte de prix, VF), comptés par script.
 
-### Français (3 645 caractères)
+### Français (3 812 caractères)
 
 ```
 Scanne tes cartes Magic en VF ou en VO, découvre la cote de ta collection au prix Cardmarket et les decks Commander (EDH) que tu peux déjà monter. Gratuit, en français, sans compte obligatoire.
@@ -53,6 +53,7 @@ TA COLLECTION ET SA COTE
 
 LE SCANNER DE CARTES
 • Cadre le haut de la carte et appuie : le nom est lu, la carte retrouvée, la langue notée. Les cartes en VF sont reconnues par leur nom français.
+• Scanne toute une pile : l'édition de chaque carte se pose toute seule quand elle est sûre (même extension que la pile, édition unique), sinon tu la choisis en un geste.
 • La lecture se fait sur ton téléphone : la photo n'est jamais envoyée.
 • Prix rapide : scanne une carte pour voir sa valeur sans l'ajouter.
 
@@ -93,7 +94,7 @@ Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Polic
 Mana Orbit n'est lié à aucun des sites et applis cités (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, Scryfall…). Données et images des cartes : Scryfall.
 ```
 
-### Anglais (3 303 caractères)
+### Anglais (3 451 caractères)
 
 ```
 Scan your Magic cards in any language, see what your collection is worth at Cardmarket prices and find the Commander (EDH) decks you can already build. Free, no account required.
@@ -106,6 +107,7 @@ YOUR COLLECTION AND ITS VALUE
 
 THE CARD SCANNER
 • Frame the top of the card and tap: the name is read, the card is found, its language is noted. French cards are recognized by their French name.
+• Scan a whole pile: each card's set is filled in automatically when it is clear (same set as the pile, single printing); otherwise pick it in one tap.
 • Recognition runs on your phone: the photo is never uploaded.
 • Quick price: scan a card to see its value without adding it.
 
