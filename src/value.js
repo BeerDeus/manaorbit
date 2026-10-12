@@ -148,7 +148,7 @@ function valClick(e) {
   else if (act === 'valmore') { VAL.topN += 8; collPaintBody(true); }
   else if (act === 'valhide') { valSetSeen(dayOf(VAL.at)); haptic('tap'); valPaintAlert(); paintCollSection(); }
   else if (act === 'valsee') {
-    valSetSeen(dayOf(VAL.at)); COLL.tab = 'stats'; COLL.shown = COLL_PAGE; haptic('tap');
+    valSetSeen(dayOf(VAL.at)); COLL.tab = COLL.ctab = 'stats'; COLL.shown = COLL_PAGE; haptic('tap');
     const sg = $('#collSeg', COLL.el); if (sg && sg.setValue) sg.setValue('stats');
     collPaintBody(false); paintCollSection();
     const t = $('#valMv', COLL.el); if (t) t.scrollIntoView({ block: 'start', behavior: reduceMotion() ? 'auto' : 'smooth' });

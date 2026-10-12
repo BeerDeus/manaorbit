@@ -50,24 +50,16 @@ const geo = p => p.$$eval('#hmSetsList .hm-set', ls => ls.map((l, i) => {
     nested: !!c.parentElement.closest('a') || !!c.querySelector('a') || !!l.querySelector('.hm-set-a .hm-set-cm'), hitCm: hit(pill), hitWhen: hit(em) };
 }));
 
-/* ── 0) « Coller une liste » (accueil, home.js) : jamais l'exemple de 100 cartes quand le presse-papiers est refusé ─────────── */
+/* ── 0) Decks › « Prix d'une liste » (barre du bas, nav.js) : la saisie, avec les onglets de la section Decks ; Accueil y revient ─────────── */
 {
   const { p, ctx } = await page({});
+  await p.click('#nav [data-nav="decks"]'); await p.waitForSelector('.dks.on .dk-tab[data-dtab="price"]');
+  await p.click('.dks .dk-tab[data-dtab="price"]'); await p.waitForFunction(() => S.view === 'input' && !document.querySelector('.dks'));
+  assert.equal(await txt(p, '#inTabs .dk-tab[aria-current="page"]'), 'Prix d\'une liste'); assert.equal(await p.getAttribute('#nav [data-nav="decks"]', 'aria-current'), 'page', 'barre du bas : Decks');
   assert.equal(await p.evaluate(() => S.isSample), true, 'appareil neuf : l\'exemple est dans le champ');
-  await p.click('#btnNew'); await p.waitForTimeout(400);
-  assert.deepEqual(await p.evaluate(() => [$('#deckText').value, S.deck.cards.length, document.activeElement === $('#deckText'), $('#btnRun').disabled]), ['', 0, true, true], 'presse-papiers refusé : champ vide, curseur dedans, rien à chercher');
-  assert.doesNotMatch(await txt(p, '#btnRunLabel'), /72|cartes/, 'plus « Voir les prix · 72 cartes »');
-  await toHome(p); await p.click('#btnNew2'); await p.waitForTimeout(300);
-  assert.equal(await p.evaluate(() => S.isSample && S.deck.cards.length > 50), true, '« Exemple » : inchangé');
-  await ctx.close();
+  await p.click('#nav [data-nav="home"]'); await p.waitForFunction(() => S.view === 'home'); await ctx.close();
 }
-{
-  const { p, ctx } = await page({ ctx: { permissions: ['clipboard-read', 'clipboard-write'] } });
-  await p.evaluate(() => navigator.clipboard.writeText('1 Sol Ring\n1 Arcane Signet'));
-  await p.click('#btnNew'); await p.waitForFunction(() => $('#deckText').value === '1 Sol Ring\n1 Arcane Signet');
-  assert.equal(await p.evaluate(() => [S.isSample, S.deck.cards.length].join()), 'false,2'); await ctx.close();
-}
-ok('« Coller une liste » : champ vidé avant le presse-papiers (refusé : vide, curseur dedans ; autorisé : la liste collée), « Exemple » inchangé');
+ok('Decks › « Prix d\'une liste » : la saisie avec les onglets Decks, barre du bas sur Decks, Accueil y revient');
 
 /* ── 1) Prochaines extensions : tri, filtres, parent, cache, erreurs ───────────────────────────────────────────── */
 {
@@ -176,7 +168,7 @@ ok('Cardmarket en anglais : « Pre-order » / « Buy », site /en/ (même sur un
   const { p, ctx, hits } = await page({ sets: 'ok' });
   await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForTimeout(3200);
   assert.equal(hits.n, 0, 'collection ouverte : pas de lecture');
-  await p.click('.coll .dv-back'); await p.waitForFunction(() => !COLL.el); await p.evaluate(() => homeSoon(0));
+  await p.click('#nav [data-nav="home"]'); await p.waitForFunction(() => !COLL.el); await p.evaluate(() => homeSoon(0));
   await p.waitForSelector('#hmSets:not([hidden]) .hm-set', { timeout: 9000 }); assert.equal(hits.n, 1); await ctx.close();
 }
 ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement quand l\'accueil est à l\'écran');
@@ -288,10 +280,10 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   await p.$eval('#helpBox', e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await p.click('#helpBox [data-help="open"]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2);
   assert.equal(await txt(p, '.hp-sheet .sheet-head h2'), 'Comment ça marche');
-  assert.equal(await p.$$eval('.hp-sheet .hp-q', q => q.length), 8, '8 questions');
+  assert.equal(await p.$$eval('.hp-sheet .hp-q', q => q.length), 9, '9 questions');
   assert.equal(await p.$$eval('.hp-sheet .hp-q[open]', q => q.length), 0, 'toutes repliées');
   await p.click('.hp-sheet .hp-q[data-i="0"] summary'); await p.waitForTimeout(150);
-  assert.match(await txt(p, '.hp-sheet .hp-q[data-i="0"] p'), /Nouveau panier » › Critères › Prix/);
+  assert.match(await txt(p, '.hp-sheet .hp-q[data-i="0"] p'), /« Prix d'une liste » › Critères › Prix/);
   await p.click('.hp-sheet .hp-q[data-i="2"] summary'); await p.waitForTimeout(150);
   assert.deepEqual(await p.$$eval('.hp-sheet .hp-q[open]', q => q.map(x => x.dataset.i)), ['2'], 'une seule question ouverte à la fois');
   assert.match(await p.$eval('.hp-sheet .sheet-foot a[data-help="mail"]', a => a.getAttribute('href')), /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);

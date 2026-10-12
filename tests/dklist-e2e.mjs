@@ -20,23 +20,23 @@ const back = async () => { await p.evaluate(() => history.back()); await p.waitF
 const names = () => p.$$eval('#deckList .deck .deck-name', n => n.map(x => x.textContent));
 const imgOf = id => p.$eval(`.deck[data-id="${id}"] .deck-art img`, e => e.getAttribute('src')).catch(() => '');
 
-/* ── 1) bouton d'accueil → écran, decks en cartes ─────────────────────────────────────────── */
-assert.equal(await txt(p, '#decksSub'), '4 decks'); assert.equal(await p.$('.deck'), null, 'plus de liste sur l\'accueil');
+/* ── 1) bouton « Decks » de la barre du bas → Mes decks, decks en cartes ──────────────────────── */
+assert.equal(await p.$('.deck'), null, 'plus de liste sur l\'accueil');
 await toHome(p); await p.click('#btnDecks'); await p.waitForSelector('.dks.on .deck');
-assert.deepEqual(await names(), ['Rakdos', 'Edgar', 'Forêt', 'Mystère'], 'les plus récents d\'abord'); assert.equal(await txt(p, '.dks .dv-title span'), '4 decks');
+assert.deepEqual(await names(), ['Rakdos', 'Edgar', 'Forêt', 'Mystère'], 'les plus récents d\'abord'); assert.equal(await txt(p, '.dks .dv-title span'), '4 decks'); assert.equal(await txt(p, '.dks .dk-tab[data-dtab="mine"]'), 'Mes decks 4', 'onglet : nombre de decks');
 // carte de présentation par défaut : commandant (Edgar), sinon la carte la plus chère hors terrains
 await p.waitForFunction(() => document.querySelectorAll('.deck-art img.ok').length === 4, null, { timeout: 8000 });
 assert.match(await imgOf('d2'), /edgar-markov/, 'commandant'); assert.match(await imgOf('d1'), /sol-ring/); assert.match(await imgOf('d3'), /llanowar-elves/); assert.match(await imgOf('d4'), /sol-ring/, 'la plus chère : Sol Ring 1,50 € > Signet 0,40 €');
 assert.equal(await p.$eval('.deck[data-id="d1"] .deck-art', e => Math.round(e.getBoundingClientRect().width / e.getBoundingClientRect().height * 1000)), 718, 'forme d\'une carte (672 × 936)');
 assert.equal(await p.$$eval('#deckList .deck', d => new Set(d.map(x => Math.round(x.getBoundingClientRect().left))).size), 2, 'grille à 2 colonnes');
 await p.waitForTimeout(600); await p.screenshot({ path: 'shots/dks-1-grille.png' });
-ok('bouton « Mes decks » → écran ; decks en cartes avec leur image (commandant / carte la plus chère par défaut)');
+ok('bouton « Decks » → Mes decks ; decks en cartes avec leur image (commandant / carte la plus chère par défaut)');
 // nombre de cartes : exemplaires, comme le viewer (terrains de base compris, réserve à part) ; « /100 » pour un deck Commander ; « monté »
 const lines = () => p.$$eval('#deckList .deck .deck-line', n => n.map(x => x.textContent.replace(/\s/g, ' ')));
 assert.deepEqual((await lines()).map(l => l.split(' · ')[0]), ['26 cartes', '18/100 cartes', '24 cartes', '2 cartes'], 'Rakdos 4 + 10 + 12 (réserve 3 à part) · Edgar 18/100 · Forêt 4 + 20 · Mystère 2');
 await p.evaluate(() => { XS.eng = { d2: { n: 'Edgar', at: Date.now(), q: { 'sol ring': 1 } } }; engApplied(); renderDecks(); });
 await p.waitForFunction(() => document.querySelector('.deck[data-id="d2"] .mounted'), null, { timeout: 3000 });
-assert.equal(await txt(p, '.deck[data-id="d2"] .mounted'), 'monté'); assert.match((await lines())[1], /^18\/100 cartes · .*monté$/); assert.equal(await txt(p, '#decksSub'), '4 decks · 1 monté');
+assert.equal(await txt(p, '.deck[data-id="d2"] .mounted'), 'monté'); assert.match((await lines())[1], /^18\/100 cartes · .*monté$/);
 await p.evaluate(() => openDeckSheet('d2')); await p.waitForSelector('#dkMount');
 assert.match(await txt(p, '.sheet-head p'), /^18\/100 cartes · modifié /); assert.equal(await txt(p, 'label[for="dkMount"] b'), 'Deck monté'); assert.equal(await p.$eval('#dkMount', c => c.checked), true);
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });

@@ -112,7 +112,7 @@ await closeV();
 ok('collection : liste (exemplaire français montré en français, 6 lignes), exemplaire allemand : « Pas d\'image en allemand », « + » intact, Stats « Les plus chères » et « Variations des prix »');
 
 /* ── 5) Échange : doublons ─────────────────────────────────────────────────────────────────── */
-await p.click('#collSeg [data-v="trade"]'); await p.waitForSelector('.tr-list .tr-row .thumb[data-zoom]'); await p.waitForTimeout(400);
+await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-list .tr-row .thumb[data-zoom]'); await p.waitForTimeout(400);
 const trName = await txt(p, '.tr-list .tr-row:first-child .row-name');
 v = await tap('.tr-list .tr-row:first-child .thumb'); assert.equal(v.name, trName);
 await closeV(); await keyboard('.tr-list .tr-row:first-child .thumb', trName);

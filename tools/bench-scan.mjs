@@ -28,7 +28,7 @@ const world = await startWorld({ port: 18911, bigCatalog: 35000 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const { ctx, p } = await newPage(browser, world, { goto: false });
 await routeCdn(ctx); await p.goto(world.url); await p.waitForTimeout(700);
-await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on');
+await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on');
 const names = (process.argv[2] || 'swords,crater,wrath,llanowar,edgar,sceau,anneau,epees,colere,elfes,behemoth,nonsense,blurry').split(',');
 const reps = Number(process.argv[3] || 1);
 await p.evaluate(() => {

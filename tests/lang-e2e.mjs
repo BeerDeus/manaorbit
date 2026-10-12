@@ -24,8 +24,7 @@ assert.match(lines[0], /^\d+ cartes?( · .*)? · monté$/); assert.match(lines[1
 assert.equal(await p.$('.deck[data-id="d2"] .mounted'), null, 'pas d\'étiquette sur un deck non monté');
 assert.match(await txt(p, '.deck[data-id="d2"] .deck-ago'), /^avant-hier$|^il y a 2 jours$/);
 assert.equal(await p.$eval('.deck-meta', e => getComputedStyle(e).flexDirection), 'column', 'la date est sous la ligne');
-assert.match(await txt(p, '#decksSub').catch(() => ''), /./);
-ok('liste : « monté » (comme la tuile « Deck à monter »), date sous la ligne prix + monté');
+ok('liste : « monté », date sous la ligne prix + monté');
 
 /* ── 2) images dans la langue des cartes possédées ──────────────────────────────────────── */
 await p.click('.deck[data-id="d1"] [data-act="open"]'); await p.waitForSelector('.dv.on[aria-label^="Deck viewer"] .dvc');

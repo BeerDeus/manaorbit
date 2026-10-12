@@ -16,17 +16,16 @@ const anims = (p, sel) => p.$eval(sel, e => e.getAnimations({ subtree: true }).m
   const { p, errs } = await newPage(browser, world, { init: seed, ctx: { isMobile: false, hasTouch: false } }); errsOf.push(errs);
   await p.evaluate(() => { const o = stagger; window.__stg = []; stagger = (...a) => { window.__stg.push(a.flat().filter(Boolean).map(e => e.className).join(' ')); return o(...a); }; });      // les repeints (lecture des cartes) remplacent la liste : on suit les appels
   await toHome(p);
-  // accueil : le trait du scan glisse en transform (aucune mise en page par image) ; sous une fenêtre plein écran (#app inert), toutes ses animations sont en pause
+  // accueil : l'orbite tourne en transform (aucune mise en page par image) ; sous une fenêtre plein écran (#app inert), toutes ses animations sont en pause
   const homeAnims = () => p.evaluate(() => document.getAnimations().filter(a => a.animationName && a.effect && a.effect.target && a.effect.target.closest('#app')).map(a => a.animationName + ':' + a.playState));      // animations CSS (celles qui bouclent) ; transitions et WAAPI de l'appui finissent seules
-  const props = await p.evaluate(() => { const a = document.getAnimations().find(a => a.animationName === 'hmScan'); return a && [...new Set(a.effect.getKeyframes().flatMap(k => Object.keys(k)))].filter(k => !['offset', 'computedOffset', 'easing', 'composite'].includes(k)); });
-  assert.deepEqual(props, ['transform'], 'hmScan : transform seulement (plus de top)');
-  assert.ok((await homeAnims()).some(a => a === 'hmScan:running'), 'accueil : animations en cours');
+  const props = await p.evaluate(() => { const a = document.getAnimations().find(a => a.animationName === 'hmSpin'); return a && [...new Set(a.effect.getKeyframes().flatMap(k => Object.keys(k)))].filter(k => !['offset', 'computedOffset', 'easing', 'composite'].includes(k)); });
+  assert.deepEqual(props, ['transform'], 'hmSpin (orbite) : transform seulement');
+  assert.ok((await homeAnims()).some(a => a === 'hmSpin:running'), 'accueil : animations en cours');
   await p.click('#btnColl'); await p.waitForSelector('.coll.on .coll-list');
   const under = await homeAnims(); assert.ok(under.length && under.every(a => /:paused$/.test(a)), 'collection ouverte : animations de l\'accueil en pause : ' + under.filter(a => !/:paused$/.test(a)).join(' '));
   assert.ok((await p.evaluate(() => window.__stg)).some(c => /coll-list/.test(c)), 'liste : arrivée en cascade');
-  await p.click('#collSeg [data-v="trade"]'); assert.equal(await p.$eval('.coll-main', e => e.dataset.dir), 'l', 'onglet à droite : arrive de la droite');
-  await p.click('#collSeg [data-v="stats"]'); assert.equal(await p.$eval('.coll-main', e => e.dataset.dir), 'r');
-  await p.click('#collSeg [data-v="list"]'); await p.waitForSelector('.coll-list .crow .thumb img.ok', { timeout: 8000 });
+  await p.click('#collSeg [data-v="stats"]'); assert.equal(await p.$eval('.coll-main', e => e.dataset.dir), 'l', 'onglet à droite : arrive de la droite');
+  await p.click('#collSeg [data-v="list"]'); assert.equal(await p.$eval('.coll-main', e => e.dataset.dir), 'r'); await p.waitForSelector('.coll-list .crow .thumb img.ok', { timeout: 8000 });
   ok('collection : cascade à l\'ouverture, onglets qui arrivent du bon côté');
 
   await p.click('.coll-list .crow .thumb'); await p.waitForSelector('.imgv.on');
@@ -52,9 +51,9 @@ const anims = (p, sel) => p.$eval(sel, e => e.getAnimations({ subtree: true }).m
   await p.keyboard.press('Escape'); await p.waitForTimeout(400);
   ok('carte en grand : agrandie depuis la vignette, inclinaison foil qui suit le pointeur, revient à plat ; glissé lent = inclinaison, geste vif = carte suivante');
 
-  await p.click('.coll .dv-back'); await p.waitForTimeout(400);
-  assert.ok((await homeAnims()).some(a => a === 'hmScan:running'), 'collection fermée : l\'accueil reprend ses animations');
-  ok('accueil : trait du scan en transform, animations en pause sous la collection, reprises à la fermeture');
+  await p.click('#nav [data-nav="home"]'); await p.waitForTimeout(400);
+  assert.ok((await homeAnims()).some(a => a === 'hmSpin:running'), 'retour à l\'accueil (barre du bas) : l\'accueil reprend ses animations');
+  ok('accueil : orbite en transform, animations en pause sous la collection, reprises au retour');
   await toHome(p); await p.click('#btnDecks'); await p.waitForSelector('.deck-main .tilt');
   await p.evaluate(() => { const o = tween; window.__tw = []; tween = (el, to) => { window.__tw.push([el.className, el._v == null ? 0 : el._v, to]); return o(el, to); }; });
   await p.click('.deck-main'); await p.waitForSelector('.dv.on .dv-amt');

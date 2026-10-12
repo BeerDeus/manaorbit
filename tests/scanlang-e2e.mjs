@@ -52,7 +52,7 @@ assert.deepEqual(await p.evaluate(() => [I18N.lang, namesLang()]), ['fr', 'fr'],
 assert.deepEqual(await p.evaluate(() => [['Foresta', 'Forest'], ['Archivista', 'Archiviste'], ['Ira di Dio', 'Wrath of God'], ["Sheoldred, l'Apocalisse", 'Sheoldred, the Apocalypse'], ['Relámpago', 'Lightning Bolt'], ['Elfi di Llanowar', 'Elfes de Llanowar'],
   ['Forest', 'Forest'], ['Wrath of Gad', 'Wrath of God'], ['Die Young', 'Die Young'], ['Colere de Dieu', 'Colère de Dieu'], ["Ajani's Pridemate", "Ajani's Pridemate"], ['Swords to Plowshores', 'Swords to Plowshares']].map(([r, f]) => looksForeign(r, f))),
   [true, true, true, true, true, true, false, false, false, false, false, false], 'cognats, mots de liaison, élisions, accents : autre langue ; lecture abîmée d\'allure anglaise ou française : non');
-await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on');
+await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on');
 await p.evaluate(() => { window.__ol = []; const o = ocrLines; ocrLines = async (c, l, psm) => { const r = await o(c, l, psm); window.__ol.push([l, r.map(x => x.text).join(' / ')]); return r; }; });
 await p.setInputFiles('#scFile', [fx('anneau.jpg'), fx('swords.jpg')]); await idle(p);
 let it = await rows(p); console.log('  français et anglais :', it.map(x => `${x.id} ${x.score}`).join(' · '));
@@ -112,7 +112,7 @@ await ctx.close();
   }, jpg);
   await routeCdn(nat.ctx); np.on('request', r => { if (/\/api\/names\/find/.test(r.url())) nf.push(r.url()); });
   await np.goto(world.url); await np.waitForTimeout(700);
-  await toHome(np); await np.click('#btnColl'); await np.waitForSelector('.coll.on'); await np.click('.coll-tools [data-act="scan"]'); await np.waitForSelector('.scan.on');
+  await toHome(np); await np.click('#btnColl'); await np.waitForSelector('.coll.on'); await np.click('#nav [data-nav="scan"]'); await np.waitForSelector('.scan.on');
   await np.waitForFunction(() => document.querySelector('.sc-stage').dataset.native === '1', null, { timeout: 5000 });
   const snap = async (text, n) => { await np.evaluate(t => { window.__nat.text = t; }, text); await np.click('.sc-shot'); await np.waitForFunction(k => SC.cap >= k && SC.items.size + SC.miss.length >= k, n, { timeout: 20000 }); await idle(np, 20000); };
   await snap('Sol Ring', 1); assert.equal(nf.length, 0, 'ML Kit : carte anglaise sûre, aucune requête');
@@ -131,7 +131,7 @@ await ctx.close();
   const o = await newPage(browser, world, { goto: false }), op = o.p; let hits = 0;
   await routeCdn(o.ctx); await o.ctx.route('**/api/names/find**', r => { hits++; r.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"not_found"}' }); });
   await op.goto(world.url); await op.waitForTimeout(700);
-  await toHome(op); await op.click('#btnColl'); await op.waitForSelector('.coll.on'); await op.click('.coll-tools [data-act="scan"]'); await op.waitForSelector('.scan.on');
+  await toHome(op); await op.click('#btnColl'); await op.waitForSelector('.coll.on'); await op.click('#nav [data-nav="scan"]'); await op.waitForSelector('.scan.on');
   await op.setInputFiles('#scFile', [fx('fulmine.jpg'), fx('fulmine.jpg')]); await idle(op);
   assert.deepEqual((await misses(op)).length, 2, 'sans le serveur : non reconnue, comme avant'); assert.equal(hits, 1, 'serveur sans la recherche : demandé une seule fois par session');
   assert.deepEqual(o.errs.filter(e => !/WebAssembly|worker|404/i.test(e)), []); await o.ctx.close();

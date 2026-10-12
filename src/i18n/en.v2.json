@@ -42,5 +42,15 @@
   "{a}, puis {b}": "{a}, then {b}",
   "{n} actif": "{n} active",
   "{n} actifs": "{n} active",
-  "Rechercher": "Search"
+  "Rechercher": "Search",
+  "Prix d'une liste": "Price a list",
+  "À monter": "To build",
+  "Liste d'un ami": "A friend's list",
+  "rien pour toi pour l'instant": "nothing for you yet",
+  "{n} carte pour toi": "{n} card for you",
+  "{n} cartes pour toi": "{n} cards for you",
+  "Valeur de la collection : {v} · voir les stats": "Collection value: {v} · see stats",
+  "Lien actif": "Link on",
+  "· listes d'amis ouvertes": "· friends' lists you opened",
+  "Navigation principale": "Main navigation"
 }

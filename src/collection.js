@@ -4,7 +4,7 @@
 const COLL_KEY = 'deckdeal:coll:v1', COLL_SRC_KEY = 'deckdeal:coll:src', COLL_META_KEY = 'coll:meta', COLL_LI_KEY = 'coll:li', COLL_ED_KEY = 'coll:ed', COLL_PAGE = 120;
 const COLL_RETRY = { off: 15000, err: 20000, live: 12000 };       // délais (ms) : nouvel essai hors ligne / en erreur, attente du serveur au démarrage
 const PX_KEY = 'deckdeal:px:v1', PX_TTL = 2 * DAY, PX_CHUNK = 40;
-const COLL = { ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
+const COLL = { mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
 try { if (localStorage.getItem(COLL_SRC_KEY) === 'ct') COLL.src = 'ct'; } catch (e) { /* stockage indisponible */ }
 const collCount = () => Object.keys(COLL.map).length;
 const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k].q; return n; };
@@ -798,11 +798,26 @@ function collHeadText() {
   const sync = D.user ? (COLL.cloud === 'ok' ? T('synchronisée') : COLL.cloud === 'sync' ? T('synchronisation…') : COLL.cloud === 'offline' ? T('hors ligne') : COLL.cloud === 'error' ? COLL.err : '') : T('sur cet appareil');
   return n ? TN(n, '{n} carte', '{n} cartes') + ' · ' + TN(c, '{n} exemplaire', '{n} exemplaires') + (sync ? ' · ' + sync : '') : T('Vide pour le moment');
 }
+/** Carte de valeur en haut de « Ma collection » : valeur (tendance Cardmarket), cartes et exemplaires, variation sur 7 jours, courbe des 30 derniers relevés ; toucher → Stats. */
+function collValPaint() {
+  const box = COLL.el && $('.coll-val', COLL.el); if (!box) return;
+  const n = collCount(); if (!n || typeof homeValue !== 'function') { box.hidden = true; return; }
+  const v = homeValue(), h = histDelta(VAL.hist, 7), pts = VAL.hist.slice(-30).map(x => x.v);
+  let spark = '';
+  if (pts.length >= 2) {
+    const lo = Math.min(...pts), hi = Math.max(...pts), W = 120, H = 38, dx = W / (pts.length - 1), y = p => (hi === lo ? H / 2 : H - 3 - (p - lo) / (hi - lo) * (H - 6));
+    const d = pts.map((p, i) => (i ? 'L' : 'M') + (i * dx).toFixed(1) + ' ' + y(p).toFixed(1)).join(' ');
+    spark = `<svg class="cv-sp" viewBox="0 0 ${W} ${H}" aria-hidden="true"><path d="${d}"/><circle cx="${W}" cy="${y(pts[pts.length - 1]).toFixed(1)}" r="2.6"/></svg>`;
+  }
+  const dl = h && Math.abs(h.d) >= 100 ? `<em class="cv-d${h.d < 0 ? ' down' : ''}">${esc(T('{d} · 7 j', { d: (h.d < 0 ? '▼ −' : '▲ +') + hmEur(Math.abs(h.d)) }))}</em>` : '';
+  box.hidden = false;
+  box.innerHTML = `<button type="button" class="cv" data-act="valtab" aria-label="${esc(T('Valeur de la collection : {v} · voir les stats', { v: v ? hmEur(v) : '—' }))}"><span class="cv-t"><b>${v ? esc(hmEur(v)) : '—'}</b><span>${TN(n, '{n} carte', '{n} cartes')} · ${TN(collCopies(), '{n} exemplaire', '{n} exemplaires')}</span></span><span class="cv-r">${dl}${spark}</span></button>`;
+}
 function collPaintHead() {
-  paintCollSection();
+  paintCollSection(); collValPaint();
   if (typeof BD !== 'undefined' && BD.el && BD.tab === 'coll') { BD.idx = null; bdList(); }      // l'éditeur de deck liste la collection : il suit la lecture des cartes (commandants possibles…)
   const el = COLL.el; if (!el) return;
-  $('.dv-title span', el).textContent = collHeadText();
+  $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul
   const sy = $('.coll-sync', el), si = collSyncInfo();
   if (!si) sy.hidden = true;
   else { sy.hidden = false; sy.dataset.k = si.k; sy.innerHTML = `<span class="sy-d" aria-hidden="true"></span><span class="sy-t">${esc(si.t)}</span>${si.acts.map(([a, l]) => `<button class="link-btn" type="button" data-act="${a}">${esc(l)}</button>`).join('')}`; }
@@ -882,7 +897,7 @@ function collPaintBody(keep) {
   const v = collAll(), all = v.all, none = !all.length;
   // collection vide : les onglets restent (Decks et Échange marchent sans carte) ; recherche, filtres, tri et prix réels n'auraient rien à montrer
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
-  $('.coll-px', el).hidden = none;
+  $('.coll-px', el).hidden = none; $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
   $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; valPaintAlert();
   if (none && COLL.tab === 'list') host.innerHTML = collEmptyHtml();
   else if (none && COLL.tab === 'stats') host.innerHTML = collStatsEmptyHtml();
@@ -916,17 +931,24 @@ function collMore() {
 }
 function closeCollection() { if (COLL.el) COLL.el.__close(); }
 /** Ouvre l'écran de la collection (tab : 'list' | 'stats'). */
+/** Trois sections sur le même écran (barre du bas, nav.js) : « Ma collection » (Cartes · Stats), « Échange » (liste d'échange seule)
+ *  et Decks › « À monter » (decks EDHREC) ; tab : 'list' | 'stats' | 'trade' | 'decks' (sans tab : le dernier onglet de la collection). */
+const COLL_MODES = { list: 'coll', stats: 'coll', trade: 'trade', decks: 'decks' };
 function openCollection(tab) {
   closeCollection();
-  if (tab) COLL.tab = tab;
+  if (!COLL_MODES[tab]) tab = COLL.ctab || 'list';
+  COLL.tab = tab; COLL.mode = COLL_MODES[tab]; if (COLL.mode === 'coll') COLL.ctab = tab;
   COLL.shown = COLL_PAGE; COLL.view = null; collFrLoad();
-  const wrap = document.createElement('div'); wrap.className = 'dv coll'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Ma collection'));
+  const md = COLL.mode, title = md === 'trade' ? T('Échange') : md === 'decks' ? T('Decks') : T('Ma collection');
+  const wrap = document.createElement('div'); wrap.className = `dv coll sec m-${md}${typeof NAV !== 'undefined' && NAV.inst ? ' inst' : ''}`; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', title);
+  const tools = md === 'coll' ? `<button class="icon-btn" type="button" data-act="add" aria-label="${T('Ajouter des cartes')}" title="${T('Ajouter des cartes')}"><svg class="i"><use href="#i-plus"/></svg></button>
+        <button class="icon-btn" type="button" data-act="import" aria-label="${T('Importer un fichier ou du texte')}" title="${T('Importer')}"><svg class="i"><use href="#i-upload"/></svg></button>`
+    : md === 'decks' ? `<button class="icon-btn deck-new" type="button" data-act="dnew" aria-label="${T('Créer un deck')}" title="${T('Créer un deck')}"><svg class="i"><use href="#i-plus"/></svg></button>` : '';
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer la collection')}"><svg class="i"><use href="#i-back"/></svg></button>
-      <div class="dv-title"><b>${T('Ma collection')}</b><span></span></div>
-      <div class="coll-tools"><button class="icon-btn" type="button" data-act="add" aria-label="${T('Ajouter des cartes')}" title="${T('Ajouter des cartes')}"><svg class="i"><use href="#i-plus"/></svg></button>
-        <button class="icon-btn" type="button" data-act="scan" aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i"><use href="#i-camera"/></svg></button>
-        <button class="icon-btn" type="button" data-act="import" aria-label="${T('Importer un fichier ou du texte')}" title="${T('Importer')}"><svg class="i"><use href="#i-upload"/></svg></button></div></header>
+      <div class="dv-title"><b>${title}</b><span></span></div>
+      <div class="coll-tools">${tools}</div></header>${md === 'decks' ? dkTabsHtml('build') : ''}
     <div class="dv-scroll"><div class="dv-body coll-body">
+      ${md === 'coll' ? '<div class="coll-val" hidden></div>' : ''}
       <div class="coll-sync" hidden></div>
       <div class="coll-status" hidden></div>
       <div class="coll-alert" hidden></div>
@@ -943,7 +965,7 @@ function openCollection(tab) {
   document.addEventListener('keydown', onKey, true);
   wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
   wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
-  mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'stats', label: T('Stats') }, { v: 'decks', label: T('Decks') }, { v: 'trade', label: T('Échange') }], COLL.tab, v => { const ord = ['list', 'stats', 'decks', 'trade'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
+  if (md === 'coll') mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'stats', label: T('Stats') }], COLL.tab, v => { const ord = ['list', 'stats'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = COLL.ctab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
   COLL.fb = mountFilters($('#collF', wrap), COLL.f, () => {
     if (COLL.f.cmdr === 'played' && COLL.cmdrSeen !== 'played' && COLL.sort === 'name') { COLL.sort = 'decks'; $('#collSort', wrap).value = 'decks'; }      // les plus joués d'abord
     COLL.cmdrSeen = COLL.f.cmdr; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(true);
@@ -978,6 +1000,8 @@ function openCollection(tab) {
       else if (act === 'add') openLot();
       else if (act === 'ed') { const r = b.closest('.crow'); if (r && r.dataset.k) collEdPick(r.dataset.k, rowG(r)); }
       else if (act === 'scan') openScan();
+      else if (act === 'dnew') openDeckNew();
+      else if (act === 'valtab') { if (COLL.tab !== 'stats') { haptic('tap'); COLL.tab = COLL.ctab = 'stats'; const sg = $('#collSeg', wrap); if (sg && sg.setValue) sg.setValue('stats'); COLL.shown = COLL_PAGE; collPaintBody(false); } }
       else if (act === 'import') openCollImport();
       else if (act === 'enrich') { COLL.enrichErr = ''; collEnrich(); }
       else if (act === 'unknown') openCollUnknown();
@@ -1019,7 +1043,7 @@ function openCollection(tab) {
     }
   });
   document.body.appendChild(wrap); holdApp(); collPaintHead(); collPaintBody(false);
-  requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
+  requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); const f = $('.dk-tab[aria-current], #collSeg [aria-checked="true"], .coll-tools .icon-btn, .dv-title', wrap); if (f) { if (!f.hasAttribute('tabindex') && f.classList.contains('dv-title')) f.tabIndex = -1; f.focus({ preventScroll: true }); } }));
   haptic('tap');
   if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); else { valMaybe(); edRefresh(); collSoloSoon(); }
   if (collEds().length) setIcLoad(() => { if (COLL.el) collPaintSoon(); });      // symboles des extensions (étiquettes d'édition) : seulement si des lignes en ont une
@@ -1234,7 +1258,7 @@ function openCollGlance(n, m, undo) {
       if (g === 'undo') { if (GLANCE.undo) GLANCE.undo(); toast(T('Import annulé')); }
       else if (g === 'stats' || g === 'decks') {
         if (g === 'decks' && edhGate() === 'ok') { EDH.budget = GLANCE_BUDGET; EDH.sort = 'have'; EDH.then = 'cost'; EDH.shown = 30; EDH.memo = null; }
-        if (COLL.el) { COLL.tab = g; const s = $('#collSeg', COLL.el), sc = $('.dv-scroll', COLL.el); if (s && s.setValue) s.setValue(g); collPaintBody(false); if (sc) sc.scrollTop = 0; } else openCollection(g);
+        if (COLL.el && COLL.mode === COLL_MODES[g]) { COLL.tab = g; if (g === 'stats') COLL.ctab = g; const s = $('#collSeg', COLL.el), sc = $('.dv-scroll', COLL.el); if (s && s.setValue) s.setValue(g); collPaintBody(false); if (sc) sc.scrollTop = 0; } else if (typeof navOpen === 'function') navOpen(() => openCollection(g)); else openCollection(g);      // Decks › À monter : la section Decks
       }
     });
     paintGlance();

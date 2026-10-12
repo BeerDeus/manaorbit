@@ -76,7 +76,7 @@ const errsOf = [];
   // démontage
   await toHome(p); await p.click('#btnDecks'); await p.waitForSelector('.dks.on .deck'); await p.click('#deckList [data-act="more"]'); await p.waitForSelector('#dkMount'); await p.evaluate(() => document.querySelector('#dkMount').click());
   await p.waitForFunction(() => !document.querySelector('#dkMount').checked); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
-  await p.click('.dks [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.dks'), null, { timeout: 3000 });
+  await p.click('#nav [data-nav="home"]'); await p.waitForFunction(() => !document.querySelector('.dks'), null, { timeout: 3000 });
   assert.equal(await p.evaluate(() => engIsOn('deckA')), false); assert.equal(await p.evaluate(() => JSON.stringify(XS.eng.deckA.q)), '{}', 'trace vide gardée pour la synchro');
   await toInput(p); await p.fill('#deckText', '2 Sol Ring'); await p.evaluate(() => { S.deckId = null; refreshDeck(); }); assert.deepEqual(await need(), [['sol ring', 2, 0]], 'démonté : tout est de nouveau déduit');
   // un deck sans carte possédée ne se monte pas
@@ -131,7 +131,7 @@ const errsOf = [];
 /* ── D) Scan « prix rapide » ──────────────────────────────────────────────────────────────── */
 {
   const { p, errs } = await newPage(browser, world, { init: seed('1 Sol Ring *FR*') }); errsOf.push(errs);
-  await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on');
+  await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on');
   assert.equal(await p.$eval('.sc-pmode', b => b.getAttribute('aria-checked')), 'false'); assert.match(await txt(p, '.dv-foot'), /Ajouter/);
   await p.click('.sc-pmode'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true); assert.equal(await p.$eval('.sc-pmode', b => b.getAttribute('aria-checked')), 'true');
   assert.equal(await txt(p, '.sc-count'), 'Prix rapide'); assert.match(await txt(p, '.sc-sub'), /Rien n'est ajouté/); assert.equal(await p.$eval('.dv-foot [data-act="done"]', b => b.hidden), true, 'rien à ajouter en mode prix');
@@ -164,16 +164,18 @@ const errsOf = [];
   ok('scan prix rapide : CM + CT lus, déjà possédée signalée, doute signalé, rien ajouté sans « + », retour au mode ajout');
   await p.context().close();
 }
-// accueil : « Prix rapide » ouvre le scan directement en mode prix, sans passer par la collection
+// raccourci « Prix rapide » (icône, widget : ?open=quick) : le scan directement en mode prix, sans passer par la collection
 {
   const { p, errs } = await newPage(browser, world, { init: seed('1 Sol Ring *FR*') }); errsOf.push(errs);
-  assert.ok(await p.isVisible('#btnQuick'), 'bouton visible sur l\'accueil'); assert.match(await txt(p, '#btnQuick'), /Prix rapide/);
-  await toHome(p); await p.click('#btnQuick'); await p.waitForSelector('.scan.on');
+  assert.equal(await p.$('#btnQuick'), null, 'plus de tuile sur l\'accueil : le Scanner de la barre du bas a « Prix »');
+  await toHome(p); await p.evaluate(() => wgtOpen('quick')); await p.waitForSelector('.scan.on');
   assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true, 'scan ouvert en mode prix'); assert.equal(await p.$eval('.sc-pmode', b => b.getAttribute('aria-checked')), 'true');
   assert.equal(await p.$eval('.dv-foot [data-act="done"]', b => b.hidden), true, 'rien à ajouter'); assert.equal(await p.$('.coll.on'), null, 'la collection n\'est pas ouverte');
   await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
-  await toHome(p); await p.click('#btnQuick'); await p.waitForSelector('.scan.on'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true, 'à chaque ouverture');
-  ok('accueil : bouton « Prix rapide » → scan directement en mode prix (sans collection ouverte)');
+  await toHome(p); await p.evaluate(() => wgtOpen('quick')); await p.waitForSelector('.scan.on'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true, 'à chaque ouverture');
+  await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+  await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), false, 'Scanner de la barre du bas : mode ajout');
+  ok('raccourci « Prix rapide » → scan directement en mode prix (sans collection ouverte) ; Scanner de la barre : ajout');
   await p.context().close();
 }
 
@@ -252,7 +254,7 @@ const errsOf = [];
 {
   // scan : la même carte lue en français puis en anglais = deux lignes ; ajout dans la collection : une ligne par langue
   const { p, errs } = await newPage(browser, world, { init: seed('1 Sol Ring *FR*') }); errsOf.push(errs);
-  await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on');
+  await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on');
   await p.evaluate(() => { const m = (card, raw) => ({ key: 'sol ring', name: 'Sol Ring', card, score: 0.98, raw }); scanAdd(m('fr', 'Anneau solaire'), 1, false); scanAdd(m('en', 'Sol Ring'), 1, false); scanAdd(m('en', 'Sol Ring'), 1, false); });
   await p.waitForFunction(() => document.querySelectorAll('.sc-item[data-k="sol ring"]').length === 2);
   assert.deepEqual(await p.$$eval('.sc-item[data-k="sol ring"]', r => r.map(x => [x.querySelector('.lchip').dataset.l, Number(x.querySelector('.qstep b').textContent)])), [['en', 2], ['fr', 1]], 'FR et EN : deux lignes, chacune sa quantité (dernière lue en haut)');

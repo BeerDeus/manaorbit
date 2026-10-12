@@ -159,7 +159,7 @@ const EDHF = ['#edh\t1\t2026-10-03T04:00:00Z', 'C\tedgar-markov\t12345\tWBR\tEdg
   'P\t500\tEdgar Markov', 'P\t300\tSol Ring', 'P\t250\tWrath of God', 'P\t900\tCraterhoof Behemoth', 'P\t100\tArcane Signet', ...Array.from({ length: 20 }, (_, i) => `P\t40\tFiller ${i}`)].join('\n') + '\n';
 await p.evaluate(t => { EDH.data = parseEdh(t); EDH.at = Date.now(); EDH.memo = null; }, EDHF);      // fichier EDHREC posé directement (le service worker est actif dans ce test)
 await signInFake(p);      // onglet « Decks » : réservé aux comptes vérifiés (gate-e2e)
-await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#collSeg [data-v="decks"]'); await p.waitForSelector('.crow.dk', { timeout: 8000 });
+await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.evaluate(() => navOpen(() => openCollection('decks'))); await p.waitForSelector('.crow.dk', { timeout: 8000 });
 await p.click('.crow.dk'); await p.waitForSelector('.dk-act[data-act="dkwatch"]');
 const watchRow = () => p.$eval('.dk-act[data-act="dkwatch"]', x => [x.querySelector('b').textContent, x.querySelector('small').textContent, x.disabled]);
 assert.deepEqual(await watchRow(), ['Surveiller leurs prix', '4 cartes à 1 € ou plus · active les alertes', false], 'Edgar, Sol Ring, Wrath, Craterhoof (Arcane Signet possédée, fillers à 0,40 €)');

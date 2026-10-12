@@ -30,11 +30,11 @@ async function run(scheme) {
   await p.fill('#ciText', '1 Edgar Markov\n2 Sol Ring\n1 Arcane Signet\n1 Llanowar Elves\n1 Craterhoof Behemoth\n3 Plains\n1 Wrath of God\n1 Command Tower'); await p.waitForTimeout(200); await p.click('#ciGo');
   await p.waitForFunction(() => document.querySelectorAll('.crow:not(.dk)').length >= 7, null, { timeout: 15000 }); await p.waitForTimeout(1200); await shot('12-collection');
   await p.click('#collSeg [data-v="stats"]'); await shot('13-stats');
-  await p.click('#collSeg [data-v="decks"]'); await p.waitForSelector('.crow.dk', { timeout: 15000 }); await shot('14-decks');
+  await p.evaluate(() => navOpen(() => openCollection('decks'))); await p.waitForSelector('.crow.dk', { timeout: 15000 }); await shot('14-decks');
   await p.click('.crow.dk'); await p.waitForSelector('.sheet'); await shot('15-deck-feuille'); await p.keyboard.press('Escape'); await p.waitForTimeout(500);
   await p.click('.dk-themes [data-act="dthall"]'); await p.waitForSelector('.sheet .th-list'); await shot('16-themes'); await p.keyboard.press('Escape'); await p.waitForTimeout(500);
   await p.click('#collSeg [data-v="list"]'); await p.waitForTimeout(300);
-  await p.click('.coll-tools [data-act="scan"], [data-act="scan"]'); await p.waitForSelector('.scan.on, .scan'); await p.waitForTimeout(1500); await shot('17-scan');
+  await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on, .scan'); await p.waitForTimeout(1500); await shot('17-scan');
   await c.ctx.close();
 }
 if (only !== 'dark') await run('light');

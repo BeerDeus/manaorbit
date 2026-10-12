@@ -52,7 +52,7 @@ async function routeLangImg(p) {
 const idle = (p, ms = 200000) => p.waitForFunction(() => !SC.working && !SC.queue.length && !SC.pend.length, null, { timeout: ms });
 const rows = p => p.evaluate(() => [...SC.items.values()].map(e => ({ id: e.key + '|' + e.l, name: e.name, l: e.l, maybe: e.maybe, raw: e.raw, score: e.score, via: e.via || '', note: (document.querySelector(`.sc-item[data-id="${CSS.escape(e.id)}"] small`) || {}).textContent || '', thumb: (document.querySelector(`.sc-item[data-id="${CSS.escape(e.id)}"] .sc-th`) || {}).src || '' })));
 const misses = p => p.$$eval('.sc-item.miss', r => r.map(x => x.querySelector('b').textContent));
-const openScan = async p => { await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on'); };
+const openScan = async p => { await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on'); };
 /** Nouvelle page : requêtes names-all.tsv et /api/names/find comptées ; finds : réponse de la route (404 : serveur sans la recherche). opts.all : réponse forcée pour names-all.tsv (404…). */
 async function page(opts = {}) {
   const b = await newPage(browser, world, { goto: false, ctx: { colorScheme: 'dark' } }), { ctx, p } = b; b.all = 0; b.finds = [];

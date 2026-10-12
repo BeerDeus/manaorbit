@@ -20,7 +20,7 @@ const { p, errs } = await newPage(browser, world, { goto: false });
 await p.goto(world.url + '?lang=en'); await p.waitForTimeout(800);
 assert.equal(await p.evaluate(() => [I18N.lang, document.documentElement.lang, localStorage.getItem('deckdeal:lang')].join()), 'en,en,en');
 assert.equal(await p.evaluate(() => location.search), '', 'adresse nettoyée');
-assert.match(await txt(p, '#btnDecks'), /My decks/); assert.match(await txt(p, '#hmNew'), /New cart/i); assert.equal(await p.evaluate(() => priceSrc()), 'cm');
+assert.equal(await txt(p, '#nav [data-nav="home"]'), 'Home'); assert.equal(await txt(p, '#nav [data-nav="trade"]'), 'Trade'); assert.match(await txt(p, '#hmTrade'), /Trade/); assert.equal(await p.evaluate(() => priceSrc()), 'cm');
 const home = await leftovers(p); console.log('  accueil, encore en français :', home.length ? home : 'rien');
 ok('?lang=en : langue gardée, accueil en anglais');
 // dictionnaire : bloc JSON inerte de la page (jamais compilé comme du code), analysé seulement pour l'anglais
@@ -38,7 +38,7 @@ await p.click('#btnSettings'); await p.waitForSelector('#setLang'); await p.wait
 assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Settings/); assert.match(await txt(p, '.sheet-body .fan'), /unofficial Fan Content/);
 const set = await leftovers(p); console.log('  réglages, encore en français :', set.length ? set : 'rien');
 await Promise.all([p.waitForEvent('load'), p.selectOption('#setLang', 'fr')]); await p.waitForTimeout(700);
-assert.equal(await p.evaluate(() => I18N.lang), 'fr'); await toHome(p); assert.match(await txt(p, '#btnDecks'), /Mes decks/);
+assert.equal(await p.evaluate(() => I18N.lang), 'fr'); await toHome(p); assert.equal(await txt(p, '#nav [data-nav="home"]'), 'Accueil');
 assert.equal(await p.evaluate(() => I18N.dict), null, 'français : aucun dictionnaire analysé');
 ok('Réglages › Langue : retour au français (rechargement), choix gardé');
 assert.deepEqual(errs, []);

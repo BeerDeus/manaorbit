@@ -1,5 +1,5 @@
 /* ── dklist.js : écran « Mes decks » ──────────────────────────────────────────────────────────────
-   Ouvert depuis le bouton de l'accueil, comme « Ma collection ». Les decks y sont des cartes : image de la carte de présentation
+   Section Decks › Mes decks (bouton « Decks » de la barre du bas, nav.js), à côté de « À monter » et « Prix d'une liste ». Les decks y sont des cartes : image de la carte de présentation
    (choisie dans la feuille d'un deck, sinon commandant, sinon la carte la plus chère), nom, format, couleurs, valeur.
    Filtres : format (Tous / Commander / Standard) et couleurs (le deck doit avoir toutes les couleurs cochées). */
 const DKS = { el: null, fmt: '', colors: new Set(), fresh: true };
@@ -9,10 +9,10 @@ function closeDecks() { if (DKS.el) DKS.el.__close(); }
 function openDecks() {
   closeDecks();
   DKS.fresh = true;
-  const wrap = document.createElement('div'); wrap.className = 'dv dks'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Mes decks'));
+  const wrap = document.createElement('div'); wrap.className = `dv dks sec${typeof NAV !== 'undefined' && NAV.inst ? ' inst' : ''}`; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Mes decks'));
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer mes decks')}"><svg class="i"><use href="#i-back"/></svg></button>
-      <div class="dv-title"><b>${T('Mes decks')}</b><span></span></div>
-      <div class="coll-tools"><button class="icon-btn deck-new" id="btnNewDeck" type="button" data-act="new" aria-label="${T('Créer un deck')}" title="${T('Créer un deck')}"><svg class="i"><use href="#i-plus"/></svg></button></div></header>
+      <div class="dv-title"><b>${T('Decks')}</b><span></span></div>
+      <div class="coll-tools"><button class="icon-btn deck-new" id="btnNewDeck" type="button" data-act="new" aria-label="${T('Créer un deck')}" title="${T('Créer un deck')}"><svg class="i"><use href="#i-plus"/></svg></button></div></header>${dkTabsHtml('mine')}
     <div class="dv-scroll"><div class="dv-body dks-body">
       <div class="dks-top"><button class="sync" id="decksSync" type="button" data-act="sync" data-s="local"><i></i><span id="decksSyncTxt">${T('Sur cet appareil')}</span></button></div>
       <div class="dks-filters" id="dksFilters" hidden>
@@ -46,7 +46,7 @@ function openDecks() {
     if (act === 'open') openDeckViewer({ id }); else if (act === 'more') openDeckSheet(id);      // toucher le deck : son viewer ; ⋯ : la feuille (image, montage, historique…) ; « Ouvrir » charge la liste dans la saisie
   });
   document.body.appendChild(wrap); holdApp(); renderDecks();
-  requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
+  requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dk-tab[aria-current]', wrap).focus({ preventScroll: true }); }));
   haptic('tap');
 }
 
@@ -62,6 +62,7 @@ function dksPaint() {
   $$('.dks-c', el).forEach(b => { const on = DKS.colors.has(b.dataset.c); b.setAttribute('aria-pressed', String(on)); b.disabled = !on && !has.has(b.dataset.c); });
   $('.dks-reset', el).hidden = !filtered;
   $('.dv-title span', el).textContent = loading ? '' : filtered ? TN(all.length, '{shown} sur {n} deck', '{shown} sur {n} decks', { shown: shown.length.toLocaleString(LOC()) }) : TN(all.length, '{n} deck', '{n} decks');
+  if (typeof dkTabsCount === 'function') dkTabsCount();      // « Mes decks 4 » dans les onglets de la section
   let html = '';
   if (loading) html = '<div class="deck skel"><span class="sk art"></span><span class="sk name"></span><span class="sk meta"></span></div><div class="deck skel"><span class="sk art"></span><span class="sk name"></span><span class="sk meta"></span></div>';
   else {

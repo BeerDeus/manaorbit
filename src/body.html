@@ -51,6 +51,10 @@
     <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.5 4.5 13.5h6.5l-1 8 8.5-11h-6.5z"/></symbol>
     <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.5 5.5v13l10-6.5z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-cards" viewBox="0 0 24 24"><rect x="8" y="3" width="12" height="16" rx="2"/><path d="M5 6.5V19a2 2 0 0 0 2 2h9"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5z"/><path d="m2 13 10 5 10-5"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1.2"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1.2"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1.2"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM14 18.5v2M18.5 14h2"/></symbol>
     <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h6M14 7h6M4 17h10M18 17h2"/><circle cx="12" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></symbol>
   </defs>
 </svg>
@@ -99,40 +103,21 @@
         <p class="hm-sub" id="collSub">Ajoute tes cartes (import, photo, saisie) : elles seront déduites du panier.</p>
       </div>
 
-      <section class="hm-tiles" id="collSec" aria-label="Mes decks et ma collection">
-        <button class="hm-decks" id="btnDecks" type="button" data-empty="1">
-          <span class="hm-fan" id="hmFan" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="hm-dt"><b>Mes decks <em id="hmDecksN"></em></b><span id="hmDeckNames"></span><span id="decksSub">Crée ou colle un deck</span></span>
+      <section class="hm-trade" id="hmTrade" aria-labelledby="hmTradeT">
+        <button class="hm-tr-h" id="btnTrade" type="button">
+          <span class="hm-tr-ic" aria-hidden="true"><svg class="i"><use href="#i-swap"/></svg></span>
+          <span class="hm-tr-t"><b id="hmTradeT">Échange</b><span id="hmTradeSub">Doublons et cartes recherchées</span></span>
+          <span class="hm-tr-live" id="hmLive" hidden>Lien actif</span>
         </button>
-        <div class="hm-row">
-          <button class="hm-tile hm-quick" id="btnQuick" type="button" aria-label="Prix rapide : scanner une carte sans l'ajouter à la collection">
-            <span class="hm-scanbox" aria-hidden="true"><i></i></span>
-            <svg class="i hm-ic" aria-hidden="true"><use href="#i-camera"/></svg>
-            <span class="hm-tt"><b>Prix rapide</b><span>Scanne une carte</span></span>
-          </button>
-          <button class="hm-tile hm-build" id="btnBuild" type="button">
-            <span class="hm-top"><svg class="i hm-ic" aria-hidden="true"><use href="#i-star"/></svg><em id="hmBuildPct"></em></span>
-            <span class="hm-tt"><b>Deck à monter</b><span id="hmBuildSub">Decks EDHREC comparés à ta collection</span></span>
-          </button>
-          <button class="hm-tile hm-trade" id="btnTrade" type="button">
-            <span class="hm-top"><svg class="i hm-ic" aria-hidden="true"><use href="#i-swap"/></svg><i class="hm-live" id="hmLive" hidden></i></span>
-            <span class="hm-tt"><b>Échange</b><span id="hmTradeSub">Doublons et cartes recherchées</span></span>
-          </button>
+        <div class="hm-tr-acts">
+          <button class="btn ghost" type="button" id="btnTradeQr"><svg class="i" aria-hidden="true"><use href="#i-qr"/></svg><span>QR code</span></button>
+          <button class="btn ghost" type="button" id="btnTradeShare"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg><span>Partager</span></button>
+        </div>
+        <div class="hm-fy" id="hmForYou" hidden>
+          <p class="hm-fy-h"><b>Pour toi</b> · listes d'amis ouvertes</p>
+          <ul class="hm-fy-l" id="hmFyList"></ul>
         </div>
       </section>
-
-      <div class="hm-new tilt" id="hmNew">
-        <span class="hm-new-ring" aria-hidden="true"></span>
-        <div class="hm-new-in">
-          <span class="hm-glint" aria-hidden="true"></span>
-          <div class="hm-new-h"><span class="hm-new-ico" aria-hidden="true"><svg class="i"><use href="#i-search"/></svg></span><b>Nouveau panier</b></div>
-          <p id="hmNewSub">Colle une decklist : le prix de chaque carte et le total, ou le panier CardTrader le moins cher.</p>
-          <div class="hm-new-acts">
-            <button class="btn" type="button" id="btnNew"><span id="btnNewLabel">Coller une liste</span></button>
-            <button class="btn ghost" type="button" id="btnNew2"><span id="btnNew2Label">Exemple</span></button>
-          </div>
-        </div>
-      </div>
 
       <section class="hm-sets" id="hmSets" aria-labelledby="hmSetsT" hidden>
         <div class="hm-sets-h"><b id="hmSetsT">Prochaines extensions</b><span>Scryfall</span></div>
@@ -145,6 +130,7 @@
 
     <!-- ── Saisie (« Nouveau panier ») ───────────────────── -->
     <section class="view" id="viewInput" aria-label="Decklist" hidden>
+      <div class="in-tabs" id="inTabs" hidden></div>
       <div class="crumb">
         <button class="link-btn" id="btnHome" type="button"><svg class="i"><use href="#i-back"/></svg>Accueil</button>
       </div>
@@ -283,6 +269,7 @@
   </div>
 </div>
 
+<nav class="nav off" id="nav" aria-label="Navigation principale" aria-hidden="true" inert></nav>
 <div class="sheet-root" id="sheetRoot"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>

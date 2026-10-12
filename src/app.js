@@ -1257,7 +1257,6 @@ function init() {
   setTimeout(obMaybe, 400);      // premier lancement sur un appareil vierge
   $('#optColl').onchange = e => { S.useColl = e.target.checked; saveStore(); haptic('tap'); refreshDeck(); };
   $('#btnColl').onclick = () => openCollection();
-  $('#btnQuick').onclick = () => { haptic('tap'); openScan(); scanPriceMode(true); };      // accueil : scan directement en « prix rapide »
 
   $('#btnRun').onclick = startRun;
   $('#btnBack').onclick = () => { if (S.run && S.run.status === 'running') S.run.ctrl.abort(); showView('input'); };

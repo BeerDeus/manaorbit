@@ -443,8 +443,8 @@ const trReportHref = id => 'mailto:' + TR_REPORT + '?subject=' + encodeURICompon
  */
 function openPublicTrade(sh, preview, id) {
   if (TR.pub && TR.pub.el) TR.pub.el.__close();
-  const P = TR.pub = { sh, preview: !!preview, sub: preview ? (sh.have.length || !sh.want.length ? 'have' : 'want') : 'match', f: newFilter(), shown: TR_PAGE, el: null, mine: null, key: '', refs: [], t: 0, tick: 0, px: 0, paint: null };
-  if (!preview) P.mine = pubMine(P);
+  const P = TR.pub = { id: id || '', sh, preview: !!preview, sub: preview ? (sh.have.length || !sh.want.length ? 'have' : 'want') : 'match', f: newFilter(), shown: TR_PAGE, el: null, mine: null, key: '', refs: [], t: 0, tick: 0, px: 0, paint: null };
+  if (!preview) { P.mine = pubMine(P); if (id && typeof homeSeen === 'function') homeSeen(id, sh.by, P.mine.m.n); }      // « Pour toi » de l'accueil : listes d'amis ouvertes récemment
   const wrap = document.createElement('div'); wrap.className = 'dv coll pubv'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Liste d\'échange'));
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button>
       ${sh.bp ? `<img class="pub-av" src="${sh.bp}" alt="">` : ''}<div class="dv-title"><b>${preview ? T('Aperçu de ta liste') : sh.by ? T('Liste d\'échange de {name}', { name: esc(sh.by) }) : T('Liste d\'échange')}</b><span>${sh.at ? T('Mise à jour {when}', { when: esc(relTime(sh.at)) }) : ''}</span></div></header>
@@ -521,6 +521,7 @@ function pubPx(P) {
 function pubRefresh() {
   const P = TR.pub; if (!P || !P.el || P.preview) return;
   clearTimeout(P.t); P.key = pubKey(); P.refs = pubRefs(); P.mine = pubMine(P); pubPx(P);
+  if (P.id && typeof homeSeen === 'function') homeSeen(P.id, P.sh.by, P.mine.m.n);      // « Pour toi » de l'accueil : le nombre suit (collection arrivée, souhait ajouté…)
   const seg = $('#pubSub', P.el); if (seg && seg.setSub) seg.setSub('match', pubMatchSub(P));
   if (P.paint) P.paint(true);
 }

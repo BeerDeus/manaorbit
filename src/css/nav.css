@@ -1,0 +1,73 @@
+/* ── nav.css : barre du bas (nav.js), sections (collection, échange, decks), onglets Decks, accueil A (orbite en pointillés, carte Échange) ── */
+:root{--nav-h:72px}
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:81;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:end;height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));padding:0 4px env(safe-area-inset-bottom,0px);background:var(--bar-bg);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border-top:1px solid var(--line);transition:transform .28s cubic-bezier(.2,.8,.2,1),opacity .2s}
+.nav.off{transform:translateY(110%);opacity:0;pointer-events:none}
+.nav-b{height:62px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;padding:0 0 8px;border:0;background:none;color:var(--ink-3);font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.nav-i{display:grid;place-items:center;width:56px;height:30px;border-radius:15px;transition:background .2s,color .2s}
+.nav-i .i{width:22px;height:22px}
+.nav-b[aria-current="page"]{color:var(--ink);font-weight:700}
+.nav-b[aria-current="page"] .nav-i{background:var(--accent-soft);color:var(--accent)}
+.nav-b:active .nav-i{transform:scale(.94)}
+.nav-l{white-space:nowrap}
+/* Scanner : rond foil parfait (flex:none, jamais écrasé) qui dépasse de la barre */
+.nav-scan{color:var(--ink-2)}
+.nav-foil{flex:none;display:grid;place-items:center;width:60px;height:60px;border-radius:50%;margin-bottom:1px;background:var(--foil);box-shadow:0 0 0 5px var(--bg),0 12px 28px -6px rgba(127,176,255,.6);transform:translateY(-6px);transition:transform .22s var(--spring)}
+.nav-scan:active .nav-foil{transform:translateY(-6px) scale(.94)}
+.nav-sc{width:40px;height:40px}
+/* place laissée à la barre */
+body.nav-on .wrap{padding-bottom:calc(128px + var(--nav-h))}
+body.nav-on .dock{bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));padding-bottom:22px}      /* le rond foil du Scanner dépasse de la barre : le bouton reste au-dessus */
+body.nav-on .toast{bottom:calc(var(--nav-h) + 22px + env(safe-area-inset-bottom,0px))}
+.dv.sec .dv-scroll{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px))}
+/* sections : pas de bouton retour (la barre du bas et Retour du téléphone y suffisent), pas d'animation quand on passe de l'une à l'autre */
+.dv.sec .dv-back{display:none}
+.dv.sec .dv-head{padding-left:18px}
+.dv.sec .dv-title b{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.dv.inst{transition:none}
+.coll:not(.m-coll) .coll-alert{display:none!important}
+/* onglets de la section Decks : Mes decks · À monter · Prix d'une liste */
+.dk-tabs{flex:none;display:flex;gap:22px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--bar-bg);overflow-x:auto;scrollbar-width:none}
+.dk-tabs::-webkit-scrollbar{display:none}
+.dk-tab{flex:none;position:relative;height:46px;padding:0;border:0;background:none;color:var(--ink-3);font:inherit;font-size:15px;font-weight:650;white-space:nowrap;cursor:pointer}
+.dk-tab em{font-style:normal;display:inline-grid;place-items:center;min-width:20px;height:20px;margin-left:4px;padding:0 6px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:800}
+.dk-tab[aria-current="page"]{color:var(--ink)}
+.dk-tab[aria-current="page"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--accent)}
+.in-tabs{margin:-8px -16px 0}
+.in-tabs .dk-tabs{background:none}
+#app[data-view="input"] .crumb{display:none}
+/* accueil A : orbite en pointillés, carte Échange, « Pour toi » */
+.hm-orbit::before{content:"";position:absolute;inset:0;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--ink-3) 55%,transparent);pointer-events:none}
+.hm-trade{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:var(--r-lg);border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow)}
+.hm-tr-h{display:flex;align-items:center;gap:12px;padding:0;border:0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.hm-tr-ic{flex:none;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,#ff8fc3 16%,var(--surface-2));color:#ff8fc3}
+.hm-tr-ic .i{width:22px;height:22px}
+.hm-tr-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.hm-tr-t b{font-family:var(--font-display);font-size:19px;font-weight:700;letter-spacing:-.01em}
+.hm-tr-t span{font-size:13px;color:var(--ink-3)}
+.hm-tr-live{flex:none;display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:99px;background:var(--good-soft);color:var(--good);font-size:12px;font-weight:700}
+.hm-tr-live::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.hm-tr-acts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hm-tr-acts .btn{height:44px;font-size:14.5px}
+.hm-fy{border-top:1px solid var(--line);padding-top:10px}
+.hm-fy-h{margin:0 0 6px;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.hm-fy-h b{font-weight:800}
+.hm-fy-l{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.hm-fy-r{width:100%;display:flex;align-items:center;gap:10px;padding:7px 0;border:0;background:none;color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer}
+.hm-fy-av{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:hsl(var(--h) 45% 32%);color:#fff;font-weight:800;font-size:13px}
+.hm-fy-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
+.hm-fy-t b{color:var(--ink)}
+.hm-fy-r .i{flex:none;color:var(--ink-3)}
+@media (prefers-reduced-motion:reduce){.nav,.nav-foil{transition:none}}
+/* « Ma collection » : carte de valeur (courbe 30 relevés) */
+.cv{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-radius:var(--r-lg);border:1.5px solid transparent;background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--foil) border-box;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.cv-t{display:flex;flex-direction:column;min-width:0}
+.cv-t b{font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1;background:linear-gradient(90deg,#c79bff,#ff8fc3 60%,#ffd479);-webkit-background-clip:text;background-clip:text;color:transparent}
+.cv-t span{font-size:13px;color:var(--ink-3)}
+.cv-r{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.cv-d{font-style:normal;padding:3px 9px;border-radius:99px;background:var(--good-soft);color:var(--good);font-size:12px;font-weight:700;white-space:nowrap}
+.cv-d.down{background:var(--bad-soft);color:var(--bad)}
+.cv-sp{width:120px;height:38px;overflow:visible}
+.cv-sp path{fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cv-sp circle{fill:var(--accent)}
+.coll:not(.m-coll) .coll-sync,.coll.m-decks .coll-status{display:none!important}
+.dv.sec .dv-title span:empty{display:none}

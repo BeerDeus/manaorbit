@@ -12,8 +12,8 @@ const url = p.url(), back = async () => { await p.evaluate(() => history.back())
 const open = sel => p.$eval(sel, e => !!e);
 
 world.basics = true;      // les terrains de base ont une image sur le faux Scryfall
-// bouton « Mes decks » de l'accueil → écran des decks (comme « Ma collection »)
-assert.match(await txt(p, '#decksSub'), /^1 deck$/); assert.equal(await p.$('#decksSec'), null, 'plus de liste de decks sur l\'accueil'); assert.equal(await p.$('.deck'), null);
+// bouton « Decks » de la barre du bas → Mes decks
+assert.equal(await p.$('#decksSec'), null, 'plus de liste de decks sur l\'accueil'); assert.equal(await p.$('.deck'), null);
 await toHome(p); await p.click('#btnDecks'); await p.waitForSelector('.dks.on .deck'); assert.equal(await txt(p, '.dks .dv-title span'), '1 deck');
 // couleurs du deck : Marais (B) + Montagne (R) → pastilles dans l'ordre WUBRG
 assert.deepEqual(await p.$$eval('.deck .deck-pips .pip', n => n.map(x => x.className.replace('pip ', ''))), ['B', 'R'], 'couleurs d\'après les terrains de base');

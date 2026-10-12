@@ -42,5 +42,15 @@
   "{a}, puis {b}": "{a}, depois {b}",
   "{n} actif": "{n} ativo",
   "{n} actifs": "{n} ativos",
-  "Rechercher": "Buscar"
+  "Rechercher": "Buscar",
+  "Prix d'une liste": "Preço de uma lista",
+  "À monter": "Para montar",
+  "Liste d'un ami": "Lista de um amigo",
+  "rien pour toi pour l'instant": "nada para você por enquanto",
+  "{n} carte pour toi": "{n} card para você",
+  "{n} cartes pour toi": "{n} cards para você",
+  "Valeur de la collection : {v} · voir les stats": "Valor da coleção: {v} · ver estatísticas",
+  "Lien actif": "Link ativo",
+  "· listes d'amis ouvertes": "· listas de amigos abertas",
+  "Navigation principale": "Navegação principal"
 }

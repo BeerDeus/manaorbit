@@ -97,7 +97,7 @@ const sheetGone = p => p.waitForFunction(() => !document.querySelector('.sheet-w
 const ok = m => console.log('✓', m);
 // « Mes decks » est un écran ouvert depuis l'accueil (comme « Ma collection ») : D = l'ouvrir, H = revenir à l'accueil
 const D = async p => { if (!(await p.$('.dks.on'))) { await toHome(p); await p.click('#btnDecks'); await p.waitForSelector('.dks.on'); await p.waitForTimeout(150); } };
-const H = async p => { if (await p.$('.dks.on')) { await p.click('.dks [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.dks'), null, { timeout: 3000 }); } };
+const H = async p => { if (await p.$('.dks.on')) { await p.click('#nav [data-nav="home"]'); await p.waitForFunction(() => !document.querySelector('.dks'), null, { timeout: 3000 }); } };
 const shot = (p, n) => p.screenshot({ path: `shots/acc-${n}.png` });
 const PX_BODY = '#MOPX1 2026-10-08T09:00:00Z 4\nSol Ring\t120\t100\nSwords to Plowshares\t150\t100\nRanger\'s Hawk\t10\t10\nPhantom Card\t50\t50\n';
 const pxRoute = pg => pg.route('**/prices.tsv', r => r.fulfill({ status: 200, contentType: 'text/tab-separated-values', body: PX_BODY }));
@@ -107,7 +107,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
 {
   const ctx = await newCtx(); await wireFirebase(ctx); const p = await ctx.newPage(); watch(p, 'A');
   await p.goto('http://127.0.0.1:18810/'); await p.waitForTimeout(900);
-  assert.match(await T(p, '#decksSub'), /Crée ou colle un deck/); await D(p); assert.equal(await p.$$eval('.deck', n => n.length), 0); assert.ok(await p.$('#btnNewDeck')); await H(p); ok('invité sans deck : bouton « Mes decks », écran avec le + et aucune carte de deck');
+  await D(p); assert.equal(await p.$$eval('.deck', n => n.length), 0); assert.ok(await p.$('#btnNewDeck')); await H(p); ok('invité sans deck : bouton « Mes decks », écran avec le + et aucune carte de deck');
   assert.equal(await p.$eval('#btnAccount', e => e.dataset.in), '0'); ok('avatar : icône invité');
   await toInput(p); await p.fill('#deckText', '1 Sol Ring\n1 Swords to Plowshares\n25 Plains');
   await toInput(p); await p.selectOption('#optLang', 'en'); await p.$eval('#segMode .seg-opt[data-v="direct"]', e => e.click()); await p.waitForTimeout(200);      // critère CardTrader (masqué en Cardmarket) : gardé avec le deck quand même
@@ -117,7 +117,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   await shot(p, 'A1-save-sheet');
   await p.fill('#svName', ''); assert.equal(await p.$eval('#svGo', e => e.disabled), true); ok('nom vide : bouton désactivé');
   await p.fill('#svName', 'Mon Deck Test'); await p.click('#svGo'); await sheetGone(p);
-  assert.match(await T(p, '#decksSub'), /^1 deck$/); await D(p);
+  await D(p); assert.match(await T(p, '.dks .dv-title span'), /^1 deck$/);
   assert.equal(await T(p, '.deck-name'), 'Mon Deck Test'); assert.match(await T(p, '.deck-meta'), /27 cartes\s*à l'instant/); ok('deck créé et listé'); await H(p);
   assert.match(await T(p, '#deckStats'), /Mon Deck Test/); ok('deck rattaché : puce dans les statistiques');
   const stored = await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:decks:v1')));

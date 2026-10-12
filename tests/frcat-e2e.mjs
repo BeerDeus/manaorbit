@@ -13,7 +13,7 @@ async function fresh({ cell = false, staticRows = 0 } = {}) {
   if (cell) await ctx.addInitScript(CELL);
   if (staticRows) await ctx.route(world.url + 'fr-names.tsv', r => { b.sHits++; r.fulfill({ status: 200, contentType: 'text/tab-separated-values; charset=utf-8', body: ['# fr-names', 'Anneau solaire\tSol Ring\tfront/fr/sol-ring.jpg', ...Array.from({ length: staticRows }, (_, i) => `Vrombl ${String(i).padStart(4, '0')} Quarnax\tVrombl Card ${i}\tfront/fr/v${i}.jpg`)].join('\n') + '\n' }); });
   await p.goto(world.url); await p.waitForTimeout(600);
-  b.open = async () => { await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on'); };
+  b.open = async () => { await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on'); };
   return b;
 }
 const hits = () => world.frHits.splice(0);
@@ -27,7 +27,7 @@ const banner = p => p.evaluate(() => { const e = document.querySelector('.sc-cat
   assert.equal(await p.evaluate(() => FRC.state), 'ready'); assert.equal(b.sHits, 1, 'une seule requête'); assert.deepEqual(hits(), [], 'aucune page Scryfall'); assert.equal(await banner(p), null, 'bandeau masqué');
   assert.equal(await catRows(p), 801, 'lignes gardées sur l\'appareil (ligne # ignorée)');
   assert.deepEqual(await p.evaluate(() => { const m = matchFr([{ text: 'Anneau solaire' }], FRC.cat); return [m.name, m.card, m.img]; }), ['Sol Ring', 'fr', 'https://cards.scryfall.io/small/front/fr/sol-ring.jpg']);
-  await p.click('.scan [data-act="close"]'); await p.waitForTimeout(400); await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on'); await settled(p);
+  await p.click('.scan [data-act="close"]'); await p.waitForTimeout(400); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on'); await settled(p);
   assert.equal(b.sHits, 1, 'catalogue frais : pas retéléchargé à la réouverture'); assert.equal(await p.evaluate(() => FRC.state), 'ready');
   assert.deepEqual(b.errs.filter(e => !/WebAssembly|worker|ERR_|Tesseract/i.test(e)), []); await b.ctx.close();
   ok('catalogue : fichier du site = 1 requête (0 page Scryfall), pas de question en réseau mobile, gardé sur l\'appareil');

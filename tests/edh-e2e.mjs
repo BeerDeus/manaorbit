@@ -54,7 +54,7 @@ await p.click('.coll .fopt[data-x="played"]');
 assert.equal((await rows()).length, 6); ok('joués en commandant : Edgar Markov · 12 345 decks puis Craterhoof · 100, tri par popularité, fichier téléchargé 1 fois');
 
 /* ── 3) onglet Decks ─────────────────────────────────────────────────────────────────────────── */
-await p.click('#collSeg [data-v="decks"]'); await p.waitForSelector('.crow.dk');
+await p.evaluate(() => navOpen(() => openCollection('decks'))); await p.waitForSelector('.crow.dk');
 let d = await dks(); assert.equal(d.length, 4, 'craterhoof : 24 cartes ≥ 20 → gardé ; Edgar a deux decks (moyen EDHREC + Archidekt)');
 // Edgar : Edgar + Sol Ring + Arcane Signet + Command Tower + Swords + Wrath + 20 fillers = 26 (Plains ignorés) ; possédées 3 (Edgar, Sol Ring, Arcane Signet) → 23 à acheter
 // Tymna : 2 + Sol Ring + Llanowar + 25 = 29 ; possédées 2 → 27 · Craterhoof : Craterhoof + Llanowar + Sol Ring + 22 = 25 ; possédées 3 → 22
@@ -191,7 +191,7 @@ await p.screenshot({ path: 'shots/edh-3b-actions.png' });
 await p.click('#toast .toast-act'); await p.waitForSelector('.dks.on .deck', { timeout: 4000 }); await p.waitForFunction(() => !document.querySelector('.sheet-wrap') && !document.querySelector('.coll'), null, { timeout: 3000 });
 assert.equal(await txt(p, '.dks .deck-name'), 'Edgar Markov'); assert.match(await txt(p, '.dks .deck-line'), /^34\/100 cartes/, '« Voir » : Mes decks, le deck enregistré y est');
 await p.evaluate(() => closeDecks()); await p.waitForFunction(() => !document.querySelector('.dks'), null, { timeout: 3000 });
-await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#collSeg [data-v="decks"]'); await p.waitForSelector('.crow.dk');
+await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.evaluate(() => navOpen(() => openCollection('decks'))); await p.waitForSelector('.crow.dk');
 await p.click('.crow.dk >> nth=1'); await p.waitForSelector('.dk-acts2 .dk-act'); assert.deepEqual((await acts())[0], ['dksave', 'Dans mes decks', 'Enregistré sous « Edgar Markov »', true], 'reconnu à la réouverture (même liste)');
 await p.evaluate(() => { TR.wish = {}; trChanged(); });
 ok('feuille d\'un deck : « Ajouter les manquantes à Je recherche » (22 + Swords déjà là, sans doublon, Annuler), « Enregistrer dans mes decks » (34/100, non monté, souhaits de la feuille repris par le deck), état gardé');
@@ -230,14 +230,14 @@ assert.equal(await p.$eval('#optColl', c => c.checked), true, 'collection dédui
 ok('feuille : 23 cartes à acheter (la plus chère d\'abord), lien EDHREC sûr ; « Chercher les manquantes » charge le deck, collection déduite');
 
 /* ── 5) cache : une 2e ouverture ne retélécharge pas ; fichier absent → message + repli ─────── */
-await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#collSeg [data-v="decks"]'); await p.waitForSelector('.crow.dk'); assert.equal(hits, 1, 'copie locale (moins de 6 jours)');
+await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.evaluate(() => navOpen(() => openCollection('decks'))); await p.waitForSelector('.crow.dk'); assert.equal(hits, 1, 'copie locale (moins de 6 jours)');
 await p.close();
 mode = 'absent';
 const b = await newPage(browser, world); await signInFake(b.p); await b.p.route('**/edh.tsv', r => { hits++; return r.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"asset_missing"}' }); });
 await toHome(b.p); await b.p.click('#btnColl'); await b.p.waitForSelector('.coll.on'); await b.p.click('.coll-tools [data-act="import"]'); await b.p.waitForSelector('#ciText'); await b.p.fill('#ciText', '1 Edgar Markov\n1 Sol Ring'); await b.p.waitForTimeout(150); await b.p.click('#ciGo');
 await b.p.waitForFunction(() => document.querySelectorAll('.crow').length === 2); await b.p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length >= 2, null, { timeout: 8000 });
-await b.p.click('#collSeg [data-v="decks"]'); await b.p.waitForSelector('.coll-main .dv-empty'); assert.match(await txt(b.p, '.coll-main .dv-empty'), /Decks indisponibles.*edh\.bin\.gz/);
-await b.p.click('#collSeg [data-v="list"]'); await b.p.click('.coll .fbtn'); await b.p.click('.coll .fopt[data-x="played"]'); await b.p.waitForSelector('.coll-main .dv-empty [data-act="dcan"]');
+await b.p.evaluate(() => navOpen(() => openCollection('decks'))); await b.p.waitForSelector('.coll-main .dv-empty'); assert.match(await txt(b.p, '.coll-main .dv-empty'), /Decks indisponibles.*edh\.bin\.gz/);
+await b.p.click('#nav [data-nav="coll"]'); await b.p.waitForFunction(() => document.querySelectorAll('.coll').length === 1 && document.querySelector('.coll.m-coll.on')); await b.p.click('#collSeg [data-v="list"]'); await b.p.click('.coll .fbtn'); await b.p.click('.coll .fopt[data-x="played"]'); await b.p.waitForSelector('.coll-main .dv-empty [data-act="dcan"]');
 assert.match(await txt(b.p, '.coll-main .dv-empty'), /Commandants EDHREC indisponibles/); await b.p.click('[data-act="dcan"]');
 await b.p.waitForFunction(() => document.querySelectorAll('.crow').length === 1); assert.equal(await b.p.$eval('.crow .row-name', e => e.textContent), 'Edgar Markov'); assert.equal(await b.p.$eval('.coll .fopt[data-x="can"]', x => x.getAttribute('aria-pressed')), 'true');
 ok('fichier absent : message clair, « Réessayer », repli sur « peuvent l\'être »');
@@ -251,7 +251,7 @@ const openDecks = async pg => {
   await signInFake(pg); await toHome(pg); await pg.click('#btnColl'); await pg.waitForSelector('.coll.on'); await pg.click('.coll-tools [data-act="import"]'); await pg.waitForSelector('#ciText');
   await pg.fill('#ciText', '1 Edgar Markov\n2 Sol Ring\n1 Arcane Signet\n1 Llanowar Elves\n1 Craterhoof Behemoth\n3 Plains'); await pg.waitForTimeout(150); await pg.click('#ciGo');
   await pg.waitForFunction(() => document.querySelectorAll('.crow:not(.dk)').length === 6); await pg.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length >= 5, null, { timeout: 8000 });
-  await pg.click('#collSeg [data-v="decks"]'); await pg.waitForSelector('.crow.dk', { timeout: 8000 });
+  await pg.evaluate(() => navOpen(() => openCollection('decks'))); await pg.waitForSelector('.crow.dk', { timeout: 8000 });
 };
 const names = async pg => (await pg.$$eval('.crow.dk', r => r.map(x => x.querySelector('.row-name').firstChild.textContent.trim() + ' ' + x.querySelector('.dk-have').textContent.replace(/\s+/g, ' ').trim())));
 for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip' }], ['gzip brut', {}]]) {
@@ -265,7 +265,7 @@ for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip'
   await c.p.fill('#dkQ', 'tymna'); await c.p.waitForTimeout(260); assert.equal((await names(c.p)).length, 1, 'recherche sur l\'index binaire');
   if (mode === 'gzip brut') {      // copie gardée : après rechargement, affichée tout de suite ; le texte n'est pas redemandé, le binaire n'est qu'une lecture de contrôle
     await c.p.unroute('**/edh.bin.gz'); await c.p.unroute('**/edh.tsv'); let again = 0; await c.p.route('**/edh.bin.gz', r => { again++; return r.fulfill({ status: 404, body: '{}' }); }); await c.p.route('**/edh.tsv', r => { again++; return r.fulfill({ status: 404, body: '{}' }); });
-    await c.p.reload(); await c.p.waitForSelector('#btnColl'); await c.p.waitForTimeout(500); await signInFake(c.p); await toHome(c.p); await c.p.click('#btnColl'); await c.p.waitForSelector('.coll.on'); await c.p.click('#collSeg [data-v="decks"]'); await c.p.waitForSelector('.crow.dk', { timeout: 8000 });
+    await c.p.reload(); await c.p.waitForSelector('#btnColl'); await c.p.waitForTimeout(500); await signInFake(c.p); await toHome(c.p); await c.p.click('#btnColl'); await c.p.waitForSelector('.coll.on'); await c.p.evaluate(() => navOpen(() => openCollection('decks'))); await c.p.waitForSelector('.crow.dk', { timeout: 8000 });
     assert.equal((await names(c.p)).length, 4, 'decks lus depuis la copie binaire de l\'appareil'); await c.p.waitForTimeout(300); assert.equal(again, 1, 'une seule lecture de contrôle en arrière-plan (404 ici, ignorée) : la copie de l\'appareil reste');
   }
   ok('fichier binaire (' + mode + ') : 4 decks identiques, 1 requête, texte non demandé, feuille et recherche fonctionnent' + (mode === 'gzip brut' ? ', copie gardée hors ligne' : ''));
@@ -282,7 +282,7 @@ for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip'
   await openDecks(c.p); const n0 = (await names(c.p)).length; assert.ok(n0 < 4, 'ancienne version : ' + n0 + ' deck(s)');
   // le site publie une version plus récente (autre ETag) ; au rechargement la copie s'affiche, puis est remplacée sans rien toucher
   cur = { body: NEW, etag: '"new"' };
-  const reopen = async () => { await c.p.reload(); await c.p.waitForSelector('#btnColl'); await c.p.waitForTimeout(400); await signInFake(c.p); await toHome(c.p); await c.p.click('#btnColl'); await c.p.waitForSelector('.coll.on'); await c.p.click('#collSeg [data-v="decks"]'); await c.p.waitForSelector('.crow.dk', { timeout: 8000 }); };
+  const reopen = async () => { await c.p.reload(); await c.p.waitForSelector('#btnColl'); await c.p.waitForTimeout(400); await signInFake(c.p); await toHome(c.p); await c.p.click('#btnColl'); await c.p.waitForSelector('.coll.on'); await c.p.evaluate(() => navOpen(() => openCollection('decks'))); await c.p.waitForSelector('.crow.dk', { timeout: 8000 }); };
   await reopen(); await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 4, null, { timeout: 8000 });
   assert.deepEqual((await names(c.p)).length, 4, 'version récente affichée en arrière-plan');
   // ETag inchangé : rien n'est relu, les données restent
@@ -378,39 +378,6 @@ for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip'
   ok('fichier sans thèmes : ni puces ni lignes de thèmes, decks inchangés'); await d.ctx.close();
 }
 
-/* ── 7) accueil, « Deck à monter » : part possédée et coût pour finir (règle de homePick), decks d'au moins 60 cartes ─────────────── */
-{
-  // de bout en bout : Edgar 40/60 (20 manquantes à 5 €) bat Craterhoof 54/60 (6 manquantes à 100 €) ; Tymna (3/60) écarté
-  const fill = (a, b) => Array.from({ length: b - a }, (_, i) => `K\t1\tFiller ${a + i}`), px = (a, b, c) => Array.from({ length: b - a }, (_, i) => `P\t${c}\tFiller ${a + i}`);
-  const FILE60 = ['#edh\t1\t2026-10-03T04:00:00Z', 'C\tedgar-markov\t12345\tWBR\tEdgar Markov', 'C\tcraterhoof-behemoth\t9000\tG\tCraterhoof Behemoth', 'C\ttymna-thrasios\t4000\tWUBG\tTymna the Weaver\tThrasios, Triton Hero',
-    'D\tedgar-markov\tedhrec\tDeck moyen\t', ...fill(0, 59), 'D\tcraterhoof-behemoth\tedhrec\tDeck moyen\t', ...fill(100, 159), 'D\ttymna-thrasios\tedhrec\tDeck moyen\t', ...fill(200, 258),
-    ...px(39, 59, 500), ...px(153, 159, 10000), ...px(203, 258, 10)].join('\n') + '\n';
-  const own = ['1 Edgar Markov', '1 Craterhoof Behemoth', ...Array.from({ length: 39 }, (_, i) => `1 Filler ${i}`), ...Array.from({ length: 53 }, (_, i) => `1 Filler ${100 + i}`), '1 Filler 200', '1 Filler 201', '1 Filler 202'].join('\n');
-  const h = await newPage(browser, world, { goto: false, init: `try { localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: ${JSON.stringify(own)}, u: 1, s: '', b: null })); } catch (e) {}` });
-  await h.p.route('**/edh.tsv', r => r.fulfill({ status: 200, contentType: 'text/tab-separated-values; charset=utf-8', body: FILE60 }));
-  await h.p.goto(world.url); await h.p.waitForTimeout(500); await signInFake(h.p); await toHome(h.p); await h.p.waitForFunction(() => document.querySelector('#btnBuild').dataset.lock === '0');      // accueil repeint après la connexion
-  assert.equal(await txt(h.p, '#hmBuildSub'), 'Decks EDHREC comparés à ta collection', 'avant le fichier (lu 2,5 s après l\'accueil) : la phrase d\'attente');
-  await h.p.waitForFunction(() => HM.best, null, { timeout: 12000 }); await h.p.waitForTimeout(200);
-  assert.equal(await txt(h.p, '#hmBuildPct'), '66 %'); assert.equal(await h.p.$eval('#hmBuildSub .hm-bn', e => e.textContent), 'Edgar Markov'); assert.equal((await h.p.$eval('#hmBuildSub .hm-bc', e => e.textContent)).replace(/\s/g, ' '), '≈ 100 € pour finir');
-  assert.equal((await h.p.$eval('#btnBuild', e => e.getAttribute('aria-label'))).replace(/\s/g, ' '), 'Deck à monter : Edgar Markov, 66 % des cartes déjà possédées, ≈ 100 € pour finir');
-  await h.p.$eval('#btnBuild', e => e.scrollIntoView({ block: 'center' })); await h.p.waitForTimeout(300); await h.p.screenshot({ path: 'shots/edh-7-accueil.png' });
-  await h.p.click('#btnBuild'); await h.p.waitForSelector('.sheet .ci-sum', { timeout: 6000 });
-  assert.match(await txt(h.p, '.sheet-head h2'), /^Edgar Markov$/); assert.match(await txt(h.p, '.sheet .ci-sum'), /^20 cartes à acheter · ≈ 100,00 €/, 'la feuille donne le même coût');
-  ok('accueil : « 66 % · Edgar Markov · ≈ 100 € pour finir » (Craterhoof à 90 % mais 600 € à payer : derrière), feuille du deck au toucher');
-  // règle seule : 62 % à 84 € (score 31) devant 40 % à 20 € (30) et 90 % à 900 € (25) ; moins de 10 % ou moins de 60 cartes : écartés ; un deck complet l'emporte
-  const R = (name, total, have, cost, rank, unpriced = 0) => ({ total, have, cost, unpriced, miss: total - have, cmd: { names: [name], rank } });
-  const pick = rows => h.p.evaluate(rs => { const b = homePick(rs); return b && b.r.cmd.names[0]; }, rows);
-  assert.equal(await pick([R('A90', 100, 90, 90000, 1), R('B62', 100, 62, 8400, 2), R('C40', 100, 40, 2000, 3), R('D9', 100, 9, 0, 4), R('E50', 50, 50, 0, 5)]), 'B62');
-  assert.equal(await pick([R('B62', 100, 62, 8400, 2), R('F100', 100, 100, 0, 9)]), 'F100', 'deck déjà complet');
-  assert.equal(await pick([R('D9', 100, 9, 0, 4), R('E50', 50, 50, 0, 5)]), null, 'rien d\'assez avancé');
-  assert.equal(await pick([R('G1', 100, 50, 4000, 7), R('G2', 100, 50, 4000, 3)]), 'G2', 'à égalité : le commandant le plus joué');
-  assert.equal(await pick([R('H1', 100, 50, 900, 7, 30)]), 'H1', 'cartes sans prix comptées 1 € pièce, sans écarter le deck');
-  const cost = (miss, c) => h.p.evaluate(([m, c]) => homeCostText({ miss: m, cost: c }).replace(/\s/g, ' '), [miss, c]);
-  assert.equal(await cost(0, 0), 'Rien à acheter'); assert.equal(await cost(3, 0), '3 cartes à trouver'); assert.equal(await cost(2, 450), '≈ 4,50 € pour finir', 'moins de 10 € : au centime'); assert.equal(await cost(9, 123456), '≈ 1 235 € pour finir');
-  ok('Deck à monter : règle part possédée − 10 points par doublement du coût au-delà de 10 € (62 % à 84 € > 40 % à 20 € > 90 % à 900 €), seuil 10 %, ≥ 60 cartes, complet d\'abord, coût en mots');
-  assert.deepEqual(h.errs, []); await h.ctx.close();
-}
-
 /* ── 9) interrupteurs du serveur (/__ping off) : Archidekt coupé → ses decks retirés, copie de l'appareil comprise ; EDHREC coupé → decks cachés,
    tuile et filtre « Joués en commandant » retirés, copie effacée, fichier plus demandé ───────────────────────────────────────────────────── */
 {
@@ -429,18 +396,16 @@ for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip'
   await w.p.evaluate(() => { CTX.off = ['edhrec']; edhOffApply(); });
   await w.p.waitForSelector('.coll .gate[data-gate="off"]');
   assert.equal(await txt(w.p, '.coll .gate[data-gate="off"] b'), 'Decks EDHREC indisponibles pour le moment');
-  await w.p.waitForFunction(() => $('#btnBuild').hidden, null, { timeout: 3000 });      // accueil repeint en différé (homeSoon)
-  assert.deepEqual(await w.p.evaluate(async () => [EDH.data, await Cache.get('edh:v2', 1e12), $('#btnBuild').hidden, $('#btnBuild').parentElement.classList.contains('two')]), [null, null, true, true], 'données et copie effacées, tuile « Deck à monter » retirée');
-  await w.p.evaluate(() => closeCollection()); await w.p.waitForTimeout(400); await w.p.click('#btnColl'); await w.p.waitForSelector('.coll.on'); await w.p.click('#collSeg [data-v="list"]'); await w.p.click('.coll .fbtn');
+  assert.deepEqual(await w.p.evaluate(async () => [EDH.data, await Cache.get('edh:v2', 1e12)]), [null, null], 'données et copie effacées');
+  await w.p.evaluate(() => closeCollection()); await w.p.waitForTimeout(400); await w.p.click('#nav [data-nav="coll"]'); await w.p.waitForSelector('.coll.m-coll.on'); await w.p.click('#collSeg [data-v="list"]'); await w.p.click('.coll .fbtn');
   assert.deepEqual(await w.p.$$eval('.coll .fopt[data-x]', b => b.map(x => x.dataset.x).filter(x => x === 'can' || x === 'played')), ['can'], 'filtre « Joués en commandant » retiré');
-  await w.p.click('#collSeg [data-v="decks"]'); await w.p.waitForSelector('.coll .gate[data-gate="off"]');
+  await w.p.evaluate(() => navOpen(() => openCollection('decks'))); await w.p.waitForSelector('.coll .gate[data-gate="off"]');
   // relancée avec EDHREC coupé : rien de téléchargé
   off = ['edhrec']; bins = 0; await w.p.reload(); await w.p.waitForTimeout(700); await signInFake(w.p);
-  await w.p.waitForFunction(() => CTX.off.includes('edhrec')); await w.p.click('#btnBuild').catch(() => {});
-  assert.equal(await w.p.evaluate(() => $('#btnBuild').hidden), true);
-  await w.p.click('#btnColl'); await w.p.waitForSelector('.coll.on'); await w.p.click('#collSeg [data-v="decks"]'); await w.p.waitForSelector('.coll .gate[data-gate="off"]'); await w.p.waitForTimeout(3000);
+  await w.p.waitForFunction(() => CTX.off.includes('edhrec'));
+  await w.p.click('#btnColl'); await w.p.waitForSelector('.coll.on'); await w.p.evaluate(() => navOpen(() => openCollection('decks'))); await w.p.waitForSelector('.coll .gate[data-gate="off"]'); await w.p.waitForTimeout(3000);
   assert.equal(bins, 0, 'fichier EDH jamais demandé');
-  ok('EDHREC coupé : écran « Decks EDHREC indisponibles », copie effacée, tuile et filtre « Joués » retirés ; au lancement suivant, rien de téléchargé');
+  ok('EDHREC coupé : écran « Decks EDHREC indisponibles », copie effacée, filtre « Joués » retiré ; au lancement suivant, rien de téléchargé');
   assert.deepEqual(w.errs, []); await w.ctx.close();
 }
 

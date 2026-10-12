@@ -61,7 +61,8 @@ async function page(opts = {}) {
 }
 const sheetOpen = p => p.waitForSelector('.sheet-wrap.open .sheet', { timeout: 5000 });
 const sheetGone = p => p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 5000 });
-const tab = async (p, v) => { await p.click(`#collSeg [data-v="${v}"]`); await p.waitForTimeout(250); };
+// onglets de « Ma collection » (Cartes, Stats) ; Échange et Decks › À monter : sections de la barre du bas
+const tab = async (p, v) => { if (v === 'trade') await p.click('#nav [data-nav="trade"]'); else if (v === 'decks') { await p.click('#nav [data-nav="decks"]'); await p.click('.dks .dk-tab[data-dtab="build"]'); } else await p.click(`#collSeg [data-v="${v}"]`); await p.waitForTimeout(400); };
 const shot = (p, n) => p.screenshot({ path: `shots/gate-${n}.png` });
 const FS_OFF = /firestore|Firestore|WebChannel/;      // Firestore hors ligne (réseau coupé par le test) : messages attendus
 const visible = (p, sel) => p.$eval(sel, e => !!e.offsetParent).catch(() => false);
@@ -71,13 +72,13 @@ const A = await page();
 const { p } = A;
 await toHome(p);
 assert.equal(await p.$eval('#btnColl', e => e.dataset.empty), '1');
-assert.equal(await txt(p, '#hmBuildSub'), 'Decks EDHREC · Connecte-toi'); assert.equal(await p.$eval('#btnBuild', e => e.dataset.lock), '1'); assert.ok(await p.$('#hmBuildPct svg'), 'cadenas à la place du pourcentage');
-await sleep(2800); assert.equal(edhHits, 0, 'sans compte : la tuile ne télécharge pas le fichier EDHREC');
-await p.$eval('#btnBuild', e => e.scrollIntoView({ block: 'center' })); await p.waitForTimeout(250); await shot(p, '0-accueil');
-ok('accueil sans compte : tuile « Decks EDHREC · Connecte-toi » (cadenas, aucun chiffre ni téléchargement)');
+assert.equal(await p.$('#btnBuild'), null, 'plus de tuile « Deck à monter » : Decks › À monter');
+await sleep(2800); assert.equal(edhHits, 0, 'sans compte : l\'accueil ne télécharge pas le fichier EDHREC');
+await shot(p, '0-accueil');
+ok('accueil sans compte : aucun téléchargement EDHREC');
 await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForTimeout(300);
 assert.ok(await visible(p, '#collSeg'), 'onglets visibles avec une collection vide');
-assert.deepEqual(await p.$$eval('#collSeg .seg-opt', b => b.map(x => x.dataset.v)), ['list', 'stats', 'decks', 'trade']);
+assert.deepEqual(await p.$$eval('#collSeg .seg-opt', b => b.map(x => x.dataset.v)), ['list', 'stats'], 'Ma collection : Cartes · Stats (Échange et Decks dans la barre du bas)');
 assert.match(await txt(p, '.coll-main .dv-empty'), /^Pas encore de cartes pour l'instant Scanne tes cartes pour débuter\. Scanner Importer Ajouter à la main Pour 1 000 cartes ou plus/);
 assert.deepEqual(await p.$$eval('.coll-main .coll-cta .btn', b => b.map(x => [x.dataset.act, x.classList.contains('ghost')].join())), ['scan,false', 'import,true', 'add,true'], 'Scanner en premier (bouton plein)');
 assert.equal(await visible(p, '.coll-px'), false, 'pas de bouton « € » sans carte'); assert.equal(await visible(p, '.coll-fwrap'), false, 'ni recherche, ni filtres, ni tri');
@@ -157,9 +158,7 @@ assert.deepEqual(await p.$$eval('.crow.dk .dk-have', r => r.map(x => x.textConte
 assert.ok(edhHits >= 1);
 await p.evaluate(() => openAccount()); await sheetOpen(p); await p.waitForTimeout(200); assert.equal(await p.$('.who-vf'), null, 'feuille Compte : plus de « non vérifiée »'); await p.keyboard.press('Escape'); await sheetGone(p);
 ok('« J\'ai cliqué sur le lien » : pas encore → message ; vérifiée → decks EDHREC affichés (0 / 63), feuille Compte à jour');
-await p.click('.coll [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.coll')); await toHome(p); await p.waitForTimeout(300);
-assert.equal(await p.$eval('#btnBuild', e => e.dataset.lock), '0'); assert.equal(await txt(p, '#hmBuildSub'), 'Decks EDHREC comparés à ta collection');
-ok('accueil : tuile « Deck à monter » sans cadenas une fois l\'adresse vérifiée');
+await p.click('#nav [data-nav="home"]'); await p.waitForFunction(() => !document.querySelector('.coll')); await toHome(p); await p.waitForTimeout(300);
 // rechargement : session restaurée par le SDK (adresse relue sur le serveur), accès direct
 await p.reload(); await p.waitForFunction(() => D.authReady && D.user, null, { timeout: 15000 });
 await p.evaluate(() => openCollection('decks')); await p.waitForSelector('.crow.dk', { timeout: 8000 });
@@ -177,17 +176,17 @@ await A.ctx.close();
       signInWithGoogle: async () => ({ user: null, credential: { providerId: 'google.com', idToken: 'jeton-google-natif', accessToken: 'acc' } }), signOut: async () => {} } } };
   } });
   const g = G.p;
-  await toHome(g); await g.click('#btnBuild'); await g.waitForSelector('.gate[data-gate="out"]');
-  ok('appli : tuile « Deck à monter » → onglet Decks, écran de connexion');
+  await toHome(g); await tab(g, 'decks'); await g.waitForSelector('.gate[data-gate="out"]');
+  ok('appli : Decks › À monter → écran de connexion');
   // import de 10 cartes : le coup d'œil ne calcule rien des decks EDHREC sans compte, il mène à l'écran de connexion
   const hits0 = edhHits;
-  await g.click('#collSeg [data-v="list"]'); await g.click('.coll-tools [data-act="import"]'); await g.waitForSelector('#ciText');
+  await g.click('#nav [data-nav="coll"]'); await g.waitForSelector('.coll.m-coll.on'); await g.click('.coll.m-coll .coll-tools [data-act="import"]'); await g.waitForSelector('#ciText');
   await g.fill('#ciText', ['Sol Ring', 'Swords to Plowshares', 'Arcane Signet', 'Wrath of God', 'Craterhoof Behemoth', 'Command Tower', 'Llanowar Elves', "Ranger's Hawk", 'Edgar Markov', 'Phantom Card'].map(n => '1 ' + n).join('\n')); await g.waitForTimeout(200); await g.click('#ciGo');
   await g.waitForSelector('.sheet-wrap.open .gl-tiles', { timeout: 6000 }); await g.waitForSelector('.gl-edh');
   assert.equal(await txt(g, '.gl-edh'), 'Decks EDHREC à finir avec tes cartes : réservés aux comptes Voir'); assert.equal(edhHits, hits0, 'coup d\'œil sans compte : fichier EDHREC non téléchargé');
+  assert.equal(await g.$eval('.coll.m-coll .coll-px', e => !!e.offsetParent), true, 'avec des cartes : bouton « € » de retour');
   await g.click('.gl-edh [data-g="decks"]'); await sheetGone(g); await g.waitForSelector('.gate[data-gate="out"]');
   assert.equal(await g.evaluate(() => EDH.budget), 0, 'pas de filtre « ≤ 60 € » posé derrière l\'écran');
-  assert.equal(await g.$eval('.coll-px', e => !!e.offsetParent), true, 'avec des cartes : bouton « € » de retour');
   ok('coup d\'œil après import, sans compte : « Decks EDHREC à finir… réservés aux comptes », Voir → écran de connexion, rien de téléchargé');
   await g.click('.gate [data-act="ggoogle"]'); await g.waitForSelector('.crow.dk', { timeout: 8000 });
   assert.equal(await g.evaluate(() => [D.user.email, D.user.providerData.map(x => x.providerId).join(), D.user.emailVerified].join('|')), 'goog@test.dev|google.com|false', 'accès par le fournisseur Google (même sans emailVerified)');
@@ -204,7 +203,7 @@ await A.ctx.close();
   await e.evaluate(() => openCollection('list')); await e.waitForSelector('.coll .dv-empty');
   assert.match(await txt(e, '.coll-main .dv-empty'), /^No cards yet Scan your cards to get started\. Scan Import Add manually/);
   await e.click('#collSeg [data-v="stats"]'); await e.waitForTimeout(200); assert.match(await txt(e, '.coll-main .dv-empty'), /^No stats yet /);
-  await e.click('#collSeg [data-v="decks"]'); await e.waitForSelector('.gate');
+  await e.evaluate(() => navOpen(() => openCollection('decks'))); await e.waitForSelector('.gate');
   assert.match(await txt(e, '.gate'), /^EDHREC decks are for accounts only Sign in to compare .* Continue with Google Sign in with email “My decks” stays open to everyone, no account needed\.$/);
   ok('anglais : états vides et écran des decks traduits');
   assert.deepEqual(E.errs.filter(x => !FS_OFF.test(x)), []); await E.ctx.close();

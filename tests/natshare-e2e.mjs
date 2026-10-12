@@ -30,7 +30,7 @@ const toastOff = p => p.evaluate(() => { clearTimeout(toastT); $('#toast').class
 /** Onglet Échange, lien créé : identifiant du partage. */
 async function tradeLink(p) {
   await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
-  await p.click('#collSeg [data-v="trade"]'); await p.waitForSelector('.tr-box [data-act="tron"]');
+  await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-box [data-act="tron"]');
   await p.click('[data-act="tron"]'); await p.waitForSelector('.tr-box.on', { timeout: 15000 });
   return p.evaluate(() => TR.share);
 }

@@ -161,12 +161,9 @@ function deckCard(d, i) {
       <span class="deck-meta"><span class="deck-line">${esc(dkCountText(d.text))}${vt ? ' · <span title="' + T('Valeur estimée : prix tendance Cardmarket') + '">' + esc(vt) + '</span>' : ''}${engIsOn(d.id) ? ' · <b class="mounted">' + T('monté') + '</b>' : ''}</span><span class="deck-ago">${esc(relTime(d.updatedAt))}</span></span></button>
     <button class="deck-more" type="button" data-act="more" aria-label="${T('Options de {name}', { name: esc(d.name) })}"><svg class="i"><use href="#i-more"/></svg></button></div>`;
 }
-/** Bouton « Mes decks » de l'accueil + écran des decks s'il est ouvert. */
+/** Écran « Mes decks » s'il est ouvert (et le nombre de decks dans les onglets de la section Decks). */
 function renderDecks() {
   alSoon(); trSoon();
-  const list = allDecks(), mounted = list.filter(d => engIsOn(d.id)).length, loading = !!D.hint && !D.authReady, btn = $('#btnDecks');
-  btn.dataset.empty = list.length ? '0' : '1';
-  $('#decksSub').textContent = loading ? T('Chargement…') : list.length ? `${TN(list.length, '{n} deck', '{n} decks')}${mounted ? ' · ' + TN(mounted, '{n} monté', '{n} montés') : ''}` : T('Crée ou colle un deck');
   dksPaint();
   paintSync(); updateSaveButtons(); homeSoon(); dvDecksChanged();      // deck d'un lien ou d'EDHREC ouvert : « ✓ Dans mes decks » suit la liste
 }
@@ -709,7 +706,6 @@ function initDecks() {
     try { return D.user ? await D.user.getIdToken(!!force) : ''; } catch (e) { return ''; }
   };
   $('#btnAccount').onclick = openAccount;
-  $('#btnDecks').onclick = openDecks;
   $('#btnSave').onclick = () => { if (S.deckId && findDeck(S.deckId)) { saveCurrent(); toast(T('Deck mis à jour')); } else openSaveSheet(); };
   $('#btnViewer').onclick = () => openDeckViewer({ live: true });
   $('#btnSave2').onclick = () => {

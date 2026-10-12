@@ -103,7 +103,7 @@ ok('« Ajouter une carte » (« gegenz » → Gegenzauber, exemplaire allemand) 
 /* ── 4) scan : moteur allemand d'abord, catalogue allemand ──────────────────────────────────── */
 if (!canScan) console.log('· modèle Tesseract allemand absent (npm i dans tests/, ou TESS_DEU_DIR) : scan ignoré');
 else {
-  await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on');
+  await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on');
   await p.evaluate(() => { window.__ol = []; const o = ocrLines; ocrLines = (c, l, psm) => { window.__ol.push(l); return o(c, l, psm); }; });
   const fx = n => new URL('./fixtures/' + n, import.meta.url).pathname;
   await p.setInputFiles('#scFile', [fx('blitz.jpg'), fx('zorn.jpg')]);

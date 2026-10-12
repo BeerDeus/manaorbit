@@ -52,7 +52,7 @@ await p.evaluate(deck => {
 const nextId = async () => { const id = 'Share' + String(++ids).padStart(12, '0'); await p.evaluate(i => { window.__shareIdNext = i; }, id); return id; };
 
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
-await p.click('#collSeg [data-v="trade"]'); await p.waitForSelector('.tr-box');
+await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-box');
 {
   const have = await p.$$eval('.tr-list .tr-row', r => r.map(x => [x.dataset.k, x.querySelector('.tr-q b').textContent.trim()]));
   assert.deepEqual(have, [['llanowar elves', '× 2'], ['sol ring', '× 3']], 'réserve 1 : Sol Ring 5 − 1 (deck) − 1 ; Swords 2 − 1 − 1 = 0 ; Wrath 1 − 1 = 0 ; terrains de base exclus');
@@ -259,7 +259,7 @@ const tradeId = [...shares.keys()][0];
 
 /* ── Deck partagé : viewer public + main de départ ────────────────────────────────────────────── */
 {
-  await p.click('.coll .dv-back'); await p.waitForTimeout(400);
+  await p.click('#nav [data-nav="home"]'); await p.waitForTimeout(400);
   await p.evaluate(() => openDeckViewer({ id: 'deck1' })); await p.waitForSelector('.dv.on [data-act="share"]');
   const id = await nextId(); await p.click('.dv.on [data-act="share"]'); await p.waitForSelector('.sheet .tr-link input');
   assert.equal(await p.$eval('.sheet .tr-link input', i => i.value), world.url + '?p=' + id);
@@ -344,19 +344,19 @@ const tradeId = [...shares.keys()][0];
     await V.p.waitForFunction(() => { const m = document.querySelector('.pub-row[data-k="craterhoof behemoth"] .row-meta'); return m && m.innerText.trim(); }, null, { timeout: 5000 });      // la ligne se repeint une fois les infos lues
     assert.match(await txt(V.p, '.pub-row[data-k="craterhoof behemoth"] .row-meta'), new RegExp(w2.w.split(' · ').pop()));
     await V.ctx.close(); }
-  await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#collSeg [data-v="trade"]'); await p.click('#trSub [data-v="want"]');
+  await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="trade"]'); await p.click('#trSub [data-v="want"]');
   await p.waitForSelector('.tr-row[data-k="craterhoof behemoth"]');
   await p.waitForFunction(() => { const m = document.querySelector('.tr-row[data-k="craterhoof behemoth"] .row-meta'); return m && m.innerText.trim(); }, null, { timeout: 5000 });      // la ligne se repeint une fois les infos lues (machine lente : CI)
   assert.match(await txt(p, '.tr-row[data-k="craterhoof behemoth"] .row-meta'), new RegExp(w2.w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.equal(await p.$eval('.tr-row[data-k="craterhoof behemoth"] .thumb img', i => i.getAttribute('src')), w2.i.replace('/normal/', '/small/'));
-  await p.click('.coll .dv-back'); await p.waitForTimeout(400);
+  await p.click('#nav [data-nav="home"]'); await p.waitForTimeout(400);
   ok('carte en grand : « Liste de souhaits » retient l\'illustration affichée (changeable), visible dans « Je recherche » et sur le lien');
 }
 
 /* ── Lien arrêté, lien invalide ───────────────────────────────────────────────────────────────── */
 {
   await p.evaluate(() => closeDeckViewer()); await p.waitForTimeout(300);
-  await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#collSeg [data-v="trade"]'); await p.waitForSelector('.tr-box.on');
+  await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-box.on');
   // F1 : partage trop gros même allégé → « liste trop longue » (et non « règles Firestore à publier »), rien d'écrit ; revenu sous la limite, le message part
   { const w0 = shareWrites, idle = 'for (let i = 0; i < 80 && TR.busy; i++) await sleep(100);';
     await p.evaluate(`(async () => { ${idle} window.__tp = trPayload; trPayload = () => ({ have: [], want: [{ n: 'Huge', q: 1, w: 'x'.repeat(950000) }] }); await trSync(); })()`);

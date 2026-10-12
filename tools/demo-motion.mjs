@@ -26,7 +26,7 @@ await p.mouse.move(c.x + c.width * 0.2, c.y + c.height * 0.2);
 let k = 0; for (const [x, y] of [[0.8, 0.25], [0.8, 0.8], [0.2, 0.8], [0.5, 0.5]]) { await p.mouse.move(c.x + c.width * x, c.y + c.height * y, { steps: 18 }); if (process.env.SHOTS) await p.screenshot({ path: `shots/demo-tilt-${++k}.png` }); }
 await p.waitForTimeout(500);
 await p.keyboard.press('Escape'); await p.waitForTimeout(700);
-await tap('.coll .dv-back'); await p.waitForTimeout(700);
+await tap('#nav [data-nav="home"]'); await p.waitForTimeout(700);
 // decks → viewer → main de départ
 await tap('#btnDecks'); await p.waitForTimeout(1200);
 await tap('.deck-main'); await p.waitForTimeout(1800);

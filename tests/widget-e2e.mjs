@@ -70,13 +70,13 @@ const errsAll = [];
   ok('carte ajoutée : nouvel envoi (4 cartes, 13,90 €)');
 
   // widget touché : la coque envoie « open » → la collection s'ouvre
-  await p.click('.coll .dv-back'); await p.waitForFunction(() => !COLL.el);
+  await p.click('#nav [data-nav="home"]'); await p.waitForFunction(() => !COLL.el);
   assert.equal(await p.evaluate(() => typeof window.__mo.ls.open), 'function', 'écouteur « open » posé');
   await p.evaluate(() => window.__mo.ls.open({ view: 'other' })); await p.waitForTimeout(800); assert.equal(await p.evaluate(() => !!COLL.el), false, 'autre cible : rien');
   await p.evaluate(() => window.__mo.ls.open({ view: 'toString' })); await p.waitForTimeout(800); assert.equal(await p.evaluate(() => !!COLL.el || !!SC.el), false, 'nom hérité d\'Object : rien');
   await p.evaluate(() => window.__mo.ls.open({ view: 'collection' })); await p.waitForSelector('.coll.on', { timeout: 3000 });
   ok('widget touché (événement « open ») : la collection s\'ouvre');
-  await p.click('.coll .dv-back'); await p.waitForTimeout(300);
+  await p.click('#nav [data-nav="home"]'); await p.waitForTimeout(300);
 
   // appli mise en arrière-plan pendant le délai : l'envoi part tout de suite ; relevé d'une collection qui a changé (4 cartes) sans référence de prix : variation des relevés
   await p.evaluate(() => { VAL.hist.push({ t: Date.now(), v: 1390, n: 4, q: 5 }); VAL.hist.splice(1, 1); homeSoon(0); });
@@ -245,7 +245,7 @@ const errsAll = [];
   // Échange : réglages ouverts par-dessus → fermés, la collection s'ouvre sur l'onglet Échange
   await p.click('#btnSettings'); await p.waitForFunction(() => sheets.length === 1);
   await open({ view: 'trade' }); await p.waitForSelector('.coll.on', { timeout: 3000 });
-  assert.deepEqual(await p.evaluate(() => [sheets.length, COLL.tab, document.querySelector('#collSeg [aria-checked="true"]').dataset.v]), [0, 'trade', 'trade'], 'feuille fermée, onglet Échange');
+  assert.deepEqual(await p.evaluate(() => [sheets.length, COLL.tab, COLL.mode, document.querySelector('#nav [aria-current="page"]').dataset.nav]), [0, 'trade', 'trade', 'trade'], 'feuille fermée, section Échange');
   ok('raccourci « Échange » : réglages fermés, collection ouverte sur l\'onglet Échange');
   // Nouveau panier sans liste en cours (exemple affiché) : collection fermée, saisie vide, curseur dans le champ, conseil pour coller
   assert.equal(await p.evaluate(() => S.isSample), true);
