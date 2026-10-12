@@ -556,8 +556,7 @@ async function scanWork() {
       scanFree(job.src); job.src = null; job.file = null;
       if (!SC.el || job.s !== SC.session) continue;
       SC.ms = performance.now() - t0; SC.pend = SC.pend.filter(p => p.id !== job.id);
-      if (job.auto && auResult(m)) { /* lecture automatique : réponse déjà donnée (scanauto.js) */ }
-      else if (m && m.score >= 0.72) { if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, m.score < 0.84, job.shot); scsCue(); scanHint(m.score >= 0.84 ? '✓ ' + m.name : T('À vérifier : {name}', { name: m.name }), m.score >= 0.84 ? 'ok' : 'busy'); }
+      if (m && m.score >= 0.72) { if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, m.score < 0.84, job.shot); scsCue(); scanHint(m.score >= 0.84 ? '✓ ' + m.name : T('À vérifier : {name}', { name: m.name }), m.score >= 0.84 ? 'ok' : 'busy'); }
       else { SC.miss.push({ id: job.id, label: job.label, thumb: job.thumb || '', shot: job.shot || '', raw: (m && m.raw) || SC.raw || '' }); if (fail) scanHint(fail, 'bad'); scanPaintList(); }
     }
   } finally { SC.working = false; SC.workEnd = performance.now(); }

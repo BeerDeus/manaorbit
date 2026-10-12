@@ -1,13 +1,17 @@
 /* ── scanauto.js : scan automatique et lampe de l'écran de scan (scan.js) ──────────────────────────────────────────────────────────────────────────
-   Auto (réglage « Scan automatique », interrupteur « Auto » à droite du cercle) : la bande du nom est regardée en continu, en tout petit (96×16, niveaux de gris,
-   ~4 fois par seconde ; appli : image de l'aperçu natif ~2 fois et demie) ; nom net et immobile 0,4 s (deux images presque identiques, assez de contraste) → la bande
-   est lue, comme avec le cercle. Ensuite on attend que la bande change franchement (carte retirée ou remplacée) avant de relire ; écart minimal entre deux cartes :
-   le réglage (0,5 à 1,5 s). Rien n'est regardé pendant une lecture (le téléphone lit), une feuille ouverte ou l'écran « Éditions à choisir ».
+   Auto (réglage « Scan automatique », interrupteur « Auto » à droite du cercle) : la bande du nom est LUE EN CONTINU (appli : ML Kit sur l'image de l'aperçu
+   natif ; navigateur : Tesseract sur la vidéo), une lecture après l'autre. Bande sans contraste (table, fond uni) : rien n'est lu. Une carte est ajoutée quand
+   deux lectures de suite donnent le même nom, sûr (≥ 84 %) : le nom est net et la carte tenue (une image floue ou une carte qui passe ne donne pas deux fois
+   la même chose). Ensuite cette carte est « tenue » : relue, elle n'est pas rajoutée ; elle est partie quand deux lectures de suite ne la voient plus
+   (bande vide, autre carte). Écart minimal entre deux cartes : le réglage (0,5 à 1,5 s). Rien n'est lu pendant une feuille ouverte, l'écran
+   « Éditions à choisir » ou la lecture de photos.
+   (Première version : déclenchée par deux images presque identiques ; sur un vrai téléphone, le bruit du capteur et le moindre tremblement ne la laissaient
+   jamais partir : remplacée le 12 octobre par cette confirmation sur le nom lu.)
    Même carte qu'à l'instant : « Encore X ? » (+1 / Non), ou +1 d'office (réglage) ; en prix rapide, ignorée. Le cercle devient pause / reprise ; son anneau se
-   remplit pendant que le nom se stabilise. Les petites images ne servent qu'à comparer deux instants : rien n'est gardé.
+   remplit à moitié à la première lecture, en entier à la confirmation. Les images lues ne sont jamais gardées.
    Lampe : torche de l'aperçu natif (plugin camera-preview) ou de la caméra du navigateur (si elle en a une), sinon le bouton reste caché. Éteinte à chaque scan. */
-const AU = { gen: 0, t: 0, paused: false, sig: null, ts: 0, hold: null, at: 0, last: '', ask: null, torch: '', lamp: false, cv: null };
-const AU_W = 96, AU_H = 16, AU_STILL = 400, AU_SAME = 7, AU_GONE = 22, AU_INK = 10;      // immobile : écart moyen < 7 ; carte partie : écart > 22 ou bande sans contraste (< 10 : table, fond uni)
+const AU = { gen: 0, t: 0, paused: false, cand: null, hold: '', miss: 0, at: 0, last: '', ask: null, torch: '', lamp: false, cv: null, reads: 0 };
+const AU_W = 96, AU_H = 16, AU_INK = 10, AU_FREE = 2;      // bande sans contraste (écart type < 10 : table, fond uni) : rien à lire ; 2 lectures sans la carte tenue : elle est partie
 const auCam = () => !!(SC.el && (NAT.on || SC.stream));
 /** Auto en service sur cet écran : réglé, et une caméra qui tourne (sans caméra, « Photos » et le cercle restent comme avant). */
 const auOn = () => !!(SCS.auto && auCam());
@@ -15,12 +19,12 @@ const auOn = () => !!(SCS.auto && auCam());
 const auLive = () => auOn() && !AU.paused && !SC.rbusy && !document.hidden && !sheets.length && !SC.ef && !imgView && !SC.working && !SC.queue.length && !AU.ask;
 
 /** Nouveau scan : auto relancé (pas en pause), lampe éteinte. */
-function auReset() { clearTimeout(AU.t); AU.t = 0; AU.gen++; Object.assign(AU, { paused: false, sig: null, hold: null, at: 0, last: '', ask: null, torch: '', lamp: false }); }
+function auReset() { clearTimeout(AU.t); AU.t = 0; AU.gen++; Object.assign(AU, { paused: false, cand: null, hold: '', miss: 0, at: 0, last: '', ask: null, torch: '', lamp: false }); }
 /** Réglage, caméra ou mode changés : boucle démarrée ou arrêtée, boutons à jour. */
 function auSync() {
   if (!SC.el) return;
   const on = auOn();
-  if (on && !AU.t) { const g = ++AU.gen; AU.sig = null; AU.t = setTimeout(() => auTick(g), 300); }
+  if (on && !AU.t) { const g = ++AU.gen; AU.cand = null; AU.t = setTimeout(() => auTick(g), 300); }
   else if (!on && AU.t) { clearTimeout(AU.t); AU.t = 0; AU.gen++; auHideAsk(); }
   auPaint();
 }
@@ -40,13 +44,13 @@ function auPaint() {
 /** Anneau du cercle : part du temps d'immobilité déjà atteinte (0 à 1). */
 function auRing(k) { const s = SC.el && $('.sc-shot', SC.el); if (s) s.style.setProperty('--au', String(Math.round(Math.max(0, Math.min(1, k)) * 100))); }
 function auPause(on) {
-  AU.paused = on === undefined ? !AU.paused : !!on; haptic('tap'); auRing(0); AU.sig = null;
+  AU.paused = on === undefined ? !AU.paused : !!on; haptic('tap'); auRing(0); AU.cand = null;
   scanHint(AU.paused ? T('Auto en pause : touche le cercle pour reprendre') : T('Pose la carte, le nom dans la bande : elle s\'ajoute seule'), AU.paused ? 'busy' : '');
   auPaint();
 }
 
 /* ── Regarder la bande ──────────────────────────────────────────────────────────────────────────── */
-/** Image de la bande (en pixels de la vidéo) → empreinte 96×16 en niveaux de gris, centrée (un changement de luminosité ne compte pas) + contraste. */
+/** Contraste de la bande (écart type des niveaux de gris, sur une miniature 96×16) : sous AU_INK, rien d'écrit à lire. */
 function auSig(src, box) {
   const c = AU.cv || (AU.cv = document.createElement('canvas')); c.width = AU_W; c.height = AU_H;
   const x = c.getContext('2d', { willReadFrequently: true });
@@ -56,44 +60,55 @@ function auSig(src, box) {
   m /= n; let s = 0; for (let i = 0; i < n; i++) { g[i] -= m; s += g[i] * g[i]; }
   return { sig: g, dev: Math.sqrt(s / n) };
 }
-/** Écart moyen entre deux empreintes (0 : identiques). */
-function auDiff(a, b) { if (!a || !b || a.length !== b.length) return 255; let t = 0; for (let i = 0; i < a.length; i++) t += Math.abs(a[i] - b[i]); return t / a.length; }
-/** Une image de la bande maintenant : { sig, dev } (et src : la bande en grand, pour la lire si c'est le bon moment). */
+/** La bande du nom maintenant, en bonne qualité (canvas) et son contraste. */
 async function auGrab() {
-  if (NAT.on) { const c = await natCapture(60); return { ...auSig(c), src: c }; }
-  const v = $('.sc-video', SC.el), box = scanGuideBox(); if (!box || !v) return null;
-  return { ...auSig(v, box), box };
+  if (NAT.on) { const c = await natCapture(85); return { src: c, dev: auSig(c).dev }; }
+  const v = $('.sc-video', SC.el), b = scanGuideBox(); if (!b || !v) return null;
+  const c = document.createElement('canvas'); c.width = b.w; c.height = b.h; c.getContext('2d').drawImage(v, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+  return { src: c, dev: auSig(c).dev };
 }
 async function auTick(g) {
   if (g !== AU.gen || !SC.el) return;
-  let wait = NAT.on ? 380 : 230;
+  let wait = NAT.on ? 150 : 250;
   if (auLive()) {
-    try { const f = await auGrab(); if (g !== AU.gen || !SC.el) { if (f && f.src) scanFree(f.src); return; } if (f) await auFeed(f); }
-    catch (e) { wait = 900; }      // aperçu pas prêt, capture refusée : on réessaie un peu plus tard
-  } else { AU.sig = null; auRing(0); }
+    try { const f = await auGrab(); if (g !== AU.gen || !SC.el) { if (f) scanFree(f.src); return; } if (f) await auFeed(f, g); }
+    catch (e) { wait = 900; }      // aperçu pas prêt, capture ou lecture refusée : on réessaie un peu plus tard
+  } else { AU.cand = null; auRing(0); }
   if (g === AU.gen && SC.el) AU.t = setTimeout(() => auTick(g), wait);
 }
-/** Une image de plus : immobile assez longtemps, nouvelle carte, délai passé → lue. */
-async function auFeed(f) {
-  const now = performance.now(), ink = f.dev >= AU_INK;
-  if (AU.hold && (!ink || auDiff(f.sig, AU.hold) > AU_GONE)) AU.hold = null;      // carte retirée ou remplacée : la prochaine sera lue
-  const still = AU.sig && auDiff(f.sig, AU.sig) < AU_SAME; AU.sig = f.sig;
-  if (!still || !ink || AU.hold) { AU.ts = now; auRing(0); if (f.src) scanFree(f.src); return; }
-  const k = (now - AU.ts) / AU_STILL;
-  if (k < 1 || Date.now() - AU.at < SCS.delay) { auRing(Math.min(k, 0.98)); if (f.src) scanFree(f.src); return; }
-  AU.hold = f.sig; AU.at = Date.now(); auRing(1); scanFlash();
-  let src = null;
-  if (NAT.on) { scanFree(f.src); src = await natCapture(); }      // la bande en bonne qualité pour la lecture
-  else { const v = $('.sc-video', SC.el), b = f.box; src = document.createElement('canvas'); src.width = b.w; src.height = b.h; src.getContext('2d').drawImage(v, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h); }
-  if (!SC.el) { scanFree(src); return; }
-  scanEnqueue({ label: T('Carte {n}', { n: ++SC.cap }), src, strip: true, thumb: thumbOf(src), auto: true });
-  setTimeout(() => auRing(0), 350);
+/** Une lecture de plus : même nom sûr deux fois de suite → la carte est ajoutée (sauf si c'est la carte tenue). */
+async function auFeed(f, g) {
+  let m = null;
+  try {
+    if (f.dev >= AU_INK) {
+      const cat = await collCatalog(), W = f.src.width, H = f.src.height; AU.reads++;
+      m = await readNameAuto(f.src, { x: 0, y: 0, w: W, h: H }, 1400, '6', cat, false, null);      // sans recherche dans les autres langues (serveur) : seulement les noms sûrs
+      if (m && m.score < 0.84) m = null;
+    }
+  } finally { scanFree(f.src); }
+  if (g !== AU.gen || !SC.el || !auLive()) return;
+  const k = m ? m.key + '|' + (scanLangOf(m).card || 'en') : '';
+  if (AU.hold) {
+    if (k === AU.hold) { AU.miss = 0; AU.cand = null; auRing(0); return; }      // la carte ajoutée est toujours là
+    if (!k) { if (++AU.miss >= AU_FREE) AU.hold = ''; AU.cand = null; auRing(0); return; }      // plus vue deux fois de suite : partie
+    AU.hold = '';      // une autre carte : lue normalement
+  }
+  if (!k) { AU.cand = null; auRing(0); return; }
+  if (!AU.cand || AU.cand.k !== k) { AU.cand = { k, m }; auRing(0.5); return; }      // 1re lecture : on attend la même à la suivante
+  if (Date.now() - AU.at < SCS.delay) { auRing(0.8); return; }
+  AU.cand = null; AU.hold = k; AU.miss = 0; AU.at = Date.now(); auRing(1); scanFlash(); setTimeout(() => auRing(0), 350);
+  auHit(m);
+}
+/** Carte confirmée : « Encore X ? » si c'est la même qu'à l'instant, sinon ajoutée (ou son prix, en prix rapide). */
+function auHit(m) {
+  if (auResult(m)) return;
+  if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, false);
+  scsCue(); scanHint('✓ ' + m.name, 'ok');
 }
 
 /* ── Résultat d'une lecture automatique ─────────────────────────────────────────────────────────── */
-/** Appelé par scanWork pour une carte lue en automatique. true : traitée ici (rien de plus à faire) ; false : ajout normal. */
+/** Carte confirmée en automatique. true : traitée ici (même carte qu'à l'instant : question, ou rien en prix rapide) ; false : ajout normal. */
 function auResult(m) {
-  if (!m || m.score < 0.72) { scanHint(T('Nom pas reconnu : redresse la carte ou rapproche-la'), 'bad'); haptic('warn'); return true; }      // pas de ligne « non reconnue » en auto : la carte suivante arrive déjà
   const k = m.key + '|' + (scanLangOf(m).card || 'en'), same = AU.last === k; AU.last = k; auHideAsk();      // même carte : même nom et même langue
   if (!same) return false;
   if (SC.pm) { scanHint('✓ ' + m.name, 'ok'); return true; }      // prix rapide : le même prix
