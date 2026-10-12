@@ -10,7 +10,7 @@ Tout ce qu'il faut est ici : les étapes, le groupe Google, où recruter, les te
 
 Les mails de demande disent « un projet personnel que j'utilise seul » (`docs/mails-partenaires.md`), alors que le site sert déjà leurs données à tout le monde. Recruter en public y amènera du monde.
 
-1. Envoie d'abord la **relance** à EDHREC et à Archidekt (`docs/mails-partenaires.md`, en bas), au plus tôt 10 jours ouvrés après le premier mail (envoyé le 8 octobre 2026 : vers le 20-22 octobre). En attendant, le test fermé peut démarrer avec ton entourage seulement (amis, groupe de jeu) : aucun message public avant la relance.
+1. Envoie d'abord la **relance** à EDHREC et à Archidekt (`docs/mails-partenaires.md`, en bas), au plus tôt 10 jours ouvrés après le premier mail (envoyé le 8 octobre 2026 : vers le 20-22 octobre). En attendant, le test fermé démarre avec ton entourage (amis, groupe de jeu) et quelques créateurs contactés en privé (§ 4) : aucun message public avant la relance.
 2. Recrute uniquement par le **groupe Google** et le **lien d'inscription au test**. Ne donne jamais l'adresse du site dans les messages.
 3. Si l'un des deux refuse : coupe sa fonction pendant le test (interrupteur serveur à prévoir, `docs/a-faire.md`).
 
@@ -58,11 +58,15 @@ L'ordre compte pour les testeurs : **1.** rejoindre le groupe avec le compte Goo
 ## 4. Où recruter (du plus fiable au moins fiable)
 
 1. **Ton groupe de jeu et tes amis** : 5 à 8 personnes, les plus sûres.
-2. **Boutiques de jeux** : aux soirées Commander, demande d'abord au gérant. Message et affiche au § 5.
-3. **Discord francophones** : « MTG [FR] » (environ 3 000 membres), « Le Royaume des Commandants (SpellTable EDH FR) », « Modern [FR] ». Demande à un modérateur avant de poster, dans le salon d'autopromotion s'il existe.
-4. **Forums** : Magic Corporation, Magic-Ville (forums), groupes Facebook régionaux de Magic et d'échange de cartes.
-5. **Reddit anglophone** : r/EDH, r/mtgfinance. Lis leurs règles d'autopromotion avant ; r/magicTCG est strict.
-6. **Échange de tests** : r/AndroidClosedTesting, r/TestersCommunity. Au plus 5 testeurs par ce biais : ils aident à rester au-dessus de 12, mais donnent peu de retours. **Jamais** de service de testeurs payant (comptes fictifs ou inactifs).
+2. **Créateurs Magic francophones** (petits streamers et YouTubers) : en message privé, **comme testeurs** (retours sur l'appli, pas de vidéo demandée). Avant la relance d'EDHREC et d'Archidekt (20-22 octobre), test en privé seulement : qu'ils n'en parlent pas encore à leur communauté. Après, ils peuvent partager le lien du groupe s'ils en ont envie. Message au § 5.
+   - Premier visé : TheHoloMouvement (streamer et YouTubeur, Magic depuis peu ; c'est lui qui a donné l'envie de faire l'appli).
+   - Autres pistes, activité à vérifier sur leur chaîne avant d'écrire : Bandit (Bandit_MTG, émission EDH « SOLRING »), La Tour de Commandement (Commander), Magic C'est Chic !, Parole_MTG et El_Gran_Boa (Twitch, Magic en français). Pour les tout petits : catégorie « Magic: The Gathering » de Twitch filtrée en français, recherche YouTube « deck tech commander fr », streamers du Discord « Le Royaume des Commandants (SpellTable EDH FR) », chaînes des boutiques locales.
+   - Une personne à la fois, message personnalisé (une vidéo ou un stream que tu as aimé), relance une seule fois au bout d'une semaine sans réponse.
+3. **Boutiques de jeux** : aux soirées Commander, demande d'abord au gérant. Message et affiche au § 5.
+4. **Discord francophones** : « MTG [FR] » (environ 3 000 membres), « Le Royaume des Commandants (SpellTable EDH FR) », « Modern [FR] ». Demande à un modérateur avant de poster, dans le salon d'autopromotion s'il existe.
+5. **Forums** : Magic Corporation, Magic-Ville (forums), groupes Facebook régionaux de Magic et d'échange de cartes.
+6. **Reddit anglophone** : r/EDH, r/mtgfinance. Lis leurs règles d'autopromotion avant ; r/magicTCG est strict.
+7. **Échange de tests** : r/AndroidClosedTesting, r/TestersCommunity. Au plus 5 testeurs par ce biais : ils aident à rester au-dessus de 12, mais donnent peu de retours. **Jamais** de service de testeurs payant (comptes fictifs ou inactifs).
 
 Règles :
 - Aucune récompense contre une note ou un avis. Un remerciement dans l'appli (« Merci aux testeurs ») est permis, à ajouter avant la production si tu le promets.
@@ -108,6 +112,23 @@ Avant sa sortie, Google m'impose 12 testeurs pendant 14 jours. Partant pour m'ai
 3. Installe l'appli depuis le Play Store et garde-la jusqu'au [date].
 Merci ! Retours ici ou en MP.
 ```
+
+**À un créateur (streamer, YouTubeur), en message privé** (personnalise la 1re phrase)
+```
+Salut [Prénom / pseudo] !
+J'ai adoré [ton stream / ta vidéo sur …] : c'est même un peu grâce à toi que je me suis lancé dans ce projet.
+Je suis joueur de Magic et je développe seul Mana Orbit, une appli Android gratuite pour sa collection : scan des cartes VF ou VO sur le téléphone, cote Cardmarket chaque jour (et en widget), decks Commander que tu peux déjà monter avec tes cartes, liste d'échange en un lien ou un QR code. Pas de compte obligatoire, aucune donnée vendue.
+Elle est en test fermé avant sa sortie sur le Play Store, et ton avis de joueur me serait précieux. Je ne te demande ni vidéo ni note : juste de l'essayer deux semaines (2 ou 3 ouvertures par semaine) et de me dire ce qui te plaît, ce qui manque et ce qui coince.
+1. Rejoins le groupe des testeurs (avec le compte Google de ton Play Store) : [lien du groupe Google]
+2. Inscris-toi au test : https://play.google.com/apps/testing/app.manaorbit
+3. Installe Mana Orbit depuis le Play Store et garde-la jusqu'au [date].
+C'est encore privé pour le moment, merci de ne pas en parler publiquement avant le [date de la relance + 1].
+Si tu n'as pas le temps, aucun souci, merci d'avoir lu !
+[Prénom] · contact@manaorbit.app
+```
+- Pas de rémunération ni de cadeau : l'accès anticipé et un merci (« Merci aux testeurs » dans l'appli si tu le promets). S'il y a un jour une contrepartie, le créateur doit l'afficher comme collaboration commerciale (loi de 2023 sur les influenceurs).
+- Jamais de contrepartie contre une note ou un avis sur le Play Store.
+- Après le lancement en production : c'est le bon moment pour leur proposer d'en parler, s'ils ont aimé.
 
 **Au gérant d'une boutique**
 ```
