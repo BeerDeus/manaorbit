@@ -57,7 +57,7 @@ function splashPrep() {
   SPL.prep = out.length ? out : null;
 }
 /** Accueil couvert (premier lancement, feuille, écran plein format, autre vue) : un enfant du <body> visible en plus de l'appli. */
-const splashCovered = () => (typeof S !== 'undefined' && S.view !== 'home') || [...document.body.children].some(n => n !== SPL.el && !/^(script|style|svg)$/i.test(n.nodeName) && !/^(app|toast|tasks)$/.test(n.id) && (n.id !== 'sheetRoot' || n.children.length) && n.getClientRects().length);
+const splashCovered = () => (typeof S !== 'undefined' && S.view !== 'home') || [...document.body.children].some(n => n !== SPL.el && !/^(script|style|svg)$/i.test(n.nodeName) && !/^(app|toast|tasks|nav)$/.test(n.id) && (n.id !== 'sheetRoot' || n.children.length) && n.getClientRects().length);
 function splashMorph(pairs, D) {
   for (const [s, d, from, to] of pairs) {
     s.animate([{ transform: from, easing: 'cubic-bezier(.45,.05,.2,1)' }, { transform: to, offset: 0.8 }, { transform: to }], { duration: D, fill: 'forwards' });
