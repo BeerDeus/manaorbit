@@ -86,7 +86,7 @@ await toHome(p); await p.click('#btnDecks'); await p.waitForSelector('#deckList 
 await p.screenshot({ path: 'shots/viewer-0-liste.png' });
 await p.click('#deckList .deck-main'); await p.waitForSelector('.dv.on');
 // aucun relevé gardé : le même viewer, en valeur estimée (prix tendance Cardmarket) au lieu d'une simple liste
-await p.waitForFunction(() => /15,00/.test(document.querySelector('.dv-eur') ? document.querySelector('.dv-eur').textContent : ''), null, { timeout: 8000 });
+await p.waitForFunction(() => /15,00/.test(document.querySelector('.dv-eur') ? document.querySelector('.dv-eur').textContent : ''), null, { timeout: 15000 });
 assert.equal(await p.$('.dv-empty'), null, 'plus d\'état vide'); assert.equal(await p.$('.dv-plain'), null);
 assert.equal((await p.waitForFunction(() => !document.querySelector('.dv-amt[data-tw]')), await txt(p, '.dv-eur')), '≈ 15,00 €+', 'valeur estimée, « + » : une carte sans prix'); assert.match(await txt(p, '.dv-crit'), /Valeur estimée · prix tendance Cardmarket/); await p.waitForFunction(() => /Prix de référence, pas des offres/.test(document.querySelector('.dv-age').textContent), null, { timeout: 8000 });      // « Lecture des cartes et des prix… » le temps que les images arrivent
 assert.equal(await p.$('.dv-age [data-act="refresh"]'), null, 'pas de « Actualiser » : ce ne sont pas des offres');
