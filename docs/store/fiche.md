@@ -167,7 +167,7 @@ Catégorie à choisir : **Utilitaires, productivité, communication ou autres** 
 
 | Question | Réponse | Pourquoi |
 |---|---|---|
-| Violence | **Oui, violence fantastique non réaliste**, si le questionnaire distingue ce cas ; sinon Non | Les images de cartes (Scryfall) sont des illustrations de fantasy : créatures, combats stylisés, vampires. Rien de réaliste ni de détaillé. Déclarer ce cas vaut au plus PEGI 7 / ESRB Everyone 10+ et évite un reclassement plus tard. |
+| Violence | **Oui** · objet principal : Non · représentations visuelles : Oui · images dégoûtantes ou sanglantes : **Oui** · références dans le texte : Oui | Les images de cartes (Scryfall) sont des illustrations de fantasy, dont certaines montrent du sang ou de l'horreur (Phyrexians, Innistrad, Duskmourn…) ; les textes parlent de détruire, blesser, sacrifier. Un classement trop haut ne fait jamais refuser une appli, un classement trop bas oui. |
 | Peur, horreur | Non | Pas de contenu destiné à effrayer. |
 | Sexualité, nudité | Non | |
 | Langage grossier | Non | |
@@ -179,7 +179,8 @@ Catégorie à choisir : **Utilitaires, productivité, communication ou autres** 
 | Achats de biens numériques | Non | Pas d'achat intégré. Le panier CardTrader concerne des cartes physiques, sur le site de CardTrader. Passe à Oui le jour où l'achat « Soutenir » arrive (phase 2, `docs/a-faire.md`). |
 | Accès à Internet sans filtre (navigateur intégré) | Non | Les liens externes (EDHREC, Cardmarket, CardTrader) s'ouvrent dans le navigateur du téléphone. |
 
-Résultat attendu : PEGI 3 à 7, ESRB Everyone à Everyone 10+, avec la mention « Les utilisateurs interagissent ».
+Classification obtenue (12 octobre 2026) : **PEGI « Accord parental »** (ce que PEGI donne à une appli qui n'est pas un jeu), **ESRB Teen**, **IARC 12+**, **USK 16**, **ClassInd 16** (Brésil), Russie 12+, avec « Interactivité des utilisateurs ». USK et ClassInd à 16 viennent de « sanglantes : Oui » ; cela ne joue que sur le contrôle parental de ces deux pays.
+
 
 ## 6 bis. Accès aux applis (Contenu de l'appli)
 
