@@ -151,6 +151,8 @@ const tradeId = [...shares.keys()][0];
 
 /* ── QR code du lien (échange en vrai) : grand, net, pseudo et photo, adresse, écran gardé allumé ── */
 {
+  // appli Android (APK 1.0.3) : luminosité à fond tant que le QR code est affiché (coque simulée le temps de la feuille)
+  await p.evaluate(() => { window.__br = []; window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'ManaOrbit', Plugins: { ManaOrbit: { brightness: async o => { window.__br.push(o.full); return { full: o.full }; } } } }; });
   await p.evaluate(() => { window.__wl = 0; window.__wlr = 0; Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async t => { window.__wl++; window.__wlt = t; return { release: async () => { window.__wlr++; }, addEventListener() {} }; } } }); });
   await p.emulateMedia({ colorScheme: 'dark' });
   await p.click('.tr-box.on [data-act="trqr"]'); await p.waitForSelector('.sheet-wrap.open .qr-img svg');
@@ -163,9 +165,12 @@ const tradeId = [...shares.keys()][0];
   assert.ok(px[0] >= 240 && Math.abs(mod - Math.round(mod)) < 0.01, 'grand, et un nombre entier de pixels par module : ' + px.join(' × '));
   await p.waitForFunction(() => window.__wl === 1 && !document.querySelector('.qr-lock').hidden); assert.equal(await p.evaluate(() => window.__wlt), 'screen', 'écran gardé allumé');
   await p.waitForTimeout(600); await p.screenshot({ path: SHOTS + '/trade-qr.png' });
+  assert.deepEqual(await p.evaluate(() => [window.__br, sessionStorage.getItem('deckdeal:bright')]), [[true], '1'], 'luminosité à fond pendant le QR code');
   await p.click('.sheet [data-close].icon-btn'); await p.waitForFunction(() => window.__wlr === 1); await p.waitForTimeout(450);
+  assert.deepEqual(await p.evaluate(() => [window.__br, sessionStorage.getItem('deckdeal:bright')]), [[true, false], null], 'luminosité du téléphone rendue à la fermeture');
+  await p.evaluate(() => { delete window.Capacitor; });
   await p.emulateMedia({ colorScheme: 'light' });
-  ok('QR code du lien : SVG de l\'encodeur vérifié, net (modules entiers), pseudo et photo, adresse, Wake Lock pris puis rendu');
+  ok('QR code du lien : SVG de l\'encodeur vérifié, net (modules entiers), pseudo et photo, adresse, Wake Lock pris puis rendu, luminosité à fond (appli) puis rendue');
   // aperçu du propriétaire : ce que voient les visiteurs, sans « Pour toi », sans connexion ni signalement
   await p.click('.tr-box.on [data-act="trview"]'); await p.waitForSelector('.pubv.on');
   assert.match(await txt(p, '.pubv .dv-title'), /Aperçu de ta liste/); assert.equal(await p.$$eval('#pubSub .seg-opt', b => b.map(x => x.dataset.v).join()), 'have,want', 'pas d\'onglet « Pour toi »');

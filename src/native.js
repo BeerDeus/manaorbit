@@ -9,6 +9,15 @@ const isNativeApp = () => { try { return !!(window.Capacitor && window.Capacitor
 /** Plugins natifs attendus dans l'APK (diagnostic affiché sous la version, dans les réglages) : une APK ancienne en a moins, il faut la refaire. */
 const NAT_PLUGINS = [['CameraPreview', 'caméra'], ['CapacitorPluginMlKitTextRecognition', 'ML Kit'], ['FirebaseAuthentication', 'Google'], ['AdMob', 'pub'], ['PushNotifications', 'notif'], ['ManaOrbit', 'widget'], ['App', 'retour']];
 
+/** Écran à pleine luminosité (QR code d'échange affiché) ou rendu au réglage du téléphone : APK 1.0.3 et plus (ManaOrbit.brightness), seulement dans
+    l'appli (Android rend la luminosité habituelle quand on en sort). Navigateur ou APK plus ancienne : rien. Page rechargée avec le QR ouvert : rendue au lancement. */
+function natBright(full) {
+  const mo = natPlugin('ManaOrbit'); if (!mo || typeof mo.brightness !== 'function') return;
+  try { if (full) sessionStorage.setItem('deckdeal:bright', '1'); else sessionStorage.removeItem('deckdeal:bright'); } catch (e) { /* stockage bloqué */ }
+  Promise.resolve().then(() => mo.brightness({ full: !!full })).catch(() => {});      // APK sans la méthode : refusé, sans effet
+}
+if (typeof document !== 'undefined') setTimeout(() => { try { if (sessionStorage.getItem('deckdeal:bright')) natBright(false); } catch (e) { /* stockage bloqué */ } }, 0);
+
 /* ── Plein écran (appli Android) : barre d'état cachée, barre de gestes gardée ───────────────────────────────────────────────────────────────
    SystemBars (plugin de Capacitor 8, présent dans toutes nos APK) cache la barre d'état ; un glissé du haut la fait revenir un instant.
    Volet des notifications tiré puis refermé : la barre d'état restait affichée (APK 1.0.2) → recachée au retour dans l'appli (focus, page de nouveau
