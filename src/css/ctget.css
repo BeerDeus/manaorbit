@@ -1,0 +1,13 @@
+/* ── ctget.css : CardTrader sans token (app.js › ctGetHtml) : encart « Obtenir mon token », champ pour le coller, « Tester », avertissement ──
+   Sous le choix Cardmarket / CardTrader de « Nouveau panier », et dans la feuille « CardTrader » (tuile valeur des Stats, prix réels de la collection). */
+.ct-get{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-top:10px;padding:14px;border-radius:var(--r-md);border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--accent-soft)}
+.ct-get-sheet .ct-get{margin-top:0}
+.ct-get-t{margin:0;font-size:14px;font-weight:650;line-height:1.4}
+.ct-get .ct-get-a{gap:6px}
+.ct-get .label{margin-top:4px}
+.ct-get-row{display:flex;gap:8px;width:100%}
+.ct-get-row input{flex:1;height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);font-size:14.5px;min-width:0}
+.ct-get-row input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.ct-get-row .btn{flex:none;height:44px}
+.ct-get .status{width:100%}
+.ct-get .hint{margin:0}

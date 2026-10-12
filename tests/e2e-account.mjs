@@ -389,7 +389,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   await q.goto('http://127.0.0.1:18820/'); await q.waitForTimeout(1000); await login(q, 'intrus@test.dev');
   await toInput(q); await q.fill('#deckText', DECK4); await q.waitForTimeout(250); await toInput(q); await q.click('#btnRun');
   await q.waitForFunction(() => S.run && S.run.status === 'done', null, { timeout: 15000 });
-  assert.equal(await q.evaluate(() => [S.run.src, CTX.serverOk].join()), 'cm,false'); assert.equal(await q.$eval('#srcField', e => e.hidden), true, 'pas de choix CardTrader'); assert.equal(qReq.length, 0);
+  assert.equal(await q.evaluate(() => [S.run.src, CTX.serverOk].join()), 'cm,false'); assert.equal(await q.$eval('#segSrcRun', e => e._v), 'cm', 'Cardmarket choisi (CardTrader proposé avec ton token)'); assert.equal(qReq.length, 0);
   ok('E : compte non autorisé → prix Cardmarket (jamais le token du serveur), aucune requête CardTrader');
   await q.click('#btnAccount'); await sheetOpen(q); await q.waitForSelector('#acOut'); assert.doesNotMatch(await T(q, '.sheet-body'), /ALLOWED_UIDS|uid-intrus/); ok('E : compte non autorisé : aucune consigne serveur ni identifiant affichés');
   await ctx2.close();

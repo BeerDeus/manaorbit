@@ -953,13 +953,53 @@ const cartPlural = (n, w) => w === 'ligne' ? TN(n, '{n} ligne', '{n} lignes') : 
 /** « Nouveau panier » : choix Cardmarket / CardTrader (seulement si CardTrader est disponible), critères propres à CardTrader masqués en Cardmarket.
  *  Appelée à chaque changement de token, de compte ou de serveur (ancien nom gardé : modeLabel). */
 function modeLabel() {
-  const src = priceSrc(), f = $('#srcField'), seg = $('#segSrcRun'); if (!f) return;
-  $('#viewInput').dataset.src = src === 'ct' ? 'ct' : 'cm';
-  f.hidden = src === 'demo' || !ctReady();
-  if (!seg._init) { seg._init = true; mountSeg(seg, [{ v: 'cm', label: 'Cardmarket' }, { v: 'ct', label: 'CardTrader' }], src === 'ct' ? 'ct' : 'cm', v => { S.src = v === 'cm' ? 'cm' : 'auto'; saveStore(); modeLabel(); }); }
-  else seg.setValue(src === 'ct' ? 'ct' : 'cm');
+  const src = priceSrc(), f = $('#srcField'), seg = $('#segSrcRun'), g = $('#ctGet'); if (!f) return;
+  const ask = src !== 'demo' && S.src === 'ct' && (!ctReady() || (g && g.dataset.keep === '1')), want = src === 'ct' || ask;      // CardTrader choisi sans token : l'encart du token à la place des critères CardTrader
+  $('#viewInput').dataset.src = src === 'ct' && !ask ? 'ct' : 'cm';
+  f.hidden = src === 'demo';
+  if (!seg._init) { seg._init = true; mountSeg(seg, [{ v: 'cm', label: 'Cardmarket' }, { v: 'ct', label: 'CardTrader' }], want ? 'ct' : 'cm', v => { S.src = v === 'cm' ? 'cm' : ctReady() ? 'auto' : 'ct'; saveStore(); modeLabel(); }); }
+  else seg.setValue(want ? 'ct' : 'cm');
+  if (g) {
+    if (ask && g.hidden) { g.innerHTML = ctGetHtml('ctg'); ctGetWire(g, { onInput: () => { g.dataset.keep = '1'; if (typeof refreshDeck === 'function') refreshDeck(); }, onOk: () => { g.dataset.keep = ''; modeLabel(); } }); }
+    else if (!ask && !g.hidden) { g.innerHTML = ''; g.dataset.keep = ''; }
+    g.hidden = !ask;
+  }
+  $('#srcHint').hidden = ask;
   $('#srcHint').textContent = src === 'ct' ? T('Vraies offres des vendeurs (état, langue, port) et panier le moins cher, rempli sur CardTrader.') : T('Prix tendance de chaque carte, tout de suite, et liste à copier pour Cardmarket.');
   if (typeof refreshDeck === 'function' && $('#deckText')) refreshDeck();
+}
+/* ── CardTrader sans token : « Obtenir mon token » (page API de CardTrader), le coller, « Tester » (Nouveau panier, tuile valeur des Stats, Réglages) ── */
+const ctApiUrl = () => I18N.lang === 'fr' ? 'https://www.cardtrader.com/fr-FR/full_api_app' : 'https://www.cardtrader.com/en/full_api_app';
+const CT_TOKEN_WARN = 'Ce token donne accès à ton compte CardTrader : ne le partage avec personne. Mana Orbit le garde sur ton appareil et ne l\'envoie qu\'avec tes recherches CardTrader.';
+function ctGetHtml(pre) {
+  return `<p class="ct-get-t">${T('Pour voir les vrais prix CardTrader et remplir ton panier, il faut ton token CardTrader.')}</p>
+    <a class="btn small ct-get-a" href="${ctApiUrl()}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Obtenir mon token')}</a>
+    <label class="label" for="${pre}Tok">${T('Ton token CardTrader')}</label>
+    <div class="ct-get-row"><input type="password" id="${pre}Tok" autocomplete="off" spellcheck="false" placeholder="${esc(T('Colle ton token API'))}" value="${esc(S.token)}"><button class="btn ghost small" type="button" data-ctg="test">${T('Tester')}</button></div>
+    <div class="status" data-ok="0" hidden><span class="dot"></span><span class="ct-get-m"></span></div>
+    <p class="hint">${T(CT_TOKEN_WARN)}</p>`;
+}
+/** o.onInput : token tapé ou collé (déjà gardé) ; o.onOk : CardTrader a répondu avec ce token. */
+function ctGetWire(root, o = {}) {
+  const inp = $('input', root), btn = $('[data-ctg="test"]', root), st = $('.status', root), m = $('.ct-get-m', root);
+  const set = () => { S.token = inp.value.trim(); if (S.token) S.src = 'auto'; syncCTX(); saveStore(); };
+  inp.oninput = () => { set(); if (o.onInput) o.onInput(); };
+  inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); btn.click(); } };
+  btn.onclick = async () => {
+    set(); if (!S.token) { inp.focus(); return; }
+    btn.disabled = true; btn.textContent = T('Test…'); st.hidden = false; st.dataset.ok = '0'; m.textContent = T('Test…');
+    try { const j = await ct('info'); st.dataset.ok = '1'; m.textContent = j && j.name ? T('Connexion réussie (app « {name} »).', { name: j.name }) : T('Connexion réussie.'); haptic('ok'); if (o.onOk) setTimeout(o.onOk, 900); }
+    catch (err) { st.dataset.ok = '0'; m.textContent = err.code === 'auth' ? T('CardTrader refuse ce token : vérifie-le sur la page API de CardTrader.') : T('CardTrader est injoignable depuis ce navigateur.'); haptic('bad'); }
+    btn.disabled = false; btn.textContent = T('Tester');
+  };
+}
+/** La même chose dans une feuille (tuile valeur des Stats, prix réels de la collection). done : appelé une fois le token validé. */
+function ctGetSheet(done) {
+  openSheet('CardTrader', T('Offres réelles des vendeurs et panier'), api => {
+    api.wrap.classList.add('ct-get-sheet');
+    api.body.innerHTML = `<div class="ct-get">${ctGetHtml('ctgs')}</div>`;
+    ctGetWire($('.ct-get', api.body), { onOk: () => { api.close(); if (done) done(); } });
+  });
 }
 function applyTheme() {
   const r = document.documentElement;
@@ -981,7 +1021,8 @@ function openSettings() {
       <p class="hint">${T('<b>Cardmarket</b> : prix tendance relevés chaque jour, gratuits et sans compte, pour estimer ta collection et tes decks.<br><b>CardTrader</b> : offres réelles des vendeurs, frais de port optimisés et remplissage de ton panier.')}</p>
       <div class="status" id="connStatus" data-ok="0"><span class="dot"></span><span id="connMsg"></span></div>
       <div class="field-in" id="boxToken"><label class="label" for="setToken">${T('Token CardTrader (facultatif)')}</label><input type="password" id="setToken" autocomplete="off" spellcheck="false" placeholder="${esc(T('Colle ton token API'))}" value="${esc(S.token)}">
-        <span class="hint">${T('Pour les offres réelles des vendeurs, le port optimisé et le remplissage de ton panier. Ton token se trouve sur cardtrader.com, dans Paramètres › API. Gardé sur cet appareil, il passe par notre serveur seulement pour interroger CardTrader avec ton compte, sans jamais y être enregistré.')}</span></div>
+        <span class="hint">${T('Pour les offres réelles des vendeurs, le port optimisé et le remplissage de ton panier.')} <a href="${ctApiUrl()}" target="_blank" rel="noopener">${T('Obtenir mon token')}</a></span>
+        <span class="hint">${T(CT_TOKEN_WARN)}</span></div>
       <div class="field-in" id="boxKey" ${CTX.needsKey ? '' : 'hidden'}><label class="label" for="setKey">${T('Clé du proxy')}</label><input type="password" id="setKey" autocomplete="off" value="${esc(S.appKey)}">${CTX.needsLogin ? `<span class="hint">${T('Facultative : ton compte suffit. À supprimer côté serveur une fois la connexion par compte validée.')}</span>` : ''}</div>
       <button class="btn ghost small" type="button" id="btnTest" style="align-self:flex-start">${T('Tester CardTrader')}</button>
       <div class="sec-title">${T('Affichage')}</div>
@@ -1102,7 +1143,7 @@ function openSettings() {
       const btn = e.target; btn.disabled = true; btn.textContent = T('Test…');
       const st = $('#connStatus', b), m = $('#connMsg', b);
       try { const j = await ct('info'); st.dataset.ok = '1'; m.textContent = j && j.name ? T('Connexion réussie (app « {name} »).', { name: j.name }) : T('Connexion réussie.'); }
-      catch (err) { st.dataset.ok = '0'; m.textContent = err.code === 'notoken' ? T('Token manquant.') : err.code === 'auth' ? (S.token ? T('CardTrader refuse ce token : vérifie-le (Paramètres › API sur CardTrader).') : authHint(err).msg) : T('CardTrader est injoignable depuis ce navigateur.'); }
+      catch (err) { st.dataset.ok = '0'; m.textContent = err.code === 'notoken' ? T('Token manquant.') : err.code === 'auth' ? (S.token ? T('CardTrader refuse ce token : vérifie-le sur la page API de CardTrader.') : authHint(err).msg) : T('CardTrader est injoignable depuis ce navigateur.'); }
       btn.disabled = false; btn.textContent = T('Tester CardTrader');
     };
   });
@@ -1182,7 +1223,7 @@ function init() {
   if (saved.opts && typeof saved.opts === 'object' && !('langSet' in saved.opts)) S.opts.langSet = OPT_LANGS.includes(saved.opts.lang) && saved.opts.lang !== 'fr';
   if (!S.opts.langSet || !OPT_LANGS.includes(S.opts.lang)) { S.opts.lang = userLang(); S.opts.langSet = false; }
   S.token = saved.token || ''; S.appKey = saved.appKey || ''; S.theme = saved.theme || 'auto';
-  S.demoPref = null; S.src = saved.src === 'cm' ? 'cm' : 'auto';      // ancien interrupteur « Mode démo » retiré (choix enregistré ignoré) : démo seulement sans serveur joignable
+  S.demoPref = null; S.src = saved.src === 'cm' || saved.src === 'ct' ? saved.src : 'auto';      // 'ct' : CardTrader choisi sans token (encart du token sur « Nouveau panier »)      // ancien interrupteur « Mode démo » retiré (choix enregistré ignoré) : démo seulement sans serveur joignable
   S.useColl = saved.useColl !== false; S.push = saved.push === true;
   S.haptic = saved.haptic !== false; S.sort = ['deck', 'price-desc', 'price-asc', 'name'].includes(saved.sort) ? saved.sort : 'deck';
   S.demo = S.demoPref == null ? !S.token : S.demoPref;

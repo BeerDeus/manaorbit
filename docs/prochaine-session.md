@@ -46,6 +46,7 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
   - avertissement : « Ce token donne accès à ton compte CardTrader : ne le partage avec personne. Mana Orbit le garde sur ton appareil et ne l'envoie qu'avec tes recherches CardTrader. »
 - Corriger aussi le texte de Réglages › Prix (« Paramètres › API ») avec le même lien.
 - Rien à changer dans la fiche Play (token déjà déclaré dans la sécurité des données).
+- **Fait le 12 octobre** (README › « Prix : Cardmarket par défaut, CardTrader avec un token »). Adresse `/en/full_api_app` hors français : pas vérifiable d'ici (cardtrader.com bloqué par le réseau du conteneur), **à essayer par le propriétaire** sur l'appli en anglais.
 
 ## 3. Texte d'aide des Decks (petit)
 - **Intro de l'onglet**, raccourcie : « Decks des commandants les plus joués, comparés à ta collection. Prix Cardmarket du {date}. »

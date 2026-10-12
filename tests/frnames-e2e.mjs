@@ -151,8 +151,8 @@ ok('« Ajouter des cartes » : « anneau sol » propose Anneau solaire (Sol Ring
 
 /* ── 6) Stats : CardTrader indisponible et aucun prix lu → pas de bascule CT / CM ──────────────── */
 await p.click('#collSeg [data-v="stats"]'); await p.waitForSelector('.cs-tiles');
-assert.equal(await p.$eval('.cs-val', e => [e.classList.contains('ro'), e.hasAttribute('data-act'), !!e.querySelector('.cs-src')].join()), 'true,false,false');
-assert.doesNotMatch(await txt(p, '.cs-tiles'), /CT|touche pour changer/); assert.match(await txt(p, '.cs-val'), /valeur · tendance Cardmarket/);
+assert.equal(await p.$eval('.cs-val', e => [e.dataset.ctno, e.dataset.act].join()), '1,pxsrc', 'sans CardTrader : la tuile propose d\'ajouter le token');
+assert.doesNotMatch(await txt(p, '.cs-tiles'), /touche pour changer/); assert.match(await txt(p, '.cs-val'), /valeur · tendance Cardmarket.*CT : prix réels avec ton token CardTrader/);
 ok('Stats : sans CardTrader ni prix lu, la tuile ne montre que la valeur Cardmarket');
 
 assert.deepEqual(errs, []); await browser.close(); world.stop();

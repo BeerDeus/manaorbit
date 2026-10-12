@@ -42,7 +42,7 @@ function obOpen() {
         <h2>${T('Les prix')}</h2>
         <p>${T('Par défaut, Mana Orbit donne le <b>prix tendance Cardmarket</b> de chaque carte, mis à jour chaque jour.')}</p>
         <div class="field-in"><label class="label" for="obToken">${T('Tu achètes sur CardTrader ? (facultatif)')}</label><input type="password" id="obToken" autocomplete="off" spellcheck="false" placeholder="${T('Ton token API CardTrader')}">
-          <span class="hint">${T('Avec ton token (cardtrader.com › Paramètres › API) : offres réelles des vendeurs, port optimisé, panier rempli pour toi. Modifiable plus tard dans les réglages.')}</span></div>
+          <span class="hint">${T('Avec ton token : offres réelles des vendeurs, port optimisé, panier rempli pour toi. Modifiable plus tard dans les réglages.')} <a href="${ctApiUrl()}" target="_blank" rel="noopener">${T('Obtenir mon token')}</a></span></div>
         <div class="ob-acts"><button class="btn block" type="button" data-ob="done">${T('C\'est parti')}</button>
           <button class="link-btn link-inline" type="button" data-ob="account">${T('Créer un compte pour sauvegarder ma collection')}</button></div>
       </section>

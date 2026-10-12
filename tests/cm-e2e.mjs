@@ -2,7 +2,7 @@
 // sans livraison ni vendeurs ; avec un token perso, elle cherche les offres CardTrader avec CE token (en-tête X-CT-Token).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toInput } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18930, env: { CARDTRADER_TOKEN: '' } });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -14,7 +14,8 @@ const run = async p => { await toInput(p); await p.fill('#deckText', DECK); awai
 { // 1) sans relevé du serveur : Scryfall (prix de l'impression par défaut)
   const { p, errs } = await newPage(browser, world);
   await p.goto(world.url); await p.waitForTimeout(700);
-  assert.equal(await p.evaluate(() => priceSrc()), 'cm'); assert.equal(await p.$eval('#srcField', e => e.hidden), true); assert.equal(await p.$('#modeChip'), null); ok('serveur sans token, aucun token perso : prix Cardmarket par défaut, pas de choix de source (CardTrader indisponible), plus de pastille');
+  assert.equal(await p.evaluate(() => priceSrc()), 'cm'); assert.equal(await p.$eval('#srcField', e => e.hidden), false, 'choix CardTrader toujours visible'); assert.equal(await p.$eval('#segSrcRun', e => e._v), 'cm');
+  assert.equal(await p.$eval('#ctGet', e => e.hidden), true); assert.equal(await p.$('#modeChip'), null); ok('serveur sans token, aucun token perso : prix Cardmarket par défaut, CardTrader proposé quand même, plus de pastille');
   await run(p);
   assert.equal(await p.evaluate(() => S.run.status), 'done');
   assert.equal(await txt(p, '#progTitle'), 'Prix Cardmarket');
@@ -36,6 +37,33 @@ const run = async p => { await toInput(p); await p.fill('#deckText', DECK); awai
   assert.equal(await p.evaluate(() => window.__clip), '1 Sol Ring\n2 Craterhoof Behemoth\n1 Carte Qui N Existe Pas'); assert.match(await txt(p, '#toast'), /Wants list Cardmarket/);
   ok('« Copier pour Cardmarket » : liste prête pour une Wants list');
   assert.deepEqual(errs, []); await p.context().close();
+}
+
+{ // 1 b) CardTrader choisi sans token : encart « Obtenir mon token » (page API de CardTrader), champ, « Tester » ; tuile valeur des Stats : même encart
+  const { p, errs } = await newPage(browser, world);
+  await p.goto(world.url); await p.waitForTimeout(700); await toInput(p);
+  await p.click('#segSrcRun [data-v="ct"]'); await p.waitForSelector('#ctGet:not([hidden])');
+  assert.equal(await p.evaluate(() => [S.src, priceSrc(), JSON.parse(localStorage.getItem('deckdeal:v1')).src].join()), 'ct,cm,ct', 'CardTrader choisi (retenu), prix Cardmarket en attendant le token');
+  assert.match(await txt(p, '#ctGet'), /il faut ton token CardTrader.*Obtenir mon token.*ne le partage avec personne/);
+  assert.deepEqual(await p.$eval('#ctGet a', a => [a.href, a.target]), ['https://www.cardtrader.com/fr-FR/full_api_app', '_blank']);
+  assert.equal(await p.$eval('#optCond', e => e.offsetParent), null, 'critères CardTrader cachés sans token'); assert.equal(await p.$eval('#srcHint', e => e.hidden), true);
+  await p.click('#segSrcRun [data-v="cm"]'); await p.waitForSelector('#ctGet', { state: 'hidden' }); assert.equal(await p.evaluate(() => S.src), 'cm');
+  await p.reload(); await p.waitForTimeout(600); await toInput(p); await p.click('#segSrcRun [data-v="ct"]'); await p.waitForSelector('#ctGet:not([hidden])');
+  await p.fill('#ctgTok', 'mon-token-cardtrader-1234567890'); await p.waitForTimeout(150);
+  assert.equal(await p.isVisible('#ctGet'), true, 'encart gardé pendant la saisie');
+  await p.click('#ctGet [data-ctg="test"]'); await p.waitForFunction(() => document.querySelector('#ctGet .status').dataset.ok === '1', null, { timeout: 8000 });
+  assert.match(await txt(p, '#ctGet .status'), /Connexion réussie/);
+  await p.waitForSelector('#ctGet', { state: 'hidden' });
+  assert.equal(await p.evaluate(() => [S.token, priceSrc()].join()), 'mon-token-cardtrader-1234567890,ct'); assert.equal(await p.$eval('#optCond', e => e.offsetParent !== null), true, 'token validé : critères CardTrader');
+  ok('Nouveau panier : CardTrader choisi sans token → encart (lien vers la page API, champ, Tester, avertissement), puis offres CardTrader');
+  // tuile valeur des Stats sans token : touchée → feuille « CardTrader » (même encart)
+  await p.evaluate(() => { S.token = ''; syncCTX(); saveStore(); localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: '2 Sol Ring', u: 1, s: '', b: null })); });
+  await p.reload(); await p.waitForTimeout(600); await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#collSeg [data-v="stats"]'); await p.waitForSelector('.cs-val[data-ctno]');
+  assert.match(await txt(p, '.cs-val'), /CT : prix réels avec ton token CardTrader/);
+  await p.click('.cs-val'); await p.waitForSelector('.ct-get-sheet .ct-get a[href*="full_api_app"]');
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+  assert.deepEqual(errs, []); await p.context().close();
+  ok('Stats sans token : la tuile valeur propose d\'ajouter le token (même encart)');
 }
 
 { // 2) avec le relevé du serveur : prix « à partir de » sans Scryfall ; puis token perso → CardTrader avec ce token
