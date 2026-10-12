@@ -1454,7 +1454,7 @@ button,.btn,select,summary{touch-action:manipulation}
 /* aurore : pleine sur l'accueil, atténuée sur la saisie et les résultats, en dégradés fixes sur les écrans plein format */
 .hm-aura{display:block}
 #app:not([data-view="home"]) .hm-aura{opacity:calc(var(--aura-o,.55) * .5)}
-#app .wrap{position:relative;z-index:1}
+#app .wrap{position:relative;z-index:1;overflow-x:clip}      /* entrée d'une vue (translateX 22px) : les onglets pleine largeur de « Prix d'une liste » dépassaient, la page se dézoomait */
 .dv{background:
   radial-gradient(70% 38% at 0% 0%,rgba(63,143,224,calc(.30 * var(--aura-a))),transparent 70%),
   radial-gradient(60% 36% at 100% 24%,rgba(224,83,61,calc(.20 * var(--aura-a))),transparent 70%),
