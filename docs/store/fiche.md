@@ -20,30 +20,36 @@ Google déconseille les titres chargés de mots-clés : si le titre descriptif e
 
 ## 2. Description courte (80 caractères au plus)
 
-Elle ne parle pas d'EDHREC : elle reste valable si EDHREC refuse.
+Elle ne parle pas d'EDHREC : elle reste valable si EDHREC refuse. Les decks sont déjà dans le titre ; la place va à l'échange, ce que les scanners concurrents ne font pas.
 
-Français (78) :
+Français (71) :
 
 ```
-Scanne tes cartes Magic VF ou VO, suis leur cote et trouve les decks à monter.
+Scanne tes cartes Magic VF ou VO, suis leur cote, échange tes doublons.
 ```
 
 Anglais (79) :
 
 ```
-Scan your Magic cards, track their value and find the Commander decks to build.
+Scan your Magic cards in any language, track their value and trade your spares.
 ```
 
 ## 3. Description complète (4 000 caractères au plus)
 
 Google n'affiche ni gras ni titres : les majuscules et les puces « • » servent de repères. « Magic » seul, pour dire à qui s'adresse l'appli, est admis ; jamais le logo ni « Magic: The Gathering » en accroche.
-Seules les premières lignes s'affichent avant « Plus » : elles disent l'essentiel (scan, cote, decks Commander, gratuit).
+Seules les premières lignes s'affichent avant « Plus » : elles disent l'essentiel (scan, cote, échange, decks Commander, gratuit). Le scanner passe en premier, l'échange juste après la collection.
 La Play Console n'a pas de champ de mots-clés : ils sont dans le texte, 2 à 4 fois chacun (scanner de cartes, cartes Magic, cote, Commander / EDH, liste d'échange, doublons, alerte de prix, VF), comptés par script.
 
-### Français (3 812 caractères)
+### Français (3 928 caractères)
 
 ```
-Scanne tes cartes Magic en VF ou en VO, découvre la cote de ta collection au prix Cardmarket et les decks Commander (EDH) que tu peux déjà monter. Gratuit, en français, sans compte obligatoire.
+Scanne tes cartes Magic en VF ou en VO, découvre la cote de ta collection au prix Cardmarket, échange tes doublons en un lien ou un QR code et trouve les decks Commander (EDH) que tu peux déjà monter. Gratuit, en français, sans compte obligatoire.
+
+LE SCANNER DE CARTES
+• Cadre le haut de la carte et appuie : le nom est lu, la carte retrouvée, la langue notée. Les cartes en VF sont reconnues par leur nom français.
+• Scanne toute une pile : l'édition de chaque carte se pose toute seule quand elle est sûre (même extension que la pile, édition unique), sinon tu la choisis en un geste.
+• La lecture se fait sur ton téléphone : la photo n'est jamais envoyée.
+• Prix rapide : scanne une carte pour voir sa valeur sans l'ajouter.
 
 TA COLLECTION ET SA COTE
 • Importe tes cartes Magic en un geste : fichier CSV de ManaBox, Moxfield, Archidekt, Deckbox ou Dragon Shield, ou une simple liste « 3 Sol Ring ».
@@ -51,11 +57,11 @@ TA COLLECTION ET SA COTE
 • La valeur de ta collection jour après jour : courbe, variations à 7 et 30 jours, cartes dont le prix a bougé.
 • Stats : couleurs, familles, courbe de mana, cartes les plus chères.
 
-LE SCANNER DE CARTES
-• Cadre le haut de la carte et appuie : le nom est lu, la carte retrouvée, la langue notée. Les cartes en VF sont reconnues par leur nom français.
-• Scanne toute une pile : l'édition de chaque carte se pose toute seule quand elle est sûre (même extension que la pile, édition unique), sinon tu la choisis en un geste.
-• La lecture se fait sur ton téléphone : la photo n'est jamais envoyée.
-• Prix rapide : scanne une carte pour voir sa valeur sans l'ajouter.
+TES ÉCHANGES EN UN LIEN OU UN QR CODE
+• Ta liste d'échange se fait toute seule : tes doublons (hors cartes de tes decks et réserve choisie) et les cartes que tu recherches, avec leur valeur.
+• Partage-la en un lien ou un QR code : ton ami la consulte sans appli ni compte, toujours à jour.
+• « Pour toi » : sur la liste d'un ami, vois ses doublons que tu recherches et les tiens qui l'intéressent, avec leur valeur.
+• Widget « QR code d'échange » : ton QR code sur l'écran d'accueil, à montrer en boutique sans ouvrir l'appli.
 
 LES DECKS COMMANDER QUE TU PEUX MONTER
 • Les decks EDHREC des commandants les plus joués, comparés à ta collection : « 75 / 85 possédées, 10 à acheter, ≈ 222 € ».
@@ -65,21 +71,14 @@ LES DECKS COMMANDER QUE TU PEUX MONTER
 TES DECKS
 • Crée un deck Standard ou Commander, ou colle une decklist exportée de Moxfield, Archidekt, EDHREC…
 • Viewer : images, courbe de mana, main de départ, valeur du deck et prix de chaque carte.
-• L'historique des prix de chaque deck.
 
 LE PRIX D'UNE LISTE
 • Colle une liste : le total au prix Cardmarket, sans les cartes que tu as déjà. « Copier pour Cardmarket » prépare ta Wants list.
 • Facultatif : avec ton token CardTrader, Mana Orbit lit les vraies offres, compose le panier le moins cher, port compris, et remplit ton panier CardTrader.
 
-TA LISTE D'ÉCHANGE
-• Elle se calcule toute seule : tes doublons (hors cartes de tes decks et réserve choisie) et les cartes que tu recherches.
-• Partage ta liste d'échange en un lien public ou un QR code, en lecture seule, toujours à jour.
-• « Pour toi » : sur la liste d'un ami, vois ses doublons que tu recherches et les tiens qui l'intéressent, avec leur valeur.
-
-ALERTES DE PRIX ET WIDGET
+ALERTES DE PRIX ET WIDGET DE VALEUR
 • Alerte de prix quand une carte qui manque à tes decks, ou une carte que tu suis, baisse fortement. Et une notification quand une recherche CardTrader est finie.
 • Widget d'écran d'accueil : la cote de ta collection, sa variation sur 7 jours et sa courbe, avec un bouton Scanner ou Prix rapide.
-• Les prochaines extensions sur l'accueil, avec leur date de sortie.
 
 ET AUSSI
 • Hors ligne : ta collection et tes decks restent sur ton téléphone, les changements partent au retour du réseau.
@@ -94,10 +93,16 @@ Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Polic
 Mana Orbit n'est lié à aucun des sites et applis cités (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, Scryfall…). Données et images des cartes : Scryfall.
 ```
 
-### Anglais (3 451 caractères)
+### Anglais (3 588 caractères)
 
 ```
-Scan your Magic cards in any language, see what your collection is worth at Cardmarket prices and find the Commander (EDH) decks you can already build. Free, no account required.
+Scan your Magic cards in any language, see what your collection is worth at Cardmarket prices, trade your spares with a link or a QR code and find the Commander (EDH) decks you can already build. Free, no account required.
+
+THE CARD SCANNER
+• Frame the top of the card and tap: the name is read, the card is found, its language is noted. French cards are recognized by their French name.
+• Scan a whole pile: each card's set is filled in automatically when it is clear (same set as the pile, single printing); otherwise pick it in one tap.
+• Recognition runs on your phone: the photo is never uploaded.
+• Quick price: scan a card to see its value without adding it.
 
 YOUR COLLECTION AND ITS VALUE
 • Import your Magic cards in one go: a CSV file from ManaBox, Moxfield, Archidekt, Deckbox or Dragon Shield, or a simple "3 Sol Ring" list.
@@ -105,11 +110,11 @@ YOUR COLLECTION AND ITS VALUE
 • Your collection's value day after day: chart, 7- and 30-day changes, cards whose price moved.
 • Stats: colors, card types, mana curve, most valuable cards.
 
-THE CARD SCANNER
-• Frame the top of the card and tap: the name is read, the card is found, its language is noted. French cards are recognized by their French name.
-• Scan a whole pile: each card's set is filled in automatically when it is clear (same set as the pile, single printing); otherwise pick it in one tap.
-• Recognition runs on your phone: the photo is never uploaded.
-• Quick price: scan a card to see its value without adding it.
+YOUR TRADES, BY LINK OR QR CODE
+• Your trade list builds itself: your duplicates (minus the cards in your decks and the reserve you choose) and the cards you are looking for, with their value.
+• Share it with a link or a QR code: your friend opens it with no app and no account, always up to date.
+• "For you": on a friend's list, see their duplicates you want and yours they want, with their value.
+• "Trade QR code" widget: your QR code on your home screen, ready to show at your game store without opening the app.
 
 COMMANDER DECKS YOU CAN BUILD
 • EDHREC decks for the most played commanders, matched against your collection: "75 / 85 owned, 10 to buy, ≈ €222".
@@ -119,21 +124,14 @@ COMMANDER DECKS YOU CAN BUILD
 YOUR DECKS
 • Build a Standard or Commander deck, or paste a decklist exported from Moxfield, Archidekt, EDHREC…
 • Deck viewer: card images, mana curve, sample hand, deck value and the price of every card.
-• Price history for each deck.
 
 PRICE A LIST
 • Paste a list: the Cardmarket total, minus the cards you already own. "Copy for Cardmarket" prepares your Wants list.
 • Optional: with your CardTrader token, Mana Orbit reads real offers, builds the cheapest cart including shipping and fills your CardTrader cart.
 
-YOUR TRADE LIST
-• It builds itself: your duplicates (minus the cards in your decks and the reserve you choose) and the cards you are looking for.
-• Share your trade list with a public link or a QR code, read-only and always up to date.
-• "For you": on a friend's list, see their duplicates you want and yours they want, with their value.
-
-PRICE ALERTS AND WIDGET
+PRICE ALERTS AND VALUE WIDGET
 • Price alerts when a card your decks are missing, or a card you follow, drops sharply. Plus a notification when a CardTrader search is done.
 • Home screen widget: your collection's value, its 7-day change and its chart, with a Scan or Quick price button.
-• Upcoming sets on the home screen, with their release dates.
 
 ALSO
 • Offline: your collection and decks stay on your phone; changes sync when you are back online.
@@ -148,7 +146,7 @@ Mana Orbit is unofficial Fan Content permitted under the Fan Content Policy. Not
 Mana Orbit is not affiliated with any of the sites and apps named here (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, Scryfall…). Card data and images: Scryfall.
 ```
 
-**Si EDHREC ou Archidekt refusent** : retire le bloc « LES DECKS COMMANDER QUE TU PEUX MONTER » (« COMMANDER DECKS YOU CAN BUILD ») et « EDHREC » des decklists collées ; la capture 3 devient l'éditeur de deck. Titre et description courte ne changent pas.
+**Si EDHREC ou Archidekt refusent** : retire le bloc « LES DECKS COMMANDER QUE TU PEUX MONTER » (« COMMANDER DECKS YOU CAN BUILD ») et « EDHREC » des decklists collées ; la capture 4 devient l'éditeur de deck. Titre et description courte ne changent pas.
 
 ## 4. Notes de version (500 caractères au plus)
 
@@ -252,26 +250,26 @@ Avant d'envoyer le formulaire, compare avec les pages officielles (elles changen
 |---|---|---|
 | `feature-graphic.png` | 1024 × 500, PNG sans transparence | Image de présentation (fiche française) |
 | `feature-graphic-en.png` | 1024 × 500 | Image de présentation (fiche anglaise) |
-| `fr/01-scan.png` … `fr/08-echange.png` | 1080 × 1920 (9:16) | Captures du téléphone, fiche française (8 au plus) |
-| `en/01-scan.png` … `en/08-trade.png` | 1080 × 1920 | Captures du téléphone, fiche anglaise |
+| `fr/01-scan.png` … `fr/08-deck.png` | 1080 × 1920 (9:16) | Captures du téléphone, fiche française (8 au plus) |
+| `en/01-scan.png` … `en/08-deck.png` | 1080 × 1920 | Captures du téléphone, fiche anglaise |
 | `../../pwa/icons/icon-512.png` | 512 × 512 | Icône de l'appli |
 
-Les fichiers sont numérotés dans l'ordre de la fiche : envoie-les dans cet ordre. Le scan d'abord, comme chez tous les concurrents ; les deux premières comptent le plus (ce sont celles des résultats de recherche).
+Les fichiers sont numérotés dans l'ordre de la fiche : envoie-les dans cet ordre. Le scan d'abord, comme chez tous les concurrents ; les deux premières comptent le plus (ce sont celles des résultats de recherche). L'échange vient en 3e : c'est ce qui distingue Mana Orbit des autres scanners.
 
 | # | Écran | Légende FR | Légende EN |
 |---|---|---|---|
 | 1 | Scan | Scanne tes cartes VF ou VO · Lues sur ton téléphone, la photo n'est jamais envoyée | Scan cards in any language · Read on your phone, photos never leave it |
 | 2 | Accueil | La cote de ta collection · Au prix tendance Cardmarket, mise à jour chaque jour | Your collection, valued · Cardmarket trend prices, updated daily |
-| 3 | Decks à monter | Les decks que tu peux monter · Decks Commander comparés à ta collection | Decks you can build · Commander decks matched to your cards |
-| 4 | Valeur dans le temps | Suis sa valeur jour après jour · Courbe, variations à 7 et 30 jours, alertes de prix | Watch its value grow · Daily chart, 7- and 30-day changes, price alerts |
-| 5 | Collection (langues) | Chaque carte, sa langue · VF, VO, japonais… et son prix Cardmarket | Every copy, its language · English, French, Japanese… and its Cardmarket price |
-| 6 | Prix d'une liste | Colle une liste, vois le prix · Sans les cartes que tu as déjà, prête pour Cardmarket | Paste a list, see the price · Minus the cards you own, ready for Cardmarket |
-| 7 | Viewer de deck | Chaque deck en un coup d'œil · Valeur, courbe de mana, main de départ | Every deck at a glance · Value, mana curve, opening hand |
-| 8 | Échange | Tes échanges en un lien · Doublons et cartes recherchées, toujours à jour | Trade with one link · Your spares and wants, always up to date |
+| 3 | Échange | Tes échanges en un lien · Lien ou QR code, doublons et recherches toujours à jour | Trade with one link · Link or QR code, spares and wants always up to date |
+| 4 | Decks à monter | Les decks que tu peux monter · Decks Commander comparés à ta collection | Decks you can build · Commander decks matched to your cards |
+| 5 | Valeur dans le temps | Suis sa valeur jour après jour · Courbe, variations à 7 et 30 jours, alertes de prix | Watch its value grow · Daily chart, 7- and 30-day changes, price alerts |
+| 6 | Collection (langues) | Chaque carte, sa langue · VF, VO, japonais… et son prix Cardmarket | Every copy, its language · English, French, Japanese… and its Cardmarket price |
+| 7 | Prix d'une liste | Colle une liste, vois le prix · Sans les cartes que tu as déjà, prête pour Cardmarket | Paste a list, see the price · Minus the cards you own, ready for Cardmarket |
+| 8 | Viewer de deck | Chaque deck en un coup d'œil · Valeur, courbe de mana, main de départ | Every deck at a glance · Value, mana curve, opening hand |
 
 Les captures sont celles de la vraie appli (thème sombre), vue par un visiteur sans compte ni token CardTrader, comme la plupart des utilisateurs : prix Cardmarket seulement, aucune offre CardTrader (Google refuse les visuels qui promettent ce que l'appli ne donne pas). Collection d'exemple : 515 cartes (1 030 exemplaires), environ 2 340 €, quatre decks. Les images des cartes y sont des cartes factices dessinées par le script (aucune illustration réelle) ; les vrais téléphones affichent les images Scryfall. La bannière ne contient ni logo ni symbole de Wizards of the Coast, ni écran de l'appli (rien à refaire quand l'interface change). Aucune capture ne montre le bandeau publicitaire.
 
-Si EDHREC ou Archidekt refusent : remplace la capture 3 par l'éditeur de deck (`SHOTS` dans `tools/store-assets.mjs`).
+Si EDHREC ou Archidekt refusent : remplace la capture 4 par l'éditeur de deck (`SHOTS` dans `tools/store-assets.mjs`).
 Après le lancement : teste la description courte et la première capture avec les tests de fiche de la Play Console (« Store listing experiments » en anglais).
 
 ### Refaire les visuels
