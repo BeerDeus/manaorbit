@@ -1,6 +1,6 @@
 # Passation — reprise dans un nouveau chat
 
-**À lire en premier : `docs/a-faire.md`** (section « Pour reprendre », puis « Prochaines améliorations »). Ce fichier-ci résume où on en est au 9 octobre 2026 au soir (mis à jour en fin de soirée : widget QR d'échange, emplacement de la pub).
+**À lire en premier : `docs/a-faire.md`** (section « Pour reprendre », puis « Prochaines améliorations »). Ce fichier-ci résume où on en est au **12 octobre 2026 au soir** : appli en **test interne** sur Google Play, prête pour le test fermé (voir « Fait le 12 octobre » et « Où on en est »).
 
 ## Le projet
 - **Mana Orbit** : appli Magic: The Gathering (collection, scan, prix Cardmarket/CardTrader, decks EDHREC/Archidekt, échanges, alertes).
@@ -25,7 +25,7 @@
   - un `// commentaire` inséré au milieu d'une ligne avale la suite : commentaires en fin de ligne seulement, puis `node --check` ;
   - `--` interdit dans un commentaire XML Android (Gradle refuse) : `tests/test-android-xml.mjs` le vérifie ;
   - Firestore refuse les tableaux imbriqués (historique de valeur stocké en objets) ;
-  - une modification de `proxy.mjs` demande un **redémarrage de l'app Node sur Hostinger**.
+  - Hostinger **redéploie tout seul à chaque push sur `main`** (site et serveur `proxy.mjs`) : rien à faire à la main.
 
 ## Fait pendant ce chat (tout est sur `main`, CI verte au commit `db65bce`)
 - Aperçu de carte → grand format partout ; images dans le chiffrage Cardmarket d'un deck.
@@ -53,7 +53,24 @@
 - **Scan mobile** : PC › Ajouter des cartes › Scan mobile › Activer ; le téléphone (même compte) propose « Scanner » et chaque carte arrive dans le lot du PC (document Firestore `meta/scan`).
 - Tests `edition-e2e`, `lot-e2e`, `mobscan-e2e`, règles (`rules-test.mjs`, vérifiées sur l'émulateur Firestore).
 
-## Actions du propriétaire en attente
+## Fait le 12 octobre (tout sur `main`)
+- **Domaine manaorbit.app** : page de déménagement sur card.m2s-photo.fr (inutile en pratique : pas d'autres utilisateurs ; le sous-domaine peut être détaché), `app-ads.txt`, contact `contact@manaorbit.app`.
+- **AdMob** : vrai ID d'application dans l'APK (bandeau de test tant que `ADMOB_BANNER_ID` est vide sur Hostinger), message RGPD publié, blocages, téléphone en appareil de test.
+- **Play Console** : appli créée (`app.manaorbit`), clé `.jks` (chez le propriétaire, jamais dans le dépôt), **test interne en versionCode 2 (1.0.1)** validé sur le téléphone ; SHA-1 Play (signature + importation) et PC dans Firebase ; contenu de l'appli (classification IARC : PEGI « accord parental », USK/ClassInd 16, ESRB Teen ; public 13+ ; annonces ; ID publicitaire) ; sécurité des données (§ 8 de `docs/store/fiche.md`) ; fiches FR et EN ; profil de développeur (nom « Mana Orbit », e-mail public contact@, site vérifié dans Search Console, en-tête `docs/store/developer-header.jpg`). Compte **personnel** gardé ; statut de professionnel DSA : rien à déclarer tant qu'il n'y a pas de revenus Google Play (achats intégrés).
+- **Fiche** : l'échange mis en avant (description courte, accroche, capture n° 3), captures refaites sur manaorbit.app (`node tools/store-assets.mjs`).
+- **Premier lancement de l'APK** : plus de détour par l'ancienne adresse pour une appli installée après le 12 octobre (`info().installed`, `src/migrate.js`).
+- **Mentions légales** `pwa/legal.html` sur `/legal` (EI, adresse, SIRET, téléphone pro, hébergeur), reliées depuis `/privacy` et les Réglages.
+- **Import Moxfield par lien retiré** (pas d'API publique) ; **titres des decks Archidekt masqués** et plus gardés par `gen-edhrec.mjs` ; collection Firestore `games` gardée lisible (rien de personnel).
+- Checklist de lancement (artefact) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY — la relire avant de la republier (le propriétaire y coche).
+
+## Où on en est (12 octobre au soir)
+1. **Test fermé** à ouvrir avec l'entourage seulement (groupe Google `mana-orbit-testeurs`, canal Test fermé, release v2 promue, examen Google 1 à 7 jours) : `docs/store/test-ferme.md`.
+2. **Relance EDHREC / Archidekt vers le 20-22 octobre**, date limite 19 novembre (`docs/mails-partenaires.md`) ; recrutement public seulement après.
+3. 12 testeurs inscrits 14 jours d'affilée ; testeurs : ouvrir l'appli 2-3 fois par semaine, 2 petits questionnaires (ou 1 à la fin).
+4. Production vers le 20-25 novembre : demande d'accès, puis `ADMOB_BANNER_ID` sur Hostinger et liaison AdMob ↔ fiche Play.
+5. **Prochaine session : nouvelles fonctionnalités** (le propriétaire les donnera).
+
+## Actions du propriétaire en attente (avant le 12 octobre)
 - Fait le 11 octobre : règles Firestore republiées (scan mobile), widget « QR code d'échange » testé et validé, bandeau de pub gardé en continu sur les écrans de consultation.
 - Firebase › Authentication › Modèles › Vérification de l'adresse e-mail : nom d'expéditeur « Mana Orbit », langue française.
 - Firebase › Authentication › Domaines autorisés : `manaorbit.app` (et garder `card.m2s-photo.fr`).
@@ -65,4 +82,4 @@
   - en cas de refus : plan B (decks préconstruits MTGJSON, decks générés depuis Scryfall, EDHTop16 pour le cEDH) — détail dans `docs/a-faire.md`.
 
 ## Prochaine étape proposée
-1. Préparation Play Store : nom de domaine, test fermé, AdMob réel (`docs/a-faire.md` › « Avant la publication »).
+1. Voir « Où on en est (12 octobre au soir) » plus haut.
