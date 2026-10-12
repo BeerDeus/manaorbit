@@ -439,7 +439,7 @@ async function openApp(lang) {
   await p.waitForFunction(() => !collMissing().length && !COLL.enrich, null, { timeout: 60000 });
   await p.addStyleTag({ content: '.coll-sync{display:none!important}#toast{display:none!important}' });      // « compte indisponible » : Firebase est coupé ici, pas chez l'utilisateur ; ni toasts (éditions posées au premier lancement…)
   await p.evaluate(() => { window.edhGate = () => 'ok'; edhGateSync(); });      // decks EDHREC réservés aux comptes vérifiés : vus comme par un compte (Firebase est coupé ici)
-  await p.waitForFunction(() => EDH.data && HM.best, null, { timeout: 60000 });
+  await p.evaluate(() => edhEnsure()); await p.waitForFunction(() => EDH.data && edhRows().length, null, { timeout: 60000 });      // decks EDHREC lus (captures « À monter » et « deck »)
   return c;
 }
 /** Revient à l'accueil : ferme feuilles, visionneuses, scan, collection, decks. */
@@ -469,7 +469,7 @@ const SHOTS = [
       await p.waitForTimeout(1200); await imgsReady(p); await p.waitForTimeout(400);
     } },
   { id: '02-accueil', en: '02-home', cap: { fr: ['La *cote* de ta collection', 'Au prix tendance Cardmarket, mise à jour chaque jour'], en: ['Your collection, *valued*', 'Cardmarket trend prices, updated daily'] },
-    async go(p) { await p.waitForFunction(() => HM.v != null && HM.v === homeValue() && [...document.querySelectorAll('#hmFan img')].length === 3, null, { timeout: 20000 }); await imgsReady(p); await p.waitForTimeout(2600); } },
+    async go(p) { await p.waitForFunction(() => HM.v != null && HM.v === homeValue() && document.querySelector('#hmTrade') && !document.querySelector('#nav.off'), null, { timeout: 20000 }); await imgsReady(p); await p.waitForTimeout(2600); } },      // accueil : valeur, carte Échange, barre du bas
   { id: '03-echange', en: '03-trade', cap: { fr: ['Tes échanges *en un lien*', 'Lien ou QR code, doublons et recherches toujours à jour'], en: ['Trade with *one link*', 'Link or QR code, spares and wants always up to date'] },
     async go(p) {
       await p.evaluate(() => openCollection('trade')); await p.waitForSelector('.coll.on .tr-box'); await p.waitForTimeout(1000);
@@ -491,7 +491,7 @@ const SHOTS = [
       await p.selectOption('#optSort', 'price-desc'); await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(900);
     } },
   { id: '08-deck', en: '08-deck', cap: { fr: ['Chaque deck *en un coup d\'œil*', 'Valeur, courbe de mana, main de départ'], en: ['Every deck *at a glance*', 'Value, mana curve, opening hand'] },
-    async go(p) { await p.evaluate(() => { const r = HM.best.r; openDeckViewer({ text: edhDeckText(r.deck), name: r.cmd.names.join(' + ') }); }); await p.waitForSelector('.dv.on'); await p.waitForTimeout(2500); await imgsReady(p); await p.waitForTimeout(500); } },
+    async go(p) { await p.evaluate(() => { const r = edhRows()[0]; openDeckViewer({ text: edhDeckText(r.deck), name: r.cmd.names.join(' + ') }); }); await p.waitForSelector('.dv.on'); await p.waitForTimeout(2500); await imgsReady(p); await p.waitForTimeout(500); } },
 ];
 
 /* ── Composition : fond aurore, légende, écran de l'appli ─────────────────────────────────────────────────────────────────────────────── */
