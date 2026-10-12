@@ -166,7 +166,7 @@ const errsAll = [];
   assert.equal(await p.evaluate(() => SC.el === window.__scEl), true, 'puis retour au mode ajout, même écran');
   await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !SC.el);
   await p.evaluate(() => window.__mo.ls.open({ view: 'quick' })); await p.waitForSelector('.scan.on', { timeout: 3000 });
-  assert.deepEqual(await p.evaluate(() => [SC.pm, document.querySelector('.scan').classList.contains('pm'), document.querySelector('.sc-pmode').getAttribute('aria-pressed')]), [true, true, 'true'], 'prix rapide : scan ouvert en mode prix');
+  assert.deepEqual(await p.evaluate(() => [SC.pm, document.querySelector('.scan').classList.contains('pm'), document.querySelector('.sc-pmode').getAttribute('aria-checked')]), [true, true, 'true'], 'prix rapide : scan ouvert en mode prix');
   await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !SC.el);
   await p.context().close();
   // choix gardé : relu au lancement suivant (premier envoi déjà en « quick »), réglage coché

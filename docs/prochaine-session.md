@@ -16,6 +16,19 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
   - l'**accueil épuré** : cote de la collection, échanges (« Pour toi », QR), prochaines extensions ; plus de tuile « Deck à monter » si Decks a sa section ;
   - l'**onglet Decks** avec le bouton « Filtres » (point 4) et l'aide réécrite (point 5).
 - Le propriétaire choisit, puis on code. Il aime choisir entre 2 ou 3 versions pour le visuel.
+- **Fait le 12 octobre** : maquettes dans le canevas https://claude.ai/artifact/Q78cqZyb3PEDPkNTH5YZfR (page « Version retenue » ; pistes A, B, C sur l'autre page). Faites d'après des captures de la vraie appli (390 × 844, thème sombre, monde des tests), pas d'après les images de la fiche Play. **Choix du propriétaire** :
+  - barre du bas **A** : Accueil · Collection · **Scanner** (gros bouton foil au centre) · Échange · Decks ;
+  - **accueil A** : orbite comme aujourd'hui (rayon 112 px, cercles de 44 px, entièrement visibles en tournant) + **cercle de l'orbite en pointillés** ; carte Échange (QR, Partager, « Pour toi » : listes d'amis ouvertes récemment, nouvelle fonction) ; prochaines extensions ; plus de tuiles « Deck à monter », « Prix rapide », ni « Nouveau panier » ;
+  - **Decks B** : onglets soulignés **Mes decks** (écran d'arrivée) · À monter · Prix d'une liste ; « À monter » : recherche (Commandant / Carte), « Classer … puis … » en liste déroulante, bouton « Filtres (N) », pastilles des filtres actifs ; cartes de deck compactes ;
+  - **Collection B** : carte de valeur (courbe 7 j) en haut, onglets Cartes · Stats, **symbole d'édition par ligne gardé** (rond plein / pointillés « à choisir ») ;
+  - filtres des Decks dans une **feuille du bas** (« Voir N decks ») ; aide des Decks réécrite (une info par ligne) validée ;
+  - icône du bouton Scanner : **n° 1 « Carte visée »** (viseur + carte + rayon de scan, SVG) ;
+  - **pub sous l'en-tête** (bandeau natif pleine largeur, fixe, écart avec les boutons au-dessus et en dessous) ;
+  - **plein écran** : barre d'état cachée (en-tête sur la ligne de la caméra frontale, position de la découpe transmise par l'appli), **barre de gestes gardée** en bas. Code natif : versionCode + 1.
+- **Avant de mettre la nouvelle navigation en production** : revoir le **scanner** (plus beau, plus simple, plus rapide, extension choisie dès la première carte). Maquettes à proposer, voir l'étape 1 bis.
+
+## 1 bis. Scanner revu (après le choix des maquettes du scanner)
+- À faire avant la mise en production de la nouvelle navigation (demande du 12 octobre). Propositions et maquettes : page « Scanner » du canevas.
 
 ## 2. Onglet CardTrader toujours visible, même sans token (petit)
 - Aujourd'hui : le choix Cardmarket / CardTrader de « Nouveau panier » (`modeLabel`, `src/app.js`) est caché sans token (`ctReady()`), ainsi que la bascule CM / CT de la tuile valeur (Stats).

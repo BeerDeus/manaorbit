@@ -37,17 +37,17 @@ await routeCdn(ctx); await p.goto(world.url); await p.waitForTimeout(700);
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on');
 await p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'no', null, { timeout: 5000 });
 assert.match(await txt(p, '.sc-nocam'), /Aucun appareil photo/); assert.equal(await p.$eval('.sc-hint', h => h.hidden), true, 'un seul message : la vraie cause, à la place du message générique'); assert.equal(await p.$eval('#scFile', i => i.multiple), true);
-await p.screenshot({ path: 'shots/scan-0-ouverture.png' }); assert.equal(await p.getAttribute('#scCam', 'capture'), 'environment', '« Appareil » : ouvre l\'appareil photo du téléphone'); assert.match(await p.getAttribute('#scCam', 'accept'), /image/);
+await p.screenshot({ path: 'shots/scan-0-ouverture.png' }); assert.equal(await p.$('#scCam'), null, 'plus de bouton « Appareil » : « Photos » propose aussi l\'appareil photo du téléphone'); assert.match(await p.getAttribute('#scFile', 'accept'), /image/);
 assert.equal(await p.$('#scLang'), null, 'plus de choix de langue'); assert.equal(await p.$('#scMode'), null, 'plus de mode « plusieurs cartes »'); assert.equal(await p.$('#scAuto'), null, 'plus de lecture automatique');
-ok('écran de scan : sans appareil photo, message clair, « Photos » et « Appareil » disponibles, plus de langue ni de mode multiple');
-// aide fermable : × la masque, le choix est retenu d'un scan à l'autre, « ? » la rouvre
-assert.equal(await p.isVisible('.sc-note'), true, 'aide visible au départ');
-await p.click('.sc-note [data-act="note"]'); assert.equal(await p.isVisible('.sc-note'), false); assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:scnote')), 'off');
-await p.screenshot({ path: 'shots/scan-0b-aide-fermee.png' });
+ok('écran de scan : sans appareil photo, message clair, « Photos » disponible, plus de langue ni de mode multiple');
+// aide : fermée au départ, « ? » l'ouvre, × la referme ; fermée à chaque ouverture du scan
+assert.equal(await p.isVisible('.sc-note'), false, 'aide fermée au départ'); assert.equal(await p.getAttribute('.sc-help', 'aria-pressed'), 'false');
+await p.click('.sc-help'); assert.equal(await p.isVisible('.sc-note'), true); assert.equal(await p.getAttribute('.sc-help', 'aria-pressed'), 'true');
+await p.click('.sc-note [data-act="note"]'); assert.equal(await p.isVisible('.sc-note'), false);
+await p.click('.sc-help'); await p.screenshot({ path: 'shots/scan-0b-aide.png' });
 await p.click('.scan [data-act="close"]'); await p.waitForTimeout(400); await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on');
-assert.equal(await p.isVisible('.sc-note'), false, 'aide restée fermée au scan suivant'); assert.equal(await p.getAttribute('.sc-help', 'aria-pressed'), 'false');
-await p.click('.sc-help'); assert.equal(await p.isVisible('.sc-note'), true); assert.equal(await p.getAttribute('.sc-help', 'aria-pressed'), 'true'); assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:scnote')), null);
-ok('aide fermable (×), retenue d\'un scan à l\'autre, rouverte par « ? »');
+assert.equal(await p.isVisible('.sc-note'), false, 'aide refermée au scan suivant'); assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:scnote')), null);
+ok('aide fermée au départ, ouverte par « ? », refermée par ×');
 
 const t0 = Date.now();
 await p.setInputFiles('#scFile', ['swords.jpg', 'crater.jpg', 'wrath.jpg', 'llanowar.jpg', 'edgar.jpg', 'blurry.jpg', 'nonsense.jpg'].map(fx));
@@ -82,7 +82,7 @@ await p.click('.sc-item[data-k="wrath of god"] [data-a="inc"]');
 await p.click('.sc-item[data-k="llanowar elves"] [data-a="del"]');
 assert.equal((await items(p)).find(x => x.name === 'Wrath of God').q, 2); assert.ok(!(await items(p)).some(x => x.name === 'Llanowar Elves'));
 const want = (await items(p)).filter(x => !x.maybe), total = want.reduce((a, x) => a + x.q, 0);
-assert.match(await txt(p, '.scan .dv-foot [data-act="done"]'), new RegExp(`Ajouter ${total} cartes`));
+assert.match(await txt(p, '.scan .sc-count'), new RegExp(`^${total} cartes$`)); assert.equal(await txt(p, '.scan .dv-foot [data-act="done"]'), 'Ajouter');
 // fiche récap : le tap sur « Ajouter » ouvre d'abord les stats ; « Retour » garde le scan ouvert
 await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet .rc-facts', { timeout: 3000 });
 await p.waitForFunction(() => !/…/.test(document.querySelector('.rc-sheet .rc-val b').textContent), null, { timeout: 5000 });
@@ -146,8 +146,8 @@ ok('langue des cartes : détectée au scan, puce drapeau modifiable, image Scryf
 // carte « à vérifier » : la photo prise s'affiche au-dessus ; l'aperçu s'ouvre en grand (avec la photo) ; barres : capture en bas, Annuler / Ajouter sous l'image
 await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on');
 const bars = await p.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(), st = r('.sc-stage'), ft = r('.scan .dv-foot'), bar = r('.sc-bar'), ls = r('.sc-list'); return { ftBelowStage: ft.top >= st.bottom - 1, barBelowFoot: bar.top > ft.bottom - 1, barBelowList: bar.top >= ls.bottom - 1 }; });
-assert.deepEqual(bars, { ftBelowStage: true, barBelowFoot: true, barBelowList: true }, 'Annuler / Ajouter juste sous la caméra, bouton de capture + Photos/Appareil tout en bas');
-assert.match(await txt(p, '.scan .dv-foot'), /Annuler/); assert.match(await txt(p, '.sc-bar'), /Photos/); assert.match(await txt(p, '.sc-bar'), /Appareil/); assert.ok(await p.$('.sc-bar #scShot, .sc-bar .sc-shot, .sc-bar [data-act="shot"]'), 'bouton rond dans la barre du bas');
+assert.deepEqual(bars, { ftBelowStage: true, barBelowFoot: true, barBelowList: true }, 'en-tête de la liste (« Ajouter ») juste sous la caméra, bouton de capture + Photos tout en bas');
+assert.match(await txt(p, '.scan .dv-foot'), /Ajouter/); assert.match(await txt(p, '.sc-bar'), /Photos/); assert.doesNotMatch(await txt(p, '.sc-bar'), /Appareil/); assert.ok(await p.$('.sc-bar #scShot, .sc-bar .sc-shot, .sc-bar [data-act="shot"]'), 'bouton rond dans la barre du bas');
 { const bb = await p.$eval('.sc-shot', e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }); assert.ok(bb[0] >= 80 && bb[0] === bb[1], 'déclencheur agrandi (84 px), rond : ' + bb); }
 const shot = await p.evaluate(() => { const c = document.createElement('canvas'); c.width = 320; c.height = 56; const g = c.getContext('2d'); g.fillStyle = '#e8dcc0'; g.fillRect(0, 0, 320, 56); g.fillStyle = '#111'; g.font = '30px serif'; g.fillText('So1 Rinq', 12, 38); return c.toDataURL('image/jpeg', .8); });
 await p.evaluate(s => scanAdd({ key: 'sol ring', name: 'Sol Ring', score: 0.78, raw: 'So1 Rinq', card: 'en' }, 1, true, s), shot);
@@ -156,8 +156,8 @@ assert.equal(await p.$('.sc-item:not(.maybe) .sc-pic'), null, 'pas de photo sur 
 await p.click('.sc-item.maybe .sc-th'); await p.waitForSelector('.imgv.on'); assert.equal(await p.isVisible('.imgv-shot'), true, 'visionneuse : photo prise visible'); assert.match(await p.$eval('.imgv-shot', i => i.src), /^data:image\/jpeg/); assert.match(await txt(p, '.imgv-extra'), /à vérifier/i);
 await p.waitForTimeout(700); await p.screenshot({ path: 'shots/scan-1d-verif.png' }); await p.keyboard.press('Escape'); await p.waitForSelector('.imgv', { state: 'detached' }); assert.equal(await p.isVisible('.scan.on'), true, 'Échap ferme la visionneuse seulement, pas l\'écran de scan');
 await p.evaluate(() => scanAdd({ key: 'sol ring', name: 'Sol Ring', score: 0.97, raw: 'Sol Ring', card: 'en' }, 1, false)); assert.equal(await p.$('.sc-item.maybe'), null, 'relue sûrement : plus « à vérifier »'); assert.equal(await p.$('.sc-pic'), null);
-await p.click('.scan .dv-foot [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
-ok('« à vérifier » : photo prise au-dessus, aperçu cliquable en grand avec la photo ; barres inversées (capture en bas)');
+await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+ok('« à vérifier » : photo prise au-dessus, aperçu cliquable en grand avec la photo ; en-tête sous la caméra, capture en bas');
 await p.waitForTimeout(300);
 assert.ok(!(await p.evaluate(() => JSON.stringify(localStorage))).includes('data:image'), 'aucune photo enregistrée dans le navigateur');
 
@@ -241,14 +241,14 @@ assert.equal(await c2.p.evaluate(() => SC.stream), null, 'caméra coupée à la 
 ok('caméra : le cercle prend la photo, lecture en arrière-plan sans figer l\'aperçu, 3 cartes enchaînées (la 3e en français), photos vidées');
 assert.deepEqual(c2.errs.filter(e => !/WebAssembly|worker/i.test(e)), []);
 await cam.close();
-// aperçu lent (la caméra simulée tourne à 24 images/s : on relève le seuil à 40 pour déclencher l'alerte) : 1re alerte → qualité réduite ; 2e → bouton « Appareil » mis en avant ; écran de diagnostic
+// aperçu lent (la caméra simulée tourne à 24 images/s : on relève le seuil à 40 pour déclencher l'alerte) : 1re alerte → qualité réduite ; 2e → bouton « Photos » mis en avant ; écran de diagnostic
 {
   const camS = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${TMP}/cam.mjpeg`] });
   const cs = await newPage(camS, world, { goto: false, perms: ['camera'] }); await routeCdn(cs.ctx); await cs.p.goto(world.url); await cs.p.waitForTimeout(600);
   await cs.p.evaluate(() => { SC.fpsMin = 40; });
   await toHome(cs.p); await cs.p.click('#btnColl'); await cs.p.waitForSelector('.coll.on'); await cs.p.click('.coll-tools [data-act="scan"]'); await cs.p.waitForSelector('.scan.on');
   await cs.p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'on', null, { timeout: 8000 });
-  assert.equal(await cs.p.evaluate(() => document.querySelector('.sc-native').classList.contains('hot')), false, 'au départ : bouton Photo discret');
+  assert.equal(await cs.p.evaluate(() => document.querySelector('.sc-photo').classList.contains('hot')), false, 'au départ : bouton Photos discret');
   // pendant une lecture (OCR) le téléphone est occupé : une image lente ne compte pas
   await cs.p.evaluate(() => { SC.working = true; }); await cs.p.waitForTimeout(8000);
   assert.equal(await cs.p.evaluate(() => SC.slowN), 0, 'aperçu lent pendant une lecture : ignoré'); await cs.p.evaluate(() => { SC.working = false; SC.workEnd = 0; });
@@ -259,19 +259,19 @@ await cam.close();
   assert.notEqual(r1.same, s0, 'nouveau flux après redémarrage'); assert.equal(r1.slow, false, 'au 1er redémarrage la qualité reste la même');
   await cs.p.waitForTimeout(1200); const tA = await cs.p.evaluate(() => document.querySelector('.sc-video').currentTime); await cs.p.waitForTimeout(800);
   assert.ok(await cs.p.evaluate(t => document.querySelector('.sc-video').currentTime > t, tA), 'l\'aperçu repart après le redémarrage');
-  // 2e : redémarrage ; 3e et 4e : redémarrage en qualité réduite (retenue) ; 5e : bouton « Appareil » mis en avant
+  // 2e : redémarrage ; 3e et 4e : redémarrage en qualité réduite (retenue) ; 5e : bouton « Photos » mis en avant
   await cs.p.waitForFunction(() => SC.slowN >= 3, null, { timeout: 60000 });
   assert.equal(await cs.p.evaluate(() => localStorage.getItem('deckdeal:cam2')), 'slow', 'appareil lent mémorisé');
   await cs.p.waitForFunction(() => SC.slowN >= 5, null, { timeout: 60000 });
-  const st = await cs.p.evaluate(() => ({ hot: document.querySelector('.sc-native').classList.contains('hot'), hint: document.querySelector('.sc-hint').textContent, rs: SC.restarts }));
-  assert.equal(st.hot, true, 'bouton « Appareil » mis en avant'); assert.match(st.hint, /« Appareil »/); assert.equal(st.rs, 4, 'quatre redémarrages puis on arrête');
-  for (let i = 0; i < 5; i++) await cs.p.click('.scan .dv-title b');
+  const st = await cs.p.evaluate(() => ({ hot: document.querySelector('.sc-photo').classList.contains('hot'), hint: document.querySelector('.sc-hint').textContent, rs: SC.restarts }));
+  assert.equal(st.hot, true, 'bouton « Photos » mis en avant'); assert.match(st.hint, /« Photos »/); assert.equal(st.rs, 4, 'quatre redémarrages puis on arrête');
+  for (let i = 0; i < 5; i++) await cs.p.click('.scan .sc-count');
   const dg = await cs.p.evaluate(() => { const d = document.querySelector('.sc-diag'); return { hidden: d.hidden, t: d.textContent }; });
   console.log('  diagnostic :', dg.t); assert.equal(dg.hidden, false); assert.match(dg.t, /aperçu .* i\/s/); assert.match(dg.t, /mode lent/); assert.match(dg.t, /redémarrages 4/);
   await cs.p.click('.sc-diag'); assert.equal(await cs.p.evaluate(() => localStorage.getItem('deckdeal:cam2')), null, 'toucher le diagnostic : retour au mode normal');
   await cs.p.click('.scan [data-act="close"]'); await camS.close();
 }
-ok('caméra lente : 4 redémarrages dont 2 en qualité réduite, bouton « Appareil » ; rien pendant une lecture ; diagnostic (5 appuis sur le titre)');
+ok('caméra lente : 4 redémarrages dont 2 en qualité réduite, bouton « Photos » ; rien pendant une lecture ; diagnostic (5 appuis sur le nombre de cartes)');
 
 // plancher de 24 i/s demandé d'abord ; si l'appareil le refuse (OverconstrainedError), repli sur une simple préférence ; l'ancien indicateur « lent » est ignoré
 {
@@ -292,7 +292,7 @@ ok('caméra lente : 4 redémarrages dont 2 en qualité réduite, bouton « Appar
 }
 ok('caméra : plancher 24 i/s demandé d\'abord, repli si refusé');
 
-/* ── C) « Appareil » : photos portrait du téléphone, nom et mana dans le tiers haut ─────────────────────────────── */
+/* ── C) « Photos », une à la fois (appareil photo du téléphone) : photos portrait, nom et mana dans le tiers haut ─────────────────────────────── */
 {
 const py = `
 from PIL import Image
@@ -318,13 +318,13 @@ await toHome(cn.p); await cn.p.click('#btnColl'); await cn.p.waitForSelector('.c
 await cn.p.evaluate(() => { window.__imgs = []; const o = loadImage; loadImage = async f => { const i = await o(f); window.__imgs.push(i); return i; }; });
 // on enchaîne : chaque photo arrive pendant que la précédente est encore en lecture
 const files = ['p1', 'p2', 'p3', 'p4', 'p5'].map(n => `${TMP}/${n}.jpg`);
-await cn.p.setInputFiles('#scCam', files[0]);
+await cn.p.setInputFiles('#scFile', files[0]);
 const t1 = await cn.p.evaluate(() => ({ pend: SC.pend.map(x => x.label), cap: SC.cap })); assert.deepEqual(t1.pend, ['Carte 1'], 'la photo prise apparaît tout de suite dans la liste, en attente de lecture');
-for (const f of files.slice(1)) { await cn.p.setInputFiles('#scCam', f); await cn.p.waitForTimeout(150); }
+for (const f of files.slice(1)) { await cn.p.setInputFiles('#scFile', f); await cn.p.waitForTimeout(150); }
 assert.ok(await cn.p.evaluate(() => SC.pend.length >= 2), 'on enchaîne sans attendre la fin de la lecture');
 await idle(cn.p, 280000);
 const fin = await cn.p.evaluate(() => [...SC.items.values()].map(x => [x.name, x.q, x.maybe]));
-console.log('  Appareil :', fin.map(x => `${x[0]} ×${x[1]}${x[2] ? '?' : ''}`).join(' · '), '· non lu :', (await misses(cn.p)).join(', '));
+console.log('  Photos une à une :', fin.map(x => `${x[0]} ×${x[1]}${x[2] ? '?' : ''}`).join(' · '), '· non lu :', (await misses(cn.p)).join(', '));
 assert.deepEqual(fin.map(x => x[0]).sort(), ['Arcane Signet', 'Craterhoof Behemoth', 'Swords to Plowshares'], 'les cartes lues (titre dans le tiers haut, photo tournée par EXIF, carte française)');
 assert.equal(fin.find(x => x[0] === 'Swords to Plowshares')[1], 2, 'deux photos = deux exemplaires'); assert.ok(fin.every(x => !x[2]));
 assert.deepEqual((await misses(cn.p)).map(x => x.replace(/ ·.*$/, '')), ['Carte 5'], 'titre hors du tiers haut : jamais lu (le reste de l\'image ne sert à rien)');
@@ -335,7 +335,7 @@ assert.ok(fr.th.every(n => n > 200 && n < 9000), 'vignette minuscule du tiers ha
 assert.ok(!(await cn.p.evaluate(() => JSON.stringify(localStorage))).includes('data:image'), 'aucune photo enregistrée');
 await cn.p.screenshot({ path: 'shots/scan-3-appareil.png' });
 await cn.p.click('.scan [data-act="close"]'); await cn.p.waitForTimeout(400);
-ok('« Appareil » : 5 photos portrait enchaînées (titre bas dans le tiers haut, EXIF, français), lecture en arrière-plan, tiers haut seulement, photos vidées');
+ok('« Photos » une à une : 5 photos portrait enchaînées (titre bas dans le tiers haut, EXIF, français), lecture en arrière-plan, tiers haut seulement, photos vidées');
 assert.deepEqual(cn.errs.filter(e => !/WebAssembly|worker/i.test(e)), []);
 await camN.close();
 }

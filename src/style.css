@@ -997,10 +997,7 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .sc-shot:active{transform:scale(.92)}
 .sc-photo{position:relative;justify-self:start;cursor:pointer;gap:6px}
 .sc-photo input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
-.sc-native{position:relative;justify-self:end;cursor:pointer;gap:6px}
-.sc-native.hot{background:var(--accent);color:#fff;border-color:transparent;animation:scpulse 1.6s ease-in-out infinite}
 @keyframes scpulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 28%,transparent)}}
-.sc-native input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
 .sc-diag{pointer-events:auto;position:absolute;left:8px;right:8px;top:8px;margin:0;padding:5px 8px;border-radius:8px;background:rgba(0,0,0,.72);color:#9bffc5;font:11px/1.35 var(--font-code);word-break:break-word}
 .sc-diag[hidden]{display:none}
 .sc-cat{flex:none;margin:8px 16px 0}
@@ -1008,8 +1005,6 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .sc-note[hidden]{display:none}
 .sc-note .hint{flex:1;min-width:0;margin:0}
 .sc-note .sc-x{flex:none;margin-top:-4px}
-.sc-help{margin-left:auto;flex:none;font-weight:700;font-size:16px}
-.sc-help[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:transparent}
 .sc-list{padding:10px 16px;display:flex;flex-direction:column;gap:6px}
 .sc-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:8px 8px 8px 8px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
 .sc-item.maybe{border-color:var(--warn);background:var(--warn-soft)}
@@ -1057,7 +1052,7 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .vl-sum{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line);font-size:13px;color:var(--ink-2)}
 .vl-sum b{font-family:var(--font-mono);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .cs-top .vl-mp b{font-family:var(--font-mono);font-weight:600;font-size:14px}
-@media (prefers-reduced-motion:reduce){.sc-flash.go,.sc-spin,.sc-native.hot{animation:none}}
+@media (prefers-reduced-motion:reduce){.sc-flash.go,.sc-spin,.sc-photo.hot .sc-bi{animation:none}}
 
 /* ═══ Finitions : listes groupées, pastilles pleines, ressorts et transitions ══════════════════════════════
    Surfaces à plat (l'ombre est réservée à ce qui flotte : barre du bas, feuilles, toast), un seul moment fort (l'anneau foil du total). */
@@ -1193,9 +1188,6 @@ button,.btn,select,summary{touch-action:manipulation}
 .deck-meta .mounted{color:var(--accent);font-weight:620}
 
 /* ── Scan : prix rapide ── */
-.sc-pmode{flex:none;margin-left:auto;font-weight:700;font-size:16px}
-.sc-pmode+.sc-help{margin-left:0}
-.sc-pmode[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:transparent}
 .sc-item.pr{grid-template-columns:auto minmax(0,1fr) auto auto auto;gap:8px}
 .sc-item.pr .row-px{align-items:flex-end;gap:2px}
 .sc-item.pr .px.wait b{opacity:.45;animation:pulse 1.1s ease-in-out infinite}

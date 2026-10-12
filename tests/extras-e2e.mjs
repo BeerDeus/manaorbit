@@ -132,9 +132,9 @@ const errsOf = [];
 {
   const { p, errs } = await newPage(browser, world, { init: seed('1 Sol Ring *FR*') }); errsOf.push(errs);
   await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll-tools [data-act="scan"]'); await p.waitForSelector('.scan.on');
-  assert.equal(await p.$eval('.sc-pmode', b => b.getAttribute('aria-pressed')), 'false'); assert.match(await txt(p, '.dv-foot'), /Annuler/);
-  await p.click('.sc-pmode'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true);
-  assert.match(await txt(p, '.sc-sub'), /Prix rapide/); assert.equal(await p.$eval('.dv-foot [data-act="done"]', b => b.hidden), true, 'rien à ajouter en mode prix'); assert.match(await txt(p, '.dv-foot'), /Fermer/);
+  assert.equal(await p.$eval('.sc-pmode', b => b.getAttribute('aria-checked')), 'false'); assert.match(await txt(p, '.dv-foot'), /Ajouter/);
+  await p.click('.sc-pmode'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true); assert.equal(await p.$eval('.sc-pmode', b => b.getAttribute('aria-checked')), 'true');
+  assert.equal(await txt(p, '.sc-count'), 'Prix rapide'); assert.match(await txt(p, '.sc-sub'), /Rien n'est ajouté/); assert.equal(await p.$eval('.dv-foot [data-act="done"]', b => b.hidden), true, 'rien à ajouter en mode prix');
   await p.evaluate(() => { scanPriceAdd({ key: 'sol ring', name: 'Sol Ring', card: 'fr', score: 0.95, raw: 'Sol Ring' }); scanPriceAdd({ key: 'craterhoof behemoth', name: 'Craterhoof Behemoth', card: 'fr', score: 0.78, raw: 'Craterhoof Behemolh' }); });
   await p.waitForFunction(() => document.querySelectorAll('.sc-item.pr .px.ct:not(.wait)').length === 2, null, { timeout: 20000 });
   const rows = await p.$$eval('.sc-item.pr', r => r.map(x => ({ n: x.querySelector('.sc-n b').textContent, cm: (x.querySelector('.px.cm b') || {}).textContent, ct: (x.querySelector('.px.ct b') || {}).textContent, own: !!x.querySelector('.tag.good'), maybe: x.classList.contains('maybe') })));
@@ -144,10 +144,11 @@ const errsOf = [];
   assert.match(norm(rows[0].cm), /9,00 €/); assert.match(norm(rows[0].ct), /9,00 €/);
   assert.equal(rows[1].own, true, 'Sol Ring déjà possédée'); assert.equal(rows[0].own, false); assert.equal(rows[0].maybe, true, 'lecture douteuse signalée');
   assert.deepEqual(await coll(p), { 'sol ring': '1/fr' }, 'rien n\'a été ajouté à la collection');
-  // total estimé du lot, à côté de « Fermer »
+  // total estimé du lot, dans l'en-tête de la liste
   assert.equal(await p.isVisible('.dv-foot .sc-total'), true); const lot = async () => norm(await txt(p, '.dv-foot .sc-total'));
   assert.match(await lot(), /Lot : 2 cartes/); assert.match(await lot(), /CM 10,50 €/, 'CM : 1,50 + 9,00'); assert.match(await lot(), /CT 10,50 €/, 'CT : 1,50 + 9,00');
-  assert.equal(await p.evaluate(() => { const f = document.querySelector('.dv-foot'), c = f.querySelector('[data-act="close"]').getBoundingClientRect(), t = f.querySelector('.sc-total').getBoundingClientRect(); return t.left >= c.right - 1 && Math.abs((t.top + t.height / 2) - (c.top + c.height / 2)) < 20; }), true, 'à droite de « Fermer »');
+  assert.equal(await p.evaluate(() => { const f = document.querySelector('.dv-foot'), c = f.querySelector('.sc-headt').getBoundingClientRect(), t = f.querySelector('.sc-total').getBoundingClientRect(); return t.left >= c.right - 1 && Math.abs((t.top + t.height / 2) - (c.top + c.height / 2)) < 20; }), true, 'à droite de « Prix rapide »');
+  assert.match(await txt(p, '.sc-sub'), /2 cartes lues/);
   await p.screenshot({ path: 'shots/scan-prix-lot.png' });
   await p.evaluate(() => scanPriceAdd({ key: 'sol ring', name: 'Sol Ring', card: 'fr', score: 0.95, raw: 'Sol Ring' }));      // relue : 2 exemplaires dans le lot
   await p.waitForSelector('.sc-item.pr[data-k="sol ring"] .sc-cnt'); assert.match(norm(await txt(p, '.sc-cnt')), /× 2/);
@@ -159,7 +160,7 @@ const errsOf = [];
   await p.click('.sc-item.pr[data-k="sol ring"] [data-a="prm"]'); assert.equal(await p.$$eval('.sc-item.pr', e => e.length), 1);
   assert.match(await lot(), /Lot : 1 carte(?!s)/); assert.match(await lot(), /CM 9,00 €/, 'le total suit la liste');
   // retour au mode ajout : le bouton « Ajouter » revient
-  await p.click('.sc-pmode'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), false); assert.equal(await p.$eval('.dv-foot [data-act="done"]', b => b.hidden), false); assert.match(await txt(p, '.dv-foot'), /Annuler/); assert.equal(await p.isVisible('.dv-foot .sc-total'), false, 'pas de total en mode ajout');
+  await p.click('.sc-amode'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), false); assert.equal(await p.$eval('.dv-foot [data-act="done"]', b => b.hidden), false); assert.match(await txt(p, '.dv-foot'), /Ajouter/); assert.equal(await p.isVisible('.dv-foot .sc-total'), false, 'pas de total en mode ajout');
   ok('scan prix rapide : CM + CT lus, déjà possédée signalée, doute signalé, rien ajouté sans « + », retour au mode ajout');
   await p.context().close();
 }
@@ -168,9 +169,9 @@ const errsOf = [];
   const { p, errs } = await newPage(browser, world, { init: seed('1 Sol Ring *FR*') }); errsOf.push(errs);
   assert.ok(await p.isVisible('#btnQuick'), 'bouton visible sur l\'accueil'); assert.match(await txt(p, '#btnQuick'), /Prix rapide/);
   await toHome(p); await p.click('#btnQuick'); await p.waitForSelector('.scan.on');
-  assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true, 'scan ouvert en mode prix'); assert.equal(await p.$eval('.sc-pmode', b => b.getAttribute('aria-pressed')), 'true');
+  assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true, 'scan ouvert en mode prix'); assert.equal(await p.$eval('.sc-pmode', b => b.getAttribute('aria-checked')), 'true');
   assert.equal(await p.$eval('.dv-foot [data-act="done"]', b => b.hidden), true, 'rien à ajouter'); assert.equal(await p.$('.coll.on'), null, 'la collection n\'est pas ouverte');
-  await p.click('.scan .dv-foot [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+  await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
   await toHome(p); await p.click('#btnQuick'); await p.waitForSelector('.scan.on'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true, 'à chaque ouverture');
   ok('accueil : bouton « Prix rapide » → scan directement en mode prix (sans collection ouverte)');
   await p.context().close();

@@ -67,7 +67,7 @@ async function natPage(o = {}) {
   await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
   await p.waitForFunction(() => document.documentElement.classList.contains('nat-cam'), null, { timeout: 5000 });
   await gone(p); assert.equal(await n(p, 'removeBanner'), 2, 'scan natif : bandeau détruit (la caméra native laisse la page au-dessus : un bandeau masqué reviendrait dessous)'); assert.equal(await n(p, 'hideBanner'), 0);
-  assert.equal(await p.$eval('.scan .dv-head', e => getComputedStyle(e).paddingTop), '10px', 'scan : plus de marge');
+  assert.equal(await p.$eval('.scan .sc-tools', e => getComputedStyle(e).paddingTop), '8px', 'scan : plus de marge (boutons posés sur l\'image, en haut)');
   await p.waitForTimeout(500); assert.equal(await n(p, 'showBanner'), 1, 'pas de retour tant que le scan est ouvert');
   await p.evaluate(() => closeScan()); await shown(p);
   assert.equal(await n(p, 'showBanner'), 2, 'scan fermé : nouveau bandeau, au-dessus de la page'); assert.equal(await n(p, 'resumeBanner'), 0);
