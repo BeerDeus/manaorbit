@@ -44,5 +44,18 @@
   "Carte par carte": "Carta por carta",
   "Booster, boîte : tu choisis l'édition de la 1re carte, les suivantes la prennent ; une carte d'une autre extension te demande la sienne.": "Sobre, caja: eliges la edición de la 1.ª carta y las siguientes la toman; una carta de otra expansión te pide la suya.",
   "Deck, classeur : choisies à la fin du scan, en voyant les illustrations.": "Mazo, carpeta: se eligen al final del escaneo, viendo las ilustraciones.",
-  "Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.": "Lo más rápido: solo carta e idioma, para precisar más tarde en tu colección."
+  "Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.": "Lo más rápido: solo carta e idioma, para precisar más tarde en tu colección.",
+  "Allumer la lampe": "Encender la linterna",
+  "Éteindre la lampe": "Apagar la linterna",
+  "La lampe n'a pas pu s'allumer": "No se pudo encender la linterna",
+  "Auto en pause": "Auto en pausa",
+  "Auto en pause : touche le cercle pour reprendre": "Auto en pausa: toca el círculo para reanudar",
+  "Auto · lecture en continu": "Auto · lectura continua",
+  "Encore <em>{name}</em> ?": "¿Otra vez <em>{name}</em>?",
+  "Même carte qu'à l'instant": "La misma carta que hace un momento",
+  "Mettre le scan automatique en pause": "Pausar el escaneo automático",
+  "Reprendre le scan automatique": "Reanudar el escaneo automático",
+  "Nom pas reconnu : redresse la carte ou rapproche-la": "Nombre no reconocido: endereza la carta o acércala",
+  "Non": "No",
+  "Pose la carte, le nom dans la bande : elle s'ajoute seule": "Coloca la carta con el nombre en la banda: se añade sola"
 }

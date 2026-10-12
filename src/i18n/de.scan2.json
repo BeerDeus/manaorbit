@@ -44,5 +44,18 @@
   "Carte par carte": "Karte für Karte",
   "Booster, boîte : tu choisis l'édition de la 1re carte, les suivantes la prennent ; une carte d'une autre extension te demande la sienne.": "Booster, Box: Du wählst die Edition der 1. Karte, die nächsten übernehmen sie; eine Karte aus einem anderen Set fragt nach ihrer eigenen.",
   "Deck, classeur : choisies à la fin du scan, en voyant les illustrations.": "Deck, Ordner: am Ende des Scans gewählt, anhand der Illustrationen.",
-  "Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.": "Am schnellsten: nur Karte und Sprache, später in deiner Sammlung festlegen."
+  "Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.": "Am schnellsten: nur Karte und Sprache, später in deiner Sammlung festlegen.",
+  "Allumer la lampe": "Licht einschalten",
+  "Éteindre la lampe": "Licht ausschalten",
+  "La lampe n'a pas pu s'allumer": "Das Licht ließ sich nicht einschalten",
+  "Auto en pause": "Auto pausiert",
+  "Auto en pause : touche le cercle pour reprendre": "Auto pausiert: Tippe auf den Kreis, um fortzufahren",
+  "Auto · lecture en continu": "Auto · liest laufend",
+  "Encore <em>{name}</em> ?": "Noch einmal <em>{name}</em>?",
+  "Même carte qu'à l'instant": "Dieselbe Karte wie eben",
+  "Mettre le scan automatique en pause": "Automatischen Scan pausieren",
+  "Reprendre le scan automatique": "Automatischen Scan fortsetzen",
+  "Nom pas reconnu : redresse la carte ou rapproche-la": "Name nicht erkannt: Karte gerade halten oder näher heranholen",
+  "Non": "Nein",
+  "Pose la carte, le nom dans la bande : elle s'ajoute seule": "Lege die Karte hin, Name im Streifen: Sie wird von selbst hinzugefügt"
 }

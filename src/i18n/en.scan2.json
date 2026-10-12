@@ -44,5 +44,18 @@
   "Carte par carte": "Card by card",
   "Booster, boîte : tu choisis l'édition de la 1re carte, les suivantes la prennent ; une carte d'une autre extension te demande la sienne.": "Booster, box: you choose the 1st card's edition, the next ones take it; a card from another set asks you for its own.",
   "Deck, classeur : choisies à la fin du scan, en voyant les illustrations.": "Deck, binder: chosen at the end of the scan, by looking at the artworks.",
-  "Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.": "The fastest: card and language only, to set later in your collection."
+  "Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.": "The fastest: card and language only, to set later in your collection.",
+  "Allumer la lampe": "Turn on the light",
+  "Éteindre la lampe": "Turn off the light",
+  "La lampe n'a pas pu s'allumer": "The light could not be turned on",
+  "Auto en pause": "Auto paused",
+  "Auto en pause : touche le cercle pour reprendre": "Auto paused: tap the circle to resume",
+  "Auto · lecture en continu": "Auto · reading continuously",
+  "Encore <em>{name}</em> ?": "<em>{name}</em> again?",
+  "Même carte qu'à l'instant": "Same card as just now",
+  "Mettre le scan automatique en pause": "Pause the automatic scan",
+  "Reprendre le scan automatique": "Resume the automatic scan",
+  "Nom pas reconnu : redresse la carte ou rapproche-la": "Name not recognised: straighten the card or bring it closer",
+  "Non": "No",
+  "Pose la carte, le nom dans la bande : elle s'ajoute seule": "Place the card with its name in the strip: it adds itself"
 }

@@ -44,5 +44,18 @@
   "Carte par carte": "Card por card",
   "Booster, boîte : tu choisis l'édition de la 1re carte, les suivantes la prennent ; une carte d'une autre extension te demande la sienne.": "Booster, caixa: você escolhe a edição do 1º card, os próximos a usam; um card de outra expansão pede a dele.",
   "Deck, classeur : choisies à la fin du scan, en voyant les illustrations.": "Deck, fichário: escolhidas no final do escaneamento, vendo as ilustrações.",
-  "Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.": "O mais rápido: só card e idioma, para ajustar depois na sua coleção."
+  "Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.": "O mais rápido: só card e idioma, para ajustar depois na sua coleção.",
+  "Allumer la lampe": "Acender a lanterna",
+  "Éteindre la lampe": "Apagar a lanterna",
+  "La lampe n'a pas pu s'allumer": "Não foi possível acender a lanterna",
+  "Auto en pause": "Auto em pausa",
+  "Auto en pause : touche le cercle pour reprendre": "Auto em pausa: toque no círculo para retomar",
+  "Auto · lecture en continu": "Auto · leitura contínua",
+  "Encore <em>{name}</em> ?": "<em>{name}</em> de novo?",
+  "Même carte qu'à l'instant": "O mesmo card de agora há pouco",
+  "Mettre le scan automatique en pause": "Pausar o escaneamento automático",
+  "Reprendre le scan automatique": "Retomar o escaneamento automático",
+  "Nom pas reconnu : redresse la carte ou rapproche-la": "Nome não reconhecido: endireite o card ou aproxime-o",
+  "Non": "Não",
+  "Pose la carte, le nom dans la bande : elle s'ajoute seule": "Posicione o card com o nome na faixa: ele é adicionado sozinho"
 }
