@@ -19,3 +19,6 @@ android-app/android/app/google-services.json
 *firebase-adminsdk*.json
 service-account*.json
 *service-account*.json
+# Clés de signature Android (.jks, .keystore) : jamais dans le dépôt, où qu'elles soient posées
+*.jks
+*.keystore
