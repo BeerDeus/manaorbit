@@ -253,6 +253,7 @@ Avant d'envoyer le formulaire, compare avec les pages officielles (elles changen
 | `fr/01-scan.png` … `fr/08-deck.png` | 1080 × 1920 (9:16) | Captures du téléphone, fiche française (8 au plus) |
 | `en/01-scan.png` … `en/08-deck.png` | 1080 × 1920 | Captures du téléphone, fiche anglaise |
 | `../../pwa/icons/icon-512.png` | 512 × 512 | Icône de l'appli |
+| `developer-header.jpg` | 4096 × 2304, JPEG | Image d'en-tête de la page de développeur (sans texte, valable pour une future appli sœur) ; icône de développeur : celle de l'appli |
 
 Les fichiers sont numérotés dans l'ordre de la fiche : envoie-les dans cet ordre. Le scan d'abord, comme chez tous les concurrents ; les deux premières comptent le plus (ce sont celles des résultats de recherche). L'échange vient en 3e : c'est ce qui distingue Mana Orbit des autres scanners.
 
