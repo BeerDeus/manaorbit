@@ -67,6 +67,14 @@ assert.equal(await p.$eval('.crow.dk .dk-pips .mc-g', e => getComputedStyle(e).b
 assert.deepEqual(d.map(x => x.tags.find(t => /Game Changer/.test(t))), [undefined, '4 Game Changers', '1 Game Changer', undefined], 'Game Changers : affichés seulement s\'il y en a');
 assert.equal(await p.$eval('.dk-ctl select[data-act="dsort"]', s => s.value), 'have', 'tri par défaut : le plus de cartes possédées');
 assert.deepEqual(await p.$$eval('.dk-ctl select[data-act="dsort"] option', o => o.map(x => x.textContent)), ['Plus possédées', 'Plus possédées, puis moins cher', 'Plus possédées, puis meilleur tier', 'Moins cher', 'Moins cher, puis plus possédées', 'Moins cher, puis meilleur tier', 'Meilleur tier', 'Meilleur tier, puis plus possédées', 'Meilleur tier, puis moins cher'], '« Classer » : une liste, tri puis 2nd tri');
+{ // « Classer » : un appui sur le libellé ou la flèche ouvre la liste (pas seulement sur la valeur)
+  await p.evaluate(() => { window.__pick = []; window.__sp = HTMLSelectElement.prototype.showPicker; HTMLSelectElement.prototype.showPicker = function () { window.__pick.push(this.dataset.act || this.id); }; });
+  const r = await p.$eval('.dk-ctl .dk-sort', l => { const b = l.getBoundingClientRect(), t = l.querySelector('.dk-lbl').getBoundingClientRect(); return { lx: t.left + t.width / 2, y: b.top + b.height / 2, ax: b.right - 10 }; });
+  await p.mouse.click(r.lx, r.y); await p.mouse.click(r.ax, r.y);
+  assert.deepEqual(await p.evaluate(() => [window.__pick, document.activeElement && document.activeElement.dataset.act]), [['dsort', 'dsort'], 'dsort'], '« Classer » : libellé et flèche ouvrent la liste');
+  await p.evaluate(() => { HTMLSelectElement.prototype.showPicker = window.__sp; document.activeElement.blur(); });
+  ok('« Classer » : un appui n\'importe où sur la pastille ouvre la liste');
+}
 assert.equal(await txt(p, '[data-act="dfilt"]'), 'Filtres', 'aucun filtre actif'); assert.equal(await p.$('.dk-pills'), null);
 assert.match(await txt(p, '.dk-sum'), /4 decks sur 4/); assert.equal(await txt(p, '.coll-main > p.hint'), 'Decks des commandants les plus joués, comparés à ta collection. Prix Cardmarket du 03/10/2026.', 'intro raccourcie');
 assert.deepEqual(await p.$$eval('.dk-help .dk-hl li b', b => b.map(x => x.textContent)), ['Moyen', 'Archidekt', 'Tier', 'Game Changers et bracket', 'Classer par… puis…', 'Terrains de base'], 'aide : une information par ligne (types présents seulement)');

@@ -253,6 +253,13 @@ function openSheet(title, sub, build) {
   return api;
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheets.length) sheets[sheets.length - 1].close(); });
+// Listes en pastille (.sortsel : « Classer », « Trier »…) : un appui n'importe où sur la pastille (libellé, flèche, marges) ouvre la liste, pas seulement sur la valeur
+document.addEventListener('click', e => {
+  const l = e.target.closest && e.target.closest('.sortsel'); if (!l || e.target.closest('select')) return;
+  const s = l.querySelector('select'); if (!s || s.disabled) return;
+  e.preventDefault(); s.focus();
+  try { s.showPicker(); } catch (x) { /* navigateur sans showPicker : la liste a le focus */ }
+});
 
 /* ── Saisie ───────────────────────────────────────────────────────────────────────────────── */
 let draftT;
