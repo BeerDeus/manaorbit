@@ -474,8 +474,9 @@ const SHOTS = [
     async go(p) {
       await p.evaluate(() => openCollection('trade')); await p.waitForSelector('.coll.on .tr-box'); await p.waitForTimeout(1000);
       // lien public tel qu'il apparaît une fois connecté (ici, pas de compte Firebase) : même rendu que l'appli, adresse du site
-      await p.evaluate(() => { const u = D.user; D.user = { uid: 'store' }; TR.share = 'k7Qe2xPm4w'; const h = trShareBoxHtml(TR.st || trState()); D.user = u; TR.share = null; document.querySelector('.tr-box').outerHTML = h; document.querySelector('.tr-link input').value = 'https://manaorbit.app/?p=k7Qe2xPm4w'; });
-      await scrollIn(p, '.coll.on .dv-scroll', '.tr-box'); await imgsReady(p); await p.waitForTimeout(500);
+      const fake = () => p.evaluate(() => { if (document.querySelector('.tr-box .tr-link')) return false; const u = D.user; D.user = { uid: 'store' }; TR.share = 'k7Qe2xPm4w'; const h = trShareBoxHtml(TR.st || trState()); D.user = u; TR.share = null; document.querySelector('.tr-box').outerHTML = h; document.querySelector('.tr-link input').value = 'https://manaorbit.app/?p=k7Qe2xPm4w'; return true; });
+      await fake(); await scrollIn(p, '.coll.on .dv-scroll', '.tr-box'); await imgsReady(p); await p.waitForTimeout(500);
+      if (await fake()) { await scrollIn(p, '.coll.on .dv-scroll', '.tr-box'); await p.waitForTimeout(150); }      // la section s'est repeinte entre-temps (prix arrivés) : le lien est remis juste avant la capture
     } },
   { id: '04-decks-a-monter', en: '04-decks-to-build', cap: { fr: ['Les decks que tu peux *monter*', 'Decks Commander comparés à ta collection'], en: ['Decks you can *build*', 'Commander decks matched to your cards'] },
     async go(p) { await p.evaluate(() => openCollection('decks')); await p.waitForSelector('.dk-res .crow, .dk-res [role="button"]', { timeout: 30000 }); await p.waitForTimeout(1500); await scrollIn(p, '.coll.on .dv-scroll', '.dk-res .coll-list'); await imgsReady(p); await p.waitForTimeout(800); } },
