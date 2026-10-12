@@ -1,0 +1,19 @@
+/* ── pubdecks.css : decks publics (« Communauté ») : feuille « Publier », bouton du viewer, étiquette de l'auteur, signalement ── */
+.pub-intro{margin:0 0 12px}
+.pub-checks{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface)}
+.pub-checks li{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;font-size:14px;line-height:1.35}
+.pub-checks li+li{border-top:1px solid var(--line)}
+.pub-checks li>.i{flex:none;width:18px;height:18px}
+.pub-checks li.ok>.i{color:var(--good)}
+.pub-checks li.ko>.i{color:var(--warn)}
+.pub-checks li>span{flex:1;min-width:0}
+.pub-checks li>.link-btn{flex:none;font-size:13.5px}
+.pub-state,.pub-off,.pub-rules{margin:0 0 10px}
+.pub-off{color:var(--warn)}
+.pub-msg{margin-top:4px}
+.pub-msg .dot{background:var(--good)}
+.dv-pubb.on{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
+.dk-kind.k-comm{color:#ff8fc3}
+.tag.dk-by{max-width:14ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pub-report .link-btn{color:var(--ink-3);font-size:12.5px;text-decoration:underline;text-underline-offset:2px}
+.pub-own{margin-top:8px;text-align:center}

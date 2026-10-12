@@ -112,6 +112,40 @@ service cloud.firestore {
         );
     }
 
+    // Mana Orbit : decks publics (« Communauté »), 10 par compte : pubdecks/{empreinte SHA-256 de l'UID}_{0…9}. L'appli des autres ne les lit jamais ici :
+    // le serveur (compte de service, hors de ces règles) les relit et sert la liste à tous (proxy.mjs › /api/pubdecks). Le propriétaire lit les siens
+    // (requête where o == empreinte), les écrit et les retire ; adresse vérifiée exigée pour publier. Champs : o, by (pseudo), deck (id dans Mes decks),
+    // name, cmd (1 ou 2 commandants), ci (identité de couleur), cards (lignes « 3 Island », commandants exclus), updatedAt, v.
+    match /pubdecks/{docId} {
+      allow get, list, delete: if request.auth != null && resource.data.o == uidTag();
+      allow create: if verified() && docId.matches(uidTag() + '_[0-9]') && validPub();
+      allow update: if verified() && resource.data.o == uidTag() && validPub();
+    }
+    // Signalements d'un deck public : un par compte et par deck (identifiant <deck>~<empreinte du signaleur>), jamais relus ni modifiés par l'appli.
+    match /pubreports/{rid} {
+      allow create: if verified()
+        && request.resource.data.keys().hasOnly(['d', 'at']) && request.resource.data.keys().hasAll(['d', 'at'])
+        && request.resource.data.d is string && request.resource.data.d.matches('[0-9a-f]{64}_[0-9]')
+        && rid == request.resource.data.d + '~' + uidTag()
+        && request.resource.data.at is number;
+    }
+    function uidTag() { return hashing.sha256(request.auth.uid).toHexString().lower(); }
+    function verified() { return request.auth != null && request.auth.token.email_verified == true; }
+    function validPub() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['o', 'by', 'deck', 'name', 'cmd', 'ci', 'cards', 'updatedAt', 'v'])
+        && d.keys().hasAll(['o', 'by', 'cmd', 'ci', 'cards', 'updatedAt'])
+        && d.o == uidTag()
+        && d.by is string && d.by.size() > 0 && d.by.size() <= 30
+        && (!('deck' in d) || (d.deck is string && d.deck.size() <= 40))
+        && (!('name' in d) || (d.name is string && d.name.size() <= 120))
+        && (!('v' in d) || d.v is number)
+        && d.cmd is list && d.cmd.size() >= 1 && d.cmd.size() <= 2
+        && d.ci is string && d.ci.matches('W?U?B?R?G?')
+        && d.cards is list && d.cards.size() >= 1 && d.cards.size() <= 100
+        && d.updatedAt is number;
+    }
+
     // Classeur Full Art (autre appli du même projet Firebase, pas Mana Orbit) : un seul document par compte
     //   users/{uid}/binder/lands = { owned: { <scryfallId>: true }, pages: { <codeSet>: "12" }, updatedAt }
     // Gardé ici : publier ce fichier remplace TOUTES les règles du projet.

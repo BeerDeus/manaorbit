@@ -69,6 +69,7 @@
 3. 12 testeurs inscrits 14 jours d'affilée ; testeurs : ouvrir l'appli 2-3 fois par semaine, 2 petits questionnaires (ou 1 à la fin).
 4. Production vers le 20-25 novembre : demande d'accès, puis `ADMOB_BANNER_ID` sur Hostinger et liaison AdMob ↔ fiche Play.
 5. **Prochaine session : `docs/prochaine-session.md`** (maquettes, onglet CardTrader sans token, aide des Decks, bouton Filtres, nouvelle navigation avec Decks à part, decks publics).
+   - Fait le 12 octobre (nuit) : **decks publics « Communauté »** (§ 6 : 10 par compte, publier / mettre à jour / retirer depuis le viewer, type Communauté dans À monter, « Signaler ce deck », filtre de mots, vraies cartes seulement ; serveur `/api/pubdecks` avec le compte de service FCM). **Règles Firestore à republier** (`pubdecks`, `pubreports`). Correctifs : dézoom de « Prix d'une liste », vol du splash vers l'accueil.
    - Fait le 12 octobre (soir, suite) : CardTrader proposé sans token (§ 2), aide et filtres des Decks (§ 3-4), **nouvelle navigation** (§ 5 : barre du bas, sections, accueil, pub sous l'en-tête, plein écran — APK 1.0.2 / versionCode 3 à refaire), scan automatique corrigé (confirmation sur le nom lu). Système d'amis et Réglages épurés : en attente (WIP / maquettes).
    - Fait le 12 octobre (soir) : maquettes choisies (§ 1) et **scanner revu** (§ 1 bis : extensions du scan, réglages dans le compte, « Éditions à choisir », scan automatique, lampe). **Règles Firestore à republier** (document `meta/prefs`).
 

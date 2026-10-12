@@ -1322,13 +1322,13 @@ function edhModelFromTsv(text) {
   return m;
 }
 const EDHB = typeof module !== 'undefined' && module.exports ? require('./edhbin.js') : { edhPack, edhUnpack, edhFilter };
-/** Types de decks, dans l'ordre d'affichage du filtre : deck moyen EDHREC, Budget, Premium, cEDH, Populaire (un seul deck récent), Archidekt (ancien fichier). */
-const EDH_KINDS = ['avg', 'budget', 'premium', 'cedh', 'pop', 'arch'];
+/** Types de decks, dans l'ordre d'affichage du filtre : Communauté (decks publiés par les joueurs, voir pubClean), deck moyen EDHREC, Budget, Premium, cEDH, Populaire (un seul deck récent), Archidekt (ancien fichier). */
+const EDH_KINDS = ['comm', 'avg', 'budget', 'premium', 'cedh', 'pop', 'arch'];
 /** Un deck de l'index : ses cartes restent dans les grands tableaux de l'index ; `cards` ([[clé, nom, qté]], terrains de base compris, commandant exclu) n'est construit qu'à la demande.
  *  k : type ('avg' deck moyen · 'budget' · 'premium' · 'pop' · 'cedh' · 'arch' deck Archidekt d'un ancien fichier) · u : mise à jour 'AAAA-MM-JJ' ('' inconnue) · v : vues · p : prix du deck en centimes (0 inconnu). */
 class EdhDeck {
-  constructor(e, i, cmd, src, label, url, k, u, v, p) {
-    this._e = e; this.i = i; this.cmd = cmd; this.slug = cmd.slug; this.src = src || 'edhrec'; this.label = label || '';
+  constructor(e, i, cmd, src, label, url, k, u, v, p, pid) {
+    this._e = e; this.i = i; this.cmd = cmd; this.slug = cmd.slug; this.src = src || 'edhrec'; this.label = label || ''; this.pid = pid ? String(pid) : '';      // pid : identifiant du deck public (Communauté), pour le signaler
     this.k = EDH_KINDS.includes(k) ? k : this.src === 'edhrec' ? 'avg' : 'arch'; this.u = /^\d{4}-\d{2}-\d{2}$/.test(u || '') ? u : ''; this.v = Math.max(0, Number(v) || 0); this.p = Math.max(0, Number(p) || 0);
     this.url = url === 0 ? 'https://edhrec.com/average-decks/' + cmd.slug : typeof url === 'number' ? 'https://archidekt.com/decks/' + url : /^https:\/\//.test(url || '') ? url : '';
   }
@@ -1347,14 +1347,14 @@ function edhIndex(raw) {
   for (const id of raw.gc) { gcA[id] = 1; out.gc.add(keys[id]); }
   for (const r of raw.cmds) {
     const ck = r.names.map(ownKey), th = (r.th || []).filter(t => Array.isArray(t) && themes[t[0]] && t[1] > 0).map(t => [t[0], t[1]]).sort((a, b) => b[1] - a[1]);
-    const c = { slug: r.slug, decks: r.decks, dm: r.dm || 0, ci: String(r.ci || '').replace(/[^WUBRG]/g, ''), names: r.names, keys: ck, ids: ck.map(k => idOf.get(k)).filter(x => x !== undefined), img: r.img && /^[\w\-./]+$/.test(r.img) ? FR_IMG + r.img : '', i: out.cmds.length, th, thSet: new Set(th.map(t => t[0])) };
+    const c = { slug: r.slug, decks: r.decks, dm: r.dm || 0, ci: String(r.ci || '').replace(/[^WUBRG]/g, ''), names: r.names, comm: !!r.comm, keys: ck, ids: ck.map(k => idOf.get(k)).filter(x => x !== undefined), img: r.img && /^[\w\-./]+$/.test(r.img) ? FR_IMG + r.img : '', i: out.cmds.length, th, thSet: new Set(th.map(t => t[0])) };
     out.cmds.push(c); out.bySlug.set(c.slug, c);
     for (const t of th) themes[t[0]].cmds++;
     for (const k of c.keys) { const p = out.by.get(k); if (!p || c.decks > p.decks) out.by.set(k, c); }
   }
   out.rk = raw.rk === 'month' && out.cmds.some(c => c.dm > 0) ? 'month' : '';      // classement du mois (à jour) ; ancien fichier : compte long
-  [...out.cmds].sort((a, b) => (out.rk ? (b.dm - a.dm) : 0) || b.decks - a.decks).forEach((c, i) => { c.rank = i + 1; c.tier = edhTier(c.rank); });      // le tri est stable : à égalité, l'ordre du fichier (celui d'EDHREC)
-  raw.dk.forEach(([ci, src, label, url, k, u, v, p], i) => out.decks.push(new EdhDeck(out, i, out.cmds[ci], src, label, url, k, u, v, p)));
+  [...out.cmds].sort((a, b) => (out.rk ? (b.dm - a.dm) : 0) || b.decks - a.decks).forEach((c, i) => { c.rank = i + 1; c.tier = c.comm ? '' : edhTier(c.rank); });      // le tri est stable : à égalité, l'ordre du fichier (celui d'EDHREC) ; commandant venu de la communauté seule : classé dernier, sans tier ni rang affiché
+  raw.dk.forEach(([ci, src, label, url, k, u, v, p, pid], i) => out.decks.push(new EdhDeck(out, i, out.cmds[ci], src, label, url, k, u, v, p, pid)));
   for (const d of out.decks) for (const t of d.cmd.th) themes[t[0]].decks++;
   out.themeOrder = themes.map((t, i) => i).filter(i => themes[i].decks > 0).sort((a, b) => themes[b].decks - themes[a].decks || themes[a].label.localeCompare(themes[b].label));      // les plus présents d'abord
   return out;
@@ -1368,9 +1368,100 @@ function edhIndex(raw) {
  *    P \t centimes \t nom                                    prix Cardmarket (tendance Scryfall) au moment de la génération
  *    G \t nom                                                une carte de la liste Game Changers (Scryfall `is:gamechanger`)
  *  Retourne l'index (voir edhIndex). */
-function parseEdh(text, keep) { const b = EDHB.edhPack(edhModelFromTsv(text), ownKey); return edhIndex(EDHB.edhUnpack(keep ? EDHB.edhFilter(b, keep) : b)); }
-/** Lit un fichier binaire EDH2 (edh.bin) : même index que parseEdh. Lève une erreur si le fichier est illisible. keep (facultatif, les deux) : decks gardés (edhFilter : interrupteur Archidekt du serveur). */
-function parseEdhBin(buf, keep) { return edhIndex(EDHB.edhUnpack(keep ? EDHB.edhFilter(buf, keep) : buf)); }
+function parseEdh(text, keep, comm) { const b = EDHB.edhPack(edhModelFromTsv(text), ownKey); return edhIndex(edhAddComm(EDHB.edhUnpack(keep ? EDHB.edhFilter(b, keep) : b), comm)); }
+/** Lit un fichier binaire EDH2 (edh.bin) : même index que parseEdh. Lève une erreur si le fichier est illisible. keep (facultatif, les deux) : decks gardés (edhFilter : interrupteur Archidekt du serveur) ;
+ *  comm (facultatif, les deux) : decks de la communauté à ajouter (edhAddComm). */
+function parseEdhBin(buf, keep, comm) { return edhIndex(edhAddComm(EDHB.edhUnpack(keep ? EDHB.edhFilter(buf, keep) : buf), comm)); }
+
+/* ── Decks publics (« Communauté ») : publiés depuis Mes decks, relus par le serveur (proxy.mjs › /api/pubdecks), ajoutés aux decks EDHREC ── */
+const PUB_MAX = 10;      // decks publiés par compte (firestore.rules : identifiants <empreinte de l'UID>_0 … _9)
+const PUB_SIZE = 100;      // Commander : 100 cartes, commandant(s) compris
+/** Deck à publier d'après son texte : { cmd: [noms des commandants], cards: ['3 Island', …] (commandants exclus), n: cartes en tout, commandants compris }. cmdKeys : clés des commandants (commandersOf), 2 au plus. */
+function pubFromText(text, cmdKeys) {
+  const pd = parseDeck(text), ks = new Set(cmdKeys || []), cmd = [], cards = []; let n = 0;
+  for (const c of [...pd.cards, ...pd.basics]) {
+    let q = c.qty; n += q;
+    if (ks.has(c.key) && cmd.length < 2) { cmd.push(c.name); q--; }
+    if (q > 0) cards.push(q + ' ' + c.name);
+  }
+  return { cmd, cards, n };
+}
+/* Filtre des mots publiés (pseudo, commandants et cartes d'un deck public) : insultes, injures racistes, homophobes ou sexuelles, nazisme (fr, en, de, es, it, pt),
+   et noms qui se feraient passer pour l'appli. Texte ramené à des lettres simples : accents retirés, chiffres et symboles « l33t » lus comme des lettres
+   (0→o 1→i 3→e 4→a 5→s 7→t @→a $→s). Chaque lettre peut se répéter (« fuuuck ») ; une lettre doublée doit le rester (« ass », pas « as »).
+   PUB_BAD_W : mots entiers seulement (courts, ou cachés dans de vrais noms : « pute » dans « Dispute », « rapist » dans « Cabal Therapist ») ;
+   PUB_BAD_P : aussi au milieu d'un mot ou en lettres séparées (« f.u.c.k », « fuckface »). Aucun des ≈ 31 000 noms de cartes anglais n'est refusé (test-pubdecks). */
+const pubNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss')
+  .replace(/[013457@$!|]/g, c => ({ 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't', '@': 'a', $: 's', '!': 'i', '|': 'i' })[c]).replace(/[^a-z]+/g, ' ').trim();
+/** Mot → motif : chaque lettre peut se répéter, une lettre doublée au moins deux fois. */
+const pubPat = w => w.replace(/([a-z])\1*/g, (m, c) => (m.length > 1 ? c + '{' + m.length + ',}' : c + '+'));
+const PUB_BAD_W = new RegExp('(?:^| )(?:' + ('ass asses arse cunt cunts dick dicks cock cocks cum fag fags rape rapes raped rapist rapists porn penis vagina anal kike kikes spic spics chink chinks gook gooks tranny twat twats '
+  + 'wank wanker shit shits slut sluts nigga niggas pedo pedos nazi nazis admin '
+  + 'pute putes pd pede pedes fdp ntm encule encules tapette negre negres couille couilles niquer salaud '
+  + 'hure huren spast fick ficken neger '
+  + 'puta putas puto putos zorra mierda joder cabron culo '
+  + 'merda troia stronza '
+  + 'porra viado foda fodase').split(' ').map(pubPat).join('|') + ')(?= |$)');
+const PUB_BAD_P = new RegExp(('fuck motherfucker nigger faggot whore bitch pussy dickhead asshole cocksucker pedophile paedophile hitler swastika heilhitler siegheil manaorbit '
+  + 'enculer salope connard connasse putain bougnoule youpin niquetamere petasse grognasse '
+  + 'fotze hurensohn wichser schlampe missgeburt schwuchtel arschloch '
+  + 'hijodeputa gilipollas maricon pendejo '
+  + 'vaffanculo cazzo stronzo puttana frocio coglione minchia '
+  + 'caralho buceta filhodaputa').split(' ').map(pubPat).join('|'));
+/** Premier mot refusé du texte ('' : rien à redire). */
+function pubBad(s) {
+  const n = pubNorm(s); if (!n) return '';
+  const m = PUB_BAD_W.exec(n) || PUB_BAD_P.exec(n.replace(/ /g, ''));
+  return m ? m[0].trim() : '';
+}
+const pubStr = (v, n) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n) : '');
+/** Deck public relu (champs du document Firestore) : { by, cmd, ci, cards: [[nom, qté]], u: 'AAAA-MM-JJ' }, ou null s'il sort du format (pseudo, 1 ou 2 commandants, identité de couleur, 100 cartes pile,
+ *  aucun mot refusé). known (facultatif) : clés (ownKey) des noms de cartes existants ; un nom absent (texte libre déguisé en carte) écarte le deck. */
+function pubClean(x, known) {
+  if (!x || typeof x !== 'object') return null;
+  const by = pubStr(x.by, 30), cmd = Array.isArray(x.cmd) ? x.cmd.map(v => pubStr(v, 150)) : [];
+  if (!by || cmd.length < 1 || cmd.length > 2 || cmd.some(c => !c) || new Set(cmd.map(ownKey)).size !== cmd.length) return null;
+  const ci = typeof x.ci === 'string' && /^W?U?B?R?G?$/.test(x.ci) ? x.ci : null; if (ci === null) return null;
+  if (!Array.isArray(x.cards) || !x.cards.length || x.cards.length > PUB_SIZE) return null;
+  const m = new Map(); let n = cmd.length;
+  for (const l of x.cards) {
+    const r = /^(\d{1,2}) (.+)$/.exec(pubStr(l, 160)); if (!r) return null;
+    const q = Number(r[1]), nm = r[2]; if (q < 1 || !ownKey(nm)) return null;
+    const k = ownKey(nm), cur = m.get(k); if (cur) cur[1] += q; else m.set(k, [nm, q]); n += q;
+  }
+  if (n !== PUB_SIZE) return null;
+  if (pubBad(by) || cmd.some(pubBad) || [...m.values()].some(c => pubBad(c[0]))) return null;      // mot refusé (pseudo, commandant, carte) : jamais servi
+  if (known && known.size && ![...cmd, ...[...m.values()].map(c => c[0])].every(n => known.has(ownKey(n)) || known.has(ownKey(n.split('//')[0])))) return null;      // vraies cartes seulement : aucun texte libre
+  const at = Number(x.updatedAt);
+  return { by, cmd, ci, cards: [...m.values()], u: at > 0 && at < 8.64e15 ? new Date(at).toISOString().slice(0, 10) : '' };
+}
+/** Ajoute les decks de la communauté ([{ id, by, cmd, ci, cards: [[nom, qté]], u }], voir pubClean) aux données EDHREC lues (edhUnpack), avant edhIndex :
+ *  type 'comm', libellé = pseudo de l'auteur, pid = identifiant du deck public. Commandant absent du fichier : ajouté (aucun deck EDHREC, identité de couleur de l'auteur).
+ *  Cartes inconnues du fichier : ajoutées, sans prix. Le commandant est retiré des cartes du deck, comme dans le fichier EDHREC. */
+function edhAddComm(raw, list) {
+  if (!raw || !Array.isArray(list) || !list.length) return raw;
+  const names = raw.names.slice(), idOf = new Map();
+  names.forEach((n, i) => { const k = ownKey(n); if (!idOf.has(k)) idOf.set(k, i); });
+  const idFor = n => { const k = ownKey(n); let i = idOf.get(k); if (i === undefined) { i = names.length; names.push(n); idOf.set(k, i); } return i; };
+  const cmds = raw.cmds.slice(), bySig = new Map(cmds.map((c, i) => [c.names.map(ownKey).sort().join('|'), i])), dk = raw.dk.slice(), add = [];
+  for (const d of list) {
+    if (!d || !Array.isArray(d.cmd) || !d.cmd.length || !Array.isArray(d.cards) || typeof d.id !== 'string') continue;
+    const ck = new Set(d.cmd.map(ownKey)), es = [];
+    for (const c of d.cards) { const k = Array.isArray(c) && typeof c[0] === 'string' ? ownKey(c[0]) : ''; if (!k) continue; const left = (ck.has(k) ? c[1] - 1 : c[1]) | 0; if (left > 0) es.push([idFor(c[0]), Math.min(255, left)]); }      // une ligne du commandant dans les cartes : déjà compté
+    if (!es.length) continue;
+    d.cmd.forEach(idFor);
+    const sig = d.cmd.map(ownKey).sort().join('|'); let ci = bySig.get(sig);
+    if (ci === undefined) { ci = cmds.length; bySig.set(sig, ci); cmds.push({ comm: 1, slug: 'comm-' + sig.replace(/[^a-z0-9]+/g, '-').slice(0, 80), decks: 0, dm: 0, ci: String(d.ci || '').replace(/[^WUBRG]/g, ''), names: d.cmd.slice(0, 2), img: '', th: [] }); }
+    dk.push([ci, 'comm', String(d.by || ''), '', 'comm', /^\d{4}-\d{2}-\d{2}$/.test(d.u || '') ? d.u : '', 0, 0, d.id]); add.push(es);
+  }
+  if (!add.length) return raw;
+  const extra = add.reduce((a, es) => a + es.length, 0), base = raw.ids.length;
+  const ids = new (names.length > 65535 ? Uint32Array : raw.ids.constructor)(base + extra), qty = new Uint8Array(base + extra), off = new Uint32Array(raw.off.length + add.length), pr = new Uint32Array(names.length);
+  ids.set(raw.ids); qty.set(raw.qty); off.set(raw.off); pr.set(raw.pr);
+  let j = base, o = raw.off.length;
+  for (const es of add) { for (const [id, q] of es) { ids[j] = id; qty[j] = q; j++; } off[o++] = j; }
+  return { ...raw, names, cmds, dk, ids, qty, off, pr };
+}
 /** Tier d'un commandant selon son rang de popularité (nombre de decks EDHREC) : S = les 30 premiers, A jusqu'à 150, B 500, C 1 500, D le reste. */
 const EDH_TIERS = [['S', 30], ['A', 150], ['B', 500], ['C', 1500], ['D', Infinity]];
 const edhTier = rank => (EDH_TIERS.find(t => rank <= t[1]) || EDH_TIERS[EDH_TIERS.length - 1])[0];
@@ -2022,7 +2113,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkCount, dkCountText,
-    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
+    ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edLabel, lineKey, lineLang, lineEd, langLines, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 

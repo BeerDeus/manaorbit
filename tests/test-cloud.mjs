@@ -2,6 +2,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 const require = createRequire(import.meta.url);
 
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -106,8 +107,9 @@ assert.deepEqual(states.at(-1).names, ['Imp 2', 'Imp 1', 'Alpha 2']); console.lo
 }
 un(); unsub();
 
-{ // Suppression du compte (faux SDK : le vrai Firestore hors ligne ne lit pas le serveur) : liens publics, decks, documents annexes, puis le compte
-  const log = [], store = new Map([['users/u1/decks/d1', {}], ['users/u1/decks/d2', {}], ['users/u1/meta/trade', { share: 'S1', dsh: { d1: 'S2', d2: '' } }], ['users/u1/meta/collection', {}], ['shares/S1', {}], ['shares/S2', {}], ['shares/S3', {}], ['shares/REFUS', {}], ['shares/AUTRE', {}]]);
+{ // Suppression du compte (faux SDK : le vrai Firestore hors ligne ne lit pas le serveur) : liens publics, decks publics, decks, documents annexes, puis le compte
+  const T1 = createHash('sha256').update('u1').digest('hex'), T2 = createHash('sha256').update('u2').digest('hex');
+  const log = [], store = new Map([['users/u1/decks/d1', {}], ['users/u1/decks/d2', {}], ['users/u1/meta/trade', { share: 'S1', dsh: { d1: 'S2', d2: '' } }], ['users/u1/meta/collection', {}], ['shares/S1', {}], ['shares/S2', {}], ['shares/S3', {}], ['shares/REFUS', {}], ['shares/AUTRE', {}], [`pubdecks/${T1}_0`, { o: T1 }], [`pubdecks/${T1}_4`, { o: T1 }], [`pubdecks/${T2}_0`, { o: T2 }]]);
   const ref = (...p) => ({ path: p.slice(1).join('/') });
   const user = { email: 'a@b.c', providerData: [{ providerId: 'password' }] };
   let google = { refuse: false };
@@ -120,7 +122,8 @@ un(); unsub();
       reauthenticateWithPopup: async () => { log.push('popup'); if (google.refuse) throw Object.assign(new Error('x'), { code: 'auth/invalid-credential' }); }, deleteUser: async u => { log.push('deleteUser:' + u.email); } },
     fs: { initializeFirestore: () => ({}), persistentLocalCache: () => ({}), persistentMultipleTabManager: () => ({}), collection: (...p) => ({ path: p.slice(1).join('/') }), doc: (...p) => p.length === 1 ? { id: 'n' } : ref(...p),
       getDocFromServer: async r => ({ exists: () => store.has(r.path), data: () => store.get(r.path) }),
-      getDocsFromServer: async c => ({ docs: [...store.keys()].filter(k => k.startsWith(c.path + '/')).map(k => ({ ref: { path: k } })) }),
+      query: (c, w) => ({ ...c, w }), where: (f, op, v) => ({ f, op, v }),
+      getDocsFromServer: async c => ({ docs: [...store.keys()].filter(k => k.startsWith(c.path + '/') && (!c.w || store.get(k)[c.w.f] === c.w.v)).map(k => ({ id: k.split('/').pop(), ref: { path: k } })) }),
       deleteDoc: async r => { log.push('del:' + r.path); if (r.path === 'shares/REFUS') throw Object.assign(new Error('refusé'), { code: 'permission-denied' }); store.delete(r.path); },
       writeBatch: () => { const ops = []; return { delete: r => ops.push(r.path), commit: async () => { log.push('batch:' + ops.length); ops.forEach(k => store.delete(k)); } }; },
       terminate: async () => { log.push('terminate'); }, clearIndexedDbPersistence: async () => { log.push('clearPersistence'); } },
@@ -131,11 +134,11 @@ un(); unsub();
   await c.reauth('ok');
   // liens connus de l'appareil seulement (S3), déjà retiré (PARTI : pas de suppression tentée), doublon (S1), refusé (REFUS : compté, on continue)
   const r = await c.wipe('u1', ['S3', 'S1', 'PARTI', 'REFUS', '']); await c.deleteUser();
-  assert.deepEqual(r, { decks: 2, shares: 5, failed: 1 });
-  assert.deepEqual([...store.keys()], ['shares/REFUS', 'shares/AUTRE'], 'tout le compte effacé (sauf le lien refusé), rien d\'autre');
-  assert.deepEqual(log, ['reauth:mauvais', 'reauth:ok', 'del:shares/S1', 'del:shares/S2', 'del:shares/S3', 'del:shares/REFUS', 'batch:10', 'deleteUser:a@b.c']);
+  assert.deepEqual(r, { decks: 2, shares: 5, pub: 2, failed: 1 });
+  assert.deepEqual([...store.keys()], ['shares/REFUS', 'shares/AUTRE', `pubdecks/${T2}_0`], 'tout le compte effacé (sauf le lien refusé), rien d\'autre');
+  assert.deepEqual(log, ['reauth:mauvais', 'reauth:ok', 'del:shares/S1', 'del:shares/S2', 'del:shares/S3', 'del:shares/REFUS', `del:pubdecks/${T1}_0`, `del:pubdecks/${T1}_4`, 'batch:10', 'deleteUser:a@b.c']);
   user.providerData = [{ providerId: 'google.com' }]; assert.equal(c.provider(), 'google'); await c.reauth(null); assert.equal(log.at(-1), 'popup');
-  console.log('✓ suppression du compte : reconnexion, liens publics (compte + appareil, absents ignorés, échecs comptés), decks et documents annexes effacés, puis le compte');
+  console.log('✓ suppression du compte : reconnexion, liens publics (compte + appareil, absents ignorés, échecs comptés), decks publics du compte, decks et documents annexes effacés, puis le compte');
 
   // cache Firestore de l'appareil : par le SDK (arrêt puis effacement), sinon bases IndexedDB « firestore/… »
   log.length = 0; assert.equal(await cloudClearLocal(c), true); assert.deepEqual(log, ['terminate', 'clearPersistence']);

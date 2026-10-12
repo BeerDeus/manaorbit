@@ -26,6 +26,10 @@
 - **Nouvelle navigation : faite le 12 octobre** (barre du bas, sections, accueil épuré, pub sous l'en-tête, plein écran ; README › « Navigation »).
   - **À faire par le propriétaire** : nouvelle APK / `.aab` en **versionCode 3** (1.0.2) pour l'en-tête sur la ligne de la caméra (ManaOrbit.cutout) ; la barre d'état se cache déjà avec l'APK actuelle.
 - **Système d'amis (WIP, demandé le 12 octobre)** : pour l'instant « Pour toi » sur l'accueil montre les listes d'amis ouvertes par un lien (sur cet appareil, nombre relevé à l'ouverture). À concevoir : ajouter un ami (lien, QR, pseudo), sa liste toujours à jour sans rouvrir le lien, « Pour toi » recalculé, notifications quand un ami a une carte recherchée ; règles Firestore, confidentialité (ce que voit un ami), modération (pseudo, photo). Maquettes d'abord.
+- **Decks publics « Communauté » : faits le 12 octobre** (10 par compte, filtre de mots, vraies cartes seulement ; README › « Decks publics »).
+  - **À faire par le propriétaire** : republier les **règles Firestore** (`pubdecks`, `pubreports` ; sans elles, « Publication refusée : règles Firestore à publier ») ; rien à ajouter sur Hostinger : le serveur lit Firestore avec le compte de service déjà en place (`FCM_SERVICE_ACCOUNT`). Vérifier `/__ping` › `pub: true` après le déploiement.
+  - Fiche Play › Sécurité des données / Contenu généré par les utilisateurs : déclarer les decks publiés (pseudo, liste), le signalement dans l'appli et le retrait.
+  - Modération : un deck se retire à la main en supprimant son document dans la console Firebase (`pubdecks/…`), ou par `PUBDECKS_HIDE`.
 - **Réglages épurés (demandé le 12 octobre)** : menu des Réglages plus simple ou plus accessible ; 2 ou 3 maquettes à proposer avant de coder.
 - **Proposition d'échange équilibrée** (plus tard) : cocher des cartes des deux côtés, balance de valeur, récapitulatif à partager.
 - **Outils de partie** (plus tard, rien dans le code) : pas de compteur de vies dans Mana Orbit ; éventuellement un lien vers l'appli du propriétaire sur Google Play.

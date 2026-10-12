@@ -457,7 +457,7 @@ function dvFrame(snap) {
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}
-      <div class="tr-acts dv-acts"><button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}</div>
+      <div class="tr-acts dv-acts"><button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}</div>
     </section>
     <div id="dvCmd"></div>
     <div class="seg dv-seg" id="dvSeg"></div>
@@ -496,7 +496,7 @@ function dvRender() {
     $('.dv-body', el).innerHTML = '<div class="dv-empty"><b>' + T('Ce deck est vide') + '</b><p>' + T('Ajoute des cartes à la liste pour les voir ici.') + '</p></div>';
     $('.dv-title span', el).textContent = ''; foot.hidden = !DV.deckId; edit.hidden = DV.live || !DV.deckId; refresh.hidden = true; close.hidden = !DV.live && !DV.adhoc; dvSavePaint(); return;
   }
-  if (DV.framed !== snap) { dvFrame(snap); DV.framed = snap; }
+  if (DV.framed !== snap) { dvFrame(snap); DV.framed = snap; dvPubPaint(); }
   dvGroups();
   // relevé de référence : « Chercher les offres » seulement s'il reste des cartes à acheter (tout possédé : rien à chercher)
   const ref = !!snap.ref, todo = ref && snap.items.some(i => i.s !== 'basic' && i.q > (i.ow || 0));
@@ -612,9 +612,11 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
     else if (act === 'refresh' && deck && !DV.live) { wrap.__close(); refreshDeckPrices(deck); }
     else if (act === 'save') dvSave();
     else if (act === 'open') dvOpenCopy();
+    else if (act === 'pub' && deck) openPubSheet(deck);
   });
   document.body.appendChild(wrap); holdApp(); dvRender();
   dvMetaLoad(wrap);
+  if (dvPubOk() && cloudOn()) pdMine().then(() => { if (DV.el === wrap) dvPubPaint(); }, () => {});      // « ✓ Publié » si le deck l'est déjà
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
   if (!DV.pub) haptic('tap');      // ouvert par un lien au chargement : pas de geste, le navigateur refuserait la vibration
 }

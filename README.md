@@ -25,6 +25,7 @@ Page (`deck-deal.html`) + proxy CardTrader (`proxy.mjs`, zéro dépendance, Node
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Facultatif : notifications « recherche terminée » (voir plus bas, `node gen-vapid.mjs`) |
 | `FCM_SERVICE_ACCOUNT` | Facultatif : notifications dans l'appli Android (Firebase Cloud Messaging), « recherche terminée » et alertes de prix. Contenu du fichier JSON du compte de service Firebase collé sur une ligne, ou ce contenu en base64 (voir `docs/android.md`). Secret : jamais dans GitHub |
 | `FCM_SERVICE_ACCOUNT_FILE` | Variante de `FCM_SERVICE_ACCOUNT` : chemin du fichier JSON du compte de service sur le serveur |
+| `PUBDECKS`, `PUBDECKS_REPORTS`, `PUBDECKS_HIDE`, `PUBDECKS_TTL_MS` | Decks publics (« Communauté », voir plus bas) : lus dans Firestore avec le compte de service ci-dessus (rien d'autre à fournir). `PUBDECKS=0` les coupe · signalements avant retrait (3) · identifiants de decks à masquer à la main, séparés par des virgules (ex. `<empreinte>_0`) · relecture (10 min) |
 | `ALERTS` | `0` coupe les alertes de prix (actives dès que les clés VAPID ou le compte de service FCM sont là) |
 | `ALERT_EVERY_MS` | Intervalle entre deux relevés de prix (défaut 6 h) |
 | `ALERT_MIN_DROP_CENTS`, `ALERT_COOLDOWN_MS` | Chute minimale en centimes (défaut 50) · délai avant de re-signaler une carte (défaut 5 jours) |
@@ -38,6 +39,7 @@ Page (`deck-deal.html`) + proxy CardTrader (`proxy.mjs`, zéro dépendance, Node
 | `FIREBASE_JWKS_URL` | Tests seulement : URL des clés publiques Google |
 | `SCRYFALL_UPSTREAM`, `ALERT_FIRST_MS`, `ALERT_SEED_MS`, `ALERT_CHECK_GAP_MS` | Tests seulement |
 | `CT_UPSTREAM`, `PWA_DIR`, `PUSH_ALLOW_HOSTS`, `IMPORT_UPSTREAM` | Tests seulement : faux CardTrader, dossier `pwa/` temporaire, hôte de push local autorisé, faux EDHREC / Archidekt |
+| `FIRESTORE_BASE_URL`, `PUBDECKS_SOON_MS` | Tests seulement : faux Firestore (défaut `https://firestore.googleapis.com`) et écart minimal entre deux relectures des decks publics (30 s) |
 | `FCM_TOKEN_URL`, `FCM_BASE_URL` | Tests seulement : serveur de jetons OAuth2 (défaut : `token_uri` du compte de service) et adresse de l'API FCM (défaut `https://fcm.googleapis.com`) |
 
 ## Prix : Cardmarket par défaut, CardTrader avec un token
@@ -259,9 +261,20 @@ Ma collection › onglet **Échange** (`src/share.js`).
 - **Partager un deck** : icône de partage du viewer (deck enregistré : le lien **suit ses modifications** ; liste en cours : partagée telle quelle) et bouton **Partager** d'un deck de l'onglet Decks (EDHREC / Archidekt). Le visiteur voit le viewer du deck en lecture seule (images, courbe, valeur estimée, groupes, filtres) et peut tirer une main de départ. Supprimer un deck arrête son lien.
 - **Données** : `shares/{id}` `{ o, kind ('trade' | 'deck'), v, updatedAt, d }` — `d` = contenu en JSON (cartes : nom, quantité, langue, nom français, image, coût, type, couleurs), `o` = empreinte SHA-256 de ton UID (le document est public : l'UID n'y est jamais écrit). Réglages (réserve, cartes gardées, souhaits, liens) : `users/{uid}/meta/trade`, synchronisés entre appareils. Le contenu lu par le visiteur est revérifié (images Scryfall seulement, langues, tailles).
 
+## Decks publics (« Communauté »)
+
+`src/pubdecks.js`, serveur : `proxy.mjs` › `/api/pubdecks`, format et filtre : `core.js` (`pubFromText`, `pubClean`, `pubBad`, `edhAddComm`).
+
+- **Publier** : viewer d'un deck de Mes decks au format Commander › **Publier**. Feuille « Publier dans la communauté » : commandant reconnu (et ses couleurs), **100 cartes pile** commandant compris, **pseudo** du profil, places (**10 decks par compte**). Compte requis, adresse vérifiée (Google : d'office). Le deck publié est une **copie** : « Mettre à jour » envoie la liste du moment (« la liste a changé depuis » le signale), « Retirer » l'enlève ; supprimer le deck de Mes decks, ou le compte, le retire aussi. Bouton du viewer « ✓ Publié ».
+- **Où il apparaît** : **Decks › À monter**, avec les decks EDHREC, type **Communauté** (premier du filtre « Type de deck »), étiquette du pseudo ; feuille du deck : « Communauté · deck de Max ». Commandant absent du fichier EDHREC : ajouté (identité de couleur de l'auteur), sans tier ni rang. Liste lue à l'ouverture d'À monter (attendue 1,5 s au plus, sinon ajoutée à son arrivée), gardée 10 min sur l'appareil, relue tout de suite après une publication.
+- **Signaler ce deck** (feuille d'un deck de la communauté) : un signalement par compte (`pubreports/{deck}~{empreinte}`), le deck disparaît tout de suite de l'appareil (`deckdeal:pubhide:v1`) et de la liste servie à tous après **3 signalements** (`PUBDECKS_REPORTS`). Masquage à la main : `PUBDECKS_HIDE`, ou supprimer le document dans la console Firebase.
+- **Filtre de mots** (`pubBad`, appli et serveur) : pseudo, commandants et noms de cartes. Insultes, injures racistes, homophobes ou sexuelles, nazisme (fr, en, de, es, it, pt), « Mana Orbit » et « admin » ; l33t (`0→o`, `1→i`, `@→a`…), lettres répétées (« fuuuck ») ou séparées (« f.u.c.k ») ; mots ambigus entiers seulement (« pute » mais pas « Dispute »). Aucun des ≈ 31 000 noms de cartes anglais n'est refusé (`tests/test-pubdecks.mjs`). Refusé : la feuille le dit et bloque, le serveur écarte le deck.
+- **Vraies cartes seulement** (aucun texte libre déguisé en carte) : la feuille vérifie les noms sur Scryfall (« Carte inconnue de Scryfall : … » bloque ; hors ligne, la vérification revient au serveur) ; le serveur n'accepte que les noms du **catalogue complet de Scryfall** (`/catalog/card-names`, relu une fois par jour ; injoignable : filtre de mots seul, nouvel essai dans 1 h).
+- **Données** : `pubdecks/{empreinte SHA-256 de l'UID}_{0…9}` `{ o, by, deck, name, cmd, ci, cards ['3 Island'…], updatedAt, v }` ; l'appli des autres ne lit jamais Firestore : le **serveur** relit les documents avec le compte de service (`FCM_SERVICE_ACCOUNT`, portée `datastore`), garde ceux au format (100 cartes, 1 ou 2 commandants, vraies cartes, mots refusés écartés), au plus 3 000, les plus récents d'abord, et sert `{ at, decks: [{ id, by, cmd, ci, cards: [[nom, qté]], u }] }` (gzip, ETag ; 10 min, `?fresh=1` plafonné). Sans compte de service : liste vide, la feuille prévient que le serveur ne relaie pas encore.
+
 ### Règles Firestore à publier (une fois)
 
-Firebase › Firestore Database › **Règles** › coller le contenu de `firestore.rules` › **Publier**. Sans elles, « Créer le lien » affiche « Règles Firestore à publier ». Ajouts : `match /shares/{shareId}` (lecture par identifiant pour tous, jamais de liste, écriture et suppression par le propriétaire seul) et le document `trade` dans `users/{uid}/meta`. Vérifiées contre l'émulateur Firestore (`tests/rules-test.mjs`), en CI à chaque changement des règles (Actions › « Règles Firestore », voir `DEV.md`) ; la CI ne publie rien.
+Firebase › Firestore Database › **Règles** › coller le contenu de `firestore.rules` › **Publier**. Sans elles, « Créer le lien » affiche « Règles Firestore à publier ». Ajouts : `match /shares/{shareId}` (lecture par identifiant pour tous, jamais de liste, écriture et suppression par le propriétaire seul), le document `trade` dans `users/{uid}/meta`, puis `pubdecks` (10 places par compte, adresse vérifiée, propriétaire seul) et `pubreports` (création seule, une fois par compte et par deck). Vérifiées contre l'émulateur Firestore (`tests/rules-test.mjs`), en CI à chaque changement des règles (Actions › « Règles Firestore », voir `DEV.md`) ; la CI ne publie rien.
 
 ## Classement des commandants : le mois en cours
 

@@ -70,6 +70,7 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
   - Reste : refaire les captures de la fiche Play (`node tools/store-assets.mjs`) ; **système d'amis** demandé le 12 octobre : en WIP (`docs/a-faire.md`).
 
 ## 6. Decks publics des utilisateurs (gros, en dernier)
+- **Fait le 12 octobre** (README › « Decks publics »). Choix du propriétaire : **10 decks par compte** ; filtre de mots sur ce qui est publié. Écarts avec le plan ci-dessous : le nom du deck est gardé dans le document mais jamais servi ; les cartes sont contrôlées contre le catalogue Scryfall (appli et serveur) ; un commandant absent d'EDHREC est ajouté sans tier ni rang.
 - Un utilisateur connecté peut **publier** un de ses decks Commander. Les decks publics apparaissent dans la recherche de decks, comme un **type « Communauté »**, placé **juste avant « Moyen »** dans le filtre Decks.
 - **Regroupés par commandant**, avec le même calcul que les autres : cartes possédées / à acheter, **prix estimé** (tendance Cardmarket), tier du commandant, Game Changers et bracket.
 - **Modération (règles Google sur le contenu créé par les utilisateurs)** :

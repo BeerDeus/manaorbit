@@ -55,7 +55,7 @@ function putDeck(id, doc) {
 }
 function removeDeck(id) {
   if (S.deckId === id) S.deckId = null;
-  snapDrop(id); engClear(id, true); trDeckGone(id);
+  snapDrop(id); engClear(id, true); trDeckGone(id); pdDeckGone(id);      // lien partagé et copie publique (Communauté) retirés avec lui
   if (cloudOn()) return D.cloud.remove(D.user.uid, id).catch(err => toast(deckErr(err)));
   D.localList = D.localList.filter(d => d.id !== id);
   localWrite(D.localList.map(d => ({ id: d.id, ...stripDeck(d) })));
@@ -236,7 +236,7 @@ function profUser(user) {
     if (PROF.uid !== user.uid || (fromCache && !data)) return;
     const name = data ? profClean(data.name) : '', photo = data && profPhotoOk(data.photo) ? data.photo : '';
     if (name === PROF.name && photo === PROF.photo) return;
-    PROF.name = name; PROF.photo = photo; profStore(); renderAccountBtn(); paintAccount(); trSoon(1500);      // liens partagés mis à jour avec le nouveau nom
+    PROF.name = name; PROF.photo = photo; profStore(); renderAccountBtn(); paintAccount(); trSoon(1500); document.dispatchEvent(new Event('profchange'));      // liens partagés mis à jour avec le nouveau nom
   }, () => { /* règles pas encore publiées : le profil reste celui de l'appareil */ });
 }
 /** Enregistre le profil : appliqué tout de suite sur l'appareil, envoyé au compte (hors ligne : à la reconnexion ; règles refusées : signalé). */
@@ -245,7 +245,7 @@ function profSave(patch) {
   const name = 'name' in patch ? profClean(patch.name) : PROF.name, photo = 'photo' in patch && (patch.photo === '' || profPhotoOk(patch.photo)) ? patch.photo : PROF.photo;
   Promise.resolve().then(() => D.cloud.saveMeta(u.uid, 'profile', { ...(name ? { name } : {}), ...(photo ? { photo } : {}), updatedAt: Date.now() }))
     .catch(err => toast(err && err.code === 'permission-denied' ? T('Profil gardé sur cet appareil : règles Firestore à publier.') : T('Profil gardé sur cet appareil : envoi au compte impossible.')));
-  PROF.name = name; PROF.photo = photo; profStore(); renderAccountBtn(); paintAccount(); trSoon(1500);
+  PROF.name = name; PROF.photo = photo; profStore(); renderAccountBtn(); paintAccount(); trSoon(1500); document.dispatchEvent(new Event('profchange'));      // feuille « Publier » ouverte : le nouveau pseudo
 }
 /** Photo choisie → carré de 128 px recadré au centre, en JPEG (quelques Ko, gardé dans le compte). */
 async function profPhotoFrom(file) {
@@ -662,6 +662,7 @@ function onUser(user) {
   const prev = D.uid;
   if (D.unsub) { try { D.unsub(); } catch (e) { /* ignore */ } D.unsub = null; }
   D.user = user; D.uid = user ? user.uid : null; D.list = []; D.pending = false; D.listErr = ''; D.authReady = true;
+  if (prev !== D.uid) pdUser();      // decks publiés : relus pour ce compte
   if (prev !== D.uid) { S.deckId = null; S.runDelta = null; D.seen.clear(); D.hold = null; }
   try {
     if (user) localStorage.setItem(ACCT_KEY, JSON.stringify({ l: ((user.displayName || user.email || '?').trim()[0] || '?').toUpperCase() }));

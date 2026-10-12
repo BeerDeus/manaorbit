@@ -143,7 +143,7 @@ function makeCloud(m) {
       if (pw == null) { const p = new m.auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); return m.auth.reauthenticateWithPopup(u, p).catch(googleErr); }
       return m.auth.reauthenticateWithCredential(u, m.auth.EmailAuthProvider.credential(u.email, pw));
     },
-    /** Efface tout ce que le compte a en ligne : liens publics (liste d'échange, decks partagés), decks, documents annexes. Exige le réseau.
+    /** Efface tout ce que le compte a en ligne : liens publics (liste d'échange, decks partagés), decks publics, decks, documents annexes. Exige le réseau.
      *  local : liens connus de cet appareil (créés ici, peut-être jamais arrivés dans le document « trade » du compte). */
     async wipe(uid, local = []) {
       const ref = (...p) => m.fs.doc(db, 'users', uid, ...p);
@@ -158,13 +158,22 @@ function makeCloud(m) {
         try { if ((await m.fs.getDocFromServer(s)).exists()) await m.fs.deleteDoc(s); }
         catch (e) { if (e && e.code === 'not-found') continue; failed++; console.warn('Lien public non effacé :', id, e && e.code); }      // on continue : le reste du compte doit partir
       }
+      // decks publics (Communauté) : ceux du compte (o = empreinte de l'UID), chacun à part ; les signalements faits par le compte ne portent que son empreinte
+      const tag = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(uid)))].map(x => x.toString(16).padStart(2, '0')).join('');
+      const pubs = await m.fs.getDocsFromServer(m.fs.query(m.fs.collection(db, 'pubdecks'), m.fs.where('o', '==', tag))).catch(e => { failed++; console.warn('Decks publics illisibles :', e && e.code); return { docs: [] }; });
+      for (const d of pubs.docs) { try { await m.fs.deleteDoc(d.ref); } catch (e) { failed++; console.warn('Deck public non retiré :', d.id, e && e.code); } }
       const refs = [...decks.docs.map(d => d.ref), ...['collection', 'engaged', 'history', 'trade', 'profile', 'scan', 'prefs'].map(id => ref('meta', id)), ref('binder', 'lands')];
       for (let i = 0; i < refs.length; i += 400) { const b = m.fs.writeBatch(db); refs.slice(i, i + 400).forEach(r => b.delete(r)); await b.commit(); }
-      return { decks: decks.docs.length, shares: shares.length, failed };
+      return { decks: decks.docs.length, shares: shares.length, pub: pubs.docs.length, failed };
     },
     deleteUser: () => m.auth.deleteUser(auth.currentUser),
     /** Cache hors ligne de Firestore (decks, collection… du compte) : arrêt du client, puis effacement. Ensuite plus rien ne marche sans recharger la page. */
     clearLocal: async () => { await m.fs.terminate(db); await m.fs.clearIndexedDbPersistence(db); },
+    /** Decks publics (pubdecks/{empreinte}_{0…9}, voir pubdecks.js) : ceux du compte (lus sur le serveur), publier, retirer ; signaler celui d'un autre (pubreports, une fois par compte). */
+    pubMine: tag => m.fs.getDocsFromServer(m.fs.query(m.fs.collection(db, 'pubdecks'), m.fs.where('o', '==', tag))).then(s => s.docs.map(d => ({ id: d.id, data: d.data() }))),
+    pubSave: (id, data) => m.fs.setDoc(m.fs.doc(db, 'pubdecks', id), data),
+    pubDrop: id => m.fs.deleteDoc(m.fs.doc(db, 'pubdecks', id)),
+    pubReport: (id, tag) => m.fs.setDoc(m.fs.doc(db, 'pubreports', id + '~' + tag), { d: id, at: Date.now() }),
     shareId: () => m.fs.doc(m.fs.collection(db, 'shares')).id,
     saveShare: (id, data) => m.fs.setDoc(m.fs.doc(db, 'shares', id), data),
     dropShare: id => m.fs.deleteDoc(m.fs.doc(db, 'shares', id)),

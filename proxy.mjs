@@ -395,25 +395,26 @@ let fcmSa = null;
   }
 }
 const FCM_ON = !!fcmSa;
-const fcmAuth = { tok: '', exp: 0, run: null };
+const fcmAuth = new Map();      // portée OAuth → { tok, exp, run } : FCM, et Firestore pour les decks publics
 /** Assertion JWT signée (RS256), échangée contre un jeton d'accès (OAuth2, RFC 7523). */
-function fcmJwt() {
+function fcmJwt(scope) {
   const now = Math.floor(Date.now() / 1000), enc = o => Buffer.from(JSON.stringify(o)).toString('base64url');
-  const unsigned = enc({ alg: 'RS256', typ: 'JWT' }) + '.' + enc({ iss: fcmSa.email, scope: FCM_SCOPE, aud: fcmSa.tokenUrl, iat: now, exp: now + 3600 });
+  const unsigned = enc({ alg: 'RS256', typ: 'JWT' }) + '.' + enc({ iss: fcmSa.email, scope, aud: fcmSa.tokenUrl, iat: now, exp: now + 3600 });
   return unsigned + '.' + dsaSign('sha256', Buffer.from(unsigned), fcmSa.key).toString('base64url');
 }
-/** Jeton d'accès FCM, gardé jusqu'à 5 min de son expiration ; une seule demande à la fois. */
-function fcmAccess() {
-  if (fcmAuth.tok && Date.now() < fcmAuth.exp - 300e3) return Promise.resolve(fcmAuth.tok);
-  if (!fcmAuth.run) fcmAuth.run = (async () => {
+/** Jeton d'accès du compte de service pour cette portée (FCM par défaut), gardé jusqu'à 5 min de son expiration ; une seule demande à la fois. */
+function fcmAccess(scope = FCM_SCOPE) {
+  let a = fcmAuth.get(scope); if (!a) fcmAuth.set(scope, a = { tok: '', exp: 0, run: null });
+  if (a.tok && Date.now() < a.exp - 300e3) return Promise.resolve(a.tok);
+  if (!a.run) a.run = (async () => {
     const r = await fetch(fcmSa.tokenUrl, { method: 'POST', signal: AbortSignal.timeout(10000), redirect: 'manual', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-      body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: fcmJwt() }).toString() });
+      body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: fcmJwt(scope) }).toString() });
     const j = await r.json().catch(() => null);
     if (!r.ok || !j || typeof j.access_token !== 'string' || !j.access_token) throw new Error('jeton d\'accès refusé (' + r.status + (j && j.error ? ' ' + String(j.error).slice(0, 60) : '') + ')');
-    fcmAuth.tok = j.access_token; fcmAuth.exp = Date.now() + (Number(j.expires_in) > 0 ? Number(j.expires_in) : 3600) * 1000;
-    return fcmAuth.tok;
-  })().finally(() => { fcmAuth.run = null; });
-  return fcmAuth.run;
+    a.tok = j.access_token; a.exp = Date.now() + (Number(j.expires_in) > 0 ? Number(j.expires_in) : 3600) * 1000;
+    return a.tok;
+  })().finally(() => { a.run = null; });
+  return a.run;
 }
 /** Jeton d'appareil à oublier : appli désinstallée, jeton renouvelé, autre projet Firebase, jeton mal formé. */
 function fcmGone(status, e) {
@@ -434,7 +435,7 @@ async function sendFcm(p) {
     if (r.ok) { await r.arrayBuffer().catch(() => {}); return r.status; }
     const e = ((await r.json().catch(() => null)) || {}).error;
     if (fcmGone(r.status, e)) return 404;
-    if (r.status === 401 && a === 0) { fcmAuth.tok = ''; continue; }                // jeton d'accès révoqué ou expiré : un nouveau, un seul essai
+    if (r.status === 401 && a === 0) { fcmAuth.get(FCM_SCOPE).tok = ''; continue; }                // jeton d'accès révoqué ou expiré : un nouveau, un seul essai
     if ((r.status === 429 || r.status >= 500) && a === 0) { await sleepMs(Math.min(5000, Number(r.headers.get('retry-after')) * 1000 || 1500)); continue; }
     console.warn('FCM : ' + r.status + (e && e.message ? ' ' + String(e.message).slice(0, 120) : ''));
     return r.status;
@@ -997,6 +998,88 @@ async function importApi(req, res, url) {
   } catch (e) { return json(res, e.status || 502, { error: 'import_failed', message: e.message }); }
 }
 
+/* ── Decks publics (« Communauté ») : GET /api/pubdecks ─────────────────────────────────────────────────────────────────────
+   Les comptes publient leurs decks dans Firestore (pubdecks/{empreinte}_{0…9}, voir firestore.rules). Le serveur les relit avec le compte de service
+   des notifications (FCM_SERVICE_ACCOUNT, portée datastore : hors des règles), garde ceux au bon format (core.js › pubClean : 100 cartes, 1 ou 2 commandants, vraies cartes
+   du catalogue Scryfall seulement, aucun mot refusé),
+   écarte ceux signalés PUBDECKS_REPORTS fois (3 par défaut, collection pubreports) et ceux de PUBDECKS_HIDE (identifiants séparés par des virgules),
+   puis sert la liste à tous : { at, decks: [{ id, by, cmd, ci, cards: [[nom, qté]], u }] }, relue au plus toutes les 10 min (PUBDECKS_TTL_MS), plus
+   tôt après une publication (?fresh=1, 30 s au moins entre deux lectures). Sans compte de service ou avec PUBDECKS=0 : coupé (liste vide, l'appli fait sans). */
+const FS_BASE = (process.env.FIRESTORE_BASE_URL || 'https://firestore.googleapis.com').replace(/\/+$/, '');      // surchargeable pour les tests
+const DS_SCOPE = 'https://www.googleapis.com/auth/datastore';
+const PUB_TTL = Number(process.env.PUBDECKS_TTL_MS) > 0 ? Number(process.env.PUBDECKS_TTL_MS) : 10 * 60e3, PUB_SOON = process.env.PUBDECKS_SOON_MS ? Math.max(0, Number(process.env.PUBDECKS_SOON_MS) || 0) : 30e3, PUB_CAP = 3000;      // PUB_SOON : écart minimal entre deux lectures (surchargeable pour les tests)
+const PUB_REPORTS = Math.max(1, Math.floor(Number(process.env.PUBDECKS_REPORTS)) || 3);
+const PUB_HIDE = new Set(String(process.env.PUBDECKS_HIDE || '').split(/[\s,]+/).filter(Boolean));
+const PUB = { at: 0, tried: 0, raw: null, gz: null, etag: '', run: null, n: 0, hid: 0, err: '', names: null };
+/** Noms de cartes existants : catalogue complet de Scryfall (/catalog/card-names, relu une fois par jour), face avant des cartes doubles comprise ;
+ *  un deck public n'a que de vraies cartes. Scryfall injoignable : pas de contrôle des noms (le filtre de mots reste), nouvel essai dans 1 h. */
+async function pubNames() {
+  const p = PUB.names; if (p && Date.now() - p.at < (p.set.size ? 86400e3 : 3600e3)) return p.set;
+  const set = new Set();
+  try {
+    const r = await fetch(SCRY_UP + '/catalog/card-names', { signal: AbortSignal.timeout(20000), redirect: 'manual', headers: { Accept: 'application/json', 'User-Agent': UA } });
+    const j = r.ok ? await r.json() : null;
+    if (j && Array.isArray(j.data)) for (const n of j.data) if (typeof n === 'string') { set.add(NM_CORE.ownKey(n)); if (n.includes('//')) set.add(NM_CORE.ownKey(n.split('//')[0])); }
+  } catch (e) { /* Scryfall injoignable */ }
+  if (set.size >= 20000) PUB.names = { at: Date.now(), set };
+  else if (p && p.set.size) PUB.names = { set: p.set, at: Date.now() - 86400e3 + 3600e3 };      // échec : l'ancien catalogue sert encore une heure
+  else { PUB.names = { at: Date.now(), set: new Set() }; console.warn('Decks publics : catalogue des cartes Scryfall illisible, noms non contrôlés pour l\'instant'); }
+  return PUB.names.set;
+}
+/** Une valeur de l'API REST Firestore en JS (chaînes, nombres, booléens, listes, null ; le reste : undefined). */
+const fsVal = v => (!v || typeof v !== 'object' ? undefined : 'stringValue' in v ? v.stringValue : 'integerValue' in v ? Number(v.integerValue) : 'doubleValue' in v ? Number(v.doubleValue)
+  : 'booleanValue' in v ? v.booleanValue : 'arrayValue' in v ? (v.arrayValue.values || []).map(fsVal) : 'nullValue' in v ? null : undefined);
+const fsFields = d => { const o = {}; for (const [k, v] of Object.entries((d && d.fields) || {})) o[k] = fsVal(v); return o; };
+/** Tous les documents d'une collection racine (par pages de 300, 30 000 au plus). */
+async function fsList(col, tok) {
+  const out = []; let page = '';
+  for (let i = 0; i < 100; i++) {
+    const r = await fetch(`${FS_BASE}/v1/projects/${fcmSa.project}/databases/(default)/documents/${col}?pageSize=300${page ? '&pageToken=' + encodeURIComponent(page) : ''}`,
+      { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/json' }, signal: AbortSignal.timeout(15000), redirect: 'manual' });
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j) { const e = new Error(col + ' : HTTP ' + r.status + (j && j.error && j.error.message ? ' ' + String(j.error.message).slice(0, 120) : '')); e.http = r.status; throw e; }
+    if (Array.isArray(j.documents)) out.push(...j.documents);
+    if (!j.nextPageToken) break; page = String(j.nextPageToken);
+  }
+  return out;
+}
+/** Relit les decks publics et les signalements, puis prépare la liste servie (JSON et sa version gzip). Une seule lecture à la fois. */
+function pubRefresh() {
+  if (!PUB.run) PUB.run = (async () => {
+    PUB.tried = Date.now();
+    let tok = await fcmAccess(DS_SCOPE), docs, reps;
+    try { [docs, reps] = await Promise.all([fsList('pubdecks', tok), fsList('pubreports', tok)]); }
+    catch (e) { if (e.http !== 401) throw e; fcmAuth.get(DS_SCOPE).tok = ''; tok = await fcmAccess(DS_SCOPE); [docs, reps] = await Promise.all([fsList('pubdecks', tok), fsList('pubreports', tok)]); }      // jeton révoqué : un nouveau, un seul essai
+    const known = await pubNames(), flags = new Map();
+    for (const r of reps) { const d = fsFields(r).d; if (typeof d === 'string') flags.set(d, (flags.get(d) || 0) + 1); }
+    const decks = []; let hid = 0;
+    for (const doc of docs) {
+      const id = String(doc.name || '').split('/').pop(), x = fsFields(doc);
+      if (!/^[0-9a-f]{64}_[0-9]$/.test(id) || x.o !== id.slice(0, 64)) continue;
+      if (PUB_HIDE.has(id) || (flags.get(id) || 0) >= PUB_REPORTS) { hid++; continue; }
+      const c = NM_CORE.pubClean(x, known); if (c) decks.push([Number(x.updatedAt) || 0, { id, ...c }]);
+    }
+    decks.sort((a, b) => b[0] - a[0]);
+    const raw = Buffer.from(JSON.stringify({ at: Date.now(), decks: decks.slice(0, PUB_CAP).map(d => d[1]) }));
+    Object.assign(PUB, { raw, gz: await gzipA(raw), etag: '"' + sha1Of(raw) + '"', at: Date.now(), n: Math.min(decks.length, PUB_CAP), hid, err: '' });
+  })().catch(e => { PUB.err = String(e && e.message || e).slice(0, 200); console.warn('Decks publics : ' + PUB.err); }).finally(() => { PUB.run = null; });
+  return PUB.run;
+}
+async function pubApi(req, res, url) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'method_not_allowed' });
+  if (!PUB_ON) return json(res, 200, { at: 0, decks: [], off: true }, { 'Cache-Control': 'public, max-age=3600' });
+  const now = Date.now(), fresh = url.searchParams.get('fresh') === '1';
+  if (!PUB.raw && now - PUB.tried > PUB_SOON) await pubRefresh();      // premier appel (ou serveur injoignable il y a plus de 30 s) : on attend la liste
+  else if (fresh && now - PUB.tried > PUB_SOON) { const w = rateWait(req, 'pub', 6, 10 * 60e3); if (w) return tooMany(res, w); await pubRefresh(); }      // juste après une publication : relue tout de suite
+  else if (now - PUB.at > PUB_TTL && now - PUB.tried > PUB_SOON) pubRefresh();      // trop ancienne : relue en arrière-plan, l'ancienne part tout de suite
+  if (!PUB.raw) return json(res, 503, { error: 'unavailable', message: 'Decks publics momentanément indisponibles.' }, { 'Retry-After': '60' });
+  const gz = /\bgzip\b/i.test(String(req.headers['accept-encoding'] || '')), hd = { ...SEC, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache', ETag: PUB.etag, Vary: 'Accept-Encoding' };
+  if (notModified(req, PUB.etag)) { delete hd['Content-Type']; res.writeHead(304, hd); return res.end(); }
+  const body = gz ? PUB.gz : PUB.raw; if (gz) hd['Content-Encoding'] = 'gzip';
+  hd['Content-Length'] = body.length; res.writeHead(200, hd);
+  return res.end(req.method === 'HEAD' ? undefined : body);
+}
+
 /* ── Noms imprimés des autres langues (scan) : GET /api/names/find?q=<ligne lue>[&q=…]&skip=<langue>[,…] ──────────────────────────────
    L'appli compare le nom lu au catalogue de SA langue (gardé sur l'appareil) puis à l'anglais, puis aux autres langues si elle a names-all.tsv sur l'appareil ;
    sinon une carte d'une autre langue (italienne lue avec l'appli en français) est cherchée ici dans les catalogues names-*.tsv déjà servis, avec la même
@@ -1007,6 +1090,7 @@ async function importApi(req, res, url) {
 const NM_FILES = { fr: 'fr-names.tsv', de: 'names-de.tsv', es: 'names-es.tsv', it: 'names-it.tsv', pt: 'names-pt.tsv' };      // liste fermée : aucun chemin construit depuis la requête
 let NM_CORE = null; try { NM_CORE = createRequire(import.meta.url)('./src/core.js'); } catch (e) { /* sources absentes : recherche coupée (503), l'appli fait sans */ }
 const NM_ON = process.env.NAMES_FIND !== '0' && !!(NM_CORE && NM_CORE.nmCat && NM_CORE.nmPick);
+const PUB_ON = process.env.PUBDECKS !== '0' && FCM_ON && !!(NM_CORE && NM_CORE.pubClean);      // decks publics : compte de service et lecteur (core.js) présents
 const NM_RATE = Number(process.env.NAMES_RATE_PER_MIN ?? 60), NM_IDLE = (Number(process.env.NAMES_IDLE_MIN) || 30) * 60e3, NM_Q = 4, NM_LEN = 100, NM_BUSY = 4;
 const NM = new Map();                        // langue → { p: Promise<catalogue | null>, mt, at }
 let nmBusy = 0, nmUsed = 0, nmTimer = null;
@@ -1071,6 +1155,7 @@ async function api(req, res, url) {
   // Ouvert à tous : import d'une liste depuis un lien, alertes de prix (Scryfall + push). Ni l'un ni l'autre n'utilise de token CardTrader.
   if (path === 'import') return importApi(req, res, url);
   if (path === 'names/find') return namesApi(req, res, url);      // scan : noms imprimés des autres langues (catalogues publics)
+  if (path === 'pubdecks') return pubApi(req, res, url);      // decks publics (« Communauté ») : liste ouverte à tous, sans token
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
   // CardTrader : avec le token de l'utilisateur (X-CT-Token), ou celui du serveur pour les comptes autorisés (ALLOWED_UIDS / APP_KEY).
   const ut = userTok(req);
@@ -1205,7 +1290,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, off: OFF, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, off: OFF, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (url.pathname === '/' || url.pathname === '/index.html') {
@@ -1254,6 +1339,7 @@ server.listen(PORT, HOST, () => {
   if (!PAGE) console.log('⚠ deck-deal.html introuvable à côté du proxy.');
   if (ADMOB_RAW && !ADMOB_BANNER) console.warn('⚠ ADMOB_BANNER_ID ignoré : attendu « ca-app-pub-…/… » (identifiant du bloc d\'annonces, pas celui de l\'appli).');
   if (FCM_ON) console.log(`Notifications de l'appli Android (FCM) : projet Firebase « ${fcmSa.project} ».`);
+  if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
   if (ALERTS_ON) {
     const wait = Math.max(AL_FIRST, (AL.last.at || 0) + AL_EVERY - Date.now());
     setTimeout(() => { alTick(); setInterval(alTick, AL_EVERY).unref(); }, wait).unref();

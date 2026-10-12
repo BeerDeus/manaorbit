@@ -285,6 +285,44 @@ await T.assertFails(deleteDoc(doc(anon, 'games/g1')));
 await T.assertSucceeds(deleteDoc(doc(u1, 'games/g1')));
 ok('parties : modifiées et supprimées par leur seul créateur, jamais cédées (createdBy inchangé)');
 
+// Decks publics (Communauté) : 10 places par compte, adresse vérifiée, propriétaire seul ; signalements créés une fois, jamais relus
+const v1 = env.authenticatedContext('v1', { email_verified: true }).firestore(), v2 = env.authenticatedContext('v2', { email_verified: true }).firestore(), t1 = tag('v1'), t2 = tag('v2');
+const pub = (o, extra = {}) => ({ o, by: 'Max', deck: 'd1', name: 'Atraxa', cmd: ['Atraxa, Praetors\' Voice'], ci: 'WUBG', cards: ['1 Sol Ring', '98 Forest'], updatedAt: Date.now(), v: 1, ...extra });
+await T.assertFails(setDoc(doc(u1, `pubdecks/${tag('u1')}_0`), pub(tag('u1'))));      // adresse non vérifiée
+await T.assertFails(setDoc(doc(anon, `pubdecks/${t1}_0`), pub(t1)));
+await T.assertFails(setDoc(doc(v1, `pubdecks/${t2}_0`), pub(t1)));      // place d'un autre compte
+await T.assertFails(setDoc(doc(v1, `pubdecks/${t1}_0`), pub(t2)));
+for (const id of [`${t1}_10`, t1, `x${t1}_1`, `${t1}_a`]) await T.assertFails(setDoc(doc(v1, 'pubdecks/' + id), pub(t1)));      // 10 places : _0 … _9
+for (const [k, v] of [['by', ''], ['by', 'x'.repeat(31)], ['cmd', []], ['cmd', ['a', 'b', 'c']], ['cmd', 'Atraxa'], ['ci', 'GW'], ['ci', 'X'], ['cards', []], ['cards', list(101, '1 X')], ['uid', 'v1'], ['name', 'x'.repeat(121)], ['deck', 'x'.repeat(41)], ['updatedAt', 'x'], ['v', 'x']]) await T.assertFails(setDoc(doc(v1, `pubdecks/${t1}_0`), pub(t1, { [k]: v })));
+for (const k of ['o', 'by', 'cmd', 'ci', 'cards', 'updatedAt']) await T.assertFails(setDoc(doc(v1, `pubdecks/${t1}_0`), drop(pub(t1), k)));
+await T.assertSucceeds(setDoc(doc(v1, `pubdecks/${t1}_0`), pub(t1)));
+await T.assertSucceeds(setDoc(doc(v1, `pubdecks/${t1}_9`), pub(t1, { ci: '', cmd: ['Kozilek', 'Partner'], cards: list(100, '1 X') })));
+await T.assertSucceeds(setDoc(doc(v1, `pubdecks/${t1}_0`), pub(t1, { by: 'Max 2' })));      // mise à jour
+await T.assertFails(setDoc(doc(v2, `pubdecks/${t1}_0`), pub(t2)));
+await T.assertFails(updateDoc(doc(v2, `pubdecks/${t1}_0`), { by: 'Pirate' }));
+await T.assertSucceeds(getDoc(doc(v1, `pubdecks/${t1}_0`)));
+await T.assertFails(getDoc(doc(v2, `pubdecks/${t1}_0`)));
+await T.assertFails(getDoc(doc(anon, `pubdecks/${t1}_0`)));
+assert.equal((await T.assertSucceeds(getDocs(query(collection(v1, 'pubdecks'), where('o', '==', t1))))).size, 2, 'ses decks publiés');
+await T.assertFails(getDocs(collection(v1, 'pubdecks')));      // jamais la liste de tous : le serveur la sert
+await T.assertFails(getDocs(query(collection(v2, 'pubdecks'), where('o', '==', t1))));
+await T.assertFails(deleteDoc(doc(v2, `pubdecks/${t1}_0`)));
+await T.assertSucceeds(deleteDoc(doc(v1, `pubdecks/${t1}_9`)));
+ok('decks publics : 10 places par compte (<empreinte>_0 … _9), adresse vérifiée, champs bornés ; lus, modifiés et retirés par leur seul auteur');
+const rep = (d, extra = {}) => ({ d, at: Date.now(), ...extra });
+await T.assertFails(setDoc(doc(u2, `pubreports/${t1}_0~${tag('u2')}`), rep(`${t1}_0`)));      // adresse non vérifiée
+await T.assertFails(setDoc(doc(v2, `pubreports/${t1}_0~${t1}`), rep(`${t1}_0`)));      // au nom d'un autre
+await T.assertFails(setDoc(doc(v2, `pubreports/${t1}_1~${t2}`), rep(`${t1}_0`)));
+await T.assertFails(setDoc(doc(v2, `pubreports/x~${t2}`), rep('x')));
+await T.assertFails(setDoc(doc(v2, `pubreports/${t1}_0~${t2}`), rep(`${t1}_0`, { why: 'spam' })));
+await T.assertFails(setDoc(doc(v2, `pubreports/${t1}_0~${t2}`), drop(rep(`${t1}_0`), 'at')));
+await T.assertSucceeds(setDoc(doc(v2, `pubreports/${t1}_0~${t2}`), rep(`${t1}_0`)));
+await T.assertFails(setDoc(doc(v2, `pubreports/${t1}_0~${t2}`), rep(`${t1}_0`)));      // une fois par deck
+await T.assertFails(getDoc(doc(v2, `pubreports/${t1}_0~${t2}`)));
+await T.assertFails(getDocs(collection(v1, 'pubreports')));
+await T.assertFails(deleteDoc(doc(v2, `pubreports/${t1}_0~${t2}`)));
+ok('signalements : un par compte et par deck, à son nom, jamais relus, modifiés ni effacés par l\'appli');
+
 // Suppression du compte (cloud.js, wipe) : un seul lot efface decks, documents annexes et classeur, qu'ils existent ou non
 const wipe = (db, uid) => { const b = writeBatch(db); for (const p of ['decks/d1', 'decks/x', 'meta/collection', 'meta/engaged', 'meta/history', 'meta/trade', 'meta/profile', 'binder/lands']) b.delete(doc(db, `users/${uid}/${p}`)); return b.commit(); };
 await T.assertFails(wipe(u2, 'u1'));

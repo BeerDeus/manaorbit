@@ -4,8 +4,9 @@
 const EDH_KEY = 'edh:v1', EDH_BIN_KEY = 'edh:v2', EDH_FILE = 'edh.tsv', EDH_BIN = 'edh.bin.gz', EDH_FRESH = DAY;      // v2 : fichier binaire (EDH2) ; v1 : ancien texte, gardé en repli
 const EDH_SORTS = [['have', 'Plus possédées'], ['cost', 'Moins cher'], ['pop', 'Meilleur tier']];
 /** Types de decks : nom court (ligne et filtre) et explication. */
-const EDH_KIND_NAMES = { avg: 'Moyen', budget: 'Budget', premium: 'Premium', cedh: 'cEDH', pop: 'Populaire', arch: 'Archidekt' };
+const EDH_KIND_NAMES = { comm: 'Communauté', avg: 'Moyen', budget: 'Budget', premium: 'Premium', cedh: 'cEDH', pop: 'Populaire', arch: 'Archidekt' };
 const EDH_KIND_HELP = {
+  comm: 'Communauté : deck publié par un joueur de Mana Orbit depuis Mes decks (100 cartes, commandant compris), sous son pseudo. Une vraie liste, pas une moyenne ; signale-la si elle pose problème.',
   avg: 'Deck moyen EDHREC : calculé à partir de tous les decks du commandant sur EDHREC (les cartes les plus jouées et les quantités habituelles). Ce n\'est pas une liste testée telle quelle : il mélange les styles. Utile pour repérer les incontournables du commandant.',
   budget: 'Budget : le moins cher des 10 decks Archidekt les plus vus parmi ceux mis à jour depuis moins d\'un an (prix Cardmarket).',
   premium: 'Premium : le plus cher des 10 decks Archidekt les plus vus parmi ceux mis à jour depuis moins d\'un an (prix Cardmarket).',
@@ -92,7 +93,7 @@ const edhInfoHtml = x => { const i = x.indexOf(' Ex. : '); return i < 0 ? esc(T(
 /** Nom court d'un type de deck, traduit ('' si inconnu). */
 const edhKindName = k => (EDH_KIND_NAMES[k] ? T(EDH_KIND_NAMES[k]) : '');
 const EDH_BUDGETS = [[0, 'Budget illimité'], [3000, '≤ 30 €'], [6000, '≤ 60 €'], [10000, '≤ 100 €'], [20000, '≤ 200 €']];
-const EDH = { data: null, p: null, err: '', at: 0, sort: 'have', then: '', kinds: new Set(), cols: new Set(), tiers: new Set(), mine: false, budget: 0, shown: 30, memo: null, im: null, q: '', qm: 'cmd', themes: new Set() };
+const EDH = { data: null, rec: null, p: null, err: '', at: 0, sort: 'have', then: '', kinds: new Set(), cols: new Set(), tiers: new Set(), mine: false, budget: 0, shown: 30, memo: null, im: null, q: '', qm: 'cmd', themes: new Set() };
 
 /** Fichier du site (null hors http, ou s'il manque) : { buf, etag }. same : ETag déjà connu ; si le site répond avec le même, le corps n'est pas lu → { same: true }. */
 async function edhGet(file, same) {
@@ -122,12 +123,12 @@ async function edhRevalidate(rec) {
     const n = { buf: g.buf, at: Date.now(), etag: g.etag }, x = edhRead(n); if (!x || !x.decks.length) return;
     Cache.set(EDH_BIN_KEY, n);
     if (x.at && EDH.data && EDH.data.at && x.at <= EDH.data.at) return;      // même version : rien à changer
-    EDH.data = x; EDH.at = n.at; EDH.memo = null; if (COLL.el) collPaintBody(true);
+    EDH.data = x; EDH.rec = n; EDH.at = n.at; EDH.memo = null; if (COLL.el) collPaintBody(true);
   } catch (e) { /* hors ligne ou fichier douteux : la copie de l'appareil reste */ }
 }
-/** Index lu depuis un enregistrement du cache ({ buf } binaire ou { text } ancien format), ou null s'il est illisible. */
+/** Index lu depuis un enregistrement du cache ({ buf } binaire ou { text } ancien format), ou null s'il est illisible. Les decks de la communauté (PD.comm, pubdecks.js) y sont ajoutés. */
 function edhRead(rec) {
-  try { const keep = edhKeep(), d = rec && rec.buf ? parseEdhBin(rec.buf, keep) : rec && rec.text ? parseEdh(rec.text, keep) : null; return d && d.v === 1 && d.cmds.length ? d : null; } catch (e) { return null; }
+  try { const keep = edhKeep(), comm = PD.comm, d = rec && rec.buf ? parseEdhBin(rec.buf, keep, comm) : rec && rec.text ? parseEdh(rec.text, keep, comm) : null; return d && d.v === 1 && d.cmds.length ? d : null; } catch (e) { return null; }
 }
 /** Charge les données : copie locale de moins de 1 jour (affichée tout de suite, puis contrôlée en arrière-plan : une version plus récente du site la remplace), sinon le fichier binaire du site, sinon l'ancien fichier texte ; une copie plus ancienne sert si le site ne répond pas. */
 function edhLoad() {
@@ -137,22 +138,22 @@ function edhLoad() {
   EDH.err = '';
   EDH.p = (async () => {
     const get = k => Cache.get(k, 90 * DAY).catch(() => null), fresh = r => !!r && Date.now() - r.at < EDH_FRESH;
-    const [rb, rt] = await Promise.all([get(EDH_BIN_KEY), get(EDH_KEY)]);
-    let d = fresh(rb) ? edhRead(rb) : null, at = d ? rb.at : 0; const cached = !!d;
+    const [rb, rt] = await Promise.all([get(EDH_BIN_KEY), get(EDH_KEY), pdForEdh()]);      // decks de la communauté : attendus 1,5 s au plus (pubdecks.js)
+    let d = fresh(rb) ? edhRead(rb) : null, at = d ? rb.at : 0, src = d ? rb : null; const cached = !!d;
     if (!d) {
       const g = await edhFetchBin(), rec = g && g.buf ? { buf: g.buf, at: Date.now(), etag: g.etag } : null, x = rec && edhRead(rec);
-      if (x && x.decks.length) { d = x; at = rec.at; Cache.set(EDH_BIN_KEY, rec); }
+      if (x && x.decks.length) { d = x; at = rec.at; src = rec; Cache.set(EDH_BIN_KEY, rec); }
     }
-    if (!d && fresh(rt)) { d = edhRead(rt); at = d ? rt.at : 0; }
+    if (!d && fresh(rt)) { d = edhRead(rt); at = d ? rt.at : 0; src = d ? rt : null; }
     if (!d) {
       const t = await edhFetch(), rec = t ? { text: t, at: Date.now() } : null, x = rec && edhRead(rec);
-      if (x && x.decks.length) { d = x; at = rec.at; Cache.set(EDH_KEY, rec); }
+      if (x && x.decks.length) { d = x; at = rec.at; src = rec; Cache.set(EDH_KEY, rec); }
     }
-    if (!d) { const x = edhRead(rb); if (x) { d = x; at = rb.at; } }
-    if (!d) { const x = edhRead(rt); if (x) { d = x; at = rt.at; } }
+    if (!d) { const x = edhRead(rb); if (x) { d = x; at = rb.at; src = rb; } }
+    if (!d) { const x = edhRead(rt); if (x) { d = x; at = rt.at; src = rt; } }
     if (!d) throw new Error(rb || rt ? 'illisible' : 'absent');
     if (edhOff('edhrec')) { edhForget(); throw new Error('off'); }      // coupé pendant le chargement
-    EDH.data = d; EDH.at = at; EDH.memo = null;
+    EDH.data = d; EDH.rec = src; EDH.at = at; EDH.memo = null;      // rec : relu si les decks de la communauté arrivent ou changent (pdApply)
     if (cached) edhRevalidate(rb);
     return d;
   })().catch(e => { if (e && e.message === 'off') throw e; EDH.err = e && e.message === 'absent' ? T('Données EDHREC indisponibles : le fichier edh.bin.gz n\'est pas encore généré ou le site est injoignable.') : T('Données EDHREC illisibles.'); throw e; })
@@ -223,11 +224,12 @@ function openEdhThemes() {
   });
 }
 const edhPips = ci => manaHtml(ci ? '{' + ci.split('').join('}{') + '}' : '{C}');
-const edhSrcLabel = d => d.k === 'avg' ? T('EDHREC · deck moyen') : 'Archidekt · ' + (edhKindName(d.k) || T('deck réel'));
+const edhSrcLabel = d => d.k === 'comm' ? T('Communauté · deck de {name}', { name: d.label }) : d.k === 'avg' ? T('EDHREC · deck moyen') : 'Archidekt · ' + (edhKindName(d.k) || T('deck réel'));
 /** Étiquettes du type de deck : « Premium », puis « màj il y a 2 mois » à part (d'un seul tenant, elles ne tenaient pas sur une ligne à 360 px) ; deck moyen : « Moyen » seul. */
-const edhKindTags = d => `<span class="tag dk-kind k-${esc(d.k)}" title="${esc(T(EDH_KIND_HELP[d.k] || ''))}">${esc(edhKindName(d.k) || T('Deck'))}</span>` + (d.k !== 'avg' && d.u ? `<span class="tag">${T('màj {ago}', { ago: esc(agoDay(d.u)) })}</span>` : '');
+const edhKindTags = d => `<span class="tag dk-kind k-${esc(d.k)}" title="${esc(T(EDH_KIND_HELP[d.k] || ''))}">${esc(edhKindName(d.k) || T('Deck'))}</span>` + (d.k === 'comm' && d.label ? `<span class="tag dk-by">${esc(d.label)}</span>` : '') + (d.k !== 'avg' && d.u ? `<span class="tag">${T('màj {ago}', { ago: esc(agoDay(d.u)) })}</span>` : '');      // Communauté : le pseudo de l'auteur
 /** Aide des Decks (« comment lire ») : une information par ligne, nom en gras puis l'explication ; seulement ce que le fichier chargé contient. */
 const EDH_HELP_KINDS = {
+  comm: 'Deck publié par un joueur de Mana Orbit, avec son pseudo (Mes decks › viewer › Publier).',
   avg: 'Deck moyen EDHREC : les cartes les plus jouées avec ce commandant. Pas une liste testée telle quelle.',
   budget: 'Le moins cher des 10 decks Archidekt les plus vus, mis à jour depuis moins d\'un an.',
   premium: 'Le plus cher de ces mêmes 10 decks.',
@@ -342,7 +344,7 @@ function edhRowHtml(r, i) {
   const right = r.miss ? `<b>${nf0(r.miss)}</b><small>${T('à acheter')}</small><em>${r.cost ? '≈ ' + esc(fmt(r.cost, 'EUR')) : T('prix inconnu')}</em>${r.cost && r.unpriced ? `<small>${T('+ {n} sans prix', { n: nf0(r.unpriced) })}</small>` : ''}` : `<b class="ok">✓</b>${T('<small>complet</small>')}`;
   const aria = T('{name} : tier {tier}, {have} cartes sur {total}{eng}, {miss} à acheter', { name: esc(name), tier: esc(r.tier), have: r.have, total: r.total, miss: r.miss, eng: r.eng ? ' ' + TN(r.eng, '(dont {n} engagée dans un deck)', '(dont {n} engagées dans un deck)', { n: r.eng }) : '' });
   return `<div class="crow dk" role="button" tabindex="0" data-dk="${i}" aria-label="${aria}">${r.tier ? `<i class="dk-tier t-${esc(r.tier.toLowerCase())}" aria-hidden="true">${esc(r.tier)}</i>` : ''}<span class="thumb" style="--h:${hash32(c.slug) % 360}">${esc((name.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
-    <span class="row-main"><span class="row-name">${esc(name)}${c.rank ? ` <small class="dk-rank" title="${mo ? T('Rang de popularité du commandant sur EDHREC ce mois-ci') : T('Rang de popularité du commandant sur EDHREC')}">#${nf0(c.rank)}</small>` : ''}</span><span class="dk-pips">${edhPips(c.ci)}</span><span class="row-meta">${tags.join('')}</span><span class="dk-bar" aria-hidden="true"><i style="width:${pct}%"></i>${r.eng ? `<i class="eng" style="width:${pe}%"></i>` : ''}</span><span class="dk-have">${T('{have} / {total} possédées', { have: nf0(r.have), total: nf0(r.total) })}${r.eng ? ` <em class="dk-eng" title="${T('Exemplaires déjà réservés par un de tes decks montés')}">· ${TN(r.eng, 'dont {n} engagée', 'dont {n} engagées')}</em>` : ''}</span>${c.th.length ? `<span class="dk-th">${c.th.slice(0, 3).map(([i, n]) => { const t = EDH.data.themes[i]; return EDH.themes.has(t.slug) ? '<b>' + esc(edhThemeName(t)) + '</b>' : esc(edhThemeName(t)); }).join(' · ')}</span>` : ''}${r.hit ? `<span class="dk-lab dk-hitl">${T('Contient : {list}', { list: esc(r.hit.slice(0, 2).map(h => h[1]).join(' · ')) + (r.hit.length > 2 ? ' +' + (r.hit.length - 2) : '') })}</span>` : ''}</span>
+    <span class="row-main"><span class="row-name">${esc(name)}${c.rank && !c.comm ? ` <small class="dk-rank" title="${mo ? T('Rang de popularité du commandant sur EDHREC ce mois-ci') : T('Rang de popularité du commandant sur EDHREC')}">#${nf0(c.rank)}</small>` : ''}</span><span class="dk-pips">${edhPips(c.ci)}</span><span class="row-meta">${tags.join('')}</span><span class="dk-bar" aria-hidden="true"><i style="width:${pct}%"></i>${r.eng ? `<i class="eng" style="width:${pe}%"></i>` : ''}</span><span class="dk-have">${T('{have} / {total} possédées', { have: nf0(r.have), total: nf0(r.total) })}${r.eng ? ` <em class="dk-eng" title="${T('Exemplaires déjà réservés par un de tes decks montés')}">· ${TN(r.eng, 'dont {n} engagée', 'dont {n} engagées')}</em>` : ''}</span>${c.th.length ? `<span class="dk-th">${c.th.slice(0, 3).map(([i, n]) => { const t = EDH.data.themes[i]; return EDH.themes.has(t.slug) ? '<b>' + esc(edhThemeName(t)) + '</b>' : esc(edhThemeName(t)); }).join(' · ')}</span>` : ''}${r.hit ? `<span class="dk-lab dk-hitl">${T('Contient : {list}', { list: esc(r.hit.slice(0, 2).map(h => h[1]).join(' · ')) + (r.hit.length > 2 ? ' +' + (r.hit.length - 2) : '') })}</span>` : ''}</span>
     <span class="row-px dk-px">${right}</span></div>`;
 }
 
@@ -376,7 +378,7 @@ const edhBracketNote = r => r.gc.length ? T('Game Changers : {list}', { list: r.
 const EDH_WATCH_MIN = 100;      // 1 € : en dessous, une baisse n'atteint jamais les 0,50 € qu'exige une alerte
 const EDH_BELL = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/></svg>';
 /** Nom du deck enregistré : le commandant, et le type s'il y a plusieurs listes possibles (« Edgar Markov · Budget »). */
-const edhSaveName = r => { const n = r.cmd.names.join(' + '), k = r.deck.k; return (k && k !== 'avg' && EDH_KIND_NAMES[k] ? n + ' · ' + edhKindName(k) : n).slice(0, 120); };
+const edhSaveName = r => { const n = r.cmd.names.join(' + '), k = r.deck.k; return (k === 'comm' && r.deck.label ? n + ' · ' + T('deck de {name}', { name: r.deck.label }) : k && k !== 'avg' && EDH_KIND_NAMES[k] ? n + ' · ' + edhKindName(k) : n).slice(0, 120); };
 const edhSavedDeck = text => allDecks().find(d => String(d.text || '').trim() === text.trim()) || null;
 /** Exemplaires à ajouter à « Je recherche » : pour chaque manquante, ce qui dépasse ce que la liste recherche déjà (decks enregistrés et souhaits) → [{ k, n, q }]. */
 function edhWishTodo(r) {
@@ -445,13 +447,14 @@ function openEdhDeck(r) {
     const hitSet = new Set((r.hit || []).map(h => h[0]).filter(k => !cmdSet.has(k))), hitRows = [...hitSet].map(k => byK.get(k)).filter(Boolean);      // cartes cherchées : juste sous le commandant
     const cmdRows = c.keys.map(k => byK.get(k)).filter(Boolean), buy = r.missing.filter(x => !cmdSet.has(x.k) && !hitSet.has(x.k)), have = r.owned.filter(x => !cmdSet.has(x.k) && !hitSet.has(x.k));      // le commandant est toujours en tête, avec son prix ou ✓
     const lvl = [r.tier ? T(EDH.data && EDH.data.rk === 'month' ? 'Tier {t} · n° {n} sur EDHREC ce mois-ci' : 'Tier {t} · n° {n} sur EDHREC', { t: esc(r.tier), n: nf0(r.rank) }) : '', r.gc.length ? `<span title="${esc(edhBracketNote(r))}">${TN(r.gc.length, '{n} Game Changer', '{n} Game Changers')}</span>` : ''].filter(Boolean).join(' · ');
-    const dk = r.deck, info = [`<b>${esc(edhKindName(dk.k) || T('Deck'))}</b>`, dk.u ? T('mis à jour {ago} ({date})', { ago: esc(agoDay(dk.u)), date: esc(new Date(dk.u + 'T12:00:00Z').toLocaleDateString(LOC())) }) : '', dk.v ? T('{n} vues', { n: nf0(dk.v) }) : '', dk.p ? T('deck complet ≈ {p}', { p: esc(fmt(dk.p, 'EUR')) }) : ''].filter(Boolean).join(' · ');
+    const dk = r.deck, info = [`<b>${esc(edhKindName(dk.k) || T('Deck'))}</b>`, dk.k === 'comm' && dk.label ? T('deck de {name}', { name: '<b>' + esc(dk.label) + '</b>' }) : '', dk.u ? T('mis à jour {ago} ({date})', { ago: esc(agoDay(dk.u)), date: esc(new Date(dk.u + 'T12:00:00Z').toLocaleDateString(LOC())) }) : '', dk.v ? T('{n} vues', { n: nf0(dk.v) }) : '', dk.p ? T('deck complet ≈ {p}', { p: esc(fmt(dk.p, 'EUR')) }) : ''].filter(Boolean).join(' · ');
     api.body.innerHTML = `<div class="ci-sum"><div>${TN(r.miss, '<b>{n}</b> carte à acheter', '<b>{n}</b> cartes à acheter')}${r.cost ? ' · ≈ <b>' + esc(fmt(r.cost, 'EUR')) + '</b>' : ''}</div><span>${r.unpriced ? T('{n} sans prix connu', { n: r.unpriced }) + ' · ' : ''}${c.dm ? T('{n} decks ce mois', { n: nf0(c.dm) }) + ' · ' : c.decks ? T('{n} decks EDHREC', { n: nf0(c.decks) }) + ' · ' : ''}${T('couleurs {c}', { c: esc(c.ci || T('incolore')) })}</span>${lvl ? `<span>${lvl}</span>` : ''}<span class="dk-info">${info}</span><p class="hint dk-kinfo">${esc(EDH_KIND_HELP[dk.k] ? T(EDH_KIND_HELP[dk.k]) : '')}</p>${c.th.length ? `<details class="ci-thd"><summary title="${T('Nombre de decks EDHREC du commandant qui ont ce thème')}">${T('Thèmes EDHREC : {list}', { list: c.th.map(([i, n]) => esc(edhThemeName(EDH.data.themes[i])) + ' (' + nf0(n) + ')').join(' · ') })}</summary><dl class="ci-thl">${c.th.map(([i]) => { const t = EDH.data.themes[i], inf = edhThemeInfo(t); return `<dt>${esc(edhThemeName(t))}</dt>${inf ? `<dd>${edhInfoHtml(inf)}</dd>` : ''}`; }).join('')}</dl></details>` : ''}</div>
       ${cmdRows.length ? `<h3 class="cs-h">${cmdRows.length > 1 ? T('Commandants') : T('Commandant')}</h3><div class="cs-top dk-cmd">${cmdRows.map(([x, o]) => row(x, o)).join('')}</div>` : ''}
       ${hitRows.length ? `<h3 class="cs-h">${hitRows.length > 1 ? T('Cartes cherchées') : T('Carte cherchée')}</h3><div class="cs-top dk-hit">${hitRows.map(([x, o]) => row(x, o)).join('')}</div>` : ''}
       ${buy.length ? `<h3 class="cs-h">${[...cmdRows, ...hitRows].some(([, o]) => !o) ? T('Autres cartes à acheter') : T('À acheter')} <small>${TN(buy.reduce((a, x) => a + x.q, 0), '{n} carte', '{n} cartes')}</small></h3><div class="cs-top dk-miss">${buy.map(x => row(x, false)).join('')}</div>` : r.miss ? '' : `<p class="hint">${T('Tu as déjà toutes les cartes de ce deck.')}</p>`}
       ${have.length ? `<details class="dk-own" open><summary>${T('Déjà dans ta collection ({n})', { n: nf0(have.length) })}</summary><div class="cs-top dk-have-l">${have.map(x => row(x, true)).join('')}</div></details>` : ''}
-      <p class="hint dk-tap">${T('Touche une carte pour la voir en grand.')}</p>`;
+      <p class="hint dk-tap">${T('Touche une carte pour la voir en grand.')}</p>${dk.k === 'comm' && dk.pid ? (PD.tag && D.user && PD.tagUid === D.user.uid && dk.pid.startsWith(PD.tag + '_') ? `<p class="hint pub-own">${T('C\'est ton deck : le retirer ou le mettre à jour depuis Mes decks › le deck › Publier.')}</p>` : `<p class="pub-report"><button class="link-btn" type="button" data-act="dkrep">${T('Signaler ce deck')}</button></p>`) : ''}`;      // Communauté : contenu publié par un joueur (règles Google Play : signalement dans l'appli)
+    const rep = $('[data-act="dkrep"]', api.body); if (rep) rep.onclick = () => openPubReport(dk.pid, () => api.close());
     $('.ci-sum', api.body).insertAdjacentHTML('afterend', `<div class="tr-acts dk-acts"><button class="btn ghost" type="button" data-act="dkview"><svg class="i"><use href="#i-grid"/></svg>${T('Voir le deck')}</button><button class="btn ghost" type="button" data-act="dkshare"><svg class="i"><use href="#i-share"/></svg>${T('Partager')}</button></div><div class="dk-acts2" role="group" aria-label="${T('Ce deck')}"></div>`);
     edhDeckActs(api, r, name);
     $('.dk-acts', api.body).onclick = e => {
@@ -542,7 +545,7 @@ const edhKeep = () => (edhOff('archidekt') ? m => m[1] !== 'archidekt' : null);
 const edhForget = () => { Cache.set(EDH_BIN_KEY, null).catch(() => {}); Cache.set(EDH_KEY, null).catch(() => {}); };      // copie de l'appareil effacée
 function edhOffApply() {
   if (edhOff('edhrec')) {
-    EDH.data = null; EDH.memo = null; EDH.err = ''; GLANCE.edh = null; edhForget();
+    EDH.data = null; EDH.rec = null; EDH.memo = null; EDH.err = ''; GLANCE.edh = null; edhForget();
     if (COLL.f.cmdr === 'played') COLL.f.cmdr = 'can';
     if (COLL.el) collPaintBody(true);
     edhGateSync(); homeSoon(); return;

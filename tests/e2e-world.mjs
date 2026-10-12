@@ -172,6 +172,11 @@ export async function signInFake(p, user = {}) {
       pullColl: async () => ({ data: coll }), saveColl: async (uid, d) => { coll = copy(d); },
       watchMeta(uid, id, cb) { setTimeout(() => cb(meta[id] || null, false, false), 0); return () => {}; }, saveMeta: async (uid, id, d) => { meta[id] = copy(d); }, pullMeta: async (uid, id) => ({ data: meta[id] || null }),
       shareId: () => 'Fake' + Date.now().toString(36) + (++n), saveShare: async () => {}, dropShare: async () => {},
+      // decks publics (pubdecks.js) : window.__pubs (id → document), window.__reps (signalements « deck~empreinte », un seul par compte comme les règles)
+      pubMine: async tag => [...(window.__pubs || (window.__pubs = new Map()))].filter(([, x]) => x.o === tag).map(([id, data]) => ({ id, data: copy(data) })),
+      pubSave: async (id, data) => { (window.__pubs || (window.__pubs = new Map())).set(id, copy(data)); (window.__pubLog || (window.__pubLog = [])).push('save:' + id); },
+      pubDrop: async id => { if (window.__pubs) window.__pubs.delete(id); (window.__pubLog || (window.__pubLog = [])).push('drop:' + id); },
+      pubReport: async (id, tag) => { const r = window.__reps || (window.__reps = []), k = id + '~' + tag; if (r.includes(k)) throw Object.assign(new Error('refusé'), { code: 'permission-denied' }); r.push(k); },
     };
     for (const d of D.localList) decks.set(d.id, copy(stripDeck(d)));      // le compte a déjà les decks de cet appareil : rien ne disparaît de « Mes decks » à la connexion
     D.state = 'ready'; D.err = '';
