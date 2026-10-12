@@ -181,6 +181,13 @@ Catégorie à choisir : **Utilitaires, productivité, communication ou autres** 
 
 Résultat attendu : PEGI 3 à 7, ESRB Everyone à Everyone 10+, avec la mention « Les utilisateurs interagissent ».
 
+## 6 bis. Accès aux applis (Contenu de l'appli)
+
+- **Certaines fonctionnalités sont limitées** : la synchronisation, les decks EDHREC (onglet Decks, « Deck à monter ») et le partage demandent un compte ; tout le reste marche sans compte.
+- Compte de vérification pour Google : une adresse dédiée (par exemple `review@manaorbit.app`, boîte Hostinger), inscrite dans l'appli par **Compte › Créer un compte avec une adresse e-mail**, adresse vérifiée. Le propriétaire saisit l'adresse et le mot de passe directement dans la Play Console (jamais dans le dépôt ni dans une conversation).
+- Instructions à coller : « Ouvrir Compte (icône en haut à droite) › Se connecter avec une adresse e-mail › saisir l'adresse et le mot de passe ci-dessus. Les decks EDHREC sont dans l'onglet Decks. »
+- Instructions en anglais : “Open Account (top-right icon) › Sign in with an email address › enter the email and password above. EDHREC decks are in the Decks tab.”
+
 ## 7. Public cible et annonces
 
 - **Tranches d'âge** : 13 à 15 ans, 16 à 17 ans, 18 ans et plus. Ne coche aucune tranche de moins de 13 ans (sinon le programme Familles s'applique, incompatible avec le bandeau AdMob tel qu'il est réglé).
