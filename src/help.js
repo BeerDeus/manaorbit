@@ -11,7 +11,7 @@
 const PLAY_URL = '';
 /* Option « Supporter » (achat intégré) : volontairement absente, en attente de l'analyse Fan Content Policy / Google Play Billing. Point d'accroche prévu :
    const SUPPORTER_SKU = '';      // identifiant du produit Play Billing ; vide = rien d'affiché. Entrée sous « Envoyer un avis » dans helpSettings, appli Android seulement. */
-const HELP_MAIL = 'martin.stuis11@gmail.com', HELP_SUBJECT = 'Mana Orbit · avis';      // objet fixe dans toutes les langues : les avis se trient d'un seul filtre
+const HELP_MAIL = 'contact@manaorbit.app', HELP_SUBJECT = 'Mana Orbit · avis';      // objet fixe dans toutes les langues : les avis se trient d'un seul filtre
 /** Questions et réponses de l'aide (texte français, traduit par T ; HTML fixe, aucune donnée de l'utilisateur). Réponse en fonction : texte qui dépend de l'appli (langue des noms lus au scan, nmT). */
 const HELP_QA = [
   ['Cardmarket ou CardTrader : quels prix ?', 'Par défaut, Mana Orbit affiche le <b>prix tendance Cardmarket</b>, relevé chaque jour : gratuit et sans compte, idéal pour estimer. <b>CardTrader</b> donne les vraies offres des vendeurs (état, langue, port) et remplit ton panier, avec ton token CardTrader (Réglages). Le choix se fait dans « Nouveau panier » › Critères › <b>Prix</b>, quand CardTrader est disponible.'],

@@ -186,7 +186,7 @@ const tradeId = [...shares.keys()][0];
   assert.match(await txt(V.p, '.pub-cta'), /Ajoute ta collection pour voir ce que vous pouvez échanger/, 'visiteur sans collection : invitation');
   assert.equal(await txt(V.p, '.pub-cta [data-act="login"]'), 'Se connecter pour voir vos correspondances');
   const rep = await V.p.$eval('.pub-report a', a => [a.textContent, a.getAttribute('href')]);
-  assert.equal(rep[0], 'Signaler ce partage'); assert.ok(rep[1].startsWith('mailto:martin.stuis11@gmail.com?subject=' + encodeURIComponent('Mana Orbit · signalement') + '&body='), rep[1]);
+  assert.equal(rep[0], 'Signaler ce partage'); assert.ok(rep[1].startsWith('mailto:contact@manaorbit.app?subject=' + encodeURIComponent('Mana Orbit · signalement') + '&body='), rep[1]);
   assert.ok(decodeURIComponent(rep[1].split('&body=')[1]).includes(world.url + '?p=' + tradeId), 'le courriel contient le lien signalé');
   await V.p.click('#pubSub [data-v="have"]'); await V.p.waitForSelector('.pub-row');
   const names = await V.p.$$eval('.pub-row', r => r.map(x => x.querySelector('.row-name').textContent + ' ' + x.querySelector('.tr-q b').textContent.trim()));

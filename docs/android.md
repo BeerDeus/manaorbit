@@ -1,6 +1,6 @@
 # Mana Orbit sur Android : guide pas à pas
 
-Le dossier `android-app/` contient l'appli Android. C'est une coque native (Capacitor) qui ouvre https://card.m2s-photo.fr et ajoute ce qu'un navigateur ne sait pas faire :
+Le dossier `android-app/` contient l'appli Android. C'est une coque native (Capacitor) qui ouvre https://manaorbit.app et ajoute ce qu'un navigateur ne sait pas faire :
 
 - l'appareil photo natif et la lecture ML Kit pour le scan, fluides comme Snapchat ;
 - la connexion Google native, les notifications Firebase, le bandeau AdMob, le widget d'écran d'accueil et le bouton Retour d'Android.
@@ -165,8 +165,8 @@ Fond blanc même en thème sombre : un lecteur de QR code attend du foncé sur c
    - Gratuite.
 2. **Fiche Play Store principale** et **Contenu de l'appli** : copie tout depuis `docs/store/fiche.md` : textes (§1-4), classification (§6), public cible (§7), sécurité des données (§8) et visuels (§9, déjà prêts dans `docs/store/`).
 3. Les adresses à donner :
-   - Règles de confidentialité : `https://card.m2s-photo.fr/privacy`
-   - Suppression de compte : `https://card.m2s-photo.fr/?delete-account`
+   - Règles de confidentialité : `https://manaorbit.app/privacy`
+   - Suppression de compte : `https://manaorbit.app/?delete-account`
 4. **Tests › Tests internes** : envoie le fichier `.aab` et ajoute ton adresse e-mail comme testeur. Tu installes la version de test depuis le lien donné par Google.
    Juste après ce premier envoi, ajoute dans Firebase le SHA-1 de la clé de signature Play (**Intégrité de l'application**, voir la fin du 2 bis). Sinon « Continuer avec Google » échoue pour les testeurs.
 5. Si ton compte développeur est un **compte personnel créé après novembre 2023**, Google impose un **test fermé avec au moins 12 testeurs pendant 14 jours** avant la mise en production. Les testeurs s'inscrivent via un lien.
@@ -215,7 +215,7 @@ Mets `ADMOB_BANNER_ID` une fois la version avec ton ID d'application installée 
 
 ### 4. Message de consentement (Europe)
 1. AdMob › **Confidentialité et messages** › **RGPD** (Règlement européen) › **Créer un message**.
-2. Choisis l'appli Mana Orbit, les langues français et anglais, et l'adresse de la politique de confidentialité : `https://card.m2s-photo.fr/privacy`.
+2. Choisis l'appli Mana Orbit, les langues français et anglais, et l'adresse de la politique de confidentialité : `https://manaorbit.app/privacy`.
 3. Garde les boutons proposés (« Autoriser », « Gérer les options » ; ajoute « Ne pas autoriser » si on te le propose), puis **Publier**.
 
 L'appli affiche ce message de Google avant la première annonce, aux utilisateurs concernés. Sans message publié, Google ne recueille pas le consentement en Europe et y limite fortement les annonces (souvent aucune). Quand Google l'exige, Réglages › Confidentialité propose aussi « Choix publicitaires » pour changer d'avis.
@@ -244,7 +244,7 @@ Le serveur envoie les notifications de l'appli avec un **compte de service** Fir
      ```
      Le résultat est copié : colle-le comme valeur. Sur Mac : `base64 -i fichier.json | pbcopy`.
 6. Enregistre, puis redéploie ou redémarre le site.
-7. Vérifie : `https://card.m2s-photo.fr/__ping` doit afficher `"fcm":true`. Sinon, le journal du serveur dit pourquoi : « Notifications de l'appli (FCM) désactivées : … ».
+7. Vérifie : `https://manaorbit.app/__ping` doit afficher `"fcm":true`. Sinon, le journal du serveur dit pourquoi : « Notifications de l'appli (FCM) désactivées : … ».
 8. Dans l'appli : **Réglages › Notifications › Prévenir quand la recherche est finie**, et/ou **Réglages › Alertes de prix**. Android 13 et plus demande alors l'autorisation d'envoyer des notifications.
 
 Sur un serveur à toi, tu peux plutôt donner le chemin du fichier : `FCM_SERVICE_ACCOUNT_FILE=/chemin/vers/fichier.json`.

@@ -3,10 +3,13 @@
   "appName": "Mana Orbit",
   "webDir": "www",
   "server": {
-    "url": "https://card.m2s-photo.fr",
+    "url": "https://manaorbit.app",
     "cleartext": false,
     "androidScheme": "https",
-    "errorPath": "index.html"
+    "errorPath": "index.html",
+    "allowNavigation": [
+      "card.m2s-photo.fr"
+    ]
   },
   "android": {
     "backgroundColor": "#0b0f1c"

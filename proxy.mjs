@@ -28,6 +28,13 @@ const PAGE = ['deck-deal.html', 'dist/deck-deal.html'].map(f => join(here, f)).f
 const PWA = process.env.PWA_DIR || join(here, 'pwa');                       // surchargeable pour les tests (dossier temporaire)
 // Bloc d'annonces AdMob du bandeau de l'appli Android (ca-app-pub-…/…), donné à l'appli par /__ping ; vide : bandeau de test de Google.
 const ADMOB_RAW = (process.env.ADMOB_BANNER_ID || '').trim(), ADMOB_BANNER = /^ca-app-pub-\d+\/\d+$/.test(ADMOB_RAW) ? ADMOB_RAW : '';
+// Adresse du site (manaorbit.app depuis le 12 octobre 2026) et anciennes adresses (hôte tel qu'envoyé par le navigateur, port compris). Sur une ancienne adresse :
+// la page d'accueil devient une page de déménagement (les données de l'appareil suivent dans l'adresse : src/migrate.js), sw.js se désinstalle (une appli installée
+// ne garde pas l'ancienne copie), /__mig dit au nouveau site qu'elle répond ; tout le reste est servi comme avant (ancienne APK, liens déjà partagés).
+const SITE_URL = (process.env.SITE_URL || 'https://manaorbit.app').trim().replace(/\/+$/, '');
+const OLD_HOSTS = String(process.env.OLD_HOSTS ?? 'card.m2s-photo.fr').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+// app-ads.txt (AdMob) : identifiant d'éditeur public pub-…, tiré de ADMOB_PUB_ID ou de l'ID d'application ADMOB_APP_ID (ca-app-pub-…~…) ; absent : 404.
+const ADMOB_PUB = (/pub-\d{10,20}/.exec(String(process.env.ADMOB_PUB_ID || process.env.ADMOB_APP_ID || '')) || [''])[0];
 // Interrupteurs EDHREC / Archidekt (plan B de docs/a-faire.md : si l'un refuse, sa fonction est coupée depuis Hostinger, sans nouvelle APK), annoncés par /__ping (off) :
 // EDHREC_OFF=1 : plus de fichier EDH (/edh.bin.gz, /edh.tsv : 410) ni d'import de liens edhrec.com ; l'appli cache les decks EDHREC et efface sa copie.
 // ARCHIDEKT_OFF=1 : fichier EDH servi sans les decks Archidekt (edhFilter), plus d'import de liens archidekt.com ; l'appli les retire aussi de sa copie.
@@ -1150,12 +1157,55 @@ function warmFiles() {
   for (const st of STATIC.values()) if (st[3] === true) fileEntry(join(PWA, st[0]), true).catch(() => {});      // 'lazy' (catalogues des autres langues) : à la première demande
 }
 
+/* ── Ancienne adresse (OLD_HOSTS) : déménagement vers SITE_URL ─────────────────────────────────────────────────────────────── */
+const txt = (res, body, type = 'text/plain; charset=utf-8', hd = {}) => { res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff', ...hd }); res.end(body); return true; };
+/** Ancienne APK (WebView Android) : son appli reste servie ici tant qu'elle n'est pas mise à jour (aller ailleurs l'ouvrirait dans Chrome). */
+const isWebView = req => /;\s*wv\)/.test(String(req.headers['user-agent'] || ''));
+// sw.js de l'ancienne adresse : vide les caches, se désinstalle et recharge les onglets, qui reçoivent alors la page de déménagement.
+const OLD_SW = `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil((async () => { for (const k of await caches.keys()) await caches.delete(k); await self.registration.unregister(); for (const c of await self.clients.matchAll({ type: 'window' })) c.navigate(c.url); })()));
+`;
+/** Page de déménagement : les données de Mana Orbit gardées par le navigateur sur l'ancienne adresse (localStorage « deckdeal:* », sauf ce qui tient à l'appareil)
+ *  partent dans l'adresse de la nouvelle page (#mig=, jamais envoyé au serveur), qui les reprend sans rien écraser (src/migrate.js) ; ?p=… et le chemin suivent. */
+function oldPage() {
+  const site = JSON.stringify(SITE_URL).replace(/</g, '\\u003c');
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="origin"><title>Mana Orbit déménage</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;box-sizing:border-box;background:#0b0f1c;color:#eaeefb;font:16px/1.5 system-ui,sans-serif;text-align:center}a{color:#929cff}</style></head>
+<body><p>Mana Orbit déménage sur <a id="go" href=${site}>manaorbit.app</a>…<br><small>Mana Orbit is moving to manaorbit.app…</small></p>
+<script>(function () {
+  var q = new URLSearchParams(location.search); q.delete('mig');
+  var to = ${site} + location.pathname + (q.toString() ? '?' + q : ''), data = '';
+  try {
+    var skip = /^deckdeal:(fcm|pending|scry-until|cam2?|scpref|install-x|migtry|migrated)$/, o = {}, n = 0;
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('deckdeal:') === 0 && !skip.test(k)) { o[k] = localStorage.getItem(k); n++; } }
+    var enc = function (x) { var b = new TextEncoder().encode(JSON.stringify(x)), s = ''; for (var j = 0; j < b.length; j += 32768) s += String.fromCharCode.apply(null, b.subarray(j, j + 32768)); return btoa(s).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, ''); };
+    if (n) {
+      data = enc(o);
+      var keep = /^deckdeal:(coll:v1|decks:v1|trade:v1)$/;      // trop long pour une adresse (≈ 1,5 Mo) : les plus gros caches restent derrière, jamais la collection, les decks ni l'échange
+      while (data.length > 1500000) { var big = '', bl = 0; for (var k2 in o) if (!keep.test(k2) && o[k2].length > bl) { big = k2; bl = o[k2].length; } if (!big) break; delete o[big]; data = enc(o); }
+    }
+  } catch (e) { data = ''; }
+  document.getElementById('go').href = to;
+  location.replace(to + (data ? '#mig=' + data : ''));
+})();</script></body></html>`;
+}
+/** Requête reçue sur une ancienne adresse : true si elle a été servie ici (déménagement), false : traitement habituel. */
+function oldHost(req, res, url) {
+  const get = req.method === 'GET' || req.method === 'HEAD', wv = isWebView(req);
+  if (get && url.pathname === '/__mig') return txt(res, '{"ok":true}', 'application/json; charset=utf-8', { 'Access-Control-Allow-Origin': SITE_URL });      // le nouveau site vérifie que l'ancienne adresse répond avant d'y envoyer l'APK
+  if (get && url.pathname === '/sw.js' && !wv) return txt(res, OLD_SW, 'text/javascript; charset=utf-8');
+  if (get && (url.pathname === '/' || url.pathname === '/index.html') && (!wv || url.searchParams.get('mig') === 'app')) return txt(res, oldPage(), 'text/html; charset=utf-8', { 'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" });
+  return false;
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (LOCAL && !LOCAL_HOSTS.test(String(req.headers.host || ''))) return json(res, 403, { error: 'bad_host', message: 'Serveur local : ouvre-le par http://localhost.' });
     // Servi en https par le reverse proxy de l'hébergeur : le navigateur s'en souvient 180 jours (jamais en http, où l'en-tête n'aurait pas de sens).
     if (String(req.headers['x-forwarded-proto'] || '').split(',').pop().trim().toLowerCase() === 'https') res.setHeader('Strict-Transport-Security', 'max-age=15552000');
     const url = new URL(String(req.url).replace(/^\/+/, '/'), 'http://x'); // « // » ou « //hôte/chemin » ne doivent pas être lus comme une URL absolue
+    if (OLD_HOSTS.length && OLD_HOSTS.includes(String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase()) && oldHost(req, res, url)) return;
+    if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
     if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, off: OFF, build: await pageBuild() });

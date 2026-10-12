@@ -33,6 +33,8 @@ Page (`deck-deal.html`) + proxy CardTrader (`proxy.mjs`, zéro dépendance, Node
 | `PUSH_GRACE_MS` | Délai avant d'envoyer « recherche terminée » (4000 ms : pas de notification si l'app est encore là) |
 | `EDHREC_OFF`, `ARCHIDEKT_OFF` | Interrupteurs (`1`) si EDHREC ou Archidekt refusent : annoncés par `/__ping` (`off`). EDHREC coupé : plus de fichier EDH (410) ni d'import de liens edhrec.com, l'appli cache les decks EDHREC (écran « indisponibles », tuile « Deck à monter » et filtre « Joués en commandant » retirés) et efface sa copie. Archidekt coupé : fichier EDH servi sans ses decks, import de liens archidekt.com refusé, l'appli les retire aussi de sa copie. Sans nouvelle APK |
 | `ADMOB_BANNER_ID` | Facultatif : bloc d'annonces AdMob du bandeau de l'appli Android (`ca-app-pub-…/…`, voir `docs/android.md` › Publicité). Vide : bandeau de test de Google |
+| `ADMOB_PUB_ID` (ou `ADMOB_APP_ID`) | Facultatif : identifiant d'éditeur AdMob (`pub-…`, ou l'ID d'application `ca-app-pub-…~…` dont il est tiré) : sert `/app-ads.txt` (`google.com, pub-…, DIRECT, f08c47fec0942fa0`), exigé par AdMob. Absent : 404 |
+| `SITE_URL`, `OLD_HOSTS` | Adresse du site (défaut `https://manaorbit.app`) et anciennes adresses servies par le même serveur (défaut `card.m2s-photo.fr`, séparées par des virgules ; vide : aucune) : voir « Adresse du site » |
 | `FIREBASE_JWKS_URL` | Tests seulement : URL des clés publiques Google |
 | `SCRYFALL_UPSTREAM`, `ALERT_FIRST_MS`, `ALERT_SEED_MS`, `ALERT_CHECK_GAP_MS` | Tests seulement |
 | `CT_UPSTREAM`, `PWA_DIR`, `PUSH_ALLOW_HOSTS`, `IMPORT_UPSTREAM` | Tests seulement : faux CardTrader, dossier `pwa/` temporaire, hôte de push local autorisé, faux EDHREC / Archidekt / Moxfield |
@@ -82,6 +84,20 @@ Sans jeton valide : 401 (`auth_required`, `bad_token`, `token_expired`) ; compte
 
 Node.js Web App › Import Git repository › framework « Other » › entry file `start.cjs`.
 Ajouter le domaine dans Firebase › Authentication › Paramètres › Domaines autorisés.
+
+## Adresse du site : manaorbit.app (depuis le 12 octobre 2026)
+
+L'ancienne adresse `card.m2s-photo.fr` doit rester reliée au même site Hostinger (domaine ou alias pointé sur la même appli Node) : c'est elle qui fait déménager les appareils.
+- **Navigateur** : sur l'ancienne adresse, la page d'accueil devient une page « Mana Orbit déménage » (`proxy.mjs` › `oldPage`). Elle emporte les données que le navigateur
+  garde pour le site (localStorage `deckdeal:*` : collection, decks, échange, réglages ; pas les caches d'images ni la session de compte) dans l'adresse de la nouvelle page
+  (`#mig=…`, jamais envoyé au serveur ; ≈ 1,5 Mo au plus, les plus gros caches restent derrière), en gardant le chemin et `?p=…` (liens et QR d'échange déjà partagés).
+  `src/migrate.js` (lu avant tout le reste) les reprend sans rien écraser, seulement si la page d'avant est l'ancienne adresse, puis nettoie l'adresse ; toast « tes données ont suivi ».
+  On se reconnecte une fois à son compte (la session ne suit pas).
+- **Appli installée depuis le site (PWA)** : `sw.js` de l'ancienne adresse vide ses caches et se désinstalle, puis recharge l'onglet, qui reçoit la page de déménagement.
+- **Ancienne APK** (WebView, adresse `card.m2s-photo.fr`) : rien ne change pour elle, l'appli reste servie à l'ancienne adresse tant qu'elle n'est pas mise à jour.
+- **Nouvelle APK** (`server.url` = `https://manaorbit.app`, `allowNavigation` : l'ancienne adresse) : au premier lancement, si rien n'est encore enregistré et que l'ancienne
+  adresse répond (`/__mig`), un aller-retour par la page de déménagement ramène les données restées dans la WebView (une seule tentative).
+- `/app-ads.txt` : servi dès que `ADMOB_PUB_ID` (ou `ADMOB_APP_ID`) est renseigné sur Hostinger.
 
 ## Garde-fous (optionnels)
 
@@ -280,7 +296,7 @@ Collection › icône appareil photo. Seul le **nom** de la carte est lu (bande 
 
 Notification push (Web Push chiffré, VAPID, sans dépendance) quand la lecture des offres se termine alors que l'app n'est plus ouverte ; un toucher rouvre Mana Orbit et reprend la recherche. Le serveur garde l'abonnement le temps de la recherche seulement, rien n'est stocké.
 
-1. `node gen-vapid.mjs https://card.m2s-photo.fr` (affiche 3 lignes).
+1. `node gen-vapid.mjs https://manaorbit.app` (affiche 3 lignes).
 2. Hostinger › variables d'environnement : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` › redéployer. La clé privée ne va jamais dans GitHub.
 3. Dans l'app : Réglages › Notifications › « Prévenir quand la recherche est finie ».
 

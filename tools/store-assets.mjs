@@ -483,7 +483,7 @@ const SHOTS = [
     async go(p) {
       await p.evaluate(() => openCollection('trade')); await p.waitForSelector('.coll.on .tr-box'); await p.waitForTimeout(1000);
       // lien public tel qu'il apparaît une fois connecté (ici, pas de compte Firebase) : même rendu que l'appli, adresse du site
-      await p.evaluate(() => { const u = D.user; D.user = { uid: 'store' }; TR.share = 'k7Qe2xPm4w'; const h = trShareBoxHtml(TR.st || trState()); D.user = u; TR.share = null; document.querySelector('.tr-box').outerHTML = h; document.querySelector('.tr-link input').value = 'https://card.m2s-photo.fr/?p=k7Qe2xPm4w'; });
+      await p.evaluate(() => { const u = D.user; D.user = { uid: 'store' }; TR.share = 'k7Qe2xPm4w'; const h = trShareBoxHtml(TR.st || trState()); D.user = u; TR.share = null; document.querySelector('.tr-box').outerHTML = h; document.querySelector('.tr-link input').value = 'https://manaorbit.app/?p=k7Qe2xPm4w'; });
       await scrollIn(p, '.coll.on .dv-scroll', '.tr-box'); await imgsReady(p); await p.waitForTimeout(500);
     } },
 ];

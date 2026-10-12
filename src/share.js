@@ -7,7 +7,7 @@
      Un deck enregistré partagé suit ses modifications ; un deck EDHREC ou une liste en cours est partagé tel quel (figé).
    · Visiteur : <site>/?p=<id>. Lecture par l'API REST Firestore (shareFetch : ni SDK, ni compte), écran en lecture seule ; rien n'est écrit, ni chez lui ni chez le propriétaire. */
 const TR_KEY = 'deckdeal:trade:v1', TR_KEEPS = [0, 1, 2, 3, 4], TR_PAGE = 120, TR_MAX = 880000, TR_SHARE_MAX = 900000;      // TR_SHARE_MAX : champ d d'un partage (règles Firestore)
-const TR_REPORT = 'martin.stuis11@gmail.com';      // « Signaler ce partage » : contact de la politique de confidentialité (pwa/privacy.html)
+const TR_REPORT = 'contact@manaorbit.app';      // « Signaler ce partage » : contact de la politique de confidentialité (pwa/privacy.html)
 const TR = { who: '', creating: false, st: null, dmBusy: false, keep: 1, kept: new Set(), wish: {}, share: '', dsh: {}, u: 0, sig: {}, sub: 'have', shown: TR_PAGE, err: '', busy: false, again: false, syncT: 0,
   doc: { unsub: null, uid: '', pushT: 0 }, pub: null, sort: 'name', min: 0, pxTry: 0 };      // sort, min : tri et prix minimal de l'onglet (cet écran seulement) ; pxTry : fichier de prix déjà demandé (1 sans serveur, 2 avec)
 const TR_MINS = [0, 100, 200, 500, 1000, 2000, 5000];      // filtre « ≥ X € » des doublons (centimes)

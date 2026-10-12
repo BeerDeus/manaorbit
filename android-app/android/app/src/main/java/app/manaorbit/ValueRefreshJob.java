@@ -38,7 +38,7 @@ public class ValueRefreshJob extends JobService {
     static final String KEY_COLL = "coll";
     private static final String KEY_ETAG = "etag";
     private static final String KEY_CHECK = "check";
-    private static final String PRICES_URL = "https://card.m2s-photo.fr/prices.tsv";
+    private static final String PRICES_URL = "https://manaorbit.app/prices.tsv";
     private static final long HOUR = 3_600_000L;
     private static final long PERIOD = 12 * HOUR;
     private static final long FLEX = 3 * HOUR;

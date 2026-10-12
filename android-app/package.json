@@ -2,7 +2,7 @@
   "name": "mana-orbit-android",
   "private": true,
   "version": "1.0.0",
-  "description": "Mana Orbit pour Android (Capacitor) : l'appli web de card.m2s-photo.fr dans une coque native (scan natif, notifications, publicité).",
+  "description": "Mana Orbit pour Android (Capacitor) : l'appli web de manaorbit.app dans une coque native (scan natif, notifications, publicité).",
   "scripts": {
     "setup": "npm install && npx cap sync android",
     "sync": "npm install && npx cap sync android",

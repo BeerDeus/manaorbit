@@ -4,7 +4,7 @@
 
 ## Le projet
 - **Mana Orbit** : appli Magic: The Gathering (collection, scan, prix Cardmarket/CardTrader, decks EDHREC/Archidekt, échanges, alertes).
-- PWA en ligne : https://card.m2s-photo.fr (Hostinger déploie `main` ; serveur Node `proxy.mjs`).
+- PWA en ligne : https://manaorbit.app depuis le 12 octobre (avant : card.m2s-photo.fr, qui fait déménager les appareils ; Hostinger déploie `main` du dépôt `BeerDeus/manaorbit` ; serveur Node `proxy.mjs`).
 - APK Android (Capacitor 8, `android-app/`) qui charge le site en ligne : un changement de `src/` arrive sur le téléphone sans refaire l'APK ; seul le natif (Java, XML Android) en demande une nouvelle.
 - But : que l'appli **s'autofinance** (pub, plus tard achat « Soutenir »), pas faire du profit.
 
@@ -56,7 +56,8 @@
 ## Actions du propriétaire en attente
 - Fait le 11 octobre : règles Firestore republiées (scan mobile), widget « QR code d'échange » testé et validé, bandeau de pub gardé en continu sur les écrans de consultation.
 - Firebase › Authentication › Modèles › Vérification de l'adresse e-mail : nom d'expéditeur « Mana Orbit », langue française.
-- Firebase › Authentication › Domaines autorisés : `card.m2s-photo.fr` (et le futur domaine).
+- Firebase › Authentication › Domaines autorisés : `manaorbit.app` (et garder `card.m2s-photo.fr`).
+- **Nouvelle APK** après la bascule de domaine (`android-app` : `git pull`, `npm run setup`, `npm run apk`).
 - **Mails EDHREC et Archidekt toujours sans réponse** (`docs/mails-partenaires.md`). Stratégie retenue :
   - lancer le test fermé sans attendre (pas public, accord non nécessaire) ;
   - envoyer une relance avec une échéance claire ;

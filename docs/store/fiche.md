@@ -87,7 +87,7 @@ ET AUSSI
 
 CONFIDENTIALITÉ
 Sans compte, tout reste sur ton appareil. Aucune donnée n'est vendue. Un petit bandeau publicitaire paie l'hébergement.
-Politique de confidentialité : https://card.m2s-photo.fr/privacy
+Politique de confidentialité : https://manaorbit.app/privacy
 
 Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Policy. Il n'est ni approuvé ni soutenu par Wizards of the Coast. Certains éléments utilisés sont la propriété de Wizards of the Coast. ©Wizards of the Coast LLC.
 Mana Orbit n'est lié à aucun des sites et applis cités (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, Scryfall…). Données et images des cartes : Scryfall.
@@ -140,7 +140,7 @@ ALSO
 
 PRIVACY
 Without an account, everything stays on your device. No data is ever sold. A small ad banner pays for hosting.
-Privacy policy: https://card.m2s-photo.fr/privacy
+Privacy policy: https://manaorbit.app/privacy
 
 Mana Orbit is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
 Mana Orbit is not affiliated with any of the sites and apps named here (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, Scryfall…). Card data and images: Scryfall.
@@ -159,7 +159,7 @@ Anglais (219) : `First Android release: on-device card scanning in any language,
 - **Type** : Application (pas Jeu). **Gratuite.**
 - **Catégorie** : **Divertissement** (appli compagnon d'un jeu de cartes). **Outils** convient aussi.
 - **Tags** (5 au plus, à choisir dans la liste que propose la Play Console) : cartes à collectionner / jeux de cartes, collection, comparateur de prix, outils de jeu, scanner. Garde ceux qui existent dans la liste, dans cet ordre de priorité.
-- **Site web** : `https://card.m2s-photo.fr` · **E-mail** : `martin.stuis11@gmail.com` (obligatoire, visible sur la fiche ; c'est aussi le contact de la politique de confidentialité) · **Règles de confidentialité** : `https://card.m2s-photo.fr/privacy`.
+- **Site web** : `https://manaorbit.app` · **E-mail** : `contact@manaorbit.app` (obligatoire, visible sur la fiche ; c'est aussi le contact de la politique de confidentialité) · **Règles de confidentialité** : `https://manaorbit.app/privacy`.
 
 ## 6. Classification du contenu (questionnaire IARC)
 
@@ -196,9 +196,9 @@ Réponses générales :
 |---|---|
 | L'appli collecte-t-elle ou partage-t-elle des données ? | **Oui** |
 | Données chiffrées en transit ? | **Oui** (HTTPS partout : site, serveur, Firebase, Google) |
-| Les utilisateurs peuvent-ils demander la suppression ? | **Oui** : dans l'appli (Compte › Supprimer mon compte) et sur le web : `https://card.m2s-photo.fr/?delete-account`. La suppression arrête aussi les alertes et notifications sur le serveur. |
+| Les utilisateurs peuvent-ils demander la suppression ? | **Oui** : dans l'appli (Compte › Supprimer mon compte) et sur le web : `https://manaorbit.app/?delete-account`. La suppression arrête aussi les alertes et notifications sur le serveur. |
 | Compte | Facultatif : **e-mail et mot de passe, ou Google** (Firebase Authentication). L'appli marche sans compte. |
-| Lien de suppression du compte (rubrique dédiée) | `https://card.m2s-photo.fr/?delete-account` |
+| Lien de suppression du compte (rubrique dédiée) | `https://manaorbit.app/?delete-account` |
 | Données vendues ? | Jamais |
 
 Types de données à cocher :
