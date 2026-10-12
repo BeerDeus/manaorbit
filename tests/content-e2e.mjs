@@ -273,7 +273,7 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   assert.equal(await txt(p, '#helpBox .sec-title'), 'Aide et avis');
   assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), ['Comment ça marche', 'Envoyer un avis'], 'navigateur : pas de « Noter »');
   const href = await p.$eval('#helpBox a[data-help="mail"]', a => a.getAttribute('href'));
-  const m = /^mailto:martin\.stuis11@gmail\.com\?subject=([^&]*)&body=([^&]*)$/.exec(href);
+  const m = /^mailto:contact@manaorbit\.app\?subject=([^&]*)&body=([^&]*)$/.exec(href);
   assert.ok(m, 'mailto : adresse, objet, corps : ' + href.slice(0, 120));
   assert.equal(m[1], 'Mana%20Orbit%20%C2%B7%20avis', 'objet encodé (espaces en %20, point médian en UTF-8)');
   assert.doesNotMatch(href, /[ +\n]/, 'aucun espace, « + » ni retour à la ligne bruts');
@@ -294,7 +294,7 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   assert.match(await txt(p, '.hp-sheet .hp-q[data-i="0"] p'), /Nouveau panier » › Critères › Prix/);
   await p.click('.hp-sheet .hp-q[data-i="2"] summary'); await p.waitForTimeout(150);
   assert.deepEqual(await p.$$eval('.hp-sheet .hp-q[open]', q => q.map(x => x.dataset.i)), ['2'], 'une seule question ouverte à la fois');
-  assert.match(await p.$eval('.hp-sheet .sheet-foot a[data-help="mail"]', a => a.getAttribute('href')), /^mailto:martin\.stuis11@gmail\.com\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
+  assert.match(await p.$eval('.hp-sheet .sheet-foot a[data-help="mail"]', a => a.getAttribute('href')), /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
   await p.waitForTimeout(500); await p.screenshot({ path: 'shots/content-2-aide.png' });
   await p.keyboard.press('Escape'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 1);
   ok('feuille « Comment ça marche » depuis les Réglages : 8 questions repliables, une ouverte à la fois, avis en pied');
