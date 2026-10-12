@@ -3,6 +3,8 @@ package app.manaorbit;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowManager;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -24,5 +26,9 @@ public class MainActivity extends BridgeActivity {
                 : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
             getWindow().setAttributes(lp);
         }
+        // Barre d'état cachée : un glissé du haut (ou le volet des notifications) ne la montre qu'en passant, elle se recache seule ensuite
+        // (sans ça elle restait affichée une fois le volet refermé ; le site la recache aussi, pour les APK 1.0.2 et moins).
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+            .setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
     }
 }

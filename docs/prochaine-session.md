@@ -66,7 +66,7 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
 - Ensuite : refaire les **captures de la fiche Play** (`node tools/store-assets.mjs`, ordre dans `docs/store/fiche.md` § 9), mettre à jour l'aide intégrée (`src/help.js`), le README et les tests touchés.
 - À faire **avant la production** (vers le 20-25 novembre) : les testeurs du test fermé donnent leur avis dessus.
 - **Fait le 12 octobre** (README › « Navigation ») : barre du bas A, sections Collection · Échange · Decks (Mes decks · À monter · Prix d'une liste), accueil A (orbite en pointillés, carte Échange avec QR / Partager, « Pour toi » : listes d'amis ouvertes récemment), pub sous l'en-tête, plein écran (barre d'état cachée ; en-tête sur la ligne de la caméra avec l'APK 1.0.2).
-  - **À faire par le propriétaire** : nouvelle APK / `.aab` (**versionCode 3**, 1.0.2 : découpe de la caméra) ; essayer la pub sous l'en-tête et le plein écran sur le téléphone.
+  - **versionCode 3 (1.0.2) publiée** par le propriétaire. Ensuite : bande de 24 px en haut de l'écran (l'appli ne touche plus le bord, scan compris), barre d'état recachée après le volet des notifications (site). **APK versionCode 4 (1.0.3)** prête dans le dépôt (barre d'état seulement passagère, MainActivity) : à publier quand le propriétaire veut.
   - Reste : refaire les captures de la fiche Play (`node tools/store-assets.mjs`) ; **système d'amis** demandé le 12 octobre : en WIP (`docs/a-faire.md`).
 
 ## 6. Decks publics des utilisateurs (gros, en dernier)

@@ -11,12 +11,21 @@ const NAT_PLUGINS = [['CameraPreview', 'caméra'], ['CapacitorPluginMlKitTextRec
 
 /* ── Plein écran (appli Android) : barre d'état cachée, barre de gestes gardée ───────────────────────────────────────────────────────────────
    SystemBars (plugin de Capacitor 8, présent dans toutes nos APK) cache la barre d'état ; un glissé du haut la fait revenir un instant.
-   APK 1.0.2 et plus (ManaOrbit.cutout) : découpe de la caméra frontale au milieu du haut → l'en-tête monte sur sa ligne (html.cut-mid, --top-in : 0,
-   les titres s'arrêtent avant la caméra) ; découpe dans un coin, plusieurs découpes, ou APK plus ancienne : l'en-tête reste sous la zone de la caméra. */
+   Volet des notifications tiré puis refermé : la barre d'état restait affichée (APK 1.0.2) → recachée au retour dans l'appli (focus, page de nouveau
+   visible, taille changée) et au premier appui ; APK 1.0.3 et plus : la coque ne la montre plus qu'en passant (MainActivity).
+   Toujours une bande de 24 px en haut (html.fs, --top-in), l'appli ne touche pas le bord de l'écran ; plus haute si la caméra frontale est dans un coin.
+   APK 1.0.2 et plus (ManaOrbit.cutout) : découpe de la caméra au milieu du haut → l'en-tête reste à 24 px du bord, sur la ligne de la caméra
+   (html.cut-mid, les titres s'arrêtent avant elle) ; découpe dans un coin, plusieurs découpes, ou APK plus ancienne : l'en-tête est sous la zone de la caméra. */
 async function natFullscreen() {
   const sb = natPlugin('SystemBars'); if (!sb) return;
   try { await sb.hide({ bar: 'StatusBar' }); } catch (e) { return; }
   const r = document.documentElement; r.classList.add('fs');
+  let at = 0;
+  const again = () => { const t = Date.now(); if (t - at < 1000) return; at = t; Promise.resolve().then(() => sb.hide({ bar: 'StatusBar' })).catch(() => {}); };
+  const later = () => setTimeout(again, 350);      // le volet finit de se refermer
+  addEventListener('focus', later); addEventListener('pageshow', later); addEventListener('resize', later);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) later(); });
+  addEventListener('pointerdown', again, { capture: true, passive: true });
   const mo = natPlugin('ManaOrbit'); if (!mo || typeof mo.cutout !== 'function') return;
   const read = async () => {
     try {

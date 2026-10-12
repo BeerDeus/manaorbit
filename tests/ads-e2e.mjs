@@ -168,8 +168,9 @@ async function natPage(o = {}) {
   ok('web : aucune pub, page intacte');
 }
 
-{ // 6) plein écran (appli) : barre d'état cachée (SystemBars de Capacitor), barre de gestes gardée ; découpe de la caméra au milieu (ManaOrbit.cutout,
-  //    APK 1.0.2) → en-tête sur la ligne de la caméra (html.cut-mid) ; découpe dans un coin, ou APK sans la méthode : en-tête sous la caméra
+{ // 6) plein écran (appli) : barre d'état cachée (SystemBars de Capacitor), barre de gestes gardée, recachée au retour (volet des notifications) et au
+  //    premier appui ; bande de 24 px en haut ; découpe de la caméra au milieu (ManaOrbit.cutout, APK 1.0.2) → en-tête sur la ligne de la caméra, à 24 px
+  //    du bord (html.cut-mid) ; découpe dans un coin, ou APK sans la méthode : en-tête sous la caméra
   const run = async cut => {
     const pg = await newPage(browser, world, { goto: false });
     await pg.p.route('https://www.gstatic.com/**', r => r.abort());
@@ -185,18 +186,25 @@ async function natPage(o = {}) {
   };
   const cls = pg => pg.p.evaluate(() => [...document.documentElement.classList].filter(c => c === 'fs' || c === 'cut-mid').sort().join());
   let pg = await run({ w: 390, h: 844, rects: [{ l: 188, t: 0, r: 202, b: 30 }] });
-  assert.deepEqual(await pg.p.evaluate(() => window.__sb), [{ bar: 'StatusBar' }], 'barre d\'état cachée seulement (barre de gestes gardée)');
+  const sbOnly = async () => { const a = await pg.p.evaluate(() => window.__sb); assert.ok(a.length && a.every(x => x && x.bar === 'StatusBar' && Object.keys(x).length === 1), 'barre d\'état cachée seulement (barre de gestes gardée) : ' + JSON.stringify(a)); return a.length; };
+  const band = () => pg.p.evaluate(() => [getComputedStyle(document.documentElement).paddingTop, document.querySelector('#app .bar').getBoundingClientRect().top]);
+  const tap = () => pg.p.evaluate(() => document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));      // appui (sans rien ouvrir)
+  let n = await sbOnly();
   assert.equal(await cls(pg), 'cut-mid,fs', 'découpe au milieu : en-tête sur sa ligne');
   assert.equal(await pg.p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--cut-h').trim()), '30px');
-  assert.equal(await pg.p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--top-in').trim()), '0px');
+  assert.deepEqual(await band(), ['24px', 24], 'bande de 24 px au-dessus de l\'en-tête');
+  await pg.p.waitForTimeout(1100); await pg.p.evaluate(() => { dispatchEvent(new Event('blur')); dispatchEvent(new Event('focus')); });      // volet refermé
+  await pg.p.waitForFunction(n => window.__sb.length > n, n, { timeout: 2000 }); n = await sbOnly();
+  await pg.p.waitForTimeout(1100); await tap(); await pg.p.waitForFunction(n => window.__sb.length > n, n, { timeout: 2000 }); n = await sbOnly();
+  await tap(); await pg.p.waitForTimeout(200); assert.equal(await sbOnly(), n, 'pas plus d\'une fois par seconde');
   await pg.p.evaluate(() => openDecks()); await pg.p.waitForSelector('.dks.on');
   assert.ok(await pg.p.$eval('.dks .dv-title', e => e.getBoundingClientRect().right <= 390 / 2 - 6), 'titre arrêté avant la caméra');
   assert.deepEqual(pg.errs, []); await pg.ctx.close();
   pg = await run({ w: 390, h: 844, rects: [{ l: 16, t: 0, r: 40, b: 30 }] });
-  assert.equal(await cls(pg), 'fs', 'découpe dans un coin : l\'en-tête reste sous la caméra'); assert.deepEqual(pg.errs, []); await pg.ctx.close();
+  assert.equal(await cls(pg), 'fs', 'découpe dans un coin : l\'en-tête reste sous la caméra'); assert.deepEqual(await band(), ['24px', 24], 'bande de 24 px (au moins)'); assert.deepEqual(pg.errs, []); await pg.ctx.close();
   pg = await run(null);
-  assert.equal(await cls(pg), 'fs', 'APK sans ManaOrbit.cutout : barre d\'état cachée, en-tête sous la caméra'); assert.deepEqual(pg.errs, []); await pg.ctx.close();
-  ok('plein écran : barre d\'état cachée ; découpe au milieu → en-tête sur la ligne de la caméra, titres arrêtés avant ; coin ou APK ancienne → sous la caméra');
+  assert.equal(await cls(pg), 'fs', 'APK sans ManaOrbit.cutout : barre d\'état cachée, en-tête sous la caméra'); assert.deepEqual(await band(), ['24px', 24]); assert.deepEqual(pg.errs, []); await pg.ctx.close();
+  ok('plein écran : barre d\'état cachée, recachée au retour et au 1er appui ; bande de 24 px en haut ; découpe au milieu → en-tête sur la ligne de la caméra, titres arrêtés avant ; coin ou APK ancienne → sous la caméra');
 }
 
 await browser.close(); world.stop(); console.log('\nADS E2E OK'); process.exit(0);

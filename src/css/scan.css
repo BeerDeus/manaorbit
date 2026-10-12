@@ -3,6 +3,7 @@
    Puis l'en-tête de la liste (nombre de cartes, valeur, « Ajouter »), le bandeau de l'édition à choisir, la liste ; en bas : Photos · déclencheur foil · emplacement Auto.
    L'aperçu natif de l'appli (html.nat-cam) se pose sous .sc-stage : rien d'opaque dans la zone, les boutons flottent au-dessus. */
 .scan .sc-stage,.scan .sc-stage[data-cam="no"]{height:calc(var(--top-in) + 232px)}
+.scan .sc-stage::before{content:'';position:absolute;left:0;right:0;top:0;z-index:1;height:var(--top-in);background:var(--bg);pointer-events:none}      /* bande du haut (appli plein écran) : l'image de la caméra commence dessous */
 .scan .sc-guide{top:calc(var(--top-in) + 74px);transform:translateX(-50%);width:min(94%,440px)}
 .scan .sc-cap{left:6px;bottom:calc(100% + 7px);padding:2px 9px;border-radius:99px;background:rgba(10,14,30,.72);font-size:11.5px;font-weight:700;text-shadow:none}
 .scan .sc-hint{left:50%;right:auto;bottom:auto;top:calc(var(--top-in) + 82px + min(94vw,440px) / 5.4);transform:translateX(-50%);max-width:calc(100% - 24px);padding:5px 14px;border-radius:99px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

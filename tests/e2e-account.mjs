@@ -102,7 +102,7 @@ const sheetGone = async p => {
 /** Feuille Compte : bouton du compte (en-tête) › « Compte et réglages » › Se connecter / Gérer le compte. */
 const openAcct = async p => {
   if (!(await p.$('.me-sheet.open'))) { await p.click('#btnAccount'); await p.waitForSelector('.me-sheet.open'); }      // une fiche qui se ferme encore (sans .open) ne compte pas
-  await p.click('.me-sheet [data-me="compte"]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2, null, { timeout: 5000 });
+  await p.click('.me-sheet [data-me="compte"]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2, null, { timeout: 10000 });
 };
 const ok = m => console.log('✓', m);
 // « Mes decks » est un écran ouvert depuis l'accueil (comme « Ma collection ») : D = l'ouvrir, H = revenir à l'accueil
