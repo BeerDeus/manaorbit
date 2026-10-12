@@ -1,0 +1,20 @@
+{
+  "Appareil photo indisponible ici (il demande https). Utilise « Photos ».": "Câmera indisponível aqui (precisa de https). Use “Fotos”.",
+  "Dans le scan": "No escaneamento",
+  "L'appareil photo n'est pas prêt : utilise « Photos »": "A câmera não está pronta: use “Fotos”",
+  "La caméra du navigateur est lente sur cet appareil : utilise « Photos » (photo de la carte entière)": "A câmera do navegador está lenta neste aparelho: use “Fotos” (foto do card inteiro)",
+  "La caméra n'a pas pu redémarrer. Utilise « Photos ».": "A câmera não pôde reiniciar. Use “Fotos”.",
+  "Mode du scan": "Modo de escaneamento",
+  "Nom de la carte dans la bande": "Nome do card na faixa",
+  "Nom de la carte dans la bande, puis appuie sur le cercle": "Nome do card na faixa, depois toque no círculo",
+  "Pas d'appareil photo : utilise « Photos » ci-dessous.": "Sem câmera: use “Fotos” abaixo.",
+  "Rien n'est ajouté à ta collection": "Nada é adicionado à sua coleção",
+  "{n} en lecture": "{n} em leitura",
+  "Nouvelle extension": "Nova expansão",
+  "{name} : les cartes suivantes prendront la même extension si elles y existent.": "{name}: os próximos cards usarão a mesma expansão se existirem nela.",
+  "{name} n'existe dans aucune extension de ce scan.": "{name} não existe em nenhuma expansão deste escaneamento.",
+  "Édition de la 1re carte": "Edição do 1º card",
+  "Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (en anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées.": "Coloque o nome do card na faixa e toque no círculo: a leitura acontece em segundo plano, você pode continuar. Só o nome é lido (em inglês) e depois buscado no Scryfall: confira a miniatura (toque nela para ver grande). Edições: escolha a do 1º card, os próximos a usam se existirem nela; um card de outra expansão pede a dele. “Fotos”: um card por foto, inteiro e na vertical. As fotos nunca são salvas.",
+  "Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (français d'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées.": "Coloque o nome do card na faixa e toque no círculo: a leitura acontece em segundo plano, você pode continuar. Só o nome é lido (primeiro francês, depois inglês) e depois buscado no Scryfall: confira a miniatura (toque nela para ver grande). Edições: escolha a do 1º card, os próximos a usam se existirem nela; um card de outra expansão pede a dele. “Fotos”: um card por foto, inteiro e na vertical. As fotos nunca são salvas.",
+  "Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu ({lang} d'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées.": "Coloque o nome do card na faixa e toque no círculo: a leitura acontece em segundo plano, você pode continuar. Só o nome é lido (primeiro {lang}, depois inglês) e depois buscado no Scryfall: confira a miniatura (toque nela para ver grande). Edições: escolha a do 1º card, os próximos a usam se existirem nela; um card de outra expansão pede a dele. “Fotos”: um card por foto, inteiro e na vertical. As fotos nunca são salvas."
+}

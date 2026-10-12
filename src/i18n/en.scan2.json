@@ -1,0 +1,20 @@
+{
+  "Appareil photo indisponible ici (il demande https). Utilise « Photos ».": "Camera unavailable here (it needs https). Use \"Photos\".",
+  "Dans le scan": "In the scan",
+  "L'appareil photo n'est pas prêt : utilise « Photos »": "The camera isn't ready: use \"Photos\"",
+  "La caméra du navigateur est lente sur cet appareil : utilise « Photos » (photo de la carte entière)": "The browser camera is slow on this device: use \"Photos\" (a photo of the whole card)",
+  "La caméra n'a pas pu redémarrer. Utilise « Photos ».": "The camera couldn't restart. Use \"Photos\".",
+  "Mode du scan": "Scan mode",
+  "Nom de la carte dans la bande": "Card name in the strip",
+  "Nom de la carte dans la bande, puis appuie sur le cercle": "Card name in the strip, then tap the circle",
+  "Pas d'appareil photo : utilise « Photos » ci-dessous.": "No camera: use \"Photos\" below.",
+  "Rien n'est ajouté à ta collection": "Nothing is added to your collection",
+  "{n} en lecture": "{n} reading",
+  "Nouvelle extension": "New set",
+  "{name} : les cartes suivantes prendront la même extension si elles y existent.": "{name}: the next cards will take the same set if they exist in it.",
+  "{name} n'existe dans aucune extension de ce scan.": "{name} isn't in any set of this scan.",
+  "Édition de la 1re carte": "Edition of the 1st card",
+  "Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (en anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées.": "Put the card name in the strip and tap the circle: reading happens in the background, you can keep going. Only the name is read (in English), then matched on Scryfall: check the thumbnail (tap it to see it large). Editions: choose the first card's one, the next cards take it if they exist in it; a card from another set asks you for its own. \"Photos\": one card per photo, taken whole and upright. Photos are never saved.",
+  "Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (français d'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées.": "Put the card name in the strip and tap the circle: reading happens in the background, you can keep going. Only the name is read (French first, then English), then matched on Scryfall: check the thumbnail (tap it to see it large). Editions: choose the first card's one, the next cards take it if they exist in it; a card from another set asks you for its own. \"Photos\": one card per photo, taken whole and upright. Photos are never saved.",
+  "Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu ({lang} d'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées.": "Put the card name in the strip and tap the circle: reading happens in the background, you can keep going. Only the name is read ({lang} first, then English), then matched on Scryfall: check the thumbnail (tap it to see it large). Editions: choose the first card's one, the next cards take it if they exist in it; a card from another set asks you for its own. \"Photos\": one card per photo, taken whole and upright. Photos are never saved."
+}

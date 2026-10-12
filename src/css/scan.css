@@ -1,0 +1,58 @@
+/* ── scan.css : écran de scan (scan.js, scaned.js) ──
+   Caméra compacte en haut (seul le nom est lu) : boutons posés dessus (retour, aide), bande du nom, carte reconnue juste dessous, « Ajouter | Prix » en bas de l'image.
+   Puis l'en-tête de la liste (nombre de cartes, valeur, « Ajouter »), le bandeau de l'édition à choisir, la liste ; en bas : Photos · déclencheur foil · emplacement Auto.
+   L'aperçu natif de l'appli (html.nat-cam) se pose sous .sc-stage : rien d'opaque dans la zone, les boutons flottent au-dessus. */
+.scan .sc-stage,.scan .sc-stage[data-cam="no"]{height:calc(env(safe-area-inset-top,0px) + 232px)}
+.scan .sc-guide{top:calc(env(safe-area-inset-top,0px) + 74px);transform:translateX(-50%);width:min(94%,440px)}
+.scan .sc-cap{left:6px;bottom:calc(100% + 7px);padding:2px 9px;border-radius:99px;background:rgba(10,14,30,.72);font-size:11.5px;font-weight:700;text-shadow:none}
+.scan .sc-hint{left:50%;right:auto;bottom:auto;top:calc(env(safe-area-inset-top,0px) + 82px + min(94vw,440px) / 5.4);transform:translateX(-50%);max-width:calc(100% - 24px);padding:5px 14px;border-radius:99px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scan .sc-prog{top:calc(env(safe-area-inset-top,0px) + 58px);right:12px;left:auto;transform:none;padding:3px 10px;font-size:12px;font-family:var(--font-body);font-weight:700}
+.scan .sc-nocam{padding:calc(env(safe-area-inset-top,0px) + 56px) 24px 56px}
+.sc-tools{position:absolute;left:0;right:0;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 0;pointer-events:none}
+.sc-tools>*,.sc-tr>*{pointer-events:auto}
+.sc-tr{display:flex;gap:8px}
+.sc-ic{width:40px;height:40px;flex:none;display:grid;place-items:center;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(10,14,30,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#fff;font-weight:800;font-size:16px;transition:transform .15s,background .2s}
+.sc-ic:active{transform:scale(.92)}
+.sc-ic[aria-pressed="true"]{background:var(--accent);border-color:transparent;color:var(--accent-ink)}
+.sc-ttl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:0}
+.sc-modes{position:absolute;left:12px;right:12px;bottom:10px;z-index:2;display:flex;align-items:center;gap:8px}
+.sc-seg{display:grid;grid-template-columns:1fr 1fr;width:184px;height:36px;padding:3px;border-radius:99px;border:1px solid rgba(255,255,255,.16);background:rgba(10,14,30,.66);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.sc-seg button{border:0;border-radius:99px;background:transparent;color:#fff;font:inherit;font-size:13px;font-weight:700;padding:0;transition:background .2s,color .2s}
+.sc-seg button[aria-checked="true"]{background:#eef1ff;color:#0b0f1c;font-weight:800}
+/* en-tête de la liste : nombre de cartes, valeur, « Ajouter » (ou le total du prix rapide) */
+.scan .sc-head{display:flex;align-items:center;gap:10px;padding:10px 16px 6px;border:0;background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
+.sc-headt{flex:1;min-width:0;display:flex;flex-direction:column}
+.sc-count{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scan .sc-sub{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scan .sc-head .btn{flex:none;height:42px;padding:0 22px}
+.scan .sc-head .sc-total{flex:none}
+.scan .sc-note{padding-top:8px}
+.scan .sc-list{padding-top:4px}
+.sc-item.last{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.sc-h.warn{color:var(--warn)}
+/* bandeau : édition de la 1re carte / nouvelle extension */
+.sc-ask{flex:none;padding:12px;border-radius:18px;border:1px solid var(--accent);background:var(--accent-soft)}
+.sc-ask-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.sc-ask-h b{font-size:14.5px;font-weight:700}
+.sc-ask-h .link-btn{font-size:12.5px}
+.sc-ask-p{margin:2px 0 10px;font-size:12px;line-height:1.35;color:var(--ink-2)}
+.sc-ask-l{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -12px;padding:0 12px 2px;scroll-snap-type:x proximity;overscroll-behavior-x:contain}
+.sc-ask-l::-webkit-scrollbar{display:none}
+.sc-ask-t{flex:none;width:76px;display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 4px 6px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;scroll-snap-align:start;transition:transform .15s,border-color .2s}
+.sc-ask-t:active{transform:scale(.95)}
+.sc-ask-t:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.sc-ask-t img{width:66px;height:92px;border-radius:5px;object-fit:cover;background:var(--line)}
+.sc-ask-c{display:flex;align-items:center;gap:3px;margin-top:3px;font-size:11.5px}
+.sc-ask-c .set-ic{width:14px;height:14px}
+.sc-ask-t small{font-size:10.5px;color:var(--ink-3)}
+.sc-ask-t em{font-style:normal;font-size:11.5px;font-weight:800;color:var(--accent)}
+.sc-ask-all{flex:none;width:64px;border-radius:12px;border:1px dashed var(--line);background:transparent;color:var(--ink-2);font:inherit;font-size:12px;font-weight:700;padding:0 4px}
+/* barre du bas : Photos · déclencheur · (Auto) */
+.scan .sc-bar{padding-top:8px}
+.scan .sc-photo{position:relative;justify-self:start;display:flex;flex-direction:column;align-items:center;gap:4px;padding:0;border:0;background:none;color:var(--ink-2);font-size:11.5px;font-weight:600;cursor:pointer}
+.sc-bi{width:46px;height:46px;display:grid;place-items:center;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.sc-photo.hot .sc-bi{background:var(--accent);border-color:transparent;color:var(--accent-ink);animation:scpulse 1.6s ease-in-out infinite}
+.sc-bslot{justify-self:end;min-width:56px}
+.scan .sc-shot{width:80px;height:80px;border:0;padding:4px;background:var(--foil);box-shadow:0 12px 28px -12px rgba(127,176,255,.7)}
+.scan .sc-shot i{background:#f4f6ff;border:3px solid var(--bg)}
+.scan.pm .sc-shot i{background:#eafff6}

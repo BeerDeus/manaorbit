@@ -1,5 +1,6 @@
-// E2E : édition des cartes scannées (scaned.js). Posée d'office : extension unique (et elle devient collante), extension collante (dernière choisie à la main),
-// majorité du scan, même carte ; sinon « à choisir » (la première carte d'un scan l'est). Symbole par ligne, feuille des éditions (celles du scan d'abord),
+// E2E : édition des cartes scannées (scaned.js). Extensions du scan : choisies à la main et extensions uniques. Posée d'office : extension unique,
+// extension du scan où la carte existe (la plus fournie), même carte ; sinon « à choisir » (la première carte d'un scan l'est), demandée tout de suite dans le
+// bandeau de la liste (« Édition de la 1re carte », puis « Nouvelle extension » ; « Plus tard »). Symbole par ligne, feuille des éditions (celles du scan d'abord),
 // cartes « à choisir » revues après chaque choix, une ligne par édition ; récap : prix de l'édition, confirmation des cartes sans édition (choisir / ajouter quand même).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
@@ -25,12 +26,17 @@ const pick = async (key, label) => {
 await p.waitForTimeout(400); await toHome(p);
 await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
 
-/* ── 1) première carte : à choisir ; choisie à la main → collante, les cartes à choisir sont revues ─────────────── */
+/* ── 1) première carte : à choisir, demandée dans le bandeau ; choisie à la main → extension du scan, les cartes à choisir sont revues ─────────────── */
+const askOf = () => p.evaluate(() => { const a = document.querySelector('.sc-ask'); return a ? { id: a.dataset.id, h: a.querySelector('.sc-ask-h b').textContent, t: [...a.querySelectorAll('.sc-ask-t .sc-ask-c b')].map(b => b.textContent), all: a.querySelector('.sc-ask-all').textContent } : null; });
 await add('Sol Ring'); await settle();
 assert.deepEqual(await lines(), { 'sol ring': 'pend ×1' }, 'première carte (plusieurs extensions) : à choisir');
 assert.equal(await p.$$eval('.sc-item.ed .sc-ed.todo', b => b.length), 1, 'symbole « à choisir » sur la ligne'); assert.match(await txt(p, '.sc-sub'), /1 édition à choisir/);
+assert.deepEqual(await askOf(), { id: 'sol ring|en', h: 'Édition de la 1re carte', t: ['CMM', 'BLB', 'DSK', 'M21'], all: 'Toutes (4)' }, 'bandeau : ses éditions, la plus récente d\'abord');
 await add('Arcane Signet'); await settle();
-assert.equal((await lines())['arcane signet'], 'pend ×1', 'pas d\'extension collante : à choisir aussi');
+assert.equal((await lines())['arcane signet'], 'pend ×1', 'aucune extension dans le scan : à choisir aussi');
+assert.equal((await askOf()).id, 'sol ring|en', 'bandeau : la plus ancienne à choisir');
+await p.click('.sc-ask [data-a="later"]'); assert.equal((await askOf()).id, 'arcane signet|en', '« Plus tard » : la suivante');
+await p.click('.sc-ask [data-a="later"]'); assert.equal(await askOf(), null, 'plus rien à demander');
 await p.click('.sc-item[data-k="sol ring"] .sc-ed'); await p.waitForSelector('.ced-sheet .ced-t[data-i]');
 assert.deepEqual(await p.$$eval('.ced-sheet .ced-t:not(.none) .ced-n', b => b.map(x => x.textContent)), ['CMM 200', 'BLB 201', 'DSK 202', 'M21 203'], 'feuille : toutes les éditions de la carte');
 await tile('DSK 202'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
@@ -38,25 +44,29 @@ assert.deepEqual(await lines(), { 'sol ring dsk|202': 'man ×1', 'arcane signet 
 assert.equal(await p.$$eval('.sc-ed.todo', b => b.length), 0); assert.equal(await p.$$eval('.sc-item[data-k="arcane signet"] .sc-ed.on.auto', b => b.length), 1, 'posée d\'office : point');
 await p.waitForFunction(() => document.querySelector('.sc-item[data-k="sol ring"] .sc-ed .set-ic'), null, { timeout: 5000 });
 assert.match(await p.$eval('.sc-item[data-k="sol ring"] .sc-th', i => i.src), /sol-ring-dsk\.jpg$/, 'miniature : l\'impression de l\'édition');
-ok('première carte à choisir ; choisie à la main → collante, cartes à choisir revues (posées d\'office), symbole et miniature de l\'édition');
+ok('première carte à choisir (bandeau, « Plus tard ») ; choisie à la main → extension du scan, cartes à choisir revues (posées d\'office), symbole et miniature de l\'édition');
 
-/* ── 2) extension unique : posée, devient collante, les suivantes suivent ; majorité du scan ; même carte ───────── */
+/* ── 2) extension unique : posée, rejoint les extensions du scan ; la plus fournie quand la carte est dans plusieurs ; même carte ───────── */
 await add('Command Tower'); await settle();
-assert.equal((await lines())['command tower'], 'pend ×1', 'pas en DSK, majorité DSK : à choisir');
+assert.equal((await lines())['command tower'], 'pend ×1', 'pas en DSK (seule extension du scan) : à choisir');
+assert.deepEqual(await askOf(), { id: 'command tower|en', h: 'Nouvelle extension', t: ['CMM', 'BLB'], all: 'Toutes (2)' }, 'bandeau : nouvelle extension');
 await add("Ranger's Hawk"); await settle();
 let L = await lines();
-assert.equal(L['rangers hawk blb|200'], 'solo ×1', 'une seule extension (promo à part) : posée'); assert.equal(L['command tower blb|201'], 'auto ×1', 'BLB devenue collante : Command Tower la prend');
+assert.equal(L['rangers hawk blb|200'], 'solo ×1', 'une seule extension (promo à part) : posée'); assert.equal(L['command tower blb|201'], 'auto ×1', 'BLB rejoint les extensions du scan : Command Tower la prend');
+assert.equal(await askOf(), null, 'plus rien à demander');
 await add('Llanowar Elves'); await settle();
 assert.equal((await lines())['llanowar elves dsk|200'], 'solo ×1');
 await add('Swords to Plowshares'); await settle();
-assert.equal((await lines())['swords to plowshares'], 'pend ×1', 'ni en DSK (collante) ni en BLB (majorité) : à choisir');
+assert.equal((await lines())['swords to plowshares'], 'pend ×1', 'ni en DSK ni en BLB : à choisir');
 await add('Sol Ring'); await settle();
-assert.equal((await lines())['sol ring dsk|202'], 'man ×2', '2e Sol Ring : même édition (collante), même ligne');
-assert.deepEqual(await p.$$eval('.sc-list > *', r => r.map(x => x.classList.contains('sc-h') ? '# ' + x.textContent : x.dataset.k)),
-  ['# 1 édition à choisir', 'swords to plowshares', '# Éditions posées', 'sol ring', 'llanowar elves', 'rangers hawk', 'command tower', 'arcane signet'], 'à choisir en tête ; Sol Ring rescanné : remonté en haut');
-await pick('swords to plowshares', 'CMM 200');
+assert.equal((await lines())['sol ring dsk|202'], 'man ×2', '2e Sol Ring : DSK (3 cartes) plutôt que BLB (2), même ligne');
+assert.deepEqual(await p.$$eval('.sc-list > :not(.sc-ask)', r => r.map(x => x.classList.contains('sc-h') ? '# ' + x.textContent : x.dataset.k)),
+  ['# 1 édition à choisir', 'swords to plowshares', '# Dans le scan', 'sol ring', 'llanowar elves', 'rangers hawk', 'command tower', 'arcane signet'], 'à choisir en tête ; Sol Ring rescanné : remonté en haut');
+assert.equal(await p.$$eval('.sc-item.last', r => r.map(x => x.dataset.k).join()), 'sol ring', 'dernière carte lue : mise en avant');
+await p.locator('.sc-ask .sc-ask-t', { hasText: 'CMM' }).click(); await p.waitForFunction(() => !document.querySelector('.sc-ask'));
+assert.equal((await lines())['swords to plowshares cmm|200'], 'man ×1', 'choisie dans le bandeau');
 await add('Sol Ring'); await settle();
-L = await lines(); assert.equal(L['sol ring dsk|202'], 'man ×2'); assert.equal(L['sol ring cmm|200'], 'auto ×1', 'CMM collante : ce Sol Ring-là a sa propre ligne');
+L = await lines(); assert.equal(L['sol ring dsk|202'], 'man ×3', 'DSK, CMM et BLB possibles : DSK, la plus fournie du scan'); assert.equal(L['sol ring cmm|200'], undefined);
 await add('Wrath of God'); await settle();
 assert.equal((await lines())['wrath of god'], 'pend ×1', 'aucune extension du scan : à choisir');
 // feuille : les extensions du scan d'abord (la collante en tête)
@@ -64,10 +74,10 @@ await p.click('.sc-item[data-k="wrath of god"] .sc-ed'); await p.waitForSelector
 assert.equal(await p.$$eval('.ced-sheet .ced-h', h => h.length), 0, 'aucune extension du scan pour Wrath of God : pas de groupe');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
 await p.click('.sc-item[data-k="command tower"] .sc-ed'); await p.waitForSelector('.ced-sheet .ced-h');
-assert.deepEqual(await p.$$eval('.ced-sheet .ced-h, .ced-sheet .ced-t:not(.none) .ced-n', b => b.map(x => x.textContent)), ['Dans ce scan', 'CMM 200', 'BLB 201'], 'extensions du scan d\'abord (CMM collante, puis BLB)');
+assert.deepEqual(await p.$$eval('.ced-sheet .ced-h, .ced-sheet .ced-t:not(.none) .ced-n', b => b.map(x => x.textContent)), ['Dans ce scan', 'BLB 201', 'CMM 200'], 'extensions du scan d\'abord (la plus fournie : BLB, puis CMM)');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
 await p.screenshot({ path: 'shots/scan-editions.png' });
-ok('extension unique posée et collante ; majorité du scan ; même carte même ligne (remontée en haut), autre édition autre ligne ; cartes à choisir en tête ; feuille : extensions du scan d\'abord');
+ok('extension unique posée ; extension du scan la plus fournie ; même carte même ligne (remontée en haut) ; bandeau « Nouvelle extension » ; cartes à choisir en tête ; feuille : extensions du scan d\'abord');
 
 /* ── 3) récap : prix de l'édition, confirmation des cartes sans édition ─────────────────────────────────────────── */
 await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]');
@@ -81,7 +91,7 @@ await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-
 assert.match(await txt(p, '.rc-facts'), /Éditions\s*toutes posées/);
 await p.click('.rc-sheet [data-rc="go"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
 const coll = await p.evaluate(() => Object.fromEntries(Object.entries(COLL.map).map(([k, x]) => [k, x.x || { [x.l || '']: x.q }])));
-assert.deepEqual(coll['sol ring'], { 'en|cmm|200': 1, 'en|dsk|202': 2 }, 'collection : une ligne par édition');
+assert.deepEqual(coll['sol ring'], { 'en|dsk|202': 3 }, 'collection : l\'édition de chaque ligne');
 assert.deepEqual(coll['wrath of god'], { 'en|m21|200': 1 }); assert.deepEqual(coll['rangers hawk'], { 'en|blb|200': 1 });
 assert.equal(await p.evaluate(() => (COLL.ed['dsk|202'] || {}).sn), 'DSK Set', 'infos de l\'édition gardées');
 ok('récap : cartes sans édition → confirmation, « Choisir les éditions » ouvre la carte ; ajout avec une ligne par édition');
