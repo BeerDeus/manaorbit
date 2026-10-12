@@ -225,7 +225,7 @@ L'appli affiche ce message de Google avant la première annonce, aux utilisateur
 - **Contenu de l'appli › Annonces** : « Contient des annonces : Oui ».
 - **Contenu de l'appli › Identifiant publicitaire** : « Oui », utilisé pour la **publicité ou le marketing**.
 - **Sécurité des données** : ajoute ce que collecte le SDK Google Mobile Ads, partagé avec Google pour la publicité : identifiants de l'appareil (identifiant publicitaire), interactions avec l'appli, diagnostics (plantages, performances), position approximative (adresse IP). Liste à jour : https://developers.google.com/admob/android/privacy/play-data-disclosure
-- Une fois l'appli publiée : AdMob › **Applis › Mana Orbit › Paramètres › Infos sur le store**, relie l'appli à sa fiche Play Store. AdMob demandera ensuite un fichier `app-ads.txt` sur le site indiqué dans la fiche : demande-moi, je l'ajoute au serveur.
+- Une fois l'appli publiée : AdMob › **Applis › Mana Orbit › Paramètres › Infos sur le store**, relie l'appli à sa fiche Play Store. AdMob vérifie ensuite `app-ads.txt` sur le site indiqué dans la fiche : `https://manaorbit.app/app-ads.txt` est déjà servi (éditeur `pub-9859793504995886`).
 
 ## Notifications (Firebase Cloud Messaging)
 
