@@ -22,8 +22,7 @@ async function run(scheme) {
   await p.click('#segTab [role=radio]:nth-of-type(1), #segTab button:nth-of-type(1)'); await p.waitForTimeout(300);
   await p.click('#list .row:not(.is-missing)'); await shot('06-carte'); await p.keyboard.press('Escape'); await p.waitForTimeout(500);
   await p.click('#btnCart'); await shot('07-panier'); await p.keyboard.press('Escape'); await p.waitForTimeout(500);
-  await p.click('#btnSettings'); await shot('08-reglages'); await p.keyboard.press('Escape'); await p.waitForTimeout(500);
-  await p.click('#btnAccount'); await shot('09-compte'); await p.keyboard.press('Escape'); await p.waitForTimeout(500);
+  await p.click('#btnAccount'); await shot('08-reglages'); await p.click('.me-sheet [data-me="compte"]'); await shot('09-compte'); await p.keyboard.press('Escape'); await p.waitForTimeout(400); await p.keyboard.press('Escape'); await p.waitForTimeout(500);
   await p.click('#btnBack'); await p.waitForTimeout(500);
   await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await shot('10-collection-vide');
   await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText'); await shot('11-import');

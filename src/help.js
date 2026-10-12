@@ -22,8 +22,8 @@ const HELP_QA = [
   ['Comment publier un deck dans la communauté ?', 'Ouvre ton deck dans <b>Mes decks</b> et touche <b>Publier</b> : un deck Commander de 100 cartes pile, commandant compris, sous ton pseudo (compte vérifié, 10 decks au plus). Il apparaît pour tous dans <b>Decks</b> › À monter, type <b>Communauté</b>, d\'ici quelques minutes. <b>Mettre à jour</b> envoie ta liste du moment, <b>Retirer</b> l\'enlève (supprimer le deck aussi). Un deck choquant ? <b>Signaler ce deck</b>, dans sa feuille : il disparaît de ton appli, et de la communauté après plusieurs signalements.'],
   ['À quoi sert la liste d\'échange ?', '<b>Échange</b> (barre du bas) réunit tes doublons (les exemplaires que tes decks n\'utilisent pas, au-delà de ce que tu gardes) et les cartes que tu cherches (celles qui manquent à tes decks, plus tes souhaits). Avec un compte, crée un <b>lien public</b> : tes amis voient ta liste, toujours à jour, sans rien pouvoir modifier.'],
   ['Faut-il un compte ?', 'Non : sans compte, tout reste sur cet appareil. Un compte (e-mail ou Google) sauvegarde ta collection, tes decks, l\'historique de valeur et ta liste d\'échange, et les retrouve sur tous tes appareils. Ton token CardTrader, lui, reste sur l\'appareil.'],
-  ['Alertes et notifications ?', 'Réglages › <b>Gérer les notifications</b> : « Fin de recherche » te prévient quand une recherche CardTrader se termine après que tu as quitté l\'appli ; les <b>alertes de prix</b> signalent une forte baisse d\'une carte qui manque à tes decks ou d\'une carte suivie (le serveur vérifie toutes les 6 heures). Dans ta collection, les cartes dont le prix a beaucoup bougé sont aussi signalées.'],
-  ['Comment effacer mes données ?', 'Réglages › Confidentialité › <b>Effacer les données de cet appareil</b> : collection, decks, réglages et caches. Avec un compte, Compte › <b>Supprimer mon compte</b> efface aussi tout ce qui est en ligne (decks, collection, historique, liste d\'échange, liens partagés). C\'est définitif.'],
+  ['Alertes et notifications ?', 'Compte et réglages (ton avatar, en haut) › <b>Notifications</b> : « Fin de recherche » te prévient quand une recherche CardTrader se termine après que tu as quitté l\'appli ; les <b>alertes de prix</b> signalent une forte baisse d\'une carte qui manque à tes decks ou d\'une carte suivie (le serveur vérifie toutes les 6 heures). Dans ta collection, les cartes dont le prix a beaucoup bougé sont aussi signalées.'],
+  ['Comment effacer mes données ?', 'Compte et réglages › Données de l\'appareil › <b>Effacer les données de cet appareil</b> : collection, decks, réglages et caches. Avec un compte, Compte et réglages › Gérer le compte › <b>Supprimer mon compte</b> efface aussi tout ce qui est en ligne (decks, collection, historique, liste d\'échange, liens partagés). C\'est définitif.'],
 ];
 
 /** Typographie française à l'affichage : espace insécable avant « ; : ? ! » et dans les guillemets (jamais un « ; » seul en début de ligne). Sans effet en anglais. */
@@ -50,10 +50,10 @@ function helpApk() {
 function helpMailLinks(root) { helpApk().then(v => { if (v) $$('a[data-help="mail"]', root).forEach(a => { a.href = feedbackHref(v); }); }); }
 
 /** Réglages › « Aide et avis ». */
-function helpSettings(el) {
+function helpSettings(el, own) {      // own : dans sa propre fiche « Aide et avis » (le titre y est déjà)
   if (!el) return;
   const rate = RATE.url && isNativeApp();
-  el.innerHTML = `<div class="sec-title">${T('Aide et avis')}</div>
+  el.innerHTML = `${own ? '' : `<div class="sec-title">${T('Aide et avis')}</div>`}
     <div class="installbox"><p class="hint">${helpNb(T('Les réponses aux questions courantes. Un bug, une idée ? Écris-nous : ton appli mail s\'ouvre avec la version de Mana Orbit déjà notée.'))}</p>
       <div class="cart-actions"><button class="btn ghost small" type="button" data-help="open">${T('Comment ça marche')}</button><a class="btn ghost small" data-help="mail" href="${esc(feedbackHref())}">${T('Envoyer un avis')}</a>${rate ? `<a class="btn ghost small" data-help="rate" href="${esc(RATE.url)}" target="_blank" rel="noopener">${T('Noter sur le Play Store')}</a>` : ''}</div>
       <p class="hint hp-mail">${T('Ou écris à {mail}', { mail: `<span>${HELP_MAIL}</span>` })}</p></div>`;

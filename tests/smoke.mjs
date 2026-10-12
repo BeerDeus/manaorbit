@@ -89,7 +89,7 @@ click($('#btnCopy')); await sleep(200);
 ok(/Mana Orbit/.test(w.__copied || ''), 'récap copié (' + (w.__copied || '').split('\n').length + ' lignes)');
 
 // réglages
-click($('#btnSettings')); await sleep(500);
+click($('#btnAccount')); await sleep(500);
 ok(!!$('#sheetRoot .sheet'), 'réglages ouverts');
 
 console.log('\nERREURS:', errors.length ? '\n' + errors.join('\n') : 'aucune');

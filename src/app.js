@@ -1014,10 +1014,11 @@ function openNotifSettings() {
     paintPushBox($('#pushBox', api.body)); alPaintBox($('#alertBox', api.body));
   });
 }
-function openSettings() {
-  openSheet(T('Réglages'), T('Prix, compte et affichage'), api => {
+/* ── Réglages : les rubriques de la fiche « Compte et réglages » (me.js), chacune dans sa propre fiche (fermée en la tirant vers le bas) ─────── */
+/** Prix et CardTrader : Cardmarket par défaut, token CardTrader (facultatif), clé du proxy, test de connexion. */
+function setPrixSheet() {
+  openSheet(T('Prix et CardTrader'), null, api => {
     api.body.innerHTML = `
-      <div class="sec-title">${T('Prix')}</div>
       <p class="hint">${T('<b>Cardmarket</b> : prix tendance relevés chaque jour, gratuits et sans compte, pour estimer ta collection et tes decks.<br><b>CardTrader</b> : offres réelles des vendeurs, frais de port optimisés et remplissage de ton panier.')}</p>
       <div class="status" id="connStatus" data-ok="0"><span class="dot"></span><span id="connMsg"></span></div>
       <div class="field-in" id="boxToken"><label class="label" for="setToken">${T('Token CardTrader (facultatif)')}</label><input type="password" id="setToken" autocomplete="off" spellcheck="false" placeholder="${esc(T('Colle ton token API'))}" value="${esc(S.token)}">
@@ -1025,61 +1026,8 @@ function openSettings() {
         <span class="hint">${T(CT_TOKEN_WARN)}</span></div>
       <div class="field-in" id="boxKey" ${CTX.needsKey ? '' : 'hidden'}><label class="label" for="setKey">${T('Clé du proxy')}</label><input type="password" id="setKey" autocomplete="off" value="${esc(S.appKey)}">${CTX.needsLogin ? `<span class="hint">${T('Facultative : ton compte suffit. À supprimer côté serveur une fois la connexion par compte validée.')}</span>` : ''}</div>
       <button class="btn ghost small" type="button" id="btnTest" style="align-self:flex-start">${T('Tester CardTrader')}</button>
-      <div class="sec-title">${T('Affichage')}</div>
-      <div class="field-in"><label class="label" for="setLang">${T('Langue')}</label><div class="sel"><select id="setLang">${i18nLangs().map(([c, n]) => `<option value="${c}" ${c === I18N.lang ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div></div>
-      <div class="seg" id="segTheme" role="radiogroup" aria-label="${esc(T('Thème'))}"></div>
-      <label class="switch-row" for="setHaptic"><span class="t"><b>${T('Vibrations')}</b><span class="hint">${typeof navigator !== 'undefined' && navigator.vibrate ? T('Un petit retour au toucher et à la fin des tâches.') : T('Indisponible sur cet appareil (iPhone et iPad ne les exposent pas).')}</span></span>
-        <span class="switch"><input type="checkbox" id="setHaptic" ${S.haptic ? 'checked' : ''}><i></i></span></label>
-      <button class="btn ghost small" type="button" id="btnCache" style="align-self:flex-start">${T('Vider le cache du catalogue')}</button>
-      <div class="sec-title">${T('Hors ligne')}</div>
-      <div id="warmBox" class="installbox"></div>
-      <div class="sec-title">${T('Notifications')}</div>
-      <div class="installbox"><p class="hint">${T('Fin de recherche et alertes de prix.')}</p><button class="btn ghost small" type="button" id="btnNotif" style="align-self:flex-start">${T('Gérer les notifications')}</button></div>
-      ${typeof isNativeApp === 'function' && isNativeApp() ? '' : `<div class="sec-title">${T('Application')}</div>
-      <div id="appBox" class="installbox"></div>`}
-      ${typeof isNativeApp === 'function' && isNativeApp() ? '<div id="widgetBox"></div>' : ''}
-      <div id="helpBox"></div>
-      <div class="sec-title">${T('Confidentialité')}</div>
-      <div id="privBox" class="installbox"><p class="hint">${T('Sans compte, tout reste sur cet appareil. Aucune publicité ni mesure d\'audience.')}</p>
-        <div class="cart-actions"><a class="btn ghost small" href="privacy" target="_blank" rel="noopener">${T('Politique de confidentialité')}</a><a class="btn ghost small" href="legal" target="_blank" rel="noopener">${T('Mentions légales')}</a><button class="btn ghost small" type="button" id="btnAbout">${T('Mentions et sources')}</button></div>
-        <div id="wipeBox"></div></div>
-      <div class="sec-title">${T('Panier CardTrader')}</div>
-      <div id="cartBox" class="cartbox"></div>
-      <p class="hint set-ver">${T('Version {v}', { v: esc(typeof DD_BUILD === 'string' ? DD_BUILD : 'dev') })}${typeof isNativeApp === 'function' && isNativeApp() ? ' · APK<span class="set-apkv"></span> : ' + NAT_PLUGINS.map(([n, l]) => (natPlugin(n) ? '✓' : '✗') + l).join(' ') + '<span class="set-fb"></span>' : ''}</p>
-      <p class="hint fan">${FAN_CONTENT}</p>`;
-    const b = api.body; warmPaint();
-    // APK : sa version et Firebase (google-services.json), lus auprès de la coque ; APK sans plugin ManaOrbit ou info() refusé : la ligne reste telle quelle
-    { const mo = typeof natPlugin === 'function' && natPlugin('ManaOrbit');
-      if (mo) Promise.resolve().then(() => mo.info()).then(i => { const v = $('.set-apkv', b), f = $('.set-fb', b); if (!i || !v || !f) return; if (i.version) v.textContent = ' ' + i.version + (i.build ? ' (' + i.build + ')' : ''); f.textContent = ' ' + (i.firebase ? '✓' : '✗') + 'Firebase'; }).catch(() => {}); }
-    // Installation de l'app : l'état change tout seul (installation acceptée, mode standalone…) tant que la feuille est ouverte
-    const appBox = $('#appBox', b);      // absent dans l'appli Android : rien à installer
-    const paintApp = () => {
-      if (!appBox || !appBox.isConnected) { off(); return; }
-      const st = PWA.state();
-      const okRow = t => `<div class="status" data-ok="1"><span class="dot"></span><span>${t}</span></div>`;
-      const hint = t => `<p class="hint">${t}</p>`;
-      appBox.innerHTML = st === 'standalone' ? okRow(T('Mana Orbit est ouverte en application installée.'))
-        : st === 'installed' ? okRow(T('Mana Orbit est installée. Ouvre-la depuis ton écran d\'accueil ou ton menu Démarrer.'))
-        : st === 'ready' ? hint(T('Installe Mana Orbit comme une vraie application : icône sur ton appareil, plein écran, lancement direct.')) + `<button class="btn small" type="button" id="btnInstall">${T('Installer Mana Orbit')}</button>`
-        : st === 'ios' ? hint(T('Sur iPhone et iPad, Apple ne permet pas l\'installation directe. Dans Safari : bouton Partager, puis « Sur l\'écran d\'accueil ».'))
-        : st === 'insecure' ? hint(T('L\'installation demande une adresse en https.'))
-        : hint(T('Ton navigateur ne propose pas encore l\'installation. Chrome ou Edge : icône d\'installation dans la barre d\'adresse, ou menu ⋮ puis « Installer Mana Orbit ». Android : menu ⋮ puis « Installer l\'application ».'));
-      const bi = $('#btnInstall', appBox); if (bi) bi.onclick = doInstall;
-    };
-    const off = PWA.on(paintApp); paintApp();
-    $('#btnAbout', b).onclick = openAbout;
-    const wipe = $('#wipeBox', b), paintWipe = ask => {
-      wipe.innerHTML = ask ? `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Collection, decks, réglages et caches de cet appareil seront effacés.')}${typeof D !== 'undefined' && D.user ? ' ' + T('Ton compte et ses données en ligne restent intacts.') : ''}</span></div>
-        <div class="cart-actions"><button class="btn ghost small" type="button" id="btnWipeNo">${T('Annuler')}</button><button class="btn ghost-danger small" type="button" id="btnWipeGo">${T('Tout effacer')}</button></div>`
-        : `<button class="btn ghost-danger small" type="button" id="btnWipe" style="align-self:flex-start">${T('Effacer les données de cet appareil')}</button>`;
-      if (ask) { $('#btnWipeNo', wipe).onclick = () => paintWipe(false); $('#btnWipeGo', wipe).onclick = async () => { if (typeof D !== 'undefined' && D.cloud && D.user) { try { await D.cloud.signOut(); } catch (e) { /* ignore */ } } wipeDevice(); }; }
-      else $('#btnWipe', wipe).onclick = () => paintWipe(true);
-    };
-    paintWipe(false);
-    $('#btnNotif', b).onclick = openNotifSettings;
-    // rubriques fournies par d'autres modules (widget.js : réglages du widget dans l'appli ; help.js : aide, avis) — absentes tant que le module ne les définit pas
-    if (typeof widgetSettings === 'function' && $('#widgetBox', b)) widgetSettings($('#widgetBox', b));
-    if (typeof helpSettings === 'function') helpSettings($('#helpBox', b));
+`;
+    const b = api.body;
     const status = () => {
       const st = $('#connStatus', b), m = $('#connMsg', b), src = priceSrc(), mine = !!S.token;
       const say = (ok, t) => { st.dataset.ok = ok ? '1' : '0'; m.textContent = t; };      // le choix Cardmarket / CardTrader se fait sur « Nouveau panier » : ici, seulement ce qui est disponible
@@ -1091,12 +1039,38 @@ function openSettings() {
       modeLabel();
     };
     status();
-    $('#setToken', b).oninput = e => { S.token = e.target.value.trim(); if (S.token) S.src = 'auto'; syncCTX(); status(); saveStore(); };
+    $('#setToken', b).oninput = e => { S.token = e.target.value.trim(); if (S.token) S.src = 'auto'; syncCTX(); status(); saveStore(); meSoon(); };
     $('#setKey', b).oninput = e => { S.appKey = e.target.value.trim(); syncCTX(); saveStore(); };
-    mountSeg($('#segTheme', b), [{ v: 'auto', label: T('Auto') }, { v: 'light', label: T('Clair') }, { v: 'dark', label: T('Sombre') }], S.theme, v => { S.theme = v; applyTheme(); saveStore(); });
-    $('#setLang', b).onchange = e => { try { localStorage.setItem('deckdeal:lang', e.target.value); } catch (x) { /* ignore */ } location.reload(); };
-    $('#setHaptic', b).onchange = e => { S.haptic = e.target.checked; saveStore(); haptic('ok'); };
+    $('#btnTest', b).onclick = async e => {
+      const btn = e.target; btn.disabled = true; btn.textContent = T('Test…');
+      const st = $('#connStatus', b), m = $('#connMsg', b);
+      try { const j = await ct('info'); st.dataset.ok = '1'; m.textContent = j && j.name ? T('Connexion réussie (app « {name} »).', { name: j.name }) : T('Connexion réussie.'); }
+      catch (err) { st.dataset.ok = '0'; m.textContent = err.code === 'notoken' ? T('Token manquant.') : err.code === 'auth' ? (S.token ? T('CardTrader refuse ce token : vérifie-le sur la page API de CardTrader.') : authHint(err).msg) : T('CardTrader est injoignable depuis ce navigateur.'); }
+      btn.disabled = false; btn.textContent = T('Tester CardTrader');
+    };
+  });
+}
+/** Données de l'appareil : hors ligne (préchargement), cache du catalogue, panier CardTrader, effacement de l'appareil. */
+function setDataSheet() {
+  openSheet(T('Données de l\'appareil'), null, api => {
+    api.body.innerHTML = `<div class="sec-title">${T('Hors ligne')}</div>
+      <div id="warmBox" class="installbox"></div>
+      <div class="sec-title">${T('Cache')}</div>
+      <div class="installbox"><p class="hint">${T('Fiches, prix et images des cartes lus sur Scryfall, gardés sur cet appareil pour aller plus vite. Ta collection et tes decks ne sont pas touchés.')}</p><button class="btn ghost small" type="button" id="btnCache" style="align-self:flex-start">${T('Vider le cache du catalogue')}</button></div>
+      <div class="sec-title">${T('Panier CardTrader')}</div>
+      <div id="cartBox" class="cartbox"></div>
+      <div class="sec-title">${T('Effacer cet appareil')}</div>
+      <div id="wipeBox" class="installbox"></div>`;
+    const b = api.body; warmPaint();
     $('#btnCache', b).onclick = async () => { await Cache.clear(); toast(T('Cache vidé')); };
+    const wipe = $('#wipeBox', b), paintWipe = ask => {
+      wipe.innerHTML = ask ? `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Collection, decks, réglages et caches de cet appareil seront effacés.')}${typeof D !== 'undefined' && D.user ? ' ' + T('Ton compte et ses données en ligne restent intacts.') : ''}</span></div>
+        <div class="cart-actions"><button class="btn ghost small" type="button" id="btnWipeNo">${T('Annuler')}</button><button class="btn ghost-danger small" type="button" id="btnWipeGo">${T('Tout effacer')}</button></div>`
+        : `<button class="btn ghost-danger small" type="button" id="btnWipe" style="align-self:flex-start">${T('Effacer les données de cet appareil')}</button>`;
+      if (ask) { $('#btnWipeNo', wipe).onclick = () => paintWipe(false); $('#btnWipeGo', wipe).onclick = async () => { if (typeof D !== 'undefined' && D.cloud && D.user) { try { await D.cloud.signOut(); } catch (e) { /* ignore */ } } wipeDevice(); }; }
+      else $('#btnWipe', wipe).onclick = () => paintWipe(true);
+    };
+    paintWipe(false);
     // Vider le panier CardTrader : lecture, confirmation en deux temps (jamais de confirm() natif), suppression ligne par ligne, vérification.
     const box = $('#cartBox', b); // la suppression continue même si la feuille est fermée : on ne laisse pas un panier à moitié vidé
     const money = m => m && typeof m.cents === 'number' ? fmt(m.cents, m.currency) : null;
@@ -1139,15 +1113,43 @@ function openSettings() {
       } catch (e) { paintCart('error', { msg: T('Suppression interrompue : {msg}', { msg: cartErr(e) }) }); bye(T('Suppression interrompue'), 'bad', cartErr(e)); }
     }
     paintCart('idle');
-    $('#btnTest', b).onclick = async e => {
-      const btn = e.target; btn.disabled = true; btn.textContent = T('Test…');
-      const st = $('#connStatus', b), m = $('#connMsg', b);
-      try { const j = await ct('info'); st.dataset.ok = '1'; m.textContent = j && j.name ? T('Connexion réussie (app « {name} »).', { name: j.name }) : T('Connexion réussie.'); }
-      catch (err) { st.dataset.ok = '0'; m.textContent = err.code === 'notoken' ? T('Token manquant.') : err.code === 'auth' ? (S.token ? T('CardTrader refuse ce token : vérifie-le sur la page API de CardTrader.') : authHint(err).msg) : T('CardTrader est injoignable depuis ce navigateur.'); }
-      btn.disabled = false; btn.textContent = T('Tester CardTrader');
-    };
   });
 }
+/** Application (navigateur) : installer Mana Orbit comme une appli. */
+function setAppSheet() {
+  openSheet(T('Application'), null, api => {
+    api.body.innerHTML = '<div id="appBox" class="installbox"></div>';
+    const b = api.body;
+    const appBox = $('#appBox', b);      // absent dans l'appli Android : rien à installer
+    const paintApp = () => {
+      if (!appBox || !appBox.isConnected) { off(); return; }
+      const st = PWA.state();
+      const okRow = t => `<div class="status" data-ok="1"><span class="dot"></span><span>${t}</span></div>`;
+      const hint = t => `<p class="hint">${t}</p>`;
+      appBox.innerHTML = st === 'standalone' ? okRow(T('Mana Orbit est ouverte en application installée.'))
+        : st === 'installed' ? okRow(T('Mana Orbit est installée. Ouvre-la depuis ton écran d\'accueil ou ton menu Démarrer.'))
+        : st === 'ready' ? hint(T('Installe Mana Orbit comme une vraie application : icône sur ton appareil, plein écran, lancement direct.')) + `<button class="btn small" type="button" id="btnInstall">${T('Installer Mana Orbit')}</button>`
+        : st === 'ios' ? hint(T('Sur iPhone et iPad, Apple ne permet pas l\'installation directe. Dans Safari : bouton Partager, puis « Sur l\'écran d\'accueil ».'))
+        : st === 'insecure' ? hint(T('L\'installation demande une adresse en https.'))
+        : hint(T('Ton navigateur ne propose pas encore l\'installation. Chrome ou Edge : icône d\'installation dans la barre d\'adresse, ou menu ⋮ puis « Installer Mana Orbit ». Android : menu ⋮ puis « Installer l\'application ».'));
+      const bi = $('#btnInstall', appBox); if (bi) bi.onclick = doInstall;
+    };
+    const off = PWA.on(paintApp); paintApp();
+  });
+}
+/** Confidentialité et mentions : politique, mentions légales, sources ; contenu de fan. */
+function setConfSheet() {
+  openSheet(T('Confidentialité et mentions'), null, api => {
+    api.body.innerHTML = `<div id="privBox" class="installbox"><p class="hint">${T('Sans compte, tout reste sur cet appareil. Aucune publicité ni mesure d\'audience.')}</p>
+        <div class="cart-actions"><a class="btn ghost small" href="privacy" target="_blank" rel="noopener">${T('Politique de confidentialité')}</a><a class="btn ghost small" href="legal" target="_blank" rel="noopener">${T('Mentions légales')}</a><button class="btn ghost small" type="button" id="btnAbout">${T('Mentions et sources')}</button></div></div>
+      <p class="hint fan">${FAN_CONTENT}</p>`;
+    $('#btnAbout', api.body).onclick = openAbout;
+  });
+}
+/** Aide et avis : « Comment ça marche », écrire un avis (help.js). */
+function setHelpSheet() { openSheet(T('Aide et avis'), null, api => { api.body.innerHTML = '<div id="helpBox"></div>'; helpSettings($('#helpBox', api.body), true); }); }
+/** Widget de l'appli Android (widget.js). */
+function setWidgetSheet() { openSheet(T('Widget'), null, api => { api.body.innerHTML = '<div id="widgetBox"></div>'; if (typeof widgetSettings === 'function') widgetSettings($('#widgetBox', api.body)); }); }
 /* ── Installation (bannière de la page d'accueil) ─────────────────────────────────────────────── */
 const FAN_CONTENT = T('Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Policy. Il n\'est ni approuvé ni soutenu par Wizards of the Coast. Certains éléments utilisés sont la propriété de Wizards of the Coast. ©Wizards of the Coast LLC.');
 /** Mentions et sources : contenu de fan (Wizards of the Coast), d'où viennent les données, bibliothèques. */
@@ -1263,7 +1265,6 @@ function init() {
   $('#btnCancel').onclick = () => { if (S.run) S.run.ctrl.abort(); };
   $('#btnCopy').onclick = () => { if (S.run) copyText(recapText()); };
   $('#btnCart').onclick = () => isCm() ? cmCopyRun() : openCartSheet();
-  $('#btnSettings').onclick = openSettings;
   { const bar = $('.bar'); let sy = -1; const sync = () => { sy = -1; bar.classList.toggle('scrolled', window.scrollY > 4); }; window.addEventListener('scroll', () => { if (sy < 0) sy = requestAnimationFrame(sync); }, { passive: true }); sync(); }      // filet sous la barre seulement quand le contenu passe dessous
   $('#list').addEventListener('click', e => {
     const x = e.target.closest('.rx'); if (x) return removeCard(x.dataset.key);
@@ -1279,7 +1280,7 @@ function init() {
   $('#list').addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
   $('#alerts').addEventListener('click', e => {
     const b = e.target.closest('button[data-act]'); if (!b) return;
-    if (b.dataset.act === 'settings') openSettings();
+    if (b.dataset.act === 'settings') openSettings('prix');
     else if (b.dataset.act === 'account') openAccount();
     else if (b.dataset.act === 'en-all') findEnglishAll();
     else if (b.dataset.act === 'refresh') startRun(true);

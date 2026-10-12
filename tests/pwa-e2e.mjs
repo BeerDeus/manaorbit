@@ -109,13 +109,13 @@ const fakePrompt = outcome => {
   console.log('bannière :', (await pg.textContent('#installBar')).replace(/\s+/g, ' ').trim());
   await pg.screenshot({ path: 'shots/pwa-2-banniere.png' });
   // réglages : le bouton y est aussi
-  await pg.click('#btnSettings'); await pg.waitForSelector('#btnInstall'); await pg.waitForTimeout(500);
+  await pg.click('#btnAccount'); await pg.waitForSelector('.me-sheet.open'); await pg.click('.me-sheet [data-me="app"]'); await pg.waitForSelector('#btnInstall'); await pg.waitForTimeout(500);      // Compte et réglages › Application
   await pg.screenshot({ path: 'shots/pwa-3-reglages.png' });
   await pg.click('#btnInstall'); await pg.waitForFunction(() => /installée\./.test(document.querySelector('#appBox').textContent) || window.__prompted === 1, null, { timeout: 3000 });
   assert.equal(await pg.evaluate(() => window.__prompted), 1, 'prompt() appelé une fois');
   await pg.evaluate(() => window.dispatchEvent(new Event('appinstalled'))); await pg.waitForFunction(() => /installée/.test(document.querySelector('#appBox').textContent));
   console.log('réglages après installation :', (await pg.textContent('#appBox')).replace(/\s+/g, ' ').trim());
-  await pg.click('.sheet-wrap.open [data-close].icon-btn'); await pg.waitForTimeout(500);
+  await pg.click('.sheet-wrap.open:last-child [data-close].icon-btn'); await pg.waitForTimeout(450); await pg.click('.me-sheet.open [data-close].icon-btn'); await pg.waitForTimeout(500);      // Application, puis Compte et réglages
   assert.equal(await pg.$eval('#installWrap', e => e.classList.contains('closed')), true, 'bannière retirée une fois installée');
   assert.deepEqual(errs, []); await c.close();
 }
@@ -127,7 +127,7 @@ const fakePrompt = outcome => {
   const ts = await pg.evaluate(() => Number(localStorage.getItem('deckdeal:install-x'))); assert.ok(Date.now() - ts < 5000);
   await pg.reload(); await pg.waitForTimeout(400); await pg.evaluate(() => window.__fire()); await pg.waitForTimeout(700);
   assert.equal(await pg.$eval('#installWrap', e => e.classList.contains('closed')), true, 'reste silencieuse après rechargement');
-  await pg.click('#btnSettings'); await pg.waitForSelector('#btnInstall'); // mais le bouton des réglages reste disponible
+  await pg.click('#btnAccount'); await pg.waitForSelector('.me-sheet.open'); await pg.click('.me-sheet [data-me="app"]'); await pg.waitForSelector('#btnInstall'); // mais le bouton des réglages reste disponible
   await c.close();
   const x = await mk({}, fakePrompt, 'accepted'); await x.pg.goto(URL0); await x.pg.waitForTimeout(400); await x.pg.evaluate(() => window.__fire()); await x.pg.waitForTimeout(700);
   await x.pg.click('#btnInstallX'); await x.pg.waitForTimeout(900);
@@ -141,7 +141,7 @@ const fakePrompt = outcome => {
   await pg.goto(URL0); await pg.waitForTimeout(900);
   assert.equal(await pg.$eval('#installWrap', e => e.classList.contains('closed')), false);
   assert.match(await pg.textContent('#installBar'), /Partager/); assert.equal(await pg.$eval('#btnInstallBar', b => b.hidden), true, 'pas de bouton Installer sur iOS');
-  await pg.click('#btnSettings'); await pg.waitForSelector('#appBox'); assert.match(await pg.textContent('#appBox'), /Sur l.écran d.accueil/); assert.equal(await pg.$('#btnInstall'), null);
+  await pg.click('#btnAccount'); await pg.waitForSelector('.me-sheet.open'); await pg.click('.me-sheet [data-me="app"]'); await pg.waitForSelector('#appBox'); assert.match(await pg.textContent('#appBox'), /Sur l.écran d.accueil/); assert.equal(await pg.$('#btnInstall'), null);
   await pg.screenshot({ path: 'shots/pwa-4-ios.png' });
   assert.deepEqual(errs, []); await c.close();
   console.log('✓ iOS : consigne Safari, pas de faux bouton');
@@ -150,7 +150,7 @@ const fakePrompt = outcome => {
   const { c, pg, errs } = await mk({}, () => { const o = window.matchMedia.bind(window); window.matchMedia = q => /display-mode:\s*standalone/.test(q) ? { matches: true, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} } : o(q); });
   await pg.goto(URL0); await pg.waitForTimeout(500);
   assert.equal(await pg.$eval('#installWrap', e => e.classList.contains('closed')), true);
-  await pg.click('#btnSettings'); await pg.waitForSelector('#appBox');
+  await pg.click('#btnAccount'); await pg.waitForSelector('.me-sheet.open'); await pg.click('.me-sheet [data-me="app"]'); await pg.waitForSelector('#appBox');
   assert.match(await pg.textContent('#appBox'), /application installée/); assert.equal(await pg.$('#btnInstall'), null);
   assert.deepEqual(errs, []); await c.close();
   console.log('✓ mode application : état « installée », rien à proposer');
@@ -164,13 +164,13 @@ const fakePrompt = outcome => {
   const { c, pg, errs } = await mk();
   await pg.goto(URL0); await pg.waitForTimeout(500);
   await pg.evaluate(() => { localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: '1 Sol Ring', u: 1, s: '', b: null })); localStorage.setItem('autre-site', '1'); });
-  await pg.click('#btnSettings'); await pg.waitForSelector('#privBox');
+  await pg.click('#btnAccount'); await pg.waitForSelector('.me-sheet.open'); await pg.click('.me-sheet [data-me="conf"]'); await pg.waitForSelector('#privBox');      // Compte et réglages › Confidentialité et mentions
   assert.equal(await pg.$('#adStreet'), null, 'plus de champ adresse');
-  assert.match(await pg.textContent('.sheet-body .fan'), /Fan Content Policy/); assert.equal(await pg.$eval('#privBox a', a => a.getAttribute('href')), 'privacy'); assert.ok(await pg.$('#privBox a[href="legal"]'), 'Réglages › Mentions légales');
-  await pg.click('#btnAbout'); await pg.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2);
+  assert.match(await pg.textContent('.sheet-wrap:last-child .sheet-body .fan'), /Fan Content Policy/); assert.equal(await pg.$eval('#privBox a', a => a.getAttribute('href')), 'privacy'); assert.ok(await pg.$('#privBox a[href="legal"]'), 'Réglages › Mentions légales');
+  await pg.click('#btnAbout'); await pg.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 3);
   const about = await pg.textContent('.kv.about'); for (const n of ['Scryfall', 'CardTrader', 'EDHREC', 'Archidekt', 'EDHTop16']) assert.match(about, new RegExp(n));
-  await pg.keyboard.press('Escape'); await pg.waitForTimeout(400);
-  await pg.click('#btnWipe'); await pg.waitForSelector('#btnWipeGo'); assert.match(await pg.textContent('#wipeBox'), /seront effacés/);
+  await pg.keyboard.press('Escape'); await pg.waitForTimeout(400); await pg.keyboard.press('Escape'); await pg.waitForTimeout(400);      // mentions, puis confidentialité : retour à Compte et réglages
+  await pg.click('.me-sheet [data-me="donnees"]'); await pg.waitForSelector('#btnWipe'); await pg.click('#btnWipe'); await pg.waitForSelector('#btnWipeGo'); assert.match(await pg.textContent('#wipeBox'), /seront effacés/);
   await pg.click('#btnWipeNo'); await pg.waitForSelector('#btnWipe'); assert.ok(await pg.evaluate(() => localStorage.getItem('deckdeal:coll:v1')), 'annuler : rien n\'est effacé');
   await pg.click('#btnWipe'); await pg.click('#btnWipeGo'); await pg.waitForEvent('load', { timeout: 8000 }); await pg.waitForTimeout(400);
   assert.equal(await pg.evaluate(() => localStorage.getItem('deckdeal:coll:v1')), null); assert.equal(await pg.evaluate(() => localStorage.getItem('autre-site')), '1', 'seules les clés de l\'appli sont effacées');

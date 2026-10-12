@@ -2,7 +2,7 @@
 // sans livraison ni vendeurs ; avec un token perso, elle cherche les offres CardTrader avec CE token (en-tête X-CT-Token).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, openMe, closeSheets } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18930, env: { CARDTRADER_TOKEN: '' } });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -80,12 +80,12 @@ const run = async p => { await toInput(p); await p.fill('#deckText', DECK); awai
 
   // réglages : source des prix + token perso
   const ctHdr = []; p.on('request', r => { if (/\/api\/(marketplace|blueprints|expansions|info|jobs)/.test(r.url())) ctHdr.push(r.headers()['x-ct-token'] || ''); });
-  await p.click('#btnSettings'); await p.waitForSelector('#setToken');
+  await openMe(p, 'prix'); await p.waitForSelector('#setToken');
   assert.equal(await p.$('#segSrc'), null, 'plus de choix de source dans les réglages'); assert.match(await txt(p, '#connMsg'), /Sans token.*Ajoute ton token/);
   await p.fill('#setToken', 'mon-token-cardtrader-1234567890'); await p.waitForTimeout(150);
   assert.match(await txt(p, '#connMsg'), /CardTrader actif avec ton token/);
   ok('réglages : token CardTrader et statut à jour (le choix de la source est sur « Nouveau panier »)');
-  await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+  await closeSheets(p); await p.waitForTimeout(200);
   await p.click('#btnBack'); await p.waitForSelector('#srcField:not([hidden])');
   assert.equal(await p.$eval('#segSrcRun', e => e._v), 'ct', 'token ajouté : CardTrader choisi'); assert.match(await txt(p, '#btnRunLabel'), /Chercher les offres/); assert.equal(await p.$eval('#optCond', e => e.offsetParent !== null), true, 'critères CardTrader visibles');
   await p.click('#btnRun'); await settle(p);

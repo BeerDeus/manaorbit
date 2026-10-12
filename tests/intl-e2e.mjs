@@ -4,7 +4,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
-import { chromium, startWorld, newPage, txt, ok, toInput } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, openMe } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18925, env: { CARDTRADER_TOKEN: '' } });      // sans token : prix Cardmarket (lien « Voir sur Cardmarket » dans la fiche)
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -45,14 +45,14 @@ const cmLink = async p => {      // recherche au prix Cardmarket, fiche de Sol R
   assert.equal(s.lang, 'de', 'deck enregistré avec l\'ancien défaut (français) : la langue de l\'utilisateur reste'); assert.equal(s.sel, 'de');
   assert.equal(await p.evaluate(() => S.opts.cond), 'Near Mint', 'les autres critères du deck s\'appliquent');
   ok('deck enregistré en « français » par l\'ancien défaut : cartes toujours cherchées en allemand');
-  if (SHOTS) { await p.evaluate(() => window.scrollTo(0, 0)); await p.click('#btnSettings'); await p.waitForSelector('.sheet-wrap.open .sheet-head'); await p.waitForTimeout(450); await p.screenshot({ path: SHOTS + '/intl-de-settings.png' }); await p.keyboard.press('Escape'); await p.waitForTimeout(350); }
+  if (SHOTS) { await p.evaluate(() => window.scrollTo(0, 0)); await openMe(p); await p.waitForSelector('.sheet-wrap.open .sheet-head'); await p.waitForTimeout(450); await p.screenshot({ path: SHOTS + '/intl-de-settings.png' }); await p.keyboard.press('Escape'); await p.waitForTimeout(350); }
   // 2) choix explicite : gardé au rechargement, et même quand l'interface change de langue
   await toInput(p); await p.selectOption('#optLang', 'es'); await p.waitForTimeout(200);
   s = await state(p); assert.deepEqual([s.lang, s.set, s.saved.lang, s.saved.langSet], ['es', true, 'es', true]);
   await reload(p); s = await state(p); assert.deepEqual([s.lang, s.set, s.sel], ['es', true, 'es'], 'choix gardé au rechargement');
   await p.evaluate(() => loadDeck('d1', true)); assert.equal((await state(p)).lang, 'fr', 'langue choisie à la main : les critères du deck s\'appliquent comme avant');
   await toInput(p); await p.selectOption('#optLang', 'es'); await p.waitForTimeout(200);
-  await p.click('#btnSettings'); await p.waitForSelector('#setLang'); await p.waitForSelector('.sheet-wrap.open .sheet-head');
+  await openMe(p); await p.waitForSelector('#setLang'); await p.waitForSelector('.sheet-wrap.open .sheet-head');
   await Promise.all([p.waitForEvent('load'), p.selectOption('#setLang', 'fr')]); await p.waitForTimeout(700);
   s = await state(p); assert.deepEqual([s.ui, s.lang, s.set], ['fr', 'es', true], 'interface passée en français : la langue choisie reste');
   ok('choix explicite de la langue des cartes : gardé au rechargement et au changement de langue de l\'interface');
@@ -62,7 +62,7 @@ const cmLink = async p => {      // recherche au prix Cardmarket, fiche de Sol R
   const { p, errs } = await page('fr-FR');
   let s = await state(p); assert.deepEqual([s.ui, s.lang, s.set], ['fr', 'fr', false], 'téléphone français : rien ne change pour les utilisateurs actuels');
   assert.match(await cmLink(p), /cardmarket\.com\/fr\/Magic\//);
-  await p.click('#btnSettings'); await p.waitForSelector('#setLang'); await p.waitForSelector('.sheet-wrap.open .sheet-head');
+  await openMe(p); await p.waitForSelector('#setLang'); await p.waitForSelector('.sheet-wrap.open .sheet-head');
   await Promise.all([p.waitForEvent('load'), p.selectOption('#setLang', 'en')]); await p.waitForTimeout(700);
   s = await state(p); assert.deepEqual([s.ui, s.lang, s.set], ['en', 'en', false], 'anglais choisi sur un téléphone français : cartes anglaises');
   assert.match(await cmLink(p), /cardmarket\.com\/en\/Magic\//);

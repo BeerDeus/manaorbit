@@ -159,10 +159,10 @@ function widgetListen(pl) {
   });
 }
 /** Réglages › Widget (appli Android, emplacement #widgetBox) : le bouton du widget ouvre le scan ou le prix rapide. Choix gardé sur l'appareil, envoyé aussitôt à la coque. */
-function widgetSettings(el) {
+function widgetSettings(el) {      // dans sa fiche « Widget » (Compte et réglages › Widget) : le titre est celui de la fiche
   const pl = natPlugin('ManaOrbit'); if (!el || !pl) return;                        // APK sans le plugin du widget : rien à régler
   el.style.cssText = 'display:flex;flex-direction:column;gap:14px';
-  el.innerHTML = `<div class="sec-title">${T('Widget')}</div>
+  el.innerHTML = `
     <p class="hint">${T('Le bouton du widget d\'écran d\'accueil ouvre :')}</p>
     <div class="seg" id="segWidgetBtn" role="radiogroup" aria-label="${esc(T('Bouton du widget'))}"></div>
     <p class="hint" id="widgetBgHint"${WGT.bg ? '' : ' hidden'}>${T('Appli fermée, le widget estime la valeur chaque jour d\'après les prix Cardmarket (Wi-Fi de préférence) : « ≈ » et « estimée » jusqu\'à ta prochaine visite.')}</p>

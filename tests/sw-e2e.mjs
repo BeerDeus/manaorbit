@@ -149,7 +149,7 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
   ok('nouvelle version, rien en cours : copie ouverte, nouvelle gardée en arrière-plan, puis rechargement automatique (une fois)');
   // nouvelle version pendant qu'une feuille est ouverte (réglages) : jamais de rechargement sous les doigts, toast « Recharger », un toucher la lance
   fw.build = 'b1e3e000'; fw.delay = 2500; await q.reload({ waitUntil: 'domcontentloaded' });
-  await q.waitForSelector('#btnSettings'); await q.waitForTimeout(400); await q.click('#btnSettings'); await q.waitForSelector('.sheet');
+  await q.waitForSelector('#btnAccount'); await q.waitForTimeout(400); await q.click('#btnAccount'); await q.waitForSelector('.sheet');
   await q.waitForFunction(() => window.__toasts.some(t => /Nouvelle version disponible/.test(t)), null, { timeout: 15000 }); fw.delay = 0;
   assert.equal(await build(), 'b1e2e000', 'page ouverte inchangée');
   assert.equal((await q.textContent('#toast .toast-act')).trim(), 'Recharger'); assert.equal((await shell()).build, 'b1e3e000', 'nouvelle version gardée');

@@ -1,0 +1,34 @@
+/* ── me.css : fiche « Compte et réglages » (me.js) : compte en haut, chiffres, rubriques en listes groupées ── */
+.me-sheet .sheet-body{gap:0}
+.me-who{display:flex;align-items:center;gap:12px;padding:2px 0 12px}
+.me-av{width:56px;height:56px;border-radius:50%;font-size:22px;box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--accent)}
+.me-wt{flex:1;min-width:0;display:flex;flex-direction:column}
+.me-wt b{font-family:var(--font-display);font-size:19px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me-wt span{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me-wt .me-sync{color:var(--good);font-weight:600}
+.me-wt .me-sync.warn{color:var(--warn)}
+.me-in{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding:12px 14px;border-radius:var(--r-lg);border:1px solid var(--line);background:var(--surface)}
+.me-in b{font-family:var(--font-display);font-size:18px}
+.me-in .hint{margin:0}
+.me-in .btn{align-self:flex-start;margin-top:4px}
+.me-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.me-stats button{min-width:0;display:flex;flex-direction:column;align-items:flex-start;padding:8px 10px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.me-stats b{max-width:100%;font-family:var(--font-display);font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me-stats span{font-size:12px;color:var(--ink-3)}
+.me-h{margin:16px 4px 6px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.me-g{border-radius:16px;border:1px solid var(--line);background:var(--surface);overflow:hidden}
+.me-row{width:100%;min-height:48px;display:flex;align-items:center;gap:10px;padding:0 12px;border:0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.me-g>.me-row+.me-row{border-top:1px solid var(--line)}
+button.me-row:active,label.me-row:active{background:var(--surface-2)}
+.me-t{flex:1;min-width:0;display:flex;flex-direction:column;font-size:15px;font-weight:600}
+.me-t small{font-size:12px;font-weight:500;color:var(--ink-3)}
+.me-v{flex:none;max-width:55%;font-size:13.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me-v.warn{color:var(--warn);font-weight:600}
+.me-chev{flex:none;width:16px;height:16px;color:var(--ink-3);opacity:.75}
+.me-row .sel{flex:none}
+.me-row .sel select{height:34px;padding:0 32px 0 10px;border-radius:10px;font-size:14px}
+.me-th .seg{flex:none;width:auto}
+.me-th .seg-opt{min-height:30px;padding:2px 10px;font-size:13px}
+.me-row.switch-row{justify-content:flex-start}
+.me-out{align-self:flex-start;margin-top:14px}
+.me-sheet .set-ver{margin:16px 4px 0}

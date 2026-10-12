@@ -2,7 +2,7 @@
 // Relève aussi les textes encore en français sur les écrans principaux (liste affichée, à relire), sans faire échouer le test pour autant.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, openMe } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18940, env: { CARDTRADER_TOKEN: '' } });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -34,8 +34,9 @@ assert.match(await txt(p, '#btnCartTxt'), /Cardmarket/); assert.doesNotMatch(awa
 const res = await leftovers(p); console.log('  résultats, encore en français :', res.length ? res : 'rien');
 ok('recherche au prix Cardmarket : libellés et montants en anglais (€19.50)');
 
-await p.click('#btnSettings'); await p.waitForSelector('#setLang'); await p.waitForSelector('.sheet-wrap.open .sheet-head');      // classe « open » posée deux images après l'ouverture
-assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Settings/); assert.match(await txt(p, '.sheet-body .fan'), /unofficial Fan Content/);
+await openMe(p, 'conf'); assert.match(await txt(p, '.sheet-wrap.open:last-child .sheet-body .fan'), /unofficial Fan Content/); await p.keyboard.press('Escape'); await p.waitForTimeout(400);      // Confidentialité et mentions, puis retour
+await p.waitForSelector('#setLang'); await p.waitForSelector('.sheet-wrap.open .sheet-head');      // classe « open » posée deux images après l'ouverture
+assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Account and settings/); assert.match(await txt(p, '.me-sheet'), /Preferences.*Language.*Theme/i);
 const set = await leftovers(p); console.log('  réglages, encore en français :', set.length ? set : 'rien');
 await Promise.all([p.waitForEvent('load'), p.selectOption('#setLang', 'fr')]); await p.waitForTimeout(700);
 assert.equal(await p.evaluate(() => I18N.lang), 'fr'); await toHome(p); assert.equal(await txt(p, '#nav [data-nav="home"]'), 'Accueil');

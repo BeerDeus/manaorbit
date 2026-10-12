@@ -93,7 +93,17 @@ const watch = (p, tag) => {
 const T = async (p, s) => (await p.textContent(s) || '').replace(/\s+/g, ' ').trim();
 const runDone = async (p, ms = 30000) => { try { await p.waitForFunction(() => /terminée/.test(document.querySelector('#progTitle').textContent), null, { timeout: ms }); } catch (e) { console.log('RUN STUCK:', await T(p, '#progTitle'), '|', await T(p, '#progRate'), '|', await T(p, '#alerts'), '|', await T(p, '#steps')); await shot(p, 'debug-stuck'); throw e; } };
 const sheetOpen = p => p.waitForSelector('.sheet-wrap.open .sheet', { timeout: 5000 });
-const sheetGone = p => p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 5000 });
+/** Plus de fiche : celle du dessus se ferme (connexion, déconnexion, Échap) ; « Compte et réglages » restée dessous est fermée aussi. */
+const sheetGone = async p => {
+  await p.waitForFunction(() => !document.querySelector('.sheet-wrap:not(.me-sheet)'), null, { timeout: 5000 });
+  await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
+  await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 5000 });
+};
+/** Feuille Compte : bouton du compte (en-tête) › « Compte et réglages » › Se connecter / Gérer le compte. */
+const openAcct = async p => {
+  if (!(await p.$('.me-sheet.open'))) { await p.click('#btnAccount'); await p.waitForSelector('.me-sheet.open'); }      // une fiche qui se ferme encore (sans .open) ne compte pas
+  await p.click('.me-sheet [data-me="compte"]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2, null, { timeout: 5000 });
+};
 const ok = m => console.log('✓', m);
 // « Mes decks » est un écran ouvert depuis l'accueil (comme « Ma collection ») : D = l'ouvrir, H = revenir à l'accueil
 const D = async p => { if (!(await p.$('.dks.on'))) { await toHome(p); await p.click('#btnDecks'); await p.waitForSelector('.dks.on'); await p.waitForTimeout(150); } };
@@ -151,7 +161,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   await D(p); assert.equal(await p.$$eval('.deck', n => n.length), 6); assert.equal(await p.$('#btnMoreDecks'), null); assert.equal(await T(p, '.dks .dv-title span'), '6 decks'); ok('tous les decks sont listés dans l\'écran (plus de « Afficher les N autres »)');
   await H(p);
   // compte indisponible (SDK bloqué dans ce contexte ? non : ici SDK dispo) → ouvre la feuille compte
-  await p.click('#btnAccount'); await sheetOpen(p); await p.waitForSelector('#acForm'); await p.waitForTimeout(650);
+  await openAcct(p); await p.waitForSelector('#acForm'); await p.waitForTimeout(650);
   await shot(p, 'A4-compte-connexion');
   await p.click('#acSeg .seg-opt[data-v="up"]'); await p.waitForTimeout(450);
   await shot(p, 'A5-compte-creation');
@@ -167,7 +177,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   await toInput(p); await p.click('#btnSave'); await sheetOpen(p); await p.fill('#svName', 'Deck local'); await p.click('#svGo'); await sheetGone(p);
   await D(p); assert.equal(await p.$$eval('.deck', n => n.length), 1); await H(p); ok('B : deck local créé avant connexion');
 
-  await p.click('#btnAccount'); await sheetOpen(p); await p.waitForSelector('#acForm'); await p.waitForTimeout(600); await shot(p, 'B0-connexion-vide');
+  await openAcct(p); await p.waitForSelector('#acForm'); await p.waitForTimeout(600); await shot(p, 'B0-connexion-vide');
   await p.click('#acGo'); assert.match(await T(p, '#acMsg'), /email/i); ok('formulaire vide : message');
   await p.fill('#acEmail', 'beer@example.com'); await p.click('#acGo'); assert.match(await T(p, '#acMsg'), /mot de passe/i); ok('mot de passe manquant : message');
   await p.click('#acSeg .seg-opt[data-v="up"]'); await p.waitForSelector('#acPw'); await p.fill('#acEmail', 'beer@example.com'); await p.fill('#acPw', '123'); await p.click('#acGo');
@@ -229,7 +239,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   await p.click('#btnBack');
 
   // profil : photo choisie (recadrée en carré de 128 px, JPEG) et pseudo → avatar du bouton Compte et nom du compte
-  await p.click('#btnAccount'); await sheetOpen(p); await p.click('#acProfile'); await p.waitForSelector('#pfName');
+  await openAcct(p); await p.click('#acProfile'); await p.waitForSelector('#pfName');
   const PNG1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
   await p.setInputFiles('#pfFile', { name: 'moi.png', mimeType: 'image/png', buffer: PNG1 }); await p.waitForSelector('#pfAv img');
   await p.fill('#pfName', '  Beer  '); await p.click('#pfSave'); await p.waitForTimeout(600);
@@ -238,12 +248,12 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   ok('profil : photo recadrée et pseudo, avatar du bouton Compte, e-mail sous le pseudo');
   await p.keyboard.press('Escape'); await sheetGone(p);
   // déconnexion
-  await p.click('#btnAccount'); await sheetOpen(p); await p.waitForTimeout(400);
+  await openAcct(p); await p.waitForTimeout(400);
   assert.match(await T(p, '.who-mail'), /beer@example.com/); await shot(p, 'B7-compte-connecte');
   await p.click('#acOut'); await sheetGone(p); await p.waitForTimeout(500);
   assert.equal(await p.$eval('#btnAccount', e => e.dataset.in), '0'); await D(p); assert.equal(await p.$$eval('.deck', n => n.length), 0); await H(p); ok('déconnexion : retour au mode invité');
   // reconnexion : mauvais mot de passe puis bon
-  await p.click('#btnAccount'); await sheetOpen(p); await p.waitForSelector('#acForm');
+  await openAcct(p); await p.waitForSelector('#acForm');
   await p.fill('#acEmail', 'beer@example.com'); await p.fill('#acPw', 'faux'); await p.click('#acGo'); await p.waitForFunction(() => !document.querySelector('#acMsg').hidden); await p.waitForTimeout(500);
   assert.match(await T(p, '#acMsg'), /incorrect/); assert.equal(await p.$eval('#acGo', e => e.disabled), false); ok('mauvais mot de passe : message, bouton réactivé');
   await shot(p, 'B8-erreur-connexion');
@@ -262,8 +272,8 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   assert.equal(await p.$('#svLogin'), null); ok('C : pas de lien de connexion si indisponible');
   await p.fill('#svName', 'Local seulement'); await p.click('#svGo'); await sheetGone(p);
   await D(p); assert.equal(await T(p, '.deck-name'), 'Local seulement'); assert.equal(await T(p, '#decksSyncTxt'), 'Sur cet appareil'); assert.equal(await p.$eval('#decksSync', e => e.disabled), true); await H(p); ok('C : enregistrement local OK, libellé « Sur cet appareil »');
-  await p.click('#btnAccount'); await sheetOpen(p); await p.waitForSelector('#acRetry');
-  assert.match(await T(p, '.sheet-body'), /indisponible/i); await p.waitForTimeout(500); await shot(p, 'C1-compte-indisponible'); ok('C : feuille compte → message + « Réessayer »');
+  await openAcct(p); await p.waitForSelector('#acRetry');
+  assert.match(await T(p, '.sheet-wrap.open:last-child .sheet-body'), /indisponible/i); await p.waitForTimeout(500); await shot(p, 'C1-compte-indisponible'); ok('C : feuille compte → message + « Réessayer »');
   await ctx.close();
 }
 
@@ -275,7 +285,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   await p.evaluate(() => { for (const [i, n] of ['Cloud, Midgar Mercenary', 'Un nom de deck vraiment très très long qui doit être tronqué proprement'].entries()) { const doc = deckDoc({ name: n, text: '1 Sol Ring\n1 Swords to Plowshares', history: [{ at: Date.now() - 86400000 * 3, total: 31672, mode: 'zero', found: 2, count: 2, sig: 'fr|Slightly Played|no' }, { at: Date.now() - 3600000, total: 28450 + i * 100, mode: 'zero', found: 2, count: 2, sig: 'fr|Slightly Played|no' }] }); D.localList.unshift({ id: 'seed' + i, ...doc }); } localWrite(D.localList); renderDecks(); });
   await D(p); await p.waitForTimeout(700); await ovf('liste'); await shot(p, 'D1-sombre-360-liste');
   await p.click('.deck:first-child .deck-more'); await sheetOpen(p); await p.waitForTimeout(700); await ovf('feuille deck'); await shot(p, 'D2-sombre-360-deck'); await p.keyboard.press('Escape'); await sheetGone(p); await H(p);
-  await p.click('#btnAccount'); await sheetOpen(p); await p.waitForSelector('#acForm'); await p.waitForTimeout(700); await ovf('compte'); await shot(p, 'D3-sombre-360-compte'); await p.keyboard.press('Escape'); await sheetGone(p);
+  await openAcct(p); await p.waitForSelector('#acForm'); await p.waitForTimeout(700); await ovf('compte'); await shot(p, 'D3-sombre-360-compte'); await p.keyboard.press('Escape'); await sheetGone(p);
   await ctx.close();
 }
 
@@ -283,7 +293,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
 /* ═══ E. Serveur réservé à un compte Firebase (ALLOWED_UIDS) : plus de clé à saisir ═══════════ */
 {
   users.set('beer@test.dev', { uid: 'uid-allowed', pw: 'secret12' }); users.set('intrus@test.dev', { uid: 'uid-intrus', pw: 'secret12' });
-  const login = async (p, email) => { await p.click('#btnAccount'); await sheetOpen(p); await p.waitForSelector('#acForm'); await p.waitForTimeout(500); await p.fill('#acEmail', email); await p.fill('#acPw', 'secret12'); await p.click('#acGo'); await sheetGone(p); await p.waitForTimeout(600); };
+  const login = async (p, email) => { await openAcct(p); await p.waitForSelector('#acForm'); await p.waitForTimeout(500); await p.fill('#acEmail', email); await p.fill('#acPw', 'secret12'); await p.click('#acGo'); await sheetGone(p); await p.waitForTimeout(600); };
   const ctx = await newCtx(); await wireFirebase(ctx); const p = await ctx.newPage(); watch(p, 'E'); const apiReq = [];
   p.on('request', r => { if (/\/api\//.test(r.url())) apiReq.push({ url: r.url(), h: r.headers() }); }); await pxRoute(p);
   await p.goto('http://127.0.0.1:18820/'); await p.waitForTimeout(1000);
@@ -296,11 +306,11 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   assert.ok(apiReq.length > 0 && apiReq.every(r => r.h['x-firebase-token'] && r.h['x-firebase-token'].split('.').length === 3), 'chaque requête /api/ porte le jeton Firebase');
   assert.ok(apiReq.every(r => !r.h['x-app-key']), 'aucune clé partagée envoyée');
   assert.match(await T(p, '#heroCount'), /3 \/ 4 cartes/); ok('E : recherche complète avec le compte autorisé (' + apiReq.length + ' requêtes, toutes avec jeton)');
-  await p.click('#btnSettings'); await sheetOpen(p); await p.waitForTimeout(600);
+  await p.click('#btnAccount'); await p.waitForSelector('.me-sheet.open'); await p.click('.me-sheet [data-me="prix"]'); await p.waitForSelector('#connStatus'); await p.waitForTimeout(600);
   assert.match(await T(p, '#connStatus'), /CardTrader disponible avec le compte du serveur/); assert.equal(await p.$eval('#boxKey', e => e.hidden), true); ok('E : réglages — statut « connecté », pas de champ de clé');
   await p.keyboard.press('Escape'); await sheetGone(p);
-  await p.click('#btnAccount'); await sheetOpen(p); await p.waitForSelector('#acOut');
-  assert.equal(await p.$('#acUid'), null); assert.doesNotMatch(await T(p, '.sheet-body'), /Accès au serveur|ALLOWED_UIDS/); await p.waitForTimeout(500); await shot(p, 'E1-compte'); ok('E : Compte sans rubrique « Accès au serveur » (identifiant lu dans la console Firebase)');
+  await openAcct(p); await p.waitForSelector('#acOut');
+  assert.equal(await p.$('#acUid'), null); assert.doesNotMatch(await T(p, '.sheet-wrap.open:last-child .sheet-body'), /Accès au serveur|ALLOWED_UIDS/); await p.waitForTimeout(500); await shot(p, 'E1-compte'); ok('E : Compte sans rubrique « Accès au serveur » (identifiant lu dans la console Firebase)');
   await p.keyboard.press('Escape'); await sheetGone(p);
   await ctx.close();
 
@@ -336,7 +346,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
     });
     const n = await cx.newPage(); watch(n, 'NOPLUG');
     await n.goto('http://127.0.0.1:18800/'); await n.waitForTimeout(800);
-    await n.click('#btnAccount'); await sheetOpen(n); await n.waitForSelector('#acGoogle'); await n.click('#acGoogle');
+    await openAcct(n); await n.waitForSelector('#acGoogle'); await n.click('#acGoogle');
     await n.waitForFunction(() => !document.querySelector('#acMsg').hidden, null, { timeout: 5000 });
     assert.equal(await T(n, '#acMsg'), 'Connexion Google indisponible dans cette version de l\'appli : mets-la à jour, ou utilise ton e-mail.');
     assert.equal(await n.evaluate(() => window.__opens), 0, 'aucune fenêtre ouverte (signInWithPopup jamais appelé)'); assert.equal(await n.$eval('#acGoogle', e => e.disabled), false); assert.equal(await n.evaluate(() => !!D.user), false);
@@ -355,7 +365,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
     const g = await cx.newPage(); watch(g, 'GOOG');
     const gMsg = async () => { await g.waitForFunction(() => !document.querySelector('#acMsg').hidden, null, { timeout: 5000 }); const t = await T(g, '#acMsg'); await g.evaluate(() => { const m = document.querySelector('#acMsg'); m.hidden = true; m.textContent = ''; }); return t; };
     await g.goto('http://127.0.0.1:18800/'); await g.waitForTimeout(800);
-    await g.click('#btnAccount'); await sheetOpen(g); await g.waitForSelector('#acGoogle');
+    await openAcct(g); await g.waitForSelector('#acGoogle');
     await g.evaluate(() => { window.__g.cancel = true; }); await g.click('#acGoogle'); await g.waitForTimeout(500);
     assert.equal(await g.$eval('#acMsg', e => e.hidden), true, 'annulation : aucun message'); assert.equal(await g.evaluate(() => !!D.user), false);
     // erreur du plugin (ex. empreinte SHA-1 absente de Firebase) : son message est ajouté, sans balisage ; jeton refusé par Google : message Google, pas « mot de passe incorrect »
@@ -369,8 +379,8 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
     assert.ok(await g.evaluate(() => window.__g.calls.length === 4 && window.__g.calls.every(c => c.skipNativeAuth === true)));
     ok('appli Android : « Continuer avec Google » passe par le compte Google du téléphone (plugin natif), session Firebase ouverte avec son jeton ; annulation silencieuse');
     // suppression du compte : confirmation par Google refusée, puis plugin absent → jamais la fenêtre web
-    await g.click('#btnAccount'); await sheetOpen(g); await g.waitForSelector('#acDel'); await g.click('#acDel'); await g.waitForSelector('#acDelGo');
-    assert.match(await T(g, '.sheet-body'), /Google te demandera de confirmer ton identité/);
+    await openAcct(g); await g.waitForSelector('#acDel'); await g.click('#acDel'); await g.waitForSelector('#acDelGo');
+    assert.match(await T(g, '.sheet-wrap.open:last-child .sheet-body'), /Google te demandera de confirmer ton identité/);
     await g.evaluate(() => { window.__g.token = 'jeton-faux'; }); await g.click('#acDelGo');
     assert.equal(await gMsg(), 'Google a refusé la connexion : réessaie, ou utilise ton e-mail.');
     await g.evaluate(() => { window.__g.token = 'jeton-google-natif'; window.__g.missing = true; }); await g.waitForFunction(() => !document.querySelector('#acDelGo').disabled); await g.click('#acDelGo');
@@ -379,7 +389,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
     await g.evaluate(() => { window.__g.missing = false; }); await g.click('#acDelNo'); await g.waitForSelector('#acOut');
     ok('suppression depuis l\'appli : jeton Google refusé → message Google ; plugin absent → « mets-la à jour », aucune fenêtre web');
     await g.keyboard.press('Escape'); await sheetGone(g);
-    await g.click('#btnAccount'); await sheetOpen(g); await g.waitForSelector('#acOut'); await g.click('#acOut'); await sheetGone(g); await g.waitForTimeout(300);
+    await openAcct(g); await g.waitForSelector('#acOut'); await g.click('#acOut'); await sheetGone(g); await g.waitForTimeout(300);
     assert.equal(await g.evaluate(() => [!!D.user, window.__g.outs].join()), 'false,1'); ok('déconnexion : compte Google du téléphone oublié aussi');
     await cx.close(); }
 
@@ -391,7 +401,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   await q.waitForFunction(() => S.run && S.run.status === 'done', null, { timeout: 15000 });
   assert.equal(await q.evaluate(() => [S.run.src, CTX.serverOk].join()), 'cm,false'); assert.equal(await q.$eval('#segSrcRun', e => e._v), 'cm', 'Cardmarket choisi (CardTrader proposé avec ton token)'); assert.equal(qReq.length, 0);
   ok('E : compte non autorisé → prix Cardmarket (jamais le token du serveur), aucune requête CardTrader');
-  await q.click('#btnAccount'); await sheetOpen(q); await q.waitForSelector('#acOut'); assert.doesNotMatch(await T(q, '.sheet-body'), /ALLOWED_UIDS|uid-intrus/); ok('E : compte non autorisé : aucune consigne serveur ni identifiant affichés');
+  await openAcct(q); await q.waitForSelector('#acOut'); assert.doesNotMatch(await T(q, '.sheet-wrap.open:last-child .sheet-body'), /ALLOWED_UIDS|uid-intrus/); ok('E : compte non autorisé : aucune consigne serveur ni identifiant affichés');
   await ctx2.close();
 
   // jeton falsifié envoyé à la main : refusé par le proxy

@@ -37,10 +37,10 @@ let s = await st(p); assert.equal(s.step, 0); assert.ok(Date.now() - s.at < 6000
 ok('préchargement : infos, éditions, éditions uniques, decks, symboles, noms, ' + want + ' petites images ; date enregistrée');
 
 /* ── 2) Réglages › Hors ligne ; règle des 7 jours ─────────────────────────────────────────────────────────── */
-await toHome(p); await p.evaluate(() => openSettings()); await p.waitForSelector('#warmBox .warm-st');
+await toHome(p); await p.evaluate(() => openSettings('donnees')); await p.waitForSelector('#warmBox .warm-st');
 assert.match(await txt(p, '#warmBox .warm-st'), new RegExp('Dernier préchargement : .* · ' + want + ' images'));
 assert.equal(await txt(p, '#warmBox [data-warm]'), 'Précharger maintenant');
-await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));      // Données de l'appareil, puis Compte et réglages
 assert.equal(await p.evaluate(() => warmMaybe()), null, 'fait il y a moins de 7 jours : rien');
 await p.evaluate(() => { WARM.st.at = Date.now() - 8 * 864e5; });
 const r8 = await p.evaluate(() => !!warmMaybe()); assert.equal(r8, true, 'plus de 7 jours : relancé'); await p.waitForFunction(() => !WARM.run, null, { timeout: 30000 });
@@ -66,7 +66,7 @@ await p.context().close();
 const B = await open(`Object.defineProperty(navigator, 'connection', { configurable: true, value: { type: 'cellular', effectiveType: '4g', saveData: false, addEventListener() {} } });`);
 await B.p.evaluate(() => warmMaybe(true)); await B.p.waitForFunction(() => !WARM.run, null, { timeout: 30000 });
 assert.equal(B.imgs.length, 0, 'réseau mobile : aucune image'); assert.ok(world.scry.length > 0);
-await toHome(B.p); await B.p.evaluate(() => openSettings()); await B.p.waitForSelector('#warmBox .warm-st');
+await toHome(B.p); await B.p.evaluate(() => openSettings('donnees')); await B.p.waitForSelector('#warmBox .warm-st');
 assert.match(await txt(B.p, '#warmBox .warm-st'), /Images sautées : réseau mobile/);
 ok('réseau mobile : infos préchargées, images sautées (dit dans les Réglages)');
 

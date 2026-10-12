@@ -5,7 +5,7 @@
 // lien d'avis mailto encodé) ; demande de note neutre (coupée sans PLAY_URL, appli Android seulement, bons moments, fréquence, session sans erreur).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toHome, rcGo } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toHome, rcGo, openMe, closeSheets } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18990 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -261,8 +261,8 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
 {
   const seed = `localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: '2 Sol Ring\\n1 Craterhoof Behemoth', u: 1, s: '', b: null }));`;
   const { p, ctx } = await page({ init: seed, ctx: { colorScheme: 'dark' } });
-  await p.click('#btnSettings'); await p.waitForSelector('#helpBox .sec-title');
-  assert.equal(await txt(p, '#helpBox .sec-title'), 'Aide et avis');
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
+  assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Aide et avis');
   assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), ['Comment ça marche', 'Envoyer un avis'], 'navigateur : pas de « Noter »');
   const href = await p.$eval('#helpBox a[data-help="mail"]', a => a.getAttribute('href'));
   const m = /^mailto:contact@manaorbit\.app\?subject=([^&]*)&body=([^&]*)$/.exec(href);
@@ -278,7 +278,7 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   assert.ok(!/\r\n/.test(body.replace(/\r\n/g, '')) && !/[^\r]\n/.test(body), 'fins de ligne CRLF');
   ok('Réglages : « Aide et avis », mailto encodé (objet, version, plateforme, langue, navigateur, phrase de confidentialité), sans la collection');
   await p.$eval('#helpBox', e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
-  await p.click('#helpBox [data-help="open"]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2);
+  await p.click('#helpBox [data-help="open"]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 3);      // Compte et réglages › Aide et avis › Comment ça marche
   assert.equal(await txt(p, '.hp-sheet .sheet-head h2'), 'Comment ça marche');
   assert.equal(await p.$$eval('.hp-sheet .hp-q', q => q.length), 10, '10 questions');
   assert.equal(await p.$$eval('.hp-sheet .hp-q[open]', q => q.length), 0, 'toutes repliées');
@@ -288,9 +288,9 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   assert.deepEqual(await p.$$eval('.hp-sheet .hp-q[open]', q => q.map(x => x.dataset.i)), ['2'], 'une seule question ouverte à la fois');
   assert.match(await p.$eval('.hp-sheet .sheet-foot a[data-help="mail"]', a => a.getAttribute('href')), /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
   await p.waitForTimeout(500); await p.screenshot({ path: 'shots/content-2-aide.png' });
-  await p.keyboard.press('Escape'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 1);
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2);
   ok('feuille « Comment ça marche » depuis les Réglages : 10 questions repliables, une ouverte à la fois, avis en pied');
-  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+  await closeSheets(p);
   await toHome(p); await p.click('#btnHelp'); await p.waitForSelector('.hp-sheet.open');
   ok('accueil : « Comment ça marche ? » ouvre la même aide');
   await ctx.close();
@@ -298,8 +298,8 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
 { // anglais : rubrique, aide et lien de l'accueil traduits
   const { p, ctx } = await page({ path: '?lang=en' });
   assert.equal(await txt(p, '#btnHelp'), '? How does it work?');
-  await p.click('#btnSettings'); await p.waitForSelector('#helpBox .sec-title');
-  assert.equal(await txt(p, '#helpBox .sec-title'), 'Help and feedback'); assert.match(await txt(p, '#helpBox'), /Send feedback/);
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
+  assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Help and feedback'); assert.match(await txt(p, '#helpBox'), /Send feedback/);
   const body = decodeURIComponent(/body=(.*)$/.exec(await p.$eval('#helpBox a[data-help="mail"]', a => a.getAttribute('href')))[1]);
   assert.match(body, /This information helps us reproduce a bug\. Your collection is not sent\.\r\nVersion: \w+\r\nPlatform: web\r\nLanguage: en/);
   await p.click('#helpBox [data-help="open"]'); await p.waitForSelector('.hp-sheet.open');
@@ -333,7 +333,7 @@ async function ratePage(o = {}) {
   assert.equal(await p.evaluate(() => [PLAY_URL, RATE.url, isNativeApp()].join('|')), '||true');
   await mount(p, 'd1'); await p.waitForTimeout(1500);
   assert.equal(await sheetUp(p), null, 'aucune demande'); assert.equal(await rateSt(p), null, 'rien d\'enregistré');
-  await p.click('#btnSettings'); await p.waitForSelector('#helpBox .btn');
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
   assert.equal(await p.$('#helpBox [data-help="rate"]'), null, 'pas de bouton « Noter »');
   await ctx.close();
 }
@@ -341,12 +341,12 @@ ok('note : coupée tant que PLAY_URL est vide (ni demande, ni bouton, ni compteu
 { // appli Android, adresse de test : deck devenu complet → demande neutre, après la fermeture de la feuille ouverte
   const { p, ctx } = await ratePage({ ctx: { colorScheme: 'dark' } });
   assert.deepEqual((await rateSt(p)).dk, [], 'premier relevé des decks complets');
-  await p.click('#btnSettings'); await p.waitForSelector('#helpBox [data-help="rate"]');
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox [data-help="rate"]');
   assert.equal(await p.$eval('#helpBox [data-help="rate"]', a => [a.getAttribute('href'), a.target].join()), PLAY + ',_blank', 'Réglages : « Noter sur le Play Store »');
   assert.match(await p.$eval('#helpBox a[data-help="mail"]', a => decodeURIComponent(a.getAttribute('href'))), /Plateforme : appli Android 1\.0 \(1\)/, 'avis : version de l\'APK');
   await mount(p, 'd1'); await p.waitForTimeout(1200);
   assert.equal(await sheetUp(p), null, 'feuille ouverte (Réglages) : la demande attend');
-  await p.keyboard.press('Escape');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300); assert.equal(await sheetUp(p), null, 'encore une feuille (Compte et réglages) : la demande attend'); await p.keyboard.press('Escape');
   await p.waitForSelector('.rate-sheet.open', { timeout: 4000 });
   assert.equal(await txt(p, '.rate-sheet .sheet-head h2'), 'Noter Mana Orbit');
   assert.equal(await txt(p, '.rate-sheet .rate-hero p'), 'Si Mana Orbit t\'est utile, une note sur le Play Store aide beaucoup.');

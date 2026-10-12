@@ -7,7 +7,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { chromium, startWorld, newPage, ok, toHome, txt } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, toHome, txt, openMe } from './e2e-world.mjs';
 const Q = createRequire(import.meta.url)('../src/qr.js');
 
 const world = await startWorld({ port: 18974 });
@@ -91,7 +91,7 @@ const errsAll = [];
   await p.evaluate(() => { COLL.meta.plains = { im: 'https://cards.scryfall.io/small/front/a/b/plains.jpg', ar: 'John Avon' }; COLL.meta.island = { im: 'https://cards.scryfall.io/small/front/a/b/island.jpg' }; homeLands(); });
   assert.deepEqual(await p.$$eval('.hm-land img', l => l.slice(0, 2).map(i => i.title)), ['Illustration : John Avon', ''], 'artiste inconnu (fiche lue avant) : pas de crédit vide');
   // réglages : ligne de diagnostic de l'APK complétée par ManaOrbit.info() (version, Firebase)
-  await p.click('#btnSettings'); await p.waitForFunction(() => /Firebase/.test((document.querySelector('.set-ver') || {}).textContent), null, { timeout: 3000 });
+  await openMe(p); await p.waitForFunction(() => /Firebase/.test((document.querySelector('.set-ver') || {}).textContent), null, { timeout: 3000 });
   assert.match(await p.$eval('.set-ver', e => e.textContent), / · APK 1\.0 \(1\) : ✗caméra ✗ML Kit ✗Google ✗pub ✗notif ✓widget ✗retour ✓Firebase$/);
   ok('accueil : « Illustration : John Avon » sur l\'orbe ; réglages : version de l\'APK et ✓Firebase');
   await p.context().close();
@@ -105,13 +105,13 @@ const errsAll = [];
   await p.evaluate(() => { COLL.meta.plains = { im: 'https://cards.scryfall.io/small/front/a/b/plains.jpg', ar: 'John Avon' }; homeLands(); });
   assert.equal(await p.$eval('.hm-land[data-c="W"] img', i => i.title), 'Illustration: John Avon');
   // Réglages › Widget en anglais
-  await p.click('#btnSettings'); await p.waitForSelector('#segWidgetBtn .seg-opt');
-  assert.equal(await txt(p, '#widgetBox .sec-title'), 'Widget');
+  await openMe(p, 'widget'); await p.waitForSelector('#segWidgetBtn .seg-opt');
+  assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Widget');
   assert.deepEqual(await p.$$eval('#segWidgetBtn .seg-opt', l => l.map(b => b.innerText.replace(/\s+/g, ' ').trim())), ['Scan add cards', 'Quick price without adding them']);
   await p.context().close();
   // APK dont info() échoue : la ligne de diagnostic reste celle des plugins, sans erreur
   const r = await newPage(browser, world, { init: seed() + shell().replace("info: async () => ({ firebase: true, version: '1.0', build: 1 })", "info: async () => { throw new Error('refusé'); }") }); errsAll.push(r.errs);
-  await r.p.click('#btnSettings'); await r.p.waitForSelector('.set-ver'); await r.p.waitForTimeout(400);
+  await openMe(r.p); await r.p.waitForSelector('.set-ver'); await r.p.waitForTimeout(400);
   assert.match(await r.p.$eval('.set-ver', e => e.textContent), / · APK : ✗caméra ✗ML Kit ✗Google ✗pub ✗notif ✓widget ✗retour$/);
   await r.p.context().close();
   const e = await newPage(browser, world, { init: seed({ coll: false }) + shell() }); errsAll.push(e.errs);
@@ -141,8 +141,8 @@ const errsAll = [];
 {
   const { p, errs } = await newPage(browser, world, { init: seed() + shell() }); errsAll.push(errs);
   await p.waitForFunction(() => window.__mo.calls.length >= 1, null, { timeout: 6000 });
-  await p.click('#btnSettings'); await p.waitForSelector('#segWidgetBtn .seg-opt');
-  assert.equal(await txt(p, '#widgetBox .sec-title'), 'Widget');
+  await openMe(p, 'widget'); await p.waitForSelector('#segWidgetBtn .seg-opt');
+  assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Widget');
   assert.deepEqual(await p.$$eval('#segWidgetBtn .seg-opt', l => l.map(b => [b.dataset.v, b.getAttribute('aria-checked'), b.innerText.replace(/\s+/g, ' ').trim()])),
     [['scan', 'true', 'Scanner ajouter des cartes'], ['quick', 'false', 'Prix rapide sans les ajouter']]);
   assert.equal(await p.$eval('#widgetBgHint', e => e.hidden), true, 'coque sans estimation appli fermée : pas de mention');
@@ -173,7 +173,7 @@ const errsAll = [];
   const q = await newPage(browser, world, { init: seed({ btn: 'quick' }) + shell() }); errsAll.push(q.errs);
   await q.p.waitForFunction(() => window.__mo.calls.length >= 1, null, { timeout: 6000 });
   assert.equal((await calls(q.p))[0].b, 'quick');
-  await q.p.click('#btnSettings'); await q.p.waitForSelector('#segWidgetBtn .seg-opt');
+  await openMe(q.p, 'widget'); await q.p.waitForSelector('#segWidgetBtn .seg-opt');
   assert.equal(await q.p.$eval('#segWidgetBtn [data-v="quick"]', b => b.getAttribute('aria-checked')), 'true');
   await q.p.context().close();
   ok('bouton du widget : « scan » → scan, « quick » → prix rapide (mode changé sans rouvrir si déjà ouvert) ; choix relu au lancement suivant');
@@ -197,7 +197,7 @@ const errsAll = [];
   assert.equal((await raw(p)).length, n, 'rien de changé : aucun nouvel envoi');
   ok('coque récente + widget posé : coll { pa, c: [[clé, q, prix du fichier]] } triée par valeur, envoyée avec les chiffres');
   // Réglages : mention de l'estimation appli fermée
-  await p.click('#btnSettings'); await p.waitForSelector('#segWidgetBtn .seg-opt');
+  await openMe(p, 'widget'); await p.waitForSelector('#segWidgetBtn .seg-opt');
   assert.match(await txt(p, '#widgetBgHint'), /Appli fermée, le widget estime la valeur/);
   await p.context().close();
 
@@ -243,7 +243,7 @@ const errsAll = [];
   const open = ev => p.evaluate(e => window.__mo.ls.open(e), ev);
   const toastIs = re => p.waitForFunction(r => new RegExp(r).test(document.querySelector('#toast').textContent), re.source, { timeout: 5000 });
   // Échange : réglages ouverts par-dessus → fermés, la collection s'ouvre sur l'onglet Échange
-  await p.click('#btnSettings'); await p.waitForFunction(() => sheets.length === 1);
+  await openMe(p); await p.waitForFunction(() => sheets.length === 1);
   await open({ view: 'trade' }); await p.waitForSelector('.coll.on', { timeout: 3000 });
   assert.deepEqual(await p.evaluate(() => [sheets.length, COLL.tab, COLL.mode, document.querySelector('#nav [aria-current="page"]').dataset.nav]), [0, 'trade', 'trade', 'trade'], 'feuille fermée, section Échange');
   ok('raccourci « Échange » : réglages fermés, collection ouverte sur l\'onglet Échange');
@@ -355,7 +355,7 @@ const errsAll = [];
   ok('lien arrêté → { u: \'\' } ; nouveau lien → son QR ; pseudo changé → renvoyé');
 
   // astuces : Réglages › Widget (coque avec ce widget) ; feuille du QR code tant qu'aucun n'est posé
-  await p.click('#btnSettings'); await p.waitForSelector('#widgetQrHint');
+  await openMe(p, 'widget'); await p.waitForSelector('#widgetQrHint');
   assert.match(await txt(p, '#widgetQrHint'), /^Autre widget, « QR code d'échange » :/);
   const closeAll = () => p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }).then(() => p.waitForFunction(() => !document.querySelector('#sheetRoot').children.length));      // feuilles retirées après leur animation
   await closeAll(); await p.evaluate(() => trQrOpen()); await p.waitForSelector('.qr-card');

@@ -32,7 +32,7 @@ async function session(scheme, tag) {
   await p.click('#btnCart'); await p.waitForTimeout(900);
   await p.screenshot({ path: `shots/${tag}-8-panier.png` });
   await p.keyboard.press('Escape'); await p.waitForTimeout(600);
-  await p.click('#btnSettings'); await p.waitForTimeout(900);
+  await p.click('#btnAccount'); await p.waitForTimeout(900);      // Compte et réglages
   await p.screenshot({ path: `shots/${tag}-9-reglages.png` });
   await ctx.close();
 }

@@ -202,7 +202,8 @@ function renderAccountBtn() {
   const b = $('#btnAccount'), l = D.user ? ((PROF.name || D.user.displayName || D.user.email || '?').trim()[0] || '?').toUpperCase() : (D.hint && !D.authReady ? D.hint.l : '');
   b.dataset.in = l ? '1' : '0'; $('#avatarLetter').textContent = l;
   profImg(b, D.user ? profAvatar() : '');
-  b.setAttribute('aria-label', D.user ? T('Compte : {email}', { email: PROF.name || D.user.email || '' }) : T('Compte'));
+  b.setAttribute('aria-label', D.user ? T('Compte et réglages · {name}', { name: PROF.name || D.user.email || '' }) : T('Compte et réglages'));
+  if (typeof meSoon === 'function' && typeof ME !== 'undefined' && ME.api) meSoon();      // fiche « Compte et réglages » ouverte : le compte a changé
 }
 
 /* ── Profil : pseudo et photo (users/{uid}/meta/profile), affichés sur les liens partagés ──────────── */
@@ -706,7 +707,7 @@ function initDecks() {
     for (let i = 0; i < 60 && !D.authReady; i++) await sleep(100);
     try { return D.user ? await D.user.getIdToken(!!force) : ''; } catch (e) { return ''; }
   };
-  $('#btnAccount').onclick = openAccount;
+  $('#btnAccount').onclick = () => openSettings();      // une seule fiche : compte et réglages (me.js)
   $('#btnSave').onclick = () => { if (S.deckId && findDeck(S.deckId)) { saveCurrent(); toast(T('Deck mis à jour')); } else openSaveSheet(); };
   $('#btnViewer').onclick = () => openDeckViewer({ live: true });
   $('#btnSave2').onclick = () => {

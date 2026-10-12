@@ -8,7 +8,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createECDH, randomBytes, hkdfSync, createDecipheriv, generateKeyPairSync } from 'node:crypto';
-import { chromium, startWorld, newPage, txt, ok, done, toInput, toHome, signInFake } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, done, toInput, toHome, signInFake, openMe } from './e2e-world.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const price = new Map([['sol ring', '3.00'], ['swords to plowshares', '1.20'], ['wrath of god', '2.50'], ['arcane signet', '1.00'], ['craterhoof behemoth', '9.00']]);
@@ -59,7 +59,7 @@ const ls = k => p.evaluate(k => JSON.parse(localStorage.getItem('__t_' + k)), k)
 const server = async id => { const r = await fetch(world.url + '/api/alerts?id=' + id); return { s: r.status, o: await r.json() }; };
 const myId = () => p.evaluate(() => AC.id);
 const sheetGone = () => p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 4000 });
-const openSet = async () => { await p.click('#btnSettings'); await p.waitForSelector('#btnNotif'); await p.click('#btnNotif'); await p.waitForSelector('#alertBox #setAlert', { timeout: 5000 }); };      // Réglages › Gérer les notifications
+const openSet = async () => { await openMe(p); await p.waitForSelector('#btnNotif'); await p.click('#btnNotif'); await p.waitForSelector('#alertBox #setAlert', { timeout: 5000 }); };      // Réglages › Gérer les notifications
 
 /* ── Activation ───────────────────────────────────────────────────────────────────────────── */
 await openSet(); assert.equal(await p.$eval('#setAlert', c => c.checked), false);

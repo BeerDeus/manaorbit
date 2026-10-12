@@ -5,7 +5,7 @@
 // (détruit quand checkServer le confirme), attente de la vérification du compte, consentement refusé, et rien du tout sur le web.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, ok } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, openMe } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18950 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -97,7 +97,7 @@ async function natPage(o = {}) {
   ok('écrans de consultation seulement : masqué en saisie, résultats, éditeur de deck ; rétabli sur l\'accueil, la collection, Mes decks');
 
   await p.setViewportSize({ width: 390, height: 520 });
-  await p.click('#btnSettings'); await p.waitForSelector('#privBox[data-ads]');
+  await openMe(p, 'conf'); await p.waitForSelector('#privBox[data-ads]');
   assert.match(await p.textContent('#privBox .hint'), /bandeau publicitaire Google AdMob/); assert.doesNotMatch(await p.textContent('#privBox .hint'), /Aucune publicité/);
   await p.waitForTimeout(500);
   assert.ok(await p.$eval('.sheet', (e, h) => e.getBoundingClientRect().top >= h, H), 'feuille haute : elle s\'arrête sous le bandeau');
@@ -140,7 +140,7 @@ async function natPage(o = {}) {
   await p.waitForTimeout(1500);
   assert.deepEqual(await p.evaluate(() => window.__ad.calls), ['removeBanner'], 'ni consentement, ni initialisation, ni bandeau');
   assert.deepEqual(await pad(p), { on: false, top: '20px', bar: '0px' });
-  await p.click('#btnSettings'); await p.waitForSelector('#privBox'); await p.waitForTimeout(200);
+  await openMe(p, 'conf'); await p.waitForSelector('#privBox'); await p.waitForTimeout(200);
   assert.match(await p.textContent('#privBox .hint'), /Aucune publicité/); assert.equal(await p.$('#btnAdChoices'), null);
   assert.deepEqual(errs, []); await p.context().close();
   ok('compte autorisé dès le lancement : jamais de pub, aucun appel au SDK');
@@ -162,7 +162,7 @@ async function natPage(o = {}) {
   await p.evaluate(() => { AD.delay = 100; adsRefresh(); }); await p.waitForTimeout(800);
   assert.deepEqual(await p.evaluate(() => [typeof adsRefresh, AD.on, AD.st, typeof window.Capacitor]), ['function', false, 'off', 'undefined']);
   assert.deepEqual(await pad(p), { on: false, top: '20px', bar: '0px' });
-  await p.click('#btnSettings'); await p.waitForSelector('#privBox'); await p.waitForTimeout(200);
+  await openMe(p, 'conf'); await p.waitForSelector('#privBox'); await p.waitForTimeout(200);
   assert.match(await p.textContent('#privBox .hint'), /Aucune publicité/);
   assert.deepEqual(errs, []); await p.context().close();
   ok('web : aucune pub, page intacte');

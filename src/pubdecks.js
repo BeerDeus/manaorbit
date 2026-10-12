@@ -213,3 +213,33 @@ function openPubReport(pid, done) {
     };
   });
 }
+
+/* ── Fiche « Decks publiés » (Compte et réglages, me.js) ────────────────────────────────────────────────────────────────────── */
+/** Les decks du compte publiés dans la communauté : toucher un deck ouvre son viewer (Publier › Mettre à jour, Retirer) ; un deck supprimé de Mes decks
+ *  entre-temps (hors ligne) se retire d'ici. */
+function pdListSheet() {
+  openSheet(T('Decks publiés'), null, api => {
+    const b = api.body;
+    const paint = m => {
+      if (!api.wrap.isConnected) return;
+      const rows = [...m.entries()].map(([deckId, p]) => {
+        const d = findDeck(deckId), when = p.at ? esc(new Date(p.at).toLocaleDateString(LOC())) : '';
+        return d ? `<button type="button" class="me-row" data-pd="${esc(deckId)}"><span class="me-t">${esc(d.name)}</span><span class="me-v">${when}</span>${meChev}</button>`
+          : `<div class="me-row"><span class="me-t">${T('Deck supprimé de Mes decks')}</span><button type="button" class="link-btn" data-pdrop="${esc(deckId)}">${T('Retirer')}</button></div>`;
+      });
+      b.innerHTML = `<p class="hint">${T('{n} / {max} decks publiés', { n: nf0(m.size), max: PUB_MAX })}</p>${rows.length ? `<div class="me-g">${rows.join('')}</div>` : ''}
+        <p class="hint">${T('Publie un deck Commander depuis son viewer : Mes decks › le deck › Publier. Il apparaît dans Decks › À monter, type « Communauté ».')}</p>`;
+    };
+    b.innerHTML = `<p class="hint">${T('Lecture de tes decks publiés…')}</p>`;
+    pdMine(true).then(paint, () => { b.innerHTML = `<p class="hint">${T('Tes decks publiés sont illisibles : réessaie en ligne.')}</p>`; });
+    b.addEventListener('click', async e => {
+      const o = e.target.closest('[data-pd]'), x = e.target.closest('[data-pdrop]');
+      if (o) { haptic('tap'); const id = o.dataset.pd; while (sheets.length) sheets[sheets.length - 1].close(); setTimeout(() => openDeckViewer({ id }), reduceMotion() ? 0 : 200); return; }
+      if (!x) return;
+      const m = PD.mine, p = m && m.get(x.dataset.pdrop); if (!p) return;
+      x.disabled = true;
+      try { await D.cloud.pubDrop(p.id); m.delete(x.dataset.pdrop); paint(m); toast(T('Deck retiré de la communauté')); pdFetch(true).then(list => { if (list) pdApply(pdShown(list)); }); if (typeof meSoon === 'function') meSoon(); }
+      catch (err) { x.disabled = false; toast(T('Publication impossible : réessaie en ligne.')); }
+    });
+  });
+}

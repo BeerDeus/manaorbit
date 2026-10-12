@@ -3,7 +3,7 @@
 // (chaque langue dans sa langue, aller-retour par le français) ; téléphone espagnol → espagnol (« 1234,56 € ») ; téléphone italien (pas encore livré) → anglais.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toHome, openMe } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18946, env: { CARDTRADER_TOKEN: '' } });      // sans token : prix Cardmarket
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -38,7 +38,7 @@ assert.match(await txt(p, '#heroAmt'), /^19,50\s€$/); assert.match(await txt(p
 ok('recherche Cardmarket : « 19,50 € », libellés allemands');
 
 // Réglages › Langue : les langues livrées, chacune dans sa langue ; aller-retour par le français
-await p.click('#btnSettings'); await p.waitForSelector('#setLang'); await p.waitForSelector('.sheet-wrap.open .sheet-head');
+await openMe(p); await p.waitForSelector('#setLang'); await p.waitForSelector('.sheet-wrap.open .sheet-head');
 assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Einstellungen/);
 const langs = await p.$$eval('#setLang option', o => o.map(x => [x.value, x.textContent]));
 assert.deepEqual(langs, await p.evaluate(() => i18nLangs()), 'la liste des langues livrées');
@@ -48,7 +48,7 @@ assert.equal(await p.$eval('#setLang', s => s.value), 'de');
 await Promise.all([p.waitForEvent('load'), p.selectOption('#setLang', 'fr')]); await p.waitForTimeout(700);
 assert.deepEqual(await p.evaluate(() => [I18N.lang, localStorage.getItem('deckdeal:lang'), I18N.dict]), ['fr', 'fr', null]); await toHome(p); assert.equal(await txt(p, '#nav [data-nav="home"]'), 'Accueil');
 assert.equal(await p.evaluate(() => fmt(123456, 'EUR')), '1 234,56 €', 'français : inchangé');
-await p.click('#btnSettings'); await p.waitForSelector('#setLang'); await p.waitForSelector('.sheet-wrap.open .sheet-head');
+await openMe(p); await p.waitForSelector('#setLang'); await p.waitForSelector('.sheet-wrap.open .sheet-head');
 await Promise.all([p.waitForEvent('load'), p.selectOption('#setLang', 'de')]); await p.waitForTimeout(700);
 assert.equal(await p.evaluate(() => I18N.lang), 'de'); await toHome(p); assert.equal(await txt(p, '#nav [data-nav="home"]'), 'Start');
 ok('Réglages › Langue : « Deutsch » (chaque langue dans sa langue), passage au français puis retour à l\'allemand');

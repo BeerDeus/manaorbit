@@ -222,7 +222,7 @@ const rowsOf = pg => pg.$$eval('#list .row', rs => rs.map(r => r.innerText.repla
 {
   const { c, pg, errs2 } = await mkPage();
   cartState.push({ pid: 9002, q: 1, name: 'Sol Ring' }, { pid: 9004, q: 2, name: 'Swords to Plowshares' }, { pid: 9005, q: 1, name: "Ranger's Hawk" });
-  await pg.click('#btnSettings'); await pg.waitForSelector('#btnCartClear');
+  await pg.click('#btnAccount'); await pg.waitForSelector('.me-sheet.open'); await pg.click('.me-sheet [data-me="donnees"]'); await pg.waitForSelector('#btnCartClear');      // Compte et réglages › Données de l'appareil
   assert.equal(await pg.$eval('#btnCartClear', b => b.disabled), false, 'actif hors démo');
   await pg.click('#btnCartClear');
   await pg.waitForSelector('#btnCartConfirm');
@@ -245,11 +245,11 @@ const rowsOf = pg => pg.$$eval('#list .row', rs => rs.map(r => r.innerText.repla
   const { c, pg, errs2 } = await mkPage();
   cartDelay = 450;
   cartState.push({ pid: 9002, q: 1, name: 'Sol Ring' }, { pid: 9004, q: 2, name: 'Swords to Plowshares' }, { pid: 9005, q: 1, name: "Ranger's Hawk" }, { pid: 9010, q: 1, name: 'Arcane Signet' }, { pid: 9011, q: 3, name: 'Wrath of God' });
-  await pg.click('#btnSettings'); await pg.waitForSelector('#btnCartClear');
+  await pg.click('#btnAccount'); await pg.waitForSelector('.me-sheet.open'); await pg.click('.me-sheet [data-me="donnees"]'); await pg.waitForSelector('#btnCartClear');
   await pg.click('#btnCartClear'); await pg.waitForSelector('#btnCartConfirm'); await pg.click('#btnCartConfirm');
   await pg.waitForFunction(() => /Suppression… [1-9]/.test(document.querySelector('#cartBox').textContent), null, { timeout: 5000 });
   assert.equal(await pg.$eval('#tasks .task', el => el.classList.contains('hide')), true, 'pastille cachée tant que les réglages (qui montrent déjà la progression) sont ouverts');
-  await pg.click('.sheet-wrap.open [data-close].icon-btn'); // on baisse le menu
+  await pg.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); // on baisse les fiches (rubrique, puis Compte et réglages)
   await pg.waitForSelector('#tasks .task.in', { timeout: 3000 });
   const inCount = cartState.length; assert.ok(inCount > 0 && inCount <= 5, 'la suppression est en cours quand la pastille apparaît (' + inCount + ' lignes restantes)');
   await pg.waitForTimeout(650); // fin des transitions (glissement + descente de la pile)
@@ -264,7 +264,7 @@ const rowsOf = pg => pg.$$eval('#list .row', rs => rs.map(r => r.innerText.repla
   assert.match(fin, /Panier CardTrader vidé/); assert.match(fin, /5 lignes retirées/);
   await pg.screenshot({ path: 'shots/live-6-pastille-ok.png' });
   await pg.waitForFunction(() => !document.querySelector('#tasks .task'), null, { timeout: 9000 }); // disparaît seule
-  await pg.click('#btnSettings'); await pg.waitForSelector('#cartBox');
+  await pg.click('#btnAccount'); await pg.waitForSelector('.me-sheet.open'); await pg.click('.me-sheet [data-me="donnees"]'); await pg.waitForSelector('#cartBox');
   assert.equal(await pg.$$eval('#tasks .task', x => x.length), 0);
   cartDelay = 0; assert.deepEqual(errs2, []); await c.close();
 }
@@ -286,7 +286,7 @@ const rowsOf = pg => pg.$$eval('#list .row', rs => rs.map(r => r.innerText.repla
   const txt = (await pg.textContent('#tasks .task')).replace(/\s+/g, ' ').trim(); console.log('pastille (scroll) :', txt);
   assert.match(txt, /Recherche des offres/); assert.match(txt, /\d+ %/);
   await pg.evaluate(() => window.scrollTo(0, 0)); await pg.waitForFunction(() => document.querySelector('#tasks .task') && document.querySelector('#tasks .task').classList.contains('hide'), null, { timeout: 3000 });
-  await pg.click('#btnSettings'); await pg.waitForSelector('#tasks .task.in', { timeout: 3000 });
+  await pg.click('#btnAccount'); await pg.waitForSelector('#tasks .task.in', { timeout: 3000 });
   assert.equal(await pg.$eval('#tasks', el => el.classList.contains('over')), true, 'pile remontée sous une fenêtre ouverte');
   await pg.waitForSelector('#tasks .task.ok, #tasks .task.warn', { timeout: 30000 });
   prodDelay = 0;
@@ -502,7 +502,7 @@ const sheetText = pg => pg.evaluate(() => document.querySelector('#sheetRoot').t
   assert.deepEqual(await names(), ['Swords to Plowshares', 'Sol Ring', 'Arcane Signet', "Ranger's Hawk", 'Phantom Card'], 'cartes remises à leur place triée');
 
   // vibrations : désactivables dans les réglages
-  await pg.click('#btnSettings'); await pg.waitForSelector('#setHaptic');
+  await pg.click('#btnAccount'); await pg.waitForSelector('#setHaptic');
   assert.equal(await pg.isChecked('#setHaptic'), true);
   await pg.click('#setHaptic ~ i, .switch:has(#setHaptic)'); assert.equal(await pg.isChecked('#setHaptic'), false);
   await pg.click('.sheet-wrap.open [data-close].icon-btn'); await pg.waitForTimeout(500);

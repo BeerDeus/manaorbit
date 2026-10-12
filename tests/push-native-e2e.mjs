@@ -8,7 +8,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
-import { chromium, startWorld, newPage, txt, ok, toInput } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, openMe } from './e2e-world.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const until = async (fn, ms = 6000) => { for (let t = 0; t < ms; t += 100) { if (await fn()) return true; await sleep(100); } return !!(await fn()); };
@@ -50,7 +50,7 @@ const reqs = []; p.on('request', r => { if (/\/api\/(alerts|jobs)(\?|$)/.test(r.
 await p.goto(world.url); await p.waitForTimeout(1000);
 const ls = k => p.evaluate(k => JSON.parse(localStorage.getItem('__t_' + k)), k);
 const server = async id => { const r = await fetch(world.url + 'api/alerts?id=' + id); return r.status; };
-const openSet = async () => { await p.click('#btnSettings'); await p.waitForSelector('#btnNotif'); await p.click('#btnNotif'); await p.waitForSelector('#pushBox #setPush', { timeout: 5000 }); await p.waitForSelector('#alertBox #setAlert', { timeout: 5000 }); };
+const openSet = async () => { await openMe(p); await p.waitForSelector('#btnNotif'); await p.click('#btnNotif'); await p.waitForSelector('#pushBox #setPush', { timeout: 5000 }); await p.waitForSelector('#alertBox #setAlert', { timeout: 5000 }); };
 const closeSheets = async () => { for (let i = 0; i < 3 && await p.$('.sheet-wrap'); i++) { await p.keyboard.press('Escape'); await p.waitForTimeout(350); } };
 const alertsSheet = () => p.waitForFunction(() => [...document.querySelectorAll('.sheet-head h2')].some(h => /Alertes de prix/.test(h.textContent)), null, { timeout: 6000 });
 
@@ -113,10 +113,10 @@ world.delay = 0;
 /* ── États propres à l'appli : permission refusée, serveur sans compte de service ─────────────── */
 const D = await newPage(browser, world, { init: `localStorage.setItem('__t_perm', '"denied"');(${shell})(${JSON.stringify(TOK1)})`, goto: false });
 await D.p.goto(world.url); await D.p.waitForTimeout(900);
-await D.p.click('#btnSettings'); assert.equal(await D.p.$('#appBox'), null, 'appli Android : pas de rubrique « Application » (rien à installer)'); await D.p.click('#btnNotif'); await D.p.waitForSelector('#pushBox .status', { timeout: 5000 });
+await openMe(D.p); assert.equal(await D.p.$('.me-sheet [data-me="app"]'), null, 'appli Android : pas de rubrique « Application » (rien à installer)'); await D.p.click('#btnNotif'); await D.p.waitForSelector('#pushBox .status', { timeout: 5000 });
 const bd = await txt(D.p, '#pushBox'); assert.match(bd, /réglages d'Android/); assert.doesNotMatch(bd, /navigateur|iPhone/);
 await D.p.keyboard.press('Escape'); await D.p.waitForTimeout(350); await D.p.keyboard.press('Escape'); await D.p.waitForTimeout(350);
-await D.p.evaluate(() => { CTX.fcm = false; }); await D.p.click('#btnSettings'); assert.equal(await D.p.$('#appBox'), null, 'appli Android : pas de rubrique « Application » (rien à installer)'); await D.p.click('#btnNotif'); await D.p.waitForSelector('#pushBox .status', { timeout: 5000 });
+await D.p.evaluate(() => { CTX.fcm = false; }); await openMe(D.p); assert.equal(await D.p.$('.me-sheet [data-me="app"]'), null, 'appli Android : pas de rubrique « Application » (rien à installer)'); await D.p.click('#btnNotif'); await D.p.waitForSelector('#pushBox .status', { timeout: 5000 });
 assert.match(await txt(D.p, '#pushBox'), /compte de service Firebase/); assert.match(await txt(D.p, '#alertBox'), /FCM_SERVICE_ACCOUNT/); assert.doesNotMatch(await txt(D.p, '#alertBox'), /VAPID/);
 ok('Réglages dans l\'appli : refus → réglages d\'Android ; serveur sans FCM → conseil FCM_SERVICE_ACCOUNT (jamais VAPID, iPhone ni navigateur)');
 

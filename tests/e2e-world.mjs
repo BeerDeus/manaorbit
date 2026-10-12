@@ -184,6 +184,17 @@ export async function signInFake(p, user = {}) {
     onUser({ uid: 'u-test-' + Math.random().toString(36).slice(2, 8), email: 'test@example.com', displayName: 'Test', emailVerified: true, providerData: [{ providerId: 'password' }], reload: async () => {}, getIdToken: async () => '', ...u });
   }, user);
 }
+/** Fiche « Compte et réglages » (bouton du compte de l'en-tête, me.js) ; sub : rubrique ouverte par-dessus (prix, donnees, conf, app, aide, scan, widget,
+ *  compte : la feuille Compte — connexion, ou gestion du compte connecté —, pub). Rubrique ouverte : attend sa fiche (une de plus, ouverte). */
+export async function openMe(p, sub) {
+  if (!(await p.$('.me-sheet.open'))) { await p.click('#btnAccount'); await p.waitForSelector('.me-sheet.open'); }      // une fiche qui se ferme encore (sans .open) ne compte pas
+  if (!sub) return;
+  const n = await p.evaluate(() => sheets.length);
+  await p.click(`.me-sheet [data-me="${sub}"]`);
+  await p.waitForFunction(n => sheets.length > n && document.querySelectorAll('.sheet-wrap.open').length > n, n, { timeout: 5000 });
+}
+/** Ferme toutes les fiches ouvertes (rubrique, puis « Compte et réglages »). */
+export const closeSheets = p => p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }).then(() => p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 5000 }));
 /** « Ajouter » du récap du scan ; cartes sans édition (scaned.js) : « Ajouter quand même ». */
 export async function rcGo(p) {
   await p.click('.rc-sheet [data-rc="go"]');
