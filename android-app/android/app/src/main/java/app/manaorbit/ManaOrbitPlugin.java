@@ -19,9 +19,10 @@ import org.json.JSONObject;
 /**
  * Plugin local « ManaOrbit » : ce que le site demande à la coque Android et qu'aucun plugin npm ne fait.
  * Côté site : natPlugin('ManaOrbit') (src/native.js), null dans un navigateur ou dans une APK plus ancienne sans ce plugin.
- * - info() → { firebase, version, build, widgets, widgetRefresh, tradeWidgets } : Firebase initialisé (google-services.json présent), versionName et versionCode
- *   de l'APK, nombre de widgets de valeur posés, estimation appli fermée possible (ValueRefreshJob.ENABLED), nombre de widgets « QR code d'échange » posés
- *   (absent : APK sans ce widget).
+ * - info() → { firebase, version, build, installed, widgets, widgetRefresh, tradeWidgets } : Firebase initialisé (google-services.json présent), versionName
+ *   et versionCode de l'APK, date de la première installation sur ce téléphone (ms ; src/migrate.js : pas de détour par l'ancienne adresse pour une appli
+ *   installée après le déménagement), nombre de widgets de valeur posés, estimation appli fermée possible (ValueRefreshJob.ENABLED), nombre de widgets
+ *   « QR code d'échange » posés (absent : APK sans ce widget).
  * - setWidget({ data, coll? }) : chiffres du widget d'écran d'accueil (JSON, voir src/widget.js), gardés pour quand l'appli est fermée ;
  *   coll : cartes et prix de référence pour l'estimation appli fermée (absent : plus d'estimation jusqu'au prochain envoi).
  * - setTradeWidget({ data }) : QR code du lien de la liste d'échange pour TradeWidget (JSON { u, n, m, by, lang }, voir src/widget.js), gardé pour quand
@@ -41,16 +42,18 @@ public class ManaOrbitPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("firebase", hasFirebase(ctx));
         String version = "";
-        long build = 0;
+        long build = 0, installed = 0;
         try {
             PackageInfo pi = packageInfo(ctx);
             if (pi.versionName != null) version = pi.versionName;
             build = versionCode(pi);
+            installed = pi.firstInstallTime;
         } catch (PackageManager.NameNotFoundException e) {
             // notre propre paquet : n'arrive pas
         }
         ret.put("version", version);
         ret.put("build", build);
+        ret.put("installed", installed);
         ret.put("widgets", ValueWidget.count(ctx));
         ret.put("widgetRefresh", ValueRefreshJob.ENABLED);
         ret.put("tradeWidgets", TradeWidget.count(ctx));

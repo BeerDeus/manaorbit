@@ -96,7 +96,9 @@ L'ancienne adresse `card.m2s-photo.fr` doit rester reliée au même site Hosting
 - **Appli installée depuis le site (PWA)** : `sw.js` de l'ancienne adresse vide ses caches et se désinstalle, puis recharge l'onglet, qui reçoit la page de déménagement.
 - **Ancienne APK** (WebView, adresse `card.m2s-photo.fr`) : rien ne change pour elle, l'appli reste servie à l'ancienne adresse tant qu'elle n'est pas mise à jour.
 - **Nouvelle APK** (`server.url` = `https://manaorbit.app`, `allowNavigation` : l'ancienne adresse) : au premier lancement, si rien n'est encore enregistré et que l'ancienne
-  adresse répond (`/__mig`), un aller-retour par la page de déménagement ramène les données restées dans la WebView (une seule tentative).
+  adresse répond (`/__mig`), un aller-retour par la page de déménagement (`?mig=app`, sans texte à l'écran) ramène les données restées dans la WebView (une seule tentative).
+  Seulement pour une appli installée **avant** le 12 octobre 2026 (`info().installed` du plugin ManaOrbit, versionCode 2 et plus) : une installation depuis le Play Store
+  n'a rien à reprendre et démarre directement. Une coque sans cette date (versionCode 1) fait le détour, comme avant.
 - `/app-ads.txt` : servi d'office (éditeur `pub-9859793504995886`), vérifié par AdMob à l'examen de l'appli.
 
 ## Garde-fous (optionnels)

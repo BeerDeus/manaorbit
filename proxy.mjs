@@ -1167,11 +1167,11 @@ self.addEventListener('activate', e => e.waitUntil((async () => { for (const k o
 `;
 /** Page de déménagement : les données de Mana Orbit gardées par le navigateur sur l'ancienne adresse (localStorage « deckdeal:* », sauf ce qui tient à l'appareil)
  *  partent dans l'adresse de la nouvelle page (#mig=, jamais envoyé au serveur), qui les reprend sans rien écraser (src/migrate.js) ; ?p=… et le chemin suivent. */
-function oldPage() {
+function oldPage(app) {      // app : aller-retour de l'appli Android (?mig=app), sans texte à l'écran (un instant, sur le fond de l'appli)
   const site = JSON.stringify(SITE_URL).replace(/</g, '\\u003c');
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="origin"><title>Mana Orbit déménage</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;box-sizing:border-box;background:#0b0f1c;color:#eaeefb;font:16px/1.5 system-ui,sans-serif;text-align:center}a{color:#929cff}</style></head>
-<body><p>Mana Orbit déménage sur <a id="go" href=${site}>manaorbit.app</a>…<br><small>Mana Orbit is moving to manaorbit.app…</small></p>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;box-sizing:border-box;background:#0b0f1c;color:#eaeefb;font:16px/1.5 system-ui,sans-serif;text-align:center}a{color:#929cff}.app p{visibility:hidden}</style></head>
+<body${app ? ' class="app"' : ''}><p>Mana Orbit déménage sur <a id="go" href=${site}>manaorbit.app</a>…<br><small>Mana Orbit is moving to manaorbit.app…</small></p>
 <script>(function () {
   var q = new URLSearchParams(location.search); q.delete('mig');
   var to = ${site} + location.pathname + (q.toString() ? '?' + q : ''), data = '';
@@ -1194,7 +1194,7 @@ function oldHost(req, res, url) {
   const get = req.method === 'GET' || req.method === 'HEAD', wv = isWebView(req);
   if (get && url.pathname === '/__mig') return txt(res, '{"ok":true}', 'application/json; charset=utf-8', { 'Access-Control-Allow-Origin': SITE_URL });      // le nouveau site vérifie que l'ancienne adresse répond avant d'y envoyer l'APK
   if (get && url.pathname === '/sw.js' && !wv) return txt(res, OLD_SW, 'text/javascript; charset=utf-8');
-  if (get && (url.pathname === '/' || url.pathname === '/index.html') && (!wv || url.searchParams.get('mig') === 'app')) return txt(res, oldPage(), 'text/html; charset=utf-8', { 'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" });
+  if (get && (url.pathname === '/' || url.pathname === '/index.html') && (!wv || url.searchParams.get('mig') === 'app')) return txt(res, oldPage(url.searchParams.get('mig') === 'app'), 'text/html; charset=utf-8', { 'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" });
   return false;
 }
 

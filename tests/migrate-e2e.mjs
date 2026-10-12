@@ -1,6 +1,7 @@
 // E2E déménagement card.m2s-photo.fr → manaorbit.app (proxy.mjs › oldHost, src/migrate.js). Ici l'ancienne adresse est 127.0.0.1:PORT et la nouvelle localhost:PORT :
 // même serveur, deux origines (données du navigateur séparées). Page de déménagement : les données de l'appareil suivent, sans rien écraser, chemin et ?p= gardés ;
-// un lien piégé (#mig= sans venir de l'ancienne adresse) ne remplit rien ; sw.js de l'ancienne adresse se désinstalle ; ancienne APK servie comme avant ; app-ads.txt.
+// un lien piégé (#mig= sans venir de l'ancienne adresse) ne remplit rien ; sw.js de l'ancienne adresse se désinstalle ; ancienne APK servie comme avant ; app-ads.txt ;
+// appli Android : détour par l'ancienne adresse seulement si elle a été installée avant le déménagement (info().installed).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { chromium, startWorld, newPage, ok, txt } from './e2e-world.mjs';
@@ -20,7 +21,8 @@ r = await get('/sw.js'); const sw = await r.text();
 assert.match(sw, /registration\.unregister\(\)/, 'sw.js : se désinstalle'); assert.match(sw, /caches\.delete/);
 r = await get('/', WV); assert.doesNotMatch(await r.text(), /<title>Mana Orbit déménage<\/title>/, 'ancienne APK (WebView) : l\'appli, comme avant');
 r = await get('/sw.js', WV); assert.doesNotMatch(await r.text(), /unregister\(\)/, 'ancienne APK : son vrai service worker');
-r = await get('/?mig=app', WV); assert.match(await r.text(), /<title>Mana Orbit déménage<\/title>/, 'nouvelle APK (?mig=app) : page de déménagement');
+r = await get('/?mig=app', WV); const appPage = await r.text(); assert.match(appPage, /<title>Mana Orbit déménage<\/title>/, 'nouvelle APK (?mig=app) : page de déménagement');
+assert.match(appPage, /<body class="app">/, '?mig=app : sans texte à l\'écran'); r = await get('/'); assert.doesNotMatch(await r.text(), /<body class="app">/, 'navigateur : le texte du déménagement');
 r = await get('/__mig'); assert.deepEqual(await r.json(), { ok: true }); assert.equal(r.headers.get('access-control-allow-origin'), NEW, '/__mig : lisible par le nouveau site');
 r = await get('/privacy'); assert.equal(r.status, 200, 'autres pages : servies comme avant');
 r = await fetch(`${NEW}/`); assert.doesNotMatch(await r.text(), /<title>Mana Orbit déménage<\/title>/, 'nouvelle adresse : l\'appli');
@@ -55,6 +57,21 @@ await B.p.goto(`${NEW}/#mig=${evil}`); await B.p.waitForTimeout(500);
 assert.equal(await B.p.evaluate(() => localStorage.getItem('deckdeal:migrated')), null, 'rien de repris');
 assert.doesNotMatch(await B.p.evaluate(() => localStorage.getItem('deckdeal:coll:v1') || ''), /Black Lotus/); assert.equal(new URL(B.p.url()).hash, '', 'adresse nettoyée quand même');
 ok('lien piégé (#mig= venu d\'ailleurs) : rien de repris');
+
+/* ── 4) appli Android : détour par l'ancienne adresse seulement pour une appli installée avant le déménagement ─────────────────────────────── */
+const nat = installed => `window.__MIG_FROM = ['${OLD}']; window.__MIG_SITE = 'localhost'; window.__MIG_OLD = 'http://${OLD}';
+  window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'ManaOrbit', Plugins: { ManaOrbit: { info: async () => ({ version: '1.0.1', build: 2, installed: ${installed} }), setWidget: async () => ({}), setTradeWidget: async () => ({}) } } };`;
+const C = await newPage(browser, world, { goto: false, init: nat(Date.UTC(2026, 5, 1)) });      // installée en juin : ses données sont sous l'ancienne adresse
+await C.p.goto(`http://${OLD}/privacy`); await C.p.evaluate(() => localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: '2 Lightning Bolt', u: 1, s: '', b: null })));
+await C.p.goto(`${NEW}/`);
+await C.p.waitForFunction(() => location.host === 'localhost:' + location.port && !location.hash && !!localStorage.getItem('deckdeal:migrated'), null, { timeout: 15000 });
+assert.match(await C.p.evaluate(() => localStorage.getItem('deckdeal:coll:v1') || ''), /Lightning Bolt/, 'appli installée avant : collection reprise par le détour');
+const D = await newPage(browser, world, { goto: false, init: nat('Date.now() - 60000') });      // installée aujourd'hui (Play Store) : rien à reprendre
+let mig = 0; D.p.on('request', q => { if (/\/__mig|mig=app/.test(q.url())) mig++; });
+await D.p.goto(`${NEW}/`); await D.p.waitForTimeout(2500);
+assert.equal(mig, 0, 'appli installée après le déménagement : aucun détour'); assert.equal(new URL(D.p.url()).origin, NEW);
+assert.ok(await D.p.evaluate(() => !!localStorage.getItem('deckdeal:migtry')), 'une seule décision, gardée');
+ok('appli Android : détour par l\'ancienne adresse seulement si installée avant le déménagement (données reprises), sinon démarrage direct');
 
 assert.deepEqual([...errs, ...B.errs], [], 'erreurs page');
 await browser.close(); world.stop();

@@ -5,10 +5,13 @@
      d'avant est bien l'ancienne adresse (un lien piégé ne peut rien remplir) ; l'adresse est aussitôt nettoyée.
    · Appli Android mise à jour (manaorbit.app) : ses données sont restées sous l'ancienne adresse, dans la même WebView. Une seule fois, si rien n'est
      encore ici et que l'ancienne adresse répond (/__mig) : passage par la page de déménagement (?mig=app), retour ici avec les données.
-   window.__MIG_FROM : anciens hôtes acceptés (tests). */
+     Appli installée après le déménagement (info().installed de la coque, APK récente ; Play Store compris) : l'ancienne adresse n'a jamais rien gardé
+     pour elle, pas de détour. Coque plus ancienne sans cette date : le détour, comme avant.
+   window.__MIG_FROM : anciens hôtes acceptés · __MIG_SITE, __MIG_OLD : nouvel hôte et ancienne adresse de l'appli native (tests). */
 (function () {
   if (typeof location === 'undefined' || typeof localStorage === 'undefined' || typeof window === 'undefined') return;
-  const OLD = 'https://card.m2s-photo.fr', from = window.__MIG_FROM || ['card.m2s-photo.fr'];
+  const OLD = window.__MIG_OLD || 'https://card.m2s-photo.fr', SITE = window.__MIG_SITE || 'manaorbit.app', from = window.__MIG_FROM || ['card.m2s-photo.fr'];
+  const MOVED = Date.UTC(2026, 9, 12);      // jour du déménagement
   try {
     if (location.hash.slice(0, 5) === '#mig=') {
       const raw = location.hash.slice(5);
@@ -30,10 +33,15 @@
   } catch (e) { /* illisible : l'appli démarre sans */ }
   try {
     const cap = window.Capacitor, native = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
-    if (native && location.hostname === 'manaorbit.app' && !localStorage.getItem('deckdeal:migtry') && !localStorage.getItem('deckdeal:migrated') && !localStorage.getItem('deckdeal:coll:v1') && !localStorage.getItem('deckdeal:decks:v1')) {
+    if (native && location.hostname === SITE && !localStorage.getItem('deckdeal:migtry') && !localStorage.getItem('deckdeal:migrated') && !localStorage.getItem('deckdeal:coll:v1') && !localStorage.getItem('deckdeal:decks:v1')) {
       localStorage.setItem('deckdeal:migtry', String(Date.now()));      // une seule tentative, même si l'ancienne adresse ne répond plus
-      const ctl = new AbortController(); setTimeout(() => ctl.abort(), 4000);
-      fetch(OLD + '/__mig', { signal: ctl.signal, cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(j => { if (j && j.ok) location.replace(OLD + '/?mig=app'); }).catch(() => {});
+      const mo = cap.isPluginAvailable && cap.isPluginAvailable('ManaOrbit') && cap.Plugins && cap.Plugins.ManaOrbit;
+      const before = mo ? Promise.resolve().then(() => mo.info()).then(i => !(i && i.installed >= MOVED), () => true) : Promise.resolve(true);      // installée avant le déménagement (ou date inconnue)
+      before.then(go => {
+        if (!go) return;
+        const ctl = new AbortController(); setTimeout(() => ctl.abort(), 4000);
+        return fetch(OLD + '/__mig', { signal: ctl.signal, cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(j => { if (j && j.ok) location.replace(OLD + '/?mig=app'); });
+      }).catch(() => {});
     }
   } catch (e) { /* pas d'appli native */ }
 })();
