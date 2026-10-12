@@ -347,6 +347,7 @@
   "Prix prêts, chargement…": "Prices ready, loading…",
   "{n} cartes reçues": "{n} cards received",
   "Rien à importer dans ce partage": "Nothing to import from this share",
+  "Liens Moxfield non lus : sur Moxfield, exporte la liste (copier en texte), puis colle-la ici": "Moxfield links can't be read: on Moxfield, export the list (copy as text), then paste it here",
   "Le lien ne peut être lu que par le serveur Mana Orbit": "Only the Mana Orbit server can read this link",
   "Lecture de la liste…": "Reading the list…",
   "Lien non lu : ouvre la liste sur le site, copie-la, puis colle-la ici": "Couldn't read the link: open the list on the site, copy it, then paste it here",

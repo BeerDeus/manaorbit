@@ -1288,16 +1288,17 @@ function handleLaunch() {
   else if (q.has('collection')) setTimeout(() => openCollection(), 600);                  // lien direct vers la collection (?collection)
   else if (q.has('open')) { const v = q.get('open'); setTimeout(() => wgtOpen(v), 600); }  // raccourcis de l'icône de la PWA (manifeste : ?open=scan | quick | trade | paste)
 }
-/** Contenu reçu du menu « Partager » : une decklist en texte, ou un lien (EDHREC, Archidekt, Moxfield) lu par le serveur. */
 /** Met une decklist dans la page de saisie (partage, import d'un lien, deck EDHREC de la collection). */
 function putDeckText(text, name) {
   const ta = $('#deckText'); ta.value = text; S.isSample = false; S.deckId = null; S.removed = []; if (S.view !== 'input') showView('input'); refreshDeck();
   toast((name ? name + ' · ' : '') + T('{n} cartes reçues', { n: S.deck.cards.length })); window.scrollTo({ top: $('.field').offsetTop - 70, behavior: reduceMotion() ? 'auto' : 'smooth' });
 }
+/** Contenu reçu du menu « Partager » : une decklist en texte, ou un lien (EDHREC, Archidekt) lu par le serveur. Moxfield n'a pas d'API publique : ses liens ne sont pas lus. */
 async function onShared(sh) {
   const put = putDeckText;
   if (sh.text) return put(sh.text);
   if (!sh.urls.length) { toast(T('Rien à importer dans ce partage')); return; }
+  if (/^https:\/\/(www\.)?moxfield\.com\//i.test(sh.urls[0])) { toast(T('Liens Moxfield non lus : sur Moxfield, exporte la liste (copier en texte), puis colle-la ici')); return; }
   if (!CTX.proxy) { toast(T('Le lien ne peut être lu que par le serveur Mana Orbit')); return; }
   toast(T('Lecture de la liste…'));
   try { const r = await ct('import', { params: { url: sh.urls[0] } }); if (r && r.text) put(r.text, r.name); else throw new Error('vide'); }

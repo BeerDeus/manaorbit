@@ -115,7 +115,7 @@ La connexion Google utilise le compte Google du téléphone : un sélecteur nati
 ### Raccourcis et partage
 
 - **Appui long sur l'icône** : Scanner, Prix rapide, Échange, Nouveau panier (un raccourci peut être épinglé sur l'écran d'accueil). Ils passent par `ShortcutActivity`, une tâche à part : sans elle, Android relancerait l'appli de zéro (recherche ou scan en cours perdus).
-- **Partager vers Mana Orbit** : depuis Chrome (page d'un deck EDHREC, Archidekt, Moxfield) ou une appli de notes, « Partager » › Mana Orbit ouvre « Nouveau panier » avec la liste.
+- **Partager vers Mana Orbit** : depuis Chrome (page d'un deck EDHREC ou Archidekt ; un lien Moxfield n'est pas lu, il faut coller la liste exportée) ou une appli de notes, « Partager » › Mana Orbit ouvre « Nouveau panier » avec la liste.
 - Si toucher un raccourci ne fait rien du tout : mets `android:exported="true"` sur `ShortcutActivity` dans `AndroidManifest.xml` (il ne transmet que ces 4 actions), puis reconstruis.
 
 ### Widget

@@ -13,8 +13,8 @@ const upCT = http.createServer((req, res) => { const bp = new URL(req.url, 'http
 // ── faux service de push (FCM) : garde chaque POST reçu
 const pushed = []; let pushStatus = 201;
 const upPush = http.createServer((req, res) => { const c = []; req.on('data', x => c.push(x)); req.on('end', () => { pushed.push({ url: req.url, h: req.headers, body: Buffer.concat(c) }); res.writeHead(pushStatus); res.end(); }); });
-// ── faux EDHREC / Archidekt / Moxfield
-const big = { sent: 0, closed: false };
+// ── faux EDHREC / Archidekt (Moxfield : jamais appelé)
+const big = { sent: 0, closed: false }; let moxHits = 0;
 const imp = http.createServer((req, res) => {
   const send = (o, st = 200) => { res.writeHead(st, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
   const u = req.url;
@@ -27,7 +27,7 @@ const imp = http.createServer((req, res) => {
     { quantity: 3, categories: [], card: { oracleCard: { name: 'Mountain' } } },
     { quantity: 1, categories: ['Maybeboard'], card: { oracleCard: { name: 'Wheel of Fortune' } } },
     { quantity: 1, categories: ['Sideboard'], card: { oracleCard: { name: 'Pyroclasm' } } }] });
-  if (u === '/moxfield/v3/decks/all/AbCd_1') return send({ name: 'Mon Moxfield', boards: { commanders: { cards: { x: { quantity: 1, card: { name: 'Edgar Markov' } } } }, mainboard: { cards: { a: { quantity: 1, card: { name: 'Sol Ring' } }, b: { quantity: 2, card: { name: 'Swamp' } } }, } } });
+  if (u.startsWith('/moxfield/')) { moxHits++; return send({ name: 'Mon Moxfield' }); }
   if (u === '/archidekt/api/decks/404/') return send({ detail: 'Not found' }, 404);
   if (u === '/archidekt/api/decks/500/') return send({ x: 1 }, 503);
   if (u === '/archidekt/api/decks/7/') return send({ name: 'vide', cards: [] });
@@ -162,7 +162,7 @@ r = await imp1('https://www.edhrec.com/commanders/atraxa-praetors-voice'); asser
 r = await imp1('https://edhrec.com/average-decks/atraxa-praetors-voice/budget'); assert.equal(r.s, 200); assert.equal(r.o.text, '3 Swamp'); console.log('✓ variante /budget');
 r = await imp1('https://edhrec.com/average-decks/old-shape'); assert.equal(r.o.text, '1 Sol Ring\n2 Island\n1 Lightning Greaves'); console.log('✓ ancien format EDHREC (liste de lignes)');
 r = await imp1('https://archidekt.com/decks/123/mon-deck'); assert.equal(r.s, 200); assert.equal(r.o.text, 'Commander\n1 Krenko, Mob Boss\n\nDeck\n1 Sol Ring\n3 Mountain'); assert.equal(r.o.name, 'Mon Archidekt'); console.log('✓ import Archidekt : commandant, banc et maybeboard exclus');
-r = await imp1('https://moxfield.com/decks/AbCd_1'); assert.equal(r.s, 200); assert.equal(r.o.text, 'Commander\n1 Edgar Markov\n\nDeck\n1 Sol Ring\n2 Swamp'); console.log('✓ import Moxfield');
+r = await imp1('https://moxfield.com/decks/AbCd_1'); assert.equal(r.s, 400); assert.equal(r.o.site, 'Moxfield'); assert.match(r.o.message, /colle-la/); assert.equal(moxHits, 0, 'Moxfield jamais appelé'); console.log('✓ lien Moxfield : refusé sans appeler Moxfield (pas d\'API publique), message « colle la liste »');
 for (const [u, st] of [['https://evil.example.com/decks/1', 400], ['http://edhrec.com/average-decks/x', 400], ['https://edhrec.com.evil.com/average-decks/x', 400], ['https://archidekt.com/decks/abc', 400], ['https://edhrec.com/average-decks/../../etc/passwd', 400], ['https://edhrec.com/average-decks/a/b/c', 400], ['https://user:pw@edhrec.com/average-decks/x', 400], ['https://edhrec.com:8443/average-decks/x', 400], ['pas un lien', 400], ['https://archidekt.com/decks/404/x', 404], ['https://archidekt.com/decks/500/x', 502], ['https://archidekt.com/decks/7/x', 422], ['https://archidekt.com/decks/8/x', 502], ['https://archidekt.com/decks/9/x', 502]]) { r = await imp1(u); assert.equal(r.s, st, u + ' → ' + r.s); assert.ok(r.o.message, u); }
 console.log('✓ import : liens hors liste blanche refusés, 404 / 5xx / vide / redirection / réponse illisible gérés');
 for (const n of [11, 12]) { r = await imp1('https://archidekt.com/decks/' + n + '/x'); assert.equal(r.s, 413, 'cas ' + n); assert.match(r.o.message, /trop grosse/); await sleep(200); assert.ok(big.closed && big.sent < 8 << 20, 'lecture coupée tôt (' + (big.sent >> 20) + ' Mo envoyés sur 40)'); }

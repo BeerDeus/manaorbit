@@ -141,7 +141,7 @@ test('exécution complète : liste paginée, decks moyens, Archidekt, prix et im
     assert.ok(edh[0].cards.some(c => c[1] === 'Forest' && c[2] === 12), 'basics avec leur quantité');
     assert.ok(!arch.some(d => d.slug === C.parseEdh(readFileSync(out, 'utf8')).cmds[1].slug), 'deck Archidekt de 150 cartes écarté (taille hors 90-101)');
     assert.ok(arch.every(d => /^https:\/\/archidekt\.com\/decks\/\d+$/.test(d.url)), 'liens Archidekt');
-    assert.deepEqual(arch.map(d => [d.cmd.names[0], d.label]).sort(), [[NAMES[0], 'Deck ' + NAMES[0]], [NAMES[0], 'Deck ' + NAMES[0]], [NAMES[2], 'Deck ' + NAMES[2]]].sort(), 'un deck récent par commandant (le 2e : 150 cartes, écarté), le cEDH du 1er ; le 3e retrouvé sous son nom à deux faces');
+    assert.deepEqual(arch.map(d => [d.cmd.names[0], d.label]).sort(), [[NAMES[0], ''], [NAMES[0], ''], [NAMES[2], '']].sort(), 'un deck récent par commandant (le 2e : 150 cartes, écarté), le cEDH du 1er ; le 3e retrouvé sous son nom à deux faces ; titres des joueurs jamais gardés');
     assert.ok(f.seen.archQ.includes(NAMES[2] + ' // Verso'), 'nom complet demandé à Scryfall puis cherché'); assert.equal(f.seen.top16, 1, 'EDHTop16 interrogé une fois');
     assert.equal(p.price.get('carte 1'), 250); assert.equal(p.price.get('carte 0'), 10); assert.ok(!p.price.has('carte 2'), 'sans prix : absent'); assert.equal(p.price.get('carte 3'), 999, 'repli sur le prix foil'); assert.ok(!p.price.has('carte 7'), 'inconnue de Scryfall');
     assert.equal(p.price.get('fire'), 10, 'DFC : clé = première face');

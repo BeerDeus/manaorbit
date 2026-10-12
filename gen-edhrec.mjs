@@ -344,11 +344,11 @@ async function archidekt(cmds, decks, prev = new Map(), all = cmds, pending = []
   };
   /** Lit un candidat : null s'il n'est pas du bon commandant (paire comprise) ou n'a pas la taille d'un deck de Commander. */
   const read = async (c, cand) => {
-    const k = known.get(cand.id); if (k && k.u === cand.u && k.cards.length) { st.reused++; return { ...k, label: cand.name || k.label, v: cand.views || k.v }; }
+    const k = known.get(cand.id); if (k && k.u === cand.u && k.cards.length) { st.reused++; return { ...k, label: '', v: cand.views || k.v }; }      // titre donné par le joueur : jamais gardé (contenu non modéré)
     const d = archidektDeck(await getJson(AR + 'decks/' + cand.id + '/', { gap: 900, headers: hd, tries: 2 }));
     if (!sameCmd(d.cmd, c.names)) { if (c.names.length === 1) { st.off++; if (st.off >= 8 && !st.fresh && !st.reused) throw Object.assign(new Error('la recherche ne filtre pas par commandant'), { fatal: true }); } return null; }
     const size = d.cards.reduce((a, x) => a + x[1], 0); if (size < 90 || size > 101) { st.rejected++; return null; }      // deck incomplet, ou cartes en trop (jetons, sideboard mal classé) : 98 à 100 cartes hors commandant attendues
-    st.fresh++; return { slug: c.slug, src: 'archidekt', label: d.name || cand.name, url: 'https://archidekt.com/decks/' + cand.id, cards: d.cards, u: d.u || cand.u, v: d.views || cand.views, p: d.eur };
+    st.fresh++; return { slug: c.slug, src: 'archidekt', label: '', url: 'https://archidekt.com/decks/' + cand.id, cards: d.cards, u: d.u || cand.u, v: d.views || cand.views, p: d.eur };
   };
   let abort = false;
   const fail = (c, e) => { st.fails++; if (st.fails <= 5) log('   · archidekt', c.slug, e.message); if (e.fatal || (st.fails >= 4 && !st.fresh && !st.reused)) { log('  Archidekt injoignable ou format inattendu : abandon de cette source (les anciens decks sont gardés)'); abort = true; } };

@@ -919,9 +919,10 @@ async function serverOk(req) {
   return false;
 }
 
-/* ── Import d'une liste depuis un lien (menu « Partager » de l'appli EDHREC, Archidekt, Moxfield) ──────────────────────────
+/* ── Import d'une liste depuis un lien (menu « Partager » de l'appli EDHREC, Archidekt) ──────────────────────────────────────
    Ouvert à tous (limité par IP), lecture seule, hôtes en liste blanche, aucune redirection suivie, 2 Mo et 8 s maximum. Le serveur renvoie la liste en texte
-   « 1 Sol Ring » avec un en-tête « Commander » si le site le distingue. Archidekt et Moxfield : au mieux (leurs API peuvent changer). */
+   « 1 Sol Ring » avec un en-tête « Commander » si le site le distingue. Archidekt : au mieux (son API peut changer). Moxfield : pas d'API publique,
+   ses liens ne sont pas lus (décision du 12 octobre 2026) ; on colle la liste exportée à la place. */
 const IMPORT_UP = (process.env.IMPORT_UPSTREAM || '').replace(/\/+$/, '');          // tests uniquement
 const IMPORT_MAX = 2 * 1024 * 1024, IMPORT_LINES = 450;
 const UA = 'Mozilla/5.0 (compatible; DeckDeal/1.0)';
@@ -973,31 +974,24 @@ function fromArchidekt(j) {
   }
   return { name: cleanName(j && j.name) || 'Deck Archidekt', cmd, main };
 }
-function fromMoxfield(j) {
-  const cmd = [], main = [], read = (board, list) => { for (const e of Object.values((board && (board.cards || board)) || {})) { const n = cleanName(e && e.card && e.card.name); if (n) list.push([n, qn(e.quantity)]); } };
-  const b = j && j.boards;
-  read(b ? b.commanders : j && j.commanders, cmd); read(b ? b.mainboard : j && j.mainboard, main);
-  return { name: cleanName(j && j.name) || 'Deck Moxfield', cmd, main };
-}
 async function importApi(req, res, url) {
   if (req.method !== 'GET') return json(res, 405, { error: 'method_not_allowed' });
   let u; try { u = new URL(String(url.searchParams.get('url') || '').trim()); } catch (e) { return json(res, 400, { error: 'bad_request', message: 'Lien invalide.' }); }
   const host = u.hostname.replace(/^www\./, '').toLowerCase(), segs = u.pathname.split('/').filter(Boolean);
   if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443')) return json(res, 400, { error: 'bad_request', message: 'Lien https attendu.' });
-  const slug = /^[a-z0-9][a-z0-9-]{0,120}$/i, num = /^\d{1,10}$/, mox = /^[A-Za-z0-9_-]{4,40}$/;
-  let site, target, parse, headers = {};
+  const slug = /^[a-z0-9][a-z0-9-]{0,120}$/i, num = /^\d{1,10}$/;
+  let site, target, parse;
   if (host === 'edhrec.com' && ['average-decks', 'commanders'].includes(segs[0]) && slug.test(segs[1] || '') && segs.length <= 3 && (!segs[2] || slug.test(segs[2]))) {
     site = 'EDHREC'; parse = fromEdhrec;
     target = (IMPORT_UP ? IMPORT_UP + '/edhrec' : 'https://json.edhrec.com') + '/pages/average-decks/' + segs[1] + (segs[0] === 'average-decks' && segs[2] ? '/' + segs[2] : '') + '.json';
   } else if (host === 'archidekt.com' && segs[0] === 'decks' && num.test(segs[1] || '')) {
     site = 'Archidekt'; parse = fromArchidekt; target = (IMPORT_UP ? IMPORT_UP + '/archidekt' : 'https://archidekt.com') + '/api/decks/' + segs[1] + '/';
-  } else if (host === 'moxfield.com' && segs[0] === 'decks' && mox.test(segs[1] || '')) {
-    site = 'Moxfield'; parse = fromMoxfield; target = (IMPORT_UP ? IMPORT_UP + '/moxfield' : 'https://api2.moxfield.com') + '/v3/decks/all/' + segs[1]; headers = { Referer: 'https://moxfield.com/', Origin: 'https://moxfield.com' };
-  } else return json(res, 400, { error: 'unsupported', message: 'Lien non pris en charge : EDHREC (average-decks), Archidekt ou Moxfield.' });
+  } else if (host === 'moxfield.com') return json(res, 400, { error: 'unsupported', site: 'Moxfield', message: 'Liens Moxfield non lus : exporte la liste depuis Moxfield et colle-la.' });
+  else return json(res, 400, { error: 'unsupported', message: 'Lien non pris en charge : EDHREC (average-decks) ou Archidekt.' });
   if (OFF.includes(site.toLowerCase())) return json(res, 403, { error: 'off', site, message: `Import depuis ${site} désactivé : colle la liste à la place.` });      // interrupteur (EDHREC_OFF, ARCHIDEKT_OFF)
   const wait = rateWait(req, 'import', IMPORT_RATE, 3600e3); if (wait) return tooMany(res, wait);       // route publique : IMPORT_RATE_PER_H lectures par heure et par IP (un lien refusé d'office ne compte pas)
   try {
-    const r = parse(await getJsonLimited(target, headers));
+    const r = parse(await getJsonLimited(target));
     if (!r.main.length && !r.cmd.length) return json(res, 422, { error: 'empty', message: 'Aucune carte trouvée dans cette liste.' });
     return json(res, 200, { site, name: r.name, count: r.cmd.length + r.main.length, text: toText(r.cmd.slice(0, 4), r.main.slice(0, IMPORT_LINES)) });
   } catch (e) { return json(res, e.status || 502, { error: 'import_failed', message: e.message }); }

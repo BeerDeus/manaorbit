@@ -262,13 +262,14 @@ const errsAll = [];
   await open({ view: 'share', text: '1 Sol Ring\n1 Arcane Signet\n1 Command Tower\n1 Wrath of God', title: '' });
   await toastIs(/4 cartes reçues/);
   assert.deepEqual(await p.evaluate(() => [S.view, !!COLL.el, $('#deckText').value.split('\n').length]), ['input', false, 4]);
-  // partage d'un lien (EDHREC, Archidekt, Moxfield) : lu par le serveur, comme le share_target de la PWA
+  // partage d'un lien (EDHREC, Archidekt) : lu par le serveur, comme le share_target de la PWA ; Moxfield : pas lu, message pour coller la liste
+  await open({ view: 'share', text: 'https://moxfield.com/decks/AbCd_1', title: '' }); await toastIs(/Liens Moxfield non lus/);
   await open({ view: 'share', text: 'https://archidekt.com/decks/123/edgar', title: 'Edgar' });
   await toastIs(/Edgar partagé · 4 cartes reçues/);
   assert.match(await p.$eval('#deckText', t => t.value), /^Commander\n1 Edgar Markov\n\nDeck\n1 Sol Ring/);
   // partage vide (fichier sans texte) : message clair
   await open({ view: 'share', text: '', title: '' }); await toastIs(/Rien à importer dans ce partage/);
-  ok('partage vers l\'appli : decklist collée (collection fermée), lien Archidekt lu par le serveur, partage vide signalé');
+  ok('partage vers l\'appli : decklist collée (collection fermée), lien Archidekt lu par le serveur, lien Moxfield non lu (message), partage vide signalé');
   // scan avec des cartes lues : jamais fermé par un partage (les cartes seraient perdues) ; la liste attend dessous
   await open({ view: 'scan' }); await p.waitForSelector('.scan.on', { timeout: 3000 });
   await p.evaluate(() => { window.__scEl = SC.el; SC.items.set('sol ring|en', { id: 'sol ring|en', key: 'sol ring', name: 'Sol Ring', q: 1, l: 'en' }); });
