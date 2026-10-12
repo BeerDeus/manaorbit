@@ -1000,7 +1000,7 @@ function openSettings() {
       <div id="helpBox"></div>
       <div class="sec-title">${T('Confidentialité')}</div>
       <div id="privBox" class="installbox"><p class="hint">${T('Sans compte, tout reste sur cet appareil. Aucune publicité ni mesure d\'audience.')}</p>
-        <div class="cart-actions"><a class="btn ghost small" href="privacy" target="_blank" rel="noopener">${T('Politique de confidentialité')}</a><button class="btn ghost small" type="button" id="btnAbout">${T('Mentions et sources')}</button></div>
+        <div class="cart-actions"><a class="btn ghost small" href="privacy" target="_blank" rel="noopener">${T('Politique de confidentialité')}</a><a class="btn ghost small" href="legal" target="_blank" rel="noopener">${T('Mentions légales')}</a><button class="btn ghost small" type="button" id="btnAbout">${T('Mentions et sources')}</button></div>
         <div id="wipeBox"></div></div>
       <div class="sec-title">${T('Panier CardTrader')}</div>
       <div id="cartBox" class="cartbox"></div>
@@ -1130,7 +1130,7 @@ function openAbout() {
     api.body.innerHTML = `<p class="hint">${FAN_CONTENT}</p>
       <p class="hint">${T('Mana Orbit n\'est affiliée à aucun des services ci-dessous. Merci à eux de rendre leurs données accessibles à la communauté.')}</p>
       <dl class="kv about">${src.map(([n, u, w]) => `<dt><a href="${u}" target="_blank" rel="noopener">${n}</a></dt><dd>${w}</dd>`).join('')}</dl>
-      <a class="btn ghost small" href="privacy" target="_blank" rel="noopener" style="align-self:flex-start">${T('Politique de confidentialité')}</a>`;
+      <div class="cart-actions"><a class="btn ghost small" href="privacy" target="_blank" rel="noopener">${T('Politique de confidentialité')}</a><a class="btn ghost small" href="legal" target="_blank" rel="noopener">${T('Mentions légales')}</a></div>`;
   });
 }
 async function doInstall() { const r = await PWA.install(); if (r === 'dismissed') PWA.snooze(); }

@@ -10,7 +10,7 @@ process.chdir(root);
 if (process.env.PRICES_SOURCE_URL === undefined) process.env.PRICES_SOURCE_URL = '';      // le proxy des tests ne va jamais chercher les prix sur GitHub
 if (!process.env.PWA_DIR) {
   const dir = mkdtempSync(join(tmpdir(), 'deckdeal-pwa-'));
-  for (const f of ['manifest.webmanifest', 'sw.js', 'privacy.html', 'icons']) cpSync(join(root, 'pwa', f), join(dir, f), { recursive: true });
+  for (const f of ['manifest.webmanifest', 'sw.js', 'privacy.html', 'legal.html', 'icons']) cpSync(join(root, 'pwa', f), join(dir, f), { recursive: true });
   process.env.PWA_DIR = dir;
   process.on('exit', () => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ } });
 }

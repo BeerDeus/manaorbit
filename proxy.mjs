@@ -55,6 +55,9 @@ const STATIC = new Map([
   ['/edh.bin.gz', ['edh.bin.gz', 'application/octet-stream', 'public, max-age=86400', 'pre']],                          // même contenu en binaire compact (EDH2, déjà compressé par le générateur : envoyé tel quel avec Content-Encoding: gzip, ou décompressé si le client n'accepte pas gzip)
   ['/privacy', ['privacy.html', 'text/html; charset=utf-8', 'public, max-age=3600']],                                    // politique de confidentialité (lien de la fiche Google Play) et suppression de compte
   ['/privacy.html', ['privacy.html', 'text/html; charset=utf-8', 'public, max-age=3600']],
+  ['/legal', ['legal.html', 'text/html; charset=utf-8', 'public, max-age=3600']],                                        // mentions légales (éditeur, hébergeur, propriété intellectuelle), reliées depuis /privacy et les Réglages
+  ['/legal.html', ['legal.html', 'text/html; charset=utf-8', 'public, max-age=3600']],
+  ['/mentions-legales', ['legal.html', 'text/html; charset=utf-8', 'public, max-age=3600']],
   ['/prices.tsv', ['prices.tsv.gz', 'text/tab-separated-values; charset=utf-8', 'public, max-age=3600', 'pre', 'px']],          // prix « à partir de » (gen-prices.mjs, relu depuis GitHub) : servi seulement une fois récupéré
   ['/fr-names.tsv', ['fr-names.tsv', 'text/tab-separated-values; charset=utf-8', 'public, max-age=86400', true]],      // catalogue des noms de cartes en français (généré par gen-fr-names.mjs) ; 4e valeur : compressé en gzip si le client l'accepte
   ['/names-all.tsv', ['names-all.tsv', 'text/tab-separated-values; charset=utf-8', 'public, max-age=86400', true]],    // noms imprimés de toutes les langues, sans images (gen-names-all.mjs) : scan des autres langues sur l'appareil ; demandé par chaque scan en Wi-Fi (tous les 14 jours), donc compressé dès le démarrage
