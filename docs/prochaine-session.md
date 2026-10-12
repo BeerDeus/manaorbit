@@ -57,6 +57,7 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
 - Un bouton **« Filtres »** avec le nombre de filtres actifs (« Filtres (3) ») ouvre une feuille : type de deck, tier, couleurs permises, budget maximum, thèmes, « J'ai le commandant », « Puis par ».
 - Sous la barre : les filtres actifs en **pastilles** qu'on retire d'un ×, et « Tout effacer ».
 - Même principe visuel que le bouton Filtres de la collection.
+- **Points 3 et 4 faits le 12 octobre** (maquettes « À monter », « Filtres · feuille du bas », « Aide des Decks » du canevas ; README › « Onglet Decks »). « Communauté » arrivera avec le point 6.
 
 ## 5. Nouvelle navigation : Decks à part, appli épurée (gros, après le choix du point 1)
 - Section **Decks** : decks à monter (EDHREC, Archidekt, Communauté), Mes decks, prix d'une liste (« Nouveau panier »).

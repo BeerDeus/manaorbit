@@ -25,6 +25,11 @@ let hits = 0, mode = 'ok';
 await p.route('**/edh.tsv', r => { hits++; if (mode === 'ok') return r.fulfill({ status: 200, contentType: 'text/tab-separated-values; charset=utf-8', body: FILE }); return r.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"asset_missing"}' }); });
 const rows = () => p.$$eval('.crow:not(.dk)', r => r.map(x => ({ name: x.querySelector('.row-name').textContent, tags: [...x.querySelectorAll('.tag')].map(t => t.textContent.replace(/\s+/g, ' ').trim()) })));
 const dks = () => p.$$eval('.crow.dk', r => r.map(x => ({ name: x.querySelector('.row-name').firstChild.textContent.trim(), rank: (x.querySelector('.dk-rank') || { textContent: '' }).textContent, pips: x.querySelectorAll('.dk-pips .mc').length, have: x.querySelector('.dk-have').textContent.replace(/\s+/g, ' ').trim(), lab: (x.querySelector('.dk-lab') || { textContent: '' }).textContent, px: x.querySelector('.dk-px').innerText.replace(/\s+/g, ' ').trim(), tier: (x.querySelector('.dk-tier') || { textContent: '' }).textContent, tags: [...x.querySelectorAll('.tag')].map(t => t.textContent.replace(/\s+/g, ' ').trim()) })));
+// onglet Decks : recherche, « Classer » (liste déroulante) et « Filtres (N) » visibles ; type, tier, couleurs, budget, thèmes, « J'ai le commandant », « Puis par » dans la feuille « Filtres »
+const openF = async (pg = p) => { if (!await pg.$('.dkf-sheet')) { await pg.click('[data-act="dfilt"]'); await pg.waitForSelector('.dkf-sheet .dkf'); } };
+const closeF = async (pg = p) => { if (await pg.$('.dkf-sheet')) { await pg.click('.dkf-sheet .sheet-foot [data-close]'); await pg.waitForFunction(() => !document.querySelector('.dkf-sheet')); } };
+const filt = async (sel, pg = p) => { await openF(pg); await pg.click('.dkf-sheet ' + sel); };
+const sortBy = (v, pg = p) => pg.selectOption('select[data-act="dsort"]', v);
 
 /* ── collection : Edgar Markov, Sol Ring ×2, Arcane Signet, Llanowar Elves, Craterhoof ──────── */
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
@@ -60,19 +65,26 @@ assert.deepEqual(d.map(x => x.tier), ['A', 'S', 'S', 'S'], 'tier d\'après le ra
 assert.deepEqual(d.map(x => x.rank), ['#33', '#1', '#1', '#2'], 'rang à côté du nom'); assert.deepEqual(d.map(x => x.pips), [1, 3, 3, 4], 'symboles de mana de l\'identité');
 assert.equal(await p.$eval('.crow.dk .dk-pips .mc-g', e => getComputedStyle(e).backgroundImage.startsWith('url("data:image/svg+xml')), true, 'symbole dessiné (SVG), lettre gardée dans le texte'); assert.equal(await p.$eval('.crow.dk .dk-pips .mc-g', e => e.textContent), 'G');
 assert.deepEqual(d.map(x => x.tags.find(t => /Game Changer/.test(t))), [undefined, '4 Game Changers', '1 Game Changer', undefined], 'Game Changers : affichés seulement s\'il y en a');
-assert.deepEqual(await p.$$eval('.dk-ctl [data-act="dsort"]', b => b.map(x => x.textContent + ':' + x.getAttribute('aria-pressed'))), ['Plus possédées:true', 'Moins cher:false', 'Meilleur tier:false'], 'tri par défaut : le plus de cartes possédées');
-assert.match(await txt(p, '.dk-sum'), /4 decks sur 4/); assert.match(await txt(p, '.coll-main > p.hint'), /deck moyen EDHREC.*Prix : tendance Cardmarket au 03\/10\/2026/);
+assert.equal(await p.$eval('.dk-ctl select[data-act="dsort"]', s => s.value), 'have', 'tri par défaut : le plus de cartes possédées');
+assert.deepEqual(await p.$$eval('.dk-ctl select[data-act="dsort"] option', o => o.map(x => x.textContent)), ['Plus possédées', 'Plus possédées, puis moins cher', 'Plus possédées, puis meilleur tier', 'Moins cher', 'Moins cher, puis plus possédées', 'Moins cher, puis meilleur tier', 'Meilleur tier', 'Meilleur tier, puis plus possédées', 'Meilleur tier, puis moins cher'], '« Classer » : une liste, tri puis 2nd tri');
+assert.equal(await txt(p, '[data-act="dfilt"]'), 'Filtres', 'aucun filtre actif'); assert.equal(await p.$('.dk-pills'), null);
+assert.match(await txt(p, '.dk-sum'), /4 decks sur 4/); assert.equal(await txt(p, '.coll-main > p.hint'), 'Decks des commandants les plus joués, comparés à ta collection. Prix Cardmarket du 03/10/2026.', 'intro raccourcie');
+assert.deepEqual(await p.$$eval('.dk-help .dk-hl li b', b => b.map(x => x.textContent)), ['Moyen', 'Archidekt', 'Tier', 'Game Changers et bracket', 'Classer par… puis…', 'Terrains de base'], 'aide : une information par ligne (types présents seulement)');
+assert.deepEqual(await p.$$eval('.dk-help .dk-src a', a => a.map(x => x.textContent)), ['EDHREC', 'Archidekt', 'EDHTop16'], 'sources');
 await p.screenshot({ path: 'shots/edh-2-decks.png' });
 // type de deck (filtre) et tri combiné « Meilleur tier, puis moins cher »
-assert.deepEqual(await p.$$eval('.dk-ctl [data-act="dkind"]', b => b.map(x => x.textContent)), ['Moyen', 'Archidekt'], 'types présents seulement');
-await p.click('.dk-ctl [data-act="dkind"][data-k="arch"]'); d = await dks(); assert.deepEqual(d.map(x => x.name), ['Edgar Markov'], 'filtre Archidekt'); assert.match(await txt(p, '.dk-sum'), /1 deck sur 4 · Archidekt/);
-await p.click('.dk-ctl [data-act="dkind"][data-k="arch"]'); assert.equal((await dks()).length, 4);
-await p.click('.dk-ctl [data-act="dsort"][data-v="pop"]'); assert.deepEqual(await p.$$eval('.dk-then [data-act="dthen"]', b => b.map(x => x.dataset.v)), ['have', 'cost'], '« Puis » : les deux autres tris');
-await p.click('.dk-then [data-act="dthen"][data-v="cost"]'); d = await dks();
+await openF(); assert.deepEqual(await p.$$eval('.dkf-sheet [data-act="dkind"]', b => b.map(x => x.textContent)), ['Moyen', 'Archidekt'], 'types présents seulement');
+assert.match(await txt(p, '.dkf-sheet .sheet-head p'), /^4 decks$/); assert.equal(await txt(p, '.dkf-sheet .sheet-foot [data-close]'), 'Voir 4 decks');
+await filt('[data-act="dkind"][data-k="arch"]'); d = await dks(); assert.deepEqual(d.map(x => x.name), ['Edgar Markov'], 'filtre Archidekt, la liste suit derrière la feuille'); assert.match(await txt(p, '.dk-sum'), /1 deck sur 4 · Archidekt/);
+assert.match(await txt(p, '.dkf-sheet .sheet-head p'), /^1 actif · 1 deck$/); assert.equal(await txt(p, '.dkf-sheet .sheet-foot [data-close]'), 'Voir 1 deck');
+await closeF(); assert.equal(await txt(p, '[data-act="dfilt"]'), 'Filtres (1)'); assert.deepEqual(await p.$$eval('.dk-pills .dk-pill', b => b.map(x => x.textContent)), ['Archidekt'], 'pastille du filtre actif');
+await p.click('.dk-pill[data-g="kinds"]'); assert.equal((await dks()).length, 4, '× de la pastille : filtre retiré'); assert.equal(await p.$('.dk-pills'), null);
+await sortBy('pop'); await openF(); assert.deepEqual(await p.$$eval('.dkf-sheet .dk-then [data-act="dthen"]', b => b.map(x => x.dataset.v)), ['have', 'cost'], '« Puis » : les deux autres tris'); assert.match(await txt(p, '.dkf-sheet .dkf'), /Puis par \(après « Meilleur tier »\)/);
+await filt('.dk-then [data-act="dthen"][data-v="cost"]'); d = await dks(); assert.equal(await p.$eval('select[data-act="dsort"]', s => s.value), 'pop>cost', '« Classer » suit : Meilleur tier, puis moins cher');
 const eur = x => Number((/≈ ([\d\s ,]+) €/.exec(x.px) || [, '0'])[1].replace(/\s| /g, '').replace(',', '.'));
 assert.deepEqual(d.map(x => x.tier), ['S', 'S', 'S', 'A'], 'tiers S d\'abord'); assert.ok(eur(d[0]) <= eur(d[1]) && eur(d[1]) <= eur(d[2]), 'dans le tier S : du moins cher au plus cher : ' + d.map(x => x.px).join(' | '));
-await p.click('.dk-then [data-act="dthen"][data-v="cost"]'); assert.equal(await p.$$eval('.dk-then [aria-pressed="true"]', b => b.length), 0, '« Puis » se décoche');
-await p.click('.dk-ctl [data-act="dsort"][data-v="have"]');
+await filt('.dk-then [data-act="dthen"][data-v="cost"]'); assert.equal(await p.$$eval('.dkf-sheet .dk-then [aria-pressed="true"]', b => b.length), 0, '« Puis » se décoche');
+await closeF(); await sortBy('have');
 ok('filtre par type de deck (Moyen / Archidekt…) ; « Meilleur tier, puis moins cher » : paliers de tier, prix croissant dedans');
 ok('onglet Decks : classement selon la collection (22 · 23 · 24 · 27 cartes à acheter), deck Archidekt libellé, commandant possédé signalé');
 
@@ -98,21 +110,22 @@ await p.waitForFunction(() => !document.querySelector('.crow.dk .dk-eng'), null,
 assert.equal(await p.$$eval('.crow.dk .dk-bar i.eng', n => n.length), 0, 'deck démonté : plus d\'orange');
 ok('decks EDHREC : « dont N engagées » (cartes possédées réservées par un deck monté), barre bleue + orange, feuille annotée, disparaît au démontage');
 
-await p.click('.dk-ctl [data-act="dsort"][data-v="pop"]'); assert.deepEqual((await dks()).map(x => x.name.split(' ')[0]), ['Edgar', 'Edgar', 'Tymna', 'Craterhoof'], 'populaires');
-await p.click('.dk-ctl [data-act="dsort"][data-v="cost"]'); d = await dks(); assert.equal(d.length, 4);
-await p.click('.dk-ctl [data-act="dcol"][data-c="G"]'); assert.deepEqual((await dks()).map(x => x.name), ['Craterhoof Behemoth'], 'couleurs permises : G → mono-vert seulement');
-await p.click('.dk-ctl [data-act="dcol"][data-c="G"]'); await p.click('.dk-ctl [data-act="dmine"]');
+await sortBy('pop'); assert.deepEqual((await dks()).map(x => x.name.split(' ')[0]), ['Edgar', 'Edgar', 'Tymna', 'Craterhoof'], 'populaires');
+await sortBy('cost'); d = await dks(); assert.equal(d.length, 4);
+await filt('[data-act="dcol"][data-c="G"]'); assert.deepEqual((await dks()).map(x => x.name), ['Craterhoof Behemoth'], 'couleurs permises : G → mono-vert seulement');
+await filt('[data-act="dcol"][data-c="G"]'); await filt('[data-act="dmine"]'); assert.equal(await p.getAttribute('.dkf-sheet [data-act="dmine"]', 'aria-checked'), 'true');
 assert.deepEqual((await dks()).map(x => x.name.split(' ')[0]), ['Craterhoof', 'Edgar', 'Edgar'], 'je possède le commandant : Tymna / Thrasios (non possédés) masqués');
-await p.click('.dk-ctl [data-act="dmine"]');
-await p.selectOption('.dk-ctl select[data-act="dbudget"]', '3000'); assert.deepEqual((await dks()).map(x => x.name.split(' ')[0]).sort(), ['Craterhoof', 'Edgar', 'Edgar'], 'budget ≤ 30 € : Tymna (≈ 125 €) écartée');
-await p.selectOption('.dk-ctl select[data-act="dbudget"]', '0'); assert.equal((await dks()).length, 4);
+await filt('[data-act="dmine"]');
+await filt('[data-act="dbudget"][data-v="3000"]'); assert.deepEqual((await dks()).map(x => x.name.split(' ')[0]).sort(), ['Craterhoof', 'Edgar', 'Edgar'], 'budget ≤ 30 € : Tymna (≈ 125 €) écartée');
+await filt('[data-act="dmine"]'); await closeF(); assert.equal(await txt(p, '[data-act="dfilt"]'), 'Filtres (2)'); assert.deepEqual(await p.$$eval('.dk-pills .dk-pill', b => b.map(x => x.textContent)), ['≤ 30 €', 'J\'ai le commandant']);
+await p.click('.dk-pills [data-act="dclear"]'); assert.equal((await dks()).length, 4, '« Tout effacer »'); assert.equal(await p.$('.dk-pills'), null);
 ok('tris (moins cher, populaires), couleurs permises, « j\'ai le commandant », budget');
-const tierBtn = t => p.click(`.dk-ctl [data-act="dtier"][data-t="${t}"]`);
+const tierBtn = t => filt(`[data-act="dtier"][data-t="${t}"]`);
 await tierBtn('A'); assert.deepEqual((await dks()).map(x => x.name), ['Craterhoof Behemoth'], 'tier A : Craterhoof seul'); assert.equal(await p.$eval('[data-act="dtier"][data-t="A"]', b => b.getAttribute('aria-pressed')), 'true'); assert.match(await txt(p, '.dk-sum'), /^1 deck sur 4 · tier A/);
 await tierBtn('A'); await tierBtn('S'); assert.deepEqual((await dks()).map(x => x.name.split(' ')[0]), ['Edgar', 'Edgar', 'Tymna'], 'tier S : Edgar (×2) et Tymna');
 await tierBtn('A'); assert.equal((await dks()).length, 4, 'S + A : tous'); assert.match(await txt(p, '.dk-sum'), /tier S A/); await tierBtn('S'); await tierBtn('A');
-assert.deepEqual(await p.$$eval('.dk-ctl [data-act="dtier"]', b => b.map(x => x.textContent)), ['S', 'A'], 'seuls les tiers qui ont des decks ont un bouton (ni B, C ni D ici)');
-await tierBtn('A'); await tierBtn('A'); assert.equal((await dks()).length, 4, 'plus aucun tier choisi = tous');
+assert.deepEqual(await p.$$eval('.dkf-sheet [data-act="dtier"]', b => b.map(x => x.textContent)), ['S', 'A'], 'seuls les tiers qui ont des decks ont un bouton (ni B, C ni D ici)');
+await tierBtn('A'); await tierBtn('A'); assert.equal((await dks()).length, 4, 'plus aucun tier choisi = tous'); await closeF();
 ok('filtre par tier : A → Craterhoof ; S → Edgar ×2 + Tymna ; S+A → tous ; boutons limités aux tiers présents ; badge S/A sur chaque deck, rang n° 1 / 2 / 33, bracket 2 · 4 · 3 · 2');
 
 /* ── 3b) recherche dans les decks : par commandant (mots, accents, paire), puis par carte ─────── */
@@ -122,29 +135,29 @@ await p.click('#dkQ'); await typeQ('edgar');
 assert.deepEqual((await dks()).map(x => x.name), ['Edgar Markov', 'Edgar Markov'], 'les deux decks d\'Edgar'); assert.match(await txt(p, '.dk-sum'), /2 decks sur 4 · commandant « edgar »/); assert.equal(await focused(), 'dkQ', 'le champ garde le focus pendant la frappe');
 await typeQ('EDGÁR  markov'); assert.equal((await dks()).length, 2, 'accents, casse, espaces');
 await typeQ('tymna'); assert.deepEqual((await dks()).map(x => x.name), ['Tymna the Weaver + Thrasios, Triton Hero']); await typeQ('thrasios triton'); assert.equal((await dks()).length, 1, 'l\'autre membre de la paire');
-await typeQ('craterhoof'); assert.equal((await dks()).length, 1); await p.click('.dk-ctl [data-act="dsort"][data-v="cost"]'); assert.equal(await p.inputValue('#dkQ'), 'craterhoof', 'la recherche survit aux autres réglages'); assert.equal((await dks()).length, 1);
-await p.click('.dk-ctl [data-act="dsort"][data-v="have"]');
+await typeQ('craterhoof'); assert.equal((await dks()).length, 1); await sortBy('cost'); assert.equal(await p.inputValue('#dkQ'), 'craterhoof', 'la recherche survit aux autres réglages'); assert.equal((await dks()).length, 1);
+await sortBy('have');
 await typeQ('filler cmd 7'); assert.equal((await dks()).length, 0); assert.match(await txt(p, '.dk-note'), /^Sans deck dans le fichier .* : Filler Cmd 7 \(n° 10\)\.$/, 'commandant connu mais sans deck : on le dit, avec son rang');
 await typeQ('zzz'); assert.match(await txt(p, '.dk-res .listempty'), /^Aucun commandant ne correspond à « zzz »\.$/);
 await p.click('[data-act="dqx"]'); assert.equal(await p.inputValue('#dkQ'), ''); assert.equal((await dks()).length, 4, 'croix : tous les decks'); assert.equal(await focused(), 'dkQ');
 ok('recherche par commandant : « edgar » → 2 decks, accents/casse, paire Tymna + Thrasios par l\'un ou l\'autre, sans deck → message avec le rang, inconnu → message, croix, focus gardé, réglages conservés');
-await p.click('[data-act="dqm"][data-v="card"]'); assert.equal(await p.getAttribute('#dkQ', 'placeholder'), 'Rechercher une carte dans les decks');
+await p.selectOption('select[data-act="dqm"]', 'card'); assert.equal(await p.getAttribute('#dkQ', 'aria-label'), 'Rechercher une carte dans les decks');
 await typeQ('swords'); d = await dks(); assert.deepEqual(d.map(x => x.name), ['Edgar Markov'], 'seul le deck moyen d\'Edgar contient Swords'); assert.equal(await txt(p, '.crow.dk .dk-hitl'), 'Contient : Swords to Plowshares'); assert.match(await txt(p, '.dk-note'), /^Cartes trouvées : Swords to Plowshares \(1\)\.$/); assert.match(await txt(p, '.dk-sum'), /1 deck sur 4 · contenant « swords »/);
 await typeQ('sol ring'); assert.equal((await dks()).length, 4, 'Sol Ring est dans les quatre decks'); assert.match(await txt(p, '.dk-note'), /Sol Ring \(4\)/);
 await typeQ('s'); assert.equal((await dks()).length, 4, 'une lettre : pas de filtre'); assert.match(await txt(p, '.dk-note'), /au moins 2 lettres/);
 await typeQ('plains'); assert.equal((await dks()).length, 0, 'terrains de base exclus'); assert.match(await txt(p, '.dk-res .listempty'), /^Aucun deck ne contient « plains » avec ces réglages\.$/);
 await typeQ('edgar markov'); assert.equal((await dks()).length, 2, 'le commandant compte comme carte du deck');
-await typeQ('arcane'); await tierBtn('A'); assert.equal((await dks()).length, 0, 'combiné au tier A : Craterhoof n\'a pas Arcane Signet'); assert.equal(await p.inputValue('#dkQ'), 'arcane'); await tierBtn('A'); assert.equal((await dks()).length, 2, 'les deux decks d\'Edgar contiennent Arcane Signet');
+await typeQ('arcane'); await tierBtn('A'); assert.equal((await dks()).length, 0, 'combiné au tier A : Craterhoof n\'a pas Arcane Signet'); assert.equal(await p.inputValue('#dkQ'), 'arcane'); await tierBtn('A'); assert.equal((await dks()).length, 2, 'les deux decks d\'Edgar contiennent Arcane Signet'); await closeF();
 await typeQ('swords'); await p.click('.crow.dk >> nth=0'); await p.waitForSelector('.sheet .ci-sum');
 assert.deepEqual(await p.$$eval('.sheet-body > h3.cs-h', h => h.map(x => x.textContent.replace(/\s+/g, ' ').trim())), ['Commandant', 'Carte cherchée', 'Autres cartes à acheter 22 cartes'], 'commandant, puis la carte cherchée, puis le reste');
 assert.deepEqual(await p.$$eval('.dk-hit .crow', r => r.map(x => [x.querySelector('.row-name').textContent, x.querySelector('.row-price b').textContent.replace(/\s+/g, ' ').trim()])), [['Swords to Plowshares', '1,90 €']]); assert.ok(!(await p.$$eval('.dk-miss .row-name', n => n.map(x => x.textContent))).includes('Swords to Plowshares'), 'pas en double dans « À acheter »');
 await p.click('.sheet [data-close].icon-btn'); await p.waitForFunction(() => !document.querySelector('.sheet .ci-sum'));
-await p.click('[data-act="dqx"]'); await p.click('[data-act="dqm"][data-v="cmd"]'); assert.equal((await dks()).length, 4); assert.equal(await p.getAttribute('#dkQ', 'placeholder'), 'Rechercher un commandant');
+await p.click('[data-act="dqx"]'); await p.selectOption('select[data-act="dqm"]', 'cmd'); assert.equal((await dks()).length, 4); assert.equal(await p.getAttribute('#dkQ', 'aria-label'), 'Rechercher un commandant');
 await p.screenshot({ path: 'shots/edh-2b-recherche.png' });
 ok('recherche par carte : « swords » → 1 deck (étiquette « Contient »), « sol ring » → 4, 1 lettre ignorée, terrains exclus, combinée au tier ; feuille : « Carte cherchée » sous le commandant, sans doublon');
 
 /* ── 4) feuille d'un deck puis chargement dans la page de saisie ─────────────────────────────── */
-await p.click('.dk-ctl [data-act="dsort"][data-v="have"]');
+await sortBy('have');
 await p.click('.crow.dk >> nth=1'); await p.waitForSelector('.sheet .ci-sum');
 assert.match(await txt(p, '.sheet-head'), /Edgar Markov/); assert.match(await txt(p, '.sheet .ci-sum'), /23 cartes à acheter · ≈ 15,60 €/);
 assert.equal(await p.$eval('.sheet-body > *:nth-child(1)', e => e.className), 'ci-sum'); assert.equal(await p.$eval('.sheet-body > *:nth-child(2)', e => e.className), 'tr-acts dk-acts', 'Voir le deck · Partager sous le résumé'); assert.equal(await p.$eval('.sheet-body > *:nth-child(3)', e => e.className), 'dk-acts2', 'puis les actions (enregistrer, Je recherche…)'); assert.equal(await p.$eval('.sheet-body > *:nth-child(4)', e => e.tagName + ' ' + e.textContent.trim()), 'H3 Commandant', 'le commandant est la 1re section');
@@ -290,18 +303,19 @@ for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip'
   await c.p.route('**/edh.bin.gz', r => r.fulfill({ status: 200, contentType: 'application/octet-stream', headers: { 'content-encoding': 'gzip' }, body }));
   await c.p.route('**/edh.tsv', r => r.fulfill({ status: 404, body: '{}' }));
   await openDecks(c.p);
-  const chips = () => c.p.$$eval('.dk-themes .fopt[data-act="dth"]', b => b.map(x => x.textContent.trim() + (x.getAttribute('aria-pressed') === 'true' ? '*' : '')));
+  const chips = async () => { await openF(c.p); return c.p.$$eval('.dkf-sheet .dk-themes .fopt[data-act="dth"]', b => b.map(x => x.textContent.trim() + (x.getAttribute('aria-pressed') === 'true' ? '*' : ''))); };
+  const thAll = async () => { await openF(c.p); await c.p.click('.dkf-sheet [data-act="dthall"]'); await c.p.waitForFunction(() => !document.querySelector('.dkf-sheet')); await c.p.waitForSelector('.sheet .th-list'); };      // « Tous » : la feuille « Filtres » laisse la place à la liste complète
   const sum = () => txt(c.p, '.dk-sum');
   assert.deepEqual(await chips(), ['Contrôle', 'Aristocrats', 'Gain de vie', 'Sacrifice', 'Jetons'], '5 puces : les thèmes les plus présents (nombre de decks), noms français ; Archidekt compte avec son commandant');
-  assert.equal(await txt(c.p, '.dk-themes [data-act="dthall"]'), 'Tous (9)');
+  assert.equal(await txt(c.p, '.dkf-sheet .dk-themes [data-act="dthall"]'), 'Tous (9)');
   const rowsTh = await c.p.$$eval('.crow.dk', r => r.map(x => x.querySelector('.row-name').firstChild.textContent.trim() + ' | ' + (x.querySelector('.dk-th') ? x.querySelector('.dk-th').textContent : '-')));
   assert.deepEqual(rowsTh.sort(), ['Craterhoof Behemoth | -', 'Edgar Markov | Aristocrats · Gain de vie · Contrôle', 'Edgar Markov | Aristocrats · Gain de vie · Contrôle', 'Tymna the Weaver + Thrasios, Triton Hero | Contrôle · Combo · Ramp'], '3 thèmes au plus par deck ; commandant sans thème : rien ; les decks Archidekt portent ceux de leur commandant');
   // puce : un thème
-  await c.p.click('.dk-themes [data-s="control"]'); await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 3);
+  await filt('.dk-themes [data-s="control"]', c.p); await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 3);
   assert.deepEqual((await chips()).filter(x => x.endsWith('*')), ['Contrôle*']); assert.match(await sum(), /3 decks sur 4.*thème : Contrôle/);
   assert.equal(await c.p.$$eval('.crow.dk .dk-th b', b => b.length), 3, 'le thème filtré est en évidence dans chaque ligne');
   // deux thèmes (le 2e choisi dans la liste complète, puis affiché en puce) : ET
-  await c.p.click('.dk-themes [data-act="dthall"]'); await c.p.waitForSelector('.sheet .th-list');
+  await thAll();
   assert.equal(await c.p.$$eval('.sheet .th-main', b => b.length), 9); assert.equal(await c.p.$$eval('.sheet .th-main[aria-pressed="true"]', b => b.length), 1);
   assert.match(await txt(c.p, '.sheet .th-main'), /^Contrôle\s*3$/, 'nombre de decks restants avec ce thème');
   // « i » : description dépliable, sans toucher au filtre ; gardée ouverte quand la liste est repeinte
@@ -315,7 +329,7 @@ for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip'
   await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 1);
   assert.match(await sum(), /1 deck sur 4.*thèmes : Contrôle \+ Combo/); assert.match((await names(c.p))[0], /^Tymna/); assert.deepEqual((await chips()).filter(x => x.endsWith('*')), ['Contrôle*', 'Combo*'], 'un thème choisi dans la liste est affiché en puce');
   // liste complète : compteur, effacer, la liste derrière suit
-  await c.p.click('.dk-themes [data-act="dthall"]'); await c.p.waitForSelector('.sheet .th-list');
+  await thAll();
   assert.equal(await c.p.$$eval('.sheet .th-main[aria-pressed="true"]', b => b.length), 2);
   await c.p.click('.sheet .th-main[data-s="stax"]'); assert.equal((await txt(c.p, '.sheet-foot .btn:not(.ghost)')).trim(), '1 deck', 'Tymna a aussi Stax');
   assert.equal(await c.p.$eval('.sheet .th-main[data-s="sacrifice"]', x => x.disabled), true, 'Sacrifice : plus aucun deck avec ce thème parmi ceux qui restent → grisé, non cliquable'); assert.match(await txt(c.p, '.sheet .th-row.th-zero .th-main'), /0$/);
@@ -325,26 +339,27 @@ for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip'
   const rowsTxt = () => c.p.$$eval('.sheet .th-main', b => b.map(x => x.querySelector('span').textContent + ' ' + x.querySelector('small').textContent));
   assert.deepEqual(await rowsTxt(), ['Contrôle 3', 'Aristocrats 2', 'Gain de vie 2', 'Sacrifice 2', 'Jetons 2', 'Combo 1', 'Ramp 1', 'Spellslinger 1', 'Stax 1'], 'sans filtre : nombre de decks du fichier, du plus au moins présent');
   await c.p.click('.sheet-foot .btn:not(.ghost)'); await c.p.waitForFunction(() => !document.querySelector('.sheet'));
-  for (const k of 'WUBG') await c.p.click(`.dk-ctl [data-act="dcol"][data-c="${k}"]`);
+  for (const k of 'WUBG') await filt(`[data-act="dcol"][data-c="${k}"]`, c.p);
   await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 2);      // Tymna + Craterhoof (Edgar a du rouge)
   assert.deepEqual(await chips(), ['Contrôle', 'Combo', 'Ramp', 'Spellslinger', 'Stax'], 'les puces suivent les couleurs : seuls les thèmes des decks restants');
-  await c.p.click('.dk-themes [data-act="dthall"]'); await c.p.waitForSelector('.sheet .th-list');
+  await thAll();
   assert.deepEqual(await rowsTxt(), ['Contrôle 1', 'Combo 1', 'Ramp 1', 'Spellslinger 1', 'Stax 1', 'Aristocrats 0', 'Gain de vie 0', 'Sacrifice 0', 'Jetons 0'], 'mono-couleurs W U B G : comptés sur les decks restants, thèmes absents à 0 en bas');
   assert.equal(await c.p.$$eval('.sheet .th-row.th-zero .th-main:disabled', b => b.length), 4, 'les 4 thèmes à zéro sont grisés'); assert.equal(await c.p.$$eval('.sheet .th-zero .th-i', b => b.length), 4, 'leur « i » reste disponible');
   await c.p.click('.sheet .th-main[data-s="stax"]'); assert.equal((await txt(c.p, '.sheet-foot .btn:not(.ghost)')).trim(), '1 deck');
   assert.deepEqual((await rowsTxt()).slice(0, 5), ['Stax 1', 'Contrôle 1', 'Combo 1', 'Ramp 1', 'Spellslinger 1'], 'le thème choisi passe devant à égalité');
   await c.p.click('#thClr'); await c.p.click('.sheet-foot .btn:not(.ghost)'); await c.p.waitForFunction(() => !document.querySelector('.sheet'));
-  for (const k of 'WUBG') await c.p.click(`.dk-ctl [data-act="dcol"][data-c="${k}"]`);
+  for (const k of 'WUBG') await filt(`[data-act="dcol"][data-c="${k}"]`, c.p);
   await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 4);
-  await c.p.fill('#dkQ', 'tymna'); await c.p.waitForTimeout(260);      // pendant la frappe, la barre de thèmes est mise à jour sur place
-  assert.deepEqual(await chips(), ['Contrôle', 'Combo', 'Ramp', 'Spellslinger', 'Stax'], 'les puces suivent la recherche'); assert.equal(await c.p.evaluate(() => document.activeElement && document.activeElement.id), 'dkQ', 'le champ garde le focus');
-  await c.p.click('[data-act="dqx"]'); await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 4); assert.deepEqual(await chips(), ['Contrôle', 'Aristocrats', 'Gain de vie', 'Sacrifice', 'Jetons']);
-  await c.p.click('.dk-themes [data-act="dthall"]'); await c.p.waitForSelector('.sheet .th-list');
+  await closeF(c.p); await c.p.fill('#dkQ', 'tymna'); await c.p.waitForTimeout(260);
+  assert.equal(await c.p.evaluate(() => document.activeElement && document.activeElement.id), 'dkQ', 'le champ garde le focus'); assert.deepEqual(await chips(), ['Contrôle', 'Combo', 'Ramp', 'Spellslinger', 'Stax'], 'les puces suivent la recherche');
+  await closeF(c.p); await c.p.click('[data-act="dqx"]'); await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 4); assert.deepEqual(await chips(), ['Contrôle', 'Aristocrats', 'Gain de vie', 'Sacrifice', 'Jetons']);
+  await thAll();
   await c.p.click('.sheet .th-main[data-s="tokens"]'); assert.equal((await txt(c.p, '.sheet-foot .btn:not(.ghost)')).trim(), '2 decks');
   assert.deepEqual(await rowsTxt(), ['Jetons 2', 'Contrôle 2', 'Aristocrats 2', 'Gain de vie 2', 'Sacrifice 2', 'Combo 0', 'Ramp 0', 'Spellslinger 0', 'Stax 0'], 'thème choisi : les autres comptés parmi ses decks ; la liste repart du haut');
   await c.p.click('.sheet-foot .btn:not(.ghost)'); await c.p.waitForFunction(() => !document.querySelector('.sheet'));
   assert.equal(await c.p.$$eval('.crow.dk', r => r.length), 2); assert.match(await sum(), /2 decks sur 4.*thème : Jetons/); assert.ok((await chips()).includes('Jetons*'));
   // feuille d'un deck : tous les thèmes du commandant, avec leur nombre de decks EDHREC
+  await closeF(c.p); assert.deepEqual(await c.p.$$eval('.dk-pills .dk-pill', b => b.map(x => x.textContent)), ['Jetons'], 'thème choisi : en pastille sous la barre');
   await c.p.click('.crow.dk >> nth=0'); await c.p.waitForSelector('.sheet .ci-sum');
   assert.equal((await txt(c.p, '.sheet .ci-sum .ci-thd summary')).replace(/\s+/g, ' ').trim(), 'Thèmes EDHREC : Aristocrats (500) · Gain de vie (300) · Contrôle (100) · Jetons (90) · Sacrifice (80)');
   assert.equal(await c.p.$eval('.sheet .ci-thd', d => d.open), false, 'replié au départ'); await c.p.click('.sheet .ci-thd summary');
@@ -352,13 +367,13 @@ for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip'
   assert.equal(await c.p.$$eval('.sheet .ci-thl dd .th-ex', x => x.length), 5, 'cartes exemples sur leur propre ligne'); assert.match(await txt(c.p, '.sheet .ci-thl dd'), /Variante du sacrifice/, 'Aristocrats en premier (le plus fréquent)');
   await c.p.click('.sheet .icon-btn[data-close]'); await c.p.waitForFunction(() => !document.querySelector('.sheet'));
   // un thème décoché : tout revient ; thème retiré de la sélection si le fichier chargé ne le connaît pas
-  await c.p.click('.dk-themes [data-s="tokens"]'); await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 4); assert.ok(!/thème/.test(await sum()));
+  await filt('.dk-themes [data-s="tokens"]', c.p); await c.p.waitForFunction(() => document.querySelectorAll('.crow.dk').length === 4); assert.ok(!/thème/.test(await sum())); await closeF(c.p);
   ok('thèmes EDHREC : puces (noms FR, 5 + « Tous (9) »), 3 thèmes par deck, filtre ET, feuille avec « i » (descriptions), compteur / effacer, thèmes décrits dans la feuille du deck, Archidekt hérite du commandant');
   await c.ctx.close();
   // fichier sans thèmes : aucune puce, aucune ligne de thèmes
   body = PLAIN; const d = await newPage(browser, world);
   await d.p.route('**/edh.bin.gz', r => r.fulfill({ status: 200, contentType: 'application/octet-stream', headers: { 'content-encoding': 'gzip' }, body })); await d.p.route('**/edh.tsv', r => r.fulfill({ status: 404, body: '{}' }));
-  await openDecks(d.p); assert.equal(await d.p.$$eval('.dk-themes', x => x.length), 0); assert.equal(await d.p.$$eval('.dk-th', x => x.length), 0); assert.equal((await names(d.p)).length, 4);
+  await openDecks(d.p); await openF(d.p); assert.equal(await d.p.$$eval('.dk-themes', x => x.length), 0); assert.doesNotMatch(await txt(d.p, '.dkf-sheet .dkf'), /Thèmes/); await closeF(d.p); assert.equal(await d.p.$$eval('.dk-th', x => x.length), 0); assert.equal((await names(d.p)).length, 4);
   await d.p.click('.crow.dk >> nth=0'); await d.p.waitForSelector('.sheet .ci-sum'); assert.equal(await d.p.$$eval('.sheet .ci-thd', x => x.length), 0);
   ok('fichier sans thèmes : ni puces ni lignes de thèmes, decks inchangés'); await d.ctx.close();
 }

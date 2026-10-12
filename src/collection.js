@@ -954,8 +954,7 @@ function openCollection(tab) {
   wrap.addEventListener('input', edhInput);
   wrap.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'dkQ') e.target.blur(); });
   wrap.addEventListener('change', e => {
-    const bud = e.target.closest && e.target.closest('select[data-act="dbudget"]');
-    if (bud) { EDH.budget = Number(bud.value) || 0; EDH.shown = 30; haptic('tap'); collPaintBody(true); return; }
+    if (edhChange(e)) return;      // « Classer », « Chercher par » (onglet Decks)
     const nls = e.target.closest && e.target.closest('select[data-act="nolangsel"]');
     if (nls) { const l = nls.value; nls.value = ''; nls.blur(); collBulkLang(l); return; }
     const sel = e.target.closest && e.target.closest('.lchip select'); if (!sel) return;

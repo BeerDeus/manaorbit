@@ -1,0 +1,30 @@
+/* ── dkfilt.css : onglet Decks (edh.js) : aide une info par ligne, « Classer » + « Filtres (N) », pastilles des filtres actifs, feuille « Filtres » ── */
+.dk-hl{list-style:none;margin:2px 0 6px;padding:0;display:flex;flex-direction:column;gap:7px}
+.dk-hl li{display:flex;flex-direction:column;gap:1px;font-size:13px;line-height:1.4;color:var(--ink-2)}
+.dk-hl b{color:var(--ink);font-weight:700}
+.dk-src{margin:0 2px 8px}
+.dk-src a{color:var(--accent);font-weight:600}
+.dk-search .fbar-row{display:flex;gap:8px;align-items:center}
+.dk-search .fsearch{flex:1;min-width:0}
+.dk-qm{flex:none}
+.dk-bar2{display:flex;align-items:center;gap:8px}
+.dk-sort{flex:1;min-width:0;display:flex;align-items:center;gap:6px}
+.dk-sort select{min-width:0;flex:1;text-overflow:ellipsis}
+.dk-fbtn{flex:none;gap:6px}
+.dk-fbtn.on{border-color:var(--accent);color:var(--accent)}
+.dk-pills{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.dk-pill{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 8px 0 12px;border-radius:99px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);font:inherit;font-size:12.5px;font-weight:650;max-width:100%}
+.dk-pill span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dk-pill .i{width:14px;height:14px;flex:none;color:var(--ink-2)}
+.dk-clr{font-size:12.5px}
+/* feuille « Filtres » */
+.dkf{display:flex;flex-direction:column;gap:8px;padding-bottom:4px}
+.dkf-h{margin:8px 0 0;font-size:13.5px;font-weight:700;color:var(--ink-2)}
+.dkf-h small{font-weight:500;color:var(--ink-3)}
+.dkf .fopts{flex-wrap:wrap}
+.dkf-sw{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:10px 0;border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:14.5px;font-weight:650;text-align:left}
+.dkf-sw small{margin-left:4px;font-weight:600;color:var(--ink-3)}
+.dkf-sw .switch{pointer-events:none}
+.dkf-sw[aria-checked="true"] .switch i{background:var(--accent);border-color:var(--accent)}
+.dkf-sw[aria-checked="true"] .switch i::after{transform:translateX(18px)}
+.dk-pills{margin-bottom:2px}
