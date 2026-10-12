@@ -117,7 +117,7 @@ const trName = await txt(p, '.tr-list .tr-row:first-child .row-name');
 v = await tap('.tr-list .tr-row:first-child .thumb'); assert.equal(v.name, trName);
 await closeV(); await keyboard('.tr-list .tr-row:first-child .thumb', trName);
 ok('liste d\'échange : vignette → carte en grand, au clavier aussi');
-await p.click('#collSeg [data-v="list"]'); await p.waitForTimeout(200); await p.evaluate(() => closeCollection()); await p.waitForTimeout(300);
+await p.click('#nav [data-nav="coll"]'); await p.waitForTimeout(400); await p.evaluate(() => closeCollection()); await p.waitForTimeout(300);
 
 /* ── 6) Page publique d'une liste d'échange (aperçu) : la ligne entière, au doigt et au clavier ─────────── */
 await p.evaluate(() => { const pl = trPayload(); openPublicTrade(readShare('trade', { ...pl, ...profShare(), at: Date.now() }), true); });

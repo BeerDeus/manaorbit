@@ -1,4 +1,5 @@
-// E2E pub (appli Android simulée : faux window.Capacitor + faux plugin AdMob) : bandeau en haut après le démarrage, page décalée de sa hauteur
+// E2E pub (appli Android simulée : faux window.Capacitor + faux plugin AdMob) : bandeau SOUS L'EN-TÊTE après le démarrage (marge = bas de l'en-tête + écart),
+// contenu décalé de sa hauteur
 // (événement bannerAdSizeChanged), masqué pendant le scan natif, l'accueil et la carte en grand puis rétabli, seulement sur les écrans de consultation
 // (accueil, collection, decks ; ni saisie, ni résultats, ni éditeur de deck), jamais pour un compte autorisé
 // (détruit quand checkServer le confirme), attente de la vérification du compte, consentement refusé, et rien du tout sur le web.
@@ -33,9 +34,10 @@ function fakeNative(o) {
   window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n in Plugins, Plugins };
 }
 const n = (p, m) => p.evaluate(m => window.__ad.calls.filter(c => c === m).length, m);
-const pad = p => p.evaluate(() => ({ on: document.documentElement.classList.contains('ad-on'), top: getComputedStyle(document.documentElement).paddingTop, bar: getComputedStyle(document.querySelector('.bar')).top }));
-const shown = p => p.waitForFunction(h => document.documentElement.classList.contains('ad-on') && getComputedStyle(document.documentElement).paddingTop === (h + 16) + 'px', H, { timeout: 8000 });      // hauteur du bandeau + 16 px d'écart
-const gone = p => p.waitForFunction(() => !document.documentElement.classList.contains('ad-on') && getComputedStyle(document.documentElement).paddingTop === '0px', null, { timeout: 8000 });
+// en-tête en haut (sous la zone de la caméra : 0 ici) ; contenu (.wrap) décalé de la hauteur du bandeau + 8 px au-dessus + 12 px au-dessous
+const pad = p => p.evaluate(() => ({ on: document.documentElement.classList.contains('ad-on'), top: getComputedStyle(document.querySelector('#app .wrap')).paddingTop, bar: getComputedStyle(document.querySelector('.bar')).top }));
+const shown = p => p.waitForFunction(h => document.documentElement.classList.contains('ad-on') && getComputedStyle(document.querySelector('#app .wrap')).paddingTop === (20 + h + 20) + 'px', H, { timeout: 8000 });      // hauteur du bandeau + 16 px d'écart
+const gone = p => p.waitForFunction(() => !document.documentElement.classList.contains('ad-on') && getComputedStyle(document.querySelector('#app .wrap')).paddingTop === '20px', null, { timeout: 8000 });
 /** Page de l'appli « Android ». firebase : 'abort' (SDK injoignable, compte connu tout de suite) ou 'hang' (session qui tarde : pg.held, à relâcher). */
 async function natPage(o = {}) {
   const pg = await newPage(browser, world, { goto: false });
@@ -54,15 +56,15 @@ async function natPage(o = {}) {
   await p.waitForFunction(() => window.__ad.calls.includes('showBanner'), null, { timeout: 8000 });
   assert.deepEqual(await p.evaluate(() => window.__ad.calls.filter(c => c !== 'removeBanner')), ['requestConsentInfo', 'initialize', 'showBanner'], 'consentement, SDK initialisé, puis bandeau');
   assert.deepEqual(await p.evaluate(() => window.__ad.seen.initialize.args), { maxAdContentRating: 'ParentalGuidance' }, 'annonces « accord parental » au plus (PEGI 3-7 / E10+)');
-  assert.deepEqual(await p.evaluate(() => window.__ad.last), { adId: TEST_ID, isTesting: true, adSize: 'ADAPTIVE_BANNER', position: 'TOP_CENTER', margin: 0 }, 'bandeau de test en haut (pas d\'ADMOB_BANNER_ID)');
+  assert.deepEqual(await p.evaluate(() => window.__ad.last), { adId: TEST_ID, isTesting: true, adSize: 'ADAPTIVE_BANNER', position: 'TOP_CENTER', margin: 71 }, 'bandeau de test sous l\'en-tête (63 px + 8 px d\'écart ; pas d\'ADMOB_BANNER_ID)');
   assert.equal(await p.evaluate(() => window.__ad.calls[0]), 'removeBanner', 'bandeau d\'une page précédente retiré au démarrage');
   await shown(p);
-  assert.deepEqual(await pad(p), { on: true, top: (H + 16) + 'px', bar: (H + 16) + 'px' }, 'page et barre du haut décalées de la hauteur reçue + 16 px d\'écart (règle AdMob)');
-  assert.ok(await p.evaluate(h => document.querySelector('.bar').getBoundingClientRect().top >= h, H), 'barre du haut sous le bandeau');
-  ok('bandeau après le démarrage (consentement → initialisation → bandeau de test en haut), page décalée de sa hauteur');
+  assert.deepEqual(await pad(p), { on: true, top: (20 + H + 20) + 'px', bar: '0px' }, 'en-tête en haut, contenu décalé de la hauteur reçue + 8 et 12 px d\'écart (règle AdMob)');
+  assert.deepEqual(await p.evaluate(() => [document.querySelector('.bar').getBoundingClientRect().bottom, getComputedStyle(document.documentElement, '::after').top, getComputedStyle(document.documentElement, '::after').height]), [63, '63px', (H + 20) + 'px'], 'bande fixe sous l\'en-tête, à la place du bandeau');
+  ok('bandeau après le démarrage (consentement → initialisation → bandeau de test sous l\'en-tête), contenu décalé de sa hauteur');
 
   await p.evaluate(() => openCollection()); await p.waitForSelector('.coll.on');
-  assert.equal(await p.$eval('.coll .dv-head', e => getComputedStyle(e).paddingTop), (H + 16 + 10) + 'px', 'écran plein (collection) : en-tête sous le bandeau (+ écart)');
+  assert.deepEqual(await p.$eval('.coll .dv-head', e => [getComputedStyle(e).paddingTop, getComputedStyle(e).marginBottom, Math.round(e.getBoundingClientRect().height)]), ['10px', (H + 20) + 'px', 63], 'écran plein (collection) : en-tête en haut, même hauteur, la place du bandeau dessous');
   assert.equal(await n(p, 'hideBanner'), 0, 'collection : le bandeau reste');
   await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
   await p.waitForFunction(() => document.documentElement.classList.contains('nat-cam'), null, { timeout: 5000 });
@@ -126,7 +128,7 @@ async function natPage(o = {}) {
   for (const r of pg.held.splice(0)) r.abort().catch(() => {});      // la session revient (sans compte) : checkServer() conclut « non autorisé »
   await p.waitForFunction(() => window.__ad.calls.includes('showBanner'), null, { timeout: 12000 });
   assert.deepEqual(await p.evaluate(() => [window.__ad.seen.requestConsentInfo.serverOk, window.__ad.seen.showBanner.serverOk]), [false, false], 'consentement et bandeau seulement une fois le compte vérifié (non autorisé)');
-  assert.deepEqual(await p.evaluate(() => window.__ad.last), { adId: 'ca-app-pub-1234567890123456/9876543210', isTesting: false, adSize: 'ADAPTIVE_BANNER', position: 'TOP_CENTER', margin: 0 }, 'bloc réel du serveur, sans mode test');
+  assert.deepEqual(await p.evaluate(() => window.__ad.last), { adId: 'ca-app-pub-1234567890123456/9876543210', isTesting: false, adSize: 'ADAPTIVE_BANNER', position: 'TOP_CENTER', margin: 71 }, 'bloc réel du serveur, sans mode test');
   await shown(p);
   assert.deepEqual(errs, []); await p.context().close();
   ok('compte en cours de vérification : rien ; ensuite bandeau avec le bloc d\'annonces du serveur (ADMOB_BANNER_ID)');
@@ -137,7 +139,7 @@ async function natPage(o = {}) {
   await p.evaluate(() => { CTX.serverOk = true; AD.delay = 200; AD.idle = 0; adsRefresh(); });
   await p.waitForTimeout(1500);
   assert.deepEqual(await p.evaluate(() => window.__ad.calls), ['removeBanner'], 'ni consentement, ni initialisation, ni bandeau');
-  assert.deepEqual(await pad(p), { on: false, top: '0px', bar: '0px' });
+  assert.deepEqual(await pad(p), { on: false, top: '20px', bar: '0px' });
   await p.click('#btnSettings'); await p.waitForSelector('#privBox'); await p.waitForTimeout(200);
   assert.match(await p.textContent('#privBox .hint'), /Aucune publicité/); assert.equal(await p.$('#btnAdChoices'), null);
   assert.deepEqual(errs, []); await p.context().close();
@@ -159,11 +161,42 @@ async function natPage(o = {}) {
   const { p, errs } = await natPage({ native: false });
   await p.evaluate(() => { AD.delay = 100; adsRefresh(); }); await p.waitForTimeout(800);
   assert.deepEqual(await p.evaluate(() => [typeof adsRefresh, AD.on, AD.st, typeof window.Capacitor]), ['function', false, 'off', 'undefined']);
-  assert.deepEqual(await pad(p), { on: false, top: '0px', bar: '0px' });
+  assert.deepEqual(await pad(p), { on: false, top: '20px', bar: '0px' });
   await p.click('#btnSettings'); await p.waitForSelector('#privBox'); await p.waitForTimeout(200);
   assert.match(await p.textContent('#privBox .hint'), /Aucune publicité/);
   assert.deepEqual(errs, []); await p.context().close();
   ok('web : aucune pub, page intacte');
+}
+
+{ // 6) plein écran (appli) : barre d'état cachée (SystemBars de Capacitor), barre de gestes gardée ; découpe de la caméra au milieu (ManaOrbit.cutout,
+  //    APK 1.0.2) → en-tête sur la ligne de la caméra (html.cut-mid) ; découpe dans un coin, ou APK sans la méthode : en-tête sous la caméra
+  const run = async cut => {
+    const pg = await newPage(browser, world, { goto: false });
+    await pg.p.route('https://www.gstatic.com/**', r => r.abort());
+    await pg.p.addInitScript(cut => {
+      window.__sb = [];
+      const MO = { info: async () => ({}), setWidget: async () => ({}), setTradeWidget: async () => ({}), addListener: async () => ({ remove: async () => {} }) };
+      if (cut) MO.cutout = async () => cut;
+      const Plugins = { SystemBars: { hide: async a => { window.__sb.push(a); } }, ManaOrbit: MO };
+      window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n in Plugins, Plugins };
+    }, cut);
+    await pg.p.goto(world.url); await pg.p.waitForFunction(() => window.__sb.length, null, { timeout: 5000 }); await pg.p.waitForTimeout(300);
+    return pg;
+  };
+  const cls = pg => pg.p.evaluate(() => [...document.documentElement.classList].filter(c => c === 'fs' || c === 'cut-mid').sort().join());
+  let pg = await run({ w: 390, h: 844, rects: [{ l: 188, t: 0, r: 202, b: 30 }] });
+  assert.deepEqual(await pg.p.evaluate(() => window.__sb), [{ bar: 'StatusBar' }], 'barre d\'état cachée seulement (barre de gestes gardée)');
+  assert.equal(await cls(pg), 'cut-mid,fs', 'découpe au milieu : en-tête sur sa ligne');
+  assert.equal(await pg.p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--cut-h').trim()), '30px');
+  assert.equal(await pg.p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--top-in').trim()), '0px');
+  await pg.p.evaluate(() => openDecks()); await pg.p.waitForSelector('.dks.on');
+  assert.ok(await pg.p.$eval('.dks .dv-title', e => e.getBoundingClientRect().right <= 390 / 2 - 6), 'titre arrêté avant la caméra');
+  assert.deepEqual(pg.errs, []); await pg.ctx.close();
+  pg = await run({ w: 390, h: 844, rects: [{ l: 16, t: 0, r: 40, b: 30 }] });
+  assert.equal(await cls(pg), 'fs', 'découpe dans un coin : l\'en-tête reste sous la caméra'); assert.deepEqual(pg.errs, []); await pg.ctx.close();
+  pg = await run(null);
+  assert.equal(await cls(pg), 'fs', 'APK sans ManaOrbit.cutout : barre d\'état cachée, en-tête sous la caméra'); assert.deepEqual(pg.errs, []); await pg.ctx.close();
+  ok('plein écran : barre d\'état cachée ; découpe au milieu → en-tête sur la ligne de la caméra, titres arrêtés avant ; coin ou APK ancienne → sous la caméra');
 }
 
 await browser.close(); world.stop(); console.log('\nADS E2E OK'); process.exit(0);

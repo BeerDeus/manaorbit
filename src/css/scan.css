@@ -2,13 +2,13 @@
    Caméra compacte en haut (seul le nom est lu) : boutons posés dessus (retour, aide), bande du nom, carte reconnue juste dessous, « Ajouter | Prix » en bas de l'image.
    Puis l'en-tête de la liste (nombre de cartes, valeur, « Ajouter »), le bandeau de l'édition à choisir, la liste ; en bas : Photos · déclencheur foil · emplacement Auto.
    L'aperçu natif de l'appli (html.nat-cam) se pose sous .sc-stage : rien d'opaque dans la zone, les boutons flottent au-dessus. */
-.scan .sc-stage,.scan .sc-stage[data-cam="no"]{height:calc(env(safe-area-inset-top,0px) + 232px)}
-.scan .sc-guide{top:calc(env(safe-area-inset-top,0px) + 74px);transform:translateX(-50%);width:min(94%,440px)}
+.scan .sc-stage,.scan .sc-stage[data-cam="no"]{height:calc(var(--top-in) + 232px)}
+.scan .sc-guide{top:calc(var(--top-in) + 74px);transform:translateX(-50%);width:min(94%,440px)}
 .scan .sc-cap{left:6px;bottom:calc(100% + 7px);padding:2px 9px;border-radius:99px;background:rgba(10,14,30,.72);font-size:11.5px;font-weight:700;text-shadow:none}
-.scan .sc-hint{left:50%;right:auto;bottom:auto;top:calc(env(safe-area-inset-top,0px) + 82px + min(94vw,440px) / 5.4);transform:translateX(-50%);max-width:calc(100% - 24px);padding:5px 14px;border-radius:99px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.scan .sc-prog{top:calc(env(safe-area-inset-top,0px) + 58px);right:12px;left:auto;transform:none;padding:3px 10px;font-size:12px;font-family:var(--font-body);font-weight:700}
-.scan .sc-nocam{padding:calc(env(safe-area-inset-top,0px) + 56px) 24px 56px}
-.sc-tools{position:absolute;left:0;right:0;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 0;pointer-events:none}
+.scan .sc-hint{left:50%;right:auto;bottom:auto;top:calc(var(--top-in) + 82px + min(94vw,440px) / 5.4);transform:translateX(-50%);max-width:calc(100% - 24px);padding:5px 14px;border-radius:99px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scan .sc-prog{top:calc(var(--top-in) + 58px);right:12px;left:auto;transform:none;padding:3px 10px;font-size:12px;font-family:var(--font-body);font-weight:700}
+.scan .sc-nocam{padding:calc(var(--top-in) + 56px) 24px 56px}
+.sc-tools{position:absolute;left:0;right:0;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:calc(var(--top-in) + 8px) 12px 0;pointer-events:none}
 .sc-tools>*,.sc-tr>*{pointer-events:auto}
 .sc-tr{display:flex;gap:8px}
 .sc-ic{width:40px;height:40px;flex:none;display:grid;place-items:center;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(10,14,30,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#fff;font-weight:800;font-size:16px;transition:transform .15s,background .2s}

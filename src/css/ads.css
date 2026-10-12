@@ -1,13 +1,19 @@
 /* ── ads.css : place du bandeau de pub (appli Android, ads.js) ──
-   Le bandeau natif est posé au-dessus de la page, juste sous la barre d'état. html.ad-on et --ad-h (sa hauteur, en px CSS) décalent d'autant
-   tout ce qui touche le haut de l'écran : rien n'est jamais caché dessous. Sans bandeau (web, PWA, comptes autorisés, scan…), aucune de ces règles ne joue. */
-/* --ad-g : écart sous le bandeau (règle AdMob : pas de pub collée aux boutons de navigation), fond fixe et filet comme la barre d'état */
-html.ad-on{--ad-g:16px;padding-top:calc(env(safe-area-inset-top,0px) + var(--ad-h,0px) + var(--ad-g));scroll-padding-top:calc(72px + var(--ad-h,0px) + var(--ad-g))}
-html.ad-on::before{height:calc(env(safe-area-inset-top,0px) + var(--ad-h,0px) + var(--ad-g));border-bottom:1px solid var(--line)}
-html.ad-on .bar{top:calc(env(safe-area-inset-top,0px) + var(--ad-h,0px) + var(--ad-g))}
-html.ad-on .dv-head{padding-top:calc(env(safe-area-inset-top,0px) + var(--ad-h,0px) + var(--ad-g) + 10px)}
-html.ad-on .tasks{top:calc(env(safe-area-inset-top,0px) + var(--ad-h,0px) + var(--ad-g) + 62px)}
-html.ad-on .tasks.over{top:calc(env(safe-area-inset-top,0px) + var(--ad-h,0px) + var(--ad-g) + 8px)}
+   Le bandeau natif est posé SOUS l'en-tête (marge calculée par ads.js d'après le bas de l'en-tête), pleine largeur, fixe. html.ad-on et --ad-h
+   (sa hauteur, en px CSS) réservent sa place : l'en-tête reste en haut, le contenu commence sous le bandeau, avec un écart au-dessus et
+   au-dessous (règle AdMob : pas de pub collée aux boutons). Sans bandeau (web, PWA, comptes autorisés, scan…), aucune de ces règles ne joue.
+   Tous les en-têtes (accueil et écrans plein écran) ont la même hauteur (--hd-h) : le bandeau reste au même endroit d'un écran à l'autre. */
+:root{--hd-h:63px;--ad-gt:8px;--ad-g:12px}
+.bar-in{min-height:calc(var(--hd-h) - 1px)}
+.dv-head{min-height:calc(var(--top-in) + var(--hd-h))}
+html.ad-on{--ad-sp:calc(var(--ad-h,0px) + var(--ad-gt) + var(--ad-g));scroll-padding-top:calc(72px + var(--ad-sp))}
+/* accueil, saisie : bande fixe sous l'en-tête (le contenu qui défile passe dessous, jamais sous le bandeau), contenu décalé d'autant */
+html.ad-on::after{content:'';position:fixed;left:0;right:0;top:calc(var(--top-in) + var(--hd-h));height:var(--ad-sp);background:var(--bg);border-bottom:1px solid var(--line);z-index:19;pointer-events:none}
+html.ad-on .wrap{padding-top:calc(20px + var(--ad-sp))}
+/* écrans plein écran : la place du bandeau sous leur en-tête */
+html.ad-on .dv:not(.scan):not(.bd)>.dv-head{margin-bottom:var(--ad-sp)}
+html.ad-on .tasks{top:calc(var(--top-in) + var(--hd-h) + var(--ad-sp) + 8px)}
+html.ad-on .tasks.over{top:calc(var(--top-in) + var(--hd-h) + var(--ad-sp) + 8px)}
 /* feuilles : le voile couvre tout l'écran, mais la feuille s'arrête sous le bandeau (en bas sur téléphone, centrée sur grand écran) */
-html.ad-on .sheet{max-height:min(90%,calc(100% - env(safe-area-inset-top,0px) - var(--ad-h,0px) - var(--ad-g) - 12px))}
-@media (min-width:720px){html.ad-on .sheet{max-height:min(86%,calc(100% - 2 * (env(safe-area-inset-top,0px) + var(--ad-h,0px) + var(--ad-g) + 12px)))}}
+html.ad-on .sheet{max-height:min(90%,calc(100% - var(--top-in) - var(--hd-h) - var(--ad-sp) - 12px))}
+@media (min-width:720px){html.ad-on .sheet{max-height:min(86%,calc(100% - 2 * (var(--top-in) + var(--hd-h) + var(--ad-sp) + 12px)))}}

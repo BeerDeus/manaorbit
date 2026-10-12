@@ -78,7 +78,7 @@ const doc = `<!doctype html>
 <link rel="stylesheet" href="${FONTS}">
 ${SCRY}
 <style>
-html{padding-top:env(safe-area-inset-top,0px)}
+:root{--top-in:env(safe-area-inset-top,0px)}html.fs.cut-mid{--top-in:0px}html{padding-top:var(--top-in)}
 [hidden]{display:none!important}
 img{max-width:100%}
 ${css}

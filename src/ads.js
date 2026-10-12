@@ -1,5 +1,5 @@
 /* ── ads.js : bandeau de pub (appli Android) ──────────────────────────────────────────────────────
-   Un petit bandeau Google AdMob en HAUT de l'écran paie l'hébergement. Seulement dans l'appli Android (plugin AdMob) : rien sur le web ni la PWA.
+   Un petit bandeau Google AdMob SOUS L'EN-TÊTE (emplacement choisi le 12 octobre, maquettes « Version retenue ») paie l'hébergement. Seulement dans l'appli Android (plugin AdMob) : rien sur le web ni la PWA.
    Jamais pour un compte autorisé (CTX.serverOk : ALLOWED_UIDS du serveur) ; s'il était affiché, il est détruit dès que checkServer() le confirme.
    Règle « de temps en temps », simple et discrète :
    · rien au lancement : le bandeau n'arrive qu'après AD.delay (6 s) d'appli au calme, session revenue et compte vérifié (jamais montré au
@@ -12,10 +12,12 @@
    · l'annonce se renouvelle au rythme réglé dans la console AdMob ; aucune annonce reçue : nouvel essai AD.retry plus tard.
    Consentement (UE) : formulaire UMP de Google avant le premier chargement ; le SDK applique la réponse (annonces personnalisées ou non) ;
    consentement impossible (canRequestAds faux) : aucune pub de la session.
-   Rien n'est recouvert : la page descend de la hauteur du bandeau (bannerAdSizeChanged → html.ad-on + --ad-h, voir css/ads.css). */
+   Rien n'est recouvert : le contenu commence sous le bandeau (bannerAdSizeChanged → html.ad-on + --ad-h, voir css/ads.css) ; le plugin le pose à
+   « marge » sous la zone de la caméra : marge = bas de l'en-tête − cette zone + écart (adsMargin). Tous les en-têtes ont la même hauteur ;
+   si la marge change quand même (découpe de la caméra au milieu : l'en-tête monte sur sa ligne), le bandeau est recréé à la bonne place. */
 const AD_TEST = 'ca-app-pub-3940256099942544/6300978111';      // bandeau de TEST de Google, tant que le serveur n'a pas d'ADMOB_BANNER_ID
 /** st : 'off' (aucun bandeau) · 'on' (affiché ou en chargement) · 'hid' (masqué, prêt à revenir). Délais en ms (réduits par les tests). */
-const AD = { on: false, st: 'off', ok: false, no: false, srv: null, priv: '', calm: 0, touch: 0, next: 0, timer: 0, pend: false, q: Promise.resolve(),
+const AD = { on: false, st: 'off', m: null, ok: false, no: false, srv: null, priv: '', calm: 0, touch: 0, next: 0, timer: 0, pend: false, q: Promise.resolve(),
   delay: 6000, back: 800, idle: 1200, retry: 180000 };
 
 /** Réévalue le bandeau (afficher, masquer, détruire). Appelée par checkServer() quand le compte change ; les appels sont groupés et passent un par un. */
@@ -31,6 +33,15 @@ const adsCall = (P, m) => Promise.race([Promise.resolve().then(() => P[m]({})).c
 function adsPad(h) {
   const r = document.documentElement; r.classList.toggle('ad-on', h > 0);
   if (h > 0) r.style.setProperty('--ad-h', h + 'px'); else r.style.removeProperty('--ad-h');
+}
+/** Marge du bandeau (px CSS) : bas des en-têtes (--top-in + --hd-h, les mêmes partout) − zone de la caméra que le plugin ajoute lui-même + écart au-dessus.
+ *  Mesuré sur des sondes (jamais sur un écran en train de s'ouvrir, décalé par son animation). */
+function adsMargin() {
+  // une sonde posée une fois pour toutes (ajouter et retirer un élément à chaque mesure relancerait l'observateur de la page, donc adsStep, sans fin)
+  const e = AD.probe || (AD.probe = Object.assign(document.createElement('div'), { id: 'adProbe', ariaHidden: 'true' }));
+  if (!e.isConnected) { e.style.cssText = 'position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none'; document.documentElement.appendChild(e); }      // sous <html> : hors de la liste observée (body)
+  const probe = h => { e.style.height = h; return e.offsetHeight; };
+  return Math.max(0, Math.round(probe('calc(var(--top-in) + var(--hd-h))') - probe('env(safe-area-inset-top,0px)') + probe('var(--ad-gt)')));
 }
 /** Écran où la pub n'a pas sa place : accueil du premier lancement, scan (aperçu natif compris), carte en grand ; et tout ce qui n'est pas de la consultation :
  *  saisie, recherche et résultats, éditeur de deck. Écran du dessus : la dernière vue plein écran (.dv) de la page, même en train de s'ouvrir ou de se fermer
@@ -80,6 +91,7 @@ async function adsStep() {
     else if (AD.st === 'on') { AD.st = 'hid'; await adsCall(P, 'hideBanner'); }
     return;
   }
+  if (AD.st === 'on' && AD.m != null && Math.abs(adsMargin() - AD.m) > 2) { AD.st = 'off'; adsPad(0); await adsCall(P, 'removeBanner'); return adsRefresh(); }      // l'en-tête a changé de hauteur : bandeau recréé dessous
   if (AD.st === 'on' || document.hidden) return;
   const wait = Math.max(AD.touch + AD.idle, AD.st === 'hid' ? AD.calm + AD.back : Math.max(AD.calm + AD.delay, AD.next)) - now;
   if (wait > 0) return adsLater(wait);
@@ -91,8 +103,8 @@ async function adsStep() {
     if (!AD.ok) AD.no = true;
     return adsRefresh();                                                                   // le formulaire a pu durer : tout est réévalué avant d'afficher
   }
-  AD.st = 'on';
-  try { await P.showBanner({ adId: AD.srv.unit || AD_TEST, isTesting: !AD.srv.unit, adSize: 'ADAPTIVE_BANNER', position: 'TOP_CENTER', margin: 0 }); }
+  AD.st = 'on'; AD.m = adsMargin();
+  try { await P.showBanner({ adId: AD.srv.unit || AD_TEST, isTesting: !AD.srv.unit, adSize: 'ADAPTIVE_BANNER', position: 'TOP_CENTER', margin: AD.m }); }
   catch (e) { AD.st = 'off'; adsRetry(); }
 }
 

@@ -109,7 +109,7 @@ await p.waitForTimeout(400); await p.screenshot({ path: SHOTS + '/fr-4-coup-d-oe
 await p.click('.gl-edh [data-g="decks"]'); await sheetGone();
 assert.equal(await p.evaluate(() => [COLL.tab, EDH.budget, EDH.sort].join()), 'decks,6000,have'); await p.waitForSelector('.crow.dk');
 assert.match(await txt(p, '.crow.dk'), /Edgar Markov/);
-await p.click('#collSeg [data-v="list"]'); await p.waitForSelector('.crow');
+await p.click('#nav [data-nav="coll"]'); await p.waitForSelector('.coll.m-coll.on .crow');
 ok('coup d\'œil : cartes, exemplaires, valeur, la plus chère, 1 deck EDHREC à finir pour moins de 60 € → onglet Decks filtré');
 
 /* ── 4) collection : noms français, noms inconnus signalés et corrigés ───────────────────────── */

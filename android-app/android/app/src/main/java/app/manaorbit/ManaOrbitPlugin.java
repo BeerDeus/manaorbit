@@ -6,7 +6,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Rect;
 import android.os.Build;
+import android.view.DisplayCutout;
+import android.view.View;
+import android.view.WindowInsets;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -29,12 +34,42 @@ import org.json.JSONObject;
  *   l'appli est fermée ; u vide : pas de lien (« Crée ton lien d'échange »).
  * - share({ title, text, url, chooser }) → { ok: true } : menu « Partager » d'Android pour un lien (liste d'échange, deck) ; une APK plus ancienne
  *   n'a pas la méthode et le site copie le lien.
+ * - cutout() → { w, h, rects: [{ l, t, r, b }] } en dp (= px CSS de la page) : découpes de l'écran (caméra frontale) vues par la fenêtre ; rects vide : aucune
+ *   (ou Android < 9). Barre d'état cachée (SystemBars), le site pose son en-tête sur la ligne de la caméra quand elle est au milieu (src/native.js, natFullscreen).
  * - événement « open », gardé jusqu'à ce que la page l'écoute (lancement à froid) : { view: 'collection' | 'scan' | 'quick' } le widget ou son bouton a été
  *   touché ; { view: 'trade' } le widget « QR code d'échange » ; { view: 'scan' | 'quick' | 'trade' | 'paste' } un raccourci de l'icône (ShortcutActivity) ; { view: 'share', text, title } du texte partagé
  *   par une autre appli (menu « Partager » : decklist, lien EDHREC, Archidekt, Moxfield…).
  */
 @CapacitorPlugin(name = "ManaOrbit")
 public class ManaOrbitPlugin extends Plugin {
+
+    @PluginMethod
+    public void cutout(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            JSObject ret = new JSObject();
+            JSArray rects = new JSArray();
+            float d = getContext().getResources().getDisplayMetrics().density;
+            View v = getActivity().getWindow().getDecorView();
+            ret.put("w", Math.round(v.getWidth() / d));
+            ret.put("h", Math.round(v.getHeight() / d));
+            if (Build.VERSION.SDK_INT >= 28) {
+                WindowInsets wi = v.getRootWindowInsets();
+                DisplayCutout dc = wi != null ? wi.getDisplayCutout() : null;
+                if (dc != null) {
+                    for (Rect r : dc.getBoundingRects()) {
+                        JSObject o = new JSObject();
+                        o.put("l", Math.round(r.left / d));
+                        o.put("t", Math.round(r.top / d));
+                        o.put("r", Math.round(r.right / d));
+                        o.put("b", Math.round(r.bottom / d));
+                        rects.put(o);
+                    }
+                }
+            }
+            ret.put("rects", rects);
+            call.resolve(ret);
+        });
+    }
 
     @PluginMethod
     public void info(PluginCall call) {

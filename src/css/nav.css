@@ -22,7 +22,8 @@ body.nav-on .toast{bottom:calc(var(--nav-h) + 22px + env(safe-area-inset-bottom,
 /* sections : pas de bouton retour (la barre du bas et Retour du téléphone y suffisent), pas d'animation quand on passe de l'une à l'autre */
 .dv.sec .dv-back{display:none}
 .dv.sec .dv-head{padding-left:18px}
-.dv.sec .dv-title b{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.dv.sec .dv-title b{font-size:21px;line-height:1.15;font-weight:700;letter-spacing:-.02em}
+.dv.sec .dv-title span{line-height:1.3}      /* titre et sous-titre tiennent dans la hauteur commune des en-têtes (--hd-h, css/ads.css) */
 .dv.inst{transition:none}
 .coll:not(.m-coll) .coll-alert{display:none!important}
 /* onglets de la section Decks : Mes decks · À monter · Prix d'une liste */
@@ -71,3 +72,7 @@ body.nav-on .toast{bottom:calc(var(--nav-h) + 22px + env(safe-area-inset-bottom,
 .cv-sp circle{fill:var(--accent)}
 .coll:not(.m-coll) .coll-sync,.coll.m-decks .coll-status{display:none!important}
 .dv.sec .dv-title span:empty{display:none}
+/* plein écran, découpe de la caméra au milieu du haut (html.cut-mid, native.js) : l'en-tête est sur sa ligne, les titres s'arrêtent avant elle */
+html.cut-mid .dv-head>.dv-title{max-width:calc(50% - 30px)}
+html.cut-mid .dv-head>.dv-back+.dv-title,html.cut-mid .dv-head>.icon-btn+.dv-title{max-width:calc(50% - 80px)}
+html.cut-mid .dv.sec .dv-head>.dv-title{max-width:calc(50% - 30px)}
