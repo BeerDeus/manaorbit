@@ -242,7 +242,7 @@ await B.p.waitForFunction(() => D.hold === 'u1', null, { timeout: 5000 });
 assert.equal(await B.p.evaluate(() => { collAdd([{ k: 'black lotus', n: 'Black Lotus', q: 1 }], 'add'); TR.wish = { ...TR.wish, 'ancestral recall': { n: 'Ancestral Recall', q: 1 } }; trChanged(); XS.eng = { ...XS.eng, deckB: { n: 'Deck B', at: Date.now(), q: { 'sol ring': 2 } } }; engSaved(); return !!D.user; }), true, 'B encore connecté pendant la vérification');
 await Promise.all([B, C].map(P => P.p.waitForFunction(() => !D.user, null, { timeout: 8000 })));
 await sleep(2500);
-assert.equal(server.doc, null, 'collection pas recréée'); assert.deepEqual(server.meta, { engaged: null, history: null, trade: null }, 'documents annexes pas recréés');
+assert.equal(server.doc, null, 'collection pas recréée'); assert.deepEqual(server.meta, { engaged: null, history: null, trade: null, prefs: null }, 'documents annexes pas recréés (réglages du scan compris)');
 assert.equal(server.writes, w14); assert.equal(server.metaWrites, m14, 'aucune écriture après l\'effacement');
 assert.equal(server.wipeStopped, true, 'A : plus aucune écoute ni synchro pendant l\'effacement');
 assert.match(await txt(B.p, '#toast'), /Ce compte a été supprimé ou désactivé : tu es déconnecté/);
