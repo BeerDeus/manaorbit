@@ -291,7 +291,7 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   const { ctx, p, errs } = await newPage(browser, world, { goto: false }); errsAll.push(errs);
   await p.route('https://www.gstatic.com/**', r => r.abort()); await p.addInitScript(fake);
   await p.goto(world.url); await p.waitForTimeout(400); await toHome(p);
-  await p.evaluate(() => { AD.delay = 500; AD.back = 200; AD.idle = 0; adsRefresh(); });
+  await p.evaluate(() => { AD.grace = 0; AD.offMs = 0; AD.delay = 500; AD.back = 200; AD.idle = 0; adsRefresh(); });
   await p.waitForFunction(() => window.__ad.calls.includes('showBanner') && document.documentElement.classList.contains('ad-on'), null, { timeout: 8000 });
   const n0 = await p.evaluate(() => window.__ad.calls.length);
   await p.evaluate(() => { OPN.cur = { id: 'oad', name: 'Live', at: Date.now(), paid: null, st: true, rows: [] }; opnSave(); opnRefresh(); });

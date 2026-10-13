@@ -52,7 +52,7 @@ async function natPage(o = {}) {
   const { p, errs } = await natPage();
   assert.equal(await n(p, 'showBanner'), 0, 'rien au lancement');
   assert.equal(await n(p, 'requestConsentInfo'), 0, 'pas de consentement demandé au lancement');
-  await p.evaluate(() => { AD.delay = 700; AD.back = 200; AD.idle = 0; adsRefresh(); });      // délais de test
+  await p.evaluate(() => { AD.grace = 0; AD.offMs = 0; AD.delay = 700; AD.back = 200; AD.idle = 0; adsRefresh(); });      // délais de test
   await p.waitForFunction(() => window.__ad.calls.includes('showBanner'), null, { timeout: 8000 });
   assert.deepEqual(await p.evaluate(() => window.__ad.calls.filter(c => c !== 'removeBanner')), ['requestConsentInfo', 'initialize', 'showBanner'], 'consentement, SDK initialisé, puis bandeau');
   assert.deepEqual(await p.evaluate(() => window.__ad.seen.initialize.args), { maxAdContentRating: 'ParentalGuidance' }, 'annonces « accord parental » au plus (PEGI 3-7 / E10+)');
@@ -121,7 +121,7 @@ async function natPage(o = {}) {
 
 { // 2) connexion exigée par le serveur : rien tant que le compte n'est pas vérifié ; bloc d'annonces réel donné par /__ping
   const pg = await natPage({ firebase: 'hang', ping: { needsLogin: true, adUnit: 'ca-app-pub-1234567890123456/9876543210' } }), { p, errs } = pg;
-  await p.evaluate(() => { AD.delay = 200; AD.idle = 0; adsRefresh(); });
+  await p.evaluate(() => { AD.grace = 0; AD.offMs = 0; AD.delay = 200; AD.idle = 0; adsRefresh(); });
   await p.waitForTimeout(2500);
   assert.deepEqual(await p.evaluate(() => [CTX.serverOk == null, D.authReady]), [true, false], 'session pas encore revenue : compte inconnu');
   assert.deepEqual(await p.evaluate(() => window.__ad.calls.filter(c => c !== 'removeBanner')), [], 'ni consentement ni bandeau avant la vérification du compte');
@@ -136,7 +136,7 @@ async function natPage(o = {}) {
 
 { // 3) compte autorisé dès le départ : aucun appel au SDK, réglages inchangés
   const { p, errs } = await natPage();
-  await p.evaluate(() => { CTX.serverOk = true; AD.delay = 200; AD.idle = 0; adsRefresh(); });
+  await p.evaluate(() => { CTX.serverOk = true; AD.grace = 0; AD.offMs = 0; AD.delay = 200; AD.idle = 0; adsRefresh(); });
   await p.waitForTimeout(1500);
   assert.deepEqual(await p.evaluate(() => window.__ad.calls), ['removeBanner'], 'ni consentement, ni initialisation, ni bandeau');
   assert.deepEqual(await pad(p), { on: false, top: '20px', bar: '0px' });
@@ -149,7 +149,7 @@ async function natPage(o = {}) {
 { // 4) consentement refusé (UE) : formulaire montré, puis aucune pub
   const no = { status: 'REQUIRED', isConsentFormAvailable: true, canRequestAds: false, privacyOptionsRequirementStatus: 'REQUIRED' };
   const { p, errs } = await natPage({ consent: no });
-  await p.evaluate(() => { AD.delay = 200; AD.idle = 0; adsRefresh(); });
+  await p.evaluate(() => { AD.grace = 0; AD.offMs = 0; AD.delay = 200; AD.idle = 0; adsRefresh(); });
   await p.waitForFunction(() => window.__ad.calls.includes('showConsentForm'), null, { timeout: 5000 }); await p.waitForTimeout(800);
   assert.deepEqual(await p.evaluate(() => window.__ad.calls.filter(c => c !== 'removeBanner')), ['requestConsentInfo', 'showConsentForm'], 'pas d\'initialisation ni de bandeau sans consentement');
   assert.equal((await pad(p)).on, false);
@@ -159,13 +159,40 @@ async function natPage(o = {}) {
 
 { // 5) navigateur / PWA : aucune pub, aucune marge
   const { p, errs } = await natPage({ native: false });
-  await p.evaluate(() => { AD.delay = 100; adsRefresh(); }); await p.waitForTimeout(800);
+  await p.evaluate(() => { AD.grace = 0; AD.offMs = 0; AD.delay = 100; adsRefresh(); }); await p.waitForTimeout(800);
   assert.deepEqual(await p.evaluate(() => [typeof adsRefresh, AD.on, AD.st, typeof window.Capacitor]), ['function', false, 'off', 'undefined']);
   assert.deepEqual(await pad(p), { on: false, top: '20px', bar: '0px' });
   await openMe(p, 'conf'); await p.waitForSelector('#privBox'); await p.waitForTimeout(200);
   assert.match(await p.textContent('#privBox .hint'), /Aucune publicité/);
   assert.deepEqual(errs, []); await p.context().close();
   ok('web : aucune pub, page intacte');
+}
+
+{ // 7) pas tout le temps : rien les premières minutes d'utilisation (comptées sur ce téléphone, gardées au rechargement), puis par cycles
+  //    (2 min sur 5 en vrai) ; hors fenêtre le bandeau est DÉTRUIT (jamais seulement caché) et il ne part jamais sous le doigt
+  const { p, errs } = await natPage();
+  const shows = () => p.evaluate(() => window.__ad.calls.filter(c => c === 'showBanner').length);
+  const lastRm = () => p.evaluate(() => window.__ad.calls.lastIndexOf('removeBanner') > window.__ad.calls.lastIndexOf('showBanner'));
+  await p.evaluate(() => { AD.grace = 2000; AD.onMs = 1500; AD.offMs = 1500; AD.delay = 100; AD.back = 100; AD.idle = 0; adsRefresh(); });
+  await p.waitForTimeout(900); assert.equal(await shows(), 0, 'premières minutes : aucun bandeau');
+  await p.waitForFunction(() => window.__ad.calls.includes('showBanner'), null, { timeout: 8000 });
+  await p.waitForFunction(() => window.__ad.calls.lastIndexOf('removeBanner') > window.__ad.calls.lastIndexOf('showBanner'), null, { timeout: 8000 });
+  assert.equal(await p.evaluate(() => document.documentElement.classList.contains('ad-on')), false, 'pause : bandeau détruit, marge retirée');
+  assert.equal(await p.evaluate(() => window.__ad.calls.includes('hideBanner')), false, 'jamais seulement caché');
+  await p.waitForFunction(() => window.__ad.calls.filter(c => c === 'showBanner').length >= 2, null, { timeout: 8000 });
+  // fin de fenêtre pendant qu'on touche l'écran : le bandeau attend AD.idle sans toucher avant de partir
+  await p.evaluate(() => { AD.idle = 1200; });
+  for (let i = 0; i < 12; i++) { await p.evaluate(() => document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))); await p.waitForTimeout(250); }
+  assert.equal(await lastRm(), false, 'pas retiré sous le doigt');
+  await p.waitForFunction(() => window.__ad.calls.lastIndexOf('removeBanner') > window.__ad.calls.lastIndexOf('showBanner'), null, { timeout: 6000 });
+  // le temps d'utilisation est gardé : rechargé, il compte toujours
+  await p.evaluate(() => { adsUse(); localStorage.setItem('deckdeal:aduse', String(Math.round(AD.use))); });
+  const used = await p.evaluate(() => Number(localStorage.getItem('deckdeal:aduse')));
+  assert.ok(used >= 4000, 'temps d\'utilisation enregistré : ' + used);
+  await p.reload(); await p.waitForTimeout(600);
+  assert.ok(await p.evaluate(() => AD.use) >= used, 'relu au lancement suivant');
+  assert.deepEqual(errs, []); await p.context().close();
+  ok('pub pas tout le temps : rien les premières minutes (temps gardé), puis cycles avec / sans bandeau, détruit hors fenêtre, jamais sous le doigt');
 }
 
 { // 6) plein écran (appli) : barre d'état cachée (SystemBars de Capacitor), barre de gestes gardée, recachée au retour (volet des notifications) et au

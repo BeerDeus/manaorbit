@@ -9,7 +9,10 @@
      et provoquerait des clics accidentels (règles AdMob) ;
    · masqué pendant la saisie d'une liste, la recherche et ses résultats, l'éditeur de deck, l'accueil du premier lancement, le scan (surtout
      l'aperçu natif, html.nat-cam) et la carte en grand ; il revient AD.back après, jamais pendant un toucher (AD.idle) ;
-   · l'annonce se renouvelle au rythme réglé dans la console AdMob ; aucune annonce reçue : nouvel essai AD.retry plus tard.
+   · l'annonce se renouvelle au rythme réglé dans la console AdMob ; aucune annonce reçue : nouvel essai AD.retry plus tard ;
+   · pas tout le temps (13 octobre) : aucun bandeau les AD.grace premières minutes d'utilisation sur ce téléphone (temps appli ouverte, compté
+     sur l'appareil, deckdeal:aduse), puis par cycles : AD.onMs avec bandeau, AD.offMs sans (2 min sur 5). Hors de sa fenêtre, le bandeau est
+     DÉTRUIT (jamais seulement caché : rien ne se rafraîchit en douce) ; il n'arrive et ne part qu'après AD.idle sans toucher l'écran.
    Consentement (UE) : formulaire UMP de Google avant le premier chargement ; le SDK applique la réponse (annonces personnalisées ou non) ;
    consentement impossible (canRequestAds faux) : aucune pub de la session.
    Rien n'est recouvert : le contenu commence sous le bandeau (bannerAdSizeChanged → html.ad-on + --ad-h, voir css/ads.css) ; le plugin le pose à
@@ -18,7 +21,24 @@
 const AD_TEST = 'ca-app-pub-3940256099942544/6300978111';      // bandeau de TEST de Google, tant que le serveur n'a pas d'ADMOB_BANNER_ID
 /** st : 'off' (aucun bandeau) · 'on' (affiché ou en chargement) · 'hid' (masqué, prêt à revenir). Délais en ms (réduits par les tests). */
 const AD = { on: false, st: 'off', m: null, ok: false, no: false, srv: null, priv: '', calm: 0, touch: 0, next: 0, timer: 0, pend: false, q: Promise.resolve(),
-  delay: 6000, back: 800, idle: 1200, retry: 180000 };
+  delay: 6000, back: 800, idle: 2500, retry: 180000, grace: 10 * 60e3, onMs: 2 * 60e3, offMs: 3 * 60e3, use: 0, useT: 0, useS: 0 };
+const AD_USE_KEY = 'deckdeal:aduse';
+/** Temps d'utilisation (appli au premier plan, ms), cumulé sur ce téléphone ; enregistré toutes les 15 s au plus et quand l'appli passe en arrière-plan. */
+function adsUse() {
+  const now = Date.now();
+  if (AD.useT) AD.use += Math.min(now - AD.useT, 10 * 60e3);      // appareil endormi sans visibilitychange : 10 min comptées au plus
+  AD.useT = document.hidden ? 0 : now;
+  if (document.hidden || now - AD.useS > 15000) { AD.useS = now; try { localStorage.setItem(AD_USE_KEY, String(Math.round(AD.use))); } catch (e) { /* stockage plein */ } }
+  return AD.use;
+}
+/** Fenêtre de pub : { ok : bandeau permis maintenant, ms : temps d'utilisation avant le prochain changement }. offMs = 0 : toujours permis après l'arrivée. */
+function adsWin() {
+  const u = adsUse();
+  if (u < AD.grace) return { ok: false, ms: AD.grace - u };
+  if (!AD.offMs) return { ok: true, ms: 0 };
+  const c = AD.onMs + AD.offMs, ph = (u - AD.grace) % c;
+  return ph < AD.onMs ? { ok: true, ms: AD.onMs - ph } : { ok: false, ms: c - ph };
+}
 
 /** Réévalue le bandeau (afficher, masquer, détruire). Appelée par checkServer() quand le compte change ; les appels sont groupés et passent un par un. */
 function adsRefresh() {
@@ -83,6 +103,12 @@ async function adsStep() {
     if (AD.st !== 'off') { AD.st = 'off'; adsPad(0); await adsCall(P, 'removeBanner'); }
     return;
   }
+  const win = adsWin();
+  if (!win.ok) {                                                                           // premières minutes, ou pause du cycle : bandeau détruit
+    if (AD.st === 'on' && !busy && AD.touch + AD.idle > now) return adsLater(AD.touch + AD.idle - now);      // la page remonte : jamais sous le doigt
+    if (AD.st !== 'off') { AD.st = 'off'; adsPad(0); await adsCall(P, 'removeBanner'); }
+    return adsLater(win.ms + 50);
+  }
   if (busy) {
     if (AD.st === 'off') return;
     adsPad(0);                                                                             // la marge part avant tout (l'aperçu de la caméra se place d'après la page)
@@ -92,10 +118,10 @@ async function adsStep() {
     return;
   }
   if (AD.st === 'on' && AD.m != null && Math.abs(adsMargin() - AD.m) > 2) { AD.st = 'off'; adsPad(0); await adsCall(P, 'removeBanner'); return adsRefresh(); }      // l'en-tête a changé de hauteur : bandeau recréé dessous
-  if (AD.st === 'on' || document.hidden) return;
+  if (AD.st === 'on' || document.hidden) { if (AD.st === 'on' && win.ms) adsLater(win.ms + 50); return; }      // fin de la fenêtre : réévalué à ce moment-là
   const wait = Math.max(AD.touch + AD.idle, AD.st === 'hid' ? AD.calm + AD.back : Math.max(AD.calm + AD.delay, AD.next)) - now;
   if (wait > 0) return adsLater(wait);
-  if (AD.st === 'hid') { AD.st = 'on'; await adsCall(P, 'resumeBanner'); return; }       // la marge revient avec bannerAdSizeChanged
+  if (AD.st === 'hid') { AD.st = 'on'; await adsCall(P, 'resumeBanner'); if (win.ms) adsLater(win.ms + 50); return; }       // la marge revient avec bannerAdSizeChanged
   if (!AD.srv && !(AD.srv = await adsServer())) return adsRetry();
   if (AD.srv.login && !(CTX.serverOk === false && D.authReady)) return adsLater(1500);    // session ou compte en cours de vérification (checkServer() rappelle aussi adsRefresh())
   if (!AD.ok) {
@@ -104,7 +130,7 @@ async function adsStep() {
     return adsRefresh();                                                                   // le formulaire a pu durer : tout est réévalué avant d'afficher
   }
   AD.st = 'on'; AD.m = adsMargin();
-  try { await P.showBanner({ adId: AD.srv.unit || AD_TEST, isTesting: !AD.srv.unit, adSize: 'ADAPTIVE_BANNER', position: 'TOP_CENTER', margin: AD.m }); }
+  try { await P.showBanner({ adId: AD.srv.unit || AD_TEST, isTesting: !AD.srv.unit, adSize: 'ADAPTIVE_BANNER', position: 'TOP_CENTER', margin: AD.m }); if (win.ms) adsLater(win.ms + 50); }
   catch (e) { AD.st = 'off'; adsRetry(); }
 }
 
@@ -126,6 +152,8 @@ async function adsPrivacy() {
 function adsInit() {
   const P = natPlugin('AdMob'); if (AD.on || !P) return;                                  // navigateur, PWA, ou appli sans le plugin : rien du tout
   AD.on = true; AD.calm = Date.now();
+  try { AD.use = Math.max(0, Number(localStorage.getItem(AD_USE_KEY)) || 0); } catch (e) { AD.use = 0; }
+  AD.useT = document.hidden ? 0 : Date.now(); AD.useS = Date.now();
   AD.q = adsCall(P, 'removeBanner');                                                       // page rechargée (langue…) : le bandeau natif d'avant ne reste pas sans sa marge
   const mo = new MutationObserver(adsRefresh);
   mo.observe(document.body, { childList: true });                                         // accueil, scan, carte en grand, collection, decks… : ajoutés et retirés à la racine
