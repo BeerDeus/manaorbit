@@ -683,7 +683,7 @@ function onUser(user) {
   }
   renderAccountBtn(); renderDecks(); paintAccount(); refreshDeck(); edhGateSync();      // decks EDHREC : réservés aux comptes vérifiés
   collUser(user); xsUser(user); trUser(user); mobUser(user); scsUser(user); if (prev !== D.uid) profUser(user);
-  amUser(user);
+  amUser(user); if (typeof trocUser === 'function') trocUser(user);      // échange en direct : reprend après la connexion, ou quitte (autre compte)
   if (prev !== D.uid && typeof checkServer === 'function') { CTX.serverOk = null; checkServer(); }      // autre compte : a-t-il droit au token du serveur ?
   if (!user && prev) updateHeroDelta();
 }

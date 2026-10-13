@@ -21,9 +21,10 @@ function pnTok() { if (PN.tok === null) { try { PN.tok = localStorage.getItem(PN
 function pnTokSet(t) { PN.tok = t || ''; try { if (t) localStorage.setItem(PN_KEY, t); else localStorage.removeItem(PN_KEY); } catch (e) { /* stockage indisponible */ } }
 function pnDone(r) { for (const f of PN.wait.splice(0)) f(r); }
 /** Destination d'une notification touchée : les mêmes liens que Web Push (./?resume=1 : la recherche, ./?alerts=1 : les alertes,
-    ./?amis=1 : la feuille Amis, ./?ami=<id> : la page d'un ami — friends.js › amPushOpen ; une future invitation à un échange s'ajoute ici). */
+    ./?amis=1 : la feuille Amis, ./?ami=<id> : la page d'un ami — friends.js › amPushOpen ; ./?troc=<code> : invitation à un échange en direct — troc.js). */
 function pushOpen(url) {
   const u = String(url || '');
+  if (typeof trocPushOpen === 'function' && trocPushOpen(u)) return;
   if (amPushOpen(u)) return;
   if (/[?&]alerts\b/.test(u)) setTimeout(alertsOpen, 500);
   else if (/[?&]resume\b/.test(u)) resumeRun();
@@ -44,6 +45,7 @@ async function pnListen(P) {
     on('pushNotificationReceived', n => {                                       // app au premier plan : Android affiche aussi la notification
       if (typeof streamOn === 'function' && streamOn()) return;                 // mode streamer (opening.js) : rien à l'écran de l'appli
       const msg = [n && n.title, n && n.body].filter(Boolean).join(' · '), url = n && n.data && n.data.url;
+      if (/[?&]troc=/.test(String(url || ''))) { if (typeof trocPushed === 'function') trocPushed({ title: n.title, body: n.body, url }); return; }      // invitation à un échange en direct : toast « Rejoindre »
       if (/[?&]ami/.test(String(url || ''))) { amPushed({ title: n.title, body: n.body, url }); return; }      // ami : liste relue, toast (sauf mode streamer)
       if (msg) toast(msg, /[?&](alerts|resume)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);
     }),
@@ -125,7 +127,7 @@ async function pushPayload(label) {
   } catch (e) { return null; }
 }
 function pushInit() {
-  try { navigator.serviceWorker.addEventListener('message', e => { const d = e.data || {}; if (d.type === 'resume') resumeRun(); else if (d.type === 'alerts') alertsOpen(); else if (d.type === 'open') pushOpen(d.url); else if (d.type === 'pushed' && /[?&]ami/.test(String(d.url || ''))) amPushed(null); }); } catch (e) { /* pas de service worker */ }      // open : notification touchée (amis…) ; pushed : reçue appli ouverte (le système l'affiche, la liste des amis est relue)
+  try { navigator.serviceWorker.addEventListener('message', e => { const d = e.data || {}; if (d.type === 'resume') resumeRun(); else if (d.type === 'alerts') alertsOpen(); else if (d.type === 'open') pushOpen(d.url); else if (d.type === 'pushed' && /[?&]troc=/.test(String(d.url || ''))) { if (typeof trocPushed === 'function') trocPushed({ url: d.url }); } else if (d.type === 'pushed' && /[?&]ami/.test(String(d.url || ''))) amPushed(null); }); } catch (e) { /* pas de service worker */ }      // open : notification touchée (amis…) ; pushed : reçue appli ouverte (le système l'affiche, la liste des amis est relue)
   const P = pushNat(); if (P) pnListen(P);                                      // touchers et notifications reçues, même sans notifications activées ici
   if (S.push || AC.on || amHoldsPush()) pushState().then(st => {
     if (st === 'denied') { S.push = false; saveStore(); if (AC.on) { AC.on = false; alWrite(); } }

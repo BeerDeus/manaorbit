@@ -21,6 +21,7 @@ BROWSER=(
   binder-e2e.mjs
   opening-e2e.mjs
   amis-e2e.mjs
+  troc-e2e.mjs
 )
 T=("$@")
 if [ ${#T[@]} -eq 0 ]; then T=("${NODE[@]}" "${BROWSER[@]}"); elif [ "$1" = --node ]; then T=("${NODE[@]}"); fi

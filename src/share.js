@@ -272,12 +272,13 @@ function trShareBoxHtml(st) {
   const rules = TR.err === 'rules' ? '<p class="hint warn">' + T('Règles Firestore à publier pour le partage (voir README) : le lien ne peut pas être mis à jour.') + '</p>'
     : TR.err === 'big' ? '<p class="hint warn">' + T('Liste trop longue : le lien ne peut plus être mis à jour (trop de cartes recherchées).') + '</p>' : '';
   if (!D.user) return `<div class="tr-box"><b>${T('Partager ta liste')}</b><p class="hint">${T('Connecte-toi pour créer un lien public : tes amis voient tes doublons et ce que tu cherches, sans rien pouvoir modifier.')}</p><button class="btn ghost" type="button" data-act="login">${T('Se connecter')}</button></div>`;
-  if (!TR.share) return `<div class="tr-box"><b>${T('Partager ta liste')}</b><p class="hint">${T('Un lien public, en lecture seule, toujours à jour : tes {have} doublons et les {want} cartes que tu cherches, avec recherche par nom.', { have: nf0(st.have.length), want: nf0(st.want.length) })}</p>${rules}<button class="btn" type="button" data-act="tron">${T('Créer le lien')}</button></div>`;
+  const live = typeof trocBoxHtml === 'function' ? trocBoxHtml() : '';      // « Échange en direct » (troc.js), sous les actions du lien
+  if (!TR.share) return `<div class="tr-box"><b>${T('Partager ta liste')}</b><p class="hint">${T('Un lien public, en lecture seule, toujours à jour : tes {have} doublons et les {want} cartes que tu cherches, avec recherche par nom.', { have: nf0(st.have.length), want: nf0(st.want.length) })}</p>${rules}<button class="btn" type="button" data-act="tron">${T('Créer le lien')}</button>${live}</div>`;
   return `<div class="tr-box on"><b>${T('Lien public actif')}</b><div class="tr-link"><input type="text" readonly value="${esc(shareUrl(TR.share))}" aria-label="${T('Lien de ta liste d\'échange')}"></div>
     ${rules}${TR.err === 'net' ? '<p class="hint warn">' + T('Mise à jour du lien en attente (hors ligne).') + '</p>' : '<p class="hint">' + T('Mis à jour tout seul quand ta collection, tes decks ou ta liste changent. Lecture seule.') + '</p>'}
     <div class="tr-acts"><button class="btn ghost" type="button" data-act="trcopy">${T('Copier')}</button><button class="btn ghost" type="button" data-act="trsend">${T('Partager')}</button><button class="btn ghost" type="button" data-act="trview">${T('Aperçu')}</button></div>
     <div class="tr-qrs"><button class="btn ghost tr-qr" type="button" data-act="trqr">${QR_ICON}${T('QR code')}</button><button class="btn ghost tr-simg" type="button" data-act="trimg" title="${T('Une image de ta liste, avec le QR code du lien, à envoyer ou à publier')}"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>${T('Image avec QR')}</button></div>
-    <div class="tr-acts small"><button class="link-btn link-inline" type="button" data-act="trnew">${T('Nouveau lien')}</button><button class="link-btn link-inline" type="button" data-act="troff">${T('Arrêter le partage')}</button></div></div>`;
+    <div class="tr-acts small"><button class="link-btn link-inline" type="button" data-act="trnew">${T('Nouveau lien')}</button><button class="link-btn link-inline" type="button" data-act="troff">${T('Arrêter le partage')}</button></div>${live}</div>`;
 }
 /** Prix unitaire d'une ligne chiffrée (tradeView) : « ≈ 1,50 € » devant « × 3 » (lu « 1,50 € × 3 », la ligne garde sa hauteur). */
 const trPxHtml = x => (x.u != null ? `<small class="tr-px" title="${esc(T('{v} pièce', { v: fmt(x.u, 'EUR') }))}">≈ ${esc(fmt(x.u, 'EUR'))}</small>` : '');
@@ -356,6 +357,7 @@ function trClick(e) {
   else if (act === 'trsend') trSend(TR.share);
   else if (act === 'trqr') trQrOpen();
   else if (act === 'trimg') simgTrade();      // image à partager avec le QR code du lien (simg.js)
+  else if (act === 'trlive' && typeof trocEntry === 'function') trocEntry();      // échange en direct, face à face (troc.js)
   else if (act === 'trview') { const p = trPayload(); openPublicTrade(readShare('trade', { ...p, ...profShare(), at: Date.now() }), true); }
   else if (act === 'trmore') { TR.shown += TR_PAGE; collPaintBody(true); }
   else if (act === 'tkeep' && k) { TR.kept.add(k); haptic('tap'); trChanged(); toast(T('Gardée : elle n\'est plus proposée'), { label: T('Annuler'), fn: () => { TR.kept.delete(k); trChanged(); } }); }

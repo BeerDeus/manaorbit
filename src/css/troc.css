@@ -1,0 +1,223 @@
+/* ── troc.css : échange en direct (troc.js) : fenêtre d'échange (« Tu reçois », balance, « Tu donnes »), QR code d'attente, récapitulatif, fin ;
+   feuilles de choix (pastilles par langue et édition), entrée dans l'onglet Échange, « Mes échanges ». Thèmes clair et sombre par les jetons ;
+   le QR code reste noir sur blanc (.qr-card de trade.css). Seuls transform et opacity s'animent ; « réduire les animations » coupe tout. */
+
+/* Entrée discrète sous les actions du lien (onglet Échange) */
+.trc-entry{display:flex;align-items:center;gap:12px;width:100%;margin-top:4px;padding:12px 2px 2px;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.trc-entry>.i:first-child{width:36px;height:36px;padding:8px;border-radius:12px;background:var(--accent-soft);color:var(--accent)}
+.trc-entry>.i:last-child{width:16px;height:16px;color:var(--ink-3)}
+.trc-et{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.tr-box .trc-et b{font-family:var(--font-body);font-size:15px;font-weight:650}
+.trc-et small{font-size:12.5px;color:var(--ink-3)}
+.trc-entry:active .trc-et b{color:var(--accent)}
+
+/* Feuille « Échange en direct » : créer, « J'ai un code », « Mes échanges » */
+.trc-entry-sheet .sheet-body{display:flex;flex-direction:column;gap:14px}
+.trc-entry-sheet .hint{margin:0}
+.trc-new{height:50px;gap:9px;font-size:15.5px}
+.trc-join{display:flex;flex-direction:column;gap:7px;padding:14px;border-radius:var(--r-lg);border:1px solid var(--line);background:var(--surface)}
+.trc-cin{display:flex;gap:8px}
+.trc-cin input{flex:1;min-width:0;height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);font-family:var(--font-display);font-size:21px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-variant-numeric:tabular-nums}
+.trc-cin input::placeholder{color:var(--ink-3);opacity:.5;letter-spacing:.14em}
+.trc-cin input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.trc-cin .btn{height:46px;flex:none;padding:0 16px}
+.trc-hrow{display:flex;align-items:center;gap:8px;width:100%;padding:12px 12px 12px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;text-align:left;cursor:pointer}
+.trc-hrow span{flex:1}
+.trc-hrow em{font-style:normal;font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:99px;padding:2px 8px}
+.trc-hrow .i{width:16px;height:16px;color:var(--ink-3)}
+
+/* Fenêtre : en-tête (code de la session), bandeau « connexion perdue » */
+.trc .dv-title{flex:1}
+.trc-code{flex:none;height:30px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font:inherit;font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:.1em;font-variant-numeric:tabular-nums;cursor:pointer;white-space:nowrap}
+.trc-code[hidden]{display:none}
+.trc-net{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--warn-soft);color:var(--warn);font-size:13px;font-weight:600}
+.trc-net .dot{width:7px;height:7px;border-radius:50%;background:var(--warn);animation:trcBlink 1.2s ease-in-out infinite}
+@keyframes trcBlink{50%{opacity:.25}}
+.trc-body{max-width:640px;gap:12px;padding-top:14px}
+.trc .dv-foot .btn .i{width:18px;height:18px;margin-right:6px}
+.trc .dv-foot .btn{display:inline-flex;align-items:center;justify-content:center}
+
+/* Attente : QR code de la session (noir sur blanc), code en gros */
+.trc-wait{display:flex;flex-direction:column;align-items:center;gap:6px}
+.trc-qr{width:100%;max-width:360px;padding:16px 16px 12px}
+.trc-qr .qr-img svg{width:min(100%,260px)}
+.trc-bigcode{margin:2px 0 0;font-family:var(--font-display);font-size:30px;font-weight:750;letter-spacing:.16em;color:#10152b;font-variant-numeric:tabular-nums;user-select:all;-webkit-user-select:all}
+.trc-wait .qr-hint{margin:8px 0 0}
+.trc-wh{max-width:38ch;margin:0;text-align:center;text-wrap:balance}
+.trc-av{--h:220;position:relative;flex:none;width:30px;height:30px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:hsl(var(--h) 45% 34%);color:#fff;font-family:var(--font-display);font-weight:700;font-size:14px}
+.trc-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+/* L'autre joueur et son état */
+.trc-who{display:flex;align-items:center;gap:10px;padding:0 2px}
+.trc-who .trc-av{width:38px;height:38px;font-size:16px}
+.trc-wt{flex:1;min-width:0;display:flex;flex-direction:column}
+.trc-wt b{font-family:var(--font-display);font-size:17px;font-weight:680;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trc-wt small{font-size:13px;color:var(--ink-3)}
+.trc-who[data-st="ready"] .trc-wt small,.trc-who[data-st="ok"] .trc-wt small{color:var(--good);font-weight:650}
+.trc-who[data-st="away"] .trc-wt small{color:var(--warn);font-weight:650}
+.trc-who[data-st="ready"] .trc-av,.trc-who[data-st="ok"] .trc-av{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--good)}
+.trc-me{flex:none;display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:99px;background:var(--good-soft);color:var(--good);font-size:12.5px;font-weight:700}
+.trc-me .i{width:15px;height:15px}
+
+/* Deux zones : ce que je reçois (vert), ce que je donne (couleur de l'appli) */
+.trc-zone{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:var(--r-lg);border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow)}
+.trc-zone.get{background:linear-gradient(180deg,var(--good-soft),var(--surface) 76px);border-color:color-mix(in srgb,var(--good) 30%,var(--line))}
+.trc-zone.give{background:linear-gradient(180deg,var(--accent-soft),var(--surface) 76px);border-color:color-mix(in srgb,var(--accent) 30%,var(--line))}
+.trc-zh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 2px}
+.trc-zh b{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-.01em}
+.trc-zone.get .trc-zh b{color:var(--good)}
+.trc-zone.give .trc-zh b{color:var(--accent)}
+.trc-zh span{font-size:13px;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.trc-zh em{font-style:normal;font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--ink)}
+.trc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:10px 8px}
+.trc-empty,.trc-none{margin:0;padding:14px 12px;border-radius:var(--r-md);border:1px dashed var(--line);font-size:13.5px;color:var(--ink-3);text-align:center;text-wrap:balance}
+.trc-none{border-style:solid;background:var(--surface-3)}
+
+/* Vignette d'une carte : image, × exemplaires, drapeau (langue autre que l'anglais), « Demandée », nom, prix à l'unité */
+.trc-card{display:flex;flex-direction:column;gap:4px;min-width:0;padding:0;border:0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.trc-art{--h:220;position:relative;display:block;aspect-ratio:63/88;border-radius:6px;overflow:hidden;background:hsl(var(--h) 32% var(--thumb-l));color:hsl(var(--h) 40% var(--thumb-ink));box-shadow:0 1px 2px rgba(0,0,0,.18),0 6px 14px -8px rgba(0,0,0,.45);transition:transform .15s}
+.trc-art>b{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--font-display);font-size:22px;font-weight:700}
+.trc-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.trc-card:active .trc-art{transform:scale(.96)}
+.trc-q{position:absolute;right:4px;bottom:4px;padding:1px 6px;border-radius:99px;background:rgba(10,14,30,.82);color:#fff;font-style:normal;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+.trc-fl{position:absolute;left:4px;top:4px;line-height:0}
+.trc-fl .flag{width:18px;height:12px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.trc-badge{position:absolute;left:0;right:0;bottom:0;padding:3px 2px 3px;background:var(--warn);color:var(--bg);font-style:normal;font-size:10.5px;font-weight:700;text-align:center;letter-spacing:.01em}
+.trc-badge.on{background:var(--good)}
+
+.trc-q:has(~.trc-badge){bottom:22px}
+.trc-card.pend .trc-art{outline:2px dashed var(--warn);outline-offset:2px}
+.trc-card.pend .trc-art img{filter:saturate(.45) brightness(.9)}
+.trc-nm{font-size:11.5px;font-weight:600;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.trc-pu{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:5px;font-size:11.5px;font-weight:650;color:var(--ink-2);font-variant-numeric:tabular-nums;margin-top:auto}
+.trc-pu small{font-size:10px;font-weight:600;color:var(--ink-3)}
+.trc-card.new .trc-art{animation:trcIn .5s var(--spring) both}
+@keyframes trcIn{from{opacity:0;transform:scale(.7) translateY(8px)}to{opacity:1;transform:none}}
+
+/* « Ajouter une carte » / « Demander une carte » ; demandes à accepter */
+.trc-add{display:flex;align-items:center;gap:8px;width:100%;min-height:46px;padding:8px 12px;border-radius:var(--r-md);border:1.5px dashed color-mix(in srgb,var(--ink-3) 45%,transparent);background:transparent;color:var(--ink);font:inherit;font-size:14.5px;font-weight:650;text-align:left;cursor:pointer}
+.trc-add .i{width:18px;height:18px;color:var(--accent)}
+.trc-zone.get .trc-add .i{color:var(--good)}
+.trc-add span{flex:1;min-width:0}
+.trc-add small{flex:none;font-size:12px;font-weight:600;color:var(--ink-3);max-width:48%;text-align:right;line-height:1.25}
+.trc-add:active{background:var(--surface-2)}
+.trc-req{display:flex;align-items:center;gap:10px;padding:9px 10px 9px 12px;border-radius:var(--r-md);background:var(--warn-soft);color:var(--warn);font-size:13.5px;font-weight:650}
+.trc-req span{flex:1;min-width:0;text-wrap:balance}
+.trc-req .btn.small{flex:none;height:34px;padding:0 12px;font-size:13.5px}
+
+/* Balance : écart entre ce que je reçois et ce que je donne */
+.trc-bal{display:flex;flex-direction:column;gap:6px;padding:10px 14px 11px;border-radius:var(--r-lg);border:1px solid var(--line);background:var(--surface);--c:var(--ink-2)}
+.trc-bal[data-lv="even"]{--c:var(--good)}
+.trc-bal[data-lv="mid"]{--c:var(--warn)}
+.trc-bal[data-lv="far"]{--c:var(--bad)}
+.trc-meter{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px}
+.trc-meter>span{font-size:10.5px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.trc-track{position:relative;display:block;height:8px;border-radius:99px;background:linear-gradient(90deg,var(--bad),var(--warn) 22%,var(--good) 40%,var(--good) 60%,var(--warn) 78%,var(--bad))}
+.trc-bal[data-lv="none"] .trc-track{background:var(--surface-2)}
+.trc-track::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;margin-left:-1px;border-radius:2px;background:var(--ink-3);opacity:.5}
+.trc-mark{position:absolute;top:50%;left:var(--x,50%);width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--surface);border:3px solid var(--c);box-shadow:0 2px 6px rgba(0,0,0,.3);transition:left .45s var(--ease),border-color .3s}
+.trc-bal[data-lv="none"] .trc-mark{display:none}
+.trc-bt{display:flex;align-items:baseline;justify-content:center;gap:8px;text-align:center}
+.trc-bt b{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--c);font-variant-numeric:tabular-nums}
+.trc-bal[data-lv="none"] .trc-bt b{font-family:var(--font-body);font-size:13px;font-weight:600}
+.trc-bt em{font-style:normal;font-size:12px;font-weight:700;color:var(--c);padding:1px 7px;border-radius:99px;background:color-mix(in srgb,var(--c) 14%,transparent)}
+.trc-px{margin:0 2px;text-align:center}
+
+/* Pied : « Équilibrer », « Prêt » (bascule), « Valider l'échange » */
+.trc-foot .trc-eq{flex:0 1 auto}
+.trc-foot .trc-ready{flex:1 1 60%;font-size:16px}
+.trc-ready[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:var(--bg)}
+.trc-foot .trc-go{flex:1 1 60%}
+.trc-foot .btn[disabled]{opacity:.5}
+
+/* Récapitulatif (les deux prêts), échange fait, fin */
+.trc-final,.trc-done{display:flex;flex-direction:column;gap:12px}
+.trc-fh{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--r-lg);background:var(--good-soft);color:var(--ink)}
+.trc-fh>.i{flex:none;width:34px;height:34px;padding:7px;border-radius:50%;background:var(--good);color:var(--bg)}
+.trc-fh span{display:flex;flex-direction:column;gap:2px}
+.trc-fh b{font-family:var(--font-display);font-size:17px;font-weight:700}
+.trc-fh small{font-size:13px;color:var(--ink-2)}
+.trc-col{padding:10px 12px;border-radius:var(--r-lg);border:1px solid var(--line);background:var(--surface)}
+.trc-col h3{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 6px;font-family:var(--font-display);font-size:15.5px;font-weight:700}
+.trc-col.get h3{color:var(--good)}
+.trc-col.give h3{color:var(--accent)}
+.trc-col h3 span{color:var(--ink);font-variant-numeric:tabular-nums}
+.trc-ml{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.trc-ml li{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;padding:5px 0}
+.trc-ml li+li{border-top:1px solid var(--line)}
+.trc-ml li.trc-mz{display:block;font-size:13px;color:var(--ink-3)}
+.trc-mi{--h:220;position:relative;width:28px;height:39px;border-radius:3px;overflow:hidden;background:hsl(var(--h) 32% var(--thumb-l))}
+.trc-mi img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.trc-mn{min-width:0;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trc-mn b{font-weight:700;color:var(--ink-2)}
+.trc-mp{font-size:13px;font-weight:650;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.trc-fs{margin:0;text-align:center;font-size:13.5px;font-weight:600;color:var(--ink-3);display:flex;align-items:center;justify-content:center;gap:6px}
+.trc-fs[data-ok="1"]{color:var(--good)}
+.trc-fs .i{width:16px;height:16px}
+.trc-done{align-items:stretch;text-align:center}
+.trc-done>b{font-family:var(--font-display);font-size:22px;font-weight:750;letter-spacing:-.01em;text-wrap:balance}
+.trc-done>p{margin:-4px 0 4px;color:var(--ink-2);text-wrap:balance}
+.trc-done .trc-col{text-align:left}
+.trc-tick{align-self:center;width:64px;height:64px;margin-top:10px;border-radius:50%;display:grid;place-items:center;background:var(--good-soft);color:var(--good);animation:trcIn .55s var(--spring) both}
+.trc-tick .i{width:34px;height:34px;stroke-width:2.4}
+.trc-tick.off{background:var(--surface-2);color:var(--ink-3)}
+.trc-end{padding-top:30px}
+
+/* Feuilles de choix : onglets, recherche, une carte par ligne, une pastille par langue / édition */
+.trc-pick .sheet-body{display:flex;flex-direction:column;gap:10px}
+.trc-find{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3)}
+.trc-find .i{width:17px;height:17px;color:var(--ink-3)}
+.trc-find input{flex:1;min-width:0;height:100%;border:0;background:none;font-size:15px;outline:none}
+.trc-find:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.trc-plist .trc-prow{align-items:flex-start}
+.trc-prow .row-main{gap:5px}
+.trc-lns{display:flex;flex-wrap:wrap;gap:6px}
+.trc-ln{display:inline-flex;align-items:center;gap:5px;min-height:32px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s}
+.trc-ln .flag{width:18px;height:12px;border-radius:2px}
+.trc-ln b{font-weight:700;font-variant-numeric:tabular-nums}
+.trc-ln small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.trc-nl{color:var(--ink-3)}
+.trc-ln:active{transform:scale(.94)}
+.trc-ln.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.trc-ln[disabled]{opacity:.55;cursor:default}
+.trc-ln.pop{animation:trcPop .35s var(--spring)}
+@keyframes trcPop{40%{transform:scale(1.12)}}
+.trc-pp{flex:none;align-self:center;font-size:13px;font-weight:650;color:var(--ink-2);font-variant-numeric:tabular-nums}
+
+/* Carte touchée (quantité, demande) */
+.trc-tsb{display:flex;gap:16px;align-items:flex-start}
+.trc-big{--h:220;position:relative;flex:none;width:118px;aspect-ratio:63/88;border-radius:8px;overflow:hidden;background:hsl(var(--h) 32% var(--thumb-l));box-shadow:var(--shadow)}
+.trc-big img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.trc-tsi{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding-top:4px}
+.trc-tsi .hint{margin:0}
+.trc-qs{align-self:flex-start}
+.trc-qs b{min-width:34px;text-align:center;font-variant-numeric:tabular-nums}
+.trc-qs button[disabled]{opacity:.35}
+.trc-tq{font-family:var(--font-display);font-size:22px}
+
+/* « Équilibrer » : total proposé */
+.trc-eqs{display:flex;justify-content:space-between;align-items:baseline;margin:10px 2px 0;font-weight:650}
+.trc-eqs b{font-family:var(--font-display);font-size:18px}
+
+/* Mes échanges */
+.trc-hl{display:flex;flex-direction:column;gap:8px}
+.trc-h{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px 11px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.trc-h:active{transform:scale(.985)}
+.trc-ht{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.trc-ht b{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trc-ht small{font-size:12.5px;color:var(--ink-3)}
+.trc-hv{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:12.5px;font-weight:650;font-variant-numeric:tabular-nums}
+.trc-hv .give{color:var(--ink-2)}
+.trc-hv .get{color:var(--good)}
+.trc-h>.i{width:16px;height:16px;color:var(--ink-3)}
+.trc-hs .sheet-body{display:flex;flex-direction:column;gap:10px}
+.trc-hs .hint{margin:0}
+.trc-hdel{color:var(--bad)}
+
+@media (max-width:370px){
+  .trc-grid{grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:9px 7px}
+  .trc-meter>span{display:none}
+  .trc-bigcode{font-size:26px}
+}
+@media (min-width:700px){.trc-grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}}
+@media (prefers-reduced-motion:reduce){.trc-card.new .trc-art,.trc-tick,.trc-ln.pop,.trc-net .dot{animation:none}.trc-mark,.trc-art,.trc-ln{transition:none}}
