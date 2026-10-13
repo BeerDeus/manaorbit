@@ -2,7 +2,8 @@
    · Orbe « Ma collection » : valeur (prix tendance Cardmarket), cartes, variation sur 7 jours ; les 5 terrains de base tournent autour
      (illustration de ceux de la collection s'ils y sont, sinon la fiche Scryfall, lue une fois), sur une orbite en pointillés.
    · Carte « Échange » : doublons, cartes recherchées, lien en direct ; QR code et Partager (le lien est créé au besoin) ;
-     « Pour toi » : les listes d'amis ouvertes récemment, avec ce qu'elles ont pour toi (relevé à la dernière ouverture, homeSeen).
+     « Pour toi » : tes amis qui ont le plus de cartes pour toi (friends.js, toujours à jour), puis les listes ouvertes récemment par un lien,
+     avec ce qu'elles ont pour toi (relevé à la dernière ouverture, homeSeen).
    · « Prochaines extensions » (sets.js, cachée tant qu'elle n'a rien à montrer) et « Comment ça marche ? » (aide, help.js) en bas.
    Mes decks, decks à monter et prix d'une liste sont dans la section Decks ; le scan (et son prix rapide) au milieu de la barre.
    Tout est repeint en différé (homeSoon) quand la collection, les decks, les prix ou la liste d'échange changent. */
@@ -86,8 +87,11 @@ function homeSeen(id, by, n) {
 }
 function homeForYou() {
   const box = $('#hmForYou'), ul = $('#hmFyList'); if (!box || !ul) return;
-  const l = homeSeenList().slice(0, 3); box.hidden = !l.length; if (!l.length) { ul.innerHTML = ''; return; }
-  ul.innerHTML = l.map(x => { const nm = x.by || T('Liste d\'un ami'); return `<li><button type="button" class="hm-fy-r" data-fy="${esc(x.id)}"><span class="hm-fy-av" aria-hidden="true" style="--h:${hash32(x.id) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}</span><span class="hm-fy-t"><b>${esc(nm)}</b> · ${x.n ? TN(x.n, '{n} carte pour toi', '{n} cartes pour toi') : T('rien pour toi pour l\'instant')}</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button></li>`; }).join('');
+  const fr = amHome(), share = new Set(fr.map(f => f.s).filter(Boolean));      // amis (friends.js) : toujours à jour ; puis les listes ouvertes par un lien (pas déjà celle d'un ami)
+  const l = [...fr.map(f => ({ fa: f.id, id: f.id, by: amName(f), p: f.p, n: f.m })), ...homeSeenList().filter(x => !share.has(x.id))].slice(0, 3);
+  box.hidden = !l.length; if (!l.length) { ul.innerHTML = ''; return; }
+  const h = $('.hm-fy-h', box); if (h) h.innerHTML = `<b>${T('Pour toi')}</b> ${fr.length ? T('· tes amis') : T('· listes d\'amis ouvertes')}`;
+  ul.innerHTML = l.map(x => { const nm = x.by || T('Liste d\'un ami'); return `<li><button type="button" class="hm-fy-r" ${x.fa ? `data-fa="${esc(x.fa)}"` : `data-fy="${esc(x.id)}"`}><span class="hm-fy-av" aria-hidden="true" style="--h:${hash32(x.id) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${x.p ? `<img alt="" src="${esc(x.p)}">` : ''}</span><span class="hm-fy-t"><b>${esc(nm)}</b> · ${x.n ? TN(x.n, '{n} carte pour toi', '{n} cartes pour toi') : T('rien pour toi pour l\'instant')}</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button></li>`; }).join('');
 }
 /** QR code / Partager de l'accueil : le lien de la liste d'échange, créé d'abord s'il n'existe pas (compte demandé si besoin). */
 async function homeTradeAct(qr) {
@@ -100,7 +104,7 @@ function homeInit() {
   $('#btnTrade').onclick = () => { haptic('tap'); if (typeof navOpen === 'function') navOpen(() => openCollection('trade')); else openCollection('trade'); };
   $('#btnTradeQr').onclick = () => homeTradeAct(true);
   $('#btnTradeShare').onclick = () => homeTradeAct(false);
-  $('#hmFyList').addEventListener('click', e => { const b = e.target.closest('[data-fy]'); if (b) { haptic('tap'); openPublicLink(b.dataset.fy); } });
+  $('#hmFyList').addEventListener('click', e => { const a = e.target.closest('[data-fa]'), b = e.target.closest('[data-fy]'); if (a) { haptic('tap'); amOpenFriend(a.dataset.fa); } else if (b) { haptic('tap'); openPublicLink(b.dataset.fy); } });
   $('#btnHome').onclick = () => { haptic('tap'); showView('home'); };
   $('#btnHelp').onclick = () => { haptic('tap'); openHelp(); };
   homePaint();

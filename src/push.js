@@ -20,9 +20,11 @@ function pushNat() { return natPlugin('PushNotifications'); }
 function pnTok() { if (PN.tok === null) { try { PN.tok = localStorage.getItem(PN_KEY) || ''; } catch (e) { PN.tok = ''; } } return PN.tok; }
 function pnTokSet(t) { PN.tok = t || ''; try { if (t) localStorage.setItem(PN_KEY, t); else localStorage.removeItem(PN_KEY); } catch (e) { /* stockage indisponible */ } }
 function pnDone(r) { for (const f of PN.wait.splice(0)) f(r); }
-/** Destination d'une notification touchée : les mêmes liens que Web Push (./?resume=1 : la recherche, ./?alerts=1 : les alertes). */
+/** Destination d'une notification touchée : les mêmes liens que Web Push (./?resume=1 : la recherche, ./?alerts=1 : les alertes,
+    ./?amis=1 : la feuille Amis, ./?ami=<id> : la page d'un ami — friends.js › amPushOpen ; une future invitation à un échange s'ajoute ici). */
 function pushOpen(url) {
   const u = String(url || '');
+  if (amPushOpen(u)) return;
   if (/[?&]alerts\b/.test(u)) setTimeout(alertsOpen, 500);
   else if (/[?&]resume\b/.test(u)) resumeRun();
 }
@@ -36,11 +38,13 @@ async function pnListen(P) {
       const v = t && typeof t.value === 'string' ? t.value : ''; if (!v) return;
       const was = pnTok(); pnTokSet(v); pnDone({ token: v });
       if (was && was !== v && AC.on) { AC.sig = ''; alSoon(); }                 // jeton renouvelé : la liste des alertes repart avec le nouveau
+      if (was !== v) amDevSoon();                                              // et l'appareil se réenregistre pour les notifications des amis
     }),
     on('registrationError', e => pnDone({ error: String((e && e.error) || '') })),
     on('pushNotificationReceived', n => {                                       // app au premier plan : Android affiche aussi la notification
       if (typeof streamOn === 'function' && streamOn()) return;                 // mode streamer (opening.js) : rien à l'écran de l'appli
       const msg = [n && n.title, n && n.body].filter(Boolean).join(' · '), url = n && n.data && n.data.url;
+      if (/[?&]ami/.test(String(url || ''))) { amPushed({ title: n.title, body: n.body, url }); return; }      // ami : liste relue, toast (sauf mode streamer)
       if (msg) toast(msg, /[?&](alerts|resume)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);
     }),
     on('pushNotificationActionPerformed', a => pushOpen(a && a.notification && a.notification.data && a.notification.data.url)),
@@ -121,9 +125,9 @@ async function pushPayload(label) {
   } catch (e) { return null; }
 }
 function pushInit() {
-  try { navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'resume') resumeRun(); else if (e.data && e.data.type === 'alerts') alertsOpen(); }); } catch (e) { /* pas de service worker */ }
+  try { navigator.serviceWorker.addEventListener('message', e => { const d = e.data || {}; if (d.type === 'resume') resumeRun(); else if (d.type === 'alerts') alertsOpen(); else if (d.type === 'open') pushOpen(d.url); else if (d.type === 'pushed' && /[?&]ami/.test(String(d.url || ''))) amPushed(null); }); } catch (e) { /* pas de service worker */ }      // open : notification touchée (amis…) ; pushed : reçue appli ouverte (le système l'affiche, la liste des amis est relue)
   const P = pushNat(); if (P) pnListen(P);                                      // touchers et notifications reçues, même sans notifications activées ici
-  if (S.push || AC.on) pushState().then(st => {
+  if (S.push || AC.on || amHoldsPush()) pushState().then(st => {
     if (st === 'denied') { S.push = false; saveStore(); if (AC.on) { AC.on = false; alWrite(); } }
     else if (P && st === 'on') pnRegister(P);                                   // jeton à jour à chaque lancement (Firebase peut le renouveler)
   });
@@ -142,7 +146,7 @@ async function paintPushBox(box) {
         cb.disabled = true; const r = await pushEnable(); cb.disabled = false;
         if (r.ok) { S.push = true; saveStore(); haptic('ok'); toast(T('Notifications activées')); }
         else { cb.checked = false; S.push = false; saveStore(); msg.hidden = false; msg.textContent = r.why === 'denied' ? pushDeniedMsg() : r.why === 'dismissed' ? T('Autorisation non accordée.') : r.msg ? T('Activation impossible : {msg}.', { msg: r.msg }) : T('Activation impossible.'); }
-      } else { S.push = false; saveStore(); if (!(typeof AC !== 'undefined' && AC.on)) await pushDisable(); }   // l'abonnement reste tant que les alertes de prix s'en servent
+      } else { S.push = false; saveStore(); if (!(typeof AC !== 'undefined' && AC.on) && !amHoldsPush()) await pushDisable(); }   // l'abonnement reste tant que les alertes de prix ou les amis s'en servent
     };
     return;
   }

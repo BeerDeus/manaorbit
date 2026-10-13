@@ -1017,8 +1017,8 @@ function syncCTX() { CTX.token = S.token; CTX.appKey = S.appKey; }
 function openNotifSettings() {
   openSheet(T('Notifications'), T('Fin de recherche et alertes de prix'), api => {
     api.body.innerHTML = `<div class="sec-title">${T('Fin de recherche')}</div><div id="pushBox" class="installbox"></div>
-      <div class="sec-title">${T('Alertes de prix')}</div><div id="alertBox" class="installbox"></div>`;
-    paintPushBox($('#pushBox', api.body)); alPaintBox($('#alertBox', api.body));
+      <div class="sec-title">${T('Alertes de prix')}</div><div id="alertBox" class="installbox"></div>${amOn() ? `<div class="sec-title">${T('Amis')}</div><div id="amisBox" class="installbox"></div>` : ''}`;
+    paintPushBox($('#pushBox', api.body)); alPaintBox($('#alertBox', api.body)); amPushBox($('#amisBox', api.body));
   });
 }
 /* ── Réglages : les rubriques de la fiche « Compte et réglages » (me.js), chacune dans sa propre fiche (fermée en la tirant vers le bas) ─────── */
@@ -1202,7 +1202,7 @@ async function detectProxy(ms = 5000) {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
     const r = await fetch('__ping', { signal: ctrl.signal }); clearTimeout(t);
     if (!r.ok) return; const j = await r.json();
-    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); }
+    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); }
   } catch (e) { /* pas de proxy */ }
   modeLabel();
 }
@@ -1259,7 +1259,7 @@ function init() {
   };
   collInit();
   valInit(); warmInit();
-  xsInit(); alInit(); trInit();
+  xsInit(); alInit(); trInit(); amInit();
   initDecks();
   refreshDeck();
   homeInit();
@@ -1300,7 +1300,7 @@ function init() {
     }
   });
   initInstall();
-  detectProxy().then(() => { pushInit(); handleLaunch(); alSoon(); });
+  detectProxy().then(() => { pushInit(); handleLaunch(); alSoon(); amSoon(2500); });      // amis : liste relue une fois le serveur connu (amUser l'a peut-être demandée trop tôt)
   // serveur injoignable au lancement : nouvel essai au retour du réseau ou de l'appli au premier plan (au plus toutes les 30 s)
   let pingAt = 0; const pingAgain = () => { if (CTX.proxy || document.hidden || Date.now() - pingAt < 30000) return; pingAt = Date.now(); detectProxy().then(() => { if (CTX.proxy) alSoon(); }); };
   window.addEventListener('online', pingAgain); document.addEventListener('visibilitychange', pingAgain);
@@ -1327,11 +1327,12 @@ function handleLaunch() {
   let q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
   if (![...q.keys()].length) return;
   UPD.launchAt = Date.now();                                                              // lien, raccourci, partage : pas de rechargement automatique qui perdrait la cible (pwa.js)
-  const resume = q.has('resume'), alerts = q.has('alerts'), shared = q.has('text') || q.has('url') || q.has('title'), del = q.has('delete-account');
+  const resume = q.has('resume'), alerts = q.has('alerts'), amis = q.has('amis') || q.has('ami'), shared = q.has('text') || q.has('url') || q.has('title'), del = q.has('delete-account');
   try { history.replaceState(null, '', location.pathname); } catch (e) { /* ignore */ }
   if (del) setTimeout(() => openAccount('delete'), 600);                                  // lien « supprimer mon compte » de la politique de confidentialité
   else if (resume) resumeRun();
   else if (alerts) setTimeout(alertsOpen, 900);
+  else if (amis) amPushOpen('?' + q.toString());                                        // notification d'un ami touchée (Web Push : nouvelle fenêtre) : feuille Amis ou page de l'ami
   else if (shared) onShared(extractShared({ title: q.get('title'), text: q.get('text'), url: q.get('url') }));
   else if (q.has('collection')) setTimeout(() => openCollection(), 600);                  // lien direct vers la collection (?collection)
   else if (q.has('import')) { obMark(); setTimeout(() => { if (OB.el) obClose(); openCollection('list'); setTimeout(() => openCollImport(), 350); }, 600); }      // « Importer ma collection » de la page /passer-de-manabox : ni premier lancement, ni détour

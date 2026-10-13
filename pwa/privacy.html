@@ -32,7 +32,7 @@ ul{padding-left:20px}
 
 <section id="fr" lang="fr">
 <h2>Politique de confidentialité</h2>
-<p class="mute">Dernière mise à jour : 12 octobre 2026</p>
+<p class="mute">Dernière mise à jour : 13 octobre 2026</p>
 <p>Mana Orbit est une application gratuite pour suivre sa collection de cartes Magic, ses decks et leurs prix. Elle collecte le moins de données possible et n'en vend aucune.</p>
 <p><b>Responsable du traitement :</b> Martin Stuis EI (M2S Photo), développeur de Mana Orbit, France (coordonnées complètes dans les <a href="legal">mentions légales</a>). Contact : <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
 
@@ -55,11 +55,18 @@ ul{padding-left:20px}
 <p><b>Decks publiés dans la communauté</b> (facultatif, Mes decks › Publier) : la liste du deck, son nom, ses commandants et ton pseudo sont enregistrés dans Cloud Firestore avec la même empreinte de ton identifiant, et montrés à tous les utilisateurs dans « À monter ». Ni ton e-mail, ni ta photo, ni l'identifiant de ton compte. Tu peux retirer un deck publié à tout moment ; supprimer le deck ou ton compte le retire aussi. Quand tu <b>signales</b> un deck, le signalement garde l'identifiant du deck, la date et l'empreinte de ton identifiant (un seul signalement par compte) ; il sert à retirer les decks signalés plusieurs fois.</p>
 <p><b>Signaler un partage :</b> sur une liste ou un deck partagé, « Signaler ce partage » ouvre un e-mail vers contact@manaorbit.app avec l'adresse du lien. Le contenu signalé est examiné dans les meilleurs délais, et le lien est désactivé s'il enfreint la loi ou ces règles (contenu illicite ou insultant, données personnelles d'une autre personne). L'e-mail du signalement sert seulement à le traiter et à te répondre.
 
+<h2>Amis (facultatif)</h2>
+<p>Tu peux ajouter un ami depuis sa liste d'échange (lien ou QR code). Une demande lui envoie ton pseudo et ta photo de profil (réduite à 64 pixels) ; il l'accepte ou la refuse (un refus ne t'est jamais signalé, et bloque ses nouvelles demandes pendant 30 jours).</p>
+<p><b>Ce que voit un ami :</b> ta liste d'échange (doublons et cartes recherchées, comme sur ton lien), tes decks enregistrés et, seulement si tu l'autorises (Compte › Amis › « Partager ma collection », coupé par défaut), ta collection. Tu vois les mêmes choses chez lui. Jamais ton e-mail, ni l'identifiant de ton compte.</p>
+<p>Pour cela, ton appli envoie ces listes à notre serveur quand elles changent, tant que tu as au moins un ami ou une demande envoyée. Le serveur les garde dans Cloud Firestore (Google), dans des collections que seul lui lit et écrit ; ton compte y est noté par l'empreinte SHA-256 de son identifiant, avec ton pseudo, ta photo réduite, la langue de tes notifications, tes amis et les demandes en cours, ainsi que des empreintes courtes des cartes de ta liste d'échange (pour prévenir un ami qu'une carte qu'il cherche est arrivée). Retirer un ami arrête l'accès dans les deux sens ; sans ami ni demande, tes listes sont effacées du serveur ; couper le partage de ta collection l'efface aussitôt.</p>
+<p><b>Notifications des amis</b> (si tes notifications sont actives) : l'adresse d'abonnement de ton navigateur ou le jeton Firebase Cloud Messaging de l'appli est rattaché à ton compte sur le serveur, pour te prévenir d'une demande, d'une acceptation, ou qu'un ami a ajouté une carte que tu cherches (une fois par jour au plus). Il est retiré quand tu te déconnectes de cet appareil, quand tu coupes ces notifications (Réglages › Notifications › Amis), ou quand le service d'envoi le refuse.</p>
+
 <h2>Notre serveur</h2>
 <p>Le serveur de Mana Orbit (hébergé par Hostinger) relaie les requêtes vers CardTrader, Scryfall et EDHREC et garde en cache des prix publics. Il lit aussi les liens que tu colles pour importer un deck (EDHREC, Archidekt). Si tu les actives :</p>
 <ul>
 <li><b>notifications</b> : l'adresse d'abonnement de ton navigateur ou, dans l'appli Android, le jeton Firebase Cloud Messaging ;</li>
-<li><b>alertes de prix</b> : les cartes surveillées, tes seuils et le nom des decks concernés.</li>
+<li><b>alertes de prix</b> : les cartes surveillées, tes seuils et le nom des decks concernés ;</li>
+<li><b>amis</b> : voir « Amis » ci-dessus.</li>
 </ul>
 <p>Elles sont supprimées quand tu les désactives ou supprimes ton compte. Le texte des notifications (noms de cartes et de decks) passe par le service d'envoi de Google ou de l'éditeur de ton navigateur.</p>
 <p><b>Token CardTrader :</b> il n'accompagne que tes recherches CardTrader (jamais les alertes ni l'import). Le serveur s'en sert pour interroger CardTrader avec ton compte et le garde en mémoire le temps de la recherche ; il n'en conserve qu'une empreinte (SHA-256) pour espacer les requêtes. Il ne l'écrit jamais sur disque ni dans ses journaux, ni dans ton compte.</p>
@@ -76,7 +83,7 @@ ul{padding-left:20px}
 
 <h2>Bases légales</h2>
 <ul>
-<li><b>exécution du service</b> : le compte, la synchronisation, les liens partagés et l'import ;</li>
+<li><b>exécution du service</b> : le compte, la synchronisation, les liens partagés, les amis et l'import ;</li>
 <li><b>consentement</b> : la publicité (formulaire de Google) et les notifications, alertes de prix comprises ; tu peux le retirer à tout moment ;</li>
 <li><b>intérêt légitime</b> : les journaux de sécurité, la limite de requêtes et le cache des prix.</li>
 </ul>
@@ -86,7 +93,7 @@ ul{padding-left:20px}
 
 <h2>Tes droits</h2>
 <p>Tu peux à tout moment accéder à tes données, les exporter, les corriger ou les supprimer (RGPD). Tu peux aussi adresser une réclamation à la CNIL (cnil.fr).</p>
-<p><b>Supprimer ton compte :</b> dans l'application, Compte › Supprimer mon compte, ou directement sur <a href="./?delete-account">cette page</a>. Tout ce que le compte a en ligne est effacé : decks, collection, historique, liste d'échange, réglages, liens partagés et decks publiés. Tes alertes de prix et notifications sont aussi arrêtées sur le serveur, et la copie du compte gardée sur l'appareil est effacée. Les données de ton appareil peuvent être effacées en même temps, ou à part depuis Réglages › Confidentialité.</p>
+<p><b>Supprimer ton compte :</b> dans l'application, Compte › Supprimer mon compte, ou directement sur <a href="./?delete-account">cette page</a>. Tout ce que le compte a en ligne est effacé : decks, collection, historique, liste d'échange, réglages, liens partagés, decks publiés, et tout ce qui concerne tes amis (tu disparais de leurs listes, tes listes et tes appareils sont effacés du serveur). Tes alertes de prix et notifications sont aussi arrêtées sur le serveur, et la copie du compte gardée sur l'appareil est effacée. Les données de ton appareil peuvent être effacées en même temps, ou à part depuis Réglages › Confidentialité.</p>
 <p>Pour toute question ou pour exercer tes droits, écris à <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
 
 <h2>Contenu de fan</h2>
@@ -95,7 +102,7 @@ ul{padding-left:20px}
 
 <section id="en" lang="en">
 <h2>Privacy policy</h2>
-<p class="mute">Last updated: October 12, 2026</p>
+<p class="mute">Last updated: October 13, 2026</p>
 <p>Mana Orbit is a free app to track your Magic card collection, your decks and their prices. It collects as little data as possible and never sells any.</p>
 <p><b>Data controller:</b> Martin Stuis EI (M2S Photo), developer of Mana Orbit, France (full details in the <a href="legal#en">legal notice</a>). Contact: <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
 
@@ -117,11 +124,18 @@ ul{padding-left:20px}
 <p>When you share your trade list or a deck, its content can be read by anyone who has the link. It contains neither your email nor your account ID, only a fingerprint (SHA-256) of that ID, which shows the link is yours. If you set a nickname or a profile photo, they appear there too (“…'s trade list”); your Google photo never does. You can remove a link at any time.</p>
 <p><b>Reporting a share:</b> on a shared list or deck, “Report this share” opens an email to contact@manaorbit.app with the link's address. Reported content is reviewed as soon as possible, and the link is disabled if it breaks the law or these rules (illegal or abusive content, someone else's personal data). The report email is only used to handle the report and to reply to you.
 
+<h2>Friends (optional)</h2>
+<p>You can add a friend from their trade list (link or QR code). A request sends them your nickname and profile photo (scaled down to 64 pixels); they accept or decline it (a decline is never shown to you, and blocks new requests from you for 30 days).</p>
+<p><b>What a friend sees:</b> your trade list (duplicates and wanted cards, as on your link), your saved decks and, only if you allow it (Account › Friends › “Share my collection”, off by default), your collection. You see the same things for them. Never your email, nor your account ID.</p>
+<p>To do this, your app sends these lists to our server when they change, as long as you have at least one friend or a sent request. The server keeps them in Cloud Firestore (Google), in collections only it reads and writes; your account is recorded there as the SHA-256 fingerprint of its ID, with your nickname, your scaled-down photo, the language of your notifications, your friends and pending requests, plus short fingerprints of the cards in your trade list (to tell a friend that a card they want has arrived). Removing a friend stops access both ways; with no friend and no request, your lists are deleted from the server; turning off collection sharing deletes it at once.</p>
+<p><b>Friend notifications</b> (if your notifications are on): your browser's subscription address or the app's Firebase Cloud Messaging token is linked to your account on the server, to tell you about a request, an acceptance, or a friend who added a card you want (once a day at most). It is removed when you sign out on that device, when you turn these notifications off (Settings › Notifications › Friends), or when the push service rejects it.</p>
+
 <h2>Our server</h2>
 <p>The Mana Orbit server (hosted by Hostinger) relays requests to CardTrader, Scryfall and EDHREC and caches public prices. It also fetches the links you paste to import a deck (EDHREC, Archidekt). If you turn them on:</p>
 <ul>
 <li><b>notifications</b>: your browser's subscription address or, in the Android app, the Firebase Cloud Messaging token;</li>
-<li><b>price alerts</b>: the watched cards, your thresholds and the names of the decks concerned.</li>
+<li><b>price alerts</b>: the watched cards, your thresholds and the names of the decks concerned;</li>
+<li><b>friends</b>: see “Friends” above.</li>
 </ul>
 <p>They are deleted when you turn them off or delete your account. Notification text (card and deck names) goes through Google's or your browser vendor's push service.</p>
 <p><b>CardTrader token:</b> it only goes with your CardTrader searches (never with alerts or imports). The server uses it to query CardTrader with your account and keeps it in memory for the duration of the search; it only keeps a fingerprint (SHA-256) of it to pace requests. It never writes it to disk or to its logs, nor to your account.</p>
@@ -138,7 +152,7 @@ ul{padding-left:20px}
 
 <h2>Legal bases</h2>
 <ul>
-<li><b>performance of the service</b>: the account, sync, shared links and imports;</li>
+<li><b>performance of the service</b>: the account, sync, shared links, friends and imports;</li>
 <li><b>consent</b>: ads (Google's form) and notifications, price alerts included; you can withdraw it at any time;</li>
 <li><b>legitimate interest</b>: security logs, request limits and the price cache.</li>
 </ul>
@@ -148,7 +162,7 @@ ul{padding-left:20px}
 
 <h2>Your rights</h2>
 <p>You can access, export, correct or delete your data at any time (GDPR). You can also lodge a complaint with your data protection authority.</p>
-<p><b>Delete your account:</b> in the app, Account › Delete my account, or directly from <a href="./?delete-account">this page</a>. Everything the account holds online is erased: decks, collection, history, trade list, settings and shared links. Your price alerts and notifications are also stopped on the server, and the copy of the account kept on the device is erased. Data on your device can be erased at the same time, or separately from Settings › Privacy.</p>
+<p><b>Delete your account:</b> in the app, Account › Delete my account, or directly from <a href="./?delete-account">this page</a>. Everything the account holds online is erased: decks, collection, history, trade list, settings, shared links, published decks, and everything about your friends (you disappear from their lists, your lists and devices are deleted from the server). Your price alerts and notifications are also stopped on the server, and the copy of the account kept on the device is erased. Data on your device can be erased at the same time, or separately from Settings › Privacy.</p>
 <p>For any question or to exercise your rights, write to <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
 
 <h2>Fan content</h2>

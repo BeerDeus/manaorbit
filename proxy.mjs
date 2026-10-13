@@ -357,7 +357,7 @@ function parsePush(p) {
 async function sendPush(p) {
   if (p.sub.fcm) return FCM_ON ? sendFcm(p) : 0;
   if (!PUSH_ON) return 0;                                            // abonnement enregistré avant le retrait des clés VAPID : gardé, pas envoyé
-  const u = new URL(p.sub.endpoint), body = encryptPush(Buffer.from(JSON.stringify({ title: p.title, body: p.body, url: p.url, ...(p.kind ? { kind: p.kind } : {}) })), p.sub.keys.p256dh, p.sub.keys.auth);
+  const u = new URL(p.sub.endpoint), body = encryptPush(Buffer.from(JSON.stringify({ title: p.title, body: p.body, url: p.url, ...(p.kind ? { kind: p.kind } : {}), ...(p.tag ? { tag: p.tag } : {}) })), p.sub.keys.p256dh, p.sub.keys.auth);      // tag : une notification du même sujet remplace la précédente (sw.js)
   for (let a = 0; a < 2; a++) {
     let r;
     try {
@@ -426,7 +426,7 @@ function fcmGone(status, e) {
 }
 async function sendFcm(p) {
   const body = JSON.stringify({ message: { token: p.sub.fcm, notification: { title: p.title, body: p.body }, data: { url: p.url },
-    android: { priority: 'HIGH', ttl: (p.ttl || 3600) + 's', collapse_key: p.topic || 'deckdeal-run' } } });   // ttl et collapse_key : équivalents des en-têtes TTL et Topic de Web Push
+    android: { priority: 'HIGH', ttl: (p.ttl || 3600) + 's', collapse_key: p.topic || 'deckdeal-run', ...(p.tag ? { notification: { tag: p.tag } } : {}) } } });   // ttl et collapse_key : équivalents des en-têtes TTL et Topic de Web Push ; tag : remplace la notification du même sujet
   for (let a = 0; a < 2; a++) {
     let tok, r;
     try { tok = await fcmAccess(); } catch (e) { console.warn('FCM : ' + e.message); return 0; }
@@ -849,8 +849,9 @@ async function loadKeys(force) {
   jwk.keys = keys; jwk.exp = now + Math.min(24 * 3600e3, Math.max(60e3, (m ? Number(m[1]) : 3600) * 1000));
 }
 const b64j = x => JSON.parse(Buffer.from(x, 'base64url').toString('utf8'));
-/** Retourne {uid, email, emailVerified} ou lève une erreur {authCode: expired | invalid | forbidden | unavailable}. */
-async function verifyIdToken(tok) {
+/** Retourne {uid, email, emailVerified} ou lève une erreur {authCode: expired | invalid | forbidden | unavailable}.
+    any : tout compte du projet Firebase (amis : chacun ses données), sans la liste ALLOWED_UIDS / ALLOWED_EMAILS du token CardTrader du serveur. */
+async function verifyIdToken(tok, any = false) {
   const parts = String(tok || '').split('.');
   if (parts.length !== 3 || tok.length > 4096) throw authErr('invalid');
   let h, c;
@@ -869,7 +870,7 @@ async function verifyIdToken(tok) {
   if (!Number.isFinite(c.exp) || !Number.isFinite(c.iat) || c.iat > now + skew || (c.auth_time && c.auth_time > now + skew)) throw authErr('invalid');
   if (c.exp <= now) throw authErr('expired');
   const email = typeof c.email === 'string' ? c.email.toLowerCase() : '', emailVerified = c.email_verified === true;
-  if (!(ALLOWED_UIDS.has(c.sub) || (email && emailVerified && ALLOWED_EMAILS.has(email)))) throw authErr('forbidden');
+  if (!any && !(ALLOWED_UIDS.has(c.sub) || (email && emailVerified && ALLOWED_EMAILS.has(email)))) throw authErr('forbidden');
   return { uid: c.sub, email, emailVerified };
 }
 
@@ -1082,6 +1083,459 @@ async function pubApi(req, res, url) {
   return res.end(req.method === 'HEAD' ? undefined : body);
 }
 
+/* ── Amis : /api/friends… (demandes, liste, page d'un ami, notifications de chaque compte) ──────────────────────────────────────
+   Un ami s'ajoute depuis sa liste d'échange publique (lien ou QR code) : « Ajouter en ami » → demande, acceptée ou refusée dans « Compte et réglages › Amis ».
+   Deux amis voient l'un chez l'autre la liste d'échange (doublons et cartes recherchées), les decks, et la collection si son propriétaire l'autorise.
+   Tout passe par ce serveur (compte de service, portée datastore : hors des règles Firestore) : l'appli ne lit ni n'écrit jamais les collections amis,
+   amisdata et amisys (firestore.rules : refus par défaut). Un compte y est noté par l'empreinte SHA-256 de son UID (comme le champ o des partages) :
+   aucun UID n'y est écrit, aucun n'est renvoyé. Jeton Firebase exigé (x-firebase-token) : tout compte du projet, sans la liste ALLOWED_UIDS.
+   · amis/{empreinte} { j: JSON, at } : pseudo et miniature (64 px) du profil, langue, amis (f : empreinte → depuis), demandes reçues (i) et envoyées (o),
+     refus (x : plus aucune demande de ce compte pendant 30 jours, sans le lui dire), appareils (d : cibles push, 8 au plus, retirées quand le service
+     les refuse), empreintes courtes des cartes à échanger (hk) et cherchées (wk), file du résumé « un ami a une carte que tu cherches » (w),
+     demandes du jour (r), parties envoyées (has : date, empreinte, nombre).
+   · amisdata/{empreinte}_t | _d | _c { j, at } : liste d'échange (contenu du lien public), decks, collection (seulement si partagée) ; envoyées par les
+     appareils du compte quand elles changent, tant qu'il a un ami ou une demande envoyée ; lues par ses amis seulement ; effacées sinon.
+   · amisys/due { j } : résumés en attente (empreinte → heure d'envoi), relus au premier appel après un démarrage.
+   Un seul processus écrit : les modifications d'un compte passent l'une après l'autre (amLock) ; documents gardés 10 min en mémoire.
+   notifyUser(compte, message) : notification sur tous les appareils enregistrés d'un compte, dans la langue de chacun (demandes, acceptations,
+   cartes cherchées ; demain les invitations à un échange). Toucher : ./?amis=1 (feuille Amis) ou ./?ami=<empreinte> (page de l'ami), voir push.js.
+   « Un ami a une carte que tu cherches » : calculé ici quand sa liste d'échange gagne des cartes que tu cherches ; une notification par jour au plus,
+   la suivante regroupe tout ce qui est arrivé entre-temps.
+   Bornes : 200 amis (FRIENDS_MAX), 100 demandes reçues, 50 envoyées, 40 demandes par jour et par compte, 30 par heure et par réseau, pas soi-même.
+   FRIENDS=0, ou sans compte de service : coupé (/__ping amis: false, l'appli cache tout). */
+const AM_ON = FCM_ON && process.env.FRIENDS !== '0';
+const AM_MAX = Math.max(1, Number(process.env.FRIENDS_MAX) || 200), AM_INC = 100, AM_OUT = 50, AM_DEVS = 8, AM_X = 300, AM_KEYS = 8000;
+const AM_DECLINE = Number(process.env.FRIENDS_DECLINE_MS ?? 30 * 86400e3), AM_ASK_DAY = Number(process.env.FRIENDS_ASK_PER_DAY) || 40, AM_ASK_H = Number(process.env.FRIENDS_ASK_PER_H ?? 30);
+const AM_GAP = Number(process.env.FRIENDS_WANT_GAP_MS ?? 86400e3);      // « un ami a une carte que tu cherches » : une notification par jour au plus
+const AM_PART = 1000000, AM_BODY = 1100 * 1024, AM_TTL = 10 * 60e3, AM_CACHE = 3000, AM_CACHE_MB = (Number(process.env.FRIENDS_CACHE_MB) || 24) * 1024 * 1024;
+const AM_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt'], AM_TAG = /^[0-9a-f]{64}$/, AM_PARTS = ['t', 'd', 'c'], AM_SID = /^[A-Za-z0-9]{12,40}$/, AM_URL = /^\.\/(\?[\w=&.%-]{0,160})?$/;
+const AMI = { cache: new Map(), bytes: 0, locks: new Map(), shares: new Map(), due: new Map(), timers: new Map(), dueT: null, booted: false };
+const amTag = uid => createHash('sha256').update(String(uid)).digest('hex');
+const amN = o => Object.keys(o || {}).length;
+/** Empreinte courte d'une carte (nom comparé comme ownKey de l'appli) : « il a ce que tu cherches » sans garder les listes en clair dans le document du compte. */
+const amKey = n => createHash('sha1').update(NM_CORE && NM_CORE.ownKey ? NM_CORE.ownKey(String(n)) : String(n).toLowerCase().trim()).digest('base64url').slice(0, 9);
+/** Pseudo : nettoyé comme profClean (decks.js), refusé (vide) s'il contient un mot du filtre des decks publics. */
+const amName = v => { const s = typeof v === 'string' ? v.replace(/[\p{Cc}\p{Cf}<>]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 30).trim() : ''; return s && !(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(s)) ? s : ''; };
+const amPic = v => (typeof v === 'string' && v.length <= 8000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : '');
+const amLang = v => (AM_LANGS.includes(v) ? v : 'fr');
+const amNew = () => ({ v: 1, n: '', p: '', l: 'fr', c: 0, s: '', f: {}, i: {}, o: {}, x: {}, d: [], hk: [], wk: [], has: {}, w: null, r: null });
+function amRead(j) {
+  let o; try { o = JSON.parse(j); } catch (e) { return null; }
+  if (!o || typeof o !== 'object') return null;
+  const s = amNew();
+  for (const k of Object.keys(s)) if (o[k] != null && typeof o[k] === typeof s[k] && Array.isArray(o[k]) === Array.isArray(s[k])) s[k] = o[k];
+  for (const k of ['w', 'r']) if (o[k] && typeof o[k] === 'object') s[k] = o[k];
+  return s;
+}
+
+/* Documents Firestore (API REST, compte de service) : un champ j (JSON) et sa date. */
+const fsPath = p => `${FS_BASE}/v1/projects/${fcmSa.project}/databases/(default)/documents/${p}`;
+const fsStr = (j, at) => ({ j: { stringValue: j }, at: { integerValue: String(at) } });
+/** GET → document ou null (absent) ; PATCH → crée ou remplace ; DELETE. Jeton révoqué : un nouveau, un seul essai. Erreur : e.http. */
+async function fsDoc(method, path, fields) {
+  for (let a = 0; ; a++) {
+    const tok = await fcmAccess(DS_SCOPE);
+    const r = await fetch(fsPath(path), { method, signal: AbortSignal.timeout(15000), redirect: 'manual',
+      headers: { Authorization: 'Bearer ' + tok, Accept: 'application/json', ...(fields ? { 'Content-Type': 'application/json; charset=utf-8' } : {}) }, ...(fields ? { body: JSON.stringify({ fields }) } : {}) });
+    if (r.status === 401 && a === 0) { await r.arrayBuffer().catch(() => {}); fcmAuth.get(DS_SCOPE).tok = ''; continue; }
+    if (r.status === 404 && method !== 'PATCH') { await r.arrayBuffer().catch(() => {}); return null; }
+    const j = await r.json().catch(() => null);
+    if (!r.ok) { const e = new Error(path.split('/')[0] + ' : HTTP ' + r.status + (j && j.error && j.error.message ? ' ' + String(j.error.message).slice(0, 120) : '')); e.http = r.status; throw e; }
+    return j || {};
+  }
+}
+/** Cache des comptes (3 000 au plus, 24 Mo de JSON au plus : FRIENDS_CACHE_MB) ; les plus anciens partent d'abord. */
+function amMem(tag, s, size = 0) {
+  const old = AMI.cache.get(tag); if (old) { AMI.bytes -= old.b; AMI.cache.delete(tag); }
+  AMI.cache.set(tag, { s, at: Date.now(), b: size }); AMI.bytes += size;
+  while (AMI.cache.size > AM_CACHE || (AMI.bytes > AM_CACHE_MB && AMI.cache.size > 1)) { const [k, v] = AMI.cache.entries().next().value; AMI.bytes -= v.b; AMI.cache.delete(k); }
+}
+/** État d'un compte (null : aucun document). fresh : relu dans Firestore (toute modification part de là). */
+async function amGet(tag, fresh = false) {
+  const c = AMI.cache.get(tag);
+  if (!fresh && c && Date.now() - c.at < AM_TTL) return c.s;
+  const d = await fsDoc('GET', 'amis/' + tag), j = d ? String(fsFields(d).j || '') : '', s = d ? amRead(j) : null;
+  amMem(tag, s, j.length); return s;
+}
+async function amSave(tag, s) {
+  const j = s ? JSON.stringify(s) : '';
+  if (s) await fsDoc('PATCH', 'amis/' + tag, fsStr(j, Date.now())); else await fsDoc('DELETE', 'amis/' + tag);
+  amMem(tag, s, j.length);
+}
+/** Modifications d'un ou deux comptes l'une après l'autre (un seul processus serveur : une file par compte suffit ; deux comptes : les deux files). */
+function amLock(keys, fn) {
+  keys = [...new Set(keys)];
+  const run = Promise.all(keys.map(k => AMI.locks.get(k))).then(fn), tail = run.then(() => {}, () => {});
+  for (const k of keys) AMI.locks.set(k, tail);
+  tail.then(() => { for (const k of keys) if (AMI.locks.get(k) === tail) AMI.locks.delete(k); });
+  return run;
+}
+/** Relit les comptes dans Firestore, applique fn(états) (peut créer : st[t] = amNew(), ou effacer : st[t] = null), enregistre ceux qui ont changé. */
+function amEdit(tags, fn) {
+  return amLock(tags, async () => {
+    const st = {}, was = {};
+    for (const t of new Set(tags)) { st[t] = await amGet(t, true); was[t] = JSON.stringify(st[t]); }
+    const out = await fn(st);
+    for (const t of Object.keys(st)) if (JSON.stringify(st[t]) !== was[t]) await amSave(t, st[t]);
+    return out;
+  });
+}
+async function amEach(list, fn, conc = 12) { let i = 0; await Promise.all(Array.from({ length: Math.min(conc, list.length) }, async () => { while (i < list.length) await fn(list[i++]); })); }
+/** Plus d'ami ni de demande envoyée : ses parties (liste, decks, collection) ne servent plus, à effacer. Vrai si c'est le cas. */
+function amIdle(s) {
+  if (!s || amN(s.f) || amN(s.o) || !amN(s.has)) return false;
+  s.has = {}; s.hk = []; s.wk = []; return true;
+}
+const amDropParts = tag => Promise.all(AM_PARTS.map(p => fsDoc('DELETE', `amisdata/${tag}_${p}`).catch(e => console.warn('Amis : ' + e.message))));
+/** Plus rien entre a et b (amitié, demandes, résumé en attente) ; drop : comptes qui n'ont plus d'ami (parties à effacer). */
+function amUnlink(st, a, b, drop) {
+  for (const [x, y] of [[a, b], [b, a]]) {
+    const s = st[x]; if (!s) continue;
+    delete s.f[y]; delete s.i[y]; delete s.o[y];
+    if (s.w && Array.isArray(s.w.q)) s.w.q = s.w.q.filter(e => e.f !== y);
+    if (amIdle(s)) drop.push(x);
+  }
+}
+
+/** Propriétaire d'un partage (lien public) : son empreinte (champ o) et le pseudo du lien, gardés 10 min. null : lien absent. */
+async function amOwner(sid) {
+  const c = AMI.shares.get(sid); if (c && Date.now() - c.at < AM_TTL) return c;
+  const d = await fsDoc('GET', 'shares/' + sid); let o = null;
+  if (d) {
+    const f = fsFields(d);
+    if (typeof f.o === 'string' && AM_TAG.test(f.o)) { let by = ''; try { by = amName(JSON.parse(f.d || '{}').by); } catch (e) { /* pseudo illisible */ } o = { o: f.o, by, at: Date.now() }; }
+  }
+  if (AMI.shares.size > 2000) AMI.shares.clear();
+  if (o) AMI.shares.set(sid, o); else AMI.shares.delete(sid);
+  return o;
+}
+
+/* ── Notifications d'un compte ─────────────────────────────────────────────────────────────────── */
+/**
+ * Notification sur tous les appareils enregistrés d'un compte (Web Push ou FCM), dans la langue de chacun. À réutiliser (invitations à un échange…).
+ * who : UID Firebase ou empreinte (64 hex). msg : { title, body, url, tag, ttl? } ou lang => { … } (texte dans la langue de l'appareil : fr, en, de, es, it, pt).
+ * url : « ./?… » (ouvert par l'appli au toucher, push.js › pushOpen) ; tag : sujet (une notification du même sujet remplace la précédente).
+ * Cible refusée par le service (404 / 410) : retirée du compte. Retourne le nombre d'appareils prévenus.
+ */
+async function notifyUser(who, msg) {
+  if (!AM_ON) return 0;
+  const tag = AM_TAG.test(String(who)) ? String(who) : amTag(who);
+  let s; try { s = await amGet(tag); } catch (e) { return 0; }
+  if (!s || !s.d.length) return 0;
+  let sent = 0; const dead = [];
+  for (const d of s.d) {
+    const m = typeof msg === 'function' ? msg(amLang(d.l || s.l)) : msg; if (!m || !m.title) continue;
+    const tg = String(m.tag || 'mo-amis').replace(/[^\w-]/g, '').slice(0, 32) || 'mo-amis';
+    const st = await sendPush({ sub: d.sub, title: String(m.title).slice(0, 80), body: String(m.body || '').slice(0, 200), url: AM_URL.test(m.url) ? m.url : './', kind: 'open', tag: tg, topic: tg, ttl: m.ttl || 86400, urgency: 'normal' });
+    if (st && st < 300) sent++; else if (st === 404 || st === 410) dead.push(d.k); else console.warn('Amis : notification refusée (' + (st || 'réseau') + ')');
+  }
+  if (dead.length) amEdit([tag], st => { const o = st[tag]; if (o) o.d = o.d.filter(x => !dead.includes(x.k)); }).then(() => console.warn('Amis : ' + dead.length + ' appareil(s) périmé(s) retiré(s)'), () => {});
+  return sent;
+}
+// Textes des notifications, dans la langue de l'appareil (français par défaut).
+const AM_TXT = {
+  fr: { anon: 'Un joueur', and: ' et ', ask: n => ['Demande d\'ami', `${n} veut t'ajouter en ami sur Mana Orbit.`], ok: n => ['Demande acceptée', `${n} a accepté ta demande d'ami.`],
+    w1: n => `${n} a une carte que tu cherches`, wN: n => `${n} a des cartes que tu cherches`, wM: 'Tes amis ont des cartes que tu cherches',
+    b1: (n, c) => `${n} vient d'ajouter ${c}, que tu cherches.`, bN: (n, c, k) => `${n} vient d'ajouter ${c} et ${k} autre${k > 1 ? 's' : ''} carte${k > 1 ? 's' : ''} que tu cherches.`, bM: (ns, k) => `${ns} ont ajouté ${k} cartes que tu cherches.` },
+  en: { anon: 'A player', and: ' and ', ask: n => ['Friend request', `${n} wants to add you as a friend on Mana Orbit.`], ok: n => ['Request accepted', `${n} accepted your friend request.`],
+    w1: n => `${n} has a card you want`, wN: n => `${n} has cards you want`, wM: 'Your friends have cards you want',
+    b1: (n, c) => `${n} just added ${c}, which you're looking for.`, bN: (n, c, k) => `${n} just added ${c} and ${k} more card${k > 1 ? 's' : ''} you're looking for.`, bM: (ns, k) => `${ns} added ${k} cards you're looking for.` },
+  de: { anon: 'Ein Spieler', and: ' und ', ask: n => ['Freundschaftsanfrage', `${n} möchte dich auf Mana Orbit als Freund hinzufügen.`], ok: n => ['Anfrage angenommen', `${n} hat deine Freundschaftsanfrage angenommen.`],
+    w1: n => `${n} hat eine Karte, die du suchst`, wN: n => `${n} hat Karten, die du suchst`, wM: 'Deine Freunde haben Karten, die du suchst',
+    b1: (n, c) => `${n} hat gerade ${c} hinzugefügt – die Karte suchst du.`, bN: (n, c, k) => `${n} hat gerade ${c} und ${k} weitere Karte${k > 1 ? 'n' : ''} hinzugefügt, die du suchst.`, bM: (ns, k) => `${ns} haben ${k} Karten hinzugefügt, die du suchst.` },
+  es: { anon: 'Un jugador', and: ' y ', ask: n => ['Solicitud de amistad', `${n} quiere añadirte como amigo en Mana Orbit.`], ok: n => ['Solicitud aceptada', `${n} ha aceptado tu solicitud de amistad.`],
+    w1: n => `${n} tiene una carta que buscas`, wN: n => `${n} tiene cartas que buscas`, wM: 'Tus amigos tienen cartas que buscas',
+    b1: (n, c) => `${n} acaba de añadir ${c}, que estás buscando.`, bN: (n, c, k) => `${n} acaba de añadir ${c} y ${k} carta${k > 1 ? 's' : ''} más que estás buscando.`, bM: (ns, k) => `${ns} han añadido ${k} cartas que buscas.` },
+  it: { anon: 'Un giocatore', and: ' e ', ask: n => ['Richiesta di amicizia', `${n} vuole aggiungerti come amico su Mana Orbit.`], ok: n => ['Richiesta accettata', `${n} ha accettato la tua richiesta di amicizia.`],
+    w1: n => `${n} ha una carta che cerchi`, wN: n => `${n} ha delle carte che cerchi`, wM: 'I tuoi amici hanno carte che cerchi',
+    b1: (n, c) => `${n} ha appena aggiunto ${c}, che stai cercando.`, bN: (n, c, k) => `${n} ha appena aggiunto ${c} e ${k > 1 ? `altre ${k} carte` : 'un\'altra carta'} che stai cercando.`, bM: (ns, k) => `${ns} hanno aggiunto ${k} carte che cerchi.` },
+  pt: { anon: 'Um jogador', and: ' e ', ask: n => ['Pedido de amizade', `${n} quer adicionar você como amigo no Mana Orbit.`], ok: n => ['Pedido aceito', `${n} aceitou seu pedido de amizade.`],
+    w1: n => `${n} tem uma carta que você procura`, wN: n => `${n} tem cartas que você procura`, wM: 'Seus amigos têm cartas que você procura',
+    b1: (n, c) => `${n} acabou de adicionar ${c}, que você procura.`, bN: (n, c, k) => `${n} acabou de adicionar ${c} e mais ${k} carta${k > 1 ? 's' : ''} que você procura.`, bM: (ns, k) => `${ns} adicionaram ${k} cartas que você procura.` },
+};
+const amJoin = (L, ns) => (ns.length < 2 ? ns[0] || '' : ns.slice(0, -1).join(', ') + L.and + ns[ns.length - 1]);
+/** Nom d'une carte pour la langue de l'appareil : nom imprimé (f, langue fl, français sans elle) s'il est dans cette langue, sinon l'anglais. */
+const amCard = (c, l) => (c.f && l === (c.fl || 'fr') ? c.f : c.n);
+/** Demande reçue (ask) ou acceptée (ok) : prévient « to » ; from : celui qui agit (sa page s'ouvre au toucher d'une acceptation). */
+function amNote(kind, to, from, name) {
+  notifyUser(to, l => { const L = AM_TXT[l], [title, body] = L[kind](name || L.anon); return { title, body, url: kind === 'ask' ? './?amis=1' : './?ami=' + from, tag: 'mo-amis-' + kind }; }).catch(() => {});
+}
+
+/* ── « Un ami a une carte que tu cherches » : une notification par jour au plus, regroupée ─────────── */
+/** Sa liste d'échange vient de gagner des cartes (added : empreinte → { n, f?, fl? }) : chaque ami qui en cherche une est prévenu (ou mis en file). */
+async function amFan(from, added) {
+  const s = await amGet(from).catch(() => null); if (!s) return;
+  for (const to of Object.keys(s.f)) {
+    let o; try { o = await amGet(to); } catch (e) { continue; }
+    if (!o || !o.f[from] || !o.wk.length) continue;
+    const wk = new Set(o.wk), hit = [...added].filter(([k]) => wk.has(k)).map(([, c]) => c);
+    if (hit.length) await amWant(to, from, hit.slice(0, 12)).catch(e => console.warn('Amis : ' + e.message));
+  }
+}
+async function amWant(to, from, cards) {
+  let send = null, due = 0;
+  await amEdit([to], st => {
+    const o = st[to]; if (!o || !o.f[from]) return;
+    const w = o.w && Array.isArray(o.w.q) ? o.w : { at: 0, q: [] };
+    let e = w.q.find(x => x.f === from); if (!e) { e = { f: from, c: [] }; w.q.push(e); }
+    for (const c of cards) if (!e.c.some(y => y.n === c.n)) e.c.push(c);
+    e.c = e.c.slice(-12); w.q = w.q.slice(-10);
+    const now = Date.now();
+    if (now - (Number(w.at) || 0) >= AM_GAP) { send = w.q; w.q = []; w.at = now; w.due = 0; } else w.due = due = Number(w.at) + AM_GAP;
+    o.w = w;
+  });
+  if (send) await amWantSend(to, send); else if (due) amDue(to, due);
+}
+async function amWantSend(to, q) {
+  const names = new Map();
+  for (const e of q) { const s = await amGet(e.f).catch(() => null); if (s && s.n) names.set(e.f, s.n); }
+  const n = q.reduce((a, e) => a + e.c.length, 0);
+  return notifyUser(to, l => {
+    const L = AM_TXT[l], who = e => names.get(e.f) || L.anon, e = q[0];
+    const m = q.length > 1 ? { title: L.wM, body: L.bM(amJoin(L, q.slice(0, 3).map(who)), n) } : e.c.length > 1 ? { title: L.wN(who(e)), body: L.bN(who(e), amCard(e.c[0], l), e.c.length - 1) } : { title: L.w1(who(e)), body: L.b1(who(e), amCard(e.c[0], l)) };
+    return { ...m, url: q.length > 1 ? './?amis=1' : './?ami=' + e.f, tag: 'mo-amis-want' };
+  });
+}
+/** Résumé à envoyer à l'heure at (0 : rien) : minuteur en mémoire, copie dans amisys/due (relue au démarrage). quiet : sans réécrire la copie. */
+function amDue(tag, at, quiet) {
+  clearTimeout(AMI.timers.get(tag)); AMI.timers.delete(tag);
+  if (at) { AMI.due.set(tag, at); const t = setTimeout(() => amDueFire(tag), Math.max(1000, Math.min(at - Date.now(), 2 ** 31 - 1))); t.unref(); AMI.timers.set(tag, t); } else AMI.due.delete(tag);
+  if (quiet) return;
+  clearTimeout(AMI.dueT);
+  AMI.dueT = setTimeout(() => amLock(['~due'], () => fsDoc('PATCH', 'amisys/due', fsStr(JSON.stringify(Object.fromEntries(AMI.due)), Date.now()))).catch(e => console.warn('Amis : ' + e.message)), 800);
+  AMI.dueT.unref();
+}
+async function amDueFire(tag) {
+  AMI.timers.delete(tag);
+  let send = null, later = 0;
+  try {
+    await amEdit([tag], st => {
+      const o = st[tag]; if (!o || !o.w || !Array.isArray(o.w.q) || !o.w.q.length) return;
+      const at = Number(o.w.at) || 0; if (Date.now() - at < AM_GAP - 1000) { later = at + AM_GAP; return; }
+      send = o.w.q.filter(e => o.f[e.f] && e.c.length); o.w = { at: send.length ? Date.now() : at, q: [], due: 0 };
+    });
+  } catch (e) { amDue(tag, Date.now() + 600e3); return; }      // Firestore injoignable : nouvel essai dans 10 min
+  amDue(tag, later);
+  if (send && send.length) await amWantSend(tag, send).catch(() => {});
+}
+/** Premier appel de /api/friends après le démarrage (jamais avant : aucun accès à Firestore tant que personne ne s'en sert) : résumés en attente relus,
+    ceux dont l'heure est passée partent à quelques secondes d'écart. */
+async function amBoot() {
+  if (AMI.booted) return; AMI.booted = true;
+  try {
+    const d = await fsDoc('GET', 'amisys/due'); let o = {}; try { o = d ? JSON.parse(fsFields(d).j || '{}') : {}; } catch (e) { o = {}; }
+    let i = 0; for (const [t, at] of Object.entries(o || {})) if (AM_TAG.test(t) && Number(at) > 0) amDue(t, Math.max(Number(at), Date.now() + 5000 + 2000 * i++), true);
+  } catch (e) { console.warn('Amis : résumés en attente illisibles (' + e.message + ')'); }
+}
+
+/* ── Routes ──────────────────────────────────────────────────────────────────────────────────────── */
+/** Compte connecté ({ uid, tag }) ou réponse d'erreur envoyée (null). */
+async function amAuth(req, res) {
+  const tok = String(req.headers['x-firebase-token'] || '');
+  if (!tok) { json(res, 401, { error: 'auth_required', message: 'Connecte-toi pour utiliser les amis.' }); return null; }
+  if (isLocked(req)) { json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { 'Retry-After': '300' }); return null; }
+  try { const u = await verifyIdToken(tok, true); return { uid: u.uid, tag: amTag(u.uid) }; }
+  catch (e) {
+    const code = e && e.authCode;
+    if (code === 'expired') json(res, 401, { error: 'token_expired', message: 'Session expirée : le navigateur va la renouveler.' });
+    else if (code === 'unavailable') json(res, 503, { error: 'auth_unavailable', message: 'Vérification du compte impossible pour le moment.' }, { 'Retry-After': '5' });
+    else await badKey(req, res, 'bad_token', 401);
+    return null;
+  }
+}
+/** Réponse JSON, compressée quand elle est grosse (liste d'échange, collection d'un ami). */
+async function amSend(req, res, obj) {
+  const b = Buffer.from(JSON.stringify(obj));
+  if (b.length < 8192 || !/\bgzip\b/i.test(String(req.headers['accept-encoding'] || ''))) return json(res, 200, obj);
+  const z = await gzipA(b);
+  res.writeHead(200, { ...SEC, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding', 'Content-Length': z.length });
+  res.end(z);
+}
+async function amBody(req, res, max = 64 * 1024) {
+  try { const b = JSON.parse((await readBody(req, max)).toString('utf8') || '{}'); return b && typeof b === 'object' && !Array.isArray(b) ? b : {}; }
+  catch (e) { if (e.status === 413) tooLarge(res); else json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); return null; }
+}
+/** Profil envoyé avec une demande, une réponse ou PUT me : pseudo (filtré), miniature, langue. */
+function amProfile(s, b) { if ('n' in b) s.n = amName(b.n); if ('p' in b) s.p = amPic(b.p); if ('l' in b) s.l = amLang(b.l); }
+const AM_ERR = { max: [409, 'Liste d\'amis pleine.'], full: [409, 'Demande impossible pour l\'instant.'], out_full: [409, 'Trop de demandes en attente.'], rate: [429, 'Trop de demandes aujourd\'hui.'] };
+const amFail = (res, code) => json(res, AM_ERR[code][0], { error: code, message: AM_ERR[code][1] });
+
+/** GET /api/friends : amis (pseudo, miniature, cartes qu'il a pour toi m, que tu as pour lui g, lien d'échange s, collection partagée c, nombres de decks nd et de cartes nc),
+    demandes reçues et envoyées, réglage de la collection. need : les parties de ce compte servent (un ami ou une demande envoyée). */
+async function amList(req, res, me) {
+  const s = await amGet(me.tag);
+  if (!s) return json(res, 200, { on: true, me: { c: 0, dev: 0 }, friends: [], inc: [], out: [], need: false, max: AM_MAX });
+  const ids = [...new Set([...Object.keys(s.f), ...Object.keys(s.i), ...Object.keys(s.o)])], docs = new Map();
+  await amEach(ids, async t => { try { docs.set(t, await amGet(t)); } catch (e) { /* injoignable : passé cette fois */ } });
+  const wk = new Set(s.wk), hk = new Set(s.hk), cnt = (a, set) => a.reduce((n, k) => n + (set.has(k) ? 1 : 0), 0);
+  const who = (t, at) => { const o = docs.get(t); return o ? { id: t, n: o.n, ...(o.p ? { p: o.p } : {}), at: Number(at) || 0 } : null; };
+  const friends = Object.entries(s.f).map(([t, at]) => {
+    const o = docs.get(t), w = who(t, at); if (!w || !o.f[me.tag]) return null;
+    return { ...w, m: cnt(o.hk, wk), g: cnt(o.wk, hk), s: o.s || '', c: o.c ? 1 : 0, u: Number(o.has.t) || 0, nd: o.has.d ? Number(o.has.dn) || 0 : 0, nc: o.c && o.has.c ? Number(o.has.cn) || 0 : 0 };
+  }).filter(Boolean).sort((a, b) => b.m - a.m || a.n.localeCompare(b.n));
+  const side = m => Object.entries(m).map(([t, at]) => who(t, at)).filter(Boolean).sort((a, b) => b.at - a.at);
+  const gone = ids.filter(t => docs.has(t) && docs.get(t) === null);      // compte supprimé : retiré de la liste
+  if (gone.length) amEdit([me.tag], st => { const o = st[me.tag]; if (o) for (const t of gone) { delete o.f[t]; delete o.i[t]; delete o.o[t]; } }).catch(() => {});
+  return amSend(req, res, { on: true, me: { c: s.c, dev: s.d.length, has: { t: Number(s.has.t) || 0, d: Number(s.has.d) || 0, c: Number(s.has.c) || 0 } }, friends, inc: side(s.i), out: side(s.o), need: !!(amN(s.f) || amN(s.o)), max: AM_MAX });
+}
+/** PUT /api/friends/me : profil, réglage de la collection, lien d'échange, appareil (dev : cible push ; off : clé d'un appareil à retirer), une partie (part, j : son JSON, k : nombre de cartes ou de decks). */
+async function amPutMe(req, res, me) {
+  const wait = rateWait(req, 'amput', 600, 3600e3); if (wait) return tooMany(res, wait);      // l'appli envoie après 20 s sans changement : une maison entière derrière une même adresse y tient
+  const b = await amBody(req, res, AM_BODY); if (!b) return;
+  const dev = b.dev ? parseTarget(b.dev) : null;
+  if (b.dev && !dev) return json(res, 400, { error: 'bad_subscription', message: 'Abonnement push invalide ou refusé.' });
+  const part = AM_PARTS.includes(b.part) && typeof b.j === 'string' ? b.part : '';
+  if (part && Buffer.byteLength(b.j) > AM_PART) return tooLarge(res);
+  let tj = null;
+  try { const v = part ? JSON.parse(b.j) : null; if (part === 't') { if (!v || !Array.isArray(v.have) || !Array.isArray(v.want)) throw new Error('t'); tj = v; } else if (part && !Array.isArray(v)) throw new Error(part); }
+  catch (e) { return json(res, 400, { error: 'bad_request', message: 'Partie illisible.' }); }
+  let added = null, dk = '', drop = false;
+  const out = await amEdit([me.tag], async st => {
+    let s = st[me.tag];
+    if (!s) { if (!dev && !('c' in b)) return { need: false }; s = st[me.tag] = amNew(); }      // compte sans document : créé seulement pour un appareil ou le réglage de la collection
+    amProfile(s, b);
+    if ('s' in b) s.s = typeof b.s === 'string' && AM_SID.test(b.s) ? b.s : '';
+    if ('c' in b) { s.c = b.c ? 1 : 0; if (!s.c && s.has.c) { delete s.has.c; delete s.has.ch; delete s.has.cn; drop = true; } }      // collection plus partagée : effacée tout de suite
+    if (dev) { dk = alId(pushKey(dev)); s.d = [{ k: dk, sub: dev, l: amLang(b.l || s.l), at: Date.now() }, ...s.d.filter(x => x.k !== dk)].slice(0, AM_DEVS); }
+    if (typeof b.off === 'string') s.d = s.d.filter(x => x.k !== b.off);
+    const need = !!(amN(s.f) || amN(s.o));
+    if (part && need && !(part === 'c' && !s.c)) {
+      const h = createHash('sha1').update(b.j).digest('base64url').slice(0, 16);
+      if (s.has[part + 'h'] !== h) {
+        await fsDoc('PATCH', `amisdata/${me.tag}_${part}`, fsStr(b.j, Date.now()));
+        if (tj) {
+          const keys = a => [...new Set(a.map(x => (x && typeof x.n === 'string' && x.n ? amKey(x.n) : '')).filter(Boolean))].slice(0, AM_KEYS);
+          if (s.has.th) {      // déjà une liste avant : les cartes nouvelles (la toute première liste ne prévient personne)
+            const old = new Set(s.hk); added = new Map();
+            for (const x of tj.have) { const k = x && typeof x.n === 'string' && x.n ? amKey(x.n) : ''; if (k && !old.has(k) && !added.has(k) && added.size < 60) added.set(k, { n: String(x.n).slice(0, 80), ...(typeof x.f === 'string' && x.f ? { f: x.f.slice(0, 80) } : {}), ...(AM_LANGS.includes(x.fl) ? { fl: x.fl } : {}) }); }
+          }
+          s.hk = keys(tj.have); s.wk = keys(tj.want);
+        }
+        s.has[part] = Date.now(); s.has[part + 'h'] = h; s.has[part + 'n'] = Math.max(0, Math.min(1e6, Math.floor(Number(b.k)) || 0));
+      }
+    }
+    return { need, c: s.c, dev: s.d.length, has: { t: s.has.t || 0, d: s.has.d || 0, c: s.has.c || 0 } };
+  });
+  if (drop) await fsDoc('DELETE', `amisdata/${me.tag}_c`).catch(e => console.warn('Amis : ' + e.message));
+  if (added && added.size) amFan(me.tag, added).catch(e => console.warn('Amis : ' + e.message));
+  return json(res, 200, { ok: true, ...out, ...(dk ? { dk } : {}) });
+}
+/** GET /api/friends/state?share=<id> : où en est ce compte avec le propriétaire de ce lien (self, friend, sent, asked : il t'a fait une demande, none) et son empreinte. */
+async function amState(req, res, me, url) {
+  const sid = String(url.searchParams.get('share') || ''); if (!AM_SID.test(sid)) return json(res, 400, { error: 'bad_request', message: 'Lien invalide.' });
+  const ow = await amOwner(sid); if (!ow) return json(res, 404, { error: 'share_gone', message: 'Ce lien ne marche plus.' });
+  if (ow.o === me.tag) return json(res, 200, { state: 'self' });
+  const s = await amGet(me.tag);
+  return json(res, 200, { state: !s ? 'none' : s.f[ow.o] ? 'friend' : s.i[ow.o] ? 'asked' : s.o[ow.o] ? 'sent' : 'none', id: ow.o });
+}
+/** POST /api/friends/ask { share, n, p, l } : demande au propriétaire du lien (il t'avait déjà fait une demande : vous voilà amis). Refusée il y a moins de 30 jours :
+    « envoyée » quand même, mais rien n'arrive chez l'autre (un refus n'est jamais révélé). */
+async function amAsk(req, res, me) {
+  const wait = rateWait(req, 'amask', AM_ASK_H, 3600e3); if (wait) return tooMany(res, wait);
+  const b = await amBody(req, res); if (!b) return;
+  const sid = String(b.share || ''); if (!AM_SID.test(sid)) return json(res, 400, { error: 'bad_request', message: 'Lien invalide.' });
+  const ow = await amOwner(sid); if (!ow) return json(res, 404, { error: 'share_gone', message: 'Ce lien ne marche plus.' });
+  if (ow.o === me.tag) return json(res, 200, { state: 'self' });
+  const to = ow.o, now = Date.now(); let note = '';
+  const r = await amEdit([me.tag, to], st => {
+    const a = st[me.tag] || (st[me.tag] = amNew()), t = st[to] || Object.assign(amNew(), { n: ow.by });
+    amProfile(a, b);
+    if (a.f[to] && t.f[me.tag]) return { state: 'friend', id: to };
+    if (a.i[to] && t.o[me.tag]) {      // l'autre avait déjà fait une demande : acceptée
+      if (amN(a.f) >= AM_MAX || amN(t.f) >= AM_MAX) return { error: 'max' };
+      delete a.i[to]; delete t.o[me.tag]; a.f[to] = t.f[me.tag] = now; st[to] = t; note = 'ok'; return { state: 'friend', id: to, accepted: true };
+    }
+    if (amN(a.f) >= AM_MAX) return { error: 'max' };
+    const blocked = (Number(t.x[me.tag]) || 0) > now;
+    if (a.o[to] && (t.i[me.tag] || blocked)) return { state: 'sent', id: to };
+    const day = new Date(now).toISOString().slice(0, 10); if (!a.r || a.r.d !== day) a.r = { d: day, n: 0 };
+    if (a.r.n >= AM_ASK_DAY) return { error: 'rate' };
+    if (!a.o[to] && amN(a.o) >= AM_OUT) return { error: 'out_full' };
+    if (!blocked && (amN(t.i) >= AM_INC || amN(t.f) >= AM_MAX)) return { error: 'full' };
+    a.r.n++; a.o[to] = now;
+    if (!blocked) { t.i[me.tag] = now; st[to] = t; note = 'ask'; }
+    return { state: 'sent', id: to };
+  });
+  if (r.error) return amFail(res, r.error);
+  if (note) amNote(note, to, me.tag, ((await amGet(me.tag).catch(() => null)) || {}).n);
+  return json(res, 200, r);
+}
+/** POST /api/friends/answer { id, ok, n, p, l } : accepte (vous voilà amis, il est prévenu) ou refuse (sans rien lui dire ; plus de demande de sa part pendant 30 jours). */
+async function amAnswer(req, res, me) {
+  const b = await amBody(req, res); if (!b) return;
+  const id = String(b.id || ''); if (!AM_TAG.test(id) || id === me.tag) return json(res, 400, { error: 'bad_request', message: 'Compte invalide.' });
+  const now = Date.now(); let note = false;
+  const r = await amEdit([me.tag, id], st => {
+    const a = st[me.tag], t = st[id];
+    if (!a) return { state: 'none' };
+    amProfile(a, b);
+    if (a.f[id]) return { state: 'friend' };
+    if (!a.i[id]) return { state: 'none' };
+    if (b.ok && t && (amN(a.f) >= AM_MAX || amN(t.f) >= AM_MAX)) return { error: 'max' };
+    delete a.i[id];
+    if (!t) return { state: 'none' };
+    if (b.ok) { delete t.o[me.tag]; a.f[id] = t.f[me.tag] = now; note = true; return { state: 'friend' }; }
+    // refus : sa demande reste « envoyée » de son côté (le refus n'est jamais révélé), et plus aucune ne passe pendant 30 jours
+    a.x[id] = now + AM_DECLINE;
+    a.x = Object.fromEntries(Object.entries(a.x).filter(([, u]) => Number(u) > now).sort((p, q) => q[1] - p[1]).slice(0, AM_X));
+    return { state: 'none' };
+  });
+  if (r.error) return amFail(res, r.error);
+  if (note) amNote('ok', id, me.tag, ((await amGet(me.tag).catch(() => null)) || {}).n);
+  return json(res, 200, r);
+}
+/** POST /api/friends/remove { id } : plus amis (ou demande annulée, dans un sens ou dans l'autre) ; ni l'un ni l'autre ne voit plus rien de l'autre. */
+async function amRemove(req, res, me) {
+  const b = await amBody(req, res); if (!b) return;
+  const id = String(b.id || ''); if (!AM_TAG.test(id) || id === me.tag) return json(res, 400, { error: 'bad_request', message: 'Compte invalide.' });
+  const drop = [];
+  await amEdit([me.tag, id], st => amUnlink(st, me.tag, id, drop));
+  await Promise.all(drop.map(amDropParts));
+  return json(res, 200, { state: 'none' });
+}
+/** GET /api/friends/view?id=<empreinte>&part=t|d|c : une partie d'un ami (amitié dans les deux sens exigée ; collection seulement s'il la partage). */
+async function amView(req, res, me, url) {
+  const wait = rateWait(req, 'amview', 600, 3600e3); if (wait) return tooMany(res, wait);
+  const id = String(url.searchParams.get('id') || ''), part = String(url.searchParams.get('part') || '');
+  if (!AM_TAG.test(id) || !AM_PARTS.includes(part)) return json(res, 400, { error: 'bad_request', message: 'Demande invalide.' });
+  const [a, t] = await Promise.all([amGet(me.tag), amGet(id)]);
+  if (!a || !t || !a.f[id] || !t.f[me.tag]) return json(res, 403, { error: 'not_friend', message: 'Vous n\'êtes pas (ou plus) amis.' });
+  if (part === 'c' && !t.c) return json(res, 403, { error: 'private', message: 'Collection non partagée.' });
+  const d = await fsDoc('GET', `amisdata/${id}_${part}`), f = d ? fsFields(d) : {};
+  return amSend(req, res, { at: Number(f.at) || 0, j: typeof f.j === 'string' ? f.j : '' });
+}
+/** DELETE /api/friends/me (suppression du compte) : retiré de chez tous ses amis et de leurs demandes, puis ses documents effacés. */
+async function amWipe(req, res, me) {
+  const s = await amGet(me.tag, true), drop = [];
+  for (const t of new Set(s ? [...Object.keys(s.f), ...Object.keys(s.i), ...Object.keys(s.o)] : [])) {
+    await amEdit([t], st => { amUnlink(st, t, me.tag, drop); if (st[t]) delete st[t].x[me.tag]; });
+  }
+  await amEdit([me.tag], st => { st[me.tag] = null; });
+  await Promise.all([amDropParts(me.tag), ...drop.filter(t => t !== me.tag).map(amDropParts)]);
+  if (AMI.due.has(me.tag)) amDue(me.tag, 0);
+  return json(res, 200, { ok: true });
+}
+async function friendsApi(req, res, path, url) {
+  if (!AM_ON) return json(res, 404, { error: 'friends_disabled', message: 'Amis désactivés sur ce serveur.' });
+  const sub = path.replace(/^friends\/?/, ''), me = await amAuth(req, res); if (!me) return;
+  amBoot();
+  try {
+    if (req.method === 'GET' && !sub) { const w = rateWait(req, 'amget', 600, 3600e3); if (w) return tooMany(res, w); return await amList(req, res, me); }
+    if (req.method === 'PUT' && sub === 'me') return await amPutMe(req, res, me);
+    if (req.method === 'DELETE' && sub === 'me') return await amWipe(req, res, me);
+    if (req.method === 'GET' && sub === 'state') return await amState(req, res, me, url);
+    if (req.method === 'GET' && sub === 'view') return await amView(req, res, me, url);
+    if (req.method === 'POST' && sub === 'ask') return await amAsk(req, res, me);
+    if (req.method === 'POST' && sub === 'answer') return await amAnswer(req, res, me);
+    if (req.method === 'POST' && sub === 'remove') return await amRemove(req, res, me);
+    return json(res, 405, { error: 'method_not_allowed' });
+  } catch (e) {
+    if (res.headersSent) throw e;
+    console.warn('Amis : ' + String(e && e.message || e).slice(0, 200));
+    return json(res, 503, { error: 'unavailable', message: 'Amis momentanément indisponibles.' }, { 'Retry-After': '30' });
+  }
+}
+
 /* ── Noms imprimés des autres langues (scan) : GET /api/names/find?q=<ligne lue>[&q=…]&skip=<langue>[,…] ──────────────────────────────
    L'appli compare le nom lu au catalogue de SA langue (gardé sur l'appareil) puis à l'anglais, puis aux autres langues si elle a names-all.tsv sur l'appareil ;
    sinon une carte d'une autre langue (italienne lue avec l'appli en français) est cherchée ici dans les catalogues names-*.tsv déjà servis, avec la même
@@ -1159,6 +1613,7 @@ async function api(req, res, url) {
   if (path === 'names/find') return namesApi(req, res, url);      // scan : noms imprimés des autres langues (catalogues publics)
   if (path === 'pubdecks') return pubApi(req, res, url);      // decks publics (« Communauté ») : liste ouverte à tous, sans token
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
+  if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
   // CardTrader : avec le token de l'utilisateur (X-CT-Token), ou celui du serveur pour les comptes autorisés (ALLOWED_UIDS / APP_KEY).
   const ut = userTok(req);
   if (!ut && !(await authorize(req, res))) return;
@@ -1292,7 +1747,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, off: OFF, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, off: OFF, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (url.pathname === '/' || url.pathname === '/index.html') {
@@ -1341,6 +1796,7 @@ server.listen(PORT, HOST, () => {
   if (!PAGE) console.log('⚠ deck-deal.html introuvable à côté du proxy.');
   if (ADMOB_RAW && !ADMOB_BANNER) console.warn('⚠ ADMOB_BANNER_ID ignoré : attendu « ca-app-pub-…/… » (identifiant du bloc d\'annonces, pas celui de l\'appli).');
   if (FCM_ON) console.log(`Notifications de l'appli Android (FCM) : projet Firebase « ${fcmSa.project} ».`);
+  if (AM_ON) { console.log(`Amis : ${AM_MAX} au plus par compte, « un ami a une carte que tu cherches » toutes les ${Math.round(AM_GAP / 360000) / 10} h au plus.`); }
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
   if (ALERTS_ON) {
     const wait = Math.max(AL_FIRST, (AL.last.at || 0) + AL_EVERY - Date.now());

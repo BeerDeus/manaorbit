@@ -181,7 +181,7 @@ export async function signInFake(p, user = {}) {
     for (const d of D.localList) decks.set(d.id, copy(stripDeck(d)));      // le compte a déjà les decks de cet appareil : rien ne disparaît de « Mes decks » à la connexion
     D.state = 'ready'; D.err = '';
     // identifiant neuf à chaque appel : cet appareil n'a encore rien « vu » de ce compte (sinon un compte vide passerait pour supprimé ailleurs)
-    onUser({ uid: 'u-test-' + Math.random().toString(36).slice(2, 8), email: 'test@example.com', displayName: 'Test', emailVerified: true, providerData: [{ providerId: 'password' }], reload: async () => {}, getIdToken: async () => '', ...u });
+    onUser({ uid: 'u-test-' + Math.random().toString(36).slice(2, 8), email: 'test@example.com', displayName: 'Test', emailVerified: true, providerData: [{ providerId: 'password' }], reload: async () => {}, getIdToken: async () => window.__idTok || '', ...u });      // __idTok : jeton signé par le test (amis-e2e : le serveur le vérifie)
   }, user);
 }
 /** Fiche « Compte et réglages » (bouton du compte de l'en-tête, me.js) ; sub : rubrique ouverte par-dessus (prix, donnees, conf, app, aide, scan, widget,

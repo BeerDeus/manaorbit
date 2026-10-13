@@ -204,6 +204,7 @@ function renderAccountBtn() {
   profImg(b, D.user ? profAvatar() : '');
   b.setAttribute('aria-label', D.user ? T('Compte et réglages · {name}', { name: PROF.name || D.user.email || '' }) : T('Compte et réglages'));
   if (typeof meSoon === 'function' && typeof ME !== 'undefined' && ME.api) meSoon();      // fiche « Compte et réglages » ouverte : le compte a changé
+  amDot();      // demande d'ami en attente : point sur le bouton (friends.js)
 }
 
 /* ── Profil : pseudo et photo (users/{uid}/meta/profile), affichés sur les liens partagés ──────────── */
@@ -572,8 +573,8 @@ function paintAccountDelete(api) {
     // Plus aucune synchronisation pendant l'effacement : sinon une copie locale pourrait être renvoyée dans le compte.
     if (D.unsub) { try { D.unsub(); } catch (x) { /* ignore */ } D.unsub = null; }
     collUser(null); xsUser(null); trUser(null); mobUser(null); scsUser(null); D.uid = null;
-    // liens créés ici mais peut-être jamais arrivés dans le document « trade » du compte : effacés aussi
-    try { await D.cloud.wipe(uid, TR.who === uid ? [TR.share, ...Object.values(TR.dsh)] : []); await D.cloud.deleteUser(); }
+    // liens créés ici mais peut-être jamais arrivés dans le document « trade » du compte : effacés aussi ; amis d'abord (serveur, jeton encore valable)
+    try { await amWipe(); await D.cloud.wipe(uid, TR.who === uid ? [TR.share, ...Object.values(TR.dsh)] : []); await D.cloud.deleteUser(); }
     catch (err) {
       D.uid = uid; onUser(D.user);      // rien de cassé : on reprend la synchronisation
       btn.disabled = false; btn.textContent = T('Supprimer définitivement');
@@ -590,7 +591,7 @@ function paintAccountDelete(api) {
  *  de couper), notifications, cache Firestore. Après une suppression de compte et dans wipeDevice ; jamais bloquant (réseau absent : on passe). */
 async function deviceForget() {
   const within = (f, ms) => Promise.race([Promise.resolve().then(f).catch(() => {}), sleep(ms)]);
-  await within(alDisable, 5000); await within(pushDisable, 3000);
+  await within(alDisable, 5000); await within(amOut, 3000); await within(pushDisable, 3000);
   await cloudClearLocal(D.cloud);
 }
 /** Efface tout ce que l'appli garde sur cet appareil (réglages, collection, decks, caches), puis recharge. */
@@ -682,6 +683,7 @@ function onUser(user) {
   }
   renderAccountBtn(); renderDecks(); paintAccount(); refreshDeck(); edhGateSync();      // decks EDHREC : réservés aux comptes vérifiés
   collUser(user); xsUser(user); trUser(user); mobUser(user); scsUser(user); if (prev !== D.uid) profUser(user);
+  amUser(user);
   if (prev !== D.uid && typeof checkServer === 'function') { CTX.serverOk = null; checkServer(); }      // autre compte : a-t-il droit au token du serveur ?
   if (!user && prev) updateHeroDelta();
 }

@@ -103,7 +103,7 @@ function trPayload() {
 }
 
 /* ── Partages : écriture (propriétaire) ────────────────────────────────────────────────────────── */
-function trSoon(ms = 4000) { pubSoon(); widgetSoon(); if (!TR.share && !Object.keys(TR.dsh).length) return; clearTimeout(TR.syncT); TR.syncT = setTimeout(trSync, ms); }      // widgetSoon : le widget « QR code d'échange » montre aussi le pseudo
+function trSoon(ms = 4000) { pubSoon(); widgetSoon(); amDataSoon(); if (!TR.share && !Object.keys(TR.dsh).length) return; clearTimeout(TR.syncT); TR.syncT = setTimeout(trSync, ms); }      // widgetSoon : le widget « QR code d'échange » montre aussi le pseudo
 /** Empreinte du propriétaire (SHA-256 de l'UID, en hexadécimal) : le document est public, l'UID n'y est jamais écrit. Les règles Firestore la recalculent. */
 const ownerTags = new Map();
 async function ownerTag(uid) {
@@ -457,19 +457,20 @@ async function openPublicLink(id) {
 const trReportHref = id => 'mailto:' + TR_REPORT + '?subject=' + encodeURIComponent('Mana Orbit · signalement') + '&body=' + encodeURIComponent(T('Partage signalé : {url}', { url: shareUrl(id) }) + '\n' + T('Raison :') + ' ');
 /**
  * Liste d'échange en lecture seule : « Pour toi » (visiteur : ce que vous pouvez échanger), « À échanger » / « Recherchées », recherche par nom (français ou anglais) et filtres, carte en grand.
- * preview : aperçu du propriétaire (ni « Pour toi », ni étiquettes du visiteur, ni signalement). id : identifiant du partage (signalement).
+ * preview : aperçu du propriétaire (ni « Pour toi », ni étiquettes du visiteur, ni signalement). id : identifiant du partage (signalement, « Ajouter en ami »).
+ * fr : page d'un ami (friends.js › amOpenFriend : sa liste lue sur le serveur ; ses decks, sa collection, « Retirer de mes amis »).
  */
-function openPublicTrade(sh, preview, id) {
+function openPublicTrade(sh, preview, id, fr) {
   if (TR.pub && TR.pub.el) TR.pub.el.__close();
-  const P = TR.pub = { id: id || '', sh, preview: !!preview, sub: preview ? (sh.have.length || !sh.want.length ? 'have' : 'want') : 'match', f: newFilter(), shown: TR_PAGE, el: null, mine: null, key: '', refs: [], t: 0, tick: 0, px: 0, paint: null };
+  const P = TR.pub = { id: id || '', fr: fr || null, sh, preview: !!preview, sub: preview ? (sh.have.length || !sh.want.length ? 'have' : 'want') : 'match', f: newFilter(), shown: TR_PAGE, el: null, mine: null, key: '', refs: [], t: 0, tick: 0, px: 0, paint: null };
   if (!preview) { P.mine = pubMine(P); if (id && typeof homeSeen === 'function') homeSeen(id, sh.by, P.mine.m.n); }      // « Pour toi » de l'accueil : listes d'amis ouvertes récemment
   const wrap = document.createElement('div'); wrap.className = 'dv coll pubv'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Liste d\'échange'));
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button>
-      ${sh.bp ? `<img class="pub-av" src="${sh.bp}" alt="">` : ''}<div class="dv-title"><b>${preview ? T('Aperçu de ta liste') : sh.by ? T('Liste d\'échange de {name}', { name: esc(sh.by) }) : T('Liste d\'échange')}</b><span>${sh.at ? T('Mise à jour {when}', { when: esc(relTime(sh.at)) }) : ''}</span></div></header>
+      ${sh.bp ? `<img class="pub-av" src="${sh.bp}" alt="">` : ''}<div class="dv-title"><b>${preview ? T('Aperçu de ta liste') : sh.by ? T('Liste d\'échange de {name}', { name: esc(sh.by) }) : T('Liste d\'échange')}</b><span>${sh.at ? T('Mise à jour {when}', { when: esc(relTime(sh.at)) }) : ''}</span></div>${preview ? '' : '<span class="am-pub" hidden></span>'}</header>
     <div class="dv-scroll"><div class="dv-body coll-body">
       <p class="hint pub-note">${T(preview ? 'Ce que voient les personnes qui ont ton lien.' : 'Lecture seule. Touche une carte pour la voir en grand.')}${sh.cut ? ' ' + T('Liste trop longue : seule une partie est affichée.') : ''}</p>
-      <div class="seg" id="pubSub" role="radiogroup" aria-label="${T('Liste')}"></div><div id="pubF"></div><div class="bnd-bar" id="pubBar" hidden></div><div class="pub-main"></div>
-      ${!preview && id ? `<p class="pub-report"><a href="${esc(trReportHref(id))}" rel="noopener">${T('Signaler ce partage')}</a></p>` : ''}</div></div>`;
+      <div class="am-more" hidden></div><div class="seg" id="pubSub" role="radiogroup" aria-label="${T('Liste')}"></div><div id="pubF"></div><div class="bnd-bar" id="pubBar" hidden></div><div class="pub-main"></div>
+      ${fr ? '<p class="am-rm" hidden></p>' : ''}${!preview && id ? `<p class="pub-report"><a href="${esc(trReportHref(id))}" rel="noopener">${T('Signaler ce partage')}</a></p>` : ''}</div></div>`;
   P.el = wrap;
   const paint = keep => {
     const sc = $('.dv-scroll', wrap), pos = keep && sc ? sc.scrollTop : 0;
@@ -508,7 +509,7 @@ function openPublicTrade(sh, preview, id) {
     for (const r of rows) { const im = $('img', r); if (!im) continue; if (r === row) at.i = list.length; list.push({ key: r.dataset.k, name: $('.row-name', r).textContent, wl: !r.dataset.pw && r.dataset.ln && r.dataset.ln !== 'en' ? r.dataset.ln : '', small: im.getAttribute('src'), lang: r.dataset.ln || 'en', plain: true, extra: r.dataset.x || '' }); }
     if (list.length) { haptic('tap'); openCardViewer(list, at.i); } else toast(T('Pas d\'aperçu pour cette carte'));
   });
-  document.body.appendChild(wrap); holdApp(); paint(false);
+  document.body.appendChild(wrap); holdApp(); paint(false); amPubMount(wrap, P);      // « Ajouter en ami », ou decks et collection d'un ami (friends.js)
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
   if (!preview) { P.key = pubKey(); P.refs = pubRefs(); P.tick = setInterval(() => { if (P.el === wrap && (pubKey() !== P.key || pubRefs().some((r, i) => r !== P.refs[i]))) pubRefresh(); }, 1500); pubPx(P); }      // filet : un changement que les crochets n'auraient pas signalé
   // cartes sans image ni type (partage trop gros, ou fiche pas encore lue chez le propriétaire) : lues sur Scryfall par lots, puis repeintes

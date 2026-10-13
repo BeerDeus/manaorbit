@@ -34,7 +34,7 @@ function opnSave() {
   catch (e) { toast(T('Stockage plein : la session n\'a pas pu être enregistrée sur cet appareil')); }
 }
 /** Classes de la page : html.opn-on (session en cours), html.streamer (mode streamer : css/opening.css cache ce qui ne doit pas passer à l'écran). */
-function opnFlags() { const r = document.documentElement; r.classList.toggle('opn-on', !!OPN.cur); r.classList.toggle('streamer', streamOn()); }
+function opnFlags() { const r = document.documentElement, was = r.classList.contains('streamer'); r.classList.toggle('opn-on', !!OPN.cur); r.classList.toggle('streamer', streamOn()); if (was !== streamOn() && typeof amDot === 'function') amDot(); }      // amis (friends.js) : point des demandes masqué / remis tout de suite
 // Au chargement, avant le premier rendu de l'accueil : un rechargement en plein stream ne montre jamais la vraie collection, même un instant.
 if (typeof document !== 'undefined') { try { OPN.cur = opnClean(JSON.parse(localStorage.getItem(OPN_CUR_KEY) || 'null')); } catch (e) { OPN.cur = null; } opnFlags(); if (OPN.cur) setTimeout(() => opnBands(), 0); }      // pastille de l'accueil : une fois l'appli démarrée
 

@@ -4,7 +4,7 @@
 # Lancé depuis la racine du dépôt (les tests lancent « node proxy.mjs » et lisent deck-deal.html). Un nouveau test s'ajoute ici : la CI lance ces listes.
 cd "$(dirname "$0")/.." || exit 1
 mkdir -p tests/logs; : > tests/run-tests.out
-NODE=(test.mjs test-i18n-langs.mjs test-prices.mjs test-trade.mjs test-cloud.mjs test-jobs.mjs test-proxy.mjs test-push.mjs test-alerts.mjs test-fcm.mjs test-edh-gen.mjs test-intl.mjs test-android-xml.mjs test-pubdecks.mjs smoke.mjs
+NODE=(test.mjs test-i18n-langs.mjs test-prices.mjs test-trade.mjs test-cloud.mjs test-jobs.mjs test-proxy.mjs test-push.mjs test-alerts.mjs test-fcm.mjs test-edh-gen.mjs test-intl.mjs test-android-xml.mjs test-pubdecks.mjs test-amis.mjs smoke.mjs
   test-import.mjs)
 BROWSER=(
   ui-e2e.mjs cm-e2e.mjs i18n-e2e.mjs list-e2e.mjs value-e2e.mjs frcat-e2e.mjs alerts-e2e.mjs dklist-e2e.mjs back-e2e.mjs
@@ -20,6 +20,7 @@ BROWSER=(
   partage-e2e.mjs
   binder-e2e.mjs
   opening-e2e.mjs
+  amis-e2e.mjs
 )
 T=("$@")
 if [ ${#T[@]} -eq 0 ]; then T=("${NODE[@]}" "${BROWSER[@]}"); elif [ "$1" = --node ]; then T=("${NODE[@]}"); fi
