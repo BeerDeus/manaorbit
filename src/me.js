@@ -1,6 +1,6 @@
 /* ── me.js : « Compte et réglages », une seule fiche du bas (bouton du compte, dans l'en-tête), qui se ferme en la tirant vers le bas ─────────────
    En haut, le compte : connecté, photo, pseudo, e-mail, état de la synchro et « Modifier » ; sinon « Se connecter ». Puis cartes · decks · valeur.
-   Mon compte (connecté) : gérer le compte, decks publiés, lien d'échange, amis (friends.js) · Préférences : langue, thème, vibrations (changés sur place), notifications,
+   Mon compte (connecté) : gérer le compte, decks publiés, lien d'échange, amis (friends.js) · Préférences : langue, thème, vibrations, astuces (tour.js) (changés sur place), notifications,
    scan, widget (appli Android) · Prix : CardTrader · Plus : aide et avis, données de l'appareil, application (navigateur), confidentialité et mentions ·
    version, « Se déconnecter ». Les rubriques ouvrent leur propre fiche par-dessus (app.js › setPrixSheet, setDataSheet…). */
 const ME = { api: null, sig: '', raf: 0 };
@@ -54,6 +54,7 @@ function mePaint() {
     `<div class="me-row me-th"><span class="me-t" id="meThL">${T('Thème')}</span><div class="seg" id="segTheme" role="radiogroup" aria-labelledby="meThL"></div></div>`,
     `<label class="me-row switch-row" for="setHaptic"><span class="me-t">${T('Vibrations')}${typeof navigator !== 'undefined' && navigator.vibrate ? '' : `<small>${T('Indisponible sur cet appareil')}</small>`}</span><span class="switch"><input type="checkbox" id="setHaptic" ${S.haptic ? 'checked' : ''}><i></i></span></label>`,
     `<button type="button" class="me-row" id="btnNotif"><span class="me-t">${T('Notifications')}</span><span class="me-v">${T('Fin de recherche, alertes')}</span>${meChev}</button>`,
+    ...(typeof tipPrefRow === 'function' ? [tipPrefRow()] : []),      // astuces (tour.js)
     meRow('scan', T('Scan'), typeof scsEdLabel === 'function' ? esc(scsEdLabel()) : ''),
     ...(nat ? [meRow('widget', T('Widget'), '')] : []),
   ]);
@@ -76,6 +77,7 @@ function meChange(e) {
   const t = e.target;
   if (t.id === 'setLang') { try { localStorage.setItem('deckdeal:lang', t.value); } catch (x) { /* ignore */ } location.reload(); }
   else if (t.id === 'setHaptic') { S.haptic = t.checked; saveStore(); haptic('ok'); }
+  else if (t.id === 'setTips' && typeof tipPref === 'function') tipPref(t.checked);
 }
 function meClick(e) {
   if (e.target.closest('#btnNotif')) { haptic('tap'); openNotifSettings(); return; }

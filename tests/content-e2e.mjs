@@ -280,7 +280,7 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   await p.$eval('#helpBox', e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await p.click('#helpBox [data-help="open"]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 3);      // Compte et réglages › Aide et avis › Comment ça marche
   assert.equal(await txt(p, '.hp-sheet .sheet-head h2'), 'Comment ça marche');
-  assert.equal(await p.$$eval('.hp-sheet .hp-q', q => q.length), 15, '15 questions (dont « Je viens de ManaBox », le classeur, « Ouvrir des boosters » (opening.js), les amis et l\'échange en face à face (troc.js))');
+  assert.equal(await p.$$eval('.hp-sheet .hp-q', q => q.length), 16, '16 questions (dont « Je viens de ManaBox », le classeur, « Ouvrir des boosters » (opening.js), les amis, l\'échange en face à face (troc.js) et les fonctions moins visibles (tour.js))');
   assert.equal(await p.$$eval('.hp-sheet .hp-q[open]', q => q.length), 0, 'toutes repliées');
   await p.click('.hp-sheet .hp-q[data-i="0"] summary'); await p.waitForTimeout(150);
   assert.match(await txt(p, '.hp-sheet .hp-q[data-i="0"] p'), /« Prix d'une liste » › Critères › Prix/);

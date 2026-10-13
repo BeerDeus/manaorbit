@@ -1,0 +1,79 @@
+/* ── tour.css : visite guidée (halo, bulle), offre de la visite (pastille au-dessus de la barre du bas), entrée de l'aide, astuces (tour.js) ── */
+:root{--tour-dim:rgba(8,11,26,.6)}
+:root[data-theme="dark"]{--tour-dim:rgba(0,0,0,.7)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--tour-dim:rgba(0,0,0,.7)}}
+
+/* Visite : couche plein écran (bloque les touchers, rien ne défile dessous), halo autour de la cible, bulle */
+.tour{position:fixed;inset:0;z-index:97;touch-action:none;opacity:0;transition:opacity .26s}
+.tour.on{opacity:1}
+.tour-hole{position:fixed;left:50%;top:50%;width:0;height:0;border-radius:14px;pointer-events:none;box-shadow:0 0 0 200vmax var(--tour-dim);
+  transition:left .38s var(--out),top .38s var(--out),width .38s var(--out),height .38s var(--out),border-radius .38s var(--out)}
+.tour-hole.ring::after{content:"";position:absolute;inset:-3px;border-radius:inherit;border:2px solid var(--accent);box-shadow:0 0 0 5px var(--ring),0 0 24px 2px color-mix(in srgb,var(--accent) 45%,transparent);animation:tourPulse 2.4s ease-in-out infinite}
+@keyframes tourPulse{50%{box-shadow:0 0 0 8px transparent,0 0 30px 4px color-mix(in srgb,var(--accent) 25%,transparent)}}
+.tour-b{position:fixed;left:0;top:0;padding:14px 16px 14px;border-radius:20px;background:var(--surface);color:var(--ink);border:1px solid var(--line);
+  box-shadow:0 22px 50px -18px rgba(0,0,0,.55),0 2px 6px rgba(0,0,0,.12);opacity:0;scale:.97;transition:opacity .2s,scale .26s var(--spring);outline:none}
+.tour-b.on{opacity:1;scale:1}
+.tour-b::before{content:"";position:absolute;z-index:1;left:18px;right:18px;top:0;height:2px;border-radius:0 0 2px 2px;background:var(--foil);opacity:.9}      /* liseré foil, la signature de l'appli */
+.tour-ar{position:absolute;width:14px;height:14px;margin-left:-7px;background:var(--surface);border:1px solid var(--line);transform:rotate(45deg);pointer-events:none}
+.tour-b[data-side="down"] .tour-ar{top:-8px;border-right:0;border-bottom:0}
+.tour-b[data-side="up"] .tour-ar{bottom:-8px;border-left:0;border-top:0}
+.tour-b[data-side=""] .tour-ar{display:none}
+.tour-hd{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-4px -8px 4px 0}
+.tour-dots{display:flex;align-items:center;gap:5px}
+.tour-dots i{width:6px;height:6px;border-radius:3px;background:var(--line);transition:width .25s var(--out),background .25s}
+.tour-dots i.on{width:18px;background:var(--accent)}
+.tour-skip{color:var(--ink-3);font-size:13px}
+.tour-t{position:relative;margin:0 0 4px;font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:-.015em;line-height:1.2}
+.tour-x{position:relative;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.45;color:var(--ink-2);text-wrap:pretty}
+.tour-x p{margin:0}
+.tour-x2{padding-top:6px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-3)}
+.tour-ft{position:relative;display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.tour-ft .btn.small{height:38px;min-width:96px;padding:0 14px;font-size:14px}
+.tour-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@media (max-width:370px){.tour-b{padding:12px 14px}.tour-t{font-size:17px}.tour-x{font-size:13.5px}.tour-ft .btn.small{min-width:0}}
+@media (prefers-reduced-motion:reduce){.tour,.tour-hole,.tour-b,.tour-dots i{transition:none}.tour-hole.ring::after{animation:none}}
+
+/* Offre : pastille posée au-dessus de la barre du bas (rien ne bouge dessous), accueil seulement */
+.tour-pill{position:fixed;left:50%;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom,0px));z-index:84;display:flex;align-items:center;gap:10px;width:max-content;max-width:min(calc(100vw - 24px),440px);
+  padding:7px 7px 7px 10px;border-radius:18px;background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:0 18px 40px -16px rgba(16,21,43,.45),0 2px 6px rgba(16,21,43,.08);
+  transform:translate(-50%,14px);opacity:0;transition:opacity .26s,transform .38s var(--spring)}
+.tour-pill.on{transform:translate(-50%,0);opacity:1}
+.tour-pill::before{content:"";position:absolute;inset:-1px;z-index:-1;border-radius:19px;padding:1px;background:var(--foil);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.75}
+.tour-pill-i{flex:none;width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.tour-pill-i .i{width:17px;height:17px;fill:currentColor;stroke-width:1.4}
+.tour-pill-t{min-width:0;font-size:14px;font-weight:650;line-height:1.3}
+.tour-pill .btn.small{flex:none;height:36px;padding:0 14px;border-radius:12px;font-size:14px}
+.tour-pill-x{flex:none;width:34px;height:34px;display:grid;place-items:center;padding:0;border:0;border-radius:10px;background:transparent;color:var(--ink-3)}
+.tour-pill-x .i{width:16px;height:16px}
+.tour-pill-x:active{background:var(--surface-2)}
+.tour-pill.new{flex-wrap:wrap;width:min(calc(100vw - 24px),400px);padding:12px 12px 10px 12px;row-gap:8px}
+.tour-pill.new .tour-pill-i{background:#0b0f1c}
+.tour-pill.new .tour-pill-i .logo{width:24px;height:24px;color:#fff}
+.tour-pill.new .tour-pill-t{flex:1 1 0;font-size:14.5px}
+.tour-pill-a{flex:1 0 100%;display:flex;justify-content:flex-end;align-items:center;gap:6px}
+.tour-pill-a .link-btn{color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){.tour-pill{transition:none}}
+
+/* Aide : « Visite guidée » en tête de « Comment ça marche » */
+.tour-help{width:100%;display:flex;align-items:center;gap:12px;margin:0 0 10px;padding:12px 14px;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:16px;background:var(--accent-soft);color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s}
+.tour-help:active{transform:scale(.985)}
+.tour-help-i{flex:none;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--surface);color:var(--accent)}
+.tour-help-i .i{width:19px;height:19px;fill:currentColor;stroke-width:1.4}
+.tour-help-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.tour-help-t b{font-size:15px;font-weight:700}
+.tour-help-t small{font-size:12.5px;color:var(--ink-2)}
+.tour-help>.i{flex:none;width:16px;height:16px;color:var(--accent)}
+
+/* Astuce : bulle au-dessus de tout l'écran (jamais dans la page : rien ne bouge), touchers qui passent au travers */
+.tip{position:fixed;left:0;top:0;z-index:89;pointer-events:none;width:max-content;padding:9px 12px;border-radius:13px;background:var(--ink);color:var(--bg);font-size:13.5px;font-weight:550;line-height:1.35;
+  box-shadow:0 14px 34px -12px rgba(0,0,0,.5);opacity:0;scale:.96;transition:opacity .22s,scale .26s var(--spring);text-wrap:pretty}
+.tip.on{opacity:1;scale:1}
+.tip b{font-weight:750;margin-right:2px}
+.tip b::before{content:"";display:inline-block;width:8px;height:8px;margin:0 6px 1px 0;border-radius:50%;background:var(--foil);vertical-align:middle}
+.tip-ar{position:absolute;width:12px;height:12px;margin-left:-6px;background:var(--ink);transform:rotate(45deg)}
+.tip[data-side="down"] .tip-ar{top:-5px}
+.tip[data-side="up"] .tip-ar{bottom:-5px}
+.tip-ring{position:fixed;z-index:89;pointer-events:none;border-radius:14px;border:2px solid var(--accent);opacity:0;transition:opacity .22s}
+.tip-ring.on{opacity:1;animation:tipPulse 1.6s ease-out 2}
+@keyframes tipPulse{0%{box-shadow:0 0 0 0 var(--ring)}70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.tip,.tip-ring{transition:none}.tip-ring.on{animation:none}}

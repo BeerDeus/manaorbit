@@ -2,6 +2,7 @@
    · Réglages › « Aide et avis » (helpSettings, emplacement #helpBox) : l'aide, « Envoyer un avis » (e-mail prérempli), « Noter » (appli Android).
    · Aide : questions courantes, réponses courtes, d'après ce que fait vraiment le code (prix, ajout de cartes, venir de ManaBox (guide de switch.js),
      valeur, decks EDHREC, échange, amis, compte, notifications, effacement). Ouverte aussi par « Comment ça marche ? » en bas de l'accueil.
+     En tête, « Visite guidée » (tour.js, s'il est là), aussi dans « Aide et avis ».
    · Avis : mailto avec la version, la plateforme, la langue et le navigateur (pour reproduire un bug) ; jamais la collection.
    · Note : demande neutre (« Noter » / « Plus tard », aucune question sur l'avis avant : Google interdit de trier les gens selon leur réponse),
      seulement dans l'appli Android, après un bon moment (5 cartes ou plus ajoutées d'un scan, un deck enregistré qui devient complet),
@@ -58,9 +59,10 @@ function helpSettings(el, own) {      // own : dans sa propre fiche « Aide et a
   const rate = RATE.url && isNativeApp();
   el.innerHTML = `${own ? '' : `<div class="sec-title">${T('Aide et avis')}</div>`}
     <div class="installbox"><p class="hint">${helpNb(T('Les réponses aux questions courantes. Un bug, une idée ? Écris-nous : ton appli mail s\'ouvre avec la version de Mana Orbit déjà notée.'))}</p>
-      <div class="cart-actions"><button class="btn ghost small" type="button" data-help="open">${T('Comment ça marche')}</button><a class="btn ghost small" data-help="mail" href="${esc(feedbackHref())}">${T('Envoyer un avis')}</a>${rate ? `<a class="btn ghost small" data-help="rate" href="${esc(RATE.url)}" target="_blank" rel="noopener">${T('Noter sur le Play Store')}</a>` : ''}</div>
+      <div class="cart-actions"><button class="btn ghost small" type="button" data-help="open">${T('Comment ça marche')}</button>${typeof tourHelpBtn === 'function' ? tourHelpBtn() : ''}<a class="btn ghost small" data-help="mail" href="${esc(feedbackHref())}">${T('Envoyer un avis')}</a>${rate ? `<a class="btn ghost small" data-help="rate" href="${esc(RATE.url)}" target="_blank" rel="noopener">${T('Noter sur le Play Store')}</a>` : ''}</div>
       <p class="hint hp-mail">${T('Ou écris à {mail}', { mail: `<span>${HELP_MAIL}</span>` })}</p></div>`;
   $('[data-help="open"]', el).onclick = () => { haptic('tap'); openHelp(); };
+  const tb = $('[data-help="tour"]', el); if (tb) tb.onclick = () => { haptic('tap'); tourStart({ from: 'settings' }); };      // visite guidée (tour.js)
   const r = $('[data-help="rate"]', el); if (r) r.addEventListener('click', () => rateDone());
   helpMailLinks(el);
 }
@@ -68,12 +70,12 @@ function helpSettings(el, own) {      // own : dans sa propre fiche « Aide et a
 function openHelp() {
   openSheet(T('Comment ça marche'), T('Les questions qu\'on se pose souvent'), api => {
     api.wrap.classList.add('hp-sheet');
-    api.body.innerHTML = `<div class="hp-list">${HELP_QA.map(([q, a], i) => `<details class="hp-q" data-i="${i}"><summary><span>${helpNb(T(q))}</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></summary><p>${helpNb(typeof a === 'function' ? a() : T(a))}</p></details>`).join('')}</div>
+    api.body.innerHTML = `${typeof tourHelpHtml === 'function' ? tourHelpHtml() : ''}<div class="hp-list">${HELP_QA.map(([q, a], i) => `<details class="hp-q" data-i="${i}"><summary><span>${helpNb(T(q))}</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></summary><p>${helpNb(typeof a === 'function' ? a() : T(a))}</p></details>`).join('')}</div>
       <p class="hint hp-more">${helpNb(T('Une autre question, un bug, une idée ? Écris-nous, on lit tout.'))}</p>`;
     api.setFoot(`<a class="btn ghost" data-help="mail" href="${esc(feedbackHref())}">${T('Envoyer un avis')}</a><button class="btn" type="button" data-close>${T('Fermer')}</button>`);
     // une question ouverte referme les autres : la liste reste courte sur un téléphone
     api.body.addEventListener('toggle', e => { const d = e.target; if (d.open) $$('.hp-q[open]', api.body).forEach(x => { if (x !== d) x.open = false; }); }, true);
-    api.body.addEventListener('click', e => { if (e.target.closest('[data-help="switch"]')) { haptic('tap'); swgOpen({ from: 'help' }); } });      // « Je viens de ManaBox » : le guide (switch.js), par-dessus l'aide
+    api.body.addEventListener('click', e => { if (e.target.closest('[data-help="switch"]')) { haptic('tap'); swgOpen({ from: 'help' }); } else if (e.target.closest('[data-help="tour"]')) { haptic('tap'); tourStart({ from: 'help' }); } });      // « Visite guidée » (tour.js), en tête      // « Je viens de ManaBox » : le guide (switch.js), par-dessus l'aide
     helpMailLinks(api.foot);
   });
 }
