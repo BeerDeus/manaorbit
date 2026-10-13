@@ -1,4 +1,6 @@
 node_modules/
+# lien symbolique tests/node_modules (worktrees) : jamais dans le dépôt (un lien versionné vers /home/user/… boucle sur lui-même dans le dépôt principal)
+node_modules
 .env
 .env.*
 *.log
