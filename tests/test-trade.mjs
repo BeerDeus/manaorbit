@@ -246,4 +246,31 @@ function qrDecode(m) {
   assert.deepEqual(got.map(r => [...r].join('')), [...mx.m].map(r => [...r].join('')), 'SVG = matrice');
   console.log('✓ QR code : décodé (repères, format, version, masque, Reed-Solomon, texte) pour les versions 1 à 10 et les 8 masques, identique aux matrices de référence, SVG fidèle');
 }
+/* ── Classeur (binder.js) : ordre des pochettes, réglages publiés dans le partage ── */
+{
+  const B = createRequire(import.meta.url)('../src/binder.js');
+  const e = (k, nm, u, cl, tl, cm, sk = '', num = '') => ({ k, nm, u, cl, tl, cm, sk, num });
+  const L = [e('bolt', 'Lightning Bolt', 150, 'R', 'Instant', 1, 'Magic 2010', '146'), e('sol', 'Sol Ring', 120, '', 'Artifact', 1, 'Commander Masters', '400'),
+    e('wrath', 'Wrath of God', 300, 'W', 'Sorcery', 4), e('tower', 'Command Tower', null, '', 'Land', 0, 'Commander Masters', '350'), e('atraxa', 'Atraxa', 1200, 'WUBG', 'Legendary Creature', 4),
+    e('ponder', 'Ponder', 80, 'U', 'Sorcery', 1, 'Magic 2010', '64'), e('elf', 'Llanowar Elves', 25, 'G', 'Creature — Elf', 1), e('mystery', 'Mystery', null, undefined, undefined, undefined)];
+  const ks = (s, pins) => B.bndArrange(L, s, pins).map(x => x.k).join(' ');
+  assert.equal(ks('name'), 'atraxa tower bolt elf mystery ponder sol wrath', 'nom');
+  assert.equal(ks('value'), 'atraxa wrath bolt sol ponder elf tower mystery', 'valeur décroissante, sans prix à la fin (par nom)');
+  assert.equal(ks('color'), 'wrath ponder bolt elf atraxa sol tower mystery', 'blanc, bleu, noir, rouge, vert, multicolore, incolore, terrains, fiche inconnue');
+  assert.equal(ks('set'), 'tower sol ponder bolt atraxa elf mystery wrath', 'extension (nom), numéro (350 avant 400, 64 avant 146), sans édition à la fin');
+  assert.equal(ks('value', ['tower', 'elf']), 'tower elf atraxa wrath bolt sol ponder mystery', 'épinglées d\'abord, dans leur ordre ; le reste trié');
+  assert.equal(ks('nope'), ks('name'), 'tri inconnu : par nom');
+  // deux langues d'une même carte épinglée : ensemble, dans l'ordre reçu
+  assert.deepEqual(B.bndArrange([e('a', 'A', 1), { ...e('p', 'P fr', 5), l: 'fr' }, e('b', 'B', 9), { ...e('p', 'P en', 5), l: 'en' }], 'value', ['p']).map(x => x.k + (x.l || '')), ['pfr', 'pen', 'b', 'a']);
+  assert.deepEqual(B.bndClean({ c: 'cuir', s: 'color', k: ['a', 'a', 7, '', 'b'], u: 5 }), { who: '', c: 'cuir', s: 'color', k: ['a', 'b'], u: 5 });
+  assert.deepEqual(B.bndClean({ c: '<b>', s: 'x', k: Array.from({ length: 30 }, (_, i) => 'k' + i) }).k.length, 18, '18 épingles au plus');
+  assert.deepEqual(B.bndClean(null), { who: '', c: 'nuit', s: 'name', k: [], u: 0 });
+  // partage : bd relu et nettoyé (contenu d'un autre compte)
+  const r = C.readShare('trade', JSON.stringify({ have: [{ n: 'Sol Ring', q: 1 }], want: [], bd: { c: 'foret', s: 'value', k: ['sol ring', 5, 'x'.repeat(400), 'bolt'], u: 12 } }));
+  assert.deepEqual(r.bd, { c: 'foret', s: 'value', k: ['sol ring', 'x'.repeat(160), 'bolt'], u: 12 });
+  assert.deepEqual(C.readShare('trade', JSON.stringify({ have: [], bd: { c: 'url(evil)', s: '<x>', k: 'nope' } })).bd, { c: '', s: 'name', k: [], u: 0 }, 'valeurs inconnues → par défaut');
+  assert.ok(!('bd' in C.readShare('trade', JSON.stringify({ have: [] }))) && !('bd' in C.readShare('trade', JSON.stringify({ have: [], bd: [1] }))), 'sans classeur : rien');
+  assert.ok(!('bd' in C.readShare('deck', JSON.stringify({ text: '1 Sol Ring', bd: { c: 'cuir' } }))), 'deck : jamais de classeur');
+  console.log('✓ classeur : épinglées puis tri (valeur, couleur, extension, nom), réglages nettoyés, bd du partage relu sans risque');
+}
 console.log('test-trade OK');
