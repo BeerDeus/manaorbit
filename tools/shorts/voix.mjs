@@ -1,6 +1,6 @@
 // Voix off des vidéos courtes (Reels / Shorts) : Gemini TTS (API Google AI Studio), un fichier WAV par vidéo dans tools/shorts/voix/.
 // Clé : variable d'environnement GEMINI_API_KEY (réglages de l'environnement, jamais dans le dépôt). Textes : tools/shorts/voix.json.
-// Usage : node tools/shorts/voix.mjs [id…]   (sans id : toutes) · options : --voix=Achird --modele=gemini-3.8-flash-tts --temperature=1.25 --suffixe=-aoede (nom de fichier, pour comparer des voix) --force
+// Usage : node tools/shorts/voix.mjs [id…]   (sans id : toutes) · voix.json : modele, voix, temperature, coupe (s retirées en fin de voix) · options : --voix=Achird --modele=gemini-3.8-flash-tts --temperature=1.25 --suffixe=-aoede (nom de fichier, pour comparer des voix) --force
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,7 +32,13 @@ async function say(text, style) {
   const part = (((j.candidates || [])[0] || {}).content || {}).parts || [], d = part.find(p => p.inlineData && p.inlineData.data);
   if (!d) throw new Error('pas d\'audio dans la réponse');
   const rate = Number((/rate=(\d+)/.exec(d.inlineData.mimeType || '') || [])[1]) || 24000;
-  return wav(Buffer.from(d.inlineData.data, 'base64'), rate);
+  return wav(coupe(Buffer.from(d.inlineData.data, 'base64'), rate), rate);
+}
+/** Retire la fin du PCM (cfg.coupe s, 0,3 par défaut : le modèle laisse un souffle dans les 0,15 dernières secondes) avec un fondu de 50 ms. */
+function coupe(pcm, rate) {
+  const s = Number(cfg.coupe ?? 0.3), n = Math.max(0, pcm.length / 2 - Math.round(s * rate)), out = pcm.subarray(0, n * 2), f = Math.min(n, Math.round(0.05 * rate));
+  for (let i = n - f; i < n; i++) out.writeInt16LE(Math.round(out.readInt16LE(i * 2) * (n - i) / f), i * 2);
+  return out;
 }
 for (const v of cfg.videos.filter(x => !ids.length || ids.includes(x.id))) {
   const f = join(OUT, v.id + SUFFIX + '.wav');
