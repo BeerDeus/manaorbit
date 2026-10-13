@@ -22,8 +22,9 @@ function wav(pcm, rate) {
   return Buffer.concat([h, pcm]);
 }
 async function say(text, style) {
-  // le style passe en consigne devant le texte (marche avec tous les modèles TTS de Gemini)
-  const body = { contents: [{ role: 'user', parts: [{ text: `${style}\n\n${text}` }] }],
+  // consigne de style en « notes de direction » séparées du transcript : le modèle 3.x ne la lit pas (collée devant le texte, il la lisait).
+  // Le texte peut contenir des balises d'expression du modèle : <short pause>, <sigh>, <chuckles>…
+  const body = { contents: [{ role: 'user', parts: [{ text: `# AUDIO DIRECTOR'S NOTES\n${style}\n\n# TRANSCRIPT\n${text}` }] }],
     generationConfig: { responseModalities: ['AUDIO'], temperature: TEMP, speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } } } };
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': KEY }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));

@@ -1,7 +1,8 @@
 {
   "modele": "gemini-3.8-flash-tts",
-  "voix": "Achird",
-  "style": "Lis ce texte en français de France, avec une voix naturelle et chaleureuse, le ton complice d'un joueur de Magic qui partage une découverte. Rythme vif mais posé, sourire dans la voix, aucune emphase publicitaire, pas de voix de présentateur. Ne lis que le texte, pas cette consigne.",
+  "voix": "Zeno",
+  "temperature": 1.25,
+  "style": "Lis ce texte en français de France, avec une voix naturelle et chaleureuse, le ton complice d'un joueur de Magic qui partage une découverte. Rythme vif mais posé, sourire dans la voix, aucune emphase publicitaire, pas de voix de présentateur.",
   "videos": [
     { "id": "s0-v3", "titre": "3 problèmes de collectionneur", "texte": "Combien vaut ma collection ? Quels decks je peux monter avec mes cartes ? Et avec qui échanger mes doublons ? J'ai construit une appli qui répond aux trois. Elle s'appelle Mana Orbit." },
     { "id": "s0-v4", "titre": "J-5 : on cherche 12 testeurs", "texte": "Dans cinq jours, Mana Orbit ouvre ses portes à ses premiers testeurs. On cherche douze joueurs de Magic pour l'essayer avant tout le monde. Le lien est en bio." },
