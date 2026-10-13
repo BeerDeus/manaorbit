@@ -3,7 +3,7 @@
      si la version gardée diffère de celle qui tourne (DD_BUILD), la page l'apprend (message « dd-shell ») et propose « Recharger ».
      Réseau d'abord (copie locale si le réseau échoue ou traîne → l'app s'ouvre hors ligne) : adresse avec paramètres (partage ?p=,
      ?delete-account, notifications…), pas de copie, ou copie de plus de 7 jours (jamais bloqué sur une vieille version).
-     Seule une vraie page de l'app (DD_BUILD présent) est gardée. /privacy et /api ne passent jamais par cette copie.
+     Seule une vraie page de l'app (DD_BUILD présent) est gardée. /privacy, /admin (panneau d'administration) et /api ne passent jamais par cette copie ni par aucun cache.
    • Icônes et manifeste : cache d'abord, rafraîchis en arrière-plan.
    • Images de cartes Scryfall (cards.scryfall.io) et symboles des extensions (svgs.scryfall.io) : cache d'abord → déjà vus (ou préchargés chaque semaine
      par l'appli, warm.js) : plus jamais retéléchargés ; 120 Mo et 6 000 fichiers au plus. Les petites images (aperçus, listes) passent avant :
@@ -171,7 +171,7 @@ self.addEventListener('fetch', e => {
   }
   const r = rel(u); if (r === null) return;
   if (r.startsWith('api/') || r === '__ping') return;        // jamais : données vivantes et clés
-  if (req.mode === 'navigate') { if (r === '' || r === 'index.html') e.respondWith(page(e)); return; }     // /privacy et le reste : jamais la copie de l'app
+  if (req.mode === 'navigate') { if (r === '' || r === 'index.html') e.respondWith(page(e)); return; }     // /privacy, /admin et le reste : jamais la copie de l'app
   if (ASSETS.includes(r)) e.respondWith(asset(e, r));
 });
 

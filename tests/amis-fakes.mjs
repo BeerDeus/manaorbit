@@ -9,8 +9,8 @@ const sv = v => (Array.isArray(v) ? { arrayValue: { values: v.map(sv) } } : type
 
 export async function startFakes() {
   const KP = generateKeyPairSync('rsa', { modulusLength: 2048 }), SAK = generateKeyPairSync('rsa', { modulusLength: 2048 });
-  /** Jeton d'identité Firebase de ce compte (exp : secondes restantes ; négatif : expiré). */
-  const jwt = (uid, exp = 3600) => { const n = Math.floor(Date.now() / 1000); const h = b64({ alg: 'RS256', typ: 'JWT', kid: 'k1' }), c = b64({ iss: 'https://securetoken.google.com/m2s-mtg', aud: 'm2s-mtg', auth_time: n - 10, user_id: uid, sub: uid, iat: n - 10, exp: n + exp, email: uid + '@test.dev', email_verified: true }); return [h, c, rsaSign('RSA-SHA256', Buffer.from(h + '.' + c), KP.privateKey).toString('base64url')].join('.'); };
+  /** Jeton d'identité Firebase de ce compte (exp : secondes restantes ; négatif : expiré ; extra : revendications remplacées, ex. email, email_verified). */
+  const jwt = (uid, exp = 3600, extra = {}) => { const n = Math.floor(Date.now() / 1000); const h = b64({ alg: 'RS256', typ: 'JWT', kid: 'k1' }), c = b64({ iss: 'https://securetoken.google.com/m2s-mtg', aud: 'm2s-mtg', auth_time: n - 10, user_id: uid, sub: uid, iat: n - 10, exp: n + exp, email: uid + '@test.dev', email_verified: true, ...extra }); return [h, c, rsaSign('RSA-SHA256', Buffer.from(h + '.' + c), KP.privateKey).toString('base64url')].join('.'); };
   const jwks = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'max-age=3600' }); r.end(JSON.stringify({ keys: [{ ...KP.publicKey.export({ format: 'jwk' }), kid: 'k1', alg: 'RS256', use: 'sig' }] })); });
   const SA = { type: 'service_account', project_id: 'mana-test', private_key_id: 'k1', private_key: SAK.privateKey.export({ type: 'pkcs8', format: 'pem' }), client_email: 'svc@mana-test.iam.gserviceaccount.com', client_id: '1', token_uri: 'https://oauth2.googleapis.com/token' };
   const oauth = { n: 0, scopes: [] };

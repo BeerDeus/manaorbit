@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0b0f1c">
+<title>Administration · Mana Orbit</title>
+<!-- Panneau d'administration (proxy.mjs › /api/admin) : cette page ne contient AUCUNE donnée. Elle connecte le compte (SDK Firebase, comme l'appli)
+     puis demande les statistiques au serveur, qui vérifie à chaque appel que c'est le compte de l'éditeur. Pas reliée depuis l'appli, jamais indexée. -->
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Instrument+Sans:wght@400..700&display=swap">
+<link rel="stylesheet" href="/admin/app.css">
+<script src="/admin/app.js"></script>
+</head>
+<body>
+<div class="foil"></div>
+<header class="top">
+  <div class="brand"><img src="/icons/icon.svg" alt="" width="30" height="30"><b>Mana Orbit</b><span class="pill">Admin</span></div>
+  <div class="acts" id="acts" hidden>
+    <button class="btn ghost small" id="btnRefresh" type="button">Rafraîchir</button>
+  </div>
+</header>
+<main>
+  <section class="state" id="vLoad"><span class="spin" aria-hidden="true"></span><p>Chargement…</p></section>
+  <section class="state" id="vOut" hidden>
+    <h1>Administration</h1>
+    <p>Connecte-toi avec le compte de l'éditeur.</p>
+    <button class="btn main" id="btnIn" type="button">Se connecter avec Google</button>
+    <p class="hint">Déjà connecté dans l'appli sur ce navigateur ? Tu l'es aussi ici.</p>
+    <p class="err" id="inErr" hidden></p>
+  </section>
+  <section class="state" id="vDeny" hidden>
+    <h1>Accès réservé</h1>
+    <button class="btn ghost" id="btnSwitch" type="button">Changer de compte</button>
+  </section>
+  <section class="state" id="vErr" hidden>
+    <h1>Indisponible</h1>
+    <p id="errTxt"></p>
+    <button class="btn ghost" id="btnRetry" type="button">Réessayer</button>
+  </section>
+  <section id="vMain" hidden>
+    <p class="meta" id="meta"></p>
+    <div id="notes"></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="duo">
+      <section class="card" id="chart"></section>
+      <section class="card" id="mix"></section>
+    </div>
+    <section class="card users">
+      <div class="uhead">
+        <h2>Utilisateurs <small id="uCount"></small></h2>
+        <div class="ctl">
+          <input id="q" type="search" placeholder="Rechercher…" autocomplete="off" spellcheck="false" aria-label="Rechercher un nom">
+          <select id="sort" aria-label="Trier par">
+            <option value="created">Inscription</option>
+            <option value="login">Connexion</option>
+            <option value="seen">Activité</option>
+            <option value="cards">Cartes</option>
+            <option value="decks">Decks</option>
+          </select>
+          <button class="btn ghost small dir" id="dir" type="button" aria-label="Ordre du tri">↓</button>
+        </div>
+      </div>
+      <div class="ulist" id="ulist"></div>
+      <nav class="pager" id="pager" aria-label="Pages"></nav>
+    </section>
+    <section class="card" id="srv"></section>
+    <div class="foot"><button class="btn ghost small" id="btnOut" type="button" title="Déconnecte aussi l'appli dans ce navigateur">Se déconnecter</button></div>
+  </section>
+</main>
+</body>
+</html>
