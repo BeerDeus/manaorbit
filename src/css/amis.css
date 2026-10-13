@@ -3,9 +3,7 @@
 #btnAccount[data-dot="1"]::after{content:"";position:absolute;top:3px;right:3px;width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 2px var(--bg);z-index:1}
 /* « Compte et réglages » : « 2 demandes » en couleur */
 .am-hot{color:var(--accent);font-weight:700}
-.am-hot::before{content:"";display:inline-block;width:7px;height:7px;margin:0 6px 1px 0;border-radius:50%;background:var(--bad);vertical-align:middle}
-.me-v .am-hot::before{background:var(--bad)}
-#amPushV.am-hot::before{display:none}
+.me-v>.am-hot::before{content:"";display:inline-block;width:7px;height:7px;margin:0 6px 1px 0;border-radius:50%;background:var(--bad);vertical-align:middle}
 
 /* Avatar (initiale sur sa couleur, photo par-dessus) */
 .am-av{--h:220;position:relative;flex:none;width:40px;height:40px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:hsl(var(--h) 45% 32%);color:#fff;font-family:var(--font-display);font-weight:700;font-size:16px}
@@ -44,7 +42,7 @@ button.am-row:active{background:var(--surface-2)}
 .am-pill .i{width:17px;height:17px;flex:none}
 .am-pill.on{background:var(--good-soft);color:var(--good);box-shadow:none}
 .am-pill.off{background:var(--surface-2);color:var(--ink-2);box-shadow:none;cursor:default}
-@media (max-width:374px){.am-pill{padding:0 10px}.am-pill[data-am="add"] span{display:none}}      /* très petit écran : l'icône seule (le titre garde sa place) */
+@media (max-width:339px){.am-pill{padding:0 10px}.am-pill[data-am="add"] span{display:none}}      /* très petit écran : l'icône seule (le pseudo garde sa place) */
 
 /* Page d'un ami : ses decks et sa collection, retrait */
 .am-more{margin:0 0 10px}

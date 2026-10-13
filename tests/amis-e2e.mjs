@@ -84,7 +84,7 @@ await openMe(pa); await pa.waitForSelector('#meAmis .am-hot');
 assert.equal(await tc(pa, '#meAmis .me-v'), '1 demande');
 await shot(pa, '03-compte-demande');
 await pa.click('#meAmis'); await pa.waitForSelector('.am-sheet .am-row[data-id="' + TB + '"] [data-am="yes"]');
-assert.equal(await tc(pa, '.am-sheet .am-row[data-id="' + TB + '"] .am-t b'), 'Bob'); assert.match(await tc(pa, '.am-sheet .am-row[data-id="' + TB + '"] .am-t small'), /^veut t'ajouter · /);
+assert.equal(await tc(pa, '.am-sheet .am-row[data-id="' + TB + '"] .am-t b'), 'Bob'); assert.equal(await tc(pa, '.am-sheet .am-row[data-id="' + TB + '"] .am-t small'), 'à l\'instant');
 assert.ok(await pa.$('.am-sheet .am-empty'), 'pas encore d\'ami : comment en ajouter');
 await shot(pa, '04-amis-demande');
 await pa.click('.am-sheet [data-am="yes"]'); await pa.waitForSelector('.am-sheet .am-row[data-am="open"][data-id="' + TB + '"]');
@@ -164,6 +164,46 @@ assert.equal(await pa.$eval('#btnAccount', b => b.dataset.dot), '0', 'mode strea
 await pa.evaluate(() => { window.streamOn = () => false; amPaint(); }); assert.equal(await pa.$eval('#btnAccount', b => b.dataset.dot), '1');
 await pa.evaluate(() => { delete window.streamOn; return amRefresh(true); });
 ok('mode streamer (streamOn) : le point des demandes n\'apparaît pas');
+
+/* ── Appli Android (plugin PushNotifications simulé) : appareil enregistré, demande notifiée, toucher → feuille Amis ─ */
+const UC = 'uid-carol-e2e', TC = tag(UC), TOKC = 'eC3:APA91b' + 'x'.repeat(40) + Date.now().toString(36).padEnd(70, 'q');
+const shell = tok => {
+  const L = {}, held = {}; let perm = 'prompt';
+  const fire = (ev, data) => { if (L[ev] && L[ev].length) L[ev].forEach(f => f(data)); else (held[ev] = held[ev] || []).push(data); };
+  window.__pn = { fire };
+  window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'PushNotifications', Plugins: { PushNotifications: {
+    checkPermissions: async () => ({ receive: perm }), requestPermissions: async () => { perm = 'granted'; return { receive: perm }; },
+    register: async () => { setTimeout(() => fire('registration', { value: tok }), 50); }, unregister: async () => {},
+    addListener: async (ev, fn) => { (L[ev] = L[ev] || []).push(fn); for (const d of (held[ev] || []).splice(0)) setTimeout(() => fn(d), 0); return { remove: async () => {} }; },
+  } } };
+};
+const Cc = await newPage(browser, world, { goto: false, init: `(${shell})(${JSON.stringify(TOKC)});` + seed('1 Island') });
+const pc = Cc.p;
+await routeRest(pc); await pc.exposeFunction('__share', (id, data) => { F.fs.docs.set('shares/' + id, data); });
+await pc.goto(world.url); await pc.waitForTimeout(600);
+await login(pc, UC, 'Carol'); await pc.waitForFunction(() => CTX.amis === true && CTX.fcm === true, null, { timeout: 8000 });
+await pc.evaluate(() => trShareOn()); await pc.waitForFunction(() => !!TR.share, null, { timeout: 10000 }); const SIDC = await pc.evaluate(() => TR.share);
+await openMe(pc, 'amis'); await pc.waitForSelector('.am-sheet [data-am="push"] #amPushV');
+await pc.waitForFunction(() => document.querySelector('#amPushV').textContent === 'Activer');
+await pc.click('.am-sheet [data-am="push"]'); await pc.waitForFunction(() => /prévenu des demandes/.test(document.querySelector('#toast').textContent), null, { timeout: 8000 });
+await until(() => (amDoc(TC) || { d: [] }).d.some(x => x.sub.fcm === TOKC)); assert.equal(amDoc(TC).d.length, 1, 'appareil enregistré pour le compte (jeton FCM)'); assert.equal(amDoc(TC).d[0].l, 'fr');
+assert.equal(amDoc(TC).n, '', 'sans ami ni demande : ni pseudo ni photo envoyés avec l\'appareil');
+await closeSheets(pc);
+await pb.evaluate(id => openPublicLink(id), SIDC); await pb.waitForSelector('.pubv.on .am-pub [data-am="add"]');
+await pb.click('.am-pub [data-am="add"]'); await pb.waitForSelector('.am-pub[data-st="sent"]');
+await until(() => F.fcmFor(TOKC).length === 1);
+const mc = F.fcmFor(TOKC)[0]; assert.deepEqual(mc.notification, { title: 'Demande d\'ami', body: 'Bob veut t\'ajouter en ami sur Mana Orbit.' }); assert.equal(mc.data.url, './?amis=1');
+await pb.evaluate(() => TR.pub.el.__close());
+await pc.evaluate(n => window.__pn.fire('pushNotificationReceived', { title: n.notification.title, body: n.notification.body, data: n.data }), mc);
+await pc.waitForSelector('#btnAccount[data-dot="1"]', { timeout: 8000 }); assert.match(await tc(pc, '#toast'), /^Demande d'ami · Bob veut t'ajouter en ami sur Mana Orbit\.Voir$/);
+await pc.evaluate(u => window.__pn.fire('pushNotificationActionPerformed', { actionId: 'tap', notification: { data: { url: u } } }), mc.data.url);
+await pc.waitForSelector('.am-sheet.open .am-row[data-id="' + TB + '"] [data-am="no"]', { timeout: 8000 });
+await pc.click('.am-sheet [data-am="no"]'); await pc.waitForFunction(() => /Demande refusée/.test(document.querySelector('#toast').textContent));
+assert.equal(await pc.$eval('#btnAccount', b => b.dataset.dot), '0'); assert.ok(!amDoc(TC).i[TB] && amDoc(TB).o[TC], 'refusée : rien chez Carol, toujours « envoyée » chez Bob');
+await closeSheets(pc);
+await pc.evaluate(() => amOut()); await until(() => !amDoc(TC).d.length); assert.equal(amDoc(TC).d.length, 0, 'déconnexion : appareil retiré du compte');
+assert.deepEqual(Cc.errs, [], 'aucune erreur dans la console (Carol, appli)');
+ok('appli Android : appareil enregistré (feuille Amis › Notifications), demande notifiée par FCM, reçue appli ouverte (toast, point), touchée → feuille Amis ; refus ; déconnexion → appareil retiré');
 
 /* ── Retrait : plus rien dans un sens ni dans l'autre ─────────────────────────────────────────── */
 await pb.evaluate(t => amOpenFriend(t), TA); await pb.waitForSelector('.pubv.on .am-rm:not([hidden]) [data-am="rm"]');

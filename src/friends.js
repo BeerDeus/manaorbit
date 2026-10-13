@@ -170,7 +170,8 @@ async function amDev(force) {
   const sub = await pushTarget(); if (!sub) return;
   const sig = String(hash32(JSON.stringify(sub) + '|' + I18N.lang + '|' + D.uid));
   if (!force && sig === AM.devSig && AM.dev && Date.now() - AM.devAt < AM_DEV_TTL) return;
-  const r = await amCall('/me', { method: 'PUT', body: { dev: sub, ...(await amProf()) } });
+  const l = AM.l, known = !!(l && (l.friends.length || l.inc.length || l.out.length));      // pseudo et photo seulement pour qui a déjà des amis ou des demandes
+  const r = await amCall('/me', { method: 'PUT', body: { dev: sub, l: I18N.lang, ...(known ? await amProf() : {}) } });
   if (AM.dev && r.dk && r.dk !== AM.dev) amCall('/me', { method: 'PUT', body: { off: AM.dev } }).catch(() => {});      // jeton renouvelé : l'ancien ne doit plus rien recevoir
   AM.dev = r.dk || ''; AM.devSig = sig; AM.devAt = Date.now(); amStore();
 }
@@ -247,7 +248,7 @@ function amSheetPaint(api) {
   const b = api.body, l = AM.l;
   if (!l) { b.innerHTML = `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(AM.err ? amErrText(AM.err) : T('Lecture de tes amis…'))}</span></div>`; return; }
   const row = (x, sub, acts) => `<div class="am-row" data-id="${x.id}">${amAv(x)}<span class="am-t"><b>${esc(amName(x))}</b><small>${esc(sub)}</small></span>${acts}</div>`;
-  const inc = l.inc.length ? `<div class="me-h">${T('Demandes reçues')}</div><div class="me-g am-g">${l.inc.map(x => row(x, T('veut t\'ajouter · {when}', { when: relTime(x.at) }),
+  const inc = l.inc.length ? `<div class="me-h">${T('Demandes reçues')}</div><div class="me-g am-g">${l.inc.map(x => row(x, relTime(x.at),
     `<span class="am-acts"><button class="btn small" type="button" data-am="yes">${T('Accepter')}</button><button class="icon-btn am-no" type="button" data-am="no" aria-label="${esc(T('Refuser la demande de {name}', { name: amName(x) }))}" title="${T('Refuser')}"><svg class="i"><use href="#i-close"/></svg></button></span>`)).join('')}</div>` : '';
   const fr = l.friends.length
     ? `<div class="me-h">${T('Mes amis')} · ${nf0(l.friends.length)}</div><div class="me-g am-g">${l.friends.map(x => `<button type="button" class="am-row" data-am="open" data-id="${x.id}">${amAv(x)}<span class="am-t"><b>${esc(amName(x))}</b><small${x.m ? ' class="good"' : ''}>${esc(amFriendSub(x))}</small></span>${meChev}</button>`).join('')}</div>`
@@ -255,7 +256,7 @@ function amSheetPaint(api) {
   const out = l.out.length ? `<div class="me-h">${T('Demandes envoyées')}</div><div class="me-g am-g">${l.out.map(x => row(x, T('en attente · {when}', { when: relTime(x.at) }), `<button class="link-btn" type="button" data-am="cancel">${T('Annuler')}</button>`)).join('')}</div>` : '';
   const set = `<div class="me-h">${T('Ce que voient tes amis')}</div><div class="me-g">
       <label class="me-row switch-row" for="amColl"><span class="me-t">${T('Partager ma collection')}<small>${T('Ils voient déjà tes doublons, tes cartes recherchées et tes decks.')}</small></span><span class="switch"><input type="checkbox" id="amColl"${l.me.c ? ' checked' : ''}><i></i></span></label>
-      ${CTX.vapid || CTX.fcm ? `<button type="button" class="me-row" data-am="push"><span class="me-t">${T('Notifications')}<small>${T('Demandes d\'ami, cartes que tu cherches')}</small></span><span class="me-v" id="amPushV"></span>${meChev}</button>` : ''}</div>
+      ${(pushNat() ? CTX.fcm : CTX.vapid) ? `<button type="button" class="me-row" data-am="push"><span class="me-t">${T('Notifications')}<small>${T('Demandes d\'ami, cartes que tu cherches')}</small></span><span class="me-v" id="amPushV"></span>${meChev}</button>` : ''}</div>
     ${AM.err ? `<p class="hint warn">${esc(amErrText(AM.err))}</p>` : ''}`;
   b.innerHTML = inc + fr + out + set;
   amPushVal($('#amPushV', b));
@@ -333,7 +334,7 @@ function amPubMount(wrap, P) {
       : st === 'friend' ? `<button class="am-pill on" type="button" data-am="friend"><svg class="i"><use href="#i-check"/></svg><span>${T('Ami')}</span></button>`
       : st === 'asked' ? `<button class="am-pill" type="button" data-am="accept">${AM_ADD_ICON}<span>${T('Accepter')}</span></button>`
       : st === 'busy' ? `<span class="am-pill off"><span>${T('Envoi…')}</span></span>`
-      : st ? `<button class="am-pill" type="button" data-am="add">${AM_ADD_ICON}<span>${T('Ajouter en ami')}</span></button>` : '';
+      : st ? `<button class="am-pill" type="button" data-am="add" aria-label="${T('Ajouter en ami')}">${AM_ADD_ICON}<span>${T('Ajouter en ami')}</span></button>` : '';
   };
   const check = async () => {
     for (let i = 0; i < 60 && !CTX.proxy; i++) await sleep(100);      // lien ouvert au lancement : serveur pas encore interrogé (__ping)
