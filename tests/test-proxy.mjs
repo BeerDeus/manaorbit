@@ -448,9 +448,9 @@ await assert.rejects(start({ CARDTRADER_TOKEN: 'x', HOST: '0.0.0.0' }, 18790), /
   const gh = http.createServer((q, r) => { hits++; if (fails-- > 0) { q.socket.destroy(); return; } r.writeHead(200); r.end(file); }); await new Promise(r => gh.listen(0, '127.0.0.1', r));
   const dir = mkdtempSync(join(tmpdir(), 'pxr-'));
   const px = await start({ CARDTRADER_TOKEN: '', PRICES_SOURCE_URL: `http://127.0.0.1:${gh.address().port}/prices.tsv.gz`, EDH_SYNC_MS: '3600000', EDH_SYNC_FIRST_MS: '10', SYNC_RETRY_MS: '200', EDH_DATA_DIR: dir }, 18797); B = 'http://127.0.0.1:18797';
-  let seen = '';      // premier passage à EDH_SYNC_FIRST_MS + 2 s : coupé deux fois, puis relu
+  let seen = ''; r = { o: {} };      // premier passage à EDH_SYNC_FIRST_MS + 2 s : coupé deux fois, puis relu
   for (let i = 0; i < 80 && !(r.o && r.o.cards); i++) { await new Promise(res => setTimeout(res, 100)); r = await j(B + '/__prices'); if (r.o.err) seen = r.o.err; }
-  assert.match(seen, /.+/, 'échec noté (connexion coupée)');
+  try { assert.match(seen, /.+/, 'échec noté (connexion coupée)'); } catch (e) { px.kill(); gh.close(); throw e; }
   assert.equal(r.o.cards, 16000, 'relu après deux échecs, sans attendre le passage suivant (1 h ici)'); assert.equal(r.o.err, ''); assert.equal(hits, 3);
   px.kill(); gh.close(); rmSync(dir, { recursive: true, force: true });
   console.log('✓ prix : GitHub injoignable au démarrage → nouvel essai 200, 400 ms (en vrai 1, 2, 4… min), pas 6 h plus tard');
