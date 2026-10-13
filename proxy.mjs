@@ -15,7 +15,7 @@ import { promisify } from 'node:util';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { timingSafeEqual, createPublicKey, createPrivateKey, verify as rsaVerify, sign as dsaSign, randomBytes, createHash, createECDH, createCipheriv, hkdfSync } from 'node:crypto';
+import { timingSafeEqual, createPublicKey, createPrivateKey, verify as rsaVerify, sign as dsaSign, randomBytes, createHash, createHmac, createECDH, createCipheriv, hkdfSync } from 'node:crypto';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const gzipA = promisify(gzip), gunzipA = promisify(gunzip), brotliA = promisify(brotliCompress);
@@ -1029,9 +1029,9 @@ async function pubNames() {
   else { PUB.names = { at: Date.now(), set: new Set() }; console.warn('Decks publics : catalogue des cartes Scryfall illisible, noms non contrôlés pour l\'instant'); }
   return PUB.names.set;
 }
-/** Une valeur de l'API REST Firestore en JS (chaînes, nombres, booléens, listes, null ; le reste : undefined). */
+/** Une valeur de l'API REST Firestore en JS (chaînes, nombres, booléens, listes, objets, null ; le reste : undefined). */
 const fsVal = v => (!v || typeof v !== 'object' ? undefined : 'stringValue' in v ? v.stringValue : 'integerValue' in v ? Number(v.integerValue) : 'doubleValue' in v ? Number(v.doubleValue)
-  : 'booleanValue' in v ? v.booleanValue : 'arrayValue' in v ? (v.arrayValue.values || []).map(fsVal) : 'nullValue' in v ? null : undefined);
+  : 'booleanValue' in v ? v.booleanValue : 'arrayValue' in v ? (v.arrayValue.values || []).map(fsVal) : 'mapValue' in v ? fsFields(v.mapValue) : 'nullValue' in v ? null : undefined);
 const fsFields = d => { const o = {}; for (const [k, v] of Object.entries((d && d.fields) || {})) o[k] = fsVal(v); return o; };
 /** Tous les documents d'une collection racine (par pages de 300, 30 000 au plus). */
 async function fsList(col, tok) {
@@ -1893,6 +1893,246 @@ async function namesApi(req, res, url) {
   } finally { nmBusy--; nmUsed = Date.now(); }
 }
 
+/* ── Panneau d'administration : page /admin, données /api/admin ───────────────────────────────────────────────────────────────────
+   Réservé à l'éditeur. À CHAQUE appel : jeton Firebase vérifié (tout compte du projet, sans la liste ALLOWED_UIDS), adresse vérifiée (email_verified),
+   empreinte SHA-256 de l'adresse (minuscules) dans la liste ADMIN_SET ; sinon 403 sans aucune donnée. Le dépôt est public : aucune adresse en clair,
+   seulement son empreinte (ADMIN_DEFAULT) ; ADMIN_EMAILS (adresses séparées par des virgules, lues ici seulement) la remplace. ADMIN=0 : coupé (404).
+   La page (pwa/admin.html, admin.js, admin.css) ne contient aucune donnée : elle connecte le compte (SDK Firebase, comme l'appli) puis appelle l'API.
+   Jamais en cache (no-store), jamais indexée (X-Robots-Tag), CSP stricte ; le service worker ne la garde pas (il ne garde que la page de l'appli).
+   Données, lues avec le compte de service (FCM_SERVICE_ACCOUNT), en lecture seule :
+   · comptes Firebase Authentication : Identity Toolkit accounts:batchGet (1 000 par page, ne coûte aucune lecture Firestore). Refusé (rôle IAM
+     manquant) : Firestore seul (comptes tirés des documents users/…, sans e-mail ni dates), avec un avis sur la page ;
+   · Firestore : documents meta de tous les comptes (une requête « groupe de collections », masque de champs : jamais la photo du profil, la liste
+     gardée, les decks montés ni le scan), decks (champ updatedAt seulement), pubdecks (champ o), pubreports (champ d), amis (pseudo, amis, demandes).
+     Coût d'un calcul : une lecture par document meta existant (7 au plus par compte), par deck, deck public, signalement et compte « amis ».
+   Calcul gardé ADMIN_TTL_MS en mémoire (10 min) ; « Rafraîchir » le refait (une fois par minute au plus, ADMIN_REFRESH_PER_H par heure et par réseau).
+   Minimisation : seul le serveur voit les données brutes, le temps du calcul. La page reçoit prénom + initiale (« Jeanne D. »), e-mail masqué
+   (« ma•••@gmail.com »), un identifiant opaque (HMAC d'une clé tirée au démarrage) ; jamais d'UID, d'e-mail complet, de photo ni de nom complet.
+   Rien de tout cela dans le journal (erreurs : statut HTTP seulement). Pagination, tri et recherche côté serveur (50 comptes par page). */
+const ADMIN_ON = process.env.ADMIN !== '0';
+// Empreinte SHA-256 (adresse en minuscules, sans espaces) de l'adresse e-mail de l'éditeur : la seule forme écrite dans le dépôt.
+const ADMIN_DEFAULT = ['6cad6e34ef574c9753e50865ff00a51d139de86223ae96dc9cb07856c4210a05'];
+const admHash = e => createHash('sha256').update(String(e || '').trim().toLowerCase()).digest('hex');
+const ADMIN_SET = new Set(String(process.env.ADMIN_EMAILS || '').trim() ? csv(process.env.ADMIN_EMAILS).map(admHash) : ADMIN_DEFAULT);
+const IT_BASE = (process.env.IDENTITY_TOOLKIT_BASE_URL || 'https://identitytoolkit.googleapis.com').replace(/\/+$/, '');      // surchargeable pour les tests
+const IT_SCOPE = 'https://www.googleapis.com/auth/cloud-platform';      // portée de accounts:batchGet (comme le SDK Admin de Firebase)
+const ADM_TTL = Number(process.env.ADMIN_TTL_MS) > 0 ? Number(process.env.ADMIN_TTL_MS) : 10 * 60e3;
+const ADM_GAP = Number(process.env.ADMIN_REFRESH_GAP_MS ?? 60e3), ADM_REF_H = Number(process.env.ADMIN_REFRESH_PER_H ?? 10);
+const ADM_DOCS = Math.max(100, Number(process.env.ADMIN_MAX_DOCS) || 40000), ADM_ACCTS = 50000, ADM_PER = 50;      // plafonds : documents lus par collection, comptes listés
+const ADM_SORTS = ['created', 'login', 'seen', 'cards', 'decks'];
+const ADM = { snap: null, run: null, tried: 0, key: randomBytes(32) };
+const ADM_HD = { 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' };
+// Page : aucun script en ligne ; SDK Firebase (gstatic) et fenêtre de connexion Google (apis.google.com, domaine d'authentification du projet) seulement.
+const ADM_CSP = `default-src 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; `
+  + `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; frame-src https://${FB_PROJECT}.firebaseapp.com https://accounts.google.com; `
+  + `base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'`;
+const ADM_FILES = new Map([['/admin', ['admin.html', 'text/html; charset=utf-8']], ['/admin/', ['admin.html', 'text/html; charset=utf-8']], ['/admin/app.js', ['admin.js', 'text/javascript; charset=utf-8']], ['/admin/app.css', ['admin.css', 'text/css; charset=utf-8']]]);
+const admId = uid => createHmac('sha256', ADM.key).update(String(uid)).digest('base64url').slice(0, 12);
+const admDay = (() => { let f = null; try { f = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }); } catch (e) { /* sans ICU : UTC */ } return t => (f ? f.format(t) : new Date(t).toISOString().slice(0, 10)); })();
+// Messageries grand public : le domaine reste lisible (« ma•••@gmail.com ») ; un autre domaine (souvent le nom de quelqu'un) est masqué aussi.
+const ADM_MAILS = /^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|icloud|me|mac|aol|proton|protonmail|pm|gmx|web|orange|wanadoo|free|sfr|neuf|laposte|bbox|numericable|libero|virgilio|tiscali|t-online|freenet|yandex|zoho|uol|bol|terra)\.[a-z.]{2,9}$/;
+/** « martin.dupont@gmail.com » → « ma•••@gmail.com » ; domaine privé : « ma•••@s•••.fr ». */
+function admMail(e) {
+  const m = /^([^@\s]+)@([^@\s]+\.[^@\s]+)$/.exec(String(e || '').trim().toLowerCase()); if (!m) return '';
+  const loc = [...m[1]], dom = m[2], d = ADM_MAILS.test(dom) ? dom : [...dom][0] + '•••' + dom.slice(dom.lastIndexOf('.'));
+  return loc.slice(0, loc.length > 4 ? 2 : 1).join('') + '•••@' + d;
+}
+/** Nom affiché réduit : « Jeanne Dupont » → « Jeanne D. » (prénom, initiale du dernier mot) ; un pseudo d'un seul mot reste tel quel ; une adresse est masquée. */
+function admName(s) {
+  s = String(s || '').replace(/[\p{Cc}\p{Cf}<>]/gu, '').replace(/\s+/g, ' ').trim(); if (!s) return '';
+  if (s.includes('@')) return admMail(s);
+  const w = s.split(' ');
+  if (w.length > 1 && w.every(x => /^\p{L}[\p{L}\p{M}'’.-]*$/u.test(x))) return [...w[0]].slice(0, 20).join('') + ' ' + [...w[w.length - 1]][0].toUpperCase() + '.';
+  return [...s].slice(0, 24).join('');
+}
+/** Collection (texte « 3 Sol Ring (CMM) 400 *FR* », une ligne par langue et édition) : cartes distinctes (champ count de l'appli) et exemplaires. */
+function admColl(text, count) {
+  let copies = 0; const names = Number.isFinite(count) && count >= 0 ? null : new Set();
+  for (const ln of String(text || '').split('\n')) {
+    const m = /^\s*(\d{1,4})\s*x?\s+(.+?)\s*$/i.exec(ln); if (!m) continue;
+    copies += Number(m[1]);
+    if (names) names.add(m[2].replace(/\s*\*[\w-]+\*$/, '').replace(/\s*\(D[0-9a-z]+\)$/i, '').replace(/\s*\([A-Za-z0-9]{2,6}\)\s+\S+$/, '').toLowerCase());
+  }
+  return { cards: names ? names.size : count, copies };
+}
+/** Requête REST vers Google avec le jeton du compte de service (portée scope) ; jeton refusé (401) : un nouveau, un seul essai. Erreur : e.http (statut). */
+async function admFetch(url, scope, init = {}) {
+  for (let a = 0; ; a++) {
+    const tok = await fcmAccess(scope);
+    const r = await fetch(url, { ...init, signal: AbortSignal.timeout(30000), redirect: 'manual', headers: { Authorization: 'Bearer ' + tok, Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json; charset=utf-8' } : {}) } });
+    if (r.status === 401 && a === 0) { await r.arrayBuffer().catch(() => {}); fcmAuth.get(scope).tok = ''; continue; }
+    const j = await r.json().catch(() => null);
+    if (!r.ok || j == null) throw Object.assign(new Error('HTTP ' + r.status), { http: r.status });      // jamais le corps de la réponse (pourrait contenir des données)
+    return j;
+  }
+}
+/** Comptes Firebase Authentication, réduits aussitôt à ce qui sert (ni hachage du mot de passe, ni photo, ni téléphone). */
+async function admAccounts() {
+  const out = []; let page = '';
+  for (let i = 0; i < ADM_ACCTS / 1000; i++) {
+    const j = await admFetch(`${IT_BASE}/v1/projects/${fcmSa.project}/accounts:batchGet?maxResults=1000${page ? '&nextPageToken=' + encodeURIComponent(page) : ''}`, IT_SCOPE);
+    for (const u of Array.isArray(j.users) ? j.users : []) {
+      if (!u || typeof u.localId !== 'string' || !u.localId) continue;
+      out.push({ uid: u.localId, email: typeof u.email === 'string' ? u.email : '', ver: u.emailVerified === true, dn: typeof u.displayName === 'string' ? u.displayName : '', dis: u.disabled === true,
+        prov: [...new Set((Array.isArray(u.providerUserInfo) ? u.providerUserInfo : []).map(p => String(p && p.providerId || '')).filter(Boolean))],
+        created: Number(u.createdAt) || 0, login: Number(u.lastLoginAt) || 0, refresh: Date.parse(u.lastRefreshAt || '') || 0 });
+    }
+    if (!j.nextPageToken) break; page = String(j.nextPageToken);
+  }
+  return out;
+}
+const admDocs = () => `${FS_BASE}/v1/projects/${fcmSa.project}/databases/(default)/documents`;
+/** Documents d'un groupe de collections (toutes les collections « col » du projet), champs choisis, par pages (curseur sur le nom) ; each(doc) les traite
+ *  au fil de l'eau (le texte d'une collection n'est pas gardé). Retourne le nombre lu ; plafond ADM_DOCS. */
+async function admGroup(col, fields, size, each) {
+  let n = 0, last = '';
+  for (;;) {
+    const q = { from: [{ collectionId: col, allDescendants: true }], select: { fields: (fields.length ? fields : ['__name__']).map(f => ({ fieldPath: f })) },
+      orderBy: [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }], limit: size, ...(last ? { startAt: { values: [{ referenceValue: last }], before: false } } : {}) };
+    const j = await admFetch(admDocs() + ':runQuery', DS_SCOPE, { method: 'POST', body: JSON.stringify({ structuredQuery: q }) });
+    const docs = (Array.isArray(j) ? j : []).map(x => x && x.document).filter(d => d && typeof d.name === 'string');
+    for (const d of docs) each(d);
+    n += docs.length;
+    if (docs.length < size || n >= ADM_DOCS) return n;
+    last = docs[docs.length - 1].name;
+  }
+}
+/** Tous les documents d'une collection racine, champs choisis (masque). */
+async function admList(col, fields) {
+  const out = []; let page = '';
+  for (let i = 0; i * 300 < ADM_DOCS; i++) {
+    const j = await admFetch(`${admDocs()}/${col}?pageSize=300${fields.map(f => '&mask.fieldPaths=' + f).join('')}${page ? '&pageToken=' + encodeURIComponent(page) : ''}`, DS_SCOPE);
+    if (Array.isArray(j.documents)) out.push(...j.documents);
+    if (!j.nextPageToken) break; page = String(j.nextPageToken);
+  }
+  return out;
+}
+const ADM_PROV = { 'google.com': 'google', password: 'mail', 'apple.com': 'apple', phone: 'phone', 'facebook.com': 'facebook', 'github.com': 'github', 'twitter.com': 'twitter', 'microsoft.com': 'microsoft' };
+/** Calcul complet (comptes, Firestore, totaux) : une seule fois à la fois. Rien de brut ne survit à la fonction : seules les lignes réduites sont gardées. */
+function admRefresh() {
+  if (!ADM.run) ADM.run = (async () => {
+    ADM.tried = Date.now();
+    const notes = []; let src = 'none', accts = null;
+    const per = new Map(), P = uid => { let x = per.get(uid); if (!x) per.set(uid, x = { decks: 0, act: 0 }); return x; };
+    const amis = new Map(), pubs = new Map(); let reports = 0, fsOk = false, capped = false;
+    if (!FCM_ON) notes.push({ k: 'sa', t: 'Compte de service absent (FCM_SERVICE_ACCOUNT) : comptes et statistiques indisponibles ; seul l\'état du serveur est affiché.' });
+    else {
+      try { accts = await admAccounts(); src = 'auth'; }
+      catch (e) {
+        const st = e.http || 0; console.warn('Admin : liste des comptes Firebase impossible (' + (st ? 'HTTP ' + st : 'réseau') + ')');
+        notes.push({ k: 'auth', t: st === 403 || st === 401
+          ? 'Liste des comptes Firebase refusée au compte de service (HTTP ' + st + ') : comptes tirés de Firestore seulement, sans e-mail, dates d\'inscription ni de connexion. Rôle IAM à ajouter au compte de service : « Lecteur Firebase Authentication » (roles/firebaseauth.viewer).'
+          : 'Liste des comptes Firebase injoignable (' + (st ? 'HTTP ' + st : 'réseau') + ') : comptes tirés de Firestore seulement.' });
+      }
+      try {
+        const RE = /\/documents\/users\/([^/]+)\/(meta|decks)\/([^/]+)$/;
+        const nm = await admGroup('meta', ['updatedAt', 'text', 'count', 'share', 'dsh', 'wish', 'pts', 'name'], 60, d => {
+          const m = RE.exec(d.name); if (!m || m[2] !== 'meta') return;      // autre appli du projet : ignorée
+          const x = P(decodeURIComponent(m[1])), f = fsFields(d), at = Number(f.updatedAt) || 0; if (at > x.act) x.act = at;
+          if (m[3] === 'collection') Object.assign(x, admColl(f.text, f.count));
+          else if (m[3] === 'trade') { x.trade = typeof f.share === 'string' && !!f.share; x.dlinks = f.dsh && typeof f.dsh === 'object' ? Object.keys(f.dsh).length : 0; x.wish = f.wish && typeof f.wish === 'object' ? Object.keys(f.wish).length : 0; }
+          else if (m[3] === 'history' && Array.isArray(f.pts)) { const p = f.pts.filter(o => o && Number(o.t) > 0).sort((a, b) => b.t - a.t)[0]; if (p) { x.value = Math.max(0, Math.round(Number(p.v) || 0)); x.valAt = Number(p.t); } }
+          else if (m[3] === 'profile' && typeof f.name === 'string') x.pseudo = f.name;
+        });
+        const nd = await admGroup('decks', ['updatedAt'], 300, d => {
+          const m = RE.exec(d.name); if (!m || m[2] !== 'decks') return;
+          const x = P(decodeURIComponent(m[1])), at = Number(fsFields(d).updatedAt) || 0; x.decks++; if (at > x.act) x.act = at;
+        });
+        const [pd, pr, am] = await Promise.all([admList('pubdecks', ['o']), admList('pubreports', ['d']), admList('amis', ['j'])]);
+        for (const d of pd) { const id = String(d.name || '').split('/').pop(), o = fsFields(d).o; if (/^[0-9a-f]{64}_[0-9]$/.test(id) && o === id.slice(0, 64)) pubs.set(o, (pubs.get(o) || 0) + 1); }
+        reports = pr.length;
+        for (const d of am) { const t = String(d.name || '').split('/').pop(), s = AM_TAG.test(t) ? amRead(String(fsFields(d).j || '')) : null; if (s) amis.set(t, { n: s.n, l: s.l, f: amN(s.f), i: amN(s.i), o: amN(s.o) }); }
+        capped = nm >= ADM_DOCS || nd >= ADM_DOCS || pd.length >= ADM_DOCS || am.length >= ADM_DOCS;
+        fsOk = true; if (src === 'none') src = 'firestore';
+      } catch (e) {
+        const st = e.http || 0; console.warn('Admin : Firestore illisible (' + (st ? 'HTTP ' + st : 'réseau') + ')');
+        notes.push({ k: 'fs', t: 'Firestore illisible (' + (st ? 'HTTP ' + st : 'réseau') + ') : statistiques par compte indisponibles.' + (st === 400 || st === 412 ? ' Requête « groupe de collections » (meta, decks) refusée : index manquant ?' : '') });
+      }
+      if (capped) notes.push({ k: 'cap', t: 'Plus de ' + ADM_DOCS + ' documents dans une collection : statistiques partielles (ADMIN_MAX_DOCS).' });
+    }
+    // Lignes réduites : un compte Firebase (ou, sans la liste des comptes, un compte trouvé dans Firestore) par ligne
+    const list = accts || [...per.keys()].map(uid => ({ uid, email: '', ver: null, dn: '', dis: false, prov: [], created: 0, login: 0, refresh: 0 }));
+    const now = Date.now(), rows = list.map(a => {
+      const x = per.get(a.uid), tag = amTag(a.uid), m = amis.get(tag), pb = pubs.get(tag) || 0;
+      return { id: admId(a.uid), name: admName(x && x.pseudo) || admName(m && m.n) || admName(a.dn), mail: admMail(a.email), created: a.created, login: a.login,
+        seen: Math.min(now, Math.max(a.login, a.refresh, x ? x.act : 0)), prov: a.prov.map(p => ADM_PROV[p] || 'autre'), verified: a.ver, disabled: a.dis,
+        cards: x && Number.isFinite(x.cards) ? x.cards : 0, copies: x && x.copies || 0, decks: x ? x.decks : 0, pub: pb, trade: !!(x && x.trade), dlinks: x && x.dlinks || 0, wish: x && x.wish || 0,
+        friends: m ? m.f : 0, inc: m ? m.i : 0, out: m ? m.o : 0, lang: m ? m.l : '', value: x && x.value || 0, mo: !!(x || m || pb) };
+    });
+    // Totaux, inscriptions des 30 derniers jours (heure de Paris), activité
+    const sum = k => rows.reduce((t, r) => t + (Number(r[k]) || 0), 0), cnt = fn => rows.reduce((t, r) => t + (fn(r) ? 1 : 0), 0);
+    const noon = Date.parse(admDay(now) + 'T12:00:00Z');      // jours comptés depuis midi UTC du jour de Paris : aucun saut ni doublon aux changements d'heure
+    const days = Array.from({ length: 30 }, (_, i) => new Date(noon - (29 - i) * 86400e3).toISOString().slice(0, 10)), byDay = new Map(days.map(d => [d, 0]));
+    for (const r of rows) if (r.created) { const d = admDay(r.created); if (byDay.has(d)) byDay.set(d, byDay.get(d) + 1); }
+    const prov = {}, langs = {};
+    for (const r of rows) { for (const p of r.prov) prov[p] = (prov[p] || 0) + 1; if (r.lang) langs[r.lang] = (langs[r.lang] || 0) + 1; }
+    const ov = { users: rows.length, mo: cnt(r => r.mo), verified: src === 'auth' ? cnt(r => r.verified) : null, disabled: cnt(r => r.disabled), prov, langs,
+      new7: cnt(r => r.created > now - 7 * 86400e3), new30: cnt(r => r.created > now - 30 * 86400e3), days: days.map(d => [d, byDay.get(d)]),
+      act7: cnt(r => r.seen > now - 7 * 86400e3), act30: cnt(r => r.seen > now - 30 * 86400e3), log7: cnt(r => r.login > now - 7 * 86400e3), log30: cnt(r => r.login > now - 30 * 86400e3),
+      cards: sum('cards'), copies: sum('copies'), colls: cnt(r => r.copies > 0), decks: sum('decks'), pub: [...pubs.values()].reduce((t, n) => t + n, 0), reports,
+      trade: cnt(r => r.trade), dlinks: sum('dlinks'), wish: sum('wish'), friendships: Math.round([...amis.values()].reduce((t, m) => t + m.f, 0) / 2), pending: [...amis.values()].reduce((t, m) => t + m.i, 0), amis: amis.size,
+      value: sum('value'), valued: cnt(r => r.value > 0), fs: fsOk };
+    ADM.snap = { at: now, src, notes, ov, rows };
+  })().catch(e => { console.warn('Admin : calcul impossible (' + String(e && e.message || e).slice(0, 80) + ')'); }).finally(() => { ADM.run = null; });
+  return ADM.run;
+}
+/** État du serveur, relu à chaque appel (mémoire seulement : rien à lire ailleurs). */
+async function admServer() {
+  const troc = { wait: 0, live: 0, done: 0, all: TROC.s.size }; for (const s of TROC.s.values()) if (s.st in troc) troc[s.st]++;
+  let run = 0; for (const j of jobs.values()) if (j.status === 'running') run++;
+  return { build: await pageBuild(), up: Math.round(process.uptime()), node: process.version, rss: Math.round(process.memoryUsage().rss / 1048576),
+    flags: { token: !!TOKEN, login: AUTH_FB, key: !!APP_KEY, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, names: NM_ON, ads: !!ADMOB_BANNER }, off: OFF,
+    prices: { on: !!PX_SRC, at: PX_ST.at, cards: PX_ST.cards, check: PX_ST.check, err: PX_ST.err }, edh: { on: !!EDH_SRC, at: EDH_ST.at, decks: EDH_ST.decks, cmds: EDH_ST.cmds, from: EDH_ST.from, check: EDH_ST.check, err: EDH_ST.err },
+    troc, jobs: { run, all: jobs.size }, alerts: { devices: AL.subs.size, last: Number(AL.last.at) || 0, hits: Number(AL.last.hits) || 0 },
+    pub: { n: PUB.n, hid: PUB.hid, at: PUB.at, err: PUB.err ? 'erreur' : '' }, amis: { cache: AMI.cache.size, due: AMI.due.size } };
+}
+const admFold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+/** Réponse : instantané (âge), avis, totaux, état du serveur et une page de comptes (tri, recherche sur le nom réduit et l'e-mail masqué). */
+async function admSend(res, url) {
+  const s = ADM.snap, q = admFold(String(url.searchParams.get('q') || '').slice(0, 60).trim());
+  const sort = ADM_SORTS.includes(url.searchParams.get('sort')) ? url.searchParams.get('sort') : 'created', asc = url.searchParams.get('dir') === 'asc';
+  let rows = s ? s.rows : [];
+  if (q) rows = rows.filter(r => admFold(r.name).includes(q) || admFold(r.mail).includes(q));
+  rows = rows.slice().sort((a, b) => ((Number(a[sort]) || 0) - (Number(b[sort]) || 0)) * (asc ? 1 : -1) || (a.id < b.id ? -1 : 1));
+  const pages = Math.max(1, Math.ceil(rows.length / ADM_PER)), page = Math.min(pages, Math.max(1, Math.floor(Number(url.searchParams.get('page'))) || 1));
+  return json(res, 200, { at: s ? s.at : 0, ttl: ADM_TTL, src: s ? s.src : 'none', notes: s ? s.notes : [{ k: 'none', t: 'Statistiques momentanément indisponibles.' }], ov: s ? s.ov : null, srv: await admServer(),
+    users: { total: rows.length, page, pages, per: ADM_PER, sort, dir: asc ? 'asc' : 'desc', q, rows: rows.slice((page - 1) * ADM_PER, page * ADM_PER) } }, ADM_HD);
+}
+/** Compte de l'éditeur ? Sinon réponse d'erreur envoyée (sans aucune donnée) et false. Un compte authentique mais non autorisé est compté comme un essai invalide. */
+async function admAuth(req, res) {
+  const tok = String(req.headers['x-firebase-token'] || '');
+  if (!tok) { json(res, 401, { error: 'auth_required', message: 'Connecte-toi.' }, ADM_HD); return false; }
+  if (isLocked(req)) { json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { ...ADM_HD, 'Retry-After': '300' }); return false; }
+  let u;
+  try { u = await verifyIdToken(tok, true); }
+  catch (e) {
+    const code = e && e.authCode;
+    if (code === 'expired') json(res, 401, { error: 'token_expired', message: 'Session expirée.' }, ADM_HD);
+    else if (code === 'unavailable') json(res, 503, { error: 'auth_unavailable', message: 'Vérification du compte impossible pour le moment.' }, { ...ADM_HD, 'Retry-After': '5' });
+    else await badKey(req, res, 'bad_token', 401);
+    return false;
+  }
+  if (u.email && u.emailVerified && ADMIN_SET.has(admHash(u.email))) return true;
+  await badHit(req);
+  json(res, 403, { error: 'forbidden', message: 'Accès réservé.' }, ADM_HD); return false;
+}
+async function adminApi(req, res, path, url) {
+  if (!ADMIN_ON) return json(res, 404, { error: 'not_found' }, ADM_HD);
+  const w = rateWait(req, 'admin', 120, 600e3); if (w) return tooMany(res, w);
+  if (!(await admAuth(req, res))) return;
+  const sub = path.replace(/^admin\/?/, '');
+  if (req.method === 'GET' && !sub) {
+    if (!ADM.snap || Date.now() - ADM.snap.at > ADM_TTL) await admRefresh();      // trop ancien : recalculé (la page attend : c'est l'éditeur qui l'a demandé)
+    return admSend(res, url);
+  }
+  if (req.method === 'POST' && sub === 'refresh') {
+    const gap = ADM.tried + ADM_GAP - Date.now(); if (gap > 0) return json(res, 429, { error: 'rate_limited', message: 'Déjà rafraîchi il y a moins d\'une minute.', retry: Math.ceil(gap / 1000) }, { ...ADM_HD, 'Retry-After': String(Math.ceil(gap / 1000)) });
+    const w2 = rateWait(req, 'adminref', ADM_REF_H, 3600e3); if (w2) return tooMany(res, w2);
+    await admRefresh(); return admSend(res, url);
+  }
+  return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
+}
+
 async function api(req, res, url) {
   const path = url.pathname.replace(/^\/api\//, '').replace(/\/+$/, '');
   // Serveur local sans compte : un POST d'une autre page (formulaire, text/plain : pas de pré-vérification CORS) ne doit rien déclencher.
@@ -1904,6 +2144,7 @@ async function api(req, res, url) {
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
   if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
   if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège
+  if (path === 'admin' || path.startsWith('admin/')) return adminApi(req, res, path, url);      // panneau d'administration : compte de l'éditeur seulement
   // CardTrader : avec le token de l'utilisateur (X-CT-Token), ou celui du serveur pour les comptes autorisés (ALLOWED_UIDS / APP_KEY).
   const ut = userTok(req);
   if (!ut && !(await authorize(req, res))) return;
@@ -2040,6 +2281,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, off: OFF, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
+    if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte
+      if (!ADMIN_ON || (req.method !== 'GET' && req.method !== 'HEAD')) return json(res, 404, { error: 'not_found' });
+      const [f, type] = ADM_FILES.get(url.pathname); if (!existsSync(join(PWA, f))) return json(res, 404, { error: 'asset_missing' });
+      return await sendFile(req, res, join(PWA, f), { 'Content-Type': type, 'Cache-Control': 'no-store', 'Content-Security-Policy': ADM_CSP, ...ADM_HD, 'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()' }, false);
+    }
     if (url.pathname === '/' || url.pathname === '/index.html') {
       if (!PAGE) return json(res, 404, { error: 'page_missing', message: 'Place deck-deal.html à côté de proxy.mjs.' });
       return await sendFile(req, res, PAGE, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' }, true);
@@ -2088,6 +2334,7 @@ server.listen(PORT, HOST, () => {
   if (FCM_ON) console.log(`Notifications de l'appli Android (FCM) : projet Firebase « ${fcmSa.project} ».`);
   if (AM_ON) { console.log(`Amis : ${AM_MAX} au plus par compte, « un ami a une carte que tu cherches » toutes les ${Math.round(AM_GAP / 360000) / 10} h au plus.`); }
   if (TROC_ON) console.log(`Échange en direct : ${TROC_MAX} sessions au plus, en mémoire (terminées après ${Math.round(TROC_IDLE / 60e3)} min sans activité).`);
+  if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
   if (ALERTS_ON) {
     const wait = Math.max(AL_FIRST, (AL.last.at || 0) + AL_EVERY - Date.now());

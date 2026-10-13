@@ -50,6 +50,16 @@ ok('service worker actif et page contrôlée');
   assert.deepEqual(r, [200, body.length, []], 'servi tel quel sous le service worker, jamais mis dans ses caches');
   ok('names-all.tsv : téléchargé normalement sous le service worker, jamais mis en cache par lui');
 }
+{ // panneau d'administration (/admin) : sous le service worker, servi par le réseau (jamais la copie de l'appli), rien de lui dans les caches
+  const q = await ctx.newPage(); await q.route(/(fonts\.(googleapis|gstatic)|www\.gstatic)\.com/, r => r.abort());
+  await q.goto(URL0 + 'admin'); assert.ok(await q.evaluate(() => !!navigator.serviceWorker.controller), 'page contrôlée par le service worker');
+  assert.equal(await q.title(), 'Administration · Mana Orbit', 'la page admin, pas la copie de l\'appli');
+  await q.evaluate(() => fetch('/api/admin').catch(() => null));
+  const kept = await q.evaluate(async () => { const out = []; for (const k of await caches.keys()) for (const r of await (await caches.open(k)).keys()) if (/\/(admin|api\/admin)/.test(new URL(r.url).pathname)) out.push(r.url); return out; });
+  assert.deepEqual(kept, [], 'rien de /admin ni de /api/admin dans les caches');
+  await q.close();
+  ok('/admin : servie par le réseau sous le service worker (jamais la copie de l\'appli), ni elle, ni son script, ni son API dans les caches');
+}
 
 const base = 'https://cards.scryfall.io/small/front/a/b/';
 const load = urls => p.evaluate(us => Promise.all(us.map(u => new Promise(res => { const i = new Image(); i.onload = () => res(i.naturalWidth > 0); i.onerror = () => res(false); i.src = u; }))), urls);
