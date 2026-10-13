@@ -1,0 +1,12 @@
+// Socle des vidéos courtes : logo (symbole SVG #logo) et window.seek(ms) pour le rendu image par image (rendu.mjs).
+// La page définit window.DUREE (s) et window.DECALAGE_VOIX (s) avant de charger ce script.
+document.body.insertAdjacentHTML('beforeend', `<svg width="0" height="0" style="position:absolute"><defs><symbol id="logo" viewBox="0 0 512 512">
+  <radialGradient id="logo-bg" cx=".3" cy=".25" r="1"><stop offset="0" stop-color="#232b5c"/><stop offset=".7" stop-color="#0b0f1c"/></radialGradient>
+  <linearGradient id="logo-foil" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8fc3"/><stop offset=".26" stop-color="#ffd479"/><stop offset=".5" stop-color="#7be8c8"/><stop offset=".74" stop-color="#7fb0ff"/><stop offset="1" stop-color="#c79bff"/></linearGradient>
+  <rect width="512" height="512" rx="118" fill="url(#logo-bg)"/>
+  <g transform="translate(256 256) scale(5.12) translate(-50 -50)">
+    <g transform="rotate(-20 50 52)"><path d="M12 52A38 13 0 0 1 88 52" fill="none" stroke="#9aa3b8" stroke-width="2.4" stroke-linecap="round"/><circle cx="27.7" cy="41.5" r="3.4" fill="#ff7a5c" fill-opacity=".85"/><circle cx="72.3" cy="41.5" r="3.4" fill="#6fd08c" fill-opacity=".85"/></g>
+    <g transform="rotate(-11 51 50)"><rect x="37" y="27" width="28" height="41" rx="5" fill="url(#logo-foil)"/><rect x="39.6" y="29.6" width="22.8" height="35.8" rx="3.2" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.1"/></g>
+    <g transform="rotate(-20 50 52)"><path d="M12 52A38 13 0 0 0 88 52" fill="none" stroke="#9aa3b8" stroke-width="2.4" stroke-linecap="round"/><circle cx="86.1" cy="56" r="4.3" fill="#7fb0ff"/><circle cx="50" cy="65" r="4.3" fill="#f8f6d8"/><circle cx="13.9" cy="56" r="4.3" fill="#b5a3c8"/></g></g>
+</symbol></defs></svg>`);
+window.seek = ms => { for (const a of document.getAnimations()) { a.pause(); a.currentTime = ms; } };
