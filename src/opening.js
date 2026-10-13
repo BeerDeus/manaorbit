@@ -77,7 +77,7 @@ function opnSay(name) { return T('{name} · ajoutée à la session « {s} »', {
 /** Infos Scryfall des cartes de la session pas encore lues (image, prix, type, couleurs : stats et bilan) : gardées dans le cache de la collection (COLL.meta),
  *  qui n'est qu'un cache : la collection elle-même ne bouge pas. Un lot à la fois, devant les lectures de fond. */
 function opnMeta() {
-  const c = OPN.cur; if (!c || OPN.meta) return;
+  const c = OPN.cur; if (!c || OPN.meta || Date.now() - (OPN.metaFail || 0) < 60000) return;      // échec récent : pas de nouvel essai à chaque repeint
   const seen = new Set(), need = c.rows.filter(r => !(r.k in COLL.meta) && !seen.has(r.k) && seen.add(r.k)).slice(0, 150);
   if (!need.length || scryLeft() > 0 || collOffline()) return;
   OPN.meta = scryCollection(need.map(r => r.n), undefined, null, true)
@@ -86,7 +86,7 @@ function opnMeta() {
       for (const r of c.rows) { const g = COLL.meta[r.k]; if (!(r.eu > 0) && g && g.eu > 0) r.eu = g.eu; }      // prix lu : gardé avec la ligne
       collMetaSave(); if (OPN.cur === c) opnSave(); return true;
     })
-    .catch(() => false)
+    .catch(() => { OPN.metaFail = Date.now(); return false; })
     .then(more => { OPN.meta = null; opnPaint(); if (more) opnMeta(); });
 }
 /** Retire un exemplaire d'une ligne de la session (annulable). */
@@ -174,6 +174,8 @@ function opnSheetUp(a, ...cls) {
   a.wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
   a.wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
 }
+/** Pied d'une feuille repeinte : remplacé seulement s'il change (un bouton remplacé sous le doigt perdrait le toucher). */
+function opnFoot(api, html) { if (api.opnFoot !== html) { api.opnFoot = html; api.setFoot(html); } }
 const opnWhen = t => new Date(t).toLocaleString(LOC(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 function opnTilesHtml(t) {
   return `<div class="cs-tiles opn-tiles"><div><b>${nf0(t.n)}</b><span>${TN(t.n, 'carte ouverte', 'cartes ouvertes')}</span></div><div class="opn-val"><b>${t.v ? esc(fmt(t.v, 'EUR')) : '—'}</b><span>${T('valeur · tendance Cardmarket')}</span></div></div>`;
@@ -202,7 +204,7 @@ function opnSheet() {
         : `<p class="hint opn-empty">${T('Scanne tes cartes (ou ajoute-les avec +) : elles arrivent ici, puis rejoignent ta collection quand tu termines.')}</p>`}
       <button class="link-btn opn-quit" type="button" data-opn="quit">${T('Abandonner la session')}</button>`;
     api.body.scrollTop = y;
-    api.setFoot(`${typeof SC !== 'undefined' && SC.el ? '' : `<button class="btn ghost" type="button" data-opn="scan"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${T('Scanner')}</button>`}<button class="btn" type="button" data-opn="end">${T('Terminer')}</button>`);
+    opnFoot(api, `${typeof SC !== 'undefined' && SC.el ? '' : `<button class="btn ghost" type="button" data-opn="scan"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${T('Scanner')}</button>`}<button class="btn" type="button" data-opn="end">${T('Terminer')}</button>`);
   };
   OPN.on.add(paint); paint(); setIcLoad(() => paint()); opnMeta();
   api.body.addEventListener('change', e => { if (e.target.id === 'opnSt2') opnStreamer(e.target.checked); });
@@ -248,7 +250,7 @@ function opnEndSheet() {
       <div class="coll-list opn-list">${c.rows.map(r => opnRowHtml(r, 'pick', off.has(r.id))).join('')}</div>`;
     api.body.scrollTop = y;
     const share = bil && typeof simgShare === 'function' && typeof opnbShare === 'function' && rows.length;      // image à partager (autre module) : seulement s'il est là
-    api.setFoot(`${share ? `<button class="btn ghost" type="button" data-opn="share"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Partager')}</button>` : ''}<button class="btn" type="button" data-opn="add"${rows.length ? '' : ' disabled'}>${TN(t.n, 'Ajouter {n} carte', 'Ajouter {n} cartes')}</button>`);
+    opnFoot(api, `${share ? `<button class="btn ghost" type="button" data-opn="share"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Partager')}</button>` : ''}<button class="btn" type="button" data-opn="add"${rows.length ? '' : ' disabled'}>${TN(t.n, 'Ajouter {n} carte', 'Ajouter {n} cartes')}</button>`);
   };
   OPN.on.add(paint); paint(); setIcLoad(() => paint()); opnMeta();      // prix et images lus pendant que le bilan est ouvert : il suit
   if (bil && typeof opnbBind === 'function') opnbBind(api, c, kept);

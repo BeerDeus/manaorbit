@@ -37,7 +37,6 @@ function opnbRes(api, c, rows) { const r = $('.opnb-res', api.body); if (r) r.in
 /** Saisie du prix payé dans le bilan : gardée avec la session, résultat mis à jour à chaque chiffre. */
 function opnbBind(api, c, kept) {
   api.body.addEventListener('input', e => { if (e.target.id !== 'opnbPaid' || OPN.cur !== c) return; c.paid = opnbParse(e.target.value); opnSave(); opnbRes(api, c, kept()); });
-  api.body.addEventListener('focusout', e => { if (e.target.id === 'opnbPaid') setTimeout(() => opnSheets(), 0); });      // champ quitté : le reste du bilan suit (prix lus entre-temps)
 }
 /** Image à partager (simgShare : autre module, présent ou non) : nom, date, cartes, valeur et prix payé en euros, 5 meilleures cartes (image « normal »). */
 function opnbShare(c, rows) {

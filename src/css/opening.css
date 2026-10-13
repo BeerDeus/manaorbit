@@ -53,6 +53,7 @@ button.opn-pick>.row-px{grid-column:3;grid-row:1/span 2;align-self:center}
 .opn-pick.off>.thumb,.opn-pick.off .row-name,.opn-pick.off .row-px{opacity:.5}
 .opn-pick.off .row-name{text-decoration:line-through}
 .opn-end .sheet-foot .btn{flex:1}
+.opn-sheet .sheet-foot .btn svg.i{margin-right:7px;vertical-align:-3px}      /* pied de feuille : boutons en bloc, l'icône garde son écart */
 /* mes ouvertures */
 .opn-hl{display:flex;flex-direction:column;gap:8px}
 .opn-h{display:grid;grid-template-columns:minmax(0,1fr) auto 14px;align-items:center;gap:10px;width:100%;padding:12px 12px 12px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
