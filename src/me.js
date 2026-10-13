@@ -1,11 +1,11 @@
 /* ── me.js : « Compte et réglages », une seule fiche du bas (bouton du compte, dans l'en-tête), qui se ferme en la tirant vers le bas ─────────────
    En haut, le compte : connecté, photo, pseudo, e-mail, état de la synchro et « Modifier » ; sinon « Se connecter ». Puis cartes · decks · valeur.
-   Mon compte (connecté) : gérer le compte, decks publiés, lien d'échange · Préférences : langue, thème, vibrations (changés sur place), notifications,
+   Mon compte (connecté) : gérer le compte, decks publiés, lien d'échange, amis (friends.js) · Préférences : langue, thème, vibrations (changés sur place), notifications,
    scan, widget (appli Android) · Prix : CardTrader · Plus : aide et avis, données de l'appareil, application (navigateur), confidentialité et mentions ·
    version, « Se déconnecter ». Les rubriques ouvrent leur propre fiche par-dessus (app.js › setPrixSheet, setDataSheet…). */
 const ME = { api: null, sig: '', raf: 0 };
 const meOpen = () => !!(ME.api && sheets.indexOf(ME.api) >= 0);
-/** Ouvre la fiche (ou la garde si elle l'est déjà) ; sub : rubrique à ouvrir par-dessus ('prix', 'donnees', 'conf', 'app', 'aide', 'scan', 'widget', 'compte', 'pub', 'notif'). */
+/** Ouvre la fiche (ou la garde si elle l'est déjà) ; sub : rubrique à ouvrir par-dessus ('prix', 'donnees', 'conf', 'app', 'aide', 'scan', 'widget', 'compte', 'pub', 'notif', 'amis'). */
 function openSettings(sub) {
   if (!meOpen()) openSheet(T('Compte et réglages'), null, api => {
     ME.api = api; ME.sig = ''; api.wrap.classList.add('me-sheet');
@@ -13,6 +13,7 @@ function openSettings(sub) {
     api.body.addEventListener('change', meChange);
     mePaint();
     if (cloudOn()) pdMine().then(() => meSoon(), () => {});      // « Decks publiés : 2 / 10 »
+    if (cloudOn()) amRefresh();      // « Amis : 2 demandes »
   });
   if (sub) meSub(sub);
 }
@@ -25,7 +26,7 @@ const meRow = (me, title, value, warn, id) => `<button type="button" class="me-r
 function meSigNow() {
   const u = D.user;
   return [u ? u.uid : '', u ? meName(u) + '|' + (u.email || '') + '|' + acctVerified(u) : D.state + (D.hint && !D.authReady ? 'h' : ''), PROF.photo ? PROF.photo.length : 0, D.pending, D.listErr, allDecks().length, collCount(), Math.round(homeValue() / 100),
-    PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang].join('§');
+    PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, amSig(), S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang].join('§');
 }
 function mePaint() {
   if (!meOpen()) return;
@@ -44,6 +45,7 @@ function mePaint() {
     meRow('compte', T('Gérer le compte'), acctVerified(u) ? '' : T('Adresse à vérifier'), !acctVerified(u), 'meAcct'),
     meRow('pub', T('Decks publiés'), mine >= 0 ? esc(`${nf0(mine)} / ${PUB_MAX}`) : ''),
     meRow('trade', T('Lien d\'échange'), TR.share ? T('Actif') : T('Aucun')),
+    amMeRow(),      // amis (friends.js) : vide si le serveur ne les a pas
   ]) : '';
   const prefs = meGroup(T('Préférences'), [
     `<label class="me-row" for="setLang"><span class="me-t">${T('Langue')}</span><span class="sel me-sel"><select id="setLang">${i18nLangs().map(([c, nm]) => `<option value="${c}" ${c === I18N.lang ? 'selected' : ''}>${esc(nm)}</option>`).join('')}</select></span></label>`,
@@ -84,6 +86,7 @@ function meSub(k) {
   if (k === 'compte') openAccount();
   else if (k === 'profil') openProfile();
   else if (k === 'pub') pdListSheet();
+  else if (k === 'amis') amSheet();
   else if (k === 'scan') scsSheet();
   else if (k === 'widget') setWidgetSheet();
   else if (k === 'notif') openNotifSettings();
@@ -100,6 +103,6 @@ function meSub(k) {
 }
 async function meSignOut() {
   const b = ME.api && $('.me-out', ME.api.body); if (b) b.disabled = true;
-  try { await D.cloud.signOut(); if (meOpen()) ME.api.close(); toast(T('Déconnecté')); }
+  try { await amOut(); await D.cloud.signOut(); if (meOpen()) ME.api.close(); toast(T('Déconnecté')); }      // amOut : cet appareil ne reçoit plus les notifications des amis de ce compte
   catch (err) { if (b) b.disabled = false; toast(T('Déconnexion impossible')); }
 }

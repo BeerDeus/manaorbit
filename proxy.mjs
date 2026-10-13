@@ -1368,7 +1368,7 @@ async function amList(req, res, me) {
   const side = m => Object.entries(m).map(([t, at]) => who(t, at)).filter(Boolean).sort((a, b) => b.at - a.at);
   const gone = ids.filter(t => docs.has(t) && docs.get(t) === null);      // compte supprimé : retiré de la liste
   if (gone.length) amEdit([me.tag], st => { const o = st[me.tag]; if (o) for (const t of gone) { delete o.f[t]; delete o.i[t]; delete o.o[t]; } }).catch(() => {});
-  return amSend(req, res, { on: true, me: { c: s.c, dev: s.d.length }, friends, inc: side(s.i), out: side(s.o), need: !!(amN(s.f) || amN(s.o)), max: AM_MAX });
+  return amSend(req, res, { on: true, me: { c: s.c, dev: s.d.length, has: { t: Number(s.has.t) || 0, d: Number(s.has.d) || 0, c: Number(s.has.c) || 0 } }, friends, inc: side(s.i), out: side(s.o), need: !!(amN(s.f) || amN(s.o)), max: AM_MAX });
 }
 /** PUT /api/friends/me : profil, réglage de la collection, lien d'échange, appareil (dev : cible push ; off : clé d'un appareil à retirer), une partie (part, j : son JSON, k : nombre de cartes ou de decks). */
 async function amPutMe(req, res, me) {
@@ -1384,7 +1384,7 @@ async function amPutMe(req, res, me) {
   let added = null, dk = '', drop = false;
   const out = await amEdit([me.tag], async st => {
     let s = st[me.tag];
-    if (!s) { if (!dev) return { need: false }; s = st[me.tag] = amNew(); }      // compte sans document : créé seulement pour enregistrer un appareil
+    if (!s) { if (!dev && !('c' in b)) return { need: false }; s = st[me.tag] = amNew(); }      // compte sans document : créé seulement pour un appareil ou le réglage de la collection
     amProfile(s, b);
     if ('s' in b) s.s = typeof b.s === 'string' && AM_SID.test(b.s) ? b.s : '';
     if ('c' in b) { s.c = b.c ? 1 : 0; if (!s.c && s.has.c) { delete s.has.c; delete s.has.ch; delete s.has.cn; drop = true; } }      // collection plus partagée : effacée tout de suite

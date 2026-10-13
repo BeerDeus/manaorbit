@@ -1,0 +1,63 @@
+/* ── amis.css : amis (friends.js) : point du bouton du compte, bouton « Ajouter en ami » de la liste publique, feuille Amis, page d'un ami ── */
+/* Demande d'ami en attente : point dans le coin du bouton du compte (dans le cercle : le bouton coupe ce qui dépasse) */
+#btnAccount[data-dot="1"]::after{content:"";position:absolute;top:3px;right:3px;width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 2px var(--bg);z-index:1}
+/* « Compte et réglages » : « 2 demandes » en couleur */
+.am-hot{color:var(--accent);font-weight:700}
+.am-hot::before{content:"";display:inline-block;width:7px;height:7px;margin:0 6px 1px 0;border-radius:50%;background:var(--bad);vertical-align:middle}
+.me-v .am-hot::before{background:var(--bad)}
+#amPushV.am-hot::before{display:none}
+
+/* Avatar (initiale sur sa couleur, photo par-dessus) */
+.am-av{--h:220;position:relative;flex:none;width:40px;height:40px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:hsl(var(--h) 45% 32%);color:#fff;font-family:var(--font-display);font-weight:700;font-size:16px}
+.am-av img,.hm-fy-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.hm-fy-av{position:relative;overflow:hidden}
+
+/* Feuille Amis : lignes (demandes, amis, demandes envoyées) dans les groupes de « Compte et réglages » */
+.am-sheet .sheet-body{gap:0}
+.am-sheet .me-h:first-child{margin-top:4px}
+.am-row{width:100%;min-height:60px;display:flex;align-items:center;gap:12px;padding:8px 12px;border:0;background:none;color:var(--ink);font:inherit;text-align:left;-webkit-tap-highlight-color:transparent}
+button.am-row{cursor:pointer}
+button.am-row:active{background:var(--surface-2)}
+.am-g>.am-row+.am-row{border-top:1px solid var(--line)}
+.am-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.am-t b{font-size:15px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.am-t small{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.am-t small.good{color:var(--good);font-weight:600}
+.am-acts{flex:none;display:flex;align-items:center;gap:6px}
+.am-acts .btn.small{height:34px;padding:0 12px;font-size:13.5px}
+.am-no{width:34px;height:34px;border-radius:11px}
+.am-no .i{width:16px;height:16px}
+.am-row .link-btn{flex:none}
+.am-row .deck-pips{flex:none}
+.am-empty{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:4px;padding:14px;border-radius:16px;border:1px dashed var(--line);background:var(--surface)}
+.am-empty b{font-family:var(--font-display);font-size:17px}
+.am-empty .hint{margin:0}
+.am-empty .btn{margin-top:4px}
+.am-empty .btn .i{width:18px;height:18px}
+.am-sheet .hint.warn{margin:12px 4px 0;color:var(--warn)}
+
+/* Liste d'échange publique d'un autre joueur : « Ajouter en ami » à droite du titre */
+.pubv .dv-title{flex:1}
+.am-pub{flex:none;margin-left:auto}
+.am-pill{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 10px;border-radius:99px;border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-size:13.5px;font-weight:650;white-space:nowrap;cursor:pointer;box-shadow:0 6px 14px -9px var(--accent);-webkit-tap-highlight-color:transparent;transition:transform .15s}
+.am-pill:active{transform:scale(.96)}
+.am-pill .i{width:17px;height:17px;flex:none}
+.am-pill.on{background:var(--good-soft);color:var(--good);box-shadow:none}
+.am-pill.off{background:var(--surface-2);color:var(--ink-2);box-shadow:none;cursor:default}
+@media (max-width:374px){.am-pill{padding:0 10px}.am-pill[data-am="add"] span{display:none}}      /* très petit écran : l'icône seule (le titre garde sa place) */
+
+/* Page d'un ami : ses decks et sa collection, retrait */
+.am-more{margin:0 0 10px}
+.am-none{margin:0 2px 8px}
+.am-chips{display:flex;flex-wrap:wrap;gap:8px}
+.am-chip{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px 0 11px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.am-chip:active{background:var(--surface-2)}
+.am-chip .i{width:17px;height:17px;color:var(--accent)}
+.am-chip small{min-width:20px;height:20px;padding:0 6px;border-radius:99px;display:inline-grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:700}
+.am-rm{margin:22px 0 4px;text-align:center}
+.am-rm .link-btn{color:var(--bad)}
+
+/* Feuille de la collection d'un ami */
+.am-coll-sheet .sheet-body{gap:10px}
+.am-coll-sheet .coll-list{margin:0}
+.am-cl .coll-more{margin-top:10px}

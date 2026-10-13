@@ -88,7 +88,7 @@ async function alDisable() {
   AC.on = false; clearTimeout(AC.t);
   try { if (AC.id && CTX.proxy) await ct('alerts', { method: 'DELETE', params: { id: AC.id } }); } catch (e) { /* le serveur nettoiera l'abonnement à son prochain refus */ }
   AC.id = ''; AC.sig = ''; AC.err = ''; AC.info = null; alWrite();
-  if (!S.push) await pushDisable();
+  if (!S.push && !amHoldsPush()) await pushDisable();      // les notifications des amis (friends.js) gardent l'abonnement
 }
 /** Texte d'un refus d'activation (permission, appareil…). */
 function alWhy(r) {

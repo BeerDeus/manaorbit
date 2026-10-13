@@ -11,7 +11,8 @@
    • Bibliothèques et polices aux adresses versionnées (SDK Firebase, Tesseract, fichiers de polices) : cache d'abord (elles ne changent jamais) ;
      feuille de style Google Fonts : copie locale tout de suite, rafraîchie en arrière-plan. → polices et scan disponibles hors ligne, démarrage plus rapide.
      Le cache vit dans le stockage du navigateur : il saute si tu effaces les données du site, puis se reremplit tout seul.
-   • Notifications push « recherche terminée » (un toucher rouvre l'app et reprend la recherche) et alertes de prix (rouvre la feuille des alertes).
+   • Notifications push « recherche terminée » (un toucher rouvre l'app et reprend la recherche), alertes de prix (rouvre la feuille des alertes) et
+     notifications d'un compte (kind « open » : amis… ; un toucher ouvre leur lien ./?…, l'appli ouverte est prévenue de leur arrivée).
    • Jamais interceptés : /api/*, /__ping, tout autre domaine (CardTrader, Firebase, polices, API Scryfall),
      toute requête qui n'est pas un GET. Aucune donnée de recherche, token ou clé n'est mise en cache ici (jamais l'API Firestore ni l'authentification). */
 const V = 'deckdeal-v1';
@@ -178,13 +179,14 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) { try { d = { body: e.data.text() }; } catch (__) { d = {}; } }
   if (!d || typeof d !== 'object') d = {};      // « null », nombre, texte JSON : avis par défaut (d.kind lèverait une erreur et rien ne serait affiché)
-  const alert = d.kind === 'alert';
-  const title = String(d.title || (alert ? 'Baisse de prix' : 'Recherche terminée')).slice(0, 80);
-  e.waitUntil(self.registration.showNotification(title, {
-    body: String(d.body || (alert ? 'Une carte surveillée a baissé.' : 'Les offres sont prêtes.')).slice(0, 200),
-    icon: 'icons/icon-192.png', badge: 'icons/favicon-32.png', tag: alert ? 'deckdeal-alert' : 'deckdeal-run', renotify: true,
-    data: { kind: alert ? 'alert' : 'run', url: sameOrigin(d.url) ? d.url : (alert ? './?alerts=1' : './?resume=1') },
-  }));
+  const alert = d.kind === 'alert', open = d.kind === 'open';      // open : notification d'un compte (amis…), son lien dit quoi ouvrir
+  const title = String(d.title || (alert ? 'Baisse de prix' : open ? 'Mana Orbit' : 'Recherche terminée')).slice(0, 80);
+  const url = sameOrigin(d.url) ? d.url : (alert ? './?alerts=1' : open ? './' : './?resume=1');
+  e.waitUntil(Promise.all([self.registration.showNotification(title, {
+    body: String(d.body || (alert ? 'Une carte surveillée a baissé.' : open ? '' : 'Les offres sont prêtes.')).slice(0, 200),
+    icon: 'icons/icon-192.png', badge: 'icons/favicon-32.png', tag: open && typeof d.tag === 'string' && /^[\w-]{1,32}$/.test(d.tag) ? d.tag : alert ? 'deckdeal-alert' : 'deckdeal-run', renotify: true,
+    data: { kind: alert ? 'alert' : open ? 'open' : 'run', url },
+  }), open ? self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => cs.forEach(c => c.postMessage({ type: 'pushed', url }))).catch(() => {}) : null]));      // appli ouverte : elle relit la liste des amis (point des demandes)
 });
 /** Lien d'une notification : seulement vers l'app elle-même (« ./… », « /… » ou sa propre adresse). Résolu comme le ferait le navigateur, donc « //autre-site » et ses variantes (« /\… », tabulations) sont refusés. */
 function sameOrigin(u) { try { return typeof u === 'string' && new URL(u, ROOT).origin === self.location.origin; } catch (_) { return false; } }
@@ -194,7 +196,7 @@ self.addEventListener('notificationclick', e => {
   e.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const mine = all.find(c => c.url.startsWith(ROOT));
-    if (mine) { try { await mine.focus(); } catch (_) { /* ignore */ } mine.postMessage({ type: nd.kind === 'alert' ? 'alerts' : 'resume' }); return; }
+    if (mine) { try { await mine.focus(); } catch (_) { /* ignore */ } mine.postMessage(nd.kind === 'open' ? { type: 'open', url: nd.url } : { type: nd.kind === 'alert' ? 'alerts' : 'resume' }); return; }
     await self.clients.openWindow(url);
   })());
 });
