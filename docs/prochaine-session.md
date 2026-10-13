@@ -108,6 +108,12 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
 - **À voir sur deux téléphones** : QR code scanné par l'appareil photo (il ouvre le navigateur : se connecter, ou taper le code dans l'appli), invitation d'un ami (notification, toast), échange complet, appli tuée juste après « Valider » (appliqué au retour), réseau mobile lent.
 - Captures : `scratchpad/morning/troc/` (non versionnées).
 
+## 11. Visite guidée et astuces (demandées le 13 octobre, faites le 13 octobre, branche `feat/tuto`)
+- Demande du propriétaire : « ajouter un "tuto" pour indiquer où sont chaque fonctionnalités importantes mais un peu cachées » ; plan validé, avec une étape à part pour la session d'ouverture.
+- **Fait** (README › « Visite guidée et astuces ») : visite de 9 étapes (halo sur le vrai bouton, bulle à côté, clavier, lecteurs d'écran), proposée une fois (nouvel utilisateur à la fin du premier lancement, pastille « Découvre les nouveautés » pour les autres), relançable depuis l'aide et Aide et avis ; astuces d'une fois (classeur, scan, « Ajouter en ami », Stats), interrupteur dans Préférences ; question d'aide « Où sont les fonctions moins visibles ? ».
+- Décisions prises seul : les feuilles ouvertes au départ (l'aide) ne se rouvrent pas à la fin, seul l'écran revient ; « Plus tard » ne repropose pas (la visite reste dans l'aide, un toast le dit) ; pastille vue à un lancement sans réponse = offre close ; seule feuille ouverte par la visite : réglages du scan (pour la session d'ouverture) ; sections ouvertes : Échange, Stats, saisie « Prix d'une liste » ; pas d'astuce ManaBox (lien déjà sur l'écran vide) ; interrupteur plutôt qu'un lien « Ne plus afficher » dans la bulle.
+- Captures : `scratchpad/morning/tuto/` (non versionnées).
+
 ## Petits rappels
 - Chaque texte visible : dans les six `src/i18n/*.json` (`tests/test-i18n-langs.mjs`).
 - Code natif touché → `versionCode` + 1 et nouvel `.aab` par le propriétaire ; sinon rien à refaire côté Android.

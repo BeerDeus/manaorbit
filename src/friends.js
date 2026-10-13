@@ -342,6 +342,7 @@ function amPubMount(wrap, P) {
       : st === 'asked' ? `<button class="am-pill" type="button" data-am="accept">${AM_ADD_ICON}<span>${T('Accepter')}</span></button>`
       : st === 'busy' ? `<span class="am-pill off"><span>${T('Envoi…')}</span></span>`
       : st ? `<button class="am-pill" type="button" data-am="add" aria-label="${T('Ajouter en ami')}">${AM_ADD_ICON}<span>${T('Ajouter en ami')}</span></button>` : '';
+    if (typeof tipSoon === 'function') tipSoon();      // astuce (tour.js) : « Ajoute-le en ami »
   };
   const check = async () => {
     for (let i = 0; i < 60 && !CTX.proxy; i++) await sleep(100);      // lien ouvert au lancement : serveur pas encore interrogé (__ping)

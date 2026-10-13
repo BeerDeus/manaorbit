@@ -5,6 +5,7 @@
 const BK = { armed: 0 };
 /** Ferme l'écran le plus haut ; retourne vrai s'il y en avait un. */
 function backClose() {
+  if (typeof tourBack === 'function' && tourBack()) return true;      // visite guidée (tour.js) : Retour la quitte
   if (typeof imgView !== 'undefined' && imgView) { imgView.close(); return true; }
   if (typeof OB !== 'undefined' && OB.el && !sheets.length) { obBack(); return true; }
   if (sheets.length) { sheets[sheets.length - 1].close(); return true; }

@@ -47,7 +47,7 @@ function adsMargin() {
  *  saisie, recherche et résultats, éditeur de deck. Écran du dessus : la dernière vue plein écran (.dv) de la page, même en train de s'ouvrir ou de se fermer
  *  (retirée après son animation : réévalué à ce moment-là), sinon la vue de l'appli (#app[data-view]). */
 function adsBusy() {
-  if (OB.el || SC.el || imgView || document.documentElement.classList.contains('nat-cam')) return true;
+  if (OB.el || SC.el || imgView || document.documentElement.classList.contains('nat-cam') || (typeof tourOn === 'function' && tourOn())) return true;      // visite guidée (tour.js) : sa bulle peut se poser sous l'en-tête
   const dvs = document.querySelectorAll('body > .dv'), top = dvs[dvs.length - 1];
   return top ? top.classList.contains('bd') || top.classList.contains('scan') : S.view !== 'home';
 }
