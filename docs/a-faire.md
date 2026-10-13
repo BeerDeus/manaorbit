@@ -75,6 +75,17 @@
   - cEDH : EDHTop16 / TopDeck.gg (API publique, crédit déjà affiché) ;
   - à terme : deck moyen « Mana Orbit » à partir des decks des utilisateurs, anonymisés (ligne à ajouter à la politique de confidentialité).
 
+## Communication : vidéos courtes Instagram Reels / YouTube Shorts (décidé le 13 octobre)
+But : faire connaître l'appli et recruter les **premiers testeurs** (test fermé ouvert le **19 octobre 2026**, date avancée par le propriétaire), puis de futurs utilisateurs. Comptes Instagram et YouTube dédiés (créés par le propriétaire, logo de l'appli en photo de profil).
+- **Format** : vertical 1080 × 1920, 30 i/s, **10 à 20 s**, accroche dans la 1re seconde, texte en grand incrusté (la plupart regardent sans le son), rien d'important dans les 20 % du bas ni sur la colonne de droite (boutons des applis), appel à l'action à la fin (« Lien en bio → deviens testeur »). La même vidéo part sur Reels et Shorts (TikTok possible plus tard).
+- **100 % généré en code, sans effet « IA »** : vrais écrans de l'appli (rendus comme les captures Play, `tools/store-assets.mjs`, données de démo), motion design aux couleurs de la marque (aurore, liseré foil, orbes de mana, polices Bricolage Grotesque / Instrument Sans), mouvements nets et courts, pas de voix de synthèse ni d'images générées.
+- **Fabrication** (à créer) : `tools/shorts/` : chaque vidéo = une page HTML/CSS animée sur une ligne de temps (pas de hasard), capturée image par image avec Playwright puis assemblée en MP4 par ffmpeg ; un fichier par vidéo, rendu en une commande, PNG de couverture. Le son : musique ajoutée par le propriétaire dans Instagram / YouTube (bibliothèques sous licence des plateformes), quelques sons courts « UI » éventuellement générés en code.
+- **Mentions** : « Mana Orbit n'est pas affilié à Wizards of the Coast » dans les descriptions ; images de cartes de Scryfall comme dans l'appli, jamais les logos officiels de Magic.
+- **Rythme** : 3 à 4 vidéos par semaine, une série « en construction » jusqu'au 19 octobre, puis une série par fonctionnalité.
+- **Page testeurs** (à faire avant la 1re vidéo) : `manaorbit.app/testeurs` : ce qu'est le test, comment rejoindre le groupe Google puis le canal Play, en 3 étapes ; c'est le lien en bio.
+- **Séries proposées** (3 à 6 vidéos chacune) : 0 · Teaser « en construction » (J-6 → lancement du test) ; 1 · Scan ; 2 · Collection et valeur ; 3 · Échange et amis ; 4 · Decks ; 5 · Session d'ouverture et streamer ; 6 · Venir de ManaBox, widgets, astuces ; 7 · Communauté (questions, défis, « ta pire ouverture »). Détail de chaque vidéo dans la conversation du 13 octobre, à reporter ici quand le propriétaire aura choisi.
+- **Prochaine étape** : le propriétaire choisit la série 0 et 2 ou 3 vidéos à faire en premier ; on fabrique la chaîne `tools/shorts/` avec la 1re vidéo, puis les suivantes.
+
 ## Avant la publication sur le Play Store
 - **Nom de domaine : `manaorbit.app`, fait le 12 octobre.** Acheté et relié au site par le propriétaire, contact `contact@manaorbit.app` créé ; dépôt GitHub renommé `BeerDeus/manaorbit`.
   - Code basculé : APK (`server.url`, `allowNavigation` vers l'ancienne adresse, page hors ligne, `PRICES_URL` du widget, QR d'aperçu régénéré), contact de l'aide, du signalement et de la politique de confidentialité, docs et fiche Play.
@@ -92,7 +103,7 @@
 - Vérifier auprès de l'URSSAF (ou d'un comptable) si l'édition d'une appli financée par la publicité doit être ajoutée aux activités de Martin Stuis EI.
 - Compte développeur personnel récent : test fermé obligatoire (12 testeurs pendant 14 jours) avant la production.
 - Play Console : remplir la fiche et le formulaire Sécurité des données d'après `docs/store/fiche.md`.
-- **Test fermé** : étapes, groupe Google et textes dans `docs/store/test-ferme.md`. Envoyer d'abord la relance à EDHREC et Archidekt (`docs/mails-partenaires.md`).
+- **Test fermé : ouverture le 19 octobre 2026** (date avancée par le propriétaire le 13 octobre) : étapes, groupe Google et textes dans `docs/store/test-ferme.md`. Envoyer d'abord la relance à EDHREC et Archidekt (`docs/mails-partenaires.md`), avancée elle aussi.
 - **AdMob pendant le test fermé** : `.aab` avec le vrai `admob_app_id`, mais `ADMOB_BANNER_ID` **vide** sur Hostinger jusqu'à la production (bandeau de test de Google, pas de trafic invalide).
   - Ne jamais toucher une vraie annonce ; appareils de test déclarés (`docs/android.md`).
   - Message de consentement Europe publié dans AdMob avant la production (`docs/android.md`, § 4).
