@@ -11,8 +11,6 @@
   "{name} · session d'ouverture Magic": "{name} · sessione di apertura Magic",
   "Ma collection Magic sur Mana Orbit": "La mia collezione Magic su Mana Orbit",
   "Image téléchargée": "Immagine scaricata",
-  "Enregistrer l'image": "Salva l'immagine",
-  "Appui long sur l'image pour l'enregistrer": "Tieni premuto sull'immagine per salvarla",
   "Image à partager": "Immagine da condividere",
   "Image enregistrée dans tes photos": "Immagine salvata nelle tue foto",
   "Aperçu de l'image à partager": "Anteprima dell'immagine da condividere",
@@ -28,5 +26,7 @@
   "Connecte-toi pour partager un lien en lecture seule. L'image, elle, se partage sans compte.": "Accedi per condividere un link in sola lettura. L'immagine si condivide anche senza account.",
   "Hors ligne : le lien se crée une fois connecté. L'image, elle, se partage tout de suite.": "Offline: il link si crea quando torni online. L'immagine si condivide subito.",
   "Une image de ta liste, avec le QR code du lien, à envoyer ou à publier": "Un'immagine della tua lista, con il QR code del link, da inviare o pubblicare",
-  "Image avec QR": "Immagine con QR"
+  "Image avec QR": "Immagine con QR",
+  "Mets à jour l'appli (Play Store) pour envoyer l'image directement": "Aggiorna l'app (Play Store) per inviare direttamente l'immagine",
+  "Enregistrement impossible sur ce téléphone : utilise « Partager »": "Impossibile salvare su questo telefono: usa «Condividi»"
 }

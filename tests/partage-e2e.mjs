@@ -163,7 +163,7 @@ const OPENING = { kind: 'opening', name: 'Boîte de Bloomburrow', date: Date.par
   await p.context().close();
 }
 
-/* ── 5) APK : 1.0.4 (shareImage, saveImage) puis plus ancienne (lien, ou l'image en grand) ──────────────────────────── */
+/* ── 5) APK : 1.0.4 (shareImage, saveImage) puis plus ancienne (lien, sinon mise à jour demandée) ──────────────────────────── */
 {
   const { p, errs } = await newPage(browser, world, { goto: false, init: seed('3 Sol Ring\n2 Craterhoof Behemoth') + shell, ctx: { colorScheme: 'dark' } }); errsAll.push(errs);
   await p.route('https://www.gstatic.com/**', r => r.abort());
@@ -182,10 +182,12 @@ const OPENING = { kind: 'opening', name: 'Boîte de Bloomburrow', date: Date.par
   await p.evaluate(() => localStorage.setItem('__old', '1')); await p.reload(); await p.waitForTimeout(600);
   assert.equal(await p.evaluate(() => typeof Capacitor.Plugins.ManaOrbit.shareImage), 'undefined');
   await p.evaluate(s => simgShare(s), OPENING); await imgReady(p);
-  assert.equal(await txt(p, '.simg-sheet .simg-note'), 'Appui long sur l\'image pour l\'enregistrer', 'prévenu dès l\'aperçu');
-  await p.click('.simg-sheet [data-simg="share"]'); await sheetOpen(p, 'simg-full-sheet');
-  assert.match(await txt(p, '.simg-full-sheet .sheet-head p'), /Appui long/); assert.ok(await p.$eval('.simg-full-sheet img.simg-full', i => i.src.startsWith('blob:')));
-  ok('APK plus ancienne, sans lien : l\'image en grand, « appui long pour l\'enregistrer »');
+  assert.equal(await txt(p, '.simg-sheet .simg-note'), 'Mets à jour l\'appli (Play Store) pour envoyer l\'image directement', 'prévenu dès l\'aperçu');
+  await p.click('.simg-sheet [data-simg="share"]'); await p.waitForFunction(() => /Mets à jour l'appli/.test(document.querySelector('#toast').textContent));
+  assert.equal(await p.$('.simg-full-sheet'), null, 'plus d\'image en grand « appui long » (la WebView ne l\'enregistre pas)');
+  await p.click('.simg-sheet [data-simg="save"]'); await p.waitForFunction(() => /Mets à jour l'appli/.test(document.querySelector('#toast').textContent));
+  assert.deepEqual(await p.evaluate(() => [window.__mo.img.length, window.__mo.save.length]), [0, 0], 'aucun appel natif (méthodes absentes)');
+  ok('APK plus ancienne, sans lien : « mets à jour l\'appli » (Partager et Enregistrer), plus d\'image en grand');
   await closeSheets(p);
   await signInFake(p);
   await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-box [data-act="tron"]');

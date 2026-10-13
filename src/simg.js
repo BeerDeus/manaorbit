@@ -16,7 +16,7 @@
    Partage : APK 1.0.4 et plus → ManaOrbit.shareImage({ data (PNG en base64), name, text, title, chooser }) : menu « Partager » d'Android (la WebView n'a pas
    navigator.share) ; navigateur → navigator.share({ files }) si canShare l'accepte, sinon téléchargement. « Enregistrer » : APK 1.0.4 → ManaOrbit.saveImage
    (Photos, dossier Pictures/Mana Orbit, Android 10 et plus) ; navigateur → téléchargement. APK plus ancienne (méthodes absentes, promesse refusée) :
-   le lien (deck, liste d'échange) part par le partage habituel (shareOut) ; sinon l'image s'affiche en grand, « appui long pour l'enregistrer ».
+   le lien (deck, liste d'échange) part par le partage habituel (shareOut) ; sinon « mets à jour l'appli » (la WebView n'enregistre pas une image par un appui long).
    Rien au démarrage : tout est construit quand une image est demandée. */
 const SIMG_W = 1080, SIMG_H = 1350, SIMG_M = 72, SIMG_SITE = 'manaorbit.app';
 const SIMG_FD = '"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif', SIMG_FB = '"Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif';
@@ -301,13 +301,8 @@ function simgDownload(blob, name) {
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(u); a.remove(); }, 4000);
   toast(T('Image téléchargée'));
 }
-/** APK sans les méthodes d'image : l'image en grand, à enregistrer par un appui long. */
-function simgFull(url) {
-  openSheet(T('Enregistrer l\'image'), T('Appui long sur l\'image pour l\'enregistrer'), api => {
-    api.wrap.classList.add('simg-full-sheet');
-    api.body.innerHTML = `<img class="simg-full" src="${esc(url)}" alt="${T('Image à partager')}">`;
-  });
-}
+/** APK sans les méthodes d'image (1.0.3 et avant) : la WebView ne sait ni partager un fichier ni enregistrer une image par un appui long → mettre l'appli à jour. */
+const simgOld = () => { toast(T('Mets à jour l\'appli (Play Store) pour envoyer l\'image directement')); return 'old'; };
 /** « Partager » : menu de partage du téléphone avec le fichier ; repli selon la plateforme (voir l'en-tête). */
 async function simgSend(st) {
   const { blob, spec } = st, name = simgFile(spec.kind), text = simgText(spec), title = T(SIMG_TITLES[spec.kind] || 'Mana Orbit'), mo = simgNat();
@@ -317,7 +312,7 @@ async function simgSend(st) {
       catch (e) { /* coque qui refuse : repli ci-dessous */ }
     }
     if (spec.url && typeof shareOut === 'function') { shareOut({ title, text, url: spec.url }); return 'link'; }      // APK plus ancienne : le lien, par le partage habituel
-    simgFull(st.url); return 'full';
+    return simgOld();
   }
   let file = null; try { file = new File([blob], name, { type: 'image/png' }); } catch (e) { file = null; }
   if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -326,15 +321,15 @@ async function simgSend(st) {
   }
   simgDownload(blob, name); return 'download';
 }
-/** « Enregistrer » : Photos (APK 1.0.4), sinon téléchargement ; APK plus ancienne : l'image en grand. */
+/** « Enregistrer » : Photos (APK 1.0.4), sinon téléchargement ; APK plus ancienne : mise à jour demandée ; Android 9 et moins : « Partager » à la place. */
 async function simgSave(st) {
   const { blob, spec } = st, name = simgFile(spec.kind), mo = simgNat();
   if (mo) {
     if (typeof mo.saveImage === 'function') {
       try { st.b64 = st.b64 || await simgB64(blob); await mo.saveImage({ data: st.b64, name }); toast(T('Image enregistrée dans tes photos')); haptic('ok'); return 'native'; }
-      catch (e) { /* Android 9 et moins, ou refus : l'image en grand */ }
+      catch (e) { toast(T('Enregistrement impossible sur ce téléphone : utilise « Partager »')); return 'refused'; }      // Android 9 et moins, ou refus
     }
-    simgFull(st.url); return 'full';
+    return simgOld();
   }
   simgDownload(blob, name); return 'download';
 }
@@ -365,7 +360,7 @@ function simgShare(spec) {
       img.onload = () => { box.dataset.st = 'ok'; img.hidden = false; };
       img.src = st.url;
       const mo = simgNat(), note = $('.simg-note', api.body);
-      note.textContent = mo && typeof mo.shareImage !== 'function' && !spec.url ? T('Appui long sur l\'image pour l\'enregistrer') : T('1080 × 1350 px · prête pour WhatsApp, Instagram, Discord…');
+      note.textContent = mo && typeof mo.shareImage !== 'function' ? T('Mets à jour l\'appli (Play Store) pour envoyer l\'image directement') : T('1080 × 1350 px · prête pour WhatsApp, Instagram, Discord…');
       $$('[data-simg]', api.foot).forEach(x => { x.disabled = false; });
     }
     return { blob, w: SIMG_W, h: SIMG_H };

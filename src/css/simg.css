@@ -9,8 +9,6 @@
 .simg-prev[data-st="ok"] .simg-sk{display:none}
 .simg-prev[data-st="err"] .simg-sk i{animation:none;opacity:.4}
 .simg-note{text-align:center;margin-top:-4px}
-.simg-full-sheet .sheet{max-height:96%}
-.simg-full{display:block;width:100%;height:auto;border-radius:14px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
 /* entrées : Stats de la collection, feuille « Partager le deck », lien d'échange actif */
 .simg-coll{display:flex;justify-content:flex-end;margin-top:-6px}
 .simg-coll .link-btn,.dk-simg .i,.tr-simg .i{display:inline-flex;align-items:center;gap:6px}
