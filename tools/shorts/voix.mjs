@@ -1,6 +1,6 @@
 // Voix off des vidéos courtes (Reels / Shorts) : Gemini TTS (API Google AI Studio), un fichier WAV par vidéo dans tools/shorts/voix/.
 // Clé : variable d'environnement GEMINI_API_KEY (réglages de l'environnement, jamais dans le dépôt). Textes : tools/shorts/voix.json.
-// Usage : node tools/shorts/voix.mjs [id…]   (sans id : toutes) · options : --voix=Achird --modele=gemini-3.8-flash-tts --suffixe=-aoede (nom de fichier, pour comparer des voix) --force
+// Usage : node tools/shorts/voix.mjs [id…]   (sans id : toutes) · options : --voix=Achird --modele=gemini-3.8-flash-tts --temperature=1.25 --suffixe=-aoede (nom de fichier, pour comparer des voix) --force
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +10,7 @@ const arg = (k, d) => (process.argv.find(a => a.startsWith(`--${k}=`)) || '').sp
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) { console.error('GEMINI_API_KEY absente : à ajouter dans les réglages de l\'environnement (nouvelle session).'); process.exit(1); }
 const cfg = JSON.parse(readFileSync(join(DIR, 'voix.json'), 'utf8'));
-const MODEL = arg('modele', cfg.modele), VOICE = arg('voix', cfg.voix), SUFFIX = arg('suffixe', ''), FORCE = process.argv.includes('--force');
+const MODEL = arg('modele', cfg.modele), VOICE = arg('voix', cfg.voix), SUFFIX = arg('suffixe', ''), TEMP = Number(arg('temperature', cfg.temperature)) || undefined, FORCE = process.argv.includes('--force');
 const ids = process.argv.slice(2).filter(a => !a.startsWith('--'));
 mkdirSync(OUT, { recursive: true });
 
@@ -24,7 +24,7 @@ function wav(pcm, rate) {
 async function say(text, style) {
   // le style passe en consigne devant le texte (marche avec tous les modèles TTS de Gemini)
   const body = { contents: [{ role: 'user', parts: [{ text: `${style}\n\n${text}` }] }],
-    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } } } };
+    generationConfig: { responseModalities: ['AUDIO'], temperature: TEMP, speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } } } };
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': KEY }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`HTTP ${r.status} : ${(j.error && j.error.message) || ''}`.slice(0, 300));
