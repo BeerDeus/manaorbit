@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Deviens testeur de Mana Orbit · ouverture le 19 octobre</title>
+<meta name="description" content="Mana Orbit, l'appli des joueurs de Magic (scan, cote, decks, échanges), ouvre son test fermé le 19 octobre : 12 places pour les premiers testeurs. Le lien d'inscription arrive ici.">
+<link rel="canonical" href="https://manaorbit.app/testeurs">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mana Orbit">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Deviens testeur de Mana Orbit">
+<meta property="og:description" content="Test fermé dès le 19 octobre : 12 places pour les premiers testeurs. Le lien d'inscription arrive ici.">
+<meta property="og:url" content="https://manaorbit.app/testeurs">
+<meta property="og:image" content="https://manaorbit.app/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#0b0f1c">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Instrument+Sans:wght@400..700&display=swap">
+<style>
+:root{--bg:#0b0f1c;--card:rgba(255,255,255,.055);--card-solid:#141a2e;--ink:#eaeefb;--mute:#a9b3cf;--line:rgba(255,255,255,.11);--acc:#9fb4ff;--acc-ink:#0b0f1c;--good:#4fd1a1;
+  --foil:linear-gradient(115deg,#ff8fc3 0%,#ffd479 24%,#7be8c8 48%,#7fb0ff 72%,#c79bff 100%);--fd:'Bricolage Grotesque','Avenir Next','Segoe UI',system-ui,sans-serif;--fb:'Instrument Sans','Segoe UI',system-ui,-apple-system,sans-serif}
+@media (prefers-color-scheme:light){:root{--bg:#f1f3f8;--card:#fff;--card-solid:#fff;--ink:#10152b;--mute:#4a5470;--line:#d9dfeb;--acc:#3a46d6;--acc-ink:#fff;--good:#0b8a5e}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--fb);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(70% 40% at 0% 0%,rgba(63,143,224,.30),transparent 70%),radial-gradient(60% 36% at 100% 24%,rgba(224,83,61,.18),transparent 70%),
+  radial-gradient(70% 40% at 0% 78%,rgba(58,154,94,.18),transparent 70%),radial-gradient(60% 40% at 100% 100%,rgba(199,155,255,.24),transparent 70%)}
+@media (prefers-color-scheme:light){body::before{opacity:.45}}
+.foil-bar{height:5px;background:var(--foil)}
+main{max-width:640px;margin:0 auto;padding:22px 16px 56px}
+.top{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit}
+.top img{width:40px;height:40px;border-radius:10px}
+.top b{font:700 19px/1 var(--fd);letter-spacing:-.02em}
+.hero{padding:34px 0 8px}
+.kick{font:650 13px/1 var(--fb);letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin:0 0 12px}
+h1{font:800 clamp(32px,8.6vw,52px)/1.04 var(--fd);letter-spacing:-.035em;margin:0;text-wrap:balance}
+h1 span{background:var(--foil);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:18px;color:var(--mute);margin:16px 0 0;max-width:40ch;text-wrap:pretty}
+.lead b{color:var(--ink)}
+.soon{margin:24px 0 0;padding:22px 22px;border-radius:24px;background:var(--card-solid);border:1px solid var(--line);position:relative;overflow:hidden}
+.soon::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:var(--foil)}
+.soon b{display:block;font:750 22px/1.2 var(--fd);letter-spacing:-.02em;margin:4px 0 6px}
+.soon p{margin:0;color:var(--mute)}
+.ctas{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 22px;border-radius:16px;font:650 16px/1 var(--fb);text-decoration:none;border:1px solid transparent}
+.btn.main{background:var(--acc);color:var(--acc-ink);box-shadow:0 12px 26px -14px var(--acc)}
+.btn.ghost{background:var(--card);color:var(--ink);border-color:var(--line)}
+h2{font:750 24px/1.15 var(--fd);letter-spacing:-.02em;margin:40px 0 14px}
+ul.keep{list-style:none;padding:0;margin:0;display:grid;gap:9px}
+ul.keep li{display:flex;gap:11px;align-items:flex-start}
+ul.keep li::before{content:'✓';flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good);font-weight:800;font-size:13px;margin-top:1px}
+ul.keep li b{font-weight:650}
+ul.keep li span{color:var(--mute)}
+ol.steps{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+ol.steps li{display:grid;grid-template-columns:38px 1fr;gap:14px;padding:16px 18px;background:var(--card);border:1px solid var(--line);border-radius:20px}
+ol.steps li>i{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--acc);color:var(--acc-ink);font:800 17px/1 var(--fd);font-style:normal}
+ol.steps h3{font:700 17px/1.25 var(--fd);margin:8px 0 4px}
+ol.steps p{margin:0;color:var(--mute);font-size:15px}
+footer{margin:40px 0 0;font-size:13px;color:var(--mute)}
+footer nav{display:flex;flex-wrap:wrap;gap:8px 16px;margin:0 0 12px}
+a{color:var(--acc)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:10px}
+</style>
+</head>
+<body>
+<div class="foil-bar" aria-hidden="true"></div>
+<main>
+<a class="top" href="./"><img src="icons/icon-192.png" alt="" width="40" height="40"><b>Mana Orbit</b></a>
+
+<header class="hero">
+<p class="kick">Test fermé · 12 places</p>
+<h1>Deviens testeur de <span>Mana Orbit</span></h1>
+<p class="lead">L'appli des joueurs de Magic : scan de tes cartes (VF ou VO), cote Cardmarket, decks à monter, échanges de doublons entre amis. <b>Gratuite</b>, sur Android.</p>
+<div class="soon">
+<b>Le lien d'inscription arrive ici le lundi 19 octobre.</b>
+<p>Reviens ce jour-là, ou écris-nous pour être prévenu dès l'ouverture.</p>
+<div class="ctas"><a class="btn main" href="mailto:contact@manaorbit.app?subject=Testeur%20Mana%20Orbit&body=Pr%C3%A9viens-moi%20%C3%A0%20l%27ouverture%20du%20test%20!">Me prévenir le 19</a><a class="btn ghost" href="https://www.instagram.com/manaorbit.app" rel="me noopener">Instagram</a></div>
+</div>
+</header>
+
+<section aria-labelledby="h-quoi">
+<h2 id="h-quoi">Ce qu'on te demande</h2>
+<ul class="keep">
+<li><div><b>Utiliser l'appli deux semaines</b><br><span>2 ou 3 fois par semaine suffisent : scanner quelques cartes, regarder ta collection, essayer un échange.</span></div></li>
+<li><div><b>Dire ce qui te plaît, ce qui manque, ce qui coince</b><br><span>Un message suffit, pas de rapport à remplir.</span></div></li>
+<li><div><b>Rien d'autre</b><br><span>Pas de vidéo, pas de note à laisser, pas d'engagement.</span></div></li>
+</ul>
+</section>
+
+<section aria-labelledby="h-comment">
+<h2 id="h-comment">Comment ça se passera, le 19</h2>
+<ol class="steps">
+<li><i>1</i><div><h3>Tu rejoins le groupe des testeurs</h3><p>Un groupe Google, avec l'adresse de ton compte Google Play. Il ne sert qu'à t'ouvrir le test.</p></div></li>
+<li><i>2</i><div><h3>Tu acceptes l'invitation sur Google Play</h3><p>Un lien, un bouton « Devenir testeur ».</p></div></li>
+<li><i>3</i><div><h3>Tu installes Mana Orbit</h3><p>Depuis Google Play, comme n'importe quelle appli. Tes retours arrivent par e-mail ou sur Instagram.</p></div></li>
+</ol>
+</section>
+
+<footer>
+<nav><a href="./">Ouvrir Mana Orbit</a><a href="privacy">Confidentialité</a><a href="legal">Mentions légales</a></nav>
+<p>Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Policy. Il n'est ni approuvé ni soutenu par Wizards of the Coast. Certains éléments utilisés sont la propriété de Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+</footer>
+</main>
+</body>
+</html>
