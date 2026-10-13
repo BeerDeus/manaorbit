@@ -151,7 +151,7 @@ const tradeId = [...shares.keys()][0];
 
 /* ── QR code du lien (échange en vrai) : grand, net, pseudo et photo, adresse, écran gardé allumé ── */
 {
-  // appli Android (APK 1.0.3) : luminosité à fond tant que le QR code est affiché (coque simulée le temps de la feuille)
+  // appli Android (APK 1.0.4) : luminosité à fond tant que le QR code est affiché (coque simulée le temps de la feuille)
   await p.evaluate(() => { window.__br = []; window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'ManaOrbit', Plugins: { ManaOrbit: { brightness: async o => { window.__br.push(o.full); return { full: o.full }; } } } }; });
   await p.evaluate(() => { window.__wl = 0; window.__wlr = 0; Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async t => { window.__wl++; window.__wlt = t; return { release: async () => { window.__wlr++; }, addEventListener() {} }; } } }); });
   await p.emulateMedia({ colorScheme: 'dark' });

@@ -389,7 +389,7 @@ function openWishAdd() {
 /* ── QR code du lien (échange en vrai : l'autre joueur le scanne avec l'appareil photo de son téléphone) ── */
 const QR_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 14h2M14 20h2M18 18v2h2"/></svg>';
 /** Feuille du QR code : grand, net (modules calés sur les pixels de l'écran), pseudo ou photo du profil, adresse en clair ; l'écran reste allumé tant qu'elle est ouverte (Wake Lock, si le navigateur l'a),
-    à pleine luminosité dans l'appli Android (APK 1.0.3 et plus, natBright). */
+    à pleine luminosité dans l'appli Android (APK 1.0.4 et plus, natBright). */
 function trQrOpen() {
   if (!TR.share) return;
   const url = shareUrl(TR.share); let q;

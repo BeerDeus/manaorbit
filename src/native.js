@@ -9,7 +9,7 @@ const isNativeApp = () => { try { return !!(window.Capacitor && window.Capacitor
 /** Plugins natifs attendus dans l'APK (diagnostic affiché sous la version, dans les réglages) : une APK ancienne en a moins, il faut la refaire. */
 const NAT_PLUGINS = [['CameraPreview', 'caméra'], ['CapacitorPluginMlKitTextRecognition', 'ML Kit'], ['FirebaseAuthentication', 'Google'], ['AdMob', 'pub'], ['PushNotifications', 'notif'], ['ManaOrbit', 'widget'], ['App', 'retour']];
 
-/** Écran à pleine luminosité (QR code d'échange affiché) ou rendu au réglage du téléphone : APK 1.0.3 et plus (ManaOrbit.brightness), seulement dans
+/** Écran à pleine luminosité (QR code d'échange affiché) ou rendu au réglage du téléphone : APK 1.0.4 et plus (ManaOrbit.brightness), seulement dans
     l'appli (Android rend la luminosité habituelle quand on en sort). Navigateur ou APK plus ancienne : rien. Page rechargée avec le QR ouvert : rendue au lancement. */
 function natBright(full) {
   const mo = natPlugin('ManaOrbit'); if (!mo || typeof mo.brightness !== 'function') return;

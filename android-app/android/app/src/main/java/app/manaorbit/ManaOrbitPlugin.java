@@ -38,7 +38,7 @@ import org.json.JSONObject;
  * - cutout() → { w, h, rects: [{ l, t, r, b }] } en dp (= px CSS de la page) : découpes de l'écran (caméra frontale) vues par la fenêtre ; rects vide : aucune
  *   (ou Android < 9). Barre d'état cachée (SystemBars), le site pose son en-tête sur la ligne de la caméra quand elle est au milieu (src/native.js, natFullscreen).
  * - brightness({ full }) : écran à pleine luminosité (QR code d'échange affiché) ou rendu au réglage du téléphone ; seulement pour la fenêtre de l'appli
- *   (Android rend la luminosité habituelle dès qu'on en sort, et la remet au retour). APK 1.0.3 et plus ; plus ancienne : pas de méthode, rien ne change.
+ *   (Android rend la luminosité habituelle dès qu'on en sort, et la remet au retour). APK 1.0.4 et plus ; plus ancienne : pas de méthode, rien ne change.
  * - événement « open », gardé jusqu'à ce que la page l'écoute (lancement à froid) : { view: 'collection' | 'scan' | 'quick' } le widget ou son bouton a été
  *   touché ; { view: 'trade' } le widget « QR code d'échange » ; { view: 'scan' | 'quick' | 'trade' | 'paste' } un raccourci de l'icône (ShortcutActivity) ; { view: 'share', text, title } du texte partagé
  *   par une autre appli (menu « Partager » : decklist, lien EDHREC, Archidekt, Moxfield…).
