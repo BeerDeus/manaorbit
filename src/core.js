@@ -92,7 +92,8 @@ function frontName(s) { return normName(s).split(' // ')[0]; }
 
 /** Langue d'une carte de collection : code de l'app (fr en de es it pt jp zh-CN) depuis un code (FR, ja, fra…) ou un nom (French, Français…), '' si inconnue. */
 const LANG_ALIAS = { fr: 'fr', fra: 'fr', fre: 'fr', french: 'fr', francais: 'fr', en: 'en', eng: 'en', english: 'en', anglais: 'en', de: 'de', deu: 'de', ger: 'de', german: 'de', allemand: 'de', deutsch: 'de',
-  es: 'es', spa: 'es', spanish: 'es', espagnol: 'es', it: 'it', ita: 'it', italian: 'it', italien: 'it', pt: 'pt', por: 'pt', portuguese: 'pt', portugais: 'pt', ja: 'jp', jp: 'jp', jpn: 'jp', japanese: 'jp', japonais: 'jp', zh: 'zh-CN', zhs: 'zh-CN', zht: 'zh-CN', zhcn: 'zh-CN', zhtw: 'zh-CN', cn: 'zh-CN', chs: 'zh-CN', cht: 'zh-CN', chinese: 'zh-CN', chinois: 'zh-CN', simplifiedchinese: 'zh-CN', chinesesimplified: 'zh-CN', traditionalchinese: 'zh-CN', chinesetraditional: 'zh-CN' };
+  es: 'es', spa: 'es', spanish: 'es', espagnol: 'es', it: 'it', ita: 'it', italian: 'it', italien: 'it', pt: 'pt', por: 'pt', portuguese: 'pt', portugais: 'pt', ja: 'jp', jp: 'jp', jpn: 'jp', japanese: 'jp', japonais: 'jp', zh: 'zh-CN', zhs: 'zh-CN', zht: 'zh-CN', zhcn: 'zh-CN', zhtw: 'zh-CN', cn: 'zh-CN', chs: 'zh-CN', cht: 'zh-CN', chinese: 'zh-CN', chinois: 'zh-CN', simplifiedchinese: 'zh-CN', chinesesimplified: 'zh-CN', traditionalchinese: 'zh-CN', chinesetraditional: 'zh-CN',
+  ptbr: 'pt', portuguesebrazil: 'pt', brazilianportuguese: 'pt', portuguesbresil: 'pt', zhhans: 'zh-CN', zhhant: 'zh-CN' };      // « Portuguese (Brazil) » (Delver Lens, TCGplayer), « zh-Hans »
 const cardLang = x => LANG_ALIAS[String(x == null ? '' : x).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '')] || '';
 /** Code court d'une langue pour l'affichage et le texte de la collection : « FR », « EN »… ; le chinois s'écrit « ZH » (lettres seules : le code CardTrader « zh-CN » a un tiret). */
 const langCode = l => (l === 'zh-CN' ? 'ZH' : String(l || '').toUpperCase());
@@ -889,11 +890,21 @@ function csvSplit(line, d) {
   }
   out.push(cur); return out.map(x => x.trim());
 }
-const NAME_COLS = ['name', 'card name', 'card', 'cardname', 'product name', 'simple name', 'nom', 'nom de la carte', 'carte'];
+/** Colonnes du nom, dans l'ordre de préférence : « Simple Name » de TCGplayer d'abord (« Name » y garde la variante : « Sol Ring (Foil Etched) »). */
+const NAME_COLS = ['simple name', 'name', 'card name', 'card', 'cardname', 'product name', 'nom', 'nom de la carte', 'carte'];
 const LANG_COLS = ['language', 'langue', 'lang', 'card language'];
 const QTY_COLS = ['quantity', 'qty', 'count', 'amount', 'quantite', 'reg qty', 'total qty', 'owned'];
-/** Colonnes de l'édition : code d'extension (dans cet ordre : « Set code » de ManaBox, « Edition » de Moxfield… ; un nom d'extension en toutes lettres est ignoré) et numéro de collection. */
-const SET_COLS = ['set code', 'edition code', 'expansion code', 'edition', 'set', 'code'];
+/** Colonnes de l'édition : code d'extension (dans cet ordre : « Set code » de ManaBox, « Edition Code » d'Archidekt, « Set ID » de MTGGoldfish, « Edition » de Moxfield… ;
+ *  un nom d'extension en toutes lettres est ignoré, voir csvSetCode) et numéro de collection. */
+const SET_COLS = ['set code', 'edition code', 'expansion code', 'set id', 'edition', 'set', 'code'];
+/** Colonnes qui ne contiennent qu'un code (les autres, « Edition » ou « Set », portent un code chez Moxfield mais un nom chez Deckbox ou TCGplayer). */
+const SET_CODE_COLS = ['set code', 'edition code', 'expansion code', 'set id', 'code'];
+/** Code d'extension lu dans une colonne « Edition » / « Set » : « cmm », « CMM » ou « pmps06 » oui ; « Ixalan », « Theros » (nom Deckbox, 6 lettres comme un code) non. */
+const csvSetCode = (v, codeCol) => { const s = String(v == null ? '' : v).trim(); return codeCol || (/^[A-Za-z0-9]{2,6}$/.test(s) && (s === s.toLowerCase() || s === s.toUpperCase())) ? s : ''; };
+/** Exemplaires foil comptés à part (Decked Builder : « Reg Qty » + « Foil Qty ») : ajoutés aux autres. */
+const FOIL_QTY_RE = /^foil (qty|quantity|count)$/;
+/** Colonne « Binder Type » de ManaBox : une liste (« list », souhaits, achats) n'est pas dans la collection (FAQ ManaBox : les classeurs pour les cartes possédées, les listes pour les autres). */
+const LIST_TYPE_RE = /^\s*(list|wish ?list|buy ?list)\s*$/i;
 const NUM_COLS = ['collector number', 'card number', 'collector s number', 'collector', 'number', 'cn', 'nr', 'numero'];
 const colNorm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -967,37 +978,40 @@ function unionLines(la, lb) {
 const collSig = x => collLines(x).map(e => e[0] + ':' + e[1]).join(',');
 
 /**
- * Lit une collection : export CSV (ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield, TCGplayer…) ou texte « 3 Sol Ring ».
+ * Lit une collection : export CSV (ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield, Delver Lens, TCGplayer… : exemples réels dans tests/fixtures/import, tests/test-import.mjs) ou texte « 3 Sol Ring ».
  * Retourne { items:[{k, n, q, l?, x?, d?}] (l : langue si le fichier la donne : colonne « Language », ou « *FR* » en fin de ligne ; x : lignes par langue et édition — colonnes « Set code » / « Collector number », ou « (CMM) 400 » ;
- * d : date d'ajout en secondes, seulement avec o.dates : repère « (Dxxxxxx) » écrit par collToText), lines, skipped, format:'csv'|'text', copies, fr, amb }. Les quantités d'une même carte, langue et édition s'additionnent.
+ * d : date d'ajout en secondes, seulement avec o.dates : repère « (Dxxxxxx) » écrit par collToText), lines, skipped, listed (lignes d'une liste ManaBox, laissées de côté), format:'csv'|'text', copies, fr, amb }.
+ * Les quantités d'une même carte, langue et édition s'additionnent. Foil, état, prix d'achat, classeurs : pas gardés (la collection ne les connaît pas).
  * Import (o.fr, index français chargé) : un nom français devient la carte anglaise, exemplaire français sauf langue donnée par la ligne (fr : nombre de lignes lues ainsi ; amb : noms français de plusieurs cartes, laissés tels quels).
  * o.lang : langue des lignes qui n'en donnent pas (choix « Langue de ces cartes »). Sans o.fr ni o.lang (texte enregistré de la collection) : lecture inchangée, quel que soit l'index.
  */
 function parseCollection(text, o) {
   const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/);
-  let i0 = 0; while (i0 < lines.length && (!lines[i0].trim() || /^sep=.$/i.test(lines[i0].trim()))) i0++;
+  let i0 = 0; while (i0 < lines.length && (!lines[i0].trim() || /^"?sep=.?"?$/i.test(lines[i0].trim()))) i0++;      // « sep=, » (Excel), entre guillemets chez Dragon Shield
   const first = lines[i0] || '';
-  let delim = null, nameCol = -1, qtyCol = -1, langCol = -1, setCol = -1, numCol = -1;
+  let delim = null, nameCol = -1, qtyCol = -1, foilCol = -1, langCol = -1, setCol = -1, setCode = false, numCol = -1, listCol = -1;
   for (const d of [',', ';', '\t']) {
     const cols = csvSplit(first, d).map(colNorm);
     if (cols.length < 2) continue;
-    const ni = cols.findIndex(c => NAME_COLS.includes(c));
+    let ni = -1; for (const want of NAME_COLS) { ni = cols.indexOf(want); if (ni >= 0) break; }
     if (ni < 0) continue;
     delim = d; nameCol = ni; langCol = cols.findIndex(c => LANG_COLS.includes(c));
-    for (const want of SET_COLS) { const i = cols.indexOf(want); if (i >= 0) { setCol = i; break; } }
+    for (const want of SET_COLS) { const i = cols.indexOf(want); if (i >= 0) { setCol = i; setCode = SET_CODE_COLS.includes(want); break; } }
     for (const want of NUM_COLS) { const i = cols.indexOf(want); if (i >= 0) { numCol = i; break; } }
     for (const want of QTY_COLS) { const qi = cols.findIndex(c => c === want); if (qi >= 0) { qtyCol = qi; break; } }
-    if (qtyCol < 0) qtyCol = cols.findIndex(c => /(quantity|qty|count)/.test(c) && !/(trade|tradelist|wish)/.test(c));
+    if (qtyCol < 0) qtyCol = cols.findIndex(c => /(quantity|qty|count)/.test(c) && !/(trade|tradelist|wish|foil)/.test(c));      // « QuantityX » de Delver Lens (valeurs « 2x »)
+    foilCol = cols.findIndex(c => FOIL_QTY_RE.test(c)); if (foilCol === qtyCol) foilCol = -1;
+    listCol = cols.indexOf('binder type');
     break;
   }
-  const map = new Map(), fr = !!(o && o.fr && FRX.ix), dl = (o && cardLang(o.lang)) || '', amb = []; let n = 0, skipped = 0, nfr = 0;
+  const map = new Map(), fr = !!(o && o.fr && FRX.ix), dl = (o && cardLang(o.lang)) || '', amb = []; let n = 0, skipped = 0, nfr = 0, listed = 0;
   const add = (name, q, l, d, e) => {
     name = String(name || '').trim(); q = Math.max(1, Math.min(9999, Math.round(q) || 1));
     if (fr && name) {
-      const f = frLookup(name, (l || dl) === FRX.l);
+      const f = frLookup(name, (l === '-' ? '' : l || dl) === FRX.l);
       if (f && f.en) { name = f.en; if (!l) l = FRX.l; nfr++; } else if (f && f.amb && amb.length < 50 && !amb.includes(name)) amb.push(name);
     }
-    if (!l) l = dl;
+    if (!l) l = dl; else if (l === '-') l = '';
     const k = ownKey(name); if (!name || !k) { skipped++; return; }
     const cur = map.get(k), lg = lineKey(l, e); if (cur) { cur.b.set(lg, Math.min(9999, (cur.b.get(lg) || 0) + q)); if (d && !(cur.d <= d)) cur.d = d; } else if (map.size < COLL_MAX) map.set(k, { k, n: name, b: new Map([[lg, q]]), ...(d ? { d } : {}) });      // une ligne par langue et édition
   };
@@ -1006,7 +1020,11 @@ function parseCollection(text, o) {
       if (!lines[i].trim()) continue; n++;
       const c = csvSplit(lines[i], delim), name = c[nameCol];
       if (!name) { skipped++; continue; }
-      add(name, qtyCol >= 0 ? parseInt(c[qtyCol], 10) || 1 : 1, langCol >= 0 ? cardLang(c[langCol]) : '', 0, setCol >= 0 && numCol >= 0 ? edKey(c[setCol], c[numCol]) : '');
+      if (listCol >= 0 && LIST_TYPE_RE.test(c[listCol] || '')) { listed++; continue; }      // liste ManaBox (souhaits, achats) : cartes que l'on n'a pas
+      let q = qtyCol >= 0 ? parseInt(c[qtyCol], 10) : 1;
+      if (foilCol >= 0) q = (Number.isFinite(q) ? q : 0) + (parseInt(c[foilCol], 10) || 0);      // « Reg Qty » + « Foil Qty » (0 + 2 = 2)
+      const lr = langCol >= 0 ? String(c[langCol] || '').trim() : '', l = lr ? cardLang(lr) || '-' : '';      // « Korean », « Phyrexian » : langue donnée mais absente de l'appli → non précisée, pas la langue choisie pour les autres lignes
+      add(name, q || 1, l, 0, setCol >= 0 && numCol >= 0 ? edKey(csvSetCode(c[setCol], setCode), c[numCol]) : '');
     }
   } else {
     for (let raw of lines) {
@@ -1020,7 +1038,7 @@ function parseCollection(text, o) {
     }
   }
   const items = [...map.values()].map(({ b, ...base }) => collFromLines(base, [...b]));
-  return { items, lines: n, skipped, format: delim ? 'csv' : 'text', copies: items.reduce((a, x) => a + x.q, 0), fr: nfr, amb };
+  return { items, lines: n, skipped, listed, format: delim ? 'csv' : 'text', copies: items.reduce((a, x) => a + x.q, 0), fr: nfr, amb };
 }
 
 /** Export CSV au format Moxfield (« Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number ») : relu par Moxfield, ManaBox, Archidekt, Deckbox… et par cette appli.

@@ -80,6 +80,11 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
 - **Technique proposée** : Firestore (document par deck public, écriture par son auteur seul, règles testées dans `tests/rules-test.mjs`) ; le **serveur** rassemble régulièrement les decks publics dans un petit fichier statique (comme `edh.bin.gz`), l'appli les classe avec le même moteur (`edhRank`). Pas de liste Firestore côté client (coût et abus).
 - **Documents** : politique de confidentialité (decks publics : ce qui est visible, comment retirer) ; mentions légales : « Règles de publication » ; fiche Play à revoir si besoin (description, sécurité des données : contenu publié par l'utilisateur lui-même).
 
+## 7. « Passer de ManaBox » et images à partager (faits le 13 octobre, branche `feat/partage`)
+- **Guide « Passer de ManaBox en 2 minutes »** (`src/switch.js`, feuille) : depuis Importer, la collection vide, le premier lancement et l'aide ; page web publique `/passer-de-manabox` (`pwa/passer-de-manabox.html`) avec « Importer ma collection » → `./?import`. Import vérifié sur de vrais exports (`tests/test-import.mjs`) et corrigé : TCGplayer (« Simple Name »), Deckbox (nom d'extension jamais pris pour un code), Dragon Shield (« sep=, » entre guillemets), Decked Builder (foil compté), listes ManaBox (souhaits) laissées de côté, langues inconnues → non précisée.
+- **Images à partager** (`src/simg.js`, `simgShare(spec)`, PNG 1080 × 1350) : Stats › « Partager en image », « Partager le deck » › « Partager en image » (aussi sans compte), Échange › « Image avec QR » ; `kind: 'opening'` pour la session d'ouverture (contrat dans l'en-tête de `src/simg.js`). APK **1.0.4** : `ManaOrbit.shareImage` / `saveImage` (FileProvider) ; plus ancienne : lien ou image en grand.
+- À voir sur le téléphone : vrai export ManaBox (chemin du menu, valeur de « Binder Type » d'une liste), menu Partager d'Android avec l'image (APK 1.0.4), rendu des images avec de vraies cartes Scryfall.
+
 ## Petits rappels
 - Chaque texte visible : dans les six `src/i18n/*.json` (`tests/test-i18n-langs.mjs`).
 - Code natif touché → `versionCode` + 1 et nouvel `.aab` par le propriétaire ; sinon rien à refaire côté Android.

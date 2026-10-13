@@ -1,0 +1,20 @@
+/* ── Images à partager (simg.js) : feuille d'aperçu, image en grand (APK sans partage d'image), boutons des écrans ── */
+.simg-prev{position:relative;align-self:center;width:min(100%,340px);aspect-ratio:1080/1350;border-radius:18px;overflow:hidden;background:#0b0f1c;box-shadow:var(--shadow);border:1px solid var(--line)}
+@media (max-height:700px){.simg-prev{width:min(100%,280px)}}
+.simg-prev img{display:block;width:100%;height:100%;object-fit:contain;-webkit-touch-callout:default;animation:simgIn .35s var(--out) both}
+@keyframes simgIn{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+.simg-sk{position:absolute;inset:0;background:radial-gradient(120% 70% at 20% 0%,#1d2552,#0b0f1c 62%)}
+.simg-sk::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:var(--foil)}
+.simg-sk i{position:absolute;left:50%;top:50%;width:42%;aspect-ratio:488/680;transform:translate(-50%,-44%) rotate(-3deg);border-radius:12px;background:linear-gradient(110deg,rgba(255,255,255,.06) 30%,rgba(255,255,255,.16) 50%,rgba(255,255,255,.06) 70%) 0 0/250% 100%;animation:shimmer 1.4s linear infinite}
+.simg-prev[data-st="ok"] .simg-sk{display:none}
+.simg-prev[data-st="err"] .simg-sk i{animation:none;opacity:.4}
+.simg-note{text-align:center;margin-top:-4px}
+.simg-full-sheet .sheet{max-height:96%}
+.simg-full{display:block;width:100%;height:auto;border-radius:14px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
+/* entrées : Stats de la collection, feuille « Partager le deck », lien d'échange actif */
+.simg-coll{display:flex;justify-content:flex-end;margin-top:-6px}
+.simg-coll .link-btn,.dk-simg .i,.tr-simg .i{display:inline-flex;align-items:center;gap:6px}
+.simg-coll .link-btn .i{width:17px;height:17px}
+.tr-qrs{display:flex;gap:8px}
+.tr-qrs .btn{flex:1 1 0;min-width:0;height:42px;font-size:14px;padding:0 10px;gap:7px}
+.dk-simg{gap:8px}
