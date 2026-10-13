@@ -184,7 +184,7 @@ self.addEventListener('push', e => {
   const url = sameOrigin(d.url) ? d.url : (alert ? './?alerts=1' : open ? './' : './?resume=1');
   e.waitUntil(Promise.all([self.registration.showNotification(title, {
     body: String(d.body || (alert ? 'Une carte surveillée a baissé.' : open ? '' : 'Les offres sont prêtes.')).slice(0, 200),
-    icon: 'icons/icon-192.png', badge: 'icons/favicon-32.png', tag: open && typeof d.tag === 'string' && /^[\w-]{1,32}$/.test(d.tag) ? d.tag : alert ? 'deckdeal-alert' : 'deckdeal-run', renotify: true,
+    icon: 'icons/icon-192.png', badge: 'icons/favicon-32.png', tag: open ? (typeof d.tag === 'string' && /^[\w-]{1,32}$/.test(d.tag) ? d.tag : 'mo-compte') : alert ? 'deckdeal-alert' : 'deckdeal-run', renotify: true,
     data: { kind: alert ? 'alert' : open ? 'open' : 'run', url },
   }), open ? self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => cs.forEach(c => c.postMessage({ type: 'pushed', url }))).catch(() => {}) : null]));      // appli ouverte : elle relit la liste des amis (point des demandes)
 });

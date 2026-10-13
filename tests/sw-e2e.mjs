@@ -311,5 +311,16 @@ await p.waitForFunction(() => window.__msgs.some(m => m && m.type === 'alerts'),
 assert.ok(!(await p.evaluate(() => window.__msgs)).some(m => m && m.type === 'resume'), 'une alerte ne relance pas la recherche');
 ok('alerte de prix : avis distinct, toucher → l\'app ouvre les alertes (pas de reprise de recherche)');
 
+// notification d'un compte (amis, kind « open ») : son sujet (tag), l'appli ouverte est prévenue de l'arrivée ; toucher → son lien
+await p.evaluate(() => { window.__msgs.length = 0; });
+n = await pushSeen({ kind: 'open', title: 'Demande d\'ami', body: 'Max veut t\'ajouter en ami sur Mana Orbit.', url: './?amis=1', tag: 'mo-amis-ask' }, a => a.some(x => x.tag === 'mo-amis-ask'));
+assert.deepEqual(n.find(x => x.tag === 'mo-amis-ask'), { title: 'Demande d\'ami', body: 'Max veut t\'ajouter en ami sur Mana Orbit.', tag: 'mo-amis-ask', url: './?amis=1' });
+await p.waitForFunction(() => window.__msgs.some(m => m && m.type === 'pushed' && m.url === './?amis=1'), null, { timeout: 5000 });
+await push({ kind: 'open', title: 'x', url: 'https://evil.example/', tag: 'mauvais tag !' }); n = await waitNotif(a => a.some(x => x.title === 'x'));
+assert.deepEqual(n.filter(x => x.title === 'x').map(x => [x.tag, x.url]), [['mo-compte', './']], 'lien externe et sujet invalide : refusés');
+await sw.evaluate(async () => { const x = (await self.registration.getNotifications()).find(n => n.tag === 'mo-amis-ask'); self.dispatchEvent(new NotificationEvent('notificationclick', { notification: x, action: '' })); });
+await p.waitForFunction(() => window.__msgs.some(m => m && m.type === 'open' && m.url === './?amis=1'), null, { timeout: 5000 });
+ok('notification d\'un compte (amis) : sujet gardé, appli ouverte prévenue, toucher → son lien (./?amis=1)');
+
 assert.deepEqual(errs, []);
 await browser.close(); proxy.kill(); up.close(); console.log('\nSW E2E OK'); process.exit(0);

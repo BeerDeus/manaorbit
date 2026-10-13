@@ -14,7 +14,7 @@
      voir push.js › pushOpen et app.js › handleLaunch.
    Tout passe par le serveur (proxy.mjs › /api/friends, jeton Firebase) : aucune règle Firestore à publier. Serveur sans amis (/__ping amis: false),
    hors ligne, déconnecté : rien n'apparaît, ou un message court. Rien au démarrage : la liste est lue quelques secondes après la connexion. */
-const AM_KEY = 'deckdeal:amis:v1', AM_TTL = 4 * 60e3, AM_DEV_TTL = 7 * 86400e3, AM_PART = 990000, AM_SYNC = 15000, AM_PAGE = 120;
+const AM_KEY = 'deckdeal:amis:v1', AM_TTL = 4 * 60e3, AM_DEV_TTL = 7 * 86400e3, AM_PART = 990000, AM_SYNC = 20000, AM_PAGE = 120;
 const AM = { uid: '', l: null, at: 0, run: null, t: 0, dt: 0, vt: 0, busy: false, again: false, sig: {}, dev: '', devSig: '', devAt: 0, push: true, pic: null, sheet: null, parts: new Map(), pubCheck: null, err: '', loaded: false };
 const AM_TAG_RE = /^[0-9a-f]{64}$/;
 const AM_ADD_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="8" r="3.6"/><path d="M3.5 19.5c.8-3.4 3.4-5.3 6.5-5.3 1.6 0 3 .5 4.1 1.4M18.5 13.5v6M15.5 16.5h6"/></svg>';
@@ -221,7 +221,7 @@ async function amData() {
       if (D.uid !== uid) return;
       AM.sig[p] = sig; AM.l.me.has[p] = Date.now(); amStore();
     }
-  } catch (e) { if (e.code === 'net' || e.status >= 500) { clearTimeout(AM.dt); AM.dt = setTimeout(() => amData(), 60000); } }
+  } catch (e) { if (e.code === 'net' || e.status >= 500 || e.status === 429) { clearTimeout(AM.dt); AM.dt = setTimeout(() => amData(), 60000); } }      // hors ligne, serveur occupé : nouvel essai dans une minute
   finally { AM.busy = false; if (AM.again) amDataSoon(2000); }
 }
 

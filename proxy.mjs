@@ -1372,7 +1372,7 @@ async function amList(req, res, me) {
 }
 /** PUT /api/friends/me : profil, réglage de la collection, lien d'échange, appareil (dev : cible push ; off : clé d'un appareil à retirer), une partie (part, j : son JSON, k : nombre de cartes ou de decks). */
 async function amPutMe(req, res, me) {
-  const wait = rateWait(req, 'amput', 240, 3600e3); if (wait) return tooMany(res, wait);
+  const wait = rateWait(req, 'amput', 600, 3600e3); if (wait) return tooMany(res, wait);      // l'appli envoie après 20 s sans changement : une maison entière derrière une même adresse y tient
   const b = await amBody(req, res, AM_BODY); if (!b) return;
   const dev = b.dev ? parseTarget(b.dev) : null;
   if (b.dev && !dev) return json(res, 400, { error: 'bad_subscription', message: 'Abonnement push invalide ou refusé.' });
