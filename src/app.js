@@ -1334,6 +1334,7 @@ function handleLaunch() {
   else if (alerts) setTimeout(alertsOpen, 900);
   else if (shared) onShared(extractShared({ title: q.get('title'), text: q.get('text'), url: q.get('url') }));
   else if (q.has('collection')) setTimeout(() => openCollection(), 600);                  // lien direct vers la collection (?collection)
+  else if (q.has('import')) { obMark(); setTimeout(() => { if (OB.el) obClose(); openCollection('list'); setTimeout(() => openCollImport(), 350); }, 600); }      // « Importer ma collection » de la page /passer-de-manabox : ni premier lancement, ni détour
   else if (q.has('open')) { const v = q.get('open'); setTimeout(() => wgtOpen(v), 600); }  // raccourcis de l'icône de la PWA (manifeste : ?open=scan | quick | trade | paste)
 }
 /** Met une decklist dans la page de saisie (partage, import d'un lien, deck EDHREC de la collection). */

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Passer de ManaBox à Mana Orbit en 2 minutes · importer sa collection Magic</title>
+<meta name="description" content="Exporte ta collection ManaBox en CSV et importe-la dans Mana Orbit : quantités, éditions et langues gardées. Marche aussi depuis Moxfield, Archidekt, Deckbox, Dragon Shield et Delver Lens. Gratuit, sans compte.">
+<link rel="canonical" href="https://manaorbit.app/passer-de-manabox">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Mana Orbit">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Passer de ManaBox à Mana Orbit en 2 minutes">
+<meta property="og:description" content="Ta collection Magic te suit : export CSV depuis ManaBox, import dans Mana Orbit. Quantités, éditions et langues gardées.">
+<meta property="og:url" content="https://manaorbit.app/passer-de-manabox">
+<meta property="og:image" content="https://manaorbit.app/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#0b0f1c">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Instrument+Sans:wght@400..700&display=swap">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"HowTo","name":"Passer de ManaBox à Mana Orbit","description":"Importer sa collection Magic de ManaBox dans Mana Orbit avec un fichier CSV.","totalTime":"PT2M","inLanguage":"fr",
+ "tool":[{"@type":"HowToTool","name":"ManaBox"},{"@type":"HowToTool","name":"Mana Orbit (manaorbit.app)"}],
+ "step":[
+  {"@type":"HowToStep","position":1,"name":"Exporter depuis ManaBox","text":"Dans ManaBox, onglet Collection : menu en haut à droite, puis Export. Choisis CSV, confirme avec Export et enregistre le fichier."},
+  {"@type":"HowToStep","position":2,"name":"Importer dans Mana Orbit","text":"Dans Mana Orbit : Collection, Importer, Choisir un fichier, puis le fichier CSV."},
+  {"@type":"HowToStep","position":3,"name":"Vérifier et importer","text":"L'aperçu compte tes cartes et signale les noms inconnus. Ajouter ou Remplacer ma collection, puis Importer."}]}
+</script>
+<style>
+:root{--bg:#0b0f1c;--card:rgba(255,255,255,.055);--card-solid:#141a2e;--ink:#eaeefb;--mute:#a9b3cf;--line:rgba(255,255,255,.11);--acc:#9fb4ff;--acc-ink:#0b0f1c;--good:#4fd1a1;
+  --foil:linear-gradient(115deg,#ff8fc3 0%,#ffd479 24%,#7be8c8 48%,#7fb0ff 72%,#c79bff 100%);--fd:'Bricolage Grotesque','Avenir Next','Segoe UI',system-ui,sans-serif;--fb:'Instrument Sans','Segoe UI',system-ui,-apple-system,sans-serif}
+@media (prefers-color-scheme:light){:root{--bg:#f1f3f8;--card:#fff;--card-solid:#fff;--ink:#10152b;--mute:#4a5470;--line:#d9dfeb;--acc:#3a46d6;--acc-ink:#fff;--good:#0b8a5e}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--fb);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(70% 40% at 0% 0%,rgba(63,143,224,.30),transparent 70%),radial-gradient(60% 36% at 100% 24%,rgba(224,83,61,.18),transparent 70%),
+  radial-gradient(70% 40% at 0% 78%,rgba(58,154,94,.18),transparent 70%),radial-gradient(60% 40% at 100% 100%,rgba(199,155,255,.24),transparent 70%)}
+@media (prefers-color-scheme:light){body::before{opacity:.45}}
+.foil-bar{height:5px;background:var(--foil)}
+main{max-width:760px;margin:0 auto;padding:22px 16px 56px}
+.top{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit}
+.top img{width:40px;height:40px;border-radius:10px}
+.top b{font:700 19px/1 var(--fd);letter-spacing:-.02em}
+.hero{padding:34px 0 8px}
+.kick{font:650 13px/1 var(--fb);letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin:0 0 12px}
+h1{font:800 clamp(32px,8.6vw,52px)/1.04 var(--fd);letter-spacing:-.035em;margin:0;text-wrap:balance}
+h1 span{background:var(--foil);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:18px;color:var(--mute);margin:16px 0 0;max-width:40ch;text-wrap:pretty}
+.ctas{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 22px;border-radius:16px;font:650 16px/1 var(--fb);text-decoration:none;border:1px solid transparent}
+.btn.main{background:var(--acc);color:var(--acc-ink);box-shadow:0 12px 26px -14px var(--acc)}
+.btn.ghost{background:var(--card);color:var(--ink);border-color:var(--line)}
+.note{font-size:13.5px;color:var(--mute);margin:12px 0 0}
+h2{font:750 24px/1.15 var(--fd);letter-spacing:-.02em;margin:44px 0 14px}
+ol.steps{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+ol.steps li{display:grid;grid-template-columns:38px 1fr;gap:14px;padding:16px 18px;background:var(--card);border:1px solid var(--line);border-radius:20px}
+ol.steps li>i{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--acc);color:var(--acc-ink);font:800 17px/1 var(--fd);font-style:normal}
+ol.steps h3{font:700 17px/1.25 var(--fd);margin:8px 0 4px}
+ol.steps p{margin:0;color:var(--mute);font-size:15px}
+ol.steps p b,.box b,details b{color:var(--ink)}
+ol.steps small{display:block;color:var(--mute);font-size:13.5px;margin-top:6px;opacity:.85}
+ul.keep{list-style:none;padding:0;margin:0;display:grid;gap:9px}
+ul.keep li{display:flex;gap:11px;align-items:flex-start;color:var(--mute)}
+ul.keep li::before{content:'✓';flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good);font-weight:800;font-size:13px;margin-top:1px}
+ul.keep li.no::before{content:'–';background:var(--card);color:var(--mute)}
+ul.keep li:not(.no){color:var(--ink)}
+details{background:var(--card);border:1px solid var(--line);border-radius:18px;margin:0 0 9px}
+details[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
+summary{list-style:none;cursor:pointer;padding:14px 18px;font:650 16px/1.3 var(--fb);display:flex;justify-content:space-between;gap:12px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'›';color:var(--mute);font-size:22px;line-height:.9;transition:transform .25s}
+details[open] summary::after{transform:rotate(90deg);color:var(--acc)}
+details p{margin:0;padding:0 18px 16px;color:var(--mute);font-size:15px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 20px}
+.box p{margin:0 0 8px;color:var(--mute)}
+.box p:last-child{margin:0}
+ul.why{padding:0;margin:0;list-style:none;display:grid;gap:10px}
+ul.why li{padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:18px;color:var(--mute);font-size:15px}
+ul.why li b{display:block;color:var(--ink);font:700 16px/1.3 var(--fd);margin-bottom:2px}
+@media (min-width:640px){ul.why{grid-template-columns:1fr 1fr}}
+.end{margin:44px 0 0;padding:26px 22px;border-radius:24px;background:var(--card-solid);border:1px solid var(--line);text-align:center;position:relative;overflow:hidden}
+.end::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:var(--foil)}
+.end h2{margin:4px 0 8px}
+.end p{color:var(--mute);margin:0 auto;max-width:44ch}
+.end .ctas{justify-content:center}
+footer{margin:40px 0 0;font-size:13px;color:var(--mute)}
+footer nav{display:flex;flex-wrap:wrap;gap:8px 16px;margin:0 0 12px}
+footer a{color:var(--acc)}
+a{color:var(--acc)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:10px}
+</style>
+</head>
+<body>
+<div class="foil-bar" aria-hidden="true"></div>
+<main>
+<a class="top" href="./"><img src="icons/icon-192.png" alt="" width="40" height="40"><b>Mana Orbit</b></a>
+
+<header class="hero">
+<p class="kick">Guide · 2 minutes</p>
+<h1>Passer de ManaBox à <span>Mana Orbit</span></h1>
+<p class="lead">Ta collection Magic te suit : exporte-la en CSV depuis ManaBox, importe le fichier dans Mana Orbit. Quantités, éditions et langues sont gardées.</p>
+<div class="ctas"><a class="btn main" href="./?import">Importer ma collection</a><a class="btn ghost" href="#etapes">Voir les étapes</a></div>
+<p class="note">Gratuit, sans compte : ta collection reste sur ton téléphone. Un compte (facultatif) la sauvegarde et la synchronise.</p>
+</header>
+
+<section id="etapes" aria-labelledby="h-etapes">
+<h2 id="h-etapes">En 3 étapes</h2>
+<ol class="steps">
+<li><i aria-hidden="true">1</i><div><h3>Exporte ta collection depuis ManaBox</h3><p>Onglet <b>Collection</b> : touche le menu en haut à droite, puis <b>Export</b>. Choisis <b>CSV</b> si l'appli le demande, confirme avec <b>Export</b>, puis enregistre le fichier (Fichiers, Drive…) ou envoie-le-toi par e-mail.</p><small>Un seul classeur ? Le même menu, depuis le classeur.</small></div></li>
+<li><i aria-hidden="true">2</i><div><h3>Importe-la dans Mana Orbit</h3><p>Ouvre <a href="./?import">Mana Orbit</a> : <b>Collection</b> › <b>Importer</b> (la flèche en haut) › <b>Choisir un fichier</b>, puis le fichier CSV.</p></div></li>
+<li><i aria-hidden="true">3</i><div><h3>Vérifie et valide</h3><p>L'aperçu compte tes cartes et signale les noms inconnus. Choisis <b>Ajouter</b> ou <b>Remplacer ma collection</b>, puis <b>Importer</b> : les images et les prix arrivent tout seuls.</p></div></li>
+</ol>
+</section>
+
+<section aria-labelledby="h-garde">
+<h2 id="h-garde">Ce qui est gardé, ce qui ne l'est pas</h2>
+<ul class="keep">
+<li>Les quantités : une carte présente dans plusieurs éditions s'additionne</li>
+<li>Les éditions : code d'extension et numéro de collection</li>
+<li>La langue de chaque exemplaire (français, anglais, japonais…)</li>
+<li class="no">Le foil et l'état : pas encore (la valeur suit le prix tendance Cardmarket)</li>
+<li class="no">Les classeurs et les prix d'achat ; les listes ManaBox (souhaits) ne sont pas importées</li>
+</ul>
+</section>
+
+<section aria-labelledby="h-autres">
+<h2 id="h-autres">Depuis une autre appli</h2>
+<details><summary>Moxfield</summary><p>Sur le site : <b>Collection</b> › <b>More</b> › <b>Export CSV</b>. Quantités, éditions et langues suivent.</p></details>
+<details><summary>Archidekt</summary><p>Sur le site : ta collection › <b>Export</b> › CSV. Garde au moins les colonnes de la quantité, du nom, du code d'extension, du numéro de collection et de la langue.</p></details>
+<details><summary>Deckbox</summary><p>Sur le site : ton <b>Inventory</b> › <b>Export</b> (CSV). Deckbox écrit le nom de l'extension, pas son code : quantités et langues suivent, l'édition se choisit ensuite si tu y tiens.</p></details>
+<details><summary>Dragon Shield</summary><p>Dans l'appli : ouvre un dossier (ou toute la collection), puis son menu › <b>Export</b> › <b>CSV</b>, et enregistre ou partage le fichier. Les dossiers d'un même fichier s'additionnent.</p></details>
+<details><summary>Delver Lens</summary><p>Ouvre la liste, icône <b>Export</b> en haut › <b>Create CSV file</b> › <b>Download</b> : le fichier arrive dans Téléchargements. Pour les éditions et les langues, ajoute aussi les colonnes du code d'extension, du numéro de collection et de la langue.</p></details>
+<details><summary>Une autre appli</summary><p>Tout CSV avec une colonne <b>Name</b> (ou <b>Nom</b>) se lit, avec <b>Quantity</b> ou <b>Count</b> pour les quantités (TCGplayer, MTGGoldfish, Decked Builder…). Sinon, colle une liste « 3 Sol Ring » dans l'import.</p></details>
+</section>
+
+<section aria-labelledby="h-decks">
+<h2 id="h-decks">Et tes decks ?</h2>
+<div class="box">
+<p>Copie la liste du deck en texte (Moxfield : <b>Export</b> › copier en texte ; ManaBox : menu du deck › export en texte), puis dans Mana Orbit : <b>Decks</b> › <b>Prix d'une liste</b>, colle-la et touche <b>Enregistrer</b>.</p>
+<p>Dans l'appli Android, <b>Partager</b> un lien de deck Archidekt ou EDHREC vers Mana Orbit le lit tout seul. Les liens Moxfield ne se lisent pas (pas d'accès public) : copie la liste.</p>
+</div>
+</section>
+
+<section aria-labelledby="h-why">
+<h2 id="h-why">Ce que Mana Orbit fait de ta collection</h2>
+<ul class="why">
+<li><b>Sa valeur, jour après jour</b>Prix tendance Cardmarket de chaque carte, courbe de la valeur, alertes quand un prix bouge.</li>
+<li><b>Les decks à finir</b>Les decks EDHREC dont tu as déjà le plus de cartes, et ce qu'il te manque.</li>
+<li><b>Le meilleur prix</b>Une decklist collée : le prix de chaque carte, et le panier CardTrader le moins cher.</li>
+<li><b>Le scan et l'échange</b>L'appareil photo lit le nom des cartes ; tes doublons et tes recherches en un lien ou un QR code.</li>
+</ul>
+</section>
+
+<section class="end" aria-labelledby="h-go">
+<h2 id="h-go">Prêt ? Ça prend deux minutes</h2>
+<p>Mana Orbit marche dans le navigateur de ton téléphone ou de ton ordinateur, et s'installe comme une appli (« Ajouter à l'écran d'accueil »). L'appli Android arrive bientôt sur Google Play.</p>
+<div class="ctas"><a class="btn main" href="./?import">Importer ma collection</a><a class="btn ghost" href="./">Ouvrir Mana Orbit</a></div>
+</section>
+
+<section aria-labelledby="h-faq">
+<h2 id="h-faq">Questions</h2>
+<details><summary>Ma collection ManaBox est-elle modifiée ?</summary><p>Non : l'export est une copie. ManaBox garde tout ; tu peux utiliser les deux en même temps.</p></details>
+<details><summary>Faut-il créer un compte ?</summary><p>Non. Sans compte, tout reste sur ton appareil. Un compte (e-mail ou Google) sauvegarde ta collection et la retrouve sur tous tes appareils.</p></details>
+<details><summary>Et si un nom n'est pas reconnu ?</summary><p>L'aperçu de l'import le signale ; après l'import, Mana Orbit propose les cartes au nom le plus proche pour le corriger en un geste.</p></details>
+<details><summary>Combien de cartes au maximum ?</summary><p>Jusqu'à 20 000 cartes différentes, dans un fichier de 8 Mo au plus.</p></details>
+</section>
+
+<footer>
+<nav><a href="./">Ouvrir Mana Orbit</a><a href="privacy">Confidentialité</a><a href="legal">Mentions légales</a></nav>
+<p>ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield et Delver Lens appartiennent à leurs propriétaires ; Mana Orbit n'est affilié à aucun d'eux.</p>
+<p>Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Policy. Il n'est ni approuvé ni soutenu par Wizards of the Coast. Certains éléments utilisés sont la propriété de Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+</footer>
+</main>
+</body>
+</html>

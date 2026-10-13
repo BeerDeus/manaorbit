@@ -32,6 +32,7 @@ function obOpen() {
       <section class="ob-s" aria-label="${T('Ta collection')}">
         <h2>${T('Ajoute ta collection')}</h2>
         <p>${T('Tu l\'as déjà dans une autre appli ? Exporte-la en CSV et importe le fichier : c\'est le plus rapide.')}</p>
+        <button class="link-btn ob-swg" type="button" data-ob="swg">${T('Tu viens de ManaBox ? Voir comment l\'exporter')}</button>
         <div class="ob-opts">
           <button class="ob-opt" type="button" data-ob="import"><svg class="i"><use href="#i-upload"/></svg><b>${T('Importer un fichier')}</b><span>${T('CSV de ManaBox, Moxfield, Dragon Shield, Archidekt, Deckbox… ou une liste « 3 Sol Ring ».')}</span></button>
           <button class="ob-opt" type="button" data-ob="scan"><svg class="i"><use href="#i-camera"/></svg><b>${T('Scanner mes cartes')}</b><span>${nmT('L\'appareil photo lit le nom de la carte, en français ou en anglais.', 'L\'appareil photo lit le nom de la carte, en {lang} ou en anglais.', 'L\'appareil photo lit le nom de la carte.')}</span></button>
@@ -57,6 +58,7 @@ function obOpen() {
     if (a === 'next') obGo(OB.i + 1);
     else if (a === 'skip') obClose();
     else if (a === 'import') obClose(() => openCollImport());
+    else if (a === 'swg') obClose(() => swgOpen({ from: 'onboard' }));      // guide « Passer de ManaBox » (switch.js)
     else if (a === 'scan') obClose(() => openScan());
     else if (a === 'done') obClose();
     else if (a === 'account') obClose(() => openAccount());

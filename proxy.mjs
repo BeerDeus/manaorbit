@@ -58,6 +58,8 @@ const STATIC = new Map([
   ['/legal', ['legal.html', 'text/html; charset=utf-8', 'public, max-age=3600']],                                        // mentions légales (éditeur, hébergeur, propriété intellectuelle), reliées depuis /privacy et les Réglages
   ['/legal.html', ['legal.html', 'text/html; charset=utf-8', 'public, max-age=3600']],
   ['/mentions-legales', ['legal.html', 'text/html; charset=utf-8', 'public, max-age=3600']],
+  ['/passer-de-manabox', ['passer-de-manabox.html', 'text/html; charset=utf-8', 'public, max-age=3600']],                // guide public « Passer de ManaBox » (référencé ; même contenu que la feuille de src/switch.js)
+  ['/passer-de-manabox.html', ['passer-de-manabox.html', 'text/html; charset=utf-8', 'public, max-age=3600']],
   ['/prices.tsv', ['prices.tsv.gz', 'text/tab-separated-values; charset=utf-8', 'public, max-age=3600', 'pre', 'px']],          // prix « à partir de » (gen-prices.mjs, relu depuis GitHub) : servi seulement une fois récupéré
   ['/fr-names.tsv', ['fr-names.tsv', 'text/tab-separated-values; charset=utf-8', 'public, max-age=86400', true]],      // catalogue des noms de cartes en français (généré par gen-fr-names.mjs) ; 4e valeur : compressé en gzip si le client l'accepte
   ['/names-all.tsv', ['names-all.tsv', 'text/tab-separated-values; charset=utf-8', 'public, max-age=86400', true]],    // noms imprimés de toutes les langues, sans images (gen-names-all.mjs) : scan des autres langues sur l'appareil ; demandé par chaque scan en Wi-Fi (tous les 14 jours), donc compressé dès le démarrage

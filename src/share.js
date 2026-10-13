@@ -172,12 +172,19 @@ async function shareOut({ title, text, url }) {
   copyText(url);
 }
 const trSend = id => shareOut({ title: T('Ma liste d\'échange Magic'), text: T('Ma liste d\'échange Magic'), url: shareUrl(id) });
-/** Partage d'un deck : enregistré (suivi : chaque modification part sur le lien) ou figé (deck EDHREC, liste en cours). */
+/** Partage d'un deck : enregistré (suivi : chaque modification part sur le lien) ou figé (deck EDHREC, liste en cours). Une image du deck (simg.js) se partage aussi,
+ *  sans compte ni réseau : sans compte ou hors ligne, la feuille ne propose qu'elle (et dit pourquoi il n'y a pas de lien). */
 async function shareDeck({ id, text, name }) {
-  if (!cloudOn()) { toast(T('Connecte-toi pour partager un deck'), { label: T('Compte'), fn: openAccount }); return; }
   const d = id ? findDeck(id) : null, key = d ? d.id : 'txt:' + hash32(String(text || '')), body = d ? { name: d.name, text: d.text } : { name: String(name || 'Deck').slice(0, 120), text: String(text || '') };
   if (!parseDeck(body.text).cards.length) { toast(T('Deck vide : rien à partager')); return; }
-  if (!trNeedNet()) return;
+  const img = `<button class="btn ghost block dk-simg" type="button" data-act="dimg"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>${T('Partager en image')}</button>`;
+  const imgOnly = why => openSheet(T('Partager le deck'), body.name, api => {
+    api.body.innerHTML = `<p class="hint">${why}</p>${img}`;
+    if (!cloudOn()) api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn" type="button" data-act="dlogin">${T('Se connecter')}</button>`);
+    api.wrap.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; if (b.dataset.act === 'dimg') simgDeck(d ? { id: d.id } : body); else if (b.dataset.act === 'dlogin') { api.close(); openAccount(); } });
+  });
+  if (!cloudOn()) { imgOnly(T('Connecte-toi pour partager un lien en lecture seule. L\'image, elle, se partage sans compte.')); return; }
+  if (trOffline()) { imgOnly(T('Hors ligne : le lien se crée une fois connecté. L\'image, elle, se partage tout de suite.')); return; }
   let sid = TR.dsh[key];
   try {
     if (!sid) { sid = D.cloud.shareId(); TR.dsh[key] = sid; }
@@ -186,6 +193,7 @@ async function shareDeck({ id, text, name }) {
   openSheet(T('Partager le deck'), d ? T('Lecture seule · le lien suit les modifications du deck') : T('Lecture seule · le deck est partagé tel qu\'il est maintenant'), api => {
     api.body.innerHTML = `<div class="tr-link"><input type="text" readonly value="${esc(shareUrl(sid))}" aria-label="${T('Lien du deck')}"></div>
       <p class="hint">${T('Quiconque a ce lien voit le deck, ses images, sa courbe de mana et peut tirer une main de départ. Il ne peut rien modifier.')}</p>
+      ${img}
       <button class="link-btn link-inline" type="button" data-act="dstop">${T('Arrêter ce partage')}</button>`;
     api.setFoot(`<button class="btn ghost" type="button" data-act="dcopy">${T('Copier')}</button><button class="btn" type="button" data-act="dsend">${T('Partager')}</button>`);
     $('input', api.body).onfocus = e => e.target.select();
@@ -193,6 +201,7 @@ async function shareDeck({ id, text, name }) {
       const b = e.target.closest('[data-act]'); if (!b) return;
       if (b.dataset.act === 'dcopy') copyText(shareUrl(sid));
       else if (b.dataset.act === 'dsend') shareOut({ title: body.name, text: T('{name} · deck Magic', { name: body.name }), url: shareUrl(sid) });
+      else if (b.dataset.act === 'dimg') simgDeck(d ? { id: d.id, url: shareUrl(sid) } : { ...body, url: shareUrl(sid) });      // image du deck (simg.js) ; APK sans partage d'image : le lien à la place
       else if (b.dataset.act === 'dstop') {
         if (!trNeedNet()) return;
         try { await D.cloud.dropShare(sid); } catch (err) { toast(T('Arrêt impossible hors ligne : réessaie')); return; }
@@ -264,7 +273,7 @@ function trShareBoxHtml(st) {
   return `<div class="tr-box on"><b>${T('Lien public actif')}</b><div class="tr-link"><input type="text" readonly value="${esc(shareUrl(TR.share))}" aria-label="${T('Lien de ta liste d\'échange')}"></div>
     ${rules}${TR.err === 'net' ? '<p class="hint warn">' + T('Mise à jour du lien en attente (hors ligne).') + '</p>' : '<p class="hint">' + T('Mis à jour tout seul quand ta collection, tes decks ou ta liste changent. Lecture seule.') + '</p>'}
     <div class="tr-acts"><button class="btn ghost" type="button" data-act="trcopy">${T('Copier')}</button><button class="btn ghost" type="button" data-act="trsend">${T('Partager')}</button><button class="btn ghost" type="button" data-act="trview">${T('Aperçu')}</button></div>
-    <button class="btn ghost block tr-qr" type="button" data-act="trqr">${QR_ICON}${T('QR code')}</button>
+    <div class="tr-qrs"><button class="btn ghost tr-qr" type="button" data-act="trqr">${QR_ICON}${T('QR code')}</button><button class="btn ghost tr-simg" type="button" data-act="trimg" title="${T('Une image de ta liste, avec le QR code du lien, à envoyer ou à publier')}"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>${T('Image avec QR')}</button></div>
     <div class="tr-acts small"><button class="link-btn link-inline" type="button" data-act="trnew">${T('Nouveau lien')}</button><button class="link-btn link-inline" type="button" data-act="troff">${T('Arrêter le partage')}</button></div></div>`;
 }
 /** Prix unitaire d'une ligne chiffrée (tradeView) : « ≈ 1,50 € » devant « × 3 » (lu « 1,50 € × 3 », la ligne garde sa hauteur). */
@@ -341,6 +350,7 @@ function trClick(e) {
   else if (act === 'trcopy') copyText(shareUrl(TR.share));
   else if (act === 'trsend') trSend(TR.share);
   else if (act === 'trqr') trQrOpen();
+  else if (act === 'trimg') simgTrade();      // image à partager avec le QR code du lien (simg.js)
   else if (act === 'trview') { const p = trPayload(); openPublicTrade(readShare('trade', { ...p, ...profShare(), at: Date.now() }), true); }
   else if (act === 'trmore') { TR.shown += TR_PAGE; collPaintBody(true); }
   else if (act === 'tkeep' && k) { TR.kept.add(k); haptic('tap'); trChanged(); toast(T('Gardée : elle n\'est plus proposée'), { label: T('Annuler'), fn: () => { TR.kept.delete(k); trChanged(); } }); }
