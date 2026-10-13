@@ -53,8 +53,8 @@ function mePaint() {
     `<label class="me-row" for="setLang"><span class="me-t">${T('Langue')}</span><span class="sel me-sel"><select id="setLang">${i18nLangs().map(([c, nm]) => `<option value="${c}" ${c === I18N.lang ? 'selected' : ''}>${esc(nm)}</option>`).join('')}</select></span></label>`,
     `<div class="me-row me-th"><span class="me-t" id="meThL">${T('Thème')}</span><div class="seg" id="segTheme" role="radiogroup" aria-labelledby="meThL"></div></div>`,
     `<label class="me-row switch-row" for="setHaptic"><span class="me-t">${T('Vibrations')}${typeof navigator !== 'undefined' && navigator.vibrate ? '' : `<small>${T('Indisponible sur cet appareil')}</small>`}</span><span class="switch"><input type="checkbox" id="setHaptic" ${S.haptic ? 'checked' : ''}><i></i></span></label>`,
-    `<button type="button" class="me-row" id="btnNotif"><span class="me-t">${T('Notifications')}</span><span class="me-v">${T('Fin de recherche, alertes')}</span>${meChev}</button>`,
     ...(typeof tipPrefRow === 'function' ? [tipPrefRow()] : []),      // astuces (tour.js)
+    `<button type="button" class="me-row" id="btnNotif"><span class="me-t">${T('Notifications')}</span><span class="me-v">${T('Fin de recherche, alertes')}</span>${meChev}</button>`,
     meRow('scan', T('Scan'), typeof scsEdLabel === 'function' ? esc(scsEdLabel()) : ''),
     ...(nat ? [meRow('widget', T('Widget'), '')] : []),
   ]);

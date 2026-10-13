@@ -263,7 +263,7 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   const { p, ctx } = await page({ init: seed, ctx: { colorScheme: 'dark' } });
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
   assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Aide et avis');
-  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), ['Comment ça marche', 'Envoyer un avis'], 'navigateur : pas de « Noter »');
+  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), ['Comment ça marche', 'Visite guidée', 'Envoyer un avis'], 'navigateur : pas de « Noter » (« Visite guidée » : tour.js)');
   const href = await p.$eval('#helpBox a[data-help="mail"]', a => a.getAttribute('href'));
   const m = /^mailto:contact@manaorbit\.app\?subject=([^&]*)&body=([^&]*)$/.exec(href);
   assert.ok(m, 'mailto : adresse, objet, corps : ' + href.slice(0, 120));
@@ -289,7 +289,7 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   assert.match(await p.$eval('.hp-sheet .sheet-foot a[data-help="mail"]', a => a.getAttribute('href')), /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
   await p.waitForTimeout(500); await p.screenshot({ path: 'shots/content-2-aide.png' });
   await p.keyboard.press('Escape'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2);
-  ok('feuille « Comment ça marche » depuis les Réglages : 15 questions repliables, une ouverte à la fois, avis en pied');
+  ok('feuille « Comment ça marche » depuis les Réglages : 16 questions repliables, une ouverte à la fois, avis en pied');
   await closeSheets(p);
   await toHome(p); await p.click('#btnHelp'); await p.waitForSelector('.hp-sheet.open');
   ok('accueil : « Comment ça marche ? » ouvre la même aide');

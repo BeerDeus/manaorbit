@@ -298,6 +298,14 @@ const tipCheckGeo = (g, tag) => {
   await p.evaluate(() => TR.pub.el.__close()); await tipGone(p);      // l'écran se ferme : l'astuce aussi
   ok('astuce liste d\'un autre joueur : « Ajoute-le en ami » sur le bouton, fermée avec l\'écran');
   assert.deepEqual(Object.keys((await st(p)).tips).sort(), ['ami', 'bnd', 'opn', 'simg']);
+  // jamais deux fois : mêmes écrans rouverts
+  await p.evaluate(() => openPublicTrade(readShare('trade', { have: [trCard('sol ring', 'Sol Ring', 1, '')], want: [], by: 'Léa', at: Date.now() }), false, 'AbcDef123456'));
+  await p.waitForSelector('.pubv.on [data-am="add"]'); await p.waitForTimeout(2500); assert.equal(await p.$('.tip'), null, 'Ajouter en ami : une seule fois');
+  await p.evaluate(() => TR.pub.el.__close()); await p.waitForTimeout(300);
+  await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on'); await p.waitForTimeout(3000); assert.equal(await p.$('.tip'), null, 'scan : une seule fois');
+  await p.evaluate(() => SC.el.__close()); await p.waitForTimeout(300);
+  await p.click('#nav [data-nav="coll"]'); await p.waitForSelector('#collSeg'); await p.waitForTimeout(2500); assert.equal(await p.$('.tip'), null, 'Stats : une seule fois');
+  ok('astuces : chacune une seule fois (écrans rouverts)');
   assert.deepEqual(errs, []);
   await p.context().close();
 }

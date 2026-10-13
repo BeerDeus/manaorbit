@@ -41,7 +41,7 @@ function tourSet(patch) {
 const tourAuto = () => TOUR_FORCE || !(typeof navigator !== 'undefined' && navigator.webdriver);
 const tourOn = () => TOUR.on;
 const tourStream = () => typeof streamOn === 'function' && !!streamOn();
-const tourNb = s => (typeof helpNb === 'function' ? helpNb(s) : s).replace(/ › /g, '\u00a0› ').replace(/(\d) (?=min\b)/g, '$1\u00a0');      // espaces insécables du français (help.js) ; « Compte et réglages › Amis » ne se coupe pas avant ›
+const tourNb = s => (typeof helpNb === 'function' ? helpNb(s) : s).replace(/ › /g, '\u00a0› ').replace(/(\d) (?=min)/g, '$1\u00a0');      // espaces insécables du français (help.js) ; « Compte et réglages › Amis » ne se coupe pas avant ›
 const tourWait = ms => new Promise(r => setTimeout(r, typeof reduceMotion === 'function' && reduceMotion() ? Math.min(ms, 40) : ms));
 const tourFrames = (n = 2) => new Promise(r => { const f = k => (k ? requestAnimationFrame(() => f(k - 1)) : r()); f(n); });
 /** Hauteur de la bande du haut (appli plein écran : --top-in, posée en marge haute de <html>). */
@@ -278,7 +278,8 @@ function tourPlace(R, s) {
     side = up ? (above >= h || above >= below ? 'up' : 'down') : (below >= h || below >= above ? 'down' : 'up');
     y = side === 'up' ? Math.max(ti + m, R.y - gap - h) : Math.min(vh - m - h, R.y + R.h + gap);
     x = Math.max(m, Math.min(vw - w - m, R.x + R.w / 2 - w / 2));
-    const r = s && s.r ? Math.min(s.r, R.h / 2, R.w / 2) : 14;
+    const els = s ? tourEls(s) : [], br = els.length === 1 ? parseFloat(getComputedStyle(els[0]).borderTopLeftRadius) : NaN;      // halo arrondi comme la cible (+ sa marge)
+    const r = Math.min(s && s.r ? s.r : Number.isFinite(br) ? Math.max(10, br + 6) : 14, R.h / 2, R.w / 2);
     Object.assign(hole.style, { left: R.x + 'px', top: R.y + 'px', width: R.w + 'px', height: R.h + 'px', borderRadius: r + 'px' });
     hole.classList.add('ring');
     $('.tour-ar', b).style.left = Math.max(20, Math.min(w - 20, R.x + R.w / 2 - x)) + 'px';
@@ -352,7 +353,7 @@ function tourPillHide(now) {
 }
 
 /* ── Aide : « Visite guidée » en tête de « Comment ça marche », et dans Compte et réglages › Aide et avis ───────────────── */
-const tourHelpHtml = () => `<button class="tour-help" type="button" data-help="tour"><span class="tour-help-i" aria-hidden="true"><svg class="i"><use href="#i-star"/></svg></span><span class="tour-help-t"><b>${T('Visite guidée')}</b><small>${T('Où sont les fonctions importantes, en 1 minute')}</small></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
+const tourHelpHtml = () => `<button class="tour-help" type="button" data-help="tour"><span class="tour-help-i" aria-hidden="true"><svg class="i"><use href="#i-star"/></svg></span><span class="tour-help-t"><b>${T('Visite guidée')}</b><small>${tourNb(T('Où sont les fonctions importantes, en 1 minute'))}</small></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
 const tourHelpBtn = () => `<button class="btn ghost small" type="button" data-help="tour">${T('Visite guidée')}</button>`;
 if (typeof HELP_QA !== 'undefined') {
   const i = HELP_QA.findIndex(q => q[0] === 'Faut-il un compte ?');
@@ -428,7 +429,8 @@ function tipPlace() {
   el.dataset.side = below ? 'down' : 'up';
   el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px)`;
   $('.tip-ar', el).style.left = Math.max(14, Math.min(bw - 14, r.left + r.width / 2 - x)) + 'px';
-  Object.assign(TIP.ring.style, { left: r.left - 4 + 'px', top: r.top - 4 + 'px', width: r.width + 8 + 'px', height: r.height + 8 + 'px' });
+  const br = parseFloat(getComputedStyle(tgt).borderTopLeftRadius);      // anneau arrondi comme la cible (bouton rond du scan, pastille « Ajouter en ami »)
+  Object.assign(TIP.ring.style, { left: r.left - 4 + 'px', top: r.top - 4 + 'px', width: r.width + 8 + 'px', height: r.height + 8 + 'px', borderRadius: Math.min(Number.isFinite(br) ? br + 4 : 14, r.height / 2 + 4) + 'px' });
 }
 function tipHide() {
   clearTimeout(TIP.t); cancelAnimationFrame(TIP.raf); TIP.raf = 0;
