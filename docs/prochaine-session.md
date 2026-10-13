@@ -89,6 +89,10 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
 - **Fait** (README › « Liste d'échange » › Classeur) : interrupteur Liste | Classeur (icônes) dans la section Échange et sur la page publique, pages de 3 × 3 pochettes (glisser, flèches, clavier ; deux pages côte à côte sur grand écran), « Mon classeur » (Personnaliser : couleur, tri, 18 épingles). Réglages publiés dans le champ `d` du partage : **aucune règle Firestore à republier**.
 - **À voir sur le téléphone** : fluidité du glisser (Android bas de gamme), lisibilité des pastilles sur de vraies cartes, couleurs des couvertures en thème clair et sombre ; choix par défaut du visiteur (classeur seulement si le propriétaire a réglé le sien).
 - Pas fait : indication foil (la collection ne garde pas le foil), ordre entièrement manuel (écarté par le propriétaire), saut direct à une page (au-delà de ~20 pages, la recherche est plus rapide).
+## 9. Session d'ouverture et mode streamer (demandés le 13 octobre)
+- **Fait le 13 octobre** (README › « Session d'ouverture et mode streamer ») : une seule entrée (scan › Réglages › Session d'ouverture), lot à part ajouté à la collection à la fin, bilan booster (prix payé, gain ou perte, meilleures cartes, partage si `simgShare` existe), « Mes ouvertures » (sur l'appareil, export texte) ; option **mode streamer** (`streamOn()`) : seules la session et sa valeur à l'écran, ni e-mail, ni lien ou QR d'échange, ni pub, ni notification dans l'appli ; la vraie collection reste synchronisée et le widget garde ses chiffres.
+- Le propriétaire n'était « pas totalement sûr » de l'ouverture de boosters : la partie bilan s'enlève seule (`opnbilan.js`), toute la fonction aussi (README › « Retirer la fonction »).
+- Captures : `scratchpad/morning/ouverture/` de la session du 13 octobre (non versionnées).
 
 ## Petits rappels
 - Chaque texte visible : dans les six `src/i18n/*.json` (`tests/test-i18n-langs.mjs`).

@@ -573,7 +573,7 @@ function edhGateHtml() {
   if (g === 'off') return `<div class="dv-empty gate" data-gate="off"><b>${T('Decks EDHREC indisponibles pour le moment')}</b><p>${T('« Mes decks » reste ouvert : colle une liste ou importe un deck pour le comparer à ta collection.')}</p></div>`;
   if (g === 'wait') return `<p class="hint listempty">${T('Connexion au compte…')}</p>`;
   if (g === 'verify') {
-    const u = D.user, sent = vfAt(u.uid) > 0, mail = `<span class="gate-mail">${esc(u.email || '')}</span>`;
+    const u = D.user, sent = vfAt(u.uid) > 0, mail = `<span class="gate-mail">${typeof streamOn === 'function' && streamOn() ? '•••' : esc(u.email || '')}</span>`;      // mode streamer (opening.js) : jamais l'e-mail à l'écran
     const send = `<button class="btn${sent ? ' ghost' : ''}" type="button" data-act="gsend" data-vf="long">${esc(vfLabel(u.uid, false))}</button>`, check = `<button class="btn${sent ? '' : ' ghost'}" type="button" data-act="gcheck">${T('J\'ai cliqué sur le lien')}</button>`;
     return `<div class="dv-empty gate" data-gate="verify" data-sent="${sent ? 1 : 0}"><span class="gate-ic" aria-hidden="true">${EDH_MAIL}</span><b>${T('Vérifie ton adresse e-mail')}</b>
       <p>${sent ? T('Un lien t\'a été envoyé à {email}. Touche-le, puis reviens ici.', { email: mail }) : T('Les decks EDHREC demandent une adresse vérifiée : reçois un lien à {email}, touche-le, puis reviens ici.', { email: mail })}</p>

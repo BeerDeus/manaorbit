@@ -70,7 +70,7 @@ function scsHtml() {
   const sw = (id, k, title, sub, on) => `<label class="switch-row" for="${id}"><span class="t"><b>${esc(title)}</b>${sub ? `<span class="hint">${esc(sub)}</span>` : ''}</span><span class="switch"><input type="checkbox" id="${id}" data-s="${k}"${on ? ' checked' : ''}><i></i></span></label>`;
   const oth = SCS_LANGS.filter(l => l !== 'fr' && l !== 'en'), othOn = oth.includes(SCS.lang);
   const sec = s => (Number(s) / 1000).toLocaleString(LOC()) + ' s';
-  return `<div class="scs">
+  return `<div class="scs">${typeof opnScsRow === 'function' ? opnScsRow() : ''}
     <p class="scs-h">${T('Éditions')}</p>
     <div class="scs-eds" role="radiogroup" aria-label="${esc(T('Éditions'))}">${SCS_EDS.map(([v, t, d]) => `<button type="button" class="scs-ed" role="radio" data-s="ed" data-v="${v}" aria-checked="${SCS.ed === v}"><span><b>${esc(T(t))}</b><small>${esc(T(d))}</small></span><i aria-hidden="true"></i></button>`).join('')}</div>
     <p class="scs-h">${T('Prise de la carte')}</p>
@@ -90,6 +90,7 @@ function scsSheet() {
     const paint = () => { const y = api.body.scrollTop; api.body.innerHTML = scsHtml(); api.body.scrollTop = y; };
     paint();
     api.body.addEventListener('click', e => {
+      if (e.target.closest('.opn-scs') && typeof opnEntry === 'function') { api.close(); opnEntry(); return; }      // session d'ouverture (opening.js)
       const b = e.target.closest('button[data-s]'); if (!b) return;
       const k = b.dataset.s, v = b.dataset.v; haptic('tap');
       scsSet({ [k]: k === 'delay' ? Number(v) : v }); paint();

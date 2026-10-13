@@ -19,6 +19,7 @@ BROWSER=(
   pubdecks-e2e.mjs
   partage-e2e.mjs
   binder-e2e.mjs
+  opening-e2e.mjs
 )
 T=("$@")
 if [ ${#T[@]} -eq 0 ]; then T=("${NODE[@]}" "${BROWSER[@]}"); elif [ "$1" = --node ]; then T=("${NODE[@]}"); fi

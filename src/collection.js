@@ -362,6 +362,7 @@ function collFromCloud(uid, data, pending, fromCache, pulled) {
 function collRemoteApplied(before, after, o = {}) {
   collPaint(); paintCollSection(); refreshDeck(); trSoon(); if (S.run && S.view === 'results') scheduleRecompute(true);
   collEnrich();
+  if (typeof streamOn === 'function' && streamOn()) return;      // mode streamer (opening.js) : aucune notification qui montrerait la collection
   let add = 0, del = 0;
   for (const k in after) if (!before[k]) add++;
   for (const k in before) if (!after[k]) del++;
@@ -814,7 +815,9 @@ function collValPaint() {
   box.innerHTML = `<button type="button" class="cv" data-act="valtab" aria-label="${esc(T('Valeur de la collection : {v} · voir les stats', { v: v ? hmEur(v) : '—' }))}"><span class="cv-t"><b>${v ? esc(hmEur(v)) : '—'}</b><span>${TN(n, '{n} carte', '{n} cartes')} · ${TN(collCopies(), '{n} exemplaire', '{n} exemplaires')}</span></span><span class="cv-r">${dl}${spark}</span></button>`;
 }
 function collPaintHead() {
-  paintCollSection(); collValPaint();
+  paintCollSection();
+  if (typeof opnCollHead === 'function' && opnCollHead(COLL.el)) return;      // session d'ouverture (opening.js) : note ; mode streamer : en-tête de la session seule
+  collValPaint();
   if (typeof BD !== 'undefined' && BD.el && BD.tab === 'coll') { BD.idx = null; bdList(); }      // l'éditeur de deck liste la collection : il suit la lecture des cartes (commandants possibles…)
   const el = COLL.el; if (!el) return;
   $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul
@@ -896,6 +899,7 @@ function collPaintBody(keep) {
   if (!keep) COLL.seq++;      // affichage neuf (onglet, tri) : liste relue, jamais celle gardée
   const sc = $('.dv-scroll', el), pos = keep && sc ? sc.scrollTop : 0, host = $('.coll-main', el);
   if (keep && document.activeElement && document.activeElement.matches && document.activeElement.matches('.lchip select') && host.contains(document.activeElement)) { COLL.dirty = true; return; }      // un choix de langue est ouvert : on ne le ferme pas
+  if (typeof opnCollBody === 'function' && opnCollBody(el, host)) { if (sc) sc.scrollTop = pos; return; }      // mode streamer (opening.js) : la session seule, jamais la collection
   const v = collAll(), all = v.all, none = !all.length;
   // collection vide : les onglets restent (Decks et Échange marchent sans carte) ; recherche, filtres, tri et prix réels n'auraient rien à montrer
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
@@ -992,6 +996,7 @@ function openCollection(tab) {
   });
   wrap.addEventListener('focusout', e => { if (COLL.dirty && e.target.matches && e.target.matches('.lchip select')) setTimeout(() => { COLL.dirty = false; collPaintBody(true); }, 0); });
   wrap.addEventListener('click', e => {
+    if (typeof opnCollClick === 'function' && opnCollClick(e)) return;      // session d'ouverture (opening.js) : sa note, sa liste en mode streamer
     if (e.target.closest('.lchip')) return;
     if (e.target.closest('.cs-val[data-act="pxsrc"]')) { collToggleSrc(); return; }
     if (edhClick(e) || valClick(e) || trClick(e)) return;
@@ -1176,6 +1181,7 @@ function openCollAdd() {
     list.onclick = e => {
       const b = e.target.closest('.ca-opt'); if (!b) return;
       const n = b.dataset.n, p = b.dataset.p || '', k = ownKey(n), l = lang.value || b.dataset.l || (p ? FRX.l : '');      // nom français (allemand, italien…) choisi : exemplaire dans cette langue (sauf langue choisie au-dessus)
+      if (typeof opnTake === 'function' && opnTake([{ k, n, q: 1, l }])) { haptic('ok'); b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); say(opnSay(p || n), true); return; }      // session d'ouverture (opening.js) : dans la session
       collBump(k, n, 1, l ? { lang: l } : undefined); const q = collQty(k); haptic('ok');
       const i = $('i', b); i.textContent = '× ' + q; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
       say(T('{name} · {q} dans ta collection', { name: p || n, q }), true); collEnrich();

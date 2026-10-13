@@ -1,0 +1,31 @@
+/* ── opnbilan.css : bilan d'une ouverture (opnbilan.js) : prix payé, gain ou perte, meilleures cartes ; retiré avec opnbilan.js ── */
+.opnb{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.opnb-eur{position:relative;display:block}
+.opnb-eur input{width:100%;padding-right:34px!important;font-variant-numeric:tabular-nums}
+.opnb-eur i{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-style:normal;font-weight:650;color:var(--ink-3);pointer-events:none}
+.opnb-none{margin:0}
+.opnb-r{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"l b" "s s";align-items:baseline;column-gap:10px;row-gap:2px;padding:12px 14px;border-radius:var(--r-lg);background:var(--surface-2);color:var(--ink)}
+.opnb-rl{grid-area:l;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.opnb-r b{grid-area:b;justify-self:end;font-family:var(--font-display);font-size:28px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.opnb-r small{grid-area:s;font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.opnb-r.up{background:var(--good-soft)}
+.opnb-r.up .opnb-rl,.opnb-r.up b{color:var(--good)}
+.opnb-r.down{background:var(--bad-soft)}
+.opnb-r.down .opnb-rl,.opnb-r.down b{color:var(--bad)}
+.opnb-sheet .cs-h,.opnb .cs-h{margin:6px 0 0}
+/* meilleures cartes : la première en grand, les quatre suivantes à côté */
+.opnb-top{display:grid;grid-template-columns:minmax(0,46%) minmax(0,1fr);gap:10px;align-items:start}
+.opnb-top.one{grid-template-columns:minmax(0,46%)}
+.opnb-rest{display:grid;grid-template-columns:1fr 1fr;gap:8px 8px}
+.opnb-c{display:flex;flex-direction:column;gap:3px;margin:0;min-width:0}
+.opnb-im{display:block;aspect-ratio:488/680;border-radius:4.75% / 3.4%;overflow:hidden;background:hsl(var(--h) 30% 40% / .25);box-shadow:0 6px 16px -10px rgba(16,21,43,.5)}
+.opnb-im img{display:block;width:100%;height:100%;object-fit:cover}
+.opnb-c figcaption{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+.opnb-c figcaption b{font-family:var(--font-mono);font-size:12.5px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums}
+.opnb-c figcaption span{font-size:11px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opnb-c.opnb-hero figcaption b{font-size:16px}
+.opnb-c.opnb-hero figcaption span{font-size:12.5px}
+.opnb-d{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.opnb-d.up{color:var(--good)}
+.opnb-d.down{color:var(--bad)}
+.opnb-d.eq{color:var(--ink-3)}

@@ -407,6 +407,7 @@ const QR_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="
 /** Feuille du QR code : grand, net (modules calés sur les pixels de l'écran), pseudo ou photo du profil, adresse en clair ; l'écran reste allumé tant qu'elle est ouverte (Wake Lock, si le navigateur l'a),
     à pleine luminosité dans l'appli Android (APK 1.0.4 et plus, natBright). */
 function trQrOpen() {
+  if (typeof streamOn === 'function' && streamOn()) { toast(T('Masqué en mode streamer')); return; }      // mode streamer (opening.js) : jamais le lien ni le QR code à l'écran
   if (!TR.share) return;
   const url = shareUrl(TR.share); let q;
   try { q = qrSvg(url); } catch (e) { toast(T('Lien trop long pour un QR code')); return; }
