@@ -305,7 +305,7 @@ function opnHistSheet() {
     api.body.addEventListener('click', e => { const b = e.target.closest('.opn-h'), rec = b && opnHist().find(x => x.id === b.dataset.id); if (rec) { haptic('tap'); opnHistOpen(rec, () => { if (sheets.includes(api)) paint(); }); } });
   });
 }
-/** Une ouverture de l'historique : totaux, bilan, cartes (prix du moment), export texte (« 3 Sol Ring (CMM) 400 *FR* », réimportable), suppression. */
+/** Une ouverture de l'historique : totaux, bilan, cartes (prix du moment), export texte (« 3 Sol Ring (CMM) 400 *FR* », réimportable), image à partager, suppression. */
 function opnHistOpen(rec, after) {
   const rows = opnRecRows(rec), text = () => collToText(mergeColl({}, rows.map(r => ({ k: r.k, n: r.n, q: r.q, l: r.g })), 'add'));
   openSheet(rec.name, opnWhen(rec.at) + (rec.st ? ' · ' + T('Mode streamer') : ''), api => {
@@ -313,11 +313,13 @@ function opnHistOpen(rec, after) {
     api.body.innerHTML = `${opnTilesHtml({ n: rec.n, v: rec.v })}${typeof opnbHistHtml === 'function' ? opnbHistHtml(rec) : ''}
       <h3 class="cs-h">${T('Cartes de la session')}</h3><div class="coll-list opn-list">${rows.map(r => opnRowHtml(r, 'fix')).join('')}</div>
       <button class="link-btn opn-quit" type="button" data-opn="del">${T('Supprimer cette ouverture')}</button>`;
-    api.setFoot(`<button class="btn ghost" type="button" data-opn="copy"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg>${T('Copier')}</button><button class="btn" type="button" data-opn="file"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg>${T('Exporter')}</button>`);
+    const img = typeof simgShare === 'function' && typeof opnbShare === 'function' && rows.length;      // image à partager (simg.js + bilan, s'ils sont là), aux prix du moment
+    api.setFoot(`<button class="btn ghost" type="button" data-opn="copy"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg>${T('Copier')}</button><button class="btn${img ? ' ghost' : ''}" type="button" data-opn="file"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg>${T('Exporter')}</button>${img ? `<button class="btn" type="button" data-opn="img"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Image')}</button>` : ''}`);
     api.wrap.addEventListener('click', e => {
       const b = e.target.closest('[data-opn]'); if (!b) return;
       const a = b.dataset.opn; haptic('tap');
       if (a === 'copy') copyText(text());
+      else if (a === 'img') opnbShare({ name: rec.name, at: rec.at, paid: rec.paid }, rows);
       else if (a === 'file') opnDownload(text() + '\n', 'ouverture-' + new Date(rec.at).toISOString().slice(0, 10) + '.txt');
       else if (a === 'del') {
         const was = opnHist(); OPN.hist = was.filter(x => x !== rec); opnHistSave(); api.close(); if (after) after();

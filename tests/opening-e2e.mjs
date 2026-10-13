@@ -169,7 +169,7 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   await p.evaluate(() => window.__pn.pushNotificationReceived({ title: 'Alerte de prix', body: 'Sol Ring −40 %', data: { url: './?alerts=1' } }));
   await p.waitForFunction(() => /Alerte de prix/.test(document.querySelector('#toast').textContent));
   await toHome(p); assert.notEqual(await p.$eval('#hmTrade', e => getComputedStyle(e).display), 'none');
-  // Mes ouvertures : la session, son détail, l'export texte, la suppression (annulable)
+  // Mes ouvertures : la session, son détail, l'export texte, l'image à partager, la suppression (annulable)
   const h = await p.evaluate(() => opnHist());
   assert.equal(h.length, 1); assert.deepEqual([h[0].name, h[0].n, h[0].paid, h[0].st, h[0].rows.length], ['Display Bloomburrow', 4, 500, 1, 4]);
   await p.evaluate(() => opnHistSheet()); await p.waitForSelector('.opn-h'); assert.match(await txt(p, '.opn-h'), /Display Bloomburrow.*4 cartes.*\+/);
@@ -179,6 +179,10 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   await p.click('.sheet-wrap.open [data-opn="copy"]');
   const exp = await p.evaluate(() => window.__copied);
   assert.deepEqual(exp.split('\n').sort(), ['1 Craterhoof Behemoth *EN*', '1 Edgar Markov *EN*', '1 Sol Ring *FR*', '1 Wrath of God'], 'export texte réimportable');
+  await p.evaluate(() => { window.__share = []; window.simgShare = spec => window.__share.push(spec); });
+  await p.click('.sheet-wrap.open [data-opn="img"]');
+  const hs = await p.evaluate(() => window.__share[0]);
+  assert.deepEqual([hs.kind, hs.name, hs.n, hs.paid, hs.best.length], ['opening', 'Display Bloomburrow', 4, 5, 4], 'session passée : image à partager (prix du moment)');
   await p.click('.sheet-wrap.open [data-opn="del"]'); await p.waitForFunction(() => opnHist().length === 0);
   await p.click('#toast .toast-act'); await p.waitForFunction(() => opnHist().length === 1);
   await closeAll(p);
