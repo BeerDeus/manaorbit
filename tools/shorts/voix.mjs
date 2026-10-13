@@ -1,6 +1,6 @@
 // Voix off des vidéos courtes (Reels / Shorts) : Gemini TTS (API Google AI Studio), un fichier WAV par vidéo dans tools/shorts/voix/.
 // Clé : variable d'environnement GEMINI_API_KEY (réglages de l'environnement, jamais dans le dépôt). Textes : tools/shorts/voix.json.
-// Usage : node tools/shorts/voix.mjs [id…]   (sans id : toutes) · options : --voix=Achird --modele=gemini-3.8-flash-tts --force
+// Usage : node tools/shorts/voix.mjs [id…]   (sans id : toutes) · options : --voix=Achird --modele=gemini-3.8-flash-tts --suffixe=-aoede (nom de fichier, pour comparer des voix) --force
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +10,7 @@ const arg = (k, d) => (process.argv.find(a => a.startsWith(`--${k}=`)) || '').sp
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) { console.error('GEMINI_API_KEY absente : à ajouter dans les réglages de l\'environnement (nouvelle session).'); process.exit(1); }
 const cfg = JSON.parse(readFileSync(join(DIR, 'voix.json'), 'utf8'));
-const MODEL = arg('modele', cfg.modele), VOICE = arg('voix', cfg.voix), FORCE = process.argv.includes('--force');
+const MODEL = arg('modele', cfg.modele), VOICE = arg('voix', cfg.voix), SUFFIX = arg('suffixe', ''), FORCE = process.argv.includes('--force');
 const ids = process.argv.slice(2).filter(a => !a.startsWith('--'));
 mkdirSync(OUT, { recursive: true });
 
@@ -34,7 +34,7 @@ async function say(text, style) {
   return wav(Buffer.from(d.inlineData.data, 'base64'), rate);
 }
 for (const v of cfg.videos.filter(x => !ids.length || ids.includes(x.id))) {
-  const f = join(OUT, v.id + '.wav');
+  const f = join(OUT, v.id + SUFFIX + '.wav');
   if (existsSync(f) && !FORCE) { console.log(`${v.id} : déjà là (--force pour refaire)`); continue; }
   try { const buf = await say(v.texte, [cfg.style, v.ton].filter(Boolean).join(' ')); writeFileSync(f, buf); console.log(`${v.id} : ${(buf.length / 48000).toFixed(1)} s → ${f}`); }
   catch (e) { console.error(`${v.id} : échec (${e.message})`); process.exitCode = 1; }
