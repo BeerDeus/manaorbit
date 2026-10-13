@@ -18,7 +18,7 @@
 .swg-sheet .sheet-foot .btn .i{display:inline-block;width:17px;height:17px;vertical-align:-3px;margin-right:7px}      /* bouton du pied en bloc (line-height) : l'icône sur la ligne du texte */
 /* liens vers le guide */
 .ci-swg{margin:-4px 0 0;font-size:13px;color:var(--ink-3);display:flex;flex-wrap:wrap;align-items:baseline;column-gap:2px}
-.ci-swg .link-btn{padding:4px 6px;font-size:13px}
+.ci-swg .link-btn{padding:4px 0;font-size:13px;white-space:normal;text-align:left}      /* renvoyé à la ligne : aligné sur le texte */
 .coll-swg{align-self:center;margin-top:-4px;font-size:13px}
 .ob-swg{align-self:flex-start;margin:-6px 0 0 -8px;color:#9fb4ff;font-size:14px}
 .ob-swg:active{background:rgba(255,255,255,.08)}

@@ -31,7 +31,7 @@ function swgOpen(o) {
         ${step(2, T('Dans Mana Orbit'), helpNb(T('<b>Collection</b> › <b>Importer</b> (la flèche en haut) › <b>Choisir un fichier</b>, puis le fichier CSV.')))}
         ${step(3, T('Vérifie et importe'), helpNb(T('L\'aperçu compte tes cartes et signale les noms inconnus. <b>Ajouter</b> ou <b>Remplacer ma collection</b>, puis <b>Importer</b> : images et prix arrivent tout seuls.')))}
       </ol>
-      <h3 class="cs-h">${T('Ce qui suit')}</h3>
+      <h3 class="cs-h">${T('Ce qui est gardé')}</h3>
       <ul class="swg-keep">
         ${keep(true, helpNb(T('Les quantités : une carte présente dans plusieurs éditions s\'additionne')))}
         ${keep(true, helpNb(T('Les éditions : code d\'extension et numéro de collection')))}
