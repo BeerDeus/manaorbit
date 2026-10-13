@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>s0-v6 · C'est parti</title>
+<link rel="stylesheet" href="base.css">
+<script>window.DUREE = 12.5; window.DECALAGE_VOIX = 0.4;</script>
+<!-- Phrases : 1 « C'est le grand jour : » 0,4-1,25 · 2 « le test de Mana Orbit commence aujourd'hui. » 1,55-3,7 · 3 « Scan, collection, échanges, decks… » 4,25-5,55
+     4 « tout est prêt. » 5,85-6,95 · 5-6 « Rejoins les premiers testeurs, le lien est en bio. » 7,3-10,1 · fin 10,5 -->
+</head>
+<body>
+<div class="scene">
+  <div class="bg"></div>
+  <div class="orbit"><i></i></div><div class="orbit b"><i></i></div>
+
+  <section class="ecran" style="--in:.05s;--out:4.1s">
+    <h1 style="font-size:124px">C'est le <em>grand jour</em>.</h1>
+    <h2 class="monte" style="--in:1.55s;margin-top:70px;font-weight:600;font-size:64px;color:var(--ink-2)">Le test de Mana Orbit commence <em>aujourd'hui</em>.</h2>
+    <div class="ill" style="top:700px">
+      <div class="carte" style="--c1:var(--rose);--c2:var(--violet);left:80px;top:60px;rotate:-14deg;--in:.4s"></div>
+      <div class="carte" style="--c1:var(--warm);--c2:var(--corail);left:260px;top:20px;rotate:-3deg;--in:.55s"></div>
+      <div class="carte" style="--c1:var(--menthe);--c2:var(--bleu);left:440px;top:50px;rotate:10deg;--in:.7s"></div>
+      <div class="etiquette pop" style="left:520px;top:-60px;rotate:6deg;--in:2.2s;color:var(--ok)"><small>ouverture</small>19 oct.</div>
+    </div>
+  </section>
+
+  <section class="ecran fondu" style="--in:4.2s;--out:7.2s">
+    <h2 class="monte" style="--in:5.9s">Tout est <em>prêt</em>.</h2>
+    <div class="ill" style="top:200px">
+      <div class="fonctions">
+        <div class="fonction pop" style="--in:4.35s"><svg viewBox="0 0 48 48"><path d="M8 18V10a2 2 0 0 1 2-2h8M30 8h8a2 2 0 0 1 2 2v8M40 30v8a2 2 0 0 1-2 2h-8M18 40h-8a2 2 0 0 1-2-2v-8M8 24h32"/></svg>Scan</div>
+        <div class="fonction warm pop" style="--in:4.65s"><svg viewBox="0 0 48 48"><rect x="14" y="6" width="20" height="28" rx="3"/><path d="M10 14v24a3 3 0 0 0 3 3h18M6 20v20a3 3 0 0 0 3 3h18"/></svg>Collection</div>
+        <div class="fonction ok pop" style="--in:4.95s"><svg viewBox="0 0 48 48"><path d="M8 18h30l-7-7M40 30H10l7 7"/></svg>Échanges</div>
+        <div class="fonction rose pop" style="--in:5.25s"><svg viewBox="0 0 48 48"><rect x="18" y="8" width="20" height="30" rx="3" transform="rotate(12 28 23)"/><rect x="10" y="10" width="20" height="30" rx="3" transform="rotate(-12 20 25)"/></svg>Decks</div>
+      </div>
+      <div class="ligne glisse" style="--in:6.2s;margin-top:600px;font-size:50px"><div class="coche pop" style="--in:6.5s">✓</div>Premiers testeurs acceptés dès aujourd'hui</div>
+    </div>
+  </section>
+
+  <section class="marque" style="top:430px"><div class="logo" style="--in:7.3s"><svg viewBox="0 0 512 512"><use href="#logo"/></svg></div>
+    <h1 class="monte" style="--in:7.5s">Mana Orbit</h1><p class="monte" style="--in:7.9s">Rejoins les <b>premiers testeurs</b></p></section>
+  <div class="cta monte" style="--in:8.6s;top:1300px"><span>Lien en bio → deviens testeur</span><small>3 étapes, 2 minutes, gratuit</small></div>
+</div>
+<script src="base.js"></script>
+</body>
+</html>

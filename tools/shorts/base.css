@@ -89,3 +89,15 @@ em{font-style:normal;color:var(--accent)}
 .cta{position:absolute;left:0;width:1080px;top:1340px;text-align:center}
 .cta span{display:inline-block;padding:30px 54px;border-radius:999px;background:var(--accent);color:#0b0f1c;font-family:Bricolage;font-weight:750;font-size:50px;letter-spacing:-.02em;box-shadow:0 24px 50px -18px var(--accent)}
 .cta small{display:block;margin-top:26px;font-size:34px;color:var(--ink-3);font-weight:500}
+
+/* compte à rebours, grille de places, tuiles de fonctions (séries 0) */
+.compteur{font-family:Bricolage;font-weight:800;font-size:330px;line-height:.9;letter-spacing:-.06em;color:var(--accent);text-shadow:0 30px 80px rgba(146,156,255,.35)}
+.compteur small{display:block;font-family:Instrument;font-weight:600;font-size:44px;letter-spacing:0;color:var(--ink-2);margin-top:18px}
+.places{position:absolute;left:0;top:0;width:860px;display:grid;grid-template-columns:repeat(4,1fr);gap:28px}
+.place{aspect-ratio:1;border-radius:50%;background:var(--surface-2);border:4px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:Bricolage;font-weight:800;font-size:72px;color:var(--ink-3)}
+.place.toi{background:var(--accent);border-color:var(--accent);color:#0b0f1c}
+.fonctions{position:absolute;left:0;top:0;width:860px;display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.fonction{height:260px;border-radius:36px;background:var(--surface);border:2px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;font-family:Bricolage;font-weight:700;font-size:44px;letter-spacing:-.02em}
+.fonction svg{width:96px;height:96px;fill:none;stroke:var(--accent);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.fonction.ok svg{stroke:var(--ok)}.fonction.warm svg{stroke:var(--warm)}.fonction.rose svg{stroke:var(--rose)}
+.date{display:inline-block;padding:18px 36px;border-radius:999px;background:var(--surface);border:2px solid var(--line);font-weight:600;font-size:40px;color:var(--warm)}
