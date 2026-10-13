@@ -47,7 +47,7 @@ function amLs() {
 }
 function amLoad() {
   const o = amLs(), same = !!AM.uid && o.uid === AM.uid;
-  AM.l = same ? amTidy(o.l) : null; AM.at = 0; AM.err = '';
+  AM.l = same ? amTidy(o.l) : null; AM.at = 0; AM.err = ''; if (AM.l) AM.l.tr = [];      // invitations à un échange : seulement celles du serveur, jamais une copie ancienne
   AM.sig = same && o.sig && typeof o.sig === 'object' ? o.sig : {}; AM.dev = same && typeof o.dev === 'string' ? o.dev : '';
   AM.devSig = same ? String(o.devSig || '') : ''; AM.devAt = same ? amNum(o.devAt) : 0; AM.push = o.push !== false; AM.parts.clear(); AM.loaded = true;
 }

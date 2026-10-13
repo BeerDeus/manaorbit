@@ -136,6 +136,7 @@ await pa.waitForSelector('.trc .trc-bal[data-lv="mid"]'); assert.match(await tc(
 await pb.waitForFunction(() => /Tu donnes 0,90/.test(document.querySelector('.trc .trc-bal').textContent));
 assert.match(await tc(pa, '.trc .trc-zone.give .trc-zh'), /6 cartes · 5,30/); assert.match(await tc(pb, '.trc .trc-zone.get .trc-zh'), /6 cartes · 5,30/, 'les mêmes valeurs chez les deux');
 await shot(pa, '08-alice-echange'); await shot(pb, '08-bob-echange');
+if (SHOTS) { await pa.setViewportSize({ width: 360, height: 780 }); await shot(pa, '18-alice-360'); await pa.setViewportSize({ width: 390, height: 844 }); }      // petit téléphone
 await pa.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await pb.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
 await shot(pa, '09-alice-echange-sombre'); await shot(pb, '09-bob-echange-sombre');
 await pa.evaluate(() => document.documentElement.removeAttribute('data-theme')); await pb.evaluate(() => document.documentElement.removeAttribute('data-theme'));

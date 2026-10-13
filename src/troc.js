@@ -8,7 +8,7 @@
      les deux « Prêt » → récapitulatif ; les deux « Valider » → appliqué : chacun retire ce qu'il donne et ajoute ce qu'il reçoit (langue et édition
      gardées), liste de souhaits allégée, « Annuler » dans le toast (sur cet appareil), « Mes échanges » (historique sur cet appareil, comme « Mes ouvertures »).
    · « Équilibrer » : propose des cartes peu chères (de ma liste, ou à lui demander) pour approcher 0 € d'écart ; rien ne part sans « Ajouter ».
-   · Serveur : proxy.mjs › /api/troc (sessions en mémoire, une clé de siège par joueur) ; relevé toutes les 1,2 s écran visible, 5 s caché, 15 s après
+   · Serveur : proxy.mjs › /api/troc (sessions en mémoire, une clé de siège par joueur) ; relevé toutes les 1,2 s écran visible, 5 s caché, 10 s après
      2 min ; version de la session (rien de neuf : réponse courte). Prix : ceux de la session (fichier de prix du serveur), les mêmes chez les deux.
    · Rien au démarrage, sauf : un lien ?troc= (handleLaunch) et une session en cours sur cet appareil (deckdeal:troc:cur, reprise : appli tuée pendant
      l'échange ; une session faite mais pas encore appliquée l'est au retour). Mode streamer (opening.js › streamOn) : pas d'échange en direct.
@@ -114,7 +114,7 @@ function trocSaveCur() {
 }
 /** Plus de session sur cet appareil (fenêtre laissée ouverte : elle montre la fin). */
 function trocReset() { clearTimeout(TRC.t); TRC.c = ''; TRC.key = ''; TRC.ot = null; TRC.sent = null; trocSaveCur(); }
-const trocGap = () => (TRC.fail ? Math.min(10000, 1500 * TRC.fail) : document.hidden ? (Date.now() - TRC.hid > 120e3 ? 15000 : 5000) : 1200);
+const trocGap = () => (TRC.fail ? Math.min(10000, 1500 * TRC.fail) : document.hidden ? (Date.now() - TRC.hid > 120e3 ? 10000 : 5000) : 1200);
 function trocPollSoon(ms) { clearTimeout(TRC.t); if (TRC.c) TRC.t = setTimeout(trocPoll, ms == null ? trocGap() : ms); }
 async function trocPoll() {
   const c = TRC.c; if (!c) return;
@@ -143,7 +143,9 @@ function trocGone() {
 /** Nouvelle session reçue du serveur : transitions (arrivée de l'autre, changement qui retire « Prêt », fin, échange fait), puis repeint. */
 function trocTake(s) {
   if (!s || !s.c || s.c !== TRC.c) return;
-  const prev = TRC.s && TRC.s.c === s.c ? TRC.s : null; TRC.s = s;
+  const prev = TRC.s && TRC.s.c === s.c ? TRC.s : null;
+  if (prev && s.v < prev.v) return;      // relevé parti avant une action déjà revenue : plus ancien, ignoré
+  TRC.s = s;
   const ids = new Set(prev ? [...prev.me.give, ...(prev.ot ? prev.ot.give : [])].map(x => x.id) : []);
   TRC.flash = new Set(prev ? [...s.me.give, ...(s.ot ? s.ot.give : [])].filter(x => !ids.has(x.id)).map(x => x.id) : []);
   const name = trocWho();
@@ -304,7 +306,7 @@ function trocCloseWin() {
   trocBright(false); try { if (TRC.wl) TRC.wl.release(); } catch (e) { /* déjà relâché */ } TRC.wl = null;
   document.removeEventListener('visibilitychange', TRC.vis); document.removeEventListener('keydown', trocKey, true);
   w.classList.remove('on'); setTimeout(() => w.remove(), reduceMotion() ? 0 : 240); releaseApp();
-  if (!trocOpenSt(TRC.s)) TRC.s = null;
+  if (!TRC.c || !trocOpenSt(TRC.s)) TRC.s = null;
 }
 function trocKey(e) { if (e.key === 'Escape' && TRC.el && !imgView && !sheets.length) { e.stopPropagation(); trocAskLeave(); } }
 /** Écran allumé pendant l'échange (Wake Lock, si le navigateur l'a) : on se parle, on ne touche pas toujours le téléphone. */

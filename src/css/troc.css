@@ -98,8 +98,8 @@
 .trc-add{display:flex;align-items:center;gap:8px;width:100%;min-height:46px;padding:8px 12px;border-radius:var(--r-md);border:1.5px dashed color-mix(in srgb,var(--ink-3) 45%,transparent);background:transparent;color:var(--ink);font:inherit;font-size:14.5px;font-weight:650;text-align:left;cursor:pointer}
 .trc-add .i{width:18px;height:18px;color:var(--accent)}
 .trc-zone.get .trc-add .i{color:var(--good)}
-.trc-add span{flex:1;min-width:0}
-.trc-add small{flex:none;font-size:12px;font-weight:600;color:var(--ink-3);max-width:48%;text-align:right;line-height:1.25}
+.trc-add span{flex:none}
+.trc-add small{flex:1;min-width:0;font-size:12px;font-weight:600;color:var(--ink-3);text-align:right;line-height:1.25}
 .trc-add:active{background:var(--surface-2)}
 .trc-req{display:flex;align-items:center;gap:10px;padding:9px 10px 9px 12px;border-radius:var(--r-md);background:var(--warn-soft);color:var(--warn);font-size:13.5px;font-weight:650}
 .trc-req span{flex:1;min-width:0;text-wrap:balance}
@@ -216,6 +216,7 @@
 
 @media (max-width:370px){
   .trc-grid{grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:9px 7px}
+  .trc-meter{grid-template-columns:1fr}
   .trc-meter>span{display:none}
   .trc-bigcode{font-size:26px}
 }
