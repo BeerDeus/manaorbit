@@ -35,6 +35,7 @@ html.opn-on .opn-scs-i{background:var(--surface)}
 .opn-st3>div:last-child{grid-column:1/-1}
 .opn-sheet .cs-h{margin:16px 0 8px}
 .opn-list .opn-row .row-name{-webkit-line-clamp:2;line-clamp:2}
+.opn-sheet .thumb img,.opn-main .thumb img{transition:none}      /* listes repeintes à chaque carte : pas de fondu qui clignote */
 .opn-x{display:grid;place-items:center;width:34px;height:34px;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--surface-3);color:var(--ink-2);font:inherit;font-size:19px;line-height:1;cursor:pointer}
 .opn-x:active{background:var(--accent-soft);color:var(--accent)}
 .crow.has-px>.opn-x{grid-column:3;grid-row:2;align-self:start;justify-self:end}

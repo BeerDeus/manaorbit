@@ -29,12 +29,12 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   const before = await realColl(p);
   assert.deepEqual(before, { 'sol ring': 2, 'craterhoof behemoth': 1, 'arcane signet': 3 });
   await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
-  assert.equal(await p.$('.opn-bandw'), null, 'pas de session : pas de bandeau');
+  assert.equal(!!(await p.$('.opn-bandw')), false, 'pas de session : pas de bandeau');
   await p.click('.scan .sc-set'); await p.waitForSelector('.scs-sheet.open .opn-scs');
   assert.match(await txt(p, '.opn-scs'), /Session d'ouverture/);
   await p.click('.opn-scs'); await p.waitForSelector('.opn-sheet.open #opnName');
   assert.match(await p.$eval('#opnName', i => i.value), /^Ouverture du \d\d\/\d\d$/, 'nom par défaut : « Ouverture du 13/10 »');
-  assert.equal(await p.$('.opn-sheet [data-opn="hist"]'), null, 'aucune ouverture terminée : pas encore de « Mes ouvertures »');
+  assert.equal(!!(await p.$('.opn-sheet [data-opn="hist"]')), false, 'aucune ouverture terminée : pas encore de « Mes ouvertures »');
   await p.fill('#opnName', 'Display Bloomburrow'); await p.fill('#opnPaid', '120');
   await p.click('.opn-sheet [data-opn="go"]'); await p.waitForFunction(() => opnOn());
   assert.deepEqual(await p.evaluate(() => [OPN.cur.name, OPN.cur.paid, OPN.cur.st, streamOn(), document.documentElement.classList.contains('opn-on'), document.documentElement.classList.contains('streamer')]), ['Display Bloomburrow', 12000, false, false, true, false]);
@@ -71,8 +71,14 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   await p.fill('.sheet-wrap.open #caName', 'llanowar'); await p.waitForSelector('.sheet-wrap.open .ca-opt[data-n="Llanowar Elves"]'); await p.click('.sheet-wrap.open .ca-opt[data-n="Llanowar Elves"]');
   await p.waitForFunction(() => OPN.cur.rows.some(r => r.k === 'llanowar elves')); assert.equal(await p.evaluate(() => collQty('llanowar elves')), 0);
   await closeAll(p);
+  // prix rapide › « + » : dans la session aussi (puis retirée de la session, « − »)
+  await p.evaluate(() => { openScan(); scanPriceMode(true); SC.pq = [{ key: 'arcane signet', name: 'Arcane Signet', l: 'en', n: 1, cm: 40, ct: 'off' }]; scanPaintList(); });
+  await p.click('.sc-item.pr[data-k="arcane signet"] [data-a="padd"]'); await p.waitForFunction(() => OPN.cur.rows.some(r => r.k === 'arcane signet'));
+  assert.equal(await p.evaluate(() => [collQty('arcane signet'), OPN.cur.rows.find(r => r.k === 'arcane signet').eu].join()), '3,40', 'prix rapide : dans la session (prix lu gardé), la collection inchangée');
+  await p.evaluate(() => { closeScan(); opnDec(OPN.cur.rows.find(r => r.k === 'arcane signet').id); }); await p.waitForFunction(() => !OPN.cur.rows.some(r => r.k === 'arcane signet'));
+  await p.waitForTimeout(300);
   assert.deepEqual(await realColl(p), before);
-  ok('« Ajouter des cartes » et « Saisir » : dans la session, jamais dans la collection ni dans le lot');
+  ok('« Ajouter des cartes », « Saisir », prix rapide › + : dans la session, jamais dans la collection ni dans le lot');
 
   // accueil et collection (sans mode streamer) : la vraie collection, et la session en note
   await toHome(p); await p.waitForSelector('#opnHm');
@@ -112,10 +118,10 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   assert.match(await txt(p, '.coll .opn-main .cs-tiles'), /5\s*cartes différentes\s*5\s*exemplaires/);
   await p.evaluate(() => closeCollection()); await p.waitForTimeout(300);
   await p.evaluate(() => openCollection('trade')); await p.waitForSelector('.coll.on .opn-hide');
-  assert.match(await txt(p, '.coll .opn-hide'), /Échange masqué/); assert.equal(await p.$('.coll .tr-link, .coll .tr-box'), null);
+  assert.match(await txt(p, '.coll .opn-hide'), /Échange masqué/); assert.equal(!!(await p.$('.coll .tr-link, .coll .tr-box')), false);
   await p.evaluate(() => closeCollection()); await p.waitForTimeout(300);
   await p.evaluate(() => trQrOpen()); await p.waitForTimeout(200);
-  assert.equal(await p.$('.sheet-wrap'), null, 'QR code d\'échange refusé'); assert.match(await toastTxt(p), /Masqué en mode streamer/);
+  assert.equal(!!(await p.$('.sheet-wrap')), false, 'QR code d\'échange refusé'); assert.match(await toastTxt(p), /Masqué en mode streamer/);
   ok('mode streamer : orbe, collection, stats = la session seule ; échange, lien et QR code masqués ; « − » corrige la session');
 
   // notifications : rien à l'écran pendant le mode streamer (push reçue appli ouverte, autre appareil)
@@ -139,7 +145,7 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   assert.equal(await p.evaluate(() => OPN.cur.paid), 500, 'prix payé modifiable dans le bilan, gardé avec la session');
   const best = await p.$$eval('.opn-end .opnb-c figcaption span', s => s.map(x => x.textContent.replace('Anneau solaire', 'Sol Ring')));
   assert.deepEqual(best, ['Craterhoof Behemoth', 'Edgar Markov', 'Wrath of God', 'Sol Ring', 'Llanowar Elves'], '5 meilleures cartes, la plus chère d\'abord');
-  assert.equal(await p.$('.opn-end [data-opn="share"]'), null, 'sans simgShare : pas de « Partager »');
+  assert.equal(!!(await p.$('.opn-end [data-opn="share"]')), false, 'sans simgShare : pas de « Partager »');
   await p.evaluate(() => { window.__share = []; window.simgShare = spec => window.__share.push(spec); document.activeElement.blur(); opnSheets(); });
   await p.waitForSelector('.opn-end [data-opn="share"]'); await p.click('.opn-end [data-opn="share"]');
   const spec = await p.evaluate(() => window.__share[0]);
@@ -217,7 +223,7 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   // compte et réglages : ni e-mail ni lien d'échange, la session à la place
   await p.click('#btnAccount'); await p.waitForSelector('.me-sheet.open [data-me="opn"]');
   const me = await txt(p, '.me-sheet');
-  assert.ok(!me.includes('test@example.com'), 'pas d\'e-mail : ' + me); assert.equal(await p.$('.me-sheet [data-me="trade"]'), null, 'pas de lien d\'échange');
+  assert.ok(!me.includes('test@example.com'), 'pas d\'e-mail : ' + me); assert.equal(!!(await p.$('.me-sheet [data-me="trade"]')), false, 'pas de lien d\'échange');
   assert.match(me, /Mode streamer.*Session d'ouverture.*4 cartes/i); assert.match(await txt(p, '.me-sheet .me-stats'), /^4 cartes/);
   await p.evaluate(() => openAccount()); await p.waitForSelector('.sheet-wrap.open #acProfile');
   assert.ok(!(await txt(p, '.sheet-wrap.open:last-child')).includes('test@example.com'), 'feuille Compte : pas d\'e-mail');
@@ -234,7 +240,33 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   await ctx.close();
 }
 
-/* ── 3) pub : bandeau retiré pendant le mode streamer, rétabli après (appli Android simulée, faux AdMob) ───────────────────────────── */
+/* ── 3) parties retirées : sans opnbilan.js (récapitulatif simple), puis sans opening.js (crochets inertes, l'appli comme avant) ───────── */
+{
+  const { ctx, p, errs } = await newPage(browser, world, { init: seed }); errsAll.push(errs);
+  await p.waitForTimeout(400); await toHome(p);
+  await p.evaluate(() => { for (const f of ['opnbPaidHtml', 'opnbPaidRead', 'opnbHtml', 'opnbRes', 'opnbBind', 'opnbShare', 'opnbHistTag', 'opnbHistHtml']) window[f] = undefined; window.simgShare = () => {}; });
+  await p.evaluate(() => opnStartSheet()); await p.waitForSelector('.opn-sheet.open #opnName');
+  assert.equal(!!(await p.$('#opnPaid')), false, 'sans le bilan : pas de prix payé');
+  await p.click('.opn-sheet [data-opn="go"]'); await p.waitForFunction(() => opnOn());
+  await p.evaluate(() => opnTake([{ k: 'edgar markov', n: 'Edgar Markov', q: 1, l: 'en' }]));
+  await p.evaluate(() => opnEndSheet()); await p.waitForSelector('.opn-end.open .opn-pick');
+  assert.equal(await txt(p, '.opn-end h2'), 'Terminer la session'); assert.equal(!!(await p.$('.opn-end .opnb, .opn-end [data-opn="share"]')), false, 'ni bilan ni partage');
+  await p.click('.opn-end [data-opn="add"]'); await p.waitForFunction(() => !opnOn() && collQty('edgar markov') === 1);
+  assert.equal(await p.evaluate(() => opnHist()[0].paid), null);
+  ok('sans opnbilan.js : session, récapitulatif simple (cartes à écarter, « Ajouter »), historique sans prix payé');
+  await p.evaluate(() => { for (const f of ['opnTake', 'opnSay', 'opnCollHead', 'opnCollBody', 'opnCollClick', 'opnSv', 'streamOn', 'opnRcNote', 'opnBands', 'opnScsRow', 'opnEntry', 'opnSheet']) window[f] = undefined; });
+  await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on'); await add(p, 'Wrath of God');
+  await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]'); assert.equal(!!(await p.$('.rc-sheet .opn-rc')), false); await rcGo(p);
+  await p.waitForFunction(() => collQty('wrath of god') === 1, null, { timeout: 5000 });
+  await p.evaluate(() => scsSheet()); await p.waitForSelector('.scs-sheet.open .scs-ed'); assert.equal(!!(await p.$('.opn-scs')), false); await closeAll(p);
+  await p.evaluate(() => openCollection('list')); await p.waitForSelector('.coll.on .coll-list'); assert.equal(!!(await p.$('.opn-cnote')), false);
+  await p.evaluate(() => closeCollection()); await p.waitForTimeout(300); await toHome(p);
+  await p.click('#btnAccount'); await p.waitForSelector('.me-sheet.open'); await closeAll(p);
+  ok('sans opening.js : scan › Ajouter va dans la collection, réglages, collection et compte comme avant, aucune erreur');
+  await ctx.close();
+}
+
+/* ── 4) pub : bandeau retiré pendant le mode streamer, rétabli après (appli Android simulée, faux AdMob) ───────────────────────────── */
 {
   const fake = () => {
     const L = {}, emit = (ev, d) => (L[ev] || []).forEach(f => f(d)); let banner = false;

@@ -13,8 +13,8 @@ function opnbParse(s) {
 }
 const opnbIn = (id, paid) => `<div class="field-in opnb-paid"><label class="label" for="${id}">${T('Prix payé (facultatif)')}</label><span class="opnb-eur"><input type="text" id="${id}" inputmode="decimal" autocomplete="off" placeholder="${esc(T('ex. {p}', { p: '120' }))}" value="${paid != null ? esc((paid / 100).toLocaleString(LOC(), { minimumFractionDigits: paid % 100 ? 2 : 0, maximumFractionDigits: 2, useGrouping: false })) : ''}"><i aria-hidden="true">€</i></span></div>`;
 /** Champ du prix payé dans « Commencer une session ». */
-const opnbPaidHtml = paid => opnbIn('opnPaid', paid);
-const opnbPaidRead = root => { const i = $('#opnPaid', root); return i ? opnbParse(i.value) : null; };
+function opnbPaidHtml(paid) { return opnbIn('opnPaid', paid); }
+function opnbPaidRead(root) { const i = $('#opnPaid', root); return i ? opnbParse(i.value) : null; }
 /** Gain ou perte : valeur v face au prix payé (centimes). */
 function opnbResHtml(v, paid) {
   if (paid == null) return `<p class="hint opnb-none">${T('Indique le prix payé pour voir ton gain ou ta perte.')}</p>`;
@@ -52,4 +52,4 @@ function opnbHistTag(rec) {
   const d = (rec.v || 0) - rec.paid;
   return `<small class="opnb-d ${d > 0 ? 'up' : d < 0 ? 'down' : 'eq'}">${d > 0 ? '+' : d < 0 ? '−' : ''}${esc(fmt(Math.abs(d), 'EUR'))}</small>`;
 }
-const opnbHistHtml = rec => (rec.paid == null ? '' : `<div class="opnb">${opnbResHtml(rec.v || 0, rec.paid)}</div>`);
+function opnbHistHtml(rec) { return rec.paid == null ? '' : `<div class="opnb">${opnbResHtml(rec.v || 0, rec.paid)}</div>`; }

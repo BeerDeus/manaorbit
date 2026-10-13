@@ -20,7 +20,7 @@ const OPN_EYE = '<svg class="i opn-eye" viewBox="0 0 24 24" aria-hidden="true"><
 const OPN_CHEV = '<svg class="i opn-chev" aria-hidden="true"><use href="#i-chev"/></svg>';
 
 /* ── État : session en cours (et mode streamer), gardée sur l'appareil ────────────────────────────────────────────────────── */
-const opnOn = () => !!OPN.cur;
+function opnOn() { return !!OPN.cur; }
 /** Mode streamer en cours : la collection, la valeur, l'e-mail, le lien d'échange, la pub et les notifications sont cachés. */
 function streamOn() { return !!(OPN.cur && OPN.cur.st); }
 /** Session lue (appareil) → valeurs sûres ; null si illisible. Ligne : { id, k (ownKey), n (nom anglais), g (langue|édition), q, t, eu (centimes, prix à l'ajout), im (petite image) }. */
@@ -73,7 +73,7 @@ function opnTake(items, o = {}) {
   return true;
 }
 /** Message après un ajout à la main pendant la session (« Ajouter des cartes », « Saisir »). */
-const opnSay = name => T('{name} · ajoutée à la session « {s} »', { name, s: OPN.cur ? OPN.cur.name : '' });
+function opnSay(name) { return T('{name} · ajoutée à la session « {s} »', { name, s: OPN.cur ? OPN.cur.name : '' }); }
 /** Infos Scryfall des cartes de la session pas encore lues (image, prix, type, couleurs : stats et bilan) : gardées dans le cache de la collection (COLL.meta),
  *  qui n'est qu'un cache : la collection elle-même ne bouge pas. Un lot à la fois, devant les lectures de fond. */
 function opnMeta() {
@@ -145,7 +145,7 @@ const opnSwitch = (id, on) => `<label class="switch-row opn-st" for="${id}"><spa
 function opnStartSheet() {
   haptic('tap');
   openSheet(T('Session d\'ouverture'), T('Boosters, boîte : les cartes ouvertes vont dans un lot à part, ajouté à ta collection quand tu termines.'), api => {
-    api.wrap.classList.add('opn-sheet');
+    opnSheetUp(api);
     const def = T('Ouverture du {d}', { d: new Date().toLocaleDateString(LOC(), { day: '2-digit', month: '2-digit' }) }), nh = opnHist().length;
     api.body.innerHTML = `<div class="opn-start"><div class="field-in"><label class="label" for="opnName">${T('Nom')}</label><input type="text" id="opnName" maxlength="60" autocomplete="off" value="${esc(def)}"></div>
       ${typeof opnbPaidHtml === 'function' ? opnbPaidHtml(null) : ''}${opnSwitch('opnSt', false)}
@@ -168,6 +168,12 @@ function opnStreamer(on) {
   c.st = !!on; opnSave(); haptic('tap'); opnRefresh();
   toast(on ? T('Mode streamer : ta collection est cachée') : T('Mode streamer coupé'));
 }
+/** Feuille de la session : miniatures montrées une fois chargées (classe ok, comme la collection), image cassée retirée (la lettre reste). */
+function opnSheetUp(a, ...cls) {
+  a.wrap.classList.add('opn-sheet', ...cls);
+  a.wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
+  a.wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
+}
 const opnWhen = t => new Date(t).toLocaleString(LOC(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 function opnTilesHtml(t) {
   return `<div class="cs-tiles opn-tiles"><div><b>${nf0(t.n)}</b><span>${TN(t.n, 'carte ouverte', 'cartes ouvertes')}</span></div><div class="opn-val"><b>${t.v ? esc(fmt(t.v, 'EUR')) : '—'}</b><span>${T('valeur · tendance Cardmarket')}</span></div></div>`;
@@ -187,7 +193,7 @@ function opnSheet() {
   const c = OPN.cur; if (!c) { opnStartSheet(); return; }
   if (OPN.sheet && sheets.includes(OPN.sheet)) return;
   haptic('tap');
-  const api = OPN.sheet = openSheet(c.name, T('Commencée le {d}', { d: opnWhen(c.at) }), a => a.wrap.classList.add('opn-sheet'));
+  const api = OPN.sheet = openSheet(c.name, T('Commencée le {d}', { d: opnWhen(c.at) }), a => opnSheetUp(a));
   const paint = () => {
     if (!sheets.includes(api) || OPN.cur !== c) { OPN.on.delete(paint); return; }
     const y = api.body.scrollTop;
@@ -231,7 +237,7 @@ function opnEndSheet() {
   if (!c.rows.length) { opnClose(); OPN.cur = null; opnSave(); opnRefresh(); toast(T('Session terminée : aucune carte à ajouter')); return; }
   haptic('tap');
   const off = new Set(), bil = typeof opnbHtml === 'function', kept = () => c.rows.filter(r => !off.has(r.id));
-  const api = openSheet(bil ? T('Bilan de l\'ouverture') : T('Terminer la session'), c.name + ' · ' + opnWhen(c.at), a => a.wrap.classList.add('opn-sheet', 'opn-end'));
+  const api = openSheet(bil ? T('Bilan de l\'ouverture') : T('Terminer la session'), c.name + ' · ' + opnWhen(c.at), a => opnSheetUp(a, 'opn-end'));
   const paint = () => {
     if (!sheets.includes(api) || OPN.cur !== c) { OPN.on.delete(paint); return; }
     const rows = kept(), t = opnTotals(rows), ae = document.activeElement;
@@ -287,7 +293,7 @@ function opnHistSave() {
 const opnRecRows = rec => rec.rows.map(([n, g, q, eu], i) => ({ id: 'h' + i, k: ownKey(n), n: String(n), g: String(g || ''), q: Number(q) || 1, eu: eu > 0 ? eu : null, im: '' }));
 function opnHistSheet() {
   openSheet(T('Mes ouvertures'), T('Gardées sur cet appareil'), api => {
-    api.wrap.classList.add('opn-sheet');
+    opnSheetUp(api);
     const paint = () => {
       const list = opnHist();
       api.body.innerHTML = list.length ? `<div class="opn-hl">${list.map(rec => `<button type="button" class="opn-h" data-id="${esc(rec.id)}"><span class="opn-ht"><b>${esc(rec.name)}</b><small>${esc(new Date(rec.at).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: 'numeric' }))} · ${TN(rec.n, '{n} carte', '{n} cartes')}</small></span><span class="opn-hv"><b>${rec.v ? esc(fmt(rec.v, 'EUR')) : '—'}</b>${typeof opnbHistTag === 'function' ? opnbHistTag(rec) : ''}</span>${OPN_CHEV}</button>`).join('')}</div>`
@@ -301,7 +307,7 @@ function opnHistSheet() {
 function opnHistOpen(rec, after) {
   const rows = opnRecRows(rec), text = () => collToText(mergeColl({}, rows.map(r => ({ k: r.k, n: r.n, q: r.q, l: r.g })), 'add'));
   openSheet(rec.name, opnWhen(rec.at) + (rec.st ? ' · ' + T('Mode streamer') : ''), api => {
-    api.wrap.classList.add('opn-sheet');
+    opnSheetUp(api);
     api.body.innerHTML = `${opnTilesHtml({ n: rec.n, v: rec.v })}${typeof opnbHistHtml === 'function' ? opnbHistHtml(rec) : ''}
       <h3 class="cs-h">${T('Cartes de la session')}</h3><div class="coll-list opn-list">${rows.map(r => opnRowHtml(r, 'fix')).join('')}</div>
       <button class="link-btn opn-quit" type="button" data-opn="del">${T('Supprimer cette ouverture')}</button>`;
@@ -386,7 +392,7 @@ function opnCollClick(e) {
   return true;
 }
 /** Récap du scan (« Ajouter ») pendant une session : où vont les cartes. */
-const opnRcNote = () => (OPN.cur ? `<p class="hint opn-rc">${opnIc(OPN.cur)}<span>${esc(T('Session « {name} » : ces cartes vont dans la session, et rejoignent ta collection quand tu la termines.', { name: OPN.cur.name }))}</span></p>` : '');
+function opnRcNote() { return OPN.cur ? `<p class="hint opn-rc">${opnIc(OPN.cur)}<span>${esc(T('Session « {name} » : ces cartes vont dans la session, et rejoignent ta collection quand tu la termines.', { name: OPN.cur.name }))}</span></p>` : ''; }
 
 // Aide (help.js) : une question de plus, juste après celle du scan d'un paquet ; retirée avec ce fichier.
 if (typeof HELP_QA !== 'undefined') {

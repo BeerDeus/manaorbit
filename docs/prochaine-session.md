@@ -80,6 +80,11 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
 - **Technique proposée** : Firestore (document par deck public, écriture par son auteur seul, règles testées dans `tests/rules-test.mjs`) ; le **serveur** rassemble régulièrement les decks publics dans un petit fichier statique (comme `edh.bin.gz`), l'appli les classe avec le même moteur (`edhRank`). Pas de liste Firestore côté client (coût et abus).
 - **Documents** : politique de confidentialité (decks publics : ce qui est visible, comment retirer) ; mentions légales : « Règles de publication » ; fiche Play à revoir si besoin (description, sécurité des données : contenu publié par l'utilisateur lui-même).
 
+## 7. Session d'ouverture et mode streamer (demandés le 13 octobre)
+- **Fait le 13 octobre** (README › « Session d'ouverture et mode streamer ») : une seule entrée (scan › Réglages › Session d'ouverture), lot à part ajouté à la collection à la fin, bilan booster (prix payé, gain ou perte, meilleures cartes, partage si `simgShare` existe), « Mes ouvertures » (sur l'appareil, export texte) ; option **mode streamer** (`streamOn()`) : seules la session et sa valeur à l'écran, ni e-mail, ni lien ou QR d'échange, ni pub, ni notification dans l'appli ; la vraie collection reste synchronisée et le widget garde ses chiffres.
+- Le propriétaire n'était « pas totalement sûr » de l'ouverture de boosters : la partie bilan s'enlève seule (`opnbilan.js`), toute la fonction aussi (README › « Retirer la fonction »).
+- Captures : `scratchpad/morning/ouverture/` de la session du 13 octobre (non versionnées).
+
 ## Petits rappels
 - Chaque texte visible : dans les six `src/i18n/*.json` (`tests/test-i18n-langs.mjs`).
 - Code natif touché → `versionCode` + 1 et nouvel `.aab` par le propriétaire ; sinon rien à refaire côté Android.
