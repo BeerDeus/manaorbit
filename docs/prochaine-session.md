@@ -80,6 +80,12 @@ L'appli est en **test fermé** pendant ces travaux : le site se met à jour chez
 - **Technique proposée** : Firestore (document par deck public, écriture par son auteur seul, règles testées dans `tests/rules-test.mjs`) ; le **serveur** rassemble régulièrement les decks publics dans un petit fichier statique (comme `edh.bin.gz`), l'appli les classe avec le même moteur (`edhRank`). Pas de liste Firestore côté client (coût et abus).
 - **Documents** : politique de confidentialité (decks publics : ce qui est visible, comment retirer) ; mentions légales : « Règles de publication » ; fiche Play à revoir si besoin (description, sécurité des données : contenu publié par l'utilisateur lui-même).
 
+## 7. Classeur d'échange visuel (demandé le 12 octobre, fait le 13 octobre, branche `feat/classeur`)
+- Demande : « en option, sur la page d'échange on peut switch avec un interrupteur entre le visu actuel et le classeur ; configurable depuis son espace (cartes en premier…) ». Réponses du propriétaire : épingler des cartes en tête, choix du tri (valeur, couleur, extension, nom), couleur du classeur visible des visiteurs ; pas d'ordre entièrement manuel.
+- **Fait** (README › « Liste d'échange » › Classeur) : interrupteur Liste | Classeur (icônes) dans la section Échange et sur la page publique, pages de 3 × 3 pochettes (glisser, flèches, clavier ; deux pages côte à côte sur grand écran), « Mon classeur » (Personnaliser : couleur, tri, 18 épingles). Réglages publiés dans le champ `d` du partage : **aucune règle Firestore à republier**.
+- **À voir sur le téléphone** : fluidité du glisser (Android bas de gamme), lisibilité des pastilles sur de vraies cartes, couleurs des couvertures en thème clair et sombre ; choix par défaut du visiteur (classeur seulement si le propriétaire a réglé le sien).
+- Pas fait : indication foil (la collection ne garde pas le foil), ordre entièrement manuel (écarté par le propriétaire), saut direct à une page (au-delà de ~20 pages, la recherche est plus rapide).
+
 ## Petits rappels
 - Chaque texte visible : dans les six `src/i18n/*.json` (`tests/test-i18n-langs.mjs`).
 - Code natif touché → `versionCode` + 1 et nouvel `.aab` par le propriétaire ; sinon rien à refaire côté Android.

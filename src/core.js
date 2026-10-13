@@ -2064,7 +2064,13 @@ function shareCard(x) {
   const m = shStr(x.m, 80); if (/^(\{[^{}]{1,6}\})*$/.test(m) && m) it.mc = m;
   return it;
 }
-/** Document de partage lu (champ d : JSON) → { kind: 'trade', at, have, want } | { kind: 'deck', at, name, text } ; null si illisible. */
+/** Classeur publié avec une liste d'échange (binder.js) : { c couverture, s tri, k cartes épinglées (clés), u date du réglage } ; null sans classeur. */
+function shareBd(x) {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
+  const c = shStr(x.c, 12), s = shStr(x.s, 8);
+  return { c: /^[a-z]{2,12}$/.test(c) ? c : '', s: ['value', 'color', 'set', 'name'].includes(s) ? s : 'name', k: Array.isArray(x.k) ? x.k.slice(0, 24).map(k => shStr(k, 160)).filter(Boolean) : [], u: shNum(x.u, 0, 1e15) || 0 };
+}
+/** Document de partage lu (champ d : JSON) → { kind: 'trade', at, have, want, bd? } | { kind: 'deck', at, name, text } ; null si illisible. */
 function readShare(kind, d) {
   let o; try { o = typeof d === 'string' ? JSON.parse(d) : d; } catch (e) { return null; }
   if (!o || typeof o !== 'object') return null;
@@ -2074,7 +2080,8 @@ function readShare(kind, d) {
   const who = { ...(by ? { by } : {}), ...(bp ? { bp } : {}) };
   if (kind === 'trade') {
     const list = a => (Array.isArray(a) ? a.slice(0, 20000).map(shareCard).filter(Boolean) : []);
-    return { kind, at, have: list(o.have), want: list(o.want), ...(o.cut ? { cut: true } : {}), ...who };      // cut : liste tronquée par le propriétaire (trop longue)
+    const bd = shareBd(o.bd);
+    return { kind, at, have: list(o.have), want: list(o.want), ...(o.cut ? { cut: true } : {}), ...(bd ? { bd } : {}), ...who };      // cut : liste tronquée par le propriétaire (trop longue) ; bd : son classeur
   }
   if (kind === 'deck') {
     const text = shStr(o.text, 60000), name = shStr(o.name, 120).trim() || 'Deck';
@@ -2107,7 +2114,7 @@ function handLandOdds(N, L, n = 7) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { T, TN, LOC, I18N, I18N_LANGS, i18nPick, i18nHas, i18nLangs,collToCsv, cmOffer, cmUrl, cmText, cmParts, CM_MAX, deckMissing, deckUse, tradeLists, tradeWant, tradeMatch, tradeView, shareCard, readShare, SHARE_IMG_RE, scrySmall, imgShort, isLandType, libraryOf, drawHand, handLandOdds,
+  module.exports = { T, TN, LOC, I18N, I18N_LANGS, i18nPick, i18nHas, i18nLangs,collToCsv, cmOffer, cmUrl, cmText, cmParts, CM_MAX, deckMissing, deckUse, tradeLists, tradeWant, tradeMatch, tradeView, shareCard, shareBd, readShare, SHARE_IMG_RE, scrySmall, imgShort, isLandType, libraryOf, drawHand, handLandOdds,
     parseLine, dropCard, restoreLines, sortCards, ctCardUrl, replaceParts, preferLang, forMode, needsEnglish, recapOf, CONDITIONS, COND_SHORT, normPart, normName, frontName, parseDeck, passes, normalizeProduct, optimize, allocate,
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,

@@ -16,6 +16,7 @@ BROWSER=(
   scanlang-e2e.mjs
   scanall-e2e.mjs
   pubdecks-e2e.mjs
+  binder-e2e.mjs
 )
 T=("$@")
 if [ ${#T[@]} -eq 0 ]; then T=("${NODE[@]}" "${BROWSER[@]}"); elif [ "$1" = --node ]; then T=("${NODE[@]}"); fi
