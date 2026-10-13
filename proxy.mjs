@@ -1105,9 +1105,9 @@ const AM_ON = FCM_ON && process.env.FRIENDS !== '0';
 const AM_MAX = Math.max(1, Number(process.env.FRIENDS_MAX) || 200), AM_INC = 100, AM_OUT = 50, AM_DEVS = 8, AM_X = 300, AM_KEYS = 8000;
 const AM_DECLINE = Number(process.env.FRIENDS_DECLINE_MS ?? 30 * 86400e3), AM_ASK_DAY = Number(process.env.FRIENDS_ASK_PER_DAY) || 40, AM_ASK_H = Number(process.env.FRIENDS_ASK_PER_H ?? 30);
 const AM_GAP = Number(process.env.FRIENDS_WANT_GAP_MS ?? 86400e3);      // « un ami a une carte que tu cherches » : une notification par jour au plus
-const AM_PART = 1000000, AM_BODY = 1100 * 1024, AM_TTL = 10 * 60e3, AM_CACHE = 3000;
+const AM_PART = 1000000, AM_BODY = 1100 * 1024, AM_TTL = 10 * 60e3, AM_CACHE = 3000, AM_CACHE_MB = (Number(process.env.FRIENDS_CACHE_MB) || 24) * 1024 * 1024;
 const AM_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt'], AM_TAG = /^[0-9a-f]{64}$/, AM_PARTS = ['t', 'd', 'c'], AM_SID = /^[A-Za-z0-9]{12,40}$/, AM_URL = /^\.\/(\?[\w=&.%-]{0,160})?$/;
-const AMI = { cache: new Map(), locks: new Map(), shares: new Map(), due: new Map(), timers: new Map(), dueT: null, booted: false };
+const AMI = { cache: new Map(), bytes: 0, locks: new Map(), shares: new Map(), due: new Map(), timers: new Map(), dueT: null, booted: false };
 const amTag = uid => createHash('sha256').update(String(uid)).digest('hex');
 const amN = o => Object.keys(o || {}).length;
 /** Empreinte courte d'une carte (nom comparé comme ownKey de l'appli) : « il a ce que tu cherches » sans garder les listes en clair dans le document du compte. */
@@ -1142,17 +1142,23 @@ async function fsDoc(method, path, fields) {
     return j || {};
   }
 }
-function amMem(tag, s) { AMI.cache.delete(tag); AMI.cache.set(tag, { s, at: Date.now() }); while (AMI.cache.size > AM_CACHE) AMI.cache.delete(AMI.cache.keys().next().value); }
+/** Cache des comptes (3 000 au plus, 24 Mo de JSON au plus : FRIENDS_CACHE_MB) ; les plus anciens partent d'abord. */
+function amMem(tag, s, size = 0) {
+  const old = AMI.cache.get(tag); if (old) { AMI.bytes -= old.b; AMI.cache.delete(tag); }
+  AMI.cache.set(tag, { s, at: Date.now(), b: size }); AMI.bytes += size;
+  while (AMI.cache.size > AM_CACHE || (AMI.bytes > AM_CACHE_MB && AMI.cache.size > 1)) { const [k, v] = AMI.cache.entries().next().value; AMI.bytes -= v.b; AMI.cache.delete(k); }
+}
 /** État d'un compte (null : aucun document). fresh : relu dans Firestore (toute modification part de là). */
 async function amGet(tag, fresh = false) {
   const c = AMI.cache.get(tag);
   if (!fresh && c && Date.now() - c.at < AM_TTL) return c.s;
-  const d = await fsDoc('GET', 'amis/' + tag), s = d ? amRead(fsFields(d).j) : null;
-  amMem(tag, s); return s;
+  const d = await fsDoc('GET', 'amis/' + tag), j = d ? String(fsFields(d).j || '') : '', s = d ? amRead(j) : null;
+  amMem(tag, s, j.length); return s;
 }
 async function amSave(tag, s) {
-  if (s) await fsDoc('PATCH', 'amis/' + tag, fsStr(JSON.stringify(s), Date.now())); else await fsDoc('DELETE', 'amis/' + tag);
-  amMem(tag, s);
+  const j = s ? JSON.stringify(s) : '';
+  if (s) await fsDoc('PATCH', 'amis/' + tag, fsStr(j, Date.now())); else await fsDoc('DELETE', 'amis/' + tag);
+  amMem(tag, s, j.length);
 }
 /** Modifications d'un ou deux comptes l'une après l'autre (un seul processus serveur : une file par compte suffit ; deux comptes : les deux files). */
 function amLock(keys, fn) {

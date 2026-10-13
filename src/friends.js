@@ -124,8 +124,9 @@ function amPaint() {
 }
 function amDot() {
   const b = typeof document !== 'undefined' && document.getElementById('btnAccount'); if (!b) return;
-  const n = amOn() && AM.l ? AM.l.inc.length : 0;
-  b.dataset.dot = n && !amQuiet() ? '1' : '0';
+  const n = amOn() && AM.l ? AM.l.inc.length : 0, on = !!n && !amQuiet(), base = (b.getAttribute('aria-label') || '').replace(/ — .*$/, '');
+  b.dataset.dot = on ? '1' : '0';
+  b.setAttribute('aria-label', on ? base + ' — ' + TN(n, '{n} demande d\'ami', '{n} demandes d\'ami') : base);      // le point dit aussi ce qu'il veut dire
 }
 /** Ligne « Amis » de « Compte et réglages › Mon compte » (vide si le serveur n'a pas les amis). */
 function amMeRow() {
@@ -355,7 +356,8 @@ function amPubMount(wrap, P) {
       const r = b.dataset.am === 'accept' && P.am ? await amCall('/answer', { method: 'POST', body: { id: P.am.id, ok: true, ...(await amProf()) } })
         : await amCall('/ask', { method: 'POST', body: { share: P.id, ...(await amProf()) } });
       P.am = { ...(P.am || {}), ...r, state: r.state }; paint(r.state); haptic('ok');
-      toast(r.state === 'friend' ? T('Vous êtes amis') : r.state === 'sent' ? T('Demande envoyée à {name}', { name: P.sh.by || T('ce joueur') }) : T('C\'est ta propre liste'));
+      if (r.state === 'sent' && !PROF.name) toast(T('Demande envoyée. Choisis un pseudo pour qu\'il te reconnaisse.'), { label: T('Pseudo'), fn: openProfile });      // sans pseudo, il verrait « Joueur sans pseudo »
+      else toast(r.state === 'friend' ? T('Vous êtes amis') : r.state === 'sent' ? T('Demande envoyée à {name}', { name: P.sh.by || T('ce joueur') }) : T('C\'est ta propre liste'));
       amRefresh(true);
     } catch (x) { paint(prev); toast(amErrText(x.code)); }
   });

@@ -63,5 +63,8 @@
   "· tes amis": "· seus amigos",
   "Collection vide pour l'instant.": "Coleção vazia por enquanto.",
   "Comment ajouter un ami ?": "Como adiciono um amigo?",
-  "Ouvre le lien d'échange de ton ami (ou scanne son QR code) et touche <b>Ajouter en ami</b>, à côté de son nom. Il accepte dans Compte et réglages › <b>Amis</b>. Entre amis, vous voyez la liste d'échange, les decks et, si chacun l'autorise, la collection de l'autre, toujours à jour ; une notification te prévient quand un ami ajoute une carte que tu cherches (une fois par jour au plus).": "Abra o link de troca do seu amigo (ou escaneie o QR code dele) e toque em <b>Adicionar amigo</b>, ao lado do nome. Ele aceita em Conta e configurações › <b>Amigos</b>. Como amigos, vocês veem a lista de trocas, os decks e, se cada um permitir, a coleção do outro, sempre atualizados; uma notificação avisa quando um amigo adiciona um card que você procura (no máximo uma vez por dia)."
+  "Ouvre le lien d'échange de ton ami (ou scanne son QR code) et touche <b>Ajouter en ami</b>, à côté de son nom. Il accepte dans Compte et réglages › <b>Amis</b>. Entre amis, vous voyez la liste d'échange, les decks et, si chacun l'autorise, la collection de l'autre, toujours à jour ; une notification te prévient quand un ami ajoute une carte que tu cherches (une fois par jour au plus).": "Abra o link de troca do seu amigo (ou escaneie o QR code dele) e toque em <b>Adicionar amigo</b>, ao lado do nome. Ele aceita em Conta e configurações › <b>Amigos</b>. Como amigos, vocês veem a lista de trocas, os decks e, se cada um permitir, a coleção do outro, sempre atualizados; uma notificação avisa quando um amigo adiciona um card que você procura (no máximo uma vez por dia).",
+  "{n} demande d'ami": "{n} pedido de amizade",
+  "{n} demandes d'ami": "{n} pedidos de amizade",
+  "Demande envoyée. Choisis un pseudo pour qu'il te reconnaisse.": "Pedido enviado. Escolha um apelido para que reconheçam você."
 }

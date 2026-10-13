@@ -63,5 +63,8 @@
   "· tes amis": "· your friends",
   "Collection vide pour l'instant.": "Collection empty for now.",
   "Comment ajouter un ami ?": "How do I add a friend?",
-  "Ouvre le lien d'échange de ton ami (ou scanne son QR code) et touche <b>Ajouter en ami</b>, à côté de son nom. Il accepte dans Compte et réglages › <b>Amis</b>. Entre amis, vous voyez la liste d'échange, les decks et, si chacun l'autorise, la collection de l'autre, toujours à jour ; une notification te prévient quand un ami ajoute une carte que tu cherches (une fois par jour au plus).": "Open your friend's trade link (or scan their QR code) and tap <b>Add friend</b>, next to their name. They accept in Account and settings › <b>Friends</b>. As friends, you see each other's trade list, decks and, if each of you allows it, collection, always up to date; a notification tells you when a friend adds a card you want (once a day at most)."
+  "Ouvre le lien d'échange de ton ami (ou scanne son QR code) et touche <b>Ajouter en ami</b>, à côté de son nom. Il accepte dans Compte et réglages › <b>Amis</b>. Entre amis, vous voyez la liste d'échange, les decks et, si chacun l'autorise, la collection de l'autre, toujours à jour ; une notification te prévient quand un ami ajoute une carte que tu cherches (une fois par jour au plus).": "Open your friend's trade link (or scan their QR code) and tap <b>Add friend</b>, next to their name. They accept in Account and settings › <b>Friends</b>. As friends, you see each other's trade list, decks and, if each of you allows it, collection, always up to date; a notification tells you when a friend adds a card you want (once a day at most).",
+  "{n} demande d'ami": "{n} friend request",
+  "{n} demandes d'ami": "{n} friend requests",
+  "Demande envoyée. Choisis un pseudo pour qu'il te reconnaisse.": "Request sent. Pick a nickname so they recognise you."
 }
