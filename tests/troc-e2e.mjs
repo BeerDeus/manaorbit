@@ -150,6 +150,7 @@ await phase(pa, 'confirm'); await phase(pb, 'confirm');
 assert.match(await tc(pa, '.trc .trc-final .trc-col.get'), /Tu reçois.*6,20/); assert.match(await tc(pa, '.trc .trc-final .trc-col.give'), /Tu donnes.*5,30/);
 await shot(pa, '10-alice-recap'); await shot(pb, '10-bob-recap');
 await pa.click('.trc [data-trc="ok"]'); await pa.waitForSelector('.trc [data-trc="ok"][disabled]');
+await pa.waitForFunction(() => /En attente de Bob/.test(document.querySelector('.trc [data-trc="ok"]').textContent), null, { timeout: 5000 }).catch(() => {});      // désactivé tout de suite, libellé à la réponse du serveur
 assert.match(await tc(pa, '.trc [data-trc="ok"]'), /En attente de Bob/);
 await pb.waitForSelector('.trc .trc-fs[data-ok="1"]'); assert.match(await tc(pb, '.trc .trc-fs'), /Alice a validé/);
 const before = { a: await coll(pa), b: await coll(pb) };

@@ -145,6 +145,8 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   assert.equal(await p.evaluate(() => OPN.cur.paid), 500, 'prix payé modifiable dans le bilan, gardé avec la session');
   const best = await p.$$eval('.opn-end .opnb-c figcaption span', s => s.map(x => x.textContent.replace('Anneau solaire', 'Sol Ring')));
   assert.deepEqual(best, ['Craterhoof Behemoth', 'Edgar Markov', 'Wrath of God', 'Sol Ring', 'Llanowar Elves'], '5 meilleures cartes, la plus chère d\'abord');
+  await p.evaluate(() => { window.simgShare = undefined; document.activeElement.blur(); opnSheets(); });      // simg.js absent (images à partager retirées) : pas de « Partager »
+  await p.waitForFunction(() => !document.querySelector('.opn-end [data-opn="share"]'));
   assert.equal(!!(await p.$('.opn-end [data-opn="share"]')), false, 'sans simgShare : pas de « Partager »');
   await p.evaluate(() => { window.__share = []; window.simgShare = spec => window.__share.push(spec); document.activeElement.blur(); opnSheets(); });
   await p.waitForSelector('.opn-end [data-opn="share"]'); await p.click('.opn-end [data-opn="share"]');
