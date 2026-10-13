@@ -441,6 +441,21 @@ await assert.rejects(start({ CARDTRADER_TOKEN: 'x', HOST: '0.0.0.0' }, 18790), /
   console.log('✓ prix des cartes : relus depuis la branche data, servis sur /prices.tsv, copie gardée ; fichier illisible ou maigre ignoré');
 }
 
+{ // 4d) prix : GitHub injoignable au démarrage (réseau pas encore prêt après un redéploiement) → nouvel essai rapide (1, 2, 4… × SYNC_RETRY_MS), pas 6 h plus tard
+  const { gzipSync } = await import('node:zlib'), { mkdtempSync, rmSync } = await import('node:fs'), { tmpdir } = await import('node:os'), { join } = await import('node:path');
+  const file = gzipSync(Buffer.from('#MOPX1 2026-10-10T09:00:00Z 16000\n' + Array.from({ length: 16000 }, (_, i) => `Carte ${i}\t${100 + i}\t${120 + i}`).join('\n') + '\n'));
+  let fails = 2, hits = 0;
+  const gh = http.createServer((q, r) => { hits++; if (fails-- > 0) { q.socket.destroy(); return; } r.writeHead(200); r.end(file); }); await new Promise(r => gh.listen(0, '127.0.0.1', r));
+  const dir = mkdtempSync(join(tmpdir(), 'pxr-'));
+  const px = await start({ CARDTRADER_TOKEN: '', PRICES_SOURCE_URL: `http://127.0.0.1:${gh.address().port}/prices.tsv.gz`, EDH_SYNC_MS: '3600000', EDH_SYNC_FIRST_MS: '10', SYNC_RETRY_MS: '200', EDH_DATA_DIR: dir }, 18797); B = 'http://127.0.0.1:18797';
+  let seen = '';      // premier passage à EDH_SYNC_FIRST_MS + 2 s : coupé deux fois, puis relu
+  for (let i = 0; i < 80 && !(r.o && r.o.cards); i++) { await new Promise(res => setTimeout(res, 100)); r = await j(B + '/__prices'); if (r.o.err) seen = r.o.err; }
+  assert.match(seen, /.+/, 'échec noté (connexion coupée)');
+  assert.equal(r.o.cards, 16000, 'relu après deux échecs, sans attendre le passage suivant (1 h ici)'); assert.equal(r.o.err, ''); assert.equal(hits, 3);
+  px.kill(); gh.close(); rmSync(dir, { recursive: true, force: true });
+  console.log('✓ prix : GitHub injoignable au démarrage → nouvel essai 200, 400 ms (en vrai 1, 2, 4… min), pas 6 h plus tard');
+}
+
 { // interrupteurs EDHREC / Archidekt (EDHREC_OFF, ARCHIDEKT_OFF) : annoncés par /__ping, fichier EDH filtré ou refusé, import de liens refusé
   const { mkdtempSync, writeFileSync } = await import('node:fs'), { tmpdir } = await import('node:os'), { gzipSync, gunzipSync } = await import('node:zlib'), { createRequire } = await import('node:module');
   const { edhPack, edhUnpack } = createRequire(import.meta.url)('../edhbin.cjs'), dir = mkdtempSync(join(tmpdir(), 'edhoff-'));

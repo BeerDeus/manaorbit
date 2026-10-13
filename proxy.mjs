@@ -93,6 +93,11 @@ function edhNoArchidekt(data) {
   const out = EDHB.edhFilter(gunzipSync(data), m => m[1] !== 'archidekt'), buf = gzipSync(out, { level: 9 });
   EDH_NOARCH = { key, buf }; return buf;
 }
+/** Relecture ratée (réseau pas encore prêt juste après un redéploiement, GitHub injoignable) : nouvel essai 1, 2, 4… min (1 h au plus)
+ *  au lieu d'attendre le passage suivant (6 h, prix absents d'ici là). Remis à zéro au premier succès. SYNC_RETRY_MS : base (tests). */
+const SYNC_RETRY_MS = Number(process.env.SYNC_RETRY_MS) || 60000, SYNC_RT = { px: { n: 0, t: null }, edh: { n: 0, t: null } };
+function syncRetry(k, fn) { const r = SYNC_RT[k]; if (r.t) return; r.t = setTimeout(() => { r.t = null; fn(); }, Math.min(60, 2 ** r.n++) * SYNC_RETRY_MS); r.t.unref(); }
+const syncOk = k => { const r = SYNC_RT[k]; r.n = 0; if (r.t) { clearTimeout(r.t); r.t = null; } };
 async function edhLocal(f) { try { const buf = await readFile(f); return { buf, ...edhInfo(buf) }; } catch (e) { return null; } }
 async function edhBoot() {
   const [repo, copy] = await Promise.all([edhLocal(EDH_REPO), edhLocal(EDH_COPY)]), best = copy && (!repo || copy.at > repo.at) ? copy : null;
@@ -101,10 +106,12 @@ async function edhBoot() {
 }
 async function edhSync() {
   if (!EDH_SRC || edhBusy) return; edhBusy = true; EDH_ST.check = new Date().toISOString();
+  let got = false;      // GitHub a répondu : un fichier refusé ensuite n'est pas une panne à réessayer tout de suite
   try {
     const r = await fetch(EDH_SRC, { headers: { 'User-Agent': 'deckdeal-proxy', ...(edhEtag ? { 'If-None-Match': edhEtag } : {}) }, signal: AbortSignal.timeout(90000) });
-    if (r.status === 304) { EDH_ST.err = ''; return; }
+    if (r.status === 304) { EDH_ST.err = ''; syncOk('edh'); return; }
     if (!r.ok) throw new Error('HTTP ' + r.status);
+    got = true; syncOk('edh');
     const buf = Buffer.from(await r.arrayBuffer()); if (buf.length > 40e6) throw new Error('fichier trop gros');
     const m = edhInfo(buf);
     if (EDHB && (m.decks < 50 || m.cmds < 100)) throw new Error(`fichier trop maigre (${m.decks} decks, ${m.cmds} commandants) : ignoré`);
@@ -114,7 +121,7 @@ async function edhSync() {
     EDH_LIVE = { buf, ...m }; Object.assign(EDH_ST, { from: 'GitHub', at: m.at, decks: m.decks, cmds: m.cmds, bytes: buf.length });
     console.log(`EDH : données du ${m.at} récupérées (${m.decks} decks, ${m.cmds} commandants, ${(buf.length / 1048576).toFixed(2)} Mo)`);
     try { await mkdir(EDH_DIR, { recursive: true }); await writeFile(EDH_COPY + '.tmp', buf); await rename(EDH_COPY + '.tmp', EDH_COPY); } catch (e) { /* dossier en lecture seule : la copie en mémoire suffit jusqu'au redémarrage */ }
-  } catch (e) { EDH_ST.err = String(e && e.message || e); console.warn('EDH : mise à jour impossible (' + EDH_ST.err + ')'); }
+  } catch (e) { EDH_ST.err = String(e && e.message || e); console.warn('EDH : mise à jour impossible (' + EDH_ST.err + ')'); if (!got) syncRetry('edh', edhSync); }
   finally { edhBusy = false; }
 }
 
@@ -133,10 +140,12 @@ function pxInfo(buf) {
 async function pxBoot() { try { const buf = await readFile(PX_COPY), m = pxInfo(buf); PX_LIVE = { buf, ...m }; Object.assign(PX_ST, { at: m.at, cards: m.cards, bytes: buf.length }); } catch (e) { /* pas encore de copie */ } }
 async function pxSync() {
   if (!PX_SRC || pxBusy) return; pxBusy = true; PX_ST.check = new Date().toISOString();
+  let got = false;
   try {
     const r = await fetch(PX_SRC, { headers: { 'User-Agent': 'manaorbit-proxy', ...(pxEtag ? { 'If-None-Match': pxEtag } : {}) }, signal: AbortSignal.timeout(90000) });
-    if (r.status === 304) { PX_ST.err = ''; return; }
+    if (r.status === 304) { PX_ST.err = ''; syncOk('px'); return; }
     if (!r.ok) throw new Error('HTTP ' + r.status);
+    got = true; syncOk('px');
     const buf = Buffer.from(await r.arrayBuffer()); if (buf.length > 20e6) throw new Error('fichier trop gros');
     const m = pxInfo(buf);
     if (m.cards < 15000) throw new Error(`seulement ${m.cards} cartes : ignoré`);
@@ -145,7 +154,7 @@ async function pxSync() {
     PX_LIVE = { buf, ...m }; Object.assign(PX_ST, { at: m.at, cards: m.cards, bytes: buf.length });
     console.log(`Prix : relevé du ${m.at} (${m.cards} cartes, ${(buf.length / 1024).toFixed(0)} Ko)`);
     try { await mkdir(EDH_DIR, { recursive: true }); await writeFile(PX_COPY + '.tmp', buf); await rename(PX_COPY + '.tmp', PX_COPY); } catch (e) { /* lecture seule : la copie en mémoire suffit */ }
-  } catch (e) { PX_ST.err = String(e && e.message || e); console.warn('Prix : mise à jour impossible (' + PX_ST.err + ')'); }
+  } catch (e) { PX_ST.err = String(e && e.message || e); console.warn('Prix : mise à jour impossible (' + PX_ST.err + ')'); if (!got) syncRetry('px', pxSync); }
   finally { pxBusy = false; }
 }
 
@@ -1937,13 +1946,14 @@ function admMail(e) {
   const loc = [...m[1]], dom = m[2], d = ADM_MAILS.test(dom) ? dom : [...dom][0] + '•••' + dom.slice(dom.lastIndexOf('.'));
   return loc.slice(0, loc.length > 4 ? 2 : 1).join('') + '•••@' + d;
 }
-/** Nom affiché réduit : « Jeanne Dupont » → « Jeanne D. » (prénom, initiale du dernier mot) ; un pseudo d'un seul mot reste tel quel ; une adresse est masquée. */
+/** Nom affiché réduit : « Jeanne Dupont » → « Jeanne D. » (premier mot, initiale du dernier mot qui a une lettre ; ce qui est entre parenthèses
+ *  ou crochets est retiré : « Jean Dupont (JeanD) » → « Jean D. ») ; un pseudo d'un seul mot reste tel quel ; une adresse est masquée. */
 function admName(s) {
   s = String(s || '').replace(/[\p{Cc}\p{Cf}<>]/gu, '').replace(/\s+/g, ' ').trim(); if (!s) return '';
   if (s.includes('@')) return admMail(s);
-  const w = s.split(' ');
-  if (w.length > 1 && w.every(x => /^\p{L}[\p{L}\p{M}'’.-]*$/u.test(x))) return [...w[0]].slice(0, 20).join('') + ' ' + [...w[w.length - 1]][0].toUpperCase() + '.';
-  return [...s].slice(0, 24).join('');
+  const w = (s.replace(/[([{][^)\]}]*[)\]}]/g, ' ').replace(/\s+/g, ' ').trim() || s).split(' '), lw = w.filter(x => /\p{L}/u.test(x));
+  if (w.length > 1 && lw.length > 1) return [...w[0]].slice(0, 20).join('') + ' ' + [...lw[lw.length - 1].replace(/^[^\p{L}]+/u, '')][0].toUpperCase() + '.';
+  return [...w.join(' ')].slice(0, 24).join('');
 }
 /** Collection (texte « 3 Sol Ring (CMM) 400 *FR* », une ligne par langue et édition) : cartes distinctes (champ count de l'appli) et exemplaires. */
 function admColl(text, count) {
