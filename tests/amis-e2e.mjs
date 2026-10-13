@@ -118,7 +118,7 @@ assert.match(await tc(pb, '.am-sheet .am-row[data-id="' + TA + '"] small'), /2 c
 await pb.click('.am-sheet .am-row[data-id="' + TA + '"]'); await pb.waitForSelector('.pubv.on .am-chips');
 assert.equal(await tc(pb, '.pubv .dv-title b'), 'Alice'); assert.match(await tc(pb, '.pubv .dv-title span'), /^Ami · Mise à jour/);
 assert.equal(await pb.$('.pubv .am-pub:not([hidden])'), null, 'page d\'un ami : pas de bouton d\'ajout');
-assert.deepEqual(await pb.$$eval('.pubv .am-chip', b => b.map(x => [...x.children].map(c => c.textContent).filter(Boolean).join(' '))), ['Ses decks 1', 'Sa collection 4']);
+assert.deepEqual(await pb.$$eval('.pubv .am-chip', b => b.map(x => [...x.children].map(c => c.textContent).filter(Boolean).join(' '))), ['Ses decks 1', 'Sa collection 4', 'Échange en direct'], 'puces de la page d\'un ami (échange en direct : troc.js)');
 await pb.waitForSelector('.pubv .pm-block[data-side="get"] .pm-row');
 assert.deepEqual((await pb.$$eval('.pubv .pm-block[data-side="get"] .pm-row', r => r.map(x => x.dataset.k))).sort(), ['craterhoof behemoth', 'sol ring'], 'Pour toi : ce qu\'Alice a et que Bob cherche');
 await shot(pb, '06-page-ami');
@@ -154,7 +154,7 @@ await pa.waitForFunction(() => /plus visible/.test(document.querySelector('#toas
 assert.equal(F.fs.docs.has(`amisdata/${TA}_c`), false, 'collection effacée du serveur');
 await pb.evaluate(() => { AM.parts.clear(); return amRefresh(true); });
 await pb.evaluate(t => amOpenFriend(t), TA); await pb.waitForSelector('.pubv.on .am-chips');
-assert.deepEqual(await pb.$$eval('.pubv .am-chip', b => b.map(x => [...x.children].map(c => c.textContent).filter(Boolean).join(' '))), ['Ses decks 1'], 'collection plus partagée : plus de bouton');
+assert.deepEqual(await pb.$$eval('.pubv .am-chip', b => b.map(x => [...x.children].map(c => c.textContent).filter(Boolean).join(' '))), ['Ses decks 1', 'Échange en direct'], 'collection plus partagée : plus de bouton');
 await pb.evaluate(() => TR.pub.el.__close());
 ok('collection plus partagée : effacée du serveur, plus visible chez Bob');
 

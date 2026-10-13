@@ -7,6 +7,8 @@
    · Page d'un ami : sa liste d'échange (l'écran du lien public, « Pour toi » compris), ses decks et sa collection (s'il l'autorise) en feuilles,
      « Retirer de mes amis ». Toujours à jour : lue sur le serveur, même sans lien public.
    · Accueil, « Pour toi » (home.js) : les amis qui ont le plus de cartes pour toi, puis les listes ouvertes par un lien.
+   · Échange en direct (troc.js) : « Échange en direct » sur la page d'un ami l'y invite (notification de son compte) ; les invitations qui t'attendent
+     arrivent avec la liste (tr) : toast « Rejoindre » et rubrique en tête de la feuille Amis.
    · Ce que voient les amis : envoyé par les appareils du compte quand ça change (différé, seulement ce qui a changé, seulement tant qu'il y a un ami ou une
      demande envoyée, jamais avant que la collection du compte soit lue) : liste d'échange (trPayload, comme le lien), decks enregistrés, collection si partagée.
    · Notifications : un appareil aux notifications actives s'enregistre pour le compte (une fois par semaine, ou quand son jeton change ; retiré à la
@@ -34,7 +36,8 @@ function amTidy(j) {
   if (!j || typeof j !== 'object') return null;
   const list = a => (Array.isArray(a) ? a.slice(0, 400).map(amWho).filter(Boolean) : []), me = j.me && typeof j.me === 'object' ? j.me : {}, has = me.has && typeof me.has === 'object' ? me.has : {};
   const friends = (Array.isArray(j.friends) ? j.friends : []).slice(0, 400).map(x => { const w = amWho(x); return w && { ...w, m: amNum(x.m), g: amNum(x.g), s: typeof x.s === 'string' && SHARE_ID_RE.test(x.s) ? x.s : '', c: x.c ? 1 : 0, u: amNum(x.u), nd: amNum(x.nd), nc: amNum(x.nc) }; }).filter(Boolean);
-  return { friends, inc: list(j.inc), out: list(j.out), me: { c: me.c ? 1 : 0, dev: amNum(me.dev), has: { t: amNum(has.t), d: amNum(has.d), c: amNum(has.c) } }, need: !!j.need, max: amNum(j.max) || 200 };
+  const tr = (Array.isArray(j.tr) ? j.tr : []).slice(0, 5).filter(x => x && /^[A-HJKMNP-Z2-9]{6}$/.test(x.c)).map(x => ({ c: x.c, n: amStr(x.n, 30), ...(amPicOk(x.p) ? { p: x.p } : {}), at: amNum(x.at) }));      // invitations à un échange en direct (troc.js)
+  return { friends, inc: list(j.inc), out: list(j.out), me: { c: me.c ? 1 : 0, dev: amNum(me.dev), has: { t: amNum(has.t), d: amNum(has.d), c: amNum(has.c) } }, need: !!j.need, max: amNum(j.max) || 200, tr };
 }
 /** Copie de l'appareil (relue seulement si elle a changé : l'accueil la demande à chaque repeinte avant la connexion). */
 const amLsMemo = { raw: null, o: {} };
@@ -44,7 +47,7 @@ function amLs() {
 }
 function amLoad() {
   const o = amLs(), same = !!AM.uid && o.uid === AM.uid;
-  AM.l = same ? amTidy(o.l) : null; AM.at = 0; AM.err = '';
+  AM.l = same ? amTidy(o.l) : null; AM.at = 0; AM.err = ''; if (AM.l) AM.l.tr = [];      // invitations à un échange : seulement celles du serveur, jamais une copie ancienne
   AM.sig = same && o.sig && typeof o.sig === 'object' ? o.sig : {}; AM.dev = same && typeof o.dev === 'string' ? o.dev : '';
   AM.devSig = same ? String(o.devSig || '') : ''; AM.devAt = same ? amNum(o.devAt) : 0; AM.push = o.push !== false; AM.parts.clear(); AM.loaded = true;
 }
@@ -103,6 +106,7 @@ function amRefresh(force) {
       if (D.uid !== uid) return null;
       if (!l.need) { delete AM.sig.t; delete AM.sig.d; delete AM.sig.c; }      // plus d'ami : le serveur a effacé ses copies, tout repartira au prochain
       AM.l = l; AM.at = Date.now(); AM.err = ''; amStore(); amPaint(); amAfter();
+      if (typeof trocInvites === 'function') trocInvites(l.tr);      // un ami t'invite à un échange en direct : toast « Rejoindre »
       return l;
     } catch (e) { AM.err = e.code || 'net'; amPaint(); return AM.l; }
     finally { AM.run = null; }
@@ -249,6 +253,7 @@ function amSheetPaint(api) {
   const b = api.body, l = AM.l;
   if (!l) { b.innerHTML = `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(AM.err ? amErrText(AM.err) : T('Lecture de tes amis…'))}</span></div>`; return; }
   const row = (x, sub, acts) => `<div class="am-row" data-id="${x.id}">${amAv(x)}<span class="am-t"><b>${esc(amName(x))}</b><small>${esc(sub)}</small></span>${acts}</div>`;
+  const tr = l.tr && l.tr.length && typeof trocJoinCode === 'function' ? `<div class="me-h">${T('Invitations à un échange')}</div><div class="me-g am-g">${l.tr.map(x => `<div class="am-row" data-c="${x.c}">${amAv({ ...x, id: x.c })}<span class="am-t"><b>${esc(amName(x))}</b><small>${esc(T('échange en direct · {when}', { when: relTime(x.at) }))}</small></span><span class="am-acts"><button class="btn small" type="button" data-am="trjoin">${T('Rejoindre')}</button></span></div>`).join('')}</div>` : '';
   const inc = l.inc.length ? `<div class="me-h">${T('Demandes reçues')}</div><div class="me-g am-g">${l.inc.map(x => row(x, relTime(x.at),
     `<span class="am-acts"><button class="btn small" type="button" data-am="yes">${T('Accepter')}</button><button class="icon-btn am-no" type="button" data-am="no" aria-label="${esc(T('Refuser la demande de {name}', { name: amName(x) }))}" title="${T('Refuser')}"><svg class="i"><use href="#i-close"/></svg></button></span>`)).join('')}</div>` : '';
   const fr = l.friends.length
@@ -259,7 +264,7 @@ function amSheetPaint(api) {
       <label class="me-row switch-row" for="amColl"><span class="me-t">${T('Partager ma collection')}<small>${T('Ils voient déjà tes doublons, tes cartes recherchées et tes decks.')}</small></span><span class="switch"><input type="checkbox" id="amColl"${l.me.c ? ' checked' : ''}><i></i></span></label>
       ${(pushNat() ? CTX.fcm : CTX.vapid) ? `<button type="button" class="me-row" data-am="push"><span class="me-t">${T('Notifications')}<small>${T('Demandes d\'ami, cartes que tu cherches')}</small></span><span class="me-v" id="amPushV"></span>${meChev}</button>` : ''}</div>
     ${AM.err ? `<p class="hint warn">${esc(amErrText(AM.err))}</p>` : ''}`;
-  b.innerHTML = inc + fr + out + set;
+  b.innerHTML = tr + inc + fr + out + set;
   amPushVal($('#amPushV', b));
 }
 async function amPushVal(el) {
@@ -273,6 +278,7 @@ async function amSheetClick(e, api) {
   const act = b.dataset.am, row = b.closest('[data-id]'), id = row ? row.dataset.id : '';
   haptic('tap');
   if (act === 'open') { while (sheets.length) sheets[sheets.length - 1].close(); setTimeout(() => amOpenFriend(id), reduceMotion() ? 0 : 160); }
+  else if (act === 'trjoin') { const c = (b.closest('[data-c]') || {}).dataset; while (sheets.length) sheets[sheets.length - 1].close(); if (c && c.c) trocJoinCode(c.c); }      // invitation à un échange en direct (troc.js)
   else if (act === 'qr') { api.close(); homeTradeAct(true); }
   else if (act === 'yes' || act === 'no') { b.disabled = true; await amAnswer(id, act === 'yes'); }
   else if (act === 'cancel') { b.disabled = true; try { await amCall('/remove', { method: 'POST', body: { id } }); toast(T('Demande annulée')); } catch (x) { toast(amErrText(x.code)); } amRefresh(true); }
@@ -368,7 +374,7 @@ function amFriendMount(wrap, P) {
   if (head) { $('b', head).textContent = amName(f); $('span', head).textContent = [T('Ami'), P.sh.at ? T('Mise à jour {when}', { when: relTime(P.sh.at) }) : ''].filter(Boolean).join(' · '); }
   if (more) {
     more.innerHTML = `${f.none ? `<p class="hint am-none">${T('{name} n\'a pas encore envoyé sa liste : elle arrivera à sa prochaine ouverture de Mana Orbit.', { name: esc(amName(f)) })}</p>` : ''}
-      <div class="am-chips"><button class="am-chip" type="button" data-am="decks"><svg class="i"><use href="#i-layers"/></svg><span>${T('Ses decks')}</span>${f.nd ? `<small>${nf0(f.nd)}</small>` : ''}</button>${f.c ? `<button class="am-chip" type="button" data-am="coll"><svg class="i"><use href="#i-cards"/></svg><span>${T('Sa collection')}</span>${f.nc ? `<small>${nf0(f.nc)}</small>` : ''}</button>` : ''}</div>`;
+      <div class="am-chips"><button class="am-chip" type="button" data-am="decks"><svg class="i"><use href="#i-layers"/></svg><span>${T('Ses decks')}</span>${f.nd ? `<small>${nf0(f.nd)}</small>` : ''}</button>${f.c ? `<button class="am-chip" type="button" data-am="coll"><svg class="i"><use href="#i-cards"/></svg><span>${T('Sa collection')}</span>${f.nc ? `<small>${nf0(f.nc)}</small>` : ''}</button>` : ''}${CTX.troc && typeof trocInvite === 'function' ? `<button class="am-chip" type="button" data-am="troc" title="${T('Proposer un échange en direct')}"><svg class="i"><use href="#i-swap"/></svg><span>${T('Échange en direct')}</span></button>` : ''}</div>`;
     more.hidden = false;
   }
   if (rm) { rm.innerHTML = `<button class="link-btn" type="button" data-am="rm">${T('Retirer {name} de mes amis', { name: esc(amName(f)) })}</button>`; rm.hidden = false; }
@@ -377,6 +383,7 @@ function amFriendMount(wrap, P) {
     haptic('tap');
     if (b.dataset.am === 'decks') amDecksSheet(f);
     else if (b.dataset.am === 'coll') amCollSheet(f);
+    else if (b.dataset.am === 'troc') trocInvite(f);      // échange en direct : session créée, l'ami est invité (notification de son compte)
     else if (b.dataset.am === 'rm') amRemoveAsk(f, wrap);
   });
 }

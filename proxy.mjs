@@ -10,7 +10,7 @@
 import http from 'node:http';
 import { readFile, writeFile, mkdir, rename, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { gunzipSync, gzipSync, gzip, brotliCompress, constants as zc } from 'node:zlib';
+import { gunzipSync, gzipSync, gzip, gunzip, brotliCompress, constants as zc } from 'node:zlib';
 import { promisify } from 'node:util';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { timingSafeEqual, createPublicKey, createPrivateKey, verify as rsaVerify, sign as dsaSign, randomBytes, createHash, createECDH, createCipheriv, hkdfSync } from 'node:crypto';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const gzipA = promisify(gzip), brotliA = promisify(brotliCompress);
+const gzipA = promisify(gzip), gunzipA = promisify(gunzip), brotliA = promisify(brotliCompress);
 const PORT = Number(process.env.PORT) || 8787;
 const HOST = process.env.HOST || '127.0.0.1';
 const TOKEN = (process.env.CARDTRADER_TOKEN || '').trim();
@@ -1098,7 +1098,7 @@ async function pubApi(req, res, url) {
    · amisys/due { j } : résumés en attente (empreinte → heure d'envoi), relus au premier appel après un démarrage.
    Un seul processus écrit : les modifications d'un compte passent l'une après l'autre (amLock) ; documents gardés 10 min en mémoire.
    notifyUser(compte, message) : notification sur tous les appareils enregistrés d'un compte, dans la langue de chacun (demandes, acceptations,
-   cartes cherchées ; demain les invitations à un échange). Toucher : ./?amis=1 (feuille Amis) ou ./?ami=<empreinte> (page de l'ami), voir push.js.
+   cartes cherchées, invitations à un échange en direct : /api/troc). Toucher : ./?amis=1 (feuille Amis), ./?ami=<empreinte> (page de l'ami) ou ./?troc=<code>, voir push.js.
    « Un ami a une carte que tu cherches » : calculé ici quand sa liste d'échange gagne des cartes que tu cherches ; une notification par jour au plus,
    la suivante regroupe tout ce qui est arrivé entre-temps.
    Bornes : 200 amis (FRIENDS_MAX), 100 demandes reçues, 50 envoyées, 40 demandes par jour et par compte, 30 par heure et par réseau, pas soi-même.
@@ -1212,7 +1212,7 @@ async function amOwner(sid) {
 
 /* ── Notifications d'un compte ─────────────────────────────────────────────────────────────────── */
 /**
- * Notification sur tous les appareils enregistrés d'un compte (Web Push ou FCM), dans la langue de chacun. À réutiliser (invitations à un échange…).
+ * Notification sur tous les appareils enregistrés d'un compte (Web Push ou FCM), dans la langue de chacun (amis, invitations à un échange en direct : trocNew).
  * who : UID Firebase ou empreinte (64 hex). msg : { title, body, url, tag, ttl? } ou lang => { … } (texte dans la langue de l'appareil : fr, en, de, es, it, pt).
  * url : « ./?… » (ouvert par l'appli au toucher, push.js › pushOpen) ; tag : sujet (une notification du même sujet remplace la précédente).
  * Cible refusée par le service (404 / 410) : retirée du compte. Retourne le nombre d'appareils prévenus.
@@ -1330,9 +1330,9 @@ async function amBoot() {
 
 /* ── Routes ──────────────────────────────────────────────────────────────────────────────────────── */
 /** Compte connecté ({ uid, tag }) ou réponse d'erreur envoyée (null). */
-async function amAuth(req, res) {
+async function amAuth(req, res, msg = 'Connecte-toi pour utiliser les amis.') {      // msg : aussi pour l'échange en direct (/api/troc)
   const tok = String(req.headers['x-firebase-token'] || '');
-  if (!tok) { json(res, 401, { error: 'auth_required', message: 'Connecte-toi pour utiliser les amis.' }); return null; }
+  if (!tok) { json(res, 401, { error: 'auth_required', message: msg }); return null; }
   if (isLocked(req)) { json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { 'Retry-After': '300' }); return null; }
   try { const u = await verifyIdToken(tok, true); return { uid: u.uid, tag: amTag(u.uid) }; }
   catch (e) {
@@ -1376,7 +1376,7 @@ async function amList(req, res, me) {
   const side = m => Object.entries(m).map(([t, at]) => who(t, at)).filter(Boolean).sort((a, b) => b.at - a.at);
   const gone = ids.filter(t => docs.has(t) && docs.get(t) === null);      // compte supprimé : retiré de la liste
   if (gone.length) amEdit([me.tag], st => { const o = st[me.tag]; if (o) for (const t of gone) { delete o.f[t]; delete o.i[t]; delete o.o[t]; } }).catch(() => {});
-  return amSend(req, res, { on: true, me: { c: s.c, dev: s.d.length, has: { t: Number(s.has.t) || 0, d: Number(s.has.d) || 0, c: Number(s.has.c) || 0 } }, friends, inc: side(s.i), out: side(s.o), need: !!(amN(s.f) || amN(s.o)), max: AM_MAX });
+  return amSend(req, res, { on: true, me: { c: s.c, dev: s.d.length, has: { t: Number(s.has.t) || 0, d: Number(s.has.d) || 0, c: Number(s.has.c) || 0 } }, friends, inc: side(s.i), out: side(s.o), need: !!(amN(s.f) || amN(s.o)), max: AM_MAX, tr: trocInvFor(me.tag) });      // tr : invitations à un échange en direct qui l'attendent
 }
 /** PUT /api/friends/me : profil, réglage de la collection, lien d'échange, appareil (dev : cible push ; off : clé d'un appareil à retirer), une partie (part, j : son JSON, k : nombre de cartes ou de decks). */
 async function amPutMe(req, res, me) {
@@ -1536,6 +1536,295 @@ async function friendsApi(req, res, path, url) {
   }
 }
 
+/* ── Échange en direct : /api/troc… (deux joueurs, chacun sur son téléphone : la « fenêtre d'échange » des RPG) ─────────────────────────────
+   L'hôte crée la session (POST /api/troc) : un code de 6 caractères (31 symboles sans 0, O, 1, I ni L : ≈ 887 millions de codes, tirés sans biais)
+   montré en QR code (./?troc=<code>) ou dicté ; l'invité la rejoint (POST /api/troc/join). Ou un ami est invité (inv : son empreinte, amitié vérifiée
+   dans les deux sens) : notifyUser « Invitation à un échange » (./?troc=<code>), et l'invitation figure dans GET /api/friends (tr) tant que la session l'attend.
+   Jeton Firebase exigé pour créer et rejoindre (tout compte du projet, sans ALLOWED_UIDS) ; chaque joueur reçoit une clé de siège (x-troc-key, 144 bits)
+   qui sert ensuite à tout : relevé (GET /api/troc/s), listes (GET /api/troc/list), actions (POST /api/troc/op). Aucun UID ni empreinte n'est renvoyé :
+   chacun voit « moi » et « l'autre » (pseudo, miniature du profil).
+   Sessions EN MÉMOIRE seulement (un seul processus) : un redémarrage les termine (l'appli dit « Session terminée »), rien n'est écrit nulle part.
+   · Chaque joueur envoie sa liste d'échange (doublons, une entrée par ligne langue|édition) ; l'autre y demande des cartes (op ask : elles arrivent dans
+     « Tu donnes » de celui qui les a, marquées demandées, à accepter ou retirer). Chacun choisit ce qu'il donne (op give : sa liste ou toute sa collection).
+   · Prix : ceux du fichier de prix du serveur (tendance Cardmarket, celui que lit l'appli), posés sur chaque carte à son arrivée dans la session ; carte
+     absente du fichier (ou serveur sans fichier) : le prix de l'appareil qui l'ajoute. Les deux joueurs voient donc exactement les mêmes valeurs.
+   · Version v (tout changement : un relevé sans nouveauté répond « same ») et version du contenu cv : « Prêt » et « Valider » portent la cv que le joueur
+     a vue (refusés si le contenu a bougé entre-temps : 409 stale). Tout changement du contenu retire « Prêt » aux deux (règle des RPG).
+   · Les deux « Prêt » → confirmation ; les deux « Valider » → done : la session est figée et chaque appli applique SA collection (retire ce qu'elle donne,
+     ajoute ce qu'elle reçoit). done n'arrive qu'une fois les deux validés : un joueur parti avant, et rien ne change. Session done gardée 24 h
+     (TROC_KEEP_MS) : une appli tuée juste après applique à son retour.
+   · Bornes : TROC_MAX sessions ouvertes (300), une à la fois par compte, TROC_NEW_PER_H créations par compte et par heure (20), TROC_BAD_PER_H codes faux
+     par compte et par heure (20 ; le double par réseau), 30 min sans requête (TROC_IDLE_MS) ou 3 h en tout : terminée ; listes de 3 000 entrées,
+     24 Mo pour toutes les sessions (TROC_MB : au-delà, les listes sont tronquées) ; 100 cartes par côté ; 12 requêtes d'avance par siège (6 par seconde).
+   Rien au démarrage : minuterie et prix chargés à la première session, libérés quand il n'y en a plus. TROC=0 : coupé (/__ping troc: false). */
+const TROC_ON = process.env.TROC !== '0';
+const TROC_MAX = Math.max(1, Number(process.env.TROC_MAX) || 300), TROC_IDLE = Number(process.env.TROC_IDLE_MS ?? 30 * 60e3), TROC_LIFE = Number(process.env.TROC_LIFE_MS ?? 3 * 3600e3);
+const TROC_KEEP = Number(process.env.TROC_KEEP_MS ?? 86400e3), TROC_AWAY = Number(process.env.TROC_AWAY_MS ?? 15e3), TROC_TICK = Number(process.env.TROC_TICK_MS ?? 15e3);
+const TROC_NEW_H = Number(process.env.TROC_NEW_PER_H ?? 20), TROC_BAD_H = Number(process.env.TROC_BAD_PER_H ?? 20), TROC_MB = (Number(process.env.TROC_MB) || 24) * 1024 * 1024;
+const TROC_LIST = 3000, TROC_ITEMS = 100, TROC_BODY = 700 * 1024, TROC_ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', TROC_CODE = /^[A-HJKMNP-Z2-9]{6}$/, TROC_KEY = /^[\w-]{24}$/;
+const TROC_LANGS = new Set(['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'kr', 'ru', 'zh-TW']), TROC_IMG = 'https://cards.scryfall.io/';
+const TROC = { s: new Map(), u: new Map(), lim: new Map(), bytes: 0, px: null, pxP: null, t: null };
+// Texte de l'invitation, dans la langue de l'appareil de l'ami (notifyUser).
+const TROC_TXT = {
+  fr: ['Invitation à un échange', n => `${n} t'invite à un échange en direct sur Mana Orbit.`],
+  en: ['Trade invitation', n => `${n} invites you to a live trade on Mana Orbit.`],
+  de: ['Einladung zum Tausch', n => `${n} lädt dich zu einem Live-Tausch auf Mana Orbit ein.`],
+  es: ['Invitación a un intercambio', n => `${n} te invita a un intercambio en directo en Mana Orbit.`],
+  it: ['Invito a uno scambio', n => `${n} ti invita a uno scambio dal vivo su Mana Orbit.`],
+  pt: ['Convite para uma troca', n => `${n} convidou você para uma troca ao vivo no Mana Orbit.`],
+};
+const trocStr = (v, n) => (typeof v === 'string' ? v.replace(/[\p{Cc}\p{Cf}<>]/gu, '').replace(/\s+/g, ' ').trim().slice(0, n) : '');
+const trocKey = n => (NM_CORE && NM_CORE.ownKey ? NM_CORE.ownKey(String(n)) : String(n).toLowerCase().trim());
+/** Ligne d'un exemplaire (langue|édition, comme core.js › lineKey) ; '' si rien de lisible. */
+function trocG(g) {
+  const s = typeof g === 'string' ? g.slice(0, 40) : '', i = s.indexOf('|'), l = i < 0 ? s : s.slice(0, i), e = i < 0 ? '' : s.slice(i + 1);
+  return (TROC_LANGS.has(l) ? l : '') + (/^[a-z0-9]{2,6}\|[^\s()|*,;"]{1,12}$/.test(e) ? '|' + e : '');
+}
+/** Image Scryfall (adresse complète ou courte, comme les partages) → forme courte « small/front/… » ; '' sinon. */
+function trocImg(v) {
+  const s = typeof v === 'string' ? v.slice(0, 300) : '', full = /^https:/.test(s) ? s : TROC_IMG + s;
+  return s && NM_CORE && NM_CORE.SHARE_IMG_RE && NM_CORE.SHARE_IMG_RE.test(full) ? full.slice(TROC_IMG.length).replace(/\?\d+$/, '') : '';
+}
+/** Carte envoyée par une appli → { n, q, g, f?, fl?, i?, u? } (u : prix de l'appareil, centimes) ; null si illisible. qmax : exemplaires au plus. */
+function trocCard(x, qmax = 99) {
+  if (!x || typeof x !== 'object') return null;
+  const n = trocStr(x.n, 160), q = Math.floor(Number(x.q)); if (!n || !trocKey(n) || !(q >= 1)) return null;
+  const c = { n, q: Math.min(qmax, q), g: trocG(x.g) }, f = trocStr(x.f, 160), i = trocImg(x.i), u = Math.round(Number(x.u));
+  if (f && f !== n) { c.f = f; if (TROC_LANGS.has(x.fl)) c.fl = x.fl; }
+  if (i) c.i = i;
+  if (u > 0 && u <= 1e7) c.u = u;
+  return c;
+}
+/** Prix du serveur : fichier de prix (le même que /prices.tsv) lu à la première session, en tranches (le serveur continue de répondre). */
+async function trocPxLoad() {
+  if (!PX_LIVE || !NM_CORE) return null;
+  if (TROC.px && TROC.px.buf === PX_LIVE.buf) return TROC.px;
+  if (!TROC.pxP) {
+    const { buf, at } = PX_LIVE;
+    TROC.pxP = (async () => {
+      const rows = (await gunzipA(buf)).toString('utf8').split('\n'), map = new Map();
+      for (let i = 1; i < rows.length; i += 4000) {
+        for (let j = i, end = Math.min(rows.length, i + 4000); j < end; j++) {      // nom \t centimes € \t centimes $ : l'impression la moins chère de chaque nom (comme pxParse de l'appli)
+          const a = rows[j].split('\t'), e = Number(a[1]) || 0; if (!a[0] || !(e > 0)) continue;
+          const k = trocKey(a[0]), cur = map.get(k); if (!cur || e < cur) map.set(k, e);
+        }
+        await new Promise(r => setImmediate(r));
+      }
+      TROC.px = { buf, at, map }; return TROC.px;
+    })().catch(e => { console.warn('Échange : prix illisibles (' + e.message + ')'); return null; }).finally(() => { TROC.pxP = null; });
+  }
+  return TROC.pxP;
+}
+const trocPrice = n => { const e = TROC.px && TROC.px.map.get(trocKey(n)); return e > 0 ? e : null; };
+/** Seau de jetons par compte ou par réseau (créations, codes faux) : 0 si permis (un jeton pris si take), sinon secondes à attendre. */
+function trocLim(name, who, cap, per, take = true) {
+  if (!who || !(cap > 0)) return 0;
+  const k = name + ' ' + who, now = Date.now(); let b = TROC.lim.get(k);
+  if (!b) { if (TROC.lim.size > 20000) for (const [kk, v] of TROC.lim) if (now - v.t > v.per) TROC.lim.delete(kk); b = { n: cap, t: now, per }; TROC.lim.set(k, b); }
+  b.n = Math.min(cap, b.n + (now - b.t) * cap / per); b.t = now;
+  if (b.n >= 1) { if (take) b.n--; return 0; }
+  return Math.max(1, Math.ceil((1 - b.n) * per / cap / 1000));
+}
+/** Siège : 12 requêtes d'avance, 6 de plus par seconde (l'appli en fait une par seconde au plus). */
+function trocPace(p) { const now = Date.now(); p.rn = Math.min(12, p.rn + (now - p.rt) * 6 / 1000); p.rt = now; if (p.rn < 1) return false; p.rn--; return true; }
+function trocCode() {
+  for (;;) {
+    let c = ''; while (c.length < 6) for (const x of randomBytes(8)) if (x < 248 && c.length < 6) c += TROC_ABC[x % 31];      // 248 = 8 × 31 : aucun symbole plus probable qu'un autre
+    if (!TROC.s.has(c)) return c;
+  }
+}
+const trocSeat = (me, b) => ({ tag: me.tag, key: randomBytes(18).toString('base64url'), n: amName(b.n), p: amPic(b.p), list: [], lb: 0, lv: 0, cut: false, give: [], ready: false, ok: false, seen: Date.now(), got: false, rn: 12, rt: Date.now() });
+/** Liste d'échange d'un joueur (une entrée par ligne), prix du serveur posés ; bornée par TROC_LIST et par la mémoire de toutes les sessions (tronquée : cut). */
+function trocSetList(p, raw) {
+  TROC.bytes -= p.lb; p.list = []; p.lb = 0; p.cut = false; p.lv++;
+  const a = Array.isArray(raw) ? raw : []; let room = Math.max(0, TROC_MB - TROC.bytes);
+  for (const x of a.slice(0, TROC_LIST + 1)) {
+    if (p.list.length >= TROC_LIST) { p.cut = true; break; }
+    const c = trocCard(x, 9999); if (!c) continue;
+    const pu = trocPrice(c.n); if (pu) c.u = pu;
+    const sz = JSON.stringify(c).length + 1; if (sz > room) { p.cut = true; break; }
+    room -= sz; p.lb += sz; p.list.push(c);
+  }
+  TROC.bytes += p.lb;
+}
+function trocFree(s) { for (const p of s.p) if (p) { TROC.bytes -= p.lb; p.list = []; p.lb = 0; } }
+const trocOpen = s => s.st === 'wait' || s.st === 'live';
+function trocUnmap(s) { for (const p of s.p) if (p && TROC.u.get(p.tag) === s.code) TROC.u.delete(p.tag); }
+/** Fin sans échange : un joueur est parti (left, by : son siège), ou plus personne (idle). */
+function trocEnd(s, why, by = -1) { if (!trocOpen(s)) return; s.st = 'end'; s.why = why; s.by = by; s.endAt = Date.now(); s.v++; trocFree(s); trocUnmap(s); }
+/** Ce compte quitte sa session ouverte (il en crée ou en rejoint une autre). */
+function trocLeave(tag) { const s = TROC.s.get(TROC.u.get(tag)); if (s) trocEnd(s, 'left', s.p.findIndex(p => p && p.tag === tag)); TROC.u.delete(tag); }
+function trocTick() {
+  const now = Date.now(), old = [];
+  for (const [c, s] of TROC.s) {
+    if (trocOpen(s) && (now - s.act > TROC_IDLE || now - s.at > TROC_LIFE)) trocEnd(s, 'idle');
+    if ((s.st === 'end' && now - s.endAt > 10 * 60e3) || (s.st === 'done' && (now - s.endAt > TROC_KEEP || (s.p.every(p => p.got) && now - s.endAt > 60e3)))) TROC.s.delete(c);
+    else if (!trocOpen(s)) old.push(c);
+  }
+  for (const c of old.slice(0, Math.max(0, old.length - TROC_MAX * 8))) TROC.s.delete(c);      // terminées en surnombre : les plus anciennes partent
+  if (!TROC.s.size) { clearInterval(TROC.t); TROC.t = null; TROC.px = null; }      // plus personne : minuterie et prix libérés
+}
+function trocWake() { if (!TROC.t) { TROC.t = setInterval(trocTick, TROC_TICK); TROC.t.unref(); } }
+/** La session vue du siège i : « me » et « ot » (l'autre, null tant que personne n'a rejoint ; on : il a donné signe de vie il y a moins de 15 s). */
+function trocView(s, i) {
+  const me = s.p[i], ot = s.p[1 - i];
+  const side = p => ({ n: p.n, ...(p.p ? { p: p.p } : {}), ready: p.ready, ok: p.ok, got: p.got, give: p.give, lv: p.lv, nl: p.list.length, ...(p.cut ? { cut: true } : {}) });
+  return { c: s.code, v: s.v, cv: s.cv, st: s.st, why: s.why, by: s.by < 0 ? '' : s.by === i ? 'me' : 'ot', host: i === 0, px: s.px,
+    me: side(me), ot: ot ? { ...side(ot), on: Date.now() - ot.seen < TROC_AWAY } : null, ...(i === 0 && s.inv ? { inv: s.invN || '' } : {}) };
+}
+/** Invitations en attente pour ce compte (GET /api/friends › tr) : sessions qui l'attendent encore. */
+function trocInvFor(tag) {
+  if (!TROC_ON) return [];
+  const out = []; for (const s of TROC.s.values()) if (s.st === 'wait' && s.inv === tag) out.push({ c: s.code, n: s.p[0].n, ...(s.p[0].p ? { p: s.p[0].p } : {}), at: s.at });
+  return out.slice(-5);
+}
+/** Session et siège d'après le code et la clé (x-troc-key) ; sinon réponse d'erreur envoyée (null). Chaque requête compte comme signe de vie. */
+function trocSeatOf(req, res, code) {
+  const key = String(req.headers['x-troc-key'] || ''), s = TROC_CODE.test(code) ? TROC.s.get(code) : null;
+  const i = s && TROC_KEY.test(key) ? s.p.findIndex(p => p && safeEq(p.key, key)) : -1;
+  if (i < 0) { json(res, 404, { error: 'gone', message: 'Session terminée.' }); return null; }
+  const p = s.p[i]; if (!trocPace(p)) { json(res, 429, { error: 'rate_limited', message: 'Trop de requêtes.', retry: 1 }, { 'Retry-After': '1' }); return null; }
+  p.seen = Date.now(); if (trocOpen(s)) s.act = p.seen;
+  return { s, i, p };
+}
+/** POST /api/troc { n, p, l, list, inv? } : nouvelle session (l'ancienne de ce compte se termine). → { key, s, sent? (appareils de l'ami prévenus ; -1 : inconnu) } */
+async function trocNew(req, res, me) {
+  const w = trocLim('new', me.tag, TROC_NEW_H, 3600e3) || rateWait(req, 'trocnew', 3 * TROC_NEW_H, 3600e3); if (w) return tooMany(res, w);
+  const b = await amBody(req, res, TROC_BODY); if (!b) return;
+  let open = 0; for (const s of TROC.s.values()) if (trocOpen(s) && s.code !== TROC.u.get(me.tag)) open++;      // sa propre session ouverte, remplacée, ne compte pas
+  if (open >= TROC_MAX) return json(res, 503, { error: 'busy', message: 'Trop d\'échanges en cours : réessaie dans un moment.' }, { 'Retry-After': '60' });
+  let inv = '', invN = '';
+  if (b.inv != null) {
+    inv = String(b.inv); if (!AM_TAG.test(inv) || inv === me.tag) return json(res, 400, { error: 'bad_request', message: 'Ami invalide.' });
+    if (!AM_ON) return json(res, 404, { error: 'friends_disabled', message: 'Amis désactivés sur ce serveur.' });
+    const [a, t] = await Promise.all([amGet(me.tag), amGet(inv)]);
+    if (!a || !t || !a.f[inv] || !t.f[me.tag]) return json(res, 403, { error: 'not_friend', message: 'Vous n\'êtes pas (ou plus) amis.' });
+    invN = t.n || '';
+  }
+  await trocPxLoad();
+  trocLeave(me.tag);
+  const now = Date.now(), s = { code: trocCode(), v: 1, cv: 1, at: now, act: now, st: 'wait', why: '', by: -1, inv, invN, n: 0, px: (TROC.px && TROC.px.at) || '', p: [trocSeat(me, b), null] };
+  trocSetList(s.p[0], b.list);
+  TROC.s.set(s.code, s); TROC.u.set(me.tag, s.code); trocWake();
+  let sent;
+  if (inv) {
+    const host = s.p[0].n;
+    sent = await Promise.race([notifyUser(inv, l => { const L = TROC_TXT[l] || TROC_TXT.fr; return { title: L[0], body: L[1](host || AM_TXT[l].anon), url: './?troc=' + s.code, tag: 'mo-troc', ttl: 1800 }; }).catch(() => 0), sleepMs(4000).then(() => -1)]);
+  }
+  return json(res, 200, { key: s.p[0].key, ...(inv ? { sent } : {}), s: trocView(s, 0) });
+}
+/** POST /api/troc/join { c, n, p, l, list } : rejoint une session qui attend (ou reprend sa place : rechargement, autre appareil du même compte). */
+async function trocJoin(req, res, me) {
+  const net = clientOf(req), w = trocLim('bad', me.tag, TROC_BAD_H, 3600e3, false) || trocLim('badnet', net, 2 * TROC_BAD_H, 3600e3, false);
+  if (w) return tooMany(res, w);
+  const b = await amBody(req, res, TROC_BODY); if (!b) return;
+  const code = String(b.c || '').toUpperCase().replace(/[\s-]/g, ''), s = TROC_CODE.test(code) ? TROC.s.get(code) : null;
+  const mine = s ? s.p.findIndex(p => p && p.tag === me.tag) : -1;
+  if (mine >= 0) {
+    const p = s.p[mine]; p.seen = Date.now();
+    if (trocOpen(s) && Array.isArray(b.list)) { trocSetList(p, b.list); s.v++; }
+    return json(res, 200, { key: p.key, s: trocView(s, mine) });
+  }
+  if (!s || s.st !== 'wait') {      // code inconnu, session pleine ou finie : compté (deviner un code coûte vite un blocage)
+    trocLim('bad', me.tag, TROC_BAD_H, 3600e3); trocLim('badnet', net, 2 * TROC_BAD_H, 3600e3);
+    return s && s.st === 'live' ? json(res, 409, { error: 'full', message: 'Cet échange a déjà deux joueurs.' }) : json(res, 404, { error: 'not_found', message: 'Code inconnu, ou échange terminé.' });
+  }
+  await trocPxLoad();
+  if (s.st !== 'wait') return json(res, 409, { error: 'full', message: 'Cet échange a déjà deux joueurs.' });      // rejoint par un autre pendant la lecture des prix
+  trocLeave(me.tag);
+  const p = s.p[1] = trocSeat(me, b); trocSetList(p, b.list);
+  s.st = 'live'; s.v++; s.act = Date.now(); TROC.u.set(me.tag, s.code);
+  return json(res, 200, { key: p.key, s: trocView(s, 1) });
+}
+/** GET /api/troc/s?c=<code>&v=<version> : la session (rien de neuf : { same, on }). */
+function trocPoll(req, res, url) {
+  const x = trocSeatOf(req, res, String(url.searchParams.get('c') || '')); if (!x) return;
+  const { s, i } = x, ot = s.p[1 - i];
+  if (Number(url.searchParams.get('v')) === s.v) return json(res, 200, { v: s.v, same: 1, on: !!ot && Date.now() - ot.seen < TROC_AWAY });
+  return json(res, 200, trocView(s, i));
+}
+/** GET /api/troc/list?c=<code>&w=me|ot : liste d'échange d'un joueur (prix de la session). */
+async function trocListGet(req, res, url) {
+  const x = trocSeatOf(req, res, String(url.searchParams.get('c') || '')); if (!x) return;
+  const p = x.s.p[url.searchParams.get('w') === 'me' ? x.i : 1 - x.i];
+  return amSend(req, res, { lv: p ? p.lv : 0, list: p ? p.list : [], ...(p && p.cut ? { cut: true } : {}) });
+}
+/** POST /api/troc/op { c, op, … } : give { card } · ask { card } (dans sa liste) · set { id, q } · accept { id | all } · unask { id } · ready { on, cv } ·
+    confirm { cv } · list { list } · leave · got (appliqué chez moi). Répond la session vue de ce siège (erreur : { error, message, s }). */
+async function trocOp(req, res) {
+  const b = await amBody(req, res, TROC_BODY); if (!b) return;
+  const x = trocSeatOf(req, res, String(b.c || '')); if (!x) return;
+  const { s, i, p } = x, ot = s.p[1 - i], op = String(b.op || '');
+  const done = () => json(res, 200, trocView(s, i)), fail = (st, error, message) => json(res, st, { error, message, s: trocView(s, i) });
+  const touch = () => { s.cv++; s.v++; for (const q of s.p) if (q) { q.ready = false; q.ok = false; } return done(); };      // contenu changé : plus personne n'est prêt
+  if (op === 'leave') { trocEnd(s, 'left', i); return done(); }
+  if (op === 'got') { if (s.st === 'done' && !p.got) { p.got = true; s.v++; } return done(); }
+  if (!trocOpen(s)) return fail(409, 'closed', 'Échange terminé.');
+  if (op === 'list') { trocSetList(p, b.list); s.v++; return done(); }
+  if (op === 'give' || op === 'ask') {
+    const side = op === 'give' ? p : ot; if (!side) return fail(409, 'alone', 'Personne n\'a encore rejoint l\'échange.');
+    const c = trocCard(b.card); if (!c) return fail(400, 'bad_request', 'Carte illisible.');
+    const k = trocKey(c.n), same = y => y.g === c.g && trocKey(y.n) === k, asked = op === 'ask';
+    let cap = 99;
+    if (asked) {      // seulement une carte de sa liste, et pas plus d'exemplaires qu'il n'en propose (données de sa liste : nom, image, prix)
+      const e = side.list.find(same); if (!e) return fail(404, 'not_listed', 'Cette carte n\'est pas dans sa liste.');
+      cap = e.q - side.give.filter(y => same(y) && !y.a).reduce((t, y) => t + y.q, 0);
+      delete c.f; delete c.fl; delete c.i; Object.assign(c, { n: e.n, ...(e.f ? { f: e.f } : {}), ...(e.fl ? { fl: e.fl } : {}), ...(e.i ? { i: e.i } : {}), u: e.u });
+    }
+    const cur = side.give.find(y => same(y) && !!y.a === asked);
+    if (cur) { const q = Math.min(cap, cur.q + c.q); if (q <= cur.q) return fail(409, 'max', 'Pas plus d\'exemplaires.'); cur.q = q; if (asked) cur.r = 1; return touch(); }
+    if (side.give.length >= TROC_ITEMS) return fail(409, 'items', 'Trop de cartes de ce côté.');
+    const q = Math.min(cap, c.q); if (q < 1) return fail(409, 'max', 'Pas plus d\'exemplaires.');
+    side.give.push({ id: (++s.n).toString(36), ...c, q, u: trocPrice(c.n) || c.u || null, ...(asked ? { a: 1, r: 1 } : {}) });
+    return touch();
+  }
+  if (op === 'set' || op === 'unask') {      // set : mes cartes (0 : retirée ; une carte demandée ne monte pas au-delà) · unask : ma demande chez l'autre, retirée
+    const side = op === 'set' ? p : ot, it = side && side.give.find(y => y.id === String(b.id || ''));
+    if (!it || (op === 'unask' && !it.a)) return fail(404, 'no_item', 'Carte introuvable.');
+    const q = op === 'unask' ? 0 : Math.max(0, Math.min(it.a ? it.q : 99, Math.floor(Number(b.q)) || 0));
+    if (q === it.q) return done();
+    if (q) it.q = q; else side.give.splice(side.give.indexOf(it), 1);
+    return touch();
+  }
+  if (op === 'accept') {
+    const list = p.give.filter(y => y.r && (b.all || y.id === String(b.id || ''))); if (!list.length) return done();
+    for (const y of list) delete y.r;
+    return touch();
+  }
+  if (op === 'ready') {
+    if (!b.on) { if (p.ready || s.p.some(q => q && q.ok)) { p.ready = false; for (const q of s.p) if (q) q.ok = false; s.v++; } return done(); }
+    if (!ot) return fail(409, 'alone', 'Personne n\'a encore rejoint l\'échange.');
+    if (Number(b.cv) !== s.cv) return fail(409, 'stale', 'L\'échange vient de changer : vérifie-le.');
+    if (p.give.some(y => y.r)) return fail(409, 'pending', 'Réponds d\'abord à ses demandes.');
+    if (!p.give.length && !ot.give.length) return fail(409, 'empty', 'Rien à échanger pour l\'instant.');
+    if (!p.ready) { p.ready = true; s.v++; }
+    return done();
+  }
+  if (op === 'confirm') {
+    if (!ot || !p.ready || !ot.ready) return fail(409, 'not_ready', 'Vous devez être prêts tous les deux.');
+    if (Number(b.cv) !== s.cv) return fail(409, 'stale', 'L\'échange vient de changer : vérifie-le.');
+    if (!p.ok) { p.ok = true; s.v++; }
+    if (ot.ok) { s.st = 'done'; s.endAt = Date.now(); trocFree(s); trocUnmap(s); }      // les deux ont validé : figé, chaque appli applique sa collection
+    return done();
+  }
+  return fail(400, 'bad_request', 'Action inconnue.');
+}
+async function trocApi(req, res, path, url) {
+  if (!TROC_ON) return json(res, 404, { error: 'troc_disabled', message: 'Échange en direct désactivé sur ce serveur.' });
+  const sub = path.replace(/^troc\/?/, '');
+  try {
+    if (req.method === 'GET' && sub === 's') return trocPoll(req, res, url);
+    if (req.method === 'GET' && sub === 'list') return await trocListGet(req, res, url);
+    if (req.method === 'POST' && sub === 'op') return await trocOp(req, res);
+    if (req.method === 'POST' && (!sub || sub === 'join')) { const me = await amAuth(req, res, 'Connecte-toi pour échanger en direct.'); if (!me) return; return await (sub ? trocJoin(req, res, me) : trocNew(req, res, me)); }
+    return json(res, 405, { error: 'method_not_allowed' });
+  } catch (e) {
+    if (res.headersSent) throw e;
+    console.warn('Échange : ' + String(e && e.message || e).slice(0, 200));
+    return json(res, 503, { error: 'unavailable', message: 'Échange momentanément indisponible.' }, { 'Retry-After': '10' });
+  }
+}
+
 /* ── Noms imprimés des autres langues (scan) : GET /api/names/find?q=<ligne lue>[&q=…]&skip=<langue>[,…] ──────────────────────────────
    L'appli compare le nom lu au catalogue de SA langue (gardé sur l'appareil) puis à l'anglais, puis aux autres langues si elle a names-all.tsv sur l'appareil ;
    sinon une carte d'une autre langue (italienne lue avec l'appli en français) est cherchée ici dans les catalogues names-*.tsv déjà servis, avec la même
@@ -1614,6 +1903,7 @@ async function api(req, res, url) {
   if (path === 'pubdecks') return pubApi(req, res, url);      // decks publics (« Communauté ») : liste ouverte à tous, sans token
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
   if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
+  if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège
   // CardTrader : avec le token de l'utilisateur (X-CT-Token), ou celui du serveur pour les comptes autorisés (ALLOWED_UIDS / APP_KEY).
   const ut = userTok(req);
   if (!ut && !(await authorize(req, res))) return;
@@ -1747,7 +2037,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, off: OFF, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, off: OFF, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (url.pathname === '/' || url.pathname === '/index.html') {
@@ -1797,6 +2087,7 @@ server.listen(PORT, HOST, () => {
   if (ADMOB_RAW && !ADMOB_BANNER) console.warn('⚠ ADMOB_BANNER_ID ignoré : attendu « ca-app-pub-…/… » (identifiant du bloc d\'annonces, pas celui de l\'appli).');
   if (FCM_ON) console.log(`Notifications de l'appli Android (FCM) : projet Firebase « ${fcmSa.project} ».`);
   if (AM_ON) { console.log(`Amis : ${AM_MAX} au plus par compte, « un ami a une carte que tu cherches » toutes les ${Math.round(AM_GAP / 360000) / 10} h au plus.`); }
+  if (TROC_ON) console.log(`Échange en direct : ${TROC_MAX} sessions au plus, en mémoire (terminées après ${Math.round(TROC_IDLE / 60e3)} min sans activité).`);
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
   if (ALERTS_ON) {
     const wait = Math.max(AL_FIRST, (AL.last.at || 0) + AL_EVERY - Date.now());

@@ -1202,7 +1202,7 @@ async function detectProxy(ms = 5000) {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
     const r = await fetch('__ping', { signal: ctrl.signal }); clearTimeout(t);
     if (!r.ok) return; const j = await r.json();
-    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); }
+    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); }
   } catch (e) { /* pas de proxy */ }
   modeLabel();
 }
@@ -1259,7 +1259,7 @@ function init() {
   };
   collInit();
   valInit(); warmInit();
-  xsInit(); alInit(); trInit(); amInit();
+  xsInit(); alInit(); trInit(); amInit(); if (typeof trocInit === 'function') trocInit();      // troc.js : rien, sauf une session en cours sur cet appareil
   initDecks();
   refreshDeck();
   homeInit();
@@ -1333,6 +1333,7 @@ function handleLaunch() {
   else if (resume) resumeRun();
   else if (alerts) setTimeout(alertsOpen, 900);
   else if (amis) amPushOpen('?' + q.toString());                                        // notification d'un ami touchée (Web Push : nouvelle fenêtre) : feuille Amis ou page de l'ami
+  else if (q.has('troc') && typeof trocPushOpen === 'function') trocPushOpen('?' + q.toString());      // échange en direct : QR code de l'hôte scanné, invitation touchée (troc.js)
   else if (shared) onShared(extractShared({ title: q.get('title'), text: q.get('text'), url: q.get('url') }));
   else if (q.has('collection')) setTimeout(() => openCollection(), 600);                  // lien direct vers la collection (?collection)
   else if (q.has('import')) { obMark(); setTimeout(() => { if (OB.el) obClose(); openCollection('list'); setTimeout(() => openCollImport(), 350); }, 600); }      // « Importer ma collection » de la page /passer-de-manabox : ni premier lancement, ni détour
