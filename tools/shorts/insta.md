@@ -1,6 +1,6 @@
 # Instagram : bio, calendrier et descriptions des shorts
 
-Compte : **@manaorbit.app** (ou @manaorbit si libre). Nom affiché : `Mana Orbit · Scan, cote, decks`. Catégorie : Application. Lien : `https://manaorbit.app/testeurs`.
+Compte : **@mana.orbit** (https://www.instagram.com/mana.orbit). Nom affiché : `Mana Orbit · Scan, cote, decks`. Catégorie : Application. Lien : `https://manaorbit.app/testeurs`.
 Les mêmes vidéos et descriptions servent sur YouTube Shorts (titre = première ligne, description = le reste).
 
 ## Bio (150 caractères au plus)
