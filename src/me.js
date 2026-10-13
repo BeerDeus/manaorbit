@@ -25,22 +25,24 @@ const meRow = (me, title, value, warn, id) => `<button type="button" class="me-r
 function meSigNow() {
   const u = D.user;
   return [u ? u.uid : '', u ? meName(u) + '|' + (u.email || '') + '|' + acctVerified(u) : D.state + (D.hint && !D.authReady ? 'h' : ''), PROF.photo ? PROF.photo.length : 0, D.pending, D.listErr, allDecks().length, collCount(), Math.round(homeValue() / 100),
-    PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang].join('§');
+    PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang,
+    typeof opnSv === 'function' ? JSON.stringify(opnSv()) : ''].join('§');      // mode streamer (opening.js) : la fiche ne montre que la session
 }
 function mePaint() {
   if (!meOpen()) return;
   const sig = meSigNow(); if (sig === ME.sig) return; ME.sig = sig;
-  const b = ME.api.body, u = D.user, nat = typeof isNativeApp === 'function' && isNativeApp();
+  const b = ME.api.body, u = D.user, nat = typeof isNativeApp === 'function' && isNativeApp(), sv = typeof opnSv === 'function' ? opnSv() : null;      // sv : mode streamer (opening.js) : ni e-mail ni identifiants, la session seule
+  const who = u && sv && meName(u) === u.email ? T('Compte') : meName(u);
   const top = u
-    ? `<div class="me-who"><span class="who-av me-av" id="meAv">${esc((meName(u).trim()[0] || '?').toUpperCase())}</span>
-        <span class="me-wt"><b>${esc(meName(u) || T('Compte'))}</b>${u.email && u.email !== meName(u) ? `<span>${esc(u.email)}</span>` : ''}<span class="me-sync${D.listErr ? ' warn' : ''}">${esc(D.listErr || (D.pending ? T('Synchronisation…') : T('Synchronisé')))}</span></span>
+    ? `<div class="me-who"><span class="who-av me-av" id="meAv">${esc((who.trim()[0] || '?').toUpperCase())}</span>
+        <span class="me-wt"><b>${esc(who || T('Compte'))}</b>${u.email && u.email !== who && !sv ? `<span>${esc(u.email)}</span>` : ''}<span class="me-sync${D.listErr ? ' warn' : ''}">${esc(D.listErr || (D.pending ? T('Synchronisation…') : T('Synchronisé')))}</span></span>
         <button class="btn ghost small" type="button" data-me="profil" id="meProfile">${T('Modifier')}</button></div>`
     : D.hint && !D.authReady ? `<div class="me-in"><p class="hint">${T('Connexion au compte…')}</p></div>`
     : `<div class="me-in"><b>${T('Connecte-toi')}</b><span class="hint">${T('Sauvegarde ta collection, tes decks et ta liste d\'échange, et retrouve-les sur tous tes appareils.')}</span><button class="btn small" type="button" data-me="compte" id="meLogin">${T('Se connecter')}</button></div>`;
-  const n = collCount(), v = homeValue();
+  const n = sv ? sv.n : collCount(), v = sv ? sv.v : homeValue();
   const stats = `<div class="me-stats"><button type="button" data-me="coll"><b>${nf0(n)}</b><span>${T(n > 1 ? 'cartes' : 'carte')}</span></button><button type="button" data-me="decks"><b>${nf0(allDecks().length)}</b><span>${T(allDecks().length > 1 ? 'decks' : 'deck')}</span></button><button type="button" data-me="valeur"><b>${v ? '≈ ' + esc(fmt(Math.round(v / 100) * 100)).replace(/[,.]00(?=\s|$| )/, '') : '—'}</b><span>${T('valeur')}</span></button></div>`;
   const mine = PD.mine && u && PD.mineUid === u.uid ? PD.mine.size : -1;
-  const acct = u ? meGroup(T('Mon compte'), [
+  const acct = sv ? meGroup(T('Mode streamer'), [meRow('opn', T('Session d\'ouverture'), esc(opnPillTxt(OPN.cur)))]) : u ? meGroup(T('Mon compte'), [
     meRow('compte', T('Gérer le compte'), acctVerified(u) ? '' : T('Adresse à vérifier'), !acctVerified(u), 'meAcct'),
     meRow('pub', T('Decks publiés'), mine >= 0 ? esc(`${nf0(mine)} / ${PUB_MAX}`) : ''),
     meRow('trade', T('Lien d\'échange'), TR.share ? T('Actif') : T('Aucun')),
@@ -96,6 +98,7 @@ function meSub(k) {
   else if (k === 'coll') leave(() => navGo('coll'));
   else if (k === 'decks') leave(() => navGo('decks'));
   else if (k === 'valeur') leave(() => navOpen(() => openCollection('stats')));
+  else if (k === 'opn' && typeof opnSheet === 'function') opnSheet();
   else if (k === 'out') meSignOut();
 }
 async function meSignOut() {

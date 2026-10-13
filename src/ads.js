@@ -79,7 +79,7 @@ async function adsStep() {
   const P = natPlugin('AdMob'); if (!P) return;
   const now = Date.now(), busy = adsBusy();
   if (busy) AD.calm = 0; else if (!AD.calm) AD.calm = now;
-  if (CTX.serverOk === true || AD.no) {                                                    // compte autorisé, ou pub refusée : bandeau détruit
+  if (CTX.serverOk === true || AD.no || (typeof streamOn === 'function' && streamOn())) {  // compte autorisé, pub refusée, ou mode streamer (opening.js, html.streamer : réévalué au changement) : bandeau détruit
     if (AD.st !== 'off') { AD.st = 'off'; adsPad(0); await adsCall(P, 'removeBanner'); }
     return;
   }

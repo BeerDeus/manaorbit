@@ -294,7 +294,7 @@ function openSaveSheet() {
   readOpts();
   const modeName = S.opts.mode === 'zero' ? 'Zero' : 'Direct', cm = priceSrc() === 'cm';      // prix Cardmarket : langue, état et mode CardTrader ne changent rien au prix, on ne les annonce pas
   openSheet(T('Enregistrer le deck'), null, api => {
-    const where = D.user ? T('Enregistré sur ton compte ({email}).', { email: esc(D.user.email || '') })
+    const where = D.user ? T('Enregistré sur ton compte ({email}).', { email: typeof streamOn === 'function' && streamOn() ? '•••' : esc(D.user.email || '') })      // mode streamer (opening.js) : jamais l'e-mail à l'écran
       : T('Enregistré sur cet appareil.') + (D.state !== 'unavailable' ? ' ' + T('{login} pour le retrouver partout.', { login: `<button class="link-btn link-inline" type="button" id="svLogin">${T('Connecte-toi')}</button>` }) : '');
     const cardsTxt = esc(dkCountText(text));      // exemplaires, comme Mes decks et le viewer (« 41/100 cartes » en Commander)
     api.body.innerHTML = `<div class="field-in"><label class="label" for="svName">${T('Nom')}</label><input type="text" id="svName" maxlength="120" autocomplete="off" value="${esc(suggestName(text))}"></div>
@@ -485,10 +485,10 @@ function paintAuthForm(api) {
   };
 }
 function paintAccountIn(api) {
-  const u = D.user, b = api.body, local = importable().length;
+  const u = D.user, b = api.body, local = importable().length, mail = typeof streamOn === 'function' && streamOn() ? '' : u.email;      // mode streamer (opening.js) : jamais l'e-mail à l'écran
   const n = D.list.length;
   const state = D.listErr ? D.listErr : D.pending ? T('Synchronisation…') : TN(n, 'Synchronisé · {n} deck', 'Synchronisé · {n} decks');
-  b.innerHTML = `<div class="who"><span class="who-av" id="acAv">${esc(((PROF.name || u.displayName || u.email || '?').trim()[0] || '?').toUpperCase())}</span><div class="who-t"><b>${esc(PROF.name || u.email || u.displayName || T('Compte'))}</b>${PROF.name && u.email ? `<span class="who-mail">${esc(u.email)}</span>` : ''}<span id="acState">${esc(state)}</span>${acctVerified(u) ? '' : `<span class="who-vf">${T('Adresse non vérifiée')} · <button class="link-btn" type="button" id="acVf" data-vf="short">${esc(vfLabel(u.uid, true))}</button></span>`}</div></div>
+  b.innerHTML = `<div class="who"><span class="who-av" id="acAv">${esc(((PROF.name || u.displayName || u.email || '?').trim()[0] || '?').toUpperCase())}</span><div class="who-t"><b>${esc(PROF.name || mail || u.displayName || T('Compte'))}</b>${PROF.name && mail ? `<span class="who-mail">${esc(mail)}</span>` : ''}<span id="acState">${esc(state)}</span>${acctVerified(u) ? '' : `<span class="who-vf">${T('Adresse non vérifiée')} · <button class="link-btn" type="button" id="acVf" data-vf="short">${esc(vfLabel(u.uid, true))}</button></span>`}</div></div>
     <button class="btn ghost small" type="button" id="acProfile" style="align-self:flex-start">${T('Modifier le profil')}</button>
     ${local ? `<div class="import-row"><span>${TN(local, '{n} deck sur cet appareil', '{n} decks sur cet appareil')}</span><button class="btn" type="button" id="acImport">${T('Importer')}</button></div>` : ''}
     <p class="hint">${T('Ta collection, tes decks, l\'historique de valeur et ta liste d\'échange sont sauvegardés sur ton compte et synchronisés sur tous tes appareils connectés. Ton token CardTrader reste sur cet appareil.')}</p>`;      // identifiant du compte pour ALLOWED_UIDS : se lit dans la console Firebase (Authentication › Users), plus dans l'appli
@@ -553,7 +553,7 @@ function paintAccountDelete(api) {
   const b = api.body, pw = D.cloud.provider() === 'password';
   b.dataset.delFor = D.user ? D.user.uid : '';
   b.innerHTML = `<div class="auth">
-    <div class="status" data-ok="0"><span class="dot"></span><span>${T('<b>Suppression définitive</b> de {who}', { who: esc(D.user.email || T('ce compte')) })}</span></div>
+    <div class="status" data-ok="0"><span class="dot"></span><span>${T('<b>Suppression définitive</b> de {who}', { who: esc((!(typeof streamOn === 'function' && streamOn()) && D.user.email) || T('ce compte')) })}</span></div>
     <p class="hint">${T('Tout ce que le compte a en ligne est effacé : decks, collection, historique de valeur, liste d\'échange et liens partagés. C\'est irréversible.')}</p>
     <div class="switch-row"><span class="t"><b>${T('Effacer aussi cet appareil')}</b><span class="hint">${T('Collection, decks et réglages gardés sur ce téléphone ou cet ordinateur.')}</span></span><label class="switch"><input type="checkbox" id="acWipeLocal" checked><i></i></label></div>
     ${pw ? '<div class="field-in"><label class="label" for="acDelPw">' + T('Mot de passe, pour confirmer') + '</label><input type="password" id="acDelPw" autocomplete="current-password"></div>' : '<p class="hint">' + T('Google te demandera de confirmer ton identité.') + '</p>'}

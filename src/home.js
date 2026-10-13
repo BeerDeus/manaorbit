@@ -33,13 +33,14 @@ function homeCount(el, to) {
 function homePaint() {
   const home = $('#viewHome'); if (!home) return;
   // Orbe
-  const n = collCount(), orb = $('#btnColl'), val = $('#hmValue'), cnt = $('#hmCount'), dl = $('#hmDelta');
+  const sv = typeof opnSv === 'function' ? opnSv() : null;      // mode streamer (opening.js) : l'orbe ne montre que la session (le widget Android garde la vraie collection)
+  const n = sv ? sv.n : collCount(), orb = $('#btnColl'), val = $('#hmValue'), cnt = $('#hmCount'), dl = $('#hmDelta');
   orb.dataset.empty = n ? '0' : '1';
   if (n) {
-    const v = homeValue();
+    const v = sv ? sv.v : homeValue();
     if (v > 0) homeCount(val, v); else { HM.v = null; val.textContent = nf0(n); }
     cnt.textContent = v > 0 ? TN(n, '{n} carte', '{n} cartes') : TN(n, 'carte', 'cartes');
-    const h = histDelta(VAL.hist, 7);
+    const h = sv ? null : histDelta(VAL.hist, 7);
     if (h && Math.abs(h.d) >= 100) { dl.hidden = false; dl.className = h.d < 0 ? 'down' : ''; dl.textContent = T('{d} · 7 j', { d: (h.d < 0 ? '▼ −' : '▲ +') + hmEur(Math.abs(h.d)) }); } else dl.hidden = true;
   } else { HM.v = null; val.textContent = T('Commencer'); cnt.textContent = T('Ajoute tes cartes'); dl.hidden = true; }
   orb.setAttribute('aria-label', n ? T('Ma collection : {v}, {n} cartes', { v: val.textContent, n: nf0(n) }) : T('Ma collection : ajoute tes cartes'));

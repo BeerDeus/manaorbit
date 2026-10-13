@@ -115,6 +115,10 @@ const lotLine = c => lineKey(lotLangOf(c), c.e);
 function lotAdd() {
   const c = LOT.cur; if (!c) return;
   const g = lotLine(c), l = lineLang(g), was = LOT.edit && LOT.list.find(x => x.id === LOT.edit);
+  if (!was && typeof opnTake === 'function' && opnTake([{ k: c.k, n: c.n, q: c.q, l: g, p: c.e ? c.pick : null, eu: lotEu(c), im: c.pick ? c.pick.th : '' }])) {      // session d'ouverture (opening.js) : dans la session, ni la collection ni ce lot
+    haptic('ok'); lotSay(opnSay(c.p || frName(c.k, l) || c.n), true); lotPaintCard();
+    const inp = $('#caName', LOT.el); if (inp) inp.select(); return;
+  }
   if (c.e && c.pick) edRemember(c.k, l, c.e, edInfoOf(c.pick, l));
   if (was) collBump(was.k, was.n, -was.q, { lang: was.g, paint: false });
   collBump(c.k, c.n, c.q, { lang: g }); lotMeta([c.k]); haptic('ok');

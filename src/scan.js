@@ -194,7 +194,7 @@ function scanRecap() {
     $('h2', api.wrap).textContent = TN(n, 'Ajouter {n} carte', 'Ajouter {n} cartes'); let sub = $('.sheet-head p', api.wrap);
     if (!sub) { sub = document.createElement('p'); $('.sheet-head > div', api.wrap).appendChild(sub); } sub.textContent = TN(uniq.size, '{n} carte différente', '{n} cartes différentes');
     const note = wait ? T('Lecture des prix…') : !nopx ? '' : err ? T(priced ? 'Valeur partielle : {err}.' : 'Prix indisponibles : {err}.', { err }) : TN(nopx, '{n} exemplaire sans prix Cardmarket, non comptés.', '{n} exemplaires sans prix Cardmarket, non comptés.');
-    api.body.innerHTML = `<div class="rc">${sure ? `<p class="rc-ask" role="alert"><b>${esc(TN(td.n, '{n} carte n\'a pas d\'édition.', '{n} cartes n\'ont pas d\'édition.'))}</b> ${esc(td.load ? T('Lecture des éditions…') : T('Ajoutées sans édition : tu pourras la choisir plus tard dans ta collection.'))}</p>` : ''}<div class="cs-tiles"><div><b>${nf0(uniq.size)}</b><span>${TN(uniq.size, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(n)}</b><span>${TN(n, 'exemplaire', 'exemplaires')}</span></div><div class="rc-val"><b>${wait || (!priced && err) ? (wait ? '…' : '—') : priced ? esc(fmt(val, 'EUR')) : '—'}</b><span>${T('valeur estimée · tendance Cardmarket')}</span></div></div>
+    api.body.innerHTML = `<div class="rc">${typeof opnRcNote === 'function' ? opnRcNote() : ''}${sure ? `<p class="rc-ask" role="alert"><b>${esc(TN(td.n, '{n} carte n\'a pas d\'édition.', '{n} cartes n\'ont pas d\'édition.'))}</b> ${esc(td.load ? T('Lecture des éditions…') : T('Ajoutées sans édition : tu pourras la choisir plus tard dans ta collection.'))}</p>` : ''}<div class="cs-tiles"><div><b>${nf0(uniq.size)}</b><span>${TN(uniq.size, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(n)}</b><span>${TN(n, 'exemplaire', 'exemplaires')}</span></div><div class="rc-val"><b>${wait || (!priced && err) ? (wait ? '…' : '—') : priced ? esc(fmt(val, 'EUR')) : '—'}</b><span>${T('valeur estimée · tendance Cardmarket')}</span></div></div>
       ${note ? `<p class="hint rc-note">${esc(note)}</p>` : ''}
       ${rows.length && !wait ? `<h3 class="cs-h">${T('Les plus chères')}</h3><div class="cs-top">${rows.slice(0, 3).map(({ x, eu }) => `<div class="crow ro" data-k="${esc(x.k)}" data-n="${esc(x.n)}" data-q="${x.q}" data-ln="${esc(x.l)}"><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('rc', x.n)}>${esc((x.n.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(scanThumb({ key: x.k, name: x.n, l: x.l, pk: x.p }))}"></span><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta">${x.e ? `<span class="tag ed">${setIcHtml(edSet(x.e))}${esc(edLabel(x.e))}</span>` : ''}${x.q > 1 ? `<span class="tag accent">× ${nf0(x.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(eu, 'EUR'))}</b>${x.q > 1 ? `<small>${T('{p} le lot', { p: esc(fmt(eu * x.q, 'EUR')) })}</small>` : ''}</span></div>`).join('')}</div>` : ''}
       <dl class="rc-facts"><div><dt>${T('Nouvelles dans ta collection')}</dt><dd>${TN(uniq.size - haveK.size, '{n} carte', '{n} cartes')}</dd></div>
@@ -221,6 +221,9 @@ function scanRecap() {
     if (b.dataset.rc === 'go' && scanEdTodo().n) { sure = true; haptic('tap'); paint(); return; }      // cartes sans édition : on demande d'abord
     const items = live(); if (!items.length) return;
     const before = COLL.map, n = items.reduce((a, x) => a + x.q, 0);
+    if (typeof opnTake === 'function' && opnTake(items.map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e), p: x.e ? x.p : null })), { toast: true })) {      // session d'ouverture (opening.js) : les cartes vont dans la session, ajoutées à la collection à la fin
+      api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok'); return;
+    }
     if (SC.lot && LOT.el) {      // depuis le lot : chaque carte y rejoint aussi la liste, avec l'extension collante si elle y existe
       api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok');
       lotFromScan(items).then(() => toast(TN(n, '{n} carte ajoutée au lot', '{n} cartes ajoutées au lot', { n })));
@@ -809,7 +812,7 @@ function openScan(o) {
       const a = e.target.closest('[data-a]'), k = a.closest('.sc-item').dataset.k, it = SC.pq.find(x => x.key === k); if (!it) return;
       haptic('tap');
       if (a.dataset.a === 'pdec') { it.n = Math.max(1, (it.n || 1) - 1); scanPaintList(); }
-      else if (a.dataset.a === 'padd') { const nn = it.n || 1, lang = it.l || ''; collBump(k, it.name, nn, { lang }); collEnrich(); toast(nn > 1 ? T('{n} × {name} ajoutées à ta collection', { n: nn, name: it.name }) : T('{name} ajoutée à ta collection', { name: it.name }), { label: T('Annuler'), fn: () => collBump(k, it.name, -nn, { lang }) }); scanPaintList(); }
+      else if (a.dataset.a === 'padd') { const nn = it.n || 1, lang = it.l || ''; if (typeof opnTake === 'function' && opnTake([{ k, n: it.name, q: nn, l: lang, eu: Number.isFinite(it.cm) ? it.cm : null, im: it.im || '' }], { toast: true })) { scanPaintList(); return; } collBump(k, it.name, nn, { lang }); collEnrich(); toast(nn > 1 ? T('{n} × {name} ajoutées à ta collection', { n: nn, name: it.name }) : T('{name} ajoutée à ta collection', { name: it.name }), { label: T('Annuler'), fn: () => collBump(k, it.name, -nn, { lang }) }); scanPaintList(); }
       else { SC.pq = SC.pq.filter(x => x !== it); scanPaintList(); }
       return;
     }
@@ -843,6 +846,7 @@ function openScan(o) {
   });
   scNoteShow(false);      // aide fermée au départ : « ? » l'ouvre
   document.body.appendChild(wrap); holdApp(); scanPaintTools(); scanPaintList();
+  if (typeof opnBands === 'function') opnBands();      // session d'ouverture (opening.js) : bandeau au-dessus de la liste
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.sc-tools [data-act="close"]', wrap).focus({ preventScroll: true }); }));
   haptic('tap'); scanCamera().finally(() => { if (SC.el !== wrap) return; auLampProbe(); auSync(); if (auOn()) scanHint(T('Pose la carte, le nom dans la bande : elle s\'ajoute seule'), ''); scanWarm(); });
 }

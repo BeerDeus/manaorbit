@@ -39,6 +39,7 @@ async function pnListen(P) {
     }),
     on('registrationError', e => pnDone({ error: String((e && e.error) || '') })),
     on('pushNotificationReceived', n => {                                       // app au premier plan : Android affiche aussi la notification
+      if (typeof streamOn === 'function' && streamOn()) return;                 // mode streamer (opening.js) : rien à l'écran de l'appli
       const msg = [n && n.title, n && n.body].filter(Boolean).join(' · '), url = n && n.data && n.data.url;
       if (msg) toast(msg, /[?&](alerts|resume)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);
     }),
