@@ -133,7 +133,7 @@ function xsFail(id, err) {
   if (err && err.code === 'permission-denied' && !XS.warned) { XS.warned = true; toast(T('Règles Firestore à publier pour synchroniser decks montés et historique (voir README)')); }
 }
 function xsUser(user) {
-  for (const id in XS.docs) { const d = XS.docs[id]; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.state = 'off'; d.uid = ''; }
+  for (const id in XS.docs) { const d = XS.docs[id]; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.state = 'off'; d.uid = ''; }
   if (!user || !D.cloud || !D.cloud.watchMeta) return;
   for (const id in XS.docs) {
     const d = XS.docs[id]; d.state = 'sync'; d.uid = user.uid;
@@ -154,10 +154,11 @@ function xsRemote(id, uid, data, pending, fromCache) {
     if (!histSame(merged, remote)) xsPushSoon('history');
   }
 }
-function xsPushSoon(id) { const d = XS.docs[id]; if (!d || !d.uid) return; clearTimeout(d.pushT); d.pushT = setTimeout(() => xsPush(id), 900); }
+function xsPushSoon(id) { const d = XS.docs[id]; if (!d || !d.uid) return; clearTimeout(d.pushT); d.pushT = setTimeout(() => xsPush(id), 900); }      // pushT remis à 0 à l'envoi : non nul = envoi en attente (syncFlush)
 /** Relevés de valeur envoyés en objets { t, v, n, q } : Firestore refuse les tableaux de tableaux (l'ancien format [[t, v, n, q]] échouait sans bruit) ; la lecture accepte les deux. */
 async function xsPush(id) {
-  const d = XS.docs[id]; if (!d || !d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
+  const d = XS.docs[id]; if (d) { clearTimeout(d.pushT); d.pushT = 0; }
+  if (!d || !d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
   const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : { pts: VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0 })), updatedAt: Date.now() };
   try { await D.cloud.saveMeta(d.uid, id, doc); d.state = 'ok'; acctSaw(id, d.uid); } catch (err) { xsFail(id, err); }

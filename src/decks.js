@@ -497,7 +497,7 @@ function paintAccountIn(api) {
   b.insertAdjacentHTML('beforeend', '<button class="link-btn link-inline ac-del" type="button" id="acDel">' + T('Supprimer mon compte') + '</button>');
   $('#acDel', b).onclick = () => { D.account.del = true; paintAccount(); };
   api.setFoot('<button class="btn ghost-danger" type="button" id="acOut">' + T('Se déconnecter') + '</button>');
-  $('#acOut', api.foot).onclick = async e => { e.target.disabled = true; try { await D.cloud.signOut(); api.close(); toast(T('Déconnecté')); } catch (err) { e.target.disabled = false; toast(T('Déconnexion impossible')); } };
+  $('#acOut', api.foot).onclick = async e => { e.target.disabled = true; try { await syncFlush(); await D.cloud.signOut(); api.close(); toast(T('Déconnecté')); } catch (err) { e.target.disabled = false; toast(T('Déconnexion impossible')); } };
   const im = $('#acImport', b); if (im) im.onclick = e => { e.target.disabled = true; importLocal(); };
   const vf = $('#acVf', b); if (vf) { vf.onclick = async () => { const err = await vfSend(); toast(err || T('E-mail envoyé à {email}', { email: u.email || '' })); }; vfTick(); }
 }
@@ -657,6 +657,18 @@ function acctOut(uid) {
   if (D.uid === uid) { if (D.unsub) { try { D.unsub(); } catch (e) { /* ignore */ } D.unsub = null; } collUser(null); xsUser(null); trUser(null); mobUser(null); scsUser(null); }
   Promise.resolve().then(() => D.cloud.signOut()).catch(() => {});
   toast(T('Ce compte a été supprimé ou désactivé : tu es déconnecté.'));
+}
+
+/** Envois au compte encore en attente (collection, decks montés, historique de valeur, liste d'échange, réglages du scan) : partis tout de suite.
+ *  Appli mise en arrière-plan ou fermée (collSleep), déconnexion (attendus, 3 s au plus ; hors ligne, tout reste sur l'appareil et repart à la prochaine synchro). */
+function syncFlush() {
+  if (!cloudOn()) return Promise.resolve();
+  const jobs = [];
+  if (COLL.pushT) jobs.push(collPush());
+  for (const id in XS.docs) if (XS.docs[id].pushT) jobs.push(xsPush(id));
+  if (TR.doc.pushT) jobs.push(trPush());
+  if (typeof SCS !== 'undefined' && SCS.doc.pushT) jobs.push(scsPush());
+  return Promise.race([Promise.all(jobs.map(p => Promise.resolve(p).catch(() => {}))), sleep(3000)]);
 }
 
 /* ── Connexion au cloud ───────────────────────────────────────────────────────────────────── */

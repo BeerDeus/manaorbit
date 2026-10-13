@@ -108,6 +108,6 @@ function meSub(k) {
 }
 async function meSignOut() {
   const b = ME.api && $('.me-out', ME.api.body); if (b) b.disabled = true;
-  try { await amOut(); await D.cloud.signOut(); if (meOpen()) ME.api.close(); toast(T('Déconnecté')); }      // amOut : cet appareil ne reçoit plus les notifications des amis de ce compte
+  try { await syncFlush(); await amOut(); await D.cloud.signOut(); if (meOpen()) ME.api.close(); toast(T('Déconnecté')); }      // syncFlush : ce qui attend part d'abord ; amOut : cet appareil ne reçoit plus les notifications des amis de ce compte
   catch (err) { if (b) b.disabled = false; toast(T('Déconnexion impossible')); }
 }

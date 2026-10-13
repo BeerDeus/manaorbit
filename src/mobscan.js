@@ -1,6 +1,6 @@
 /* ── mobscan.js : « Scan mobile » : le PC attend (page « Ajouter des cartes »), le téléphone scanne, chaque carte arrive dans le lot du PC ──────────────
    Même compte sur les deux appareils, rien à appairer. Document users/{uid}/meta/scan :
-     { on (le PC attend), s (session), dev (appareil du PC), by (son nom), at (dernier signe de vie, ms), items: [{ i, k, n, q, l, e }], updatedAt }.
+     { on (le PC attend), s (session), dev (appareil du PC), by (son nom), at (dernier signe de vie, ms), items: [{ i, k, n, q, l, e }], updatedAt (changé seulement en ouvrant et en fermant une session : ni les cartes ni le signe de vie, cloud.js › sommaire) }.
      e : édition décidée sur le téléphone (scaned.js : posée d'office ou choisie ; '' : sans) ; absente (téléphone plus ancien) : l'extension collante du lot du PC.
    · PC : « Scan mobile » écrit { on: true, s, dev, by, at, items: [] }, puis renouvelle « at » chaque minute. Chaque carte reçue rejoint le lot
      (lotFromScan : extension collante ; q négatif : exemplaires retirés), puis sort du document (arrayRemove). « Arrêter », fermer la page : on = false.
@@ -62,7 +62,7 @@ async function mobStart() {
 function mobBeat() {
   if (!MOB.pc || !D.user) return;
   if (typeof document !== 'undefined' && document.hidden) return;      // onglet caché : le navigateur ralentit tout ; repris au retour
-  D.cloud.updMeta(D.user.uid, 'scan', { at: Date.now(), updatedAt: Date.now() }).catch(() => {});
+  D.cloud.updMeta(D.user.uid, 'scan', { at: Date.now() }).catch(() => {});      // date (updatedAt) inchangée : seuls les appareils qui suivent la session en direct le relisent (cloud.js › sommaire)
 }
 /** Arrêt (bouton, page fermée, compte changé) ; quiet : sans écriture (déconnexion). */
 function mobStop(quiet) {

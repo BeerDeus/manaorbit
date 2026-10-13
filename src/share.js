@@ -47,7 +47,7 @@ function trRepaint() { if (COLL.el && COLL.tab === 'trade') collPaintBody(true);
 /* ── Réglages dans le compte ───────────────────────────────────────────────────────────────────────── */
 function trUser(user) {
   pubSoon();      // liste d'un autre joueur ouverte : ses correspondances suivent la connexion
-  const d = TR.doc; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.uid = '';
+  const d = TR.doc; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.uid = '';
   if (!user || !D.cloud || !D.cloud.watchMeta) return;
   if (TR.who && TR.who !== user.uid) { trApply({}); TR.sig = {}; }                // autre compte sur cet appareil : ses réglages et liens ne sont pas les nôtres
   TR.who = user.uid; trWrite();
@@ -63,7 +63,8 @@ function trUser(user) {
 }
 function trPushSoon() { const d = TR.doc; if (!d.uid) return; clearTimeout(d.pushT); d.pushT = setTimeout(trPush, 900); }
 async function trPush() {
-  const d = TR.doc; if (!d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
+  const d = TR.doc; clearTimeout(d.pushT); d.pushT = 0;      // non nul : envoi en attente (syncFlush)
+  if (!d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
   try { await D.cloud.saveMeta(d.uid, 'trade', trDoc()); acctSaw('trade', d.uid); if (TR.err === 'rules') { TR.err = ''; trRepaint(); } }
   catch (err) { if (err && err.code === 'permission-denied') { TR.err = 'rules'; trRepaint(); } }
 }
