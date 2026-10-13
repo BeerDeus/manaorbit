@@ -146,6 +146,9 @@ service cloud.firestore {
         && d.updatedAt is number;
     }
 
+    // Mana Orbit : amis (collections amis, amisdata, amisys) — lues et écrites par le serveur seul (proxy.mjs › /api/friends, compte de service,
+    // hors de ces règles). Aucune règle ici : l'appli n'y a jamais accès (refus par défaut, vérifié par tests/rules-test.mjs).
+
     // Classeur Full Art (autre appli du même projet Firebase, pas Mana Orbit) : un seul document par compte
     //   users/{uid}/binder/lands = { owned: { <scryfallId>: true }, pages: { <codeSet>: "12" }, updatedAt }
     // Gardé ici : publier ce fichier remplace TOUTES les règles du projet.

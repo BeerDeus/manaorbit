@@ -280,7 +280,7 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   await p.$eval('#helpBox', e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await p.click('#helpBox [data-help="open"]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 3);      // Compte et réglages › Aide et avis › Comment ça marche
   assert.equal(await txt(p, '.hp-sheet .sheet-head h2'), 'Comment ça marche');
-  assert.equal(await p.$$eval('.hp-sheet .hp-q', q => q.length), 10, '10 questions');
+  assert.equal(await p.$$eval('.hp-sheet .hp-q', q => q.length), 11, '11 questions');
   assert.equal(await p.$$eval('.hp-sheet .hp-q[open]', q => q.length), 0, 'toutes repliées');
   await p.click('.hp-sheet .hp-q[data-i="0"] summary'); await p.waitForTimeout(150);
   assert.match(await txt(p, '.hp-sheet .hp-q[data-i="0"] p'), /« Prix d'une liste » › Critères › Prix/);
@@ -289,7 +289,7 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   assert.match(await p.$eval('.hp-sheet .sheet-foot a[data-help="mail"]', a => a.getAttribute('href')), /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
   await p.waitForTimeout(500); await p.screenshot({ path: 'shots/content-2-aide.png' });
   await p.keyboard.press('Escape'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2);
-  ok('feuille « Comment ça marche » depuis les Réglages : 10 questions repliables, une ouverte à la fois, avis en pied');
+  ok('feuille « Comment ça marche » depuis les Réglages : 11 questions repliables, une ouverte à la fois, avis en pied');
   await closeSheets(p);
   await toHome(p); await p.click('#btnHelp'); await p.waitForSelector('.hp-sheet.open');
   ok('accueil : « Comment ça marche ? » ouvre la même aide');

@@ -36,7 +36,12 @@ function amTidy(j) {
   const friends = (Array.isArray(j.friends) ? j.friends : []).slice(0, 400).map(x => { const w = amWho(x); return w && { ...w, m: amNum(x.m), g: amNum(x.g), s: typeof x.s === 'string' && SHARE_ID_RE.test(x.s) ? x.s : '', c: x.c ? 1 : 0, u: amNum(x.u), nd: amNum(x.nd), nc: amNum(x.nc) }; }).filter(Boolean);
   return { friends, inc: list(j.inc), out: list(j.out), me: { c: me.c ? 1 : 0, dev: amNum(me.dev), has: { t: amNum(has.t), d: amNum(has.d), c: amNum(has.c) } }, need: !!j.need, max: amNum(j.max) || 200 };
 }
-function amLs() { try { const o = JSON.parse(localStorage.getItem(AM_KEY) || 'null'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
+/** Copie de l'appareil (relue seulement si elle a changé : l'accueil la demande à chaque repeinte avant la connexion). */
+const amLsMemo = { raw: null, o: {} };
+function amLs() {
+  try { const raw = localStorage.getItem(AM_KEY) || 'null'; if (raw !== amLsMemo.raw) { const o = JSON.parse(raw); amLsMemo.raw = raw; amLsMemo.o = o && typeof o === 'object' ? o : {}; } return amLsMemo.o; }
+  catch (e) { return {}; }
+}
 function amLoad() {
   const o = amLs(), same = !!AM.uid && o.uid === AM.uid;
   AM.l = same ? amTidy(o.l) : null; AM.at = 0; AM.err = '';
@@ -132,7 +137,7 @@ function amMeRow() {
 function amHome() {
   if (CTX.proxy && !CTX.amis) return [];
   let l = AM.uid ? AM.l : null;
-  if (!AM.uid && D.hint && !D.authReady) { const o = amLs(); l = amTidy(o.l); }
+  if (!AM.uid && D.hint && !D.authReady) { const o = amLs(); if (o.l && !o.t) o.t = amTidy(o.l); l = o.t || null; }
   return l ? l.friends.slice().sort((a, b) => b.m - a.m || a.n.localeCompare(b.n)).slice(0, 3) : [];
 }
 
@@ -319,8 +324,11 @@ function amPubMount(wrap, P) {
   if (P.fr) { amFriendMount(wrap, P); return; }
   const slot = $('.am-pub', wrap);
   if (!slot || P.preview || !P.id || (CTX.proxy && !CTX.amis)) return;
+  const head = $('.dv-title', wrap), title0 = head ? head.innerHTML : '';
   const paint = st => {
     slot.dataset.st = st; slot.hidden = !st || st === 'self';
+    // bouton affiché : le titre devient le pseudo (« Liste d'échange de … » passe en sous-titre), sinon le bouton le couperait avant le nom
+    if (head && P.sh.by) { if (slot.hidden) head.innerHTML = title0; else { $('b', head).textContent = P.sh.by; $('span', head).textContent = [T('Liste d\'échange'), P.sh.at ? T('Mise à jour {when}', { when: relTime(P.sh.at) }) : ''].filter(Boolean).join(' · '); } }
     slot.innerHTML = st === 'sent' ? `<span class="am-pill off" role="status"><svg class="i"><use href="#i-check"/></svg><span>${T('Demande envoyée')}</span></span>`
       : st === 'friend' ? `<button class="am-pill on" type="button" data-am="friend"><svg class="i"><use href="#i-check"/></svg><span>${T('Ami')}</span></button>`
       : st === 'asked' ? `<button class="am-pill" type="button" data-am="accept">${AM_ADD_ICON}<span>${T('Accepter')}</span></button>`
@@ -353,8 +361,8 @@ function amPubMount(wrap, P) {
 }
 /** Page d'un ami : sous-titre « Ami · mise à jour… », ses decks et sa collection (s'il l'autorise), retrait. */
 function amFriendMount(wrap, P) {
-  const f = P.fr, more = $('.am-more', wrap), rm = $('.am-rm', wrap), sub = $('.dv-title span', wrap);
-  if (sub) sub.textContent = [T('Ami'), P.sh.at ? T('Mise à jour {when}', { when: relTime(P.sh.at) }) : ''].filter(Boolean).join(' · ');
+  const f = P.fr, more = $('.am-more', wrap), rm = $('.am-rm', wrap), head = $('.dv-title', wrap);
+  if (head) { $('b', head).textContent = amName(f); $('span', head).textContent = [T('Ami'), P.sh.at ? T('Mise à jour {when}', { when: relTime(P.sh.at) }) : ''].filter(Boolean).join(' · '); }
   if (more) {
     more.innerHTML = `${f.none ? `<p class="hint am-none">${T('{name} n\'a pas encore envoyé sa liste : elle arrivera à sa prochaine ouverture de Mana Orbit.', { name: esc(amName(f)) })}</p>` : ''}
       <div class="am-chips"><button class="am-chip" type="button" data-am="decks"><svg class="i"><use href="#i-layers"/></svg><span>${T('Ses decks')}</span>${f.nd ? `<small>${nf0(f.nd)}</small>` : ''}</button>${f.c ? `<button class="am-chip" type="button" data-am="coll"><svg class="i"><use href="#i-cards"/></svg><span>${T('Sa collection')}</span>${f.nc ? `<small>${nf0(f.nc)}</small>` : ''}</button>` : ''}</div>`;

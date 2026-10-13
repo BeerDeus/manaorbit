@@ -66,7 +66,7 @@ await pb.goto(world.url + '?p=' + SID); await pb.waitForSelector('.pubv.on');
 await pb.waitForFunction(() => D.authReady && CTX.amis === true, null, { timeout: 10000 });
 await pb.evaluate(() => AM.pubCheck && AM.pubCheck());      // sans SDK Firebase, onUser(null) n'arrive jamais : le bouton se recalcule à la main
 await pb.waitForSelector('.am-pub:not([hidden]) [data-am="add"]');
-assert.equal(await tc(pb, '.am-pub [data-am="add"]'), 'Ajouter en ami');
+assert.equal(await tc(pb, '.am-pub [data-am="add"]'), 'Ajouter en ami'); assert.equal(await tc(pb, '.pubv .dv-title b'), 'Alice', 'bouton affiché : le pseudo en titre'); assert.match(await tc(pb, '.pubv .dv-title span'), /^Liste d'échange · Mise à jour/);
 await shot(pb, '01-lien-ajouter');
 await pb.click('.am-pub [data-am="add"]'); await pb.waitForFunction(() => sheets.length === 1);
 assert.match(await tc(pb, '#toast'), /Connecte-toi pour ajouter un ami/); await closeSheets(pb);
@@ -116,7 +116,7 @@ await openMe(pb); await pb.waitForFunction(() => /^1$/.test((document.querySelec
 await pb.click('#meAmis'); await pb.waitForSelector('.am-sheet .am-row[data-id="' + TA + '"]');
 assert.match(await tc(pb, '.am-sheet .am-row[data-id="' + TA + '"] small'), /2 cartes pour toi/);
 await pb.click('.am-sheet .am-row[data-id="' + TA + '"]'); await pb.waitForSelector('.pubv.on .am-chips');
-assert.equal(await tc(pb, '.pubv .dv-title b'), 'Liste d\'échange de Alice'); assert.match(await tc(pb, '.pubv .dv-title span'), /^Ami · Mise à jour/);
+assert.equal(await tc(pb, '.pubv .dv-title b'), 'Alice'); assert.match(await tc(pb, '.pubv .dv-title span'), /^Ami · Mise à jour/);
 assert.equal(await pb.$('.pubv .am-pub:not([hidden])'), null, 'page d\'un ami : pas de bouton d\'ajout');
 assert.deepEqual(await pb.$$eval('.pubv .am-chip', b => b.map(x => [...x.children].map(c => c.textContent).filter(Boolean).join(' '))), ['Ses decks 1', 'Sa collection 4']);
 await pb.waitForSelector('.pubv .pm-block[data-side="get"] .pm-row');

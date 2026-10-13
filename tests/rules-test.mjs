@@ -339,6 +339,15 @@ await T.assertFails(setDoc(doc(u1, 'shares/t2/sous/x'), { a: 1 }));
 await T.assertFails(getDoc(doc(anon, 'config/app')));
 await T.assertFails(setDoc(doc(u1, 'config/app'), { a: 1 }));
 ok('tout le reste : refusé par défaut');
+// Amis (proxy.mjs › /api/friends) : collections du serveur seul (compte de service, hors règles) ; aucune règle ne les ouvre à l'appli
+for (const c of ['amis', 'amisdata', 'amisys']) {
+  await T.assertFails(getDoc(doc(u1, `${c}/${tag('u1')}`)));      // même son propre document
+  await T.assertFails(setDoc(doc(u1, `${c}/${tag('u1')}`), { j: '{}', at: 1 }));
+  await T.assertFails(deleteDoc(doc(u1, `${c}/${tag('u1')}_t`)));
+  await T.assertFails(getDocs(collection(u1, c)));
+  await T.assertFails(getDoc(doc(anon, `${c}/due`)));
+}
+ok('amis : collections du serveur jamais lues ni écrites par l\'appli (refus par défaut)');
 
 await env.cleanup();
 console.log('RULES OK');

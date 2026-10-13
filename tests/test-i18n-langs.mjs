@@ -28,7 +28,7 @@ const SAME = {
   de: ['Profil', 'Liste', 'Mana', 'Decklist', 'Scan'],
   es: [],
   it: ['Mana', 'Test…', 'non foil', 'Multicolore', 'Incolore', 'incolore'],
-  pt: ['Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}'],
+  pt: ['Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}'],
 };
 const sameOk = (l, k) => SAME['*'].includes(k) || (SAME[l] || []).includes(k) || !/\p{L}/u.test(k.replace(/\{\w+\}/g, '').replace(/<[^>]+>/g, ''));
 const vars = s => [...String(s).matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort();
