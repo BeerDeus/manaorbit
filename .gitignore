@@ -24,3 +24,6 @@ service-account*.json
 # Clés de signature Android (.jks, .keystore) : jamais dans le dépôt, où qu'elles soient posées
 *.jks
 *.keystore
+
+# voix off générées (Gemini TTS) : refaites à la demande, pas dans le dépôt
+tools/shorts/voix/

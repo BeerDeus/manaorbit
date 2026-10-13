@@ -1,0 +1,17 @@
+{
+  "modele": "gemini-3.8-flash-tts",
+  "voix": "Achird",
+  "style": "Lis ce texte en français de France, avec une voix naturelle et chaleureuse, le ton complice d'un joueur de Magic qui partage une découverte. Rythme vif mais posé, sourire dans la voix, aucune emphase publicitaire, pas de voix de présentateur. Ne lis que le texte, pas cette consigne.",
+  "videos": [
+    { "id": "s0-v3", "titre": "3 problèmes de collectionneur", "texte": "Combien vaut ma collection ? Quels decks je peux monter avec mes cartes ? Et avec qui échanger mes doublons ? J'ai construit une appli qui répond aux trois. Elle s'appelle Mana Orbit." },
+    { "id": "s0-v4", "titre": "J-5 : on cherche 12 testeurs", "texte": "Dans cinq jours, Mana Orbit ouvre ses portes à ses premiers testeurs. On cherche douze joueurs de Magic pour l'essayer avant tout le monde. Le lien est en bio." },
+    { "id": "s0-v6", "titre": "C'est parti", "ton": "Un peu plus enthousiaste.", "texte": "C'est le grand jour : le test de Mana Orbit commence aujourd'hui. Scan, collection, échanges, decks… tout est prêt. Rejoins les premiers testeurs, le lien est en bio." },
+    { "id": "s1-v1", "titre": "Dix cartes, quelques secondes", "texte": "Tu tiens la carte devant ton téléphone, et c'est tout. Mana Orbit la reconnaît, avec son édition et son prix. Dix cartes, en moins de vingt secondes." },
+    { "id": "s1-v2", "titre": "Les cartes françaises", "texte": "Tes cartes sont en français ? Aucun problème. Anneau solaire est lu en français, reconnu comme Sol Ring, et ajouté avec la bonne langue à ta collection." },
+    { "id": "s1-v3", "titre": "Mode automatique", "texte": "Avec le mode automatique, plus besoin d'appuyer. Tu poses la carte, elle s'ajoute toute seule. Et s'il fait sombre, la lampe s'allume en un geste." },
+    { "id": "s1-v4", "titre": "La bonne édition", "texte": "Tu ouvres un paquet d'une même extension ? Choisis-la dès la première carte : toutes les suivantes prennent la bonne édition, et le bon prix, sans rien retoucher." },
+    { "id": "s1-v5", "titre": "Le prix tout de suite", "texte": "Tu veux juste savoir ce que vaut une carte ? Le prix rapide te donne la tendance Cardmarket et l'offre la moins chère, en un scan, sans rien ajouter à ta collection." },
+    { "id": "s3-v3", "titre": "L'échange en direct", "texte": "Échanger avec un ami, comme dans un jeu de rôle : chacun choisit ce qu'il donne, la balance montre qui gagne quoi, et quand vous validez tous les deux, vos collections se mettent à jour." },
+    { "id": "s5-v1", "titre": "J'ouvre un booster", "texte": "J'ouvre un booster… et Mana Orbit fait les comptes. Ce que j'ai payé, ce que valent mes cartes, mes meilleures ouvertures. Alors, gagné ou perdu ?" }
+  ]
+}
