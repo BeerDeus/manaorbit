@@ -27,7 +27,7 @@
 .bnd[data-cover="sable"],.bnd-cv[data-c="sable"]{--a:#efe6d3;--b:#cbb98f;--pg:#f8f4ec;--pk:rgba(70,52,20,.05);--pe:rgba(70,52,20,.14);--rg:#f7f4ee}
 
 .bnd{position:relative;width:100%;max-width:480px;margin:0 auto}
-.bnd.spread{max-width:980px}
+.bnd.spread{max-width:clamp(560px,calc((100vh - 330px) * 1.38 + 52px),980px)}      /* deux pages : tiennent dans la hauteur de l'écran (navigation comprise) */
 .bnd-cover{position:relative;padding:10px 10px 10px 27px;border-radius:18px;
   background:linear-gradient(90deg,rgba(0,0,0,.22),rgba(0,0,0,.06) 19px,rgba(255,255,255,.1) 21px,transparent 23px),linear-gradient(150deg,var(--a),var(--b));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -2px 0 rgba(0,0,0,.2),0 0 0 1px var(--line),0 16px 32px -18px rgba(10,14,30,.6)}
