@@ -52,6 +52,17 @@ h1 span{background:var(--foil);-webkit-background-clip:text;background-clip:text
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 22px;border-radius:16px;font:650 16px/1 var(--fb);text-decoration:none;border:1px solid transparent}
 .btn.main{background:var(--acc);color:var(--acc-ink);box-shadow:0 12px 26px -14px var(--acc)}
 .btn.ghost{background:var(--card);color:var(--ink);border-color:var(--line)}
+.inscr{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 0}
+.inscr input[type=email]{flex:1 1 220px;min-width:0;height:52px;padding:0 16px;border-radius:16px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:500 16px/1 var(--fb)}
+.inscr input[type=email]:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 30%,transparent)}
+.inscr .btn{flex:0 0 auto;cursor:pointer}
+.inscr .btn[disabled]{opacity:.6;cursor:default}
+.trap,.sr{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden}
+.msg{margin:12px 0 0;min-height:1.6em;font-weight:600}
+.msg.ok{color:var(--good)}.msg.bad{color:#ff8a7a}
+@media (prefers-color-scheme:light){.msg.bad{color:#c4321f}}
+.small{font-size:13.5px;color:var(--mute);margin:10px 0 0}
+.note{font-size:14.5px;color:var(--mute);margin:14px 0 0}
 h2{font:750 24px/1.15 var(--fd);letter-spacing:-.02em;margin:40px 0 14px}
 ul.keep{list-style:none;padding:0;margin:0;display:grid;gap:9px}
 ul.keep li{display:flex;gap:11px;align-items:flex-start}
@@ -79,10 +90,19 @@ a{color:var(--acc)}
 <h1>Deviens testeur de <span>Mana Orbit</span></h1>
 <p class="lead">L'appli des joueurs de Magic : scan de tes cartes (VF ou VO), cote Cardmarket, decks à monter, échanges de doublons entre amis. <b>Gratuite</b>, sur Android.</p>
 <div class="soon">
-<b>Le lien d'inscription arrive ici le lundi 19 octobre.</b>
-<p>Reviens ce jour-là, ou écris-nous pour être prévenu dès l'ouverture.</p>
-<div class="ctas"><a class="btn main" href="mailto:contact@manaorbit.app?subject=Testeur%20Mana%20Orbit&body=Pr%C3%A9viens-moi%20%C3%A0%20l%27ouverture%20du%20test%20!">Me prévenir le 19</a><a class="btn ghost" href="https://www.instagram.com/manaorbit.app" rel="me noopener">Instagram</a></div>
+<b>Le test ouvre le lundi 19&nbsp;octobre.</b>
+<p>Laisse l'adresse de ton compte Google Play (souvent ton Gmail) : on t'ajoute à la liste des testeurs et tu reçois le lien d'installation dès l'ouverture.</p>
+<form id="f" class="inscr" novalidate>
+<label class="sr" for="mail">Adresse e-mail</label>
+<input id="mail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="ton.adresse@gmail.com" required maxlength="254" spellcheck="false" autocapitalize="off">
+<input class="trap" name="site" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+<button class="btn main" type="submit">Je veux tester</button>
+</form>
+<p class="msg" id="msg" role="status" aria-live="polite"></p>
+<p class="small">Ton adresse ne sert qu'à t'ajouter au test et à te prévenir de l'ouverture. Elle est effacée à la fin du test, ou avant sur simple demande à <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>. <a href="privacy">Confidentialité</a></p>
+<noscript><p class="small">Sans JavaScript : écris à <a href="mailto:contact@manaorbit.app?subject=Testeur%20Mana%20Orbit">contact@manaorbit.app</a>.</p></noscript>
 </div>
+<p class="note"><a href="https://www.instagram.com/manaorbit.app" rel="me noopener">Suis Mana Orbit sur Instagram</a> pour voir l'appli avant l'ouverture.</p>
 </header>
 
 <section aria-labelledby="h-quoi">
@@ -108,5 +128,24 @@ a{color:var(--acc)}
 <p>Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Policy. Il n'est ni approuvé ni soutenu par Wizards of the Coast. Certains éléments utilisés sont la propriété de Wizards of the Coast. ©Wizards of the Coast LLC.</p>
 </footer>
 </main>
+<script>
+(() => {
+  const f = document.getElementById('f'), msg = document.getElementById('msg'), btn = f.querySelector('button'), mail = f.elements.email;
+  const say = (t, ok) => { msg.textContent = t; msg.className = 'msg ' + (ok ? 'ok' : 'bad'); };
+  f.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const email = mail.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { say('Vérifie ton adresse e-mail.'); mail.focus(); return; }
+    btn.disabled = true; say('');
+    try {
+      const r = await fetch('/api/testeurs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, site: f.elements.site.value }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) { say('C\'est noté ! Tu recevras le lien d\'installation le 19 octobre.', true); f.reset(); }
+      else say(j.message || 'Inscription impossible pour le moment : réessaie plus tard.');
+    } catch (e) { say('Pas de réseau : réessaie dans un instant.'); }
+    btn.disabled = false;
+  });
+})();
+</script>
 </body>
 </html>

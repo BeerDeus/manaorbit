@@ -129,6 +129,7 @@
     if (ov) chart(ov); else $('#chart').replaceChildren();
     $('#mix').replaceChildren(...(ov ? mix(ov) : []));
     users(d.users);
+    testers(d.testers);
     server(d.srv);
   }
   const kpi = (label, val, sub, k) => h('div', { class: 'kpi', 'data-k': k }, h('span', { class: 'l' }, label), h('b', null, val), sub ? h('small', null, sub) : null);
@@ -207,6 +208,28 @@
     const nav = (label, p, dis) => { const b = h('button', { class: 'btn ghost small', type: 'button', disabled: dis, 'data-page': p }, label); b.addEventListener('click', () => { st.page = p; load(); $('.users').scrollIntoView({ block: 'start' }); }); return b; };
     $('#pager').replaceChildren(...(u.pages > 1 ? [nav('‹ Précédente', u.page - 1, u.page <= 1), h('span', { class: 'pg' }, 'Page ' + u.page + ' / ' + u.pages), nav('Suivante ›', u.page + 1, u.page >= u.pages)] : []));
     $('#sort').title = 'Trié par ' + SORT_COL[u.sort].toLowerCase();
+  }
+  /** Inscrits au test fermé (page /testeurs) : nombre ; adresses complètes demandées au serveur seulement au clic (copie ou CSV pour la Play Console). */
+  function testers(n) {
+    const box = $('#testers');
+    if (n == null) return box.replaceChildren(h('h2', null, 'Testeurs inscrits'), h('p', { class: 'note' }, 'Fichier des testeurs illisible sur le serveur.'));
+    const get = async () => { const r = await call('/testeurs').catch(() => null); if (!r || r.status !== 200 || !r.body) { toast((r && r.body && r.body.message) || 'Le serveur ne répond pas.'); return null; } return r.body.rows || []; };
+    const copy = h('button', { class: 'btn ghost small', type: 'button', disabled: !n }, 'Copier les adresses');
+    copy.addEventListener('click', async () => {
+      const rows = await get(); if (!rows) return;
+      try { await navigator.clipboard.writeText(rows.map(r => r.e).join(', ')); toast(nf(rows.length) + ' adresse' + (rows.length > 1 ? 's' : '') + ' copiée' + (rows.length > 1 ? 's' : '') + '.'); }
+      catch (e) { toast('Copie refusée par le navigateur : utilise le CSV.'); }
+    });
+    const csv = h('button', { class: 'btn ghost small', type: 'button', disabled: !n }, 'Télécharger le CSV');
+    csv.addEventListener('click', async () => {
+      const rows = await get(); if (!rows) return;
+      const url = URL.createObjectURL(new Blob([rows.map(r => r.e).join('\n') + '\n'], { type: 'text/csv;charset=utf-8' }));
+      const a = h('a', { href: url, download: 'testeurs-mana-orbit-' + new Date().toISOString().slice(0, 10) + '.csv' }); document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    });
+    box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Testeurs inscrits'), h('small', null, nf(n) + ' adresse' + (n > 1 ? 's' : ''))),
+      h('p', { class: 'note' }, 'Formulaire de la page /testeurs. Le CSV (une adresse par ligne) s\'importe dans Play Console › Tests › Test fermé › Testeurs › liste d\'adresses e-mail.'),
+      h('div', { class: 'flags' }, copy, csv));
   }
   function server(v) {
     if (!v) return $('#srv').replaceChildren();

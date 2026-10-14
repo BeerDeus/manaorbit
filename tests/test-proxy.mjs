@@ -483,6 +483,31 @@ await assert.rejects(start({ CARDTRADER_TOKEN: 'x', HOST: '0.0.0.0' }, 18790), /
   console.log('✓ interrupteurs : ARCHIDEKT_OFF → fichier EDH sans ses decks, import refusé ; EDHREC_OFF → fichier EDH 410, import refusé ; annoncés par /__ping');
 }
 
+// Inscription au test fermé (page /testeurs) : adresse gardée en minuscules, une seule fois, robots ignorés, 5 par heure et par réseau, fichier illisible jamais écrasé
+{
+  const { mkdtempSync, readFileSync, writeFileSync } = await import('node:fs'), { tmpdir } = await import('node:os');
+  const dir = mkdtempSync(join(tmpdir(), 'ts-')), file = join(dir, 'testeurs.json'), P = 18784, PB = 'http://127.0.0.1:' + P;
+  const sign = (email, ip = '203.0.113.7', extra = {}) => j(PB + '/api/testeurs', { method: 'POST', headers: { ...JS, 'X-Forwarded-For': ip }, body: JSON.stringify({ email, ...extra }) });
+  const pt = await start({ CARDTRADER_TOKEN: 'tok123', TESTERS_FILE: file }, P);
+  r = await sign('  Jean.Test@Gmail.com '); assert.equal(r.s, 200); assert.equal(r.o.ok, true);
+  r = await sign('jean.test@gmail.com'); assert.equal(r.s, 200, 'déjà inscrit : même réponse');
+  r = await sign('pas-une-adresse'); assert.equal(r.s, 400); assert.equal(r.o.error, 'bad_email');
+  r = await sign('robot@spam.com', '203.0.113.7', { site: 'http://x' }); assert.equal(r.s, 200, 'piège à robots : ok sans rien garder');
+  r = await sign('b@exemple.fr'); assert.equal(r.s, 200);
+  r = await sign('c@exemple.fr'); assert.equal(r.s, 429, '6e envoi de l\'heure depuis ce réseau');
+  r = await sign('autre@reseau.fr', '198.51.100.9'); assert.equal(r.s, 200, 'autre réseau : son propre budget');
+  assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')).list.map(x => x.e), ['jean.test@gmail.com', 'b@exemple.fr', 'autre@reseau.fr']);
+  r = await j(PB + '/api/testeurs'); assert.equal(r.s, 405, 'pas de lecture publique');
+  r = await j(PB + '/api/admin/testeurs'); assert.equal(r.s, 401, 'lecture : compte de l\'éditeur seulement');
+  pt.kill(); await new Promise(res => setTimeout(res, 200));
+  writeFileSync(file, '{abîmé');
+  const pb = await start({ CARDTRADER_TOKEN: 'tok123', TESTERS_FILE: file }, P);
+  r = await sign('d@exemple.fr', '192.0.2.1'); assert.equal(r.s, 503, 'fichier illisible : inscription refusée');
+  assert.equal(readFileSync(file, 'utf8'), '{abîmé', 'fichier illisible jamais écrasé');
+  pb.kill();
+  console.log('✓ testeurs : adresse en minuscules gardée une fois, invalide 400, robots ignorés, 5 par heure et par réseau, pas de lecture publique, fichier abîmé jamais écrasé');
+}
+
 // 5) amont HS → 502
 up.close(); 
 p = await start({ CARDTRADER_TOKEN: 'tok123' }, 18791); B = 'http://127.0.0.1:18791';

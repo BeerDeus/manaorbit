@@ -2107,7 +2107,8 @@ async function admSend(res, url) {
   if (q) rows = rows.filter(r => admFold(r.name).includes(q) || admFold(r.mail).includes(q));
   rows = rows.slice().sort((a, b) => ((Number(a[sort]) || 0) - (Number(b[sort]) || 0)) * (asc ? 1 : -1) || (a.id < b.id ? -1 : 1));
   const pages = Math.max(1, Math.ceil(rows.length / ADM_PER)), page = Math.min(pages, Math.max(1, Math.floor(Number(url.searchParams.get('page'))) || 1));
-  return json(res, 200, { at: s ? s.at : 0, ttl: ADM_TTL, src: s ? s.src : 'none', notes: s ? s.notes : [{ k: 'none', t: 'Statistiques momentanément indisponibles.' }], ov: s ? s.ov : null, srv: await admServer(),
+  let testers = null; try { testers = (await tsList()).length; } catch (e) { /* fichier illisible : la carte l'indique */ }
+  return json(res, 200, { at: s ? s.at : 0, ttl: ADM_TTL, testers, src: s ? s.src : 'none', notes: s ? s.notes : [{ k: 'none', t: 'Statistiques momentanément indisponibles.' }], ov: s ? s.ov : null, srv: await admServer(),
     users: { total: rows.length, page, pages, per: ADM_PER, sort, dir: asc ? 'asc' : 'desc', q, rows: rows.slice((page - 1) * ADM_PER, page * ADM_PER) } }, ADM_HD);
 }
 /** Compte de l'éditeur ? Sinon réponse d'erreur envoyée (sans aucune donnée) et false. Un compte authentique mais non autorisé est compté comme un essai invalide. */
@@ -2137,12 +2138,66 @@ async function adminApi(req, res, path, url) {
     if (!ADM.snap || Date.now() - ADM.snap.at > ADM_TTL) await admRefresh();      // trop ancien : recalculé (la page attend : c'est l'éditeur qui l'a demandé)
     return admSend(res, url);
   }
+  if (req.method === 'GET' && sub === 'testeurs') {      // inscrits au test fermé : adresses complètes (données pour cet usage), de la plus récente à la plus ancienne
+    let list; try { list = await tsList(); } catch (e) { return json(res, 503, { error: 'unavailable', message: 'Fichier des testeurs illisible.' }, ADM_HD); }
+    return json(res, 200, { total: list.length, rows: list.slice().sort((a, b) => b.t - a.t) }, ADM_HD);
+  }
   if (req.method === 'POST' && sub === 'refresh') {
     const gap = ADM.tried + ADM_GAP - Date.now(); if (gap > 0) return json(res, 429, { error: 'rate_limited', message: 'Déjà rafraîchi il y a moins d\'une minute.', retry: Math.ceil(gap / 1000) }, { ...ADM_HD, 'Retry-After': String(Math.ceil(gap / 1000)) });
     const w2 = rateWait(req, 'adminref', ADM_REF_H, 3600e3); if (w2) return tooMany(res, w2);
     await admRefresh(); return admSend(res, url);
   }
   return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
+}
+
+/* ── Inscriptions au test fermé : formulaire de la page /testeurs ──────────────────────────────────────────────────────────────
+   POST /api/testeurs {email, site} : l'adresse (minuscules) et la date sont gardées dans .data/testeurs.json, rien d'autre (ni IP, ni navigateur).
+   « site » est un champ caché que seuls les robots remplissent : réponse « ok » sans rien garder. Même réponse qu'une adresse soit nouvelle ou déjà
+   inscrite (on ne révèle pas qui est inscrit). Bornée : TESTERS_RATE_PER_H inscriptions par heure et par réseau (5), TS_MAX adresses au total.
+   Lecture : panneau /admin seulement (GET /api/admin/testeurs, compte de l'éditeur), qui les exporte en CSV pour la liste de testeurs de la Play Console.
+   Retrait sur demande (contact@manaorbit.app) : enlever la ligne du fichier ; supprimer le fichier à la fin du test. Écriture atomique, une à la fois. */
+const TS_FILE = process.env.TESTERS_FILE || join(EDH_DIR, 'testeurs.json'), TS_MAX = Number(process.env.TESTERS_MAX) || 5000, TS_RATE = Number(process.env.TESTERS_RATE_PER_H ?? 5);
+const TS = { list: null, chain: Promise.resolve() };
+/** Liste chargée une fois ; fichier présent mais illisible : erreur (jamais réécrit par-dessus avec une liste vide). */
+async function tsList() {
+  if (TS.list) return TS.list;
+  try { const j = JSON.parse(await readFile(TS_FILE, 'utf8')); TS.list = (Array.isArray(j.list) ? j.list : []).filter(r => r && typeof r.e === 'string' && Number.isFinite(r.t)); }
+  catch (e) { if (e && e.code !== 'ENOENT') throw e; TS.list = []; }
+  return TS.list;
+}
+async function tsSave() {
+  await mkdir(dirname(TS_FILE), { recursive: true });
+  const tmp = TS_FILE + '.tmp';
+  await writeFile(tmp, JSON.stringify({ v: 1, list: TS.list }));
+  await rename(tmp, TS_FILE);
+}
+/** Adresse plausible, en minuscules ; '' sinon. */
+function tsMail(x) {
+  const e = String(x || '').trim().toLowerCase();
+  if (e.length > 254 || !/^[a-z0-9._%+'-]{1,64}@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\.[a-z]{2,24}$/.test(e) || /\.\.|^\.|\.@/.test(e)) return '';
+  return e;
+}
+async function testersApi(req, res) {
+  if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' });
+  const w = rateWait(req, 'testeurs', TS_RATE, 3600e3); if (w) return tooMany(res, w);
+  let b; try { b = JSON.parse((await readBody(req, 2048)).toString('utf8') || '{}'); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); }
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return json(res, 400, { error: 'bad_request', message: 'JSON invalide' });
+  if (b.site) return json(res, 200, { ok: true });      // piège à robots
+  const e = tsMail(b.email);
+  if (!e) return json(res, 400, { error: 'bad_email', message: 'Adresse e-mail invalide.' });
+  const run = TS.chain.then(async () => {
+    const list = await tsList();
+    if (list.some(r => r.e === e)) return 'ok';
+    if (list.length >= TS_MAX) return 'full';
+    list.push({ e, t: Date.now() });
+    try { await tsSave(); } catch (err) { list.pop(); throw err; }
+    return 'ok';
+  });
+  TS.chain = run.catch(() => {});
+  let r;
+  try { r = await run; } catch (err) { console.warn('Testeurs : enregistrement impossible (' + (err && err.code || 'erreur') + ')'); return json(res, 503, { error: 'unavailable', message: 'Inscription impossible pour le moment : réessaie plus tard.' }, { 'Retry-After': '60' }); }
+  if (r === 'full') return json(res, 507, { error: 'full', message: 'Les inscriptions sont complètes pour le moment.' });
+  return json(res, 200, { ok: true });
 }
 
 async function api(req, res, url) {
@@ -2154,6 +2209,7 @@ async function api(req, res, url) {
   if (path === 'names/find') return namesApi(req, res, url);      // scan : noms imprimés des autres langues (catalogues publics)
   if (path === 'pubdecks') return pubApi(req, res, url);      // decks publics (« Communauté ») : liste ouverte à tous, sans token
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
+  if (path === 'testeurs') return testersApi(req, res);      // inscription au test fermé (page /testeurs), ouverte à tous, bornée
   if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
   if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège
   if (path === 'admin' || path.startsWith('admin/')) return adminApi(req, res, path, url);      // panneau d'administration : compte de l'éditeur seulement
