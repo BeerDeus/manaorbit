@@ -209,8 +209,9 @@ await T.assertFails(getDocs(collection(u2, 'users/u1/meta')));
 await T.assertFails(getDocs(collectionGroup(u2, 'meta')));
 ok('documents annexes d\'un autre compte : ni lus, ni listés, ni écrits, ni effacés');
 
-// Sommaire du compte (cloud.js › makeSum) : dates des documents du compte, écrit dans le même lot qu'eux ; vérifié par 2 agrégations (nombre, somme des dates)
-const SOM = 'users/u1/meta/sommaire', som = (extra = {}) => ({ v: 1, p: { collection: 1, trade: 2 }, d: { d1: 3 }, at: Date.now(), ...extra });
+// Sommaire du compte (cloud.js › makeSum) : dates des decks et documents annexes, écrit dans le même lot qu'eux ; vérifié par 2 agrégations (nombre, somme des dates)
+const SOM = 'users/u1/meta/sommaire', som = (extra = {}) => ({ v: 1, p: { engaged: 1, trade: 2 }, d: { d1: 3 }, at: Date.now(), ...extra });
+const sdeck = () => ({ name: 'Rakdos', text: '1 Sol Ring', opts: { lang: 'fr', mode: 'zero' }, cards: 1, history: [], createdAt: 1, updatedAt: Date.now() });
 await T.assertSucceeds(setDoc(doc(u1, SOM), som()));
 await T.assertSucceeds(setDoc(doc(u1, SOM), { at: Date.now() }, { merge: true }));      // essai d'écriture avant la création (règles publiées ?)
 await T.assertSucceeds(setDoc(doc(u1, SOM), { p: { profile: 4 } }, { merge: true }));
@@ -234,16 +235,22 @@ await T.assertFails(getDoc(doc(anon, SOM)));
 await T.assertFails(deleteDoc(doc(u2, SOM)));
 ok('sommaire : le compte seul, champs v, p, d, at, old (types et bornes : 30 documents, 3 000 decks), jamais updatedAt ; mises à jour par fusion, deck retiré par deleteField');
 {
-  const b = writeBatch(u1); b.set(doc(u1, 'users/u1/decks/dsom'), deck()); b.set(doc(u1, SOM), { d: { dsom: 5 } }, { merge: true }); await T.assertSucceeds(b.commit());
-  const bad = writeBatch(u1); bad.set(doc(u1, 'users/u1/decks/dsom2'), deck()); bad.set(doc(u1, SOM), { d: { dsom2: 5 }, evil: 1 }, { merge: true }); await T.assertFails(bad.commit());
+  await T.assertSucceeds(setDoc(doc(u1, SOM), som()));      // remis à sa taille normale (3 000 decks au cas d'avant : un de plus serait refusé)
+  const b = writeBatch(u1); b.set(doc(u1, 'users/u1/decks/dsom'), sdeck()); b.set(doc(u1, SOM), { d: { dsom: 5 } }, { merge: true }); await T.assertSucceeds(b.commit());
+  const bad = writeBatch(u1); bad.set(doc(u1, 'users/u1/decks/dsom2'), sdeck()); bad.set(doc(u1, SOM), { d: { dsom2: 5 }, evil: 1 }, { merge: true }); await T.assertFails(bad.commit());
   assert.equal((await getDoc(doc(u1, 'users/u1/decks/dsom2'))).exists(), false, 'lot refusé : le deck n\'est pas écrit non plus');
   const b2 = writeBatch(u1); b2.delete(doc(u1, 'users/u1/decks/dsom')); b2.set(doc(u1, SOM), { d: { dsom: deleteField() } }, { merge: true }); await T.assertSucceeds(b2.commit());
-  await T.assertSucceeds(F.runTransaction(u1, async tx => { const s = await tx.get(doc(u1, 'users/u1/meta/collection')); tx.set(doc(u1, 'users/u1/meta/collection'), coll()); tx.set(doc(u1, SOM), { p: { collection: 6 } }, { merge: true }); return s.exists(); }));
+  // lot groupé (cloud.js › put) : deck + deck monté + liste d'échange + sommaire
+  const b3 = writeBatch(u1); b3.set(doc(u1, 'users/u1/decks/dsom'), sdeck()); b3.set(doc(u1, 'users/u1/meta/engaged'), { decks: {}, updatedAt: 7 }); b3.set(doc(u1, 'users/u1/meta/trade'), { keep: 1, kept: [], wish: {}, share: '', dsh: {}, updatedAt: 8 });
+  b3.set(doc(u1, SOM), { d: { dsom: 9 }, p: { engaged: 7, trade: 8 } }, { merge: true }); await T.assertSucceeds(b3.commit());
+  // réparation (transaction : relit le sommaire, le réécrit en entier) ; la collection reste écrite par sa transaction seule, hors du sommaire
+  await T.assertSucceeds(F.runTransaction(u1, async tx => { const s = await tx.get(doc(u1, SOM)); tx.set(doc(u1, SOM), { v: 1, p: { engaged: 7, trade: 8 }, d: {}, at: Date.now(), old: Date.now() }); return s.exists(); }));
+  await T.assertSucceeds(F.runTransaction(u1, async tx => { const s = await tx.get(doc(u1, 'users/u1/meta/collection')); tx.set(doc(u1, 'users/u1/meta/collection'), coll()); return s.exists(); }));
   const agg = (db, path) => F.getAggregateFromServer(query(collection(db, path), where('updatedAt', '>', 0)), { n: F.count(), s: F.sum('updatedAt') });
   await T.assertSucceeds(agg(u1, 'users/u1/meta')); await T.assertSucceeds(agg(u1, 'users/u1/decks'));
   await T.assertFails(agg(u2, 'users/u1/meta')); await T.assertFails(agg(u2, 'users/u1/decks'));
 }
-ok('sommaire : écrit dans le même lot (ou la même transaction) qu\'un deck ou la collection, lot entier refusé si le sommaire est invalide ; vérification par agrégations pour le compte seul');
+ok('sommaire : écrit dans le même lot que les decks et documents annexes (groupés), lot entier refusé si le sommaire est invalide ; réparation par transaction ; vérification par agrégations pour le compte seul');
 
 const deck = (extra = {}) => ({ name: 'Rakdos', text: '1 Sol Ring', opts: { lang: 'fr', mode: 'zero' }, cards: 1, history: [{ at: 1, total: 1000, mode: 'zero', found: 1, count: 1, sig: '' }], createdAt: 1, updatedAt: Date.now(), ...extra });
 const snap = (extra = {}) => ({ at: 1, mode: 'zero', lang: 'fr', sig: 's', items: [{ k: 'sol ring', n: 'Sol Ring', q: 1, s: 'ok', c: 150 }], pv: { 'sol ring': 150 }, pa: 1, ...extra });

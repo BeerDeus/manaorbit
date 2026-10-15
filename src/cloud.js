@@ -71,24 +71,31 @@ async function natGoogleCred(m) {
    Firestore facture un document envoyé par le serveur = une lecture : une écoute (re)lancée relit tout ce qu'elle suit (ouverture de l'appli,
    retour après plus de 30 min), et chaque modification coûte une lecture à chaque appareil qui l'écoute. Avant : 8 écoutes (decks + 7 documents
    annexes) = 17 lectures à chaque ouverture avec 10 decks. Maintenant :
-     sommaire = { v: 1, p: { collection, engaged, history, trade, prefs, profile, scan : leur updatedAt }, d: { idDeck: updatedAt }, at, old? }
-   est écrit dans le MÊME lot (ou la même transaction) que chaque document du compte. Un appareil n'écoute plus que lui (1 lecture à l'ouverture)
+     sommaire = { v: 1, p: { engaged, history, trade, prefs, profile, scan : leur updatedAt }, d: { idDeck: updatedAt }, at, old? }
+   est écrit dans le MÊME lot que chaque deck ou document annexe. Un appareil n'écoute plus que lui et la collection (2 lectures à l'ouverture)
    et ne relit sur le serveur que les documents dont la date diffère de sa copie locale (cache persistant du SDK) ; une modification faite
    ailleurs arrive toujours en direct (sommaire, puis le document changé). L'appli ne voit aucune différence : watch, watchColl et watchMeta
    rendent les mêmes rappels qu'avant (données, écriture en attente, vient du cache).
+   Écritures (quota gratuit : 20 000 par jour) : le sommaire coûte une écriture de plus par modification. La collection, de loin le document
+   le plus souvent écrit (envois groupés, collection.js), reste donc hors du sommaire, écoutée directement comme avant : chaque envoi = 1 écriture
+   (et 1 lecture par autre appareil ouvert, au lieu de 2), pour 1 lecture de plus à l'ouverture. Decks et documents annexes changent rarement :
+   pour eux le sommaire fait gagner bien plus de lectures (à chaque ouverture) qu'il ne coûte d'écritures. Règle à tenir : un document modifié
+   change TOUJOURS de date (updatedAt), sinon les autres appareils gardent leur copie (decks.js › setDeckCover : date + 1).
    Sécurités (jamais une donnée perdue ni écrasée, au pire quelques lectures de plus) :
    · première ouverture d'un compte sur un appareil, règles Firestore pas encore publiées (écriture du sommaire refusée), sommaire absent ou
      d'un autre format : écoutes d'avant (mode « legacy ») ; le sommaire est créé dès que les règles le permettent (essai une fois par jour) ;
    · au plus toutes les 6 h, avant de s'y fier : nombre et somme des dates des decks et des documents annexes (2 agrégations = 2 lectures)
-     comparés au sommaire. Écart (version de l'appli d'avant encore ouverte ailleurs, écriture faite sans le sommaire) : relecture complète,
+     comparés au sommaire (plus la date de la collection, connue par son écoute). Écart confirmé par un 2e essai (version de l'appli d'avant
+     encore ouverte ailleurs, écriture faite sans le sommaire) : relecture complète,
      sommaire réparé, et tous les appareils du compte repassent aux écoutes d'avant pendant 24 h (champ old) ;
    · scan mobile : le document scan est écouté en direct tant qu'une session est ouverte (on: true) ; les cartes et le signe de vie du PC ne
      changent pas sa date (rien à relire pour les autres appareils) ;
    · conflits gérés comme avant : transaction de la collection, écritures en attente, copie du cache jamais livrée comme venant du serveur
      sans que le sommaire du serveur le confirme. */
-const SUM_ID = 'sommaire', SUM_V = 1, SUM_KEY = 'deckdeal:sum:v1';
-/** Délais (ms, réglables par les tests) : vérification, écoutes d'avant après un écart, nouvel essai de création refusée ; each : au-delà, les decks sont relus d'une seule requête. */
-const SUM = { verify: 6 * 3600e3, legacy: 24 * 3600e3, denied: 24 * 3600e3, init: 3000, each: 5 };
+const SUM_ID = 'sommaire', SUM_V = 1, SUM_KEY = 'deckdeal:sum:v1', SUM_OUT = 'collection';      // SUM_OUT : document annexe hors du sommaire (écouté directement)
+/** Délais (ms, réglables par les tests) : vérification, écoutes d'avant après un écart, nouvel essai de création refusée, 2e essai de la vérification,
+ *  fenêtre des écritures groupées ; each : au-delà, les decks sont relus d'une seule requête. */
+const SUM = { verify: 6 * 3600e3, legacy: 24 * 3600e3, denied: 24 * 3600e3, init: 3000, recheck: 1500, group: 30, each: 5 };
 /** État noté sur l'appareil, par compte : ok (sommaire permis), v (dernière vérification), den (création refusée), leg (écoutes d'avant jusqu'à). */
 const sumAll = () => { try { const o = JSON.parse(localStorage.getItem(SUM_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } };
 const sumGet = uid => sumAll()[uid] || {};
@@ -114,12 +121,14 @@ function makeSum(m, db, col) {
   const deckQ = uid => fs.query(col(uid), fs.orderBy('updatedAt', 'desc'));
   const refOf = (uid, key) => (key[0] === 'd' ? deckRef(uid, key.slice(2)) : metaRef(uid, key.slice(2)));
   const safe = (f, ...a) => { try { f(...a); } catch (e) { console.error(e); } };
+  /** Abonnement suivi directement (écoute d'avant, quel que soit le mode) : la collection. */
+  const direct = s => s.kind === 'meta' && s.id === SUM_OUT;
 
   /* ── Moteur d'un compte ── */
   function engine(uid) {
     let E = engines.get(uid); if (E) return E;
     const ls = sumGet(uid), now = Date.now();
-    E = { uid, subs: new Set(), mode: 'wait', man: null, manOff: null, hot: null, mem: new Map(), plain: new Set(), q: new Map(), last: new Map(),
+    E = { uid, subs: new Set(), mode: 'wait', man: null, manOff: null, hot: null, plain: new Set(), q: new Map(), last: new Map(),
       canWrite: able && !!ls.ok, first: true, verifying: false, stopped: false, initT: 0 };
     E.ready = new Promise(r => { E.readyRes = r; });
     engines.set(uid, E);
@@ -166,21 +175,25 @@ function makeSum(m, db, col) {
   }
 
   /** Nombre et somme des dates des decks et des documents annexes (2 agrégations = 2 lectures) = ce que dit le sommaire ? true | false | null (impossible).
-   *  Seuls les documents datés comptent (updatedAt > 0, exigé par les règles pour tous) : le sommaire, sans updatedAt, n'en fait pas partie. */
+   *  Seuls les documents datés comptent (updatedAt > 0, exigé par les règles pour tous) : le sommaire, sans updatedAt, n'en fait pas partie ; la collection,
+   *  hors du sommaire, y entre avec la date que donne son écoute (getDocFromServer partage la cible de l'écoute ouverte : aucune lecture de plus). */
   async function check(uid, man) {
     if (!(fs.getAggregateFromServer && fs.count && fs.sum && fs.where)) return null;
     const agg = c => fs.getAggregateFromServer(fs.query(c, fs.where('updatedAt', '>', 0)), { n: fs.count(), s: fs.sum('updatedAt') }).then(r => r.data());
-    const [a, b] = await Promise.all([agg(col(uid)), agg(fs.collection(db, 'users', uid, 'meta'))]);
+    const [a, b, c] = await Promise.all([agg(col(uid)), agg(fs.collection(db, 'users', uid, 'meta')), fs.getDocFromServer(metaRef(uid, SUM_OUT))]);
+    const p = { ...(man.p || {}) }; delete p[SUM_OUT];
+    if (c.exists()) p[SUM_OUT] = stampOf(c.data());
     const same = (r, o) => { const v = Object.values(o || {}).map(Number).filter(x => x > 0); return Number(r.n) === v.length && Math.abs((Number(r.s) || 0) - v.reduce((x, y) => x + y, 0)) < 0.5; };
-    return same(a, man.d) && same(b, man.p);
+    return same(a, man.d) && same(b, p);
   }
   async function verify(E) {
     E.verifying = true;
     try {
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0, bad = 0; i < 4; i++) {
         const man = E.man.data, r = await check(E.uid, man);
         if (E.stopped) return;
         if (E.man.data !== man) continue;      // le sommaire a changé pendant la vérification : on recommence
+        if (r === false && !bad++) { await new Promise(res => setTimeout(res, SUM.recheck)); if (E.stopped) return; continue; }      // écriture d'un autre appareil en plein milieu ? 2e essai avant de conclure
         if (r === false) { sumNote(E.uid, { leg: Date.now() + SUM.legacy, v: 0 }); toLegacy(E); repair(E, true).catch(() => {}); return; }
         if (r === true) sumNote(E.uid, { v: Date.now() });
         break;
@@ -194,11 +207,12 @@ function makeSum(m, db, col) {
     const uid = E.uid, m0 = (E.man && E.man.data) || {};
     const [ds, ms] = await Promise.all([fs.getDocsFromServer(col(uid)), fs.getDocsFromServer(fs.collection(db, 'users', uid, 'meta'))]);
     const p = {}, d = {};
-    for (const x of ms.docs) if (x.id !== SUM_ID) p[x.id] = stampOf(x.data());
+    for (const x of ms.docs) if (x.id !== SUM_ID && x.id !== SUM_OUT) p[x.id] = stampOf(x.data());
     for (const x of ds.docs) d[x.id] = stampOf(x.data());
     await fs.runTransaction(db, async tx => {
       const s = await tx.get(manRef(uid)), m1 = s.exists() ? s.data() : {};
       const out = { v: SUM_V, p: sumMerge(m0.p, m1.p, p), d: sumMerge(m0.d, m1.d, d), at: Date.now() }, o = old ? Date.now() : m1.old;
+      delete out.p[SUM_OUT];      // hors du sommaire (une version en développement l'y mettait)
       if (o) out.old = o;
       tx.set(manRef(uid), out);
     });
@@ -237,7 +251,7 @@ function makeSum(m, db, col) {
   /* ── Livraison aux abonnés : d'après le sommaire, la copie locale, ou une relecture ── */
   function resolveAll(E, cacheOnly) {
     if (E.mode === 'legacy') return;
-    const keys = new Set(); for (const s of E.subs) keys.add(s.kind === 'decks' ? 'decks' : 'p:' + s.id);
+    const keys = new Set(); for (const s of E.subs) if (!direct(s)) keys.add(s.kind === 'decks' ? 'decks' : 'p:' + s.id);
     for (const k of keys) resolve(E, k, cacheOnly);
   }
   /** Une livraison à la fois par document ; les demandes qui s'accumulent n'en font qu'une (cacheOnly : sans le serveur). */
@@ -265,8 +279,6 @@ function makeSum(m, db, col) {
     try { const s = await fs.getDocFromCache(metaRef(E.uid, id)); c = { data: s.exists() ? s.data() : null, pending: s.metadata.hasPendingWrites }; } catch (e) { /* pas dans le cache */ }
     if (!trust) { emitMeta(E, id, c ? c.data : null, c && c.pending, true); return null; }
     if (!inMan) { emitMeta(E, id, null, c && c.pending, false); return { data: null }; }      // absent du compte (sommaire à jour)
-    const mem = E.mem.get(key);
-    if (mem && mem.stamp === stamp && !(c && c.pending)) { emitMeta(E, id, mem.data, false, false); return { data: mem.data }; }      // écrit ici par transaction (le cache n'en sait rien)
     // copie confirmée par le sommaire, ou écrite ici et pas encore partie (la plus récente : le serveur la confirmera)
     if (c && c.data && (c.pending || stampOf(c.data) === stamp)) { emitMeta(E, id, c.data, c.pending, false); if (id === 'scan' && c.data.on === true) hotOn(E); return { data: c.data }; }
     if (id === 'scan') { hotOn(E); return null; }      // session de scan ouverte ou fermée ailleurs : écoute directe (1 lecture, comme une relecture)
@@ -317,7 +329,7 @@ function makeSum(m, db, col) {
   /* ── Écritures ── */
   /** Après une écriture locale : copie du cache relivrée (le sommaire en attente, s'il y en a un, relance la livraison lui aussi). */
   function touched(uid, keys) {
-    const E = engines.get(uid); if (!E || E.mode !== 'wait') return;      // suivi par le sommaire : sa version en attente relance la livraison (écritures groupées), la transaction est confirmée par le serveur
+    const E = engines.get(uid); if (!E || E.mode !== 'wait') return;      // suivi par le sommaire : sa version en attente relance la livraison
     for (const k of keys) resolve(E, k[0] === 'd' ? 'decks' : k, E.mode !== 'sum');
   }
   function denied(uid) {
@@ -326,44 +338,69 @@ function makeSum(m, db, col) {
   }
   const allowed = uid => { const E = engines.get(uid); return E ? E.canWrite : able && !!sumGet(uid).ok; };
   /** Écrit des documents du compte avec leurs dates dans le sommaire (même lot). entries : [[clé 'd:id' | 'p:id', date | null (supprimé)]].
-   *  Sommaire pas (encore) permis : écriture seule, notée pour y être reportée plus tard. Refusé (règles retirées ?) : écriture seule. */
+   *  Écritures demandées dans la même fenêtre (SUM.group ms, imperceptible) : un seul lot, une seule mise à jour du sommaire (deck supprimé + deck
+   *  monté + lien retiré : 3 écritures au lieu de 4 ; decks.js › metaFlush les fait partir ensemble). Sommaire pas (encore) permis : écriture seule,
+   *  notée pour y être reportée plus tard. Refusé (règles retirées ?) : écriture seule. */
   function put(uid, entries, ops, plain) {
-    const keys = entries.map(e => e[0]), E = engines.get(uid);
-    const noted = r => { if (E) keys.forEach(k => E.plain.add(k)); return r; };
-    if (!keys.length) return plain();
-    if (!allowed(uid)) { noted(); const pr = plain(); touched(uid, keys); return pr; }
-    const b = fs.writeBatch(db), p = {}, d = {};
-    ops(b);
-    for (const [k, v] of entries) (k[0] === 'd' ? d : p)[k.slice(2)] = v === null ? fs.deleteField() : v;
+    const it = { keys: entries.map(e => e[0]), entries, ops, plain };
+    if (!it.keys.length) return plain();
+    if (!allowed(uid)) return putPlain(uid, it);
+    let g = groups.get(uid);
+    if (!g) { g = []; groups.set(uid, g); setTimeout(() => { if (groups.get(uid) === g) groups.delete(uid); commit(uid, g); }, SUM.group); }
+    return new Promise((res, rej) => { it.res = res; it.rej = rej; g.push(it); });
+  }
+  const groups = new Map();
+  function putPlain(uid, it) {
+    const E = engines.get(uid); if (E) it.keys.forEach(k => E.plain.add(k));
+    const pr = it.plain(); touched(uid, it.keys); return pr;
+  }
+  function commit(uid, items) {
+    const settle = (x, pr) => pr.then(x.res, x.rej);
+    if (!allowed(uid)) { items.forEach(x => settle(x, Promise.resolve().then(() => putPlain(uid, x)))); return; }      // refus constaté entre-temps
+    const b = fs.writeBatch(db), p = {}, d = {}, keys = [];
+    for (const x of items) { x.ops(b); for (const [k, v] of x.entries) { (k[0] === 'd' ? d : p)[k.slice(2)] = v === null ? fs.deleteField() : v; keys.push(k); } }
     b.set(manRef(uid), { ...(Object.keys(p).length ? { p } : {}), ...(Object.keys(d).length ? { d } : {}) }, { merge: true });
     const pr = b.commit();
     touched(uid, keys);
-    return pr.catch(err => {
-      if (!(err && err.code === 'permission-denied')) throw err;
-      return plain().then(r => { denied(uid); return noted(r); });      // l'écriture seule passe : c'est le sommaire qui est refusé
+    pr.then(() => items.forEach(x => x.res()), err => {
+      if (items.length > 1) { items.forEach(x => settle(x, Promise.resolve().then(() => commitOne(uid, x)))); return; }      // lot refusé : chacun seul, un document refusé ne fait pas échouer les autres
+      settle(items[0], refused(uid, items[0], err));
     });
   }
+  function commitOne(uid, x) {
+    if (!allowed(uid)) return putPlain(uid, x);
+    const b = fs.writeBatch(db), p = {}, d = {};
+    x.ops(b);
+    for (const [k, v] of x.entries) (k[0] === 'd' ? d : p)[k.slice(2)] = v === null ? fs.deleteField() : v;
+    b.set(manRef(uid), { ...(Object.keys(p).length ? { p } : {}), ...(Object.keys(d).length ? { d } : {}) }, { merge: true });
+    return b.commit().catch(err => refused(uid, x, err));
+  }
+  /** Lot refusé : permission refusée → l'écriture seule ; si elle passe, c'est le sommaire qui est refusé (règles pas publiées, ou republiées sans lui). */
+  function refused(uid, x, err) {
+    if (!(err && err.code === 'permission-denied')) return Promise.reject(err);
+    return x.plain().then(r => { denied(uid); const E = engines.get(uid); if (E) x.keys.forEach(k => E.plain.add(k)); return r; });
+  }
+  /** Collection : transaction seule, comme avant (hors du sommaire : 1 lecture + 1 écriture par envoi). */
   function tx(uid, fn) {
-    const ref = metaRef(uid, 'collection'), E = engines.get(uid);
-    const run = withMan => fs.runTransaction(db, async t => {
+    const ref = metaRef(uid, SUM_OUT);
+    return fs.runTransaction(db, async t => {
       const s = await t.get(ref), out = fn(s.exists() ? s.data() : null);
-      if (out) { t.set(ref, out); if (withMan) t.set(manRef(uid), { p: { collection: stampOf(out) } }, { merge: true }); }
+      if (out) t.set(ref, out);
       return out;
     });
-    const plainRun = () => run(false).then(out => { if (out && E) E.plain.add('p:collection'); return out; });
-    const p = allowed(uid) ? run(true).catch(err => { if (!(err && err.code === 'permission-denied')) throw err; return plainRun().then(out => { denied(uid); return out; }); }) : plainRun();
-    return p.then(out => { if (out && E) { E.mem.set('p:collection', { stamp: stampOf(out), data: out }); touched(uid, ['p:collection']); } return out; });
   }
-  /** Lecture « sur le serveur » d'un document annexe : sommaire suivi et à jour → la copie confirmée (aucune lecture) ; sinon le serveur. */
+  /** Lecture « sur le serveur » d'un document annexe : sommaire suivi et à jour → la copie confirmée (aucune lecture) ; sinon le serveur.
+   *  Collection : le serveur (l'écoute ouverte en partage la cible : rien à relire si elle est à jour). */
   async function pull(uid, id) {
     const E = engines.get(uid);
+    if (id === SUM_OUT) { const s = await fs.getDocFromServer(metaRef(uid, id)); return { data: s.exists() ? s.data() : null }; }
     if (E && E.mode === 'wait') await Promise.race([E.ready, new Promise(r => setTimeout(r, 4000))]);
     if (E && trusted(E, false)) { const r = await resolve(E, 'p:' + id, false); if (r && r.data !== undefined) return { data: r.data }; if (r && r.same) { const c = await fs.getDocFromCache(metaRef(uid, id)).catch(() => null); if (c) return { data: c.exists() ? c.data() : null }; } }
     const s = await fs.getDocFromServer(metaRef(uid, id)); return { data: s.exists() ? s.data() : null };
   }
   function sub(uid, s) {
     const E = engine(uid); E.subs.add(s);
-    if (E.mode === 'legacy') legacyOn(E, s);
+    if (E.mode === 'legacy' || direct(s)) legacyOn(E, s);
     else { E.last.delete(s.kind === 'decks' ? 'decks' : 'p:' + s.id); resolve(E, s.kind === 'decks' ? 'decks' : 'p:' + s.id, E.mode !== 'sum'); }
     return () => {
       s.off = true; E.subs.delete(s);
@@ -414,12 +451,13 @@ function makeCloud(m) {
     newId: uid => m.fs.doc(col(uid)).id,
     save: (uid, id, data) => sm.put(uid, [['d:' + id, stampOf(data)]], b => b.set(dref(uid, id), data), () => m.fs.setDoc(dref(uid, id), data)),
     remove: (uid, id) => sm.put(uid, [['d:' + id, null]], b => b.delete(dref(uid, id)), () => m.fs.deleteDoc(dref(uid, id))),
-    /** Collection possédée : un seul document users/{uid}/meta/collection { text, count, updatedAt }. onData(données | null, écritureEnAttente, vientDuCache). */
+    /** Collection possédée : un seul document users/{uid}/meta/collection { text, count, updatedAt }. onData(données | null, écritureEnAttente, vientDuCache).
+     *  Écoutée directement (hors du sommaire, voir makeSum). */
     watchColl: (uid, onData, onErr) => sm.sub(uid, { kind: 'meta', id: 'collection', onData, onErr }),
-    saveColl: (uid, data) => sm.put(uid, [['p:collection', stampOf(data)]], b => b.set(mref(uid, 'collection'), data), () => m.fs.setDoc(mref(uid, 'collection'), data)),
+    saveColl: (uid, data) => m.fs.setDoc(mref(uid, SUM_OUT), data),
     /** Lecture-modification-écriture atomique : fn(données | null) retourne le nouveau document (ou null = rien à écrire). Rejouée si un autre appareil écrit entre-temps. Exige le réseau. */
     txColl: (uid, fn) => sm.tx(uid, fn),
-    /** Version du serveur : { data | null } (sommaire suivi et à jour : la copie qu'il confirme, sans lecture). */
+    /** Version du serveur : { data | null } (l'écoute ouverte à jour la donne sans relecture). */
     pullColl: uid => sm.pull(uid, 'collection'),
     /** Données annexes du compte (users/{uid}/meta/{engaged|history|trade|prefs|profile|scan}) : mêmes gestes que la collection. */
     watchMeta: (uid, id, onData, onErr) => sm.sub(uid, { kind: 'meta', id, onData, onErr }),

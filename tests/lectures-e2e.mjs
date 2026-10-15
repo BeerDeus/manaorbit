@@ -1,13 +1,15 @@
-// Lectures Firestore (quota gratuit : 50 000 par jour pour tout le projet) : sommaire du compte (cloud.js › makeSum) contre l'émulateur,
-// vrai SDK Firebase (bundle des tests), lectures comptées sur le fil comme Firestore les facture (lectures-lib.mjs).
-//   · coûts : première ouverture, relance (l'émulateur ignore les jetons de reprise : c'est le cas « après plus de 30 min »), 30 cartes ajoutées une à une,
-//     deck modifié, deuxième appareil ouvert ;
+// Lectures ET écritures Firestore (quota gratuit : 50 000 lectures et 20 000 écritures par jour pour tout le projet) : sommaire du compte
+// (cloud.js › makeSum) contre l'émulateur, vrai SDK Firebase (bundle des tests), comptées sur le fil comme Firestore les facture (lectures-lib.mjs).
+//   · coûts : première ouverture, relance (l'émulateur ignore les jetons de reprise : c'est le cas « après plus de 30 min »), 30 cartes ajoutées une à une
+//     (collection hors du sommaire : 1 écriture par envoi groupé), deck modifié, deck monté supprimé (un seul lot), deuxième appareil ouvert ;
 //   · deux appareils synchronisés par le sommaire : collection, decks (ajout, modification, suppression), profil, liste d'échange, scan mobile en direct ;
 //   · écriture faite sans le sommaire (version d'avant de l'appli) : vue à la vérification, sommaire réparé, écoutes d'avant pendant 24 h ;
-//   · hors ligne puis retour du réseau : rien de perdu, sommaire juste ; envoi groupé de la collection parti en passant en arrière-plan ou à la déconnexion ;
+//   · hors ligne puis retour du réseau : rien de perdu, sommaire juste ; envoi groupé de la collection parti en passant en arrière-plan, après un envoi
+//     en cours, et avant la déconnexion (syncFlush) ;
 //   · règles sans le sommaire (pas encore publiées) : écoutes d'avant, tout se synchronise quand même ; règles publiées : sommaire créé.
-// Lourd (Java, émulateur) : s'ignore sans lui, comme rules-test.mjs (RULES_REQUIRED=1 : échec). Lancer :
-//   RULES_DEPS=<dossier>/node_modules <dossier>/node_modules/.bin/firebase emulators:exec --only firestore --project demo-deckdeal "node tests/lectures-e2e.mjs"
+// Lourd (Java, émulateur, Chromium) : s'ignore sans l'émulateur, comme rules-test.mjs (RULES_REQUIRED=1 : échec). CI : .github/workflows/rules.yml. Lancer :
+//   <firebase-tools>/node_modules/.bin/firebase emulators:exec --only firestore --project demo-deckdeal "node tests/lectures-e2e.mjs"
+//   (ou avec un émulateur déjà lancé : FIRESTORE_EMULATOR_HOST=127.0.0.1:<port> node tests/lectures-e2e.mjs)
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -64,38 +66,39 @@ const A = await open('u1', N_DECKS);
 let r = note('A', 'première ouverture (écoutes d\'avant + création du sommaire)', A);
 assert.equal((await st(A)).mode, 'legacy', 'première ouverture du compte sur cet appareil : écoutes d\'avant');
 let m = await man('u1');
-assert.ok(m && m.v === 1, 'sommaire créé'); assert.equal(Object.keys(m.d).length, N_DECKS); assert.deepEqual(Object.keys(m.p).sort(), ['collection', 'engaged', 'history', 'prefs', 'profile', 'trade']);
-assert.equal(m.d.deck3, NOW - 3000, 'date de chaque deck'); assert.equal(m.p.collection, NOW);
+assert.ok(m && m.v === 1, 'sommaire créé'); assert.equal(Object.keys(m.d).length, N_DECKS); assert.deepEqual(Object.keys(m.p).sort(), ['engaged', 'history', 'prefs', 'profile', 'trade'], 'collection hors du sommaire');
+assert.equal(m.d.deck3, NOW - 3000, 'date de chaque deck'); assert.equal(m.p.profile, NOW);
 assert.ok(r.reads <= 2 * (N_DECKS + 6) + 4, 'création : une relecture complète en plus, une seule fois (' + r.reads + ')');
-ok(`première ouverture : écoutes d'avant (${r.reads} lectures, création du sommaire comprise) ; sommaire = 10 decks et 6 documents datés`);
+ok(`première ouverture : écoutes d'avant (${r.reads} lectures, création du sommaire comprise) ; sommaire = 10 decks et 5 documents annexes datés`);
 
 await relaunch(A, N_DECKS); r = note('A', 'relance (> 30 min)', A);
-assert.equal((await st(A)).mode, 'sum'); assert.equal(r.reads, 1, 'relance : le sommaire seul (' + r.names.join(', ') + ')');
+assert.equal((await st(A)).mode, 'sum'); assert.equal(r.reads, 2, 'relance : le sommaire et la collection seuls (' + r.names.join(', ') + ')'); assert.equal(r.writes, 0);
 await relaunch(A, N_DECKS, { verify: true }); r = note('A', 'relance avec vérification (au plus toutes les 6 h)', A);
-assert.equal((await st(A)).mode, 'sum'); assert.equal(r.reads, 3, 'sommaire + 2 agrégations (' + r.names.join(', ') + ')'); assert.equal(r.agg, 2);
+assert.equal((await st(A)).mode, 'sum'); assert.equal(r.reads, 4, 'sommaire + collection + 2 agrégations (' + r.names.join(', ') + ')'); assert.equal(r.agg, 2);
 assert.equal(await A.p.evaluate(() => D.list.map(d => d.name).join()), Array.from({ length: N_DECKS }, (_, i) => 'Deck ' + i).join(), 'decks livrés depuis la copie locale, dans l\'ordre');
 assert.equal(await A.p.evaluate(() => Object.keys(COLL.map).length), 200); assert.equal(await A.p.evaluate(() => PROF.name), 'Beer');
-ok('relance après plus de 30 min : 1 lecture (avant : 17) ; avec la vérification : 3 ; decks, collection, profil livrés depuis la copie locale');
+ok('relance après plus de 30 min : 2 lectures (avant : 16) ; avec la vérification : 4 ; decks et profil livrés depuis la copie locale');
 
 const B = await open('u1', N_DECKS); r = note('B', 'première ouverture (2e appareil)', B);
 assert.equal((await st(B)).mode, 'legacy'); assert.ok(r.reads <= N_DECKS + 6 + 1, 'sommaire déjà là : rien à créer (' + r.reads + ')');
-await relaunch(B, N_DECKS); r = note('B', 'relance (vérification : première fois ici)', B); assert.equal((await st(B)).mode, 'sum'); assert.equal(r.reads, 3);
-await relaunch(B, N_DECKS); r = note('B', 'relance', B); assert.equal(r.reads, 1);
-ok('deuxième appareil : écoutes d\'avant à sa première ouverture, puis sommaire (3 lectures la première fois, 1 ensuite)');
+await relaunch(B, N_DECKS); r = note('B', 'relance (vérification : première fois ici)', B); assert.equal((await st(B)).mode, 'sum'); assert.equal(r.reads, 4);
+await relaunch(B, N_DECKS); r = note('B', 'relance', B); assert.equal(r.reads, 2);
+ok('deuxième appareil : écoutes d\'avant à sa première ouverture, puis sommaire (4 lectures la première fois, 2 ensuite)');
 
 /* ═══ 2. Deux appareils ouverts : chaque modification arrive en direct ══════════════════════════ */
 resetReads(A); resetReads(B);
 for (let i = 0; i < 30; i++) { await A.p.evaluate(i => collBump(ownKey('Scan Card ' + i), 'Scan Card ' + i, 1), i); await sleep(1200); }
 await until(B, () => Object.keys(COLL.map).length === 230, null, '30 cartes sur B', 20000); await sleep(2500);
 const ra = note('A', '30 cartes ajoutées une à une (1,2 s d\'écart)', A), rb = note('B', '… pendant ce temps (ouvert)', B);
-assert.ok(ra.reads <= 18 && ra.reads >= 4, 'envois groupés : ' + ra.reads + ' lectures'); assert.ok(rb.reads <= 18, 'B : ' + rb.reads + ' lectures');
+assert.ok(ra.reads <= 18 && ra.reads >= 4, 'envois groupés : ' + ra.reads + ' lectures'); assert.ok(rb.reads <= 9, 'B : ' + rb.reads + ' lectures');
+assert.ok(ra.writes <= 9 && ra.writes === ra.reads / 2, 'une écriture par envoi, sans le sommaire : ' + ra.writes); assert.equal(rb.writes, 0);
 assert.equal((await E.get('users/u1/meta/collection')).count, 230);
-ok(`30 cartes une à une : ${ra.reads} lectures sur A et ${rb.reads} sur B (avant : 60 et 30) ; B a toutes les cartes`);
+ok(`30 cartes une à une : ${ra.reads} lectures et ${ra.writes} écritures sur A, ${rb.reads} lectures sur B (avant : 60, 30 et 30) ; B a toutes les cartes`);
 
 resetReads(A); resetReads(B);
 await A.p.evaluate(() => { const d = D.list.find(x => x.id === 'deck0'); putDeck(d.id, deckDoc({ ...d, text: d.text + '\n1 Wrath of God' })); });
 await until(B, () => /Wrath of God/.test((D.list.find(x => x.id === 'deck0') || {}).text || ''), null, 'deck modifié vu sur B'); await sleep(2500);
-r = note('A', 'deck modifié', A); assert.equal(r.reads, 1, 'A : écho du sommaire seulement (' + r.names.join(', ') + ')'); assert.equal(r.writes, 2, 'deck + sommaire');
+r = note('A', 'deck modifié', A); assert.equal(r.reads, 1, 'A : écho du sommaire seulement (' + r.names.join(', ') + ')'); assert.equal(r.writes, 2, 'deck + sommaire (' + r.writes + ')');
 r = note('B', '… vu sur B', B); assert.equal(r.reads, 2, 'B : sommaire + le deck (' + r.names.join(', ') + ')');
 assert.equal((await man('u1')).d.deck0, await A.p.evaluate(() => D.list.find(x => x.id === 'deck0').updatedAt));
 ok('deck modifié sur A : 1 lecture sur A, 2 sur B (sommaire + ce deck), B le voit en direct');
@@ -114,6 +117,18 @@ await until(B, () => TR.keep === 3, null, 'liste d\'échange vue sur B');
 await A.p.evaluate(() => { XS.eng = { ...XS.eng, deck0: { n: 'Deck 0', at: Date.now(), q: { 'sol ring': 1 } } }; engSaved(); });
 await until(B, () => !!XS.eng.deck0, null, 'deck monté vu sur B');
 ok('profil (B → A), liste d\'échange et deck monté (A → B) : en direct par le sommaire');
+
+// deck monté supprimé : le deck, sa trace dans « decks montés » et le sommaire partent dans un seul lot (decks.js › metaFlush, cloud.js › put)
+await A.p.evaluate(() => putDeck('tmp1', deckDoc({ name: 'Éphémère', text: '1 Sol Ring' })));
+await A.p.evaluate(() => { XS.eng = { ...XS.eng, tmp1: { n: 'Éphémère', at: Date.now(), q: { 'sol ring': 1 } } }; engSaved(); });
+await until(B, () => D.list.some(d => d.id === 'tmp1') && !!XS.eng.tmp1, null, 'deck monté vu sur B'); await sleep(1500);
+resetReads(A); resetReads(B);
+await A.p.evaluate(() => removeDeck('tmp1'));
+await until(B, () => !D.list.some(d => d.id === 'tmp1') && XS.eng.tmp1 && !Object.keys(XS.eng.tmp1.q).length, null, 'deck monté supprimé vu sur B'); await sleep(1500);
+r = note('A', 'deck monté supprimé (deck + deck monté)', A); assert.equal(r.writes, 3, 'deck, deck monté et sommaire en un lot (' + r.writes + ')');
+r = note('B', '… vu sur B', B); assert.ok(r.reads <= 2, 'B : sommaire + deck monté (' + r.names.join(', ') + ')');
+m = await man('u1'); assert.ok(!('tmp1' in m.d) && m.p.engaged === (await E.get('users/u1/meta/engaged')).updatedAt, 'sommaire juste');
+ok('deck monté supprimé : deck, deck monté et sommaire dans un seul lot (3 écritures au lieu de 4), vu sur B');
 
 // scan mobile : écoute directe du document pendant la session, plus rien ensuite
 resetReads(B);
@@ -158,7 +173,7 @@ assert.equal(await B.p.evaluate(() => D.list.some(d => d.id === 'horsligne1')), 
 await net(A, true);
 await until(B, () => D.list.some(d => d.id === 'horsligne1') && D.list.some(d => d.name === 'Deck 1 bis') && TR.keep === 4 && PROF.name === 'Hors réseau', null, 'retour du réseau : tout arrive sur B', 20000);
 m = await man('u1'); assert.ok(m.d.horsligne1 > 0 && m.d.deck1 === (await E.get('users/u1/decks/deck1')).updatedAt, 'sommaire à jour');
-await relaunch(B, 11, { verify: true }); assert.equal((await st(B)).mode, 'sum', 'vérification juste après le retour du réseau');
+await relaunch(B, 11, { verify: true, legacy: 1 }); assert.equal((await st(B)).mode, 'sum', 'vérification juste après le retour du réseau');      // legacy : 1 → le champ old de la section 3 (24 h) ne compte plus
 ok('hors ligne : decks, liste d\'échange, profil gardés ; au retour du réseau tout part, sommaire juste (vérification)');
 
 /* ═══ 5. Envoi groupé de la collection : parti tout de suite en arrière-plan, à la déconnexion ═════ */
@@ -169,12 +184,20 @@ assert.ok(await A.p.evaluate(() => !!COLL.pushT && COLL.pushAt + COLL_PUSH.burst
 await A.p.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
 await until(B, () => collQty(ownKey('Burst 4')) === 1, null, 'arrière-plan : envoyé sans attendre', 2500);
 await A.p.evaluate(() => { delete document.hidden; });
+// envoi déjà en cours au moment de partir : attendu, puis ce qui a changé pendant part aussitôt (pas après le délai de la rafale)
+await A.p.evaluate(() => { COLL_PUSH.quick = 5000; collBump(ownKey('Flush 1'), 'Flush 1', 1); collPush(); collBump(ownKey('Flush 2'), 'Flush 2', 1); });
+assert.ok(await A.p.evaluate(() => !!COLL.pushing && !!COLL.pushT), 'envoi en cours, le suivant attend');
+let t0 = Date.now(); await A.p.evaluate(() => syncFlush());
+assert.match((await E.get('users/u1/meta/collection')).text, /Flush 2/, 'syncFlush : envoi en cours attendu, puis le reste envoyé'); assert.ok(Date.now() - t0 < 3000, 'sans attendre le délai (' + (Date.now() - t0) + ' ms)');
+await A.p.evaluate(() => { COLL_PUSH.quick = 700; });
 await burst(10);
 assert.ok(await A.p.evaluate(() => !!COLL.pushT), 'rafale : envoi en attente');
-await A.p.evaluate(() => meSignOut());
-await A.p.waitForFunction(() => !D.user, null, { timeout: 8000 });
+// déconnexion : la connexion de ce test est simulée (le SDK Auth ne connaît personne) ; on note ce qui reste à envoyer au moment de signOut
+await A.p.evaluate(() => { const so = D.cloud.signOut; D.cloud.signOut = async () => { self.__atOut = !COLL.pushT && !COLL.pushing && !collUnsynced(); await so(); onUser(null); }; });
+t0 = Date.now(); await A.p.evaluate(() => meSignOut());
+assert.equal(await A.p.evaluate(() => self.__atOut), true, 'déconnexion : plus rien en attente au moment de se déconnecter'); assert.ok(Date.now() - t0 < 4000);
 assert.match((await E.get('users/u1/meta/collection')).text, /Burst 14/, 'déconnexion : l\'envoi en attente est parti avant');
-ok('envoi groupé (rafale) : parti tout de suite en passant en arrière-plan et avant la déconnexion');
+ok('envoi groupé (rafale) : parti tout de suite en passant en arrière-plan, après un envoi en cours, et avant la déconnexion');
 noErrs(A, B);
 
 /* ═══ 6. Règles sans le sommaire (pas encore publiées) : écoutes d'avant, rien ne se perd ═════════ */
@@ -193,8 +216,8 @@ ok(`règles sans le sommaire : écoutes d'avant (${r.reads} lectures par ouvertu
 await E.rules(RULES);
 await relaunch(C, N_DECKS, { denied: 0 }); await sleep(1500);
 m = await man('u2'); assert.ok(m && m.v === 1 && m.d.c1 && !('deck2' in m.d), 'règles publiées : sommaire créé');
-await relaunch(C, N_DECKS); r = note('C', 'relance après publication des règles', C); assert.equal((await st(C)).mode, 'sum'); assert.equal(r.reads, 1);
-ok('règles publiées : sommaire créé à l\'ouverture suivante, puis 1 lecture par relance');
+await relaunch(C, N_DECKS); r = note('C', 'relance après publication des règles', C); assert.equal((await st(C)).mode, 'sum'); assert.equal(r.reads, 2);
+ok('règles publiées : sommaire créé à l\'ouverture suivante, puis 2 lectures par relance');
 noErrs(C, Dv);
 
 console.log('\nLectures (et écritures) mesurées, facturation Firestore :');

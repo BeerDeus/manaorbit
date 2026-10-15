@@ -113,7 +113,8 @@ service cloud.firestore {
     }
 
     // Mana Orbit : sommaire du compte (src/cloud.js › makeSum), users/{uid}/meta/sommaire = { v, p: { document annexe: updatedAt }, d: { deck: updatedAt }, at, old }.
-    // Écrit dans le même lot que chaque document du compte ; les appareils n'écoutent que lui et ne relisent que ce qui a changé (quota de lectures).
+    // Écrit dans le même lot que chaque deck et document annexe (sauf la collection, écoutée directement) ; les appareils n'écoutent que lui et ne relisent
+    // que ce qui a changé (quota de lectures). NE JAMAIS republier ces règles sans ce bloc : les écritures en lot avec le sommaire seraient refusées.
     // Lecture et suppression : règle des documents annexes ci-dessus. Sans cette règle (pas encore publiée), l'appli garde ses écoutes d'avant.
     match /users/{uid}/meta/sommaire {
       allow create, update: if request.auth != null && request.auth.uid == uid

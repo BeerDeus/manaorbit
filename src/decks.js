@@ -41,6 +41,7 @@ function putDeck(id, doc) {
     const fail = err => { D.pending = false; D.listErr = ''; paintSync(); toast(deckErr(err)); };
     // Règles Firestore pas encore à jour : elles refusent le champ « snap ». On renvoie le deck sans lui (les prix restent sur cet appareil) et on n'insiste plus de la session.
     if (doc.snap && D.noSnap) doc = bare(doc);
+    Promise.resolve().then(metaFlush);      // deck monté qui suit sa liste (bdSave, saveCurrent) : dans le même lot que le deck
     return D.cloud.save(D.user.uid, id, doc).catch(err => {
       if (err && err.code === 'permission-denied' && doc.snap) { D.noSnap = true; return D.cloud.save(D.user.uid, id, bare(doc)).catch(fail); }
       fail(err);
@@ -56,7 +57,7 @@ function putDeck(id, doc) {
 function removeDeck(id) {
   if (S.deckId === id) S.deckId = null;
   snapDrop(id); engClear(id, true); trDeckGone(id); pdDeckGone(id);      // lien partagé et copie publique (Communauté) retirés avec lui
-  if (cloudOn()) return D.cloud.remove(D.user.uid, id).catch(err => toast(deckErr(err)));
+  if (cloudOn()) { Promise.resolve().then(metaFlush); return D.cloud.remove(D.user.uid, id).catch(err => toast(deckErr(err))); }      // deck démonté, lien retiré : dans le même lot que le deck
   D.localList = D.localList.filter(d => d.id !== id);
   localWrite(D.localList.map(d => ({ id: d.id, ...stripDeck(d) })));
   renderDecks();
@@ -392,7 +393,7 @@ function setDeckCover(id, name) {
   const cur = findDeck(id); if (!cur) return;
   const text = dkSetCover(cur.text, name); if (text === cur.text) return;
   if (S.deckId === id && $('#deckText').value === cur.text) { $('#deckText').value = text; refreshDeck(); }      // deck chargé dans la saisie : elle suit, sinon « Enregistrer » effacerait le choix
-  putDeck(id, deckDoc({ ...cur, text }, cur.updatedAt));
+  putDeck(id, deckDoc({ ...cur, text }, (Number(cur.updatedAt) || Date.now()) + 1));      // date + 1 : le deck garde sa place, et les autres appareils voient le changement (cloud.js › sommaire : une date inchangée = rien à relire)
 }
 /** Feuille : toutes les cartes du deck (commandant d'abord, puis les plus chères) ; toucher une carte la choisit. done : rappelé après le choix. */
 function openCoverPicker(id, done) {
@@ -663,12 +664,19 @@ function acctOut(uid) {
  *  Appli mise en arrière-plan ou fermée (collSleep), déconnexion (attendus, 3 s au plus ; hors ligne, tout reste sur l'appareil et repart à la prochaine synchro). */
 function syncFlush() {
   if (!cloudOn()) return Promise.resolve();
+  const jobs = metaFlush();
+  if (COLL.pushT || COLL.pushing) jobs.push(collFlush());
+  return Promise.race([Promise.all(jobs.map(p => Promise.resolve(p).catch(() => {}))), sleep(3000)]);
+}
+/** Documents annexes en attente d'envoi (deck monté, historique de valeur, liste d'échange, réglages du scan) : partis tout de suite. Après un deck
+ *  enregistré ou supprimé (putDeck, removeDeck), ils rejoignent son lot : une seule mise à jour du sommaire (cloud.js › put, quota d'écritures). */
+function metaFlush() {
   const jobs = [];
-  if (COLL.pushT) jobs.push(collPush());
+  if (!cloudOn() || (typeof navigator !== 'undefined' && navigator.onLine === false)) return jobs;      // hors ligne : les envois attendent leur délai (rien ne partirait)
   for (const id in XS.docs) if (XS.docs[id].pushT) jobs.push(xsPush(id));
   if (TR.doc.pushT) jobs.push(trPush());
   if (typeof SCS !== 'undefined' && SCS.doc.pushT) jobs.push(scsPush());
-  return Promise.race([Promise.all(jobs.map(p => Promise.resolve(p).catch(() => {}))), sleep(3000)]);
+  return jobs;
 }
 
 /* ── Connexion au cloud ───────────────────────────────────────────────────────────────────── */

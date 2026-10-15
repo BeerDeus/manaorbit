@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { newPage } from './e2e-world.mjs';
 
 export const PROJECT = 'm2s-mtg';      // celui de FIREBASE_CONFIG (cloud.js) : l'appli tourne telle quelle, seul l'hôte Firestore change
-const SHARED = readFileSync('tests/.tmp/fb-shared.js', 'utf8');
+let SHARED = null;      // bundle des tests (cd tests && npm run fb), lu au premier besoin : sans émulateur, le test s'ignore sans lui
 
 export function emu() {
   const h = process.env.FIRESTORE_EMULATOR_HOST; if (!h) return null;
@@ -76,6 +76,7 @@ function track(p, io) {
 /** Page de l'appli branchée sur l'émulateur (vrai SDK). ctx : contexte réutilisé (cache IndexedDB gardé = relance de l'appli) ; uid : compte simulé. */
 export async function fsPage(browser, world, E, { ctx, uid = 'u1', path = '' } = {}) {
   const own = !ctx;
+  if (SHARED === null) SHARED = readFileSync('tests/.tmp/fb-shared.js', 'utf8');
   if (own) ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
   const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
   if (own) {

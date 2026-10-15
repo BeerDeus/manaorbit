@@ -282,6 +282,15 @@ function collPushSoon() {
   COLL.pushT = setTimeout(collPush, Math.max(COLL_PUSH.quick, COLL.pushAt + COLL_PUSH.burst - now));
 }
 function collRetry(ms) { clearTimeout(COLL.retryT); COLL.retryT = setTimeout(() => { if (collUnsynced()) collPush(); else collPull(); }, ms); }
+/** Envoi sans attendre le délai (syncFlush : arrière-plan, déconnexion). Un envoi déjà en cours est attendu, puis ce qui reste part aussitôt
+ *  (changé pendant l'envoi : sinon il attendrait le délai de la rafale, et la déconnexion l'annulerait). */
+async function collFlush() {
+  for (let i = 0; i < 3; i++) {
+    for (const t0 = Date.now(); COLL.pushing && Date.now() - t0 < 8000;) await sleep(40);
+    if (!COLL.pushT || COLL.pushing) return;      // rien en attente (ou envoi bloqué : syncFlush ne l'attend pas plus de 3 s)
+    await collPush();
+  }
+}
 async function collPush() {
   clearTimeout(COLL.pushT); clearTimeout(COLL.retryT); COLL.pushT = COLL.retryT = 0;
   if (!cloudOn() || !D.cloud.txColl || acctHeld(D.user.uid)) return;                  // compte en cours de suppression (ici ou ailleurs) : rien ne part
