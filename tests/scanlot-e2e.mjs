@@ -10,6 +10,7 @@ const world = await startWorld({ port: 19480 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const { p, errs } = await newPage(browser, world);
 await p.evaluate(() => { FRN.map = new Map([['edgar markov', 'Edgar Markov'], ['sol ring', 'Anneau solaire']]); FRX.l = 'fr'; });
+await p.evaluate(() => openScan()); await p.waitForFunction(() => !!SC.el);      // langue du lot : celle du scan ouvert
 const lot = (lv, m, o = {}) => p.evaluate(async ([lv, m, o]) => { SC.lv = [...lv]; SC.lotLast = null; SCS.lang = o.lang || ''; const r = await scanLotLang(m); SCS.lang = ''; return { card: r.card, lot: !!r.lot, lv: SC.lv.join(','), last: SC.lotLast }; }, [lv, m, o]);
 const edgar = { key: 'edgar markov', name: 'Edgar Markov', raw: 'Edgar Markov', card: 'en', score: 0.97 };
 const solEn = { key: 'sol ring', name: 'Sol Ring', raw: 'Sol Ring', card: 'en', score: 0.97 };
@@ -44,7 +45,6 @@ assert.deepEqual(await ed(true, [P('202')]), ['dsk|202', 'solo', true], 'une seu
 ok('extension unique avec variantes (sans bordure, vitrine…), ligne du bas illisible : la principale, l\'illustration départage');
 
 /* ── Homonymes : « Voie de la pyromancienne » = Path of the Pyromancer et Way of the Pyromancer ─────────────────────────────────── */
-await p.evaluate(() => openScan()); await p.waitForFunction(() => !!SC.el);
 const amb = { key: 'path of the pyromancer', name: 'Path of the Pyromancer', raw: 'Voie de la pyromancienne', card: 'fr', score: 0.83, amb: true, alts: ['Path of the Pyromancer', 'Way of the Pyromancer'], sig: [1] };
 const art = (m, pick) => p.evaluate(async ([m, pick]) => {
   const keep = [window.artPick, window.scryArtPrints];
