@@ -45,7 +45,7 @@ function puGo() {
 
 /* ── Écran de la partie (préparation, compteur, fin) ───────────────────────────────────────────── */
 function puOpen(st) {
-  puClose(); PU.st = st; PU.gone = new Set(); PU.deltas = {}; PU.roomTry = false;
+  puClose(); PU.st = st; PU.gone = new Set(); PU.deltas = {}; PU.roomTry = false; PU.low = Infinity;
   const wrap = document.createElement('div'); wrap.className = 'dv pu'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Partie de Commander'));
   PU.el = wrap; wrap.__close = () => puClose();
   wrap.addEventListener('click', puClick);
@@ -71,6 +71,7 @@ async function puWake(on) {
 function puSet(next, o = {}) {
   if (!next || next === PU.st) return false;
   PU.st = next; if (next.fin) partieClear(); else partieSave(next);
+  const me = next.places.find(p => p.sorte === 'moi'); if (me && next.debut && !next.fin) PU.low = Math.min(PU.low ?? Infinity, me.vie);      // plus bas de mes points de vie (badge « Revenant », progress.js)
   if (o.paint !== false) puPaint();
   return true;
 }
@@ -330,7 +331,8 @@ function puEndSheet() {
     api.foot.addEventListener('click', e => {
       const none = e.target.closest('[data-nw]'), ok = e.target.closest('[data-ok]'); if (!none && !ok) return;
       api.close(); const fin = partieEnd(PU.st, none ? [] : [...win]); PU.res = partieDone(fin); PU.st = fin; haptic('ok'); puWake(false); puPaint(); puHomePaint();
-      const me = fin.places.find(p => p.sorte === 'moi'); if (me && win.has(me.pos) && !none && typeof rateMoment === 'function') rateMoment('partie');      // victoire : un bon moment pour demander une note (help.js, appli Android)
+      const me = fin.places.find(p => p.sorte === 'moi'); if (me && win.has(me.pos) && !none && typeof rateMoment === 'function') rateMoment('partie');
+      if (me && typeof prgGame === 'function') prgGame(fin, me, Math.min(PU.low ?? Infinity, me.vie));      // « Revenant », « Bourreau »… (progress.js)      // victoire : un bon moment pour demander une note (help.js, appli Android)
     });
   });
 }

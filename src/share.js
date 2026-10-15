@@ -112,7 +112,7 @@ async function ownerTag(uid) {
   return ownerTags.get(uid);
 }
 async function trPut(id, kind, body) {
-  body = { ...body, ...profShare() };      // pseudo et photo du profil : le lien change quand le profil change
+  body = { ...body, ...profShare(), ...(typeof prgShare === 'function' ? prgShare() : {}) };      // pseudo et photo du profil, badges choisis (progress.js) : le lien change quand ils changent
   const s = kind + ':' + hash32(JSON.stringify(body));
   if (TR.sig[id] === s) return;
   const d = JSON.stringify({ ...body, at: Date.now() });
@@ -471,7 +471,7 @@ function openPublicTrade(sh, preview, id, fr) {
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button>
       ${sh.bp ? `<img class="pub-av" src="${sh.bp}" alt="">` : ''}<div class="dv-title"><b>${preview ? T('Aperçu de ta liste') : sh.by ? T('Liste d\'échange de {name}', { name: esc(sh.by) }) : T('Liste d\'échange')}</b><span>${sh.at ? T('Mise à jour {when}', { when: esc(relTime(sh.at)) }) : ''}</span></div>${preview ? '' : '<span class="am-pub" hidden></span>'}</header>
     <div class="dv-scroll"><div class="dv-body coll-body">
-      <p class="hint pub-note">${T(preview ? 'Ce que voient les personnes qui ont ton lien.' : 'Lecture seule. Touche une carte pour la voir en grand.')}${sh.cut ? ' ' + T('Liste trop longue : seule une partie est affichée.') : ''}</p>
+      ${typeof prgShowHtml === 'function' ? prgShowHtml(sh.bg) : ''}<p class="hint pub-note">${T(preview ? 'Ce que voient les personnes qui ont ton lien.' : 'Lecture seule. Touche une carte pour la voir en grand.')}${sh.cut ? ' ' + T('Liste trop longue : seule une partie est affichée.') : ''}</p>
       <div class="am-more" hidden></div><div class="seg" id="pubSub" role="radiogroup" aria-label="${T('Liste')}"></div><div id="pubF"></div><div class="bnd-bar" id="pubBar" hidden></div><div class="pub-main"></div>
       ${fr ? '<p class="am-rm" hidden></p>' : ''}${!preview && id ? `<p class="pub-report"><a href="${esc(trReportHref(id))}" rel="noopener">${T('Signaler ce partage')}</a></p>` : ''}</div></div>`;
   P.el = wrap;

@@ -54,7 +54,7 @@ function helpApk() {
   return helpApkP;
 }
 /** Liens d'avis d'un bloc : complétés par la version de l'APK dès qu'elle est connue. */
-function helpMailLinks(root) { helpApk().then(v => { if (v) $$('a[data-help="mail"]', root).forEach(a => { a.href = feedbackHref(v); }); }); }
+function helpMailLinks(root) { helpApk().then(v => { if (v) $$('a[data-help="mail"]', root).forEach(a => { a.href = feedbackHref(v); }); }); $$('a[data-help="mail"]', root).forEach(a => a.addEventListener('click', () => { if (typeof prgAdd === 'function') prgAdd('fb'); })); }      // avis envoyé : badge « Voix du peuple » (progress.js)
 
 /** Réglages › « Aide et avis ». */
 function helpSettings(el, own) {      // own : dans sa propre fiche « Aide et avis » (le titre y est déjà)
@@ -135,7 +135,7 @@ function rateShow() {
     api.body.innerHTML = `<div class="rate-hero"><span class="rate-logo" aria-hidden="true"><svg class="logo"><use href="#i-logo"/></svg></span>
       <p>${T('Si Mana Orbit t\'est utile, une note sur le Play Store aide beaucoup.')}</p></div>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Plus tard')}</button><a class="btn" data-rate="go" href="${esc(RATE.url)}" target="_blank" rel="noopener">${T('Noter')}</a>`);
-    $('[data-rate="go"]', api.foot).addEventListener('click', () => { rateDone(); haptic('ok'); setTimeout(() => api.close(), 0); });
+    $('[data-rate="go"]', api.foot).addEventListener('click', () => { rateDone(); if (typeof prgAdd === 'function') prgAdd('rt'); haptic('ok'); setTimeout(() => api.close(), 0); });
   });
 }
 // Session avec une erreur : pas de demande (une erreur JavaScript, une promesse rejetée sans traitement, une recherche échouée).

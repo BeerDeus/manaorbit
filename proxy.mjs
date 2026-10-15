@@ -2866,6 +2866,16 @@ function oldPage(app) {      // app : aller-retour de l'appli Android (?mig=app)
   location.replace(to + (data ? '#mig=' + data : ''));
 })();</script></body></html>`;
 }
+/** Lien de test (/test) : deck-deal.html avec <base href="/"> (adresses relatives lues à la racine : api/, sw.js, catalogues) et window.MO_TEST (nouveautés à essayer :
+ *  niveau et badges, Carte mystère) ; relu quand le fichier change. TEST_PAGE=0 : coupé (404). */
+const TEST_ON = process.env.TEST_PAGE !== '0', TESTP = { mt: 0, html: '' };
+async function testPage() {
+  let mt = 0; try { mt = (await stat(PAGE)).mtimeMs; } catch (e) { /* fichier absent : dernière version lue */ }
+  if (TESTP.html && TESTP.mt === mt) return TESTP.html;
+  const html = await readFile(PAGE, 'utf8');
+  TESTP.html = html.replace('<head>', '<head>\n<base href="/"><meta name="robots" content="noindex, nofollow"><script>window.MO_TEST = true;</script>'); TESTP.mt = mt;
+  return TESTP.html;
+}
 /** Requête reçue sur une ancienne adresse : true si elle a été servie ici (déménagement), false : traitement habituel. */
 function oldHost(req, res, url) {
   const get = req.method === 'GET' || req.method === 'HEAD', wv = isWebView(req);
@@ -2901,6 +2911,11 @@ const server = http.createServer(async (req, res) => {
       if (!ADMIN_ON || (req.method !== 'GET' && req.method !== 'HEAD')) return json(res, 404, { error: 'not_found' });
       const [f, type] = ADM_FILES.get(url.pathname); if (!existsSync(join(PWA, f))) return json(res, 404, { error: 'asset_missing' });
       return await sendFile(req, res, join(PWA, f), { 'Content-Type': type, 'Cache-Control': 'no-store', 'Content-Security-Policy': ADM_CSP, ...ADM_HD, 'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()' }, false);
+    }
+    if ((url.pathname === '/test' || url.pathname === '/test/') && TEST_ON) {      // lien de test : la même page, nouveautés visibles (window.MO_TEST), jamais indexée
+      if (!PAGE) return json(res, 404, { error: 'page_missing', message: 'Place deck-deal.html à côté de proxy.mjs.' });
+      if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'method_not_allowed' });
+      return txt(res, await testPage(), 'text/html; charset=utf-8', { 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
     }
     if (url.pathname === '/' || url.pathname === '/index.html') {
       if (!PAGE) return json(res, 404, { error: 'page_missing', message: 'Place deck-deal.html à côté de proxy.mjs.' });

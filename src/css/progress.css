@@ -1,0 +1,31 @@
+/* Niveau et badges (progress.js) */
+.prg-pill{margin-left:8px;vertical-align:middle;height:20px;padding:0 8px;border-radius:99px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
+.prg-head{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.prg-lv{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:76px;height:76px;border-radius:22px;background:linear-gradient(140deg,var(--accent),#b28cff);color:#fff}
+.prg-lv small{font-size:11px;font-weight:600;opacity:.85;text-transform:uppercase;letter-spacing:.04em}
+.prg-lv b{font-size:28px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.prg-xp{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.prg-xp small{font-size:12.5px;color:var(--ink-3)}
+.prg-bar,.prg-mini{display:block;height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.prg-bar i,.prg-mini i{display:block;height:100%;border-radius:inherit;background:var(--accent)}
+.prg-mini{height:4px;margin-top:4px}
+.prg-h{margin:16px 0 8px;font-size:13px;font-weight:700;color:var(--ink-2)}
+.prg-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.prg-b{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px 10px;border-radius:16px;background:var(--surface);border:2px solid var(--line);text-align:center;min-width:0}
+.prg-b b{font-size:12.5px;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prg-b small{font-size:10.5px;line-height:1.25;color:var(--ink-3)}
+.prg-b .prg-mini{width:80%}
+.prg-ic{font-size:26px;line-height:1.1;margin-bottom:2px}
+.prg-b.off{opacity:.5}.prg-b.off .prg-ic{filter:grayscale(1)}
+.prg-b.t0,.prg-chip.t0{border-color:#c07d45;box-shadow:inset 0 0 0 1px rgba(192,125,69,.25)}
+.prg-b.t1,.prg-chip.t1{border-color:#aeb8c6;box-shadow:inset 0 0 0 1px rgba(174,184,198,.3)}
+.prg-b.t2,.prg-chip.t2{border-color:#e2b33c;box-shadow:0 0 0 1px rgba(226,179,60,.25),0 2px 10px -4px rgba(226,179,60,.6)}
+.prg-b.t3,.prg-chip.t3{border-color:#7fdcff;box-shadow:0 0 0 1px rgba(178,140,255,.35),0 2px 14px -4px rgba(127,220,255,.8)}
+.prg-b.tu,.prg-chip.tu{border-color:#a66bff;box-shadow:0 0 0 1px rgba(166,107,255,.25)}
+.prg-pin{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:99px;border:0;background:transparent;color:var(--ink-3);font-size:13px;line-height:24px;cursor:pointer;padding:0}
+.prg-pin[aria-pressed="true"]{background:var(--surface-2)}
+.prg-how{margin-top:16px}
+.prg-how summary{cursor:pointer;font-weight:600;font-size:13.5px}
+.prg-show{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.prg-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:99px;border:2px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink)}
+@media (max-width:360px){.prg-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -654,6 +654,7 @@ const dvMissing = () => deckMissing(DV.text, DV.pub ? null : k => engFree(collQt
 /* ── Main de départ : 7 cartes au hasard dans la bibliothèque (commandant et réserve à part), et les chances d'avoir 0 à 7 terrains (loi hypergéométrique) ── */
 const pctTxt = p => (p >= 0.995 ? '100' : p < 0.005 && p > 0 ? '< 1' : String(Math.round(p * 100))) + ' %';
 function openHand() {
+  if (typeof prgAdd === 'function') prgAdd('hd');      // mains de départ tirées (progress.js)
   const snap = DV.snap; if (!snap) return;
   const lib = libraryOf(snap.items), isLand = it => it.s === 'basic' || isLandType(it.tl);
   if (lib.length < 7) { toast(T('Il faut au moins 7 cartes dans le deck')); return; }

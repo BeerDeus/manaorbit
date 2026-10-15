@@ -289,7 +289,7 @@ function collSetLang(k, l, from) {
 
 /** Toute modification passe par ici : enregistre, envoie au compte, met à jour la page de saisie et la recherche en cours. */
 function collChanged(o = {}) {
-  COLL.u = Date.now(); COLL.seq++; collWrite();
+  COLL.u = Date.now(); COLL.seq++; collWrite(); if (typeof prgSoon === 'function') prgSoon();      // nouveaux badges de collection (progress.js)
   if (o.push !== false) { const t = Date.now(); COLL.chg = COLL.chg.filter(x => t - x < COLL_PUSH.win); COLL.chg.push(t); collPushSoon(); }
   if (o.paint !== false) collPaint(); else collPaintHead();
   paintCollSection(); refreshDeck(); alSoon(); trSoon(); edSoon();
