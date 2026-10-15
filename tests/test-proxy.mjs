@@ -178,7 +178,8 @@ p.kill();
   r = await F('q=' + encodeURIComponent('Relâmpago')); assert.deepEqual([r.o.hit.name, r.o.hit.lang, r.o.hit.score, r.o.hit.amb], ['Thunderbolt', 'pt', 1, undefined], 'accent lu tel quel : il tranche');
   r = await F('q=' + encodeURIComponent('Elfos de Llanowar'), { 'x-forwarded-for': '7.7.7.7' }); assert.deepEqual([r.o.hit.name, r.o.hit.lang, r.o.hit.alt], ['Llanowar Elves', 'es', ['pt']], 'même carte, même nom en espagnol et en portugais');
   r = await F('q=Fulmine&skip=it,fr,../../etc/passwd,es'); assert.deepEqual(r.o.tried, ['pt'], 'skip : comparé à la liste fermée'); assert.equal(r.o.hit, null);
-  r = await F('q=Fulmine&skip=fr,de,es,it,pt'); assert.deepEqual(r.o, { hit: null, tried: [] });
+  r = await F('q=Fulmine&skip=fr,de,es,it,pt,ru'); assert.deepEqual(r.o, { hit: null, tried: [] });
+  r = await F('q=Fulmine&skip=fr,de,es,it,pt'); assert.equal(r.s, 503, 'seul le russe reste, sans catalogue : aucun catalogue'); assert.equal(r.o.error, 'unavailable');
   r = await F('q=Qzxvbnm+Plrtkgh'); assert.deepEqual([r.s, r.o.hit], [200, null], 'texte absurde : rien');
   for (const [qs, why] of [['', 'sans ligne'], ['q=', 'ligne vide'], ['q=a&q=b&q=c&q=d&q=e', '5 lignes'], ['q=' + 'x'.repeat(101), 'ligne de 101 caractères']]) { r = await F(qs); assert.equal(r.s, 400, why); assert.equal(r.o.error, 'bad_request'); }
   r = await j(NB + '?q=Fulmine', { method: 'POST', headers: JS, body: '{}' }); assert.equal(r.s, 405, 'lecture seule');
