@@ -1339,6 +1339,7 @@ function handleLaunch() {
   else if (amis) amPushOpen('?' + q.toString());                                        // notification d'un ami touchée (Web Push : nouvelle fenêtre) : feuille Amis ou page de l'ami
   else if (q.has('troc') && typeof trocPushOpen === 'function') trocPushOpen('?' + q.toString());
   else if ((q.has('table') || q.has('partie')) && typeof puLaunch === 'function') puLaunch('?' + q.toString());
+  else if (q.has('invite') && typeof puInvite === 'function') setTimeout(puInvite, 700);      // lien « Fais découvrir Mana Orbit » de la fin de partie (partie-ui.js)
   else if (q.has('parties') && typeof puHist === 'function') setTimeout(puHist, 600);      // notification « Partie enregistrée » ouverte dans une nouvelle fenêtre      // partie de Commander : rejoindre une table, résultat scanné (partie-ui.js)      // échange en direct : QR code de l'hôte scanné, invitation touchée (troc.js)
   else if (shared) onShared(extractShared({ title: q.get('title'), text: q.get('text'), url: q.get('url') }));
   else if (q.has('collection')) setTimeout(() => openCollection(), 600);                  // lien direct vers la collection (?collection)

@@ -476,6 +476,37 @@ function partieHistAdd(e) {
 /** Retire une partie de l'historique de cet appareil. */
 function partieHistDrop(id) { const a = partieHist(), b = a.filter(x => x.id !== id); return b.length !== a.length && partieLsSet(PRT_HIST, b); }
 function partieHistMark(id, uid) { const a = partieHist(), x = a.find(y => y.id === id); if (!x) return; x.sv = 1; if (uid && !x.u) x.u = uid; partieLsSet(PRT_HIST, a); }
+/* ── Statistiques (« Mes parties » › Statistiques, page d'un deck) : calculées sur l'historique, parties où ma place est connue ────────────── */
+const partieKey = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+/**
+ * items : entrées d'historique (partieHistClean). → { n, wins, rate (0..1), duree (s, moyenne), tours (moyenne), rang (moyen), serie (victoires d'affilée en cours), best (meilleure série),
+ *   decks [{ nom, commandant, n, wins, last }] (mes decks, le deck sans nom groupé par commandant), adv [{ nom, n, mine (mes victoires), theirs (les siennes) }] (adversaires, par prénom),
+ *   cmds [{ nom, n, wins }] (commandants adverses vus à ma table) } ; listes triées par parties jouées. o.deck : seulement les parties jouées avec ce deck (nom).
+ */
+function partieStats(items, o = {}) {
+  const want = o.deck ? partieKey(o.deck) : '';
+  const mine = (items || []).map(x => ({ x, me: x && x.moi ? (x.places || []).find(p => p.pos === x.moi) : null })).filter(e => e.me && (!want || partieKey(e.me.deck) === want)).sort((a, b) => b.x.date - a.x.date);
+  const out = { n: mine.length, wins: 0, rate: 0, duree: 0, tours: 0, rang: 0, serie: 0, best: 0, decks: [], adv: [], cmds: [] };
+  if (!mine.length) return out;
+  const decks = new Map(), adv = new Map(), cmds = new Map(); let run = 0, open = true;
+  for (const { x, me } of mine) {
+    if (me.vainqueur) out.wins++;
+    out.duree += x.duree; out.tours += x.tours; out.rang += me.rang;
+    if (open && me.vainqueur) out.serie++; else open = false;
+    const dk = partieKey(me.deck) || (me.commandant ? '#' + partieKey(me.commandant) : '');
+    if (dk) { const d = decks.get(dk) || { nom: me.deck || '', commandant: me.commandant || '', n: 0, wins: 0, last: x.date }; d.n++; if (me.vainqueur) d.wins++; if (!d.commandant && me.commandant) d.commandant = me.commandant; decks.set(dk, d); }
+    for (const p of x.places) {
+      if (p.pos === me.pos) continue;
+      const ak = partieKey(p.nom); if (ak) { const a = adv.get(ak) || { nom: p.nom, n: 0, mine: 0, theirs: 0 }; a.n++; if (me.vainqueur) a.mine++; if (p.vainqueur) a.theirs++; adv.set(ak, a); }
+      const ck = partieKey(p.commandant); if (ck) { const c = cmds.get(ck) || { nom: p.commandant, n: 0, wins: 0 }; c.n++; if (p.vainqueur) c.wins++; cmds.set(ck, c); }
+    }
+  }
+  for (const { me } of mine.slice().reverse()) { run = me.vainqueur ? run + 1 : 0; if (run > out.best) out.best = run; }      // du plus ancien au plus récent
+  const by = (a, b) => b.n - a.n || b.wins - a.wins || String(a.nom).localeCompare(String(b.nom));
+  out.rate = out.wins / out.n; out.duree = Math.round(out.duree / out.n); out.tours = Math.round((out.tours / out.n) * 10) / 10; out.rang = Math.round((out.rang / out.n) * 10) / 10;
+  out.decks = [...decks.values()].sort((a, b) => b.n - a.n || b.last - a.last); out.adv = [...adv.values()].sort((a, b) => b.n - a.n || b.theirs - a.theirs || String(a.nom).localeCompare(String(b.nom))); out.cmds = [...cmds.values()].sort(by);
+  return out;
+}
 /** File des envois : [{ q (identifiant), k ('res' : résultat du créateur | 'claim' : « c'était moi »), id, r, pos? (claim), c?, key? (salle d'attente), u (compte qui l'envoie ;
     '' : le prochain connecté), at, n (essais), err? (refus définitif : gardé, plus renvoyé) }]. */
 function partieQueue() { const a = partieLs(PRT_QUEUE); return Array.isArray(a) ? a.filter(x => x && (x.k === 'res' || x.k === 'claim') && partieIdOk(x.id) && x.r && typeof x.q === 'string') : []; }
@@ -707,7 +738,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = { PRT_CUR, PRT_QUEUE, PRT_HIST, PRT_ROOM, PRT_HIST_MAX, PRT_LOG_MAX, PRT_MERGE_MS, PRT_FORMATS, PRT_COUNTERS, PRT_CAUSES, PRT_SORTES, PRT_LEN, PRT_SITE, PRT_LINK_MAX, PRT_ID_RE, PRT_CODE_RE, PRT_TK_RE, PRT_IMG_RE,
     partieId, partieStr, partieCut, partieDeck, partieDeckOf, partieNew, partieAddPlace, partieRemovePlace, partieMovePlace, partieSetPlace, partieSetFormat,
     partieLife, partieCmdDamage, partieCounter, partieMark, partieMonarch, partieInitiative, partieEliminate, partieRevive, partieStart, partieFirst, partieNextTurn, partieEnd, partieSetRanks, partieUndo,
-    partieProposals, partieRanks, partieResult, partieResClean, partieHistClean, partieCk, encodeResult, decodeResult, partieResultLink, partieTableLink, partieParseUrl,
+    partieProposals, partieRanks, partieResult, partieResClean, partieHistClean, partieStats, partieCk, encodeResult, decodeResult, partieResultLink, partieTableLink, partieParseUrl,
     partieStateClean, partieSave, partieLoad, partieClear, partieHist, partieHistAdd, partieHistDrop, partieQueue, partieEnqueue, partieDone, partieClaim, partieFlush, partieKick, partieWipe, partieHistFetch, partieHistDelete,
     partieRoom, partieRoomCreate, partiePeek, partieRoomJoin, partieRoomOp, partieRoomLeave, partieFromRoom, partieRoomResult, partieRoomWatch, partieRoomStop, partieInit, partieUser };
 }

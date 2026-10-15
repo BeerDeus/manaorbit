@@ -123,6 +123,11 @@ async function scanArtRun() {
 }
 async function scanArtTry(it) {
   const pr = SC.pr.get(scanPk(it.key, it.l)); let cands = pr;
+  if (it.nx || ['man', 'read', 'solo', 'off', 'none'].includes(it.es)) {      // édition déjà sûre (ligne du bas, choix à la main, édition unique) une fois les impressions lues : rien à télécharger ni à comparer
+    it.artq = false; it.sig = null; it.sym = null;
+    if (SC.items.has(it.id) && it.id !== scanId(it.key, it.l, it.e)) scanRekey(it, scanId(it.key, it.l, it.e));
+    scanEdPass(); scanPaintList(); return;
+  }
   if (it.ft && typeof footMatch === 'function') { const f = footMatch(it.ft, pr); if (f && f.set) cands = pr.filter(p => p.set === f.set); }      // extension lue sur la ligne du bas : ses impressions seulement
   const pn = p => String(p.num || '').toLowerCase().replace(/^0+(?=\d)/, ''), nums = (it.ft && it.ft.nums) || [], byNum = nums.length ? cands.filter(p => nums.includes(pn(p))) : [];
   let r = null;

@@ -330,6 +330,7 @@ function puEndSheet() {
     api.foot.addEventListener('click', e => {
       const none = e.target.closest('[data-nw]'), ok = e.target.closest('[data-ok]'); if (!none && !ok) return;
       api.close(); const fin = partieEnd(PU.st, none ? [] : [...win]); PU.res = partieDone(fin); PU.st = fin; haptic('ok'); puWake(false); puPaint(); puHomePaint();
+      const me = fin.places.find(p => p.sorte === 'moi'); if (me && win.has(me.pos) && !none && typeof rateMoment === 'function') rateMoment('partie');      // victoire : un bon moment pour demander une note (help.js, appli Android)
     });
   });
 }
@@ -341,9 +342,38 @@ function puEndPaint() {
     <div class="dv-scroll"><div class="dv-body pu-setup">
       <section class="pu-card"><ol class="pu-rank">${ps.map(p => `<li class="${p.vainqueur ? 'win' : ''}"><span class="pu-pos">${p.vainqueur ? '🏆' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || T('Joueur {n}', { n: p.pos }))}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol></section>
       ${qr ? `<section class="pu-card pu-qr big"><div class="pu-qr-img" role="img" aria-label="${T('QR code du résultat')}">${qr}</div><div class="pu-qr-t"><b>${T('Résultat à scanner')}</b><span>${T('Les joueurs qui n\'ont pas rejoint la table le scannent pour garder la partie dans leur historique.')}</span></div></section>` : ''}
+      ${r.places.some(p => p.sorte === 'invite') ? puInviteCard() : ''}
       <p class="hint">${room ? T('Les joueurs qui ont rejoint avec leur téléphone ont reçu le résultat.') : ''} ${D.user ? T('Partie gardée dans « Mes parties » ; envoyée à ton compte dès que possible.') : T('Partie gardée sur ce téléphone (« Mes parties »).')}</p>
     </div></div>
     <div class="pu-foot"><button class="btn ghost" type="button" data-pu="again">${T('Rejouer avec les mêmes')}</button><button class="btn" type="button" data-pu="close">${T('Fermer')}</button></div>`;
+}
+
+/* ── Faire découvrir l'appli : QR code de la fin de partie (invités de la table), carte « garde tes parties » chez les joueurs venus par le navigateur,
+   page d'accueil du lien d'invitation (?invite=partie, ouvert dans l'appli si elle est installée : App Links) ─────────────────────────────── */
+const PU_INV_URL = PRT_SITE + '?invite=partie';
+const puAndroid = () => typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent || '');
+const puIos = () => typeof PWA !== 'undefined' && PWA.ios();
+/** Fin de partie, chez le créateur : QR code « télécharge l'appli » et lien à partager, pour les invités sans l'appli. */
+function puInviteCard() {
+  let qr = ''; try { qr = qrSvg(PU_INV_URL).svg; } catch (e) { qr = ''; }
+  return `<section class="pu-card pu-qr pu-inv">${qr ? `<div class="pu-qr-img" role="img" aria-label="${T('QR code pour installer Mana Orbit')}">${qr}</div>` : ''}<div class="pu-qr-t"><b>${T('Fais découvrir Mana Orbit')}</b><span>${T('Les invités le scannent : l\'appli pour leurs prochaines parties, leurs statistiques et leur collection.')}</span><button class="btn ghost small" type="button" data-pu="share-app">${T('Partager le lien')}</button></div></section>`;
+}
+/** Joueur venu par le navigateur du téléphone (table rejointe, résultat scanné) : Google Play sur Android, écran d'accueil sur iPhone ; rien dans l'appli ni sur ordinateur. */
+function puGetAppHtml() {
+  if ((typeof isNativeApp === 'function' && isNativeApp()) || (typeof PWA !== 'undefined' && PWA.standalone())) return '';
+  if (puAndroid()) return `<section class="pu-card pu-getapp"><b>${T('Garde tes parties et tes statistiques')}</b><span>${T('Mana Orbit sur ton téléphone : compteur de points de vie, statistiques de tes decks, scanner de cartes. Gratuit.')}</span><a class="btn block" href="${esc(PLAY_URL)}" target="_blank" rel="noopener">${T('Installer depuis Google Play')}</a></section>`;
+  if (puIos()) return `<section class="pu-card pu-getapp"><b>${T('Garde tes parties et tes statistiques')}</b><span>${T('Ajoute Mana Orbit à ton écran d\'accueil : Partager, puis « Sur l\'écran d\'accueil ». Gratuit.')}</span></section>`;
+  return '';
+}
+/** Lien d'invitation ouvert dans le navigateur d'un téléphone : présentation et installation (l'accueil du premier lancement est passé) ; dans l'appli ou sur ordinateur : rien de plus. */
+function puInvite() {
+  const html = puGetAppHtml(); if (!html) return;
+  if (typeof OB !== 'undefined' && OB.el && typeof obClose === 'function') { obMark(); obClose(); }
+  openSheet(T('Bienvenue sur Mana Orbit'), T('Un joueur de ta table t\'invite'), api => {
+    api.wrap.classList.add('pu-sheet');
+    api.body.innerHTML = `<ul class="pu-invl"><li>${T('Le compteur de points de vie de toute la table, sur un téléphone ou un par joueur')}</li><li>${T('Tes parties et les statistiques de tes decks')}</li><li>${T('Un scanner de cartes Magic dans 11 langues et la cote de ta collection')}</li><li>${T('Ta liste d\'échange en un lien ou un QR code')}</li></ul>${html}`;
+    api.setFoot(`<button class="btn ghost block" type="button" data-close>${T('Continuer dans le navigateur')}</button>`);
+  });
 }
 
 /* ── Clics de l'écran ─────────────────────────────────────────────────────────────────────────── */
@@ -362,6 +392,7 @@ function puClick(e) {
   else if (a === 'pl') puPlayerSheet(pos);
   else if (a === 'elim') puElimSheet(pos, b.dataset.c, Number(b.dataset.par) || 0);
   else if (a === 'keep') { PU.gone.add(b.dataset.k); puPaint(); }
+  else if (a === 'share-app' && typeof shareOut === 'function') shareOut({ title: 'Mana Orbit', text: T('Le compteur de points de vie et le scanner de cartes Magic de notre partie :'), url: PU_INV_URL });
   else if (a === 'again') { const old = PU.st; let st = partieNew({ format: old.format, moi: null }); for (const p of old.places) st = partieAddPlace(st, { pos: p.pos, sorte: p.sorte === 'compte' ? 'invite' : p.sorte, nom: p.nom, deck: p.deck }); PU.res = null; PU.roomTry = false; puSet(st); }
 }
 
@@ -385,7 +416,7 @@ function puJoin(code) {
     let body;
     if (J.joined) {
       const v = J.view, res = v && v.res, me = v ? v.me : J.joined.pos;
-      body = res ? `<section class="pu-card"><p class="pu-h">${T('Partie terminée')}</p><ol class="pu-rank">${res.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === me ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '🏆' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol><p class="hint">${T('Gardée dans « Mes parties ».')}</p></section>`
+      body = res ? `<section class="pu-card"><p class="pu-h">${T('Partie terminée')}</p><ol class="pu-rank">${res.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === me ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '🏆' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol><p class="hint">${T('Gardée dans « Mes parties ».')}</p></section>${puGetAppHtml()}`
         : `<section class="pu-card pu-wait">${PU_HEART}<b>${T('Tu es à la place {n}', { n: me })}</b><p>${esc(T('Range ton téléphone : la partie se joue sur le téléphone de {name}. Le résultat arrivera ici.', { name: (v && v.host) || (P && P.host) || '' }))}</p>${v && v.st === 'live' ? `<p class="hint">${T('Partie en cours…')}</p>` : `<p class="hint">${T('En attente du lancement…')}</p>`}<button class="btn ghost small" type="button" data-j="leave">${T('Quitter la table')}</button></section>`;
     } else if (J.err) body = `<section class="pu-card"><p class="pu-h">${T('Table introuvable')}</p><p class="hint">${esc(J.err)}</p></section>`;
     else if (!P) body = `<section class="pu-card"><p class="hint">${T('Lecture de la table…')}</p></section>`;
@@ -430,20 +461,23 @@ function puClaimSheet(r) {
   openSheet(T('Résultat d\'une partie'), new Date(r.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }) + ' · ' + TN(r.tours, '{n} tour', '{n} tours'), api => {
     api.wrap.classList.add('pu-sheet');
     api.body.innerHTML = `<p class="pu-h">${T('Quelle place était la tienne ?')}</p><div class="pu-wins">${r.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<button type="button" data-cl="${p.pos}"><span>${p.vainqueur ? '🏆 ' : ''}${esc(p.nom || p.pos)}</span><small>${esc(p.commandant || p.deck || T('Place {n}', { n: p.pos }))}</small></button>`).join('')}</div><p class="hint">${D.user ? T('Ajoutée à « Mes parties » et à ton compte.') : T('Ajoutée à « Mes parties » sur ce téléphone.')}</p>`;
+    api.body.insertAdjacentHTML('beforeend', puGetAppHtml());
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-cl]'); if (!b) return; if (partieClaim(r, Number(b.dataset.cl))) { haptic('ok'); api.close(); toast(T('Partie ajoutée à « Mes parties »')); puHomePaint(); } });
   });
 }
 
 /* ── Mes parties ──────────────────────────────────────────────────────────────────────────────── */
-async function puHist() {
+async function puHist(tab) {
   openSheet(T('Mes parties'), '', api => {
     api.wrap.classList.add('pu-sheet');
-    let items = partieHist().sort((a, b) => b.date - a.date);
+    let items = partieHist().sort((a, b) => b.date - a.date), view = tab === 'stats' ? 'stats' : 'list';
+    api.body.innerHTML = `<div class="seg pu-tabs" role="radiogroup" aria-label="${T('Mes parties')}"></div><div class="pu-hbody"></div>`;
+    mountSeg($('.pu-tabs', api.body), [{ v: 'list', label: T('Parties') }, { v: 'stats', label: T('Statistiques') }], view, v => { view = v; paint(); });
     const paint = () => {
       const won = items.filter(x => x.moi && (x.places.find(p => p.pos === x.moi) || {}).vainqueur).length;
       let sub = $('.sheet-head p', api.wrap); if (!sub) { sub = document.createElement('p'); $('.sheet-head > div', api.wrap).appendChild(sub); }
       sub.textContent = items.length ? TN(items.length, '{n} partie · {w} gagnée(s)', '{n} parties · {w} gagnée(s)', { n: items.length, w: won }) : '';
-      api.body.innerHTML = items.length ? `<ul class="pu-hist">${items.map(x => { const me = x.places.find(p => p.pos === x.moi), w = x.places.filter(p => p.vainqueur).map(p => p.nom || p.pos); return `<li><button type="button" data-h="${esc(x.id)}"><span class="pu-hd">${esc(new Date(x.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' }))}</span><span class="pu-who"><b>${me && me.vainqueur ? '🏆 ' : ''}${esc(x.places.map(p => p.nom || p.pos).join(', '))}</b><small>${esc([me && (me.commandant || me.deck), w.length ? T('vainqueur : {name}', { name: w.join(', ') }) : T('aucun vainqueur'), TN(x.tours, '{n} tour', '{n} tours')].filter(Boolean).join(' · '))}</small></span></button></li>`; }).join('')}</ul>`
+      $('.pu-hbody', api.body).innerHTML = view === 'stats' ? puStatsHtml(partieStats(items)) : items.length ? `<ul class="pu-hist">${items.map(x => { const me = x.places.find(p => p.pos === x.moi), w = x.places.filter(p => p.vainqueur).map(p => p.nom || p.pos); return `<li><button type="button" data-h="${esc(x.id)}"><span class="pu-hd">${esc(new Date(x.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' }))}</span><span class="pu-who"><b>${me && me.vainqueur ? '🏆 ' : ''}${esc(x.places.map(p => p.nom || p.pos).join(', '))}</b><small>${esc([me && (me.commandant || me.deck), w.length ? T('vainqueur : {name}', { name: w.join(', ') }) : T('aucun vainqueur'), TN(x.tours, '{n} tour', '{n} tours')].filter(Boolean).join(' · '))}</small></span></button></li>`; }).join('')}</ul>`
         : `<p class="hint">${T('Aucune partie pour l\'instant. Lance-en une depuis l\'accueil : les résultats arrivent ici.')}</p>`;
     };
     paint();
@@ -453,6 +487,26 @@ async function puHist() {
     }, () => {});
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-h]'); if (!b) return; const x = items.find(y => y.id === b.dataset.h); if (x) puHistOne(x); });
   });
+}
+/** Statistiques (core : partieStats) : chiffres clés, mes decks, adversaires, commandants vus à ma table. */
+function puStatsHtml(s) {
+  if (!s.n) return `<p class="hint">${T('Tes statistiques arrivent avec tes parties : celles où ta place est connue (créées ici, table rejointe, ou « c\'était moi » sur un résultat).')}</p>`;
+  const pc = (a, b) => (b ? Math.round((a / b) * 100) : 0) + ' %', bar = (a, b) => `<span class="pu-sbar" aria-hidden="true"><i style="width:${b ? Math.round((a / b) * 100) : 0}%"></i></span>`;
+  const sec = (h, sub, rows) => (rows ? `<p class="pu-h">${h}</p>${sub ? `<p class="hint pu-st-sub">${sub}</p>` : ''}<ul class="pu-st">${rows}</ul>` : '');
+  return `<div class="pu-kpis">
+      <div><b>${s.n}</b><small>${TN(s.n, 'partie', 'parties')}</small></div>
+      <div><b>${pc(s.wins, s.n)}</b><small>${TN(s.wins, '{n} victoire', '{n} victoires')}</small></div>
+      <div><b>${esc(puDur(s.duree))}</b><small>${T('{n} tours en moyenne', { n: String(s.tours).replace('.', I18N.lang === 'en' ? '.' : ',') })}</small></div>
+      <div><b>${s.serie}</b><small>${T('d\'affilée (record {n})', { n: s.best })}</small></div></div>
+    ${sec(T('Mes decks'), '', s.decks.slice(0, 15).map(d => `<li><span class="pu-who"><b>${esc(d.nom || d.commandant)}</b>${d.nom && d.commandant && d.commandant !== d.nom ? `<small>${esc(d.commandant)}</small>` : ''}</span><span class="pu-sv"><b>${pc(d.wins, d.n)}</b><small>${esc(T('{w} sur {n}', { w: d.wins, n: d.n }))}</small></span>${bar(d.wins, d.n)}</li>`).join(''))}
+    ${sec(T('Adversaires'), T('Tes victoires – les siennes'), s.adv.slice(0, 15).map(a => `<li><span class="pu-who"><b>${esc(a.nom)}</b><small>${TN(a.n, '{n} partie ensemble', '{n} parties ensemble')}</small></span><span class="pu-sv"><b>${a.mine} – ${a.theirs}</b></span>${bar(a.mine, a.mine + a.theirs)}</li>`).join(''))}
+    ${sec(T('Commandants à ta table'), '', s.cmds.slice(0, 15).map(c => `<li><span class="pu-who"><b>${esc(c.nom)}</b><small>${TN(c.n, 'vu une fois', 'vu {n} fois')}</small></span><span class="pu-sv"><b>${TN(c.wins, '{n} victoire', '{n} victoires')}</b></span>${bar(c.wins, c.n)}</li>`).join(''))}`;
+}
+/** Page d'un deck (viewer.js) : ses parties, d'après l'historique (deck choisi à la table sous ce nom) ; '' s'il n'a jamais été joué. */
+function puDeckStatHtml(name) {
+  let s; try { s = partieStats(partieHist(), { deck: name }); } catch (e) { return ''; }
+  if (!s.n) return '';
+  return `<div class="pu-dstat"><span aria-hidden="true">🏆</span><span>${esc(TN(s.wins, '{n} victoire', '{n} victoires') + ' ' + TN(s.n, 'sur {n} partie', 'sur {n} parties') + ' (' + Math.round(s.rate * 100) + ' %)')}</span><button class="link-btn" type="button" data-act="games">${T('Statistiques')}</button></div>`;
 }
 function puHistOne(x) {
   const link = partieResultLink(x, { max: PU_QR_MAX }); let qr = ''; try { qr = link ? qrSvg(link).svg : ''; } catch (e) { qr = ''; }

@@ -112,3 +112,29 @@
 .pu-prop span{flex:1 1 100%;font-size:14px;font-weight:600}
 .pu-prop .btn{flex:1}
 @media (prefers-reduced-motion: reduce){.pu-dl{animation:none}}
+/* Mes parties › Statistiques (partie-ui.js › puStatsHtml) */
+.pu-tabs{margin-bottom:12px}
+.pu-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:6px}
+.pu-kpis>div{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:14px;background:var(--surface-2);min-width:0}
+.pu-kpis b{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.pu-kpis small{font-size:12px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis}
+.pu-st{list-style:none;margin:0;padding:0}
+.pu-st li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px;padding:8px 0 10px;border-bottom:1px solid var(--line)}
+.pu-st .pu-who{min-width:0}
+.pu-st .pu-who b,.pu-st .pu-who small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-st .pu-who small{font-size:12px;color:var(--ink-3)}
+.pu-sv{text-align:right;font-variant-numeric:tabular-nums}
+.pu-sv b{display:block;font-size:15px}
+.pu-sv small{font-size:12px;color:var(--ink-3)}
+.pu-sbar{display:block;grid-column:1/-1;height:4px;margin-top:6px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.pu-sbar i{display:block;height:4px;border-radius:inherit;background:var(--accent)}
+.pu-st-sub{margin:-2px 0 4px}
+/* Page d'un deck : ses parties (puDeckStatHtml) */
+.pu-dstat{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
+.pu-dstat b{color:var(--ink)}
+/* Faire découvrir l'appli (puInviteCard, puGetAppHtml, puInvite) */
+.pu-inv .btn{margin-top:8px;align-self:flex-start}
+.pu-getapp{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.pu-getapp span{color:var(--ink-2);font-size:14px}
+.pu-getapp .btn{margin-top:4px}
+.pu-invl{margin:0 0 4px;padding-left:20px;display:flex;flex-direction:column;gap:6px;color:var(--ink-2)}

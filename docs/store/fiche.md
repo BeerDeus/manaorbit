@@ -20,6 +20,15 @@ Ni « MTG » ni « Magic: The Gathering » dans le titre : ce sont des marques d
 | Italien (it-IT) | `Mana Orbit: scanner, valore` | 27 |
 | Portugais (Brésil, pt-BR) | `Mana Orbit: scan, valor, decks` | 30 |
 
+**Variante « compteur de vie » (à essayer, décidé le 15 octobre)** : « life counter » / « compteur de vie » est sans doute l'une des recherches les plus courantes pour une appli compagnon, à vérifier avec les statistiques de la Play Console (Mythic Tools s'appelle « MTG Life Counter: Mythic Tools »). Sans « MTG » ni « Magic » dans le titre (marques de Wizards) :
+
+| Langue | Titre B | Longueur | Description courte B | Longueur |
+|---|---|---|---|---|
+| Anglais (en-US) | `Mana Orbit: Life Counter, Scan` | 30 | `Life counter for your table, Magic card scanner in 11 languages, card values.` | 77 |
+| Français (fr-FR) | `Mana Orbit – compteur de vie` | 28 | `Compteur de vie de la table, scan de cartes Magic en 11 langues, cote, échange.` | 79 |
+
+Comment comparer : la Play Console ne teste pas le titre en A/B (les tests de fiche portent sur l'icône, les visuels et les descriptions). Garde le titre A au lancement ; après 3 à 4 semaines, passe au titre B pendant 3 à 4 semaines et compare dans **Statistiques › Acquisition** les visiteurs venus de la recherche et le taux d'installation. La description courte B, elle, se teste en A/B (« Tests de la fiche Play Store »), en même temps que le titre A.
+
 Repli dans toutes les langues : `Mana Orbit` (10). Google déconseille les titres chargés de mots-clés : si le titre descriptif est refusé, reviens au nom seul.
 
 ## 2. Description courte (80 caractères au plus)

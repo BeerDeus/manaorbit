@@ -352,3 +352,23 @@ test('salle d\'attente côté appli : places d\'après la salle, résultat reçu
   assert.equal(P.partieRoomResult({ ...view, st: 'done', res }, { host: true }), false, 'le créateur l\'a déjà');
   delete globalThis.localStorage;
 });
+
+test('statistiques : parties où ma place est connue, mes decks, adversaires (prénom sans casse ni accent), commandants vus, séries ; filtre par deck', () => {
+  const pl = (pos, nom, o = {}) => ({ pos, nom, sorte: pos === 1 ? 'moi' : 'invite', rang: o.w ? 1 : 2, vainqueur: !!o.w, ...(o.deck ? { deck: o.deck } : {}), ...(o.cmd ? { commandant: o.cmd } : {}) });
+  const g = (i, moi, places, duree = 3600, tours = 10) => P.partieHistClean({ id: 'stats' + String(i).padStart(4, '0'), date: at(i * 86400), duree, tours, format: 40, places, moi });
+  const h = [
+    g(1, 1, [pl(1, 'Max', { deck: 'Atraxa superfriends', cmd: 'Atraxa', w: true }), pl(2, 'Léa', { cmd: 'Edgar Markov' })]),
+    g(2, 1, [pl(1, 'Max', { deck: 'atraxa SUPERFRIENDS', cmd: 'Atraxa' }), pl(2, 'lea', { cmd: 'Edgar Markov', w: true }), pl(3, 'Bob', { cmd: 'Krenko' })], 1800, 8),
+    g(3, 1, [pl(1, 'Max', { deck: 'Krenko tokens', w: true }), pl(2, 'Bob')]),
+    g(4, 1, [pl(1, 'Max', { deck: 'Krenko tokens', w: true }), pl(2, 'Léa', { cmd: 'Edgar Markov' })]),
+    g(5, 0, [pl(1, 'Max', { deck: 'Autre' }), pl(2, 'Zoé', { w: true })]),      // résultat sans ma place : ne compte pas
+  ];
+  const s = P.partieStats(h);
+  assert.deepEqual([s.n, s.wins, Math.round(s.rate * 100), s.serie, s.best, s.duree, s.tours, s.rang], [4, 3, 75, 2, 2, 3150, 9.5, 1.3]);
+  assert.deepEqual(s.decks.map(d => [d.nom, d.commandant, d.n, d.wins]), [['Krenko tokens', '', 2, 2], ['atraxa SUPERFRIENDS', 'Atraxa', 2, 1]], 'même deck écrit autrement : une ligne, sous son nom le plus récent ; le plus récemment joué d\'abord à égalité');
+  assert.deepEqual(s.adv.map(a => [a.nom, a.n, a.mine, a.theirs]), [['Léa', 3, 2, 1], ['Bob', 2, 1, 0]], 'Léa et « lea » : la même joueuse');
+  assert.deepEqual(s.cmds.map(c => [c.nom, c.n, c.wins]), [['Edgar Markov', 3, 1], ['Krenko', 1, 0]]);
+  const k = P.partieStats(h, { deck: 'krenko TOKENS' }); assert.deepEqual([k.n, k.wins, k.serie, k.decks.length], [2, 2, 2, 1], 'filtre par deck');
+  assert.deepEqual(P.partieStats([]), { n: 0, wins: 0, rate: 0, duree: 0, tours: 0, rang: 0, serie: 0, best: 0, decks: [], adv: [], cmds: [] }, 'aucune partie');
+  assert.equal(P.partieStats([g(9, 1, [pl(1, 'Max'), pl(2, 'Bob', { w: true })])]).serie, 0, 'défaite la plus récente : série à 0');
+});
