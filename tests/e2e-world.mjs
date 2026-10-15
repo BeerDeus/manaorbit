@@ -32,7 +32,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0 } = {}
   const prints = {}; CARDS.forEach(([n, , cmc, tl, mc, , colors, eur], i) => { prints[n] = [{ id: 's-' + slug(n), set: 'cmm', set_name: 'Commander Masters', collector_number: String(400 + i), name: n, cmc, type_line: tl, mana_cost: mc, colors, prices: { eur }, color_identity: colors, legalities: { commander: 'legal' },
     image_uris: { small: `https://cards.scryfall.io/small/front/a/b/${slug(n)}.jpg` } }]; });
   const bps = CARDS.map(([n, bp]) => ({ id: bp, name: n, scryfall_id: 's-' + slug(n) }));
-  const world = { edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, basics: false, en: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
+  const world = { edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, symbols: {}, svgs: [], basics: false, en: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
   const up = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x'), path = u.pathname.replace('/api/v2/', ''); log.push({ path, q: Object.fromEntries(u.searchParams) });
     const send = (o, s = 200) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
@@ -146,7 +146,10 @@ export async function newPage(browser, world, opts = {}) {
     }
     return json({ object: 'error' }, 404);
   });
-  await p.route('https://svgs.scryfall.io/**', route => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>' }));
+  await p.route('https://svgs.scryfall.io/**', route => {      // symboles des extensions : world.symbols[code] (SVG) s'il existe, sinon un simple rond ; world.svgs : chaque demande (code, type : image, fetch…)
+    const f = (/\/sets\/([^/]+)\.svg$/.exec(new URL(route.request().url()).pathname) || [])[1] || ''; world.svgs.push({ f, type: route.request().resourceType() });
+    return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: world.symbols[f] || '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>' });
+  });
   await p.route('https://cards.scryfall.io/**', route => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: SVG }));
   await routeFonts(p);
   if (opts.init) await p.addInitScript(opts.init);
