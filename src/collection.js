@@ -4,7 +4,7 @@
 const COLL_KEY = 'deckdeal:coll:v1', COLL_SRC_KEY = 'deckdeal:coll:src', COLL_META_KEY = 'coll:meta', COLL_LI_KEY = 'coll:li', COLL_ED_KEY = 'coll:ed', COLL_PAGE = 120;
 const COLL_RETRY = { off: 15000, err: 20000, live: 12000 };       // délais (ms) : nouvel essai hors ligne / en erreur, attente du serveur au démarrage
 const PX_KEY = 'deckdeal:px:v1', PX_TTL = 2 * DAY, PX_CHUNK = 40;
-const COLL = { mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
+const COLL = { mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
 try { if (localStorage.getItem(COLL_SRC_KEY) === 'ct') COLL.src = 'ct'; } catch (e) { /* stockage indisponible */ }
 const collCount = () => Object.keys(COLL.map).length;
 const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k].q; return n; };
@@ -233,7 +233,7 @@ function collSetLang(k, l, from) {
 /** Toute modification passe par ici : enregistre, envoie au compte, met à jour la page de saisie et la recherche en cours. */
 function collChanged(o = {}) {
   COLL.u = Date.now(); COLL.seq++; collWrite();
-  if (o.push !== false) collPushSoon();
+  if (o.push !== false) { const t = Date.now(); COLL.chg = COLL.chg.filter(x => t - x < COLL_PUSH.win); COLL.chg.push(t); collPushSoon(); }
   if (o.paint !== false) collPaint(); else collPaintHead();
   paintCollSection(); refreshDeck(); alSoon(); trSoon(); edSoon();
   if (S.run && S.view === 'results') scheduleRecompute(true);
@@ -269,11 +269,28 @@ const collClone = m => { const o = {}; for (const k in m) o[k] = { ...m[k] }; re
 /** Cet appareil a-t-il des changements pas encore dans le compte ? */
 const collUnsynced = () => !COLL.base || !sameColl(COLL.map, COLL.base);
 const collOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+/** Envoi groupé. Un envoi = une transaction : 1 lecture + 1 écriture, et 1 lecture de plus pour chaque appareil qui suit le compte (quota Firestore).
+ *  Changement isolé : parti 0,7 s après le dernier. Rafale (n changements en win ms : scan mobile reçu sur le PC, page « Ajouter des cartes ») :
+ *  au plus un envoi toutes les burst ms, chacun emportant tout ce qui s'est accumulé. Jamais perdu : tout est déjà sur l'appareil (collWrite),
+ *  et l'envoi en attente part tout de suite si l'appli passe en arrière-plan ou se ferme (collSleep) ou à la déconnexion (syncFlush). */
+const COLL_PUSH = { quick: 700, burst: 6000, win: 20000, n: 3 };
 function collPushSoon() {
   if (cloudOn() && D.cloud.txColl && COLL.cloud !== 'error') COLL.cloud = collOffline() ? 'offline' : 'sync';
-  clearTimeout(COLL.pushT); COLL.pushT = setTimeout(collPush, 700);
+  const now = Date.now(), burst = COLL.chg.filter(t => now - t < COLL_PUSH.win).length >= COLL_PUSH.n;
+  if (!burst) { clearTimeout(COLL.pushT); COLL.pushT = setTimeout(collPush, COLL_PUSH.quick); return; }
+  if (COLL.pushT) return;      // rafale : l'envoi déjà prévu emportera aussi ce changement
+  COLL.pushT = setTimeout(collPush, Math.max(COLL_PUSH.quick, COLL.pushAt + COLL_PUSH.burst - now));
 }
 function collRetry(ms) { clearTimeout(COLL.retryT); COLL.retryT = setTimeout(() => { if (collUnsynced()) collPush(); else collPull(); }, ms); }
+/** Envoi sans attendre le délai (syncFlush : arrière-plan, déconnexion). Un envoi déjà en cours est attendu, puis ce qui reste part aussitôt
+ *  (changé pendant l'envoi : sinon il attendrait le délai de la rafale, et la déconnexion l'annulerait). */
+async function collFlush() {
+  for (let i = 0; i < 3; i++) {
+    for (const t0 = Date.now(); COLL.pushing && Date.now() - t0 < 8000;) await sleep(40);
+    if (!COLL.pushT || COLL.pushing) return;      // rien en attente (ou envoi bloqué : syncFlush ne l'attend pas plus de 3 s)
+    await collPush();
+  }
+}
 async function collPush() {
   clearTimeout(COLL.pushT); clearTimeout(COLL.retryT); COLL.pushT = COLL.retryT = 0;
   if (!cloudOn() || !D.cloud.txColl || acctHeld(D.user.uid)) return;                  // compte en cours de suppression (ici ou ailleurs) : rien ne part
@@ -281,7 +298,7 @@ async function collPush() {
   if (collOffline()) { COLL.cloud = 'offline'; collPaintHead(); return; }
   const uid = D.user.uid, id = ++COLL.runId;
   let used = null, merged = null, wrote = null, had = false;
-  COLL.pushing = id; COLL.again = false; COLL.cloud = 'sync'; COLL.err = ''; collPaintHead();
+  COLL.pushing = id; COLL.pushAt = Date.now(); COLL.again = false; COLL.cloud = 'sync'; COLL.err = ''; collPaintHead();
   try {
     await D.cloud.txColl(uid, rdoc => {
       if (acctHeld(uid) || (!rdoc && acctLost('collection', uid))) throw Object.assign(new Error('compte effacé ?'), { code: 'held' });      // effacé entre-temps : on ne le recrée pas
@@ -374,7 +391,7 @@ function collRemoteApplied(before, after, o = {}) {
 }
 /** Retour au premier plan / réseau revenu : on envoie ce qui attend et on relit le compte (les navigateurs mobiles endorment la connexion en arrière-plan). */
 function collWake() { if (cloudOn()) collSyncNow(); collEnrichResume(); }
-function collSleep() { if (cloudOn() && COLL.pushT) collPush(); }       // on part : envoyer sans attendre le délai
+function collSleep() { if (typeof syncFlush === 'function') syncFlush(); else if (cloudOn() && COLL.pushT) collPush(); }       // on part : envoyer sans attendre le délai (collection, et les autres envois en attente)
 
 /* ── Prix réels : l'offre CardTrader la moins chère de chaque carte, lue avec le moteur de la recherche ───────────
    Stockés à part (localStorage, sur cet appareil) : { clé: { p: centimes | null (aucune offre), t: date, s: critères, c: devise } }. */

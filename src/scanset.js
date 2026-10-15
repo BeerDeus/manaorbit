@@ -25,7 +25,7 @@ function scsApply() { if (typeof SC !== 'undefined' && SC.el) { scanEdMode(); sc
 
 /* ── Dans le compte ─────────────────────────────────────────────────────────────────────────────── */
 function scsUser(user) {
-  const d = SCS.doc; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.uid = '';
+  const d = SCS.doc; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.uid = '';
   if (!user || !D.cloud || !D.cloud.watchMeta) return;
   if (SCS.who !== user.uid) SCS.u = 0;      // autre compte (ou premier passage) : les réglages du compte, s'il en a, l'emportent sur ceux de l'appareil
   SCS.who = user.uid; scsWrite(); d.uid = user.uid;
@@ -38,7 +38,8 @@ function scsUser(user) {
 }
 function scsPushSoon() { const d = SCS.doc; if (!d.uid) return; clearTimeout(d.pushT); d.pushT = setTimeout(scsPush, 900); }
 async function scsPush() {
-  const d = SCS.doc; if (!d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
+  const d = SCS.doc; clearTimeout(d.pushT); d.pushT = 0;      // non nul : envoi en attente (syncFlush)
+  if (!d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
   try { await D.cloud.saveMeta(d.uid, 'prefs', { scan: scsClean(SCS), updatedAt: SCS.u || Date.now() }); } catch (e) { /* hors ligne, règles : renvoyé au prochain changement */ }
 }
 

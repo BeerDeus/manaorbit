@@ -62,6 +62,7 @@ async function signIn(P) {
       async wipe() { await window.__fsWipe(!window.__cb && !COLL.unsub && !XS.docs.engaged.unsub && !XS.docs.history.unsub && !TR.doc.unsub && !D.unsub); return { decks: 0, shares: 0, failed: 0 }; },      // plus aucune écoute pendant l'effacement
     };
     D.state = 'ready'; D.err = ''; COLL_RETRY.off = 600; COLL_RETRY.err = 600; ACCT_CHECK.wait = 1500;
+    COLL_PUSH.n = 1e9;      // envoi groupé des rafales coupé : ici, chaque changement part 0,7 s après (envois simultanés, fusion) ; les rafales : lectures-e2e
     const reload = async () => { const r = await window.__fsUser(); if (r.gone) throw Object.assign(new Error('compte supprimé'), { code: 'auth/user-not-found' }); };
     onUser({ uid: 'u1', email: 'beer@example.com', displayName: 'Beer', reload });
   });

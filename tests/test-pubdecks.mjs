@@ -1,6 +1,7 @@
 // Decks publics (« Communauté ») côté serveur : GET /api/pubdecks relit Firestore (API REST) avec le compte de service, garde les decks au bon format
 // (core.js › pubClean), écarte les signalés et les masqués (PUBDECKS_HIDE), sert la liste (gzip, ETag), la relit en arrière-plan quand elle a vieilli,
-// tout de suite après une publication (?fresh=1, plafonné), et tient bon si Firestore tombe. Faux OAuth2 et faux Firestore : aucun accès réseau réel.
+// tout de suite après une publication (?fresh=1, plafonné), ne relit rien si 2 agrégations (nombre, somme des dates) disent que rien n'a changé,
+// et tient bon si Firestore tombe. Faux OAuth2 et faux Firestore : aucun accès réseau réel.
 // Plus : les fonctions communes (pubFromText, pubClean, edhAddComm) et la fusion dans les decks EDHREC (type 'comm').
 import './setup-env.mjs';
 import http from 'node:http';
@@ -73,11 +74,21 @@ const upAuth = http.createServer((req, res) => {
   });
 });
 const sv = v => Array.isArray(v) ? { arrayValue: { values: v.map(sv) } } : typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }) : typeof v === 'boolean' ? { booleanValue: v } : v === null ? { nullValue: null } : { stringValue: String(v) };
-const fs = { pubdecks: new Map(), pubreports: new Map(), hits: [], auth: [], down: 0, revoked: new Set(), page: 2 };
-const upFs = http.createServer((req, res) => {
+const fs = { pubdecks: new Map(), pubreports: new Map(), hits: [], auth: [], down: 0, revoked: new Set(), page: 2, agg: false };
+const upFs = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x'), m = /^\/v1\/projects\/mana-test\/databases\/\(default\)\/documents\/(pubdecks|pubreports)$/.exec(u.pathname), au = String(req.headers.authorization || '');
   fs.hits.push(u.pathname.split('/').pop() + (u.searchParams.get('pageToken') ? '#' + u.searchParams.get('pageToken') : '')); fs.auth.push(au);
   const send = (s, o) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
+  // agrégation (nombre + somme d'un champ) : seulement quand fs.agg (avant : comme un Firestore qui la refuse, la liste est relue en entier)
+  if (req.method === 'POST' && u.pathname === '/v1/projects/mana-test/databases/(default)/documents:runAggregationQuery') {
+    const c = []; for await (const x of req) c.push(x);
+    if (!fs.agg) return send(404, { error: { code: 404, message: 'not found' } });
+    if (fs.down) return send(503, { error: { code: 503, message: 'The service is currently unavailable.' } });
+    if (fs.revoked.has(au.replace(/^Bearer /, ''))) return send(401, { error: { code: 401, message: 'Request had invalid authentication credentials.' } });
+    const q = JSON.parse(Buffer.concat(c).toString()).structuredAggregationQuery, col = fs[q.structuredQuery.from[0].collectionId], f = q.aggregations.find(a => a.sum).sum.field.fieldPath;
+    const sum = [...col.values()].reduce((a, d) => a + (Number(d[f]) || 0), 0);
+    return send(200, [{ result: { aggregateFields: { n: { integerValue: String(col.size) }, s: { integerValue: String(sum) } } }, readTime: '2026-10-10T10:00:00Z' }]);
+  }
   if (!m || req.method !== 'GET') return send(404, { error: { code: 404, message: 'not found' } });
   if (fs.down) return send(503, { error: { code: 503, message: 'The service is currently unavailable.' } });
   if (fs.revoked.has(au.replace(/^Bearer /, ''))) return send(401, { error: { code: 401, message: 'Request had invalid authentication credentials.' } });
@@ -177,6 +188,28 @@ fs.pubdecks.set(Cc + '_3', deck(Cc, { by: 'Carol', updatedAt: 9500 }));
 r = await get(B, '/api/pubdecks?fresh=1'); assert.equal(r.o.decks[0].id, Cc + '_3'); assert.equal(oauth.n, 2, 'jeton renouvelé');
 assert.equal(scry.hits, 1, 'catalogue gardé (relu une fois par jour)');
 ok('Firestore en panne : la dernière liste reste servie ; jeton révoqué : un nouveau, un seul essai');
+
+// agrégations (nombre et somme des dates : 2 lectures) : rien de changé depuis la dernière lecture complète → rien de relu
+{
+  const lists = () => fs.hits.filter(h => /^pub(decks|reports)/.test(h)).length, aggs = () => fs.hits.filter(h => /runAggregationQuery/.test(h)).length;
+  const fresh = i => get(B, '/api/pubdecks?fresh=1', { 'X-Forwarded-For': '198.51.100.' + i });      // un réseau par appel : le plafond des relectures forcées ne compte pas ici
+  fs.agg = true; await sleep(700);
+  let l0 = lists(), a0 = aggs();
+  r = await fresh(1); const et = r.h.get('etag');
+  assert.equal(aggs() - a0, 2, '2 agrégations'); assert.ok(lists() > l0, 'empreinte encore inconnue : relecture complète');
+  await sleep(700); l0 = lists(); a0 = aggs();
+  r = await fresh(2); assert.equal(r.s, 200); assert.equal(aggs() - a0, 2); assert.equal(lists(), l0, 'rien de changé : rien de relu');
+  assert.equal(r.h.get('etag'), et, 'même liste, même ETag'); assert.equal(r.o.decks.length, 4);
+  const keep = { b: fs.pubdecks.get(Bo + '_0'), c: fs.pubdecks.get(Cc + '_4') }, rep9 = `${Cc}_1~${tag('r9')}`;
+  let i = 3;
+  for (const change of [() => fs.pubdecks.set(Bo + '_0', { ...keep.b, by: 'Bobby', updatedAt: 2001 }), () => fs.pubdecks.delete(Cc + '_4'), () => fs.pubreports.set(rep9, { d: Cc + '_1', at: 2 })]) {
+    change(); await sleep(700); l0 = lists();
+    r = await fresh(i++); assert.ok(lists() > l0, 'changement vu par les agrégations : relecture complète');
+  }
+  assert.ok(r.o.decks.some(d => d.by === 'Bobby') && !r.o.decks.some(d => d.id === Cc + '_1'), 'deck modifié relu, deck signalé une 3e fois retiré');
+  fs.pubdecks.set(Bo + '_0', keep.b); fs.pubdecks.set(Cc + '_4', keep.c); fs.pubreports.delete(rep9);      // état d'avant pour la suite
+  ok('agrégations avant de relire : rien de changé → rien de relu (même ETag) ; deck modifié, retiré ou signalé → relecture complète');
+}
 
 /* ── 3) Démarrage avec Firestore injoignable : 503 propre, puis la liste ─────────────────────── */
 {

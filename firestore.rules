@@ -112,6 +112,20 @@ service cloud.firestore {
         );
     }
 
+    // Mana Orbit : sommaire du compte (src/cloud.js › makeSum), users/{uid}/meta/sommaire = { v, p: { document annexe: updatedAt }, d: { deck: updatedAt }, at, old }.
+    // Écrit dans le même lot que chaque deck et document annexe (sauf la collection, écoutée directement) ; les appareils n'écoutent que lui et ne relisent
+    // que ce qui a changé (quota de lectures). NE JAMAIS republier ces règles sans ce bloc : les écritures en lot avec le sommaire seraient refusées.
+    // Lecture et suppression : règle des documents annexes ci-dessus. Sans cette règle (pas encore publiée), l'appli garde ses écoutes d'avant.
+    match /users/{uid}/meta/sommaire {
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['v', 'p', 'd', 'at', 'old'])
+        && (!('v' in request.resource.data) || request.resource.data.v is number)
+        && (!('p' in request.resource.data) || (request.resource.data.p is map && request.resource.data.p.size() <= 30))
+        && (!('d' in request.resource.data) || (request.resource.data.d is map && request.resource.data.d.size() <= 3000))
+        && (!('at' in request.resource.data) || request.resource.data.at is number)
+        && (!('old' in request.resource.data) || request.resource.data.old is number);
+    }
+
     // Mana Orbit : decks publics (« Communauté »), 10 par compte : pubdecks/{empreinte SHA-256 de l'UID}_{0…9}. L'appli des autres ne les lit jamais ici :
     // le serveur (compte de service, hors de ces règles) les relit et sert la liste à tous (proxy.mjs › /api/pubdecks). Le propriétaire lit les siens
     // (requête where o == empreinte), les écrit et les retire ; adresse vérifiée exigée pour publier. Champs : o, by (pseudo), deck (id dans Mes decks),

@@ -209,6 +209,49 @@ await T.assertFails(getDocs(collection(u2, 'users/u1/meta')));
 await T.assertFails(getDocs(collectionGroup(u2, 'meta')));
 ok('documents annexes d\'un autre compte : ni lus, ni listés, ni écrits, ni effacés');
 
+// Sommaire du compte (cloud.js › makeSum) : dates des decks et documents annexes, écrit dans le même lot qu'eux ; vérifié par 2 agrégations (nombre, somme des dates)
+const SOM = 'users/u1/meta/sommaire', som = (extra = {}) => ({ v: 1, p: { engaged: 1, trade: 2 }, d: { d1: 3 }, at: Date.now(), ...extra });
+const sdeck = () => ({ name: 'Rakdos', text: '1 Sol Ring', opts: { lang: 'fr', mode: 'zero' }, cards: 1, history: [], createdAt: 1, updatedAt: Date.now() });
+await T.assertSucceeds(setDoc(doc(u1, SOM), som()));
+await T.assertSucceeds(setDoc(doc(u1, SOM), { at: Date.now() }, { merge: true }));      // essai d'écriture avant la création (règles publiées ?)
+await T.assertSucceeds(setDoc(doc(u1, SOM), { p: { profile: 4 } }, { merge: true }));
+await T.assertSucceeds(setDoc(doc(u1, SOM), { d: { d1: deleteField() } }, { merge: true }));      // deck supprimé
+await T.assertSucceeds(setDoc(doc(u1, SOM), som({ old: Date.now(), p: keys(30), d: keys(3000) })));
+await T.assertFails(setDoc(doc(u1, SOM), som({ p: keys(31) })));
+await T.assertFails(setDoc(doc(u1, SOM), som({ d: keys(3001) })));
+await T.assertFails(setDoc(doc(u1, SOM), som({ updatedAt: 1 })));      // jamais d'updatedAt : il fausserait la somme des dates des documents annexes
+await T.assertFails(setDoc(doc(u1, SOM), som({ evil: 1 })));
+await T.assertFails(setDoc(doc(u1, SOM), som({ v: '1' })));
+await T.assertFails(setDoc(doc(u1, SOM), som({ p: [] })));
+await T.assertFails(setDoc(doc(u1, SOM), som({ d: 'x' })));
+await T.assertFails(setDoc(doc(u1, SOM), som({ at: '1' })));
+await T.assertFails(setDoc(doc(u1, SOM), som({ old: true })));
+await T.assertFails(setDoc(doc(u2, SOM), som()));
+await T.assertFails(setDoc(doc(anon, SOM), som()));
+await T.assertFails(setDoc(doc(u2, 'users/u1/meta/sommaire'), { p: { trade: 9 } }, { merge: true }));
+await T.assertSucceeds(getDoc(doc(u1, SOM)));
+await T.assertFails(getDoc(doc(u2, SOM)));
+await T.assertFails(getDoc(doc(anon, SOM)));
+await T.assertFails(deleteDoc(doc(u2, SOM)));
+ok('sommaire : le compte seul, champs v, p, d, at, old (types et bornes : 30 documents, 3 000 decks), jamais updatedAt ; mises à jour par fusion, deck retiré par deleteField');
+{
+  await T.assertSucceeds(setDoc(doc(u1, SOM), som()));      // remis à sa taille normale (3 000 decks au cas d'avant : un de plus serait refusé)
+  const b = writeBatch(u1); b.set(doc(u1, 'users/u1/decks/dsom'), sdeck()); b.set(doc(u1, SOM), { d: { dsom: 5 } }, { merge: true }); await T.assertSucceeds(b.commit());
+  const bad = writeBatch(u1); bad.set(doc(u1, 'users/u1/decks/dsom2'), sdeck()); bad.set(doc(u1, SOM), { d: { dsom2: 5 }, evil: 1 }, { merge: true }); await T.assertFails(bad.commit());
+  assert.equal((await getDoc(doc(u1, 'users/u1/decks/dsom2'))).exists(), false, 'lot refusé : le deck n\'est pas écrit non plus');
+  const b2 = writeBatch(u1); b2.delete(doc(u1, 'users/u1/decks/dsom')); b2.set(doc(u1, SOM), { d: { dsom: deleteField() } }, { merge: true }); await T.assertSucceeds(b2.commit());
+  // lot groupé (cloud.js › put) : deck + deck monté + liste d'échange + sommaire
+  const b3 = writeBatch(u1); b3.set(doc(u1, 'users/u1/decks/dsom'), sdeck()); b3.set(doc(u1, 'users/u1/meta/engaged'), { decks: {}, updatedAt: 7 }); b3.set(doc(u1, 'users/u1/meta/trade'), { keep: 1, kept: [], wish: {}, share: '', dsh: {}, updatedAt: 8 });
+  b3.set(doc(u1, SOM), { d: { dsom: 9 }, p: { engaged: 7, trade: 8 } }, { merge: true }); await T.assertSucceeds(b3.commit());
+  // réparation (transaction : relit le sommaire, le réécrit en entier) ; la collection reste écrite par sa transaction seule, hors du sommaire
+  await T.assertSucceeds(F.runTransaction(u1, async tx => { const s = await tx.get(doc(u1, SOM)); tx.set(doc(u1, SOM), { v: 1, p: { engaged: 7, trade: 8 }, d: {}, at: Date.now(), old: Date.now() }); return s.exists(); }));
+  await T.assertSucceeds(F.runTransaction(u1, async tx => { const s = await tx.get(doc(u1, 'users/u1/meta/collection')); tx.set(doc(u1, 'users/u1/meta/collection'), coll()); return s.exists(); }));
+  const agg = (db, path) => F.getAggregateFromServer(query(collection(db, path), where('updatedAt', '>', 0)), { n: F.count(), s: F.sum('updatedAt') });
+  await T.assertSucceeds(agg(u1, 'users/u1/meta')); await T.assertSucceeds(agg(u1, 'users/u1/decks'));
+  await T.assertFails(agg(u2, 'users/u1/meta')); await T.assertFails(agg(u2, 'users/u1/decks'));
+}
+ok('sommaire : écrit dans le même lot que les decks et documents annexes (groupés), lot entier refusé si le sommaire est invalide ; réparation par transaction ; vérification par agrégations pour le compte seul');
+
 const deck = (extra = {}) => ({ name: 'Rakdos', text: '1 Sol Ring', opts: { lang: 'fr', mode: 'zero' }, cards: 1, history: [{ at: 1, total: 1000, mode: 'zero', found: 1, count: 1, sig: '' }], createdAt: 1, updatedAt: Date.now(), ...extra });
 const snap = (extra = {}) => ({ at: 1, mode: 'zero', lang: 'fr', sig: 's', items: [{ k: 'sol ring', n: 'Sol Ring', q: 1, s: 'ok', c: 150 }], pv: { 'sol ring': 150 }, pa: 1, ...extra });
 await T.assertSucceeds(setDoc(doc(u1, 'users/u1/decks/d1'), deck()));
@@ -324,7 +367,7 @@ await T.assertFails(deleteDoc(doc(v2, `pubreports/${t1}_0~${t2}`)));
 ok('signalements : un par compte et par deck, à son nom, jamais relus, modifiés ni effacés par l\'appli');
 
 // Suppression du compte (cloud.js, wipe) : un seul lot efface decks, documents annexes et classeur, qu'ils existent ou non
-const wipe = (db, uid) => { const b = writeBatch(db); for (const p of ['decks/d1', 'decks/x', 'meta/collection', 'meta/engaged', 'meta/history', 'meta/trade', 'meta/profile', 'binder/lands']) b.delete(doc(db, `users/${uid}/${p}`)); return b.commit(); };
+const wipe = (db, uid) => { const b = writeBatch(db); for (const p of ['meta/sommaire', 'decks/d1', 'decks/x', 'meta/collection', 'meta/engaged', 'meta/history', 'meta/trade', 'meta/profile', 'binder/lands']) b.delete(doc(db, `users/${uid}/${p}`)); return b.commit(); };
 await T.assertFails(wipe(u2, 'u1'));
 assert.ok((await getDoc(doc(u1, 'users/u1/meta/profile'))).exists(), 'lot refusé : rien d\'effacé');
 await T.assertSucceeds(wipe(u1, 'u1'));

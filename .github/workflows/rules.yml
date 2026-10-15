@@ -5,12 +5,14 @@
 #   @firebase/rules-unit-testing 5.x attend firebase ^12 (celui de tests/package.json, repris tel quel) ; la 6.x exige firebase 13 et Node 24.
 # · RULES_REQUIRED=1 : sans émulateur ni dépendances, le test échoue au lieu de s'ignorer (en local, il s'ignore).
 # · La CI ne publie rien : règles modifiées = les republier à la main dans la console Firebase (Firestore › Règles).
+# · Job « lectures » : tests/lectures-e2e.mjs, le sommaire du compte (src/cloud.js › makeSum) avec le vrai SDK, l'émulateur et Chromium : lectures et
+#   écritures comptées comme Firestore les facture (quota gratuit), synchro entre deux appareils, repli quand les règles n'ont pas le sommaire.
 name: Règles Firestore
 on:
   push:
-    paths: ['firestore.rules', 'tests/rules-test.mjs', 'tests/setup-env.mjs', 'tests/package.json', '.github/workflows/rules.yml']
+    paths: ['firestore.rules', 'tests/rules-test.mjs', 'tests/setup-env.mjs', 'tests/package.json', '.github/workflows/rules.yml', 'src/cloud.js', 'tests/lectures-*.mjs']
   pull_request:
-    paths: ['firestore.rules', 'tests/rules-test.mjs', 'tests/setup-env.mjs', 'tests/package.json', '.github/workflows/rules.yml']
+    paths: ['firestore.rules', 'tests/rules-test.mjs', 'tests/setup-env.mjs', 'tests/package.json', '.github/workflows/rules.yml', 'src/cloud.js', 'tests/lectures-*.mjs']
   workflow_dispatch:
 concurrency:
   group: rules-${{ github.ref }}
@@ -47,3 +49,38 @@ jobs:
         env:
           RULES_REQUIRED: 1
         run: firebase emulators:exec --only firestore --project demo-deckdeal "node tests/rules-test.mjs"
+  lectures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FIREBASE_TOOLS: 15.31.0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - name: Émulateur Firestore (cache du .jar, un par version de firebase-tools)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ env.FIREBASE_TOOLS }}
+      - name: Dépendances de test (bundle Firebase des tests) et firebase-tools
+        run: |
+          cd tests && npm ci && npm run fb && cd ..
+          D="$RUNNER_TEMP/fb-tools"; mkdir -p "$D"
+          npm i --no-save --no-audit --no-fund --prefix "$D" "firebase-tools@$FIREBASE_TOOLS"
+          echo "$D/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Chromium
+        run: |
+          cd tests && npx playwright-core install --with-deps chromium
+          echo "CHROMIUM=$(node -p "require('playwright-core').chromium.executablePath()")" >> "$GITHUB_ENV"
+      - name: Lectures et écritures Firestore contre l'émulateur
+        env:
+          RULES_REQUIRED: 1
+        run: firebase emulators:exec --only firestore --project demo-deckdeal "node tests/lectures-e2e.mjs"
