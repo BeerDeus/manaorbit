@@ -153,7 +153,29 @@ r = await j(B + '/__ping', { headers: { 'x-forwarded-proto': 'https' } }); asser
 r = await j(B + '/', { headers: { 'x-forwarded-proto': 'https' } }); assert.equal(r.h.get('strict-transport-security'), 'max-age=15552000');
 r = await j(B + '/__ping'); assert.equal(r.h.get('strict-transport-security'), null); r = await j(B + '/__ping', { headers: { 'x-forwarded-proto': 'http' } }); assert.equal(r.h.get('strict-transport-security'), null);
 console.log('✓ HSTS seulement derrière https (X-Forwarded-Proto)');
+r = await j(B + '/.well-known/assetlinks.json'); assert.equal(r.s, 404); assert.deepEqual(r.o, { error: 'not_found' }); console.log('✓ /.well-known/assetlinks.json sans ASSETLINKS_SHA256 : 404 (liens Android laissés au navigateur)');
 p.kill();
+{ // App Links Android : /.well-known/assetlinks.json avec ASSETLINKS_SHA256 (empreintes de la clé de signature Play et de la clé d'importation)
+  const P = 18786, AB = 'http://127.0.0.1:' + P + '/.well-known/assetlinks.json';
+  const fpPlay = '14:6d:e9:83:c5:73:06:50:d8:ee:b9:95:2f:34:fc:64:16:a0:83:42:e6:1d:be:a8:8a:04:96:b2:3f:cf:44:e5', fpUp = 'FA C6 17 45 DC 09 03 78 6F B9 ED E6 2A 96 2B 39 9F 73 48 F0 BB 6F 89 9B 83 32 66 75 91 03 3B 9C'.replace(/ /g, '');
+  const want = ['14:6D:E9:83:C5:73:06:50:D8:EE:B9:95:2F:34:FC:64:16:A0:83:42:E6:1D:BE:A8:8A:04:96:B2:3F:CF:44:E5', 'FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C'];
+  // hébergé comme sur Hostinger (HOST=0.0.0.0) : n'importe quel nom de domaine, derrière https
+  const pa = await start({ CARDTRADER_TOKEN: '', HOST: '0.0.0.0', ASSETLINKS_SHA256: ` ${fpPlay} , ${fpUp},pas-une-empreinte,${fpPlay.toUpperCase()}, AB:CD ` }, P);
+  const res = await fetch(AB, { redirect: 'manual', headers: { 'x-forwarded-proto': 'https' } }), body = await res.text();
+  assert.equal(res.status, 200, 'servi directement, sans redirection'); assert.equal(res.headers.get('content-type'), 'application/json', 'Content-Type exactement application/json');
+  assert.equal(res.headers.get('set-cookie'), null); assert.match(res.headers.get('cache-control'), /^public, max-age=\d+$/); assert.equal(Number(res.headers.get('content-length')), Buffer.byteLength(body));
+  assert.deepEqual(JSON.parse(body), [{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: 'app.manaorbit', sha256_cert_fingerprints: want } }], 'empreintes en majuscules, « : » entre les octets, doublon et valeurs invalides retirés');
+  assert.match(pa.log(), /App Links Android : \/\.well-known\/assetlinks\.json, 2 empreintes SHA-256\./); assert.match(pa.log(), /ASSETLINKS_SHA256 : 2 empreintes ignorées/);
+  const h = await fetch(AB, { method: 'HEAD' }); assert.equal(h.status, 200); assert.equal((await h.text()).length, 0);
+  assert.equal((await fetch(AB, { method: 'POST' })).status, 404, 'lecture seule');
+  for (const host of ['card.m2s-photo.fr', 'manaorbit.app']) { const t = await raw(P, 'GET /.well-known/assetlinks.json', host); assert.equal(stOf(t), 200, host); assert.match(t, /\r\ncontent-type: application\/json\r\n/i); assert.ok(t.includes('"package_name":"app.manaorbit"'), host); }
+  assert.equal((await fetch('http://127.0.0.1:' + P + '/.well-known/assetlinks')).status, 404, 'seulement ce chemin exact');
+  pa.kill(); await new Promise(res2 => setTimeout(res2, 200));
+  const pb = await start({ CARDTRADER_TOKEN: '', HOST: '0.0.0.0', ASSETLINKS_SHA256: 'AB:CD:EF, 1234' }, P);
+  assert.equal((await fetch(AB)).status, 404, 'aucune empreinte valide : 404'); assert.match(pb.log(), /ASSETLINKS_SHA256 : 2 empreintes ignorées/); assert.doesNotMatch(pb.log(), /App Links Android/);
+  pb.kill();
+  console.log('✓ /.well-known/assetlinks.json : application/json, sans redirection ni cookie, empreintes normalisées (majuscules, « : »), invalides ignorées et signalées, HEAD, lecture seule, ancienne adresse comprise ; aucune valide : 404');
+}
 { // erreur interne : réponse générique, détail dans le journal seulement
   const { mkdtempSync, mkdirSync, rmSync } = await import('node:fs'), { tmpdir } = await import('node:os'), dir = mkdtempSync(join(tmpdir(), 'pwa500-'));
   mkdirSync(join(dir, 'privacy.html'));                               // un dossier à la place du fichier : lecture impossible (EISDIR)

@@ -35,6 +35,13 @@ const SITE_URL = (process.env.SITE_URL || 'https://manaorbit.app').trim().replac
 const OLD_HOSTS = String(process.env.OLD_HOSTS ?? 'card.m2s-photo.fr').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
 // app-ads.txt (AdMob) : identifiant d'éditeur public pub-…, tiré de l'ID d'application Mana Orbit (le même que dans l'APK, public) ; ADMOB_PUB_ID ou ADMOB_APP_ID le remplacent.
 const ADMOB_PUB = (/pub-\d{10,20}/.exec(String(process.env.ADMOB_PUB_ID || process.env.ADMOB_APP_ID || 'ca-app-pub-9859793504995886~7202291377')) || [''])[0];
+// Android App Links (APK 1.0.5) : /.well-known/assetlinks.json déclare l'appli app.manaorbit pour ce site ; Android le vérifie à l'installation, puis ouvre
+// les liens https://manaorbit.app/ (?p=, ?troc=…) dans l'appli. ASSETLINKS_SHA256 : empreintes SHA-256 des certificats qui signent l'appli (Play Console ›
+// Test et publication › Intégrité de l'appli › Signature de l'application : clé de signature Play et clé d'importation), séparées par des virgules,
+// avec ou sans « : ». Aucune empreinte valide : 404 (les liens restent dans le navigateur). Rien de secret : ces empreintes sont publiques.
+const ASSETLINKS_RAW = String(process.env.ASSETLINKS_SHA256 || '').split(',').map(x => x.trim()).filter(Boolean);
+const ASSETLINKS_FP = [...new Set(ASSETLINKS_RAW.map(x => x.replace(/:/g, '').toUpperCase()).filter(x => /^[0-9A-F]{64}$/.test(x)).map(x => x.match(/../g).join(':')))];
+const ASSETLINKS = ASSETLINKS_FP.length ? JSON.stringify([{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: 'app.manaorbit', sha256_cert_fingerprints: ASSETLINKS_FP } }]) : '';
 // Interrupteurs EDHREC / Archidekt (plan B de docs/a-faire.md : si l'un refuse, sa fonction est coupée depuis Hostinger, sans nouvelle APK), annoncés par /__ping (off) :
 // EDHREC_OFF=1 : plus de fichier EDH (/edh.bin.gz, /edh.tsv : 410) ni d'import de liens edhrec.com ; l'appli cache les decks EDHREC et efface sa copie.
 // ARCHIDEKT_OFF=1 : fichier EDH servi sans les decks Archidekt (edhFilter), plus d'import de liens archidekt.com ; l'appli les retire aussi de sa copie.
@@ -2694,6 +2701,14 @@ function oldHost(req, res, url) {
   return false;
 }
 
+/** /.well-known/assetlinks.json (Digital Asset Links, lu par Android pour vérifier les App Links) : Content-Type exactement application/json, réponse directe
+ *  (aucune redirection, aucun cookie ni compte exigé), GET ou HEAD ; 404 sans ASSETLINKS_SHA256 valide. */
+function assetLinks(req, res) {
+  if (!ASSETLINKS || (req.method !== 'GET' && req.method !== 'HEAD')) return json(res, 404, { error: 'not_found' });
+  res.writeHead(200, { ...SEC, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600', 'Content-Length': Buffer.byteLength(ASSETLINKS) });
+  res.end(req.method === 'HEAD' ? undefined : ASSETLINKS);
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (LOCAL && !LOCAL_HOSTS.test(String(req.headers.host || ''))) return json(res, 403, { error: 'bad_host', message: 'Serveur local : ouvre-le par http://localhost.' });
@@ -2702,6 +2717,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(String(req.url).replace(/^\/+/, '/'), 'http://x'); // « // » ou « //hôte/chemin » ne doivent pas être lus comme une URL absolue
     if (OLD_HOSTS.length && OLD_HOSTS.includes(String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase()) && oldHost(req, res, url)) return;
     if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });
+    if (url.pathname === '/.well-known/assetlinks.json') return assetLinks(req, res);      // App Links de l'appli Android
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
     if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, off: OFF, build: await pageBuild() });
@@ -2757,6 +2773,9 @@ server.listen(PORT, HOST, () => {
   if (APP_KEY && APP_KEY.length < 12) console.warn('⚠ APP_KEY courte (' + APP_KEY.length + ' caractères) : prends 16 caractères ou plus.');
   if (!PAGE) console.log('⚠ deck-deal.html introuvable à côté du proxy.');
   if (ADMOB_RAW && !ADMOB_BANNER) console.warn('⚠ ADMOB_BANNER_ID ignoré : attendu « ca-app-pub-…/… » (identifiant du bloc d\'annonces, pas celui de l\'appli).');
+  { const bad = ASSETLINKS_RAW.filter(x => !/^[0-9A-F]{64}$/i.test(x.replace(/:/g, ''))).length;
+    if (ASSETLINKS) console.log(`App Links Android : /.well-known/assetlinks.json, ${ASSETLINKS_FP.length} empreinte${ASSETLINKS_FP.length > 1 ? 's' : ''} SHA-256.`);
+    if (bad) console.warn(`⚠ ASSETLINKS_SHA256 : ${bad} empreinte${bad > 1 ? 's' : ''} ignorée${bad > 1 ? 's' : ''} (attendu 32 octets en hexadécimal, « AB:CD:… », séparés par des virgules).`); }
   if (FCM_ON) console.log(`Notifications de l'appli Android (FCM) : projet Firebase « ${fcmSa.project} ».`);
   if (AM_ON) { console.log(`Amis : ${AM_MAX} au plus par compte, « un ami a une carte que tu cherches » toutes les ${Math.round(AM_GAP / 360000) / 10} h au plus.`); }
   if (TROC_ON) console.log(`Échange en direct : ${TROC_MAX} sessions au plus, en mémoire (terminées après ${Math.round(TROC_IDLE / 60e3)} min sans activité).`);

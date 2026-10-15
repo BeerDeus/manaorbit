@@ -7,9 +7,12 @@
    · Note : demande neutre (« Noter » / « Plus tard », aucune question sur l'avis avant : Google interdit de trier les gens selon leur réponse),
      seulement dans l'appli Android, après un bon moment (5 cartes ou plus ajoutées d'un scan, un deck enregistré qui devient complet),
      si l'appli sert depuis au moins 4 jours et qu'aucune erreur n'a eu lieu pendant la session ; au plus une fois tous les 120 jours, 3 fois en tout,
-     plus jamais après « Noter ». Entièrement coupée tant que PLAY_URL est vide. */
-/** Fiche Play Store de l'appli (https://play.google.com/store/apps/details?id=app.manaorbit), à remplir une fois l'appli publiée : vide = aucune demande de note, aucun bouton « Noter ». */
-const PLAY_URL = '';
+     plus jamais après « Noter ». Entièrement coupée tant que RATE_ASK est faux. */
+/** Fiche Play Store de l'appli, seule adresse du Play Store dans le code : bouton « Noter », lien « L'installer » et repli du bouton « Ouvrir dans l'appli »
+ *  de la barre du navigateur Android (applink.js). À remplacer au besoin (lien d'inscription au test, autre fiche). */
+const PLAY_URL = 'https://play.google.com/store/apps/details?id=app.manaorbit';
+/** Demande de note et bouton « Noter sur le Play Store » : à passer à true une fois l'appli publiée (fiche publique) ; false = aucune demande, aucun bouton. */
+const RATE_ASK = false;
 /* Option « Supporter » (achat intégré) : volontairement absente, en attente de l'analyse Fan Content Policy / Google Play Billing. Point d'accroche prévu :
    const SUPPORTER_SKU = '';      // identifiant du produit Play Billing ; vide = rien d'affiché. Entrée sous « Envoyer un avis » dans helpSettings, appli Android seulement. */
 const HELP_MAIL = 'contact@manaorbit.app', HELP_SUBJECT = 'Mana Orbit · avis';      // objet fixe dans toutes les langues : les avis se trient d'un seul filtre
@@ -82,8 +85,8 @@ function openHelp() {
 
 /* ── Demande de note (appli Android) ─────────────────────────────────────────────────────────────── */
 const RATE_KEY = 'deckdeal:rate', RATE_GAP = 120 * DAY, RATE_MAX = 3, RATE_AGE = 4 * DAY, RATE_SCAN = 5;
-/** url : la fiche Play Store (PLAY_URL ; les tests la remplacent) · bad : une erreur a eu lieu dans cette session · pend : bon moment en attente d'un écran calme. */
-const RATE = { url: PLAY_URL, bad: false, pend: '', until: 0, t: 0, wait: 1500 };
+/** url : la fiche Play Store (PLAY_URL si RATE_ASK, sinon vide ; les tests la remplacent) · bad : une erreur a eu lieu dans cette session · pend : bon moment en attente d'un écran calme. */
+const RATE = { url: RATE_ASK ? PLAY_URL : '', bad: false, pend: '', until: 0, t: 0, wait: 1500 };
 const rateOn = () => !!RATE.url && typeof isNativeApp === 'function' && isNativeApp();
 function rateRead() { try { const o = JSON.parse(localStorage.getItem(RATE_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
 function rateWrite(o) { try { localStorage.setItem(RATE_KEY, JSON.stringify(o)); } catch (e) { /* stockage indisponible : la demande peut revenir, rien de grave */ } }

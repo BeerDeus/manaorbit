@@ -2,7 +2,7 @@
 // produits rattachés à leur parent, cache 24 h relu au 2e lancement, carte cachée en erreur ou hors ligne) ; page d'une extension (faux /cards/search :
 // grille, noms et images dans la langue des cartes, recherche, rareté, versions spéciales, tri, pastilles, étoiles de la liste de souhaits, carte en grand,
 // extension sans carte révélée, copie gardée) ; Réglages › Aide et avis (feuille d'aide,
-// lien d'avis mailto encodé) ; demande de note neutre (coupée sans PLAY_URL, appli Android seulement, bons moments, fréquence, session sans erreur).
+// lien d'avis mailto encodé) ; demande de note neutre (coupée tant que RATE_ASK est faux, appli Android seulement, bons moments, fréquence, session sans erreur).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { chromium, startWorld, newPage, txt, ok, toHome, rcGo, openMe, closeSheets } from './e2e-world.mjs';
@@ -328,16 +328,16 @@ async function ratePage(o = {}) {
   await pg.p.evaluate(() => homeSoon(0)); await pg.p.waitForTimeout(300);                                                                               // premier relevé des decks complets (aucun)
   return pg;
 }
-{ // PLAY_URL vide (valeur livrée) : rien, même dans l'appli et après un bon moment
+{ // RATE_ASK faux (valeur livrée) : rien, même dans l'appli et après un bon moment, alors que PLAY_URL est rempli (barre « Ouvrir dans l'appli », applink.js)
   const { p, ctx } = await ratePage({ url: '' });
-  assert.equal(await p.evaluate(() => [PLAY_URL, RATE.url, isNativeApp()].join('|')), '||true');
+  assert.equal(await p.evaluate(() => [RATE_ASK, PLAY_URL, RATE.url, isNativeApp()].join('|')), 'false|https://play.google.com/store/apps/details?id=app.manaorbit||true');
   await mount(p, 'd1'); await p.waitForTimeout(1500);
   assert.equal(await sheetUp(p), null, 'aucune demande'); assert.equal(await rateSt(p), null, 'rien d\'enregistré');
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
   assert.equal(await p.$('#helpBox [data-help="rate"]'), null, 'pas de bouton « Noter »');
   await ctx.close();
 }
-ok('note : coupée tant que PLAY_URL est vide (ni demande, ni bouton, ni compteur)');
+ok('note : coupée tant que RATE_ASK est faux (ni demande, ni bouton, ni compteur)');
 { // appli Android, adresse de test : deck devenu complet → demande neutre, après la fermeture de la feuille ouverte
   const { p, ctx } = await ratePage({ ctx: { colorScheme: 'dark' } });
   assert.deepEqual((await rateSt(p)).dk, [], 'premier relevé des decks complets');

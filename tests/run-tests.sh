@@ -28,6 +28,7 @@ BROWSER=(
   places-e2e.mjs
   partie-ui-e2e.mjs
   partie-room-e2e.mjs
+  applink-e2e.mjs
 )
 T=("$@")
 if [ ${#T[@]} -eq 0 ]; then T=("${NODE[@]}" "${BROWSER[@]}"); elif [ "$1" = --node ]; then T=("${NODE[@]}"); fi

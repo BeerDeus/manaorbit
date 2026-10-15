@@ -31,6 +31,21 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
+            <!-- Liens https://manaorbit.app/ (QR code d'un autre joueur scanné avec l'appareil photo, lien touché dans une messagerie : ?p=, ?troc=…) ouverts
+                 dans l'appli au lieu du navigateur (Android App Links, APK 1.0.5). autoVerify : à l'installation, Android vérifie que le site déclare l'appli
+                 dans https://manaorbit.app/.well-known/assetlinks.json (proxy.mjs, variable ASSETLINKS_SHA256 sur Hostinger) ; sinon le lien reste dans le
+                 navigateur, dont le bouton « Ouvrir dans l'appli » vise l'appli par son nom de paquet. Seule la page de l'appli (« / ») : /privacy, /legal
+                 et /admin restent dans le navigateur. Le site lit le lien par @capacitor/app (getLaunchUrl, appUrlOpen : src/applink.js). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="manaorbit.app" />
+                <data android:path="/" />
+                <data android:path="/index.html" />
+            </intent-filter>
+
             <!-- Raccourcis de l'icône (appui long) : Scanner, Prix rapide, Échange, Nouveau panier -->
             <meta-data
                 android:name="android.app.shortcuts"
