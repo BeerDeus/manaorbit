@@ -31,5 +31,7 @@
   "{n} carte imprimée une seule fois : son édition est posée": "{n} carta impressa uma única vez: a edição dela foi definida",
   "{n} cartes imprimées une seule fois : leur édition est posée": "{n} cartas impressas uma única vez: a edição delas foi definida",
   "Édition : {ed}": "Edição: {ed}",
-  "Choisir l'édition de {name}": "Escolher a edição de {name}"
+  "Choisir l'édition de {name}": "Escolher a edição de {name}",
+  "Chercher une extension": "Procurar uma coleção",
+  "Aucune extension ne correspond à « {q} »": "Nenhuma coleção corresponde a “{q}”"
 }

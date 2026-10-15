@@ -824,6 +824,7 @@ function openScan(o) {
       if (a.dataset.a === 'edp') { const pr = SC.pr.get(scanPk(it.key, it.l)), p = Array.isArray(pr) ? pr[Number(a.dataset.i)] : null; if (p) { haptic('ok'); scanEdChoose(it.id, p); } }
       else if (a.dataset.a === 'later') { haptic('tap'); scanEdLater(it); }
       else if (a.dataset.a === 'ed') scanEdPick(it);
+      else if (a.dataset.a === 'edq') scanEdPick(it, true);      // bandeau : « Chercher une extension » ouvre toutes les éditions, sur la recherche
       return;
     }
     const row = a.closest('.sc-item'); if (!row) return;

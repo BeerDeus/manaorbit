@@ -31,5 +31,7 @@
   "{n} carte imprimée une seule fois : son édition est posée": "{n} card printed only once: its edition is set",
   "{n} cartes imprimées une seule fois : leur édition est posée": "{n} cards printed only once: their edition is set",
   "Édition : {ed}": "Edition: {ed}",
-  "Choisir l'édition de {name}": "Choose the edition of {name}"
+  "Choisir l'édition de {name}": "Choose the edition of {name}",
+  "Chercher une extension": "Search for a set",
+  "Aucune extension ne correspond à « {q} »": "No set matches “{q}”"
 }

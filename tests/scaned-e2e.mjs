@@ -161,6 +161,25 @@ await p.waitForFunction(() => SCS.ed === 'card' && SCS.snd === true, null, { tim
 assert.match(await txt(p, '.sc-edm'), /à la fin/, 'écran de scan ouvert : suit les réglages du compte');
 await p.evaluate(() => scsSet({ ed: 'scan', snd: false }));
 ok('réglages du scan dans le compte : envoyés au compte vide, ceux du compte (plus récents) appliqués');
+
+/* ── recherche d'une extension (8 impressions ou plus, terrains de base…) : bandeau › « Chercher une extension » → feuille ouverte sur la recherche ── */
+world.psets['Craterhoof Behemoth'] = ['neo', 'mh3', 'woe', 'ltr', 'one', 'mom', 'lci', 'mkm', 'otj', 'fdn'];      // aucune dans le scan : à choisir
+await p.evaluate(() => { for (const x of SC.items.values()) x.later = true; scanPaintList(); });
+await add('Craterhoof Behemoth'); await settle();
+await p.waitForFunction(() => { const a = document.querySelector('.sc-ask'); return a && a.dataset.id === 'craterhoof behemoth|en' && a.querySelector('[data-a="edq"]'); }, null, { timeout: 5000 });
+await p.click('.sc-ask [data-a="edq"]'); await p.waitForSelector('.ced-sheet [data-edq]');
+await p.waitForFunction(() => document.activeElement && document.activeElement.matches('.ced-sheet [data-edq]'), null, { timeout: 3000 });
+const shown = () => p.$$eval('.ced-sheet .ced-t:not(.none):not(.ed-off) .ced-n', b => b.map(x => x.textContent));
+assert.equal((await shown()).length, 10, 'toutes les éditions avant la recherche');
+await p.keyboard.type('WO'); assert.deepEqual(await shown(), ['WOE 202'], 'début du code ou du nom, sans casse');
+await p.fill('.ced-sheet [data-edq]', '2021'); assert.deepEqual(await shown(), ['LTR 203'], 'année');
+await p.fill('.ced-sheet [data-edq]', 'zzz'); assert.deepEqual(await shown(), [], 'rien ne correspond');
+assert.match(await txt(p, '.ced-sheet .ed-q-none'), /zzz/); assert.equal(await p.$$eval('.ced-sheet .ced-t.none:not(.ed-off)', b => b.length), 1, '« Sans édition » reste');
+await p.fill('.ced-sheet [data-edq]', 'mkm set'); assert.deepEqual(await shown(), ['MKM 207'], 'plusieurs mots');
+assert.equal(await p.$('.ced-sheet .ed-q-none'), null);
+await tile('MKM'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+assert.equal((await lines())['craterhoof behemoth mkm|207'], 'man ×1', 'édition trouvée par la recherche : posée');
+ok('recherche d\'une extension : bandeau › feuille sur la recherche (code, nom, année, plusieurs mots, aucune), choix posé');
 await p.click('.scan [data-act="close"]');
 
 assert.deepEqual(errs, [], 'erreurs page');
