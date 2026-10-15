@@ -236,7 +236,7 @@ function prgLevel(xp) {
 function prgNow() { const m = prgMetrics(), bs = prgBadges(m), L = prgLevel(prgXp(m, bs)); return { m, bs, ...L }; }
 
 /* ── Nouveaux paliers : un toast discret (jamais au premier calcul, ni en mode streamer) ───────────────────────── */
-function prgSoon() { clearTimeout(PRG.t); PRG.t = setTimeout(prgCheck, 2500); }
+function prgSoon() { if (typeof MO_TEST === 'undefined' || !MO_TEST) return; clearTimeout(PRG.t); PRG.t = setTimeout(prgCheck, 2500); }      // lien de test seulement : ailleurs, les compteurs avancent sans rien montrer
 function prgCheck() {
   let got = null; try { got = JSON.parse(localStorage.getItem(PRG_GOT) || 'null'); } catch (e) { got = null; }
   const bs = prgBadges(), now = {}; for (const x of bs) if (x.t >= 0) now[x.b.id] = x.t;
