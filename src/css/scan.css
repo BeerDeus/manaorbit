@@ -146,3 +146,5 @@
 .scan.full .sc-cap{left:50%;bottom:auto;top:13%;transform:translateX(-50%);white-space:nowrap}
 .scan.full .sc-hint{top:calc(var(--top-in) + 56px + var(--gh) * .3)}
 .sc-diag{white-space:pre-line}
+/* diagnostic (5 appuis sur le titre) : au-dessus de la liste, sur fond opaque, lisible (plus sur l'image de la caméra) */
+.scan .sc-diag{position:static;flex:none;margin:0 12px 8px;padding:8px 10px;border-radius:10px;background:#0b0f1c;color:#9bffc5;font-size:12.5px;line-height:1.45;max-height:30dvh;overflow:auto}
