@@ -83,7 +83,7 @@ let ref;
   assert.deepEqual(await p.evaluate(() => [I18N.lang, namesLang()]), ['fr', 'fr'], 'appli en français, noms français');
   await openScan(p); await p.waitForFunction(() => OTHX.at > 0 && !OTHX.dl, null, { timeout: 60000 });
   assert.equal(b.all, 1, 'téléchargé une fois, en arrière-plan, à l\'ouverture du scan');
-  assert.deepEqual(await p.evaluate(async () => { const t = await namesAllText(); return [typeof t, t.split('\n')[0], Object.keys(OTHX.cats).length]; }), ['string', '# anglais\tfr\tde\tes\tit\tpt', 0], 'gardé sur l\'appareil ; aucun index tant qu\'aucune carte n\'en a besoin');
+  assert.deepEqual(await p.evaluate(async () => { const t = await namesAllText(); return [typeof t, t.split('\n')[0], Object.keys(OTHX.cats).length]; }), ['string', '# anglais\tfr\tde\tes\tit\tpt\tru', 0], 'gardé sur l\'appareil ; aucun index tant qu\'aucune carte n\'en a besoin');
   // cartes française et anglaise : mêmes scores qu'avant, aucun index construit, aucune requête
   const t0 = Date.now(); await p.setInputFiles('#scFile', [fx('anneau.jpg'), fx('swords.jpg')]); await idle(p); const ms = Date.now() - t0;
   const it0 = await rows(p); console.log('  français et anglais :', it0.map(x => `${x.id} ${x.score}`).join(' · '), `· ${ms} ms (référence ${ref.ms} ms)`);
@@ -100,7 +100,7 @@ let ref;
   assert.ok(by['swords to plowshares|es'], '« Espadas en guadañas » (espagnol) → Swords to Plowshares, exemplaire espagnol');
   assert.ok(!it.some(x => x.name === 'Control Magic'), 'jamais la mauvaise carte anglaise'); assert.deepEqual(await misses(p), [], 'aucune carte non reconnue');
   assert.deepEqual(b.finds, [], 'aucune requête au serveur : tout est trouvé sur l\'appareil');
-  assert.deepEqual(await p.evaluate(() => Object.keys(OTHX.cats).sort()), ['de', 'es', 'it', 'pt'], 'index des autres langues seulement (le français est déjà sur l\'appareil)');
+  assert.deepEqual(await p.evaluate(() => Object.keys(OTHX.cats).sort()), ['de', 'es', 'it', 'pt', 'ru'], 'index des autres langues seulement (le français est déjà sur l\'appareil ; ru : colonne vide → null)');
   for (const [id, l] of [['lightning bolt|it', 'it'], ['counterspell|it', 'it'], ['lightning bolt|de', 'de'], ['swords to plowshares|es', 'es']]) { assert.equal(by[id].maybe, false, id + ' : lecture sûre'); assert.equal(by[id].via, l, id + ' : trouvée dans les autres langues'); }
   await p.waitForFunction(() => [['lightning bolt', 'it'], ['counterspell', 'it'], ['lightning bolt', 'de'], ['swords to plowshares', 'es']].every(([k, l]) => { const i = document.querySelector(`.sc-item[data-id="${k}|${l}"] .sc-th`); return i && i.src.endsWith(`/small/front/${l}/${k.replace(/ /g, '-')}.jpg`); }), null, { timeout: 10000 });
   assert.match(by['lightning bolt|it'].note, /lu en italien/); assert.match(by['lightning bolt|de'].note, /lu en allemand/); assert.match(by['swords to plowshares|es'].note, /lu en espagnol/);
