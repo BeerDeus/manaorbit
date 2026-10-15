@@ -4,7 +4,7 @@
 # Lancé depuis la racine du dépôt (les tests lancent « node proxy.mjs » et lisent deck-deal.html). Un nouveau test s'ajoute ici : la CI lance ces listes.
 cd "$(dirname "$0")/.." || exit 1
 mkdir -p tests/logs; : > tests/run-tests.out
-NODE=(test.mjs test-i18n-langs.mjs test-prices.mjs test-trade.mjs test-cloud.mjs test-jobs.mjs test-proxy.mjs test-push.mjs test-alerts.mjs test-fcm.mjs test-edh-gen.mjs test-intl.mjs test-android-xml.mjs test-pubdecks.mjs test-amis.mjs test-troc.mjs smoke.mjs
+NODE=(test.mjs test-i18n-langs.mjs test-prices.mjs test-trade.mjs test-cloud.mjs test-jobs.mjs test-proxy.mjs test-push.mjs test-alerts.mjs test-fcm.mjs test-edh-gen.mjs test-intl.mjs test-android-xml.mjs test-pubdecks.mjs test-amis.mjs test-troc.mjs test-partie.mjs test-partie-srv.mjs smoke.mjs
   test-import.mjs test-admin.mjs test-scanfoot.mjs test-scanart.mjs)
 BROWSER=(
   ui-e2e.mjs cm-e2e.mjs i18n-e2e.mjs list-e2e.mjs value-e2e.mjs frcat-e2e.mjs alerts-e2e.mjs dklist-e2e.mjs back-e2e.mjs

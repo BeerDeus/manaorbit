@@ -575,7 +575,7 @@ function paintAccountDelete(api) {
     if (D.unsub) { try { D.unsub(); } catch (x) { /* ignore */ } D.unsub = null; }
     collUser(null); xsUser(null); trUser(null); mobUser(null); scsUser(null); D.uid = null;
     // liens créés ici mais peut-être jamais arrivés dans le document « trade » du compte : effacés aussi ; amis d'abord (serveur, jeton encore valable)
-    try { await amWipe(); await D.cloud.wipe(uid, TR.who === uid ? [TR.share, ...Object.values(TR.dsh)] : []); await D.cloud.deleteUser(); }
+    try { await amWipe(); if (typeof partieWipe === 'function') await partieWipe(); await D.cloud.wipe(uid, TR.who === uid ? [TR.share, ...Object.values(TR.dsh)] : []); await D.cloud.deleteUser(); }
     catch (err) {
       D.uid = uid; onUser(D.user);      // rien de cassé : on reprend la synchronisation
       btn.disabled = false; btn.textContent = T('Supprimer définitivement');
@@ -704,6 +704,7 @@ function onUser(user) {
   renderAccountBtn(); renderDecks(); paintAccount(); refreshDeck(); edhGateSync();      // decks EDHREC : réservés aux comptes vérifiés
   collUser(user); xsUser(user); trUser(user); mobUser(user); scsUser(user); if (prev !== D.uid) profUser(user);
   amUser(user); if (typeof trocUser === 'function') trocUser(user);      // échange en direct : reprend après la connexion, ou quitte (autre compte)
+  if (typeof partieUser === 'function') partieUser(user);      // parties de Commander en attente d'envoi pour ce compte
   if (prev !== D.uid && typeof checkServer === 'function') { CTX.serverOk = null; checkServer(); }      // autre compte : a-t-il droit au token du serveur ?
   if (!user && prev) updateHeroDelta();
 }
