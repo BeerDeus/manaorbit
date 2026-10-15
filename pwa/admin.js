@@ -21,7 +21,7 @@
   };
   const FB_BASE = 'https://www.gstatic.com/firebasejs/12.19.0/';
 
-  const $ = s => document.querySelector(s);
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
   /** Élément : h('div', { class: 'x', title: '…' }, enfant | texte, …). Les textes passent par createTextNode (jamais innerHTML). */
   function h(tag, at, ...kids) {
     const e = document.createElement(tag);
@@ -56,7 +56,7 @@
     for (const id of ['vLoad', 'vOut', 'vDeny', 'vErr', 'vMain']) $('#' + id).hidden = id !== v;
     $('#acts').hidden = v !== 'vMain';
     if (v === 'vErr') $('#errTxt').textContent = msg || 'Le serveur ne répond pas.';
-    if (v !== 'vMain') { data = null; for (const id of ['#kpis', '#chart', '#mix', '#ulist', '#pager', '#srv', '#notes', '#meta']) $(id).replaceChildren(); }      // rien ne reste affiché d'une session admin précédente
+    if (v !== 'vMain') { data = null; for (const id of ['#kpis', '#chart', '#mix', '#ulist', '#pager', '#srv', '#notes', '#meta', '#scans']) $(id).replaceChildren(); $('#scans').hidden = true; sc.seen = -1; sc.gen++; }      // rien ne reste affiché d'une session admin précédente
   }
 
   async function boot() {
@@ -125,11 +125,12 @@
     const src = { auth: 'Firebase Authentication + Firestore', firestore: 'Firestore seulement', none: 'aucune' }[d.src] || d.src;
     $('#meta').replaceChildren(d.at ? 'Données du ' + D_TIME.format(d.at) + ' (' + ago(d.at) + ') · source : ' + src + ' · gardées ' + Math.round(d.ttl / 60e3) + ' min' : 'Pas encore de données.');
     $('#notes').replaceChildren(...(d.notes || []).map(x => h('p', { class: 'note', 'data-k': x.k }, x.t)));
-    $('#kpis').replaceChildren(...(ov ? kpis(ov) : []));
+    $('#kpis').replaceChildren(...(ov ? kpis(ov) : []), ...(d.scans ? [kpi('Scans signalés', nf(d.scans.n), nf(d.scans.n7) + ' en 7 jours · ' + String(d.scans.mb).replace('.', ',') + ' Mo', 'scans')] : []));
     if (ov) chart(ov); else $('#chart').replaceChildren();
     $('#mix').replaceChildren(...(ov ? mix(ov) : []));
     users(d.users);
     testers(d.testers);
+    scans(d.scans);
     server(d.srv);
   }
   const kpi = (label, val, sub, k) => h('div', { class: 'kpi', 'data-k': k }, h('span', { class: 'l' }, label), h('b', null, val), sub ? h('small', null, sub) : null);
@@ -231,12 +232,89 @@
       h('p', { class: 'note' }, 'Formulaire de la page /testeurs. Le CSV (une adresse par ligne) s\'importe dans Play Console › Tests › Test fermé › Testeurs › liste d\'adresses e-mail.'),
       h('div', { class: 'flags' }, copy, csv));
   }
+  /* Scans signalés depuis l'appli (« Signaler un problème de scan », proxy.mjs › /api/admin/scans) : du plus récent au plus ancien, par pages ; la photo est
+     demandée au serveur avec le jeton (jamais publique) quand la fiche apparaît, puis affichée en data: (CSP) ; données de lecture dépliables ; Supprimer (deux appuis). */
+  const SCAN_WHAT = { card: 'Mauvaise carte', lang: 'Mauvaise langue', ed: 'Mauvaise édition', miss: 'Non reconnue', other: 'Autre' };
+  const SCAN_SRC = { natcam: 'caméra de l\'appli', webcam: 'caméra du navigateur', photo: '« Photos »', auto: 'scan automatique' };
+  const SCAN_FRAME = { card: 'carte entière', name: 'nom seulement', photo: 'photo entière' };
+  const sc = { page: 0, pages: 0, total: 0, seen: -1, gen: 0, busy: false };
+  const scIo = typeof IntersectionObserver === 'function' ? new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) { scIo.unobserve(e.target); scImg(e.target); } }, { rootMargin: '300px' }) : null;
+  const scSum = sum => nf(sum.n) + ' signalement' + (sum.n > 1 ? 's' : '') + ' · ' + String(sum.mb).replace('.', ',') + ' Mo · gardés ' + sum.days + ' jours, ' + nf(sum.max) + ' au plus';
+  function scans(sum) {
+    const box = $('#scans');
+    if (!sum) { box.hidden = true; box.replaceChildren(); return; }
+    box.hidden = false;
+    if (!$('#scList')) box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Scans signalés'), h('small', { id: 'scCount' })),
+      h('p', { class: 'hint' }, '« Signaler un problème de scan » dans l\'appli : la photo de la carte et ce que l\'appli a lu. Effacés après ' + sum.days + ' jours.'),
+      ...(sum.err ? [h('p', { class: 'note' }, 'Dossier des signalements illisible sur le serveur.')] : []), h('div', { class: 'scl', id: 'scList' }), h('div', { class: 'pager', id: 'scMore' }));
+    $('#scCount').textContent = scSum(sum);
+    if (sc.seen !== sum.n) { sc.seen = sum.n; scLoad(1); }      // nouveaux signalements (ou première ouverture) : première page relue
+  }
+  async function scLoad(page) {
+    const g = sc.gen; if (sc.busy && page > 1) return; sc.busy = true;
+    let r; try { r = await call('/scans?page=' + page); } catch (e) { r = null; }
+    sc.busy = false; if (g !== sc.gen || !$('#scList')) return;
+    if (!r || r.status !== 200 || !r.body) return toast((r && r.body && r.body.message) || 'Scans signalés : le serveur ne répond pas.');
+    const b = r.body; sc.page = b.page; sc.pages = b.pages; sc.total = b.total;
+    const list = $('#scList'), rows = b.rows.map(scRow);
+    if (page === 1) list.replaceChildren(...(rows.length ? rows : [h('p', { class: 'empty' }, 'Aucun scan signalé pour l\'instant.')])); else list.append(...rows);
+    $('#scCount').textContent = scSum(b); scMore();
+  }
+  function scMore() {
+    const box = $('#scMore'), left = sc.total - $$('#scList .scr').length;
+    if (sc.page >= sc.pages || left <= 0) return box.replaceChildren();
+    const b = h('button', { class: 'btn ghost small', type: 'button' }, 'Afficher les suivants (' + nf(left) + ')');
+    b.addEventListener('click', () => { b.disabled = true; scLoad(sc.page + 1); });
+    box.replaceChildren(b);
+  }
+  /** Photo d'un signalement : GET /api/admin/scans/<id>.jpg avec le jeton, affichée en data: (img-src de la CSP). */
+  async function scImg(img) {
+    const u = user, g = sc.gen;
+    try {
+      const tok = await u.getIdToken(false), r = await fetch('/api/admin/scans/' + encodeURIComponent(img.dataset.id) + '.jpg', { cache: 'no-store', headers: { 'x-firebase-token': tok } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const blob = await r.blob(), url = await new Promise((ok, ko) => { const f = new FileReader(); f.onload = () => ok(String(f.result)); f.onerror = () => ko(f.error); f.readAsDataURL(blob); });
+      if (g === sc.gen && user === u) { img.src = url; img.closest('.scph').classList.add('ok'); }
+    } catch (e) { if (img.isConnected) { img.closest('.scph').classList.add('bad'); img.alt = 'Photo indisponible'; } }
+  }
+  function scRow(r) {
+    const m = r.meta && typeof r.meta === 'object' ? r.meta : {}, rd = m.read && typeof m.read === 'object' ? m.read : {}, hit = rd.hit || null, ln = m.line || {}, foot = rd.foot || null;
+    const ft = (foot && foot.ft) || (hit && hit.ft) || null;
+    const card = ln.name ? (ln.shown && ln.shown !== ln.name ? ln.shown + ' (' + ln.name + ')' : ln.name) : hit ? hit.name : 'Nom non reconnu' + (ln.label ? ' · ' + ln.label : '');
+    const lang = String(ln.l || (hit && hit.card) || '').toUpperCase(), ed = ln.e ? String(ln.e).replace('|', ' ').toUpperCase() : ft && ft.codes && ft.codes.length ? ft.codes[0] + (ft.nums && ft.nums[0] ? ' ' + ft.nums[0] : '') : '';
+    const eng = rd.ocr === 'mlkit' ? 'ML Kit' : rd.ocr === 'tesseract' ? 'Tesseract' : 'moteur ?';
+    const app = m.app === 'android' ? 'appli Android' + (m.apk ? ' (APK ' + m.apk + ')' : '') : m.app === 'pwa' ? 'appli installée (PWA)' : m.app === 'web' ? 'navigateur' : '';
+    const img = h('img', { alt: 'Photo du scan', 'data-id': r.id }), ph = h('button', { class: 'scph', type: 'button', 'aria-label': 'Agrandir la photo', 'aria-expanded': 'false' }, img);
+    ph.addEventListener('click', () => { const on = !ph.classList.contains('big'); ph.classList.toggle('big', on); ph.setAttribute('aria-expanded', String(on)); });
+    if (scIo) scIo.observe(img); else scImg(img);
+    const del = h('button', { class: 'btn ghost small sdel', type: 'button' }, 'Supprimer');
+    const art = h('article', { class: 'scr', 'data-id': r.id }, ph, h('div', { class: 'scb' },
+      h('div', { class: 'sct' }, h('span', { class: 'tag warn' }, SCAN_WHAT[r.what] || String(r.what || '?')), h('small', null, r.t ? D_TIME.format(r.t) + ' (' + ago(r.t) + ')' : '—')),
+      h('p', { class: 'scc' }, h('b', null, card), [lang, ed, hit && Number.isFinite(hit.score) ? Math.round(hit.score * 100) + ' %' : '', ln.maybe ? 'à vérifier' : ''].filter(Boolean).map(x => ' · ' + x).join('')),
+      rd.raw || rd.first || (foot && foot.raw) ? h('p', { class: 'scm' }, [rd.raw || rd.first ? 'Lu « ' + (rd.raw || rd.first) + ' »' : '', foot && foot.raw ? 'bas « ' + foot.raw + ' »' : ''].filter(Boolean).join(' · ')) : null,
+      h('p', { class: 'scm' }, [eng + (Array.isArray(rd.langs) && rd.langs.length ? ' (' + rd.langs.join('+') + ')' : ''), SCAN_FRAME[rd.frame] || '', SCAN_SRC[rd.src] || '', app, m.build ? 'version ' + m.build : '', m.ui ? 'interface ' + String(m.ui).toUpperCase() : '', r.acct ? 'compte ' + r.acct.slice(0, 8) : 'sans compte'].filter(Boolean).join(' · ')),
+      r.note ? h('p', { class: 'scn' }, '« ' + r.note + ' »') : null,
+      h('details', { class: 'scd' }, h('summary', null, 'Données de lecture'), h('pre', null, JSON.stringify({ what: r.what, note: r.note, acct: r.acct, img: r.img, meta: m }, null, 2))),
+      h('div', { class: 'flags' }, del)));
+    let armT = 0;
+    del.addEventListener('click', async () => {
+      if (!del.classList.contains('arm')) { del.classList.add('arm'); del.textContent = 'Confirmer la suppression'; clearTimeout(armT); armT = setTimeout(() => { del.classList.remove('arm'); del.textContent = 'Supprimer'; }, 4000); return; }
+      clearTimeout(armT); del.disabled = true;
+      let x; try { x = await call('/scans/' + encodeURIComponent(r.id), 'DELETE'); } catch (e) { x = null; }
+      if (!x || x.status !== 200 || !x.body) { del.disabled = false; return toast((x && x.body && x.body.message) || 'Suppression impossible.'); }
+      art.remove(); sc.total = Math.max(0, sc.total - 1); sc.seen = x.body.n; $('#scCount').textContent = scSum(x.body); scMore();
+      const k = $('#kpis [data-k="scans"] b'); if (k) k.textContent = nf(x.body.n);
+      if (!$('#scList .scr')) $('#scList').replaceChildren(h('p', { class: 'empty' }, 'Aucun scan signalé pour l\'instant.'));
+      toast('Signalement supprimé.');
+    });
+    return art;
+  }
   function server(v) {
     if (!v) return $('#srv').replaceChildren();
     const on = (k, label) => h('span', { class: 'tag ' + (v.flags[k] ? 'ok' : 'off') }, label);
     const px = v.prices, edh = v.edh, t = v.troc;
     $('#srv').replaceChildren(h('h2', null, 'Serveur'),
-      h('div', { class: 'flags' }, on('token', 'Token CardTrader'), on('jobs', 'Recherches'), on('alerts', 'Alertes'), on('push', 'Web Push'), on('fcm', 'FCM'), on('pub', 'Decks publics'), on('amis', 'Amis'), on('troc', 'Échange en direct'), on('names', 'Noms'), on('ads', 'Pub AdMob'),
+      h('div', { class: 'flags' }, on('token', 'Token CardTrader'), on('jobs', 'Recherches'), on('alerts', 'Alertes'), on('push', 'Web Push'), on('fcm', 'FCM'), on('pub', 'Decks publics'), on('amis', 'Amis'), on('troc', 'Échange en direct'), on('names', 'Noms'), on('scans', 'Scans signalés'), on('ads', 'Pub AdMob'),
         ...(v.off || []).map(x => h('span', { class: 'tag bad' }, x + ' coupé'))),
       h('dl', { class: 'kv' },
         kv('Version de la page', v.build || '—'), kv('En marche depuis', dur(v.up)), kv('Mémoire', nf(v.rss) + ' Mo · Node ' + v.node),

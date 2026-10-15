@@ -8,6 +8,10 @@ import { join } from 'node:path';
 const root = new URL('../', import.meta.url).pathname;
 process.chdir(root);
 if (process.env.PRICES_SOURCE_URL === undefined) process.env.PRICES_SOURCE_URL = '';      // le proxy des tests ne va jamais chercher les prix sur GitHub
+if (!process.env.SCAN_REPORTS_DIR) {      // scans signalés (proxy.mjs) : dossier temporaire, jamais le vrai .data/ du dépôt
+  const d = mkdtempSync(join(tmpdir(), 'deckdeal-scanrep-')); process.env.SCAN_REPORTS_DIR = join(d, 'scan-reports');
+  process.on('exit', () => { try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
+}
 if (!process.env.PWA_DIR) {
   const dir = mkdtempSync(join(tmpdir(), 'deckdeal-pwa-'));
   for (const f of ['manifest.webmanifest', 'sw.js', 'privacy.html', 'legal.html', 'passer-de-manabox.html', 'admin.html', 'admin.js', 'admin.css', 'icons']) cpSync(join(root, 'pwa', f), join(dir, f), { recursive: true });

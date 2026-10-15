@@ -58,7 +58,8 @@ const ZOOM_LISTS = {
   /* Scan : cartes reconnues ou liste du prix rapide, dans l'ordre affiché ; la photo prise reste sous une carte « à vérifier ». */
   scan: th => {
     const row = th.closest('.sc-item'); if (!row || !SC.el) return null;
-    const items = SC.pm ? SC.pq.map(x => scanViewItem({ key: x.key, name: x.name, q: x.n || 1, l: x.l, maybe: false, score: 1 })) : [...SC.items.values()].reverse().map(scanViewItem);
+    const src = SC.pm ? SC.pq : [...SC.items.values()].reverse(), items = src.map(x => (SC.pm ? scanViewItem({ key: x.key, name: x.name, q: x.n || 1, l: x.l, maybe: false, score: 1 }) : scanViewItem(x)));
+    if (typeof srAct === 'function') items.forEach((it, i) => { it.act = srAct(src[i]); });      // « Signaler un problème de scan » (scanreport.js)
     return { items, at: items.findIndex(x => x.lid === (row.dataset.id || row.dataset.k)) };
   },
   /* Fiche « Ajouter » du scan : les plus chères. */
