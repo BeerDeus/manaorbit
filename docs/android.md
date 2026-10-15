@@ -141,7 +141,7 @@ Fond blanc même en thème sombre : un lecteur de QR code attend du foncé sur c
 
 ### Liens manaorbit.app ouverts dans l'appli (App Links, APK 1.0.5)
 
-Le QR code d'un autre joueur scanné avec l'appareil photo du téléphone (liste d'échange `https://manaorbit.app/?p=…`, échange en direct `?troc=…`), ou ce lien touché dans WhatsApp ou Messages, s'ouvre **dans l'appli**, directement sur la bonne page, au lieu du navigateur. Il faut deux choses : la variable `ASSETLINKS_SHA256` sur Hostinger et l'APK **1.0.5 (versionCode 6)**.
+Le QR code d'un autre joueur scanné avec l'appareil photo du téléphone (liste d'échange `https://manaorbit.app/?p=…`, échange en direct `?troc=…`, table d'une partie de Commander `?table=…`, résultat `?partie=…`), ou ce lien touché dans WhatsApp ou Messages, s'ouvre **dans l'appli**, directement sur la bonne page, au lieu du navigateur. Il faut deux choses : la variable `ASSETLINKS_SHA256` sur Hostinger et l'APK **1.0.5 (versionCode 6)**.
 
 **1. Les empreintes SHA-256 (une seule fois)**
 
@@ -310,7 +310,7 @@ Bon à savoir :
 | Connexion Google | `@capacitor-firebase/authentication` | fait : sélecteur de compte natif, jamais le navigateur (voir 2 bis pour Firebase) |
 | Widget (valeur de la collection) | plugin local `ManaOrbit` (Java, dans `android/app`) | fait : lit la valeur que l'appli lui laisse (voir « Widget », étape 3) |
 | Widget « QR code d'échange » | plugin local `ManaOrbit` (`TradeWidget.java`) | fait : QR code du lien d'échange envoyé par le site (voir « Widget « QR code d'échange » ») |
-| Liens manaorbit.app (App Links) | `@capacitor/app` + filtre `autoVerify` de `MainActivity` | APK 1.0.5 : liens `?p=`, `?troc=` ouverts dans l'appli (voir « Liens manaorbit.app ouverts dans l'appli » ; variable `ASSETLINKS_SHA256`) |
+| Liens manaorbit.app (App Links) | `@capacitor/app` + filtre `autoVerify` de `MainActivity` | APK 1.0.5 : liens `?p=`, `?troc=`, `?table=`, `?partie=` ouverts dans l'appli (voir « Liens manaorbit.app ouverts dans l'appli » ; variable `ASSETLINKS_SHA256`) |
 | Bouton Retour | `@capacitor/app` | fait : ferme l'écran ouvert ; sur l'accueil, deux appuis mettent l'appli en arrière-plan |
 | Page hors ligne | `android-app/www/index.html` | fait : si le site ne répond pas au lancement (sans réseau), la page relance d'elle-même le site une fois (la copie gardée par le service worker répond alors, comme avec « Réessayer ») ; le message « Mana Orbit a besoin d'Internet… » ne s'affiche que si cette relance échoue aussi (aucune copie : vrai premier lancement). APK 1.0.5 |
 | Diagnostic | plugin local `ManaOrbit` (Firebase, version) | en bas de **Réglages**, la ligne « Version … · APK : » montre ✓ ou ✗ pour chaque plugin (caméra, ML Kit, Google, pub, notif, widget, retour), Firebase et la version de l'APK |

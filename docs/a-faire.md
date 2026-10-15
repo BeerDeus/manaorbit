@@ -77,17 +77,23 @@
   - Écritures : une modification de deck ou de réglage coûte maintenant 2 écritures (le document + le sommaire), mais la collection (le plus souvent écrite) n'en coûte plus qu'une par envoi groupé : journée type estimée ~25 écritures au lieu de ~40, ~65 lectures au lieu de ~220 (quota gratuit : 20 000 écritures, 50 000 lectures par jour pour tout le projet).
   - Limites connues : un appareil qui ouvre un compte pour la 1re fois lit tout comme avant (17 lectures), le tout premier une seule fois 34 (création du sommaire) ; navigation privée ou navigateur sans cache persistant : tout relu à chaque ouverture (coût d'avant + 2) ; une version d'avant de l'appli encore ouverte ailleurs n'écrit pas le sommaire : ses changements sont vus à la vérification suivante (au plus 6 h), puis tous les appareils repassent 24 h aux écoutes d'avant (le service worker remplace vite l'ancienne version).
 - **Proposition d'échange équilibrée** : en grande partie faite par l'échange en direct (13 octobre : deux côtés, balance, « Équilibrer »). Reste, plus tard : une proposition **à distance sans être connectés en même temps** (offre envoyée, acceptée plus tard), récapitulatif à partager en image.
-- **Outils de partie** (plus tard, rien dans le code) : pas de compteur de vies dans Mana Orbit ; éventuellement un lien vers l'appli du propriétaire sur Google Play.
 - **Langues, suites** : interface en fr, en, de, es, it, pt depuis le 9 octobre. Restent en français / anglais seulement : `pwa/manifest.webmanifest`, `pwa/privacy.html`, `<html lang>` et la description de `build.mjs`, la fiche Play Store (`docs/store/`), le texte d'aide « Nom français ou anglais » de la recherche de la liste publique. Poids : chaque langue ajoute ≈ 57 Ko compressés à la page (≈ 630 Ko en tout) : charger les dictionnaires à la demande si ça devient gênant. Japonais et chinois : clé de nom Unicode et modèles OCR à faire avant.
 - Fait et validé par le propriétaire : système d'échange (« Pour toi », QR, valeurs), widget de valeur (4 tailles, courbe 4×2, bouton Scanner / Prix rapide).
 
-## Prochain chantier (décidé le 15 octobre 2026, discussion en cours, rien de codé)
-Comparatif des concurrents : https://claude.ai/artifact/9zxjtrAn6nMvZ3E1QgXMwf. Ordre voulu par le propriétaire :
-1. **Emplacements** (classeurs, boîtes, boîtes de deck, « à vendre »…) : chaque exemplaire dans un seul emplacement (« Non rangé » par défaut) ; filtre et regroupement dans la collection ; pastille « Ranger dans » au scan (collante) ; « Déplacer vers… » ; deck à monter → « cartes à aller chercher » par emplacement ; **monter un deck le range dans un emplacement « Deck : … »** (oui, décidé), le démonter les remet où elles étaient ; import des classeurs ManaBox si leur CSV les donne. Liste des emplacements dans le compte (règle Firestore à republier).
-2. **Proxys : collection à part** (décidé), jamais dans la valeur, l'échange, les stats ni le widget ; destination « Proxys » au scan ; « compter mes proxys » dans À monter ; repère possédée / proxy / manquante dans un deck ; « Remplacer par une vraie ». **Les proxys ont aussi un emplacement.**
-3. **Détails d'exemplaire** (état Cardmarket MT…PO, signée, altérée, erreur d'impression) : **vraiment facultatifs et discrets** (exigence du propriétaire) : rien d'affiché tant que rien n'est rempli.
+## Fait le 15 octobre 2026 (en production)
+Comparatif des concurrents (mis à jour) : https://claude.ai/artifact/9zxjtrAn6nMvZ3E1QgXMwf. Détail dans `README.md`.
+1. **Emplacements, proxys, détails d'exemplaire** : Collection › Rangement, « Ranger dans » au scan, fiche d'un exemplaire (détails repliés), Mes proxys (à part), « À aller chercher » et « Monter le deck » (rangé dans « Deck : … »), classeurs ManaBox importés. Aucune règle Firestore à publier.
    - **Prix payé : pas pour l'instant**, idée gardée pour plus tard (par ligne, ou réparti depuis la session d'ouverture).
-4. **Partie de Commander** (idée du propriétaire, avis demandé avant tout code) : le joueur 1 crée la partie → QR → les autres scannent, choisissent leur place autour de la table et un deck de leur bibliothèque, puis rangent leur téléphone ; invités sans l'appli ; le compteur tourne sur le téléphone du créateur ; à la fin, le résultat est enregistré et envoyé à tous ceux qui ont scanné. Jusqu'à 8 joueurs, interface épurée ; plus tard, 2 téléphones de 4 compteurs pour les parties à 8.
+2. **Partie de Commander** : carte de l'accueil sous l'Échange, table par QR code (joueurs connectés ou invités), compteur sur le téléphone du créateur (affichages A tourné, B liste, C table, au choix dans « … »), fin et QR du résultat, Mes parties, historique du compte (serveur, compte de service : rien à publier).
+   - **Plus tard** : parties à 8 sur deux téléphones de 4 compteurs ; statistiques par deck (taux de victoire).
+3. **Liens ouverts dans l'appli** (App Links, APK 1.0.5) et barre « Ouvrir dans l'appli » dans le navigateur Android.
+
+**À faire par le propriétaire**
+- [ ] Hostinger : variable `ASSETLINKS_SHA256` = empreintes SHA-256 de Play Console › Intégrité de l'appli (clé de signature de l'appli + clé d'importation), puis redéployer ; vérifier https://manaorbit.app/.well-known/assetlinks.json (pas à pas : `docs/android.md` › « Liens manaorbit.app ouverts dans l'appli »).
+- [ ] APK / AAB **1.0.5 (versionCode 6)** : `npm run setup` dans `android-app`, puis AAB signé dans Android Studio, envoyé sur le test fermé (après la variable : Android vérifie les liens à l'installation). Contient aussi la page hors ligne qui relance le site seule.
+- [ ] Sur le téléphone : `adb shell pm get-app-links app.manaorbit` → `verified` (ou Paramètres › Applis › Mana Orbit › Ouvrir par défaut).
+- [ ] À la mise en production publique : `RATE_ASK = true` dans `src/help.js` (demande de note) ; `PLAY_URL` (même fichier) pointe sur la fiche Play, visible seulement des testeurs pendant le test fermé.
+
 Ensuite (comparatif) : niveau Commander (bracket) d'un deck, mode tri du vrac, vente Cardmarket, valeur attendue d'un booster, bilan de la semaine.
 
 ## Si EDHREC ou Archidekt refusent (plan B, à préparer avant la production)
