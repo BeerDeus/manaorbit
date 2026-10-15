@@ -43,7 +43,8 @@ function mobUser(user) {
   MOB.unsub = D.cloud.watchMeta(user.uid, 'scan', (data, pending, fromCache) => {
     if (D.uid !== user.uid || fromCache) return;
     MOB.doc = data || null; MOB.err = '';
-    if (MOB.pc) { if (!data || data.dev !== mobDev() || data.s !== MOB.pc.s) mobLost(); else if (!pending) mobTake(data); }
+    const stale = !!(data && MOB.pc && data.s !== MOB.pc.s && Number(data.updatedAt) > 0 && Number(data.updatedAt) <= MOB.pc.at);      // écho d'une écriture d'avant ce démarrage (« Arrêter » puis « Activer » aussitôt) : pas un autre appareil
+    if (MOB.pc && !stale) { if (!data || data.dev !== mobDev() || data.s !== MOB.pc.s) mobLost(); else if (!pending) mobTake(data); }
     mobBar(); mobPaint();
   }, err => { if (D.uid !== user.uid) return; MOB.err = err && err.code === 'permission-denied' ? 'rules' : 'net'; mobPaint(); });
 }
