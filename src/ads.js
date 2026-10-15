@@ -64,12 +64,12 @@ function adsMargin() {
   return Math.max(0, Math.round(probe('calc(var(--top-in) + var(--hd-h))') - probe('env(safe-area-inset-top,0px)') + probe('var(--ad-gt)')));
 }
 /** Écran où la pub n'a pas sa place : accueil du premier lancement, scan (aperçu natif compris), carte en grand ; et tout ce qui n'est pas de la consultation :
- *  saisie, recherche et résultats, éditeur de deck. Écran du dessus : la dernière vue plein écran (.dv) de la page, même en train de s'ouvrir ou de se fermer
+ *  saisie, recherche et résultats, éditeur de deck, partie de Commander. Écran du dessus : la dernière vue plein écran (.dv) de la page, même en train de s'ouvrir ou de se fermer
  *  (retirée après son animation : réévalué à ce moment-là), sinon la vue de l'appli (#app[data-view]). */
 function adsBusy() {
   if (OB.el || SC.el || imgView || document.documentElement.classList.contains('nat-cam') || (typeof tourOn === 'function' && tourOn())) return true;      // visite guidée (tour.js) : sa bulle peut se poser sous l'en-tête
   const dvs = document.querySelectorAll('body > .dv'), top = dvs[dvs.length - 1];
-  return top ? top.classList.contains('bd') || top.classList.contains('scan') : S.view !== 'home';
+  return top ? top.classList.contains('bd') || top.classList.contains('scan') || top.classList.contains('pu') : S.view !== 'home';      // pu : partie de Commander (partie-ui.js), jamais de pub pendant le jeu
 }
 
 /** Réglages du serveur (/__ping) : bloc d'annonces (ADMOB_BANNER_ID, vide = test) et comptes autorisés à attendre. null : injoignable. */

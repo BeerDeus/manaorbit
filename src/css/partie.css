@@ -1,0 +1,114 @@
+/* ── Partie de Commander (partie-ui.js) ─────────────────────────────────────────────────────────── */
+.hm-partie .hm-tr-ic{color:#ff7a90}
+.hm-partie .hm-tr-ic .i{width:20px;height:20px}
+/* Préparation, fin, rejoindre */
+.pu-setup{gap:12px}
+.pu-card{border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:10px}
+.pu-h{margin:2px 0 0;font-size:13px;font-weight:700;color:var(--ink-2)}
+.pu-deck select{width:100%}
+.pu-qr{flex-direction:row;align-items:center;gap:14px}
+.pu-qr-img{flex:none;width:132px;height:132px;padding:8px;border-radius:14px;background:#fff}
+.pu-qr-img svg{width:100%;height:100%;display:block}
+.pu-qr.big{flex-direction:column;align-items:stretch;text-align:center}
+.pu-qr.big .pu-qr-img{width:min(100%,320px);height:auto;aspect-ratio:1;align-self:center}
+.pu-qr-t{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:13.5px;color:var(--ink-2)}
+.pu-qr-t b{font-size:15px;color:var(--ink)}
+.pu-qr-t .btn{align-self:flex-start}
+.pu-seats,.pu-rank,.pu-hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.pu-seat,.pu-rank li{display:flex;align-items:center;gap:10px;min-height:52px;border-bottom:1px solid var(--line)}
+.pu-seat:last-child,.pu-rank li:last-child{border-bottom:0}
+.pu-pos{flex:none;width:30px;height:30px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;font-weight:800;font-size:13.5px}
+.pu-who{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.pu-who b{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-who b small{font-weight:600;color:var(--ink-3)}
+.pu-who>small{font-size:12.5px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-dev{font-size:15px;opacity:.35}
+.pu-dev.on{opacity:1}
+.pu-x{width:34px;height:34px}
+.pu-chips{display:flex;flex-wrap:wrap;gap:6px}
+.pu-chips button,.pu-wins button,.pu-places button,.pu-affs button{border:1px solid var(--line);background:var(--surface-3);color:var(--ink);border-radius:12px;font-family:inherit;font-size:13.5px;font-weight:650}
+.pu-chips button{height:34px;padding:0 12px}
+.pu-chips button[aria-pressed="true"],.pu-wins button[aria-pressed="true"],.pu-places button[aria-pressed="true"],.pu-affs button[aria-checked="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.pu-foot{display:flex;gap:10px;padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--bar-bg)}
+.pu-foot .btn{flex:1}
+.pu-rank li.win b{color:var(--good)}
+.pu-rank li.me{background:var(--accent-soft);border-radius:12px;padding:0 6px}
+.pu-wins{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pu-wins button{min-height:58px;padding:8px 10px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left}
+.pu-wins small{font-size:12px;color:var(--ink-3);font-weight:600}
+.pu-places{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.pu-places button{min-height:58px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.pu-places button b{font-size:17px}
+.pu-places button small{font-size:11px;color:var(--ink-3);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-places button:disabled{opacity:.45}
+.pu-wait{align-items:center;text-align:center;padding:26px 18px}
+.pu-wait>.i{width:44px;height:44px;color:#ff7a90}
+.pu-wait b{font-size:18px}
+.pu-wait p{margin:0;color:var(--ink-2)}
+.pu-acts{display:flex;flex-wrap:wrap;gap:8px}
+.pu-acts .btn{flex:1}
+.pu-hist li button{width:100%;min-height:58px;display:flex;align-items:center;gap:12px;padding:6px 2px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);text-align:left;font-family:inherit}
+.pu-hd{flex:none;width:52px;font-size:12.5px;font-weight:700;color:var(--ink-3)}
+/* Fiche d'un joueur, menu « … » */
+.pu-sheet .pu-h{margin-top:12px}
+.pu-lifebig{display:flex;align-items:center;justify-content:center;gap:8px}
+.pu-lifebig b{min-width:86px;text-align:center;font-size:44px;font-weight:800;font-variant-numeric:tabular-nums}
+.pu-lifebig button{height:44px;min-width:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);color:var(--ink);font-weight:800;font-family:inherit}
+.pu-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:46px;border-bottom:1px solid var(--line);font-size:14px}
+.pu-row small{color:var(--ink-3)}
+.pu-row .qstep b{min-width:30px;text-align:center}
+.pu-marks{margin-top:12px}
+.pu-sheet .pu-acts{margin-top:14px}
+.pu-affs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pu-affs button{min-height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px}
+.pu-ico{width:34px;height:44px;border-radius:6px;border:2px solid currentColor;position:relative;opacity:.8}
+.pu-ico::before,.pu-ico::after{content:'';position:absolute;background:currentColor;border-radius:2px}
+.pu-ico-A::before{left:3px;right:3px;top:50%;height:2px}
+.pu-ico-A::after{top:3px;bottom:3px;left:50%;width:2px}
+.pu-ico-B::before{left:3px;right:3px;top:12px;height:2px;box-shadow:0 9px currentColor,0 18px currentColor}
+.pu-ico-C{border-radius:50%;width:40px;height:40px}
+.pu-ico-C::before{width:6px;height:6px;border-radius:50%;left:50%;top:-4px;margin-left:-3px;box-shadow:0 44px currentColor}
+.pu-menu{display:flex;flex-direction:column;margin-top:14px;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.pu-menu button{min-height:52px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;padding:8px 14px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);text-align:left;font-family:inherit;font-size:14.5px}
+.pu-menu button:last-child{border-bottom:0}
+.pu-menu button small{font-size:12.5px;color:var(--ink-3)}
+.pu-menu button:disabled{opacity:.45}
+/* Compteur : plein écran sombre, quel que soit le thème */
+.pu.pu-game{background:#05070f;color:#f3f5ff}
+.pu-g{position:absolute;inset:0;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 6px) 6px calc(env(safe-area-inset-bottom) + 6px);gap:6px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.pu-a{flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:6px}
+.pu-b{flex:1;min-height:0;display:grid;grid-auto-rows:minmax(0,1fr);gap:6px}
+.pu-c{flex:1;min-height:0;position:relative}
+.pu-cell{position:relative;container-type:size;min-width:0;min-height:0}
+.pu-c .pu-cell{position:absolute;left:var(--x);top:var(--y);width:var(--w);height:var(--h2);transform:translate(-50%,-50%)}
+.pu-t{position:absolute;inset:0;border-radius:20px;overflow:hidden;background:linear-gradient(160deg,hsl(var(--h) 55% 30%),hsl(var(--h) 50% 18%));box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.pu-t.act{box-shadow:inset 0 0 0 3px rgba(255,255,255,.85),0 0 24px hsl(var(--h) 80% 60% / .55)}
+.pu-t.dead{filter:grayscale(1);opacity:.45}
+.pu-in{position:absolute;left:50%;top:50%;width:100cqw;height:100cqh;transform:translate(-50%,-50%) rotate(var(--r));display:flex;align-items:center;justify-content:center}
+.pu-t.rv .pu-in{width:100cqh;height:100cqw}
+.pu-hit{position:absolute;top:0;bottom:0;width:50%;border:0;background:none;color:rgba(255,255,255,.45);font-size:clamp(18px,9cqmin,40px);font-weight:300;font-family:inherit;display:flex;align-items:center;padding:0 7%;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.pu-hit.m{left:0;justify-content:flex-start}
+.pu-hit.p{right:0;justify-content:flex-end}
+.pu-hit:active{background:rgba(255,255,255,.07)}
+.pu-nm{position:absolute;top:7%;left:50%;transform:translateX(-50%);z-index:2;max-width:70%;border:0;border-radius:99px;padding:4px 12px;background:rgba(0,0,0,.25);color:#fff;font-family:inherit;font-size:clamp(12px,6cqmin,17px);font-weight:700;display:flex;flex-direction:column;align-items:center;line-height:1.15;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.pu-nm small{font-size:.72em;font-weight:600;opacity:.75;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.pu-life{position:relative;z-index:1;pointer-events:none;font-size:clamp(38px,38cqmin,150px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.pu-dl{position:absolute;left:50%;top:22%;transform:translateX(-50%);z-index:1;pointer-events:none;font-size:clamp(13px,8cqmin,24px);font-weight:800;color:#fff;opacity:.9;animation:puDl .25s ease-out}
+@keyframes puDl{from{opacity:0;transform:translate(-50%,6px)}}
+.pu-tags{position:absolute;bottom:7%;left:50%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:none;font-size:clamp(11px,5.5cqmin,15px);font-weight:700;white-space:nowrap}
+.pu-tag{padding:2px 7px;border-radius:99px;background:rgba(0,0,0,.28)}
+.pu-turn{position:absolute;bottom:20%;left:50%;transform:translateX(-50%);z-index:2;border:0;border-radius:99px;padding:5px 12px;background:#fff;color:#0b0f1c;font-family:inherit;font-size:clamp(11px,5cqmin,14px);font-weight:800;white-space:nowrap}
+.pu-t:not(.act) .pu-tags:empty{display:none}
+.pu-mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;width:62px;height:62px;border-radius:50%;border:2px solid rgba(255,255,255,.9);background:#0b0f1c;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;box-shadow:0 6px 24px rgba(0,0,0,.6);font-family:inherit}
+.pu-mid .i{width:22px;height:22px}
+.pu-mid small{font-size:10px;font-weight:700;opacity:.8}
+.pu-bar{display:flex;align-items:center;gap:8px;padding:2px 4px;font-size:14px}
+.pu-bar>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-bar .icon-btn{color:#fff;border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.06)}
+.pu-c-mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;display:flex;flex-direction:column;gap:2px;pointer-events:none}
+.pu-c-mid b{font-size:18px}
+.pu-c-mid span{font-size:13px;opacity:.75}
+.pu-prop{position:absolute;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px;border-radius:16px;background:#1a2136;border:1px solid #3a4470;box-shadow:0 12px 32px rgba(0,0,0,.6);color:#fff}
+.pu-prop span{flex:1 1 100%;font-size:14px;font-weight:600}
+.pu-prop .btn{flex:1}
+@media (prefers-reduced-motion: reduce){.pu-dl{animation:none}}

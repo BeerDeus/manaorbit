@@ -1263,7 +1263,7 @@ function init() {
   xsInit(); alInit(); trInit(); amInit(); if (typeof trocInit === 'function') trocInit();      // troc.js : rien, sauf une session en cours sur cet appareil
   initDecks();
   refreshDeck();
-  homeInit();
+  homeInit(); if (typeof puHomeInit === 'function') puHomeInit();      // carte « Partie de Commander » de l'accueil (partie-ui.js)
   setTimeout(obMaybe, 400);      // premier lancement sur un appareil vierge
   $('#optColl').onchange = e => { S.useColl = e.target.checked; saveStore(); haptic('tap'); refreshDeck(); };
   $('#btnColl').onclick = () => openCollection();
@@ -1334,7 +1334,8 @@ function handleLaunch() {
   else if (resume) resumeRun();
   else if (alerts) setTimeout(alertsOpen, 900);
   else if (amis) amPushOpen('?' + q.toString());                                        // notification d'un ami touchée (Web Push : nouvelle fenêtre) : feuille Amis ou page de l'ami
-  else if (q.has('troc') && typeof trocPushOpen === 'function') trocPushOpen('?' + q.toString());      // échange en direct : QR code de l'hôte scanné, invitation touchée (troc.js)
+  else if (q.has('troc') && typeof trocPushOpen === 'function') trocPushOpen('?' + q.toString());
+  else if ((q.has('table') || q.has('partie')) && typeof puLaunch === 'function') puLaunch('?' + q.toString());      // partie de Commander : rejoindre une table, résultat scanné (partie-ui.js)      // échange en direct : QR code de l'hôte scanné, invitation touchée (troc.js)
   else if (shared) onShared(extractShared({ title: q.get('title'), text: q.get('text'), url: q.get('url') }));
   else if (q.has('collection')) setTimeout(() => openCollection(), 600);                  // lien direct vers la collection (?collection)
   else if (q.has('import')) { obMark(); setTimeout(() => { if (OB.el) obClose(); openCollection('list'); setTimeout(() => openCollImport(), 350); }, 600); }      // « Importer ma collection » de la page /passer-de-manabox : ni premier lancement, ni détour
