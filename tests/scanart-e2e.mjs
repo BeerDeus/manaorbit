@@ -57,7 +57,7 @@ await p.evaluate(async b64 => {
   scanAdd({ key: 'wrath of god', name: 'Wrath of God', score: 0.99, raw: '', card: 'en', sig: artSig(i), ft: footParse(['265/280 C', 'Illus. Rob Alexander']) }, 1, false);
 }, readFileSync(FX + 'photo-m21.jpg').toString('base64'));
 await settle(); L = await lines();
-assert.equal(L['wrath of god en m21|265'], 'read ×1', 'numéro unique parmi ses éditions : lu sur la carte (sans illustration) ' + JSON.stringify(L));
+assert.equal(L['wrath of god en m21|265'], 'art ×2', 'numéro unique parmi ses éditions : la même édition, rangée avec le 1er exemplaire ' + JSON.stringify(L));
 ok('terrain de base (66 éditions) : l\'ancienne trouvée à l\'illustration ; numéro de 2003-2014 lu : édition posée');
 await p.click('.scan [data-act="close"]');
 
