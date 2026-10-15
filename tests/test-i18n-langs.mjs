@@ -24,11 +24,11 @@ const EN = merged('en');
 // Game Changer, Tier…), mots identiques dans la langue. '*' : toutes les langues ; sinon la liste d'une langue. Un texte sans lettre ({a} → {b}, {n} %) passe toujours.
 const SAME = {
   '*': ['Mana Orbit', 'OK', 'Commander', 'cEDH', 'Archidekt', 'Game Changer', '{n} Game Changer', '{n} Game Changers', 'Planeswalkers', 'Deck', 'Decks', 'deck', '{n} deck', '{n} decks',
-    'Tier', 'Tier {t}', 'tier {t}', 'Premium', 'Budget', 'Widget', 'Auto', 'Cache', 'Vibration', 'web', 'Version {v}', 'non-foil', 'Foil', 'Format', 'Stats', 'Standard', 'QR code', '{n} proxy', '{n} min', '{h} h {m}'],
-  de: ['Profil', 'Liste', 'Mana', 'Decklist', 'Scan', 'Initiative', 'Partie'],
-  es: ['de {name}', 'libre'],
-  it: ['{n} PV', 'Mana', 'Test…', 'non foil', 'Multicolore', 'Incolore', 'incolore'],
-  pt: ['de {name}', 'Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}'],
+    'Tier', 'Tier {t}', 'tier {t}', 'Premium', 'Budget', 'Widget', 'Auto', 'Cache', 'Vibration', 'web', 'Version {v}', 'non-foil', 'Foil', 'Format', 'Stats', 'Standard', 'QR code', '{n} proxy', '{n} min', '{h} h {m}', 'Top 100', 'Streamer', 'Playset', '{n} foil', '{n} foils', 'Madrid', 'Fan', 'Babel'],
+  de: ['Berlin', 'Jackpot', 'Marathon', 'Profil', 'Liste', 'Mana', 'Decklist', 'Scan', 'Initiative', 'Partie'],
+  es: ['Niv. {n}', 'Rentable', 'de {name}', 'libre'],
+  it: ['Taipei', 'Tokyo', '{n} PV', 'Mana', 'Test…', 'non foil', 'Multicolore', 'Incolore', 'incolore'],
+  pt: ['Moscou', 'Vitrine', 'bronze', 'de {name}', 'Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}'],
 };
 const sameOk = (l, k) => SAME['*'].includes(k) || (SAME[l] || []).includes(k) || !/\p{L}/u.test(k.replace(/\{\w+\}/g, '').replace(/<[^>]+>/g, ''));
 const vars = s => [...String(s).matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort();

@@ -702,7 +702,7 @@ function onUser(user) {
     });
   }
   renderAccountBtn(); renderDecks(); paintAccount(); refreshDeck(); edhGateSync();      // decks EDHREC : réservés aux comptes vérifiés
-  collUser(user); xsUser(user); trUser(user); mobUser(user); scsUser(user); if (prev !== D.uid) profUser(user);
+  collUser(user); xsUser(user); trUser(user); mobUser(user); scsUser(user); if (prev !== D.uid) profUser(user); if (MO_TEST && typeof prgUser === 'function') prgUser(user);      // niveau et badges dans le compte : lien de test seulement (règles Firestore)
   amUser(user); if (typeof trocUser === 'function') trocUser(user);      // échange en direct : reprend après la connexion, ou quitte (autre compte)
   if (typeof partieUser === 'function') partieUser(user);      // parties de Commander en attente d'envoi pour ce compte
   if (prev !== D.uid && typeof checkServer === 'function') { CTX.serverOk = null; checkServer(); }      // autre compte : a-t-il droit au token du serveur ?

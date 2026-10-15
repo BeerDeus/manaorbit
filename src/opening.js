@@ -268,6 +268,7 @@ function opnFinish(c, rows) {
   collAdd(rows.map(r => ({ k: r.k, n: r.n, q: r.q, l: r.g })), 'add'); collEnrich();      // même ajout que le scan (collAdd) : langue et édition de chaque ligne
   const rec = { id: c.id, name: c.name, at: c.at, end: Date.now(), paid: c.paid, st: c.st ? 1 : 0, n: t.n, v: t.v, rows: rows.map(r => [r.n, r.g, r.q, opnEu(r) || 0]) };
   OPN.hist = [rec, ...opnHist().filter(x => x.id !== rec.id)]; opnHistSave();
+  if (typeof prgOpen === 'function') prgOpen(t.v, c.paid, rows.reduce((a, r) => Math.max(a, opnEu(r) || 0), 0), t.n, !!c.st);      // niveau et badges (progress.js)
   opnClose(); OPN.cur = null; opnSave(); haptic('ok'); opnRefresh();
   toast(TN(t.n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection'), { label: T('Annuler'), fn: () => {
     if (OPN.cur) return;

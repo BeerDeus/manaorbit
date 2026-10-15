@@ -256,6 +256,7 @@ function scanRecap() {
     if (b.dataset.rc === 'pick') { api.close(); SC.recap = null; scanEdFocus(); return; }
     if (b.dataset.rc === 'go' && scanEdTodo().n) { sure = true; haptic('tap'); paint(); return; }      // cartes sans édition : on demande d'abord
     const items = live(); if (!items.length) return;
+    if (typeof prgScan === 'function') prgScan([...SC.items.values()].filter(x => !x.maybe));      // niveau et badges (progress.js) : cartes, langues, éditions lues…
     const before = COLL.map, n = items.reduce((a, x) => a + x.q, 0);
     if (typeof opnTake === 'function' && opnTake(items.map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e), p: x.e ? x.p : null })), { toast: true })) {      // session d'ouverture (opening.js) : les cartes vont dans la session, ajoutées à la collection à la fin
       api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok'); return;
@@ -301,6 +302,7 @@ function scanLotHtml(t) {
   return `<small>${T('Lot : {note}', { note: esc(note) })}</small><span class="lot-v">${part('CM', t.cm, t.cmN)}${t.ctOn ? part('CT', t.ct, t.ctN) : ''}</span>`;
 }
 function scanPriceAdd(m) {
+  if (typeof prgAdd === 'function') prgAdd('pq');      // prix rapides (progress.js)
   m = scanLangOf(m);
   const l = m.card || 'en'; let e = SC.pq.find(x => x.key === m.key);
   if (e) { SC.pq = [e, ...SC.pq.filter(x => x !== e)]; e.n = (e.n || 1) + 1; e.maybe = m.score < 0.84; e.raw = m.raw; e.l = l; if (e.cm === 'err') e.cm = undefined; }

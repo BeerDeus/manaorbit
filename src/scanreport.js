@@ -159,7 +159,7 @@ function srOpen(e, x) {
     let r; try { r = await srPost({ img, what, note: $('#srNote', api.body).value.replace(/\s+/g, ' ').trim().slice(0, 300), meta: await srMeta(e, x) }); } catch (er) { r = { status: 0 }; }
     busy = false;
     if (!sheets.includes(api)) return;
-    if (r.status === 200) { e.sent = true; api.close(); haptic('ok'); toast(T('Merci ! Le scan est signalé à l\'équipe Mana Orbit.')); if (SC.el) scanPaintList(); return; }
+    if (r.status === 200) { e.sent = true; api.close(); haptic('ok'); if (typeof prgAdd === 'function') prgAdd('rp'); toast(T('Merci ! Le scan est signalé à l\'équipe Mana Orbit.')); if (SC.el) scanPaintList(); return; }
     if (r.status === 404) CTX.scanrep = false;      // coupé sur le serveur : le bouton disparaît
     paint(); fail(srErrText(r));
   });

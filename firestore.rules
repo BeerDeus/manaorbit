@@ -62,6 +62,7 @@ service cloud.firestore {
     //  · profile    : pseudo (30 caractères) et photo (data:image, ≤ 40 Ko), affichés sur les liens partagés
     //  · scan       : scan mobile ({ on, s, dev, by, at, items: [{ i, k, n, q, l, e }] ≤ 60 }) : le PC attend, le téléphone y dépose les cartes scannées
     //  · prefs      : réglages du compte ({ scan: { ed, auto, delay, same, lang, vib, snd } }) : réglages du scan, les mêmes sur tous les appareils
+    //  · progress   : niveau et badges ({ c: { compteur: nombre } ≤ 140 }) : cartes scannées, langues lues, victoires à 5 PV ou moins… (src/progress.js)
     match /users/{uid}/meta/{docId} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
@@ -97,6 +98,10 @@ service cloud.firestore {
             && request.resource.data.by is string && request.resource.data.by.size() <= 60
             && request.resource.data.at is number
             && request.resource.data.items is list && request.resource.data.items.size() <= 60)
+          || (docId == 'progress'
+            && request.resource.data.keys().hasOnly(['c', 'updatedAt'])
+            && request.resource.data.c is map
+            && request.resource.data.c.size() <= 140)
           || (docId == 'prefs'
             && request.resource.data.keys().hasOnly(['scan', 'updatedAt'])
             && request.resource.data.scan is map

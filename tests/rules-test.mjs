@@ -121,6 +121,10 @@ await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs()));
 await T.assertSucceeds(getDoc(doc(u1, 'users/u1/meta/prefs')));
 await T.assertFails(setDoc(doc(u2, 'users/u1/meta/prefs'), prefs()));
 await T.assertFails(getDoc(doc(u2, 'users/u1/meta/prefs')));
+await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/progress'), { c: { sc: 1200, sl_fr: 900, gv: 2 }, updatedAt: Date.now() }));      // niveau et badges (progress.js)
+await T.assertFails(setDoc(doc(u2, 'users/u1/meta/progress'), { c: { sc: 1 }, updatedAt: Date.now() }));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/progress'), { c: { sc: 1 }, extra: 1, updatedAt: Date.now() }));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/progress'), { c: Object.fromEntries(Array.from({ length: 141 }, (_, i) => ['k' + i, 1])), updatedAt: Date.now() }));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs({ evil: 1 })));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs({ scan: 'x' })));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs({ scan: Object.fromEntries(Array.from({ length: 13 }, (_, i) => ['k' + i, 1])) })));

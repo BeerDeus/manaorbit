@@ -637,6 +637,7 @@ function trocApply(s) {
   const wish0 = JSON.stringify(TR.wish); let wch = false;
   for (const x of getL) { const k = ownKey(x.n), w = TR.wish[k]; if (!w) continue; const q = w.q - x.q; if (q > 0) TR.wish[k] = { ...w, q }; else delete TR.wish[k]; wch = true; }      // souhait comblé (en partie)
   collChanged(); collEnrich(); if (wch) trChanged();
+  if (typeof prgTrade === 'function') prgTrade();      // niveau et badges (progress.js)
   const sg = trocSum(getL), sv = trocSum(giveL), row = x => [x.n, x.g || '', x.q, x.u || 0, x.i || ''];
   const rec = { id, c: s.c, at: Date.now(), who: (s.ot && s.ot.n) || '', give: giveL.slice(0, 100).map(row), get: getL.slice(0, 100).map(row), vg: sv.v, vr: sg.v, qg: sv.q, qr: sg.q };
   TRC.hist = [rec, ...trocHist().filter(h => h.id !== id)]; trocHistSave();
