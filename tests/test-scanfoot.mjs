@@ -5,7 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { footParse, footMatch, footSame, footNum } = require('../src/scanfoot.js');
+const { footParse: footParseAll, footMatch, footSame, footNum } = require('../src/scanfoot.js');
+const footParse = x => { const f = footParseAll(x); if (!f) return f; const { langs, ...o } = f; return o; };      // couples « CODE LANGUE » à part (test suivant)
 
 const pr = (set, num, l = 'fr', fx = []) => ({ set, num, l, fx });
 // Forêt : plusieurs extensions, plusieurs numéros dans la même extension (illustrations différentes), une impression seulement en anglais
@@ -55,4 +56,14 @@ test('footMatch : langue lue pour départager, codes à chiffres', () => {
   assert.equal(footMatch(['0410 U', 'CMM'], SOL), null, 'deux langues, aucune lue : rien de sûr');
   assert.equal(footMatch(['300/321 R', '2X2 • FR'], SOL).p.set, '2x2', 'code « 2X2 »');
   assert.equal(footMatch(['0246 R', '40K • EN'], SOL).p.set, '40k', 'code « 40K » (aussi lu comme numéro)');
+});
+
+test('footParse : texte d\'ambiance au-dessus de la ligne du bas (« de », « en », « it » ne sont pas des langues)', () => {
+  const fr = footParseAll(['qui vient de la forêt et des eaux', '0202 U', 'DSK • FR  Ryan Yee']);
+  assert.equal(fr.lang, 'fr', 'carte française : « vient de » n\'est pas de l\'allemand'); assert.deepEqual(fr.codes, ['DSK']);
+  assert.equal(footParseAll(['and it burned for a thousand years', '0202 U', 'MKM . EN Mike Bierek']).lang, 'en', 'carte anglaise : « and it » n\'est pas de l\'italien');
+  assert.equal(footParseAll(['el fuego en la noche', '0202 U', 'DSK ES  Ryan Yee']).lang, 'es', 'puce perdue (Tesseract) : la ligne la plus basse');
+  assert.equal(footParseAll(['quand le vent de la mer', 'souffle encore', '0202 U', 'DSK']).lang, '', 'langue illisible : rien plutôt que « de »');
+  const m = footMatch(footParseAll(['le vent de', '0202 U', 'DSK FR']), [{ set: 'dsk', num: '202', l: 'fr' }, { set: 'dsk', num: '202', l: 'de' }]);
+  assert.equal(m.lang, 'fr'); assert.equal(m.p.l, 'fr', 'édition dans la langue lue');
 });

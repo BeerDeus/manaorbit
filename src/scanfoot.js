@@ -26,25 +26,47 @@ function footNum(t) {
   if (!/^\d+$/.test(d)) return '';
   return (d.replace(/^0+(?=\d)/, '') + m[2].toLowerCase());
 }
-/** Lignes lues dans le coin bas gauche → { nums: ['123', …], codes: ['MKM', …], lang ('fr' | ''), foil (true : ★ lue) }, ou null si rien d'utile. */
+/** Code d'extension connu de l'appli (liste des extensions Scryfall, sets.js › SETIC, aux confusions de l'OCR près) ; null : liste pas encore là (sous Node, ou pas chargée). */
+function footKnown(code) {
+  const m = typeof SETIC !== 'undefined' && SETIC && SETIC.m; if (!m || !Object.keys(m).length) return null;
+  const c = String(code || '').toLowerCase(); if (m[c]) return true;
+  const u = c.toUpperCase(); return Object.keys(m).some(k => k.length === u.length && footSame(u, k.toUpperCase()));
+}
+const FOOT_SEP = /^[★*✶☆•·]$/;
+const footCode = t => /^[A-Z0-9]{2,5}$/.test(t) && /[A-Z]/.test(t);
+/**
+ * Lignes lues dans le coin bas gauche → { nums: ['123', …], codes: ['MKM', …], lang ('fr' | ''), langs [{ code, lang, sep, li }], foil (true : ★ lue) }, ou null si rien d'utile.
+ * La zone lue déborde souvent sur la fin du texte d'ambiance : « … qui vient DE la forêt », « … and IT burned » ne sont pas des langues. Une langue n'est retenue que
+ * dans la forme « CODE • LANGUE » (puce, étoile ou point lus ; Tesseract perd souvent la puce : « DSK FR » accepté aussi), et la plus basse l'emporte (la vraie ligne
+ * est la dernière de la carte) ; sans puce, elle doit être dans les deux dernières lignes, et son code ne pas être une extension inconnue (liste chargée). Les autres
+ * couples restent dans langs, départagés par footMatch avec les éditions de la carte.
+ */
 function footParse(lines) {
-  const raw = (Array.isArray(lines) ? lines.map(l => (l && l.text != null ? l.text : l)) : [lines]).join('\n').toUpperCase();
-  if (!raw.trim()) return null;
-  const nums = [], codes = [], strong = [];
-  let lang = '', foil = false;
-  for (const m of raw.matchAll(/([0-9OQDIL|!ZSBGT]{1,4})\s*[/\\]\s*([0-9OQDIL|!ZSBGT]{2,4})/g)) { const n = footNum(m[1]); if (n) nums.push(n); }      // « 123/269 » : le numéro, pas le total
-  const toks = raw.replace(/[/\\]\s*[0-9OQDIL|!ZSBGT]{2,4}/g, ' ').split(/[^A-Z0-9|!★*✶☆•·]+/).flatMap(t => t.split(/(?=[★*✶☆•·])|(?<=[★*✶☆•·])/)).filter(Boolean);
-  for (let i = 0; i < toks.length; i++) {
-    const t = toks[i];
-    if (/^[★*✶☆]$/.test(t)) { if (i > 0 && /^[A-Z0-9]{2,5}$/.test(toks[i - 1]) && FOOT_LANG[toks[i + 1]]) foil = true; continue; }      // « MKM ★ FR » : foil
-    if (/^[•·]$/.test(t)) continue;
-    if (FOOT_LANG[t] && t.length <= 3 && i > 0 && /^[A-Z0-9]{2,5}$|^[★*✶☆•·]$/.test(toks[i - 1]) && !lang) { lang = FOOT_LANG[t]; if (t.length === 2) continue; }
-    const n = footNum(t); if (n) { if (!nums.includes(n)) nums.push(n); if (!/[A-Z]$/.test(t)) continue; }      // « 40K », « 10E » : numéro à lettre ou code d'extension, gardé des deux côtés
-    if (/^[A-Z0-9]{2,5}$/.test(t) && /[A-Z]/.test(t) && !codes.includes(t)) { codes.push(t); if (/^[★*✶☆•·]$/.test(toks[i + 1] || '') || FOOT_LANG[toks[i + 1]]) strong.push(t); }
-  }
-  if (strong.length) codes.splice(0, codes.length, ...strong);      // code suivi de la puce, de l'étoile ou de la langue : le nom de l'artiste (même ligne) n'est pas un code
-  if (!nums.length && !strong.length) return null;      // ni numéro, ni code suivi de « • FR » : pas une ligne du bas (un nom de carte lu, « Llanowar Elves »)
-  return { nums, codes, lang, foil };
+  const arr = (Array.isArray(lines) ? lines.map(l => (l && l.text != null ? l.text : l)) : [lines]).flatMap(t => String(t == null ? '' : t).toUpperCase().split('\n'));
+  if (!arr.join('').trim()) return null;
+  const nums = [], codes = [], strong = [], langs = [];
+  let foil = false;
+  arr.forEach((ln, li) => {
+    for (const m of ln.matchAll(/([0-9OQDIL|!ZSBGT]{1,4})\s*[/\\]\s*([0-9OQDIL|!ZSBGT]{2,4})/g)) { const n = footNum(m[1]); if (n && !nums.includes(n)) nums.push(n); }      // « 123/269 » : le numéro, pas le total
+    const norm = ln.replace(/[/\\]\s*[0-9OQDIL|!ZSBGT]{2,4}/g, ' ').replace(/([A-Z0-9])\s*[.·•]\s*(?=[A-Z]{2,3}\b)/g, '$1 • ');      // « DSK.FR », « DSK · FR » : la puce
+    const toks = norm.split(/[^A-Z0-9|!★*✶☆•·]+/).flatMap(t => t.split(/(?=[★*✶☆•·])|(?<=[★*✶☆•·])/)).filter(Boolean);
+    for (let i = 0; i < toks.length; i++) {
+      const t = toks[i], prev = toks[i - 1] || '', prev2 = toks[i - 2] || '';
+      if (FOOT_SEP.test(t)) { if (/^[★*✶☆]$/.test(t) && footCode(prev) && FOOT_LANG[toks[i + 1]]) foil = true; continue; }      // « MKM ★ FR » : foil
+      if (FOOT_LANG[t] && t.length <= 3) {
+        if (FOOT_SEP.test(prev) && footCode(prev2)) { langs.push({ code: prev2, lang: FOOT_LANG[t], sep: true, li }); if (!strong.includes(prev2)) strong.push(prev2); if (t.length === 2) continue; }
+        else if (footCode(prev)) { langs.push({ code: prev, lang: FOOT_LANG[t], sep: false, li }); if (t.length === 2) continue; }
+      }
+      const n = footNum(t); if (n) { if (!nums.includes(n)) nums.push(n); if (!/[A-Z]$/.test(t)) continue; }      // « 40K », « 10E » : numéro à lettre ou code d'extension, gardé des deux côtés
+      if (footCode(t) && !codes.includes(t)) codes.push(t);
+    }
+  });
+  const last = arr.length - 1, ok = c => c.sep || (c.li >= last - 1 && footKnown(c.code) !== false);
+  const best = langs.filter(ok).sort((a, b) => b.li - a.li || (b.sep ? 1 : 0) - (a.sep ? 1 : 0))[0] || null;      // la plus basse ; à égalité, celle qui a sa puce
+  if (best && !strong.includes(best.code)) strong.push(best.code);
+  if (strong.length) codes.splice(0, codes.length, ...strong.filter(c => c === (best && best.code)).concat(strong.filter(c => c !== (best && best.code))));      // code suivi de la langue : le nom de l'artiste, le texte d'ambiance ne sont pas des codes
+  if (!nums.length && !strong.length) return null;      // ni numéro, ni « CODE • FR » : pas une ligne du bas (un nom de carte lu, « Llanowar Elves »)
+  return { nums, codes, lang: best ? best.lang : '', langs, foil };
 }
 /** Édition d'après la ligne du bas, parmi les impressions de la carte reconnue (prints : [{ set, num, l, fx }]) :
  *  { p (impression), how: 'both' (extension et numéro : sûre) | 'set' (extension seule, une seule impression dedans) | 'num' (numéro seul, unique), lang, foil }
@@ -57,11 +79,13 @@ function footMatch(lines, prints) {
   const numOk = p => f.nums.includes(pn(p));
   const pick = list => {      // à égalité : l'impression dans la langue lue, puis celle qui n'est pas une variante (promo, showcase…)
     if (list.length < 2) return list[0] || null;
-    const byLang = f.lang ? list.filter(p => FOOT_SL[p.l || 'en'] === f.lang) : [];
+    const byLang = extra.lang ? list.filter(p => FOOT_SL[p.l || 'en'] === extra.lang) : [];
     const pool = byLang.length ? byLang : list;
     return pool.length === 1 ? pool[0] : null;
   };
-  const extra = { lang: f.lang, foil: f.foil };
+  const known = c => prints.some(p => footSame(c.code, String(p.set || '').toUpperCase()));
+  const vl = (f.langs || []).filter(known).sort((a, b) => b.li - a.li || (b.sep ? 1 : 0) - (a.sep ? 1 : 0))[0];      // couple « CODE LANGUE » dont le code est une édition de la carte : la langue sûre
+  const extra = { lang: vl ? vl.lang : f.lang, foil: f.foil };
   const both = prints.filter(p => setOk(p) && numOk(p)), b = pick(both);
   if (b) return { p: b, how: 'both', ...extra };
   if (both.length) return null;      // même extension et même numéro dans deux langues sans langue lue : rien de sûr
@@ -77,4 +101,4 @@ function footMatch(lines, prints) {
   return null;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { footParse, footMatch, footSame, footNum, FOOT_LANG };
+if (typeof module !== 'undefined' && module.exports) module.exports = { footParse, footMatch, footSame, footNum, footKnown, FOOT_LANG };

@@ -121,6 +121,7 @@ function scanViewItem(e) {
 }
 /** Texte lu d'une ligne du scan (« lu « … » ») ; carte trouvée dans une autre langue que celle de l'appli, tant qu'elle garde cette langue : « lu en italien ». h : échappement HTML. */
 function scanReadNote(e, raw, h = x => x) {
+  if (e.via === 'foot') return T('retrouvée par la ligne du bas');      // nom illisible : extension et numéro (footIdentify)
   const v = e.via && e.via === e.l ? LANGS[e.via] || e.via : '';
   if (!v) return raw ? T('lu « {raw} »', { raw: h(e.raw || '') }) : '';
   return raw ? T('lu en {lang} : « {raw} »', { lang: v, raw: h(e.raw || '') }) : T('lu en {lang}', { lang: v });
@@ -500,7 +501,13 @@ async function readNameAuto(src, box, outW, psm, cat, retry, st) {
         if (m && (!best || m.score > best.score)) { best = m; best.lang = lang; }
         if (best && best.score >= 0.84 && !scanDoubt(best)) return best;
       }
-      if (st && SC.el) { const o = await scanOther(read, st); if (o && (!best || o.score > best.score)) { o.lang = langs[langs.length - 1]; best = o; } }
+      if (st && SC.el) {
+        let o = await scanOther(read, st);
+        if (o && o.card !== FRX.l && FRX.l !== 'en' && o.score < 0.9 && !collOffline()) {      // trouvée de justesse dans une autre langue : le nom dans la langue de l'appli manque peut-être au catalogue (extension de la semaine) → recherche Scryfall des noms imprimés
+          for (const l of read.filter(x => String(x.text || '').trim().length >= 3).slice(0, 3)) { const fm = await frenchName(l.text, undefined, true).catch(() => null); if (fm && fm.score >= Math.max(0.8, o.score - 0.02)) { o = fm; break; } if (!SC.el) break; }
+        }
+        if (o && (!best || o.score > best.score)) { o.lang = langs[langs.length - 1]; best = o; }
+      }
       if (best && best.score >= 0.84) return best;
     } finally { c.width = c.height = 0; }
   }
@@ -519,6 +526,7 @@ async function readCard(src, cat, strip, card) {
       const t = await readNameAuto(src, b, 1400, psm, cat, retry, st); if (t && (!m || t.score > m.score)) m = t;
       if (natOcr()) break;      // ML Kit lit toute la zone d'un coup : une passe suffit
     }
+    m = await footIdentify(m, src, cardFootBox(W, H));      // nom illisible ou douteux : l'extension et le numéro du bas retrouvent la carte
     return artAttach(await footAttach(m, src, cardFootBox(W, H)), src);
   }
   if (strip) {
@@ -531,6 +539,7 @@ async function readCard(src, cat, strip, card) {
     if ((m && m.score >= 0.84) || !SC.el) break;
     const t = await readNameAuto(src, thirdBox(src), 1600, psm, cat, retry, st); if (t && (!m || t.score > m.score)) m = t;
   }
+  m = await footIdentify(m, src, cardFootBox(W, H));
   return footAttach(m, src, cardFootBox(W, H));      // photo de la carte entière : sa ligne du bas aussi
 }
 
@@ -546,8 +555,9 @@ const cardFootBox = (W, H) => ({ x: 0, y: Math.round(H * 0.86), w: Math.round(W 
 const FOOT_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/. ';      // sans « * » : Tesseract y lit la puce « • » (faux foil)
 /** Lit la ligne du bas (box) et l'ajoute à la carte reconnue m (m.ft : footParse) ; langue imprimée sur la carte retenue (sauf langue imposée). Rien de lu : m inchangée.
  *  Seulement pour une carte reconnue, hors prix rapide et réglage « Sans édition ». Le texte lu reste pour l'écran de diagnostic (5 appuis sur le titre). */
-async function footAttach(m, src, box) {
-  if (!m || m.score < 0.72 || SC.pm || SCS.ed === 'none' || !SC.el || typeof footParse !== 'function') return m;
+/** Lit la ligne du bas (box) une fois par capture (gardée sur src) : { ft (footParse), raw (texte lu, pour le diagnostic) }. */
+async function footRead(src, box) {
+  if (src.__foot) return src.__foot;
   let ft = null, raw = '';
   for (let pass = 0; pass < 2 && !ft && SC.el; pass++) {      // polarité automatique, puis inversée (Tesseract ; ML Kit lit les deux d'un coup)
     const c = prepCanvas(src, box, 1400, pass ? (box.inv ? 0 : 1) : undefined); if (!pass) box.inv = c.inv;
@@ -556,11 +566,66 @@ async function footAttach(m, src, box) {
     finally { c.width = c.height = 0; }
     if (natOcr()) break;
   }
-  SC.foot = { raw, ft, name: m.name };
+  return (src.__foot = { ft, raw });
+}
+async function footAttach(m, src, box) {
+  if (!m || m.score < 0.72 || SC.pm || SCS.ed === 'none' || !SC.el || typeof footParse !== 'function') return m;
+  const { ft, raw } = await footRead(src, box);
+  SC.foot = { raw, ft, name: m.name, card: m.card || 'en', keep: '', via: m.via === 'foot' ? 'foot' : '' };
   if (!ft) return m;
   const out = { ...m, ft };
-  if (ft.lang && !SCS.lang && ft.lang !== m.card && LANGS[ft.lang]) Object.assign(out, { card: ft.lang, img: '', via: '' });      // langue imprimée sur la carte : plus sûre que celle du nom (« Edgar Markov » est le même en français)
+  if (ft.lang && !SCS.lang && ft.lang !== (m.card || 'en') && LANGS[ft.lang]) {
+    if (scanNameSure(m)) SC.foot.keep = ft.lang;      // nom imprimé propre à sa langue (« Anneau solaire ») : c'est lui qui dit la langue, la ligne du bas a pu lire un mot du texte
+    else Object.assign(out, { card: ft.lang, img: '', via: m.via === 'foot' ? 'foot' : '' });      // nom identique dans les deux langues (« Edgar Markov »), ou lu en anglais : la langue imprimée en bas décide
+  }
   return out;
+}
+/** Ressemblance de deux noms (0 à 1), accents, casse et ponctuation ignorés. */
+const nameSimilar = (a, b) => { const x = normName(a), y = normName(b); if (!x || !y) return 0; const n = Math.max(x.length, y.length); return 1 - Math.min(n, lev(x, y, n)) / n; };
+/** Code d'extension lu → code Scryfall (liste des extensions, aux confusions de l'OCR près : « M1S » → m15) ; liste pas encore là : tel quel. */
+function footSetOf(code) {
+  const c = String(code || '').toLowerCase(), m = typeof SETIC !== 'undefined' && SETIC && SETIC.m;
+  if (!m || !Object.keys(m).length || m[c]) return c;
+  return Object.keys(m).find(k => k.length === c.length && footSame(c.toUpperCase(), k.toUpperCase())) || '';
+}
+/**
+ * Nom illisible ou reconnu de justesse (foil, reflet, police spéciale, nom abîmé) : la ligne du bas (extension + numéro) retrouve l'impression exacte chez Scryfall,
+ * dans la langue imprimée en bas (sinon la langue imposée, sinon celle des noms de l'appli puis l'anglais, d'après le texte lu). Le nom lu la confirme : sûre (0,93) ;
+ * sans nom lisible : « à vérifier » (0,8, la photo reste sous la carte). Un nom lu de justesse qui n'y ressemble pas reste celui retenu s'il ressemble plus au texte lu.
+ */
+async function footIdentify(m, src, box) {
+  const weakOther = m && m.card && m.card !== 'en' && m.card !== FRX.l && m.score < 0.95;      // autre langue trouvée sans certitude : vérifiée par la ligne du bas
+  if (!SC.el || (m && m.score >= 0.84 && !weakOther) || typeof footParse !== 'function' || typeof scryBySetNum !== 'function' || collOffline() || (typeof scryLeft === 'function' && scryLeft() > 0)) return m;
+  const { ft, raw: fraw } = await footRead(src, box);
+  if (!ft || !ft.nums.length || !ft.codes.length || !SC.el) return m;
+  const raw = (m && m.raw) || SC.raw || '', want = SCS.lang || ft.lang || '';
+  const sets = [...new Set(ft.codes.slice(0, 2).map(footSetOf).filter(Boolean))];
+  let r = null;
+  for (const set of sets) {
+    for (const num of ft.nums.slice(0, 2)) {
+      try { r = await scryBySetNum(set, num, want || FRX.l); } catch (e) { r = null; }
+      if (r && !want && r.lang !== 'en' && raw && nameSimilar(raw, r.name) > nameSimilar(raw, r.printed)) { try { r = (await scryBySetNum(set, num, 'en')) || r; } catch (e) { /* garde la première */ } }      // texte lu plus proche du nom anglais : l'impression anglaise
+      if (r) break;
+    }
+    if (r) break;
+  }
+  if (!r || !SC.el) return m;
+  const l = (typeof FOOT_SL !== 'undefined' && FOOT_SL[r.lang]) || 'en', sim = nameSimilar(raw, r.printed || r.name);
+  SC.foot = { raw: fraw, ft, name: r.name, card: l, keep: '', via: 'foot' };
+  const hit = { name: r.name, key: ownKey(r.name), score: sim >= 0.6 ? 0.93 : 0.8, raw: raw || r.printed || r.name, card: l, img: r.img || '', via: 'foot', ft };
+  if (!m) return hit;
+  if (hit.key === m.key) return { ...m, score: Math.max(m.score, 0.92), ...(weakOther && ft.lang && hit.card !== m.card ? { card: hit.card, img: hit.img, via: 'foot' } : {}) };      // la ligne du bas confirme le nom lu de justesse (et sa langue, si elle y est lue)
+  return sim > nameSimilar(raw, m.card && m.card !== 'en' ? frName(m.key, m.card) || m.name : m.name) ? hit : m;
+}
+/** Le nom reconnu dit-il à lui seul la langue de la carte ? Oui s'il a été lu dans une autre langue que l'anglais et que ce nom imprimé n'est pas le nom anglais
+ *  (à 20 % près) ; non pour un nom lu en anglais, un nom ambigu entre langues, ou identique à l'anglais (« Edgar Markov », « Atraxa »). */
+function scanNameSure(m) {
+  if (!m || !m.card || m.card === 'en' || m.amb) return false;
+  if (m.card !== FRX.l && m.score < 0.9) return false;      // autre langue trouvée de justesse (nom proche d'une autre carte) : la ligne du bas décide
+  const pn = (typeof frName === 'function' && frName(m.key, m.card)) || m.raw || '', a = normName(pn), b = normName(m.name || '');
+  if (!a || !b) return false;
+  const n = Math.max(a.length, b.length);
+  return lev(a, b, Math.ceil(n * 0.3)) > n * 0.2;
 }
 /** Empreinte de l'illustration (scanart.js) ajoutée à la carte reconnue m, capture = la carte (cadrage « carte entière ») ; comparée aux impressions quand elles sont là (scaned.js). */
 function artAttach(m, src) {
@@ -707,7 +772,7 @@ function scanDiag(on) {
     const tr = SC.stream && SC.stream.getVideoTracks()[0], st = (tr && tr.getSettings && tr.getSettings()) || {}, now = performance.now(); SC.lt = SC.lt.filter(t => now - t < 10000);
     box.textContent = [T('aperçu {n} i/s', { n: SC.fps ? SC.fps.toFixed(0) : '–' }), `${st.width || '?'}×${st.height || '?'}${st.frameRate ? ' @' + Math.round(st.frameRate) : ''}`, SC.fixed ? T('plancher 24 i/s') : T('i/s libre'), T('redémarrages {n}', { n: SC.restarts }), T('dernière lecture {n} ms', { n: SC.ms ? Math.round(SC.ms) : '–' }), T('tâches longues {n}/10 s', { n: SC.lt.length }), camSlow() ? T('mode lent (toucher ici : retour au mode normal)') : '', tr && tr.label ? tr.label : ''].filter(Boolean).join(' · ');
     const a = SC.art; if (a) box.textContent += '\n' + T('illustration · {name} : {res}', { name: a.name, res: a.res });      // dernière comparaison d'illustration (scanart.js)
-    const f = SC.foot; if (f) box.textContent += '\n' + T('ligne du bas · {name} : « {raw} » → {res}', { name: f.name, raw: f.raw || '—', res: f.ft ? [f.ft.codes.join(','), f.ft.nums.join(','), f.ft.lang, f.ft.foil ? '★' : ''].filter(Boolean).join(' ') : '∅' });      // cadrage « carte entière » : ce que la dernière carte a donné
+    const f = SC.foot; if (f) box.textContent += '\n' + T('ligne du bas · {name} : « {raw} » → {res}', { name: f.name, raw: f.raw || '—', res: f.ft ? [f.ft.codes.join(','), f.ft.nums.join(','), f.ft.lang, f.ft.foil ? '★' : '', f.keep ? T('langue {a} gardée (nom), {b} lue en bas ignorée', { a: langCode(f.card), b: langCode(f.keep) }) : ''].filter(Boolean).join(' ') : '∅' });      // cadrage « carte entière » : ce que la dernière carte a donné
   };
   box.onclick = () => { camSetSlow(false); paint(); };
   paint(); SC.diagT = setInterval(paint, 500);

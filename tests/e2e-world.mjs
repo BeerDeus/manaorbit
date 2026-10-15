@@ -139,7 +139,11 @@ export async function newPage(browser, world, opts = {}) {
     if (u.pathname === '/catalog/card-names') return json({ object: 'catalog', data: world.catalog() });
     if (u.pathname === '/cards/named') return u.searchParams.get('format') === 'image' ? route.fulfill({ status: 200, headers: h, contentType: 'image/svg+xml', body: SVG }) : json({ object: 'error', code: 'not_found' }, 404);
     const m = /^\/cards\/([^/]+)\/([^/]+)(?:\/([a-z]+))?$/.exec(u.pathname);
-    if (m) { const lang = m[3] || 'en'; return json({ object: 'card', lang, image_uris: { large: `https://cards.scryfall.io/large/front/${m[1]}/${m[2]}-${lang}.jpg` } }); }
+    if (m) {      // world.setnum['dsk/202'] = { name, printed: { fr: 'Anneau solaire' } } : impression par extension et numéro (scan : nom illisible)
+      const lang = m[3] || 'en', sn = (world.setnum || {})[m[1] + '/' + m[2]];
+      if (sn && lang !== 'en' && !(sn.printed || {})[lang]) return json({ object: 'error' }, 404);
+      return json({ object: 'card', lang, set: m[1], collector_number: m[2], ...(sn ? { name: sn.name, ...(lang !== 'en' ? { printed_name: sn.printed[lang] } : {}) } : {}), image_uris: { large: `https://cards.scryfall.io/large/front/${m[1]}/${m[2]}-${lang}.jpg`, small: `https://cards.scryfall.io/small/front/${m[1]}/${m[2]}-${lang}.jpg` } });
+    }
     return json({ object: 'error' }, 404);
   });
   await p.route('https://svgs.scryfall.io/**', route => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>' }));

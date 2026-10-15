@@ -262,6 +262,22 @@ async function scryImage({ set, num, lang }, signal) {
   return r;
 }
 
+/** Une impression par son extension et son numéro (ligne du bas lue au scan) : { name (anglais), printed (nom imprimé dans sa langue), lang (code Scryfall), set, num, img (petite image) },
+ *  null si Scryfall ne la connaît pas. lang (langue de l'appli) : l'impression dans cette langue, à défaut l'anglaise ; '' : l'anglaise. Gardée 30 jours (une impression ne change pas). */
+async function scryBySetNum(set, num, lang, signal) {
+  const sl = lang ? SCRY_LANG[lang] || '' : '', s = String(set || '').toLowerCase(), n = String(num || '').toLowerCase();
+  if (!/^[a-z0-9]{2,6}$/.test(s) || !/^[0-9a-z★-]{1,8}$/.test(n)) return null;
+  const key = 'sn:' + s + ':' + n + ':' + (sl || 'en');
+  const hit = await Cache.get(key, 30 * DAY); if (hit) return hit.none ? null : hit;
+  const base = 'https://api.scryfall.com/cards/' + encodeURIComponent(s) + '/' + encodeURIComponent(n);
+  const get = async l => { try { return await httpJson(limScry, base + (l && l !== 'en' ? '/' + l : ''), SCRY_JSON, signal, 4, true); } catch (e) { if (e.code === '404') return null; throw e; } };
+  let j = await get(sl); if ((!j || !j.name) && sl && sl !== 'en') j = await get('');
+  const f0 = j && Array.isArray(j.card_faces) ? j.card_faces[0] || {} : {}, iu = (j && j.image_uris) || f0.image_uris || {};
+  const r = j && j.name ? { name: j.name, printed: j.printed_name || f0.printed_name || (j.lang === 'en' || !j.lang ? j.name : ''), lang: j.lang || 'en', set: j.set || s, num: j.collector_number || n, img: iu.small || '' } : null;
+  await Cache.set(key, r || { none: 1 });
+  return r;
+}
+
 /** Toutes les impressions papier d'une carte dans une langue, les plus récentes d'abord : [{ set, num, sn (extension), y (année), th (vignette), urls (grande image de chaque face), fx (particularités),
  *  eu / ef (prix Cardmarket de l'édition, non foil / foil, centimes, null si inconnu), r (rareté) }]. [] si Scryfall n'en a pas dans cette langue. Gardées 2 jours (les prix suivent). */
 async function scryArtPrints(name, lang, signal, prio = true) {      // prio : devant les lectures de fond (écran qui attend) ; false : dans la file (scan)

@@ -7,7 +7,7 @@ random.seed(11)
 SERIF = '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf'
 SANS = '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'
 SANSR = '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'
-def card(name, l1, l2, artist, H=1400, frame=(214, 196, 150)):
+def card(name, l1, l2, artist, H=1400, frame=(214, 196, 150), flavor=''):
     W = round(H * 63 / 88); k = H / 1040
     im = Image.new('RGB', (W, H), (12, 12, 12)); d = ImageDraw.Draw(im)      # bord noir
     m = round(26 * k); d.rounded_rectangle((m, m, W - m, round(H * 0.915)), round(20 * k), fill=frame)
@@ -22,6 +22,7 @@ def card(name, l1, l2, artist, H=1400, frame=(214, 196, 150)):
     d.text((round(62 * k), round(620 * k)), 'Artifact', font=ImageFont.truetype(SERIF, round(30 * k)), fill=(25, 20, 15), anchor='lm')
     d.rectangle((round(60 * k), round(670 * k), W - round(60 * k), round(930 * k)), fill=band)
     d.text((round(78 * k), round(700 * k)), '{T}: Add {C}{C}.', font=ImageFont.truetype(SANSR, round(30 * k)), fill=(25, 20, 15))
+    if flavor: d.text((round(78 * k), round(H * 0.868)), flavor, font=ImageFont.truetype(SANSR, round(28 * k)), fill=(25, 20, 15))      # fin du texte d'ambiance : dans la zone lue de la ligne du bas
     fs = round(H * 0.0155); f = ImageFont.truetype(SANS, fs); fr = ImageFont.truetype(SANSR, fs)      # ligne du bas : blanc sur le bord noir
     x0, y1, y2 = round(W * 0.05), round(H * 0.928), round(H * 0.952)
     d.text((x0, y1), l1, font=f, fill=(235, 235, 235))
@@ -43,6 +44,9 @@ jobs = {
   'foot-m21.jpg': photo(card('Sol Ring', '203/274 U', 'M21 • EN', 'Mike Bierek'), blur=0.6, noise=12),
   'foot-blb-fr.jpg': photo(card('Tour de commandement', '0201 C', 'BLB • FR', 'Ryan Yee', frame=(150, 140, 120)), blur=0.5, noise=10),
   'foot-preview.jpg': photo(card('Sol Ring', '0200 U', 'CMM • EN', 'Mike Bierek', H=980), blur=0.7, noise=12),
+  'foot-fr-flavor.jpg': photo(card('Tour de commandement', '0201 C', 'BLB • FR', 'Ryan Yee', frame=(150, 140, 120), flavor='qui vient de la forêt des anciens'), blur=0.5, noise=10),
+  'foot-fr-de.jpg': photo(card('Tour de commandement', '0201 C', 'BLB • DE', 'Ryan Yee', frame=(150, 140, 120)), blur=0.5, noise=10),
+  'foot-noname.jpg': photo(card('', '0202 U', 'DSK • FR', 'Mike Bierek'), blur=0.5, noise=10),      # nom illisible (foil, reflet) : retrouvée par l'extension et le numéro
 }
 for n, im in jobs.items(): im.convert('RGB').save(f'{out}/{n}', quality=88)
 print('ok', len(jobs))
