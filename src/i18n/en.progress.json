@@ -397,5 +397,7 @@
 "Palier {tier} atteint": "{tier} tier reached",
 "+{n} autre": "+{n} more",
 "+{n} autres": "+{n} more",
-"Prochain : {name}": "Next: {name}"
+"Prochain : {name}": "Next: {name}",
+"Déménageur": "Moving In",
+"Collection importée depuis une autre appli": "Collection imported from another app"
 }

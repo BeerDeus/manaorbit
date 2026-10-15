@@ -1362,6 +1362,7 @@ function openCollImport(initial) {
       if (!parsed || !parsed.items.length) return;
       const before = COLL.map, pl0 = COLL.places, m = mode(), n = parsed.items.length, undo = () => { COLL.map = before; COLL.places = pl0; collChanged(); };
       collAdd(typeof plcImport === 'function' ? plcImport(parsed) : parsed.items, m); api.close(); haptic('ok'); FRN.on.delete(onFr);      // classeurs ManaBox → emplacements (places.js)
+      if (parsed.format === 'csv' && typeof prgAdd === 'function') prgAdd('imp');      // badge « Déménageur » (progress.js)
       toast(m === 'replace' ? TN(n, '{n} carte dans ta collection', '{n} cartes dans ta collection') : TN(n, '{n} carte ajoutée', '{n} cartes ajoutées'), { label: T('Annuler'), fn: undo });
       collEnrich();
       if (n >= GLANCE_MIN) setTimeout(() => openCollGlance(n, m, undo), reduceMotion() ? 0 : 480);      // après la fermeture de l'import ; l'annulation reste possible depuis le coup d'œil

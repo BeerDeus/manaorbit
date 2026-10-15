@@ -120,6 +120,7 @@ function prgMetrics() {
   m.guests = mine.filter(e => e.x.places.some(p => p.sorte === 'invite')).length;
   m.nightG = mine.filter(e => { const h = new Date(e.x.date + e.x.duree * 1000).getHours(); return h < 5; }).length;
   m.tour = typeof tourRead === 'function' && tourRead().fin ? 1 : 0; m.dark = typeof S !== 'undefined' && S.theme === 'dark' ? 1 : 0;
+  m.imp = c.imp ? 1 : 0;      // import d'un CSV (ManaBox, Moxfield…) : compté depuis le 16 octobre
   m.fb = c.fb ? 1 : 0; m.rt = c.rt ? 1 : 0; m.inst = c.in ? 1 : 0; m.tst = c.tst ? 1 : 0;
   const dl = PRG.dly || {}; m.dy = id => Number(dl[id]) || 0;
   return m;
@@ -149,6 +150,7 @@ const PRG_BADGES = [
   { id: 'co_proxy', cat: 'coll', ic: '🖨️', t: 'Faussaire assumé', d: ['{n} proxy', '{n} proxys'], tiers: [1, 10, 50, 200], v: m => m.prox },
   { id: 'co_places', cat: 'coll', ic: '🗄️', t: 'Bien rangé', d: ['{n} emplacement', '{n} emplacements'], tiers: [1, 5, 20, 50], v: m => m.places },
   { id: 'co_placed', cat: 'coll', ic: '📦', t: 'Archiviste', d: ['{n} carte rangée', '{n} cartes rangées'], tiers: [100, 1000, 10000, 50000], v: m => m.placed },
+  { id: 'co_import', cat: 'coll', ic: '🚚', t: 'Déménageur', one: 'Collection importée depuis une autre appli', tiers: [1], v: m => m.imp },
   { id: 'co_wish', cat: 'coll', ic: '⭐', t: 'Rêveur', d: ['{n} carte recherchée', '{n} cartes recherchées'], tiers: [10, 50, 200, 1000], v: m => m.wish },
   { id: 'dk_count', cat: 'deck', ic: '🏗️', t: 'Architecte', d: ['{n} deck', '{n} decks'], tiers: [1, 5, 20, 50], v: m => m.decks },
   { id: 'dk_eng', cat: 'deck', ic: '🛡️', t: 'Monteur', d: ['{n} deck monté', '{n} decks montés'], tiers: [1, 3, 10, 25], v: m => m.eng },

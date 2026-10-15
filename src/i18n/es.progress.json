@@ -397,5 +397,7 @@
 "Palier {tier} atteint": "Nivel {tier} alcanzado",
 "+{n} autre": "+{n} más",
 "+{n} autres": "+{n} más",
-"Prochain : {name}": "Siguiente: {name}"
+"Prochain : {name}": "Siguiente: {name}",
+"Déménageur": "Recién mudado",
+"Collection importée depuis une autre appli": "Colección importada desde otra app"
 }
