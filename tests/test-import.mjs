@@ -16,7 +16,7 @@ const read = f => readFileSync(new URL('./fixtures/import/' + f, import.meta.url
 const sum = r => r.items.map(x => `${x.n} | ${x.q} | ${C.collLines(x).map(([g, q]) => g + ':' + q).join(' ')}`);
 const parse = (f, lang = 'fr') => C.parseCollection(read(f), { lang });
 
-test('ManaBox : éditions, langues (ja, zh_CN, ko inconnue), noms avec virgule, double face, foil sur sa propre ligne', () => {
+test('ManaBox : éditions, langues (ja, zh_CN, ko), noms avec virgule, double face, foil sur sa propre ligne', () => {
   const r = parse('manabox.csv');
   assert.equal(r.format, 'csv'); assert.equal(r.skipped, 0); assert.equal(r.copies, 14);
   assert.deepEqual(sum(r), [
@@ -24,9 +24,10 @@ test('ManaBox : éditions, langues (ja, zh_CN, ko inconnue), noms avec virgule, 
     'Cloud, Midgar Mercenary | 1 | en|fin|1*:1',
     'Delver of Secrets // Insectile Aberration | 4 | jp|isd|51:4',
     'Lightning Bolt | 3 | de|m10|146#cgd:3',
-    'Ragavan, Nimble Pilferer | 1 | |mh2|138:1',      // coréen : langue donnée mais absente de l'appli → non précisée (pas « français » choisi pour les autres lignes)
+    'Ragavan, Nimble Pilferer | 1 | kr|mh2|138:1',      // coréen : langue de l'appli (code CardTrader kr)
     'Swords to Plowshares | 1 | zh-CN|sta|10*:1',
   ]);
+  assert.deepEqual(C.parseCollection('Name,Quantity,Language\nSol Ring,1,Phyrexian\nCounterspell,1,French', { lang: 'fr' }).items.map(i => i.l || ''), ['', 'fr'], 'langue donnée mais absente de l\'appli (phyrexian) : non précisée, pas celle choisie pour les autres lignes');
 });
 
 test('ManaBox avec classeurs : les cartes des listes (souhaits) ne sont pas importées, celles des classeurs oui', () => {
@@ -82,5 +83,5 @@ test('valeurs de colonnes : code d\'extension en majuscules ou minuscules, nom e
   assert.equal(C.parseCollection('Count,Name,Edition,Collector Number\n1,Sol Ring,CMM,410').items[0].x['|cmm|410'], 1, 'majuscules');
   assert.equal(C.parseCollection('Count,Name,Edition,Collector Number\n1,Sol Ring,Mirage,410').items[0].x, undefined, 'Mirage : un nom');
   assert.equal(C.parseCollection('Count,Name,Set ID,Collector Number\n1,Sol Ring,Mirage,410').items[0].x['|mirage|410'], 1, 'colonne de code : prise telle quelle');
-  assert.equal(C.cardLang('Portuguese (Brazil)'), 'pt'); assert.equal(C.cardLang('zh-Hans'), 'zh-CN'); assert.equal(C.cardLang('Korean'), '');
+  assert.equal(C.cardLang('Portuguese (Brazil)'), 'pt'); assert.equal(C.cardLang('zh-Hans'), 'zh-CN'); assert.equal(C.cardLang('Korean'), 'kr'); assert.equal(C.cardLang('Phyrexian'), '');
 });
