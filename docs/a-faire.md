@@ -89,8 +89,8 @@ Comparatif des concurrents (mis à jour) : https://claude.ai/artifact/9zxjtrAn6n
 3. **Liens ouverts dans l'appli** (App Links, APK 1.0.5) et barre « Ouvrir dans l'appli » dans le navigateur Android.
 
 **À faire par le propriétaire**
-- [ ] Hostinger : variable `ASSETLINKS_SHA256` = empreintes SHA-256 de Play Console › Intégrité de l'appli (clé de signature de l'appli + clé d'importation), puis redéployer ; vérifier https://manaorbit.app/.well-known/assetlinks.json (pas à pas : `docs/android.md` › « Liens manaorbit.app ouverts dans l'appli »).
-- [ ] APK / AAB **1.0.5 (versionCode 6)** : `npm run setup` dans `android-app`, puis AAB signé dans Android Studio, envoyé sur le test fermé (après la variable : Android vérifie les liens à l'installation). Contient aussi la page hors ligne qui relance le site seule.
+- [x] Empreintes SHA-256 (clé de signature Play + clé d'importation) : données le 15 octobre, écrites dans `proxy.mjs` (aucune variable Hostinger) ; vérifier après le déploiement : https://manaorbit.app/.well-known/assetlinks.json.
+- [ ] APK / AAB **1.0.5 (versionCode 6)** : `npm run setup` dans `android-app`, puis AAB signé dans Android Studio, envoyé sur le test fermé (Android vérifie les liens à l'installation : le site doit déjà servir les empreintes). Contient aussi la page hors ligne qui relance le site seule.
 - [ ] Sur le téléphone : `adb shell pm get-app-links app.manaorbit` → `verified` (ou Paramètres › Applis › Mana Orbit › Ouvrir par défaut).
 - [ ] À la mise en production publique : `RATE_ASK = true` dans `src/help.js` (demande de note) ; `PLAY_URL` (même fichier) pointe sur la fiche Play, visible seulement des testeurs pendant le test fermé.
 

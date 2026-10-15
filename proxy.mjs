@@ -39,7 +39,11 @@ const ADMOB_PUB = (/pub-\d{10,20}/.exec(String(process.env.ADMOB_PUB_ID || proce
 // les liens https://manaorbit.app/ (?p=, ?troc=…) dans l'appli. ASSETLINKS_SHA256 : empreintes SHA-256 des certificats qui signent l'appli (Play Console ›
 // Test et publication › Intégrité de l'appli › Signature de l'application : clé de signature Play et clé d'importation), séparées par des virgules,
 // avec ou sans « : ». Aucune empreinte valide : 404 (les liens restent dans le navigateur). Rien de secret : ces empreintes sont publiques.
-const ASSETLINKS_RAW = String(process.env.ASSETLINKS_SHA256 || '').split(',').map(x => x.trim()).filter(Boolean);
+// Empreintes de l'appli Play (Play Console › Intégrité de l'appli › Signature, relevées le 15 octobre 2026) : clé de signature de l'application (Google) et clé d'importation.
+// Publiques par nature (servies telles quelles) ; ASSETLINKS_SHA256 les remplace si elle est définie, « 0 » coupe les App Links.
+const ASSETLINKS_DEF = '96:57:5F:6F:FD:89:38:E5:FE:46:BD:72:3B:E0:94:E6:27:5C:10:26:B9:14:01:57:D3:37:70:91:B7:A5:8A:33,B2:5B:42:63:AE:39:5B:E7:17:E9:3A:CF:9F:F7:88:13:A8:06:5B:83:2B:5D:41:91:3C:6D:E9:4B:25:24:0D:93';
+const ASSETLINKS_ENV = process.env.ASSETLINKS_SHA256 == null ? ASSETLINKS_DEF : String(process.env.ASSETLINKS_SHA256).trim() === '0' ? '' : String(process.env.ASSETLINKS_SHA256);
+const ASSETLINKS_RAW = ASSETLINKS_ENV.split(',').map(x => x.trim()).filter(Boolean);
 const ASSETLINKS_FP = [...new Set(ASSETLINKS_RAW.map(x => x.replace(/:/g, '').toUpperCase()).filter(x => /^[0-9A-F]{64}$/.test(x)).map(x => x.match(/../g).join(':')))];
 const ASSETLINKS = ASSETLINKS_FP.length ? JSON.stringify([{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: 'app.manaorbit', sha256_cert_fingerprints: ASSETLINKS_FP } }]) : '';
 // Interrupteurs EDHREC / Archidekt (plan B de docs/a-faire.md : si l'un refuse, sa fonction est coupée depuis Hostinger, sans nouvelle APK), annoncés par /__ping (off) :

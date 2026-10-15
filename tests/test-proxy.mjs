@@ -153,7 +153,7 @@ r = await j(B + '/__ping', { headers: { 'x-forwarded-proto': 'https' } }); asser
 r = await j(B + '/', { headers: { 'x-forwarded-proto': 'https' } }); assert.equal(r.h.get('strict-transport-security'), 'max-age=15552000');
 r = await j(B + '/__ping'); assert.equal(r.h.get('strict-transport-security'), null); r = await j(B + '/__ping', { headers: { 'x-forwarded-proto': 'http' } }); assert.equal(r.h.get('strict-transport-security'), null);
 console.log('✓ HSTS seulement derrière https (X-Forwarded-Proto)');
-r = await j(B + '/.well-known/assetlinks.json'); assert.equal(r.s, 404); assert.deepEqual(r.o, { error: 'not_found' }); console.log('✓ /.well-known/assetlinks.json sans ASSETLINKS_SHA256 : 404 (liens Android laissés au navigateur)');
+r = await j(B + '/.well-known/assetlinks.json'); assert.equal(r.s, 200); assert.deepEqual(r.o[0].target.sha256_cert_fingerprints, ['96:57:5F:6F:FD:89:38:E5:FE:46:BD:72:3B:E0:94:E6:27:5C:10:26:B9:14:01:57:D3:37:70:91:B7:A5:8A:33', 'B2:5B:42:63:AE:39:5B:E7:17:E9:3A:CF:9F:F7:88:13:A8:06:5B:83:2B:5D:41:91:3C:6D:E9:4B:25:24:0D:93']); console.log('✓ /.well-known/assetlinks.json sans ASSETLINKS_SHA256 : les empreintes de l\'appli Play (clé de signature, clé d\'importation)');
 p.kill();
 { // App Links Android : /.well-known/assetlinks.json avec ASSETLINKS_SHA256 (empreintes de la clé de signature Play et de la clé d'importation)
   const P = 18786, AB = 'http://127.0.0.1:' + P + '/.well-known/assetlinks.json';
@@ -174,6 +174,9 @@ p.kill();
   const pb = await start({ CARDTRADER_TOKEN: '', HOST: '0.0.0.0', ASSETLINKS_SHA256: 'AB:CD:EF, 1234' }, P);
   assert.equal((await fetch(AB)).status, 404, 'aucune empreinte valide : 404'); assert.match(pb.log(), /ASSETLINKS_SHA256 : 2 empreintes ignorées/); assert.doesNotMatch(pb.log(), /App Links Android/);
   pb.kill();
+  await new Promise(res2 => setTimeout(res2, 200));
+  const pc = await start({ CARDTRADER_TOKEN: '', HOST: '0.0.0.0', ASSETLINKS_SHA256: '0' }, P);
+  assert.equal((await fetch(AB)).status, 404, 'ASSETLINKS_SHA256=0 : App Links coupés'); pc.kill();
   console.log('✓ /.well-known/assetlinks.json : application/json, sans redirection ni cookie, empreintes normalisées (majuscules, « : »), invalides ignorées et signalées, HEAD, lecture seule, ancienne adresse comprise ; aucune valide : 404');
 }
 { // erreur interne : réponse générique, détail dans le journal seulement
