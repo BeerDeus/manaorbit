@@ -78,7 +78,7 @@ await shot(p, '0-accueil');
 ok('accueil sans compte : aucun téléchargement EDHREC');
 await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForTimeout(300);
 assert.ok(await visible(p, '#collSeg'), 'onglets visibles avec une collection vide');
-assert.deepEqual(await p.$$eval('#collSeg .seg-opt', b => b.map(x => x.dataset.v)), ['list', 'stats'], 'Ma collection : Cartes · Stats (Échange et Decks dans la barre du bas)');
+assert.deepEqual(await p.$$eval('#collSeg .seg-opt', b => b.map(x => x.dataset.v)), ['list', 'places', 'stats'], 'Ma collection : Cartes · Rangement · Stats (Échange et Decks dans la barre du bas)');
 assert.match(await txt(p, '.coll-main .dv-empty'), /^Pas encore de cartes pour l'instant Scanne tes cartes pour débuter\. Scanner Importer Ajouter à la main Pour 1 000 cartes ou plus/);
 assert.deepEqual(await p.$$eval('.coll-main .coll-cta .btn', b => b.map(x => [x.dataset.act, x.classList.contains('ghost')].join())), ['scan,false', 'import,true', 'add,true'], 'Scanner en premier (bouton plein)');
 assert.equal(await visible(p, '.coll-px'), false, 'pas de bouton « € » sans carte'); assert.equal(await visible(p, '.coll-fwrap'), false, 'ni recherche, ni filtres, ni tri');
