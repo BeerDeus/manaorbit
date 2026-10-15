@@ -64,7 +64,7 @@ await p.fill('#cvQ', 'wrath'); assert.deepEqual(await p.$$eval('.cv-card', c => 
 await p.click('.cv-card'); await p.waitForFunction(() => !document.querySelector('#cvGrid'), null, { timeout: 3000 });
 assert.match(await txt(p, '#dkCoverSub'), /^Wrath of God · choisie$/);
 const d1 = await p.evaluate(() => findDeck('d1'));
-assert.match(d1.text, /^\/\/ Deck Deal : standard\n\/\/ Deck Deal cover : Wrath of God\nDeck\n/); assert.equal(d1.updatedAt, 40, 'le deck garde sa place'); assert.equal(await p.evaluate(() => deckFmt(findDeck('d1'))), 'standard');
+assert.match(d1.text, /^\/\/ Deck Deal : standard\n\/\/ Deck Deal cover : Wrath of God\nDeck\n/); assert.equal(d1.updatedAt, 41, 'le deck garde sa place (date + 1 : les autres appareils voient le changement, cloud.js › sommaire)'); assert.equal(await p.evaluate(() => deckFmt(findDeck('d1'))), 'standard');
 assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:decks:v1')).find(d => d.id === 'd1').text.includes('cover : Wrath of God')), true, 'gardé sur l\'appareil');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
 await p.waitForFunction(() => /wrath-of-god/.test((document.querySelector('.deck[data-id="d1"] .deck-art img') || {}).src || ''), null, { timeout: 8000 });

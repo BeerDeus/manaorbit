@@ -358,7 +358,10 @@ function makeSum(m, db, col) {
     const settle = (x, pr) => pr.then(x.res, x.rej);
     if (!allowed(uid)) { items.forEach(x => settle(x, Promise.resolve().then(() => putPlain(uid, x)))); return; }      // refus constaté entre-temps
     const b = fs.writeBatch(db), p = {}, d = {}, keys = [];
-    for (const x of items) { x.ops(b); for (const [k, v] of x.entries) { (k[0] === 'd' ? d : p)[k.slice(2)] = v === null ? fs.deleteField() : v; keys.push(k); } }
+    items = items.filter(x => { try { x.ops(fs.writeBatch(db)); return true; } catch (e) { x.rej(e); return false; } });      // données refusées par le SDK (champ undefined…), essayées sur un lot à part : ce document seul échoue
+    if (!items.length) return;
+    items.forEach(x => x.ops(b));
+    for (const x of items) for (const [k, v] of x.entries) { (k[0] === 'd' ? d : p)[k.slice(2)] = v === null ? fs.deleteField() : v; keys.push(k); }
     b.set(manRef(uid), { ...(Object.keys(p).length ? { p } : {}), ...(Object.keys(d).length ? { d } : {}) }, { merge: true });
     const pr = b.commit();
     touched(uid, keys);

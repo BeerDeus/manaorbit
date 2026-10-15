@@ -1018,13 +1018,16 @@ async function importApi(req, res, url) {
    du catalogue Scryfall seulement, aucun mot refusé),
    écarte ceux signalés PUBDECKS_REPORTS fois (3 par défaut, collection pubreports) et ceux de PUBDECKS_HIDE (identifiants séparés par des virgules),
    puis sert la liste à tous : { at, decks: [{ id, by, cmd, ci, cards: [[nom, qté]], u }] }, relue au plus toutes les 10 min (PUBDECKS_TTL_MS), plus
-   tôt après une publication (?fresh=1, 30 s au moins entre deux lectures). Sans compte de service ou avec PUBDECKS=0 : coupé (liste vide, l'appli fait sans). */
+   tôt après une publication (?fresh=1, 30 s au moins entre deux lectures). Sans compte de service ou avec PUBDECKS=0 : coupé (liste vide, l'appli fait sans).
+   Quota de lectures (gratuit : 50 000 par jour pour tout le projet) : relire tout coûte une lecture par deck et par signalement. Avant, 2 agrégations
+   (nombre et somme des dates de chaque collection : 2 lectures) ; rien n'a changé depuis la dernière lecture complète → rien n'est relu (au plus 6 h). */
 const FS_BASE = (process.env.FIRESTORE_BASE_URL || 'https://firestore.googleapis.com').replace(/\/+$/, '');      // surchargeable pour les tests
 const DS_SCOPE = 'https://www.googleapis.com/auth/datastore';
 const PUB_TTL = Number(process.env.PUBDECKS_TTL_MS) > 0 ? Number(process.env.PUBDECKS_TTL_MS) : 10 * 60e3, PUB_SOON = process.env.PUBDECKS_SOON_MS ? Math.max(0, Number(process.env.PUBDECKS_SOON_MS) || 0) : 30e3, PUB_CAP = 3000;      // PUB_SOON : écart minimal entre deux lectures (surchargeable pour les tests)
 const PUB_REPORTS = Math.max(1, Math.floor(Number(process.env.PUBDECKS_REPORTS)) || 3);
 const PUB_HIDE = new Set(String(process.env.PUBDECKS_HIDE || '').split(/[\s,]+/).filter(Boolean));
-const PUB = { at: 0, tried: 0, raw: null, gz: null, etag: '', run: null, n: 0, hid: 0, err: '', names: null };
+const PUB = { at: 0, tried: 0, raw: null, gz: null, etag: '', run: null, n: 0, hid: 0, err: '', names: null, sig: '', full: 0, same: 0 };
+const PUB_FULL = 6 * 3600e3;      // relecture complète au moins toutes les 6 h (catalogue des noms relu, PUBDECKS_HIDE…)
 /** Noms de cartes existants : catalogue complet de Scryfall (/catalog/card-names, relu une fois par jour), face avant des cartes doubles comprise ;
  *  un deck public n'a que de vraies cartes. Scryfall injoignable : pas de contrôle des noms (le filtre de mots reste), nouvel essai dans 1 h. */
 async function pubNames() {
@@ -1057,11 +1060,24 @@ async function fsList(col, tok) {
   }
   return out;
 }
+/** Nombre de documents d'une collection racine et somme d'un champ (une agrégation : une lecture facturée par tranche de 1 000 documents). */
+async function fsAgg(col, field, tok) {
+  const r = await fetch(`${FS_BASE}/v1/projects/${fcmSa.project}/databases/(default)/documents:runAggregationQuery`, { method: 'POST',
+    headers: { Authorization: 'Bearer ' + tok, Accept: 'application/json', 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15000), redirect: 'manual',
+    body: JSON.stringify({ structuredAggregationQuery: { structuredQuery: { from: [{ collectionId: col }] }, aggregations: [{ alias: 'n', count: {} }, { alias: 's', sum: { field: { fieldPath: field } } }] } }) });
+  const j = await r.json().catch(() => null), f = r.ok && Array.isArray(j) && j[0] && j[0].result && j[0].result.aggregateFields;
+  if (!f || fsVal(f.n) === undefined) { const e = new Error(col + ' (agrégation) : HTTP ' + r.status); e.http = r.status; throw e; }
+  return fsVal(f.n) + ':' + fsVal(f.s);
+}
+/** Empreinte des decks publics et des signalements : la même qu'à la dernière lecture complète = rien d'ajouté, de modifié ni de retiré. */
+const pubSig = tok => Promise.all([fsAgg('pubdecks', 'updatedAt', tok), fsAgg('pubreports', 'at', tok)]).then(x => x.join('|'));
 /** Relit les decks publics et les signalements, puis prépare la liste servie (JSON et sa version gzip). Une seule lecture à la fois. */
 function pubRefresh() {
   if (!PUB.run) PUB.run = (async () => {
     PUB.tried = Date.now();
     let tok = await fcmAccess(DS_SCOPE), docs, reps;
+    const sig = await pubSig(tok).catch(() => '');      // agrégation impossible (jeton révoqué, panne) : relecture complète, comme avant
+    if (sig && sig === PUB.sig && PUB.raw && Date.now() - PUB.full < PUB_FULL) { PUB.at = Date.now(); PUB.err = ''; PUB.same++; return; }      // rien de changé : liste gardée (même ETag)
     try { [docs, reps] = await Promise.all([fsList('pubdecks', tok), fsList('pubreports', tok)]); }
     catch (e) { if (e.http !== 401) throw e; fcmAuth.get(DS_SCOPE).tok = ''; tok = await fcmAccess(DS_SCOPE); [docs, reps] = await Promise.all([fsList('pubdecks', tok), fsList('pubreports', tok)]); }      // jeton révoqué : un nouveau, un seul essai
     const known = await pubNames(), flags = new Map();
@@ -1075,7 +1091,7 @@ function pubRefresh() {
     }
     decks.sort((a, b) => b[0] - a[0]);
     const raw = Buffer.from(JSON.stringify({ at: Date.now(), decks: decks.slice(0, PUB_CAP).map(d => d[1]) }));
-    Object.assign(PUB, { raw, gz: await gzipA(raw), etag: '"' + sha1Of(raw) + '"', at: Date.now(), n: Math.min(decks.length, PUB_CAP), hid, err: '' });
+    Object.assign(PUB, { raw, gz: await gzipA(raw), etag: '"' + sha1Of(raw) + '"', at: Date.now(), n: Math.min(decks.length, PUB_CAP), hid, err: '', sig, full: Date.now() });
   })().catch(e => { PUB.err = String(e && e.message || e).slice(0, 200); console.warn('Decks publics : ' + PUB.err); }).finally(() => { PUB.run = null; });
   return PUB.run;
 }
