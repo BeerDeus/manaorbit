@@ -2,5 +2,9 @@
 "retrouvée par la ligne du bas": "über die untere Zeile gefunden",
 "langue {a} gardée (nom), {b} lue en bas ignorée": "Sprache {a} behalten (Name), unten gelesenes {b} ignoriert",
 "langue du lot ({lang}) : nom identique d'une langue à l'autre": "Sprache des Stapels ({lang}): Name in beiden Sprachen gleich",
-"langue du lot : {v}": "Sprache des Stapels: {v}"
+"langue du lot : {v}": "Sprache des Stapels: {v}",
+"nom de plusieurs cartes : celle-ci d'après la ligne du bas": "Name mehrerer Karten: diese laut unterer Zeile",
+"nom de plusieurs cartes : celle-ci d'après l'illustration": "Name mehrerer Karten: diese laut Illustration",
+"nom de plusieurs cartes : {list}": "Name mehrerer Karten: {list}",
+"Plutôt {name}": "Eher {name}"
 }

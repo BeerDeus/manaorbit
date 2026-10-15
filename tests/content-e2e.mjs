@@ -77,6 +77,7 @@ ok('Decks › « Prix d\'une liste » : la saisie avec les onglets Decks, barre 
   assert.equal(r[3].icon, '', 'icône d\'une autre origine : écartée');
   assert.equal(await p.evaluate(() => setsPick(SETS.list).find(x => x.code === 'xss').url), 'https://scryfall.com/sets/xss', 'adresse inattendue : remplacée par la page Scryfall de l\'édition');
   assert.equal(await p.evaluate(() => window.__xss), undefined, 'nom échappé');
+  await p.waitForFunction(() => { const a = document.getElementById('hmSetsSl'); return a && a.getBoundingClientRect().height >= 40; }, null, { timeout: 5000 }).catch(() => {});      // carte de l'accueil encore en train d'apparaître (CI lente) : hauteur mesurée une fois posée
   assert.deepEqual(await p.$eval('#hmSetsSl', a => [a.href, a.target, a.rel, a.textContent.trim(), a.getBoundingClientRect().height >= 40]), ['https://secretlair.wizards.com/', '_blank', 'noopener', 'Secret Lair : drops en cours et à venir↗', true], 'lien Secret Lair sous la liste (les drops ne sont pas des éditions sur Scryfall)');
   assert.equal(hits.n, 1);
   assert.equal(await p.$eval('#hmSets', e => getComputedStyle(e.querySelector('.hm-set-ic img')).filter), 'invert(1) brightness(0.92)', 'icônes noires éclaircies en thème sombre');

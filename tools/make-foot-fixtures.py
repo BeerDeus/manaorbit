@@ -1,19 +1,21 @@
 # Photos de cartes entières pour tester la lecture de la ligne du bas (scanfoot.js) : bord noir, ligne « 0202 U » / « DSK • EN  Artiste »
 # en bas à gauche, à la taille réelle (hauteur des capitales ≈ 1,1 % de la carte). Une photo « appareil » (carte de 1 400 px de haut) et une
-# « aperçu » (980 px : l'image de la caméra en direct). Usage : python3 tools/make-foot-fixtures.py tests/fixtures
+# « aperçu » (980 px : l'image de la caméra en direct). Cartes japonaise et coréenne (asia-*) : noms en écriture d'Asie. Usage : python3 tools/make-foot-fixtures.py tests/fixtures
 import random, sys
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 random.seed(11)
 SERIF = '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf'
 SANS = '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'
 SANSR = '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'
-def card(name, l1, l2, artist, H=1400, frame=(214, 196, 150), flavor=''):
+JA = '/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf'      # japonais (IPAGothic)
+CJK = '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc'      # coréen, chinois (WenQuanYi Zen Hei)
+def card(name, l1, l2, artist, H=1400, frame=(214, 196, 150), flavor='', font=SERIF):
     W = round(H * 63 / 88); k = H / 1040
     im = Image.new('RGB', (W, H), (12, 12, 12)); d = ImageDraw.Draw(im)      # bord noir
     m = round(26 * k); d.rounded_rectangle((m, m, W - m, round(H * 0.915)), round(20 * k), fill=frame)
     band = (236, 226, 196)
     d.rounded_rectangle((round(44 * k), round(44 * k), W - round(44 * k), round(112 * k)), round(12 * k), fill=band, outline=(60, 50, 40), width=max(1, round(3 * k)))
-    d.text((round(62 * k), round(78 * k)), name, font=ImageFont.truetype(SERIF, round(42 * k)), fill=(25, 20, 15), anchor='lm')
+    d.text((round(62 * k), round(78 * k)), name, font=ImageFont.truetype(font, round(42 * k)), fill=(25, 20, 15), anchor='lm')
     d.rectangle((round(60 * k), round(128 * k), W - round(60 * k), round(570 * k)), fill=(70, 100, 140))
     for _ in range(40):
         x, y = random.randint(round(70 * k), W - round(140 * k)), random.randint(round(140 * k), round(540 * k))
@@ -47,6 +49,9 @@ jobs = {
   'foot-fr-flavor.jpg': photo(card('Tour de commandement', '0201 C', 'BLB • FR', 'Ryan Yee', frame=(150, 140, 120), flavor='qui vient de la forêt des anciens'), blur=0.5, noise=10),
   'foot-fr-de.jpg': photo(card('Tour de commandement', '0201 C', 'BLB • DE', 'Ryan Yee', frame=(150, 140, 120)), blur=0.5, noise=10),
   'foot-noname.jpg': photo(card('', '0202 U', 'DSK • FR', 'Mike Bierek'), blur=0.5, noise=10),      # nom illisible (foil, reflet) : retrouvée par l'extension et le numéro
+  'asia-jp-foot.jpg': photo(card('太陽の指輪', '0202 U', 'DSK • JP', 'Mike Bierek', font=JA), blur=0.5, noise=10),      # japonaise récente : la ligne du bas suffit (sans lire le nom)
+  'asia-jp-old.jpg': photo(card('太陽の指輪', '', '', 'Mark Tedin', font=JA), blur=0.4, noise=8),      # japonaise d'avant 2015 (rien en bas) : le nom lu en japonais
+  'asia-kr-old.jpg': photo(card('태양 반지', '', '', 'Mark Tedin', font=CJK), blur=0.4, noise=8),      # coréenne : le nom lu en coréen
 }
 for n, im in jobs.items(): im.convert('RGB').save(f'{out}/{n}', quality=88)
 print('ok', len(jobs))

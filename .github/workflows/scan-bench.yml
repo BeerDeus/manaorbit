@@ -1,0 +1,48 @@
+# Banc d'essai du scan sur de vraies cartes (tools/bench-real.mjs) : cartes tirées au hasard chez Scryfall dans chaque langue, « photographiées » dans le navigateur,
+# lues par le vrai scan de l'appli. Lancement manuel seulement (onglet Actions › « Banc d'essai du scan » › Run workflow) : le rapport s'affiche dans le résumé
+# du lancement, les photos des cartes ratées sont dans l'artefact « bench ». Rien n'est enregistré dans le dépôt.
+name: Banc d'essai du scan
+on:
+  workflow_dispatch:
+    inputs:
+      n:
+        description: Cartes par langue (moitié récentes, moitié d'avant 2015)
+        default: '6'
+      langs:
+        description: Langues (codes Scryfall)
+        default: 'fr,en,de,es,it,pt,ru,ja,ko,zhs,zht'
+      cond:
+        description: Conditions (net, photo)
+        default: 'net,photo'
+permissions:
+  contents: read
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - name: Dépendances
+        run: |
+          node build.mjs
+          cd tests && npm ci && npx playwright-core install --with-deps chromium
+          echo "CHROMIUM=$(node -p "require('playwright-core').chromium.executablePath()")" >> "$GITHUB_ENV"
+      - name: Banc d'essai
+        env:      # entrées passées par l'environnement, jamais collées dans la commande
+          N: ${{ inputs.n }}
+          LANGS: ${{ inputs.langs }}
+          COND: ${{ inputs.cond }}
+        run: node tools/bench-real.mjs --n "$N" --langs "$LANGS" --cond "$COND" --out bench-out
+      - name: Rapport
+        if: always()
+        run: '[ -f bench-out/report.md ] && cat bench-out/report.md >> "$GITHUB_STEP_SUMMARY" || true'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench
+          path: bench-out/

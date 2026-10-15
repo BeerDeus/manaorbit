@@ -11,11 +11,22 @@ const TESS_V = '5.1.1', CDN = 'https://cdn.jsdelivr.net/npm/';
 const TESS = {
   js: `${CDN}tesseract.js@${TESS_V}/dist/tesseract.min.js`, worker: `${CDN}tesseract.js@${TESS_V}/dist/worker.min.js`, core: `${CDN}tesseract.js-core@${TESS_V}`,
   langs: { eng: `${CDN}@tesseract.js-data/eng/4.0.0_best_int`, fra: `${CDN}@tesseract.js-data/fra/4.0.0_best_int`, deu: `${CDN}@tesseract.js-data/deu/4.0.0_best_int`,
-    spa: `${CDN}@tesseract.js-data/spa/4.0.0_best_int`, ita: `${CDN}@tesseract.js-data/ita/4.0.0_best_int`, por: `${CDN}@tesseract.js-data/por/4.0.0_best_int`, rus: `${CDN}@tesseract.js-data/rus/4.0.0_best_int` },
+    spa: `${CDN}@tesseract.js-data/spa/4.0.0_best_int`, ita: `${CDN}@tesseract.js-data/ita/4.0.0_best_int`, por: `${CDN}@tesseract.js-data/por/4.0.0_best_int`, rus: `${CDN}@tesseract.js-data/rus/4.0.0_best_int`,
+    jpn: `${CDN}@tesseract.js-data/jpn/4.0.0_best_int`, kor: `${CDN}@tesseract.js-data/kor/4.0.0_best_int`, chi_sim: `${CDN}@tesseract.js-data/chi_sim/4.0.0_best_int`, chi_tra: `${CDN}@tesseract.js-data/chi_tra/4.0.0_best_int` },      // japonais, coréen, chinois : ≈ 1,6 à 2 Mo chacun, seulement si une carte de cette langue est scannée
 };
 /** Moteur OCR de la langue des noms reconnus (collection.js › namesLang) ; lu d'abord, puis l'anglais. Cartes anglaises (aucun catalogue) : l'anglais seul. */
-const TESS_OF = { fr: 'fra', de: 'deu', es: 'spa', it: 'ita', pt: 'por', ru: 'rus' };
-const ocrLangs = () => { if (SCS.lang === 'en') return ['eng']; const t = TESS_OF[SCS.lang || namesLang()]; return t ? [t, 'eng'] : ['eng']; };      // langue imposée dans les réglages du scan (scanset.js) : son moteur d'abord
+const TESS_OF = { fr: 'fra', de: 'deu', es: 'spa', it: 'ita', pt: 'por', ru: 'rus', jp: 'jpn', kr: 'kor', 'zh-CN': 'chi_sim', 'zh-TW': 'chi_tra' };
+/** Moteurs d'une écriture non latine → langue des cartes : leurs lignes sont comparées aux noms imprimés de cette langue seulement (asiaMatch). */
+const TESS_ASIA = { jpn: 'jp', kor: 'kr', chi_sim: 'zh-CN', chi_tra: 'zh-TW' };
+/** Moteurs que ML Kit remplace dans l'appli Android (alphabet latin) ; russe, japonais, coréen, chinois : Tesseract, comme dans le navigateur. */
+const NAT_OCR_OK = new Set(['eng', 'fra', 'deu', 'spa', 'ita', 'por']);
+/** Moteurs dans l'ordre : langue imposée (réglages du scan), sinon langue du lot si elle a son propre moteur (pile de cartes japonaises : le japonais d'abord,
+ *  puis la langue des noms de l'appli), sinon celle des noms ; l'anglais en dernier. */
+const ocrLangs = () => {
+  if (SCS.lang === 'en') return ['eng'];
+  const n = TESS_OF[namesLang()], t = TESS_OF[SCS.lang] || TESS_OF[scanLotTop()] || n;
+  return [...new Set([t, !SCS.lang ? n : '', 'eng'].filter(Boolean))];
+};
 const OCR = { lib: null, workers: {}, onProg: null };
 /** Lettres admises dans un nom de carte : écarte les symboles de mana, filets et bruits que Tesseract prendrait pour du texte. */
 const LETTERS = { eng: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'’-:!", fra: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆàâäçéèêëîïôöùûüÿœæ ,'’-:!",
@@ -43,7 +54,7 @@ function ocrWorker(lang) {
 }
 /** Lit une image (canvas) : lignes de texte [{ text }]. psm : '6' bloc (bande du nom) · '11' texte épars (carte entière). Seul le texte est demandé (pas de hocr/tsv/blocs). */
 async function ocrLines(canvas, lang, psm, wl) {      // wl : caractères admis à la place des lettres d'un nom (ligne du bas : chiffres, majuscules, /)
-  if (natOcr() && lang !== 'rus') { if (!canvas.__ml) canvas.__ml = natLines(canvas); try { return await canvas.__ml; } catch (e) { delete canvas.__ml; } }      // appli Android : ML Kit (repli Tesseract en cas d'erreur) ; ML Kit ne lit que l'alphabet latin : le russe passe par Tesseract
+  if (natOcr() && NAT_OCR_OK.has(lang)) { if (!canvas.__ml) canvas.__ml = natLines(canvas); try { return await canvas.__ml; } catch (e) { delete canvas.__ml; } }      // appli Android : ML Kit (repli Tesseract en cas d'erreur) ; ML Kit ne lit que l'alphabet latin : russe, japonais, coréen, chinois passent par Tesseract
   const w = await ocrWorker(lang), mode = psm || '6';
   const keep = wl != null ? wl : LETTERS[lang] || '';
   if (w.__psm !== mode || w.__wl !== keep) { await w.setParameters({ tessedit_pageseg_mode: mode, tessedit_char_whitelist: keep }); w.__psm = mode; w.__wl = keep; }
@@ -108,10 +119,22 @@ function scanAdd(m, d, maybe, shot) {
   if (m.img && l !== 'en') { COLL.li[liKey(l, m.key)] = m.img; collMetaSave(); }       // image de la carte dans sa langue, vue pendant la lecture : gardée pour la collection
   else if (m.via && l !== 'en') langImgFor(m.key, m.name, l);      // trouvée sur l'appareil (catalogue sans images) : celle de sa langue demandée à Scryfall, l'anglaise en attendant
   if (cur) { SC.items.delete(id); SC.items.set(id, cur); SC.lastIt = cur; cur.q = Math.max(1, cur.q + d); if (m.ft && !cur.ft) cur.ft = m.ft; if (!maybe) { cur.maybe = false; cur.shot = ''; } else if (cur.maybe && shot) cur.shot = shot; if (m.score > cur.score) { cur.score = m.score; cur.raw = m.raw; } if (m.via) cur.via = m.via; }
-  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null, sig: m.sig || null, artq, lot: !!m.lot }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
+  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null, sig: m.sig || null, artq, lot: !!m.lot, ambBy: m.ambBy || '', alts: m.amb || m.ambBy ? m.alts || null : null }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
   if (ed.e) scanEdPass();      // une édition posée : les cartes « à choisir » sont revues
   scanPaintList();
   if (artq) scanArtRun();
+}
+/** Nom imprimé de plusieurs cartes : un bouton par autre carte possible (« Plutôt Way of the Pyromancer »). */
+function scanAltsHtml(e) {
+  const o = Array.isArray(e.alts) ? e.alts.filter(n => ownKey(n) !== e.key) : [];
+  return o.length ? `<span class="sc-alts">${o.map(n => `<button type="button" class="tag sc-alt" data-a="alt" data-n="${esc(n)}">${T('Plutôt {name}', { name: esc(n) })}</button>`).join('')}</span>` : '';
+}
+/** « Plutôt … » : la ligne devient l'autre carte (confirmée), son édition est relue. */
+function scanAltPick(it, name) {
+  if (!name || !Array.isArray(it.alts) || !it.alts.includes(name)) return;
+  Object.assign(it, { key: ownKey(name), name, maybe: false, shot: '', ambBy: 'man', e: '', es: 'load', pk: null, artq: false, sig: null, ft: null });
+  const nit = scanRekey(it, scanId(it.key, it.l, '') + '#' + (++SC.mid)); SC.lastIt = nit;
+  scanEdNeed(nit); scanPaintList();
 }
 /** Carte du scan pour la visionneuse (appui sur sa miniature) : image dans sa langue si Scryfall l'a donnée, sinon anglaise ; photo prise au scan si la carte est « à vérifier ». */
 function scanViewItem(e) {
@@ -122,7 +145,10 @@ function scanViewItem(e) {
 /** Texte lu d'une ligne du scan (« lu « … » ») ; carte trouvée dans une autre langue que celle de l'appli, tant qu'elle garde cette langue : « lu en italien ». h : échappement HTML. */
 function scanReadNote(e, raw, h = x => x) {
   if (e.via === 'foot') return T('retrouvée par la ligne du bas');      // nom illisible : extension et numéro (footIdentify)
-  if (e.lot) return T('langue du lot ({lang}) : nom identique d\'une langue à l\'autre', { lang: LANGS[e.l] || e.l });      // scanLot
+  if (e.ambBy === 'man') return '';
+  if (e.ambBy) return e.ambBy === 'foot' ? T('nom de plusieurs cartes : celle-ci d\'après la ligne du bas') : T('nom de plusieurs cartes : celle-ci d\'après l\'illustration');      // « Voie de la pyromancienne » (scanAmbArt, footIdentify)
+  if (e.alts && e.alts.length > 1) return T('nom de plusieurs cartes : {list}', { list: e.alts.join(' · ') });
+  if (e.lot) return T('langue du lot ({lang}) : nom identique d\'une langue à l\'autre', { lang: LANGS[e.l] || e.l });      // scanLotLang
   const v = e.via && e.via === e.l ? LANGS[e.via] || e.via : '';
   if (!v) return raw ? T('lu « {raw} »', { raw: h(e.raw || '') }) : '';
   return raw ? T('lu en {lang} : « {raw} »', { lang: v, raw: h(e.raw || '') }) : T('lu en {lang}', { lang: v });
@@ -148,7 +174,7 @@ function scanPaintList() {
   }
   $('.sc-head [data-act="done"]', el).hidden = false; $('.sc-total', el).hidden = true;
   const ae = document.activeElement, keep = ae && ae !== list && list.contains(ae) ? { row: ae.closest('.sc-item'), a: ae.dataset.a, cls: ae.classList[0] } : null;      // focus clavier dans la liste : rendu à son équivalent après le repeint (éditions qui arrivent…)
-  const row = e => `<div class="sc-item${e.maybe ? ' maybe' : ' ed'}${e === SC.lastIt ? ' last' : ''}" data-k="${esc(e.key)}" data-id="${esc(e.id)}">${e.maybe ? pic(e.shot) : ''}<img class="sc-th" alt="" loading="lazy" decoding="async" src="${esc(scanThumb(e))}"${zoomAt('scan', scanShown(e))}><span class="sc-n"><span class="sc-top"><b>${esc(scanShown(e))}</b>${langChip(e.key, e.l || '', e.name)}</span>${e.maybe ? `<small>${T(e.shot ? 'À vérifier : ta photo ci-dessus est-elle bien celle-ci ?' : 'À vérifier : ta carte est-elle bien celle-ci ?')} · ${scanReadNote(e, true, esc)}</small>` : (n => (n ? `<small>${n}</small>` : ''))(scanReadNote(e, !!(e.score < 0.97 && e.raw), esc))}</span>
+  const row = e => `<div class="sc-item${e.maybe ? ' maybe' : ' ed'}${e === SC.lastIt ? ' last' : ''}" data-k="${esc(e.key)}" data-id="${esc(e.id)}">${e.maybe ? pic(e.shot) : ''}<img class="sc-th" alt="" loading="lazy" decoding="async" src="${esc(scanThumb(e))}"${zoomAt('scan', scanShown(e))}><span class="sc-n"><span class="sc-top"><b>${esc(scanShown(e))}</b>${langChip(e.key, e.l || '', e.name)}</span>${e.maybe ? `<small>${T(e.shot ? 'À vérifier : ta photo ci-dessus est-elle bien celle-ci ?' : 'À vérifier : ta carte est-elle bien celle-ci ?')} · ${scanReadNote(e, true, esc)}</small>` : (n => (n ? `<small>${n}</small>` : ''))(scanReadNote(e, !!(e.score < 0.97 && e.raw), esc))}${scanAltsHtml(e)}</span>
       ${e.maybe ? `<button type="button" class="sc-ok" data-a="ok" aria-label="${T('Confirmer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-check"/></svg></button>` : `${scanEdBtn(e)}<span class="qstep"><button type="button" data-a="dec" aria-label="${T('Retirer un exemplaire')}">−</button><b>${e.q}</b><button type="button" data-a="inc" aria-label="${T('Ajouter un exemplaire')}">+</button></span>`}
       <button type="button" class="sc-x" data-a="del" aria-label="${T('Retirer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
   const maybe = arr.filter(x => x.maybe), todo = arr.filter(scanEdIsTodo), rest = arr.filter(x => !x.maybe && !scanEdIsTodo(x)), many = (maybe.length ? 1 : 0) + (todo.length ? 1 : 0) + (rest.length ? 1 : 0) > 1;      // à vérifier, puis éditions à choisir, puis le reste (dernière lue en haut)
@@ -387,9 +413,10 @@ async function frenchName(text, signal, quick) {
 /** Texte lu → carte reconnue. Deux catalogues locaux comparés sur les mêmes lignes : noms français imprimés (catalogue Scryfall téléchargé) et noms anglais ;
  *  la lecture la plus sûre gagne, à égalité (nom identique dans les deux langues) le français. Catalogue français absent ou rien de sûr : repli sur la recherche Scryfall des noms imprimés. */
 async function scanMatch(lines, cat, lang) {
+  if (TESS_ASIA[lang]) return asiaMatch(lines, TESS_ASIA[lang]);      // japonais, coréen, chinois : noms imprimés de cette langue seulement
   const en = bestMatch(lines, cat.idx); if (en) en.card = 'en';
   let m = bestOf(matchFr(lines, FRC.cat), en);
-  if (lang !== 'eng' && (!m || m.score < 0.84) && (!FRC.cat || !m)) {      // moteur de la langue des noms (fra, deu…) : repli sur la recherche Scryfall des noms imprimés
+  if (lang !== 'eng' && lang === TESS_OF[FRX.l] && (!m || m.score < 0.84) && (!FRC.cat || !m)) {      // moteur de la langue des noms (fra, deu…) : repli sur la recherche Scryfall des noms imprimés
     for (const l of lines.slice(0, FRC.cat ? 2 : 3)) {
       const fm = await frenchName(l.text, undefined, !!FRC.cat);
       if (fm && (!m || fm.score > m.score)) m = fm;
@@ -431,7 +458,7 @@ function othWarm() {
   return p;
 }
 /** Scan fermé : index libérés (le fichier reste sur l'appareil). */
-function othFree() { OTHX.gen++; OTHX.cats = {}; OTHX.p = null; }
+function othFree() { OTHX.gen++; OTHX.cats = {}; OTHX.p = null; ASIA.cats = {}; }      // index des langues d'Asie aussi
 /** Catalogues des langues ls, construits à la première demande (une construction à la fois) : { langue: catalogue | null }, ou null (pas de fichier sur l'appareil, construction abandonnée). */
 async function othCats(ls) {
   if (OTHX.at < 0) OTHX.at = await namesAllAt();
@@ -458,12 +485,42 @@ async function othLocal(qs, skip) {
     if (!(await othTick(gen))) return undefined;      // une langue à la fois : l'écran respire entre deux
   }
   const h = nmPick(found);
-  return h && h.score >= 0.72 ? { name: h.name, key: ownKey(h.name), score: h.score, raw: h.raw, card: h.lang, img: '', via: h.lang, ...(h.amb ? { amb: true } : {}) } : null;
+  return h && h.score >= 0.72 ? { name: h.name, key: ownKey(h.name), score: h.score, raw: h.raw, card: h.lang, img: '', via: h.lang, ...(h.amb ? { amb: true, ...(h.alts ? { alts: h.alts } : {}) } : {}) } : null;
+}
+/* ── Japonais, coréen, chinois simplifié et traditionnel : lignes lues par le moteur de la langue (TESS_ASIA), comparées aux noms imprimés de cette langue
+   (names-ja.tsv, names-ko.tsv, names-zhs.tsv, names-zht.tsv : gen-fr-names.mjs). Fichier téléchargé à la première carte qui en a besoin, gardé sur l'appareil
+   (mis à jour tous les 14 jours), index libéré à la fermeture du scan ; pas de fichier (hors ligne, pas encore généré) : le serveur cherche (/api/names/find). */
+const ASIA = { cats: {} };
+/** Catalogue d'une langue d'Asie (core.js › frCatalog) ou null. */
+function asiaCat(l) {
+  if (!ASIA_LANGS.includes(l)) return Promise.resolve(null);
+  if (!ASIA.cats[l]) ASIA.cats[l] = (async () => {
+    let rec = await scryFrCached(l);
+    if ((!rec || Date.now() - rec.at > FR_FRESH) && !collOffline()) rec = (await scryFrStatic(undefined, l).catch(() => null)) || rec;
+    return rec ? frCatalog(rec.rows, l) : null;
+  })().catch(() => null);
+  return ASIA.cats[l];
+}
+/** Lignes lues (moteur de la langue l) → { name, key, score, raw, card: l, img, via: l, amb?, alts? } ou null. */
+async function asiaMatch(lines, l) {
+  const ls = lines.filter(x => CJK_RE.test(String(x.text || '')));
+  if (!ls.length) return null;
+  const cat = await asiaCat(l);
+  if (cat) { const m = matchFr(ls, cat); return m ? { ...m, via: l } : null; }
+  if (!SC.el || Date.now() < OTH.off || !CTX.proxy || collOffline()) return null;
+  try {
+    const qs = [...new Set(ls.map(x => String(x.text).trim()))].slice(0, 4), skip = NAMES_ALL_LANGS.filter(x => x !== l).join(',');
+    const r = await fetch('api/names/find?' + new URLSearchParams([...qs.map(q => ['q', q.slice(0, 100)]), ['skip', skip]]), { headers: { Accept: 'application/json' } });
+    const h = r.ok ? (await r.json()).hit : null;
+    if (!h || h.lang !== l || typeof h.name !== 'string' || !h.name || !(h.score >= 0.72 && h.score <= 1)) return null;
+    const img = typeof h.img === 'string' && /^https:\/\/cards\.scryfall\.io\/[\w/.-]+$/.test(h.img) ? h.img : '', alts = h.amb && Array.isArray(h.alts) ? h.alts.filter(x => typeof x === 'string' && x).slice(0, 6) : [];
+    return { name: h.name, key: ownKey(h.name), score: h.score, raw: qs.includes(h.raw) ? h.raw : qs[0], card: l, img, via: l, ...(h.amb ? { amb: true, ...(alts.length > 1 ? { alts } : {}) } : {}) };
+  } catch (e) { return null; }
 }
 /** Lignes lues → carte trouvée dans une autre langue : { name, key, score, raw, card, img, via } ou null. Sur l'appareil d'abord (names-all.tsv, sans réseau ni budget) ;
  *  sans fichier sur l'appareil : le serveur. st : budget de la carte pour le serveur (2 requêtes au plus). */
 async function scanOther(lines, st) {
-  const qs = [...new Set(lines.map(l => String(l.text || '').trim()).filter(t => t.length >= 3 && t.length <= 60 && (t.match(NAME_LETTER_RE) || []).length >= t.length * 0.6))].slice(0, 4);      // mêmes lignes que core.js › ocrMatches
+  const qs = [...new Set(lines.map(l => String(l.text || '').trim()).filter(t => t.length >= 3 && t.length <= 60 && !CJK_RE.test(t) && (t.match(NAME_LETTER_RE) || []).length >= t.length * 0.6))].slice(0, 4);      // mêmes lignes que core.js › ocrMatches ; japonais, coréen, chinois : asiaMatch
   if (!qs.length) return null;
   const skip = FRC.cat ? FRC.cat.l || FRX.l : '', k = skip + '\n' + qs.join('\n');      // langue des noms déjà comparée sur l'appareil ; catalogue pas encore là : cherchée aussi
   if (OTH.memo.has(k)) return OTH.memo.get(k);
@@ -478,7 +535,8 @@ async function scanOther(lines, st) {
     const h = (await r.json()).hit;
     if (h && typeof h.name === 'string' && h.name && NAMES_LANGS.includes(h.lang) && h.score >= 0.72 && h.score <= 1) {
       const img = typeof h.img === 'string' && /^https:\/\/cards\.scryfall\.io\/[\w/.-]+$/.test(h.img) ? h.img : '';
-      hit = { name: h.name, key: ownKey(h.name), score: h.score, raw: qs.includes(h.raw) ? h.raw : qs[0], card: h.lang, img, via: h.lang, ...(h.amb ? { amb: true } : {}) };
+      const alts = h.amb && Array.isArray(h.alts) ? h.alts.filter(x => typeof x === 'string' && x && x.length < 160).slice(0, 6) : [];
+      hit = { name: h.name, key: ownKey(h.name), score: h.score, raw: qs.includes(h.raw) ? h.raw : qs[0], card: h.lang, img, via: h.lang, ...(h.amb ? { amb: true, ...(alts.length > 1 ? { alts } : {}) } : {}) };
     }
   } catch (e) { return null; }      // hors ligne : rien de retenu
   if (OTH.memo.size > 200) OTH.memo.clear(); OTH.memo.set(k, hit);
@@ -612,28 +670,43 @@ async function footIdentify(m, src, box) {
     if (r) break;
   }
   if (!r || !SC.el) return m;
-  const l = (typeof FOOT_SL !== 'undefined' && FOOT_SL[r.lang]) || 'en', sim = nameSimilar(raw, r.printed || r.name);
+  const l = (typeof FOOT_SL !== 'undefined' && FOOT_SL[r.lang]) || 'en';
+  let sim = nameSimilar(raw, r.printed || r.name), araw = '';
+  if (sim < 0.6 && r.printed && TESS_ASIA[TESS_OF[l]] && src && SC.el) {      // nom japonais, coréen, chinois : illisible pour le moteur latin, relu avec celui de la langue lue en bas
+    const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height, c = prepCanvas(src, cardBandBox(W, H), 1400);
+    try { for (const x of await ocrLines(c, TESS_OF[l], '7')) { const v = nameSimilar(x.text, r.printed); if (v > sim) { sim = v; araw = String(x.text).trim().slice(0, 60); } } } catch (e) { /* moteur indisponible : à vérifier */ } finally { c.width = c.height = 0; }
+  }
   SC.foot = { raw: fraw, ft, name: r.name, card: l, keep: '', via: 'foot' };
-  const hit = { name: r.name, key: ownKey(r.name), score: sim >= 0.6 ? 0.93 : 0.8, raw: raw || r.printed || r.name, card: l, img: r.img || '', via: 'foot', ft };
+  const hit = { name: r.name, key: ownKey(r.name), score: sim >= 0.6 ? 0.93 : 0.8, raw: araw || raw || r.printed || r.name, card: l, img: r.img || '', via: 'foot', ft };
   if (!m) return hit;
+  if (m.amb && (hit.key === m.key || (m.alts || []).some(a => ownKey(a) === hit.key) || sim >= 0.75)) {      // nom imprimé de plusieurs cartes (« Voie de la pyromancienne ») : l'extension et le numéro disent laquelle
+    const same = hit.card === (m.card || 'en');
+    return { ...m, name: hit.name, key: hit.key, score: Math.max(m.score, 0.92), img: same ? hit.img : hit.key === m.key ? m.img : '', amb: false, ambBy: 'foot', alts: m.alts || [m.name, hit.name].filter((x, i, a) => a.indexOf(x) === i) };
+  }
   if (hit.key === m.key) return { ...m, score: Math.max(m.score, 0.92), ...(weakOther && ft.lang && hit.card !== m.card ? { card: hit.card, img: hit.img, via: 'foot' } : {}) };      // la ligne du bas confirme le nom lu de justesse (et sa langue, si elle y est lue)
   return sim > nameSimilar(raw, m.card && m.card !== 'en' ? frName(m.key, m.card) || m.name : m.name) ? hit : m;
 }
 /** Langue du lot, pour départager seulement : les cartes à la langue sûre (nom propre à sa langue, langue lue en bas) votent, les 8 dernières comptent (un lot
  *  mélangé d'extensions et de langues n'a pas de majorité ; une pile par langue en change). Une carte à la langue incertaine prend celle du lot (3 voix, 70 % ou plus)
  *  seulement si ce qui a été lu est aussi son nom dans cette langue (nom identique d'une langue à l'autre, « Edgar Markov ») : jamais contre ce qui est lu sur la carte. */
-async function scanLot(m) {
+async function scanLotLang(m) {
   if (!m || SCS.lang || SC.pm) return m;
   const l = m.card || 'en', sure = m.lsure != null ? m.lsure : scanNameSure(m);
   if (sure) { SC.lv.push(l); if (SC.lv.length > 8) SC.lv.shift(); return m; }
   if (m.ft && m.ft.lang) return m;      // langue lue sur la ligne du bas : elle a déjà décidé (footAttach)
-  const by = {}; for (const x of SC.lv) by[x] = (by[x] || 0) + 1;
-  const [top, n] = Object.entries(by).sort((a, b) => b[1] - a[1])[0] || ['', 0];
-  if (!top || top === l || !LANGS[top] || SC.lv.length < 3 || n / SC.lv.length < 0.7) return m;
+  const top = scanLotTop();
+  if (!top || top === l) return m;
   const here = await lotSim(m, l), there = await lotSim(m, top);
   if (there < 0.75 || there + 0.05 < here) return m;      // le nom lu n'est pas (aussi bien) celui de la langue du lot
   SC.lotLast = { name: m.name, a: l, b: top };
   return { ...m, card: top, img: '', via: m.via === 'foot' ? 'foot' : '', lot: true };
+}
+/** Langue du lot : celle de 70 % ou plus des 8 dernières cartes à la langue sûre (3 au moins), sinon ''. Sert aussi à choisir le moteur OCR (ocrLangs). */
+function scanLotTop() {
+  if (!SC.el || SCS.lang || SC.lv.length < 3) return '';
+  const by = {}; for (const x of SC.lv) by[x] = (by[x] || 0) + 1;
+  const [top, n] = Object.entries(by).sort((a, b) => b[1] - a[1])[0];
+  return n / SC.lv.length >= 0.7 && LANGS[top] ? top : '';
 }
 /** Ressemblance (0 à 1) entre le texte lu et le nom de la carte dans la langue l ; -1 : nom inconnu dans cette langue (rien n'est changé). */
 async function lotSim(m, l) {
@@ -644,6 +717,19 @@ async function lotSim(m, l) {
   const cats = await othCats([l]), c = cats && cats[l]; if (!c) return -1;
   const h = nmMatch(c, [{ text: raw }]);
   return h && ownKey(h.name) === m.key ? h.score : 0;
+}
+/** Nom imprimé de plusieurs cartes, ligne du bas illisible ou absente (cartes d'avant 2015) : l'illustration de la photo est comparée aux impressions de chacune ;
+ *  une impression nettement plus proche dit la carte (score 0,9 : plus « à vérifier »). Sinon la carte reste à vérifier, ses noms possibles affichés. */
+async function scanAmbArt(m) {
+  if (!m || !m.amb || !m.sig || !Array.isArray(m.alts) || m.alts.length < 2 || typeof artPick !== 'function' || collOffline()) return m;
+  const l = m.card || 'en', lists = await Promise.all(m.alts.slice(0, 4).map(n => scryArtPrints(n, l, undefined, false).then(ps => (Array.isArray(ps) ? ps : []).map(p => ({ ...p, cn: n })), () => [])));
+  if (!SC.el || lists.filter(x => x.length).length < 2) return m;
+  const all = []; for (let i = 0; all.length < 24 && lists.some(x => x.length > i); i++) for (const x of lists) if (x[i]) all.push(x[i]);      // les impressions des cartes en alternance : chacune a sa chance dans la limite des comparaisons
+  let r = null; try { r = await artPick(m.sig, all); } catch (e) { r = null; }
+  const ns = r ? [...new Set((r.p ? [r.p] : r.group || []).map(p => p.cn))] : [];
+  SC.art = { name: m.alts.join(' / '), res: !r ? '∅' : ns.length === 1 ? ns[0] + (r.p ? ' ' + r.p.set.toUpperCase() + ' ' + r.p.num : '') + ` · d ${r.d1.toFixed(2)} / ${Number.isFinite(r.d2) ? r.d2.toFixed(2) : '–'}` : '?' };
+  if (ns.length !== 1) return m;
+  return { ...m, name: ns[0], key: ownKey(ns[0]), score: Math.max(m.score, 0.9), img: ownKey(ns[0]) === m.key ? m.img : '', amb: false, ambBy: 'art' };
 }
 /** Le nom reconnu dit-il à lui seul la langue de la carte ? Oui s'il a été lu dans une autre langue que l'anglais et que ce nom imprimé n'est pas le nom anglais
  *  (à 20 % près) ; non pour un nom lu en anglais, un nom ambigu entre langues, ou identique à l'anglais (« Edgar Markov », « Atraxa »). */
@@ -719,7 +805,8 @@ async function scanWork() {
       scanFree(job.src); job.src = null; job.file = null;
       if (!SC.el || job.s !== SC.session) continue;
       SC.ms = performance.now() - t0; SC.pend = SC.pend.filter(p => p.id !== job.id);
-      if (m && m.score >= 0.72) m = await scanLot(m);      // langue du lot
+      if (m && m.amb && m.sig) m = await scanAmbArt(m);      // nom de plusieurs cartes : l'illustration tranche
+      if (m && m.score >= 0.72) m = await scanLotLang(m);      // langue du lot
       if (m && m.score >= 0.72) { if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, m.score < 0.84, job.shot); scsCue(); scanHint(m.score >= 0.84 ? '✓ ' + m.name : T('À vérifier : {name}', { name: m.name }), m.score >= 0.84 ? 'ok' : 'busy'); }
       else { SC.miss.push({ id: job.id, label: job.label, thumb: job.thumb || '', shot: job.shot || '', raw: (m && m.raw) || SC.raw || '' }); if (fail) scanHint(fail, 'bad'); scanPaintList(); }
     }
@@ -824,7 +911,7 @@ async function scanWarm() {
   const s = SC.session; if (!SC.el || SC.warm) return; SC.warm = true;
   try {
     await Promise.all([collCatalog(), frcWarm()]);
-    if (!SC.el || SC.session !== s || (natOcr() && ocrLangs()[0] !== 'rus')) return; await ocrWorker(ocrLangs()[0]);      // appli Android : ML Kit, pas de moteur à télécharger      // français d'abord : l'anglais ne se charge que si le français ne trouve rien
+    if (!SC.el || SC.session !== s || (natOcr() && NAT_OCR_OK.has(ocrLangs()[0]))) return; await ocrWorker(ocrLangs()[0]);      // appli Android : ML Kit, pas de moteur à télécharger      // français d'abord : l'anglais ne se charge que si le français ne trouve rien
   } catch (e) { /* hors ligne ou CDN bloqué : le premier appui retentera et dira pourquoi */ }
   finally { SC.warm = false; SC.workEnd = performance.now(); if (SC.el && SC.session === s) othWarm(); }      // autres langues : téléchargées après le moteur OCR (la 1re lecture d'abord)
 }
@@ -1011,6 +1098,7 @@ function openScan(o) {
       return;
     }
     else if (a.dataset.a === 'ok') { it.maybe = false; it.shot = ''; }
+    else if (a.dataset.a === 'alt') { scanAltPick(it, a.dataset.n); return; }
     else if (a.dataset.a === 'del') SC.items.delete(it.id);
     scanEdPass(); scanPaintList();
   });

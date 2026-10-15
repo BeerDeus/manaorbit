@@ -802,7 +802,7 @@ function collSorted(items) {
   const by = { name: byName, qty: (a, b) => (b.q - a.q) || byName(a, b), price: (a, b) => (((srcPrice(b, COLL.src) || {}).u || 0) - ((srcPrice(a, COLL.src) || {}).u || 0)) || byName(a, b), cmc: (a, b) => ((a.cm ?? 99) - (b.cm ?? 99)) || byName(a, b), decks: (a, b) => ((b.ed || 0) - (a.ed || 0)) || ((b.cx || 0) - (a.cx || 0)) || byName(a, b), new: (a, b) => ((b.d || 0) - (a.d || 0)) || byName(a, b), old: (a, b) => ((a.d || 0) - (b.d || 0)) || byName(a, b) }[COLL.sort] || byName;
   return items.slice().sort(by);
 }
-const CARD_LANG_LIST = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru'];
+const CARD_LANG_LIST = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru', 'kr', 'zh-TW'];
 /** Puce langue d'une carte : drapeau (ou « Langue ? »), et un <select> invisible par-dessus : un appui ouvre le choix natif de la langue. g : la ligne (clé langue|édition) quand elle a une édition. */
 function langChip(k, l, name, cls, g) {
   return `<label class="lchip${l ? '' : ' none'}${cls ? ' ' + cls : ''}" data-l="${esc(l)}"${g && g !== l ? ` data-g="${esc(g)}"` : ''}>${l ? flag(l) : '<span>' + T('Langue ?') + '</span>'}<select data-lk="${esc(k)}" aria-label="${T('Langue de {name}', { name: esc(name) })}"><option value=""${l ? '' : ' selected'}>${T('Non précisée')}</option>${CARD_LANG_LIST.map(x => { const n = T(LANGS[x]); return `<option value="${x}"${x === l ? ' selected' : ''}>${esc(n[0].toUpperCase() + n.slice(1))}</option>`; }).join('')}</select></label>`;

@@ -173,6 +173,7 @@ for (const [vp, dark] of [[{ width: 390, height: 844 }, false], [{ width: 360, h
   await p.keyboard.press('ArrowRight'); await shown(p); assert.equal((await geo(p)).id, 'more');
   await next(p);      // Terminer
   await p.waitForFunction(() => !TOUR.on && !document.querySelector('.tour'), null, { timeout: 5000 }); await p.waitForTimeout(500);
+  await p.waitForFunction(y => Math.abs(window.scrollY - y) <= 2, y0, { timeout: 3000 }).catch(() => {});      // défilement doux encore en cours (CI lente) : mesuré une fois posé
   const end = await p.evaluate(() => ({ view: S.view, coll: !!COLL.el, sheets: sheets.length, ctab: COLL.ctab, y: window.scrollY, gum: window.__gum, sc: !!SC.el, toast: document.querySelector('#toast').textContent }));
   assert.deepEqual([end.view, end.coll, end.sheets, end.ctab, end.sc, end.gum], ['home', false, 0, 'list', false, 0], tag + ' : accueil remis, aucune feuille, onglet de la collection inchangé, caméra jamais ouverte ' + JSON.stringify(end));
   assert.ok(Math.abs(end.y - y0) <= 2, `défilement remis (${end.y} / ${y0})`);

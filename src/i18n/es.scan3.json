@@ -2,5 +2,9 @@
 "retrouvée par la ligne du bas": "encontrada por la línea inferior",
 "langue {a} gardée (nom), {b} lue en bas ignorée": "idioma {a} conservado (nombre), {b} leído abajo ignorado",
 "langue du lot ({lang}) : nom identique d'une langue à l'autre": "idioma del lote ({lang}): mismo nombre en ambos idiomas",
-"langue du lot : {v}": "idioma del lote: {v}"
+"langue du lot : {v}": "idioma del lote: {v}",
+"nom de plusieurs cartes : celle-ci d'après la ligne du bas": "nombre de varias cartas: esta, según la línea inferior",
+"nom de plusieurs cartes : celle-ci d'après l'illustration": "nombre de varias cartas: esta, según la ilustración",
+"nom de plusieurs cartes : {list}": "nombre de varias cartas: {list}",
+"Plutôt {name}": "Más bien {name}"
 }

@@ -13,6 +13,8 @@
     "@tesseract.js-data/deu": "1.0.0",
     "@tesseract.js-data/eng": "1.0.0",
     "@tesseract.js-data/fra": "1.0.0",
+    "@tesseract.js-data/jpn": "1.0.0",
+    "@tesseract.js-data/kor": "1.0.0",
     "esbuild": "0.28.2",
     "firebase": "12.19.0",
     "jsdom": "29.1.1",

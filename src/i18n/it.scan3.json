@@ -2,5 +2,9 @@
 "retrouvée par la ligne du bas": "trovata dalla riga in basso",
 "langue {a} gardée (nom), {b} lue en bas ignorée": "lingua {a} mantenuta (nome), {b} letto in basso ignorato",
 "langue du lot ({lang}) : nom identique d'une langue à l'autre": "lingua del lotto ({lang}): stesso nome nelle due lingue",
-"langue du lot : {v}": "lingua del lotto: {v}"
+"langue du lot : {v}": "lingua del lotto: {v}",
+"nom de plusieurs cartes : celle-ci d'après la ligne du bas": "nome di più carte: questa, secondo la riga in basso",
+"nom de plusieurs cartes : celle-ci d'après l'illustration": "nome di più carte: questa, secondo l'illustrazione",
+"nom de plusieurs cartes : {list}": "nome di più carte: {list}",
+"Plutôt {name}": "Piuttosto {name}"
 }

@@ -28,6 +28,7 @@ const js = ['migrate.js', 'core.js', 'edhbin.js', 'cloud.js', 'data.js', 'tasks.
 
 // <script type="application/json" id="i18n-en"> : jamais compilé ; core.js n'analyse que celui de la langue choisie (le français n'en lit aucun).
 // « < » échappé (\u003c, relu tel quel par JSON.parse) : une traduction ne peut pas fermer la balise.
+{ const seen = new Map(), dup = []; for (const m of js.matchAll(/^(?:async )?function\*? ?([A-Za-z0-9_$]+)\s*\(/gm)) { if (seen.has(m[1])) dup.push(m[1]); seen.set(m[1], 1); } if (dup.length) { console.error('Fonctions déclarées deux fois (la 2e remplace la 1re) : ' + dup.join(', ')); process.exit(1); } }      // un même nom dans deux fichiers : bogue silencieux
 const i18nTags = Object.keys(i18nAll).sort().map(c => `<script type="application/json" id="i18n-${c}">${JSON.stringify(i18nAll[c]).replace(/</g, '\\u003c')}</script>`).join('\n');
 
 // Version affichée dans Réglages (quel code le téléphone exécute) ; pwa/sw.js lit la ligne « const DD_BUILD = '…' » de la page

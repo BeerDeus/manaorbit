@@ -84,21 +84,27 @@ const BASIC_NAMES = new Set(['plains', 'island', 'swamp', 'mountain', 'forest', 
   'snow covered plains', 'snow covered island', 'snow covered swamp', 'snow covered mountain', 'snow covered forest', 'snow covered wastes']);
 
 function normPart(s) {
-  return String(s || '').replace(/æ/gi, 'ae').replace(/œ/gi, 'oe').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-    .replace(/['’‘`´]/g, '').replace(/[^a-z0-9а-я]+/g, ' ').trim();      // lettres latines et cyrilliques (noms russes : « молния ») ; ё et й perdent leur signe avec les accents (lecture OCR tolérante)
+  const t = String(s || '').replace(/æ/gi, 'ae').replace(/œ/gi, 'oe').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/['’‘`´]/g, '').replace(/[^a-z0-9а-я\u3040-\u30fa\u30fc-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u1100-\u11ff\uac00-\ud7af\u3099\u309a]+/g, ' ').trim();      // lettres latines, cyrilliques (« молния ») ; ё et й perdent leur signe (lecture OCR tolérante)
+  return CJK_RE.test(t) ? t.normalize('NFC').replace(/([\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]) +(?=[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af])/g, '$1') : t;      // japonais, coréen, chinois : signes recomposés (« が », syllabes coréennes), sans les espaces que Tesseract glisse entre les caractères ; « ・ » séparateur
 }
-/** Lettres d'un nom de carte lu (latin accentué ou cyrillique) : part des tests « assez de lettres » de l'OCR. */
-const NAME_LETTER_RE = /[A-Za-zÀ-ÿЀ-ӿ]/g;
+/** Écritures d'Asie (kana, idéogrammes, hangûl) : un nom lu ou imprimé en japonais, coréen, chinois. */
+const CJK_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u1100-\u11ff\uac00-\ud7af]/;
+/** Lettres d'un nom de carte lu (latin accentué, cyrillique, japonais, coréen, chinois) : part des tests « assez de lettres » de l'OCR. */
+const NAME_LETTER_RE = /[A-Za-zÀ-ÿЀ-ӿ\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]/g;
+/** Longueur minimale d'un nom lu : 3 lettres, 2 caractères en écriture d'Asie (« 稲妻 », Lightning Bolt en japonais). */
+const nameMin = k => (CJK_RE.test(k) ? 2 : 3);
 function normName(s) { return String(s || '').split('//').map(normPart).filter(Boolean).join(' // '); }
 function frontName(s) { return normName(s).split(' // ')[0]; }
 
-/** Langue d'une carte de collection : code de l'app (fr en de es it pt jp zh-CN) depuis un code (FR, ja, fra…) ou un nom (French, Français…), '' si inconnue. */
+/** Langue d'une carte de collection : code de l'app (fr en de es it pt jp zh-CN ru kr zh-TW) depuis un code (FR, ja, fra…) ou un nom (French, Français…), '' si inconnue. */
 const LANG_ALIAS = { fr: 'fr', fra: 'fr', fre: 'fr', french: 'fr', francais: 'fr', en: 'en', eng: 'en', english: 'en', anglais: 'en', de: 'de', deu: 'de', ger: 'de', german: 'de', allemand: 'de', deutsch: 'de',
-  es: 'es', spa: 'es', spanish: 'es', espagnol: 'es', it: 'it', ita: 'it', italian: 'it', italien: 'it', pt: 'pt', por: 'pt', portuguese: 'pt', portugais: 'pt', ja: 'jp', jp: 'jp', jpn: 'jp', japanese: 'jp', japonais: 'jp', zh: 'zh-CN', zhs: 'zh-CN', zht: 'zh-CN', zhcn: 'zh-CN', zhtw: 'zh-CN', cn: 'zh-CN', chs: 'zh-CN', cht: 'zh-CN', chinese: 'zh-CN', chinois: 'zh-CN', simplifiedchinese: 'zh-CN', chinesesimplified: 'zh-CN', traditionalchinese: 'zh-CN', chinesetraditional: 'zh-CN',
-  ptbr: 'pt', portuguesebrazil: 'pt', brazilianportuguese: 'pt', portuguesbresil: 'pt', zhhans: 'zh-CN', zhhant: 'zh-CN', ru: 'ru', rus: 'ru', russian: 'ru', russe: 'ru' };      // « Portuguese (Brazil) » (Delver Lens, TCGplayer), « zh-Hans »
+  es: 'es', spa: 'es', spanish: 'es', espagnol: 'es', it: 'it', ita: 'it', italian: 'it', italien: 'it', pt: 'pt', por: 'pt', portuguese: 'pt', portugais: 'pt', ja: 'jp', jp: 'jp', jpn: 'jp', japanese: 'jp', japonais: 'jp', zh: 'zh-CN', zhs: 'zh-CN', zht: 'zh-TW', zhcn: 'zh-CN', zhtw: 'zh-TW', cn: 'zh-CN', chs: 'zh-CN', cht: 'zh-TW', chinese: 'zh-CN', chinois: 'zh-CN', simplifiedchinese: 'zh-CN', chinesesimplified: 'zh-CN', traditionalchinese: 'zh-TW', chinesetraditional: 'zh-TW',
+  ptbr: 'pt', portuguesebrazil: 'pt', brazilianportuguese: 'pt', portuguesbresil: 'pt', zhhans: 'zh-CN', zhhant: 'zh-TW', ru: 'ru', rus: 'ru', russian: 'ru', russe: 'ru',
+  kr: 'kr', ko: 'kr', kor: 'kr', korean: 'kr', coreen: 'kr', chinoistraditionnel: 'zh-TW', chinoissimplifie: 'zh-CN', tchinese: 'zh-TW', schinese: 'zh-CN' };      // coréen, chinois traditionnel (Cardmarket : « S-Chinese », « T-Chinese ») : langues de l'appli      // « Portuguese (Brazil) » (Delver Lens, TCGplayer), « zh-Hans »
 const cardLang = x => LANG_ALIAS[String(x == null ? '' : x).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '')] || '';
-/** Code court d'une langue pour l'affichage et le texte de la collection : « FR », « EN »… ; le chinois s'écrit « ZH » (lettres seules : le code CardTrader « zh-CN » a un tiret). */
-const langCode = l => (l === 'zh-CN' ? 'ZH' : String(l || '').toUpperCase());
+/** Code court d'une langue pour l'affichage et le texte de la collection : « FR », « EN »… ; le chinois s'écrit « ZH », le traditionnel « ZHT » (lettres seules : les codes CardTrader « zh-CN », « zh-TW » ont un tiret). */
+const langCode = l => (l === 'zh-CN' ? 'ZH' : l === 'zh-TW' ? 'ZHT' : String(l || '').toUpperCase());      // chinois traditionnel : « ZHT » (relu par cardLang)
 /** Langue des cartes par défaut (offres cherchées, aperçus) tant que « Langue » n'a pas été choisie : celle de l'interface, sauf l'anglais quand il n'est
  *  qu'un repli (téléphone allemand, espagnol, japonais… : cartes de sa langue d'abord, l'anglais ensuite par le repli). navLangs : navigator.languages. */
 function defaultCardLang(ui, navLangs) {
@@ -123,6 +129,9 @@ const HEADER_RE = /^(commander|companion|deck|main(board)?|sideboard|maybeboard|
 const FRX = { ix: null, l: 'fr' };
 /** Langues dont les noms imprimés sont reconnus (catalogue servi par le site, clés latines de frKey) ; japonais, chinois… : pas encore (clé Unicode à faire). */
 const NAMES_LANGS = ['fr', 'de', 'es', 'it', 'pt', 'ru'];
+/** Langues d'Asie : noms imprimés lus au scan avec leur propre moteur (scan.js › asiaMatch), catalogue names-<code Scryfall>.tsv téléchargé à la demande. */
+const ASIA_LANGS = ['jp', 'kr', 'zh-CN', 'zh-TW'];
+const NAMES_ALL_LANGS = [...NAMES_LANGS, ...ASIA_LANGS];
 /** Langue des noms imprimés reconnus : celle des cartes si elle a un catalogue, sinon celle de l'interface (français) ; cartes anglaises sur une interface anglaise : '' (aucun catalogue). */
 const namesLangOf = (card, ui) => (NAMES_LANGS.includes(card) ? card : NAMES_LANGS.includes(ui) ? ui : '');
 /** Clé d'un nom pour l'index français : accents, casse, apostrophes, tirets et espaces ignorés (« L'Aquilon », « l aquilon », « Laquilon » se rejoignent). */
@@ -934,7 +943,7 @@ const dateNowSec = () => Math.floor(Date.now() / 1000);
    Une ligne = une langue, et une édition si elle est connue (« 2 Sol Ring (CMM) 400 *FR* » + « 1 Sol Ring *EN* » dans le texte) ; la langue '' = non précisée.
    Clé de ligne : 'fr' (sans édition) ou 'fr|cmm|400' (langue|code d'extension Scryfall|numéro de collection), suivie de '*' pour des exemplaires foil ('fr*', 'fr|cmm|400*', '*' : foil sans langue).
    Les totaux (q) servent partout ailleurs (decks, paniers). */
-const LINE_RANK = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru', ''];
+const LINE_RANK = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru', 'kr', 'zh-TW', ''];
 const lineRank = l => { const i = LINE_RANK.indexOf(l || ''); return i < 0 ? LINE_RANK.length : i; };
 /** Édition d'un exemplaire : 'cmm|400' (code d'extension en minuscules, numéro de collection tel qu'imprimé), '' si incomplète ou illisible. */
 const edKey = (set, num) => {
@@ -1074,7 +1083,7 @@ function parseCollection(text, o) {
       let q = qtyCol >= 0 ? parseInt(c[qtyCol], 10) : 1;
       const fq = foilCol >= 0 ? parseInt(c[foilCol], 10) || 0 : 0;      // « Reg Qty » + « Foil Qty » (Decked Builder) : les foil sur leur propre ligne
       if (foilCol >= 0) { q = Number.isFinite(q) ? q : 0; if (!q && !fq) q = 1; }
-      const lr = langCol >= 0 ? String(c[langCol] || '').trim() : '', l = lr ? cardLang(lr) || '-' : '';      // « Korean », « Phyrexian » : langue donnée mais absente de l'appli → non précisée, pas la langue choisie pour les autres lignes
+      const lr = langCol >= 0 ? String(c[langCol] || '').trim() : '', l = lr ? cardLang(lr) || '-' : '';      // « Phyrexian » : langue donnée mais absente de l'appli → non précisée, pas la langue choisie pour les autres lignes
       const e = setCol >= 0 && numCol >= 0 ? edKey(csvSetCode(c[setCol], setCode), c[numCol]) : '', f = flagCol >= 0 && csvFoil(c[flagCol]), cd = condCol >= 0 ? csvCond(c[condCol]) : '', bn = binCol >= 0 ? placeName(c[binCol]) : '', pid = bn ? 'i' + hash32(bn.toLowerCase()).toString(36) : '';
       if (pid && !bins.has(pid)) bins.set(pid, { t: listCol >= 0 && /^\s*deck\s*$/i.test(c[listCol] || '') ? 'deck' : 'binder', n: bn });
       const a = cd && cd !== 'nm' ? { c: cd, ...(pid ? { p: pid } : {}) } : pid ? { p: pid } : null;      // « Near Mint » : la valeur par défaut des exports, pas un détail
@@ -1103,7 +1112,7 @@ function parseCollection(text, o) {
  *  Une ligne par langue et édition ; langue ou édition non précisée : colonnes vides. « Tradelist Count » : exemplaires de cette ligne à échanger (trade : tradeLists(…).have), 0 sinon. */
 /** État Cardmarket → colonne « Condition » de Moxfield. */
 const COND_OUT = { mt: 'Mint', nm: 'Near Mint', ex: 'Lightly Played', gd: 'Moderately Played', lp: 'Moderately Played', pl: 'Heavily Played', po: 'Damaged' };
-const CSV_LANG = { fr: 'French', en: 'English', de: 'German', es: 'Spanish', it: 'Italian', pt: 'Portuguese', jp: 'Japanese', 'zh-CN': 'Chinese Simplified', ko: 'Korean', ru: 'Russian' };
+const CSV_LANG = { fr: 'French', en: 'English', de: 'German', es: 'Spanish', it: 'Italian', pt: 'Portuguese', jp: 'Japanese', 'zh-CN': 'Chinese Simplified', kr: 'Korean', 'zh-TW': 'Chinese Traditional', ru: 'Russian' };
 /** Cellule texte : un nom venu d'une liste importée ou partagée qui commence par = + - @ (ou tabulation, retour) serait lu comme une formule par Excel ou LibreOffice → préfixé d'une apostrophe.
  *  Sauf « +2 Mace » et ses pareils (signe, chiffres, espace, puis des mots) : vrais noms de cartes, aucune formule possible. */
 const csvCell = v => {
@@ -1816,7 +1825,7 @@ function lineVariants(raw) {
 function matchName(raw, idx, minScore = 0.72) {
   let best = null;
   for (const v of lineVariants(raw)) {
-    if (v.key.length < 3) continue;
+    if (v.key.length < nameMin(v.key)) continue;
     let name = idx.by.get(v.key), d = 0, k = v.key; const vsp = name === undefined ? spaces(v.key) : 0;
     if (name === undefined) {
       let max = Math.max(1, Math.floor(v.key.length * 0.3)), bn = null;
@@ -1859,8 +1868,8 @@ function spanMatches(text, idx, minScore = 0.9) {
 function ocrMatches(lines, idx, spans = false) {
   const out = [], seen = new Map();
   for (const l of lines || []) {
-    const text = String(l.text || '').trim(); if (text.length < 3 || text.length > (spans ? 140 : 60)) continue;
-    const letters = (text.match(NAME_LETTER_RE) || []).length; if (letters < text.length * 0.6) continue;
+    const text = String(l.text || '').trim(); if (text.length < nameMin(text) || text.length > (spans ? 140 : 60)) continue;
+    const letters = (text.match(NAME_LETTER_RE) || []).length; if (letters < (CJK_RE.test(text) ? text.replace(/\s+/g, '') : text).length * 0.6) continue;      // écriture d'Asie : sans les espaces que l'OCR glisse entre les caractères
     const one = matchName(text, idx);
     let ms = one ? [one] : [];
     if (spans && (!one || one.score < 0.84)) { const sp = spanMatches(text, idx); if (sp.length) ms = sp; }
@@ -1886,33 +1895,37 @@ function frNames(rows) {
 }
 /** Catalogue français : lignes « nom imprimé \t nom anglais \t chemin de l'image » → { n, idx (recherche floue sur les noms imprimés), by (nom imprimé normalisé → { en, img }) }. */
 function frCatalog(rows, l = 'fr') {
-  const by = new Map(), amb = new Set(), names = [], fr = new Map();
+  const by = new Map(), amb = new Set(), names = [], fr = new Map(), ambEn = new Map();
   for (const r of rows || []) {
     const [p, en, img] = String(r).split('\t'); if (!p || !en) continue;
     const ek = frontName(en); if (ek && !fr.has(ek)) fr.set(ek, frFront(p));      // nom anglais → nom imprimé français (affichage des cartes FR de la collection)
     const k = frontName(p); if (k.length < 2) continue;
-    if (by.has(k)) { if (frontName(by.get(k).en) !== frontName(en)) amb.add(k); continue; }      // même nom français pour deux cartes différentes (≈ 0,1 %) : on garde la 1re mais on le sait
+    if (by.has(k)) { if (frontName(by.get(k).en) !== ek) { amb.add(k); const a = ambEn.get(k) || [by.get(k).en]; if (!a.some(x => frontName(x) === ek)) a.push(en); ambEn.set(k, a); } continue; }      // même nom français pour deux cartes différentes (≈ 0,1 %, « Voie de la pyromancienne ») : la 1re gardée, toutes notées
     by.set(k, { en, img: img || '' }); names.push(p);
   }
-  return { n: names.length, idx: nameIndex(names), by, amb, fr, l };
+  return { n: names.length, idx: nameIndex(names), by, amb, ambEn, fr, l };
 }
 function matchFr(lines, fc) {
   if (!fc || !fc.n) return null;
   const m = bestMatch(lines, fc.idx); if (!m) return null;
   const e = fc.by.get(frontName(m.name)); if (!e) return null;
   const dup = !!(fc.amb && fc.amb.has(frontName(m.name)));      // nom français partagé par plusieurs cartes : jamais « sûr », la photo permet de trancher
-  return { name: e.en, key: ownKey(e.en), score: dup ? Math.min(m.score, 0.83) : m.score, raw: m.raw, card: fc.l || 'fr', img: e.img ? (/^https?:/.test(e.img) ? e.img : FR_IMG + e.img) : '', ...(dup ? { amb: true } : {}) };
+  return { name: e.en, key: ownKey(e.en), score: dup ? Math.min(m.score, 0.83) : m.score, raw: m.raw, card: fc.l || 'fr', img: e.img ? (/^https?:/.test(e.img) ? e.img : FR_IMG + e.img) : '', ...(dup ? { amb: true, ...(fc.ambEn && fc.ambEn.get(frontName(m.name)) ? { alts: fc.ambEn.get(frontName(m.name)) } : {}) } : {}) };
 }
 /* ── Noms imprimés des autres langues (scan : carte italienne lue avec l'appli en français) : un catalogue par langue, mêmes règles que frCatalog / matchFr.
    Partagé par le serveur (proxy.mjs › /api/names/find, fichiers names-*.tsv) et l'appli (pwa/names-all.tsv, scan.js › scanOther) : même résultat des deux côtés. */
 /** Chaîne autonome : une sous-chaîne garderait en mémoire tout le fichier lu. */
 const nmFlat = s => (s ? JSON.parse(JSON.stringify(s)) : '');
 /** Catalogue vide d'une langue : idx (index de nameIndex dont chaque nom porte « imprimé \t anglais [\t image] » : une seule chaîne par carte), amb (noms imprimés partagés par deux cartes), first (construction). */
-const nmCat = () => ({ n: 0, idx: { list: [], by: new Map() }, amb: new Set(), first: new Map() });
+const nmCat = () => ({ n: 0, idx: { list: [], by: new Map() }, amb: new Set(), ambEn: new Map(), first: new Map() });      // ambEn : nom imprimé partagé → noms anglais des cartes
 /** Ajoute le nom imprimé p de la carte anglaise en (img : chemin de la miniature, serveur seulement ; ek : frontName(en) déjà calculé) : 1er nom gardé, nom partagé par deux cartes noté (jamais « sûr »). */
 function nmPut(c, p, en, img, ek) {
   let k = frontName(p); if (k.length < 2) return;
-  const cur = c.first.get(k); if (cur !== undefined) { if (cur !== (ek || frontName(en))) c.amb.add(nmFlat(k)); return; }
+  const cur = c.first.get(k); if (cur !== undefined) {
+    const e2 = ek || frontName(en); if (cur === e2) return;
+    const kf = nmFlat(k), a = c.ambEn.get(kf) || [String(c.idx.by.get(kf) || '').split('\t')[1]].filter(Boolean); if (!a.some(x => frontName(x) === e2)) a.push(nmFlat(en));
+    c.amb.add(kf); c.ambEn.set(kf, a); return;
+  }
   k = nmFlat(k); c.first.set(k, ek || frontName(en)); const n = nmFlat(img === undefined ? p + '\t' + en : p + '\t' + en + '\t' + img);      // nom déjà normalisé : frontName peut rendre p lui-même, donc une sous-chaîne du fichier
   c.idx.by.set(k, n); c.idx.list.push({ k, n, s: spaces(k) }); c.n++;
 }
@@ -1921,8 +1934,8 @@ const nmDone = c => { c.first = null; return c.n >= 500 ? c : null; };
 /** Meilleure carte d'un catalogue pour les lignes lues (mêmes règles que matchFr) : { name (anglais), printed, score, raw, img, amb? } ou null. */
 function nmMatch(c, lines) {
   const m = c && bestMatch(lines, c.idx); if (!m) return null;
-  const [printed, name, img] = m.name.split('\t'), dup = c.amb.has(frontName(printed));
-  return { name, printed, score: dup ? Math.min(m.score, 0.83) : m.score, raw: m.raw, img: img || '', ...(dup ? { amb: true } : {}) };
+  const [printed, name, img] = m.name.split('\t'), dup = c.amb.has(frontName(printed)), alts = dup && c.ambEn ? c.ambEn.get(frontName(printed)) : null;
+  return { name, printed, score: dup ? Math.min(m.score, 0.83) : m.score, raw: m.raw, img: img || '', ...(dup ? { amb: true, ...(alts && alts.length > 1 ? { alts } : {}) } : {}) };
 }
 /** Lettres lues, accents gardés : « relámpago » (es) ≠ « relâmpago » (pt). */
 const nmAcc = s => String(s || '').toLowerCase().normalize('NFC').replace(/[^\p{L}]+/gu, '');
@@ -1935,7 +1948,8 @@ function nmPick(found) {
   let top = all.filter(f => all[0].score - f.score < 0.001);
   if (new Set(top.map(key)).size > 1) {
     const exact = top.filter(f => nmAcc(f.raw).includes(nmAcc(f.printed)));
-    top = new Set(exact.map(key)).size === 1 ? exact : top.map(f => ({ ...f, score: Math.min(f.score, 0.83), amb: true }));
+    const alts = [...new Map(top.map(f => [key(f), f.name])).values()];      // cartes possibles (une par langue) : la ligne du bas ou l'illustration tranchent au scan
+    top = new Set(exact.map(key)).size === 1 ? exact : top.map(f => ({ ...f, score: Math.min(f.score, 0.83), amb: true, alts }));
   }
   const h = top[0], alt = top.filter(f => f.lang !== h.lang && key(f) === key(h)).map(f => f.lang);
   return alt.length ? { ...h, alt } : h;
@@ -2166,7 +2180,7 @@ function deckMissing(text, owned) {
 
 /* ── Partage public (liste d'échange, deck) : document shares/{id}, lisible par quiconque a le lien. Le contenu vient d'un autre compte : tout est revérifié ici. ── */
 const SHARE_IMG_RE = /^https:\/\/cards\.scryfall\.io\/(?![\w./-]*(?:\/\/|\.\.))[\w./-]+(\?\d+)?$/;      // images Scryfall seulement, sans « // » ni « .. »
-const SHARE_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru'];
+const SHARE_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru', 'kr', 'zh-TW'];
 /** Image Scryfall en petit format (vignettes) : …/large/… ou …/normal/… → …/small/… */
 const SCRY_IMG = 'https://cards.scryfall.io/';
 /** Adresse d'image raccourcie pour un partage : « small/front/6/d/….jpg » (sans le domaine ni le ?horodatage) ; '' si ce n'est pas une image Scryfall. */
@@ -2257,6 +2271,6 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FRX, frKey, frUse, frIndex, frLookup, frToEn, enToFr, nameSuggest });
 // Langue des cartes et liens selon la langue de l'utilisateur (test.mjs) : exportés à part, eux aussi
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { defaultCardLang, cmSite, ctCartUrl, namesLangOf, NAMES_LANGS });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { defaultCardLang, cmSite, ctCartUrl, namesLangOf, NAMES_LANGS, ASIA_LANGS, NAMES_ALL_LANGS, CJK_RE });
 // Noms imprimés des autres langues (scan, proxy.mjs › /api/names/find) : exportés à part, eux aussi
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { nmFlat, nmCat, nmPut, nmDone, nmMatch, nmAcc, nmPick, namesAllCats });

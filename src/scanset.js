@@ -5,7 +5,7 @@
    auto : scan automatique (scan.js › scanAuto) · delay : écart minimal entre deux cartes en automatique (ms) · same : même carte à la suite en automatique, 'ask' (demander) ou 'add' (+1) ;
    lang : langue des cartes imposée ('' : lue sur chaque carte) · vib, snd : vibration et son à chaque carte reconnue ;
    frame : cadrage — 'card' (carte entière : nom + ligne du bas, l'édition lue sur la carte, scanfoot.js) · 'name' (caméra compacte, nom seulement). */
-const SCS_KEY = 'deckdeal:scanset', SCS_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'ru'], SCS_DELAYS = [500, 1000, 1500];
+const SCS_KEY = 'deckdeal:scanset', SCS_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'ru', 'jp', 'kr', 'zh-CN', 'zh-TW'], SCS_DELAYS = [500, 1000, 1500];
 /** Cadrage par défaut : carte entière dans l'appli Android (ML Kit lit le nom et la ligne du bas sur toute la carte), nom seulement dans le navigateur (Tesseract est plus sûr sur la bande). */
 function scsFrameDef() { try { return typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() ? 'card' : 'name'; } catch (e) { return 'name'; } }      // native.js est chargé après ce fichier
 const SCS_DEF = { ed: 'scan', auto: false, delay: 1000, same: 'ask', lang: '', vib: true, snd: false, frame: '' };

@@ -806,6 +806,8 @@ test('frCatalog : un nom français partagé par deux cartes n\'est jamais « sû
   const fc = C.frCatalog(['Dépérissement\tSicken\tfr/a.jpg', 'Dépérissement\tWaste Away\tfr/b.jpg', 'Anneau solaire\tSol Ring\tfr/c.jpg', 'Anneau solaire\tSol Ring\tfr/d.jpg', 'Collision // Colosse\tCollision // Colossus\t', 'Collision // Autre\tCollision // Other\t']);
   assert.deepEqual([...fc.amb], ['deperissement'], 'ambigus : cartes différentes, même nom ; même carte listée deux fois ou même recto : pas ambigu (clé de collection = recto)');
   const a = C.matchFr([{ text: 'Dépérissement' }], fc); assert.equal(a.amb, true); assert.ok(a.score <= 0.83, 'plafonné sous le seuil « sûr » (0,84)'); assert.equal(a.name, 'Sicken', 'la 1re est proposée');
+  assert.deepEqual(a.alts, ['Sicken', 'Waste Away'], 'cartes possibles (« Voie de la pyromancienne » : Path of / Way of the Pyromancer)');
+  assert.deepEqual(C.matchFr([{ text: 'Voie de la pyromancienne' }], C.frCatalog(['Voie de la pyromancienne\tPath of the Pyromancer\t', 'Voie de la pyromancienne\tWay of the Pyromancer\t', 'Voie de la pyromancienne\tPath of the Pyromancer\t'])).alts, ['Path of the Pyromancer', 'Way of the Pyromancer'], 'chaque carte une fois');
   const s = C.matchFr([{ text: 'Anneau solaire' }], fc); assert.equal(s.amb, undefined); assert.equal(s.score, 1);
 });
 test('frNames / frCatalog.fr : nom anglais (clé de collection) → nom imprimé français, face avant seulement', () => {
@@ -894,10 +896,12 @@ test('namesAllCats / nmMatch / nmPick : carte d\'une autre langue lue sur l\'app
     const a = pick(loc, q), b = pick(srv, q);
     assert.deepEqual([a.name, a.lang, a.amb], [name, lang, amb], q); assert.ok(Math.abs(a.score - score) < 0.02, q + ' : ' + a.score); assert.deepEqual(a, b, q + ' : même résultat que le serveur');
   }
-  assert.deepEqual(pick(loc, 'Elfos de Llanowar').alt, ['pt'], 'même carte, même nom en espagnol et en portugais'); assert.equal(pick(loc, 'Qzxvbnm Plrtkgh'), null);
+  assert.deepEqual(pick(loc, 'Elfos de Llanowar').alt, ['pt'], 'même carte, même nom en espagnol et en portugais');
+  { const f = []; for (const l of LS) { const m = C.nmMatch(loc[l], [{ text: 'Relampago' }]); if (m) f.push({ ...m, lang: l }); } assert.deepEqual(C.nmPick(f).alts, ['Lightning Bolt', 'Thunderbolt'], 'accents illisibles : les deux cartes possibles'); } assert.equal(pick(loc, 'Qzxvbnm Plrtkgh'), null);
   assert.equal(C.nmMatch(loc.it, [{ text: 'Fulmine' }]).img, '', 'appli : catalogue sans images'); assert.equal(C.nmMatch(srv.it, [{ text: 'Fulmine' }]).img, 'front/it/lightning-bolt.jpg', 'serveur : chemin de l\'image');
   const amb = C.nmCat(); for (let i = 0; i < 600; i++) C.nmPut(amb, 'Nom ' + i, 'Name ' + i); C.nmPut(amb, 'Dépérissement', 'Sicken'); C.nmPut(amb, 'Deperissement', 'Waste Away'); C.nmPut(amb, 'Nom 3', 'Name 3');
   const d = C.nmMatch(C.nmDone(amb), [{ text: 'Dépérissement' }]); assert.deepEqual([d.name, d.score, d.amb], ['Sicken', 0.83, true], 'nom imprimé partagé par deux cartes : la 1re, à vérifier');
+  assert.deepEqual(d.alts, ['Sicken', 'Waste Away'], 'les deux cartes possibles (le scan tranche : ligne du bas, illustration)');
   assert.equal(C.nmMatch(amb, [{ text: 'Nom 3' }]).amb, undefined, 'même carte deux fois : pas ambigu');
   assert.equal(C.nmDone(C.nmCat()), null, 'catalogue tronqué (< 500 noms) : rien');
   assert.equal(await C.namesAllCats(namesAll(texts).text, LS, async () => false), null, 'abandon (scan fermé)');
@@ -1275,17 +1279,21 @@ test('deck monté : la réserve (SB:) est aussi mise de côté, sans doubler une
   assert.deepEqual(C.engSnapshot('4 Lightning Bolt\n1 Sol Ring\n20 Mountain\nSB: 2 Negate\nSB: 1 Lightning Bolt\nSB: 1 Pithing Needle', of), { 'lightning bolt': 4, negate: 2, 'sol ring': 1 }, 'au plus les exemplaires possédés (4), Pithing Needle non possédée');
 });
 
-test('chinois : alias de langue, texte « *ZH* » ou « *ZH-CN* », une ligne par langue, recherche en français sur une carte anglaise', () => {
-  for (const x of ['zh', 'ZH', 'zhs', 'zht', 'zh-CN', 'ZH-CN', 'Chinese', 'chinois', 'Chinese Simplified']) assert.equal(C.cardLang(x), 'zh-CN', x);
-  assert.equal(C.langCode('zh-CN'), 'ZH'); assert.equal(C.langCode('fr'), 'FR'); assert.equal(C.langCode(''), '');
+test('chinois, coréen : alias de langue, texte « *ZH* », « *ZHT* », « *KR* », une ligne par langue, recherche en français sur une carte anglaise', () => {
+  for (const x of ['zh', 'ZH', 'zhs', 'zh-CN', 'ZH-CN', 'Chinese', 'chinois', 'Chinese Simplified', 'S-Chinese']) assert.equal(C.cardLang(x), 'zh-CN', x);
+  for (const x of ['zht', 'ZHT', 'zh-TW', 'zh_TW', 'Chinese Traditional', 'Traditional Chinese', 'T-Chinese', 'chinois traditionnel']) assert.equal(C.cardLang(x), 'zh-TW', x);
+  for (const x of ['kr', 'KO', 'kor', 'Korean', 'coréen']) assert.equal(C.cardLang(x), 'kr', x);
+  assert.equal(C.langCode('zh-CN'), 'ZH'); assert.equal(C.langCode('zh-TW'), 'ZHT'); assert.equal(C.langCode('kr'), 'KR'); assert.equal(C.langCode('fr'), 'FR'); assert.equal(C.langCode(''), '');
+  assert.equal(C.parseLine('1 Sol Ring *ZHT*').lang, 'zh-TW'); assert.equal(C.parseLine('1 Sol Ring *KR*').lang, 'kr');
   assert.equal(C.parseLine('2 Sol Ring *ZH*').lang, 'zh-CN'); assert.equal(C.parseLine('2 Sol Ring *ZH-CN*').lang, 'zh-CN'); assert.equal(C.parseLine('2 Sol Ring *ZH-CN*').name, 'Sol Ring');
   const p = C.parseCollection('2 Sol Ring *ZH*\n1 Sol Ring *FR*\n1 Counterspell *ZH-CN*');
   const m = C.mergeColl({}, p.items, 'replace');
   assert.deepEqual(C.collLines(m['sol ring']), [['fr', 1], ['zh-CN', 2]], 'tri : fr avant zh-CN'); assert.equal(m['sol ring'].q, 3); assert.equal(m['counterspell'].l, 'zh-CN');
   const t = C.collToText(m); assert.match(t, /2 Sol Ring \*ZH\*/); assert.ok(!/ZH-CN/.test(t));
   assert.deepEqual(C.collLines(C.collFromText(t)['sol ring']), [['fr', 1], ['zh-CN', 2]], 'aller-retour du texte');
-  const csv = C.parseCollection('Name,Quantity,Language\nSol Ring,2,zhs\nSol Ring,1,Chinese Traditional');
-  assert.deepEqual(csv.items.map(i => [i.q, i.lang || i.l]), [[3, 'zh-CN']].map(a => a), 'ManaBox zhs / zht : même ligne chinoise');
+  const csv = C.parseCollection('Name,Quantity,Language\nSol Ring,2,zhs\nSol Ring,1,Chinese Traditional\nSol Ring,1,Korean');
+  assert.deepEqual(csv.items.map(i => [i.q, i.x]), [[4, { 'zh-CN': 2, 'zh-TW': 1, kr: 1 }]], 'ManaBox zhs / zht / Korean : chinois simplifié, traditionnel, coréen à part');
+  { const k = C.mergeColl({}, C.parseCollection('1 Sol Ring *KR*\n1 Sol Ring *ZHT*\n1 Sol Ring *ZH*').items, 'replace'); assert.deepEqual(C.collLines(C.collFromText(C.collToText(k))['sol ring']), [['zh-CN', 1], ['kr', 1], ['zh-TW', 1]], 'coréen, traditionnel : aller-retour du texte'); }
   assert.equal(C.sanitizeOpts({ lang: 'zh-CN' }).lang, 'zh-CN', 'langue de recherche CardTrader : zh-CN');
   // recherche : le nom français (fn) trouve la carte même si l'exemplaire est anglais ; le nom affiché reste anglais
   const items = [{ n: 'Sol Ring', fn: 'Anneau solaire', q: 1, l: 'en' }, { n: 'Counterspell', q: 1 }];
@@ -1454,4 +1462,17 @@ test('foil : clé de ligne « * », texte « (FOIL) » (ancienne version : code 
   assert.deepEqual(C.unionLines([['*', 2]], [['', 2]]), [['*', 2]], 'non précisées de l\'autre côté : les mêmes cartes, le foil en plus'); assert.deepEqual(C.unionLines([['*', 1]], [['', 3]]), [['*', 1], ['', 2]]);
   const m = C.mergeColl({ 'sol ring': { n: 'Sol Ring', q: 1, l: 'fr' } }, [{ k: 'sol ring', n: 'Sol Ring', q: 1, x: { 'fr*': 1 } }], 'add', 1);
   assert.deepEqual(m['sol ring'].x, { fr: 1, 'fr*': 1 });
+});
+test('écritures d\'Asie : noms japonais, coréens, chinois reconnus (espaces glissés par l\'OCR, noms de 2 caractères, « ・ »)', () => {
+  const jp = C.frCatalog(['太陽の指輪\tSol Ring\t', '稲妻\tLightning Bolt\t', 'ジェイス・ベレレン\tJace Beleren\t', 'ドラゴンの怒り\tDragon Fury\t'], 'jp');
+  const m = (t, c = jp) => { const r = C.matchFr([{ text: t }], c); return r && [r.name, r.score, r.card]; };
+  assert.deepEqual(m('太 陽 の 指 輪'), ['Sol Ring', 1, 'jp'], 'espaces entre les caractères ignorés');
+  assert.deepEqual(m('稲妻'), ['Lightning Bolt', 1, 'jp'], 'deux caractères suffisent');
+  assert.deepEqual(m('ジェイス ベレレン'), ['Jace Beleren', 1, 'jp'], 'point de séparation lu comme un espace');
+  assert.deepEqual(m('太陽の指輸'), ['Sol Ring', 0.8, 'jp'], 'un caractère mal lu : à vérifier');
+  assert.equal(m('稲'), null, 'un caractère seul : rien');
+  const kr = C.frCatalog(['태양 반지\tSol Ring\t', '번개 화살\tLightning Bolt\t'], 'kr');
+  assert.deepEqual(m('태양반지', kr), ['Sol Ring', 1, 'kr']); assert.deepEqual(m('번개 화 살', kr), ['Lightning Bolt', 1, 'kr']);
+  assert.equal(C.normPart('Anneau solaire'), 'anneau solaire'); assert.equal(C.normPart('Молния'), 'молния'); assert.equal(C.normPart('が'), 'が', 'signe recomposé');
+  assert.ok(C.CJK_RE.test('太陽') && !C.CJK_RE.test('Sol Ring')); assert.deepEqual(C.ASIA_LANGS, ['jp', 'kr', 'zh-CN', 'zh-TW']);
 });

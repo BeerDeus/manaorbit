@@ -2,5 +2,9 @@
 "retrouvée par la ligne du bas": "found from the bottom line",
 "langue {a} gardée (nom), {b} lue en bas ignorée": "language {a} kept (name), {b} read at the bottom ignored",
 "langue du lot ({lang}) : nom identique d'une langue à l'autre": "batch language ({lang}): same name in both languages",
-"langue du lot : {v}": "batch language: {v}"
+"langue du lot : {v}": "batch language: {v}",
+"nom de plusieurs cartes : celle-ci d'après la ligne du bas": "name shared by several cards: this one, from the bottom line",
+"nom de plusieurs cartes : celle-ci d'après l'illustration": "name shared by several cards: this one, from the artwork",
+"nom de plusieurs cartes : {list}": "name shared by several cards: {list}",
+"Plutôt {name}": "Rather {name}"
 }

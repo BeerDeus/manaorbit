@@ -2211,9 +2211,11 @@ async function partieApi(req, res, path, url) {
    sinon une carte d'une autre langue (italienne lue avec l'appli en français) est cherchée ici dans les catalogues names-*.tsv déjà servis, avec la même
    comparaison tolérante et le même arbitrage entre langues que l'appli (core.js › nmPut, nmMatch, nmPick).
    Public comme les catalogues eux-mêmes, lecture seule, budget par IP. Index construit à la première recherche, par tranches (le serveur continue de
-   répondre) : ≈ 7 Mo de tas par langue, ≈ 35 Mo pour les cinq (mesuré : le processus prend ≈ 100 à 170 Mo de plus à la première recherche, tas réservé
+   répondre) : ≈ 7 Mo de tas par langue, ≈ 35 Mo pour les cinq latines (japonais, coréen, chinois : chargés seulement si une ligne lue est dans leur écriture) (mesuré : le processus prend ≈ 100 à 170 Mo de plus à la première recherche, tas réservé
    par V8 compris) ; libéré après NAMES_IDLE_MIN minutes sans recherche (30), relu si le fichier change. NAMES_FIND=0 : coupé. NAMES_RATE_PER_MIN : 60 par IP. */
-const NM_FILES = { fr: 'fr-names.tsv', de: 'names-de.tsv', es: 'names-es.tsv', it: 'names-it.tsv', pt: 'names-pt.tsv', ru: 'names-ru.tsv' };      // liste fermée : aucun chemin construit depuis la requête
+const NM_FILES = { fr: 'fr-names.tsv', de: 'names-de.tsv', es: 'names-es.tsv', it: 'names-it.tsv', pt: 'names-pt.tsv', ru: 'names-ru.tsv',
+  jp: 'names-ja.tsv', kr: 'names-ko.tsv', 'zh-CN': 'names-zhs.tsv', 'zh-TW': 'names-zht.tsv' };      // liste fermée : aucun chemin construit depuis la requête ; clés : codes de l'appli
+const NM_ASIA = new Set(['jp', 'kr', 'zh-CN', 'zh-TW']);      // cherchées seulement pour une ligne en écriture d'Asie (et les autres jamais pour elle) : pas de catalogue chargé pour rien
 let NM_CORE = null; try { NM_CORE = createRequire(import.meta.url)('./src/core.js'); } catch (e) { /* sources absentes : recherche coupée (503), l'appli fait sans */ }
 const NM_ON = process.env.NAMES_FIND !== '0' && !!(NM_CORE && NM_CORE.nmCat && NM_CORE.nmPick);
 const PUB_ON = process.env.PUBDECKS !== '0' && FCM_ON && !!(NM_CORE && NM_CORE.pubClean);      // decks publics : compte de service et lecteur (core.js) présents
@@ -2254,7 +2256,7 @@ async function namesApi(req, res, url) {
   if (!NM_ON) return json(res, 503, { error: 'unavailable', message: 'Recherche des noms des autres langues coupée sur ce serveur.' });
   const qs = url.searchParams.getAll('q').map(s => s.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim()).filter(Boolean);
   if (!qs.length || qs.length > NM_Q || qs.some(s => s.length > NM_LEN)) return json(res, 400, { error: 'bad_request', message: `De 1 à ${NM_Q} lignes lues (q), ${NM_LEN} caractères au plus.` });
-  const skip = new Set(String(url.searchParams.get('skip') || '').split(',')), langs = Object.keys(NM_FILES).filter(l => !skip.has(l));      // skip : comparé à la liste fermée, jamais utilisé comme chemin
+  const asia = qs.some(q => NM_CORE.CJK_RE.test(q)), skip = new Set(String(url.searchParams.get('skip') || '').split(',')), langs = Object.keys(NM_FILES).filter(l => !skip.has(l) && NM_ASIA.has(l) === asia);      // skip : comparé à la liste fermée, jamais utilisé comme chemin
   if (!langs.length) return json(res, 200, { hit: null, tried: [] });
   const wait = rateWait(req, 'names', NM_RATE, 60e3); if (wait) return tooMany(res, wait);
   if (nmBusy >= NM_BUSY) return json(res, 503, { error: 'busy', message: 'Serveur occupé.' }, { 'Retry-After': '2' });
@@ -2269,7 +2271,7 @@ async function namesApi(req, res, url) {
     if (!tried.length) return json(res, 503, { error: 'unavailable', message: 'Aucun catalogue des autres langues sur ce serveur.' });
     if (!found.length) return json(res, 200, { hit: null, tried });
     const h = NM_CORE.nmPick(found);                                       // même nom lu, cartes différentes selon la langue : accents lus tels quels, sinon à vérifier ; alt : même carte, même nom ailleurs (core.js › nmPick, comme l'appli)
-    const hit = h ? { name: h.name, printed: h.printed, lang: h.lang, score: h.score, raw: h.raw, img: !h.img ? '' : /^https:\/\//.test(h.img) ? h.img : NM_CORE.FR_IMG + h.img, ...(h.amb ? { amb: true } : {}), ...(h.alt ? { alt: h.alt } : {}) } : null;
+    const hit = h ? { name: h.name, printed: h.printed, lang: h.lang, score: h.score, raw: h.raw, img: !h.img ? '' : /^https:\/\//.test(h.img) ? h.img : NM_CORE.FR_IMG + h.img, ...(h.amb ? { amb: true, ...(Array.isArray(h.alts) ? { alts: h.alts.slice(0, 6) } : {}) } : {}), ...(h.alt ? { alt: h.alt } : {}) } : null;      // alts : cartes anglaises qui portent ce nom (le scan tranche)
     return json(res, 200, { hit, tried });
   } finally { nmBusy--; nmUsed = Date.now(); }
 }

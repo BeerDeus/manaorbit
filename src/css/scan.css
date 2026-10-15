@@ -148,3 +148,7 @@
 .sc-diag{white-space:pre-line}
 /* diagnostic (5 appuis sur le titre) : au-dessus de la liste, sur fond opaque, lisible (plus sur l'image de la caméra) */
 .scan .sc-diag{position:static;flex:none;margin:0 12px 8px;padding:8px 10px;border-radius:10px;background:#0b0f1c;color:#9bffc5;font-size:12.5px;line-height:1.45;max-height:30dvh;overflow:auto}
+/* Nom imprimé de plusieurs cartes : « Plutôt … » (scan.js › scanAltsHtml) */
+.sc-alts{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+.sc-alt{cursor:pointer;font:inherit;font-size:11.5px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-alt:hover{border-color:var(--accent)}
