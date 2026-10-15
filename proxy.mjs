@@ -15,7 +15,7 @@ import { promisify } from 'node:util';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { timingSafeEqual, createPublicKey, createPrivateKey, verify as rsaVerify, sign as dsaSign, randomBytes, createHash, createHmac, createECDH, createCipheriv, hkdfSync } from 'node:crypto';
+import { timingSafeEqual, createPublicKey, createPrivateKey, verify as rsaVerify, sign as dsaSign, randomBytes, createHash, createHmac, createECDH, createCipheriv, createDecipheriv, hkdfSync } from 'node:crypto';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const gzipA = promisify(gzip), gunzipA = promisify(gunzip), brotliA = promisify(brotliCompress);
@@ -1852,6 +1852,346 @@ async function trocApi(req, res, path, url) {
   }
 }
 
+/* ── Partie de Commander : /api/partie… (salle d'attente en mémoire, résultats dans l'historique de chaque compte) ─────────────────────────────
+   Le compteur ne tourne que sur le téléphone du créateur (src/partie.js, chargé aussi ici : mêmes règles de lecture des résultats). Le serveur sert à deux choses :
+   · Salle d'attente, EN MÉMOIRE (comme l'échange en direct : un redémarrage la termine, rien n'est écrit) : le créateur (compte connecté) l'ouvre pour SA partie
+     (POST /api/partie, id de la partie) : code de 6 caractères (mêmes symboles que l'échange en direct), montré en QR code (./?table=<code>). Chacun regarde
+     la table sans compte (GET /api/partie/peek), puis la rejoint (POST /api/partie/join) sur une place libre (1 à 8) avec son deck (nom, commandant, image
+     Scryfall seulement) : connecté (jeton Firebase, place « compte ») ou en invité sans compte (prénom, commandant facultatif : place « invite », budgets
+     par réseau plus stricts, rien d'enregistré sur le serveur pour lui). Chaque téléphone reçoit une clé de place (x-partie-key, 144 bits) : relevé versionné
+     (GET /api/partie/s : rien de neuf → réponse courte avec les places présentes), actions (POST /api/partie/op). Le créateur déplace, retire, ajoute des
+     invités sans téléphone, règle le format, puis « commence » : liste figée, et pour chaque place « compte » un jeton (AES-256-GCM, clé tirée du compte de
+     service, lié à la partie et au créateur), seul moyen d'enregistrer la partie chez ce compte. Aucun UID ni empreinte n'est jamais renvoyé.
+   · Résultats, dans Firestore par le compte de service (collection parties : l'appli n'y a pas accès, refus par défaut des règles, rien à publier) :
+     parties/{empreinte SHA-256 de l'UID} { j: JSON { v: 1, h: [entrées, la partie la plus récente d'abord] }, at } ; entrée = résultat (partieResClean, sans jetons)
+     + moi (place de ce compte, 0 : aucune) + src ('h' : il l'a créée, 's' : salle d'attente, 'q' : QR code du résultat) + at (enregistrée) ; PARTIE_HIST_MAX parties
+     (500) et 900 Ko par compte au plus, les plus anciennes partent. POST /api/partie/result (le créateur) : chez lui et chez chaque compte de la partie
+     (jetons valides), notification « Partie enregistrée » à chacun (notifyUser, ./?parties=1) ; la salle, si elle existe encore, reçoit le résultat (les
+     téléphones encore sur la page le gardent, invités compris). POST /api/partie/claim (QR code du résultat) : chez lui seul. Même partie déjà là : une
+     seule entrée (idempotent). GET /api/partie/hist (paginé), DELETE /api/partie/hist?id= (une partie), DELETE /api/partie/me (suppression du compte).
+   Bornes : PARTIE_MAX salles ouvertes (500), une salle en attente par créateur, PARTIE_NEW_PER_H créations par compte et par heure (20), PARTIE_BAD_PER_H codes
+   faux par compte et par heure (20 ; le double par réseau ; moitié moins par réseau pour un invité ou un coup d'œil), PARTIE_GUEST_PER_H invités par réseau et
+   par heure (30), PARTIE_RES_PER_H résultats et réclamations par compte et par heure (30) ; salle en attente : 30 min sans activité ou 3 h en tout
+   (PARTIE_IDLE_MS, PARTIE_LIFE_MS) ; commencée ou finie : gardée PARTIE_KEEP_MS (12 h) pour remettre le résultat ; 12 requêtes d'avance par place
+   (6 par seconde) ; corps de 32 Ko. PARTIE=0, ou sans compte de service : coupé (/__ping partie: false). */
+let PT_CORE = null; try { PT_CORE = createRequire(import.meta.url)('./src/partie.js'); } catch (e) { /* sources absentes : partie coupée */ }
+const PT_ON = process.env.PARTIE !== '0' && FCM_ON && !!(PT_CORE && PT_CORE.partieResClean);
+const PT_MAX = Math.max(1, Number(process.env.PARTIE_MAX) || 500), PT_LIFE = Number(process.env.PARTIE_LIFE_MS ?? 3 * 3600e3), PT_IDLE = Number(process.env.PARTIE_IDLE_MS ?? 30 * 60e3);
+const PT_KEEP = Number(process.env.PARTIE_KEEP_MS ?? 12 * 3600e3), PT_AWAY = Number(process.env.PARTIE_AWAY_MS ?? 15e3), PT_TICK = Number(process.env.PARTIE_TICK_MS ?? 30e3);
+const PT_NEW_H = Number(process.env.PARTIE_NEW_PER_H ?? 20), PT_BAD_H = Number(process.env.PARTIE_BAD_PER_H ?? 20), PT_GUEST_H = Number(process.env.PARTIE_GUEST_PER_H ?? 30), PT_RES_H = Number(process.env.PARTIE_RES_PER_H ?? 30);
+const PT_HIST_MAX = Math.max(1, Number(process.env.PARTIE_HIST_MAX) || 500), PT_HIST_B = 900 * 1024, PT_BODY = 32 * 1024, PT_SEATS = 8, PT_TTL = 10 * 60e3, PT_KICKS = 50;
+const PT_CACHE_B = (Number(process.env.PARTIE_CACHE_MB) || 16) * 1024 * 1024;      // historiques gardés en mémoire (les plus anciens partent d'abord)
+const PT_KEY_RE = /^[\w-]{24}$/, PT_ID_RE = /^[0-9a-z]{8,24}$/, PT_FMTS = [40, 30, 25, 20];
+const PT = { s: new Map(), u: new Map(), hist: new Map(), hb: 0, t: null, k: null };
+// Notification « Partie enregistrée », dans la langue de l'appareil (h : pseudo du créateur, w : vainqueurs, me : ce compte a gagné).
+const PT_TXT = {
+  fr: ['Partie enregistrée', (h, w, me) => (me ? `Partie de ${h} : tu as gagné !` : w ? `Partie de ${h} : victoire de ${w}.` : `Partie de ${h} : pas de vainqueur.`)],
+  en: ['Game saved', (h, w, me) => (me ? `${h}'s game: you won!` : w ? `${h}'s game: ${w} won.` : `${h}'s game: no winner.`)],
+  de: ['Partie gespeichert', (h, w, me) => (me ? `Partie von ${h}: Du hast gewonnen!` : w ? `Partie von ${h}: Sieg für ${w}.` : `Partie von ${h}: kein Sieger.`)],
+  es: ['Partida guardada', (h, w, me) => (me ? `Partida de ${h}: ¡has ganado!` : w ? `Partida de ${h}: victoria de ${w}.` : `Partida de ${h}: sin ganador.`)],
+  it: ['Partita salvata', (h, w, me) => (me ? `Partita di ${h}: hai vinto!` : w ? `Partita di ${h}: vittoria di ${w}.` : `Partita di ${h}: nessun vincitore.`)],
+  pt: ['Partida salva', (h, w, me) => (me ? `Partida de ${h}: você venceu!` : w ? `Partida de ${h}: vitória de ${w}.` : `Partida de ${h}: sem vencedor.`)],
+};
+/** Prénom ou pseudo d'une place : 24 caractères, refusé (vide) s'il contient un mot du filtre des decks publics. */
+const ptName = v => { const s = trocStr(v, 24); return s && !(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(s)) ? s : ''; };
+/** Deck envoyé : null (aucun), false (image qui n'est pas une adresse Scryfall), sinon { nom?, commandant?, image? } (textes filtrés comme les pseudos). */
+function ptDeckIn(d) {
+  if (d == null || typeof d !== 'object') return null;
+  const raw = typeof d.image === 'string' ? d.image.trim().slice(0, 300) : '', full = !raw || /^https:/.test(raw) ? raw : TROC_IMG + raw;
+  if (raw && !PT_CORE.PRT_IMG_RE.test(full)) return false;
+  const c = PT_CORE.partieDeck({ nom: d.nom, commandant: d.commandant, image: full }); if (!c) return null;
+  for (const k of ['nom', 'commandant']) if (c[k] && NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(c[k])) delete c[k];
+  return Object.keys(c).length ? c : null;
+}
+const ptNewKey = () => randomBytes(18).toString('base64url');
+const ptSeat = o => ({ pos: 1, k: 'invite', tag: '', key: '', n: '', p: '', deck: null, h: false, tk: '', seen: Date.now(), rn: 12, rt: Date.now(), ...o });
+const ptOpen = r => r.st === 'wait' || r.st === 'live';
+const ptFree = r => { const out = []; for (let i = 1; i <= r.size; i++) if (!r.seats.some(s => s.pos === i)) out.push(i); return out; };
+const ptOn = r => r.seats.filter(s => s.key && Date.now() - s.seen < PT_AWAY).map(s => s.pos).sort((a, b) => a - b);
+const ptCodeOf = v => String(v || '').toUpperCase().replace(/[\s-]/g, '');
+function ptCode() {
+  for (;;) {
+    let c = ''; while (c.length < 6) for (const x of randomBytes(8)) if (x < 248 && c.length < 6) c += TROC_ABC[x % 31];      // comme trocCode : aucun symbole plus probable qu'un autre
+    if (!PT.s.has(c)) return c;
+  }
+}
+/* Jeton d'une place « compte » : empreinte du compte chiffrée (AES-256-GCM), liée à la partie et au créateur (données associées). Clé tirée de la clé privée du
+   compte de service (HKDF) : rien de plus à configurer, et un jeton reste valable après un redémarrage (résultat envoyé des heures plus tard). */
+function ptKey() { if (!PT.k) PT.k = Buffer.from(hkdfSync('sha256', fcmSa.key.export({ type: 'pkcs8', format: 'der' }), 'mana-orbit', 'partie/jeton/v1', 32)); return PT.k; }
+function ptTicket(tag, id, host) {
+  const iv = randomBytes(12), c = createCipheriv('aes-256-gcm', ptKey(), iv); c.setAAD(Buffer.from(id + '|' + host));
+  const ct = Buffer.concat([c.update(Buffer.from(tag, 'hex')), c.final()]);
+  return Buffer.concat([iv, ct, c.getAuthTag()]).toString('base64url');
+}
+/** Jeton → empreinte du compte, si ce jeton a bien été donné pour cette partie à ce créateur ; '' sinon. */
+function ptTicketOpen(t, id, host) {
+  try {
+    const b = Buffer.from(String(t), 'base64url'); if (b.length !== 60) return '';
+    const d = createDecipheriv('aes-256-gcm', ptKey(), b.subarray(0, 12)); d.setAAD(Buffer.from(id + '|' + host)); d.setAuthTag(b.subarray(44));
+    const tag = Buffer.concat([d.update(b.subarray(12, 44)), d.final()]).toString('hex');
+    return AM_TAG.test(tag) ? tag : '';
+  } catch (e) { return ''; }
+}
+/** Fin de la salle sans résultat : créateur parti ou remplacée (host, replaced), inactive ou trop vieille (idle). */
+/** Salle finie : les miniatures des profils ne servent plus (mémoire rendue). */
+const ptLight = r => { for (const s of r.seats) s.p = ''; };
+function ptEnd(r, why) { if (r.st === 'end') return; r.st = 'end'; r.why = why; r.endAt = Date.now(); r.v++; ptLight(r); if (PT.u.get(r.host) === r.code) PT.u.delete(r.host); }
+function ptTick() {
+  const now = Date.now(), old = [];
+  for (const [c, r] of PT.s) {
+    if (r.st === 'wait' && (now - r.act > PT_IDLE || now - r.at > PT_LIFE)) ptEnd(r, 'idle');
+    if (r.st === 'live' && now - r.startAt > PT_KEEP) ptEnd(r, 'idle');
+    if ((r.st === 'end' && now - r.endAt > 10 * 60e3) || (r.st === 'done' && now - r.endAt > PT_KEEP)) PT.s.delete(c);
+    else if (!ptOpen(r)) old.push(c);
+  }
+  for (const c of old.slice(0, Math.max(0, old.length - PT_MAX * 2))) PT.s.delete(c);      // finies en surnombre : les plus anciennes partent
+  if (!PT.s.size) { clearInterval(PT.t); PT.t = null; }
+}
+function ptWake() { if (!PT.t) { PT.t = setInterval(ptTick, PT_TICK); PT.t.unref(); } }
+/** La salle vue d'une place (le créateur voit aussi les jetons des places « compte », une fois la partie commencée). */
+function ptView(r, me) {
+  const now = Date.now(), host = !!(me && me.h);
+  return { c: r.code, v: r.v, st: r.st, why: r.why, id: r.id, format: r.format, size: r.size, at: r.at, me: me ? me.pos : 0, host,
+    places: r.seats.slice().sort((a, b) => a.pos - b.pos).map(s => ({ pos: s.pos, n: s.n, k: s.k, ...(s.h ? { h: 1 } : {}), dev: s.key ? 1 : 0, on: s.key && now - s.seen < PT_AWAY ? 1 : 0,
+      ...(s.p ? { p: s.p } : {}), ...(s.deck ? { deck: s.deck } : {}), ...(host && s.tk ? { t: s.tk } : {}) })), ...(r.res ? { res: r.res } : {}) };
+}
+/** Coup d'œil avant d'entrer (sans clé) : places prises (pseudo ou prénom, compte ou invité), libres, format. */
+function ptPublic(r) {
+  const h = r.seats.find(s => s.h);
+  return { c: r.code, st: r.st, format: r.format, size: r.size, host: h ? h.n : '', free: r.st === 'wait' ? ptFree(r) : [], places: r.seats.slice().sort((a, b) => a.pos - b.pos).map(s => ({ pos: s.pos, n: s.n, k: s.k, ...(s.h ? { h: 1 } : {}) })) };
+}
+/** Salle et place d'après le code et la clé (x-partie-key) ; sinon réponse d'erreur envoyée (null). Chaque requête compte comme signe de vie. */
+function ptSeatOf(req, res, code) {
+  const key = String(req.headers['x-partie-key'] || ''), r = TROC_CODE.test(code) ? PT.s.get(code) : null, okKey = PT_KEY_RE.test(key);
+  if (r && okKey && r.kick.has(key)) { json(res, 410, { error: 'kicked', message: 'Le créateur de la partie t\'a retiré de la table.' }); return null; }
+  const me = r && okKey ? r.seats.find(s => s.key && safeEq(s.key, key)) : null;
+  if (!me) { json(res, 404, { error: 'gone', message: 'Partie introuvable ou terminée.' }); return null; }
+  if (!trocPace(me)) { json(res, 429, { error: 'rate_limited', message: 'Trop de requêtes.', retry: 1 }, { 'Retry-After': '1' }); return null; }
+  me.seen = Date.now(); if (ptOpen(r)) r.act = me.seen;
+  return { r, me };
+}
+/** POST /api/partie { id, n, p, l, pos, deck, format, size } : salle d'attente de la partie id (déjà ouverte par ce compte pour cette partie : la même, rechargement ;
+    sa salle précédente encore en attente se termine). → { key, s } */
+async function ptNew(req, res, me) {
+  const b = await amBody(req, res, PT_BODY); if (!b) return;
+  const id = typeof b.id === 'string' && PT_ID_RE.test(b.id) ? b.id : PT_CORE.partieId(), cur = PT.s.get(PT.u.get(me.tag));
+  if (cur && ptOpen(cur) && cur.id === id) { const s = cur.seats.find(x => x.h); s.seen = Date.now(); return json(res, 200, { key: s.key, s: ptView(cur, s) }); }
+  const w = trocLim('ptnew', me.tag, PT_NEW_H, 3600e3) || rateWait(req, 'ptnew', 3 * PT_NEW_H, 3600e3); if (w) return tooMany(res, w);
+  let open = 0; for (const r of PT.s.values()) if (ptOpen(r) && r !== cur) open++;
+  if (open >= PT_MAX) return json(res, 503, { error: 'busy', message: 'Trop de parties en cours : réessaie dans un moment.' }, { 'Retry-After': '60' });
+  const deck = ptDeckIn(b.deck); if (deck === false) return json(res, 400, { error: 'bad_image', message: 'Image Scryfall attendue.' });
+  const size = Number.isInteger(b.size) && b.size >= 2 && b.size <= PT_SEATS ? b.size : PT_SEATS, pos = Number.isInteger(b.pos) && b.pos >= 1 && b.pos <= size ? b.pos : 1;
+  if (cur && cur.st === 'wait') ptEnd(cur, 'replaced');
+  const now = Date.now(), r = { code: ptCode(), id, host: me.tag, at: now, act: now, st: 'wait', why: '', v: 1, format: PT_FMTS.includes(b.format) ? b.format : 40, size, seats: [], kick: new Set(), res: null, startAt: 0, endAt: 0 };
+  const s = ptSeat({ pos, k: 'compte', tag: me.tag, key: ptNewKey(), n: ptName(b.n), p: amPic(b.p), deck, h: true });
+  r.seats.push(s); PT.s.set(r.code, r); PT.u.set(me.tag, r.code); ptWake();
+  return json(res, 200, { key: s.key, s: ptView(r, s) });
+}
+/** POST /api/partie/join { c, pos?, n, p?, deck? } : avec un jeton Firebase, place « compte » (ou sa place reprise : rechargement, autre appareil) ; sans, place
+    « invite » (prénom exigé). Place prise : 409 taken (+ free) ; table pleine : 409 full ; partie commencée : 409 started. */
+async function ptJoin(req, res) {
+  let me = null;
+  if (req.headers['x-firebase-token']) { me = await amAuth(req, res, 'Connecte-toi, ou entre en invité.'); if (!me) return; }
+  const net = clientOf(req), badCap = Math.max(1, Math.ceil(PT_BAD_H / 2));
+  const w = me ? trocLim('ptbad', me.tag, PT_BAD_H, 3600e3, false) || trocLim('ptbadnet', net, 2 * PT_BAD_H, 3600e3, false) : trocLim('ptbadg', net, badCap, 3600e3, false);
+  if (w) return tooMany(res, w);
+  const b = await amBody(req, res, PT_BODY); if (!b) return;
+  const code = ptCodeOf(b.c), r = TROC_CODE.test(code) ? PT.s.get(code) : null;
+  if (me && r && r.kick.has(me.tag)) return json(res, 410, { error: 'kicked', message: 'Le créateur de la partie t\'a retiré de la table.' });
+  const mine = me && r ? r.seats.find(s => s.tag === me.tag) : null;
+  if (mine && ptOpen(r)) { mine.seen = Date.now(); return json(res, 200, { key: mine.key, s: ptView(r, mine) }); }
+  if (!r || r.st !== 'wait') {      // code inconnu, partie commencée ou finie : compté (deviner un code coûte vite un blocage)
+    if (me) { trocLim('ptbad', me.tag, PT_BAD_H, 3600e3); trocLim('ptbadnet', net, 2 * PT_BAD_H, 3600e3); } else trocLim('ptbadg', net, badCap, 3600e3);
+    return r && ptOpen(r) ? json(res, 409, { error: 'started', message: 'La partie a déjà commencé.' }) : json(res, 404, { error: 'not_found', message: 'Code inconnu, ou partie terminée.' });
+  }
+  if (!me) { const g = trocLim('ptguest', net, PT_GUEST_H, 3600e3); if (g) return tooMany(res, g); }
+  const n = ptName(b.n); if (!me && !n) return json(res, 400, { error: 'name', message: 'Prénom requis (sans mot grossier).' });
+  const deck = ptDeckIn(b.deck); if (deck === false) return json(res, 400, { error: 'bad_image', message: 'Image Scryfall attendue.' });
+  let pos = b.pos == null || b.pos === 0 ? 0 : b.pos;
+  if (pos) {
+    if (!Number.isInteger(pos) || pos < 1 || pos > r.size) return json(res, 400, { error: 'bad_place', message: 'Place invalide.' });
+    if (r.seats.some(s => s.pos === pos)) return json(res, 409, { error: 'taken', message: 'Place déjà prise.', free: ptFree(r) });
+  } else { pos = ptFree(r)[0] || 0; if (!pos) return json(res, 409, { error: 'full', message: 'Table complète.' }); }
+  const s = ptSeat({ pos, k: me ? 'compte' : 'invite', tag: me ? me.tag : '', key: ptNewKey(), n, p: me ? amPic(b.p) : '', deck });
+  r.seats.push(s); r.v++; r.act = Date.now();
+  return json(res, 200, { key: s.key, s: ptView(r, s) });
+}
+/** GET /api/partie/peek?c=<code> : la table avant d'y entrer (sans compte ni clé ; code faux compté par réseau). */
+function ptPeek(req, res, url) {
+  const net = clientOf(req), badCap = Math.max(1, Math.ceil(PT_BAD_H / 2));
+  const w = trocLim('ptbadg', net, badCap, 3600e3, false) || rateWait(req, 'ptpeek', 600, 3600e3); if (w) return tooMany(res, w);
+  const code = ptCodeOf(url.searchParams.get('c')), r = TROC_CODE.test(code) ? PT.s.get(code) : null;
+  if (!r || r.st === 'end') { trocLim('ptbadg', net, badCap, 3600e3); return json(res, 404, { error: 'not_found', message: 'Code inconnu, ou partie terminée.' }); }
+  return json(res, 200, ptPublic(r));
+}
+/** GET /api/partie/s?c=<code>&v=<version> : la salle (rien de neuf : { v, same, on : places présentes }). */
+function ptPoll(req, res, url) {
+  const x = ptSeatOf(req, res, ptCodeOf(url.searchParams.get('c'))); if (!x) return;
+  if (Number(url.searchParams.get('v')) === x.r.v) return json(res, 200, { v: x.r.v, same: 1, on: ptOn(x.r) });
+  return json(res, 200, ptView(x.r, x.me));
+}
+/** POST /api/partie/op { c, op, … } : seat { pos } · me { n?, p?, deck? } · leave ; créateur seulement : add { pos?, n, deck? } · move { from, to } · kick { pos } ·
+    opts { format?, size? } · start · end. Changements de places : seulement en attente. Répond la salle vue de cette place (erreur : { error, message, s }). */
+async function ptOp(req, res) {
+  const b = await amBody(req, res, PT_BODY); if (!b) return;
+  const x = ptSeatOf(req, res, ptCodeOf(b.c)); if (!x) return;
+  const { r, me } = x, op = String(b.op || ''), wait = r.st === 'wait';
+  const done = () => json(res, 200, ptView(r, me)), bump = () => { r.v++; r.act = Date.now(); return done(); };
+  const fail = (st, error, message, extra = {}) => json(res, st, { error, message, ...extra, s: ptView(r, me) });
+  const posOk = p => Number.isInteger(p) && p >= 1 && p <= r.size, at = p => r.seats.find(s => s.pos === p);
+  if (op === 'leave') {
+    if (me.h) { ptEnd(r, 'host'); return json(res, 200, { ok: true }); }      // le créateur part : plus de partie
+    if (wait) r.seats.splice(r.seats.indexOf(me), 1); else me.key = '';      // commencée : sa place reste (liste figée), ce téléphone ne suit plus
+    r.v++; return json(res, 200, { ok: true });
+  }
+  if (op === 'end') { if (!me.h) return fail(403, 'not_host', 'Réservé au créateur de la partie.'); ptEnd(r, 'host'); return done(); }
+  if (!wait) return fail(409, r.st === 'live' ? 'started' : 'closed', r.st === 'live' ? 'La partie a déjà commencé.' : 'Partie terminée.');
+  if (op === 'me') {
+    if ('n' in b) { const n = ptName(b.n); if (!n && me.k === 'invite') return fail(400, 'name', 'Prénom requis (sans mot grossier).'); me.n = n; }
+    if ('deck' in b) { const d = ptDeckIn(b.deck); if (d === false) return fail(400, 'bad_image', 'Image Scryfall attendue.'); me.deck = d; }
+    if ('p' in b && me.k === 'compte') me.p = amPic(b.p);
+    return bump();
+  }
+  if (op === 'seat') {
+    const p = b.pos; if (!posOk(p)) return fail(400, 'bad_place', 'Place invalide.');
+    if (p === me.pos) return done();
+    if (at(p)) return fail(409, 'taken', 'Place déjà prise.', { free: ptFree(r) });
+    me.pos = p; return bump();
+  }
+  if (!me.h) return fail(403, 'not_host', 'Réservé au créateur de la partie.');
+  if (op === 'add') {      // invité sans téléphone (prénom, commandant facultatif)
+    const n = ptName(b.n); if (!n) return fail(400, 'name', 'Prénom requis (sans mot grossier).');
+    const deck = ptDeckIn(b.deck); if (deck === false) return fail(400, 'bad_image', 'Image Scryfall attendue.');
+    let p = b.pos || 0;
+    if (p) { if (!posOk(p)) return fail(400, 'bad_place', 'Place invalide.'); if (at(p)) return fail(409, 'taken', 'Place déjà prise.', { free: ptFree(r) }); }
+    else { p = ptFree(r)[0] || 0; if (!p) return fail(409, 'full', 'Table complète.'); }
+    r.seats.push(ptSeat({ pos: p, k: 'invite', n, deck })); return bump();
+  }
+  if (op === 'move') {      // vers une place libre, ou échange avec celle qui l'occupe
+    const s = at(b.from); if (!s || !posOk(b.to)) return fail(400, 'bad_place', 'Place invalide.');
+    const o = at(b.to); if (o) o.pos = s.pos; s.pos = b.to; return bump();
+  }
+  if (op === 'kick') {
+    const s = at(b.pos); if (!s || s.h) return fail(400, 'bad_place', 'Place invalide.');
+    for (const k of [s.key, s.tag]) if (k) { r.kick.add(k); if (r.kick.size > PT_KICKS) r.kick.delete(r.kick.values().next().value); }      // sa clé, et son compte : il ne revient pas par le code
+    r.seats.splice(r.seats.indexOf(s), 1); return bump();
+  }
+  if (op === 'opts') {
+    if ('format' in b) { if (!PT_FMTS.includes(b.format)) return fail(400, 'bad_request', 'Format invalide.'); r.format = b.format; }
+    if ('size' in b) { if (!Number.isInteger(b.size) || b.size < 2 || b.size > PT_SEATS || r.seats.some(s => s.pos > b.size)) return fail(400, 'bad_request', 'Nombre de places invalide.'); r.size = b.size; }
+    return bump();
+  }
+  if (op === 'start') {      // liste figée ; un jeton par place « compte » (autre que le créateur) : la partie s'enregistrera chez ces comptes
+    r.st = 'live'; r.startAt = Date.now();
+    for (const s of r.seats) if (s.k === 'compte' && !s.h && s.tag) s.tk = ptTicket(s.tag, r.id, r.host);
+    return bump();
+  }
+  return fail(400, 'bad_request', 'Action inconnue.');
+}
+
+/* Historique d'un compte : parties/{empreinte} (gardé 10 min en mémoire, PARTIE_CACHE_MB pour tous les comptes ; toute écriture relit d'abord Firestore, une à la fois par compte). */
+function ptHistRead(j) { try { const o = JSON.parse(j); return o && Array.isArray(o.h) ? o.h.filter(x => x && typeof x.id === 'string') : []; } catch (e) { return []; } }
+function ptHistForget(tag) { const o = PT.hist.get(tag); if (o) { PT.hb -= o.b; PT.hist.delete(tag); } }
+function ptHistMem(tag, h, b) {
+  ptHistForget(tag); PT.hist.set(tag, { h, at: Date.now(), b }); PT.hb += b;
+  while (PT.hist.size > 2000 || (PT.hb > PT_CACHE_B && PT.hist.size > 1)) ptHistForget(PT.hist.keys().next().value);
+}
+async function ptHistLoad(tag, fresh) {
+  const c = PT.hist.get(tag); if (!fresh && c && Date.now() - c.at < PT_TTL) return c.h;
+  const d = await fsDoc('GET', 'parties/' + tag), j = d ? String(fsFields(d).j || '') : '', h = ptHistRead(j);
+  ptHistMem(tag, h, j.length); return h;
+}
+/** Range une partie dans l'historique d'un compte. mode 'upsert' (le créateur : remplace la même partie) ou 'insert' (réclamation : jamais de remplacement).
+    → 'new' (ajoutée) | 'upd' (remplacée) | 'same' (identique, rien d'écrit) | 'dup' (déjà là). */
+function ptHistPut(tag, e, mode) {
+  return amLock(['p:' + tag], async () => {
+    const h = (await ptHistLoad(tag, true)).slice(), i = h.findIndex(x => x.id === e.id);
+    if (i >= 0) {
+      if (mode === 'insert') return 'dup';
+      const ne = { ...e, at: h[i].at || e.at };
+      if (JSON.stringify(ne) === JSON.stringify(h[i])) return 'same';
+      h[i] = ne;
+    } else h.push(e);
+    h.sort((a, b) => (b.date - a.date) || (a.id < b.id ? -1 : 1));
+    let out = h.slice(0, PT_HIST_MAX), j = JSON.stringify({ v: 1, h: out });
+    while (Buffer.byteLength(j) > PT_HIST_B && out.length > 1) { out = out.slice(0, -Math.max(1, Math.ceil(out.length / 20))); j = JSON.stringify({ v: 1, h: out }); }      // 900 Ko au plus : les plus anciennes partent
+    await fsDoc('PATCH', 'parties/' + tag, fsStr(j, Date.now()));
+    ptHistMem(tag, out, j.length);
+    return i >= 0 ? 'upd' : 'new';
+  });
+}
+const ptStrip = r => ({ ...r, places: r.places.map(p => { const { uid, ...q } = p; return q; }) });
+/** POST /api/partie/result { r, c?, key? } (le créateur) : chez lui (sa place « moi ») et chez chaque compte dont le jeton est valide ; notification aux nouveaux.
+    → { ok, n (comptes), skip (jetons refusés) }. Une panne de Firestore : 503, rien de doublé au nouvel essai. */
+async function ptResult(req, res, me) {
+  const w = trocLim('ptres', me.tag, PT_RES_H, 3600e3) || rateWait(req, 'ptres', 3 * PT_RES_H, 3600e3); if (w) return tooMany(res, w);
+  const b = await amBody(req, res, PT_BODY); if (!b) return;
+  const r = PT_CORE.partieResClean(b.r, { tickets: true }); if (!r) return json(res, 400, { error: 'bad_result', message: 'Résultat illisible.' });
+  const who = new Map([[me.tag, (r.places.find(p => p.sorte === 'moi') || {}).pos || 0]]); let skip = 0;
+  for (const p of r.places) if (p.uid) { const t = ptTicketOpen(p.uid, r.id, me.tag); if (!t) skip++; else if (!who.has(t)) who.set(t, p.pos); }
+  const pub = ptStrip(r), now = Date.now(), fresh = [];
+  for (const [t, moi] of who) { const st = await ptHistPut(t, { ...pub, moi, src: t === me.tag ? 'h' : 's', at: now }, 'upsert'); if (st === 'new' && t !== me.tag) fresh.push([t, moi]); }
+  const room = TROC_CODE.test(ptCodeOf(b.c)) ? PT.s.get(ptCodeOf(b.c)) : null, key = String(b.key || '');
+  if (room && room.id === r.id && room.host === me.tag && PT_KEY_RE.test(key) && room.seats.some(s => s.h && s.key && safeEq(s.key, key)) && room.st !== 'end') {
+    room.res = pub; if (room.st !== 'done') { room.st = 'done'; room.endAt = now; ptLight(room); } room.v++;      // les téléphones encore sur la page le reçoivent (invités compris)
+  }
+  if (fresh.length) {
+    const host = (pub.places.find(p => p.sorte === 'moi') || {}).nom || '', wins = pub.places.filter(p => p.vainqueur);
+    for (const [t, moi] of fresh) notifyUser(t, l => { const L = PT_TXT[l] || PT_TXT.fr, A = AM_TXT[l] || AM_TXT.fr; return { title: L[0], body: L[1](host || A.anon, amJoin(A, wins.map(p => p.nom || A.anon)), wins.some(p => p.pos === moi)), url: './?parties=1', tag: 'mo-partie', ttl: 7 * 86400 }; }).catch(() => {});
+  }
+  return json(res, 200, { ok: true, n: who.size, skip });
+}
+/** POST /api/partie/claim { r, pos } : « c'était moi : place pos » (QR code du résultat) ; dans son seul historique. → { ok, dup (déjà là : rien de changé) }. */
+async function ptClaim(req, res, me) {
+  const w = trocLim('ptres', me.tag, PT_RES_H, 3600e3) || rateWait(req, 'ptres', 3 * PT_RES_H, 3600e3); if (w) return tooMany(res, w);
+  const b = await amBody(req, res, PT_BODY); if (!b) return;
+  const r = PT_CORE.partieResClean(b.r); if (!r) return json(res, 400, { error: 'bad_result', message: 'Résultat illisible.' });
+  if (!r.places.some(p => p.pos === b.pos)) return json(res, 400, { error: 'bad_place', message: 'Place invalide.' });
+  const st = await ptHistPut(me.tag, { ...r, moi: b.pos, src: 'q', at: Date.now() }, 'insert');
+  return json(res, 200, { ok: true, dup: st === 'dup' });
+}
+/** GET /api/partie/hist?from=0&n=20 : { total, from, items } (la plus récente d'abord, 50 par page au plus). */
+async function ptHistGet(req, res, me, url) {
+  const w = rateWait(req, 'pthist', 600, 3600e3); if (w) return tooMany(res, w);
+  const from = Math.max(0, Math.floor(Number(url.searchParams.get('from'))) || 0), n = Math.max(1, Math.min(50, Math.floor(Number(url.searchParams.get('n'))) || 20));
+  const h = await ptHistLoad(me.tag);
+  return amSend(req, res, { total: h.length, from, items: h.slice(from, from + n) });
+}
+/** DELETE /api/partie/hist?id=<partie> : retirée de son historique. */
+async function ptHistDel(req, res, me, url) {
+  const id = String(url.searchParams.get('id') || ''); if (!PT_ID_RE.test(id)) return json(res, 400, { error: 'bad_request', message: 'Partie invalide.' });
+  const total = await amLock(['p:' + me.tag], async () => {
+    const h = await ptHistLoad(me.tag, true), out = h.filter(x => x.id !== id);
+    if (out.length !== h.length) { const j = out.length ? JSON.stringify({ v: 1, h: out }) : ''; if (j) await fsDoc('PATCH', 'parties/' + me.tag, fsStr(j, Date.now())); else await fsDoc('DELETE', 'parties/' + me.tag); ptHistMem(me.tag, out, j.length); }
+    return out.length;
+  });
+  return json(res, 200, { ok: true, total });
+}
+/** DELETE /api/partie/me (suppression du compte) : tout son historique effacé. */
+async function ptWipe(req, res, me) {
+  await amLock(['p:' + me.tag], async () => { await fsDoc('DELETE', 'parties/' + me.tag); ptHistForget(me.tag); });
+  return json(res, 200, { ok: true });
+}
+async function partieApi(req, res, path, url) {
+  if (!PT_ON) return json(res, 404, { error: 'partie_disabled', message: 'Partie de Commander désactivée sur ce serveur.' });
+  const sub = path.replace(/^partie\/?/, '');
+  try {
+    if (req.method === 'GET' && sub === 's') return ptPoll(req, res, url);
+    if (req.method === 'GET' && sub === 'peek') return ptPeek(req, res, url);
+    if (req.method === 'POST' && sub === 'op') return await ptOp(req, res);
+    if (req.method === 'POST' && sub === 'join') return await ptJoin(req, res);
+    const route = req.method === 'POST' && !sub ? ptNew : req.method === 'POST' && sub === 'result' ? ptResult : req.method === 'POST' && sub === 'claim' ? ptClaim
+      : req.method === 'GET' && sub === 'hist' ? ptHistGet : req.method === 'DELETE' && sub === 'hist' ? ptHistDel : req.method === 'DELETE' && sub === 'me' ? ptWipe : null;
+    if (!route) return json(res, 405, { error: 'method_not_allowed' });
+    const me = await amAuth(req, res, sub ? 'Connecte-toi pour enregistrer tes parties.' : 'Connecte-toi pour créer une partie.'); if (!me) return;
+    return await route(req, res, me, url);
+  } catch (e) {
+    if (res.headersSent) throw e;
+    console.warn('Partie : ' + String(e && e.message || e).slice(0, 200));
+    return json(res, 503, { error: 'unavailable', message: 'Partie momentanément indisponible.' }, { 'Retry-After': '30' });
+  }
+}
+
 /* ── Noms imprimés des autres langues (scan) : GET /api/names/find?q=<ligne lue>[&q=…]&skip=<langue>[,…] ──────────────────────────────
    L'appli compare le nom lu au catalogue de SA langue (gardé sur l'appareil) puis à l'anglais, puis aux autres langues si elle a names-all.tsv sur l'appareil ;
    sinon une carte d'une autre langue (italienne lue avec l'appli en français) est cherchée ici dans les catalogues names-*.tsv déjà servis, avec la même
@@ -2107,11 +2447,12 @@ function admRefresh() {
 /** État du serveur, relu à chaque appel (mémoire seulement : rien à lire ailleurs). */
 async function admServer() {
   const troc = { wait: 0, live: 0, done: 0, all: TROC.s.size }; for (const s of TROC.s.values()) if (s.st in troc) troc[s.st]++;
+  const partie = { wait: 0, live: 0, done: 0, all: PT.s.size }; for (const r of PT.s.values()) if (r.st in partie) partie[r.st]++;
   let run = 0; for (const j of jobs.values()) if (j.status === 'running') run++;
   return { build: await pageBuild(), up: Math.round(process.uptime()), node: process.version, rss: Math.round(process.memoryUsage().rss / 1048576),
-    flags: { token: !!TOKEN, login: AUTH_FB, key: !!APP_KEY, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, names: NM_ON, ads: !!ADMOB_BANNER }, off: OFF,
+    flags: { token: !!TOKEN, login: AUTH_FB, key: !!APP_KEY, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, names: NM_ON, ads: !!ADMOB_BANNER }, off: OFF,
     prices: { on: !!PX_SRC, at: PX_ST.at, cards: PX_ST.cards, check: PX_ST.check, err: PX_ST.err }, edh: { on: !!EDH_SRC, at: EDH_ST.at, decks: EDH_ST.decks, cmds: EDH_ST.cmds, from: EDH_ST.from, check: EDH_ST.check, err: EDH_ST.err },
-    troc, jobs: { run, all: jobs.size }, alerts: { devices: AL.subs.size, last: Number(AL.last.at) || 0, hits: Number(AL.last.hits) || 0 },
+    troc, partie, jobs: { run, all: jobs.size }, alerts: { devices: AL.subs.size, last: Number(AL.last.at) || 0, hits: Number(AL.last.hits) || 0 },
     pub: { n: PUB.n, hid: PUB.hid, at: PUB.at, err: PUB.err ? 'erreur' : '' }, amis: { cache: AMI.cache.size, due: AMI.due.size } };
 }
 const admFold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -2228,6 +2569,7 @@ async function api(req, res, url) {
   if (path === 'testeurs') return testersApi(req, res);      // inscription au test fermé (page /testeurs), ouverte à tous, bornée
   if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
   if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège
+  if (path === 'partie' || path.startsWith('partie/')) return partieApi(req, res, path, url);      // partie de Commander : salle d'attente (jeton Firebase, ou invité sans compte), résultats des comptes
   if (path === 'admin' || path.startsWith('admin/')) return adminApi(req, res, path, url);      // panneau d'administration : compte de l'éditeur seulement
   // CardTrader : avec le token de l'utilisateur (X-CT-Token), ou celui du serveur pour les comptes autorisés (ALLOWED_UIDS / APP_KEY).
   const ut = userTok(req);
@@ -2362,7 +2704,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, off: OFF, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, off: OFF, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte
@@ -2418,6 +2760,7 @@ server.listen(PORT, HOST, () => {
   if (FCM_ON) console.log(`Notifications de l'appli Android (FCM) : projet Firebase « ${fcmSa.project} ».`);
   if (AM_ON) { console.log(`Amis : ${AM_MAX} au plus par compte, « un ami a une carte que tu cherches » toutes les ${Math.round(AM_GAP / 360000) / 10} h au plus.`); }
   if (TROC_ON) console.log(`Échange en direct : ${TROC_MAX} sessions au plus, en mémoire (terminées après ${Math.round(TROC_IDLE / 60e3)} min sans activité).`);
+  if (PT_ON) console.log(`Partie de Commander : ${PT_MAX} salles d'attente au plus, en mémoire ; historiques des comptes dans Firestore (parties).`);
   if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
   if (ALERTS_ON) {
