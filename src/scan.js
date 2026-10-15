@@ -119,7 +119,7 @@ function scanAdd(m, d, maybe, shot) {
   if (m.img && l !== 'en') { COLL.li[liKey(l, m.key)] = m.img; collMetaSave(); }       // image de la carte dans sa langue, vue pendant la lecture : gardée pour la collection
   else if (m.via && l !== 'en') langImgFor(m.key, m.name, l);      // trouvée sur l'appareil (catalogue sans images) : celle de sa langue demandée à Scryfall, l'anglaise en attendant
   if (cur) { SC.items.delete(id); SC.items.set(id, cur); SC.lastIt = cur; cur.q = Math.max(1, cur.q + d); if (m.ft && !cur.ft) cur.ft = m.ft; if (!maybe) { cur.maybe = false; cur.shot = ''; } else if (cur.maybe && shot) cur.shot = shot; if (m.score > cur.score) { cur.score = m.score; cur.raw = m.raw; } if (m.via) cur.via = m.via; }
-  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null, sig: m.sig || null, artq, lot: !!m.lot, ambBy: m.ambBy || '', alts: m.amb || m.ambBy ? m.alts || null : null }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
+  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null, sig: m.sig || null, sym: (artq && m.sym) || null, artq, lot: !!m.lot, ambBy: m.ambBy || '', alts: m.amb || m.ambBy ? m.alts || null : null }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
   if (ed.e) scanEdPass();      // une édition posée : les cartes « à choisir » sont revues
   scanPaintList();
   if (artq) scanArtRun();
@@ -742,10 +742,11 @@ function scanNameSure(m) {
   const n = Math.max(a.length, b.length);
   return lev(a, b, Math.ceil(n * 0.3)) > n * 0.2;
 }
-/** Empreinte de l'illustration (scanart.js) ajoutée à la carte reconnue m, capture = la carte (cadrage « carte entière ») ; comparée aux impressions quand elles sont là (scaned.js). */
+/** Empreinte de l'illustration (scanart.js) et signature du symbole d'extension (scansym.js) ajoutées à la carte reconnue m, capture = la carte (cadrage « carte entière ») ;
+ *  comparées aux impressions quand elles sont là (scaned.js). */
 function artAttach(m, src) {
   if (!m || m.score < 0.72 || SC.pm || SCS.ed === 'none' || typeof artSig !== 'function') return m;
-  const sig = artSig(src); return sig ? { ...m, sig } : m;
+  const sig = artSig(src), sym = typeof symSig === 'function' ? symSig(src) : null; return sig ? { ...m, sig, ...(sym ? { sym } : {}) } : m;
 }
 /** Consigne sous la caméra, selon le cadrage. */
 const camHint = () => (scanFull() ? T('Carte entière dans le cadre, puis appuie sur le cercle') : CAM_HINT);
@@ -890,6 +891,7 @@ function scanDiag(on) {
     const tr = SC.stream && SC.stream.getVideoTracks()[0], st = (tr && tr.getSettings && tr.getSettings()) || {}, now = performance.now(); SC.lt = SC.lt.filter(t => now - t < 10000);
     box.textContent = [T('aperçu {n} i/s', { n: SC.fps ? SC.fps.toFixed(0) : '–' }), `${st.width || '?'}×${st.height || '?'}${st.frameRate ? ' @' + Math.round(st.frameRate) : ''}`, SC.fixed ? T('plancher 24 i/s') : T('i/s libre'), T('redémarrages {n}', { n: SC.restarts }), T('dernière lecture {n} ms', { n: SC.ms ? Math.round(SC.ms) : '–' }), T('tâches longues {n}/10 s', { n: SC.lt.length }), camSlow() ? T('mode lent (toucher ici : retour au mode normal)') : '', tr && tr.label ? tr.label : ''].filter(Boolean).join(' · ');
     const a = SC.art; if (a) box.textContent += '\n' + T('illustration · {name} : {res}', { name: a.name, res: a.res });      // dernière comparaison d'illustration (scanart.js)
+    const y = SC.sym; if (y) box.textContent += '\n' + T('symbole · {name} : {res}', { name: y.name, res: y.res });      // dernière comparaison de symbole d'extension (scansym.js)
     const f = SC.foot; if (f) box.textContent += '\n' + T('ligne du bas · {name} : « {raw} » → {res}', { name: f.name, raw: f.raw || '—', res: f.ft ? [f.ft.codes.join(','), f.ft.nums.join(','), f.ft.lang, f.ft.foil ? '★' : '', f.keep ? T('langue {a} gardée (nom), {b} lue en bas ignorée', { a: langCode(f.card), b: langCode(f.keep) }) : ''].filter(Boolean).join(' ') : '∅' });      // cadrage « carte entière » : ce que la dernière carte a donné
     if (SC.lv.length) box.textContent += '\n' + T('langue du lot : {v}', { v: SC.lv.map(langCode).join(' ') }) + (SC.lotLast ? ` · ${SC.lotLast.name} : ${langCode(SC.lotLast.a)} → ${langCode(SC.lotLast.b)}` : '');      // voix des dernières cartes, dernière carte départagée
   };
