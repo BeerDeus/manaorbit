@@ -3,9 +3,10 @@
    (cards.scryfall.io, lisibles en CORS, gardées par le service worker). Empreinte : la moitié haute de la carte (nom, illustration) réduite à ART_W × ART_H, chaque canal
    ramené à moyenne 0 et écart type 1 (la lumière et la balance des blancs du téléphone comptent peu), plus les écarts entre cases voisines (formes). Distance : écart
    quadratique moyen. Retenue si nettement plus proche que les autres (ART_RATIO) ; plusieurs impressions de la même illustration (rééditions) : le groupe est rendu,
-   l'extension du scan départage (scaned.js). Seulement en cadrage « carte entière » (la capture est la carte). Images en Wi-Fi au-delà de ART_MOBILE impressions. */
+   l'extension du scan départage (scaned.js). Seulement en cadrage « carte entière » (la capture est la carte). Au plus ART_CAND impressions (terrains de base : plusieurs
+   centaines, une fois : les images restent sur le téléphone), ART_MOBILE en réseau mobile ; numéro lu sur la ligne du bas (« 234/249 » des cartes 2003-2014) : ses impressions d'abord. */
 const ART_W = 12, ART_H = 16, ART_BOX = { x: 0.05, y: 0.035, w: 0.9, h: 0.54 };      // haut de la carte : nom, mana, illustration (le texte, différent d'une langue à l'autre, est laissé)
-const ART_RATIO = 1.3, ART_MAX = 0.9, ART_CAND = 60, ART_MOBILE = 16;      // 2e plus proche ≥ 1,3 × la 1re ; distance au-delà de laquelle rien n'est sûr ; impressions comparées au plus
+const ART_RATIO = 1.3, ART_MAX = 0.9, ART_CAND = 400, ART_MOBILE = 24;      // 2e plus proche ≥ 1,3 × la 1re ; distance au-delà de laquelle rien n'est sûr ; impressions comparées au plus
 const SART = { cache: new Map(), load: new Map(), busy: false, last: null };
 
 /** Pixels RGBA (w × h, déjà réduits à ART_W × ART_H) → empreinte : 3 canaux normalisés, puis écarts horizontaux et verticaux du gris. */
@@ -59,7 +60,7 @@ const artMetered = () => { try { const c = navigator.connection; return !!c && (
  *  prints : les candidates (une seule langue d'image suffit : l'illustration est la même). Lots de 6 images à la fois. */
 async function artPick(sig, prints) {
   if (!sig || !Array.isArray(prints) || prints.length < 2) return null;
-  const seen = new Set(), list = prints.filter(p => p && p.th && !seen.has(p.th) && seen.add(p.th)).slice(0, ART_CAND);
+  const seen = new Set(), list = prints.filter(p => { const k = p && p.th && p.set + '/' + p.num; return k && !seen.has(k) && seen.add(k); }).slice(0, ART_CAND);      // une image par édition (celle de la langue de la carte : elle vient d'abord)
   if (list.length < 2 || (list.length > ART_MOBILE && artMetered())) return null;
   const sigs = []; for (let i = 0; i < list.length; i += 6) sigs.push(...await Promise.all(list.slice(i, i + 6).map(artPrintSig)));
   const scored = list.map((p, i) => ({ p, d: artDist(sig, sigs[i]) })).filter(x => Number.isFinite(x.d)).sort((a, b) => a.d - b.d);

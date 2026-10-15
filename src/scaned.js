@@ -118,7 +118,12 @@ async function scanArtRun() {
 async function scanArtTry(it) {
   const pr = SC.pr.get(scanPk(it.key, it.l)); let cands = pr;
   if (it.ft && typeof footMatch === 'function') { const f = footMatch(it.ft, pr); if (f && f.set) cands = pr.filter(p => p.set === f.set); }      // extension lue sur la ligne du bas : ses impressions seulement
-  let r = null; try { r = await artPick(it.sig, cands); } catch (e) { /* images indisponibles */ }
+  const pn = p => String(p.num || '').toLowerCase().replace(/^0+(?=\d)/, ''), nums = (it.ft && it.ft.nums) || [], byNum = nums.length ? cands.filter(p => nums.includes(pn(p))) : [];
+  let r = null;
+  try {
+    if (byNum.length && byNum.length < cands.length) { r = await artPick(it.sig, byNum.length > 1 ? byNum : [...byNum, ...cands.filter(p => !byNum.includes(p)).slice(0, 1)]); if (r && !r.p && !r.group) r = null; }      // numéro lu (« 234/249 », cartes 2003-2014) : ses impressions d'abord
+    if (!r || (!r.p && !r.group)) r = await artPick(it.sig, cands);
+  } catch (e) { /* images indisponibles */ }
   SC.art = { name: scanShown(it), res: !r ? '∅' : `${r.p ? r.p.set.toUpperCase() + ' ' + r.p.num : r.group ? T('{n} pareilles', { n: r.group.length }) : '?'} · d ${r.d1.toFixed(2)} / ${Number.isFinite(r.d2) ? r.d2.toFixed(2) : '–'} · ${r.n}` };
   it.artq = false; it.sig = null;
   if (![...SC.items.values()].includes(it)) return;      // ligne retirée pendant la comparaison

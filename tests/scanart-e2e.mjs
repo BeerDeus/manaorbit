@@ -46,6 +46,19 @@ await p.locator('.ced-sheet .ced-t', { hasText: '2X2' }).first().click(); await 
 await shoot('photo-lea.jpg', 'Swords to Plowshares', 'fr'); await settle();
 L = await lines(); assert.equal(L['swords to plowshares fr 2x2|202'], 'man ×2', 'même illustration, 2x2 dans le scan : rangée avec la ligne choisie ' + JSON.stringify(L));
 ok('même illustration dans deux éditions : à choisir entre elles, puis l\'extension du scan départage');
+
+// beaucoup d'éditions (terrain de base) : la bonne, ancienne, au-delà des 60 plus récentes, est quand même comparée (Wi-Fi) ; numéro lu (« 265/280 ») : ses éditions d'abord
+world.psets['Wrath of God'] = [...Array.from({ length: 64 }, (_, i) => 'x' + String(i).padStart(2, '0')), 'cmm', 'm21'];      // n° 200 à 265 ; images : cmm, m21 seulement (les autres absentes)
+await shoot('photo-m21.jpg', 'Wrath of God', 'en'); await settle();
+L = await lines(); console.log('  ', await p.evaluate(() => SC.art && SC.art.res));
+assert.equal(L['wrath of god en m21|265'], 'art ×1', '66 éditions : la 66e trouvée ' + JSON.stringify(L));
+await p.evaluate(async b64 => {
+  const i = new Image(); i.src = 'data:image/jpeg;base64,' + b64; await i.decode();
+  scanAdd({ key: 'wrath of god', name: 'Wrath of God', score: 0.99, raw: '', card: 'en', sig: artSig(i), ft: footParse(['265/280 C', 'Illus. Rob Alexander']) }, 1, false);
+}, readFileSync(FX + 'photo-m21.jpg').toString('base64'));
+await settle(); L = await lines();
+assert.equal(L['wrath of god en m21|265'], 'read ×1', 'numéro unique parmi ses éditions : lu sur la carte (sans illustration) ' + JSON.stringify(L));
+ok('terrain de base (66 éditions) : l\'ancienne trouvée à l\'illustration ; numéro de 2003-2014 lu : édition posée');
 await p.click('.scan [data-act="close"]');
 
 assert.deepEqual(errs, [], 'erreurs page');
