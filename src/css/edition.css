@@ -50,3 +50,9 @@
 .fsearch.sc-ask-q span{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .fsearch.sc-ask-q:active{transform:scale(.98)}
 .fsearch.sc-ask-q:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* carte en grand › Illustrations : recherche sur fond sombre */
+.imgv-q:empty{display:none}
+.imgv-q .fsearch.ed-q{margin:0;height:38px;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22);color:rgba(255,255,255,.7)}
+.imgv-q .fsearch input{color:#fff}
+.imgv-q .fsearch input::placeholder{color:rgba(255,255,255,.6)}
+.imgv-vl .ed-q-none{flex:none;margin:8px auto;color:rgba(255,255,255,.78)}

@@ -97,10 +97,11 @@ function openCardViewer(items, index) {
     <div class="imgv-card tilt" data-busy="1"><img class="imgv-ph" alt="" hidden><img class="imgv-img" alt="" hidden><span class="foil-stars" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => { const r = hash32('foil' + i); return `<i style="--x:${6 + (r % 88)}%;--y:${5 + ((r >> 7) % 90)}%;--s:${7 + ((r >> 14) % 9)}px;--d:${2.2 + ((r >> 18) % 20) / 10}s;--w:${-((r >> 23) % 40) / 10}s"></i>`; }).join('')}</span><span class="imgv-spin"></span></div>
     <div class="imgv-cap"><b></b><span class="imgv-sub"></span><span class="imgv-extra" hidden></span><img class="imgv-shot" alt="${T('Ta photo')}" hidden></div>
     <div class="imgv-acts"><button class="btn ghost small imgv-wish" type="button" hidden aria-pressed="false"></button><button class="btn ghost small imgv-flip" type="button" hidden>${T('Retourner la carte')}</button><button class="imgv-art" type="button" hidden aria-expanded="false">${T('Illustrations')}</button></div>
-    <div class="imgv-vars" hidden><div class="imgv-vh" aria-live="polite"></div><div class="imgv-vl"></div></div>`;
+    <div class="imgv-vars" hidden><div class="imgv-vh" aria-live="polite"></div><div class="imgv-q"></div><div class="imgv-vl"></div></div>`;
   const card = $('.imgv-card', wrap), img = $('.imgv-img', wrap), ph = $('.imgv-ph', wrap), sub = $('.imgv-sub', wrap), flipB = $('.imgv-flip', wrap), title = $('.imgv-cap b', wrap), extra = $('.imgv-extra', wrap), shotEl = $('.imgv-shot', wrap);
   const countEl = $('.imgv-count', wrap), prevB = $('.imgv-nav.prev', wrap), nextB = $('.imgv-nav.next', wrap);
-  const wishB = $('.imgv-wish', wrap), artB = $('.imgv-art', wrap), varsEl = $('.imgv-vars', wrap), varsH = $('.imgv-vh', wrap), varsL = $('.imgv-vl', wrap);
+  const wishB = $('.imgv-wish', wrap), artB = $('.imgv-art', wrap), varsEl = $('.imgv-vars', wrap), varsH = $('.imgv-vh', wrap), varsL = $('.imgv-vl', wrap), varsQ = $('.imgv-q', wrap);
+  let vq = '', vqOf = null;      // recherche d'une extension dans les illustrations (8 ou plus) ; vqOf : la carte à qui elle s'applique (repart de zéro à chaque carte)
   const prevFocus = document.activeElement, from = pressOrigin(), fromEl = from ? MO.press : null, idx0 = Math.max(0, Math.min(items.length - 1, index | 0));
   const pfRow = prevFocus && prevFocus.closest ? prevFocus.closest('[data-id],[data-k]') : null, pfBox = pfRow && pfRow.parentElement, pfCls = pfRow && prevFocus !== pfRow && prevFocus.classList[0];
   /** Élément à refocaliser : celui d'avant, sinon (liste repeinte entre-temps : édition posée au scan…) le même dans sa ligne (même data-id, sinon même data-k). */
@@ -202,13 +203,16 @@ function openCardViewer(items, index) {
     const p = sel >= 0 ? vars[sel] : null;
     varsH.textContent = it.coll ? (p ? `${p.sn} · ${T('édition de ta carte')}` : T('Touche l\'édition de ta carte : son prix compte dans ta collection'))
       : p ? `${p.sn} · ${canSave ? T('retenue pour cette carte') : T('aperçu seulement : l\'offre garde son impression')}` : (pf ? T('Illustration par défaut') : canSave ? T('Touche une illustration') : T('Touche une illustration · aperçu seulement'));
-    const on = varsL.querySelector('[aria-pressed="true"]'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+    if (vqOf !== it) { vqOf = it; vq = ''; varsQ.innerHTML = edQHtml(vars.length); }      // autre carte : champ remis à zéro (rien sous 8 illustrations)
+    edQApply(varsL, vars, vq, '.imgv-v');
+    const on = varsL.querySelector('[aria-pressed="true"]:not(.ed-off)'); if (on && on.scrollIntoView && !vq) on.scrollIntoView({ inline: 'center', block: 'nearest' });
   };
   const varsOpen = on => {
     varsEl.hidden = !on; artB.setAttribute('aria-expanded', String(on)); wrap.classList.toggle('has-vars', on);
     if (on) varsPaint();
   };
   artB.onclick = () => { haptic('tap'); wantOpen = varsEl.hidden; varsOpen(wantOpen); };
+  varsQ.addEventListener('input', e => { if (!e.target.matches('[data-edq]')) return; vq = e.target.value; edQApply(varsL, vars, vq, '.imgv-v'); varsL.scrollLeft = 0; });
   varsL.addEventListener('click', e => {
     const b = e.target.closest('.imgv-v'); if (!b) return; haptic('tap');
     const i = Number(b.dataset.i), name = it.ln || it.name;
@@ -226,6 +230,7 @@ function openCardViewer(items, index) {
   });
   const step = d => { const n = idx + d; if (!multi || n < 0 || n >= items.length) return; haptic('tap'); go(n); };
   const onKey = e => {
+    if (e.key !== 'Escape' && e.target && e.target.matches && e.target.matches('[data-edq]')) return;      // flèches dans la recherche d'extension : le curseur, pas la carte suivante
     if (e.key === 'Escape') { e.stopPropagation(); api.close(); }
     else if (e.key === 'ArrowRight') { e.stopPropagation(); step(1); }
     else if (e.key === 'ArrowLeft') { e.stopPropagation(); step(-1); }
