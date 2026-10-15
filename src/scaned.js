@@ -34,6 +34,7 @@ function scanEdDecide(it, prints) {
   if (prints === 'err') return { e: '', es: 'err', pk: null };
   if (!prints.length) return { e: '', es: 'none', pk: null };
   if (it.nx) return { e: '', es: 'pend', pk: null };
+  if (it.artg) { const g = prints.filter(p => it.artg.includes(edKey(p.set, p.num))); if (g.length) prints = g; }      // illustration reconnue dans plusieurs éditions (rééditions) : le choix se fait parmi elles
   const l = it.l || 'en', sl = SCRY_LANG[l] || 'en', main = prints.filter(p => !p.fx.includes('promo')), own = main.filter(p => p.l === sl), base = own.length ? own : main.length ? main : prints;
   const take = (set, es) => { const p = lotInSet(prints, set, l); return p ? { e: edKey(p.set, p.num), es, pk: p } : null; };
   if (it.ft && typeof footMatch === 'function') {      // cadrage « carte entière » : ligne du bas lue (scanfoot.js) → l'édition exacte, avant toute déduction
@@ -71,8 +72,9 @@ function scanRekey(it, nid) {
 /** Pose une décision sur une ligne. */
 function scanEdApply(it, d) {
   it.e = d.e || ''; it.es = d.es; it.pk = d.pk || null;
-  if ((d.solo || d.stick || d.es === 'read') && d.e) scanStick(edSet(d.e));      // extension unique ou lue sur la carte : elle rejoint celles du scan
+  if ((d.solo || d.stick || d.es === 'read' || d.es === 'art') && d.e) scanStick(edSet(d.e));      // extension unique, lue sur la carte ou reconnue à l'illustration : elle rejoint celles du scan
   if (it.e && !SETIC.m) setIcLoad(() => { if (SC.el) scanPaintList(); });      // symboles des extensions : à la première édition posée
+  if (it.artq) return it;      // illustration encore à comparer : la ligne reste à part (scanArtTry la range ensuite)
   return scanRekey(it, scanId(it.key, it.l, it.e));
 }
 /** Revoit les cartes « à choisir » (après une édition posée : extension collante, majorité du scan) jusqu'à ce que plus rien ne bouge. */
@@ -96,6 +98,39 @@ function scanEdLoaded(pk) {
     if (it.es === 'load' || it.es === 'err' || it.es === 'pend') scanEdApply(it, scanEdDecide(it, pr));
   }
   scanEdPass();
+  scanArtRun();
+}
+/* ── Illustration (scanart.js) : les lignes qui portent une empreinte (it.sig, it.artq) sont comparées une à une aux impressions de leur carte ──
+   Sûre → édition « reconnue à l'illustration » (es 'art') ; même illustration dans plusieurs éditions → l'extension du scan qui en a une ; sinon la décision
+   habituelle reste. Puis la ligne rejoint celle de la même édition (une ligne à part en attendant : deux exemplaires d'éditions différentes ne se mélangent pas). */
+async function scanArtRun() {
+  if (SART.busy || !SC.el) return;
+  const sess = SC.session; SART.busy = true;
+  try {
+    for (;;) {
+      const it = [...SC.items.values()].find(x => x.artq && Array.isArray(SC.pr.get(scanPk(x.key, x.l))));
+      if (!it || SC.session !== sess) break;
+      await scanArtTry(it);
+      if (SC.session !== sess) break;
+    }
+  } finally { SART.busy = false; }
+}
+async function scanArtTry(it) {
+  const pr = SC.pr.get(scanPk(it.key, it.l)); let cands = pr;
+  if (it.ft && typeof footMatch === 'function') { const f = footMatch(it.ft, pr); if (f && f.set) cands = pr.filter(p => p.set === f.set); }      // extension lue sur la ligne du bas : ses impressions seulement
+  let r = null; try { r = await artPick(it.sig, cands); } catch (e) { /* images indisponibles */ }
+  SC.art = { name: scanShown(it), res: !r ? '∅' : `${r.p ? r.p.set.toUpperCase() + ' ' + r.p.num : r.group ? T('{n} pareilles', { n: r.group.length }) : '?'} · d ${r.d1.toFixed(2)} / ${Number.isFinite(r.d2) ? r.d2.toFixed(2) : '–'} · ${r.n}` };
+  it.artq = false; it.sig = null;
+  if (![...SC.items.values()].includes(it)) return;      // ligne retirée pendant la comparaison
+  if (r && !it.nx && it.es !== 'man' && it.es !== 'read' && it.es !== 'solo') {
+    if (r.p) scanEdApply(it, { e: edKey(r.p.set, r.p.num), es: 'art', pk: r.p });
+    else if (r.group) {
+      it.artg = r.group.map(p => edKey(p.set, p.num));
+      if (!it.e || !it.artg.includes(it.e)) scanEdApply(it, scanEdDecide({ ...it, e: '' }, pr));      // la déduction habituelle contredit l'illustration : refaite parmi ses éditions (extension du scan, sinon à choisir)
+    }
+  }
+  if (SC.items.has(it.id) && it.id !== scanId(it.key, it.l, it.e)) scanRekey(it, scanId(it.key, it.l, it.e));      // rien de mieux : la ligne rejoint celle de sa décision
+  scanEdPass(); scanPaintList();
 }
 /** Lit (une fois par scan) les impressions d'une ligne ; déjà lues : appliquées tout de suite. */
 function scanEdNeed(it) {
@@ -145,8 +180,8 @@ function scanEdLater(it) { it.later = true; scanPaintList(); }
 /** Symbole de l'édition d'une ligne du scan (à gauche de la quantité) : symbole seul ; « à choisir » : rond orangé ; en lecture : rond qui tourne. */
 function scanEdBtn(it) {
   if (it.es === 'off' && !it.e) return '<span class="sc-ed-off" aria-hidden="true"></span>';      // réglage « Sans édition »
-  const e = it.e || '', set = edSet(e), sn = e ? (it.pk && it.pk.sn) || setName(set) || '' : '', auto = e && (it.es === 'auto' || it.es === 'solo' || it.es === 'read'), nm = scanShown(it);
-  const lab = e ? T('Édition : {ed}', { ed: [sn, edLabel(e)].filter(Boolean).join(' · ') }) + (it.es === 'read' && e ? ' · ' + T('lue sur la carte') : auto ? ' · ' + T('posée d\'office') : '')
+  const e = it.e || '', set = edSet(e), sn = e ? (it.pk && it.pk.sn) || setName(set) || '' : '', auto = e && (it.es === 'auto' || it.es === 'solo' || it.es === 'read' || it.es === 'art'), nm = scanShown(it);
+  const lab = e ? T('Édition : {ed}', { ed: [sn, edLabel(e)].filter(Boolean).join(' · ') }) + (it.es === 'read' && e ? ' · ' + T('lue sur la carte') : it.es === 'art' && e ? ' · ' + T('reconnue à l\'illustration') : auto ? ' · ' + T('posée d\'office') : '')
     : it.es === 'load' ? T('Lecture des éditions…') : it.es === 'none' ? T('Aucune édition trouvée') : it.es === 'err' ? T('Éditions indisponibles : toucher pour réessayer') : T('Choisir l\'édition de {name}', { name: nm });
   const cls = e ? ' on' + (auto ? ' auto' : '') : it.es === 'load' ? ' load' : it.nx || it.es === 'none' ? '' : ' todo';
   return `<button type="button" class="row-ed sc-ed${cls}" data-a="ed" aria-label="${esc(lab)}" title="${esc(lab)}">${e ? setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>` : ''}</button>`;

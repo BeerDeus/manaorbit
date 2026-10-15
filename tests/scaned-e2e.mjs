@@ -189,7 +189,7 @@ await p.evaluate(() => { const f = x => footParse(x); scanAdd({ key: 'sol ring',
 await settle();
 assert.deepEqual(await lines(), { 'sol ring dsk|202': 'read ×1', 'sol ring cmm|200': 'read ×1' }, 'deux exemplaires lus avant l\'arrivée des impressions : chacun son édition, rien à choisir');
 assert.equal(await p.$('.sc-ask'), null, 'première carte : rien demandé');
-assert.match(await p.getAttribute('.sc-item[data-k="sol ring"] .sc-ed', 'aria-label'), /lue sur la carte/);
+assert.match(await p.getAttribute('.scan.on .sc-item[data-k="sol ring"] .sc-ed', 'aria-label'), /lue sur la carte/);
 await addFt('Sol Ring', ['O2O3 U', 'M2l • EN']); assert.equal((await lines())['sol ring m21|203'], 'read ×1', 'fautes de lecture (O2O3, M2l)');
 await addFt('Arcane Signet', ['Arcane Signet']); await settle();
 assert.equal((await lines())['arcane signet cmm|200'], 'auto ×1', 'ligne du bas illisible : extension du scan (lues sur les cartes précédentes), comme avant');

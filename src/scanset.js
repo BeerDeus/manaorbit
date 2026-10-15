@@ -6,13 +6,15 @@
    lang : langue des cartes imposée ('' : lue sur chaque carte) · vib, snd : vibration et son à chaque carte reconnue ;
    frame : cadrage — 'card' (carte entière : nom + ligne du bas, l'édition lue sur la carte, scanfoot.js) · 'name' (caméra compacte, nom seulement). */
 const SCS_KEY = 'deckdeal:scanset', SCS_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'ru'], SCS_DELAYS = [500, 1000, 1500];
-const SCS_DEF = { ed: 'scan', auto: false, delay: 1000, same: 'ask', lang: '', vib: true, snd: false, frame: 'card' };
-const SCS = { ...SCS_DEF, u: 0, who: '', doc: { uid: '', unsub: null, pushT: 0 } };
+/** Cadrage par défaut : carte entière dans l'appli Android (ML Kit lit le nom et la ligne du bas sur toute la carte), nom seulement dans le navigateur (Tesseract est plus sûr sur la bande). */
+function scsFrameDef() { try { return typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() ? 'card' : 'name'; } catch (e) { return 'name'; } }      // native.js est chargé après ce fichier
+const SCS_DEF = { ed: 'scan', auto: false, delay: 1000, same: 'ask', lang: '', vib: true, snd: false, frame: '' };
+const SCS = { ...SCS_DEF, frame: scsFrameDef(), u: 0, who: '', doc: { uid: '', unsub: null, pushT: 0 } };
 /** Réglages lus (appareil, compte) → valeurs sûres ; tout le reste prend la valeur par défaut. */
 function scsClean(o) {
   const x = o && typeof o === 'object' ? o : {};
   return { ed: ['scan', 'card', 'none'].includes(x.ed) ? x.ed : SCS_DEF.ed, auto: x.auto === true, delay: SCS_DELAYS.includes(x.delay) ? x.delay : SCS_DEF.delay,
-    same: x.same === 'add' ? 'add' : 'ask', lang: SCS_LANGS.includes(x.lang) ? x.lang : '', vib: x.vib !== false, snd: x.snd === true, frame: x.frame === 'name' ? 'name' : 'card' };
+    same: x.same === 'add' ? 'add' : 'ask', lang: SCS_LANGS.includes(x.lang) ? x.lang : '', vib: x.vib !== false, snd: x.snd === true, frame: x.frame === 'name' || x.frame === 'card' ? x.frame : scsFrameDef() };
 }
 function scsLoad() {
   try { const j = JSON.parse(localStorage.getItem(SCS_KEY) || 'null'); if (j) { Object.assign(SCS, scsClean(j.s)); SCS.u = Number(j.u) || 0; SCS.who = typeof j.who === 'string' ? j.who : ''; } } catch (e) { /* illisible : réglages par défaut */ }

@@ -28,7 +28,7 @@ def card(name, l1, l2, artist, H=1400, frame=(214, 196, 150)):
     d.text((x0, y2), l2, font=f, fill=(235, 235, 235)); d.text((x0 + round(W * 0.2), y2), artist, font=fr, fill=(235, 235, 235))
     d.text((W - round(W * 0.05), y2), '™ & © 2024 Wizards of the Coast', font=ImageFont.truetype(SANSR, round(fs * 0.8)), fill=(200, 200, 200), anchor='ra')
     return im
-def photo(im, rot=0.0, blur=0.0, noise=0, pad=0.06, bg=(96, 84, 70)):
+def photo(im, rot=0.0, blur=0.0, noise=0, pad=0.015, bg=(96, 84, 70)):      # pad : la marge que laisse le cadre de l'écran autour de la carte
     p = round(im.width * pad); base = Image.new('RGB', (im.width + 2 * p, im.height + 2 * p), bg); base.paste(im, (p, p))
     if rot: base = base.rotate(rot, resample=Image.BICUBIC, fillcolor=bg)
     if blur: base = base.filter(ImageFilter.GaussianBlur(blur))
@@ -39,10 +39,10 @@ def photo(im, rot=0.0, blur=0.0, noise=0, pad=0.06, bg=(96, 84, 70)):
     return base
 out = sys.argv[1]
 jobs = {
-  'foot-dsk.jpg': photo(card('Sol Ring', '0202 U', 'DSK • EN', 'Mike Bierek'), rot=0.8, blur=0.5, noise=10),
-  'foot-m21.jpg': photo(card('Sol Ring', '203/274 U', 'M21 • EN', 'Mike Bierek'), rot=-0.6, blur=0.6, noise=12),
-  'foot-blb-fr.jpg': photo(card('Tour de commandement', '0201 C', 'BLB • FR', 'Ryan Yee', frame=(150, 140, 120)), rot=0.5, blur=0.5, noise=10),
-  'foot-preview.jpg': photo(card('Sol Ring', '0200 U', 'CMM • EN', 'Mike Bierek', H=980), rot=0.5, blur=0.7, noise=12),
+  'foot-dsk.jpg': photo(card('Sol Ring', '0202 U', 'DSK • EN', 'Mike Bierek'), blur=0.5, noise=10),
+  'foot-m21.jpg': photo(card('Sol Ring', '203/274 U', 'M21 • EN', 'Mike Bierek'), blur=0.6, noise=12),
+  'foot-blb-fr.jpg': photo(card('Tour de commandement', '0201 C', 'BLB • FR', 'Ryan Yee', frame=(150, 140, 120)), blur=0.5, noise=10),
+  'foot-preview.jpg': photo(card('Sol Ring', '0200 U', 'CMM • EN', 'Mike Bierek', H=980), blur=0.7, noise=12),
 }
 for n, im in jobs.items(): im.convert('RGB').save(f'{out}/{n}', quality=88)
 print('ok', len(jobs))

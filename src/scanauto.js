@@ -88,7 +88,7 @@ async function auFeed(f, g) {
       if (m && m.score < 0.84) m = null;
     }
     m0 = m;
-    if (m && scanFull() && auWillAdd(m)) m = await footAttach(m, f.src, cardFootBox(f.src.width, f.src.height));      // cette lecture ajoute la carte : sa ligne du bas aussi, sur la même image
+    if (m && scanFull() && auWillAdd(m)) m = artAttach(await footAttach(m, f.src, cardFootBox(f.src.width, f.src.height)), f.src);      // cette lecture ajoute la carte : sa ligne du bas et son illustration aussi, sur la même image
   }
   if (g !== AU.gen || !SC.el || !auLive()) return;
   const k = m0 ? m0.key + '|' + (scanLangOf(m0).card || 'en') : '';

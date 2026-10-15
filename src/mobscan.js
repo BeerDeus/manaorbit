@@ -152,7 +152,7 @@ function mobBar() {
 function mobSync() {
   if (!SC.remote) return;
   const want = new Map();
-  for (const e of SC.items.values()) if (!e.maybe && (e.es !== 'load' || MOB.sent.has(e.id))) want.set(e.id, e);      // édition en lecture : la carte part avec elle (une seconde plus tard)
+  for (const e of SC.items.values()) if (!e.maybe && ((e.es !== 'load' && !e.artq) || MOB.sent.has(e.id))) want.set(e.id, e);      // édition en lecture : la carte part avec elle (une seconde plus tard)
   const ids = new Set([...want.keys(), ...MOB.sent.keys()]);
   for (const id of ids) {
     const e = want.get(id), was = MOB.sent.get(id), have = was ? was.q : 0, q = e ? e.q : 0;

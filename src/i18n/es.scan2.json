@@ -70,5 +70,8 @@
   "Pose la carte dans le cadre : elle s'ajoute seule": "Pon la carta en el marco: se añade sola",
   "lue sur la carte": "leída en la carta",
   "ligne du bas · {name} : « {raw} » → {res}": "línea inferior · {name}: «{raw}» → {res}",
-  "Carte entière (réglage du cadrage) : la petite ligne en bas à gauche (« 0123 R », « MKM • FR ») est lue aussi : l'édition exacte est posée d'office, et la langue imprimée sur la carte retenue. Cartes d'avant 2014 : l'édition se choisit comme d'habitude.": "Carta entera (ajuste de encuadre): también se lee la pequeña línea abajo a la izquierda («0123 R», «MKM • ES»): la edición exacta se pone sola y se toma el idioma impreso en la carta. Cartas anteriores a 2014: elige la edición como siempre."
+  "Carte entière (réglage du cadrage) : la petite ligne en bas à gauche (« 0123 R », « MKM • FR ») est lue aussi : l'édition exacte est posée d'office, et la langue imprimée sur la carte retenue. Cartes d'avant 2014 : l'édition se choisit comme d'habitude.": "Carta entera (ajuste de encuadre): también se lee la pequeña línea abajo a la izquierda («0123 R», «MKM • ES»): la edición exacta se pone sola y se toma el idioma impreso en la carta. Cartas anteriores a 2014: elige la edición como siempre.",
+  "reconnue à l'illustration": "reconocida por la ilustración",
+  "illustration · {name} : {res}": "ilustración · {name}: {res}",
+  "{n} pareilles": "{n} iguales"
 }

@@ -70,5 +70,8 @@
   "Pose la carte dans le cadre : elle s'ajoute seule": "Leg die Karte in den Rahmen: Sie wird von selbst hinzugefügt",
   "lue sur la carte": "auf der Karte gelesen",
   "ligne du bas · {name} : « {raw} » → {res}": "untere Zeile · {name}: „{raw}“ → {res}",
-  "Carte entière (réglage du cadrage) : la petite ligne en bas à gauche (« 0123 R », « MKM • FR ») est lue aussi : l'édition exacte est posée d'office, et la langue imprimée sur la carte retenue. Cartes d'avant 2014 : l'édition se choisit comme d'habitude.": "Ganze Karte (Einstellung Bildausschnitt): Die kleine Zeile unten links („0123 R“, „MKM • DE“) wird ebenfalls gelesen: Die genaue Ausgabe wird automatisch gesetzt und die auf der Karte gedruckte Sprache übernommen. Karten von vor 2014: Ausgabe wie gewohnt wählen."
+  "Carte entière (réglage du cadrage) : la petite ligne en bas à gauche (« 0123 R », « MKM • FR ») est lue aussi : l'édition exacte est posée d'office, et la langue imprimée sur la carte retenue. Cartes d'avant 2014 : l'édition se choisit comme d'habitude.": "Ganze Karte (Einstellung Bildausschnitt): Die kleine Zeile unten links („0123 R“, „MKM • DE“) wird ebenfalls gelesen: Die genaue Ausgabe wird automatisch gesetzt und die auf der Karte gedruckte Sprache übernommen. Karten von vor 2014: Ausgabe wie gewohnt wählen.",
+  "reconnue à l'illustration": "an der Illustration erkannt",
+  "illustration · {name} : {res}": "Illustration · {name}: {res}",
+  "{n} pareilles": "{n} gleich"
 }

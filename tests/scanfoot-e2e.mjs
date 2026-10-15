@@ -36,21 +36,29 @@ const idle = async (ms = 200000) => {
 };
 const lines = () => p.evaluate(() => Object.fromEntries([...SC.items.values()].map(x => [x.key + ' ' + (x.l || 'en') + (x.e ? ' ' + x.e : ''), x.es])));
 const foot = () => p.evaluate(() => SC.foot && SC.foot.raw);
+/** Capture du cadre « carte entière » (comme natCapture / scanCapture) : la photo recadrée sur la carte, lue par readCard comme une carte cadrée. */
+const shoot = f => p.evaluate(async b64 => {
+  const i = new Image(); i.src = 'data:image/jpeg;base64,' + b64; await i.decode();
+  const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext('2d').drawImage(i, 0, 0);
+  scanEnqueue({ label: 'Carte', src: c, strip: false, card: true, thumb: '' });
+}, readFileSync(fx(f)).toString('base64'));
 
-/* ── photos de cartes entières : la ligne du bas donne l'édition exacte ───────────────────────────────── */
+/* ── captures du cadre « carte entière » : la ligne du bas donne l'édition exacte ───────────────────────────────── */
+assert.equal(await p.evaluate(() => SCS.frame), 'name', 'navigateur : cadrage « Nom seulement » par défaut (Tesseract) ; l\'appli Android part sur « Carte entière » (ML Kit)');
+await p.evaluate(() => scsSet({ frame: 'card' }));
 await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
-assert.equal(await p.$eval('.scan', s => s.classList.contains('full')), true, 'cadrage « carte entière » par défaut');
-await p.setInputFiles('#scFile', fx('foot-dsk.jpg')); await idle();
+assert.equal(await p.$eval('.scan', s => s.classList.contains('full')), true, 'cadrage « carte entière » choisi');
+await shoot('foot-dsk.jpg'); await idle();
 console.log('  foot-dsk :', await foot());
 let L = await lines(); assert.equal(L['sol ring en dsk|202'], 'read', 'format récent « 0202 U / DSK • EN » → DSK 202, lue sur la carte : ' + JSON.stringify(L));
-await p.setInputFiles('#scFile', fx('foot-m21.jpg')); await idle();
+await shoot('foot-m21.jpg'); await idle();
 console.log('  foot-m21 :', await foot());
 L = await lines(); assert.equal(L['sol ring en m21|203'], 'read', 'format 2014-2022 « 203/274 U / M21 • EN » → M21 203 : ' + JSON.stringify(L));
-await p.setInputFiles('#scFile', fx('foot-blb-fr.jpg')); await idle();
+await shoot('foot-blb-fr.jpg'); await idle();
 console.log('  foot-blb-fr :', await foot());
 L = await lines(); assert.equal(L['command tower fr blb|201'], 'read', '« Tour de commandement » + « BLB • FR » → BLB 201 en français : ' + JSON.stringify(L));
 assert.equal(await p.$$eval('.sc-ask', a => a.length), 0, 'rien à choisir');
-await p.setInputFiles('#scFile', fx('foot-preview.jpg')); await idle();
+await shoot('foot-preview.jpg'); await idle();
 L = await lines(); console.log('  aperçu (980 px) :', await foot(), '→', L['sol ring en cmm|200'] || 'non lue');      // image de la caméra en direct : renseigne seulement (la vraie lecture se fait par ML Kit dans l'appli)
 ok('photos : ligne du bas lue (formats récent et 2014-2022, langue imprimée), édition exacte posée sans rien demander');
 

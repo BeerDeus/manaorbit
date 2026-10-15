@@ -40,7 +40,7 @@ jobs = {
   'crater.jpg': finish(card('Craterhoof Behemoth', frame=(60, 110, 70), band=(210, 225, 205), art=(40, 90, 50), cost=[(150, 150, 150)] + [(60, 140, 70)] * 3, size=36), rot=2.0, blur=0.8, noise=18),
   'wrath.jpg': finish(card('Wrath of God', frame=(235, 228, 205), cost=[(150, 150, 150)] + [(250, 245, 220)] * 2), rot=-1.5, noise=12),
   'llanowar.jpg': card('Llanowar Elves', frame=(60, 110, 70), band=(210, 225, 205), art=(40, 110, 60), cost=[(60, 140, 70)]),
-  'edgar.jpg': card('Edgar Markov', frame=(40, 36, 34), band=(30, 28, 26), ink=(235, 225, 190), art=(110, 60, 70), cost=[(150, 150, 150), (210, 90, 60), (250, 245, 220), (60, 55, 60)]),   # cadre noir, texte clair
+  'edgar.jpg': card('Edgar Markov', frame=(40, 36, 34), band=(30, 28, 26), ink=(235, 225, 190), art=(110, 60, 70), cost=[(150, 150, 150), (210, 90, 60), (250, 245, 220), (60, 55, 60)], foot=''),   # cadre noir, texte clair ; sans ligne du bas (carte d'avant 2014) : sa langue reste celle par défaut
   'blurry.jpg': finish(card('Arcane Signet', cost=[(150, 150, 150)] * 2), blur=2.2, noise=24),
   'nonsense.jpg': card('Qzxvbnm Plrtkgh', cost=[(150, 150, 150)]),
   'anneau.jpg': card('Anneau solaire', cost=[(150, 150, 150)], foot='123/301 R  CMM • FR'),

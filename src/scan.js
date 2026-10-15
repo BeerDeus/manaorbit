@@ -103,13 +103,15 @@ function scanAdd(m, d, maybe, shot) {
   m = scanLangOf(m);
   const l = m.card || 'en', ed = scanEdNew(m.key, m.name, l, maybe, m.ft);
   let id = scanId(m.key, l, ed.e), cur = SC.items.get(id);
-  if (m.ft && cur && !ed.e && ed.es === 'load') { id += '#' + (++SC.mid); cur = null; }      // ligne du bas lue, impressions pas encore là : sa propre ligne, rangée avec son édition à l'arrivée (scanEdApply)      // une ligne par carte, langue ET édition : la même carte lue en français puis en anglais fait deux lignes
+  const artq = !!m.sig && !['read', 'solo', 'off', 'none'].includes(ed.es);      // illustration à comparer (scanart.js) : l'édition peut encore changer
+  if (cur && ((m.ft && !ed.e && ed.es === 'load') || artq)) { id += '#' + (++SC.mid); cur = null; }      // ligne du bas ou illustration à lire, édition pas encore sûre : sa propre ligne, rangée avec son édition ensuite (scanEdApply, scanArtRun)      // une ligne par carte, langue ET édition : la même carte lue en français puis en anglais fait deux lignes
   if (m.img && l !== 'en') { COLL.li[liKey(l, m.key)] = m.img; collMetaSave(); }       // image de la carte dans sa langue, vue pendant la lecture : gardée pour la collection
   else if (m.via && l !== 'en') langImgFor(m.key, m.name, l);      // trouvée sur l'appareil (catalogue sans images) : celle de sa langue demandée à Scryfall, l'anglaise en attendant
   if (cur) { SC.items.delete(id); SC.items.set(id, cur); SC.lastIt = cur; cur.q = Math.max(1, cur.q + d); if (m.ft && !cur.ft) cur.ft = m.ft; if (!maybe) { cur.maybe = false; cur.shot = ''; } else if (cur.maybe && shot) cur.shot = shot; if (m.score > cur.score) { cur.score = m.score; cur.raw = m.raw; } if (m.via) cur.via = m.via; }
-  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
+  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null, sig: m.sig || null, artq }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
   if (ed.e) scanEdPass();      // une édition posée : les cartes « à choisir » sont revues
   scanPaintList();
+  if (artq) scanArtRun();
 }
 /** Carte du scan pour la visionneuse (appui sur sa miniature) : image dans sa langue si Scryfall l'a donnée, sinon anglaise ; photo prise au scan si la carte est « à vérifier ». */
 function scanViewItem(e) {
@@ -507,9 +509,13 @@ const thirdBox = src => ({ x: 0, y: 0, w: src.naturalWidth || src.width, h: Math
 async function readCard(src, cat, strip, card) {
   const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height, st = { n: 0 }; SC.raw = '';      // st : requêtes « autres langues » de cette carte (2 au plus)
   if (card) {      // cadrage « carte entière » : la capture EST la carte (cadre de l'écran) : le nom en haut, puis la ligne du bas
-    let m = await readNameAuto(src, cardNameBox(W, H), 1400, '6', cat, true, st);
-    if ((!m || m.score < 0.84) && SC.el) { const all = await readNameAuto(src, { x: 0, y: 0, w: W, h: Math.round(H * 0.3) }, 1600, '11', cat, false, st); if (all && (!m || all.score > m.score)) m = all; }
-    return footAttach(m, src, cardFootBox(W, H));
+    let m = null;      // bande serrée en une ligne (Tesseract se perd dans les grandes zones sombres du bord et de l'illustration), puis la zone large, puis le tiers haut en texte épars
+    for (const [b, psm, retry] of [[cardBandBox(W, H), '7', true], [cardNameBox(W, H), '6', false], [{ x: 0, y: 0, w: W, h: Math.round(H * 0.3) }, '11', false]]) {
+      if ((m && m.score >= 0.84) || !SC.el) break;
+      const t = await readNameAuto(src, b, 1400, psm, cat, retry, st); if (t && (!m || t.score > m.score)) m = t;
+      if (natOcr()) break;      // ML Kit lit toute la zone d'un coup : une passe suffit
+    }
+    return artAttach(await footAttach(m, src, cardFootBox(W, H)), src);
   }
   if (strip) {
     let m = await readNameAuto(src, { x: 0, y: 0, w: W, h: H }, 1400, '6', cat, true, st);
@@ -528,10 +534,12 @@ async function readCard(src, cat, strip, card) {
 const scanFull = () => SCS.frame !== 'name';
 /** Zone du nom dans une carte cadrée (marge pour une carte un peu décalée dans le cadre ; le mana à droite est ignoré par la comparaison des noms). */
 const cardNameBox = (W, H) => ({ x: Math.round(W * 0.03), y: 0, w: Math.round(W * 0.94), h: Math.round(H * 0.15) });
+/** Bande du nom seule (sans le mana ni le bord) : la première lecture d'une carte cadrée. */
+const cardBandBox = (W, H) => ({ x: Math.round(W * 0.04), y: Math.round(H * 0.025), w: Math.round(W * 0.8), h: Math.round(H * 0.1) });
 /** Coin bas gauche d'une carte cadrée : « 0123 R » / « MKM • FR » (et l'artiste à droite, ignoré). */
 const cardFootBox = (W, H) => ({ x: 0, y: Math.round(H * 0.86), w: Math.round(W * 0.64), h: H - Math.round(H * 0.86) });
 /** Caractères de la ligne du bas pour Tesseract (ML Kit lit tout). */
-const FOOT_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/*. ';
+const FOOT_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/. ';      // sans « * » : Tesseract y lit la puce « • » (faux foil)
 /** Lit la ligne du bas (box) et l'ajoute à la carte reconnue m (m.ft : footParse) ; langue imprimée sur la carte retenue (sauf langue imposée). Rien de lu : m inchangée.
  *  Seulement pour une carte reconnue, hors prix rapide et réglage « Sans édition ». Le texte lu reste pour l'écran de diagnostic (5 appuis sur le titre). */
 async function footAttach(m, src, box) {
@@ -549,6 +557,11 @@ async function footAttach(m, src, box) {
   const out = { ...m, ft };
   if (ft.lang && !SCS.lang && ft.lang !== m.card && LANGS[ft.lang]) Object.assign(out, { card: ft.lang, img: '', via: '' });      // langue imprimée sur la carte : plus sûre que celle du nom (« Edgar Markov » est le même en français)
   return out;
+}
+/** Empreinte de l'illustration (scanart.js) ajoutée à la carte reconnue m, capture = la carte (cadrage « carte entière ») ; comparée aux impressions quand elles sont là (scaned.js). */
+function artAttach(m, src) {
+  if (!m || m.score < 0.72 || SC.pm || SCS.ed === 'none' || typeof artSig !== 'function') return m;
+  const sig = artSig(src); return sig ? { ...m, sig } : m;
 }
 /** Consigne sous la caméra, selon le cadrage. */
 const camHint = () => (scanFull() ? T('Carte entière dans le cadre, puis appuie sur le cercle') : CAM_HINT);
@@ -689,6 +702,7 @@ function scanDiag(on) {
   const paint = () => {
     const tr = SC.stream && SC.stream.getVideoTracks()[0], st = (tr && tr.getSettings && tr.getSettings()) || {}, now = performance.now(); SC.lt = SC.lt.filter(t => now - t < 10000);
     box.textContent = [T('aperçu {n} i/s', { n: SC.fps ? SC.fps.toFixed(0) : '–' }), `${st.width || '?'}×${st.height || '?'}${st.frameRate ? ' @' + Math.round(st.frameRate) : ''}`, SC.fixed ? T('plancher 24 i/s') : T('i/s libre'), T('redémarrages {n}', { n: SC.restarts }), T('dernière lecture {n} ms', { n: SC.ms ? Math.round(SC.ms) : '–' }), T('tâches longues {n}/10 s', { n: SC.lt.length }), camSlow() ? T('mode lent (toucher ici : retour au mode normal)') : '', tr && tr.label ? tr.label : ''].filter(Boolean).join(' · ');
+    const a = SC.art; if (a) box.textContent += '\n' + T('illustration · {name} : {res}', { name: a.name, res: a.res });      // dernière comparaison d'illustration (scanart.js)
     const f = SC.foot; if (f) box.textContent += '\n' + T('ligne du bas · {name} : « {raw} » → {res}', { name: f.name, raw: f.raw || '—', res: f.ft ? [f.ft.codes.join(','), f.ft.nums.join(','), f.ft.lang, f.ft.foil ? '★' : ''].filter(Boolean).join(' ') : '∅' });      // cadrage « carte entière » : ce que la dernière carte a donné
   };
   box.onclick = () => { camSetSlow(false); paint(); };
