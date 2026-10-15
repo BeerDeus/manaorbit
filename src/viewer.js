@@ -101,7 +101,7 @@ function openCardViewer(items, index) {
   const card = $('.imgv-card', wrap), img = $('.imgv-img', wrap), ph = $('.imgv-ph', wrap), sub = $('.imgv-sub', wrap), flipB = $('.imgv-flip', wrap), title = $('.imgv-cap b', wrap), extra = $('.imgv-extra', wrap), shotEl = $('.imgv-shot', wrap);
   const countEl = $('.imgv-count', wrap), prevB = $('.imgv-nav.prev', wrap), nextB = $('.imgv-nav.next', wrap);
   const wishB = $('.imgv-wish', wrap), artB = $('.imgv-art', wrap), varsEl = $('.imgv-vars', wrap), varsH = $('.imgv-vh', wrap), varsL = $('.imgv-vl', wrap), varsQ = $('.imgv-q', wrap);
-  let vq = '', vqOf = null;      // recherche d'une extension dans les illustrations (8 ou plus) ; vqOf : la carte à qui elle s'applique (repart de zéro à chaque carte)
+  let vq = '', vqOf = null;      // recherche d'une extension dans les illustrations (2 ou plus) ; vqOf : la carte à qui elle s'applique (repart de zéro à chaque carte)
   const prevFocus = document.activeElement, from = pressOrigin(), fromEl = from ? MO.press : null, idx0 = Math.max(0, Math.min(items.length - 1, index | 0));
   const pfRow = prevFocus && prevFocus.closest ? prevFocus.closest('[data-id],[data-k]') : null, pfBox = pfRow && pfRow.parentElement, pfCls = pfRow && prevFocus !== pfRow && prevFocus.classList[0];
   /** Élément à refocaliser : celui d'avant, sinon (liste repeinte entre-temps : édition posée au scan…) le même dans sa ligne (même data-id, sinon même data-k). */
@@ -203,7 +203,7 @@ function openCardViewer(items, index) {
     const p = sel >= 0 ? vars[sel] : null;
     varsH.textContent = it.coll ? (p ? `${p.sn} · ${T('édition de ta carte')}` : T('Touche l\'édition de ta carte : son prix compte dans ta collection'))
       : p ? `${p.sn} · ${canSave ? T('retenue pour cette carte') : T('aperçu seulement : l\'offre garde son impression')}` : (pf ? T('Illustration par défaut') : canSave ? T('Touche une illustration') : T('Touche une illustration · aperçu seulement'));
-    if (vqOf !== it) { vqOf = it; vq = ''; varsQ.innerHTML = edQHtml(vars.length); }      // autre carte : champ remis à zéro (rien sous 8 illustrations)
+    if (vqOf !== it) { vqOf = it; vq = ''; varsQ.innerHTML = edQHtml(vars.length); }      // autre carte : champ remis à zéro (rien sous 2 illustrations)
     edQApply(varsL, vars, vq, '.imgv-v');
     const on = varsL.querySelector('[aria-pressed="true"]:not(.ed-off)'); if (on && on.scrollIntoView && !vq) on.scrollIntoView({ inline: 'center', block: 'nearest' });
   };

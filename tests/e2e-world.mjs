@@ -152,6 +152,9 @@ export async function newPage(browser, world, opts = {}) {
 export const done = p => p.waitForFunction(() => /terminée/.test(document.querySelector('#progTitle').textContent), null, { timeout: 40000 });
 export const txt = (p, sel) => p.$eval(sel, e => e.innerText.replace(/\s+/g, ' ').trim());
 export const ok = m => console.log('✓', m);
+/** Cadrage « Nom seulement » imposé à chaque chargement (tests écrits pour la bande du nom : images de la caméra simulée = une bande ; le cadrage
+ *  « carte entière », réglage par défaut depuis le 15 octobre 2026, a ses propres tests : scaned-e2e, scanfoot-e2e). */
+export const bandOnly = ctx => ctx.addInitScript(() => { try { const k = 'deckdeal:scanset', j = JSON.parse(localStorage.getItem(k) || 'null') || { s: {}, u: 0 }; j.s = { ...(j.s || {}), frame: 'name' }; localStorage.setItem(k, JSON.stringify(j)); } catch (e) { /* stockage refusé */ } });
 /** Accueil → écran « Nouveau panier » (saisie), ou retour à l'accueil. */
 export const toInput = p => p.evaluate(() => { if (S.view !== 'input') showView('input'); });
 export const toHome = p => p.evaluate(() => { if (S.view !== 'home') showView('home'); });

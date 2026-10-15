@@ -5,12 +5,12 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toHome, bandOnly } from './e2e-world.mjs';
 
 const FX = new URL('./fixtures/', import.meta.url).pathname;
 const world = await startWorld({ port: 18977 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
-const { ctx, p, errs } = await newPage(browser, world, { goto: false });
+const { ctx, p, errs } = await newPage(browser, world, { goto: false }); await bandOnly(ctx);
 const imgs = { a: readFileSync(FX + 'sceau.jpg').toString('base64'), b: readFileSync(FX + 'llanowar.jpg').toString('base64'), c: readFileSync(FX + 'wrath.jpg').toString('base64') };
 await ctx.addInitScript(imgs => {
   window.__nat = { caps: [], ocr: 0, flash: [], stops: 0 }; window.__imgs = imgs; window.__img = ''; window.__txt = '';
@@ -112,7 +112,7 @@ assert.deepEqual(errs, [], 'erreurs page');
 ok('Auto gardé d\'un scan à l\'autre ; fermé : la boucle s\'arrête');
 
 /* ── 5) navigateur sans caméra : ni Auto ni lampe ───────────────────────────────────────────────── */
-const w = await newPage(browser, world); await w.p.waitForTimeout(500); await toHome(w.p);
+const w = await newPage(browser, world, { goto: false }); await bandOnly(w.ctx); await w.p.goto(world.url); await w.p.waitForTimeout(700); await w.p.evaluate(() => { BACKOFF.scry = [60, 60, 60]; BACKOFF.cool429 = 100; }); await toHome(w.p);
 await w.p.evaluate(() => { scsSet({ auto: true }); openScan(); }); await w.p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'no', null, { timeout: 5000 });
 assert.equal(await w.p.$eval('.sc-auto', b => b.hidden), true, 'sans caméra : pas d\'interrupteur Auto'); assert.equal(await w.p.$eval('.sc-lamp', b => b.hidden), true, 'ni de lampe');
 assert.equal(await w.p.$eval('.scan', s => s.classList.contains('auto')), false); assert.equal(await w.p.getAttribute('.sc-shot', 'aria-label'), 'Prendre la photo de la carte');
@@ -121,7 +121,7 @@ ok('sans caméra : ni Auto ni lampe, le cercle reste la photo');
 
 /* ── 6) caméra du navigateur (simulée) : Auto proposé, la bande est regardée dans la vidéo ; pas de lampe sur cette caméra ─────────────────── */
 const cam = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
-const c = await newPage(cam, world, { perms: ['camera'] }); await c.ctx.addInitScript(() => { window.__noFpsWatch = true; }); await c.p.waitForTimeout(500); await toHome(c.p);
+const c = await newPage(cam, world, { goto: false, perms: ['camera'] }); await bandOnly(c.ctx); await c.ctx.addInitScript(() => { window.__noFpsWatch = true; }); await c.p.goto(world.url); await c.p.waitForTimeout(700); await c.p.evaluate(() => { BACKOFF.scry = [60, 60, 60]; BACKOFF.cool429 = 100; }); await c.p.waitForTimeout(500); await toHome(c.p);
 await c.p.evaluate(() => { readNameAuto = async () => null; scsSet({ auto: true }); openScan(); });      // pas de moteur OCR ici (CDN) : la lecture ne trouve rien
 await c.p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'on' && document.querySelector('.sc-video').videoWidth > 0, null, { timeout: 8000 });
 await c.p.waitForFunction(() => document.querySelector('.scan.auto') && !document.querySelector('.sc-auto').hidden, null, { timeout: 5000 });

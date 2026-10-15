@@ -115,7 +115,7 @@ function edRemember(k, l, e, info) {
   collMetaSave();
 }
 /* ── Recherche d'une extension dans un choix d'édition (terrains de base : des centaines d'impressions) ── */
-const ED_Q_MIN = 8;      // champ montré à partir de 8 impressions
+const ED_Q_MIN = 2;      // champ montré dès qu'il y a un choix (2 impressions ou plus)
 const edFold = s => ' ' + String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ');
 /** L'impression p répond à la recherche q : chaque mot tapé commence un mot du nom de l'extension, son code, l'année ou le numéro (« bloom », « blb », « 2024 »). */
 function edHit(p, q) {

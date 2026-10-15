@@ -3,7 +3,7 @@ import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { chromium, startWorld, newPage, txt, ok, CARDS, toInput, toHome, rcGo } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, CARDS, toInput, toHome, rcGo, bandOnly } from './e2e-world.mjs';
 
 const TESS_DIR = process.env.TESS_DIR || new URL('../tests/node_modules', import.meta.url).pathname;
 if (!existsSync(TESS_DIR + '/tesseract.js')) { console.log('· tesseract.js absent (TESS_DIR) : test OCR ignoré'); process.exit(0); }
@@ -59,7 +59,7 @@ assert.ok(it.every(x => ['Swords to Plowshares', 'Craterhoof Behemoth', 'Wrath o
 assert.ok(!it.some(x => /qzx|plrt/i.test(x.name)), 'texte absurde : rien');
 assert.equal(it.filter(x => !x.maybe && x.name !== 'Arcane Signet').every(x => x.q === 1), true);
 assert.equal(it.find(x => x.name === 'Craterhoof Behemoth').maybe, false, 'coût de mana collé au nom : toujours une lecture sûre');
-assert.ok(it.filter(x => x.name !== 'Edgar Markov').every(x => /^https:\/\/api\.scryfall\.com\/cards\/named\?exact=.+&format=image&version=small$/.test(x.thumb)), 'chaque carte anglaise porte sa miniature Scryfall');
+assert.ok(it.filter(x => x.name !== 'Edgar Markov').every(x => /^https:\/\/api\.scryfall\.com\/cards\/named\?exact=.+&format=image&version=small$|^https:\/\/cards\.scryfall\.io\/small\//.test(x.thumb)), 'chaque carte anglaise porte sa miniature Scryfall (celle de l\'édition lue sur la ligne du bas, sinon la générique)');
 assert.match(it.find(x => x.name === 'Edgar Markov').thumb, /\/small\/front\/fr\/edgar-markov\.jpg$/, 'nom identique en français et en anglais : français par défaut (90 % de ses cartes) — la puce de langue le corrige d\'un appui');
 assert.equal(await p.evaluate(() => SC.items.get('edgar markov|fr').l), 'fr');
 assert.deepEqual((await misses(p)).map(x => x.replace(/ ·.*$/, '')), ['Photo 7'], 'photo illisible : ligne « non reconnu »');
@@ -174,7 +174,7 @@ await ctx.close(); await browser.close();
 /* ── B) caméra simulée : aperçu simple, le cercle prend la photo, lecture en arrière-plan ───────────────────── */
 // 1. on mesure où tombe le guide dans l'image de la caméra, 2. on fabrique la vidéo (cartes qui passent), 3. on relance avec cette caméra.
 const probe = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
-const pp = await newPage(probe, world, { goto: false, perms: ['camera'] }); await routeCdn(pp.ctx); await pp.p.goto(world.url); await pp.p.waitForTimeout(600);
+const pp = await newPage(probe, world, { goto: false, perms: ['camera'] }); await bandOnly(pp.ctx); await routeCdn(pp.ctx); await pp.p.goto(world.url); await pp.p.waitForTimeout(600);
 await toHome(pp.p); await pp.p.click('#btnColl'); await pp.p.waitForSelector('.coll.on'); await pp.p.click('#nav [data-nav="scan"]'); await pp.p.waitForSelector('.scan.on'); await pp.p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'on', null, { timeout: 8000 }); await pp.p.waitForTimeout(500);
 const geo = await pp.p.evaluate(() => { const s = document.querySelector('.sc-stage').getBoundingClientRect(), g = document.querySelector('.sc-guide').getBoundingClientRect(); return { cw: s.width, ch: s.height, g: { x: g.left - s.left, y: g.top - s.top, w: g.width, h: g.height } }; });
 await pp.p.waitForFunction(() => !SC.warm && !!OCR.workers.fra, null, { timeout: 15000 });
@@ -204,7 +204,7 @@ print(n)`;
 execFileSync('python3', ['-c', py, FX, TMP, ...Object.values(box).map(String)]);
 execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', '5', '-i', `${TMP}/f%04d.jpg`, '-vf', 'fps=24', '-c:v', 'mjpeg', '-q:v', '3', `${TMP}/cam.mjpeg`]);      // la caméra simulée lit une image par tick à 24 i/s : on duplique pour que les durées soient réelles
 const cam = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${TMP}/cam.mjpeg`] });
-const c2 = await newPage(cam, world, { goto: false, perms: ['camera'] }); await routeCdn(c2.ctx); await c2.ctx.addInitScript(() => { window.__noFpsWatch = true; }); await c2.p.goto(world.url); await c2.p.waitForTimeout(600);
+const c2 = await newPage(cam, world, { goto: false, perms: ['camera'] }); await bandOnly(c2.ctx); await routeCdn(c2.ctx); await c2.ctx.addInitScript(() => { window.__noFpsWatch = true; }); await c2.p.goto(world.url); await c2.p.waitForTimeout(600);
 await toHome(c2.p); await c2.p.click('#btnColl'); await c2.p.waitForSelector('.coll.on'); await c2.p.click('#nav [data-nav="scan"]'); await c2.p.waitForSelector('.scan.on');
 await c2.p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'on', null, { timeout: 8000 });
 await c2.p.waitForFunction(() => document.querySelector('.sc-video').videoWidth > 0, null, { timeout: 8000 });
@@ -244,7 +244,7 @@ await cam.close();
 // aperçu lent (la caméra simulée tourne à 24 images/s : on relève le seuil à 40 pour déclencher l'alerte) : 1re alerte → qualité réduite ; 2e → bouton « Photos » mis en avant ; écran de diagnostic
 {
   const camS = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${TMP}/cam.mjpeg`] });
-  const cs = await newPage(camS, world, { goto: false, perms: ['camera'] }); await routeCdn(cs.ctx); await cs.p.goto(world.url); await cs.p.waitForTimeout(600);
+  const cs = await newPage(camS, world, { goto: false, perms: ['camera'] }); await bandOnly(cs.ctx); await routeCdn(cs.ctx); await cs.p.goto(world.url); await cs.p.waitForTimeout(600);
   await cs.p.evaluate(() => { SC.fpsMin = 40; });
   await toHome(cs.p); await cs.p.click('#btnColl'); await cs.p.waitForSelector('.coll.on'); await cs.p.click('#nav [data-nav="scan"]'); await cs.p.waitForSelector('.scan.on');
   await cs.p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'on', null, { timeout: 8000 });
@@ -276,7 +276,7 @@ ok('caméra lente : 4 redémarrages dont 2 en qualité réduite, bouton « Photo
 // plancher de 24 i/s demandé d'abord ; si l'appareil le refuse (OverconstrainedError), repli sur une simple préférence ; l'ancien indicateur « lent » est ignoré
 {
   const camF = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${TMP}/cam.mjpeg`] });
-  const cf = await newPage(camF, world, { goto: false, perms: ['camera'] }); await routeCdn(cf.ctx);
+  const cf = await newPage(camF, world, { goto: false, perms: ['camera'] }); await bandOnly(cf.ctx); await routeCdn(cf.ctx);
   await cf.ctx.addInitScript(() => { window.__noFpsWatch = true; window.__req = []; const g = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); navigator.mediaDevices.getUserMedia = c => { window.__req.push(JSON.stringify(c.video.frameRate)); if (window.__refuseMin && c.video.frameRate.min) { const e = new Error('refusé'); e.name = 'OverconstrainedError'; return Promise.reject(e); } return g(c); }; localStorage.setItem('deckdeal:cam', 'slow'); });
   await cf.p.goto(world.url); await cf.p.waitForTimeout(600);
   const open = async () => { await toHome(cf.p); await cf.p.click('#btnColl'); await cf.p.waitForSelector('.coll.on'); await cf.p.click('#nav [data-nav="scan"]'); await cf.p.waitForSelector('.scan.on'); await cf.p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'on', null, { timeout: 8000 }); };
@@ -312,7 +312,7 @@ photo('crater.jpg', 2300, 360, 1800, name='p5')                         # titre 
 `;
 execFileSync('python3', ['-c', py, FX, TMP]);
 const camN = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
-const cn = await newPage(camN, world, { goto: false }); await routeCdn(cn.ctx);
+const cn = await newPage(camN, world, { goto: false }); await bandOnly(cn.ctx); await routeCdn(cn.ctx);
 await cn.p.goto(world.url); await cn.p.waitForTimeout(600);
 await toHome(cn.p); await cn.p.click('#btnColl'); await cn.p.waitForSelector('.coll.on'); await cn.p.click('#nav [data-nav="scan"]'); await cn.p.waitForSelector('.scan.on');
 await cn.p.evaluate(() => { window.__imgs = []; const o = loadImage; loadImage = async f => { const i = await o(f); window.__imgs.push(i); return i; }; });
@@ -342,7 +342,7 @@ await camN.close();
 
 { // Appli Android (Capacitor simulé) : aperçu natif derrière la page, image de l'aperçu recadrée sur la bande, lecture ML Kit — aucun moteur Tesseract chargé
   const bN = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
-  const nat = await newPage(bN, world, { goto: false }); const np = nat.p;
+  const nat = await newPage(bN, world, { goto: false }); await bandOnly(nat.ctx); const np = nat.p;
   const jpg = readFileSync(fx('sceau.jpg')).toString('base64');
   await nat.ctx.addInitScript(b64 => {
     window.__nat = { starts: [], stops: 0, ocr: [] };
@@ -379,7 +379,7 @@ await camN.close();
   ok('appli Android : caméra native derrière la page, bande recadrée, ML Kit (sans Tesseract), rotation selon l\'écran, carte en grand visible, caméra rendue à la fermeture');
 
   // démarrage natif raté : caméra native arrêtée (sinon « caméra déjà démarrée » au suivant), page de nouveau opaque, repli sur la caméra du navigateur ; puis la réouverture la redémarre
-  const nf = await newPage(bN, world, { goto: false }), fp = nf.p;
+  const nf = await newPage(bN, world, { goto: false }), fp = nf.p; await bandOnly(nf.ctx);
   await nf.ctx.addInitScript(() => {
     window.__nat = { starts: 0, stops: 0, fail: 1 };
     window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: () => true, Plugins: {

@@ -180,7 +180,7 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
   fw.build = 'b1e3e000'; await q.evaluate(() => { UPD.want = ''; UPD.told = ''; });
   ok('✕ : la carte part, et revient au retour sur l\'appli tant que la version n\'est pas à jour');
   // retour sur l'appli après 15 s ailleurs (appli Android en arrière-plan) : /__ping dit qu'une version plus récente est en ligne → copie relue, rechargement
-  fw.build = 'b1e4e000'; const B4 = await q.evaluate(() => { UPD.hid = Date.now() - 20e3; UPD.at = 0; updResume(); return true; });
+  fw.build = 'b1e4e000'; const B4 = await q.evaluate(() => { UPD.hid = Date.now() - 20e3; UPD.at = 0; UPD.touch = 0; updResume(); return true; });      // UPD.touch : le ✕ juste avant compte comme un toucher récent
   assert.ok(B4); assert.equal(await until(async () => (await build()) === 'b1e4e000'), true, 'au retour : nouvelle version chargée');
   ok('retour sur l\'appli : version demandée au serveur (/__ping), copie relue (« dd-update »), rechargement automatique');
 

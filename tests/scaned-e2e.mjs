@@ -113,9 +113,9 @@ ok('« Ajouter quand même » ; « Sans édition » choisi à la main ne redeman
 await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
 assert.match(await txt(p, '.sc-edm'), /Éditions : comme la 1re/);
 await p.click('.sc-edm'); await p.waitForSelector('.scs-sheet .scs-ed');
-await p.click('.scs-ed[data-v="card"]');
+await p.click('.scs-ed[data-s="ed"][data-v="card"]');
 assert.equal(await p.evaluate(() => SCS.ed), 'card'); assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:scanset')).s.ed), 'card', 'gardé sur l\'appareil');
-assert.equal(await p.$eval('.scs-ed[data-v="card"]', b => b.getAttribute('aria-checked')), 'true');
+assert.equal(await p.$eval('.scs-ed[data-s="ed"][data-v="card"]', b => b.getAttribute('aria-checked')), 'true');
 await p.click('label[for="scsAuto"] .switch'); assert.equal(await p.evaluate(() => SCS.auto), true); assert.ok(await p.$('.scs-sheet [data-s="delay"]'), 'automatique : délai et même carte proposés');
 await p.click('label[for="scsAuto"] .switch'); assert.equal(await p.evaluate(() => SCS.auto), false);
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
@@ -162,7 +162,7 @@ assert.match(await txt(p, '.sc-edm'), /à la fin/, 'écran de scan ouvert : suit
 await p.evaluate(() => scsSet({ ed: 'scan', snd: false }));
 ok('réglages du scan dans le compte : envoyés au compte vide, ceux du compte (plus récents) appliqués');
 
-/* ── recherche d'une extension (8 impressions ou plus, terrains de base…) : bandeau › « Chercher une extension » → feuille ouverte sur la recherche ── */
+/* ── recherche d'une extension (dès 2 impressions) : bandeau › « Chercher une extension » → feuille ouverte sur la recherche ── */
 world.psets['Craterhoof Behemoth'] = ['neo', 'mh3', 'woe', 'ltr', 'one', 'mom', 'lci', 'mkm', 'otj', 'fdn'];      // aucune dans le scan : à choisir
 await p.evaluate(() => { for (const x of SC.items.values()) x.later = true; scanPaintList(); });
 await add('Craterhoof Behemoth'); await settle();

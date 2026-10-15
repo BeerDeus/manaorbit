@@ -28,7 +28,12 @@ await ctx.route('https://cdn.jsdelivr.net/**', route => {
   return route.fulfill({ status: 404, body: 'nf' });
 });
 await p.goto(world.url); await p.waitForTimeout(700); await toHome(p);
-const idle = (ms = 200000) => p.waitForFunction(() => !SC.working && !SC.queue.length && !SC.pend.length && ![...SC.items.values()].some(x => x.es === 'load'), null, { timeout: ms });
+let seen = 0;      // cartes lues (reconnues ou non) jusqu'ici : la photo suivante doit en ajouter une
+const idle = async (ms = 200000) => {
+  seen++;
+  await p.waitForFunction(n => [...SC.items.values()].reduce((a, x) => a + x.q, 0) + SC.miss.length >= n, seen, { timeout: ms });
+  await p.waitForFunction(() => !SC.working && !SC.queue.length && !SC.pend.length && ![...SC.items.values()].some(x => x.es === 'load'), null, { timeout: ms });
+};
 const lines = () => p.evaluate(() => Object.fromEntries([...SC.items.values()].map(x => [x.key + ' ' + (x.l || 'en') + (x.e ? ' ' + x.e : ''), x.es])));
 const foot = () => p.evaluate(() => SC.foot && SC.foot.raw);
 
