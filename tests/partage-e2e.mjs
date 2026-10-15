@@ -57,7 +57,7 @@ const PNG_SIG = '137,80,78,71,13,10,26,10';
   assert.equal(await p.evaluate(() => sheets.length), 1, 'le guide s\'est refermé, l\'import reste');
   await p.click('#ciGo'); await p.waitForFunction(() => collCount() === 6);
   const coll = await p.evaluate(() => Object.fromEntries(Object.entries(COLL.map).map(([k, x]) => [x.n, collLines(x).map(([g, q]) => g + ':' + q).join(' ')])));
-  assert.equal(coll['Sol Ring'], 'fr|c21|263#cex:1 en|cmm|410:2 en|cmm|410*:1', 'la foil sur sa propre ligne, état « excellent » gardé (Near Mint ignoré)'); assert.equal(coll['Swords to Plowshares'], 'zh-CN|sta|10*:1'); assert.equal(coll['Ragavan, Nimble Pilferer'], '|mh2|138:1');
+  assert.equal(coll['Sol Ring'], 'fr|c21|263#cex:1 en|cmm|410:2 en|cmm|410*:1', 'la foil sur sa propre ligne, état « excellent » gardé (Near Mint ignoré)'); assert.equal(coll['Swords to Plowshares'], 'zh-CN|sta|10*:1'); assert.equal(coll['Ragavan, Nimble Pilferer'], 'kr|mh2|138:1', 'coréen : langue de l\'appli');
   ok('Importer › « Tu viens de ManaBox ? » → guide (3 étapes, ce qui suit, autres applis) → « Choisir mon fichier » → export ManaBox lu et importé (éditions, langues)');
   await p.context().close();
 }
