@@ -8,7 +8,7 @@
 //   Notifications « recherche terminée » (facultatif) : VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (voir gen-vapid.mjs).
 //   Notifications dans l'appli Android (facultatif) : FCM_SERVICE_ACCOUNT (JSON du compte de service Firebase, ou son base64) ou FCM_SERVICE_ACCOUNT_FILE.
 import http from 'node:http';
-import { readFile, writeFile, mkdir, rename, stat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename, stat, readdir, unlink } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { gunzipSync, gzipSync, gzip, gunzip, brotliCompress, constants as zc } from 'node:zlib';
 import { promisify } from 'node:util';
@@ -2466,7 +2466,7 @@ async function admServer() {
   const partie = { wait: 0, live: 0, done: 0, all: PT.s.size }; for (const r of PT.s.values()) if (r.st in partie) partie[r.st]++;
   let run = 0; for (const j of jobs.values()) if (j.status === 'running') run++;
   return { build: await pageBuild(), up: Math.round(process.uptime()), node: process.version, rss: Math.round(process.memoryUsage().rss / 1048576),
-    flags: { token: !!TOKEN, login: AUTH_FB, key: !!APP_KEY, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, names: NM_ON, ads: !!ADMOB_BANNER }, off: OFF,
+    flags: { token: !!TOKEN, login: AUTH_FB, key: !!APP_KEY, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, names: NM_ON, ads: !!ADMOB_BANNER, scans: SR_ON }, off: OFF,
     prices: { on: !!PX_SRC, at: PX_ST.at, cards: PX_ST.cards, check: PX_ST.check, err: PX_ST.err }, edh: { on: !!EDH_SRC, at: EDH_ST.at, decks: EDH_ST.decks, cmds: EDH_ST.cmds, from: EDH_ST.from, check: EDH_ST.check, err: EDH_ST.err },
     troc, partie, jobs: { run, all: jobs.size }, alerts: { devices: AL.subs.size, last: Number(AL.last.at) || 0, hits: Number(AL.last.hits) || 0 },
     pub: { n: PUB.n, hid: PUB.hid, at: PUB.at, err: PUB.err ? 'erreur' : '' }, amis: { cache: AMI.cache.size, due: AMI.due.size } };
@@ -2481,7 +2481,7 @@ async function admSend(res, url) {
   rows = rows.slice().sort((a, b) => ((Number(a[sort]) || 0) - (Number(b[sort]) || 0)) * (asc ? 1 : -1) || (a.id < b.id ? -1 : 1));
   const pages = Math.max(1, Math.ceil(rows.length / ADM_PER)), page = Math.min(pages, Math.max(1, Math.floor(Number(url.searchParams.get('page'))) || 1));
   let testers = null; try { testers = (await tsList()).length; } catch (e) { /* fichier illisible : la carte l'indique */ }
-  return json(res, 200, { at: s ? s.at : 0, ttl: ADM_TTL, testers, src: s ? s.src : 'none', notes: s ? s.notes : [{ k: 'none', t: 'Statistiques momentanément indisponibles.' }], ov: s ? s.ov : null, srv: await admServer(),
+  return json(res, 200, { at: s ? s.at : 0, ttl: ADM_TTL, testers, scans: await srSummary(), src: s ? s.src : 'none', notes: s ? s.notes : [{ k: 'none', t: 'Statistiques momentanément indisponibles.' }], ov: s ? s.ov : null, srv: await admServer(),
     users: { total: rows.length, page, pages, per: ADM_PER, sort, dir: asc ? 'asc' : 'desc', q, rows: rows.slice((page - 1) * ADM_PER, page * ADM_PER) } }, ADM_HD);
 }
 /** Compte de l'éditeur ? Sinon réponse d'erreur envoyée (sans aucune donnée) et false. Un compte authentique mais non autorisé est compté comme un essai invalide. */
@@ -2504,9 +2504,10 @@ async function admAuth(req, res) {
 }
 async function adminApi(req, res, path, url) {
   if (!ADMIN_ON) return json(res, 404, { error: 'not_found' }, ADM_HD);
-  const w = rateWait(req, 'admin', 120, 600e3); if (w) return tooMany(res, w);
+  const img = /^admin\/scans\/[0-9a-z-]+\.jpg$/.test(path), w = img ? rateWait(req, 'adminimg', 600, 600e3) : rateWait(req, 'admin', 120, 600e3); if (w) return tooMany(res, w);      // photos des scans signalés : leur propre budget (une par signalement affiché)
   if (!(await admAuth(req, res))) return;
   const sub = path.replace(/^admin\/?/, '');
+  if (sub === 'scans' || sub.startsWith('scans/')) return srAdmin(req, res, sub, url);      // scans signalés depuis l'appli
   if (req.method === 'GET' && !sub) {
     if (!ADM.snap || Date.now() - ADM.snap.at > ADM_TTL) await admRefresh();      // trop ancien : recalculé (la page attend : c'est l'éditeur qui l'a demandé)
     return admSend(res, url);
@@ -2573,6 +2574,169 @@ async function testersApi(req, res) {
   return json(res, 200, { ok: true });
 }
 
+/* ── Scans signalés : « Signaler un problème de scan » dans l'appli (src/scanreport.js) ──────────────────────────────────────────
+   POST /api/scan-report { img, what, note, meta }, envoyé seulement quand l'utilisateur le demande. img : photo réduite de la carte (data URL JPEG, 350 Ko au plus
+   une fois décodée, en-tête FFD8 et dimensions lues dans l'image) ; what : ce qui ne va pas (card, lang, ed, miss, other) ; note : commentaire (300 caractères) ;
+   meta : ce que l'appli a lu (texte du nom, ligne du bas, carte retenue, diagnostic, moteur OCR, cadrage, réglages du scan, version, appli ou navigateur, langue),
+   nettoyé (8 Ko, 5 niveaux, textes de 300 caractères). Sans compte ; avec un jeton Firebase (x-firebase-token, vérifié), seule une empreinte de l'UID est gardée
+   (16 premiers caractères de son SHA-256, comme amTag). Ni adresse IP, ni navigateur, ni e-mail. Bornes : SCAN_REPORTS_PER_H par heure et par réseau (20), autant par compte.
+   Disque : SCAN_REPORTS_DIR (défaut .data/scan-reports), <id>.jpg puis <id>.json (id : date en base 36 + 8 caractères aléatoires ; sans son .json, un signalement
+   n'existe pas). Au plus SCAN_REPORTS_MAX signalements (1 000) et SCAN_REPORTS_MB (200 Mo) : les plus anciens partent ; effacés après SCAN_REPORTS_DAYS (90 jours ;
+   vérifié à chaque envoi, à chaque lecture du panneau et toutes les 6 h). Index en mémoire (id, date, taille), relu du disque au premier besoin.
+   Lecture : panneau /admin seulement (GET /api/admin/scans, GET /api/admin/scans/<id>.jpg, DELETE /api/admin/scans/<id> ; compte de l'éditeur, admAuth).
+   SCAN_REPORTS=0 : coupé (404 partout, /__ping scanrep: false : l'appli cache le bouton). Effacement sur demande : supprimer le signalement dans le panneau. */
+const SR_ON = process.env.SCAN_REPORTS !== '0';
+const SR_DIR = process.env.SCAN_REPORTS_DIR || join(EDH_DIR, 'scan-reports');
+const SR_MAX = Number(process.env.SCAN_REPORTS_MAX) > 0 ? Math.floor(Number(process.env.SCAN_REPORTS_MAX)) : 1000;
+const SR_BYTES = (Number(process.env.SCAN_REPORTS_MB) > 0 ? Number(process.env.SCAN_REPORTS_MB) : 200) * 1048576;
+const SR_TTL = (Number(process.env.SCAN_REPORTS_DAYS) > 0 ? Number(process.env.SCAN_REPORTS_DAYS) : 90) * 86400e3;
+const SR_RATE = Number(process.env.SCAN_REPORTS_PER_H ?? 20);
+const SR_IMG = 350 * 1024, SR_BODY = 520 * 1024, SR_META = 8 * 1024, SR_NOTE = 300, SR_PER = 20;      // image décodée, corps de la requête, données de lecture, commentaire, signalements par page du panneau
+const SR_WHAT = ['card', 'lang', 'ed', 'miss', 'other'], SR_ID = /^[0-9a-z]{8,10}-[0-9a-f]{8}$/;
+const SR = { list: null, loading: null, chain: Promise.resolve(), lim: new Map() };
+/** Une modification de l'index ou du dossier à la fois (envoi, purge, suppression). */
+const srRun = fn => { const p = SR.chain.then(fn); SR.chain = p.catch(() => {}); return p; };
+const srTime = id => parseInt(id.split('-')[0], 36) || 0;
+/** Index des signalements du disque, du plus ancien au plus récent : [{ id, t, size }]. Restes d'un envoi interrompu (sans .json, .tmp) effacés après 10 min. */
+function srLoad() {
+  if (SR.list) return Promise.resolve(SR.list);
+  if (!SR.loading) SR.loading = (async () => {
+    let names = [];
+    try { names = await readdir(SR_DIR); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+    const set = new Set(names), list = [], stale = Date.now() - 600e3;
+    for (const f of names) {
+      const m = /^(.+)\.(json|jpg)(\.tmp)?$/.exec(f), id = m && m[1];
+      if (!m || !SR_ID.test(id)) continue;
+      if (m[2] === 'json' && !m[3] && set.has(id + '.jpg')) {
+        try { const [a, b] = await Promise.all([stat(join(SR_DIR, f)), stat(join(SR_DIR, id + '.jpg'))]); list.push({ id, t: srTime(id), size: a.size + b.size }); } catch (e) { /* effacé entre-temps */ }
+      } else if ((m[3] || !set.has(id + '.json') || !set.has(id + '.jpg')) && srTime(id) < stale) await unlink(join(SR_DIR, f)).catch(() => {});
+    }
+    SR.list = list.sort((a, b) => a.t - b.t || (a.id < b.id ? -1 : 1));
+    return SR.list;
+  })().finally(() => { SR.loading = null; });
+  return SR.loading;
+}
+async function srDrop(id) { for (const ext of ['.json', '.jpg']) { try { await unlink(join(SR_DIR, id + ext)); } catch (e) { if (e.code !== 'ENOENT') throw e; } } }      // .json d'abord : un reste n'est jamais un signalement à moitié
+/** Plus vieux que SCAN_REPORTS_DAYS, puis au-delà de SCAN_REPORTS_MAX ou de SCAN_REPORTS_MB : effacés, les plus anciens d'abord. Retourne le nombre effacé. */
+async function srPurge() {
+  const list = await srLoad(), old = Date.now() - SR_TTL; let bytes = list.reduce((a, x) => a + x.size, 0), n = 0;
+  while (list.length && (list[0].t < old || list.length > SR_MAX || bytes > SR_BYTES)) { const x = list.shift(); bytes -= x.size; await srDrop(x.id); n++; }
+  return n;
+}
+/** Enregistre un signalement (image, puis sa fiche) et fait la place. */
+async function srSave(rec, img) {
+  const list = await srLoad(), base = join(SR_DIR, rec.id), js = JSON.stringify(rec);
+  await mkdir(SR_DIR, { recursive: true });
+  try {
+    await writeFile(base + '.jpg.tmp', img); await rename(base + '.jpg.tmp', base + '.jpg');
+    await writeFile(base + '.json.tmp', js); await rename(base + '.json.tmp', base + '.json');
+  } catch (e) { for (const f of ['.jpg.tmp', '.json.tmp', '.json', '.jpg']) await unlink(base + f).catch(() => {}); throw e; }
+  list.push({ id: rec.id, t: rec.t, size: img.length + Buffer.byteLength(js) });
+  await srPurge();
+}
+/** Dimensions d'une image JPEG (marqueur SOF), ou null si ce n'en est pas une. */
+function jpegSize(b) {
+  if (b.length < 128 || b[0] !== 0xff || b[1] !== 0xd8 || b[2] !== 0xff) return null;
+  for (let i = 2; i + 9 < b.length;) {
+    if (b[i] !== 0xff) return null;
+    const mk = b[i + 1];
+    if (mk === 0xff) { i++; continue; }                                                    // remplissage
+    if (mk === 0x01 || (mk >= 0xd0 && mk <= 0xd8)) { i += 2; continue; }                  // marqueurs sans longueur
+    if (mk === 0xd9 || mk === 0xda) return null;                                           // fin, ou données de l'image avant les dimensions
+    const len = b.readUInt16BE(i + 2); if (len < 2) return null;
+    if (mk >= 0xc0 && mk <= 0xcf && mk !== 0xc4 && mk !== 0xc8 && mk !== 0xcc) { const h = b.readUInt16BE(i + 5), w = b.readUInt16BE(i + 7); return w > 0 && h > 0 ? { w, h } : null; }
+    i += 2 + len;
+  }
+  return null;
+}
+/** Données de lecture envoyées par l'appli : rien que du JSON simple (5 niveaux, 40 clés et 20 éléments par niveau, textes de 300 caractères sans caractère de contrôle). */
+function srClean(v, d = 0) {
+  if (typeof v === 'string') return v.replace(/[\p{Cc}\p{Cf}]/gu, ' ').slice(0, 300);
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'boolean' || v === null) return v;
+  if (d >= 5 || !v || typeof v !== 'object') return null;
+  if (Array.isArray(v)) return v.slice(0, 20).map(x => srClean(x, d + 1));
+  const o = {}; let n = 0;
+  for (const [k, x] of Object.entries(v)) { if (n >= 40) break; if (k === '__proto__' || !/^[A-Za-z0-9_.-]{1,32}$/.test(k)) continue; o[k] = srClean(x, d + 1); n++; }
+  return o;
+}
+/** Budget d'un compte (SCAN_REPORTS_PER_H par heure) : 0 si permis, sinon secondes à attendre. */
+function srLim(k) {
+  if (!(SR_RATE > 0)) return 0;
+  const now = Date.now(); let b = SR.lim.get(k);
+  if (!b) { if (SR.lim.size > 5000) for (const [kk, v] of SR.lim) if (now - v.t > 3600e3) SR.lim.delete(kk); b = { n: SR_RATE, t: now }; SR.lim.set(k, b); }
+  b.n = Math.min(SR_RATE, b.n + (now - b.t) * SR_RATE / 3600e3); b.t = now;
+  if (b.n >= 1) { b.n--; return 0; }
+  return Math.max(1, Math.ceil((1 - b.n) * 3600 / SR_RATE));
+}
+async function scanReportApi(req, res) {
+  if (!SR_ON) return json(res, 404, { error: 'not_found' });
+  if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' });
+  const w = rateWait(req, 'scanrep', SR_RATE, 3600e3); if (w) return tooMany(res, w);
+  let acct = '';
+  const tok = String(req.headers['x-firebase-token'] || '');
+  if (tok) {      // connecté : empreinte du compte (jamais l'UID) et budget du compte
+    if (isLocked(req)) return json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { 'Retry-After': '300' });
+    try { acct = amTag((await verifyIdToken(tok, true)).uid).slice(0, 16); }
+    catch (e) {
+      const code = e && e.authCode;
+      if (code === 'expired') return json(res, 401, { error: 'token_expired', message: 'Session expirée : le navigateur va la renouveler.' });
+      if (code !== 'unavailable') return badKey(req, res, 'bad_token', 401);      // clés Google injoignables : gardé sans empreinte
+    }
+    const w2 = acct ? srLim(acct) : 0; if (w2) return json(res, 429, { error: 'rate_limited', message: 'Trop de signalements depuis ce compte : réessaie plus tard.', retry: w2 }, { 'Retry-After': String(w2) });
+  }
+  let b; try { b = JSON.parse((await readBody(req, SR_BODY)).toString('utf8') || '{}'); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); }
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return json(res, 400, { error: 'bad_request', message: 'JSON invalide' });
+  if (!SR_WHAT.includes(b.what)) return json(res, 400, { error: 'bad_what', message: 'Type de problème inconnu.' });
+  if (b.note != null && typeof b.note !== 'string') return json(res, 400, { error: 'bad_note', message: 'Commentaire invalide.' });
+  const note = String(b.note || '').replace(/[\p{Cc}\p{Cf}]/gu, ' ').replace(/\s+/g, ' ').trim();
+  if ([...note].length > SR_NOTE) return json(res, 400, { error: 'bad_note', message: 'Commentaire trop long (' + SR_NOTE + ' caractères au plus).' });
+  if (!b.meta || typeof b.meta !== 'object' || Array.isArray(b.meta)) return json(res, 400, { error: 'bad_meta', message: 'Données de lecture manquantes.' });
+  if (JSON.stringify(b.meta).length > SR_META) return json(res, 413, { error: 'too_large', message: 'Données de lecture trop longues.' });
+  const m = typeof b.img === 'string' ? /^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/.exec(b.img) : null;
+  if (!m) return json(res, 400, { error: 'bad_image', message: 'Photo JPEG attendue.' });
+  const img = Buffer.from(m[1], 'base64');
+  if (img.length > SR_IMG) return json(res, 413, { error: 'too_large', message: 'Photo trop lourde (350 Ko au plus).' });
+  const dim = jpegSize(img); if (!dim || dim.w > 4096 || dim.h > 4096) return json(res, 400, { error: 'bad_image', message: 'Photo JPEG attendue.' });
+  const now = Date.now(), id = now.toString(36) + '-' + randomBytes(4).toString('hex');
+  const rec = { v: 1, id, t: now, what: b.what, note, acct, img: { w: dim.w, h: dim.h, bytes: img.length }, meta: srClean(b.meta) };
+  try { await srRun(() => srSave(rec, img)); }
+  catch (e) { console.warn('Scans signalés : enregistrement impossible (' + (e && e.code || 'erreur') + ')'); return json(res, 503, { error: 'unavailable', message: 'Signalement impossible pour le moment : réessaie plus tard.' }, { 'Retry-After': '60' }); }
+  return json(res, 200, { ok: true, id });
+}
+/** Résumé du panneau : nombre, 7 derniers jours, place prise (Mo) ; null : fonction coupée. Fait la place d'abord (signalements trop vieux). */
+async function srSummary() {
+  if (!SR_ON) return null;
+  try { await srRun(srPurge); const l = SR.list || [], w = Date.now() - 7 * 86400e3; return { n: l.length, n7: l.filter(x => x.t > w).length, mb: Math.round(l.reduce((a, x) => a + x.size, 0) / 104857.6) / 10, max: SR_MAX, days: Math.round(SR_TTL / 86400e3) }; }
+  catch (e) { return { n: 0, n7: 0, mb: 0, max: SR_MAX, days: Math.round(SR_TTL / 86400e3), err: true }; }
+}
+/** /api/admin/scans… (compte de l'éditeur déjà vérifié) : liste par pages (plus récents d'abord), photo, suppression. */
+async function srAdmin(req, res, sub, url) {
+  if (!SR_ON) return json(res, 404, { error: 'not_found' }, ADM_HD);
+  const rest = sub.replace(/^scans\/?/, '');
+  if (!rest) {
+    if (req.method !== 'GET') return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
+    const sum = await srSummary(); if (sum.err) return json(res, 503, { error: 'unavailable', message: 'Dossier des signalements illisible.' }, ADM_HD);
+    const all = (SR.list || []).slice().reverse(), pages = Math.max(1, Math.ceil(all.length / SR_PER)), page = Math.min(pages, Math.max(1, Math.floor(Number(url.searchParams.get('page'))) || 1));
+    const rows = (await Promise.all(all.slice((page - 1) * SR_PER, page * SR_PER).map(async x => { try { return JSON.parse(await readFile(join(SR_DIR, x.id + '.json'), 'utf8')); } catch (e) { return null; } })))
+      .filter(r => r && typeof r.id === 'string' && SR_ID.test(r.id));
+    return json(res, 200, { ...sum, total: all.length, page, pages, per: SR_PER, rows }, ADM_HD);
+  }
+  const m = /^([0-9a-z]{8,10}-[0-9a-f]{8})(\.jpg)?$/.exec(rest);
+  if (!m) return json(res, 404, { error: 'not_found' }, ADM_HD);
+  if (m[2]) {      // photo : jamais publique, jamais en cache
+    if (req.method !== 'GET') return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
+    let buf; try { buf = await readFile(join(SR_DIR, m[1] + '.jpg')); } catch (e) { return json(res, 404, { error: 'not_found' }, ADM_HD); }
+    res.writeHead(200, { ...SEC, ...ADM_HD, 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store', 'Content-Length': buf.length, 'Content-Disposition': `inline; filename="scan-${m[1]}.jpg"` });
+    return res.end(buf);
+  }
+  if (req.method !== 'DELETE') return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
+  const done = await srRun(async () => { const l = await srLoad(), i = l.findIndex(x => x.id === m[1]); if (i < 0) return false; l.splice(i, 1); await srDrop(m[1]); return true; }).catch(() => null);
+  if (done === null) return json(res, 503, { error: 'unavailable', message: 'Suppression impossible pour le moment.' }, ADM_HD);
+  if (!done) return json(res, 404, { error: 'not_found' }, ADM_HD);
+  return json(res, 200, { ok: true, ...(await srSummary()) }, ADM_HD);
+}
+
 async function api(req, res, url) {
   const path = url.pathname.replace(/^\/api\//, '').replace(/\/+$/, '');
   // Serveur local sans compte : un POST d'une autre page (formulaire, text/plain : pas de pré-vérification CORS) ne doit rien déclencher.
@@ -2583,6 +2747,7 @@ async function api(req, res, url) {
   if (path === 'pubdecks') return pubApi(req, res, url);      // decks publics (« Communauté ») : liste ouverte à tous, sans token
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
   if (path === 'testeurs') return testersApi(req, res);      // inscription au test fermé (page /testeurs), ouverte à tous, bornée
+  if (path === 'scan-report') return scanReportApi(req, res);      // « Signaler un problème de scan » : photo et lecture envoyées par l'utilisateur, sans compte exigé, bornées
   if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
   if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège
   if (path === 'partie' || path.startsWith('partie/')) return partieApi(req, res, path, url);      // partie de Commander : salle d'attente (jeton Firebase, ou invité sans compte), résultats des comptes
@@ -2729,7 +2894,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/.well-known/assetlinks.json') return assetLinks(req, res);      // App Links de l'appli Android
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, off: OFF, apk: APK_LATEST, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, scanrep: SR_ON, off: OFF, apk: APK_LATEST, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte
@@ -2789,6 +2954,11 @@ server.listen(PORT, HOST, () => {
   if (AM_ON) { console.log(`Amis : ${AM_MAX} au plus par compte, « un ami a une carte que tu cherches » toutes les ${Math.round(AM_GAP / 360000) / 10} h au plus.`); }
   if (TROC_ON) console.log(`Échange en direct : ${TROC_MAX} sessions au plus, en mémoire (terminées après ${Math.round(TROC_IDLE / 60e3)} min sans activité).`);
   if (PT_ON) console.log(`Partie de Commander : ${PT_MAX} salles d'attente au plus, en mémoire ; historiques des comptes dans Firestore (parties).`);
+  if (SR_ON) {      // scans signalés : trop vieux ou au-delà des plafonds, effacés au démarrage puis toutes les 6 h
+    const purge = () => srRun(srPurge).then(n => { if (n) console.log(`Scans signalés : ${n} effacé${n > 1 ? 's' : ''} (durée ou place).`); }, e => console.warn('Scans signalés : dossier illisible (' + (e && e.code || 'erreur') + ')'));
+    setTimeout(purge, 20e3).unref(); setInterval(purge, 6 * 3600e3).unref();
+    console.log(`Scans signalés : ${SR_MAX} au plus, ${Math.round(SR_BYTES / 1048576)} Mo, gardés ${Math.round(SR_TTL / 86400e3)} jours.`);
+  }
   if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
   if (ALERTS_ON) {

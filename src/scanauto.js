@@ -89,6 +89,7 @@ async function auFeed(f, g) {
     }
     m0 = m;
     if (m && scanFull() && auWillAdd(m)) m = artAttach(await footAttach(m, f.src, cardFootBox(f.src.width, f.src.height)), f.src);      // cette lecture ajoute la carte : sa ligne du bas et son illustration aussi, sur la même image
+    if (m0 && typeof srKeep === 'function' && auWillAdd(m0)) srKeep({ id: ++SC.mid, src: f.src, auto: true, card: scanFull(), strip: !scanFull() }, m, 0);      // capture gardée pour « Signaler un problème de scan » (scanreport.js)
   }
   if (g !== AU.gen || !SC.el || !auLive()) return;
   const k = m0 ? m0.key + '|' + (scanLangOf(m0).card || 'en') : '';

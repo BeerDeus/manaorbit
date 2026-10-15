@@ -60,7 +60,9 @@ const settle = p => p.waitForFunction(() => !document.querySelector('#ulist.busy
   // changer de compte → l'éditeur
   await p.evaluate(u => { window.__nextUser = u; }, ADM);
   await p.click('#btnSwitch'); await dash(p);
-  assert.equal(await p.$$eval('#kpis .kpi', e => e.length), 8);
+  assert.equal(await p.$$eval('#kpis .kpi', e => e.length), 9, '8 chiffres + scans signalés');
+  assert.match(await txt(p, '#kpis [data-k="scans"]'), /Scans signalés 0 0 en 7 jours/i);
+  await p.waitForSelector('#scans:not([hidden]) .empty'); assert.match(await txt(p, '#scans'), /Scans signalés .*Aucun scan signalé pour l'instant/);      // fiches, photo et suppression : scanreport-e2e.mjs
   assert.match(await txt(p, '#kpis [data-k="users"]'), /Comptes 124 123 avec des données Mana Orbit/i);
   assert.match(await txt(p, '#kpis [data-k="decks"]'), /Decks 183 2 publiés · 1 signalement/i);
   assert.match(await txt(p, '#kpis [data-k="value"]'), /123 €/);
@@ -72,7 +74,7 @@ const settle = p => p.waitForFunction(() => !document.querySelector('#ulist.busy
   assert.equal(await visible(p, '#acts'), true);
   const body = await p.evaluate(() => document.body.innerText);
   assert.ok(!/jeanne\.dupont@|Dupont|uid-/.test(body), 'page : ni e-mail complet, ni nom complet, ni UID');
-  ok('changer de compte → éditeur : 8 chiffres, inscriptions sur 30 jours (SVG, survol), 50 comptes, page 1 / 3, comptes, serveur ; rien d\'identifiant');
+  ok('changer de compte → éditeur : 9 chiffres (dont les scans signalés), inscriptions sur 30 jours (SVG, survol), 50 comptes, page 1 / 3, comptes, serveur ; rien d\'identifiant');
 
   // recherche, tri, pages
   await p.fill('#q', 'jeanne'); await p.waitForFunction(() => document.querySelectorAll('#ulist tr[data-id]').length === 1, null, { timeout: 5000 });

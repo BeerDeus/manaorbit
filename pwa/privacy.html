@@ -32,13 +32,13 @@ ul{padding-left:20px}
 
 <section id="fr" lang="fr">
 <h2>Politique de confidentialité</h2>
-<p class="mute">Dernière mise à jour : 14 octobre 2026</p>
+<p class="mute">Dernière mise à jour : 15 octobre 2026</p>
 <p>Mana Orbit est une application gratuite pour suivre sa collection de cartes Magic, ses decks et leurs prix. Elle collecte le moins de données possible et n'en vend aucune.</p>
 <p><b>Responsable du traitement :</b> Martin Stuis EI (M2S Photo), développeur de Mana Orbit, France (coordonnées complètes dans les <a href="legal">mentions légales</a>). Contact : <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
 
 <h2>Sans compte : tout reste sur ton appareil</h2>
 <p>Ta collection, tes decks et tes réglages sont enregistrés dans le stockage de ton navigateur ou de l'application, sur ton appareil. Nous n'y avons pas accès. Si tu saisis un token CardTrader, il est gardé au même endroit et n'est envoyé à notre serveur qu'avec tes recherches CardTrader (voir « Notre serveur »). Les données de l'appli Android sont exclues de la sauvegarde Android (Google).</p>
-<p>Le scan de cartes utilise l'appareil photo uniquement quand tu l'ouvres. Les images sont analysées sur ton appareil et ne sont jamais envoyées. Dans l'appli Android, la lecture passe par Google ML Kit, sur le téléphone ; les services Google Play peuvent envoyer à Google des diagnostics anonymes, selon les conditions de ML Kit.</p>
+<p>Le scan de cartes utilise l'appareil photo uniquement quand tu l'ouvres. Les images sont analysées sur ton appareil et ne sont envoyées que si tu signales un scan (voir « Signaler un problème de scan »). Dans l'appli Android, la lecture passe par Google ML Kit, sur le téléphone ; les services Google Play peuvent envoyer à Google des diagnostics anonymes, selon les conditions de ML Kit.</p>
 
 <h2>Avec un compte (facultatif)</h2>
 <p>Le compte sert à retrouver tes données sur tous tes appareils. Il repose sur Firebase Authentication et Cloud Firestore (Google). Sont enregistrés :</p>
@@ -64,6 +64,9 @@ ul{padding-left:20px}
 
 <h2>Échange en direct (facultatif)</h2>
 <p>Pour un échange face à face, chacun sur son téléphone, ton appli envoie à notre serveur, le temps de la session : ton pseudo, ta photo de profil réduite, ta liste d'échange et les cartes que vous choisissez. L'autre joueur les voit (jamais ton e-mail ni l'identifiant de ton compte). La session vit seulement dans la mémoire du serveur : rien n'est enregistré, elle disparaît à la fin de l'échange (au plus 24 heures après, le temps que vos deux applis l'appliquent). Si tu invites un ami, il reçoit une notification avec ton pseudo. L'historique « Mes échanges » reste sur ton appareil.</p>
+
+<h2>Signaler un problème de scan (facultatif)</h2>
+<p>Quand un scan s'est mal passé, « Signaler un problème de scan » (sur la carte scannée en grand, ou sur une ligne « Nom non reconnu ») envoie à notre serveur, seulement quand tu appuies sur « Envoyer » : la photo de la carte prise au scan (réduite), ce que l'appli a lu (texte du nom, ligne du bas, carte, langue et édition retenues, moteur de lecture, cadrage et réglages du scan, mesures de l'aperçu de la caméra), la version de l'appli, la langue de l'interface, ce qui ne va pas et ton commentaire s'il y en a un. Connecté, une empreinte (SHA-256) de l'identifiant de ton compte, jamais ton e-mail ni l'identifiant lui-même ; le signalement ne garde pas ton adresse IP. Ces signalements servent uniquement à améliorer la reconnaissance des cartes ; seul l'éditeur les consulte. Ils sont gardés 90 jours au plus, puis effacés, ou avant sur simple demande à <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
 
 <h2>Inscription au test (page Testeurs)</h2>
 <p>Si tu t'inscris au test de l'appli sur la page <a href="testeurs">Testeurs</a>, notre serveur garde ton adresse e-mail et la date d'inscription, rien d'autre. Elle sert uniquement à t'ajouter à la liste des testeurs sur Google Play et à te prévenir de l'ouverture du test ; seul l'éditeur y a accès. Elle est effacée à la fin du test, ou avant sur simple demande à contact@manaorbit.app.</p>
@@ -91,7 +94,7 @@ ul{padding-left:20px}
 <h2>Bases légales</h2>
 <ul>
 <li><b>exécution du service</b> : le compte, la synchronisation, les liens partagés, les amis, l'import et l'inscription au test ;</li>
-<li><b>consentement</b> : la publicité (formulaire de Google) et les notifications, alertes de prix comprises ; tu peux le retirer à tout moment ;</li>
+<li><b>consentement</b> : la publicité (formulaire de Google), les notifications, alertes de prix comprises, et les scans que tu signales ; tu peux le retirer à tout moment ;</li>
 <li><b>intérêt légitime</b> : les journaux de sécurité, la limite de requêtes et le cache des prix.</li>
 </ul>
 
@@ -109,13 +112,13 @@ ul{padding-left:20px}
 
 <section id="en" lang="en">
 <h2>Privacy policy</h2>
-<p class="mute">Last updated: October 14, 2026</p>
+<p class="mute">Last updated: October 15, 2026</p>
 <p>Mana Orbit is a free app to track your Magic card collection, your decks and their prices. It collects as little data as possible and never sells any.</p>
 <p><b>Data controller:</b> Martin Stuis EI (M2S Photo), developer of Mana Orbit, France (full details in the <a href="legal#en">legal notice</a>). Contact: <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
 
 <h2>Without an account: everything stays on your device</h2>
 <p>Your collection, decks and settings are stored in your browser's or the app's storage, on your device. We cannot access them. If you enter a CardTrader token, it is kept in the same place and only sent to our server with your CardTrader searches (see "Our server"). The Android app's data is excluded from Android (Google) backup.</p>
-<p>Card scanning uses the camera only while you have it open. Images are analysed on your device and are never uploaded. In the Android app, recognition uses Google ML Kit, on the phone; Google Play services may send Google anonymous diagnostics, under the ML Kit terms.</p>
+<p>Card scanning uses the camera only while you have it open. Images are analysed on your device and are only uploaded if you report a scan (see "Report a scan problem"). In the Android app, recognition uses Google ML Kit, on the phone; Google Play services may send Google anonymous diagnostics, under the ML Kit terms.</p>
 
 <h2>With an account (optional)</h2>
 <p>An account lets you get your data back on all your devices. It relies on Firebase Authentication and Cloud Firestore (Google). We store:</p>
@@ -140,6 +143,9 @@ ul{padding-left:20px}
 
 <h2>Live trade (optional)</h2>
 <p>For a face-to-face trade, each on their own phone, your app sends our server, for the length of the session: your nickname, your scaled-down profile photo, your trade list and the cards you both pick. The other player sees them (never your email nor your account ID). The session only lives in the server's memory: nothing is stored, and it disappears when the trade ends (at most 24 hours later, so both apps can apply it). If you invite a friend, they get a notification with your nickname. The “My trades” history stays on your device.</p>
+
+<h2>Report a scan problem (optional)</h2>
+<p>When a scan went wrong, "Report a scan problem" (on the scanned card shown full size, or on a "Name not recognized" line) sends our server, only when you tap "Send": the photo of the card taken while scanning (scaled down), what the app read (name text, bottom line, card, language and edition chosen, recognition engine, scan framing and settings, camera preview measurements), the app version, the interface language, what is wrong and your comment if you wrote one. If you are signed in, a fingerprint (SHA-256) of your account ID, never your email nor the ID itself; the report does not keep your IP address. Reports are only used to improve card recognition; only the publisher can see them. They are kept for 90 days at most, then deleted, or earlier on request to <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
 
 <h2>Test sign-up (Testers page)</h2>
 <p>If you sign up for the app's test on the <a href="testeurs">Testers</a> page, our server keeps your email address and the sign-up date, nothing else. It is only used to add you to the testers list on Google Play and to let you know when the test opens; only the publisher can see it. It is deleted when the test ends, or earlier on request to contact@manaorbit.app.</p>
@@ -167,7 +173,7 @@ ul{padding-left:20px}
 <h2>Legal bases</h2>
 <ul>
 <li><b>performance of the service</b>: the account, sync, shared links, friends, imports and the test sign-up;</li>
-<li><b>consent</b>: ads (Google's form) and notifications, price alerts included; you can withdraw it at any time;</li>
+<li><b>consent</b>: ads (Google's form), notifications, price alerts included, and the scans you report; you can withdraw it at any time;</li>
 <li><b>legitimate interest</b>: security logs, request limits and the price cache.</li>
 </ul>
 

@@ -128,12 +128,36 @@ main{max-width:1240px;margin:0 auto;padding:14px 16px 48px}
 .toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;max-width:calc(100vw - 32px);transition:opacity .2s,transform .2s;z-index:10}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
+/* Scans signalés : une fiche par signalement (photo à gauche, touchée : en grand), puis deux colonnes sur grand écran */
+.card .hint{margin:0 0 10px;font-size:13px;color:var(--ink-3)}
+.scl{display:flex;flex-direction:column;gap:8px}
+.scr{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--bg);min-width:0}
+.scph{position:relative;align-self:start;width:96px;min-height:96px;padding:0;border:0;border-radius:10px;overflow:hidden;background:#0b0e1a;cursor:zoom-in}
+.scph img{display:block;width:100%;height:auto;max-height:240px;object-fit:contain}
+.scph:not(.ok) img{visibility:hidden}
+.scph:not(.ok):not(.bad)::after{content:'';position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:2.5px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .8s linear infinite}
+.scph.bad::after{content:'Photo indisponible';position:absolute;inset:0;display:grid;place-items:center;padding:6px;color:#c9cfe2;font-size:11px;text-align:center}
+.scph.big{grid-column:1/-1;width:100%;cursor:zoom-out}
+.scph.big img{max-height:70vh}
+.scb{display:flex;flex-direction:column;gap:3px;min-width:0}
+.sct{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px}
+.sct small{color:var(--ink-3);font-size:12.5px;white-space:nowrap}
+.scc{margin:2px 0 0;font-size:14.5px;overflow-wrap:anywhere}
+.scm{margin:0;font-size:12.5px;color:var(--ink-2);overflow-wrap:anywhere}
+.scn{margin:2px 0 0;font-size:13.5px;font-style:italic;overflow-wrap:anywhere}
+.scd{font-size:12.5px;color:var(--ink-2)}
+.scd summary{cursor:pointer;font-weight:600;margin-top:2px}
+.scd pre{margin:6px 0 0;padding:8px 10px;max-height:320px;overflow:auto;border-radius:var(--r-sm);background:var(--surface-2);font:12px/1.4 ui-monospace,'JetBrains Mono',monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.scb .flags{margin:4px 0 0}
+.sdel.arm{border-color:var(--bad);color:var(--bad)}
+
 @media (min-width:640px){
   .kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
   .ut tbody{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}      /* tablette : deux fiches par rangée */
 }
 @media (min-width:980px){
   .duo{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
+  .scl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   /* Ordinateur : un vrai tableau */
   .ut thead{display:table-header-group}
   .ut tbody{display:table-row-group}
