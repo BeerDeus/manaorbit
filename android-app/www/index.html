@@ -1,4 +1,23 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mana Orbit</title>
-<style>html,body{margin:0;height:100%;background:#0b0f1c;color:#eaeefb;font:16px system-ui,sans-serif;display:grid;place-items:center;text-align:center}a{display:inline-block;margin-top:8px;padding:12px 28px;border-radius:999px;background:#3a46d6;color:#fff;font-weight:600;text-decoration:none}</style></head>
-<body><p>Mana Orbit a besoin d'Internet au premier lancement.<br>Vérifie ta connexion puis réessaie.<br><a href="https://manaorbit.app/">Réessayer</a></p></body></html>
+<!-- Page de l'APK affichée quand le premier chargement du site échoue (errorPath de capacitor.config.json), par exemple au démarrage sans réseau.
+     La copie du site gardée par le service worker n'est servie qu'à une navigation lancée depuis une page : on relance donc tout de suite le site
+     (une fois par 15 s, sessionStorage), et le message « besoin d'Internet » ne s'affiche que si cette relance échoue aussi (aucune copie : vrai premier lancement). -->
+<style>html,body{margin:0;height:100%;background:#0b0f1c;color:#eaeefb;font:16px system-ui,sans-serif;display:grid;place-items:center;text-align:center}
+a{display:inline-block;margin-top:8px;padding:12px 28px;border-radius:999px;background:#3a46d6;color:#fff;font-weight:600;text-decoration:none}
+.wait{width:54px;height:54px;border-radius:50%;border:3px solid #262f49;border-top-color:#929cff;animation:t 1s linear infinite}
+@keyframes t{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.wait{animation:none}}
+#msg[hidden],#load[hidden]{display:none}</style></head>
+<body><div id="load" class="wait" role="status" aria-label="Chargement de Mana Orbit"></div>
+<p id="msg" hidden>Mana Orbit a besoin d'Internet au premier lancement.<br>Vérifie ta connexion puis réessaie.<br><a id="retry" href="https://manaorbit.app/">Réessayer</a></p>
+<script>
+(function () {
+  var K = 'mo-offline-try', SITE = 'https://manaorbit.app/', last = 0;
+  try { last = Number(sessionStorage.getItem(K)) || 0; } catch (e) { /* stockage refusé */ }
+  var go = function () { try { sessionStorage.setItem(K, String(Date.now())); } catch (e) { /* stockage refusé */ } location.replace(SITE); };
+  document.getElementById('retry').onclick = function (ev) { ev.preventDefault(); go(); };
+  if (!last || Date.now() - last > 15000) { setTimeout(go, 50); return; }      // 1re fois : on relance le site (la copie gardée répond hors ligne)
+  document.getElementById('load').hidden = true; document.getElementById('msg').hidden = false;      // la relance a échoué aussi : vraiment rien sur le téléphone
+})();
+</script></body></html>

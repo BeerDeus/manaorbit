@@ -273,7 +273,7 @@ Bon à savoir :
 | Widget (valeur de la collection) | plugin local `ManaOrbit` (Java, dans `android/app`) | fait : lit la valeur que l'appli lui laisse (voir « Widget », étape 3) |
 | Widget « QR code d'échange » | plugin local `ManaOrbit` (`TradeWidget.java`) | fait : QR code du lien d'échange envoyé par le site (voir « Widget « QR code d'échange » ») |
 | Bouton Retour | `@capacitor/app` | fait : ferme l'écran ouvert ; sur l'accueil, deux appuis mettent l'appli en arrière-plan |
-| Page hors ligne | `android-app/www/index.html` | fait : « Mana Orbit a besoin d'Internet… » si le site ne répond pas au lancement |
+| Page hors ligne | `android-app/www/index.html` | fait : si le site ne répond pas au lancement (sans réseau), la page relance d'elle-même le site une fois (la copie gardée par le service worker répond alors, comme avec « Réessayer ») ; le message « Mana Orbit a besoin d'Internet… » ne s'affiche que si cette relance échoue aussi (aucune copie : vrai premier lancement). APK 1.0.5 |
 | Diagnostic | plugin local `ManaOrbit` (Firebase, version) | en bas de **Réglages**, la ligne « Version … · APK : » montre ✓ ou ✗ pour chaque plugin (caméra, ML Kit, Google, pub, notif, widget, retour), Firebase et la version de l'APK |
 
 ---
