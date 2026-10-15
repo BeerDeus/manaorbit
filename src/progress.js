@@ -201,6 +201,74 @@ const PRG_BADGES = [
   { id: 'fx_install', cat: 'fun', ic: '📲', t: 'Installé', one: 'Mana Orbit installée sur ton téléphone', tiers: [1], v: m => m.inst },
   { id: 'fx_test', cat: 'fun', ic: '🧭', t: 'Pionnier', one: 'Venu essayer les nouveautés avant tout le monde', tiers: [1], v: m => m.tst },
 ];
+/** Noms des paliers argent, or et diamant (bronze : le titre du badge) : le badge change de nom en montant. */
+const PRG_NAMES = {
+  sc_cards: ['Scanner chevronné', 'Maître du scan', 'Oracle du scan'],
+  sc_langs: ['Interprète', 'Diplomate', 'Langue universelle'],
+  sc_read: ['Œil d\'aigle', 'Regard perçant', 'Œil omniscient'],
+  sc_art: ['Amateur d\'art', 'Conservateur', 'Grand mécène'],
+  sc_session: ['Ultra-trail', 'Forçat du scan', 'Machine infatigable'],
+  sc_old: ['Antiquaire', 'Gardien des reliques', 'Mémoire de Dominaria'],
+  sc_price: ['Dénicheur de pépites', 'Chercheur d\'or', 'Roi Midas'],
+  sc_homonym: ['Inspecteur', 'Commissaire', 'Fin limier'],
+  sc_new: ['Initié', 'Éclaireur', 'Visionnaire'],
+  co_copies: ['Accumulateur', 'Thésauriseur', 'Dragon sur son trésor'],
+  co_distinct: ['Érudit', 'Grand bibliothécaire', 'Mémoire du Multivers'],
+  co_value: ['Coffre-fort', 'Salle des coffres', 'Trésor du dragon'],
+  co_foil: ['Étincelant', 'Éblouissant', 'Aveuglant'],
+  co_langs: ['Tour de Babel', 'Cité cosmopolite', 'Multivers'],
+  co_sets: ['Cartographe', 'Voyageur des plans', 'Arpenteur du Multivers'],
+  co_proxy: ['Imprimeur', 'Faux-monnayeur', 'Maître faussaire'],
+  co_places: ['Organisé', 'Maniaque du rangement', 'Ordre absolu'],
+  co_placed: ['Documentaliste', 'Gardien des archives', 'Grand archiviste'],
+  co_wish: ['Utopiste', 'Insatiable', 'Lettre au Père Noël'],
+  dk_count: ['Bâtisseur', 'Maître d\'œuvre', 'Bâtisseur de mondes'],
+  dk_eng: ['Assembleur', 'Forgeron de decks', 'Grand forgeron'],
+  dk_pub: ['Créateur', 'Leader d\'opinion', 'Star du Multivers'],
+  dk_cmd: ['Général', 'Maréchal', 'Seigneur de guerre'],
+  gm_played: ['Habitué des tables', 'Vétéran', 'Légende des tables'],
+  gm_wins: ['Champion', 'Conquérant', 'Empereur'],
+  gm_revenant: ['Survivant', 'Phénix', 'Immortel'],
+  gm_killer: ['Exécuteur', 'Faucheur', 'Fléau des commandants'],
+  gm_loyal: ['Dévoué', 'Inséparable', 'Lié pour la vie'],
+  gm_streak: ['Inarrêtable', 'Implacable', 'Divin'],
+  gm_fast: ['Foudre', 'Tempête', 'Cataclysme'],
+  gm_long: ['Endurant', 'Inépuisable', 'Éternel'],
+  gm_table: ['Banquet', 'Festin royal', 'Fête du Multivers'],
+  gm_opps: ['Grand voyageur', 'Ambassadeur', 'Citoyen du Multivers'],
+  gm_host: ['Organisateur', 'Animateur de soirées', 'Seigneur des tables'],
+  so_trade: ['Marchand', 'Magnat', 'Prince des marchands'],
+  so_friends: ['Sociable', 'Célèbre', 'Icône'],
+  op_sessions: ['Briseur de sceaux', 'Pilleur de boosters', 'Seigneur des boosters'],
+  op_profit: ['Avisé', 'Investisseur', 'Roi de la bourse'],
+  op_jackpot: ['Coup de chance', 'Main en or', 'Élu de la chance'],
+  dy_played: ['Enquêteur', 'Profileur', 'Cerveau'],
+  dy_streak: ['Régulier', 'Infatigable', 'Rituel sacré'],
+  dy_top: ['Élite', 'Crème de la crème', 'Panthéon'],
+  dy_win: ['Roi du jour', 'Empereur du jour', 'Génie'],
+  fi_days: ['Familier', 'Pilier', 'Fait partie des meubles'],
+  fi_age: ['Doyen', 'Sage', 'Ancêtre'],
+  fi_streak: ['Inébranlable', 'Indéfectible', 'Gardien éternel'],
+  sc_auto: ['Cyborg', 'Chaîne de montage', 'Usine de Mishra'],
+  sc_night: ['Noctambule', 'Vampire', 'Seigneur de la nuit'],
+  sc_morning: ['Matinal', 'Aube dorée', 'Soleil levant'],
+  sc_quick: ['Expert', 'Commissaire-priseur', 'Oracle des prix'],
+  sc_report: ['Testeur aguerri', 'Chasseur de bugs', 'Gardien du scan'],
+  co_playset: ['Quatuor', 'Arsenal', 'Armurerie'],
+  co_jp: ['Otaku', 'Samouraï', 'Shogun'],
+  dk_hand: ['Croupier', 'Prestidigitateur', 'Maître du mulligan'],
+  dk_share: ['Généreux', 'Mentor', 'Bienfaiteur'],
+  gm_monarch: ['Souverain', 'Dynastie', 'Couronne éternelle'],
+  gm_flawless: ['Invulnérable', 'Indestructible', 'Divinité'],
+  gm_guests: ['Maison ouverte', 'Recruteur', 'Évangéliste'],
+  gm_night: ['Couche-tard', 'Insomniaque', 'Créature de la nuit'],
+  op_cards: ['Ouvre-tout', 'Dévoreur de boosters', 'Trou noir'],
+  op_stream: ['Animateur', 'Vedette', 'Star du direct'],
+};
+/** Nom d'un badge à son palier (pas encore obtenu : le nom du bronze). */
+const prgName = (b, t) => T(t >= 1 && PRG_NAMES[b.id] ? PRG_NAMES[b.id][t - 1] : b.t);
+/** Icône d'un badge à son palier : dessin SVG (badgeart.js) s'il existe, sinon l'emoji. */
+const prgIc = (b, t) => (typeof badgeSvg === 'function' ? badgeSvg(b.id, t) : esc(b.ic));
 /** Palier atteint d'un badge : -1 (aucun), 0 (bronze) … 3 (diamant) ; unique : 0. */
 const prgTier = (b, v) => { let t = -1; b.tiers.forEach((x, i) => { if (v >= x) t = i; }); return t; };
 /** Texte d'un palier (« 1 000 cartes scannées », « Une carte scannée à 50 € ou plus »). */
@@ -235,8 +303,8 @@ function prgLevel(xp) {
 /** Niveau du moment (calcul complet). */
 function prgNow() { const m = prgMetrics(), bs = prgBadges(m), L = prgLevel(prgXp(m, bs)); return { m, bs, ...L }; }
 
-/* ── Nouveaux paliers : un toast discret (jamais au premier calcul, ni en mode streamer) ───────────────────────── */
-function prgSoon() { clearTimeout(PRG.t); PRG.t = setTimeout(prgCheck, 2500); }
+/* ── Nouveaux paliers : une bannière qui s'efface seule (jamais au premier calcul, ni en mode streamer) ───────────── */
+function prgSoon() { if (typeof MO_TEST === 'undefined' || !MO_TEST) return; clearTimeout(PRG.t); PRG.t = setTimeout(prgCheck, 2500); }      // lien de test seulement : ailleurs, les compteurs avancent sans rien montrer
 function prgCheck() {
   let got = null; try { got = JSON.parse(localStorage.getItem(PRG_GOT) || 'null'); } catch (e) { got = null; }
   const bs = prgBadges(), now = {}; for (const x of bs) if (x.t >= 0) now[x.b.id] = x.t;
@@ -244,9 +312,29 @@ function prgCheck() {
   if (!got || typeof got !== 'object') return;      // premier calcul : tout ce qui existe déjà est acquis sans bruit
   const fresh = bs.filter(x => x.t >= 0 && (got[x.b.id] == null || got[x.b.id] < x.t));
   if (!fresh.length || (typeof streamOn === 'function' && streamOn())) return;
-  const x = fresh[0];
-  toast(fresh.length > 1 ? TN(fresh.length, '{n} nouveau badge', '{n} nouveaux badges') : T('Nouveau badge : {name} · {tier}', { name: T(x.b.t), tier: x.b.tiers.length === 1 ? T('unique') : prgTierName(x.t) }), { label: T('Voir'), fn: () => prgSheet() });
+  fresh.sort((a, b) => b.t - a.t || (a.b.tiers.length === 1) - (b.b.tiers.length === 1));      // le palier le plus haut d'abord
+  prgPop(fresh[0], fresh.length - 1);
   if (typeof meOpen === 'function' && meOpen()) mePaint();
+}
+/**
+ * Bannière d'un nouveau palier, en haut de l'écran : icône, « Nouveau badge » ou « Palier argent », nom du palier, ce qu'il récompense (« +2 autres » s'il y en a plus).
+ * Un appui ouvre la fiche sur ce badge ; elle s'efface seule (4,5 s, le temps de lire ; doigt posé : elle attend), ou d'un glissé vers le haut.
+ */
+function prgPop(x, more) {
+  const old = document.querySelector('.prg-pop'); if (old) old.remove();
+  const b = x.b, uniq = b.tiers.length === 1, el = document.createElement('button');
+  el.type = 'button'; el.className = 'prg-pop ' + (uniq ? 'tu' : 't' + x.t); el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+  const head = uniq || x.t === 0 ? T('Nouveau badge') : T('Palier {tier} atteint', { tier: prgTierName(x.t) });
+  el.innerHTML = `<span class="prg-pop-ic" aria-hidden="true">${prgIc(b, x.t)}</span><span class="prg-pop-t"><small>${esc(head)}</small><b>${esc(prgName(b, x.t))}</b><span>${esc(prgLabel(b, b.tiers[x.t]))}${more > 0 ? ' · ' + esc(TN(more, '+{n} autre', '+{n} autres')) : ''}</span></span>`;
+  document.body.appendChild(el);
+  let t = 0, y0 = null; const hide = () => { clearTimeout(t); el.classList.remove('on'); setTimeout(() => el.remove(), reduceMotion() ? 0 : 320); };
+  const arm = ms => { clearTimeout(t); t = setTimeout(hide, ms); };
+  el.addEventListener('click', () => { hide(); prgSheet(b.id); });
+  el.addEventListener('pointerdown', e => { clearTimeout(t); y0 = e.clientY; });
+  el.addEventListener('pointerup', e => { if (y0 != null && e.clientY - y0 < -24) { e.preventDefault(); hide(); } else arm(2500); y0 = null; });
+  el.addEventListener('pointercancel', () => { y0 = null; arm(2500); });
+  requestAnimationFrame(() => el.classList.add('on')); haptic('ok'); arm(4500);
+  return el;
 }
 
 /* ── Dans le compte : users/{uid}/meta/progress (le plus grand de chaque compteur) ──────────────────────────── */
@@ -294,7 +382,7 @@ function prgShare() {
 /** Vitrine sur une liste d'échange reçue (bg relu par core.js › readShare). */
 function prgShowHtml(bg) {
   const xs = (Array.isArray(bg) ? bg : []).map(([id, t]) => ({ b: PRG_BADGES.find(b => b.id === id), t })).filter(x => x.b && x.t < x.b.tiers.length);
-  return xs.length ? `<div class="prg-show" aria-label="${esc(T('Badges'))}">${xs.map(x => `<span class="prg-chip ${x.b.tiers.length === 1 ? 'tu' : 't' + x.t}" title="${esc(prgLabel(x.b, x.b.tiers[x.t]))}"><span aria-hidden="true">${x.b.ic}</span>${esc(T(x.b.t))}</span>`).join('')}</div>` : '';
+  return xs.length ? `<div class="prg-show" aria-label="${esc(T('Badges'))}">${xs.map(x => `<span class="prg-chip ${x.b.tiers.length === 1 ? 'tu' : 't' + x.t}" title="${esc(prgLabel(x.b, x.b.tiers[x.t]))}"><span class="prg-ic" aria-hidden="true">${prgIc(x.b, x.t)}</span>${esc(prgName(x.b, x.t))}</span>`).join('')}</div>` : '';
 }
 
 /* ── Affichage ────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -303,8 +391,8 @@ function prgPill() {
   let L; try { L = prgNow(); } catch (e) { return ''; }
   return `<button type="button" class="prg-pill" data-me="niveau" aria-label="${esc(T('Niveau {n} : niveau et badges', { n: L.lv }))}">${esc(T('Niv. {n}', { n: L.lv }))}</button>`;
 }
-/** Fiche « Niveau et badges ». */
-function prgSheet() {
+/** Fiche « Niveau et badges » ; focus : identifiant d'un badge à montrer (bannière d'un nouveau palier). */
+function prgSheet(focus) {
   openSheet(T('Niveau et badges'), '', api => {
     api.wrap.classList.add('prg-sheet');
     const paint = () => {
@@ -314,10 +402,10 @@ function prgSheet() {
         const b = x.b, uniq = b.tiers.length === 1, cls = x.t < 0 ? 'off' : uniq ? 'tu' : 't' + x.t, nxt = x.next, prev = x.t >= 0 ? b.tiers[x.t] : 0;
         const p = nxt == null ? 100 : Math.max(0, Math.min(100, ((x.v - (x.t >= 0 ? prev : 0)) / (nxt - (x.t >= 0 ? prev : 0))) * 100));
         const val = v => (b.money ? fmt(v, 'EUR').replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
-        const pin = x.t >= 0 ? `<button type="button" class="prg-pin" data-pin="${b.id}" aria-pressed="${show.includes(b.id)}" aria-label="${esc(T('Montrer {name} sur ma liste d\'échange', { name: T(b.t) }))}">${show.includes(b.id) ? '📌' : '＋'}</button>` : '';
-        return `<div class="prg-b ${cls}" title="${esc(T(b.t))}">${pin}<span class="prg-ic" aria-hidden="true">${b.ic}</span><b>${esc(T(b.t))}</b>
+        const nm = prgName(b, x.t), pin = x.t >= 0 ? `<button type="button" class="prg-pin" data-pin="${b.id}" aria-pressed="${show.includes(b.id)}" aria-label="${esc(T('Montrer {name} sur ma liste d\'échange', { name: nm }))}">${show.includes(b.id) ? '📌' : '＋'}</button>` : '';
+        return `<div class="prg-b ${cls}" data-b="${b.id}" title="${esc(nm)}">${pin}<span class="prg-ic" aria-hidden="true">${prgIc(b, x.t)}</span><b>${esc(nm)}</b>
           <small>${esc(x.t >= 0 ? prgLabel(b, b.tiers[x.t]) + (uniq ? '' : ' · ' + prgTierName(x.t)) : prgLabel(b, b.tiers[0]))}</small>
-          ${nxt != null && !uniq ? `<span class="prg-mini" aria-hidden="true"><i style="width:${p.toFixed(1)}%"></i></span><small class="prg-nx">${esc(val(x.v))} / ${esc(val(nxt))}</small>` : ''}</div>`;
+          ${nxt != null && !uniq ? `<span class="prg-mini" aria-hidden="true"><i style="width:${p.toFixed(1)}%"></i></span><small class="prg-nx">${esc(val(x.v))} / ${esc(val(nxt))}</small>${x.t >= 0 ? `<small class="prg-nn">${esc(T('Prochain : {name}', { name: prgName(b, x.t + 1) }))}</small>` : ''}` : ''}</div>`;
       };
       api.body.innerHTML = `<div class="prg-head"><div class="prg-lv"><small>${T('Niveau')}</small><b>${L.lv}</b></div><div class="prg-xp"><span class="prg-bar" aria-hidden="true"><i style="width:${pct.toFixed(1)}%"></i></span>
           <small>${L.nxt ? esc(T('{xp} XP · encore {d} XP avant le niveau {n}', { xp: nf0(L.xp), d: nf0(L.nxt - L.xp), n: L.lv + 1 })) : esc(T('{xp} XP · niveau maximum', { xp: nf0(L.xp) }))}</small></div></div>
@@ -326,8 +414,10 @@ function prgSheet() {
         <details class="prg-how"><summary>${T('Comment gagner de l\'XP ?')}</summary><p class="hint">${T('Tout compte : scanner, ajouter des cartes, monter et publier des decks, jouer et gagner des parties, échanger, ouvrir des boosters, revenir chaque jour, et chaque palier de badge (bronze, argent, or, diamant). Le niveau 999 est fait pour ne jamais être atteint.')}</p></details>`;
     };
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-pin]'); if (!b) return; if (!prgShowToggle(b.dataset.pin)) { toast(T('3 badges au plus sur ta liste d\'échange')); return; } haptic('tap'); paint(); });
-    paint(); prgDaily().then(() => { if (sheets.includes(api)) paint(); });
+    const spot = () => { const el = focus && api.body.querySelector(`.prg-b[data-b="${focus}"]`); if (!el) return; el.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' }); el.classList.add('hl'); setTimeout(() => el.classList.remove('hl'), 2600); };
+    paint(); if (focus) setTimeout(spot, 380);      // après l'ouverture de la fiche
+    prgDaily().then(() => { if (sheets.includes(api)) paint(); });
   });
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { prgLevel, prgXpFor, prgTier, prgClean, PRG_BADGES, PRG_MAX };
+if (typeof module !== 'undefined' && module.exports) module.exports = { prgLevel, prgXpFor, prgTier, prgClean, PRG_BADGES, PRG_NAMES, PRG_MAX };

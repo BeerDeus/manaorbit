@@ -1,6 +1,6 @@
 // E2E niveau et badges (progress.js) sur le lien de test (https://manaorbit.app/test : même page, window.MO_TEST posé par le serveur) : pastille « Niv. N »
 // à côté du compte dans Compte et réglages (rien sur l'adresse normale), fiche « Niveau et badges » (niveau, XP, paliers bronze → diamant, badges uniques),
-// badges venus des vraies données (parties, collection) et des compteurs (scan), toast d'un nouveau palier (jamais au premier calcul), vitrine de 3 badges
+// badges venus des vraies données (parties, collection) et des compteurs (scan), bannière d'un nouveau palier (cliquable, s'efface seule, jamais au premier calcul), noms des paliers, vitrine de 3 badges
 // au plus sur la liste d'échange publique (aller-retour par readShare).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
@@ -48,13 +48,21 @@ assert.deepEqual(await p.evaluate(() => prgShare()), { bg: [['sc_cards', 0], ['s
 const back = await p.evaluate(() => readShare('trade', JSON.stringify({ have: [], want: [], by: 'Max', ...prgShare() })).bg);
 assert.deepEqual(back, [['sc_cards', 0], ['sc_city_jp', 0], ['gm_streak', 1]], 'relu par readShare');
 assert.deepEqual(await p.evaluate(() => readShare('trade', JSON.stringify({ have: [], want: [], bg: [['x<y', 0], ['sc_cards', 9], ['sc_cards', 1], ['a', 1], ['b', 1], ['c', 1]] })).bg), [['sc_cards', 1]], 'badges abîmés écartés, 3 au plus');
-assert.match(await p.evaluate(b => { const d = document.createElement('div'); d.innerHTML = prgShowHtml(b); return d.textContent; }, back), /🔍Scanner.*🇯🇵Tokyo.*🔥Invincible/);
+assert.match(await p.evaluate(b => { const d = document.createElement('div'); d.innerHTML = prgShowHtml(b); return d.textContent; }, back), /Scanner.*Tokyo.*Inarrêtable/, 'nom du palier : Invincible en argent devient « Inarrêtable »');
 ok('vitrine : 3 badges au plus choisis dans la fiche (📌), envoyés avec la liste d\'échange, relus et montrés chez le visiteur');
 
-/* ── Nouveau palier : toast ─────────────────────────────────────────────────────────────────────────────────── */
-await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); document.querySelector('#toast').textContent = ''; prgCheck(); prgScan(Array.from({ length: 900 }, () => ({ key: 'sol ring', q: 1, l: 'fr', es: 'auto', pk: null }))); });
-await p.waitForFunction(() => /Nouveau badge : Scanner · argent|nouveaux badges/.test(document.querySelector('#toast').textContent), null, { timeout: 8000 });
-ok('nouveau palier (1 000 cartes scannées) : toast « Nouveau badge : Scanner · argent » (jamais au premier calcul)');
+/* ── Nouveau palier : bannière cliquable qui s'efface seule ─────────────────────────────────────────────────────── */
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); prgCheck(); document.querySelectorAll('.prg-pop').forEach(e => e.remove()); for (let i = 0; i < 6; i++) prgScan(Array.from({ length: 150 }, () => ({ key: 'sol ring', q: 1, l: 'fr', es: 'auto', pk: null }))); });      // 6 scans de 150 : 1 050 cartes
+await p.waitForSelector('.prg-pop.on', { timeout: 8000 });
+assert.match(await txt(p, '.prg-pop'), /Palier argent atteint\s*Scanner chevronné\s*1 000 cartes scannées/i, 'palier argent : le badge change de nom');
+await p.waitForTimeout(500); await p.screenshot({ path: 'shots/progress-pop.png' });
+await p.click('.prg-pop'); await p.waitForSelector('.prg-sheet .prg-b.hl[data-b="sc_cards"]', { timeout: 4000 });
+assert.equal(await p.$('.prg-pop'), null, 'bannière partie à l\'appui');
+assert.match(await txt(p, '.prg-sheet .prg-b[data-b="sc_cards"]'), /Scanner chevronné.*1 000 cartes scannées · argent.*Prochain : Maître du scan/s);
+await p.screenshot({ path: 'shots/progress-pop-fiche.png' });
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); prgPop(prgBadges().find(x => x.b.id === 'gm_wins'), 0); });
+await p.waitForSelector('.prg-pop.on'); await p.waitForFunction(() => !document.querySelector('.prg-pop'), null, { timeout: 7000 });
+ok('nouveau palier (1 000 cartes scannées) : bannière « Palier argent atteint · Scanner chevronné », un appui ouvre la fiche sur le badge (« Prochain : Maître du scan »), s\'efface seule');
 
 assert.deepEqual(errs, []);
 await browser.close(); world.stop(); console.log('\nPROGRESS E2E OK'); process.exit(0);

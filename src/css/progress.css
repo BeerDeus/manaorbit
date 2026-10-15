@@ -29,3 +29,24 @@
 .prg-show{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
 .prg-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:99px;border:2px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink)}
 @media (max-width:360px){.prg-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.prg-nn{margin-top:2px;font-style:italic}
+.prg-b.hl{animation:prgHl 2.4s ease-out}
+@keyframes prgHl{0%,30%{transform:scale(1.06);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 45%,transparent)}100%{transform:none}}
+.prg-chip .prg-ic{font-size:15px;margin:0;display:inline-flex}
+.prg-ic svg{width:1.6em;height:1.6em;display:block}
+.prg-chip .prg-ic svg{width:20px;height:20px}
+/* Bannière d'un nouveau palier (prgPop) : en haut, au-dessus de tout, s'efface seule */
+.prg-pop{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));z-index:96;display:flex;align-items:center;gap:12px;width:min(92vw,400px);padding:10px 14px 10px 10px;border-radius:18px;border:2px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer;box-shadow:0 12px 32px -10px rgba(10,14,40,.45);transform:translate(-50%,-140%);opacity:0;transition:transform .45s var(--spring,cubic-bezier(.2,1.3,.4,1)),opacity .25s;touch-action:none}
+.prg-pop.on{transform:translate(-50%,0);opacity:1}
+.prg-pop-ic{flex:none;display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;background:var(--surface-2);font-size:30px}
+.prg-pop-ic svg{width:44px;height:44px}
+.prg-pop-t{min-width:0;display:flex;flex-direction:column;gap:1px}
+.prg-pop-t small{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+.prg-pop-t b{font-size:16px;line-height:1.2;font-weight:800}
+.prg-pop-t span{font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prg-pop.t0{border-color:#c07d45}.prg-pop.t1{border-color:#aeb8c6}.prg-pop.tu{border-color:#a66bff}
+.prg-pop.t2{border-color:#e2b33c;box-shadow:0 12px 32px -10px rgba(10,14,40,.45),0 0 18px -4px rgba(226,179,60,.7)}
+.prg-pop.t3{border-color:#7fdcff;box-shadow:0 12px 32px -10px rgba(10,14,40,.45),0 0 22px -4px rgba(127,220,255,.9)}
+.prg-pop.on .prg-pop-ic{animation:prgPopIc .9s .15s ease-out both}
+@keyframes prgPopIc{0%{transform:scale(.4) rotate(-12deg)}55%{transform:scale(1.15) rotate(4deg)}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){.prg-pop{transition:opacity .2s}.prg-pop.on .prg-pop-ic,.prg-b.hl{animation:none}}
