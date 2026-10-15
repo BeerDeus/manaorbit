@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { footParse: footParseAll, footMatch, footSame, footNum } = require('../src/scanfoot.js');
-const footParse = x => { const f = footParseAll(x); if (!f) return f; const { langs, ...o } = f; return o; };      // couples « CODE LANGUE » à part (test suivant)
+const footParse = x => { const f = footParseAll(x); if (!f) return f; const { langs, lsep, ...o } = f; return o; };      // couples « CODE LANGUE » et puce à part (tests suivants)
 
 const pr = (set, num, l = 'fr', fx = []) => ({ set, num, l, fx });
 // Forêt : plusieurs extensions, plusieurs numéros dans la même extension (illustrations différentes), une impression seulement en anglais
@@ -66,4 +66,6 @@ test('footParse : texte d\'ambiance au-dessus de la ligne du bas (« de », « e
   assert.equal(footParseAll(['quand le vent de la mer', 'souffle encore', '0202 U', 'DSK']).lang, '', 'langue illisible : rien plutôt que « de »');
   const m = footMatch(footParseAll(['le vent de', '0202 U', 'DSK FR']), [{ set: 'dsk', num: '202', l: 'fr' }, { set: 'dsk', num: '202', l: 'de' }]);
   assert.equal(m.lang, 'fr'); assert.equal(m.p.l, 'fr', 'édition dans la langue lue');
+  assert.equal(footParseAll(['0202 U', 'DSK • FR']).lsep, true, 'puce lue : langue la plus sûre (vote pour la langue du lot)');
+  assert.equal(footParseAll(['0202 U', 'DSK FR']).lsep, false);
 });

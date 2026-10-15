@@ -66,7 +66,7 @@ function footParse(lines) {
   if (best && !strong.includes(best.code)) strong.push(best.code);
   if (strong.length) codes.splice(0, codes.length, ...strong.filter(c => c === (best && best.code)).concat(strong.filter(c => c !== (best && best.code))));      // code suivi de la langue : le nom de l'artiste, le texte d'ambiance ne sont pas des codes
   if (!nums.length && !strong.length) return null;      // ni numéro, ni « CODE • FR » : pas une ligne du bas (un nom de carte lu, « Llanowar Elves »)
-  return { nums, codes, lang: best ? best.lang : '', langs, foil };
+  return { nums, codes, lang: best ? best.lang : '', lsep: !!(best && best.sep), langs, foil };      // lsep : langue lue avec sa puce (« DSK • FR »), la plus sûre
 }
 /** Édition d'après la ligne du bas, parmi les impressions de la carte reconnue (prints : [{ set, num, l, fx }]) :
  *  { p (impression), how: 'both' (extension et numéro : sûre) | 'set' (extension seule, une seule impression dedans) | 'num' (numéro seul, unique), lang, foil }

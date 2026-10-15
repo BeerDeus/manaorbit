@@ -43,7 +43,13 @@ function scanEdDecide(it, prints) {
     if (f && f.set) { const d = take(f.set, 'auto'); if (d && d.e) return { ...d, stick: true }; }      // extension lue, numéro illisible : la principale de l'extension, comme une extension du scan
   }
   const sets = new Set(base.map(p => p.set)), has = s => prints.some(p => p.set === s);
-  if (sets.size === 1) { const d = take([...sets][0], 'solo'); if (d && d.e) return { ...d, solo: true }; }
+  if (sets.size === 1) {
+    const d = take([...sets][0], 'solo');
+    if (d && d.e) {
+      const vars = new Set(prints.filter(p => p.set === d.pk.set && p.l === d.pk.l).map(p => p.num)).size > 1;      // variantes dans l'extension (sans bordure, illustration étendue, vitrine…) et ligne du bas illisible
+      return vars && it.sig ? { ...d, es: 'auto', solo: true } : { ...d, solo: true };      // l'illustration départage (scanArtTry) ; sinon la principale de l'extension
+    }
+  }
   if (SCS.ed !== 'card') for (const s of scanSetsRanked()) if (has(s)) { const d = take(s, 'auto'); if (d && d.e) return d; }      // carte par carte : seulement l'extension unique et la même carte
   for (const x of SC.items.values()) {
     if (x === it || x.key !== it.key || !x.e) continue;
@@ -150,8 +156,8 @@ function scanEdNeed(it) {
   }));
 }
 /** Décision pour un exemplaire qui arrive (scanAdd) : tout de suite si les impressions de la carte sont déjà lues, sinon « en lecture ». */
-function scanEdNew(key, name, l, maybe, ft) {
-  const pr = SC.pr.get(scanPk(key, l)), d = scanEdDecide({ key, name, l, maybe, q: 1, ft }, pr);
+function scanEdNew(key, name, l, maybe, ft, sig) {
+  const pr = SC.pr.get(scanPk(key, l)), d = scanEdDecide({ key, name, l, maybe, q: 1, ft, sig }, pr);
   if ((d.solo || d.stick || d.es === 'read') && d.e) scanStick(edSet(d.e));
   if (d.e && !SETIC.m) setIcLoad(() => { if (SC.el) scanPaintList(); });
   return d;

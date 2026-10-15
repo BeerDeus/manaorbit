@@ -1,4 +1,6 @@
 {
 "retrouvée par la ligne du bas": "found from the bottom line",
-"langue {a} gardée (nom), {b} lue en bas ignorée": "language {a} kept (name), {b} read at the bottom ignored"
+"langue {a} gardée (nom), {b} lue en bas ignorée": "language {a} kept (name), {b} read at the bottom ignored",
+"langue du lot ({lang}) : nom identique d'une langue à l'autre": "batch language ({lang}): same name in both languages",
+"langue du lot : {v}": "batch language: {v}"
 }

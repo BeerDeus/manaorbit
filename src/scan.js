@@ -77,7 +77,7 @@ function prepCanvas(src, r, outW, pol) {
 /* ── Écran de scan ────────────────────────────────────────────────────────────────────────────── */
 /** Aide du scan : fermée au départ, « ? » l'ouvre et la referme. */
 function scNoteShow(on) { const n = $('.sc-note', SC.el), h = $('.sc-help', SC.el); if (n) n.hidden = !on; if (h) h.setAttribute('aria-pressed', String(on)); }
-const SC = { sets: new Map(), setN: 0, lastIt: null, warm: false, el: null, stream: null, items: new Map(), miss: [], mid: 0, pend: [], queue: [], working: false, cap: 0, session: 0, alive: false, hintT: 0, watch: null, fpsMin: 10, fps: 0, fixed: false, gen: 0, rbusy: false, rf: { n: 0, at: 0 }, restarts: 0, workEnd: 0, slowN: 0, ms: 0, diagT: 0, lt: [], pr: new Map(), prq: new Map(), stick: '' };
+const SC = { sets: new Map(), setN: 0, lastIt: null, warm: false, el: null, stream: null, items: new Map(), miss: [], mid: 0, pend: [], queue: [], working: false, cap: 0, session: 0, alive: false, hintT: 0, watch: null, fpsMin: 10, fps: 0, fixed: false, gen: 0, rbusy: false, rf: { n: 0, at: 0 }, restarts: 0, workEnd: 0, slowN: 0, ms: 0, diagT: 0, lt: [], pr: new Map(), prq: new Map(), stick: '', lv: [] };
 const camSlow = () => { try { return localStorage.getItem('deckdeal:cam2') === 'slow'; } catch (e) { return false; } };      // 'cam2' : l'ancien indicateur (posé quand la lecture tournait pendant l'aperçu) est abandonné
 const camSetSlow = on => { try { localStorage.removeItem('deckdeal:cam'); if (on) localStorage.setItem('deckdeal:cam2', 'slow'); else localStorage.removeItem('deckdeal:cam2'); } catch (e) { /* ignore */ } };
 
@@ -101,14 +101,14 @@ function scanLangOf(m) {
 }
 function scanAdd(m, d, maybe, shot) {
   m = scanLangOf(m);
-  const l = m.card || 'en', ed = scanEdNew(m.key, m.name, l, maybe, m.ft);
+  const l = m.card || 'en', ed = scanEdNew(m.key, m.name, l, maybe, m.ft, m.sig);
   let id = scanId(m.key, l, ed.e), cur = SC.items.get(id);
   const artq = !!m.sig && !['read', 'solo', 'off', 'none'].includes(ed.es);      // illustration à comparer (scanart.js) : l'édition peut encore changer
   if (cur && ((m.ft && !ed.e && ed.es === 'load') || artq)) { id += '#' + (++SC.mid); cur = null; }      // ligne du bas ou illustration à lire, édition pas encore sûre : sa propre ligne, rangée avec son édition ensuite (scanEdApply, scanArtRun)      // une ligne par carte, langue ET édition : la même carte lue en français puis en anglais fait deux lignes
   if (m.img && l !== 'en') { COLL.li[liKey(l, m.key)] = m.img; collMetaSave(); }       // image de la carte dans sa langue, vue pendant la lecture : gardée pour la collection
   else if (m.via && l !== 'en') langImgFor(m.key, m.name, l);      // trouvée sur l'appareil (catalogue sans images) : celle de sa langue demandée à Scryfall, l'anglaise en attendant
   if (cur) { SC.items.delete(id); SC.items.set(id, cur); SC.lastIt = cur; cur.q = Math.max(1, cur.q + d); if (m.ft && !cur.ft) cur.ft = m.ft; if (!maybe) { cur.maybe = false; cur.shot = ''; } else if (cur.maybe && shot) cur.shot = shot; if (m.score > cur.score) { cur.score = m.score; cur.raw = m.raw; } if (m.via) cur.via = m.via; }
-  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null, sig: m.sig || null, artq }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
+  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null, sig: m.sig || null, artq, lot: !!m.lot }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
   if (ed.e) scanEdPass();      // une édition posée : les cartes « à choisir » sont revues
   scanPaintList();
   if (artq) scanArtRun();
@@ -122,6 +122,7 @@ function scanViewItem(e) {
 /** Texte lu d'une ligne du scan (« lu « … » ») ; carte trouvée dans une autre langue que celle de l'appli, tant qu'elle garde cette langue : « lu en italien ». h : échappement HTML. */
 function scanReadNote(e, raw, h = x => x) {
   if (e.via === 'foot') return T('retrouvée par la ligne du bas');      // nom illisible : extension et numéro (footIdentify)
+  if (e.lot) return T('langue du lot ({lang}) : nom identique d\'une langue à l\'autre', { lang: LANGS[e.l] || e.l });      // scanLot
   const v = e.via && e.via === e.l ? LANGS[e.via] || e.via : '';
   if (!v) return raw ? T('lu « {raw} »', { raw: h(e.raw || '') }) : '';
   return raw ? T('lu en {lang} : « {raw} »', { lang: v, raw: h(e.raw || '') }) : T('lu en {lang}', { lang: v });
@@ -574,8 +575,9 @@ async function footAttach(m, src, box) {
   SC.foot = { raw, ft, name: m.name, card: m.card || 'en', keep: '', via: m.via === 'foot' ? 'foot' : '' };
   if (!ft) return m;
   const out = { ...m, ft };
+  out.lsure = scanNameSure(m) || !!(ft.lang && !SCS.lang && (ft.lsep || (typeof footKnown === 'function' && footKnown(ft.codes[0]) === true)));      // langue sûre : nom propre à sa langue, ou « CODE • LANGUE » lu en bas (vote pour la langue du lot)
   if (ft.lang && !SCS.lang && ft.lang !== (m.card || 'en') && LANGS[ft.lang]) {
-    if (scanNameSure(m)) SC.foot.keep = ft.lang;      // nom imprimé propre à sa langue (« Anneau solaire ») : c'est lui qui dit la langue, la ligne du bas a pu lire un mot du texte
+    if (scanNameSure(m)) { SC.foot.keep = ft.lang; out.lsure = true; }      // nom imprimé propre à sa langue (« Anneau solaire ») : c'est lui qui dit la langue, la ligne du bas a pu lire un mot du texte
     else Object.assign(out, { card: ft.lang, img: '', via: m.via === 'foot' ? 'foot' : '' });      // nom identique dans les deux langues (« Edgar Markov »), ou lu en anglais : la langue imprimée en bas décide
   }
   return out;
@@ -617,10 +619,37 @@ async function footIdentify(m, src, box) {
   if (hit.key === m.key) return { ...m, score: Math.max(m.score, 0.92), ...(weakOther && ft.lang && hit.card !== m.card ? { card: hit.card, img: hit.img, via: 'foot' } : {}) };      // la ligne du bas confirme le nom lu de justesse (et sa langue, si elle y est lue)
   return sim > nameSimilar(raw, m.card && m.card !== 'en' ? frName(m.key, m.card) || m.name : m.name) ? hit : m;
 }
+/** Langue du lot, pour départager seulement : les cartes à la langue sûre (nom propre à sa langue, langue lue en bas) votent, les 8 dernières comptent (un lot
+ *  mélangé d'extensions et de langues n'a pas de majorité ; une pile par langue en change). Une carte à la langue incertaine prend celle du lot (3 voix, 70 % ou plus)
+ *  seulement si ce qui a été lu est aussi son nom dans cette langue (nom identique d'une langue à l'autre, « Edgar Markov ») : jamais contre ce qui est lu sur la carte. */
+async function scanLot(m) {
+  if (!m || SCS.lang || SC.pm) return m;
+  const l = m.card || 'en', sure = m.lsure != null ? m.lsure : scanNameSure(m);
+  if (sure) { SC.lv.push(l); if (SC.lv.length > 8) SC.lv.shift(); return m; }
+  if (m.ft && m.ft.lang) return m;      // langue lue sur la ligne du bas : elle a déjà décidé (footAttach)
+  const by = {}; for (const x of SC.lv) by[x] = (by[x] || 0) + 1;
+  const [top, n] = Object.entries(by).sort((a, b) => b[1] - a[1])[0] || ['', 0];
+  if (!top || top === l || !LANGS[top] || SC.lv.length < 3 || n / SC.lv.length < 0.7) return m;
+  const here = await lotSim(m, l), there = await lotSim(m, top);
+  if (there < 0.75 || there + 0.05 < here) return m;      // le nom lu n'est pas (aussi bien) celui de la langue du lot
+  SC.lotLast = { name: m.name, a: l, b: top };
+  return { ...m, card: top, img: '', via: m.via === 'foot' ? 'foot' : '', lot: true };
+}
+/** Ressemblance (0 à 1) entre le texte lu et le nom de la carte dans la langue l ; -1 : nom inconnu dans cette langue (rien n'est changé). */
+async function lotSim(m, l) {
+  const raw = m.raw || m.name;
+  if (l === 'en') return nameSimilar(raw, m.name);
+  if (l === FRX.l) { const f = frName(m.key, l); return f ? nameSimilar(raw, f) : -1; }
+  if (!NAMES_LANGS.includes(l)) return -1;
+  const cats = await othCats([l]), c = cats && cats[l]; if (!c) return -1;
+  const h = nmMatch(c, [{ text: raw }]);
+  return h && ownKey(h.name) === m.key ? h.score : 0;
+}
 /** Le nom reconnu dit-il à lui seul la langue de la carte ? Oui s'il a été lu dans une autre langue que l'anglais et que ce nom imprimé n'est pas le nom anglais
  *  (à 20 % près) ; non pour un nom lu en anglais, un nom ambigu entre langues, ou identique à l'anglais (« Edgar Markov », « Atraxa »). */
 function scanNameSure(m) {
-  if (!m || !m.card || m.card === 'en' || m.amb) return false;
+  if (!m || !m.card || m.amb) return false;
+  if (m.card === 'en') { const f = FRX.l !== 'en' && typeof frOf === 'function' ? frOf(m.key) : ''; if (!f) return false; const a = normName(f), b = normName(m.name), n = Math.max(a.length, b.length); return !!a && !!b && lev(a, b, Math.ceil(n * 0.3)) > n * 0.2; }      // lu en anglais alors que le nom de la langue de l'appli est différent : une carte anglaise
   if (m.card !== FRX.l && m.score < 0.9) return false;      // autre langue trouvée de justesse (nom proche d'une autre carte) : la ligne du bas décide
   const pn = (typeof frName === 'function' && frName(m.key, m.card)) || m.raw || '', a = normName(pn), b = normName(m.name || '');
   if (!a || !b) return false;
@@ -690,6 +719,7 @@ async function scanWork() {
       scanFree(job.src); job.src = null; job.file = null;
       if (!SC.el || job.s !== SC.session) continue;
       SC.ms = performance.now() - t0; SC.pend = SC.pend.filter(p => p.id !== job.id);
+      if (m && m.score >= 0.72) m = await scanLot(m);      // langue du lot
       if (m && m.score >= 0.72) { if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, m.score < 0.84, job.shot); scsCue(); scanHint(m.score >= 0.84 ? '✓ ' + m.name : T('À vérifier : {name}', { name: m.name }), m.score >= 0.84 ? 'ok' : 'busy'); }
       else { SC.miss.push({ id: job.id, label: job.label, thumb: job.thumb || '', shot: job.shot || '', raw: (m && m.raw) || SC.raw || '' }); if (fail) scanHint(fail, 'bad'); scanPaintList(); }
     }
@@ -773,6 +803,7 @@ function scanDiag(on) {
     box.textContent = [T('aperçu {n} i/s', { n: SC.fps ? SC.fps.toFixed(0) : '–' }), `${st.width || '?'}×${st.height || '?'}${st.frameRate ? ' @' + Math.round(st.frameRate) : ''}`, SC.fixed ? T('plancher 24 i/s') : T('i/s libre'), T('redémarrages {n}', { n: SC.restarts }), T('dernière lecture {n} ms', { n: SC.ms ? Math.round(SC.ms) : '–' }), T('tâches longues {n}/10 s', { n: SC.lt.length }), camSlow() ? T('mode lent (toucher ici : retour au mode normal)') : '', tr && tr.label ? tr.label : ''].filter(Boolean).join(' · ');
     const a = SC.art; if (a) box.textContent += '\n' + T('illustration · {name} : {res}', { name: a.name, res: a.res });      // dernière comparaison d'illustration (scanart.js)
     const f = SC.foot; if (f) box.textContent += '\n' + T('ligne du bas · {name} : « {raw} » → {res}', { name: f.name, raw: f.raw || '—', res: f.ft ? [f.ft.codes.join(','), f.ft.nums.join(','), f.ft.lang, f.ft.foil ? '★' : '', f.keep ? T('langue {a} gardée (nom), {b} lue en bas ignorée', { a: langCode(f.card), b: langCode(f.keep) }) : ''].filter(Boolean).join(' ') : '∅' });      // cadrage « carte entière » : ce que la dernière carte a donné
+    if (SC.lv.length) box.textContent += '\n' + T('langue du lot : {v}', { v: SC.lv.map(langCode).join(' ') }) + (SC.lotLast ? ` · ${SC.lotLast.name} : ${langCode(SC.lotLast.a)} → ${langCode(SC.lotLast.b)}` : '');      // voix des dernières cartes, dernière carte départagée
   };
   box.onclick = () => { camSetSlow(false); paint(); };
   paint(); SC.diagT = setInterval(paint, 500);
@@ -910,7 +941,7 @@ function openScan(o) {
       <button class="sc-shot" type="button" data-act="shot" aria-label="${T('Prendre la photo de la carte')}"><i><svg class="i"><use href="#i-pause"/></svg></i></button>
       <span class="sc-bslot"><button class="sc-auto" type="button" role="switch" data-act="auto" aria-checked="false" hidden><span class="sc-sw" aria-hidden="true"><i></i></span>${T('Auto')}</button></span></div>`;
   if (scanFull()) { wrap.classList.add('full'); $('.sc-cap', wrap).textContent = T('Carte entière'); }      // cadrage « carte entière » (réglage par défaut) : cadre de carte, ligne du bas lue aussi
-  SC.lot = !!(o && o.lot); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
+  SC.lot = !!(o && o.lot); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.lv = []; SC.lotLast = null; SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
   auReset();
   const stop = () => { auReset(); SC.alive = false; SC.warm = false; clearInterval(SC.diagT); clearTimeout(SC.hintT); SC.queue.forEach(j => scanFree(j.src)); SC.queue = []; SC.pend = []; if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; } natStop(); };
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); if (SC.ef) $('.sc-ef [data-ef="close"]').click(); else wrap.__close(); } };      // écran « Éditions à choisir » ouvert : Échap le ferme seul

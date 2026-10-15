@@ -1,4 +1,6 @@
 {
 "retrouvée par la ligne du bas": "encontrada por la línea inferior",
-"langue {a} gardée (nom), {b} lue en bas ignorée": "idioma {a} conservado (nombre), {b} leído abajo ignorado"
+"langue {a} gardée (nom), {b} lue en bas ignorée": "idioma {a} conservado (nombre), {b} leído abajo ignorado",
+"langue du lot ({lang}) : nom identique d'une langue à l'autre": "idioma del lote ({lang}): mismo nombre en ambos idiomas",
+"langue du lot : {v}": "idioma del lote: {v}"
 }

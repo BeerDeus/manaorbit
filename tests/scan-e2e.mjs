@@ -60,8 +60,8 @@ assert.ok(!it.some(x => /qzx|plrt/i.test(x.name)), 'texte absurde : rien');
 assert.equal(it.filter(x => !x.maybe && x.name !== 'Arcane Signet').every(x => x.q === 1), true);
 assert.equal(it.find(x => x.name === 'Craterhoof Behemoth').maybe, false, 'coût de mana collé au nom : toujours une lecture sûre');
 assert.ok(it.filter(x => x.name !== 'Edgar Markov').every(x => /^https:\/\/api\.scryfall\.com\/cards\/named\?exact=.+&format=image&version=small$|^https:\/\/cards\.scryfall\.io\/small\//.test(x.thumb)), 'chaque carte anglaise porte sa miniature Scryfall (celle de l\'édition lue sur la ligne du bas, sinon la générique)');
-assert.match(it.find(x => x.name === 'Edgar Markov').thumb, /\/small\/front\/fr\/edgar-markov(-[a-z0-9]+)?\.jpg$/, 'nom identique en français et en anglais : français par défaut (90 % de ses cartes) — la puce de langue le corrige d\'un appui');
-assert.equal(await p.evaluate(() => [...SC.items.values()].find(x => x.key === 'edgar markov').l), 'fr');      // ligne « carte|langue|édition » : l'édition peut être posée
+assert.match(it.find(x => x.name === 'Edgar Markov').thumb, /^https:\/\/api\.scryfall\.com\/cards\/named\?exact=Edgar%20Markov&/, 'nom identique en français et en anglais, lu après 4 cartes anglaises : langue du lot (anglais)');
+assert.deepEqual(await p.evaluate(() => { const x = [...SC.items.values()].find(x => x.key === 'edgar markov'); return [x.l, x.lot, scanReadNote(x)]; }), ['en', true, 'langue du lot (anglais) : nom identique d\'une langue à l\'autre']);      // seule, sans lot : français par défaut (90 % de ses cartes), scanlot-e2e
 assert.deepEqual((await misses(p)).map(x => x.replace(/ ·.*$/, '')), ['Photo 7'], 'photo illisible : ligne « non reconnu »');
 const missThumb = await p.$eval('.sc-item.miss .sc-th', i => i.src || ''); assert.match(missThumb, /^data:image\/jpeg/); assert.ok(missThumb.length < 14000, 'vignette minuscule (' + missThumb.length + ' car.), pas la photo');
 assert.equal(await p.$$eval('.sc-item.pend', r => r.length), 0, 'plus rien en attente'); assert.equal(await p.evaluate(() => SC.queue.length + SC.pend.length), 0);
