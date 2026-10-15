@@ -41,6 +41,9 @@ const ADMOB_PUB = (/pub-\d{10,20}/.exec(String(process.env.ADMOB_PUB_ID || proce
 // avec ou sans « : ». Aucune empreinte valide : 404 (les liens restent dans le navigateur). Rien de secret : ces empreintes sont publiques.
 // Empreintes de l'appli Play (Play Console › Intégrité de l'appli › Signature, relevées le 15 octobre 2026) : clé de signature de l'application (Google) et clé d'importation.
 // Publiques par nature (servies telles quelles) ; ASSETLINKS_SHA256 les remplace si elle est définie, « 0 » coupe les App Links.
+// Dernière appli Android publiée sur le Play Store (versionCode) : une coque plus ancienne affiche « Mise à jour de l'appli » au lancement (pwa.js › apkCheck).
+// À monter quand la nouvelle version est en ligne (test fermé compris) ; APK_LATEST sur Hostinger la remplace sans redéployer le code. 0 : jamais.
+const APK_LATEST = Math.max(0, Math.min(1e6, Math.floor(Number(process.env.APK_LATEST ?? 5)) || 0));
 const ASSETLINKS_DEF = '96:57:5F:6F:FD:89:38:E5:FE:46:BD:72:3B:E0:94:E6:27:5C:10:26:B9:14:01:57:D3:37:70:91:B7:A5:8A:33,B2:5B:42:63:AE:39:5B:E7:17:E9:3A:CF:9F:F7:88:13:A8:06:5B:83:2B:5D:41:91:3C:6D:E9:4B:25:24:0D:93';
 const ASSETLINKS_ENV = process.env.ASSETLINKS_SHA256 == null ? ASSETLINKS_DEF : String(process.env.ASSETLINKS_SHA256).trim() === '0' ? '' : String(process.env.ASSETLINKS_SHA256);
 const ASSETLINKS_RAW = ASSETLINKS_ENV.split(',').map(x => x.trim()).filter(Boolean);
@@ -2724,7 +2727,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/.well-known/assetlinks.json') return assetLinks(req, res);      // App Links de l'appli Android
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, off: OFF, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, off: OFF, apk: APK_LATEST, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte

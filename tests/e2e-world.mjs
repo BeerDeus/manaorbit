@@ -56,7 +56,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0 } = {}
     send({ error: 'nf' }, 404);
   });
   await new Promise(r => imp.listen(0, '127.0.0.1', r));
-  const proxy = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2`, IMPORT_UPSTREAM: `http://127.0.0.1:${imp.address().port}`, ...env }, stdio: 'ignore' });
+  const proxy = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2`, IMPORT_UPSTREAM: `http://127.0.0.1:${imp.address().port}`, APK_LATEST: '0', ...env }, stdio: 'ignore' });
   process.on('exit', () => { try { proxy.kill(); } catch {} });
   await new Promise(r => setTimeout(r, 800));
   world.url = `http://127.0.0.1:${port}/`;

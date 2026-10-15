@@ -110,6 +110,32 @@ function updPop() {
   });
   document.body.appendChild(el); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
 }
+/* ── Appli Android à mettre à jour (comme les jeux : « Mise à jour disponible » au lancement) ──────────────────────────────────────
+   Le serveur annonce la dernière appli publiée sur le Play Store (/__ping apk : versionCode, proxy.mjs › APK_LATEST). Coque plus ancienne (versionCode lu par
+   ManaOrbit.info ; sans ce plugin : très ancienne) → carte au milieu de l'écran : « Mettre à jour » (fiche Play Store), « Plus tard » (jusqu'au prochain lancement).
+   Jamais sur le web ni dans la PWA ; attend un écran calme (premier lancement, scan, partie, feuille ouverte). */
+const APK_NOTES = { 6: 'Les QR codes et liens Mana Orbit s\'ouvrent directement dans l\'appli, et elle démarre même sans réseau.' };
+const APK = { done: false };
+async function apkCheck() {
+  if (APK.done || !(CTX.apk > 0) || typeof isNativeApp !== 'function' || !isNativeApp()) return;
+  APK.done = true;
+  let build = 0; const mo = typeof natPlugin === 'function' ? natPlugin('ManaOrbit') : null;
+  if (mo) { try { const i = await mo.info(); build = Number(i && i.build) || 0; } catch (e) { build = 0; } }
+  if (build >= CTX.apk) return;
+  setTimeout(() => apkPop(CTX.apk), 2500);
+}
+function apkPop(want, tries = 0) {
+  if (document.getElementById('apkPop')) return;
+  const busy = (typeof OB !== 'undefined' && OB.el) || (typeof sheets !== 'undefined' && sheets.length) || (typeof SC !== 'undefined' && SC.el) || document.querySelector('body > .dv.pu, body > .imgv');
+  if (busy) { if (tries < 60) setTimeout(() => apkPop(want, tries + 1), 3000); return; }
+  const el = document.createElement('div'); el.id = 'apkPop'; el.className = 'apk-pop'; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'apkPopT');
+  el.innerHTML = `<div class="apk-card"><svg class="apk-logo" aria-hidden="true"><use href="#i-logo"/></svg><b id="apkPopT">${T('Mise à jour de l\'appli')}</b>
+      <p>${esc(APK_NOTES[want] ? T(APK_NOTES[want]) : T('Une nouvelle version de l\'appli est sur le Play Store.'))}</p>
+      <a class="btn block" data-a="go" href="${esc(PLAY_URL)}" target="_blank" rel="noopener">${T('Mettre à jour')}</a><button class="link-btn" type="button" data-a="later">${T('Plus tard')}</button></div>`;
+  const close = () => { el.classList.remove('on'); setTimeout(() => el.remove(), 250); };
+  el.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b) return; haptic('tap'); if (b.dataset.a === 'go') setTimeout(close, 600); else close(); });
+  document.body.appendChild(el); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
+}
 /** Retour sur l'appli : version demandée au serveur (au plus toutes les 5 min) ; une nouvelle version déjà gardée attend seulement un moment calme. */
 async function updResume() {
   if (UPD.want && UPD.want !== DD_BUILD) { UPD.told = ''; setTimeout(() => updCheck(UPD.want), 1500); return; }
