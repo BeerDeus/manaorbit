@@ -114,6 +114,36 @@ function edRemember(k, l, e, info) {
   if (info.li && l && l !== 'en') COLL.li[liKey(l, k + '|' + e)] = info.li;
   collMetaSave();
 }
+/* ── Recherche d'une extension dans un choix d'édition (terrains de base : des centaines d'impressions) ── */
+const ED_Q_MIN = 8;      // champ montré à partir de 8 impressions
+const edFold = s => ' ' + String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+/** L'impression p répond à la recherche q : chaque mot tapé commence un mot du nom de l'extension, son code, l'année ou le numéro (« bloom », « blb », « 2024 »). */
+function edHit(p, q) {
+  const w = edFold(q).trim().split(' ').filter(Boolean); if (!w.length) return true;
+  const h = edFold([p.sn || setName(p.set), p.set, p.y, p.num].join(' '));
+  return w.every(x => h.includes(' ' + x));
+}
+/** Champ « Chercher une extension » d'un choix d'édition de n impressions (rien sous ED_Q_MIN). */
+function edQHtml(n, q = '') {
+  if (n < ED_Q_MIN) return '';
+  const t = esc(T('Chercher une extension'));
+  return `<label class="fsearch ed-q"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" data-edq inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${t}" aria-label="${t}" value="${esc(q)}"></label>`;
+}
+/** Filtre les tuiles (sel, data-i = index dans prints ; « Sans édition » reste) d'après la recherche q : en-têtes de groupe cachés pendant la recherche, message si rien. */
+function edQApply(box, prints, q, sel) {
+  let n = 0;
+  for (const b of box.querySelectorAll(sel)) { const p = prints[Number(b.dataset.i)]; if (!p) continue; const ok = edHit(p, q); b.classList.toggle('ed-off', !ok); if (ok) n++; }
+  for (const h of box.querySelectorAll('.ced-h')) h.classList.toggle('ed-off', !!q.trim());
+  let m = box.querySelector('.ed-q-none');
+  if (q.trim() && !n) { if (!m) { m = document.createElement('p'); m.className = 'hint ed-q-none'; box.prepend(m); } m.textContent = T('Aucune extension ne correspond à « {q} »', { q: q.trim() }); }
+  else if (m) m.remove();
+  return n;
+}
+/** Champ de recherche d'un conteneur repeint (innerHTML) : relit la recherche avant, rend le focus et le curseur après. Retourne restore(). */
+function edQKeep(root) {
+  const i = root.querySelector('[data-edq]'), had = !!i && document.activeElement === i, q = i ? i.value : '', at = i ? i.selectionStart : null;
+  return { q, restore() { const j = root.querySelector('[data-edq]'); if (!j || !had) return; j.focus({ preventScroll: true }); try { j.setSelectionRange(at, at); } catch (e) { /* type search */ } } };
+}
 /** Feuille de choix d'une édition : une tuile par impression (symbole, code et numéro, prix, particularités) et « Sans édition ».
  *  o : { name, sub, cur ('set|num', '' : sans édition), load () → Promise(impressions), front (extensions à montrer d'abord, sous frontLabel), onPick(impression | null) }. */
 function edSheet(o) {
@@ -125,16 +155,23 @@ function edSheet(o) {
       const e = edKey(p.set, p.num), px = foil ? (p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : p.eu > 0 ? fmt(p.eu, 'EUR') : '') : p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition
       return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
     };
+    let q = '', wantQ = !!o.focusQ;      // focusQ : la feuille s'ouvre sur la recherche (bandeau du scan › « Chercher une extension »)
+    const filter = () => { const g = $('.ced-grid', api.body); if (g) edQApply(g, prints, q, '.ced-t'); };
     const paint = () => {
       if (!sheets.includes(api)) return;
       if (!prints) { api.body.innerHTML = `<p class="hint">${err ? esc(err) : T('Éditions…')}</p>`; return; }
+      const keep = edQKeep(api.body); q = keep.q || q;
       const fr = (o.front || []).filter(s => prints.some(p => p.set === s)), all = prints.map((p, i) => [p, i]);
       const top = fr.flatMap(s => all.filter(([p]) => p.set === s)), rest = top.length ? all.filter(([p]) => !fr.includes(p.set)) : all;
       const fsw = o.onFoil ? `<label class="ced-foil"><span class="ced-foil-t"><b>${T('Foil')} ✦</b><small>${foil ? T('Prix foil Cardmarket de l\'édition') : T('Exemplaires foil : touche pour les marquer')}</small></span><span class="switch"><input type="checkbox" data-act="foil"${foil ? ' checked' : ''} aria-label="${T('Foil')}"><i></i></span></label>` : '';
-      api.body.innerHTML = `${fsw}<div class="ced-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: o.name }))}">${top.length ? `<p class="ced-h">${esc(o.frontLabel || '')}</p>${top.map(([p, i]) => tile(p, i)).join('')}${rest.length ? `<p class="ced-h">${T('Autres éditions')}</p>` : ''}` : ''}${rest.map(([p, i]) => tile(p, i)).join('')}<button type="button" class="ced-t none" role="radio" data-i="-1" aria-checked="${!o.cur}"><span class="ced-q" aria-hidden="true"><svg class="i"><use href="#i-stack"/></svg></span><span class="ced-n">${T('Sans édition')}</span></button></div>`;
+      api.body.innerHTML = `${fsw}${edQHtml(prints.length, q)}<div class="ced-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: o.name }))}">${top.length ? `<p class="ced-h">${esc(o.frontLabel || '')}</p>${top.map(([p, i]) => tile(p, i)).join('')}${rest.length ? `<p class="ced-h">${T('Autres éditions')}</p>` : ''}` : ''}${rest.map(([p, i]) => tile(p, i)).join('')}<button type="button" class="ced-t none" role="radio" data-i="-1" aria-checked="${!o.cur}"><span class="ced-q" aria-hidden="true"><svg class="i"><use href="#i-stack"/></svg></span><span class="ced-n">${T('Sans édition')}</span></button></div>`;
+      filter(); keep.restore();
+      const qi = $('[data-edq]', api.body);
+      if (wantQ && qi) { wantQ = false; requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => { if (sheets.includes(api)) qi.focus({ preventScroll: true }); }))); }      // après le focus que openSheet pose sur Fermer
     };
     paint(); setIcLoad(paint);
     o.load().then(list => { prints = list || []; paint(); }, () => { err = scryLeft() > 0 ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Éditions indisponibles pour l\'instant (hors ligne ?)'); paint(); });
+    api.body.addEventListener('input', e => { if (!e.target.matches('[data-edq]')) return; q = e.target.value; filter(); });
     api.body.addEventListener('change', e => {
       const sw = e.target.closest('input[data-act="foil"]'); if (!sw || !o.onFoil) return;
       foil = sw.checked; haptic('tap'); o.onFoil(foil); paint();      // la feuille reste ouverte : les prix des tuiles passent en foil

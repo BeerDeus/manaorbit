@@ -31,5 +31,7 @@
   "{n} carte imprimée une seule fois : son édition est posée": "{n} Karte nur einmal gedruckt: Ihre Edition ist gesetzt",
   "{n} cartes imprimées une seule fois : leur édition est posée": "{n} Karten nur einmal gedruckt: Ihre Edition ist gesetzt",
   "Édition : {ed}": "Edition: {ed}",
-  "Choisir l'édition de {name}": "Edition von {name} wählen"
+  "Choisir l'édition de {name}": "Edition von {name} wählen",
+  "Chercher une extension": "Erweiterung suchen",
+  "Aucune extension ne correspond à « {q} »": "Keine Erweiterung passt zu „{q}“"
 }

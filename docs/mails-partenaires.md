@@ -93,3 +93,9 @@ One more thing, so there are no surprises: later on, I may add an optional one-t
 Thanks again for your time,
 [Ton prénom]
 Mana Orbit · https://manaorbit.app
+
+---
+
+## Relance du 15 octobre 2026 (envoyée par Martin)
+
+Relance avancée au 15 octobre, au lancement du test fermé (fin prévue vers le 29 octobre). **Date limite annoncée : 19 novembre 2026** : sans réponse, publication sur Google Play après cette date ; un message suffit pour couper la fonction (`EDHREC_OFF` / `ARCHIDEKT_OFF`), avant ou après. Archidekt prévenu que les titres des decks ne sont plus affichés (commandant + type, lien vers le deck). Instagram du test mentionné par transparence.

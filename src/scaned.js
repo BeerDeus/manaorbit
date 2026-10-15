@@ -132,6 +132,7 @@ function scanEdAskHtml(a) {
   return `<section class="sc-ask" data-id="${esc(it.id)}" aria-label="${esc(first ? T('Édition de la 1re carte') : T('Nouvelle extension'))}">
     <div class="sc-ask-h"><b>${first ? T('Édition de la 1re carte') : T('Nouvelle extension')}</b><button type="button" class="link-btn" data-a="later">${T('Plus tard')}</button></div>
     <p class="sc-ask-p">${esc(first ? T('{name} : les cartes suivantes prendront la même extension si elles y existent.', { name: nm }) : T('{name} n\'existe dans aucune extension de ce scan.', { name: nm }))}</p>
+    ${a.prints.length >= ED_Q_MIN ? `<button type="button" class="fsearch sc-ask-q" data-a="edq"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><span>${T('Chercher une extension')}</span></button>` : ''}
     <div class="sc-ask-l" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: nm }))}">${list.map(tile).join('')}<button type="button" class="sc-ask-all" data-a="ed">${esc(T('Toutes ({n})', { n: a.prints.length }))}</button></div></section>`;
 }
 /** « Plus tard » : la carte reste à choisir, le bandeau passe à la suivante. */
@@ -154,12 +155,12 @@ function scanEdTodo() {
   return { n, load, lines };
 }
 /** Choix de l'édition d'une ligne (symbole touché). */
-function scanEdPick(it) {
+function scanEdPick(it, focusQ) {
   const pk = scanPk(it.key, it.l), pr = SC.pr.get(pk);
   if (pr === 'err') { SC.pr.delete(pk); it.es = 'load'; scanEdNeed(it); scanPaintList(); }      // illisible : on relit
   haptic('tap');
   edSheet({ name: scanShown(it), sub: TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l && it.l !== 'en' ? ' · ' + langCode(it.l) : ''), cur: it.e,
-    load: () => (Array.isArray(pr) ? Promise.resolve(pr) : scryArtPrints(it.name, it.l || 'en')), front: scanEdFront(), frontLabel: T('Dans ce scan'),
+    load: () => (Array.isArray(pr) ? Promise.resolve(pr) : scryArtPrints(it.name, it.l || 'en')), front: scanEdFront(), frontLabel: T('Dans ce scan'), focusQ: !!focusQ,
     onPick: p => scanEdChoose(it.id, p) });
 }
 function scanEdChoose(id, p) {
@@ -186,7 +187,7 @@ function scanEdFlow(done) {
   for (const x of SC.items.values()) x.later = false;
   const ids = scanEdTodo().lines.map(x => x.id);
   if (!ids.length || !SC.el) { if (done) done(); return; }
-  let i = 0, closed = false, hold = false;      // hold : choix en cours (la liste repeinte ne doit pas faire avancer l'écran)
+  let i = 0, closed = false, hold = false, q = '', qi = -1;      // q : recherche d'extension de la carte qi (repart de zéro à chaque carte)      // hold : choix en cours (la liste repeinte ne doit pas faire avancer l'écran)
   const wrap = document.createElement('div'); wrap.className = 'dv sc-ef'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Éditions à choisir'));
   const still = id => { const x = SC.items.get(id); return x && !x.e && !x.nx && !x.maybe; };
   const finish = () => {
@@ -199,7 +200,8 @@ function scanEdFlow(done) {
     if (closed || hold) return;
     const it = SC.items.get(ids[i]); if (!it) { go(1); return; }
     const pk = scanPk(it.key, it.l), pr = SC.pr.get(pk); if (pr === undefined || pr === 'err') { if (pr === 'err') SC.pr.delete(pk); it.es = 'load'; scanEdNeed(it); }
-    const nm = scanShown(it), n = ids.length, prints = Array.isArray(pr) ? pr : null;
+    const nm = scanShown(it), n = ids.length, prints = Array.isArray(pr) ? pr : null, keep = edQKeep(wrap);
+    if (qi !== i) { qi = i; q = ''; } else q = keep.q;
     const tile = (p, j) => { const px = pkEu(p), on = it.e === edKey(p.set, p.num); return `<button type="button" class="sc-ef-t" role="radio" aria-checked="${on}" data-ef="pick" data-i="${j}" aria-label="${esc([p.sn, edLabel(edKey(p.set, p.num)), p.y, px ? fmt(px, 'EUR') : ''].filter(Boolean).join(' · '))}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span class="sc-ask-c">${setIcHtml(p.set)}<b>${esc(p.set.toUpperCase())}</b> <small>${esc(p.y || '')}</small></span><em>${px ? esc(fmt(px, 'EUR')) : '—'}</em></button>`; };
     wrap.innerHTML = `<header class="dv-head"><button class="icon-btn" type="button" data-ef="close" aria-label="${T('Retour au scan')}"><svg class="i"><use href="#i-back"/></svg></button>
         <button class="btn ghost small" type="button" data-ef="skipall">${T('Laisser les autres sans édition')}</button></header>
@@ -207,10 +209,18 @@ function scanEdFlow(done) {
         <div class="sc-ef-bar" aria-hidden="true"><i style="width:${Math.round(100 * (i + 1) / n)}%"></i></div></div>
       <div class="dv-scroll sc-ef-body"><div class="sc-ef-card"><b>${esc(nm)}</b>${it.l ? flag(it.l) : ''}${it.q > 1 ? `<span class="tag accent">× ${nf0(it.q)}</span>` : ''}</div>
         <p class="hint">${T('Regarde ta carte et touche la même illustration.')}</p>
+        ${prints ? edQHtml(prints.length, q) : ''}
         ${prints ? (prints.length ? `<div class="sc-ef-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: nm }))}">${prints.map(tile).join('')}</div>` : `<p class="hint">${T('Aucune édition trouvée')}</p>`) : `<p class="hint">${T('Lecture des éditions…')}</p>`}
         <button class="btn ghost block sc-ef-none" type="button" data-ef="none">${T('Sans édition')}</button></div>
       <footer class="dv-foot"><button class="btn ghost" type="button" data-ef="prev"${i ? '' : ' disabled'}>${T('Précédente')}</button><button class="btn" type="button" data-ef="next">${i + 1 < n ? T('Passer à la suivante') : T('Terminer')}</button></footer>`;
+    const g = $('.sc-ef-grid', wrap); if (g && prints) edQApply(g, prints, q, '.sc-ef-t');
+    keep.restore();
   }
+  wrap.addEventListener('input', e => {
+    if (!e.target.matches('[data-edq]')) return; q = e.target.value;
+    const it = SC.items.get(ids[i]), pr = it && SC.pr.get(scanPk(it.key, it.l)), g = $('.sc-ef-grid', wrap);
+    if (g && Array.isArray(pr)) edQApply(g, pr, q, '.sc-ef-t');
+  });
   wrap.addEventListener('click', e => {
     const b = e.target.closest('[data-ef]'); if (!b) return;
     const a = b.dataset.ef, it = SC.items.get(ids[i]);

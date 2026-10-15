@@ -98,12 +98,16 @@ function lotEdSheet() {
   const c = LOT.cur; if (!c || !c.prints || !c.prints.length) return;
   openSheet(T('Édition de {name}', { name: c.p || c.n }), T('L\'extension choisie sera proposée pour les cartes suivantes'), api => {
     api.wrap.classList.add('lot-eds-sheet');
+    let q = '';
     const paint = () => {
-      api.body.innerHTML = `<div class="lot-eds">${c.prints.map((p, i) => { const px = p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', on = c.pick === p || (c.e && edKey(p.set, p.num) === c.e);
+      const keep = edQKeep(api.body); q = keep.q || q;
+      api.body.innerHTML = `${edQHtml(c.prints.length, q)}<div class="lot-eds">${c.prints.map((p, i) => { const px = p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', on = c.pick === p || (c.e && edKey(p.set, p.num) === c.e);
         return `<button type="button" class="lot-ev" data-i="${i}" aria-pressed="${!!on}" aria-label="${esc(p.sn)} ${esc(String(p.set).toUpperCase())} ${esc(p.num)}${px ? ', ' + esc(px) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set)}${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span><em>${esc(p.sn)}</em>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length || p.y ? `<small>${esc([p.y, ...p.fx].filter(Boolean).join(' · '))}</small>` : ''}</button>`; }).join('')}
         <button type="button" class="lot-ev none" data-i="-1" aria-pressed="${!c.pick}"><i>${T('Sans édition')}</i></button></div>`;
-      const on = $('.lot-ev[aria-pressed="true"]', api.body); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+      edQApply($('.lot-eds', api.body), c.prints, q, '.lot-ev'); keep.restore();
+      const on = $('.lot-ev[aria-pressed="true"]:not(.ed-off)', api.body); if (on && on.scrollIntoView && !q) on.scrollIntoView({ block: 'nearest' });
     };
+    api.body.addEventListener('input', e => { if (!e.target.matches('[data-edq]')) return; q = e.target.value; edQApply($('.lot-eds', api.body), c.prints, q, '.lot-ev'); });
     paint(); setIcLoad(() => { if (sheets.includes(api)) paint(); });
     api.body.addEventListener('click', e => {
       const b = e.target.closest('.lot-ev'); if (!b) return;

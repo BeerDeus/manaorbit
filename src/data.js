@@ -267,7 +267,7 @@ async function scryImage({ set, num, lang }, signal) {
 async function scryArtPrints(name, lang, signal, prio = true) {      // prio : devant les lectures de fond (écran qui attend) ; false : dans la file (scan)
   const sl = SCRY_LANG[lang] || 'en', n = String(name || '').split('//')[0].trim();
   if (!n || n.includes('"')) return [];
-  const key = 'pr3:' + ownKey(n) + ':' + sl, hit = await Cache.get(key, 2 * DAY); if (hit) return hit;
+  const key = (BASIC_NAMES.has(ownKey(n)) ? 'pr4:' : 'pr3:') + ownKey(n) + ':' + sl, hit = await Cache.get(key, 2 * DAY); if (hit) return hit;
   const out = await scryPrintsIn(n, sl, signal, prio);
   if (sl !== 'en') {
     const en = await scryPrintsIn(n, 'en', signal, prio), by = new Map(en.map(p => [p.set + '/' + p.num, p])), have = new Set(out.map(p => p.set + '/' + p.num));
@@ -280,7 +280,8 @@ async function scryArtPrints(name, lang, signal, prio = true) {      // prio : d
 async function scryPrintsIn(n, sl, signal, prio = true) {
   let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('!"' + n + '" lang:' + sl + ' game:paper') + '&unique=prints&order=released&dir=desc';
   const out = [], seen = new Set();
-  for (let pg = 0; url && pg < 3; pg++) {
+  const pages = BASIC_NAMES.has(ownKey(n)) ? 8 : 3;      // terrains de base : des centaines d'impressions (toutes, pour les retrouver par extension)
+  for (let pg = 0; url && pg < pages; pg++) {
     let j; try { j = await httpJson(limScry, url, SCRY_JSON, signal, 4, prio); } catch (e) { if (e.code === '404') j = { data: [] }; else throw e; }
     for (const c of j.data || []) {
       const urls = facesOf(c), im = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris) || {}, id = c.set + '/' + c.collector_number;

@@ -65,7 +65,7 @@
 
 ## Où on en est (12 octobre au soir)
 1. **Test fermé** à ouvrir avec l'entourage seulement (groupe Google `mana-orbit-testeurs`, canal Test fermé, release v2 promue, examen Google 1 à 7 jours) : `docs/store/test-ferme.md`.
-2. **Relance EDHREC / Archidekt vers le 20-22 octobre**, date limite 19 novembre (`docs/mails-partenaires.md`) ; recrutement public seulement après.
+2. **Relance EDHREC / Archidekt envoyée le 15 octobre** (au lancement du test fermé), date limite 19 novembre (`docs/mails-partenaires.md`) ; recrutement public seulement après.
 3. 12 testeurs inscrits 14 jours d'affilée ; testeurs : ouvrir l'appli 2-3 fois par semaine, 2 petits questionnaires (ou 1 à la fin).
 4. Production vers le 20-25 novembre : demande d'accès, puis `ADMOB_BANNER_ID` sur Hostinger et liaison AdMob ↔ fiche Play.
 5. **Prochaine session : `docs/prochaine-session.md`** (maquettes, onglet CardTrader sans token, aide des Decks, bouton Filtres, nouvelle navigation avec Decks à part, decks publics).
