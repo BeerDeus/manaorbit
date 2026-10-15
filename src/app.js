@@ -1187,7 +1187,7 @@ function openAbout() {
 async function doInstall() { const r = await PWA.install(); if (r === 'dismissed') PWA.snooze(); }
 function paintInstallBar() {
   const w = $('#installWrap'); if (!w) return;
-  const show = PWA.wantsBanner(), st = PWA.state();
+  const show = PWA.wantsBanner() && !(typeof aplBarOn === 'function' && aplBarOn()), st = PWA.state();      // barre « Ouvrir dans l'appli » (applink.js) affichée : jamais les deux
   w.classList.toggle('closed', !show); w.setAttribute('aria-hidden', show ? 'false' : 'true'); w.inert = !show;
   $('#installSub').textContent = st === 'ios' ? T('Safari : bouton Partager, puis « Sur l\'écran d\'accueil ».') : T('Lancement direct, plein écran, comme une vraie app.');
   $('#btnInstallBar').hidden = st === 'ios';

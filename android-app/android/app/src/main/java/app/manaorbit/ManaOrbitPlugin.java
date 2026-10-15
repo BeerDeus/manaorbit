@@ -364,10 +364,14 @@ public class ManaOrbitPlugin extends Plugin {
         return t;
     }
 
-    /** Intention lue, ou à ne pas rejouer (activité recréée, voir MainActivity) : plus de cible ni de texte partagé. */
+    /** Intention lue, ou à ne pas rejouer (activité recréée, voir MainActivity) : plus de cible, de texte partagé ni de lien. */
     static void forget(Intent intent) {
         if (intent == null) return;
         try {
+            if (Intent.ACTION_VIEW.equals(intent.getAction())) {
+                intent.setAction(Intent.ACTION_MAIN); // lien https://manaorbit.app (App Links) : ni App.getLaunchUrl ni « appUrlOpen » ne le rejouent
+                intent.setData(null);
+            }
             if (Intent.ACTION_SEND.equals(intent.getAction())) {
                 intent.setAction(Intent.ACTION_MAIN); // d'abord : même si les extras sont illisibles, plus de partage à rejouer
                 intent.removeExtra(Intent.EXTRA_TEXT);

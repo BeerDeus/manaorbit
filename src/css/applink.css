@@ -1,0 +1,28 @@
+/* ── applink.css : barre « Ouvrir dans l'appli Mana Orbit » (navigateur Android, page ouverte par un lien ?p=, ?troc=… ; applink.js) ──
+   Au-dessus des écrans et de la barre du bas, sous les feuilles, la carte en grand et le toast ; --apl-h : sa hauteur, posée par applink.js. */
+:root{--apl-h:0px}
+.apl-bar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:84;display:flex;align-items:center;gap:10px;max-width:520px;margin:0 auto;padding:8px 6px 8px 10px;border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);animation:apl-in .32s var(--out)}
+.apl-bar.out{opacity:0;transform:translateY(16px);transition:opacity .2s,transform .2s}
+body.nav-on .apl-bar{bottom:calc(var(--nav-h) + 26px + env(safe-area-inset-bottom,0px))}      /* au-dessus du rond foil du Scanner, qui dépasse de la barre du bas */
+.apl-ico{flex:none;width:34px;height:34px;border-radius:10px;background:#0b0f1c;display:grid;place-items:center}
+.apl-ico .logo{width:26px;height:26px;color:#fff;filter:none}
+.apl-t{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.apl-go{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apl-get{font-size:12px;line-height:1.3;color:var(--ink-3)}
+.apl-get a{color:var(--accent);font-weight:650;white-space:nowrap}
+.apl-x{flex:none;width:34px;height:34px}
+@media (max-width:359px){.apl-ico{display:none}}      /* petits écrans (320 px) : le bouton garde son texte entier */
+@keyframes apl-in{from{transform:translateY(24px);opacity:0}}
+html.streamer .apl-bar{display:none}
+/* place laissée à la barre : rien de la page ne reste dessous (écrans et leur pied de page, accueil, saisie, premier lancement) */
+body.apl-on .dv,body.apl-on .ob{padding-bottom:calc(var(--apl-h) + 18px + env(safe-area-inset-bottom,0px))}
+body.nav-on.apl-on .dv{padding-bottom:calc(var(--apl-h) + 34px + env(safe-area-inset-bottom,0px))}
+body.apl-on .wrap{padding-bottom:calc(128px + var(--apl-h))}
+body.nav-on.apl-on .wrap{padding-bottom:calc(128px + var(--nav-h) + var(--apl-h))}
+body.apl-on .dock{bottom:calc(var(--apl-h) + 18px + env(safe-area-inset-bottom,0px))}
+body.nav-on.apl-on .dock{bottom:calc(var(--nav-h) + var(--apl-h) + 34px + env(safe-area-inset-bottom,0px))}
+body.apl-on .toast{bottom:calc(var(--apl-h) + 28px + env(safe-area-inset-bottom,0px))}
+body.nav-on.apl-on .toast{bottom:calc(var(--nav-h) + var(--apl-h) + 36px + env(safe-area-inset-bottom,0px))}
+body.apl-on .upd-pop,body.apl-on .mob-bar{bottom:calc(var(--apl-h) + 22px + env(safe-area-inset-bottom,0px))}
+body.nav-on.apl-on .upd-pop,body.nav-on.apl-on .mob-bar{bottom:calc(var(--nav-h) + var(--apl-h) + 36px + env(safe-area-inset-bottom,0px))}
+@media (prefers-reduced-motion:reduce){.apl-bar{animation:none}.apl-bar.out{transition:none}}

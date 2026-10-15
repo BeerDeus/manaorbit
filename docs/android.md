@@ -139,6 +139,44 @@ Un deuxième widget, à part : le QR code du lien public de ta liste d'échange,
 
 Fond blanc même en thème sombre : un lecteur de QR code attend du foncé sur clair. Le code est calculé par le site (`src/qr.js`) et dessiné par `TradeWidget.java` ; rien n'est lu sur le réseau.
 
+### Liens manaorbit.app ouverts dans l'appli (App Links, APK 1.0.5)
+
+Le QR code d'un autre joueur scanné avec l'appareil photo du téléphone (liste d'échange `https://manaorbit.app/?p=…`, échange en direct `?troc=…`), ou ce lien touché dans WhatsApp ou Messages, s'ouvre **dans l'appli**, directement sur la bonne page, au lieu du navigateur. Il faut deux choses : la variable `ASSETLINKS_SHA256` sur Hostinger et l'APK **1.0.5 (versionCode 6)**.
+
+**1. Les empreintes SHA-256 (une seule fois)**
+
+1. Play Console › Mana Orbit › **Test et publication › Intégrité de l'appli** › onglet **Signature de l'application** (Test and release › App integrity › App signing ; selon la version de la console : « Tester et publier › Configuration › Intégrité de l'application »).
+2. Copie les deux lignes **Empreinte du certificat SHA-256** (SHA-256 certificate fingerprint), de la forme `14:6D:E9:…:E5` :
+   - **Certificat de la clé de signature de l'application** (App signing key certificate) : la clé de Google, celle de l'appli installée depuis le Play Store (test interne, test fermé, production) ;
+   - **Certificat de la clé d'importation** (Upload key certificate) : ta clé `.jks`, celle d'une APK que tu construis toi-même en **release**.
+3. Facultatif, pour l'appli lancée par **Run ▶** (clé de debug de ton PC) : la ligne **SHA-256** de la variante **debug** de `gradle signingReport` (voir § 2 bis, étape 4).
+4. Hostinger › ton site Node.js › **Variables d'environnement** : `ASSETLINKS_SHA256` = les empreintes séparées par des virgules, par exemple `14:6D:E9:…:E5,FA:C6:17:…:9C` (les « : » sont facultatifs, majuscules ou minuscules). Enregistre, puis redéploie.
+5. Vérifie dans un navigateur : https://manaorbit.app/.well-known/assetlinks.json affiche `app.manaorbit` et tes empreintes (sans la variable : `{"error":"not_found"}`). Le journal du serveur dit « App Links Android : … 2 empreintes SHA-256 » ; une empreinte mal copiée y est signalée (« empreinte ignorée »).
+
+Ces empreintes ne sont pas secrètes (n'importe qui peut les lire dans ce fichier) ; la variable évite seulement de les écrire dans le dépôt. Le serveur écrit lui-même le fichier `assetlinks.json` (`Content-Type: application/json`, sans redirection) : rien d'autre à copier.
+
+**2. La nouvelle APK 1.0.5 (versionCode 6)**
+
+`git pull`, puis `npm run setup` depuis `android-app`, puis un `.aab` signé (§ 4.1) envoyé dans la Play Console (§ 4.3) ; pour un essai direct sur ton téléphone : **Run ▶**. Seuls changements natifs : le filtre de liens de `MainActivity` (`AndroidManifest.xml`) et un lien qui n'est plus rejoué quand l'appli est rouverte depuis les applis récentes (`MainActivity.java`, `ManaOrbitPlugin.forget`).
+
+Android vérifie le site **à l'installation et à chaque mise à jour** de l'appli : mets la variable **avant** d'installer la 1.0.5. Appli déjà installée avant ? Téléphone branché : `adb shell pm verify-app-links --re-verify app.manaorbit`, ou désinstalle puis réinstalle l'appli.
+
+**3. Vérifier sur le téléphone**
+
+- **Paramètres › Applications › Mana Orbit › Ouvrir par défaut** (le nom varie selon le téléphone) : « Ouvrir les liens compatibles » activé, `manaorbit.app` parmi les liens vérifiés.
+- Téléphone branché : `adb shell pm get-app-links app.manaorbit` affiche `manaorbit.app: verified`.
+- Essai : sur un autre téléphone, Échange › **QR code** (ou le widget « QR code d'échange ») ; scanne-le avec l'appareil photo ou Google Lens : Mana Orbit s'ouvre sur la liste d'échange.
+
+**Ce que fait l'appli** (`src/applink.js`) :
+
+- appli fermée : elle démarre directement sur la page du lien (écran de lancement court, comme dans le navigateur) ;
+- appli ouverte : la page du lien s'ouvre sans recharger l'appli (un scan ou une saisie en cours restent là) ;
+- seule la page de l'appli (`https://manaorbit.app/` et ses paramètres) est prise : `/privacy`, `/legal` et `/admin` restent dans le navigateur, et aucune autre adresse ne s'ouvre jamais dans l'appli ;
+- Capacitor seul ouvrirait toujours l'accueil (`server.url`) : c'est le site qui lit le lien, par `@capacitor/app` (`App.getLaunchUrl()` au lancement, événement `appUrlOpen` appli ouverte) ;
+- appli rouverte depuis les applis récentes, ou relancée par Android après avoir été fermée en arrière-plan : le dernier lien n'est pas rejoué.
+
+**Sans vérification** (variable absente ou fausse, APK 1.0.4 ou plus ancienne, lecteur de QR code qui ouvre lui-même les liens dans son propre navigateur) : le lien s'ouvre dans le navigateur. Sur Android, le site y affiche en bas une petite barre **« Ouvrir dans l'appli Mana Orbit »** (une adresse `intent://` qui vise l'appli par son nom de paquet : elle ouvre la 1.0.5 même sans vérification ; sans l'appli, ou avec une APK plus ancienne, elle mène à la fiche Play) et **« Pas encore l'appli ? L'installer »**. ✕ la ferme jusqu'à la fin de la session de l'onglet ; jamais dans l'appli, sur iPhone ou sur ordinateur. Adresse de la fiche : `PLAY_URL` dans `src/help.js` (pendant le test fermé, la fiche n'est visible que des testeurs : remplace-la au besoin par le lien d'inscription au test).
+
 ---
 
 ## 4. Publier sur le Play Store
@@ -272,6 +310,7 @@ Bon à savoir :
 | Connexion Google | `@capacitor-firebase/authentication` | fait : sélecteur de compte natif, jamais le navigateur (voir 2 bis pour Firebase) |
 | Widget (valeur de la collection) | plugin local `ManaOrbit` (Java, dans `android/app`) | fait : lit la valeur que l'appli lui laisse (voir « Widget », étape 3) |
 | Widget « QR code d'échange » | plugin local `ManaOrbit` (`TradeWidget.java`) | fait : QR code du lien d'échange envoyé par le site (voir « Widget « QR code d'échange » ») |
+| Liens manaorbit.app (App Links) | `@capacitor/app` + filtre `autoVerify` de `MainActivity` | APK 1.0.5 : liens `?p=`, `?troc=` ouverts dans l'appli (voir « Liens manaorbit.app ouverts dans l'appli » ; variable `ASSETLINKS_SHA256`) |
 | Bouton Retour | `@capacitor/app` | fait : ferme l'écran ouvert ; sur l'accueil, deux appuis mettent l'appli en arrière-plan |
 | Page hors ligne | `android-app/www/index.html` | fait : « Mana Orbit a besoin d'Internet… » si le site ne répond pas au lancement |
 | Diagnostic | plugin local `ManaOrbit` (Firebase, version) | en bas de **Réglages**, la ligne « Version … · APK : » montre ✓ ou ✗ pour chaque plugin (caméra, ML Kit, Google, pub, notif, widget, retour), Firebase et la version de l'APK |
@@ -301,6 +340,11 @@ Bon à savoir :
   2. En bas de **Réglages**, la ligne « APK : » doit montrer **✓Google**, et ✓ pour Firebase. Firebase ✗ : `google-services.json` manque ou est vide (§ 2 bis).
   3. Le sélecteur s'ouvre mais la connexion échoue : dans Firebase, **Paramètres du projet** › ton appli Android doit avoir le SHA-1 de chaque clé qui signe l'appli : debug (ton PC, § 2 bis étape 4), ta clé `.jks` et la clé de signature Play (les deux dans Play Console › **Intégrité de l'application**). Attends quelques minutes après un ajout.
   4. Pour lire l'erreur exacte : onglet **Logcat** en bas d'Android Studio, filtre `package:mine`, puis cherche `FirebaseAuthentication` ou `Capacitor/Console`.
+- **Un lien manaorbit.app (QR code d'échange) s'ouvre dans le navigateur, pas dans l'appli** :
+  1. En bas de **Réglages**, la ligne « APK : » doit montrer la version **1.0.5** ou plus.
+  2. https://manaorbit.app/.well-known/assetlinks.json doit afficher tes empreintes : sinon, `ASSETLINKS_SHA256` manque ou est mal copiée sur Hostinger (le journal du serveur le dit).
+  3. Empreintes ajoutées après l'installation : `adb shell pm verify-app-links --re-verify app.manaorbit`, ou réinstalle l'appli. Puis **Paramètres › Applications › Mana Orbit › Ouvrir par défaut** : « Ouvrir les liens compatibles » activé.
+  4. En attendant, la barre « Ouvrir dans l'appli Mana Orbit » en bas de la page du navigateur ouvre l'appli.
 - **L'appli affiche « Mana Orbit a besoin d'Internet »** : le téléphone n'avait pas de réseau au lancement. Reconnecte-toi puis rouvre l'appli.
 
 ---
