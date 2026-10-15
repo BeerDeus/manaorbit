@@ -196,6 +196,20 @@ function plcClick(e) {
   return true;
 }
 
+/** Import (CSV ManaBox avec « Binder Name ») : classeurs → emplacements (même nom qu'un emplacement existant : celui-là), cartes rangées dedans. Rend les cartes à ajouter. */
+function plcImport(parsed) {
+  const P = parsed && parsed.places; if (!P || !Object.keys(P).length) return parsed.items;
+  const ids = {}, next = { ...COLL.places };
+  for (const [id, x] of Object.entries(P)) {
+    const same = Object.keys(next).find(k => next[k].n.toLowerCase() === x.n.toLowerCase() && (next[k].t === 'deck') === (x.t === 'deck'));
+    if (same) { ids[id] = same; continue; }
+    let nid = id; while (next[nid]) nid = placeNewId();
+    const v = placeNorm(x); if (v) { next[nid] = v; ids[id] = nid; }
+  }
+  COLL.places = next;
+  return parsed.items.map(it => collFromLines(it, collLines(it).map(([g, q]) => { const p = linePlace(g); return [p ? lineSet(g, { p: ids[p] || '' }) : g, q]; })));
+}
+
 /* ── Mes proxys : liste à part (jamais dans la valeur, l'échange, les stats ni le widget) ───────────────────────────────────────── */
 function proxAdd(items) {      // items : [{ k, n, q, l (clé de ligne) }]
   COLL.prox = mergeColl(COLL.prox, items, 'add'); collChanged();

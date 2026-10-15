@@ -67,5 +67,7 @@
 "À aller chercher": "To fetch",
 "Boîte": "Box",
 "À vendre": "For sale",
-"Autre": "Other"
+"Autre": "Other",
+"{n} classeur rangé en emplacement": "{n} binder stored as a location",
+"{n} classeurs rangés en emplacements": "{n} binders stored as locations"
 }

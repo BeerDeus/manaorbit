@@ -32,7 +32,8 @@ test('ManaBox : éditions, langues (ja, zh_CN, ko inconnue), noms avec virgule, 
 test('ManaBox avec classeurs : les cartes des listes (souhaits) ne sont pas importées, celles des classeurs oui', () => {
   const r = parse('manabox-binders.csv');
   assert.equal(r.listed, 1, 'la liste « Ma liste de souhaits » (Binder Type = list) est laissée de côté');
-  assert.deepEqual(sum(r), ['Lightning Bolt | 2 | fr|m10|146:2', 'Counterspell | 1 | en|mh2|267:1', 'Edgar Markov | 1 | en|c17|36*:1']);
+  assert.deepEqual(Object.values(r.places).map(x => x.n).sort(), ['Classeur rouge', 'Deck Edgar'], 'deux classeurs : deux emplacements (créés à l\'import par places.js)');
+  assert.deepEqual(sum(r).map(x => x.replace(/#p(i[a-z0-9]+)/, (m, id) => ' @' + r.places[id].n)), ['Lightning Bolt | 2 | fr|m10|146 @Classeur rouge:2', 'Counterspell | 1 | en|mh2|267 @Classeur rouge:1', 'Edgar Markov | 1 | en|c17|36* @Deck Edgar:1']);
   assert.ok(!r.items.some(x => x.n === 'The One Ring'));
 });
 

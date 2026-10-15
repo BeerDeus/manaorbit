@@ -1037,7 +1037,7 @@ function parseCollection(text, o) {
   const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/);
   let i0 = 0; while (i0 < lines.length && (!lines[i0].trim() || /^"?sep=.?"?$/i.test(lines[i0].trim()))) i0++;      // « sep=, » (Excel), entre guillemets chez Dragon Shield
   const first = lines[i0] || '';
-  let delim = null, nameCol = -1, qtyCol = -1, foilCol = -1, flagCol = -1, langCol = -1, setCol = -1, setCode = false, numCol = -1, listCol = -1, condCol = -1;
+  let delim = null, nameCol = -1, qtyCol = -1, foilCol = -1, flagCol = -1, langCol = -1, setCol = -1, setCode = false, numCol = -1, listCol = -1, condCol = -1, binCol = -1;
   for (const d of [',', ';', '\t']) {
     const cols = csvSplit(first, d).map(colNorm);
     if (cols.length < 2) continue;
@@ -1050,9 +1050,10 @@ function parseCollection(text, o) {
     if (qtyCol < 0) qtyCol = cols.findIndex(c => /(quantity|qty|count)/.test(c) && !/(trade|tradelist|wish|foil)/.test(c));      // « QuantityX » de Delver Lens (valeurs « 2x »)
     foilCol = cols.findIndex(c => FOIL_QTY_RE.test(c)); if (foilCol === qtyCol) foilCol = -1;
     for (const want of FOIL_FLAG_COLS) { const i = cols.indexOf(want); if (i >= 0 && i !== qtyCol && i !== foilCol) { flagCol = i; break; } }
-    listCol = cols.indexOf('binder type'); condCol = cols.findIndex(c => COND_COLS.includes(c));
+    listCol = cols.indexOf('binder type'); condCol = cols.findIndex(c => COND_COLS.includes(c)); binCol = cols.indexOf('binder name');
     break;
   }
+  const bins = new Map();      // classeurs ManaBox (« Binder Name ») : id d'emplacement (même nom → même id) → { t, n }
   const map = new Map(), fr = !!(o && o.fr && FRX.ix), dl = (o && cardLang(o.lang)) || '', amb = []; let n = 0, skipped = 0, nfr = 0, listed = 0;
   const add = (name, q, l, d, e, f, a) => {
     name = String(name || '').trim(); q = Math.max(1, Math.min(9999, Math.round(q) || 1));
@@ -1074,7 +1075,9 @@ function parseCollection(text, o) {
       const fq = foilCol >= 0 ? parseInt(c[foilCol], 10) || 0 : 0;      // « Reg Qty » + « Foil Qty » (Decked Builder) : les foil sur leur propre ligne
       if (foilCol >= 0) { q = Number.isFinite(q) ? q : 0; if (!q && !fq) q = 1; }
       const lr = langCol >= 0 ? String(c[langCol] || '').trim() : '', l = lr ? cardLang(lr) || '-' : '';      // « Korean », « Phyrexian » : langue donnée mais absente de l'appli → non précisée, pas la langue choisie pour les autres lignes
-      const e = setCol >= 0 && numCol >= 0 ? edKey(csvSetCode(c[setCol], setCode), c[numCol]) : '', f = flagCol >= 0 && csvFoil(c[flagCol]), cd = condCol >= 0 ? csvCond(c[condCol]) : '', a = cd && cd !== 'nm' ? { c: cd } : null;      // « Near Mint » : la valeur par défaut des exports, pas un détail
+      const e = setCol >= 0 && numCol >= 0 ? edKey(csvSetCode(c[setCol], setCode), c[numCol]) : '', f = flagCol >= 0 && csvFoil(c[flagCol]), cd = condCol >= 0 ? csvCond(c[condCol]) : '', bn = binCol >= 0 ? placeName(c[binCol]) : '', pid = bn ? 'i' + hash32(bn.toLowerCase()).toString(36) : '';
+      if (pid && !bins.has(pid)) bins.set(pid, { t: listCol >= 0 && /^\s*deck\s*$/i.test(c[listCol] || '') ? 'deck' : 'binder', n: bn });
+      const a = cd && cd !== 'nm' ? { c: cd, ...(pid ? { p: pid } : {}) } : pid ? { p: pid } : null;      // « Near Mint » : la valeur par défaut des exports, pas un détail
       if (q || foilCol < 0) add(name, q || 1, l, 0, e, f, a);
       if (fq) add(name, fq, l, 0, e, true, a);
     }
@@ -1090,8 +1093,10 @@ function parseCollection(text, o) {
       add(p.name, p.qty, p.lang, d, e, !!p.foil, a);
     }
   }
-  const items = [...map.values()].map(({ b, ...base }) => collFromLines(base, [...b]));
-  return { items, lines: n, skipped, listed, format: delim ? 'csv' : 'text', copies: items.reduce((a, x) => a + x.q, 0), fr: nfr, amb };
+  let items = [...map.values()].map(({ b, ...base }) => collFromLines(base, [...b]));
+  if (bins.size === 1) items = items.map(x => collFromLines(x, collLines(x).map(([g, q]) => [lineSet(g, { p: '' }), q])));      // un seul classeur : rien de rangé (tout au même endroit)
+  const places = bins.size > 1 ? Object.fromEntries(bins) : {};
+  return { items, lines: n, skipped, listed, format: delim ? 'csv' : 'text', copies: items.reduce((a, x) => a + x.q, 0), fr: nfr, amb, places };
 }
 
 /** Export CSV au format Moxfield (« Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number ») : relu par Moxfield, ManaBox, Archidekt, Deckbox… et par cette appli.

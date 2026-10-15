@@ -113,3 +113,14 @@ test('mergeColl : exemplaire rangé sans langue → langue de la carte', () => {
   const m = C.mergeColl({ 'sol ring': { n: 'Sol Ring', q: 2, l: 'fr' } }, [{ k: 'sol ring', n: 'Sol Ring', q: 1, l: '#pa1' }], 'add', 1);
   assert.deepEqual(m['sol ring'].x, { fr: 2, 'fr#pa1': 1 });
 });
+
+test('import ManaBox : classeurs → emplacements (un seul classeur : rien de rangé)', () => {
+  const head = 'Binder Name,Binder Type,Name,Set code,Collector number,Quantity,Condition,Language\n';
+  const r = C.parseCollection(head + 'Rouge,binder,Sol Ring,CMM,400,2,near_mint,English\nBleu,binder,Sol Ring,CMM,400,1,excellent,English\nAtraxa,deck,Arcane Signet,CMM,380,1,near_mint,French\nSouhaits,list,Mana Crypt,2XM,270,1,near_mint,English');
+  const ids = Object.keys(r.places); assert.equal(ids.length, 3); assert.equal(r.listed, 1, 'liste de souhaits laissée de côté');
+  const red = ids.find(k => r.places[k].n === 'Rouge'), blue = ids.find(k => r.places[k].n === 'Bleu'), dk = ids.find(k => r.places[k].n === 'Atraxa');
+  assert.equal(r.places[dk].t, 'deck'); assert.match(red, /^i[a-z0-9]{1,11}$/);
+  assert.deepEqual(r.items.find(x => x.n === 'Sol Ring').x, { [`en|cmm|400#p${red}`]: 2, [`en|cmm|400#p${blue}-cex`]: 1 });
+  const one = C.parseCollection(head + 'Ma collection,binder,Sol Ring,CMM,400,2,near_mint,English\nMa collection,binder,Arcane Signet,CMM,380,1,good,French');
+  assert.deepEqual(one.places, {}); assert.deepEqual(one.items.find(x => x.n === 'Arcane Signet').x, { 'fr|cmm|380#cgd': 1 }, 'un seul classeur : état gardé, pas d\'emplacement');
+});

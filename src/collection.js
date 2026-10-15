@@ -1303,7 +1303,7 @@ function openCollImport(initial) {
       if (!parsed) { go.textContent = T('Importer'); return; }
       if (!parsed.items.length) { sum.className = 'ci-sum bad'; sum.textContent = parsed.format === 'csv' ? T('Aucune carte lue dans ce CSV : il faut une colonne « Name » (ou « Nom »).') : T('Aucune ligne reconnue. Une carte par ligne : « 3 Sol Ring ».'); return; }
       const rep = mode() === 'replace' && collCount();
-      sum.className = 'ci-sum'; sum.innerHTML = `<div>${TN(parsed.items.length, '<b>{n}</b> carte différente', '<b>{n}</b> cartes différentes')} · ${TN(parsed.copies, '<b>{n}</b> exemplaire', '<b>{n}</b> exemplaires')}</div><span>${parsed.format === 'csv' ? T('Fichier CSV') : T('Liste texte')}${parsed.fr ? ' · ' + (FRX.l === 'fr' ? TN(parsed.fr, '{n} nom français reconnu', '{n} noms français reconnus') : TN(parsed.fr, '{n} nom en {lang} reconnu', '{n} noms en {lang} reconnus', { lang: LANGS[FRX.l] || FRX.l })) : ''}${parsed.skipped ? ' · ' + TN(parsed.skipped, '{n} ligne ignorée', '{n} lignes ignorées') : ''}${parsed.listed ? ' · ' + TN(parsed.listed, '{n} carte d\'une liste ManaBox (souhaits) laissée de côté', '{n} cartes de listes ManaBox (souhaits) laissées de côté') : ''}${rep ? ' · ' + T('remplace les {n} cartes actuelles', { n: nf0(collCount()) }) : ''}</span>`;      // un bloc par ligne : la carte .ci-sum est une colonne flex
+      sum.className = 'ci-sum'; sum.innerHTML = `<div>${TN(parsed.items.length, '<b>{n}</b> carte différente', '<b>{n}</b> cartes différentes')} · ${TN(parsed.copies, '<b>{n}</b> exemplaire', '<b>{n}</b> exemplaires')}</div><span>${parsed.format === 'csv' ? T('Fichier CSV') : T('Liste texte')}${parsed.fr ? ' · ' + (FRX.l === 'fr' ? TN(parsed.fr, '{n} nom français reconnu', '{n} noms français reconnus') : TN(parsed.fr, '{n} nom en {lang} reconnu', '{n} noms en {lang} reconnus', { lang: LANGS[FRX.l] || FRX.l })) : ''}${parsed.skipped ? ' · ' + TN(parsed.skipped, '{n} ligne ignorée', '{n} lignes ignorées') : ''}${parsed.listed ? ' · ' + TN(parsed.listed, '{n} carte d\'une liste ManaBox (souhaits) laissée de côté', '{n} cartes de listes ManaBox (souhaits) laissées de côté') : ''}${parsed.places && Object.keys(parsed.places).length ? ' · ' + TN(Object.keys(parsed.places).length, '{n} classeur rangé en emplacement', '{n} classeurs rangés en emplacements') : ''}${rep ? ' · ' + T('remplace les {n} cartes actuelles', { n: nf0(collCount()) }) : ''}</span>`;      // un bloc par ligne : la carte .ci-sum est une colonne flex
       go.textContent = TN(parsed.items.length, 'Importer {n} carte', 'Importer {n} cartes');
       // noms que Scryfall ne connaîtra pas (catalogue des noms anglais + index français) : signalés avant l'import, corrigeables après
       if (!COLL.names) { if (!catAsked) { catAsked = true; collCatalog().then(() => { if (ta.isConnected) paint(); }).catch(() => {}); } return; }
@@ -1323,8 +1323,8 @@ function openCollImport(initial) {
     };
     go.onclick = () => {
       if (!parsed || !parsed.items.length) return;
-      const before = COLL.map, m = mode(), n = parsed.items.length, undo = () => { COLL.map = before; collChanged(); };
-      collAdd(parsed.items, m); api.close(); haptic('ok'); FRN.on.delete(onFr);
+      const before = COLL.map, pl0 = COLL.places, m = mode(), n = parsed.items.length, undo = () => { COLL.map = before; COLL.places = pl0; collChanged(); };
+      collAdd(typeof plcImport === 'function' ? plcImport(parsed) : parsed.items, m); api.close(); haptic('ok'); FRN.on.delete(onFr);      // classeurs ManaBox → emplacements (places.js)
       toast(m === 'replace' ? TN(n, '{n} carte dans ta collection', '{n} cartes dans ta collection') : TN(n, '{n} carte ajoutée', '{n} cartes ajoutées'), { label: T('Annuler'), fn: undo });
       collEnrich();
       if (n >= GLANCE_MIN) setTimeout(() => openCollGlance(n, m, undo), reduceMotion() ? 0 : 480);      // après la fermeture de l'import ; l'annulation reste possible depuis le coup d'œil
