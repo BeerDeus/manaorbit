@@ -1859,7 +1859,7 @@ async function trocApi(req, res, path, url) {
    Public comme les catalogues eux-mêmes, lecture seule, budget par IP. Index construit à la première recherche, par tranches (le serveur continue de
    répondre) : ≈ 7 Mo de tas par langue, ≈ 35 Mo pour les cinq (mesuré : le processus prend ≈ 100 à 170 Mo de plus à la première recherche, tas réservé
    par V8 compris) ; libéré après NAMES_IDLE_MIN minutes sans recherche (30), relu si le fichier change. NAMES_FIND=0 : coupé. NAMES_RATE_PER_MIN : 60 par IP. */
-const NM_FILES = { fr: 'fr-names.tsv', de: 'names-de.tsv', es: 'names-es.tsv', it: 'names-it.tsv', pt: 'names-pt.tsv' };      // liste fermée : aucun chemin construit depuis la requête
+const NM_FILES = { fr: 'fr-names.tsv', de: 'names-de.tsv', es: 'names-es.tsv', it: 'names-it.tsv', pt: 'names-pt.tsv', ru: 'names-ru.tsv' };      // liste fermée : aucun chemin construit depuis la requête
 let NM_CORE = null; try { NM_CORE = createRequire(import.meta.url)('./src/core.js'); } catch (e) { /* sources absentes : recherche coupée (503), l'appli fait sans */ }
 const NM_ON = process.env.NAMES_FIND !== '0' && !!(NM_CORE && NM_CORE.nmCat && NM_CORE.nmPick);
 const PUB_ON = process.env.PUBDECKS !== '0' && FCM_ON && !!(NM_CORE && NM_CORE.pubClean);      // decks publics : compte de service et lecteur (core.js) présents

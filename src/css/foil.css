@@ -1,0 +1,26 @@
+/* ── foil.css : exemplaires foil (ligne de la collection, feuille d'édition, ajout par lot) ── */
+.tag.foil{background:linear-gradient(100deg,#ffe29a 0%,#ffb3e6 35%,#9ad7ff 70%,#c8ffd9 100%);color:#2a2238;font-weight:700}
+@media (prefers-color-scheme:dark){.tag.foil{color:#1a1526}}
+.row-ed.foil{position:relative}
+.row-ed.foil::before{content:"✦";position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#ffe29a,#ffb3e6 50%,#9ad7ff);color:#2a2238;font-size:10px;line-height:16px;text-align:center;box-shadow:0 0 0 2px var(--surface);pointer-events:none}
+.ced-foil{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-3);cursor:pointer}
+.ced-foil-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ced-foil-t b{font-size:14px;font-weight:650}
+.ced-foil-t small{font-size:11.5px;color:var(--ink-3)}
+.lot-foil{display:flex;align-items:center;padding:0;border:0;background:none;cursor:pointer}
+.lot-foil .switch{pointer-events:none}
+.lot-foil[aria-checked="true"] .switch i{background:var(--accent);border-color:var(--accent)}
+.lot-foil[aria-checked="true"] .switch i::after{transform:translateX(18px)}
+.lot-foil:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:99px}
+/* aperçu en grand d'un exemplaire foil : voile irisé qui glisse + étincelles qui scintillent, par-dessus l'image (sous le reflet du tilt) */
+.imgv-card.foil::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;border-radius:inherit;mix-blend-mode:screen;opacity:.55;
+  background:linear-gradient(115deg,transparent 20%,rgba(255,143,195,.5) 35%,rgba(255,224,138,.55) 45%,rgba(154,215,255,.55) 55%,rgba(200,255,217,.5) 65%,transparent 80%);background-size:260% 260%;
+  animation:foilsheen 4.8s ease-in-out infinite alternate}
+.foil-stars{display:none}
+.imgv-card.foil .foil-stars{display:block;position:absolute;inset:0;z-index:1;pointer-events:none;border-radius:inherit;overflow:hidden}
+.imgv-card.foil .foil-stars i{position:absolute;left:var(--x);top:var(--y);width:var(--s);height:var(--s);color:#fff;opacity:0;filter:drop-shadow(0 0 4px rgba(255,255,255,.9));animation:foilstar var(--d) ease-in-out var(--w) infinite}
+.imgv-card.foil .foil-stars i::before,.imgv-card.foil .foil-stars i::after{content:"";position:absolute;inset:0;background:currentColor;clip-path:polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%)}
+.imgv-card.foil .foil-stars i::after{transform:rotate(45deg) scale(.55);opacity:.7}
+@keyframes foilsheen{from{background-position:0% 0%}to{background-position:100% 100%}}
+@keyframes foilstar{0%,100%{opacity:0;transform:scale(.3) rotate(0deg)}50%{opacity:1;transform:scale(1) rotate(25deg)}}
+@media (prefers-reduced-motion:reduce){.imgv-card.foil::before{animation:none;background-position:50% 50%}.imgv-card.foil .foil-stars{display:none}}

@@ -275,7 +275,7 @@ test('parseLine : vide, ignorée, carte (suffixes retirés)', () => {
   assert.equal(C.parseLine('   '), undefined);
   assert.deepEqual(C.parseLine('Commander'), { ignored: true, quiet: true });
   assert.deepEqual(C.parseLine('// note'), { ignored: true, quiet: true });
-  assert.deepEqual(C.parseLine('2x Sol Ring (CMM) 400 *F*'), { qty: 2, name: 'Sol Ring', key: 'sol ring' });
+  assert.deepEqual(C.parseLine('2x Sol Ring (CMM) 400 *F*'), { qty: 2, name: 'Sol Ring', key: 'sol ring', foil: 1 });
   assert.deepEqual(C.parseLine('Æther Vial'), { qty: 1, name: 'Æther Vial', key: 'aether vial' }, 'Æ → ae, comme « Aether Vial »');
 });
 
@@ -653,7 +653,7 @@ test('collection : édition par ligne (langue + extension + numéro) : texte, CS
   const t = C.parseCollection('2 Sol Ring (CMM) 400 *FR*\n1 Sol Ring *FR*\n1 Sol Ring (C21) 263 (Dh7zqkx) *EN*\n4 Swords to Plowshares (STA) 10 *F*', { dates: true });
   const sr = t.items.find(i => i.n === 'Sol Ring');
   assert.deepEqual(sr.x, { fr: 1, 'fr|cmm|400': 2, 'en|c21|263': 1 }); assert.equal(sr.l, 'fr'); assert.equal(sr.q, 4); assert.ok(sr.d > 0, 'date lue derrière l\'édition');
-  assert.deepEqual(t.items.find(i => /Swords/.test(i.n)).x, { '|sta|10': 4 }, 'Moxfield « *F* » : édition gardée, sans langue');
+  assert.deepEqual(t.items.find(i => /Swords/.test(i.n)).x, { '|sta|10*': 4 }, 'Moxfield « *F* » : édition gardée, foil, sans langue');
   assert.deepEqual(C.collLines(sr), [['fr', 1], ['fr|cmm|400', 2], ['en|c21|263', 1]], 'ordre : langue, sans édition, éditions');
   const coll = { 'sol ring': { n: 'Sol Ring', q: 3, l: 'fr', x: { fr: 1, 'fr|cmm|400': 2 }, d: 1700000000 }, 'arcane signet': { n: 'Arcane Signet', q: 1, x: { '|cmm|380': 1 }, d: 1700000001 } };
   const txt = C.collToText(coll, true);
@@ -870,16 +870,16 @@ test('gen-names-all.mjs : une ligne par nom anglais, une colonne par langue, nom
   const { namesAll, ALL_LANGS } = await import('../gen-names-all.mjs'), texts = await NM_FIX();
   assert.deepEqual(ALL_LANGS, C.NAMES_LANGS, 'mêmes langues que l\'appli');
   const { text, lines } = namesAll({ ...texts, fr: 'Foudre\tLightning Bolt\tx.jpg\n' }), rows = text.split('\n');
-  assert.equal(rows[0], '# anglais\tfr\tde\tes\tit\tpt', 'langues des colonnes'); assert.equal(rows.length - 2, lines); assert.equal(rows[rows.length - 1], '', 'fin de ligne finale');
+  assert.equal(rows[0], '# anglais\tfr\tde\tes\tit\tpt\tru', 'langues des colonnes'); assert.equal(rows.length - 2, lines); assert.equal(rows[rows.length - 1], '', 'fin de ligne finale');
   const by = Object.fromEntries(rows.slice(1, -1).map(r => [r.split('\t')[0], r.split('\t').slice(1)]));
-  assert.deepEqual(by['Lightning Bolt'], ['', 'Blitzschlag', 'Relámpago', 'Fulmine', 'Raio'], 'français tronqué (< 500 lignes) : colonne vide');
+  assert.deepEqual(by['Lightning Bolt'], ['', 'Blitzschlag', 'Relámpago', 'Fulmine', 'Raio', ''], 'français tronqué (< 500 lignes) : colonne vide');
   assert.deepEqual(by['Edgar Markov'], undefined, 'même nom dans toutes les langues : rien à chercher ailleurs (le catalogue anglais le lit)');
-  assert.deepEqual(by.Famine, undefined); assert.deepEqual(by['Swords to Plowshares'], ['', 'Schwerter zu Pflugscharen', 'Espadas en guadañas', 'Da Spade a Spighe!', 'Espadas em Arados']);
-  assert.deepEqual(by['Vrombl Card 7'], ['', 'Vrombl de 7 Quarnax', 'Vrombl es 7 Quarnax', 'Vrombl it 7 Quarnax', 'Vrombl pt 7 Quarnax']);
+  assert.deepEqual(by.Famine, undefined); assert.deepEqual(by['Swords to Plowshares'], ['', 'Schwerter zu Pflugscharen', 'Espadas en guadañas', 'Da Spade a Spighe!', 'Espadas em Arados', '']);
+  assert.deepEqual(by['Vrombl Card 7'], ['', 'Vrombl de 7 Quarnax', 'Vrombl es 7 Quarnax', 'Vrombl it 7 Quarnax', 'Vrombl pt 7 Quarnax', '']);
   const keys = rows.slice(1, -1).map(r => r.split('\t')[0]); assert.deepEqual(keys, [...keys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)), 'trié par nom anglais');
   assert.equal(namesAll(texts).text, text, 'catalogue tronqué ignoré : même fichier qu\'en son absence');
   const two = namesAll({ it: texts.it + 'Fulmine Antico\tLightning Bolt\t\nFulmine\tLightning Bolt\t\n' }).text;
-  assert.match(two, /^Lightning Bolt\t\t\t\tFulmine\|Fulmine Antico\t$/m, 'plusieurs noms imprimés : « | », sans doublon, ordre du catalogue');
+  assert.match(two, /^Lightning Bolt\t\t\t\tFulmine\|Fulmine Antico\t\t$/m, 'plusieurs noms imprimés : « | », sans doublon, ordre du catalogue');
 });
 test('namesAllCats / nmMatch / nmPick : carte d\'une autre langue lue sur l\'appareil, même résultat que le serveur (names-*.tsv)', async () => {
   const { namesAll } = await import('../gen-names-all.mjs'), texts = await NM_FIX(), LS = ['de', 'es', 'it', 'pt'];
@@ -969,6 +969,13 @@ test('edhRank : possédées / manquantes / coût, basics ignorés, filtres et tr
   assert.deepEqual(byh['edgar-markov'].owned.filter(x => x.eg).map(x => [x.k, x.eg]).sort(), [['edgar markov', 1], ['fire', 1], ['sol ring', 1]], 'détail par carte (eg)');
   assert.equal(byh['tymna-thrasios'].eng, 1, 'Sol Ring seulement'); assert.equal(byh['tymna-thrasios'].have, 2);
   assert.equal(C.edhRank(d, qty, { sort: 'miss', held: k => 99 }).find(r => r.cmd.slug === 'edgar-markov').eng, 5, 'tout réservé : toutes les possédées sont engagées, jamais plus');
+  // recherche dans la langue des noms puis en anglais : alt(clé) = nom imprimé normalisé (« anneau solaire » trouve Sol Ring, « bolt » reste anglais)
+  const alt = k => ({ 'sol ring': 'anneau solaire', 'edgar markov': 'edgar markov', 'fire': 'feu glace' })[k] || '';
+  assert.ok(C.edhRank(d, qty, { q: 'anneau', qm: 'card', alt }).length > 0, 'nom français d\'une carte du deck'); assert.equal(C.edhRank(d, qty, { q: 'anneau', qm: 'card', alt }).length, C.edhRank(d, qty, { q: 'sol ring', qm: 'card', alt }).length);
+  assert.equal(C.edhRank(d, qty, { q: 'anneau', qm: 'card' }).length, 0, 'sans alt : anglais seul');
+  assert.deepEqual(C.edhRank(d, qty, { q: 'solaire', qm: 'card', alt })[0].hit.map(h => h[1]), ['Sol Ring'], 'la carte trouvée garde son nom anglais');
+  assert.ok(C.edhRank(d, qty, { q: 'glace', qm: 'card', alt }).some(r => r.hit.some(h => h[0] === 'fire')), 'face arrière du nom imprimé');
+  assert.equal(C.edhRank(d, qty, { q: 'edgar', qm: 'cmd', alt }).length, C.edhRank(d, qty, { q: 'edgar', qm: 'cmd' }).length, 'commandant : anglais toujours cherché');
   assert.deepEqual(rows.map(r => r.cmd.slug), ['edgar-markov', 'tymna-thrasios'], 'tri : moins de cartes manquantes d\'abord (22 contre 26) ; craterhoof : 1 carte seulement (< 20) → ignoré');
   // coût avec prix
   const pr = C.edhRank(d, k => 0, { sort: 'cost' }), e2 = pr.find(r => r.cmd.slug === 'edgar-markov'); assert.equal(e2.cost, 150 + 40 + 200 + 100, 'Sol Ring + Arcane Signet + Fire // Ice + Filler 0'); assert.equal(e2.missing[0].n, 'Fire // Ice', 'les plus chères d\'abord');
@@ -1411,4 +1418,40 @@ test('i18n : langues livrées seulement (dictionnaire présent), langue du tél�
     assert.equal(i18nPick({ nav: 'it-IT', robot: false, all }), 'en', 'italien pas encore livré : anglais');
   } finally { i18nPick({ nav: 'fr-FR', robot: true, all }); }
   assert.equal(TN(1, '{n} carte', '{n} cartes'), '1 carte'); assert.equal(TN(0, '{n} carte', '{n} cartes'), '0 carte', 'français : 0 et 1 au singulier');
+});
+
+test('foil : clé de ligne « * », texte « (FOIL) » (ancienne version : code d\'extension ignoré), CSV (Foil / Finish / Printing, Foil Qty), export, union, tri', () => {
+  assert.equal(C.lineKey('fr', 'cmm|400', true), 'fr|cmm|400*'); assert.equal(C.lineKey('fr', '', true), 'fr*'); assert.equal(C.lineKey('', '', true), '*'); assert.equal(C.lineKey('fr', 'cmm|400', false), 'fr|cmm|400');
+  assert.equal(C.lineLang('fr|cmm|400*'), 'fr'); assert.equal(C.lineEd('fr|cmm|400*'), 'cmm|400'); assert.ok(C.lineFoil('fr*')); assert.ok(C.lineFoil('*')); assert.ok(!C.lineFoil('fr|cmm|400')); assert.equal(C.lineLang('*'), ''); assert.equal(C.lineEd('*'), '');
+  // texte : « (FOIL) » avant l'édition ; *F* / *E* de Moxfield / ManaBox, dans n'importe quel ordre avec la langue
+  assert.deepEqual(C.parseLine('1 Sol Ring *F* *FR*'), { qty: 1, name: 'Sol Ring', key: 'sol ring', lang: 'fr', foil: 1 });
+  assert.deepEqual(C.parseLine('1 Sol Ring (CMM) 400 *FR* *E*'), { qty: 1, name: 'Sol Ring', key: 'sol ring', lang: 'fr', foil: 1 }, 'etched = foil');
+  assert.deepEqual(C.parseLine('2 Sol Ring (FOIL) *FR*'), { qty: 2, name: 'Sol Ring', key: 'sol ring', lang: 'fr', foil: 1 });
+  const t = C.parseCollection('2 Sol Ring (FOIL) (CMM) 400 (Dh7zqkx) *FR*\n1 Sol Ring (CMM) 400 *FR*\n3 Sol Ring (FOIL)\n1 Fire // Ice *F*', { dates: true });
+  const sr = t.items.find(i => i.n === 'Sol Ring');
+  assert.deepEqual(sr.x, { 'fr|cmm|400': 1, 'fr|cmm|400*': 2, '*': 3 }); assert.equal(sr.q, 6); assert.equal(sr.l, 'fr'); assert.ok(sr.d > 0);
+  assert.deepEqual(C.collLines(sr), [['fr|cmm|400', 1], ['fr|cmm|400*', 2], ['*', 3]], 'la foil après la non foil de la même édition ; sans langue en dernier');
+  assert.deepEqual(t.items.find(i => i.n === 'Fire // Ice').x, { '*': 1 }, 'une seule ligne foil sans édition : x gardé (sinon le foil se perdrait)');
+  const coll = {}; for (const it of t.items) coll[it.k] = { n: it.n, q: it.q, ...(it.l ? { l: it.l } : {}), ...(it.x ? { x: it.x } : {}), ...(it.d ? { d: it.d } : {}) };
+  const txt = C.collToText(coll, true);
+  assert.match(txt, /^1 Fire \/\/ Ice \(FOIL\)\n1 Sol Ring \(CMM\) 400 \(Dh7zqkx\) \*FR\*\n2 Sol Ring \(FOIL\) \(CMM\) 400 \(Dh7zqkx\) \*FR\*\n3 Sol Ring \(FOIL\) \(Dh7zqkx\)$/);
+  assert.deepEqual(C.collFromText(txt), coll, 'aller-retour exact');
+  // ancienne version (sans foil) : « (FOIL) » passe pour un code d'extension et s'ignore ; carte, quantité, édition et langue restent justes
+  const old = s => s.replace(/\s+\*([A-Za-z]+(?:-[A-Za-z]+)?)\*\s*$/, '').replace(/\s+\([A-Za-z0-9]{2,8}\)(\s+[A-Za-z0-9★-]+)?\s*$/, '').trim();
+  assert.equal(old('Sol Ring (FOIL) *FR*'), 'Sol Ring'); assert.equal(old('Sol Ring (FOIL)'), 'Sol Ring');
+  // CSV : colonne Foil (ManaBox foil / normal, Moxfield foil / vide, « true »), Finish (Archidekt), Printing (Dragon Shield, TCGplayer) ; « Foil Qty » : sa propre ligne
+  const csv = C.parseCollection('Count,Name,Edition,Language,Foil,Collector Number\n1,Sol Ring,cmm,French,foil,400\n2,Sol Ring,cmm,French,,400\n1,Sol Ring,cmm,English,etched,400\n1,Fellwar Stone,,English,true,');
+  assert.deepEqual(csv.items.find(i => i.n === 'Sol Ring').x, { 'fr|cmm|400': 2, 'fr|cmm|400*': 1, 'en|cmm|400*': 1 }); assert.deepEqual(csv.items.find(i => i.n === 'Fellwar Stone').x, { 'en*': 1 });
+  assert.deepEqual(C.parseCollection('Quantity,Name,Finish,Edition Code,Collector Number\n1,Sol Ring,Foil,cmm,410\n4,Llanowar Elves,Normal,dom,168').items.map(x => x.x || x.l || ''), [{ '|cmm|410*': 1 }, { '|dom|168': 4 }]);
+  assert.deepEqual(C.parseCollection('Quantity,Name,Printing,Set Code,Card Number\n1,Sol Ring,Foil,CMM,410').items[0].x, { '|cmm|410*': 1 });
+  assert.deepEqual(C.parseCollection('Name,Edition,Reg Qty,Foil Qty\nSol Ring,Commander Masters,0,2\nCounterspell,Modern Horizons 2,3,1\nOpt,M20,0,0').items.map(x => [x.n, x.q, x.x || x.l || '']), [['Sol Ring', 2, { '*': 2 }], ['Counterspell', 4, { '': 3, '*': 1 }], ['Opt', 1, '']]);
+  // export : colonne Foil « foil », relue par cette appli
+  const out = C.collToCsv(coll).trim().split('\n');
+  assert.equal(out[1], '1,0,Fire // Ice,,Near Mint,,foil,'); assert.equal(out[3], '2,0,Sol Ring,cmm,Near Mint,French,foil,400'); assert.equal(out[2], '1,0,Sol Ring,cmm,Near Mint,French,,400');
+  assert.deepEqual(C.parseCollection(C.collToCsv(coll)).items.find(i => i.n === 'Sol Ring').x, coll['sol ring'].x, 'export CSV relu');
+  // union : foil et non foil sont deux groupes ; mergeColl : une ligne foil a sa propre ligne
+  assert.deepEqual(C.unionLines([['fr*', 2], ['fr', 1]], [['fr|cmm|400*', 1]]), [['fr|cmm|400*', 1], ['fr*', 1], ['fr', 1]]);
+  assert.deepEqual(C.unionLines([['*', 2]], [['', 2]]), [['*', 2]], 'non précisées de l\'autre côté : les mêmes cartes, le foil en plus'); assert.deepEqual(C.unionLines([['*', 1]], [['', 3]]), [['*', 1], ['', 2]]);
+  const m = C.mergeColl({ 'sol ring': { n: 'Sol Ring', q: 1, l: 'fr' } }, [{ k: 'sol ring', n: 'Sol Ring', q: 1, x: { 'fr*': 1 } }], 'add', 1);
+  assert.deepEqual(m['sol ring'].x, { fr: 1, 'fr*': 1 });
 });

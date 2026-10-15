@@ -28,7 +28,11 @@ function lotInSet(prints, set, l) {
   return c.find(p => p.l === sl && !p.fx.length) || c.find(p => p.l === sl) || c.find(p => !p.fx.length) || c[0] || null;
 }
 /** Prix d'un exemplaire (centimes) : l'édition choisie, sinon le prix de référence de la carte ; null sans prix. */
-const lotEu = c => { if (c.pick) return c.pick.eu > 0 ? c.pick.eu : c.pick.ef > 0 ? c.pick.ef : null; const m = COLL.meta[c.k]; return m && m.eu > 0 ? m.eu : null; };
+const lotEu = c => {
+  const a = c.f ? 'ef' : 'eu', b = c.f ? 'eu' : 'ef';      // exemplaires foil : le prix foil, à défaut le normal
+  if (c.pick) return c.pick[a] > 0 ? c.pick[a] : c.pick[b] > 0 ? c.pick[b] : null;
+  const m = COLL.meta[c.k]; return m && m[a] > 0 ? m[a] : m && m.eu > 0 ? m.eu : null;
+};
 /** Grande image de la carte : l'édition choisie, sinon la dernière impression dans sa langue, sinon l'image anglaise de Scryfall. */
 function lotImg(c) {
   if (c.pick) return c.pick.urls[0] || c.pick.th;
@@ -51,7 +55,7 @@ async function lotMeta(keys) {
 /** Choisit une carte (suggestion touchée, ligne du lot à modifier) : impressions dans sa langue lues, puis extension collante appliquée si la carte y existe. */
 async function lotPick(n, p, o = {}) {
   const k = ownKey(n); if (!k) return;
-  const c = LOT.cur = { k, n, p: p || '', l: o.l !== undefined ? o.l : LOT.lang || (p && FRX.l !== 'en' ? FRX.l : ''), q: o.q || 1, e: o.e || '', im: o.im || '', pick: null, prints: null, err: '', id: ++LOT.seq };
+  const c = LOT.cur = { k, n, p: p || '', l: o.l !== undefined ? o.l : LOT.lang || (p && FRX.l !== 'en' ? FRX.l : ''), q: o.q || 1, e: o.e || '', f: !!o.f, im: o.im || '', pick: null, prints: null, err: '', id: ++LOT.seq };
   lotPaintCard(); frLoad();
   await lotPrints(c, !o.e);
   if (o.e && LOT.cur === c && c.prints) { const x = c.prints.find(y => edKey(y.set, y.num) === o.e); if (x) { c.pick = x; lotPaintCard(); } }
@@ -84,6 +88,7 @@ function lotPaintCard() {
       <button type="button" class="lot-ed${c.pick ? ' on' : ''}${c.auto ? ' auto' : ''}" data-act="ed"${c.prints && !c.prints.length ? ' disabled' : ''} aria-haspopup="dialog">${edBtn}<i aria-hidden="true">▾</i></button>
       ${c.err ? `<p class="hint lot-err">${esc(c.err)} <button class="link-btn" type="button" data-act="retry">${T('Réessayer')}</button></p>` : ''}
       <div class="lot-row"><span>${T('Quantité')}</span><span class="qstep"><button type="button" data-act="qm" aria-label="${T('Un de moins')}"${c.q <= 1 ? ' disabled' : ''}>−</button><b>${c.q}</b><button type="button" data-act="qp" aria-label="${T('Un de plus')}">+</button></span></div>
+      <div class="lot-row"><span>${T('Foil')} ✦</span><button type="button" class="lot-foil" data-act="foil" role="switch" aria-checked="${!!c.f}" aria-label="${T('Exemplaires foil')}"><span class="switch" aria-hidden="true"><i></i></span></button></div>
       <label class="lot-row lang"><span>${T('Langue')}</span><span class="sel"><select class="lot-lang" aria-label="${T('Langue des exemplaires ajoutés')}"><option value="">${T('Celle de la carte')}</option>${CARD_LANG_LIST.map(x => { const t = T(LANGS[x]); return `<option value="${x}"${x === c.l ? ' selected' : ''}>${esc(t[0].toUpperCase() + t.slice(1))}</option>`; }).join('')}</select></span></label>
       <div class="lot-go"><button class="btn" type="button" id="lotAdd" data-act="add">${edit ? T('Enregistrer') : '+ ' + T('Ajouter')}</button>${edit ? `<button class="btn ghost" type="button" data-act="cancel">${T('Annuler')}</button>` : ''}</div>
     </div>`;
@@ -110,7 +115,7 @@ function lotEdSheet() {
   });
 }
 /** Ligne (clé langue|édition) où vont les exemplaires de la carte choisie. */
-const lotLine = c => lineKey(lotLangOf(c), c.e);
+const lotLine = c => lineKey(lotLangOf(c), c.e, !!c.f);
 /** « Ajouter » (ou « Enregistrer » une ligne du lot modifiée) : la collection, puis le lot. */
 function lotAdd() {
   const c = LOT.cur; if (!c) return;
@@ -249,6 +254,7 @@ function openLot() {
     else if (act === 'retry' && c) lotPrints(c, !c.e);
     else if (act === 'qm' && c && c.q > 1) { c.q--; haptic('tap'); lotPaintCard(); }
     else if (act === 'qp' && c && c.q < 99) { c.q++; haptic('tap'); lotPaintCard(); }
+    else if (act === 'foil' && c) { c.f = !c.f; haptic('tap'); lotPaintCard(); }
     else if (act === 'add') lotAdd();
     else if (act === 'cancel') { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
     else if (act === 'zoom' && c) openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : lotImg(c), big: lotImg(c), lang: c.pick ? ({ ja: 'jp', zhs: 'zh-CN' }[c.pick.l] || c.pick.l) : 'en', plain: true, extra: '' }], 0);
@@ -263,7 +269,7 @@ function openLot() {
       const row = b.closest('.lot-it'), x = row && LOT.list.find(y => y.id === row.dataset.id); if (!x) return;
       if (act === 'drop') return lotDrop(x.id);
       haptic('tap'); LOT.edit = x.id; inp.value = x.p || x.n;
-      lotPick(x.n, x.p, { l: lineLang(x.g), q: x.q, e: lineEd(x.g), im: x.im });
+      lotPick(x.n, x.p, { l: lineLang(x.g), q: x.q, e: lineEd(x.g), f: lineFoil(x.g), im: x.im });
       $('.lot-card', wrap).scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' });
     }
   });

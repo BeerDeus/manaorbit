@@ -24,7 +24,7 @@ const EN = merged('en');
 // Game Changer, Tier…), mots identiques dans la langue. '*' : toutes les langues ; sinon la liste d'une langue. Un texte sans lettre ({a} → {b}, {n} %) passe toujours.
 const SAME = {
   '*': ['Mana Orbit', 'OK', 'Commander', 'cEDH', 'Archidekt', 'Game Changer', '{n} Game Changer', '{n} Game Changers', 'Planeswalkers', 'Deck', 'Decks', 'deck', '{n} deck', '{n} decks',
-    'Tier', 'Tier {t}', 'tier {t}', 'Premium', 'Budget', 'Widget', 'Auto', 'Cache', 'Vibration', 'web', 'Version {v}', 'non-foil', 'Format', 'Stats', 'Standard', 'QR code'],
+    'Tier', 'Tier {t}', 'tier {t}', 'Premium', 'Budget', 'Widget', 'Auto', 'Cache', 'Vibration', 'web', 'Version {v}', 'non-foil', 'Foil', 'Format', 'Stats', 'Standard', 'QR code'],
   de: ['Profil', 'Liste', 'Mana', 'Decklist', 'Scan'],
   es: [],
   it: ['Mana', 'Test…', 'non foil', 'Multicolore', 'Incolore', 'incolore'],

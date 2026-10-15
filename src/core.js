@@ -85,15 +85,17 @@ const BASIC_NAMES = new Set(['plains', 'island', 'swamp', 'mountain', 'forest', 
 
 function normPart(s) {
   return String(s || '').replace(/æ/gi, 'ae').replace(/œ/gi, 'oe').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-    .replace(/['’‘`´]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+    .replace(/['’‘`´]/g, '').replace(/[^a-z0-9а-я]+/g, ' ').trim();      // lettres latines et cyrilliques (noms russes : « молния ») ; ё et й perdent leur signe avec les accents (lecture OCR tolérante)
 }
+/** Lettres d'un nom de carte lu (latin accentué ou cyrillique) : part des tests « assez de lettres » de l'OCR. */
+const NAME_LETTER_RE = /[A-Za-zÀ-ÿЀ-ӿ]/g;
 function normName(s) { return String(s || '').split('//').map(normPart).filter(Boolean).join(' // '); }
 function frontName(s) { return normName(s).split(' // ')[0]; }
 
 /** Langue d'une carte de collection : code de l'app (fr en de es it pt jp zh-CN) depuis un code (FR, ja, fra…) ou un nom (French, Français…), '' si inconnue. */
 const LANG_ALIAS = { fr: 'fr', fra: 'fr', fre: 'fr', french: 'fr', francais: 'fr', en: 'en', eng: 'en', english: 'en', anglais: 'en', de: 'de', deu: 'de', ger: 'de', german: 'de', allemand: 'de', deutsch: 'de',
   es: 'es', spa: 'es', spanish: 'es', espagnol: 'es', it: 'it', ita: 'it', italian: 'it', italien: 'it', pt: 'pt', por: 'pt', portuguese: 'pt', portugais: 'pt', ja: 'jp', jp: 'jp', jpn: 'jp', japanese: 'jp', japonais: 'jp', zh: 'zh-CN', zhs: 'zh-CN', zht: 'zh-CN', zhcn: 'zh-CN', zhtw: 'zh-CN', cn: 'zh-CN', chs: 'zh-CN', cht: 'zh-CN', chinese: 'zh-CN', chinois: 'zh-CN', simplifiedchinese: 'zh-CN', chinesesimplified: 'zh-CN', traditionalchinese: 'zh-CN', chinesetraditional: 'zh-CN',
-  ptbr: 'pt', portuguesebrazil: 'pt', brazilianportuguese: 'pt', portuguesbresil: 'pt', zhhans: 'zh-CN', zhhant: 'zh-CN' };      // « Portuguese (Brazil) » (Delver Lens, TCGplayer), « zh-Hans »
+  ptbr: 'pt', portuguesebrazil: 'pt', brazilianportuguese: 'pt', portuguesbresil: 'pt', zhhans: 'zh-CN', zhhant: 'zh-CN', ru: 'ru', rus: 'ru', russian: 'ru', russe: 'ru' };      // « Portuguese (Brazil) » (Delver Lens, TCGplayer), « zh-Hans »
 const cardLang = x => LANG_ALIAS[String(x == null ? '' : x).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '')] || '';
 /** Code court d'une langue pour l'affichage et le texte de la collection : « FR », « EN »… ; le chinois s'écrit « ZH » (lettres seules : le code CardTrader « zh-CN » a un tiret). */
 const langCode = l => (l === 'zh-CN' ? 'ZH' : String(l || '').toUpperCase());
@@ -120,7 +122,7 @@ const HEADER_RE = /^(commander|companion|deck|main(board)?|sideboard|maybeboard|
    Même mécanique pour les autres langues à alphabet latin (names-de.tsv…) : un seul catalogue à la fois, celui de la langue des noms (namesLangOf) ; FRX.l : sa langue. */
 const FRX = { ix: null, l: 'fr' };
 /** Langues dont les noms imprimés sont reconnus (catalogue servi par le site, clés latines de frKey) ; japonais, chinois… : pas encore (clé Unicode à faire). */
-const NAMES_LANGS = ['fr', 'de', 'es', 'it', 'pt'];
+const NAMES_LANGS = ['fr', 'de', 'es', 'it', 'pt', 'ru'];
 /** Langue des noms imprimés reconnus : celle des cartes si elle a un catalogue, sinon celle de l'interface (français) ; cartes anglaises sur une interface anglaise : '' (aucun catalogue). */
 const namesLangOf = (card, ui) => (NAMES_LANGS.includes(card) ? card : NAMES_LANGS.includes(ui) ? ui : '');
 /** Clé d'un nom pour l'index français : accents, casse, apostrophes, tirets et espaces ignorés (« L'Aquilon », « l aquilon », « Laquilon » se rejoignent). */
@@ -137,13 +139,17 @@ function parseLine(raw, o) {
   let qty = 1, name = line;
   const m = line.match(/^(\d+)\s*[xX]?\s+(.+)$/);
   if (m) { qty = parseInt(m[1], 10); name = m[2]; }
-  let lang = '';
-  name = name.replace(/\s+\*([A-Za-z]+(?:-[A-Za-z]+)?)\*\s*$/, (_, t) => { if (t.length > 1) lang = cardLang(t); return ''; })      // « *FR* » : langue ; « *F* » (foil) : ignoré
+  let lang = '', foil = false;
+  for (let again = true; again;) {      // repères de fin, dans n'importe quel ordre : « *FR* » (langue), « *F* » / « *E* » (foil, foil etched : Moxfield, ManaBox)
+    again = false;
+    name = name.replace(/\s+\*([A-Za-z]+(?:-[A-Za-z]+)?)\*\s*$/, (_, t) => { if (t.length > 1) lang = cardLang(t); else if (/^[FE]$/i.test(t)) foil = true; again = true; return ''; });
+  }
+  name = name.replace(/\s+\(FOIL\)\s*$/i, () => { foil = true; return ''; })      // « (FOIL) » : texte de la collection (collToText), écrit avant l'édition (déjà retirée par parseCollection)
     .replace(/\s+\([A-Za-z0-9]{2,8}\)(\s+[A-Za-z0-9★-]+)?\s*$/, '')
     .trim();
   if (!name || qty < 1 || qty > 999) return { ignored: true };
   const key = normName(name); if (!key) return { ignored: true };
-  const out = lang ? { qty, name, key, lang } : { qty, name, key };
+  const out = { qty, name, key, ...(lang ? { lang } : {}), ...(foil ? { foil: 1 } : {}) };
   if (FRX.ix && !(o && o.fr === false)) {
     const f = frLookup(name, lang === FRX.l || !!(o && o.prefer === FRX.l), key.replace(/[ /]/g, ''));
     if (f && f.en) { out.name = f.en; out.key = normName(f.en); out.dn = f.p; out.fr = 1; } else if (f && f.amb) out.amb = f.amb;
@@ -417,7 +423,7 @@ function makeDemoOffers(card, lang) {
 
 /* ── Decks enregistrés : normalisation, historique de prix, temps relatif ───────────────────── */
 const HISTORY_MAX = 40, NAME_MAX = 120, TEXT_MAX = 60000;
-const OPT_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN'];
+const OPT_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru'];
 const OPT_FOIL = ['no', 'any', 'yes'];
 const OPT_MODE = ['zero', 'direct', 'cm'];
 
@@ -901,8 +907,11 @@ const SET_COLS = ['set code', 'edition code', 'expansion code', 'set id', 'editi
 const SET_CODE_COLS = ['set code', 'edition code', 'expansion code', 'set id', 'code'];
 /** Code d'extension lu dans une colonne « Edition » / « Set » : « cmm », « CMM » ou « pmps06 » oui ; « Ixalan », « Theros » (nom Deckbox, 6 lettres comme un code) non. */
 const csvSetCode = (v, codeCol) => { const s = String(v == null ? '' : v).trim(); return codeCol || (/^[A-Za-z0-9]{2,6}$/.test(s) && (s === s.toLowerCase() || s === s.toUpperCase())) ? s : ''; };
-/** Exemplaires foil comptés à part (Decked Builder : « Reg Qty » + « Foil Qty ») : ajoutés aux autres. */
+/** Exemplaires foil comptés à part (Decked Builder : « Reg Qty » + « Foil Qty ») : leur propre ligne foil. */
 const FOIL_QTY_RE = /^foil (qty|quantity|count)$/;
+/** Colonne qui dit si la ligne est foil : « Foil » (ManaBox : foil / normal / etched ; Moxfield, Deckbox, Delver : foil ou vide ; « true »), « Finish » (Archidekt : Foil / Normal / Etched), « Printing » (Dragon Shield, TCGplayer : Foil / Normal). */
+const FOIL_FLAG_COLS = ['foil', 'finish', 'printing'];
+const csvFoil = v => /^\s*(foil|etched|foil etched|true|yes|oui|1|x)\s*$/i.test(String(v == null ? '' : v));
 /** Colonne « Binder Type » de ManaBox : une liste (« list », souhaits, achats) n'est pas dans la collection (FAQ ManaBox : les classeurs pour les cartes possédées, les listes pour les autres). */
 const LIST_TYPE_RE = /^\s*(list|wish ?list|buy ?list)\s*$/i;
 const NUM_COLS = ['collector number', 'card number', 'collector s number', 'collector', 'number', 'cn', 'nr', 'numero'];
@@ -916,8 +925,9 @@ const ED_MARK_RE = /\s+\(([A-Za-z0-9]{2,6})\)\s+([^\s()|*,;"]{1,12})(?=(?:\s+\*[
 const dateNowSec = () => Math.floor(Date.now() / 1000);
 /* ── Une carte, plusieurs lignes : entrée { n, q (total), l (langue la plus fournie), x? { ligne: exemplaires } (plusieurs lignes, ou une ligne avec édition), d? } ───
    Une ligne = une langue, et une édition si elle est connue (« 2 Sol Ring (CMM) 400 *FR* » + « 1 Sol Ring *EN* » dans le texte) ; la langue '' = non précisée.
-   Clé de ligne : 'fr' (sans édition) ou 'fr|cmm|400' (langue|code d'extension Scryfall|numéro de collection). Les totaux (q) servent partout ailleurs (decks, paniers). */
-const LINE_RANK = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', ''];
+   Clé de ligne : 'fr' (sans édition) ou 'fr|cmm|400' (langue|code d'extension Scryfall|numéro de collection), suivie de '*' pour des exemplaires foil ('fr*', 'fr|cmm|400*', '*' : foil sans langue).
+   Les totaux (q) servent partout ailleurs (decks, paniers). */
+const LINE_RANK = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru', ''];
 const lineRank = l => { const i = LINE_RANK.indexOf(l || ''); return i < 0 ? LINE_RANK.length : i; };
 /** Édition d'un exemplaire : 'cmm|400' (code d'extension en minuscules, numéro de collection tel qu'imprimé), '' si incomplète ou illisible. */
 const edKey = (set, num) => {
@@ -928,11 +938,15 @@ const edSet = e => String(e || '').split('|')[0];
 const edNum = e => { const s = String(e || ''), i = s.indexOf('|'); return i < 0 ? '' : s.slice(i + 1); };
 /** « CMM 400 » */
 const edLabel = e => (e ? edSet(e).toUpperCase() + ' ' + edNum(e) : '');
-const lineKey = (l, e) => (l || '') + (e ? '|' + e : '');
-const lineLang = g => { const s = String(g || ''), i = s.indexOf('|'); return i < 0 ? s : s.slice(0, i); };
-const lineEd = g => { const s = String(g || ''), i = s.indexOf('|'); return i < 0 ? '' : s.slice(i + 1); };
-/** Ordre d'affichage des lignes : langue (fr, en, autres, non précisée), puis sans édition, puis éditions par code et numéro. */
-const lineCmp = (a, b) => lineRank(lineLang(a)) - lineRank(lineLang(b)) || (lineEd(a) ? 1 : 0) - (lineEd(b) ? 1 : 0) || lineEd(a).localeCompare(lineEd(b), 'en', { numeric: true });
+const lineKey = (l, e, f) => (l || '') + (e ? '|' + e : '') + (f ? '*' : '');
+/** Exemplaires foil ? (clé terminée par '*'). */
+const lineFoil = g => String(g || '').endsWith('*');
+/** Clé sans le repère foil : 'fr|cmm|400'. */
+const lineBase = g => { const s = String(g || ''); return s.endsWith('*') ? s.slice(0, -1) : s; };
+const lineLang = g => { const s = lineBase(g), i = s.indexOf('|'); return i < 0 ? s : s.slice(0, i); };
+const lineEd = g => { const s = lineBase(g), i = s.indexOf('|'); return i < 0 ? '' : s.slice(i + 1); };
+/** Ordre d'affichage des lignes : langue (fr, en, autres, non précisée), puis sans édition, puis éditions par code et numéro ; les foil après les non foil de la même édition. */
+const lineCmp = (a, b) => lineRank(lineLang(a)) - lineRank(lineLang(b)) || (lineEd(a) ? 1 : 0) - (lineEd(b) ? 1 : 0) || lineEd(a).localeCompare(lineEd(b), 'en', { numeric: true }) || (lineFoil(a) ? 1 : 0) - (lineFoil(b) ? 1 : 0);
 /** Lignes d'une entrée : [[clé de ligne, exemplaires]] dans l'ordre d'affichage ; toujours au moins une ligne si la carte existe. */
 function collLines(x) {
   if (!x || !(x.q > 0)) return [];
@@ -953,7 +967,7 @@ function collFromLines(base, lines) {
   const ls = [...m].sort((a, b) => lineCmp(a[0], b[0])), out = { ...base }; delete out.x; delete out.l;
   out.q = ls.reduce((a, e) => a + e[1], 0);
   const dom = collMainLang(ls); if (dom) out.l = dom;
-  if (ls.length > 1 || lineEd(ls[0][0])) out.x = Object.fromEntries(ls);
+  if (ls.length > 1 || lineEd(ls[0][0]) || lineFoil(ls[0][0])) out.x = Object.fromEntries(ls);
   return out;
 }
 /** Union de deux répartitions de la même carte sans état commun connu, langue par langue : le plus grand total ; une édition, le plus grand nombre des deux côtés,
@@ -961,13 +975,14 @@ function collFromLines(base, lines) {
  *  ne s'ajoutent pas à une langue connue de l'autre côté (c'est probablement la même carte). */
 function unionLines(la, lb) {
   const by = new Map(); let ta = 0, tb = 0;
-  const put = (ls, s) => { for (const [g, q] of ls) { const l = lineLang(g), e = lineEd(g); let o = by.get(l); if (!o) by.set(l, o = { t: [0, 0], ed: new Map() }); o.t[s] += q; if (e) o.ed.set(e, Math.max(o.ed.get(e) || 0, q)); } };
+  const put = (ls, s) => { for (const [g, q] of ls) { const l = lineKey(lineLang(g), '', lineFoil(g)), e = lineEd(g); let o = by.get(l); if (!o) by.set(l, o = { t: [0, 0], ed: new Map() }); o.t[s] += q; if (e) o.ed.set(e, Math.max(o.ed.get(e) || 0, q)); } };      // un « groupe » = langue + foil ou non
   for (const [, q] of la) ta += q;
   for (const [, q] of lb) tb += q;
   put(la, 0); put(lb, 1);
   const out = []; let spec = 0;
   for (const [l, o] of by) {
-    let es = 0; for (const [e, q] of o.ed) { out.push([lineKey(l, e), q]); es += q; }
+    const f = lineFoil(l), ll = lineLang(l);
+    let es = 0; for (const [e, q] of o.ed) { out.push([lineKey(ll, e, f), q]); es += q; }
     spec += es;
     if (l) { const plain = Math.max(0, Math.max(o.t[0], o.t[1]) - es); if (plain) out.push([l, plain]); spec += plain; }
   }
@@ -989,7 +1004,7 @@ function parseCollection(text, o) {
   const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/);
   let i0 = 0; while (i0 < lines.length && (!lines[i0].trim() || /^"?sep=.?"?$/i.test(lines[i0].trim()))) i0++;      // « sep=, » (Excel), entre guillemets chez Dragon Shield
   const first = lines[i0] || '';
-  let delim = null, nameCol = -1, qtyCol = -1, foilCol = -1, langCol = -1, setCol = -1, setCode = false, numCol = -1, listCol = -1;
+  let delim = null, nameCol = -1, qtyCol = -1, foilCol = -1, flagCol = -1, langCol = -1, setCol = -1, setCode = false, numCol = -1, listCol = -1;
   for (const d of [',', ';', '\t']) {
     const cols = csvSplit(first, d).map(colNorm);
     if (cols.length < 2) continue;
@@ -1001,11 +1016,12 @@ function parseCollection(text, o) {
     for (const want of QTY_COLS) { const qi = cols.findIndex(c => c === want); if (qi >= 0) { qtyCol = qi; break; } }
     if (qtyCol < 0) qtyCol = cols.findIndex(c => /(quantity|qty|count)/.test(c) && !/(trade|tradelist|wish|foil)/.test(c));      // « QuantityX » de Delver Lens (valeurs « 2x »)
     foilCol = cols.findIndex(c => FOIL_QTY_RE.test(c)); if (foilCol === qtyCol) foilCol = -1;
+    for (const want of FOIL_FLAG_COLS) { const i = cols.indexOf(want); if (i >= 0 && i !== qtyCol && i !== foilCol) { flagCol = i; break; } }
     listCol = cols.indexOf('binder type');
     break;
   }
   const map = new Map(), fr = !!(o && o.fr && FRX.ix), dl = (o && cardLang(o.lang)) || '', amb = []; let n = 0, skipped = 0, nfr = 0, listed = 0;
-  const add = (name, q, l, d, e) => {
+  const add = (name, q, l, d, e, f) => {
     name = String(name || '').trim(); q = Math.max(1, Math.min(9999, Math.round(q) || 1));
     if (fr && name) {
       const f = frLookup(name, (l === '-' ? '' : l || dl) === FRX.l);
@@ -1013,7 +1029,7 @@ function parseCollection(text, o) {
     }
     if (!l) l = dl; else if (l === '-') l = '';
     const k = ownKey(name); if (!name || !k) { skipped++; return; }
-    const cur = map.get(k), lg = lineKey(l, e); if (cur) { cur.b.set(lg, Math.min(9999, (cur.b.get(lg) || 0) + q)); if (d && !(cur.d <= d)) cur.d = d; } else if (map.size < COLL_MAX) map.set(k, { k, n: name, b: new Map([[lg, q]]), ...(d ? { d } : {}) });      // une ligne par langue et édition
+    const cur = map.get(k), lg = lineKey(l, e, f); if (cur) { cur.b.set(lg, Math.min(9999, (cur.b.get(lg) || 0) + q)); if (d && !(cur.d <= d)) cur.d = d; } else if (map.size < COLL_MAX) map.set(k, { k, n: name, b: new Map([[lg, q]]), ...(d ? { d } : {}) });      // une ligne par langue, édition et foil
   };
   if (delim) {
     for (let i = i0 + 1; i < lines.length; i++) {
@@ -1022,9 +1038,12 @@ function parseCollection(text, o) {
       if (!name) { skipped++; continue; }
       if (listCol >= 0 && LIST_TYPE_RE.test(c[listCol] || '')) { listed++; continue; }      // liste ManaBox (souhaits, achats) : cartes que l'on n'a pas
       let q = qtyCol >= 0 ? parseInt(c[qtyCol], 10) : 1;
-      if (foilCol >= 0) q = (Number.isFinite(q) ? q : 0) + (parseInt(c[foilCol], 10) || 0);      // « Reg Qty » + « Foil Qty » (0 + 2 = 2)
+      const fq = foilCol >= 0 ? parseInt(c[foilCol], 10) || 0 : 0;      // « Reg Qty » + « Foil Qty » (Decked Builder) : les foil sur leur propre ligne
+      if (foilCol >= 0) { q = Number.isFinite(q) ? q : 0; if (!q && !fq) q = 1; }
       const lr = langCol >= 0 ? String(c[langCol] || '').trim() : '', l = lr ? cardLang(lr) || '-' : '';      // « Korean », « Phyrexian » : langue donnée mais absente de l'appli → non précisée, pas la langue choisie pour les autres lignes
-      add(name, q || 1, l, 0, setCol >= 0 && numCol >= 0 ? edKey(csvSetCode(c[setCol], setCode), c[numCol]) : '');
+      const e = setCol >= 0 && numCol >= 0 ? edKey(csvSetCode(c[setCol], setCode), c[numCol]) : '', f = flagCol >= 0 && csvFoil(c[flagCol]);
+      if (q || foilCol < 0) add(name, q || 1, l, 0, e, f);
+      if (fq) add(name, fq, l, 0, e, true);
     }
   } else {
     for (let raw of lines) {
@@ -1034,7 +1053,7 @@ function parseCollection(text, o) {
       raw = raw.replace(ED_MARK_RE, (m, a, b) => { e = edKey(a, b); return e ? '' : m; });
       const p = parseLine(raw, { fr: false }); if (!p) continue; n++;      // noms français lus par add(), comme ceux d'un CSV
       if (p.ignored) { skipped++; continue; }
-      add(p.name, p.qty, p.lang, d, e);
+      add(p.name, p.qty, p.lang, d, e, !!p.foil);
     }
   }
   const items = [...map.values()].map(({ b, ...base }) => collFromLines(base, [...b]));
@@ -1056,7 +1075,7 @@ function collToCsv(map, trade = typeof trSpare === 'function' ? trSpare(map) : n
   const rows = ['Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number'], tl = new Map();
   for (const x of trade || []) if (x && x.k) tl.set(x.k, new Map(x.lines || []));
   for (const [k, x] of Object.entries(map || {}).filter(([, x]) => x && x.n).sort(([, a], [, b]) => a.n.localeCompare(b.n, 'en')))
-    for (const [g, q] of collLines(x)) { const e = lineEd(g); rows.push([q, Math.min(q, (tl.get(k) && tl.get(k).get(g)) || 0), csvCell(x.n), edSet(e), 'Near Mint', CSV_LANG[lineLang(g)] || '', '', csvCell(edNum(e))].join(',')); }
+    for (const [g, q] of collLines(x)) { const e = lineEd(g); rows.push([q, Math.min(q, (tl.get(k) && tl.get(k).get(g)) || 0), csvCell(x.n), edSet(e), 'Near Mint', CSV_LANG[lineLang(g)] || '', lineFoil(g) ? 'foil' : '', csvCell(edNum(e))].join(',')); }
   return rows.join('\n') + '\n';
 }
 
@@ -1074,7 +1093,8 @@ function mergeColl(base, add, mode, now) {
   return out;
 }
 /** Texte compact d'une collection (une ligne par carte, langue et édition : « 3 Sol Ring (CMM) 400 *FR* ») pour le cloud, et son inverse. dates : ajoute la date d'ajout « (Dxxxxxx) » (stockage et compte ; pas l'export). */
-const collToText = (coll, dates) => Object.values(coll).filter(x => x && x.q > 0 && x.n).sort((a, b) => a.n.localeCompare(b.n, 'en')).flatMap(x => collLines(x).map(([g, q]) => { const l = lineLang(g), e = lineEd(g); return q + ' ' + x.n + (e ? ' (' + edSet(e).toUpperCase() + ') ' + edNum(e) : '') + (dates && x.d > 0 ? ' (D' + Math.floor(x.d).toString(36) + ')' : '') + (l ? ' *' + langCode(l) + '*' : ''); })).join('\n');
+/** Texte de la collection : « 2 Sol Ring (FOIL) (CMM) 400 (Dh7zqkx) *FR* ». « (FOIL) » avant l'édition : l'ancienne version le lit comme un code d'extension et l'ignore (carte, édition et langue restent justes). */
+const collToText = (coll, dates) => Object.values(coll).filter(x => x && x.q > 0 && x.n).sort((a, b) => a.n.localeCompare(b.n, 'en')).flatMap(x => collLines(x).map(([g, q]) => { const l = lineLang(g), e = lineEd(g); return q + ' ' + x.n + (lineFoil(g) ? ' (FOIL)' : '') + (e ? ' (' + edSet(e).toUpperCase() + ') ' + edNum(e) : '') + (dates && x.d > 0 ? ' (D' + Math.floor(x.d).toString(36) + ')' : '') + (l ? ' *' + langCode(l) + '*' : ''); })).join('\n');
 const collFromText = text => { const o = {}; for (const it of parseCollection(text, { dates: true }).items) o[it.k] = { n: it.n, q: it.q, ...(it.l ? { l: it.l } : {}), ...(it.x ? { x: it.x } : {}), ...(it.d ? { d: it.d } : {}) }; return o; };
 
 /** Même carte au même état (quantité, langue) ? Deux absences sont identiques. */
@@ -1489,7 +1509,8 @@ const edhBracket = n => (n <= 0 ? 2 : n <= 3 ? 3 : 4);
 const edhTokens = q => normName(q).replace(/ \/\/ /g, ' ').split(' ').filter(Boolean);
 /** Le commandant (ou la paire) contient tous les mots (début de mot) : « tymna » et « thrasios triton » trouvent la paire Tymna + Thrasios. */
 const edhWords = (s, toks) => { const w = ' ' + s; return toks.every(t => w.includes(' ' + t)); };      // chaque mot cherché commence un mot du nom : « smite » ne trouve pas « Prismite »
-const edhCmdHas = (c, toks) => edhWords(c.keys.join(' '), toks);
+/** alt (facultatif) : clé de carte → nom imprimé dans la langue des noms (normalisé) ou '' ; la recherche vaut alors pour les deux noms (« foudre » et « bolt » trouvent Lightning Bolt). */
+const edhCmdHas = (c, toks, alt) => edhWords(c.keys.join(' '), toks) || !!(alt && edhWords(c.keys.map(k => alt(k) || '').join(' '), toks));
 /** Une ligne du classement. Les listes `missing`, `owned` et `gc` (longues, utiles seulement à la feuille d'un deck) ne sont calculées qu'au premier accès. */
 class EdhRow {
   constructor(deck, cmd, total, have, cost, unpriced, mine, br, hit, e, own, eng, held) {
@@ -1525,7 +1546,8 @@ function edhRank(edh, qty, o = {}) {
   let thIx = null;      // thèmes demandés (identifiants) → indices ; un thème absent du fichier ne correspond à aucun deck
   if (o.themes && o.themes.size) { thIx = []; for (const t of o.themes) { const i = edh.themeIx && edh.themeIx.get(t); if (i === undefined) return rows; thIx.push(i); } }
   let hitF = null, cmdOk = null;
-  if (toks && card) { hitF = new Uint8Array(nn); for (let i = 0; i < nn; i++) if (!bs[i] && edhWords(names[i].includes('//') ? normName(names[i]) : keys[i], toks)) hitF[i] = 1; }
+  const alt = typeof o.alt === 'function' ? o.alt : null;      // noms imprimés dans la langue des noms (edh.js › edhAlt) : cherchés en plus de l'anglais
+  if (toks && card) { hitF = new Uint8Array(nn); for (let i = 0; i < nn; i++) if (!bs[i] && (edhWords(names[i].includes('//') ? normName(names[i]) : keys[i], toks) || (alt && edhWords(alt(keys[i]) || '', toks)))) hitF[i] = 1; }
   else if (toks) cmdOk = new Int8Array(edh.cmds.length);
   for (const d of edh.decks) {
     const c = d.cmd; let mine = false; for (const id of c.ids) if (own[id] > 0) { mine = true; break; }
@@ -1539,7 +1561,7 @@ function edhRank(edh, qty, o = {}) {
       hit = []; for (const id of c.ids) if (hitF[id]) hit.push([keys[id], names[id]]);
       for (let j = a; j < z; j++) if (hitF[ids[j]]) hit.push([keys[ids[j]], names[ids[j]]]);
       if (!hit.length) continue;
-    } else if (cmdOk) { if (!cmdOk[c.i]) cmdOk[c.i] = edhCmdHas(c, toks) ? 1 : -1; if (cmdOk[c.i] < 0) continue; }
+    } else if (cmdOk) { if (!cmdOk[c.i]) cmdOk[c.i] = edhCmdHas(c, toks, alt) ? 1 : -1; if (cmdOk[c.i] < 0) continue; }
     let total = 0, have = 0, cost = 0, unpriced = 0, gcN = 0, eng = 0;
     for (const id of c.ids) { if (bs[id]) continue; total++; if (gcA[id]) gcN++; if (own[id] > 0) { have++; if (hold && own[id] <= hold[id]) eng++; } else { const u = pr[id]; if (u > 0) cost += u; else unpriced++; } }
     for (let j = a; j < z; j++) {
@@ -1738,7 +1760,7 @@ function spanMatches(text, idx, minScore = 0.9) {
   if (w.length < 2 || w.length > 16) return [];
   const found = [];
   for (let i = 0; i < w.length; i++) for (let j = Math.min(w.length, i + 7); j > i; j--) {
-    const sp = w.slice(i, j).join(' '); if (sp.length < 5 || !/[A-Za-zÀ-ÿ]{3}/.test(sp)) continue;          // « Opt », « Fog » : trop courts pour être sûrs au milieu d'une ligne
+    const sp = w.slice(i, j).join(' '); if (sp.length < 5 || !/[A-Za-zÀ-ÿЀ-ӿ]{3}/.test(sp)) continue;          // « Opt », « Fog » : trop courts pour être sûrs au milieu d'une ligne
     const m = matchName(sp, idx, minScore); if (m) found.push({ ...m, i, j, raw: sp });
   }
   found.sort((a, b) => b.score - a.score || (b.j - b.i) - (a.j - a.i));
@@ -1752,7 +1774,7 @@ function ocrMatches(lines, idx, spans = false) {
   const out = [], seen = new Map();
   for (const l of lines || []) {
     const text = String(l.text || '').trim(); if (text.length < 3 || text.length > (spans ? 140 : 60)) continue;
-    const letters = (text.match(/[A-Za-zÀ-ÿ]/g) || []).length; if (letters < text.length * 0.6) continue;
+    const letters = (text.match(NAME_LETTER_RE) || []).length; if (letters < text.length * 0.6) continue;
     const one = matchName(text, idx);
     let ms = one ? [one] : [];
     if (spans && (!one || one.score < 0.84)) { const sp = spanMatches(text, idx); if (sp.length) ms = sp; }
@@ -2058,7 +2080,7 @@ function deckMissing(text, owned) {
 
 /* ── Partage public (liste d'échange, deck) : document shares/{id}, lisible par quiconque a le lien. Le contenu vient d'un autre compte : tout est revérifié ici. ── */
 const SHARE_IMG_RE = /^https:\/\/cards\.scryfall\.io\/(?![\w./-]*(?:\/\/|\.\.))[\w./-]+(\?\d+)?$/;      // images Scryfall seulement, sans « // » ni « .. »
-const SHARE_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN'];
+const SHARE_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru'];
 /** Image Scryfall en petit format (vignettes) : …/large/… ou …/normal/… → …/small/… */
 const SCRY_IMG = 'https://cards.scryfall.io/';
 /** Adresse d'image raccourcie pour un partage : « small/front/6/d/….jpg » (sans le domaine ni le ?horodatage) ; '' si ce n'est pas une image Scryfall. */
@@ -2139,7 +2161,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
-    lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edLabel, lineKey, lineLang, lineEd, langLines, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
+    lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient

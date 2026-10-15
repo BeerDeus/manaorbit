@@ -19,8 +19,8 @@ test('defaultCardLang : interface, puis langue du téléphone, sinon anglais', (
   for (const [nav, want] of [['es-ES', 'es'], ['es-419', 'es'], ['it-IT', 'it'], ['pt-BR', 'pt'], ['pt-PT', 'pt'], ['ja-JP', 'jp'], ['ja', 'jp'], ['zh-CN', 'zh-CN'], ['zh-Hans-CN', 'zh-CN'], ['zh-TW', 'zh-CN'], ['de_AT', 'de'], ['DE-ch', 'de']])
     assert.equal(d('en', [nav]), want, nav);
   assert.equal(d('en', ['ko-KR']), 'en', 'coréen : pas une langue de cartes de l\'appli → anglais');
-  assert.equal(d('en', ['ko-KR', 'ru-RU', 'it-IT']), 'it', 'première langue du téléphone qui existe en cartes');
-  assert.equal(d('en', ['ru-RU', 'en-US', 'de-DE']), 'en');
+  assert.equal(d('en', ['ko-KR', 'uk-UA', 'it-IT']), 'it', 'première langue du téléphone qui existe en cartes');
+  assert.equal(d('en', ['ru-RU', 'en-US', 'de-DE']), 'ru', 'russe : langue de cartes depuis le scan des noms russes');
   assert.equal(d('en', 'de-DE'), 'de', 'une seule langue en texte'); assert.equal(d('en', []), 'en'); assert.equal(d('en', undefined), 'en'); assert.equal(d('', null), 'en');
   assert.equal(d('xx', ['es-MX']), 'es', 'interface inconnue : langue du téléphone');
   // interface allemande livrée (dictionnaire présent) : elle compte comme le français ; espagnol pas encore livré : son téléphone garde les cartes espagnoles
@@ -69,7 +69,7 @@ test('gen-fr-names.mjs : catalogue de n\'importe quelle langue imprimée, franç
   const proxy = readFileSync(new URL('../proxy.mjs', import.meta.url), 'utf8'), served = JSON.parse(/const NAME_LANGS = (\[[^\]]*\])/.exec(proxy)[1].replace(/'/g, '"'));
   assert.deepEqual(served.slice().sort(), Object.keys(G.NAME_LANGS).sort());
   const data = readFileSync(new URL('../src/data.js', import.meta.url), 'utf8'), scry = new Function('return ' + /const SCRY_LANG = (\{[^}]*\})/.exec(data)[1])();
-  for (const l of ['fr', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN']) assert.ok(served.includes(scry[l]), l + ' → ' + scry[l]);
+  for (const l of ['fr', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru']) assert.ok(served.includes(scry[l]), l + ' → ' + scry[l]);
 });
 
 test('noms imprimés d\'une autre langue (allemand) : decklist, import, scan, partage ; français inchangé', () => {

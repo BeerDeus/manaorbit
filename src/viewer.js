@@ -94,7 +94,7 @@ function openCardViewer(items, index) {
   const multi = items.length > 1;
   wrap.innerHTML = `<button class="icon-btn imgv-x" type="button" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-close"/></svg></button>
     ${multi ? '<span class="imgv-count" aria-live="polite"></span><button class="imgv-nav prev" type="button" aria-label="' + T('Carte précédente') + '"><svg class="i"><use href="#i-back"/></svg></button><button class="imgv-nav next" type="button" aria-label="' + T('Carte suivante') + '"><svg class="i"><use href="#i-back"/></svg></button>' : ''}
-    <div class="imgv-card tilt" data-busy="1"><img class="imgv-ph" alt="" hidden><img class="imgv-img" alt="" hidden><span class="imgv-spin"></span></div>
+    <div class="imgv-card tilt" data-busy="1"><img class="imgv-ph" alt="" hidden><img class="imgv-img" alt="" hidden><span class="foil-stars" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => { const r = hash32('foil' + i); return `<i style="--x:${6 + (r % 88)}%;--y:${5 + ((r >> 7) % 90)}%;--s:${7 + ((r >> 14) % 9)}px;--d:${2.2 + ((r >> 18) % 20) / 10}s;--w:${-((r >> 23) % 40) / 10}s"></i>`; }).join('')}</span><span class="imgv-spin"></span></div>
     <div class="imgv-cap"><b></b><span class="imgv-sub"></span><span class="imgv-extra" hidden></span><img class="imgv-shot" alt="${T('Ta photo')}" hidden></div>
     <div class="imgv-acts"><button class="btn ghost small imgv-wish" type="button" hidden aria-pressed="false"></button><button class="btn ghost small imgv-flip" type="button" hidden>${T('Retourner la carte')}</button><button class="imgv-art" type="button" hidden aria-expanded="false">${T('Illustrations')}</button></div>
     <div class="imgv-vars" hidden><div class="imgv-vh" aria-live="polite"></div><div class="imgv-vl"></div></div>`;
@@ -159,6 +159,7 @@ function openCardViewer(items, index) {
     caption(lang, ''); flipB.hidden = true; flipB.textContent = T('Retourner la carte');
     clearTimeout(varT); vars = []; canSave = false; pickAt = -1; artB.hidden = true; artB.setAttribute('aria-expanded', 'false'); if (!wantOpen) { varsEl.hidden = true; wrap.classList.remove('has-vars'); } else { varsL.innerHTML = ''; varsH.textContent = ''; }
     extra.textContent = it.extra || ''; extra.hidden = !it.extra;
+    card.classList.toggle('foil', !!it.foil);      // exemplaire foil de la collection : étincelles animées sur l'image (foil.css)
     if (it.shot) shotEl.src = it.shot; else shotEl.removeAttribute('src'); shotEl.hidden = !it.shot; wrap.classList.toggle('has-shot', !!it.shot);      // photo prise au scan (cartes à vérifier) : sous la carte, pour comparer
     if (multi) { countEl.textContent = (n + 1) + ' / ' + items.length; prevB.disabled = n === 0; nextB.disabled = n === items.length - 1; }
     (async () => {

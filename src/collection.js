@@ -40,10 +40,10 @@ if (typeof document !== 'undefined') { document.addEventListener('visibilitychan
 /* ── Édition des lignes (« CMM 400 ») : prix Cardmarket, image et extension de l'édition, lus sur Scryfall (cache : COLL.ed, gardé sur l'appareil) ──────
    COLL.ed : 'cmm|400' → { eu, ef (centimes, null si inconnu), im (petite image anglaise), sn (extension), r (rareté), t (lecture) } ou { t, none: 1 } (inconnue de Scryfall). */
 const ED_TTL = 2 * DAY;
-/** Prix Cardmarket d'un exemplaire de l'édition e (centimes) : non foil, à défaut foil (impression qui n'existe qu'en foil) ; null si inconnu. */
-const edEu = e => { const x = e && COLL.ed[e]; return x && x.eu > 0 ? x.eu : x && x.ef > 0 ? x.ef : null; };
-/** Prix d'un exemplaire d'une ligne : celui de son édition s'il est connu, sinon le prix de référence de la carte (null sans prix). */
-const collLineEu = (k, g) => { const u = edEu(lineEd(g)); if (u != null) return u; const m = COLL.meta[k]; return m && Number.isFinite(m.eu) ? m.eu : null; };
+/** Prix Cardmarket d'un exemplaire de l'édition e (centimes) : non foil, à défaut foil (impression qui n'existe qu'en foil) ; f : exemplaire foil → le prix foil, à défaut le non foil ; null si inconnu. */
+const edEu = (e, f) => { const x = e && COLL.ed[e]; if (!x) return null; const a = f ? x.ef : x.eu, b = f ? x.eu : x.ef; return a > 0 ? a : b > 0 ? b : null; };
+/** Prix d'un exemplaire d'une ligne : celui de son édition s'il est connu (foil : prix foil), sinon le prix de référence de la carte (foil : son prix foil Cardmarket, à défaut le prix normal ; null sans prix). */
+const collLineEu = (k, g) => { const f = lineFoil(g), u = edEu(lineEd(g), f); if (u != null) return u; const m = COLL.meta[k]; if (!m) return null; return f && m.ef > 0 ? m.ef : Number.isFinite(m.eu) ? m.eu : null; };
 /** Prix moyen d'un exemplaire de la carte (centimes), éditions comprises : valeur de la collection, tri par prix. null sans prix. */
 function collCardEu(k) {
   const x = COLL.map[k], m = COLL.meta[k], ref = m && Number.isFinite(m.eu) ? m.eu : null; if (!x || !x.x) return ref;      // sans édition : le prix de référence
@@ -92,7 +92,7 @@ function collLineImage(k, g, en) {
  *  info : l'impression choisie ({ eu, ef, sn, r, im (petite image anglaise), li (petite image dans la langue de la ligne) }). Retourne la clé de la ligne. */
 function collSetEd(k, g, e, info) {
   const cur = COLL.map[k]; if (!cur) return g;
-  const l = lineLang(g), to = lineKey(l, e);
+  const l = lineLang(g), to = lineKey(l, e, lineFoil(g));
   if (info) edRemember(k, l, e, info);
   if (to === g) return g;
   const lines = collLines(cur).map(x => x.slice()), i = lines.findIndex(x => x[0] === g); if (i < 0) return g;
@@ -120,9 +120,9 @@ function edSheet(o) {
   setIcLoad();
   return openSheet(T('Édition de {name}', { name: o.name }), o.sub || '', api => {
     api.wrap.classList.add('ced-sheet');
-    let prints = null, err = '';
+    let prints = null, err = '', foil = !!o.foil;
     const tile = (p, i) => {
-      const e = edKey(p.set, p.num), px = p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', ic = setIcHtml(p.set);
+      const e = edKey(p.set, p.num), px = foil ? (p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : p.eu > 0 ? fmt(p.eu, 'EUR') : '') : p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition
       return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
     };
     const paint = () => {
@@ -130,10 +130,15 @@ function edSheet(o) {
       if (!prints) { api.body.innerHTML = `<p class="hint">${err ? esc(err) : T('Éditions…')}</p>`; return; }
       const fr = (o.front || []).filter(s => prints.some(p => p.set === s)), all = prints.map((p, i) => [p, i]);
       const top = fr.flatMap(s => all.filter(([p]) => p.set === s)), rest = top.length ? all.filter(([p]) => !fr.includes(p.set)) : all;
-      api.body.innerHTML = `<div class="ced-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: o.name }))}">${top.length ? `<p class="ced-h">${esc(o.frontLabel || '')}</p>${top.map(([p, i]) => tile(p, i)).join('')}${rest.length ? `<p class="ced-h">${T('Autres éditions')}</p>` : ''}` : ''}${rest.map(([p, i]) => tile(p, i)).join('')}<button type="button" class="ced-t none" role="radio" data-i="-1" aria-checked="${!o.cur}"><span class="ced-q" aria-hidden="true"><svg class="i"><use href="#i-stack"/></svg></span><span class="ced-n">${T('Sans édition')}</span></button></div>`;
+      const fsw = o.onFoil ? `<label class="ced-foil"><span class="ced-foil-t"><b>${T('Foil')} ✦</b><small>${foil ? T('Prix foil Cardmarket de l\'édition') : T('Exemplaires foil : touche pour les marquer')}</small></span><span class="switch"><input type="checkbox" data-act="foil"${foil ? ' checked' : ''} aria-label="${T('Foil')}"><i></i></span></label>` : '';
+      api.body.innerHTML = `${fsw}<div class="ced-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: o.name }))}">${top.length ? `<p class="ced-h">${esc(o.frontLabel || '')}</p>${top.map(([p, i]) => tile(p, i)).join('')}${rest.length ? `<p class="ced-h">${T('Autres éditions')}</p>` : ''}` : ''}${rest.map(([p, i]) => tile(p, i)).join('')}<button type="button" class="ced-t none" role="radio" data-i="-1" aria-checked="${!o.cur}"><span class="ced-q" aria-hidden="true"><svg class="i"><use href="#i-stack"/></svg></span><span class="ced-n">${T('Sans édition')}</span></button></div>`;
     };
     paint(); setIcLoad(paint);
     o.load().then(list => { prints = list || []; paint(); }, () => { err = scryLeft() > 0 ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Éditions indisponibles pour l\'instant (hors ligne ?)'); paint(); });
+    api.body.addEventListener('change', e => {
+      const sw = e.target.closest('input[data-act="foil"]'); if (!sw || !o.onFoil) return;
+      foil = sw.checked; haptic('tap'); o.onFoil(foil); paint();      // la feuille reste ouverte : les prix des tuiles passent en foil
+    });
     api.body.addEventListener('click', e => {
       const b = e.target.closest('.ced-t'); if (!b || !prints) return;
       const i = Number(b.dataset.i), p = i >= 0 ? prints[i] : null;
@@ -145,8 +150,20 @@ function edSheet(o) {
 function collEdPick(k, g) {
   const x = COLL.map[k]; if (!x) return;
   const l = lineLang(g), cur = lineEd(g), name = frName(k, l) || x.n; haptic('tap');
-  edSheet({ name, sub: l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', cur, load: () => scryArtPrints(x.n, l || 'en'),
-    onPick: p => { const ne = p ? edKey(p.set, p.num) : ''; if (ne === cur) return; collSetEd(k, g, ne, p ? edInfoOf(p, l) : null); collPaintBody(true); } });
+  let cg = g;      // clé de la ligne, suivie quand l'interrupteur Foil la déplace
+  edSheet({ name, sub: l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', cur, foil: lineFoil(g), load: () => scryArtPrints(x.n, l || 'en'),
+    onFoil: f => { cg = collSetFoil(k, cg, f); collPaintBody(true); },
+    onPick: p => { const ne = p ? edKey(p.set, p.num) : ''; if (ne === lineEd(cg)) return; collSetEd(k, cg, ne, p ? edInfoOf(p, l) : null); collPaintBody(true); } });
+}
+/** Marque les exemplaires d'une ligne foil (f) ou non : ils rejoignent la ligne de même langue et même édition de l'autre finition s'il y en a une. Retourne la clé de la ligne. */
+function collSetFoil(k, g, f) {
+  const cur = COLL.map[k]; if (!cur) return g;
+  const to = lineKey(lineLang(g), lineEd(g), f); if (to === g) return g;
+  const lines = collLines(cur).map(x => x.slice()), i = lines.findIndex(x => x[0] === g); if (i < 0) return g;
+  const q = lines[i][1]; lines.splice(i, 1);
+  const t = lines.find(x => x[0] === to); if (t) t[1] += q; else lines.push([to, q]);
+  COLL.map[k] = collFromLines(cur, lines); collChanged({ paint: false });
+  return to;
 }
 
 /* ── Cartes imprimées une seule fois (en papier) : leur édition est forcément celle-là, posée d'office sur les lignes sans édition ──────────
@@ -178,7 +195,7 @@ function collSoloApply() {
   const before = {}, m = { ...COLL.map }; let n = 0;
   for (const [k, x] of Object.entries(COLL.map)) {
     const e = COLL.solo[k]; if (!e || e === '-' || !collNoEd(x)) continue;
-    const lines = []; for (const [g, q] of collLines(x)) { const to = lineEd(g) ? g : lineKey(lineLang(g), e), t = lines.find(y => y[0] === to); if (t) t[1] += q; else lines.push([to, q]); }
+    const lines = []; for (const [g, q] of collLines(x)) { const to = lineEd(g) ? g : lineKey(lineLang(g), e, lineFoil(g)), t = lines.find(y => y[0] === to); if (t) t[1] += q; else lines.push([to, q]); }
     before[k] = x; m[k] = collFromLines(x, lines); n++;
   }
   if (!n) return 0;
@@ -222,7 +239,7 @@ async function langImgFor(k, name, l) {
 /** Change la langue d'une ligne de la collection ('' = non précisée) ; elle garde son édition. from : la ligne concernée (clé ; sans lui : la plus fournie). Si la carte a déjà une ligne dans la nouvelle langue (et la même édition), les exemplaires s'y ajoutent. */
 function collSetLang(k, l, from) {
   const cur = COLL.map[k]; if (!cur) return;
-  const lines = collLines(cur).map(e => e.slice()), src = from === undefined ? collDomLang(lines) : from, dst = lineKey(l, lineEd(src));
+  const lines = collLines(cur).map(e => e.slice()), src = from === undefined ? collDomLang(lines) : from, dst = lineKey(l, lineEd(src), lineFoil(src));
   if (src === dst) return;
   const i = lines.findIndex(e => e[0] === src); if (i < 0) return;
   const q = lines[i][1]; lines.splice(i, 1);
@@ -669,7 +686,7 @@ function namesSync() {
 /** Texte qui nomme la langue des noms reconnus : fr (texte d'origine, catalogue français), other ({lang} : allemand…), none (cartes anglaises, aucun catalogue ; sinon fr). */
 const nmT = (fr, other, none, v) => { const l = namesLang(); return l === 'fr' ? T(fr, v) : l ? T(other, { ...v, lang: LANGS[l] || l }) : T(none || fr, v); };
 /** Exemple des champs de saisie : « Sol Ring ou Anneau solaire » ; autre langue : Lightning Bolt et son nom imprimé (« Blitzschlag ») ; one : le nom imprimé seul (import). */
-const NM_EX = { de: 'Blitzschlag', es: 'Rayo', it: 'Fulmine', pt: 'Relâmpago' };
+const NM_EX = { de: 'Blitzschlag', es: 'Rayo', it: 'Fulmine', pt: 'Relâmpago', ru: 'Молния' };
 function nmExample(one) {
   const l = namesLang();
   if (l === 'fr') return one ? 'Anneau solaire' : T('Sol Ring ou Anneau solaire');
@@ -731,10 +748,10 @@ function collItems() {
  *  Les infos de la carte (type, coût, étiquettes) ne sont montrées que sur la première ; l'offre CardTrader seulement sur la ligne de la langue lue (la plus fournie). */
 function collRowItems(it) {
   const ls = collLines(COLL.map[it.k]);
-  if (ls.length < 2) { const g = ls[0] ? ls[0][0] : it.l, e = lineEd(g); return [{ ...it, g, e, nl: 1, li: 0, ...(e ? { eu: collLineEu(it.k, g) ?? undefined } : {}) }]; }
+  if (ls.length < 2) { const g = ls[0] ? ls[0][0] : it.l, e = lineEd(g), f = lineFoil(g); return [{ ...it, g, e, f, nl: 1, li: 0, ...(e || f ? { eu: collLineEu(it.k, g) ?? undefined } : {}) }]; }
   const dom = collDomLang(ls);
   return ls.map(([g, q], i) => {
-    const l = lineLang(g), r = { ...it, g, l, e: lineEd(g), q, nl: ls.length, li: i, eu: collLineEu(it.k, g) ?? undefined }; const dn = frName(it.k, l); if (dn) r.dn = dn; else delete r.dn;
+    const l = lineLang(g), r = { ...it, g, l, e: lineEd(g), f: lineFoil(g), q, nl: ls.length, li: i, eu: collLineEu(it.k, g) ?? undefined }; const dn = frName(it.k, l); if (dn) r.dn = dn; else delete r.dn;
     if (g !== dom) { delete r.rp; delete r.rt; delete r.rc; }
     return r;
   });
@@ -743,7 +760,7 @@ function collSorted(items) {
   const by = { name: byName, qty: (a, b) => (b.q - a.q) || byName(a, b), price: (a, b) => (((srcPrice(b, COLL.src) || {}).u || 0) - ((srcPrice(a, COLL.src) || {}).u || 0)) || byName(a, b), cmc: (a, b) => ((a.cm ?? 99) - (b.cm ?? 99)) || byName(a, b), decks: (a, b) => ((b.ed || 0) - (a.ed || 0)) || ((b.cx || 0) - (a.cx || 0)) || byName(a, b), new: (a, b) => ((b.d || 0) - (a.d || 0)) || byName(a, b), old: (a, b) => ((a.d || 0) - (b.d || 0)) || byName(a, b) }[COLL.sort] || byName;
   return items.slice().sort(by);
 }
-const CARD_LANG_LIST = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN'];
+const CARD_LANG_LIST = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru'];
 /** Puce langue d'une carte : drapeau (ou « Langue ? »), et un <select> invisible par-dessus : un appui ouvre le choix natif de la langue. g : la ligne (clé langue|édition) quand elle a une édition. */
 function langChip(k, l, name, cls, g) {
   return `<label class="lchip${l ? '' : ' none'}${cls ? ' ' + cls : ''}" data-l="${esc(l)}"${g && g !== l ? ` data-g="${esc(g)}"` : ''}>${l ? flag(l) : '<span>' + T('Langue ?') + '</span>'}<select data-lk="${esc(k)}" aria-label="${T('Langue de {name}', { name: esc(name) })}"><option value=""${l ? '' : ' selected'}>${T('Non précisée')}</option>${CARD_LANG_LIST.map(x => { const n = T(LANGS[x]); return `<option value="${x}"${x === l ? ' selected' : ''}>${esc(n[0].toUpperCase() + n.slice(1))}</option>`; }).join('')}</select></label>`;
@@ -751,12 +768,13 @@ function langChip(k, l, name, cls, g) {
 /** Sélecteur d'édition d'une ligne (à gauche de la quantité) : le symbole de l'extension seul (code tant que les symboles ne sont pas lus) ; sans édition : un rond en pointillés. */
 function edBtn(it, nm) {
   const e = it.e || '', set = edSet(e), sn = e ? setName(set) || (COLL.ed[e] || {}).sn || '' : '', ic = e ? setIcHtml(set) : '';
-  const lab = e ? T('Édition : {ed}', { ed: [sn, edLabel(e)].filter(Boolean).join(' · ') }) : T('Choisir l\'édition de {name}', { name: nm });
-  return `<button type="button" class="row-ed${e ? ' on' : ''}" data-act="ed" aria-label="${esc(lab)}" title="${esc(lab)}">${e ? ic || `<span class="ed-code">${esc(set.toUpperCase())}</span>` : ''}</button>`;      // sans édition : rond en pointillés dessiné en CSS (pas de SVG par ligne : 5 000 lignes se repeignent pendant la lecture)
+  const lab = (e ? T('Édition : {ed}', { ed: [sn, edLabel(e)].filter(Boolean).join(' · ') }) : T('Choisir l\'édition de {name}', { name: nm })) + (it.f ? ' · ' + T('Foil') : '');
+  return `<button type="button" class="row-ed${e ? ' on' : ''}${it.f ? ' foil' : ''}" data-act="ed" aria-label="${esc(lab)}" title="${esc(lab)}">${e ? ic || `<span class="ed-code">${esc(set.toUpperCase())}</span>` : ''}</button>`;      // sans édition : rond en pointillés dessiné en CSS (pas de SVG par ligne : 5 000 lignes se repeignent pendant la lecture) ; foil : étincelle en coin
 }
 function crowHtml(it) {
   const g = it.g ?? it.l, nm = it.dn || it.n, hue = hash32(it.k) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase()), img = collLineImage(it.k, g, it.im).src, sub = it.li > 0;      // sub : 2e ligne (langue, édition) de la même carte
   const tags = [];      // le drapeau suit le nom (à droite, loin de la vignette qu'on touche pour agrandir) ; « Langue ? » finit la rangée de tags
+  if (it.f) tags.push(`<span class="tag foil" title="${T('Exemplaires foil : prix foil Cardmarket')}">✦ ${T('Foil')}</span>`);
   if (!sub && it.tl) tags.push(`<span class="tag">${esc(T(typeBucket(it.tl)))}</span>`);
   if (!sub && it.cm != null && it.tl && typeBucket(it.tl) !== 'Terrains') tags.push(`<span class="tag">${T('Coût {n}', { n: it.cm })}</span>`);
   if (!sub && COLL.f.cmdr && it.cx) tags.push(it.cx === 2 ? `<span class="tag accent" title="${T('Commandant dans des decks EDHREC')}">Commander${it.ed ? ' · ' + nf0(it.ed) + ' decks' : ''}</span>` : '<span class="tag accent">Commander</span>');
@@ -1078,16 +1096,16 @@ function openCollection(tab) {
 /** Ligne (clé langue|édition) d'une rangée de la liste. */
 const rowG = r => r.dataset.g ?? (r.dataset.ln || '');
 /** « FR », « FR · CMM 400 », « sans langue » : nom court d'une ligne. */
-const lineTag = g => { const l = lineLang(g), e = lineEd(g); return [l ? langCode(l) : (e ? '' : T('sans langue')), edLabel(e)].filter(Boolean).join(' · '); };
+const lineTag = g => { const l = lineLang(g), e = lineEd(g); return [l ? langCode(l) : (e || lineFoil(g) ? '' : T('sans langue')), edLabel(e), lineFoil(g) ? T('Foil') + ' ✦' : ''].filter(Boolean).join(' · '); };
 /** Carte d'une ligne pour l'aperçu en grand. coll : { k, g } — le choix d'une illustration y fixe l'édition de la ligne (collSetEd). */
 function collViewItem(k, ln) {
   const x = COLL.map[k], m = COLL.meta[k]; if (!x || !m || !m.im) return null;
   const ls = collLines(x), line = ls.find(e => e[0] === (ln || '')) || ls[0] || [x.l || '', x.q], g = line[0], l = lineLang(g), e = lineEd(g), n = line[1];
   const im = collLineImage(k, g, m.im), fr = l && l !== 'en' && im.lang === 'en' && !e ? ' · ' + T('image anglaise (pas d\'image {lang} sur Scryfall)', { lang: LANGS[l] ? T(LANGS[l]) : l }) : '';
   const own = ls.length > 1 ? TN(n, '{n} exemplaire {lang} · {total} au total', '{n} exemplaires {lang} · {total} au total', { n, lang: lineTag(g), total: x.q }) : TN(x.q, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: x.q });
-  const eu = e ? edEu(e) : null, px = eu != null ? ' · ' + T('prix Cardmarket {v}', { v: fmt(eu, 'EUR') }) : Number.isFinite(m.eu) ? ' · ' + T('réf. Cardmarket {v}', { v: fmt(m.eu, 'EUR') }) : '';
+  const f = lineFoil(g), eu = e ? edEu(e, f) : f && m.ef > 0 ? m.ef : null, px = eu != null ? ' · ' + T(f ? 'prix foil Cardmarket {v}' : 'prix Cardmarket {v}', { v: fmt(eu, 'EUR') }) : Number.isFinite(m.eu) ? ' · ' + T('réf. Cardmarket {v}', { v: fmt(m.eu, 'EUR') }) : '';
   const sn = e ? setName(edSet(e)) || (COLL.ed[e] || {}).sn || '' : '';
-  return { key: k, lid: k + '|' + g, name: frName(k, l) || x.n, ln: x.n, wl: l && l !== 'en' && !e ? l : '', small: im.src, lang: im.lang, plain: true, coll: { k, g },
+  return { key: k, lid: k + '|' + g, name: frName(k, l) || x.n, ln: x.n, wl: l && l !== 'en' && !e ? l : '', small: im.src, lang: im.lang, plain: true, coll: { k, g }, ...(f ? { foil: true } : {}),
     ...(e ? { set: edSet(e), num: edNum(e), setName: sn } : {}),
     extra: `${own}${px}${COLL.px[k] && Number.isFinite(COLL.px[k].p) ? ' · ' + T('offre CardTrader {v}', { v: fmt(COLL.px[k].p, COLL.px[k].c || 'EUR') }) : ''}${fr}` };
 }
@@ -1100,7 +1118,7 @@ const collUnknown = () => Object.keys(COLL.map).filter(k => COLL.meta[k] === nul
 function collRename(k, en, fr) {
   const cur = COLL.map[k], nk = ownKey(en); if (!cur || !nk) return null;
   const had = nk !== k ? COLL.map[nk] || null : null, m = { ...COLL.map }, lines = collLines(had).map(e => e.slice());
-  for (const [g0, q] of collLines(cur)) { const g = lineLang(g0) ? g0 : lineKey(fr ? FRX.l : '', lineEd(g0)), e = lines.find(x => x[0] === g); if (e) e[1] = Math.min(9999, e[1] + q); else lines.push([g, q]); }
+  for (const [g0, q] of collLines(cur)) { const g = lineLang(g0) ? g0 : lineKey(fr ? FRX.l : '', lineEd(g0), lineFoil(g0)), e = lines.find(x => x[0] === g); if (e) e[1] = Math.min(9999, e[1] + q); else lines.push([g, q]); }
   delete m[k];
   m[nk] = collFromLines({ ...(had || {}), n: (had && had.n) || en, d: (had && had.d) || cur.d || dateNowSec() }, lines);
   COLL.map = m; collChanged(); collEnrich();
@@ -1162,7 +1180,7 @@ function collBulkLang(l) {
   const before = COLL.map, m = {}; let n = 0;
   for (const [k, x] of Object.entries(before)) {
     if (!collNoLang(x)) { m[k] = x; continue; }
-    const lines = []; for (const [g, q] of collLines(x)) { const to = lineLang(g) ? g : lineKey(l, lineEd(g)), e = lines.find(y => y[0] === to); if (e) e[1] += q; else lines.push([to, q]); }
+    const lines = []; for (const [g, q] of collLines(x)) { const to = lineLang(g) ? g : lineKey(l, lineEd(g), lineFoil(g)), e = lines.find(y => y[0] === to); if (e) e[1] += q; else lines.push([to, q]); }
     m[k] = collFromLines(x, lines); n++;
   }
   if (!n) return;

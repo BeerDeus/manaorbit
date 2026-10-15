@@ -437,5 +437,6 @@
   "Ce compte n'a pas accès au CardTrader du serveur. Ajoute ton propre token CardTrader dans les réglages.": "Questo account non ha accesso al CardTrader del server. Aggiungi il tuo token CardTrader nelle impostazioni.",
   "commandants joués en tournoi cEDH (données TopDeck.gg)": "comandanti giocati nei tornei cEDH (dati TopDeck.gg)",
   "résultats de tournois cEDH, via EDHTop16": "risultati dei tornei cEDH, via EDHTop16",
-  "Serveur injoignable : prix simulés pour l'instant.": "Server irraggiungibile: prezzi simulati per ora."
+  "Serveur injoignable : prix simulés pour l'instant.": "Server irraggiungibile: prezzi simulati per ora.",
+  "russe": "russo"
 }

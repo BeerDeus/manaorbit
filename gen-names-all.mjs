@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** Langues des colonnes, dans l'ordre (celles que l'appli sait lire : core.js › NAMES_LANGS) → fichier source. */
-export const ALL_LANGS = ['fr', 'de', 'es', 'it', 'pt'];
+export const ALL_LANGS = ['fr', 'de', 'es', 'it', 'pt', 'ru'];
 const fileOf = l => (l === 'fr' ? 'fr-names.tsv' : 'names-' + l + '.tsv');
 /** Textes des catalogues { langue: « imprimé \t anglais \t image » par ligne } → contenu de names-all.tsv. Un catalogue tronqué (< 500 lignes, comme le serveur) est laissé de côté. */
 export function namesAll(texts) {

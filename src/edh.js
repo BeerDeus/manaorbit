@@ -169,10 +169,19 @@ const edhDate = () => { const d = EDH.data && EDH.data.at ? new Date(EDH.data.at
 function edhRows() {
   if (!EDH.data) return [];
   for (const t of [...EDH.themes]) if (!EDH.data.themeIx.has(t)) EDH.themes.delete(t);      // un thème absent du fichier chargé (version plus ancienne ou plus récente) ne filtre plus rien
-  const q = edhQuery(), sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join(''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.budget, q, EDH.qm].join('|');
+  const q = edhQuery(), alt = q ? edhAlt() : null, sig = [COLL.u, collCount(), EDH.at, EDH.sort, EDH.then, [...EDH.kinds].sort().join(''), engSig(), [...EDH.cols].sort().join(''), [...EDH.tiers].sort().join(''), [...EDH.themes].sort().join(','), EDH.mine, EDH.budget, q, EDH.qm, alt ? FRX.l : ''].join('|');
   if (EDH.memo && EDH.memo.sig === sig) return EDH.memo.rows;
-  const rows = edhRank(EDH.data, collQty, { held: k => engTotal(XS.eng, k), cols: EDH.cols, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm });
+  const rows = edhRank(EDH.data, collQty, { held: k => engTotal(XS.eng, k), cols: EDH.cols, tiers: EDH.tiers, kinds: EDH.kinds, themes: EDH.themes, mine: EDH.mine, budget: EDH.budget, sort: EDH.sort, then: EDH.then, q, qm: EDH.qm, alt });
   EDH.memo = { sig, rows }; return rows;
+}
+/* ── Recherche dans la langue des noms (« Foudre », « Blitzschlag ») puis en anglais : les noms imprimés du catalogue chargé (FRX.ix.fr : clé anglaise → nom imprimé) sont
+   cherchés avec les noms anglais. Normalisés une fois par catalogue et gardés (≈ 30 000 noms : quelques dizaines de ms), relus si le catalogue change (langue). */
+const EDH_ALT = { ix: null, map: null };
+function edhAlt() {
+  const ix = FRX.ix; if (!ix || !ix.fr) { if (!FRN.p && typeof frLoad === 'function') frLoad().then(ok => { if (ok && COLL.el && EDH.q) collPaintBody(true); }).catch(() => {}); return null; }      // catalogue pas encore là : chargé (1 requête), la liste se repeint quand il arrive
+  if (EDH_ALT.ix !== ix) { EDH_ALT.ix = ix; EDH_ALT.map = new Map(); }
+  const m = EDH_ALT.map;
+  return k => { let v = m.get(k); if (v === undefined) { const p = ix.fr.get(k); v = p ? normName(p).replace(/ \/\/ /g, ' ') : ''; m.set(k, v); } return v; };
 }
 /** Recherche en cours, ou '' : un nom de commandant dès 1 lettre, une carte à partir de 2 (sinon presque tous les decks la contiennent). */
 const edhQuery = () => { const t = edhTokens(EDH.q); return t.length && (EDH.qm === 'cmd' || t.join('').length >= 2) ? EDH.q : ''; };
@@ -323,7 +332,7 @@ function edhResHtml() {
   const sum = `<p class="hint dk-sum">${TN(rows.length, '{n} deck sur {total}', '{n} decks sur {total}', { total: nf0(EDH.data.decks.length) })}${q ? ' · ' + T(card ? 'contenant « {q} »' : 'commandant « {q} »', { q: esc(EDH.q.trim()) }) : ''}${EDH.cols.size ? ' · ' + T('couleurs ⊆ {c}', { c: [...EDH.cols].join('') }) : ''}${EDH.tiers.size ? ' · ' + T('tier {t}', { t: EDH_TIER_NAMES.filter(t => EDH.tiers.has(t)).join(' ') }) : ''}${EDH.kinds.size ? ' · ' + EDH_KINDS.filter(k => EDH.kinds.has(k)).map(edhKindName).join(' / ') : ''}${EDH.themes.size ? ' · ' + T(EDH.themes.size > 1 ? 'thèmes : {list}' : 'thème : {list}', { list: esc([...EDH.themes].map(s => { const i = EDH.data.themeIx.get(s); return i === undefined ? s : edhThemeName(EDH.data.themes[i]); }).join(' + ')) }) : ''}${near ? ' · ' + T('<b>{n}</b> à 10 cartes ou moins', { n: nf0(near) }) : ''}</p>`;
   let note = '', none = T('Aucun deck ne correspond à ces réglages.');
   if (q && !card) {
-    const toks = edhTokens(q), found = EDH.data.cmds.filter(c => edhCmdHas(c, toks)), has = EDH.data.withDeck || (EDH.data.withDeck = new Set(EDH.data.decks.map(d => d.cmd.slug))), nod = found.filter(c => !has.has(c.slug)).sort((a, b) => a.rank - b.rank);
+    const toks = edhTokens(q), alt = edhAlt(), found = EDH.data.cmds.filter(c => edhCmdHas(c, toks, alt)), has = EDH.data.withDeck || (EDH.data.withDeck = new Set(EDH.data.decks.map(d => d.cmd.slug))), nod = found.filter(c => !has.has(c.slug)).sort((a, b) => a.rank - b.rank);
     if (!found.length) none = T('Aucun commandant ne correspond à « {q} ».', { q: esc(EDH.q.trim()) });
     else if (nod.length) note = `<p class="hint dk-note">${T('Sans deck dans le fichier (fourni pour les 2 000 commandants les plus joués) : {list}.', { list: nod.slice(0, 6).map(c => esc(c.names.join(' + ')) + ' ' + T('(n° {n})', { n: nf0(c.rank) })).join(', ') + (nod.length > 6 ? ' ' + T('et {n} autres', { n: nod.length - 6 }) : '') })}</p>`;
   } else if (q) {

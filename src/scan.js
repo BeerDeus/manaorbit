@@ -11,16 +11,17 @@ const TESS_V = '5.1.1', CDN = 'https://cdn.jsdelivr.net/npm/';
 const TESS = {
   js: `${CDN}tesseract.js@${TESS_V}/dist/tesseract.min.js`, worker: `${CDN}tesseract.js@${TESS_V}/dist/worker.min.js`, core: `${CDN}tesseract.js-core@${TESS_V}`,
   langs: { eng: `${CDN}@tesseract.js-data/eng/4.0.0_best_int`, fra: `${CDN}@tesseract.js-data/fra/4.0.0_best_int`, deu: `${CDN}@tesseract.js-data/deu/4.0.0_best_int`,
-    spa: `${CDN}@tesseract.js-data/spa/4.0.0_best_int`, ita: `${CDN}@tesseract.js-data/ita/4.0.0_best_int`, por: `${CDN}@tesseract.js-data/por/4.0.0_best_int` },
+    spa: `${CDN}@tesseract.js-data/spa/4.0.0_best_int`, ita: `${CDN}@tesseract.js-data/ita/4.0.0_best_int`, por: `${CDN}@tesseract.js-data/por/4.0.0_best_int`, rus: `${CDN}@tesseract.js-data/rus/4.0.0_best_int` },
 };
 /** Moteur OCR de la langue des noms reconnus (collection.js › namesLang) ; lu d'abord, puis l'anglais. Cartes anglaises (aucun catalogue) : l'anglais seul. */
-const TESS_OF = { fr: 'fra', de: 'deu', es: 'spa', it: 'ita', pt: 'por' };
+const TESS_OF = { fr: 'fra', de: 'deu', es: 'spa', it: 'ita', pt: 'por', ru: 'rus' };
 const ocrLangs = () => { if (SCS.lang === 'en') return ['eng']; const t = TESS_OF[SCS.lang || namesLang()]; return t ? [t, 'eng'] : ['eng']; };      // langue imposée dans les réglages du scan (scanset.js) : son moteur d'abord
 const OCR = { lib: null, workers: {}, onProg: null };
 /** Lettres admises dans un nom de carte : écarte les symboles de mana, filets et bruits que Tesseract prendrait pour du texte. */
 const LETTERS = { eng: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'’-:!", fra: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆàâäçéèêëîïôöùûüÿœæ ,'’-:!",
   deu: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÖÜäöüß ,'’-:!", spa: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÁÉÍÑÓÚÜáéíñóúü¡¿ ,'’-:!",
-  ita: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÈÉÌÍÒÓÙÚàèéìíòóùú ,'’-:!", por: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÁÂÃÇÉÊÍÓÔÕÚÜàáâãçéêíóôõúü ,'’-:!" };
+  ita: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÈÉÌÍÒÓÙÚàèéìíòóùú ,'’-:!", por: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÁÂÃÇÉÊÍÓÔÕÚÜàáâãçéêíóôõúü ,'’-:!",
+  rus: "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюяABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'’-:!" };      // russe : cyrillique + latin (noms propres gardés en anglais sur certaines cartes)
 function ocrLib() {
   if (typeof Tesseract !== 'undefined') return Promise.resolve(Tesseract);
   if (!OCR.lib) OCR.lib = new Promise((res, rej) => {
@@ -42,7 +43,7 @@ function ocrWorker(lang) {
 }
 /** Lit une image (canvas) : lignes de texte [{ text }]. psm : '6' bloc (bande du nom) · '11' texte épars (carte entière). Seul le texte est demandé (pas de hocr/tsv/blocs). */
 async function ocrLines(canvas, lang, psm) {
-  if (natOcr()) { if (!canvas.__ml) canvas.__ml = natLines(canvas); try { return await canvas.__ml; } catch (e) { delete canvas.__ml; } }      // appli Android : ML Kit (repli Tesseract en cas d'erreur)
+  if (natOcr() && lang !== 'rus') { if (!canvas.__ml) canvas.__ml = natLines(canvas); try { return await canvas.__ml; } catch (e) { delete canvas.__ml; } }      // appli Android : ML Kit (repli Tesseract en cas d'erreur) ; ML Kit ne lit que l'alphabet latin : le russe passe par Tesseract
   const w = await ocrWorker(lang), mode = psm || '6';
   if (w.__psm !== mode) { await w.setParameters({ tessedit_pageseg_mode: mode, tessedit_char_whitelist: LETTERS[lang] || '' }); w.__psm = mode; }
   const r = await w.recognize(canvas, {}, { text: true }), d = (r && r.data) || {};
@@ -451,7 +452,7 @@ async function othLocal(qs, skip) {
 /** Lignes lues → carte trouvée dans une autre langue : { name, key, score, raw, card, img, via } ou null. Sur l'appareil d'abord (names-all.tsv, sans réseau ni budget) ;
  *  sans fichier sur l'appareil : le serveur. st : budget de la carte pour le serveur (2 requêtes au plus). */
 async function scanOther(lines, st) {
-  const qs = [...new Set(lines.map(l => String(l.text || '').trim()).filter(t => t.length >= 3 && t.length <= 60 && (t.match(/[A-Za-zÀ-ÿ]/g) || []).length >= t.length * 0.6))].slice(0, 4);      // mêmes lignes que core.js › ocrMatches
+  const qs = [...new Set(lines.map(l => String(l.text || '').trim()).filter(t => t.length >= 3 && t.length <= 60 && (t.match(NAME_LETTER_RE) || []).length >= t.length * 0.6))].slice(0, 4);      // mêmes lignes que core.js › ocrMatches
   if (!qs.length) return null;
   const skip = FRC.cat ? FRC.cat.l || FRX.l : '', k = skip + '\n' + qs.join('\n');      // langue des noms déjà comparée sur l'appareil ; catalogue pas encore là : cherchée aussi
   if (OTH.memo.has(k)) return OTH.memo.get(k);
@@ -658,7 +659,7 @@ async function scanWarm() {
   const s = SC.session; if (!SC.el || SC.warm) return; SC.warm = true;
   try {
     await Promise.all([collCatalog(), frcWarm()]);
-    if (!SC.el || SC.session !== s || natOcr()) return; await ocrWorker(ocrLangs()[0]);      // appli Android : ML Kit, pas de moteur à télécharger      // français d'abord : l'anglais ne se charge que si le français ne trouve rien
+    if (!SC.el || SC.session !== s || (natOcr() && ocrLangs()[0] !== 'rus')) return; await ocrWorker(ocrLangs()[0]);      // appli Android : ML Kit, pas de moteur à télécharger      // français d'abord : l'anglais ne se charge que si le français ne trouve rien
   } catch (e) { /* hors ligne ou CDN bloqué : le premier appui retentera et dira pourquoi */ }
   finally { SC.warm = false; SC.workEnd = performance.now(); if (SC.el && SC.session === s) othWarm(); }      // autres langues : téléchargées après le moteur OCR (la 1re lecture d'abord)
 }

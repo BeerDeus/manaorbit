@@ -4,7 +4,7 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const reduceMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
 // Noms des langues de cartes, déjà traduits (« français » / « French ») : on les insère dans des phrases traduites (T('Offres en {lang}', …)).
-const LANGS = { fr: T('français'), en: T('anglais'), de: T('allemand'), es: T('espagnol'), it: T('italien'), pt: T('portugais'), jp: T('japonais'), 'zh-CN': T('chinois') };
+const LANGS = { fr: T('français'), en: T('anglais'), de: T('allemand'), es: T('espagnol'), it: T('italien'), pt: T('portugais'), jp: T('japonais'), 'zh-CN': T('chinois'), ru: T('russe') };
 const FLAGS = {
   fr: '<rect width="8" height="16" fill="#0055A4"/><rect x="8" width="8" height="16" fill="#fff"/><rect x="16" width="8" height="16" fill="#EF4135"/>',
   en: '<rect width="24" height="16" fill="#012169"/><path d="M0 0L24 16M24 0L0 16" stroke="#fff" stroke-width="3.2"/><path d="M0 0L24 16M24 0L0 16" stroke="#C8102E" stroke-width="1.1"/><path d="M12 0V16M0 8H24" stroke="#fff" stroke-width="5.4"/><path d="M12 0V16M0 8H24" stroke="#C8102E" stroke-width="3.2"/>',
@@ -13,6 +13,7 @@ const FLAGS = {
   it: '<rect width="8" height="16" fill="#009246"/><rect x="8" width="8" height="16" fill="#fff"/><rect x="16" width="8" height="16" fill="#CE2B37"/>',
   pt: '<rect width="24" height="16" fill="#FF0000"/><rect width="9.6" height="16" fill="#006600"/><circle cx="9.6" cy="8" r="2.7" fill="#FFCC29" stroke="#fff" stroke-width=".6"/>',
   jp: '<rect width="24" height="16" fill="#fff"/><circle cx="12" cy="8" r="4.7" fill="#BC002D"/>',
+  ru: '<rect width="24" height="5.4" fill="#fff"/><rect y="5.3" width="24" height="5.4" fill="#0039A6"/><rect y="10.6" width="24" height="5.4" fill="#D52B1E"/>',
   'zh-CN': '<rect width="24" height="16" fill="#DE2910"/><polygon points="4.20,1.30 4.85,3.30 6.96,3.30 5.25,4.54 5.90,6.55 4.20,5.31 2.50,6.55 3.15,4.54 1.44,3.30 3.55,3.30" fill="#FFDE00"/><polygon points="7.59,2.10 8.04,1.57 7.67,0.99 8.31,1.25 8.76,0.72 8.71,1.41 9.35,1.67 8.68,1.83 8.63,2.52 8.26,1.94" fill="#FFDE00"/><polygon points="9.06,3.70 9.69,3.42 9.62,2.73 10.08,3.25 10.71,2.97 10.36,3.56 10.82,4.08 10.15,3.93 9.80,4.53 9.73,3.84" fill="#FFDE00"/><polygon points="9.10,5.89 9.79,5.90 10.02,5.25 10.22,5.91 10.91,5.92 10.34,6.32 10.54,6.98 9.99,6.56 9.43,6.96 9.65,6.31" fill="#FFDE00"/><polygon points="7.70,7.36 8.33,7.64 8.79,7.13 8.71,7.82 9.34,8.10 8.67,8.24 8.60,8.93 8.25,8.33 7.58,8.47 8.04,7.96" fill="#FFDE00"/>',
 };
 /** Drapeau de la langue d'une carte (pas du pays du vendeur). */

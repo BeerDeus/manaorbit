@@ -4,7 +4,7 @@
         · 'none' (sans édition : carte et langue seulement) ;
    auto : scan automatique (scan.js › scanAuto) · delay : écart minimal entre deux cartes en automatique (ms) · same : même carte à la suite en automatique, 'ask' (demander) ou 'add' (+1) ;
    lang : langue des cartes imposée ('' : lue sur chaque carte) · vib, snd : vibration et son à chaque carte reconnue. */
-const SCS_KEY = 'deckdeal:scanset', SCS_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt'], SCS_DELAYS = [500, 1000, 1500];
+const SCS_KEY = 'deckdeal:scanset', SCS_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'ru'], SCS_DELAYS = [500, 1000, 1500];
 const SCS_DEF = { ed: 'scan', auto: false, delay: 1000, same: 'ask', lang: '', vib: true, snd: false };
 const SCS = { ...SCS_DEF, u: 0, who: '', doc: { uid: '', unsub: null, pushT: 0 } };
 /** Réglages lus (appareil, compte) → valeurs sûres ; tout le reste prend la valeur par défaut. */
