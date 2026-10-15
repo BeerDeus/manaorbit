@@ -12,7 +12,7 @@
 .prg-h{margin:16px 0 8px;font-size:13px;font-weight:700;color:var(--ink-2)}
 .prg-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .prg-b{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px 10px;border-radius:16px;background:var(--surface);border:2px solid var(--line);text-align:center;min-width:0}
-.prg-b b{font-size:12.5px;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prg-b b{font-size:12.5px;line-height:1.2;max-width:100%;overflow-wrap:anywhere;hyphens:auto}
 .prg-b small{font-size:10.5px;line-height:1.25;color:var(--ink-3)}
 .prg-b .prg-mini{width:80%}
 .prg-ic{font-size:26px;line-height:1.1;margin-bottom:2px}
