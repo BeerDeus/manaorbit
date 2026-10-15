@@ -377,7 +377,7 @@ function puLaunch(qs) {
 function puJoin(code) {
   if (PU.joinEl) PU.joinEl.__close();
   const wrap = document.createElement('div'); wrap.className = 'dv pu pu-join'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Rejoindre la partie'));
-  const J = { code, peek: null, err: '', guest: false, pos: 0, deck: '', name: '', joined: partieRoom() && partieRoom().c === code ? partieRoom() : null, view: null, stop: null };
+  const J = { code, peek: null, err: '', guest: false, pos: 0, deck: '', name: '', cmd: '', joined: partieRoom() && partieRoom().c === code ? partieRoom() : null, view: null, stop: null };
   PU.joinEl = wrap; wrap.__close = () => { if (J.stop) J.stop(); PU.joinEl = null; wrap.classList.remove('on'); setTimeout(() => wrap.remove(), 240); releaseApp(); };
   const decks = () => (D.user && typeof allDecks === 'function' ? allDecks().filter(d => d && d.name) : []);
   const paint = () => {
@@ -385,7 +385,7 @@ function puJoin(code) {
     let body;
     if (J.joined) {
       const v = J.view, res = v && v.res, me = v ? v.me : J.joined.pos;
-      body = res ? `<section class="pu-card"><p class="pu-h">${T('Partie terminée')}</p><ol class="pu-rank">${res.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === me ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '🏆' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant ? `<small>${esc(p.commandant)}</small>` : ''}</span></li>`).join('')}</ol><p class="hint">${T('Gardée dans « Mes parties ».')}</p></section>`
+      body = res ? `<section class="pu-card"><p class="pu-h">${T('Partie terminée')}</p><ol class="pu-rank">${res.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === me ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '🏆' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol><p class="hint">${T('Gardée dans « Mes parties ».')}</p></section>`
         : `<section class="pu-card pu-wait">${PU_HEART}<b>${T('Tu es à la place {n}', { n: me })}</b><p>${esc(T('Range ton téléphone : la partie se joue sur le téléphone de {name}. Le résultat arrivera ici.', { name: (v && v.host) || (P && P.host) || '' }))}</p>${v && v.st === 'live' ? `<p class="hint">${T('Partie en cours…')}</p>` : `<p class="hint">${T('En attente du lancement…')}</p>`}<button class="btn ghost small" type="button" data-j="leave">${T('Quitter la table')}</button></section>`;
     } else if (J.err) body = `<section class="pu-card"><p class="pu-h">${T('Table introuvable')}</p><p class="hint">${esc(J.err)}</p></section>`;
     else if (!P) body = `<section class="pu-card"><p class="hint">${T('Lecture de la table…')}</p></section>`;
@@ -396,13 +396,13 @@ function puJoin(code) {
           ${J.guest ? `<div class="field-in"><label class="label" for="puJn">${T('Prénom')}</label><input type="text" id="puJn" maxlength="24" autocomplete="off" value="${esc(J.name)}"></div>` : ''}
           <p class="pu-h">${T('Ta place autour de la table')}</p><div class="pu-places">${seats.map(n => `<button type="button" data-seat="${n}" aria-pressed="${J.pos === n}"${taken.has(n) ? ' disabled' : ''}><b>${n}</b><small>${esc(taken.get(n) || T('libre'))}</small></button>`).join('')}</div>
           ${!J.guest && decks().length ? `<p class="pu-h">${T('Ton deck')}</p><label class="sortsel pu-deck"><select data-j="deck"><option value="">${T('Aucun')}</option>${decks().map(d => `<option value="${esc(d.id)}"${J.deck === d.id ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : ''}
-          ${J.guest ? `<div class="field-in"><label class="label" for="puJc">${T('Commandant (facultatif)')}</label><input type="text" id="puJc" maxlength="80" autocomplete="off"></div>` : ''}</section>`;
+          ${J.guest ? `<div class="field-in"><label class="label" for="puJc">${T('Commandant (facultatif)')}</label><input type="text" id="puJc" maxlength="80" autocomplete="off" value="${esc(J.cmd)}"></div>` : ''}</section>`;
     }
     wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-j="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Rejoindre la partie')}</b><span>${esc(T('Table {c}', { c: code }))}</span></div></header>
       <div class="dv-scroll"><div class="dv-body pu-setup">${body}</div></div>${!J.joined && P && (D.user || J.guest) ? `<div class="pu-foot"><button class="btn block" type="button" data-j="go"${J.pos ? '' : ' disabled'}>${J.pos ? T('Prendre la place {n}', { n: J.pos }) : T('Choisis ta place')}</button></div>` : ''}`;
   };
   const watch = () => { if (J.stop) J.stop(); J.stop = partieRoomWatch((v, x) => { if (x && x.gone) { J.joined = null; J.err = x.gone === 'kicked' ? T('Le créateur t\'a retiré de la table.') : T('La table est fermée.'); } else if (v) J.view = v; paint(); }); };
-  wrap.addEventListener('input', e => { if (e.target.id === 'puJn') J.name = e.target.value; });
+  wrap.addEventListener('input', e => { if (e.target.id === 'puJn') J.name = e.target.value; else if (e.target.id === 'puJc') J.cmd = e.target.value; });      // gardés quand l'écran se repeint (choix de la place)
   wrap.addEventListener('change', e => { if (e.target.closest('[data-j="deck"]')) J.deck = e.target.value; });
   wrap.addEventListener('click', async e => {
     const s = e.target.closest('[data-seat]'); if (s && !s.disabled) { J.pos = Number(s.dataset.seat); haptic('tap'); paint(); return; }
@@ -414,7 +414,7 @@ function puJoin(code) {
     else if (a === 'leave') { await partieRoomLeave(); J.joined = null; J.view = null; if (J.stop) J.stop(); wrap.__close(); }
     else if (a === 'go') {
       const nom = J.guest ? partieStr(($('#puJn', wrap) || {}).value || J.name, PRT_LEN.nom) : puMe(); if (J.guest && !nom) { const n = $('#puJn', wrap); if (n) n.focus(); return; }
-      const d = decks().find(x => x.id === J.deck), deck = J.guest ? partieDeck({ commandant: ($('#puJc', wrap) || {}).value || '' }) : d ? partieDeckOf(d, puDeckImg(d)) : null;
+      const d = decks().find(x => x.id === J.deck), deck = J.guest ? partieDeck({ commandant: J.cmd }) : d ? partieDeckOf(d, puDeckImg(d)) : null;
       b.disabled = true;
       try { J.view = await partieRoomJoin(code, { pos: J.pos, n: nom, p: J.guest ? '' : PROF.photo || '', l: I18N.lang, ...(deck ? { deck } : {}), guest: J.guest }); J.joined = partieRoom(); haptic('ok'); watch(); }
       catch (er) { toast(er && er.code === 'taken' ? T('Place déjà prise : choisis-en une autre') : er && er.code === 'net' ? T('Pas de réseau : réessaie') : T('Impossible de rejoindre la table')); try { J.peek = await partiePeek(code); } catch (x) { /* garde l'ancienne vue */ } }

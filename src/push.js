@@ -25,6 +25,7 @@ function pnDone(r) { for (const f of PN.wait.splice(0)) f(r); }
 function pushOpen(url) {
   const u = String(url || '');
   if (typeof trocPushOpen === 'function' && trocPushOpen(u)) return;
+  if (/[?&]parties\b/.test(u) && typeof puHist === 'function') { setTimeout(puHist, 500); return; }      // « Partie enregistrée » (partie-ui.js) : Mes parties
   if (amPushOpen(u)) return;
   if (/[?&]alerts\b/.test(u)) setTimeout(alertsOpen, 500);
   else if (/[?&]resume\b/.test(u)) resumeRun();
