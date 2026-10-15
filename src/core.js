@@ -1262,12 +1262,14 @@ const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'];
 const itemColors = i => (i.s === 'basic' ? BASIC_COLOR[String(i.k).replace(/^snow covered /, '')] || '' : i.cl || '');
 const itemType = i => (i.s === 'basic' ? 'Terrains' : typeBucket(i.tl));
 const hasMeta = i => i.s === 'basic' || i.tl != null || i.cm != null;
-/** f : { q:texte, colors:Set('W','U',… ,'C'), type:'Créatures'…, cmc:0..7 (7 = 7 et plus) } — champ absent ou vide = pas de filtre. */
+/** f : { q:texte, colors:Set('W','U',… ,'C'), type:'Créatures'…, cmc:0..7 (7 = 7 et plus), set: code d'extension ou '-' (sans édition) } — champ absent ou vide = pas de filtre. */
 function filterItems(items, f) {
   if (!f) return items;
   const q = normPart(f.q || ''), colors = f.colors && f.colors.size ? f.colors : null, type = f.type || '', cmc = f.cmc === '' || f.cmc == null ? null : Number(f.cmc), cmdr = f.cmdr === 'can' || f.cmdr === 'played' ? f.cmdr : '';
-  if (!q && !colors && !type && cmc == null && !cmdr) return items;
+  const set = f.set === '-' ? '' : f.set || null;      // '' : lignes sans édition ; null : toutes
+  if (!q && !colors && !type && cmc == null && !cmdr && set == null) return items;
   return items.filter(i => {
+    if (set != null && i.eds && !i.eds.includes(set)) return false;      // eds : extensions des lignes de la carte (collection, échange), '' pour une ligne sans édition ; sans eds (deck) : pas de filtre
     if (q && !normPart(i.n).includes(q) && !(i.dn && normPart(i.dn).includes(q)) && !(i.fn && normPart(i.fn).includes(q))) return false;      // nom anglais, nom affiché (FR) ou nom français de la carte même si l'exemplaire est anglais
     if (cmdr && (i.cx || 0) < (cmdr === 'played' ? 2 : 1)) return false;      // cx : 0 pas commandant · 1 peut l'être · 2 joué comme commandant (EDHREC)
     if (colors || type || cmc != null) {
@@ -1279,7 +1281,7 @@ function filterItems(items, f) {
     return true;
   });
 }
-const filterActive = f => !!f && !!((f.q || '').trim() || (f.colors && f.colors.size) || f.type || (f.cmc !== '' && f.cmc != null) || f.cmdr);
+const filterActive = f => !!f && !!((f.q || '').trim() || (f.colors && f.colors.size) || f.type || (f.cmc !== '' && f.cmc != null) || f.cmdr || f.set);
 
 /* ── Valeur de la collection dans le temps : relevés quotidiens, variations de prix carte par carte ─────────────── */
 const VAL_MAX = 400;

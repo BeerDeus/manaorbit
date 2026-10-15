@@ -117,17 +117,17 @@ function setsPaint() {
 }
 
 /* ── Symboles et noms de toutes les extensions (illustrations d'une carte, édition des lignes de la collection) ──────────────────────
-   Même requête GET /sets (≈ 1 000 éditions), réduite à { code: [symbole, nom] } et gardée 30 jours ; relue au plus une fois par lancement, à la demande. */
-const SETIC_KEY = 'sets:ic:v1', SETIC_TTL = 30 * DAY;
+   Même requête GET /sets (≈ 1 000 éditions), réduite à { code: [symbole, nom, date de sortie] } et gardée 30 jours ; relue au plus une fois par lancement, à la demande. */
+const SETIC_KEY = 'sets:ic:v2', SETIC_TTL = 30 * DAY;
 const SETIC = { m: null, p: null, on: new Set(), fail: 0 };
-/** Réponse /sets → { code: [symbole, nom] } ; symbole : nom du fichier svgs.scryfall.io (les promos partagent souvent celui d'une autre extension). */
+/** Réponse /sets → { code: [symbole, nom, date AAAA-MM-JJ] } ; symbole : nom du fichier svgs.scryfall.io (les promos partagent souvent celui d'une autre extension). */
 function setIcKeep(data) {
   const m = {};
   for (const s of Array.isArray(data) ? data : []) {
     if (!s || typeof s.code !== 'string' || typeof s.name !== 'string') continue;
     const code = s.code.toLowerCase(); if (!/^[a-z0-9]{2,6}$/.test(code)) continue;
     const ic = /^https:\/\/svgs\.scryfall\.io\/sets\/([a-z0-9_-]{1,24})\.svg(\?|$)/.exec(s.icon_svg_uri || '');
-    m[code] = [ic ? ic[1] : '', s.name.slice(0, 80)];
+    m[code] = [ic ? ic[1] : '', s.name.slice(0, 80), /^\d{4}-\d{2}-\d{2}$/.test(s.released_at || '') ? s.released_at : ''];
   }
   return m;
 }
@@ -152,5 +152,7 @@ function setIcLoad(f) {
 const setIcon = code => { const x = SETIC.m && SETIC.m[String(code || '').toLowerCase()]; return x && x[0] ? 'https://svgs.scryfall.io/sets/' + x[0] + '.svg' : ''; };
 /** Nom d'une extension ('' : inconnu). */
 const setName = code => { const x = SETIC.m && SETIC.m[String(code || '').toLowerCase()]; return x ? x[1] : ''; };
+/** Date de sortie d'une extension (AAAA-MM-JJ ; '' : inconnue). */
+const setDate = code => { const x = SETIC.m && SETIC.m[String(code || '').toLowerCase()]; return (x && x[2]) || ''; };
 /** Symbole en HTML (fond d'un <i> : aucune requête CORS, blanc sur fond sombre avec la classe « inv ») ; '' sans symbole connu. */
 const setIcHtml = (code, cls) => { const u = setIcon(code); return u ? `<i class="set-ic${cls ? ' ' + cls : ''}" aria-hidden="true" style="background-image:url('${u}')"></i>` : ''; };

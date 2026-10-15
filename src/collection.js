@@ -765,7 +765,7 @@ function frReady() {
 const frWait = (ms = 4000) => (FRX.ix || !FRN.p ? Promise.resolve() : Promise.race([FRN.p, sleep(ms)]).catch(() => {}));
 /** Noms imprimés dès que la collection a des cartes (affichage des cartes FR et recherche en français). */
 function collFrLoad() { if (collCount()) frLoad(); }
-const SORT_OPTS = [['name', T('Nom')], ['qty', T('Quantité')], ['price', T('Prix')], ['cmc', T('Coût')], ['decks', T('Decks EDHREC')], ['new', T('Ajout : récentes en haut')], ['old', T('Ajout : anciennes en haut')]];
+const SORT_OPTS = [['name', T('Nom')], ['qty', T('Quantité')], ['price', T('Prix')], ['set', T('Édition')], ['new', T('Ajout : récentes en haut')], ['old', T('Ajout : anciennes en haut')]];
 const isDateSort = () => COLL.sort === 'new' || COLL.sort === 'old';
 /** Cartes de l'écran, gardées tant que rien ne change (5 000 cartes : liste, filtre et tri coûtent ~0,3 s sur un téléphone moyen). Clé : COLL.seq, monté à chaque changement des cartes, des infos ou des prix (collChanged, collPaint, collPaintSoon), et les objets remplacés ailleurs (compte, noms français, EDHREC). */
 function collAll() {
@@ -775,22 +775,33 @@ function collAll() {
 }
 /** …filtrées puis triées, gardées pour un même tri, une même source de prix et un même filtre. */
 function collListOf(v) {
-  const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr, COLL.place].join('\u0001');
+  const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr, f.set, COLL.place, SETIC.m ? 1 : 0].join('\u0001');      // SETIC.m : dates des extensions arrivées (tri par édition)
   if (v.sk !== sk) { v.filtered = filterItems(v.all, f); if (COLL.place) v.filtered = v.filtered.filter(it => collLines(COLL.map[it.k]).some(([g]) => plcIn(g))); v.sorted = collSorted(v.filtered); v.sk = sk; }      // emplacement affiché (Rangement) : les cartes qui y ont au moins un exemplaire
   return v;
 }
 function collItems() {
   return Object.entries(COLL.map).map(([k, x]) => {
-    const px = COLL.px[k], dn = frName(k, x.l), fn = frOf(k), it = { k, n: x.n, ...(dn ? { dn } : {}), ...(fn && fn !== dn ? { fn } : {}), q: x.q, l: x.l || '', d: x.d || 0, ...(COLL.meta[k] || {}), ...(px ? { rp: px.p, rt: px.t, rc: px.c || 'EUR' } : {}) };
+    const px = COLL.px[k], dn = frName(k, x.l), fn = frOf(k), it = { k, n: x.n, ...(dn ? { dn } : {}), ...(fn && fn !== dn ? { fn } : {}), q: x.q, l: x.l || '', d: x.d || 0, ...(COLL.meta[k] || {}), ...(px ? { rp: px.p, rt: px.t, rc: px.c || 'EUR' } : {}), eds: collSetsOf(x) };
     if (x.x) { const eu = collCardEu(k); if (eu != null) it.eu = eu; }      // éditions : prix moyen d'un exemplaire (valeur, tri par prix)
     return Object.assign(it, cmdrClass(it, EDH.data));      // cx : 0 · 1 peut être commandant · 2 joué comme commandant (EDHREC), ed : nombre de decks
   });
 }
+/** Extensions des lignes d'une carte ('' : une ligne sans édition), sans doublon. */
+const collSetsOf = x => [...new Set(collLines(x).map(([g]) => edSet(lineEd(g))))];
+/** Ligne montrée avec le filtre « Extension » : celle de l'extension choisie (« Sans édition » : les lignes sans édition). */
+const collSetIn = g => { const s = COLL.f.set; return !s || (s === '-' ? !lineEd(g) : edSet(lineEd(g)) === s); };
+/** Extensions présentes dans la collection, pour le filtre : [[code, nom, cartes]], de la plus récente à la plus ancienne ; « Sans édition » ('-') en tête. */
+function collSetList() {
+  const by = new Map(); let none = 0;
+  for (const it of collAll().all) for (const e of it.eds) { if (e) by.set(e, (by.get(e) || 0) + 1); else none++; }
+  const l = [...by].map(([c, k]) => [c, setName(c), k]).sort((a, b) => setDate(b[0]).localeCompare(setDate(a[0])) || (a[1] || a[0]).localeCompare(b[1] || b[0]));
+  return none ? [['-', '', none], ...l] : l;
+}
 /** Lignes d'affichage d'une carte : une par langue et édition possédées (fr, fr CMM 400, en…), chacune avec sa quantité, son nom imprimé, son image et son prix (celui de l'édition s'il est connu).
  *  Les infos de la carte (type, coût, étiquettes) ne sont montrées que sur la première ; l'offre CardTrader seulement sur la ligne de la langue lue (la plus fournie). */
 function collRowItems(it) {
-  const ls = collLines(COLL.map[it.k]).filter(([g]) => plcIn(g));      // emplacement affiché : ses lignes seules
-  if (ls.length < 2) { const g = ls[0] ? ls[0][0] : it.l, e = lineEd(g), f = lineFoil(g); return [{ ...it, g, e, f, nl: 1, li: 0, ...(COLL.place && ls[0] ? { q: ls[0][1] } : {}), ...(e || f ? { eu: collLineEu(it.k, g) ?? undefined } : {}) }]; }      // emplacement affiché : les exemplaires qui y sont
+  const ls = collLines(COLL.map[it.k]).filter(([g]) => plcIn(g) && collSetIn(g));      // emplacement affiché, extension filtrée : leurs lignes seules
+  if (ls.length < 2) { const g = ls[0] ? ls[0][0] : it.l, e = lineEd(g), f = lineFoil(g); return [{ ...it, g, e, f, nl: 1, li: 0, ...((COLL.place || COLL.f.set) && ls[0] ? { q: ls[0][1] } : {}), ...(e || f ? { eu: collLineEu(it.k, g) ?? undefined } : {}) }]; }      // emplacement affiché : les exemplaires qui y sont
   const dom = collDomLang(ls);
   return ls.map(([g, q], i) => {
     const l = lineLang(g), r = { ...it, g, l, e: lineEd(g), f: lineFoil(g), q, nl: ls.length, li: i, eu: collLineEu(it.k, g) ?? undefined }; const dn = frName(it.k, l); if (dn) r.dn = dn; else delete r.dn;
@@ -799,8 +810,35 @@ function collRowItems(it) {
   });
 }
 function collSorted(items) {
-  const by = { name: byName, qty: (a, b) => (b.q - a.q) || byName(a, b), price: (a, b) => (((srcPrice(b, COLL.src) || {}).u || 0) - ((srcPrice(a, COLL.src) || {}).u || 0)) || byName(a, b), cmc: (a, b) => ((a.cm ?? 99) - (b.cm ?? 99)) || byName(a, b), decks: (a, b) => ((b.ed || 0) - (a.ed || 0)) || ((b.cx || 0) - (a.cx || 0)) || byName(a, b), new: (a, b) => ((b.d || 0) - (a.d || 0)) || byName(a, b), old: (a, b) => ((a.d || 0) - (b.d || 0)) || byName(a, b) }[COLL.sort] || byName;
+  const mode = COLL.sort === 'name' && COLL.f.cmdr === 'played' ? 'decks' : COLL.sort;      // « Joués en commandant » : les plus joués d'abord (sauf autre tri choisi)
+  if (mode === 'set') return collBySet(items);
+  const by = { name: byName, qty: (a, b) => (b.q - a.q) || byName(a, b), price: (a, b) => (((srcPrice(b, COLL.src) || {}).u || 0) - ((srcPrice(a, COLL.src) || {}).u || 0)) || byName(a, b), decks: (a, b) => ((b.ed || 0) - (a.ed || 0)) || ((b.cx || 0) - (a.cx || 0)) || byName(a, b), new: (a, b) => ((b.d || 0) - (a.d || 0)) || byName(a, b), old: (a, b) => ((a.d || 0) - (b.d || 0)) || byName(a, b) }[mode] || byName;
   return items.slice().sort(by);
+}
+/** Numéro de collection pour le tri (« 12a » → 12) ; inconnu : à la fin. */
+const edNumOf = e => { const n = parseInt(String(e || '').split('|')[1], 10); return Number.isFinite(n) ? n : 1e9; };
+/**
+ * Tri « Édition » : par extension, de la plus récente à la plus ancienne (date Scryfall ; inconnue : après, par nom), puis numéro de collection ; cartes sans édition à la fin, par nom.
+ * Une carte de plusieurs extensions se range sous la plus récente (sous celle du filtre « Extension » s'il y en a un). Le tableau rendu porte .se (carte → extension) pour les intertitres.
+ */
+function collBySet(items) {
+  const fs = COLL.f.set && COLL.f.set !== '-' ? COLL.f.set : '', se = new Map(), num = new Map();
+  for (const it of items) {
+    const sets = fs ? [fs] : it.eds.filter(Boolean).sort((a, b) => setDate(b).localeCompare(setDate(a)) || a.localeCompare(b)), s = sets[0] || '';
+    se.set(it, s); num.set(it, s ? Math.min(...collLines(COLL.map[it.k]).filter(([g]) => edSet(lineEd(g)) === s).map(([g]) => edNumOf(lineEd(g)))) : 0);
+  }
+  const out = items.slice().sort((a, b) => { const x = se.get(a), y = se.get(b); return (!x - !y) || setDate(y).localeCompare(setDate(x)) || (setName(x) || x).localeCompare(setName(y) || y) || x.localeCompare(y) || num.get(a) - num.get(b) || byName(a, b); });
+  out.se = se; return out;
+}
+/** Lignes de la liste, de from à to (non compris), avec l'intertitre de l'extension quand elle change (tri « Édition »). */
+function collRowsHtml(sorted, from, to) {
+  const se = COLL.sort === 'set' && sorted.se, out = [];
+  for (let i = from; i < Math.min(to, sorted.length); i++) {
+    const it = sorted[i];
+    if (se && (i === 0 || se.get(sorted[i - 1]) !== se.get(it))) { const c = se.get(it), y = setDate(c).slice(0, 4); out.push(`<h3 class="coll-sethd">${c ? setIcHtml(c) : ''}<b>${esc(c ? setName(c) || c.toUpperCase() : T('Sans édition'))}</b>${c ? `<small>${esc(c.toUpperCase())}${y ? ' · ' + y : ''}</small>` : ''}</h3>`); }
+    out.push(collRowItems(it).map(crowHtml).join(''));
+  }
+  return out.join('');
 }
 const CARD_LANG_LIST = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru', 'kr', 'zh-TW'];
 /** Puce langue d'une carte : drapeau (ou « Langue ? »), et un <select> invisible par-dessus : un appui ouvre le choix natif de la langue. g : la ligne (clé langue|édition) quand elle a une édition. */
@@ -996,7 +1034,7 @@ function collPaintBody(keep) {
     const known = all.filter(i => i.tl != null || i.cm != null).length, hid = (COLL.f.colors.size || COLL.f.type || COLL.f.cmc !== '' || COLL.f.cmdr) && known < all.length;
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
     host.innerHTML = `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
-      ${shown.length ? `<div class="coll-list">${shown.flatMap(collRowItems).map(crowHtml).join('')}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
+      ${shown.length ? `<div class="coll-list">${collRowsHtml(sorted, 0, shown.length)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
       ${sorted.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, sorted.length - shown.length)), b: nf0(sorted.length - shown.length) })}</button>` : ''}`;
     COLL.painted = sorted;
   }
@@ -1011,7 +1049,7 @@ function collMore() {
   COLL.shown += COLL_PAGE;
   const sorted = list && btn && COLL.tab === 'list' && COLL.painted ? collListOf(collAll()).sorted : null;
   if (!sorted || sorted !== COLL.painted) { collPaintBody(true); return; }
-  list.insertAdjacentHTML('beforeend', sorted.slice(from, COLL.shown).flatMap(collRowItems).map(crowHtml).join(''));
+  list.insertAdjacentHTML('beforeend', collRowsHtml(sorted, from, COLL.shown));
   const left = sorted.length - COLL.shown;
   if (left > 0) btn.textContent = T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, left)), b: nf0(left) }); else btn.remove();
 }
@@ -1053,9 +1091,8 @@ function openCollection(tab) {
   wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
   if (md === 'coll') mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'places', label: T('Rangement') }, { v: 'stats', label: T('Stats') }], COLL.tab, v => { const ord = ['list', 'places', 'stats'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = COLL.ctab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
   COLL.fb = mountFilters($('#collF', wrap), COLL.f, () => {
-    if (COLL.f.cmdr === 'played' && COLL.cmdrSeen !== 'played' && COLL.sort === 'name') { COLL.sort = 'decks'; $('#collSort', wrap).value = 'decks'; }      // les plus joués d'abord
     COLL.cmdrSeen = COLL.f.cmdr; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(true);
-  }, { placeholder: T('Rechercher une carte'), commander: true });
+  }, { placeholder: T('Rechercher une carte'), commander: true, sets: collSetList });
   COLL.cmdrSeen = COLL.f.cmdr;
   $('#collSort', wrap).value = COLL.sort;
   $('#collSort', wrap).onchange = e => { COLL.sort = e.target.value; COLL.shown = COLL_PAGE; haptic('tap'); collPaintBody(false); };

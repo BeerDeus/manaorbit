@@ -49,7 +49,7 @@ ok('filtre Commander › peuvent l\'être : Edgar Markov seul (ni Sol Ring, ni C
 /* ── 2) filtre « Joués en commandant » : fichier chargé une fois, tri par decks ──────────────── */
 await p.click('.coll .fopt[data-x="played"]'); await p.waitForFunction(() => document.querySelector('.crow:not(.dk) .tag.accent') && /decks/.test(document.querySelector('.crow:not(.dk) .tag.accent').textContent), null, { timeout: 8000 });
 let r = await rows(); assert.deepEqual(r.map(x => x.name), ['Edgar Markov', 'Craterhoof Behemoth'], 'les deux figurent dans le fichier ; tri par nombre de decks'); assert.ok(r[0].tags.some(t => /^Commander · 12 345 decks$/.test(t)), 'nombre de decks EDHREC : ' + r[0].tags); assert.ok(r[1].tags.includes('Commander · 100 decks'));
-assert.equal(await p.$eval('#collSort', s => s.value), 'decks', 'tri par popularité activé'); assert.equal(hits, 1);
+assert.equal(await p.$eval('#collSort', s => s.value), 'name', 'tri par popularité sans changer le menu (plus de tri « Decks EDHREC »)'); assert.equal(hits, 1);
 await p.click('.coll .fopt[data-x="played"]');
 assert.equal((await rows()).length, 6); ok('joués en commandant : Edgar Markov · 12 345 decks puis Craterhoof · 100, tri par popularité, fichier téléchargé 1 fois');
 

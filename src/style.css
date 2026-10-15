@@ -1087,6 +1087,13 @@ button,.btn,select,summary{touch-action:manipulation}
 #list .row:focus-visible,.coll-list>.crow:focus-visible{outline-offset:-3px;border-radius:0}
 #list .rx{top:5px;left:5px;right:auto}
 .coll-list>.crow{content-visibility:auto;contain-intrinsic-size:auto 76px}
+.coll-sethd{display:flex;align-items:center;gap:8px;margin:0;padding:16px 14px 8px;border-top:1px solid var(--line);font-size:13.5px;font-weight:700;color:var(--ink)}      /* tri « Édition » : intertitre de l'extension */
+.coll-sethd:first-child{border-top:0}
+.coll-sethd .set-ic{width:20px;height:20px}
+.coll-sethd b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.coll-sethd small{margin-left:auto;flex:none;color:var(--ink-3);font-size:12px;font-weight:600}
+.fset-l{padding-left:14px;max-width:100%}
+.fset-l select{max-width:min(260px,70vw)}
 .coll-list>.crow{border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;padding:10px 14px;transition:background .15s}
 .coll-list>.crow.dk:active,.coll-list>.crow.dk-card:active{background:var(--surface-3);transform:none}
 

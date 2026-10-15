@@ -304,7 +304,7 @@ function trWantRow(x, mine) {
 function trPanelHtml() {
   const st = TR.st = trState(), f = COLL.f, sub = TR.sub, want = sub === 'want', held = st.held, bv = bndView('o') === 'binder';      // bv : classeur (binder.js) à la place de la liste
   const all = want ? st.want : st.have, min = want || bv ? 0 : TR.min, act = filterActive(f) || min > 0;
-  const fil = filterItems(all.map(x => Object.assign(trItem(x.k, x.n, x.q, x.lines && x.lines[0] ? lineLang(x.lines[0][0]) : ''), { src: x })), f).map(i => i.src);
+  const fil = filterItems(all.map(x => Object.assign(trItem(x.k, x.n, x.q, x.lines && x.lines[0] ? lineLang(x.lines[0][0]) : ''), { src: x }, x.lines ? { eds: [...new Set(x.lines.map(([g]) => edSet(lineEd(g))))] } : {})), f).map(i => i.src);      // eds : filtre « Extension »
   const { rows: list, sum } = tradeView(fil, { price: trPrice, sort: TR.sort, min }), shown = bv ? [] : list.slice(0, TR.shown);
   TR.bv = bv && list.length ? { list, want } : null;
   return `${trShareBoxHtml(st)}
