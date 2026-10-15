@@ -1,0 +1,76 @@
+Génération : top 2000, Archidekt Budget / Premium (10 decks récents comparés) pour les 2000 premiers, cEDH pour 100 au plus, 1 commandant sur 8 relu
+  listes : 3164 commandants (3000 dans la liste du mois)
+   · forme : related_info,header,description,container · cardlists 1 (header,tag,cardviews,total_pages,more) · carte id,name,sanitized,slug,url,num_decks,potential_decks,rank,trend_zscore
+   · commanders/month.json → 100 commandants · suite commanders/month-pastmonth-1.json
+   · commanders/month-pastmonth-1.json → 100 commandants · suite commanders/month-pastmonth-2.json
+   · commanders/month-pastmonth-2.json → 100 commandants · suite commanders/month-pastmonth-3.json
+   · forme : related_info,header,description,container · cardlists 1 (header,tag,cardviews,total_pages,more) · carte id,name,sanitized,slug,url,num_decks,potential_decks,rank,trend_zscore
+   · commanders/year.json → 100 commandants · suite commanders/year-past2years-1.json
+   · commanders/year-past2years-1.json → 100 commandants · suite commanders/year-past2years-2.json
+   · commanders/year-past2years-2.json → 100 commandants · suite commanders/year-past2years-3.json
+3164 commandants au total ; decks moyens pour les 2000 premiers
+  thèmes (exemple) jace-multiverse-architect : Tokens 442, Planeswalkers 418, Control 113
+  decks moyens : 50 lus sur 50 essayés
+  decks moyens : 100 lus sur 100 essayés
+  decks moyens : 149 lus sur 150 essayés
+  decks moyens : 199 lus sur 200 essayés
+  decks moyens : 249 lus sur 250 essayés
+  decks moyens : 299 lus sur 300 essayés
+  decks moyens : 349 lus sur 350 essayés
+  decks moyens : 399 lus sur 400 essayés
+  decks moyens : 449 lus sur 450 essayés
+  decks moyens : 499 lus sur 500 essayés
+  decks moyens : 549 lus sur 550 essayés
+  decks moyens : 599 lus sur 600 essayés
+  decks moyens : 649 lus sur 650 essayés
+  decks moyens : 699 lus sur 700 essayés
+  decks moyens : 749 lus sur 750 essayés
+  decks moyens : 799 lus sur 800 essayés
+  decks moyens : 849 lus sur 850 essayés
+  decks moyens : 899 lus sur 900 essayés
+  decks moyens : 949 lus sur 950 essayés
+  decks moyens : 999 lus sur 1000 essayés
+  decks moyens : 1049 lus sur 1050 essayés
+  decks moyens : 1099 lus sur 1100 essayés
+  decks moyens : 1149 lus sur 1150 essayés
+  decks moyens : 1199 lus sur 1200 essayés
+  decks moyens : 1249 lus sur 1250 essayés
+  decks moyens : 1299 lus sur 1300 essayés
+  decks moyens : 1349 lus sur 1350 essayés
+  decks moyens : 1399 lus sur 1400 essayés
+  decks moyens : 1449 lus sur 1450 essayés
+  decks moyens : 1499 lus sur 1500 essayés
+  decks moyens : 1549 lus sur 1550 essayés
+  decks moyens : 1599 lus sur 1600 essayés
+  decks moyens : 1649 lus sur 1650 essayés
+  decks moyens : 1699 lus sur 1700 essayés
+  decks moyens : 1749 lus sur 1750 essayés
+  decks moyens : 1799 lus sur 1800 essayés
+  decks moyens : 1849 lus sur 1850 essayés
+  decks moyens : 1899 lus sur 1900 essayés
+  decks moyens : 1949 lus sur 1950 essayés
+  decks moyens : 1999 lus sur 2000 essayés
+  decks moyens : 1999 (dont 1986 avec des thèmes EDHREC) ; ignorés : 1
+   · whtz-the-bibliophile: 254 cartes
+  cEDH (EDHTop16, 6 derniers mois) : 100 commandants, 100 retrouvés dans la liste
+   · archidekt malcolm-keen-eyed-navigator-tana-the-bloodsower HTTP 429 <!doctype html><meta charset="utf-8"><meta name=viewport content="width=device-width, initial-scale=1"><title>429</title>429 Too Many Requests · https://archidekt.com/api/decks/v3/?deckFormat=3&commanderName=Malcolm%2C+Keen-Eyed+Navigator&orderBy=-viewCount&edhBracket=5
+   · archidekt dihada-binder-of-wills HTTP 429 <!doctype html><meta charset="utf-8"><meta name=viewport content="width=device-width, initial-scale=1"><title>429</title>429 Too Many Requests · https://archidekt.com/api/decks/v3/?deckFormat=3&commanderName=Dihada%2C+Binder+of+Wills&orderBy=-viewCount&edhBracket=5
+   · archidekt malcolm-keen-eyed-navigator-tymna-the-weaver HTTP 429 <!doctype html><meta charset="utf-8"><meta name=viewport content="width=device-width, initial-scale=1"><title>429</title>429 Too Many Requests · https://archidekt.com/api/decks/v3/?deckFormat=3&commanderName=Malcolm%2C+Keen-Eyed+Navigator&orderBy=-viewCount&edhBracket=5
+   · archidekt stella-lee-wild-card HTTP 429 <!doctype html><meta charset="utf-8"><meta name=viewport content="width=device-width, initial-scale=1"><title>429</title>429 Too Many Requests · https://archidekt.com/api/decks/v3/?deckFormat=3&commanderName=Stella+Lee%2C+Wild+Card&orderBy=-viewCount&edhBracket=5
+   · archidekt kodama-of-the-east-tree-tymna-the-weaver HTTP 429 <!doctype html><meta charset="utf-8"><meta name=viewport content="width=device-width, initial-scale=1"><title>429</title>429 Too Many Requests · https://archidekt.com/api/decks/v3/?deckFormat=3&commanderName=Kodama+of+the+East+Tree&orderBy=-viewCount&edhBracket=5
+  Archidekt : 1650 commandants gardés du fichier précédent, 349 à chercher (83 sans deck récent)
+  Archidekt : 100 commandants cherchés, 49 avec des decks récents, cedh 94, budget 1688, premium 1684, pop 37
+  Archidekt : 200 commandants cherchés, 148 avec des decks récents, cedh 94, budget 1688, premium 1684, pop 38
+  Archidekt : 300 commandants cherchés, 247 avec des decks récents, cedh 94, budget 1688, premium 1684, pop 39
+  decks Archidekt : 322 commandants à départager (Budget / Premium), déjà placés : cedh 94, budget 1688, premium 1684, pop 40 · 1342 lus, 596 déjà connus (376 commandants cherchés, 15 noms à deux faces corrigés, 11 erreurs, 535 écartés pour leur taille)
+Scryfall : prix de 23803 cartes
+  scryfall : 3000 / 23378 cartes
+  scryfall : 6000 / 23378 cartes
+  scryfall : 9000 / 23378 cartes
+  scryfall : 12000 / 23378 cartes
+  scryfall : 15000 / 23378 cartes
+  scryfall : 18000 / 23378 cartes
+  scryfall : 21000 / 23378 cartes
+  decks Archidekt (prix Scryfall) : cedh 94, budget 2003, premium 1999, pop 47
+  Game Changers « is:gamechanger » : 53 cartes (Ad Nauseam, Ancient Tomb, Aura Shards, Biorhythm, Bolas's Citadel, Braids, Cabal Minion…)
+3164 commandants, 6142 decks (dont 4143 Archidekt), 21985 prix → /home/runner/work/manaorbit/manaorbit/pwa/edh.bin.gz (1.34 Mo)

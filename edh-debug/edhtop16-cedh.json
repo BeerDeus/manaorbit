@@ -1,0 +1,508 @@
+{
+ "data": {
+  "commanders": {
+   "edges": [
+    {
+     "node": {
+      "name": "Kraum, Ludevic's Opus / Tymna the Weaver"
+     }
+    },
+    {
+     "node": {
+      "name": "Kinnan, Bonder Prodigy"
+     }
+    },
+    {
+     "node": {
+      "name": "Rograkh, Son of Rohgahh / Thrasios, Triton Hero"
+     }
+    },
+    {
+     "node": {
+      "name": "Rograkh, Son of Rohgahh / Silas Renn, Seeker Adept"
+     }
+    },
+    {
+     "node": {
+      "name": "Sisay, Weatherlight Captain"
+     }
+    },
+    {
+     "node": {
+      "name": "Thrasios, Triton Hero / Tymna the Weaver"
+     }
+    },
+    {
+     "node": {
+      "name": "Ral, Monsoon Mage // Ral, Leyline Prodigy"
+     }
+    },
+    {
+     "node": {
+      "name": "Dargo, the Shipwrecker / Tymna the Weaver"
+     }
+    },
+    {
+     "node": {
+      "name": "Vivi Ornitier"
+     }
+    },
+    {
+     "node": {
+      "name": "Etali, Primal Conqueror // Etali, Primal Sickness"
+     }
+    },
+    {
+     "node": {
+      "name": "Ishai, Ojutai Dragonspeaker / Rograkh, Son of Rohgahh"
+     }
+    },
+    {
+     "node": {
+      "name": "Magda, Brazen Outlaw"
+     }
+    },
+    {
+     "node": {
+      "name": "Thrasios, Triton Hero / Yoshimaru, Ever Faithful"
+     }
+    },
+    {
+     "node": {
+      "name": "Tayam, Luminous Enigma"
+     }
+    },
+    {
+     "node": {
+      "name": "Ob Nixilis, Captive Kingpin"
+     }
+    },
+    {
+     "node": {
+      "name": "Crystal, Inhuman Princess"
+     }
+    },
+    {
+     "node": {
+      "name": "Kefka, Court Mage // Kefka, Ruler of Ruin"
+     }
+    },
+    {
+     "node": {
+      "name": "Tivit, Seller of Secrets"
+     }
+    },
+    {
+     "node": {
+      "name": "Nick Fury, Agent of S.H.I.E.L.D."
+     }
+    },
+    {
+     "node": {
+      "name": "Winota, Joiner of Forces"
+     }
+    },
+    {
+     "node": {
+      "name": "Lumra, Bellow of the Woods"
+     }
+    },
+    {
+     "node": {
+      "name": "Brigid, Clachan's Heart // Brigid, Doun's Mind"
+     }
+    },
+    {
+     "node": {
+      "name": "Malcolm, Keen-Eyed Navigator / Vial Smasher the Fierce"
+     }
+    },
+    {
+     "node": {
+      "name": "K'rrik, Son of Yawgmoth"
+     }
+    },
+    {
+     "node": {
+      "name": "Arcum Dagsson"
+     }
+    },
+    {
+     "node": {
+      "name": "Rowan, Scion of War"
+     }
+    },
+    {
+     "node": {
+      "name": "Terra, Magical Adept // Esper Terra"
+     }
+    },
+    {
+     "node": {
+      "name": "Inalla, Archmage Ritualist"
+     }
+    },
+    {
+     "node": {
+      "name": "Glarb, Calamity's Augur"
+     }
+    },
+    {
+     "node": {
+      "name": "Scion of the Ur-Dragon"
+     }
+    },
+    {
+     "node": {
+      "name": "Rocco, Cabaretti Caterer"
+     }
+    },
+    {
+     "node": {
+      "name": "The Cabbage Merchant"
+     }
+    },
+    {
+     "node": {
+      "name": "Kenrith, the Returned King"
+     }
+    },
+    {
+     "node": {
+      "name": "Zirda, the Dawnwaker"
+     }
+    },
+    {
+     "node": {
+      "name": "Marneus Calgar"
+     }
+    },
+    {
+     "node": {
+      "name": "Yuriko, the Tiger's Shadow"
+     }
+    },
+    {
+     "node": {
+      "name": "Thrasios, Triton Hero / Vial Smasher the Fierce"
+     }
+    },
+    {
+     "node": {
+      "name": "Raph & Mikey, Troublemakers"
+     }
+    },
+    {
+     "node": {
+      "name": "The Wandering Minstrel"
+     }
+    },
+    {
+     "node": {
+      "name": "Aang, at the Crossroads // Aang, Destined Savior"
+     }
+    },
+    {
+     "node": {
+      "name": "Atraxa, Grand Unifier"
+     }
+    },
+    {
+     "node": {
+      "name": "Urza, Lord High Artificer"
+     }
+    },
+    {
+     "node": {
+      "name": "Leonardo, the Balance / Michelangelo, the Heart"
+     }
+    },
+    {
+     "node": {
+      "name": "Derevi, Empyrial Tactician"
+     }
+    },
+    {
+     "node": {
+      "name": "The Gitrog Monster"
+     }
+    },
+    {
+     "node": {
+      "name": "Malcolm, Keen-Eyed Navigator / Tana, the Bloodsower"
+     }
+    },
+    {
+     "node": {
+      "name": "Krark, the Thumbless / Sakashima of a Thousand Faces"
+     }
+    },
+    {
+     "node": {
+      "name": "Dihada, Binder of Wills"
+     }
+    },
+    {
+     "node": {
+      "name": "Malcolm, Keen-Eyed Navigator / Tymna the Weaver"
+     }
+    },
+    {
+     "node": {
+      "name": "Y'shtola, Night's Blessed"
+     }
+    },
+    {
+     "node": {
+      "name": "Stella Lee, Wild Card"
+     }
+    },
+    {
+     "node": {
+      "name": "Kediss, Emberclaw Familiar / Malcolm, Keen-Eyed Navigator"
+     }
+    },
+    {
+     "node": {
+      "name": "Gwenom, Remorseless"
+     }
+    },
+    {
+     "node": {
+      "name": "Chatterfang, Squirrel General"
+     }
+    },
+    {
+     "node": {
+      "name": "Rakdos, the Muscle"
+     }
+    },
+    {
+     "node": {
+      "name": "Tevesh Szat, Doom of Fools / Thrasios, Triton Hero"
+     }
+    },
+    {
+     "node": {
+      "name": "Najeela, the Blade-Blossom"
+     }
+    },
+    {
+     "node": {
+      "name": "Norman Osborn // Green Goblin"
+     }
+    },
+    {
+     "node": {
+      "name": "Korvold, Fae-Cursed King"
+     }
+    },
+    {
+     "node": {
+      "name": "Hashaton, Scarab's Fist"
+     }
+    },
+    {
+     "node": {
+      "name": "Zhulodok, Void Gorger"
+     }
+    },
+    {
+     "node": {
+      "name": "Maralen, Fae Ascendant"
+     }
+    },
+    {
+     "node": {
+      "name": "Bjorna, Nightfall Alchemist / Wernog, Rider's Chaplain"
+     }
+    },
+    {
+     "node": {
+      "name": "Heliod, the Radiant Dawn // Heliod, the Warped Eclipse"
+     }
+    },
+    {
+     "node": {
+      "name": "Akiri, Line-Slinger / Thrasios, Triton Hero"
+     }
+    },
+    {
+     "node": {
+      "name": "Talion, the Kindly Lord"
+     }
+    },
+    {
+     "node": {
+      "name": "Shang-Chi, Master of Kung Fu"
+     }
+    },
+    {
+     "node": {
+      "name": "Helga, Skittish Seer"
+     }
+    },
+    {
+     "node": {
+      "name": "Jhoira, Ageless Innovator"
+     }
+    },
+    {
+     "node": {
+      "name": "Zur the Enchanter"
+     }
+    },
+    {
+     "node": {
+      "name": "Prismari, the Inspiration"
+     }
+    },
+    {
+     "node": {
+      "name": "Ashling, the Limitless"
+     }
+    },
+    {
+     "node": {
+      "name": "Dargo, the Shipwrecker / Reyhan, Last of the Abzan"
+     }
+    },
+    {
+     "node": {
+      "name": "Baylen, the Haymaker"
+     }
+    },
+    {
+     "node": {
+      "name": "Rograkh, Son of Rohgahh / Tevesh Szat, Doom of Fools"
+     }
+    },
+    {
+     "node": {
+      "name": "Animar, Soul of Elements"
+     }
+    },
+    {
+     "node": {
+      "name": "Shorikai, Genesis Engine"
+     }
+    },
+    {
+     "node": {
+      "name": "King T'Challa // Black Panther, Hope Enduring"
+     }
+    },
+    {
+     "node": {
+      "name": "Celes, Rune Knight"
+     }
+    },
+    {
+     "node": {
+      "name": "Krark, the Thumbless / Thrasios, Triton Hero"
+     }
+    },
+    {
+     "node": {
+      "name": "Godo, Bandit Warlord"
+     }
+    },
+    {
+     "node": {
+      "name": "Lotho, Corrupt Shirriff"
+     }
+    },
+    {
+     "node": {
+      "name": "Yisan, the Wanderer Bard"
+     }
+    },
+    {
+     "node": {
+      "name": "Rograkh, Son of Rohgahh / Tymna the Weaver"
+     }
+    },
+    {
+     "node": {
+      "name": "Kodama of the East Tree / Tymna the Weaver"
+     }
+    },
+    {
+     "node": {
+      "name": "Xyris, the Writhing Storm"
+     }
+    },
+    {
+     "node": {
+      "name": "Gyruda, Doom of Depths"
+     }
+    },
+    {
+     "node": {
+      "name": "Super-Skrull"
+     }
+    },
+    {
+     "node": {
+      "name": "Reyhan, Last of the Abzan / Rograkh, Son of Rohgahh"
+     }
+    },
+    {
+     "node": {
+      "name": "Elsha of the Infinite"
+     }
+    },
+    {
+     "node": {
+      "name": "Witherbloom, the Balancer"
+     }
+    },
+    {
+     "node": {
+      "name": "Esika, God of the Tree // The Prismatic Bridge"
+     }
+    },
+    {
+     "node": {
+      "name": "Narset, Enlightened Master"
+     }
+    },
+    {
+     "node": {
+      "name": "Killian, Decisive Mentor"
+     }
+    },
+    {
+     "node": {
+      "name": "Krenko, Mob Boss"
+     }
+    },
+    {
+     "node": {
+      "name": "Niv-Mizzet, Parun"
+     }
+    },
+    {
+     "node": {
+      "name": "Oswald Fiddlebender"
+     }
+    },
+    {
+     "node": {
+      "name": "Fire Lord Azula"
+     }
+    },
+    {
+     "node": {
+      "name": "Tana, the Bloodsower / Tymna the Weaver"
+     }
+    },
+    {
+     "node": {
+      "name": "Tasigur, the Golden Fang"
+     }
+    }
+   ]
+  }
+ }
+}
