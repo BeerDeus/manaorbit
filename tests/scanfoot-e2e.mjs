@@ -47,7 +47,7 @@ const shoot = f => p.evaluate(async b64 => {
 assert.equal(await p.evaluate(() => SCS.frame), 'name', 'navigateur : cadrage « Nom seulement » par défaut (Tesseract) ; l\'appli Android part sur « Carte entière » (ML Kit)');
 await p.evaluate(() => scsSet({ frame: 'card' }));
 await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
-assert.equal(await p.$eval('.scan', s => s.classList.contains('full')), true, 'cadrage « carte entière » choisi');
+assert.equal(await p.$eval('.scan.on', s => s.classList.contains('full')), true, 'cadrage « carte entière » choisi');
 await shoot('foot-dsk.jpg'); await idle();
 console.log('  foot-dsk :', await foot());
 let L = await lines(); assert.equal(L['sol ring en dsk|202'], 'read', 'format récent « 0202 U / DSK • EN » → DSK 202, lue sur la carte : ' + JSON.stringify(L));
@@ -68,10 +68,10 @@ await p.click('.scan [data-act="scset"]'); await p.waitForSelector('.scs-sheet')
 assert.equal(await p.getAttribute('.scs-ed[data-s="frame"][data-v="card"]', 'aria-checked'), 'true');
 await p.click('.scs-ed[data-s="frame"][data-v="name"]');
 assert.equal(await p.getAttribute('.scs-ed[data-s="frame"][data-v="name"]', 'aria-checked'), 'true');
-assert.equal(await p.$eval('.scan', s => s.classList.contains('full')), false, '« Nom seulement » : caméra compacte');
+assert.equal(await p.$eval('.scan.on', s => s.classList.contains('full')), false, '« Nom seulement » : caméra compacte');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
 assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:scanset')).s.frame), 'name', 'réglage gardé');
-await p.evaluate(() => scsSet({ frame: 'card' })); assert.equal(await p.$eval('.scan', s => s.classList.contains('full')), true);
+await p.evaluate(() => scsSet({ frame: 'card' })); assert.equal(await p.$eval('.scan.on', s => s.classList.contains('full')), true);
 ok('réglages du scan › Cadrage : carte entière (défaut) ou nom seulement, appliqué à l\'écran ouvert et gardé');
 await p.click('.scan [data-act="close"]');
 

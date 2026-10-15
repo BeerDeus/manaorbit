@@ -60,8 +60,8 @@ assert.ok(!it.some(x => /qzx|plrt/i.test(x.name)), 'texte absurde : rien');
 assert.equal(it.filter(x => !x.maybe && x.name !== 'Arcane Signet').every(x => x.q === 1), true);
 assert.equal(it.find(x => x.name === 'Craterhoof Behemoth').maybe, false, 'coût de mana collé au nom : toujours une lecture sûre');
 assert.ok(it.filter(x => x.name !== 'Edgar Markov').every(x => /^https:\/\/api\.scryfall\.com\/cards\/named\?exact=.+&format=image&version=small$|^https:\/\/cards\.scryfall\.io\/small\//.test(x.thumb)), 'chaque carte anglaise porte sa miniature Scryfall (celle de l\'édition lue sur la ligne du bas, sinon la générique)');
-assert.match(it.find(x => x.name === 'Edgar Markov').thumb, /\/small\/front\/fr\/edgar-markov\.jpg$/, 'nom identique en français et en anglais : français par défaut (90 % de ses cartes) — la puce de langue le corrige d\'un appui');
-assert.equal(await p.evaluate(() => SC.items.get('edgar markov|fr').l), 'fr');
+assert.match(it.find(x => x.name === 'Edgar Markov').thumb, /\/small\/front\/fr\/edgar-markov(-[a-z0-9]+)?\.jpg$/, 'nom identique en français et en anglais : français par défaut (90 % de ses cartes) — la puce de langue le corrige d\'un appui');
+assert.equal(await p.evaluate(() => [...SC.items.values()].find(x => x.key === 'edgar markov').l), 'fr');      // ligne « carte|langue|édition » : l'édition peut être posée
 assert.deepEqual((await misses(p)).map(x => x.replace(/ ·.*$/, '')), ['Photo 7'], 'photo illisible : ligne « non reconnu »');
 const missThumb = await p.$eval('.sc-item.miss .sc-th', i => i.src || ''); assert.match(missThumb, /^data:image\/jpeg/); assert.ok(missThumb.length < 14000, 'vignette minuscule (' + missThumb.length + ' car.), pas la photo');
 assert.equal(await p.$$eval('.sc-item.pend', r => r.length), 0, 'plus rien en attente'); assert.equal(await p.evaluate(() => SC.queue.length + SC.pend.length), 0);
@@ -86,7 +86,8 @@ assert.match(await txt(p, '.scan .sc-count'), new RegExp(`^${total} cartes$`)); 
 // fiche récap : le tap sur « Ajouter » ouvre d'abord les stats ; « Retour » garde le scan ouvert
 await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet .rc-facts', { timeout: 3000 });
 await p.waitForFunction(() => !/…/.test(document.querySelector('.rc-sheet .rc-val b').textContent), null, { timeout: 5000 });
-const cents = want.reduce((a, x) => { const c = CARDS.find(r => r[0] === x.name); return a + (c && c[7] ? Math.round(parseFloat(c[7]) * 100) * x.q : 0); }, 0);
+const edEu = await p.evaluate(() => Object.fromEntries([...SC.items.values()].filter(x => !x.maybe).map(x => [x.name, pkEu(x.pk)])));      // édition posée (ligne du bas lue) : son prix
+const cents = want.reduce((a, x) => { if (edEu[x.name] > 0) return a + edEu[x.name] * x.q; const c = CARDS.find(r => r[0] === x.name); return a + (c && c[7] ? Math.round(parseFloat(c[7]) * 100) * x.q : 0); }, 0);
 const eur = c => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(c / 100).replace(/\s/g, ' ');
 const rc = await p.$$eval('.rc-sheet .cs-tiles > div', d => d.map(x => x.textContent.replace(/\s/g, ' ')));
 assert.match(rc[0], new RegExp(`^${want.length}carte`)); assert.match(rc[1], new RegExp(`^${total}exemplaires`)); assert.equal(rc[2].replace(/valeur.*$/, ''), cents ? eur(cents) : '—', 'valeur estimée CM = somme prix × quantités');
@@ -105,7 +106,7 @@ ok('validation : quantité corrigée, carte retirée, ajout à la collection');
 // français d'abord (la plupart des cartes), puis anglais ; noms imprimés lus dans le catalogue français Scryfall gardé sur l'appareil
 await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on');
 const exactSearches = () => world.scry.filter(s => /\/cards\/search/.test(s) && /lang%3Afr/.test(s) && /name%3A|(%21|!)%22/.test(s) && !/unique=prints/.test(s)).length, ex0 = exactSearches();      // impressions (édition au scan) : pas une recherche de nom
-await p.evaluate(() => { window.__ol = []; const o = ocrLines; ocrLines = (c, l, psm) => { window.__ol.push(l); return o(c, l, psm); }; });      // ordre des langues lues
+await p.evaluate(() => { window.__ol = []; const o = ocrLines; ocrLines = (c, l, psm, wl) => { if (wl == null) window.__ol.push(l); return o(c, l, psm, wl); }; });      // wl : ligne du bas (scanfoot.js), pas une lecture du nom      // ordre des langues lues
 await p.setInputFiles('#scFile', [fx('anneau.jpg'), fx('epees.jpg')]); await idle(p, 200000);
 it = await items(p); console.log('  français (langue auto) :', it.map(x => `${x.name}${x.maybe ? ' (?)' : ''}`).join(' · '));
 assert.ok(it.some(x => x.name === 'Sol Ring'), 'Anneau solaire → Sol Ring'); assert.ok(it.every(x => ['Sol Ring', 'Swords to Plowshares'].includes(x.name)));
@@ -133,7 +134,7 @@ assert.equal(await p.$eval('.crow[data-k="craterhoof behemoth"] .lchip', e => e.
 // collection : changer la langue d'une carte charge son image française (lot Scryfall) ; une carte sans impression française garde l'anglaise
 world.noFr.add('Arcane Signet'); const nSearch = () => world.scry.filter(s => /\/cards\/search/.test(s) && /lang%3Afr/.test(s) && /(%21|!)%22/.test(s) && !/unique=prints/.test(s)).length, n0 = nSearch();
 await p.selectOption('.crow[data-k="craterhoof behemoth"] .lchip select', 'fr'); await p.selectOption('.crow[data-k="arcane signet"] .lchip select', 'fr');
-await p.waitForFunction(() => { const i = document.querySelector('.crow[data-k="craterhoof behemoth"] .thumb img'); return i && /\/fr\/craterhoof-behemoth\.jpg$/.test(i.src); }, null, { timeout: 8000 });
+await p.waitForFunction(() => { const i = document.querySelector('.crow[data-k="craterhoof behemoth"] .thumb img'); return i && /\/fr\/craterhoof-behemoth(-[a-z0-9]+)?\.jpg$/.test(i.src); }, null, { timeout: 8000 });      // édition posée (ligne du bas lue) : l'image française de l'édition
 await p.waitForFunction(() => 'fr|arcane signet' in COLL.li && !COLL.enrich, null, { timeout: 8000 });      // la 2e carte est lue à la suite de la 1re
 assert.ok(nSearch() > n0 && nSearch() <= n0 + 2, 'recherche par lots de noms exacts : ' + (nSearch() - n0) + ' requête(s)');
 assert.match(await p.$eval('.crow[data-k="arcane signet"] .thumb img', i => i.src), /\/a\/b\/arcane-signet\.jpg$/, 'pas d\'impression française : image anglaise'); assert.equal(await p.evaluate(() => COLL.li['fr|arcane signet']), '', 'absence retenue (pas de nouvelle requête)');

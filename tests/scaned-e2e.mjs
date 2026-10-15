@@ -195,7 +195,7 @@ await addFt('Arcane Signet', ['Arcane Signet']); await settle();
 assert.equal((await lines())['arcane signet cmm|200'], 'auto ×1', 'ligne du bas illisible : extension du scan (lues sur les cartes précédentes), comme avant');
 await addFt('Command Tower', ['BLB • EN']); await settle();
 assert.equal((await lines())['command tower blb|201'], 'read ×1', 'extension seule, une impression dedans');
-await p.evaluate(() => scsSet({ frame: 'name' })); assert.equal(await p.$eval('.scan', s => s.classList.contains('full')), false, 'réglage « Nom seulement » : caméra compacte');
+await p.evaluate(() => scsSet({ frame: 'name' })); assert.equal(await p.$eval('.scan.on', s => s.classList.contains('full')), false, 'réglage « Nom seulement » : caméra compacte');
 await p.evaluate(() => scsSet({ frame: 'card' }));
 ok('ligne du bas lue : édition exacte (deux exemplaires différents, fautes de lecture, extension seule), illisible : comme avant ; cadrage changeable');
 await p.click('.scan [data-act="close"]');

@@ -5,7 +5,7 @@ random.seed(7)
 SERIF = '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf'
 SANS = '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'
 W, H = 745, 1040
-def card(name, frame=(214, 196, 150), band=(236, 226, 196), ink=(25, 20, 15), art=(70, 100, 140), cost=None, rules=True, size=44, foot='123/301 R  CMM • EN'):
+def card(name, frame=(214, 196, 150), band=(236, 226, 196), ink=(25, 20, 15), art=(70, 100, 140), cost=None, rules=True, size=44, foot='123/301 R  ZNR • EN'):      # ZNR : extension absente du faux catalogue des tests (la langue est lue, l'édition reste à décider)
     im = Image.new('RGB', (W, H), (18, 16, 14)); d = ImageDraw.Draw(im)
     d.rounded_rectangle((18, 18, W - 18, H - 18), 28, fill=frame)
     d.rounded_rectangle((44, 44, W - 44, 112), 12, fill=band, outline=(60, 50, 40), width=3)
@@ -43,15 +43,15 @@ jobs = {
   'edgar.jpg': card('Edgar Markov', frame=(40, 36, 34), band=(30, 28, 26), ink=(235, 225, 190), art=(110, 60, 70), cost=[(150, 150, 150), (210, 90, 60), (250, 245, 220), (60, 55, 60)], foot=''),   # cadre noir, texte clair ; sans ligne du bas (carte d'avant 2014) : sa langue reste celle par défaut
   'blurry.jpg': finish(card('Arcane Signet', cost=[(150, 150, 150)] * 2), blur=2.2, noise=24),
   'nonsense.jpg': card('Qzxvbnm Plrtkgh', cost=[(150, 150, 150)]),
-  'anneau.jpg': card('Anneau solaire', cost=[(150, 150, 150)], foot='123/301 R  CMM • FR'),
-  'sceau.jpg': card('Sceau arcanique', cost=[(150, 150, 150)] * 2, foot='123/301 R  CMM • FR'),
-  'colere.jpg': finish(card('Colère de Dieu', frame=(235, 228, 205), cost=[(150, 150, 150)] + [(250, 245, 220)] * 2, foot='123/301 R  CMM • FR'), rot=-1.0, noise=10),
-  'elfes.jpg': card('Elfes de Llanowar', frame=(60, 110, 70), band=(210, 225, 205), art=(40, 110, 60), cost=[(60, 140, 70)], foot='123/301 R  CMM • FR'),
-  'behemoth.jpg': finish(card('Béhémoth Cratérosabot', frame=(60, 110, 70), band=(210, 225, 205), art=(40, 90, 50), cost=[(150, 150, 150)] + [(60, 140, 70)] * 3, size=34, foot='123/301 R  CMM • FR'), rot=1.5, noise=12),
-  'epees.jpg': card('Épées aux charrues', cost=[(250, 245, 220)], foot='123/301 R  CMM • FR'),
+  'anneau.jpg': card('Anneau solaire', cost=[(150, 150, 150)], foot='123/301 R  ZNR • FR'),
+  'sceau.jpg': card('Sceau arcanique', cost=[(150, 150, 150)] * 2, foot='123/301 R  ZNR • FR'),
+  'colere.jpg': finish(card('Colère de Dieu', frame=(235, 228, 205), cost=[(150, 150, 150)] + [(250, 245, 220)] * 2, foot='123/301 R  ZNR • FR'), rot=-1.0, noise=10),
+  'elfes.jpg': card('Elfes de Llanowar', frame=(60, 110, 70), band=(210, 225, 205), art=(40, 110, 60), cost=[(60, 140, 70)], foot='123/301 R  ZNR • FR'),
+  'behemoth.jpg': finish(card('Béhémoth Cratérosabot', frame=(60, 110, 70), band=(210, 225, 205), art=(40, 90, 50), cost=[(150, 150, 150)] + [(60, 140, 70)] * 3, size=34, foot='123/301 R  ZNR • FR'), rot=1.5, noise=12),
+  'epees.jpg': card('Épées aux charrues', cost=[(250, 245, 220)], foot='123/301 R  ZNR • FR'),
   # cartes allemandes (téléphone allemand : moteur « deu », catalogue names-de.tsv) ; en dernier : les cartes ci-dessus restent identiques
-  'blitz.jpg': card('Blitzschlag', frame=(200, 120, 90), band=(240, 222, 205), art=(150, 60, 40), cost=[(210, 90, 60)], foot='123/301 R  CMM • DE'),
-  'zorn.jpg': finish(card('Zorn Gottes', frame=(235, 228, 205), cost=[(150, 150, 150)] + [(250, 245, 220)] * 2, foot='123/301 R  CMM • DE'), rot=-1.0, noise=10),
+  'blitz.jpg': card('Blitzschlag', frame=(200, 120, 90), band=(240, 222, 205), art=(150, 60, 40), cost=[(210, 90, 60)], foot='123/301 R  ZNR • DE'),
+  'zorn.jpg': finish(card('Zorn Gottes', frame=(235, 228, 205), cost=[(150, 150, 150)] + [(250, 245, 220)] * 2, foot='123/301 R  ZNR • DE'), rot=-1.0, noise=10),
   # cartes d'autres langues que celle de l'appli (appli en français : ni noms français ni anglais) ; en dernier, les cartes ci-dessus restent identiques
   'fulmine.jpg': card('Fulmine', frame=(200, 120, 90), band=(240, 222, 205), art=(150, 60, 40), cost=[(210, 90, 60)], foot='146/280 C  M10 • IT'),
   'contromagia.jpg': finish(card('Contromagia', frame=(90, 120, 180), band=(215, 225, 240), art=(40, 70, 130), cost=[(80, 120, 200)] * 2, foot='054/264 C  DMR • IT'), rot=1.0, noise=10),
