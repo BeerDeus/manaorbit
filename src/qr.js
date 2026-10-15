@@ -1,10 +1,10 @@
 /* ── qr.js : QR codes (lien de la liste d'échange) ──────────────────────────────────────────────────
-   Encodeur autonome, sans réseau ni bibliothèque : mode octets (UTF-8), correction M (≈ 15 % du code peut manquer), versions 1 à 10
-   (jusqu'à 213 octets ; un lien de partage en fait ≈ 50 → version 4), masque choisi par les pénalités de la norme ISO/IEC 18004.
+   Encodeur autonome, sans réseau ni bibliothèque : mode octets (UTF-8), correction M (≈ 15 % du code peut manquer), versions 1 à 20
+   (jusqu'à 666 octets ; un lien de partage en fait ≈ 50 → version 4, le résultat d'une partie de Commander jusqu'à ≈ 600), masque choisi par les pénalités de la norme ISO/IEC 18004.
    Rendu : un SVG à un seul chemin, modules carrés, marge de 4 modules (zone de silence). Vérifié par tests/test-trade.mjs
    (matrices de référence d'un autre encodeur, et décodage complet : format, masque, Reed-Solomon, texte). */
-const QR_EC_M = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26];      // niveau M : codes correcteurs par bloc, par version (1 à 10)
-const QR_BLOCKS_M = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5];           // niveau M : nombre de blocs Reed-Solomon, par version
+const QR_EC_M = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26];      // niveau M : codes correcteurs par bloc, par version (1 à 20)
+const QR_BLOCKS_M = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16];           // niveau M : nombre de blocs Reed-Solomon, par version
 
 /** Modules disponibles pour les données et la correction (hors motifs fixes, format et version). */
 const qrRaw = v => { let r = (16 * v + 128) * v + 64; if (v >= 2) { const a = Math.floor(v / 7) + 2; r -= (25 * a - 10) * a - 55; if (v >= 7) r -= 36; } return r; };
@@ -26,8 +26,8 @@ function qrRemainder(data, div) {
 /** Texte → { v (version), cw (octets dans l'ordre de placement : données puis correction, blocs entrelacés) }. */
 function qrEncode(text) {
   const bytes = [...new TextEncoder().encode(String(text))];
-  let v = 1; while (v <= 10 && 4 + (v < 10 ? 8 : 16) + 8 * bytes.length > qrDataCap(v) * 8) v++;
-  if (v > 10) throw new Error('QR : texte trop long (' + bytes.length + ' octets)');
+  let v = 1; while (v <= 20 && 4 + (v < 10 ? 8 : 16) + 8 * bytes.length > qrDataCap(v) * 8) v++;
+  if (v > 20) throw new Error('QR : texte trop long (' + bytes.length + ' octets)');
   const cap = qrDataCap(v), bits = [], put = (x, n) => { for (let i = n - 1; i >= 0; i--) bits.push((x >>> i) & 1); };
   put(4, 4); put(bytes.length, v < 10 ? 8 : 16); for (const b of bytes) put(b, 8);      // mode octets (0100), longueur, octets
   put(0, Math.min(4, cap * 8 - bits.length)); put(0, (8 - bits.length % 8) % 8);       // fin de message, puis octet complet

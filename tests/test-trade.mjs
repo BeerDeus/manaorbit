@@ -169,15 +169,16 @@ const use = C.deckUse(decks);
 
 /* ── QR code (src/qr.js) : décodeur indépendant écrit d'après la norme (tables recopiées, lecture façon ZXing), et matrices de référence ── */
 const Q = createRequire(import.meta.url)('../src/qr.js');
-const QR_ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50]];
-const QR_M = { 1: [[1, 26, 16]], 2: [[1, 44, 28]], 3: [[1, 70, 44]], 4: [[2, 50, 32]], 5: [[2, 67, 43]], 6: [[4, 43, 27]], 7: [[4, 49, 31]], 8: [[2, 60, 38], [2, 61, 39]], 9: [[3, 58, 36], [2, 59, 37]], 10: [[4, 69, 43], [1, 70, 44]] };      // niveau M : [blocs, octets, dont données]
+const QR_ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50], [6, 30, 54], [6, 32, 58], [6, 34, 62], [6, 26, 46, 66], [6, 26, 48, 70], [6, 26, 50, 74], [6, 30, 54, 78], [6, 30, 56, 82], [6, 30, 58, 86], [6, 34, 62, 90], [6, 28, 50, 72, 94]];
+const QR_M = { 1: [[1, 26, 16]], 2: [[1, 44, 28]], 3: [[1, 70, 44]], 4: [[2, 50, 32]], 5: [[2, 67, 43]], 6: [[4, 43, 27]], 7: [[4, 49, 31]], 8: [[2, 60, 38], [2, 61, 39]], 9: [[3, 58, 36], [2, 59, 37]], 10: [[4, 69, 43], [1, 70, 44]],
+  11: [[1, 80, 50], [4, 81, 51]], 12: [[6, 58, 36], [2, 59, 37]], 13: [[8, 59, 37], [1, 60, 38]], 14: [[4, 64, 40], [5, 65, 41]], 15: [[5, 65, 41], [5, 66, 42]], 16: [[7, 73, 45], [3, 74, 46]], 17: [[10, 74, 46], [1, 75, 47]], 18: [[9, 69, 43], [4, 70, 44]], 19: [[3, 70, 44], [11, 71, 45]], 20: [[3, 67, 41], [13, 68, 42]] };      // niveau M : [blocs, octets, dont données]
 const GF = { exp: [], log: [] }; { let x = 1; for (let i = 0; i < 255; i++) { GF.exp[i] = x; GF.log[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11D; } }
 const gmul = (a, b) => (a && b ? GF.exp[(GF.log[a] + GF.log[b]) % 255] : 0);
 const bchOk = (word, gen, dataBits, eccBits) => { let r = (word >> eccBits) << eccBits; for (let i = dataBits + eccBits - 1; i >= eccBits; i--) if ((r >> i) & 1) r ^= gen << (i - eccBits); return r === (word & ((1 << eccBits) - 1)); };
 /** Matrice (lignes, 1 = foncé) → { v, mask, text } ; lève une erreur si un contrôle échoue (motifs, format, version, Reed-Solomon, remplissage). */
 function qrDecode(m) {
   const n = m.length, v = (n - 17) / 4, get = (x, y) => m[y][x];
-  assert.ok(Number.isInteger(v) && v >= 1 && v <= 10, 'taille ' + n);
+  assert.ok(Number.isInteger(v) && v >= 1 && v <= 20, 'taille ' + n);
   for (const [ox, oy] of [[0, 0], [n - 7, 0], [0, n - 7]]) for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) assert.equal(get(ox + x, oy + y), +(x === 0 || x === 6 || y === 0 || y === 6 || (x > 1 && x < 5 && y > 1 && y < 5)), 'repère');
   for (let i = 8; i < n - 8; i++) { assert.equal(get(i, 6), +(i % 2 === 0), 'synchronisation'); assert.equal(get(6, i), +(i % 2 === 0)); }
   assert.equal(get(8, n - 8), 1, 'module toujours foncé');
@@ -222,13 +223,13 @@ function qrDecode(m) {
   assert.deepEqual([d.text, d.v], [url, 4], 'lien de partage (49 octets) : version 4');
   { const m = Q.qrMatrix(url).m.map(r => r.slice()), n = m.length; m[n - 1][n - 1] ^= 1; assert.throws(() => qrDecode(m), /Reed-Solomon/, 'le décodeur voit un module faux');
     const f = Q.qrMatrix(url).m.map(r => r.slice()); f[8][0] ^= 1; assert.throws(() => qrDecode(f), /format/, 'et un format abîmé'); }
-  for (let v = 1; v <= 10; v++) {      // chaque version, pleine (capacité M en mode octets), tous les masques
-    const cap = Q.qrDataCap(v), len = Math.floor((cap * 8 - 4 - (v < 10 ? 8 : 16)) / 8), t = ('https://card.m2s-photo.fr/?p=' + 'Xy7'.repeat(80)).slice(0, len);
+  for (let v = 1; v <= 20; v++) {      // chaque version, pleine (capacité M en mode octets), tous les masques
+    const cap = Q.qrDataCap(v), len = Math.floor((cap * 8 - 4 - (v < 10 ? 8 : 16)) / 8), t = ('https://card.m2s-photo.fr/?p=' + 'Xy7'.repeat(240)).slice(0, len);
     for (let k = 0; k < 8; k++) { const mx = Q.qrMatrix(t, k), r = qrDecode(mx.m); assert.deepEqual([r.text, r.v, r.mask], [t, v, k], `version ${v}, masque ${k}`); }
-    if (v < 10) assert.equal(Q.qrMatrix(t + 'z').v, v + 1, 'un octet de plus : version suivante');
+    if (v < 20) assert.equal(Q.qrMatrix(t + 'z').v, v + 1, 'un octet de plus : version suivante');
   }
   const fr = 'Liste d\'échange · Anneau solaire ✓'; assert.equal(qrDecode(Q.qrMatrix(fr).m).text, fr, 'UTF-8');
-  assert.throws(() => Q.qrMatrix('x'.repeat(214)), /trop long/, 'au-delà de la version 10 : refusé'); assert.equal(Q.qrMatrix('x'.repeat(213)).v, 10);
+  assert.throws(() => Q.qrMatrix('x'.repeat(667)), /trop long/, 'au-delà de la version 20 : refusé'); assert.equal(Q.qrMatrix('x'.repeat(666)).v, 20);
   // matrices de référence (Project Nayuki, qrcodegen 1.8.0, niveau M, masque automatique) : identiques bit à bit, masque compris
   const REF = [['Mana Orbit', 1, 4, 'fe83fc13506e9cbb7565dba9aec16507faafe018008bafcdae7581caa5f9fa26e540004eeffa53d04881baa995d251ee8a2104738feb608'],
     [url, 4, 4, 'fea6a13fc1275c506e9adbabb75b1895dba8cd7aec167a5107faaaaafe01e4fa008be1e5fc9c9db3e392a5ebd152b5b3f001ef4867c9a5b3dc328ae4ad84d10b8ef07628dfa91450d3a3a3c151d555204c8a36f832a7dd68349c386812ce5c1a98b9fae2dbccfd806aa2c5bfb948ab504740d11baf39efddd121fdd2e98c34e104f3b988fed676c48'],
