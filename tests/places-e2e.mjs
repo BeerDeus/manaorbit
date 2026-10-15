@@ -1,0 +1,117 @@
+// E2E emplacements, détails d'exemplaire, proxys : onglet Rangement, fiche d'un exemplaire, filtre, Mes proxys, deck monté rangé, « Ranger dans » du scan.
+import './setup-env.mjs';
+import assert from 'node:assert/strict';
+import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
+
+const world = await startWorld({ port: 18927 });
+const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
+const { p, errs } = await newPage(browser, world);
+const top = () => p.evaluate(() => { const s = sheets[sheets.length - 1]; return s ? s.wrap.querySelector('h2').textContent : ''; });
+const lines = k => p.evaluate(k => collLines(COLL.map[k]), k);
+
+await p.evaluate(() => { COLL.map = collFromText('2 Sol Ring *FR*\n1 Arcane Signet (CMM) 380 *EN*'); collChanged(); });
+await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
+await p.waitForFunction(() => document.querySelectorAll('.crow').length === 2);
+assert.equal(await p.$('.crow .tag.plc'), null, 'rien de rangé : aucune étiquette');
+assert.deepEqual(await p.$$eval('#collSeg .seg-opt', b => b.map(x => x.textContent)), ['Cartes', 'Rangement', 'Stats']);
+
+/* ── Onglet Rangement : premier emplacement ─────────────────────────────────────────────────── */
+await p.click('#collSeg [data-v="places"]'); await p.waitForSelector('.plc-prox');
+assert.match(await txt(p, '.coll-main'), /Classeurs, boîtes, decks montés/); assert.match(await txt(p, '.plc-prox'), /Mes proxys Aucun proxy pour l'instant/);
+await p.click('[data-act="plcnew"]'); await p.waitForSelector('#plcName');
+await p.fill('#plcName', 'Classeur rouge'); await p.click('.sheet [data-ok]');
+await p.waitForFunction(() => document.querySelectorAll('.plc-card:not([data-p=""])').length === 1);
+const red = await p.evaluate(() => Object.keys(COLL.places)[0]);
+assert.match(await txt(p, '.plc-card'), /Classeur Classeur rouge 0 carte/); assert.match(await txt(p, '.plc-card[data-p=""]'), /Non rangé 3 cartes/);
+await p.screenshot({ path: 'shots/places-1-rangement.png' });
+ok('Rangement : emplacement créé (classeur par défaut)');
+
+/* ── Fiche d'un exemplaire : 1 des 2 Sol Ring rangé, état EX ─────────────────────────────────── */
+await p.click('#collSeg [data-v="list"]'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 2);
+await p.evaluate(() => cexSheet('map', 'sol ring', 'fr'));
+await p.waitForSelector('.cex .cex-n');
+assert.equal(await p.$eval('.cex-det', d => d.open), false, 'détails repliés');
+await p.click('.cex [data-cn="-1"]'); assert.equal(await txt(p, '.cex-n b'), '1');
+await p.click('.cex [data-pp]'); await p.waitForFunction(() => sheets.length === 2);
+await p.click(`.plc-opt[data-p="${red}"]`); await p.waitForFunction(() => sheets.length === 1);
+assert.match(await txt(p, '.cex .plc-cur'), /Classeur rouge/);
+await p.click('.cex-det summary'); await p.click('.cex [data-cc="ex"]'); await p.click('.cex [data-cf="s"]');
+await p.screenshot({ path: 'shots/places-2-exemplaire.png' });
+await p.click('.cex [data-ok]'); await p.waitForFunction(() => !sheets.length);
+assert.deepEqual(await lines('sol ring'), [['fr', 1], [`fr#p${red}-cex-s`, 1]]);
+await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3);
+assert.deepEqual(await p.$$eval('.crow .tag.plc', t => t.map(x => x.textContent)), ['Classeur rougeEX · signée']);
+ok('exemplaire : 1 sur 2 rangé dans le classeur, état et signature (ligne à part, étiquette discrète)');
+
+/* ── Filtre par emplacement, depuis le Rangement ───────────────────────────────────────────── */
+await p.click('#collSeg [data-v="places"]'); await p.waitForSelector('.plc-card');
+assert.match(await txt(p, `.plc-card[data-p="${red}"]`), /1 carte/); assert.match(await txt(p, '.plc-card[data-p=""]'), /Non rangé 2 cartes/);
+await p.click(`.plc-card[data-p="${red}"]`); await p.waitForSelector('.plc-bar');
+assert.equal(await p.$$eval('.crow', r => r.length), 1); assert.match(await txt(p, '.plc-pill'), /Classeur rouge · 1/);
+await p.screenshot({ path: 'shots/places-3-filtre.png' });
+await p.click('.plc-bar [data-act="plcclear"]'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3 && !document.querySelector('.plc-bar'));
+ok('filtre : l\'emplacement seul, puis toutes les cartes');
+
+/* ── Enregistré avec la collection (même texte, lu par l'ancienne version) ───────────────────── */
+const stored = await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t);
+assert.match(stored, new RegExp(`^1 Sol Ring \\(DETAILS\\) p${red}-cex-s(?: \\(D[0-9a-z]+\\))? \\*FR\\*$`, 'm'));
+assert.match(stored, new RegExp(`^//@L ${red} binder Classeur rouge$`, 'm'));
+assert.equal(await p.evaluate(() => sameDoc(collDocFromText(collDocText(collDocNow())), collDocNow())), true);
+ok('stockage : détails et emplacements dans le texte de la collection');
+
+/* ── Mes proxys : à part, jamais dans la valeur ; « Vraie » ─────────────────────────────────── */
+const copies0 = await p.evaluate(() => collCopies());
+await p.click('#collSeg [data-v="places"]'); await p.click('[data-act="prox"]'); await p.waitForSelector('.prox-sheet');
+await p.click('.prox-addw summary'); await p.fill('.prox-ta', '2 Mana Crypt\n1 Sol Ring'); await p.click('.prox-sheet [data-act="padd"]');
+await p.waitForFunction(() => document.querySelectorAll('.prox-row').length === 2);
+assert.equal(await p.evaluate(() => collCopies()), copies0, 'les proxys ne comptent pas dans la collection');
+assert.equal(await p.evaluate(() => COLL.prox['mana crypt'].q), 2);
+await p.screenshot({ path: 'shots/places-4-proxys.png' });
+await p.click('.prox-row[data-k="mana crypt"] [data-act="real"]');
+await p.waitForFunction(() => COLL.prox['mana crypt'].q === 1 && collQty('mana crypt') === 1);
+await p.click('.prox-row[data-k="sol ring"] [data-d="-1"]'); await p.waitForFunction(() => !COLL.prox['sol ring']);
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
+assert.match(await p.evaluate(() => collDocText(collDocNow())), /^\/\/@P 1 Mana Crypt/m);
+ok('proxys : liste à part, « Vraie » passe un exemplaire dans la collection');
+
+/* ── Deck monté : cartes à aller chercher, rangées dans « Deck : … », puis retour à leur place ─── */
+await p.evaluate(() => plcFetchSheet({ id: 'deck1', name: 'Atraxa', text: '2 Sol Ring\n1 Arcane Signet\n1 Mana Crypt\n1 Doubling Season' }));
+await p.waitForSelector('.fetch-sheet .fetch-g');
+assert.match(await txt(p, '.fetch-sum'), /4 \/ 5 possédées · 1 manquante/);
+assert.deepEqual(await p.$$eval('.fetch-gh b', b => b.map(x => x.textContent)), ['Classeur rouge', 'Non rangé']);
+await p.click('.fetch-px input'); await p.waitForFunction(() => localStorage.getItem('deckdeal:fetchprox') === '1');
+await p.click('.fetch-c input'); await p.waitForFunction(() => document.querySelector('.fetch-c.on'));
+await p.screenshot({ path: 'shots/places-5-chercher.png' });
+await p.click('.fetch-sheet [data-mount]');
+const dk = await p.evaluate(() => plcDeckOf('deck1')); assert.ok(dk, 'emplacement du deck créé');
+assert.equal(await p.evaluate(dk => COLL.places[dk].n + '|' + COLL.places[dk].t, dk), 'Atraxa|deck');
+assert.deepEqual(await lines('sol ring'), [[`fr#p${dk}`, 1], [`fr#p${dk}-o${red}-cex-s`, 1]]);
+assert.ok((await lines('arcane signet')).some(([g]) => g === `en|cmm|380#p${dk}`));
+assert.equal(await p.evaluate(() => engIsOn('deck1')), true, 'deck monté (cartes réservées)');
+await p.click('.fetch-sheet [data-un]'); await p.waitForFunction(() => !plcDeckOf('deck1'));
+assert.deepEqual(await lines('sol ring'), [['fr', 1], [`fr#p${red}-cex-s`, 1]], 'retour au classeur');
+assert.deepEqual(await lines('arcane signet'), [['en|cmm|380', 1]]);
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
+ok('deck : à aller chercher par emplacement, monté (rangé, origine gardée), démonté (retour)');
+
+/* ── « Ranger dans » du scan (réglages) ─────────────────────────────────────────────────────── */
+await p.evaluate(() => scsSheet()); await p.waitForSelector('.scs [data-rcd]');
+assert.match(await txt(p, '.scs [data-rcd]'), /Ranger dans Ma collection/);
+await p.click('.scs [data-rcd]'); await p.waitForSelector('.plc-seg');
+await p.click('.plc-seg [data-v="prox"]'); await p.click(`.plc-opt[data-p="${red}"]`);
+await p.waitForFunction(() => SCD.x && SCD.p);
+assert.match(await txt(p, '.scs [data-rcd]'), /Mes proxys · Classeur rouge/);
+assert.equal(await p.evaluate(red => scdLine('fr', 'cmm|400') === `fr|cmm|400#p${red}`, red), true);
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); SCD.x = false; SCD.p = ''; scdSave(); });
+ok('scan : « Ranger dans » proxys et emplacement, gardé sur l\'appareil');
+
+/* ── Supprimer l'emplacement : ses cartes redeviennent non rangées ───────────────────────────── */
+await p.click('#collSeg [data-v="places"]'); await p.click(`.plc-card[data-p="${red}"]`); await p.waitForSelector('.plc-bar');
+await p.click('.plc-bar [data-act="plcedit"]'); await p.waitForSelector('.sheet [data-del]'); await p.click('.sheet [data-del]');
+await p.waitForFunction(() => sheets.length === 2); assert.match(await top(), /Supprimer « Classeur rouge » \?/);
+await p.click('.sheet-wrap:last-child .btn.danger'); await p.waitForFunction(() => !sheets.length && !Object.keys(COLL.places).length);
+assert.deepEqual(await lines('sol ring'), [['fr', 1], ['fr#cex-s', 1]], 'détails gardés, emplacement retiré');
+ok('suppression : cartes non rangées, détails gardés');
+
+console.log('erreurs page :', errs.length ? errs : 'aucune'); assert.deepEqual(errs, []);
+await browser.close(); world.stop(); console.log('\nPLACES E2E OK'); process.exit(0);

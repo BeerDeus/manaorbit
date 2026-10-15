@@ -1,0 +1,95 @@
+/* ── Emplacements, détails d'un exemplaire, proxys (places.js) ──────────────────────────────────── */
+.tag.plc{gap:5px;border:0;font-family:inherit;cursor:pointer;max-width:100%}
+.tag.plc i,.plc-opt i,.plc-cur>i,.plc-bar .plc-pill i,.fetch-gh i,.cex-dot,.sc-dest i{flex:none;width:8px;height:8px;border-radius:2px;background:var(--c,#4a4f66)}
+.tag.plc em{font-style:normal;font-weight:700;color:#a8811f}
+.tag.plc i+em::before{content:'·';margin:0 4px 0 1px;color:var(--ink-3)}
+/* Onglet Rangement */
+.plc-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:14px 2px 8px}
+.plc-h b{font-family:var(--font-display,inherit);font-size:17px}
+.plc-h small{font-size:12.5px;color:var(--ink-3)}
+.plc-intro{margin:0 2px 10px}
+.plc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.plc-card{min-height:104px;border-radius:18px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:12px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:8px;text-align:left;font-family:inherit}
+.plc-card:active{transform:scale(.98)}
+.plc-top{display:flex;align-items:center;gap:8px}
+.plc-top small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.plc-ic{flex:none;width:28px;height:28px;border-radius:9px;background:var(--c,#2a2440);display:grid;place-items:center;color:#0b0f1c;font-size:12px;font-weight:800;font-style:normal}
+.plc-card b{font-size:15px;line-height:1.2;overflow-wrap:anywhere}
+.plc-sub{font-size:12.5px;color:var(--ink-2)}
+.plc-prox{width:100%;min-height:64px;border-radius:18px;border:1px dashed var(--line);background:none;color:var(--ink);display:flex;align-items:center;gap:12px;padding:10px 14px;text-align:left;font-family:inherit}
+.plc-prox .plc-ic{width:36px;height:36px;border-radius:10px;background:#2a2440;color:#c79bff;font-size:13px}
+.plc-prox>span{flex:1;min-width:0;display:flex;flex-direction:column}
+.plc-prox small{font-size:12.5px;color:var(--ink-2)}
+.plc-prox .i,.plc-cur .i{flex:none;width:16px;height:16px;transform:rotate(180deg);color:var(--ink-3)}
+/* Bandeau du filtre (onglet Cartes) */
+.plc-bar{display:flex;align-items:center;gap:8px;margin:0 0 10px;flex-wrap:wrap}
+.plc-pill{height:34px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:99px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);font-size:13px;font-weight:700;font-family:inherit;max-width:100%}
+.plc-bar>span{font-size:13px;color:var(--ink-3)}
+.plc-bar .plc-x{margin-left:auto;width:34px;height:34px}
+/* Choix d'un emplacement */
+.plc-seg{margin-bottom:12px}
+.plc-radio{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.plc-opt{min-height:48px;display:flex;align-items:center;gap:10px;padding:0 14px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);font-size:14.5px;font-weight:600;text-align:left;font-family:inherit}
+.plc-opt:last-child{border-bottom:0}
+.plc-opt i{width:12px;height:12px;border-radius:3px}
+.plc-opt span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plc-opt small{font-size:12.5px;color:var(--ink-3)}
+.plc-opt[aria-checked="true"]{background:var(--accent-soft)}
+.plc-add{width:100%;height:40px;margin-top:10px;border-radius:14px;border:1px dashed var(--line);background:none;color:var(--ink-2);font-size:13.5px;font-weight:600;font-family:inherit}
+.plc-types{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.plc-types button,.cex-cond button,.cex-flags button{height:32px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-3);color:var(--ink-2);font-size:13px;font-weight:650;font-family:inherit}
+.plc-types button[aria-checked="true"],.cex-cond button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.cex-flags button[aria-pressed="true"]{border-color:#c8a85e;background:rgba(200,168,94,.18);color:#a8811f}
+.danger-txt{color:var(--bad)}
+/* Fiche d'un exemplaire */
+.plc-cur{width:100%;min-height:52px;display:flex;align-items:center;gap:10px;padding:0 12px 0 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface-3);color:var(--ink);text-align:left;font-family:inherit}
+.plc-cur>i{width:12px;height:12px;border-radius:3px}
+.plc-cur>span{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.plc-cur small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.plc-cur b{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plc-cur em{font-style:normal;font-size:12.5px;color:var(--ink-3)}
+.cex-n{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:14px;color:var(--ink-2)}
+.cex-n span:first-child{flex:1}
+.cex-n small{color:var(--ink-3)}
+.cex-n .qstep b{min-width:26px;text-align:center}
+.cex-det{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.cex-det summary{font-size:13.5px;font-weight:700;color:var(--ink-2);cursor:pointer;padding:4px 0}
+.cex-cond,.cex-flags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.cex-cond button{min-width:44px;padding:0 8px;font-weight:800}
+.rc-dest{margin-bottom:12px}
+.scs .rc-dest{margin:2px 0 6px}
+.imgv-cex{display:inline-flex;align-items:center;gap:6px;max-width:100%}
+.imgv-cex em{font-style:normal;color:#c8a85e}
+.imgv-cex i+em::before{content:'·';margin-right:6px;color:var(--ink-3)}
+/* Scan : pastille « Ranger dans » */
+.sc-dest{flex:0 1 auto;max-width:34%;min-width:0;height:36px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:99px;border:1.5px solid #fff;background:rgba(10,14,30,.75);color:#fff;font-size:13px;font-weight:800;font-family:inherit}
+.sc-dest span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-dest[hidden]{display:none}
+.scan.pm .sc-dest{display:none}
+/* Mes proxys */
+.prox-q{margin-bottom:4px}
+.prox-n{margin:6px 2px}
+.prox-list{display:flex;flex-direction:column}
+.prox-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line)}
+.prox-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.prox-main b{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prox-row .btn.small{height:32px;padding:0 10px;font-size:12.5px}
+.prox-addw{margin-top:12px}
+.prox-addw summary{font-size:13.5px;font-weight:700;color:var(--accent);cursor:pointer;padding:6px 0}
+.prox-ta{width:100%;min-height:76px;margin:6px 0 8px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);color:var(--ink);font:inherit;font-size:14px;resize:vertical}
+/* Cartes à aller chercher */
+.fetch-sum{margin:0 2px 8px}
+.fetch-px{display:flex;align-items:center;gap:8px;margin:0 2px 12px;font-size:14px;color:var(--ink-2)}
+.fetch-px input{width:18px;height:18px;accent-color:var(--accent)}
+.fetch-g{border:1px solid var(--line);border-radius:18px;background:var(--surface);overflow:hidden;margin-bottom:10px}
+.fetch-gh{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.fetch-gh i{width:12px;height:12px;border-radius:3px}
+.fetch-gh b{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fetch-gh small{font-size:12.5px;color:var(--ink-3)}
+.fetch-c{min-height:42px;display:flex;align-items:center;gap:10px;padding:0 12px;font-size:14px}
+.fetch-c input{flex:none;width:20px;height:20px;accent-color:var(--good)}
+.fetch-c span{flex:1;min-width:0}
+.fetch-c small{font-size:12px;color:var(--ink-3)}
+.fetch-c.on span{color:var(--ink-3);text-decoration:line-through}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tag.plc em,:root:not([data-theme="light"]) .cex-flags button[aria-pressed="true"]{color:#e0c072}}
+:root[data-theme="dark"] .tag.plc em,:root[data-theme="dark"] .cex-flags button[aria-pressed="true"]{color:#e0c072}

@@ -20,10 +20,10 @@ test('ManaBox : éditions, langues (ja, zh_CN, ko inconnue), noms avec virgule, 
   const r = parse('manabox.csv');
   assert.equal(r.format, 'csv'); assert.equal(r.skipped, 0); assert.equal(r.copies, 14);
   assert.deepEqual(sum(r), [
-    'Sol Ring | 4 | fr|c21|263:1 en|cmm|410:2 en|cmm|410*:1',      // lignes dans l'ordre d'affichage (français d'abord) ; 2 normales + 1 foil de la même édition : la foil sur sa ligne (*)
+    'Sol Ring | 4 | fr|c21|263#cex:1 en|cmm|410:2 en|cmm|410*:1',      // lignes dans l'ordre d'affichage (français d'abord) ; 2 normales + 1 foil de la même édition : la foil sur sa ligne (*)
     'Cloud, Midgar Mercenary | 1 | en|fin|1*:1',
     'Delver of Secrets // Insectile Aberration | 4 | jp|isd|51:4',
-    'Lightning Bolt | 3 | de|m10|146:3',
+    'Lightning Bolt | 3 | de|m10|146#cgd:3',
     'Ragavan, Nimble Pilferer | 1 | |mh2|138:1',      // coréen : langue donnée mais absente de l'appli → non précisée (pas « français » choisi pour les autres lignes)
     'Swords to Plowshares | 1 | zh-CN|sta|10*:1',
   ]);
@@ -39,14 +39,14 @@ test('ManaBox avec classeurs : les cartes des listes (souhaits) ne sont pas impo
 test('Moxfield : tout entre guillemets, « Count » et non « Tradelist Count », langues en toutes lettres, numéro « C21-263 » (The List)', () => {
   const r = parse('moxfield.csv');
   assert.deepEqual(sum(r), [
-    'Arcane Signet | 2 | en|cmm|380:2', 'Fellwar Stone | 1 | fr|c21|242*:1', 'Brazen Borrower // Petty Theft | 1 | jp|eld|39:1',
+    'Arcane Signet | 2 | en|cmm|380:2', 'Fellwar Stone | 1 | fr|c21|242*:1', 'Brazen Borrower // Petty Theft | 1 | jp|eld|39#cex:1',
     'Llanowar Elves | 3 | de|m19|314:3', "Teferi's Protection | 1 | zh-CN|c17|8:1", 'Sol Ring | 1 | pt|plst|C21-263*:1',
   ]);
 });
 
 test('Archidekt : BOM, « Edition Code » préféré à « Edition Name », tags avec virgule, langues en code', () => {
   const r = parse('archidekt.csv');
-  assert.deepEqual(sum(r), ['Llanowar Elves | 4 | en|dom|168:4', 'Sol Ring | 1 | fr|cmm|410*:1', 'Kozilek, Butcher of Truth | 2 | en|roe|6:2', 'Thoughtseize | 1 | it|ths|107:1']);
+  assert.deepEqual(sum(r), ['Llanowar Elves | 4 | en|dom|168:4', 'Sol Ring | 1 | fr|cmm|410*#clp:1', 'Kozilek, Butcher of Truth | 2 | en|roe|6:2', 'Thoughtseize | 1 | it|ths|107#cgd:1']);
   // autre jeu de colonnes possible (export personnalisé) : « Set Code », « Collector Number », langue en code minuscule
   const alt = C.parseCollection('Quantity,Name,Set Code,Set Name,Collector Number,Condition,Language,Foil,Scryfall ID,Oracle ID\n4,Goblin Arsonist,m12,Magic 2012,136,NM,en,true,c24751fd,c1177f22', { lang: 'fr' });
   assert.deepEqual(sum(alt), ['Goblin Arsonist | 4 | en|m12|136*:4']);
@@ -54,23 +54,23 @@ test('Archidekt : BOM, « Edition Code » préféré à « Edition Name », tags
 
 test('Deckbox : « Edition » est un nom d\'extension (Ixalan, Theros : 6 lettres) → pas d\'édition inventée ; quantités et langues gardées', () => {
   const r = parse('deckbox.csv');
-  assert.deepEqual(sum(r), ['Lightning Bolt | 2 | en:2', "Vraska's Contempt | 1 | fr*:1", 'Thoughtseize | 1 | es:1', 'Brainstorm | 3 | en:3', 'Jace, the Mind Sculptor | 1 | en:1']);
+  assert.deepEqual(sum(r), ['Lightning Bolt | 2 | en:2', "Vraska's Contempt | 1 | fr*:1", 'Thoughtseize | 1 | es#cpl:1', 'Brainstorm | 3 | en:3', 'Jace, the Mind Sculptor | 1 | en:1']);
 });
 
 test('Dragon Shield : ligne « "sep=," », « Card Name », dossiers additionnés', () => {
   const r = parse('dragonshield.csv');
-  assert.deepEqual(sum(r), ['Counterspell | 3 | en|mh2|267:3', "Atraxa, Praetors' Voice | 1 | fr|2x2|190*:1", 'Llanowar Elves | 4 | de|dom|168:4']);
+  assert.deepEqual(sum(r), ['Counterspell | 3 | en|mh2|267:3', "Atraxa, Praetors' Voice | 1 | fr|2x2|190*:1", 'Llanowar Elves | 4 | de|dom|168#cex:4']);
   assert.equal(C.parseCollection('sep=,\nFolder Name,Quantity,Card Name\nA,2,Sol Ring').items[0].q, 2, '« sep=, » sans guillemets aussi');
 });
 
 test('Delver Lens : « QuantityX » (« 2x »), « Edition code » et « Collector\'s number », Portuguese (Brazil) ; export à tabulations', () => {
-  assert.deepEqual(sum(parse('delver.csv')), ['Lightning Bolt | 2 | fr|m10|146:2', 'Sol Ring | 1 | en|cmm|410*:1', 'Llanowar Elves | 3 | pt|dom|168:3', 'Brazen Borrower // Petty Theft | 1 | jp|eld|39:1']);
+  assert.deepEqual(sum(parse('delver.csv')), ['Lightning Bolt | 2 | fr|m10|146:2', 'Sol Ring | 1 | en|cmm|410*:1', 'Llanowar Elves | 3 | pt|dom|168#cex:3', 'Brazen Borrower // Petty Theft | 1 | jp|eld|39:1']);
   const t = parse('delver-tab.csv', 'en');
   assert.deepEqual(sum(t), ['Sol Ring | 2 | en:2', 'Llanowar Elves | 4 | en:4'], 'colonnes par défaut (QuantityX, Name) : langue choisie dans l\'import');
 });
 
 test('TCGplayer : « Simple Name » plutôt que « Name » (« Sol Ring (Foil Etched) »), « Set Code » plutôt que « Set »', () => {
-  assert.deepEqual(sum(parse('tcgplayer.csv')), ['Sol Ring | 1 | en|cmm|410*:1', 'Lightning Bolt | 2 | fr|m10|146:2']);
+  assert.deepEqual(sum(parse('tcgplayer.csv')), ['Sol Ring | 1 | en|cmm|410*:1', 'Lightning Bolt | 2 | fr|m10|146#cex:2']);
 });
 
 test('Decked Builder : « Reg Qty » + « Foil Qty »', () => {

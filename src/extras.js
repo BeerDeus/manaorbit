@@ -87,9 +87,11 @@ function engSaved() { engWrite(); xsPushSoon('engaged'); engApplied(); }
 function engSet(id, name, text) {
   XS.eng = { ...XS.eng, [id]: { n: String(name || '').slice(0, 120), at: Date.now(), q: engSnapshot(text, collQty) } };
   engSaved();
+  if (typeof plcDeckOf === 'function' && plcDeckOf(id)) plcMount(id, name, text);      // rangé dans « Deck : … » (places.js) : l'emplacement suit la liste
 }
 /** Démonte un deck (la trace vide est gardée pour que les autres appareils le sachent). */
 function engClear(id, quiet) {
+  if (typeof plcUnmount === 'function') plcUnmount(id);      // les cartes rangées dans « Deck : … » retournent à leur place (places.js)
   if (!XS.eng[id]) return;
   if (!engIsOn(id)) { if (quiet) { const x = { ...XS.eng }; delete x[id]; XS.eng = x; engWrite(); } return; }
   XS.eng = { ...XS.eng, [id]: { n: XS.eng[id].n, at: Date.now(), q: {} } };

@@ -140,9 +140,9 @@ assert.match(await txt(p, '.coll-sync'), /Pas sauvegardée dans ton compte : Rè
 await p.screenshot({ path: 'shots/coll-sync-erreur.png' });
 const before4 = await p.evaluate(() => JSON.stringify(COLL.map));
 // un autre appareil a retiré 3 cartes et baissé Sol Ring : appliqué carte par carte (la base = ce qu'on avait vu du compte)
-await p.evaluate(() => { COLL.base = collClone(COLL.map); COLL.cloud = 'ok'; collFromCloud('u1', { text: '2 Sol Ring', count: 1, updatedAt: Date.now() + 5000 }, false, false); });
+await p.evaluate(() => { COLL.base = collDocClone(collDocNow()); COLL.cloud = 'ok'; collFromCloud('u1', { text: '2 Sol Ring', count: 1, updatedAt: Date.now() + 5000 }, false, false); });
 await p.waitForFunction(() => document.querySelectorAll('.crow').length === 1); assert.match(await txt(p, '#toast'), /Autre appareil : −3 cartes/);
-assert.equal((await rows())[0].q, 2, 'quantité du compte'); assert.equal(await p.evaluate(() => sameColl(COLL.base, collFromText('2 Sol Ring'))), true, 'base = dernier état du compte');
+assert.equal((await rows())[0].q, 2, 'quantité du compte'); assert.equal(await p.evaluate(() => sameDoc(COLL.base, collDocFromText('2 Sol Ring'))), true, 'base = dernier état du compte');
 await p.evaluate(m => { COLL.map = JSON.parse(m); collChanged({ push: false }); }, before4); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 4);
 ok('sauvegarde : bandeau clair (appareil / compte / erreur), export .txt réimportable, changements d\'un autre appareil appliqués carte par carte');
 await p.evaluate(() => { D.user = null; D.uid = null; COLL.cloud = 'off'; COLL.s = ''; collPaintHead(); });

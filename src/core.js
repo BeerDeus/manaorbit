@@ -914,6 +914,10 @@ const FOIL_FLAG_COLS = ['foil', 'finish', 'printing'];
 const csvFoil = v => /^\s*(foil|etched|foil etched|true|yes|oui|1|x)\s*$/i.test(String(v == null ? '' : v));
 /** Colonne « Binder Type » de ManaBox : une liste (« list », souhaits, achats) n'est pas dans la collection (FAQ ManaBox : les classeurs pour les cartes possédées, les listes pour les autres). */
 const LIST_TYPE_RE = /^\s*(list|wish ?list|buy ?list)\s*$/i;
+/** État de l'exemplaire (« Condition » : ManaBox near_mint, Moxfield Near Mint, Cardmarket NM…) → échelle Cardmarket (COND_CM) ; '' si illisible. */
+const COND_COLS = ['condition', 'etat', 'card condition'];
+const COND_IN = { m: 'mt', mt: 'mt', mint: 'mt', nm: 'nm', nearmint: 'nm', ex: 'ex', excellent: 'ex', sp: 'ex', slightlyplayed: 'ex', lightlyplayed: 'ex', lightplayed: 'lp', gd: 'gd', good: 'gd', mp: 'gd', moderatelyplayed: 'gd', lp: 'lp', pl: 'pl', played: 'pl', hp: 'pl', heavilyplayed: 'pl', po: 'po', poor: 'po', d: 'po', damaged: 'po' };
+const csvCond = v => COND_IN[String(v == null ? '' : v).toLowerCase().replace(/[^a-z]/g, '')] || '';
 const NUM_COLS = ['collector number', 'card number', 'collector s number', 'collector', 'number', 'cn', 'nr', 'numero'];
 const colNorm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -921,7 +925,10 @@ const colNorm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').to
 const DATE_MARK_RE = /\s+\(D([0-9a-z]{5,7})\)(?=(?:\s+\*[A-Za-z]+(?:-[A-Za-z]+)?\*)?\s*$)/;
 /** Édition dans le texte de la collection, avant la date et la langue : « 2 Sol Ring (CMM) 400 (Dh7zqkx) *FR* » ; aussi « 1 Sol Ring (CMM) 400 *F* » (Moxfield, ManaBox).
  *  L'ancienne version la lit comme un code d'extension et l'ignore (la carte et sa langue restent justes). */
-const ED_MARK_RE = /\s+\(([A-Za-z0-9]{2,6})\)\s+([^\s()|*,;"]{1,12})(?=(?:\s+\*[A-Za-z]+(?:-[A-Za-z]+)?\*)*\s*$)/;
+const ED_MARK_RE = /\s+\(([A-Za-z0-9]{2,6})\)\s+([^\s()|*,;"#]{1,12})(?=(?:\s+\*[A-Za-z]+(?:-[A-Za-z]+)?\*)*\s*$)/;
+/** Emplacement et détails dans le texte de la collection, avant « (FOIL) » et l'édition : « 1 Sol Ring (DETAILS) pk3x9a-cnm (FOIL) (CMM) 400 (Dh7zqkx) *FR* ».
+ *  L'ancienne version le lit comme un code d'extension suivi d'un numéro et l'ignore (carte, foil, édition et langue restent justes) ; 7 lettres : jamais pris pour une édition. */
+const ATTR_MARK_RE = /\s+\(DETAILS\)\s+([a-z0-9-]{1,80})(?=(?:\s+\(FOIL\))?(?:\s+\*[A-Za-z]+(?:-[A-Za-z]+)?\*)*\s*$)/;
 const dateNowSec = () => Math.floor(Date.now() / 1000);
 /* ── Une carte, plusieurs lignes : entrée { n, q (total), l (langue la plus fournie), x? { ligne: exemplaires } (plusieurs lignes, ou une ligne avec édition), d? } ───
    Une ligne = une langue, et une édition si elle est connue (« 2 Sol Ring (CMM) 400 *FR* » + « 1 Sol Ring *EN* » dans le texte) ; la langue '' = non précisée.
@@ -932,21 +939,47 @@ const lineRank = l => { const i = LINE_RANK.indexOf(l || ''); return i < 0 ? LIN
 /** Édition d'un exemplaire : 'cmm|400' (code d'extension en minuscules, numéro de collection tel qu'imprimé), '' si incomplète ou illisible. */
 const edKey = (set, num) => {
   const s = String(set == null ? '' : set).trim().toLowerCase(), n = String(num == null ? '' : num).trim();
-  return /^[a-z0-9]{2,6}$/.test(s) && /^[^\s()|*,;"]{1,12}$/.test(n) ? s + '|' + n : '';
+  return /^[a-z0-9]{2,6}$/.test(s) && /^[^\s()|*,;"#]{1,12}$/.test(n) ? s + '|' + n : '';
 };
 const edSet = e => String(e || '').split('|')[0];
 const edNum = e => { const s = String(e || ''), i = s.indexOf('|'); return i < 0 ? '' : s.slice(i + 1); };
 /** « CMM 400 » */
 const edLabel = e => (e ? edSet(e).toUpperCase() + ' ' + edNum(e) : '');
-const lineKey = (l, e, f) => (l || '') + (e ? '|' + e : '') + (f ? '*' : '');
-/** Exemplaires foil ? (clé terminée par '*'). */
-const lineFoil = g => String(g || '').endsWith('*');
-/** Clé sans le repère foil : 'fr|cmm|400'. */
-const lineBase = g => { const s = String(g || ''); return s.endsWith('*') ? s.slice(0, -1) : s; };
+/* ── Emplacement et détails d'un exemplaire (facultatifs), en fin de clé de ligne après « # » : 'fr|cmm|400*#pk3x9a-cnm-s'.
+   Mots, dans cet ordre : p<emplacement> · o<emplacement d'origine> (cartes d'un deck monté : où elles retournent au démontage) · c<état Cardmarket> · s (signée) · a (altérée) · m (erreur d'impression). */
+const COND_CM = ['mt', 'nm', 'ex', 'gd', 'lp', 'pl', 'po'];
+const PLACE_ID_RE = /^[a-z0-9]{2,12}$/;
+/** Détails lus dans un mot : { p?, o?, c?, s?, a?, m? } ; les mots inconnus sont ignorés. */
+function attrOf(w) {
+  const a = {};
+  for (const t of String(w || '').split('-')) {
+    const k = t[0], v = t.slice(1);
+    if ((k === 'p' || k === 'o') && PLACE_ID_RE.test(v)) a[k] = v;
+    else if (k === 'c' && COND_CM.includes(v)) a.c = v;
+    else if ((k === 's' || k === 'a' || k === 'm') && !v) a[k] = 1;
+  }
+  return a;
+}
+/** Mot des détails, toujours dans le même ordre ('' : aucun). */
+const attrWord = a => (a ? [a.p && 'p' + a.p, a.o && 'o' + a.o, a.c && 'c' + a.c, a.s && 's', a.a && 'a', a.m && 'm'].filter(Boolean).join('-') : '');
+const lineKey = (l, e, f, a) => { const w = a && typeof a === 'object' ? attrWord(a) : a || ''; return (l || '') + (e ? '|' + e : '') + (f ? '*' : '') + (w ? '#' + w : ''); };
+/** Clé sans emplacement ni détails : 'fr|cmm|400*'. */
+const lineHead = g => { const s = String(g || ''), i = s.indexOf('#'); return i < 0 ? s : s.slice(0, i); };
+/** Mot des détails d'une ligne ('' : aucun). */
+const lineAw = g => { const s = String(g || ''), i = s.indexOf('#'); return i < 0 ? '' : s.slice(i + 1); };
+const lineAttrs = g => attrOf(lineAw(g));
+/** Emplacement d'une ligne ('' : non rangé). */
+const linePlace = g => lineAttrs(g).p || '';
+/** Exemplaires foil ? (repère '*' en fin de clé, avant les détails). */
+const lineFoil = g => lineHead(g).endsWith('*');
+/** Clé sans le repère foil ni les détails : 'fr|cmm|400'. */
+const lineBase = g => { const s = lineHead(g); return s.endsWith('*') ? s.slice(0, -1) : s; };
 const lineLang = g => { const s = lineBase(g), i = s.indexOf('|'); return i < 0 ? s : s.slice(0, i); };
 const lineEd = g => { const s = lineBase(g), i = s.indexOf('|'); return i < 0 ? '' : s.slice(i + 1); };
-/** Ordre d'affichage des lignes : langue (fr, en, autres, non précisée), puis sans édition, puis éditions par code et numéro ; les foil après les non foil de la même édition. */
-const lineCmp = (a, b) => lineRank(lineLang(a)) - lineRank(lineLang(b)) || (lineEd(a) ? 1 : 0) - (lineEd(b) ? 1 : 0) || lineEd(a).localeCompare(lineEd(b), 'en', { numeric: true }) || (lineFoil(a) ? 1 : 0) - (lineFoil(b) ? 1 : 0);
+/** La même ligne avec d'autres détails : patch { p: 'abc' } pose l'emplacement, { p: '' } le retire ; les autres détails restent. */
+const lineSet = (g, patch) => { const a = { ...lineAttrs(g), ...patch }; for (const k in patch) if (!patch[k]) delete a[k]; return lineKey(lineLang(g), lineEd(g), lineFoil(g), a); };
+/** Ordre d'affichage des lignes : langue (fr, en, autres, non précisée), puis sans édition, puis éditions par code et numéro ; les foil après les non foil de la même édition ; puis emplacement et détails. */
+const lineCmp = (a, b) => lineRank(lineLang(a)) - lineRank(lineLang(b)) || (lineEd(a) ? 1 : 0) - (lineEd(b) ? 1 : 0) || lineEd(a).localeCompare(lineEd(b), 'en', { numeric: true }) || (lineFoil(a) ? 1 : 0) - (lineFoil(b) ? 1 : 0) || (lineAw(a) < lineAw(b) ? -1 : lineAw(a) > lineAw(b) ? 1 : 0);
 /** Lignes d'une entrée : [[clé de ligne, exemplaires]] dans l'ordre d'affichage ; toujours au moins une ligne si la carte existe. */
 function collLines(x) {
   if (!x || !(x.q > 0)) return [];
@@ -967,7 +1000,7 @@ function collFromLines(base, lines) {
   const ls = [...m].sort((a, b) => lineCmp(a[0], b[0])), out = { ...base }; delete out.x; delete out.l;
   out.q = ls.reduce((a, e) => a + e[1], 0);
   const dom = collMainLang(ls); if (dom) out.l = dom;
-  if (ls.length > 1 || lineEd(ls[0][0]) || lineFoil(ls[0][0])) out.x = Object.fromEntries(ls);
+  if (ls.length > 1 || lineEd(ls[0][0]) || lineFoil(ls[0][0]) || lineAw(ls[0][0])) out.x = Object.fromEntries(ls);
   return out;
 }
 /** Union de deux répartitions de la même carte sans état commun connu, langue par langue : le plus grand total ; une édition, le plus grand nombre des deux côtés,
@@ -975,14 +1008,14 @@ function collFromLines(base, lines) {
  *  ne s'ajoutent pas à une langue connue de l'autre côté (c'est probablement la même carte). */
 function unionLines(la, lb) {
   const by = new Map(); let ta = 0, tb = 0;
-  const put = (ls, s) => { for (const [g, q] of ls) { const l = lineKey(lineLang(g), '', lineFoil(g)), e = lineEd(g); let o = by.get(l); if (!o) by.set(l, o = { t: [0, 0], ed: new Map() }); o.t[s] += q; if (e) o.ed.set(e, Math.max(o.ed.get(e) || 0, q)); } };      // un « groupe » = langue + foil ou non
+  const put = (ls, s) => { for (const [g, q] of ls) { const l = lineKey(lineLang(g), '', lineFoil(g)), e = lineKey('', lineEd(g), false, lineAw(g)); let o = by.get(l); if (!o) by.set(l, o = { t: [0, 0], ed: new Map() }); o.t[s] += q; if (e) o.ed.set(e, Math.max(o.ed.get(e) || 0, q)); } };      // un « groupe » = langue + foil ou non ; e : édition et détails (« |cmm|400#pabc »)
   for (const [, q] of la) ta += q;
   for (const [, q] of lb) tb += q;
   put(la, 0); put(lb, 1);
   const out = []; let spec = 0;
   for (const [l, o] of by) {
     const f = lineFoil(l), ll = lineLang(l);
-    let es = 0; for (const [e, q] of o.ed) { out.push([lineKey(ll, e, f), q]); es += q; }
+    let es = 0; for (const [e, q] of o.ed) { out.push([lineKey(ll, lineEd(e), f, lineAw(e)), q]); es += q; }
     spec += es;
     if (l) { const plain = Math.max(0, Math.max(o.t[0], o.t[1]) - es); if (plain) out.push([l, plain]); spec += plain; }
   }
@@ -1004,7 +1037,7 @@ function parseCollection(text, o) {
   const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/);
   let i0 = 0; while (i0 < lines.length && (!lines[i0].trim() || /^"?sep=.?"?$/i.test(lines[i0].trim()))) i0++;      // « sep=, » (Excel), entre guillemets chez Dragon Shield
   const first = lines[i0] || '';
-  let delim = null, nameCol = -1, qtyCol = -1, foilCol = -1, flagCol = -1, langCol = -1, setCol = -1, setCode = false, numCol = -1, listCol = -1;
+  let delim = null, nameCol = -1, qtyCol = -1, foilCol = -1, flagCol = -1, langCol = -1, setCol = -1, setCode = false, numCol = -1, listCol = -1, condCol = -1;
   for (const d of [',', ';', '\t']) {
     const cols = csvSplit(first, d).map(colNorm);
     if (cols.length < 2) continue;
@@ -1017,11 +1050,11 @@ function parseCollection(text, o) {
     if (qtyCol < 0) qtyCol = cols.findIndex(c => /(quantity|qty|count)/.test(c) && !/(trade|tradelist|wish|foil)/.test(c));      // « QuantityX » de Delver Lens (valeurs « 2x »)
     foilCol = cols.findIndex(c => FOIL_QTY_RE.test(c)); if (foilCol === qtyCol) foilCol = -1;
     for (const want of FOIL_FLAG_COLS) { const i = cols.indexOf(want); if (i >= 0 && i !== qtyCol && i !== foilCol) { flagCol = i; break; } }
-    listCol = cols.indexOf('binder type');
+    listCol = cols.indexOf('binder type'); condCol = cols.findIndex(c => COND_COLS.includes(c));
     break;
   }
   const map = new Map(), fr = !!(o && o.fr && FRX.ix), dl = (o && cardLang(o.lang)) || '', amb = []; let n = 0, skipped = 0, nfr = 0, listed = 0;
-  const add = (name, q, l, d, e, f) => {
+  const add = (name, q, l, d, e, f, a) => {
     name = String(name || '').trim(); q = Math.max(1, Math.min(9999, Math.round(q) || 1));
     if (fr && name) {
       const f = frLookup(name, (l === '-' ? '' : l || dl) === FRX.l);
@@ -1029,7 +1062,7 @@ function parseCollection(text, o) {
     }
     if (!l) l = dl; else if (l === '-') l = '';
     const k = ownKey(name); if (!name || !k) { skipped++; return; }
-    const cur = map.get(k), lg = lineKey(l, e, f); if (cur) { cur.b.set(lg, Math.min(9999, (cur.b.get(lg) || 0) + q)); if (d && !(cur.d <= d)) cur.d = d; } else if (map.size < COLL_MAX) map.set(k, { k, n: name, b: new Map([[lg, q]]), ...(d ? { d } : {}) });      // une ligne par langue, édition et foil
+    const cur = map.get(k), lg = lineKey(l, e, f, a); if (cur) { cur.b.set(lg, Math.min(9999, (cur.b.get(lg) || 0) + q)); if (d && !(cur.d <= d)) cur.d = d; } else if (map.size < COLL_MAX) map.set(k, { k, n: name, b: new Map([[lg, q]]), ...(d ? { d } : {}) });      // une ligne par langue, édition et foil
   };
   if (delim) {
     for (let i = i0 + 1; i < lines.length; i++) {
@@ -1041,19 +1074,20 @@ function parseCollection(text, o) {
       const fq = foilCol >= 0 ? parseInt(c[foilCol], 10) || 0 : 0;      // « Reg Qty » + « Foil Qty » (Decked Builder) : les foil sur leur propre ligne
       if (foilCol >= 0) { q = Number.isFinite(q) ? q : 0; if (!q && !fq) q = 1; }
       const lr = langCol >= 0 ? String(c[langCol] || '').trim() : '', l = lr ? cardLang(lr) || '-' : '';      // « Korean », « Phyrexian » : langue donnée mais absente de l'appli → non précisée, pas la langue choisie pour les autres lignes
-      const e = setCol >= 0 && numCol >= 0 ? edKey(csvSetCode(c[setCol], setCode), c[numCol]) : '', f = flagCol >= 0 && csvFoil(c[flagCol]);
-      if (q || foilCol < 0) add(name, q || 1, l, 0, e, f);
-      if (fq) add(name, fq, l, 0, e, true);
+      const e = setCol >= 0 && numCol >= 0 ? edKey(csvSetCode(c[setCol], setCode), c[numCol]) : '', f = flagCol >= 0 && csvFoil(c[flagCol]), cd = condCol >= 0 ? csvCond(c[condCol]) : '', a = cd && cd !== 'nm' ? { c: cd } : null;      // « Near Mint » : la valeur par défaut des exports, pas un détail
+      if (q || foilCol < 0) add(name, q || 1, l, 0, e, f, a);
+      if (fq) add(name, fq, l, 0, e, true, a);
     }
   } else {
     for (let raw of lines) {
       let d = 0;
-      let e = '';
+      let e = '', a = '';
       if (o && o.dates) raw = raw.replace(DATE_MARK_RE, (_, t) => { d = parseInt(t, 36) || 0; return ''; });
-      raw = raw.replace(ED_MARK_RE, (m, a, b) => { e = edKey(a, b); return e ? '' : m; });
+      raw = raw.replace(ED_MARK_RE, (m, x, y) => { e = edKey(x, y); return e ? '' : m; });
+      raw = raw.replace(ATTR_MARK_RE, (_, w) => { a = attrWord(attrOf(w)); return ''; });
       const p = parseLine(raw, { fr: false }); if (!p) continue; n++;      // noms français lus par add(), comme ceux d'un CSV
       if (p.ignored) { skipped++; continue; }
-      add(p.name, p.qty, p.lang, d, e, !!p.foil);
+      add(p.name, p.qty, p.lang, d, e, !!p.foil, a);
     }
   }
   const items = [...map.values()].map(({ b, ...base }) => collFromLines(base, [...b]));
@@ -1062,6 +1096,8 @@ function parseCollection(text, o) {
 
 /** Export CSV au format Moxfield (« Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number ») : relu par Moxfield, ManaBox, Archidekt, Deckbox… et par cette appli.
  *  Une ligne par langue et édition ; langue ou édition non précisée : colonnes vides. « Tradelist Count » : exemplaires de cette ligne à échanger (trade : tradeLists(…).have), 0 sinon. */
+/** État Cardmarket → colonne « Condition » de Moxfield. */
+const COND_OUT = { mt: 'Mint', nm: 'Near Mint', ex: 'Lightly Played', gd: 'Moderately Played', lp: 'Moderately Played', pl: 'Heavily Played', po: 'Damaged' };
 const CSV_LANG = { fr: 'French', en: 'English', de: 'German', es: 'Spanish', it: 'Italian', pt: 'Portuguese', jp: 'Japanese', 'zh-CN': 'Chinese Simplified', ko: 'Korean', ru: 'Russian' };
 /** Cellule texte : un nom venu d'une liste importée ou partagée qui commence par = + - @ (ou tabulation, retour) serait lu comme une formule par Excel ou LibreOffice → préfixé d'une apostrophe.
  *  Sauf « +2 Mace » et ses pareils (signe, chiffres, espace, puis des mots) : vrais noms de cartes, aucune formule possible. */
@@ -1075,7 +1111,7 @@ function collToCsv(map, trade = typeof trSpare === 'function' ? trSpare(map) : n
   const rows = ['Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number'], tl = new Map();
   for (const x of trade || []) if (x && x.k) tl.set(x.k, new Map(x.lines || []));
   for (const [k, x] of Object.entries(map || {}).filter(([, x]) => x && x.n).sort(([, a], [, b]) => a.n.localeCompare(b.n, 'en')))
-    for (const [g, q] of collLines(x)) { const e = lineEd(g); rows.push([q, Math.min(q, (tl.get(k) && tl.get(k).get(g)) || 0), csvCell(x.n), edSet(e), 'Near Mint', CSV_LANG[lineLang(g)] || '', lineFoil(g) ? 'foil' : '', csvCell(edNum(e))].join(',')); }
+    for (const [g, q] of collLines(x)) { const e = lineEd(g); rows.push([q, Math.min(q, (tl.get(k) && tl.get(k).get(g)) || 0), csvCell(x.n), edSet(e), COND_OUT[lineAttrs(g).c] || 'Near Mint', CSV_LANG[lineLang(g)] || '', lineFoil(g) ? 'foil' : '', csvCell(edNum(e))].join(',')); }
   return rows.join('\n') + '\n';
 }
 
@@ -1085,7 +1121,7 @@ function mergeColl(base, add, mode, now) {
   for (const it of add) {
     const prev = base[it.k], cur = out[it.k], lines = collLines(cur).map(e => e.slice()), dom = collMainLang(lines);
     for (const [g, q] of collLines(it)) {
-      const to = g || dom;      // sans langue ni édition, les exemplaires rejoignent la langue déjà connue de la carte (sans édition) ; une langue ou une édition lue (scan, CSV) a sa propre ligne
+      const to = lineHead(g) ? g : lineKey(dom, '', false, lineAw(g));      // sans langue ni édition, les exemplaires rejoignent la langue déjà connue de la carte (sans édition) ; une langue ou une édition lue (scan, CSV) a sa propre ligne
       const e = lines.find(x => x[0] === to); if (e) e[1] = Math.min(9999, e[1] + q); else lines.push([to, q]);
     }
     out[it.k] = collFromLines({ ...(prev || {}), n: (prev && prev.n) || it.n, ...(!prev && (it.d || t) ? { d: it.d || t } : {}) }, lines);       // date d'ajout : posée à la première entrée de la carte, jamais modifiée ensuite (une carte retirée puis ré-ajoutée en reçoit une nouvelle)
@@ -1094,8 +1130,53 @@ function mergeColl(base, add, mode, now) {
 }
 /** Texte compact d'une collection (une ligne par carte, langue et édition : « 3 Sol Ring (CMM) 400 *FR* ») pour le cloud, et son inverse. dates : ajoute la date d'ajout « (Dxxxxxx) » (stockage et compte ; pas l'export). */
 /** Texte de la collection : « 2 Sol Ring (FOIL) (CMM) 400 (Dh7zqkx) *FR* ». « (FOIL) » avant l'édition : l'ancienne version le lit comme un code d'extension et l'ignore (carte, édition et langue restent justes). */
-const collToText = (coll, dates) => Object.values(coll).filter(x => x && x.q > 0 && x.n).sort((a, b) => a.n.localeCompare(b.n, 'en')).flatMap(x => collLines(x).map(([g, q]) => { const l = lineLang(g), e = lineEd(g); return q + ' ' + x.n + (lineFoil(g) ? ' (FOIL)' : '') + (e ? ' (' + edSet(e).toUpperCase() + ') ' + edNum(e) : '') + (dates && x.d > 0 ? ' (D' + Math.floor(x.d).toString(36) + ')' : '') + (l ? ' *' + langCode(l) + '*' : ''); })).join('\n');
+const collToText = (coll, dates) => Object.values(coll).filter(x => x && x.q > 0 && x.n).sort((a, b) => a.n.localeCompare(b.n, 'en')).flatMap(x => {
+  let ls = collLines(x);
+  if (!dates && ls.some(e => lineAw(e[0]))) { const m = new Map(); for (const [g, q] of ls) m.set(lineHead(g), (m.get(lineHead(g)) || 0) + q); ls = [...m]; }      // export : sans emplacement ni détails, les lignes de même édition regroupées
+  return ls.map(([g, q]) => { const l = lineLang(g), e = lineEd(g), w = dates ? lineAw(g) : ''; return q + ' ' + x.n + (w ? ' (DETAILS) ' + w : '') + (lineFoil(g) ? ' (FOIL)' : '') + (e ? ' (' + edSet(e).toUpperCase() + ') ' + edNum(e) : '') + (dates && x.d > 0 ? ' (D' + Math.floor(x.d).toString(36) + ')' : '') + (l ? ' *' + langCode(l) + '*' : ''); });
+}).join('\n');
 const collFromText = text => { const o = {}; for (const it of parseCollection(text, { dates: true }).items) o[it.k] = { n: it.n, q: it.q, ...(it.l ? { l: it.l } : {}), ...(it.x ? { x: it.x } : {}), ...(it.d ? { d: it.d } : {}) }; return o; };
+
+/* ── Emplacements et proxys : enregistrés avec la collection, dans le même texte (même compte, même fusion), en lignes que l'ancienne version ignore (commentaires « // »).
+   « //@P 2 Sol Ring (CMM) 400 *FR* » : un proxy (même format qu'une carte) ; « //@L k3x9a box Boîte doublons » : un emplacement (id, type, nom).
+   Les proxys ne comptent jamais dans la valeur, l'échange, les statistiques ni le widget : ils restent dans leur propre liste. */
+const PLACE_TYPES = ['binder', 'box', 'deck', 'sale', 'other'];
+/** Nom d'emplacement : une ligne, sans séparateur de CSV ni guillemet (le texte de la collection reste lisible comme avant), 40 caractères au plus. */
+const placeName = n => String(n == null ? '' : n).replace(/[\p{Cc}\p{Cf},;"]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+/** Emplacement lu ou créé : { t (type), n (nom), r? (deck monté : id du deck) } ; null si illisible. */
+function placeNorm(x) {
+  if (!x) return null;
+  const n = placeName(x.n), t = PLACE_TYPES.includes(x.t) ? x.t : 'other', r = /^[A-Za-z0-9_-]{1,40}$/.test(x.r || '') ? x.r : '';
+  return n ? { t, n, ...(r ? { r } : {}) } : null;
+}
+/** Nouvel identifiant d'emplacement : date en base 36 et deux caractères au hasard (deux appareils ne se croisent pas). */
+const placeNewId = () => (Math.floor(Date.now() / 1000).toString(36) + Math.floor(Math.random() * 1296).toString(36).padStart(2, '0')).slice(-12);
+const placesText = places => Object.keys(places || {}).sort().map(id => { const x = places[id]; return x ? '//@L ' + id + ' ' + x.t + (x.r ? ':' + x.r : '') + ' ' + x.n : ''; }).filter(Boolean).join('\n');
+/** Collection complète : { map (cartes), prox (proxys, même forme), places (id → emplacement) }. */
+const collDoc = (map, prox, places) => ({ map: map || {}, prox: prox || {}, places: places || {} });
+const collDocText = d => [collToText(d.map, true), collToText(d.prox, true).split('\n').filter(Boolean).map(x => '//@P ' + x).join('\n'), placesText(d.places)].filter(Boolean).join('\n');
+function collDocFromText(text) {
+  const main = [], px = [], places = {};
+  for (const ln of String(text || '').split('\n')) {
+    if (ln.startsWith('//@P ')) px.push(ln.slice(5));
+    else if (ln.startsWith('//@L ')) { const m = /^\/\/@L ([a-z0-9]{2,12}) ([a-z]+)(?::(\S+))? (.+)$/.exec(ln.trimEnd()); const x = m && placeNorm({ t: m[2], r: m[3], n: m[4] }); if (x) places[m[1]] = x; }
+    else main.push(ln);
+  }
+  return collDoc(collFromText(main.join('\n')), px.length ? collFromText(px.join('\n')) : {}, places);
+}
+const samePlaces = (a, b) => placesText(a) === placesText(b);
+const sameDoc = (a, b) => sameColl(a && a.map, b && b.map) && sameColl(a && a.prox, b && b.prox) && samePlaces(a && a.places, b && b.places);
+/** Emplacements fusionnés comme les cartes (base · appareil · compte) : changé d'un seul côté → ce côté ; des deux → cet appareil ; une modification l'emporte sur un retrait. */
+function placesMerge3(base, local, remote) {
+  const out = {}, b0 = base || {}, l0 = local || {}, r0 = remote || {}, same = (x, y) => JSON.stringify(x || null) === JSON.stringify(y || null);
+  for (const id of new Set([...Object.keys(l0), ...Object.keys(r0)])) {
+    const b = b0[id], l = l0[id], r = r0[id], v = same(l, b) ? r : same(r, b) ? l : l || r;
+    if (v) out[id] = { ...v };
+  }
+  return out;
+}
+/** Fusion à trois de la collection complète (base null : inconnue → union). */
+const mergeDoc3 = (b, l, r) => collDoc(merge3(b && b.map, l.map, r.map), merge3(b && b.prox, l.prox, r.prox), placesMerge3(b && b.places, l.places, r.places));
 
 /** Même carte au même état (quantité, langue) ? Deux absences sont identiques. */
 const sameEntry = (a, b) => (!a && !b) || (!!a && !!b && collSig(a) === collSig(b));
@@ -1991,7 +2072,7 @@ function tradeLists(coll, use, keep, kept) {
     if (spare <= 0) continue;
     if (kept && kept.has(k)) { held.push({ k, n: x.n, q: spare }); continue; }
     let skip = hold; const lines = [];
-    for (const [l, q] of collLines(x)) { const g = Math.max(0, q - skip); skip = Math.max(0, skip - q); if (g) lines.push([l, g]); }
+    for (const [l, q] of collLines(x)) { const g = Math.max(0, q - skip), h = lineHead(l), e = lines.find(y => y[0] === h); skip = Math.max(0, skip - q); if (g) { if (e) e[1] += g; else lines.push([h, g]); } }      // sans emplacement ni détails : ils ne quittent pas l'appareil
     have.push({ k, n: x.n, q: spare, lines });
   }
   const byN = (a, b) => a.n.localeCompare(b.n, 'en');
@@ -2166,6 +2247,8 @@ if (typeof module !== 'undefined' && module.exports) {
 
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { NAME_CMP, byName });
+// Emplacements, détails d'exemplaire et proxys (test-places.mjs)
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FRX, frKey, frUse, frIndex, frLookup, frToEn, enToFr, nameSuggest });
 // Langue des cartes et liens selon la langue de l'utilisateur (test.mjs) : exportés à part, eux aussi

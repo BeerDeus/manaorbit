@@ -79,6 +79,7 @@ function scsHtml() {
   const oth = SCS_LANGS.filter(l => l !== 'fr' && l !== 'en'), othOn = oth.includes(SCS.lang);
   const sec = s => (Number(s) / 1000).toLocaleString(LOC()) + ' s';
   return `<div class="scs">${typeof opnScsRow === 'function' ? opnScsRow() : ''}
+    ${typeof scdRowHtml === 'function' ? scdRowHtml() : ''}
     <p class="scs-h">${T('Cadrage')}</p>
     <div class="scs-eds" role="radiogroup" aria-label="${esc(T('Cadrage'))}">${SCS_FRAMES.map(([v, t, d]) => `<button type="button" class="scs-ed" role="radio" data-s="frame" data-v="${v}" aria-checked="${SCS.frame === v}"><span><b>${esc(T(t))}</b><small>${esc(T(d))}</small></span><i aria-hidden="true"></i></button>`).join('')}</div>
     <p class="scs-h">${T('Éditions')}</p>
@@ -101,6 +102,7 @@ function scsSheet() {
     paint();
     api.body.addEventListener('click', e => {
       if (e.target.closest('.opn-scs') && typeof opnEntry === 'function') { api.close(); opnEntry(); return; }      // session d'ouverture (opening.js)
+      if (e.target.closest('[data-rcd]')) { scdPick(() => { paint(); if (typeof scanPaintTools === 'function') scanPaintTools(); }); return; }      // « Ranger dans » (places.js) : cet appareil seulement
       const b = e.target.closest('button[data-s]'); if (!b) return;
       const k = b.dataset.s, v = b.dataset.v; haptic('tap');
       scsSet({ [k]: k === 'delay' ? Number(v) : v }); paint();

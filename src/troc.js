@@ -460,7 +460,7 @@ function trocTileSheet(id, side) {
   const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', x.u ? T('{v} pièce', { v: fmt(x.u, 'EUR') }) : ''].filter(Boolean).join(' · ');
   openSheet(trocName(x), sub, api => {
     api.wrap.classList.add('trc-ts');
-    const own = side === 'me' ? (collLines(COLL.map[ownKey(x.n)]).find(y => y[0] === x.g) || [0, 0])[1] : 0;
+    const own = side === 'me' ? collLines(COLL.map[ownKey(x.n)]).reduce((t, y) => t + (lineHead(y[0]) === x.g ? y[1] : 0), 0) : 0;
     const paint = () => {
       const cur = (side === 'me' ? TRC.s.me.give : (TRC.s.ot || {}).give || []).find(y => y.id === id); if (!cur || !trocOpenSt(TRC.s)) { api.close(); return; }
       const msg = side === 'ot' ? (cur.r ? T('Tu as demandé cette carte : {name} ne l\'a pas encore acceptée.', { name: who }) : T('Tu as demandé cette carte : {name} l\'a acceptée.', { name: who }))
@@ -619,7 +619,7 @@ async function trocBalance() {
 function trocDrop(m, k, g, q) {
   const cur = m[k]; if (!cur) return [];
   const lines = collLines(cur).map(e => e.slice()), l = lineLang(g), out = [];
-  const order = [...lines.filter(e => e[0] === g), ...lines.filter(e => e[0] !== g && lineLang(e[0]) === l), ...lines.filter(e => lineLang(e[0]) !== l)];
+  const h = lineHead(g), order = [...lines.filter(e => e[0] === g), ...lines.filter(e => e[0] !== g && lineHead(e[0]) === h), ...lines.filter(e => lineHead(e[0]) !== h && lineLang(e[0]) === l), ...lines.filter(e => lineLang(e[0]) !== l)];      // même édition rangée ailleurs avant une autre édition
   for (const e of order) { if (q <= 0) break; const t = Math.min(q, e[1]); if (t) { e[1] -= t; q -= t; out.push([e[0], t]); } }
   const next = collFromLines(cur, lines.filter(e => e[1] > 0)); if (next) m[k] = next; else delete m[k];
   return out;
@@ -632,7 +632,7 @@ function trocApply(s) {
   if (D.user && !COLL.live) { TRC.applying = true; setTimeout(() => { TRC.applying = false; if (TRC.c === s.c) trocApply(s); }, 1000); return; }      // collection du compte pas encore là (reprise au lancement)
   const giveL = s.me.give.filter(x => !x.r), getL = (s.ot ? s.ot.give : []).filter(x => !x.r), m = { ...COLL.map }, took = [];
   for (const x of giveL) { const k = ownKey(x.n); for (const [g, q] of trocDrop(m, k, x.g, x.q)) took.push({ k, n: x.n, g, q }); }
-  const add = getL.map(x => ({ k: ownKey(x.n), n: x.n, q: x.q, l: x.g }));
+  const add = getL.map(x => ({ k: ownKey(x.n), n: x.n, q: x.q, l: lineHead(x.g) }));
   COLL.map = mergeColl(m, add, 'add');
   const wish0 = JSON.stringify(TR.wish); let wch = false;
   for (const x of getL) { const k = ownKey(x.n), w = TR.wish[k]; if (!w) continue; const q = w.q - x.q; if (q > 0) TR.wish[k] = { ...w, q }; else delete TR.wish[k]; wch = true; }      // souhait comblé (en partie)

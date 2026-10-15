@@ -203,7 +203,7 @@ server.off.add('B'); await add(B, 'Brainstorm', 1); await B.p.waitForFunction(()
 await add(A, 'Dark Ritual', 1);
 await B.p.reload(); await B.p.waitForFunction(() => D.authReady, null, { timeout: 15000 });
 assert.equal((await mapOf(B))['brainstorm'], '1', 'collection locale rechargée');
-assert.equal(await B.p.evaluate(() => COLL.base && Object.keys(COLL.base).length > 0), true, 'dernier état du compte rechargé avec la collection');
+assert.equal(await B.p.evaluate(() => COLL.base && Object.keys(COLL.base.map).length > 0), true, 'dernier état du compte rechargé avec la collection');
 server.off.delete('B'); await signIn(B);
 const merged11 = { ...merged10, brainstorm: '1', 'dark ritual': '1' };
 await both(A, B, merged11, 'après rechargement'); await quiet();

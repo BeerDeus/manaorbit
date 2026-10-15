@@ -4,7 +4,7 @@
 const COLL_KEY = 'deckdeal:coll:v1', COLL_SRC_KEY = 'deckdeal:coll:src', COLL_META_KEY = 'coll:meta', COLL_LI_KEY = 'coll:li', COLL_ED_KEY = 'coll:ed', COLL_PAGE = 120;
 const COLL_RETRY = { off: 15000, err: 20000, live: 12000 };       // délais (ms) : nouvel essai hors ligne / en erreur, attente du serveur au démarrage
 const PX_KEY = 'deckdeal:px:v1', PX_TTL = 2 * DAY, PX_CHUNK = 40;
-const COLL = { mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
+const COLL = { mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, prox: {}, places: {}, place: '', meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
 try { if (localStorage.getItem(COLL_SRC_KEY) === 'ct') COLL.src = 'ct'; } catch (e) { /* stockage indisponible */ }
 const collCount = () => Object.keys(COLL.map).length;
 const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k].q; return n; };
@@ -12,18 +12,21 @@ const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k]
 const collQty = k => (COLL.map[k] && COLL.map[k].q) || 0;
 const nf0 = n => Number(n || 0).toLocaleString(LOC());
 
+/** Collection complète de cet appareil (cartes, proxys, emplacements) ; collDocSet la remplace. */
+const collDocNow = () => collDoc(COLL.map, COLL.prox, COLL.places);
+function collDocSet(d) { COLL.map = d.map; COLL.prox = d.prox; COLL.places = d.places; }
 /* ── Stockage local ───────────────────────────────────────────────────────────────────────────── */
 function collRead() {
   try {
     const r = JSON.parse(localStorage.getItem(COLL_KEY) || 'null');
     if (r && typeof r.t === 'string') {
-      COLL.map = collFromText(r.t); COLL.u = Number(r.u) || 0; COLL.s = typeof r.s === 'string' ? r.s : '';
-      COLL.base = COLL.s && typeof r.b === 'string' ? collFromText(r.b) : null;                  // dernier état du compte connu de cet appareil (null : inconnu → fusion par union)
+      collDocSet(collDocFromText(r.t)); COLL.u = Number(r.u) || 0; COLL.s = typeof r.s === 'string' ? r.s : '';
+      COLL.base = COLL.s && typeof r.b === 'string' ? collDocFromText(r.b) : null;                  // dernier état du compte connu de cet appareil (null : inconnu → fusion par union)
     }
   } catch (e) { /* illisible : on repart d'une collection vide */ }
 }
 function collWrite() {
-  try { localStorage.setItem(COLL_KEY, JSON.stringify({ t: collToText(COLL.map, true), u: COLL.u, s: COLL.s, ...(COLL.base ? { b: collToText(COLL.base, true) } : {}) })); return true; }
+  try { localStorage.setItem(COLL_KEY, JSON.stringify({ t: collDocText(collDocNow()), u: COLL.u, s: COLL.s, ...(COLL.base ? { b: collDocText(COLL.base) } : {}) })); return true; }
   catch (e) { toast(T('Stockage plein : la collection n\'a pas pu être enregistrée sur cet appareil')); return false; }
 }
 async function collMetaLoad() {
@@ -92,7 +95,7 @@ function collLineImage(k, g, en) {
  *  info : l'impression choisie ({ eu, ef, sn, r, im (petite image anglaise), li (petite image dans la langue de la ligne) }). Retourne la clé de la ligne. */
 function collSetEd(k, g, e, info) {
   const cur = COLL.map[k]; if (!cur) return g;
-  const l = lineLang(g), to = lineKey(l, e, lineFoil(g));
+  const l = lineLang(g), to = lineKey(l, e, lineFoil(g), lineAw(g));
   if (info) edRemember(k, l, e, info);
   if (to === g) return g;
   const lines = collLines(cur).map(x => x.slice()), i = lines.findIndex(x => x[0] === g); if (i < 0) return g;
@@ -195,7 +198,7 @@ function collEdPick(k, g) {
 /** Marque les exemplaires d'une ligne foil (f) ou non : ils rejoignent la ligne de même langue et même édition de l'autre finition s'il y en a une. Retourne la clé de la ligne. */
 function collSetFoil(k, g, f) {
   const cur = COLL.map[k]; if (!cur) return g;
-  const to = lineKey(lineLang(g), lineEd(g), f); if (to === g) return g;
+  const to = lineKey(lineLang(g), lineEd(g), f, lineAw(g)); if (to === g) return g;
   const lines = collLines(cur).map(x => x.slice()), i = lines.findIndex(x => x[0] === g); if (i < 0) return g;
   const q = lines[i][1]; lines.splice(i, 1);
   const t = lines.find(x => x[0] === to); if (t) t[1] += q; else lines.push([to, q]);
@@ -232,7 +235,7 @@ function collSoloApply() {
   const before = {}, m = { ...COLL.map }; let n = 0;
   for (const [k, x] of Object.entries(COLL.map)) {
     const e = COLL.solo[k]; if (!e || e === '-' || !collNoEd(x)) continue;
-    const lines = []; for (const [g, q] of collLines(x)) { const to = lineEd(g) ? g : lineKey(lineLang(g), e, lineFoil(g)), t = lines.find(y => y[0] === to); if (t) t[1] += q; else lines.push([to, q]); }
+    const lines = []; for (const [g, q] of collLines(x)) { const to = lineEd(g) ? g : lineKey(lineLang(g), e, lineFoil(g), lineAw(g)), t = lines.find(y => y[0] === to); if (t) t[1] += q; else lines.push([to, q]); }
     before[k] = x; m[k] = collFromLines(x, lines); n++;
   }
   if (!n) return 0;
@@ -276,7 +279,7 @@ async function langImgFor(k, name, l) {
 /** Change la langue d'une ligne de la collection ('' = non précisée) ; elle garde son édition. from : la ligne concernée (clé ; sans lui : la plus fournie). Si la carte a déjà une ligne dans la nouvelle langue (et la même édition), les exemplaires s'y ajoutent. */
 function collSetLang(k, l, from) {
   const cur = COLL.map[k]; if (!cur) return;
-  const lines = collLines(cur).map(e => e.slice()), src = from === undefined ? collDomLang(lines) : from, dst = lineKey(l, lineEd(src), lineFoil(src));
+  const lines = collLines(cur).map(e => e.slice()), src = from === undefined ? collDomLang(lines) : from, dst = lineKey(l, lineEd(src), lineFoil(src), lineAw(src));
   if (src === dst) return;
   const i = lines.findIndex(e => e[0] === src); if (i < 0) return;
   const q = lines[i][1]; lines.splice(i, 1);
@@ -320,8 +323,9 @@ function collBump(k, name, d, o) {
    (merge3 : base · appareil · compte). Envoi = transaction (lire le compte, fusionner, écrire) : deux appareils qui envoient en même temps ne s'écrasent pas.
    Réception = fusion avec ce qui n'est pas encore parti. Hors ligne : tout reste ici, et repart au retour du réseau. */
 const collClone = m => { const o = {}; for (const k in m) o[k] = { ...m[k] }; return o; };
+const collDocClone = d => collDoc(collClone(d.map), collClone(d.prox), collClone(d.places));
 /** Cet appareil a-t-il des changements pas encore dans le compte ? */
-const collUnsynced = () => !COLL.base || !sameColl(COLL.map, COLL.base);
+const collUnsynced = () => !COLL.base || !sameDoc(collDocNow(), COLL.base);
 const collOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 /** Envoi groupé. Un envoi = une transaction : 1 lecture + 1 écriture, et 1 lecture de plus pour chaque appareil qui suit le compte (quota Firestore).
  *  Changement isolé : parti 0,7 s après le dernier. Rafale (n changements en win ms : scan mobile reçu sur le PC, page « Ajouter des cartes ») :
@@ -357,20 +361,20 @@ async function collPush() {
     await D.cloud.txColl(uid, rdoc => {
       if (acctHeld(uid) || (!rdoc && acctLost('collection', uid))) throw Object.assign(new Error('compte effacé ?'), { code: 'held' });      // effacé entre-temps : on ne le recrée pas
       had = !!rdoc;
-      const remote = rdoc && typeof rdoc.text === 'string' ? collFromText(rdoc.text) : {};
-      used = collClone(COLL.map);
-      merged = merge3(rdoc && COLL.s === uid ? COLL.base : null, used, remote);
-      if (rdoc ? sameColl(merged, remote) : !Object.keys(merged).length) { wrote = null; return null; }              // le compte a déjà tout
-      wrote = { text: collToText(merged, true), count: Object.keys(merged).length, updatedAt: Math.max(Date.now(), (Number(rdoc && rdoc.updatedAt) || 0) + 1) };
+      const remote = rdoc && typeof rdoc.text === 'string' ? collDocFromText(rdoc.text) : collDoc();
+      used = collDocClone(collDocNow());
+      merged = mergeDoc3(rdoc && COLL.s === uid ? COLL.base : null, used, remote);
+      if (rdoc ? sameDoc(merged, remote) : sameDoc(merged, collDoc())) { wrote = null; return null; }              // le compte a déjà tout
+      wrote = { text: collDocText(merged), count: Object.keys(merged.map).length, updatedAt: Math.max(Date.now(), (Number(rdoc && rdoc.updatedAt) || 0) + 1) };      // count : cartes, sans les proxys
       if (wrote.text.length > 900000) throw Object.assign(new Error('Collection trop grosse'), { code: 'too-big' });
       return wrote;
     });
     if (D.uid !== uid) return;
     if (had || wrote) acctSaw('collection', uid);
     if (wrote) COLL.ru = Math.max(COLL.ru, wrote.updatedAt);
-    const before = COLL.map, next = merge3(used, before, merged);                                                       // + ce qui a été touché ici pendant l'envoi
-    COLL.s = uid; COLL.base = merged; COLL.map = next; COLL.cloud = 'ok'; COLL.err = ''; COLL.live = true; collWrite();
-    if (!sameColl(before, next)) collRemoteApplied(before, next);
+    const before = collDocNow(), next = mergeDoc3(used, before, merged);                                                // + ce qui a été touché ici pendant l'envoi
+    COLL.s = uid; COLL.base = merged; collDocSet(next); COLL.cloud = 'ok'; COLL.err = ''; COLL.live = true; collWrite();
+    if (!sameDoc(before, next)) collRemoteApplied(before, next);
     if (collUnsynced()) COLL.again = true;
   } catch (err) {
     if (D.uid !== uid) return;
@@ -419,18 +423,19 @@ function collFromCloud(uid, data, pending, fromCache, pulled) {
   COLL.live = true; COLL.cloud = 'ok'; COLL.err = '';
   if (data && typeof data.text === 'string') {
     acctSaw('collection', uid);
-    const remote = collFromText(data.text), first = COLL.s !== uid, known = !first && !!COLL.base, before = COLL.map;
-    const next = merge3(first ? null : COLL.base, before, remote);
-    COLL.ru = Math.max(COLL.ru, ru); COLL.s = uid; COLL.base = remote; COLL.map = next; collWrite();
-    if (!sameColl(before, next)) collRemoteApplied(before, next, { first: first || !known, had: Object.keys(before).length });
-    if (!sameColl(next, remote)) collPushSoon();                          // il reste ici des changements pas encore dans le compte
+    const remote = collDocFromText(data.text), first = COLL.s !== uid, known = !first && !!COLL.base, before = collDocNow();
+    const next = mergeDoc3(first ? null : COLL.base, before, remote);
+    COLL.ru = Math.max(COLL.ru, ru); COLL.s = uid; COLL.base = remote; collDocSet(next); collWrite();
+    if (!sameDoc(before, next)) collRemoteApplied(before, next, { first: first || !known, had: Object.keys(before.map).length });
+    if (!sameDoc(next, remote)) collPushSoon();                          // il reste ici des changements pas encore dans le compte
   } else if (!data && acctLost('collection', uid)) { /* vu ici puis disparu : compte supprimé ailleurs ? rien n'est renvoyé (decks.js vérifie) */ }
-  else if (collCount()) { COLL.base = null; collPush(); }                 // pas de document : on y envoie la collection de l'appareil
-  else { COLL.s = uid; COLL.base = {}; collWrite(); }
+  else if (!sameDoc(collDocNow(), collDoc())) { COLL.base = null; collPush(); }      // pas de document : on y envoie la collection de l'appareil
+  else { COLL.s = uid; COLL.base = collDoc(); collWrite(); }
   collPaintHead();
 }
-/** La collection de cet appareil vient de changer à cause du compte (autre appareil) : repeint, lit les infos des nouvelles cartes, prévient. */
-function collRemoteApplied(before, after, o = {}) {
+/** La collection de cet appareil vient de changer à cause du compte (autre appareil) : repeint, lit les infos des nouvelles cartes, prévient. before, after : collections complètes. */
+function collRemoteApplied(b0, a0, o = {}) {
+  const before = b0.map, after = a0.map;
   collPaint(); paintCollSection(); refreshDeck(); trSoon(); if (S.run && S.view === 'results') scheduleRecompute(true);
   collEnrich();
   if (typeof streamOn === 'function' && streamOn()) return;      // mode streamer (opening.js) : aucune notification qui montrerait la collection
@@ -770,8 +775,8 @@ function collAll() {
 }
 /** …filtrées puis triées, gardées pour un même tri, une même source de prix et un même filtre. */
 function collListOf(v) {
-  const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr].join('\u0001');
-  if (v.sk !== sk) { v.filtered = filterItems(v.all, f); v.sorted = collSorted(v.filtered); v.sk = sk; }
+  const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr, COLL.place].join('\u0001');
+  if (v.sk !== sk) { v.filtered = filterItems(v.all, f); if (COLL.place) v.filtered = v.filtered.filter(it => collLines(COLL.map[it.k]).some(([g]) => plcIn(g))); v.sorted = collSorted(v.filtered); v.sk = sk; }      // emplacement affiché (Rangement) : les cartes qui y ont au moins un exemplaire
   return v;
 }
 function collItems() {
@@ -784,8 +789,8 @@ function collItems() {
 /** Lignes d'affichage d'une carte : une par langue et édition possédées (fr, fr CMM 400, en…), chacune avec sa quantité, son nom imprimé, son image et son prix (celui de l'édition s'il est connu).
  *  Les infos de la carte (type, coût, étiquettes) ne sont montrées que sur la première ; l'offre CardTrader seulement sur la ligne de la langue lue (la plus fournie). */
 function collRowItems(it) {
-  const ls = collLines(COLL.map[it.k]);
-  if (ls.length < 2) { const g = ls[0] ? ls[0][0] : it.l, e = lineEd(g), f = lineFoil(g); return [{ ...it, g, e, f, nl: 1, li: 0, ...(e || f ? { eu: collLineEu(it.k, g) ?? undefined } : {}) }]; }
+  const ls = collLines(COLL.map[it.k]).filter(([g]) => plcIn(g));      // emplacement affiché : ses lignes seules
+  if (ls.length < 2) { const g = ls[0] ? ls[0][0] : it.l, e = lineEd(g), f = lineFoil(g); return [{ ...it, g, e, f, nl: 1, li: 0, ...(COLL.place && ls[0] ? { q: ls[0][1] } : {}), ...(e || f ? { eu: collLineEu(it.k, g) ?? undefined } : {}) }]; }      // emplacement affiché : les exemplaires qui y sont
   const dom = collDomLang(ls);
   return ls.map(([g, q], i) => {
     const l = lineLang(g), r = { ...it, g, l, e: lineEd(g), f: lineFoil(g), q, nl: ls.length, li: i, eu: collLineEu(it.k, g) ?? undefined }; const dn = frName(it.k, l); if (dn) r.dn = dn; else delete r.dn;
@@ -819,6 +824,7 @@ function crowHtml(it) {
   const mvv = !sub && valMove(it.k); if (mvv) tags.push(valTag(mvv));
   const mnt = !sub && engTag(it.k); if (mnt) tags.push(mnt);
   if (!it.l) tags.push(langChip(it.k, '', it.n, '', g));
+  const plc = plcRowTag(g); if (plc) tags.push(plc);      // emplacement et détails (places.js) : seulement si la ligne est rangée ou détaillée
   const px = [];      // prix : CM (tendance Cardmarket, estimation) au-dessus, CT (offre CardTrader la plus basse, lue à la demande) en dessous
   if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${T('Cardmarket : prix tendance')}"><i>CM</i> <b>${esc(fmt(it.eu, 'EUR'))}</b></span>`);
   if (Number.isFinite(it.rp)) px.push(`<span class="px ct" title="${T('CardTrader : offre la plus basse')}"><i>CT</i> <b>${esc(fmt(it.rp, it.rc || 'EUR'))}</b></span>`);
@@ -977,10 +983,11 @@ function collPaintBody(keep) {
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
   $('.coll-px', el).hidden = none; $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
   $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; valPaintAlert();
-  if (none && COLL.tab === 'list') host.innerHTML = collEmptyHtml();
+  if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
   else if (none && COLL.tab === 'stats') host.innerHTML = collStatsEmptyHtml();
   else if (COLL.tab === 'decks' && edhGate() !== 'ok') { host.innerHTML = edhGateHtml(); vfTick(); }      // decks EDHREC réservés aux comptes (edh.js) ; vfTick : « Renvoyer » grisé pendant la minute qui suit un envoi
   else if (COLL.tab === 'stats') { host.innerHTML = collStatsHtml(all); }
+  else if (COLL.tab === 'places') { host.innerHTML = plcTabHtml(); }      // Rangement (places.js) : emplacements et proxys
   else if (COLL.tab === 'trade') { host.innerHTML = trPanelHtml(); trMount(host); }
   else if (COLL.tab === 'decks') { const res = keep && EDH.data && document.activeElement && document.activeElement.id === 'dkQ' ? $('.dk-res', host) : null; if (res) { res.innerHTML = edhResHtml(); edhThemesSync(); } else { host.innerHTML = edhPanelHtml(); edhEnsure(); } }      // en pleine frappe : seuls les résultats se repeignent, le champ garde le focus
   else if (COLL.f.cmdr === 'played' && !EDH.data) { host.innerHTML = edhWaitHtml(); edhEnsure(); }
@@ -988,7 +995,7 @@ function collPaintBody(keep) {
     const { filtered, sorted } = collListOf(v), shown = sorted.slice(0, COLL.shown), act = filterActive(COLL.f);
     const known = all.filter(i => i.tl != null || i.cm != null).length, hid = (COLL.f.colors.size || COLL.f.type || COLL.f.cmc !== '' || COLL.f.cmdr) && known < all.length;
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
-    host.innerHTML = `${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
+    host.innerHTML = `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
       ${shown.length ? `<div class="coll-list">${shown.flatMap(collRowItems).map(crowHtml).join('')}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
       ${sorted.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, sorted.length - shown.length)), b: nf0(sorted.length - shown.length) })}</button>` : ''}`;
     COLL.painted = sorted;
@@ -1012,7 +1019,7 @@ function closeCollection() { if (COLL.el) COLL.el.__close(); }
 /** Ouvre l'écran de la collection (tab : 'list' | 'stats'). */
 /** Trois sections sur le même écran (barre du bas, nav.js) : « Ma collection » (Cartes · Stats), « Échange » (liste d'échange seule)
  *  et Decks › « À monter » (decks EDHREC) ; tab : 'list' | 'stats' | 'trade' | 'decks' (sans tab : le dernier onglet de la collection). */
-const COLL_MODES = { list: 'coll', stats: 'coll', trade: 'trade', decks: 'decks' };
+const COLL_MODES = { list: 'coll', places: 'coll', stats: 'coll', trade: 'trade', decks: 'decks' };
 function openCollection(tab) {
   closeCollection();
   if (!COLL_MODES[tab]) tab = COLL.ctab || 'list';
@@ -1044,7 +1051,7 @@ function openCollection(tab) {
   document.addEventListener('keydown', onKey, true);
   wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
   wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
-  if (md === 'coll') mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'stats', label: T('Stats') }], COLL.tab, v => { const ord = ['list', 'stats'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = COLL.ctab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
+  if (md === 'coll') mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'places', label: T('Rangement') }, { v: 'stats', label: T('Stats') }], COLL.tab, v => { const ord = ['list', 'places', 'stats'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = COLL.ctab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
   COLL.fb = mountFilters($('#collF', wrap), COLL.f, () => {
     if (COLL.f.cmdr === 'played' && COLL.cmdrSeen !== 'played' && COLL.sort === 'name') { COLL.sort = 'decks'; $('#collSort', wrap).value = 'decks'; }      // les plus joués d'abord
     COLL.cmdrSeen = COLL.f.cmdr; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(true);
@@ -1072,7 +1079,7 @@ function openCollection(tab) {
     if (typeof opnCollClick === 'function' && opnCollClick(e)) return;      // session d'ouverture (opening.js) : sa note, sa liste en mode streamer
     if (e.target.closest('.lchip')) return;
     if (e.target.closest('.cs-val[data-act="pxsrc"]')) { collToggleSrc(); return; }
-    if (edhClick(e) || valClick(e) || trClick(e)) return;
+    if (edhClick(e) || valClick(e) || trClick(e) || plcClick(e)) return;
     const b = e.target.closest('button[data-act]');
     if (b) {
       const act = b.dataset.act;
@@ -1155,7 +1162,7 @@ const collUnknown = () => Object.keys(COLL.map).filter(k => COLL.meta[k] === nul
 function collRename(k, en, fr) {
   const cur = COLL.map[k], nk = ownKey(en); if (!cur || !nk) return null;
   const had = nk !== k ? COLL.map[nk] || null : null, m = { ...COLL.map }, lines = collLines(had).map(e => e.slice());
-  for (const [g0, q] of collLines(cur)) { const g = lineLang(g0) ? g0 : lineKey(fr ? FRX.l : '', lineEd(g0), lineFoil(g0)), e = lines.find(x => x[0] === g); if (e) e[1] = Math.min(9999, e[1] + q); else lines.push([g, q]); }
+  for (const [g0, q] of collLines(cur)) { const g = lineLang(g0) ? g0 : lineKey(fr ? FRX.l : '', lineEd(g0), lineFoil(g0), lineAw(g0)), e = lines.find(x => x[0] === g); if (e) e[1] = Math.min(9999, e[1] + q); else lines.push([g, q]); }
   delete m[k];
   m[nk] = collFromLines({ ...(had || {}), n: (had && had.n) || en, d: (had && had.d) || cur.d || dateNowSec() }, lines);
   COLL.map = m; collChanged(); collEnrich();
@@ -1217,7 +1224,7 @@ function collBulkLang(l) {
   const before = COLL.map, m = {}; let n = 0;
   for (const [k, x] of Object.entries(before)) {
     if (!collNoLang(x)) { m[k] = x; continue; }
-    const lines = []; for (const [g, q] of collLines(x)) { const to = lineLang(g) ? g : lineKey(l, lineEd(g), lineFoil(g)), e = lines.find(y => y[0] === to); if (e) e[1] += q; else lines.push([to, q]); }
+    const lines = []; for (const [g, q] of collLines(x)) { const to = lineLang(g) ? g : lineKey(l, lineEd(g), lineFoil(g), lineAw(g)), e = lines.find(y => y[0] === to); if (e) e[1] += q; else lines.push([to, q]); }
     m[k] = collFromLines(x, lines); n++;
   }
   if (!n) return;

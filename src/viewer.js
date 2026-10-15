@@ -96,11 +96,11 @@ function openCardViewer(items, index) {
     ${multi ? '<span class="imgv-count" aria-live="polite"></span><button class="imgv-nav prev" type="button" aria-label="' + T('Carte précédente') + '"><svg class="i"><use href="#i-back"/></svg></button><button class="imgv-nav next" type="button" aria-label="' + T('Carte suivante') + '"><svg class="i"><use href="#i-back"/></svg></button>' : ''}
     <div class="imgv-card tilt" data-busy="1"><img class="imgv-ph" alt="" hidden><img class="imgv-img" alt="" hidden><span class="foil-stars" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => { const r = hash32('foil' + i); return `<i style="--x:${6 + (r % 88)}%;--y:${5 + ((r >> 7) % 90)}%;--s:${7 + ((r >> 14) % 9)}px;--d:${2.2 + ((r >> 18) % 20) / 10}s;--w:${-((r >> 23) % 40) / 10}s"></i>`; }).join('')}</span><span class="imgv-spin"></span></div>
     <div class="imgv-cap"><b></b><span class="imgv-sub"></span><span class="imgv-extra" hidden></span><img class="imgv-shot" alt="${T('Ta photo')}" hidden></div>
-    <div class="imgv-acts"><button class="btn ghost small imgv-wish" type="button" hidden aria-pressed="false"></button><button class="btn ghost small imgv-flip" type="button" hidden>${T('Retourner la carte')}</button><button class="imgv-art" type="button" hidden aria-expanded="false">${T('Illustrations')}</button></div>
+    <div class="imgv-acts"><button class="btn ghost small imgv-wish" type="button" hidden aria-pressed="false"></button><button class="btn ghost small imgv-flip" type="button" hidden>${T('Retourner la carte')}</button><button class="imgv-art" type="button" hidden aria-expanded="false">${T('Illustrations')}</button><button class="btn ghost small imgv-cex" type="button" hidden></button></div>
     <div class="imgv-vars" hidden><div class="imgv-vh" aria-live="polite"></div><div class="imgv-q"></div><div class="imgv-vl"></div></div>`;
   const card = $('.imgv-card', wrap), img = $('.imgv-img', wrap), ph = $('.imgv-ph', wrap), sub = $('.imgv-sub', wrap), flipB = $('.imgv-flip', wrap), title = $('.imgv-cap b', wrap), extra = $('.imgv-extra', wrap), shotEl = $('.imgv-shot', wrap);
   const countEl = $('.imgv-count', wrap), prevB = $('.imgv-nav.prev', wrap), nextB = $('.imgv-nav.next', wrap);
-  const wishB = $('.imgv-wish', wrap), artB = $('.imgv-art', wrap), varsEl = $('.imgv-vars', wrap), varsH = $('.imgv-vh', wrap), varsL = $('.imgv-vl', wrap), varsQ = $('.imgv-q', wrap);
+  const cexB = $('.imgv-cex', wrap), wishB = $('.imgv-wish', wrap), artB = $('.imgv-art', wrap), varsEl = $('.imgv-vars', wrap), varsH = $('.imgv-vh', wrap), varsL = $('.imgv-vl', wrap), varsQ = $('.imgv-q', wrap);
   let vq = '', vqOf = null;      // recherche d'une extension dans les illustrations (2 ou plus) ; vqOf : la carte à qui elle s'applique (repart de zéro à chaque carte)
   const prevFocus = document.activeElement, from = pressOrigin(), fromEl = from ? MO.press : null, idx0 = Math.max(0, Math.min(items.length - 1, index | 0));
   const pfRow = prevFocus && prevFocus.closest ? prevFocus.closest('[data-id],[data-k]') : null, pfBox = pfRow && pfRow.parentElement, pfCls = pfRow && prevFocus !== pfRow && prevFocus.classList[0];
@@ -157,7 +157,7 @@ function openCardViewer(items, index) {
     where = [it.setName, it.set && it.num ? String(it.set).toUpperCase() + ' ' + it.num : ''].filter(Boolean).join(' · ');
     wrap.setAttribute('aria-label', it.name); title.textContent = it.name;
     ph.src = it.small; ph.hidden = false; img.hidden = true; img.classList.remove('ok'); img.removeAttribute('src'); card.dataset.busy = '1'; img.alt = it.name;
-    caption(lang, ''); flipB.hidden = true; flipB.textContent = T('Retourner la carte');
+    caption(lang, ''); flipB.hidden = true; flipB.textContent = T('Retourner la carte'); cexPaint();
     clearTimeout(varT); vars = []; canSave = false; pickAt = -1; artB.hidden = true; artB.setAttribute('aria-expanded', 'false'); if (!wantOpen) { varsEl.hidden = true; wrap.classList.remove('has-vars'); } else { varsL.innerHTML = ''; varsH.textContent = ''; }
     extra.textContent = it.extra || ''; extra.hidden = !it.extra;
     card.classList.toggle('foil', !!it.foil);      // exemplaire foil de la collection : étincelles animées sur l'image (foil.css)
@@ -211,6 +211,13 @@ function openCardViewer(items, index) {
     varsEl.hidden = !on; artB.setAttribute('aria-expanded', String(on)); wrap.classList.toggle('has-vars', on);
     if (on) varsPaint();
   };
+  /** Exemplaire de la collection : emplacement et détails (places.js) ; « Ranger, état… » tant qu'il n'y a rien. */
+  function cexPaint() {
+    cexB.hidden = !(it && it.coll && typeof cexSheet === 'function' && COLL.map[it.coll.k]); if (cexB.hidden) return;
+    const g = it.coll.g, p = plcOf(g), det = cexDet(lineAttrs(g));
+    cexB.innerHTML = p || det ? `${p ? `<i class="cex-dot" style="--c:${plcColor(p)}"></i>${esc(plcName(p))}` : ''}${det ? `<em>${esc(det)}</em>` : ''}` : esc(T('Ranger, état…'));
+  }
+  cexB.onclick = () => { haptic('tap'); const mine = it; cexSheet('map', it.coll.k, it.coll.g, to => { if (it !== mine) return; it.coll = { ...it.coll, g: to }; items[idx] = it = collViewItem(it.coll.k, to) || it; cexPaint(); }); };
   artB.onclick = () => { haptic('tap'); wantOpen = varsEl.hidden; varsOpen(wantOpen); };
   varsQ.addEventListener('input', e => { if (!e.target.matches('[data-edq]')) return; vq = e.target.value; edQApply(varsL, vars, vq, '.imgv-v'); varsL.scrollLeft = 0; });
   varsL.addEventListener('click', e => {
@@ -463,7 +470,7 @@ function dvFrame(snap) {
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}
-      <div class="tr-acts dv-acts"><button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}</div>
+      <div class="tr-acts dv-acts">${!DV.pub && DV.deckId && typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('À aller chercher')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}</div>
     </section>
     <div id="dvCmd"></div>
     <div class="seg dv-seg" id="dvSeg"></div>
@@ -612,6 +619,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
     const act = b.dataset.act, deck = DV.deckId;
     if (act === 'close') wrap.__close();
     else if (act === 'hand') openHand();
+    else if (act === 'fetch' && deck) plcFetchSheet({ id: deck, name: DV.name, text: DV.text });
     else if (act === 'cm') cmCopy(dvMissing());
     else if (act === 'share') shareDeck(DV.deckId && !DV.live ? { id: DV.deckId } : { text: DV.text, name: DV.name });
     else if (act === 'edit' && deck) { wrap.__close(); loadDeck(deck); }

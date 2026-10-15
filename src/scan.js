@@ -172,6 +172,7 @@ function scanPaintList() {
 function scanPaintTools() {
   const el = SC.el; if (!el) return;
   const b = $('.sc-edm', el); if (b) { b.innerHTML = `${esc(scsEdLabel())}<svg class="i" aria-hidden="true"><use href="#i-chev"/></svg>`; b.setAttribute('aria-label', T('Réglages du scan') + ' · ' + scsEdLabel()); }
+  const d = $('.sc-dest', el); if (d) { d.hidden = !scdSet(); d.innerHTML = `<i style="--c:${SCD.x ? '#c79bff' : plcColor(scdPlace())}"></i><span>${esc(scdLabel())}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + scdLabel()); }      // pastille « Ranger dans » : seulement si le scan range ailleurs
   auSync();      // scan automatique : interrupteur, cercle, lecture en continu (scanauto.js)
 }
 /** Fiche récap au tap sur « Ajouter » : exemplaires, valeur estimée Cardmarket, les plus chères, nouvelles / déjà possédées, langues. Suit la liste du scan en direct ; « Ajouter » dans la fiche fait l'ajout. Les prix des cartes pas encore lues par Scryfall sont lus ici (un lot). */
@@ -200,7 +201,7 @@ function scanRecap() {
     $('h2', api.wrap).textContent = TN(n, 'Ajouter {n} carte', 'Ajouter {n} cartes'); let sub = $('.sheet-head p', api.wrap);
     if (!sub) { sub = document.createElement('p'); $('.sheet-head > div', api.wrap).appendChild(sub); } sub.textContent = TN(uniq.size, '{n} carte différente', '{n} cartes différentes');
     const note = wait ? T('Lecture des prix…') : !nopx ? '' : err ? T(priced ? 'Valeur partielle : {err}.' : 'Prix indisponibles : {err}.', { err }) : TN(nopx, '{n} exemplaire sans prix Cardmarket, non comptés.', '{n} exemplaires sans prix Cardmarket, non comptés.');
-    api.body.innerHTML = `<div class="rc">${typeof opnRcNote === 'function' ? opnRcNote() : ''}${sure ? `<p class="rc-ask" role="alert"><b>${esc(TN(td.n, '{n} carte n\'a pas d\'édition.', '{n} cartes n\'ont pas d\'édition.'))}</b> ${esc(td.load ? T('Lecture des éditions…') : T('Ajoutées sans édition : tu pourras la choisir plus tard dans ta collection.'))}</p>` : ''}<div class="cs-tiles"><div><b>${nf0(uniq.size)}</b><span>${TN(uniq.size, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(n)}</b><span>${TN(n, 'exemplaire', 'exemplaires')}</span></div><div class="rc-val"><b>${wait || (!priced && err) ? (wait ? '…' : '—') : priced ? esc(fmt(val, 'EUR')) : '—'}</b><span>${T('valeur estimée · tendance Cardmarket')}</span></div></div>
+    api.body.innerHTML = `<div class="rc">${typeof opnRcNote === 'function' ? opnRcNote() : ''}${SC.lot || (typeof opnOn === 'function' && opnOn()) ? '' : scdRowHtml()}${sure ? `<p class="rc-ask" role="alert"><b>${esc(TN(td.n, '{n} carte n\'a pas d\'édition.', '{n} cartes n\'ont pas d\'édition.'))}</b> ${esc(td.load ? T('Lecture des éditions…') : T('Ajoutées sans édition : tu pourras la choisir plus tard dans ta collection.'))}</p>` : ''}<div class="cs-tiles"><div><b>${nf0(uniq.size)}</b><span>${TN(uniq.size, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(n)}</b><span>${TN(n, 'exemplaire', 'exemplaires')}</span></div><div class="rc-val"><b>${wait || (!priced && err) ? (wait ? '…' : '—') : priced ? esc(fmt(val, 'EUR')) : '—'}</b><span>${T('valeur estimée · tendance Cardmarket')}</span></div></div>
       ${note ? `<p class="hint rc-note">${esc(note)}</p>` : ''}
       ${rows.length && !wait ? `<h3 class="cs-h">${T('Les plus chères')}</h3><div class="cs-top">${rows.slice(0, 3).map(({ x, eu }) => `<div class="crow ro" data-k="${esc(x.k)}" data-n="${esc(x.n)}" data-q="${x.q}" data-ln="${esc(x.l)}"><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('rc', x.n)}>${esc((x.n.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(scanThumb({ key: x.k, name: x.n, l: x.l, pk: x.p }))}"></span><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta">${x.e ? `<span class="tag ed">${setIcHtml(edSet(x.e))}${esc(edLabel(x.e))}</span>` : ''}${x.q > 1 ? `<span class="tag accent">× ${nf0(x.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(eu, 'EUR'))}</b>${x.q > 1 ? `<small>${T('{p} le lot', { p: esc(fmt(eu * x.q, 'EUR')) })}</small>` : ''}</span></div>`).join('')}</div>` : ''}
       <dl class="rc-facts"><div><dt>${T('Nouvelles dans ta collection')}</dt><dd>${TN(uniq.size - haveK.size, '{n} carte', '{n} cartes')}</dd></div>
@@ -221,6 +222,7 @@ function scanRecap() {
     busy = false; paint(); ask();
   };
   const hook = () => { paint(); ask(); };
+  api.body.addEventListener('click', e => { if (e.target.closest('[data-rcd]')) scdPick(() => { paint(); scanPaintTools(); }); });      // « Ranger dans » (places.js)
   api.foot.addEventListener('click', e => {
     const b = e.target.closest('[data-rc]'); if (!b) return;
     if (b.dataset.rc === 'pick') { api.close(); SC.recap = null; scanEdFocus(); return; }
@@ -236,8 +238,10 @@ function scanRecap() {
       return;
     }
     for (const x of items) if (x.e && x.p) edRemember(x.k, x.l, x.e, edInfoOf(x.p, x.l));      // infos de l'édition (prix, extension, image) gardées tout de suite
-    collAdd(items.map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e) })), 'add'); api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok');
-    toast(TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
+    const add = items.map(x => ({ k: x.k, n: x.n, q: x.q, l: scdLine(x.l, x.e) })), px0 = COLL.prox, where = scdPlace() ? ' · ' + plcName(scdPlace()) : '';      // « Ranger dans » : emplacement, ou proxys (places.js)
+    if (SCD.x) proxAdd(add); else collAdd(add, 'add');
+    api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok');
+    toast((SCD.x ? TN(n, '{n} proxy ajouté', '{n} proxys ajoutés', { n }) : TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection')) + where, { label: T('Annuler'), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
     collEnrich();
   });
   SC.recap = hook; hook();
@@ -827,7 +831,7 @@ function openScan(o) {
       <p class="sc-nocam">${T('Pas d\'appareil photo : utilise « Photos » ci-dessous.')}</p>
       <div class="sc-tools"><button class="sc-ic" type="button" data-act="close" aria-label="${T('Fermer le scan')}"><svg class="i"><use href="#i-back"/></svg></button><h2 class="sc-ttl">${T('Scanner des cartes')}</h2>
         <span class="sc-tr"><button class="sc-ic sc-lamp" type="button" data-act="lamp" aria-pressed="false" aria-label="${T('Allumer la lampe')}" hidden><svg class="i"><use href="#i-bolt"/></svg></button><button class="sc-ic sc-set" type="button" data-act="scset" aria-label="${T('Réglages du scan')}"><svg class="i"><use href="#i-sliders"/></svg></button><button class="sc-ic sc-help" type="button" data-act="note" aria-label="${T('Afficher l\'aide')}" aria-pressed="false">?</button></span></div>
-      <div class="sc-modes"><div class="sc-seg" role="radiogroup" aria-label="${T('Mode du scan')}"><button type="button" role="radio" class="sc-amode" data-act="pmode" data-v="0" aria-checked="true">${T('Ajouter')}</button><button type="button" role="radio" class="sc-pmode" data-act="pmode" data-v="1" aria-checked="false" aria-label="${T('Prix rapide : lire une carte sans l\'ajouter')}">${T('Prix')}</button></div><button type="button" class="sc-edm" data-act="scset"></button></div></div>
+      <div class="sc-modes"><div class="sc-seg" role="radiogroup" aria-label="${T('Mode du scan')}"><button type="button" role="radio" class="sc-amode" data-act="pmode" data-v="0" aria-checked="true">${T('Ajouter')}</button><button type="button" role="radio" class="sc-pmode" data-act="pmode" data-v="1" aria-checked="false" aria-label="${T('Prix rapide : lire une carte sans l\'ajouter')}">${T('Prix')}</button></div><button type="button" class="sc-dest" data-act="scdest" hidden></button><button type="button" class="sc-edm" data-act="scset"></button></div></div>
     <div class="sc-remote" hidden aria-live="polite"></div>
     <div class="sc-cat coll-status" hidden></div>
     <div class="sc-note" hidden><p class="hint">${nmT('Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (français d\'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.',
@@ -872,6 +876,7 @@ function openScan(o) {
       else if (act === 'frc') frcStart(true);
       else if (act === 'note') scNoteShow($('.sc-note', wrap).hidden);
       else if (act === 'scset') scsSheet();
+      else if (act === 'scdest') scdPick(scanPaintTools);
       else if (act === 'pmode') { const on = b.dataset.v === '1'; if (on !== SC.pm) { haptic('tap'); scanPriceMode(on); } }
       else if (act === 'done') { if (SC.remote) scanEdDone(() => wrap.__close()); else scanRecap(); }      // cartes sans édition : confirmation (scaned.js)
       return;

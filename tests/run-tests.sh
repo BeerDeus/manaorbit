@@ -5,7 +5,7 @@
 cd "$(dirname "$0")/.." || exit 1
 mkdir -p tests/logs; : > tests/run-tests.out
 NODE=(test.mjs test-i18n-langs.mjs test-prices.mjs test-trade.mjs test-cloud.mjs test-jobs.mjs test-proxy.mjs test-push.mjs test-alerts.mjs test-fcm.mjs test-edh-gen.mjs test-intl.mjs test-android-xml.mjs test-pubdecks.mjs test-amis.mjs test-troc.mjs smoke.mjs
-  test-import.mjs test-admin.mjs test-scanfoot.mjs test-scanart.mjs)
+  test-import.mjs test-admin.mjs test-scanfoot.mjs test-scanart.mjs test-places.mjs)
 BROWSER=(
   ui-e2e.mjs cm-e2e.mjs i18n-e2e.mjs list-e2e.mjs value-e2e.mjs frcat-e2e.mjs alerts-e2e.mjs dklist-e2e.mjs back-e2e.mjs
   lang-e2e.mjs art-e2e.mjs edition-e2e.mjs scaned-e2e.mjs scanfoot-e2e.mjs scanart-e2e.mjs scanauto-e2e.mjs migrate-e2e.mjs lot-e2e.mjs mobscan-e2e.mjs warm-e2e.mjs viewer-e2e.mjs zoom-e2e.mjs builder-e2e.mjs coll-e2e.mjs extras-e2e.mjs edh-e2e.mjs
@@ -25,6 +25,7 @@ BROWSER=(
   tour-e2e.mjs
   admin-e2e.mjs
   lectures-e2e.mjs
+  places-e2e.mjs
 )
 T=("$@")
 if [ ${#T[@]} -eq 0 ]; then T=("${NODE[@]}" "${BROWSER[@]}"); elif [ "$1" = --node ]; then T=("${NODE[@]}"); fi
