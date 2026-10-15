@@ -38,14 +38,14 @@ function auPaint() {
     const u = $('use', shot); if (u) u.setAttribute('href', AU.paused ? '#i-play' : '#i-pause');
     if (!on) shot.style.removeProperty('--au');
   }
-  if (cap) cap.textContent = on ? (AU.paused ? T('Auto en pause') : T('Auto · lecture en continu')) : T('Nom de la carte');
+  if (cap) cap.textContent = on ? (AU.paused ? T('Auto en pause') : T('Auto · lecture en continu')) : scanFull() ? T('Carte entière') : T('Nom de la carte');
   if (lamp) { lamp.hidden = !AU.torch; lamp.setAttribute('aria-pressed', String(AU.lamp)); lamp.setAttribute('aria-label', AU.lamp ? T('Éteindre la lampe') : T('Allumer la lampe')); }
 }
 /** Anneau du cercle : part du temps d'immobilité déjà atteinte (0 à 1). */
 function auRing(k) { const s = SC.el && $('.sc-shot', SC.el); if (s) s.style.setProperty('--au', String(Math.round(Math.max(0, Math.min(1, k)) * 100))); }
 function auPause(on) {
   AU.paused = on === undefined ? !AU.paused : !!on; haptic('tap'); auRing(0); AU.cand = null;
-  scanHint(AU.paused ? T('Auto en pause : touche le cercle pour reprendre') : T('Pose la carte, le nom dans la bande : elle s\'ajoute seule'), AU.paused ? 'busy' : '');
+  scanHint(AU.paused ? T('Auto en pause : touche le cercle pour reprendre') : auHint(), AU.paused ? 'busy' : '');
   auPaint();
 }
 
@@ -62,10 +62,11 @@ function auSig(src, box) {
 }
 /** La bande du nom maintenant, en bonne qualité (canvas) et son contraste. */
 async function auGrab() {
-  if (NAT.on) { const c = await natCapture(85); return { src: c, dev: auSig(c).dev }; }
+  const sig = c => auSig(c, scanFull() ? cardNameBox(c.width, c.height) : null).dev;      // carte entière : le contraste de la zone du nom
+  if (NAT.on) { const c = await natCapture(85); return { src: c, dev: sig(c) }; }
   const v = $('.sc-video', SC.el), b = scanGuideBox(); if (!b || !v) return null;
   const c = document.createElement('canvas'); c.width = b.w; c.height = b.h; c.getContext('2d').drawImage(v, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
-  return { src: c, dev: auSig(c).dev };
+  return { src: c, dev: sig(c) };
 }
 async function auTick(g) {
   if (g !== AU.gen || !SC.el) return;
@@ -78,16 +79,19 @@ async function auTick(g) {
 }
 /** Une lecture de plus : même nom sûr deux fois de suite → la carte est ajoutée (sauf si c'est la carte tenue). */
 async function auFeed(f, g) {
-  let m = null;
-  try {
+  let m = null, m0 = null;      // m0 : la carte lue par son nom seul (clé de la confirmation : la langue de la ligne du bas ne doit pas la changer)
+  try { await auRead(f, g); } finally { scanFree(f.src); }
+  async function auRead() {
     if (f.dev >= AU_INK) {
       const cat = await collCatalog(), W = f.src.width, H = f.src.height; AU.reads++;
-      m = await readNameAuto(f.src, { x: 0, y: 0, w: W, h: H }, 1400, '6', cat, false, null);      // sans recherche dans les autres langues (serveur) : seulement les noms sûrs
+      m = await readNameAuto(f.src, scanFull() ? cardNameBox(W, H) : { x: 0, y: 0, w: W, h: H }, 1400, '6', cat, false, null);      // sans recherche dans les autres langues (serveur) : seulement les noms sûrs
       if (m && m.score < 0.84) m = null;
     }
-  } finally { scanFree(f.src); }
+    m0 = m;
+    if (m && scanFull() && auWillAdd(m)) m = await footAttach(m, f.src, cardFootBox(f.src.width, f.src.height));      // cette lecture ajoute la carte : sa ligne du bas aussi, sur la même image
+  }
   if (g !== AU.gen || !SC.el || !auLive()) return;
-  const k = m ? m.key + '|' + (scanLangOf(m).card || 'en') : '';
+  const k = m0 ? m0.key + '|' + (scanLangOf(m0).card || 'en') : '';
   if (AU.hold) {
     if (k === AU.hold) { AU.miss = 0; AU.cand = null; auRing(0); return; }      // la carte ajoutée est toujours là
     if (!k) { if (++AU.miss >= AU_FREE) AU.hold = ''; AU.cand = null; auRing(0); return; }      // plus vue deux fois de suite : partie
@@ -98,6 +102,11 @@ async function auFeed(f, g) {
   if (Date.now() - AU.at < SCS.delay) { auRing(0.8); return; }
   AU.cand = null; AU.hold = k; AU.miss = 0; AU.at = Date.now(); auRing(1); scanFlash(); setTimeout(() => auRing(0), 350);
   auHit(m);
+}
+/** Cette lecture confirmera-t-elle la carte (même nom qu'à la lecture précédente, délai passé, pas la carte tenue) ? Même règle que auFeed, sans rien changer. */
+function auWillAdd(m) {
+  const k = m.key + '|' + (scanLangOf(m).card || 'en');
+  return k !== AU.hold && !!AU.cand && AU.cand.k === k && Date.now() - AU.at >= SCS.delay;
 }
 /** Carte confirmée : « Encore X ? » si c'est la même qu'à l'instant, sinon ajoutée (ou son prix, en prix rapide). */
 function auHit(m) {
@@ -129,7 +138,7 @@ function auAsk(m) {
 function auHideAsk() { AU.ask = null; const b = SC.el && $('.sc-same', SC.el); if (b) b.remove(); }
 /** Boutons de l'auto : interrupteur, +1 / Non, lampe. */
 function auAct(act) {
-  if (act === 'auto') { haptic('tap'); scsSet({ auto: !SCS.auto }); if (SCS.auto) scanHint(T('Pose la carte, le nom dans la bande : elle s\'ajoute seule'), ''); else scanHint(CAM_HINT, ''); return; }
+  if (act === 'auto') { haptic('tap'); scsSet({ auto: !SCS.auto }); if (SCS.auto) scanHint(auHint(), ''); else scanHint(camHint(), ''); return; }
   if (act === 'lamp') { auLamp(!AU.lamp); return; }
   const m = AU.ask; auHideAsk(); if (!m) return;
   if (act === 'au1') { haptic('ok'); scanAdd(m, 1, m.score < 0.84); scsCue(); scanHint('✓ ' + m.name, 'ok'); }

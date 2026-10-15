@@ -76,3 +76,13 @@ body.nav-on .toast{bottom:calc(var(--nav-h) + 22px + env(safe-area-inset-bottom,
 html.cut-mid .dv-head>.dv-title{max-width:calc(50% - 30px)}
 html.cut-mid .dv-head>.dv-back+.dv-title,html.cut-mid .dv-head>.icon-btn+.dv-title{max-width:calc(50% - 80px)}
 html.cut-mid .dv.sec .dv-head>.dv-title{max-width:calc(50% - 30px)}
+/* carte « Nouvelle version disponible · Mettre à jour » (pwa.js, updPop) : reste en bas de l'écran jusqu'au toucher ou ✕, sans bloquer l'appli */
+.upd-pop{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:94;display:flex;align-items:center;gap:10px;width:min(92vw,440px);padding:10px 8px 10px 16px;border-radius:18px;border:1px solid var(--accent);background:var(--surface);color:var(--ink);box-shadow:0 12px 32px rgba(5,7,15,.28);transform:translate(-50%,24px);opacity:0;transition:opacity .25s,transform .35s}
+.upd-pop.on{transform:translate(-50%,0);opacity:1}
+body.nav-on .upd-pop{bottom:calc(var(--nav-h) + 14px + env(safe-area-inset-bottom,0px))}
+.upd-t{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.upd-t b{font-size:14.5px;font-weight:750}
+.upd-t small{font-size:12px;color:var(--ink-3)}
+.upd-pop .btn{flex:none}
+.upd-pop .upd-x{flex:none;width:36px;height:36px}
+@media (prefers-reduced-motion:reduce){.upd-pop{transition:none}}

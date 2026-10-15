@@ -61,12 +61,12 @@ const PWA = (() => {
 
 /* ── Mise à jour de la page ──────────────────────────────────────────────────────────────────────────────────────────
    L'appli Android reste ouverte des jours en arrière-plan : la page n'y est presque jamais rechargée, et le service worker sert d'abord sa copie.
-   Au lancement (detectProxy) et à chaque retour sur l'appli après plus d'une minute ailleurs (/__ping, au plus toutes les 5 min), le serveur dit quelle
-   version il sert (build). Plus récente que DD_BUILD : la copie du service worker est d'abord relue (« dd-update »), puis la page se recharge d'elle-même
-   si rien n'est en cours (accueil, aucun écran, feuille ni carte en grand, aucune recherche ni saisie, aucun toucher depuis 2 s, aucune ouverture par un
-   widget, un raccourci, un partage ou un lien depuis 15 s : sa cible serait perdue) ; sinon le toast
-   « Nouvelle version · Recharger », et le rechargement se fait au prochain retour sur l'appli. Une seule tentative automatique par version (sessionStorage) :
-   jamais de boucle, même si le rechargement retombe sur l'ancienne copie. */
+   À chaque lancement (detectProxy) et à chaque retour sur l'appli après 15 s ailleurs (/__ping, jamais en cache, au plus une fois par minute), le serveur
+   dit quelle version il sert (build). Différente de DD_BUILD : la copie du service worker est relue (« dd-update ») ; prête en 3 s et rien en cours
+   (accueil, aucun écran, feuille ni carte en grand, aucune recherche ni saisie, aucun toucher depuis 2 s, aucune ouverture par un widget, un raccourci,
+   un partage ou un lien depuis 15 s : sa cible serait perdue) → la page se recharge d'elle-même ; sinon la carte « Nouvelle version disponible ·
+   Mettre à jour » (#updPop) reste à l'écran jusqu'au toucher (copie relue puis rechargement) ou ✕ (elle revient au prochain lancement ou retour).
+   Une seule tentative automatique par version (sessionStorage) : jamais de boucle, même si le rechargement retombe sur l'ancienne copie. */
 const UPD = { busy: false, at: 0, hid: 0, touch: 0, launchAt: 0, want: '', told: '' };      // launchAt : widget, raccourci, partage ou lien reçu (handleLaunch, widget.js)
 const UPD_KEY = 'dd-upd';
 function updSafe() {
@@ -86,23 +86,34 @@ function updShell() {
 /** build : version annoncée (serveur, ou copie du service worker si fresh). Différente de celle qui tourne → rechargement (auto) ou « Recharger ». */
 async function updCheck(build, fresh, auto = true) {
   if (!build || typeof DD_BUILD !== 'string' || build === DD_BUILD || UPD.busy) return;
-  UPD.busy = true;
+  UPD.busy = true; UPD.want = build;
   try {
-    const kept = fresh ? build : await updShell();
-    if (kept !== '' && kept !== build) return;               // la copie n'a pas pu être relue (hors ligne, ancien service worker) : recharger rouvrirait l'ancienne
-    UPD.want = build;
+    const sh = fresh ? Promise.resolve(build) : updShell(), kept = await Promise.race([sh, new Promise(r => setTimeout(() => r(undefined), 3000))]);      // copie relue en 3 s au plus : au-delà, la carte s'affiche (la relecture continue)
     let tried = ''; try { tried = sessionStorage.getItem(UPD_KEY) || ''; } catch (e) { /* stockage indisponible */ }
-    if (auto && tried !== build && updSafe()) { try { sessionStorage.setItem(UPD_KEY, build); } catch (e) { /* ignore */ } location.reload(); return; }
+    if (auto && (kept === '' || kept === build) && tried !== build && updSafe()) { try { sessionStorage.setItem(UPD_KEY, build); } catch (e) { /* ignore */ } location.reload(); return; }
     if (UPD.told === build) return; UPD.told = build;
-    const show = () => { try { toast(T('Nouvelle version disponible'), { label: T('Recharger'), fn: () => location.reload() }); } catch (x) { /* ignore */ } };
-    if (!document.hidden) show();
-    else document.addEventListener('visibilitychange', function vis() { if (!document.hidden) { document.removeEventListener('visibilitychange', vis); show(); } });
+    if (!document.hidden) updPop();
+    else document.addEventListener('visibilitychange', function vis() { if (!document.hidden) { document.removeEventListener('visibilitychange', vis); if (UPD.want !== DD_BUILD) updPop(); } });
   } finally { UPD.busy = false; }
+}
+/** Carte « Nouvelle version disponible · Mettre à jour » : reste à l'écran (sans bloquer l'appli) jusqu'au toucher ou ✕. Mettre à jour : copie du service worker relue, puis rechargement. */
+function updPop() {
+  if (typeof document === 'undefined' || document.getElementById('updPop')) return;
+  const el = document.createElement('div'); el.id = 'updPop'; el.className = 'upd-pop'; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-labelledby', 'updPopT');
+  el.innerHTML = `<span class="upd-t"><b id="updPopT">${T('Nouvelle version disponible')}</b><small>${T('Quelques secondes, rien n\'est perdu.')}</small></span><button class="btn small" type="button" data-u="go">${T('Mettre à jour')}</button><button class="icon-btn upd-x" type="button" data-u="x" aria-label="${T('Plus tard')}"><svg class="i"><use href="#i-close"/></svg></button>`;
+  el.addEventListener('click', async e => {
+    const b = e.target.closest('[data-u]'); if (!b) return;
+    if (b.dataset.u === 'x') { el.classList.remove('on'); setTimeout(() => el.remove(), 250); return; }      // revient au prochain lancement ou retour sur l'appli
+    b.disabled = true; b.textContent = T('Mise à jour…');
+    try { await Promise.race([updShell(), new Promise(r => setTimeout(r, 8000))]); } catch (x) { /* ignore */ }
+    location.reload();
+  });
+  document.body.appendChild(el); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
 }
 /** Retour sur l'appli : version demandée au serveur (au plus toutes les 5 min) ; une nouvelle version déjà gardée attend seulement un moment calme. */
 async function updResume() {
-  if (UPD.want && UPD.want !== DD_BUILD) { UPD.told = ''; setTimeout(() => updCheck(UPD.want, true), 1500); return; }
-  if (!CTX.proxy || Date.now() - UPD.at < 5 * 60e3) return;
+  if (UPD.want && UPD.want !== DD_BUILD) { UPD.told = ''; setTimeout(() => updCheck(UPD.want), 1500); return; }
+  if (!CTX.proxy || Date.now() - UPD.at < 60e3) return;
   UPD.at = Date.now();
   try { const r = await fetch('__ping', { cache: 'no-store' }), j = r.ok ? await r.json() : null; if (j && typeof j.build === 'string') updCheck(j.build); } catch (e) { /* hors ligne */ }
 }
@@ -110,6 +121,6 @@ if (typeof document !== 'undefined') {
   document.addEventListener('pointerdown', () => { UPD.touch = Date.now(); }, { capture: true, passive: true });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { UPD.hid = Date.now(); return; }
-    if (UPD.hid && Date.now() - UPD.hid > 60e3) updResume();
+    if (UPD.hid && Date.now() - UPD.hid > 15e3) updResume();
   });
 }

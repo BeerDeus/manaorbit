@@ -3,15 +3,16 @@
    ed : éditions des cartes scannées — 'scan' (comme la 1re carte : extensions du scan, scaned.js) · 'card' (carte par carte : choisies à la fin, écran « Éditions à choisir »)
         · 'none' (sans édition : carte et langue seulement) ;
    auto : scan automatique (scan.js › scanAuto) · delay : écart minimal entre deux cartes en automatique (ms) · same : même carte à la suite en automatique, 'ask' (demander) ou 'add' (+1) ;
-   lang : langue des cartes imposée ('' : lue sur chaque carte) · vib, snd : vibration et son à chaque carte reconnue. */
+   lang : langue des cartes imposée ('' : lue sur chaque carte) · vib, snd : vibration et son à chaque carte reconnue ;
+   frame : cadrage — 'card' (carte entière : nom + ligne du bas, l'édition lue sur la carte, scanfoot.js) · 'name' (caméra compacte, nom seulement). */
 const SCS_KEY = 'deckdeal:scanset', SCS_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'ru'], SCS_DELAYS = [500, 1000, 1500];
-const SCS_DEF = { ed: 'scan', auto: false, delay: 1000, same: 'ask', lang: '', vib: true, snd: false };
+const SCS_DEF = { ed: 'scan', auto: false, delay: 1000, same: 'ask', lang: '', vib: true, snd: false, frame: 'card' };
 const SCS = { ...SCS_DEF, u: 0, who: '', doc: { uid: '', unsub: null, pushT: 0 } };
 /** Réglages lus (appareil, compte) → valeurs sûres ; tout le reste prend la valeur par défaut. */
 function scsClean(o) {
   const x = o && typeof o === 'object' ? o : {};
   return { ed: ['scan', 'card', 'none'].includes(x.ed) ? x.ed : SCS_DEF.ed, auto: x.auto === true, delay: SCS_DELAYS.includes(x.delay) ? x.delay : SCS_DEF.delay,
-    same: x.same === 'add' ? 'add' : 'ask', lang: SCS_LANGS.includes(x.lang) ? x.lang : '', vib: x.vib !== false, snd: x.snd === true };
+    same: x.same === 'add' ? 'add' : 'ask', lang: SCS_LANGS.includes(x.lang) ? x.lang : '', vib: x.vib !== false, snd: x.snd === true, frame: x.frame === 'name' ? 'name' : 'card' };
 }
 function scsLoad() {
   try { const j = JSON.parse(localStorage.getItem(SCS_KEY) || 'null'); if (j) { Object.assign(SCS, scsClean(j.s)); SCS.u = Number(j.u) || 0; SCS.who = typeof j.who === 'string' ? j.who : ''; } } catch (e) { /* illisible : réglages par défaut */ }
@@ -21,7 +22,7 @@ scsLoad();
 /** Un réglage change ici : enregistré, envoyé au compte, appliqué au scan ouvert. */
 function scsSet(patch) { Object.assign(SCS, scsClean({ ...scsClean(SCS), ...patch })); SCS.u = Date.now(); scsWrite(); scsPushSoon(); scsApply(); }
 /** Scan ouvert : mode des éditions, boutons et liste suivent les réglages. */
-function scsApply() { if (typeof SC !== 'undefined' && SC.el) { scanEdMode(); scanPaintTools(); scanPaintList(); } }
+function scsApply() { if (typeof SC !== 'undefined' && SC.el) { scanFrameApply(); scanEdMode(); scanPaintTools(); scanPaintList(); } }
 
 /* ── Dans le compte ─────────────────────────────────────────────────────────────────────────────── */
 function scsUser(user) {
@@ -58,6 +59,10 @@ function scsCue() {
 }
 
 /* ── Feuille « Réglages du scan » ───────────────────────────────────────────────────────────────── */
+const SCS_FRAMES = [
+  ['card', 'Carte entière', 'Lit aussi la petite ligne en bas à gauche (numéro, extension) : l\'édition exacte, sur les cartes depuis 2014.'],
+  ['name', 'Nom seulement', 'Caméra compacte : seul le nom est lu.'],
+];
 const SCS_EDS = [
   ['scan', 'Comme la 1re carte', 'Booster, boîte : tu choisis l\'édition de la 1re carte, les suivantes la prennent ; une carte d\'une autre extension te demande la sienne.'],
   ['card', 'Carte par carte', 'Deck, classeur : choisies à la fin du scan, en voyant les illustrations.'],
@@ -72,6 +77,8 @@ function scsHtml() {
   const oth = SCS_LANGS.filter(l => l !== 'fr' && l !== 'en'), othOn = oth.includes(SCS.lang);
   const sec = s => (Number(s) / 1000).toLocaleString(LOC()) + ' s';
   return `<div class="scs">${typeof opnScsRow === 'function' ? opnScsRow() : ''}
+    <p class="scs-h">${T('Cadrage')}</p>
+    <div class="scs-eds" role="radiogroup" aria-label="${esc(T('Cadrage'))}">${SCS_FRAMES.map(([v, t, d]) => `<button type="button" class="scs-ed" role="radio" data-s="frame" data-v="${v}" aria-checked="${SCS.frame === v}"><span><b>${esc(T(t))}</b><small>${esc(T(d))}</small></span><i aria-hidden="true"></i></button>`).join('')}</div>
     <p class="scs-h">${T('Éditions')}</p>
     <div class="scs-eds" role="radiogroup" aria-label="${esc(T('Éditions'))}">${SCS_EDS.map(([v, t, d]) => `<button type="button" class="scs-ed" role="radio" data-s="ed" data-v="${v}" aria-checked="${SCS.ed === v}"><span><b>${esc(T(t))}</b><small>${esc(T(d))}</small></span><i aria-hidden="true"></i></button>`).join('')}</div>
     <p class="scs-h">${T('Prise de la carte')}</p>

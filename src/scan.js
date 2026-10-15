@@ -42,10 +42,11 @@ function ocrWorker(lang) {
   return OCR.workers[lang];
 }
 /** Lit une image (canvas) : lignes de texte [{ text }]. psm : '6' bloc (bande du nom) · '11' texte épars (carte entière). Seul le texte est demandé (pas de hocr/tsv/blocs). */
-async function ocrLines(canvas, lang, psm) {
+async function ocrLines(canvas, lang, psm, wl) {      // wl : caractères admis à la place des lettres d'un nom (ligne du bas : chiffres, majuscules, /)
   if (natOcr() && lang !== 'rus') { if (!canvas.__ml) canvas.__ml = natLines(canvas); try { return await canvas.__ml; } catch (e) { delete canvas.__ml; } }      // appli Android : ML Kit (repli Tesseract en cas d'erreur) ; ML Kit ne lit que l'alphabet latin : le russe passe par Tesseract
   const w = await ocrWorker(lang), mode = psm || '6';
-  if (w.__psm !== mode) { await w.setParameters({ tessedit_pageseg_mode: mode, tessedit_char_whitelist: LETTERS[lang] || '' }); w.__psm = mode; }
+  const keep = wl != null ? wl : LETTERS[lang] || '';
+  if (w.__psm !== mode || w.__wl !== keep) { await w.setParameters({ tessedit_pageseg_mode: mode, tessedit_char_whitelist: keep }); w.__psm = mode; w.__wl = keep; }
   const r = await w.recognize(canvas, {}, { text: true }), d = (r && r.data) || {};
   if ((w.__cnt = (w.__cnt || 0) + 1) >= 300 && OCR.workers[lang]) { delete OCR.workers[lang]; Promise.resolve(w.terminate()).catch(() => {}); }   // moteur recréé de temps en temps : la mémoire de WebAssembly ne fait que grossir
   return String(d.text || '').split(/\r?\n/).map(t => ({ text: t.trim() })).filter(l => l.text);
@@ -100,11 +101,13 @@ function scanLangOf(m) {
 }
 function scanAdd(m, d, maybe, shot) {
   m = scanLangOf(m);
-  const l = m.card || 'en', ed = scanEdNew(m.key, m.name, l, maybe), id = scanId(m.key, l, ed.e), cur = SC.items.get(id);      // une ligne par carte, langue ET édition : la même carte lue en français puis en anglais fait deux lignes
+  const l = m.card || 'en', ed = scanEdNew(m.key, m.name, l, maybe, m.ft);
+  let id = scanId(m.key, l, ed.e), cur = SC.items.get(id);
+  if (m.ft && cur && !ed.e && ed.es === 'load') { id += '#' + (++SC.mid); cur = null; }      // ligne du bas lue, impressions pas encore là : sa propre ligne, rangée avec son édition à l'arrivée (scanEdApply)      // une ligne par carte, langue ET édition : la même carte lue en français puis en anglais fait deux lignes
   if (m.img && l !== 'en') { COLL.li[liKey(l, m.key)] = m.img; collMetaSave(); }       // image de la carte dans sa langue, vue pendant la lecture : gardée pour la collection
   else if (m.via && l !== 'en') langImgFor(m.key, m.name, l);      // trouvée sur l'appareil (catalogue sans images) : celle de sa langue demandée à Scryfall, l'anglaise en attendant
-  if (cur) { SC.items.delete(id); SC.items.set(id, cur); SC.lastIt = cur; cur.q = Math.max(1, cur.q + d); if (!maybe) { cur.maybe = false; cur.shot = ''; } else if (cur.maybe && shot) cur.shot = shot; if (m.score > cur.score) { cur.score = m.score; cur.raw = m.raw; } if (m.via) cur.via = m.via; }
-  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
+  if (cur) { SC.items.delete(id); SC.items.set(id, cur); SC.lastIt = cur; cur.q = Math.max(1, cur.q + d); if (m.ft && !cur.ft) cur.ft = m.ft; if (!maybe) { cur.maybe = false; cur.shot = ''; } else if (cur.maybe && shot) cur.shot = shot; if (m.score > cur.score) { cur.score = m.score; cur.raw = m.raw; } if (m.via) cur.via = m.via; }
+  else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
   if (ed.e) scanEdPass();      // une édition posée : les cartes « à choisir » sont revues
   scanPaintList();
 }
@@ -157,7 +160,7 @@ function scanPaintList() {
   go.disabled = !t.n; go.textContent = T('Ajouter');
   const td = scanEdTodo(), nTodo = td.n - td.load;
   let val = 0; for (const x of SC.items.values()) { if (x.maybe) continue; const eu = pkEu(x.pk) || ((COLL.meta[x.key] || {}).eu > 0 ? COLL.meta[x.key].eu : 0); val += eu * x.q; }
-  head(TN(t.n, '{n} carte', '{n} cartes'), SC.items.size ? [val > 0 ? '≈ ' + fmt(val, 'EUR') : '', t.maybe ? T('{n} à vérifier', { n: t.maybe }) : '', nTodo ? TN(nTodo, '{n} édition à choisir', '{n} éditions à choisir') : ''].filter(Boolean).join(' · ') || TN(t.n, '{n} reconnue', '{n} reconnues') : T('Nom de la carte dans la bande'));
+  head(TN(t.n, '{n} carte', '{n} cartes'), SC.items.size ? [val > 0 ? '≈ ' + fmt(val, 'EUR') : '', t.maybe ? T('{n} à vérifier', { n: t.maybe }) : '', nTodo ? TN(nTodo, '{n} édition à choisir', '{n} éditions à choisir') : ''].filter(Boolean).join(' · ') || TN(t.n, '{n} reconnue', '{n} reconnues') : scanFull() ? T('Carte entière dans le cadre') : T('Nom de la carte dans la bande'));
   if (SC.remote) { go.disabled = false; go.textContent = T('Terminer'); mobSync(); scanPaintRemote(); }      // scan mobile : chaque carte (et chaque correction) part vers le PC
   const prog = $('.sc-prog', el); prog.hidden = !SC.pend.length; prog.textContent = TN(SC.pend.length, '{n} en lecture', '{n} en lecture');
   if (SC.recap) SC.recap();
@@ -501,8 +504,13 @@ async function readNameAuto(src, box, outW, psm, cat, retry, st) {
 const thirdBox = src => ({ x: 0, y: 0, w: src.naturalWidth || src.width, h: Math.round((src.naturalHeight || src.height) / 3) });
 /** Une capture → meilleure lecture. Aperçu de l'app : la capture EST la bande « nom + mana » (lue entière, les symboles de mana sont ignorés), puis en texte épars si rien de sûr.
  *  Photo d'une carte entière (« Photos ») : bande du titre en haut, puis le tiers haut si rien de sûr ; le reste de l'image n'est jamais lu. */
-async function readCard(src, cat, strip) {
+async function readCard(src, cat, strip, card) {
   const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height, st = { n: 0 }; SC.raw = '';      // st : requêtes « autres langues » de cette carte (2 au plus)
+  if (card) {      // cadrage « carte entière » : la capture EST la carte (cadre de l'écran) : le nom en haut, puis la ligne du bas
+    let m = await readNameAuto(src, cardNameBox(W, H), 1400, '6', cat, true, st);
+    if ((!m || m.score < 0.84) && SC.el) { const all = await readNameAuto(src, { x: 0, y: 0, w: W, h: Math.round(H * 0.3) }, 1600, '11', cat, false, st); if (all && (!m || all.score > m.score)) m = all; }
+    return footAttach(m, src, cardFootBox(W, H));
+  }
   if (strip) {
     let m = await readNameAuto(src, { x: 0, y: 0, w: W, h: H }, 1400, '6', cat, true, st);
     if ((!m || m.score < 0.84) && SC.el) { const all = await readNameAuto(src, { x: 0, y: 0, w: W, h: H }, 1600, '11', cat, false, st); if (all && (!m || all.score > m.score)) m = all; }
@@ -513,7 +521,47 @@ async function readCard(src, cat, strip) {
     if ((m && m.score >= 0.84) || !SC.el) break;
     const t = await readNameAuto(src, thirdBox(src), 1600, psm, cat, retry, st); if (t && (!m || t.score > m.score)) m = t;
   }
-  return m;
+  return footAttach(m, src, cardFootBox(W, H));      // photo de la carte entière : sa ligne du bas aussi
+}
+
+/* — Cadrage « carte entière » : la petite ligne en bas à gauche (numéro, extension, langue) donne l'édition exacte (scanfoot.js, scaned.js) — */
+const scanFull = () => SCS.frame !== 'name';
+/** Zone du nom dans une carte cadrée (marge pour une carte un peu décalée dans le cadre ; le mana à droite est ignoré par la comparaison des noms). */
+const cardNameBox = (W, H) => ({ x: Math.round(W * 0.03), y: 0, w: Math.round(W * 0.94), h: Math.round(H * 0.15) });
+/** Coin bas gauche d'une carte cadrée : « 0123 R » / « MKM • FR » (et l'artiste à droite, ignoré). */
+const cardFootBox = (W, H) => ({ x: 0, y: Math.round(H * 0.86), w: Math.round(W * 0.64), h: H - Math.round(H * 0.86) });
+/** Caractères de la ligne du bas pour Tesseract (ML Kit lit tout). */
+const FOOT_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/*. ';
+/** Lit la ligne du bas (box) et l'ajoute à la carte reconnue m (m.ft : footParse) ; langue imprimée sur la carte retenue (sauf langue imposée). Rien de lu : m inchangée.
+ *  Seulement pour une carte reconnue, hors prix rapide et réglage « Sans édition ». Le texte lu reste pour l'écran de diagnostic (5 appuis sur le titre). */
+async function footAttach(m, src, box) {
+  if (!m || m.score < 0.72 || SC.pm || SCS.ed === 'none' || !SC.el || typeof footParse !== 'function') return m;
+  let ft = null, raw = '';
+  for (let pass = 0; pass < 2 && !ft && SC.el; pass++) {      // polarité automatique, puis inversée (Tesseract ; ML Kit lit les deux d'un coup)
+    const c = prepCanvas(src, box, 1400, pass ? (box.inv ? 0 : 1) : undefined); if (!pass) box.inv = c.inv;
+    try { const lines = await ocrLines(c, 'eng', '6', FOOT_CHARS); raw = lines.map(l => l.text).join(' / ').slice(0, 80) || raw; ft = footParse(lines); }
+    catch (e) { break; }      // lecture refusée : la carte garde son nom, l'édition se décide comme avant
+    finally { c.width = c.height = 0; }
+    if (natOcr()) break;
+  }
+  SC.foot = { raw, ft, name: m.name };
+  if (!ft) return m;
+  const out = { ...m, ft };
+  if (ft.lang && !SCS.lang && ft.lang !== m.card && LANGS[ft.lang]) Object.assign(out, { card: ft.lang, img: '', via: '' });      // langue imprimée sur la carte : plus sûre que celle du nom (« Edgar Markov » est le même en français)
+  return out;
+}
+/** Consigne sous la caméra, selon le cadrage. */
+const camHint = () => (scanFull() ? T('Carte entière dans le cadre, puis appuie sur le cercle') : CAM_HINT);
+const auHint = () => (scanFull() ? T('Pose la carte dans le cadre : elle s\'ajoute seule') : T('Pose la carte, le nom dans la bande : elle s\'ajoute seule'));
+/** Cadrage changé (réglages) ou écran ouvert : cadre de l'écran, légendes ; caméra native replacée sur la nouvelle zone. */
+async function scanFrameApply() {
+  const el = SC.el; if (!el) return;
+  const full = scanFull(), was = el.classList.contains('full'); el.classList.toggle('full', full);
+  const cap = $('.sc-cap', el); if (cap && !el.classList.contains('auto')) cap.textContent = full ? T('Carte entière') : T('Nom de la carte');
+  if (was === full) return;
+  scanPaintList();
+  if (NAT.on || NAT.p) { natStop(); if (await natStart()) { if (SC.el === el) scanHint(camHint(), ''); } }      // l'aperçu natif ne suit pas la page : arrêté puis reposé sur la nouvelle zone
+  else if (SC.stream) scanHint(camHint(), '');
 }
 
 /* — File d'attente : les photos sont lues une par une en arrière-plan — */
@@ -554,8 +602,8 @@ async function scanWork() {
       const job = SC.queue.shift(), t0 = performance.now(); let m = null, fail = '';
       try {
         if (!job.src && job.file) { const img = await loadImage(job.file); job.src = img; job.thumb = thumbOf(img, thirdBox(img)); }
-        m = await readCard(job.src, await collCatalog(), job.strip);
-        if (!m || m.score < 0.84) job.shot = shotOf(job.src, job.strip ? null : titleBox(job.src));      // lecture douteuse : on garde une photo lisible de la zone pour comparer
+        m = await readCard(job.src, await collCatalog(), job.strip, job.card);
+        if (!m || m.score < 0.84) job.shot = shotOf(job.src, job.strip ? null : job.card ? cardNameBox(job.src.width, job.src.height) : titleBox(job.src));      // lecture douteuse : on garde une photo lisible de la zone pour comparer
       } catch (e) { fail = e && e.code === 'cdn' ? T('Le module de lecture (OCR) n\'a pas pu être téléchargé. Vérifie ta connexion.') : e && e.code === 'rate' ? T('Scryfall demande une pause…') : ''; }
       scanFree(job.src); job.src = null; job.file = null;
       if (!SC.el || job.s !== SC.session) continue;
@@ -579,7 +627,8 @@ function scanCapture() {
   if (NAT.on) {
     if (SC.queue.length >= 12) { toast(T('Patiente un instant : 12 cartes sont déjà en attente de lecture')); return; }
     haptic('tap'); scanFlash(); scanHint('', '');
-    natCapture().then(c => { if (SC.el) scanEnqueue({ label: T('Carte {n}', { n: ++SC.cap }), src: c, strip: true, thumb: thumbOf(c) }); }, () => scanHint(T('L\'appareil photo n\'est pas prêt : utilise « Photos »'), 'bad'));
+    const full = scanFull();
+    natCapture().then(c => { if (SC.el) scanEnqueue({ label: T('Carte {n}', { n: ++SC.cap }), src: c, strip: !full, card: full, thumb: thumbOf(c, full ? cardNameBox(c.width, c.height) : null) }); }, () => scanHint(T('L\'appareil photo n\'est pas prêt : utilise « Photos »'), 'bad'));
     return;
   }
   const box = scanGuideBox(); if (!box) { toast(T('L\'appareil photo n\'est pas prêt : utilise « Photos »')); return; }
@@ -588,7 +637,8 @@ function scanCapture() {
   const c = document.createElement('canvas'); c.width = box.w; c.height = box.h;
   c.getContext('2d').drawImage($('.sc-video', SC.el), box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
   haptic('tap'); scanFlash(); scanHint('', '');
-  scanEnqueue({ label: T('Carte {n}', { n: ++SC.cap }), src: c, strip: true, thumb: thumbOf(c) });
+  const full = scanFull();
+  scanEnqueue({ label: T('Carte {n}', { n: ++SC.cap }), src: c, strip: !full, card: full, thumb: thumbOf(c, full ? cardNameBox(c.width, c.height) : null) });
 }
 function scanFail(msg) { scanHint(msg, 'bad'); }
 /** Pas d'aperçu : la vraie cause remplace le message générique au centre de la zone, et rien dans la bande d'aide (deux messages qui se contredisaient). */
@@ -627,7 +677,7 @@ async function camRefresh() {
     for (let i = 0; i < 3 && !s; i++) { await new Promise(r => setTimeout(r, i ? 500 : 200)); if (SC.el !== el) return; try { s = await camOpen(camSlow()); } catch (e) { if (i === 2) throw e; } }
     if (SC.el !== el) { s.getTracks().forEach(t => t.stop()); return; }
     SC.stream = s; SC.restarts++; v.srcObject = s; await v.play().catch(() => {});
-    scanHint(CAM_HINT, ''); scanWatch(v); auLampProbe();
+    scanHint(camHint(), ''); scanWatch(v); auLampProbe();
   } catch (e) {
     if (SC.el === el) scanNoCam(stage, T('La caméra n\'a pas pu redémarrer. Utilise « Photos ».'));
   } finally { SC.rbusy = false; }
@@ -639,6 +689,7 @@ function scanDiag(on) {
   const paint = () => {
     const tr = SC.stream && SC.stream.getVideoTracks()[0], st = (tr && tr.getSettings && tr.getSettings()) || {}, now = performance.now(); SC.lt = SC.lt.filter(t => now - t < 10000);
     box.textContent = [T('aperçu {n} i/s', { n: SC.fps ? SC.fps.toFixed(0) : '–' }), `${st.width || '?'}×${st.height || '?'}${st.frameRate ? ' @' + Math.round(st.frameRate) : ''}`, SC.fixed ? T('plancher 24 i/s') : T('i/s libre'), T('redémarrages {n}', { n: SC.restarts }), T('dernière lecture {n} ms', { n: SC.ms ? Math.round(SC.ms) : '–' }), T('tâches longues {n}/10 s', { n: SC.lt.length }), camSlow() ? T('mode lent (toucher ici : retour au mode normal)') : '', tr && tr.label ? tr.label : ''].filter(Boolean).join(' · ');
+    const f = SC.foot; if (f) box.textContent += '\n' + T('ligne du bas · {name} : « {raw} » → {res}', { name: f.name, raw: f.raw || '—', res: f.ft ? [f.ft.codes.join(','), f.ft.nums.join(','), f.ft.lang, f.ft.foil ? '★' : ''].filter(Boolean).join(' ') : '∅' });      // cadrage « carte entière » : ce que la dernière carte a donné
   };
   box.onclick = () => { camSetSlow(false); paint(); };
   paint(); SC.diagT = setInterval(paint, 500);
@@ -720,13 +771,13 @@ async function natLines(canvas) {
 
 async function scanCamera() {
   const stage = $('.sc-stage', SC.el);
-  if (natCam() && await natStart()) { if (SC.el) scanHint(CAM_HINT, ''); return; }      // appli Android : caméra native
+  if (natCam() && await natStart()) { if (SC.el) scanHint(camHint(), ''); return; }      // appli Android : caméra native
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || (typeof isSecureContext !== 'undefined' && !isSecureContext)) { scanNoCam(stage, T('Appareil photo indisponible ici (il demande https). Utilise « Photos ».')); return; }
   try {
     SC.stream = await camOpen(camSlow());      // appareil déjà repéré comme lent : on repart en 720p
     if (!SC.el) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; return; }
     const v = $('.sc-video', SC.el); v.srcObject = SC.stream; await v.play().catch(() => {});
-    stage.dataset.cam = 'on'; scanHint(CAM_HINT, ''); scanWatch(v);      // aucun calcul pendant l'aperçu : le moteur de lecture ne démarre qu'au premier appui
+    stage.dataset.cam = 'on'; scanHint(camHint(), ''); scanWatch(v);      // aucun calcul pendant l'aperçu : le moteur de lecture ne démarre qu'au premier appui
   } catch (e) {
     scanNoCam(stage, e && e.name === 'NotAllowedError' ? T('Accès à l\'appareil photo refusé : autorise-le dans les réglages du navigateur, ou utilise « Photos ».') : e && e.name === 'NotFoundError' ? T('Aucun appareil photo trouvé. Utilise « Photos ».') : T('Appareil photo indisponible. Utilise « Photos ».'));
   }
@@ -756,7 +807,7 @@ function openScan(o) {
   closeScan();
   const wrap = document.createElement('div'); wrap.className = 'dv scan'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Scanner des cartes'));
   wrap.innerHTML = `<div class="sc-stage" data-cam="wait"><video class="sc-video" playsinline muted autoplay></video>
-      <div class="sc-guide" aria-hidden="true"><span class="sc-cap">${T('Nom de la carte')}</span></div>
+      <div class="sc-guide" aria-hidden="true"><span class="sc-cap">${T('Nom de la carte')}</span><i class="sc-g-name"></i><i class="sc-g-foot"></i></div>
       <div class="sc-flash"></div>
       <p class="sc-hint" hidden></p><p class="sc-prog" hidden></p><p class="sc-diag" hidden></p>
       <p class="sc-nocam">${T('Pas d\'appareil photo : utilise « Photos » ci-dessous.')}</p>
@@ -767,13 +818,14 @@ function openScan(o) {
     <div class="sc-cat coll-status" hidden></div>
     <div class="sc-note" hidden><p class="hint">${nmT('Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (français d\'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.',
       'Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu ({lang} d\'abord, puis anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.',
-      'Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (en anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.')}</p><button class="sc-x" type="button" data-act="note" aria-label="${T('Fermer l\'aide')}"><svg class="i"><use href="#i-close"/></svg></button></div>
+      'Mets le nom de la carte dans la bande et appuie sur le cercle : la lecture se fait en arrière-plan, tu peux enchaîner. Seul le nom est lu (en anglais), puis retrouvé dans Scryfall : vérifie la miniature (touche-la pour la voir en grand). Éditions : choisis celle de la 1re carte, les suivantes la prennent si elles y existent ; une carte d\'une autre extension te demande la sienne. « Photos » : une carte par photo, prise en entier et en portrait. Les photos ne sont jamais enregistrées. Auto (en bas à droite) : pose les cartes l\'une après l\'autre, chacune s\'ajoute dès que son nom est immobile. Réglages (en haut) : éditions, langue des cartes, vibration.')}</p><p class="hint sc-note-full">${T('Carte entière (réglage du cadrage) : la petite ligne en bas à gauche (« 0123 R », « MKM • FR ») est lue aussi : l\'édition exacte est posée d\'office, et la langue imprimée sur la carte retenue. Cartes d\'avant 2014 : l\'édition se choisit comme d\'habitude.')}</p><button class="sc-x" type="button" data-act="note" aria-label="${T('Fermer l\'aide')}"><svg class="i"><use href="#i-close"/></svg></button></div>
     <div class="dv-foot sc-head"><div class="sc-headt"><b class="sc-count">${T('Scanner des cartes')}</b><span class="sc-sub">${T('Nom de la carte dans la bande')}</span></div><div class="sc-total" aria-live="polite" hidden></div><button class="btn" type="button" data-act="done" disabled>${T('Ajouter')}</button></div>
     <div class="dv-scroll sc-list"></div>
     <div class="sc-bar">
       <label class="sc-photo"><span class="sc-bi"><svg class="i"><use href="#i-image"/></svg></span>${T('Photos')}<input type="file" id="scFile" accept="image/*" multiple></label>
       <button class="sc-shot" type="button" data-act="shot" aria-label="${T('Prendre la photo de la carte')}"><i><svg class="i"><use href="#i-pause"/></svg></i></button>
       <span class="sc-bslot"><button class="sc-auto" type="button" role="switch" data-act="auto" aria-checked="false" hidden><span class="sc-sw" aria-hidden="true"><i></i></span>${T('Auto')}</button></span></div>`;
+  if (scanFull()) { wrap.classList.add('full'); $('.sc-cap', wrap).textContent = T('Carte entière'); }      // cadrage « carte entière » (réglage par défaut) : cadre de carte, ligne du bas lue aussi
   SC.lot = !!(o && o.lot); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
   auReset();
   const stop = () => { auReset(); SC.alive = false; SC.warm = false; clearInterval(SC.diagT); clearTimeout(SC.hintT); SC.queue.forEach(j => scanFree(j.src)); SC.queue = []; SC.pend = []; if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; } natStop(); };
@@ -850,6 +902,6 @@ function openScan(o) {
   document.body.appendChild(wrap); holdApp(); scanPaintTools(); scanPaintList();
   if (typeof opnBands === 'function') opnBands();      // session d'ouverture (opening.js) : bandeau au-dessus de la liste
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.sc-tools [data-act="close"]', wrap).focus({ preventScroll: true }); }));
-  haptic('tap'); scanCamera().finally(() => { if (SC.el !== wrap) return; auLampProbe(); auSync(); if (auOn()) scanHint(T('Pose la carte, le nom dans la bande : elle s\'ajoute seule'), ''); scanWarm(); if (typeof tipSoon === 'function') tipSoon(1200); });      // astuce (tour.js) : session d'ouverture
+  haptic('tap'); scanCamera().finally(() => { if (SC.el !== wrap) return; auLampProbe(); auSync(); if (auOn()) scanHint(auHint(), ''); scanWarm(); if (typeof tipSoon === 'function') tipSoon(1200); });      // astuce (tour.js) : session d'ouverture
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden && SC.el && SC.watch) SC.watch.reset(); });

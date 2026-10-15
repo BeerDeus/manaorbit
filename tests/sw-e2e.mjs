@@ -130,7 +130,7 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
   const shell = () => q.evaluate(async () => { const k = (await caches.keys()).find(n => /-shell$/.test(n)), r = k && await (await caches.open(k)).match('./'); return r ? { build: r.headers.get('x-dd-build'), at: Number(r.headers.get('x-dd-at')), type: r.headers.get('content-type') } : null; });
   const dropShell = () => q.evaluate(async () => { const k = (await caches.keys()).find(n => /-shell$/.test(n)); await (await caches.open(k)).delete('./'); });
   const replied = () => q.waitForFunction(() => window.__sw.some(m => m && m.type === 'dd-shell'), null, { timeout: 15000 }).then(() => q.evaluate(() => window.__sw.find(m => m.type === 'dd-shell').build));
-  const toldNew = () => q.evaluate(() => window.__toasts.some(t => /Nouvelle version/.test(t)));
+  const toldNew = () => q.evaluate(() => !!document.getElementById('updPop') || window.__toasts.some(t => /Nouvelle version/.test(t)));
   const waitShell = b => q.waitForFunction(async b => { const k = (await caches.keys()).find(n => /-shell$/.test(n)), r = k && await (await caches.open(k)).match('./'); return !!r && r.headers.get('x-dd-build') === b; }, b, { timeout: 8000, polling: 100 });
 
   await q.goto(F); await q.evaluate(() => navigator.serviceWorker.ready);
@@ -157,19 +157,30 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
   assert.equal((await shell()).build, 'b1e2e000', 'nouvelle version gardée'); assert.equal(await toldNew(), false, 'rechargée sans toast');
   await q.waitForTimeout(2500); assert.equal(await build(), 'b1e2e000', 'à jour : plus de rechargement');
   ok('nouvelle version, rien en cours : copie ouverte, nouvelle gardée en arrière-plan, puis rechargement automatique (une fois)');
-  // nouvelle version pendant qu'une feuille est ouverte (réglages) : jamais de rechargement sous les doigts, toast « Recharger », un toucher la lance
+  // nouvelle version pendant qu'une feuille est ouverte (réglages) : jamais de rechargement sous les doigts, carte « Mettre à jour » qui reste, un toucher la lance
   fw.build = 'b1e3e000'; fw.delay = 2500; await q.reload({ waitUntil: 'domcontentloaded' });
   await q.waitForSelector('#btnAccount'); await q.waitForTimeout(400); await q.click('#btnAccount'); await q.waitForSelector('.sheet');
-  await q.waitForFunction(() => window.__toasts.some(t => /Nouvelle version disponible/.test(t)), null, { timeout: 15000 }); fw.delay = 0;
+  await q.waitForSelector('#updPop.on', { timeout: 15000 }); fw.delay = 0;
   assert.equal(await build(), 'b1e2e000', 'page ouverte inchangée');
-  assert.equal((await q.textContent('#toast .toast-act')).trim(), 'Recharger'); assert.equal((await shell()).build, 'b1e3e000', 'nouvelle version gardée');
+  assert.equal((await q.textContent('#updPop [data-u="go"]')).trim(), 'Mettre à jour'); assert.match(await q.textContent('#updPop'), /Nouvelle version disponible/);
+  await q.waitForTimeout(6000); assert.ok(await q.$('#updPop.on'), 'la carte reste à l\'écran (pas un toast qui s\'efface)');
+  assert.equal(await until(async () => (await shell()).build === 'b1e3e000', 8000), true, 'nouvelle version gardée');
   await q.screenshot({ path: 'shots/sw-nouvelle-version.png' });
-  await Promise.all([q.waitForEvent('load'), q.click('#toast .toast-act')]);
-  assert.equal(await until(async () => (await build()) === 'b1e3e000', 8000), true, '« Recharger » : la nouvelle version tourne');
-  assert.equal(await replied(), 'b1e3e000'); assert.equal(await toldNew(), false, 'à jour : plus de toast');
-  ok('nouvelle version, feuille ouverte : pas de rechargement automatique, toast « Nouvelle version disponible · Recharger », un toucher la lance');
-  // retour sur l'appli après plus d'une minute (appli Android en arrière-plan) : /__ping dit qu'une version plus récente est en ligne → copie relue, rechargement
-  fw.build = 'b1e4e000'; const B4 = await q.evaluate(() => { UPD.hid = Date.now() - 120e3; UPD.at = 0; updResume(); return true; });
+  await q.keyboard.press('Escape'); await q.waitForFunction(() => !document.querySelector('.sheet-wrap'));      // feuille fermée : la carte n'est plus sous le fond de la feuille
+  await Promise.all([q.waitForEvent('load'), q.click('#updPop [data-u="go"]')]);
+  assert.equal(await until(async () => (await build()) === 'b1e3e000', 8000), true, '« Mettre à jour » : la nouvelle version tourne');
+  assert.equal(await replied(), 'b1e3e000'); assert.equal(await toldNew(), false, 'à jour : plus de carte');
+  ok('nouvelle version, feuille ouverte : pas de rechargement automatique, carte « Nouvelle version disponible · Mettre à jour » qui reste, un toucher la lance');
+  // ✕ : la carte part ; elle revient au retour sur l'appli (15 s ailleurs) tant que la version n'est pas à jour
+  fw.build = 'b1e5e000'; await q.evaluate(() => sessionStorage.setItem('dd-upd', 'b1e5e000'));      // rechargement automatique déjà tenté : la carte seulement
+  await q.evaluate(() => { UPD.at = 0; UPD.hid = Date.now() - 20e3; updResume(); });
+  await q.waitForSelector('#updPop.on', { timeout: 15000 }); await q.click('#updPop [data-u="x"]'); await q.waitForSelector('#updPop', { state: 'detached' });
+  await q.evaluate(() => { UPD.hid = Date.now() - 20e3; updResume(); }); await q.waitForSelector('#updPop.on', { timeout: 15000 });
+  await q.click('#updPop [data-u="x"]'); await q.waitForSelector('#updPop', { state: 'detached' });
+  fw.build = 'b1e3e000'; await q.evaluate(() => { UPD.want = ''; UPD.told = ''; });
+  ok('✕ : la carte part, et revient au retour sur l\'appli tant que la version n\'est pas à jour');
+  // retour sur l'appli après 15 s ailleurs (appli Android en arrière-plan) : /__ping dit qu'une version plus récente est en ligne → copie relue, rechargement
+  fw.build = 'b1e4e000'; const B4 = await q.evaluate(() => { UPD.hid = Date.now() - 20e3; UPD.at = 0; updResume(); return true; });
   assert.ok(B4); assert.equal(await until(async () => (await build()) === 'b1e4e000'), true, 'au retour : nouvelle version chargée');
   ok('retour sur l\'appli : version demandée au serveur (/__ping), copie relue (« dd-update »), rechargement automatique');
 

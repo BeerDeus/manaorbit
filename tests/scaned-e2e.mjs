@@ -180,6 +180,24 @@ assert.equal(await p.$('.ced-sheet .ed-q-none'), null);
 await tile('MKM'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
 assert.equal((await lines())['craterhoof behemoth mkm|207'], 'man ×1', 'édition trouvée par la recherche : posée');
 ok('recherche d\'une extension : bandeau › feuille sur la recherche (code, nom, année, plusieurs mots, aucune), choix posé');
+
+/* ── ligne du bas lue (cadrage « carte entière », scanfoot.js) : l'édition exacte, avant toute déduction ── */
+await p.evaluate(() => scsSet({ ed: 'scan', frame: 'card' })); await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on.full');
+assert.ok(await p.$('.scan .sc-g-foot'), 'cadre de carte : coin de la ligne du bas marqué');
+const addFt = (name, foot) => p.evaluate(([name, foot]) => scanAdd({ key: ownKey(name), name, score: 0.99, raw: name, card: 'en', ft: footParse(foot) }, 1, false), [name, foot]);
+await p.evaluate(() => { const f = x => footParse(x); scanAdd({ key: 'sol ring', name: 'Sol Ring', score: 0.99, raw: '', card: 'en', ft: f(['0202 U', 'DSK • EN']) }, 1, false); scanAdd({ key: 'sol ring', name: 'Sol Ring', score: 0.99, raw: '', card: 'en', ft: f(['200/300 U', 'CMM • EN']) }, 1, false); });
+await settle();
+assert.deepEqual(await lines(), { 'sol ring dsk|202': 'read ×1', 'sol ring cmm|200': 'read ×1' }, 'deux exemplaires lus avant l\'arrivée des impressions : chacun son édition, rien à choisir');
+assert.equal(await p.$('.sc-ask'), null, 'première carte : rien demandé');
+assert.match(await p.getAttribute('.sc-item[data-k="sol ring"] .sc-ed', 'aria-label'), /lue sur la carte/);
+await addFt('Sol Ring', ['O2O3 U', 'M2l • EN']); assert.equal((await lines())['sol ring m21|203'], 'read ×1', 'fautes de lecture (O2O3, M2l)');
+await addFt('Arcane Signet', ['Arcane Signet']); await settle();
+assert.equal((await lines())['arcane signet cmm|200'], 'auto ×1', 'ligne du bas illisible : extension du scan (lues sur les cartes précédentes), comme avant');
+await addFt('Command Tower', ['BLB • EN']); await settle();
+assert.equal((await lines())['command tower blb|201'], 'read ×1', 'extension seule, une impression dedans');
+await p.evaluate(() => scsSet({ frame: 'name' })); assert.equal(await p.$eval('.scan', s => s.classList.contains('full')), false, 'réglage « Nom seulement » : caméra compacte');
+await p.evaluate(() => scsSet({ frame: 'card' }));
+ok('ligne du bas lue : édition exacte (deux exemplaires différents, fautes de lecture, extension seule), illisible : comme avant ; cadrage changeable');
 await p.click('.scan [data-act="close"]');
 
 assert.deepEqual(errs, [], 'erreurs page');

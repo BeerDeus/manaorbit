@@ -133,3 +133,16 @@
 @keyframes scin{from{opacity:0;transform:translateY(-6px)}}
 @keyframes scdot{50%{opacity:.3}}
 @media (prefers-reduced-motion:reduce){.scan.auto .sc-cap::before,.sc-same{animation:none}}
+/* cadrage « carte entière » (réglage par défaut) : cadre d'une carte (63 × 88) ; zone du nom et coin de la ligne du bas marqués en pointillés.
+   --gh : hauteur du cadre (68 % de la largeur de l'écran au plus, 50 % de sa hauteur au plus) ; les boutons restent posés sur l'image. */
+.sc-g-name,.sc-g-foot{display:none;position:absolute;border:1.5px dashed rgba(255,255,255,.55);border-radius:6px;pointer-events:none}
+.scan.full{--gh:min(calc(68vw * 88 / 63), 420px, 50dvh)}
+.scan.full .sc-stage:not([data-cam="no"]){height:calc(var(--top-in) + var(--gh) + 114px)}
+.scan.full .sc-guide{top:calc(var(--top-in) + 56px);width:auto;height:var(--gh);aspect-ratio:63/88;border-radius:14px}
+.scan.full .sc-guide::before{border-radius:16px}
+.scan.full .sc-g-name,.scan.full .sc-g-foot{display:block}
+.scan.full .sc-g-name{left:4%;right:4%;top:3.5%;height:8%}
+.scan.full .sc-g-foot{left:4%;bottom:2.5%;width:44%;height:6.5%}
+.scan.full .sc-cap{left:50%;bottom:auto;top:13%;transform:translateX(-50%);white-space:nowrap}
+.scan.full .sc-hint{top:calc(var(--top-in) + 56px + var(--gh) * .3)}
+.sc-diag{white-space:pre-line}

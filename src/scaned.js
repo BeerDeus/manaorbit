@@ -9,7 +9,7 @@
    ancienne) ; « Plus tard » passe à la suivante. Choisie (bandeau ou symbole de la ligne) : son extension rejoint celles du scan et les cartes à choisir sont revues.
    Une ligne du scan = carte + langue + édition : un exemplaire d'une autre édition fait sa propre ligne.
    « Ajouter » avec des cartes sans édition : confirmation (choisir, ou ajouter quand même). Scan mobile : l'édition part avec la carte, ses changements aussi.
-   Ligne : e ('set|num', '' : sans), es (load : impressions en lecture · pend : à choisir · auto : posée d'office · solo : extension unique · man : choisie · none : aucune impression · err : illisible),
+   Ligne : e ('set|num', '' : sans), es (load : impressions en lecture · pend : à choisir · auto : posée d'office · solo : extension unique · read : lue sur la carte (ligne du bas, ft) · man : choisie · none : aucune impression · err : illisible),
    pk (impression retenue : image, prix), nx (« Sans édition » choisi à la main : plus jamais posée d'office), later (« Plus tard » : plus demandée dans le bandeau).
    Réglage du scan (scanset.js › SCS.ed) : 'scan' ci-dessus ; 'card' (deck, classeur) : extension unique et même carte seulement, rien de demandé pendant le scan, les éditions se
    choisissent à la fin (écran « Éditions à choisir ») ; 'none' : aucune édition (es 'off'), aucune impression lue. */
@@ -36,6 +36,11 @@ function scanEdDecide(it, prints) {
   if (it.nx) return { e: '', es: 'pend', pk: null };
   const l = it.l || 'en', sl = SCRY_LANG[l] || 'en', main = prints.filter(p => !p.fx.includes('promo')), own = main.filter(p => p.l === sl), base = own.length ? own : main.length ? main : prints;
   const take = (set, es) => { const p = lotInSet(prints, set, l); return p ? { e: edKey(p.set, p.num), es, pk: p } : null; };
+  if (it.ft && typeof footMatch === 'function') {      // cadrage « carte entière » : ligne du bas lue (scanfoot.js) → l'édition exacte, avant toute déduction
+    const f = footMatch(it.ft, prints);
+    if (f && f.p) return { e: edKey(f.p.set, f.p.num), es: 'read', pk: f.p };
+    if (f && f.set) { const d = take(f.set, 'auto'); if (d && d.e) return { ...d, stick: true }; }      // extension lue, numéro illisible : la principale de l'extension, comme une extension du scan
+  }
   const sets = new Set(base.map(p => p.set)), has = s => prints.some(p => p.set === s);
   if (sets.size === 1) { const d = take([...sets][0], 'solo'); if (d && d.e) return { ...d, solo: true }; }
   if (SCS.ed !== 'card') for (const s of scanSetsRanked()) if (has(s)) { const d = take(s, 'auto'); if (d && d.e) return d; }      // carte par carte : seulement l'extension unique et la même carte
@@ -66,7 +71,7 @@ function scanRekey(it, nid) {
 /** Pose une décision sur une ligne. */
 function scanEdApply(it, d) {
   it.e = d.e || ''; it.es = d.es; it.pk = d.pk || null;
-  if (d.solo && d.e) scanStick(edSet(d.e));
+  if ((d.solo || d.stick || d.es === 'read') && d.e) scanStick(edSet(d.e));      // extension unique ou lue sur la carte : elle rejoint celles du scan
   if (it.e && !SETIC.m) setIcLoad(() => { if (SC.el) scanPaintList(); });      // symboles des extensions : à la première édition posée
   return scanRekey(it, scanId(it.key, it.l, it.e));
 }
@@ -105,9 +110,9 @@ function scanEdNeed(it) {
   }));
 }
 /** Décision pour un exemplaire qui arrive (scanAdd) : tout de suite si les impressions de la carte sont déjà lues, sinon « en lecture ». */
-function scanEdNew(key, name, l, maybe) {
-  const pr = SC.pr.get(scanPk(key, l)), d = scanEdDecide({ key, name, l, maybe, q: 1 }, pr);
-  if (d.solo && d.e) scanStick(edSet(d.e));
+function scanEdNew(key, name, l, maybe, ft) {
+  const pr = SC.pr.get(scanPk(key, l)), d = scanEdDecide({ key, name, l, maybe, q: 1, ft }, pr);
+  if ((d.solo || d.stick || d.es === 'read') && d.e) scanStick(edSet(d.e));
   if (d.e && !SETIC.m) setIcLoad(() => { if (SC.el) scanPaintList(); });
   return d;
 }
@@ -140,8 +145,8 @@ function scanEdLater(it) { it.later = true; scanPaintList(); }
 /** Symbole de l'édition d'une ligne du scan (à gauche de la quantité) : symbole seul ; « à choisir » : rond orangé ; en lecture : rond qui tourne. */
 function scanEdBtn(it) {
   if (it.es === 'off' && !it.e) return '<span class="sc-ed-off" aria-hidden="true"></span>';      // réglage « Sans édition »
-  const e = it.e || '', set = edSet(e), sn = e ? (it.pk && it.pk.sn) || setName(set) || '' : '', auto = e && (it.es === 'auto' || it.es === 'solo'), nm = scanShown(it);
-  const lab = e ? T('Édition : {ed}', { ed: [sn, edLabel(e)].filter(Boolean).join(' · ') }) + (auto ? ' · ' + T('posée d\'office') : '')
+  const e = it.e || '', set = edSet(e), sn = e ? (it.pk && it.pk.sn) || setName(set) || '' : '', auto = e && (it.es === 'auto' || it.es === 'solo' || it.es === 'read'), nm = scanShown(it);
+  const lab = e ? T('Édition : {ed}', { ed: [sn, edLabel(e)].filter(Boolean).join(' · ') }) + (it.es === 'read' && e ? ' · ' + T('lue sur la carte') : auto ? ' · ' + T('posée d\'office') : '')
     : it.es === 'load' ? T('Lecture des éditions…') : it.es === 'none' ? T('Aucune édition trouvée') : it.es === 'err' ? T('Éditions indisponibles : toucher pour réessayer') : T('Choisir l\'édition de {name}', { name: nm });
   const cls = e ? ' on' + (auto ? ' auto' : '') : it.es === 'load' ? ' load' : it.nx || it.es === 'none' ? '' : ' todo';
   return `<button type="button" class="row-ed sc-ed${cls}" data-a="ed" aria-label="${esc(lab)}" title="${esc(lab)}">${e ? setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>` : ''}</button>`;

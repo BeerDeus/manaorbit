@@ -1201,7 +1201,7 @@ async function detectProxy(ms = 5000) {
   if (typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) return;
   try {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
-    const r = await fetch('__ping', { signal: ctrl.signal }); clearTimeout(t);
+    const r = await fetch('__ping', { cache: 'no-store', signal: ctrl.signal }); clearTimeout(t);      // jamais en cache : la version du serveur décide de la mise à jour (pwa.js)
     if (!r.ok) return; const j = await r.json();
     if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); }
   } catch (e) { /* pas de proxy */ }
