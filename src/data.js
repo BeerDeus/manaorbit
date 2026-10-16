@@ -506,13 +506,10 @@ async function getExpansions(signal) {
   return { byCode, byName };
 }
 
-async function getBlueprints(expId, signal) {
-  let list = await Cache.get('ct:bp:' + expId, 7 * DAY);
-  if (!list) {
-    const j = await ct('blueprints/export', { params: { expansion_id: expId }, signal });
-    list = (Array.isArray(j) ? j : []).map(b => ({ id: b.id, name: b.name, sid: b.scryfall_id || null }));
-    await Cache.set('ct:bp:' + expId, list);
-  }
+/** Numéro de collection comparable (« 0128 » = « 128 », casse ignorée) ; '' : inconnu. */
+const bpNum = v => String(v ?? '').trim().toLowerCase().replace(/^0+(?=[0-9a-z])/, '');
+/** Index d'un catalogue d'extension CardTrader : par identifiant Scryfall et par nom (plusieurs blueprints du même nom : variantes, sans bordure, vitrine…). */
+function bpIndexOf(list) {
   const byScry = new Map(), byName = new Map();
   for (const b of list) {
     if (b.sid) byScry.set(b.sid, b);
@@ -520,18 +517,40 @@ async function getBlueprints(expId, signal) {
     if (!byName.has(f)) byName.set(f, []);
     byName.get(f).push(b);
   }
-  return { byScry, byName };
+  return { byScry, byName, list };
+}
+async function getBlueprints(expId, signal) {
+  let list = await Cache.get('ct:bp2:' + expId, 7 * DAY);      // v2 : numéro de collection et image CardTrader de chaque blueprint
+  if (!list) {
+    const j = await ct('blueprints/export', { params: { expansion_id: expId }, signal });
+    list = (Array.isArray(j) ? j : []).map(b => ({ id: b.id, name: b.name, sid: b.scryfall_id || null, num: bpNum(b.fixed_properties && b.fixed_properties.collector_number),
+      im: typeof b.image_url === 'string' && /^https:\/\//.test(b.image_url) ? b.image_url : '' }));
+    await Cache.set('ct:bp2:' + expId, list);
+  }
+  return bpIndexOf(list);
 }
 
+/**
+ * Blueprints CardTrader de la carte, chacun avec l'impression Scryfall qui lui correspond (extension, numéro, image, prix de référence).
+ * Identifiant Scryfall donné par CardTrader (et numéro concordant) : cette impression. Sinon le nom ET le numéro de collection : sans le numéro, la variante
+ * sans bordure (418) prenait l'étiquette et l'image de l'impression normale (128) du même nom, et l'inverse. Blueprint du nom restant sans impression
+ * (numéro propre à CardTrader) : gardé avec son numéro et l'image de CardTrader, pour que ses offres soient lues quand même.
+ */
 function mapBlueprints(card, prints, exps, bpIndex) {
-  const out = new Map(); const front = frontName(card.name);
+  const out = new Map(), front = frontName(card.name), sets = new Map();
+  const add = (b, p) => { if (!out.has(b.id)) out.set(b.id, { id: b.id, set: p.set, setName: p.setName, num: p.num, img: p.img, eu: p.eu ?? null, ef: p.ef ?? null }); };
   for (const p of prints) {
     const eid = exps.byCode.get(p.set) || exps.byName.get(normPart(p.setName));
     const idx = eid && bpIndex.get(eid); if (!idx) continue;
-    const direct = idx.byScry.get(p.id);
-    const hits = direct ? [direct] : (idx.byName.get(front) || []);
-    for (const b of hits) if (!out.has(b.id)) out.set(b.id, { id: b.id, set: p.set, setName: p.setName, num: p.num, img: p.img, eu: p.eu ?? null, ef: p.ef ?? null });
+    if (!sets.has(idx)) sets.set(idx, p);
+    const direct = idx.byScry.get(p.id), pn = bpNum(p.num);
+    if (direct && (!direct.num || !pn || direct.num === pn)) { add(direct, p); continue; }
+    const named = idx.byName.get(front) || [];
+    const same = pn ? named.filter(b => b.num === pn) : [];
+    if (same.length) { for (const b of same) add(b, p); continue; }
+    if (named.length && named.every(b => !b.num)) for (const b of named) add(b, p);      // catalogue sans numéros : le nom seul, comme avant
   }
+  for (const [idx, p] of sets) for (const b of idx.byName.get(front) || []) if (!out.has(b.id) && b.num) out.set(b.id, { id: b.id, set: p.set, setName: p.setName, num: b.num, img: b.im || null, eu: null, ef: null });
   return [...out.values()];
 }
 
@@ -936,3 +955,4 @@ async function cartFill(parts, mode, address, signal, onItem, demo) {
   }
   return { ok, failed, replaced, gone, added };
 }
+if (typeof module !== 'undefined' && module.exports) module.exports = { ...(module.exports || {}), bpNum, bpIndexOf, mapBlueprints };
