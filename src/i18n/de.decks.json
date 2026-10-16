@@ -62,7 +62,7 @@
   "Historique des prix": "Preisverlauf",
   "{n} relevés · de {min} à {max}": "{n} Preisabfragen · von {min} bis {max}",
   "Aucun relevé. Lance une recherche avec ce deck chargé, en mode live : le prix est enregistré à chaque fois.": "Noch keine Preisabfragen. Starte mit diesem Deck eine Live-Suche: Der Preis wird jedes Mal gespeichert.",
-  "Modifier les cartes (éditeur)": "Karten bearbeiten (Editor)",
+  "Modifier les cartes": "Karten bearbeiten",
   "Dupliquer ce deck": "Deck duplizieren",
   "Ajouter ses cartes à ma collection": "Seine Karten zu meiner Sammlung hinzufügen",
   "Supprimer": "Löschen",

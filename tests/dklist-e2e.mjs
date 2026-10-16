@@ -78,7 +78,7 @@ await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.queryS
 ok('carte de présentation : choisie (ligne « // Deck Deal cover » dans le texte, sans changer l\'ordre), image mise à jour, « Automatique »');
 
 /* ── 4) l'éditeur garde la carte choisie ────────────────────────────────────────────────── */
-await p.click('.deck[data-id="d1"] .deck-more'); await p.waitForSelector('#dkEdit'); await p.click('#dkEdit'); await p.waitForSelector('.bd.on');
+await p.click('.deck[data-id="d1"] [data-act="open"]'); await p.waitForSelector('.dv.on [data-act="builder"]'); await p.click('.dv.on [data-act="builder"]'); await p.waitForSelector('.bd.on');
 await p.waitForSelector('.bd-row[data-k="mountain"]'); await p.click('.bd-row[data-k="mountain"][data-t="main"] [data-d="1"]'); await p.waitForTimeout(150);
 await p.click('#bdSave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
 assert.match(await p.evaluate(() => findDeck('d1').text), /^\/\/ Deck Deal : standard\n\/\/ Deck Deal cover : Wrath of God\nDeck\n4 Sol Ring\n10 Swamp\n13 Mountain\n/, 'carte choisie gardée après modification dans l\'éditeur');

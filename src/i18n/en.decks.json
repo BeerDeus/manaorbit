@@ -62,7 +62,7 @@
   "Historique des prix": "Price history",
   "{n} relevés · de {min} à {max}": "{n} price checks · from {min} to {max}",
   "Aucun relevé. Lance une recherche avec ce deck chargé, en mode live : le prix est enregistré à chaque fois.": "No price checks yet. Run a live search with this deck loaded: the price is recorded every time.",
-  "Modifier les cartes (éditeur)": "Edit cards (editor)",
+  "Modifier les cartes": "Edit cards",
   "Dupliquer ce deck": "Duplicate this deck",
   "Ajouter ses cartes à ma collection": "Add its cards to my collection",
   "Supprimer": "Delete",

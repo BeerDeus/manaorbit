@@ -90,7 +90,7 @@ assert.deepEqual(bn.eng, { 'arcane signet': 2, 'swords to plowshares': 1 }, 'ré
 ok('Standard : 4 max (réserve comprise), réserve facultative, engagée ailleurs signalée, confirmation avant de quitter, SB: enregistré');
 
 /* ── C) Modifier un deck existant ─────────────────────────────────────────────────────────── */
-await p.click('.deck:has-text("Vampires Boros") [data-act="more"]'); await p.waitForSelector('#dkEdit'); await p.click('#dkEdit'); await p.waitForSelector('.bd.on');
+await p.click('.deck:has-text("Vampires Boros") [data-act="open"]'); await p.waitForSelector('.dv.on [data-act="builder"]'); await p.click('.dv.on [data-act="builder"]'); await p.waitForSelector('.bd.on');
 assert.equal(await txt(p, '#bdTitle'), 'Vampires Boros v1'); assert.match(await txt(p, '#bdSub'), /Commander · 8\/100/);
 assert.equal(await qty(p, 'edgar markov', 'cmdr'), 1); assert.equal(await qty(p, 'forest', 'main'), 3);
 await step(p, 'forest', 'main', -1); await step(p, 'forest', 'main', -1); await step(p, 'forest', 'main', -1); assert.match(await txt(p, '#bdSub'), /5\/100/);
@@ -113,7 +113,7 @@ ok('modifier un deck : l\'éditeur relit le texte, retire à 0, met à jour sans
   assert.equal(await p.evaluate(() => engIsOn(allDecks().find(d => d.name === 'Burn').id)), true);
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
   // image en grand depuis l'éditeur
-  await p.click('.deck:has-text("Vampires") [data-act="more"]'); await p.waitForSelector('#dkEdit'); await p.click('#dkEdit'); await p.waitForSelector('.bd.on');
+  await p.click('.deck:has-text("Vampires") [data-act="open"]'); await p.waitForSelector('.dv.on [data-act="builder"]'); await p.click('.dv.on [data-act="builder"]'); await p.waitForSelector('.bd.on');
   await p.waitForSelector('.bd-row[data-k="craterhoof behemoth"] .thumb img.ok', { timeout: 10000 });
   assert.match(await txt(p, '#bdSum'), /≈ \d/, 'valeur estimée dans le résumé de l\'éditeur');
   await p.click('.bd-row[data-k="craterhoof behemoth"] .thumb'); await p.waitForSelector('.imgv', { timeout: 4000 });

@@ -341,7 +341,6 @@ function openDeckSheet(id) {
       <div class="sec-title">${T('Historique des prix')}</div>
       ${series.length >= 2 ? chartSvg(series, Math.max(220, (api.body.clientWidth || 376) - 36)) + `<div class="chart-cap"><span>${esc(dateShort(same[0].at))}</span><span>${T('{n} relevés · de {min} à {max}', { n: series.length, min: esc(fmt(Math.min(...series))), max: esc(fmt(Math.max(...series))) })}</span><span>${esc(dateShort(lastE.at))}</span></div>` : ''}
       ${rows ? `<div class="hist">${rows}</div>` : '<p class="hint">' + T('Aucun relevé. Lance une recherche avec ce deck chargé, en mode live : le prix est enregistré à chaque fois.') + '</p>'}
-      <button class="link-btn link-inline" type="button" id="dkEdit">${T('Modifier les cartes (éditeur)')}</button>
       <button class="link-btn link-inline" type="button" id="dkDup">${T('Dupliquer ce deck')}</button>
       <button class="link-btn link-inline" type="button" id="dkOwn">${T('Ajouter ses cartes à ma collection')}</button>`;
     api.setFoot(`<button class="btn ghost-danger" type="button" id="dkDel">${T('Supprimer')}</button><button class="btn" type="button" id="dkOpen">${T('Ouvrir')}</button>`);
@@ -374,7 +373,6 @@ function openDeckSheet(id) {
       toast(TN(n, '{n} carte ajoutée à ta collection (terrains de base exclus)', '{n} cartes ajoutées à ta collection (terrains de base exclus)'), { label: T('Annuler'), fn: () => { COLL.map = before; collChanged(); } });
       collEnrich();
     };
-    $('#dkEdit', api.body).onclick = () => { api.close(); setTimeout(() => openBuilder({ id }), 200); };
     $('#dkDup', api.body).onclick = () => {
       const cur = findDeck(id) || d, nid = newIdFor();
       putDeck(nid, deckDoc({ ...cur, name: (cur.name + ' ' + T('(copie)')).slice(0, 120), history: [], createdAt: Date.now() }));

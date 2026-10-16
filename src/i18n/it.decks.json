@@ -62,7 +62,7 @@
   "Historique des prix": "Storico dei prezzi",
   "{n} relevés · de {min} à {max}": "{n} rilevazioni · da {min} a {max}",
   "Aucun relevé. Lance une recherche avec ce deck chargé, en mode live : le prix est enregistré à chaque fois.": "Nessuna rilevazione. Avvia una ricerca con questo mazzo caricato, in modalità live: il prezzo viene salvato ogni volta.",
-  "Modifier les cartes (éditeur)": "Modifica le carte (editor)",
+  "Modifier les cartes": "Modifica carte",
   "Dupliquer ce deck": "Duplica questo mazzo",
   "Ajouter ses cartes à ma collection": "Aggiungi le sue carte alla mia collezione",
   "Supprimer": "Elimina",
