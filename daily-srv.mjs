@@ -428,8 +428,8 @@ export function dailyMake(o = {}) {
         if (!rec.card) { rec.card = await draw(rec.day); await saveSoon(rec, true); log.log(`Carte mystère du ${rec.day} tirée (${rec.card.tries} essai${rec.card.tries > 1 ? 's' : ''}${Object.values(rec.card.l).some(x => x.fb) ? ', repli anglais pour ' + DLY_LANGS.filter(l => rec.card.l[l].fb).join(', ') : ''}).`); }
         await build(rec);
         if (rec.st !== 'ready') { rec.st = 'ready'; rec.at = rec.at || now(); }
-        await saveSoon(rec, true); G.prep.delete(rec.day); return true;
-      } catch (e) { log.warn(`Carte mystère du ${rec.day} : ${e && e.message || e} (nouvel essai dans ${Math.round(RETRY / 60e3)} min)`); job.fail = now(); setTimeout(() => { if (G.prep.get(rec.day) === job) G.prep.delete(rec.day); }, RETRY).unref?.(); return false; }
+        await saveSoon(rec, true); G.prep.delete(rec.day); G.prepErr = null; return true;
+      } catch (e) { G.prepErr = { day: rec.day, at: now(), m: String(e && e.message || e).slice(0, 300) }; log.warn(`Carte mystère du ${rec.day} : ${e && e.message || e} (nouvel essai dans ${Math.round(RETRY / 60e3)} min)`); job.fail = now(); setTimeout(() => { if (G.prep.get(rec.day) === job) G.prep.delete(rec.day); }, RETRY).unref?.(); return false; }
     })();
     return job.p;
   }
@@ -834,6 +834,7 @@ export function dailyMake(o = {}) {
     const c = rec.card;
     return { day: rec.day, no: dlyNo(rec.day), st: rec.st, next: C.nextOf(rec.day), plays: Object.keys(rec.plays).length, done: Object.values(rec.plays).filter(finished).length, fb: c ? DLY_LANGS.filter(l => c.l[l] && c.l[l].fb) : [],
       card: c ? { en: c.en, set: c.sn, fr: (c.l.fr || {}).n || '' } : null, rows: await adminList(rec), hidden: G.hidden.size, chk: await adminChk(rec), sus: adminSus(), minAge: Math.round(MIN_AGE / DAY),
+      prep: rec.st === 'ready' ? null : { since: (G.prep.get(rec.day) || {}).at || 0, err: G.prepErr && G.prepErr.day === rec.day ? G.prepErr : null },      // carte pas encore prête : depuis quand, dernière erreur
       reports: [...G.rep].filter(([, r]) => r.by.length).map(([t, r]) => ({ id: admId(t), n: r.n || dlyFall(t), k: r.by.length, at: r.at, hid: G.hidden.has(t) })).sort((a, b) => b.at - a.at).slice(0, 200), repHide: REP_HIDE };
   }
   async function admin(req, res, sub, url) {

@@ -350,6 +350,7 @@
     };
     const c = d.card;
     box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Carte mystère'), h('small', null, 'n° ' + d.no + ' · ' + d.day + ' · ' + nf(d.done) + ' terminée' + (d.done > 1 ? 's' : '') + ' sur ' + nf(d.plays) + ' · ' + nf(d.hidden) + ' masqué' + (d.hidden > 1 ? 's' : ''))),
+      d.prep ? h('p', { class: 'note' }, 'Carte du jour en préparation' + (d.prep.since ? ' depuis ' + D_TIME.format(d.prep.since) : '') + (d.prep.err ? ' · dernier échec ' + D_TIME.format(d.prep.err.at) + ' : ' + d.prep.err.m + ' (nouvel essai toutes les 5 min)' : ' (tirage et images : une à deux minutes)')) : null,
       c ? h('details', { class: 'scd' }, h('summary', null, 'Réponse du jour'), h('p', null, c.en + (c.fr && c.fr !== c.en ? ' (' + c.fr + ')' : '') + (c.set ? ' · ' + c.set : '') + (d.fb && d.fb.length ? ' · image anglaise pour : ' + d.fb.join(', ') : ''))) : h('p', { class: 'note' }, d.st === 'ready' ? '' : 'Carte du jour en préparation.'),
       h('p', { class: 'hint' }, 'Joueurs des 7 derniers jours et classement des niveaux. « Masquer » remplace un pseudo par « Pseudo masqué » dans tous les classements ; le score reste. Classement public : comptes de plus de ' + (d.minAge || 0) + ' jours, Google ou adresse vérifiée.'), q, list,
       ...dyChecks(d));
