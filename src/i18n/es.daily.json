@@ -43,7 +43,6 @@
 "Place {r} sur {n}": "Puesto {r} de {n}",
 "Partie non classée": "Partida no clasificatoria",
 "Connecte-toi pour être classé demain : jour, semaine et saison.": "Inicia sesión para entrar en la clasificación mañana: día, semana y temporada.",
-"Ton pseudo du classement : Compte et réglages › Modifier le profil.": "Tu nombre en la clasificación: Cuenta y ajustes › Editar el perfil.",
 "Classements": "Clasificaciones",
 "Période": "Periodo",
 "Jour": "Día",
@@ -91,5 +90,11 @@
 "Signaler ce pseudo ?": "¿Denunciar este apodo?",
 "Pseudo insultant, haineux, à caractère sexuel ou qui se fait passer pour quelqu'un ? Nous le vérifions ; signalé par plusieurs personnes, il est masqué en attendant.": "¿Apodo insultante, de odio, sexual o que suplanta a alguien? Lo revisamos; si varias personas lo denuncian, se oculta mientras tanto.",
 "Signaler": "Denunciar",
-"Merci, c'est signalé.": "Gracias, ha sido denunciado."
+"Merci, c'est signalé.": "Gracias, ha sido denunciado.",
+"Ton pseudo dans les classements": "Tu apodo en las clasificaciones",
+"Visible par tous dans les classements. Modifiable dans Compte et réglages.": "Visible para todos en las clasificaciones. Puedes cambiarlo en Cuenta y ajustes.",
+"Pseudo": "Apodo",
+"Choisir mon pseudo": "Elegir mi apodo",
+"Enregistrer": "Guardar",
+"Pseudo enregistré.": "Apodo guardado."
 }

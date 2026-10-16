@@ -43,7 +43,6 @@
 "Place {r} sur {n}": "Posto {r} su {n}",
 "Partie non classée": "Partita non in classifica",
 "Connecte-toi pour être classé demain : jour, semaine et saison.": "Accedi per entrare in classifica domani: giorno, settimana e stagione.",
-"Ton pseudo du classement : Compte et réglages › Modifier le profil.": "Il tuo nome in classifica: Account e impostazioni › Modifica profilo.",
 "Classements": "Classifiche",
 "Période": "Periodo",
 "Jour": "Giorno",
@@ -91,5 +90,11 @@
 "Signaler ce pseudo ?": "Segnalare questo nickname?",
 "Pseudo insultant, haineux, à caractère sexuel ou qui se fait passer pour quelqu'un ? Nous le vérifions ; signalé par plusieurs personnes, il est masqué en attendant.": "Nickname offensivo, d'odio, a sfondo sessuale o che si spaccia per qualcuno? Lo verifichiamo; se lo segnalano più persone, viene nascosto nel frattempo.",
 "Signaler": "Segnala",
-"Merci, c'est signalé.": "Grazie, segnalazione inviata."
+"Merci, c'est signalé.": "Grazie, segnalazione inviata.",
+"Ton pseudo dans les classements": "Il tuo nickname nelle classifiche",
+"Visible par tous dans les classements. Modifiable dans Compte et réglages.": "Visibile a tutti nelle classifiche. Modificabile in Account e impostazioni.",
+"Pseudo": "Nickname",
+"Choisir mon pseudo": "Scegli il mio nickname",
+"Enregistrer": "Salva",
+"Pseudo enregistré.": "Nickname salvato."
 }

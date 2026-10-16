@@ -556,6 +556,24 @@ test('signaler un pseudo : une fois par personne (compte ou appareil), pas le si
   await h.D.flush(); await h.stop();
 });
 
+test('pseudo changé dans le profil (POST /api/daily/name) : partie du jour, jours précédents et niveaux le suivent ; compte exigé, pseudo vide refusé', async () => {
+  const S = await startDailyScry({ cards: [SERRA, { ...SERRA, num: '18' }] }), dir = newDir();
+  let h = await harness({ dir, scry: S, at: Date.UTC(2026, 9, 15, 17) }); await h.ready();
+  let s = (await h.call('POST', 'api/daily/start', { tok: 'tok:max', body: { l: 'en', n: '' } })).j; await h.call('POST', 'api/daily/guess', { tok: 'tok:max', body: { k: s.k, n: 'Serra Angel' } });
+  await h.D.flush(); await h.stop();
+  h = await harness({ dir, scry: S, at: Date.UTC(2026, 9, 16, 17) }); await h.ready();
+  s = (await h.call('POST', 'api/daily/start', { tok: 'tok:max', body: { l: 'en', n: '' } })).j; await h.call('POST', 'api/daily/guess', { tok: 'tok:max', body: { k: s.k, n: 'Serra Angel' } });
+  await h.call('POST', 'api/level', { tok: 'tok:max', body: { xp: 900 } });
+  assert.match((await h.call('GET', 'api/daily/board?p=day')).j.rows[0].n, /^Joueur /, 'sans pseudo : « Joueur XXXX »');
+  assert.equal((await h.call('POST', 'api/daily/name', { body: { n: 'Max' } })).status, 401, 'compte exigé');
+  assert.equal((await h.call('POST', 'api/daily/name', { tok: 'tok:max', body: { n: '  <> ' } })).j.error, 'name', 'pseudo vide refusé (le filtre de mots du serveur aussi : proxy.mjs › pubBad)');
+  assert.deepEqual((await h.call('POST', 'api/daily/name', { tok: 'tok:max', body: { n: '  Max  ' } })).j, { ok: true, n: 'Max' });
+  assert.equal((await h.call('GET', 'api/daily/board?p=day')).j.rows[0].n, 'Max', 'jour');
+  const wk = (await h.call('GET', 'api/daily/board?p=season')).j; assert.deepEqual(wk.rows.map(r => [r.n, r.d]), [['Max', 2]], 'saison : les deux jours sous le nouveau pseudo');
+  assert.equal((await h.call('GET', 'api/level/board')).j.rows[0].n, 'Max', 'niveaux');
+  await h.D.flush(); await h.stop(); S.stop();
+});
+
 test('classement des niveaux : premier envoi borné à 50 000 XP, puis 20 000 XP par jour au plus (cumulables sur 7 jours), jamais en baisse ; top 100, ma place, pseudo masqué', async () => {
   const dir = newDir(), h = await harness({ dir }); await h.ready();
   const lvOf = require('../src/progress.js').prgLevel, post = (tok, xp, n) => h.call('POST', 'api/level', { tok, body: { xp, ...(n ? { n } : {}) } }).then(r => r.j);

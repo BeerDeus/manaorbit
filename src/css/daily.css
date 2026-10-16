@@ -136,3 +136,6 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .dly-empty{padding:18px;text-align:center;color:var(--ink-3)}
 @media (max-width:359px){.dly-res{grid-template-columns:1fr}.dly-card{max-width:220px;margin:0 auto}.dly-mask{font-size:19px}.dly-time{font-size:18px}.dly-pts{min-width:0}}
 @media (prefers-reduced-motion:reduce){.dly-cn.go,.dly-shake{animation:none}.dly-bar i{transition:none}}
+.dly-nick{display:flex;flex-direction:column;gap:6px;margin:14px 0 4px;font-size:13px;font-weight:650;color:var(--ink-2)}      /* pseudo des classements (Participer, Choisir mon pseudo) */
+.dly-nick input{height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:16px;font-weight:600}
+.dly-nickb{display:block;margin:10px auto 0}

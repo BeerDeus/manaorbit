@@ -2461,6 +2461,15 @@ function admRefresh() {
   return ADM.run;
 }
 /** État du serveur, relu à chaque appel (mémoire seulement : rien à lire ailleurs). */
+/** Dossier des données (EDH_DATA_DIR) gardé d'un démarrage à l'autre ? Repère .data/boot.json : date de sa création et nombre de démarrages. Un dossier
+ *  recréé à chaque déploiement (parties, classements, testeurs, signalements perdus) se voit au panneau : « créé à ce démarrage » après un redéploiement. */
+const DATA_BOOT = { first: 0, boots: 0, err: '' };
+(async () => {
+  const f = join(EDH_DIR, 'boot.json');
+  try { const j = JSON.parse(await readFile(f, 'utf8')); DATA_BOOT.first = Number(j.first) || 0; DATA_BOOT.boots = Number(j.boots) || 0; } catch (e) { /* premier démarrage avec ce dossier */ }
+  if (!DATA_BOOT.first) DATA_BOOT.first = Date.now(); DATA_BOOT.boots++;
+  try { await mkdir(EDH_DIR, { recursive: true }); await writeFile(f, JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: Date.now() })); } catch (e) { DATA_BOOT.err = String(e && e.code || e); }
+})();
 async function admServer() {
   const troc = { wait: 0, live: 0, done: 0, all: TROC.s.size }; for (const s of TROC.s.values()) if (s.st in troc) troc[s.st]++;
   const partie = { wait: 0, live: 0, done: 0, all: PT.s.size }; for (const r of PT.s.values()) if (r.st in partie) partie[r.st]++;
@@ -2469,7 +2478,8 @@ async function admServer() {
     flags: { token: !!TOKEN, login: AUTH_FB, key: !!APP_KEY, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, names: NM_ON, ads: !!ADMOB_BANNER, scans: SR_ON }, off: OFF,
     prices: { on: !!PX_SRC, at: PX_ST.at, cards: PX_ST.cards, check: PX_ST.check, err: PX_ST.err }, edh: { on: !!EDH_SRC, at: EDH_ST.at, decks: EDH_ST.decks, cmds: EDH_ST.cmds, from: EDH_ST.from, check: EDH_ST.check, err: EDH_ST.err },
     troc, partie, jobs: { run, all: jobs.size }, alerts: { devices: AL.subs.size, last: Number(AL.last.at) || 0, hits: Number(AL.last.hits) || 0 },
-    pub: { n: PUB.n, hid: PUB.hid, at: PUB.at, err: PUB.err ? 'erreur' : '' }, amis: { cache: AMI.cache.size, due: AMI.due.size } };
+    pub: { n: PUB.n, hid: PUB.hid, at: PUB.at, err: PUB.err ? 'erreur' : '' }, amis: { cache: AMI.cache.size, due: AMI.due.size },
+    data: { dir: EDH_DIR, env: !!process.env.EDH_DATA_DIR, first: DATA_BOOT.first, boots: DATA_BOOT.boots, err: DATA_BOOT.err } };
 }
 const admFold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 /** Réponse : instantané (âge), avis, totaux, état du serveur et une page de comptes (tri, recherche sur le nom réduit et l'e-mail masqué). */

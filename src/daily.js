@@ -132,6 +132,37 @@ async function dlyTap() {
   if (st && st.st === 'ready' && !dlyDone() && !(st.me && st.me.started)) return dlyAsk();
   dlyOpen();
 }
+/* ── Pseudo des classements : celui du profil (decks.js › PROF.name, jamais le nom Google) ─────────────────────── */
+const dlyNick = () => String(PROF.name || '').trim().slice(0, 24);
+/** Pseudo proposé : prénom et initiale du compte Google (« Martin S. »), que la personne voit et peut changer avant de jouer. */
+const dlyNickHint = () => { const p = String((D.user && D.user.displayName) || '').trim().split(/\s+/).filter(Boolean); return p.length ? (p[0] + (p[1] ? ' ' + p[1][0].toUpperCase() + '.' : '')).slice(0, 24) : ''; };
+const dlyNickField = () => `<label class="dly-nick"><span>${esc(T('Ton pseudo dans les classements'))}</span><input type="text" maxlength="24" autocomplete="nickname" spellcheck="false" value="${esc(dlyNickHint())}" placeholder="${esc(T('Pseudo'))}"></label><p class="hint">${esc(T('Visible par tous dans les classements. Modifiable dans Compte et réglages.'))}</p>`;
+/** Pseudo saisi : gardé dans le profil (compte), qui l'envoie au serveur (profchange → dlyNickSync). */
+function dlyNickTake(box) {
+  const i = box && box.querySelector('.dly-nick input'), v = i ? i.value.trim().slice(0, 24) : ''; if (!v || dlyNick()) return false;
+  try { profSave({ name: v }); } catch (e) { PROF.name = v; }      // hors ligne : au moins pour cette partie
+  return true;
+}
+/** Pseudo changé (profil, autre appareil) ou différent de celui du classement : le serveur suit (partie du jour, semaine, saison, niveaux). */
+let dlyNickT = 0;
+function dlyNickSync(force) {
+  clearTimeout(dlyNickT); if (!D.user || !dlyNick() || !dlyOn()) return Promise.resolve(false);
+  return new Promise(res => { dlyNickT = setTimeout(async () => { try { await dlyCall('/name', { method: 'POST', body: { n: dlyNick() } }); for (const k of Object.keys(DY.boards)) delete DY.boards[k]; res(true); } catch (e) { res(false); } }, force ? 0 : 800); });
+}
+if (typeof document !== 'undefined') document.addEventListener('profchange', () => { dlyNickSync(); });
+/** « Choisir mon pseudo » (classements, sans pseudo dans le profil). */
+function dlyNickAsk() {
+  haptic('tap');
+  openSheet(T('Choisir mon pseudo'), '', api => {
+    api.body.innerHTML = dlyNickField();
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${esc(T('Annuler'))}</button><button class="btn" type="button" data-ok>${esc(T('Enregistrer'))}</button>`);
+    const inp = api.body.querySelector('input'); setTimeout(() => { try { inp.focus(); inp.select(); } catch (e) { /* ignore */ } }, 250);
+    api.foot.querySelector('[data-ok]').onclick = async () => {
+      if (!dlyNickTake(api.body)) return; api.close(); haptic('ok');
+      await dlyNickSync(true); toast(T('Pseudo enregistré.')); if (DY.bp) dlyBoard(DY.bp);
+    };
+  });
+}
 /** Feuille « Participer à la Carte mystère du jour ? » : les règles, puis « C'est parti » (décompte 3-2-1, puis le chrono). */
 function dlyAsk() {
   openSheet(T('Participer à la Carte mystère du jour ?'), '', api => {
@@ -141,11 +172,11 @@ function dlyAsk() {
         <li><b>★</b>${esc(T('Le score baisse avec le temps : 1 000 points au départ, 7,5 de moins par seconde.'))}</li>
         <li><b>✗</b>${esc(T('6 essais ; une mauvaise proposition coûte 10 secondes.'))}</li>
         <li><b>1</b>${esc(T('Une seule partie classée par jour.'))}</li></ul>
-      ${!D.user ? `<div class="dly-note"><p>${esc(T('Sans compte, ta partie n\'est pas classée.'))}</p><button class="btn ghost small" type="button" data-dly="login">${esc(T('Se connecter'))}</button></div>` : ''}`;
+      ${!D.user ? `<div class="dly-note"><p>${esc(T('Sans compte, ta partie n\'est pas classée.'))}</p><button class="btn ghost small" type="button" data-dly="login">${esc(T('Se connecter'))}</button></div>` : !dlyNick() ? dlyNickField() : ''}`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${esc(T('Plus tard'))}</button><button class="btn" type="button" data-dly="go">${esc(T('C\'est parti'))}</button>`);
     api.wrap.addEventListener('click', e => {
       const b = e.target.closest('[data-dly]'); if (!b) return;
-      if (b.dataset.dly === 'go') { haptic('ok'); api.close(); dlyOpen({ go: true }); }
+      if (b.dataset.dly === 'go') { dlyNickTake(api.body); haptic('ok'); api.close(); dlyOpen({ go: true }); }
       else if (b.dataset.dly === 'login') { api.close(); openAccount(); }
     });
   });
@@ -370,6 +401,7 @@ function dlyClick(e) {
   if (a === 'play') { haptic('tap'); DY.el.__close(); return dlyTap(); }
   if (a === 'next') return dlyNext();
   if (a === 'rep') return dlyReport(b.dataset.id, b.dataset.n);
+  if (a === 'nick') return dlyNickAsk();
   if (a === 'quit') return dlyQuit(b);
   if (a === 'share') return dlyShare();
   if (a === 'card' && DY.v && DY.v.res && DY.v.res.card) return openCardViewer([{ key: ownKey(DY.v.res.card.en), name: DY.v.res.card.en, small: DY.v.res.card.img }], 0);
@@ -434,7 +466,7 @@ function dlyEnd() {
         <p class="dly-detail">${esc([TN(r.wrong, '{n} erreur', '{n} erreurs'), dlyTime(r.ms)].join(' · '))}</p>
         <div class="dly-acts"><button class="btn small" type="button" data-dly="share"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg><span>${T('Partager')}</span></button>${!v.acct ? `<button class="btn ghost small" type="button" data-dly="login">${T('Se connecter')}</button>` : ''}</div>
       </div></section>
-    ${v.why === 'age' ? dlyNoteHtml(v) : !v.acct ? `<p class="hint dly-pitch">${T('Connecte-toi pour être classé demain : jour, semaine et saison.')}</p>` : v.ranked && !String(PROF.name || '').trim() ? `<p class="hint dly-pitch">${T('Ton pseudo du classement : Compte et réglages › Modifier le profil.')}</p>` : ''}
+    ${v.why === 'age' ? dlyNoteHtml(v) : !v.acct ? `<p class="hint dly-pitch">${T('Connecte-toi pour être classé demain : jour, semaine et saison.')}</p>` : ''}
     ${DY.st && DY.st.prev ? `<p class="hint dly-prev">${esc(T('Carte d\'hier : {n}', { n: DY.st.prev.name }))}</p>` : ''}
     ${dlyBoardsHtml()}
     <p class="dly-cd"></p>`;
@@ -469,6 +501,7 @@ async function dlyBoard(p) {
   try {
     if (p === 'level') await dlyLevelPush();      // ma dernière XP d'abord (le serveur la plafonne)
     const j = p === 'level' ? await dlyCall('/board', { base: 'api/level' }) : await dlyCall('/board?p=' + p);
+    if (j.me && !j.me.x && D.user && dlyNick() && j.me.n !== dlyNick() && !DY.nickTried) { DY.nickTried = true; if (await dlyNickSync(true)) return dlyBoard(p); }      // pseudo du profil arrivé après la partie : le classement le reprend
     DY.boards[p] = j; if (DY.el === el && DY.bp === p) dlyBoardPaint(box, j);
   } catch (e) { if (DY.el === el && DY.bp === p && !DY.boards[p]) box.innerHTML = `<p class="dly-msg">${esc(dlyErrText(e))}</p>`; }
 }
@@ -478,9 +511,9 @@ function dlyBoardPaint(box, j) {
   const rep = x => (x.me || x.x || !x.id ? '' : `<button type="button" class="dly-rep" data-dly="rep" data-id="${esc(x.id)}" data-n="${esc(x.n)}" aria-label="${esc(T('Signaler le pseudo {n}', { n: x.n }))}" title="${esc(T('Signaler ce pseudo'))}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 14V2.5M4 3h7.5l-1.6 2.8L11.5 8.6H4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`);      // signaler un pseudo (Google Play : contenu des utilisateurs)
   const row = x => `<li class="dly-row${x.me ? ' me' : ''}"><span class="dly-r">${nf0(x.r)}</span><span class="dly-n">${x.x ? `<em>${T('Pseudo masqué')}</em>` : esc(x.n)}${x.me ? ` <small>${T('toi')}</small>` : ''}</span>`
     + (lv ? `<span class="dly-d">${esc(T('Niv. {n}', { n: x.lv }))}</span><b class="dly-s">${esc(T('{n} XP', { n: nf0(x.xp) }))}</b>` : `${x.d ? `<span class="dly-d">${esc(TN(x.d, '{n} jour', '{n} jours'))}</span>` : ''}<b class="dly-s">${nf0(x.s)}</b>`) + rep(x) + '</li>';
-  const meOut = j.me && j.me.r > j.rows.length;
+  const meOut = j.me && j.me.r > j.rows.length, nick = j.me && D.user && !dlyNick() ? `<button class="btn ghost small dly-nickb" type="button" data-dly="nick">${T('Choisir mon pseudo')}</button>` : '';
   box.innerHTML = `<p class="dly-when"><b>${esc(when)}</b> · ${esc(TN(j.total, '{n} joueur', '{n} joueurs'))}${lv ? '' : ' · ' + esc(T('jusqu\'au {d}', { d: fmt.format(new Date(j.to - 1000)) }))}</p>
-    ${j.rows.length ? `<ol class="dly-rows">${j.rows.map(row).join('')}</ol>${meOut ? `<ol class="dly-rows dly-meout">${row(j.me)}</ol>` : ''}` : `<p class="dly-empty">${lv ? T('Personne au classement des niveaux pour l\'instant.') : T('Personne n\'a encore trouvé : sois le premier !')}</p>`}
+    ${j.rows.length ? `<ol class="dly-rows">${j.rows.map(row).join('')}</ol>${meOut ? `<ol class="dly-rows dly-meout">${row(j.me)}</ol>` : ''}${nick}` : `<p class="dly-empty">${lv ? T('Personne au classement des niveaux pour l\'instant.') : T('Personne n\'a encore trouvé : sois le premier !')}</p>`}
     <p class="hint">${lv ? T('XP de « Niveau et badges », plafonnée chaque jour par le serveur.') : j.p === 'day' ? T('Top 100 du jour : un badge exclusif, compté à la fin de la journée.') : ''}</p>`;
 }
 /** « Signaler ce pseudo » : confirmation, puis le serveur compte (une fois par personne) ; plusieurs personnes : pseudo masqué en attendant la modération. */

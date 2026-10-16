@@ -397,6 +397,7 @@
         ...(v.off || []).map(x => h('span', { class: 'tag bad' }, x + ' coupé'))),
       h('dl', { class: 'kv' },
         kv('Version de la page', v.build || '—'), kv('En marche depuis', dur(v.up)), kv('Mémoire', nf(v.rss) + ' Mo · Node ' + v.node),
+        ...(v.data ? [kv('Données', v.data.dir + ' · ' + (v.data.err ? 'écriture impossible (' + v.data.err + ')' : v.data.boots <= 1 ? 'créées à ce démarrage : si ce n\'est pas le tout premier, le dossier est effacé à chaque déploiement (EDH_DATA_DIR vers un dossier hors de l\'appli)' : 'gardées depuis le ' + D_TIME.format(v.data.first) + ' · ' + nf(v.data.boots) + ' démarrages'), v.data.err || v.data.boots <= 1 ? 'bad' : null)] : []),
         kv('Prix', px.at ? 'relevé du ' + D_TIME.format(Date.parse(px.at)) + ' (' + ago(Date.parse(px.at)) + ') · ' + nf(px.cards) + ' cartes' : px.on ? 'pas encore relevés' : 'coupés', px.err ? 'bad' : null),
         ...(px.err ? kv('Prix : dernière erreur', px.err, 'bad') : []),
         kv('EDHREC', edh.at ? 'données du ' + String(edh.at).slice(0, 10) + ' · ' + nf(edh.decks) + ' decks · ' + nf(edh.cmds) + ' commandants (' + edh.from + ')' : '—', edh.err ? 'bad' : null),

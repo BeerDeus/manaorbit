@@ -43,7 +43,6 @@
 "Place {r} sur {n}": "Rank {r} of {n}",
 "Partie non classée": "Unranked game",
 "Connecte-toi pour être classé demain : jour, semaine et saison.": "Sign in to be ranked tomorrow: day, week and season.",
-"Ton pseudo du classement : Compte et réglages › Modifier le profil.": "Your leaderboard name: Account and settings › Edit profile.",
 "Classements": "Leaderboards",
 "Période": "Period",
 "Jour": "Day",
@@ -91,5 +90,11 @@
 "Signaler ce pseudo ?": "Report this nickname?",
 "Pseudo insultant, haineux, à caractère sexuel ou qui se fait passer pour quelqu'un ? Nous le vérifions ; signalé par plusieurs personnes, il est masqué en attendant.": "Insulting, hateful or sexual nickname, or one impersonating someone? We'll check it; if several people report it, it is hidden in the meantime.",
 "Signaler": "Report",
-"Merci, c'est signalé.": "Thanks, it has been reported."
+"Merci, c'est signalé.": "Thanks, it has been reported.",
+"Ton pseudo dans les classements": "Your nickname in the leaderboards",
+"Visible par tous dans les classements. Modifiable dans Compte et réglages.": "Visible to everyone in the leaderboards. You can change it in Account & settings.",
+"Pseudo": "Nickname",
+"Choisir mon pseudo": "Choose my nickname",
+"Enregistrer": "Save",
+"Pseudo enregistré.": "Nickname saved."
 }

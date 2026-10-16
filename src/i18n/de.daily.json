@@ -43,7 +43,6 @@
 "Place {r} sur {n}": "Platz {r} von {n}",
 "Partie non classée": "Nicht gewertetes Spiel",
 "Connecte-toi pour être classé demain : jour, semaine et saison.": "Melde dich an, um morgen gewertet zu werden: Tag, Woche und Saison.",
-"Ton pseudo du classement : Compte et réglages › Modifier le profil.": "Dein Name in der Rangliste: Konto und Einstellungen › Profil bearbeiten.",
 "Classements": "Ranglisten",
 "Période": "Zeitraum",
 "Jour": "Tag",
@@ -91,5 +90,11 @@
 "Signaler ce pseudo ?": "Diesen Spitznamen melden?",
 "Pseudo insultant, haineux, à caractère sexuel ou qui se fait passer pour quelqu'un ? Nous le vérifions ; signalé par plusieurs personnes, il est masqué en attendant.": "Beleidigender, hasserfüllter oder sexueller Spitzname oder einer, der sich als jemand anderes ausgibt? Wir prüfen ihn; melden ihn mehrere Personen, wird er bis dahin ausgeblendet.",
 "Signaler": "Melden",
-"Merci, c'est signalé.": "Danke, die Meldung ist eingegangen."
+"Merci, c'est signalé.": "Danke, die Meldung ist eingegangen.",
+"Ton pseudo dans les classements": "Dein Spitzname in den Ranglisten",
+"Visible par tous dans les classements. Modifiable dans Compte et réglages.": "Für alle in den Ranglisten sichtbar. Änderbar unter Konto und Einstellungen.",
+"Pseudo": "Spitzname",
+"Choisir mon pseudo": "Meinen Spitznamen wählen",
+"Enregistrer": "Speichern",
+"Pseudo enregistré.": "Spitzname gespeichert."
 }

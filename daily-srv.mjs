@@ -288,7 +288,7 @@ export function dlyPrintOk(c, lang) {
 /* ── Le jeu (routes /api/daily…) ────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const dlyJson = (res, status, obj, extra = {}) => { const b = JSON.stringify(obj); res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...extra }); res.end(b); };
 const dlyBody = (req, max) => new Promise((ok, ko) => { const c = []; let n = 0; req.on('data', d => { n += d.length; if (n > max) { req.pause(); ko(Object.assign(new Error('too large'), { status: 413 })); } else c.push(d); }); req.on('end', () => ok(Buffer.concat(c))); req.on('error', ko); });
-const KEY_RE = /^[\w-]{24}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DLY_ROUTES = ['start', 'go', 'play', 'next', 'guess', 'giveup', 'img', 'board', 'badges', 'report'];
+const KEY_RE = /^[\w-]{24}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DLY_ROUTES = ['start', 'go', 'play', 'next', 'guess', 'giveup', 'img', 'board', 'badges', 'report', 'name'];
 const DLY_NOSTAT = { played: 0, won: 0, stage1: 0, points: 0, top100: 0, podium: 0, first: 0, cur: 0, best: 0, last: '', at: {}, h: [] };
 export const dlyTag = uid => createHash('sha256').update(String(uid)).digest('hex');      // même empreinte que les amis (amTag)
 /** Pseudo du classement : nom du profil, sans caractère de contrôle ni chevron, 24 caractères ; refusé par le filtre de mots : vide. */
@@ -691,6 +691,17 @@ export function dailyMake(o = {}) {
       const im = G.imgs.get(x.rec.day), b = im && (im[x.play.l] || im.en); if (!b) return json(res, 503, { error: 'wait' }, { 'Retry-After': '10' });
       res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=86400', 'Content-Length': b[s - 1].length, 'X-Content-Type-Options': 'nosniff' });
       return res.end(req.method === 'HEAD' ? undefined : b[s - 1]);
+    }
+    if (req.method === 'POST' && sub === 'name') {      // pseudo choisi ou changé dans le profil : la partie du jour, la semaine, la saison et les niveaux le suivent
+      const b = await body(req, res); if (!b) return;
+      const u = await who(req, res, true); if (!u) return;
+      const n = dlyName(b.n, o.bad); if (!n) return json(res, 400, { error: 'name', message: 'Pseudo refusé.' });
+      const p = rec.plays[u.tag]; if (p && p.n !== n) { p.n = n; rec.v++; saveSoon(rec); }
+      const st = G.stats.p[u.tag]; if (st && st.n !== n) { st.n = n; await statsSave(); }
+      const L = await lvLoad(); if (L.p[u.tag] && L.p[u.tag].n !== n) { L.p[u.tag].n = n; lvSoon(); }
+      for (let i = 1; i <= 35; i++) { const d = dlyAdd(rec.day, -i), r = await recLoad(d); if (r && r.plays[u.tag] && r.plays[u.tag].n !== n) { r.plays[u.tag].n = n; await saveSoon(r, true); G.sums.delete(d); } }      // semaine et saison : les jours précédents aussi
+      G.sums.delete(rec.day); G.board.clear();
+      return json(res, 200, { ok: true, n });
     }
     if (req.method === 'POST' && sub === 'report') {      // « Signaler ce pseudo » (classements du jeu et des niveaux)
       const b = await body(req, res); if (!b) return;
