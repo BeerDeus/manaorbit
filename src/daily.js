@@ -128,6 +128,7 @@ function dlyLaunch() { if (dlyOn()) setTimeout(() => dlyTap(), 700); }
 /** Bouton de la Carte mystère : « Participer ? » si la partie du jour n'a pas commencé ; sinon la partie en cours, ou le résultat et les classements. */
 async function dlyTap() {
   if (!dlyOn()) return; haptic('tap');
+  if (!D.user) return dlyLoginAsk();      // compte obligatoire pour jouer
   const st = DY.st || await dlyStatus(true);
   if (st && st.st === 'ready' && !dlyDone() && !(st.me && st.me.started)) return dlyAsk();
   dlyOpen();
@@ -163,6 +164,14 @@ function dlyNickAsk() {
     };
   });
 }
+/** Sans compte : « Connecte-toi pour jouer » (les classements restent ouverts à tous). */
+function dlyLoginAsk() {
+  openSheet(T('Carte mystère'), '', api => {
+    api.body.innerHTML = `<p>${esc(T('Connecte-toi pour jouer : une carte par jour, la même pour tous, et les classements du jour, de la semaine et de la saison.'))}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${esc(T('Plus tard'))}</button><button class="btn" type="button" data-ok>${esc(T('Se connecter'))}</button>`);
+    api.foot.querySelector('[data-ok]').onclick = () => { api.close(); if (DY.el) DY.el.__close(); openAccount(); };
+  });
+}
 /** Feuille « Participer à la Carte mystère du jour ? » : les règles, puis « C'est parti » (décompte 3-2-1, puis le chrono). */
 function dlyAsk() {
   openSheet(T('Participer à la Carte mystère du jour ?'), '', api => {
@@ -172,7 +181,7 @@ function dlyAsk() {
         <li><b>★</b>${esc(T('Le score baisse avec le temps : 1 000 points au départ, 7,5 de moins par seconde.'))}</li>
         <li><b>✗</b>${esc(T('6 essais ; une mauvaise proposition coûte 10 secondes.'))}</li>
         <li><b>1</b>${esc(T('Une seule partie classée par jour.'))}</li></ul>
-      ${!D.user ? `<div class="dly-note"><p>${esc(T('Sans compte, ta partie n\'est pas classée.'))}</p><button class="btn ghost small" type="button" data-dly="login">${esc(T('Se connecter'))}</button></div>` : !dlyNick() ? dlyNickField() : ''}`;
+      ${!dlyNick() ? dlyNickField() : ''}`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${esc(T('Plus tard'))}</button><button class="btn" type="button" data-dly="go">${esc(T('C\'est parti'))}</button>`);
     api.wrap.addEventListener('click', e => {
       const b = e.target.closest('[data-dly]'); if (!b) return;
@@ -188,6 +197,7 @@ function dlyRanks(tab) { if (!dlyOn()) return; if (DY.el) DY.el.__close(); if (t
 function dlyClose() { if (DY.el) DY.el.__close(); }
 async function dlyOpen(o = {}) {
   if (!dlyOn() || DY.el) return;
+  if (!o.boards && !D.user) return dlyLoginAsk();
   const wrap = document.createElement('div'); wrap.className = 'dv dly' + (o.boards ? '' : ' dly-play'); wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', o.boards ? T('Classements') : T('Carte mystère'));
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-dly="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button>
       <span class="dly-hic" aria-hidden="true">${o.boards ? DY_PODIUM : DY_ICON}</span><div class="dv-title"><b>${o.boards ? T('Classements') : T('Carte mystère')}</b><span class="dly-sub"></span></div></header>

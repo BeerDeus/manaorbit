@@ -3,7 +3,7 @@
 // Compte connecté (appli Android simulée) : « Participer ? », décompte, partie classée trouvée à l'étape 1, bandeau AdMob caché pendant le décompte et la partie,
 // revenu au résultat ; classements jour, semaine, saison, niveaux (XP envoyée, plafonnée par le serveur), podium de la barre du haut, lien « Classement » de la
 // fiche « Niveau et badges », dailyBadges(). Puis un second compte sur le même appareil : partie d'entraînement, non classée ; abandon sans la réponse.
-// Sans compte (français) : les deux icônes à côté du logo (orbites, pulsation ; voyant fixe si animations réduites), « Participer ? », décompte 3-2-1, chrono,
+// Sans compte : jouer demande de se connecter. Compte récent (français) : les deux icônes à côté du logo (orbites, pulsation ; voyant fixe si animations réduites), « Participer ? », décompte 3-2-1, chrono,
 // étape 2 dévoilée toute seule à 12 s (image de l'étape 2 refusée avant), « Indice suivant » jusqu'à l'étape 8 (pixels, illustration, type, texte, nom par la
 // fin), recherche « ange » en français seulement, mauvaise proposition (+10 s), trouvée, score du serveur au temps, partage sans la réponse, coche sur le bouton.
 // Anti-triche : ni nom, ni extension, ni adresse Scryfall avant la fin. Captures : DAILY_SHOTS=<dossier>.
@@ -61,8 +61,9 @@ const stepIs = (p, n, timeout = 8000) => p.waitForFunction(t => { const e = docu
 async function next(p, n) { await p.click('.dly [data-dly="next"]:not([disabled])'); await stepIs(p, n); }
 const imgOk = (p, sel) => p.waitForFunction(s => { const f = document.querySelector(s); const i = f && f.querySelector('img'); return f && f.classList.contains('ok') && i.naturalWidth > 0; }, sel, { timeout: 8000 });
 /** « Participer ? » → « C'est parti » → décompte → chrono (étape 1, image chargée). shots : captures de la feuille et du décompte. */
-async function join_(p, shots) {
+async function join_(p, shots, nick) {
   await p.click('#btnDaily'); await p.waitForSelector('.dly-ask.open [data-dly="go"]');
+  if (nick) { assert.ok(await p.$('.dly-ask .dly-nick input'), 'sans pseudo dans le profil : demandé avant de jouer'); await p.fill('.dly-ask .dly-nick input', nick); }
   assert.match(await p.$eval('.dly-ask', e => e.textContent), /Participer à la Carte mystère du jour \?/);
   assert.deepEqual(await p.$$eval('.dly-ask .dly-rules li', l => l.map(x => x.textContent.slice(1))), ['10 indices, un nouveau toutes les 12 secondes.', 'Le score baisse avec le temps : 1 000 points au départ, 7,5 de moins par seconde.', '6 essais ; une mauvaise proposition coûte 10 secondes.', 'Une seule partie classée par jour.']);
   assert.equal(await p.$('.dly'), null, 'rien ne commence avant « C\'est parti »');
@@ -168,7 +169,7 @@ for (const [uid, n, xp] of [['uid-zed', 'Zed', 49000], ['uid-max', 'Max', 1200]]
   ok('compte connecté (appli Android simulée) : « Participer ? », décompte, trouvée à l\'étape 1, score au temps, bandeau AdMob caché pendant la partie et revenu au résultat ; classements jour, semaine, saison et niveaux (XP envoyée), podium, lien de « Niveau et badges », dailyBadges() ; second compte sur le même appareil : entraînement non classé, abandon sans la réponse');
 }
 
-{ // 3) sans compte, en français : la partie entière, chronométrée
+{ // 3) sans compte : classements visibles, jouer demande de se connecter ; puis un compte récent, en français : la partie entière, chronométrée
   const { p, ctx, errs, bodies, cards } = await page();
   await p.waitForSelector('#btnDaily[data-new="1"]', { timeout: 20000 });
   const pos = await p.evaluate(() => { const b = document.getElementById('btnDaily').getBoundingClientRect(), r = document.getElementById('btnRanks').getBoundingClientRect(), w = document.querySelector('.bar .brand .word').getBoundingClientRect(); return { gap: b.left - w.right, gap2: r.left - b.right, mid: Math.abs((b.top + b.bottom) / 2 - (w.top + w.bottom) / 2), w: b.width, w2: r.width }; });
@@ -185,9 +186,16 @@ for (const [uid, n, xp] of [['uid-zed', 'Zed', 49000], ['uid-max', 'Max', 1200]]
   await p.click('#btnRanks'); await p.waitForSelector('.dly.on .dly-play-cta');
   assert.match(await p.$eval('.dly-main', e => e.textContent), /Connecte-toi pour apparaître au classement\./);
   await p.click('.dly-play-cta'); await p.waitForFunction(() => !document.querySelector('.dly'));
-  await p.waitForSelector('.dly-ask.open [data-dly="go"]'); await p.click('.dly-ask .sheet-foot [data-close]'); await p.waitForFunction(() => !document.querySelector('.dly-ask'), null, { timeout: 3000 });
-  await join_(p, true);
-  assert.match(await p.$eval('.dly-note', e => e.textContent), /Sans compte, ta partie n'est pas classée/);
+  await p.waitForFunction(() => sheets.length && /Connecte-toi pour jouer/.test(sheets[sheets.length - 1].wrap.textContent), null, { timeout: 5000 });
+  assert.equal(await p.$('.dly-ask'), null, 'sans compte : pas de « Participer ? »'); await shot(p, 'daily-2a-connexion-obligatoire');
+  await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await p.waitForTimeout(300);
+  await p.click('#btnDaily'); await p.waitForFunction(() => sheets.length && /Connecte-toi pour jouer/.test(sheets[sheets.length - 1].wrap.textContent), null, { timeout: 5000 });
+  await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await p.waitForTimeout(300);
+  const st0 = await p.evaluate(async () => { const r = await fetch('api/daily/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); return [r.status, (await r.json()).error]; });
+  assert.deepEqual(st0, [401, 'auth_required'], 'serveur : compte obligatoire pour jouer');
+  await p.evaluate(tok => { window.__idTok = tok; }, F.jwt('uid-leo')); await signInFake(p, { uid: 'uid-leo', email: 'uid-leo@test.dev' }); await p.waitForTimeout(400);
+  await join_(p, true, 'Léo');
+  assert.equal(await p.evaluate(() => DY.v.acct), true, 'partie du compte');
   assert.equal(await p.$eval('.dly-art img', i => i.naturalWidth), 480, 'étape 1 : gros plan fabriqué par le serveur');
   assert.equal(await p.$('.dly-art[data-zoom]'), null, 'étape 1 : pas de dézoom (rien avant)');
   const k = await p.evaluate(() => DY.v.k);
@@ -241,21 +249,22 @@ for (const [uid, n, xp] of [['uid-zed', 'Zed', 49000], ['uid-max', 'Max', 1200]]
   const res = await p.evaluate(() => DY.v.res);
   assert.ok(res.ms >= 7 * 12e3 + 10e3, 'temps : 7 étapes passées et la pénalité : ' + res.ms); assert.equal(res.s, dlyScore(res.ms));
   assert.equal(Number((await p.$eval('.dly-score b', e => e.textContent)).replace(/\D/g, '')), res.s);
-  assert.match(await p.$eval('.dly-place', e => e.textContent), /Partie non classée/);
+  assert.match(await p.$eval('.dly-place', e => e.textContent), /Place 2 sur 2/, 'compte : classé (Ana devant)');
   assert.equal(await p.$eval('.dly-card img', i => i.getAttribute('src')), 'https://cards.scryfall.io/large/front/x/tst-17-fr.jpg', 'la carte entière, dans la langue, à la fin seulement');
-  await p.waitForSelector('.dly-bd .dly-rows'); assert.equal(await p.$('.dly-bd .dly-row.me'), null, 'partie sans compte : jamais classée');
+  await p.waitForSelector('.dly-bd .dly-rows'); assert.match(await p.$eval('.dly-bd .dly-row.me', e => e.textContent), /Léo/, 'pseudo choisi avant de jouer, au classement');
   assert.deepEqual(await p.evaluate(() => [document.querySelector('.dly-foot').hidden, document.getElementById('toast').classList.contains('on')]), [true, false], 'résultat : plus de recherche ni de « Non, ce n\'est pas … »');
   await p.waitForTimeout(300); await shot(p, 'daily-8-resultat');
   await p.click('.dly [data-dly="share"]'); await p.waitForFunction(() => window.__shared.length === 1);
   const txt = await p.evaluate(() => window.__shared[0]);
-  assert.match(txt, /^Carte mystère n° \d+ · Mana Orbit\n🟨🟨🟨🟨🟨🟨🟨🟩⬜⬜ ❌\n\d+ points, trouvée en \d:\d\d\nhttp:\/\/127\.0\.0\.1:19710\/\?mystere$/, 'résultat façon Wordle : ' + txt);
+  assert.match(txt, /^Carte mystère n° \d+ · Mana Orbit\n🟨🟨🟨🟨🟨🟨🟨🟩⬜⬜ ❌\n\d+ points, trouvée en \d:\d\d\nPlace 2 sur 2\nhttp:\/\/127\.0\.0\.1:19710\/\?mystere$/, 'résultat façon Wordle : ' + txt);
   assert.doesNotMatch(txt, /serra|ange de|angel/i, 'jamais la réponse');
   await p.click('.dly [data-dly="close"]'); await p.waitForFunction(() => !document.querySelector('.dly'));
   assert.equal(await p.$eval('#btnDaily', b => b.dataset.new + b.dataset.done), '01', 'jouée : plus de voyant');
   assert.deepEqual(await p.evaluate(() => { const b = document.getElementById('btnDaily'); return [getComputedStyle(b).animationName, getComputedStyle(b.querySelector('.dly-orb')).display, getComputedStyle(b.querySelector('.dly-done')).display]; }), ['none', 'none', 'grid'], 'jouée : calme, petite coche');
   assert.match(await p.$eval('#btnDaily', b => b.getAttribute('aria-label')), /classements/);
   await p.waitForTimeout(300); await shot(p, 'daily-12-accueil-jouee', { x: 0, y: 0, width: 390, height: 110 });
-  await p.reload(); await p.waitForSelector('#btnDaily[data-done="1"]', { timeout: 15000 });
+  await p.reload(); await p.evaluate(tok => { window.__idTok = tok; }, F.jwt('uid-leo')); await signInFake(p, { uid: 'uid-leo', email: 'uid-leo@test.dev' });
+  await p.waitForSelector('#btnDaily[data-done="1"]', { timeout: 15000 });
   await p.click('#btnDaily'); await p.waitForSelector('.dly-res'); assert.ok(await p.$('.dly-boards #dlySeg'), 'une fois jouée : le résultat et les classements, sans « Participer ? »');
   assert.equal(await p.$('.dly-ask'), null);
   assert.deepEqual(errs, []);

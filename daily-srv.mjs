@@ -567,7 +567,7 @@ export function dailyMake(o = {}) {
   /** Compte (jeton Firebase) : { tag, uid, ver (Google ou adresse vérifiée) } ; pas de jeton : null (ou 401 si need) ; jeton refusé : réponse envoyée, false. */
   async function who(req, res, need) {
     const tok = String(req.headers['x-firebase-token'] || '');
-    if (!tok) { if (need) { json(res, 401, { error: 'auth_required', message: 'Connecte-toi pour voir tes badges.' }); return false; } return null; }
+    if (!tok) { if (need) { json(res, 401, { error: 'auth_required', message: typeof need === 'string' ? need : 'Connecte-toi pour voir tes badges.' }); return false; } return null; }
     if (isLocked(req)) { json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { 'Retry-After': '300' }); return false; }
     if (!o.verify) { json(res, 503, { error: 'auth_unavailable', message: 'Comptes indisponibles sur ce serveur.' }); return false; }
     let u;
@@ -728,9 +728,9 @@ export function dailyMake(o = {}) {
       return json(res, 200, view(x.rec, x.play, x.tag));
     }
     if (req.method !== 'POST' || !['start', 'go', 'next', 'guess', 'giveup'].includes(sub)) return json(res, 405, { error: 'method_not_allowed' });
-    const u = await who(req, res); if (u === false) return;
+    const u = await who(req, res, 'Connecte-toi pour jouer à la Carte mystère.'); if (!u) return;      // compte obligatoire pour jouer (16 octobre) ; les classements restent publics
     const b = await body(req, res); if (!b) return;
-    if (sub === 'start') {      // partie d'un compte (une par compte et par jour : la même est reprise) ou sans compte (pour le plaisir, en mémoire)
+    if (sub === 'start') {      // partie d'un compte : une par compte et par jour, la même est reprise
       if (rec.st !== 'ready' || !G.imgs.has(rec.day)) return waitRes(res, rec);
       const l = DLY_LANGS.includes(b.l) ? b.l : 'en', n = dlyName(b.n, o.bad), dh = dev ? devHash(dev) : '';
       if (u) {
@@ -755,13 +755,6 @@ export function dailyMake(o = {}) {
         } else if (n && n !== p.n) { p.n = n; rec.v++; saveSoon(rec); }      // pseudo changé depuis : le classement suit
         return json(res, 200, { ...view(rec, p, u.tag), ...devOut });
       }
-      const a = KEY_RE.test(String(b.k || '')) && G.anon.get(b.k);
-      if (a && a.day === rec.day) return json(res, 200, { ...view(rec, a, ''), ...devOut });
-      const ww = rateWait(req, 'dlyanon', 30, 3600e3); if (ww) return tooMany(res, ww);
-      if (G.anon.size >= ANON_MAX) G.anon.delete(G.anon.keys().next().value);
-      const t = now(), ip = ipOf(rec, req), p = { k: mkKey(), day: rec.day, n: '', l, c0: t, t0: 0, sh: 0, seen: 0, step: 1, wrong: [], st: 'play', s: 0, ms: 0, at: 0, ...(dh ? { dh } : {}), ...(ip ? { ip } : {}) };
-      G.anon.set(p.k, p);
-      return json(res, 200, { ...view(rec, p, ''), ...devOut });
     }
     const x = await playOf(b.k);
     if (!x || (x.tag && (!u || u.tag !== x.tag))) return json(res, 404, { error: 'not_found', message: 'Partie introuvable.' });      // partie d'un compte : seulement par ce compte

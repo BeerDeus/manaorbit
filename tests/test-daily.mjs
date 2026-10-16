@@ -234,7 +234,7 @@ test('tirage : 30 essais au plus, puis repli : même carte pour tous, image et n
   // rien de jouable : « wait », nouvel essai plus tard
   const S4 = await startDailyScry({ cards: [{ ...SERRA, miss: ['en'] }] }), h4 = await harness({ scry: S4 }); await h4.D.tick();
   const st = await h4.call('GET', 'api/daily'); assert.equal(st.j.st, 'wait');
-  assert.equal((await h4.call('POST', 'api/daily/start', { body: { l: 'fr' } })).status, 503);
+  assert.equal((await h4.call('POST', 'api/daily/start', { tok: 'tok:zoe', body: { l: 'fr' } })).status, 503);
   await h4.stop(); S4.stop();
 });
 
@@ -258,7 +258,7 @@ test('partie chronométrée : le serveur tient l\'horloge (départ à l\'image d
   const again = await h.call('POST', 'api/daily/start', { tok: 'tok:alice', body: { l: 'de', n: 'Alice' } });
   assert.equal(again.j.k, k, 'même partie reprise'); assert.equal(again.j.step, 2); assert.equal(again.j.t0, T0, 'l\'horloge continue');
   assert.equal((await h.call('POST', 'api/daily/next', { tok: 'tok:bob', body: { k } })).status, 404, 'la partie d\'un autre compte : introuvable');
-  assert.equal((await h.call('POST', 'api/daily/next', { body: { k } })).status, 404, 'sans le compte : introuvable');
+  assert.equal((await h.call('POST', 'api/daily/next', { body: { k } })).status, 401, 'sans compte : refusé'); assert.equal((await h.call('POST', 'api/daily/next', { tok: 'tok:intrus', body: { k } })).status, 404, 'autre compte : introuvable');
   assert.equal((await h.call('GET', 'api/daily/play?k=' + k)).status, 404, 'vue d\'une partie classée : son compte seulement');
   h.T.now = T0 + 15000;
   let v = (await h.call('POST', 'api/daily/next', { tok: 'tok:alice', body: { k } })).j;
@@ -295,12 +295,8 @@ test('partie chronométrée : le serveur tient l\'horloge (départ à l\'image d
   assert.equal((await h.call('GET', `api/daily/img?k=${b.k}&s=7`)).status, 200, 'trouvée : toutes les étapes visibles');
   const ab = (await h.call('POST', 'api/daily/start', { tok: 'tok:dany', body: { l: 'it' } })).j, gu = await h.call('POST', 'api/daily/giveup', { tok: 'tok:dany', body: { k: ab.k } });
   assert.deepEqual([gu.j.st, gu.j.res.s, gu.j.res.card], ['lost', 0, undefined], 'abandon : perdue, sans la réponse'); noLeak(gu.raw, SERRA, 'abandon');
-  // sans compte : partie pour le plaisir, reprise par sa clé, jamais classée
-  const a = (await h.call('POST', 'api/daily/start', { body: { l: 'fr', n: 'Anonyme' } })).j; assert.equal(a.ranked, false);
-  assert.equal((await h.call('POST', 'api/daily/start', { body: { l: 'fr', k: a.k } })).j.k, a.k, 'reprise par la clé');
-  await h.call('POST', 'api/daily/next', { body: { k: a.k } });
-  const aw = await h.call('POST', 'api/daily/guess', { body: { k: a.k, n: 'Serra Angel' } }); assert.equal(aw.j.res.s, 914); assert.equal(aw.j.res.r, undefined, 'pas de place');
-  const st = await h.call('GET', 'api/daily?k=' + a.k); assert.equal(st.j.me.st, 'win');
+  // sans compte : on ne joue pas (16 octobre), les classements restent publics
+  for (const r of ['start', 'next', 'guess', 'giveup']) { const x = await h.call('POST', 'api/daily/' + r, { body: { l: 'fr', k: ab.k, n: 'Serra Angel' } }); assert.deepEqual([x.status, x.j.error], [401, 'auth_required'], r + ' : compte obligatoire'); }
   const bd = await h.call('GET', 'api/daily/board?p=day', { tok: 'tok:alice' }), dany = 'Joueur ' + createHash('sha256').update('dany').digest('hex').slice(0, 4).toUpperCase();
   assert.deepEqual(bd.j.rows.map(r => [r.r, r.n, r.s]), [[1, 'Bob', 966], [2, 'Alice', 274], [3, dany, 0], [4, 'Carla', 0]], 'classement du jour (sans la partie sans compte), à égalité : le temps exact');
   assert.equal(bd.j.me.r, 2); assert.equal(bd.j.rows[1].me, 1); assert.ok(!JSON.stringify(bd.j).includes('tok:') && !/[0-9a-f]{64}/.test(bd.raw), 'ni compte ni empreinte');
@@ -435,7 +431,7 @@ test('src/daily.js : chaque texte visible a sa traduction (en.daily.json), clés
   for (const l of ['de', 'es', 'it', 'pt']) assert.deepEqual(Object.keys(JSON.parse(readFileSync(`src/i18n/${l}.daily.json`, 'utf8'))).sort(), Object.keys(en).sort(), l + ' : mêmes clés');
 });
 
-test('anti-triche : un appareil = un compte classé par jour (sinon entraînement), partie sans compte avancée sur l\'appareil, jeton d\'appareil falsifié', async () => {
+test('anti-triche : un appareil = un compte classé par jour (sinon entraînement), jeton d\'appareil falsifié', async () => {
   const h = await harness(); await h.ready();
   const st = await h.call('GET', 'api/daily'), D1 = st.j.dev; assert.ok(/^[\w-]{22}\.[\w-]{16}$/.test(D1), 'jeton d\'appareil signé');
   assert.equal((await h.call('GET', 'api/daily', { dev: D1 })).j.dev, undefined, 'jeton valable : pas renouvelé');
@@ -446,11 +442,6 @@ test('anti-triche : un appareil = un compte classé par jour (sinon entraînemen
   assert.equal((await h.call('POST', 'api/daily/start', { tok: 'tok:anna', dev: D1, body: { l: 'fr' } })).j.ranked, true, 'le premier compte de l\'appareil reste classé');
   const bb = Object.fromEntries((await h.call('GET', 'api/daily/badges', { tok: 'tok:boris' })).j.badges.map(x => [x.id, x.n])); assert.deepEqual([bb.played, bb.points, bb.stage1], [0, 0, 0], 'entraînement : aucun badge');
   assert.ok(!(await h.call('GET', 'api/daily/board?p=day')).j.rows.some(r => r.n === 'Boris'), 'entraînement : jamais au classement');
-  // sans compte d'abord : au-delà de l'étape 1, l'appareil a « vu » la carte
-  const D2 = (await h.call('GET', 'api/daily')).j.dev, an = (await h.call('POST', 'api/daily/start', { dev: D2, body: { l: 'fr' } })).j; await h.call('POST', 'api/daily/next', { dev: D2, body: { k: an.k } });
-  assert.equal((await h.call('POST', 'api/daily/start', { tok: 'tok:carl', dev: D2, body: { l: 'fr' } })).j.why, 'device', 'partie sans compte avancée sur cet appareil : le compte joue pour l\'entraînement');
-  const D3 = (await h.call('GET', 'api/daily')).j.dev; await h.call('POST', 'api/daily/start', { dev: D3, body: { l: 'fr' } });
-  assert.equal((await h.call('POST', 'api/daily/start', { tok: 'tok:dora', dev: D3, body: { l: 'fr' } })).j.ranked, true, 'sans compte resté à l\'étape 1 (« Se connecter » tout de suite) : classé');
   const fake = D1.slice(0, 23) + 'A'.repeat(16), f = await h.call('POST', 'api/daily/start', { tok: 'tok:eve', dev: fake, body: { l: 'fr' } });
   assert.ok(f.j.dev && f.j.dev !== fake, 'jeton falsifié : ignoré, un nouveau est remis'); assert.equal(f.j.ranked, true);
   await h.stop();
