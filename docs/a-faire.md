@@ -7,6 +7,7 @@
   - À voir : notification « nouvelle carte » (pas encore), fiche Play › Sécurité des données (pseudo et score publics dans les classements).
 - **Collection : filtre « Extension » et tri « Édition »** (tris « Coût » et « Decks EDHREC » retirés).
 - **1.0.5 en ligne** (15 octobre) : `APK_LATEST` = 6 par défaut dans `proxy.mjs` (les 1.0.4 voient « Mise à jour de l'appli »).
+- **CardTrader : demande de partenariat envoyée le 16 octobre** à staff@cardtrader.com (connexion « Connect with CardTrader » sans token, accès partenaire aux offres et prix avec quota plus haut, affiliation, mise en vente des doublons). Sans réponse au bout de 10 jours : relancer une fois, objet commençant par « Partnership ». Leurs conditions prévoient un accès API étendu sur simple demande.
 - Ensuite (plus tard) : ligues de groupe sur les parties vérifiées (2 comptes à la table), quêtes de la semaine, « la Bourse » (pronostics de prix, sans argent en jeu).
 
 ## Pour reprendre (nouvelle session)
