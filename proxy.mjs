@@ -896,7 +896,7 @@ async function verifyIdToken(tok, any = false) {
   if (c.exp <= now) throw authErr('expired');
   const email = typeof c.email === 'string' ? c.email.toLowerCase() : '', emailVerified = c.email_verified === true;
   if (!any && !(ALLOWED_UIDS.has(c.sub) || (email && emailVerified && ALLOWED_EMAILS.has(email)))) throw authErr('forbidden');
-  return { uid: c.sub, email, emailVerified };
+  return { uid: c.sub, email, emailVerified, provider: c.firebase && typeof c.firebase.sign_in_provider === 'string' ? c.firebase.sign_in_provider : '' };      // provider : google.com, password… (Carte mystère : classement des comptes Google ou vérifiés)
 }
 
 const safeEq = (a, b) => {
@@ -2508,6 +2508,7 @@ async function adminApi(req, res, path, url) {
   if (!(await admAuth(req, res))) return;
   const sub = path.replace(/^admin\/?/, '');
   if (sub === 'scans' || sub.startsWith('scans/')) return srAdmin(req, res, sub, url);      // scans signalés depuis l'appli
+  if (sub === 'daily' || sub.startsWith('daily/')) return DLY ? DLY.admin(req, res, sub, url) : json(res, 404, { error: 'not_found' }, ADM_HD);      // Carte mystère : joueurs des 7 derniers jours, pseudo masqué
   if (req.method === 'GET' && !sub) {
     if (!ADM.snap || Date.now() - ADM.snap.at > ADM_TTL) await admRefresh();      // trop ancien : recalculé (la page attend : c'est l'éditeur qui l'a demandé)
     return admSend(res, url);
@@ -2737,6 +2738,38 @@ async function srAdmin(req, res, sub, url) {
   return json(res, 200, { ok: true, ...(await srSummary()) }, ADM_HD);
 }
 
+/* ── Carte mystère : le jeu du jour (daily-srv.mjs) ────────────────────────────────────────────────────────────────────────────────────
+   Une carte par jour à DAILY_HOUR (18 h) heure de DAILY_TZ (Europe/Paris), la même pour tous ; images des étapes fabriquées ici, score et classements
+   vérifiés ici (README › « Carte mystère »). Jeton Firebase de n'importe quel compte pour jouer classé (sans compte : partie pour le plaisir, non classée).
+   Stockage : DAILY_DIR (défaut .data/daily). DAILY=0 coupe tout (404, /__ping daily: false : l'appli cache le bouton). */
+const DLY_ON = process.env.DAILY !== '0';
+let DLY = null;
+const DLY_ACCT = new Map();      // UID → { v: { created } | null, at } : date de création du compte Firebase, gardée 12 h
+/** Date de création d'un compte (Identity Toolkit, compte de service, comme le panneau /admin) ; sans compte de service ou en panne : null (le jeu prend alors la première fois qu'il a vu ce compte). */
+async function dlyAccount(uid) {
+  if (!fcmSa) return null;
+  const hit = DLY_ACCT.get(uid); if (hit && Date.now() - hit.at < 12 * 3600e3) return hit.v;
+  let v = null;
+  try { const j = await admFetch(`${IT_BASE}/v1/projects/${fcmSa.project}/accounts:lookup`, IT_SCOPE, { method: 'POST', body: JSON.stringify({ localId: [uid] }) }); const u = j && Array.isArray(j.users) ? j.users[0] : null; if (u) v = { created: Number(u.createdAt) || 0 }; }
+  catch (e) { return null; }      // panne : rien de gardé, nouvel essai à la partie suivante
+  if (DLY_ACCT.size > 5000) DLY_ACCT.clear();
+  DLY_ACCT.set(uid, { v, at: Date.now() }); return v;
+}
+if (DLY_ON) {
+  try {
+    const { dailyMake } = await import('./daily-srv.mjs');
+    let PG = null; try { PG = createRequire(import.meta.url)('./src/progress.js'); } catch (e) { /* courbe de daily-srv.mjs */ }
+    const scryHost = SCRY_UP === 'https://api.scryfall.com' ? [] : [new URL(SCRY_UP).origin + '/'];      // tests : images du faux Scryfall
+    DLY = dailyMake({ dir: process.env.DAILY_DIR || join(EDH_DIR, 'daily'), scry: SCRY_UP, imgHosts: ['https://cards.scryfall.io/', ...scryHost],
+      hour: Math.max(0, Math.min(23, Math.floor(Number(process.env.DAILY_HOUR ?? 18)))) || (Number.isFinite(Number(process.env.DAILY_HOUR)) ? 0 : 18), tz: String(process.env.DAILY_TZ || 'Europe/Paris').trim(), secret: String(process.env.DAILY_SECRET || '').trim(),
+      firstMs: process.env.DAILY_FIRST_MS === undefined ? 3000 : Number(process.env.DAILY_FIRST_MS), gapMs: process.env.DAILY_GAP_MS === undefined ? 110 : Number(process.env.DAILY_GAP_MS),
+      verify: tok => verifyIdToken(tok, true), bad: v => !!(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(v)), json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, adminHeaders: ADM_HD,
+      levelOf: PG && PG.prgLevel ? xp => PG.prgLevel(xp).lv : null, levelsFile: process.env.LEVELS_FILE || join(EDH_DIR, 'levels.json'), stepMs: Number(process.env.DAILY_STEP_MS) > 0 ? Number(process.env.DAILY_STEP_MS) : undefined,
+      levelDayCap: Number.isFinite(Number(process.env.LEVEL_DAY_CAP)) && process.env.LEVEL_DAY_CAP !== '' && process.env.LEVEL_DAY_CAP !== undefined ? Math.max(0, Number(process.env.LEVEL_DAY_CAP)) : 20000,
+      account: dlyAccount, net: req => netOf(ipOf(req)), minAgeDays: process.env.DAILY_MIN_AGE_DAYS === undefined || process.env.DAILY_MIN_AGE_DAYS === '' || !Number.isFinite(Number(process.env.DAILY_MIN_AGE_DAYS)) ? 7 : Math.max(0, Number(process.env.DAILY_MIN_AGE_DAYS)) });      // net : empreinte du réseau (HMAC salé du jour, dans daily-srv.mjs)
+  } catch (e) { console.warn('Carte mystère : module illisible (' + (e && e.message || e) + '), jeu coupé'); DLY = null; }
+}
+
 async function api(req, res, url) {
   const path = url.pathname.replace(/^\/api\//, '').replace(/\/+$/, '');
   // Serveur local sans compte : un POST d'une autre page (formulaire, text/plain : pas de pré-vérification CORS) ne doit rien déclencher.
@@ -2752,6 +2785,8 @@ async function api(req, res, url) {
   if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège
   if (path === 'partie' || path.startsWith('partie/')) return partieApi(req, res, path, url);      // partie de Commander : salle d'attente (jeton Firebase, ou invité sans compte), résultats des comptes
   if (path === 'admin' || path.startsWith('admin/')) return adminApi(req, res, path, url);      // panneau d'administration : compte de l'éditeur seulement
+  if (path === 'daily' || path.startsWith('daily/')) return DLY ? DLY.api(req, res, path, url) : json(res, 404, { error: 'not_found' });
+  if (path === 'level' || path.startsWith('level/')) return DLY ? DLY.level(req, res, path, url) : json(res, 404, { error: 'not_found' });      // classement des niveaux de compte : XP envoyée par l'appli, plafonnée par jour      // Carte mystère : jeton Firebase (classé) ou sans compte (pour le plaisir), clé de partie ensuite
   // CardTrader : avec le token de l'utilisateur (X-CT-Token), ou celui du serveur pour les comptes autorisés (ALLOWED_UIDS / APP_KEY).
   const ut = userTok(req);
   if (!ut && !(await authorize(req, res))) return;
@@ -2904,7 +2939,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/.well-known/assetlinks.json') return assetLinks(req, res);      // App Links de l'appli Android
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, scanrep: SR_ON, off: OFF, apk: APK_LATEST, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, scanrep: SR_ON, daily: !!DLY, off: OFF, apk: APK_LATEST, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte
@@ -2974,6 +3009,7 @@ server.listen(PORT, HOST, () => {
     setTimeout(purge, 20e3).unref(); setInterval(purge, 6 * 3600e3).unref();
     console.log(`Scans signalés : ${SR_MAX} au plus, ${Math.round(SR_BYTES / 1048576)} Mo, gardés ${Math.round(SR_TTL / 86400e3)} jours.`);
   }
+  if (DLY) { DLY.start(); console.log(`Carte mystère : nouvelle carte chaque jour à ${DLY.clock.hour} h (${DLY.clock.tz}).`); }
   if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
   if (ALERTS_ON) {

@@ -1207,7 +1207,7 @@ async function detectProxy(ms = 5000) {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
     const r = await fetch('__ping', { cache: 'no-store', signal: ctrl.signal }); clearTimeout(t);      // jamais en cache : la version du serveur décide de la mise à jour (pwa.js)
     if (!r.ok) return; const j = await r.json();
-    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
+    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.daily = j.daily === true; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
   } catch (e) { /* pas de proxy */ }
   modeLabel();
 }
@@ -1306,7 +1306,8 @@ function init() {
     }
   });
   initInstall();
-  detectProxy().then(() => { pushInit(); handleLaunch(); alSoon(); amSoon(2500); });      // amis : liste relue une fois le serveur connu (amUser l'a peut-être demandée trop tôt)
+  if (typeof dlyInit === 'function') dlyInit();      // Carte mystère (daily.js) : rien avant le serveur, et seulement sur le lien d'essai
+  detectProxy().then(() => { pushInit(); if (typeof dlyPing === 'function') dlyPing(); handleLaunch(); alSoon(); amSoon(2500); });      // amis : liste relue une fois le serveur connu (amUser l'a peut-être demandée trop tôt)
   // serveur injoignable au lancement : nouvel essai au retour du réseau ou de l'appli au premier plan (au plus toutes les 30 s)
   let pingAt = 0; const pingAgain = () => { if (CTX.proxy || document.hidden || Date.now() - pingAt < 30000) return; pingAt = Date.now(); detectProxy().then(() => { if (CTX.proxy) alSoon(); }); };
   window.addEventListener('online', pingAgain); document.addEventListener('visibilitychange', pingAgain);
@@ -1342,6 +1343,7 @@ function handleLaunch() {
   else if (q.has('troc') && typeof trocPushOpen === 'function') trocPushOpen('?' + q.toString());
   else if ((q.has('table') || q.has('partie')) && typeof puLaunch === 'function') puLaunch('?' + q.toString());
   else if (q.has('invite') && typeof puInvite === 'function') setTimeout(puInvite, 700);      // lien « Fais découvrir Mana Orbit » de la fin de partie (partie-ui.js)
+  else if (q.has('mystere') && typeof dlyLaunch === 'function') dlyLaunch();      // Carte mystère (résultat partagé) : seulement sur le lien d'essai (daily.js › dlyOn)
   else if (q.has('parties') && typeof puHist === 'function') setTimeout(puHist, 600);      // notification « Partie enregistrée » ouverte dans une nouvelle fenêtre      // partie de Commander : rejoindre une table, résultat scanné (partie-ui.js)      // échange en direct : QR code de l'hôte scanné, invitation touchée (troc.js)
   else if (shared) onShared(extractShared({ title: q.get('title'), text: q.get('text'), url: q.get('url') }));
   else if (q.has('collection')) setTimeout(() => openCollection(), 600);                  // lien direct vers la collection (?collection)

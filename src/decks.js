@@ -705,6 +705,7 @@ function onUser(user) {
   collUser(user); xsUser(user); trUser(user); mobUser(user); scsUser(user); if (prev !== D.uid) profUser(user); if (MO_TEST && typeof prgUser === 'function') prgUser(user);      // niveau et badges dans le compte : lien de test seulement (règles Firestore)
   amUser(user); if (typeof trocUser === 'function') trocUser(user);      // échange en direct : reprend après la connexion, ou quitte (autre compte)
   if (typeof partieUser === 'function') partieUser(user);      // parties de Commander en attente d'envoi pour ce compte
+  if (typeof dlyUser === 'function') dlyUser(user);      // Carte mystère : partie et badges du nouveau compte
   if (prev !== D.uid && typeof checkServer === 'function') { CTX.serverOk = null; checkServer(); }      // autre compte : a-t-il droit au token du serveur ?
   if (!user && prev) updateHeroDelta();
 }

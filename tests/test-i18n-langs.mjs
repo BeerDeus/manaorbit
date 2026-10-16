@@ -24,8 +24,8 @@ const EN = merged('en');
 // Game Changer, Tier…), mots identiques dans la langue. '*' : toutes les langues ; sinon la liste d'une langue. Un texte sans lettre ({a} → {b}, {n} %) passe toujours.
 const SAME = {
   '*': ['Mana Orbit', 'OK', 'Commander', 'cEDH', 'Archidekt', 'Game Changer', '{n} Game Changer', '{n} Game Changers', 'Planeswalkers', 'Deck', 'Decks', 'deck', '{n} deck', '{n} decks',
-    'Tier', 'Tier {t}', 'tier {t}', 'Premium', 'Budget', 'Widget', 'Auto', 'Cache', 'Vibration', 'web', 'Version {v}', 'non-foil', 'Foil', 'Format', 'Stats', 'Standard', 'QR code', '{n} proxy', '{n} min', '{h} h {m}', 'Top 100', 'Streamer', 'Playset', '{n} foil', '{n} foils', 'Madrid', 'Fan', 'Babel', 'Otaku'],
-  de: ['Berlin', 'Jackpot', 'Marathon', 'Profil', 'Liste', 'Mana', 'Decklist', 'Scan', 'Initiative', 'Partie', 'Cyborg', 'Arsenal', 'Shogun', 'Mentor'],
+    'Tier', 'Tier {t}', 'tier {t}', 'Premium', 'Budget', 'Widget', 'Auto', 'Cache', 'Vibration', 'web', 'Version {v}', 'non-foil', 'Foil', 'Format', 'Stats', 'Standard', 'QR code', '{n} proxy', '{n} min', '{h} h {m}', 'Top 100', 'Streamer', 'Playset', '{n} XP', '{n} foil', '{n} foils', 'Madrid', 'Fan', 'Babel', 'Otaku'],
+  de: ['Berlin', 'Jackpot', 'Marathon', 'Profil', 'Liste', 'Mana', 'Decklist', 'Scan', 'Initiative', 'Partie', 'Cyborg', 'Arsenal', 'Shogun', 'Mentor', 'Saison'],
   es: ['Niv. {n}', 'Rentable', 'de {name}', 'libre', 'Arsenal', 'Shogun', 'Mentor', 'Indestructible'],
   it: ['Taipei', 'Tokyo', '{n} PV', 'Mana', 'Test…', 'non foil', 'Multicolore', 'Incolore', 'incolore', 'Cyborg', 'Shogun'],
   pt: ['Moscou', 'Vitrine', 'bronze', 'de {name}', 'Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}', 'Arsenal', 'Mentor'],

@@ -12,6 +12,14 @@ if (!process.env.SCAN_REPORTS_DIR) {      // scans signalés (proxy.mjs) : dossi
   const d = mkdtempSync(join(tmpdir(), 'deckdeal-scanrep-')); process.env.SCAN_REPORTS_DIR = join(d, 'scan-reports');
   process.on('exit', () => { try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
 }
+// Carte mystère (daily-srv.mjs) : coupée par défaut sous les tests (le proxy tirerait sinon la carte du jour chez le vrai Scryfall), dossier temporaire ;
+// test-daily.mjs et daily-e2e.mjs l'allument (DAILY=1) avec leur faux Scryfall (daily-fakes.mjs). Classement des niveaux (LEVELS_FILE) : même dossier temporaire.
+if (process.env.DAILY === undefined) process.env.DAILY = '0';
+if (!process.env.DAILY_DIR) {
+  const d = mkdtempSync(join(tmpdir(), 'deckdeal-daily-')); process.env.DAILY_DIR = join(d, 'daily');
+  if (!process.env.LEVELS_FILE) process.env.LEVELS_FILE = join(d, 'levels.json');      // classement des niveaux : jamais le vrai .data/levels.json
+  process.on('exit', () => { try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
+}
 if (!process.env.PWA_DIR) {
   const dir = mkdtempSync(join(tmpdir(), 'deckdeal-pwa-'));
   for (const f of ['manifest.webmanifest', 'sw.js', 'privacy.html', 'legal.html', 'passer-de-manabox.html', 'admin.html', 'admin.js', 'admin.css', 'icons']) cpSync(join(root, 'pwa', f), join(dir, f), { recursive: true });

@@ -56,7 +56,7 @@
     for (const id of ['vLoad', 'vOut', 'vDeny', 'vErr', 'vMain']) $('#' + id).hidden = id !== v;
     $('#acts').hidden = v !== 'vMain';
     if (v === 'vErr') $('#errTxt').textContent = msg || 'Le serveur ne répond pas.';
-    if (v !== 'vMain') { data = null; for (const id of ['#kpis', '#chart', '#mix', '#ulist', '#pager', '#srv', '#notes', '#meta', '#scans']) $(id).replaceChildren(); $('#scans').hidden = true; sc.seen = -1; sc.gen++; }      // rien ne reste affiché d'une session admin précédente
+    if (v !== 'vMain') { data = null; for (const id of ['#kpis', '#chart', '#mix', '#ulist', '#pager', '#srv', '#notes', '#meta', '#scans', '#daily']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; }      // rien ne reste affiché d'une session admin précédente
   }
 
   async function boot() {
@@ -91,10 +91,10 @@
   const signOut = () => (fb ? fb.m.signOut(fb.auth).catch(() => {}) : Promise.resolve());
 
   /** Appel de l'API admin avec le jeton du compte ; jeton expiré : renouvelé, un seul essai. → { status, body } */
-  async function call(path, method) {
+  async function call(path, method, body) {
     for (let a = 0; a < 2; a++) {
       const tok = await user.getIdToken(a > 0);
-      const r = await fetch('/api/admin' + path, { method: method || 'GET', cache: 'no-store', headers: { 'x-firebase-token': tok, ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}) }, ...(method === 'POST' ? { body: '{}' } : {}) });
+      const r = await fetch('/api/admin' + path, { method: method || 'GET', cache: 'no-store', headers: { 'x-firebase-token': tok, ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}) }, ...(method === 'POST' ? { body: JSON.stringify(body || {}) } : {}) });
       const body = await r.json().catch(() => null);
       if (r.status === 401 && body && body.error === 'token_expired' && a === 0) continue;
       return { status: r.status, body };
@@ -131,6 +131,7 @@
     users(d.users);
     testers(d.testers);
     scans(d.scans);
+    daily();
     server(d.srv);
   }
   const kpi = (label, val, sub, k) => h('div', { class: 'kpi', 'data-k': k }, h('span', { class: 'l' }, label), h('b', null, val), sub ? h('small', null, sub) : null);
@@ -308,6 +309,62 @@
       toast('Signalement supprimé.');
     });
     return art;
+  }
+  /* Carte mystère (proxy.mjs › /api/admin/daily, daily-srv.mjs) : carte du jour (réponse repliée), joueurs des 7 derniers jours (et niveau de compte) ; « Masquer »
+     remplace un pseudo par « Pseudo masqué » dans tous les classements, jeu et niveaux (le score reste), « Rétablir » le rend. Anti-triche : parties « à vérifier »
+     (même réseau, juste après un autre joueur : hors du top 100 public) et comptes trop souvent trouvés à l'étape 1 (signalés seulement) ; « Valider » les remet.
+     Pseudos écrits en textContent seulement. */
+  const dy = { gen: 0, q: '', d: null };
+  const fold = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  async function daily() {
+    const g = ++dy.gen; let r; try { r = await call('/daily'); } catch (e) { r = null; }
+    if (g !== dy.gen) return;
+    const box = $('#daily');
+    if (r && r.status === 404) { box.hidden = true; return box.replaceChildren(); }      // DAILY=0 sur le serveur
+    box.hidden = false;
+    if (!r || r.status !== 200 || !r.body) return box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Carte mystère')), h('p', { class: 'note' }, (r && r.body && r.body.message) || 'Le serveur ne répond pas.'));
+    dy.d = r.body; dyPaint();
+  }
+  function dyPaint() {
+    const d = dy.d, box = $('#daily'), list = h('div', { class: 'dyl', id: 'dyList' }), q = h('input', { type: 'search', placeholder: 'Chercher un pseudo…', 'aria-label': 'Chercher un pseudo', autocomplete: 'off', spellcheck: 'false' });
+    q.value = dy.q; q.addEventListener('input', () => { dy.q = q.value.trim(); rows(); });
+    const rows = () => {
+      const l = d.rows.filter(r => !dy.q || fold(r.n).includes(fold(dy.q)));
+      list.replaceChildren(...(l.length ? l.slice(0, 200).map(r => {
+        const b = h('button', { class: 'btn ghost small', type: 'button' }, r.x ? 'Rétablir' : 'Masquer');
+        b.addEventListener('click', async () => {
+          b.disabled = true; let x; try { x = await call('/daily/hide', 'POST', { id: r.id, on: !r.x }); } catch (e) { x = null; }
+          if (!x || x.status !== 200 || !x.body) { b.disabled = false; return toast((x && x.body && x.body.message) || 'Modification impossible.'); }
+          d.rows = x.body.rows; d.hidden = x.body.hidden; toast(r.x ? 'Pseudo rétabli.' : 'Pseudo masqué dans les classements.'); dyPaint();
+        });
+        return h('div', { class: 'dyr' + (r.x ? ' off' : '') }, h('b', null, r.n), h('small', null, (r.d ? nf(r.s) + ' pts · ' + r.d + ' jour' + (r.d > 1 ? 's' : '') + (r.last ? ' · ' + r.last : '') : 'pas joué') + (r.lv ? ' · niv. ' + r.lv : '')), r.x ? h('span', { class: 'tag bad' }, 'masqué') : null, b);
+      }) : [h('p', { class: 'empty' }, dy.q ? 'Aucun pseudo ne correspond.' : 'Personne n\'a encore joué cette semaine.')]));
+    };
+    const c = d.card;
+    box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Carte mystère'), h('small', null, 'n° ' + d.no + ' · ' + d.day + ' · ' + nf(d.done) + ' terminée' + (d.done > 1 ? 's' : '') + ' sur ' + nf(d.plays) + ' · ' + nf(d.hidden) + ' masqué' + (d.hidden > 1 ? 's' : ''))),
+      c ? h('details', { class: 'scd' }, h('summary', null, 'Réponse du jour'), h('p', null, c.en + (c.fr && c.fr !== c.en ? ' (' + c.fr + ')' : '') + (c.set ? ' · ' + c.set : '') + (d.fb && d.fb.length ? ' · image anglaise pour : ' + d.fb.join(', ') : ''))) : h('p', { class: 'note' }, d.st === 'ready' ? '' : 'Carte du jour en préparation.'),
+      h('p', { class: 'hint' }, 'Joueurs des 7 derniers jours et classement des niveaux. « Masquer » remplace un pseudo par « Pseudo masqué » dans tous les classements ; le score reste. Classement public : comptes de plus de ' + (d.minAge || 0) + ' jours, Google ou adresse vérifiée.'), q, list,
+      ...dyChecks(d));
+    rows();
+  }
+  /** Parties « à vérifier » et comptes soupçonnés : « Valider » (POST /api/admin/daily/ok) remet la partie au classement, ou laisse le compte tranquille 7 parties. */
+  function dyChecks(d) {
+    const ok = (id, b, msg) => async () => {
+      b.disabled = true; let x; try { x = await call('/daily/ok', 'POST', { id }); } catch (e) { x = null; }
+      if (!x || x.status !== 200 || !x.body) { b.disabled = false; return toast((x && x.body && x.body.message) || 'Validation impossible.'); }
+      dy.d = x.body; toast(msg); dyPaint();
+    };
+    const btn = (id, msg) => { const b = h('button', { class: 'btn ghost small', type: 'button' }, 'Valider'); b.addEventListener('click', ok(id, b, msg)); return b; };
+    const mmss = ms => { const s = Math.round((ms || 0) / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+    const chk = d.chk || [], sus = d.sus || [];
+    return [h('h3', { class: 'dyh' }, 'À vérifier (' + nf(chk.length) + ')'),
+      h('p', { class: 'hint' }, 'Même réseau, trouvée juste après un autre joueur qui avait vu autant d\'indices : hors du top 100 public et de son badge, sans que le joueur le sache. « Valider » (même box, famille…) la remet au classement.'),
+      h('div', { class: 'dyl' }, ...(chk.length ? chk.map(r => h('div', { class: 'dyr' }, h('b', null, r.n), h('small', null, r.day + ' · ' + nf(r.s) + ' pts · étape ' + r.step + (r.ms ? ' en ' + mmss(r.ms) : '') + ' · ' + r.gap + ' s après ' + (r.by === 'win' ? 'une victoire' : 'l\'étape ' + r.other) + ' sur ce réseau'), h('span', { class: 'tag warn' }, 'à vérifier'), btn(r.id, 'Partie remise au classement.')))
+        : [h('p', { class: 'empty' }, 'Aucune partie à vérifier.')])),
+      h('h3', { class: 'dyh' }, 'Trop souvent à l\'étape 1 (' + nf(sus.length) + ')'),
+      h('p', { class: 'hint' }, 'Signalés seulement, jamais exclus. « Valider » : plus de signalement pendant ses 7 prochaines parties.'),
+      h('div', { class: 'dyl' }, ...(sus.length ? sus.map(r => h('div', { class: 'dyr' }, h('b', null, r.n), h('small', null, r.c + ' fois sur ses ' + r.of + ' dernières parties · ' + r.rate + ' % pour tous'), h('span', { class: 'tag warn' }, 'soupçon'), btn(r.id, 'Compte laissé tranquille.')))
+        : [h('p', { class: 'empty' }, 'Aucun compte signalé.')]))];
   }
   function server(v) {
     if (!v) return $('#srv').replaceChildren();

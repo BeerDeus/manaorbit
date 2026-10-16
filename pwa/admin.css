@@ -176,3 +176,12 @@ main{max-width:1240px;margin:0 auto;padding:14px 16px 48px}
   .ut td.who .av{display:none}
   .ut td.dt .v{font-weight:500}
 }
+
+/* Carte mystère : joueurs des 7 derniers jours, Masquer / Rétablir un pseudo */
+#daily input[type="search"]{width:100%;max-width:320px;height:40px;padding:0 12px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);margin:8px 0}
+.dyl{display:flex;flex-direction:column;gap:6px}
+.dyr{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border-radius:var(--r-sm);background:var(--surface-2)}
+.dyr b{flex:1;min-width:8em;overflow-wrap:anywhere}
+.dyr small{color:var(--ink-3)}
+.dyr.off b{color:var(--ink-3);text-decoration:line-through}
+.dyh{margin:18px 0 4px;font-size:15px}

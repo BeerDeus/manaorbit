@@ -27,7 +27,7 @@ function prgWrite() { try { localStorage.setItem(PRG_KEY, JSON.stringify({ c: pr
 function prgAdd(k, n = 1) { if (!(n > 0)) return; const c = prgC(); c[k] = (c[k] || 0) + n; prgChanged(); }
 /** Garde le plus grand des deux (record). */
 function prgMax(k, v) { const c = prgC(); if (!(v > (c[k] || 0))) return; c[k] = Math.round(v); prgChanged(); }
-function prgChanged() { PRG.u = Date.now(); prgWrite(); prgPushSoon(); prgSoon(); }
+function prgChanged() { PRG.u = Date.now(); prgWrite(); prgPushSoon(); prgSoon(); if (typeof dlyLevelSoon === 'function') dlyLevelSoon(); }      // XP au classement des niveaux (daily.js, lien de test)
 
 /* ── Événements (appelés par scan.js, partie-ui.js, troc.js, opening.js, app.js) ─────────────────────────────── */
 /** Cartes du scan ajoutées (lignes du scan : q, l, es, ambBy, pk) : cartes, langues, éditions lues, illustrations, homonymes, anciennes, plus chère, plus grosse session,
@@ -418,6 +418,7 @@ function prgSheet(focus) {
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-pin]'); if (!b) return; if (!prgShowToggle(b.dataset.pin)) { toast(T('3 badges au plus sur ta liste d\'échange')); return; } haptic('tap'); paint(); });
     const spot = () => { const el = focus && api.body.querySelector(`.prg-b[data-b="${focus}"]`); if (!el) return; el.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' }); el.classList.add('hl'); setTimeout(() => el.classList.remove('hl'), 2600); };
     paint(); if (focus) setTimeout(spot, 380);      // après l'ouverture de la fiche
+    if (typeof dlyOn === 'function' && dlyOn()) { api.setFoot(`<button class="btn ghost block" type="button" data-prg-rank>${esc(T('Classement'))}</button>`); api.foot.querySelector('[data-prg-rank]').onclick = () => { api.close(); dlyRanks('level'); }; }      // classement des niveaux (daily.js)
     prgDaily().then(() => { if (sheets.includes(api)) paint(); });
   });
 }

@@ -4,6 +4,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { routeFonts } from './fonts.mjs';
+import { startDailyScry } from './daily-fakes.mjs';
 export const { chromium } = createRequire(import.meta.url)('playwright-core');
 
 const user = { id: 1, username: 'seller_a', country_code: 'FR', can_sell_via_hub: true };
@@ -25,8 +26,9 @@ const edEur = i => (1 + i * 2.5).toFixed(2);
 const namesIn = q => [...String(q).matchAll(/!"(.+?)"/g)].map(m => m[1]);
 const front = n => String(n).split('//')[0].trim().toLowerCase();
 
-/** Démarre le faux CardTrader et le vrai proxy. opts : { port, env, bigCatalog } */
-export async function startWorld({ port = 18900, env = {}, bigCatalog = 0 } = {}) {
+/** Démarre le faux CardTrader et le vrai proxy. opts : { port, env, bigCatalog, daily } ; daily : Carte mystère allumée, avec un faux Scryfall côté serveur
+ *  (daily-fakes.mjs : impressions par langue, cartes PNG fabriquées ; daily = { cards, per, pngFail } ou true), world.dly : ce faux Scryfall (hits, pngs). */
+export async function startWorld({ port = 18900, env = {}, bigCatalog = 0, daily = null } = {}) {
   const prices = {}; CARDS.forEach(([, bp, , , , c]) => { if (c != null) prices[bp] = c; });
   const log = [];
   const prints = {}; CARDS.forEach(([n, , cmc, tl, mc, , colors, eur], i) => { prints[n] = [{ id: 's-' + slug(n), set: 'cmm', set_name: 'Commander Masters', collector_number: String(400 + i), name: n, cmc, type_line: tl, mana_cost: mc, colors, prices: { eur }, color_identity: colors, legalities: { commander: 'legal' },
@@ -56,13 +58,16 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0 } = {}
     send({ error: 'nf' }, 404);
   });
   await new Promise(r => imp.listen(0, '127.0.0.1', r));
-  const proxy = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2`, IMPORT_UPSTREAM: `http://127.0.0.1:${imp.address().port}`, APK_LATEST: '0', ...env }, stdio: 'ignore' });
+  const dly = daily ? await startDailyScry(daily === true ? {} : daily) : null;
+  const dlyEnv = dly ? { DAILY: '1', SCRYFALL_UPSTREAM: dly.url, DAILY_FIRST_MS: '0', DAILY_GAP_MS: '0' } : {};
+  const proxy = spawn('node', ['proxy.mjs'], { env: { ...process.env, ...dlyEnv, EDH_SOURCE_URL: '', PORT: String(port), CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2`, IMPORT_UPSTREAM: `http://127.0.0.1:${imp.address().port}`, APK_LATEST: '0', ...env }, stdio: 'ignore' });
   process.on('exit', () => { try { proxy.kill(); } catch {} });
   await new Promise(r => setTimeout(r, 800));
   world.url = `http://127.0.0.1:${port}/`;
   world.reqs = bp => log.filter(l => l.path === 'marketplace/products' && (bp == null || Number(l.q.blueprint_id) === bp)).length;
   world.setPrice = (bp, cents) => { prices[bp] = cents; };
-  world.stop = () => { try { proxy.kill(); } catch {} up.close(); imp.close(); };
+  world.dly = dly;
+  world.stop = () => { try { proxy.kill(); } catch {} up.close(); imp.close(); if (dly) dly.stop(); };
   world.catalog = () => {
     const names = CARDS.map(c => c[0]);
     if (world.big) { const A = ['Aer', 'Bol', 'Cra', 'Dre', 'Eld', 'Fyr', 'Gor', 'Hal', 'Ith', 'Jun', 'Kor', 'Lum', 'Mor', 'Nex', 'Ori', 'Pyr', 'Qua', 'Rav', 'Sol', 'Tir', 'Umb', 'Vex', 'Wyr', 'Xan', 'Yav', 'Zul']; for (let i = 0; i < world.big; i++) names.push(`${A[i % 26]}${A[(i * 7 + 3) % 26].toLowerCase()}${i % 91} of ${A[(i * 11) % 26]}${A[(i * 5 + 1) % 26].toLowerCase()}`); }
