@@ -95,9 +95,9 @@
     for (let a = 0; a < 2; a++) {
       const tok = await user.getIdToken(a > 0);
       const r = await fetch('/api/admin' + path, { method: method || 'GET', cache: 'no-store', headers: { 'x-firebase-token': tok, ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}) }, ...(method === 'POST' ? { body: JSON.stringify(body || {}) } : {}) });
-      const body = await r.json().catch(() => null);
-      if (r.status === 401 && body && body.error === 'token_expired' && a === 0) continue;
-      return { status: r.status, body };
+      const j = await r.json().catch(() => null);      // pas « body » : masquerait le paramètre (zone morte temporelle dans le fetch ci-dessus)
+      if (r.status === 401 && j && j.error === 'token_expired' && a === 0) continue;
+      return { status: r.status, body: j };
     }
   }
   const qs = () => '?' + new URLSearchParams({ page: st.page, sort: st.sort, dir: st.dir, ...(st.q ? { q: st.q } : {}) });
