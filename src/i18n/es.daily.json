@@ -97,5 +97,12 @@
 "Choisir mon pseudo": "Elegir mi apodo",
 "Enregistrer": "Guardar",
 "Pseudo enregistré.": "Apodo guardado.",
-"Connecte-toi pour jouer : une carte par jour, la même pour tous, et les classements du jour, de la semaine et de la saison.": "Inicia sesión para jugar: una carta al día, la misma para todos, con clasificaciones del día, de la semana y de la temporada."
+"Connecte-toi pour jouer : une carte par jour, la même pour tous, et les classements du jour, de la semaine et de la saison.": "Inicia sesión para jugar: una carta al día, la misma para todos, con clasificaciones del día, de la semana y de la temporada.",
+"Vérifie ton adresse e-mail pour apparaître au classement : ta partie y sera ajoutée. Elle compte déjà pour tes badges.": "Verifica tu correo para aparecer en la clasificación: tu partida se añadirá. Ya cuenta para tus insignias.",
+"Recevoir le lien": "Recibir el enlace",
+"J'ai cliqué sur le lien": "Ya he abierto el enlace",
+"Lien envoyé à {mail} : touche-le, puis reviens ici.": "Enlace enviado a {mail}: púlsalo y vuelve aquí.",
+"Adresse vérifiée : ta partie rejoint le classement.": "Correo verificado: tu partida entra en la clasificación.",
+"Adresse vérifiée. Le classement s'ouvre aux comptes de plus de 7 jours.": "Correo verificado. La clasificación se abre a cuentas de más de 7 días.",
+"Adresse vérifiée": "Dirección verificada"
 }

@@ -97,5 +97,12 @@
 "Choisir mon pseudo": "Choose my nickname",
 "Enregistrer": "Save",
 "Pseudo enregistré.": "Nickname saved.",
-"Connecte-toi pour jouer : une carte par jour, la même pour tous, et les classements du jour, de la semaine et de la saison.": "Sign in to play: one card a day, the same for everyone, with daily, weekly and season leaderboards."
+"Connecte-toi pour jouer : une carte par jour, la même pour tous, et les classements du jour, de la semaine et de la saison.": "Sign in to play: one card a day, the same for everyone, with daily, weekly and season leaderboards.",
+"Vérifie ton adresse e-mail pour apparaître au classement : ta partie y sera ajoutée. Elle compte déjà pour tes badges.": "Verify your email address to appear in the leaderboard: your game will be added. It already counts for your badges.",
+"Recevoir le lien": "Send me the link",
+"J'ai cliqué sur le lien": "I clicked the link",
+"Lien envoyé à {mail} : touche-le, puis reviens ici.": "Link sent to {mail}: tap it, then come back here.",
+"Adresse vérifiée : ta partie rejoint le classement.": "Address verified: your game joins the leaderboard.",
+"Adresse vérifiée. Le classement s'ouvre aux comptes de plus de 7 jours.": "Address verified. The leaderboard opens to accounts older than 7 days.",
+"Adresse vérifiée": "Address verified"
 }

@@ -97,5 +97,12 @@
 "Choisir mon pseudo": "Meinen Spitznamen wählen",
 "Enregistrer": "Speichern",
 "Pseudo enregistré.": "Spitzname gespeichert.",
-"Connecte-toi pour jouer : une carte par jour, la même pour tous, et les classements du jour, de la semaine et de la saison.": "Melde dich an, um zu spielen: eine Karte pro Tag, für alle dieselbe, mit Tages-, Wochen- und Saisonranglisten."
+"Connecte-toi pour jouer : une carte par jour, la même pour tous, et les classements du jour, de la semaine et de la saison.": "Melde dich an, um zu spielen: eine Karte pro Tag, für alle dieselbe, mit Tages-, Wochen- und Saisonranglisten.",
+"Vérifie ton adresse e-mail pour apparaître au classement : ta partie y sera ajoutée. Elle compte déjà pour tes badges.": "Bestätige deine E-Mail-Adresse, um in der Rangliste zu erscheinen: dein Spiel wird hinzugefügt. Für deine Abzeichen zählt es schon.",
+"Recevoir le lien": "Link anfordern",
+"J'ai cliqué sur le lien": "Ich habe den Link geöffnet",
+"Lien envoyé à {mail} : touche-le, puis reviens ici.": "Link an {mail} gesendet: tippe darauf und komm dann hierher zurück.",
+"Adresse vérifiée : ta partie rejoint le classement.": "Adresse bestätigt: dein Spiel kommt in die Rangliste.",
+"Adresse vérifiée. Le classement s'ouvre aux comptes de plus de 7 jours.": "Adresse bestätigt. Die Rangliste ist für Konten ab 7 Tagen offen.",
+"Adresse vérifiée": "Adresse bestätigt"
 }

@@ -280,6 +280,7 @@ function dlyMaskHtml(m) {
 function dlyNoteHtml(v) {
   if (!v.acct) return `<div class="dly-note"><p>${T('Sans compte, ta partie n\'est pas classée.')}</p><button class="btn ghost small" type="button" data-dly="login">${T('Se connecter')}</button></div>`;
   if (v.why === 'device') return `<div class="dly-note"><p>${esc(T('Partie d\'entraînement, non classée : cet appareil a déjà joué la carte du jour avec un autre compte.'))}</p></div>`;
+  if (v.why === 'mail') return `<div class="dly-note"><p>${esc(T('Vérifie ton adresse e-mail pour apparaître au classement : ta partie y sera ajoutée. Elle compte déjà pour tes badges.'))}</p><div class="dly-vf"><button class="btn small" type="button" data-dly="vfsend" data-vf="long">${esc(typeof vfLabel === 'function' && D.user ? vfLabel(D.user.uid) : T('Recevoir le lien'))}</button><button class="btn ghost small" type="button" data-dly="vfok">${esc(T('J\'ai cliqué sur le lien'))}</button></div></div>`;
   if (v.why === 'age') return `<div class="dly-note"><p>${esc(T('Classement ouvert aux comptes de plus de {n} jours, connectés avec Google ou une adresse vérifiée. Ta partie compte pour tes badges.', { n: v.minAge || 7 }))}</p></div>`;
   return '';
 }
@@ -412,6 +413,8 @@ function dlyClick(e) {
   if (a === 'next') return dlyNext();
   if (a === 'rep') return dlyReport(b.dataset.id, b.dataset.n);
   if (a === 'nick') return dlyNickAsk();
+  if (a === 'vfsend') return dlyVfSend();
+  if (a === 'vfok') return dlyVfOk(b);
   if (a === 'quit') return dlyQuit(b);
   if (a === 'share') return dlyShare();
   if (a === 'card' && DY.v && DY.v.res && DY.v.res.card) return openCardViewer([{ key: ownKey(DY.v.res.card.en), name: DY.v.res.card.en, small: DY.v.res.card.img }], 0);
@@ -525,6 +528,21 @@ function dlyBoardPaint(box, j) {
   box.innerHTML = `<p class="dly-when"><b>${esc(when)}</b> · ${esc(TN(j.total, '{n} joueur', '{n} joueurs'))}${lv ? '' : ' · ' + esc(T('jusqu\'au {d}', { d: fmt.format(new Date(j.to - 1000)) }))}</p>
     ${j.rows.length ? `<ol class="dly-rows">${j.rows.map(row).join('')}</ol>${meOut ? `<ol class="dly-rows dly-meout">${row(j.me)}</ol>` : ''}${nick}` : `<p class="dly-empty">${lv ? T('Personne au classement des niveaux pour l\'instant.') : T('Personne n\'a encore trouvé : sois le premier !')}</p>`}
     <p class="hint">${lv ? T('XP de « Niveau et badges », plafonnée chaque jour par le serveur.') : j.p === 'day' ? T('Top 100 du jour : un badge exclusif, compté à la fin de la journée.') : ''}</p>`;
+}
+/** Adresse e-mail à vérifier (decks.js › vfSend, vfCheck) : le lien, puis « J'ai cliqué sur le lien » → nouveau jeton, la partie du jour rejoint le classement. */
+async function dlyVfSend() {
+  haptic('tap'); const m = await vfSend();
+  toast(m || T('Lien envoyé à {mail} : touche-le, puis reviens ici.', { mail: (D.user && D.user.email) || '' }));
+}
+async function dlyVfOk(b) {
+  haptic('tap'); if (b) b.disabled = true;
+  const m = await vfCheck(); if (m) { if (b) b.disabled = false; return toast(m); }
+  try {
+    const j = await dlyCall('/recheck', { method: 'POST', body: {} });
+    for (const k of Object.keys(DY.boards)) delete DY.boards[k];
+    if (DY.v && DY.v.k) { const v = await dlyCall('/play?k=' + encodeURIComponent(DY.v.k)); dlyApply(v); }
+    toast(j.ok ? T('Adresse vérifiée : ta partie rejoint le classement.') : j.why === 'age' ? T('Adresse vérifiée. Le classement s\'ouvre aux comptes de plus de 7 jours.') : T('Adresse vérifiée'));
+  } catch (e) { if (b) b.disabled = false; toast(dlyErrText(e)); }
 }
 /** « Signaler ce pseudo » : confirmation, puis le serveur compte (une fois par personne) ; plusieurs personnes : pseudo masqué en attendant la modération. */
 function dlyReport(id, n) {

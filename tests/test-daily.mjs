@@ -152,7 +152,8 @@ test('impressions jouables : cadre, présentation, vitrine, plein art, terrain d
 
 /* ── Jeu complet derrière un petit serveur HTTP (horloge, Scryfall et jetons simulés) ─────────────────────────────────── */
 /** Jetons des tests : « tok:<uid> » ; uid « nover… » : adresse non vérifiée ; « new… » : compte créé il y a 2 jours ; « nodate… » : date inconnue (repli : première fois vu par le jeu). */
-const verify = async tok => { if (/^tok:[\w-]+$/.test(tok)) { const uid = tok.slice(4); return { uid, emailVerified: !uid.startsWith('nover'), provider: 'password' }; } throw Object.assign(new Error('jeton'), { authCode: tok === 'expired' ? 'expired' : 'invalid' }); };
+const VER = new Set();      // adresses vérifiées après coup (« J'ai cliqué sur le lien »)
+const verify = async tok => { if (/^tok:[\w-]+$/.test(tok)) { const uid = tok.slice(4); return { uid, emailVerified: !uid.startsWith('nover') || VER.has(uid), provider: 'password' }; } throw Object.assign(new Error('jeton'), { authCode: tok === 'expired' ? 'expired' : 'invalid' }); };
 async function harness(o = {}) {
   const T = { now: o.at || Date.UTC(2026, 9, 15, 17, 0) }, warns = [];      // 19:00 à Paris : carte du 15 octobre
   const S = o.scry || await startDailyScry(o.fake);
@@ -491,9 +492,15 @@ test('anti-triche : classement réservé aux comptes de plus de 7 jours, Google 
   assert.deepEqual([nw.acct, nw.ranked, nw.why, nw.minAge], [true, false, 'age', 7], 'compte de 2 jours');
   const w = (await h.call('POST', 'api/daily/guess', { tok: 'tok:newbie', body: { k: nw.k, n: 'Serra Angel' } })).j; assert.equal(w.res.s, 1000); assert.equal(w.res.r, undefined);
   assert.deepEqual(Object.fromEntries((await h.call('GET', 'api/daily/badges', { tok: 'tok:newbie' })).j.badges.map(x => [x.id, x.n])).points, 1000, 'compte pour ses badges');
-  assert.equal((await h.call('POST', 'api/daily/start', { tok: 'tok:nover-x', body: { l: 'fr' } })).j.why, 'age', 'adresse non vérifiée');
+  const nv = (await h.call('POST', 'api/daily/start', { tok: 'tok:nover-x', body: { l: 'fr', n: 'Xav' } })).j; assert.equal(nv.why, 'mail', 'adresse non vérifiée : la raison est donnée (bouton « Recevoir le lien »)');
+  await h.call('POST', 'api/daily/guess', { tok: 'tok:nover-x', body: { k: nv.k, n: 'Serra Angel' } });
+  assert.deepEqual((await h.call('POST', 'api/daily/recheck', { tok: 'tok:nover-x', body: {} })).j, { ok: false, why: 'mail', st: 'win' }, 'pas encore vérifiée');
+  VER.add('nover-x');
+  assert.deepEqual((await h.call('POST', 'api/daily/recheck', { tok: 'tok:nover-x', body: {} })).j, { ok: true, why: '', st: 'win' }, 'vérifiée : la partie rejoint le classement');
+  assert.deepEqual((await h.call('GET', 'api/daily/board?p=day')).j.rows.map(r => r.n), ['Xav'], 'au classement après vérification');
+  assert.equal((await h.call('POST', 'api/daily/recheck', { body: {} })).status, 401);
   assert.equal((await h.call('POST', 'api/daily/start', { tok: 'tok:nodate-y', body: { l: 'fr' } })).j.why, 'age', 'date inconnue : vu pour la première fois aujourd\'hui');
-  assert.equal((await h.call('GET', 'api/daily/board?p=day')).j.total, 0, 'personne au classement');
+  assert.equal((await h.call('GET', 'api/daily/board?p=day')).j.total, 1, 'au classement : seulement l\'adresse vérifiée après coup');
   await h.stop();
   // la même date « vue pour la première fois » 8 jours plus tard : classé
   const dir = newDir(), h2 = await harness({ dir }); await h2.ready(); await h2.call('GET', 'api/daily', { tok: 'tok:nodate-z' }); await h2.D.flush(); await h2.stop();

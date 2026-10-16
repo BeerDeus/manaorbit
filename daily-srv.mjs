@@ -288,7 +288,7 @@ export function dlyPrintOk(c, lang) {
 /* ── Le jeu (routes /api/daily…) ────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const dlyJson = (res, status, obj, extra = {}) => { const b = JSON.stringify(obj); res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...extra }); res.end(b); };
 const dlyBody = (req, max) => new Promise((ok, ko) => { const c = []; let n = 0; req.on('data', d => { n += d.length; if (n > max) { req.pause(); ko(Object.assign(new Error('too large'), { status: 413 })); } else c.push(d); }); req.on('end', () => ok(Buffer.concat(c))); req.on('error', ko); });
-const KEY_RE = /^[\w-]{24}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DLY_ROUTES = ['start', 'go', 'play', 'next', 'guess', 'giveup', 'img', 'board', 'badges', 'report', 'name'];
+const KEY_RE = /^[\w-]{24}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DLY_ROUTES = ['start', 'go', 'play', 'next', 'guess', 'giveup', 'img', 'board', 'badges', 'report', 'name', 'recheck'];
 const DLY_NOSTAT = { played: 0, won: 0, stage1: 0, points: 0, top100: 0, podium: 0, first: 0, cur: 0, best: 0, last: '', at: {}, h: [] };
 export const dlyTag = uid => createHash('sha256').update(String(uid)).digest('hex');      // même empreinte que les amis (amTag)
 /** Pseudo du classement : nom du profil, sans caractère de contrôle ni chevron, 24 caractères ; refusé par le filtre de mots : vide. */
@@ -540,12 +540,18 @@ export function dailyMake(o = {}) {
     return null;
   }
   /** Compte établi (classement public) : Google ou adresse vérifiée, créé il y a MIN_AGE au moins (date du compte Firebase, sinon la première fois que le jeu l'a vu). */
-  async function established(u) {
-    if (!u.ver) return false;
-    if (!MIN_AGE) return true;
+  /** Compte admis au classement public : '' ; sinon la raison : 'mail' (adresse pas vérifiée, ni Google) ou 'age' (compte de moins de MIN_AGE). */
+  async function standing(u) {
+    if (!u.ver) return 'mail';
+    if (!MIN_AGE) return '';
     let created = 0; try { const a = o.account ? await o.account(u.uid) : null; created = (a && Number(a.created)) || 0; } catch (e) { created = 0; }
     const since = created || (G.stats.p[u.tag] && G.stats.p[u.tag].fs) || now();
-    return now() - since >= MIN_AGE;
+    return now() - since >= MIN_AGE ? '' : 'age';
+  }
+  /** Partie du jour pas classée pour l'adresse ou l'âge du compte : revue (adresse vérifiée depuis, nouveau jeton) ; true si elle rejoint le classement. */
+  async function restand(rec, p, u) {
+    if (!p || !u || (p.why !== 'mail' && p.why !== 'age') || await standing(u)) return false;
+    delete p.lb; delete p.why; rec.v++; G.sums.delete(rec.day); G.board.clear(); saveSoon(rec); return true;
   }
   /** Rang du jour et nombre de joueurs classés (une partie « à vérifier » se voit à sa place, les autres ne la voient pas). */
   function dayRank(rec, tag) { const rows = boardRows([rec.day], new Map([[rec.day, daySum(rec)]]), tag); const i = rows.findIndex(r => r.tag === tag); return { r: i >= 0 ? i + 1 : 0, total: rows.length }; }
@@ -692,6 +698,11 @@ export function dailyMake(o = {}) {
       res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=86400', 'Content-Length': b[s - 1].length, 'X-Content-Type-Options': 'nosniff' });
       return res.end(req.method === 'HEAD' ? undefined : b[s - 1]);
     }
+    if (req.method === 'POST' && sub === 'recheck') {      // « J'ai cliqué sur le lien » : adresse vérifiée (nouveau jeton) → la partie du jour rejoint le classement
+      const u = await who(req, res, true); if (!u) return;
+      const p = rec.plays[u.tag], ok = await restand(rec, p, u);
+      return json(res, 200, { ok, why: p ? p.why || '' : '', ...(p ? { st: p.st } : {}) });
+    }
     if (req.method === 'POST' && sub === 'name') {      // pseudo choisi ou changé dans le profil : la partie du jour, la semaine, la saison et les niveaux le suivent
       const b = await body(req, res); if (!b) return;
       const u = await who(req, res, true); if (!u) return;
@@ -737,12 +748,12 @@ export function dailyMake(o = {}) {
         let p = rec.plays[u.tag];
         if (!p) {
           const d = dh && rec.devs ? rec.devs[dh] : null, practice = !!((d && d.t && d.t !== u.tag) || (!(d && d.t) && devAnon(rec, dh)));      // appareil déjà joué aujourd'hui par un autre compte (ou sans compte, au-delà de l'étape 1)
-          const lb = !practice && await established(u);
+          const why = practice ? '' : await standing(u);
           p = rec.plays[u.tag];
           if (!p) {
             const t = now(), ip = ipOf(rec, req);
             p = rec.plays[u.tag] = { k: mkKey(), n, l, c0: t, t0: 0, sh: 0, seen: 0, step: 1, wrong: [], st: 'play', s: 0, ms: 0, at: 0, ...(dh ? { dh } : {}), ...(ip ? { ip } : {}),
-              ...(practice ? { lb: false, why: 'device', pr: 1 } : !lb ? { lb: false, why: 'age' } : {}) };
+              ...(practice ? { lb: false, why: 'device', pr: 1 } : why ? { lb: false, why } : {}) };
             G.keys.set(p.k, { day: rec.day, tag: u.tag });
             if (dh && !practice && !(d && d.t)) (rec.devs || (rec.devs = {}))[dh] = { ...(d || {}), t: u.tag };
             if (!practice) {      // entraînement : rien ne compte, ni classement ni badges
@@ -752,7 +763,7 @@ export function dailyMake(o = {}) {
             }
             rec.v++; saveSoon(rec);
           }
-        } else if (n && n !== p.n) { p.n = n; rec.v++; saveSoon(rec); }      // pseudo changé depuis : le classement suit
+        } else { if (n && n !== p.n) { p.n = n; rec.v++; saveSoon(rec); } await restand(rec, p, u); }      // pseudo changé depuis : le classement suit ; adresse vérifiée depuis : classée
         return json(res, 200, { ...view(rec, p, u.tag), ...devOut });
       }
     }
@@ -760,6 +771,7 @@ export function dailyMake(o = {}) {
     if (!x || (x.tag && (!u || u.tag !== x.tag))) return json(res, 404, { error: 'not_found', message: 'Partie introuvable.' });      // partie d'un compte : seulement par ce compte
     if (!x.rec) { const r = x.old, c = r && r.card, e = c && (c.l[x.play.l] || c.l.en); return json(res, 410, { error: 'over', message: 'Cette carte est terminée : une nouvelle est arrivée.', ...(e ? { card: { name: e.n, en: c.en, img: e.img, set: c.sn } } : {}) }); }      // journée finie : la réponse est publique
     const p = x.play;
+    if (x.tag) await restand(x.rec, p, u);
     if (finished(p)) return json(res, 200, view(rec, p, x.tag));
     const end = () => { p.step = dlyStepAt(p.ms, STEP); if (x.tag && !p.pr) statEnd(x.tag, p); };
     if (sub === 'go') { go(p); rec.v++; if (x.tag) saveSoon(rec); return json(res, 200, view(rec, p, x.tag)); }      // fin du décompte : l'horloge part (si l'image de l'étape 1 ne l'a pas déjà lancée)

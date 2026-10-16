@@ -139,3 +139,4 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .dly-nick{display:flex;flex-direction:column;gap:6px;margin:14px 0 4px;font-size:13px;font-weight:650;color:var(--ink-2)}      /* pseudo des classements (Participer, Choisir mon pseudo) */
 .dly-nick input{height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:16px;font-weight:600}
 .dly-nickb{display:block;margin:10px auto 0}
+.dly-vf{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}      /* adresse à vérifier : recevoir le lien, j'ai cliqué */
