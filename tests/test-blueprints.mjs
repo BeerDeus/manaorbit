@@ -32,3 +32,10 @@ test('blueprint sans impression Scryfall : gardé avec son numéro et l\'image C
   assert.deepEqual(old.map(b => [b.id, b.num]), [[3, '128']]);
   assert.equal(D.bpNum('0042a'), '42a'); assert.equal(D.bpNum(null), ''); assert.equal(D.bpNum('0'), '0');
 });
+test('extension sœur (« Reality Fracture Collectors ») : la vitrine 349 que Scryfall range dans l\'extension principale est lue chez CardTrader, avec son image', () => {
+  const ex = D.expIndexOf([{ id: 7, code: 'fra', name: 'Reality Fracture' }, { id: 8, code: 'frac', name: 'Reality Fracture Collectors' }, { id: 9, code: 'fr', name: 'Fr' }, { id: 10, code: 'rft', name: 'Reality Fractured Tales' }]);
+  assert.deepEqual(ex.sib.get(7), [8], 'sœur : même nom suivi d\'un mot (pas « Fractured », pas les noms trop courts)'); assert.equal(ex.sib.has(9), false);
+  const bi = new Map([[7, D.bpIndexOf([{ id: 1, name: 'Denzilore Fatehold', sid: null, num: '128', im: '' }])], [8, D.bpIndexOf([{ id: 2, name: 'Denzilore Fatehold', sid: null, num: '349', im: 'https://ct/349.jpg' }, { id: 3, name: 'Denzilore Fatehold', sid: null, num: '777', im: 'https://ct/777.jpg' }])]]);
+  const out = D.mapBlueprints(card, [pr('s128', '128', 'i128'), pr('s349', '349', 'i349')], { ...ex, byCode: new Map([['fra', 7], ['frac', 8]]) }, bi);
+  assert.deepEqual(out.map(b => [b.id, b.num, b.img]).sort(), [[1, '128', 'i128'], [2, '349', 'i349'], [3, '777', 'https://ct/777.jpg']], 'vitrine de la sœur rattachée à son impression ; numéro propre à CardTrader gardé');
+});

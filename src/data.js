@@ -501,9 +501,20 @@ async function getExpansions(signal) {
     list = (Array.isArray(j) ? j : []).filter(e => e.game_id === 1).map(e => ({ id: e.id, code: String(e.code || '').toLowerCase(), name: e.name }));
     await Cache.set('ct:expansions', list);
   }
-  const byCode = new Map(), byName = new Map();
-  for (const e of list) { byCode.set(e.code, e.id); byName.set(normPart(e.name), e.id); }
-  return { byCode, byName };
+  return expIndexOf(list);
+}
+/**
+ * Index des extensions CardTrader : par code, par nom, et les extensions « sœurs » de chacune (même nom suivi d'autres mots : « Reality Fracture Collectors »,
+ * « … Promos »…). CardTrader y range souvent les vitrines et sans bordure que Scryfall garde dans l'extension principale (Denzilore Fatehold 349 vitrine).
+ */
+function expIndexOf(list) {
+  const byCode = new Map(), byName = new Map(), byId = new Map(), sib = new Map(), nm = new Map();
+  for (const e of list) { const n = normPart(e.name); byCode.set(e.code, e.id); byName.set(n, e.id); byId.set(e.id, e); nm.set(e.id, n); }
+  for (const e of list) {
+    const n = nm.get(e.id); if (n.length < 4) continue;
+    const s = list.filter(x => x.id !== e.id && nm.get(x.id).startsWith(n + ' ')).map(x => x.id); if (s.length) sib.set(e.id, s);
+  }
+  return { byCode, byName, byId, sib };
 }
 
 /** Numéro de collection comparable (« 0128 » = « 128 », casse ignorée) ; '' : inconnu. */
@@ -540,10 +551,15 @@ function mapBlueprints(card, prints, exps, bpIndex) {
   const out = new Map(), front = frontName(card.name), sets = new Map();
   const add = (b, p) => { if (!out.has(b.id)) out.set(b.id, { id: b.id, set: p.set, setName: p.setName, num: p.num, img: p.img, eu: p.eu ?? null, ef: p.ef ?? null }); };
   for (const p of prints) {
-    const eid = exps.byCode.get(p.set) || exps.byName.get(normPart(p.setName));
+    const eid = exps.byCode.get(p.set) || exps.byName.get(normPart(p.setName)), pn = bpNum(p.num);
+    for (const sid of (eid && exps.sib && exps.sib.get(eid)) || []) {      // extensions sœurs : même nom et même numéro → cette impression (vitrine rangée à part chez CardTrader)
+      const sIdx = bpIndex.get(sid), e = exps.byId.get(sid); if (!sIdx || !e) continue;
+      if (!sets.has(sIdx)) sets.set(sIdx, { set: e.code, setName: e.name });
+      if (pn) for (const b of sIdx.byName.get(front) || []) if (b.num === pn) add(b, p);
+    }
     const idx = eid && bpIndex.get(eid); if (!idx) continue;
     if (!sets.has(idx)) sets.set(idx, p);
-    const direct = idx.byScry.get(p.id), pn = bpNum(p.num);
+    const direct = idx.byScry.get(p.id);
     if (direct && (!direct.num || !pn || direct.num === pn)) { add(direct, p); continue; }
     const named = idx.byName.get(front) || [];
     const same = pn ? named.filter(b => b.num === pn) : [];
@@ -698,7 +714,7 @@ async function runLive(cards, opts, hooks, signal) {
   const skip = opts.skip || new Set();                     // cartes déjà possédées en totalité : on lit leurs impressions (image, coût) mais pas leurs offres
   const needed = new Set();
   for (const c of cards) if (!skip.has(c.key)) for (const p of printsOf[c.key]) {
-    const eid = exps.byCode.get(p.set) || exps.byName.get(normPart(p.setName)); if (eid) needed.add(eid);
+    const eid = exps.byCode.get(p.set) || exps.byName.get(normPart(p.setName)); if (eid) { needed.add(eid); for (const s of exps.sib.get(eid) || []) needed.add(s); }      // et ses extensions sœurs (vitrines « … Collectors »)
   }
   const bpIndex = new Map(); let bd = 0; const ids = [...needed];
   await pool(ids, 4, async id => {
@@ -955,4 +971,4 @@ async function cartFill(parts, mode, address, signal, onItem, demo) {
   }
   return { ok, failed, replaced, gone, added };
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = { ...(module.exports || {}), bpNum, bpIndexOf, mapBlueprints };
+if (typeof module !== 'undefined' && module.exports) module.exports = { ...(module.exports || {}), bpNum, bpIndexOf, expIndexOf, mapBlueprints };
