@@ -288,7 +288,7 @@ export function dlyPrintOk(c, lang) {
 /* ── Le jeu (routes /api/daily…) ────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const dlyJson = (res, status, obj, extra = {}) => { const b = JSON.stringify(obj); res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...extra }); res.end(b); };
 const dlyBody = (req, max) => new Promise((ok, ko) => { const c = []; let n = 0; req.on('data', d => { n += d.length; if (n > max) { req.pause(); ko(Object.assign(new Error('too large'), { status: 413 })); } else c.push(d); }); req.on('end', () => ok(Buffer.concat(c))); req.on('error', ko); });
-const KEY_RE = /^[\w-]{24}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DLY_ROUTES = ['start', 'go', 'play', 'next', 'guess', 'giveup', 'img', 'board', 'badges'];
+const KEY_RE = /^[\w-]{24}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DLY_ROUTES = ['start', 'go', 'play', 'next', 'guess', 'giveup', 'img', 'board', 'badges', 'report'];
 const DLY_NOSTAT = { played: 0, won: 0, stage1: 0, points: 0, top100: 0, podium: 0, first: 0, cur: 0, best: 0, last: '', at: {}, h: [] };
 export const dlyTag = uid => createHash('sha256').update(String(uid)).digest('hex');      // même empreinte que les amis (amTag)
 /** Pseudo du classement : nom du profil, sans caractère de contrôle ni chevron, 24 caractères ; refusé par le filtre de mots : vide. */
@@ -313,7 +313,7 @@ export function dailyMake(o = {}) {
   const badKey = o.badKey || ((req, res) => json(res, 401, { error: 'bad_token', message: 'Jeton de connexion invalide.' }));
   const GAP = o.gapMs ?? 110, TRIES = Math.max(1, o.tries || 30), PAGES = Math.max(1, o.pages || 12), QUERY = o.query || DLY_QUERY;
   const RETRY = o.retryMs ?? 5 * 60e3, EARLY = o.earlyMs ?? 45 * 60e3, KEEP_DAYS = 400, IMG_DAYS = 2, ANON_MAX = 50000;
-  const G = { cur: null, next: null, imgs: new Map(), keys: new Map(), anon: new Map(), stats: null, hidden: null, secret: o.secret || '', sums: new Map(), prep: new Map(), lastScry: 0, timer: null, purged: '', saving: new Map(), boot: null, board: new Map() };
+  const G = { repBy: new Map(), cur: null, next: null, imgs: new Map(), keys: new Map(), anon: new Map(), stats: null, hidden: null, secret: o.secret || '', sums: new Map(), prep: new Map(), lastScry: 0, timer: null, purged: '', saving: new Map(), boot: null, board: new Map() };
 
   /* ── Disque ── */
   const fileOf = day => join(dir, day + '.json'), imgDir = day => join(dir, 'img', day);
@@ -339,6 +339,7 @@ export function dailyMake(o = {}) {
     if (!G.boot) G.boot = (async () => {
       const st = await getJson(join(dir, 'stats.json')); G.stats = st && st.p && typeof st.p === 'object' ? st : { v: 1, p: {} };
       const hd = await getJson(join(dir, 'hidden.json')); G.hidden = new Map(hd && Array.isArray(hd.h) ? hd.h.filter(x => x && typeof x.t === 'string').map(x => [x.t, { n: String(x.n || ''), at: Number(x.at) || 0 }]) : []);
+      const rp = await getJson(join(dir, 'reports.json')); G.rep = new Map(rp && Array.isArray(rp.r) ? rp.r.filter(x => x && typeof x.t === 'string' && Array.isArray(x.by)).map(x => [x.t, { by: x.by.filter(b => typeof b === 'string').slice(0, 50), n: String(x.n || ''), at: Number(x.at) || 0 }]) : []);
     })();
     return G.boot;
   }
@@ -634,9 +635,33 @@ export function dailyMake(o = {}) {
     else { rows = boardRows(days, sums); G.board.set(ck, { rows, v: rec.v, at: now() }); }
     if (tag && days.some(d => { const x = sums.get(d).get(tag); return x && x.hid; })) rows = boardRows(days, sums, tag);      // « à vérifier » : à sa place pour lui seul (exclusion silencieuse)
     const to = p === 'day' ? C.nextOf(day) : p === 'week' ? C.startOf(dlyAdd(from, 7)) : C.startOf(dlyIso(Date.UTC(+key.slice(0, 4), +key.slice(5, 7), 1)));      // saison : jusqu'au 1er du mois suivant
-    const show = r => { const h = G.hidden.has(r.tag); return { n: h ? '' : r.n || dlyFall(r.tag), s: r.s, ...(p !== 'day' ? { d: r.d } : {}), ...(h ? { x: 1 } : {}), ...(tag && r.tag === tag ? { me: 1 } : {}) }; };
+    const show = r => { const h = G.hidden.has(r.tag); return { id: rid(r.tag), n: h ? '' : r.n || dlyFall(r.tag), s: r.s, ...(p !== 'day' ? { d: r.d } : {}), ...(h ? { x: 1 } : {}), ...(tag && r.tag === tag ? { me: 1 } : {}) }; };
     const i = tag ? rows.findIndex(r => r.tag === tag) : -1;
     return { p, key, from: C.startOf(from), to, total: rows.length, rows: rows.slice(0, 100).map((r, j) => ({ r: j + 1, ...show(r) })), me: i >= 0 ? { r: i + 1, ...show(rows[i]) } : null };
+  }
+
+  /* ── Signalements des pseudos (classements publics : Google Play exige de pouvoir signaler un contenu d'utilisateur) ── */
+  const REP_HIDE = Math.max(1, o.reportHide ?? 3), REP_DAY = 20;      // signalements distincts avant de masquer le pseudo en attendant le panneau ; signalements par personne et par jour
+  /** Identifiant public d'une ligne de classement (rien du compte : HMAC du secret du serveur). */
+  const rid = tag => createHmac('sha256', G.secret || 'x').update('row|' + tag).digest('base64url').slice(0, 12);
+  async function ridFind(id) {
+    if (!/^[\w-]{12}$/.test(id)) return '';
+    const rec = G.cur, tags = new Set([...Object.keys(G.stats.p), ...G.hidden.keys(), ...Object.keys((await lvLoad()).p), ...(rec ? Object.keys(rec.plays) : [])]);
+    for (const t of tags) if (rid(t) === id) return t;
+    return '';
+  }
+  async function nameOf(tag) { const p = G.cur && G.cur.plays[tag], L = await lvLoad(); return (p && p.n) || (L.p[tag] && L.p[tag].n) || (G.stats.p[tag] && G.stats.p[tag].n) || ''; }
+  const hiddenSave = () => put(join(dir, 'hidden.json'), JSON.stringify({ v: 1, h: [...G.hidden].map(([t, h]) => ({ t, n: h.n, at: h.at, ...(h.auto ? { auto: 1 } : {}) })) })).catch(e => log.warn('Carte mystère : masques non enregistrés (' + (e && e.code || e) + ')'));
+  const repSave = () => put(join(dir, 'reports.json'), JSON.stringify({ v: 1, r: [...G.rep].map(([t, r]) => ({ t, ...r })) })).catch(e => log.warn('Carte mystère : signalements non enregistrés (' + (e && e.code || e) + ')'));
+  /** Un signalement : une fois par personne (compte, sinon appareil) et par pseudo ; REP_HIDE personnes différentes : pseudo masqué jusqu'à la décision du panneau. */
+  async function report(tag, by) {
+    const r = G.rep.get(tag) || { by: [], n: '', at: 0 };
+    if (r.by.includes(by)) return { ok: true, dup: true };
+    r.by.push(by); if (r.by.length > 50) r.by.shift(); r.n = await nameOf(tag); r.at = now(); G.rep.set(tag, r);
+    let hid = false;
+    if (r.by.length >= REP_HIDE && !G.hidden.has(tag)) { G.hidden.set(tag, { n: r.n, at: now(), auto: 1 }); G.board.clear(); hid = true; await hiddenSave(); log.warn('Carte mystère : pseudo masqué après ' + r.by.length + ' signalements (à revoir dans /admin)'); }
+    await repSave();
+    return { ok: true, hid };
   }
 
   /* ── Routes ── */
@@ -666,6 +691,17 @@ export function dailyMake(o = {}) {
       const im = G.imgs.get(x.rec.day), b = im && (im[x.play.l] || im.en); if (!b) return json(res, 503, { error: 'wait' }, { 'Retry-After': '10' });
       res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=86400', 'Content-Length': b[s - 1].length, 'X-Content-Type-Options': 'nosniff' });
       return res.end(req.method === 'HEAD' ? undefined : b[s - 1]);
+    }
+    if (req.method === 'POST' && sub === 'report') {      // « Signaler ce pseudo » (classements du jeu et des niveaux)
+      const b = await body(req, res); if (!b) return;
+      const u = await who(req, res); if (u === false) return;
+      const by = u ? 'u:' + u.tag : dev ? 'd:' + dev : '';
+      if (!by) return json(res, 400, { error: 'device', message: 'Réessaie dans un instant.', ...devOut });
+      const tag = await ridFind(String(b.id || '')); if (!tag) return json(res, 404, { error: 'not_found', message: 'Joueur introuvable.' });
+      if (u && tag === u.tag) return json(res, 400, { error: 'self', message: 'C\'est ton pseudo.' });
+      const d = G.repBy.get(by); if (d && d.day === rec.day && d.n >= REP_DAY) return json(res, 429, { error: 'too_many', message: 'Trop de signalements aujourd\'hui.' });
+      G.repBy.set(by, { day: rec.day, n: d && d.day === rec.day ? d.n + 1 : 1 }); if (G.repBy.size > 20000) G.repBy.clear();
+      return json(res, 200, await report(tag, by));
     }
     if (req.method === 'GET' && sub === 'board') {
       const p = ['day', 'week', 'season'].includes(url.searchParams.get('p')) ? url.searchParams.get('p') : 'day';
@@ -786,7 +822,8 @@ export function dailyMake(o = {}) {
   async function adminView(rec) {
     const c = rec.card;
     return { day: rec.day, no: dlyNo(rec.day), st: rec.st, next: C.nextOf(rec.day), plays: Object.keys(rec.plays).length, done: Object.values(rec.plays).filter(finished).length, fb: c ? DLY_LANGS.filter(l => c.l[l] && c.l[l].fb) : [],
-      card: c ? { en: c.en, set: c.sn, fr: (c.l.fr || {}).n || '' } : null, rows: await adminList(rec), hidden: G.hidden.size, chk: await adminChk(rec), sus: adminSus(), minAge: Math.round(MIN_AGE / DAY) };
+      card: c ? { en: c.en, set: c.sn, fr: (c.l.fr || {}).n || '' } : null, rows: await adminList(rec), hidden: G.hidden.size, chk: await adminChk(rec), sus: adminSus(), minAge: Math.round(MIN_AGE / DAY),
+      reports: [...G.rep].filter(([, r]) => r.by.length).map(([t, r]) => ({ id: admId(t), n: r.n || dlyFall(t), k: r.by.length, at: r.at, hid: G.hidden.has(t) })).sort((a, b) => b.at - a.at).slice(0, 200), repHide: REP_HIDE };
   }
   async function admin(req, res, sub, url) {
     const HD = o.adminHeaders || {};
@@ -794,12 +831,18 @@ export function dailyMake(o = {}) {
     if (req.method === 'GET' && sub === 'daily') return json(res, 200, await adminView(rec), HD);
     if (req.method === 'POST' && sub === 'daily/hide') {
       const b = await body(req, res); if (!b) return;
-      const ids = new Map([...Object.keys(G.stats.p), ...G.hidden.keys(), ...Object.keys((await lvLoad()).p)].map(t => [admId(t), t])), tag = ids.get(String(b.id || ''));
+      const ids = new Map([...Object.keys(G.stats.p), ...G.hidden.keys(), ...G.rep.keys(), ...Object.keys((await lvLoad()).p)].map(t => [admId(t), t])), tag = ids.get(String(b.id || ''));
       if (!tag) return json(res, 404, { error: 'not_found', message: 'Joueur inconnu.' }, HD);
-      if (b.on === false) G.hidden.delete(tag);
-      else { const l = await adminList(rec), r = l.find(x => x.id === b.id); G.hidden.set(tag, { n: r ? r.n : '', at: now() }); }
-      await put(join(dir, 'hidden.json'), JSON.stringify({ v: 1, h: [...G.hidden].map(([t, h]) => ({ t, n: h.n, at: h.at })) })).catch(e => log.warn('Carte mystère : masques non enregistrés (' + (e && e.code || e) + ')'));
+      if (b.on === false) { G.hidden.delete(tag); if (G.rep.delete(tag)) await repSave(); }      // rétabli : le pseudo est jugé correct, ses signalements partent avec
+      else { const l = await adminList(rec), r = l.find(x => x.id === b.id), rp = G.rep.get(tag); G.hidden.set(tag, { n: r ? r.n : rp ? rp.n : '', at: now() }); }
+      await hiddenSave();
       G.board.clear();
+      return json(res, 200, { ok: true, ...(await adminView(rec)) }, HD);
+    }
+    if (req.method === 'POST' && sub === 'daily/report') {      // « Ignorer » : signalements effacés, pseudo laissé tel quel (masqué ou non)
+      const b = await body(req, res); if (!b) return;
+      const tag = [...G.rep.keys()].find(t => admId(t) === String(b.id || '')); if (!tag) return json(res, 404, { error: 'not_found', message: 'Signalement inconnu.' }, HD);
+      G.rep.delete(tag); await repSave();
       return json(res, 200, { ok: true, ...(await adminView(rec)) }, HD);
     }
     if (req.method === 'POST' && sub === 'daily/ok') {      // « Valider » : partie à vérifier (même box, famille…) remise au classement, ou compte soupçonné laissé tranquille pour ses 7 prochaines parties
@@ -837,7 +880,7 @@ export function dailyMake(o = {}) {
   }
   async function lvBoard(tag) {
     const L = await lvLoad(), rows = Object.entries(L.p).map(([t, r]) => ({ tag: t, x: r.x, n: r.n, at: r.at || 0 })).filter(r => r.x > 0).sort((a, b) => b.x - a.x || a.at - b.at || (a.tag < b.tag ? -1 : 1));
-    const show = r => { const h = G.hidden.has(r.tag); return { n: h ? '' : r.n || dlyFall(r.tag), lv: levelOf(r.x), xp: Math.round(r.x), ...(h ? { x: 1 } : {}), ...(tag && r.tag === tag ? { me: 1 } : {}) }; };
+    const show = r => { const h = G.hidden.has(r.tag); return { id: rid(r.tag), n: h ? '' : r.n || dlyFall(r.tag), lv: levelOf(r.x), xp: Math.round(r.x), ...(h ? { x: 1 } : {}), ...(tag && r.tag === tag ? { me: 1 } : {}) }; };
     const i = tag ? rows.findIndex(r => r.tag === tag) : -1;
     return { p: 'level', total: rows.length, rows: rows.slice(0, 100).map((r, j) => ({ r: j + 1, ...show(r) })), me: i >= 0 ? { r: i + 1, ...show(rows[i]) } : null };
   }

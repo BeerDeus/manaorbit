@@ -85,5 +85,11 @@
 "Personne au classement des niveaux pour l'instant.": "Nobody on the level leaderboard yet.",
 "XP de « Niveau et badges », plafonnée chaque jour par le serveur.": "XP from “Level and badges”, capped each day by the server.",
 "{s} points, trouvée en {t}": "{s} points, found in {t}",
-"Classement": "Leaderboard"
+"Classement": "Leaderboard",
+"Signaler le pseudo {n}": "Report the nickname {n}",
+"Signaler ce pseudo": "Report this nickname",
+"Signaler ce pseudo ?": "Report this nickname?",
+"Pseudo insultant, haineux, à caractère sexuel ou qui se fait passer pour quelqu'un ? Nous le vérifions ; signalé par plusieurs personnes, il est masqué en attendant.": "Insulting, hateful or sexual nickname, or one impersonating someone? We'll check it; if several people report it, it is hidden in the meantime.",
+"Signaler": "Report",
+"Merci, c'est signalé.": "Thanks, it has been reported."
 }

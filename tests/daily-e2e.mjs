@@ -129,6 +129,11 @@ for (const [uid, n, xp] of [['uid-zed', 'Zed', 49000], ['uid-max', 'Max', 1200]]
   const lv = await p.$$eval('.dly-bd .dly-row', l => l.map(x => [x.querySelector('.dly-r').textContent, x.querySelector('.dly-n').textContent, x.querySelector('.dly-d').textContent, x.querySelector('.dly-s').textContent.replace(/\s/g, ' ')]));
   assert.deepEqual(lv, [['1', 'Zed', `Niv. ${prgLevel(49000).lv}`, '49 000 XP'], ['2', 'Ana toi', `Niv. ${prgLevel(23456).lv}`, '23 456 XP'], ['3', 'Max', `Niv. ${prgLevel(1200).lv}`, '1 200 XP']], 'classement des niveaux : mon XP envoyée, niveau, pseudo');
   await p.$eval('.dly-boards', e => e.scrollIntoView({ block: 'start' })); await p.waitForTimeout(250); await shot(p, 'daily-9-classement-niveaux');
+  assert.equal(await p.$('.dly-bd .dly-row.me .dly-rep'), null, 'pas de « Signaler » sur ma ligne'); assert.equal(await p.$$eval('.dly-bd .dly-rep', b => b.length), 2);
+  await p.click('.dly-bd .dly-row:first-child .dly-rep'); await p.waitForSelector('.sheet [data-ok]'); assert.match(await p.$eval('.dly-repn', e => e.textContent), /Zed/);
+  await shot(p, 'daily-9b-signaler-pseudo');
+  await p.click('.sheet [data-ok]'); await p.waitForFunction(() => /Merci, c'est signalé/.test(document.querySelector('#toast').textContent), null, { timeout: 5000 });
+  ok('classements : « Signaler ce pseudo » sur les autres lignes (confirmation, envoyé au serveur), jamais sur la sienne');
   const bd = Object.fromEntries((await p.evaluate(() => dailyBadges())).map(b => [b.id, b.n]));
   assert.deepEqual(['played', 'streak', 'top100', 'first', 'stage1', 'points'].map(k => bd[k]), [1, 1, 0, 0, 1, res.s], 'badges vérifiés par le serveur (top 100 et 1er : comptés à la fin de la journée)');
   await p.click('.dly [data-dly="close"]'); await p.waitForSelector('#btnDaily[data-done="1"]');

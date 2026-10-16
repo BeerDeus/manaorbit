@@ -85,5 +85,11 @@
 "Personne au classement des niveaux pour l'instant.": "Nadie en la clasificación de niveles por ahora.",
 "XP de « Niveau et badges », plafonnée chaque jour par le serveur.": "XP de «Nivel e insignias», limitada cada día por el servidor.",
 "{s} points, trouvée en {t}": "{s} puntos, encontrada en {t}",
-"Classement": "Clasificación"
+"Classement": "Clasificación",
+"Signaler le pseudo {n}": "Denunciar el apodo {n}",
+"Signaler ce pseudo": "Denunciar este apodo",
+"Signaler ce pseudo ?": "¿Denunciar este apodo?",
+"Pseudo insultant, haineux, à caractère sexuel ou qui se fait passer pour quelqu'un ? Nous le vérifions ; signalé par plusieurs personnes, il est masqué en attendant.": "¿Apodo insultante, de odio, sexual o que suplanta a alguien? Lo revisamos; si varias personas lo denuncian, se oculta mientras tanto.",
+"Signaler": "Denunciar",
+"Merci, c'est signalé.": "Gracias, ha sido denunciado."
 }

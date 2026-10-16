@@ -85,5 +85,11 @@
 "Personne au classement des niveaux pour l'instant.": "Noch niemand in der Stufen-Rangliste.",
 "XP de « Niveau et badges », plafonnée chaque jour par le serveur.": "XP aus „Stufe und Abzeichen“, täglich vom Server begrenzt.",
 "{s} points, trouvée en {t}": "{s} Punkte, gefunden in {t}",
-"Classement": "Rangliste"
+"Classement": "Rangliste",
+"Signaler le pseudo {n}": "Spitznamen {n} melden",
+"Signaler ce pseudo": "Diesen Spitznamen melden",
+"Signaler ce pseudo ?": "Diesen Spitznamen melden?",
+"Pseudo insultant, haineux, à caractère sexuel ou qui se fait passer pour quelqu'un ? Nous le vérifions ; signalé par plusieurs personnes, il est masqué en attendant.": "Beleidigender, hasserfüllter oder sexueller Spitzname oder einer, der sich als jemand anderes ausgibt? Wir prüfen ihn; melden ihn mehrere Personen, wird er bis dahin ausgeblendet.",
+"Signaler": "Melden",
+"Merci, c'est signalé.": "Danke, die Meldung ist eingegangen."
 }

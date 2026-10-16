@@ -531,6 +531,31 @@ test('anti-triche : soupçon statistique (trop souvent trouvée à l\'étape 1) 
   S.stop();
 });
 
+test('signaler un pseudo : une fois par personne (compte ou appareil), pas le sien, 3 personnes → masqué en attendant le panneau, « Rétablir » efface les signalements, 20 par jour', async () => {
+  const h = await harness(); await h.ready();
+  const play = async (tok, n) => { const s = (await h.call('POST', 'api/daily/start', { tok, body: { l: 'en', n } })).j; await h.call('POST', 'api/daily/guess', { tok, body: { k: s.k, n: 'Serra Angel' } }); };
+  await play('tok:bad', 'Grossier'); await play('tok:ann', 'Ann'); await play('tok:bob', 'Bob');
+  const rowOf = async n => (await h.call('GET', 'api/daily/board?p=day')).j.rows.find(r => r.n === n || (r.x && n === null));
+  const g = await rowOf('Grossier'); assert.match(g.id, /^[\w-]{12}$/, 'identifiant public de la ligne');
+  const rp = (o, id = g.id) => h.call('POST', 'api/daily/report', { ...o, body: { id } });
+  assert.equal((await rp({ tok: 'tok:bad' })).j.error, 'self', 'pas son propre pseudo');
+  assert.equal((await rp({ tok: 'tok:ann' }, 'xxxxxxxxxxxx')).status, 404);
+  assert.deepEqual((await rp({ tok: 'tok:ann' })).j, { ok: true, hid: false }); assert.deepEqual((await rp({ tok: 'tok:ann' })).j, { ok: true, dup: true }, 'une fois par personne');
+  const nodev = await rp({}); assert.equal(nodev.j.error, 'device', 'sans compte ni appareil : refusé'); assert.ok(nodev.j.dev, 'jeton d\'appareil remis');
+  assert.deepEqual((await rp({ dev: nodev.j.dev })).j, { ok: true, hid: false }, 'sans compte : par l\'appareil');
+  assert.deepEqual((await rp({ tok: 'tok:bob' })).j, { ok: true, hid: true }, '3 personnes : masqué');
+  const masked = (await h.call('GET', 'api/daily/board?p=day')).j.rows.find(r => r.id === g.id); assert.deepEqual([masked.n, masked.x], ['', 1], 'pseudo masqué, score gardé');
+  let adm = (await h.call('GET', 'api/admin/daily')).j; assert.deepEqual(adm.reports.map(r => [r.n, r.k, r.hid]), [['Grossier', 3, true]]); assert.equal(adm.repHide, 3);
+  adm = (await h.call('POST', 'api/admin/daily/hide', { body: { id: adm.reports[0].id, on: false } })).j; assert.deepEqual(adm.reports, [], 'rétabli : signalements effacés');
+  assert.equal((await rowOf('Grossier')).x, undefined, 'pseudo rétabli');
+  await rp({ tok: 'tok:ann' }); adm = (await h.call('GET', 'api/admin/daily')).j; assert.equal(adm.reports[0].k, 1, 'compté de nouveau après la décision');
+  adm = (await h.call('POST', 'api/admin/daily/report', { body: { id: adm.reports[0].id } })).j; assert.deepEqual(adm.reports, [], 'ignorer');
+  let last; for (let i = 0; i < 20; i++) last = await rp({ tok: 'tok:zoe' }); assert.equal(last.status, 200); assert.equal((await rp({ tok: 'tok:zoe' })).status, 429, '20 signalements par jour au plus');
+  const lv = await h.call('POST', 'api/level', { tok: 'tok:bad', body: { xp: 500, n: 'Grossier' } }); assert.equal(lv.status, 200);
+  const lb = (await h.call('GET', 'api/level/board')).j.rows[0]; assert.equal(lb.id, g.id, 'même identifiant dans le classement des niveaux');
+  await h.D.flush(); await h.stop();
+});
+
 test('classement des niveaux : premier envoi borné à 50 000 XP, puis 20 000 XP par jour au plus (cumulables sur 7 jours), jamais en baisse ; top 100, ma place, pseudo masqué', async () => {
   const dir = newDir(), h = await harness({ dir }); await h.ready();
   const lvOf = require('../src/progress.js').prgLevel, post = (tok, xp, n) => h.call('POST', 'api/level', { tok, body: { xp, ...(n ? { n } : {}) } }).then(r => r.j);

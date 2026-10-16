@@ -185,3 +185,5 @@ main{max-width:1240px;margin:0 auto;padding:14px 16px 48px}
 .dyr small{color:var(--ink-3)}
 .dyr.off b{color:var(--ink-3);text-decoration:line-through}
 .dyh{margin:18px 0 4px;font-size:15px}
+.kpi.alert{border-color:#e5484d;box-shadow:inset 0 0 0 1px rgba(229,72,77,.35)}      /* pseudos signalés à traiter */
+.kpi[role="button"]{cursor:pointer}

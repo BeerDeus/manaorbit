@@ -85,5 +85,11 @@
 "Personne au classement des niveaux pour l'instant.": "Ancora nessuno nella classifica dei livelli.",
 "XP de « Niveau et badges », plafonnée chaque jour par le serveur.": "XP di «Livello e badge», limitata ogni giorno dal server.",
 "{s} points, trouvée en {t}": "{s} punti, trovata in {t}",
-"Classement": "Classifica"
+"Classement": "Classifica",
+"Signaler le pseudo {n}": "Segnala il nickname {n}",
+"Signaler ce pseudo": "Segnala questo nickname",
+"Signaler ce pseudo ?": "Segnalare questo nickname?",
+"Pseudo insultant, haineux, à caractère sexuel ou qui se fait passer pour quelqu'un ? Nous le vérifions ; signalé par plusieurs personnes, il est masqué en attendant.": "Nickname offensivo, d'odio, a sfondo sessuale o che si spaccia per qualcuno? Lo verifichiamo; se lo segnalano più persone, viene nascosto nel frattempo.",
+"Signaler": "Segnala",
+"Merci, c'est signalé.": "Grazie, segnalazione inviata."
 }

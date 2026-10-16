@@ -323,7 +323,15 @@
     if (r && r.status === 404) { box.hidden = true; return box.replaceChildren(); }      // DAILY=0 sur le serveur
     box.hidden = false;
     if (!r || r.status !== 200 || !r.body) return box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Carte mystère')), h('p', { class: 'note' }, (r && r.body && r.body.message) || 'Le serveur ne répond pas.'));
-    dy.d = r.body; dyPaint();
+    dy.d = r.body; dyPaint(); dyKpi();
+  }
+  /** Tuile « Pseudos signalés » en haut du panneau (signalements des classements à traiter) ; un appui descend à la liste. */
+  function dyKpi() {
+    const rep = (dy.d && dy.d.reports) || [], hid = rep.filter(r => r.hid).length, old = $('#kpis [data-k="pseudos"]');
+    const t = kpi('Pseudos signalés', nf(rep.length), rep.length ? nf(hid) + ' masqué' + (hid > 1 ? 's' : '') + ' en attente de ta décision' : 'rien à traiter', 'pseudos');
+    if (rep.length) t.classList.add('alert');
+    t.setAttribute('role', 'button'); t.tabIndex = 0; t.addEventListener('click', () => { const x = $('#dyRep'); if (x) x.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    if (old) old.replaceWith(t); else $('#kpis').append(t);
   }
   function dyPaint() {
     const d = dy.d, box = $('#daily'), list = h('div', { class: 'dyl', id: 'dyList' }), q = h('input', { type: 'search', placeholder: 'Chercher un pseudo…', 'aria-label': 'Chercher un pseudo', autocomplete: 'off', spellcheck: 'false' });
@@ -356,8 +364,22 @@
     };
     const btn = (id, msg) => { const b = h('button', { class: 'btn ghost small', type: 'button' }, 'Valider'); b.addEventListener('click', ok(id, b, msg)); return b; };
     const mmss = ms => { const s = Math.round((ms || 0) / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-    const chk = d.chk || [], sus = d.sus || [];
-    return [h('h3', { class: 'dyh' }, 'À vérifier (' + nf(chk.length) + ')'),
+    const chk = d.chk || [], sus = d.sus || [], rep = d.reports || [];
+    const act = (path, body, b, msg) => async () => {      // signalements : masquer / rétablir (hide), ignorer (report)
+      b.disabled = true; let x; try { x = await call(path, 'POST', body); } catch (e) { x = null; }
+      if (!x || x.status !== 200 || !x.body) { b.disabled = false; return toast((x && x.body && x.body.message) || 'Modification impossible.'); }
+      dy.d = { ...dy.d, ...x.body }; toast(msg); dyPaint(); dyKpi();
+    };
+    const repRow = r => {
+      const hide = h('button', { class: 'btn ghost small', type: 'button' }, r.hid ? 'Rétablir' : 'Masquer'), skip = h('button', { class: 'btn ghost small', type: 'button' }, 'Ignorer');
+      hide.addEventListener('click', act('/daily/hide', { id: r.id, on: !r.hid }, hide, r.hid ? 'Pseudo rétabli, signalements effacés.' : 'Pseudo masqué dans les classements.'));
+      skip.addEventListener('click', act('/daily/report', { id: r.id }, skip, 'Signalements effacés.'));
+      return h('div', { class: 'dyr' + (r.hid ? ' off' : '') }, h('b', null, r.n), h('small', null, r.k + ' signalement' + (r.k > 1 ? 's' : '') + (r.at ? ' · ' + new Date(r.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '')), r.hid ? h('span', { class: 'tag warn' }, 'masqué') : null, hide, skip);
+    };
+    return [h('h3', { class: 'dyh', id: 'dyRep' }, 'Pseudos signalés (' + nf(rep.length) + ')'),
+      h('p', { class: 'hint' }, 'Signalés depuis les classements (jeu et niveaux). Au bout de ' + (d.repHide || 3) + ' personnes différentes, le pseudo est masqué tout seul en attendant ta décision. « Rétablir » : le pseudo est correct, ses signalements partent ; « Ignorer » : signalements effacés, pseudo laissé tel quel.'),
+      h('div', { class: 'dyl' }, ...(rep.length ? rep.map(repRow) : [h('p', { class: 'empty' }, 'Aucun pseudo signalé.')])),
+      h('h3', { class: 'dyh' }, 'À vérifier (' + nf(chk.length) + ')'),
       h('p', { class: 'hint' }, 'Même réseau, trouvée juste après un autre joueur qui avait vu autant d\'indices : hors du top 100 public et de son badge, sans que le joueur le sache. « Valider » (même box, famille…) la remet au classement.'),
       h('div', { class: 'dyl' }, ...(chk.length ? chk.map(r => h('div', { class: 'dyr' }, h('b', null, r.n), h('small', null, r.day + ' · ' + nf(r.s) + ' pts · étape ' + r.step + (r.ms ? ' en ' + mmss(r.ms) : '') + ' · ' + r.gap + ' s après ' + (r.by === 'win' ? 'une victoire' : 'l\'étape ' + r.other) + ' sur ce réseau'), h('span', { class: 'tag warn' }, 'à vérifier'), btn(r.id, 'Partie remise au classement.')))
         : [h('p', { class: 'empty' }, 'Aucune partie à vérifier.')])),

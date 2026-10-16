@@ -369,6 +369,7 @@ function dlyClick(e) {
   if (a === 'login') { haptic('tap'); DY.el.__close(); return openAccount(); }
   if (a === 'play') { haptic('tap'); DY.el.__close(); return dlyTap(); }
   if (a === 'next') return dlyNext();
+  if (a === 'rep') return dlyReport(b.dataset.id, b.dataset.n);
   if (a === 'quit') return dlyQuit(b);
   if (a === 'share') return dlyShare();
   if (a === 'card' && DY.v && DY.v.res && DY.v.res.card) return openCardViewer([{ key: ownKey(DY.v.res.card.en), name: DY.v.res.card.en, small: DY.v.res.card.img }], 0);
@@ -474,12 +475,29 @@ async function dlyBoard(p) {
 function dlyBoardPaint(box, j) {
   const fmt = new Intl.DateTimeFormat(LOC(), { day: 'numeric', month: 'short' }), lv = j.p === 'level';
   const when = lv ? T('Niveaux') : j.p === 'day' ? T('Aujourd\'hui') : j.p === 'week' ? T('Semaine du {d}', { d: fmt.format(new Date(j.from)) }) : T('Saison de {m}', { m: new Intl.DateTimeFormat(LOC(), { month: 'long', year: 'numeric' }).format(new Date(j.from + 86400e3)) });
+  const rep = x => (x.me || x.x || !x.id ? '' : `<button type="button" class="dly-rep" data-dly="rep" data-id="${esc(x.id)}" data-n="${esc(x.n)}" aria-label="${esc(T('Signaler le pseudo {n}', { n: x.n }))}" title="${esc(T('Signaler ce pseudo'))}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 14V2.5M4 3h7.5l-1.6 2.8L11.5 8.6H4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`);      // signaler un pseudo (Google Play : contenu des utilisateurs)
   const row = x => `<li class="dly-row${x.me ? ' me' : ''}"><span class="dly-r">${nf0(x.r)}</span><span class="dly-n">${x.x ? `<em>${T('Pseudo masqué')}</em>` : esc(x.n)}${x.me ? ` <small>${T('toi')}</small>` : ''}</span>`
-    + (lv ? `<span class="dly-d">${esc(T('Niv. {n}', { n: x.lv }))}</span><b class="dly-s">${esc(T('{n} XP', { n: nf0(x.xp) }))}</b>` : `${x.d ? `<span class="dly-d">${esc(TN(x.d, '{n} jour', '{n} jours'))}</span>` : ''}<b class="dly-s">${nf0(x.s)}</b>`) + '</li>';
+    + (lv ? `<span class="dly-d">${esc(T('Niv. {n}', { n: x.lv }))}</span><b class="dly-s">${esc(T('{n} XP', { n: nf0(x.xp) }))}</b>` : `${x.d ? `<span class="dly-d">${esc(TN(x.d, '{n} jour', '{n} jours'))}</span>` : ''}<b class="dly-s">${nf0(x.s)}</b>`) + rep(x) + '</li>';
   const meOut = j.me && j.me.r > j.rows.length;
   box.innerHTML = `<p class="dly-when"><b>${esc(when)}</b> · ${esc(TN(j.total, '{n} joueur', '{n} joueurs'))}${lv ? '' : ' · ' + esc(T('jusqu\'au {d}', { d: fmt.format(new Date(j.to - 1000)) }))}</p>
     ${j.rows.length ? `<ol class="dly-rows">${j.rows.map(row).join('')}</ol>${meOut ? `<ol class="dly-rows dly-meout">${row(j.me)}</ol>` : ''}` : `<p class="dly-empty">${lv ? T('Personne au classement des niveaux pour l\'instant.') : T('Personne n\'a encore trouvé : sois le premier !')}</p>`}
     <p class="hint">${lv ? T('XP de « Niveau et badges », plafonnée chaque jour par le serveur.') : j.p === 'day' ? T('Top 100 du jour : un badge exclusif, compté à la fin de la journée.') : ''}</p>`;
+}
+/** « Signaler ce pseudo » : confirmation, puis le serveur compte (une fois par personne) ; plusieurs personnes : pseudo masqué en attendant la modération. */
+function dlyReport(id, n) {
+  if (!id) return; haptic('tap');
+  openSheet(T('Signaler ce pseudo ?'), '', api => {
+    api.body.innerHTML = `<p class="dly-repn">« ${esc(n)} »</p><p class="hint">${T('Pseudo insultant, haineux, à caractère sexuel ou qui se fait passer pour quelqu\'un ? Nous le vérifions ; signalé par plusieurs personnes, il est masqué en attendant.')}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ok>${T('Signaler')}</button>`);
+    const ok = api.foot.querySelector('[data-ok]');
+    ok.onclick = async () => {
+      ok.disabled = true;
+      try { await dlyCall('/report', { method: 'POST', body: { id } }); } catch (e) { if (e.code === 'device') { try { await dlyCall('/report', { method: 'POST', body: { id } }); } catch (e2) { ok.disabled = false; return toast(dlyErrText(e2)); } } else if (e.code !== 'self') { ok.disabled = false; return toast(dlyErrText(e)); } }
+      api.close(); haptic('ok'); toast(T('Merci, c\'est signalé.'));
+      for (const k of Object.keys(DY.boards)) delete DY.boards[k];      // classements relus (pseudo peut-être masqué)
+      if (DY.bp) dlyBoard(DY.bp);
+    };
+  });
 }
 /** Résultat à partager façon Wordle : étapes et erreurs en emojis, le temps, jamais la réponse. */
 function dlyShareText(v) {
