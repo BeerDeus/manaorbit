@@ -30,5 +30,5 @@ ok('à jour, plus récente ou navigateur : rien ; sans plugin : carte');
 world.stop();
 world = await startWorld({ port: 19331, env: { APK_LATEST: '0' } });
 const d = await seen(world, shell(5)); assert.equal(d.on, false, 'APK_LATEST=0 : jamais'); await d.ctx.close();
-ok('APK_LATEST=0 : jamais (valeur par défaut, 5 = 1.0.4 : test-proxy.mjs)');
+ok('APK_LATEST=0 : jamais (valeur par défaut, 6 = 1.0.5 : test-proxy.mjs)');
 await browser.close(); world.stop(); console.log('\nAPK MAJ E2E OK'); process.exit(0);

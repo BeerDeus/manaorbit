@@ -62,7 +62,10 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .dly-art{aspect-ratio:618/448}
 .dly-art img,.dly-strip img{display:block;width:100%;height:100%;object-fit:fill;opacity:0;transition:opacity .25s}
 .dly-art.ok img,.dly-strip.ok img{opacity:1}
-.dly-px img{image-rendering:pixelated;image-rendering:crisp-edges}      /* blocs nets même agrandis */
+.dly-art[data-zoom] img{transform-origin:var(--zx) var(--zy)}      /* gros plan suivant : dézoom depuis la zone de l'image précédente */
+.dly-art[data-zoom].ok img{animation:dlyZoom 1.3s cubic-bezier(.22,.8,.24,1) both}
+@keyframes dlyZoom{from{transform:scale(var(--zs))}to{transform:none}}
+@media (prefers-reduced-motion:reduce){.dly-art[data-zoom].ok img{animation:none}}
 .dly-art.bad::after,.dly-strip.bad::after{content:'⟳';position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-3);font-size:22px}
 .dly-type{aspect-ratio:638/56}
 .dly-text{aspect-ratio:633/284}

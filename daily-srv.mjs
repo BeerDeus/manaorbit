@@ -3,7 +3,7 @@
 //   · Une carte par jour, la même pour tous, à heure fixe (DAILY_HOUR, 18 h, fuseau DAILY_TZ, Europe/Paris) : la « journée » va de 18:00 à 18:00.
 //   · Tirée par le serveur parmi les impressions portugaises (la plus rare des 6 langues de l'appli) au cadre moderne, puis vérifiée en fr, de, es, it, en
 //     (Scryfall /cards/{set}/{num}/{lang}, image PNG comprise) ; graine : la date (HMAC d'un secret du serveur : le dépôt est public, personne ne refait le tirage).
-//   · Le serveur fabrique lui-même les images des étapes (décodeur et encodeur PNG ci-dessous, découpe aux proportions du cadre 2015, pixellisation) et les sert
+//   · Le serveur fabrique lui-même les images des étapes (décodeur et encodeur PNG ci-dessous, découpe aux proportions du cadre 2015, gros plan sur un détail puis dézoom) et les sert
 //     une à une ; l'appli ne reçoit jamais l'image entière, l'adresse Scryfall, l'identifiant ni le nom de la carte avant la fin.
 //   · Score, temps et classements calculés ici seulement ; stockage : DAILY_DIR (défaut .data/daily, non versionné), un JSON par jour.
 //   · Comptes secondaires : perdant sans réponse avant la carte suivante, un appareil = un compte classé par jour, même réseau → « à vérifier », comptes établis seulement.
@@ -127,7 +127,7 @@ export function pngEncode(img, o = {}) {
 /** Morceaux d'un PNG (types, dans l'ordre) : les tests vérifient qu'aucun texte n'y voyage. */
 export function pngChunks(buf) { const out = []; for (let i = 8; i + 12 <= buf.length;) { const len = buf.readUInt32BE(i); out.push(buf.toString('latin1', i + 4, i + 8)); i += 12 + len; } return out; }
 
-/* ── Images : découpe, réduction, pixellisation ─────────────────────────────────────────────────────────────────────────────────────── */
+/* ── Images : découpe, réduction, gros plans ─────────────────────────────────────────────────────────────────────────────────────── */
 /** Zone (x, y, largeur, hauteur entiers, bornés à l'image). */
 export function imgCrop(img, x, y, cw, chh) {
   x = Math.max(0, Math.min(img.w - 1, Math.round(x))); y = Math.max(0, Math.min(img.h - 1, Math.round(y)));
@@ -158,24 +158,58 @@ export function imgUp(img, k) {
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const s = ((Math.floor(y / k)) * img.w + Math.floor(x / k)) * 4, o = (y * w + x) * 4; out[o] = img.data[s]; out[o + 1] = img.data[s + 1]; out[o + 2] = img.data[s + 2]; out[o + 3] = img.data[s + 3]; }
   return { w, h, data: out };
 }
+/** Agrandissement ou réduction bilinéaire (gros plans : doux, sans blocs). */
+export function imgBilinear(img, nw, nh) {
+  nw = Math.max(1, Math.round(nw)); nh = Math.max(1, Math.round(nh));
+  const out = new Uint8Array(nw * nh * 4), { w, h, data } = img, sx = w / nw, sy = h / nh;
+  for (let y = 0; y < nh; y++) {
+    const fy = Math.max(0, Math.min(h - 1, (y + 0.5) * sy - 0.5)), y0 = Math.floor(fy), y1 = Math.min(h - 1, y0 + 1), ty = fy - y0;
+    for (let x = 0; x < nw; x++) {
+      const fx = Math.max(0, Math.min(w - 1, (x + 0.5) * sx - 0.5)), x0 = Math.floor(fx), x1 = Math.min(w - 1, x0 + 1), tx = fx - x0, o = (y * nw + x) * 4;
+      const a = (y0 * w + x0) * 4, b = (y0 * w + x1) * 4, c = (y1 * w + x0) * 4, d = (y1 * w + x1) * 4;
+      for (let k = 0; k < 4; k++) out[o + k] = Math.round((data[a + k] * (1 - tx) + data[b + k] * tx) * (1 - ty) + (data[c + k] * (1 - tx) + data[d + k] * tx) * ty);
+    }
+  }
+  return { w: nw, h: nh, data: out };
+}
 /** Largeur bornée à maxW (proportions gardées). */
 export const imgFit = (img, maxW) => (img.w <= maxW ? img : imgResize(img, maxW, img.h * maxW / img.w));
-/** Pixellisation : l'image en cols blocs de large (lignes en proportion), chaque bloc à la couleur moyenne, agrandie pour faire ≈ DLY_PIX_W px. */
-export function imgPixelate(img, cols) {
-  const rows = Math.max(2, Math.round(cols * img.h / img.w));
-  return imgUp(imgResize(img, cols, rows), Math.max(1, Math.round(DLY_PIX_W / cols)));
-}
 
 /** Zones du cadre moderne (2015) d'une image Scryfall (745 × 1040), en fractions de la largeur et de la hauteur [x0, y0, x1, y1] : l'illustration commence sous la
  *  bande du titre (nom et coût, y ≤ 0,10), la zone de texte s'arrête au-dessus de la ligne du bas (numéro, extension, artiste, y ≥ 0,93). */
 export const DLY_ZONES = { art: [0.085, 0.122, 0.915, 0.553], type: [0.072, 0.562, 0.928, 0.616], text: [0.075, 0.624, 0.925, 0.897] };
-export const DLY_PIX = [6, 12, 24, 48], DLY_PIX_W = 384;      // blocs par largeur des étapes 1 à 4, largeur visée des images pixellisées
+export const DLY_ZOOM = [0.16, 0.27, 0.42, 0.65], DLY_ART_W = 480;      // étapes 1 à 4 : part de l'illustration montrée (gros plan, puis de moins en moins près) ; largeur des images de l'illustration
 /** Zone d'une carte, en pixels. */
 export function dlyZone(img, k) { const [a, b, c, d] = DLY_ZONES[k]; return imgCrop(img, a * img.w, b * img.h, (c - a) * img.w, (d - b) * img.h); }
-/** Images des étapes 1 à 7 (PNG) : 1-4 illustration pixellisée de plus en plus finement, 5 illustration nette, 6 ligne de type, 7 zone de texte. */
-export function dlyStages(card) {
-  const art = dlyZone(card, 'art'), type = dlyZone(card, 'type'), text = dlyZone(card, 'text');
-  return [...DLY_PIX.map(c => imgPixelate(art, c)), imgFit(art, 480), imgFit(type, 640), imgFit(text, 640)].map(i => pngEncode(i));
+/**
+ * Point du gros plan (fractions de l'illustration) : un endroit riche en détails (contrastes), tiré au sort parmi les plus détaillés avec rnd (tirage du jour, même point
+ * dans toutes les langues). L'illustration est réduite à 48 px de large, chaque fenêtre de l'étape 1 notée à la somme des écarts de luminosité entre voisins.
+ */
+export function dlyFocus(art, rnd = Math.random) {
+  const W = 48, H = Math.max(8, Math.round(W * art.h / art.w)), sm = imgResize(art, W, H), L = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) L[i] = 0.299 * sm.data[i * 4] + 0.587 * sm.data[i * 4 + 1] + 0.114 * sm.data[i * 4 + 2];
+  const E = new Float32Array(W * H); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; E[i] = (x + 1 < W ? Math.abs(L[i] - L[i + 1]) : 0) + (y + 1 < H ? Math.abs(L[i] - L[i + W]) : 0); }
+  const ww = Math.max(2, Math.round(DLY_ZOOM[0] * W)), wh = Math.max(2, Math.round(DLY_ZOOM[0] * H)), cand = [];
+  for (let y = 0; y + wh <= H; y++) for (let x = 0; x + ww <= W; x++) { let e = 0; for (let yy = y; yy < y + wh; yy++) for (let xx = x; xx < x + ww; xx++) e += E[yy * W + xx]; cand.push({ x: (x + ww / 2) / W, y: (y + wh / 2) / H, e }); }
+  cand.sort((a, b) => b.e - a.e);
+  const top = cand.slice(0, Math.max(1, Math.ceil(cand.length * 0.15))), c = top[Math.min(top.length - 1, Math.floor(rnd() * top.length))];      // parmi les 15 % les plus détaillées
+  return { x: Math.round(c.x * 1000) / 1000, y: Math.round(c.y * 1000) / 1000 };
+}
+/** Fenêtres des étapes 1 à 5 autour du point f, en fractions de l'illustration [x, y, largeur, hauteur] (mêmes proportions qu'elle, gardées dedans) ; 5 : toute l'illustration. */
+export function dlyWins(f) {
+  const c = (v, w) => Math.max(0, Math.min(1 - w, v - w / 2));
+  return [...DLY_ZOOM, 1].map(z => [c(f.x, z), c(f.y, z), z, z]);
+}
+/** Fenêtre de l'étape s − 1 vue dans celle de l'étape s (2 à 5), en fractions : l'appli s'en sert pour dézoomer en douceur d'une image à l'autre. */
+export function dlyZoomRel(f, s) {
+  const w = dlyWins(f), a = w[s - 2], b = w[s - 1]; if (!a || !b) return null;
+  return [(a[0] - b[0]) / b[2], (a[1] - b[1]) / b[3], a[2] / b[2], a[3] / b[3]].map(n => Math.round(n * 1000) / 1000);
+}
+/** Images des étapes 1 à 7 (PNG) : 1-4 gros plan sur un détail de l'illustration, de moins en moins près (point f), 5 illustration entière, 6 ligne de type, 7 zone de texte. */
+export function dlyStages(card, f = { x: 0.5, y: 0.5 }) {
+  const art = dlyZone(card, 'art'), type = dlyZone(card, 'type'), text = dlyZone(card, 'text'), H = Math.round(DLY_ART_W * art.h / art.w);
+  const zoom = dlyWins(f).slice(0, 4).map(([x, y, w, h]) => imgBilinear(imgCrop(art, x * art.w, y * art.h, w * art.w, h * art.h), DLY_ART_W, H));
+  return [...zoom, imgFit(art, DLY_ART_W), imgFit(type, 640), imgFit(text, 640)].map(i => pngEncode(i));
 }
 
 /* ── Règles : étapes, score, nom dévoilé par la fin ─────────────────────────────────────────────────────────────────────────────────── */
@@ -363,14 +397,19 @@ export function dailyMake(o = {}) {
   /** Images des étapes de chaque langue : du disque, sinon fabriquées (PNG de Scryfall) et gardées. Langue dont l'image échoue : celle de l'anglais. */
   async function build(rec) {
     const out = {}, made = new Map();
+    if (!rec.card.fx) {      // point du gros plan : une fois par jour, sur l'illustration anglaise (la même dans toutes les langues), gardé avec la carte
+      let f = { x: 0.5, y: 0.5 };
+      try { const src = (rec.card.l.en || Object.values(rec.card.l)[0]).png; f = dlyFocus(dlyZone(await png(src), 'art'), dlyRng(createHmac('sha256', await secret()).update('focus|' + rec.day).digest('hex'))); } catch (e) { /* illisible : le centre */ }
+      rec.card.fx = f; saveSoon(rec);
+    }
     for (const l of DLY_LANGS) {
       const files = Array.from({ length: DLY_IMGS }, (_, i) => join(imgDir(rec.day), `${l}-${i + 1}.png`));
       try { out[l] = await Promise.all(files.map(f => readFile(f))); continue; } catch (e) { /* à fabriquer */ }
       const e = rec.card.l[l], src = e.png;
       let bufs = made.get(src);
       if (!bufs) {
-        try { bufs = dlyStages(await png(src)); }
-        catch (err) { if (l === 'en' || !rec.card.l.en) throw err; log.warn(`Carte mystère : image ${l} illisible (${err.message}), repli anglais`); rec.card.l[l] = { ...rec.card.l.en, fb: 1 }; bufs = made.get(rec.card.l.en.png) || dlyStages(await png(rec.card.l.en.png)); }
+        try { bufs = dlyStages(await png(src), rec.card.fx); }
+        catch (err) { if (l === 'en' || !rec.card.l.en) throw err; log.warn(`Carte mystère : image ${l} illisible (${err.message}), repli anglais`); rec.card.l[l] = { ...rec.card.l.en, fb: 1 }; bufs = made.get(rec.card.l.en.png) || dlyStages(await png(rec.card.l.en.png), rec.card.fx); }
         made.set(rec.card.l[l].png, bufs);
         await new Promise(r => setImmediate(r));
       }
@@ -515,7 +554,8 @@ export function dailyMake(o = {}) {
     const v = { k: p.k, day: rec.day, no: dlyNo(rec.day), st: p.st, step, steps: DLY_STEPS, max: DLY_WRONG, wrong: p.wrong.map(w => ({ n: w.n, p: w.p })), left: Math.max(0, DLY_WRONG - p.wrong.length), now: now(), next: C.nextOf(rec.day),
       t0: p.t0 || 0, sh: p.sh || 0, clock: clockOf(p), stepMs: STEP, pen: PEN,
       acct: !!tag, ranked: !!tag && p.lb !== false, why: p.why || '', minAge: Math.round(MIN_AGE / DAY), fb: !!e.fb,
-      imgs: { art: imgUrl(p.k, Math.min(at, 5)), ...(at >= 6 ? { type: imgUrl(p.k, 6) } : {}), ...(at >= 7 ? { text: imgUrl(p.k, 7) } : {}) } };
+      imgs: { art: imgUrl(p.k, Math.min(at, 5)), ...(at >= 6 ? { type: imgUrl(p.k, 6) } : {}), ...(at >= 7 ? { text: imgUrl(p.k, 7) } : {}) },
+      ...(!done && at >= 2 && at <= 5 && c.fx ? { zr: dlyZoomRel(c.fx, at) } : {}) };      // zr : l'image précédente dans celle-ci (dézoom animé)
     if (!done && step >= 8) v.mask = dlyMask(e.n, step);
     if (done) {
       v.res = { win, s: p.s, step, wrong: p.wrong.length, ms: p.ms, ...(win ? { card: { name: e.n, en: c.en, img: e.img, set: c.sn } } : { reveal: C.nextOf(rec.day) }) };

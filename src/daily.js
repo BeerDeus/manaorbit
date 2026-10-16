@@ -9,7 +9,7 @@
    · Sans compte : partie pour le plaisir ; compte récent (moins de 7 jours) ou appareil déjà joué par un autre compte : messages du serveur (why).
    · Jeton d'appareil (x-daily-device) gardé dans le stockage local, IndexedDB et les Preferences de Capacitor. XP du compte envoyée au classement des niveaux.
    · Pub (ads.js › adsBusy) : jamais pendant le décompte et la partie (.dly-play) ; permise sur le résultat et les classements.
-   · Lien d'essai seulement (dlyOn : window.MO_TEST et /__ping › daily) : sinon rien n'apparaît ni ne s'ouvre. Mode streamer : pas d'animation.
+   · Proposé quand le serveur l'annonce (dlyOn : /__ping › daily ; DAILY=0 le coupe) : sinon rien n'apparaît ni ne s'ouvre. Mode streamer : pas d'animation.
    · dailyBadges() : badges vérifiés par le serveur, pour le module niveau et badges. */
 const DY = { st: null, at: 0, off: 0, el: null, v: null, mode: '', bp: 'day', boards: {}, seen: new Set(), names: null, namesL: '', namesP: null, en: null, enP: null, hits: [], sel: -1, busy: false,
   tickT: 0, refT: 0, nextT: 0, badges: null, badgesAt: 0, badgesUid: '', load: 0, dev: '', lvT: 0, lvAt: 0, lvXp: -1, lvUid: '', quit: 0 };
@@ -18,8 +18,8 @@ const DY_PTS = { base: 1000, grace: 500, perSec: 7.5, min: 50 };      // barème
 const DY_ICON = '<svg class="dly-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.8" width="14" height="18.4" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2.9-1.2 1.7v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1.1" fill="currentColor"/></svg>';
 const DY_PODIUM = '<svg class="dly-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 20.6V12.4h6.8v8.2M3 20.6v-5.4h5.6M21 20.6v-7h-5.6M2.4 20.6h19.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3l1.2 2.4 2.6.4-1.9 1.8.5 2.6L12 9l-2.4 1.2.5-2.6-1.9-1.8 2.6-.4z" fill="currentColor"/></svg>';
 const DY_CHECK = '<svg class="dly-ck" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.6 6.3l2.2 2.2 4.6-4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-/** Le jeu est-il proposé ? Lien d'essai (window.MO_TEST, app.js › MO_TEST) et serveur qui l'annonce. */
-const dlyOn = () => typeof MO_TEST !== 'undefined' && MO_TEST === true && CTX.daily === true;
+/** Le jeu est-il proposé ? Serveur qui l'annonce (/__ping › daily). */
+const dlyOn = () => CTX.daily === true;
 const dlyLang = () => (DY_LANGS.includes(I18N.lang) ? I18N.lang : 'en');
 const dlyNow = () => Date.now() + DY.off;      // heure du serveur (chrono et compte à rebours ne dépendent pas de l'horloge du téléphone)
 const dlyKey = s => normPart(String(s || '').split('//')[0]);
@@ -243,6 +243,12 @@ function dlyNoteHtml(v) {
   return '';
 }
 const dlySubOf = v => (!v.acct ? T('Partie pour le plaisir') : v.why === 'device' ? T('Partie d\'entraînement') : v.why ? T('Partie non classée') : T('Partie classée'));
+/** Dézoom animé d'un gros plan au suivant (étapes 2 à 5) : l'image arrive agrandie sur la zone de la précédente (zr, envoyé par le serveur), puis recule. Image déjà vue : rien. */
+function dlyZoomAttr(v) {
+  const z = v.zr; if (!Array.isArray(z) || z.length !== 4 || DY.seen.has(v.imgs.art) || !(z[2] > 0 && z[2] < 1)) return '';
+  const ox = z[0] / (1 - z[2]), oy = z[1] / (1 - z[3]);      // point fixe de l'agrandissement : la zone précédente remplit alors tout le cadre
+  return ` data-zoom style="--zs:${(1 / z[2]).toFixed(3)};--zx:${(ox * 100).toFixed(1)}%;--zy:${(oy * 100).toFixed(1)}%"`;
+}
 function dlyPaintPlay() {
   const el = DY.el, v = DY.v; if (!el || !v) return;
   $('.dly-sub', el).textContent = dlySubOf(v);
@@ -251,7 +257,7 @@ function dlyPaintPlay() {
   $('.dly-main', el).innerHTML = `${dlyNoteHtml(v)}
     <div class="dly-chrono"><div class="dly-ct"><span class="dly-stp">${T('Étape {s} sur {n}', { s: v.step, n: v.steps })}</span><span class="dly-time" role="timer"></span><span class="dly-pts"></span></div>
       <div class="dly-bar" aria-hidden="true"><i></i></div><div class="dly-steps" aria-hidden="true">${dots}</div></div>
-    <figure class="dly-art${v.step <= 4 ? ' dly-px' : ''}${DY.seen.has(v.imgs.art) ? ' ok' : ''}"><img alt="${esc(v.step <= 4 ? T('Illustration de la carte, pixellisée') : T('Illustration de la carte'))}" decoding="async" src="${esc(v.imgs.art)}"></figure>
+    <figure class="dly-art${DY.seen.has(v.imgs.art) ? ' ok' : ''}"${dlyZoomAttr(v)}><img alt="${esc(v.step <= 4 ? T('Gros plan sur l\'illustration de la carte') : T('Illustration de la carte'))}" decoding="async" src="${esc(v.imgs.art)}"></figure>
     ${v.imgs.type ? `<figure class="dly-strip dly-type${DY.seen.has(v.imgs.type) ? ' ok' : ''}"><img alt="${esc(T('Ligne de type de la carte'))}" decoding="async" src="${esc(v.imgs.type)}"></figure>` : ''}
     ${v.imgs.text ? `<figure class="dly-strip dly-text${DY.seen.has(v.imgs.text) ? ' ok' : ''}"><img alt="${esc(T('Texte de la carte'))}" decoding="async" src="${esc(v.imgs.text)}"></figure>` : ''}
     ${v.mask ? `<p class="dly-mask" role="img" aria-label="${esc(T('Nom de la carte, lettres de la fin : {m}', { m: v.mask.replace(/_/g, '•') }))}">${dlyMaskHtml(v.mask)}</p>` : ''}

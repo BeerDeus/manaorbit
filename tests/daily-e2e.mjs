@@ -1,5 +1,5 @@
 // E2E Carte mystère (port 19710) : faux Scryfall côté serveur (daily-fakes.mjs : carte PNG fabriquée, impressions par langue) derrière le vrai proxy.mjs,
-// jetons Firebase signés par le test (amis-fakes.mjs). Lien d'essai seulement : sans window.MO_TEST (ou serveur qui ne l'annonce pas), aucun bouton.
+// jetons Firebase signés par le test (amis-fakes.mjs). Ouvert à tous (16 octobre) ; serveur qui ne l'annonce pas (DAILY=0) : aucun bouton.
 // Compte connecté (appli Android simulée) : « Participer ? », décompte, partie classée trouvée à l'étape 1, bandeau AdMob caché pendant le décompte et la partie,
 // revenu au résultat ; classements jour, semaine, saison, niveaux (XP envoyée, plafonnée par le serveur), podium de la barre du haut, lien « Classement » de la
 // fiche « Niveau et badges », dailyBadges(). Puis un second compte sur le même appareil : partie d'entraînement, non classée ; abandon sans la réponse.
@@ -76,17 +76,16 @@ async function join_(p, shots) {
   assert.equal(await step(p), 'Étape 1 sur 10');
 }
 
-{ // 1) hors du lien d'essai, ou serveur qui ne l'annonce pas : rien
+{ // 1) adresse normale : ouvert à tous ; serveur qui ne l'annonce pas : rien
   const a = await page({ test: false });
   await a.p.waitForFunction(() => CTX.proxy === true && CTX.daily === true, null, { timeout: 15000 });
-  assert.equal(await a.p.$('#btnDaily'), null, 'sans window.MO_TEST : aucun bouton'); assert.equal(await a.p.$('#btnRanks'), null); assert.deepEqual(await a.p.evaluate(() => dailyBadges()), []);
-  await a.p.evaluate(() => { dlyLaunch(); dlyOpen(); dlyRanks(); dlyTap(); }); await a.p.waitForTimeout(900); assert.equal(await a.p.$('.dly, .dly-ask'), null, 'le jeu ne s\'ouvre pas');
+  await a.p.waitForSelector('#btnDaily', { timeout: 8000 }); assert.ok(await a.p.$('#btnRanks'), 'adresse normale : les deux boutons (ouvert à tous depuis le 16 octobre)');
   await a.ctx.close();
   const b = await page({ ping: { daily: false } });
   await b.p.waitForFunction(() => CTX.proxy === true, null, { timeout: 15000 }); await b.p.waitForTimeout(400);
   assert.equal(await b.p.$('#dlyHbs'), null, 'DAILY=0 sur le serveur : aucun bouton');
   await b.ctx.close();
-  ok('hors du lien d\'essai (window.MO_TEST) ou jeu coupé sur le serveur : ni boutons, ni écran, ni badges');
+  ok('adresse normale : boutons présents ; jeu coupé sur le serveur (DAILY=0) : ni boutons, ni écran, ni badges');
 }
 
 // classement des niveaux : deux autres joueurs déjà là (XP envoyée par leur appli)
@@ -184,7 +183,8 @@ for (const [uid, n, xp] of [['uid-zed', 'Zed', 49000], ['uid-max', 'Max', 1200]]
   await p.waitForSelector('.dly-ask.open [data-dly="go"]'); await p.click('.dly-ask .sheet-foot [data-close]'); await p.waitForFunction(() => !document.querySelector('.dly-ask'), null, { timeout: 3000 });
   await join_(p, true);
   assert.match(await p.$eval('.dly-note', e => e.textContent), /Sans compte, ta partie n'est pas classée/);
-  assert.equal(await p.$eval('.dly-art img', i => i.naturalWidth), 384, 'étape 1 : illustration pixellisée fabriquée par le serveur');
+  assert.equal(await p.$eval('.dly-art img', i => i.naturalWidth), 480, 'étape 1 : gros plan fabriqué par le serveur');
+  assert.equal(await p.$('.dly-art[data-zoom]'), null, 'étape 1 : pas de dézoom (rien avant)');
   const k = await p.evaluate(() => DY.v.k);
   assert.match(await p.$eval('.dly-art img', i => i.getAttribute('src')), new RegExp(`^api/daily/img\\?k=${k}&s=1$`));
   assert.equal(await p.$('.dly-type'), null); assert.equal(await p.$('.dly-mask'), null);
@@ -195,11 +195,12 @@ for (const [uid, n, xp] of [['uid-zed', 'Zed', 49000], ['uid-max', 'Max', 1200]]
   // l'étape 2 arrive toute seule à 12 s, sans toucher à rien
   await stepIs(p, 2, 16000); await imgOk(p, '.dly-art');
   assert.match(await p.$eval('.dly-art img', i => i.getAttribute('src')), /&s=2$/);
+  assert.match(await p.$eval('.dly-art', e => e.getAttribute('style') || ''), /--zs:1\.\d+;--zx:[\d.]+%;--zy:[\d.]+%/, 'étape 2 : dézoom depuis le gros plan précédent');
   const c2 = await p.evaluate(() => dlyClock(DY.v)); assert.ok(c2 >= 12e3 && c2 < 16e3, 'horloge du serveur : ' + c2);
   await p.waitForTimeout(1500); await shot(p, 'daily-4-partie-chrono');
   for (let s = 3; s <= 5; s++) await next(p, s);
   await imgOk(p, '.dly-art'); assert.equal(await p.$eval('.dly-art img', i => i.naturalWidth), 480, 'étape 5 : illustration nette');
-  assert.ok(!(await p.$eval('.dly-art', e => e.classList.contains('dly-px'))));
+  assert.equal(await p.$eval('.dly-art img', i => i.getAttribute('alt')), 'Illustration de la carte', 'étape 5 : illustration entière');
   await next(p, 6); await imgOk(p, '.dly-type');
   await next(p, 7); await imgOk(p, '.dly-text');
   const c7 = await p.evaluate(() => dlyClock(DY.v)); assert.ok(c7 >= 6 * 12e3, '« Indice suivant » avance l\'horloge au début de l\'étape : ' + c7);

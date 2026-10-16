@@ -36,10 +36,10 @@ function mePaint() {
   const who = u && sv && meName(u) === u.email ? T('Compte') : meName(u);
   const top = u
     ? `<div class="me-who"><span class="who-av me-av" id="meAv">${esc((who.trim()[0] || '?').toUpperCase())}</span>
-        <span class="me-wt"><b>${esc(who || T('Compte'))}${MO_TEST && typeof prgPill === 'function' ? prgPill() : ''}</b>${u.email && u.email !== who && !sv ? `<span>${esc(u.email)}</span>` : ''}<span class="me-sync${D.listErr ? ' warn' : ''}">${esc(D.listErr || (D.pending ? T('Synchronisation…') : T('Synchronisé')))}</span></span>
+        <span class="me-wt"><b>${esc(who || T('Compte'))}${typeof prgPill === 'function' ? prgPill() : ''}</b>${u.email && u.email !== who && !sv ? `<span>${esc(u.email)}</span>` : ''}<span class="me-sync${D.listErr ? ' warn' : ''}">${esc(D.listErr || (D.pending ? T('Synchronisation…') : T('Synchronisé')))}</span></span>
         <button class="btn ghost small" type="button" data-me="profil" id="meProfile">${T('Modifier')}</button></div>`
     : D.hint && !D.authReady ? `<div class="me-in"><p class="hint">${T('Connexion au compte…')}</p></div>`
-    : `<div class="me-in"><b>${T('Connecte-toi')}${MO_TEST && typeof prgPill === 'function' ? prgPill() : ''}</b><span class="hint">${T('Sauvegarde ta collection, tes decks et ta liste d\'échange, et retrouve-les sur tous tes appareils.')}</span><button class="btn small" type="button" data-me="compte" id="meLogin">${T('Se connecter')}</button></div>`;
+    : `<div class="me-in"><b>${T('Connecte-toi')}${typeof prgPill === 'function' ? prgPill() : ''}</b><span class="hint">${T('Sauvegarde ta collection, tes decks et ta liste d\'échange, et retrouve-les sur tous tes appareils.')}</span><button class="btn small" type="button" data-me="compte" id="meLogin">${T('Se connecter')}</button></div>`;
   const n = sv ? sv.n : collCount(), v = sv ? sv.v : homeValue();
   const stats = `<div class="me-stats"><button type="button" data-me="coll"><b>${nf0(n)}</b><span>${T(n > 1 ? 'cartes' : 'carte')}</span></button><button type="button" data-me="decks"><b>${nf0(allDecks().length)}</b><span>${T(allDecks().length > 1 ? 'decks' : 'deck')}</span></button><button type="button" data-me="valeur"><b>${v ? '≈ ' + esc(fmt(Math.round(v / 100) * 100)).replace(/[,.]00(?=\s|$| )/, '') : '—'}</b><span>${T('valeur')}</span></button></div>`;
   const mine = PD.mine && u && PD.mineUid === u.uid ? PD.mine.size : -1;

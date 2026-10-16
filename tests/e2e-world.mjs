@@ -76,7 +76,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0, daily
   return world;
 }
 
-/** Nouvelle page mobile branchée sur le monde (Scryfall simulé). opts : { sw: true pour laisser le service worker, perms, ctx } */
+/** Nouvelle page mobile branchée sur le monde (Scryfall simulé). opts : { sw: true pour laisser le service worker, perms, ctx, pop: true pour laisser les bannières de nouveau badge (progress.js) } */
 export async function newPage(browser, world, opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: opts.sw ? 'allow' : 'block', permissions: opts.perms || [], ...(opts.ctx || {}) });
   const p = await ctx.newPage(), errs = [];
@@ -157,6 +157,7 @@ export async function newPage(browser, world, opts = {}) {
   });
   await p.route('https://cards.scryfall.io/**', route => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: SVG }));
   await routeFonts(p);
+  if (!opts.pop) await p.addInitScript(() => { window.MO_NOPOP = true; });      // bannières de badge : elles couvrent le haut de l'écran 4,5 s (progress-e2e les teste)
   if (opts.init) await p.addInitScript(opts.init);
   if (opts.goto !== false) { await p.goto(world.url + (opts.path || '')); await p.waitForTimeout(700); await p.evaluate(() => { BACKOFF.scry = [60, 60, 60]; BACKOFF.cool429 = 100; }); }
   return { ctx, p, errs };

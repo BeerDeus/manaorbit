@@ -1,5 +1,5 @@
 // Carte mystère, côté serveur (daily-srv.mjs) : décodeur et encodeur PNG (filtres, formats, Adam7, fichiers abîmés), découpe aux proportions du cadre moderne et
-// pixellisation, tirage de la carte avec un faux Scryfall (langues vérifiées, 30 essais, repli anglais, reproductible), score, nom dévoilé par la fin, jours /
+// gros plans (point riche en détails, dézoom), tirage de la carte avec un faux Scryfall (langues vérifiées, 30 essais, repli anglais, reproductible), score, nom dévoilé par la fin, jours /
 // semaines / saisons à l'heure de Paris (changement d'heure compris), parties (classée ou non, une par compte et par jour), classements, badges, masque d'un
 // pseudo, purge, relecture du disque ; anti-triche : ni nom, ni identifiant, ni extension, ni adresse Scryfall dans les réponses avant la fin, images sans
 // la bande du titre ni la ligne du bas. Puis le vrai proxy.mjs (ports 19700–19702) : /__ping, jetons Firebase, DAILY=0, panneau /admin. Traductions de src/daily.js.
@@ -19,7 +19,7 @@ import * as M from '../daily-srv.mjs';
 import { startDailyScry, fakeCardImg, SERRA, RED, BLUE, MAGENTA, LANGS } from './daily-fakes.mjs';
 import { startFakes } from './amis-fakes.mjs';
 
-const { pngDecode, pngEncode, pngChunks, crc32, imgCrop, imgResize, imgPixelate, dlyZone, dlyStages, dlyScore, dlyStepAt, dlyMask, dlyNorm, dlyClock, dlyAdd, dlyPrintOk, dlyNamed, dlyName, dailyMake, DLY_ZONES, DLY_PIX, DLY_PIX_W } = M;
+const { pngDecode, pngEncode, pngChunks, crc32, imgCrop, imgResize, imgBilinear, dlyFocus, dlyWins, dlyZoomRel, dlyZone, dlyStages, dlyScore, dlyStepAt, dlyMask, dlyNorm, dlyClock, dlyAdd, dlyPrintOk, dlyNamed, dlyName, dailyMake, DLY_ZONES, DLY_ZOOM, DLY_ART_W } = M;
 const TMP = mkdtempSync(join(tmpdir(), 'deckdeal-daily-')); process.on('exit', () => { try { rmSync(TMP, { recursive: true, force: true }); } catch { /* ignore */ } });
 let nDir = 0; const newDir = () => join(TMP, 'd' + (++nDir));
 const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -76,7 +76,7 @@ test('PNG : fichiers refusés (signature, CRC, tronqué, trop grand, morceau cri
   assert.throws(() => pngDecode(Buffer.concat([ok.subarray(0, 8), ck('IHDR', ihdr), ck('ZZZZ', Buffer.alloc(4)), ck('IDAT', deflateSync(Buffer.from([0, 1, 2, 3]))), ck('IEND', Buffer.alloc(0))])), /critique/);
 });
 
-test('découpe : zones du cadre moderne sans la bande du titre ni la ligne du bas ; pixellisation en blocs moyens ; 7 images d\'étapes', () => {
+test('découpe : zones du cadre moderne sans la bande du titre ni la ligne du bas ; gros plans de plus en plus larges ; 7 images d\'étapes', () => {
   const card = fakeCardImg('fr', 1), art = dlyZone(card, 'art'), type = dlyZone(card, 'type'), text = dlyZone(card, 'text');
   assert.ok(DLY_ZONES.art[1] > 0.1 && DLY_ZONES.text[3] < 0.93, 'sous le titre, au-dessus de la ligne du bas');
   assert.deepEqual([art.w, art.h], [Math.round(0.83 * 745), Math.round(0.431 * 1040)]);
@@ -85,17 +85,23 @@ test('découpe : zones du cadre moderne sans la bande du titre ni la ligne du ba
   for (let i = 0; i < type.data.length; i += 4) assert.deepEqual(Array.from(type.data.subarray(i, i + 3)), BLUE, 'ligne de type entière');
   const small = imgResize(imgCrop(card, 0, 0, 40, 30), 4, 3), mean = [0, 0, 0]; for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) px(card, x, y).slice(0, 3).forEach((c, k) => { mean[k] += c / 100; });
   assert.deepEqual(px(small, 0, 0).slice(0, 3), mean.map(Math.round), 'bloc = moyenne de ses pixels');
-  for (const cols of DLY_PIX) {
-    const p = imgPixelate(art, cols), b = Math.round(DLY_PIX_W / cols);
-    assert.equal(p.w, cols * b); assert.equal(p.h, Math.max(2, Math.round(cols * art.h / art.w)) * b);
-    assert.deepEqual(px(p, b - 1, b - 1), px(p, 0, 0), 'bloc uni'); assert.deepEqual(px(p, b, 0), px(imgResize(art, cols, p.h / b), 1, 0));
-  }
-  const st = dlyStages(card); assert.equal(st.length, 7);
-  const dec = st.map(b => pngDecode(b));
-  assert.deepEqual(dec.map(d => d.w), [384, 384, 384, 384, 480, type.w, text.w]); assert.ok(type.w <= 640 && text.w <= 640);
+  const sq = { w: 2, h: 2, data: Uint8Array.from([0, 0, 0, 255, 200, 0, 0, 255, 0, 200, 0, 255, 0, 0, 200, 255]) }, up = imgBilinear(sq, 8, 8);
+  assert.deepEqual([px(up, 0, 0), px(up, 7, 0), px(up, 0, 7), px(up, 7, 7)], [[0, 0, 0, 255], [200, 0, 0, 255], [0, 200, 0, 255], [0, 0, 200, 255]], 'agrandissement bilinéaire : coins gardés');
+  const mid = px(up, 3, 0)[0]; assert.ok(mid > 0 && mid < 200, 'dégradé doux, sans blocs');
+  // point du gros plan : un damier fin dans le quart en bas à droite, le reste uni → toujours dans le damier, quel que soit le tirage
+  const flat = { w: 400, h: 300, data: new Uint8Array(400 * 300 * 4).fill(120) }; for (let y = 200; y < 300; y++) for (let x = 280; x < 400; x++) { const o = (y * 400 + x) * 4, v = ((x >> 2) ^ (y >> 2)) & 1 ? 230 : 20; flat.data[o] = flat.data[o + 1] = flat.data[o + 2] = v; }
+  for (const r of [0, 0.5, 0.99]) { const f = dlyFocus(flat, () => r); assert.ok(f.x > 0.62 && f.y > 0.6, 'point dans le détail : ' + JSON.stringify(f)); }
+  const ws = dlyWins({ x: 0.97, y: 0.03 }); assert.deepEqual(ws.map(w => w[2]), [...DLY_ZOOM, 1], 'de plus en plus large, puis toute l\'illustration');
+  for (const [x, y, w, h] of ws) assert.ok(x >= 0 && y >= 0 && x + w <= 1.0000001 && y + h <= 1.0000001, 'fenêtre dans l\'illustration');
+  for (let i = 1; i < ws.length; i++) { const [a, b] = [ws[i - 1], ws[i]]; assert.ok(a[0] >= b[0] - 1e-9 && a[1] >= b[1] - 1e-9 && a[0] + a[2] <= b[0] + b[2] + 1e-9 && a[1] + a[3] <= b[1] + b[3] + 1e-9, 'chaque gros plan contient le précédent'); }
+  const z2 = dlyZoomRel({ x: 0.5, y: 0.5 }, 2); assert.deepEqual(z2.map(n => Math.round(n * 100)), [20, 20, 59, 59], 'étape 2 : la 1re au centre, 59 % de la largeur');
+  assert.equal(dlyZoomRel({ x: 0.5, y: 0.5 }, 6), null);
+  const st = dlyStages(card, { x: 0.3, y: 0.6 }); assert.equal(st.length, 7);
+  const dec = st.map(b => pngDecode(b)), H = Math.round(DLY_ART_W * art.h / art.w);
+  assert.deepEqual(dec.map(d => d.w), [480, 480, 480, 480, 480, type.w, text.w]); assert.deepEqual(dec.slice(0, 5).map(d => d.h), [H, H, H, H, H], 'gros plans aux proportions de l\'illustration');
+  assert.notDeepEqual(px(dec[0], 0, 0), px(dec[4], 0, 0), 'étape 1 : un détail, pas l\'illustration entière'); assert.ok(type.w <= 640 && text.w <= 640);
   dec.forEach((d, i) => { assert.ok(!has(d, RED) && !has(d, MAGENTA), 'étape ' + (i + 1) + ' : ni titre ni ligne du bas'); assert.deepEqual(pngChunks(st[i]), ['IHDR', 'IDAT', 'IEND']); });
   const colors = d => { const c = new Set(); for (let i = 0; i < d.data.length; i += 4) c.add(d.data[i] << 16 | d.data[i + 1] << 8 | d.data[i + 2]); return c.size; };
-  const nc = dec.slice(0, 5).map(colors); assert.ok(nc.every((n, i) => !i || n > nc[i - 1]), 'de plus en plus fin : ' + nc); assert.ok(nc[0] <= 6 * 4, 'étape 1 : 6 × 4 blocs');
 });
 
 test('règles : score, nom dévoilé par la fin, comparaison des noms, pseudo', () => {
@@ -243,7 +249,7 @@ test('partie chronométrée : le serveur tient l\'horloge (départ à l\'image d
   h.T.now += 5000;      // le décompte 3-2-1
   const i1 = await img(1); assert.equal(i1.status, 200); assert.equal(i1.type, 'image/png'); assert.deepEqual(pngChunks(i1.raw), ['IHDR', 'IDAT', 'IEND']);
   const T0 = h.T.now; assert.equal((await view()).t0, T0, 't0 : l\'envoi de l\'image de l\'étape 1');
-  const d1 = pngDecode(i1.raw); assert.equal(d1.w, 384); assert.ok(!has(d1, RED));
+  const d1 = pngDecode(i1.raw); assert.equal(d1.w, 480); assert.ok(!has(d1, RED));
   h.T.now = T0 + 11999; const early = await img(2); assert.equal(early.status, 403, 'étape 2 avant 12 s : refusée'); assert.equal(early.j.at, T0 + 12000, 'et son heure');
   assert.equal((await view()).step, 1);
   h.T.now = T0 + 12000; assert.equal((await img(2)).status, 200, 'à 12 s : servie (dévoilée toute seule)'); assert.equal((await view()).step, 2);
@@ -392,7 +398,7 @@ test('proxy.mjs : /__ping daily, jetons Firebase vérifiés, DAILY=0, panneau /a
   assert.equal(st.st, 'ready', 'carte du jour prête : ' + P.out());
   const H = t => ({ 'Content-Type': 'application/json', ...(t ? { 'x-firebase-token': t } : {}) });
   const r = await fetch(P.url + 'api/daily/start', { method: 'POST', headers: H(F.jwt('uid-zoe')), body: JSON.stringify({ l: 'de', n: 'Zoé' }) }), j = await r.json(), raw = JSON.stringify(j);
-  assert.equal(r.status, 200); assert.equal(j.acct, true); noLeak(raw, SERRA, 'proxy');
+  assert.equal(r.status, 200, raw); assert.equal(j.acct, true); noLeak(raw, SERRA, 'proxy');
   assert.deepEqual([j.ranked, j.why, j.minAge], [false, 'age', 7], 'sans compte de service : date de création inconnue, le compte vient d\'être vu → pas encore au classement');
   assert.ok(typeof j.dev === 'string' && /^[\w-]{22}\.[\w-]{16}$/.test(j.dev), 'jeton d\'appareil remis à l\'appli');
   assert.equal(r.headers.get('cache-control'), 'no-store'); assert.equal(r.headers.get('x-content-type-options'), 'nosniff');

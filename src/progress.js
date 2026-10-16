@@ -306,7 +306,7 @@ function prgLevel(xp) {
 function prgNow() { const m = prgMetrics(), bs = prgBadges(m), L = prgLevel(prgXp(m, bs)); return { m, bs, ...L }; }
 
 /* ── Nouveaux paliers : une bannière qui s'efface seule (jamais au premier calcul, ni en mode streamer) ───────────── */
-function prgSoon() { if (typeof MO_TEST === 'undefined' || !MO_TEST) return; clearTimeout(PRG.t); PRG.t = setTimeout(prgCheck, 2500); }      // lien de test seulement : ailleurs, les compteurs avancent sans rien montrer
+function prgSoon() { clearTimeout(PRG.t); PRG.t = setTimeout(prgCheck, 2500); }
 function prgCheck() {
   let got = null; try { got = JSON.parse(localStorage.getItem(PRG_GOT) || 'null'); } catch (e) { got = null; }
   const bs = prgBadges(), now = {}; for (const x of bs) if (x.t >= 0) now[x.b.id] = x.t;
@@ -323,6 +323,7 @@ function prgCheck() {
  * Un appui ouvre la fiche sur ce badge ; elle s'efface seule (4,5 s, le temps de lire ; doigt posé : elle attend), ou d'un glissé vers le haut.
  */
 function prgPop(x, more) {
+  if (typeof window !== 'undefined' && window.MO_NOPOP) return null;      // tests de bout en bout (e2e-world.mjs), sauf progress-e2e
   const old = document.querySelector('.prg-pop'); if (old) old.remove();
   const b = x.b, uniq = b.tiers.length === 1, el = document.createElement('button');
   el.type = 'button'; el.className = 'prg-pop ' + (uniq ? 'tu' : 't' + x.t); el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');

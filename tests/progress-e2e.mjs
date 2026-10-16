@@ -1,5 +1,5 @@
 // E2E niveau et badges (progress.js) sur le lien de test (https://manaorbit.app/test : même page, window.MO_TEST posé par le serveur) : pastille « Niv. N »
-// à côté du compte dans Compte et réglages (rien sur l'adresse normale), fiche « Niveau et badges » (niveau, XP, paliers bronze → diamant, badges uniques),
+// à côté du compte dans Compte et réglages (aussi sur l'adresse normale depuis le 16 octobre), fiche « Niveau et badges » (niveau, XP, paliers bronze → diamant, badges uniques),
 // badges venus des vraies données (parties, collection) et des compteurs (scan), bannière d'un nouveau palier (cliquable, s'efface seule, jamais au premier calcul), noms des paliers, vitrine de 3 badges
 // au plus sur la liste d'échange publique (aller-retour par readShare).
 import './setup-env.mjs';
@@ -13,15 +13,15 @@ const pl = (pos, nom, o = {}) => ({ pos, nom, sorte: pos === 1 ? 'moi' : 'invite
 const HIST = [1, 2, 3].map(i => ({ id: 'prge2e00' + i, date: T0 + i * 864e5, duree: 8000, tours: 5, format: 40, places: [pl(1, 'Max', { deck: 'Krenko', cmd: 'Krenko, Mob Boss', w: true }), pl(2, 'Léa'), pl(3, 'Bob'), pl(4, 'Zoé'), pl(5, 'Ana'), pl(6, 'Tom')], moi: 1, src: 'h', at: T0, u: '', sv: 0 }));
 const seed = `try { localStorage.setItem('deckdeal:onboard', '${T0}'); localStorage.setItem('deckdeal:partie:hist', ${JSON.stringify(JSON.stringify(HIST))}); } catch (e) {}`;
 
-/* ── Adresse normale : rien ─────────────────────────────────────────────────────────────────────────────────── */
+/* ── Adresse normale : ouvert à tous depuis le 16 octobre ─────────────────────────────────────────────────────────────────────────────────── */
 const n = await newPage(browser, world, { init: seed });
 await n.p.evaluate(() => openSettings()); await n.p.waitForSelector('.me-sheet .me-stats');
-assert.equal(await n.p.$('.prg-pill'), null, 'adresse normale : pas de niveau'); assert.equal(await n.p.evaluate(() => MO_TEST), false);
+assert.match(await n.p.$eval('.prg-pill', b => b.textContent), /^Niv\. \d+$/, 'adresse normale : niveau à côté du compte'); assert.equal(await n.p.evaluate(() => MO_TEST), false);
 assert.deepEqual(n.errs, []); await n.ctx.close();
-ok('adresse normale : aucune trace du niveau ni des badges');
+ok('adresse normale : « Niv. N » à côté du compte (ouvert à tous)');
 
 /* ── Lien de test ───────────────────────────────────────────────────────────────────────────────────────────── */
-const { p, errs, ctx } = await newPage(browser, world, { path: 'test', init: seed });
+const { p, errs, ctx } = await newPage(browser, world, { path: 'test', init: seed, pop: true });
 assert.equal(await p.evaluate(() => [MO_TEST, document.querySelector('base').getAttribute('href'), location.pathname]).then(x => x.join(' ')), 'true / /test');
 await p.waitForFunction(() => CTX.proxy, null, { timeout: 8000 });
 await p.evaluate(() => { prgCheck(); prgScan(Array.from({ length: 150 }, (_, i) => ({ key: 'sol ring', q: 1, l: i < 3 ? 'jp' : 'fr', es: i < 20 ? 'read' : 'auto', pk: null }))); });      // 150 cartes scannées, dont 3 japonaises, 20 éditions lues
