@@ -52,7 +52,7 @@ assert.match(await p.evaluate(b => { const d = document.createElement('div'); d.
 ok('vitrine : 3 badges au plus choisis dans la fiche (📌), envoyés avec la liste d\'échange, relus et montrés chez le visiteur');
 
 /* ── Nouveau palier : bannière cliquable qui s'efface seule ─────────────────────────────────────────────────────── */
-await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); prgCheck(); document.querySelectorAll('.prg-pop').forEach(e => e.remove()); for (let i = 0; i < 6; i++) prgScan(Array.from({ length: 150 }, () => ({ key: 'sol ring', q: 1, l: 'fr', es: 'auto', pk: null }))); });      // 6 scans de 150 : 1 050 cartes
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); prgCheck(); document.querySelectorAll('.prg-pop').forEach(e => e.remove()); const gh = Date.prototype.getHours; Date.prototype.getHours = () => 12; for (let i = 0; i < 6; i++) prgScan(Array.from({ length: 150 }, () => ({ key: 'sol ring', q: 1, l: 'fr', es: 'auto', pk: null }))); Date.prototype.getHours = gh; });      // 6 scans de 150 : 1 050 cartes, à midi (la nuit, « Oiseau de nuit » passerait devant)
 await p.waitForSelector('.prg-pop.on', { timeout: 8000 });
 assert.match(await txt(p, '.prg-pop'), /Palier argent atteint\s*Scanner chevronné\s*1 000 cartes scannées/i, 'palier argent : le badge change de nom');
 await p.waitForTimeout(500); await p.screenshot({ path: 'shots/progress-pop.png' });
