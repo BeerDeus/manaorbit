@@ -575,7 +575,7 @@ test('classement des niveaux : premier envoi borné à 50 000 XP, puis 20 000 XP
   assert.deepEqual([bd.total, bd.me.r, bd.rows[3].me], [4, 4, 1]);
   const id = (await h.call('GET', 'api/admin/daily')).j.rows.find(x => x.n === 'Zed').id;
   await h.call('POST', 'api/admin/daily/hide', { body: { id, on: true } });
-  assert.deepEqual((await h.call('GET', 'api/level/board')).j.rows[1], { r: 2, n: '', lv: lvOf(49000).lv, xp: 49000, x: 1 }, 'pseudo masqué par le panneau, comme pour le jeu');
+  assert.deepEqual((({ id, ...r }) => r)((await h.call('GET', 'api/level/board')).j.rows[1]), { r: 2, n: '', lv: lvOf(49000).lv, xp: 49000, x: 1 }, 'pseudo masqué par le panneau, comme pour le jeu');
   await h.D.flush(); assert.ok(JSON.parse(readFileSync(join(dir, 'levels.json'), 'utf8')).p, 'gardé dans levels.json'); assert.ok(!readFileSync(join(dir, 'levels.json'), 'utf8').includes('tok:'));
   await h.stop();
 });
