@@ -1020,7 +1020,7 @@ function collPaintBody(keep) {
   // collection vide : les onglets restent (Decks et Échange marchent sans carte) ; recherche, filtres, tri et prix réels n'auraient rien à montrer
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
   $('.coll-px', el).hidden = none; $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
-  $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; valPaintAlert();
+  $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); valPaintAlert();      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
   if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
   else if (none && COLL.tab === 'stats') host.innerHTML = collStatsEmptyHtml();
   else if (COLL.tab === 'decks' && edhGate() !== 'ok') { host.innerHTML = edhGateHtml(); vfTick(); }      // decks EDHREC réservés aux comptes (edh.js) ; vfTick : « Renvoyer » grisé pendant la minute qui suit un envoi
@@ -1028,6 +1028,7 @@ function collPaintBody(keep) {
   else if (COLL.tab === 'places') { host.innerHTML = plcTabHtml(); }      // Rangement (places.js) : emplacements et proxys
   else if (COLL.tab === 'trade') { host.innerHTML = trPanelHtml(); trMount(host); }
   else if (COLL.tab === 'decks') { const res = keep && EDH.data && document.activeElement && document.activeElement.id === 'dkQ' ? $('.dk-res', host) : null; if (res) { res.innerHTML = edhResHtml(); edhThemesSync(); } else { host.innerHTML = edhPanelHtml(); edhEnsure(); } }      // en pleine frappe : seuls les résultats se repeignent, le champ garde le focus
+  else if (typeof msActive === 'function' && msActive()) { host.innerHTML = msHtml(); msAfterPaint(); }      // masterset (masterset.js) : une extension, toutes ses cartes par numéro
   else if (COLL.f.cmdr === 'played' && !EDH.data) { host.innerHTML = edhWaitHtml(); edhEnsure(); }
   else {
     const { filtered, sorted } = collListOf(v), shown = sorted.slice(0, COLL.shown), act = filterActive(COLL.f);
@@ -1077,7 +1078,7 @@ function openCollection(tab) {
       <div class="coll-status" hidden></div>
       <div class="coll-alert" hidden></div>
       <div class="coll-controls"><div class="coll-top"><div class="seg" id="collSeg" role="radiogroup" aria-label="${T('Affichage')}"></div><button class="icon-btn coll-px" type="button" data-act="prices" aria-label="${T('Lire les prix réels des cartes (CardTrader)')}" title="${T('Prix réels')}"><b>€</b></button></div>
-        <div class="coll-fwrap"><div id="collF"></div><label class="sortsel coll-sort"><span>${T('Trier')}</span><select id="collSort" aria-label="${T('Trier la collection')}">${SORT_OPTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label></div></div>
+        <div class="coll-fwrap"><div id="collF"></div><div class="coll-srow"><label class="sortsel coll-sort"><span>${T('Trier')}</span><select id="collSort" aria-label="${T('Trier la collection')}">${SORT_OPTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>${md === 'coll' && typeof msBarHtml === 'function' ? msBarHtml() : ''}</div></div></div>
       <div class="coll-main"></div></div></div>`;
   COLL.el = wrap; const prevFocus = document.activeElement;
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length && !$$('body > .dv.on').some(x => x !== wrap && wrap.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING)) { e.stopPropagation(); wrap.__close(); } };      // un écran ouvert par-dessus (ajout de cartes, scan) se ferme seul
@@ -1099,6 +1100,7 @@ function openCollection(tab) {
   wrap.addEventListener('input', edhInput);
   wrap.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'dkQ') e.target.blur(); });
   wrap.addEventListener('change', e => {
+    if (typeof msChange === 'function' && msChange(e)) return;      // masterset : cartes par ligne
     if (edhChange(e)) return;      // « Classer », « Chercher par » (onglet Decks)
     const nls = e.target.closest && e.target.closest('select[data-act="nolangsel"]');
     if (nls) { const l = nls.value; nls.value = ''; nls.blur(); collBulkLang(l); return; }
@@ -1114,6 +1116,7 @@ function openCollection(tab) {
   wrap.addEventListener('focusout', e => { if (COLL.dirty && e.target.matches && e.target.matches('.lchip select')) setTimeout(() => { COLL.dirty = false; collPaintBody(true); }, 0); });
   wrap.addEventListener('click', e => {
     if (typeof opnCollClick === 'function' && opnCollClick(e)) return;      // session d'ouverture (opening.js) : sa note, sa liste en mode streamer
+    if (typeof msClick === 'function' && msClick(e)) return;      // masterset (masterset.js) : interrupteur, édition, filtres, cartes
     if (e.target.closest('.lchip')) return;
     if (e.target.closest('.cs-val[data-act="pxsrc"]')) { collToggleSrc(); return; }
     if (edhClick(e) || valClick(e) || trClick(e) || plcClick(e)) return;

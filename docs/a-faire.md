@@ -10,6 +10,12 @@
 - **CardTrader : demande de partenariat envoyée le 16 octobre** à staff@cardtrader.com (connexion « Connect with CardTrader » sans token, accès partenaire aux offres et prix avec quota plus haut, affiliation, mise en vente des doublons). Sans réponse au bout de 10 jours : relancer une fois, objet commençant par « Partnership ». Leurs conditions prévoient un accès API étendu sur simple demande.
 - Ensuite (plus tard) : ligues de groupe sur les parties vérifiées (2 comptes à la table), quêtes de la semaine, « la Bourse » (pronostics de prix, sans argent en jeu).
 
+## Masterset : fait le 17 octobre (branche `ccr-e3f890cd-5y8jim`, README › « Masterset »)
+- Collection › Cartes › interrupteur **Masterset** : une extension à la fois, cartes par numéro (possédées en couleur, manquantes en noir et blanc, « 17/277 » et prix Cardmarket), base puis variantes repliées, progression et prix de ce qui manque, cartes par ligne (3 à 8), sélecteur d'édition (de la plus fournie à la moins fournie, recherche, autres extensions), ⚠ discret pour les cartes sans édition (« C'est celle-ci » dans la carte en grand), « Ajouter à ma collection », « Souhaiter les manquantes ».
+- **À faire par le propriétaire** : rien (ni règle Firestore, ni Hostinger, ni APK). Les symboles des extensions sont relus une fois (cache `sets:ic:v3` : total imprimé ajouté).
+- À voir sur le téléphone : lisibilité à 5 et 6 par ligne sur de vraies cartes, noir et blanc en thème clair et sombre, une grosse extension (300 cartes et plus) sur réseau mobile.
+- Pas encore : foil compté à part (interrupteur « Foil à part »), panier d'une édition précise (la recherche de prix ignore les éditions), extension « famille » (jetons, promos et decks Commander rattachés à leur extension), image à partager de la progression.
+
 ## Pour reprendre (nouvelle session)
 - Lire d'abord ce fichier et `docs/passation.md` (état au 12 octobre : test interne Play validé, test fermé à ouvrir), puis `README.md` (fonctionnement), `DEV.md` (build, tests, CI), `docs/android.md` (APK, widget, natif) et `docs/store/` (fiche Play Store, test fermé).
 - Branche de travail, puis `main` (Hostinger déploie `main`). `node build.mjs` après chaque changement de `src/` ; `deck-deal.html` est committé.

@@ -32,6 +32,7 @@ BROWSER=(
   apkupd-e2e.mjs
   scanreport-e2e.mjs
   daily-e2e.mjs
+  masterset-e2e.mjs
 )
 T=("$@")
 if [ ${#T[@]} -eq 0 ]; then T=("${NODE[@]}" "${BROWSER[@]}"); elif [ "$1" = --node ]; then T=("${NODE[@]}"); fi

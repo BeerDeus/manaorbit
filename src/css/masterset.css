@@ -1,0 +1,85 @@
+/* ── masterset.css : mode « Masterset » de la collection (masterset.js) : interrupteur et sélecteur d'édition, en-tête et progression, grille (cartes manquantes en noir et blanc), variantes, feuille des éditions ── */
+.coll-srow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.coll-srow [hidden]{display:none}
+.coll-ms{display:inline-flex;align-items:center;gap:6px}
+.coll-ms .i{width:15px;height:15px;fill:currentColor;stroke:none}
+.ms-pick{min-width:0;max-width:min(64vw,280px);cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent}
+.ms-pick b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:650;color:var(--ink)}
+.ms-pick-ic{display:contents}
+.ms-pick .set-ic{width:16px;height:16px}
+
+.ms-head{display:flex;align-items:center;gap:12px;margin:4px 0 12px}
+.ms-ic{width:42px;height:42px;flex:none;border-radius:13px;background:var(--surface-2);display:grid;place-items:center}
+.ms-ic .set-ic{width:25px;height:25px}
+.ms-ht{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ms-ht b{font-family:var(--font-display);font-size:17px;font-weight:750;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-ht small{font-size:12.5px;color:var(--ink-3)}
+.ms-prog{display:flex;align-items:center;gap:10px;min-width:0}
+.ms-prog .track{flex:1;min-width:40px;height:6px}
+.ms-prog.big .track{height:9px}
+.ms-prog .fill.full{background:var(--good);animation:none}
+.ms-pn{flex:none;font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ms-prog.big .ms-pn{font-size:13px}
+.ms-pn b{color:var(--ink)}
+.ms-val{margin:6px 0 0;font-size:12.5px;color:var(--ink-3)}
+.setv-chips.ms-ctl{margin:12px -16px 8px}      /* setview.css (chargée après) : marges de la rangée qui défile */
+.ms-colsel{margin-left:auto}
+.ms-colsel select{max-width:40px}
+.ms-legend{display:flex;align-items:center;gap:6px;margin:4px 0 8px}
+.ms-lw{width:16px;height:15px;flex:none;display:inline-grid}
+.ms-lw svg{width:100%;height:100%}
+
+/* grille : nombre de cartes par ligne au choix (--cols), écarts et légendes resserrés quand elles sont petites */
+.ms-grid{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:12px 8px;margin-top:8px}
+.ms-grid.c5{gap:10px 6px}
+.ms-grid.c6{gap:9px 5px}
+.ms-grid.c8{gap:8px 4px}
+.ms-c{position:relative;min-width:0}
+.ms-open{display:block;width:100%;padding:0;border:0;background:none;border-radius:6px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s}
+.ms-open:active{transform:scale(.96)}
+.ms-open:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ms-c .dvc-art b{font-size:clamp(14px,6vw,30px)}
+.ms-grid.c6 .dvc-art,.ms-grid.c8 .dvc-art{box-shadow:0 1px 2px rgba(16,21,43,.2)}
+/* carte manquante : noir et blanc, effacée ; le panneau ⚠ et la légende restent nets */
+.ms-c.miss .dvc-art{filter:grayscale(1);opacity:.5}
+.ms-c.miss .ms-cap{opacity:.8}
+.ms-q{position:absolute;top:3px;right:3px;height:17px;padding:0 5px;border-radius:99px;background:rgba(10,14,30,.82);color:#fff;font-family:var(--font-mono);font-size:10px;font-weight:700;line-height:17px;pointer-events:none}
+.ms-warn{position:absolute;top:3px;left:3px;width:21px;height:19px;pointer-events:none;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45))}
+.ms-warn svg{width:100%;height:100%;display:block}
+.ms-grid.c6 .ms-warn,.ms-grid.c8 .ms-warn{width:16px;height:15px}
+.ms-cap{display:flex;flex-direction:column;align-items:center;gap:1px;margin-top:4px;line-height:1.2;min-width:0;text-align:center}
+.ms-num{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.ms-px{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;font-weight:600;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.ms-grid.c6 .ms-num,.ms-grid.c8 .ms-num{font-size:9.5px}
+.ms-grid.c6 .ms-px,.ms-grid.c8 .ms-px{font-size:9px}
+.ms-grid.c3 .ms-num{font-size:12px}
+.ms-grid.c3 .ms-px{font-size:11.5px}
+
+/* variantes : repliées sous la base, avec leur progression */
+.ms-var{margin-top:20px}
+.ms-vh{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font:inherit;text-align:left;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ms-vh>span{font-weight:700;font-size:14px}
+.ms-vh>small{grid-row:2;font-size:12px;color:var(--ink-3)}
+.ms-vh .ms-prog{grid-column:1 / -1;grid-row:3;margin-top:4px}
+.ms-vh::after{content:"";grid-column:2;grid-row:1 / 3;width:8px;height:8px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:rotate(45deg);transition:transform .2s}
+.ms-vh[aria-expanded="true"]::after{transform:rotate(-135deg)}
+.ms-vh:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ms-wish{margin-top:18px}
+.ms-empty .btn{margin-top:12px}
+
+/* feuille « Choisir une édition » */
+.ms-q{margin-bottom:8px}
+.ms-sets{display:flex;flex-direction:column}
+.ms-sh{margin:14px 0 4px;font-size:12.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+.ms-srow{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 10px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;font:inherit;text-align:left;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ms-srow[aria-pressed="true"]{background:var(--accent-soft);border-radius:12px;border-bottom-color:transparent}
+.ms-srow:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.ms-srow .set-ic{width:24px;height:24px}
+.ms-sn{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ms-sn b{font-size:14px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-sn small{font-size:12px;color:var(--ink-3)}
+.ms-sp{width:104px;flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.ms-sp .track{width:100%;height:6px}
+.ms-sp .fill.full{background:var(--good);animation:none}
+.ms-sp small{font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.ms-open,.ms-vh::after{transition:none}}
