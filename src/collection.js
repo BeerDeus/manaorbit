@@ -150,12 +150,14 @@ function edQKeep(root) {
   return { q, restore() { const j = root.querySelector('[data-edq]'); if (!j || !had) return; j.focus({ preventScroll: true }); try { j.setSelectionRange(at, at); } catch (e) { /* type search */ } } };
 }
 /** Feuille de choix d'une édition : une tuile par impression (symbole, code et numéro, prix, particularités) et « Sans édition ».
- *  o : { name, sub, cur ('set|num', '' : sans édition), load () → Promise(impressions), front (extensions à montrer d'abord, sous frontLabel), onPick(impression | null) }. */
+ *  o : { name, sub, cur ('set|num', '' : sans édition), load () → Promise(impressions), front (extensions à montrer d'abord, sous frontLabel), onPick(impression | null, n),
+ *  count (exemplaires de la ligne : à partir de 2, « Exemplaires concernés − n + » en tête ; n, tous par défaut, suit le choix : les autres gardent leur édition) }. */
 function edSheet(o) {
   setIcLoad();
   return openSheet(T('Édition de {name}', { name: o.name }), o.sub || '', api => {
     api.wrap.classList.add('ced-sheet');
-    let prints = null, err = '', foil = !!o.foil;
+    let prints = null, err = '', foil = !!o.foil, n = o.count > 1 ? o.count : 0;
+    const cnt = () => (n ? `<div class="cex-n ced-cnt"><span>${T('Exemplaires concernés')}</span><span class="qstep"><button type="button" data-cn="-1" aria-label="${T('Moins')}">−</button><b>${n}</b><button type="button" data-cn="1" aria-label="${T('Plus')}">+</button></span><small>/ ${nf0(o.count)}</small></div>` : '');
     const tile = (p, i) => {
       const e = edKey(p.set, p.num), px = foil ? (p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : p.eu > 0 ? fmt(p.eu, 'EUR') : '') : p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition
       return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
@@ -164,12 +166,12 @@ function edSheet(o) {
     const filter = () => { const g = $('.ced-grid', api.body); if (g) edQApply(g, prints, q, '.ced-t'); };
     const paint = () => {
       if (!sheets.includes(api)) return;
-      if (!prints) { api.body.innerHTML = `<p class="hint">${err ? esc(err) : T('Éditions…')}</p>`; return; }
+      if (!prints) { api.body.innerHTML = `${cnt()}<p class="hint">${err ? esc(err) : T('Éditions…')}</p>`; return; }
       const keep = edQKeep(api.body); q = keep.q || q;
       const fr = (o.front || []).filter(s => prints.some(p => p.set === s)), all = prints.map((p, i) => [p, i]);
       const top = fr.flatMap(s => all.filter(([p]) => p.set === s)), rest = top.length ? all.filter(([p]) => !fr.includes(p.set)) : all;
       const fsw = o.onFoil ? `<label class="ced-foil"><span class="ced-foil-t"><b>${T('Foil')} ✦</b><small>${foil ? T('Prix foil Cardmarket de l\'édition') : T('Exemplaires foil : touche pour les marquer')}</small></span><span class="switch"><input type="checkbox" data-act="foil"${foil ? ' checked' : ''} aria-label="${T('Foil')}"><i></i></span></label>` : '';
-      api.body.innerHTML = `${fsw}${edQHtml(prints.length, q)}<div class="ced-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: o.name }))}">${top.length ? `<p class="ced-h">${esc(o.frontLabel || '')}</p>${top.map(([p, i]) => tile(p, i)).join('')}${rest.length ? `<p class="ced-h">${T('Autres éditions')}</p>` : ''}` : ''}${rest.map(([p, i]) => tile(p, i)).join('')}<button type="button" class="ced-t none" role="radio" data-i="-1" aria-checked="${!o.cur}"><span class="ced-q" aria-hidden="true"><svg class="i"><use href="#i-stack"/></svg></span><span class="ced-n">${T('Sans édition')}</span></button></div>`;
+      api.body.innerHTML = `${cnt()}${fsw}${edQHtml(prints.length, q)}<div class="ced-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: o.name }))}">${top.length ? `<p class="ced-h">${esc(o.frontLabel || '')}</p>${top.map(([p, i]) => tile(p, i)).join('')}${rest.length ? `<p class="ced-h">${T('Autres éditions')}</p>` : ''}` : ''}${rest.map(([p, i]) => tile(p, i)).join('')}<button type="button" class="ced-t none" role="radio" data-i="-1" aria-checked="${!o.cur}"><span class="ced-q" aria-hidden="true"><svg class="i"><use href="#i-stack"/></svg></span><span class="ced-n">${T('Sans édition')}</span></button></div>`;
       filter(); keep.restore();
       const qi = $('[data-edq]', api.body);
       if (wantQ && qi) { wantQ = false; requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => { if (sheets.includes(api)) qi.focus({ preventScroll: true }); }))); }      // après le focus que openSheet pose sur Fermer
@@ -182,9 +184,11 @@ function edSheet(o) {
       foil = sw.checked; haptic('tap'); o.onFoil(foil); paint();      // la feuille reste ouverte : les prix des tuiles passent en foil
     });
     api.body.addEventListener('click', e => {
+      const cn = e.target.closest('[data-cn]');
+      if (cn) { n = Math.max(1, Math.min(o.count, n + Number(cn.dataset.cn))); haptic('tap'); $('.ced-cnt b', api.body).textContent = n; return; }      // repeint seul : la recherche et le défilement restent
       const b = e.target.closest('.ced-t'); if (!b || !prints) return;
       const i = Number(b.dataset.i), p = i >= 0 ? prints[i] : null;
-      haptic('ok'); api.close(); o.onPick(p);
+      haptic('ok'); api.close(); o.onPick(p, n || undefined);
     });
   });
 }
@@ -193,9 +197,19 @@ function collEdPick(k, g) {
   const x = COLL.map[k]; if (!x) return;
   const l = lineLang(g), cur = lineEd(g), name = frName(k, l) || x.n; haptic('tap');
   let cg = g;      // clé de la ligne, suivie quand l'interrupteur Foil la déplace
-  edSheet({ name, sub: l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', cur, foil: lineFoil(g), load: () => scryArtPrints(x.n, l || 'en'),
+  const q = (collLines(x).find(e => e[0] === g) || [g, 0])[1];
+  edSheet({ name, sub: l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', cur, foil: lineFoil(g), count: q, load: () => scryArtPrints(x.n, l || 'en'),
     onFoil: f => { cg = collSetFoil(k, cg, f); collPaintBody(true); },
-    onPick: p => { const ne = p ? edKey(p.set, p.num) : ''; if (ne === lineEd(cg)) return; collSetEd(k, cg, ne, p ? edInfoOf(p, l) : null); collPaintBody(true); } });
+    onPick: (p, n) => {
+      const ne = p ? edKey(p.set, p.num) : ''; if (ne === lineEd(cg)) return;
+      const qn = (collLines(COLL.map[k]).find(e => e[0] === cg) || [cg, 0])[1];
+      if (n && n < qn) {      // une partie des exemplaires (8 Boue acide : 3 d'une extension, 3 d'une autre…) : ils passent sur la ligne de cette édition, les autres restent
+        const to = lineKey(l, ne, lineFoil(cg), lineAw(cg));
+        if (p) edRemember(k, l, ne, edInfoOf(p, l));
+        COLL.map = linesMove(COLL.map, k, cg, n, to); collChanged({ paint: false });
+      } else collSetEd(k, cg, ne, p ? edInfoOf(p, l) : null);
+      collPaintBody(true);
+    } });
 }
 /** Marque les exemplaires d'une ligne foil (f) ou non : ils rejoignent la ligne de même langue et même édition de l'autre finition s'il y en a une. Retourne la clé de la ligne. */
 function collSetFoil(k, g, f) {

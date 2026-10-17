@@ -216,12 +216,20 @@ function scanEdPick(it, focusQ) {
   const pk = scanPk(it.key, it.l), pr = SC.pr.get(pk);
   if (pr === 'err') { SC.pr.delete(pk); it.es = 'load'; scanEdNeed(it); scanPaintList(); }      // illisible : on relit
   haptic('tap');
-  edSheet({ name: scanShown(it), sub: TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l && it.l !== 'en' ? ' · ' + langCode(it.l) : ''), cur: it.e,
+  edSheet({ name: scanShown(it), sub: TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l && it.l !== 'en' ? ' · ' + langCode(it.l) : ''), cur: it.e, count: it.q,
     load: () => (Array.isArray(pr) ? Promise.resolve(pr) : scryArtPrints(it.name, it.l || 'en')), front: scanEdFront(), frontLabel: T('Dans ce scan'), focusQ: !!focusQ,
-    onPick: p => scanEdChoose(it.id, p) });
+    onPick: (p, n) => scanEdChoose(it.id, p, n) });
 }
-function scanEdChoose(id, p) {
-  const it = SC.items.get(id); if (!it) return;
+/** Édition choisie pour une ligne du scan (p : impression, null : « Sans édition ») ; n : seulement n de ses exemplaires (la même carte lue deux fois,
+ *  d'éditions différentes, rangée sur une seule ligne) : ils partent sur leur propre ligne, juste en dessous, les autres gardent leur édition. */
+function scanEdChoose(id, p, n) {
+  let it = SC.items.get(id); if (!it) return;
+  if (n && n < it.q) {
+    const nid = scanId(it.key, it.l, '') + '#' + (++SC.mid), part = { ...it, id: nid, q: n };
+    it.q -= n;
+    SC.items = new Map([...SC.items].flatMap(([i, v]) => (i === id ? [[i, v], [nid, part]] : [[i, v]])));
+    it = part;
+  }
   it.later = false;
   if (p) { it.nx = false; scanStick(p.set); scanEdApply(it, { e: edKey(p.set, p.num), es: 'man', pk: p }); }
   else { it.nx = true; scanEdApply(it, { e: '', es: 'pend', pk: null }); }

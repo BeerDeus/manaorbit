@@ -215,10 +215,8 @@ function msActDone(it, label, extra) {
 const msInfo = (code, x, l) => ({ eu: x.eu ?? null, ef: x.ef ?? null, sn: setName(code) || '', r: x.r || '', im: x.im ? scrySmall(x.im) : '', ...(x.iml && l && l !== 'en' && SCRY_LANG[l] === x.il ? { li: scrySmall(x.iml) } : {}) });
 /** Déplace n exemplaires de la carte k de la ligne from à la ligne to ; retourne false si la ligne from n'en a plus. */
 function msMove(k, from, to, n = 1) {
-  const cur = COLL.map[k]; if (!cur) return false;
-  const lines = collLines(cur).map(r => r.slice()), src = lines.find(r => r[0] === from); if (!src || src[1] < n) return false;
-  src[1] -= n; const dst = lines.find(r => r[0] === to); if (dst) dst[1] += n; else lines.push([to, n]);
-  COLL.map[k] = collFromLines(cur, lines); collChanged();
+  const src = collLines(COLL.map[k]).find(r => r[0] === from); if (!src || src[1] < n) return false;
+  COLL.map = linesMove(COLL.map, k, from, n, to); collChanged();
   return true;
 }
 /** « C'est celle-ci » : un exemplaire sans édition (de la ligne la plus fournie) reçoit cette édition ; « Annuler » le remet sans édition. */

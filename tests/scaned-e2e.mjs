@@ -198,6 +198,18 @@ assert.equal((await lines())['command tower blb|201'], 'read ×1', 'extension se
 await p.evaluate(() => scsSet({ frame: 'name' })); assert.equal(await p.$eval('.scan.on', s => s.classList.contains('full')), false, 'réglage « Nom seulement » : caméra compacte');
 await p.evaluate(() => scsSet({ frame: 'card' }));
 ok('ligne du bas lue : édition exacte (deux exemplaires différents, fautes de lecture, extension seule), illisible : comme avant ; cadrage changeable');
+
+/* ── même carte lue deux fois, rangée sur une ligne (ligne du bas illisible) : « Exemplaires concernés » sépare les éditions ─────────────── */
+await p.evaluate(() => { SC.items = new Map(); scanPaintList(); });
+await add('Wrath of God'); await settle(); await pick('wrath of god', 'M21');
+await add('Wrath of God'); await settle();
+assert.deepEqual(await lines(), { 'wrath of god m21|200': 'man ×2' }, 'même carte : même édition, une seule ligne');
+await p.click('.sc-item[data-k="wrath of god"] .sc-ed'); await p.waitForSelector('.ced-sheet .ced-cnt');
+assert.equal(await txt(p, '.ced-cnt b'), '2'); await p.click('.ced-cnt [data-cn="-1"]');
+await tile('LEA'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+assert.deepEqual(await lines(), { 'wrath of god m21|200': 'man ×1', 'wrath of god lea|201': 'man ×1' }, '1 exemplaire en LEA sur sa ligne, l\'autre reste en M21');
+assert.deepEqual(await p.$$eval('.sc-item[data-k="wrath of god"]', r => r.length), 2, 'deux lignes dans la liste');
+ok('même carte lue deux fois (une ligne ×2) : « Exemplaires concernés » → 1 en M21, 1 en LEA');
 await p.click('.scan [data-act="close"]');
 
 assert.deepEqual(errs, [], 'erreurs page');

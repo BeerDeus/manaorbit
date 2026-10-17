@@ -112,6 +112,26 @@ assert.equal(await p.$eval('.ced-t[aria-checked="true"] .ced-n', e => e.textCont
 await p.click('.ced-t.none'); await p.waitForFunction(() => !COLL.map['edgar markov'].x, null, { timeout: 4000 });
 ok('sélecteur d\'édition (symbole seul) sur chaque ligne : feuille des éditions (code, numéro, prix), choix, « Sans édition »');
 
+/* ── 4 bis) plusieurs exemplaires sur une ligne : « Exemplaires concernés » (3 Edgar Markov : 1 en 2X2, les 2 autres restent sans édition) ─── */
+await p.evaluate(() => { const g = collLines(COLL.map['edgar markov'])[0][0]; collBump('edgar markov', 'Edgar Markov', 3 - COLL.map['edgar markov'].q, { lang: g }); });
+await p.waitForFunction(() => COLL.map['edgar markov'].q === 3);
+await p.click('.coll .crow[data-k="edgar markov"] .row-ed'); await p.waitForSelector('.sheet-wrap.open .ced-cnt');
+assert.equal((await txt(p, '.ced-cnt')).replace(/\s/g, ''), 'Exemplairesconcernés−3+/3', 'compteur en tête : tous par défaut');
+await p.click('.ced-cnt [data-cn="-1"]'); await p.click('.ced-cnt [data-cn="-1"]'); await p.click('.ced-cnt [data-cn="-1"]');
+assert.equal(await txt(p, '.ced-cnt b'), '1', 'jamais moins de 1');
+await p.waitForSelector('.ced-t:not(.none)'); await p.click('.ced-t:not(.none) >> nth=1'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+await p.waitForFunction(() => COLL.map['edgar markov'].x && COLL.map['edgar markov'].x['en|2x2|101'] === 1, null, { timeout: 4000 });
+assert.deepEqual(await p.evaluate(() => COLL.map['edgar markov'].x), { en: 2, 'en|2x2|101': 1 }, '1 exemplaire en 2X2 101, les 2 autres sans édition');
+assert.match(await stored(), /1 Edgar Markov \(2X2\) 101 \*EN\*/); assert.match(await stored(), /2 Edgar Markov \*EN\*/);
+await p.waitForFunction(() => document.querySelector('.coll .crow[data-g="en|2x2|101"]'), null, { timeout: 4000 });
+await p.click('.coll .crow[data-k="edgar markov"][data-ln="en"]:not([data-g]) .row-ed'); await p.waitForSelector('.sheet-wrap.open .ced-cnt');
+assert.equal(await txt(p, '.ced-cnt b'), '2'); await p.click('.ced-t:not(.none) >> nth=1'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+await p.waitForFunction(() => COLL.map['edgar markov'].x && COLL.map['edgar markov'].x['en|2x2|101'] === 3, null, { timeout: 4000 });
+assert.deepEqual(await p.evaluate(() => COLL.map['edgar markov'].x), { 'en|2x2|101': 3 }, 'tous (par défaut) : la ligne rejoint celle de la même édition');
+await p.click('.coll .crow[data-k="edgar markov"] .row-ed'); await p.waitForSelector('.sheet-wrap.open .ced-t.none'); await p.click('.ced-t.none'); await p.waitForFunction(() => !COLL.map['edgar markov'].x, null, { timeout: 4000 });
+await p.evaluate(() => collBump('edgar markov', 'Edgar Markov', -2, { lang: collLines(COLL.map['edgar markov'])[0][0] }));
+ok('plusieurs exemplaires : « Exemplaires concernés » (1 sur 3 en 2X2, les autres restent ; tous : même ligne que l\'édition)');
+
 /* ── 4 ter) carte imprimée une seule fois : son édition est posée d'office (annulable) ──────────────────────────────── */
 world.solo['Wrath of God'] = 12;
 await p.evaluate(() => { collAdd([{ k: 'wrath of god', n: 'Wrath of God', q: 1, l: 'fr' }], 'add'); collEnrich(); });
