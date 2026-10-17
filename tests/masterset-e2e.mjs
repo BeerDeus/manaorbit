@@ -100,10 +100,12 @@ await p.click('.ms-vh'); await p.waitForSelector('.ms-var .ms-grid');
 const v = await tiles('.ms-var'); assert.deepEqual(v.map(x => [x.num, x.cls, x.px]), [['#6', 'miss', '30,00 €'], ['#7', 'miss', '2,00 €']], 'variantes : numéros au-delà du total imprimé');
 ok('variantes repliées (0 / 2), ouvertes à la demande');
 
-/* ── 4) carte possédée sans édition : « C'est celle-ci » dans la carte en grand, Annuler ───────────────────────── */
+/* ── 4) carte possédée sans édition : « C'est celle-ci » dans la carte en grand ; 1 exemplaire, puis D : « Combien sont de cette édition ? » (3 exemplaires) ; Annuler ─── */
 await p.click('.ms-grid .ms-c >> nth=2 >> .ms-open'); await p.waitForSelector('.imgv .imgv-rep:not([hidden])');
 assert.match(await txt(p, '.imgv-extra'), /Tu as 1 exemplaire de cette carte sans édition : est-ce celui-ci \? · prix Cardmarket 1,00/);
 assert.equal(await txt(p, '.imgv-rep'), 'C\'est celle-ci : poser l\'édition AAA 3');
+assert.equal(await p.$eval('.imgv-cnt', e => e.hidden), true, '1 exemplaire : pas de compteur');
+assert.equal(await p.$eval('.imgv-rep', e => e.classList.contains('strong')), true, 'bouton mis en avant');
 await p.click('.imgv-rep');
 await p.waitForFunction(() => document.querySelector('.imgv-rep').disabled);
 assert.equal(await txt(p, '.imgv-rep'), '✓ Édition posée');
@@ -114,8 +116,26 @@ b = await base(); assert.equal(b[2].warn, false); assert.equal(await txt(p, '.ms
 await p.click('#toast .toast-act');
 await p.waitForFunction(() => document.querySelector('.ms-grid .ms-c:nth-child(3)').classList.contains('miss'));
 assert.match(await stored(), /1 Wrath of God \*EN\*/, 'Annuler : l\'exemplaire redevient sans édition');
+// D : 3 exemplaires sans édition → « Combien sont de cette édition ? − n + / 3 »
+await p.evaluate(() => collBump('wrath of god', 'Wrath of God', 2, { lang: 'en' }));
+await p.click('.ms-grid .ms-c >> nth=2 >> .ms-open'); await p.waitForSelector('.imgv .imgv-cnt:not([hidden])');
+assert.match(await txt(p, '.imgv-extra'), /^Tu as 3 exemplaires de cette carte sans édition · prix Cardmarket 1,00/);
+assert.equal((await txt(p, '.imgv-cnt')).replace(/\s/g, ''), 'Combiensontdecetteédition?−1+/3');
+assert.equal(await txt(p, '.imgv-rep'), 'C\'est celle-ci : poser l\'édition AAA 3 sur 1 exemplaire');
+await p.click('.imgv-cnt [data-d="1"]'); await p.click('.imgv-cnt [data-d="1"]'); await p.click('.imgv-cnt [data-d="1"]');
+assert.equal(await txt(p, '.imgv-cnt b'), '3', 'jamais plus que les exemplaires sans édition');
+await p.click('.imgv-cnt [data-d="-1"]');
+assert.equal(await txt(p, '.imgv-rep'), 'C\'est celle-ci : poser l\'édition AAA 3 sur 2 exemplaires');
+await p.screenshot({ path: 'shots/masterset-4-combien.png' });
+await p.click('.imgv-rep'); await p.waitForFunction(() => document.querySelector('.imgv-rep').disabled);
+assert.equal(await p.$eval('.imgv-cnt', e => e.hidden), true, 'fait : compteur caché'); assert.match(await txt(p, '.imgv-extra'), /AAA 3 · 2 exemplaires/);
+assert.match(await stored(), /2 Wrath of God \(AAA\) 3 \*EN\*/); assert.match(await stored(), /1 Wrath of God \*EN\*/);
+await closeImg();
+await p.click('#toast .toast-act'); await p.waitForTimeout(200);
+assert.match(await stored(), /3 Wrath of God \*EN\*/, 'Annuler : les 2 redeviennent sans édition');
+await p.evaluate(() => collBump('wrath of god', 'Wrath of God', -2, { lang: 'en' }));
 await p.click('.ms-grid .ms-c >> nth=2 >> .ms-open'); await p.waitForSelector('.imgv .imgv-rep:not([hidden])'); await p.click('.imgv-rep'); await p.waitForFunction(() => document.querySelector('.imgv-rep').disabled); await closeImg();
-ok('⚠ sur la vignette, « C\'est celle-ci » dans la carte en grand : édition posée (3 / 5), Annuler');
+ok('⚠ sur la vignette, « C\'est celle-ci » dans la carte en grand : édition posée (3 / 5), Annuler ; D : « Combien sont de cette édition ? » (2 sur 3), Annuler');
 
 /* ── 5) carte manquante : « Ajouter à ma collection » (cette impression, langue des cartes) ; carte possédée : sa ligne de collection ─── */
 await p.click('.ms-grid .ms-c >> nth=3 >> .ms-open'); await p.waitForSelector('.imgv .imgv-rep:not([hidden])');

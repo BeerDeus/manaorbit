@@ -195,41 +195,41 @@ function msViewItem(code, x) {
   const it = { key: x.k, name, ln: x.n, small: scrySmall(img), big: img.replace('/normal/', '/large/'), lang: x.il || 'en', set: code, num: x.num, setName: msSetName(code), plain: !x.df };
   if (o) return it;
   const loose = BASIC_NAMES.has(x.k) ? 0 : msLoose(x.k), px = u ? T('prix Cardmarket {v}', { v: fmt(u, 'EUR') }) : '';
-  if (loose) {
-    it.extra = [TN(loose, 'Tu as {n} exemplaire de cette carte sans édition : est-ce celui-ci ?', 'Tu as {n} exemplaires de cette carte sans édition : l\'un d\'eux est-il celui-ci ?'), px].filter(Boolean).join(' · ');
-    it.act = { label: T('C\'est celle-ci : poser l\'édition {ed}', { ed }), fn: () => msAssign(code, x, it) };
+  if (loose) {      // D : combien de ces exemplaires sans édition sont de celle-ci (compteur au-dessus du bouton, 1 par défaut)
+    const one = loose < 2;
+    it.extra = [TN(loose, 'Tu as {n} exemplaire de cette carte sans édition : est-ce celui-ci ?', 'Tu as {n} exemplaires de cette carte sans édition'), px].filter(Boolean).join(' · ');
+    it.act = { strong: true, max: loose, n: 1, ask: T('Combien sont de cette édition ?'), label: T('C\'est celle-ci : poser l\'édition {ed}', { ed }),
+      labelOf: n => (one ? T('C\'est celle-ci : poser l\'édition {ed}', { ed }) : TN(n, 'C\'est celle-ci : poser l\'édition {ed} sur {n} exemplaire', 'C\'est celle-ci : poser l\'édition {ed} sur {n} exemplaires', { ed })),
+      fn: n => msAssign(code, x, it, n) };
   } else {
     it.extra = [T('Pas dans ta collection'), px].filter(Boolean).join(' · ');
-    it.act = { label: T('+ Ajouter à ma collection ({ed})', { ed }), fn: () => msAdd(code, x, it) };
+    it.act = { strong: true, label: T('+ Ajouter à ma collection ({ed})', { ed }), fn: () => msAdd(code, x, it) };
   }
   return it;
 }
 /** Action faite depuis la carte en grand : bouton grisé avec son résultat. */
 function msActDone(it, label, extra) {
-  it.act = { label, off: true }; if (extra != null) it.extra = extra;
+  it.act = { label, off: true, strong: true }; if (extra != null) it.extra = extra;      // repeint par la visionneuse (viewer.js : bouton grisé, compteur caché)
   const v = $('.imgv'); if (!v || !imgView) return;
-  const b = $('.imgv-rep', v); if (b) { b.textContent = label; b.disabled = true; }
   const x = $('.imgv-extra', v); if (x && extra != null) { x.textContent = extra; x.hidden = !extra; }
 }
 /** Infos de l'impression pour la ligne qui la reçoit (prix, extension, rareté, petites images : anglaise, et dans la langue l si Scryfall l'a). */
 const msInfo = (code, x, l) => ({ eu: x.eu ?? null, ef: x.ef ?? null, sn: setName(code) || '', r: x.r || '', im: x.im ? scrySmall(x.im) : '', ...(x.iml && l && l !== 'en' && SCRY_LANG[l] === x.il ? { li: scrySmall(x.iml) } : {}) });
-/** Déplace n exemplaires de la carte k de la ligne from à la ligne to ; retourne false si la ligne from n'en a plus. */
-function msMove(k, from, to, n = 1) {
-  const src = collLines(COLL.map[k]).find(r => r[0] === from); if (!src || src[1] < n) return false;
-  COLL.map = linesMove(COLL.map, k, from, n, to); collChanged();
-  return true;
-}
-/** « C'est celle-ci » : un exemplaire sans édition (de la ligne la plus fournie) reçoit cette édition ; « Annuler » le remet sans édition. */
-function msAssign(code, x, it) {
+/** « C'est celle-ci » : n exemplaires sans édition reçoivent cette édition, pris dans les lignes sans édition, la plus fournie d'abord ; « Annuler » les remet. */
+function msAssign(code, x, it, n = 1) {
   const k = x.k, e = edKey(code, x.num), cur = COLL.map[k]; if (!e || !cur) return;
-  const loose = collLines(cur).filter(([g]) => !lineEd(g)); if (!loose.length) return;
-  const g = loose.reduce((a, b) => (b[1] > a[1] ? b : a))[0], l = lineLang(g), to = lineKey(l, e, lineFoil(g), lineAw(g));
-  edRemember(k, l, e, msInfo(code, x, l));
-  if (!msMove(k, g, to)) return;
-  haptic('ok');
-  const name = x.dn || x.n, ed = code.toUpperCase() + ' ' + x.num;
-  toast(T('{name} : édition {ed} posée sur un exemplaire', { name, ed }), { label: T('Annuler'), fn: () => msMove(k, to, g) });
-  msActDone(it, T('✓ Édition posée'), T('Dans ta collection · {ed}', { ed }));
+  const loose = collLines(cur).filter(([g]) => !lineEd(g)).sort((a, b) => b[1] - a[1]); if (!loose.length) return;
+  const moves = [];
+  for (const [g, q] of loose) { if (n <= 0) break; const m = Math.min(n, q), l = lineLang(g); moves.push([g, lineKey(l, e, lineFoil(g), lineAw(g)), m, l]); n -= m; }
+  for (const [, , , l] of moves) edRemember(k, l, e, msInfo(code, x, l));
+  for (const [g, to, m] of moves) COLL.map = linesMove(COLL.map, k, g, m, to);
+  collChanged(); haptic('ok');
+  const name = x.dn || x.n, ed = code.toUpperCase() + ' ' + x.num, done = moves.reduce((a, mv) => a + mv[2], 0);
+  toast(TN(done, '{name} : édition {ed} posée sur {n} exemplaire', '{name} : édition {ed} posée sur {n} exemplaires', { name, ed }), { label: T('Annuler'), fn: () => {
+    for (const [g, to, m] of moves) COLL.map = linesMove(COLL.map, k, to, m, g);
+    collChanged();
+  } });
+  msActDone(it, T('✓ Édition posée'), TN(done, 'Dans ta collection · {ed} · {n} exemplaire', 'Dans ta collection · {ed} · {n} exemplaires', { ed }));
 }
 /** « Ajouter à ma collection » : un exemplaire de cette impression, dans la langue des cartes de l'utilisateur. */
 function msAdd(code, x, it) {

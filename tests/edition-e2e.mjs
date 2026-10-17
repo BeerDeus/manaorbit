@@ -132,6 +132,28 @@ await p.click('.coll .crow[data-k="edgar markov"] .row-ed'); await p.waitForSele
 await p.evaluate(() => collBump('edgar markov', 'Edgar Markov', -2, { lang: collLines(COLL.map['edgar markov'])[0][0] }));
 ok('plusieurs exemplaires : « Exemplaires concernés » (1 sur 3 en 2X2, les autres restent ; tous : même ligne que l\'édition)');
 
+/* ── 4 ter) B : « Répartir par édition » (lien de la feuille « Édition de… ») : 4 Edgar Markov → 3 en CMM, 1 en 2X2 ; Annuler ─── */
+await p.evaluate(() => collBump('edgar markov', 'Edgar Markov', 4 - COLL.map['edgar markov'].q, { lang: collLines(COLL.map['edgar markov'])[0][0] }));
+await p.waitForFunction(() => COLL.map['edgar markov'].q === 4);
+await p.click('.coll .crow[data-k="edgar markov"] .row-ed'); await p.waitForSelector('.sheet-wrap.open .ced-split');
+await p.click('.ced-split'); await p.waitForSelector('.esp-sheet.open .esp-add');
+const esp = () => p.evaluate(() => ({ rows: [...document.querySelectorAll('.esp-sheet .esp-r:not(.esp-none)')].map(r => [r.dataset.e, Number(r.querySelector('.qstep b').textContent)]), rest: document.querySelector('.esp-none em').textContent, tot: document.querySelector('.esp-tot b').textContent }));
+assert.deepEqual(await esp(), { rows: [], rest: '4', tot: '0 / 4 répartis' }, 'au départ : tout sans édition');
+const addEd = async n => { await p.click('.esp-sheet .esp-add'); await p.waitForSelector('.ced-sheet.open .ced-t:not(.none)'); await p.click(`.ced-sheet.open .ced-t:not(.none) >> nth=${n}`); await p.waitForFunction(() => !document.querySelector('.ced-sheet')); };
+await addEd(0);
+assert.deepEqual(await esp(), { rows: [['cmm|100', 1]], rest: '3', tot: '1 / 4 répartis' }, 'édition ajoutée : un exemplaire du reste');
+await p.click('.esp-r[data-e="cmm|100"] [data-d="1"]'); await p.click('.esp-r[data-e="cmm|100"] [data-d="1"]');
+await addEd(1);
+assert.deepEqual(await esp(), { rows: [['cmm|100', 3], ['2x2|101', 1]], rest: '0', tot: '4 / 4 répartis ✓' });
+assert.equal(await p.$eval('.esp-r[data-e="cmm|100"] [data-d="1"]', b => b.disabled), true, 'plus rien à répartir : + grisé');
+await p.screenshot({ path: 'shots/edition-repartir.png' });
+await p.click('.esp-sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+assert.deepEqual(await p.evaluate(() => COLL.map['edgar markov'].x), { 'en|cmm|100': 3, 'en|2x2|101': 1 }, '3 en CMM 100, 1 en 2X2 101');
+assert.match(await stored(), /3 Edgar Markov \(CMM\) 100 \*EN\*/); assert.match(await stored(), /1 Edgar Markov \(2X2\) 101 \*EN\*/);
+await p.click('#toast .toast-act'); await p.waitForFunction(() => !COLL.map['edgar markov'].x && COLL.map['edgar markov'].q === 4, null, { timeout: 4000 });
+await p.evaluate(() => collBump('edgar markov', 'Edgar Markov', -3, { lang: collLines(COLL.map['edgar markov'])[0][0] }));
+ok('B : « Répartir par édition » : ajout d\'éditions (un exemplaire du reste), − / +, 4 / 4 ✓, Enregistrer (3 CMM + 1 2X2), Annuler');
+
 /* ── 4 ter) carte imprimée une seule fois : son édition est posée d'office (annulable) ──────────────────────────────── */
 world.solo['Wrath of God'] = 12;
 await p.evaluate(() => { collAdd([{ k: 'wrath of god', n: 'Wrath of God', q: 1, l: 'fr' }], 'add'); collEnrich(); });

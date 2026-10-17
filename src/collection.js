@@ -151,13 +151,15 @@ function edQKeep(root) {
 }
 /** Feuille de choix d'une édition : une tuile par impression (symbole, code et numéro, prix, particularités) et « Sans édition ».
  *  o : { name, sub, cur ('set|num', '' : sans édition), load () → Promise(impressions), front (extensions à montrer d'abord, sous frontLabel), onPick(impression | null, n),
- *  count (exemplaires de la ligne : à partir de 2, « Exemplaires concernés − n + » en tête ; n, tous par défaut, suit le choix : les autres gardent leur édition) }. */
+ *  count (exemplaires de la ligne : à partir de 2, « Exemplaires concernés − n + » en tête ; n, tous par défaut, suit le choix : les autres gardent leur édition),
+ *  onSplit (lien « Répartir entre plusieurs éditions » sous le compteur : ferme la feuille et l'appelle) }. */
 function edSheet(o) {
   setIcLoad();
   return openSheet(T('Édition de {name}', { name: o.name }), o.sub || '', api => {
     api.wrap.classList.add('ced-sheet');
     let prints = null, err = '', foil = !!o.foil, n = o.count > 1 ? o.count : 0;
-    const cnt = () => (n ? `<div class="cex-n ced-cnt"><span>${T('Exemplaires concernés')}</span><span class="qstep"><button type="button" data-cn="-1" aria-label="${T('Moins')}">−</button><b>${n}</b><button type="button" data-cn="1" aria-label="${T('Plus')}">+</button></span><small>/ ${nf0(o.count)}</small></div>` : '');
+    const cnt = () => (n ? `<div class="cex-n ced-cnt"><span>${T('Exemplaires concernés')}</span><span class="qstep"><button type="button" data-cn="-1" aria-label="${T('Moins')}">−</button><b>${n}</b><button type="button" data-cn="1" aria-label="${T('Plus')}">+</button></span><small>/ ${nf0(o.count)}</small></div>` : '')
+      + (o.onSplit ? `<button type="button" class="link-btn ced-split" data-split>${T('Répartir entre plusieurs éditions')}</button>` : '');      // feuille « Répartir par édition » (edSplit)
     const tile = (p, i) => {
       const e = edKey(p.set, p.num), px = foil ? (p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : p.eu > 0 ? fmt(p.eu, 'EUR') : '') : p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition
       return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
@@ -184,6 +186,7 @@ function edSheet(o) {
       foil = sw.checked; haptic('tap'); o.onFoil(foil); paint();      // la feuille reste ouverte : les prix des tuiles passent en foil
     });
     api.body.addEventListener('click', e => {
+      if (e.target.closest('[data-split]')) { haptic('tap'); api.close(); o.onSplit(); return; }
       const cn = e.target.closest('[data-cn]');
       if (cn) { n = Math.max(1, Math.min(o.count, n + Number(cn.dataset.cn))); haptic('tap'); $('.ced-cnt b', api.body).textContent = n; return; }      // repeint seul : la recherche et le défilement restent
       const b = e.target.closest('.ced-t'); if (!b || !prints) return;
@@ -197,8 +200,9 @@ function collEdPick(k, g) {
   const x = COLL.map[k]; if (!x) return;
   const l = lineLang(g), cur = lineEd(g), name = frName(k, l) || x.n; haptic('tap');
   let cg = g;      // clé de la ligne, suivie quand l'interrupteur Foil la déplace
-  const q = (collLines(x).find(e => e[0] === g) || [g, 0])[1];
+  const q = (collLines(x).find(e => e[0] === g) || [g, 0])[1], grp = edGroup(k, g);
   edSheet({ name, sub: l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', cur, foil: lineFoil(g), count: q, load: () => scryArtPrints(x.n, l || 'en'),
+    ...(grp.total > 1 ? { onSplit: () => edSplit(k, cg) } : {}),
     onFoil: f => { cg = collSetFoil(k, cg, f); collPaintBody(true); },
     onPick: (p, n) => {
       const ne = p ? edKey(p.set, p.num) : ''; if (ne === lineEd(cg)) return;
@@ -210,6 +214,60 @@ function collEdPick(k, g) {
       } else collSetEd(k, cg, ne, p ? edInfoOf(p, l) : null);
       collPaintBody(true);
     } });
+}
+/** Lignes de la carte k qui ne diffèrent de la ligne g que par l'édition (même langue, même finition, même rangement et détails) : { same (clé → bool), lines, total }. */
+function edGroup(k, g) {
+  const l = lineLang(g), f = lineFoil(g), aw = lineAw(g), same = h => lineLang(h) === l && lineFoil(h) === f && lineAw(h) === aw;
+  const lines = collLines(COLL.map[k]).filter(([h]) => same(h));
+  return { same, lines, total: lines.reduce((a, e) => a + e[1], 0) };
+}
+/** « Répartir par édition » (lien de la feuille « Édition de… ») : les exemplaires d'une langue (même finition, même rangement) répartis d'un coup entre plusieurs éditions,
+ *  − / + par édition, « + Ajouter une édition » (choix d'une illustration), « Sans édition » prend le reste (jamais plus que le total) ; Enregistrer, puis « Annuler ». */
+function edSplit(k, g) {
+  const x = COLL.map[k]; if (!x) return;
+  const l = lineLang(g), f = lineFoil(g), aw = lineAw(g), grp = edGroup(k, g), total = grp.total; if (total < 2) return;
+  const rows = grp.lines.filter(([h]) => lineEd(h)).map(([h, q]) => ({ e: lineEd(h), q, info: null })), name = frName(k, l) || x.n;
+  const rest = () => total - rows.reduce((a, r) => a + r.q, 0);
+  const pxOf = r => { const i = r.info, u = i ? (f ? (i.ef > 0 ? i.ef : i.eu) : (i.eu > 0 ? i.eu : i.ef)) : edEu(r.e, f); return u > 0 ? u : 0; };
+  haptic('tap');
+  openSheet(T('Répartir par édition'), TN(total, '{name} · {n} exemplaire', '{name} · {n} exemplaires', { name }) + (l ? ' ' + langCode(l) : '') + (f ? ' · ' + T('Foil') : ''), api => {
+    api.wrap.classList.add('esp-sheet');
+    const paint = () => {
+      const r0 = rest(), m = COLL.meta[k], ref = m ? (f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : 0) : 0;
+      let val = r0 * ref; for (const r of rows) val += r.q * (pxOf(r) || ref);
+      api.body.innerHTML = rows.map((r, i) => {
+        const set = edSet(r.e), sn = setName(set) || (r.info && r.info.sn) || (COLL.ed[r.e] || {}).sn || set.toUpperCase(), px = pxOf(r);
+        return `<div class="esp-r" data-e="${esc(r.e)}"><span class="esp-ic">${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}</span><span class="esp-t"><b>${esc(sn)}</b><small>${esc(edLabel(r.e))}${px ? ' · ' + esc(fmt(px, 'EUR')) : ''}</small></span>
+          <span class="qstep"><button type="button" data-i="${i}" data-d="-1" aria-label="${esc(T('Moins'))}"${r.q ? '' : ' disabled'}>−</button><b>${r.q}</b><button type="button" data-i="${i}" data-d="1" aria-label="${esc(T('Plus'))}"${r0 ? '' : ' disabled'}>+</button></span></div>`;
+      }).join('')
+        + `<div class="esp-r esp-none"><span class="esp-ic" aria-hidden="true"></span><span class="esp-t"><b>${T('Sans édition')}</b><small>${T('le reste')}</small></span><em>${r0}</em></div>
+        <button class="btn ghost block esp-add" type="button" data-add>${T('+ Ajouter une édition')}</button>
+        <div class="esp-tot"><span>${val ? esc(T('Valeur ≈ {v}', { v: fmt(val, 'EUR') })) : ''}</span><b class="${r0 ? '' : 'ok'}">${esc(T('{a} / {b} répartis', { a: nf0(total - r0), b: nf0(total) }))}${r0 ? '' : ' ✓'}</b></div>`;
+    };
+    paint(); setIcLoad(() => { if (sheets.includes(api)) paint(); });      // symboles des extensions : repeint dès qu'ils arrivent
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ok>${T('Enregistrer')}</button>`);
+    api.body.addEventListener('click', e => {
+      const b = e.target.closest('[data-d]');
+      if (b) { const r = rows[Number(b.dataset.i)], d = Number(b.dataset.d); if (!r || (d > 0 && !rest())) return; r.q = Math.max(0, r.q + d); haptic('tap'); paint(); return; }
+      if (!e.target.closest('[data-add]')) return;
+      edSheet({ name, sub: T('Édition à ajouter'), cur: '', foil: f, load: () => scryArtPrints(x.n, l || 'en'), onPick: p => {
+        const ne = p ? edKey(p.set, p.num) : ''; if (!ne || !sheets.includes(api)) return;
+        let r = rows.find(y => y.e === ne); if (!r) rows.push(r = { e: ne, q: 0, info: edInfoOf(p, l) }); else if (!r.info) r.info = edInfoOf(p, l);
+        if (rest() > 0) r.q++; paint();      // l'édition ajoutée prend un exemplaire du reste
+      } });
+    });
+    api.foot.addEventListener('click', e => {
+      if (!e.target.closest('[data-ok]')) return;
+      api.close();
+      const cur = COLL.map[k]; if (!cur) return;
+      const before = collLines(cur).map(y => y.slice()), r0 = rest();
+      const lines = [...before.filter(([h]) => !grp.same(h)), ...rows.filter(r => r.q > 0).map(r => [lineKey(l, r.e, f, aw), r.q]), ...(r0 > 0 ? [[lineKey(l, '', f, aw), r0]] : [])];
+      for (const r of rows) if (r.info && r.q > 0) edRemember(k, l, r.e, r.info);
+      const next = collFromLines(cur, lines); if (!next) return;
+      COLL.map[k] = next; collChanged(); haptic('ok');
+      toast(T('{name} : exemplaires répartis', { name }), { label: T('Annuler'), fn: () => { const c = COLL.map[k]; if (!c) return; const nx = collFromLines(c, before); if (nx) { COLL.map[k] = nx; collChanged(); } } });
+    });
+  });
 }
 /** Marque les exemplaires d'une ligne foil (f) ou non : ils rejoignent la ligne de même langue et même édition de l'autre finition s'il y en a une. Retourne la clé de la ligne. */
 function collSetFoil(k, g, f) {

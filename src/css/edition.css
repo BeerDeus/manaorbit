@@ -56,3 +56,20 @@
 .imgv-q .fsearch input{color:#fff}
 .imgv-q .fsearch input::placeholder{color:rgba(255,255,255,.6)}
 .imgv-vl .ed-q-none{flex:none;margin:8px auto;color:rgba(255,255,255,.78)}
+/* « Répartir par édition » (collection.js › edSplit) : une ligne par édition (− / +), « Sans édition » = le reste, ajout, total réparti */
+.ced-split{display:block;margin:-4px 0 12px;font-size:13px}
+.esp-r{display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line)}
+.esp-ic{width:38px;height:38px;flex:none;border-radius:12px;background:var(--surface-2);display:grid;place-items:center}
+.esp-ic .set-ic{width:22px;height:22px}
+.esp-ic .ed-code{font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--ink-2)}
+.esp-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.esp-t b{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.esp-t small{font-size:12px;color:var(--ink-3);font-family:var(--font-mono)}
+.esp-r .qstep button[disabled]{opacity:.35}
+.esp-none{border-bottom:0}
+.esp-none .esp-ic{border:1.5px dashed var(--line);background:none}
+.esp-none em{min-width:40px;text-align:center;font-style:normal;font-family:var(--font-mono);font-weight:700;color:var(--ink)}
+.esp-add{margin-top:8px}
+.esp-tot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 2px 2px;font-size:13px;color:var(--ink-3)}
+.esp-tot b{font-family:var(--font-mono);color:var(--ink-2)}
+.esp-tot b.ok{color:var(--good)}

@@ -95,12 +95,21 @@ function openCardViewer(items, index) {
   wrap.innerHTML = `<button class="icon-btn imgv-x" type="button" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-close"/></svg></button>
     ${multi ? '<span class="imgv-count" aria-live="polite"></span><button class="imgv-nav prev" type="button" aria-label="' + T('Carte précédente') + '"><svg class="i"><use href="#i-back"/></svg></button><button class="imgv-nav next" type="button" aria-label="' + T('Carte suivante') + '"><svg class="i"><use href="#i-back"/></svg></button>' : ''}
     <div class="imgv-card tilt" data-busy="1"><img class="imgv-ph" alt="" hidden><img class="imgv-img" alt="" hidden><span class="foil-stars" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => { const r = hash32('foil' + i); return `<i style="--x:${6 + (r % 88)}%;--y:${5 + ((r >> 7) % 90)}%;--s:${7 + ((r >> 14) % 9)}px;--d:${2.2 + ((r >> 18) % 20) / 10}s;--w:${-((r >> 23) % 40) / 10}s"></i>`; }).join('')}</span><span class="imgv-spin"></span></div>
-    <div class="imgv-cap"><b></b><span class="imgv-sub"></span><span class="imgv-extra" hidden></span><img class="imgv-shot" alt="${T('Ta photo')}" hidden><button class="imgv-rep" type="button" hidden></button></div>
+    <div class="imgv-cap"><b></b><span class="imgv-sub"></span><span class="imgv-extra" hidden></span><img class="imgv-shot" alt="${T('Ta photo')}" hidden><div class="imgv-cnt" hidden><span></span><span class="qstep"><button type="button" data-d="-1" aria-label="${T('Moins')}">−</button><b></b><button type="button" data-d="1" aria-label="${T('Plus')}">+</button></span><small></small></div><button class="imgv-rep" type="button" hidden></button></div>
     <div class="imgv-acts"><button class="btn ghost small imgv-wish" type="button" hidden aria-pressed="false"></button><button class="btn ghost small imgv-flip" type="button" hidden>${T('Retourner la carte')}</button><button class="imgv-art" type="button" hidden aria-expanded="false">${T('Illustrations')}</button><button class="btn ghost small imgv-cex" type="button" hidden></button></div>
     <div class="imgv-vars" hidden><div class="imgv-vh" aria-live="polite"></div><div class="imgv-q"></div><div class="imgv-vl"></div></div>`;
   const card = $('.imgv-card', wrap), img = $('.imgv-img', wrap), ph = $('.imgv-ph', wrap), sub = $('.imgv-sub', wrap), flipB = $('.imgv-flip', wrap), title = $('.imgv-cap b', wrap), extra = $('.imgv-extra', wrap), shotEl = $('.imgv-shot', wrap);
   const countEl = $('.imgv-count', wrap), prevB = $('.imgv-nav.prev', wrap), nextB = $('.imgv-nav.next', wrap);
   const repB = $('.imgv-rep', wrap);      // action discrète d'une carte (it.act : { label, fn, off } ; scan : « Signaler un problème de scan », scanreport.js)
+  // it.act.strong : bouton plein (masterset) ; it.act.max (2 ou plus) : nombre d'exemplaires choisi au-dessus (« Combien… ? − n + / max », it.act.ask), libellé it.act.labelOf(n), fn(n)
+  const cntEl = $('.imgv-cnt', wrap);
+  const actPaint = () => {
+    const a = it && it.act; repB.hidden = !a; cntEl.hidden = true; if (!a) return;
+    repB.classList.toggle('strong', !!a.strong); repB.disabled = !!a.off;
+    if (a.max > 1 && !a.off) { a.n = Math.max(1, Math.min(a.max, a.n || 1)); cntEl.hidden = false; $('span', cntEl).textContent = a.ask || ''; $('b', cntEl).textContent = a.n; $('small', cntEl).textContent = '/ ' + a.max; }
+    repB.textContent = a.labelOf && !a.off ? a.labelOf(a.n || 1) : a.label;
+  };
+  cntEl.addEventListener('click', e => { const b = e.target.closest('[data-d]'), a = it && it.act; if (!b || !a || !(a.max > 1)) return; a.n = Math.max(1, Math.min(a.max, (a.n || 1) + Number(b.dataset.d))); haptic('tap'); actPaint(); });
   const cexB = $('.imgv-cex', wrap), wishB = $('.imgv-wish', wrap), artB = $('.imgv-art', wrap), varsEl = $('.imgv-vars', wrap), varsH = $('.imgv-vh', wrap), varsL = $('.imgv-vl', wrap), varsQ = $('.imgv-q', wrap);
   let vq = '', vqOf = null;      // recherche d'une extension dans les illustrations (2 ou plus) ; vqOf : la carte à qui elle s'applique (repart de zéro à chaque carte)
   const prevFocus = document.activeElement, from = pressOrigin(), fromEl = from ? MO.press : null, idx0 = Math.max(0, Math.min(items.length - 1, index | 0));
@@ -162,7 +171,7 @@ function openCardViewer(items, index) {
     clearTimeout(varT); vars = []; canSave = false; pickAt = -1; artB.hidden = true; artB.setAttribute('aria-expanded', 'false'); if (!wantOpen) { varsEl.hidden = true; wrap.classList.remove('has-vars'); } else { varsL.innerHTML = ''; varsH.textContent = ''; }
     extra.textContent = it.extra || ''; extra.hidden = !it.extra;
     card.classList.toggle('foil', !!it.foil);      // exemplaire foil de la collection : étincelles animées sur l'image (foil.css)
-    repB.hidden = !it.act; if (it.act) { repB.textContent = it.act.label; repB.disabled = !!it.act.off; }
+    actPaint();
     if (it.shot) shotEl.src = it.shot; else shotEl.removeAttribute('src'); shotEl.hidden = !it.shot; wrap.classList.toggle('has-shot', !!it.shot);      // photo prise au scan (cartes à vérifier) : sous la carte, pour comparer
     if (multi) { countEl.textContent = (n + 1) + ' / ' + items.length; prevB.disabled = n === 0; nextB.disabled = n === items.length - 1; }
     (async () => {
@@ -221,7 +230,7 @@ function openCardViewer(items, index) {
   }
   cexB.onclick = () => { haptic('tap'); const mine = it; cexSheet('map', it.coll.k, it.coll.g, to => { if (it !== mine) return; it.coll = { ...it.coll, g: to }; items[idx] = it = collViewItem(it.coll.k, to) || it; cexPaint(); }); };
   artB.onclick = () => { haptic('tap'); wantOpen = varsEl.hidden; varsOpen(wantOpen); };
-  repB.onclick = () => { const a = it && it.act; if (a && a.fn && !a.off) { haptic('tap'); a.fn(); } };
+  repB.onclick = () => { const a = it && it.act; if (a && a.fn && !a.off) { haptic('tap'); a.fn(a.max > 1 ? a.n || 1 : 1); if (imgView === api) actPaint(); } };      // l'action a pu remplacer it.act (bouton grisé, compteur caché) : repeint
   varsQ.addEventListener('input', e => { if (!e.target.matches('[data-edq]')) return; vq = e.target.value; edQApply(varsL, vars, vq, '.imgv-v'); varsL.scrollLeft = 0; });
   varsL.addEventListener('click', e => {
     const b = e.target.closest('.imgv-v'); if (!b) return; haptic('tap');

@@ -24,3 +24,13 @@
 .sr-det dd{margin:0;overflow-wrap:anywhere}
 .sr-err{margin:0;padding:8px 12px;border-radius:10px;background:var(--bad-soft);color:var(--bad);font-size:13px;font-weight:600}
 .sr-err[hidden]{display:none}
+/* action mise en avant (masterset : « C'est celle-ci », « Ajouter à ma collection ») et nombre d'exemplaires choisi au-dessus (viewer.js › it.act.strong, it.act.max) */
+.imgv-rep.strong{margin-top:10px;padding:10px 16px;border-radius:12px;background:rgba(255,255,255,.92);color:#10152b;font-size:13.5px;text-decoration:none}
+.imgv-rep.strong:active{background:#fff;transform:scale(.98)}
+.imgv-rep.strong[disabled]{background:rgba(255,255,255,.18);color:#fff;opacity:1}
+.imgv-cnt{display:flex;align-items:center;gap:10px;margin-top:10px;padding:8px 10px 8px 14px;border-radius:12px;background:rgba(255,255,255,.08);color:#fff;font-size:13.5px;text-align:left}
+.imgv-cnt[hidden]{display:none}
+.imgv-cnt>span:first-child{flex:1;min-width:0}
+.imgv-cnt .qstep{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25)}
+.imgv-cnt .qstep button,.imgv-cnt .qstep b{color:#fff}
+.imgv-cnt small{opacity:.7;font-family:var(--font-mono)}
