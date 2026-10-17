@@ -142,6 +142,45 @@ await p.click('#toast .toast-act'); await p.waitForTimeout(200);
 assert.deepEqual(await wish(), {}, 'Annuler : liste de souhaits d\'avant');
 ok('souhaiter les manquantes : 2 illustrations exactes, Annuler');
 
+/* ── 6 bis) « Chercher les N cartes manquantes sur CardTrader » : liste aux éditions exactes dans Prix d'une liste ; recherche CardTrader et Cardmarket ─── */
+assert.equal(await txt(p, '.ms-buy'), 'Chercher les 2 cartes manquantes sur CardTrader', 'bouton à côté de « Souhaiter » (variantes ouvertes, terrain de base exclu)');
+await p.click('.ms-buy');
+await p.waitForFunction(() => S.view === 'input' && !COLL.el, null, { timeout: 5000 });
+assert.equal(await p.$eval('#deckText', t => t.value), '1 Arcane Signet (AAA) 6\n1 Sol Ring (AAA) 7', 'une ligne par carte, avec son édition');
+assert.equal(await p.$eval('#exactEdRow', r => r.hidden), false, 'interrupteur « Éditions exactes » montré (la liste a des éditions)');
+assert.equal(await p.$eval('#optExactEd', x => x.checked), true, 'allumé par le masterset');
+const need = () => p.evaluate(() => S.deck.cards.map(c => [c.key, c.need]).sort());
+assert.deepEqual(await need(), [['arcane signet', 1], ['sol ring', 1]], 'éditions exactes : Sol Ring AAA 1 ne compte pas pour AAA 7');
+await p.click('label[for="optExactEd"] .switch'); await p.waitForTimeout(150);
+assert.deepEqual(await need(), [['arcane signet', 0], ['sol ring', 0]], 'éteint : déjà possédées par leur nom, comme avant');
+await p.click('label[for="optExactEd"] .switch'); await p.waitForTimeout(150);
+assert.deepEqual(await need(), [['arcane signet', 1], ['sol ring', 1]]);
+// CardTrader : seulement l'impression demandée (faux monde : Sol Ring = CMM 400, Arcane Signet = CMM 402)
+await p.fill('#deckText', '1 Sol Ring (CMM) 400\n1 Arcane Signet (CMM) 999'); await p.waitForTimeout(250);
+await p.click('#btnRun'); await p.waitForFunction(() => S.run && S.run.status === 'done', null, { timeout: 30000 }); await p.waitForTimeout(500);
+let rs = await p.evaluate(() => ({ sol: S.run.cards['sol ring'], sig: S.run.cards['arcane signet'], src: S.run.src }));
+assert.equal(rs.src, 'ct');
+assert.ok(rs.sol.offers.length > 0 && rs.sol.offers.every(o => o.num === '400'), 'offres de CMM 400 seulement');
+assert.equal(rs.sig.notFound, true, 'édition introuvable (CMM 999) : introuvable, pas une autre impression');
+assert.match(await txt(p, '#list .rw[data-key="sol ring"]'), /CMM 400/);
+assert.match(await txt(p, '#recap'), /éditions exactes/i);
+await p.screenshot({ path: 'shots/masterset-3-cardtrader.png' });
+// Cardmarket : le prix de l'édition demandée (faux /cards/collection pour l'extension AAA)
+await p.route('https://api.scryfall.com/cards/collection', route => {
+  const ids = (JSON.parse(route.request().postData() || '{}').identifiers || []);
+  if (!ids.length || !ids.every(i => i.set === 'aaa')) return route.fallback();
+  route.fulfill({ status: 200, headers: H, json: { object: 'list', not_found: [], data: ids.map(i => SETS.aaa.find(c => c.collector_number === i.collector_number)).filter(Boolean) } });
+});
+await p.evaluate(() => showView('input')); await p.click('#segSrcRun [data-v="cm"]');
+await p.fill('#deckText', '1 Sol Ring (AAA) 7'); await p.waitForTimeout(250);
+await p.click('#btnRun'); await p.waitForFunction(() => S.run && S.run.src === 'cm' && S.run.status === 'done', null, { timeout: 30000 }); await p.waitForTimeout(400);
+rs = await p.evaluate(() => S.run.cards['sol ring'].offers.map(o => [o.price, o.set, o.num]));
+assert.deepEqual(rs, [[200, 'aaa', '7']], 'Cardmarket : prix de AAA 7 (2,00 €), pas celui de Sol Ring en général');
+assert.match(await txt(p, '#list .rw[data-key="sol ring"]'), /AAA 7/);
+await p.click('#segSrcRun [data-v="ct"]').catch(() => {});
+await p.evaluate(() => showView('home')); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForSelector('.ms-grid');
+ok('« Chercher les 2 cartes manquantes sur CardTrader » : liste aux éditions exactes, possédées par édition ; CardTrader CMM 400 seulement, CMM 999 introuvable ; Cardmarket au prix de AAA 7');
+
 /* ── 7) sélecteur d'édition : de la plus fournie à la moins fournie, recherche, autres extensions ──────────────────── */
 await p.click('.ms-pick'); await p.waitForSelector('.sheet-wrap.open .ms-srow');
 const rowsTxt = () => p.$$eval('.sheet-wrap.open .ms-srow', l => l.map(r => [r.dataset.set, r.querySelector('.ms-sp small').textContent, r.getAttribute('aria-pressed')]));

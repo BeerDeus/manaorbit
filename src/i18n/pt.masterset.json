@@ -45,5 +45,13 @@
   "Autres extensions": "Outras coleções",
   "Aucune extension ne correspond.": "Nenhuma coleção corresponde.",
   "Aucune carte avec édition dans ta collection : cherche une extension.": "Nenhuma carta com edição na sua coleção: procure uma coleção.",
-  "Manquantes": "Faltando"
+  "Manquantes": "Faltando",
+  "Chercher la carte manquante sur CardTrader": "Procurar a carta que falta no CardTrader",
+  "Chercher les {n} cartes manquantes sur CardTrader": "Procurar as {n} cartas que faltam no CardTrader",
+  "Prix de la carte manquante": "Preço da carta que falta",
+  "Prix des {n} cartes manquantes": "Preços das {n} cartas que faltam",
+  "Masterset {name}": "Master set {name}",
+  "éditions exactes": "edições exatas",
+  "Éditions exactes": "Edições exatas",
+  "Seulement l'édition indiquée sur chaque ligne (« (CMM) 400 ») ; sinon, l'impression la moins chère.": "Só a edição indicada em cada linha (“(CMM) 400”); senão, a impressão mais barata."
 }

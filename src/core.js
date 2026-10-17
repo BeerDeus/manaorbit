@@ -148,17 +148,17 @@ function parseLine(raw, o) {
   let qty = 1, name = line;
   const m = line.match(/^(\d+)\s*[xX]?\s+(.+)$/);
   if (m) { qty = parseInt(m[1], 10); name = m[2]; }
-  let lang = '', foil = false;
+  let lang = '', foil = false, ed = '';
   for (let again = true; again;) {      // repères de fin, dans n'importe quel ordre : « *FR* » (langue), « *F* » / « *E* » (foil, foil etched : Moxfield, ManaBox)
     again = false;
     name = name.replace(/\s+\*([A-Za-z]+(?:-[A-Za-z]+)?)\*\s*$/, (_, t) => { if (t.length > 1) lang = cardLang(t); else if (/^[FE]$/i.test(t)) foil = true; again = true; return ''; });
   }
   name = name.replace(/\s+\(FOIL\)\s*$/i, () => { foil = true; return ''; })      // « (FOIL) » : texte de la collection (collToText), écrit avant l'édition (déjà retirée par parseCollection)
-    .replace(/\s+\([A-Za-z0-9]{2,8}\)(\s+[A-Za-z0-9★-]+)?\s*$/, '')
+    .replace(/\s+\(([A-Za-z0-9]{2,8})\)(?:\s+([A-Za-z0-9★-]+))?\s*$/, (_, set, num) => { if (num) ed = edKey(set, num); return ''; })      // « (CMM) 400 » : l'édition, gardée (recherche aux éditions exactes)
     .trim();
   if (!name || qty < 1 || qty > 999) return { ignored: true };
   const key = normName(name); if (!key) return { ignored: true };
-  const out = { qty, name, key, ...(lang ? { lang } : {}), ...(foil ? { foil: 1 } : {}) };
+  const out = { qty, name, key, ...(lang ? { lang } : {}), ...(foil ? { foil: 1 } : {}), ...(ed ? { ed } : {}) };
   if (FRX.ix && !(o && o.fr === false)) {
     const f = frLookup(name, lang === FRX.l || !!(o && o.prefer === FRX.l), key.replace(/[ /]/g, ''));
     if (f && f.en) { out.name = f.en; out.key = normName(f.en); out.dn = f.p; out.fr = 1; } else if (f && f.amb) out.amb = f.amb;
@@ -179,7 +179,10 @@ function parseDeck(text) {
     const bucket = BASIC_NAMES.has(p.key) ? basics : cards;
     const cur = bucket.get(p.key);
     if (cur) cur.qty += p.qty; else bucket.set(p.key, { key: p.key, name: p.name, qty: p.qty, ...(p.dn ? { dn: p.dn } : {}), ...(p.amb ? { amb: p.amb } : {}) });      // dn : nom français à afficher (name reste l'anglais : prix, collection, liens)
+    const x = cur || bucket.get(p.key);      // éditions de la carte (« (CMM) 400 ») : seulement si chacune de ses lignes en donne une (une ligne sans édition : n'importe laquelle)
+    if (!p.ed) x.anyEd = true; else if (!(x.eds || (x.eds = [])).includes(p.ed)) x.eds.push(p.ed);
   }
+  for (const m of [cards, basics]) for (const x of m.values()) { if (x.anyEd) delete x.eds; delete x.anyEd; }
   const c = [...cards.values()], b = [...basics.values()];
   const copies = c.reduce((a, x) => a + x.qty, 0);
   const basicCopies = b.reduce((a, x) => a + x.qty, 0);
@@ -952,6 +955,8 @@ const edKey = (set, num) => {
 };
 const edSet = e => String(e || '').split('|')[0];
 const edNum = e => { const s = String(e || ''), i = s.indexOf('|'); return i < 0 ? '' : s.slice(i + 1); };
+/** Édition comparable : « cmm|0400 » et « CMM|400 » → 'cmm|400' (zéros de tête du numéro ignorés, comme les numéros CardTrader) ; '' sans édition. */
+const edNorm = e => (e ? edSet(e).toLowerCase() + '|' + edNum(e).trim().toLowerCase().replace(/^0+(?=[0-9a-z])/, '') : '');
 /** « CMM 400 » */
 const edLabel = e => (e ? edSet(e).toUpperCase() + ' ' + edNum(e) : '');
 /* ── Emplacement et détails d'un exemplaire (facultatifs), en fin de clé de ligne après « # » : 'fr|cmm|400*#pk3x9a-cnm-s'.
@@ -1249,7 +1254,7 @@ function sameColl(a, b) {
 /** Pose sur chaque carte de la liste : own (déjà possédées, au plus la quantité demandée) et need (à acheter). owned : clé de carte → exemplaires, ou null. */
 function applyOwned(cards, owned) {
   for (const c of cards) {
-    const o = owned ? Math.max(0, Math.floor(Number(owned(ownKey(c.key))) || 0)) : 0;
+    const o = owned ? Math.max(0, Math.floor(Number(owned(ownKey(c.key), c)) || 0)) : 0;      // c : la carte de la liste (éditions exactes : ses éditions seules comptent)
     c.own = Math.min(o, c.qty); c.need = c.qty - c.own;
   }
   return cards;
@@ -2264,7 +2269,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
-    lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
+    lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient

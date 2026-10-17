@@ -9,8 +9,9 @@
      la recherche trouve aussi les autres extensions (commencer un masterset de zéro).
    · Exemplaires sans édition : panneau ⚠ sur la vignette d'une carte manquante quand la collection a cette carte sans édition ; la carte en grand propose
      « C'est celle-ci » (l'édition est posée sur un exemplaire). Carte manquante sans exemplaire : « Ajouter à ma collection ».
-   · « Souhaiter les manquantes » : les cartes manquantes affichées entrent dans la liste de souhaits avec l'illustration de cette édition
-     (la recherche de prix, elle, ne tient pas compte des éditions : un panier achèterait n'importe quelle impression).
+   · « Chercher les N cartes manquantes sur CardTrader » (sans CardTrader : leur prix Cardmarket) : la liste « 1 Sol Ring (AAA) 7 » dans Prix d'une liste,
+     recherche aux éditions exactes (app.js › S.opts.exactEd : seulement cette impression, possédée seulement dans cette édition).
+   · « Souhaiter les manquantes » : les cartes manquantes affichées entrent dans la liste de souhaits avec l'illustration de cette édition.
    · Recherche et filtres de la collection (nom, couleur, famille, coût) s'appliquent à la grille ; Commander et Extension n'y ont pas de sens.
    Réglages gardés sur l'appareil (deckdeal:ms:v1 : actif, extension, cartes par ligne, affichage). Retirer la fonction : ôter 'masterset.js' de build.mjs. */
 const MS_KEY = 'deckdeal:ms:v1', MS_COLS = [3, 4, 5, 6, 8], MS_SHOWS = [['all', 'Toutes'], ['own', 'Possédées'], ['miss', 'Manquantes']], MS_KEEP = 6;
@@ -167,6 +168,7 @@ function msHtml() {
       ${MS_SHOWS.map(([v, l]) => `<button type="button" class="fopt" data-act="msshow" data-v="${v}" aria-pressed="${MS.show === v}">${T(l)}</button>`).join('')}
       ${SETV_RAR.map(([r, l]) => `<button type="button" class="fopt" data-act="msrar" data-r="${r}" aria-pressed="${MS.rar.has(r)}"><i class="setv-r ${r}" aria-hidden="true"></i>${T(l)}</button>`).join('')}</div>`;
   const wish = new Set([...base, ...(MS.varOpen ? vars : [])].filter(x => msWishable(code, x)).map(x => x.k)).size;      // une illustration par carte (comme msWishSheet)
+  const buy = msBuyList(code, base, vars).length, ct = typeof priceSrc === 'function' && priceSrc() === 'ct';
   const warnN = [...base, ...(MS.varOpen ? vars : [])].filter(x => !msOwnOf(code, x) && !BASIC_NAMES.has(x.k) && msLoose(x.k) > 0).length;
   return head + msProgHtml(pb, true) + (val ? `<p class="ms-val">${esc(val)}</p>` : '') + ctl + ign
     + (warnN ? `<p class="hint ms-legend"><span class="ms-lw">${MS_WARN}</span>${TN(warnN, '{n} carte que tu as peut-être sans édition : touche-la pour poser son édition.', '{n} cartes que tu as peut-être sans édition : touche-les pour poser leur édition.')}</p>` : '')
@@ -174,7 +176,8 @@ function msHtml() {
     + (base.length ? msGrid(code, base, 'b', s.tot) : `<p class="hint listempty">${T('Aucune carte ne correspond.')}</p>`)
     + (s.vars.length ? `<section class="ms-var"><button type="button" class="ms-vh" data-act="msvar" aria-expanded="${MS.varOpen}"><span>${T('Variantes')}</span><small>${T('vitrine, sans bordure, illustration étendue…')}</small>${msProgHtml(pv)}</button>
         ${MS.varOpen ? (vars.length ? msGrid(code, vars, 'v', 0) : `<p class="hint listempty">${T('Aucune carte ne correspond.')}</p>`) : ''}</section>` : '')
-    + (wish ? `<button class="btn ghost block ms-wish" type="button" data-act="mswish">☆ ${TN(wish, 'Souhaiter la carte manquante', 'Souhaiter les {n} cartes manquantes')}</button>` : '');
+    + (wish || buy ? `<div class="ms-acts">${buy ? `<button class="btn ms-buy" type="button" data-act="msbuy">${esc(ct ? TN(buy, 'Chercher la carte manquante sur CardTrader', 'Chercher les {n} cartes manquantes sur CardTrader') : TN(buy, 'Prix de la carte manquante', 'Prix des {n} cartes manquantes'))}</button>` : ''}
+        ${wish ? `<button class="btn ghost ms-wish" type="button" data-act="mswish">☆ ${TN(wish, 'Souhaiter la carte manquante', 'Souhaiter les {n} cartes manquantes')}</button>` : ''}</div>` : '');
 }
 /** Après le rendu : cartes et symboles de l'extension demandés s'ils manquent. */
 function msAfterPaint() {
@@ -260,7 +263,7 @@ function msWishSheet() {
     api.body.innerHTML = `<p class="cf-msg">${TN(list.length, '<b>{n}</b> carte manquante entre dans ta liste de souhaits, avec l\'illustration de cette édition.', '<b>{n}</b> cartes manquantes entrent dans ta liste de souhaits, avec l\'illustration de cette édition.')}${eu ? ' ' + esc(T('Prix Cardmarket ≈ {v}', { v: fmt(eu, 'EUR') })) : ''}</p>
       ${upd ? `<p class="hint">${TN(upd, '{n} carte y est déjà avec une autre illustration : elle prend celle-ci.', '{n} cartes y sont déjà avec une autre illustration : elles prennent celle-ci.')}</p>` : ''}
       <p class="hint">${T('Les amis et les visiteurs de ta liste d\'échange les voient dans « Je recherche ».')}</p>`;
-    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn primary" type="button" data-ok>${T('Ajouter à ma liste de souhaits')}</button>`);
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ok>${T('Ajouter à ma liste de souhaits')}</button>`);
     api.foot.addEventListener('click', e => {
       if (!e.target.closest('[data-ok]')) return;
       api.close();
@@ -273,6 +276,23 @@ function msWishSheet() {
       } });
     });
   });
+}
+
+/* ── Acheter les manquantes ───────────────────────────────────────────────────────────────────────────── */
+/** Cartes manquantes à chercher : celles affichées (filtres compris, variantes si elles sont ouvertes), une impression par carte (la base d'abord), sans les terrains de base (jamais chiffrés). */
+function msBuyList(code, base, vars) {
+  const seen = new Set(), out = [];
+  for (const x of [...base, ...(MS.varOpen ? vars : [])]) if (!msOwnOf(code, x) && x.k && !BASIC_NAMES.has(x.k) && !seen.has(x.k) && edKey(code, x.num)) { seen.add(x.k); out.push(x); }
+  return out;
+}
+/** « Chercher les N cartes manquantes sur CardTrader » (Cardmarket sans CardTrader) : la liste « 1 Sol Ring (AAA) 7 » dans Prix d'une liste, aux éditions exactes
+ *  (cette impression seulement, déjà possédée seulement si c'est cette édition) ; la recherche se lance depuis la saisie (langue, état, foil au choix). */
+function msBuy() {
+  const v = MS.view; if (!v || typeof putDeckText !== 'function') return;
+  const list = msBuyList(v.code, v.base, v.vars); if (!list.length) return;
+  const text = list.map(x => `1 ${x.n} (${v.code.toUpperCase()}) ${x.num}`).join('\n');
+  closeCollection();
+  putDeckText(text, T('Masterset {name}', { name: msSetName(v.code) }), { exactEd: true });
 }
 
 /* ── Sélecteur d'édition ───────────────────────────────────────────────────────────────────────────── */
@@ -322,6 +342,7 @@ function msClick(e) {
   if (act === 'msvar') { MS.varOpen = !MS.varOpen; haptic('tap'); collPaintBody(true); return true; }
   if (act === 'msretry') { delete MS.err[msCur()]; collPaintBody(true); return true; }
   if (act === 'mswish') { haptic('tap'); msWishSheet(); return true; }
+  if (act === 'msbuy') { haptic('tap'); msBuy(); return true; }
   if (b.classList.contains('ms-open')) {
     const t = b.closest('.ms-c'), v = MS.view; if (!t || !v) return true;
     const list = t.dataset.s === 'v' ? v.vars : v.base, i = Number(t.dataset.i); if (!list[i]) return true;

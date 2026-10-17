@@ -668,6 +668,9 @@ async function pool(items, n, fn) {
  */
 async function runLive(cards, opts, hooks, signal) {
   const total = cards.length;
+  // Éditions exactes (opts.exactEd, carte avec ses éditions « (CMM) 400 ») : seules ces impressions sont gardées, et leurs blueprints CardTrader (même numéro).
+  const edWant = c => (opts.exactEd && c.eds && c.eds.length ? new Set(c.eds.map(edNorm)) : null);
+  const printsUse = c => { const w = edWant(c), pr = printsOf[c.key] || []; return w ? pr.filter(p => w.has(edNorm(edKey(p.set, p.num)))) : pr; };
   hooks.step('prints', 'run', '0 / ' + total);
   const printsOf = {}; let done = 0;
   const label = () => done + ' / ' + total;
@@ -713,7 +716,7 @@ async function runLive(cards, opts, hooks, signal) {
   const exps = await getExpansions(signal);
   const skip = opts.skip || new Set();                     // cartes déjà possédées en totalité : on lit leurs impressions (image, coût) mais pas leurs offres
   const needed = new Set();
-  for (const c of cards) if (!skip.has(c.key)) for (const p of printsOf[c.key]) {
+  for (const c of cards) if (!skip.has(c.key)) for (const p of printsUse(c)) {
     const eid = exps.byCode.get(p.set) || exps.byName.get(normPart(p.setName)); if (eid) { needed.add(eid); for (const s of exps.sib.get(eid) || []) needed.add(s); }      // et ses extensions sœurs (vitrines « … Collectors »)
   }
   const bpIndex = new Map(); let bd = 0; const ids = [...needed];
@@ -723,11 +726,16 @@ async function runLive(cards, opts, hooks, signal) {
   });
   hooks.step('catalog', 'done', T('{n} extensions', { n: ids.length }));
 
-  const plan = cards.map(c => ({ c, bps: mapBlueprints(c, printsOf[c.key], exps, bpIndex) }));
+  const plan = cards.map(c => {
+    const w = edWant(c), bps = mapBlueprints(c, printsUse(c), exps, bpIndex);
+    if (!w) return { c, bps };
+    const nums = new Set([...w].map(e => edNum(e)));      // blueprints de ces numéros seulement (l'extension et ses sœurs : les seules lues)
+    return { c, bps: bps.filter(b => !b.num || nums.has(bpNum(b.num))) };      // num : celui de l'impression rattachée (Scryfall), sinon celui de CardTrader
+  });
   const store = {}; const entries = [];
   for (const { c, bps } of plan) {
-    const p0 = printsOf[c.key][0] || {}, img = p0.img || null, meta = p0.cmc !== undefined ? { cm: p0.cmc, mc: p0.mc, tl: p0.tl, cl: p0.cl } : null;
-    if (!printsOf[c.key].length) { hooks.card(c.key, { offers: [], bps: [], img, notFound: true }); continue; }
+    const pu = printsUse(c), p0 = pu[0] || printsOf[c.key][0] || {}, img = p0.img || null, meta = p0.cmc !== undefined ? { cm: p0.cmc, mc: p0.mc, tl: p0.tl, cl: p0.cl } : null;      // éditions exactes : l'illustration de l'édition demandée
+    if (!pu.length) { hooks.card(c.key, { offers: [], bps: [], img, notFound: true }); continue; }      // carte inconnue, ou édition demandée introuvable
     if (skip.has(c.key)) { hooks.card(c.key, { offers: [], bps: [], img, meta, skipped: true }); continue; }
     store[c.key] = { bps, img }; entries.push({ c, bps, img, meta });
   }
@@ -832,23 +840,36 @@ async function pxTable(signal) {
 }
 /** Recherche au prix Cardmarket : une « offre » par carte, au prix tendance. Mêmes étapes et mêmes crochets que runLive. */
 async function runCm(cards, opts, hooks, signal) {
-  const skip = opts.skip || new Set(), todo = cards.filter(c => !skip.has(c.key)), price = new Map(), notFound = new Set();
+  const skip = opts.skip || new Set(), todo = cards.filter(c => !skip.has(c.key)), price = new Map(), notFound = new Set(), imgs = new Map(), edOf = new Map();
+  // Éditions exactes (opts.exactEd, carte avec ses éditions « (CMM) 400 ») : le prix Cardmarket de cette impression (la moins chère si la ligne en donne plusieurs), pas celui de la carte
+  const exact = opts.exactEd ? todo.filter(c => c.eds && c.eds.length) : [], byName = opts.exactEd ? todo.filter(c => !(c.eds && c.eds.length)) : todo;
   hooks.step('prints', 'run', T('Relevé du jour…')); hooks.progress(0.05);
-  const tab = await pxTable(signal);
-  if (tab) for (const c of todo) { const p = tab.map.get(ownKey(c.name)); if (p && p.e) price.set(c.key, p.e); }
-  hooks.step('prints', tab ? 'done' : 'skip', tab ? new Date(tab.at).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' }) : T('Indisponible')); hooks.progress(0.15);
-  const miss = todo.filter(c => !price.has(c.key)), imgs = new Map(), mem = await cmImgMap();
+  const tab = byName.length ? await pxTable(signal) : null;
+  if (tab) for (const c of byName) { const p = tab.map.get(ownKey(c.name)); if (p && p.e) price.set(c.key, p.e); }
+  if (exact.length) {
+    const got = await scryEditions(exact.flatMap(c => c.eds), signal);
+    for (const c of exact) {
+      let best = null;
+      for (const e of c.eds) { const x = got.get(e), u = x ? (x.eu > 0 ? x.eu : x.ef > 0 ? x.ef : 0) : 0; if (u && (!best || u < best.u)) best = { u, e, x }; }
+      if (best) { price.set(c.key, best.u); edOf.set(c.key, best); if (best.x.im) imgs.set(c.key, best.x.im); }
+      else if (c.eds.every(e => got.get(e) === null)) notFound.add(c.key);      // édition inconnue de Scryfall ; connue sans prix : « sans offre »
+    }
+  }
+  hooks.step('prints', tab || exact.length ? 'done' : 'skip', tab ? new Date(tab.at).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' }) : exact.length ? T('éditions exactes') : T('Indisponible')); hooks.progress(0.15);
+  const miss = byName.filter(c => !price.has(c.key)), mem = await cmImgMap();
   if (miss.length) {
     hooks.step('catalog', 'run', '0 / ' + miss.length);
     const got = await scryCollection(miss.map(c => c.name), signal, (d, t) => { hooks.step('catalog', 'run', d + ' / ' + t); hooks.progress(0.15 + 0.75 * d / t); hooks.rate(0, Math.ceil(d / 75)); });
     for (const c of miss) { const m = got.get(ownKey(c.name)); if (m && m.eu) price.set(c.key, m.eu); else if (!m) notFound.add(c.key); if (m && m.im) { imgs.set(c.key, m.im); mem.set(ownKey(c.key), m.im); } }
     hooks.step('catalog', 'done', TN(miss.length, '{n} carte', '{n} cartes', { n: miss.length }));
   } else hooks.step('catalog', 'skip', T('Inutile'));
-  const late = await cmImages(cards.filter(c => !notFound.has(c.key)), imgs, opts.lang);
+  const late = await cmImages(cards.filter(c => !notFound.has(c.key) && !edOf.has(c.key)), imgs, opts.lang);      // éditions exactes : l'image de l'édition, déjà là
   hooks.step('offers', 'run', '');
   const sent = new Map();
   for (const c of cards) {
-    const img = imgs.get(c.key) || null, p = skip.has(c.key) ? { offers: [], bps: [], img, skipped: true } : price.has(c.key) ? { offers: [cmOffer(c, price.get(c.key), opts)], bps: [], img } : { offers: [], bps: [], img, notFound: notFound.has(c.key) };
+    const img = imgs.get(c.key) || null, ed = edOf.get(c.key), o = price.has(c.key) ? cmOffer(c, price.get(c.key), opts) : null;
+    if (o && ed) Object.assign(o, { set: edSet(ed.e), num: edNum(ed.e), setName: ed.x.sn || '' });      // la ligne montre l'édition demandée
+    const p = skip.has(c.key) ? { offers: [], bps: [], img, skipped: true } : o ? { offers: [o], bps: [], img } : { offers: [], bps: [], img, notFound: notFound.has(c.key) };
     sent.set(c.key, p); hooks.card(c.key, p);
   }
   hooks.step('offers', 'done', price.size === 1 ? T('1 prix') : T('{n} prix', { n: price.size }));      // « prix » : invariable en français, pas en anglais

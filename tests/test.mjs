@@ -275,8 +275,21 @@ test('parseLine : vide, ignorée, carte (suffixes retirés)', () => {
   assert.equal(C.parseLine('   '), undefined);
   assert.deepEqual(C.parseLine('Commander'), { ignored: true, quiet: true });
   assert.deepEqual(C.parseLine('// note'), { ignored: true, quiet: true });
-  assert.deepEqual(C.parseLine('2x Sol Ring (CMM) 400 *F*'), { qty: 2, name: 'Sol Ring', key: 'sol ring', foil: 1 });
+  assert.deepEqual(C.parseLine('2x Sol Ring (CMM) 400 *F*'), { qty: 2, name: 'Sol Ring', key: 'sol ring', foil: 1, ed: 'cmm|400' });
   assert.deepEqual(C.parseLine('Æther Vial'), { qty: 1, name: 'Æther Vial', key: 'aether vial' }, 'Æ → ae, comme « Aether Vial »');
+  assert.deepEqual(C.parseLine('1 Sol Ring (CMM)'), { qty: 1, name: 'Sol Ring', key: 'sol ring' }, 'extension sans numéro : pas d\'édition');
+});
+
+test('éditions de la liste (« (CMM) 400 ») : gardées par carte si chaque ligne en donne une ; edNorm ; applyOwned reçoit la carte', () => {
+  const d = C.parseDeck('1 Sol Ring (CMM) 400\n1 Sol Ring (AAA) 0007\n1 Arcane Signet (AAA) 2\n1 Arcane Signet\n2 Wrath of God\n1 Forest (AAA) 5');
+  const by = Object.fromEntries(d.cards.map(c => [c.key, c]));
+  assert.deepEqual(by['sol ring'].eds, ['cmm|400', 'aaa|0007']); assert.equal(by['sol ring'].qty, 2);
+  assert.equal(by['arcane signet'].eds, undefined, 'une ligne sans édition : n\'importe laquelle'); assert.equal(by['wrath of god'].eds, undefined);
+  assert.ok(!('anyEd' in by['arcane signet']), 'marque de travail retirée');
+  assert.deepEqual(d.basics[0].eds, ['aaa|5']);
+  assert.equal(C.edNorm('AAA|0007'), 'aaa|7'); assert.equal(C.edNorm('cmm|400'), 'cmm|400'); assert.equal(C.edNorm(''), '');
+  const seen = []; C.applyOwned(d.cards, (k, c) => { seen.push([k, !!c.eds]); return k === 'sol ring' ? 1 : 0; });
+  assert.deepEqual(seen, [['sol ring', true], ['arcane signet', false], ['wrath of god', false]]); assert.deepEqual([by['sol ring'].own, by['sol ring'].need], [1, 1]);
 });
 
 test('dropCard / restoreLines : retire toutes les lignes d\'une carte, annulation exacte (LIFO)', () => {
@@ -1433,7 +1446,7 @@ test('foil : clé de ligne « * », texte « (FOIL) » (ancienne version : code 
   assert.equal(C.lineLang('fr|cmm|400*'), 'fr'); assert.equal(C.lineEd('fr|cmm|400*'), 'cmm|400'); assert.ok(C.lineFoil('fr*')); assert.ok(C.lineFoil('*')); assert.ok(!C.lineFoil('fr|cmm|400')); assert.equal(C.lineLang('*'), ''); assert.equal(C.lineEd('*'), '');
   // texte : « (FOIL) » avant l'édition ; *F* / *E* de Moxfield / ManaBox, dans n'importe quel ordre avec la langue
   assert.deepEqual(C.parseLine('1 Sol Ring *F* *FR*'), { qty: 1, name: 'Sol Ring', key: 'sol ring', lang: 'fr', foil: 1 });
-  assert.deepEqual(C.parseLine('1 Sol Ring (CMM) 400 *FR* *E*'), { qty: 1, name: 'Sol Ring', key: 'sol ring', lang: 'fr', foil: 1 }, 'etched = foil');
+  assert.deepEqual(C.parseLine('1 Sol Ring (CMM) 400 *FR* *E*'), { qty: 1, name: 'Sol Ring', key: 'sol ring', lang: 'fr', foil: 1, ed: 'cmm|400' }, 'etched = foil');
   assert.deepEqual(C.parseLine('2 Sol Ring (FOIL) *FR*'), { qty: 2, name: 'Sol Ring', key: 'sol ring', lang: 'fr', foil: 1 });
   const t = C.parseCollection('2 Sol Ring (FOIL) (CMM) 400 (Dh7zqkx) *FR*\n1 Sol Ring (CMM) 400 *FR*\n3 Sol Ring (FOIL)\n1 Fire // Ice *F*', { dates: true });
   const sr = t.items.find(i => i.n === 'Sol Ring');

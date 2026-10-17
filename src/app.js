@@ -112,14 +112,16 @@ const SAMPLE = `1 Cloud, Midgar Mercenary
 /* ── État ─────────────────────────────────────────────────────────────────────────────────── */
 const S = {
   demo: true, demoPref: null, src: 'auto', proxy: false, token: '', appKey: '', theme: 'auto', draft: null,
-  opts: { lang: 'fr', langSet: false, cond: 'Slightly Played', foil: 'no', mode: 'zero', ship: 280, fallbackEn: true },
+  opts: { lang: 'fr', langSet: false, cond: 'Slightly Played', foil: 'no', mode: 'zero', ship: 280, fallbackEn: true, exactEd: false },      // exactEd : seulement l'édition de chaque ligne (« (CMM) 400 »)
   deck: { cards: [], basics: [], lines: 0, ignored: 0, copies: 0, basicCopies: 0 },
   view: 'home', tab: 'cards', run: null, res: null, fo: {}, overrides: {}, cur: 'EUR', isSample: false, wake: null, deckId: null, runDelta: null,
   enBusy: null, enCtrl: null, gone: new Set(), haptic: true, sort: 'deck', filter: 'all', removed: [], useColl: true, push: false,
 };
 let runSeq = 0;
 /** Critères qui fixent les prix lus : s'ils changent après la recherche, les prix gardés ne correspondent plus. */
-const critSig = () => [S.opts.lang, S.opts.cond, S.opts.foil].join('|');
+const critSig = () => [S.opts.lang, S.opts.cond, S.opts.foil].join('|') + (exactOn() ? '|ed' : '');
+/** Recherche aux éditions exactes : interrupteur allumé et au moins une carte de la liste avec son édition. */
+const exactOn = () => !!S.opts.exactEd && !!S.deck && S.deck.cards.some(c => c.eds);
 const ownSig = () => { const n = S.deck.cards.reduce((a, c) => a + (c.own || 0), 0); return n ? '|o' + n : ''; };
 /** Signature d'une recherche pour comparer l'historique : critères + cartes déjà possédées (le total change si la collection change). */
 const curSig = () => critSig() + ownSig();
@@ -271,7 +273,9 @@ let draftT;
 function refreshDeck() {
   const d = parseDeck($('#deckText').value); S.deck = d;
   if (d.cards.length && !FRX.ix && !S.isSample && S.view === 'input') frLoad();      // noms français (« 4 Foudre ») : index chargé quand on saisit une liste (pas pour l'exemple, ni au démarrage)
-  applyOwned(d.cards, S.useColl ? engOwned : null);
+  const exact = !!S.opts.exactEd && d.cards.some(c => c.eds);
+  applyOwned(d.cards, S.useColl ? (k, c) => (exact && c.eds ? Math.min(engOwned(k), collEdQty(k, c.eds)) : engOwned(k)) : null);      // éditions exactes : seuls les exemplaires de ces éditions comptent
+  { const r = $('#exactEdRow'); if (r) { r.hidden = !d.cards.some(c => c.eds); $('#optExactEd').checked = !!S.opts.exactEd; } }
   const buy = d.cards.filter(c => c.need > 0).length, owned = d.cards.length - buy;
   const chips = [];
   const dk = findDeck(S.deckId);
@@ -295,6 +299,7 @@ function readOpts() {
   S.opts.lang = $('#optLang').value; S.opts.cond = $('#optCond').value;
   S.opts.foil = $('#segFoil')._v; S.opts.mode = $('#segMode')._v;
   S.opts.fallbackEn = $('#optFallback').checked;
+  { const x = $('#optExactEd'); if (x) S.opts.exactEd = x.checked; }
   const v = parseFloat(String($('#optShip').value || '0').replace(',', '.'));
   S.opts.ship = Math.max(0, Math.round((isNaN(v) ? 0 : v) * 100));
 }
@@ -659,7 +664,7 @@ function updateRow(el, c, v, st) {
     el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${c.qty > 1 ? `<span class="tag accent">× ${c.qty}</span>` : ''}<span class="tag good">${T('Dans ta collection')}</span></span></span><span class="row-price"><span class="tag good">${T('Possédée')}</span></span>`;
   } else if (v.s === 'ok' && top.cm) {
     const n = pick.parts.reduce((a, p) => a + p.n, 0);
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}<span class="tag">Cardmarket</span></span><span class="row-seller">${T('Tendance')}${n > 1 ? ' · ' + n + ' × ' + fmt(top.price) : ''}</span></span><span class="row-price"><b>${fmt(pick.cost)}</b></span>`;
+    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}<span class="tag">Cardmarket</span>${top.set ? `<span class="tag">${esc(top.set.toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>` : ''}</span><span class="row-seller">${T('Tendance')}${n > 1 ? ' · ' + n + ' × ' + fmt(top.price) : ''}</span></span><span class="row-price"><b>${fmt(pick.cost)}</b></span>`;
   } else if (v.s === 'ok') {
     const tags = [];
     tags.push(`<span class="tag">${esc((top.set || '').toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>`);
@@ -778,6 +783,7 @@ function updateRecap() {
   const foil = S.opts.foil === 'no' ? T('non-foil') : S.opts.foil === 'yes' ? 'foil' : T('foil ou non');
   const crit = isCm() ? [T('prix tendance Cardmarket'), T('impression la moins chère'), T('hors port')] : [LANGS[S.opts.lang] || S.opts.lang, T('état ≥ {cond}', { cond: COND_SHORT[S.opts.cond] || S.opts.cond }), foil, S.opts.mode === 'zero' ? 'CardTrader Zero' : 'Direct'];
   if (!isCm() && S.opts.fallbackEn && S.opts.lang !== 'en') crit.push(T('repli anglais'));
+  if (exactOn()) crit.push(T('éditions exactes'));
   const html = `<div class="recap-top"><b>${r.found}</b><span> / ${T('{n} cartes trouvées', { n: r.total })}</span><i></i><span>${TN(r.copies, '{n} exemplaire', '{n} exemplaires')}</span></div>`
     + (chips.length ? `<div class="recap-chips">${chips.join('')}</div>` : '')
     + `<div class="recap-crit">${esc(crit.join(' · ').replace(/^./, m => m.toUpperCase()))}</div>`;
@@ -1243,14 +1249,15 @@ function init() {
   S.demo = S.demoPref == null ? !S.token : S.demoPref;
   syncCTX(); applyTheme();
 
-  $('#optLang').value = S.opts.lang; $('#optCond').value = S.opts.cond; $('#optFallback').checked = !!S.opts.fallbackEn;
+  $('#optLang').value = S.opts.lang; $('#optCond').value = S.opts.cond; $('#optFallback').checked = !!S.opts.fallbackEn; if ($('#optExactEd')) $('#optExactEd').checked = !!S.opts.exactEd;
   $('#optShip').value = (S.opts.ship / 100).toFixed(2).replace('.', ',');
   mountSeg($('#segFoil'), [{ v: 'no', label: T('Sans foil') }, { v: 'any', label: T('Peu importe') }, { v: 'yes', label: 'Foil' }], S.opts.foil, () => { readOpts(); saveStore(); });
   mountSeg($('#segMode'), [{ v: 'zero', label: 'CardTrader Zero' }, { v: 'direct', label: T('Direct vendeurs') }], S.opts.mode, () => { readOpts(); syncShip(); modeHint(); saveStore(); });
   mountSeg($('#segTab'), [{ v: 'cards', label: T('Cartes') }, { v: 'sellers', label: T('Vendeurs') }], 'cards', v => {
     S.tab = v; $('#list').hidden = v !== 'cards'; $('#cardsPane').hidden = v !== 'cards'; $('#sellers').hidden = v !== 'sellers'; if (v === 'sellers') renderSellers(true); else applyView(true);
   });
-  ['#optLang', '#optCond', '#optShip', '#optFallback'].forEach(s => $(s).addEventListener('change', () => { if (s === '#optLang') S.opts.langSet = true; readOpts(); saveStore(); if (s === '#optLang') namesSync(); }));      // langue choisie à la main : elle ne suit plus celle de l'interface
+  ['#optLang', '#optCond', '#optShip', '#optFallback'].forEach(s => $(s).addEventListener('change', () => { if (s === '#optLang') S.opts.langSet = true; readOpts(); saveStore(); if (s === '#optLang') namesSync(); }));
+  if ($('#optExactEd')) $('#optExactEd').addEventListener('change', () => { readOpts(); saveStore(); refreshDeck(); });      // éditions exactes : les cartes déjà possédées changent      // langue choisie à la main : elle ne suit plus celle de l'interface
   syncShip(); modeHint(); modeLabel();
 
   const ta = $('#deckText');
@@ -1351,7 +1358,8 @@ function handleLaunch() {
   else if (q.has('open')) { const v = q.get('open'); setTimeout(() => wgtOpen(v), 600); }  // raccourcis de l'icône de la PWA (manifeste : ?open=scan | quick | trade | paste)
 }
 /** Met une decklist dans la page de saisie (partage, import d'un lien, deck EDHREC de la collection). */
-function putDeckText(text, name) {
+function putDeckText(text, name, o) {
+  S.opts.exactEd = !!(o && o.exactEd); saveStore();      // éditions exactes : seulement pour une liste qui le demande (masterset) ; une liste partagée, n'importe quelle édition
   const ta = $('#deckText'); ta.value = text; S.isSample = false; S.deckId = null; S.removed = []; if (S.view !== 'input') showView('input'); refreshDeck();
   toast((name ? name + ' · ' : '') + T('{n} cartes reçues', { n: S.deck.cards.length })); window.scrollTo({ top: $('.field').offsetTop - 70, behavior: reduceMotion() ? 'auto' : 'smooth' });
 }
