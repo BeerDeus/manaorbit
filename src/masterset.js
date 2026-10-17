@@ -138,8 +138,8 @@ function msTile(code, x, i, sec, tot) {
 const msGrid = (code, list, sec, tot) => `<div class="ms-grid c${MS.cols}" style="--cols:${MS.cols}">${list.map((x, i) => msTile(code, x, i, sec, tot)).join('')}</div>`;
 function msProgHtml(p, big) {
   const pc = msPct(p.own, p.n);
-  return `<div class="ms-prog${big ? ' big' : ''}"><span class="track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.n}" aria-valuenow="${p.own}" aria-label="${esc(T('Progression'))}"><span class="fill${p.own && p.own === p.n ? ' full' : ''}" style="width:${p.n ? (100 * p.own) / p.n : 0}%"></span></span>
-    <span class="ms-pn"><b>${nf0(p.own)}</b> / ${nf0(p.n)} · ${pc} %</span></div>`;
+  return `<span class="ms-prog${big ? ' big' : ''}"><span class="track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.n}" aria-valuenow="${p.own}" aria-label="${esc(T('Progression'))}"><span class="fill${p.own && p.own === p.n ? ' full' : ''}" style="width:${p.n ? (100 * p.own) / p.n : 0}%"></span></span>
+    <span class="ms-pn"><b>${nf0(p.own)}</b> / ${nf0(p.n)} · ${pc} %</span></span>`;      // span : aussi dans le bouton des variantes
 }
 /** Contenu de l'onglet Cartes en masterset (collPaintBody). */
 function msHtml() {
@@ -166,7 +166,7 @@ function msHtml() {
   const ctl = `<div class="setv-chips ms-ctl" role="group" aria-label="${esc(T('Affichage du masterset'))}">
       ${MS_SHOWS.map(([v, l]) => `<button type="button" class="fopt" data-act="msshow" data-v="${v}" aria-pressed="${MS.show === v}">${T(l)}</button>`).join('')}
       ${SETV_RAR.map(([r, l]) => `<button type="button" class="fopt" data-act="msrar" data-r="${r}" aria-pressed="${MS.rar.has(r)}"><i class="setv-r ${r}" aria-hidden="true"></i>${T(l)}</button>`).join('')}</div>`;
-  const wish = [...base, ...(MS.varOpen ? vars : [])].filter(x => msWishable(code, x)).length;
+  const wish = new Set([...base, ...(MS.varOpen ? vars : [])].filter(x => msWishable(code, x)).map(x => x.k)).size;      // une illustration par carte (comme msWishSheet)
   const warnN = [...base, ...(MS.varOpen ? vars : [])].filter(x => !msOwnOf(code, x) && !BASIC_NAMES.has(x.k) && msLoose(x.k) > 0).length;
   return head + msProgHtml(pb, true) + (val ? `<p class="ms-val">${esc(val)}</p>` : '') + ctl + ign
     + (warnN ? `<p class="hint ms-legend"><span class="ms-lw">${MS_WARN}</span>${TN(warnN, '{n} carte que tu as peut-être sans édition : touche-la pour poser son édition.', '{n} cartes que tu as peut-être sans édition : touche-les pour poser leur édition.')}</p>` : '')
@@ -286,7 +286,7 @@ function msSetRow(r) {
 function msPickSheet() {
   openSheet(T('Choisir une édition'), T('Tes extensions, de la plus fournie à la moins fournie'), api => {
     const t = esc(T('Chercher une extension'));
-    api.body.innerHTML = `<label class="fsearch ms-q"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${t}" aria-label="${t}"></label>
+    api.body.innerHTML = `<label class="fsearch ms-sq"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${t}" aria-label="${t}"></label>
       <div class="ms-sets"></div>`;
     const inp = $('input', api.body), box = $('.ms-sets', api.body);
     const paint = () => {

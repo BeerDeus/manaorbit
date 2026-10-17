@@ -17,6 +17,7 @@
 .ms-prog{display:flex;align-items:center;gap:10px;min-width:0}
 .ms-prog .track{flex:1;min-width:40px;height:6px}
 .ms-prog.big .track{height:9px}
+.ms-prog .fill,.ms-sp .fill{display:block}      /* barres en <span> : sans display block, la largeur ne s'applique pas */
 .ms-prog .fill.full{background:var(--good);animation:none}
 .ms-pn{flex:none;font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums}
 .ms-prog.big .ms-pn{font-size:13px}
@@ -68,7 +69,7 @@
 .ms-empty .btn{margin-top:12px}
 
 /* feuille « Choisir une édition » */
-.ms-q{margin-bottom:8px}
+.fsearch.ms-sq{flex:none;position:sticky;top:0;z-index:2;margin:0 0 8px}      /* reste en haut quand la liste défile */
 .ms-sets{display:flex;flex-direction:column}
 .ms-sh{margin:14px 0 4px;font-size:12.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
 .ms-srow{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 10px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;font:inherit;text-align:left;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent}
