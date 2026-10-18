@@ -72,7 +72,7 @@ button.opn-pick>.row-px{grid-column:3;grid-row:1/span 2;align-self:center}
 /* ── Mode streamer : rien de la vraie collection ni du compte à l'écran (le contenu, lui, est remplacé par opening.js) ── */
 html.streamer #hmTrade{display:none}                                                          /* lien d'échange, QR code, listes d'amis */
 html.streamer .dv.coll .coll-sync,html.streamer .dv.coll .coll-status,html.streamer .dv.coll .coll-alert{display:none!important}      /* synchro, lecture (« 120 / 3 000 »), prix qui ont bougé */
-html.streamer .dv.coll [data-act="import"]{display:none}
+html.streamer .dv.coll [data-act="import"],html.streamer .dv.coll [data-act="export"],html.streamer .dv.coll .coll-dot{display:none}
 html.streamer .rc-facts>div:nth-child(-n+2){display:none}                                     /* récap du scan : « Nouvelles / Déjà possédées » */
 html.streamer .sc-item.pr .tag.good,html.streamer .lot-name em{display:none}                 /* « possédée », « 3 dans ta collection » */
 html.streamer .ca-opt i{visibility:hidden}                                                    /* exemplaires possédés dans les suggestions */

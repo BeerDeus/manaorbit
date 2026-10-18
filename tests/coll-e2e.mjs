@@ -122,10 +122,13 @@ ok('rechargement : collection et infos gardées sur l\'appareil, aucune requête
 /* ── 5b) sauvegarde : l'état est dit en toutes lettres, export, compte plus récent = annulable ──────────────── */
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForFunction(() => !document.querySelector('.coll-sync').hidden, null, { timeout: 8000 });
 assert.match(await txt(p, '.coll-sync'), /ne sont que sur cet appareil/); assert.ok(['warn', 'bad'].includes(await p.$eval('.coll-sync', e => e.dataset.k)), 'hors compte : bandeau d\'alerte');
-await p.click('.coll-sync [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="txt"]');
+assert.equal(await p.$eval('.coll-dot', d => [d.hidden, d.dataset.k === (document.querySelector('.coll-sync').dataset.k)].join()), 'false,true', 'point du titre, même couleur que le bandeau');
+assert.equal(await p.$('.coll-sync [data-act="export"]'), null, 'Exporter : plus dans le bandeau');
+assert.deepEqual(await p.$$eval('.coll-tools .icon-btn', l => l.map(b => [b.dataset.act, b.querySelector('use').getAttribute('href')])), [['add', '#i-plus'], ['import', '#i-download'], ['export', '#i-upload']], 'Exporter à côté d\'Importer (flèche vers le bac : importer ; qui en sort : exporter)');
+await p.click('.coll-tools [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="txt"]');
 const [dl] = await Promise.all([p.waitForEvent('download'), p.click('.ex-opt[data-x="txt"]')]);
 assert.match(dl.suggestedFilename(), /^ma-collection-\d{4}-\d{2}-\d{2}\.txt$/); const exported = (await import('node:fs')).readFileSync(await dl.path(), 'utf8'); assert.match(exported, /\d+ Sol Ring/); assert.equal(exported.trim().split('\n').length, 4, 'une ligne par carte (réimportable)');
-await p.waitForTimeout(400); await p.click('.coll-sync [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="csv"]');
+await p.waitForTimeout(400); await p.click('.coll-tools [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="csv"]');
 const [dc] = await Promise.all([p.waitForEvent('download'), p.click('.ex-opt[data-x="csv"]')]);
 assert.match(dc.suggestedFilename(), /^ma-collection-\d{4}-\d{2}-\d{2}\.csv$/); const csv = (await import('node:fs')).readFileSync(await dc.path(), 'utf8');
 assert.equal(csv.split('\n')[0], 'Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number'); assert.match(csv, /\n3,2,Sol Ring,,Near Mint,English,,\n/, 'Tradelist Count : 3 − 1 de réserve (aucun deck)');
@@ -134,9 +137,13 @@ const back = await p.evaluate(t => parseCollection(t).items.reduce((a, x) => a +
 console.log('✓ export : texte ou CSV au format Moxfield, relu par l\'import');
 await p.screenshot({ path: 'shots/coll-sync-local.png' });
 await p.evaluate(() => { D.user = { uid: 'u1' }; D.uid = 'u1'; COLL.cloud = 'ok'; COLL.s = 'u1'; collPaintHead(); });
-assert.match(await txt(p, '.coll-sync'), /Sauvegardée dans ton compte/); assert.equal(await p.$eval('.coll-sync', e => e.dataset.k), 'ok');
+assert.equal(await p.$eval('.coll-sync', e => e.hidden), true, 'sauvegardée : plus de bandeau…');
+assert.deepEqual(await p.$eval('.coll-dot', d => [d.hidden, d.dataset.k, d.getAttribute('aria-label'), getComputedStyle(d).backgroundColor !== getComputedStyle(document.querySelector('.dv-title b')).color]), [false, 'ok', 'Sauvegardée dans ton compte', true], '… le point vert à côté du titre');
+await p.click('.coll-dot'); await p.waitForFunction(() => /Sauvegardée dans ton compte/.test(document.querySelector('#toast').textContent));
+await p.screenshot({ path: 'shots/coll-sync-ok.png' });
 await p.evaluate(() => { COLL.cloud = 'error'; COLL.err = 'Règles Firestore à publier pour la collection'; collPaintHead(); });
 assert.match(await txt(p, '.coll-sync'), /Pas sauvegardée dans ton compte : Règles Firestore à publier/); assert.equal(await p.$eval('.coll-sync', e => e.dataset.k), 'bad'); assert.ok(await p.$('.coll-sync [data-act="resync"]'));
+assert.equal(await p.$eval('.coll-dot', d => d.dataset.k), 'bad', 'point rouge, bandeau qui dit pourquoi');
 await p.screenshot({ path: 'shots/coll-sync-erreur.png' });
 const before4 = await p.evaluate(() => JSON.stringify(COLL.map));
 // un autre appareil a retiré 3 cartes et baissé Sol Ring : appliqué carte par carte (la base = ce qu'on avait vu du compte)

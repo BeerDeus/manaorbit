@@ -110,7 +110,7 @@ ok('quantité, retrait (jusqu\'à 0) et langue se propagent dans les deux sens')
 await toHome(B.p); await B.p.click('#btnColl'); await B.p.waitForSelector('.coll.on'); await B.p.waitForFunction(() => document.querySelectorAll('.crow').length === 1);
 await add(A, 'Lightning Bolt', 1);
 await B.p.waitForFunction(() => document.querySelectorAll('.crow').length === 2, null, { timeout: 8000 });
-assert.match(await txt(B.p, '.coll-sync'), /Sauvegardée dans ton compte/);
+assert.equal(await B.p.$eval('.coll-dot', d => d.getAttribute('aria-label')), 'Sauvegardée dans ton compte'); assert.equal(await B.p.$eval('.coll-sync', e => e.hidden), true, 'sauvegardée : le point vert, pas de bandeau');
 await B.p.screenshot({ path: 'shots/sync-b-live.png' });
 await B.p.click('.crow[data-k="sol ring"] .qstep [data-d="1"]'); await expectMap(A, { 'sol ring': '4/de', 'lightning bolt': '1' }, 'bouton + sur B');
 await B.p.click('.crow[data-k="lightning bolt"] .qstep [data-d="-1"]'); await B.p.click('.sheet [data-ok]'); await both(A, B, { 'sol ring': '4/de' }, 'bouton − sur B (retrait)');
@@ -193,7 +193,7 @@ assert.equal((await mapOf(A))['wrath of god'], undefined, 'A ne voit pas encore 
 server.off.delete('B'); await B.ctx.setOffline(false); setTimeout(() => B.p.evaluate(d => window.__snap(d), server.doc).catch(() => {}), 100);   // réseau revenu (le SDK renvoie un snapshot)
 const merged10 = { ...all17, 'wrath of god': '1', 'command tower': '1', 'sol ring': '10/de' }; delete merged10['carte 1']; delete merged10['carte 2'];
 await both(A, B, merged10, 'retour du réseau : fusion');
-await B.p.waitForFunction(() => /Sauvegardée dans ton compte/.test(document.querySelector('.coll-sync').innerText));
+await B.p.waitForFunction(() => document.querySelector('.coll-dot').dataset.k === 'ok' && document.querySelector('.coll-sync').hidden);
 await B.p.screenshot({ path: 'shots/sync-retour.png' });
 ok('hors ligne : B garde ses changements, A continue ; au retour du réseau tout est fusionné (Sol Ring +2 et +1 additionnés)');
 await B.p.keyboard.press('Escape'); await quiet();

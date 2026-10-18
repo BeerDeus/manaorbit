@@ -109,7 +109,7 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   await p.evaluate(() => openCollection('list')); await p.waitForSelector('.coll.on .opn-main');
   assert.deepEqual(await p.$$eval('.coll .coll-main .crow', r => r.map(x => x.querySelector('.row-name').textContent.replace('Anneau solaire', 'Sol Ring'))), ['Craterhoof Behemoth', 'Edgar Markov', 'Wrath of God', 'Sol Ring', 'Llanowar Elves'], 'la session seule, les plus chères d\'abord');
   assert.match(await txt(p, '.coll .dv-title span'), /^Session « Display Bloomburrow »$/); assert.match(await txt(p, '.coll .coll-val'), /5 cartes · 6 exemplaires/);
-  assert.deepEqual(await p.evaluate(() => ['.coll-sync', '.coll-px', '.coll-fwrap', '[data-act="import"]'].map(s => { const e = document.querySelector('.coll ' + s); return !e || e.hidden || getComputedStyle(e).display === 'none'; })), [true, true, true, true], 'ni synchro, ni prix réels, ni filtres, ni import');
+  assert.deepEqual(await p.evaluate(() => ['.coll-sync', '.coll-px', '.coll-fwrap', '[data-act="import"]', '[data-act="export"]', '.coll-dot'].map(s => { const e = document.querySelector('.coll ' + s); return !e || e.hidden || getComputedStyle(e).display === 'none'; })), [true, true, true, true, true, true], 'ni synchro, ni prix réels, ni filtres, ni import ni export');
   assert.ok(!(await txt(p, '.coll')).includes('Arcane Signet'), 'aucune carte de la vraie collection');
   // « − » dans la liste : un exemplaire de moins dans la session (pas dans la collection)
   await p.locator('.coll .opn-row', { hasText: 'Wrath of God' }).locator('[data-opn="dec"]').click(); await p.waitForFunction(() => OPN.cur.rows.find(r => r.k === 'wrath of god').q === 1);

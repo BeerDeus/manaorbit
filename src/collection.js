@@ -952,19 +952,19 @@ function crowHtml(it) {
     ${px.length ? `<span class="row-px">${px.join('')}</span>` : ''}${edBtn(it, nm)}
     <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button><b>${it.q}</b><button type="button" data-d="1" aria-label="${T('Ajouter un exemplaire de {name}', { name: esc(nm) })}">+</button></span></div>`;
 }
-/** État de la sauvegarde, en toutes lettres (le sous-titre du header est tronqué sur téléphone) : { k: 'ok'|'warn'|'bad', t, acts:[[act, label]] } ou null. */
+/** État de la sauvegarde, en toutes lettres (le sous-titre du header est tronqué sur téléphone) : { k: 'ok'|'warn'|'bad', t, acts:[[act, label]] } ou null.
+ *  Point de couleur à côté du titre (touché : le texte) ; bandeau sous le header seulement quand ça ne va pas. Exporter : bouton du header, à côté d'Importer. */
 function collSyncInfo() {
   if (!collCount()) return null;
-  const exp = ['export', T('Exporter')];
   if (D.user) {
-    if (COLL.cloud === 'ok') return { k: 'ok', t: T('Sauvegardée dans ton compte'), acts: [exp] };
-    if (COLL.cloud === 'offline') return { k: 'warn', t: T('Hors ligne : tes changements restent sur cet appareil et partiront au retour du réseau.'), acts: [['resync', T('Réessayer')], exp] };
-    if (COLL.cloud === 'error') return { k: 'bad', t: T('Pas sauvegardée dans ton compte : {err}. Tes cartes ne sont que sur cet appareil.', { err: COLL.err || T('synchronisation impossible') }), acts: [['resync', T('Réessayer')], exp] };
+    if (COLL.cloud === 'ok') return { k: 'ok', t: T('Sauvegardée dans ton compte'), acts: [] };
+    if (COLL.cloud === 'offline') return { k: 'warn', t: T('Hors ligne : tes changements restent sur cet appareil et partiront au retour du réseau.'), acts: [['resync', T('Réessayer')]] };
+    if (COLL.cloud === 'error') return { k: 'bad', t: T('Pas sauvegardée dans ton compte : {err}. Tes cartes ne sont que sur cet appareil.', { err: COLL.err || T('synchronisation impossible') }), acts: [['resync', T('Réessayer')]] };
     return { k: 'warn', t: T('Synchronisation avec ton compte…'), acts: [] };
   }
-  if (D.state === 'unavailable') return { k: 'bad', t: T('Compte indisponible ici (Firebase bloqué ou hors ligne) : tes cartes ne sont que sur cet appareil.'), acts: [exp] };
+  if (D.state === 'unavailable') return { k: 'bad', t: T('Compte indisponible ici (Firebase bloqué ou hors ligne) : tes cartes ne sont que sur cet appareil.'), acts: [] };
   if (!D.authReady) return null;
-  return { k: 'warn', t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')], exp] };
+  return { k: 'warn', t: T('Pas sauvegardée dans un compte : tes cartes ne sont que sur cet appareil (perdues si les données du navigateur sont effacées).'), acts: [['login', T('Se connecter')]] };
 }
 /** Exporter la collection : CSV (Moxfield, ManaBox, Archidekt…), texte « 3 Sol Ring *FR* » (réimportable ici et dans la plupart des applis), ou copie du texte. */
 function collDownload(body, ext, type) {
@@ -1017,8 +1017,9 @@ function collPaintHead() {
   if (typeof BD !== 'undefined' && BD.el && BD.tab === 'coll') { BD.idx = null; bdList(); }      // l'éditeur de deck liste la collection : il suit la lecture des cartes (commandants possibles…)
   const el = COLL.el; if (!el) return;
   $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul
-  const sy = $('.coll-sync', el), si = collSyncInfo();
-  if (!si) sy.hidden = true;
+  const sy = $('.coll-sync', el), si = collSyncInfo(), dot = $('.coll-dot', el);
+  if (dot) { dot.hidden = !si; if (si) { dot.dataset.k = si.k; dot.setAttribute('aria-label', si.t); dot.title = si.t; } }
+  if (!si || si.k === 'ok') sy.hidden = true;      // tout va bien : le point vert suffit
   else { sy.hidden = false; sy.dataset.k = si.k; sy.innerHTML = `<span class="sy-d" aria-hidden="true"></span><span class="sy-t">${esc(si.t)}</span>${si.acts.map(([a, l]) => `<button class="link-btn" type="button" data-act="${a}">${esc(l)}</button>`).join('')}`; }
   if (GLANCE.api) paintGlance();
   const stt = $('.coll-status', el), e = COLL.enrich, miss = collMissing().length, lmiss = collLangMissingCount();
@@ -1150,10 +1151,11 @@ function openCollection(tab) {
   const md = COLL.mode, title = md === 'trade' ? T('Échange') : md === 'decks' ? T('Decks') : T('Ma collection');
   const wrap = document.createElement('div'); wrap.className = `dv coll sec m-${md}${typeof NAV !== 'undefined' && NAV.inst ? ' inst' : ''}`; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', title);
   const tools = md === 'coll' ? `<button class="icon-btn" type="button" data-act="add" aria-label="${T('Ajouter des cartes')}" title="${T('Ajouter des cartes')}"><svg class="i"><use href="#i-plus"/></svg></button>
-        <button class="icon-btn" type="button" data-act="import" aria-label="${T('Importer un fichier ou du texte')}" title="${T('Importer')}"><svg class="i"><use href="#i-upload"/></svg></button>`
+        <button class="icon-btn" type="button" data-act="import" aria-label="${T('Importer un fichier ou du texte')}" title="${T('Importer')}"><svg class="i"><use href="#i-download"/></svg></button>
+        <button class="icon-btn" type="button" data-act="export" aria-label="${T('Exporter ma collection')}" title="${T('Exporter')}"><svg class="i"><use href="#i-upload"/></svg></button>`
     : md === 'decks' ? `<button class="icon-btn deck-new" type="button" data-act="dnew" aria-label="${T('Créer un deck')}" title="${T('Créer un deck')}"><svg class="i"><use href="#i-plus"/></svg></button>` : '';
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer la collection')}"><svg class="i"><use href="#i-back"/></svg></button>
-      <div class="dv-title"><b>${title}</b><span></span></div>
+      <div class="dv-title"><b>${title}${md === 'coll' ? '<button class="coll-dot" type="button" data-act="syncinfo" hidden></button>' : ''}</b><span></span></div>
       <div class="coll-tools">${tools}</div></header>${md === 'decks' ? dkTabsHtml('build') : ''}
     <div class="dv-scroll"><div class="dv-body coll-body">
       ${md === 'coll' ? '<div class="coll-val" hidden></div>' : ''}
@@ -1221,6 +1223,7 @@ function openCollection(tab) {
       else if (act === 'prices') openCollPrices();
       else if (act === 'login') openAccount();
       else if (act === 'export') collExport();
+      else if (act === 'syncinfo') { const si = collSyncInfo(); if (si) toast(si.t); }
       else if (act === 'resync') collSyncNow();
       else if (act === 'pxstop') { if (COLL.pxRun) COLL.pxRun.ctrl.abort(); }
       else if (act === 'pxok') { COLL.pxMsg = null; collPaintHead(); }
@@ -1408,7 +1411,7 @@ function openCollImport(initial) {
     const opt = (v, t, on) => `<option value="${v}"${on ? ' selected' : ''}>${esc(t)}</option>`, LN = l => { const s = T(LANGS[l]); return s[0].toUpperCase() + s.slice(1); }, l0 = collImportLang();
     api.body.innerHTML = `<p class="hint">${T('Le plus simple pour beaucoup de cartes : exporte ta collection en CSV depuis l\'appli que tu utilises, puis choisis le fichier. Les quantités d\'une même carte (éditions différentes) s\'additionnent ; une ligne par langue si le fichier la donne.')}</p>
       <p class="ci-swg"><span>${T('Tu viens de ManaBox ou d\'une autre appli ?')}</span> <button class="link-btn" type="button" data-swg="open">${T('Le guide en 2 minutes')}</button></p>
-      <label class="btn ghost small ci-file"><svg class="i"><use href="#i-upload"/></svg>${T('Choisir un fichier')}<input type="file" id="ciFile" accept=".csv,.tsv,.txt,text/csv,text/plain,text/tab-separated-values"></label>
+      <label class="btn ghost small ci-file"><svg class="i"><use href="#i-download"/></svg>${T('Choisir un fichier')}<input type="file" id="ciFile" accept=".csv,.tsv,.txt,text/csv,text/plain,text/tab-separated-values"></label>
       <div class="field-in"><label class="label" for="ciText">${T('ou colle le texte')}</label><textarea id="ciText" class="ci-text" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="3 Sol Ring&#10;1 ${esc(nmExample(true))}"></textarea></div>
       <div class="ci-sum" id="ciSum" hidden></div>
       <div class="ci-flag" id="ciFlag" hidden></div>
