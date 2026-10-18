@@ -1139,10 +1139,13 @@ function closeCollection() { if (COLL.el) COLL.el.__close(); }
 /** Trois sections sur le même écran (barre du bas, nav.js) : « Ma collection » (Cartes · Stats), « Échange » (liste d'échange seule)
  *  et Decks › « À monter » (decks EDHREC) ; tab : 'list' | 'stats' | 'trade' | 'decks' (sans tab : le dernier onglet de la collection). */
 const COLL_MODES = { list: 'coll', places: 'coll', stats: 'coll', trade: 'trade', decks: 'decks' };
+/** Recherche et filtres de chaque écran : ceux de la collection (aussi Decks, qui ne les montre pas) et ceux d'Échange, à part (une recherche dans l'un ne filtre pas l'autre). */
+COLL.fs = { coll: COLL.f, trade: newFilter() };
 function openCollection(tab) {
   closeCollection();
   if (!COLL_MODES[tab]) tab = COLL.ctab || 'list';
   COLL.tab = tab; COLL.mode = COLL_MODES[tab]; if (COLL.mode === 'coll') COLL.ctab = tab;
+  COLL.f = COLL.fs[COLL.mode === 'trade' ? 'trade' : 'coll'];
   COLL.shown = COLL_PAGE; COLL.view = null; collFrLoad();
   const md = COLL.mode, title = md === 'trade' ? T('Échange') : md === 'decks' ? T('Decks') : T('Ma collection');
   const wrap = document.createElement('div'); wrap.className = `dv coll sec m-${md}${typeof NAV !== 'undefined' && NAV.inst ? ' inst' : ''}`; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', title);

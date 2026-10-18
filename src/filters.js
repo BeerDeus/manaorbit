@@ -64,6 +64,7 @@ function mountFilters(root, f, onChange, opts = {}) {
     else return;
     haptic('tap'); fire();
   });
+  inp.value = f.q || '';      // écran rouvert : la recherche en cours reste écrite (elle filtre toujours la liste)
   paint();
   return { paint, reset() { f.q = ''; f.colors.clear(); f.type = ''; f.cmc = ''; f.cmdr = ''; f.set = ''; inp.value = ''; paint(); } };
 }

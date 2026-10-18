@@ -52,7 +52,17 @@ await p.evaluate(deck => {
 const nextId = async () => { const id = 'Share' + String(++ids).padStart(12, '0'); await p.evaluate(i => { window.__shareIdNext = i; }, id); return id; };
 
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
-await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-box');
+// recherche de la collection : elle ne filtre pas Échange (sa propre recherche), et reste écrite au retour dans la collection
+await p.fill('.coll.m-coll #collF input', 'sol'); await p.waitForFunction(() => { const l = [...document.querySelectorAll('.coll.m-coll .crow')]; return l.length && l.every(r => r.dataset.k === 'sol ring'); });
+await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade .tr-box');      // .m-trade, .m-coll : l'écran d'avant reste un instant (fermeture animée)
+assert.equal(await p.$eval('.coll.m-trade #collF input', i => i.value), '', 'Échange : sa recherche à lui, vide');
+assert.deepEqual(await p.$$eval('.coll.m-trade .tr-list .tr-row', r => r.map(x => x.dataset.k)), ['llanowar elves', 'sol ring'], 'Échange : pas filtré par la recherche de la collection');
+await p.click('#nav [data-nav="coll"]'); await p.waitForSelector('.coll.m-coll.on .crow');
+assert.equal(await p.$eval('.coll.m-coll #collF input', i => i.value), 'sol', 'retour dans la collection : la recherche reste écrite');
+assert.ok(await p.$$eval('.coll.m-coll .crow', l => l.every(r => r.dataset.k === 'sol ring')), 'et filtre toujours la liste');
+await p.click('.coll.m-coll #collF .fclear'); await p.waitForFunction(() => document.querySelectorAll('.coll.m-coll .crow').length > 1);
+ok('recherche de la collection : n\'a pas d\'effet sur Échange, reste écrite au retour (plus besoin de taper une lettre pour la voir)');
+await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade .tr-box'); await p.waitForFunction(() => !document.querySelector('.coll.m-coll'));
 {
   const have = await p.$$eval('.tr-list .tr-row', r => r.map(x => [x.dataset.k, x.querySelector('.tr-q b').textContent.trim()]));
   assert.deepEqual(have, [['llanowar elves', '× 2'], ['sol ring', '× 3']], 'réserve 1 : Sol Ring 5 − 1 (deck) − 1 ; Swords 2 − 1 − 1 = 0 ; Wrath 1 − 1 = 0 ; terrains de base exclus');
