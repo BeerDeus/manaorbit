@@ -138,27 +138,99 @@ async function bdMetaLoad() {
 }
 
 /* ── Modifications ────────────────────────────────────────────────────────────────────────────── */
-/** Ajoute (d = 1) ou retire (d = −1) un exemplaire de la carte k dans la zone tgt (main · side · cmdr). Retourne false si la règle du format l'interdit. */
-function bdChange(tgt, k, name, d) {
-  const f = DK_FORMATS[BD.fmt];
+/** Ajoute (d = 1) ou retire (d = −1) un exemplaire de la carte k dans la zone tgt (main · side · cmdr). Retourne false si la règle du format l'interdit.
+ *  batch (ajout du scan) : ni message ni repeint, la raison du refus est retournée ('cmdr' · 'copies' · 'side'). */
+function bdChange(tgt, k, name, d, batch) {
+  const f = DK_FORMATS[BD.fmt], no = (why, msg) => { if (batch) return why; toast(msg); haptic('warn'); return false; };
   if (tgt === 'cmdr') {
     const i = BD.cmdr.findIndex(c => c.key === k);
     if (d > 0) {
-      if (i >= 0) return false;
-      if (BD.cmdr.length >= 2) { toast(T('Deux commandants au maximum (partenaires)')); haptic('warn'); return false; }
+      if (i >= 0) return batch ? 'cmdr' : false;
+      if (BD.cmdr.length >= 2) return no('cmdr', T('Deux commandants au maximum (partenaires)'));
       BD.cmdr.push({ key: k, name }); BD.main.delete(k);
     } else if (i >= 0) BD.cmdr.splice(i, 1); else return false;
   } else {
     const m = BD[tgt], cur = m.get(k), q = cur ? cur.qty : 0;
     if (q + d < 0) return false;
     if (d > 0) {
-      if (BD.cmdr.some(c => c.key === k)) { toast(T('Cette carte est déjà ton commandant')); haptic('warn'); return false; }
-      if (!BASIC_NAMES.has(k) && bdTot(k) + 1 > f.copies) { toast(f.copies === 1 ? T('Commander : un seul exemplaire de chaque carte') : T('{n} exemplaires au maximum (deck et réserve)', { n: f.copies })); haptic('warn'); return false; }
-      if (tgt === 'side' && bdCount(BD.side) + 1 > f.side) { toast(T('Réserve : {n} cartes au maximum', { n: f.side })); haptic('warn'); return false; }
+      if (BD.cmdr.some(c => c.key === k)) return no('copies', T('Cette carte est déjà ton commandant'));
+      if (!BASIC_NAMES.has(k) && bdTot(k) + 1 > f.copies) return no('copies', f.copies === 1 ? T('Commander : un seul exemplaire de chaque carte') : T('{n} exemplaires au maximum (deck et réserve)', { n: f.copies }));
+      if (tgt === 'side' && bdCount(BD.side) + 1 > f.side) return no('side', T('Réserve : {n} cartes au maximum', { n: f.side }));
     }
     if (q + d === 0) m.delete(k); else m.set(k, { key: k, name: cur ? cur.name : name, qty: q + d });
   }
-  BD.dirty = true; bdPaint(); bdMetaSoon(); return true;
+  BD.dirty = true; if (!batch) { bdPaint(); bdMetaSoon(); } return true;
+}
+
+/* ── Scanner les cartes du deck (scan.js en mode deck : openScan({ deck: true })) ─────────────────────────
+   Bouton « Scanner des cartes » (onglet Deck : dans le deck ; Collection et Chercher : dans la zone choisie, « Ajouter au »). Au scan, « Au deck » ouvre la fiche
+   ci-dessous : les cartes lues (pas celles « à vérifier ») entrent dans le deck en respectant les règles du format (exemplaires, réserve, commandant), et la collection au choix :
+   « Les prendre dans ma collection » (rien n'est ajouté : le deck monté réserve tes exemplaires), « Les ajouter à ma collection » (deck jamais scanné : tous les exemplaires,
+   langue, édition et foil lus au scan), « Seulement celles qui manquent » (ce que la collection n'a pas encore). Choix proposé d'après ce que la collection a déjà. */
+function bdScan() {
+  if (!BD.el) return;
+  BD.scanTgt = BD.tab === 'deck' ? 'main' : BD.tgt; haptic('tap');
+  openScan({ deck: true });
+}
+/** Exemplaires à ajouter à la collection : tous (all), sinon pour chaque carte ce que le scan a de plus qu'elle (lignes du scan dans leur ordre, non foil puis foil). */
+function bdScanColl(items, all) {
+  const left = new Map(), out = [];
+  for (const x of items) left.set(x.k, (left.get(x.k) || 0) + x.q);
+  if (!all) for (const [k, q] of left) left.set(k, Math.max(0, q - collQty(k)));
+  for (const x of items) for (const [q, f] of [[x.q - x.f, 0], [x.f, 1]]) {
+    const n = Math.min(q, left.get(x.k) || 0); if (!n) continue;
+    left.set(x.k, left.get(x.k) - n); out.push({ k: x.k, n: x.n, q: n, l: lineKey(x.l, x.e, !!f), e: x.e, p: x.p, lang: x.l });
+  }
+  return out;
+}
+/** « Au deck » (bouton du scan en mode deck) : fiche d'ajout, puis les cartes dans le deck (et la collection si demandé). */
+function bdScanDone() {
+  const items = scanLive(); if (!items.length || !BD.el) return;
+  const n = items.reduce((a, x) => a + x.q, 0), maybe = [...SC.items.values()].filter(x => x.maybe).length, tgt = BD.scanTgt || 'main';
+  const miss = bdScanColl(items).reduce((a, x) => a + x.q, 0);
+  let mode = !miss ? 'take' : miss >= n ? 'add' : 'miss';      // proposé : rien de nouveau → les prendre ; tout nouveau → les ajouter ; sinon compléter
+  openSheet(TN(n, 'Ajouter {n} carte au deck', 'Ajouter {n} cartes au deck'), BD.name.trim() || T('Nouveau deck'), api => {
+    api.wrap.classList.add('bd-sc-sheet');
+    const opt = (v, t, h) => `<button type="button" class="bd-sc-opt" role="radio" data-m="${v}" aria-checked="${mode === v}"><b>${t}</b><small>${h}</small></button>`;
+    const paint = () => {
+      api.body.innerHTML = `<dl class="rc-facts"><div><dt>${T('Zone')}</dt><dd>${esc(tgt === 'side' ? T('Réserve') : tgt === 'cmdr' ? T('Commandant') : T('Deck'))}</dd></div>
+          <div><dt>${T('Cartes différentes')}</dt><dd>${nf0(new Set(items.map(x => x.k)).size)}</dd></div>
+          <div><dt>${T('Déjà dans ta collection')}</dt><dd>${TN(n - miss, '{n} exemplaire', '{n} exemplaires', { n: nf0(n - miss) })}</dd></div></dl>
+        ${maybe ? `<p class="hint">${TN(maybe, '{n} carte à vérifier n\'est pas comptée : confirme-la dans la liste du scan.', '{n} cartes à vérifier ne sont pas comptées : confirme-les dans la liste du scan.')}</p>` : ''}
+        <p class="bd-sc-h">${T('Ces cartes et ta collection')}</p>
+        <div class="bd-sc-opts" role="radiogroup" aria-label="${esc(T('Ces cartes et ta collection'))}">
+          ${opt('take', T('Les prendre dans ma collection'), miss ? TN(miss, 'Rien n\'est ajouté ; le deck réserve tes exemplaires. {n} exemplaire n\'y est pas : à acheter.', 'Rien n\'est ajouté ; le deck réserve tes exemplaires. {n} exemplaires n\'y sont pas : à acheter.') : T('Rien n\'est ajouté ; le deck réserve tes exemplaires.'))}
+          ${opt('add', T('Les ajouter à ma collection'), TN(n, 'Deck jamais scanné : {n} exemplaire entre dans ta collection (langue, édition, foil).', 'Deck jamais scanné : les {n} exemplaires entrent dans ta collection (langue, édition, foil).'))}
+          ${miss && miss < n ? opt('miss', T('Ajouter seulement celles qui manquent'), TN(miss, '{n} exemplaire que ta collection n\'a pas encore.', '{n} exemplaires que ta collection n\'a pas encore.')) : ''}
+        </div>
+        <p class="hint">${T('Les règles du format restent appliquées (nombre d\'exemplaires, réserve, commandant).')}</p>`;
+    };
+    paint();
+    api.body.addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b || b.dataset.m === mode) return; mode = b.dataset.m; haptic('tap'); paint(); });
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Retour')}</button><button class="btn" type="button" data-ok>${TN(n, 'Ajouter {n} carte au deck', 'Ajouter {n} cartes au deck')}</button>`);
+    api.foot.addEventListener('click', e => {
+      if (!e.target.closest('[data-ok]')) return;
+      api.close();
+      const before = { main: new Map([...BD.main].map(([k, c]) => [k, { ...c }])), side: new Map([...BD.side].map(([k, c]) => [k, { ...c }])), cmdr: BD.cmdr.map(c => ({ ...c })), dirty: BD.dirty };
+      let ok = 0; const no = { copies: 0, side: 0, cmdr: 0 };
+      for (const x of items) for (let i = 0; i < x.q; i++) {
+        let r = bdChange(tgt, x.k, x.n, 1, true);
+        if (r !== true && tgt === 'cmdr') r = bdChange('main', x.k, x.n, 1, true);      // commandant déjà choisi (2 au plus) : le reste va dans le deck
+        if (r === true) ok++; else no[r] = (no[r] || 0) + 1;
+      }
+      const coll0 = COLL.map, add = mode === 'take' ? [] : bdScanColl(items, mode === 'add');
+      if (add.length) { for (const x of add) if (x.e && x.p) edRemember(x.k, x.lang, x.e, edInfoOf(x.p, x.lang)); collAdd(add.map(x => ({ k: x.k, n: x.n, q: x.q, l: x.l })), 'add'); collEnrich(); }
+      if (SC.el) SC.el.__close();
+      bdPaint(); bdMetaSoon(); haptic('ok');
+      const refused = no.copies + no.side + no.cmdr, nAdd = add.reduce((a, x) => a + x.q, 0);
+      const msg = [TN(ok, '{n} carte ajoutée au deck', '{n} cartes ajoutées au deck'), nAdd ? TN(nAdd, '{n} dans ta collection', '{n} dans ta collection') : '',
+        refused ? TN(refused, '{n} refusée (règles du format)', '{n} refusées (règles du format)') : ''].filter(Boolean).join(' · ');
+      toast(msg, { label: T('Annuler'), fn: () => {
+        Object.assign(BD, { main: before.main, side: before.side, cmdr: before.cmdr, dirty: before.dirty }); if (add.length) { COLL.map = coll0; collChanged(); }
+        bdPaint();
+      } });
+    });
+  });
 }
 
 /* ── Affichage ────────────────────────────────────────────────────────────────────────────────── */
@@ -259,11 +331,12 @@ function bdTab(v) {
   const el = BD.el; if (!el) return;
   BD.tab = v; BD.q = ''; BD.shown = BD_PAGE;
   const ctl = $('#bdCtl', el); $('#bdSeg', el).setValue(v);
-  if (v === 'deck') ctl.innerHTML = `<div class="field-in"><label class="label" for="bdName">${T('Nom du deck')}</label><input type="text" id="bdName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" value="${esc(BD.name)}"></div>`;
+  const scanB = (cls, label) => `<button class="${label ? 'btn ghost' : 'icon-btn'} ${cls}" type="button" data-act="scan" aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${label ? `<span>${label}</span>` : ''}</button>`;      // scan en mode deck (bdScan)
+  if (v === 'deck') ctl.innerHTML = `<div class="field-in"><label class="label" for="bdName">${T('Nom du deck')}</label><input type="text" id="bdName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" value="${esc(BD.name)}"></div>${scanB('block bd-scan', T('Scanner des cartes'))}`;
   else {
     const opts = BD.fmt === 'commander' ? [{ v: 'main', label: T('Deck') }, { v: 'cmdr', label: T('Commandant') }] : [{ v: 'main', label: T('Deck') }, { v: 'side', label: T('Réserve') }];
     if (!opts.some(o => o.v === BD.tgt)) BD.tgt = 'main';
-    ctl.innerHTML = `<div class="bd-add"><span>${T('Ajouter au')}</span><div class="seg" id="bdTgt" role="radiogroup" aria-label="${T('Ajouter au')}"></div></div>
+    ctl.innerHTML = `<div class="bd-add"><span>${T('Ajouter au')}</span><div class="seg" id="bdTgt" role="radiogroup" aria-label="${T('Ajouter au')}"></div>${scanB('icon-btn bd-scan-ic', '')}</div>
       <div class="field-in"><label class="label" for="bdQ">${v === 'coll' ? T('Chercher dans ma collection') : T('Nom de la carte')}</label><input type="text" id="bdQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${v === 'coll' ? nmT('Nom français ou anglais', 'Nom en {lang} ou en anglais', 'Nom de la carte') : 'Sol Ring'}" enterkeyhint="search"></div>`;
     mountSeg($('#bdTgt', ctl), opts, BD.tgt, t => { BD.tgt = t; BD.shown = BD_PAGE; bdList(); });
     if (v === 'find' && !BD.cat && !BD.catErr) collCatalog().then(c => { BD.cat = c; if (BD.el && BD.tab === 'find') bdList(); }).catch(e => { BD.catErr = e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'); if (BD.el && BD.tab === 'find') bdList(); });
@@ -296,6 +369,7 @@ function bdClick(e) {
   else if (act === 'save') bdSave();
   else if (act === 'issues') { BD.issuesOpen = !BD.issuesOpen; bdPaint(); }
   else if (act === 'more') { BD.shown += BD_PAGE; bdList(); }
+  else if (act === 'scan') bdScan();
   else if (act === 'pick-cmdr') { BD.tgt = 'cmdr'; $('#bdSeg', BD.el).setValue('coll'); bdTab('coll'); haptic('tap'); }
 }
 

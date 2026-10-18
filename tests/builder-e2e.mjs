@@ -127,6 +127,45 @@ await p.click('.deck:has-text("Burn") [data-act="more"]'); await p.waitForSelect
 assert.match(await p.$eval('#deckText', e => e.value), /^\/\/ Deck Deal : standard/); assert.match(await txt(p, '#deckStats'), /1 carte à chercher|1 carte/, 'seule Arcane Signet à chercher (réserve exclue)');
 ok('deck créé : chargé dans la saisie comme un deck importé');
 
+/* ── E) Scanner des cartes dans le deck : « Au deck », puis les prendre dans la collection, les ajouter, ou seulement celles qui manquent ─── */
+{
+  const scanIn = list => p.evaluate(list => { for (const [name, q] of list) for (let i = 0; i < q; i++) scanAdd({ key: ownKey(name), name, score: 0.99, raw: name, card: 'en' }, 1, false); }, list);
+  const deckQ = () => p.evaluate(() => Object.fromEntries([...BD.main.values()].map(c => [c.key, c.qty])));
+  const collQ = () => p.evaluate(() => ({ sol: collQty('sol ring'), elves: collQty('llanowar elves'), swords: collQty('swords to plowshares') }));
+  await newDeck(p, 'Scan', 'standard');
+  assert.equal(await txt(p, '#bdCtl .bd-scan'), 'Scanner des cartes', 'bouton dans l\'onglet Deck');
+  await p.click('#bdCtl .bd-scan'); await p.waitForSelector('.scan.on'); assert.equal(await p.evaluate(() => SC.deck), true, 'scan en mode deck');
+  const c0 = await collQ();
+  await scanIn([['Sol Ring', 1], ['Llanowar Elves', 2]]); await p.waitForTimeout(300);
+  assert.equal(await txt(p, '.scan .dv-foot [data-act="done"]'), 'Au deck');
+  await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.bd-sc-sheet.open .bd-sc-opt');
+  const opts = () => p.$$eval('.bd-sc-sheet .bd-sc-opt', b => b.map(x => [x.dataset.m, x.getAttribute('aria-checked')]));
+  assert.deepEqual(await opts(), [['take', 'false'], ['add', 'false'], ['miss', 'true']], 'Sol Ring déjà là, 2 Llanowar Elves nouveaux : « seulement celles qui manquent » proposé');
+  assert.match(await txt(p, '.bd-sc-sheet'), /Déjà dans ta collection 1 exemplaire/);
+  await p.click('.bd-sc-opt[data-m="add"]'); assert.deepEqual((await opts()).map(o => o[1]), ['false', 'true', 'false']);
+  await p.click('.bd-sc-sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.scan') && !document.querySelector('.bd-sc-sheet'), null, { timeout: 4000 });
+  assert.deepEqual(await deckQ(), { 'sol ring': 1, 'llanowar elves': 2 }, 'cartes dans le deck');
+  assert.deepEqual(await collQ(), { ...c0, sol: c0.sol + 1, elves: c0.elves + 2 }, '« Les ajouter » : les 3 exemplaires entrent dans la collection');
+  assert.match(await txt(p, '#toast'), /3 cartes ajoutées au deck · 3 dans ta collection/);
+  await p.click('#toast .toast-act'); await p.waitForTimeout(200);
+  assert.deepEqual(await deckQ(), {}, 'Annuler : deck d\'avant'); assert.deepEqual(await collQ(), c0, 'Annuler : collection d\'avant');
+  // « Les prendre dans ma collection » : rien n'est ajouté ; règles du format (4 exemplaires au plus)
+  await p.click('#bdCtl .bd-scan'); await p.waitForSelector('.scan.on');
+  await scanIn([['Swords to Plowshares', 5]]); await p.waitForTimeout(300);
+  await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.bd-sc-sheet.open .bd-sc-opt');
+  await p.click('.bd-sc-opt[data-m="take"]'); await p.click('.bd-sc-sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 4000 });
+  assert.deepEqual(await deckQ(), { 'swords to plowshares': 4 }, '4 exemplaires au plus'); assert.deepEqual(await collQ(), c0, 'collection inchangée');
+  assert.match(await txt(p, '#toast'), /4 cartes ajoutées au deck · 1 refusée \(règles du format\)/);
+  // onglet Chercher : la zone choisie (Réserve)
+  await tab(p, 'find'); await p.click('#bdTgt .seg-opt[data-v="side"]'); await p.click('#bdCtl .bd-scan-ic'); await p.waitForSelector('.scan.on');
+  await scanIn([['Llanowar Elves', 1]]); await p.waitForTimeout(300);
+  await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.bd-sc-sheet.open'); assert.match(await txt(p, '.bd-sc-sheet .rc-facts'), /Zone Réserve/);
+  await p.click('.bd-sc-opt[data-m="take"]'); await p.click('.bd-sc-sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 4000 });
+  assert.deepEqual(await p.evaluate(() => Object.fromEntries([...BD.side.values()].map(c => [c.key, c.qty]))), { 'llanowar elves': 1 }, 'réserve');
+  await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
+  ok('scanner dans le deck : « Au deck », les ajouter à la collection (Annuler), les prendre dans la collection (règle des 4 exemplaires), réserve depuis Chercher');
+}
+
 for (const e of errsOf) assert.deepEqual(e, [], 'erreurs page : ' + e.join(' | '));
 await browser.close(); world.stop();
 console.log('BUILDER E2E OK');

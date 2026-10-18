@@ -187,7 +187,7 @@ function scanPaintList() {
     const f = r && (keep.a ? $(`[data-a="${keep.a}"]`, r) : keep.cls ? $('.' + CSS.escape(keep.cls), r) : null); if (f) f.focus({ preventScroll: true });
   }
   const go = $('.sc-head [data-act="done"]', el);
-  go.disabled = !t.n; go.textContent = T('Ajouter');
+  go.disabled = !t.n; go.textContent = SC.deck ? T('Au deck') : T('Ajouter');      // mode deck (builder.js › bdScan) : les cartes vont dans le deck
   const td = scanEdTodo(), nTodo = td.n - td.load;
   let val = 0; for (const x of SC.items.values()) { if (x.maybe) continue; const eu = pkEu(x.pk) || ((COLL.meta[x.key] || {}).eu > 0 ? COLL.meta[x.key].eu : 0); val += eu * x.q; }
   head(TN(t.n, '{n} carte', '{n} cartes'), SC.items.size ? [val > 0 ? '≈ ' + fmt(val, 'EUR') : '', t.maybe ? T('{n} à vérifier', { n: t.maybe }) : '', nTodo ? TN(nTodo, '{n} édition à choisir', '{n} éditions à choisir') : ''].filter(Boolean).join(' · ') || TN(t.n, '{n} reconnue', '{n} reconnues') : scanFull() ? T('Carte entière dans le cadre') : T('Nom de la carte dans la bande'));
@@ -204,8 +204,10 @@ function scanPaintTools() {
   auSync();      // scan automatique : interrupteur, cercle, lecture en continu (scanauto.js)
 }
 /** Fiche récap au tap sur « Ajouter » : exemplaires, valeur estimée Cardmarket, les plus chères, nouvelles / déjà possédées, langues. Suit la liste du scan en direct ; « Ajouter » dans la fiche fait l'ajout. Les prix des cartes pas encore lues par Scryfall sont lus ici (un lot). */
+/** Cartes lues du scan (pas celles « à vérifier ») : { k, n, q, f (exemplaires foil), l, e, p (édition posée et son impression, scaned.js) }. */
+const scanLive = () => [...SC.items.values()].filter(x => !x.maybe).map(x => ({ k: x.key, n: x.name, q: x.q, f: Math.min(x.fq || 0, x.q), l: x.l || '', e: x.e || '', p: x.e ? x.pk : null }));
 function scanRecap() {
-  const live = () => [...SC.items.values()].filter(x => !x.maybe).map(x => ({ k: x.key, n: x.name, q: x.q, f: Math.min(x.fq || 0, x.q), l: x.l || '', e: x.e || '', p: x.e ? x.pk : null }));      // e, p : édition posée et son impression (scaned.js) ; f : exemplaires foil
+  const live = scanLive;
   /** Une ligne du scan en lignes de la collection : les non foil, puis les foil (même langue, même édition). */
   const byFoil = x => [{ ...x, q: x.q - x.f, f: 0 }, { ...x, q: x.f, f: 1 }].filter(y => y.q > 0);
   if (!live().length || sheets.some(x => x.wrap.classList.contains('rc-sheet'))) return;
@@ -1035,7 +1037,7 @@ function openScan(o) {
       <button class="sc-shot" type="button" data-act="shot" aria-label="${T('Prendre la photo de la carte')}"><i><svg class="i"><use href="#i-pause"/></svg></i></button>
       <span class="sc-bslot"><button class="sc-auto" type="button" role="switch" data-act="auto" aria-checked="false" hidden><span class="sc-sw" aria-hidden="true"><i></i></span>${T('Auto')}</button></span></div>`;
   if (scanFull()) { wrap.classList.add('full'); $('.sc-cap', wrap).textContent = T('Carte entière'); }      // cadrage « carte entière » (réglage par défaut) : cadre de carte, ligne du bas lue aussi
-  SC.lot = !!(o && o.lot); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.lv = []; SC.lotLast = null; SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
+  SC.lot = !!(o && o.lot); SC.deck = !!(o && o.deck); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.lv = []; SC.lotLast = null; SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
   auReset();
   const stop = () => { auReset(); SC.alive = false; SC.warm = false; clearInterval(SC.diagT); clearTimeout(SC.hintT); SC.queue.forEach(j => scanFree(j.src)); SC.queue = []; SC.pend = []; if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; } natStop(); };
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); if (SC.ef) $('.sc-ef [data-ef="close"]').click(); else wrap.__close(); } };      // écran « Éditions à choisir » ouvert : Échap le ferme seul
@@ -1068,7 +1070,7 @@ function openScan(o) {
       else if (act === 'scset') scsSheet();
       else if (act === 'scdest') scdPick(scanPaintTools);
       else if (act === 'pmode') { const on = b.dataset.v === '1'; if (on !== SC.pm) { haptic('tap'); scanPriceMode(on); } }
-      else if (act === 'done') { if (SC.remote) scanEdDone(() => wrap.__close()); else scanRecap(); }      // cartes sans édition : confirmation (scaned.js)
+      else if (act === 'done') { if (SC.remote) scanEdDone(() => wrap.__close()); else if (SC.deck && typeof bdScanDone === 'function' && BD.el) bdScanDone(); else scanRecap(); }      // cartes sans édition : confirmation (scaned.js)
       return;
     }
     if (SC.pm && e.target.closest('.sc-item.pr [data-a]')) {                      // liste de prix : garder la carte (+) ou la retirer de la liste
