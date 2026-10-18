@@ -46,7 +46,8 @@ const st = P => P.p.evaluate(() => (D.cloud && D.cloud.sumState ? D.cloud.sumSta
 const table = [];
 const note = (who, what, P) => { const r = reads(P); table.push([who, what, r.reads, r.writes]); return r; };
 /** Réglages de test posés avant la connexion (le moteur du compte les lit à sa création). */
-const tune = (P, o = {}) => P.p.evaluate(o => { SUM.init = 300; COLL_PUSH.burst = o.burst || COLL_PUSH.burst; if (o.verify) sumNote(o.uid, { v: 0 }); if (o.legacy != null) { SUM.legacy = o.legacy; sumNote(o.uid, { leg: 0 }); } if (o.denied != null) SUM.denied = o.denied; }, { uid: P.uid, ...o });
+// niveau et badges (progress.js, ouverts à tous depuis 2fc48f7) : leur envoi au compte (un par appareil et par jour, 8 s après l'ouverture) tombait au hasard dans une mesure
+const tune = (P, o = {}) => P.p.evaluate(o => { SUM.init = 300; window.prgPushSoon = () => {}; COLL_PUSH.burst = o.burst || COLL_PUSH.burst; if (o.verify) sumNote(o.uid, { v: 0 }); if (o.legacy != null) { SUM.legacy = o.legacy; sumNote(o.uid, { leg: 0 }); } if (o.denied != null) SUM.denied = o.denied; }, { uid: P.uid, ...o });
 /** Attend la fin de la synchro : collection « ok », decks attendus, mode décidé ; puis le temps que les dernières réponses arrivent (comptées). */
 async function settle(P, nDecks, ms = 2500) {
   await P.p.waitForFunction(n => COLL.cloud === 'ok' && D.list.length === n && D.cloud.sumState(D.uid) && D.cloud.sumState(D.uid).mode !== 'wait', nDecks, { timeout: 25000 });
@@ -81,7 +82,7 @@ ok('relance après plus de 30 min : 2 lectures (avant : 16) ; avec la vérificat
 
 const B = await open('u1', N_DECKS); r = note('B', 'première ouverture (2e appareil)', B);
 assert.equal((await st(B)).mode, 'legacy'); assert.ok(r.reads <= N_DECKS + 6 + 1, 'sommaire déjà là : rien à créer (' + r.reads + ')');
-await relaunch(B, N_DECKS); r = note('B', 'relance (vérification : première fois ici)', B); assert.equal((await st(B)).mode, 'sum'); assert.equal(r.reads, 4);
+await relaunch(B, N_DECKS); r = note('B', 'relance (vérification : première fois ici)', B); assert.equal((await st(B)).mode, 'sum'); assert.equal(r.reads, 4, 'sommaire + collection + 2 agrégations (' + r.names.join(', ') + ')');
 await relaunch(B, N_DECKS); r = note('B', 'relance', B); assert.equal(r.reads, 2);
 ok('deuxième appareil : écoutes d\'avant à sa première ouverture, puis sommaire (4 lectures la première fois, 2 ensuite)');
 
@@ -139,7 +140,7 @@ await until(A, () => collQty(ownKey('Mobile Card')) === 1, null, 'carte du tél�
 await until(A, () => !(MOB.doc && MOB.doc.items && MOB.doc.items.length), null, 'carte retirée du document par le PC');
 await A.p.evaluate(() => mobStop());
 await until(B, () => !D.cloud.sumState(D.uid).hot && !mobWaiting(), null, 'session fermée : plus d\'écoute directe sur B');
-assert.equal((await st(A)).hot, false);
+await until(A, () => !D.cloud.sumState(D.uid).hot, null, 'session fermée : plus d\'écoute directe sur A');      // attendu : A apprend la fermeture par sa propre écoute, parfois juste après B
 r = note('B', 'session de scan mobile (ouverture, 1 carte, fermeture)', B);
 ok(`scan mobile : session suivie en direct (${r.reads} lectures sur B), carte arrivée sur le PC, écoute directe arrêtée à la fermeture`);
 noErrs(A, B);
