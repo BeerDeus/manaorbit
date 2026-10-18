@@ -255,8 +255,9 @@ function openProxies() {
 }
 
 /* ── Decks montés : leurs cartes rangées dans « Deck : … », de retour à leur place au démontage ──────────────────────────────── */
-/** Range dans l'emplacement du deck id (créé au besoin) les exemplaires réservés pour lui (XS.eng) ; les autres en ressortent. */
-function plcMount(id, name, text) {
+/** Range dans l'emplacement du deck id (créé au besoin) les exemplaires réservés pour lui (XS.eng) ; les autres en ressortent.
+ *  pref(k, g) : lignes à prendre d'abord (deck scanné : les exemplaires de la langue, de l'édition et de la finition lues au scan). */
+function plcMount(id, name, text, pref) {
   const want = (XS.eng[id] && XS.eng[id].q) || engSnapshot(text, collQty);
   let pid = plcDeckOf(id);
   if (!pid) { const x = placeNorm({ t: 'deck', n: name || T('Deck'), r: id }); if (!x) return ''; pid = placeNewId(); while (COLL.places[pid]) pid = placeNewId(); COLL.places = { ...COLL.places, [pid]: x }; }
@@ -266,7 +267,7 @@ function plcMount(id, name, text) {
     const x = m[k]; if (!x) continue;
     const ls = collLines(x), w = want[k] || 0; let inn = ls.reduce((t, [g, q]) => t + (linePlace(g) === pid ? q : 0), 0);
     if (inn < w) {      // à ranger : d'abord les non rangés, puis les autres emplacements (jamais un autre deck monté)
-      const src = ls.filter(([g]) => linePlace(g) !== pid && !(COLL.places[plcOf(g)] && COLL.places[plcOf(g)].t === 'deck')).sort((a, b) => (plcOf(a[0]) ? 1 : 0) - (plcOf(b[0]) ? 1 : 0));
+      const pk = g => (pref && pref(k, g) ? 0 : 1), src = ls.filter(([g]) => linePlace(g) !== pid && !(COLL.places[plcOf(g)] && COLL.places[plcOf(g)].t === 'deck')).sort((a, b) => pk(a[0]) - pk(b[0]) || (plcOf(a[0]) ? 1 : 0) - (plcOf(b[0]) ? 1 : 0));
       for (const [g, q] of src) { if (inn >= w) break; const t = Math.min(q, w - inn); m = linesMove(m, k, g, t, lineSet(g, { p: pid, o: plcOf(g) })); inn += t; }
     } else if (inn > w) {      // plus dans la liste : retour à l'origine
       for (const [g, q] of ls.filter(([g]) => linePlace(g) === pid)) { if (inn <= w) break; const t = Math.min(q, inn - w), a = lineAttrs(g); m = linesMove(m, k, g, t, lineSet(g, { p: a.o || '', o: '' })); inn -= t; }

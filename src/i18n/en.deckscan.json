@@ -22,5 +22,8 @@
   "{n} cartes ajoutées au deck": "{n} cards added to the deck",
   "{n} refusée (règles du format)": "{n} refused (format rules)",
   "{n} refusées (règles du format)": "{n} refused (format rules)",
-  "Au deck": "To deck"
+  "Au deck": "To deck",
+  "À l'enregistrement du deck, ses cartes de ta collection sont rangées dans « {place} » (elles retournent à leur place au démontage).": "When the deck is saved, its cards from your collection are stored in “{place}” (they go back to their place when the deck is taken apart).",
+  "{n} carte rangée dans « {place} »": "{n} card stored in “{place}”",
+  "{n} cartes rangées dans « {place} »": "{n} cards stored in “{place}”"
 }

@@ -22,5 +22,8 @@
   "{n} cartes ajoutées au deck": "{n} Karten zum Deck hinzugefügt",
   "{n} refusée (règles du format)": "{n} abgelehnt (Formatregeln)",
   "{n} refusées (règles du format)": "{n} abgelehnt (Formatregeln)",
-  "Au deck": "Ins Deck"
+  "Au deck": "Ins Deck",
+  "À l'enregistrement du deck, ses cartes de ta collection sont rangées dans « {place} » (elles retournent à leur place au démontage).": "Beim Speichern des Decks werden seine Karten aus deiner Sammlung in „{place}“ einsortiert (beim Auflösen kommen sie an ihren Platz zurück).",
+  "{n} carte rangée dans « {place} »": "{n} Karte in „{place}“ einsortiert",
+  "{n} cartes rangées dans « {place} »": "{n} Karten in „{place}“ einsortiert"
 }

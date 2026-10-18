@@ -75,7 +75,7 @@ function openDeckNew() {
 function openBuilder(o) {
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
-  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '' });
+  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', scanPref: null });      // scanPref : cartes scannées (rangées à l'enregistrement)
   if (prev) {
     const p = dkParse(prev.text);
     BD.fmt = p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
@@ -166,7 +166,9 @@ function bdChange(tgt, k, name, d, batch) {
    Bouton « Scanner des cartes » (onglet Deck : dans le deck ; Collection et Chercher : dans la zone choisie, « Ajouter au »). Au scan, « Au deck » ouvre la fiche
    ci-dessous : les cartes lues (pas celles « à vérifier ») entrent dans le deck en respectant les règles du format (exemplaires, réserve, commandant), et la collection au choix :
    « Les prendre dans ma collection » (rien n'est ajouté : le deck monté réserve tes exemplaires), « Les ajouter à ma collection » (deck jamais scanné : tous les exemplaires,
-   langue, édition et foil lus au scan), « Seulement celles qui manquent » (ce que la collection n'a pas encore). Choix proposé d'après ce que la collection a déjà. */
+   langue, édition et foil lus au scan), « Seulement celles qui manquent » (ce que la collection n'a pas encore). Choix proposé d'après ce que la collection a déjà.
+   À l'enregistrement, le deck est monté et ses cartes possédées rangées dans l'emplacement « Deck : <nom> » (créé au besoin ; places.js › plcMount), les exemplaires
+   scannés d'abord (même langue, édition et finition : BD.scanPref) ; chacune garde son emplacement d'origine, où elle retourne au démontage. */
 function bdScan() {
   if (!BD.el) return;
   BD.scanTgt = BD.tab === 'deck' ? 'main' : BD.tgt; haptic('tap');
@@ -203,7 +205,8 @@ function bdScanDone() {
           ${opt('add', T('Les ajouter à ma collection'), TN(n, 'Deck jamais scanné : {n} exemplaire entre dans ta collection (langue, édition, foil).', 'Deck jamais scanné : les {n} exemplaires entrent dans ta collection (langue, édition, foil).'))}
           ${miss && miss < n ? opt('miss', T('Ajouter seulement celles qui manquent'), TN(miss, '{n} exemplaire que ta collection n\'a pas encore.', '{n} exemplaires que ta collection n\'a pas encore.')) : ''}
         </div>
-        <p class="hint">${T('Les règles du format restent appliquées (nombre d\'exemplaires, réserve, commandant).')}</p>`;
+        <p class="hint">${T('Les règles du format restent appliquées (nombre d\'exemplaires, réserve, commandant).')}</p>
+        ${typeof plcMount === 'function' ? `<p class="hint">${esc(T('À l\'enregistrement du deck, ses cartes de ta collection sont rangées dans « {place} » (elles retournent à leur place au démontage).', { place: T('Deck : {name}', { name: BD.name.trim() || T('Deck') }) }))}</p>` : ''}`;
     };
     paint();
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b || b.dataset.m === mode) return; mode = b.dataset.m; haptic('tap'); paint(); });
@@ -211,7 +214,9 @@ function bdScanDone() {
     api.foot.addEventListener('click', e => {
       if (!e.target.closest('[data-ok]')) return;
       api.close();
-      const before = { main: new Map([...BD.main].map(([k, c]) => [k, { ...c }])), side: new Map([...BD.side].map(([k, c]) => [k, { ...c }])), cmdr: BD.cmdr.map(c => ({ ...c })), dirty: BD.dirty };
+      const before = { main: new Map([...BD.main].map(([k, c]) => [k, { ...c }])), side: new Map([...BD.side].map(([k, c]) => [k, { ...c }])), cmdr: BD.cmdr.map(c => ({ ...c })), dirty: BD.dirty, pref: BD.scanPref && new Map([...BD.scanPref].map(([k, v]) => [k, new Set(v)])) };
+      if (!BD.scanPref) BD.scanPref = new Map();
+      for (const x of items) { const set = BD.scanPref.get(x.k) || new Set(); if (x.q > x.f) set.add(lineKey(x.l, x.e, false)); if (x.f) set.add(lineKey(x.l, x.e, true)); BD.scanPref.set(x.k, set); }      // exemplaires scannés : rangés en premier
       let ok = 0; const no = { copies: 0, side: 0, cmdr: 0 };
       for (const x of items) for (let i = 0; i < x.q; i++) {
         let r = bdChange(tgt, x.k, x.n, 1, true);
@@ -226,7 +231,7 @@ function bdScanDone() {
       const msg = [TN(ok, '{n} carte ajoutée au deck', '{n} cartes ajoutées au deck'), nAdd ? TN(nAdd, '{n} dans ta collection', '{n} dans ta collection') : '',
         refused ? TN(refused, '{n} refusée (règles du format)', '{n} refusées (règles du format)') : ''].filter(Boolean).join(' · ');
       toast(msg, { label: T('Annuler'), fn: () => {
-        Object.assign(BD, { main: before.main, side: before.side, cmdr: before.cmdr, dirty: before.dirty }); if (add.length) { COLL.map = coll0; collChanged(); }
+        Object.assign(BD, { main: before.main, side: before.side, cmdr: before.cmdr, dirty: before.dirty, scanPref: before.pref }); if (add.length) { COLL.map = coll0; collChanged(); }
         bdPaint();
       } });
     });
@@ -387,9 +392,16 @@ function bdSave() {
   let reserved = 0;
   if (prev) engRefresh(id, name, text);                                   // deck déjà monté : ses cartes réservées suivent la liste
   else { const q = engSnapshot(text, collQty); reserved = Object.values(q).reduce((a, x) => a + x, 0); if (reserved) engSet(id, name, text); }      // nouveau deck : monté automatiquement
+  let ranged = 0, place = '';
+  if (BD.scanPref && BD.scanPref.size && typeof plcMount === 'function' && Object.values(engSnapshot(text, collQty)).some(q => q > 0)) {      // deck scanné : monté et rangé dans « Deck : … »
+    if (!engIsOn(id)) engSet(id, name, text);
+    const pref = BD.scanPref, pid = plcMount(id, name, text, (k, g) => { const set = pref.get(k); return !!set && set.has(lineKey(lineLang(g), lineEd(g), lineFoil(g))); });
+    if (pid) { ranged = (plcStats().get(pid) || { q: 0 }).q; place = plcName(pid); }
+  }
   if (S.deckId === id) { $('#deckText').value = text; refreshDeck(); updateSaveButtons(); }
   const nb = ck.issues.filter(i => i.lv === 'bad' || i.lv === 'warn').length;
   bdClose(true); haptic('ok');
-  const msg = prev ? T('Deck mis à jour') : T('Deck créé') + (reserved ? ' · ' + TN(reserved, '{n} carte réservée de ta collection', '{n} cartes réservées de ta collection') : '');
+  const msg = (prev ? T('Deck mis à jour') : T('Deck créé') + (reserved && !ranged ? ' · ' + TN(reserved, '{n} carte réservée de ta collection', '{n} cartes réservées de ta collection') : ''))
+    + (ranged ? ' · ' + TN(ranged, '{n} carte rangée dans « {place} »', '{n} cartes rangées dans « {place} »', { place }) : '');
   toast(nb && !prev ? msg + ' · ' + T('incomplet') : msg, { label: T('Ouvrir'), fn: () => loadDeck(id) });
 }

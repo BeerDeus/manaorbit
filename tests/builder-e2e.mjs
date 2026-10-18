@@ -162,8 +162,21 @@ ok('deck créé : chargé dans la saisie comme un deck importé');
   await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.bd-sc-sheet.open'); assert.match(await txt(p, '.bd-sc-sheet .rc-facts'), /Zone Réserve/);
   await p.click('.bd-sc-opt[data-m="take"]'); await p.click('.bd-sc-sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 4000 });
   assert.deepEqual(await p.evaluate(() => Object.fromEntries([...BD.side.values()].map(c => [c.key, c.qty]))), { 'llanowar elves': 1 }, 'réserve');
-  await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
-  ok('scanner dans le deck : « Au deck », les ajouter à la collection (Annuler), les prendre dans la collection (règle des 4 exemplaires), réserve depuis Chercher');
+  // rangement automatique : Sol Ring FR CMM 400 scanné alors que la collection a aussi un Sol Ring EN sans édition → c'est la ligne FR CMM qui est rangée
+  await p.evaluate(() => collBump('sol ring', 'Sol Ring', 1, { lang: 'fr|cmm|400' }));
+  await tab(p, 'deck'); await p.click('#bdCtl .bd-scan'); await p.waitForSelector('.scan.on');
+  await p.evaluate(() => scanAdd({ key: 'sol ring', name: 'Sol Ring', score: 0.99, raw: 'Sol Ring', card: 'fr' }, 1, false));
+  await p.waitForFunction(() => [...SC.items.values()].every(x => x.es !== 'load'), null, { timeout: 8000 });
+  await p.evaluate(() => { const it = [...SC.items.values()][0]; scanEdApply(it, { e: 'cmm|400', es: 'man', pk: null }); scanPaintList(); });      // édition de la carte scannée (lue au scan dans la vraie appli)
+  await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.bd-sc-sheet.open .bd-sc-opt');
+  assert.match(await txt(p, '.bd-sc-sheet'), /rangées dans « Deck : Scan »/, 'la fiche annonce le rangement');
+  await p.click('.bd-sc-opt[data-m="take"]'); await p.click('.bd-sc-sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 4000 });
+  await p.click('#bdSave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
+  const pl = await p.evaluate(() => { const pid = Object.keys(COLL.places).find(i => COLL.places[i].t === 'deck' && COLL.places[i].n === 'Scan'); return { pid, lines: Object.fromEntries(['sol ring', 'swords to plowshares'].map(k => [k, collLines(COLL.map[k]).filter(([g]) => linePlace(g) === pid).map(([g, q]) => [g.split('#')[0], q])])) }; });
+  assert.ok(pl.pid, 'emplacement « Deck : Scan » créé');
+  assert.deepEqual(pl.lines, { 'sol ring': [['fr|cmm|400', 1]], 'swords to plowshares': [['en', 1]] }, 'cartes possédées rangées ; Sol Ring : l\'exemplaire scanné (FR CMM 400), pas l\'anglais');
+  assert.match(await txt(p, '#toast'), /Deck créé · 2 cartes rangées dans « Deck : Scan »/);
+  ok('scanner dans le deck : « Au deck », les ajouter à la collection (Annuler), les prendre dans la collection (règle des 4 exemplaires), réserve depuis Chercher ; à l\'enregistrement, rangées dans « Deck : Scan » (l\'exemplaire scanné d\'abord)');
 }
 
 for (const e of errsOf) assert.deepEqual(e, [], 'erreurs page : ' + e.join(' | '));

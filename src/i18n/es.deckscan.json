@@ -22,5 +22,8 @@
   "{n} cartes ajoutées au deck": "{n} cartas añadidas al mazo",
   "{n} refusée (règles du format)": "{n} rechazada (reglas del formato)",
   "{n} refusées (règles du format)": "{n} rechazadas (reglas del formato)",
-  "Au deck": "Al mazo"
+  "Au deck": "Al mazo",
+  "À l'enregistrement du deck, ses cartes de ta collection sont rangées dans « {place} » (elles retournent à leur place au démontage).": "Al guardar el mazo, sus cartas de tu colección se guardan en «{place}» (vuelven a su sitio al desmontarlo).",
+  "{n} carte rangée dans « {place} »": "{n} carta guardada en «{place}»",
+  "{n} cartes rangées dans « {place} »": "{n} cartas guardadas en «{place}»"
 }

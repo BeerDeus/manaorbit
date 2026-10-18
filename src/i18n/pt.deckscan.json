@@ -22,5 +22,8 @@
   "{n} cartes ajoutées au deck": "{n} cartas adicionadas ao deck",
   "{n} refusée (règles du format)": "{n} recusada (regras do formato)",
   "{n} refusées (règles du format)": "{n} recusadas (regras do formato)",
-  "Au deck": "No deck"
+  "Au deck": "No deck",
+  "À l'enregistrement du deck, ses cartes de ta collection sont rangées dans « {place} » (elles retournent à leur place au démontage).": "Ao salvar o deck, as cartas dele na sua coleção são guardadas em “{place}” (voltam ao lugar quando você desmonta o deck).",
+  "{n} carte rangée dans « {place} »": "{n} carta guardada em “{place}”",
+  "{n} cartes rangées dans « {place} »": "{n} cartas guardadas em “{place}”"
 }
