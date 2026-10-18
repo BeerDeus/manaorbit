@@ -19,7 +19,6 @@
   "{n} carte que tu as peut-être sans édition : touche-la pour poser son édition.": "{n} carta che forse hai senza edizione: toccala per indicarne l'edizione.",
   "{n} cartes que tu as peut-être sans édition : touche-les pour poser leur édition.": "{n} carte che forse hai senza edizione: toccale per indicarne l'edizione.",
   "Variantes": "Varianti",
-  "vitrine, sans bordure, illustration étendue…": "vetrina, senza bordo, illustrazione estesa…",
   "Souhaiter la carte manquante": "Desidera la carta mancante",
   "Souhaiter les {n} cartes manquantes": "Desidera le {n} carte mancanti",
   "Tu as {n} exemplaire de cette carte sans édition : est-ce celui-ci ?": "Hai {n} copia di questa carta senza edizione: è questa?",
@@ -92,7 +91,6 @@
   "Version foil aussi": "Anche la versione foil",
   "Chaque carte en double, côte à côte : normale et foil ✦ (quand elle existe en foil).": "Ogni carta due volte, affiancate: normale e foil ✦ (quando esiste in foil).",
   "Forêt, Île, Plaine… de l'extension.": "Foresta, Isola, Pianura… dell'espansione.",
-  "Vitrine, sans bordure, illustration étendue… : repliées sous la base, avec leur progression.": "Vetrina, senza bordo, arte estesa…: ripiegate sotto la base, con il loro avanzamento.",
   "Exemplaires par carte": "Copie per carta",
   "1 exemplaire": "1 copia",
   "4 exemplaires (playset)": "4 copie (playset)",
@@ -104,5 +102,11 @@
   "{n} exemplaire sur {need}": "{n} copia su {need}",
   "{n} exemplaires sur {need}": "{n} copie su {need}",
   "Tu as {n} exemplaire foil de cette carte sans édition : est-ce celui-ci ?": "Hai {n} copia foil di questa carta senza edizione: è questa?",
-  "Tu as {n} exemplaires foil de cette carte sans édition": "Hai {n} copie foil di questa carta senza edizione"
+  "Tu as {n} exemplaires foil de cette carte sans édition": "Hai {n} copie foil di questa carta senza edizione",
+  "Masterset complet !": "Masterset completo!",
+  "Cette extension n'a que des variantes": "Questa espansione ha solo varianti",
+  "Aucune carte comptée dans cette extension": "Nessuna carta contata in questa espansione",
+  "Promos, versions spéciales… : allume « Variantes » dans les options du masterset pour les voir.": "Promo, versioni speciali…: attiva «Varianti» nelle opzioni del masterset per vederle.",
+  "Change les options du masterset, ou choisis une autre édition.": "Cambia le opzioni del masterset o scegli un'altra espansione.",
+  "Vitrine, sans bordure, illustration étendue, promos… : à la suite de la base, comptées dans la progression.": "Vetrina, senza bordo, arte estesa, promo…: subito dopo la base, contate nell'avanzamento."
 }

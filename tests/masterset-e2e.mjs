@@ -9,14 +9,16 @@ import { chromium, startWorld, newPage, txt, ok, toHome, signInFake } from './e2
 
 const world = await startWorld({ port: 19620 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
-// collection posée une seule fois (le rechargement de la fin garde ce que le test a changé)
-const seed = `try { if (!localStorage.getItem('deckdeal:coll:v1')) localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: '1 Sol Ring (AAA) 1 *FR*\\n2 Arcane Signet (AAA) 2 *EN*\\n1 Wrath of God *EN*\\n1 Llanowar Elves (BBB) 9 *EN*', u: 1, s: '', b: null })); } catch (e) {}`;
+// collection posée une seule fois (le rechargement de la fin garde ce que le test a changé) ; masterset sans les variantes au départ (la base seule, puis 3 les allume)
+const seed = `try { if (!localStorage.getItem('deckdeal:coll:v1')) localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: '1 Sol Ring (AAA) 1 *FR*\\n2 Arcane Signet (AAA) 2 *EN*\\n1 Wrath of God *EN*\\n1 Llanowar Elves (BBB) 9 *EN*', u: 1, s: '', b: null }));
+  if (!localStorage.getItem('deckdeal:ms:v1')) localStorage.setItem('deckdeal:ms:v1', JSON.stringify({ o: { vars: false } })); } catch (e) {}`;
 const { p, errs } = await newPage(browser, world, { init: seed });
 const H = { 'access-control-allow-origin': '*' };
 await p.route('https://api.scryfall.com/sets', route => route.fulfill({ status: 200, headers: H, json: { object: 'list', data: [
   { code: 'aaa', name: 'Alpha Future', icon_svg_uri: 'https://svgs.scryfall.io/sets/aaa.svg?1700000000', set_type: 'expansion', released_at: '2024-02-09', printed_size: 5, card_count: 7 },
   { code: 'bbb', name: 'Beta Masters', icon_svg_uri: 'https://svgs.scryfall.io/sets/bbb.svg?1700000000', set_type: 'masters', released_at: '2023-06-02', printed_size: 10, card_count: 10 },
   { code: 'zzz', name: 'Zeta Quest', icon_svg_uri: 'https://svgs.scryfall.io/sets/zzz.svg?1700000000', set_type: 'expansion', released_at: '2022-01-07', printed_size: 250, card_count: 300 },
+  { code: 'ppp', name: 'Promo Pack', icon_svg_uri: 'https://svgs.scryfall.io/sets/ppp.svg?1700000000', set_type: 'promo', released_at: '2021-05-01', card_count: 2 },      // que des promos (pas de total imprimé)
   { code: 'zdg', name: 'Zeta Digital', icon_svg_uri: 'https://svgs.scryfall.io/sets/zdg.svg?1700000000', set_type: 'alchemy', released_at: '2022-03-01', card_count: 30, digital: true },
 ] } }));
 const IMG = (s, n) => `https://cards.scryfall.io/normal/front/a/a/${s}-${n}.jpg`;
@@ -32,6 +34,7 @@ const SETS = {
     card('aaa', 6, 'Arcane Signet', { rarity: 'mythic', border_color: 'borderless', prices: { eur: '30.00' } }),
     card('aaa', 7, 'Sol Ring', { frame_effects: ['showcase'], prices: { eur: '2.00' } }),
   ],
+  ppp: [card('ppp', 1, 'Swords to Plowshares', { promo: true, prices: { eur: '3.00' } }), card('ppp', 2, 'Command Tower', { promo: true, prices: { eur: '1.00' } })],
   bbb: [card('bbb', 8, 'Command Tower', { type_line: 'Land', prices: { eur: '0.25' } }), card('bbb', 9, 'Llanowar Elves', { prices: { eur: '0.30' } }), card('bbb', 10, 'Swords to Plowshares', { prices: { eur: '1.90' } })],
 };
 const searches = [];
@@ -45,7 +48,7 @@ await p.route(/^https:\/\/api\.scryfall\.com\/cards\/search\?/, route => {
 const stored = () => p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t.replace(/ \(D[0-9a-z]+\)/g, '').split('\n').sort().join('\n'));
 const tiles = sel => p.$$eval(sel + ' .ms-c', l => l.map(c => ({ cls: c.classList.contains('own') ? 'own' : 'miss', num: c.querySelector('.ms-num').textContent, px: ((c.querySelector('.ms-px') || {}).textContent || '').replace(/\s/g, ' '),
   q: (c.querySelector('.ms-q') || {}).textContent || '', warn: !!c.querySelector('.ms-warn'), img: (c.querySelector('img') || {}).src || '', gray: getComputedStyle(c.querySelector('.dvc-art')).filter })));
-const base = () => tiles('.ms-grid:not(.ms-var .ms-grid)');
+const base = () => tiles('.ms-grid');
 const closeImg = async () => { await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 }); };
 
 await p.waitForTimeout(400); await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
@@ -94,12 +97,33 @@ assert.deepEqual((await base()).map(x => x.num), ['3/5'], 'recherche de la colle
 await p.fill('#collF input', ''); await p.waitForFunction(() => document.querySelectorAll('.ms-grid .ms-c').length === 5);
 ok('cartes par ligne (6, gardé), Toutes / Possédées / Manquantes, rareté et recherche');
 
-/* ── 3) variantes : repliées sous la base, leur progression, ouvertes à la demande ───────────────────────────────── */
-assert.equal(await p.$eval('.ms-vh', b => b.getAttribute('aria-expanded')), 'false'); assert.equal(await p.$('.ms-var .ms-grid'), null, 'variantes repliées');
-assert.equal(await txt(p, '.ms-vh .ms-pn'), '0 / 2 · 0 %');
-await p.click('.ms-vh'); await p.waitForSelector('.ms-var .ms-grid');
-const v = await tiles('.ms-var'); assert.deepEqual(v.map(x => [x.num, x.cls, x.px]), [['#6', 'miss', '30,00 €'], ['#7', 'miss', '2,00 €']], 'variantes : numéros au-delà du total imprimé');
-ok('variantes repliées (0 / 2), ouvertes à la demande');
+/* ── 3) variantes (options) : sans elles, la base seule et pas d'extension faite que de promos ; avec elles, à la suite de la base, dans la progression ─── */
+const ms = () => p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:ms:v1')));
+assert.equal((await ms()).o.vars, false, 'départ du test : sans les variantes');
+assert.equal(await p.$('.ms-var, .ms-vh'), null, 'plus de section repliée');
+await p.evaluate(() => collBump('command tower', 'Command Tower', 1, { lang: lineKey('en', edKey('ppp', '2')) }));      // une promo de Promo Pack (que des promos)
+await p.click('.ms-pick'); await p.waitForSelector('.sheet-wrap.open .ms-srow');
+let sets = await p.$$eval('.sheet-wrap.open .ms-srow', l => l.map(r => r.dataset.set));
+assert.deepEqual(sets, ['aaa', 'bbb'], 'sans les variantes : Promo Pack (que des promos) n\'est pas proposée');
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
+await p.evaluate(() => msSelect('ppp')); await p.waitForSelector('.ms-onlyv');
+assert.match(await txt(p, '.ms-onlyv'), /Cette extension n'a que des variantes.*allume « Variantes »/);
+await p.click('.ms-onlyv [data-act="msopt"]'); await p.waitForSelector('.sheet-wrap.open .ms-opts');
+await p.click('label[for="msO-vars"]'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
+await p.waitForFunction(() => document.querySelectorAll('.ms-grid .ms-c').length === 2);
+assert.deepEqual((await base()).map(x => [x.num, x.cls]), [['#1', 'miss'], ['#2', 'own']], 'avec les variantes : ses promos (« #1 »)');
+await p.click('.ms-pick'); await p.waitForSelector('.sheet-wrap.open .ms-srow');
+sets = await p.$$eval('.sheet-wrap.open .ms-srow', l => l.map(r => [r.dataset.set, r.querySelector('.ms-sp small').textContent]));
+assert.deepEqual(sets, [['ppp', '1/2 · 50 %'], ['aaa', '2/7 · 28 %'], ['bbb', '1/10 · 10 %']], 'avec les variantes : proposée ; Alpha Future compte ses 7 cartes');
+await p.click('.sheet-wrap.open .ms-srow[data-set="aaa"]');
+await p.waitForFunction(() => document.querySelectorAll('.ms-grid .ms-c').length === 7, null, { timeout: 8000 });
+b = await base();
+assert.deepEqual(b.map(x => [x.num, x.cls]), [['1/5', 'own'], ['2/5', 'own'], ['3/5', 'miss'], ['4/5', 'miss'], ['5/5', 'miss'], ['#6', 'miss'], ['#7', 'miss']], 'variantes à la suite de la base, numéros au-delà du total imprimé');
+assert.deepEqual(b.slice(5).map(x => x.px), ['30,00 €', '2,00 €']);
+assert.equal(await txt(p, '.ms-head + .ms-prog .ms-pn'), '2 / 7 · 28 %', 'variantes dans la progression'); assert.match(await txt(p, '.ms-head small'), /· 7 cartes$/);
+assert.equal((await txt(p, '.ms-val')).replace(/\s/g, ' '), 'Il te manque ≈ 33,60 € · l\'édition complète ≈ 46,30 €');
+await p.evaluate(() => collBump('command tower', 'Command Tower', -1, { lang: lineKey('en', edKey('ppp', '2')) }));
+ok('variantes : sans elles, base seule et Promo Pack (que des promos) ni proposée ni comptée ; avec elles, à la suite de la base (« #6 »), 2 / 7');
 
 /* ── 4) carte possédée sans édition : « C'est celle-ci » dans la carte en grand ; 1 exemplaire, puis D : « Combien sont de cette édition ? » (3 exemplaires) ; Annuler ─── */
 await p.click('.ms-grid .ms-c >> nth=2 >> .ms-open'); await p.waitForSelector('.imgv .imgv-rep:not([hidden])');
@@ -113,7 +137,7 @@ assert.equal(await txt(p, '.imgv-rep'), '✓ Édition posée');
 assert.equal(await stored(), '1 Llanowar Elves (BBB) 9 *EN*\n1 Sol Ring (AAA) 1 *FR*\n1 Wrath of God (AAA) 3 *EN*\n2 Arcane Signet (AAA) 2 *EN*', 'édition posée sur l\'exemplaire (texte du compte)');
 await closeImg();
 await p.waitForFunction(() => document.querySelector('.ms-grid .ms-c:nth-child(3)').classList.contains('own'));
-b = await base(); assert.equal(b[2].warn, false); assert.equal(await txt(p, '.ms-head + .ms-prog .ms-pn'), '3 / 5 · 60 %'); assert.equal(await p.$('.ms-legend'), null, 'plus de carte à vérifier : légende retirée');
+b = await base(); assert.equal(b[2].warn, false); assert.equal(await txt(p, '.ms-head + .ms-prog .ms-pn'), '3 / 7 · 42 %'); assert.equal(await p.$('.ms-legend'), null, 'plus de carte à vérifier : légende retirée');
 await p.click('#toast .toast-act');
 await p.waitForFunction(() => document.querySelector('.ms-grid .ms-c:nth-child(3)').classList.contains('miss'));
 assert.match(await stored(), /1 Wrath of God \*EN\*/, 'Annuler : l\'exemplaire redevient sans édition');
@@ -136,7 +160,7 @@ await p.click('#toast .toast-act'); await p.waitForTimeout(200);
 assert.match(await stored(), /3 Wrath of God \*EN\*/, 'Annuler : les 2 redeviennent sans édition');
 await p.evaluate(() => collBump('wrath of god', 'Wrath of God', -2, { lang: 'en' }));
 await p.click('.ms-grid .ms-c >> nth=2 >> .ms-open'); await p.waitForSelector('.imgv .imgv-rep:not([hidden])'); await p.click('.imgv-rep'); await p.waitForFunction(() => document.querySelector('.imgv-rep').disabled); await closeImg();
-ok('⚠ sur la vignette, « C\'est celle-ci » dans la carte en grand : édition posée (3 / 5), Annuler ; D : « Combien sont de cette édition ? » (2 sur 3), Annuler');
+ok('⚠ sur la vignette, « C\'est celle-ci » dans la carte en grand : édition posée (3 / 7), Annuler ; D : « Combien sont de cette édition ? » (2 sur 3), Annuler');
 
 /* ── 5) carte manquante : « Ajouter à ma collection » (cette impression, langue des cartes) ; carte possédée : sa ligne de collection ─── */
 await p.click('.ms-grid .ms-c >> nth=3 >> .ms-open'); await p.waitForSelector('.imgv .imgv-rep:not([hidden])');
@@ -148,11 +172,11 @@ assert.equal(await p.$eval('.imgv-rep', r => r.hidden), true, 'carte possédée 
 await closeImg();
 assert.match(await stored(), /1 Llanowar Elves \(AAA\) 4 \*FR\*/, 'ajoutée avec cette édition, en français (langue des cartes)');
 assert.match(await stored(), /1 Llanowar Elves \(BBB\) 9 \*EN\*/, 'l\'autre impression reste');
-await p.waitForFunction(() => /4 \/ 5 · 80 %/.test(document.querySelector('.ms-head + .ms-prog .ms-pn').textContent));
-ok('« Ajouter à ma collection » : AAA 4 en français, 4 / 5 · 80 % ; carte possédée : sa ligne de collection');
+await p.waitForFunction(() => /4 \/ 7 · 57 %/.test(document.querySelector('.ms-head + .ms-prog .ms-pn').textContent));
+ok('« Ajouter à ma collection » : AAA 4 en français, 4 / 7 · 57 % ; carte possédée : sa ligne de collection');
 
 /* ── 6) souhaiter les manquantes (terrains de base exclus, variantes ouvertes comprises), Annuler ───────────────── */
-assert.equal(await txt(p, '.ms-wish'), '☆ Souhaiter les 2 cartes manquantes', 'Forest (terrain de base) exclu ; les 2 variantes ouvertes comptent');
+assert.equal(await txt(p, '.ms-wish'), '☆ Souhaiter les 2 cartes manquantes', 'Forest (terrain de base) exclu ; les 2 variantes comptent');
 await p.click('.ms-wish'); await p.waitForSelector('.sheet-wrap.open [data-ok]');
 assert.match(await txt(p, '.sheet-wrap.open .sheet-body'), /2 cartes manquantes entrent dans ta liste de souhaits/);
 await p.click('.sheet-wrap.open [data-ok]'); await p.waitForTimeout(300);
@@ -164,7 +188,7 @@ assert.deepEqual(await wish(), {}, 'Annuler : liste de souhaits d\'avant');
 ok('souhaiter les manquantes : 2 illustrations exactes, Annuler');
 
 /* ── 6 bis) « Chercher les N cartes manquantes sur CardTrader » : liste aux éditions exactes dans Prix d'une liste ; recherche CardTrader et Cardmarket ─── */
-assert.equal(await txt(p, '.ms-buy'), 'Chercher les 2 cartes manquantes sur CardTrader', 'bouton à côté de « Souhaiter » (variantes ouvertes, terrain de base exclu)');
+assert.equal(await txt(p, '.ms-buy'), 'Chercher les 2 cartes manquantes sur CardTrader', 'bouton à côté de « Souhaiter » (variantes comprises, terrain de base exclu)');
 await p.click('.ms-buy');
 await p.waitForFunction(() => S.view === 'input' && !COLL.el, null, { timeout: 5000 });
 assert.equal(await p.$eval('#deckText', t => t.value), '1 Arcane Signet (AAA) 6\n1 Sol Ring (AAA) 7', 'une ligne par carte, avec son édition');
@@ -205,19 +229,18 @@ ok('« Chercher les 2 cartes manquantes sur CardTrader » : liste aux éditions 
 /* ── 7) sélecteur d'édition : de la plus fournie à la moins fournie, recherche, autres extensions ──────────────────── */
 await p.click('.ms-pick'); await p.waitForSelector('.sheet-wrap.open .ms-srow');
 const rowsTxt = () => p.$$eval('.sheet-wrap.open .ms-srow', l => l.map(r => [r.dataset.set, r.querySelector('.ms-sp small').textContent, r.getAttribute('aria-pressed')]));
-assert.deepEqual(await rowsTxt(), [['aaa', '4/5 · 80 %', 'true'], ['bbb', '1/10 · 10 %', 'false']], 'extensions de la collection, la plus fournie d\'abord, progression');
-assert.deepEqual([await ratio('.ms-srow[data-set="aaa"] .ms-sp'), await ratio('.ms-srow[data-set="bbb"] .ms-sp')], [80, 10], 'barres du sélecteur remplies');
+assert.deepEqual(await rowsTxt(), [['aaa', '4/7 · 57 %', 'true'], ['bbb', '1/10 · 10 %', 'false']], 'extensions de la collection, la plus complète d\'abord, progression');
+assert.deepEqual([await ratio('.ms-srow[data-set="aaa"] .ms-sp'), await ratio('.ms-srow[data-set="bbb"] .ms-sp')], [57, 10], 'barres du sélecteur remplies');
 assert.ok(await p.$eval('.sheet-wrap.open .ms-sq', e => e.closest('.sheet-body') && getComputedStyle(e).position === 'sticky'), 'recherche dans la feuille, en haut de la liste');
 await p.fill('.sheet-wrap.open .ms-sq input', 'zeta'); await p.waitForTimeout(150);
-assert.deepEqual(await rowsTxt(), [['zzz', '0/250 · 0 %', 'false']], 'recherche : autres extensions papier (pas les numériques)');
+assert.deepEqual(await rowsTxt(), [['zzz', '0/300 · 0 %', 'false']], 'recherche : autres extensions papier (pas les numériques), toutes leurs cartes avec les variantes');
 assert.match(await txt(p, '.sheet-wrap.open .ms-sh'), /Autres extensions/i);
 await p.fill('.sheet-wrap.open .ms-sq input', 'beta'); await p.waitForTimeout(150);
 await p.click('.sheet-wrap.open .ms-srow[data-set="bbb"]');
 await p.waitForFunction(() => document.querySelectorAll('.ms-grid .ms-c').length === 3, null, { timeout: 8000 });
 assert.equal(await txt(p, '.ms-pick b'), 'Beta Masters');
 b = await base(); assert.deepEqual(b.map(x => [x.num, x.cls]), [['8/10', 'miss'], ['9/10', 'own'], ['10/10', 'miss']]);
-assert.equal(await p.$('.ms-var'), null, 'pas de variantes : pas de section');
-ok('sélecteur : Alpha Future (4/5) puis Beta Masters (1/10), recherche « zeta » → autres extensions, Beta Masters affichée');
+ok('sélecteur : Alpha Future (4/7) puis Beta Masters (1/10), recherche « zeta » → autres extensions, Beta Masters affichée');
 
 /* ── 8) rechargement : masterset, extension et cartes par ligne gardés ; éteint : la liste et « Trier » reviennent ─────── */
 await p.reload(); await p.waitForTimeout(700); await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
@@ -235,12 +258,12 @@ ok('rechargement : masterset, Beta Masters et 6 par ligne gardés ; éteint : li
 const zzz = d => p.evaluate(d => { for (const n of ['1', '2', '3', '4', '5']) collBump('sol ring', 'Sol Ring', d, { lang: lineKey('en', edKey('zzz', n)) }); }, d);
 await zzz(1);      // 5 cartes de Zeta Quest (5/250) : plus que Alpha Future (4/5), mais bien moins complète
 await p.click('.ms-pick'); await p.waitForSelector('.sheet-wrap.open .ms-srow');
-assert.deepEqual(await rowsTxt(), [['aaa', '4/5 · 80 %', 'false'], ['bbb', '1/3 · 33 %', 'true'], ['zzz', '5/250 · 2 %', 'false']], 'pourcentage d\'abord : Alpha Future (80 %), Beta Masters (33 % : ses cartes lues), Zeta Quest (2 %, 5 cartes)');
+assert.deepEqual(await rowsTxt(), [['aaa', '4/7 · 57 %', 'false'], ['bbb', '1/3 · 33 %', 'true'], ['zzz', '5/300 · 1 %', 'false']], 'pourcentage d\'abord : Alpha Future (57 %), Beta Masters (33 % : ses cartes lues), Zeta Quest (1 %, 5 cartes)');
 assert.match(await txt(p, '.sheet-wrap.open .sheet-head p'), /de la plus complète à la moins complète/);
 await p.click('.sheet-wrap.open .ms-srow[data-set="aaa"]');
-await p.waitForFunction(() => document.querySelectorAll('.ms-grid .ms-c').length === 5, null, { timeout: 8000 });
+await p.waitForFunction(() => document.querySelectorAll('.ms-grid .ms-c').length === 7, null, { timeout: 8000 });
 await zzz(-1);
-ok('sélecteur : de la plus complète à la moins complète (80 %, 10 %, puis 2 % malgré ses 5 cartes)');
+ok('sélecteur : de la plus complète à la moins complète (57 %, 33 %, puis 1 % malgré ses 5 cartes)');
 
 /* ── 8 ter) options du masterset : roue crantée au bout de la rangée, version foil aussi (paires), playset, langue, terrains de base, variantes, par défaut ─── */
 assert.equal(await p.$eval('.ms-opt', b => [b.hidden, b.classList.contains('on'), !!b.querySelector('svg.ms-gear')].join()), 'false,false,true', 'roue crantée affichée en masterset, options par défaut');
@@ -255,12 +278,13 @@ await p.click('label[for="msO-foil"]');
 await p.waitForSelector('.ms-grid.pairs.c2 .ms-pair');
 await p.screenshot({ path: 'shots/masterset-5-options.png' });
 await shut();
-const pairs = () => p.$$eval('.ms-grid:not(.ms-var .ms-grid) .ms-c', l => l.map(c => [c.classList.contains('own') ? 'own' : c.classList.contains('part') ? 'part' : 'miss',
+const pairs = () => p.$$eval('.ms-grid .ms-c', l => l.map(c => [c.classList.contains('own') ? 'own' : c.classList.contains('part') ? 'part' : 'miss',
   ...[...c.querySelectorAll('.ms-h')].map(h => (h.classList.contains('fo') ? 'F:' : 'N:') + (h.classList.contains('none') ? h.textContent.trim() : h.classList.contains('own') ? 'own' : 'miss') + (h.querySelector('.ms-fx') ? '✦' : ''))]));
 assert.deepEqual(await pairs(), [
   ['part', 'N:own', 'F:miss✦'], ['miss', 'N:Foil seulement', 'F:miss✦'], ['own', 'N:own', 'F:Pas de foil'], ['part', 'N:own', 'F:miss✦'], ['miss', 'N:miss', 'F:miss✦'],
+  ['miss', 'N:miss', 'F:miss✦'], ['miss', 'N:miss', 'F:miss✦'],
 ], 'normale et foil côte à côte (finitions Scryfall : Arcane Signet foil seulement, Wrath of God sans foil) ; la foil irisée, même manquante');
-assert.equal(await pn(), '3 / 8 · 37 %', 'progression case par case : 8 cases (normales et foil), 3 complètes');
+assert.equal(await pn(), '3 / 12 · 25 %', 'progression case par case : 12 cases (normales et foil), 3 complètes');
 await p.evaluate(() => { const g = document.querySelector('.coll-srow'); g.scrollIntoView({ block: 'start' }); document.querySelector('.coll .dv-scroll').scrollTop -= 8; }); await p.waitForTimeout(300); await p.screenshot({ path: 'shots/masterset-6-foil.png' });
 assert.deepEqual(await p.$$eval('.ms-c:first-child .ms-px', l => l.map(e => e.textContent.replace(/\s/g, ' '))), ['0,20 €', '✦ 1,50 €'], 'prix normal et prix foil');
 assert.ok(await p.$eval('.ms-c:first-child .ms-h.fo', h => getComputedStyle(h.querySelector('.dvc-art')).filter.includes('grayscale') && getComputedStyle(h.querySelector('.ms-fx')).opacity > 0.3), 'foil manquante : grisée, voile irisé gardé');
@@ -274,36 +298,36 @@ assert.equal(await p.$eval('.imgv-card', c => c.classList.contains('foil')), tru
 await p.click('.imgv-rep'); await p.waitForFunction(() => document.querySelector('.imgv-rep').disabled); await closeImg();
 assert.match(await stored(), /1 Sol Ring \(FOIL\) \(AAA\) 1 \*FR\*/, 'exemplaire foil ajouté, dans cette édition');
 await p.waitForFunction(() => document.querySelector('.ms-c:first-child').classList.contains('own'));
-assert.equal(await pn(), '4 / 8 · 50 %');
+assert.equal(await pn(), '4 / 12 · 33 %');
 await p.selectOption('select.ms-cols', '3'); await p.waitForSelector('.ms-grid.pairs.c3');
-ok('version foil aussi : paires normale · foil (finitions Scryfall, case en creux), 3 / 8 puis 4 / 8 avec la foil ajoutée, prix foil, roue allumée, paires par ligne');
+ok('version foil aussi : paires normale · foil (finitions Scryfall, case en creux), 3 / 12 puis 4 / 12 avec la foil ajoutée, prix foil, roue allumée, paires par ligne');
 // playset : 4 exemplaires par carte (sans la version foil)
 await opt(); await p.click('label[for="msO-foil"]'); await p.click('.ms-opts [data-o="need"][data-v="4"]');
 await p.waitForFunction(() => /Playset/.test((document.querySelector('.ms-osum') || {}).textContent || ''));
 await shut();
 b = await base();
-assert.deepEqual(b.map(x => [x.cls, x.q]), [['miss', '2/4'], ['miss', '2/4'], ['miss', '1/4'], ['miss', '1/4'], ['miss', '']], 'playset : « 2/4 », « 1/4 » sur les cartes entamées (Sol Ring : normale et foil)');
-assert.equal(await p.$$eval('.ms-c.part', l => l.length), 4); assert.equal(await pn(), '0 / 5 · 0 %');
+assert.deepEqual(b.map(x => [x.cls, x.q]), [['miss', '2/4'], ['miss', '2/4'], ['miss', '1/4'], ['miss', '1/4'], ['miss', ''], ['miss', ''], ['miss', '']], 'playset : « 2/4 », « 1/4 » sur les cartes entamées (Sol Ring : normale et foil)');
+assert.equal(await p.$$eval('.ms-c.part', l => l.length), 4); assert.equal(await pn(), '0 / 7 · 0 %');
 assert.equal(await txt(p, '.ms-wish'), '☆ Souhaiter les 4 cartes manquantes', 'cartes incomplètes à souhaiter (pas le terrain de base)');
 // langue : seuls les exemplaires français comptent
 await opt(); await p.click('.ms-opts [data-o="need"][data-v="1"]'); await p.selectOption('.ms-opts select[data-o="lang"]', 'fr');
 await p.waitForFunction(() => /Français/i.test((document.querySelector('.ms-osum') || {}).textContent || ''));
 await shut();
-b = await base(); assert.deepEqual(b.map(x => x.cls), ['own', 'miss', 'miss', 'own', 'miss'], 'en français : Sol Ring et Llanowar Elves seulement');
-assert.equal(await pn(), '2 / 5 · 40 %');
+b = await base(); assert.deepEqual(b.map(x => x.cls), ['own', 'miss', 'miss', 'own', 'miss', 'miss', 'miss'], 'en français : Sol Ring et Llanowar Elves seulement');
+assert.equal(await pn(), '2 / 7 · 28 %');
 // sans terrains de base, sans variantes
 await opt(); await p.click('label[for="msO-basic"]'); await p.click('label[for="msO-vars"]'); await shut();
 await p.waitForFunction(() => document.querySelectorAll('.ms-grid .ms-c').length === 4);
-assert.match(await txt(p, '.ms-head small'), /· 4 cartes$/); assert.equal(await pn(), '2 / 4 · 50 %'); assert.equal(await p.$('.ms-var'), null, 'variantes retirées');
+assert.match(await txt(p, '.ms-head small'), /· 4 cartes$/); assert.equal(await pn(), '2 / 4 · 50 %'); assert.deepEqual((await base()).map(x => x.num), ['1/5', '2/5', '3/5', '4/5'], 'ni Forest ni variantes');
 assert.equal((await txt(p, '.ms-osum')).replace(/\s+/g, ' '), 'Français Sans terrains de base Sans variantes');
 assert.deepEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:ms:v1')).o), { foil: false, basic: false, vars: false, need: 1, lang: 'fr' }, 'options gardées sur l\'appareil');
 // par défaut
 await opt(); await p.click('.ms-oreset'); await p.waitForFunction(() => !document.querySelector('.ms-oreset'));
 await shut();
 assert.equal(await p.$('.ms-osum'), null); assert.equal(await p.$eval('.ms-opt', b => b.classList.contains('on')), false);
-assert.equal(await pn(), '4 / 5 · 80 %'); assert.ok(await p.$('.ms-var'), 'variantes revenues');
+assert.equal(await pn(), '4 / 7 · 57 %'); assert.equal((await base()).length, 7, 'Forest et variantes revenus');
 b = await base(); assert.equal(b[0].q, '×2', 'sans la version foil : la foil compte comme un autre exemplaire');
-ok('options : playset (2/4, 0 / 5), langue (français : 2 / 5), sans terrains de base ni variantes (2 / 4), gardées sur l\'appareil ; par défaut : 4 / 5');
+ok('options : playset (2/4, 0 / 7), langue (français : 2 / 7), sans terrains de base ni variantes (2 / 4), gardées sur l\'appareil ; par défaut : 4 / 7');
 
 /* ── 9) téléphone 360 px, thème sombre : rien ne déborde ──────────────────────────────────────────────── */
 await p.setViewportSize({ width: 360, height: 740 }); await p.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });

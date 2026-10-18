@@ -117,11 +117,11 @@ function setsPaint() {
 }
 
 /* ── Symboles et noms de toutes les extensions (illustrations d'une carte, édition des lignes de la collection) ──────────────────────
-   Même requête GET /sets (≈ 1 000 éditions), réduite à { code: [symbole, nom, date de sortie, total imprimé, cartes, numérique] } et gardée 30 jours ; relue au plus une fois par lancement, à la demande.
-   Total imprimé (« 17/277 ») et nombre de cartes : progression des masterset (masterset.js). */
-const SETIC_KEY = 'sets:ic:v3', SETIC_TTL = 30 * DAY;
+   Même requête GET /sets (≈ 1 000 éditions), réduite à { code: [symbole, nom, date de sortie, total imprimé, cartes, numérique, type] } et gardée 30 jours ; relue au plus une fois par lancement, à la demande.
+   Total imprimé (« 17/277 »), nombre de cartes et type (« promo » : faite de variantes) : progression des masterset (masterset.js). */
+const SETIC_KEY = 'sets:ic:v4', SETIC_TTL = 30 * DAY;
 const SETIC = { m: null, p: null, on: new Set(), fail: 0 };
-/** Réponse /sets → { code: [symbole, nom, date AAAA-MM-JJ, total imprimé (0 : inconnu), cartes, 1 si numérique] } ; symbole : nom du fichier svgs.scryfall.io (les promos partagent souvent celui d'une autre extension). */
+/** Réponse /sets → { code: [symbole, nom, date AAAA-MM-JJ, total imprimé (0 : inconnu), cartes, 1 si numérique, type Scryfall (« expansion », « promo »…)] } ; symbole : nom du fichier svgs.scryfall.io (les promos partagent souvent celui d'une autre extension). */
 function setIcKeep(data) {
   const m = {};
   for (const s of Array.isArray(data) ? data : []) {
@@ -129,7 +129,7 @@ function setIcKeep(data) {
     const code = s.code.toLowerCase(); if (!/^[a-z0-9]{2,6}$/.test(code)) continue;
     const ic = /^https:\/\/svgs\.scryfall\.io\/sets\/([a-z0-9_-]{1,24})\.svg(\?|$)/.exec(s.icon_svg_uri || '');
     const n = v => (Number.isInteger(v) && v > 0 && v < 1e4 ? v : 0);
-    m[code] = [ic ? ic[1] : '', s.name.slice(0, 80), /^\d{4}-\d{2}-\d{2}$/.test(s.released_at || '') ? s.released_at : '', n(s.printed_size), n(s.card_count), s.digital ? 1 : 0];
+    m[code] = [ic ? ic[1] : '', s.name.slice(0, 80), /^\d{4}-\d{2}-\d{2}$/.test(s.released_at || '') ? s.released_at : '', n(s.printed_size), n(s.card_count), s.digital ? 1 : 0, /^[a-z_]{1,24}$/.test(s.set_type || '') ? s.set_type : ''];
   }
   return m;
 }
@@ -162,5 +162,7 @@ const setPrinted = code => { const x = SETIC.m && SETIC.m[String(code || '').toL
 const setCount = code => { const x = SETIC.m && SETIC.m[String(code || '').toLowerCase()]; return (x && x[4]) || 0; };
 /** Extension numérique seulement (Arena, MTGO) ? */
 const setDigital = code => { const x = SETIC.m && SETIC.m[String(code || '').toLowerCase()]; return !!(x && x[5]); };
+/** Type Scryfall de l'extension (« expansion », « promo », « token »… ; '' : inconnu). */
+const setType = code => { const x = SETIC.m && SETIC.m[String(code || '').toLowerCase()]; return (x && x[6]) || ''; };
 /** Symbole en HTML (fond d'un <i> : aucune requête CORS, blanc sur fond sombre avec la classe « inv ») ; '' sans symbole connu. */
 const setIcHtml = (code, cls) => { const u = setIcon(code); return u ? `<i class="set-ic${cls ? ' ' + cls : ''}" aria-hidden="true" style="background-image:url('${u}')"></i>` : ''; };

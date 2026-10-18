@@ -6,8 +6,9 @@
      et dans le compte (users/{uid}/meta/masterset : { o, updatedAt } ; le plus récent l'emporte) — version foil aussi (chaque carte en double, normale et foil ✦
      côte à côte, d'après les finitions Scryfall : setview.js › setvFin), terrains de base, variantes, exemplaires par carte (1, ou 4 : playset), langue (seuls
      les exemplaires dans cette langue comptent). Sans la version foil, un exemplaire foil compte comme un autre.
-   · La base d'abord (numéros jusqu'au total imprimé, Scryfall /sets › printed_size : sets.js › setPrinted), puis les variantes (vitrine, sans bordure,
-     illustration étendue… : numéros au-delà), repliées, chacune avec sa progression. Sans total imprimé connu : les versions spéciales sont les variantes.
+   · La base d'abord (numéros jusqu'au total imprimé, Scryfall /sets › printed_size : sets.js › setPrinted), puis, à la suite et comptées dans la progression,
+     les variantes (vitrine, sans bordure, illustration étendue… : numéros au-delà ; « #301 ») si les options les gardent. Sans total imprimé connu : les versions
+     spéciales et les promos sont les variantes ; sans elles, une extension faite seulement de variantes (promos…) n'est pas proposée.
    · Sélecteur d'édition (feuille) : les extensions de la collection, de la plus complète à la moins complète (pourcentage), barre de progression, recherche ;
      la recherche trouve aussi les autres extensions (commencer un masterset de zéro).
    · Exemplaires sans édition : panneau ⚠ sur la vignette d'une carte manquante quand la collection a cette carte sans édition ; la carte en grand propose
@@ -20,7 +21,7 @@
 const MS_KEY = 'deckdeal:ms:v1', MS_COLS = [3, 4, 5, 6, 8], MS_COLS_F = [1, 2, 3, 4], MS_SHOWS = [['all', 'Toutes'], ['own', 'Possédées'], ['miss', 'Manquantes']], MS_KEEP = 6;
 /** Options du masterset : foil (version foil aussi), basic (terrains de base), vars (variantes), need (exemplaires par carte : 1 ou 4), lang ('' : toutes les langues). */
 const MS_DEF = { foil: false, basic: true, vars: true, need: 1, lang: '' }, MS_NEEDS = [1, 4];
-const MS = { on: false, set: '', cols: 4, colsF: 2, show: 'all', rar: new Set(), varOpen: false, data: {}, err: {}, load: '', ctrl: null, idx: null, view: null,
+const MS = { on: false, set: '', cols: 4, colsF: 2, show: 'all', rar: new Set(), data: {}, err: {}, load: '', ctrl: null, idx: null, view: null,
   o: { ...MS_DEF }, u: 0, who: '', doc: { uid: '', unsub: null, pushT: 0 } };      // colsF : paires par ligne (version foil aussi) ; u : date des options (la plus récente l'emporte)
 /** Options lues (appareil, compte) → valeurs sûres ; le reste prend la valeur par défaut. */
 function msClean(o) {
@@ -87,8 +88,17 @@ function msSplit(code, cards) {
   }
   const by = (a, b) => num(a) - num(b) || a.num.localeCompare(b.num, 'en', { numeric: true });
   base.sort(by); vars.sort(by);
-  return { base, vars, tot: ps || base.length };
+  return { base, vars, tot: ps || base.length, list: MS.o.vars ? [...base, ...vars] : base };      // list : les cartes du masterset, variantes à la suite si les options les gardent
 }
+/** Extension faite seulement de variantes (promos…) : base vide une fois lue ; pas encore lue, d'après /sets (pas de total imprimé, type « promo »). */
+function msOnlyVars(code) {
+  const cards = MS.data[code];
+  return cards && cards.length ? !msSplit(code, cards).base.length : !setPrinted(code) && setType(code) === 'promo';
+}
+/** Extension proposée : sans les variantes, pas celle qui n'en a que. */
+const msShows = code => MS.o.vars || !msOnlyVars(code);
+/** Total d'une extension pas encore lue : toutes ses cartes (variantes comprises) ou le total imprimé (sans elles) ; × 2 avec la version foil. */
+const msTotEst = code => (MS.o.vars ? setCount(code) || setPrinted(code) : setPrinted(code) || setCount(code)) * (MS.o.foil ? 2 : 1);
 /** Prix d'une case (centimes) : normale, foil, ou le prix connu de l'impression. */
 const msUnit = (x, fin) => (fin === 'f' ? (x.ef > 0 ? x.ef : 0) : fin === 'n' ? (x.eu > 0 ? x.eu : 0) : msEu(x));
 /** Progression d'une liste de cartes, case par case (normale et foil avec la version foil) : complètes, total, prix de ce qui manque et de toute la liste
@@ -102,17 +112,18 @@ const msEu = x => (x.eu > 0 ? x.eu : x.ef > 0 ? x.ef : 0);
 const msPct = (a, b) => (b ? Math.floor((100 * a) / b) : 0);      // arrondi par défaut : 100 % seulement quand tout y est
 
 /** Extensions de la collection pour le sélecteur : [{ code, own, tot }], de la plus complète à la moins complète (puis la plus fournie, la plus récente).
- *  Extension déjà lue : ses vrais chiffres (base, options comprises) ; sinon d'après le total imprimé de /sets (numéros de la base possédés / total). */
+ *  Extension déjà lue : ses vrais chiffres (options comprises) ; sinon d'après /sets (numéros possédés / cartes, ou base / total imprimé sans les variantes). */
 function msSets() {
   const by = new Map(), m = msOwned(), need = MS.o.need;
   for (const [key, o] of m) { const i = key.indexOf('|'), c = key.slice(0, i); if (!by.has(c)) by.set(c, []); by.get(c).push([key.slice(i + 1), o]); }
   const out = [];
   for (const [code, nums] of by) {
     const cards = MS.data[code];
-    if (cards && cards.length) { const s = msSplit(code, cards), p = msProg(code, s.base); out.push({ code, own: p.own, tot: p.n }); continue; }
-    const ps = setPrinted(code); let own = 0;
+    if (!msShows(code)) continue;
+    if (cards && cards.length) { const p = msProg(code, msSplit(code, cards).list); out.push({ code, own: p.own, tot: p.n }); continue; }
+    const ps = MS.o.vars ? 0 : setPrinted(code); let own = 0;      // sans les variantes : les numéros de la base seulement
     for (const [n, o] of nums) if (!ps || (/^\d+$/.test(n) && Number(n) <= ps)) own += MS.o.foil ? (o.n >= need) + (o.f >= need) : o.q >= need ? 1 : 0;
-    out.push({ code, own, tot: (ps || setCount(code)) * (MS.o.foil ? 2 : 1) });
+    out.push({ code, own, tot: msTotEst(code) });
   }
   const r = x => (x.tot ? x.own / x.tot : 0);
   return out.sort((a, b) => r(b) - r(a) || b.own - a.own || setDate(b.code).localeCompare(setDate(a.code)) || a.code.localeCompare(b.code));
@@ -175,28 +186,29 @@ function msCell(code, x, f, lab0) {
   return { st, html: `<button class="ms-open" type="button" data-f="${f}" aria-label="${esc(lab)}"><span class="dvc-art" style="--h:${hash32(x.k) % 360}"><b>${esc((name.trim()[0] || '?').toUpperCase())}</b>${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(scrySmall(img))}">` : ''}</span>${f === 'f' ? '<span class="ms-fx" aria-hidden="true"></span>' : ''}</button>
     ${tag}${warn ? `<span class="ms-warn" title="${esc(T('Tu as cette carte sans édition : est-ce celle-ci ?'))}">${MS_WARN}</span>` : ''}` };
 }
-function msTile(code, x, i, sec, tot) {
-  const name = x.dn || x.n, num = sec === 'b' && tot ? x.num + '/' + tot : '#' + x.num, lab0 = [name, num].join(' · ');
+function msTile(code, x, i, inBase, tot) {
+  const name = x.dn || x.n, num = inBase && tot ? x.num + '/' + tot : '#' + x.num, lab0 = [name, num].join(' · ');
   if (!MS.o.foil) {
     const c = msCell(code, x, '', lab0), u = msEu(x), px = u ? fmt(u, 'EUR') + (x.eu > 0 ? '' : ' ✦') : '';
-    return `<div class="ms-c ${c.st}" data-i="${i}" data-s="${sec}">${c.html}<span class="ms-cap"><span class="ms-num">${esc(num)}</span>${px ? `<span class="ms-px">${esc(px)}</span>` : ''}</span></div>`;
+    return `<div class="ms-c ${c.st}" data-i="${i}">${c.html}<span class="ms-cap"><span class="ms-num">${esc(num)}</span>${px ? `<span class="ms-px">${esc(px)}</span>` : ''}</span></div>`;
   }
   // version foil aussi : normale et foil côte à côte ; une finition que l'impression n'a pas reste en creux
   const fins = msFins(x), cells = ['n', 'f'].map(f => (fins.includes(f) ? msCell(code, x, f, lab0) : null)), sts = cells.filter(Boolean).map(c => c.st);
   const st = sts.every(v => v === 'own') ? 'own' : sts.every(v => v === 'miss') ? 'miss' : 'part';
   const half = (c, j) => (c ? `<div class="ms-h ${c.st}${j ? ' fo' : ''}">${c.html}</div>` : `<div class="ms-h none${j ? ' fo' : ''}"><span class="ms-no">${esc(j ? T('Pas de foil') : T('Foil seulement'))}</span></div>`);
   const px = (f, v) => (fins.includes(f) && v > 0 ? `<span class="ms-px${f === 'f' ? ' fo' : ''}">${esc((f === 'f' ? '✦ ' : '') + fmt(v, 'EUR'))}</span>` : '<span class="ms-px"></span>');
-  return `<div class="ms-c ms-pair ${st}" data-i="${i}" data-s="${sec}"><div class="ms-two">${cells.map(half).join('')}</div>
+  return `<div class="ms-c ms-pair ${st}" data-i="${i}"><div class="ms-two">${cells.map(half).join('')}</div>
     <span class="ms-cap"><span class="ms-num">${esc(num)}</span><span class="ms-pxs">${px('n', x.eu)}${px('f', x.ef)}</span></span></div>`;
 }
-function msGrid(code, list, sec, tot) {
-  const f = MS.o.foil, n = f ? MS.colsF : MS.cols;
-  return `<div class="ms-grid c${n}${f ? ' pairs' : ''}" style="--cols:${n}">${list.map((x, i) => msTile(code, x, i, sec, tot)).join('')}</div>`;
+/** Grille : base (« 17/277 ») puis variantes (« #301 »). */
+function msGrid(code, list, base, tot) {
+  const f = MS.o.foil, n = f ? MS.colsF : MS.cols, inb = new Set(base);
+  return `<div class="ms-grid c${n}${f ? ' pairs' : ''}" style="--cols:${n}">${list.map((x, i) => msTile(code, x, i, inb.has(x), tot)).join('')}</div>`;
 }
 function msProgHtml(p, big) {
   const pc = msPct(p.own, p.n);
   return `<span class="ms-prog${big ? ' big' : ''}"><span class="track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.n}" aria-valuenow="${p.own}" aria-label="${esc(T('Progression'))}"><span class="fill${p.own && p.own === p.n ? ' full' : ''}" style="width:${p.n ? (100 * p.own) / p.n : 0}%"></span></span>
-    <span class="ms-pn"><b>${nf0(p.own)}</b> / ${nf0(p.n)} · ${pc} %</span></span>`;      // span : aussi dans le bouton des variantes
+    <span class="ms-pn"><b>${nf0(p.own)}</b> / ${nf0(p.n)} · ${pc} %</span></span>`;
 }
 /** Options qui changent ce qui compte (sous la progression ; touché : la feuille des options). */
 function msOptSum() {
@@ -218,18 +230,21 @@ function msHtml() {
   }
   const y = setDate(code).slice(0, 4), cards = MS.data[code], foil = MS.o.foil, cl = foil ? MS_COLS_F : MS_COLS, cn = foil ? MS.colsF : MS.cols;
   const cols = cards && cards.length ? `<label class="sortsel ms-colsel"><span>${T('Par ligne')}</span><select class="ms-cols" aria-label="${esc(foil ? T('Paires de cartes par ligne') : T('Cartes par ligne'))}">${cl.map(n => `<option value="${n}"${n === cn ? ' selected' : ''}>${n}</option>`).join('')}</select></label>` : '';      // toujours en vue (pas au bout de la rangée qui défile)
-  const head = `<div class="ms-head"><span class="ms-ic" aria-hidden="true">${setIcHtml(code)}</span><div class="ms-ht"><b>${esc(msSetName(code))}</b><small>${esc(code.toUpperCase())}${y ? ' · ' + y : ''}${cards && cards.length ? ' · ' + TN(msSplit(code, cards).base.length, '{n} carte', '{n} cartes') : ''}</small></div>${cols}</div>`;
+  const head = `<div class="ms-head"><span class="ms-ic" aria-hidden="true">${setIcHtml(code)}</span><div class="ms-ht"><b>${esc(msSetName(code))}</b><small>${esc(code.toUpperCase())}${y ? ' · ' + y : ''}${cards && cards.length ? ' · ' + TN(msSplit(code, cards).list.length, '{n} carte', '{n} cartes') : ''}</small></div>${cols}</div>`;
   if (!cards) {
     const err = MS.err[code];
     return head + (err ? `<div class="dv-empty"><b>${T('Cartes indisponibles')}</b><p>${esc(err)}</p><button class="btn ghost" type="button" data-act="msretry">${T('Réessayer')}</button></div>`
       : `<p class="hint listempty">${T('Chargement des cartes de l\'extension…')}</p>`);
   }
   if (!cards.length) return head + `<div class="dv-empty"><b>${T('Aucune carte sur Scryfall pour cette extension')}</b><p>${T('Choisis une autre édition.')}</p></div>`;
-  const s = msSplit(code, cards), pb = msProg(code, s.base), withVars = MS.o.vars && s.vars.length > 0, pv = withVars ? msProg(code, s.vars) : null;
-  const base = msFilter(code, s.base), vars = withVars ? msFilter(code, s.vars) : [], act = filterActive(COLL.f) || MS.rar.size || MS.show !== 'all';
-  const shown = [...base, ...(withVars && MS.varOpen ? vars : [])];      // cartes en vue : souhaiter, chercher, ⚠
-  MS.view = { code, base, vars, shown };
-  const val = pb.miss ? T('Il te manque ≈ {a} · l\'édition complète ≈ {b}', { a: fmt(pb.miss, 'EUR'), b: fmt(pb.all, 'EUR') }) : pb.own === pb.n ? T('Base complète !') : '';
+  const s = msSplit(code, cards);
+  if (!s.list.length) {      // sans les variantes : une extension qui n'a que des variantes (promos…), ou que des terrains de base
+    return head + `<div class="dv-empty ms-onlyv"><b>${s.vars.length ? T('Cette extension n\'a que des variantes') : T('Aucune carte comptée dans cette extension')}</b><p>${s.vars.length ? T('Promos, versions spéciales… : allume « Variantes » dans les options du masterset pour les voir.') : T('Change les options du masterset, ou choisis une autre édition.')}</p>
+      <button class="btn ghost" type="button" data-act="msopt">${T('Options du masterset')}</button></div>`;
+  }
+  const pb = msProg(code, s.list), shown = msFilter(code, s.list), act = filterActive(COLL.f) || MS.rar.size || MS.show !== 'all';      // shown : cartes en vue (souhaiter, chercher, ⚠)
+  MS.view = { code, shown };
+  const val = pb.miss ? T('Il te manque ≈ {a} · l\'édition complète ≈ {b}', { a: fmt(pb.miss, 'EUR'), b: fmt(pb.all, 'EUR') }) : pb.n && pb.own === pb.n ? (MS.o.vars && s.vars.length ? T('Masterset complet !') : T('Base complète !')) : '';
   const ign = COLL.f.cmdr || COLL.f.set ? `<p class="hint">${T('Les filtres Commander et Extension ne s\'appliquent pas au masterset.')}</p>` : '';
   const ctl = `<div class="setv-chips ms-ctl" role="group" aria-label="${esc(T('Affichage du masterset'))}">
       ${MS_SHOWS.map(([v, l]) => `<button type="button" class="fopt" data-act="msshow" data-v="${v}" aria-pressed="${MS.show === v}">${T(l)}</button>`).join('')}
@@ -239,10 +254,8 @@ function msHtml() {
   const warnN = shown.reduce((a, x) => a + msFins(x).filter(f => msWarnOf(code, x, f)).length, 0);
   return head + msProgHtml(pb, true) + msOptSum() + (val ? `<p class="ms-val">${esc(val)}</p>` : '') + ctl + ign
     + (warnN ? `<p class="hint ms-legend"><span class="ms-lw">${MS_WARN}</span>${TN(warnN, '{n} carte que tu as peut-être sans édition : touche-la pour poser son édition.', '{n} cartes que tu as peut-être sans édition : touche-les pour poser leur édition.')}</p>` : '')
-    + (act ? `<p class="hint coll-count">${TN(base.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(s.base.length) })}</p>` : '')
-    + (base.length ? msGrid(code, base, 'b', s.tot) : `<p class="hint listempty">${T('Aucune carte ne correspond.')}</p>`)
-    + (withVars ? `<section class="ms-var"><button type="button" class="ms-vh" data-act="msvar" aria-expanded="${MS.varOpen}"><span>${T('Variantes')}</span><small>${T('vitrine, sans bordure, illustration étendue…')}</small>${msProgHtml(pv)}</button>
-        ${MS.varOpen ? (vars.length ? msGrid(code, vars, 'v', 0) : `<p class="hint listempty">${T('Aucune carte ne correspond.')}</p>`) : ''}</section>` : '')
+    + (act ? `<p class="hint coll-count">${TN(shown.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(s.list.length) })}</p>` : '')
+    + (shown.length ? msGrid(code, shown, s.base, s.tot) : `<p class="hint listempty">${T('Aucune carte ne correspond.')}</p>`)
     + (wish || buy ? `<div class="ms-acts">${buy ? `<button class="btn ms-buy" type="button" data-act="msbuy">${esc(ct ? TN(buy, 'Chercher la carte manquante sur CardTrader', 'Chercher les {n} cartes manquantes sur CardTrader') : TN(buy, 'Prix de la carte manquante', 'Prix des {n} cartes manquantes'))}</button>` : ''}
         ${wish ? `<button class="btn ghost ms-wish" type="button" data-act="mswish">☆ ${TN(wish, 'Souhaiter la carte manquante', 'Souhaiter les {n} cartes manquantes')}</button>` : ''}</div>` : '');
 }
@@ -317,7 +330,7 @@ function msWishable(code, x) {
   if (msDone(code, x) || msBasic(x) || !x.k || !setvImg(x) || typeof TR === 'undefined') return false;
   const w = TR.wish[x.k]; return !(w && w.i && setvSame(w.i, setvImg(x)));
 }
-/** « Souhaiter les manquantes » : les cartes incomplètes affichées (filtres compris, variantes si elles sont ouvertes) entrent dans la liste de souhaits
+/** « Souhaiter les manquantes » : les cartes incomplètes affichées (filtres compris, variantes comprises si les options les gardent) entrent dans la liste de souhaits
  *  avec l'illustration de cette édition (playset : les exemplaires qui manquent) ; une carte déjà souhaitée prend cette illustration (quantité gardée). « Annuler » remet la liste d'avant. */
 function msWishSheet() {
   const v = MS.view; if (!v || typeof TR === 'undefined') return;
@@ -345,7 +358,7 @@ function msWishSheet() {
 }
 
 /* ── Acheter les manquantes ───────────────────────────────────────────────────────────────────────────── */
-/** Cartes à chercher parmi celles affichées (filtres compris, variantes si elles sont ouvertes) : une impression par carte (la base d'abord), sans les terrains
+/** Cartes à chercher parmi celles affichées (filtres compris, variantes comprises si les options les gardent) : une impression par carte (la base d'abord), sans les terrains
  *  de base (jamais chiffrés) ; q : exemplaires qui manquent (toutes cases), foil : seules des cases foil manquent. */
 function msBuyList(code, shown) {
   const seen = new Set(), out = [], need = MS.o.need;
@@ -384,8 +397,8 @@ function msPickSheet() {
       const q = inp.value, mine = msSets(), has = new Set(mine.map(r => r.code)), hit = r => edHit({ sn: msSetName(r.code), set: r.code, y: setDate(r.code).slice(0, 4), num: '' }, q);
       let html = mine.filter(hit).map(msSetRow).join('');
       if (q.trim().length >= 2 && SETIC.m) {      // autres extensions (papier) : commencer un masterset
-        const other = Object.keys(SETIC.m).filter(c => !has.has(c) && !setDigital(c) && hit({ code: c })).sort((a, b) => setDate(b).localeCompare(setDate(a))).slice(0, 30);
-        if (other.length) html += `<h3 class="ms-sh">${T('Autres extensions')}</h3>` + other.map(c => msSetRow({ code: c, own: 0, tot: (setPrinted(c) || setCount(c)) * (MS.o.foil ? 2 : 1) })).join('');
+        const other = Object.keys(SETIC.m).filter(c => !has.has(c) && !setDigital(c) && msShows(c) && hit({ code: c })).sort((a, b) => setDate(b).localeCompare(setDate(a))).slice(0, 30);
+        if (other.length) html += `<h3 class="ms-sh">${T('Autres extensions')}</h3>` + other.map(c => msSetRow({ code: c, own: 0, tot: msTotEst(c) })).join('');
       }
       box.innerHTML = html || `<p class="hint listempty">${mine.length ? T('Aucune extension ne correspond.') : T('Aucune carte avec édition dans ta collection : cherche une extension.')}</p>`;
     };
@@ -396,7 +409,7 @@ function msPickSheet() {
 }
 function msSelect(code) {
   if (!/^[a-z0-9]{2,6}$/.test(code || '')) return;
-  MS.set = code; MS.varOpen = false; delete MS.err[code]; msSave();
+  MS.set = code; delete MS.err[code]; msSave();
   if (COLL.el) { if (COLL.tab !== 'list') { COLL.tab = COLL.ctab = 'list'; const sg = $('#collSeg', COLL.el); if (sg && sg.setValue) sg.setValue('list'); } collPaintBody(false); const sc = $('.dv-scroll', COLL.el); if (sc) sc.scrollTop = 0; }
 }
 
@@ -408,7 +421,7 @@ function msOptHtml() {
     <p class="scs-h">${T('Cartes comptées')}</p>
     ${sw('foil', T('Version foil aussi'), T('Chaque carte en double, côte à côte : normale et foil ✦ (quand elle existe en foil).'))}
     ${sw('basic', T('Terrains de base'), T('Forêt, Île, Plaine… de l\'extension.'))}
-    ${sw('vars', T('Variantes'), T('Vitrine, sans bordure, illustration étendue… : repliées sous la base, avec leur progression.'))}
+    ${sw('vars', T('Variantes'), T('Vitrine, sans bordure, illustration étendue, promos… : à la suite de la base, comptées dans la progression.'))}
     <p class="scs-h">${T('Exemplaires par carte')}</p>
     <div class="scs-chips" role="group" aria-label="${esc(T('Exemplaires par carte'))}">${chip('need', 1, T('1 exemplaire'))}${chip('need', 4, T('4 exemplaires (playset)'))}</div>
     <p class="scs-h">${T('Langue')}</p>
@@ -468,13 +481,12 @@ function msClick(e) {
   if (!b.closest('.coll-main') || !msActive()) return false;
   if (act === 'msshow') { MS.show = b.dataset.v; msSave(); haptic('tap'); collPaintBody(true); return true; }
   if (act === 'msrar') { const r = b.dataset.r; if (MS.rar.has(r)) MS.rar.delete(r); else MS.rar.add(r); haptic('tap'); collPaintBody(true); return true; }
-  if (act === 'msvar') { MS.varOpen = !MS.varOpen; haptic('tap'); collPaintBody(true); return true; }
   if (act === 'msretry') { delete MS.err[msCur()]; collPaintBody(true); return true; }
   if (act === 'mswish') { haptic('tap'); msWishSheet(); return true; }
   if (act === 'msbuy') { haptic('tap'); msBuy(); return true; }
   if (b.classList.contains('ms-open')) {
     const t = b.closest('.ms-c'), v = MS.view; if (!t || !v) return true;
-    const list = t.dataset.s === 'v' ? v.vars : v.base, i = Number(t.dataset.i), f = b.dataset.f || ''; if (!list[i]) return true;
+    const list = v.shown, i = Number(t.dataset.i), f = b.dataset.f || ''; if (!list[i]) return true;
     openCardViewer(list.map(x => { const fs = msFins(x); return msViewItem(v.code, x, fs.includes(f) ? f : fs[0]); }), i);      // même finition pour toute la série (normale ou foil)
     return true;
   }

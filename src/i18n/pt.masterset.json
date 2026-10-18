@@ -19,7 +19,6 @@
   "{n} carte que tu as peut-être sans édition : touche-la pour poser son édition.": "{n} carta que você talvez tenha sem edição: toque nela para definir a edição.",
   "{n} cartes que tu as peut-être sans édition : touche-les pour poser leur édition.": "{n} cartas que você talvez tenha sem edição: toque nelas para definir a edição.",
   "Variantes": "Variantes",
-  "vitrine, sans bordure, illustration étendue…": "vitrine, sem borda, arte estendida…",
   "Souhaiter la carte manquante": "Desejar a carta que falta",
   "Souhaiter les {n} cartes manquantes": "Desejar as {n} cartas que faltam",
   "Tu as {n} exemplaire de cette carte sans édition : est-ce celui-ci ?": "Você tem {n} cópia desta carta sem edição: é esta?",
@@ -92,7 +91,6 @@
   "Version foil aussi": "Também a versão foil",
   "Chaque carte en double, côte à côte : normale et foil ✦ (quand elle existe en foil).": "Cada carta duas vezes, lado a lado: normal e foil ✦ (quando existe em foil).",
   "Forêt, Île, Plaine… de l'extension.": "Floresta, Ilha, Planície… da edição.",
-  "Vitrine, sans bordure, illustration étendue… : repliées sous la base, avec leur progression.": "Vitrine, sem borda, arte estendida…: dobradas sob a base, com o seu progresso.",
   "Exemplaires par carte": "Cópias por carta",
   "1 exemplaire": "1 cópia",
   "4 exemplaires (playset)": "4 cópias (playset)",
@@ -104,5 +102,11 @@
   "{n} exemplaire sur {need}": "{n} cópia de {need}",
   "{n} exemplaires sur {need}": "{n} cópias de {need}",
   "Tu as {n} exemplaire foil de cette carte sans édition : est-ce celui-ci ?": "Tens {n} cópia foil desta carta sem edição: é esta?",
-  "Tu as {n} exemplaires foil de cette carte sans édition": "Tens {n} cópias foil desta carta sem edição"
+  "Tu as {n} exemplaires foil de cette carte sans édition": "Tens {n} cópias foil desta carta sem edição",
+  "Masterset complet !": "Masterset completo!",
+  "Cette extension n'a que des variantes": "Esta edição só tem variantes",
+  "Aucune carte comptée dans cette extension": "Nenhuma carta contada nesta edição",
+  "Promos, versions spéciales… : allume « Variantes » dans les options du masterset pour les voir.": "Promos, versões especiais…: ativa «Variantes» nas opções do masterset para as ver.",
+  "Change les options du masterset, ou choisis une autre édition.": "Muda as opções do masterset ou escolhe outra edição.",
+  "Vitrine, sans bordure, illustration étendue, promos… : à la suite de la base, comptées dans la progression.": "Vitrine, sem borda, arte estendida, promos…: logo a seguir à base, contadas no progresso."
 }

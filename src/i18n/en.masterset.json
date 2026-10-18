@@ -19,7 +19,6 @@
   "{n} carte que tu as peut-être sans édition : touche-la pour poser son édition.": "{n} card you may own without an edition: tap it to set its edition.",
   "{n} cartes que tu as peut-être sans édition : touche-les pour poser leur édition.": "{n} cards you may own without an edition: tap them to set their edition.",
   "Variantes": "Variants",
-  "vitrine, sans bordure, illustration étendue…": "showcase, borderless, extended art…",
   "Souhaiter la carte manquante": "Wish for the missing card",
   "Souhaiter les {n} cartes manquantes": "Wish for the {n} missing cards",
   "Tu as {n} exemplaire de cette carte sans édition : est-ce celui-ci ?": "You own {n} copy of this card without an edition: is it this one?",
@@ -92,7 +91,6 @@
   "Version foil aussi": "Foil version too",
   "Chaque carte en double, côte à côte : normale et foil ✦ (quand elle existe en foil).": "Every card twice, side by side: regular and foil ✦ (when it exists in foil).",
   "Forêt, Île, Plaine… de l'extension.": "The set's Forest, Island, Plains…",
-  "Vitrine, sans bordure, illustration étendue… : repliées sous la base, avec leur progression.": "Showcase, borderless, extended art…: folded under the main set, with their own progress.",
   "Exemplaires par carte": "Copies per card",
   "1 exemplaire": "1 copy",
   "4 exemplaires (playset)": "4 copies (playset)",
@@ -104,5 +102,11 @@
   "{n} exemplaire sur {need}": "{n} copy of {need}",
   "{n} exemplaires sur {need}": "{n} copies of {need}",
   "Tu as {n} exemplaire foil de cette carte sans édition : est-ce celui-ci ?": "You own {n} foil copy of this card without an edition: is it this one?",
-  "Tu as {n} exemplaires foil de cette carte sans édition": "You own {n} foil copies of this card without an edition"
+  "Tu as {n} exemplaires foil de cette carte sans édition": "You own {n} foil copies of this card without an edition",
+  "Masterset complet !": "Master set complete!",
+  "Cette extension n'a que des variantes": "This set only has variants",
+  "Aucune carte comptée dans cette extension": "No card counted in this set",
+  "Promos, versions spéciales… : allume « Variantes » dans les options du masterset pour les voir.": "Promos, special versions…: turn on “Variants” in the master set options to see them.",
+  "Change les options du masterset, ou choisis une autre édition.": "Change the master set options, or choose another set.",
+  "Vitrine, sans bordure, illustration étendue, promos… : à la suite de la base, comptées dans la progression.": "Showcase, borderless, extended art, promos…: right after the main set, counted in the progress."
 }

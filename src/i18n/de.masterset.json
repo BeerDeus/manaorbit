@@ -19,7 +19,6 @@
   "{n} carte que tu as peut-être sans édition : touche-la pour poser son édition.": "{n} Karte, die du vielleicht ohne Edition hast: tippe darauf, um ihre Edition festzulegen.",
   "{n} cartes que tu as peut-être sans édition : touche-les pour poser leur édition.": "{n} Karten, die du vielleicht ohne Edition hast: tippe darauf, um ihre Edition festzulegen.",
   "Variantes": "Varianten",
-  "vitrine, sans bordure, illustration étendue…": "Showcase, randlos, erweiterte Illustration…",
   "Souhaiter la carte manquante": "Fehlende Karte wünschen",
   "Souhaiter les {n} cartes manquantes": "Die {n} fehlenden Karten wünschen",
   "Tu as {n} exemplaire de cette carte sans édition : est-ce celui-ci ?": "Du hast {n} Exemplar dieser Karte ohne Edition: ist es dieses?",
@@ -92,7 +91,6 @@
   "Version foil aussi": "Auch die Foil-Version",
   "Chaque carte en double, côte à côte : normale et foil ✦ (quand elle existe en foil).": "Jede Karte doppelt, nebeneinander: normal und Foil ✦ (wenn es sie als Foil gibt).",
   "Forêt, Île, Plaine… de l'extension.": "Wald, Insel, Ebene… der Edition.",
-  "Vitrine, sans bordure, illustration étendue… : repliées sous la base, avec leur progression.": "Showcase, randlos, erweiterte Illustration…: unter der Grundedition eingeklappt, mit eigenem Fortschritt.",
   "Exemplaires par carte": "Exemplare pro Karte",
   "1 exemplaire": "1 Exemplar",
   "4 exemplaires (playset)": "4 Exemplare (Playset)",
@@ -104,5 +102,11 @@
   "{n} exemplaire sur {need}": "{n} Exemplar von {need}",
   "{n} exemplaires sur {need}": "{n} Exemplare von {need}",
   "Tu as {n} exemplaire foil de cette carte sans édition : est-ce celui-ci ?": "Du hast {n} Foil-Exemplar dieser Karte ohne Edition: Ist es dieses?",
-  "Tu as {n} exemplaires foil de cette carte sans édition": "Du hast {n} Foil-Exemplare dieser Karte ohne Edition"
+  "Tu as {n} exemplaires foil de cette carte sans édition": "Du hast {n} Foil-Exemplare dieser Karte ohne Edition",
+  "Masterset complet !": "Masterset komplett!",
+  "Cette extension n'a que des variantes": "Diese Edition hat nur Varianten",
+  "Aucune carte comptée dans cette extension": "Keine gezählte Karte in dieser Edition",
+  "Promos, versions spéciales… : allume « Variantes » dans les options du masterset pour les voir.": "Promos, Sonderversionen…: Schalte „Varianten“ in den Masterset-Optionen ein, um sie zu sehen.",
+  "Change les options du masterset, ou choisis une autre édition.": "Ändere die Masterset-Optionen oder wähle eine andere Edition.",
+  "Vitrine, sans bordure, illustration étendue, promos… : à la suite de la base, comptées dans la progression.": "Showcase, randlos, erweiterte Illustration, Promos…: direkt nach der Grundedition, im Fortschritt mitgezählt."
 }

@@ -1,4 +1,4 @@
-/* ── masterset.css : mode « Masterset » de la collection (masterset.js) : interrupteur, sélecteur d'édition et roue des options, en-tête et progression, grille (cartes manquantes en noir et blanc, paires normale · foil), variantes, feuilles des éditions et des options ── */
+/* ── masterset.css : mode « Masterset » de la collection (masterset.js) : interrupteur, sélecteur d'édition et roue des options, en-tête et progression, grille (cartes manquantes en noir et blanc, paires normale · foil ; variantes à la suite), feuilles des éditions et des options ── */
 .coll-srow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .coll-srow [hidden]{display:none}
 .coll-ms{display:inline-flex;align-items:center;gap:6px}
@@ -79,7 +79,8 @@
   animation:foilsheen 4.8s ease-in-out infinite alternate}      /* foilsheen : foil.css */
 .ms-h.miss .ms-fx,.ms-c.miss .ms-fx{opacity:.42}
 .ms-h.none{display:grid;place-items:center;aspect-ratio:672/936;border:1.5px dashed var(--line);border-radius:5% / 3.6%}
-.ms-no{padding:2px;font-size:9.5px;line-height:1.2;color:var(--ink-3);text-align:center}
+.ms-no{max-width:100%;padding:2px;font-size:9.5px;line-height:1.2;color:var(--ink-3);text-align:center;overflow-wrap:anywhere;hyphens:auto}
+.ms-grid.pairs.c3 .ms-no,.ms-grid.pairs.c4 .ms-no{font-size:8px}      /* « Foil seulement » dans une demi-case étroite : coupé, jamais débordant */
 .ms-pxs{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:100%}
 .ms-pxs .ms-px{text-align:center}
 .ms-grid.pairs.c3 .ms-num,.ms-grid.pairs.c4 .ms-num{font-size:9.5px}
@@ -89,16 +90,8 @@
 .ms-grid.pairs.c4 .ms-q{height:15px;padding:0 4px;font-size:9px;line-height:15px}
 .ms-grid.pairs.c4 .ms-warn{width:16px;height:15px}
 
-/* variantes : repliées sous la base, avec leur progression */
-.ms-var{margin-top:20px}
-.ms-vh{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font:inherit;text-align:left;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent}
-.ms-vh>span{font-weight:700;font-size:14px}
-.ms-vh>small{grid-row:2;font-size:12px;color:var(--ink-3)}
-.ms-vh .ms-prog{grid-column:1 / -1;grid-row:3;margin-top:4px}
-.ms-vh::after{content:"";grid-column:2;grid-row:1 / 3;width:8px;height:8px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:rotate(45deg);transition:transform .2s}
-.ms-vh[aria-expanded="true"]::after{transform:rotate(-135deg)}
-.ms-vh:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ms-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.ms-onlyv .btn{margin-top:12px}
 .ms-acts .btn{flex:1 1 220px;min-width:0}
 .ms-empty .btn{margin-top:12px}
 
@@ -122,4 +115,4 @@
 .ms-sp .track{width:100%;height:6px}
 .ms-sp .fill.full{background:var(--good);animation:none}
 .ms-sp small{font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--ink-2);white-space:nowrap}
-@media (prefers-reduced-motion:reduce){.ms-open,.ms-vh::after,.ms-gear{transition:none}.ms-fx{animation:none;background-position:50% 50%}}
+@media (prefers-reduced-motion:reduce){.ms-open,.ms-gear{transition:none}.ms-fx{animation:none;background-position:50% 50%}}
