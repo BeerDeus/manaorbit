@@ -131,6 +131,17 @@ await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs({ scan: Object.
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), drop(prefs(), 'updatedAt')));
 ok('réglages du compte (scan) : le compte seul, un objet « scan » de 12 champs au plus, rien d\'autre');
 
+const msDoc = (extra = {}) => ({ o: { foil: true, basic: false, vars: true, need: 4, lang: 'fr' }, updatedAt: Date.now(), ...extra });      // options du masterset (masterset.js)
+await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/masterset'), msDoc()));
+await T.assertSucceeds(getDoc(doc(u1, 'users/u1/meta/masterset')));
+await T.assertFails(setDoc(doc(u2, 'users/u1/meta/masterset'), msDoc()));
+await T.assertFails(getDoc(doc(u2, 'users/u1/meta/masterset')));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/masterset'), msDoc({ evil: 1 })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/masterset'), msDoc({ o: 'x' })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/masterset'), msDoc({ o: Object.fromEntries(Array.from({ length: 13 }, (_, i) => ['k' + i, 1])) })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/masterset'), drop(msDoc(), 'updatedAt')));
+ok('options du masterset : le compte seul, un objet « o » de 12 champs au plus, rien d\'autre');
+
 const prof = (extra = {}) => ({ name: 'Martin', photo: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==', updatedAt: Date.now(), ...extra });
 const photo = (n, type = 'jpeg') => { const p = `data:image/${type};base64,`; return p + 'A'.repeat(n - p.length); };      // n caractères en tout
 await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/profile'), prof()));

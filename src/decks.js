@@ -571,7 +571,7 @@ function paintAccountDelete(api) {
     const uid = D.uid;
     // Plus aucune synchronisation pendant l'effacement : sinon une copie locale pourrait être renvoyée dans le compte.
     if (D.unsub) { try { D.unsub(); } catch (x) { /* ignore */ } D.unsub = null; }
-    collUser(null); xsUser(null); trUser(null); mobUser(null); scsUser(null); D.uid = null;
+    collUser(null); xsUser(null); trUser(null); mobUser(null); scsUser(null); msUser(null); D.uid = null;
     // liens créés ici mais peut-être jamais arrivés dans le document « trade » du compte : effacés aussi ; amis d'abord (serveur, jeton encore valable)
     try { await amWipe(); if (typeof partieWipe === 'function') await partieWipe(); await D.cloud.wipe(uid, TR.who === uid ? [TR.share, ...Object.values(TR.dsh)] : []); await D.cloud.deleteUser(); }
     catch (err) {
@@ -648,12 +648,12 @@ async function acctCheck(uid) {
     if (alive < 2 || D.uid !== uid) return;            // pas de réponse sûre : rien ne repart vers le compte pendant cette session
     // compte bien là (document effacé à la main dans la console, suppression interrompue) : première synchro, l'appareil le reconstitue
     const o = acctSeen(); for (const k in o) if (o[k] === uid) delete o[k]; acctSeenSet(o);
-    D.hold = null; collUser(D.user); xsUser(D.user); trUser(D.user); mobUser(D.user); scsUser(D.user);
+    D.hold = null; collUser(D.user); xsUser(D.user); trUser(D.user); mobUser(D.user); scsUser(D.user); msUser(D.user);
   } finally { if (D.checking === uid) D.checking = null; }
 }
 /** Compte supprimé ou désactivé : synchro arrêtée tout de suite, puis déconnexion (appli : compte Google du téléphone oublié aussi). */
 function acctOut(uid) {
-  if (D.uid === uid) { if (D.unsub) { try { D.unsub(); } catch (e) { /* ignore */ } D.unsub = null; } collUser(null); xsUser(null); trUser(null); mobUser(null); scsUser(null); }
+  if (D.uid === uid) { if (D.unsub) { try { D.unsub(); } catch (e) { /* ignore */ } D.unsub = null; } collUser(null); xsUser(null); trUser(null); mobUser(null); scsUser(null); msUser(null); }
   Promise.resolve().then(() => D.cloud.signOut()).catch(() => {});
   toast(T('Ce compte a été supprimé ou désactivé : tu es déconnecté.'));
 }
@@ -674,6 +674,7 @@ function metaFlush() {
   for (const id in XS.docs) if (XS.docs[id].pushT) jobs.push(xsPush(id));
   if (TR.doc.pushT) jobs.push(trPush());
   if (typeof SCS !== 'undefined' && SCS.doc.pushT) jobs.push(scsPush());
+  if (typeof MS !== 'undefined' && MS.doc.pushT) jobs.push(msPush());
   return jobs;
 }
 
@@ -700,7 +701,7 @@ function onUser(user) {
     });
   }
   renderAccountBtn(); renderDecks(); paintAccount(); refreshDeck(); edhGateSync();      // decks EDHREC : réservés aux comptes vérifiés
-  collUser(user); xsUser(user); trUser(user); mobUser(user); scsUser(user); if (prev !== D.uid) profUser(user); if (typeof prgUser === 'function') prgUser(user);      // niveau et badges dans le compte : lien de test seulement (règles Firestore)
+  collUser(user); xsUser(user); trUser(user); mobUser(user); scsUser(user); msUser(user); if (prev !== D.uid) profUser(user); if (typeof prgUser === 'function') prgUser(user);      // niveau et badges dans le compte : lien de test seulement (règles Firestore)
   amUser(user); if (typeof trocUser === 'function') trocUser(user);      // échange en direct : reprend après la connexion, ou quitte (autre compte)
   if (typeof partieUser === 'function') partieUser(user);      // parties de Commander en attente d'envoi pour ce compte
   if (typeof dlyUser === 'function') dlyUser(user);      // Carte mystère : partie et badges du nouveau compte

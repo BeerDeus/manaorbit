@@ -1,4 +1,4 @@
-/* ── masterset.css : mode « Masterset » de la collection (masterset.js) : interrupteur et sélecteur d'édition, en-tête et progression, grille (cartes manquantes en noir et blanc), variantes, feuille des éditions ── */
+/* ── masterset.css : mode « Masterset » de la collection (masterset.js) : interrupteur, sélecteur d'édition et roue des options, en-tête et progression, grille (cartes manquantes en noir et blanc, paires normale · foil), variantes, feuilles des éditions et des options ── */
 .coll-srow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .coll-srow [hidden]{display:none}
 .coll-ms{display:inline-flex;align-items:center;gap:6px}
@@ -7,6 +7,13 @@
 .ms-pick b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:650;color:var(--ink)}
 .ms-pick-ic{display:contents}
 .ms-pick .set-ic{width:16px;height:16px}
+/* roue crantée des options : au bout de la rangée ; allumée quand les options changent ce qui compte */
+.ms-opt{flex:none;width:34px;height:34px;margin-left:auto;border-radius:11px}
+.ms-opt .i{width:20px;height:20px;fill:currentColor;stroke:none}
+.ms-opt.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.ms-gear{transition:transform .45s var(--spring,ease)}
+.ms-opt:active .ms-gear{transform:rotate(45deg)}
+.ms-opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 .ms-head{display:flex;align-items:center;gap:12px;margin:4px 0 12px}
 .ms-ic{width:42px;height:42px;flex:none;border-radius:13px;background:var(--surface-2);display:grid;place-items:center}
@@ -23,6 +30,9 @@
 .ms-prog.big .ms-pn{font-size:13px}
 .ms-pn b{color:var(--ink)}
 .ms-val{margin:6px 0 0;font-size:12.5px;color:var(--ink-3)}
+.ms-osum{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 0;padding:0;border:0;background:none;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ms-osum span{padding:3px 9px;border-radius:99px;background:var(--accent-soft);color:var(--ink-2);font-size:11.5px;font-weight:650;white-space:nowrap}
+.ms-osum:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
 .setv-chips.ms-ctl{margin:12px -16px 8px}      /* setview.css (chargée après) : marges de la rangée qui défile */
 .ms-colsel{margin-left:auto}
 .ms-colsel select{max-width:40px}
@@ -36,7 +46,7 @@
 .ms-grid.c6{gap:9px 5px}
 .ms-grid.c8{gap:8px 4px}
 .ms-c{position:relative;min-width:0}
-.ms-open{display:block;width:100%;padding:0;border:0;background:none;border-radius:6px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s}
+.ms-open{position:relative;display:block;width:100%;padding:0;border:0;background:none;border-radius:6px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s}
 .ms-open:active{transform:scale(.96)}
 .ms-open:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ms-c .dvc-art b{font-size:clamp(14px,6vw,30px)}
@@ -45,6 +55,7 @@
 .ms-c.miss .dvc-art{filter:grayscale(1);opacity:.5}
 .ms-c.miss .ms-cap{opacity:.8}
 .ms-q{position:absolute;top:3px;right:3px;height:17px;padding:0 5px;border-radius:99px;background:rgba(10,14,30,.82);color:#fff;font-family:var(--font-mono);font-size:10px;font-weight:700;line-height:17px;pointer-events:none}
+.ms-q.part{background:#f2b441;color:#2a1c00}      /* playset entamé : « 2/4 » */
 .ms-warn{position:absolute;top:3px;left:3px;width:21px;height:19px;pointer-events:none;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45))}
 .ms-warn svg{width:100%;height:100%;display:block}
 .ms-grid.c6 .ms-warn,.ms-grid.c8 .ms-warn{width:16px;height:15px}
@@ -55,6 +66,28 @@
 .ms-grid.c6 .ms-px,.ms-grid.c8 .ms-px{font-size:9px}
 .ms-grid.c3 .ms-num{font-size:12px}
 .ms-grid.c3 .ms-px{font-size:11.5px}
+
+/* version foil aussi : normale et foil côte à côte dans chaque case ; la foil garde son voile irisé, même grisée */
+.ms-grid.pairs{gap:14px 10px}
+.ms-grid.pairs.c3{gap:12px 7px}
+.ms-grid.pairs.c4{gap:10px 5px}
+.ms-two{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.ms-h{position:relative;min-width:0}
+.ms-h.miss .dvc-art{filter:grayscale(1);opacity:.5}
+.ms-fx{position:absolute;inset:0;border-radius:5% / 3.6%;pointer-events:none;mix-blend-mode:screen;opacity:.6;
+  background:linear-gradient(115deg,transparent 18%,rgba(255,143,195,.55) 34%,rgba(255,224,138,.6) 45%,rgba(154,215,255,.6) 56%,rgba(200,255,217,.55) 66%,transparent 82%);background-size:260% 260%;
+  animation:foilsheen 4.8s ease-in-out infinite alternate}      /* foilsheen : foil.css */
+.ms-h.miss .ms-fx,.ms-c.miss .ms-fx{opacity:.42}
+.ms-h.none{display:grid;place-items:center;aspect-ratio:672/936;border:1.5px dashed var(--line);border-radius:5% / 3.6%}
+.ms-no{padding:2px;font-size:9.5px;line-height:1.2;color:var(--ink-3);text-align:center}
+.ms-pxs{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:100%}
+.ms-pxs .ms-px{text-align:center}
+.ms-grid.pairs.c3 .ms-num,.ms-grid.pairs.c4 .ms-num{font-size:9.5px}
+.ms-grid.pairs.c3 .ms-px,.ms-grid.pairs.c4 .ms-px{font-size:9px}
+.ms-grid.pairs.c1 .ms-num{font-size:12.5px}
+.ms-grid.pairs.c1 .ms-px{font-size:12px}
+.ms-grid.pairs.c4 .ms-q{height:15px;padding:0 4px;font-size:9px;line-height:15px}
+.ms-grid.pairs.c4 .ms-warn{width:16px;height:15px}
 
 /* variantes : repliées sous la base, avec leur progression */
 .ms-var{margin-top:20px}
@@ -68,6 +101,11 @@
 .ms-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 .ms-acts .btn{flex:1 1 220px;min-width:0}
 .ms-empty .btn{margin-top:12px}
+
+/* feuille « Options du masterset » (classes de la feuille des réglages du scan : scan.css) */
+.ms-olang{align-self:flex-start}
+.ms-olang select{max-width:none}
+.ms-oreset{align-self:flex-start;margin-top:4px}
 
 /* feuille « Choisir une édition » */
 .fsearch.ms-sq{flex:none;position:sticky;top:0;z-index:2;margin:0 0 8px}      /* reste en haut quand la liste défile */
@@ -84,4 +122,4 @@
 .ms-sp .track{width:100%;height:6px}
 .ms-sp .fill.full{background:var(--good);animation:none}
 .ms-sp small{font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--ink-2);white-space:nowrap}
-@media (prefers-reduced-motion:reduce){.ms-open,.ms-vh::after{transition:none}}
+@media (prefers-reduced-motion:reduce){.ms-open,.ms-vh::after,.ms-gear{transition:none}.ms-fx{animation:none;background-position:50% 50%}}

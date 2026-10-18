@@ -1,10 +1,11 @@
 // E2E : mode « Masterset » de la collection (masterset.js) : interrupteur à côté de « Trier », extension la plus fournie par défaut, cartes de la base dans l'ordre
 // des numéros (possédées en couleur, manquantes en noir et blanc, « 3/5 » et prix Cardmarket), progression et prix de ce qui manque, cartes par ligne, Toutes / Possédées /
 // Manquantes, variantes repliées, ⚠ sur une carte possédée sans édition et « C'est celle-ci » dans la carte en grand, « Ajouter à ma collection », souhaiter les manquantes
-// (et Annuler), sélecteur d'édition (de la plus fournie à la moins fournie, recherche, autres extensions), réglages gardés au rechargement, retour à la liste, 360 px sombre.
+// (et Annuler), sélecteur d'édition (de la plus complète à la moins complète, recherche, autres extensions), réglages gardés au rechargement, retour à la liste,
+// options du masterset (roue crantée : version foil aussi côte à côte, playset, langue, terrains de base, variantes, par défaut), 360 px sombre, options dans le compte.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toHome, signInFake } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 19620 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -23,10 +24,10 @@ const card = (s, num, name, o = {}) => ({ object: 'card', id: s + '-' + num, nam
   image_uris: { normal: IMG(s, num) }, prices: { eur: null }, border_color: 'black', frame_effects: [], ...o });
 const SETS = {
   aaa: [
-    card('aaa', 1, 'Sol Ring', { prices: { eur: '0.20' } }),
-    card('aaa', 2, 'Arcane Signet', { rarity: 'mythic', prices: { eur: '12.50' } }),
-    card('aaa', 3, 'Wrath of God', { rarity: 'rare', cmc: 4, mana_cost: '{2}{W}{W}', type_line: 'Sorcery', colors: ['W'], prices: { eur: '1.00' } }),
-    card('aaa', 4, 'Llanowar Elves', { rarity: 'uncommon', mana_cost: '{G}', type_line: 'Creature — Elf Druid', colors: ['G'], prices: { eur: '0.50' } }),
+    card('aaa', 1, 'Sol Ring', { prices: { eur: '0.20', eur_foil: '1.50' }, finishes: ['nonfoil', 'foil'] }),
+    card('aaa', 2, 'Arcane Signet', { rarity: 'mythic', prices: { eur: '12.50' }, finishes: ['foil'] }),      // foil seulement
+    card('aaa', 3, 'Wrath of God', { rarity: 'rare', cmc: 4, mana_cost: '{2}{W}{W}', type_line: 'Sorcery', colors: ['W'], prices: { eur: '1.00' }, finishes: ['nonfoil'] }),      // pas de foil
+    card('aaa', 4, 'Llanowar Elves', { rarity: 'uncommon', mana_cost: '{G}', type_line: 'Creature — Elf Druid', colors: ['G'], prices: { eur: '0.50' }, finishes: ['nonfoil', 'foil'] }),
     card('aaa', 5, 'Forest', { cmc: 0, mana_cost: '', type_line: 'Basic Land — Forest', prices: { eur: '0.10' } }),
     card('aaa', 6, 'Arcane Signet', { rarity: 'mythic', border_color: 'borderless', prices: { eur: '30.00' } }),
     card('aaa', 7, 'Sol Ring', { frame_effects: ['showcase'], prices: { eur: '2.00' } }),
@@ -224,10 +225,85 @@ await p.waitForFunction(() => document.querySelectorAll('.ms-grid.c6 .ms-c').len
 assert.equal(await txt(p, '.ms-pick b'), 'Beta Masters');
 await p.click('.coll-ms'); await p.waitForSelector('.coll .crow');
 assert.equal(await p.$eval('.coll-sort', l => l.hidden), false); assert.equal(await p.$eval('.ms-pick', b => b.hidden), true); assert.equal(await p.$('.ms-grid'), null);
+assert.equal(await p.$eval('.ms-opt', b => b.hidden), true, 'roue des options seulement en masterset');
 await p.click('#collSeg [data-v="stats"]'); await p.waitForTimeout(250);
 assert.equal(await p.$eval('.coll-ms', b => b.hidden), true, 'interrupteur seulement dans Cartes');
 await p.click('#collSeg [data-v="list"]'); await p.click('.coll-ms'); await p.waitForSelector('.ms-grid');
 ok('rechargement : masterset, Beta Masters et 6 par ligne gardés ; éteint : liste et « Trier » ; interrupteur seulement dans Cartes');
+
+/* ── 8 bis) sélecteur : de la plus complète à la moins complète (pourcentage, pas le nombre de cartes) ──────────────────── */
+const zzz = d => p.evaluate(d => { for (const n of ['1', '2', '3', '4', '5']) collBump('sol ring', 'Sol Ring', d, { lang: lineKey('en', edKey('zzz', n)) }); }, d);
+await zzz(1);      // 5 cartes de Zeta Quest (5/250) : plus que Alpha Future (4/5), mais bien moins complète
+await p.click('.ms-pick'); await p.waitForSelector('.sheet-wrap.open .ms-srow');
+assert.deepEqual(await rowsTxt(), [['aaa', '4/5 · 80 %', 'false'], ['bbb', '1/3 · 33 %', 'true'], ['zzz', '5/250 · 2 %', 'false']], 'pourcentage d\'abord : Alpha Future (80 %), Beta Masters (33 % : ses cartes lues), Zeta Quest (2 %, 5 cartes)');
+assert.match(await txt(p, '.sheet-wrap.open .sheet-head p'), /de la plus complète à la moins complète/);
+await p.click('.sheet-wrap.open .ms-srow[data-set="aaa"]');
+await p.waitForFunction(() => document.querySelectorAll('.ms-grid .ms-c').length === 5, null, { timeout: 8000 });
+await zzz(-1);
+ok('sélecteur : de la plus complète à la moins complète (80 %, 10 %, puis 2 % malgré ses 5 cartes)');
+
+/* ── 8 ter) options du masterset : roue crantée au bout de la rangée, version foil aussi (paires), playset, langue, terrains de base, variantes, par défaut ─── */
+assert.equal(await p.$eval('.ms-opt', b => [b.hidden, b.classList.contains('on'), !!b.querySelector('svg.ms-gear')].join()), 'false,false,true', 'roue crantée affichée en masterset, options par défaut');
+assert.ok(await p.evaluate(() => { const r = document.querySelector('.coll-srow').getBoundingClientRect(), g = document.querySelector('.ms-opt').getBoundingClientRect(); return r.right - g.right < 2; }), 'au bout de la rangée');
+const opt = async () => { if (!(await p.$('.sheet-wrap.open .ms-opts'))) { await p.click('.ms-opt'); await p.waitForSelector('.sheet-wrap.open .ms-opts'); } };
+const shut = async () => { await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'), null, { timeout: 3000 }); };
+const pn = () => txt(p, '.ms-head + .ms-prog .ms-pn');
+await opt();
+assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Options du masterset/); assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Sur cet appareil/);
+assert.deepEqual(await p.$$eval('.ms-opts input[type="checkbox"]', l => l.map(i => [i.dataset.o, i.checked])), [['foil', false], ['basic', true], ['vars', true]]);
+await p.click('label[for="msO-foil"]');
+await p.waitForSelector('.ms-grid.pairs.c2 .ms-pair');
+await p.screenshot({ path: 'shots/masterset-5-options.png' });
+await shut();
+const pairs = () => p.$$eval('.ms-grid:not(.ms-var .ms-grid) .ms-c', l => l.map(c => [c.classList.contains('own') ? 'own' : c.classList.contains('part') ? 'part' : 'miss',
+  ...[...c.querySelectorAll('.ms-h')].map(h => (h.classList.contains('fo') ? 'F:' : 'N:') + (h.classList.contains('none') ? h.textContent.trim() : h.classList.contains('own') ? 'own' : 'miss') + (h.querySelector('.ms-fx') ? '✦' : ''))]));
+assert.deepEqual(await pairs(), [
+  ['part', 'N:own', 'F:miss✦'], ['miss', 'N:Foil seulement', 'F:miss✦'], ['own', 'N:own', 'F:Pas de foil'], ['part', 'N:own', 'F:miss✦'], ['miss', 'N:miss', 'F:miss✦'],
+], 'normale et foil côte à côte (finitions Scryfall : Arcane Signet foil seulement, Wrath of God sans foil) ; la foil irisée, même manquante');
+assert.equal(await pn(), '3 / 8 · 37 %', 'progression case par case : 8 cases (normales et foil), 3 complètes');
+await p.evaluate(() => { const g = document.querySelector('.coll-srow'); g.scrollIntoView({ block: 'start' }); document.querySelector('.coll .dv-scroll').scrollTop -= 8; }); await p.waitForTimeout(300); await p.screenshot({ path: 'shots/masterset-6-foil.png' });
+assert.deepEqual(await p.$$eval('.ms-c:first-child .ms-px', l => l.map(e => e.textContent.replace(/\s/g, ' '))), ['0,20 €', '✦ 1,50 €'], 'prix normal et prix foil');
+assert.ok(await p.$eval('.ms-c:first-child .ms-h.fo', h => getComputedStyle(h.querySelector('.dvc-art')).filter.includes('grayscale') && getComputedStyle(h.querySelector('.ms-fx')).opacity > 0.3), 'foil manquante : grisée, voile irisé gardé');
+assert.equal(await txt(p, '.ms-osum'), '✦ Normale et foil'); assert.equal(await p.$eval('.ms-opt', b => b.classList.contains('on')), true, 'roue allumée : options changées');
+assert.deepEqual(await p.$$eval('select.ms-cols option', l => l.map(o => o.value)), ['1', '2', '3', '4'], 'paires par ligne');
+// la case foil de Sol Ring : « Pas en foil dans ta collection », « + Ajouter à ma collection (AAA 1, foil) »
+await p.click('.ms-c:first-child .ms-h.fo .ms-open'); await p.waitForSelector('.imgv .imgv-rep:not([hidden])');
+assert.match(await txt(p, '.imgv-extra'), /^Pas en foil dans ta collection · prix Cardmarket 1,50/);
+assert.equal(await txt(p, '.imgv-rep'), '+ Ajouter à ma collection (AAA 1, foil)');
+assert.equal(await p.$eval('.imgv-card', c => c.classList.contains('foil')), true, 'carte en grand : étincelles foil');
+await p.click('.imgv-rep'); await p.waitForFunction(() => document.querySelector('.imgv-rep').disabled); await closeImg();
+assert.match(await stored(), /1 Sol Ring \(FOIL\) \(AAA\) 1 \*FR\*/, 'exemplaire foil ajouté, dans cette édition');
+await p.waitForFunction(() => document.querySelector('.ms-c:first-child').classList.contains('own'));
+assert.equal(await pn(), '4 / 8 · 50 %');
+await p.selectOption('select.ms-cols', '3'); await p.waitForSelector('.ms-grid.pairs.c3');
+ok('version foil aussi : paires normale · foil (finitions Scryfall, case en creux), 3 / 8 puis 4 / 8 avec la foil ajoutée, prix foil, roue allumée, paires par ligne');
+// playset : 4 exemplaires par carte (sans la version foil)
+await opt(); await p.click('label[for="msO-foil"]'); await p.click('.ms-opts [data-o="need"][data-v="4"]');
+await p.waitForFunction(() => /Playset/.test((document.querySelector('.ms-osum') || {}).textContent || ''));
+await shut();
+b = await base();
+assert.deepEqual(b.map(x => [x.cls, x.q]), [['miss', '2/4'], ['miss', '2/4'], ['miss', '1/4'], ['miss', '1/4'], ['miss', '']], 'playset : « 2/4 », « 1/4 » sur les cartes entamées (Sol Ring : normale et foil)');
+assert.equal(await p.$$eval('.ms-c.part', l => l.length), 4); assert.equal(await pn(), '0 / 5 · 0 %');
+assert.equal(await txt(p, '.ms-wish'), '☆ Souhaiter les 4 cartes manquantes', 'cartes incomplètes à souhaiter (pas le terrain de base)');
+// langue : seuls les exemplaires français comptent
+await opt(); await p.click('.ms-opts [data-o="need"][data-v="1"]'); await p.selectOption('.ms-opts select[data-o="lang"]', 'fr');
+await p.waitForFunction(() => /Français/i.test((document.querySelector('.ms-osum') || {}).textContent || ''));
+await shut();
+b = await base(); assert.deepEqual(b.map(x => x.cls), ['own', 'miss', 'miss', 'own', 'miss'], 'en français : Sol Ring et Llanowar Elves seulement');
+assert.equal(await pn(), '2 / 5 · 40 %');
+// sans terrains de base, sans variantes
+await opt(); await p.click('label[for="msO-basic"]'); await p.click('label[for="msO-vars"]'); await shut();
+await p.waitForFunction(() => document.querySelectorAll('.ms-grid .ms-c').length === 4);
+assert.match(await txt(p, '.ms-head small'), /· 4 cartes$/); assert.equal(await pn(), '2 / 4 · 50 %'); assert.equal(await p.$('.ms-var'), null, 'variantes retirées');
+assert.equal((await txt(p, '.ms-osum')).replace(/\s+/g, ' '), 'Français Sans terrains de base Sans variantes');
+assert.deepEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:ms:v1')).o), { foil: false, basic: false, vars: false, need: 1, lang: 'fr' }, 'options gardées sur l\'appareil');
+// par défaut
+await opt(); await p.click('.ms-oreset'); await p.waitForFunction(() => !document.querySelector('.ms-oreset'));
+await shut();
+assert.equal(await p.$('.ms-osum'), null); assert.equal(await p.$eval('.ms-opt', b => b.classList.contains('on')), false);
+assert.equal(await pn(), '4 / 5 · 80 %'); assert.ok(await p.$('.ms-var'), 'variantes revenues');
+b = await base(); assert.equal(b[0].q, '×2', 'sans la version foil : la foil compte comme un autre exemplaire');
+ok('options : playset (2/4, 0 / 5), langue (français : 2 / 5), sans terrains de base ni variantes (2 / 4), gardées sur l\'appareil ; par défaut : 4 / 5');
 
 /* ── 9) téléphone 360 px, thème sombre : rien ne déborde ──────────────────────────────────────────────── */
 await p.setViewportSize({ width: 360, height: 740 }); await p.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
@@ -236,6 +312,19 @@ assert.equal(await p.evaluate(() => { const s = document.querySelector('.coll .d
 assert.equal(await p.evaluate(() => [...document.querySelectorAll('.ms-c')].every(c => { const r = c.getBoundingClientRect(); return r.right <= innerWidth + 1 && r.width > 40; })), true, '5 cartes de front dans l\'écran');
 await p.screenshot({ path: 'shots/masterset-2-360-sombre.png' });
 ok('360 px sombre, 5 par ligne : rien ne déborde');
+
+/* ── 10) options dans le compte : celles de l'appareil envoyées au compte, celles du compte (plus récentes) appliquées ───────────── */
+await p.setViewportSize({ width: 1280, height: 900 });
+await p.evaluate(() => { document.documentElement.dataset.theme = 'light'; msOptSet({ need: 4 }); });
+await signInFake(p);
+await p.waitForFunction(async () => { const d = (await D.cloud.pullMeta(D.uid, 'masterset')).data; return d && d.o && d.o.need === 4; }, null, { timeout: 5000 });
+await p.evaluate(async () => { await D.cloud.saveMeta(D.uid, 'masterset', { o: { ...msClean(MS.o), need: 1, foil: true }, updatedAt: Date.now() + 5000 }); msUser(D.user); });
+await p.waitForFunction(() => MS.o.foil === true && MS.o.need === 1, null, { timeout: 5000 });
+await p.waitForSelector('.ms-grid.pairs');
+await p.click('.ms-opt'); await p.waitForSelector('.sheet-wrap.open .ms-opts');
+assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Enregistrées dans ton compte/);
+await shut();
+ok('options du masterset dans le compte : envoyées au compte vide, celles du compte (plus récentes) appliquées à la grille');
 
 assert.deepEqual(errs, [], 'erreurs page : ' + errs.join(' | '));
 await browser.close(); world.stop();
