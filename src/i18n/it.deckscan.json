@@ -25,5 +25,6 @@
   "Au deck": "Al mazzo",
   "À l'enregistrement du deck, ses cartes de ta collection sont rangées dans « {place} » (elles retournent à leur place au démontage).": "Al salvataggio del mazzo, le sue carte della tua collezione vengono riposte in «{place}» (tornano al loro posto quando lo smonti).",
   "{n} carte rangée dans « {place} »": "{n} carta riposta in «{place}»",
-  "{n} cartes rangées dans « {place} »": "{n} carte riposte in «{place}»"
+  "{n} cartes rangées dans « {place} »": "{n} carte riposte in «{place}»",
+  "Les cartes du deck sont rangées dans « {place} » à son enregistrement.": "Le carte del mazzo vengono riposte in «{place}» al salvataggio."
 }

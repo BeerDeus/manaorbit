@@ -134,7 +134,10 @@ ok('deck créé : chargé dans la saisie comme un deck importé');
   const collQ = () => p.evaluate(() => ({ sol: collQty('sol ring'), elves: collQty('llanowar elves'), swords: collQty('swords to plowshares') }));
   await newDeck(p, 'Scan', 'standard');
   assert.equal(await txt(p, '#bdCtl .bd-scan'), 'Scanner des cartes', 'bouton dans l\'onglet Deck');
+  await p.evaluate(() => { COLL.places = { ...COLL.places, bx1: { t: 'box', n: 'Boîte doublons' } }; SCD.p = 'bx1'; });      // destination du scan réglée sur une boîte
   await p.click('#bdCtl .bd-scan'); await p.waitForSelector('.scan.on'); assert.equal(await p.evaluate(() => SC.deck), true, 'scan en mode deck');
+  assert.equal(await txt(p, '.scan .sc-dest'), 'Deck : Scan', 'pastille « Ranger dans » : l\'emplacement du deck, pas la boîte du scan');
+  await p.click('.scan .sc-dest'); assert.match(await txt(p, '#toast'), /rangées dans « Deck : Scan » à son enregistrement/);
   const c0 = await collQ();
   await scanIn([['Sol Ring', 1], ['Llanowar Elves', 2]]); await p.waitForTimeout(300);
   assert.equal(await txt(p, '.scan .dv-foot [data-act="done"]'), 'Au deck');

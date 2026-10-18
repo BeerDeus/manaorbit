@@ -25,5 +25,6 @@
   "Au deck": "Ins Deck",
   "À l'enregistrement du deck, ses cartes de ta collection sont rangées dans « {place} » (elles retournent à leur place au démontage).": "Beim Speichern des Decks werden seine Karten aus deiner Sammlung in „{place}“ einsortiert (beim Auflösen kommen sie an ihren Platz zurück).",
   "{n} carte rangée dans « {place} »": "{n} Karte in „{place}“ einsortiert",
-  "{n} cartes rangées dans « {place} »": "{n} Karten in „{place}“ einsortiert"
+  "{n} cartes rangées dans « {place} »": "{n} Karten in „{place}“ einsortiert",
+  "Les cartes du deck sont rangées dans « {place} » à son enregistrement.": "Die Karten des Decks werden beim Speichern in „{place}“ einsortiert."
 }

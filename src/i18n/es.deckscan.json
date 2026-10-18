@@ -25,5 +25,6 @@
   "Au deck": "Al mazo",
   "À l'enregistrement du deck, ses cartes de ta collection sont rangées dans « {place} » (elles retournent à leur place au démontage).": "Al guardar el mazo, sus cartas de tu colección se guardan en «{place}» (vuelven a su sitio al desmontarlo).",
   "{n} carte rangée dans « {place} »": "{n} carta guardada en «{place}»",
-  "{n} cartes rangées dans « {place} »": "{n} cartas guardadas en «{place}»"
+  "{n} cartes rangées dans « {place} »": "{n} cartas guardadas en «{place}»",
+  "Les cartes du deck sont rangées dans « {place} » à son enregistrement.": "Las cartas del mazo se guardan en «{place}» al guardarlo."
 }

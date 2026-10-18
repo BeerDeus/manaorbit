@@ -25,5 +25,6 @@
   "Au deck": "No deck",
   "À l'enregistrement du deck, ses cartes de ta collection sont rangées dans « {place} » (elles retournent à leur place au démontage).": "Ao salvar o deck, as cartas dele na sua coleção são guardadas em “{place}” (voltam ao lugar quando você desmonta o deck).",
   "{n} carte rangée dans « {place} »": "{n} carta guardada em “{place}”",
-  "{n} cartes rangées dans « {place} »": "{n} cartas guardadas em “{place}”"
+  "{n} cartes rangées dans « {place} »": "{n} cartas guardadas em “{place}”",
+  "Les cartes du deck sont rangées dans « {place} » à son enregistrement.": "As cartas do deck são guardadas em “{place}” ao salvar."
 }

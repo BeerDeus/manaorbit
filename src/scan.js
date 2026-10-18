@@ -197,10 +197,14 @@ function scanPaintList() {
   if (SC.ef) SC.ef();      // écran « Éditions à choisir » : les éditions arrivent
 }
 /** Boutons de l'écran de scan qui suivent les réglages (scanset.js) : pastille des éditions. */
+/** Mode deck (builder.js › bdScan) : « Deck : <nom> », l'emplacement où les cartes sont rangées à l'enregistrement du deck ('' hors mode deck). */
+const scanDeckPlace = () => (SC.deck && typeof BD !== 'undefined' && BD.el ? T('Deck : {name}', { name: BD.name.trim() || T('Deck') }) : '');
 function scanPaintTools() {
   const el = SC.el; if (!el) return;
   const b = $('.sc-edm', el); if (b) { b.innerHTML = `${esc(scsEdLabel())}<svg class="i" aria-hidden="true"><use href="#i-chev"/></svg>`; b.setAttribute('aria-label', T('Réglages du scan') + ' · ' + scsEdLabel()); }
-  const d = $('.sc-dest', el); if (d) { d.hidden = !scdSet(); d.innerHTML = `<i style="--c:${SCD.x ? '#c79bff' : plcColor(scdPlace())}"></i><span>${esc(scdLabel())}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + scdLabel()); }      // pastille « Ranger dans » : seulement si le scan range ailleurs
+  const d = $('.sc-dest', el), dk = scanDeckPlace();
+  if (d && dk) { d.hidden = false; d.innerHTML = `<i style="--c:#c79bff"></i><span>${esc(dk)}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + dk); }      // mode deck : l'emplacement du deck, pas celui du scan
+  else if (d) { d.hidden = !scdSet(); d.innerHTML = `<i style="--c:${SCD.x ? '#c79bff' : plcColor(scdPlace())}"></i><span>${esc(scdLabel())}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + scdLabel()); }      // pastille « Ranger dans » : seulement si le scan range ailleurs
   auSync();      // scan automatique : interrupteur, cercle, lecture en continu (scanauto.js)
 }
 /** Fiche récap au tap sur « Ajouter » : exemplaires, valeur estimée Cardmarket, les plus chères, nouvelles / déjà possédées, langues. Suit la liste du scan en direct ; « Ajouter » dans la fiche fait l'ajout. Les prix des cartes pas encore lues par Scryfall sont lus ici (un lot). */
@@ -1068,7 +1072,7 @@ function openScan(o) {
       else if (act === 'frc') frcStart(true);
       else if (act === 'note') scNoteShow($('.sc-note', wrap).hidden);
       else if (act === 'scset') scsSheet();
-      else if (act === 'scdest') scdPick(scanPaintTools);
+      else if (act === 'scdest') { if (scanDeckPlace()) toast(T('Les cartes du deck sont rangées dans « {place} » à son enregistrement.', { place: scanDeckPlace() })); else scdPick(scanPaintTools); }
       else if (act === 'pmode') { const on = b.dataset.v === '1'; if (on !== SC.pm) { haptic('tap'); scanPriceMode(on); } }
       else if (act === 'done') { if (SC.remote) scanEdDone(() => wrap.__close()); else if (SC.deck && typeof bdScanDone === 'function' && BD.el) bdScanDone(); else scanRecap(); }      // cartes sans édition : confirmation (scaned.js)
       return;
