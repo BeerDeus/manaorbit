@@ -264,8 +264,10 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
   await q.waitForTimeout(6500); fw.build = 'b6e2e000'; await noAuto('b6e2e000'); await q.reload();       // attente : la mise à jour du rechargement lent (6 s) ne doit pas consommer le refus
   assert.equal(await replied(), 'b6e2e000', 'refus une fois : nouvelle copie gardée après avoir retiré les images'); assert.deepEqual((await imgs()).out, [], 'images retirées');
   await q.waitForFunction(() => !UPD.busy, null, { timeout: 15000 });      // relecture de la copie en cours (pwa.js) finie avant d'injecter les refus
-  await w3.evaluate(() => { self.__putFail = 2; }); fw.build = 'b7e2e000'; await noAuto('b7e2e000'); await q.reload();
+  // refus tenus jusqu'à la vérification : la page rouverte (b6) voit b7 sur le serveur et relit aussitôt la copie (« dd-update ») ; avec 2 refus seulement, cette relecture réécrivait b7 avant shell()
+  await w3.evaluate(() => { self.__putFail = 1e9; }); fw.build = 'b7e2e000'; await noAuto('b7e2e000'); await q.reload();
   assert.equal(await build(), 'b6e2e000'); assert.equal(await replied(), '', 'refus répété : plus de copie, pas de toast'); assert.equal(await shell(), null);
+  await q.waitForFunction(() => !UPD.busy, null, { timeout: 15000 }); await w3.evaluate(() => { self.__putFail = 0; });
   await q.reload(); assert.equal(await build(), 'b7e2e000', 'ouverture suivante : la version du serveur'); await waitShell('b7e2e000');
   ok('stockage plein : les images cèdent la place à la page ; sinon la vieille copie est retirée (ouverture suivante par le réseau)');
 

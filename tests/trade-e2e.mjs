@@ -56,7 +56,7 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-box');
 {
   const have = await p.$$eval('.tr-list .tr-row', r => r.map(x => [x.dataset.k, x.querySelector('.tr-q b').textContent.trim()]));
   assert.deepEqual(have, [['llanowar elves', '× 2'], ['sol ring', '× 3']], 'réserve 1 : Sol Ring 5 − 1 (deck) − 1 ; Swords 2 − 1 − 1 = 0 ; Wrath 1 − 1 = 0 ; terrains de base exclus');
-  assert.match(await txt(p, '.tr-list .tr-row[data-k="sol ring"] .row-name'), /Anneau solaire|Sol Ring/);
+  assert.match(await tc(p, '.tr-list .tr-row[data-k="sol ring"] .row-name'), /Anneau solaire|Sol Ring/);
   assert.equal(await txt(p, '.tr-keep .label'), 'Garder en plus de mes decks : 0–4 exemplaires'); assert.equal(await txt(p, '.tr-keep .hint'), 'Tu proposes seulement ce que tu as en trop.');
   // valeurs : même base que « Pour toi » (fichier de prix : tendance Cardmarket de l'impression la moins chère, sinon Scryfall), total des doublons, tri, « ≥ X € »
   await p.waitForFunction(() => /1,20/.test((document.querySelector('.tr-row[data-k="sol ring"] .tr-px') || {}).textContent || ''), null, { timeout: 8000 });
@@ -88,9 +88,9 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-box');
   await p.fill('#waName', 'Wrath'); await p.waitForSelector('.ca-opt'); await p.click('.ca-opt'); await p.click('.ca-opt');
   assert.equal(await txt(p, '.ca-opt i'), '× 2');
   await p.click('.sheet [data-close].icon-btn'); await p.waitForTimeout(500);
-  assert.match(await txt(p, '.tr-row[data-k="wrath of god"] .row-meta'), /souhait × 2/); assert.equal(await txt(p, '.tr-row[data-k="wrath of god"] .qstep b'), '2');
+  assert.match(await tc(p, '.tr-row[data-k="wrath of god"] .row-meta'), /souhait × 2/); assert.equal(await tc(p, '.tr-row[data-k="wrath of god"] .qstep b'), '2');
   await p.click('.tr-row[data-k="wrath of god"] [data-act="wminus"]'); await p.waitForTimeout(150);
-  assert.equal(await txt(p, '.tr-row[data-k="wrath of god"] .qstep b'), '1'); await p.waitForTimeout(500); await p.screenshot({ path: 'shots/trade-2-recherche.png' });
+  assert.equal(await tc(p, '.tr-row[data-k="wrath of god"] .qstep b'), '1'); await p.waitForTimeout(500); await p.screenshot({ path: 'shots/trade-2-recherche.png' });
   await p.evaluate(() => { window.__clip = []; navigator.clipboard.writeText = t => { window.__clip.push(t); return Promise.resolve(); }; });
   await p.click('[data-act="wcm"]'); await p.waitForTimeout(200);
   assert.equal((await p.evaluate(() => window.__clip))[0], '1 Arcane Signet\n1 Command Tower\n1 Craterhoof Behemoth\n1 Edgar Markov\n1 Wrath of God', 'Cardmarket : une ligne par carte recherchée');
@@ -352,7 +352,7 @@ const tradeId = [...shares.keys()][0];
   await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="trade"]'); await p.click('#trSub [data-v="want"]');
   await p.waitForSelector('.tr-row[data-k="craterhoof behemoth"]');
   await p.waitForFunction(() => { const m = document.querySelector('.tr-row[data-k="craterhoof behemoth"] .row-meta'); if (m) m.scrollIntoView({ block: 'center' }); return m && m.innerText.trim(); }, null, { timeout: 5000 });      // la ligne se repeint une fois les infos lues (machine lente : CI) ; à l'écran (content-visibility : innerText vide hors écran)
-  assert.match(await txt(p, '.tr-row[data-k="craterhoof behemoth"] .row-meta'), new RegExp(w2.w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(await tc(p, '.tr-row[data-k="craterhoof behemoth"] .row-meta'), new RegExp(w2.w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.equal(await p.$eval('.tr-row[data-k="craterhoof behemoth"] .thumb img', i => i.getAttribute('src')), w2.i.replace('/normal/', '/small/'));
   await p.click('#nav [data-nav="home"]'); await p.waitForTimeout(400);
   ok('carte en grand : « Liste de souhaits » retient l\'illustration affichée (changeable), visible dans « Je recherche » et sur le lien');

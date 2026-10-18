@@ -146,6 +146,8 @@ for (const [vp, dark] of [[{ width: 390, height: 844 }, false], [{ width: 360, h
   const tag = `${vp.width}×${vp.height}${dark ? ' sombre' : ''}`;
   const { p } = await page({ vp, dark, ping: FLAGS, init: () => { localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1 })); } });
   await p.evaluate(COLL3); await signInFake(p); await p.waitForTimeout(500);
+  // ancrage du défilement coupé : un bloc de l'accueil qui grandit après coup (chargement en fond) décalait scrollY de quelques pixels (48 / 33), sans rapport avec la remise de la visite
+  await p.addStyleTag({ content: 'html,body{overflow-anchor:none}' });
   await p.evaluate(() => window.scrollTo(0, 120)); await p.waitForTimeout(100);
   const y0 = await p.evaluate(() => window.scrollY);
   await p.evaluate(() => tourStart({ from: 'test' })); await shown(p);
