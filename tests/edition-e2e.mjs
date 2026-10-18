@@ -154,6 +154,35 @@ await p.click('#toast .toast-act'); await p.waitForFunction(() => !COLL.map['edg
 await p.evaluate(() => collBump('edgar markov', 'Edgar Markov', -3, { lang: collLines(COLL.map['edgar markov'])[0][0] }));
 ok('B : « Répartir par édition » : ajout d\'éditions (un exemplaire du reste), − / +, 4 / 4 ✓, Enregistrer (3 CMM + 1 2X2), Annuler');
 
+/* ── 4 quater) foil : « Foil ✦ − n + / 4 » (2 foil sur 4), puis l'édition pour les 4 (chacun garde sa finition) ; 1 exemplaire : interrupteur ─── */
+await p.evaluate(() => collBump('edgar markov', 'Edgar Markov', 4 - COLL.map['edgar markov'].q, { lang: collLines(COLL.map['edgar markov'])[0][0] }));
+await p.waitForFunction(() => COLL.map['edgar markov'].q === 4);
+await p.click('.coll .crow[data-k="edgar markov"] .row-ed'); await p.waitForSelector('.sheet-wrap.open .ced-foiln');
+assert.equal((await txt(p, '.ced-foiln')).replace(/\s/g, ''), 'Foil✦Combiendetesexemplairessontfoil?−0+/4', 'plusieurs exemplaires : compteur foil (0 sur 4)');
+assert.equal(await p.$('.ced-foil input[data-act="foil"]'), null, 'pas d\'interrupteur');
+await p.click('.ced-foiln [data-fn="1"]'); await p.click('.ced-foiln [data-fn="1"]');
+await p.waitForFunction(() => COLL.map['edgar markov'].x && COLL.map['edgar markov'].x['en*'] === 2, null, { timeout: 3000 });
+assert.deepEqual(await p.evaluate(() => COLL.map['edgar markov'].x), { en: 2, 'en*': 2 }, '2 foil sur 4, tout de suite');
+assert.equal(await txt(p, '.ced-foiln .qstep b'), '2'); assert.equal(await txt(p, '.ced-cnt b'), '4', 'exemplaires concernés : les 4 (foil et non foil)');
+await p.click('.ced-t:not(.none) >> nth=0'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+await p.waitForFunction(() => COLL.map['edgar markov'].x && COLL.map['edgar markov'].x['en|cmm|100*'] === 2, null, { timeout: 3000 });
+assert.deepEqual(await p.evaluate(() => COLL.map['edgar markov'].x), { 'en|cmm|100': 2, 'en|cmm|100*': 2 }, 'édition pour les 4 : 2 CMM 100 et 2 CMM 100 foil');
+assert.match(await stored(), /2 Edgar Markov \(FOIL\) \(CMM\) 100 \*EN\*/); assert.match(await stored(), /2 Edgar Markov \(CMM\) 100 \*EN\*/);
+await p.waitForFunction(() => document.querySelector('.coll .crow[data-g="en|cmm|100*"] .row-ed'), null, { timeout: 4000 });
+await p.click('.coll .crow[data-g="en|cmm|100*"] .row-ed'); await p.waitForSelector('.sheet-wrap.open .ced-foiln');
+assert.equal(await txt(p, '.ced-foiln .qstep b'), '2', 'depuis la ligne foil : la même répartition');
+await p.click('.ced-foiln [data-fn="-1"]'); await p.click('.ced-foiln [data-fn="-1"]');
+await p.waitForFunction(() => COLL.map['edgar markov'].x && !COLL.map['edgar markov'].x['en|cmm|100*'], null, { timeout: 3000 });
+assert.deepEqual(await p.evaluate(() => COLL.map['edgar markov'].x), { 'en|cmm|100': 4 });
+await p.click('.ced-t.none'); await p.waitForFunction(() => !COLL.map['edgar markov'].x, null, { timeout: 4000 });
+await p.evaluate(() => collBump('edgar markov', 'Edgar Markov', -3, { lang: collLines(COLL.map['edgar markov'])[0][0] }));
+await p.click('.coll .crow[data-k="edgar markov"] .row-ed'); await p.waitForSelector('.sheet-wrap.open .ced-foil input[data-act="foil"]');
+assert.equal(await p.$('.ced-foiln'), null, '1 exemplaire : l\'interrupteur, comme avant');
+await p.click('.ced-foil .switch'); await p.waitForFunction(() => COLL.map['edgar markov'].x && COLL.map['edgar markov'].x['en*'] === 1, null, { timeout: 3000 });
+await p.click('.ced-foil .switch'); await p.waitForFunction(() => !COLL.map['edgar markov'].x, null, { timeout: 3000 });
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+ok('foil : « Foil ✦ − n + / 4 » (2 foil sur 4), édition pour les 4 en gardant la finition, depuis la ligne foil ; 1 exemplaire : interrupteur');
+
 /* ── 4 ter) carte imprimée une seule fois : son édition est posée d'office (annulable) ──────────────────────────────── */
 world.solo['Wrath of God'] = 12;
 await p.evaluate(() => { collAdd([{ k: 'wrath of god', n: 'Wrath of God', q: 1, l: 'fr' }], 'add'); collEnrich(); });

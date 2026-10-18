@@ -210,6 +210,33 @@ await tile('LEA'); await p.waitForFunction(() => !document.querySelector('.sheet
 assert.deepEqual(await lines(), { 'wrath of god m21|200': 'man ×1', 'wrath of god lea|201': 'man ×1' }, '1 exemplaire en LEA sur sa ligne, l\'autre reste en M21');
 assert.deepEqual(await p.$$eval('.sc-item[data-k="wrath of god"]', r => r.length), 2, 'deux lignes dans la liste');
 ok('même carte lue deux fois (une ligne ×2) : « Exemplaires concernés » → 1 en M21, 1 en LEA');
+
+/* ── foil au scan : « Foil ✦ − n + » dans la feuille d'édition (2 foil sur 3), ajoutés foil à la collection ; carte relue : remonte en haut ─────────────── */
+await p.evaluate(() => { SC.items = new Map(); scanPaintList(); });
+await add('Wrath of God'); await settle(); await add('Wrath of God'); await add('Wrath of God'); await settle();
+const wr = () => p.evaluate(() => { const x = [...SC.items.values()].find(y => y.key === 'wrath of god'); return x ? [x.q, x.fq || 0, x.e] : null; });
+assert.equal((await wr())[0], 3);
+await p.click('.sc-item[data-k="wrath of god"] .sc-ed'); await p.waitForSelector('.ced-sheet .ced-foiln');
+assert.equal((await txt(p, '.ced-foiln')).replace(/\s/g, ''), 'Foil✦Combiendetesexemplairessontfoil?−0+/3');
+await p.click('.ced-foiln [data-fn="1"]'); await p.click('.ced-foiln [data-fn="1"]');
+assert.equal(await txt(p, '.ced-foiln .qstep b'), '2'); assert.equal((await wr())[1], 2, '2 foil sur 3, tout de suite');
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+assert.equal(await txt(p, '.sc-item[data-k="wrath of god"] .sc-foil'), '✦ 2', 'étiquette « ✦ 2 » sur la ligne');
+await add('Command Tower'); await settle();
+const top = () => p.$$eval('.sc-list .sc-item', r => r.map(x => [x.dataset.k, x.classList.contains('last')]));
+assert.equal((await top())[0][0], 'command tower', 'dernière lue en haut');
+// relue avec une ligne à part le temps de lire son édition (ligne du bas, illustration) : elle rejoint la sienne ET remonte en haut
+await p.evaluate(() => { const it = [...SC.items.values()].find(x => x.key === 'wrath of god'), tmp = { ...it, id: it.id + '#t', q: 1, fq: 0 }; SC.items.set(tmp.id, tmp); SC.lastIt = tmp; scanRekey(tmp, it.id); scanPaintList(); });
+assert.deepEqual((await top())[0], ['wrath of god', true], 'doublon relu : en haut, surligné'); assert.deepEqual(await wr(), [4, 2, (await wr())[2]], '4 exemplaires, dont 2 foil');
+const foilQ = () => p.evaluate(() => collLines(COLL.map['wrath of god']).filter(([g]) => lineFoil(g)).reduce((a, [, q]) => a + q, 0)), allQ = () => p.evaluate(() => (COLL.map['wrath of god'] || { q: 0 }).q);
+const f0 = await foilQ(), q0 = await allQ(), ed = (await wr())[2];
+await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]'); await p.click('.rc-sheet [data-rc="go"]');
+await p.waitForFunction(() => !document.querySelector('.scan') || document.querySelector('.rc-sheet [data-rc="force"]'), null, { timeout: 4000 });
+if (await p.$('.rc-sheet [data-rc="force"]')) { await p.click('.rc-sheet [data-rc="force"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 4000 }); }
+assert.deepEqual([await allQ() - q0, await foilQ() - f0], [4, 2], 'collection : 4 Wrath of God dont 2 foil');
+assert.equal(await p.evaluate(e => (COLL.map['wrath of god'].x || {})['en|' + e + '*'] >= 2, ed), true, 'foil sur la ligne de leur édition');
+await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
+ok('foil au scan : « Foil ✦ » 2 sur 3, étiquette ✦ 2, ajoutés foil à la collection ; carte relue (ligne à part puis rangée) : remonte en haut');
 await p.click('.scan [data-act="close"]');
 
 assert.deepEqual(errs, [], 'erreurs page');

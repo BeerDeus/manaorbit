@@ -339,7 +339,7 @@ const scdSet = () => SCD.x || !!scdPlace();
 /** Ligne « Ranger dans » de la fiche d'ajout du scan. */
 const scdRowHtml = () => `<button type="button" class="plc-cur rc-dest" data-rcd><i style="--c:${SCD.x ? '#c79bff' : plcColor(scdPlace())}"></i><span><small>${T('Ranger dans')}</small><b>${esc(scdLabel())}</b></span><svg class="i" aria-hidden="true"><use href="#i-back"/></svg></button>`;
 /** Clé de ligne d'une carte scannée, avec l'emplacement choisi. */
-const scdLine = (l, e) => lineKey(l, e, false, scdPlace() ? { p: scdPlace() } : '');
+const scdLine = (l, e, f) => lineKey(l, e, !!f, scdPlace() ? { p: scdPlace() } : '');      // f : exemplaires foil (scan)
 function scdPick(onDone) {
   plcPick({ title: T('Ranger dans'), cur: scdPlace(), prox: SCD.x, onPick: (id, prox) => { SCD.p = id; SCD.x = !!prox; scdSave(); if (onDone) onDone(); } });
 }

@@ -24,3 +24,8 @@
 @keyframes foilsheen{from{background-position:0% 0%}to{background-position:100% 100%}}
 @keyframes foilstar{0%,100%{opacity:0;transform:scale(.3) rotate(0deg)}50%{opacity:1;transform:scale(1) rotate(25deg)}}
 @media (prefers-reduced-motion:reduce){.imgv-card.foil::before{animation:none;background-position:50% 50%}.imgv-card.foil .foil-stars{display:none}}
+/* plusieurs exemplaires : « Foil ✦ − n + / total » (combien sont foil, même édition) */
+.ced-foiln{cursor:default}
+.ced-foiln .ced-foil-t{flex:1}
+.ced-foiln .qstep button[disabled]{opacity:.35}
+.ced-foiln>small{font-family:var(--font-mono);font-size:12px;color:var(--ink-3)}

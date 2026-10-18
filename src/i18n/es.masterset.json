@@ -69,5 +69,9 @@
   "{name} : édition {ed} posée sur {n} exemplaire": "{name}: edición {ed} indicada en {n} ejemplar",
   "{name} : édition {ed} posée sur {n} exemplaires": "{name}: edición {ed} indicada en {n} ejemplares",
   "Dans ta collection · {ed} · {n} exemplaire": "En tu colección · {ed} · {n} ejemplar",
-  "Dans ta collection · {ed} · {n} exemplaires": "En tu colección · {ed} · {n} ejemplares"
+  "Dans ta collection · {ed} · {n} exemplaires": "En tu colección · {ed} · {n} ejemplares",
+  "Prix foil Cardmarket pour les exemplaires foil": "Precio foil de Cardmarket para los ejemplares foil",
+  "Combien de tes exemplaires sont foil ?": "¿Cuántos de tus ejemplares son foil?",
+  "{n} exemplaire foil": "{n} ejemplar foil",
+  "{n} exemplaires foil": "{n} ejemplares foil"
 }

@@ -187,7 +187,7 @@ function lotSuggest() {
 async function lotFromScan(items) {
   const set = LOT.set, out = [];
   for (const it of items) {
-    const c = { k: it.k, n: it.n, p: '', l: it.l || '', q: it.q, e: '', pick: null, prints: [] };
+    const c = { k: it.k, n: it.n, p: '', l: it.l || '', q: it.q, e: '', pick: null, prints: [], ...(it.f ? { f: true } : {}) };      // f : exemplaires foil (scan)
     if (typeof it.e === 'string') {
       c.e = it.e; c.pick = it.e ? it.p || null : null;
       if (c.e && !c.pick) { try { c.prints = await scryArtPrints(c.n, lotLangOf(c) || 'en'); c.pick = c.prints.find(x => edKey(x.set, x.num) === c.e) || null; } catch (e) { /* hors ligne : l'édition reste, ses infos viendront */ } }

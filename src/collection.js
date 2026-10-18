@@ -151,14 +151,17 @@ function edQKeep(root) {
 }
 /** Feuille de choix d'une édition : une tuile par impression (symbole, code et numéro, prix, particularités) et « Sans édition ».
  *  o : { name, sub, cur ('set|num', '' : sans édition), load () → Promise(impressions), front (extensions à montrer d'abord, sous frontLabel), onPick(impression | null, n),
- *  count (exemplaires de la ligne : à partir de 2, « Exemplaires concernés − n + » en tête ; n, tous par défaut, suit le choix : les autres gardent leur édition),
- *  onSplit (lien « Répartir entre plusieurs éditions » sous le compteur : ferme la feuille et l'appelle) }. */
+ *  count (exemplaires concernés au plus, ou fonction : à partir de 2, « Exemplaires concernés − n + » en tête ; n, tous par défaut, suit le choix : les autres gardent leur édition),
+ *  onSplit (lien « Répartir entre plusieurs éditions » sous le compteur : ferme la feuille et l'appelle),
+ *  foilN ({ get () → { n (exemplaires foil), total }, set (n) } : un exemplaire, interrupteur Foil ✦ ; plusieurs, « Foil ✦ − n + / total » : 2 foil sur 4) }. */
 function edSheet(o) {
   setIcLoad();
   return openSheet(T('Édition de {name}', { name: o.name }), o.sub || '', api => {
     api.wrap.classList.add('ced-sheet');
-    let prints = null, err = '', foil = !!o.foil, n = o.count > 1 ? o.count : 0;
-    const cnt = () => (n ? `<div class="cex-n ced-cnt"><span>${T('Exemplaires concernés')}</span><span class="qstep"><button type="button" data-cn="-1" aria-label="${T('Moins')}">−</button><b>${n}</b><button type="button" data-cn="1" aria-label="${T('Plus')}">+</button></span><small>/ ${nf0(o.count)}</small></div>` : '')
+    const cmax = () => (typeof o.count === 'function' ? o.count() : o.count) || 0, fv = () => (o.foilN ? o.foilN.get() : null);
+    const foilAll = () => { const v = fv(); return v ? v.n > 0 && v.n >= v.total : !!o.foil; };      // prix des tuiles : foil quand tous les exemplaires le sont
+    let prints = null, err = '', foil = foilAll(), n = cmax() > 1 ? cmax() : 0;
+    const cnt = () => (n ? `<div class="cex-n ced-cnt"><span>${T('Exemplaires concernés')}</span><span class="qstep"><button type="button" data-cn="-1" aria-label="${T('Moins')}">−</button><b>${n}</b><button type="button" data-cn="1" aria-label="${T('Plus')}">+</button></span><small>/ ${nf0(cmax())}</small></div>` : '')
       + (o.onSplit ? `<button type="button" class="link-btn ced-split" data-split>${T('Répartir entre plusieurs éditions')}</button>` : '');      // feuille « Répartir par édition » (edSplit)
     const tile = (p, i) => {
       const e = edKey(p.set, p.num), px = foil ? (p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : p.eu > 0 ? fmt(p.eu, 'EUR') : '') : p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition
@@ -172,7 +175,9 @@ function edSheet(o) {
       const keep = edQKeep(api.body); q = keep.q || q;
       const fr = (o.front || []).filter(s => prints.some(p => p.set === s)), all = prints.map((p, i) => [p, i]);
       const top = fr.flatMap(s => all.filter(([p]) => p.set === s)), rest = top.length ? all.filter(([p]) => !fr.includes(p.set)) : all;
-      const fsw = o.onFoil ? `<label class="ced-foil"><span class="ced-foil-t"><b>${T('Foil')} ✦</b><small>${foil ? T('Prix foil Cardmarket de l\'édition') : T('Exemplaires foil : touche pour les marquer')}</small></span><span class="switch"><input type="checkbox" data-act="foil"${foil ? ' checked' : ''} aria-label="${T('Foil')}"><i></i></span></label>` : '';
+      const v = fv(), fsw = !v ? '' : v.total > 1      // plusieurs exemplaires : combien sont foil (les autres restent non foil, même édition)
+        ? `<div class="ced-foil ced-foiln"><span class="ced-foil-t"><b>${T('Foil')} ✦</b><small>${v.n ? T('Prix foil Cardmarket pour les exemplaires foil') : T('Combien de tes exemplaires sont foil ?')}</small></span><span class="qstep"><button type="button" data-fn="-1" aria-label="${T('Moins')}"${v.n ? '' : ' disabled'}>−</button><b>${v.n}</b><button type="button" data-fn="1" aria-label="${T('Plus')}"${v.n < v.total ? '' : ' disabled'}>+</button></span><small>/ ${nf0(v.total)}</small></div>`
+        : `<label class="ced-foil"><span class="ced-foil-t"><b>${T('Foil')} ✦</b><small>${v.n ? T('Prix foil Cardmarket de l\'édition') : T('Exemplaires foil : touche pour les marquer')}</small></span><span class="switch"><input type="checkbox" data-act="foil"${v.n ? ' checked' : ''} aria-label="${T('Foil')}"><i></i></span></label>`;
       api.body.innerHTML = `${cnt()}${fsw}${edQHtml(prints.length, q)}<div class="ced-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: o.name }))}">${top.length ? `<p class="ced-h">${esc(o.frontLabel || '')}</p>${top.map(([p, i]) => tile(p, i)).join('')}${rest.length ? `<p class="ced-h">${T('Autres éditions')}</p>` : ''}` : ''}${rest.map(([p, i]) => tile(p, i)).join('')}<button type="button" class="ced-t none" role="radio" data-i="-1" aria-checked="${!o.cur}"><span class="ced-q" aria-hidden="true"><svg class="i"><use href="#i-stack"/></svg></span><span class="ced-n">${T('Sans édition')}</span></button></div>`;
       filter(); keep.restore();
       const qi = $('[data-edq]', api.body);
@@ -182,37 +187,48 @@ function edSheet(o) {
     o.load().then(list => { prints = list || []; paint(); }, () => { err = scryLeft() > 0 ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Éditions indisponibles pour l\'instant (hors ligne ?)'); paint(); });
     api.body.addEventListener('input', e => { if (!e.target.matches('[data-edq]')) return; q = e.target.value; filter(); });
     api.body.addEventListener('change', e => {
-      const sw = e.target.closest('input[data-act="foil"]'); if (!sw || !o.onFoil) return;
-      foil = sw.checked; haptic('tap'); o.onFoil(foil); paint();      // la feuille reste ouverte : les prix des tuiles passent en foil
+      const sw = e.target.closest('input[data-act="foil"]'); if (!sw || !o.foilN) return;
+      haptic('tap'); o.foilN.set(sw.checked ? 1 : 0); foil = foilAll(); paint();      // la feuille reste ouverte : les prix des tuiles passent en foil
     });
     api.body.addEventListener('click', e => {
       if (e.target.closest('[data-split]')) { haptic('tap'); api.close(); o.onSplit(); return; }
+      const fb = e.target.closest('[data-fn]');
+      if (fb && o.foilN) { const v = fv(), to = Math.max(0, Math.min(v.total, v.n + Number(fb.dataset.fn))); if (to !== v.n) { haptic('tap'); o.foilN.set(to); foil = foilAll(); paint(); } return; }
       const cn = e.target.closest('[data-cn]');
-      if (cn) { n = Math.max(1, Math.min(o.count, n + Number(cn.dataset.cn))); haptic('tap'); $('.ced-cnt b', api.body).textContent = n; return; }      // repeint seul : la recherche et le défilement restent
+      if (cn) { n = Math.max(1, Math.min(cmax(), n + Number(cn.dataset.cn))); haptic('tap'); $('.ced-cnt b', api.body).textContent = n; return; }      // repeint seul : la recherche et le défilement restent
       const b = e.target.closest('.ced-t'); if (!b || !prints) return;
       const i = Number(b.dataset.i), p = i >= 0 ? prints[i] : null;
       haptic('ok'); api.close(); o.onPick(p, n || undefined);
     });
   });
 }
-/** Sélecteur d'édition d'une ligne de la liste : les éditions de la carte (dans la langue de la ligne, puis celles qui n'existent qu'en anglais) et « Sans édition ». */
+/** Sélecteur d'édition d'une ligne de la liste : les éditions de la carte (dans la langue de la ligne, puis celles qui n'existent qu'en anglais) et « Sans édition ».
+ *  La feuille porte sur les exemplaires de cette langue et cette édition, foil et non foil (même rangement) : « Foil ✦ − n + » en répartit une partie en foil (2 foil sur 4),
+ *  « Exemplaires concernés » choisit combien changent d'édition (la finition de la ligne touchée d'abord, puis l'autre ; chacun garde sa finition). */
 function collEdPick(k, g) {
   const x = COLL.map[k]; if (!x) return;
-  const l = lineLang(g), cur = lineEd(g), name = frName(k, l) || x.n; haptic('tap');
-  let cg = g;      // clé de la ligne, suivie quand l'interrupteur Foil la déplace
-  const q = (collLines(x).find(e => e[0] === g) || [g, 0])[1], grp = edGroup(k, g);
-  edSheet({ name, sub: l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', cur, foil: lineFoil(g), count: q, load: () => scryArtPrints(x.n, l || 'en'),
-    ...(grp.total > 1 ? { onSplit: () => edSplit(k, cg) } : {}),
-    onFoil: f => { cg = collSetFoil(k, cg, f); collPaintBody(true); },
+  const l = lineLang(g), cur = lineEd(g), aw = lineAw(g), name = frName(k, l) || x.n; haptic('tap');
+  const gN = lineKey(l, cur, false, aw), gF = lineKey(l, cur, true, aw), qOf = h => (collLines(COLL.map[k]).find(e => e[0] === h) || [h, 0])[1];
+  const total = () => qOf(gN) + qOf(gF), grp = edGroup(k, g);
+  edSheet({ name, sub: l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', cur, count: total, load: () => scryArtPrints(x.n, l || 'en'),
+    ...(grp.total > 1 ? { onSplit: () => edSplit(k, qOf(g) ? g : g === gN ? gF : gN) } : {}),
+    foilN: {
+      get: () => ({ n: qOf(gF), total: total() }),
+      set: n => {      // foil ↔ non foil dans la même édition
+        const f0 = qOf(gF); if (!COLL.map[k] || n === f0) return;
+        COLL.map = n > f0 ? linesMove(COLL.map, k, gN, n - f0, gF) : linesMove(COLL.map, k, gF, f0 - n, gN);
+        collChanged({ paint: false }); collPaintBody(true);
+      },
+    },
     onPick: (p, n) => {
-      const ne = p ? edKey(p.set, p.num) : ''; if (ne === lineEd(cg)) return;
-      const qn = (collLines(COLL.map[k]).find(e => e[0] === cg) || [cg, 0])[1];
-      if (n && n < qn) {      // une partie des exemplaires (8 Boue acide : 3 d'une extension, 3 d'une autre…) : ils passent sur la ligne de cette édition, les autres restent
-        const to = lineKey(l, ne, lineFoil(cg), lineAw(cg));
-        if (p) edRemember(k, l, ne, edInfoOf(p, l));
-        COLL.map = linesMove(COLL.map, k, cg, n, to); collChanged({ paint: false });
-      } else collSetEd(k, cg, ne, p ? edInfoOf(p, l) : null);
-      collPaintBody(true);
+      const ne = p ? edKey(p.set, p.num) : ''; if (ne === cur || !COLL.map[k]) return;
+      let left = Math.min(n || total(), total());
+      if (p) edRemember(k, l, ne, edInfoOf(p, l));
+      for (const h of lineFoil(g) ? [gF, gN] : [gN, gF]) {      // la finition de la ligne touchée d'abord
+        const m = Math.min(left, qOf(h)); if (!m) continue;
+        COLL.map = linesMove(COLL.map, k, h, m, lineKey(l, ne, lineFoil(h), aw)); left -= m;
+      }
+      collChanged({ paint: false }); collPaintBody(true);
     } });
 }
 /** Lignes de la carte k qui ne diffèrent de la ligne g que par l'édition (même langue, même finition, même rangement et détails) : { same (clé → bool), lines, total }. */
@@ -268,16 +284,6 @@ function edSplit(k, g) {
       toast(T('{name} : exemplaires répartis', { name }), { label: T('Annuler'), fn: () => { const c = COLL.map[k]; if (!c) return; const nx = collFromLines(c, before); if (nx) { COLL.map[k] = nx; collChanged(); } } });
     });
   });
-}
-/** Marque les exemplaires d'une ligne foil (f) ou non : ils rejoignent la ligne de même langue et même édition de l'autre finition s'il y en a une. Retourne la clé de la ligne. */
-function collSetFoil(k, g, f) {
-  const cur = COLL.map[k]; if (!cur) return g;
-  const to = lineKey(lineLang(g), lineEd(g), f, lineAw(g)); if (to === g) return g;
-  const lines = collLines(cur).map(x => x.slice()), i = lines.findIndex(x => x[0] === g); if (i < 0) return g;
-  const q = lines[i][1]; lines.splice(i, 1);
-  const t = lines.find(x => x[0] === to); if (t) t[1] += q; else lines.push([to, q]);
-  COLL.map[k] = collFromLines(cur, lines); collChanged({ paint: false });
-  return to;
 }
 
 /* ── Cartes imprimées une seule fois (en papier) : leur édition est forcément celle-là, posée d'office sur les lignes sans édition ──────────

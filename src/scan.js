@@ -174,7 +174,7 @@ function scanPaintList() {
   }
   $('.sc-head [data-act="done"]', el).hidden = false; $('.sc-total', el).hidden = true;
   const ae = document.activeElement, keep = ae && ae !== list && list.contains(ae) ? { row: ae.closest('.sc-item'), a: ae.dataset.a, cls: ae.classList[0] } : null;      // focus clavier dans la liste : rendu à son équivalent après le repeint (éditions qui arrivent…)
-  const row = e => `<div class="sc-item${e.maybe ? ' maybe' : ' ed'}${e === SC.lastIt ? ' last' : ''}" data-k="${esc(e.key)}" data-id="${esc(e.id)}">${e.maybe ? pic(e.shot) : ''}<img class="sc-th" alt="" loading="lazy" decoding="async" src="${esc(scanThumb(e))}"${zoomAt('scan', scanShown(e))}><span class="sc-n"><span class="sc-top"><b>${esc(scanShown(e))}</b>${langChip(e.key, e.l || '', e.name)}</span>${e.maybe ? `<small>${T(e.shot ? 'À vérifier : ta photo ci-dessus est-elle bien celle-ci ?' : 'À vérifier : ta carte est-elle bien celle-ci ?')} · ${scanReadNote(e, true, esc)}</small>` : (n => (n ? `<small>${n}</small>` : ''))(scanReadNote(e, !!(e.score < 0.97 && e.raw), esc))}${scanAltsHtml(e)}</span>
+  const row = e => `<div class="sc-item${e.maybe ? ' maybe' : ' ed'}${e === SC.lastIt ? ' last' : ''}" data-k="${esc(e.key)}" data-id="${esc(e.id)}">${e.maybe ? pic(e.shot) : ''}<img class="sc-th" alt="" loading="lazy" decoding="async" src="${esc(scanThumb(e))}"${zoomAt('scan', scanShown(e))}><span class="sc-n"><span class="sc-top"><b>${esc(scanShown(e))}</b>${langChip(e.key, e.l || '', e.name)}${!e.maybe && e.fq > 0 ? `<span class="tag foil sc-foil" title="${esc(TN(Math.min(e.fq, e.q), '{n} exemplaire foil', '{n} exemplaires foil'))}">✦ ${e.fq >= e.q ? T('Foil') : nf0(e.fq)}</span>` : ''}</span>${e.maybe ? `<small>${T(e.shot ? 'À vérifier : ta photo ci-dessus est-elle bien celle-ci ?' : 'À vérifier : ta carte est-elle bien celle-ci ?')} · ${scanReadNote(e, true, esc)}</small>` : (n => (n ? `<small>${n}</small>` : ''))(scanReadNote(e, !!(e.score < 0.97 && e.raw), esc))}${scanAltsHtml(e)}</span>
       ${e.maybe ? `<button type="button" class="sc-ok" data-a="ok" aria-label="${T('Confirmer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-check"/></svg></button>` : `${scanEdBtn(e)}<span class="qstep"><button type="button" data-a="dec" aria-label="${T('Retirer un exemplaire')}">−</button><b>${e.q}</b><button type="button" data-a="inc" aria-label="${T('Ajouter un exemplaire')}">+</button></span>`}
       <button type="button" class="sc-x" data-a="del" aria-label="${T('Retirer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
   const maybe = arr.filter(x => x.maybe), todo = arr.filter(scanEdIsTodo), rest = arr.filter(x => !x.maybe && !scanEdIsTodo(x)), many = (maybe.length ? 1 : 0) + (todo.length ? 1 : 0) + (rest.length ? 1 : 0) > 1;      // à vérifier, puis éditions à choisir, puis le reste (dernière lue en haut)
@@ -205,7 +205,9 @@ function scanPaintTools() {
 }
 /** Fiche récap au tap sur « Ajouter » : exemplaires, valeur estimée Cardmarket, les plus chères, nouvelles / déjà possédées, langues. Suit la liste du scan en direct ; « Ajouter » dans la fiche fait l'ajout. Les prix des cartes pas encore lues par Scryfall sont lus ici (un lot). */
 function scanRecap() {
-  const live = () => [...SC.items.values()].filter(x => !x.maybe).map(x => ({ k: x.key, n: x.name, q: x.q, l: x.l || '', e: x.e || '', p: x.e ? x.pk : null }));      // e, p : édition posée et son impression (scaned.js)
+  const live = () => [...SC.items.values()].filter(x => !x.maybe).map(x => ({ k: x.key, n: x.name, q: x.q, f: Math.min(x.fq || 0, x.q), l: x.l || '', e: x.e || '', p: x.e ? x.pk : null }));      // e, p : édition posée et son impression (scaned.js) ; f : exemplaires foil
+  /** Une ligne du scan en lignes de la collection : les non foil, puis les foil (même langue, même édition). */
+  const byFoil = x => [{ ...x, q: x.q - x.f, f: 0 }, { ...x, q: x.f, f: 1 }].filter(y => y.q > 0);
   if (!live().length || sheets.some(x => x.wrap.classList.contains('rc-sheet'))) return;
   const asked = new Set(), got = new Map(); let err = '', busy = false, sure = false;      // sure : « Ajouter » touché avec des cartes sans édition → confirmation
   const info = k => (got.has(k) ? got.get(k) : COLL.meta[k]);      // undefined : pas encore lu · null : inconnue de Scryfall · objet { eu, … }
@@ -258,16 +260,16 @@ function scanRecap() {
     const items = live(); if (!items.length) return;
     if (typeof prgScan === 'function') prgScan([...SC.items.values()].filter(x => !x.maybe));      // niveau et badges (progress.js) : cartes, langues, éditions lues…
     const before = COLL.map, n = items.reduce((a, x) => a + x.q, 0);
-    if (typeof opnTake === 'function' && opnTake(items.map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e), p: x.e ? x.p : null })), { toast: true })) {      // session d'ouverture (opening.js) : les cartes vont dans la session, ajoutées à la collection à la fin
+    if (typeof opnTake === 'function' && opnTake(items.flatMap(byFoil).map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e, !!x.f), p: x.e ? x.p : null })), { toast: true })) {      // session d'ouverture (opening.js) : les cartes vont dans la session, ajoutées à la collection à la fin
       api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok'); return;
     }
     if (SC.lot && LOT.el) {      // depuis le lot : chaque carte y rejoint aussi la liste, avec l'extension collante si elle y existe
       api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok');
-      lotFromScan(items).then(() => toast(TN(n, '{n} carte ajoutée au lot', '{n} cartes ajoutées au lot', { n })));
+      lotFromScan(items.flatMap(byFoil)).then(() => toast(TN(n, '{n} carte ajoutée au lot', '{n} cartes ajoutées au lot', { n })));
       return;
     }
     for (const x of items) if (x.e && x.p) edRemember(x.k, x.l, x.e, edInfoOf(x.p, x.l));      // infos de l'édition (prix, extension, image) gardées tout de suite
-    const add = items.map(x => ({ k: x.k, n: x.n, q: x.q, l: scdLine(x.l, x.e) })), px0 = COLL.prox, where = scdPlace() ? ' · ' + plcName(scdPlace()) : '';      // « Ranger dans » : emplacement, ou proxys (places.js)
+    const add = items.flatMap(byFoil).map(x => ({ k: x.k, n: x.n, q: x.q, l: scdLine(x.l, x.e, x.f) })), px0 = COLL.prox, where = scdPlace() ? ' · ' + plcName(scdPlace()) : '';      // « Ranger dans » : emplacement, ou proxys (places.js)
     if (SCD.x) proxAdd(add); else collAdd(add, 'add');
     api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok');
     toast((SCD.x ? TN(n, '{n} proxy ajouté', '{n} proxys ajoutés', { n }) : TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection')) + where, { label: T('Annuler'), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
@@ -1099,7 +1101,7 @@ function openScan(o) {
     haptic('tap');
     if (a.dataset.a === 'inc') it.q = Math.min(999, it.q + 1);
     else if (a.dataset.a === 'dec') {                       // « − » : confirmation d'abord
-      confirmMinus(it.name, it.q, 'scan', () => { const c = SC.items.get(it.id); if (!c) return; if (c.q > 1) c.q--; else SC.items.delete(c.id); scanPaintList(); });
+      confirmMinus(it.name, it.q, 'scan', () => { const c = SC.items.get(it.id); if (!c) return; if (c.q > 1) { c.q--; if (c.fq > c.q) c.fq = c.q; } else SC.items.delete(c.id); scanPaintList(); });
       return;
     }
     else if (a.dataset.a === 'ok') { it.maybe = false; it.shot = ''; }

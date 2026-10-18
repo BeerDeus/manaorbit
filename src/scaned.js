@@ -68,9 +68,14 @@ function scanRekey(it, nid) {
   if (nid === it.id) return it;
   const other = SC.items.get(nid);
   if (other) {
-    other.q = Math.min(999, other.q + it.q); if (!it.maybe) { other.maybe = false; other.shot = ''; }
+    other.q = Math.min(999, other.q + it.q); other.fq = Math.min(other.q, (other.fq || 0) + (it.fq || 0)); if (!it.maybe) { other.maybe = false; other.shot = ''; }
     if (it.es === 'man') other.es = 'man';
-    SC.items.delete(it.id); return other;
+    // la ligne gardée prend la place la plus récente des deux : une carte relue (ligne à part le temps de lire son édition) remonte en haut avec ses doublons
+    const ids = [...SC.items.keys()];
+    if (ids.indexOf(it.id) > ids.indexOf(nid)) SC.items = new Map([...SC.items].filter(([i]) => i !== nid).map(([i, v]) => (i === it.id ? [nid, other] : [i, v])));
+    else SC.items.delete(it.id);
+    if (SC.lastIt === it) SC.lastIt = other;
+    return other;
   }
   const old = it.id; it.id = nid; SC.items = new Map([...SC.items].map(([i, v]) => (i === old ? [nid, v] : [i, v])));
   return it;
@@ -218,6 +223,7 @@ function scanEdPick(it, focusQ) {
   haptic('tap');
   edSheet({ name: scanShown(it), sub: TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l && it.l !== 'en' ? ' · ' + langCode(it.l) : ''), cur: it.e, count: it.q,
     load: () => (Array.isArray(pr) ? Promise.resolve(pr) : scryArtPrints(it.name, it.l || 'en')), front: scanEdFront(), frontLabel: T('Dans ce scan'), focusQ: !!focusQ,
+    foilN: { get: () => ({ n: Math.min(it.fq || 0, it.q), total: it.q }), set: n => { it.fq = Math.max(0, Math.min(it.q, n)); scanPaintList(); } },      // exemplaires foil de la ligne (fq), ajoutés foil à la collection
     onPick: (p, n) => scanEdChoose(it.id, p, n) });
 }
 /** Édition choisie pour une ligne du scan (p : impression, null : « Sans édition ») ; n : seulement n de ses exemplaires (la même carte lue deux fois,
@@ -225,8 +231,9 @@ function scanEdPick(it, focusQ) {
 function scanEdChoose(id, p, n) {
   let it = SC.items.get(id); if (!it) return;
   if (n && n < it.q) {
-    const nid = scanId(it.key, it.l, '') + '#' + (++SC.mid), part = { ...it, id: nid, q: n };
-    it.q -= n;
+    const fq = Math.min(it.fq || 0, it.q), pf = Math.max(0, n - (it.q - fq));      // les non foil partent d'abord, puis les foil
+    const nid = scanId(it.key, it.l, '') + '#' + (++SC.mid), part = { ...it, id: nid, q: n, fq: pf };
+    it.q -= n; it.fq = fq - pf;
     SC.items = new Map([...SC.items].flatMap(([i, v]) => (i === id ? [[i, v], [nid, part]] : [[i, v]])));
     it = part;
   }
