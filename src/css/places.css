@@ -28,6 +28,8 @@
 .plc-bar>span{font-size:13px;color:var(--ink-3)}
 .plc-bar .plc-x{margin-left:auto;width:34px;height:34px}
 .plc-bar .plc-mv{flex:none;order:9;height:34px;padding:0 16px}      /* « Ranger… » : seul sur sa ligne, sous l'emplacement (le bandeau ne se tasse pas sur téléphone) */
+.plc-old{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;margin:0 0 14px;padding:12px 14px;border-radius:14px;border:1px solid var(--bad);background:var(--bad-soft);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.plc-old b{color:var(--bad);font-size:14px}.plc-old small{color:var(--ink-3);font-size:12.5px}      /* nettoyage temporaire (places.js › plcOldHtml) */
 .plc-bar .plc-rm{flex:none;order:10;height:34px;padding:0 14px}      /* « Retirer… » : à côté de « Ranger ces cartes… » */
 .plc-bar .plc-mv+.plc-rm+.link-btn,.plc-bar .plc-mv~.plc-x{order:1}
 .plc-bar::after{content:"";order:8;flex-basis:100%;height:0}

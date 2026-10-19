@@ -57,5 +57,36 @@ for (const [s, uid, what] of [['', 'uid-premier', 'jamais synchronisée'], ['uid
   ok('collection ' + what + ' : envoyée au compte comme avant, rien de mis de côté');
 }
 
+/* ── 4. Nettoyage temporaire « Retirer l'ancienne collection » (places.js › plcOldPlan) : exemplaires d'avant la création du compte, hors emplacements créés depuis ── */
+{
+  const { p, errs, ctx } = await newPage(browser, world, {}); errsAll.push(errs);
+  const CREATED = Date.UTC(2026, 9, 17, 9), OLD = Math.floor(Date.UTC(2026, 9, 5) / 1000), NEW = Math.floor(Date.UTC(2026, 9, 18) / 1000);
+  await signInFake(p, { uid: 'uid-recree', metadata: { creationTime: new Date(CREATED).toUTCString() } });
+  const res = await p.evaluate(({ OLD, NEW, CREATED }) => {
+    const oldP = Math.floor(Date.UTC(2026, 9, 16) / 1000).toString(36) + 'aa', newP = Math.floor(Date.UTC(2026, 9, 18) / 1000).toString(36) + 'bb';
+    COLL.places = { [oldP]: { t: 'binder', n: 'Classeur' }, [newP]: { t: 'binder', n: 'Classeur' } };
+    const L = (k, n, d, lines) => [k, { ...collFromLines({ n, d }, lines), d }];
+    COLL.map = Object.fromEntries([
+      L('sol ring', 'Sol Ring', OLD, [['fr#p' + oldP, 2], ['fr#p' + newP, 1]]),      // ancienne copie (ancien classeur) + rescannée (nouveau)
+      L('ponder', 'Ponder', OLD, [['en', 3]]),                                     // ancienne seulement, non rangée
+      L('brainstorm', 'Brainstorm', OLD, [['en#p' + oldP, 1]]),                    // ancienne seulement, dans l'ancien classeur
+      L('arcane signet', 'Arcane Signet', NEW, [['en', 1]]),                       // ajoutée depuis, non rangée : gardée
+    ]);
+    collChanged(); return { oldP, newP };
+  }, { OLD, NEW, CREATED });
+  await p.evaluate(() => { openCollection(); }); await p.waitForSelector('#collSeg'); await p.click('#collSeg [data-v="places"]'); await p.waitForSelector('.plc-old');
+  assert.match(await p.$eval('.plc-old', e => e.textContent), /Retirer l'ancienne collection6 exemplaires ajoutés avant la création de ton compte \(17 octobre\), hors emplacements créés depuis/);
+  await p.click('.plc-old'); await p.waitForSelector('.sheet-wrap.open [data-ok]'); await p.click('.sheet-wrap.open [data-ok]'); await p.waitForFunction(() => !sheets.length);
+  const after = await p.evaluate(() => ({ map: Object.fromEntries(Object.entries(COLL.map).map(([k, x]) => [k, collLines(x)])), places: Object.keys(COLL.places) }));
+  assert.deepEqual(after.map, { 'sol ring': [['fr#p' + res.newP, 1]], 'arcane signet': [['en', 1]] }, 'seules les copies rescannées et les cartes ajoutées depuis restent');
+  assert.deepEqual(after.places, [res.newP], 'ancien classeur vidé : supprimé');
+  assert.match(await p.$eval('#toast', e => e.textContent), /6 exemplaires retirés de ta collection · 1 ancien emplacement supprimé/);
+  assert.equal(await p.$('.plc-old'), null, 'plus rien à retirer : bouton caché');
+  await p.click('#toast .toast-act'); await p.waitForTimeout(200);
+  assert.equal(await p.evaluate(() => Object.keys(COLL.map).length), 4, 'Annuler : tout remis'); assert.equal(await p.evaluate(() => Object.keys(COLL.places).length), 2);
+  await ctx.close();
+  ok('nettoyage « Retirer l\'ancienne collection » : copies d\'avant la création du compte (non rangées ou dans un ancien emplacement) retirées, copies rescannées rangées depuis et cartes récentes gardées, ancien emplacement vide supprimé, Annuler');
+}
+
 for (const e of errsAll) assert.deepEqual(e, []);
 await browser.close(); world.stop(); console.log('\nCOLLOWNER E2E OK'); process.exit(0);

@@ -160,12 +160,58 @@ function cexSheet(src, k, g, done) {
   });
 }
 
+/* ── Nettoyage TEMPORAIRE (19 octobre 2026, à retirer une fois fait) : ancienne collection fusionnée par erreur dans un compte recréé (voir collAside) ──
+   Exemplaires d'une carte ajoutée avant la création du compte (D.user.metadata.creationTime) qui ne sont pas rangés dans un emplacement créé depuis
+   (non rangés, ou dans un emplacement de l'ancien compte : la date de création est au début de l'identifiant, placeNewId) ; les cartes rescannées
+   et rangées depuis gardent ces exemplaires-là. Les anciens emplacements vidés sont supprimés. « Annuler » remet tout. */
+const plcPlaceAt = id => { const t = parseInt(String(id || '').slice(0, -2), 36); return Number.isFinite(t) ? t : 0; };
+function plcOldPlan() {
+  const c = D.user && D.user.metadata ? Date.parse(D.user.metadata.creationTime) : 0, cut = c > 0 ? Math.floor(c / 1000) : 0; if (!cut) return null;
+  const oldPl = new Set(Object.keys(COLL.places).filter(id => plcPlaceAt(id) < cut)), rm = []; let copies = 0;
+  for (const [k, x] of Object.entries(COLL.map)) {
+    if (!(x.d > 0 && x.d < cut)) continue;
+    const gone = collLines(x).filter(([g]) => { const p = plcOf(g); return !p || oldPl.has(p) || !COLL.places[p]; });
+    if (gone.length) { rm.push([k, new Map(gone)]); copies += gone.reduce((a, [, q]) => a + q, 0); }
+  }
+  return { cut, oldPl, rm, copies };
+}
+function plcOldHtml() {
+  const P = plcOldPlan(); if (!P || !P.copies) return '';
+  const date = new Date(P.cut * 1000).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
+  return `<button type="button" class="plc-old" data-act="plcold"><b>${esc(T('Retirer l\'ancienne collection'))}</b><small>${esc(TN(P.copies, '{n} exemplaire ajouté avant la création de ton compte ({date}), hors emplacements créés depuis', '{n} exemplaires ajoutés avant la création de ton compte ({date}), hors emplacements créés depuis', { n: nf0(P.copies), date }))}</small></button>`;
+}
+function plcOldRemove() {
+  const P = plcOldPlan(); if (!P || !P.copies) return;
+  const names = P.rm.slice(0, 8).map(([k]) => (COLL.map[k] && COLL.map[k].n) || k);
+  openSheet(T('Retirer l\'ancienne collection ?'), TN(P.copies, '{n} exemplaire ajouté avant la création de ton compte ({date}), hors emplacements créés depuis', '{n} exemplaires ajoutés avant la création de ton compte ({date}), hors emplacements créés depuis', { n: nf0(P.copies), date: new Date(P.cut * 1000).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }) }), api => {
+    api.body.innerHTML = `<p class="cf-msg">${esc(names.join(', ') + (P.rm.length > names.length ? '…' : ''))}</p><p class="hint">${esc(T('Les exemplaires rangés dans tes emplacements créés depuis restent. « Annuler », juste après, remet tout.'))}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Garder')}</button><button class="btn danger" type="button" data-ok>${T('Retirer')}</button>`);
+    api.foot.addEventListener('click', e => {
+      if (!e.target.closest('[data-ok]')) return;
+      api.close();
+      const prevMap = [], map = { ...COLL.map }, places0 = COLL.places;
+      for (const [k, m] of P.rm) {
+        const cur = map[k]; if (!cur) continue; prevMap.push([k, cur]);
+        const left = collLines(cur).filter(([g]) => !m.has(g)), next = left.length ? collFromLines(cur, left) : null;
+        if (next && next.q > 0) map[k] = next; else delete map[k];
+      }
+      const used = new Set(); for (const x of Object.values(map)) for (const [g] of collLines(x)) { const p = plcOf(g); if (p) used.add(p); }
+      for (const x of Object.values(COLL.prox || {})) for (const [g] of collLines(x)) { const p = plcOf(g); if (p) used.add(p); }
+      const places = { ...COLL.places }; let gone = 0; for (const id of P.oldPl) if (!used.has(id)) { delete places[id]; gone++; }
+      COLL.map = map; COLL.places = places; if (COLL.place && COLL.place !== '-' && !places[COLL.place]) COLL.place = '';
+      collChanged(); haptic('ok');
+      toast(TN(P.copies, '{n} exemplaire retiré de ta collection', '{n} exemplaires retirés de ta collection') + (gone ? ' · ' + TN(gone, '{n} ancien emplacement supprimé', '{n} anciens emplacements supprimés') : ''),
+        { label: T('Annuler'), fn: () => { const m2 = { ...COLL.map }; for (const [k, v] of prevMap) m2[k] = v; COLL.map = m2; COLL.places = { ...places0, ...COLL.places }; collChanged(); } });
+    });
+  });
+}
+
 /* ── Onglet « Rangement » de la collection ─────────────────────────────────────────────────────── */
 function plcTabHtml() {
   const st = plcStats(), list = plcList(), none = st.get('') || { q: 0, v: 0 }, px = plcStats(true);
   const card = (id, x) => { const s = st.get(id) || { q: 0, v: 0 }; return `<button type="button" class="plc-card" data-act="plcopen" data-p="${esc(id)}"><span class="plc-top"><i class="plc-ic" style="--c:${plcColor(id)}">${plcIc(id)}</i><small>${esc(id ? T(PLC_TYPE[x.t]) : T('Par défaut'))}</small></span><b>${esc(plcName(id))}</b><span class="plc-sub">${TN(s.q, '{n} carte', '{n} cartes', { n: nf0(s.q) })}${s.v ? ' · ' + esc(fmt(s.v, 'EUR')) : ''}</span></button>`; };
   let pq = 0; const pin = new Set(); for (const [id, s] of px) { pq += s.q; if (id) pin.add(id); }
-  return `<div class="plc-h"><b>${T('Emplacements')}</b><button class="link-btn" type="button" data-act="plcnew">${T('+ Nouveau')}</button></div>
+  return `${plcOldHtml()}<div class="plc-h"><b>${T('Emplacements')}</b><button class="link-btn" type="button" data-act="plcnew">${T('+ Nouveau')}</button></div>
     ${list.length ? '' : `<p class="hint plc-intro">${T('Classeurs, boîtes, decks montés, pile à vendre : range chaque exemplaire pour savoir où il est. Au scan, choisis « Ranger dans » ; dans la liste, touche une carte puis son emplacement.')}</p>`}
     <div class="plc-grid">${list.map(x => card(x.id, x)).join('')}${list.length && none.q ? card('', null) : ''}</div>
     <div class="plc-h"><b>${T('Proxys')}</b><small>${T('jamais dans la valeur ni l\'échange')}</small></div>
@@ -244,6 +290,7 @@ function plcClick(e) {
   else if (act === 'plcclear') { COLL.place = ''; haptic('tap'); collPaintBody(true); }
   else if (act === 'plcmv') { haptic('tap'); plcMoveShown(); }
   else if (act === 'plcrm') { haptic('tap'); plcDelShown(); }
+  else if (act === 'plcold') { haptic('tap'); plcOldRemove(); }      // nettoyage temporaire (voir plcOldPlan)
   else if (act === 'plcpill') plcPick({ title: T('Afficher'), cur: COLL.place === '-' ? '' : COLL.place, onPick: id => plcShow(id) });
   else if (act === 'prox') openProxies();
   else if (act === 'cex') { const r = b.closest('.crow'); if (r && r.dataset.k) cexSheet('map', r.dataset.k, rowG(r)); }
