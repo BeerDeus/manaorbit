@@ -1161,6 +1161,6 @@ function openScan(o) {
   document.body.appendChild(wrap); holdApp(); scanPaintTools(); scanPaintList();
   if (typeof opnBands === 'function') opnBands();      // session d'ouverture (opening.js) : bandeau au-dessus de la liste
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.sc-tools [data-act="close"]', wrap).focus({ preventScroll: true }); }));
-  haptic('tap'); scanCamera().finally(() => { if (SC.el !== wrap) return; auLampProbe(); auSync(); if (auOn()) scanHint(auHint(), ''); scanWarm(); if (typeof tipSoon === 'function') tipSoon(1200); });      // astuce (tour.js) : session d'ouverture
+  haptic('tap'); scanCamera().finally(() => { if (SC.el !== wrap) return; auLampProbe(); auSync(); if (auOn()) scanHint(auHint(), ''); scanWarm(); if (typeof tipSoon === 'function') tipSoon(1200); });      // astuces (tour.js) : session d'ouverture, mode Auto
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden && SC.el && SC.watch) SC.watch.reset(); });

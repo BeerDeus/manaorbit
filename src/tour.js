@@ -1,25 +1,33 @@
-/* ── tour.js : « Visite guidée » (9 étapes) et « Astuces » (bulles d'une fois) : où sont les fonctions importantes mais un peu cachées ──────────
+/* ── tour.js : « Visite guidée » (13 étapes, 14 sur ordinateur) et « Astuces » (bulles d'une fois) : où sont les fonctions importantes mais un peu cachées ──
    Visite : l'écran s'assombrit sauf un halo arrondi autour du vrai bouton ; une bulle (titre, une ou deux phrases) se place à côté, jamais dessus
    ni hors de l'écran ; « Suivant » / « Précédent », points de progression, « Passer » ; Échap, flèches, Retour du téléphone ; bulle = dialogue
    nommé, focus gardé dedans, étape annoncée aux lecteurs d'écran ; animations coupées si l'appareil réduit les animations.
    Étapes : Scanner (barre du bas) · Session d'ouverture (réglages du scan, ouverts en feuille : jamais la caméra) · lien et QR code (carte
-   Échange de l'accueil) · Classeur (interrupteur de l'onglet Échange) · Échange en direct · Amis (bouton du compte) · Decks › À monter ·
-   Prix d'une liste · Partager en image (Stats), plus widgets et raccourcis (appli Android) ou l'installation (web). Étape sans objet (fonction
-   coupée par le serveur, déconnecté, APK ancienne, web) : texte adapté, ou étape sautée. À la fin, l'écran d'où l'on venait est remis
-   (vue, section ouverte et son onglet, défilement) ; les feuilles ouvertes au départ (Aide…) restent fermées.
-   Proposée : nouvel utilisateur, une fois à la fin du premier lancement (onboard.js › obClose → tourOffer) : « Une visite de 1 min… ? » ;
+   Échange de l'accueil) · Classeur (interrupteur de l'onglet Échange) · Échange en direct · Amis (bouton du compte) · Carte mystère, niveau et
+   badges (icônes de l'en-tête) · Partie de Commander (carte de l'accueil) · Rangement (onglet de la collection : emplacements, « Ranger ces
+   cartes… », proxys) · Masterset (interrupteur de l'onglet Cartes ; édition et foil d'une ligne, filtre Extension) · Scan mobile (ordinateur
+   seulement : « + » de la collection) · Decks › À monter · Prix d'une liste · Partager en image (Stats), plus widgets et raccourcis (appli
+   Android) ou l'installation (web). Étape sans objet (fonction coupée par le serveur, déconnecté, collection vide, APK ancienne, web) : texte
+   adapté, ou étape sautée. À la fin, l'écran d'où l'on venait est remis (vue, section ouverte et son onglet, défilement) ; les feuilles
+   ouvertes au départ (Aide…) restent fermées.
+   Versions (TOUR_VER, v des étapes) : 1 = les 9 étapes du 13 octobre, 2 = celles du 19 octobre (Carte mystère, partie, rangement, masterset,
+   scan mobile). Qui a déjà vu, refusé ou laissé passer une version précédente reçoit une fois la pastille « Découvre les nouveautés », qui ne
+   montre que les étapes ajoutées depuis (jamais les anciennes) ; la visite complète reste dans l'aide.
+   Proposée : nouvel utilisateur, une fois à la fin du premier lancement (onboard.js › obClose → tourOffer) : « Une visite de 2 min… ? » ;
    utilisateur existant, une fois après cette mise à jour : pastille « Découvre les nouveautés ». Seulement sur l'accueil au calme : ni scan,
    ni échange en direct, ni feuille, ni mode streamer (streamOn), ni lien ouvert de l'extérieur (?p=…). Toujours relançable : Aide (en tête)
    et Compte et réglages › Aide et avis.
-   Astuces : une petite bulle, une seule fois, la première fois qu'on arrive sur l'écran (classeur de l'Échange, réglages du scan, « Ajouter en
-   ami » de la liste d'un autre, « Partager en image » des Stats) ; une seule à la fois, effacée au premier toucher ou après quelques secondes ;
-   jamais pendant la visite, le mode streamer ou le premier lancement ; interrupteur « Astuces » dans Compte et réglages › Préférences.
+   Astuces : une petite bulle, une seule fois, la première fois qu'on arrive sur l'écran (classeur de l'Échange, réglages et mode Auto du scan,
+   « Ajouter en ami » de la liste d'un autre, « Partager en image » des Stats, « Ranger ces cartes… » d'un emplacement, options du masterset,
+   filtre Extension, rond de l'édition d'une ligne) ; une seule à la fois, effacée au premier toucher ou après quelques secondes ; jamais pendant
+   la visite, le mode streamer ou le premier lancement ; interrupteur « Astuces » dans Compte et réglages › Préférences.
    Collection vide : pas d'astuce « Tu viens de ManaBox ? », le lien de l'écran vide le dit déjà.
-   État sur l'appareil seulement (deckdeal:tour) : offre faite, vue, refusée, étape atteinte, astuces vues. Rien au démarrage hormis un minuteur :
-   tout se construit à la demande. Navigateurs pilotés par les tests : ni offre ni astuce, sauf avec ?tour (comme ?onboarding).
-   Retirer : ôter 'tour.js' de build.mjs (les crochets « typeof tour… / tip… » de onboard, help, me, back, ads, collection, scan et friends
-   deviennent inertes), puis css/tour.css et i18n/*.tour.json. */
+   État sur l'appareil seulement (deckdeal:tour) : offre faite, vue, refusée, étape atteinte, version, astuces vues. Rien au démarrage hormis un
+   minuteur : tout se construit à la demande. Navigateurs pilotés par les tests : ni offre ni astuce, sauf avec ?tour (comme ?onboarding).
+   Retirer : ôter 'tour.js' de build.mjs (les crochets « typeof tour… / tip… » de onboard, help, me, back, ads, collection, filters, scan et
+   friends deviennent inertes), puis css/tour.css et i18n/*.tour.json. */
 const TOUR_KEY = 'deckdeal:tour';
+const TOUR_VER = 2;      // version de la visite : une étape ajoutée porte v: TOUR_VER (après l'avoir augmentée) et sera proposée seule aux anciens
 const TOUR_FORCE = typeof location !== 'undefined' && /[?&]tour\b/.test(location.search);
 /** Lancement par un lien, un raccourci, un partage (?p=, ?open=, ?troc=…) : pas de pastille pendant cette session. */
 const TOUR_EXT = (() => { try { return [...new URLSearchParams(location.search).keys()].some(k => !['tour', 'onboarding', 'lang'].includes(k)); } catch (e) { return false; } })();
@@ -48,8 +56,9 @@ const tourFrames = (n = 2) => new Promise(r => { const f = k => (k ? requestAnim
 const tourTopIn = () => parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0;
 
 /* ── Les étapes ──────────────────────────────────────────────────────────────────────────────────────────────────────
-   at : écran à montrer ('home', 'scs' = réglages du scan par-dessus l'accueil, 'trade', 'input', 'stats') ; el : cible(s) (le halo les entoure toutes) ;
-   ok : l'étape a un sens ici ; fixed : cible toujours à l'écran (barre du bas, en-tête), rien à faire défiler ; maxH : hauteur du halo au plus. */
+   at : écran à montrer ('home', 'scs' = réglages du scan par-dessus l'accueil, 'trade', 'places', 'list', 'input', 'stats') ; el : cible(s) (le halo
+   les entoure toutes) ; ok : l'étape a un sens ici ; fixed : cible toujours à l'écran (barre du bas, en-tête), rien à faire défiler ; maxH : hauteur
+   du halo au plus ; v : version de la visite qui l'a ajoutée (1 sans rien). */
 const TOUR_STEPS = [
   { id: 'scan', at: 'home', fixed: true, r: 34, el: () => [$('#nav .nav-scan .nav-foil'), $('#nav .nav-scan .nav-l')],
     t: () => T('Scanner tes cartes'),
@@ -74,6 +83,27 @@ const TOUR_STEPS = [
     t: () => T('Amis'),
     x: () => (D.user ? T('Sur la liste d\'échange d\'un autre joueur, touche « Ajouter en ami ». Tes demandes et tes amis sont ici : Compte et réglages › Amis.')
       : T('Avec un compte : « Ajouter en ami » sur la liste d\'échange d\'un autre joueur, puis tes demandes et tes amis ici, dans Compte et réglages › Amis.')) },
+  { id: 'mystery', v: 2, at: 'home', fixed: true, r: 16, ok: () => typeof dlyOn === 'function' && dlyOn(), el: () => $('#dlyHbs'),
+    t: () => T('Carte mystère'),
+    x: () => (D.user ? T('Une carte par jour, la même pour tous : devine-la pendant qu\'elle se dévoile, le plus vite possible. Le podium ouvre les classements.')
+      : T('Avec un compte : une carte par jour, la même pour tous, à deviner pendant qu\'elle se dévoile. Le podium ouvre les classements.')),
+    x2: () => (typeof prgPill === 'function' ? T('Scans, decks, parties, échanges : tout fait monter ton niveau et gagner des badges. Ils sont dans Compte et réglages, pastille « Niv. ».') : '') },
+  { id: 'partie', v: 2, at: 'home', ok: () => typeof puGo === 'function', el: () => $('#hmPartie'),
+    t: () => T('Partie de Commander'),
+    x: () => (D.user && CTX.partie ? T('Le compteur de vie de la table, jusqu\'à 8 joueurs : blessures de commandant, poison, monarque. Les autres rejoignent avec le QR code, et la partie s\'enregistre chez chacun.')
+      : T('Le compteur de vie de la table, jusqu\'à 8 joueurs : blessures de commandant, poison, monarque, et l\'historique de tes parties.')) },
+  { id: 'places', v: 2, at: 'places', ok: () => typeof plcTabHtml === 'function', el: () => tourIn('#collSeg [data-v="places"]'),
+    t: () => T('Rangement'),
+    x: () => T('Classeurs, boîtes, pile à vendre : note où est chaque carte. Touche un emplacement pour voir ses cartes, et « Ranger ces cartes… » les déplace toutes d\'un coup.'),
+    x2: () => T('Au scan, « Ranger dans » les range tout de suite. Tes proxys ont leur liste à part, jamais dans la valeur ni l\'échange.') },
+  { id: 'masterset', v: 2, at: 'list', ok: () => typeof msBarHtml === 'function', el: () => tourIn('.coll-ms:not([hidden])') || tourIn('#collSeg [data-v="list"]'),
+    t: () => T('Masterset'),
+    x: () => (tourIn('.coll-ms:not([hidden])') ? T('Une extension à la fois, toutes ses cartes dans l\'ordre : en couleur celles que tu as, en noir et blanc celles qui manquent, avec leur prix. La roue crantée règle le foil, les variantes, le playset.')
+      : T('Dès que tu as des cartes, l\'onglet Cartes a un interrupteur Masterset : une extension à la fois, en couleur celles que tu as, en noir et blanc celles qui manquent.')),
+    x2: () => T('Le rond à gauche de la quantité choisit l\'édition exacte d\'une carte, et si elle est foil ✦. Filtres › Extension n\'en affiche qu\'une.') },
+  { id: 'mobile', v: 2, at: 'list', fixed: true, ok: () => typeof mobPcLike === 'function' && mobPcLike(), el: () => tourIn('.coll-tools [data-act="add"]'),      // ordinateur : le téléphone scanne pour lui (mobscan.js)
+    t: () => T('Scan mobile'),
+    x: () => T('« + » ouvre « Ajouter des cartes » : active le scan mobile, puis scanne avec ton téléphone connecté au même compte. Chaque carte arrive ici.') + (D.user ? '' : ' ' + T('Il faut un compte.')) },
   { id: 'build', at: 'input', el: () => $('#inTabs .dk-tab[data-dtab="build"]'),
     t: () => T('Decks › À monter'),
     x: () => (CTX.pub ? T('Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.')
@@ -96,20 +126,22 @@ const TOUR_STEPS = [
 const tourIn = sel => { const top = typeof navTopDv === 'function' ? navTopDv() : null; return top ? $(sel, top) : null; };
 
 /* ── Lancer, aller d'une étape à l'autre, finir ─────────────────────────────────────────────────────────────────────── */
-/** Lance la visite. o.from : 'help', 'pill', 'new'… (statistique locale). Faux si elle ne peut pas démarrer. */
+/** Lance la visite. o.from : 'help', 'pill', 'new'… (statistique locale) ; o.since : version déjà vue (seulement les étapes ajoutées après).
+ *  Faux si elle ne peut pas démarrer. */
 function tourStart(o = {}) {
   if (TOUR.on || (typeof OB !== 'undefined' && OB.el)) return false;
   if (tourStream()) { toast(T('Visite guidée indisponible en mode streamer')); return false; }
   const other = $$('body > .dv.on').filter(d => !d.classList.contains('sec'));
   if (other.length || (typeof SC !== 'undefined' && SC.el) || (typeof imgView !== 'undefined' && imgView)) { toast(T('Ferme cet écran pour lancer la visite')); return false; }
+  const steps = TOUR_STEPS.filter(s => { try { return (s.v || 1) > (o.since || 0) && (!s.ok || s.ok()); } catch (e) { return false; } });
+  if (!steps.length) return false;      // nouveautés toutes coupées par le serveur : rien à montrer
   tourPillHide(); tipHide();
   // où l'on est : remis à la fin (la section ouverte, son onglet, le défilement)
   const top = navTopDv(), sc = top ? $('.dv-scroll', top) : null;
   TOUR.back = { view: S.view, y: window.scrollY, ctab: COLL.ctab, sy: sc ? sc.scrollTop : 0, focus: document.activeElement,
     sec: COLL.el && top === COLL.el ? { k: 'coll', tab: COLL.tab } : typeof DKS !== 'undefined' && DKS.el && top === DKS.el ? { k: 'dks' } : null };
   while (sheets.length) sheets[sheets.length - 1].close();
-  TOUR.steps = TOUR_STEPS.filter(s => { try { return !s.ok || s.ok(); } catch (e) { return false; } });
-  TOUR.on = true; TOUR.from = o.from || ''; TOUR.key = ''; TOUR.busy = false;
+  TOUR.steps = steps; TOUR.on = true; TOUR.from = o.from || ''; TOUR.key = ''; TOUR.busy = false;
   tourSet({ runs: (tourRead().runs || 0) + 1, last: Date.now() });
   tourBuild();
   window.addEventListener('keydown', tourKey, true);
@@ -190,8 +222,10 @@ async function tourAt(w) {
     if (w === 'scs' && (!TOUR.sheet || sheets.indexOf(TOUR.sheet) < 0)) { scsSheet(); TOUR.sheet = sheets[sheets.length - 1] || null; await tourWait(120); }
   } else if (w === 'trade') {
     if (!(COLL.el && COLL.mode === 'trade')) { navOpen(() => openCollection('trade')); await tourWait(320); }
-  } else if (w === 'stats') {
-    if (!(COLL.el && COLL.tab === 'stats')) { navOpen(() => openCollection('stats')); await tourWait(320); }
+  } else if (w === 'stats' || w === 'places' || w === 'list') {      // un onglet de « Ma collection » (Stats, Rangement, Cartes) ; déjà ouverte : l'onglet change sur place
+    if (COLL.el && COLL.mode === 'coll') {
+      if (COLL.tab !== w) { COLL.tab = COLL.ctab = w; const sg = $('#collSeg', COLL.el), sc = $('.dv-scroll', COLL.el); if (sg && sg.setValue) sg.setValue(w); collPaintBody(false); if (sc) sc.scrollTop = 0; await tourWait(120); }
+    } else { navOpen(() => openCollection(w)); await tourWait(320); }
   } else if (w === 'input') {
     if (COLL.el || (typeof DKS !== 'undefined' && DKS.el)) { navCloseSections(); await tourWait(280); }
     if (S.view !== 'input') { showView('input'); await tourWait(140); }
@@ -205,7 +239,7 @@ function tourEnd(how) {
   const el = TOUR.el; TOUR.el = TOUR.b = TOUR.hole = null;
   if (el) { el.classList.remove('on'); setTimeout(() => el.remove(), typeof reduceMotion === 'function' && reduceMotion() ? 0 : 260); }
   if (TOUR.sheet) { const a = TOUR.sheet; TOUR.sheet = null; a.close(); }
-  tourSet(how === 'done' ? { fin: Date.now(), done: tourRead().done || Date.now() } : { skip: Date.now(), done: tourRead().done || Date.now() });
+  tourSet(how === 'done' ? { fin: Date.now(), done: tourRead().done || Date.now(), ver: TOUR_VER } : { skip: Date.now(), done: tourRead().done || Date.now(), ver: TOUR_VER });      // ver : cette version est vue, pas de pastille pour elle
   tourRestore();
   if (typeof adsRefresh === 'function') adsRefresh();
   if (how === 'done') toast(T('Visite terminée. Tu la retrouves dans « Comment ça marche ? », en bas de l\'accueil.'));
@@ -292,22 +326,29 @@ function tourPlace(R, s) {
 }
 
 /* ── Offre : nouvel utilisateur (fin du premier lancement), utilisateur existant (une fois après la mise à jour) ─────────── */
-/** Fin du premier lancement (onboard.js › obClose) : « Une visite de 1 min pour trouver l'essentiel ? », dès que l'accueil est au calme. */
+/** Fin du premier lancement (onboard.js › obClose) : « Une visite de 2 min pour trouver l'essentiel ? », dès que l'accueil est au calme. */
 function tourOffer() {
   const st = tourRead(); if (st.offer || st.done) return;
-  tourSet({ offer: 'new' });
+  tourSet({ offer: 'new', ver: TOUR_VER });
   if (tourAuto()) tourArm();
 }
-/** Quelques secondes après le démarrage : utilisateur existant (premier lancement déjà passé) → pastille « Découvre les nouveautés », une fois. */
+/** Quelques secondes après le démarrage : utilisateur existant (premier lancement déjà passé) → pastille « Découvre les nouveautés », une fois ;
+ *  visite d'une version précédente (vue, refusée, ou pastille laissée sans réponse) → la même pastille, une fois, pour les étapes ajoutées depuis. */
 function tourBoot() {
   if (!tourAuto() || TOUR_EXT) return;
-  const st = tourRead(); if (st.done) return;
-  if (st.offer) {
-    if (st.shownAt && st.shownAt < TOUR.boot) { tourSet({ done: Date.now(), how: 'exp' }); return; }      // déjà montrée à un lancement précédent : on n'insiste pas
-    tourArm(); return;
-  }
+  let st = tourRead();
+  if (st.offer && !st.done && st.shownAt && st.shownAt < TOUR.boot) st = tourSet({ done: Date.now(), how: 'exp' });      // déjà montrée à un lancement précédent : on n'insiste pas
+  if (st.done && (st.ver || 1) < TOUR_VER) st = tourNews(st);
+  if (st.done) return;
+  if (st.offer) { tourArm(); return; }
   if ((typeof OB !== 'undefined' && OB.el) || typeof obSeen !== 'function' || !obSeen()) return;      // premier lancement en cours (obClose proposera), ou appareil jamais ouvert
-  tourSet({ offer: 'news' }); tourArm();
+  tourSet({ offer: 'news', ver: TOUR_VER }); tourArm();
+}
+/** Nouvelle offre des nouveautés : since = version déjà proposée (ses étapes ne seront pas rejouées) ; astuces vues et interrupteur gardés. */
+function tourNews(st) {
+  const o = { offer: 'news', since: st.ver || 1, ver: TOUR_VER };
+  for (const k of ['tips', 'tipsOff', 'runs']) if (st[k] != null) o[k] = st[k];
+  TOUR.st = {}; return tourSet(o);
 }
 /** L'accueil au calme : rien par-dessus (feuille, écran, scan, carte en grand, premier lancement), pas de mode streamer, appli au premier plan. */
 function tourQuiet() {
@@ -328,20 +369,20 @@ function tourArm() {
   TOUR.armT = setInterval(tick, 400);
 }
 function tourPillShow(kind) {
-  if (!tourRead().shownAt) tourSet({ shownAt: Date.now() });
+  if (!tourRead().shownAt) tourSet({ shownAt: Date.now(), ver: TOUR_VER });      // vue avec cette version : à son expiration, pas de nouvelle offre
   const el = TOUR.pill = document.createElement('aside'); TOUR.pillK = kind;
   el.className = 'tour-pill' + (kind === 'new' ? ' new' : ''); el.setAttribute('aria-label', T('Visite guidée'));
   el.innerHTML = kind === 'new'
-    ? `<span class="tour-pill-i" aria-hidden="true"><svg class="logo"><use href="#i-logo"/></svg></span><span class="tour-pill-t" role="status">${esc(tourNb(T('Une visite de 1 min pour trouver l\'essentiel ?')))}</span>
+    ? `<span class="tour-pill-i" aria-hidden="true"><svg class="logo"><use href="#i-logo"/></svg></span><span class="tour-pill-t" role="status">${esc(tourNb(T('Une visite de 2 min pour trouver l\'essentiel ?')))}</span>
       <span class="tour-pill-a"><button class="link-btn" type="button" data-tp="later">${T('Plus tard')}</button><button class="btn small" type="button" data-tp="go">${T('Visiter')}</button></span>`
     : `<span class="tour-pill-i" aria-hidden="true"><svg class="i"><use href="#i-star"/></svg></span><span class="tour-pill-t" role="status">${T('Découvre les nouveautés')}</span>
       <button class="btn small" type="button" data-tp="go">${T('Visiter')}</button><button class="tour-pill-x" type="button" data-tp="x" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-close"/></svg></button>`;
   el.addEventListener('click', e => {
     const b = e.target.closest('[data-tp]'); if (!b) return;
     haptic('tap');
-    const a = b.dataset.tp; tourSet({ done: Date.now(), how: a });
+    const a = b.dataset.tp, since = tourRead().since; tourSet({ done: Date.now(), how: a, ver: TOUR_VER });
     tourPillHide(true);
-    if (a === 'go') tourStart({ from: TOUR.pillK });
+    if (a === 'go') tourStart({ from: TOUR.pillK, since: TOUR.pillK === 'news' ? since : 0 });      // nouveautés : seulement les étapes ajoutées depuis la version déjà vue
     else if (a === 'later') toast(T('La visite t\'attend dans « Comment ça marche ? », en bas de l\'accueil.'));
   });
   document.body.appendChild(el);
@@ -353,11 +394,11 @@ function tourPillHide(now) {
 }
 
 /* ── Aide : « Visite guidée » en tête de « Comment ça marche », et dans Compte et réglages › Aide et avis ───────────────── */
-const tourHelpHtml = () => `<button class="tour-help" type="button" data-help="tour"><span class="tour-help-i" aria-hidden="true"><svg class="i"><use href="#i-star"/></svg></span><span class="tour-help-t"><b>${T('Visite guidée')}</b><small>${tourNb(T('Où sont les fonctions importantes, en 1 minute'))}</small></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
+const tourHelpHtml = () => `<button class="tour-help" type="button" data-help="tour"><span class="tour-help-i" aria-hidden="true"><svg class="i"><use href="#i-star"/></svg></span><span class="tour-help-t"><b>${T('Visite guidée')}</b><small>${tourNb(T('Où sont les fonctions importantes, en 2 minutes'))}</small></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
 const tourHelpBtn = () => `<button class="btn ghost small" type="button" data-help="tour">${T('Visite guidée')}</button>`;
 if (typeof HELP_QA !== 'undefined') {
   const i = HELP_QA.findIndex(q => q[0] === 'Faut-il un compte ?');
-  HELP_QA.splice(i < 0 ? HELP_QA.length : i, 0, ['Où sont les fonctions moins visibles ?', 'Touche <b>Visite guidée</b>, en haut de cette aide : en 1 minute, elle montre le scan et la session d\'ouverture, ton lien d\'échange, le classeur, l\'échange en direct, les amis, les decks à monter, le prix d\'une liste et le partage en image. Les <b>astuces</b> (petites bulles, une fois par écran) se coupent dans Compte et réglages › Préférences.']);
+  HELP_QA.splice(i < 0 ? HELP_QA.length : i, 0, ['Où sont les fonctions moins visibles ?', 'Touche <b>Visite guidée</b>, en haut de cette aide : en 2 minutes, elle montre le scan et la session d\'ouverture, ton lien d\'échange, le classeur, l\'échange en direct, les amis, la Carte mystère, la partie de Commander, le rangement, le masterset, les decks à monter, le prix d\'une liste et le partage en image. Les <b>astuces</b> (petites bulles, une fois par écran) se coupent dans Compte et réglages › Préférences.']);
 }
 
 /* ── Astuces : une bulle, une fois, la première fois qu'on arrive sur l'écran ─────────────────────────────────────────── */
@@ -367,6 +408,12 @@ const TIP_DEFS = {
   opn: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote && typeof opnEntry === 'function' && !(typeof opnOn === 'function' && opnOn()), top => $('.sc-set', top), () => T('Tu ouvres des boosters ? Lance une session d\'ouverture ici.')],
   ami: [top => typeof TR !== 'undefined' && TR.pub && top === TR.pub.el, top => $('[data-am="add"]', top), () => T('Ajoute-le en ami : vous verrez vos listes, toujours à jour.')],
   simg: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.tab === 'stats', top => $('[data-act="simgcoll"]', top), () => T('Partage ta collection en image.')],
+  // depuis la version 2 de la visite ; d'abord celles d'un écran précis (emplacement ouvert, masterset, filtres ouverts), puis le rond d'édition des lignes
+  rng: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode === 'coll' && COLL.tab === 'list' && !!COLL.place, top => $('.plc-mv', top), () => T('Range d\'un coup toutes les cartes affichées ici : vers une boîte, un autre classeur… Filtre d\'abord pour n\'en prendre qu\'une partie.')],
+  msopt: [top => typeof msActive === 'function' && top === COLL.el && msActive(), top => $('.ms-opt:not([hidden])', top), () => T('Les options du masterset : version foil, variantes, playset, langue.')],
+  fset: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode !== 'decks', top => { const b = $('.fset', top); return b && !b.closest('[hidden]') ? b : null; }, () => T('Une seule extension à la fois : cherche-la par son nom, son code ou son année.')],      // panneau des filtres ouvert (filters.js)
+  ed: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode === 'coll' && COLL.tab === 'list' && !(typeof msActive === 'function' && msActive()), top => $('.crow .row-ed', top), () => T('Touche ce rond : l\'édition exacte de ta carte, et foil ✦ ou non.')],
+  auto: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote, top => $('.sc-auto:not([hidden])', top), () => T('Auto : pose tes cartes l\'une après l\'autre, le scan les lit tout seul.')],
 };
 const tipOff = () => !!tourRead().tipsOff;
 /** Ligne « Astuces » de Compte et réglages › Préférences (me.js). */

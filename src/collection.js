@@ -1127,7 +1127,7 @@ function collPaintBody(keep) {
   }
   if (sc) sc.scrollTop = pos;
   if (!keep) stagger($$('.coll-list, .cs-tiles, .dk-res', host));
-  if (typeof tipSoon === 'function') tipSoon();      // astuces (tour.js) : classeur de l'Échange, « Partager en image » des Stats
+  if (typeof tipSoon === 'function') tipSoon();      // astuces (tour.js) : classeur de l'Échange, « Partager en image » des Stats, « Ranger ces cartes… », options du masterset, rond de l'édition
 }
 
 /** « Afficher plus » : seule la tranche suivante est ajoutée au bas de la liste (tout repeindre prenait ~2 s à 1 300 lignes sur un téléphone moyen). Liste changée depuis le dernier repaint (version, tri, filtre) : repaint complet, comme avant. */
