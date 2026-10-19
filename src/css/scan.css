@@ -134,17 +134,26 @@
 @keyframes scdot{50%{opacity:.3}}
 @media (prefers-reduced-motion:reduce){.scan.auto .sc-cap::before,.sc-same{animation:none}}
 /* cadrage « carte entière » (réglage par défaut) : cadre d'une carte (63 × 88) ; zone du nom et coin de la ligne du bas marqués en pointillés.
-   --gh : hauteur du cadre (68 % de la largeur de l'écran au plus, 50 % de sa hauteur au plus) ; les boutons restent posés sur l'image. */
+   --gh : hauteur du cadre (48 % de la largeur de l'écran au plus, 42 % de sa hauteur au plus ; avant le 19 octobre : 68 % et 50 %) : la carte tenue vers 12-15 cm,
+   au-delà de la distance minimale de mise au point des téléphones (à 8 cm, elle cherchait), et la liste plus haute dessous. --gw : largeur du cadre.
+   Les textes (mode du cadre, message) restent hors du cadre, dans les bandes de côté ; les boutons restent posés sur l'image. */
 .sc-g-name,.sc-g-foot{display:none;position:absolute;border:1.5px dashed rgba(255,255,255,.55);border-radius:6px;pointer-events:none}
-.scan.full{--gh:min(calc(68vw * 88 / 63), 420px, 50dvh)}
+.scan.full{--gh:min(calc(48vw * 88 / 63), 330px, 42dvh);--gw:calc(var(--gh) * 63 / 88)}
 .scan.full .sc-stage:not([data-cam="no"]){height:calc(var(--top-in) + var(--gh) + 114px)}
 .scan.full .sc-guide{top:calc(var(--top-in) + 56px);width:auto;height:var(--gh);aspect-ratio:63/88;border-radius:14px}
 .scan.full .sc-guide::before{border-radius:16px}
 .scan.full .sc-g-name,.scan.full .sc-g-foot{display:block}
 .scan.full .sc-g-name{left:4%;right:4%;top:3.5%;height:8%}
 .scan.full .sc-g-foot{left:4%;bottom:2.5%;width:44%;height:6.5%}
-.scan.full .sc-cap{left:50%;bottom:auto;top:13%;transform:translateX(-50%);white-space:nowrap}
-.scan.full .sc-hint{top:calc(var(--top-in) + 56px + var(--gh) * .3)}
+.scan.full .sc-cap{left:auto;right:calc(100% + 8px);top:0;bottom:auto;transform:none;max-width:min(120px,calc((100vw - var(--gw)) / 2 - 16px));white-space:normal;text-align:center;line-height:1.25}
+.scan.full .sc-hint{left:calc(50% + var(--gw) / 2 + 8px);right:8px;top:calc(var(--top-in) + 56px + var(--gh) / 2);transform:translateY(-50%);max-width:none;padding:7px 10px;border-radius:12px;font-size:12px;line-height:1.3;white-space:normal;overflow:visible;text-align:left;text-wrap:pretty}
+.scan.full .sc-hint[data-k="bad"],.scan.full .sc-hint[data-k="busy"]{left:12px;right:12px;top:calc(var(--top-in) + 56px + var(--gh) * .62);transform:none;text-align:center}      /* panne, caméra qui redémarre : message long, en travers du cadre (rien à cadrer à ce moment-là) */
+/* carte ajoutée : son symbole d'édition apparaît en bas du cadre et descend sur sa ligne (scan.js › scanFly), la ligne s'éclaire */
+.sc-fly{position:fixed;left:0;top:0;z-index:30;width:46px;height:46px;display:grid;place-items:center;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(123,232,180,.85),0 6px 18px rgba(0,0,0,.45);pointer-events:none;opacity:0;will-change:transform,opacity}
+.sc-fly .set-ic{width:28px;height:28px}
+.sc-item.got{animation:scgot .9s ease-out}
+@keyframes scgot{0%{box-shadow:inset 0 0 0 2px var(--good),0 0 0 0 rgba(123,232,180,.55)}60%{box-shadow:inset 0 0 0 2px var(--good),0 0 0 8px rgba(123,232,180,0)}100%{box-shadow:inset 0 0 0 1px var(--accent)}}
+@media (prefers-reduced-motion:reduce){.sc-item.got{animation:none}}
 .sc-diag{white-space:pre-line}
 /* diagnostic (5 appuis sur le titre) : au-dessus de la liste, sur fond opaque, lisible (plus sur l'image de la caméra) */
 .scan .sc-diag{position:static;flex:none;margin:0 12px 8px;padding:8px 10px;border-radius:10px;background:#0b0f1c;color:#9bffc5;font-size:12.5px;line-height:1.45;max-height:30dvh;overflow:auto}

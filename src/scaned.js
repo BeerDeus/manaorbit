@@ -69,6 +69,7 @@ function scanRekey(it, nid) {
   const other = SC.items.get(nid);
   if (other) {
     other.q = Math.min(999, other.q + it.q); other.fq = Math.min(other.q, (other.fq || 0) + (it.fq || 0)); if (!it.maybe) { other.maybe = false; other.shot = ''; }
+    if (it.fly) other.fly = Math.max(other.fly || 0, it.fly);      // symbole qui doit encore descendre dans la liste (scan.js › scanFlyCheck)
     if (it.es === 'man') other.es = 'man';
     // la ligne gardée prend la place la plus récente des deux : une carte relue (ligne à part le temps de lire son édition) remonte en haut avec ses doublons
     const ids = [...SC.items.keys()];

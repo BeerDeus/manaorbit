@@ -120,6 +120,7 @@ function scanAdd(m, d, maybe, shot) {
   else if (m.via && l !== 'en') langImgFor(m.key, m.name, l);      // trouvée sur l'appareil (catalogue sans images) : celle de sa langue demandée à Scryfall, l'anglaise en attendant
   if (cur) { SC.items.delete(id); SC.items.set(id, cur); SC.lastIt = cur; cur.q = Math.max(1, cur.q + d); if (m.ft && !cur.ft) cur.ft = m.ft; if (!maybe) { cur.maybe = false; cur.shot = ''; } else if (cur.maybe && shot) cur.shot = shot; if (m.score > cur.score) { cur.score = m.score; cur.raw = m.raw; } if (m.via) cur.via = m.via; }
   else { const it = { id, key: m.key, name: m.name, q: Math.max(1, d), score: m.score, raw: m.raw, maybe: !!maybe, l, shot: maybe ? shot || '' : '', via: m.via || '', e: ed.e, es: ed.es, pk: ed.pk, nx: false, ft: m.ft || null, sig: m.sig || null, sym: (artq && m.sym) || null, artq, lot: !!m.lot, ambBy: m.ambBy || '', alts: m.amb || m.ambBy ? m.alts || null : null }; SC.items.set(id, it); SC.lastIt = it; if (ed.es === 'load') scanEdNeed(it); }      // via : langue trouvée par la recherche des autres langues
+  if (d > 0 && SC.lastIt) SC.lastIt.fly = Date.now();      // carte ajoutée : son symbole d'édition descendra dans la liste dès que l'édition est connue (scanFlyCheck)
   if (ed.e) scanEdPass();      // une édition posée : les cartes « à choisir » sont revues
   scanPaintList();
   if (artq) scanArtRun();
@@ -195,6 +196,7 @@ function scanPaintList() {
   const prog = $('.sc-prog', el); prog.hidden = !SC.pend.length; prog.textContent = TN(SC.pend.length, '{n} en lecture', '{n} en lecture');
   if (SC.recap) SC.recap();
   if (SC.ef) SC.ef();      // écran « Éditions à choisir » : les éditions arrivent
+  scanFlyCheck();
 }
 /** Boutons de l'écran de scan qui suivent les réglages (scanset.js) : pastille des éditions. */
 /** Mode deck (builder.js › bdScan) : « Deck : <nom> », l'emplacement où les cartes sont rangées à l'enregistrement du deck ('' hors mode deck). */
@@ -362,6 +364,45 @@ function scanHint(t, kind) {
   if (t && kind === 'ok') SC.hintT = setTimeout(() => { if (SC.el && h.textContent === t) { h.hidden = true; h.textContent = ''; } }, 2500);
 }
 function scanFlash() { const f = $('.sc-flash', SC.el); if (!f) return; f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+/** Éditions trouvées seules (lue sur la carte, la seule impression, comme la 1re, illustration, symbole) : celles qui « tombent » dans la liste. Choisie à la main : rien ne bouge. */
+const SC_FLY_ES = ['auto', 'solo', 'read', 'art', 'sym'];
+/** Après chaque rendu de la liste : une carte ajoutée il y a moins de 12 s dont l'édition vient d'être trouvée → son symbole part du bas du cadre vers sa ligne. */
+function scanFlyCheck() {
+  const now = Date.now();
+  for (const x of SC.items.values()) {
+    if (!x.fly) continue;
+    if (now - x.fly > 12000 || x.maybe) { if (now - x.fly > 12000) delete x.fly; continue; }      // à vérifier : il partira une fois confirmé (dans le délai)
+    if (!x.e) continue;
+    delete x.fly; if (SC_FLY_ES.includes(x.es)) scanFly(x);
+  }
+}
+/** Le symbole de l'édition apparaît en bas du cadre, puis descend se poser sur le bouton d'édition de la ligne (« c'est ajouté ») ; la ligne s'éclaire.
+ *  Cible relue à chaque image : la liste peut bouger pendant le vol (lectures en cours, bandeaux) ; ligne hors de vue : il plonge vers le haut de la liste.
+ *  Animations réduites : la ligne s'éclaire seulement. SC_FLY.ms : durée (les tests la rallongent). */
+const SC_FLY = { ms: 1250, S: 46 };
+function scanFly(x) {
+  const el = SC.el, ic = setIcHtml(edSet(x.e)), g = el && $('.sc-guide', el), list = el && $('.sc-list', el); if (!ic || !g || !list) return;
+  const rowOf = () => $(`.sc-item[data-id="${CSS.escape(x.id)}"]`, el);
+  const lit = () => { const row = rowOf(); if (!row) return; row.classList.remove('got'); void row.offsetWidth; row.classList.add('got'); };
+  if (typeof reduceMotion === 'function' && reduceMotion()) { lit(); return; }
+  const S = SC_FLY.S, gr = g.getBoundingClientRect(), x0 = gr.left + gr.width / 2 - S / 2, y0 = gr.bottom - S - gr.height * 0.1;
+  const target = () => {
+    const lr = list.getBoundingClientRect(), row = rowOf(), dst = row && ($('.sc-ed', row) || row), dr = dst && dst.getBoundingClientRect();
+    return dr && dr.bottom > lr.top + 8 && dr.top < lr.bottom - 8 ? { x: dr.left + dr.width / 2 - S / 2, y: dr.top + dr.height / 2 - S / 2, k: Math.max(0.5, dr.width / S) } : { x: lr.left + lr.width / 2 - S / 2, y: lr.top - S / 2, k: 0.6 };
+  };
+  const f = document.createElement('div'); f.className = 'sc-fly'; f.setAttribute('aria-hidden', 'true'); f.innerHTML = ic; el.appendChild(f);
+  const t0 = performance.now(), io = u => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
+  const step = now => {
+    if (SC.el !== el || !f.isConnected) { f.remove(); return; }
+    const t = Math.min(1, (now - t0) / SC_FLY.ms); let px = x0, py = y0, sc = 1, op = 1;
+    if (t < 0.16) { sc = 0.3 + 0.82 * (t / 0.16); op = t / 0.16; }      // apparaît en bas du cadre
+    else if (t < 0.26) sc = 1.12 - 0.12 * ((t - 0.16) / 0.1);
+    else if (t >= 0.46) { const tg = target(), u = io(Math.min(1, (t - 0.46) / 0.44)); px = x0 + (tg.x - x0) * u; py = y0 + (tg.y - y0) * u; sc = 1 + (tg.k - 1) * u; if (t > 0.9) op = 1 - (t - 0.9) / 0.1; }      // descend sur sa ligne
+    f.style.transform = `translate(${px.toFixed(1)}px,${py.toFixed(1)}px) scale(${sc.toFixed(3)})`; f.style.opacity = String(op);
+    if (t < 1) requestAnimationFrame(step); else { f.remove(); lit(); }
+  };
+  requestAnimationFrame(step);
+}
 
 /* ── Catalogue des noms français (data.js › scryFrCatalog) : chargé depuis l'appareil dès l'ouverture du scan, téléchargé une fois s'il manque ─── */
 const FRC = { cat: null, at: 0, p: null, state: 'idle', done: 0, total: 0, err: '' };      // state : idle · run · ready · ask (réseau mobile : on demande) · err
@@ -759,8 +800,8 @@ function artAttach(m, src) {
   const sig = artSig(src), sym = typeof symSig === 'function' ? symSig(src) : null; return sig ? { ...m, sig, ...(sym ? { sym } : {}) } : m;
 }
 /** Consigne sous la caméra, selon le cadrage. */
-const camHint = () => (scanFull() ? T('Carte entière dans le cadre, puis appuie sur le cercle') : CAM_HINT);
-const auHint = () => (scanFull() ? T('Pose la carte dans le cadre : elle s\'ajoute seule') : T('Pose la carte, le nom dans la bande : elle s\'ajoute seule'));
+const camHint = () => (scanFull() ? T('Carte entière dans le cadre, à 15 cm environ') : CAM_HINT);      // un peu loin : la mise au point tient (trop près, sous la distance minimale de l'objectif, elle cherche)
+const auHint = () => (scanFull() ? T('Dans le cadre, à 15 cm environ : elle s\'ajoute seule') : T('Pose la carte, le nom dans la bande : elle s\'ajoute seule'));
 /** Cadrage changé (réglages) ou écran ouvert : cadre de l'écran, légendes ; caméra native replacée sur la nouvelle zone. */
 async function scanFrameApply() {
   const el = SC.el; if (!el) return;

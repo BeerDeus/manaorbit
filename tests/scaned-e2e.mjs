@@ -239,6 +239,22 @@ await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
 ok('foil au scan : « Foil ✦ » 2 sur 3, étiquette ✦ 2, ajoutés foil à la collection ; carte relue (ligne à part puis rangée) : remonte en haut');
 await p.click('.scan [data-act="close"]');
 
+/* ── cadre « carte entière » réduit (carte vers 15 cm), textes dans les bandes de côté ; carte ajoutée : son symbole d'édition descend sur sa ligne ── */
+await p.evaluate(() => { scsSet({ frame: 'card' }); openScan(); }); await p.waitForFunction(() => SC.el && SC.el.classList.contains('full') && SC.el.classList.contains('on'));
+{
+  const geo = await p.evaluate(() => { SC.el.querySelector('.sc-stage').dataset.cam = 'on'; const r = e => SC.el.querySelector(e).getBoundingClientRect(), g = r('.sc-guide'), c = r('.sc-cap'); scanHint(camHint(), ''); const h = r('.sc-hint'); return { gw: g.width / innerWidth, cap: c.right <= g.left, hint: h.left >= g.right, text: SC.el.querySelector('.sc-hint').textContent, at: [g.left, g.right, c.left, c.right, h.left, h.right].join() }; });      // SC.el : l'écran de scan d'avant peut encore être là (fermeture animée)
+  assert.ok(geo.gw > 0.4 && geo.gw < 0.52, 'cadre ≈ 48 % de la largeur (' + geo.gw + ')'); assert.ok(geo.cap && geo.hint, '« Carte entière » à gauche du cadre, le message à droite : rien dans le cadre (' + geo.at + ')');
+  assert.match(geo.text, /15 cm/);
+}
+await p.evaluate(() => { SC_FLY.ms = 900; SC.items.set('sol ring', { id: 'sol ring', key: 'sol ring', name: 'Sol Ring', q: 1, score: 1, l: 'en', e: edKey('m21', '1'), es: 'read', maybe: false, fly: Date.now() }); SC.lastIt = SC.items.get('sol ring'); scanPaintList(); });
+await p.waitForSelector('.scan .sc-fly'); await p.waitForSelector('.scan .sc-fly', { state: 'detached', timeout: 4000 });
+assert.equal(await p.$eval('.sc-item[data-id="sol ring"]', r => r.classList.contains('got')), true, 'arrivé : la ligne s\'éclaire');
+assert.equal(await p.evaluate(() => 'fly' in SC.items.get('sol ring')), false, 'une fois');
+await p.evaluate(() => { SC.items.set('swords', { id: 'swords', key: 'swords to plowshares', name: 'Swords to Plowshares', q: 1, score: 1, l: 'en', e: edKey('m21', '2'), es: 'man', maybe: false, fly: Date.now() }); scanPaintList(); });
+await p.waitForTimeout(150); assert.equal(await p.$('.scan .sc-fly'), null, 'édition choisie à la main : rien ne descend');
+ok('cadre « carte entière » ≈ 48 % (carte vers 15 cm), textes hors du cadre ; symbole de l\'édition trouvée : du bas du cadre à sa ligne, qui s\'éclaire');
+await p.click('.scan [data-act="close"]');
+
 assert.deepEqual(errs, [], 'erreurs page');
 await browser.close(); world.stop();
 console.log('\nSCANED E2E OK');
