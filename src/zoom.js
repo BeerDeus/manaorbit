@@ -10,6 +10,12 @@ function zoomNamed(key, name, en, wl, extra) {
   const im = (dmOf(ownKey(en)) || {}).im || '';
   return { key, name, ln: en, wl: wl && wl !== 'en' ? wl : '', small: im || zoomUrl(en, 'small'), big: im ? '' : zoomUrl(en, 'large'), lang: 'en', plain: true, extra: extra || '' };
 }
+/** Impression exacte (édition e 'cmm|400' d'exemplaires de langue l : classeur, liste d'échange) : la carte en grand la lit sur Scryfall par l'extension et le numéro, dans cette langue
+ *  (l'anglaise à défaut, signalée), jamais une autre impression du même nom ; small : image déjà affichée ('' : celle de Scryfall, par l'extension et le numéro). */
+function zoomEd(key, name, en, l, e, small, extra) {
+  const set = edSet(e), num = edNum(e), u = v => 'https://api.scryfall.com/cards/' + encodeURIComponent(set) + '/' + encodeURIComponent(num) + '?format=image&version=' + v;
+  return { key, name, ln: en, small: small || u('small'), ...(small ? {} : { big: u('large') }), lang: l || 'en', set, num, setName: (typeof setName === 'function' && setName(set)) || (COLL.ed[e] || {}).sn || '', extra: extra || '' };
+}
 /** Liste du viewer depuis des rangées affichées : make(r) → carte, ou null (rangée sautée) ; at : la rangée touchée. */
 function zoomFrom(rows, row, make) {
   const items = []; let at = -1;
@@ -36,11 +42,12 @@ const ZOOM_LISTS = {
       return collViewItem(k, rowG(r)) || (x ? zoomNamed(k, zoomName(r) || x.n, x.n, ln || x.l) : null);
     });
   },
-  /* Liste d'échange : doublons (langue de l'exemplaire) et cartes recherchées (illustration souhaitée montrée telle quelle). */
+  /* Liste d'échange : doublons (langue de l'exemplaire ; édition de la vignette : son impression exacte) et cartes recherchées (illustration souhaitée montrée telle quelle). */
   tr: th => {
     const row = th.closest('.tr-row'); if (!row) return null;
     return zoomFrom($$(':scope > .tr-row', row.parentNode), row, r => {
       const k = r.dataset.k, name = zoomName(r), en = (COLL.map[k] || {}).n || name, ln = r.dataset.ln || '', big = r.dataset.big, src = zoomImg(r);
+      if (r.dataset.e) return zoomEd(k, name, en, ln, r.dataset.e, src);
       if (!src) return zoomNamed(k, name, en, ln);
       return { key: k, name, ln: en, wl: big ? '' : ln && ln !== 'en' ? ln : '', small: src, ...(big ? { big } : {}), lang: ln || 'en', plain: true, extra: '' };
     });
@@ -51,6 +58,7 @@ const ZOOM_LISTS = {
     const ens = new Map([...P.sh.have, ...P.sh.want].map(x => [x.k, x.n]));
     return zoomFrom($$('.pub-row', wrap), row, r => {
       const k = r.dataset.k, name = zoomName(r), en = ens.get(k) || name, ln = r.dataset.ln || '', im = $('.thumb img', r);      // illustration recherchée (data-pw) : telle quelle, sans version française
+      if (r.dataset.e && !r.dataset.pw) return zoomEd(k, name, en, ln, r.dataset.e, im ? im.getAttribute('src') : '', r.dataset.x);      // édition partagée : son impression exacte
       if (!im) return zoomNamed(k, name, en, ln, r.dataset.x);
       return { key: k, name, ln: en, wl: !r.dataset.pw && ln && ln !== 'en' ? ln : '', small: im.getAttribute('src'), lang: ln || 'en', plain: true, extra: r.dataset.x || '' };
     });

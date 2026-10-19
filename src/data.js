@@ -337,6 +337,24 @@ async function scryEditions(eds, signal, onProgress) {
   }
   return out;
 }
+/** Petites images d'éditions précises ('cmm|400') dans une autre langue que l'anglais : Map(édition → url, '' si Scryfall n'a pas cette impression dans cette langue).
+ *  Une recherche pour 25 éditions au plus (« (set:cmm cn:400 or …) lang:fr », ≤ 900 caractères) : /cards/collection ne prend pas de langue. */
+async function scryEdLangImages(eds, lang, signal, prio = false) {
+  const sl = SCRY_LANG[lang], out = new Map();
+  if (!sl || sl === 'en') return out;
+  const uniq = [...new Set((eds || []).filter(e => edKey(edSet(e), edNum(e))))], cn = n => (/^[0-9a-z]+$/i.test(n) ? n : '"' + n.replace(/"/g, '') + '"'), chunks = [];
+  let cur = [], len = 0;
+  for (const e of uniq) { const t = '(set:' + edSet(e) + ' cn:' + cn(edNum(e)) + ')'; if (cur.length && (cur.length >= 25 || len + t.length + 4 > 900)) { chunks.push(cur); cur = []; len = 0; } cur.push([e, t]); len += t.length + 4; }
+  if (cur.length) chunks.push(cur);
+  for (const ch of chunks) {
+    const by = new Map(ch.map(([e]) => [edNorm(e), e])), q = '(' + ch.map(x => x[1]).join(' or ') + ') lang:' + sl;
+    let j; try { j = await httpJson(limScry, 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q) + '&unique=prints&include_extras=true&include_variations=true', SCRY_JSON, signal, 4, prio); }
+    catch (e) { if (e.code === '404') j = { data: [] }; else throw e; }
+    for (const c of j.data || []) { const e = by.get(edNorm(edKey(c.set, c.collector_number))), u = imgOf(c); if (e && u && (!c.lang || c.lang === sl)) out.set(e, u); }
+    for (const [e] of ch) if (!out.has(e)) out.set(e, '');
+  }
+  return out;
+}
 /** Parmi ces noms, les cartes imprimées une seule fois en papier (Scryfall « paperprints=1 », ≈ 30 noms par requête) :
  *  { found: Map(clé → { set, num, eu, ef, im, sn, r }), seen: Set(clés lues) }. Une carte présente deux fois dans la réponse est écartée (prudence). */
 async function scrySolo(names, signal) {

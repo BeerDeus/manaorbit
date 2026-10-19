@@ -196,7 +196,7 @@ async function amWipe() {
 const amBytes = s => new TextEncoder().encode(s).length;
 /** Contenu d'une partie : t liste d'échange (celle du lien public), d decks enregistrés, c collection [[nom, exemplaires, langue ?]]. k : nombre affiché chez les amis. */
 function amPartOf(p) {
-  if (p === 't') { const b = trPayload(); return { j: JSON.stringify(b), k: b.have.length }; }
+  if (p === 't') { const b = trPayload(); return { j: JSON.stringify(b), k: new Set(b.have.map(x => x.n + '|' + (x.l || ''))).size }; }      // k : cartes par langue (une carte en deux éditions compte une fois)
   if (p === 'd') {
     const out = []; let size = 2;
     for (const d of allDecks()) { const o = { n: String(d.name || 'Deck').slice(0, 120), t: String(d.text || '').slice(0, 60000) }, s = JSON.stringify(o).length + 1; if (size + s > AM_PART || out.length >= 150) break; out.push(o); size += s; }

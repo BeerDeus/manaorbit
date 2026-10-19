@@ -742,6 +742,7 @@ test('collection : édition par ligne (langue + extension + numéro) : texte, CS
   assert.deepEqual(C.unionLines([['fr', 3]], [['fr|cmm|400', 2]]), [['fr|cmm|400', 2], ['fr', 1]]);
   assert.deepEqual(C.unionLines([['fr|a|1', 1], ['en', 1]], [['fr|b|2', 1], ['', 2]]), [['fr|a|1', 1], ['fr|b|2', 1], ['en', 1]], 'deux éditions différentes : les deux ; non précisées absorbées');
   assert.deepEqual(C.langLines([['fr|cmm|400', 2], ['en', 1], ['fr', 1]]), [['fr', 3], ['en', 1]]);
+  assert.deepEqual(C.langEdLines([['fr|cmm|400', 2], ['en', 1], ['fr', 1]]), [['fr', '', 1, 0], ['fr', 'cmm|400', 2, 0], ['en', '', 1, 0]], 'classeur et partage : une entrée par langue et par édition');
   // échange : lignes par langue et édition (colonne « Tradelist Count » du CSV)
   const tl = C.tradeLists({ 'sol ring': coll['sol ring'] }, new Map(), 1).have[0]; assert.deepEqual(tl.lines, [['fr|cmm|400', 2]], 'la réserve garde d\'abord la ligne sans édition');
 });

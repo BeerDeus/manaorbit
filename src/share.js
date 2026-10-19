@@ -6,7 +6,8 @@
      seulement par leur propriétaire (règles Firestore). Tenus à jour par les appareils du propriétaire : collection, decks, souhaits, réserve.
      Un deck enregistré partagé suit ses modifications ; un deck EDHREC ou une liste en cours est partagé tel quel (figé).
    · Visiteur : <site>/?p=<id>. Lecture par l'API REST Firestore (shareFetch : ni SDK, ni compte), écran en lecture seule ; rien n'est écrit, ni chez lui ni chez le propriétaire.
-   · Classeur (binder.js) : affichage en pages de 3 × 3 cartes, ici et sur la page publique ; ses réglages voyagent dans d (bd). */
+   · Classeur (binder.js) : affichage en pages de 3 × 3 cartes, ici et sur la page publique ; ses réglages voyagent dans d (bd).
+   · Doublons partagés : une carte par langue et par édition (e : « cmm/400 », image de cette impression exacte), foil en fo ; un partage d'avant (sans e) s'affiche comme avant. */
 const TR_KEY = 'deckdeal:trade:v1', TR_KEEPS = [0, 1, 2, 3, 4], TR_PAGE = 120, TR_MAX = 880000, TR_SHARE_MAX = 900000;      // TR_SHARE_MAX : champ d d'un partage (règles Firestore)
 const TR_REPORT = 'contact@manaorbit.app';      // « Signaler ce partage » : contact de la politique de confidentialité (pwa/privacy.html)
 const TR = { who: '', creating: false, st: null, dmBusy: false, keep: 1, kept: new Set(), wish: {}, share: '', dsh: {}, u: 0, sig: {}, sub: 'have', shown: TR_PAGE, err: '', busy: false, again: false, syncT: 0,
@@ -79,25 +80,27 @@ function trState() {
 function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, TR.kept).have; }
 /** Prix unitaire (centimes) des estimations d'échange, chez le propriétaire comme chez le visiteur : tendance Cardmarket du fichier de prix (impression la moins chère), sinon le prix Scryfall déjà connu de l'appareil. */
 const trPrice = k => { const t = PXT && PXT.map && PXT.map.get(k); return (t && t.e) || (dmOf(k) || {}).eu || null; };
-/** Carte d'un partage : nom, exemplaires, langue, nom français, image (dans la langue de l'exemplaire si Scryfall l'a), coût, type, couleurs, symboles. */
-function trCard(k, n, q, l) {
+/** Carte d'un partage : nom, exemplaires, langue, édition (e : « cmm/400 »), nom français, image (édition : cette impression exacte, sinon la carte ; dans la langue de l'exemplaire si Scryfall l'a), coût, type, couleurs, symboles.
+ *  Édition dont l'image n'est pas encore lue : sans image (le visiteur la lit par l'extension et le numéro), jamais celle d'une autre impression. */
+function trCard(k, n, q, l, e) {
   const m = dmOf(k) || {}, o = { n, q };
   if (l) o.l = l;
+  if (e) o.e = edShare(e);
   const f = frOf(k); if (f) { o.f = f; if (FRX.l !== 'fr') o.fl = FRX.l; }      // fl : langue du nom imprimé (absente : français, comme avant)
-  const im = (l && l !== 'en' && COLL.li[liKey(l, k)]) || m.im; if (im) o.i = im;
+  const ei = e ? bndEdImg(k, l, e) : null, im = ei != null ? ei : (l && l !== 'en' && COLL.li[liKey(l, k)]) || m.im; if (im) o.i = im;
   if (m.cm != null) o.c = m.cm; if (m.tl) o.t = m.tl; if (typeof m.cl === 'string') o.o = m.cl; if (m.mc) o.m = m.mc;
   return o;
 }
 /** Contenu du partage de la liste d'échange (sans date : sert aussi d'empreinte). Trop gros : sans images ni symboles (le visiteur les lit sur Scryfall), puis tronqué.
  *  La limite tient compte du pseudo et de la photo que trPut ajoute (jusqu'à 40 000 caractères) : le document reste sous la règle des 900 000.
- *  Doublons : une carte par langue, fo = ses exemplaires foil (pochette foil du classeur du visiteur ; absent sans foil). */
+ *  Doublons : une carte par langue et par édition (e ; sans édition : une par langue, comme avant), fo = ses exemplaires foil (pochette foil du classeur du visiteur ; absent sans foil). */
 function trPayload() {
-  const st = trState(), have = st.have.flatMap(x => langLines(x.lines).map(([l, q]) => { const o = trCard(x.k, x.n, q, l), fo = langFoil(x.lines, l); if (fo) o.fo = fo; return o; })), want = st.want.map(x => { const o = trCard(x.k, x.n, x.q, ''); if (x.p) { o.i = scrySmall(x.p.i); o.w = x.p.w || ''; if (x.p.l && x.p.l !== 'en') o.l = x.p.l; } return o; });      // souhait : l'illustration retenue
+  const st = trState(), have = st.have.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => { const o = trCard(x.k, x.n, q, l, e); if (fo) o.fo = fo; return o; })), want = st.want.map(x => { const o = trCard(x.k, x.n, x.q, ''); if (x.p) { o.i = scrySmall(x.p.i); o.w = x.p.w || ''; if (x.p.l && x.p.l !== 'en') o.l = x.p.l; } return o; });      // souhait : l'illustration retenue
   const bd = bndPayload(st, have, want);      // classeur réglé (binder.js) : cartes dans son ordre (une liste tronquée garde les épinglées), réglages pour les visiteurs
   const max = TR_MAX - JSON.stringify(profShare()).length - (bd ? JSON.stringify(bd).length + 8 : 0);
   for (const o of [...have, ...want]) if (o.i) { const sh = imgShort(o.i); if (sh) o.i = sh; else delete o.i; }      // adresses d'images raccourcies (≈ 2 fois moins de place)
   let body = { have, want };
-  // trop gros : d'abord sans les images des doublons (le visiteur les relit sur Scryfall), puis sans les symboles ; jamais sans l'illustration d'une carte souhaitée
+  // trop gros : d'abord sans les images des doublons (le visiteur les relit sur Scryfall, par l'édition s'il y en a une), puis sans les symboles ; jamais sans l'illustration d'une carte souhaitée
   if (JSON.stringify(body).length > max) body = { have: have.map(({ i, ...x }) => x), want };
   if (JSON.stringify(body).length > max) body = { have: body.have.map(({ m, ...x }) => x), want: want.map(({ m, ...x }) => ('w' in x ? x : (({ i, ...y }) => y)(x))) };      // « w » présent : illustration choisie
   while (JSON.stringify(body).length > max && body.have.length > 100) body = { ...body, have: body.have.slice(0, Math.floor(body.have.length * 0.8)), cut: 1 };
@@ -121,10 +124,12 @@ async function trPut(id, kind, body) {
   await D.cloud.saveShare(id, { o: await ownerTag(D.uid), kind, v: 1, updatedAt: Date.now(), d });
   TR.sig[id] = s; trWrite();
 }
-/** Avant d'écrire la liste : noms français (catalogue de l'appareil ou du site) et fiches Scryfall des cartes recherchées (images, types). */
+/** Avant d'écrire la liste : noms français (catalogue de l'appareil ou du site), images des impressions exactes des doublons et fiches Scryfall des cartes recherchées (images, types). */
 async function trPrep() {
   const within = (p, ms) => Promise.race([Promise.resolve(p).catch(() => {}), sleep(ms)]);      // Scryfall lent : le lien est mis à jour quand même (sans ces infos-là)
   await within(bndPrep(), 6000);      // classeur réglé sur un autre appareil du compte : relu sur le lien avant d'y écrire
+  let late = false; const ed = bndEdLoad(bndEdOf(trState().have)).then(ch => { if (ch) { trRepaint(); if (late) trSoon(); } }, () => {});      // lues après l'envoi (Scryfall lent) : le lien suit
+  await within(ed, 8000); late = true;      // doublons avec édition : l'image de leur impression (dans leur langue) partagée avec eux
   collFrLoad(); if (FRN.p) await within(FRN.p, 8000);
   const need = trState().want.map(x => ({ key: x.k, name: x.n }));
   for (let i = 0; i < 4 && dmMissing(need).length; i++) if (!(await within(dmFetch(need), 10000))) break;
@@ -290,9 +295,9 @@ const trEur = c => new Intl.NumberFormat(LOC(), { style: 'currency', currency: '
 /** Pastille foil d'une ligne de la liste d'échange (propriétaire et visiteur) : « ✦ Foil », « ✦ Foil × 1 » quand une partie seulement l'est ; '' sans foil. */
 const trFoilTag = (fo, q) => (fo > 0 ? `<span class="tag foil">✦ ${T('Foil')}${fo < q ? ' × ' + fo : ''}</span>` : '');
 function trHaveRow(x) {
-  const ll = langLines(x.lines), it = trItem(x.k, x.n, x.q, ll[0] ? ll[0][0] : ''), nm = it.dn || it.n, img = collImage(x.k, it.l, it.im).src;      // par langue, éditions confondues
+  const ll = langLines(x.lines), it = trItem(x.k, x.n, x.q, ll[0] ? ll[0][0] : ''), nm = it.dn || it.n, th = bndThumb(x, it.l, it.im), img = th.src;      // par langue, éditions confondues ; vignette : l'impression de la 1re ligne (sa 1re pochette du classeur)
   const langs = ll.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${ll.length > 1 ? ' × ' + q : ''}</span>`).join('') + trFoilTag((x.lines || []).reduce((a, [g, q]) => a + (lineFoil(g) ? q : 0), 0), x.q);
-  return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(it.l)}"><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(it.l)}"${th.e ? ` data-e="${esc(th.e)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${langs}${it.dn ? `<span class="tag">${esc(x.n)}</span>` : ''}</span></span>
     <span class="tr-q">${trQxHtml(x)}<button class="link-btn" type="button" data-act="tkeep" aria-label="${T('Garder {name} (ne plus la proposer)', { name: esc(nm) })}">${T('Garder')}</button></span></div>`;
 }
@@ -380,7 +385,11 @@ function trClick(e) {
 function trOpenImg(row) {
   const rows = $$('.tr-row', row.parentNode), list = [];
   let at = 0;
-  for (const r of rows) { const im = $('img.ok', r); if (!im) continue; if (r === row) at = list.length; list.push({ key: r.dataset.k, name: $('.row-name', r).textContent, wl: r.dataset.big ? '' : r.dataset.ln && r.dataset.ln !== 'en' ? r.dataset.ln : '', small: im.getAttribute('src'), ...(r.dataset.big ? { big: r.dataset.big } : {}), lang: r.dataset.ln || 'en', plain: true, extra: '' }); }
+  for (const r of rows) {
+    const im = $('img.ok', r), name = $('.row-name', r).textContent; if (!im) continue; if (r === row) at = list.length;
+    list.push(r.dataset.e ? zoomEd(r.dataset.k, name, (COLL.map[r.dataset.k] || {}).n || name, r.dataset.ln, r.dataset.e, im.getAttribute('src'), '')      // édition : son impression exacte
+      : { key: r.dataset.k, name, wl: r.dataset.big ? '' : r.dataset.ln && r.dataset.ln !== 'en' ? r.dataset.ln : '', small: im.getAttribute('src'), ...(r.dataset.big ? { big: r.dataset.big } : {}), lang: r.dataset.ln || 'en', plain: true, extra: '' });
+  }
   if (list.length) openCardViewer(list, at);
 }
 function openWishAdd() {
@@ -493,7 +502,7 @@ function openPublicTrade(sh, preview, id, fr) {
     if (!keep) stagger($$('.pub-main .coll-list', wrap));
   };
   P.paint = paint;
-  mountSeg($('#pubSub', wrap), [...(preview ? [] : [{ v: 'match', label: T('Pour toi'), sub: pubMatchSub(P) }]), { v: 'have', label: T('À échanger'), sub: nf0(sh.have.length) }, { v: 'want', label: T('Recherchées'), sub: nf0(sh.want.length) }], P.sub, v => { P.sub = v; P.shown = TR_PAGE; paint(false); });
+  mountSeg($('#pubSub', wrap), [...(preview ? [] : [{ v: 'match', label: T('Pour toi'), sub: pubMatchSub(P) }]), { v: 'have', label: T('À échanger'), sub: nf0(pubN(sh.have)) }, { v: 'want', label: T('Recherchées'), sub: nf0(sh.want.length) }], P.sub, v => { P.sub = v; P.shown = TR_PAGE; paint(false); });
   mountFilters($('#pubF', wrap), P.f, () => { P.shown = TR_PAGE; paint(true); }, { placeholder: T('Nom français ou anglais') });
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); wrap.__close(); } };
   wrap.__close = () => {
@@ -512,14 +521,20 @@ function openPublicTrade(sh, preview, id, fr) {
     if (b && b.dataset.act === 'import') { openCollImport(); return; }
     const row = e.target.closest('.pub-row'); if (!row) return;
     const rows = $$('.pub-row', wrap), list = [], at = { i: 0 };      // illustration recherchée (data-pw) : montrée telle quelle, sans version française
-    for (const r of rows) { const im = $('img', r); if (!im) continue; if (r === row) at.i = list.length; list.push({ key: r.dataset.k, name: $('.row-name', r).textContent, wl: !r.dataset.pw && r.dataset.ln && r.dataset.ln !== 'en' ? r.dataset.ln : '', small: im.getAttribute('src'), lang: r.dataset.ln || 'en', plain: true, extra: r.dataset.x || '' }); }
+    for (const r of rows) {
+      const im = $('img', r), name = $('.row-name', r).textContent; if (!im) continue; if (r === row) at.i = list.length;
+      list.push(r.dataset.e && !r.dataset.pw ? zoomEd(r.dataset.k, name, (sh.have.find(x => x.k === r.dataset.k) || {}).n || name, r.dataset.ln, r.dataset.e, im.getAttribute('src'), r.dataset.x)      // édition partagée : son impression exacte
+        : { key: r.dataset.k, name, wl: !r.dataset.pw && r.dataset.ln && r.dataset.ln !== 'en' ? r.dataset.ln : '', small: im.getAttribute('src'), lang: r.dataset.ln || 'en', plain: true, extra: r.dataset.x || '' });
+    }
     if (list.length) { haptic('tap'); openCardViewer(list, at.i); } else toast(T('Pas d\'aperçu pour cette carte'));
   });
   document.body.appendChild(wrap); holdApp(); paint(false); amPubMount(wrap, P);      // « Ajouter en ami », ou decks et collection d'un ami (friends.js)
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
   if (!preview) { P.key = pubKey(); P.refs = pubRefs(); P.tick = setInterval(() => { if (P.el === wrap && (pubKey() !== P.key || pubRefs().some((r, i) => r !== P.refs[i]))) pubRefresh(); }, 1500); pubPx(P); }      // filet : un changement que les crochets n'auraient pas signalé
-  // cartes sans image ni type (partage trop gros, ou fiche pas encore lue chez le propriétaire) : lues sur Scryfall par lots, puis repeintes
+  // cartes sans image ni type (partage trop gros, ou fiche pas encore lue chez le propriétaire) : lues sur Scryfall par lots, puis repeintes ; doublons avec édition sans image : leur impression d'abord
   (async () => {
+    const eds = sh.have.filter(x => x.e && !x.im).map(x => [x.k, x.l || '', x.e]);
+    if (eds.length && (await bndEdLoad(eds)) && P.el === wrap) paint(true);
     const need = [...sh.have, ...sh.want].filter(x => !x.im || x.tl == null).map(x => ({ key: x.k, name: x.n }));
     for (let i = 0; i < 40 && P.el === wrap && dmMissing(need).length; i++) { if (!(await dmFetch(need))) break; if (P.el === wrap) paint(true); }
   })();
@@ -585,16 +600,19 @@ function pubMatchRow(x, side) {
     ? `<span class="tag accent">${T('tu la cherches × {n}', { n: x.w.q })}</span>${x.w.p && x.w.p.w ? `<span class="tag" title="${T('Illustration recherchée')}">${T('illustration souhaitée : {name}', { name: esc(x.w.p.w) })}</span>` : ''}`
     : `<span class="tag good">${T('tu peux l\'échanger × {n}', { n: x.s.q })}</span>${it.pw ? `<span class="tag accent" title="${T('Illustration recherchée')}">${esc(it.pw)}</span>` : ''}`;
   const val = x.v != null ? '≈ ' + fmt(x.v, 'EUR') : '', cap = TN(x.q, '{n} exemplaire', '{n} exemplaires') + (val ? ' · ' + val : '');
-  return `<div class="crow pub-row pm-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(x.k)}" data-ln="${esc(side === 'get' ? it.l || '' : '')}"${it.pw ? ' data-pw="1"' : ''} data-x="${esc(cap)}"><span class="thumb" style="--h:${hash32(x.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow pub-row pm-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(x.k)}" data-ln="${esc(side === 'get' ? it.l || '' : '')}"${side === 'get' && it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(cap)}"><span class="thumb" style="--h:${hash32(x.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${ls.map(flag).join('')}</span><span class="row-meta">${tags}${alt ? `<span class="tag">${esc(alt)}</span>` : ''}</span></span>
     <span class="tr-q"><b>× ${x.q}</b>${val ? `<small>${esc(val)}</small>` : ''}</span></div>`;
 }
-/** Carte du partage complétée par le cache Scryfall de cet appareil (image, coût, type, couleurs, symboles). */
+/** Carte du partage complétée par le cache Scryfall de cet appareil (image, coût, type, couleurs, symboles). Édition sans image dans le partage : l'image de cette impression ('' en attendant), jamais celle du même nom. */
 function pubFill(x) {
   const m = dmOf(x.k) || {}, it = { ...x };
+  if (it.e && !it.im) { const u = bndEdImg(x.k, x.l, x.e); if (u != null) it.im = u; }
   for (const f of ['im', 'cm', 'tl', 'cl', 'mc']) if (it[f] == null && m[f] != null) it[f] = m[f];
   return it;
 }
+/** Cartes d'un onglet public, comptées par langue (une carte en deux éditions : une fois, comme avant les éditions). */
+const pubN = list => new Set((list || []).map(x => x.k + '|' + (x.l || ''))).size;
 /** Item public (onglets complets) : ce que le visiteur peut en faire, d'après ses doublons échangeables (pas le brut possédé : ses decks gardent leurs cartes). */
 function pubItem(x) {
   const it = pubFill(x), M = TR.pub && TR.pub.mine;
@@ -608,8 +626,8 @@ function pubRow(it) {
     ? (it.spare ? `<span class="tag good">${T('tu peux l\'échanger × {n}', { n: it.spare })}</span>` : it.own ? `<span class="tag">${T(it.used ? 'tu l\'as · dans tes decks' : 'tu l\'as · gardée')}</span>` : '')
     : (it.wq ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.wq })}</span>` : it.own ? `<span class="tag good">${T('déjà à toi × {n}', { n: it.own })}</span>` : '');
   const x = TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '') + (it.fo > 0 ? ' · ' + T('Foil') + ' ✦' : '') + (it.pw ? ' · ' + T('illustration {name}', { name: it.pw }) : '');
-  return `<div class="crow pub-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}"${it.pw ? ' data-pw="1"' : ''} data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
-    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${pw}${trFoilTag(it.fo, it.q)}${it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : ''}${sub}${mine}</span></span>
+  return `<div class="crow pub-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}"${it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${pw}${it.e ? `<span class="tag">${esc(edLabel(it.e))}</span>` : ''}${trFoilTag(it.fo, it.q)}${it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : ''}${sub}${mine}</span></span>
     <span class="tr-q">${trQxHtml({ q: it.q, u: trPrice(it.k) })}</span></div>`;      // prix à l'unité de l'appareil du visiteur, comme sur l'onglet du propriétaire
 }
 
