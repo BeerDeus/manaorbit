@@ -1,21 +1,29 @@
 # À faire
 
+## Priorités (mises à jour le 19 octobre)
+- **Test fermé en cours** : lancé vers le 15 octobre, 12 testeurs inscrits (4 jours sans interruption au 19 octobre) → 14 jours atteints vers le 29 octobre, puis Play Console › Demander l'accès à la production (sortie publique visée fin octobre).
+- **Scan à revoir : chinois (et autres langues d'Asie), russe** : le chinois ne se scanne toujours pas (propriétaire, 19 octobre). Code en place (`src/scan.js` › `asiaMatch`, Tesseract `chi_sim` / `chi_tra` / `jpn` / `kor`, catalogues `pwa/names-zhs.tsv`, `names-zht.tsv`, `names-ja.tsv`, `names-ko.tsv`, `names-ru.tsv`) : trouver où ça casse sur de vraies cartes (lecture OCR, clé de nom, catalogue), puis ML Kit chinois / japonais / coréen dans l'APK si Tesseract ne suffit pas.
+- **Liens d'application (App Links)** : vérifier qu'un lien `https://manaorbit.app/…` ouvre l'appli (voir « Fait le 15 octobre » › À faire par le propriétaire).
+- **Fait les 18 et 19 octobre** (README) : options du masterset, cadre du scan plus petit (textes sur les bandes, symbole qui file dans la liste), « Ranger ces cartes… » en masse, filtre Extension en fiche avec symboles et compteurs, classement de la Carte mystère dès la 1re partie, **icônes SVG maison** (barre du bas, rangements, partie, options, aide, prix) à la place des emoji.
+- **Vidéos courtes : mises en pause**, refonte complète pour lancer la chaîne YouTube (Shorts) et Instagram (Reels) à la sortie sur le Play Store.
+
 ## Niveau, badges et Carte mystère : ouverts à tous le 16 octobre (essayés la veille sur https://manaorbit.app/test)
 - **Niveau de compte 1 à 999 et 79 badges à paliers** (`src/progress.js`, README › « Niveau et badges ») : icônes SVG qui évoluent avec le palier (`src/badgeart.js`), noms qui changent en montant (« Scanner » → « Oracle du scan »), bannière cliquable à chaque nouveau palier, vitrine de 3 badges sur la liste d'échange, badge « Déménageur » (import CSV). Règles Firestore (`meta/progress`) : republiées par le propriétaire le 16 octobre.
 - **Carte mystère** (README › « Carte mystère ») : une carte à 18:00, mode chronométré (gros plan sur un détail qui dézoome, puis illustration, type, texte, nom par la fin), classements jour, semaine, saison et niveaux, anti-triche des comptes secondaires, panneau `/admin`.
-  - Facultatif (Hostinger) : `DAILY_SECRET` (sinon tiré et gardé dans `.data/daily/.secret`), `DAILY=0` pour couper, `DAILY_MIN_AGE_DAYS` (7), `LEVEL_DAY_CAP` (20 000).
+  - Facultatif (Hostinger) : `DAILY_SECRET` (sinon tiré et gardé dans `.data/daily/.secret`), `DAILY=0` pour couper, `DAILY_MIN_AGE_DAYS` (0 depuis le 19 octobre : classé dès la 1re partie, compte Google ou adresse vérifiée), `LEVEL_DAY_CAP` (20 000).
   - À voir : notification « nouvelle carte » (pas encore), fiche Play › Sécurité des données (pseudo et score publics dans les classements).
 - **Collection : filtre « Extension » et tri « Édition »** (tris « Coût » et « Decks EDHREC » retirés).
 - **1.0.5 en ligne** (15 octobre) : `APK_LATEST` = 6 par défaut dans `proxy.mjs` (les 1.0.4 voient « Mise à jour de l'appli »).
-- **CardTrader : demande de partenariat envoyée le 16 octobre** à staff@cardtrader.com (connexion « Connect with CardTrader » sans token, accès partenaire aux offres et prix avec quota plus haut, affiliation, mise en vente des doublons). Sans réponse au bout de 10 jours : relancer une fois, objet commençant par « Partnership ». Leurs conditions prévoient un accès API étendu sur simple demande.
+- **CardTrader : demande de partenariat envoyée le 16 octobre** à staff@cardtrader.com (connexion « Connect with CardTrader » sans token, accès partenaire aux offres et prix avec quota plus haut, affiliation, mise en vente des doublons). Sans réponse au bout de 10 jours (vers le 26 octobre) : relancer une fois, objet commençant par « Partnership ». Leurs conditions prévoient un accès API étendu sur simple demande.
 - Ensuite (plus tard) : ligues de groupe sur les parties vérifiées (2 comptes à la table), quêtes de la semaine, « la Bourse » (pronostics de prix, sans argent en jeu).
 
 ## Masterset : fait le 17 octobre (branche `ccr-e3f890cd-5y8jim`, README › « Masterset »)
 - Collection › Cartes › interrupteur **Masterset** : une extension à la fois, cartes par numéro (possédées en couleur, manquantes en noir et blanc, « 17/277 » et prix Cardmarket), base puis variantes repliées, progression et prix de ce qui manque, cartes par ligne (3 à 8), sélecteur d'édition (de la plus fournie à la moins fournie, recherche, autres extensions), ⚠ discret pour les cartes sans édition (« C'est celle-ci » dans la carte en grand), « Ajouter à ma collection », « Souhaiter les manquantes ».
-- **À faire par le propriétaire** : rien (ni règle Firestore, ni Hostinger, ni APK). Les symboles des extensions sont relus une fois (cache `sets:ic:v3` : total imprimé ajouté).
+- **À faire par le propriétaire** : rien (ni règle Firestore, ni Hostinger, ni APK). Les symboles des extensions sont relus une fois (cache `sets:ic:v4` : total imprimé et type d'extension).
 - À voir sur le téléphone : lisibilité à 5 et 6 par ligne sur de vraies cartes, noir et blanc en thème clair et sombre, une grosse extension (300 cartes et plus) sur réseau mobile.
 - **« Chercher les N cartes manquantes sur CardTrader »** (ajouté le 17 octobre) : la liste part dans Prix d'une liste avec l'interrupteur **Éditions exactes** (nouveau : seulement l'impression de chaque ligne « (CMM) 400 », possédée seulement dans cette édition ; éteint pour toute autre liste).
-- Pas encore : foil compté à part (interrupteur « Foil à part »), plusieurs impressions d'une même carte dans une seule recherche (base et variante : la base d'abord), extension « famille » (jetons, promos et decks Commander rattachés à leur extension), image à partager de la progression.
+- **Options du masterset : faites le 18 octobre** (roue crantée : version foil côte à côte, terrains de base, variantes à la suite de la base, playset, langue ; gardées dans le compte, `meta/masterset` : règles Firestore à republier si ce n'est pas déjà fait). Extensions faites que de variantes masquées sans l'option ; sélecteur trié par pourcentage.
+- Pas encore : plusieurs impressions d'une même carte dans une seule recherche (base et variante : la base d'abord), extension « famille » (jetons, promos et decks Commander rattachés à leur extension), image à partager de la progression.
 
 ## Pour reprendre (nouvelle session)
 - Lire d'abord ce fichier et `docs/passation.md` (état au 12 octobre : test interne Play validé, test fermé à ouvrir), puis `README.md` (fonctionnement), `DEV.md` (build, tests, CI), `docs/android.md` (APK, widget, natif) et `docs/store/` (fiche Play Store, test fermé).
@@ -68,7 +76,7 @@
 ## Prochaines améliorations (prévues)
 - **Deuxième widget Android « QR code d'échange » : fait le 9 octobre, testé et validé sur le téléphone par le propriétaire le 11 octobre.** `TradeWidget.java`, `res/layout/widget_trade.xml`, `res/xml/widget_trade_info.xml` ; le site envoie la matrice du QR (`src/widget.js`, `setTradeWidget`). Détail dans `docs/android.md` (« Widget « QR code d'échange » »).
 - **Foil par ligne, recherche de decks dans la langue de l'appli, scan des cartes russes : faits le 15 octobre** (README › « Foil par ligne », « À monter » › Recherche, « Noms imprimés dans d'autres langues » › Russe). Foil : interrupteur dans la feuille « Édition de… » et dans « Ajouter des cartes », prix foil Cardmarket, import (Foil / Finish / Printing / Foil Qty, `*F*`) et export CSV, texte `(FOIL)` lisible par l'ancienne version, étincelles dans la carte en grand. Decks : « foudre » trouve Lightning Bolt (catalogue des noms chargé à la frappe). Russe : clé cyrillique, Tesseract `rus`, langue de cartes `ru` (drapeau, lignes, critères), catalogue `names-ru.tsv` + colonne `ru` de `names-all.tsv`.
-  - **À faire par le propriétaire** : lancer une fois le workflow « Catalogues des noms imprimés » (Actions › Run workflow) pour produire `names-ru.tsv` et le nouveau `names-all.tsv` ; sans eux, les noms russes ne sont pas reconnus (le scan lit alors Scryfall `lang:ru` page par page). Rien côté Firestore ni Hostinger, pas de code natif.
+  - Workflow « Catalogues des noms imprimés » lancé (`names-ru.tsv` et `names-all.tsv` dans `pwa/`). **Scan russe à revoir** (propriétaire, 19 octobre) : voir « Priorités ».
   - À voir sur le téléphone : lisibilité du modèle russe de Tesseract sur de vraies cartes (≈ 10 Mo au premier scan), étincelles de la carte en grand en thème clair.
   - Foil dans le scan : fait le 18 octobre (« Foil ✦ − n + » dans la feuille d'édition d'une ligne du scan). Pas encore : offres CardTrader par ligne foil (critère foil global inchangé) ; état (Near Mint…) par ligne.
   - Au passage : `mobscan-e2e` échouait une fois sur deux (CI et local) : « Arrêter » puis « Activer » aussitôt, l'écho du document d'arrêt arrivait après le redémarrage et le PC se croyait remplacé par un autre appareil (`mobLost`). `mobscan.js` ignore désormais un document plus ancien que son propre démarrage (`updatedAt` ≤ `MOB.pc.at`). `scanall-e2e` : l'assertion sur les index des autres langues tolère `fr` (catalogue français pas encore prêt à la première lecture, course sans effet).
@@ -108,7 +116,7 @@
 - **« Passer de ManaBox » + images à partager : faits le 13 octobre** (branche `feat/partage` ; README › « Ma collection » › « Venir d'une autre appli », « Images à partager »).
   - **À faire par le propriétaire** : APK / `.aab` **1.0.4** (versionCode 5) avec `ManaOrbit.shareImage` (menu Partager d'Android avec l'image, FileProvider déjà au manifeste, chemin `share/` ajouté à `res/xml/file_paths.xml`) et `ManaOrbit.saveImage` (Photos › Pictures/Mana Orbit, Android 10+) ; sans elle, l'appli partage le lien ou demande de la mettre à jour (l'appui long sur une image n'enregistre rien dans la WebView). Code Java vérifié ici à la compilation contre l'API Android (bouchons Capacitor), pas sur un téléphone.
   - **Page publique** `https://manaorbit.app/passer-de-manabox` : la déclarer dans Google Search Console (et la relier depuis la fiche Play / les réseaux) ; ajouter le lien Google Play sur la page quand l'appli sera publique (PLAY_URL vide pour l'instant, test fermé).
-  - À vérifier avec un vrai export ManaBox : chemin du menu (onglet Collection › menu en haut à droite › Export › CSV), colonnes, valeur de « Binder Type » pour une liste (`list` attendu : ces lignes sont laissées de côté).
+  - Essayé par des testeurs sans retour négatif (19 octobre) ; à revérifier en détail avec un vrai export ManaBox : chemin du menu (onglet Collection › menu en haut à droite › Export › CSV), colonnes, valeur de « Binder Type » pour une liste (`list` attendu : ces lignes sont laissées de côté).
   - Pas encore : état gardé à l'import ; Deckbox : édition à partir du nom d'extension. Foil : gardé depuis le 15 octobre.
 - **Classeur d'échange visuel : fait le 13 octobre** (branche `feat/classeur` ; README › « Liste d'échange » › Classeur). Interrupteur Liste | Classeur (section Échange, page publique), pages de 3 × 3 cartes, « Mon classeur » (couleur, tri, cartes épinglées). Rien à faire côté Firestore ni Hostinger : les réglages voyagent dans le partage déjà autorisé.
   - À voir sur le téléphone : glisser entre les pages, pastilles (× et prix) sur de vraies cartes, couvertures en thème clair et sombre.
@@ -147,8 +155,8 @@ Comparatif des concurrents (mis à jour) : https://claude.ai/artifact/9zxjtrAn6n
 
 **À faire par le propriétaire**
 - [x] Empreintes SHA-256 (clé de signature Play + clé d'importation) : données le 15 octobre, écrites dans `proxy.mjs` (aucune variable Hostinger) ; vérifier après le déploiement : https://manaorbit.app/.well-known/assetlinks.json.
-- [ ] APK / AAB **1.0.5 (versionCode 6)** : `npm run setup` dans `android-app`, puis AAB signé dans Android Studio, envoyé sur le test fermé (Android vérifie les liens à l'installation : le site doit déjà servir les empreintes). Contient aussi la page hors ligne qui relance le site seule.
-- [ ] Sur le téléphone : `adb shell pm get-app-links app.manaorbit` → `verified` (ou Paramètres › Applis › Mana Orbit › Ouvrir par défaut).
+- [x] APK / AAB **1.0.5 (versionCode 6)** (en ligne le 15 octobre) : `npm run setup` dans `android-app`, puis AAB signé dans Android Studio, envoyé sur le test fermé (Android vérifie les liens à l'installation : le site doit déjà servir les empreintes). Contient aussi la page hors ligne qui relance le site seule.
+- [ ] Vérifier les liens : Paramètres › Applis › Mana Orbit › Ouvrir par défaut › « Ouvrir les liens compatibles » allumé et `manaorbit.app` vérifié ; un lien `https://manaorbit.app/?p=…` touché dans une messagerie ouvre l'appli sans passer par Chrome ; Play Console › Croissance › Liens profonds : domaine « vérifié » ; ou `adb shell pm get-app-links app.manaorbit` → `verified` (sinon `adb shell pm verify-app-links --re-verify app.manaorbit`).
 - [ ] À la mise en production publique : `RATE_ASK = true` dans `src/help.js` (demande de note) ; `PLAY_URL` (même fichier) pointe sur la fiche Play, visible seulement des testeurs pendant le test fermé.
 
 Ensuite (comparatif) : niveau Commander (bracket) d'un deck, mode tri du vrac, vente Cardmarket, valeur attendue d'un booster, bilan de la semaine.
@@ -170,7 +178,7 @@ But : faire connaître l'appli et recruter les **premiers testeurs** (test ferm�
 - **Rythme** : 3 à 4 vidéos par semaine, une série « en construction » jusqu'au 19 octobre, puis une série par fonctionnalité.
 - **Page testeurs** (version d'attente faite le 13 octobre : `pwa/testeurs.html`, routes `/testeurs` dans proxy.mjs ; **formulaire d'inscription fait le 14 octobre** : adresses dans le panneau /admin, copie ou CSV pour la Play Console, README › « Administration » ; **à supprimer à la fin du test** : `.data/testeurs.json` sur le serveur ; à compléter le 19 avec le lien du groupe Google et celui du test Play ; Instagram `@manaorbit.app`) : `manaorbit.app/testeurs` : ce qu'est le test, comment rejoindre le groupe Google puis le canal Play, en 3 étapes ; c'est le lien en bio.
 - **Séries proposées** (3 à 6 vidéos chacune) : 0 · Teaser « en construction » (J-6 → lancement du test) ; 1 · Scan ; 2 · Collection et valeur ; 3 · Échange et amis ; 4 · Decks ; 5 · Session d'ouverture et streamer ; 6 · Venir de ManaBox, widgets, astuces ; 7 · Communauté (questions, défis, « ta pire ouverture »). Détail de chaque vidéo dans la conversation du 13 octobre, à reporter ici quand le propriétaire aura choisi.
-- **Prochaine étape** : le propriétaire choisit la série 0 et 2 ou 3 vidéos à faire en premier ; on fabrique la chaîne `tools/shorts/` avec la 1re vidéo, puis les suivantes.
+- **Mis en pause le 19 octobre** : rien publié pendant le test fermé ; on retravaille tout (séries, ton, rythme) pour lancer YouTube Shorts et Instagram Reels à la sortie sur le Play Store (fin octobre). La chaîne `tools/shorts/` reste la base technique.
 
 ## Avant la publication sur le Play Store
 - **Nom de domaine : `manaorbit.app`, fait le 12 octobre.** Acheté et relié au site par le propriétaire, contact `contact@manaorbit.app` créé ; dépôt GitHub renommé `BeerDeus/manaorbit`.
@@ -179,7 +187,7 @@ But : faire connaître l'appli et recruter les **premiers testeurs** (test ferm�
   - **À faire par le propriétaire** : nouvelle APK ; Firebase › domaines autorisés : `manaorbit.app`.
   - À vérifier : ouvrir un ancien lien d'échange `https://card.m2s-photo.fr/?p=…` depuis un navigateur qui a des données → arrive sur manaorbit.app, liste affichée, toast « tes données ont suivi ».
 - **EDHREC et Archidekt** : réponses aux deux mails toujours en attente (`docs/mails-partenaires.md`).
-  - Lancer le test fermé sans attendre (pas public, accord non nécessaire) ; envoyer la relance avec une échéance claire.
+  - Relance avec une échéance claire envoyée ; toujours sans réponse au 19 octobre.
   - Sans réponse à la mise en production : publier avec crédit et lien (déjà là), lecture hebdomadaire par le serveur seulement, et l'interrupteur ci-dessus prêt. En cas de refus : basculer sur le plan B.
 - AdMob : identifiants réels.
   - `admob_app_id` : fait le 12 octobre (`ca-app-pub-9859793504995886~7202291377`, `strings.xml`) ; `app-ads.txt` servi d'office avec cet éditeur.
@@ -189,7 +197,7 @@ But : faire connaître l'appli et recruter les **premiers testeurs** (test ferm�
 - Vérifier auprès de l'URSSAF (ou d'un comptable) si l'édition d'une appli financée par la publicité doit être ajoutée aux activités de Martin Stuis EI.
 - Compte développeur personnel récent : test fermé obligatoire (12 testeurs pendant 14 jours) avant la production.
 - Play Console : remplir la fiche et le formulaire Sécurité des données d'après `docs/store/fiche.md`.
-- **Test fermé : ouverture le 19 octobre 2026** (date avancée par le propriétaire le 13 octobre) : étapes, groupe Google et textes dans `docs/store/test-ferme.md`. Envoyer d'abord la relance à EDHREC et Archidekt (`docs/mails-partenaires.md`), avancée elle aussi.
+- **Test fermé : en cours depuis le 15 octobre environ** (12 testeurs ; étapes, groupe Google et textes dans `docs/store/test-ferme.md`) ; production demandable vers le 29 octobre.
 - **AdMob pendant le test fermé** : `.aab` avec le vrai `admob_app_id`, mais `ADMOB_BANNER_ID` **vide** sur Hostinger jusqu'à la production (bandeau de test de Google, pas de trafic invalide).
   - Ne jamais toucher une vraie annonce ; appareils de test déclarés (`docs/android.md`).
   - Message de consentement Europe publié dans AdMob avant la production (`docs/android.md`, § 4).
