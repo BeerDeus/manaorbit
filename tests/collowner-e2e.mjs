@@ -81,11 +81,17 @@ for (const [s, uid, what] of [['', 'uid-premier', 'jamais synchronisée'], ['uid
   assert.deepEqual(after.map, { 'sol ring': [['fr#p' + res.newP, 1]], 'arcane signet': [['en', 1]] }, 'seules les copies rescannées et les cartes ajoutées depuis restent');
   assert.deepEqual(after.places, [res.newP], 'ancien classeur vidé : supprimé');
   assert.match(await p.$eval('#toast', e => e.textContent), /6 exemplaires retirés de ta collection · 1 ancien emplacement supprimé/);
-  assert.equal(await p.$('.plc-old'), null, 'plus rien à retirer : bouton caché');
   await p.click('#toast .toast-act'); await p.waitForTimeout(200);
   assert.equal(await p.evaluate(() => Object.keys(COLL.map).length), 4, 'Annuler : tout remis'); assert.equal(await p.evaluate(() => Object.keys(COLL.places).length), 2);
+  await p.click('.plc-old'); await p.waitForSelector('.sheet-wrap.open [data-ok]'); await p.click('.sheet-wrap.open [data-ok]'); await p.waitForFunction(() => !sheets.length);
+  // il ne reste que la copie rescannée de Sol Ring, datée de l'ancien compte (la fusion garde la plus ancienne date) : « Corriger les dates d'ajout »
+  await p.waitForFunction(() => /Corriger les dates d'ajout/.test((document.querySelector('.plc-old') || {}).textContent || ''));
+  assert.match(await p.$eval('.plc-old', e => e.textContent), /1 carte rescannée depuis garde la date de l'ancien compte : la dater du 17 octobre/);
+  await p.click('.plc-old'); await p.waitForFunction(() => !document.querySelector('.plc-old'));
+  assert.equal(await p.evaluate(c => COLL.map['sol ring'].d === Math.floor(c / 1000), CREATED), true, 'datée de la création du compte');
+  assert.match(await p.$eval('#toast', e => e.textContent), /1 carte redatée/);
   await ctx.close();
-  ok('nettoyage « Retirer l\'ancienne collection » : copies d\'avant la création du compte (non rangées ou dans un ancien emplacement) retirées, copies rescannées rangées depuis et cartes récentes gardées, ancien emplacement vide supprimé, Annuler');
+  ok('nettoyage « Retirer l\'ancienne collection » : copies d\'avant la création du compte (non rangées ou dans un ancien emplacement) retirées, copies rescannées rangées depuis et cartes récentes gardées, ancien emplacement vide supprimé, Annuler ; cartes rescannées datées de l\'ancien compte : redatées à la création du compte');
 }
 
 for (const e of errsAll) assert.deepEqual(e, []);

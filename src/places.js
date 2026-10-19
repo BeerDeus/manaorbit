@@ -167,17 +167,19 @@ function cexSheet(src, k, g, done) {
 const plcPlaceAt = id => { const t = parseInt(String(id || '').slice(0, -2), 36); return Number.isFinite(t) ? t : 0; };
 function plcOldPlan() {
   const c = D.user && D.user.metadata ? Date.parse(D.user.metadata.creationTime) : 0, cut = c > 0 ? Math.floor(c / 1000) : 0; if (!cut) return null;
-  const oldPl = new Set(Object.keys(COLL.places).filter(id => plcPlaceAt(id) < cut)), rm = []; let copies = 0;
+  const oldPl = new Set(Object.keys(COLL.places).filter(id => plcPlaceAt(id) < cut)), rm = [], redate = []; let copies = 0;
   for (const [k, x] of Object.entries(COLL.map)) {
     if (!(x.d > 0 && x.d < cut)) continue;
     const gone = collLines(x).filter(([g]) => { const p = plcOf(g); return !p || oldPl.has(p) || !COLL.places[p]; });
     if (gone.length) { rm.push([k, new Map(gone)]); copies += gone.reduce((a, [, q]) => a + q, 0); }
+    else redate.push(k);      // toutes ses copies rangées depuis (rescannées) : seule la date vient de l'ancien compte (la fusion garde la plus ancienne)
   }
-  return { cut, oldPl, rm, copies };
+  return { cut, oldPl, rm, copies, redate };
 }
 function plcOldHtml() {
-  const P = plcOldPlan(); if (!P || !P.copies) return '';
+  const P = plcOldPlan(); if (!P || (!P.copies && !P.redate.length)) return '';
   const date = new Date(P.cut * 1000).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
+  if (!P.copies) return `<button type="button" class="plc-old" data-act="plcredate"><b>${esc(T('Corriger les dates d\'ajout'))}</b><small>${esc(TN(P.redate.length, '{n} carte rescannée depuis garde la date de l\'ancien compte : la dater du {date}', '{n} cartes rescannées depuis gardent la date de l\'ancien compte : les dater du {date}', { n: nf0(P.redate.length), date }))}</small></button>`;
   return `<button type="button" class="plc-old" data-act="plcold"><b>${esc(T('Retirer l\'ancienne collection'))}</b><small>${esc(TN(P.copies, '{n} exemplaire ajouté avant la création de ton compte ({date}), hors emplacements créés depuis', '{n} exemplaires ajoutés avant la création de ton compte ({date}), hors emplacements créés depuis', { n: nf0(P.copies), date }))}</small></button>`;
 }
 function plcOldRemove() {
@@ -204,6 +206,15 @@ function plcOldRemove() {
         { label: T('Annuler'), fn: () => { const m2 = { ...COLL.map }; for (const [k, v] of prevMap) m2[k] = v; COLL.map = m2; COLL.places = { ...places0, ...COLL.places }; collChanged(); } });
     });
   });
+}
+
+/** Cartes rescannées depuis la création du compte mais datées de l'ancien : datées de la création du compte, « Annuler » remet les dates. */
+function plcOldRedate() {
+  const P = plcOldPlan(); if (!P || !P.redate.length) return;
+  const prev = [], map = { ...COLL.map };
+  for (const k of P.redate) { const x = map[k]; if (!x) continue; prev.push([k, x.d]); map[k] = { ...x, d: P.cut }; }
+  COLL.map = map; collChanged(); haptic('ok');
+  toast(TN(prev.length, '{n} carte redatée', '{n} cartes redatées'), { label: T('Annuler'), fn: () => { const m2 = { ...COLL.map }; for (const [k, d] of prev) if (m2[k]) m2[k] = { ...m2[k], d }; COLL.map = m2; collChanged(); } });
 }
 
 /* ── Onglet « Rangement » de la collection ─────────────────────────────────────────────────────── */
@@ -290,7 +301,8 @@ function plcClick(e) {
   else if (act === 'plcclear') { COLL.place = ''; haptic('tap'); collPaintBody(true); }
   else if (act === 'plcmv') { haptic('tap'); plcMoveShown(); }
   else if (act === 'plcrm') { haptic('tap'); plcDelShown(); }
-  else if (act === 'plcold') { haptic('tap'); plcOldRemove(); }      // nettoyage temporaire (voir plcOldPlan)
+  else if (act === 'plcold') { haptic('tap'); plcOldRemove(); }
+  else if (act === 'plcredate') { haptic('tap'); plcOldRedate(); }      // nettoyage temporaire (voir plcOldPlan)
   else if (act === 'plcpill') plcPick({ title: T('Afficher'), cur: COLL.place === '-' ? '' : COLL.place, onPick: id => plcShow(id) });
   else if (act === 'prox') openProxies();
   else if (act === 'cex') { const r = b.closest('.crow'); if (r && r.dataset.k) cexSheet('map', r.dataset.k, rowG(r)); }
