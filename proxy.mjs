@@ -2751,7 +2751,9 @@ async function srAdmin(req, res, sub, url) {
 /* ── Carte mystère : le jeu du jour (daily-srv.mjs) ────────────────────────────────────────────────────────────────────────────────────
    Une carte par jour à DAILY_HOUR (18 h) heure de DAILY_TZ (Europe/Paris), la même pour tous ; images des étapes fabriquées ici, score et classements
    vérifiés ici (README › « Carte mystère »). Jeton Firebase de n'importe quel compte pour jouer classé (sans compte : partie pour le plaisir, non classée).
-   Stockage : DAILY_DIR (défaut .data/daily). DAILY=0 coupe tout (404, /__ping daily: false : l'appli cache le bouton). */
+   Stockage : DAILY_DIR (défaut .data/daily). DAILY=0 coupe tout (404, /__ping daily: false : l'appli cache le bouton).
+   Notification « nouvelle Carte mystère » (daily-srv.mjs › pushRun) : sendPush et parseTarget ci-dessus, comme les amis ; seulement avec le compte de service
+   (FCM_SERVICE_ACCOUNT), DAILY_PUSH=0 la coupe ; DAILY_PUSH_WINDOW_MS : rattrapage après un redémarrage (2 h après l'heure de la carte). */
 const DLY_ON = process.env.DAILY !== '0';
 let DLY = null;
 const DLY_ACCT = new Map();      // UID → { v: { created } | null, at } : date de création du compte Firebase, gardée 12 h
@@ -2776,6 +2778,8 @@ if (DLY_ON) {
       verify: tok => verifyIdToken(tok, true), bad: v => !!(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(v)), json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, adminHeaders: ADM_HD,
       levelOf: PG && PG.prgLevel ? xp => PG.prgLevel(xp).lv : null, levelsFile: process.env.LEVELS_FILE || join(EDH_DIR, 'levels.json'), reportHide: Number(process.env.DAILY_REPORT_HIDE) >= 1 ? Math.floor(Number(process.env.DAILY_REPORT_HIDE)) : 3, stepMs: Number(process.env.DAILY_STEP_MS) > 0 ? Number(process.env.DAILY_STEP_MS) : undefined,
       levelDayCap: Number.isFinite(Number(process.env.LEVEL_DAY_CAP)) && process.env.LEVEL_DAY_CAP !== '' && process.env.LEVEL_DAY_CAP !== undefined ? Math.max(0, Number(process.env.LEVEL_DAY_CAP)) : 20000,
+      push: FCM_ON && process.env.DAILY_PUSH !== '0' ? { send: sendPush, target: parseTarget } : null,      // notification « nouvelle Carte mystère » (rien sans compte de service, comme les amis)
+      pushWindowMs: process.env.DAILY_PUSH_WINDOW_MS !== undefined && process.env.DAILY_PUSH_WINDOW_MS !== '' && Number.isFinite(Number(process.env.DAILY_PUSH_WINDOW_MS)) ? Math.max(0, Number(process.env.DAILY_PUSH_WINDOW_MS)) : undefined,
       account: dlyAccount, net: req => netOf(ipOf(req)), minAgeDays: process.env.DAILY_MIN_AGE_DAYS === undefined || process.env.DAILY_MIN_AGE_DAYS === '' || !Number.isFinite(Number(process.env.DAILY_MIN_AGE_DAYS)) ? 0 : Math.max(0, Number(process.env.DAILY_MIN_AGE_DAYS)) });      // net : empreinte du réseau (HMAC salé du jour, dans daily-srv.mjs)
   } catch (e) { console.warn('Carte mystère : module illisible (' + (e && e.message || e) + '), jeu coupé'); DLY = null; }
 }
@@ -3019,7 +3023,7 @@ server.listen(PORT, HOST, () => {
     setTimeout(purge, 20e3).unref(); setInterval(purge, 6 * 3600e3).unref();
     console.log(`Scans signalés : ${SR_MAX} au plus, ${Math.round(SR_BYTES / 1048576)} Mo, gardés ${Math.round(SR_TTL / 86400e3)} jours.`);
   }
-  if (DLY) { DLY.start(); console.log(`Carte mystère : nouvelle carte chaque jour à ${DLY.clock.hour} h (${DLY.clock.tz}).`); }
+  if (DLY) { DLY.start(); console.log(`Carte mystère : nouvelle carte chaque jour à ${DLY.clock.hour} h (${DLY.clock.tz})${DLY.pushOn ? ', annoncée par une notification aux appareils qui l\'acceptent' : ''}.`); }
   if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
   if (ALERTS_ON) {
