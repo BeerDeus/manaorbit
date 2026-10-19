@@ -1,14 +1,18 @@
 // E2E visite guidée et astuces (tour.js) :
-// 1) nouvel utilisateur : fin du premier lancement → « Une visite de 1 min… ? » (Visiter, Plus tard), une seule fois ;
+// 1) nouvel utilisateur : fin du premier lancement → « Une visite de 2 min… ? » (Visiter, Plus tard), une seule fois ;
 // 2) utilisateur existant : pastille « Découvre les nouveautés » une fois (cachée sous une feuille, revenue ensuite ; ✕ définitif ; expirée au lancement
 //    suivant ; jamais en mode streamer ni après un lien ouvert de l'extérieur ; rien sans ?tour dans un navigateur piloté, rien de lu au démarrage) ;
-// 3) les 9 étapes (compte, amis, échange en direct et decks publics actifs) à 390 × 844 clair et 360 × 640 sombre : halo autour du bon élément,
-//    bulle dans l'écran sans toucher la cible, dialogue nommé, focus dedans, flèches et Tab, caméra jamais ouverte, pub masquée, écran de départ remis ;
-// 4) étapes adaptées : déconnecté sans amis ni échange en direct (7 étapes, textes « Avec un compte »), collection vide, web (installer) / Android
-//    (widgets et raccourcis, APK sans plugin ManaOrbit : raccourcis seuls) ;
+//    visite de la version 1 déjà vue (ou sa pastille laissée) : la pastille revient une fois, et seulement les 4 nouvelles étapes (astuces vues gardées) ;
+// 3) les 13 étapes (compte, amis, échange en direct, decks publics, Carte mystère et partie actifs) à 390 × 844 clair et 360 × 640 sombre, puis 360 × 640
+//    avec la bande du haut de l'appli : halo autour du bon élément, bulle dans l'écran sans toucher la cible, dialogue nommé, focus dedans, flèches et Tab,
+//    caméra jamais ouverte, pub masquée, écran de départ remis ;
+// 4) étapes adaptées : déconnecté sans amis, échange en direct ni Carte mystère, collection vide (10 étapes, textes « Avec un compte », masterset sans
+//    interrupteur), ordinateur (scan mobile : 14 étapes), web (installer) / Android (widgets et raccourcis, APK sans plugin ManaOrbit : raccourcis seuls) ;
 // 5) Aide : « Visite guidée » en tête (16 questions), Compte et réglages › Aide et avis, Échap, Retour du téléphone, mode streamer refusé ;
-// 6) astuces : classeur de l'Échange, Stats, scan, liste d'un autre joueur ; une fois chacune, une à la fois, jamais pendant la visite ni en mode streamer,
-//    sans décaler la page, interrupteur « Astuces » de Compte et réglages › Préférences.
+// 6) astuces : classeur de l'Échange, Stats, scan (session d'ouverture, mode Auto), liste d'un autre joueur, rond de l'édition, filtre Extension, options
+//    du masterset, « Ranger ces cartes… » ; une fois chacune, une à la fois, jamais pendant la visite ni en mode streamer, sans décaler la page,
+//    interrupteur « Astuces » de Compte et réglages › Préférences.
+// Captures des nouvelles étapes et des astuces : TOUR_SHOTS=<dossier>.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { chromium, startWorld, newPage, ok, signInFake, openMe, closeSheets } from './e2e-world.mjs';
@@ -19,11 +23,16 @@ const errsAll = [];
 const COLL3 = () => collAdd([{ k: 'sol ring', n: 'Sol Ring', q: 3 }, { k: 'craterhoof behemoth', n: 'Craterhoof Behemoth', q: 2 }, { k: 'arcane signet', n: 'Arcane Signet', q: 1 }], 'add');
 const SEEN = () => { try { localStorage.setItem('deckdeal:onboard', '1'); } catch (e) { /* ignore */ } };      // premier lancement déjà passé (utilisateur existant)
 const st = p => p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:tour') || '{}'));
-/** Page : opts.path (?tour…), opts.init (script avant le chargement), opts.ping (drapeaux du serveur), opts.vp, opts.dark. */
+const SEEN2 = () => { localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1, ver: 2 })); };      // visite de cette version déjà vue : aucune offre
+const NEW = ['mystery', 'partie', 'places', 'masterset'];      // étapes de la version 2 (téléphone)
+const SHOT = (p, n) => (process.env.TOUR_SHOTS ? p.screenshot({ path: `${process.env.TOUR_SHOTS}/${n}.png` }).catch(() => {}) : null);
+/** Page : opts.path (?tour…), opts.init (script avant le chargement), opts.ping (drapeaux du serveur ; daily : Carte mystère, état du jour simulé), opts.vp,
+ *  opts.dark, opts.desk (ordinateur : souris, pas d'écran tactile). */
 async function page(o = {}) {
-  const pg = await newPage(browser, world, { goto: false, ctx: { viewport: o.vp || { width: 390, height: 844 }, colorScheme: o.dark ? 'dark' : 'light' } });
+  const pg = await newPage(browser, world, { goto: false, ctx: { viewport: o.vp || { width: 390, height: 844 }, colorScheme: o.dark ? 'dark' : 'light', ...(o.desk ? { isMobile: false, hasTouch: false, deviceScaleFactor: 1 } : {}) } });
   errsAll.push(pg.errs);
   if (o.ping) await pg.p.route('**/__ping', async r => { const res = await r.fetch(); r.fulfill({ response: res, json: { ...(await res.json()), ...o.ping } }); });
+  if (o.ping && o.ping.daily) await pg.p.route('**/api/daily?**', r => r.fulfill({ json: { on: true, day: '2026-10-19', no: 5, st: 'ready', next: Date.now() + 3600e3, now: Date.now(), steps: 10, max: 6, n: 3, ranked: true } }));
   await pg.p.addInitScript(() => { window.__gum = 0; if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { window.__gum++; throw Object.assign(new Error('pas de caméra'), { name: 'NotFoundError' }); }; });
   for (const f of [].concat(o.init || [])) await pg.p.addInitScript(f);
   await pg.p.goto(world.url + (o.path || '')); await pg.p.waitForTimeout(700);
@@ -42,7 +51,10 @@ const geo = p => p.evaluate(() => {
     act: document.activeElement && document.activeElement.dataset.tour, role: document.querySelector('.tour-b').getAttribute('role'), modal: document.querySelector('.tour-b').getAttribute('aria-modal'),
     label: document.getElementById(document.querySelector('.tour-b').getAttribute('aria-labelledby')).textContent, sr: document.querySelector('.tour-sr').textContent };
 });
-const shown = p => p.waitForFunction(() => TOUR.on && !TOUR.busy && document.querySelector('.tour-b.on'), null, { timeout: 8000 }).then(() => p.waitForTimeout(450));      // halo arrivé (transition .38 s)
+/** Étape affichée, halo arrivé : transition de .38 s, relancée si la cible bouge encore (écran qui finit d'entrer ; CI lente) ; pas arrivé : checkStep le dit. */
+const shown = p => p.waitForFunction(() => TOUR.on && !TOUR.busy && document.querySelector('.tour-b.on'), null, { timeout: 8000 })
+  .then(() => p.waitForFunction(() => { const s = TOUR.steps[TOUR.i], R = s && tourRect(s), h = document.querySelector('.tour-hole').getBoundingClientRect(); return !R || [h.x - R.x, h.y - R.y, h.width - R.w, h.height - R.h].every(d => Math.abs(d) < 1.5); }, null, { timeout: 4000 }).catch(() => {}))
+  .then(() => p.waitForTimeout(450));
 /** Vérifie une étape : halo autour des cibles, bulle entière dans l'écran, jamais sur la cible. */
 async function checkStep(p, tag) {
   const g = await geo(p);
@@ -66,8 +78,8 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   assert.equal(await p.$('.tour-pill'), null, 'rien pendant le premier lancement');
   await p.click('.ob [data-ob="skip"]');
   await pillOn(p, '.tour-pill.new.on');
-  assert.match(await p.textContent('.tour-pill'), /Une visite de 1 min pour trouver l'essentiel \?/);
-  assert.deepEqual(Object.keys(await st(p)).sort(), ['offer', 'shownAt'], 'offre « new » montrée');
+  assert.match(await p.textContent('.tour-pill'), /Une visite de 2 min pour trouver l'essentiel \?/);
+  assert.deepEqual(Object.keys(await st(p)).sort(), ['offer', 'shownAt', 'ver'], 'offre « new » montrée');
   // une feuille passe devant : la pastille se cache, puis revient
   await p.click('#btnAccount'); await p.waitForSelector('.me-sheet.open');
   await p.waitForFunction(() => !document.querySelector('.tour-pill'), null, { timeout: 3000 });
@@ -78,7 +90,7 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !TOUR.on && !document.querySelector('.tour'));
   const s1 = await st(p); assert.ok(s1.done && s1.skip && s1.step === 1, 'passée à la 1re étape : ' + JSON.stringify(s1));
   await relaunch(p); await noPill(p, 5500, 'jamais deux fois');
-  ok('nouvel utilisateur : « Une visite de 1 min… ? » après le premier lancement (caché sous une feuille), Visiter → visite, Échap, plus jamais ensuite');
+  ok('nouvel utilisateur : « Une visite de 2 min… ? » après le premier lancement (caché sous une feuille), Visiter → visite, Échap, plus jamais ensuite');
   await p.context().close();
 }
 {
@@ -99,7 +111,7 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   await pillOn(p);
   assert.match(await p.textContent('.tour-pill'), /Découvre les nouveautés/);
   assert.equal(await p.$('.tour-pill.new'), null);
-  const s = await st(p); assert.equal(s.offer, 'news'); assert.ok(s.shownAt);
+  const s = await st(p); assert.equal(s.offer, 'news'); assert.ok(s.shownAt); assert.equal(s.ver, 2); assert.equal(s.since, undefined, 'jamais vue : la visite complète');
   // pastille posée par-dessus : la page ne bouge pas, au-dessus de la barre du bas
   const pr = await p.evaluate(() => { const a = document.querySelector('.tour-pill').getBoundingClientRect(), n = document.querySelector('#nav').getBoundingClientRect(); return { bottom: a.bottom, nav: n.top, pos: getComputedStyle(document.querySelector('.tour-pill')).position }; });
   assert.equal(pr.pos, 'fixed'); assert.ok(pr.bottom <= pr.nav, 'au-dessus de la barre du bas');
@@ -112,7 +124,7 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   await relaunch(p); await noPill(p, 5500, '✕ : plus jamais');
   ok('utilisateur existant : pastille « Découvre les nouveautés » au-dessus de la barre (cachée sous un écran, revenue), ✕ définitif');
   // montrée à un lancement précédent sans réponse : expirée
-  await p.evaluate(() => localStorage.setItem('deckdeal:tour', JSON.stringify({ offer: 'news', shownAt: Date.now() - 86400e3 })));
+  await p.evaluate(() => localStorage.setItem('deckdeal:tour', JSON.stringify({ offer: 'news', shownAt: Date.now() - 86400e3, ver: 2 })));
   await relaunch(p); await p.waitForTimeout(4200);
   assert.equal(await p.$('.tour-pill'), null); assert.equal((await st(p)).how, 'exp', 'déjà montrée : expirée, pas d\'insistance');
   ok('pastille vue à un lancement précédent sans réponse : plus montrée');
@@ -137,21 +149,48 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   errs.splice(0, errs.length, ...errs.filter(e => !/navigator\.vibrate/.test(e)));      // ?collection : vibration demandée avant tout toucher (app.js, sans rapport avec la visite)
   await p.context().close();
 }
+{ // visite de la version 1 déjà vue (sans « ver ») : pastille une fois, seulement les nouvelles étapes ; astuces vues et interrupteur gardés
+  const V1 = () => { if (!localStorage.getItem('deckdeal:tour')) localStorage.setItem('deckdeal:tour', JSON.stringify({ offer: 'news', shownAt: Date.now() - 864e5, done: Date.now() - 864e5, how: 'go', fin: Date.now() - 864e5, step: 9, runs: 1, tips: { bnd: 1 } })); };
+  const { p } = await page({ path: '?tour', init: [SEEN, V1], ping: { daily: true, partie: true } });
+  await p.evaluate(COLL3);
+  await pillOn(p);
+  assert.match(await p.textContent('.tour-pill'), /Découvre les nouveautés/);
+  const s0 = await st(p); assert.deepEqual([s0.offer, s0.since, s0.ver, s0.done, s0.tips], ['news', 1, 2, undefined, { bnd: 1 }], 'nouvelle offre pour la version 2, astuces vues gardées : ' + JSON.stringify(s0));
+  await SHOT(p, 'news-pill');
+  await p.click('.tour-pill [data-tp="go"]'); await shown(p);
+  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), NEW, 'seulement les nouvelles étapes, jamais les anciennes');
+  assert.equal(await p.$$eval('.tour-dots i', d => d.length), NEW.length);
+  for (let i = 0; i < NEW.length; i++) { const g = await checkStep(p, 'nouveautés'); assert.equal(g.id, NEW[i]); if (i < NEW.length - 1) { await next(p); await shown(p); } }
+  await next(p); await p.waitForFunction(() => !TOUR.on && !document.querySelector('.tour'), null, { timeout: 5000 });
+  const s1 = await st(p); assert.ok(s1.fin && s1.done && s1.ver === 2 && s1.how === 'go', 'nouveautés vues : ' + JSON.stringify(s1));
+  await relaunch(p); await noPill(p, 5500, 'version 2 vue : plus de pastille');
+  ok('visite de la version 1 déjà vue : pastille « Découvre les nouveautés » une fois, Visiter → les 4 nouvelles étapes seulement (Carte mystère, partie, rangement, masterset), puis plus rien');
+  // pastille de la version 1 laissée sans réponse (montrée à un lancement précédent) : expirée, puis offerte une fois pour les nouveautés
+  await p.evaluate(() => localStorage.setItem('deckdeal:tour', JSON.stringify({ offer: 'news', shownAt: Date.now() - 864e5 })));
+  await relaunch(p); await pillOn(p);
+  const s2 = await st(p); assert.deepEqual([s2.offer, s2.since, s2.ver], ['news', 1, 2]);
+  await p.click('.tour-pill [data-tp="x"]'); await p.waitForFunction(() => !document.querySelector('.tour-pill'));
+  await relaunch(p); await noPill(p, 5500, '✕ : plus jamais');
+  ok('pastille de la version 1 laissée sans réponse : offerte une fois pour les nouveautés, ✕ définitif');
+  await p.context().close();
+}
 
-/* ── 3) Les 9 étapes, 390 × 844 clair puis 360 × 640 sombre ─────────────────────────────────────────────────────── */
-const ALL = ['scan', 'opening', 'trade', 'binder', 'live', 'friends', 'build', 'price', 'more'];
-const TARGET = { scan: /nav-foil/, opening: /opn-scs/, trade: /hm-tr-acts/, binder: /^trView$/, live: /trc-entry/, friends: /^btnAccount$/, build: /dk-tab/, price: /field-head/, more: /link-btn/ };
-const FLAGS = { amis: true, troc: true, pub: true };
-for (const [vp, dark] of [[{ width: 390, height: 844 }, false], [{ width: 360, height: 640 }, true]]) {
-  const tag = `${vp.width}×${vp.height}${dark ? ' sombre' : ''}`;
+/* ── 3) Les 13 étapes, 390 × 844 clair, 360 × 640 sombre, 360 × 640 avec la bande du haut de l'appli ─────────────────── */
+const ALL = ['scan', 'opening', 'trade', 'binder', 'live', 'friends', 'mystery', 'partie', 'places', 'masterset', 'build', 'price', 'more'];
+const TARGET = { scan: /nav-foil/, opening: /opn-scs/, trade: /hm-tr-acts/, binder: /^trView$/, live: /trc-entry/, friends: /^btnAccount$/, mystery: /^dlyHbs$/, partie: /^hmPartie$/,
+  places: /seg-opt/, masterset: /coll-ms/, build: /dk-tab/, price: /field-head/, more: /link-btn/ };
+const FLAGS = { amis: true, troc: true, pub: true, daily: true, partie: true };
+for (const [vp, dark, fs] of [[{ width: 390, height: 844 }, false], [{ width: 360, height: 640 }, true], [{ width: 360, height: 640 }, false, true]]) {
+  const tag = `${vp.width}×${vp.height}${dark ? ' sombre' : ''}${fs ? ' bande du haut' : ''}`;
   const { p } = await page({ vp, dark, ping: FLAGS, init: () => { localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1 })); } });
+  if (fs) await p.evaluate(() => document.documentElement.classList.add('fs'));      // appli Android plein écran : bande de 24 px en haut (native.js)
   await p.evaluate(COLL3); await signInFake(p); await p.waitForTimeout(500);
   // ancrage du défilement coupé : un bloc de l'accueil qui grandit après coup (chargement en fond) décalait scrollY de quelques pixels (48 / 33), sans rapport avec la remise de la visite
   await p.addStyleTag({ content: 'html,body{overflow-anchor:none}' });
-  await p.evaluate(() => window.scrollTo(0, 120)); await p.waitForTimeout(100);
+  await p.evaluate(() => window.scrollTo({ top: 120, behavior: 'instant' })); await p.waitForTimeout(100);      // sans le défilement doux de la page : y0 mesuré une fois arrivé (sinon en route, selon la charge)
   const y0 = await p.evaluate(() => window.scrollY);
   await p.evaluate(() => tourStart({ from: 'test' })); await shown(p);
-  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), ALL, tag + ' : 9 étapes');
+  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), ALL, tag + ' : 13 étapes');
   const seen = [];
   for (let i = 0; i < ALL.length; i++) {
     const g = await checkStep(p, tag);
@@ -161,7 +200,12 @@ for (const [vp, dark] of [[{ width: 390, height: 844 }, false], [{ width: 360, h
     if (g.id === 'binder') assert.match(g.text, /Personnaliser/);
     if (g.id === 'live') assert.match(g.text, /6 caractères/);
     if (g.id === 'friends') assert.match(g.text, /Ajouter en ami/);
+    if (g.id === 'mystery') { assert.match(g.text, /^Une carte par jour.*Le podium ouvre les classements\..*niveau.*badges.*Niv\./); assert.equal(g.R.y >= g.top, true, 'icônes sous la bande du haut'); }
+    if (g.id === 'partie') assert.match(g.text, /jusqu'à 8 joueurs.*QR code.*chez chacun/, 'connecté, serveur qui l\'annonce : le QR code de la table');
+    if (g.id === 'places') { assert.match(g.text, /Ranger ces cartes….*proxys/); assert.equal(await p.evaluate(() => COLL.tab), 'places', 'onglet Rangement ouvert'); }
+    if (g.id === 'masterset') { assert.match(g.text, /^Une extension à la fois.*roue crantée.*Filtres.›.Extension/); assert.equal(await p.evaluate(() => COLL.tab), 'list'); }
     if (g.id === 'build') assert.match(g.text, /Communauté/);
+    if (NEW.includes(g.id)) await SHOT(p, `etape-${g.id}-${vp.width}${dark ? '-sombre' : ''}${fs ? '-bande' : ''}`);
     if (g.id === 'more') { assert.match(g.text, /Installe aussi l'appli/, 'web : installer l\'appli'); assert.equal(await p.textContent('.tour-b [data-tour="next"]'), 'Terminer'); }
     if (i === 0) assert.equal(await p.isHidden('.tour-b [data-tour="prev"]'), true, '1re étape : pas de « Précédent »');
     assert.equal(await p.evaluate(() => adsBusy()), true, 'pub masquée pendant la visite');
@@ -180,9 +224,9 @@ for (const [vp, dark] of [[{ width: 390, height: 844 }, false], [{ width: 360, h
   assert.deepEqual([end.view, end.coll, end.sheets, end.ctab, end.sc, end.gum], ['home', false, 0, 'list', false, 0], tag + ' : accueil remis, aucune feuille, onglet de la collection inchangé, caméra jamais ouverte ' + JSON.stringify(end));
   assert.ok(Math.abs(end.y - y0) <= 2, `défilement remis (${end.y} / ${y0})`);
   assert.match(end.toast, /Visite terminée/);
-  const s = await st(p); assert.ok(s.fin && s.step === 9, 'terminée, étape 9 atteinte : ' + JSON.stringify(s));
-  ok(`${tag} : 9 étapes (Scanner, Session d'ouverture en feuille, lien et QR, classeur, échange en direct, amis, À monter, prix d'une liste, partager) ; halo sur la bonne cible, bulle dans l'écran sans la couvrir ; flèches, Tab ; accueil et défilement remis ; caméra jamais ouverte`);
-  if (!dark) {
+  const s = await st(p); assert.ok(s.fin && s.step === 13 && s.ver === 2, 'terminée, étape 13 atteinte, version 2 vue : ' + JSON.stringify(s));
+  ok(`${tag} : 13 étapes (Scanner, Session d'ouverture en feuille, lien et QR, classeur, échange en direct, amis, Carte mystère, partie, rangement, masterset, À monter, prix d'une liste, partager) ; halo sur la bonne cible, bulle dans l'écran sans la couvrir ; flèches, Tab ; accueil et défilement remis ; caméra jamais ouverte`);
+  if (!dark && !fs) {
     // depuis la collection (onglet Cartes, défilée) par l'aide : la collection revient telle quelle ; l'aide reste fermée
     await p.click('#nav [data-nav="coll"]'); await p.waitForSelector('.coll.on');
     await p.evaluate(() => openHelp()); await p.waitForSelector('.hp-sheet.open .tour-help');
@@ -204,24 +248,43 @@ for (const [vp, dark] of [[{ width: 390, height: 844 }, false], [{ width: 360, h
 }
 
 /* ── 4) Étapes adaptées ───────────────────────────────────────────────────────────────────────────────────────── */
-{ // déconnecté, serveur sans amis ni échange en direct, collection vide, web
+{ // déconnecté, serveur sans amis, échange en direct ni Carte mystère, collection vide, web
   const { p } = await page({ ping: { amis: false, troc: false, pub: false }, init: () => { localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1 })); } });
   await p.evaluate(() => tourStart()); await shown(p);
-  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), ['scan', 'opening', 'trade', 'binder', 'build', 'price', 'more'], 'sans amis ni échange en direct : 7 étapes');
+  const ids = ['scan', 'opening', 'trade', 'binder', 'partie', 'places', 'masterset', 'build', 'price', 'more'];
+  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), ids, 'sans amis, échange en direct ni Carte mystère : 10 étapes');
   const texts = {};
-  for (let i = 0; i < 7; i++) { const g = await checkStep(p, 'déconnecté'); texts[g.id] = g; if (i < 6) { await next(p); await shown(p); } }
+  for (let i = 0; i < ids.length; i++) { const g = await checkStep(p, 'déconnecté'); texts[g.id] = g; if (i < ids.length - 1) { await next(p); await shown(p); } }
   assert.match(texts.trade.text, /^Avec un compte, crée ton lien public/);
   assert.match(texts.binder.text, /^Dès que ta liste a des cartes/); assert.match(texts.binder.el[0], /seg|trSub/, 'liste vide : les onglets de la liste à la place de l\'interrupteur');
+  assert.match(texts.partie.text, /l'historique de tes parties\.$/); assert.doesNotMatch(texts.partie.text, /QR code/, 'déconnecté : pas de salle d\'attente');
+  assert.match(texts.places.el[0], /seg-opt/, 'collection vide : l\'onglet Rangement reste');
+  assert.match(texts.masterset.text, /^Dès que tu as des cartes, l'onglet Cartes a un interrupteur Masterset/); assert.match(texts.masterset.el[0], /seg-opt/, 'collection vide : l\'onglet Cartes à la place de l\'interrupteur');
   assert.match(texts.build.text, /Il faut un compte\./); assert.doesNotMatch(texts.build.text, /Communauté/, 'sans decks publics : pas de Communauté');
   assert.match(texts.more.text, /^Collection › Stats/); assert.match(texts.more.el[0], /nav-i/, 'collection vide : le bouton Collection de la barre');
   await next(p); await p.waitForFunction(() => !TOUR.on);
-  ok('déconnecté, serveur sans amis ni échange en direct, collection vide : 7 étapes, textes « Avec un compte », interrupteur absent → onglets, Stats → bouton Collection');
+  ok('déconnecté, serveur sans amis, échange en direct ni Carte mystère, collection vide : 10 étapes, textes « Avec un compte », interrupteurs absents → onglets, Stats → bouton Collection');
   // mode streamer : refusée
   await p.evaluate(() => { OPN.cur = { id: 'o', name: 'S', at: Date.now(), st: true, rows: [] }; });
   assert.equal(await p.evaluate(() => tourStart()), false);
   assert.match(await p.textContent('#toast'), /indisponible en mode streamer/);
   await p.evaluate(() => { OPN.cur = null; });
   ok('mode streamer : visite refusée (toast)');
+  await p.context().close();
+}
+{ // ordinateur (souris, grand écran) : « Scan mobile » sur le « + » de la collection, seulement là
+  const { p } = await page({ vp: { width: 1100, height: 800 }, desk: true, init: SEEN2, ping: { amis: false, troc: false } });
+  await p.evaluate(COLL3);
+  await p.evaluate(() => tourStart()); await shown(p);
+  const ids = await p.evaluate(() => TOUR.steps.map(s => s.id));
+  assert.equal(ids.length, 11, 'ordinateur, déconnecté, sans amis, échange en direct ni Carte mystère : 11 étapes ' + ids); assert.equal(ids[ids.indexOf('masterset') + 1], 'mobile', 'scan mobile après le masterset (même écran)');
+  await p.evaluate(n => { TOUR.busy = false; tourGo(n); }, ids.indexOf('mobile')); await shown(p);
+  const g = await checkStep(p, 'ordinateur');
+  assert.equal(g.id, 'mobile'); assert.equal(await p.evaluate(() => TOUR.steps[TOUR.i].el().dataset.act), 'add', 'halo sur « + » (Ajouter des cartes)');
+  assert.match(g.text, /^«.\+.» ouvre «.Ajouter des cartes.».: active le scan mobile.*Il faut un compte\.$/);      // espaces insécables (tourNb)
+  await SHOT(p, 'etape-mobile-ordinateur');
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !TOUR.on);
+  ok('ordinateur : étape « Scan mobile » sur le « + » de la collection (jamais sur téléphone)');
   await p.context().close();
 }
 /** Faux pont Android (comme ads-e2e) ; mo : plugin ManaOrbit présent (APK récente) ou non. */
@@ -259,7 +322,7 @@ const tipCheckGeo = (g, tag) => {
   assert.equal(g.pe, 'none', tag + ' : les touchers passent au travers'); assert.equal(g.pos, 'fixed', tag + ' : par-dessus la page');
 };
 {
-  const { p, errs } = await page({ path: '?tour', ping: { amis: true }, init: [SEEN, () => { if (!localStorage.getItem('deckdeal:tour')) localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1 })); }] });
+  const { p, errs } = await page({ path: '?tour', ping: { amis: true }, init: [SEEN, () => { if (!localStorage.getItem('deckdeal:tour')) localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1, ver: 2 })); }] });
   await p.evaluate(COLL3); await p.waitForTimeout(300);
   // pendant la visite : aucune astuce (l'Échange s'ouvre pour l'étape du classeur)
   await p.evaluate(() => tourStart()); await shown(p);
@@ -309,11 +372,46 @@ const tipCheckGeo = (g, tag) => {
   await p.evaluate(() => SC.el.__close()); await p.waitForTimeout(300);
   await p.click('#nav [data-nav="coll"]'); await p.waitForSelector('#collSeg'); await p.waitForTimeout(2500); assert.equal(await p.$('.tip'), null, 'Stats : une seule fois');
   ok('astuces : chacune une seule fois (écrans rouverts)');
+  // Cartes : le rond de l'édition d'une ligne (« . » : espace insécable du français avant « : », tourNb)
+  await p.click('#collSeg [data-v="list"]');
+  await tipOn(p, /Touche ce rond.: l'édition exacte de ta carte, et foil ✦ ou non\./); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'édition');
+  assert.match(await p.evaluate(() => TIP.tgt.className), /row-ed/);
+  await SHOT(p, 'astuce-edition');
+  await p.keyboard.press('Shift'); await tipGone(p);      // une touche l'efface
+  // panneau des filtres ouvert : le filtre Extension, en bas du panneau (sous la barre du bas : l'astuce attend qu'on y descende)
+  await p.click('#collF .fbtn'); await p.waitForTimeout(600);
+  await p.evaluate(() => document.querySelector('#collF .fset').scrollIntoView({ block: 'center' }));
+  await tipOn(p, /Une seule extension à la fois.: cherche-la/); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'extension');
+  assert.match(await p.evaluate(() => TIP.tgt.className), /fset/);
+  await p.keyboard.press('Shift'); await tipGone(p); await p.click('#collF .fbtn');
+  // masterset allumé : ses options (roue crantée)
+  await p.click('.coll-ms');
+  await tipOn(p, /Les options du masterset.: version foil/); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'masterset');
+  assert.match(await p.evaluate(() => TIP.tgt.className), /ms-opt/);
+  await SHOT(p, 'astuce-masterset');
+  await p.keyboard.press('Shift'); await tipGone(p); await p.click('.coll-ms'); await p.waitForTimeout(300);
+  // emplacement ouvert : « Ranger ces cartes… »
+  await p.evaluate(() => plcShow(plcCreate('box', 'Boîte bleue')));
+  await tipOn(p, /Range d'un coup toutes les cartes affichées ici/); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'ranger');
+  assert.match(await p.evaluate(() => TIP.tgt.className), /plc-mv/);
+  await SHOT(p, 'astuce-ranger');
+  await p.keyboard.press('Shift'); await tipGone(p);
+  await p.evaluate(() => COLL.el.__close()); await p.waitForTimeout(300);
+  // scan : le mode Auto, après la session d'ouverture (pas de caméra dans ce test : l'interrupteur est montré à la main)
+  await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on'); await p.waitForTimeout(1800);
+  assert.equal(await p.$('.tip'), null, 'sans caméra, pas d\'interrupteur Auto : pas d\'astuce');
+  await p.evaluate(() => { SC.el.querySelector('.sc-auto').hidden = false; tipSoon(0); });
+  await tipOn(p, /Auto.: pose tes cartes l'une après l'autre, le scan les lit tout seul\./); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'auto');
+  assert.match(await p.evaluate(() => TIP.tgt.className), /sc-auto/);
+  await p.keyboard.press('Shift'); await tipGone(p);
+  await p.evaluate(() => SC.el.__close()); await p.waitForTimeout(400);
+  assert.deepEqual(Object.keys((await st(p)).tips).sort(), ['ami', 'auto', 'bnd', 'ed', 'fset', 'msopt', 'opn', 'rng', 'simg']);
+  ok('astuces de la version 2 : rond de l\'édition (Cartes), filtre Extension (filtres ouverts), options du masterset, « Ranger ces cartes… » (emplacement ouvert), mode Auto du scan');
   assert.deepEqual(errs, []);
   await p.context().close();
 }
 { // mode streamer : aucune astuce ; interrupteur « Astuces » (Compte et réglages › Préférences)
-  const { p } = await page({ path: '?tour', init: [SEEN, () => { if (!localStorage.getItem('deckdeal:tour')) localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1 })); }] });
+  const { p } = await page({ path: '?tour', init: [SEEN, () => { if (!localStorage.getItem('deckdeal:tour')) localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1, ver: 2 })); }] });
   await p.evaluate(COLL3);
   await p.evaluate(() => { OPN.cur = { id: 'o', name: 'S', at: Date.now(), st: true, rows: [] }; opnFlags(); });
   await p.click('#nav [data-nav="trade"]'); await p.waitForTimeout(2500);

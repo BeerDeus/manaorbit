@@ -53,7 +53,7 @@ function mountFilters(root, f, onChange, opts = {}) {
   inp.addEventListener('input', () => { f.q = inp.value; clr.hidden = !inp.value; clearTimeout(t); t = setTimeout(onChange, 120); });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
   clr.onclick = () => { inp.value = ''; f.q = ''; fire(); inp.focus(); };
-  btn.onclick = () => { const open = panel.hidden; if (open) setOpts(); panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); haptic('tap'); };
+  btn.onclick = () => { const open = panel.hidden; if (open) setOpts(); panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); haptic('tap'); if (open && sel && typeof tipSoon === 'function') tipSoon(400); };      // astuce (tour.js) : le filtre Extension
   if (sel) sel.addEventListener('click', () => { haptic('tap'); fsetSheet(opts.sets() || [], f.set || '', c => { f.set = c; fire(); }, opts.setsSub); });
   panel.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
