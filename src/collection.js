@@ -32,6 +32,41 @@ function collWrite() {
   try { localStorage.setItem(COLL_KEY, JSON.stringify({ t: collDocText(collDocNow()), u: COLL.u, s: COLL.s, ...(COLL.base ? { b: collDocText(COLL.base) } : {}) })); return true; }
   catch (e) { toast(T('Stockage plein : la collection n\'a pas pu être enregistrée sur cet appareil')); return false; }
 }
+/* ── Collection d'un autre compte gardée sur l'appareil ──────────────────────────────────────────────────────────────
+   La copie de l'appareil appartient au dernier compte synchronisé (COLL.s). Un autre compte qui s'y connecte (compte supprimé puis recréé avec la même
+   adresse : nouvel identifiant ; appareil prêté) ne la reçoit jamais d'office : elle est mise de côté (COLL_ASIDE_KEY, telle quelle) et proposée une fois
+   le compte lu (« L'ajouter à ce compte » / « Ne pas l'ajouter » ; sans choix, reproposée au lancement suivant). Avant le 19 octobre 2026, elle était
+   fusionnée sans rien demander : un ancien appareil remettait dans un compte neuf toute la collection d'un compte supprimé. Une copie jamais
+   synchronisée (COLL.s vide : cartes ajoutées avant de se connecter) est fusionnée comme avant. */
+const COLL_ASIDE_KEY = 'deckdeal:coll:aside:v1';
+const collAsideRaw = () => { try { const raw = localStorage.getItem(COLL_ASIDE_KEY), r = raw && JSON.parse(raw); return r && typeof r.t === 'string' ? raw : null; } catch (e) { return null; } };
+/** Copie de l'appareil (compte uid) mise de côté, la collection de l'appareil repart vide pour le compte qui se connecte. false : impossible (stockage). */
+function collAside(uid) {
+  let raw = null; try { raw = localStorage.getItem(COLL_KEY); } catch (e) { return false; }
+  if (!raw) return false;
+  try { localStorage.removeItem(COLL_KEY); localStorage.setItem(COLL_ASIDE_KEY, raw); }      // déplacée telle quelle (place libérée d'abord : même taille)
+  catch (e) { try { localStorage.setItem(COLL_KEY, raw); } catch (x) { /* ignore */ } return false; }
+  collDocSet(collDoc()); COLL.base = null; COLL.s = ''; COLL.u = 0; COLL.asked = false; collWrite();
+  return true;
+}
+function collAsideSoon() { if (COLL.asked || !D.user || !COLL.live || !collAsideRaw()) return; COLL.asked = true; setTimeout(collAsideAsk, 700); }
+function collAsideAsk() {
+  const raw = collAsideRaw(); if (!raw || !D.user || (typeof streamOn === 'function' && streamOn())) return;
+  let doc = null; try { doc = collDocFromText(JSON.parse(raw).t); } catch (e) { return; }
+  const n = Object.keys(doc.map).length, q = Object.values(doc.map).reduce((a, x) => a + (x.q || 0), 0);
+  if (!n && !Object.keys(doc.prox).length) { try { localStorage.removeItem(COLL_ASIDE_KEY); } catch (e) { /* ignore */ } return; }
+  openSheet(T('Une autre collection sur cet appareil'), null, api => {
+    api.body.innerHTML = `<p>${esc(T('Cet appareil gardait la collection d\'un autre compte (un compte supprimé, ou celui de quelqu\'un d\'autre) : {cards}, {copies}. Elle n\'a pas été ajoutée à ce compte.', { cards: TN(n, '{n} carte', '{n} cartes', { n: nf0(n) }), copies: TN(q, '{n} exemplaire', '{n} exemplaires', { n: nf0(q) }) }))}</p><p class="hint">${esc(T('Sans choix, elle reste de côté sur cet appareil et te sera reproposée.'))}</p>`;
+    api.setFoot(`<button class="btn block" type="button" data-as="add">${esc(T('L\'ajouter à ce compte'))}</button><button class="btn ghost block" type="button" data-as="drop">${esc(T('Ne pas l\'ajouter'))}</button>`);
+    api.foot.addEventListener('click', e => {
+      const b = e.target.closest('[data-as]'); if (!b || collAsideRaw() !== raw) return;
+      haptic('tap'); api.close();
+      try { localStorage.removeItem(COLL_ASIDE_KEY); } catch (x) { /* ignore */ }
+      if (b.dataset.as === 'add') { collDocSet(mergeDoc3(null, collDocNow(), doc)); collChanged(); collEnrich(); toast(TN(n, '{n} carte ajoutée à ce compte', '{n} cartes ajoutées à ce compte', { n: nf0(n) })); }
+      else toast(T('Collection de l\'autre compte retirée de cet appareil'), { label: T('Annuler'), fn: () => { try { localStorage.setItem(COLL_ASIDE_KEY, raw); } catch (x) { /* ignore */ } COLL.asked = false; collAsideSoon(); } });
+    });
+  });
+}
 async function collMetaLoad() {
   try { const m = await Cache.get(COLL_META_KEY, 60 * DAY); if (m && typeof m === 'object' && !Array.isArray(m)) { COLL.meta = { ...m, ...COLL.meta }; collPaint(); } } catch (e) { /* cache absent */ }
   try { const m = await Cache.get(COLL_LI_KEY, 60 * DAY); if (m && typeof m === 'object' && !Array.isArray(m)) { COLL.li = { ...m, ...COLL.li }; collPaint(); } } catch (e) { /* cache absent */ }
@@ -463,6 +498,7 @@ async function collPush() {
     COLL.s = uid; COLL.base = merged; collDocSet(next); COLL.cloud = 'ok'; COLL.err = ''; COLL.live = true; collWrite();
     if (!sameDoc(before, next)) collRemoteApplied(before, next);
     if (collUnsynced()) COLL.again = true;
+    collAsideSoon();
   } catch (err) {
     if (D.uid !== uid) return;
     const c = err && err.code;
@@ -494,6 +530,7 @@ function collUser(user) {
   clearTimeout(COLL.retryT); clearTimeout(COLL.liveT); clearTimeout(COLL.pushT); COLL.runId++; COLL.pushing = 0; COLL.deferred = null; COLL.again = false;
   COLL.cloud = 'off'; COLL.err = ''; COLL.live = false; COLL.ru = 0;
   if (!user || !D.cloud || !D.cloud.watchColl) { collPaintHead(); return; }
+  if (COLL.s && COLL.s !== user.uid && collAside(COLL.s)) { collPaint(); paintCollSection(); }      // copie d'un autre compte : mise de côté, jamais envoyée d'office (voir collAside)
   COLL.cloud = 'sync';
   COLL.liveT = setTimeout(() => { if (!COLL.live && D.uid === user.uid && COLL.cloud === 'sync') { COLL.cloud = 'offline'; collPaintHead(); } }, COLL_RETRY.live);     // pas de réponse du serveur : hors ligne
   COLL.unsub = D.cloud.watchColl(user.uid, (data, pending, fromCache) => collFromCloud(user.uid, data, pending, fromCache), err => {
@@ -518,7 +555,7 @@ function collFromCloud(uid, data, pending, fromCache, pulled) {
   } else if (!data && acctLost('collection', uid)) { /* vu ici puis disparu : compte supprimé ailleurs ? rien n'est renvoyé (decks.js vérifie) */ }
   else if (!sameDoc(collDocNow(), collDoc())) { COLL.base = null; collPush(); }      // pas de document : on y envoie la collection de l'appareil
   else { COLL.s = uid; COLL.base = collDoc(); collWrite(); }
-  collPaintHead();
+  collPaintHead(); collAsideSoon();
 }
 /** La collection de cet appareil vient de changer à cause du compte (autre appareil) : repeint, lit les infos des nouvelles cartes, prévient. before, after : collections complètes. */
 function collRemoteApplied(b0, a0, o = {}) {
