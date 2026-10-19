@@ -319,11 +319,13 @@ const seedRate = (o = {}) => `try { const now = Date.now();
   ${o.onboard === false ? '' : `localStorage.setItem('deckdeal:onboard', String(now - ${o.days ?? 5} * ${DAY}));`}
   ${o.state ? `localStorage.setItem('deckdeal:rate', ${JSON.stringify(JSON.stringify(o.state))}.replace('"AT"', String(now - ${o.ago || 0})));` : ''}
   } catch (e) {}`;
+// APK 1.0.6 : ManaOrbit.requestReview (In-App Review de Google Play) ; 'ok' : parcours fini (Google affiche sa carte ou non), 'fail' : Play Store absent ou refus
+const review = how => `window.__rv = 0; window.Capacitor.Plugins.ManaOrbit.requestReview = async () => { window.__rv++; ${how === 'fail' ? "throw new Error('Play Store absent');" : 'return { ok: true };'} };`;
 const mount = (p, id) => p.evaluate(id => { const d = findDeck(id); engSet(id, d.name, d.text); }, id);
 const sheetUp = p => p.$('.rate-sheet');
 const rateSt = p => p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:rate') || 'null'));
 async function ratePage(o = {}) {
-  const pg = await page({ init: seedRate(o) + (o.web ? '' : shell), ctx: o.ctx });
+  const pg = await page({ init: seedRate(o) + (o.web ? '' : shell) + (o.review ? review(o.review) : ''), ctx: o.ctx });
   await pg.p.evaluate(url => { RATE.wait = 300; if (url) RATE.url = url; }, o.url === undefined ? PLAY : o.url);
   await pg.p.evaluate(() => { document.addEventListener('click', e => { if (e.target.closest('[data-rate="go"]')) e.preventDefault(); }, true); });      // « Noter » : on garde la page (le lien est vérifié à part)
   await pg.p.evaluate(() => homeSoon(0)); await pg.p.waitForTimeout(300);                                                                               // premier relevé des decks complets (aucun)
@@ -401,6 +403,29 @@ ok('note : seulement dans l\'appli Android, après 4 jours d\'utilisation, 3 foi
   await ctx.close();
 }
 ok('note : après 5 exemplaires ou plus ajoutés d\'un scan, une fois le toast parti');
+{ // APK 1.0.6 : au même bon moment, la carte de note de Google Play (In-App Review) au lieu de notre feuille ; comptée comme une demande (120 jours, 3 au plus)
+  const { p, ctx } = await ratePage({ review: 'ok' });
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox [data-help="rate"]');
+  assert.equal(await p.$eval('#helpBox [data-help="rate"]', a => a.getAttribute('href')), PLAY, 'Réglages : « Noter sur le Play Store » reste un lien vers la fiche (jamais la carte de Google depuis un bouton)');
+  assert.equal(await p.evaluate(() => window.__rv), 0, 'le bouton des réglages n\'appelle pas In-App Review');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300); await p.keyboard.press('Escape');
+  await mount(p, 'd1'); await p.waitForFunction(() => window.__rv === 1, null, { timeout: 5000 }); await p.waitForTimeout(600);
+  assert.equal(await sheetUp(p), null, 'pas notre feuille : la carte de Google');
+  let st = await rateSt(p); assert.equal(st.n, 1, 'comptée comme une demande'); assert.ok(Date.now() - st.at < 60000); assert.ok(!st.done, 'Google ne dit pas si une note a été laissée : pas de « plus jamais »');
+  await mount(p, 'd2'); await p.waitForTimeout(1500); assert.equal(await p.evaluate(() => window.__rv), 1, 'pas avant 120 jours');
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('deckdeal:rate')); s.at -= 121 * 864e5; localStorage.setItem('deckdeal:rate', JSON.stringify(s)); });
+  await mount(p, 'd3'); await p.waitForFunction(() => window.__rv === 2, null, { timeout: 5000 });
+  st = await rateSt(p); assert.equal(st.n, 2, '121 jours plus tard : de nouveau');
+  await ctx.close();
+}
+{ // Play Store absent ou refus (appli installée hors du Play Store) : notre feuille, qui ouvre la fiche
+  const { p, ctx } = await ratePage({ review: 'fail' });
+  await mount(p, 'd1'); await p.waitForSelector('.rate-sheet.open', { timeout: 5000 });
+  assert.equal(await p.evaluate(() => window.__rv), 1); assert.equal(await p.$eval('.rate-sheet [data-rate="go"]', a => a.getAttribute('href')), PLAY);
+  assert.equal((await rateSt(p)).n, 1, 'une seule demande comptée');
+  await ctx.close();
+}
+ok('note, APK 1.0.6 : carte In-App Review de Google au bon moment (mêmes limites, 120 jours, comptée), jamais depuis le bouton des réglages ; refus du Play Store : notre feuille');
 
 assert.deepEqual(errsAll.flat(), [], 'aucune erreur page : ' + errsAll.flat().join(' | '));
 await browser.close(); world.stop();

@@ -18,16 +18,44 @@ const TESS = {
 const TESS_OF = { fr: 'fra', de: 'deu', es: 'spa', it: 'ita', pt: 'por', ru: 'rus', jp: 'jpn', kr: 'kor', 'zh-CN': 'chi_sim', 'zh-TW': 'chi_tra' };
 /** Moteurs d'une écriture non latine → langue des cartes : leurs lignes sont comparées aux noms imprimés de cette langue seulement (asiaMatch). */
 const TESS_ASIA = { jpn: 'jp', kor: 'kr', chi_sim: 'zh-CN', chi_tra: 'zh-TW' };
-/** Moteurs que ML Kit remplace dans l'appli Android (alphabet latin) ; russe, japonais, coréen, chinois : Tesseract, comme dans le navigateur. */
-const NAT_OCR_OK = new Set(['eng', 'fra', 'deu', 'spa', 'ita', 'por']);
+/** Moteur → écriture que ML Kit lit dans l'appli Android : latin (plugin ML Kit, toutes les APK) ; japonais, coréen, chinois (simplifié et traditionnel : un seul modèle,
+ *  qui lit aussi le latin) : ManaOrbit.detectText({ script }), APK 1.0.6 et plus (natCjk). Russe : pas de ML Kit cyrillique, Tesseract partout. APK plus ancienne : Tesseract. */
+const NAT_SCRIPT = { eng: 'latin', fra: 'latin', deu: 'latin', spa: 'latin', ita: 'latin', por: 'latin', jpn: 'japanese', kor: 'korean', chi_sim: 'chinese', chi_tra: 'chinese' };
 /** Moteurs dans l'ordre : langue imposée (réglages du scan), sinon langue du lot si elle a son propre moteur (pile de cartes japonaises : le japonais d'abord,
- *  puis la langue des noms de l'appli), sinon celle des noms ; l'anglais en dernier. */
+ *  puis la langue des noms de l'appli), sinon celle des noms ; l'anglais en dernier. Les autres écritures attendues viennent ensuite, si rien n'est sûr (ocrMore). */
 const ocrLangs = () => {
   if (SCS.lang === 'en') return ['eng'];
   const n = TESS_OF[namesLang()], t = TESS_OF[SCS.lang] || TESS_OF[scanLotTop()] || n;
   return [...new Set([t, !SCS.lang ? n : '', 'eng'].filter(Boolean))];
 };
-const OCR = { lib: null, workers: {}, onProg: null };
+/** Langue des cartes d'une écriture que les moteurs latins (et ML Kit latin) ne lisent pas → son moteur : russe, japonais, coréen, chinois. */
+const OCR_ALT = { ru: 'rus', jp: 'jpn', kr: 'kor', 'zh-CN': 'chi_sim', 'zh-TW': 'chi_tra' };
+/** Langue du téléphone (« zh-Hant-TW », « ja-JP »…) → langue des cartes ; chinois de Taïwan, Hong Kong, Macao : traditionnel. */
+const navCardLang = t => { const s = String(t || '').toLowerCase(); return /^zh[-_](hant|tw|hk|mo)/.test(s) ? 'zh-TW' : cardLang(s.split(/[-_]/)[0]); };
+/** Langues de ces écritures dans la collection, les plus fournies d'abord (calculées une fois par scan). */
+function scanCollAlt() {
+  if (!SC.calt) { const by = {}; for (const x of Object.values(COLL.map)) for (const [g, q] of collLines(x)) { const l = lineLang(g); if (OCR_ALT[l]) by[l] = (by[l] || 0) + q; } SC.calt = Object.keys(by).sort((a, b) => by[b] - by[a]); }
+  return SC.calt;
+}
+/**
+ * Moteurs des autres écritures (russe, japonais, coréen, chinois), essayés quand ceux d'ocrLangs n'ont rien lu de sûr : ML Kit latin ne lit pas ces noms (une carte chinoise
+ * ne donnait que « BEE » ou rien, jamais son moteur). D'abord ceux qu'on attend : langue des cartes de l'appli, cartes de ces écritures déjà trouvées pendant ce scan
+ * (dernière d'abord), langue du téléphone. blind (carte prise à la main dans l'appli Android, rien de sûr, même par la ligne du bas) : puis les langues de ces écritures
+ * dans la collection, puis toutes (chinois, japonais, coréen, russe ; chinois traditionnel seulement avec ML Kit, gratuit). Langue imposée : aucun (son moteur est dans ocrLangs).
+ */
+function ocrMore(blind) {
+  if (SCS.lang) return [];
+  const have = new Set(ocrLangs()), out = [], add = l => { const e = OCR_ALT[l]; if (e && !have.has(e) && !out.includes(e)) out.push(e); };
+  add(S.opts.lang); SC.alt.forEach(add); [...SC.items.values()].reverse().forEach(x => add(x.l)); navLangs().forEach(t => add(navCardLang(t)));
+  if (blind) { scanCollAlt().forEach(add); ['zh-CN', 'jp', 'kr', ...(natCjk() ? ['zh-TW'] : []), 'ru'].forEach(add); }
+  return out;
+}
+/** Moteurs Tesseract des écritures d'Asie : bande lue moins agrandie (≈ 600 px de large au lieu de 1 400). Mesuré sur 30 noms des catalogues, carte de 1 400 px :
+ *  chi_sim lit 24 noms sûrs au lieu de 11 (28 au lieu de 20 au-dessus de 0,72), jpn et kor pareil ou mieux ; ML Kit et les moteurs latins gardent la largeur habituelle. */
+const ASIA_W = 0.43;
+/** Un nom sûr lu par le moteur d'une autre écriture : ce moteur passe devant les autres pour la suite du scan (pile de cartes chinoises). */
+function scanAltHit(lang) { const l = Object.keys(OCR_ALT).find(k => OCR_ALT[k] === lang); if (l) SC.alt = [l, ...SC.alt.filter(x => x !== l)].slice(0, 4); }
+const OCR = { lib: null, workers: {}, onProg: null, bad: {}, wait: 20e3 };      // bad : moteur → heure jusqu'à laquelle ne plus le redemander (ocrDrop) ; wait : délai d'un moteur d'une autre écriture (readMore)
 /** Lettres admises dans un nom de carte : écarte les symboles de mana, filets et bruits que Tesseract prendrait pour du texte. */
 const LETTERS = { eng: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'’-:!", fra: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆàâäçéèêëîïôöùûüÿœæ ,'’-:!",
   deu: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÖÜäöüß ,'’-:!", spa: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÁÉÍÑÓÚÜáéíñóúü¡¿ ,'’-:!",
@@ -47,14 +75,17 @@ function ocrLib() {
 function ocrWorker(lang) {
   if (!OCR.workers[lang]) OCR.workers[lang] = (async () => {
     const T = await ocrLib();
-    const w = await T.createWorker(lang, 1, { workerPath: TESS.worker, corePath: TESS.core, langPath: TESS.langs[lang], logger: m => { if (OCR.onProg) OCR.onProg(m); } });
+    const w = await T.createWorker(lang, 1, { workerPath: TESS.worker, corePath: TESS.core, langPath: TESS.langs[lang], logger: m => { if (OCR.onProg) OCR.onProg(m); }, errorHandler: () => {} });      // erreur du moteur (modèle introuvable…) : la lecture en cours est refusée ; sans errorHandler, Tesseract.js la relance aussi en erreur non rattrapée de la page
     return w;
   })().catch(e => { delete OCR.workers[lang]; throw e; });
   return OCR.workers[lang];
 }
 /** Lit une image (canvas) : lignes de texte [{ text }]. psm : '6' bloc (bande du nom) · '11' texte épars (carte entière). Seul le texte est demandé (pas de hocr/tsv/blocs). */
 async function ocrLines(canvas, lang, psm, wl) {      // wl : caractères admis à la place des lettres d'un nom (ligne du bas : chiffres, majuscules, /)
-  if (natOcr() && NAT_OCR_OK.has(lang)) { if (!canvas.__ml) canvas.__ml = natLines(canvas); try { return await canvas.__ml; } catch (e) { delete canvas.__ml; } }      // appli Android : ML Kit (repli Tesseract en cas d'erreur) ; ML Kit ne lit que l'alphabet latin : russe, japonais, coréen, chinois passent par Tesseract
+  if (natHas(lang)) {      // appli Android : ML Kit, une lecture par écriture et par image (fra et eng relisent les mêmes lignes) ; erreur : Tesseract
+    const s = NAT_SCRIPT[lang], ml = canvas.__ml || (canvas.__ml = {}); if (!ml[s]) ml[s] = natLines(canvas, s);
+    try { return await ml[s]; } catch (e) { delete ml[s]; if (s !== 'latin') NATW[s] = Date.now() + 30e3; }      // modèle d'Asie pas encore téléchargé par les services Google Play : Tesseract pendant 30 s, puis ML Kit de nouveau
+  }
   const w = await ocrWorker(lang), mode = psm || '6';
   const keep = wl != null ? wl : LETTERS[lang] || '';
   if (w.__psm !== mode || w.__wl !== keep) { await w.setParameters({ tessedit_pageseg_mode: mode, tessedit_char_whitelist: keep }); w.__psm = mode; w.__wl = keep; }
@@ -62,6 +93,9 @@ async function ocrLines(canvas, lang, psm, wl) {      // wl : caractères admis 
   if ((w.__cnt = (w.__cnt || 0) + 1) >= 300 && OCR.workers[lang]) { delete OCR.workers[lang]; Promise.resolve(w.terminate()).catch(() => {}); }   // moteur recréé de temps en temps : la mémoire de WebAssembly ne fait que grossir
   return String(d.text || '').split(/\r?\n/).map(t => ({ text: t.trim() })).filter(l => l.text);
 }
+/** Moteur d'une autre écriture qui n'a pas lu à temps (OCR.wait, 20 s) : modèle introuvable ou pas téléchargé (Tesseract.js reste alors pendu, sans fin), réseau trop lent.
+ *  Oublié (arrêté s'il finit par démarrer) et pas redemandé pendant 10 minutes : la file du scan ne reste jamais bloquée derrière lui. */
+function ocrDrop(lang) { const p = OCR.workers[lang]; delete OCR.workers[lang]; OCR.bad[lang] = Date.now() + 10 * 60e3; if (p) p.then(w => w.terminate(), () => {}); }
 async function ocrStop() { const ws = Object.values(OCR.workers); OCR.workers = {}; for (const p of ws) { try { (await p).terminate(); } catch (e) { /* ignore */ } } }
 
 /** Découpe une zone d'une source (vidéo, image, canvas), la met à largeur utile et la convertit en niveaux de gris contrastés
@@ -88,7 +122,7 @@ function prepCanvas(src, r, outW, pol) {
 /* ── Écran de scan ────────────────────────────────────────────────────────────────────────────── */
 /** Aide du scan : fermée au départ, « ? » l'ouvre et la referme. */
 function scNoteShow(on) { const n = $('.sc-note', SC.el), h = $('.sc-help', SC.el); if (n) n.hidden = !on; if (h) h.setAttribute('aria-pressed', String(on)); }
-const SC = { sets: new Map(), setN: 0, lastIt: null, warm: false, el: null, stream: null, items: new Map(), miss: [], mid: 0, pend: [], queue: [], working: false, cap: 0, session: 0, alive: false, hintT: 0, watch: null, fpsMin: 10, fps: 0, fixed: false, gen: 0, rbusy: false, rf: { n: 0, at: 0 }, restarts: 0, workEnd: 0, slowN: 0, ms: 0, diagT: 0, lt: [], pr: new Map(), prq: new Map(), stick: '', lv: [] };
+const SC = { sets: new Map(), setN: 0, lastIt: null, warm: false, el: null, stream: null, items: new Map(), miss: [], mid: 0, pend: [], queue: [], working: false, cap: 0, session: 0, alive: false, hintT: 0, watch: null, fpsMin: 10, fps: 0, fixed: false, gen: 0, rbusy: false, rf: { n: 0, at: 0 }, restarts: 0, workEnd: 0, slowN: 0, ms: 0, diagT: 0, lt: [], pr: new Map(), prq: new Map(), stick: '', lv: [], alt: [], calt: null, rot: 0 };      // alt : langues d'autres écritures lues sûrement pendant ce scan (scanAltHit) ; calt : celles de la collection (scanCollAlt)
 const camSlow = () => { try { return localStorage.getItem('deckdeal:cam2') === 'slow'; } catch (e) { return false; } };      // 'cam2' : l'ancien indicateur (posé quand la lecture tournait pendant l'aperçu) est abandonné
 const camSetSlow = on => { try { localStorage.removeItem('deckdeal:cam'); if (on) localStorage.setItem('deckdeal:cam2', 'slow'); else localStorage.removeItem('deckdeal:cam2'); } catch (e) { /* ignore */ } };
 
@@ -602,11 +636,13 @@ async function readNameAuto(src, box, outW, psm, cat, retry, st) {
   let best = null, inv;
   for (let pass = 0; pass < (retry ? 2 : 1); pass++) {
     const c = prepCanvas(src, box, outW, pass ? (inv ? 0 : 1) : undefined); if (!pass) inv = c.inv;
+    let ca = null;      // moteur Tesseract d'une écriture d'Asie (langue imposée, du lot) : la même zone moins agrandie (ASIA_W)
     try {
       const read = [];
       for (const lang of langs) {
         if (!SC.el) return best;
-        const lines = await ocrLines(c, lang, psm); read.push(...lines);
+        const cv = TESS_ASIA[lang] && !natHas(lang) ? ca || (ca = prepCanvas(src, box, Math.round(outW * ASIA_W), c.inv ? 1 : 0)) : c;
+        const lines = await ocrLines(cv, lang, psm); read.push(...lines);
         if (!SC.raw) { const l = lines.find(x => String(x.text || '').replace(/[^\p{L}]/gu, '').length >= 3); if (l) SC.raw = String(l.text).trim().slice(0, 60); }      // premier texte lu de la carte : montré si le nom n'est pas reconnu
         const m = await scanMatch(lines, cat, lang);
         if (m && (!best || m.score > best.score)) { best = m; best.lang = lang; }
@@ -620,8 +656,50 @@ async function readNameAuto(src, box, outW, psm, cat, retry, st) {
         if (o && (!best || o.score > best.score)) { o.lang = langs[langs.length - 1]; best = o; }
       }
       if (best && best.score >= 0.84) return best;
-    } finally { c.width = c.height = 0; }
+    } finally { c.width = c.height = 0; if (ca) ca.width = ca.height = 0; }
   }
+  return best;
+}
+/** Ligne lue par le moteur d'une écriture d'Asie qui en a l'air : 2 signes d'Asie ou plus, 60 % des signes au moins (un nom latin relu par chi_sim donne surtout des lettres latines). */
+const asiaLine = x => { const t = String(x.text || '').replace(/\s+/g, ''), n = (t.match(CJK_G) || []).length; return n >= 2 && n >= t.length * 0.6; };
+const CJK_G = new RegExp(CJK_RE.source, 'g');
+/** Lignes lues par le moteur d'une autre écriture → carte : catalogue de cette langue d'Asie (asiaMatch, lignes qui en ont l'air seulement : une carte russe relue
+ *  par chi_sim ne doit pas devenir une carte chinoise), ou, pour le russe, les mêmes comparaisons que les moteurs latins puis les autres langues (names-all.tsv sur
+ *  l'appareil, sinon le serveur ; scan automatique : l'appareil seulement). */
+async function altMatch(lines, cat, lang, st) {
+  if (TESS_ASIA[lang]) return asiaMatch(lines.filter(asiaLine), TESS_ASIA[lang]);
+  const m = await scanMatch(lines, cat, lang); if ((m && m.score >= 0.84) || !SC.el) return m;
+  const o = await scanOther(lines, st || { n: 2 });
+  return o && (!m || o.score > m.score) ? o : m;
+}
+/**
+ * Rien de sûr avec les moteurs habituels (ocrLangs) : ceux des autres écritures (ocrMore), un après l'autre sur la même zone (box : bande du nom), jusqu'à un nom sûr.
+ * Tesseract : ≈ 0,3 s par moteur sur téléphone, plus son modèle (1,6 à 2,7 Mo) à la première fois, pas téléchargé en réseau mobile quand rien ne l'annonce (blind) ;
+ * ML Kit d'une écriture d'Asie (APK 1.0.6 et plus) : ≈ 0,1 s, sans limite. blind : seulement les moteurs qu'ocrMore(false) n'a pas déjà donnés, et un nom sûr (≥ 0,84),
+ * pas « à vérifier » (une bande illisible relue dans une autre écriture ne doit pas devenir une carte au hasard). Scan automatique (st absent) : un moteur Tesseract
+ * au plus, et avec ML Kit une écriture d'Asie de plus à chaque lecture, à tour de rôle ; la lecture suivante la confirme (scanAltHit la fait passer devant).
+ */
+async function readMore(src, box, outW, psm, cat, best, st, blind) {
+  if ((best && best.score >= 0.84) || !SC.el || (blind && best && Object.values(OCR_ALT).includes(best.lang))) return best;      // déjà « à vérifier » dans une autre écriture : c'est la sienne
+  const hint = ocrMore(false);
+  let more = blind ? ocrMore(true).filter(l => !hint.includes(l)) : hint, tess = 0;
+  if (!st && !blind) { const bl = ocrMore(true).filter(l => natHas(l) && !hint.includes(l)); if (bl.length) more = more.concat(bl[(SC.rot = (SC.rot || 0) + 1) % bl.length]); }
+  let c = null, ca = null, inv;
+  try {
+    for (const lang of more) {
+      if (!SC.el) break;
+      const nat = natHas(lang);
+      if (!nat) { if (tess >= (st ? 4 : 1) || OCR.bad[lang] > Date.now() || (!OCR.workers[lang] && (collOffline() || (blind && frcMetered())))) continue; tess++; }      // pas encore démarré : il faut le télécharger (jamais hors ligne ; en réseau mobile, seulement s'il est attendu)
+      const asia = TESS_ASIA[lang] && !nat, cv = asia ? ca || (ca = prepCanvas(src, box, Math.round(outW * ASIA_W), inv)) : c || (c = prepCanvas(src, box, outW, inv));
+      if (inv === undefined) inv = cv.inv ? 1 : 0;
+      let m = null;
+      let lines;
+      try { lines = await (nat ? ocrLines(cv, lang, psm) : Promise.race([ocrLines(cv, lang, psm), new Promise((ok, ko) => setTimeout(() => ko(Object.assign(new Error('délai'), { code: 'wait' })), OCR.wait))])); }
+      catch (e) { if (!nat && e && e.code === 'wait') ocrDrop(lang); continue; }      // moteur indisponible (modèle introuvable, hors ligne, trop lent) : le suivant
+      try { m = await altMatch(lines, cat, lang, st); } catch (e) { continue; }
+      if (m && m.score >= (blind ? 0.84 : 0.72) && (!best || m.score > best.score)) { best = { ...m, lang }; if (m.score >= 0.84) { scanAltHit(lang); break; } }
+    }
+  } finally { if (c) c.width = c.height = 0; if (ca) ca.width = ca.height = 0; }
   return best;
 }
 /** Zone lue d'une photo de carte (portrait) : le tiers haut, là où se trouvent le nom et le mana. Le reste de l'image n'est jamais lu. */
@@ -637,20 +715,28 @@ async function readCard(src, cat, strip, card) {
       const t = await readNameAuto(src, b, 1400, psm, cat, retry, st); if (t && (!m || t.score > m.score)) m = t;
       if (natOcr()) break;      // ML Kit lit toute la zone d'un coup : une passe suffit
     }
+    const band = cardBandBox(W, H);
+    m = await readMore(src, band, 1400, '7', cat, m, st);      // autres écritures attendues (langue des cartes, cartes chinoises déjà lues…)
     m = await footIdentify(m, src, cardFootBox(W, H));      // nom illisible ou douteux : l'extension et le numéro du bas retrouvent la carte
+    if (natOcr()) m = await readMore(src, band, 1400, '7', cat, m, st, true);      // appli Android, toujours rien : ML Kit latin ne lit pas les autres écritures, leurs moteurs essaient
     return artAttach(await footAttach(m, src, cardFootBox(W, H)), src);
   }
   if (strip) {
-    let m = await readNameAuto(src, { x: 0, y: 0, w: W, h: H }, 1400, '6', cat, true, st);
-    if ((!m || m.score < 0.84) && SC.el) { const all = await readNameAuto(src, { x: 0, y: 0, w: W, h: H }, 1600, '11', cat, false, st); if (all && (!m || all.score > m.score)) m = all; }
-    return m;
+    const all = { x: 0, y: 0, w: W, h: H };
+    let m = await readNameAuto(src, all, 1400, '6', cat, true, st);
+    if ((!m || m.score < 0.84) && SC.el) { const t = await readNameAuto(src, all, 1600, '11', cat, false, st); if (t && (!m || t.score > m.score)) m = t; }
+    m = await readMore(src, all, 1400, '6', cat, m, st);
+    return natOcr() ? readMore(src, all, 1400, '6', cat, m, st, true) : m;
   }
-  let m = await readNameAuto(src, { x: Math.round(W * 0.04), y: Math.round(H * 0.01), w: Math.round(W * 0.92), h: Math.round(H * 0.17) }, 1100, '6', cat, true, st);
+  const title = { x: Math.round(W * 0.04), y: Math.round(H * 0.01), w: Math.round(W * 0.92), h: Math.round(H * 0.17) };
+  let m = await readNameAuto(src, title, 1100, '6', cat, true, st);
   for (const [psm, retry] of [['6', true], ['11', false]]) {      // tiers haut : un bloc de texte d'abord, texte épars en dernier recours
     if ((m && m.score >= 0.84) || !SC.el) break;
     const t = await readNameAuto(src, thirdBox(src), 1600, psm, cat, retry, st); if (t && (!m || t.score > m.score)) m = t;
   }
+  m = await readMore(src, title, 1100, '6', cat, m, st);
   m = await footIdentify(m, src, cardFootBox(W, H));
+  if (natOcr()) m = await readMore(src, title, 1100, '6', cat, m, st, true);
   return footAttach(m, src, cardFootBox(W, H));      // photo de la carte entière : sa ligne du bas aussi
 }
 
@@ -724,9 +810,10 @@ async function footIdentify(m, src, box) {
   if (!r || !SC.el) return m;
   const l = (typeof FOOT_SL !== 'undefined' && FOOT_SL[r.lang]) || 'en';
   let sim = nameSimilar(raw, r.printed || r.name), araw = '';
-  if (sim < 0.6 && r.printed && TESS_ASIA[TESS_OF[l]] && src && SC.el) {      // nom japonais, coréen, chinois : illisible pour le moteur latin, relu avec celui de la langue lue en bas
-    const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height, c = prepCanvas(src, cardBandBox(W, H), 1400);
-    try { for (const x of await ocrLines(c, TESS_OF[l], '7')) { const v = nameSimilar(x.text, r.printed); if (v > sim) { sim = v; araw = String(x.text).trim().slice(0, 60); } } } catch (e) { /* moteur indisponible : à vérifier */ } finally { c.width = c.height = 0; }
+  const fl = TESS_OF[l];
+  if (sim < 0.6 && r.printed && fl && NAT_SCRIPT[fl] !== 'latin' && src && SC.el) {      // nom russe, japonais, coréen, chinois : illisible pour le moteur latin, relu avec celui de la langue lue en bas (le russe restait « à vérifier »)
+    const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height, c = prepCanvas(src, cardBandBox(W, H), TESS_ASIA[fl] && !natHas(fl) ? Math.round(1400 * ASIA_W) : 1400);
+    try { for (const x of await ocrLines(c, fl, '7')) { const v = nameSimilar(x.text, r.printed); if (v > sim) { sim = v; araw = String(x.text).trim().slice(0, 60); } } } catch (e) { /* moteur indisponible : à vérifier */ } finally { c.width = c.height = 0; }
   }
   SC.foot = { raw: fraw, ft, name: r.name, card: l, keep: '', via: 'foot' };
   const hit = { name: r.name, key: ownKey(r.name), score: sim >= 0.6 ? 0.93 : 0.8, raw: araw || raw || r.printed || r.name, card: l, img: r.img || '', via: 'foot', ft };
@@ -966,7 +1053,10 @@ async function scanWarm() {
   const s = SC.session; if (!SC.el || SC.warm) return; SC.warm = true;
   try {
     await Promise.all([collCatalog(), frcWarm()]);
-    if (!SC.el || SC.session !== s || (natOcr() && NAT_OCR_OK.has(ocrLangs()[0]))) return; await ocrWorker(ocrLangs()[0]);      // appli Android : ML Kit, pas de moteur à télécharger      // français d'abord : l'anglais ne se charge que si le français ne trouve rien
+    const l0 = ocrLangs()[0];
+    if (!SC.el || SC.session !== s) return;
+    if (natHas(l0)) { new Set([l0, ...ocrMore(false)].map(l => natHas(l) && NAT_SCRIPT[l]).filter(x => x && x !== 'latin')).forEach(natWarm); return; }      // appli Android : ML Kit, pas de moteur à télécharger (écritures d'Asie imposée ou attendues : leur modèle est demandé aux services Google Play dès maintenant)
+    await ocrWorker(l0);      // français d'abord : l'anglais ne se charge que si le français ne trouve rien
   } catch (e) { /* hors ligne ou CDN bloqué : le premier appui retentera et dira pourquoi */ }
   finally { SC.warm = false; SC.workEnd = performance.now(); if (SC.el && SC.session === s) othWarm(); }      // autres langues : téléchargées après le moteur OCR (la 1re lecture d'abord)
 }
@@ -978,6 +1068,14 @@ function capPlugin(n) {
   try { const C = typeof window !== 'undefined' && window.Capacitor; return C && C.isNativePlatform && C.isNativePlatform() && C.isPluginAvailable && C.isPluginAvailable(n) && C.Plugins && C.Plugins[n] || null; } catch (e) { return null; }
 }
 const natCam = () => capPlugin('CameraPreview'), natOcr = () => capPlugin('CapacitorPluginMlKitTextRecognition');
+/** ML Kit chinois, japonais, coréen (plugin ManaOrbit, APK 1.0.6 et plus : detectText avec script) ; null dans une APK plus ancienne, où ces écritures passent par Tesseract. */
+const natCjk = () => { const mo = capPlugin('ManaOrbit'); return mo && typeof mo.detectText === 'function' ? mo : null; };
+/** Écritures dont le modèle ML Kit n'a pas répondu (téléchargement par les services Google Play en cours, à la première carte) : écriture → heure où le réessayer. */
+const NATW = {};
+/** Ce moteur est-il lu par ML Kit ici ? latin : plugin ML Kit ; japonais, coréen, chinois : ManaOrbit.detectText, sauf pendant le téléchargement de son modèle. */
+const natHas = lang => { const s = NAT_SCRIPT[lang]; return s === 'latin' ? !!natOcr() : !!s && !!natCjk() && !(NATW[s] > Date.now()); };
+/** Demande tout de suite le modèle ML Kit d'une écriture d'Asie (lecture d'une petite image vide : les services Google Play le téléchargent s'il manque ; refusé : Tesseract d'abord, NATW). */
+function natWarm(s) { const c = document.createElement('canvas'); c.width = c.height = 32; c.getContext('2d').fillRect(0, 0, 32, 32); natLines(c, s).catch(() => { NATW[s] = Date.now() + 30e3; }).finally(() => { c.width = c.height = 0; }); }
 async function natStart() {
   const cam = natCam(), el = SC.el, stage = el && $('.sc-stage', el); if (!cam || !stage) return false;
   if (NAT.p) { try { await NAT.p; } catch (e) { /* ignore */ } }      // un démarrage précédent encore en cours : on l'attend (« caméra déjà démarrée » sinon)
@@ -1018,10 +1116,10 @@ async function natCapture(q = 90) {
   c.getContext('2d').drawImage(src, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
   scanFree(src); return c;
 }
-/** ML Kit : toutes les lignes lues, en une passe (l'alphabet latin couvre le français et l'anglais). */
-async function natLines(canvas) {
+/** ML Kit : toutes les lignes lues, en une passe (l'alphabet latin couvre le français et l'anglais). script : écriture (NAT_SCRIPT) ; chinois, japonais, coréen : plugin ManaOrbit. */
+async function natLines(canvas, script = 'latin') {
   const b64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
-  const r = await natOcr().detectText({ base64Image: b64, rotation: 0 });
+  const r = await (script === 'latin' ? natOcr().detectText({ base64Image: b64, rotation: 0 }) : natCjk().detectText({ base64Image: b64, rotation: 0, script }));
   return ((r && r.blocks) || []).flatMap(b => (b.lines || []).map(l => ({ text: String(l.text || '').trim() }))).filter(l => l.text);
 }
 
@@ -1083,7 +1181,7 @@ function openScan(o) {
       <button class="sc-shot" type="button" data-act="shot" aria-label="${T('Prendre la photo de la carte')}"><i><svg class="i"><use href="#i-pause"/></svg></i></button>
       <span class="sc-bslot"><button class="sc-auto" type="button" role="switch" data-act="auto" aria-checked="false" hidden><span class="sc-sw" aria-hidden="true"><i></i></span>${T('Auto')}</button></span></div>`;
   if (scanFull()) { wrap.classList.add('full'); $('.sc-cap', wrap).textContent = T('Carte entière'); }      // cadrage « carte entière » (réglage par défaut) : cadre de carte, ligne du bas lue aussi
-  SC.lot = !!(o && o.lot); SC.deck = !!(o && o.deck); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.lv = []; SC.lotLast = null; SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
+  SC.lot = !!(o && o.lot); SC.deck = !!(o && o.deck); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.lv = []; SC.alt = []; SC.calt = null; SC.lotLast = null; SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
   auReset();
   const stop = () => { auReset(); SC.alive = false; SC.warm = false; clearInterval(SC.diagT); clearTimeout(SC.hintT); SC.queue.forEach(j => scanFree(j.src)); SC.queue = []; SC.pend = []; if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; } natStop(); };
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); if (SC.ef) $('.sc-ef [data-ef="close"]').click(); else wrap.__close(); } };      // écran « Éditions à choisir » ouvert : Échap le ferme seul

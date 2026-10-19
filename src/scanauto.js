@@ -84,7 +84,9 @@ async function auFeed(f, g) {
   async function auRead() {
     if (f.dev >= AU_INK) {
       const cat = await collCatalog(), W = f.src.width, H = f.src.height; AU.reads++;
-      m = await readNameAuto(f.src, scanFull() ? cardNameBox(W, H) : { x: 0, y: 0, w: W, h: H }, 1400, '6', cat, false, null);      // sans recherche dans les autres langues (serveur) : seulement les noms sûrs
+      const box = scanFull() ? cardNameBox(W, H) : { x: 0, y: 0, w: W, h: H };
+      m = await readNameAuto(f.src, box, 1400, '6', cat, false, null);      // sans recherche dans les autres langues (serveur) : seulement les noms sûrs
+      if ((!m || m.score < 0.84) && SC.el) m = await readMore(f.src, box, 1400, '6', cat, m, null);      // autres écritures attendues (un moteur Tesseract au plus ; APK 1.0.6 : ML Kit chinois, japonais, coréen à tour de rôle)
       if (m && m.score < 0.84) m = null;
     }
     m0 = m;

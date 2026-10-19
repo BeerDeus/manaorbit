@@ -57,3 +57,19 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.match(plug, /ACTION_VIEW\.equals\(intent\.getAction\(\)\)\) \{\s*intent\.setAction\(Intent\.ACTION_MAIN\);[^\n]*\n\s*intent\.setData\(null\);/, 'forget : lien oublié');
   console.log('✓ App Links : intent-filter autoVerify https://manaorbit.app/ sur MainActivity (VIEW, DEFAULT, BROWSABLE, « / » seulement), paquet et hôte communs au site et à assetlinks.json, versionCode ≥ 6');
 }
+
+// Scan chinois, japonais, coréen et demande de note (APK 1.0.6) : méthodes du plugin appelées par le site (scan.js › natLines, help.js › rateShow), bibliothèques
+// des services Google Play (modèles ML Kit non embarqués), écritures acceptées par le plugin = celles que le site demande (NAT_SCRIPT).
+{
+  const plug = readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8'), gradle = readFileSync('android-app/android/app/build.gradle', 'utf8');
+  for (const m of ['detectText', 'requestReview']) { assert.match(plug, new RegExp(`@PluginMethod\\s+public void ${m}\\(PluginCall call\\)`), `méthode ${m}`); assert.match(plug, new RegExp(` \\* - ${m}\\(`), `${m} décrite dans l'en-tête du plugin`); }
+  for (const s of ['chinese', 'japanese', 'korean']) assert.match(gradle, new RegExp(`implementation 'com\\.google\\.android\\.gms:play-services-mlkit-text-recognition-${s}:[\\d.]+'`), `ML Kit ${s} des services Google Play (non embarqué)`);
+  assert.doesNotMatch(gradle, /com\.google\.mlkit:text-recognition/, 'aucun modèle ML Kit embarqué (≈ 4 Mo chacun)');
+  assert.match(gradle, /implementation 'com\.google\.android\.play:review:[\d.]+'/, 'Play In-App Review');
+  const ns = (/const NAT_SCRIPT = \{([^}]*)\}/.exec(readFileSync('src/scan.js', 'utf8')) || [])[1] || '', scripts = new Set([...ns.matchAll(/:\s*'(\w+)'/g)].map(m => m[1]));
+  assert.ok(scripts.size >= 4, 'NAT_SCRIPT lu dans scan.js');
+  for (const s of scripts) assert.match(plug, new RegExp(`case "${s}":`), `écriture « ${s} » demandée par le site, connue du plugin`);
+  assert.match(plug, /MlKitException\.UNAVAILABLE;[^\n]*\n[^\n]*"wait"/, 'modèle en téléchargement : code « wait » (le site lit avec Tesseract en attendant)');
+  assert.match(readFileSync('src/help.js', 'utf8'), /typeof mo\.requestReview === 'function'/, 'site : In-App Review seulement si la coque l\'a (APK 1.0.6)');
+  console.log(`✓ APK 1.0.6 : detectText (${[...scripts].join(', ')}) et requestReview déclarées, ML Kit chinois, japonais, coréen des services Google Play, Play In-App Review`);
+}

@@ -7,7 +7,9 @@
    · Note : demande neutre (« Noter » / « Plus tard », aucune question sur l'avis avant : Google interdit de trier les gens selon leur réponse),
      seulement dans l'appli Android, après un bon moment (5 cartes ou plus ajoutées d'un scan, un deck enregistré qui devient complet),
      si l'appli sert depuis au moins 4 jours et qu'aucune erreur n'a eu lieu pendant la session ; au plus une fois tous les 120 jours, 3 fois en tout,
-     plus jamais après « Noter ». Entièrement coupée tant que RATE_ASK est faux. */
+     plus jamais après « Noter ». Entièrement coupée tant que RATE_ASK est faux. APK 1.0.6 et plus : au même moment et dans les mêmes limites, la carte de note
+     de Google Play s'ouvre dans l'appli (In-App Review, ManaOrbit.requestReview, neutre elle aussi) au lieu de notre feuille ; jamais depuis un bouton (Google le
+     déconseille : son quota peut être atteint, rien ne s'afficherait) : « Noter sur le Play Store » des réglages reste un lien vers la fiche. */
 /** Fiche Play Store de l'appli, seule adresse du Play Store dans le code : bouton « Noter », lien « L'installer » et repli du bouton « Ouvrir dans l'appli »
  *  de la barre du navigateur Android (applink.js). À remplacer au besoin (lien d'inscription au test, autre fiche). */
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=app.manaorbit';
@@ -126,10 +128,18 @@ function rateWait() {
   }, RATE.wait);
 }
 function rateDone() { const st = rateRead(); st.done = 1; rateWrite(st); }
-/** La demande : neutre, « Noter » ouvre la fiche Play Store ; « Plus tard », la croix ou Retour la repoussent de 120 jours. */
+/** La demande, comptée tout de suite (120 jours avant la suivante, 3 en tout). APK 1.0.6 et plus : la carte de Google Play dans l'appli (In-App Review) ; Google décide
+ *  seul de l'afficher (quota) et ne dit jamais si une note a été laissée : la demande reste comptée, sans « plus jamais » ni badge. APK plus ancienne, appli installée
+ *  hors du Play Store ou refus du Play Store : notre feuille (rateSheet). */
 function rateShow() {
   RATE.pend = '';
   const st = rateRead(); st.n = (st.n || 0) + 1; st.at = Date.now(); rateWrite(st);
+  const mo = typeof natPlugin === 'function' && natPlugin('ManaOrbit');
+  if (mo && typeof mo.requestReview === 'function') { Promise.resolve().then(() => mo.requestReview()).catch(() => { if (rateQuiet()) rateSheet(); }); return; }      // refus : notre feuille, si l'écran est toujours calme
+  rateSheet();
+}
+/** Notre demande : neutre, « Noter » ouvre la fiche Play Store ; « Plus tard », la croix ou Retour la repoussent de 120 jours. */
+function rateSheet() {
   openSheet(T('Noter Mana Orbit'), '', api => {
     api.wrap.classList.add('rate-sheet');
     api.body.innerHTML = `<div class="rate-hero"><span class="rate-logo" aria-hidden="true"><svg class="logo"><use href="#i-logo"/></svg></span>
