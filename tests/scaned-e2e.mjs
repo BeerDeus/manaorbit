@@ -252,7 +252,16 @@ assert.equal(await p.$eval('.sc-item[data-id="sol ring"]', r => r.classList.cont
 assert.equal(await p.evaluate(() => 'fly' in SC.items.get('sol ring')), false, 'une fois');
 await p.evaluate(() => { SC.items.set('swords', { id: 'swords', key: 'swords to plowshares', name: 'Swords to Plowshares', q: 1, score: 1, l: 'en', e: edKey('m21', '2'), es: 'man', maybe: false, fly: Date.now() }); scanPaintList(); });
 await p.waitForTimeout(150); assert.equal(await p.$('.scan .sc-fly'), null, 'édition choisie à la main : rien ne descend');
-ok('cadre « carte entière » ≈ 48 % (carte vers 15 cm), textes hors du cadre ; symbole de l\'édition trouvée : du bas du cadre à sa ligne, qui s\'éclaire');
+// appli Android (html.nat-cam), thème sombre : la pastille reste blanche (le fond de l'écran la rendait noire, symbole invisible)
+await p.evaluate(() => { document.documentElement.classList.add('nat-cam'); document.documentElement.dataset.theme = 'dark'; SC_FLY.ms = 3000; SC.items.set('bolt', { id: 'bolt', key: 'lightning bolt', name: 'Lightning Bolt', q: 1, score: 1, l: 'en', e: edKey('m21', '3'), es: 'read', maybe: false, fly: Date.now() }); scanPaintList(); });
+await p.waitForSelector('.scan .sc-fly');
+assert.deepEqual(await p.evaluate(() => { const f = SC.el.querySelector('.sc-fly'); return [getComputedStyle(f).backgroundColor, getComputedStyle(f.querySelector('.set-ic')).filter]; }), ['rgb(255, 255, 255)', 'none'], 'pastille blanche, symbole noir');
+await p.evaluate(() => { document.documentElement.classList.remove('nat-cam'); delete document.documentElement.dataset.theme; });
+// « Ranger dans » affiché : la pastille des éditions devient la roue des réglages (le texte se coupait en « comme »)
+await p.evaluate(() => { SCD.p = plcCreate('binder', 'Classeur du scan'); scanPaintTools(); });
+assert.equal(await p.evaluate(() => { const b = SC.el.querySelector('.sc-edm'); return [b.classList.contains('ico'), !!b.querySelector('.ms-gear'), getComputedStyle(b.querySelector('.sc-edm-t')).display, b.getAttribute('aria-label')].join(); }), 'true,true,none,Réglages du scan · Éditions : comme la 1re');
+await p.evaluate(() => { SCD.p = ''; scanPaintTools(); }); assert.equal(await p.evaluate(() => SC.el.querySelector('.sc-edm').classList.contains('ico')), false);
+ok('cadre « carte entière » ≈ 48 % (carte vers 15 cm), textes hors du cadre ; symbole de l\'édition trouvée : du bas du cadre à sa ligne, qui s\'éclaire (pastille blanche dans l\'appli en thème sombre) ; « Ranger dans » : roue des réglages');
 await p.click('.scan [data-act="close"]');
 
 assert.deepEqual(errs, [], 'erreurs page');

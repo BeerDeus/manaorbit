@@ -203,10 +203,11 @@ function scanPaintList() {
 const scanDeckPlace = () => (SC.deck && typeof BD !== 'undefined' && BD.el ? T('Deck : {name}', { name: BD.name.trim() || T('Deck') }) : '');
 function scanPaintTools() {
   const el = SC.el; if (!el) return;
-  const b = $('.sc-edm', el); if (b) { b.innerHTML = `${esc(scsEdLabel())}<svg class="i" aria-hidden="true"><use href="#i-chev"/></svg>`; b.setAttribute('aria-label', T('Réglages du scan') + ' · ' + scsEdLabel()); }
+  const b = $('.sc-edm', el); if (b) { b.innerHTML = `<span class="sc-edm-t">${esc(scsEdLabel())}</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg>${typeof MS_GEAR === 'string' ? MS_GEAR : ''}`; b.setAttribute('aria-label', T('Réglages du scan') + ' · ' + scsEdLabel()); b.title = scsEdLabel(); }      // roue (masterset.js) : pastille réduite à côté de « Ranger dans »
   const d = $('.sc-dest', el), dk = scanDeckPlace();
   if (d && dk) { d.hidden = false; d.innerHTML = `<i style="--c:#c79bff"></i><span>${esc(dk)}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + dk); }      // mode deck : l'emplacement du deck, pas celui du scan
   else if (d) { d.hidden = !scdSet(); d.innerHTML = `<i style="--c:${SCD.x ? '#c79bff' : plcColor(scdPlace())}"></i><span>${esc(scdLabel())}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + scdLabel()); }      // pastille « Ranger dans » : seulement si le scan range ailleurs
+  if (b && d) b.classList.toggle('ico', !d.hidden);      // « Ranger dans » affiché : plus la place pour « Éditions : comme la 1re » (coupé en « comme ») → la roue des réglages seule
   auSync();      // scan automatique : interrupteur, cercle, lecture en continu (scanauto.js)
 }
 /** Fiche récap au tap sur « Ajouter » : exemplaires, valeur estimée Cardmarket, les plus chères, nouvelles / déjà possédées, langues. Suit la liste du scan en direct ; « Ajouter » dans la fiche fait l'ajout. Les prix des cartes pas encore lues par Scryfall sont lus ici (un lot). */
