@@ -318,14 +318,14 @@ const tradeId = [...shares.keys()][0];
 {
   await p.evaluate(() => openDeckViewer({ id: 'deck1' })); await p.waitForSelector('.dv.on .dvc[aria-label^="Craterhoof"]');
   await p.click('.dv.on .dvc[aria-label^="Craterhoof"]'); await p.waitForSelector('.imgv.on .imgv-wish:not([hidden])');
-  assert.equal(await txt(p, '.imgv-wish'), '☆ Liste de souhaits');
+  assert.equal(await txt(p, '.imgv-wish'), 'Liste de souhaits');
   await p.click('.imgv-wish');
   const w1 = await p.evaluate(() => TR.wish['craterhoof behemoth']);
   assert.equal(w1.n, 'Craterhoof Behemoth'); assert.equal(w1.q, 1); assert.match(w1.i, /^https:\/\/cards\.scryfall\.io\/normal\//, 'image retenue (format moyen)');
-  assert.equal(await txt(p, '.imgv-wish'), '★ Dans ta liste de souhaits');
+  assert.equal(await txt(p, '.imgv-wish'), 'Dans ta liste de souhaits');
   await p.waitForSelector('.imgv-art:not([hidden])', { timeout: 8000 }); await p.click('.imgv-art'); await p.waitForSelector('.imgv-v[data-i="1"]');
   await p.click('.imgv-v[data-i="1"]'); await p.waitForTimeout(200);
-  assert.equal(await txt(p, '.imgv-wish'), '☆ Souhaiter cette illustration', 'autre illustration affichée');
+  assert.equal(await txt(p, '.imgv-wish'), 'Souhaiter cette illustration', 'autre illustration affichée');
   const label = await p.evaluate(() => document.querySelector('.imgv-sub').textContent);
   await p.click('.imgv-wish');
   const w2 = await p.evaluate(() => TR.wish['craterhoof behemoth']);

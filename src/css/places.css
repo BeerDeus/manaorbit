@@ -97,3 +97,5 @@
 .fetch-c.on span{color:var(--ink-3);text-decoration:line-through}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tag.plc em,:root:not([data-theme="light"]) .cex-flags button[aria-pressed="true"]{color:#e0c072}}
 :root[data-theme="dark"] .tag.plc em,:root[data-theme="dark"] .cex-flags button[aria-pressed="true"]{color:#e0c072}
+.plc-ic .i{width:16px;height:16px;stroke-width:2}      /* icône du type (sprite : classeur, boîte, à vendre, deck, autre) */
+.plc-prox .plc-ic .i{width:20px;height:20px}

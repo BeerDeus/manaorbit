@@ -33,3 +33,5 @@
 .setv-more{margin-top:16px}
 .setv-more[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){.setv-star::before{transition:none}}
+.setv-star .i{width:18px;height:18px;stroke-width:2}
+.setv-star.on .i,.setv-star.other .i{fill:currentColor}      /* souhaitée : étoile pleine */

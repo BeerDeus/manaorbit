@@ -116,3 +116,4 @@
 .ms-sp .fill.full{background:var(--good);animation:none}
 .ms-sp small{font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--ink-2);white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.ms-open,.ms-gear{transition:none}.ms-fx{animation:none;background-position:50% 50%}}
+.ms-wish .i{width:17px;height:17px;margin-right:6px;vertical-align:-3px}

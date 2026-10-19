@@ -63,3 +63,4 @@
 .lot-acts{display:flex;gap:2px;flex:none}
 .lot-acts .icon-btn{width:36px;height:36px}
 .lot-empty{margin:4px 2px}
+.lot-ed .lot-caret{width:12px;height:12px;transform:rotate(90deg);color:var(--ink-3)}

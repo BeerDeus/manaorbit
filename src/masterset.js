@@ -45,8 +45,8 @@ const msNum = n => String(n || '').trim().toLowerCase().replace(/^0+(?=\d)/, '')
 const msEd = (code, num) => code + '|' + msNum(num);
 const MS_WARN = '<svg viewBox="0 0 24 22" aria-hidden="true"><path d="M12 1.5 23 20.5H1z" fill="#f2b441" stroke="#2a1c00" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8v6.2M12 16.8v.4" stroke="#2a1c00" stroke-width="2.4" stroke-linecap="round"/></svg>';
 const MS_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6" opacity=".45"/></svg>';
-/** Roue crantée des options : 8 dents, anneau gravé (comme un symbole d'extension), moyeu évidé, et au centre l'étincelle à quatre branches du mana incolore. */
-const MS_GEAR = '<svg class="i ms-gear" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9.57 4.06 9.96.99a11.2 11.2 0 0 1 4.08 0l.39 3.07a8.3 8.3 0 0 1 1.47.61l2.44-1.9a11.2 11.2 0 0 1 2.89 2.89l-1.9 2.44a8.3 8.3 0 0 1 .61 1.47l3.07.39a11.2 11.2 0 0 1 0 4.08l-3.07.39a8.3 8.3 0 0 1-.61 1.47l1.9 2.44a11.2 11.2 0 0 1-2.89 2.89l-2.44-1.9a8.3 8.3 0 0 1-1.47.61l-.39 3.07a11.2 11.2 0 0 1-4.08 0l-.39-3.07a8.3 8.3 0 0 1-1.47-.61l-2.44 1.9a11.2 11.2 0 0 1-2.89-2.89l1.9-2.44a8.3 8.3 0 0 1-.61-1.47L.99 14.04a11.2 11.2 0 0 1 0-4.08l3.07-.39a8.3 8.3 0 0 1 .61-1.47l-1.9-2.44a11.2 11.2 0 0 1 2.89-2.89l2.44 1.9a8.3 8.3 0 0 1 1.47-.61ZM12 6.9a5.1 5.1 0 1 0 0 10.2 5.1 5.1 0 1 0 0-10.2ZM12 4.95a7.05 7.05 0 1 0 0 14.1 7.05 7.05 0 1 0 0-14.1Zm0 .85a6.2 6.2 0 1 1 0 12.4 6.2 6.2 0 1 1 0-12.4Z"/><path d="M12 8.4q.55 3.05 3.6 3.6-3.05.55-3.6 3.6-.55-3.05-3.6-3.6 3.05-.55 3.6-3.6Z"/></svg>';
+/** Roue crantée des options (sprite i-gear) : 8 dents, anneau gravé (comme un symbole d'extension), moyeu évidé, et au centre l'étincelle à quatre branches du mana incolore. */
+const MS_GEAR = '<svg class="i ms-gear" aria-hidden="true"><use href="#i-gear"/></svg>';      // sprite (body.html › i-gear)
 
 /** Exemplaires de la collection par impression (dans la langue des options, si elle est choisie) : 'cmm|400' → { k, q (tous), n (non foil), f (foil),
  *  g, gn, gf (ligne la plus fournie : toutes, non foil, foil) } ; refait quand la collection ou la langue change. */
@@ -257,7 +257,7 @@ function msHtml() {
     + (act ? `<p class="hint coll-count">${TN(shown.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(s.list.length) })}</p>` : '')
     + (shown.length ? msGrid(code, shown, s.base, s.tot) : `<p class="hint listempty">${T('Aucune carte ne correspond.')}</p>`)
     + (wish || buy ? `<div class="ms-acts">${buy ? `<button class="btn ms-buy" type="button" data-act="msbuy">${esc(ct ? TN(buy, 'Chercher la carte manquante sur CardTrader', 'Chercher les {n} cartes manquantes sur CardTrader') : TN(buy, 'Prix de la carte manquante', 'Prix des {n} cartes manquantes'))}</button>` : ''}
-        ${wish ? `<button class="btn ghost ms-wish" type="button" data-act="mswish">☆ ${TN(wish, 'Souhaiter la carte manquante', 'Souhaiter les {n} cartes manquantes')}</button>` : ''}</div>` : '');
+        ${wish ? `<button class="btn ghost ms-wish" type="button" data-act="mswish"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg>${TN(wish, 'Souhaiter la carte manquante', 'Souhaiter les {n} cartes manquantes')}</button>` : ''}</div>` : '');
 }
 /** Après le rendu : cartes et symboles de l'extension demandés s'ils manquent. */
 function msAfterPaint() {

@@ -117,7 +117,7 @@ function setvTile(x, i) {
   const name = x.dn || x.n, own = collQty(x.k), ws = BASIC_NAMES.has(x.k) ? null : setvWishState(x), img = setvImg(x);
   return `<div class="dvc setv-c" style="--h:${hash32(x.k) % 360}" data-i="${i}">
     <button class="setv-open" type="button" aria-label="${esc(name)}"><span class="dvc-art"><b>${esc((name.trim()[0] || '?').toUpperCase())}</b>${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : `<i>${esc(name)}</i>`}</span></button>
-    ${ws === null ? '' : `<button class="setv-star${ws ? ' ' + ws : ''}" type="button" data-act="wish" aria-pressed="${ws === 'on'}" aria-label="${esc(ws === 'on' ? T('Retirer {name} de ta liste de souhaits', { name }) : T('Ajouter {name} à ta liste de souhaits', { name }))}">${ws === 'on' ? '★' : '☆'}</button>`}
+    ${ws === null ? '' : `<button class="setv-star${ws ? ' ' + ws : ''}" type="button" data-act="wish" aria-pressed="${ws === 'on'}" aria-label="${esc(ws === 'on' ? T('Retirer {name} de ta liste de souhaits', { name }) : T('Ajouter {name} à ta liste de souhaits', { name }))}"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg></button>`}
     ${own ? `<span class="dvc-q" title="${esc(T('Dans ta collection'))}">× ${own}</span>` : ''}${x.eu ? `<span class="dvc-p">${esc(fmt(x.eu, 'EUR'))}</span>` : ''}</div>`;
 }
 /** Repeint la page (en-tête, réglages, grille). Le défilement est gardé. */

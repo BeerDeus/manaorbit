@@ -55,7 +55,7 @@ await p.click('.pu-sheet [data-k="c"][data-c="poison"][data-n="1"]'); await p.cl
 s = await st(); assert.equal(s.places[0].blessures['2'], 3); assert.equal(s.places[0].vie, 17, 'blessures de commandant : autant de vie en moins'); assert.equal(s.places[0].compteurs.poison, 1); assert.equal(s.monarque, 1);
 await p.screenshot({ path: 'shots/partie-3-fiche.png' });
 await closeSheets();
-assert.match(await txt(p, '.pu-t[data-pos="1"] .pu-tags'), /👑.*☠ 1.*⚔ 3/);
+assert.match(await txt(p, '.pu-t[data-pos="1"] .pu-tags'), /1.*3/); assert.deepEqual(await p.$$eval('.pu-t[data-pos="1"] .pu-tags use', l => l.map(u => u.getAttribute('href'))), ['#i-crown', '#i-poison', '#i-sword'], 'monarque, poison, blessures de commandant : icônes du sprite');
 ok('fiche : blessures de commandant (et la vie), poison, monarque');
 
 /* ── Proposition d'élimination, élimination ─────────────────────────────────────────────────── */

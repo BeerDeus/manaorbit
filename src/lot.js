@@ -85,7 +85,7 @@ function lotPaintCard() {
       ${eu != null ? `<span class="lot-px">${set ? setIcHtml(set) : ''}<b>${esc(fmt(eu, 'EUR'))}</b></span>` : ''}</div>
     <div class="lot-f">
       <div class="lot-name"><b>${esc(dn)}</b>${dn !== c.n ? `<small>${esc(c.n)}</small>` : ''}${own ? `<em>${T('{n} dans ta collection', { n: nf0(own) })}</em>` : ''}</div>
-      <button type="button" class="lot-ed${c.pick ? ' on' : ''}${c.auto ? ' auto' : ''}" data-act="ed"${c.prints && !c.prints.length ? ' disabled' : ''} aria-haspopup="dialog">${edBtn}<i aria-hidden="true">▾</i></button>
+      <button type="button" class="lot-ed${c.pick ? ' on' : ''}${c.auto ? ' auto' : ''}" data-act="ed"${c.prints && !c.prints.length ? ' disabled' : ''} aria-haspopup="dialog">${edBtn}<svg class="i lot-caret" aria-hidden="true"><use href="#i-chev"/></svg></button>
       ${c.err ? `<p class="hint lot-err">${esc(c.err)} <button class="link-btn" type="button" data-act="retry">${T('Réessayer')}</button></p>` : ''}
       <div class="lot-row"><span>${T('Quantité')}</span><span class="qstep"><button type="button" data-act="qm" aria-label="${T('Un de moins')}"${c.q <= 1 ? ' disabled' : ''}>−</button><b>${c.q}</b><button type="button" data-act="qp" aria-label="${T('Un de plus')}">+</button></span></div>
       <div class="lot-row"><span>${T('Foil')} ✦</span><button type="button" class="lot-foil" data-act="foil" role="switch" aria-checked="${!!c.f}" aria-label="${T('Exemplaires foil')}"><span class="switch" aria-hidden="true"><i></i></span></button></div>

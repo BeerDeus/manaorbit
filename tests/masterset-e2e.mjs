@@ -176,7 +176,7 @@ await p.waitForFunction(() => /4 \/ 7 · 57 %/.test(document.querySelector('.ms-
 ok('« Ajouter à ma collection » : AAA 4 en français, 4 / 7 · 57 % ; carte possédée : sa ligne de collection');
 
 /* ── 6) souhaiter les manquantes (terrains de base exclus, variantes ouvertes comprises), Annuler ───────────────── */
-assert.equal(await txt(p, '.ms-wish'), '☆ Souhaiter les 2 cartes manquantes', 'Forest (terrain de base) exclu ; les 2 variantes comptent');
+assert.equal(await txt(p, '.ms-wish'), 'Souhaiter les 2 cartes manquantes', 'Forest (terrain de base) exclu ; les 2 variantes comptent');
 await p.click('.ms-wish'); await p.waitForSelector('.sheet-wrap.open [data-ok]');
 assert.match(await txt(p, '.sheet-wrap.open .sheet-body'), /2 cartes manquantes entrent dans ta liste de souhaits/);
 await p.click('.sheet-wrap.open [data-ok]'); await p.waitForTimeout(300);
@@ -308,7 +308,7 @@ await shut();
 b = await base();
 assert.deepEqual(b.map(x => [x.cls, x.q]), [['miss', '2/4'], ['miss', '2/4'], ['miss', '1/4'], ['miss', '1/4'], ['miss', ''], ['miss', ''], ['miss', '']], 'playset : « 2/4 », « 1/4 » sur les cartes entamées (Sol Ring : normale et foil)');
 assert.equal(await p.$$eval('.ms-c.part', l => l.length), 4); assert.equal(await pn(), '0 / 7 · 0 %');
-assert.equal(await txt(p, '.ms-wish'), '☆ Souhaiter les 4 cartes manquantes', 'cartes incomplètes à souhaiter (pas le terrain de base)');
+assert.equal(await txt(p, '.ms-wish'), 'Souhaiter les 4 cartes manquantes', 'cartes incomplètes à souhaiter (pas le terrain de base)');
 // langue : seuls les exemplaires français comptent
 await opt(); await p.click('.ms-opts [data-o="need"][data-v="1"]'); await p.selectOption('.ms-opts select[data-o="lang"]', 'fr');
 await p.waitForFunction(() => /Français/i.test((document.querySelector('.ms-osum') || {}).textContent || ''));

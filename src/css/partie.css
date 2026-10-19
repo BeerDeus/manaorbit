@@ -138,3 +138,12 @@
 .pu-getapp span{color:var(--ink-2);font-size:14px}
 .pu-getapp .btn{margin-top:4px}
 .pu-invl{margin:0 0 4px;padding-left:20px;display:flex;flex-direction:column;gap:6px;color:var(--ink-2)}
+/* icônes du sprite (body.html, 19 octobre 2026) à la place des émojis : monarque, initiative, poison (symbole phyrexian), victoire, joueur mort, téléphone */
+.pu-tag{display:inline-flex;align-items:center;gap:3px}
+.pu-tag .i{width:1.25em;height:1.25em;stroke-width:2}
+.pu-dev .i{width:16px;height:16px}
+.pu-pos .i,.pu-who .i,.pu-wins .i,.pu-dstat>.i{width:17px;height:17px;color:#e8b45e;vertical-align:-3px}
+.pu-pos .i{vertical-align:0}
+.pu-life .pu-dead{width:.72em;height:.72em;stroke-width:1.6;opacity:.85}
+.pu-marks button .i{width:16px;height:16px;margin-right:5px;vertical-align:-3px}
+.pu-tag .i[aria-hidden]{flex:none}

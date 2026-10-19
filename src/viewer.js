@@ -142,7 +142,7 @@ function openCardViewer(items, index) {
     const k = wishKey(), img = urls[0] || ''; wishB.hidden = !k || !img || typeof TR === 'undefined'; if (wishB.hidden) return;
     const w = TR.wish[k], same = !!w && !!w.i && samePrint(w.i, img);
     wishB.classList.toggle('on', same); wishB.setAttribute('aria-pressed', String(same));
-    wishB.textContent = same ? T('★ Dans ta liste de souhaits') : w ? T('☆ Souhaiter cette illustration') : T('☆ Liste de souhaits');
+    wishB.innerHTML = `<svg class="i" aria-hidden="true"><use href="#i-star"/></svg>${esc(same ? T('Dans ta liste de souhaits') : w ? T('Souhaiter cette illustration') : T('Liste de souhaits'))}`;      // étoile du sprite : pleine quand cette illustration est souhaitée (classe « on » ci-dessus)
   };
   wishB.onclick = () => {
     const k = wishKey(), img = urls[0]; if (!k || !img) return;

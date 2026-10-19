@@ -10,7 +10,9 @@ const plcOf = g => { const p = linePlace(g); return p && COLL.places[p] ? p : ''
 const plcAny = () => Object.keys(COLL.places).length > 0;
 const plcColor = id => { const x = id && COLL.places[id]; return !x ? PLC_NONE : x.t === 'deck' ? '#c79bff' : x.t === 'sale' ? '#e8b45e' : PLC_COL[hash32(id) % PLC_COL.length]; };
 const plcName = id => { const x = id && COLL.places[id]; return !x ? T('Non rangé') : x.t === 'deck' ? T('Deck : {name}', { name: x.n }) : x.n; };
-const plcIc = id => { const x = id && COLL.places[id]; return !x ? '?' : x.t === 'sale' ? '€' : (T(PLC_TYPE[x.t]).trim()[0] || '?').toUpperCase(); };
+/** Icône d'un emplacement selon son type (sprite : classeur, boîte, à vendre, deck monté, autre ; non rangé : point d'interrogation). */
+const PLC_IC = { binder: 'i-binder', box: 'i-box', sale: 'i-tag', deck: 'i-layers', other: 'i-pin' };
+const plcIc = id => { const x = id && COLL.places[id]; return `<svg class="i" aria-hidden="true"><use href="#${x ? PLC_IC[x.t] || 'i-pin' : 'i-help'}"/></svg>`; };
 /** Emplacements dans l'ordre d'affichage : classeurs, boîtes, à vendre, autres, decks montés ; par nom. */
 const plcList = () => Object.entries(COLL.places).map(([id, x]) => ({ id, ...x })).sort((a, b) => PLACE_TYPES.indexOf(a.t) - PLACE_TYPES.indexOf(b.t) || NAME_CMP(a.n, b.n));
 /** Emplacement du deck monté id ('' s'il n'en a pas). */
@@ -161,13 +163,13 @@ function cexSheet(src, k, g, done) {
 /* ── Onglet « Rangement » de la collection ─────────────────────────────────────────────────────── */
 function plcTabHtml() {
   const st = plcStats(), list = plcList(), none = st.get('') || { q: 0, v: 0 }, px = plcStats(true);
-  const card = (id, x) => { const s = st.get(id) || { q: 0, v: 0 }; return `<button type="button" class="plc-card" data-act="plcopen" data-p="${esc(id)}"><span class="plc-top"><i class="plc-ic" style="--c:${plcColor(id)}">${esc(plcIc(id))}</i><small>${esc(id ? T(PLC_TYPE[x.t]) : T('Par défaut'))}</small></span><b>${esc(plcName(id))}</b><span class="plc-sub">${TN(s.q, '{n} carte', '{n} cartes', { n: nf0(s.q) })}${s.v ? ' · ' + esc(fmt(s.v, 'EUR')) : ''}</span></button>`; };
+  const card = (id, x) => { const s = st.get(id) || { q: 0, v: 0 }; return `<button type="button" class="plc-card" data-act="plcopen" data-p="${esc(id)}"><span class="plc-top"><i class="plc-ic" style="--c:${plcColor(id)}">${plcIc(id)}</i><small>${esc(id ? T(PLC_TYPE[x.t]) : T('Par défaut'))}</small></span><b>${esc(plcName(id))}</b><span class="plc-sub">${TN(s.q, '{n} carte', '{n} cartes', { n: nf0(s.q) })}${s.v ? ' · ' + esc(fmt(s.v, 'EUR')) : ''}</span></button>`; };
   let pq = 0; const pin = new Set(); for (const [id, s] of px) { pq += s.q; if (id) pin.add(id); }
   return `<div class="plc-h"><b>${T('Emplacements')}</b><button class="link-btn" type="button" data-act="plcnew">${T('+ Nouveau')}</button></div>
     ${list.length ? '' : `<p class="hint plc-intro">${T('Classeurs, boîtes, decks montés, pile à vendre : range chaque exemplaire pour savoir où il est. Au scan, choisis « Ranger dans » ; dans la liste, touche une carte puis son emplacement.')}</p>`}
     <div class="plc-grid">${list.map(x => card(x.id, x)).join('')}${list.length && none.q ? card('', null) : ''}</div>
     <div class="plc-h"><b>${T('Proxys')}</b><small>${T('jamais dans la valeur ni l\'échange')}</small></div>
-    <button type="button" class="plc-prox" data-act="prox"><i class="plc-ic">P</i><span><b>${T('Mes proxys')}</b><small>${pq ? TN(pq, '{n} carte', '{n} cartes', { n: nf0(pq) }) + (pin.size ? ' · ' + TN(pin.size, 'rangées dans {n} emplacement', 'rangées dans {n} emplacements') : '') : T('Aucun proxy pour l\'instant')}</small></span><svg class="i" aria-hidden="true"><use href="#i-back"/></svg></button>`;
+    <button type="button" class="plc-prox" data-act="prox"><i class="plc-ic"><svg class="i" aria-hidden="true"><use href="#i-proxy"/></svg></i><span><b>${T('Mes proxys')}</b><small>${pq ? TN(pq, '{n} carte', '{n} cartes', { n: nf0(pq) }) + (pin.size ? ' · ' + TN(pin.size, 'rangées dans {n} emplacement', 'rangées dans {n} emplacements') : '') : T('Aucun proxy pour l\'instant')}</small></span><svg class="i" aria-hidden="true"><use href="#i-back"/></svg></button>`;
 }
 /** Bandeau du filtre par emplacement (onglet Cartes) : pastille (changer), valeur, Modifier, ✕. */
 function plcBarHtml() {

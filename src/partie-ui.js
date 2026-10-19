@@ -93,7 +93,7 @@ function puSetupPaint() {
   const on = new Set(PU.on), seats = st.places.map(p => {
     const v = PU.view && PU.view.places ? PU.view.places.find(x => x.pos === p.pos) : null, phone = p.sorte === 'moi' || (v && v.dev);
     return `<li class="pu-seat"><span class="pu-pos">${p.pos}</span><span class="pu-who"><b>${esc(p.nom || T('Joueur {n}', { n: p.pos }))}${p.sorte === 'moi' ? ` <small>${T('(toi)')}</small>` : ''}</b><small>${esc(puCmd(p) || (p.sorte === 'invite' && !phone ? T('Invité') : T('Deck pas encore choisi')))}</small></span>
-      ${phone ? `<span class="pu-dev${p.sorte === 'moi' || on.has(p.pos) ? ' on' : ''}" title="${T('A rejoint avec son téléphone')}">📱</span>` : ''}${p.sorte !== 'moi' ? `<button type="button" class="icon-btn pu-x" data-pu="kick" data-pos="${p.pos}" aria-label="${T('Retirer {name}', { name: esc(p.nom || p.pos) })}"><svg class="i"><use href="#i-close"/></svg></button>` : ''}</li>`;
+      ${phone ? `<span class="pu-dev${p.sorte === 'moi' || on.has(p.pos) ? ' on' : ''}" title="${T('A rejoint avec son téléphone')}"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg></span>` : ''}${p.sorte !== 'moi' ? `<button type="button" class="icon-btn pu-x" data-pu="kick" data-pos="${p.pos}" aria-label="${T('Retirer {name}', { name: esc(p.nom || p.pos) })}"><svg class="i"><use href="#i-close"/></svg></button>` : ''}</li>`;
   }).join('');
   el.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-pu="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Nouvelle partie')}</b><span>${TN(st.places.length, '{n} joueur', '{n} joueurs')}</span></div></header>
     <div class="dv-scroll"><div class="dv-body pu-setup">
@@ -171,16 +171,16 @@ function puLayoutA(places) {
 }
 function puTile(st, p, r) {
   const dead = !!p.elimine, act = st.actif === p.pos && !dead, d = PU.deltas[p.pos], tags = [];
-  if (st.monarque === p.pos) tags.push(`<span class="pu-tag" title="${T('Monarque')}">👑</span>`);
-  if (st.initiative === p.pos) tags.push(`<span class="pu-tag" title="${T('Initiative')}">🏰</span>`);
-  if (p.compteurs.poison) tags.push(`<span class="pu-tag">☠ ${p.compteurs.poison}</span>`);
+  if (st.monarque === p.pos) tags.push(`<span class="pu-tag" title="${T('Monarque')}"><svg class="i" aria-hidden="true"><use href="#i-crown"/></svg></span>`);
+  if (st.initiative === p.pos) tags.push(`<span class="pu-tag" title="${T('Initiative')}"><svg class="i" aria-hidden="true"><use href="#i-castle"/></svg></span>`);
+  if (p.compteurs.poison) tags.push(`<span class="pu-tag" title="${T('Poison')}"><svg class="i" aria-hidden="true"><use href="#i-poison"/></svg>${p.compteurs.poison}</span>`);
   if (p.compteurs.impot) tags.push(`<span class="pu-tag" title="${T('Impôt de commandant')}">+${p.compteurs.impot * 2}</span>`);
-  const bl = Object.values(p.blessures).reduce((a, x) => Math.max(a, x), 0); if (bl) tags.push(`<span class="pu-tag" title="${T('Blessures de commandant (la plus haute)')}">⚔ ${bl}</span>`);
+  const bl = Object.values(p.blessures).reduce((a, x) => Math.max(a, x), 0); if (bl) tags.push(`<span class="pu-tag" title="${T('Blessures de commandant (la plus haute)')}"><svg class="i" aria-hidden="true"><use href="#i-sword"/></svg>${bl}</span>`);
   return `<div class="pu-t${dead ? ' dead' : ''}${act ? ' act' : ''}${r === 90 || r === 270 ? ' rv' : ''}" data-pos="${p.pos}" style="--r:${r || 0}deg;--h:${[265, 200, 150, 28, 340, 52, 180, 300][(p.pos - 1) % 8]}"><div class="pu-in">
       <button type="button" class="pu-hit m" data-d="-1" aria-label="${T('{name} : −1 point de vie', { name: esc(p.nom || p.pos) })}"><span aria-hidden="true">−</span></button>
       <button type="button" class="pu-hit p" data-d="1" aria-label="${T('{name} : +1 point de vie', { name: esc(p.nom || p.pos) })}"><span aria-hidden="true">+</span></button>
       <button type="button" class="pu-nm" data-pu="pl" data-pos="${p.pos}">${esc(p.nom || T('Joueur {n}', { n: p.pos }))}${puCmd(p) ? `<small>${esc(puCmd(p))}</small>` : ''}</button>
-      <b class="pu-life" aria-live="polite">${dead ? '✝' : p.vie}</b>${d && d.n ? `<span class="pu-dl">${d.n > 0 ? '+' : ''}${d.n}</span>` : ''}
+      <b class="pu-life" aria-live="polite">${dead ? '<svg class="i pu-dead" aria-hidden="true"><use href="#i-skull"/></svg>' : p.vie}</b>${d && d.n ? `<span class="pu-dl">${d.n > 0 ? '+' : ''}${d.n}</span>` : ''}
       <span class="pu-tags">${tags.join('')}</span>
       ${act ? `<button type="button" class="pu-turn" data-pu="next">${T('Fin du tour')}</button>` : ''}
     </div></div>`;
@@ -241,7 +241,7 @@ function puPlayerSheet(pos) {
       api.body.innerHTML = `<div class="pu-lifebig"><button type="button" data-k="v" data-n="-10">−10</button><button type="button" data-k="v" data-n="-1">−1</button><b>${p.vie}</b><button type="button" data-k="v" data-n="1">+1</button><button type="button" data-k="v" data-n="10">+10</button></div>
         <p class="pu-h">${T('Blessures de commandant reçues')}</p>${opp.map(o => { const two = puCmd(o).includes(' + '); return step('b', p.blessures[String(o.pos)] || 0, esc(T('de {name}', { name: o.nom || o.pos })) + (puCmd(o) ? ` <small>${esc(two ? puCmd(o).split(' + ')[0] : puCmd(o))}</small>` : ''), ` data-s="${o.pos}"`) + (two ? step('b', p.blessures[o.pos + 'b'] || 0, `<small>${esc(puCmd(o).split(' + ')[1])}</small>`, ` data-s="${o.pos}" data-b="1"`) : ''); }).join('')}
         <p class="pu-h">${T('Compteurs')}</p>${PU_CNT.map(([k, l]) => step('c', p.compteurs[k] || 0, T(l), ` data-c="${k}"`)).join('')}
-        <div class="pu-chips pu-marks"><button type="button" data-mk="monarque" aria-pressed="${st.monarque === pos}">👑 ${T('Monarque')}</button><button type="button" data-mk="initiative" aria-pressed="${st.initiative === pos}">🏰 ${T('Initiative')}</button></div>
+        <div class="pu-chips pu-marks"><button type="button" data-mk="monarque" aria-pressed="${st.monarque === pos}"><svg class="i" aria-hidden="true"><use href="#i-crown"/></svg>${T('Monarque')}</button><button type="button" data-mk="initiative" aria-pressed="${st.initiative === pos}"><svg class="i" aria-hidden="true"><use href="#i-castle"/></svg>${T('Initiative')}</button></div>
         <div class="pu-acts">${p.elimine ? `<button class="btn ghost" type="button" data-x="revive">${T('Revenir en jeu')}</button>` : `<button class="btn ghost" type="button" data-x="elim">${T('Éliminer')}</button>`}<button class="btn ghost" type="button" data-x="ren">${T('Renommer')}</button></div>`;
     };
     paint();
@@ -342,7 +342,7 @@ function puEndPaint() {
   const ps = r.places.slice().sort((a, b) => a.rang - b.rang || a.pos - b.pos), room = partieRoom();
   PU.el.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-pu="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Partie terminée')}</b><span>${esc([TN(r.tours, '{n} tour', '{n} tours'), puDur(r.duree)].join(' · '))}</span></div></header>
     <div class="dv-scroll"><div class="dv-body pu-setup">
-      <section class="pu-card"><ol class="pu-rank">${ps.map(p => `<li class="${p.vainqueur ? 'win' : ''}"><span class="pu-pos">${p.vainqueur ? '🏆' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || T('Joueur {n}', { n: p.pos }))}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol></section>
+      <section class="pu-card"><ol class="pu-rank">${ps.map(p => `<li class="${p.vainqueur ? 'win' : ''}"><span class="pu-pos">${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || T('Joueur {n}', { n: p.pos }))}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol></section>
       ${qr ? `<section class="pu-card pu-qr big"><div class="pu-qr-img" role="img" aria-label="${T('QR code du résultat')}">${qr}</div><div class="pu-qr-t"><b>${T('Résultat à scanner')}</b><span>${T('Les joueurs qui n\'ont pas rejoint la table le scannent pour garder la partie dans leur historique.')}</span></div></section>` : ''}
       ${r.places.some(p => p.sorte === 'invite') ? puInviteCard() : ''}
       <p class="hint">${room ? T('Les joueurs qui ont rejoint avec leur téléphone ont reçu le résultat.') : ''} ${D.user ? T('Partie gardée dans « Mes parties » ; envoyée à ton compte dès que possible.') : T('Partie gardée sur ce téléphone (« Mes parties »).')}</p>
@@ -418,7 +418,7 @@ function puJoin(code) {
     let body;
     if (J.joined) {
       const v = J.view, res = v && v.res, me = v ? v.me : J.joined.pos;
-      body = res ? `<section class="pu-card"><p class="pu-h">${T('Partie terminée')}</p><ol class="pu-rank">${res.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === me ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '🏆' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol><p class="hint">${T('Gardée dans « Mes parties ».')}</p></section>${puGetAppHtml()}`
+      body = res ? `<section class="pu-card"><p class="pu-h">${T('Partie terminée')}</p><ol class="pu-rank">${res.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === me ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol><p class="hint">${T('Gardée dans « Mes parties ».')}</p></section>${puGetAppHtml()}`
         : `<section class="pu-card pu-wait">${PU_HEART}<b>${T('Tu es à la place {n}', { n: me })}</b><p>${esc(T('Range ton téléphone : la partie se joue sur le téléphone de {name}. Le résultat arrivera ici.', { name: (v && v.host) || (P && P.host) || '' }))}</p>${v && v.st === 'live' ? `<p class="hint">${T('Partie en cours…')}</p>` : `<p class="hint">${T('En attente du lancement…')}</p>`}<button class="btn ghost small" type="button" data-j="leave">${T('Quitter la table')}</button></section>`;
     } else if (J.err) body = `<section class="pu-card"><p class="pu-h">${T('Table introuvable')}</p><p class="hint">${esc(J.err)}</p></section>`;
     else if (!P) body = `<section class="pu-card"><p class="hint">${T('Lecture de la table…')}</p></section>`;
@@ -462,7 +462,7 @@ function puJoin(code) {
 function puClaimSheet(r) {
   openSheet(T('Résultat d\'une partie'), new Date(r.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }) + ' · ' + TN(r.tours, '{n} tour', '{n} tours'), api => {
     api.wrap.classList.add('pu-sheet');
-    api.body.innerHTML = `<p class="pu-h">${T('Quelle place était la tienne ?')}</p><div class="pu-wins">${r.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<button type="button" data-cl="${p.pos}"><span>${p.vainqueur ? '🏆 ' : ''}${esc(p.nom || p.pos)}</span><small>${esc(p.commandant || p.deck || T('Place {n}', { n: p.pos }))}</small></button>`).join('')}</div><p class="hint">${D.user ? T('Ajoutée à « Mes parties » et à ton compte.') : T('Ajoutée à « Mes parties » sur ce téléphone.')}</p>`;
+    api.body.innerHTML = `<p class="pu-h">${T('Quelle place était la tienne ?')}</p><div class="pu-wins">${r.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<button type="button" data-cl="${p.pos}"><span>${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : ''}${esc(p.nom || p.pos)}</span><small>${esc(p.commandant || p.deck || T('Place {n}', { n: p.pos }))}</small></button>`).join('')}</div><p class="hint">${D.user ? T('Ajoutée à « Mes parties » et à ton compte.') : T('Ajoutée à « Mes parties » sur ce téléphone.')}</p>`;
     api.body.insertAdjacentHTML('beforeend', puGetAppHtml());
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-cl]'); if (!b) return; if (partieClaim(r, Number(b.dataset.cl))) { haptic('ok'); api.close(); toast(T('Partie ajoutée à « Mes parties »')); puHomePaint(); } });
   });
@@ -479,7 +479,7 @@ async function puHist(tab) {
       const won = items.filter(x => x.moi && (x.places.find(p => p.pos === x.moi) || {}).vainqueur).length;
       let sub = $('.sheet-head p', api.wrap); if (!sub) { sub = document.createElement('p'); $('.sheet-head > div', api.wrap).appendChild(sub); }
       sub.textContent = items.length ? TN(items.length, '{n} partie · {w} gagnée(s)', '{n} parties · {w} gagnée(s)', { n: items.length, w: won }) : '';
-      $('.pu-hbody', api.body).innerHTML = view === 'stats' ? puStatsHtml(partieStats(items)) : items.length ? `<ul class="pu-hist">${items.map(x => { const me = x.places.find(p => p.pos === x.moi), w = x.places.filter(p => p.vainqueur).map(p => p.nom || p.pos); return `<li><button type="button" data-h="${esc(x.id)}"><span class="pu-hd">${esc(new Date(x.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' }))}</span><span class="pu-who"><b>${me && me.vainqueur ? '🏆 ' : ''}${esc(x.places.map(p => p.nom || p.pos).join(', '))}</b><small>${esc([me && (me.commandant || me.deck), w.length ? T('vainqueur : {name}', { name: w.join(', ') }) : T('aucun vainqueur'), TN(x.tours, '{n} tour', '{n} tours')].filter(Boolean).join(' · '))}</small></span></button></li>`; }).join('')}</ul>`
+      $('.pu-hbody', api.body).innerHTML = view === 'stats' ? puStatsHtml(partieStats(items)) : items.length ? `<ul class="pu-hist">${items.map(x => { const me = x.places.find(p => p.pos === x.moi), w = x.places.filter(p => p.vainqueur).map(p => p.nom || p.pos); return `<li><button type="button" data-h="${esc(x.id)}"><span class="pu-hd">${esc(new Date(x.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' }))}</span><span class="pu-who"><b>${me && me.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : ''}${esc(x.places.map(p => p.nom || p.pos).join(', '))}</b><small>${esc([me && (me.commandant || me.deck), w.length ? T('vainqueur : {name}', { name: w.join(', ') }) : T('aucun vainqueur'), TN(x.tours, '{n} tour', '{n} tours')].filter(Boolean).join(' · '))}</small></span></button></li>`; }).join('')}</ul>`
         : `<p class="hint">${T('Aucune partie pour l\'instant. Lance-en une depuis l\'accueil : les résultats arrivent ici.')}</p>`;
     };
     paint();
@@ -508,13 +508,13 @@ function puStatsHtml(s) {
 function puDeckStatHtml(name) {
   let s; try { s = partieStats(partieHist(), { deck: name }); } catch (e) { return ''; }
   if (!s.n) return '';
-  return `<div class="pu-dstat"><span aria-hidden="true">🏆</span><span>${esc(TN(s.wins, '{n} victoire', '{n} victoires') + ' ' + TN(s.n, 'sur {n} partie', 'sur {n} parties') + ' (' + Math.round(s.rate * 100) + ' %)')}</span><button class="link-btn" type="button" data-act="games">${T('Statistiques')}</button></div>`;
+  return `<div class="pu-dstat"><svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg><span>${esc(TN(s.wins, '{n} victoire', '{n} victoires') + ' ' + TN(s.n, 'sur {n} partie', 'sur {n} parties') + ' (' + Math.round(s.rate * 100) + ' %)')}</span><button class="link-btn" type="button" data-act="games">${T('Statistiques')}</button></div>`;
 }
 function puHistOne(x) {
   const link = partieResultLink(x, { max: PU_QR_MAX }); let qr = ''; try { qr = link ? qrSvg(link).svg : ''; } catch (e) { qr = ''; }
   openSheet(new Date(x.date).toLocaleString(LOC(), { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), [T('{f} points', { f: x.format }), TN(x.tours, '{n} tour', '{n} tours'), puDur(x.duree)].join(' · '), api => {
     api.wrap.classList.add('pu-sheet');
-    api.body.innerHTML = `<ol class="pu-rank">${x.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === x.moi ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '🏆' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol>
+    api.body.innerHTML = `<ol class="pu-rank">${x.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === x.moi ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol>
       ${qr ? `<div class="pu-qr pu-card big"><div class="pu-qr-img" role="img" aria-label="${T('QR code du résultat')}">${qr}</div><div class="pu-qr-t"><b>${T('Partager le résultat')}</b><span>${T('Un autre joueur le scanne pour l\'ajouter à ses parties.')}</span></div></div>` : ''}`;
     api.setFoot(`<button class="btn ghost danger-txt" type="button" data-del>${T('Retirer')}</button><button class="btn" type="button" data-close>${T('Fermer')}</button>`);
     api.foot.addEventListener('click', async e => {
