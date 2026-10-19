@@ -221,7 +221,7 @@ const upDone = () => { const n = upQueue.shift(); if (n) n(); else upActive--; }
    Cache : offres 10 min, absences d'offres 3 h (un blueprint sans offre française l'est rarement une heure plus tard). */
 const JOBS_ON = process.env.JOBS !== '0';
 const JOB_RATE = Math.min(9.6, Math.max(1, Number(process.env.JOB_RATE) || 9));
-const JOB_CONC = 4, JOB_MAX_RUNNING = Number(process.env.JOB_MAX_RUNNING) || 8, JOB_MAX_KEPT = 4 * JOB_MAX_RUNNING, JOB_MAX_BPS = 3000, JOB_PAGE = 300;
+const JOB_CONC = 4, JOB_MAX_RUNNING = Number(process.env.JOB_MAX_RUNNING) || 8, JOB_MAX_KEPT = 4 * JOB_MAX_RUNNING, JOB_MAX_BPS = 3000, JOB_PAGE = 300, JOB_MAX_GROUPS = 40;      // groupes : langue × foil (11 × 3 au plus)
 const JOB_KEEP = Number(process.env.JOB_KEEP_MS ?? 15 * 60e3);
 const OFFER_TTL = Number(process.env.OFFER_TTL_MS ?? 10 * 60e3), OFFER_TTL_EMPTY = Number(process.env.OFFER_TTL_EMPTY_MS ?? 3 * 3600e3);
 const OFFERS_MAX = (Number(process.env.OFFERS_CACHE_MB) || 40) * 1024 * 1024;
@@ -705,8 +705,10 @@ async function alertsApi(req, res, path, url) {
 }
 
 const jobs = new Map(); let jobBytes = 0;                            // jobBytes : résultats gardés par toutes les tâches (plafond JOB_RES_MAX)
-function newJob({ lang, foil, bps, fresh, tok = TOKEN, th = '' }) {
-  const sig = createHash('sha1').update([tok === TOKEN ? '' : tok, lang, foil, ...bps.slice().sort((a, b) => a - b)].join(',')).digest('hex');      // un token différent : une tâche à part (elle tourne avec ce token)
+/** gs : [{ lang, foil, bps }] : les blueprints à lire dans cette langue et ce foil ; le premier groupe est celui de la recherche, les suivants (more) les lignes de la
+ *  liste qui ont leur propre foil ou leur langue (« *F* », « *FR* ») : une seule tâche, une seule cadence. */
+function newJob({ gs, fresh, tok = TOKEN, th = '' }) {
+  const sig = createHash('sha1').update([tok === TOKEN ? '' : tok, ...gs.flatMap((g, i) => [...(i ? ['|'] : []), g.lang, g.foil, ...g.bps.slice().sort((a, b) => a - b)])].join(',')).digest('hex');      // un token différent : une tâche à part (elle tourne avec ce token)
   const now = Date.now();
   let same = null;                                                    // la tâche la plus récente de même signature (en cours, ou terminée et encore valable)
   for (const j of jobs.values()) if (j.sig === sig && (j.status === 'running' || (j.status === 'done' && !fresh && now - j.end < OFFER_TTL)) && (!same || j.t0 > same.t0)) same = j;
@@ -715,7 +717,8 @@ function newJob({ lang, foil, bps, fresh, tok = TOKEN, th = '' }) {
   if (running.length >= JOB_MAX_RUNNING) return { busy: true };
   if (th && running.filter(j => j.th === th).length >= JOB_PER_TOKEN) return { busy: true, mine: true };
   // th : empreinte du token de l'utilisateur ('' : token du serveur) ; tok n'est gardé que le temps de la recherche (effacé dès la fin, l'échec ou l'annulation).
-  const job = { id: randomBytes(12).toString('hex'), sig, tok, th, lang, foil, fresh: !!fresh, bps, queue: bps.slice(), total: bps.length, results: [], bytes: 0, done: 0, cached: 0, cacheAge: 0, oldest: Infinity, errors: 0, sent: 0, stamps: [],
+  const queue = gs.flatMap((g, i) => g.bps.map(bp => ({ bp, g: i })));
+  const job = { id: randomBytes(12).toString('hex'), sig, tok, th, gs: gs.map(({ lang, foil }) => ({ lang, foil })), fresh: !!fresh, queue, total: queue.length, results: [], bytes: 0, done: 0, cached: 0, cacheAge: 0, oldest: Infinity, errors: 0, sent: 0, stamps: [],
     status: 'running', fatal: null, ctl: new AbortController(), t0: now, end: 0, pushes: [], seenEnd: false };
   jobs.set(job.id, job);
   runJob(job);
@@ -733,19 +736,20 @@ function jobKeep(job, res, size) {
 async function runJob(job) {
   const worker = async () => {
     while (job.status === 'running') {
-      const bp = job.queue.shift(); if (bp === undefined) return;
-      const k = okey(bp, job.lang, job.foil), hit = job.fresh || !tokOk(job.th) ? null : offersGet(k);       // cache partagé : seulement pour un token déjà accepté par CardTrader
+      const it = job.queue.shift(); if (it === undefined) return;
+      const { bp } = it, { lang, foil } = job.gs[it.g], g = it.g ? { g: it.g } : {};      // g : groupe de la ligne (absent pour le premier : réponses d'avant les groupes)
+      const k = okey(bp, lang, foil), hit = job.fresh || !tokOk(job.th) ? null : offersGet(k);       // cache partagé : seulement pour un token déjà accepté par CardTrader
       let products = null, error = null, size = 64;
       if (hit) { products = hit.products; size = hit.size; job.cached++; job.cacheAge = Math.max(job.cacheAge, Date.now() - hit.t); job.oldest = Math.min(job.oldest, hit.t); }
       else {
-        try { const at = Date.now(); products = await fetchProducts(bp, job.lang, job.foil, job.ctl.signal, job.tok); tokSeen(job.th); size = offersSet(k, products); job.sent++; job.stamps.push(Date.now()); job.oldest = Math.min(job.oldest, at); }
+        try { const at = Date.now(); products = await fetchProducts(bp, lang, foil, job.ctl.signal, job.tok); tokSeen(job.th); size = offersSet(k, products); job.sent++; job.stamps.push(Date.now()); job.oldest = Math.min(job.oldest, at); }
         catch (e) {
           if (e.cancelled) return;
           if (e.fatal) { job.fatal = e.fatal; jobStop(job, 'failed'); return; }
           error = e.message || 'error'; job.errors++;
         }
       }
-      if (job.status !== 'running' || !jobKeep(job, error ? { bp, error } : { bp, products }, size)) return;
+      if (job.status !== 'running' || !jobKeep(job, error ? { bp, ...g, error } : { bp, ...g, products }, size)) return;
       job.done++;
     }
   };
@@ -772,11 +776,13 @@ async function jobsApi(req, res, path, url, tok = TOKEN, th = '') {
   if (req.method === 'POST' && !m[1]) {
     if (th) { const wait = rateWait(req, 'jobs', USER_JOBS_H, 3600e3); if (wait) return tooMany(res, wait); }
     let b; try { b = JSON.parse((await readBody(req)).toString('utf8') || '{}'); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); }
-    const lang = b && b.lang == null ? '' : String(b && b.lang), foil = b && b.foil == null ? 'any' : String(b && b.foil);
-    const ids = Array.isArray(b && b.bps) ? [...new Set(b.bps)] : [];
-    if (!b || b.type !== 'offers' || !/^([a-z]{2}(-[A-Za-z]{2})?)?$/.test(lang) || !['no', 'yes', 'any'].includes(foil) || !ids.length || ids.length > JOB_MAX_BPS || !ids.every(x => Number.isSafeInteger(x) && x > 0))
-      return json(res, 400, { error: 'bad_request', message: 'Paramètres invalides (type, lang, foil ou bps).' });
-    const r = newJob({ lang, foil, bps: ids, fresh: !!b.fresh, tok, th });
+    // lang, foil, bps : le groupe de la recherche ; more (facultatif) : [{ lang, foil, bps }], lignes de la liste avec leur propre foil ou leur langue (résultats marqués g : 1, 2…)
+    const grp = x => ({ lang: x && x.lang != null ? String(x.lang) : '', foil: x && x.foil != null ? String(x.foil) : 'any', bps: Array.isArray(x && x.bps) ? [...new Set(x.bps)] : [] });
+    const gs = b && (b.more == null || Array.isArray(b.more)) ? [grp(b), ...(b.more || []).map(grp)] : null;
+    if (!b || b.type !== 'offers' || !gs || gs.length > JOB_MAX_GROUPS || gs.reduce((a, g) => a + g.bps.length, 0) > JOB_MAX_BPS
+      || !gs.every(g => /^([a-z]{2}(-[A-Za-z]{2})?)?$/.test(g.lang) && ['no', 'yes', 'any'].includes(g.foil) && g.bps.length && g.bps.every(x => Number.isSafeInteger(x) && x > 0)))
+      return json(res, 400, { error: 'bad_request', message: 'Paramètres invalides (type, lang, foil, bps ou more).' });
+    const r = newJob({ gs, fresh: !!b.fresh, tok, th });
     if (r.busy) return json(res, 429, { error: 'busy', message: r.mine ? 'Trop de recherches en cours avec ce token.' : 'Trop de recherches en cours sur le serveur.' }, { 'Retry-After': '10' });
     const pu = parsePush(b.push);
     if (pu && r.job.status === 'running' && r.job.pushes.length < 3 && !r.job.pushes.some(x => pushKey(x.sub) === pushKey(pu.sub))) r.job.pushes.push(pu);

@@ -8,8 +8,8 @@ import { startDailyScry } from './daily-fakes.mjs';
 export const { chromium } = createRequire(import.meta.url)('playwright-core');
 
 const user = { id: 1, username: 'seller_a', country_code: 'FR', can_sell_via_hub: true };
-const prod = (id, bp, cents, qty = 4, lang = 'fr') => ({ id, blueprint_id: bp, quantity: qty, graded: false, on_vacation: false, bundle_size: 1, price: { cents, currency: 'EUR' },
-  properties_hash: { condition: 'Near Mint', mtg_language: lang, mtg_foil: false }, expansion: { code: 'cmm', name_en: 'Commander Masters' }, user });
+const prod = (id, bp, cents, qty = 4, lang = 'fr', foil = false) => ({ id, blueprint_id: bp, quantity: qty, graded: false, on_vacation: false, bundle_size: 1, price: { cents, currency: 'EUR' },
+  properties_hash: { condition: 'Near Mint', mtg_language: lang, mtg_foil: foil }, expansion: { code: 'cmm', name_en: 'Commander Masters' }, user });
 // nom, bp, coût converti, type, coût de mana, prix FR (cts, null = aucune offre), couleurs, prix de référence Cardmarket (texte Scryfall), nom français imprimé
 export const CARDS = [
   ['Sol Ring', 100, 1, 'Artifact', '{1}', 150, [], '1.50', 'Anneau solaire'], ['Swords to Plowshares', 101, 1, 'Instant', '{W}', 200, ['W'], '1.90', 'Épées aux charrues'],
@@ -34,7 +34,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0, daily
   const prints = {}; CARDS.forEach(([n, , cmc, tl, mc, , colors, eur], i) => { prints[n] = [{ id: 's-' + slug(n), set: 'cmm', set_name: 'Commander Masters', collector_number: String(400 + i), name: n, cmc, type_line: tl, mana_cost: mc, colors, prices: { eur }, color_identity: colors, legalities: { commander: 'legal' },
     image_uris: { small: `https://cards.scryfall.io/small/front/a/b/${slug(n)}.jpg` } }]; });
   const bps = CARDS.map(([n, bp]) => ({ id: bp, name: n, scryfall_id: 's-' + slug(n) }));
-  const world = { edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, symbols: {}, svgs: [], basics: false, en: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
+  const world = { edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, symbols: {}, svgs: [], basics: false, en: {}, offers: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
   const up = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x'), path = u.pathname.replace('/api/v2/', ''); log.push({ path, q: Object.fromEntries(u.searchParams) });
     const send = (o, s = 200) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
@@ -42,8 +42,11 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0, daily
     if (path === 'expansions') return send([{ id: 1, game_id: 1, code: 'cmm', name: 'Commander Masters' }]);
     if (path === 'blueprints/export') return send(bps);
     if (path === 'marketplace/products') {
-      const bp = Number(u.searchParams.get('blueprint_id')), lang = u.searchParams.get('language');
-      const go = () => send({ [bp]: lang === 'fr' && prices[bp] != null ? [prod(9000 + bp, bp, prices[bp])] : lang === 'en' && world.en[bp] != null ? [prod(9500 + bp, bp, world.en[bp], 4, 'en')] : [] });
+      // offres normales : françaises (prices), anglaises (world.en) ; world.offers[bp] = [{ lang, foil, cents, qty }] : foil, autres langues ; filtre foil suivi (true : foil seulement, false : sans foil)
+      const bp = Number(u.searchParams.get('blueprint_id')), lang = u.searchParams.get('language'), foil = u.searchParams.get('foil'), fin = f => (foil === 'true' ? f : foil === 'false' ? !f : true);
+      const base = !fin(false) ? [] : lang === 'fr' && prices[bp] != null ? [prod(9000 + bp, bp, prices[bp])] : lang === 'en' && world.en[bp] != null ? [prod(9500 + bp, bp, world.en[bp], 4, 'en')] : [];
+      const more = (world.offers[bp] || []).map((o, i) => [o, i]).filter(([o]) => (!lang || o.lang === lang) && fin(!!o.foil)).map(([o, i]) => prod(9700 + bp * 10 + i, bp, o.cents, o.qty || 4, o.lang, !!o.foil));
+      const go = () => send({ [bp]: [...base, ...more] });
       return world.delay ? setTimeout(go, world.delay) : go();
     }
     if (path === 'cart/add') { let b = ''; req.on('data', d => { b += d; }); req.on('end', () => { try { world.carted.push(JSON.parse(b || '{}')); } catch { /* ignore */ } send({ ok: true }); }); return; }

@@ -10,8 +10,9 @@ const collCount = () => Object.keys(COLL.map).length;
 const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k].q; return n; };
 /** Exemplaires possédés d'une carte (k = ownKey du nom). */
 const collQty = k => (COLL.map[k] && COLL.map[k].q) || 0;
-/** Exemplaires de la carte k dans ces éditions précises ('cmm|400' ; « 0400 » et « 400 » : la même) : recherche aux éditions exactes. */
-function collEdQty(k, eds) { const want = new Set((eds || []).map(edNorm)); let n = 0; for (const [g, q] of collLines(COLL.map[k])) if (want.has(edNorm(lineEd(g)))) n += q; return n; }
+/** Exemplaires de la carte k dans ces éditions précises ('cmm|400' ; « 0400 » et « 400 » : la même) : recherche aux éditions exactes. f, l : foil ('yes' | 'no') et langue
+ *  d'une ligne de la liste (« *F* », « *N* », « *FR* ») : seulement les exemplaires de cette finition et de cette langue. */
+function collEdQty(k, eds, f, l) { const want = new Set((eds || []).map(edNorm)); let n = 0; for (const [g, q] of collLines(COLL.map[k])) if (want.has(edNorm(lineEd(g))) && (!f || lineFoil(g) === (f === 'yes')) && (!l || lineLang(g) === l)) n += q; return n; }
 const nf0 = n => Number(n || 0).toLocaleString(LOC());
 
 /** Collection complète de cet appareil (cartes, proxys, emplacements) ; collDocSet la remplace. */

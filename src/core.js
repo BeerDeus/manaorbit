@@ -148,17 +148,17 @@ function parseLine(raw, o) {
   let qty = 1, name = line;
   const m = line.match(/^(\d+)\s*[xX]?\s+(.+)$/);
   if (m) { qty = parseInt(m[1], 10); name = m[2]; }
-  let lang = '', foil = false, ed = '';
-  for (let again = true; again;) {      // repères de fin, dans n'importe quel ordre : « *FR* » (langue), « *F* » / « *E* » (foil, foil etched : Moxfield, ManaBox)
+  let lang = '', foil = false, nf = false, ed = '';
+  for (let again = true; again;) {      // repères de fin, dans n'importe quel ordre : « *FR* » (langue), « *F* » / « *E* » (foil, foil etched : Moxfield, ManaBox), « *N* » (normale, sans foil : masterset ; l'ancienne version l'ignore)
     again = false;
-    name = name.replace(/\s+\*([A-Za-z]+(?:-[A-Za-z]+)?)\*\s*$/, (_, t) => { if (t.length > 1) lang = cardLang(t); else if (/^[FE]$/i.test(t)) foil = true; again = true; return ''; });
+    name = name.replace(/\s+\*([A-Za-z]+(?:-[A-Za-z]+)?)\*\s*$/, (_, t) => { if (t.length > 1) lang = cardLang(t); else if (/^[FE]$/i.test(t)) foil = true; else if (/^N$/i.test(t)) nf = true; again = true; return ''; });
   }
   name = name.replace(/\s+\(FOIL\)\s*$/i, () => { foil = true; return ''; })      // « (FOIL) » : texte de la collection (collToText), écrit avant l'édition (déjà retirée par parseCollection)
     .replace(/\s+\(([A-Za-z0-9]{2,8})\)(?:\s+([A-Za-z0-9★-]+))?\s*$/, (_, set, num) => { if (num) ed = edKey(set, num); return ''; })      // « (CMM) 400 » : l'édition, gardée (recherche aux éditions exactes)
     .trim();
   if (!name || qty < 1 || qty > 999) return { ignored: true };
   const key = normName(name); if (!key) return { ignored: true };
-  const out = { qty, name, key, ...(lang ? { lang } : {}), ...(foil ? { foil: 1 } : {}), ...(ed ? { ed } : {}) };
+  const out = { qty, name, key, ...(lang ? { lang } : {}), ...(foil ? { foil: 1 } : nf ? { nf: 1 } : {}), ...(ed ? { ed } : {}) };
   if (FRX.ix && !(o && o.fr === false)) {
     const f = frLookup(name, lang === FRX.l || !!(o && o.prefer === FRX.l), key.replace(/[ /]/g, ''));
     if (f && f.en) { out.name = f.en; out.key = normName(f.en); out.dn = f.p; out.fr = 1; } else if (f && f.amb) out.amb = f.amb;
@@ -181,8 +181,11 @@ function parseDeck(text) {
     if (cur) cur.qty += p.qty; else bucket.set(p.key, { key: p.key, name: p.name, qty: p.qty, ...(p.dn ? { dn: p.dn } : {}), ...(p.amb ? { amb: p.amb } : {}) });      // dn : nom français à afficher (name reste l'anglais : prix, collection, liens)
     const x = cur || bucket.get(p.key);      // éditions de la carte (« (CMM) 400 ») : seulement si chacune de ses lignes en donne une (une ligne sans édition : n'importe laquelle)
     if (!p.ed) x.anyEd = true; else if (!(x.eds || (x.eds = [])).includes(p.ed)) x.eds.push(p.ed);
+    const f = p.foil ? 'yes' : p.nf ? 'no' : '', l = p.lang || '', ls = x.ls || (x.ls = []), g = ls.find(y => y.f === f && y.l === l);      // foil et langue de la ligne (« *F* », « *N* », « *FR* »)
+    if (g) g.q += p.qty; else ls.push({ q: p.qty, f, l });
   }
-  for (const m of [cards, basics]) for (const x of m.values()) { if (x.anyEd) delete x.eds; delete x.anyEd; }
+  // ln : les lignes de la carte par foil et langue ({ q, f?: 'yes' | 'no', l? }), seulement si l'une en donne (sinon la recherche garde ses critères, comme avant)
+  for (const m of [cards, basics]) for (const x of m.values()) { if (x.anyEd) delete x.eds; delete x.anyEd; if (x.ls.some(y => y.f || y.l)) x.ln = x.ls.map(y => ({ q: y.q, ...(y.f ? { f: y.f } : {}), ...(y.l ? { l: y.l } : {}) })); delete x.ls; }
   const c = [...cards.values()], b = [...basics.values()];
   const copies = c.reduce((a, x) => a + x.qty, 0);
   const basicCopies = b.reduce((a, x) => a + x.qty, 0);
@@ -228,6 +231,31 @@ function passes(o, f) {
   if (f.foil === 'yes' && !o.foil) return false;
   return o.price > 0 && o.qty > 0;
 }
+
+/* ── Foil et langue par ligne de la liste (c.ln, voir parseDeck) : chaque ligne a ses offres ; sans foil ou sans langue, ceux de la recherche ── */
+/** Exemplaires encore à acheter sur une ligne (l.need, posé par applyOwned ; avant : toute la ligne). */
+const lnLeft = l => (l.need == null ? l.q : l.need);
+/** Offres qui conviennent à une ligne (l : { f?, l? }) : critères de la recherche (état, vendeurs…) avec le foil de la ligne s'il est donné ; langue de la ligne
+ *  seulement, sinon celle de la recherche (et l'anglais après le repli, fb). */
+function lnOffers(offers, l, opts, fb) {
+  const f = l.f ? { ...opts, foil: l.f } : opts;
+  return (offers || []).filter(o => passes(o, f) && (!o.lang || (l.l ? o.lang === l.l : o.lang === opts.lang || (!!fb && o.lang === 'en'))));
+}
+/** Requêtes CardTrader d'une carte (offres d'un blueprint dans une langue, foil ou non) : [{ lang, foil }], une par langue de ses lignes à acheter, avec le foil de la
+ *  ligne, sinon celui de la recherche ('any' quand les lignes d'une même langue diffèrent : une requête, le tri se fait ici). Sans critères de ligne : ceux de la recherche.
+ *  en : repli anglais, pour les lignes sans langue imposée seulement. */
+function lnQueries(c, opts, en) {
+  if (!c.ln) return [{ lang: en ? 'en' : opts.lang, foil: opts.foil }];
+  const by = new Map();
+  for (const l of c.ln) {
+    if (!(lnLeft(l) > 0) || (en && l.l)) continue;
+    const lang = en ? 'en' : l.l || opts.lang, foil = l.f || opts.foil, cur = by.get(lang);
+    by.set(lang, cur == null || cur === foil ? foil : 'any');
+  }
+  return [...by].map(([lang, foil]) => ({ lang, foil }));
+}
+/** Repli anglais utile pour une carte aux critères de ligne : une ligne à acheter sans langue imposée n'a aucune offre utilisable dans la langue de la recherche. */
+const lnNeedsEn = (c, offers, opts) => c.ln.some(l => !l.l && lnLeft(l) > 0 && !lnOffers(offers, l, opts, false).some(o => (opts.mode !== 'zero' || o.hub) && o.lang === opts.lang));
 
 /** Produit CardTrader (/marketplace/products) → offre normalisée. */
 function normalizeProduct(p, info) {
@@ -336,17 +364,30 @@ function localSearch(keys, qtyOf, sorted, alloc, ship, locked) {
   }
 }
 
+/** Lignes d'une même carte (demande grp : foil, langue par ligne) : leurs listes peuvent partager des offres ; aucune n'est prise au-delà de son stock, la ligne
+ *  suivante reprend ce qui reste, au moins cher (offre copiée avec la quantité restante). Les choix manuels (locked) restent, leur stock est compté. */
+function shareStock(keys, grp, sorted, qtyOf, alloc, locked) {
+  const used = new Map();
+  for (const k of keys) {
+    const g = grp[k]; if (!g) continue;
+    let u = used.get(g); if (!u) used.set(g, (u = new Map()));
+    const left = o => o.qty - (u.get(o.productId) || 0);
+    if (!locked.has(k) && alloc[k].parts.some(p => p.n > left(p.offer))) alloc[k] = allocate(sorted[k].map(o => (left(o) === o.qty ? o : { ...o, qty: left(o) })).filter(o => o.qty > 0), qtyOf[k], null);
+    for (const p of alloc[k].parts) u.set(p.offer.productId, (u.get(p.offer.productId) || 0) + p.n);
+  }
+}
+
 /**
- * demand: [{key, qty}] ; offersByKey: {key: [offre]} (déjà filtrées par critères)
+ * demand: [{key, qty, grp?}] ; offersByKey: {key: [offre]} (déjà filtrées par critères) ; grp : carte d'une ligne (foil, langue par ligne), stock partagé
  * opts: {mode:'zero'|'direct', ship:centimes, forced:{key: offerId}}
  */
 function optimize(demand, offersByKey, opts) {
   const mode = opts.mode === 'direct' ? 'direct' : 'zero';
   const ship = mode === 'direct' ? (opts.ship || 0) : 0;
   const forced = opts.forced || {};
-  const keys = [], qtyOf = {}, sorted = {}, alloc = {}, locked = new Set();
+  const keys = [], qtyOf = {}, sorted = {}, alloc = {}, locked = new Set(), grp = {};
   for (const d of demand) {
-    keys.push(d.key); qtyOf[d.key] = d.qty;
+    keys.push(d.key); qtyOf[d.key] = d.qty; if (d.grp) grp[d.key] = d.grp;
     sorted[d.key] = (offersByKey[d.key] || []).filter(o => mode !== 'zero' || o.hub).slice().sort(byPrice);
   }
   for (const k of keys) {
@@ -358,11 +399,28 @@ function optimize(demand, offersByKey, opts) {
       locked.add(k);
     } else alloc[k] = allocate(sorted[k], qtyOf[k], null);
   }
+  const shared = Object.keys(grp).length > 0;
+  if (shared) shareStock(keys, grp, sorted, qtyOf, alloc, locked);
   const base = summarize(keys, alloc, ship, mode);
-  if (mode === 'direct') localSearch(keys, qtyOf, sorted, alloc, ship, locked);
+  if (mode === 'direct') { localSearch(keys, qtyOf, sorted, alloc, ship, locked); if (shared) shareStock(keys, grp, sorted, qtyOf, alloc, locked); }
   const out = summarize(keys, alloc, ship, mode);
   out.baseline = { items: base.items, total: base.total, sellers: base.sellerCount };
   return out;
+}
+/** Résultat de l'optimiseur sur les lignes des cartes (subs[clé de ligne] = { key : la carte, i : sa ligne, w : langue voulue }) → une sélection par carte : parts de
+ *  toutes ses lignes (chacune garde li et w), coût et manque additionnés ; vendeurs à la clé de la carte. Sans lignes : le résultat tel quel. */
+function lnJoin(res, subs) {
+  if (!subs || !Object.keys(subs).length) return res;
+  const picks = {};
+  for (const [k, p] of Object.entries(res.picks)) {
+    const s = subs[k]; if (!s) { picks[k] = p; continue; }
+    const t = picks[s.key] || (picks[s.key] = { parts: [], short: 0, cost: 0 });
+    for (const x of p.parts) t.parts.push({ ...x, li: s.i, w: s.w });
+    t.short += p.short; t.cost += p.cost;
+  }
+  for (const g of res.sellers) g.items = g.items.map(it => (subs[it.key] ? { ...it, key: subs[it.key].key } : it));
+  const ks = Object.keys(picks);
+  return { ...res, picks, missing: ks.filter(k => !picks[k].parts.length), partial: ks.filter(k => picks[k].parts.length && picks[k].short > 0) };
 }
 
 /* ── Démo : offres simulées, déterministes ───────────────────────────────────────────────── */
@@ -1252,12 +1310,21 @@ function sameColl(a, b) {
 }
 
 /** Pose sur chaque carte de la liste : own (déjà possédées, au plus la quantité demandée) et need (à acheter). owned : clé de carte → exemplaires, ou null. */
-function applyOwned(cards, owned) {
+function applyOwned(cards, owned, ownedLine) {
   for (const c of cards) {
     const o = owned ? Math.max(0, Math.floor(Number(owned(ownKey(c.key), c)) || 0)) : 0;      // c : la carte de la liste (éditions exactes : ses éditions seules comptent)
     c.own = Math.min(o, c.qty); c.need = c.qty - c.own;
+    if (c.ln) lnOwn(c, owned && ownedLine ? ownedLine(ownKey(c.key), c) : null);      // ownedLine(k, c) : null, ou l → exemplaires qui conviennent à la ligne l (foil, langue ; éditions exactes)
   }
   return cards;
+}
+/** Possédées réparties entre les lignes de la carte (c.ln : l.own, l.need ; c.own, c.need en suivent). Compte par ligne (of) : au plus ce qu'elle a de cette finition
+ *  et de cette langue ; sinon les lignes sans critère d'abord (un exemplaire de finition ou de langue inconnue les sert sûrement), puis dans l'ordre de la liste. */
+function lnOwn(c, of) {
+  let left = c.own;
+  for (const l of of ? c.ln : [...c.ln.filter(l => !l.f && !l.l), ...c.ln.filter(l => l.f || l.l)]) { l.own = Math.min(l.q, left, of ? Math.max(0, Math.floor(Number(of(l)) || 0)) : l.q); left -= l.own; }
+  for (const l of c.ln) l.need = l.q - l.own;
+  c.own = c.ln.reduce((a, l) => a + l.own, 0); c.need = c.qty - c.own;
 }
 
 /* ── Filtres : recherche texte, couleurs, famille, coût (viewer du deck et collection) ───────── */
@@ -2282,3 +2349,5 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { defaultCardLang, cmSite, ctCartUrl, namesLangOf, NAMES_LANGS, ASIA_LANGS, NAMES_ALL_LANGS, CJK_RE });
 // Noms imprimés des autres langues (scan, proxy.mjs › /api/names/find) : exportés à part, eux aussi
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { nmFlat, nmCat, nmPut, nmDone, nmMatch, nmAcc, nmPick, namesAllCats });
+// Foil et langue par ligne de la liste (recherche CardTrader) : exportés à part
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { lnLeft, lnOffers, lnQueries, lnNeedsEn, lnOwn, lnJoin, shareStock });

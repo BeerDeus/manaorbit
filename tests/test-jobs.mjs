@@ -95,6 +95,22 @@ let r = await J(B, '/__ping'); assert.equal(r.o.jobs, true); console.log('✓ pi
   await new Promise(x => setTimeout(x, 3600)); const n3 = reqs.length; r = await post(BT, { type: 'offers', lang: 'fr', foil: 'no', bps: [1000, 1005] }); const t2 = await drain(BT, r.o.id); assert.equal(t2.last.cached, 0); assert.equal(reqs.length - n3, 2); console.log('✓ TTL des absences : expirées à leur tour');
 }
 
+// 3 quater) groupes (more) : lignes de la liste avec leur propre foil ou leur langue (« *F* », « *DE* ») : une seule tâche, chaque groupe lu dans sa langue et son foil, résultats marqués g
+{
+  const n0 = reqs.length, body = { type: 'offers', lang: 'fr', foil: 'no', bps: [5001, 5002], more: [{ lang: 'de', foil: 'yes', bps: [5001, 5003] }, { lang: 'fr', foil: 'any', bps: [5004] }] };
+  r = await post(B, body); assert.equal(r.s, 202); assert.equal(r.o.total, 5, 'tous les groupes dans la même tâche'); const id = r.o.id;
+  const g = await drain(B, id); assert.equal(g.last.status, 'done'); assert.equal(g.last.done, 5);
+  assert.deepEqual(g.items.map(i => [i.g || 0, i.bp]).sort((a, b) => a[0] - b[0] || a[1] - b[1]), [[0, 5001], [0, 5002], [1, 5001], [1, 5003], [2, 5004]], 'groupe 0 sans g (comme avant), les autres marqués');
+  assert.ok(g.items.filter(i => i.g === 1).every(i => i.products.length && i.products.every(p => p.properties_hash.mtg_language === 'de')), 'groupe 1 lu en allemand');
+  const qs = reqs.slice(n0).map(x => new URLSearchParams(x.q)).map(q => [Number(q.get('blueprint_id')), q.get('language'), q.get('foil')]).sort((a, b) => a[0] - b[0] || String(a[1]).localeCompare(String(b[1])));
+  assert.deepEqual(qs, [[5001, 'de', 'true'], [5001, 'fr', 'false'], [5002, 'fr', 'false'], [5003, 'de', 'true'], [5004, 'fr', null]], 'une requête par blueprint et par groupe, avec sa langue et son foil');
+  r = await post(B, { ...body, more: body.more.slice().reverse().map(m => ({ ...m, bps: m.bps.slice().reverse() })) }); assert.equal(r.o.attached, false, 'groupes dans un autre ordre : autre tâche (g n\'est plus le même)');
+  r = await post(B, body); assert.equal(r.o.attached, true); assert.equal(r.o.id, id, 'même recherche (mêmes groupes) : rattachée');
+  for (const [more, why] of [[{ lang: 'de' }, 'more pas une liste'], [[{ lang: 'de; x', bps: [1] }], 'langue'], [[{ lang: 'de', foil: 'maybe', bps: [1] }], 'foil'], [[{ lang: 'de', bps: [] }], 'groupe vide'],
+    [[{ lang: 'de', bps: ['a'] }], 'non entier'], [Array.from({ length: 40 }, () => ({ lang: 'de', bps: [1] })), '> 40 groupes'], [[{ lang: 'de', bps: bpsOf(1, 2999) }], '> 3000 en tout']]) { r = await post(B, { type: 'offers', lang: 'fr', foil: 'no', bps: [1, 2], more }); assert.equal(r.s, 400, why); }
+  console.log('✓ groupes (foil et langue par ligne) : une tâche, une requête par groupe et blueprint dans sa langue et son foil, résultats marqués g, validation');
+}
+
 // 4) annulation : la boucle s'arrête, ce qui est déjà lu reste en cache
 {
   mode = { delay: 40 }; reqs.length = 0; const bps = bpsOf(2000, 60);
