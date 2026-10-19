@@ -175,7 +175,7 @@ function plcTabHtml() {
 function plcBarHtml() {
   const id = COLL.place; if (id == null || id === false || !(id === '-' || COLL.places[id])) return '';
   const p = id === '-' ? '' : id, s = plcStats().get(p) || { q: 0, v: 0 };
-  return `<div class="plc-bar"><button type="button" class="plc-pill" data-act="plcpill" aria-haspopup="dialog"><i style="--c:${plcColor(p)}"></i>${esc(plcName(p))} · ${nf0(s.q)}</button>${s.v ? `<span>${esc(T('{v} ici', { v: fmt(s.v, 'EUR') }))}</span>` : ''}<button type="button" class="btn small plc-mv" data-act="plcmv">${T('Ranger ces cartes…')}</button>${p ? `<button type="button" class="link-btn" data-act="plcedit">${T('Modifier')}</button>` : ''}<button type="button" class="icon-btn plc-x" data-act="plcclear" aria-label="${T('Toutes les cartes')}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
+  return `<div class="plc-bar"><button type="button" class="plc-pill" data-act="plcpill" aria-haspopup="dialog"><i style="--c:${plcColor(p)}"></i>${esc(plcName(p))} · ${nf0(s.q)}</button>${s.v ? `<span>${esc(T('{v} ici', { v: fmt(s.v, 'EUR') }))}</span>` : ''}<button type="button" class="btn small plc-mv" data-act="plcmv">${T('Ranger ces cartes…')}</button><button type="button" class="btn small ghost danger plc-rm" data-act="plcrm">${T('Retirer…')}</button>${p ? `<button type="button" class="link-btn" data-act="plcedit">${T('Modifier')}</button>` : ''}<button type="button" class="icon-btn plc-x" data-act="plcclear" aria-label="${T('Toutes les cartes')}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
 }
 /** Filtre de la liste : la ligne est-elle dans l'emplacement affiché ? */
 const plcIn = g => (!COLL.place ? true : COLL.place === '-' ? !plcOf(g) : plcOf(g) === COLL.place);
@@ -209,6 +209,31 @@ function plcMoveShown() {
       { label: T('Annuler'), fn: () => { for (const [k, g, q, ng] of moves.reverse()) COLL.map = linesMove(COLL.map, k, ng, q, g); collChanged(); } });
   } });
 }
+/** « Retirer… » (bandeau d'un emplacement, « Non rangé » compris) : tous les exemplaires affichés (recherche et filtres compris) quittent la collection,
+ *  après confirmation ; « Annuler » les remet tels quels (langue, édition, finition, détails). Ex. : cartes venues d'une ancienne copie de la collection,
+ *  toutes « Non rangé » quand le reste est rangé. */
+function plcDelShown() {
+  const lines = plcShownLines(); if (!lines.length) { toast(T('Aucune carte affichée')); return; }
+  const cards = new Set(lines.map(l => l[0])).size, copies = lines.reduce((a, l) => a + l[2], 0);
+  openSheet(TN(copies, 'Retirer {n} exemplaire de ta collection ?', 'Retirer {n} exemplaires de ta collection ?'), TN(cards, '{n} carte affichée, recherche et filtres compris', '{n} cartes affichées, recherche et filtres compris'), api => {
+    api.body.innerHTML = `<p class="cf-msg">${esc(T('Ils quittent ta collection et ton compte, sur tous tes appareils. « Annuler », juste après, les remet.'))}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Garder')}</button><button class="btn danger" type="button" data-ok>${T('Retirer')}</button>`);
+    api.foot.addEventListener('click', e => {
+      if (!e.target.closest('[data-ok]')) return;
+      api.close();
+      const rm = new Map(); for (const [k, g, q] of lines) { const m = rm.get(k) || new Map(); m.set(g, (m.get(g) || 0) + q); rm.set(k, m); }
+      const prev = [], map = { ...COLL.map };
+      for (const [k, m] of rm) {
+        const cur = map[k]; if (!cur) continue; prev.push([k, cur]);
+        const left = collLines(cur).map(([g, q]) => [g, q - (m.get(g) || 0)]).filter(([, q]) => q > 0), next = left.length ? collFromLines(cur, left) : null;
+        if (next && next.q > 0) map[k] = next; else delete map[k];
+      }
+      if (!prev.length) return;
+      COLL.map = map; collChanged(); haptic('ok');
+      toast(TN(copies, '{n} exemplaire retiré de ta collection', '{n} exemplaires retirés de ta collection'), { label: T('Annuler'), fn: () => { const m2 = { ...COLL.map }; for (const [k, v] of prev) m2[k] = v; COLL.map = m2; collChanged(); } });
+    });
+  });
+}
 /** Clics de l'onglet Rangement et du bandeau ; true si traité. */
 function plcClick(e) {
   const b = e.target.closest('button[data-act]'); if (!b) return false;
@@ -218,6 +243,7 @@ function plcClick(e) {
   else if (act === 'plcedit') plcEditSheet(COLL.place, () => collPaintBody(true));
   else if (act === 'plcclear') { COLL.place = ''; haptic('tap'); collPaintBody(true); }
   else if (act === 'plcmv') { haptic('tap'); plcMoveShown(); }
+  else if (act === 'plcrm') { haptic('tap'); plcDelShown(); }
   else if (act === 'plcpill') plcPick({ title: T('Afficher'), cur: COLL.place === '-' ? '' : COLL.place, onPick: id => plcShow(id) });
   else if (act === 'prox') openProxies();
   else if (act === 'cex') { const r = b.closest('.crow'); if (r && r.dataset.k) cexSheet('map', r.dataset.k, rowG(r)); }

@@ -84,6 +84,19 @@ await p.evaluate(({ red }) => { COLL.map = collFromText('1 Sol Ring *FR*\n1 Arca
 assert.deepEqual(await lines('sol ring'), [['fr', 1], [`fr#p${red}-cex-s`, 1]]);
 ok('« Ranger… » : les exemplaires affichés (filtre Extension compris) d\'un coup, Annuler, transfert du classeur vers une boîte (détails gardés) ; fiche « Extension » limitée au rangement ouvert');
 
+/* ── « Retirer… » : les exemplaires affichés quittent la collection (ex. « Non rangé » : une ancienne copie fusionnée), confirmation, Annuler ── */
+await p.evaluate(() => plcShow('')); await p.waitForSelector('.plc-bar .plc-rm');
+await p.click('.plc-bar .plc-rm'); await p.waitForSelector('.sheet-wrap.open [data-ok]');
+assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Retirer 2 exemplaires de ta collection \?\s*2 cartes affichées, recherche et filtres compris/);
+await p.click('.sheet-wrap.open [data-ok]'); await p.waitForFunction(() => !sheets.length);
+assert.deepEqual(await where(), { 'sol ring': '1@Classeur rouge' }, '« Non rangé » vidé, l\'exemplaire rangé reste');
+assert.match(await txt(p, '#toast'), /2 exemplaires retirés de ta collection/);
+await p.click('#toast .toast-act'); await p.waitForTimeout(200);
+assert.deepEqual(await where(), { 'arcane signet': '1', 'sol ring': '1 1@Classeur rouge' }, 'Annuler : tout remis');
+assert.deepEqual(await lines('sol ring'), [['fr', 1], [`fr#p${red}-cex-s`, 1]], 'détails gardés');
+await p.evaluate(() => { COLL.place = ''; collPaintBody(true); });
+ok('« Retirer… » : les exemplaires affichés de « Non rangé » quittent la collection après confirmation, les rangés restent ; Annuler remet tout');
+
 /* ── Enregistré avec la collection (même texte, lu par l'ancienne version) ───────────────────── */
 const stored = await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t);
 assert.match(stored, new RegExp(`^1 Sol Ring \\(DETAILS\\) p${red}-cex-s(?: \\(D[0-9a-z]+\\))? \\*FR\\*$`, 'm'));
