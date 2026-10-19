@@ -7,6 +7,7 @@
 //     une à une ; l'appli ne reçoit jamais l'image entière, l'adresse Scryfall, l'identifiant ni le nom de la carte avant la fin.
 //   · Score, temps et classements calculés ici seulement ; stockage : DAILY_DIR (défaut .data/daily, non versionné), un JSON par jour.
 //   · Comptes secondaires : perdant sans réponse avant la carte suivante, un appareil = un compte classé par jour, même réseau → « à vérifier », comptes établis seulement.
+//   · Notification « nouvelle Carte mystère » (o.push : envoi Web Push ou FCM de proxy.mjs) : les appareils des comptes qui l'acceptent, prévenus une fois par jour dès que la carte est prête.
 import { inflateSync, deflateSync } from 'node:zlib';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename, readdir, rm, unlink } from 'node:fs/promises';
@@ -288,9 +289,19 @@ export function dlyPrintOk(c, lang) {
 /* ── Le jeu (routes /api/daily…) ────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const dlyJson = (res, status, obj, extra = {}) => { const b = JSON.stringify(obj); res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...extra }); res.end(b); };
 const dlyBody = (req, max) => new Promise((ok, ko) => { const c = []; let n = 0; req.on('data', d => { n += d.length; if (n > max) { req.pause(); ko(Object.assign(new Error('too large'), { status: 413 })); } else c.push(d); }); req.on('end', () => ok(Buffer.concat(c))); req.on('error', ko); });
-const KEY_RE = /^[\w-]{24}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DLY_ROUTES = ['start', 'go', 'play', 'next', 'guess', 'giveup', 'img', 'board', 'badges', 'report', 'name', 'recheck'];
+const KEY_RE = /^[\w-]{24}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DLY_ROUTES = ['start', 'go', 'play', 'next', 'guess', 'giveup', 'img', 'board', 'badges', 'report', 'name', 'recheck', 'push'];
 const DLY_NOSTAT = { played: 0, won: 0, stage1: 0, points: 0, top100: 0, podium: 0, first: 0, cur: 0, best: 0, last: '', at: {}, h: [] };
 export const dlyTag = uid => createHash('sha256').update(String(uid)).digest('hex');      // même empreinte que les amis (amTag)
+/** Notification « nouvelle Carte mystère » : titre et texte dans la langue de l'appareil (comme les notifications des amis, proxy.mjs › AM_TXT ; français par défaut) ;
+ *  toucher : le jeu (./?mystere=1 : push.js › pushOpen, app.js › handleLaunch). */
+export const DLY_PUSH_TXT = {
+  fr: ['La Carte mystère du jour est là', 'Devine-la avant les autres.'],
+  en: ['Today\'s Mystery card is here', 'Guess it before everyone else.'],
+  de: ['Die Mysterykarte des Tages ist da', 'Errate sie vor allen anderen.'],
+  es: ['Ya está aquí la Carta misteriosa del día', 'Adivínala antes que nadie.'],
+  it: ['È arrivata la Carta misteriosa del giorno', 'Indovinala prima degli altri.'],
+  pt: ['A Carta mistério do dia chegou', 'Adivinhe antes de todo mundo.'],
+}, DLY_PUSH_URL = './?mystere=1';
 /** Pseudo du classement : nom du profil, sans caractère de contrôle ni chevron, 24 caractères ; refusé par le filtre de mots : vide. */
 export function dlyName(v, bad) { const s = typeof v === 'string' ? v.replace(/\s+/g, ' ').replace(/[\p{Cc}\p{Cf}<>]/gu, '').replace(/ {2,}/g, ' ').trim().slice(0, 24).trim() : ''; return s && !(bad && bad(s)) ? s : ''; }
 const dlyFall = tag => 'Joueur ' + String(tag).slice(0, 4).toUpperCase();      // sans pseudo : « Joueur 3FA2 » (4 caractères de l'empreinte, rien du compte)
@@ -450,7 +461,7 @@ export function dailyMake(o = {}) {
     else if (rec.st !== 'ready' && !G.prep.has(rec.day)) prepare(rec);
     return rec;
   }
-  /** Tour de garde (chaque minute) : jour en cours prêt, celui de demain préparé un peu avant l'heure, jours anciens clos et effacés. */
+  /** Tour de garde (chaque minute) : jour en cours prêt, celui de demain préparé un peu avant l'heure, jours anciens clos et effacés, carte du jour annoncée (une fois). */
   async function tick() {
     try {
       const rec = await current();
@@ -461,6 +472,7 @@ export function dailyMake(o = {}) {
         if (G.next.st !== 'ready' && !G.prep.has(nd)) await prepare(G.next);
       }
       if (G.purged !== rec.day) { G.purged = rec.day; await purge(rec.day); }
+      if (PUSH) { if (!G.pushing) G.pushing = pushRun(rec).catch(e => { log.warn('Carte mystère : notification pas encore envoyée (' + (e && (e.code || e.message) || e) + ')'); return 0; }).finally(() => { G.pushing = null; }); await G.pushing; }      // un seul envoi à la fois (les tours suivants l'attendent)
     } catch (e) { log.warn('Carte mystère : ' + (e && e.message || e)); }
   }
   /** Fichiers des jours de plus de 400 jours, images de plus de 2 jours : effacés ; jours restés ouverts (serveur arrêté au changement de jour) : clos. */
@@ -686,7 +698,7 @@ export function dailyMake(o = {}) {
         if (pl) me = { k: pl.k, st: pl.st, step: stepOf(pl), started: !!pl.t0, ranked: !!u && pl.lb !== false, why: pl.why || '', ...(finished(pl) ? { s: pl.s, ...(u && pl.lb !== false ? dayRank(rec, u.tag) : {}) } : {}) };
       }
       const l = url.searchParams.get('l'), prev = DLY_LANGS.includes(l) ? await prevCard(rec.day, l) : null;
-      return json(res, 200, { on: true, day: rec.day, no: dlyNo(rec.day), st: rec.st === 'ready' && G.imgs.has(rec.day) ? 'ready' : 'wait', next: C.nextOf(rec.day), now: now(), steps: DLY_STEPS, max: DLY_WRONG, n: Object.values(rec.plays).filter(pub).length, ranked: !!u, me, ...(prev ? { prev } : {}), ...devOut });
+      return json(res, 200, { on: true, day: rec.day, no: dlyNo(rec.day), st: rec.st === 'ready' && G.imgs.has(rec.day) ? 'ready' : 'wait', next: C.nextOf(rec.day), now: now(), steps: DLY_STEPS, max: DLY_WRONG, n: Object.values(rec.plays).filter(pub).length, ranked: !!u, push: !!PUSH, me, ...(prev ? { prev } : {}), ...devOut });      // push : notification « nouvelle Carte mystère » proposée
     }
     if (req.method === 'GET' && sub === 'img') {      // image d'une étape : l'étape 1 lance l'horloge ; les suivantes seulement à leur heure (ou horloge avancée) ; perdue : pas plus loin que l'étape atteinte
       const k = String(url.searchParams.get('k') || ''), s = Number(url.searchParams.get('s')), x = await playOf(k);
@@ -724,6 +736,12 @@ export function dailyMake(o = {}) {
       const d = G.repBy.get(by); if (d && d.day === rec.day && d.n >= REP_DAY) return json(res, 429, { error: 'too_many', message: 'Trop de signalements aujourd\'hui.' });
       G.repBy.set(by, { day: rec.day, n: d && d.day === rec.day ? d.n + 1 : 1 }); if (G.repBy.size > 20000) G.repBy.clear();
       return json(res, 200, await report(tag, by));
+    }
+    if (req.method === 'POST' && sub === 'push') {      // notification « nouvelle Carte mystère » : cet appareil enregistré pour le compte ({ sub, l }), ou retiré ({ off })
+      if (!PUSH) return json(res, 404, { error: 'push_disabled', message: 'Notifications indisponibles sur ce serveur.' });
+      const b = await body(req, res); if (!b) return;
+      const u = await who(req, res, 'Connecte-toi pour être prévenu de la Carte mystère.'); if (!u) return;
+      return pushReg(res, u.tag, b);
     }
     if (req.method === 'GET' && sub === 'board') {
       const p = ['day', 'week', 'season'].includes(url.searchParams.get('p')) ? url.searchParams.get('p') : 'day';
@@ -918,12 +936,83 @@ export function dailyMake(o = {}) {
     return json(res, 200, { xp: Math.round(a.x), lv: levelOf(a.x), sent: xp, capped: a.x < xp, ...(await lvBoard(u.tag)).me });
   }
 
+  /* ── Notification « nouvelle Carte mystère » (o.push : { send, target } de proxy.mjs, Web Push ou FCM ; null sans compte de service ou DAILY_PUSH=0 : rien) ──
+     Comme les notifications des amis : un appareil aux notifications actives s'enregistre pour son compte (POST /api/daily/push { sub, l } ; { off } le retire),
+     8 au plus par compte ; le même appareil sur un autre compte change de compte. Stockage : push.json (appareils ; journée annoncée : jour, position, finie).
+     Tour de garde : carte du jour prête, moins de pushWindowMs (2 h) après son heure → chaque appareil prévenu une fois, dans sa langue, par lots. La position
+     (clé du dernier appareil du lot, appareils triés par clé) est écrite AVANT l'envoi du lot : un redémarrage en plein envoi reprend après, sans jamais prévenir
+     deux fois le même appareil le même jour (au pire, un lot interrompu n'est pas prévenu). Serveur arrêté à 18:00 et relancé dans les 2 h : rattrapage ; plus
+     tard : rien ce jour-là. Cible refusée par le service (404, 410 : appli désinstallée, notifications coupées) : retirée. Plus revu depuis 90 jours (l'appli se
+     réenregistre chaque semaine quand elle sert) : oublié. Serveur plein (pushMax) : l'appareil le moins récemment revu laisse sa place. */
+  const PUSH = o.push && typeof o.push.send === 'function' && typeof o.push.target === 'function' ? o.push : null;
+  const PUSH_WIN = Math.max(0, o.pushWindowMs ?? 2 * 3600e3), PUSH_BATCH = Math.max(1, o.pushBatch || 100), PUSH_CONC = 8, PUSH_DEVS = 8, PUSH_MAX = Math.max(1, o.pushMax || 20000), PUSH_OLD = 90 * DAY;
+  const PUSH_FILE = join(dir, 'push.json'), PUSH_K = /^[0-9a-f]{24}$/;
+  /** Clé d'un appareil, comme proxy.mjs › alId(pushKey(cible)) : empreinte du jeton FCM ou de l'adresse Web Push. */
+  const pushKey = s => createHash('sha1').update(s.fcm ? 'fcm:' + s.fcm : String(s.endpoint)).digest('hex').slice(0, 24);
+  let pushT = null;
+  /** Appareils (Map clé → { t : empreinte du compte, sub, l, at }, du moins au plus récemment revu) et journée annoncée, relus une fois. */
+  function pushLoad() {
+    if (!G.pl) G.pl = getJson(PUSH_FILE).then(j => {
+      const d = new Map(j && j.d && typeof j.d === 'object' ? Object.entries(j.d).filter(([k, x]) => PUSH_K.test(k) && x && typeof x.t === 'string' && x.sub && typeof x.sub === 'object') : []), s = j && j.sent;
+      return (G.pu = { d, sent: s && DAY_RE.test(s.day) ? { day: s.day, cur: String(s.cur || ''), done: !!s.done, n: Number(s.n) || 0 } : { day: '', cur: '', done: false, n: 0 } });
+    });
+    return G.pl;
+  }
+  /** Écriture (une à la fois) ; strict : l'erreur remonte (position d'un envoi : sans elle, rien ne part). */
+  function pushSave(strict) {
+    clearTimeout(pushT); pushT = null;
+    const run = (G.pq || Promise.resolve()).then(() => put(PUSH_FILE, JSON.stringify({ v: 1, sent: G.pu.sent, d: Object.fromEntries(G.pu.d) })));
+    G.pq = run.catch(() => {});
+    return strict ? run : run.catch(e => log.warn('Carte mystère : appareils non enregistrés (' + (e && e.code || e) + ')'));
+  }
+  const pushSoon = () => { if (!pushT) { pushT = setTimeout(() => { pushT = null; pushSave(); }, 1500); if (pushT.unref) pushT.unref(); } };
+  /** POST /api/daily/push : { sub, l } enregistre cet appareil pour le compte (→ { ok, k }) ; { off: k } le retire (seulement s'il est à ce compte). */
+  async function pushReg(res, tag, b) {
+    const P = await pushLoad();
+    if (typeof b.off === 'string') { const x = P.d.get(b.off); if (x && x.t === tag) { P.d.delete(b.off); pushSoon(); } return json(res, 200, { ok: true }); }
+    const sub = PUSH.target(b.sub); if (!sub) return json(res, 400, { error: 'bad_subscription', message: 'Abonnement push invalide ou refusé.' });
+    const k = pushKey(sub);
+    P.d.delete(k); P.d.set(k, { t: tag, sub, l: DLY_LANGS.includes(b.l) ? b.l : 'fr', at: now() });      // en dernier : les plus anciens d'abord quand il faut faire de la place
+    const mine = [...P.d.keys()].filter(x => P.d.get(x).t === tag);
+    for (const x of mine.slice(0, Math.max(0, mine.length - PUSH_DEVS))) P.d.delete(x);      // 8 appareils par compte : les plus anciens partent
+    while (P.d.size > PUSH_MAX) P.d.delete(P.d.keys().next().value);
+    pushSoon(); return json(res, 200, { ok: true, k });
+  }
+  /** Annonce de la carte du jour (tour de garde) : nombre d'appareils prévenus. */
+  async function pushRun(rec) {
+    if (rec.st !== 'ready' || !G.imgs.has(rec.day)) return 0;
+    const t = now(), t0 = C.startOf(rec.day); if (t < t0 || t - t0 > PUSH_WIN) return 0;      // trop tard (serveur arrêté plus de 2 h) : rien aujourd'hui
+    const P = await pushLoad();
+    if (P.sent.day > rec.day || (P.sent.day === rec.day && P.sent.done)) return 0;
+    if (P.sent.day !== rec.day) P.sent = { day: rec.day, cur: '', done: false, n: 0 };
+    const s = P.sent, L = DLY_PUSH_TXT, ttl = Math.max(60, Math.min(86400, Math.floor((C.nextOf(rec.day) - t) / 1000)));      // gardée par le service jusqu'à la carte suivante
+    for (const [k, x] of P.d) if ((Number(x.at) || 0) < t - PUSH_OLD) P.d.delete(k);
+    const ks = [...P.d.keys()].filter(k => k > s.cur).sort();
+    let ok = 0, gone = 0, bad = 0;
+    for (let i = 0; i < ks.length; i += PUSH_BATCH) {
+      const part = ks.slice(i, i + PUSH_BATCH), prev = s.cur; s.cur = part[part.length - 1];
+      try { await pushSave(true); } catch (e) { s.cur = prev; throw e; }      // position écrite avant l'envoi du lot, sinon rien ne part (nouvel essai au tour suivant)
+      let j = 0;
+      await Promise.all(Array.from({ length: Math.min(PUSH_CONC, part.length) }, async () => {
+        while (j < part.length) {
+          const k = part[j++], x = P.d.get(k); if (!x) continue;
+          const [title, body] = L[x.l] || L.fr;
+          let st = 0; try { st = await PUSH.send({ sub: x.sub, title, body, url: DLY_PUSH_URL, kind: 'open', tag: 'mo-mystere', topic: 'mo-mystere', ttl, urgency: 'normal' }); } catch (e) { st = 0; }
+          if (st && st < 300) ok++; else if (st === 404 || st === 410) { P.d.delete(k); gone++; } else bad++;
+        }
+      }));
+    }
+    s.done = true; s.n += ok; await pushSave();
+    if (ks.length) log.log(`Carte mystère du ${rec.day} annoncée : ${ok} appareil${ok > 1 ? 's' : ''} prévenu${ok > 1 ? 's' : ''}${gone ? `, ${gone} périmé${gone > 1 ? 's' : ''} retiré${gone > 1 ? 's' : ''}` : ''}${bad ? `, ${bad} refus` : ''}.`);
+    return ok;
+  }
+
   /** Démarrage : premier tour peu après (firstMs), puis chaque minute. */
   function start() {
     if (G.timer) return;
     const first = setTimeout(() => { tick(); G.timer = setInterval(tick, o.tickMs || 60e3); if (G.timer.unref) G.timer.unref(); }, o.firstMs ?? 3000); if (first.unref) first.unref();
     G.timer = first;
   }
-  async function stop() { clearInterval(G.timer); clearTimeout(G.timer); G.timer = null; for (const w of [...G.saving.values()]) if (w.t) { clearTimeout(w.t); await saveSoon(w.rec, true); } if (statsT) { clearTimeout(statsT); statsT = null; await statsSave(); } if (lvT) { clearTimeout(lvT); lvT = null; await lvSave(); } }
-  return { api, admin, level, tick, start, stop, clock: C, current, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); }, _g: G };
+  async function stop() { clearInterval(G.timer); clearTimeout(G.timer); G.timer = null; for (const w of [...G.saving.values()]) if (w.t) { clearTimeout(w.t); await saveSoon(w.rec, true); } if (statsT) { clearTimeout(statsT); statsT = null; await statsSave(); } if (lvT) { clearTimeout(lvT); lvT = null; await lvSave(); } if (pushT) await pushSave(); }
+  return { api, admin, level, tick, start, stop, clock: C, current, pushOn: !!PUSH, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
 }

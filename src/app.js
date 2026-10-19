@@ -1024,12 +1024,12 @@ function applyTheme() {
   if (S.theme === 'light' || S.theme === 'dark') r.setAttribute('data-theme', S.theme); else r.removeAttribute('data-theme');
 }
 function syncCTX() { CTX.token = S.token; CTX.appKey = S.appKey; }
-/** Réglages › Gérer les notifications : fin de recherche (push) et alertes de prix, dans leur propre feuille. */
+/** Réglages › Gérer les notifications : fin de recherche (push), alertes de prix, amis et nouvelle Carte mystère, dans leur propre feuille. */
 function openNotifSettings() {
   openSheet(T('Notifications'), T('Fin de recherche et alertes de prix'), api => {
     api.body.innerHTML = `<div class="sec-title">${T('Fin de recherche')}</div><div id="pushBox" class="installbox"></div>
-      <div class="sec-title">${T('Alertes de prix')}</div><div id="alertBox" class="installbox"></div>${amOn() ? `<div class="sec-title">${T('Amis')}</div><div id="amisBox" class="installbox"></div>` : ''}`;
-    paintPushBox($('#pushBox', api.body)); alPaintBox($('#alertBox', api.body)); amPushBox($('#amisBox', api.body));
+      <div class="sec-title">${T('Alertes de prix')}</div><div id="alertBox" class="installbox"></div>${amOn() ? `<div class="sec-title">${T('Amis')}</div><div id="amisBox" class="installbox"></div>` : ''}${typeof dlyPushShow === 'function' && dlyPushShow() ? `<div class="sec-title">${T('Carte mystère')}</div><div id="dlyPushBox" class="installbox"></div>` : ''}`;
+    paintPushBox($('#pushBox', api.body)); alPaintBox($('#alertBox', api.body)); amPushBox($('#amisBox', api.body)); if (typeof dlyPushBox === 'function') dlyPushBox($('#dlyPushBox', api.body));      // Carte mystère (daily.js) : « Nouvelle Carte mystère »
   });
 }
 /* ── Réglages : les rubriques de la fiche « Compte et réglages » (me.js), chacune dans sa propre fiche (fermée en la tirant vers le bas) ─────── */
