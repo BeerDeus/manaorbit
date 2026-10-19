@@ -40,31 +40,45 @@ async function routeRest(p) {
   await p.route('**/prices.tsv', r => r.fulfill({ status: 200, contentType: 'text/tab-separated-values', body: PRICES }));
   await p.route('https://www.gstatic.com/**', r => r.abort());
 }
-/** Propriétaire connecté (faux cloud : partages et réglages du compte gardés côté test). */
-async function owner(opts = {}) {
-  const seed = `try { localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: ${JSON.stringify(COLL)}, u: 1, s: '', b: null })); } catch (e) {}`;
+/** Propriétaire connecté (faux cloud : partages et réglages du compte gardés côté test). coll : texte de sa collection ; sid : identifiant de son lien ; uid : autre compte (ses propres réglages). */
+async function owner({ coll = COLL, sid = 'ShareBinder00001', uid = 'u-binder', ...opts } = {}) {
+  const seed = `try { localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: ${JSON.stringify(coll)}, u: 1, s: '', b: null })); } catch (e) {}`;
   const O = await newPage(browser, world, { goto: false, init: seed, ...opts }); errsOf.push(O.errs);
   await routeRest(O.p);
   await O.p.exposeFunction('__share', (op, id, data) => { if (op === 'set') { shares.set(id, data); writes++; } else shares.delete(id); });
-  await O.p.exposeFunction('__meta', (id, data) => { meta[id] = data; });
-  await O.p.exposeFunction('__metaGet', id => meta[id] || null);
+  const mk = id => (uid === 'u-binder' ? id : uid + ':' + id);
+  await O.p.exposeFunction('__meta', (id, data) => { meta[mk(id)] = data; });
+  await O.p.exposeFunction('__metaGet', id => meta[mk(id)] || null);
   await O.p.goto(world.url); await O.p.waitForFunction(() => D.authReady, null, { timeout: 15000 });
-  await O.p.evaluate(() => {
+  await O.p.evaluate(([sid, uid]) => {
     D.cloud = {
       onUser() {}, watch: (uid, cb) => { cb([], false); return () => {}; }, newId: () => 'x', save: async () => {}, remove: async () => {},
       watchColl(uid, cb) { cb(null, false, false); return () => {}; }, txColl: async (uid, fn) => fn(null), pullColl: async () => ({ data: null }), saveColl: async () => {},
       watchMeta(uid, id, cb) { window.__metaGet(id).then(d => cb(d, false, false)); return () => {}; }, saveMeta: async (uid, id, data) => { await window.__meta(id, data); }, pullMeta: async () => ({ data: null }),
-      shareId: () => 'ShareBinder00001', saveShare: async (id, data) => { await window.__share('set', id, data); }, dropShare: async id => { await window.__share('drop', id); },
+      shareId: () => sid, saveShare: async (id, data) => { await window.__share('set', id, data); }, dropShare: async id => { await window.__share('drop', id); },
     };
     D.state = 'ready'; D.err = '';
-    onUser({ uid: 'u-binder', email: 'beer@example.com', displayName: 'Beer', reload: async () => {} });
-  });
+    onUser({ uid, email: 'beer@example.com', displayName: 'Beer', reload: async () => {} });
+  }, [sid, uid]);
   return O;
 }
 const toTrade = async p => { await p.evaluate(() => { if (S.view !== 'home') showView('home'); }); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-box'); };
 const keysOf = (p, root) => p.$$eval(root + ' .bnd-sheet[data-pos="0"] .bnd-card', c => c.map(x => x.dataset.k));
 const ind = (p, root) => p.$eval(root + ' .bnd-ind', e => e.textContent);
 const shareD = id => JSON.parse(shares.get(id).d);
+const SL = '.bnd-sheet[data-pos="0"] .bnd-card';
+/** Pochettes de la page affichée : [clé, édition lue (« CMM 400 »), foil, « ×n », image (après /front/)]. */
+const sleeves = (p, root) => p.$$eval(root + ' ' + SL, c => c.map(x => { const im = x.querySelector('img'); return [x.dataset.k, (/, ([0-9A-Z]{2,6} [^,]+?)(?:,|$)/.exec(x.getAttribute('aria-label')) || [])[1] || '', x.classList.contains('foil'), (x.querySelector('.bnd-q') || {}).textContent || '', im ? im.getAttribute('src').replace(/^.*\/front\//, '') : '']; }));
+/** Regroupées par carte, dans leur ordre (l'ordre entre cartes suit les noms affichés). */
+const perCard = list => [...new Set(list.map(x => x[0]))].sort().flatMap(k => list.filter(x => x[0] === k));
+const sleevesAre = async (p, root, want) => { let got; for (let i = 0; i < 100; i++) { got = perCard(await sleeves(p, root)); if (JSON.stringify(got) === JSON.stringify(perCard(want))) break; await sleep(200); } return got; };
+/** Carte en grand d'une pochette (clé, édition, foil) : image affichée et légende, une fois l'impression lue. */
+async function bigOf(p, root, k, ed, foil, re) {
+  const i = await p.$$eval(root + ' ' + SL, (c, [k, ed, foil]) => c.findIndex(x => x.dataset.k === k && x.getAttribute('aria-label').includes(ed) && x.classList.contains('foil') === foil), [k, ed, foil]);
+  assert.ok(i >= 0, 'pochette ' + k + ' ' + ed); await (await p.$$(root + ' ' + SL))[i].click(); await p.waitForSelector('.imgv.on');
+  await p.waitForFunction(r => new RegExp(r).test(document.querySelector('.imgv-img').getAttribute('src') || ''), re.source, { timeout: 8000 });
+  return [await p.$eval('.imgv-img', m => m.getAttribute('src').replace(/^.*\/front\//, '')), await txt(p, '.imgv-sub')];
+}
 
 /* ── Propriétaire : interrupteur, classeur, « Mon classeur » ───────────────────────────────────── */
 const { p } = await owner();
@@ -306,7 +320,9 @@ shares.set('ShareBinderFoil1', { kind: 'trade', d: JSON.stringify({ at: Date.now
   assert.deepEqual(await V.p.$$eval('.pubv .bnd-sheet[data-pos="0"] .bnd-card', c => c.map(x => [x.dataset.k, x.classList.contains('foil'), (x.querySelector('.bnd-q') || {}).textContent || ''])),
     [['ponder', false, '×2'], ['sol ring', false, '×2'], ['sol ring', true, ''], ['wrath of god', true, '×2']], 'Sol Ring : 2 normales, puis 1 foil ; Wrath of God : toutes foil');
   assert.equal(await txt(V.p, '.bnd-cnt'), '3 cartes · 7 exemplaires', 'le compte ne change pas');
-  await V.p.waitForFunction(() => document.querySelectorAll('.pubv .bnd-sheet[data-pos="0"] img.ok').length === 4, null, { timeout: 8000 }).catch(() => {});
+  await V.p.waitForFunction(() => document.querySelectorAll('.pubv .bnd-sheet[data-pos="0"] img.ok').length === 3, null, { timeout: 8000 }).catch(() => {});      // Ponder : inconnue du faux Scryfall (lettre seule)
+  { const W0 = [['ponder', '', false, '×2', ''], ['sol ring', '', false, '×2', 'a/b/sol-ring.jpg'], ['sol ring', '', true, '', 'a/b/sol-ring.jpg'], ['wrath of god', '', true, '×2', 'a/b/wrath-of-god.jpg']];
+    assert.deepEqual(await sleevesAre(V.p, '.pubv', W0), W0, 'partage d\'avant (sans e) : ni édition, image de la carte, comme avant'); }
   await shot(V.p, 'pub-split', '.pubv .bnd');
   await V.p.click('#pubSub [data-v="want"]'); await V.p.waitForFunction(() => document.querySelectorAll('.pubv .bnd-sheet[data-pos="0"] .bnd-card').length === 1);
   assert.ok(!(await V.p.$('.pubv .bnd-card.foil')), 'recherchées : jamais foil');
@@ -340,6 +356,88 @@ await toTrade(p); await p.waitForSelector('.coll-main .bnd .bnd-card');
 assert.equal(await p.$eval('.coll-main .bnd', e => e.dataset.cover), 'foret');
 await p.click('#trView [data-v="list"]'); await p.waitForSelector('.tr-list .tr-row'); assert.ok(await p.$('#trSort'), 'liste : le tri revient');
 ok('propriétaire : classeur et réglages retrouvés après rechargement, retour à la liste');
+
+/* ── Éditions : une pochette par impression, avec l'image de cette impression exacte (propriétaire : liste et classeur ; lien ; visiteur : liste, classeur, carte en grand) ── */
+// Sol Ring CMM 400 : imprimé en français (faux Scryfall : world.eds) ; 2X2 101 (impression des « Illustrations » simulées) et M21 103 : en anglais seulement
+world.eds['cmm|400'] = { n: 'Sol Ring', langs: ['fr'] }; world.setnum = { ...(world.setnum || {}), '2x2/101': { name: 'Sol Ring', printed: {} } };
+const COLL_ED = ['1 Sol Ring *FR*', '2 Sol Ring (CMM) 400 *FR*', '1 Sol Ring (FOIL) (CMM) 400 *FR*', '2 Sol Ring (2X2) 101 *FR*', '2 Llanowar Elves *EN*', '2 Llanowar Elves (M21) 103 *EN*', '3 Arcane Signet'].join('\n');
+const OWN_ED = [['sol ring', '2X2 101', false, '×2', 'en/ed-2x2-101.jpg'], ['sol ring', 'CMM 400', false, '×2', 'fr/ed-cmm-400.jpg'], ['sol ring', 'CMM 400', true, '', 'fr/ed-cmm-400.jpg'],
+  ['llanowar elves', '', false, '', 'a/b/llanowar-elves.jpg'], ['llanowar elves', 'M21 103', false, '×2', 'en/ed-m21-103.jpg'], ['arcane signet', '', false, '×2', 'a/b/arcane-signet.jpg']];
+{
+  const O = await owner({ coll: COLL_ED, sid: 'ShareBinderEds01', uid: 'u-binder-ed' }), q = O.p;
+  await toTrade(q); await q.waitForSelector('.tr-list .tr-row');
+  // vue Liste : vignette d'une carte = l'impression de sa 1re ligne (FR 2X2 101 : l'image anglaise de cette impression, Scryfall n'a pas la française)
+  await q.waitForFunction(() => /\/small\/front\/en\/ed-2x2-101\.jpg$/.test((document.querySelector('.tr-row[data-k="sol ring"] .thumb img') || { src: '' }).src), null, { timeout: 15000 });
+  assert.deepEqual(await q.$$eval('.tr-list .tr-row', r => r.map(x => [x.dataset.k, x.dataset.e || ''])), [['arcane signet', ''], ['llanowar elves', ''], ['sol ring', '2x2|101']], 'vignettes : l\'impression de la 1re ligne de chaque carte');
+  await q.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row .thumb img.ok').length === 3, null, { timeout: 8000 }).catch(() => {});
+  await shot(q, 'owner-editions-list', '.tr-list');
+  await q.click('.tr-row[data-k="sol ring"] .thumb'); await q.waitForSelector('.imgv.on');
+  await q.waitForFunction(() => /\/2x2\/101-en\.jpg$/.test(document.querySelector('.imgv-img').getAttribute('src') || ''), null, { timeout: 8000 });
+  assert.match(await txt(q, '.imgv-sub'), /2X2 101.*Pas d'image française sur Scryfall : version anglaise/, 'liste : carte en grand de cette impression (anglaise, signalée)');
+  await q.keyboard.press('Escape'); await q.waitForTimeout(400);
+  // classeur : une pochette par langue et par édition (la foil juste après), image de l'impression exacte (française si Scryfall l'a) ; lignes sans édition : comme avant
+  await q.click('#trView [data-v="binder"]'); await q.waitForSelector('.coll-main .bnd .bnd-card');
+  assert.deepEqual(await sleevesAre(q, '.coll-main', OWN_ED), perCard(OWN_ED), 'pochettes du propriétaire');
+  assert.ok(world.edLangQ.some(x => /\(set:cmm cn:400\)/.test(x) && /\(set:2x2 cn:101\)/.test(x) && /lang:fr$/.test(x)), 'images françaises des éditions : une recherche pour les deux');
+  assert.ok(world.scry.some(x => /^POST \/cards\/collection/.test(x)), 'éditions lues par code et numéro');
+  const [im0, cap0] = await bigOf(q, '.coll-main', 'sol ring', 'CMM 400', false, /\/cmm\/400-fr\.jpg$/);
+  assert.ok(im0 === 'cmm/400-fr.jpg' && /CMM 400/.test(cap0) && world.scry.includes('GET /cards/cmm/400/fr'), 'carte en grand : la même impression, lue en français par l\'extension et le numéro');
+  await q.keyboard.press('Escape'); await q.waitForTimeout(400);
+  await q.waitForFunction(() => document.querySelectorAll('.coll-main .bnd-sheet[data-pos="0"] img.ok').length === 6, null, { timeout: 8000 }).catch(() => {});
+  await shot(q, 'owner-editions', '.coll-main .bnd');
+  // lien : une carte par langue et par édition (e), avec l'image de cette impression ; sans édition : comme avant (ni e, ni autre image)
+  await q.click('[data-act="tron"]'); await q.waitForSelector('.tr-box.on');
+  for (let i = 0; i < 40 && !shares.has('ShareBinderEds01'); i++) await sleep(150);
+  const d = shareD('ShareBinderEds01'), by = n => d.have.filter(x => x.n === n);
+  assert.deepEqual(by('Sol Ring').map(x => [x.l, x.e, x.q, x.fo || 0, x.i]), [['fr', '2x2/101', 2, 0, 'small/front/en/ed-2x2-101.jpg'], ['fr', 'cmm/400', 3, 1, 'small/front/fr/ed-cmm-400.jpg']], 'Sol Ring : deux éditions, deux cartes (foil comptées dans fo)');
+  assert.deepEqual(by('Llanowar Elves').map(x => [x.l, x.e, x.q, x.i]), [['en', undefined, 1, 'small/front/a/b/llanowar-elves.jpg'], ['en', 'm21/103', 2, 'small/front/en/ed-m21-103.jpg']], 'sans édition puis édition');
+  assert.deepEqual(by('Arcane Signet').map(x => [x.e, x.q]), [[undefined, 2]]);
+  await O.ctx.close();
+  ok('éditions (propriétaire) : une pochette par impression avec son image exacte (française si Scryfall l\'a, sinon l\'anglaise de cette impression), vignette de la liste et carte en grand de la même impression ; lien : e par carte');
+}
+{
+  const V = await newPage(browser, world, { goto: false }); errsOf.push(V.errs); await routeRest(V.p);
+  await V.p.goto(world.url + '?p=ShareBinderEds01'); await V.p.waitForSelector('.pubv.on');
+  assert.equal(await V.p.$eval('#pubSub [data-v="have"]', b => b.textContent.replace(/\D+/g, '')), '3', 'onglet : cartes comptées par langue, comme avant');
+  await V.p.click('#pubSub [data-v="have"]'); await V.p.waitForSelector('.pubv .pub-row');
+  assert.equal(await txt(V.p, '.bnd-cnt'), '3 cartes · 10 exemplaires', 'le compte ne change pas');
+  // vue Liste : une ligne par impression, son image et son édition
+  assert.deepEqual(await V.p.$$eval('.pubv .pub-row', r => r.map(x => [x.dataset.k, x.dataset.e || '', ((x.querySelector('.thumb img') || { getAttribute: () => '' }).getAttribute('src') || '').replace(/^.*\/front\//, ''), [...x.querySelectorAll('.tag')].map(t => t.textContent).filter(t => /\d/.test(t)).join(' | ')])),
+    [['arcane signet', '', 'a/b/arcane-signet.jpg', ''], ['llanowar elves', '', 'a/b/llanowar-elves.jpg', ''], ['llanowar elves', 'm21|103', 'en/ed-m21-103.jpg', 'M21 103'], ['sol ring', '2x2|101', 'en/ed-2x2-101.jpg', '2X2 101'], ['sol ring', 'cmm|400', 'fr/ed-cmm-400.jpg', 'CMM 400 | ✦ Foil × 1']], 'liste du visiteur');
+  await V.p.waitForFunction(() => document.querySelectorAll('.pubv .pub-row .thumb img.ok').length === 5, null, { timeout: 8000 }).catch(() => {});
+  await shot(V.p, 'pub-editions-list', '.pubv .pub-main');
+  await V.p.click('.pubv .pub-row[data-e="cmm|400"]'); await V.p.waitForSelector('.imgv.on');
+  await V.p.waitForFunction(() => /\/cmm\/400-fr\.jpg$/.test(document.querySelector('.imgv-img').getAttribute('src') || ''), null, { timeout: 8000 });
+  await V.p.keyboard.press('Escape'); await V.p.waitForTimeout(400);
+  // classeur : les mêmes pochettes que chez le propriétaire, dans le même ordre pour chaque carte, mêmes images
+  await V.p.click('#pubView [data-v="binder"]'); await V.p.waitForSelector('.pubv .bnd .bnd-card');
+  assert.deepEqual(await sleevesAre(V.p, '.pubv', OWN_ED), perCard(OWN_ED), 'pochettes du visiteur = celles du propriétaire');
+  assert.equal(await txt(V.p, '.bnd-cnt'), '3 cartes · 10 exemplaires');
+  const [im1, cap1] = await bigOf(V.p, '.pubv', 'sol ring', 'CMM 400', true, /\/cmm\/400-fr\.jpg$/);
+  assert.ok(im1 === 'cmm/400-fr.jpg' && /CMM 400/.test(cap1) && await V.p.$('.imgv-card.foil'), 'carte en grand : cette impression, en français, foil');
+  await shot(V.p, 'pub-edition-big');
+  await V.p.keyboard.press('Escape'); await V.p.waitForTimeout(400);
+  const [im2, cap2] = await bigOf(V.p, '.pubv', 'sol ring', '2X2 101', false, /\/2x2\/101-en\.jpg$/);
+  assert.ok(im2 === '2x2/101-en.jpg' && /Pas d'image française sur Scryfall/.test(cap2), 'pas d\'image française : l\'anglaise de cette impression, signalée');
+  await V.p.keyboard.press('Escape'); await V.p.waitForTimeout(400);
+  await V.p.waitForFunction(() => document.querySelectorAll('.pubv .bnd-sheet[data-pos="0"] img.ok').length === 6, null, { timeout: 8000 }).catch(() => {});
+  await shot(V.p, 'pub-editions', '.pubv .bnd');
+  await V.ctx.close();
+}
+// partage trop gros (sans images) : le visiteur lit les impressions par l'extension et le numéro (dans la langue de la carte)
+shares.set('ShareBinderEds02', { kind: 'trade', d: JSON.stringify({ at: Date.now(), have: [{ n: 'Sol Ring', q: 1, l: 'fr' }, { n: 'Sol Ring', q: 2, l: 'fr', e: 'cmm/400' }, { n: 'Sol Ring', q: 1, l: 'fr', e: '2x2/101', fo: 1 }], want: [] }) });
+{
+  const V = await newPage(browser, world, { goto: false }); errsOf.push(V.errs); await routeRest(V.p);
+  const q0 = world.edLangQ.length;
+  await V.p.goto(world.url + '?p=ShareBinderEds02'); await V.p.waitForSelector('.pubv.on');
+  await V.p.click('#pubSub [data-v="have"]'); await V.p.click('#pubView [data-v="binder"]'); await V.p.waitForSelector('.pubv .bnd .bnd-card');
+  const W = [['sol ring', '', false, '', 'a/b/sol-ring.jpg'], ['sol ring', 'CMM 400', false, '×2', 'fr/ed-cmm-400.jpg'], ['sol ring', '2X2 101', true, '', 'en/ed-2x2-101.jpg']];
+  assert.deepEqual(await sleevesAre(V.p, '.pubv', W), W, 'impressions lues chez le visiteur : française pour CMM 400, anglaise pour 2X2 101 ; sans édition : comme avant');
+  assert.ok(world.edLangQ.length > q0, 'images françaises cherchées par édition');
+  assert.equal(await txt(V.p, '.bnd-cnt'), '1 carte · 4 exemplaires');
+  await V.ctx.close();
+  ok('éditions (visiteur) : liste et classeur avec les mêmes impressions que le propriétaire (même ordre, même compte), carte en grand de cette impression (française, ou anglaise signalée) ; partage sans images : impressions lues par l\'extension et le numéro');
+}
 
 for (const e of errsOf) assert.deepEqual(e, [], 'erreurs page : ' + e.join(' | '));
 await browser.close(); world.stop();

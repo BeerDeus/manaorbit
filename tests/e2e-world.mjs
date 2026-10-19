@@ -34,7 +34,8 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0, daily
   const prints = {}; CARDS.forEach(([n, , cmc, tl, mc, , colors, eur], i) => { prints[n] = [{ id: 's-' + slug(n), set: 'cmm', set_name: 'Commander Masters', collector_number: String(400 + i), name: n, cmc, type_line: tl, mana_cost: mc, colors, prices: { eur }, color_identity: colors, legalities: { commander: 'legal' },
     image_uris: { small: `https://cards.scryfall.io/small/front/a/b/${slug(n)}.jpg` } }]; });
   const bps = CARDS.map(([n, bp]) => ({ id: bp, name: n, scryfall_id: 's-' + slug(n) }));
-  const world = { edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, symbols: {}, svgs: [], basics: false, en: {}, offers: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
+  // eds['cmm|400'] = { n: 'Sol Ring', langs: ['fr'] } : impression connue par son extension et son numéro (/cards/collection), avec ses langues (recherche « (set:cmm cn:400 or …) lang:fr ») ; edLangQ : ces recherches
+  const world = { eds: {}, edLangQ: [], edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, symbols: {}, svgs: [], basics: false, en: {}, offers: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
   const up = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x'), path = u.pathname.replace('/api/v2/', ''); log.push({ path, q: Object.fromEntries(u.searchParams) });
     const send = (o, s = 200) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
@@ -89,6 +90,12 @@ export async function newPage(browser, world, opts = {}) {
     const req = route.request(), u = new URL(req.url()); world.scry.push(req.method() + ' ' + u.pathname + u.search); const h = { 'access-control-allow-origin': '*' };
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { ...h, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,OPTIONS' } });
     const json = (o, status = 200) => route.fulfill({ status, headers: h, json: o });
+    if (u.pathname === '/cards/search' && /\bcn:/.test(u.searchParams.get('q') || '')) {      // images d'impressions précises dans une langue (classeur) : celles de world.eds qui existent dans cette langue
+      const q = u.searchParams.get('q'), l = (/lang:([a-z]+)/.exec(q) || [])[1] || 'en'; world.edLangQ.push(q);
+      const data = [...q.matchAll(/set:([a-z0-9]+) cn:"?([^\s")]+)"?/g)].map(m => [m[1], m[2], world.eds[m[1] + '|' + m[2]]]).filter(([, , x]) => x && (x.langs || []).includes(l))
+        .map(([set, num, x]) => ({ name: x.n, lang: l, set, collector_number: num, image_uris: { small: `https://cards.scryfall.io/small/front/${l}/ed-${set}-${num}.jpg` } }));
+      return data.length ? json({ object: 'list', has_more: false, data }) : json({ object: 'error', code: 'not_found' }, 404);
+    }
     if (u.pathname === '/cards/search' && u.searchParams.get('unique') === 'prints' && u.searchParams.get('dir') === 'desc' && /lang:[a-z]+/.test(u.searchParams.get('q'))) {      // impressions d'une carte dans une langue : « !"Nom" lang:fr game:paper » (world.variants[nom] = { fr, en } nombre d'impressions)
       const q = u.searchParams.get('q'), l = (/lang:([a-z]+)/.exec(q) || [])[1] || 'en', nm = namesIn(q)[0], c = CARDS.find(x => nm && front(x[0]) === front(nm));
       world.printsReq = (world.printsReq || 0) + 1;
@@ -132,6 +139,8 @@ export async function newPage(browser, world, opts = {}) {
     if (u.pathname === '/cards/collection' && req.method() === 'POST') {
       const ids = (JSON.parse(req.postData() || '{}').identifiers || []), data = [], nf = [];
       for (const i of ids) {
+        const ex = i.set && world.eds[i.set + '|' + i.collector_number];
+        if (ex) { data.push({ name: ex.n, set: i.set, set_name: i.set.toUpperCase() + ' Set', collector_number: i.collector_number, rarity: 'rare', prices: { eur: '2.00', eur_foil: '6.00' }, image_uris: { small: `https://cards.scryfall.io/small/front/en/ed-${i.set}-${i.collector_number}.jpg` } }); continue; }      // world.eds
         if (i.set) {      // édition précise (code + numéro) : impressions des « Illustrations » (numéros 100, 101…), prix edEur, sinon inconnue
           const n = Number(i.collector_number) - 100, ok = n >= 0 && n < 5 && ED_SETS[n][0] === i.set;
           if (ok) data.push({ set: i.set, set_name: ED_SETS[n][1], collector_number: i.collector_number, rarity: 'rare', prices: { eur: world.edPrice[i.set + '|' + i.collector_number] ?? edEur(n), eur_foil: null }, image_uris: { small: `https://cards.scryfall.io/small/front/en/ed-${i.set}-${i.collector_number}.jpg` } }); else nf.push(i);

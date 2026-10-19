@@ -94,6 +94,12 @@ function collLineImage(k, g, en) {
   }
   return collImage(k, l, en);
 }
+/** Image de l'impression exacte (édition e, exemplaires de langue l ; classeur et liste d'échange, partage) : dans la langue si Scryfall l'a, sinon l'anglaise de cette impression ;
+ *  '' tant que l'édition n'est pas lue (bndEdLoad) ; null si Scryfall ne la connaît pas (l'image de la carte, alors). Jamais une autre impression du même nom. */
+function edImage(k, l, e) {
+  if (l && l !== 'en') { const u = COLL.li[liKey(l, k + '|' + e)]; if (u) return u; }
+  const x = COLL.ed[e]; return x && x.im ? x.im : x && x.none ? null : '';
+}
 /** Change l'édition d'une ligne (e : 'cmm|400', '' : édition non précisée) ; ses exemplaires rejoignent la ligne de même langue et même édition s'il y en a une.
  *  info : l'impression choisie ({ eu, ef, sn, r, im (petite image anglaise), li (petite image dans la langue de la ligne) }). Retourne la clé de la ligne. */
 function collSetEd(k, g, e, info) {

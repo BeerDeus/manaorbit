@@ -1066,6 +1066,9 @@ const collMainLang = lines => { const by = new Map(); for (const [g, q] of lines
 const langLines = lines => { const m = new Map(); for (const [g, q] of lines.slice().sort((a, b) => lineCmp(a[0], b[0]))) { const l = lineLang(g); m.set(l, (m.get(l) || 0) + q); } return [...m]; };
 /** Exemplaires foil d'une langue l parmi des lignes (entrée, doublons de tradeLists) : « fo » d'une carte partagée, pochette foil du classeur. */
 const langFoil = (lines, l) => (lines || []).reduce((a, [g, q]) => a + (lineFoil(g) && lineLang(g) === (l || '') ? q : 0), 0);
+/** Lignes regroupées par langue et édition (finitions confondues) : [[langue, édition ('' : sans), exemplaires, dont foil]], dans l'ordre d'affichage (langues comme langLines, puis sans édition, puis éditions) :
+ *  une pochette du classeur et une carte du partage par impression (les foil à part ensuite, bndFoil). */
+const langEdLines = lines => { const m = new Map(); for (const [g, q] of (lines || []).slice().sort((a, b) => lineCmp(a[0], b[0]))) { const l = lineLang(g), e = lineEd(g), id = l + '|' + e, x = m.get(id) || m.set(id, [l, e, 0, 0]).get(id); x[2] += q; if (lineFoil(g)) x[3] += q; } return [...m.values()]; };
 /** Entrée reconstruite depuis ses lignes (base : n, d… gardés) : q = total, x avec plusieurs lignes ou une édition, l = langue la plus fournie. null s'il ne reste rien. */
 function collFromLines(base, lines) {
   const m = new Map();
@@ -2264,13 +2267,18 @@ const imgShort = u => { const s = String(u || ''); return SHARE_IMG_RE.test(s) ?
 const scrySmall = u => String(u || '').replace(/\/(large|normal|png|border_crop)\//, '/small/');
 const shStr = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
 const shNum = (v, lo, hi) => { const x = Number(v); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, Math.round(x))) : null; };
-/** Une carte d'un partage : { n, q, l?, fo? (exemplaires foil parmi q), f? (nom français), i? (image), c? (coût), t? (type), o? (couleurs), m? (symboles) } → item d'affichage, null si illisible. */
+/** Édition d'une carte partagée : 'cmm|400' → « cmm/400 » (code d'extension / numéro de collection), '' sans édition. */
+const edShare = e => (e ? edSet(e) + '/' + edNum(e) : '');
+/** « cmm/400 » relu d'un partage (contenu d'un autre compte) → 'cmm|400' ; '' si absent ou illisible (code de 2 à 6 lettres et chiffres, numéro de 12 signes au plus, lettres, chiffres, ★ † Φ • -). */
+const edUnshare = v => { if (typeof v !== 'string' || v.length > 19) return ''; const i = v.indexOf('/'), n = v.slice(i + 1); return i > 0 && /^[\p{L}\p{N}★†Φ•-]{1,12}$/u.test(n) ? edKey(v.slice(0, i), n) : ''; };
+/** Une carte d'un partage : { n, q, l?, e? (édition « cmm/400 »), fo? (exemplaires foil parmi q), f? (nom français), i? (image), c? (coût), t? (type), o? (couleurs), m? (symboles) } → item d'affichage, null si illisible. */
 function shareCard(x) {
   if (!x || typeof x !== 'object') return null;
   const n = shStr(x.n, 160).trim(), q = shNum(x.q, 1, 9999); if (!n || q == null) return null;
   const it = { k: ownKey(n), n, q };
   if (!it.k) return null;
   if (SHARE_LANGS.includes(x.l)) it.l = x.l;
+  const e = edUnshare(x.e); if (e) it.e = e;      // impression exacte de ces exemplaires (classeur, liste : son image) ; absente d'un partage d'avant ou sans édition
   const fo = shNum(x.fo, 0, q); if (fo) it.fo = fo;      // foil (classeur : pochette à part) ; absent d'un partage d'avant
   const f = shStr(x.f, 160).trim(); if (f) { it.fn = f; if (it.l === (SHARE_LANGS.includes(x.fl) ? x.fl : 'fr')) it.dn = f; }      // fl : langue de f (partage d'un appareil en allemand…), français sans elle
   { const iv = shStr(x.i, 300), full = !iv || /^https:/.test(iv) ? iv : SCRY_IMG + iv; if (SHARE_IMG_RE.test(full)) it.im = full; }      // adresse complète ou raccourcie (imgShort)
@@ -2354,3 +2362,5 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { nmFlat, nmCat, nmPut, nmDone, nmMatch, nmAcc, nmPick, namesAllCats });
 // Foil et langue par ligne de la liste (recherche CardTrader) : exportés à part
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { lnLeft, lnOffers, lnQueries, lnNeedsEn, lnOwn, lnJoin, shareStock });
+// Impression exacte des cartes partagées (classeur : une pochette par langue et édition) : exportés à part
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { langEdLines, edShare, edUnshare });

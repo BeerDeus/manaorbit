@@ -278,6 +278,16 @@ function qrDecode(m) {
   assert.deepEqual(B.bndFoil([{ k: 'a', q: 3, fo: 1 }, { k: 'b', q: 2, fo: 2 }, { k: 'c', q: 1 }, { k: 'd', q: 2, fo: 5 }, { k: 'e', q: 1, fo: 0 }]),
     [{ k: 'a', q: 2 }, { k: 'a', q: 1, foil: true }, { k: 'b', q: 2, foil: true }, { k: 'c', q: 1 }, { k: 'd', q: 2, foil: true }, { k: 'e', q: 1 }]);
   assert.deepEqual(C.readShare('trade', JSON.stringify({ have: [{ n: 'Sol Ring', q: 3, fo: 1 }, { n: 'Ponder', q: 2, fo: 9 }, { n: 'Opt', q: 1, fo: 'x' }, { n: 'Brainstorm', q: 1, fo: 0 }] })).have.map(x => x.fo), [1, 2, undefined, undefined], 'fo : borné aux exemplaires, illisible ou nul ignoré');
-  console.log('✓ classeur : épinglées puis tri (valeur, couleur, extension, nom), réglages nettoyés, bd du partage relu sans risque, foil à part (fo)');
+  // édition : une pochette (et une carte du partage) par langue et par impression, e « cmm/400 » relue et bornée ; un partage d'avant n'en a pas
+  assert.deepEqual(C.langEdLines([['fr|cmm|400*', 1], ['en', 1], ['fr', 2], ['fr|cmm|400', 2], ['fr|2x2|101', 2]]), [['fr', '', 2, 0], ['fr', '2x2|101', 2, 0], ['fr', 'cmm|400', 3, 1], ['en', '', 1, 0]], 'par langue (ordre de langLines), sans édition d\'abord, finitions confondues (dont foil)');
+  assert.deepEqual(C.langEdLines([['fr', 2], ['en*', 1], ['fr*', 1]]).map(x => [x[0], x[2]]), C.langLines([['fr', 2], ['en*', 1], ['fr*', 1]]), 'sans édition : comme langLines (une par langue)');
+  assert.deepEqual([C.edShare('cmm|400'), C.edShare('2x2|101'), C.edShare('')], ['cmm/400', '2x2/101', '']);
+  const eds = ['cmm/400', 'CMM/0400', 'plst/MH2-12★', 'x/1', 'cmm/', 'cmm400', 7, 'cmm/4 0', 'cmm/<b>', 'cmm/' + '1'.repeat(13), 'abcdefg/1', '/400', 'cmm/a"b'];
+  const rs = C.readShare('trade', JSON.stringify({ have: [...eds.map(e => ({ n: 'Sol Ring', q: 1, l: 'fr', e })), { n: 'Sol Ring', q: 2, l: 'fr', i: 'small/front/a/b/sol.jpg' }] })).have;
+  assert.deepEqual(rs.map(x => x.e), ['cmm|400', 'cmm|0400', 'plst|MH2-12★', ...eds.slice(3).map(() => undefined), undefined], 'e : code de 2 à 6 lettres ou chiffres / numéro de 12 signes au plus (lettres, chiffres, ★ † Φ • -) ; sinon ignorée');
+  assert.equal(rs.length, eds.length + 1, 'édition illisible : la carte reste (image de la carte, comme avant)');
+  assert.deepEqual(rs[rs.length - 1], { k: 'sol ring', n: 'Sol Ring', q: 2, l: 'fr', im: 'https://cards.scryfall.io/small/front/a/b/sol.jpg', cl: '' }, 'partage d\'avant (sans e) : relu comme avant');
+  assert.deepEqual(B.bndFoil([{ k: 'a', q: 3, fo: 1, e: 'cmm|400' }, { k: 'a', q: 2, e: '2x2|101' }]), [{ k: 'a', q: 2, e: 'cmm|400' }, { k: 'a', q: 1, e: 'cmm|400', foil: true }, { k: 'a', q: 2, e: '2x2|101' }], 'foil d\'une édition : sa pochette, même édition');
+  console.log('✓ classeur : épinglées puis tri (valeur, couleur, extension, nom), réglages nettoyés, bd du partage relu sans risque, foil à part (fo), une pochette par édition (e relue et bornée)');
 }
 console.log('test-trade OK');
