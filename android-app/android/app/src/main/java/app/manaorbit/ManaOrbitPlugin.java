@@ -9,6 +9,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
@@ -26,12 +28,26 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import androidx.core.content.FileProvider;
+import com.google.android.play.core.review.ReviewInfo;
+import com.google.android.play.core.review.ReviewManager;
+import com.google.android.play.core.review.ReviewManagerFactory;
+import com.google.mlkit.common.MlKitException;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.Text;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.TextRecognizer;
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions;
+import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions;
+import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions;
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -58,6 +74,13 @@ import org.json.JSONObject;
  *   méthode, le site partage le lien ou montre l'image en grand (appui long pour l'enregistrer).
  * - saveImage({ data, name }) → { ok: true, uri } : la même image enregistrée dans Photos (Pictures/Mana Orbit, MediaStore, sans autorisation),
  *   Android 10 et plus (avant : refusé, le site montre l'image en grand). APK 1.0.4 et plus.
+ * - detectText({ base64Image, rotation, script }) → { text, blocks: [{ text, lines: [{ text }] }], script } : texte lu par ML Kit sur le téléphone (scan des cartes,
+ *   src/scan.js › natLines), écriture script = latin | chinese | japanese | korean (chacun de ces modèles lit aussi l'alphabet latin ; chinese : simplifié et
+ *   traditionnel). Mêmes champs que detectText du plugin ML Kit (latin), qui reste utilisé pour le latin. Modèles des services Google Play (non embarqués :
+ *   ≈ 260 Ko par écriture dans l'APK au lieu de ≈ 4 Mo), téléchargés à la première lecture d'une écriture ; tant qu'il n'est pas là : refusé, code « wait »
+ *   (le site lit avec Tesseract en attendant). APK 1.0.6 et plus ; plus ancienne : pas de méthode, chinois, japonais, coréen par Tesseract.
+ * - requestReview() → { ok: true } : demande de note Google Play dans l'appli (In-App Review), voir requestReview. APK 1.0.6 et plus ; plus ancienne : le site
+ *   montre sa propre demande, qui ouvre la fiche Play Store.
  * - événement « open », gardé jusqu'à ce que la page l'écoute (lancement à froid) : { view: 'collection' | 'scan' | 'quick' } le widget ou son bouton a été
  *   touché ; { view: 'trade' } le widget « QR code d'échange » ; { view: 'scan' | 'quick' | 'trade' | 'paste' } un raccourci de l'icône (ShortcutActivity) ; { view: 'share', text, title } du texte partagé
  *   par une autre appli (menu « Partager » : decklist, lien EDHREC, Archidekt, Moxfield…).
@@ -423,5 +446,132 @@ public class ManaOrbitPlugin extends Plugin {
             ret.put("full", full);
             call.resolve(ret);
         });
+    }
+
+    /** Lecteurs ML Kit par écriture, créés à la première lecture puis gardés (modèle chargé une fois) ; fermés avec l'activité. */
+    private final Map<String, TextRecognizer> recognizers = new HashMap<>();
+
+    /** Lecteur ML Kit de l'écriture script ; null si l'écriture est inconnue. */
+    private TextRecognizer recognizer(String script) {
+        synchronized (recognizers) {
+            TextRecognizer r = recognizers.get(script);
+            if (r != null) return r;
+            switch (script) {
+                case "latin":
+                    r = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+                    break;
+                case "chinese":
+                    r = TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build());
+                    break;
+                case "japanese":
+                    r = TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build());
+                    break;
+                case "korean":
+                    r = TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
+                    break;
+                default:
+                    return null;
+            }
+            recognizers.put(script, r);
+            return r;
+        }
+    }
+
+    /**
+     * Texte d'une image (bande du nom d'une carte, ligne du bas) lu par ML Kit dans l'écriture demandée. Modèle pas encore téléchargé par les services Google Play
+     * (première carte de cette écriture, téléphone hors ligne) : refusé avec le code « wait », le téléchargement est lancé ; le site relit avec Tesseract en attendant.
+     */
+    @PluginMethod
+    public void detectText(PluginCall call) {
+        String script = call.getString("script", "latin");
+        TextRecognizer rec = recognizer(script == null ? "latin" : script);
+        if (rec == null) {
+            call.reject("detectText : écriture inconnue (" + script + ")", "script");
+            return;
+        }
+        String data = call.getString("base64Image", "");
+        if (data == null || data.isEmpty() || data.length() > IMAGE_MAX) {
+            call.reject("detectText : image manquante ou trop grosse", "image");
+            return;
+        }
+        Bitmap bmp;
+        try {
+            byte[] raw = Base64.decode(data, Base64.DEFAULT);
+            bmp = BitmapFactory.decodeByteArray(raw, 0, raw.length);
+        } catch (IllegalArgumentException e) {
+            bmp = null;
+        }
+        if (bmp == null) {
+            call.reject("detectText : image illisible", "image");
+            return;
+        }
+        Integer rot = call.getInt("rotation", 0);
+        int r = rot == null ? 0 : rot;
+        final Bitmap img = bmp;
+        rec.process(InputImage.fromBitmap(img, r == 90 || r == 180 || r == 270 ? r : 0))
+            .addOnSuccessListener(text -> {
+                JSObject ret = new JSObject();
+                JSArray blocks = new JSArray();
+                for (Text.TextBlock b : text.getTextBlocks()) {
+                    JSArray lines = new JSArray();
+                    for (Text.Line l : b.getLines()) {
+                        JSObject lo = new JSObject();
+                        lo.put("text", l.getText());
+                        lines.put(lo);
+                    }
+                    JSObject bo = new JSObject();
+                    bo.put("text", b.getText());
+                    bo.put("lines", lines);
+                    blocks.put(bo);
+                }
+                ret.put("text", text.getText());
+                ret.put("blocks", blocks);
+                ret.put("script", script);
+                call.resolve(ret);
+            })
+            .addOnFailureListener(e -> {
+                boolean wait = e instanceof MlKitException && ((MlKitException) e).getErrorCode() == MlKitException.UNAVAILABLE;      // « Waiting for the text optional module to be downloaded »
+                call.reject("detectText : " + e.getMessage(), wait ? "wait" : "ocr", e);
+            })
+            .addOnCompleteListener(t -> img.recycle());
+    }
+
+    /**
+     * Demande de note Google Play dans l'appli (In-App Review) : la carte de Google s'affiche par-dessus l'appli, sans la quitter. Google décide seul de l'afficher
+     * (quota par utilisateur) et ne dit jamais si une note a été laissée : résolu { ok: true } une fois le parcours fini, affiché ou non. Refusé si le Play Store
+     * manque ou refuse (appli installée hors du Play Store) : le site montre alors sa propre demande, qui ouvre la fiche. Appelé seulement par src/help.js › rateShow,
+     * à un bon moment et dans les limites de la demande (jamais depuis un bouton : Google le déconseille, le quota pouvant être atteint).
+     */
+    @PluginMethod
+    public void requestReview(PluginCall call) {
+        ReviewManager rm = ReviewManagerFactory.create(getContext());
+        rm.requestReviewFlow().addOnCompleteListener(req -> {
+            if (!req.isSuccessful() || getActivity() == null) {
+                Exception e = req.isSuccessful() ? null : req.getException();
+                call.reject("requestReview : " + (e != null ? e.getMessage() : "pas d'activité"), "review");
+                return;
+            }
+            ReviewInfo info = req.getResult();
+            rm.launchReviewFlow(getActivity(), info).addOnCompleteListener(flow -> {
+                JSObject ret = new JSObject();
+                ret.put("ok", true);
+                call.resolve(ret);
+            });
+        });
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        synchronized (recognizers) {
+            for (TextRecognizer r : recognizers.values()) {
+                try {
+                    r.close();
+                } catch (Exception e) {
+                    // déjà fermé : rien de plus à faire
+                }
+            }
+            recognizers.clear();
+        }
+        super.handleOnDestroy();
     }
 }

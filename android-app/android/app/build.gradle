@@ -7,8 +7,8 @@ android {
         applicationId "app.manaorbit"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6
-        versionName "1.0.5"
+        versionCode 7
+        versionName "1.0.6"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -36,6 +36,14 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Scan (ManaOrbitPlugin.detectText) : ML Kit chinois, japonais, coréen, et latin (le même modèle que le plugin ML Kit, déjà dans l'appli). Versions « services Google Play »
+    // (non embarquées) : ≈ 260 Ko par écriture dans l'appli au lieu de ≈ 4 Mo, modèle téléchargé par le téléphone à la première carte de cette écriture (docs/android.md).
+    implementation 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
+    implementation 'com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1'
+    implementation 'com.google.android.gms:play-services-mlkit-text-recognition-japanese:16.0.1'
+    implementation 'com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1'
+    // Demande de note Google Play dans l'appli (ManaOrbitPlugin.requestReview, In-App Review)
+    implementation 'com.google.android.play:review:2.0.2'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

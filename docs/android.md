@@ -108,7 +108,7 @@ La connexion Google utilise le compte Google du téléphone : un sélecteur nati
 2. Clique le bouton vert **Run ▶** (exécuter), ou **Run › Run 'app'**.
 3. L'appli s'installe et s'ouvre sur le téléphone.
 
-**Pour tester le scan :** dans Ma collection, l'icône appareil photo **Scanner des cartes**, ou **Prix rapide** sur l'accueil. L'aperçu de l'appareil photo est natif. Le nom de la carte est lu sur le téléphone par ML Kit (Google), dont le modèle arrive avec les services Google Play à l'installation de l'appli.
+**Pour tester le scan :** dans Ma collection, l'icône appareil photo **Scanner des cartes**, ou **Prix rapide** sur l'accueil. L'aperçu de l'appareil photo est natif. Le nom de la carte est lu sur le téléphone par ML Kit (Google), dont le modèle arrive avec les services Google Play à l'installation de l'appli. Cartes chinoises, japonaises, coréennes : voir « Scan des cartes chinoises, japonaises, coréennes » plus bas (APK 1.0.6).
 
 **En ligne de commande**, depuis `android-app` (Windows, Mac ou Linux) : `npm run apk` fabrique le même APK de test sans Android Studio ; sous Windows, définis d'abord `JAVA_HOME` comme au 2 bis. Pour le Play Store, passe par l'étape 4.1 (fichier signé).
 
@@ -176,6 +176,41 @@ Android vérifie le site **à l'installation et à chaque mise à jour** de l'ap
 - appli rouverte depuis les applis récentes, ou relancée par Android après avoir été fermée en arrière-plan : le dernier lien n'est pas rejoué.
 
 **Sans vérification** (variable absente ou fausse, APK 1.0.4 ou plus ancienne, lecteur de QR code qui ouvre lui-même les liens dans son propre navigateur) : le lien s'ouvre dans le navigateur. Sur Android, le site y affiche en bas une petite barre **« Ouvrir dans l'appli Mana Orbit »** (une adresse `intent://` qui vise l'appli par son nom de paquet : elle ouvre la 1.0.5 même sans vérification ; sans l'appli, ou avec une APK plus ancienne, elle mène à la fiche Play) et **« Pas encore l'appli ? L'installer »**. ✕ la ferme jusqu'à la fin de la session de l'onglet ; jamais dans l'appli, sur iPhone ou sur ordinateur. Adresse de la fiche : `PLAY_URL` dans `src/help.js` (pendant le test fermé, la fiche n'est visible que des testeurs : remplace-la au besoin par le lien d'inscription au test).
+
+### Scan des cartes chinoises, japonaises, coréennes (ML Kit, APK 1.0.6)
+
+**Le problème (19 octobre 2026)** : dans l'appli, une carte chinoise n'était jamais reconnue. Le scan lit le nom avec ML Kit « latin », qui ne connaît que l'alphabet latin : sur « 阳光戒 » (Sol Ring), il rend « BEE » ou rien. Le moteur chinois (Tesseract) n'était lancé que si la langue était imposée dans les réglages du scan, ou après 3 cartes chinoises déjà reconnues : en pratique, jamais. Seule une carte récente, avec « DSK • CS » en bas, passait par sa ligne du bas. Japonais et coréen : pareil. Russe aussi (ML Kit lit « Conneunoe Konno » pour « Солнечное Кольцо »), et une carte russe récente restait « à vérifier ».
+
+**Corrigé côté site (toutes les APK, rien à refaire)** : quand ML Kit ne lit rien de sûr, l'appli essaie les moteurs des autres écritures (chinois, japonais, coréen, russe), un après l'autre. D'abord ceux qu'on attend : langue des cartes choisie dans l'appli, cartes de ces langues déjà scannées, langue du téléphone. La première carte chinoise trouvée fait passer le moteur chinois devant pour la suite du scan. Une carte latine bien lue ne change rien : pas plus lent qu'avant. Avec l'APK 1.0.5, ces moteurs sont ceux de Tesseract : ≈ 0,3 s chacun sur le téléphone, un modèle de 1,6 à 2,7 Mo téléchargé la première fois, et le chinois se trompe plus souvent (sur des cartes de test, ≈ 3 noms sur 4 lus sûrement, les autres « à vérifier »).
+
+**APK 1.0.6 (versionCode 7)** : ML Kit chinois, japonais et coréen, directement sur le téléphone (≈ 0,1 s, bien plus fiable que Tesseract). Le plugin local `ManaOrbit` a une méthode `detectText` qui prend l'écriture : `latin`, `chinese` (simplifié et traditionnel), `japanese`, `korean` ; chacun de ces modèles lit aussi l'alphabet latin. Le site s'en sert dès qu'elle est là ; une APK plus ancienne garde Tesseract. Le russe reste sur Tesseract : ML Kit ne lit pas le cyrillique.
+
+**Choix : les modèles des services Google Play, pas les modèles embarqués.** La taille de l'appli compte :
+
+| | Modèles embarqués (`com.google.mlkit:text-recognition-chinese`…) | Services Google Play (`com.google.android.gms:play-services-mlkit-text-recognition-chinese`…), **choisi** |
+| --- | --- | --- |
+| Taille de l'appli | ≈ 4 Mo de plus par écriture : ≈ 12 Mo pour les trois | ≈ 260 Ko par écriture : moins de 1 Mo pour les trois |
+| Premier scan d'une écriture | prêt tout de suite | le téléphone télécharge le modèle (quelques secondes en Wi-Fi) ; en attendant, Tesseract lit la carte |
+| Mises à jour du modèle | avec l'appli | par Google, sans nouvelle version |
+
+La plupart des utilisateurs ne scanneront jamais de carte d'Asie : ils ne téléchargent rien de plus. C'est aussi ce que fait déjà le plugin ML Kit latin. Option (non activée) pour que le Play Store télécharge les trois modèles dès l'installation, au prix de la place sur tous les téléphones : dans `AndroidManifest.xml`, sous `<application>`, `<meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="ocr,ocr_chinese,ocr_japanese,ocr_korean" />`.
+
+**À faire :**
+
+1. Mettre le projet à jour (`git pull`), puis `npm run setup` depuis `android-app`, puis dans Android Studio l'icône éléphant **Sync Project with Gradle Files** : elle télécharge les nouvelles bibliothèques (ML Kit chinois, japonais, coréen, Play In-App Review). Le code Java a été vérifié ici à la compilation avec des bouchons (le dépôt Maven de Google n'était pas joignable) : si la synchronisation ne trouve pas une version, elle le dit (versions dans `android-app/android/app/build.gradle`).
+2. Essai sur le Xiaomi : **Run ▶**. En bas de **Réglages**, la ligne « APK : » montre **1.0.6 (7)**.
+3. **Scan d'une carte chinoise**, sans rien changer aux réglages du scan, en Wi-Fi : la première fois, le téléphone télécharge le modèle chinois et la carte peut être lue par Tesseract (un peu plus lent) ; les suivantes par ML Kit. Puis une japonaise et une coréenne. Une carte russe passe par Tesseract.
+4. Une carte pas reconnue : **Signaler ce scan** sur sa ligne (la photo, le texte lu et le moteur partent avec, voir `/admin`).
+5. Puis un `.aab` signé (§ 4.1, même fichier `.jks`), envoyé dans la Play Console (§ 4.3). **Une fois la 1.0.6 en ligne** : `APK_LATEST` à 7 dans `proxy.mjs` (ou la variable sur Hostinger) ; les 1.0.5 verront alors « Mise à jour de l'appli ».
+
+### Demande de note dans l'appli (In-App Review, APK 1.0.6)
+
+Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; appli utilisée depuis 4 jours, aucune erreur dans la session, au plus tous les 120 jours et 3 fois en tout), l'APK 1.0.6 ouvre la **carte de note de Google Play** par-dessus l'appli, au lieu de notre feuille « Noter Mana Orbit » qui ouvrait la fiche : on note sans quitter l'appli. Plugin local `ManaOrbit` (`requestReview`), bibliothèque `com.google.android.play:review` (quelques dizaines de Ko).
+
+- Google décide seul de l'afficher (nombre limité par compte) et ne dit jamais si une note a été laissée : la demande compte quand même dans les limites ci-dessus, sans « plus jamais » ni badge.
+- Jamais depuis un bouton (Google le déconseille : si son quota est atteint, rien ne s'afficherait) : **Réglages › Aide et avis › Noter sur le Play Store** reste un lien vers la fiche.
+- Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
+- **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
 ---
 
@@ -305,6 +340,8 @@ Bon à savoir :
 | Fonction | Plugin | Remarque |
 | --- | --- | --- |
 | Scan natif | `@capacitor-community/camera-preview` + `@pantrist/capacitor-plugin-ml-kit-text-recognition` | fait ; le site détecte l'appli Android (`Capacitor.isNativePlatform()`) |
+| Scan chinois, japonais, coréen | plugin local `ManaOrbit` (`detectText`, ML Kit des services Google Play) | APK 1.0.6 ; plus ancienne : Tesseract (voir « Scan des cartes chinoises, japonaises, coréennes ») |
+| Demande de note dans l'appli | plugin local `ManaOrbit` (`requestReview`, Play In-App Review) | APK 1.0.6 ; coupée tant que `RATE_ASK` est faux (voir « Demande de note dans l'appli ») |
 | Bandeau de pub | `@capacitor-community/admob` | fait : voir « Publicité (AdMob) » ; reste le compte AdMob et l'identifiant de l'appli |
 | Notifications | `@capacitor/push-notifications` | fait : Firebase Cloud Messaging (voir « Notifications ») |
 | Connexion Google | `@capacitor-firebase/authentication` | fait : sélecteur de compte natif, jamais le navigateur (voir 2 bis pour Firebase) |
@@ -345,6 +382,12 @@ Bon à savoir :
   2. https://manaorbit.app/.well-known/assetlinks.json doit afficher tes empreintes : sinon, `ASSETLINKS_SHA256` manque ou est mal copiée sur Hostinger (le journal du serveur le dit).
   3. Empreintes ajoutées après l'installation : `adb shell pm verify-app-links --re-verify app.manaorbit`, ou réinstalle l'appli. Puis **Paramètres › Applications › Mana Orbit › Ouvrir par défaut** : « Ouvrir les liens compatibles » activé.
   4. En attendant, la barre « Ouvrir dans l'appli Mana Orbit » en bas de la page du navigateur ouvre l'appli.
+- **Une carte chinoise, japonaise, coréenne ou russe n'est pas reconnue** :
+  1. En bas de **Réglages**, la ligne « APK : » : avec la **1.0.6** ou plus, ML Kit lit le chinois, le japonais et le coréen ; avant, c'est Tesseract, plus lent et moins sûr.
+  2. Première carte d'une écriture : le téléphone télécharge son modèle (ML Kit) ou celui de Tesseract ; en Wi-Fi, réessaie la carte une fois le téléchargement fini.
+  3. Un paquet d'une seule langue : **réglages du scan › Langue des cartes › Autre…** (chinois, japonais, coréen, russe) : son moteur lit d'abord, plus rapide.
+  4. En scan automatique avec l'APK 1.0.5 : prends d'abord une carte au cercle (ou impose la langue) ; ensuite le moteur de cette écriture lit les suivantes.
+  5. Toujours rien : **Signaler ce scan** sur la ligne « Nom non reconnu ».
 - **L'appli affiche « Mana Orbit a besoin d'Internet »** : le téléphone n'avait pas de réseau au lancement. Reconnecte-toi puis rouvre l'appli.
 
 ---

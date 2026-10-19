@@ -32,6 +32,7 @@ jobs:
         run: |
           cd tests && npx playwright-core install --with-deps chromium
           sudo apt-get install -y --no-install-recommends ffmpeg python3-pil      # scan-e2e : images et vidéo de la caméra simulée
+          sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei fonts-ipafont-gothic fonts-dejavu-core      # scanapk-e2e : cartes chinoises, japonaises, coréennes, russes dessinées dans Chromium
           echo "CHROMIUM=$(node -p "require('playwright-core').chromium.executablePath()")" >> "$GITHUB_ENV"
       - name: Tous les tests (Node, jsdom et navigateur)
         run: bash tests/run-tests.sh

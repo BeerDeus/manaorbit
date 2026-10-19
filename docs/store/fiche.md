@@ -504,11 +504,11 @@ Vérifié, rien de plus à déclarer pour les derniers ajouts :
 - « Pour toi » (liste d'échange reçue) et QR code : calculés sur l'appareil.
 - « Prochaines extensions » : liste publique lue chez Scryfall par le téléphone, sans donnée de l'utilisateur.
 - Widget (valeur estimée appli fermée) : télécharge le fichier de prix du serveur et calcule sur le téléphone ; la liste des cartes ne quitte pas l'appareil.
-- Demande de note : ouvre la fiche Play Store, rien n'est envoyé.
+- Demande de note : la carte de note de Google Play dans l'appli (In-App Review, APK 1.0.6 : c'est Google qui l'affiche et reçoit la note) ou la fiche Play Store ; Mana Orbit n'envoie rien.
 
 Avant d'envoyer le formulaire, compare avec les pages officielles (elles changent parfois) et ajoute ce qui manque :
 - AdMob : https://developers.google.com/admob/android/privacy/play-data-disclosure
-- ML Kit (reconnaissance de texte du scan, via les services Google Play) : https://developers.google.com/ml-kit/android-data-disclosure
+- ML Kit (reconnaissance de texte du scan, via les services Google Play ; latin, et depuis l'APK 1.0.6 chinois, japonais, coréen) : https://developers.google.com/ml-kit/android-data-disclosure
 
 À garder en tête :
 - La politique de confidentialité (`/privacy`) doit déjà parler du bandeau AdMob le jour de la publication. C'est le cas dans la version qui ajoute AdMob ; vérifie qu'elle est bien en ligne.
