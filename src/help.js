@@ -145,7 +145,7 @@ function rateSheet() {
     api.body.innerHTML = `<div class="rate-hero"><span class="rate-logo" aria-hidden="true"><svg class="logo"><use href="#i-logo"/></svg></span>
       <p>${T('Si Mana Orbit t\'est utile, une note sur le Play Store aide beaucoup.')}</p></div>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Plus tard')}</button><a class="btn" data-rate="go" href="${esc(RATE.url)}" target="_blank" rel="noopener">${T('Noter')}</a>`);
-    $('[data-rate="go"]', api.foot).addEventListener('click', () => { rateDone(); if (typeof prgAdd === 'function') prgAdd('rt'); haptic('ok'); setTimeout(() => api.close(), 0); });
+    $('[data-rate="go"]', api.foot).addEventListener('click', () => { rateDone(); haptic('ok'); setTimeout(() => api.close(), 0); });
   });
 }
 // Session avec une erreur : pas de demande (une erreur JavaScript, une promesse rejetée sans traitement, une recherche échouée).

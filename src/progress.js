@@ -121,7 +121,7 @@ function prgMetrics() {
   m.nightG = mine.filter(e => { const h = new Date(e.x.date + e.x.duree * 1000).getHours(); return h < 5; }).length;
   m.tour = typeof tourRead === 'function' && tourRead().fin ? 1 : 0; m.dark = typeof S !== 'undefined' && S.theme === 'dark' ? 1 : 0;
   m.imp = c.imp ? 1 : 0;      // import d'un CSV (ManaBox, Moxfield…) : compté depuis le 16 octobre
-  m.fb = c.fb ? 1 : 0; m.rt = c.rt ? 1 : 0; m.inst = c.in ? 1 : 0; m.tst = c.tst ? 1 : 0;
+  m.fb = c.fb ? 1 : 0; m.inst = c.in ? 1 : 0; m.tst = c.tst ? 1 : 0;
   const dl = PRG.dly || {}; m.dy = id => Number(dl[id]) || 0;
   return m;
 }
@@ -199,7 +199,6 @@ const PRG_BADGES = [
   { id: 'fx_tour', cat: 'fun', ic: '🗺️', t: 'Guide', one: 'Visite guidée terminée', tiers: [1], v: m => m.tour },
   { id: 'fx_dark', cat: 'fun', ic: '🌑', t: 'Côté obscur', one: 'Thème sombre choisi', tiers: [1], v: m => m.dark },
   { id: 'fx_feedback', cat: 'fun', ic: '📮', t: 'Voix du peuple', one: 'Un avis envoyé', tiers: [1], v: m => m.fb },
-  { id: 'fx_rate', cat: 'fun', ic: '❤️', t: 'Fan', one: 'Mana Orbit notée sur le Play Store', tiers: [1], v: m => m.rt },
   { id: 'fx_install', cat: 'fun', ic: '📲', t: 'Installé', one: 'Mana Orbit installée sur ton téléphone', tiers: [1], v: m => m.inst },
   { id: 'fx_test', cat: 'fun', ic: '🧭', t: 'Pionnier', one: 'Venu essayer les nouveautés avant tout le monde', tiers: [1], v: m => m.tst },
 ];

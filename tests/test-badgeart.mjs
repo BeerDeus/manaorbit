@@ -25,7 +25,7 @@ function balanced(svg) {
 }
 
 test('chaque badge a son propre glyphe, unique ou à 4 paliers comme le badge', () => {
-  assert.ok(ALL.length >= 79, ALL.length + ' badges');
+  assert.ok(ALL.length >= 78, ALL.length + ' badges');
   for (const b of ALL) {
     assert.ok(Object.prototype.hasOwnProperty.call(BDG_G, b.id), b.id + ' : glyphe manquant');
     const g = BDG_G[b.id];

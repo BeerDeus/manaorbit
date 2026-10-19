@@ -310,8 +310,11 @@ shares.set('ShareBinderFoil1', { kind: 'trade', d: JSON.stringify({ at: Date.now
   await shot(V.p, 'pub-split', '.pubv .bnd');
   await V.p.click('#pubSub [data-v="want"]'); await V.p.waitForFunction(() => document.querySelectorAll('.pubv .bnd-sheet[data-pos="0"] .bnd-card').length === 1);
   assert.ok(!(await V.p.$('.pubv .bnd-card.foil')), 'recherchées : jamais foil');
+  await V.p.click('#pubSub [data-v="have"]'); await V.p.click('#pubView [data-v="list"]'); await V.p.waitForSelector('.pubv .pub-row');
+  assert.deepEqual((await V.p.$$eval('.pubv .pub-row', r => r.map(x => [x.dataset.k, (x.querySelector('.tag.foil') || {}).textContent || '']))).sort(),
+    [['ponder', ''], ['sol ring', '✦ Foil × 1'], ['wrath of god', '✦ Foil']], 'vue Liste : pastille foil (× n quand une partie seulement l\'est)');
   await V.ctx.close();
-  ok('visiteur : une langue en partie foil en deux pochettes (la foil après), toutes foil en une, recherchées sans foil');
+  ok('visiteur : une langue en partie foil en deux pochettes (la foil après), toutes foil en une, recherchées sans foil ; vue Liste : pastille foil');
 }
 
 /* ── Autre appareil du même compte : relit le classeur sur le lien avant d'y écrire ────────────── */
