@@ -590,7 +590,7 @@ function paintAccountDelete(api) {
  *  de couper), notifications, cache Firestore. Après une suppression de compte et dans wipeDevice ; jamais bloquant (réseau absent : on passe). */
 async function deviceForget() {
   const within = (f, ms) => Promise.race([Promise.resolve().then(f).catch(() => {}), sleep(ms)]);
-  await within(alDisable, 5000); await within(amOut, 3000); await within(pushDisable, 3000);
+  await within(alDisable, 5000); await within(amOut, 3000); if (typeof dlyPushOut === 'function') await within(dlyPushOut, 3000); await within(pushDisable, 3000);      // dlyPushOut : plus de notification « nouvelle Carte mystère »
   await cloudClearLocal(D.cloud);
 }
 /** Efface tout ce que l'appli garde sur cet appareil (réglages, collection, decks, caches), puis recharge. */

@@ -1,5 +1,5 @@
-// Faux services du panneau d'administration (test-admin.mjs, admin-e2e.mjs) : faux Identity Toolkit (accounts:batchGet, par pages) et faux Firestore
-// REST (requêtes « groupe de collections » runQuery avec select, curseur et limite ; liste d'une collection racine avec masque), plus un jeu de comptes
+// Faux services du panneau d'administration (test-admin.mjs, admin-e2e.mjs) : faux Identity Toolkit (accounts:batchGet, par pages ; accounts:update) et faux
+// Firestore REST (requêtes « groupe de collections » runQuery avec select, curseur et limite ; liste d'une collection racine avec masque ; effacement), plus un jeu de comptes
 // fictifs. Jetons Firebase, OAuth2 du compte de service et JWKS : amis-fakes.mjs. Aucune adresse ni nom réel ; aucun accès réseau.
 import http from 'node:http';
 import { createHash } from 'node:crypto';
@@ -38,8 +38,8 @@ export function fixture(now = Date.now(), n = 120) {
     ['users/uid-ghost-98/decks/g1', { name: 'x', text: '', updatedAt: now - 2 * DAY }],
     ['games/g1/meta/state', { updatedAt: now }],                                           // autre appli du projet : ignorée
     ['users/uid-carol-03/binder/lands', { owned: {}, updatedAt: now }],                    // Classeur Full Art (autre appli) : rien pour Mana Orbit
-    [`pubdecks/${T('uid-jeanne-01')}_0`, { o: T('uid-jeanne-01'), by: 'Jeanne', cards: ['99 Forest'], updatedAt: now }],
-    [`pubdecks/${T('uid-jeanne-01')}_1`, { o: T('uid-jeanne-01'), by: 'Jeanne', cards: ['99 Forest'], updatedAt: now }],
+    [`pubdecks/${T('uid-jeanne-01')}_0`, { o: T('uid-jeanne-01'), by: 'Jeanne', name: 'Atraxa secret', cmd: ['Atraxa, Praetors\' Voice'], ci: 'WUBG', cards: ['99 Forest'], updatedAt: now - 3600e3 }],
+    [`pubdecks/${T('uid-jeanne-01')}_1`, { o: T('uid-jeanne-01'), by: 'Jeanne', name: 'Krenko', cmd: ['Krenko, Mob Boss'], ci: 'R', cards: ['99 Forest'], updatedAt: now }],
     [`pubdecks/${T('uid-bob-02')}_1`, { o: T('uid-jeanne-01'), by: 'Faux', cards: ['99 Forest'], updatedAt: now }],      // propriétaire faux : pas compté
     [`pubreports/${T('uid-jeanne-01')}_0~${T('r1')}`, { d: T('uid-jeanne-01') + '_0', at: now }],
     [`amis/${T('uid-jeanne-01')}`, { j: JSON.stringify({ v: 1, n: 'Jeanne Dupont', p: 'data:image/png;base64,QU1JUw==', l: 'fr', f: { [T('uid-bob-02')]: now }, i: { [T('uid-carol-03')]: now }, o: {}, x: {}, d: [], hk: [], wk: [], has: {} }), at: now }],
@@ -51,18 +51,29 @@ export function fixture(now = Date.now(), n = 120) {
 }
 
 export async function startAdminFakes() {
-  // Identity Toolkit : it.users (comptes bruts), it.page (taille de page), it.deny (403), it.calls (requêtes reçues)
-  const it = { users: [], page: 50, deny: 0, calls: [], auth: [] };
+  // Identity Toolkit : it.users (comptes bruts), it.page (taille de page), it.deny (403), it.calls (requêtes reçues) ; accounts:update (désactiver,
+  // réactiver) : it.updates (corps reçus), it.denyUpdate (403 : rôle « Administrateur Firebase Authentication » absent)
+  const it = { users: [], page: 50, deny: 0, calls: [], auth: [], updates: [], denyUpdate: 0 };
   const upIt = http.createServer((req, res) => {
-    const u = new URL(req.url, 'http://x'), send = (s, o) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
-    it.calls.push(req.method + ' ' + u.pathname + (u.searchParams.get('nextPageToken') ? '#' + u.searchParams.get('nextPageToken') : '')); it.auth.push(String(req.headers.authorization || ''));
-    if (req.method !== 'GET' || u.pathname !== '/v1/projects/mana-test/accounts:batchGet') return send(404, { error: { code: 404, message: 'not found' } });
-    if (it.deny) return send(403, { error: { code: 403, message: 'The caller does not have permission', status: 'PERMISSION_DENIED' } });
-    const from = Number(u.searchParams.get('nextPageToken') || 0), size = Math.min(Number(u.searchParams.get('maxResults')) || 20, it.page), users = it.users.slice(from, from + size);
-    send(200, { kind: 'identitytoolkit#DownloadAccountResponse', users, ...(from + size < it.users.length ? { nextPageToken: String(from + size) } : {}) });
+    const c = []; req.on('data', x => c.push(x)); req.on('end', () => {
+      const u = new URL(req.url, 'http://x'), send = (s, o) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
+      it.calls.push(req.method + ' ' + u.pathname + (u.searchParams.get('nextPageToken') ? '#' + u.searchParams.get('nextPageToken') : '')); it.auth.push(String(req.headers.authorization || ''));
+      if (req.method === 'POST' && u.pathname === '/v1/projects/mana-test/accounts:update') {
+        const b = JSON.parse(Buffer.concat(c).toString() || '{}'); it.updates.push(b);
+        if (it.denyUpdate) return send(403, { error: { code: 403, message: 'The caller does not have permission', status: 'PERMISSION_DENIED' } });
+        const x = it.users.find(a => a.localId === b.localId); if (!x) return send(400, { error: { code: 400, message: 'USER_NOT_FOUND' } });
+        if (typeof b.disableUser === 'boolean') { if (b.disableUser) x.disabled = true; else delete x.disabled; }
+        return send(200, { kind: 'identitytoolkit#SetAccountInfoResponse', localId: x.localId, email: x.email });
+      }
+      if (req.method !== 'GET' || u.pathname !== '/v1/projects/mana-test/accounts:batchGet') return send(404, { error: { code: 404, message: 'not found' } });
+      if (it.deny) return send(403, { error: { code: 403, message: 'The caller does not have permission', status: 'PERMISSION_DENIED' } });
+      const from = Number(u.searchParams.get('nextPageToken') || 0), size = Math.min(Number(u.searchParams.get('maxResults')) || 20, it.page), users = it.users.slice(from, from + size);
+      send(200, { kind: 'identitytoolkit#DownloadAccountResponse', users, ...(from + size < it.users.length ? { nextPageToken: String(from + size) } : {}) });
+    });
   });
-  // Firestore : fs.docs (chemin → champs), fs.deny (403), fs.down (503) ; fs.queries (runQuery reçues : collection, champs, nombre rendu), fs.lists (listes)
-  const fs = { docs: new Map(), deny: 0, down: 0, queries: [], lists: [] };
+  // Firestore : fs.docs (chemin → champs), fs.deny (403), fs.down (503) ; fs.queries (runQuery reçues : collection, champs, nombre rendu), fs.lists (listes) ;
+  // effacement d'un document d'une collection racine (deck public retiré) : fs.deletes (« chemin?précondition »), fs.denyWrite (403)
+  const fs = { docs: new Map(), deny: 0, down: 0, queries: [], lists: [], deletes: [], denyWrite: 0 };
   const BASE = 'projects/mana-test/databases/(default)/documents/';
   const doc = (path, sel) => { const f = fs.docs.get(path), keep = sel && sel.length ? Object.fromEntries(Object.entries(f).filter(([k]) => sel.includes(k))) : f; return { name: BASE + path, fields: Object.fromEntries(Object.entries(keep).map(([k, v]) => [k, sv(v)])), createTime: '2026-10-10T10:00:00Z', updateTime: '2026-10-10T10:00:00Z' }; };
   const upFs = http.createServer((req, res) => {
@@ -77,6 +88,13 @@ export async function startAdminFakes() {
         names = names.slice(0, q.limit || 1e9);
         fs.queries.push({ col: from.collectionId, all: !!from.allDescendants, sel, n: names.length, order: JSON.stringify(q.orderBy || []) });
         return send(200, names.length ? names.map(p => ({ document: doc(p, sel), readTime: '2026-10-13T10:00:00Z' })) : [{ readTime: '2026-10-13T10:00:00Z' }]);
+      }
+      const one = /^\/v1\/projects\/mana-test\/databases\/\(default\)\/documents\/([a-z]+\/[^/]+)$/.exec(u.pathname);
+      if (req.method === 'DELETE' && one) {
+        const path = decodeURIComponent(one[1]), must = u.searchParams.get('currentDocument.exists') === 'true'; fs.deletes.push(path + (must ? '?exists' : ''));
+        if (fs.denyWrite) return send(403, { error: { code: 403, message: 'Missing or insufficient permissions.', status: 'PERMISSION_DENIED' } });
+        if (must && !fs.docs.has(path)) return send(404, { error: { code: 404, message: 'No document to update: ' + BASE + path, status: 'NOT_FOUND' } });
+        fs.docs.delete(path); return send(200, {});
       }
       const m = /^\/v1\/projects\/mana-test\/databases\/\(default\)\/documents\/([a-z]+)$/.exec(u.pathname);
       if (req.method === 'GET' && m) {

@@ -89,9 +89,10 @@ function trCard(k, n, q, l) {
   return o;
 }
 /** Contenu du partage de la liste d'échange (sans date : sert aussi d'empreinte). Trop gros : sans images ni symboles (le visiteur les lit sur Scryfall), puis tronqué.
- *  La limite tient compte du pseudo et de la photo que trPut ajoute (jusqu'à 40 000 caractères) : le document reste sous la règle des 900 000. */
+ *  La limite tient compte du pseudo et de la photo que trPut ajoute (jusqu'à 40 000 caractères) : le document reste sous la règle des 900 000.
+ *  Doublons : une carte par langue, fo = ses exemplaires foil (pochette foil du classeur du visiteur ; absent sans foil). */
 function trPayload() {
-  const st = trState(), have = st.have.flatMap(x => langLines(x.lines).map(([l, q]) => trCard(x.k, x.n, q, l))), want = st.want.map(x => { const o = trCard(x.k, x.n, x.q, ''); if (x.p) { o.i = scrySmall(x.p.i); o.w = x.p.w || ''; if (x.p.l && x.p.l !== 'en') o.l = x.p.l; } return o; });      // souhait : l'illustration retenue
+  const st = trState(), have = st.have.flatMap(x => langLines(x.lines).map(([l, q]) => { const o = trCard(x.k, x.n, q, l), fo = langFoil(x.lines, l); if (fo) o.fo = fo; return o; })), want = st.want.map(x => { const o = trCard(x.k, x.n, x.q, ''); if (x.p) { o.i = scrySmall(x.p.i); o.w = x.p.w || ''; if (x.p.l && x.p.l !== 'en') o.l = x.p.l; } return o; });      // souhait : l'illustration retenue
   const bd = bndPayload(st, have, want);      // classeur réglé (binder.js) : cartes dans son ordre (une liste tronquée garde les épinglées), réglages pour les visiteurs
   const max = TR_MAX - JSON.stringify(profShare()).length - (bd ? JSON.stringify(bd).length + 8 : 0);
   for (const o of [...have, ...want]) if (o.i) { const sh = imgShort(o.i); if (sh) o.i = sh; else delete o.i; }      // adresses d'images raccourcies (≈ 2 fois moins de place)

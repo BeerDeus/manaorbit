@@ -2,7 +2,9 @@
 // gros plans (point riche en détails, dézoom), tirage de la carte avec un faux Scryfall (langues vérifiées, 30 essais, repli anglais, reproductible), score, nom dévoilé par la fin, jours /
 // semaines / saisons à l'heure de Paris (changement d'heure compris), parties (classée ou non, une par compte et par jour), classements, badges, masque d'un
 // pseudo, purge, relecture du disque ; anti-triche : ni nom, ni identifiant, ni extension, ni adresse Scryfall dans les réponses avant la fin, images sans
-// la bande du titre ni la ligne du bas. Puis le vrai proxy.mjs (ports 19700–19702) : /__ping, jetons Firebase, DAILY=0, panneau /admin. Traductions de src/daily.js.
+// la bande du titre ni la ligne du bas. Notification « nouvelle Carte mystère » : appareils par compte, une fois par jour dès 18:00, jamais deux fois (redémarrage,
+// arrêt en plein envoi), rattrapage dans les 2 h, cibles périmées retirées. Puis le vrai proxy.mjs (ports 19700–19706) : /__ping, jetons Firebase, DAILY=0,
+// panneau /admin, notification envoyée par FCM (faux compte de service), DAILY_PUSH=0. Traductions de src/daily.js.
 import './setup-env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -379,6 +381,73 @@ test('préparation d\'avance : la carte du lendemain est prête avant 18:00, ser
   await h.stop();
 });
 
+/* ── Notification « nouvelle Carte mystère » ───────────────────────────────────────────────────────────────────────────────── */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const pushK = t => createHash('sha1').update('fcm:' + t).digest('hex').slice(0, 24);      // comme proxy.mjs › alId(pushKey(cible))
+/** Faux envoi (proxy.mjs › sendPush) : messages reçus ; jeton GONE… : 404, OLD… : 410 ; hang : au-delà de ce nombre d'envois, plus aucune réponse (serveur arrêté en plein envoi). */
+function fakePush(o = {}) {
+  const P = { sent: [], hang: o.hang ?? Infinity };
+  P.send = async m => { P.sent.push(m); if (P.sent.length > P.hang) return new Promise(() => {}); return m.sub.fcm.startsWith('GONE') ? 404 : m.sub.fcm.startsWith('OLD') ? 410 : 200; };
+  P.target = s => (s && typeof s.fcm === 'string' && /^[\w:-]{6,200}$/.test(s.fcm) ? { fcm: s.fcm } : null);
+  P.to = t => P.sent.filter(m => m.sub.fcm === t);
+  return P;
+}
+test('notification « nouvelle Carte mystère » : appareils des comptes (8 au plus, retirés par leur compte), annoncée une fois dès 18:00 dans la langue de chacun, jamais deux fois (redémarrage compris), rattrapage dans les 2 h, cibles périmées retirées', async () => {
+  const dir = newDir(), S = await startDailyScry(), F = fakePush();
+  const mk = at => harness({ at, dir, scry: S, opts: { push: { send: F.send, target: F.target }, pushBatch: 2 } });
+  let h = await mk(Date.UTC(2026, 9, 15, 15, 30));      // 17:30 à Paris : carte du 14, sortie hier à 18:00 (plus de 2 h : trop tard pour l'annoncer)
+  assert.equal((await h.ready()).push, true, 'proposée par ce serveur');
+  const reg = (uid, fcm, l) => h.call('POST', 'api/daily/push', { tok: 'tok:' + uid, body: { sub: { fcm }, l } });
+  assert.equal((await h.call('POST', 'api/daily/push', { body: { sub: { fcm: 'tokA1-xxxxx' } } })).status, 401, 'compte exigé');
+  assert.equal((await reg('alice', 'pas un jeton !', 'fr')).status, 400, 'cible refusée');
+  const kA1 = (await reg('alice', 'tokA1-xxxxx', 'fr')).j.k, kA2 = (await reg('alice', 'tokA2-xxxxx', 'de')).j.k;
+  assert.equal(kA1, pushK('tokA1-xxxxx'), 'clé de l\'appareil : celle de proxy.mjs');
+  await reg('bob', 'tokB1-xxxxx', 'pt'); await reg('carol', 'GONE-carol', 'es'); await reg('dan', 'OLD-dan-xx', 'xx');
+  await h.D.tick(); assert.equal(F.sent.length, 0, '17:30 : rien');
+  h.T.now = Date.UTC(2026, 9, 15, 16, 0, 30); await h.D.tick();      // 18:00:30 : carte du 15, préparée d'avance
+  assert.equal(F.sent.length, 5, 'chaque appareil prévenu, par lots');
+  const m = F.to('tokA1-xxxxx')[0];
+  assert.deepEqual([m.title, m.body, m.url, m.kind, m.tag, m.topic, m.urgency], ['La Carte mystère du jour est là', 'Devine-la avant les autres.', './?mystere=1', 'open', 'mo-mystere', 'mo-mystere', 'normal']);
+  assert.equal(m.ttl, 86400 - 30, 'gardée par le service jusqu\'à la carte suivante');
+  assert.deepEqual([F.to('tokA2-xxxxx')[0].title, F.to('tokB1-xxxxx')[0].body, F.to('OLD-dan-xx')[0].title], ['Die Mysterykarte des Tages ist da', 'Adivinhe antes de todo mundo.', 'La Carte mystère du jour est là'], 'langue de l\'appareil (inconnue : français)');
+  for (const l of M.DLY_LANGS) assert.ok(M.DLY_PUSH_TXT[l].every(x => x && x.length <= 80), l + ' : titre et texte courts');
+  noLeak(JSON.stringify(F.sent.map(({ sub, ...x }) => x)), SERRA, 'notification');
+  await h.D.tick(); h.T.now += 600e3; await h.D.tick(); assert.equal(F.sent.length, 5, 'une seule fois par jour');
+  await h.D.flush(); let file = JSON.parse(readFileSync(join(dir, 'push.json'), 'utf8'));
+  assert.deepEqual([Object.keys(file.d).sort(), file.sent.day, file.sent.done, file.sent.n], [[kA1, kA2, pushK('tokB1-xxxxx')].sort(), '2026-10-15', true, 3], 'cibles refusées (404, 410) retirées ; journée annoncée écrite');
+  await h.stop();
+  h = await mk(Date.UTC(2026, 9, 15, 16, 5)); await h.ready(); await h.D.tick(); assert.equal(F.sent.length, 5, 'redémarré à 18:05 (redéploiement) : pas de seconde notification');
+  assert.equal((await h.call('POST', 'api/daily/push', { tok: 'tok:bob', body: { off: kA1 } })).j.ok, true); await h.call('POST', 'api/daily/push', { tok: 'tok:alice', body: { off: kA2 } });
+  await h.stop();
+  h = await mk(Date.UTC(2026, 9, 16, 17, 30)); await h.ready();      // lendemain : serveur arrêté de 17:50 à 19:30
+  assert.deepEqual(F.sent.slice(5).map(x => x.sub.fcm).sort(), ['tokA1-xxxxx', 'tokB1-xxxxx'], 'relancé à 19:30 : rattrapage ; retiré par son compte : plus rien ; « retiré » par un autre compte : gardé');
+  await h.stop();
+  h = await mk(Date.UTC(2026, 9, 17, 18, 30)); await h.ready(); await h.D.tick(); assert.equal(F.sent.length, 7, 'relancé à 20:30 : plus de 2 h après, rien ce jour-là');
+  h.T.now = Date.UTC(2026, 9, 18, 16, 0, 20); await h.D.tick(); assert.equal(F.sent.length, 9, 'lendemain 18:00 : annoncée');
+  for (let i = 0; i < 9; i++) await reg('erin', 'tokE' + i + '-xxxxx', 'it');
+  await reg('fred', 'tokB1-xxxxx', 'en');      // l'appareil de Bob, connecté à un autre compte
+  await h.D.flush(); file = JSON.parse(readFileSync(join(dir, 'push.json'), 'utf8'));
+  const of = uid => Object.values(file.d).filter(x => x.t === M.dlyTag(uid)).map(x => x.sub.fcm);
+  assert.equal(of('erin').length, 8, '8 appareils par compte'); assert.ok(!of('erin').includes('tokE0-xxxxx'), 'le plus ancien laisse sa place');
+  assert.deepEqual([of('bob'), of('fred'), file.d[pushK('tokB1-xxxxx')].l], [[], ['tokB1-xxxxx'], 'en'], 'même appareil, autre compte : il change de compte (et de langue)');
+  await h.stop(); S.stop();
+});
+test('notification : serveur arrêté en plein envoi → la reprise part après le dernier lot commencé, jamais deux fois le même appareil', async () => {
+  const dir = newDir(), S = await startDailyScry(), A = fakePush({ hang: 4 }), B = fakePush(), at = Date.UTC(2026, 9, 15, 16, 1);
+  const toks = Array.from({ length: 7 }, (_, i) => 'tokX' + i + '-xxxxx'), order = toks.slice().sort((a, b) => (pushK(a) < pushK(b) ? -1 : 1));
+  const h1 = await harness({ at, dir, scry: S, opts: { push: { send: A.send, target: A.target }, pushBatch: 3 } });
+  for (const t of toks) assert.equal((await h1.call('POST', 'api/daily/push', { tok: 'tok:u-' + t, body: { sub: { fcm: t }, l: 'fr' } })).status, 200);
+  h1.D.tick();      // lot 1 (3 appareils) envoyé, lot 2 commencé : 1 réponse, puis plus rien (arrêt en plein lot)
+  for (let i = 0; i < 100 && A.sent.length < 6; i++) await sleep(50);
+  assert.deepEqual(A.sent.map(x => x.sub.fcm), order.slice(0, 6), 'appareils pris dans l\'ordre des clés, par lots');
+  const h2 = await harness({ at: at + 60e3, dir, scry: S, opts: { push: { send: B.send, target: B.target }, pushBatch: 3 } });
+  await h2.D.tick();
+  assert.deepEqual(B.sent.map(x => x.sub.fcm), [order[6]], 'redémarré : seulement le lot suivant (le lot interrompu n\'est pas renvoyé)');
+  const all = [...A.sent, ...B.sent].map(x => x.sub.fcm); assert.equal(new Set(all).size, all.length, 'jamais deux fois le même appareil');
+  await h2.D.tick(); assert.equal(B.sent.length, 1);
+  await h2.stop(); await h1.stop(); S.stop();
+});
+
 /* ── Le vrai serveur ───────────────────────────────────────────────────────────────────────────────────────────────── */
 async function proxyUp(port, env) {
   const p = spawn('node', ['proxy.mjs'], { env: { ...process.env, PORT: String(port), EDH_SOURCE_URL: '', PRICES_SOURCE_URL: '', DAILY: '1', DAILY_FIRST_MS: '0', DAILY_GAP_MS: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -392,7 +461,7 @@ test('proxy.mjs : /__ping daily, jetons Firebase vérifiés, DAILY=0, panneau /a
   const P = await proxyUp(19700, { SCRYFALL_UPSTREAM: S.url, FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, DAILY_DIR: dir, DAILY_SECRET: 'abc' });
   assert.equal((await (await fetch(P.url + '__ping')).json()).daily, true);
   let st; for (let i = 0; i < 150; i++) { st = await (await fetch(P.url + 'api/daily')).json(); if (st.st === 'ready') break; await new Promise(r => setTimeout(r, 200)); }
-  assert.equal(st.st, 'ready', 'carte du jour prête : ' + P.out());
+  assert.equal(st.st, 'ready', 'carte du jour prête : ' + P.out()); assert.equal(st.push, false, 'sans compte de service : pas de notification « nouvelle Carte mystère »');
   const H = t => ({ 'Content-Type': 'application/json', ...(t ? { 'x-firebase-token': t } : {}) });
   const r = await fetch(P.url + 'api/daily/start', { method: 'POST', headers: H(F.jwt('uid-zoe')), body: JSON.stringify({ l: 'de', n: 'Zoé' }) }), j = await r.json(), raw = JSON.stringify(j);
   assert.equal(r.status, 200, raw); assert.equal(j.acct, true); noLeak(raw, SERRA, 'proxy');
@@ -408,11 +477,37 @@ test('proxy.mjs : /__ping daily, jetons Firebase vérifiés, DAILY=0, panneau /a
   const lv = await (await fetch(P.url + 'api/level', { method: 'POST', headers: H(F.jwt('uid-zoe')), body: JSON.stringify({ xp: 123456, n: 'Zoé' }) })).json();
   assert.deepEqual([lv.xp, lv.lv, lv.capped, lv.r], [50000, require('../src/progress.js').prgLevel(50000).lv, true, 1], '/api/level : premier envoi borné, niveau de progress.js');
   assert.ok(existsSync(join(dir, '.secret')) === false, 'DAILY_SECRET fourni : aucun secret écrit');
-  assert.ok(readdirSync(join(dir, 'img')).length === 1, 'images dans DAILY_DIR/img/<jour>');
+  assert.ok(readdirSync(join(dir, 'img')).includes(st.day), 'images dans DAILY_DIR/img/<jour>');      // (entre 17:15 et 18:00, la carte du lendemain y est déjà : préparée d'avance)
   P.p.kill();
   const Q = await proxyUp(19701, { DAILY: '0', DAILY_DIR: newDir() });
   assert.equal((await (await fetch(Q.url + '__ping')).json()).daily, false);
   assert.equal((await fetch(Q.url + 'api/daily')).status, 404); assert.equal((await fetch(Q.url + 'api/daily/start', { method: 'POST', headers: H(), body: '{}' })).status, 404);
+  Q.p.kill(); S.stop(); F.stop();
+});
+test('proxy.mjs : notification « nouvelle Carte mystère » par FCM (compte de service) : message, langue et destination, rien en double après un redémarrage ; DAILY_PUSH=0 ou sans compte de service : rien', async () => {
+  const F = await startFakes(), S = await startDailyScry(), dir = newDir(), TOK = 'eD1:APA91b' + 'z'.repeat(120);
+  const env = w => ({ ...F.env, SCRYFALL_UPSTREAM: S.url, DAILY_DIR: dir, DAILY_SECRET: 'abc', DAILY_PUSH_WINDOW_MS: w });
+  const ready = async P => { let st; for (let i = 0; i < 150; i++) { st = await (await fetch(P.url + 'api/daily')).json(); if (st.st === 'ready') break; await sleep(200); } assert.equal(st.st, 'ready', 'carte prête : ' + P.out()); return st; };
+  const H = { 'Content-Type': 'application/json', 'x-firebase-token': F.jwt('uid-zoe') }, reg = (P, b) => fetch(P.url + 'api/daily/push', { method: 'POST', headers: H, body: JSON.stringify(b) });
+  const P1 = await proxyUp(19703, env('0'));      // rattrapage nul : rien ne part pendant l'enregistrement
+  assert.equal((await ready(P1)).push, true, 'compte de service : proposée');
+  const r = await reg(P1, { sub: { fcm: TOK }, l: 'de' }), j = await r.json(); assert.equal(r.status, 200, JSON.stringify(j)); assert.equal(j.k, pushK(TOK));
+  assert.equal((await reg(P1, { sub: { fcm: 'court' } })).status, 400, 'jeton FCM mal formé (parseTarget)');
+  assert.equal((await fetch(P1.url + 'api/daily/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sub: { fcm: TOK } }) })).status, 401, 'compte exigé');
+  for (let i = 0; i < 60 && !existsSync(join(dir, 'push.json')); i++) await sleep(100);
+  P1.p.kill(); await sleep(300); assert.equal(F.fcmFor(TOK).length, 0);
+  const P2 = await proxyUp(19704, env(String(30 * 3600e3)));      // relancé « juste après 18:00 » : rattrapage au premier tour
+  for (let i = 0; i < 150 && !F.fcmFor(TOK).length; i++) await sleep(100);
+  const m = F.fcmFor(TOK); assert.equal(m.length, 1, 'annoncée : ' + P2.out());
+  assert.deepEqual([m[0].notification, m[0].data], [{ title: 'Die Mysterykarte des Tages ist da', body: 'Errate sie vor allen anderen.' }, { url: './?mystere=1' }], 'langue de l\'appareil, toucher : le jeu');
+  assert.deepEqual([m[0].android.notification.tag, m[0].android.collapse_key, m[0].android.priority], ['mo-mystere', 'mo-mystere', 'HIGH']); assert.match(m[0].android.ttl, /^\d+s$/);
+  assert.match(P2.out(), /annoncée par une notification/);
+  P2.p.kill(); await sleep(300);
+  const P3 = await proxyUp(19705, env(String(30 * 3600e3))); await ready(P3); await sleep(1500);
+  assert.equal(F.fcmFor(TOK).length, 1, 'redémarré (redéploiement) : pas de seconde notification le même jour');
+  P3.p.kill();
+  const Q = await proxyUp(19706, { ...env(String(30 * 3600e3)), DAILY_PUSH: '0' });
+  assert.equal((await ready(Q)).push, false); assert.equal((await reg(Q, { sub: { fcm: TOK } })).status, 404, 'DAILY_PUSH=0 : coupée');
   Q.p.kill(); S.stop(); F.stop();
 });
 

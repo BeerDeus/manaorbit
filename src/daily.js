@@ -10,6 +10,7 @@
    · Jeton d'appareil (x-daily-device) gardé dans le stockage local, IndexedDB et les Preferences de Capacitor. XP du compte envoyée au classement des niveaux.
    · Pub (ads.js › adsBusy) : jamais pendant le décompte et la partie (.dly-play) ; permise sur le résultat et les classements.
    · Proposé quand le serveur l'annonce (dlyOn : /__ping › daily ; DAILY=0 le coupe) : sinon rien n'apparaît ni ne s'ouvre. Mode streamer : pas d'animation.
+   · Notification « nouvelle Carte mystère » (Réglages › Notifications, allumée d'office là où les notifications le sont) : appareil enregistré pour le compte, voir dlyDev.
    · dailyBadges() : badges vérifiés par le serveur, pour le module niveau et badges. */
 const DY = { st: null, at: 0, off: 0, el: null, v: null, mode: '', bp: 'day', boards: {}, seen: new Set(), names: null, namesL: '', namesP: null, en: null, enP: null, hits: [], sel: -1, busy: false,
   tickT: 0, refT: 0, nextT: 0, badges: null, badgesAt: 0, badgesUid: '', load: 0, dev: '', lvT: 0, lvAt: 0, lvXp: -1, lvUid: '', quit: 0 };
@@ -82,7 +83,7 @@ async function dlyStatus(force) {
   const l = dlyLs(), q = new URLSearchParams({ l: dlyLang(), ...(!D.user && l.k ? { k: l.k } : {}) });
   try { DY.st = await dlyCall('?' + q); DY.at = Date.now(); }
   catch (e) { if (e.status === 404) { CTX.daily = false; dlyBtn(); } return null; }
-  dlyPaintBtn(); dlyArm(); return DY.st;
+  dlyPaintBtn(); dlyArm(); if (DY.st.push) dlyDevSoon(); return DY.st;      // notification « nouvelle Carte mystère » : appareil enregistré pour le compte
 }
 /** La partie du jour est-elle finie (sur le serveur, ou notée sur l'appareil) ? */
 function dlyDone() {
@@ -123,8 +124,12 @@ function dlyInit() {
 }
 /** Changement de compte (decks.js › onUser) : partie et badges d'un autre compte oubliés, état relu. */
 function dlyUser() { DY.badges = null; DY.badgesAt = 0; DY.st = null; DY.boards = {}; DY.lvXp = -1; if (DY.el && (DY.mode === 'play' || DY.mode === 'count')) dlyClose(); if (dlyOn()) { dlyStatus(true); dlyLevelSoon(true); } }
-/** Lien ?mystere (résultat partagé) : comme le bouton, seulement sur le lien d'essai. */
-function dlyLaunch() { if (dlyOn()) setTimeout(() => dlyTap(), 700); }
+/** Lien ?mystere (résultat partagé, notification « nouvelle Carte mystère » touchée : push.js › pushOpen) : comme le bouton, une fois la session du compte restaurée ;
+    les classements ouverts laissent la place (une partie en cours reste). */
+function dlyLaunch() {
+  if (!dlyOn()) return;
+  setTimeout(async () => { for (let i = 0; i < 60 && !D.authReady; i++) await sleep(100); if (DY.el && DY.mode !== 'play' && DY.mode !== 'count') dlyClose(); dlyTap(); }, 700);
+}
 /** Bouton de la Carte mystère : « Participer ? » si la partie du jour n'a pas commencé ; sinon la partie en cours, ou le résultat et les classements. */
 async function dlyTap() {
   if (!dlyOn()) return; haptic('tap');
@@ -572,6 +577,75 @@ async function dlyShare() {
   const text = dlyShareText(DY.v), url = dlyLink();
   if ((typeof natShare === 'function' && natShare()) || navigator.share) return shareOut({ title: T('Carte mystère'), text, url });
   copyText(text + '\n' + url);      // ordinateur : le texte entier (shareOut ne copierait que le lien)
+}
+
+/* ── Notification « nouvelle Carte mystère » (serveur : daily-srv.mjs › POST /api/daily/push ; Réglages › Notifications › Carte mystère) ─────────────────
+   Comme les notifications des amis (friends.js › amDev) : un appareil aux notifications actives (Web Push, jeton FCM dans l'appli) s'enregistre pour le compte
+   (une fois par semaine, ou quand son jeton, la langue ou le compte change) ; retiré en coupant l'interrupteur, à la déconnexion, quand les notifications de
+   l'appareil sont coupées ou bloquées. Activée d'office là où les notifications le sont déjà (interrupteur pour la couper), jamais ailleurs. Le serveur prévient
+   une fois par jour, dès que la carte est prête (/api/daily › push : proposé par ce serveur). Toucher : le jeu (dlyLaunch) ; reçue appli ouverte : toast « Jouer »
+   (jamais en mode streamer : push.js). Interrupteur, jeton et compte gardés sur l'appareil (deckdeal:daily:push). */
+const DY_PUSH = 'deckdeal:daily:push', DY_PUSH_TTL = 7 * 86400e3, DYP = { t: 0 };
+function dlyPushLs() { try { const o = JSON.parse(localStorage.getItem(DY_PUSH) || 'null'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
+function dlyPushSet(o) { try { localStorage.setItem(DY_PUSH, JSON.stringify(o)); } catch (e) { /* stockage plein ou refusé */ } }
+/** Le serveur propose la notification (Réglages › Notifications : rubrique « Carte mystère »). */
+const dlyPushShow = () => dlyOn() && !!(DY.st && DY.st.push);
+/** Cet appareil est enregistré pour la notification : son abonnement push reste quand on coupe la fin de recherche, les alertes ou les amis (push.js, alerts.js, friends.js). */
+function dlyHoldsPush() { const o = dlyPushLs(); return !!(o.dev && o.push !== false); }
+function dlyDevSoon(ms = 1500) { clearTimeout(DYP.t); DYP.t = setTimeout(() => dlyDev().catch(() => {}), ms); }
+/** Enregistre cet appareil pour le compte (notifications actives, interrupteur allumé), ou le retire (interrupteur coupé, notifications coupées ou bloquées ici). */
+async function dlyDev(force) {
+  if (!dlyPushShow() || !D.user) return;
+  const o = dlyPushLs(), dev = o.uid === D.uid ? String(o.dev || '') : '';
+  const off = async () => { await dlyCall('/push', { method: 'POST', body: { off: dev } }); dlyPushSet({ push: o.push !== false }); };
+  if (o.push === false) { if (dev) await off(); return; }
+  const st = await pushState().catch(() => '');
+  if (st === 'off' || st === 'denied') { if (dev) await off(); return; }      // notifications coupées sur cet appareil : plus rien ne doit y arriver
+  if (st !== 'on') return;
+  const sub = await pushTarget(); if (!sub) return;
+  const sig = String(hash32(JSON.stringify(sub) + '|' + I18N.lang + '|' + D.uid));
+  if (!force && dev && sig === o.sig && Date.now() - (Number(o.at) || 0) < DY_PUSH_TTL) return;
+  const r = await dlyCall('/push', { method: 'POST', body: { sub, l: I18N.lang } });
+  if (dev && r.k && r.k !== dev) dlyCall('/push', { method: 'POST', body: { off: dev } }).catch(() => {});      // jeton renouvelé : l'ancien ne doit plus rien recevoir
+  dlyPushSet({ uid: D.uid, dev: r.k || '', sig, at: Date.now(), push: true });
+}
+/** Déconnexion, effacement de l'appareil (me.js, decks.js › deviceForget) : cet appareil ne reçoit plus la notification. Jamais bloquant. */
+async function dlyPushOut() {
+  const o = dlyPushLs();
+  if (o.dev && D.user && o.uid === D.uid && dlyOn()) { try { await Promise.race([dlyCall('/push', { method: 'POST', body: { off: o.dev } }), sleep(2500)]); } catch (e) { /* hors ligne : le serveur retirera la cible à son premier refus */ } }
+  dlyPushSet({ push: o.push !== false });
+}
+/** Interrupteur allumé : autorisation demandée si besoin (push.js › pushEnable), puis appareil enregistré. */
+async function dlyPushOn() {
+  dlyPushSet({ ...dlyPushLs(), push: true });
+  const r = await pushEnable();
+  if (!r.ok) { toast(alWhy(r)); return false; }
+  try { await dlyDev(true); } catch (e) { toast(dlyErrText(e)); return false; }
+  toast(T('Tu seras prévenu de la nouvelle Carte mystère')); return true;
+}
+/** Réglages › Notifications : rubrique « Carte mystère » (app.js › openNotifSettings). */
+async function dlyPushBox(box) {
+  if (!box) return;
+  if (!D.user) { box.innerHTML = `<p class="hint">${esc(T('Connecte-toi pour être prévenu de la nouvelle Carte mystère.'))}</p>`; return; }
+  const st = await pushState().catch(() => ''); if (!box.isConnected) return;
+  if (st !== 'on' && st !== 'off') { box.innerHTML = `<p class="hint">${esc(st === 'denied' ? pushDeniedMsg() : T('Notifications indisponibles sur cet appareil.'))}</p>`; return; }
+  if (st === 'on' && dlyPushLs().push !== false) await Promise.race([dlyDev().catch(() => {}), sleep(2500)]); if (!box.isConnected) return;      // activée d'office : enregistrée avant d'afficher l'interrupteur
+  const o = dlyPushLs(), on = st === 'on' && o.push !== false && !!o.dev && o.uid === D.uid, h = DY.st && DY.st.next ? dlyHour(DY.st.next) : '';
+  box.innerHTML = `<label class="switch-row" for="dlyPushSw"><span class="t"><b>${esc(T('Nouvelle Carte mystère'))}</b><span class="hint">${esc(h ? T('Chaque jour à {h}, dès que la carte du jour est là : devine-la avant les autres.', { h }) : T('Chaque jour, dès que la carte du jour est là : devine-la avant les autres.'))}</span></span><span class="switch"><input type="checkbox" id="dlyPushSw"${on ? ' checked' : ''}><i></i></span></label>`;
+  const cb = $('#dlyPushSw', box);
+  cb.onchange = async () => {
+    cb.disabled = true;
+    if (cb.checked) { if (!(await dlyPushOn())) cb.checked = false; }
+    else { dlyPushSet({ ...dlyPushLs(), push: false }); try { await dlyDev(); } catch (e) { /* hors ligne : retirée à la prochaine relecture */ } if (!S.push && !(typeof AC !== 'undefined' && AC.on) && !amHoldsPush()) await pushDisable(); }      // l'abonnement reste tant qu'une autre notification s'en sert
+    cb.disabled = false;
+  };
+}
+/** Notification reçue appli ouverte (push.js ; n : null sur le site, le système l'affiche déjà) : état relu (le bouton s'anime) ; toast « Jouer » si la partie du jour
+    n'a pas commencé et que l'écran du jeu n'est pas ouvert. */
+async function dlyPushed(n) {
+  const st = await dlyStatus(true), msg = [n && n.title, n && n.body].filter(Boolean).join(' · ');
+  if (!msg || !st || st.st !== 'ready' || DY.el || dlyDone() || (st.me && st.me.started) || (typeof streamOn === 'function' && streamOn())) return;
+  toast(msg, { label: T('Jouer'), fn: () => dlyTap() });
 }
 
 /* ── Classement des niveaux : l'XP du compte (progress.js › prgNow) part au serveur, qui la plafonne par jour ───────────── */

@@ -2282,16 +2282,23 @@ async function namesApi(req, res, url) {
    seulement son empreinte (ADMIN_DEFAULT) ; ADMIN_EMAILS (adresses séparées par des virgules, lues ici seulement) la remplace. ADMIN=0 : coupé (404).
    La page (pwa/admin.html, admin.js, admin.css) ne contient aucune donnée : elle connecte le compte (SDK Firebase, comme l'appli) puis appelle l'API.
    Jamais en cache (no-store), jamais indexée (X-Robots-Tag), CSP stricte ; le service worker ne la garde pas (il ne garde que la page de l'appli).
-   Données, lues avec le compte de service (FCM_SERVICE_ACCOUNT), en lecture seule :
+   Données, lues avec le compte de service (FCM_SERVICE_ACCOUNT) :
    · comptes Firebase Authentication : Identity Toolkit accounts:batchGet (1 000 par page, ne coûte aucune lecture Firestore). Refusé (rôle IAM
      manquant) : Firestore seul (comptes tirés des documents users/…, sans e-mail ni dates), avec un avis sur la page ;
    · Firestore : documents meta de tous les comptes (une requête « groupe de collections », masque de champs : jamais la photo du profil, la liste
-     gardée, les decks montés ni le scan), decks (champ updatedAt seulement), pubdecks (champ o), pubreports (champ d), amis (pseudo, amis, demandes).
+     gardée, les decks montés ni le scan), decks (champ updatedAt seulement), pubdecks (champs o, by, cmd, updatedAt : ce que la Communauté montre déjà),
+     pubreports (champ d), amis (pseudo, amis, demandes).
      Coût d'un calcul : une lecture par document meta existant (7 au plus par compte), par deck, deck public, signalement et compte « amis ».
    Calcul gardé ADMIN_TTL_MS en mémoire (10 min) ; « Rafraîchir » le refait (une fois par minute au plus, ADMIN_REFRESH_PER_H par heure et par réseau).
-   Minimisation : seul le serveur voit les données brutes, le temps du calcul. La page reçoit prénom + initiale (« Jeanne D. »), e-mail masqué
-   (« ma•••@gmail.com »), un identifiant opaque (HMAC d'une clé tirée au démarrage) ; jamais d'UID, d'e-mail complet, de photo ni de nom complet.
-   Rien de tout cela dans le journal (erreurs : statut HTTP seulement). Pagination, tri et recherche côté serveur (50 comptes par page). */
+   Minimisation : seul le serveur voit les données brutes, le temps du calcul ; il garde en mémoire l'UID de chaque identifiant opaque (pour les actions),
+   jamais envoyé. La page reçoit prénom + initiale (« Jeanne D. »), e-mail masqué (« ma•••@gmail.com »), un identifiant opaque (HMAC d'une clé tirée
+   au démarrage) ; jamais d'UID, d'e-mail complet, de photo ni de nom complet. Rien de tout cela dans le journal du serveur (erreurs : statut HTTP seulement).
+   Pagination, tri et recherche côté serveur (50 comptes par page) ; GET /api/admin/export : la même liste (tri et recherche en cours) en CSV, mêmes champs réduits.
+   Actions (seules écritures ; POST en JSON, même origine, ADMIN_ACTIONS_PER_H par heure et par réseau, confirmées sur la page) : désactiver / réactiver
+   un compte (Identity Toolkit accounts:update, disableUser ; rôle IAM « Administrateur Firebase Authentication », roles/firebaseauth.admin) et retirer
+   un deck public (pubdecks/… effacé, enlevé aussitôt de la liste servie). Chaque essai est noté dans ADMIN_DIR/journal.json (500 derniers : date, action,
+   nom réduit, e-mail masqué, deck, résultat, éditeur masqué ; jamais d'UID). Comptes actifs par jour : ADMIN_DIR/actifs.json, relevés à chaque calcul
+   et toutes les ADMIN_ACTIVE_EVERY_MS (1 h ; Identity Toolkit seulement, aucune lecture Firestore) ; « actif » = même sens que les chiffres (activité). */
 const ADMIN_ON = process.env.ADMIN !== '0';
 // Empreinte SHA-256 (adresse en minuscules, sans espaces) de l'adresse e-mail de l'éditeur : la seule forme écrite dans le dépôt.
 const ADMIN_DEFAULT = ['6cad6e34ef574c9753e50865ff00a51d139de86223ae96dc9cb07856c4210a05'];
@@ -2304,6 +2311,10 @@ const ADM_GAP = Number(process.env.ADMIN_REFRESH_GAP_MS ?? 60e3), ADM_REF_H = Nu
 const ADM_DOCS = Math.max(100, Number(process.env.ADMIN_MAX_DOCS) || 40000), ADM_ACCTS = 50000, ADM_PER = 50;      // plafonds : documents lus par collection, comptes listés
 const ADM_SORTS = ['created', 'login', 'seen', 'cards', 'decks'];
 const ADM = { snap: null, run: null, tried: 0, key: randomBytes(32) };
+const ADM_DIR = process.env.ADMIN_DIR || join(EDH_DIR, 'admin'), ADM_LOG_FILE = join(ADM_DIR, 'journal.json'), ADM_ACT_FILE = join(ADM_DIR, 'actifs.json');
+const ADM_ACT_H = Number(process.env.ADMIN_ACTIONS_PER_H ?? 30), ADM_EXP_H = 20, ADM_LOG_MAX = 500, ADM_LOG_SHOW = 30, ADM_DAYS_KEPT = 120;      // actions et exports CSV par heure et par réseau ; journal ; jours d'actifs gardés
+const ADM_EVERY = Number(process.env.ADMIN_ACTIVE_EVERY_MS ?? 3600e3);      // relevé des comptes actifs du jour (0 : seulement à chaque calcul)
+const ADM_LOG = { list: null, chain: Promise.resolve() }, ADM_ACT = { days: null, bad: false, err: -1, chain: Promise.resolve() };
 const ADM_HD = { 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' };
 // Page : aucun script en ligne ; SDK Firebase (gstatic) et fenêtre de connexion Google (apis.google.com, domaine d'authentification du projet) seulement.
 const ADM_CSP = `default-src 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; `
@@ -2312,6 +2323,13 @@ const ADM_CSP = `default-src 'none'; script-src 'self' https://www.gstatic.com h
 const ADM_FILES = new Map([['/admin', ['admin.html', 'text/html; charset=utf-8']], ['/admin/', ['admin.html', 'text/html; charset=utf-8']], ['/admin/app.js', ['admin.js', 'text/javascript; charset=utf-8']], ['/admin/app.css', ['admin.css', 'text/css; charset=utf-8']]]);
 const admId = uid => createHmac('sha256', ADM.key).update(String(uid)).digest('base64url').slice(0, 12);
 const admDay = (() => { let f = null; try { f = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }); } catch (e) { /* sans ICU : UTC */ } return t => (f ? f.format(t) : new Date(t).toISOString().slice(0, 10)); })();
+/** Date et heure de Paris, « 2026-10-19 14:03 » (CSV) ; 0 : vide. */
+const admStamp = (() => { let f = null; try { f = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) { /* sans ICU : UTC */ } return t => (!(t > 0) ? '' : f ? f.format(t) : new Date(t).toISOString().slice(0, 16).replace('T', ' ')); })();
+/** Les 30 derniers jours de Paris (« AAAA-MM-JJ »), aujourd'hui en dernier ; comptés depuis midi UTC du jour de Paris : aucun saut ni doublon aux changements d'heure. */
+const admDays = (now, n = 30) => { const noon = Date.parse(admDay(now) + 'T12:00:00Z'); return Array.from({ length: n }, (_, i) => new Date(noon - (n - 1 - i) * 86400e3).toISOString().slice(0, 10)); };
+/** Une modification d'un fichier du panneau à la fois (journal, actifs). */
+const admRun = (o, fn) => { const p = o.chain.then(fn); o.chain = p.catch(() => {}); return p; };
+async function admSave(f, obj) { await mkdir(dirname(f), { recursive: true }); const tmp = f + '.tmp'; await writeFile(tmp, JSON.stringify(obj)); await rename(tmp, f); }      // écriture atomique
 // Messageries grand public : le domaine reste lisible (« ma•••@gmail.com ») ; un autre domaine (souvent le nom de quelqu'un) est masqué aussi.
 const ADM_MAILS = /^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|icloud|me|mac|aol|proton|protonmail|pm|gmx|web|orange|wanadoo|free|sfr|neuf|laposte|bbox|numericable|libero|virgilio|tiscali|t-online|freenet|yandex|zoho|uol|bol|terra)\.[a-z.]{2,9}$/;
 /** « martin.dupont@gmail.com » → « ma•••@gmail.com » ; domaine privé : « ma•••@s•••.fr ». */
@@ -2398,7 +2416,7 @@ function admRefresh() {
     ADM.tried = Date.now();
     const notes = []; let src = 'none', accts = null;
     const per = new Map(), P = uid => { let x = per.get(uid); if (!x) per.set(uid, x = { decks: 0, act: 0 }); return x; };
-    const amis = new Map(), pubs = new Map(); let reports = 0, fsOk = false, capped = false;
+    const amis = new Map(), pubs = new Map(), pdl = [], flags = new Map(); let reports = 0, fsOk = false, capped = false;
     if (!FCM_ON) notes.push({ k: 'sa', t: 'Compte de service absent (FCM_SERVICE_ACCOUNT) : comptes et statistiques indisponibles ; seul l\'état du serveur est affiché.' });
     else {
       try { accts = await admAccounts(); src = 'auth'; }
@@ -2422,8 +2440,14 @@ function admRefresh() {
           const m = RE.exec(d.name); if (!m || m[2] !== 'decks') return;
           const x = P(decodeURIComponent(m[1])), at = Number(fsFields(d).updatedAt) || 0; x.decks++; if (at > x.act) x.act = at;
         });
-        const [pd, pr, am] = await Promise.all([admList('pubdecks', ['o']), admList('pubreports', ['d']), admList('amis', ['j'])]);
-        for (const d of pd) { const id = String(d.name || '').split('/').pop(), o = fsFields(d).o; if (/^[0-9a-f]{64}_[0-9]$/.test(id) && o === id.slice(0, 64)) pubs.set(o, (pubs.get(o) || 0) + 1); }
+        const [pd, pr, am] = await Promise.all([admList('pubdecks', ['o', 'by', 'cmd', 'updatedAt']), admList('pubreports', ['d']), admList('amis', ['j'])]);
+        for (const d of pr) { const x = fsFields(d).d; if (typeof x === 'string') flags.set(x, (flags.get(x) || 0) + 1); }
+        for (const d of pd) {      // decks publics : gardés ici (serveur seulement) pour les lister par compte, les signalés et les retirer
+          const id = String(d.name || '').split('/').pop(), f = fsFields(d), o = f.o; if (!/^[0-9a-f]{64}_[0-9]$/.test(id) || o !== id.slice(0, 64)) continue;
+          pubs.set(o, (pubs.get(o) || 0) + 1); const rep = flags.get(id) || 0;
+          pdl.push({ k: admId('pub:' + id), id, o, slot: Number(id.slice(65)), by: typeof f.by === 'string' ? f.by.slice(0, 30) : '', cmd: Array.isArray(f.cmd) ? f.cmd.filter(c => typeof c === 'string').slice(0, 2).map(c => c.slice(0, 150)) : [],
+            at: Number(f.updatedAt) || 0, rep, hid: PUB_HIDE.has(id) || rep >= PUB_REPORTS });
+        }
         reports = pr.length;
         for (const d of am) { const t = String(d.name || '').split('/').pop(), s = AM_TAG.test(t) ? amRead(String(fsFields(d).j || '')) : null; if (s) amis.set(t, { n: s.n, l: s.l, f: amN(s.f), i: amN(s.i), o: amN(s.o) }); }
         capped = nm >= ADM_DOCS || nd >= ADM_DOCS || pd.length >= ADM_DOCS || am.length >= ADM_DOCS;
@@ -2436,17 +2460,18 @@ function admRefresh() {
     }
     // Lignes réduites : un compte Firebase (ou, sans la liste des comptes, un compte trouvé dans Firestore) par ligne
     const list = accts || [...per.keys()].map(uid => ({ uid, email: '', ver: null, dn: '', dis: false, prov: [], created: 0, login: 0, refresh: 0 }));
+    const who = new Map(), byTag = new Map();      // identifiant opaque → UID (actions), empreinte → identifiant (decks publics) : serveur seulement, jamais envoyés
     const now = Date.now(), rows = list.map(a => {
-      const x = per.get(a.uid), tag = amTag(a.uid), m = amis.get(tag), pb = pubs.get(tag) || 0;
-      return { id: admId(a.uid), name: admName(x && x.pseudo) || admName(m && m.n) || admName(a.dn), mail: admMail(a.email), created: a.created, login: a.login,
+      const x = per.get(a.uid), tag = amTag(a.uid), m = amis.get(tag), pb = pubs.get(tag) || 0, id = admId(a.uid);
+      who.set(id, { uid: a.uid, adm: !!(a.ver && a.email && ADMIN_SET.has(admHash(a.email))) }); byTag.set(tag, id);
+      return { id, name: admName(x && x.pseudo) || admName(m && m.n) || admName(a.dn), mail: admMail(a.email), created: a.created, login: a.login,
         seen: Math.min(now, Math.max(a.login, a.refresh, x ? x.act : 0)), prov: a.prov.map(p => ADM_PROV[p] || 'autre'), verified: a.ver, disabled: a.dis,
         cards: x && Number.isFinite(x.cards) ? x.cards : 0, copies: x && x.copies || 0, decks: x ? x.decks : 0, pub: pb, trade: !!(x && x.trade), dlinks: x && x.dlinks || 0, wish: x && x.wish || 0,
         friends: m ? m.f : 0, inc: m ? m.i : 0, out: m ? m.o : 0, lang: m ? m.l : '', value: x && x.value || 0, mo: !!(x || m || pb) };
     });
     // Totaux, inscriptions des 30 derniers jours (heure de Paris), activité
     const sum = k => rows.reduce((t, r) => t + (Number(r[k]) || 0), 0), cnt = fn => rows.reduce((t, r) => t + (fn(r) ? 1 : 0), 0);
-    const noon = Date.parse(admDay(now) + 'T12:00:00Z');      // jours comptés depuis midi UTC du jour de Paris : aucun saut ni doublon aux changements d'heure
-    const days = Array.from({ length: 30 }, (_, i) => new Date(noon - (29 - i) * 86400e3).toISOString().slice(0, 10)), byDay = new Map(days.map(d => [d, 0]));
+    const days = admDays(now), byDay = new Map(days.map(d => [d, 0]));
     for (const r of rows) if (r.created) { const d = admDay(r.created); if (byDay.has(d)) byDay.set(d, byDay.get(d) + 1); }
     const prov = {}, langs = {};
     for (const r of rows) { for (const p of r.prov) prov[p] = (prov[p] || 0) + 1; if (r.lang) langs[r.lang] = (langs[r.lang] || 0) + 1; }
@@ -2456,7 +2481,8 @@ function admRefresh() {
       cards: sum('cards'), copies: sum('copies'), colls: cnt(r => r.copies > 0), decks: sum('decks'), pub: [...pubs.values()].reduce((t, n) => t + n, 0), reports,
       trade: cnt(r => r.trade), dlinks: sum('dlinks'), wish: sum('wish'), friendships: Math.round([...amis.values()].reduce((t, m) => t + m.f, 0) / 2), pending: [...amis.values()].reduce((t, m) => t + m.i, 0), amis: amis.size,
       value: sum('value'), valued: cnt(r => r.value > 0), fs: fsOk };
-    ADM.snap = { at: now, src, notes, ov, rows };
+    ADM.snap = { at: now, src, notes, ov, rows, who, byTag, decks: pdl };
+    if (rows.length) await admNote(rows.map(r => r.seen), now).catch(() => {});      // comptes actifs du jour (courbe)
   })().catch(e => { console.warn('Admin : calcul impossible (' + String(e && e.message || e).slice(0, 80) + ')'); }).finally(() => { ADM.run = null; });
   return ADM.run;
 }
@@ -2482,19 +2508,147 @@ async function admServer() {
     data: { dir: EDH_DIR, env: !!process.env.EDH_DATA_DIR, first: DATA_BOOT.first, boots: DATA_BOOT.boots, err: DATA_BOOT.err } };
 }
 const admFold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-/** Réponse : instantané (âge), avis, totaux, état du serveur et une page de comptes (tri, recherche sur le nom réduit et l'e-mail masqué). */
-async function admSend(res, url) {
-  const s = ADM.snap, q = admFold(String(url.searchParams.get('q') || '').slice(0, 60).trim());
+/** Comptes de l'instantané comme la liste affichée : recherche (nom réduit, e-mail masqué), tri et sens de ?q, sort, dir. */
+function admPick(s, url) {
+  const q = admFold(String(url.searchParams.get('q') || '').slice(0, 60).trim());
   const sort = ADM_SORTS.includes(url.searchParams.get('sort')) ? url.searchParams.get('sort') : 'created', asc = url.searchParams.get('dir') === 'asc';
   let rows = s ? s.rows : [];
   if (q) rows = rows.filter(r => admFold(r.name).includes(q) || admFold(r.mail).includes(q));
   rows = rows.slice().sort((a, b) => ((Number(a[sort]) || 0) - (Number(b[sort]) || 0)) * (asc ? 1 : -1) || (a.id < b.id ? -1 : 1));
+  return { rows, q, sort, asc };
+}
+/** Deck public tel que la page le reçoit : clé opaque (jamais l'identifiant du document, qui contient l'empreinte du compte), pseudo et commandants
+ *  (déjà publics), date, signalements, masqué (PUBDECKS_HIDE ou PUBDECKS_REPORTS signalements), compte (identifiant opaque, nom réduit, e-mail masqué). */
+function admDeckOut(s, d) {
+  const id = s.byTag.get(d.o) || '', r = id ? s.rows.find(x => x.id === id) : null;
+  return { k: d.k, slot: d.slot, by: d.by, cmd: d.cmd, at: d.at, rep: d.rep, hid: d.hid, owner: id, name: r ? r.name : '', mail: r ? r.mail : '' };
+}
+const admReported = s => (s ? s.decks.filter(d => d.rep > 0).sort((a, b) => b.rep - a.rep || b.at - a.at).slice(0, 100).map(d => admDeckOut(s, d)) : []);
+/** Journal des actions : liste chargée une fois ; fichier présent mais illisible : erreur (jamais réécrit par-dessus). */
+async function admLogList() {
+  if (ADM_LOG.list) return ADM_LOG.list;
+  try { const j = JSON.parse(await readFile(ADM_LOG_FILE, 'utf8')); ADM_LOG.list = (Array.isArray(j.list) ? j.list : []).filter(x => x && Number.isFinite(x.t)); }
+  catch (e) { if (e && e.code !== 'ENOENT') throw e; ADM_LOG.list = []; }
+  return ADM_LOG.list;
+}
+const admLogShow = () => admLogList().then(l => l.slice(-ADM_LOG_SHOW).reverse(), () => null);
+/** Note une action (réussie ou non) : { t, a: off | on | pub, n: nom réduit, m: e-mail masqué, d: deck, ok, e: erreur, by: éditeur masqué }. */
+function admLog(rec) {
+  return admRun(ADM_LOG, async () => { const l = await admLogList(); l.push(rec); if (l.length > ADM_LOG_MAX) l.splice(0, l.length - ADM_LOG_MAX); await admSave(ADM_LOG_FILE, { v: 1, list: l }); })
+    .catch(e => { console.warn('Admin : journal des actions impossible à écrire (' + (e && e.code || 'erreur') + ')'); });
+}
+/** Comptes actifs par jour gardés ({ 'AAAA-MM-JJ': { a, at } }) ; fichier illisible : historique vide, jamais réécrit par-dessus. */
+async function admActLoad() {
+  if (ADM_ACT.days) return ADM_ACT.days;
+  try { const j = JSON.parse(await readFile(ADM_ACT_FILE, 'utf8')); ADM_ACT.days = j && j.days && typeof j.days === 'object' && !Array.isArray(j.days) ? j.days : {}; }
+  catch (e) { if (e && e.code !== 'ENOENT') { ADM_ACT.bad = true; console.warn('Admin : ' + ADM_ACT_FILE + ' illisible, comptes actifs non relevés'); } ADM_ACT.days = {}; }
+  return ADM_ACT.days;
+}
+/** Relevé des comptes actifs (dates de dernière activité) : nombre de comptes actifs aujourd'hui (heure de Paris), le plus haut relevé du jour gardé (il ne
+ *  fait que monter jusqu'à minuit). La veille n'est complétée que si elle a déjà un relevé (le lendemain, un compte revenu n'y compte plus : jamais un
+ *  jour commencé par un relevé du lendemain). */
+function admNote(seen, now = Date.now()) {
+  return admRun(ADM_ACT, async () => {
+    const days = await admActLoad(); if (ADM_ACT.bad) return;
+    const [yday, today] = admDays(now, 2), n = { [today]: 0, [yday]: 0 };
+    for (const t of seen) { const d = t > 0 ? admDay(t) : ''; if (d in n) n[d]++; }
+    let ch = false;
+    for (const d of [yday, today]) if ((d === today || days[d]) && (!days[d] || n[d] > days[d].a)) { days[d] = { a: n[d], at: now }; ch = true; }
+    const keys = Object.keys(days).sort(); for (const k of keys.slice(0, Math.max(0, keys.length - ADM_DAYS_KEPT))) { delete days[k]; ch = true; }
+    if (ch) await admSave(ADM_ACT_FILE, { v: 1, days });
+  });
+}
+/** Relevé régulier (ADMIN_ACTIVE_EVERY_MS) : liste des comptes Firebase seulement (aucune lecture Firestore) ; sauté juste après un calcul complet. */
+async function admTick() {
+  if (!FCM_ON || ADM.run || (ADM.snap && Date.now() - ADM.snap.at < ADM_EVERY / 2)) return;
+  try { const l = await admAccounts(), now = Date.now(); await admNote(l.map(a => Math.min(now, Math.max(a.login, a.refresh))), now); ADM_ACT.err = 0; }
+  catch (e) { const st = e && e.http || 0; if (ADM_ACT.err !== st) console.warn('Admin : relevé des comptes actifs impossible (' + (st ? 'HTTP ' + st : 'réseau') + ')'); ADM_ACT.err = st; }
+}
+/** Courbe des actifs : les 30 derniers jours (null : pas de relevé ce jour-là), premier jour relevé. */
+async function admActive(now = Date.now()) {
+  let days = {}; try { days = await admActLoad(); } catch (e) { /* vide */ }
+  return { days: admDays(now).map(d => [d, days[d] ? days[d].a : null]), since: Object.keys(days).sort()[0] || '', every: ADM_EVERY };
+}
+/** Réponse : instantané (âge), avis, totaux, état du serveur, une page de comptes (tri, recherche sur le nom réduit et l'e-mail masqué), actifs par jour,
+ *  decks publics signalés, dernières actions. */
+async function admSend(res, url) {
+  const s = ADM.snap, { rows, q, sort, asc } = admPick(s, url);
   const pages = Math.max(1, Math.ceil(rows.length / ADM_PER)), page = Math.min(pages, Math.max(1, Math.floor(Number(url.searchParams.get('page'))) || 1));
   let testers = null; try { testers = (await tsList()).length; } catch (e) { /* fichier illisible : la carte l'indique */ }
   return json(res, 200, { at: s ? s.at : 0, ttl: ADM_TTL, testers, scans: await srSummary(), src: s ? s.src : 'none', notes: s ? s.notes : [{ k: 'none', t: 'Statistiques momentanément indisponibles.' }], ov: s ? s.ov : null, srv: await admServer(),
+    active: await admActive(), reported: admReported(s), pubMax: PUB_REPORTS, log: await admLogShow(), acts: FCM_ON,
     users: { total: rows.length, page, pages, per: ADM_PER, sort, dir: asc ? 'asc' : 'desc', q, rows: rows.slice((page - 1) * ADM_PER, page * ADM_PER) } }, ADM_HD);
 }
-/** Compte de l'éditeur ? Sinon réponse d'erreur envoyée (sans aucune donnée) et false. Un compte authentique mais non autorisé est compté comme un essai invalide. */
+/** CSV (point-virgule, BOM : Excel en français l'ouvre tel quel) : les mêmes champs réduits que la liste, tri et recherche en cours. Une cellule qui
+ *  commence par = + - @ (pseudo libre) est précédée d'une apostrophe : jamais lue comme une formule par le tableur. */
+const admCell = v => { let x = v == null ? '' : String(v); if (/^[=+\-@\t\r]/.test(x)) x = '\'' + x; return /[;"\r\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
+const ADM_PROV_FR = { google: 'Google', mail: 'E-mail', apple: 'Apple', phone: 'Téléphone', facebook: 'Facebook', github: 'GitHub', twitter: 'X', microsoft: 'Microsoft', autre: 'Autre' };      // comme la page
+const ADM_CSV = [['Nom', r => r.name], ['E-mail (masqué)', r => r.mail], ['Connexion', r => r.prov.map(p => ADM_PROV_FR[p] || p).join(' + ')], ['Adresse vérifiée', r => (r.verified == null ? '' : r.verified ? 'oui' : 'non')],
+  ['Désactivé', r => (r.disabled ? 'oui' : 'non')], ['Données Mana Orbit', r => (r.mo ? 'oui' : 'non')], ['Inscription', r => admStamp(r.created)], ['Dernière connexion', r => admStamp(r.login)],
+  ['Dernière activité', r => admStamp(r.seen)], ['Cartes', r => r.cards], ['Exemplaires', r => r.copies], ['Decks', r => r.decks], ['Decks publics', r => r.pub], ['Lien d\'échange', r => (r.trade ? 'oui' : 'non')],
+  ['Decks partagés', r => r.dlinks], ['Cartes recherchées', r => r.wish], ['Amis', r => r.friends], ['Demandes reçues', r => r.inc], ['Demandes envoyées', r => r.out], ['Langue', r => r.lang.toUpperCase()],
+  ['Valeur (€)', r => (r.value ? (r.value / 100).toFixed(2).replace('.', ',') : '0')]];
+function admCsv(res, url) {
+  const { rows } = admPick(ADM.snap, url), body = Buffer.from('﻿' + [ADM_CSV.map(c => c[0]), ...rows.map(r => ADM_CSV.map(c => c[1](r)))].map(l => l.map(admCell).join(';')).join('\r\n') + '\r\n');
+  res.writeHead(200, { ...SEC, ...ADM_HD, 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Length': body.length, 'Content-Disposition': `attachment; filename="comptes-mana-orbit-${admDay(Date.now())}.csv"` });
+  return res.end(body);
+}
+/** Deck public retiré par le panneau : enlevé tout de suite de la liste servie (/api/pubdecks), sans relecture ; la relecture suivante ne le trouve plus. */
+async function pubForget(id) {
+  if (!PUB.raw) return;
+  try {
+    const j = JSON.parse(PUB.raw.toString('utf8')), n = j.decks.length; j.decks = j.decks.filter(d => !d || d.id !== id); if (j.decks.length === n) return;
+    const raw = Buffer.from(JSON.stringify(j)); Object.assign(PUB, { raw, gz: await gzipA(raw), etag: '"' + sha1Of(raw) + '"', n: j.decks.length });
+  } catch (e) { /* liste illisible : relue au prochain passage */ }
+}
+/** Actions (POST, compte de l'éditeur déjà vérifié) : disable { id, on } désactive (on: true) ou réactive un compte, pubdel { k } retire un deck public.
+ *  Contre les requêtes d'une autre page : jeton dans un en-tête (jamais un cookie), JSON exigé (un formulaire ne peut pas en envoyer), Sec-Fetch-Site
+ *  same-origin quand le navigateur l'envoie. ADMIN_ACTIONS_PER_H par heure et par réseau. Chaque essai est noté au journal (jamais d'UID). */
+async function admAct(req, res, sub, u) {
+  const sf = String(req.headers['sec-fetch-site'] || '');
+  if (sf && sf !== 'same-origin' && sf !== 'none') return json(res, 403, { error: 'cross_site', message: 'Action refusée : demande venue d\'une autre page.' }, ADM_HD);
+  if (!/^application\/json\b/i.test(String(req.headers['content-type'] || ''))) return json(res, 415, { error: 'bad_content_type', message: 'Content-Type: application/json attendu.' }, ADM_HD);
+  const w = rateWait(req, 'adminact', ADM_ACT_H, 3600e3); if (w) return tooMany(res, w);
+  let b; try { b = JSON.parse((await readBody(req, 1024)).toString('utf8') || '{}'); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }, ADM_HD); }
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return json(res, 400, { error: 'bad_request', message: 'JSON invalide' }, ADM_HD);
+  const s = ADM.snap; if (!FCM_ON || !s) return json(res, 503, { error: 'unavailable', message: FCM_ON ? 'Statistiques pas encore calculées : recharge la page.' : 'Compte de service absent (FCM_SERVICE_ACCOUNT) : action impossible.' }, ADM_HD);
+  const by = admMail(u.email), fail = (e, rec, what) => {
+    const st = e && e.http || 0; console.warn('Admin : ' + what + ' impossible (' + (st ? 'HTTP ' + st : 'réseau') + ')');
+    return admLog({ ...rec, ok: false, e: st ? 'HTTP ' + st : 'réseau' }).then(admLogShow).then(log => ({ st, log }));
+  };
+  if (sub === 'disable') {
+    const id = typeof b.id === 'string' ? b.id : '', on = b.on, x = s.who.get(id), row = x && s.rows.find(r => r.id === id);
+    if (typeof on !== 'boolean') return json(res, 400, { error: 'bad_request', message: 'on (true : désactiver, false : réactiver) attendu.' }, ADM_HD);
+    if (!row) return json(res, 404, { error: 'not_found', message: 'Compte introuvable : recharge la page.' }, ADM_HD);
+    if (x.uid === u.uid || x.adm) return json(res, 400, { error: 'admin_account', message: 'Compte administrateur : jamais désactivé depuis ce panneau.' }, ADM_HD);
+    const rec = { t: Date.now(), a: on ? 'off' : 'on', n: row.name, m: row.mail, by };
+    try { await admFetch(`${IT_BASE}/v1/projects/${fcmSa.project}/accounts:update`, IT_SCOPE, { method: 'POST', body: JSON.stringify({ localId: x.uid, disableUser: on }) }); }
+    catch (e) {
+      const { st, log } = await fail(e, rec, on ? 'désactivation' : 'réactivation'), iam = st === 403 || st === 401, what = on ? 'Désactivation' : 'Réactivation';
+      return json(res, 502, { error: iam ? 'iam' : 'upstream', log, message: iam ? what + ' refusée au compte de service (HTTP ' + st + '). Rôle IAM à ajouter au compte de service : « Administrateur Firebase Authentication » (roles/firebaseauth.admin).'
+        : what + ' impossible (' + (st ? 'HTTP ' + st : 'réseau') + ') : réessaie plus tard.' }, ADM_HD);
+    }
+    row.disabled = on; s.ov.disabled = s.rows.reduce((t, r) => t + (r.disabled ? 1 : 0), 0);
+    await admLog({ ...rec, ok: true });
+    return json(res, 200, { ok: true, row, ov: s.ov, log: await admLogShow() }, ADM_HD);
+  }
+  // pubdel : document pubdecks/… effacé (s'il existe encore) ; ses signalements restent (republié au même emplacement, il reste masqué s'il l'était)
+  const k = typeof b.k === 'string' ? b.k : '', i = s.decks.findIndex(d => d.k === k), d = s.decks[i];
+  if (!d) return json(res, 404, { error: 'not_found', message: 'Deck introuvable : recharge la page.' }, ADM_HD);
+  const oid = s.byTag.get(d.o) || '', row = oid ? s.rows.find(r => r.id === oid) : null;
+  const rec = { t: Date.now(), a: 'pub', n: row ? row.name : '', m: row ? row.mail : '', d: [d.cmd.join(' + '), d.by ? 'par ' + d.by : ''].filter(Boolean).join(' · '), by };
+  let gone = false;
+  try { await admFetch(`${admDocs()}/pubdecks/${encodeURIComponent(d.id)}?currentDocument.exists=true`, DS_SCOPE, { method: 'DELETE' }); }
+  catch (e) {
+    if (e.http === 404) gone = true;      // déjà retiré (par son propriétaire, ou ailleurs)
+    else { const { st, log } = await fail(e, rec, 'retrait d\'un deck public'); return json(res, 502, { error: 'upstream', log, message: 'Retrait impossible (' + (st ? 'HTTP ' + st : 'réseau') + ') : réessaie plus tard.' }, ADM_HD); }
+  }
+  s.decks.splice(i, 1); if (row) row.pub = Math.max(0, row.pub - 1); s.ov.pub = Math.max(0, s.ov.pub - 1); await pubForget(d.id);
+  await admLog({ ...rec, ok: true, ...(gone ? { e: 'déjà retiré' } : {}) });
+  return json(res, 200, { ok: true, gone, ov: s.ov, reported: admReported(s), log: await admLogShow() }, ADM_HD);
+}
+/** Compte de l'éditeur ? Oui : le compte vérifié ({ uid, email… }) ; sinon réponse d'erreur envoyée (sans aucune donnée) et false. Un compte authentique
+ *  mais non autorisé est compté comme un essai invalide. */
 async function admAuth(req, res) {
   const tok = String(req.headers['x-firebase-token'] || '');
   if (!tok) { json(res, 401, { error: 'auth_required', message: 'Connecte-toi.' }, ADM_HD); return false; }
@@ -2508,14 +2662,14 @@ async function admAuth(req, res) {
     else await badKey(req, res, 'bad_token', 401);
     return false;
   }
-  if (u.email && u.emailVerified && ADMIN_SET.has(admHash(u.email))) return true;
+  if (u.email && u.emailVerified && ADMIN_SET.has(admHash(u.email))) return u;
   await badHit(req);
   json(res, 403, { error: 'forbidden', message: 'Accès réservé.' }, ADM_HD); return false;
 }
 async function adminApi(req, res, path, url) {
   if (!ADMIN_ON) return json(res, 404, { error: 'not_found' }, ADM_HD);
   const img = /^admin\/scans\/[0-9a-z-]+\.jpg$/.test(path), w = img ? rateWait(req, 'adminimg', 600, 600e3) : rateWait(req, 'admin', 120, 600e3); if (w) return tooMany(res, w);      // photos des scans signalés : leur propre budget (une par signalement affiché)
-  if (!(await admAuth(req, res))) return;
+  const u = await admAuth(req, res); if (!u) return;
   const sub = path.replace(/^admin\/?/, '');
   if (sub === 'scans' || sub.startsWith('scans/')) return srAdmin(req, res, sub, url);      // scans signalés depuis l'appli
   if (sub === 'daily' || sub.startsWith('daily/')) return DLY ? DLY.admin(req, res, sub, url) : json(res, 404, { error: 'not_found' }, ADM_HD);      // Carte mystère : joueurs des 7 derniers jours, pseudo masqué
@@ -2532,6 +2686,17 @@ async function adminApi(req, res, path, url) {
     const w2 = rateWait(req, 'adminref', ADM_REF_H, 3600e3); if (w2) return tooMany(res, w2);
     await admRefresh(); return admSend(res, url);
   }
+  if (req.method === 'GET' && sub === 'export') {      // liste des comptes en CSV (tri et recherche en cours) : le même instantané, aucune lecture de plus
+    const w2 = rateWait(req, 'adminexp', ADM_EXP_H, 3600e3); if (w2) return tooMany(res, w2);
+    if (!ADM.snap || Date.now() - ADM.snap.at > ADM_TTL) await admRefresh();
+    return admCsv(res, url);
+  }
+  if (req.method === 'GET' && sub === 'pubdecks') {      // decks publics d'un compte (identifiant opaque de la liste), tirés de l'instantané
+    const s = ADM.snap, id = String(url.searchParams.get('id') || '');
+    if (!s || !s.who.has(id)) return json(res, 404, { error: 'not_found', message: 'Compte introuvable : recharge la page.' }, ADM_HD);
+    return json(res, 200, { rows: s.decks.filter(d => s.byTag.get(d.o) === id).sort((a, b) => a.slot - b.slot).map(d => admDeckOut(s, d)) }, ADM_HD);
+  }
+  if (req.method === 'POST' && (sub === 'disable' || sub === 'pubdel')) return admAct(req, res, sub, u);
   return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
 }
 
@@ -2751,7 +2916,9 @@ async function srAdmin(req, res, sub, url) {
 /* ── Carte mystère : le jeu du jour (daily-srv.mjs) ────────────────────────────────────────────────────────────────────────────────────
    Une carte par jour à DAILY_HOUR (18 h) heure de DAILY_TZ (Europe/Paris), la même pour tous ; images des étapes fabriquées ici, score et classements
    vérifiés ici (README › « Carte mystère »). Jeton Firebase de n'importe quel compte pour jouer classé (sans compte : partie pour le plaisir, non classée).
-   Stockage : DAILY_DIR (défaut .data/daily). DAILY=0 coupe tout (404, /__ping daily: false : l'appli cache le bouton). */
+   Stockage : DAILY_DIR (défaut .data/daily). DAILY=0 coupe tout (404, /__ping daily: false : l'appli cache le bouton).
+   Notification « nouvelle Carte mystère » (daily-srv.mjs › pushRun) : sendPush et parseTarget ci-dessus, comme les amis ; seulement avec le compte de service
+   (FCM_SERVICE_ACCOUNT), DAILY_PUSH=0 la coupe ; DAILY_PUSH_WINDOW_MS : rattrapage après un redémarrage (2 h après l'heure de la carte). */
 const DLY_ON = process.env.DAILY !== '0';
 let DLY = null;
 const DLY_ACCT = new Map();      // UID → { v: { created } | null, at } : date de création du compte Firebase, gardée 12 h
@@ -2776,6 +2943,8 @@ if (DLY_ON) {
       verify: tok => verifyIdToken(tok, true), bad: v => !!(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(v)), json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, adminHeaders: ADM_HD,
       levelOf: PG && PG.prgLevel ? xp => PG.prgLevel(xp).lv : null, levelsFile: process.env.LEVELS_FILE || join(EDH_DIR, 'levels.json'), reportHide: Number(process.env.DAILY_REPORT_HIDE) >= 1 ? Math.floor(Number(process.env.DAILY_REPORT_HIDE)) : 3, stepMs: Number(process.env.DAILY_STEP_MS) > 0 ? Number(process.env.DAILY_STEP_MS) : undefined,
       levelDayCap: Number.isFinite(Number(process.env.LEVEL_DAY_CAP)) && process.env.LEVEL_DAY_CAP !== '' && process.env.LEVEL_DAY_CAP !== undefined ? Math.max(0, Number(process.env.LEVEL_DAY_CAP)) : 20000,
+      push: FCM_ON && process.env.DAILY_PUSH !== '0' ? { send: sendPush, target: parseTarget } : null,      // notification « nouvelle Carte mystère » (rien sans compte de service, comme les amis)
+      pushWindowMs: process.env.DAILY_PUSH_WINDOW_MS !== undefined && process.env.DAILY_PUSH_WINDOW_MS !== '' && Number.isFinite(Number(process.env.DAILY_PUSH_WINDOW_MS)) ? Math.max(0, Number(process.env.DAILY_PUSH_WINDOW_MS)) : undefined,
       account: dlyAccount, net: req => netOf(ipOf(req)), minAgeDays: process.env.DAILY_MIN_AGE_DAYS === undefined || process.env.DAILY_MIN_AGE_DAYS === '' || !Number.isFinite(Number(process.env.DAILY_MIN_AGE_DAYS)) ? 0 : Math.max(0, Number(process.env.DAILY_MIN_AGE_DAYS)) });      // net : empreinte du réseau (HMAC salé du jour, dans daily-srv.mjs)
   } catch (e) { console.warn('Carte mystère : module illisible (' + (e && e.message || e) + '), jeu coupé'); DLY = null; }
 }
@@ -3019,8 +3188,9 @@ server.listen(PORT, HOST, () => {
     setTimeout(purge, 20e3).unref(); setInterval(purge, 6 * 3600e3).unref();
     console.log(`Scans signalés : ${SR_MAX} au plus, ${Math.round(SR_BYTES / 1048576)} Mo, gardés ${Math.round(SR_TTL / 86400e3)} jours.`);
   }
-  if (DLY) { DLY.start(); console.log(`Carte mystère : nouvelle carte chaque jour à ${DLY.clock.hour} h (${DLY.clock.tz}).`); }
+  if (DLY) { DLY.start(); console.log(`Carte mystère : nouvelle carte chaque jour à ${DLY.clock.hour} h (${DLY.clock.tz})${DLY.pushOn ? ', annoncée par une notification aux appareils qui l\'acceptent' : ''}.`); }
   if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
+  if (ADMIN_ON && FCM_ON && ADM_EVERY > 0) setInterval(() => { admTick().catch(() => {}); }, Math.max(1000, ADM_EVERY)).unref();      // comptes actifs du jour (courbe du panneau) : premier relevé après un intervalle, jamais au démarrage
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
   if (ALERTS_ON) {
     const wait = Math.max(AL_FIRST, (AL.last.at || 0) + AL_EVERY - Date.now());

@@ -3,8 +3,10 @@
    connecté si l'appli l'est dans ce navigateur), puis GET /api/admin avec le jeton d'identité (x-firebase-token). Le serveur vérifie À CHAQUE
    appel que c'est le compte de l'éditeur (adresse vérifiée, liste du serveur) ; tout autre compte reçoit 403 → « Accès réservé », rien d'autre.
    Tout ce qui vient du serveur est déjà réduit (prénom + initiale, e-mail masqué, identifiant opaque) et n'est écrit qu'en textContent (pseudos libres).
-   Tri, recherche et pages : côté serveur (?sort, dir, q, page). « Rafraîchir » : POST /api/admin/refresh (une fois par minute au plus).
-   CSP stricte (proxy.mjs › ADM_CSP) : aucun script ni style en ligne, d'où ce fichier et admin.css ; graphique en SVG dessiné ici, sans bibliothèque. */
+   Tri, recherche et pages : côté serveur (?sort, dir, q, page). « Rafraîchir » : POST /api/admin/refresh (une fois par minute au plus). « CSV » : la même
+   liste (tri et recherche en cours) par GET /api/admin/export. Actions, toujours confirmées : désactiver / réactiver un compte (fenêtre qui dit lequel),
+   retirer un deck public (deux appuis) ; POST en JSON avec le jeton ; journal des actions tenu par le serveur.
+   CSP stricte (proxy.mjs › ADM_CSP) : aucun script ni style en ligne, d'où ce fichier et admin.css ; graphiques en SVG dessinés ici, sans bibliothèque. */
 (function () {
   'use strict';
   // Thème choisi dans l'appli (même origine) : appliqué avant le premier affichage
@@ -56,7 +58,10 @@
     for (const id of ['vLoad', 'vOut', 'vDeny', 'vErr', 'vMain']) $('#' + id).hidden = id !== v;
     $('#acts').hidden = v !== 'vMain';
     if (v === 'vErr') $('#errTxt').textContent = msg || 'Le serveur ne répond pas.';
-    if (v !== 'vMain') { data = null; for (const id of ['#kpis', '#chart', '#mix', '#ulist', '#pager', '#srv', '#notes', '#meta', '#scans', '#daily']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; }      // rien ne reste affiché d'une session admin précédente
+    if (v !== 'vMain') {      // rien ne reste affiché d'une session admin précédente
+      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#notes', '#meta', '#scans', '#daily']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; sc.seen = -1; sc.gen++; dy.gen++;
+      const d = $('#dlg'); if (d.open) d.close(); d.replaceChildren();
+    }
   }
 
   async function boot() {
@@ -66,10 +71,11 @@
     $('#btnOut').addEventListener('click', () => signOut());
     $('#btnRetry').addEventListener('click', () => (user ? load() : show('vOut')));
     $('#btnRefresh').addEventListener('click', refresh);
+    $('#btnCsv').addEventListener('click', exportCsv);
     $('#q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { st.q = $('#q').value.trim(); st.page = 1; load(); }, 280); });
     $('#sort').addEventListener('change', () => { st.sort = $('#sort').value; st.page = 1; load(); });
     $('#dir').addEventListener('click', () => { st.dir = st.dir === 'desc' ? 'asc' : 'desc'; st.page = 1; load(); });
-    let resize = 0; addEventListener('resize', () => { clearTimeout(resize); resize = setTimeout(() => data && chart(data.ov), 150); });
+    let resize = 0; addEventListener('resize', () => { clearTimeout(resize); resize = setTimeout(() => { if (data) { if (data.ov) chart(data.ov); achart(data.active); } }, 150); });
     try {
       const [app, auth] = await Promise.all([import(FB_BASE + 'firebase-app.js'), import(FB_BASE + 'firebase-auth.js')]);
       const a = app.getApps().length ? app.getApp() : app.initializeApp(FIREBASE_CONFIG);
@@ -127,11 +133,14 @@
     $('#notes').replaceChildren(...(d.notes || []).map(x => h('p', { class: 'note', 'data-k': x.k }, x.t)));
     $('#kpis').replaceChildren(...(ov ? kpis(ov) : []), ...(d.scans ? [kpi('Scans signalés', nf(d.scans.n), nf(d.scans.n7) + ' en 7 jours · ' + String(d.scans.mb).replace('.', ',') + ' Mo', 'scans')] : []));
     if (ov) chart(ov); else $('#chart').replaceChildren();
+    achart(d.active);
     $('#mix').replaceChildren(...(ov ? mix(ov) : []));
     users(d.users);
     testers(d.testers);
     scans(d.scans);
     daily();
+    pubrep(d.reported || []);
+    journal(d.log);
     server(d.srv);
   }
   const kpi = (label, val, sub, k) => h('div', { class: 'kpi', 'data-k': k }, h('span', { class: 'l' }, label), h('b', null, val), sub ? h('small', null, sub) : null);
@@ -141,25 +150,34 @@
       kpi('Nouveaux', nf(ov.new7) + ' · ' + nf(ov.new30), '7 jours · 30 jours', 'new'),
       kpi('Actifs', nf(ov.act7) + ' · ' + nf(ov.act30), '7 j · 30 j · connectés ' + nf(ov.log7) + ' · ' + nf(ov.log30), 'act'),
       kpi('Cartes', nf(ov.cards), nf(ov.copies) + ' exemplaires · ' + nf(ov.colls) + ' collections', 'cards'),
-      kpi('Decks', nf(ov.decks), nf(ov.pub) + ' publiés · ' + nf(ov.reports) + ' signalement' + (ov.reports > 1 ? 's' : ''), 'decks'),
+      kpi('Decks', nf(ov.decks), nf(ov.pub) + ' publié' + (ov.pub > 1 ? 's' : '') + ' · ' + nf(ov.reports) + ' signalement' + (ov.reports > 1 ? 's' : ''), 'decks'),
       kpi('Échange', nf(ov.trade), 'liens actifs · ' + nf(ov.dlinks) + ' decks partagés', 'trade'),
       kpi('Amis', nf(ov.friendships), 'amitiés · ' + nf(ov.pending) + ' demande' + (ov.pending > 1 ? 's' : '') + ' en attente', 'friends'),
       kpi('Valeur', EUR.format((ov.value || 0) / 100), nf(ov.valued) + ' collection' + (ov.valued > 1 ? 's' : '') + ' estimée' + (ov.valued > 1 ? 's' : ''), 'value'),
     ];
   }
-  /** Inscriptions par jour (30 derniers jours) : barres fines arrondies en haut, posées sur la ligne de base ; survol : jour et nombre. */
-  function chart(ov) {
-    const box = $('#chart'), days = ov.days || [], total = days.reduce((t, x) => t + x[1], 0);
-    const head = h('div', { class: 'chead' }, h('h2', null, 'Inscriptions par jour'), h('small', null, nf(total) + ' en 30 jours'));
-    const W = Math.max(260, Math.round(box.clientWidth - 32) || 320), H = 150, top = 14, bot = 22, left = 26, plotW = W - left - 4, plotH = H - top - bot;
-    const max = Math.max(1, ...days.map(x => x[1])), step = plotW / Math.max(1, days.length), bw = Math.max(3, step - 2);
-    const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Inscriptions par jour sur 30 jours : ' + total + ' au total' });
+  /** Cadre des deux graphiques (30 jours) : repères discrets (maximum, moitié), ligne de base, dates du premier jour, du milieu et du dernier. */
+  function frame(box, days, max, aria) {
+    const W = Math.max(260, Math.round(box.clientWidth - 32) || 320), H = 150, top = 14, bot = 22, left = 26, plotW = W - left - 4, plotH = H - top - bot, step = plotW / Math.max(1, days.length);
+    const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': aria });
     for (const v of max > 1 ? [max, Math.round(max / 2)] : [max]) {      // repères discrets : maximum et moitié
       const y = top + plotH - v / max * plotH;
       svg.append(s('line', { x1: left, x2: W - 4, y1: y, y2: y, class: 'grid' }));
       const t = s('text', { x: left - 6, y: y + 4, class: 'ax', 'text-anchor': 'end' }); t.textContent = String(v); svg.append(t);
     }
     svg.append(s('line', { x1: left, x2: W - 4, y1: top + plotH, y2: top + plotH, class: 'base' }));
+    for (const i of [0, Math.floor(days.length / 2), days.length - 1]) {
+      if (!days[i]) continue;
+      const t = s('text', { x: left + i * step + step / 2, y: H - 6, class: 'ax', 'text-anchor': i === 0 ? 'start' : i === days.length - 1 ? 'end' : 'middle' });
+      t.textContent = D_DAY.format(Date.parse(days[i][0] + 'T12:00:00Z')); svg.append(t);
+    }
+    return { svg, top, left, plotH, step, y: v => top + plotH - v / max * plotH };
+  }
+  /** Inscriptions par jour (30 derniers jours) : barres fines arrondies en haut, posées sur la ligne de base ; survol : jour et nombre. */
+  function chart(ov) {
+    const box = $('#chart'), days = ov.days || [], total = days.reduce((t, x) => t + x[1], 0);
+    const head = h('div', { class: 'chead' }, h('h2', null, 'Inscriptions par jour'), h('small', null, nf(total) + ' en 30 jours'));
+    const max = Math.max(1, ...days.map(x => x[1])), { svg, top, left, plotH, step } = frame(box, days, max, 'Inscriptions par jour sur 30 jours : ' + total + ' au total'), bw = Math.max(3, step - 2);
     days.forEach(([day, n], i) => {
       const x = left + i * step + (step - bw) / 2, bh = n ? Math.max(3, n / max * plotH) : 0, y = top + plotH - bh, r = Math.min(4, bw / 2, bh);
       const g = s('g', { class: 'bar' + (n ? '' : ' zero') }), label = D_DAY.format(Date.parse(day + 'T12:00:00Z')) + ' : ' + n + ' inscription' + (n > 1 ? 's' : '');
@@ -168,12 +186,31 @@
       if (n) g.append(s('path', { d: `M${x},${top + plotH}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${top + plotH}Z`, class: 'fill' }));
       svg.append(g);
     });
-    for (const i of [0, Math.floor(days.length / 2), days.length - 1]) {
-      if (!days[i]) continue;
-      const t = s('text', { x: left + i * step + step / 2, y: H - 6, class: 'ax', 'text-anchor': i === 0 ? 'start' : i === days.length - 1 ? 'end' : 'middle' });
-      t.textContent = D_DAY.format(Date.parse(days[i][0] + 'T12:00:00Z')); svg.append(t);
-    }
     box.replaceChildren(head, svg);
+  }
+  /** Comptes actifs par jour (relevés du serveur : comptes dont la dernière activité tombe ce jour-là, heure de Paris) : ligne de 2 px et aire légère,
+   *  un point par jour relevé, rien pour un jour sans relevé (jamais deviné) ; survol : jour et nombre. */
+  function achart(a) {
+    const box = $('#achart'); if (!a || !Array.isArray(a.days)) return box.replaceChildren();
+    const days = a.days, known = days.filter(x => x[1] != null), last = days.length ? days[days.length - 1][1] : null;
+    const head = h('div', { class: 'chead' }, h('h2', null, 'Actifs par jour'), h('small', null, last != null ? nf(last) + ' aujourd\'hui' : 'pas encore relevé aujourd\'hui'));
+    const max = Math.max(1, ...known.map(x => x[1])), { svg, top, left, plotH, step, y } = frame(box, days, max, 'Comptes actifs par jour sur 30 jours' + (last != null ? ' : ' + last + ' aujourd\'hui' : ''));
+    const X = i => left + i * step + step / 2, runs = [];      // suites de jours relevés : une ligne chacune (un trou pour un jour sans relevé)
+    days.forEach(([, n], i) => { if (n == null) return; const r = runs[runs.length - 1]; if (r && r[r.length - 1] === i - 1) r.push(i); else runs.push([i]); });
+    for (const r of runs) {
+      const pts = r.map(i => X(i) + ',' + y(days[i][1])).join(' L');
+      if (r.length > 1) svg.append(s('path', { d: `M${X(r[0])},${top + plotH} L${pts} L${X(r[r.length - 1])},${top + plotH}Z`, class: 'area' }), s('path', { d: 'M' + pts, class: 'line' }));
+    }
+    days.forEach(([day, n], i) => {
+      const g = s('g', { class: 'pt' + (n == null ? ' none' : '') }), tt = s('title');
+      tt.textContent = D_DAY.format(Date.parse(day + 'T12:00:00Z')) + ' : ' + (n == null ? 'pas de relevé' : n + ' compte' + (n > 1 ? 's' : '') + ' actif' + (n > 1 ? 's' : '')); g.append(tt);
+      g.append(s('rect', { x: left + i * step, y: top, width: step, height: plotH, class: 'hit' }));
+      if (n != null) g.append(s('circle', { cx: X(i), cy: y(n), r: 4, class: 'dot' }));
+      svg.append(g);
+    });
+    const since = a.since ? Date.parse(a.since + 'T12:00:00Z') : 0, first = days.length ? Date.parse(days[0][0] + 'T12:00:00Z') : 0;
+    box.replaceChildren(head, svg, h('p', { class: 'hint ahint' }, (since > first ? 'Relevés depuis le ' + D_DAY.format(since) + ' : les jours d\'avant restent vides. ' : '')
+      + 'Le serveur note chaque jour les comptes actifs (connexion, session renouvelée ou donnée modifiée ce jour-là)' + (a.every > 0 ? (a.every === 3600e3 ? ', chaque heure' : ', toutes les ' + (a.every > 3600e3 ? Math.round(a.every / 3600e3) + ' h' : a.every >= 60e3 ? Math.round(a.every / 60e3) + ' min' : Math.round(a.every / 1000) + ' s')) : ', à chaque calcul') + '.'));
   }
   const kv = (k, v, cls) => [h('dt', null, k), h('dd', cls ? { class: cls } : null, v)];
   function mix(ov) {
@@ -195,7 +232,8 @@
       h('td', { class: 'who' }, h('span', { class: 'av', 'aria-hidden': 'true' }, ([...(r.name || r.mail || '?')][0] || '?').toUpperCase()),
         h('span', { class: 'id' }, h('b', { class: 'nm' }, r.name || 'Sans nom'), h('small', { class: 'ml' }, r.mail || (r.prov.length ? '' : 'e-mail inconnu')),
           h('span', { class: 'tags' }, r.prov.map(p => h('span', { class: 'tag' }, PROV[p] || p)), r.verified === false ? h('span', { class: 'tag warn' }, 'non vérifié') : null,
-            r.disabled ? h('span', { class: 'tag bad' }, 'désactivé') : null, r.mo ? null : h('span', { class: 'tag' }, 'sans données'), r.lang ? h('span', { class: 'tag' }, r.lang.toUpperCase()) : null))),
+            r.disabled ? h('span', { class: 'tag bad' }, 'désactivé') : null, r.mo ? null : h('span', { class: 'tag' }, 'sans données'), r.lang ? h('span', { class: 'tag' }, r.lang.toUpperCase()) : null),
+          data.acts ? uacts(r) : null)),
       td('Inscription', r.created ? D_SHORT.format(r.created) : '—', null, 'dt'), td('Connexion', ago(r.login), null, 'dt'), td('Activité', ago(r.seen), null, 'dt'),
       td('Cartes', nf(r.cards), r.copies ? nf(r.copies) + ' ex.' : null, 'num'), td('Decks', nf(r.decks), null, 'num'), td('Publics', nf(r.pub), null, 'num'),
       td('Échange', r.trade ? 'Lien actif' : '—', [r.dlinks ? r.dlinks + ' deck' + (r.dlinks > 1 ? 's' : '') + ' partagé' + (r.dlinks > 1 ? 's' : '') : '', r.wish ? r.wish + ' cherchée' + (r.wish > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') || null),
@@ -211,6 +249,95 @@
     $('#pager').replaceChildren(...(u.pages > 1 ? [nav('‹ Précédente', u.page - 1, u.page <= 1), h('span', { class: 'pg' }, 'Page ' + u.page + ' / ' + u.pages), nav('Suivante ›', u.page + 1, u.page >= u.pages)] : []));
     $('#sort').title = 'Trié par ' + SORT_COL[u.sort].toLowerCase();
   }
+  /** Téléchargement d'un fichier reçu (lien temporaire : aucun en ligne, CSP). */
+  function save(blob, name) {
+    const url = URL.createObjectURL(blob), a = h('a', { href: url, download: name }); document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+  /** « CSV » : GET /api/admin/export avec le tri et la recherche en cours (le serveur réduit les champs comme la liste). */
+  async function exportCsv() {
+    const b = $('#btnCsv'), u = user; if (!u) return; b.disabled = true;
+    try {
+      for (let a = 0; a < 2; a++) {
+        const r = await fetch('/api/admin/export' + qs(), { cache: 'no-store', headers: { 'x-firebase-token': await u.getIdToken(a > 0) } });
+        if (r.ok) { save(await r.blob(), (/filename="([^"]+)"/.exec(r.headers.get('content-disposition') || '') || [])[1] || 'comptes-mana-orbit.csv'); return toast(nf(data ? data.users.total : 0) + ' compte' + (data && data.users.total > 1 ? 's' : '') + ' exporté' + (data && data.users.total > 1 ? 's' : '') + '.'); }
+        const j = await r.json().catch(() => null); if (r.status === 401 && j && j.error === 'token_expired' && a === 0) continue;
+        return toast((j && j.message) || 'Export impossible.');
+      }
+    } catch (e) { toast('Réseau indisponible.'); } finally { b.disabled = false; }
+  }
+
+  /* Actions (proxy.mjs › admAct) : désactiver / réactiver un compte (fenêtre de confirmation qui dit lequel), retirer un deck public (deux appuis,
+     depuis les decks d'un compte ou la liste des signalés). Erreur (rôle IAM manquant…) : dans la fenêtre, le temps de la lire. Puis liste relue. */
+  /** Fenêtre (dialog) : titre, textes, boutons [libellé, valeur, classe] → valeur du bouton touché ('' : fermée, Échap). */
+  function dlg(title, body, btns) {
+    const d = $('#dlg'); if (d.open) d.close();
+    return new Promise(done => {
+      d.replaceChildren(h('h2', { id: 'dlgT' }, title), ...body, h('div', { class: 'dlgb' }, btns.map(([label, v, cls]) => { const b = h('button', { class: 'btn ' + (cls || 'ghost'), type: 'button', 'data-v': v }, label); b.addEventListener('click', () => d.close(v)); return b; })));
+      d.returnValue = ''; d.addEventListener('close', () => done(d.returnValue), { once: true }); d.showModal();
+      const f = d.querySelector('.dlgb .btn.ghost'); if (f) f.focus();      // Annuler en premier : rien ne part par mégarde
+    });
+  }
+  const oops = (x, m) => dlg('Action impossible', [h('p', null, (x && x.body && x.body.message) || m)], [['OK', 'ok']]);
+  function uacts(r) {
+    const off = h('button', { class: 'btn ghost tiny', type: 'button', 'data-act': r.disabled ? 'on' : 'off' }, r.disabled ? 'Réactiver' : 'Désactiver');
+    off.addEventListener('click', () => toggle(r, off));
+    const pub = r.pub ? h('button', { class: 'btn ghost tiny', type: 'button', 'data-act': 'pub' }, 'Decks publics (' + nf(r.pub) + ')') : null;
+    if (pub) pub.addEventListener('click', () => decksOf(r, pub));
+    return h('span', { class: 'uacts' }, off, pub);
+  }
+  async function toggle(r, b) {
+    const on = !r.disabled, who = r.name || 'ce compte';
+    const v = await dlg(on ? 'Désactiver ' + who + ' ?' : 'Réactiver ' + who + ' ?', [h('p', { class: 'dlgw' }, [r.name || 'Sans nom', r.mail].filter(Boolean).join(' · ')),
+      h('p', null, on ? 'Le compte ne pourra plus se connecter ni renouveler sa session (celle en cours reste valable une heure au plus). Ses données restent ; « Réactiver » le rend.' : 'Le compte pourra de nouveau se connecter.')],
+      [['Annuler', ''], [on ? 'Désactiver' : 'Réactiver', 'ok', on ? 'main danger' : 'main']]);
+    if (v !== 'ok') return;
+    b.disabled = true; let x; try { x = await call('/disable', 'POST', { id: r.id, on }); } catch (e) { x = null; }
+    b.disabled = false; if (x && x.body && Array.isArray(x.body.log)) journal(x.body.log);
+    if (!x || x.status !== 200 || !x.body) return oops(x, 'Modification impossible : le serveur ne répond pas.');
+    toast(on ? 'Compte désactivé.' : 'Compte réactivé.'); load();
+  }
+  /** Decks publics d'un compte (GET /api/admin/pubdecks?id=) dans la fenêtre, chacun avec « Retirer ». */
+  async function decksOf(r, b) {
+    b.disabled = true; let x; try { x = await call('/pubdecks?id=' + encodeURIComponent(r.id)); } catch (e) { x = null; } b.disabled = false;
+    if (!x || x.status !== 200 || !x.body) return oops(x, 'Decks publics illisibles.');
+    const list = h('div', { class: 'dyl pdl', 'data-empty': 'Aucun deck public.' }, x.body.rows.length ? x.body.rows.map(p => deckRow(p, false)) : [h('p', { class: 'empty' }, 'Aucun deck public.')]);
+    dlg('Decks publics de ' + (r.name || 'Sans nom'), [h('p', { class: 'dlgw' }, r.mail || ''), h('p', { class: 'hint' }, 'Tels que la Communauté les montre (pseudo, commandants). « Retirer » efface le deck public : il disparaît de la Communauté tout de suite ; son auteur peut le republier.'), list], [['Fermer', '']]);
+  }
+  /** Un deck public : commandants, pseudo, compte (liste des signalés) ou emplacement, signalements, masqué ; « Retirer » puis « Confirmer le retrait ». */
+  function deckRow(p, owner) {
+    const del = h('button', { class: 'btn ghost small sdel', type: 'button' }, 'Retirer');
+    const row = h('div', { class: 'dyr pdr', 'data-k': p.k }, h('span', { class: 'pdt' }, h('b', null, p.cmd.join(' + ') || 'Sans commandant'),
+      h('small', null, ['par ' + (p.by || '?'), owner ? (p.name || 'compte inconnu') + (p.mail ? ' (' + p.mail + ')' : '') : 'emplacement ' + (p.slot + 1), p.at ? 'publié le ' + D_SHORT.format(p.at) : ''].filter(Boolean).join(' · '))),
+      p.rep ? h('span', { class: 'tag warn' }, nf(p.rep) + ' signalement' + (p.rep > 1 ? 's' : '')) : null, p.hid ? h('span', { class: 'tag bad' }, 'masqué') : null, del);
+    let armT = 0;
+    del.addEventListener('click', async () => {
+      if (!del.classList.contains('arm')) { del.classList.add('arm'); del.textContent = 'Confirmer le retrait'; clearTimeout(armT); armT = setTimeout(() => { del.classList.remove('arm'); del.textContent = 'Retirer'; }, 4000); return; }
+      clearTimeout(armT); del.disabled = true;
+      let x; try { x = await call('/pubdel', 'POST', { k: p.k }); } catch (e) { x = null; }
+      if (x && x.body && Array.isArray(x.body.log)) journal(x.body.log);
+      if (!x || x.status !== 200 || !x.body) { del.disabled = false; del.classList.remove('arm'); del.textContent = 'Retirer'; return oops(x, 'Retrait impossible : le serveur ne répond pas.'); }
+      for (const e of $$('.pdr[data-k="' + p.k + '"]')) { const l = e.parentNode; e.remove(); if (l && !l.querySelector('.pdr')) l.replaceChildren(h('p', { class: 'empty' }, l.dataset.empty || '')); }      // dans la fenêtre et dans la liste des signalés
+      toast(x.body.gone ? 'Déjà retiré par son auteur.' : 'Deck retiré de la Communauté.'); load();
+    });
+    return row;
+  }
+  /** Decks publics signalés (« Signaler ce deck » dans la Communauté), les plus signalés d'abord. */
+  function pubrep(list) {
+    const n = (data && data.pubMax) || 3;
+    $('#pubrep').replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Decks publics signalés'), h('small', null, nf(list.length) + ' deck' + (list.length > 1 ? 's' : ''))),
+      h('p', { class: 'hint' }, '« Signaler ce deck » dans la Communauté ; au bout de ' + n + ' signalements, le deck est masqué tout seul. « Retirer » efface le deck public : il disparaît de la Communauté tout de suite ; son auteur peut le republier (ses signalements restent).'),
+      h('div', { class: 'dyl pdl', 'data-empty': 'Aucun deck signalé.' }, list.length ? list.map(p => deckRow(p, true)) : [h('p', { class: 'empty' }, 'Aucun deck signalé.')]));
+  }
+  const ACT = { off: ['Compte désactivé', 'Désactivation refusée'], on: ['Compte réactivé', 'Réactivation refusée'], pub: ['Deck public retiré', 'Retrait refusé'] };
+  /** Journal des actions (tenu par le serveur, les plus récentes d'abord) : action, compte (nom réduit, e-mail masqué), deck, date, éditeur. */
+  function journal(log) {
+    const box = $('#journal'), head = h('div', { class: 'chead' }, h('h2', null, 'Journal des actions'), h('small', null, log && log.length ? nf(log.length) + ' dernière' + (log.length > 1 ? 's' : '') : ''));
+    if (log == null) return box.replaceChildren(head, h('p', { class: 'note' }, 'Journal des actions illisible sur le serveur.'));
+    box.replaceChildren(head, h('p', { class: 'hint' }, 'Tenu par le serveur (500 dernières actions, réussies ou refusées) : nom réduit et e-mail masqué seulement.'), h('div', { class: 'dyl' }, log.length ? log.map(e => h('div', { class: 'dyr' + (e.ok ? '' : ' ko'), 'data-a': e.a },
+      h('span', { class: 'pdt' }, h('b', null, (ACT[e.a] || [e.a, e.a])[e.ok ? 0 : 1]), h('small', null, [e.n || (e.a === 'pub' ? 'compte inconnu' : 'Sans nom'), e.m, e.d, e.t ? D_TIME.format(e.t) : '', e.by ? 'par ' + e.by : ''].filter(Boolean).join(' · '))),
+      e.ok ? (e.e ? h('span', { class: 'tag' }, e.e) : null) : h('span', { class: 'tag bad' }, e.e || 'échec'))) : [h('p', { class: 'empty' }, 'Aucune action pour l\'instant.')]));
+  }
   /** Inscrits au test fermé (page /testeurs) : nombre ; adresses complètes demandées au serveur seulement au clic (copie ou CSV pour la Play Console). */
   function testers(n) {
     const box = $('#testers');
@@ -225,9 +352,7 @@
     const csv = h('button', { class: 'btn ghost small', type: 'button', disabled: !n }, 'Télécharger le CSV');
     csv.addEventListener('click', async () => {
       const rows = await get(); if (!rows) return;
-      const url = URL.createObjectURL(new Blob([rows.map(r => r.e).join('\n') + '\n'], { type: 'text/csv;charset=utf-8' }));
-      const a = h('a', { href: url, download: 'testeurs-mana-orbit-' + new Date().toISOString().slice(0, 10) + '.csv' }); document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      save(new Blob([rows.map(r => r.e).join('\n') + '\n'], { type: 'text/csv;charset=utf-8' }), 'testeurs-mana-orbit-' + new Date().toISOString().slice(0, 10) + '.csv');
     });
     box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Testeurs inscrits'), h('small', null, nf(n) + ' adresse' + (n > 1 ? 's' : ''))),
       h('p', { class: 'note' }, 'Formulaire de la page /testeurs. Le CSV (une adresse par ligne) s\'importe dans Play Console › Tests › Test fermé › Testeurs › liste d\'adresses e-mail.'),
