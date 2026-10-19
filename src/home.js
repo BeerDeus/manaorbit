@@ -8,7 +8,10 @@
    Mes decks, decks à monter et prix d'une liste sont dans la section Decks ; le scan (et son prix rapide) au milieu de la barre.
    Tout est repeint en différé (homeSoon) quand la collection, les decks, les prix ou la liste d'échange changent. */
 const HM = { t: 0, v: null, raf: 0, lands: false };
-const HM_SEEN_KEY = 'deckdeal:seen:v1', HM_SEEN_MAX = 5;
+const HM_SEEN_KEY = 'deckdeal:hmseen:v1', HM_SEEN_MAX = 5;
+/* Jusqu'au 19 octobre, les listes ouvertes étaient gardées sous deckdeal:seen:v1, la clé des documents du compte vus sur le serveur (decks.js › acctSeen) :
+   chacun écrasait l'autre. Liste d'avant déplacée sous sa propre clé ; les documents vus sont renotés à la synchro suivante. */
+try { const old = JSON.parse(localStorage.getItem('deckdeal:seen:v1') || 'null'); if (Array.isArray(old)) { if (!localStorage.getItem(HM_SEEN_KEY)) localStorage.setItem(HM_SEEN_KEY, JSON.stringify(old)); localStorage.removeItem('deckdeal:seen:v1'); } } catch (e) { /* stockage indisponible */ }
 const HM_LANDS = [['W', 'plains', 'Plains'], ['U', 'island', 'Island'], ['B', 'swamp', 'Swamp'], ['R', 'mountain', 'Mountain'], ['G', 'forest', 'Forest']];
 const hmEur = c => new Intl.NumberFormat(LOC(), { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(c / 100));      // euros entiers dans l'écriture de la langue : « 1 234 € », « €1,234 », « 1.234 € »
 /** Petite image Scryfall → recadrage de l'illustration (même chemin, autre taille). */
@@ -79,16 +82,20 @@ function homeLands() {
    Chaque liste d'échange ouverte par un lien (share.js › openPublicTrade, pas l'aperçu de la sienne) est retenue sur l'appareil : identifiant,
    pseudo, cartes « Pour toi » relevées à l'ouverture, date. Les 3 dernières s'affichent sur l'accueil ; toucher en rouvre la liste (lecture à jour). */
 function homeSeenList() { try { const l = JSON.parse(localStorage.getItem(HM_SEEN_KEY) || '[]'); return Array.isArray(l) ? l.filter(x => x && typeof x.id === 'string' && /^[\w-]{6,40}$/.test(x.id)) : []; } catch (e) { return []; } }
-function homeSeen(id, by, n) {
+/** Lien du compte connecté (son lien actuel, ou un partage qu'il a créé : o = son empreinte) : jamais dans « Pour toi ». */
+const homeSeenMine = x => !!x && (x.id === TR.share || (!!x.o && !!D.uid && TR.tagUid === D.uid && x.o === TR.tag));
+function homeSeen(id, by, n, o) {
   if (!id) return;
-  const l = homeSeenList().filter(x => x.id !== id); l.unshift({ id, by: String(by || '').slice(0, 40), n: Math.max(0, Number(n) || 0), at: Date.now() });
+  const e = { id, by: String(by || '').slice(0, 40), n: Math.max(0, Number(n) || 0), at: Date.now(), ...(/^[0-9a-f]{64}$/.test(o || '') ? { o } : {}) };
+  const l = homeSeenList().filter(x => x.id !== id); if (!homeSeenMine(e)) l.unshift(e);
   try { localStorage.setItem(HM_SEEN_KEY, JSON.stringify(l.slice(0, HM_SEEN_MAX))); } catch (e) { /* stockage plein */ }
   homeSoon();
 }
 function homeForYou() {
   const box = $('#hmForYou'), ul = $('#hmFyList'); if (!box || !ul) return;
   const fr = amHome(), share = new Set(fr.map(f => f.s).filter(Boolean));      // amis (friends.js) : toujours à jour ; puis les listes ouvertes par un lien (pas déjà celle d'un ami)
-  const l = [...fr.map(f => ({ fa: f.id, id: f.id, by: amName(f), p: f.p, n: f.m })), ...homeSeenList().filter(x => !share.has(x.id))].slice(0, 3);
+  if (D.uid && TR.tagUid !== D.uid && typeof ownerTag === 'function') { const u = D.uid; ownerTag(u).then(t => { if (D.uid !== u) return; TR.tag = t; TR.tagUid = u; homeSoon(); }).catch(() => {}); }      // empreinte du compte : reconnaît ses propres liens
+  const l = [...fr.map(f => ({ fa: f.id, id: f.id, by: amName(f), p: f.p, n: f.m })), ...homeSeenList().filter(x => !share.has(x.id) && !homeSeenMine(x))].slice(0, 3);
   box.hidden = !l.length; if (!l.length) { ul.innerHTML = ''; return; }
   const h = $('.hm-fy-h', box); if (h) h.innerHTML = `<b>${T('Pour toi')}</b> ${fr.length ? T('· tes amis') : T('· listes d\'amis ouvertes')}`;
   ul.innerHTML = l.map(x => { const nm = x.by || T('Liste d\'un ami'); return `<li><button type="button" class="hm-fy-r" ${x.fa ? `data-fa="${esc(x.fa)}"` : `data-fy="${esc(x.id)}"`}><span class="hm-fy-av" aria-hidden="true" style="--h:${hash32(x.id) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${x.p ? `<img alt="" src="${esc(x.p)}">` : ''}</span><span class="hm-fy-t"><b>${esc(nm)}</b> · ${x.n ? TN(x.n, '{n} carte pour toi', '{n} cartes pour toi') : T('rien pour toi pour l\'instant')}</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button></li>`; }).join('');

@@ -565,6 +565,7 @@ async function shareFetch(id, fetchFn) {
   const f = ((await r.json()) || {}).fields || {}, str = k => (f[k] && typeof f[k].stringValue === 'string' ? f[k].stringValue : '');
   const out = (typeof readShare === 'function' ? readShare : require('./core.js').readShare)(str('kind'), str('d'));      // sous Node (tests) : core.js est un module à part
   if (!out) throw Object.assign(new Error('partage illisible'), { code: 'bad' });
+  const o = str('o'); if (/^[0-9a-f]{64}$/.test(o)) out.o = o;      // empreinte du compte qui l'a créé (share.js › ownerTag) : sa propre liste n'est pas retenue dans « Pour toi »
   return out;
 }
 

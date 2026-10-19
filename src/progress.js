@@ -70,10 +70,8 @@ function prgOpen(v, paid, best, n, st) { prgAdd('op'); if (paid != null && v > p
 /** Lancement : un jour d'utilisation de plus (une fois par jour). */
 function prgDay() {
   const c = prgC(), d = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60e3) / 864e5);
-  const fun = (MO_TEST && !c.tst) || (!c.in && ((typeof isNativeApp === 'function' && isNativeApp()) || (typeof PWA !== 'undefined' && PWA.standalone())));
-  if (MO_TEST) c.tst = 1;      // venu essayer le lien de test (badge « Pionnier »)
+  if (MO_TEST) c.tst = 1;      // venu essayer le lien de test (badge « Pionnier ») ; installée : « Installé » — vus au lancement, acquis sans bannière
   if ((typeof isNativeApp === 'function' && isNativeApp()) || (typeof PWA !== 'undefined' && PWA.standalone())) c.in = 1;
-  if (fun) prgSoon('fun');
   if (c.dl === d) { prgWrite(); return; }
   c.ds = c.dl === d - 1 ? (c.ds || 0) + 1 : 1; if (c.ds > (c.dsb || 0)) c.dsb = c.ds;      // jours d'affilée
   c.dl = d; c.days = (c.days || 0) + 1; prgChanged('fid');

@@ -142,6 +142,15 @@ await pb.waitForSelector('#hmForYou:not([hidden]) [data-fa="' + TA + '"]');
 assert.equal(await tc(pb, '#hmForYou .hm-fy-h'), 'Pour toi · tes amis'); assert.equal(await tc(pb, '#hmForYou .hm-fy-t'), 'Alice · 2 cartes pour toi');
 await shot(pb, '09-accueil-pour-toi');
 await pb.click('#hmForYou [data-fa="' + TA + '"]'); await pb.waitForSelector('.pubv.on .am-chips');
+{      // son propre lien ouvert (lien actuel, ou ancien partage du compte : empreinte o) : jamais dans « Pour toi » ; clé à part de celle des documents vus (decks.js › acctSeen)
+  await pa.evaluate(id => openPublicLink(id), SID); await pa.waitForSelector('.pubv.on'); await pa.waitForTimeout(300);
+  assert.equal(await pa.evaluate(id => homeSeenList().some(x => x.id === id), SID), false, 'son lien actuel : pas retenu');
+  const fy = await pa.evaluate(async () => { TR.pub.el.__close(); const t = await ownerTag(D.uid); homeSeen('OldMine0001', 'Alice', 2, t); homeSeen('Other00001', 'Zoé', 1, 'a'.repeat(64)); showView('home'); homeForYou(); await new Promise(r => setTimeout(r, 400)); homeForYou();
+    return [[...document.querySelectorAll('#hmForYou [data-fy]')].map(b => b.dataset.fy), Array.isArray(JSON.parse(localStorage.getItem('deckdeal:hmseen:v1'))), JSON.parse(localStorage.getItem('deckdeal:seen:v1') || '{}')]; });
+  assert.deepEqual(fy[0], ['Other00001'], 'ancien partage de son compte caché, celui d\'un autre montré'); assert.equal(fy[1], true);
+  assert.ok(fy[2] && !Array.isArray(fy[2]), 'documents vus du compte : un objet, jamais écrasé par la liste « Pour toi »');
+  await pa.evaluate(() => { localStorage.setItem('deckdeal:hmseen:v1', '[]'); homeForYou(); });
+}
 await pb.evaluate(() => TR.pub.el.__close()); await pb.waitForFunction(() => !document.querySelector('.pubv.on'));
 await pb.evaluate(t => pushOpen('./?ami=' + t), TA); await pb.waitForSelector('.pubv.on .am-chips', { timeout: 8000 });
 await pb.evaluate(() => TR.pub.el.__close());

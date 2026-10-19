@@ -623,7 +623,7 @@ function importLocal() {
    recréerait pour toujours les documents effacés. Chaque synchro note donc les documents du compte vus sur le serveur (acctSaw) ; si l'un d'eux
    disparaît (acctLost), plus rien ne part vers le compte (acctHeld) et on demande à Firebase s'il existe encore (acctCheck). */
 const SEEN_KEY = 'deckdeal:seen:v1', ACCT_CHECK = { wait: 6000 }, ACCT_GONE = /^auth\/(user-not-found|user-disabled|user-token-expired|invalid-user-token)$/;
-const acctSeen = () => { try { const o = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } };
+const acctSeen = () => { try { const o = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}'); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch (e) { return {}; } };      // tableau : ancienne liste « Pour toi » (home.js) écrite sous la même clé
 const acctSeenSet = o => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(o)); } catch (e) { /* stockage indisponible */ } };
 /** Le document id (collection, engaged, history, trade) du compte uid existe sur le serveur : lu ou écrit par cet appareil. */
 function acctSaw(id, uid) { const o = acctSeen(); if (o[id] !== uid) { o[id] = uid; acctSeenSet(o); } }
