@@ -160,77 +160,12 @@ function cexSheet(src, k, g, done) {
   });
 }
 
-/* ── Nettoyage TEMPORAIRE (19 octobre 2026, à retirer une fois fait) : ancienne collection fusionnée par erreur dans un compte recréé (voir collAside) ──
-   Exemplaires d'une carte ajoutée avant la création du compte (D.user.metadata.creationTime) qui ne sont pas rangés dans un emplacement créé depuis
-   (non rangés, ou dans un emplacement de l'ancien compte : la date de création est au début de l'identifiant, placeNewId) ; les cartes rescannées
-   et rangées depuis gardent ces exemplaires-là. Les anciens emplacements vidés sont supprimés. « Annuler » remet tout. */
-const plcPlaceAt = id => { const t = parseInt(String(id || '').slice(0, -2), 36); return Number.isFinite(t) ? t : 0; };
-function plcOldPlan() {
-  const c = D.user && D.user.metadata ? Date.parse(D.user.metadata.creationTime) : 0, cut = c > 0 ? Math.floor(c / 1000) : 0; if (!cut) return null;
-  const oldPl = new Set(Object.keys(COLL.places).filter(id => plcPlaceAt(id) < cut)), rm = [], redate = []; let copies = 0;
-  for (const [k, x] of Object.entries(COLL.map)) {
-    if (!(x.d > 0 && x.d < cut)) continue;
-    const gone = collLines(x).filter(([g]) => { const p = plcOf(g); return !p || oldPl.has(p) || !COLL.places[p]; });
-    if (gone.length) { rm.push([k, new Map(gone)]); copies += gone.reduce((a, [, q]) => a + q, 0); }
-    else redate.push(k);      // toutes ses copies rangées depuis (rescannées) : seule la date vient de l'ancien compte (la fusion garde la plus ancienne)
-  }
-  return { cut, oldPl, rm, copies, redate };
-}
-/** Cartes datées d'avant la création du compte (filtre temporaire COLL.before) : bandeau de la liste, « Retirer… » (plcDelShown) et ✕. */
-function plcOldBarHtml(v) {
-  if (!COLL.before) return '';
-  const n = v.filtered.length, q = v.filtered.reduce((a, it) => a + (it.q || 0), 0), date = new Date(COLL.before * 1000).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
-  return `<div class="plc-bar plc-oldbar"><span>${esc(T('Datées d\'avant le {date}', { date }))} · ${esc(TN(n, '{n} carte', '{n} cartes', { n: nf0(n) }))} · ${esc(TN(q, '{n} exemplaire', '{n} exemplaires', { n: nf0(q) }))}</span>${n ? `<button type="button" class="btn small ghost danger plc-rm" data-act="plcrm">${T('Retirer…')}</button>` : ''}<button type="button" class="icon-btn plc-x" data-act="plcoldx" aria-label="${T('Toutes les cartes')}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
-}
-function plcOldHtml() {
-  const P = plcOldPlan(); if (!P) return '';
-  const date = new Date(P.cut * 1000).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }), dated = Object.values(COLL.map).filter(x => x.d > 0 && x.d < P.cut).length;
-  const show = dated ? `<button type="button" class="plc-old" data-act="plcoldshow"><b>${esc(T('Voir les cartes datées d\'avant le {date}', { date }))}</b><small>${esc(TN(dated, '{n} carte de l\'ancien compte, ou que l\'ancien compte avait aussi (rescannée depuis : à garder)', '{n} cartes de l\'ancien compte, ou que l\'ancien compte avait aussi (rescannées depuis : à garder)', { n: nf0(dated) }))}</small></button>` : '';
-  if (!P.copies && !P.redate.length) return show;
-  if (!P.copies) return show + `<button type="button" class="plc-old" data-act="plcredate"><b>${esc(T('Corriger les dates d\'ajout'))}</b><small>${esc(TN(P.redate.length, '{n} carte rescannée depuis garde la date de l\'ancien compte : la dater du {date}', '{n} cartes rescannées depuis gardent la date de l\'ancien compte : les dater du {date}', { n: nf0(P.redate.length), date }))}</small></button>`;
-  return show + `<button type="button" class="plc-old" data-act="plcold"><b>${esc(T('Retirer l\'ancienne collection'))}</b><small>${esc(TN(P.copies, '{n} exemplaire ajouté avant la création de ton compte ({date}), hors emplacements créés depuis', '{n} exemplaires ajoutés avant la création de ton compte ({date}), hors emplacements créés depuis', { n: nf0(P.copies), date }))}</small></button>`;
-}
-function plcOldRemove() {
-  const P = plcOldPlan(); if (!P || !P.copies) return;
-  const names = P.rm.slice(0, 8).map(([k]) => (COLL.map[k] && COLL.map[k].n) || k);
-  openSheet(T('Retirer l\'ancienne collection ?'), TN(P.copies, '{n} exemplaire ajouté avant la création de ton compte ({date}), hors emplacements créés depuis', '{n} exemplaires ajoutés avant la création de ton compte ({date}), hors emplacements créés depuis', { n: nf0(P.copies), date: new Date(P.cut * 1000).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }) }), api => {
-    api.body.innerHTML = `<p class="cf-msg">${esc(names.join(', ') + (P.rm.length > names.length ? '…' : ''))}</p><p class="hint">${esc(T('Les exemplaires rangés dans tes emplacements créés depuis restent. « Annuler », juste après, remet tout.'))}</p>`;
-    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Garder')}</button><button class="btn danger" type="button" data-ok>${T('Retirer')}</button>`);
-    api.foot.addEventListener('click', e => {
-      if (!e.target.closest('[data-ok]')) return;
-      api.close();
-      const prevMap = [], map = { ...COLL.map }, places0 = COLL.places;
-      for (const [k, m] of P.rm) {
-        const cur = map[k]; if (!cur) continue; prevMap.push([k, cur]);
-        const left = collLines(cur).filter(([g]) => !m.has(g)), next = left.length ? collFromLines(cur, left) : null;
-        if (next && next.q > 0) map[k] = next; else delete map[k];
-      }
-      const used = new Set(); for (const x of Object.values(map)) for (const [g] of collLines(x)) { const p = plcOf(g); if (p) used.add(p); }
-      for (const x of Object.values(COLL.prox || {})) for (const [g] of collLines(x)) { const p = plcOf(g); if (p) used.add(p); }
-      const places = { ...COLL.places }; let gone = 0; for (const id of P.oldPl) if (!used.has(id)) { delete places[id]; gone++; }
-      COLL.map = map; COLL.places = places; if (COLL.place && COLL.place !== '-' && !places[COLL.place]) COLL.place = '';
-      collChanged(); haptic('ok');
-      toast(TN(P.copies, '{n} exemplaire retiré de ta collection', '{n} exemplaires retirés de ta collection') + (gone ? ' · ' + TN(gone, '{n} ancien emplacement supprimé', '{n} anciens emplacements supprimés') : ''),
-        { label: T('Annuler'), fn: () => { const m2 = { ...COLL.map }; for (const [k, v] of prevMap) m2[k] = v; COLL.map = m2; COLL.places = { ...places0, ...COLL.places }; collChanged(); } });
-    });
-  });
-}
-
-/** Cartes rescannées depuis la création du compte mais datées de l'ancien : datées de la création du compte, « Annuler » remet les dates. */
-function plcOldRedate() {
-  const P = plcOldPlan(); if (!P || !P.redate.length) return;
-  const prev = [], map = { ...COLL.map };
-  for (const k of P.redate) { const x = map[k]; if (!x) continue; prev.push([k, x.d]); map[k] = { ...x, d: P.cut }; }
-  COLL.map = map; collChanged(); haptic('ok');
-  toast(TN(prev.length, '{n} carte redatée', '{n} cartes redatées'), { label: T('Annuler'), fn: () => { const m2 = { ...COLL.map }; for (const [k, d] of prev) if (m2[k]) m2[k] = { ...m2[k], d }; COLL.map = m2; collChanged(); } });
-}
-
 /* ── Onglet « Rangement » de la collection ─────────────────────────────────────────────────────── */
 function plcTabHtml() {
   const st = plcStats(), list = plcList(), none = st.get('') || { q: 0, v: 0 }, px = plcStats(true);
   const card = (id, x) => { const s = st.get(id) || { q: 0, v: 0 }; return `<button type="button" class="plc-card" data-act="plcopen" data-p="${esc(id)}"><span class="plc-top"><i class="plc-ic" style="--c:${plcColor(id)}">${plcIc(id)}</i><small>${esc(id ? T(PLC_TYPE[x.t]) : T('Par défaut'))}</small></span><b>${esc(plcName(id))}</b><span class="plc-sub">${TN(s.q, '{n} carte', '{n} cartes', { n: nf0(s.q) })}${s.v ? ' · ' + esc(fmt(s.v, 'EUR')) : ''}</span></button>`; };
   let pq = 0; const pin = new Set(); for (const [id, s] of px) { pq += s.q; if (id) pin.add(id); }
-  return `${plcOldHtml()}<div class="plc-h"><b>${T('Emplacements')}</b><button class="link-btn" type="button" data-act="plcnew">${T('+ Nouveau')}</button></div>
+  return `<div class="plc-h"><b>${T('Emplacements')}</b><button class="link-btn" type="button" data-act="plcnew">${T('+ Nouveau')}</button></div>
     ${list.length ? '' : `<p class="hint plc-intro">${T('Classeurs, boîtes, decks montés, pile à vendre : range chaque exemplaire pour savoir où il est. Au scan, choisis « Ranger dans » ; dans la liste, touche une carte puis son emplacement.')}</p>`}
     <div class="plc-grid">${list.map(x => card(x.id, x)).join('')}${list.length && none.q ? card('', null) : ''}</div>
     <div class="plc-h"><b>${T('Proxys')}</b><small>${T('jamais dans la valeur ni l\'échange')}</small></div>
@@ -309,10 +244,6 @@ function plcClick(e) {
   else if (act === 'plcclear') { COLL.place = ''; haptic('tap'); collPaintBody(true); }
   else if (act === 'plcmv') { haptic('tap'); plcMoveShown(); }
   else if (act === 'plcrm') { haptic('tap'); plcDelShown(); }
-  else if (act === 'plcold') { haptic('tap'); plcOldRemove(); }
-  else if (act === 'plcredate') { haptic('tap'); plcOldRedate(); }
-  else if (act === 'plcoldshow') { const P = plcOldPlan(); if (!P) return true; haptic('tap'); COLL.before = P.cut; COLL.place = ''; COLL.sort = 'old'; COLL.tab = COLL.ctab = 'list'; COLL.shown = COLL_PAGE; const sg = COLL.el && $('#collSeg', COLL.el); if (sg && sg.setValue) sg.setValue('list'); collPaintBody(false); }
-  else if (act === 'plcoldx') { COLL.before = 0; haptic('tap'); collPaintBody(true); }      // nettoyage temporaire (voir plcOldPlan)
   else if (act === 'plcpill') plcPick({ title: T('Afficher'), cur: COLL.place === '-' ? '' : COLL.place, onPick: id => plcShow(id) });
   else if (act === 'prox') openProxies();
   else if (act === 'cex') { const r = b.closest('.crow'); if (r && r.dataset.k) cexSheet('map', r.dataset.k, rowG(r)); }
