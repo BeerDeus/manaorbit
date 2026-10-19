@@ -97,7 +97,7 @@ function amSoon(ms = 800) { clearTimeout(AM.t); AM.t = setTimeout(() => amRefres
 /** Relit la liste (au plus toutes les 4 min sauf force), puis : point, fiches, accueil ; appareil, profil et parties envoyés si besoin. */
 function amRefresh(force) {
   if (!amOn()) { amPaint(); return Promise.resolve(null); }
-  if (AM.run) return AM.run;
+  if (AM.run) return force ? AM.run.then(() => amRefresh(true)) : AM.run;      // forcée (réponse à une demande…) pendant une lecture : relue après elle, jamais la liste d'avant
   if ((!force && AM.l && Date.now() - AM.at < AM_TTL) || amOffline()) return Promise.resolve(AM.l);
   const uid = D.uid;
   AM.run = (async () => {
@@ -287,8 +287,11 @@ async function amSheetClick(e, api) {
 async function amAnswer(id, ok) {
   try {
     const r = await amCall('/answer', { method: 'POST', body: { id, ok: !!ok, ...(await amProf()) } });
-    haptic('ok'); toast(ok && r.state === 'friend' ? T('Vous êtes amis') : T('Demande refusée'));
+    if (AM.l) { AM.l.inc = AM.l.inc.filter(x => x.id !== id); amStore(); }      // la ligne part tout de suite, sans attendre la relecture
+    haptic('ok'); toast(!ok ? T('Demande refusée') : r.state === 'friend' ? T('Vous êtes amis') : T('Cette demande n\'est plus valable : liste relue'));      // acceptée mais plus là (annulée, déjà réglée ailleurs) : jamais « refusée »
+    if (ok && r.state === 'friend' && typeof prgSoon === 'function') prgSoon('social');
   } catch (e) { toast(amErrText(e.code)); }
+  if (AM.sheet) AM.sheet.paint();
   return amRefresh(true);
 }
 /** « Partager ma collection » : coupé, le serveur efface aussitôt la copie qu'il avait. */
