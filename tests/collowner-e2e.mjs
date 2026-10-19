@@ -74,24 +74,49 @@ for (const [s, uid, what] of [['', 'uid-premier', 'jamais synchronisée'], ['uid
     ]);
     collChanged(); return { oldP, newP };
   }, { OLD, NEW, CREATED });
-  await p.evaluate(() => { openCollection(); }); await p.waitForSelector('#collSeg'); await p.click('#collSeg [data-v="places"]'); await p.waitForSelector('.plc-old');
-  assert.match(await p.$eval('.plc-old', e => e.textContent), /Retirer l'ancienne collection6 exemplaires ajoutés avant la création de ton compte \(17 octobre\), hors emplacements créés depuis/);
-  await p.click('.plc-old'); await p.waitForSelector('.sheet-wrap.open [data-ok]'); await p.click('.sheet-wrap.open [data-ok]'); await p.waitForFunction(() => !sheets.length);
+  await p.evaluate(() => { openCollection(); }); await p.waitForSelector('#collSeg'); await p.click('#collSeg [data-v="places"]'); await p.waitForSelector('.plc-old[data-act="plcold"]');
+  assert.match(await p.$eval('.plc-old[data-act="plcold"]', e => e.textContent), /Retirer l'ancienne collection6 exemplaires ajoutés avant la création de ton compte \(17 octobre\), hors emplacements créés depuis/);
+  await p.click('.plc-old[data-act="plcold"]'); await p.waitForSelector('.sheet-wrap.open [data-ok]'); await p.click('.sheet-wrap.open [data-ok]'); await p.waitForFunction(() => !sheets.length);
   const after = await p.evaluate(() => ({ map: Object.fromEntries(Object.entries(COLL.map).map(([k, x]) => [k, collLines(x)])), places: Object.keys(COLL.places) }));
   assert.deepEqual(after.map, { 'sol ring': [['fr#p' + res.newP, 1]], 'arcane signet': [['en', 1]] }, 'seules les copies rescannées et les cartes ajoutées depuis restent');
   assert.deepEqual(after.places, [res.newP], 'ancien classeur vidé : supprimé');
   assert.match(await p.$eval('#toast', e => e.textContent), /6 exemplaires retirés de ta collection · 1 ancien emplacement supprimé/);
   await p.click('#toast .toast-act'); await p.waitForTimeout(200);
   assert.equal(await p.evaluate(() => Object.keys(COLL.map).length), 4, 'Annuler : tout remis'); assert.equal(await p.evaluate(() => Object.keys(COLL.places).length), 2);
-  await p.click('.plc-old'); await p.waitForSelector('.sheet-wrap.open [data-ok]'); await p.click('.sheet-wrap.open [data-ok]'); await p.waitForFunction(() => !sheets.length);
+  await p.click('.plc-old[data-act="plcold"]'); await p.waitForSelector('.sheet-wrap.open [data-ok]'); await p.click('.sheet-wrap.open [data-ok]'); await p.waitForFunction(() => !sheets.length);
   // il ne reste que la copie rescannée de Sol Ring, datée de l'ancien compte (la fusion garde la plus ancienne date) : « Corriger les dates d'ajout »
-  await p.waitForFunction(() => /Corriger les dates d'ajout/.test((document.querySelector('.plc-old') || {}).textContent || ''));
-  assert.match(await p.$eval('.plc-old', e => e.textContent), /1 carte rescannée depuis garde la date de l'ancien compte : la dater du 17 octobre/);
-  await p.click('.plc-old'); await p.waitForFunction(() => !document.querySelector('.plc-old'));
+  await p.waitForSelector('.plc-old[data-act="plcredate"]');
+  assert.match(await p.$eval('.plc-old[data-act="plcredate"]', e => e.textContent), /1 carte rescannée depuis garde la date de l'ancien compte : la dater du 17 octobre/);
+  await p.click('.plc-old[data-act="plcredate"]'); await p.waitForFunction(() => !document.querySelector('.plc-old'));
   assert.equal(await p.evaluate(c => COLL.map['sol ring'].d === Math.floor(c / 1000), CREATED), true, 'datée de la création du compte');
   assert.match(await p.$eval('#toast', e => e.textContent), /1 carte redatée/);
   await ctx.close();
   ok('nettoyage « Retirer l\'ancienne collection » : copies d\'avant la création du compte (non rangées ou dans un ancien emplacement) retirées, copies rescannées rangées depuis et cartes récentes gardées, ancien emplacement vide supprimé, Annuler ; cartes rescannées datées de l\'ancien compte : redatées à la création du compte');
+}
+
+/* ── 5. « Voir les cartes datées d'avant… » : liste filtrée (anciennes en haut), « Retirer… » sur toutes, ✕ ─────────────────── */
+{
+  const { p, errs, ctx } = await newPage(browser, world, {}); errsAll.push(errs);
+  const CREATED = Date.UTC(2026, 9, 18, 9), OLD = Math.floor(Date.UTC(2026, 9, 5) / 1000), NEW = Math.floor(Date.UTC(2026, 9, 19) / 1000);
+  await signInFake(p, { uid: 'uid-recree2', metadata: { creationTime: new Date(CREATED).toUTCString() } });
+  await p.evaluate(({ OLD, NEW }) => {
+    const box = Math.floor(Date.UTC(2026, 9, 18, 12) / 1000).toString(36) + 'cc'; COLL.places = { [box]: { t: 'box', n: 'New Phyrexia' } };
+    const L = (k, n, d, lines) => [k, { ...collFromLines({ n, d }, lines), d }];
+    COLL.map = Object.fromEntries([L('leeching bite', 'Leeching Bite', OLD, [['en#p' + box, 3]]), L('vital splicer', 'Vital Splicer', OLD, [['en#p' + box, 1]]), L('sol ring', 'Sol Ring', NEW, [['fr#p' + box, 2]])]);
+    collChanged();
+  }, { OLD, NEW });
+  await p.evaluate(() => openCollection()); await p.waitForSelector('#collSeg'); await p.click('#collSeg [data-v="places"]'); await p.waitForSelector('.plc-old[data-act="plcoldshow"]');
+  assert.match(await p.$eval('.plc-old[data-act="plcoldshow"]', e => e.textContent), /Voir les cartes datées d'avant le 18 octobre2 cartes de l'ancien compte/);
+  await p.click('.plc-old[data-act="plcoldshow"]'); await p.waitForSelector('.plc-oldbar');
+  assert.match(await p.$eval('.plc-oldbar', e => e.textContent), /Datées d'avant le 18 octobre · 2 cartes · 4 exemplaires/);
+  assert.equal(await p.$$eval('.crow', r => r.length), 2, 'seulement les cartes datées d\'avant');
+  await p.click('.plc-oldbar .plc-rm'); await p.waitForSelector('.sheet-wrap.open [data-ok]');
+  assert.match(await p.$eval('.sheet-wrap.open .sheet-head', e => e.textContent), /Retirer 4 exemplaires de ta collection/);
+  await p.click('.sheet-wrap.open [data-ok]'); await p.waitForFunction(() => !sheets.length);
+  assert.deepEqual(await p.evaluate(() => Object.keys(COLL.map)), ['sol ring'], 'carte ajoutée depuis gardée');
+  await p.click('.plc-oldbar .plc-x'); await p.waitForFunction(() => !document.querySelector('.plc-oldbar') && document.querySelectorAll('.crow').length === 1);
+  await ctx.close();
+  ok('« Voir les cartes datées d\'avant… » : liste filtrée, « Retirer… » les retire toutes (cartes ajoutées depuis gardées), ✕ enlève le filtre');
 }
 
 for (const e of errsAll) assert.deepEqual(e, []);

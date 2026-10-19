@@ -176,11 +176,19 @@ function plcOldPlan() {
   }
   return { cut, oldPl, rm, copies, redate };
 }
+/** Cartes datées d'avant la création du compte (filtre temporaire COLL.before) : bandeau de la liste, « Retirer… » (plcDelShown) et ✕. */
+function plcOldBarHtml(v) {
+  if (!COLL.before) return '';
+  const n = v.filtered.length, q = v.filtered.reduce((a, it) => a + (it.q || 0), 0), date = new Date(COLL.before * 1000).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
+  return `<div class="plc-bar plc-oldbar"><span>${esc(T('Datées d\'avant le {date}', { date }))} · ${esc(TN(n, '{n} carte', '{n} cartes', { n: nf0(n) }))} · ${esc(TN(q, '{n} exemplaire', '{n} exemplaires', { n: nf0(q) }))}</span>${n ? `<button type="button" class="btn small ghost danger plc-rm" data-act="plcrm">${T('Retirer…')}</button>` : ''}<button type="button" class="icon-btn plc-x" data-act="plcoldx" aria-label="${T('Toutes les cartes')}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
+}
 function plcOldHtml() {
-  const P = plcOldPlan(); if (!P || (!P.copies && !P.redate.length)) return '';
-  const date = new Date(P.cut * 1000).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
-  if (!P.copies) return `<button type="button" class="plc-old" data-act="plcredate"><b>${esc(T('Corriger les dates d\'ajout'))}</b><small>${esc(TN(P.redate.length, '{n} carte rescannée depuis garde la date de l\'ancien compte : la dater du {date}', '{n} cartes rescannées depuis gardent la date de l\'ancien compte : les dater du {date}', { n: nf0(P.redate.length), date }))}</small></button>`;
-  return `<button type="button" class="plc-old" data-act="plcold"><b>${esc(T('Retirer l\'ancienne collection'))}</b><small>${esc(TN(P.copies, '{n} exemplaire ajouté avant la création de ton compte ({date}), hors emplacements créés depuis', '{n} exemplaires ajoutés avant la création de ton compte ({date}), hors emplacements créés depuis', { n: nf0(P.copies), date }))}</small></button>`;
+  const P = plcOldPlan(); if (!P) return '';
+  const date = new Date(P.cut * 1000).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }), dated = Object.values(COLL.map).filter(x => x.d > 0 && x.d < P.cut).length;
+  const show = dated ? `<button type="button" class="plc-old" data-act="plcoldshow"><b>${esc(T('Voir les cartes datées d\'avant le {date}', { date }))}</b><small>${esc(TN(dated, '{n} carte de l\'ancien compte, ou que l\'ancien compte avait aussi (rescannée depuis : à garder)', '{n} cartes de l\'ancien compte, ou que l\'ancien compte avait aussi (rescannées depuis : à garder)', { n: nf0(dated) }))}</small></button>` : '';
+  if (!P.copies && !P.redate.length) return show;
+  if (!P.copies) return show + `<button type="button" class="plc-old" data-act="plcredate"><b>${esc(T('Corriger les dates d\'ajout'))}</b><small>${esc(TN(P.redate.length, '{n} carte rescannée depuis garde la date de l\'ancien compte : la dater du {date}', '{n} cartes rescannées depuis gardent la date de l\'ancien compte : les dater du {date}', { n: nf0(P.redate.length), date }))}</small></button>`;
+  return show + `<button type="button" class="plc-old" data-act="plcold"><b>${esc(T('Retirer l\'ancienne collection'))}</b><small>${esc(TN(P.copies, '{n} exemplaire ajouté avant la création de ton compte ({date}), hors emplacements créés depuis', '{n} exemplaires ajoutés avant la création de ton compte ({date}), hors emplacements créés depuis', { n: nf0(P.copies), date }))}</small></button>`;
 }
 function plcOldRemove() {
   const P = plcOldPlan(); if (!P || !P.copies) return;
@@ -302,7 +310,9 @@ function plcClick(e) {
   else if (act === 'plcmv') { haptic('tap'); plcMoveShown(); }
   else if (act === 'plcrm') { haptic('tap'); plcDelShown(); }
   else if (act === 'plcold') { haptic('tap'); plcOldRemove(); }
-  else if (act === 'plcredate') { haptic('tap'); plcOldRedate(); }      // nettoyage temporaire (voir plcOldPlan)
+  else if (act === 'plcredate') { haptic('tap'); plcOldRedate(); }
+  else if (act === 'plcoldshow') { const P = plcOldPlan(); if (!P) return true; haptic('tap'); COLL.before = P.cut; COLL.place = ''; COLL.sort = 'old'; COLL.tab = COLL.ctab = 'list'; COLL.shown = COLL_PAGE; const sg = COLL.el && $('#collSeg', COLL.el); if (sg && sg.setValue) sg.setValue('list'); collPaintBody(false); }
+  else if (act === 'plcoldx') { COLL.before = 0; haptic('tap'); collPaintBody(true); }      // nettoyage temporaire (voir plcOldPlan)
   else if (act === 'plcpill') plcPick({ title: T('Afficher'), cur: COLL.place === '-' ? '' : COLL.place, onPick: id => plcShow(id) });
   else if (act === 'prox') openProxies();
   else if (act === 'cex') { const r = b.closest('.crow'); if (r && r.dataset.k) cexSheet('map', r.dataset.k, rowG(r)); }
