@@ -132,5 +132,13 @@
   "Familles": "Tipi",
   "Coût de mana": "Valore di mana",
   "Coût converti": "Valore di mana",
-  "Effacer les filtres": "Cancella filtri"
+  "Effacer les filtres": "Cancella filtri",
+  "Extension : {name}": "Espansione: {name}",
+  "Toutes les extensions": "Tutte le espansioni",
+  "{n} extension dans ta collection": "{n} espansione nella tua collezione",
+  "{n} extensions dans ta collection": "{n} espansioni nella tua collezione",
+  "{n} extension dans « {place} »": "{n} espansione in «{place}»",
+  "{n} extensions dans « {place} »": "{n} espansioni in «{place}»",
+  "{n} extension parmi les cartes affichées": "{n} espansione tra le carte mostrate",
+  "{n} extensions parmi les cartes affichées": "{n} espansioni tra le carte mostrate"
 }

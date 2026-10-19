@@ -150,7 +150,7 @@
 .scan.full .sc-hint[data-k="bad"],.scan.full .sc-hint[data-k="busy"]{left:12px;right:12px;top:calc(var(--top-in) + 56px + var(--gh) * .62);transform:none;text-align:center}      /* panne, caméra qui redémarre : message long, en travers du cadre (rien à cadrer à ce moment-là) */
 /* carte ajoutée : son symbole d'édition apparaît en bas du cadre et descend sur sa ligne (scan.js › scanFly), la ligne s'éclaire */
 .sc-fly{position:fixed;left:0;top:0;z-index:30;width:46px;height:46px;display:grid;place-items:center;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(123,232,180,.85),0 6px 18px rgba(0,0,0,.45);pointer-events:none;opacity:0;will-change:transform,opacity}
-.sc-fly .set-ic{width:28px;height:28px}
+.sc-fly .set-ic{width:28px;height:28px;filter:none!important}      /* pastille toujours blanche : symbole noir, même en thème sombre */
 .sc-item.got{animation:scgot .9s ease-out}
 @keyframes scgot{0%{box-shadow:inset 0 0 0 2px var(--good),0 0 0 0 rgba(123,232,180,.55)}60%{box-shadow:inset 0 0 0 2px var(--good),0 0 0 8px rgba(123,232,180,0)}100%{box-shadow:inset 0 0 0 1px var(--accent)}}
 @media (prefers-reduced-motion:reduce){.sc-item.got{animation:none}}

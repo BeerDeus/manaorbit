@@ -26,9 +26,10 @@ function plcStats(prox) {
 }
 /** « État, signée… » d'une ligne, en clair ('' : aucun détail). */
 const cexDet = a => [a.c ? a.c.toUpperCase() : '', a.s ? T('signée') : '', a.a ? T('altérée') : '', a.m ? T('erreur d\'impression') : ''].filter(Boolean).join(' · ');
-/** Étiquette d'une ligne de la liste (emplacement, détails) ; rien si la ligne n'est ni rangée ni détaillée. */
+/** Étiquette d'une ligne de la liste (emplacement, détails). Ni rangée ni détaillée : « Ranger » discret, seulement quand un emplacement existe (sinon rien). */
 function plcRowTag(g) {
-  const p = plcOf(g), det = cexDet(lineAttrs(g)); if (!p && !det) return '';
+  const p = plcOf(g), det = cexDet(lineAttrs(g));
+  if (!p && !det) return plcAny() ? `<button type="button" class="tag plc add" data-act="cex" aria-label="${esc(T('Ranger cet exemplaire'))}">${T('Ranger')}</button>` : '';
   return `<button type="button" class="tag plc" data-act="cex" aria-label="${esc(T('Emplacement et détails : {v}', { v: [p ? plcName(p) : '', det].filter(Boolean).join(', ') }))}">${p ? `<i style="--c:${plcColor(p)}"></i>${esc(plcName(p))}` : ''}${det ? `<em>${esc(det)}</em>` : ''}</button>`;
 }
 
@@ -172,7 +173,7 @@ function plcTabHtml() {
 function plcBarHtml() {
   const id = COLL.place; if (id == null || id === false || !(id === '-' || COLL.places[id])) return '';
   const p = id === '-' ? '' : id, s = plcStats().get(p) || { q: 0, v: 0 };
-  return `<div class="plc-bar"><button type="button" class="plc-pill" data-act="plcpill" aria-haspopup="dialog"><i style="--c:${plcColor(p)}"></i>${esc(plcName(p))} · ${nf0(s.q)}</button>${s.v ? `<span>${esc(T('{v} ici', { v: fmt(s.v, 'EUR') }))}</span>` : ''}${p ? `<button type="button" class="link-btn" data-act="plcedit">${T('Modifier')}</button>` : ''}<button type="button" class="icon-btn plc-x" data-act="plcclear" aria-label="${T('Toutes les cartes')}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
+  return `<div class="plc-bar"><button type="button" class="plc-pill" data-act="plcpill" aria-haspopup="dialog"><i style="--c:${plcColor(p)}"></i>${esc(plcName(p))} · ${nf0(s.q)}</button>${s.v ? `<span>${esc(T('{v} ici', { v: fmt(s.v, 'EUR') }))}</span>` : ''}<button type="button" class="btn small plc-mv" data-act="plcmv">${T('Ranger ces cartes…')}</button>${p ? `<button type="button" class="link-btn" data-act="plcedit">${T('Modifier')}</button>` : ''}<button type="button" class="icon-btn plc-x" data-act="plcclear" aria-label="${T('Toutes les cartes')}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
 }
 /** Filtre de la liste : la ligne est-elle dans l'emplacement affiché ? */
 const plcIn = g => (!COLL.place ? true : COLL.place === '-' ? !plcOf(g) : plcOf(g) === COLL.place);
@@ -180,6 +181,31 @@ function plcShow(id) {
   COLL.place = id || '-'; COLL.tab = COLL.ctab = 'list'; COLL.shown = COLL_PAGE;
   const sg = COLL.el && $('#collSeg', COLL.el); if (sg && sg.setValue) sg.setValue('list');
   collPaintBody(false); const sc = COLL.el && $('.dv-scroll', COLL.el); if (sc) sc.scrollTop = 0;
+}
+/** Exemplaires affichés dans la liste (emplacement affiché, recherche et filtres compris ; extension filtrée : ses lignes seules) : [[carte, ligne, exemplaires]]. */
+function plcShownLines() {
+  const out = [];
+  for (const it of collListOf(collAll()).filtered) for (const [g, q] of collLines(COLL.map[it.k])) if (plcIn(g) && collSetIn(g)) out.push([it.k, g, q]);
+  return out;
+}
+/** « Ranger… » (bandeau d'un emplacement, « Non rangé » compris) : tous les exemplaires affichés vont dans l'emplacement choisi, ou redeviennent non rangés
+ *  (transfert d'un classeur à l'autre, rangement d'une extension filtrée…) ; « Annuler » les remet où ils étaient. */
+function plcMoveShown() {
+  const lines = plcShownLines(); if (!lines.length) { toast(T('Aucune carte affichée')); return; }
+  const cards = new Set(lines.map(l => l[0])).size, copies = lines.reduce((a, l) => a + l[2], 0), from = COLL.place === '-' ? '' : COLL.place || '';
+  plcPick({ title: TN(copies, 'Ranger {n} exemplaire', 'Ranger {n} exemplaires'), sub: TN(cards, '{n} carte affichée, recherche et filtres compris', '{n} cartes affichées, recherche et filtres compris'), cur: from, onPick: to => {
+    if (to === from) return;
+    const moves = [];
+    for (const [k, g, q] of lines) {
+      const a = { ...lineAttrs(g), p: to }; delete a.o;      // rangé à la main : plus d'origine de deck monté (comme cexSheet)
+      const ng = lineKey(lineLang(g), lineEd(g), lineFoil(g), a); if (ng === g) continue;
+      COLL.map = linesMove(COLL.map, k, g, q, ng); moves.push([k, g, q, ng]);
+    }
+    if (!moves.length) return;
+    collChanged(); haptic('ok');
+    toast(to ? TN(copies, '{n} exemplaire rangé dans « {place} »', '{n} exemplaires rangés dans « {place} »', { place: plcName(to) }) : TN(copies, '{n} exemplaire n\'est plus rangé', '{n} exemplaires ne sont plus rangés'),
+      { label: T('Annuler'), fn: () => { for (const [k, g, q, ng] of moves.reverse()) COLL.map = linesMove(COLL.map, k, ng, q, g); collChanged(); } });
+  } });
 }
 /** Clics de l'onglet Rangement et du bandeau ; true si traité. */
 function plcClick(e) {
@@ -189,6 +215,7 @@ function plcClick(e) {
   else if (act === 'plcnew') plcEditSheet('', () => collPaintBody(true));
   else if (act === 'plcedit') plcEditSheet(COLL.place, () => collPaintBody(true));
   else if (act === 'plcclear') { COLL.place = ''; haptic('tap'); collPaintBody(true); }
+  else if (act === 'plcmv') { haptic('tap'); plcMoveShown(); }
   else if (act === 'plcpill') plcPick({ title: T('Afficher'), cur: COLL.place === '-' ? '' : COLL.place, onPick: id => plcShow(id) });
   else if (act === 'prox') openProxies();
   else if (act === 'cex') { const r = b.closest('.crow'); if (r && r.dataset.k) cexSheet('map', r.dataset.k, rowG(r)); }

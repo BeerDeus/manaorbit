@@ -1,0 +1,20 @@
+/* ── fset.css : filtre « Extension » (filters.js › mountFilters, fsetSheet) : bouton du panneau des filtres, fiche des extensions (recherche, symboles) ── */
+.fset{min-width:0;max-width:min(70vw,300px);margin-left:14px;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent}
+.fset b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:650;color:var(--ink)}
+.fset-ic{display:contents}
+.fset .set-ic{width:16px;height:16px}
+.fset:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.fsearch.fs-q{flex:none;position:sticky;top:0;z-index:2;margin:0 0 8px}      /* reste en haut quand la liste défile */
+.fs-list{display:flex;flex-direction:column}
+.fs-row{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 10px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;font:inherit;text-align:left;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.fs-row[aria-checked="true"]{background:var(--accent-soft);border-radius:12px;border-bottom-color:transparent}
+.fs-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.fs-ic{width:28px;height:28px;flex:none;display:grid;place-items:center}
+.fs-ic .set-ic{width:24px;height:24px}
+.fs-all,.fs-none{width:20px;height:20px;border-radius:50%}
+.fs-all{background:conic-gradient(#e0533d 0 20%,#7fb0ff 0 40%,#4fd1a1 0 60%,#ffd166 0 80%,#8a7bff 0)}      /* toutes : les couleurs du mana */
+.fs-none{border:2px dashed var(--ink-3)}
+.fs-n{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.fs-n b{font-size:14px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fs-n small{font-size:12px;color:var(--ink-3)}
+.fs-row em{flex:none;font-style:normal;font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--ink-2)}

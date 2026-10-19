@@ -870,10 +870,14 @@ function collItems() {
 const collSetsOf = x => [...new Set(collLines(x).map(([g]) => edSet(lineEd(g))))];
 /** Ligne montrée avec le filtre « Extension » : celle de l'extension choisie (« Sans édition » : les lignes sans édition). */
 const collSetIn = g => { const s = COLL.f.set; return !s || (s === '-' ? !lineEd(g) : edSet(lineEd(g)) === s); };
-/** Extensions présentes dans la collection, pour le filtre : [[code, nom, cartes]], de la plus récente à la plus ancienne ; « Sans édition » ('-') en tête. */
+/** Extensions des cartes affichées, pour le filtre : [[code, nom, cartes]], de la plus récente à la plus ancienne ; « Sans édition » ('-') en tête.
+ *  Affichées : emplacement ouvert (Rangement : seulement ses lignes, ses extensions et leur nombre de cartes ici), recherche et autres filtres compris (pas l'extension elle-même). */
 function collSetList() {
   const by = new Map(); let none = 0;
-  for (const it of collAll().all) for (const e of it.eds) { if (e) by.set(e, (by.get(e) || 0) + 1); else none++; }
+  for (const it of filterItems(collAll().all, { ...COLL.f, set: '' })) {
+    const ls = COLL.place ? collLines(COLL.map[it.k]).filter(([g]) => plcIn(g)) : null;
+    for (const e of ls ? new Set(ls.map(([g]) => edSet(lineEd(g)))) : it.eds) { if (e) by.set(e, (by.get(e) || 0) + 1); else none++; }
+  }
   const l = [...by].map(([c, k]) => [c, setName(c), k]).sort((a, b) => setDate(b[0]).localeCompare(setDate(a[0])) || (a[1] || a[0]).localeCompare(b[1] || b[0]));
   return none ? [['-', '', none], ...l] : l;
 }
@@ -1178,7 +1182,8 @@ function openCollection(tab) {
   if (md === 'coll') mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'places', label: T('Rangement') }, { v: 'stats', label: T('Stats') }], COLL.tab, v => { const ord = ['list', 'places', 'stats'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = COLL.ctab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
   COLL.fb = mountFilters($('#collF', wrap), COLL.f, () => {
     COLL.cmdrSeen = COLL.f.cmdr; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(true);
-  }, { placeholder: T('Rechercher une carte'), commander: true, sets: collSetList });
+  }, { placeholder: T('Rechercher une carte'), commander: true, sets: collSetList, setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
+    : filterActive({ ...COLL.f, set: '' }) ? TN(n, '{n} extension parmi les cartes affichées', '{n} extensions parmi les cartes affichées') : TN(n, '{n} extension dans ta collection', '{n} extensions dans ta collection')) });
   COLL.cmdrSeen = COLL.f.cmdr;
   $('#collSort', wrap).value = COLL.sort;
   $('#collSort', wrap).onchange = e => { COLL.sort = e.target.value; COLL.shown = COLL_PAGE; haptic('tap'); collPaintBody(false); };

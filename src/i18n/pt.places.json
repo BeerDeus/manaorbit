@@ -69,5 +69,16 @@
 "À vendre": "À venda",
 "Autre": "Outro",
 "{n} classeur rangé en emplacement": "{n} fichário guardado como local",
-"{n} classeurs rangés en emplacements": "{n} fichários guardados como locais"
+"{n} classeurs rangés en emplacements": "{n} fichários guardados como locais",
+"Ranger cet exemplaire": "Arrumar esta cópia",
+"Ranger ces cartes…": "Arrumar estas cartas…",
+"Aucune carte affichée": "Nenhuma carta mostrada",
+"Ranger {n} exemplaire": "Arrumar {n} cópia",
+"Ranger {n} exemplaires": "Arrumar {n} cópias",
+"{n} carte affichée, recherche et filtres compris": "{n} carta mostrada, pesquisa e filtros incluídos",
+"{n} cartes affichées, recherche et filtres compris": "{n} cartas mostradas, pesquisa e filtros incluídos",
+"{n} exemplaire rangé dans « {place} »": "{n} cópia arrumada em «{place}»",
+"{n} exemplaires rangés dans « {place} »": "{n} cópias arrumadas em «{place}»",
+"{n} exemplaire n'est plus rangé": "{n} cópia já não está arrumada",
+"{n} exemplaires ne sont plus rangés": "{n} cópias já não estão arrumadas"
 }

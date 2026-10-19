@@ -40,7 +40,9 @@ await p.screenshot({ path: 'shots/places-2-exemplaire.png' });
 await p.click('.cex [data-ok]'); await p.waitForFunction(() => !sheets.length);
 assert.deepEqual(await lines('sol ring'), [['fr', 1], [`fr#p${red}-cex-s`, 1]]);
 await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3);
-assert.deepEqual(await p.$$eval('.crow .tag.plc', t => t.map(x => x.textContent)), ['Classeur rougeEX · signée']);
+assert.deepEqual(await p.$$eval('.crow .tag.plc:not(.add)', t => t.map(x => x.textContent)), ['Classeur rougeEX · signée']);
+assert.deepEqual(await p.$$eval('.crow .tag.plc.add', t => t.map(x => x.closest('.crow').dataset.k + ' ' + x.textContent)), ['arcane signet Ranger', 'sol ring Ranger'], 'un emplacement existe : « Ranger » discret sur les lignes non rangées');
+await p.click('.crow[data-k="arcane signet"] .tag.plc.add'); await p.waitForSelector('.cex .plc-cur'); await p.click('.sheet-wrap.open [data-close]'); await p.waitForFunction(() => !sheets.length);
 ok('exemplaire : 1 sur 2 rangé dans le classeur, état et signature (ligne à part, étiquette discrète)');
 
 /* ── Filtre par emplacement, depuis le Rangement ───────────────────────────────────────────── */
@@ -51,6 +53,36 @@ assert.equal(await p.$$eval('.crow', r => r.length), 1); assert.match(await txt(
 await p.screenshot({ path: 'shots/places-3-filtre.png' });
 await p.click('.plc-bar [data-act="plcclear"]'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3 && !document.querySelector('.plc-bar'));
 ok('filtre : l\'emplacement seul, puis toutes les cartes');
+
+/* ── « Ranger… » : les exemplaires affichés d'un coup (filtres compris), Annuler, transfert d'un emplacement à l'autre ; fiche « Extension » du rangement ── */
+const where = () => p.evaluate(() => Object.fromEntries(Object.entries(COLL.map).map(([k, x]) => [k, collLines(x).map(([g, q]) => `${q}${plcOf(g) ? '@' + plcName(plcOf(g)) : ''}`).sort().join(' ')])));
+await p.click('#collSeg [data-v="places"]'); await p.click('.plc-card[data-p=""]'); await p.waitForSelector('.plc-bar .plc-mv');
+await p.click('.coll .fbtn'); await p.click('.coll .fset'); await p.waitForSelector('.sheet-wrap.open .fs-row');
+assert.deepEqual(await p.$$eval('.sheet-wrap.open .fs-row', l => l.map(r => r.dataset.c + ' ' + ((r.querySelector('em') || {}).textContent || ''))), [' 2', '- 1', 'cmm 1'], 'fiche « Extension » : seulement les extensions de « Non rangé », avec leurs cartes ici');
+assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /1 extension dans « Non rangé »/);
+await p.click('.sheet-wrap.open .fs-row[data-c="cmm"]'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 1);
+await p.click('.plc-bar .plc-mv'); await p.waitForSelector('.sheet-wrap.open .plc-opt');
+assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Ranger 1 exemplaire\s*1 carte affichée, recherche et filtres compris/);
+await p.click(`.sheet-wrap.open .plc-opt[data-p="${red}"]`); await p.waitForFunction(() => !sheets.length);
+assert.deepEqual(await where(), { 'arcane signet': '1@Classeur rouge', 'sol ring': '1 1@Classeur rouge' }, 'seule l\'extension filtrée part (Sol Ring sans édition reste non rangé)');
+assert.match(await txt(p, '#toast'), /1 exemplaire rangé dans « Classeur rouge »/);
+await p.click('#toast .toast-act'); await p.waitForTimeout(200);
+assert.deepEqual(await where(), { 'arcane signet': '1', 'sol ring': '1 1@Classeur rouge' }, 'Annuler : remis non rangé');
+await p.click('.coll .freset'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 2);
+await p.click('.plc-bar .plc-mv'); await p.waitForSelector('.sheet-wrap.open .plc-opt'); await p.click(`.sheet-wrap.open .plc-opt[data-p="${red}"]`); await p.waitForFunction(() => !sheets.length);
+assert.deepEqual(await where(), { 'arcane signet': '1@Classeur rouge', 'sol ring': '1@Classeur rouge 1@Classeur rouge' }, 'tout le « Non rangé » affiché : rangé (le signé EX garde sa ligne)');
+// transfert : tout le classeur rouge vers une boîte (le détail EX · signée suit l'exemplaire)
+const blue = await p.evaluate(() => plcCreate('box', 'Boîte bleue'));
+await p.evaluate(id => plcShow(id), red); await p.waitForSelector('.plc-bar .plc-mv');
+await p.click('.plc-bar .plc-mv'); await p.waitForSelector('.sheet-wrap.open .plc-opt'); assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Ranger 3 exemplaires/);
+await p.click(`.sheet-wrap.open .plc-opt[data-p="${blue}"]`); await p.waitForFunction(() => !sheets.length);
+assert.deepEqual(await where(), { 'arcane signet': '1@Boîte bleue', 'sol ring': '1@Boîte bleue 1@Boîte bleue' }, 'transfert : tout passe dans la boîte');
+assert.ok((await lines('sol ring')).some(([g]) => /-cex-s$/.test(g)), 'détails gardés');
+await p.screenshot({ path: 'shots/places-4-ranger.png' });
+// tout remis comme avant la section (les suivantes comptent dessus) : le signé EX dans le classeur rouge, le reste non rangé
+await p.evaluate(({ red }) => { COLL.map = collFromText('1 Sol Ring *FR*\n1 Arcane Signet (CMM) 380 *EN*'); collBump('sol ring', 'Sol Ring', 1, { lang: `fr#p${red}-cex-s` }); plcDelete(Object.keys(COLL.places).find(id => COLL.places[id].n === 'Boîte bleue')); COLL.place = ''; collChanged(); collPaintBody(true); }, { red });
+assert.deepEqual(await lines('sol ring'), [['fr', 1], [`fr#p${red}-cex-s`, 1]]);
+ok('« Ranger… » : les exemplaires affichés (filtre Extension compris) d\'un coup, Annuler, transfert du classeur vers une boîte (détails gardés) ; fiche « Extension » limitée au rangement ouvert');
 
 /* ── Enregistré avec la collection (même texte, lu par l'ancienne version) ───────────────────── */
 const stored = await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t);

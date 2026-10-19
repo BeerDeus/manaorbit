@@ -69,5 +69,16 @@
 "À vendre": "For sale",
 "Autre": "Other",
 "{n} classeur rangé en emplacement": "{n} binder stored as a location",
-"{n} classeurs rangés en emplacements": "{n} binders stored as locations"
+"{n} classeurs rangés en emplacements": "{n} binders stored as locations",
+"Ranger cet exemplaire": "Put this copy away",
+"Ranger ces cartes…": "Store these cards…",
+"Aucune carte affichée": "No card shown",
+"Ranger {n} exemplaire": "Store {n} copy",
+"Ranger {n} exemplaires": "Store {n} copies",
+"{n} carte affichée, recherche et filtres compris": "{n} card shown, search and filters included",
+"{n} cartes affichées, recherche et filtres compris": "{n} cards shown, search and filters included",
+"{n} exemplaire rangé dans « {place} »": "{n} copy stored in “{place}”",
+"{n} exemplaires rangés dans « {place} »": "{n} copies stored in “{place}”",
+"{n} exemplaire n'est plus rangé": "{n} copy is no longer stored",
+"{n} exemplaires ne sont plus rangés": "{n} copies are no longer stored"
 }

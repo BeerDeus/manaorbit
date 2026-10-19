@@ -69,5 +69,16 @@
 "À vendre": "En venta",
 "Autre": "Otro",
 "{n} classeur rangé en emplacement": "{n} carpeta guardada como ubicación",
-"{n} classeurs rangés en emplacements": "{n} carpetas guardadas como ubicaciones"
+"{n} classeurs rangés en emplacements": "{n} carpetas guardadas como ubicaciones",
+"Ranger cet exemplaire": "Guardar esta copia",
+"Ranger ces cartes…": "Guardar estas cartas…",
+"Aucune carte affichée": "Ninguna carta mostrada",
+"Ranger {n} exemplaire": "Guardar {n} copia",
+"Ranger {n} exemplaires": "Guardar {n} copias",
+"{n} carte affichée, recherche et filtres compris": "{n} carta mostrada, búsqueda y filtros incluidos",
+"{n} cartes affichées, recherche et filtres compris": "{n} cartas mostradas, búsqueda y filtros incluidos",
+"{n} exemplaire rangé dans « {place} »": "{n} copia guardada en «{place}»",
+"{n} exemplaires rangés dans « {place} »": "{n} copias guardadas en «{place}»",
+"{n} exemplaire n'est plus rangé": "{n} copia ya no está guardada",
+"{n} exemplaires ne sont plus rangés": "{n} copias ya no están guardadas"
 }

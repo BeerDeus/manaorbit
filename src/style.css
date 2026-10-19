@@ -1099,8 +1099,6 @@ button,.btn,select,summary{touch-action:manipulation}
 .coll-sethd .set-ic{width:20px;height:20px}
 .coll-sethd b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .coll-sethd small{margin-left:auto;flex:none;color:var(--ink-3);font-size:12px;font-weight:600}
-.fset-l{padding-left:14px;max-width:100%}
-.fset-l select{max-width:min(260px,70vw)}
 .coll-list>.crow{border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;padding:10px 14px;transition:background .15s}
 .coll-list>.crow.dk:active,.coll-list>.crow.dk-card:active{background:var(--surface-3);transform:none}
 

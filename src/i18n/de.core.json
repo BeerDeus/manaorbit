@@ -132,5 +132,13 @@
   "Familles": "Typen",
   "Coût de mana": "Manabetrag",
   "Coût converti": "Manabetrag",
-  "Effacer les filtres": "Filter löschen"
+  "Effacer les filtres": "Filter löschen",
+  "Extension : {name}": "Edition: {name}",
+  "Toutes les extensions": "Alle Editionen",
+  "{n} extension dans ta collection": "{n} Edition in deiner Sammlung",
+  "{n} extensions dans ta collection": "{n} Editionen in deiner Sammlung",
+  "{n} extension dans « {place} »": "{n} Edition in „{place}“",
+  "{n} extensions dans « {place} »": "{n} Editionen in „{place}“",
+  "{n} extension parmi les cartes affichées": "{n} Edition unter den angezeigten Karten",
+  "{n} extensions parmi les cartes affichées": "{n} Editionen unter den angezeigten Karten"
 }

@@ -69,5 +69,16 @@
 "À vendre": "In vendita",
 "Autre": "Altro",
 "{n} classeur rangé en emplacement": "{n} raccoglitore come posizione",
-"{n} classeurs rangés en emplacements": "{n} raccoglitori come posizioni"
+"{n} classeurs rangés en emplacements": "{n} raccoglitori come posizioni",
+"Ranger cet exemplaire": "Riponi questa copia",
+"Ranger ces cartes…": "Riponi queste carte…",
+"Aucune carte affichée": "Nessuna carta mostrata",
+"Ranger {n} exemplaire": "Riponi {n} copia",
+"Ranger {n} exemplaires": "Riponi {n} copie",
+"{n} carte affichée, recherche et filtres compris": "{n} carta mostrata, ricerca e filtri inclusi",
+"{n} cartes affichées, recherche et filtres compris": "{n} carte mostrate, ricerca e filtri inclusi",
+"{n} exemplaire rangé dans « {place} »": "{n} copia riposta in «{place}»",
+"{n} exemplaires rangés dans « {place} »": "{n} copie riposte in «{place}»",
+"{n} exemplaire n'est plus rangé": "{n} copia non è più riposta",
+"{n} exemplaires ne sont plus rangés": "{n} copie non sono più riposte"
 }

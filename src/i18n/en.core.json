@@ -132,5 +132,13 @@
   "Familles": "Types",
   "Coût de mana": "Mana value",
   "Coût converti": "Mana value",
-  "Effacer les filtres": "Clear filters"
+  "Effacer les filtres": "Clear filters",
+  "Extension : {name}": "Set: {name}",
+  "Toutes les extensions": "All sets",
+  "{n} extension dans ta collection": "{n} set in your collection",
+  "{n} extensions dans ta collection": "{n} sets in your collection",
+  "{n} extension dans « {place} »": "{n} set in “{place}”",
+  "{n} extensions dans « {place} »": "{n} sets in “{place}”",
+  "{n} extension parmi les cartes affichées": "{n} set among the cards shown",
+  "{n} extensions parmi les cartes affichées": "{n} sets among the cards shown"
 }
