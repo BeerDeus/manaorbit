@@ -272,6 +272,12 @@ function qrDecode(m) {
   assert.deepEqual(C.readShare('trade', JSON.stringify({ have: [], bd: { c: 'url(evil)', s: '<x>', k: 'nope' } })).bd, { c: '', s: 'name', k: [], u: 0 }, 'valeurs inconnues → par défaut');
   assert.ok(!('bd' in C.readShare('trade', JSON.stringify({ have: [] }))) && !('bd' in C.readShare('trade', JSON.stringify({ have: [], bd: [1] }))), 'sans classeur : rien');
   assert.ok(!('bd' in C.readShare('deck', JSON.stringify({ text: '1 Sol Ring', bd: { c: 'cuir' } }))), 'deck : jamais de classeur');
-  console.log('✓ classeur : épinglées puis tri (valeur, couleur, extension, nom), réglages nettoyés, bd du partage relu sans risque');
+  // foil : exemplaires foil d'une langue (fo), pochette à part juste après les autres ; fo d'un partage relu et borné
+  assert.equal(C.langFoil([['fr', 2], ['fr|cmm|400*', 1], ['fr*#pabc', 1], ['en*', 3]], 'fr'), 2); assert.equal(C.langFoil([['*', 2], ['en*', 1], ['', 4]], ''), 2, 'langue non précisée');
+  { const h = C.tradeLists(C.collFromText(['2 Sol Ring *FR*', '2 Sol Ring (FOIL) *FR*'].join('\n')), new Map(), 1, new Set()).have[0]; assert.deepEqual([h.q, C.langFoil(h.lines, 'fr')], [3, 2], 'réserve prise d\'abord sur les non foil'); }
+  assert.deepEqual(B.bndFoil([{ k: 'a', q: 3, fo: 1 }, { k: 'b', q: 2, fo: 2 }, { k: 'c', q: 1 }, { k: 'd', q: 2, fo: 5 }, { k: 'e', q: 1, fo: 0 }]),
+    [{ k: 'a', q: 2 }, { k: 'a', q: 1, foil: true }, { k: 'b', q: 2, foil: true }, { k: 'c', q: 1 }, { k: 'd', q: 2, foil: true }, { k: 'e', q: 1 }]);
+  assert.deepEqual(C.readShare('trade', JSON.stringify({ have: [{ n: 'Sol Ring', q: 3, fo: 1 }, { n: 'Ponder', q: 2, fo: 9 }, { n: 'Opt', q: 1, fo: 'x' }, { n: 'Brainstorm', q: 1, fo: 0 }] })).have.map(x => x.fo), [1, 2, undefined, undefined], 'fo : borné aux exemplaires, illisible ou nul ignoré');
+  console.log('✓ classeur : épinglées puis tri (valeur, couleur, extension, nom), réglages nettoyés, bd du partage relu sans risque, foil à part (fo)');
 }
 console.log('test-trade OK');

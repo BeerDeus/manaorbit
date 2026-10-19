@@ -1006,6 +1006,8 @@ const collDomLang = lines => { let d = null; for (const e of lines) if (!d || e[
 const collMainLang = lines => { const by = new Map(); for (const [g, q] of lines.slice().sort((a, b) => lineCmp(a[0], b[0]))) { const l = lineLang(g); by.set(l, (by.get(l) || 0) + q); } let d = null; for (const e of by) if (!d || e[1] > d[1]) d = e; return d ? d[0] : ''; };
 /** Lignes regroupées par langue (éditions confondues) : [[langue, exemplaires]], dans l'ordre d'affichage. */
 const langLines = lines => { const m = new Map(); for (const [g, q] of lines.slice().sort((a, b) => lineCmp(a[0], b[0]))) { const l = lineLang(g); m.set(l, (m.get(l) || 0) + q); } return [...m]; };
+/** Exemplaires foil d'une langue l parmi des lignes (entrée, doublons de tradeLists) : « fo » d'une carte partagée, pochette foil du classeur. */
+const langFoil = (lines, l) => (lines || []).reduce((a, [g, q]) => a + (lineFoil(g) && lineLang(g) === (l || '') ? q : 0), 0);
 /** Entrée reconstruite depuis ses lignes (base : n, d… gardés) : q = total, x avec plusieurs lignes ou une édition, l = langue la plus fournie. null s'il ne reste rien. */
 function collFromLines(base, lines) {
   const m = new Map();
@@ -2195,13 +2197,14 @@ const imgShort = u => { const s = String(u || ''); return SHARE_IMG_RE.test(s) ?
 const scrySmall = u => String(u || '').replace(/\/(large|normal|png|border_crop)\//, '/small/');
 const shStr = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
 const shNum = (v, lo, hi) => { const x = Number(v); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, Math.round(x))) : null; };
-/** Une carte d'un partage : { n, q, l?, f? (nom français), i? (image), c? (coût), t? (type), o? (couleurs), m? (symboles) } → item d'affichage, null si illisible. */
+/** Une carte d'un partage : { n, q, l?, fo? (exemplaires foil parmi q), f? (nom français), i? (image), c? (coût), t? (type), o? (couleurs), m? (symboles) } → item d'affichage, null si illisible. */
 function shareCard(x) {
   if (!x || typeof x !== 'object') return null;
   const n = shStr(x.n, 160).trim(), q = shNum(x.q, 1, 9999); if (!n || q == null) return null;
   const it = { k: ownKey(n), n, q };
   if (!it.k) return null;
   if (SHARE_LANGS.includes(x.l)) it.l = x.l;
+  const fo = shNum(x.fo, 0, q); if (fo) it.fo = fo;      // foil (classeur : pochette à part) ; absent d'un partage d'avant
   const f = shStr(x.f, 160).trim(); if (f) { it.fn = f; if (it.l === (SHARE_LANGS.includes(x.fl) ? x.fl : 'fr')) it.dn = f; }      // fl : langue de f (partage d'un appareil en allemand…), français sans elle
   { const iv = shStr(x.i, 300), full = !iv || /^https:/.test(iv) ? iv : SCRY_IMG + iv; if (SHARE_IMG_RE.test(full)) it.im = full; }      // adresse complète ou raccourcie (imgShort)
   const pw = shStr(x.w, 90).trim(); if (pw) it.pw = pw;      // illustration recherchée : « Extension · CODE 123 »
@@ -2269,7 +2272,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
-    lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
+    lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient
