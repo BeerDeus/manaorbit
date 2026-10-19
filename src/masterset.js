@@ -14,7 +14,8 @@
    · Exemplaires sans édition : panneau ⚠ sur la vignette d'une carte manquante quand la collection a cette carte sans édition ; la carte en grand propose
      « C'est celle-ci » (l'édition est posée sur un exemplaire). Carte manquante sans exemplaire : « Ajouter à ma collection ».
    · « Chercher les N cartes manquantes sur CardTrader » (sans CardTrader : leur prix Cardmarket) : la liste « 1 Sol Ring (AAA) 7 » dans Prix d'une liste,
-     recherche aux éditions exactes (app.js › S.opts.exactEd : seulement cette impression, possédée seulement dans cette édition).
+     recherche aux éditions exactes (app.js › S.opts.exactEd : seulement cette impression, possédée seulement dans cette édition) ; version foil aussi :
+     une ligne par case (« *N* » normale, « *F* » foil), langue des options : « *FR* » (la recherche CardTrader suit le foil et la langue de chaque ligne).
    · « Souhaiter les manquantes » : les cartes manquantes affichées entrent dans la liste de souhaits avec l'illustration de cette édition.
    · Recherche et filtres de la collection (nom, couleur, famille, coût) s'appliquent à la grille ; Commander et Extension n'y ont pas de sens.
    Réglages gardés sur l'appareil (deckdeal:ms:v1 : actif, extension, cartes par ligne, affichage, options). Retirer la fonction : ôter 'masterset.js' de build.mjs. */
@@ -359,22 +360,27 @@ function msWishSheet() {
 
 /* ── Acheter les manquantes ───────────────────────────────────────────────────────────────────────────── */
 /** Cartes à chercher parmi celles affichées (filtres compris, variantes comprises si les options les gardent) : une impression par carte (la base d'abord), sans les terrains
- *  de base (jamais chiffrés) ; q : exemplaires qui manquent (toutes cases), foil : seules des cases foil manquent. */
+ *  de base (jamais chiffrés) ; q : exemplaires qui manquent (toutes cases), by : par case ({ '': q } sans la version foil ; { n, f } : normales, foil). */
 function msBuyList(code, shown) {
   const seen = new Set(), out = [], need = MS.o.need;
   for (const x of shown) {
     if (!x.k || msBasic(x) || seen.has(x.k) || !edKey(code, x.num)) continue;
-    let q = 0, nf = 0; for (const f of msFins(x)) { const m = Math.max(0, need - msQ(code, x, f)); q += m; if (f !== 'f') nf += m; }
-    if (q) { seen.add(x.k); out.push({ x, q, foil: !nf }); }
+    const by = {}; let q = 0; for (const f of msFins(x)) { const m = Math.max(0, need - msQ(code, x, f)); if (m) by[f] = m; q += m; }
+    if (q) { seen.add(x.k); out.push({ x, q, by }); }
   }
   return out;
 }
-/** « Chercher les N cartes manquantes sur CardTrader » (Cardmarket sans CardTrader) : la liste « 1 Sol Ring (AAA) 7 » (« *F* » : foil seulement) dans Prix d'une liste,
- *  aux éditions exactes (cette impression seulement, déjà possédée seulement si c'est cette édition) ; la recherche se lance depuis la saisie (langue, état, foil au choix). */
+/** Texte de la liste : « 1 Sol Ring (AAA) 7 », une ligne par case qui manque avec la version foil (« *N* » normale, « *F* » foil), « *FR* » avec la langue des options :
+ *  la recherche CardTrader lit le foil et la langue de chaque ligne. */
+function msBuyText(code, shown) {
+  const lg = MS.o.lang ? ' *' + langCode(MS.o.lang) + '*' : '';
+  return msBuyList(code, shown).flatMap(({ x, by }) => Object.entries(by).map(([f, q]) => `${q} ${x.n} (${code.toUpperCase()}) ${x.num}${lg}${f === 'f' ? ' *F*' : f === 'n' ? ' *N*' : ''}`)).join('\n');
+}
+/** « Chercher les N cartes manquantes sur CardTrader » (Cardmarket sans CardTrader) : la liste (msBuyText) dans Prix d'une liste, aux éditions exactes (cette impression
+ *  seulement, déjà possédée seulement si c'est cette édition, cette finition et cette langue) ; la recherche se lance depuis la saisie (état, langue et foil des lignes sans les leurs). */
 function msBuy() {
   const v = MS.view; if (!v || typeof putDeckText !== 'function') return;
-  const list = msBuyList(v.code, v.shown); if (!list.length) return;
-  const text = list.map(({ x, q, foil }) => `${q} ${x.n} (${v.code.toUpperCase()}) ${x.num}${foil ? ' *F*' : ''}`).join('\n');
+  const text = msBuyText(v.code, v.shown); if (!text) return;
   closeCollection();
   putDeckText(text, T('Masterset {name}', { name: msSetName(v.code) }), { exactEd: true });
 }

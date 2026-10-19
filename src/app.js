@@ -25,10 +25,10 @@ function flag(lang) {
   const g = FLAGS[lang]; const name = LANGS[lang] || lang || '?';
   return g ? `<svg class="flag" viewBox="0 0 24 16" role="img" aria-label="${esc(name)}"><title>${esc(name)}</title>${g}</svg>` : `<span class="flag-x">${esc(String(lang || '?').toUpperCase())}</span>`;
 }
-/** Pastille langue : drapeau seul si c'est la langue demandée, drapeau + code en orange si c'est un repli. */
-function langTag(lang) {
+/** Pastille langue : drapeau seul si c'est la langue demandée, drapeau + code en orange si c'est un repli. want : langue(s) demandée(s) (ligne « *DE* » : l'allemand). */
+function langTag(lang, want = S.opts.lang) {
   if (!lang) return '';
-  const diff = lang !== S.opts.lang;
+  const diff = ![].concat(want).includes(lang);
   return `<span class="tag lang${diff ? ' warn' : ''}">${flag(lang)}${diff ? esc(String(lang).toUpperCase()) : ''}</span>`;
 }
 
@@ -114,7 +114,7 @@ const S = {
   demo: true, demoPref: null, src: 'auto', proxy: false, token: '', appKey: '', theme: 'auto', draft: null,
   opts: { lang: 'fr', langSet: false, cond: 'Slightly Played', foil: 'no', mode: 'zero', ship: 280, fallbackEn: true, exactEd: false },      // exactEd : seulement l'édition de chaque ligne (« (CMM) 400 »)
   deck: { cards: [], basics: [], lines: 0, ignored: 0, copies: 0, basicCopies: 0 },
-  view: 'home', tab: 'cards', run: null, res: null, fo: {}, overrides: {}, cur: 'EUR', isSample: false, wake: null, deckId: null, runDelta: null,
+  view: 'home', tab: 'cards', run: null, res: null, fo: {}, fl: {}, overrides: {}, cur: 'EUR', isSample: false, wake: null, deckId: null, runDelta: null,
   enBusy: null, enCtrl: null, gone: new Set(), haptic: true, sort: 'deck', filter: 'all', removed: [], useColl: true, push: false,
 };
 let runSeq = 0;
@@ -126,6 +126,19 @@ const ownSig = () => { const n = S.deck.cards.reduce((a, c) => a + (c.own || 0),
 /** Signature d'une recherche pour comparer l'historique : critères + cartes déjà possédées (le total change si la collection change). */
 const curSig = () => critSig() + ownSig();
 const deckLabel = () => { const d = findDeck(S.deckId); return d ? d.name : suggestName($('#deckText').value); };
+/* ── Foil et langue par ligne (« 1 Sol Ring *F* », « *N* », « *FR* » : c.ln, voir parseDeck) : la ligne cherche ses offres ; sans foil ou sans langue, ceux de la recherche ── */
+/** Critères de ligne appliqués à cette carte (prix Cardmarket : ceux de la recherche, comme avant). */
+const lnOn = c => !!c.ln && !isCm();
+/** Lignes de la carte encore à acheter. */
+const lnNeed = c => c.ln.filter(l => l.need > 0);
+/** Repli anglais possible : une ligne à acheter sans langue imposée (« *FR* » : cette langue seulement). */
+const lnCanEn = c => !lnOn(c) || lnNeed(c).some(l => !l.l);
+/** Une ligne à acheter impose son foil ou sa langue. */
+const lnStrict = c => lnOn(c) && lnNeed(c).some(l => l.f || l.l);
+/** Ajoute des offres à celles d'une carte (repli anglais) sans doublon : une offre lue pour deux de ses lignes ne compte qu'une fois. */
+function addOffers(st, offers) { const ids = new Set(st.offers.map(o => o.id)); st.offers = st.offers.concat((offers || []).filter(o => !ids.has(o.id))); }
+/** Langues des offres cherchées : celle de la recherche, et celles des lignes qui imposent la leur (cartes à acheter). */
+const runLangs = () => [...new Set(S.deck.cards.filter(c => c.need > 0).flatMap(c => (lnOn(c) ? lnNeed(c).map(l => l.l || S.opts.lang) : [S.opts.lang])))];
 
 function loadStore() { try { return JSON.parse(localStorage.getItem('deckdeal:v1') || '{}'); } catch (e) { return {}; } }
 function saveStore() {
@@ -274,7 +287,8 @@ function refreshDeck() {
   const d = parseDeck($('#deckText').value); S.deck = d;
   if (d.cards.length && !FRX.ix && !S.isSample && S.view === 'input') frLoad();      // noms français (« 4 Foudre ») : index chargé quand on saisit une liste (pas pour l'exemple, ni au démarrage)
   const exact = !!S.opts.exactEd && d.cards.some(c => c.eds);
-  applyOwned(d.cards, S.useColl ? (k, c) => (exact && c.eds ? Math.min(engOwned(k), collEdQty(k, c.eds)) : engOwned(k)) : null);      // éditions exactes : seuls les exemplaires de ces éditions comptent
+  applyOwned(d.cards, S.useColl ? (k, c) => (exact && c.eds ? Math.min(engOwned(k), collEdQty(k, c.eds)) : engOwned(k)) : null,      // éditions exactes : seuls les exemplaires de ces éditions comptent
+    exact ? (k, c) => (c.eds ? l => collEdQty(k, c.eds, l.f, l.l) : null) : null);      // et, pour une ligne « *F* », « *N* », « *FR* », de cette finition et de cette langue
   { const r = $('#exactEdRow'); if (r) { r.hidden = !d.cards.some(c => c.eds); $('#optExactEd').checked = !!S.opts.exactEd; } }
   const buy = d.cards.filter(c => c.need > 0).length, owned = d.cards.length - buy;
   const chips = [];
@@ -327,9 +341,9 @@ function showView(v) {
 const STEP_DEFS = [['prints', T('Lecture des impressions')], ['catalog', T('Catalogue CardTrader')], ['offers', T('Offres')], ['fallback', T('Repli en anglais')]];
 const STEP_CM = [['prints', T('Relevé Cardmarket du jour')], ['catalog', T('Cartes hors relevé (Scryfall)')], ['offers', T('Prix par carte')]];
 function buildSteps() {
-  const cm = S.run && S.run.src === 'cm';
+  const cm = S.run && S.run.src === 'cm', ls = cm ? [] : runLangs(), lg = ls.length === 1 ? ls[0] : '';      // lignes en plusieurs langues (« *DE* ») : « Offres »
   $('#steps').innerHTML = (cm ? STEP_CM : STEP_DEFS).map(([id, t]) =>
-    `<li class="step" data-id="${id}" data-state="idle"><span class="st-ico"></span><span>${id === 'offers' && !cm ? esc(T('Offres en {lang}', { lang: LANGS[S.opts.lang] || S.opts.lang })) : esc(t)}</span><span class="det"></span></li>`).join('');
+    `<li class="step" data-id="${id}" data-state="idle"><span class="st-ico"></span><span>${id === 'offers' && lg ? esc(T('Offres en {lang}', { lang: LANGS[lg] || lg })) : esc(t)}</span><span class="det"></span></li>`).join('');
 }
 function setStep(id, state, detail) {
   const li = $(`.step[data-id="${id}"]`); if (!li) return;
@@ -373,7 +387,7 @@ function buildList() {
 const FILTERS = [['all', T('Toutes')], ['none', T('Sans offre')], ['lang', T('Autre langue')], ['manual', T('Choix manuel')], ['own', T('Possédées')]];
 function filterMatch(f, c, v) {
   if (f === 'none') return v.s === 'none' || v.s === 'nohub' || v.s === 'notfound';
-  if (f === 'lang') return v.s === 'ok' && v.pick.parts.some(p => p.offer.lang && p.offer.lang !== S.opts.lang);
+  if (f === 'lang') return v.s === 'ok' && v.pick.parts.some(p => p.offer.lang && p.offer.lang !== (p.w || S.opts.lang));      // w : langue de la ligne (« *DE* »)
   if (f === 'manual') return !!S.overrides[c.key];
   if (f === 'own') return c.own > 0;
   return true;
@@ -476,7 +490,7 @@ async function startRun(fresh) {
   saveStore();
   const run = { id: ++runSeq, src, status: 'running', ctrl: new AbortController(), cards: {}, error: null, t0: performance.now(), text: $('#deckText').value, live: src !== 'demo', sig: curSig(), crit: critSig() };
   for (const c of cards) run.cards[c.key] = { fetched: false, offers: [], notFound: false, fellBack: false, bps: [], img: null };
-  S.run = run; S.overrides = {}; S.gone = new Set(); S.cur = 'EUR'; S.fo = {}; S.tab = 'cards'; S.runDelta = null; S.removed = []; S.filter = 'all'; paintUndo();
+  S.run = run; S.overrides = {}; S.gone = new Set(); S.cur = 'EUR'; S.fo = {}; S.fl = {}; S.tab = 'cards'; S.runDelta = null; S.removed = []; S.filter = 'all'; paintUndo();
   run.frac = 0; run.step = ''; run.cacheAge = 0;
   watchSeen($('#progressCard'));
   const title = src === 'demo' ? T('Recherche simulée') : src === 'cm' ? T('Prix Cardmarket') : T('Recherche des offres');
@@ -503,12 +517,12 @@ async function startRun(fresh) {
     cacheAge: a => { if (alive() && a > run.cacheAge) run.cacheAge = a; },             // âge (s) du plus vieux prix servi par le cache du serveur
     card: (key, p) => {
       if (!alive()) return; const st = run.cards[key]; if (!st) return;
-      st.fetched = true; st.offers = p.fellBack ? st.offers.concat(p.offers || []) : (p.offers || []); st.bps = p.bps || st.bps; st.notFound = !!p.notFound; st.img = p.img || st.img; if (p.meta) st.meta = p.meta; if (p.skipped) st.skipped = true;
+      st.fetched = true; if (p.fellBack) addOffers(st, p.offers); else st.offers = p.offers || []; st.bps = p.bps || st.bps; st.notFound = !!p.notFound; st.img = p.img || st.img; if (p.meta) st.meta = p.meta; if (p.skipped) st.skipped = true;
       if (p.fellBack) st.fellBack = true;
       scheduleRecompute();
     },
-    // Repli anglais utile : aucune offre exploitable dans la langue demandée, avec le mode actuel (Zero = vendeurs hub seulement).
-    needsEn: key => { const st = run.cards[key]; return !!st && needsEnglish(st.offers, S.opts); },
+    // Repli anglais utile : aucune offre exploitable dans la langue demandée, avec le mode actuel (Zero = vendeurs hub seulement) ; lignes « *FR* » : jamais.
+    needsEn: (key, c) => { const st = run.cards[key]; return !!st && (c && lnOn(c) ? lnNeedsEn(c, st.offers, S.opts) : needsEnglish(st.offers, S.opts)); },
   };
   try {
     await (src === 'demo' ? runDemo : src === 'cm' ? runCm : runLive)(cards, { ...S.opts, fresh, skip, push }, hooks, run.ctrl.signal);
@@ -555,12 +569,29 @@ function scheduleRecompute(now) {
   rcTimer = setTimeout(() => { rcTimer = 0; recompute(); }, 240);
 }
 
+/** Carte aux critères de ligne (foil, langue) : une demande par ligne à acheter (clé « carte\u0001i », stock partagé entre ses lignes), ses offres dans S.fl[carte][i] ;
+ *  S.fo[carte] : les offres de toutes ses lignes. Un choix manuel (forced[carte]) va à la première ligne qui a cette offre. */
+function lnDemand(c, st, demand, byZ, byD, subs, forced) {
+  const fl = S.fl[c.key] = [], all = new Map(); let pin = forced[c.key]; delete forced[c.key];
+  c.ln.forEach((l, i) => {
+    const list = l.need > 0 ? lnOffers(st.offers, l, S.opts, st.fellBack).filter(o => !S.gone.has(o.productId)) : []; fl[i] = list;
+    if (!(l.need > 0)) return;
+    for (const o of list) all.set(o.id, o);
+    if (list.length && (!S.cur || S.cur === 'EUR')) S.cur = list[0].cur || 'EUR';
+    const k = c.key + '\u0001' + i, w = l.l || S.opts.lang, keep = pin != null && list.some(o => o.id === pin);
+    if (keep) { forced[k] = pin; pin = null; }
+    subs[k] = { key: c.key, i, w }; demand.push({ key: k, qty: l.need, grp: c.key });      // ligne sans offre gardée : son manque compte dans celui de la carte
+    byZ[k] = forMode(list, 'zero', w, keep); byD[k] = forMode(list, 'direct', w, keep);
+  });
+  S.fo[c.key] = [...all.values()];
+}
 function recompute() {
   if (!S.run) return;
-  const demand = [], byZ = {}, byD = {}; S.fo = {};
+  const demand = [], byZ = {}, byD = {}, subs = {}, forced = { ...S.overrides }; S.fo = {}; S.fl = {};
   for (const c of S.deck.cards) {
     if (c.need === 0) continue;                                   // déjà possédée : rien à acheter
     const st = S.run.cards[c.key]; if (!st || !st.fetched || st.notFound) continue;
+    if (lnOn(c)) { lnDemand(c, st, demand, byZ, byD, subs, forced); continue; }      // « *F* », « *N* », « *FR* » : les offres de chaque ligne
     const list = st.offers.filter(o => passes(o, S.opts) && !S.gone.has(o.productId)); S.fo[c.key] = list;
     if (!list.length) continue;
     if (!S.cur || S.cur === 'EUR') S.cur = list[0].cur || 'EUR';
@@ -569,7 +600,7 @@ function recompute() {
     demand.push({ key: c.key, qty: c.need });
     byZ[c.key] = forMode(list, 'zero', S.opts.lang, keep); byD[c.key] = forMode(list, 'direct', S.opts.lang, keep);
   }
-  S.res = { zero: optimize(demand, byZ, { mode: 'zero', forced: S.overrides }), direct: optimize(demand, byD, { mode: 'direct', ship: S.opts.ship, forced: S.overrides }) };
+  S.res = { zero: lnJoin(optimize(demand, byZ, { mode: 'zero', forced }), subs), direct: lnJoin(optimize(demand, byD, { mode: 'direct', ship: S.opts.ship, forced }), subs) };      // lignes réunies par carte
   updateHero(); updateRows(); applyView(false); updateAlerts(); updateDock();
   if (S.tab === 'sellers') renderSellers(false);
 }
@@ -643,9 +674,24 @@ function updateRows() {
     updateRow(el, c, cardView(c), S.run.cards[c.key]);
   });
 }
+/** Pastilles des critères de ligne d'une carte à acheter : « FR · ✦ Foil », « DE », « Sans foil » ; plusieurs lignes à acheter : « 2 × … ». */
+function lnBadges(c) {
+  if (!lnOn(c)) return '';
+  const ls = lnNeed(c), many = ls.length > 1, tip = esc(T('Foil et langue de cette ligne de ta liste : seules ces offres sont cherchées'));
+  return ls.filter(l => l.f || l.l).map(l => `<span class="tag lnc${l.f === 'yes' ? ' foil' : ''}" title="${tip}">${many ? l.need + ' × ' : ''}${l.l ? flag(l.l) + esc(langCode(l.l)) : ''}${l.l && l.f ? ' · ' : ''}${l.f === 'yes' ? '✦ ' + esc(T('Foil')) : l.f === 'no' ? esc(T('Sans foil')) : ''}</span>`).join('');
+}
+/** « Aucune offre foil en français » : pour chaque ligne à acheter, son foil et sa langue (sans langue : celle de la recherche, ou « même en anglais » après le repli). */
+function lnMiss(c, st) {
+  const ms = lnNeed(c).map(l => {
+    const fb = !l.l && !!st && st.fellBack, lang = LANGS[l.l || S.opts.lang] || l.l || S.opts.lang;
+    return l.f === 'yes' ? (fb ? T('Aucune offre foil, même en anglais') : T('Aucune offre foil en {lang}', { lang })) : l.f === 'no' ? (fb ? T('Aucune offre non-foil, même en anglais') : T('Aucune offre non-foil en {lang}', { lang }))
+      : fb ? T('Aucune offre, même en anglais') : T('Aucune offre en {lang}', { lang });
+  });
+  return [...new Set(ms)].join(' · ');
+}
 function updateRow(el, c, v, st) {
   const pick = v.pick, ri = pick ? refInfo(pick.parts, st && st.bps) : null;
-  const sig = v.s + '|' + (pick ? pick.parts.map(p => p.offer.id + ':' + p.n).join(',') : '') + '|' + (st && st.fellBack ? 1 : 0) + '|' + S.opts.lang + '|' + S.cur + '|' + (c.own || 0) + '|' + c.need + '|' + (ri ? ri.ref + ri.level : '') + '|' + (st && st.img ? 1 : 0);
+  const sig = v.s + '|' + (pick ? pick.parts.map(p => p.offer.id + ':' + p.n).join(',') : '') + '|' + (st && st.fellBack ? 1 : 0) + '|' + S.opts.lang + '|' + S.cur + '|' + (c.own || 0) + '|' + c.need + '|' + (ri ? ri.ref + ri.level : '') + '|' + (st && st.img ? 1 : 0) + '|' + (lnOn(c) ? c.ln.map(l => l.need + (l.f || '') + (l.l || '')).join() : '');
   if (el._sig === sig) return; el._sig = sig;
   const rw = el.parentNode; if (rw && rw.classList && rw.classList.contains('rw')) rw.classList.toggle('scanned', v.s !== 'loading');
   const prevCost = el._cost; el._cost = v.s === 'ok' ? pick.cost : null;
@@ -654,7 +700,7 @@ function updateRow(el, c, v, st) {
   const img = (top && top.img) || (st && st.img);
   const thumb = `<span class="thumb" style="--h:${hue}"${v.s === 'notfound' ? '' : zoomAt('res', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>`;
   const qty = c.need > 1 ? `<span class="tag accent">× ${c.need}</span>` : '';
-  const ownTag = c.own > 0 && c.need > 0 ? `<span class="tag good">${TN(c.own, '{n} possédée', '{n} possédées')}</span>` : '';
+  const ownTag = c.own > 0 && c.need > 0 ? `<span class="tag good">${TN(c.own, '{n} possédée', '{n} possédées')}</span>` : '', lnTag = lnBadges(c);      // lnTag : critères de ligne (« FR · ✦ Foil »)
   const langName = LANGS[S.opts.lang] || S.opts.lang;
   el.classList.toggle('is-missing', v.s === 'none' || v.s === 'notfound' || v.s === 'nohub');
   el.classList.toggle('is-own', v.s === 'own');
@@ -669,21 +715,22 @@ function updateRow(el, c, v, st) {
     const tags = [];
     tags.push(`<span class="tag">${esc((top.set || '').toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>`);
     tags.push(`<span class="tag">${esc(COND_SHORT[top.cond] || top.cond || '?')}</span>`);
-    if (top.lang) tags.unshift(langTag(top.lang));
+    if (top.lang) tags.unshift(langTag(top.lang, pick.parts[0].w || S.opts.lang));      // w : langue de sa ligne (« *DE* » : l'allemand n'est pas un repli)
     if (top.foil) tags.push('<span class="tag accent">Foil</span>');
     if (pick.parts.length > 1) tags.push(`<span class="tag">${TN(pick.parts.length - 1, '+{n} offre', '+{n} offres')}</span>`);
     if (pick.short > 0) tags.push(`<span class="tag warn">${T('Il en manque {n}', { n: pick.short })}</span>`);
     if (ri) tags.push(`<span class="tag ref ${ri.level}" title="${esc(T('Prix de référence Cardmarket par exemplaire (donné par Scryfall) : {ref}. Ton prix : {unit}.', { ref: fmt(ri.ref), unit: fmt(ri.unit) }))}">CM ${esc(fmt(ri.ref))}${ri.level === 'warn' ? ' · +' + T('{n} %', { n: ri.pct }) : ''}</span>`);
     const n = pick.parts.reduce((a, p) => a + p.n, 0);
     const small = pick.parts.length === 1 && n > 1 ? `${n} × ${fmt(top.price, top.cur)}` : '';
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}${tags.join('')}</span><span class="row-seller">${esc(top.seller)}${top.country ? ' · ' + esc(top.country) : ''}</span></span><span class="row-price"><b${prevCost != null && prevCost !== pick.cost ? ' class="flash"' : ''}>${fmt(pick.cost, top.cur)}</b>${small ? `<small>${small}</small>` : ''}</span>`;
+    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}${lnTag}${tags.join('')}</span><span class="row-seller">${esc(top.seller)}${top.country ? ' · ' + esc(top.country) : ''}</span></span><span class="row-price"><b${prevCost != null && prevCost !== pick.cost ? ' class="flash"' : ''}>${fmt(pick.cost, top.cur)}</b>${small ? `<small>${small}</small>` : ''}</span>`;
   } else {
     const msg = v.s === 'notfound' ? (c.amb ? (FRX.l === 'fr' ? T('Nom français de plusieurs cartes : {list}. Écris le nom anglais.', { list: c.amb.join(' · ') }) : T('Nom en {lang} de plusieurs cartes : {list}. Écris le nom anglais.', { list: c.amb.join(' · '), lang: LANGS[FRX.l] || FRX.l })) : T('Nom introuvable, vérifie l\'orthographe'))
       : v.s === 'none' && isCm() ? T('Pas de prix Cardmarket connu')
       : v.s === 'stale' ? T('Collection modifiée : relance la recherche')
       : v.s === 'nohub' ? T('Aucune offre compatible Zero')
-        : (st && st.fellBack ? T('Aucune offre, même en anglais') : T('Aucune offre en {lang}', { lang: langName }));
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span>${ownTag ? `<span class="row-meta">${ownTag}</span>` : ''}<span class="row-miss">${esc(msg)}</span></span><span class="row-price">${v.s === 'stale' ? '' : `<span class="tag">${v.s === 'notfound' ? T('Erreur') : T('Voir')}</span>`}</span>`;
+        : lnOn(c) ? lnMiss(c, st)      // « Aucune offre foil en français » : critères de la ligne
+          : (st && st.fellBack ? T('Aucune offre, même en anglais') : T('Aucune offre en {lang}', { lang: langName }));
+    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span>${ownTag || lnTag ? `<span class="row-meta">${ownTag}${lnTag}</span>` : ''}<span class="row-miss">${esc(msg)}</span></span><span class="row-price">${v.s === 'stale' ? '' : `<span class="tag">${v.s === 'notfound' ? T('Erreur') : T('Voir')}</span>`}</span>`;
   }
 }
 
@@ -706,10 +753,10 @@ function updateAlerts() {
   if (S.run.status === 'cancelled') items.push({ k: '', html: T('Recherche arrêtée : les résultats sont partiels.') });
   if (S.run.status === 'done' && S.run.cacheAge >= 90) { const m = Math.round(S.run.cacheAge / 60), ago = m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''); items.push({ k: '', html: `${T('Prix lus il y a {ago} (cache du serveur).', { ago })} <button type="button" data-act="refresh">${T('Actualiser les prix')}</button>` }); }
   if (S.run.status !== 'running') {
-    let none = 0, nohub = 0, nf = [], short = 0, enNone = 0, enHub = 0, stale = 0;
+    let none = 0, noneLn = 0, nohub = 0, nf = [], short = 0, enNone = 0, enHub = 0, stale = 0;
     for (const c of S.deck.cards) {
-      const v = cardView(c), st = S.run.cards[c.key], cand = S.opts.lang !== 'en' && !!st && !st.fellBack && !S.enBusy; // repli anglais encore possible
-      if (v.s === 'none') { none++; if (cand) enNone++; } else if (v.s === 'nohub') { nohub++; if (cand) enHub++; }
+      const v = cardView(c), st = S.run.cards[c.key], cand = S.opts.lang !== 'en' && !!st && !st.fellBack && !S.enBusy && lnCanEn(c); // repli anglais encore possible (pas pour une ligne « *FR* »)
+      if (v.s === 'none') { if (lnStrict(c)) noneLn++; else { none++; if (cand) enNone++; } } else if (v.s === 'nohub') { nohub++; if (cand) enHub++; }      // noneLn : sans offre avec le foil ou la langue de sa ligne
       else if (v.s === 'notfound') nf.push(c.dn || c.name); else if (v.s === 'stale') stale++; else if (v.s === 'ok' && v.pick.short > 0) short++;
     }
     const ln = LANGS[S.opts.lang] || S.opts.lang, en = S.opts.fallbackEn && S.opts.lang !== 'en';
@@ -719,6 +766,7 @@ function updateAlerts() {
     if (S.enBusy) items.push({ k: '', html: T('Recherche en anglais · {done} / {total}…', { done: S.enBusy.done, total: S.enBusy.total }) });
     if (none && isCm()) items.push({ k: '', html: TN(none, '{n} carte sans prix Cardmarket connu.', '{n} cartes sans prix Cardmarket connu.') + seeBtn });
     else if (none) items.push({ k: '', html: (en ? TN(none, '{n} carte sans offre en {lang} ni en anglais.', '{n} cartes sans offre en {lang} ni en anglais.', { lang: esc(ln) }) : TN(none, '{n} carte sans offre en {lang}.', '{n} cartes sans offre en {lang}.', { lang: esc(ln) })) + seeBtn + enBtn(enNone) });
+    if (noneLn) items.push({ k: '', html: TN(noneLn, '{n} carte sans offre avec le foil ou la langue de sa ligne.', '{n} cartes sans offre avec le foil ou la langue de leur ligne.') + seeBtn });
     if (nohub) items.push({ k: '', html: `${TN(nohub, '{n} carte sans offre compatible Zero.', '{n} cartes sans offre compatible Zero.')} <button type="button" data-act="direct">${T('Passer en Direct')}</button>${enBtn(enHub)}` });
     if (nf.length) items.push({ k: 'bad', html: T('Nom introuvable : {names}', { names: esc(nf.slice(0, 3).join(', ')) + (nf.length > 3 ? '…' : '') }) });
     if (short) items.push({ k: '', html: TN(short, '{n} carte en quantité insuffisante.', '{n} cartes en quantité insuffisante.') });
@@ -731,7 +779,7 @@ function updateAlerts() {
 /** « Trouver en anglais » : lance le repli anglais pour toutes les cartes sans offre exploitable (en gardant leurs offres actuelles). */
 async function findEnglishAll() {
   if (!S.run || S.enBusy || S.opts.lang === 'en') return;
-  const cands = S.deck.cards.filter(c => { const v = cardView(c), st = S.run.cards[c.key]; return st && !st.fellBack && !st.notFound && (v.s === 'none' || v.s === 'nohub'); });
+  const cands = S.deck.cards.filter(c => { const v = cardView(c), st = S.run.cards[c.key]; return st && !st.fellBack && !st.notFound && (v.s === 'none' || v.s === 'nohub') && lnCanEn(c); });
   if (!cands.length) return;
   if (S.enCtrl) S.enCtrl.abort();
   const ctrl = S.enCtrl = new AbortController(), run = S.run;
@@ -744,7 +792,7 @@ async function findEnglishAll() {
       const c = cands[i++], st = run.cards[c.key];
       try {
         const offers = S.demo ? (await sleep(140, ctrl.signal), makeDemoOffers(c, 'en')) : await searchOneEnglish(c, st, S.opts, ctrl.signal);
-        st.offers = st.offers.concat(offers); st.fellBack = true;
+        addOffers(st, offers); st.fellBack = true;
       } catch (e) { if (e.name === 'AbortError') { aborted = true; return; } failed++; }
       if (S.enBusy) { S.enBusy.done++; updateAlerts(); task.set(S.enBusy.done, cands.length, `${S.enBusy.done} / ${cands.length}`); } scheduleRecompute();
     }
@@ -770,10 +818,10 @@ function updateRecap() {
     const v = cardView(c);
     return { state: v.s, qty: c.qty, short: v.pick ? v.pick.short : 0, parts: v.pick ? v.pick.parts.map(p => ({ lang: p.offer.lang, n: p.n })) : [] };
   });
-  const r = recapOf(items);
+  const r = recapOf(items), lns = S.deck.cards.filter(c => c.need > 0 && lnOn(c)).flatMap(lnNeed), want = new Set([S.opts.lang, ...lns.map(l => l.l).filter(Boolean)]);      // want : langue de la recherche et celles des lignes (« *DE* »)
   const langs = Object.keys(r.byLang).sort((a, b) => (b === S.opts.lang) - (a === S.opts.lang) || r.byLang[b].cards - r.byLang[a].cards);
   const chip = (cls, html) => `<span class="rchip ${cls}">${html}</span>`;
-  const chips = langs.filter(l => r.byLang[l].cards > 0 || r.byLang[l].copies > 0).map(l => chip(l === S.opts.lang ? '' : 'warn', `${flag(l)}<b>${r.byLang[l].cards}</b> ${esc(LANGS[l] || l)}`));
+  const chips = langs.filter(l => r.byLang[l].cards > 0 || r.byLang[l].copies > 0).map(l => chip(want.has(l) ? '' : 'warn', `${flag(l)}<b>${r.byLang[l].cards}</b> ${esc(LANGS[l] || l)}`));
   if (own) chips.push(chip('good', TN(own, '<b>{n}</b> possédée', '<b>{n}</b> possédées')));
   if (r.none) chips.push(chip('warn', T('<b>{n}</b> sans offre', { n: r.none })));
   if (r.nohub) chips.push(chip('warn', T('<b>{n}</b> hors Zero', { n: r.nohub })));
@@ -784,6 +832,7 @@ function updateRecap() {
   const crit = isCm() ? [T('prix tendance Cardmarket'), T('impression la moins chère'), T('hors port')] : [LANGS[S.opts.lang] || S.opts.lang, T('état ≥ {cond}', { cond: COND_SHORT[S.opts.cond] || S.opts.cond }), foil, S.opts.mode === 'zero' ? 'CardTrader Zero' : 'Direct'];
   if (!isCm() && S.opts.fallbackEn && S.opts.lang !== 'en') crit.push(T('repli anglais'));
   if (exactOn()) crit.push(T('éditions exactes'));
+  { const lf = lns.some(l => l.f), ll = lns.some(l => l.l); if (lf || ll) crit.push(lf && ll ? T('foil et langue par ligne') : lf ? T('foil par ligne') : T('langue par ligne')); }      // « *F* », « *FR* » : ces lignes gardent les leurs
   const html = `<div class="recap-top"><b>${r.found}</b><span> / ${T('{n} cartes trouvées', { n: r.total })}</span><i></i><span>${TN(r.copies, '{n} exemplaire', '{n} exemplaires')}</span></div>`
     + (chips.length ? `<div class="recap-chips">${chips.join('')}</div>` : '')
     + `<div class="recap-crit">${esc(crit.join(' · ').replace(/^./, m => m.toUpperCase()))}</div>`;
@@ -816,12 +865,13 @@ function openCardSheet(key) {
     });
     return;
   }
+  const lw = lnOn(c) ? lnNeed(c).map(l => l.l || S.opts.lang) : S.opts.lang;      // langue(s) voulue(s) : celles des lignes (« *DE* »)
   openSheet(c.dn || c.name, c.qty > 1 ? T('{n} exemplaires', { n: c.qty }) : null, api => {
     if (!list.length) {
-      const canEn = S.opts.lang !== 'en' && !st.fellBack && !st.notFound;
+      const canEn = S.opts.lang !== 'en' && !st.fellBack && !st.notFound && lnCanEn(c);
       const hubOnly = !st.notFound && (S.fo[key] || []).length > 0; // des offres existent, mais aucune compatible Zero
-      const ln = LANGS[S.opts.lang] || S.opts.lang;
-      api.body.innerHTML = `<p class="hint">${st.notFound ? T('Scryfall ne connaît pas ce nom. Corrige-le dans la liste.') : hubOnly ? T(canEn ? 'Des offres en {lang} existent, mais aucune n\'est compatible Zero. Passe en Direct pour les voir, ou cherche en anglais.' : 'Des offres en {lang} existent, mais aucune n\'est compatible Zero. Passe en Direct pour les voir.', { lang: esc(ln) }) : T('Aucune offre ne correspond à tes critères.')}</p>`;
+      const ln = LANGS[[].concat(lw)[0]] || [].concat(lw)[0];
+      api.body.innerHTML = `<p class="hint">${st.notFound ? T('Scryfall ne connaît pas ce nom. Corrige-le dans la liste.') : hubOnly ? T(canEn ? 'Des offres en {lang} existent, mais aucune n\'est compatible Zero. Passe en Direct pour les voir, ou cherche en anglais.' : 'Des offres en {lang} existent, mais aucune n\'est compatible Zero. Passe en Direct pour les voir.', { lang: esc(ln) }) : lnOn(c) ? esc(lnMiss(c, st)) + '.' : T('Aucune offre ne correspond à tes critères.')}</p>`;
       const enBtn = `<button class="btn" type="button" id="btnEn">${T('Chercher en anglais')}</button>`;
       if (hubOnly && mode === 'zero') {
         api.setFoot(`<button class="btn ghost" type="button" id="btnDirect">${T('Passer en Direct')}</button>${canEn ? enBtn : ''}`);
@@ -834,7 +884,7 @@ function openCardSheet(key) {
           try {
             const offers = S.demo ? makeDemoOffers(c, 'en') : await searchOneEnglish(c, st, S.opts, S.run.ctrl.signal);
             if (S.demo) await sleep(350);
-            st.offers = st.offers.concat(offers); st.fellBack = true; st.fetched = true; scheduleRecompute(true); api.close(); toast(offers.length ? T('Offres anglaises ajoutées') : T('Aucune offre en anglais non plus'));
+            addOffers(st, offers); st.fellBack = true; st.fetched = true; scheduleRecompute(true); api.close(); toast(offers.length ? T('Offres anglaises ajoutées') : T('Aucune offre en anglais non plus'));
           } catch (err) { e.target.disabled = false; e.target.textContent = T('Chercher en anglais'); toast(T('Recherche impossible : {msg}', { msg: err.message || T('erreur') })); }
         };
       }
@@ -843,7 +893,7 @@ function openCardSheet(key) {
     const link = o => S.run.live && o.bpId != null ? `<a class="o-ext" href="${esc(ctCardUrl(o.bpId))}" target="_blank" rel="noopener noreferrer" aria-label="${T('Voir la carte sur CardTrader')}" title="${T('Voir sur CardTrader')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg></a>` : '';
     api.body.innerHTML = `<div class="offers">${list.map(o => `<div class="offer-row"><button type="button" class="offer" data-id="${esc(o.id)}" aria-pressed="${chosen.has(o.id)}">
       <span class="o-who">${esc(o.seller)}${o.country ? `<i>${esc(o.country)}</i>` : ''}</span><span class="o-price">${fmt(o.price, o.cur)}</span>
-      <span class="o-meta"><span class="tag">${esc((o.set || '').toUpperCase())}${o.num ? ' ' + esc(o.num) : ''}</span><span class="tag">${esc(COND_SHORT[o.cond] || o.cond)}</span>${langTag(o.lang)}${o.foil ? '<span class="tag accent">Foil</span>' : ''}${o.hub ? '<span class="tag good">Zero</span>' : ''}<span class="tag">${T('{n} dispo', { n: o.qty })}</span></span></button>${link(o)}</div>`).join('')}</div>
+      <span class="o-meta"><span class="tag">${esc((o.set || '').toUpperCase())}${o.num ? ' ' + esc(o.num) : ''}</span><span class="tag">${esc(COND_SHORT[o.cond] || o.cond)}</span>${langTag(o.lang, lw)}${o.foil ? '<span class="tag accent">Foil</span>' : ''}${o.hub ? '<span class="tag good">Zero</span>' : ''}<span class="tag">${T('{n} dispo', { n: o.qty })}</span></span></button>${link(o)}</div>`).join('')}</div>
       ${ri ? `<p class="hint refline" data-l="${ri.level}">${T('<b>Réf. Cardmarket {ref}</b> par exemplaire (prix Scryfall) · ton prix {unit}', { ref: esc(fmt(ri.ref)), unit: esc(fmt(ri.unit)) })}${ri.diff === 0 ? '' : ` (${ri.pct > 0 ? '+' : '−'}${T('{n} %', { n: Math.abs(ri.pct) })})`}</p>` : ''}
       ${mode === 'zero' ? `<p class="hint">${T('Seules les offres compatibles Zero sont listées.')}</p>` : ''}${S.run.live ? `<p class="hint">${T('Touche ↗ pour voir la carte et ses vendeurs sur CardTrader.')}</p>` : ''}`;
     ownBtn(api); alWatchBtn(api, c.name);
@@ -865,12 +915,13 @@ function cmCopyRun() { cmCopy(S.deck.cards.filter(c => c.need > 0).map(c => ({ n
 /* ── Panier ───────────────────────────────────────────────────────────────────────────────── */
 function cartParts() {
   const r = curRes(), out = [];
-  for (const c of S.deck.cards) { const p = r.picks[c.key]; if (p) for (const x of p.parts) out.push({ offer: x.offer, n: x.n, name: c.name, key: c.key }); }
+  for (const c of S.deck.cards) { const p = r.picks[c.key]; if (p) for (const x of p.parts) out.push({ offer: x.offer, n: x.n, name: c.name, key: c.key, li: x.li, w: x.w }); }      // li, w : ligne de la carte (foil, langue par ligne)
   const sellers = new Set(out.map(o => o.offer.sellerId)), mode = S.opts.mode;
   for (const pt of out) {
     const same = new Set(out.filter(o => o.key === pt.key).map(o => o.offer.productId)); // les autres lignes de la même carte ne sont pas des remplaçantes
-    // Remplaçantes : mêmes critères et même langue prioritaire ; en Direct, un vendeur déjà au panier évite un port de plus.
-    pt.alt = (tried, need) => replaceParts(forMode((S.fo[pt.key] || []).filter(o => !tried.has(o.productId) && !same.has(o.productId) && !S.gone.has(o.productId)), mode, S.opts.lang, false), need, { mode, ship: S.opts.ship, prefer: sellers });
+    // Remplaçantes : mêmes critères (ceux de sa ligne : « *F* », « *FR* ») et même langue prioritaire ; en Direct, un vendeur déjà au panier évite un port de plus.
+    const alts = (pt.li != null && S.fl[pt.key] && S.fl[pt.key][pt.li]) || S.fo[pt.key] || [];
+    pt.alt = (tried, need) => replaceParts(forMode(alts.filter(o => !tried.has(o.productId) && !same.has(o.productId) && !S.gone.has(o.productId)), mode, pt.w || S.opts.lang, false), need, { mode, ship: S.opts.ship, prefer: sellers });
   }
   return out;
 }

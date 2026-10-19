@@ -226,6 +226,47 @@ await p.click('#segSrcRun [data-v="ct"]').catch(() => {});
 await p.evaluate(() => showView('home')); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForSelector('.ms-grid');
 ok('« Chercher les 2 cartes manquantes sur CardTrader » : liste aux éditions exactes, possédées par édition ; CardTrader CMM 400 seulement, CMM 999 introuvable ; Cardmarket au prix de AAA 7');
 
+/* ── 6 ter) foil et langue par ligne (Prix d'une liste, CardTrader) : chaque ligne lit les offres de son foil et de sa langue ; sans critère, ceux de la recherche ; panier ─── */
+world.offers[100] = [{ lang: 'fr', foil: true, cents: 900 }];                 // Sol Ring : foil 9,00 € (normale 1,50 €)
+world.offers[101] = [{ lang: 'de', foil: false, cents: 260 }];                // Swords : allemande 2,60 € (française 2,00 €)
+world.offers[103] = [{ lang: 'fr', foil: true, cents: 250 }];                 // Wrath of God : foil 2,50 € (normale 3,00 €)
+world.offers[104] = [{ lang: 'fr', foil: true, cents: 500 }];                 // Craterhoof : foil 5,00 €, moins chère que la normale (9,00 €)
+world.offers[106] = [{ lang: 'fr', foil: true, cents: 80 }];                  // Llanowar Elves : foil 0,80 € (normale 0,20 €)
+world.offers[107] = [{ lang: 'fr', foil: false, cents: 40, qty: 1 }];         // Ranger's Hawk : une seule offre, d'un exemplaire
+await p.evaluate(() => { closeCollection(); showView('input'); const c = document.querySelector('#optColl'); if (c.checked) c.click(); document.querySelector('#segFoil').setValue('any'); });      // collection non déduite, foil : peu importe
+await p.click('#segSrcRun [data-v="ct"]'); assert.equal(await p.evaluate(() => priceSrc()), 'ct');
+await p.fill('#deckText', "1 Sol Ring *F*\n1 Swords to Plowshares *DE*\n1 Arcane Signet *FR* *F*\n1 Wrath of God\n1 Craterhoof Behemoth *N*\n1 Ranger's Hawk *FR*\n1 Ranger's Hawk\n2 Llanowar Elves\n1 Llanowar Elves *F*");
+await p.waitForTimeout(250);
+const n0 = world.log.length; world.carted.length = 0;
+await p.click('#btnRun'); await p.waitForFunction(() => S.run && S.run.status === 'done', null, { timeout: 30000 }); await p.waitForTimeout(500);
+const pk = k => p.evaluate(k => { const r = curRes().picks[k]; return r ? r.parts.map(x => [x.offer.lang, x.offer.foil, x.offer.price, x.n]) : null; }, k);
+assert.deepEqual(await pk('sol ring'), [['fr', true, 900, 1]], '« *F* » : l\'offre foil (9,00 €), pas la normale à 1,50 €');
+assert.deepEqual(await pk('swords to plowshares'), [['de', false, 260, 1]], '« *DE* » : l\'offre allemande, pas la française moins chère');
+assert.deepEqual(await pk('wrath of god'), [['fr', true, 250, 1]], 'ligne sans foil ni langue : critères de la recherche (foil peu importe : la foil, moins chère)');
+assert.deepEqual(await pk('craterhoof behemoth'), [['fr', false, 900, 1]], '« *N* » : la normale, même plus chère que la foil');
+assert.deepEqual(await pk('llanowar elves'), [['fr', false, 20, 2], ['fr', true, 80, 1]], 'deux lignes : 2 normales (sans critère : la moins chère) + 1 foil');
+assert.deepEqual([await pk('rangers hawk'), await p.evaluate(() => curRes().picks['rangers hawk'].short)], [[['fr', false, 40, 1]], 1], 'deux lignes, une offre d\'un exemplaire : prise une seule fois');
+assert.deepEqual(await pk('arcane signet'), [], 'aucune offre foil française'); assert.equal(await p.evaluate(() => cardView(S.deck.cards.find(c => c.key === 'arcane signet')).s), 'none');
+const asked = bp => world.log.slice(n0).filter(l => l.path === 'marketplace/products' && Number(l.q.blueprint_id) === bp).map(l => (l.q.language || '') + '|' + (l.q.foil || ''));
+assert.deepEqual([100, 101, 102, 103, 104, 106, 107].map(asked), [['fr|true'], ['de|'], ['fr|true'], ['fr|'], ['fr|false'], ['fr|'], ['fr|']], 'une requête par carte et par langue de ses lignes, avec leur foil ; pas de repli anglais pour « *FR* »');
+assert.match(await txt(p, '.step[data-id="offers"] .det'), /sur le serveur/, 'une tâche du serveur pour toutes les lignes'); assert.equal(await p.evaluate(() => CTX.jobs), true);
+const badge = k => p.$$eval(`#list .rw[data-key="${k}"] .tag.lnc`, l => l.map(e => (e.classList.contains('foil') ? 'foil:' : '') + e.innerText.replace(/\s+/g, ' ').trim()));
+assert.deepEqual(await badge('sol ring'), ['foil:✦ Foil']); assert.deepEqual(await badge('swords to plowshares'), ['DE']); assert.deepEqual(await badge('arcane signet'), ['foil:FR · ✦ Foil']);
+assert.deepEqual(await badge('craterhoof behemoth'), ['Sans foil']); assert.deepEqual(await badge('wrath of god'), [], 'sans critère : pas de pastille'); assert.deepEqual(await badge('rangers hawk'), ['1 × FR']); assert.deepEqual(await badge('llanowar elves'), ['foil:1 × ✦ Foil']);
+assert.equal(await p.$$eval('#list .rw[data-key="swords to plowshares"] .tag.lang.warn', l => l.length), 0, 'offre allemande pour une ligne allemande : pas signalée comme un repli');
+assert.equal(await txt(p, '#list .rw[data-key="arcane signet"] .row-miss'), 'Aucune offre foil en français');
+assert.match(await txt(p, '#list .rw[data-key="rangers hawk"]'), /Il en manque 1/);
+assert.match(await txt(p, '#recap .recap-crit'), /Peu importe|foil ou non/i); assert.match(await txt(p, '#recap .recap-crit'), /foil et langue par ligne/);
+assert.match(await txt(p, '#alerts'), /1 carte sans offre avec le foil ou la langue de sa ligne/); assert.doesNotMatch(await txt(p, '#alerts'), /Trouver en anglais/, '« *FR* » : pas de repli anglais proposé');
+await p.evaluate(() => document.querySelector('#list').scrollIntoView({ block: 'start' })); await p.waitForTimeout(300); await p.screenshot({ path: 'shots/masterset-3b-par-ligne.png' });
+await p.click('#btnCart'); await p.waitForSelector('#btnGo'); await p.click('#btnGo');
+await p.waitForFunction(() => /offres? ajoutée/.test(document.querySelector('.sheet-body').textContent), null, { timeout: 20000 });
+assert.deepEqual(world.carted.map(x => [x.product_id, x.quantity]).sort((a, b) => a[0] - b[0]), [[9104, 1], [9106, 2], [10700, 1], [10710, 1], [10730, 1], [10760, 1], [10770, 1]], 'panier : l\'offre de chaque ligne (foil, allemande, normale), Ranger\'s Hawk une fois');
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
+await p.evaluate(() => { document.querySelector('#optColl').click(); document.querySelector('#segFoil').setValue('no'); readOpts(); saveStore(); showView('home'); });
+await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForSelector('.ms-grid');
+ok('foil et langue par ligne : « *F* » foil seulement, « *N* » normale seulement, « *DE* » en allemand seulement (sans repli), sans critère comme la recherche ; une tâche serveur, pastilles, « Aucune offre foil en français », stock partagé entre lignes, panier');
+
 /* ── 7) sélecteur d'édition : de la plus fournie à la moins fournie, recherche, autres extensions ──────────────────── */
 await p.click('.ms-pick'); await p.waitForSelector('.sheet-wrap.open .ms-srow');
 const rowsTxt = () => p.$$eval('.sheet-wrap.open .ms-srow', l => l.map(r => [r.dataset.set, r.querySelector('.ms-sp small').textContent, r.getAttribute('aria-pressed')]));
@@ -301,6 +342,14 @@ await p.waitForFunction(() => document.querySelector('.ms-c:first-child').classL
 assert.equal(await pn(), '4 / 12 · 33 %');
 await p.selectOption('select.ms-cols', '3'); await p.waitForSelector('.ms-grid.pairs.c3');
 ok('version foil aussi : paires normale · foil (finitions Scryfall, case en creux), 3 / 12 puis 4 / 12 avec la foil ajoutée, prix foil, roue allumée, paires par ligne');
+// « Chercher les manquantes » avec la version foil : une ligne par case qui manque (« *N* » normale, « *F* » foil) ; aux éditions exactes, possédées par finition
+assert.equal(await txt(p, '.ms-buy'), 'Chercher les 3 cartes manquantes sur CardTrader');
+await p.click('.ms-buy'); await p.waitForFunction(() => S.view === 'input' && !COLL.el, null, { timeout: 5000 });
+assert.equal(await p.$eval('#deckText', t => t.value), '1 Arcane Signet (AAA) 2 *F*\n1 Llanowar Elves (AAA) 4 *F*\n1 Sol Ring (AAA) 7 *N*\n1 Sol Ring (AAA) 7 *F*', 'cases foil manquantes : « *F* » ; normale et foil : deux lignes');
+assert.deepEqual(await need(), [['arcane signet', 1], ['llanowar elves', 1], ['sol ring', 2]], 'ligne foil : les exemplaires normaux de cette édition ne comptent pas (2 Arcane Signet AAA 2, 1 Llanowar Elves AAA 4)');
+assert.deepEqual(await p.evaluate(() => S.deck.cards.find(c => c.key === 'sol ring').ln), [{ q: 1, f: 'no', own: 0, need: 1 }, { q: 1, f: 'yes', own: 0, need: 1 }]);
+await p.evaluate(() => showView('home')); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForSelector('.ms-grid.pairs');
+ok('« Chercher les manquantes » avec la version foil : « *N* » / « *F* » par case, possédées par finition aux éditions exactes');
 // playset : 4 exemplaires par carte (sans la version foil)
 await opt(); await p.click('label[for="msO-foil"]'); await p.click('.ms-opts [data-o="need"][data-v="4"]');
 await p.waitForFunction(() => /Playset/.test((document.querySelector('.ms-osum') || {}).textContent || ''));
@@ -315,6 +364,7 @@ await p.waitForFunction(() => /Français/i.test((document.querySelector('.ms-osu
 await shut();
 b = await base(); assert.deepEqual(b.map(x => x.cls), ['own', 'miss', 'miss', 'own', 'miss', 'miss', 'miss'], 'en français : Sol Ring et Llanowar Elves seulement');
 assert.equal(await pn(), '2 / 7 · 28 %');
+assert.equal(await p.evaluate(() => msBuyText(MS.view.code, MS.view.shown)), '1 Arcane Signet (AAA) 2 *FR*\n1 Wrath of God (AAA) 3 *FR*\n1 Sol Ring (AAA) 7 *FR*', 'langue des options : « *FR* » sur chaque ligne (offres françaises seulement)');
 // sans terrains de base, sans variantes
 await opt(); await p.click('label[for="msO-basic"]'); await p.click('label[for="msO-vars"]'); await shut();
 await p.waitForFunction(() => document.querySelectorAll('.ms-grid .ms-c').length === 4);

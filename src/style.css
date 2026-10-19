@@ -358,6 +358,7 @@ button.sync:active{background:var(--surface-2)}
 .flag{width:19px;height:13px;border-radius:3px;flex:none;box-shadow:0 0 0 1px rgba(16,21,43,.16);display:inline-block;vertical-align:-2px}
 .flag-x{font-family:var(--font-mono);font-size:10px;font-weight:700}
 .tag.lang{gap:5px;padding:0 8px 0 6px}
+.tag.lnc{gap:5px;background:transparent;box-shadow:inset 0 0 0 1px var(--line)}      /* critères d'une ligne de la liste (« FR · ✦ Foil ») : cerclée, pour la distinguer des pastilles de l'offre ; foil : le dégradé de .tag.foil (foil.css) */
 .gi .flag{margin-left:7px;width:16px;height:11px;vertical-align:-1px}
 .alert .grow button + button{margin-left:12px}
 .recap{display:flex;flex-direction:column;gap:9px;padding:13px 14px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line)}

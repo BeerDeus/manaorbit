@@ -498,6 +498,46 @@ test('applyOwned : possédées au plus la quantité demandée, reste à acheter'
   C.applyOwned(cards, null); assert.deepEqual(cards.map(c => [c.own, c.need]), [[0, 2], [0, 1], [0, 1], [0, 1]]);
 });
 
+test('foil et langue par ligne : « *N* », lignes de la carte (ln), possédées par ligne, requêtes, offres, stock partagé, sélection réunie', () => {
+  assert.deepEqual(C.parseLine('1 Sol Ring (CMM) 400 *FR* *N*'), { qty: 1, name: 'Sol Ring', key: 'sol ring', lang: 'fr', nf: 1, ed: 'cmm|400' }, '« *N* » : normale (sans foil)');
+  assert.deepEqual(C.parseLine('1 Sol Ring *N* *F*'), { qty: 1, name: 'Sol Ring', key: 'sol ring', foil: 1 }, 'foil l\'emporte');
+  const d = C.parseDeck('2 Sol Ring *F*\n1 Sol Ring\n1 Sol Ring *FR*\n1 Arcane Signet\n1 Wrath of God (CMM) 4 *N*\n1 Sol Ring *f*');
+  const by = Object.fromEntries(d.cards.map(c => [c.key, c]));
+  assert.deepEqual(by['sol ring'].ln, [{ q: 3, f: 'yes' }, { q: 1 }, { q: 1, l: 'fr' }], 'une entrée par foil et langue, quantités additionnées'); assert.equal(by['sol ring'].qty, 5);
+  assert.equal(by['arcane signet'].ln, undefined, 'aucune ligne avec foil ou langue : rien (critères de la recherche, comme avant)'); assert.deepEqual(by['wrath of god'].ln, [{ q: 1, f: 'no' }]);
+  // possédées : par le nom, les lignes sans critère d'abord ; aux éditions exactes, par ligne (sa finition, sa langue)
+  C.applyOwned(d.cards, k => (k === 'sol ring' ? 2 : 0));
+  assert.deepEqual(by['sol ring'].ln.map(l => [l.own, l.need]), [[1, 2], [1, 0], [0, 1]]); assert.deepEqual([by['sol ring'].own, by['sol ring'].need], [2, 3]);
+  C.applyOwned(d.cards, k => (k === 'sol ring' ? 4 : 0), (k, c) => (k === 'sol ring' ? l => (l.f === 'yes' ? 1 : l.l ? 0 : 5) : null));
+  assert.deepEqual(by['sol ring'].ln.map(l => [l.own, l.need]), [[1, 2], [1, 0], [0, 1]], 'éditions exactes : 1 foil, la ligne FR sans exemplaire français'); assert.deepEqual([by['sol ring'].own, by['sol ring'].need], [2, 3]);
+  C.applyOwned(d.cards, null); assert.deepEqual(by['sol ring'].ln.map(l => l.need), [3, 1, 1]);
+  // requêtes CardTrader : une par langue des lignes à acheter ; foil de la ligne, sinon celui de la recherche ; 'any' si une langue mélange
+  const o = { lang: 'en', foil: 'no', cond: 'Played', mode: 'zero' };
+  assert.deepEqual(C.lnQueries(by['sol ring'], o), [{ lang: 'en', foil: 'any' }, { lang: 'fr', foil: 'no' }], 'foil + sans critère en anglais : une seule requête « any »');
+  assert.deepEqual(C.lnQueries(by['sol ring'], { ...o, lang: 'fr' }, true), [{ lang: 'en', foil: 'any' }], 'repli anglais : lignes sans langue imposée seulement');
+  assert.deepEqual(C.lnQueries(by['wrath of god'], o), [{ lang: 'en', foil: 'no' }]); assert.deepEqual(C.lnQueries(by['arcane signet'], o), [{ lang: 'en', foil: 'no' }], 'sans ln : la recherche');
+  // offres d'une ligne
+  const mk = (id, lang, foil, price, qty = 2) => ({ id, productId: id, sellerId: id, price, qty, cond: 'Near Mint', lang, foil, hub: true, bundle: 1 });
+  const offers = [mk(1, 'fr', false, 100), mk(2, 'fr', true, 500), mk(3, 'en', false, 80), mk(4, 'en', true, 300), mk(5, 'de', true, 200)];
+  const f = { ...o, lang: 'fr', foil: 'no' }, ids = l => C.lnOffers(offers, l, f, false).map(x => x.id);
+  assert.deepEqual(ids({ q: 1, f: 'yes' }), [2], 'foil, langue de la recherche'); assert.deepEqual(ids({ q: 1 }), [1], 'sans critère : comme la recherche (fr, non foil)');
+  assert.deepEqual(ids({ q: 1, l: 'de', f: 'yes' }), [5]); assert.deepEqual(ids({ q: 1, f: 'no', l: 'en' }), [3], 'langue de la ligne seulement');
+  assert.deepEqual(C.lnOffers(offers, { q: 1, f: 'yes' }, f, true).map(x => x.id), [2, 4], 'après le repli : l\'anglais aussi, sans langue imposée seulement');
+  assert.deepEqual(C.lnOffers(offers, { q: 1, l: 'fr' }, f, true).map(x => x.id), [1], 'langue imposée : pas de repli');
+  const card = { ln: [{ q: 1, f: 'yes', need: 1 }, { q: 1, l: 'it', need: 1 }] };
+  assert.equal(C.lnNeedsEn(card, offers, f), false, 'foil FR trouvé ; la ligne italienne n\'a pas de repli'); assert.equal(C.lnNeedsEn(card, offers.filter(x => x.id !== 2), f), true);
+  // stock partagé : deux lignes, une seule offre d'un exemplaire → jamais prise deux fois ; sélection réunie par carte
+  const one = [mk(9, 'fr', false, 40, 1)], dem = [{ key: 'x\u00010', qty: 1, grp: 'x' }, { key: 'x\u00011', qty: 1, grp: 'x' }];
+  for (const mode of ['zero', 'direct']) {
+    const r = C.optimize(dem, { 'x\u00010': one, 'x\u00011': one }, { mode, ship: 280 });
+    assert.equal(Object.values(r.picks).reduce((a, p) => a + p.parts.reduce((b, x) => b + x.n, 0), 0), 1, mode + ' : l\'offre d\'un exemplaire prise une fois');
+    const j = C.lnJoin(r, { 'x\u00010': { key: 'x', i: 0, w: 'fr' }, 'x\u00011': { key: 'x', i: 1, w: 'de' } });
+    assert.deepEqual(Object.keys(j.picks), ['x']); assert.equal(j.picks.x.short, 1); assert.equal(j.picks.x.cost, 40); assert.deepEqual(j.picks.x.parts.map(p => [p.offer.id, p.n, p.li, p.w]), [[9, 1, 0, 'fr']]);
+    assert.deepEqual(j.partial, ['x']); assert.ok(j.sellers.every(g => g.items.every(it => it.key === 'x')), 'vendeurs : clé de la carte');
+  }
+  const r2 = C.optimize([{ key: 'a', qty: 1 }], { a: one }, { mode: 'zero' }); assert.equal(C.lnJoin(r2, {}), r2, 'sans lignes : résultat tel quel');
+});
+
 /* ── Filtres et stats ─────────────────────────────────────────────────────────────────────── */
 const FI = [
   { k: 'sol ring', n: 'Sol Ring', q: 1, s: 'ok', c: 100, cm: 1, tl: 'Artifact', cl: '' }, { k: 'swords', n: 'Swords to Plowshares', q: 1, s: 'ok', c: 200, cm: 1, tl: 'Instant', cl: 'W' },

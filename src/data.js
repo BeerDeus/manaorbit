@@ -582,15 +582,19 @@ async function fetchBpOffers(bp, lang, foil, signal) { return (await fetchBpRaw(
 /**
  * Lecture des offres de plusieurs blueprints par une TÂCHE DU SERVEUR : une seule cadence vers CardTrader (≤ 10 req/s),
  * la boucle continue même si l'application passe en arrière-plan ou se ferme, et un cache court évite de relire deux fois.
- * Relancer la même recherche se rattache à la tâche en cours (ou terminée). onItem({bp, products|error}) · onInfo(état de la tâche).
+ * Relancer la même recherche se rattache à la tâche en cours (ou terminée). onItem(g, {bp, products|error}) · onInfo(état de la tâche).
+ * gs : [{ lang, foil, ids }] : un groupe par requête (langue, foil) ; le premier part dans lang / foil / bps (un serveur d'avant les groupes ne lit que lui : le reste
+ * est alors lu depuis l'appareil), les autres dans more, leurs résultats marqués g (rang dans la requête envoyée).
  */
-async function jobOffers(ids, lang, foil, { fresh = false, signal, onItem, onInfo, push = null }) {
-  const want = new Set(ids), kill = id => { ct('jobs/' + id, { method: 'DELETE', lim: limJob }).catch(() => {}); };
+async function jobOffers(gs, { fresh = false, signal, onItem, onInfo, push = null }) {
+  const want = new Set(gs.flatMap((g, i) => g.ids.map(id => i + ':' + id))), kill = id => { ct('jobs/' + id, { method: 'DELETE', lim: limJob }).catch(() => {}); };
   const down = (e, why) => Object.assign(netErr('jobs', why || T('Tâches du serveur indisponibles'), { cause: e }), { jobsDown: true });
+  const q = g => ({ lang: g.lang || '', foil: g.foil === 'no' || g.foil === 'yes' ? g.foil : 'any', bps: g.bps });
   for (let attempt = 0; want.size; attempt++) {
     if (attempt >= 3) throw down(null, T('Recherche serveur interrompue à plusieurs reprises'));
+    const sent = gs.map((g, i) => ({ i, lang: g.lang, foil: g.foil, bps: g.ids.filter(id => want.has(i + ':' + id)) })).filter(g => g.bps.length), [g0, ...more] = sent;      // relance : ce qui manque encore
     let st;
-    try { st = await ct('jobs', { method: 'POST', body: { type: 'offers', lang: lang || '', foil: foil === 'no' || foil === 'yes' ? foil : 'any', bps: [...want], fresh: !!fresh && attempt === 0, push: push || undefined }, signal, lim: limJob }); }
+    try { st = await ct('jobs', { method: 'POST', body: { type: 'offers', ...q(g0), ...(more.length ? { more: more.map(q) } : {}), fresh: !!fresh && attempt === 0, push: push || undefined }, signal, lim: limJob }); }
     catch (e) { if (e.name === 'AbortError' || e.code === 'auth' || e.code === 'network') throw e; throw down(e); }   // 404 (désactivées) · 429 (serveur occupé) · 400 : on retombe sur la lecture depuis l'appareil
     const onAbort = () => kill(st.id); signal && signal.addEventListener('abort', onAbort, { once: true });
     let from = 0, lost = false, bad = 0;
@@ -604,7 +608,7 @@ async function jobOffers(ids, lang, foil, { fresh = false, signal, onItem, onInf
           if (++bad > 8) throw e;                                                    // réseau mobile capricieux : la tâche continue côté serveur, on retente
           await sleep(2000, signal); continue;
         }
-        for (const it of r.items) if (want.delete(it.bp)) onItem(it);
+        for (const it of r.items) { const g = sent[it.g || 0]; if (g && want.delete(g.i + ':' + it.bp)) onItem(g.i, it); }
         from = r.next; if (onInfo) onInfo(r, !!st.attached);
         if (r.status === 'failed' && r.fatal) throw netErr('auth', T('Accès refusé'), { status: r.fatal, host: '', reason: '' });
         if (r.status !== 'running' && from >= r.count) { if (r.status === 'cancelled' || r.status === 'failed') lost = true; break; }
@@ -617,24 +621,26 @@ async function jobOffers(ids, lang, foil, { fresh = false, signal, onItem, onInf
 
 /**
  * Une passe d'offres pour un groupe de cartes dans une langue : tâche serveur si le serveur la propose, sinon blueprint par blueprint.
- * entries : [{ c, bps, img }] · onCard(entry, offers) quand TOUTES les offres d'une carte sont arrivées · onTick(done, total, info) · retourne { total, cacheAge, mode }
+ * entries : [{ c, bps, img, qs? }] ; qs : requêtes de la carte ([{ lang, foil }], foil et langue de ses lignes : lnQueries), sinon la langue de la passe et le foil
+ * de la recherche. Une unité = une requête × un blueprint. onCard(entry, offers) quand TOUTES les offres d'une carte sont arrivées · onTick(done, total, info) · retourne { total, cacheAge, mode }
  */
 async function offersPass(entries, lang, opts, signal, onCard, onTick) {
-  const owners = new Map(), ids = [], pend = new Map(), acc = new Map(), seen = new Set(); let done = 0, cacheAge = 0, firstInfo = true, mode = 'client';
+  const owners = new Map(), units = [], gs = [], gi = new Map(), pend = new Map(), acc = new Map(), seen = new Set(); let done = 0, cacheAge = 0, firstInfo = true, mode = 'client';
+  const gOf = q => { const k = q.lang + '|' + q.foil; if (!gi.has(k)) { gi.set(k, gs.length); gs.push({ lang: q.lang, foil: q.foil, ids: [] }); } return gi.get(k); };
   for (const e of entries) {
-    pend.set(e, e.bps.length); acc.set(e, []);
-    for (const bp of e.bps) { if (!owners.has(bp.id)) { owners.set(bp.id, []); ids.push(bp.id); } owners.get(bp.id).push({ e, bp }); }
+    const qs = e.qs || [{ lang, foil: opts.foil }]; pend.set(e, e.bps.length * qs.length); acc.set(e, []);
+    for (const q of qs) { const g = gOf(q); for (const bp of e.bps) { const u = g + ':' + bp.id; if (!owners.has(u)) { owners.set(u, []); units.push(u); gs[g].ids.push(bp.id); } owners.get(u).push({ e, bp }); } }
   }
-  const total = ids.length;
-  for (const e of entries) if (!e.bps.length) onCard(e, []);
-  const got = (id, raw) => {
-    if (seen.has(id)) return; seen.add(id); done++;
-    for (const { e, bp } of owners.get(id)) { if (raw) acc.get(e).push(...raw.map(p => normalizeProduct(p, bp))); const n = pend.get(e) - 1; pend.set(e, n); if (n === 0) onCard(e, acc.get(e)); }
+  const total = units.length;
+  for (const e of entries) if (!pend.get(e)) onCard(e, []);
+  const got = (u, raw) => {
+    if (seen.has(u)) return; seen.add(u); done++;
+    for (const { e, bp } of owners.get(u)) { if (raw) acc.get(e).push(...raw.map(p => normalizeProduct(p, bp))); const n = pend.get(e) - 1; pend.set(e, n); if (n === 0) onCard(e, acc.get(e)); }
   };
   if (total && CTX.proxy && CTX.jobs) {
     try {
       mode = 'job';
-      await jobOffers(ids, lang, opts.foil, { fresh: opts.fresh, push: opts.push, signal, onItem: it => { got(it.bp, it.error ? null : it.products); },
+      await jobOffers(gs, { fresh: opts.fresh, push: opts.push, signal, onItem: (g, it) => { got(g + ':' + it.bp, it.error ? null : it.products); },
         onInfo: (r, attached) => {
           // Âge des prix servis « d'avance » : cache lu au lancement ; ou, si on se rattache à une tâche existante, âge de ses données à cet instant (relevé une seule fois).
           const a = attached ? (firstInfo ? r.dataAge : 0) : r.cacheAge; firstInfo = false; cacheAge = Math.max(cacheAge, a || 0);
@@ -642,14 +648,14 @@ async function offersPass(entries, lang, opts, signal, onCard, onTick) {
         } });
     } catch (e) { if (!e.jobsDown) throw e; CTX.jobs = false; mode = 'client'; }   // tâches indisponibles : on continue depuis l'appareil
   }
-  const rest = ids.filter(id => !seen.has(id));
+  const rest = units.filter(u => !seen.has(u));
   if (rest.length) {
     if (mode === 'job') mode = 'client';
-    await pool(rest, 5, async id => {
-      let raw = null;
-      try { raw = await fetchBpRaw(id, lang, opts.foil, signal); }
+    await pool(rest, 5, async u => {
+      const i = u.indexOf(':'), g = gs[+u.slice(0, i)]; let raw = null;
+      try { raw = await fetchBpRaw(+u.slice(i + 1), g.lang, g.foil, signal); }
       catch (e) { if (e.name === 'AbortError' || e.code === 'auth' || e.code === 'network' || e.code === 'notoken') throw e; }
-      got(id, raw); onTick(done, total, { mode: 'client' });
+      got(u, raw); onTick(done, total, { mode: 'client' });
     });
   }
   return { total, cacheAge, mode };
@@ -746,15 +752,16 @@ async function runLive(cards, opts, hooks, signal) {
     hooks.step('offers', 'run', done + ' / ' + total); hooks.progress(base.from + (base.to - base.from) * done / Math.max(1, total));
     if (info && info.mode === 'job') { hooks.hint(true); hooks.rate(info.rps || 0, info.sent || 0, info.cached ? T('{n} depuis le cache', { n: info.cached }) : ''); } else { hooks.hint(false); hooks.rate(limCT.rps(), limCT.count); }
   };
-  const first = await offersPass(entries, opts.lang, opts, signal, (e, offers) => hooks.card(e.c.key, { offers, bps: e.bps, img: e.img, meta: e.meta }), tick({ from: 0.4, to: 0.95 }));
+  // Foil et langue par ligne (c.ln : « *F* », « *N* », « *FR* ») : la carte cherche les offres de chacune de ses lignes (lnQueries), les autres ceux de la recherche
+  const first = await offersPass(entries.map(e => (e.c.ln ? { ...e, qs: lnQueries(e.c, opts) } : e)), opts.lang, opts, signal, (e, offers) => hooks.card(e.c.key, { offers, bps: e.bps, img: e.img, meta: e.meta }), tick({ from: 0.4, to: 0.95 }));
   hooks.cacheAge(first.cacheAge);
   hooks.step('offers', 'done', first.mode === 'job' ? T('sur le serveur · {n} s', { n: Math.max(1, Math.round((performance.now() - t0) / 1000)) }) : T('{n} requêtes · {s} s', { n: first.total, s: Math.max(1, Math.round((performance.now() - t0) / 1000)) }));
 
   if (opts.fallbackEn && opts.lang !== 'en') {
-    const miss = entries.filter(e => e.bps.length && hooks.needsEn(e.c.key));
+    const miss = entries.filter(e => e.bps.length && hooks.needsEn(e.c.key, e.c));      // une ligne qui impose sa langue n'a pas de repli
     if (miss.length) {
       hooks.step('fallback', 'run', '0 / ' + miss.length); let fd = 0;
-      const second = await offersPass(miss, 'en', opts, signal, (e, offers) => {
+      const second = await offersPass(miss.map(e => (e.c.ln ? { ...e, qs: lnQueries(e.c, opts, true) } : e)), 'en', opts, signal, (e, offers) => {
         fd++; hooks.step('fallback', 'run', fd + ' / ' + miss.length);
         hooks.card(e.c.key, { offers, bps: e.bps, img: e.img, meta: e.meta, fellBack: true });
       }, (done, total, info) => { hooks.progress(0.95 + 0.05 * fd / miss.length); if (info && info.mode === 'job') hooks.rate(info.rps || 0, info.sent || 0, info.cached ? T('{n} depuis le cache', { n: info.cached }) : ''); });
@@ -766,10 +773,10 @@ async function runLive(cards, opts, hooks, signal) {
   hooks.progress(1);
 }
 
-/** Recherche en anglais pour une seule carte (depuis la fiche carte). */
+/** Recherche en anglais pour une seule carte (depuis la fiche carte) ; foil de ses lignes sans langue imposée (lnQueries), sinon celui de la recherche. */
 async function searchOneEnglish(card, st, opts, signal) {
-  const all = [];
-  await Promise.all((st.bps || []).map(async bp => { try { all.push(...await fetchBpOffers(bp, 'en', opts.foil, signal)); } catch (e) { if (e.name === 'AbortError') throw e; } }));
+  const all = [], qs = lnQueries(card, opts, true);
+  await Promise.all((st.bps || []).flatMap(bp => qs.map(async q => { try { all.push(...await fetchBpOffers(bp, 'en', q.foil, signal)); } catch (e) { if (e.name === 'AbortError') throw e; } })));
   return all;
 }
 
@@ -790,14 +797,14 @@ async function runDemo(cards, opts, hooks, signal) {
     if (skip.has(c.key)) { hooks.card(c.key, { offers: [], bps: [], img: null, skipped: true }); hooks.step('offers', 'run', (i + 1) + ' / ' + total); hooks.progress(0.4 + 0.55 * (i + 1) / total); continue; }
     await sleep(38 + (hash32(c.key + 'z') % 70), signal);
     reqs += 4 + (hash32(c.key) % 7);
-    hooks.card(c.key, { offers: makeDemoOffers(c, opts.lang), bps: [{ id: 1 }], img: null });
+    hooks.card(c.key, { offers: c.ln ? lnQueries(c, opts).flatMap(q => makeDemoOffers(c, q.lang)) : makeDemoOffers(c, opts.lang), bps: [{ id: 1 }], img: null });      // langues des lignes (« *DE* »)
     hooks.step('offers', 'run', (i + 1) + ' / ' + total);
     hooks.progress(0.4 + 0.55 * (i + 1) / total);
     hooks.rate(reqs / Math.max(1, (performance.now() - t0) / 1000), reqs);
   }
   hooks.step('offers', 'done', T('{n} requêtes simulées', { n: reqs }));
   if (opts.fallbackEn && opts.lang !== 'en') {
-    const miss = cards.filter(c => !skip.has(c.key) && hooks.needsEn(c.key));
+    const miss = cards.filter(c => !skip.has(c.key) && hooks.needsEn(c.key, c));
     if (miss.length) {
       hooks.step('fallback', 'run', '0 / ' + miss.length);
       for (let i = 0; i < miss.length; i++) {
