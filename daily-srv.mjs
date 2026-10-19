@@ -298,11 +298,11 @@ const dlyFall = tag => 'Joueur ' + String(tag).slice(0, 4).toUpperCase();      /
 const dlyCmp = (a, b) => b.s - a.s || (b.d || 1) - (a.d || 1) || a.ms - b.ms || (a.at || 0) - (b.at || 0) || (a.tag < b.tag ? -1 : 1);
 
 /** Crée le jeu. o : { dir, scry (API Scryfall), imgHosts (débuts d'adresse permis pour les PNG), hour, tz, now, fetch, secret, verify (jeton → { uid, emailVerified, provider }), bad (filtre de mots),
- *  account (uid → { created } : date de création du compte, ou null), net (requête → réseau du client, '' si inconnu), minAgeDays (âge minimal d'un compte classé, 7), ipWindowMs (10 min),
+ *  account (uid → { created } : date de création du compte, ou null), net (requête → réseau du client, '' si inconnu), minAgeDays (âge minimal d'un compte classé ; 0 par défaut : aucun), ipWindowMs (10 min),
  *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, log, gapMs (écart entre deux requêtes Scryfall), firstMs, tickMs, earlyMs, retryMs, query, tries, pages, ua }.
  *  Contre les comptes secondaires (on ne peut pas tout empêcher, la triche doit coûter et ne rien rapporter au classement) : réponse jamais donnée à un perdant avant la carte
  *  suivante ; un appareil = un compte classé par jour (sinon entraînement) ; même réseau juste après un autre joueur : « à vérifier », hors du top 100 public sans le dire ;
- *  classement réservé aux comptes de plus de minAgeDays jours (Google ou adresse vérifiée) ; trop de cartes trouvées à l'étape 1 : signalé au panneau. */
+ *  classement réservé aux comptes Google ou à adresse vérifiée (et, si minAgeDays, de plus de minAgeDays jours) ; trop de cartes trouvées à l'étape 1 : signalé au panneau. */
 export function dailyMake(o = {}) {
   const now = o.now || Date.now, fetchFn = o.fetch || globalThis.fetch, log = o.log || console, dir = o.dir || join(process.cwd(), '.data', 'daily');
   const C = dlyClock(o.hour ?? 18, o.tz || 'Europe/Paris'), SCRY = String(o.scry || 'https://api.scryfall.com').replace(/\/+$/, '');
@@ -480,7 +480,7 @@ export function dailyMake(o = {}) {
   const finished = p => p && (p.st === 'win' || p.st === 'lost');
   /** Au classement public : terminée, d'un compte établi, hors entraînement, et pas « à vérifier » (ou validée par le panneau). */
   const pub = p => finished(p) && p.lb !== false && p.chk !== 'ip';
-  const MIN_AGE = Math.max(0, Number(o.minAgeDays ?? 7) || 0) * DAY, WINDOW = o.ipWindowMs ?? 10 * 60e3;
+  const MIN_AGE = Math.max(0, Number(o.minAgeDays ?? 0) || 0) * DAY, WINDOW = o.ipWindowMs ?? 10 * 60e3;      // MIN_AGE 0 (par défaut depuis le 19 octobre 2026) : classé dès la 1re partie
   function stat(tag) { const p = G.stats.p; return p[tag] || (p[tag] = { played: 0, won: 0, stage1: 0, points: 0, top100: 0, podium: 0, first: 0, cur: 0, best: 0, last: '', at: {}, fs: 0, h: [], n: '' }); }
   /** Récompenses d'un jour (top 100, podium, 1er) : parties trouvées et publiques ; appliquées par différence (un jour déjà clos est recompté quand le panneau valide une partie). */
   function award(rec) {

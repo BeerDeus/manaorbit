@@ -27,7 +27,7 @@ for (let i = 0; i < 600; i++) FR.push(`Vrombl ${String(i).padStart(4, '0')} Quar
 writeFileSync(join(process.env.PWA_DIR, 'fr-names.tsv'), FR.join('\n') + '\n');
 
 const F = await startFakes();
-// DAILY_MIN_AGE_DAYS=0 : les comptes du test, tout neufs, sont classés (la règle des 7 jours est vérifiée par test-daily.mjs)
+// DAILY_MIN_AGE_DAYS=0 (la valeur par défaut depuis le 19 octobre 2026) : les comptes du test, tout neufs, sont classés (la règle facultative des N jours est vérifiée par test-daily.mjs)
 const world = await startWorld({ port: 19710, daily: { cards: [SERRA] }, env: { FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, DAILY_MIN_AGE_DAYS: '0' } });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const done = () => { try { world.stop(); F.stop(); } catch { /* ignore */ } };

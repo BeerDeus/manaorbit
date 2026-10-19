@@ -396,7 +396,7 @@ test('proxy.mjs : /__ping daily, jetons Firebase vérifiés, DAILY=0, panneau /a
   const H = t => ({ 'Content-Type': 'application/json', ...(t ? { 'x-firebase-token': t } : {}) });
   const r = await fetch(P.url + 'api/daily/start', { method: 'POST', headers: H(F.jwt('uid-zoe')), body: JSON.stringify({ l: 'de', n: 'Zoé' }) }), j = await r.json(), raw = JSON.stringify(j);
   assert.equal(r.status, 200, raw); assert.equal(j.acct, true); noLeak(raw, SERRA, 'proxy');
-  assert.deepEqual([j.ranked, j.why, j.minAge], [false, 'age', 7], 'sans compte de service : date de création inconnue, le compte vient d\'être vu → pas encore au classement');
+  assert.deepEqual([j.ranked, j.why, j.minAge], [true, '', 0], 'compte Google ou vérifié : classé dès sa 1re partie (aucun âge minimal par défaut, même sans compte de service)');
   assert.ok(typeof j.dev === 'string' && /^[\w-]{22}\.[\w-]{16}$/.test(j.dev), 'jeton d\'appareil remis à l\'appli');
   assert.equal(r.headers.get('cache-control'), 'no-store'); assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
   const im = await fetch(P.url + j.imgs.art); assert.equal(im.headers.get('content-type'), 'image/png'); assert.deepEqual(pngChunks(Buffer.from(await im.arrayBuffer())), ['IHDR', 'IDAT', 'IEND']);
@@ -486,8 +486,13 @@ test('anti-triche : même réseau, un autre compte trouve juste après → « à
   await h.stop();
 });
 
-test('anti-triche : classement réservé aux comptes de plus de 7 jours, Google ou adresse vérifiée (la partie compte pour les badges)', async () => {
-  const h = await harness(); await h.ready();
+test('anti-triche : classement réservé aux comptes Google ou à adresse vérifiée, dès la 1re partie ; DAILY_MIN_AGE_DAYS=7 : comptes de plus de 7 jours (la partie compte pour les badges)', async () => {
+  const h0 = await harness(); await h0.ready();
+  const n0 = (await h0.call('POST', 'api/daily/start', { tok: 'tok:newbie', body: { l: 'fr', n: 'Novice' } })).j;
+  assert.deepEqual([n0.acct, n0.ranked, n0.why, n0.minAge], [true, true, '', 0], 'par défaut : compte de 2 jours classé tout de suite');
+  assert.equal((await h0.call('POST', 'api/daily/start', { tok: 'tok:nover-p', body: { l: 'fr' } })).j.why, 'mail', 'adresse non vérifiée : toujours hors du classement');
+  await h0.stop();
+  const h = await harness({ opts: { minAgeDays: 7 } }); await h.ready();
   const nw = (await h.call('POST', 'api/daily/start', { tok: 'tok:newbie', body: { l: 'fr', n: 'Novice' } })).j;
   assert.deepEqual([nw.acct, nw.ranked, nw.why, nw.minAge], [true, false, 'age', 7], 'compte de 2 jours');
   const w = (await h.call('POST', 'api/daily/guess', { tok: 'tok:newbie', body: { k: nw.k, n: 'Serra Angel' } })).j; assert.equal(w.res.s, 1000); assert.equal(w.res.r, undefined);
@@ -503,8 +508,8 @@ test('anti-triche : classement réservé aux comptes de plus de 7 jours, Google 
   assert.equal((await h.call('GET', 'api/daily/board?p=day')).j.total, 1, 'au classement : seulement l\'adresse vérifiée après coup');
   await h.stop();
   // la même date « vue pour la première fois » 8 jours plus tard : classé
-  const dir = newDir(), h2 = await harness({ dir }); await h2.ready(); await h2.call('GET', 'api/daily', { tok: 'tok:nodate-z' }); await h2.D.flush(); await h2.stop();
-  const h3 = await harness({ dir, at: Date.UTC(2026, 9, 23, 17) }); await h3.ready();
+  const dir = newDir(), h2 = await harness({ dir, opts: { minAgeDays: 7 } }); await h2.ready(); await h2.call('GET', 'api/daily', { tok: 'tok:nodate-z' }); await h2.D.flush(); await h2.stop();
+  const h3 = await harness({ dir, at: Date.UTC(2026, 9, 23, 17), opts: { minAgeDays: 7 } }); await h3.ready();
   assert.equal((await h3.call('POST', 'api/daily/start', { tok: 'tok:nodate-z', body: { l: 'fr' } })).j.ranked, true, '8 jours après la première visite');
   await h3.stop();
   const h4 = await harness({ opts: { minAgeDays: 0 } }); await h4.ready();
