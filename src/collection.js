@@ -370,7 +370,7 @@ function collSetLang(k, l, from) {
 
 /** Toute modification passe par ici : enregistre, envoie au compte, met à jour la page de saisie et la recherche en cours. */
 function collChanged(o = {}) {
-  COLL.u = Date.now(); COLL.seq++; collWrite(); if (typeof prgSoon === 'function') prgSoon();      // nouveaux badges de collection (progress.js)
+  COLL.u = Date.now(); COLL.seq++; collWrite(); if (typeof prgSoon === 'function') prgSoon('coll');      // nouveaux badges de collection (progress.js) : changement fait ici
   if (o.push !== false) { const t = Date.now(); COLL.chg = COLL.chg.filter(x => t - x < COLL_PUSH.win); COLL.chg.push(t); collPushSoon(); }
   if (o.paint !== false) collPaint(); else collPaintHead();
   paintCollSection(); refreshDeck(); alSoon(); trSoon(); edSoon();
@@ -516,7 +516,7 @@ function collFromCloud(uid, data, pending, fromCache, pulled) {
 }
 /** La collection de cet appareil vient de changer à cause du compte (autre appareil) : repeint, lit les infos des nouvelles cartes, prévient. before, after : collections complètes. */
 function collRemoteApplied(b0, a0, o = {}) {
-  const before = b0.map, after = a0.map;
+  const before = b0.map, after = a0.map; if (typeof prgAbsorbSoon === 'function') prgAbsorbSoon();      // badges de ces cartes : acquis sans bannière (gagnés ailleurs)
   collPaint(); paintCollSection(); refreshDeck(); trSoon(); if (S.run && S.view === 'results') scheduleRecompute(true);
   collEnrich();
   if (typeof streamOn === 'function' && streamOn()) return;      // mode streamer (opening.js) : aucune notification qui montrerait la collection

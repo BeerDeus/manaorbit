@@ -41,7 +41,7 @@ const trOffline = () => typeof navigator !== 'undefined' && navigator.onLine ===
 /** Les écritures Firestore attendent le serveur : hors ligne, on prévient au lieu de laisser le bouton sans réponse. */
 function trNeedNet() { if (!trOffline()) return true; toast(T('Hors ligne : réessaie une fois connecté')); return false; }
 /** Un réglage a changé ici : enregistre, envoie au compte, met à jour les partages et l'écran. */
-function trChanged() { TR.u = Date.now(); trWrite(); trPushSoon(); trSoon(800); trRepaint(); }
+function trChanged() { TR.u = Date.now(); trWrite(); trPushSoon(); trSoon(800); trRepaint(); if (typeof prgSoon === 'function') prgSoon('coll', 'social', 'deck'); }      // souhaits, lien, decks partagés : badges (progress.js)
 function trRepaint() { if (COLL.el && COLL.tab === 'trade') collPaintBody(true); homeSoon(); pubSoon(); setvSoon(); }      // setvSoon : étoiles de la page d'une extension
 
 /* ── Réglages dans le compte ───────────────────────────────────────────────────────────────────────── */

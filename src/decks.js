@@ -35,6 +35,7 @@ function deckErr(err) {
 
 /* ── Écriture ─────────────────────────────────────────────────────────────────────────────── */
 function putDeck(id, doc) {
+  if (typeof prgSoon === 'function') prgSoon('deck');      // badges des decks (progress.js) : deck enregistré ici
   if (cloudOn()) {
     D.pending = true; paintSync();
     const bare = d => { const o = { ...d }; delete o.snap; return o; };
@@ -691,7 +692,7 @@ function onUser(user) {
   } catch (e) { /* ignore */ }
   if (user) {
     D.unsub = D.cloud.watch(user.uid, (docs, pending) => {
-      D.list = docs.map(x => readDeck(x.id, x.data)); D.pending = pending; D.listErr = '';
+      D.list = docs.map(x => readDeck(x.id, x.data)); D.pending = pending; D.listErr = ''; if (typeof prgAbsorbSoon === 'function') prgAbsorbSoon();      // decks du compte lus : leurs badges acquis sans bannière
       if (S.deckId && !pending && !D.list.some(d => d.id === S.deckId)) S.deckId = null;
       renderDecks(); renderAccountBtn(); paintAccount(); refreshDeck();
     }, err => {

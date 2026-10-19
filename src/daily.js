@@ -444,7 +444,7 @@ async function dlyGuess(x) {
     const v = await dlyCall('/guess', { method: 'POST', body: { k: DY.v.k, n: x.en, p: x.n } });
     if (q) { q.value = ''; q.disabled = false; }
     DY.sel = -1;
-    if (v.res) { haptic(v.res.win ? 'ok' : 'bad'); DY.badgesAt = 0; }
+    if (v.res) { haptic(v.res.win ? 'ok' : 'bad'); DY.badgesAt = 0; if (typeof prgDaily === 'function') prgDaily().then(() => prgSoon('daily')); }      // badges de la Carte mystère relus : annoncés tout de suite
     else if (!v.ok) { haptic('warn'); toast(v.dup ? T('Déjà proposée') : T('Non, ce n\'est pas {n} : +10 s', { n: x.n })); }
     dlyApply(v);
     if (!v.res && q) { q.classList.remove('dly-shake'); void q.offsetWidth; q.classList.add('dly-shake'); }
@@ -456,7 +456,7 @@ async function dlyQuit(b) {
   if (!DY.v || DY.busy) return;
   if (Date.now() - DY.quit > 4000) { DY.quit = Date.now(); b.textContent = T('Touche encore pour abandonner'); b.classList.add('arm'); haptic('warn'); return; }
   DY.busy = true;
-  try { const v = await dlyCall('/giveup', { method: 'POST', body: { k: DY.v.k } }); DY.badgesAt = 0; dlyApply(v); }
+  try { const v = await dlyCall('/giveup', { method: 'POST', body: { k: DY.v.k } }); DY.badgesAt = 0; dlyApply(v); if (typeof prgDaily === 'function') prgDaily().then(() => prgSoon('daily')); }
   catch (e) { if (e.code === 'over') return dlyOver(e); toast(dlyErrText(e)); }
   finally { DY.busy = false; }
 }

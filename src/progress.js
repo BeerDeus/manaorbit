@@ -6,7 +6,7 @@
    Badges à paliers (bronze, argent, or, diamant) ou uniques ; l'XP vient des activités et des paliers ; niveau L atteint à 40 × (L − 1)^2,25 XP.
    Rien n'est classé ni montré à d'autres : tricher ne trompe que soi. Badges de la Carte mystère (daily.js › dailyBadges, vérifiés par le serveur) : ajoutés s'ils existent. */
 const PRG_KEY = 'deckdeal:prg', PRG_GOT = 'deckdeal:prg:got', PRG_SHOW = 'deckdeal:prg:show', PRG_MAX = 999, PRG_C_MAX = 140, PRG_SHOW_MAX = 3;
-const PRG = { c: null, t: 0, dly: null, doc: { uid: '', unsub: null, pushT: 0 }, u: 0 };
+const PRG = { c: null, t: 0, qt: 0, pend: new Set(), dly: null, doc: { uid: '', unsub: null, pushT: 0 }, u: 0 };      // pend : rubriques touchées ici depuis le dernier calcul (prgSoon)
 const PRG_TIERS = ['bronze', 'argent', 'or', 'diamant'];
 const prgTierName = i => [T('bronze'), T('argent'), T('or'), T('diamant')][i] || T('unique');
 
@@ -23,11 +23,13 @@ function prgClean(o) {
   return out;
 }
 function prgWrite() { try { localStorage.setItem(PRG_KEY, JSON.stringify({ c: prgC(), u: PRG.u })); } catch (e) { /* stockage plein : gardé en mémoire */ } }
+/** Rubrique des badges que touche un compteur (prgAdd, prgMax) : seule elle peut annoncer un nouveau palier. */
+const PRG_KCAT = { gv: 'game', gk: 'game', gmo: 'game', gfu: 'game', tr: 'social', op: 'open', ow: 'open', ob: 'open', oc: 'open', ost: 'open', imp: 'coll', fb: 'fun', pq: 'scan', rp: 'scan', hd: 'deck' };
 /** Ajoute n à un compteur. */
-function prgAdd(k, n = 1) { if (!(n > 0)) return; const c = prgC(); c[k] = (c[k] || 0) + n; prgChanged(); }
+function prgAdd(k, n = 1) { if (!(n > 0)) return; const c = prgC(); c[k] = (c[k] || 0) + n; prgChanged(PRG_KCAT[k]); }
 /** Garde le plus grand des deux (record). */
-function prgMax(k, v) { const c = prgC(); if (!(v > (c[k] || 0))) return; c[k] = Math.round(v); prgChanged(); }
-function prgChanged() { PRG.u = Date.now(); prgWrite(); prgPushSoon(); prgSoon(); if (typeof dlyLevelSoon === 'function') dlyLevelSoon(); }      // XP au classement des niveaux (daily.js, lien de test)
+function prgMax(k, v) { const c = prgC(); if (!(v > (c[k] || 0))) return; c[k] = Math.round(v); prgChanged(PRG_KCAT[k]); }
+function prgChanged(...cats) { PRG.u = Date.now(); prgWrite(); prgPushSoon(); prgSoon(...cats); if (typeof dlyLevelSoon === 'function') dlyLevelSoon(); }      // XP au classement des niveaux (daily.js, lien de test)
 
 /* ── Événements (appelés par scan.js, partie-ui.js, troc.js, opening.js, app.js) ─────────────────────────────── */
 /** Cartes du scan ajoutées (lignes du scan : q, l, es, ambBy, pk) : cartes, langues, éditions lues, illustrations, homonymes, anciennes, plus chère, plus grosse session,
@@ -50,11 +52,11 @@ function prgScan(items) {
   c.sc = (c.sc || 0) + n; if (n > (c.ss || 0)) c.ss = n; if (best > (c.sp || 0)) c.sp = Math.round(best);
   if (typeof SCS !== 'undefined' && SCS.auto) c.sau = (c.sau || 0) + n;      // scan automatique
   const h = new Date().getHours(); if (h < 5) c.snt = (c.snt || 0) + n; else if (h < 7) c.sel = (c.sel || 0) + n;      // la nuit, à l'aube
-  prgChanged();
+  prgChanged('scan', 'coll');
 }
 /** Fin d'une partie créée ici (partie-ui.js) : st final, ma place, plus bas de mes points de vie pendant la partie. */
 function prgGame(st, me, low) {
-  if (!st || !me) return;
+  if (!st || !me) return; prgSoon('game');
   const won = (st.vainqueurs || []).includes(me.pos);
   if (won && low <= 5) prgAdd('gv');
   const kills = st.places.filter(p => p.elimine && p.elimine.cause === 'commandant' && p.elimine.par === me.pos).length; if (kills) prgAdd('gk', kills);
@@ -68,11 +70,13 @@ function prgOpen(v, paid, best, n, st) { prgAdd('op'); if (paid != null && v > p
 /** Lancement : un jour d'utilisation de plus (une fois par jour). */
 function prgDay() {
   const c = prgC(), d = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60e3) / 864e5);
+  const fun = (MO_TEST && !c.tst) || (!c.in && ((typeof isNativeApp === 'function' && isNativeApp()) || (typeof PWA !== 'undefined' && PWA.standalone())));
   if (MO_TEST) c.tst = 1;      // venu essayer le lien de test (badge « Pionnier »)
   if ((typeof isNativeApp === 'function' && isNativeApp()) || (typeof PWA !== 'undefined' && PWA.standalone())) c.in = 1;
+  if (fun) prgSoon('fun');
   if (c.dl === d) { prgWrite(); return; }
   c.ds = c.dl === d - 1 ? (c.ds || 0) + 1 : 1; if (c.ds > (c.dsb || 0)) c.dsb = c.ds;      // jours d'affilée
-  c.dl = d; c.days = (c.days || 0) + 1; prgChanged();
+  c.dl = d; c.days = (c.days || 0) + 1; prgChanged('fid');
 }
 
 /* ── Mesures : vraies données + compteurs ──────────────────────────────────────────────────────────────────── */
@@ -304,14 +308,27 @@ function prgLevel(xp) {
 /** Niveau du moment (calcul complet). */
 function prgNow() { const m = prgMetrics(), bs = prgBadges(m), L = prgLevel(prgXp(m, bs)); return { m, bs, ...L }; }
 
-/* ── Nouveaux paliers : une bannière qui s'efface seule (jamais au premier calcul, ni en mode streamer) ───────────── */
-function prgSoon() { clearTimeout(PRG.t); PRG.t = setTimeout(prgCheck, 2500); }
-function prgCheck() {
+/* ── Nouveaux paliers : une bannière qui s'efface seule, au moment où on vient de les gagner ici ───────────────────────────────
+   Paliers déjà vus (deckdeal:prg:got) : jamais revus à la baisse, pour qu'une donnée lue en retard (decks du compte, parties, amis : 0 le temps
+   de les lire, sur un lien d'échange ouvert…) ne fasse pas réapparaître plus tard d'anciens badges comme « nouveaux ». Annoncés seulement les
+   paliers des rubriques touchées sur cet appareil depuis le calcul précédent (prgSoon('scan', 'coll'), deck enregistré, partie finie…) ;
+   le reste (premier calcul, données arrivées du compte ou d'un autre appareil : prgAbsorbSoon) est acquis sans bruit. Jamais en mode streamer. */
+/** Calcul bientôt (2,5 s) ; cats : rubriques que l'utilisateur vient de toucher ici (sans : rien n'est annoncé, seulement acquis). */
+function prgSoon(...cats) { for (const c of cats) if (c) PRG.pend.add(c); clearTimeout(PRG.t); PRG.t = setTimeout(prgCheck, 2500); }
+/** Données arrivées d'ailleurs (compte, autre appareil, lecture tardive) : paliers acquis sans bannière. */
+function prgAbsorbSoon() { clearTimeout(PRG.qt); PRG.qt = setTimeout(() => prgCheck(true), 1500); }
+/** quiet : rien d'annoncé, pas même les rubriques touchées (elles le seront au calcul prévu par prgSoon : laissées de côté ici). */
+function prgCheck(quiet) {
   let got = null; try { got = JSON.parse(localStorage.getItem(PRG_GOT) || 'null'); } catch (e) { got = null; }
-  const bs = prgBadges(), now = {}; for (const x of bs) if (x.t >= 0) now[x.b.id] = x.t;
-  try { localStorage.setItem(PRG_GOT, JSON.stringify(now)); } catch (e) { /* stockage indisponible : pas de toast plutôt que des répétitions */ return; }
-  if (!got || typeof got !== 'object') return;      // premier calcul : tout ce qui existe déjà est acquis sans bruit
-  const fresh = bs.filter(x => x.t >= 0 && (got[x.b.id] == null || got[x.b.id] < x.t));
+  const first = !got || typeof got !== 'object' || Array.isArray(got), was = first ? {} : got, pend = quiet ? new Set() : PRG.pend, bs = prgBadges();
+  if (!quiet) { clearTimeout(PRG.t); PRG.pend = new Set(); }
+  const keep = { ...was }, fresh = [];
+  for (const x of bs) {
+    if (!(x.t >= 0) || (was[x.b.id] != null && was[x.b.id] >= x.t)) continue;
+    if (quiet && PRG.pend.has(x.b.cat)) continue;      // rubrique touchée ici : son calcul (prgSoon) l'annoncera
+    keep[x.b.id] = x.t; if (!first && pend.has(x.b.cat)) fresh.push(x);
+  }
+  if (first || Object.keys(keep).some(k => keep[k] !== was[k])) try { localStorage.setItem(PRG_GOT, JSON.stringify(keep)); } catch (e) { return; }      // stockage indisponible : pas de bannière plutôt que des répétitions
   if (!fresh.length || (typeof streamOn === 'function' && streamOn())) return;
   fresh.sort((a, b) => b.t - a.t || (a.b.tiers.length === 1) - (b.b.tiers.length === 1));      // le palier le plus haut d'abord
   prgPop(fresh[0], fresh.length - 1);
@@ -349,7 +366,7 @@ function prgUser(user) {
     const r = prgClean(data && data.c), c = prgC(); let up = false, more = false;
     for (const [k, v] of Object.entries(r)) if (v > (c[k] || 0)) { c[k] = v; up = true; }
     for (const [k, v] of Object.entries(c)) if (v > (r[k] || 0)) more = true;
-    if (up) { prgWrite(); prgSoon(); }
+    if (up) { prgWrite(); prgAbsorbSoon(); }      // compteurs d'un autre appareil : acquis sans bannière
     if (more || !data) prgPushSoon();      // l'appareil en sait plus que le compte : envoyé
   }, () => { /* règles pas encore publiées : compteurs gardés sur l'appareil */ });
 }

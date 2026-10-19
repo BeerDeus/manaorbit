@@ -68,7 +68,7 @@ function mePaint() {
   const ver = `<p class="hint set-ver">${T('Version {v}', { v: esc(typeof DD_BUILD === 'string' ? DD_BUILD : 'dev') })}${nat ? ' · APK<span class="set-apkv"></span> : ' + NAT_PLUGINS.map(([nn, l]) => (natPlugin(nn) ? '✓' : '✗') + l).join(' ') + '<span class="set-fb"></span>' : ''}</p>`;
   b.innerHTML = top + stats + acct + prefs + price + more + ver + (u ? `<button class="btn ghost-danger small me-out" type="button" data-me="out">${T('Se déconnecter')}</button>` : '');
   if (u) profImg($('#meAv', b), profAvatar());
-  mountSeg($('#segTheme', b), [{ v: 'auto', label: T('Auto') }, { v: 'light', label: T('Clair') }, { v: 'dark', label: T('Sombre') }], S.theme, val => { S.theme = val; applyTheme(); saveStore(); });
+  mountSeg($('#segTheme', b), [{ v: 'auto', label: T('Auto') }, { v: 'light', label: T('Clair') }, { v: 'dark', label: T('Sombre') }], S.theme, val => { S.theme = val; applyTheme(); saveStore(); if (val === 'dark' && typeof prgSoon === 'function') prgSoon('fun'); });
   // APK : sa version et Firebase (google-services.json), lus auprès de la coque ; APK sans plugin ManaOrbit ou info() refusé : la ligne reste telle quelle
   const mo = nat && typeof natPlugin === 'function' && natPlugin('ManaOrbit');
   if (mo) Promise.resolve().then(() => mo.info()).then(i => { const vv = $('.set-apkv', b), f = $('.set-fb', b); if (!i || !vv || !f) return; if (i.version) vv.textContent = ' ' + i.version + (i.build ? ' (' + i.build + ')' : ''); f.textContent = ' ' + (i.firebase ? '✓' : '✗') + 'Firebase'; }).catch(() => {});

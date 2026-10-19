@@ -467,6 +467,7 @@ function partieHist() { const a = partieLs(PRT_HIST); return Array.isArray(a) ? 
 /** Ajoute une entrée (même partie déjà là : gardée, « envoyée » et sa place complétées). */
 function partieHistAdd(e) {
   const x = partieHistClean(e); if (!x) return false;
+  if (typeof prgSoon === 'function') prgSoon('game');      // partie finie ici, ou réclamée : badges des parties (progress.js)
   const a = partieHist(), i = a.findIndex(y => y.id === x.id);
   if (i >= 0) a[i] = x.src === 'h' && a[i].src === 'h' ? { ...x, at: a[i].at } : { ...a[i], sv: a[i].sv || x.sv, moi: a[i].moi || x.moi, u: a[i].u || x.u };      // le créateur corrige sa partie : remplacée (à renvoyer)
   else a.push(x);

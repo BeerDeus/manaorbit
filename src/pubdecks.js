@@ -72,7 +72,7 @@ function pdMine(force) {
   const p = PD.mineP = (async () => {
     const tag = await pdTag(), docs = await D.cloud.pubMine(tag), m = new Map();
     for (const d of docs) if (d && d.data && typeof d.data.deck === 'string') m.set(d.data.deck, { id: d.id, at: Number(d.data.updatedAt) || 0, sig: pdDocSig(d.data) });
-    if (PD.mineUid === u.uid) PD.mine = m;
+    if (PD.mineUid === u.uid) { PD.mine = m; if (typeof prgAbsorbSoon === 'function') prgAbsorbSoon(); }
     return m;
   })().finally(() => { if (PD.mineP === p) PD.mineP = null; });
   return p;
@@ -165,7 +165,7 @@ async function openPubSheet(deckId) {
         } else {
           const id = cur ? cur.id : pdSlot(tag, mine); if (!id) { busy = false; say(T('{max} decks publiés au plus : retire-en un pour publier celui-ci.', { max: PUB_MAX })); return; }
           const data = { o: tag, by: PROF.name, deck: d.id, name: String(d.name || '').slice(0, 120), cmd: chk.pub.cmd, ci, cards: chk.pub.cards, updatedAt: Date.now(), v: 1 };
-          await D.cloud.pubSave(id, data); mine.set(d.id, { id, at: data.updatedAt, sig: pdDocSig(data) }); haptic('ok');
+          await D.cloud.pubSave(id, data); mine.set(d.id, { id, at: data.updatedAt, sig: pdDocSig(data) }); haptic('ok'); if (typeof prgSoon === 'function') prgSoon('deck');
           msg = cur ? T('Deck mis à jour : visible dans À monter d\'ici quelques minutes') : T('Deck publié : visible dans À monter d\'ici quelques minutes');
         }
         pdFetch(true).then(list => { if (list) pdApply(pdShown(list)); });

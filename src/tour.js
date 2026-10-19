@@ -240,7 +240,7 @@ function tourEnd(how) {
   if (el) { el.classList.remove('on'); setTimeout(() => el.remove(), typeof reduceMotion === 'function' && reduceMotion() ? 0 : 260); }
   if (TOUR.sheet) { const a = TOUR.sheet; TOUR.sheet = null; a.close(); }
   tourSet(how === 'done' ? { fin: Date.now(), done: tourRead().done || Date.now(), ver: TOUR_VER } : { skip: Date.now(), done: tourRead().done || Date.now(), ver: TOUR_VER });      // ver : cette version est vue, pas de pastille pour elle
-  tourRestore();
+  tourRestore(); if (how === 'done' && typeof prgSoon === 'function') prgSoon('fun');      // badge « Guide »
   if (typeof adsRefresh === 'function') adsRefresh();
   if (how === 'done') toast(T('Visite terminée. Tu la retrouves dans « Comment ça marche ? », en bas de l\'accueil.'));
 }

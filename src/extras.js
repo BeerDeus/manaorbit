@@ -86,7 +86,7 @@ function engSaved() { engWrite(); xsPushSoon('engaged'); engApplied(); }
 /** Monte un deck : réserve les exemplaires possédés de sa liste. */
 function engSet(id, name, text) {
   XS.eng = { ...XS.eng, [id]: { n: String(name || '').slice(0, 120), at: Date.now(), q: engSnapshot(text, collQty) } };
-  engSaved();
+  engSaved(); if (typeof prgSoon === 'function') prgSoon('deck');      // deck monté (badge « Monteur »)
   if (typeof plcDeckOf === 'function' && plcDeckOf(id)) plcMount(id, name, text);      // rangé dans « Deck : … » (places.js) : l'emplacement suit la liste
 }
 /** Démonte un deck (la trace vide est gardée pour que les autres appareils le sachent). */

@@ -64,5 +64,31 @@ await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close()
 await p.waitForSelector('.prg-pop.on'); await p.waitForFunction(() => !document.querySelector('.prg-pop'), null, { timeout: 7000 });
 ok('nouveau palier (1 000 cartes scannées) : bannière « Palier argent atteint · Scanner chevronné », un appui ouvre la fiche sur le badge (« Prochain : Maître du scan »), s\'efface seule');
 
+/* ── Bannière au bon moment : seulement pour ce qu'on vient de faire ici ; données lues en retard (decks du compte, lien d'échange ouvert…) ou venues
+   d'un autre appareil : acquises sans bannière, et la mémoire des paliers vus ne baisse jamais (un calcul fait avant la lecture des decks ne les « oublie » plus) ── */
+{
+  const DK = n => Array.from({ length: n }, (_, i) => ({ id: 'prgdk' + i, name: 'Deck ' + i, text: '1 Sol Ring', opts: {}, cards: [], history: [], createdAt: T0, updatedAt: T0 + i }));
+  const got = () => p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:prg:got') || '{}'));
+  const popT = () => p.evaluate(() => [...document.querySelectorAll('.prg-pop')].map(e => e.textContent).join(' | '));
+  await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); document.querySelectorAll('.prg-pop').forEach(e => e.remove()); D.localList = []; prgCheck(); });
+  assert.equal((await got()).dk_count, undefined, 'aucun deck : pas de badge Architecte');
+  // 1. Decks lus après le premier calcul (decks du compte, lien d'échange) : acquis sans bannière ; puis un scan n'annonce que ses propres badges
+  await p.evaluate(dk => { D.localList = dk; prgAbsorbSoon(); }, DK(5)); await p.waitForTimeout(1900);
+  assert.equal((await got()).dk_count, 1, '5 decks lus en retard : palier argent acquis'); assert.equal(await popT(), '', 'sans bannière');
+  await p.evaluate(() => prgScan([{ key: 'sol ring', q: 1, l: 'fr', es: 'auto', pk: null }])); await p.waitForTimeout(3000);
+  assert.doesNotMatch(await popT(), /Architecte|Bâtisseur|deck/i, 'un scan n\'annonce jamais les decks');
+  // 2. Calcul pendant que les decks ne sont pas encore lus (0) : la mémoire ne baisse pas, leur retour n'est pas « nouveau »
+  await p.evaluate(() => { document.querySelectorAll('.prg-pop').forEach(e => e.remove()); const dk = D.localList; D.localList = []; prgCheck(); D.localList = dk; prgSoon(); });
+  assert.equal((await got()).dk_count, 1, 'jamais revue à la baisse'); await p.waitForTimeout(3000); assert.equal(await popT(), '', 'decks revenus : pas de bannière');
+  // 3. Données venues du compte pendant qu'un calcul « fait ici » est prévu : seule la rubrique touchée ici est annoncée
+  await p.evaluate(dk => { D.localList = dk.slice(0, 19); prgAbsorbSoon(); prgSoon('scan'); }, DK(25)); await p.waitForTimeout(3000);
+  assert.equal(await popT(), '', '19 decks venus du compte : rien d\'annoncé'); assert.equal((await got()).dk_count, 1, 'pas encore 20');
+  // 4. Deck enregistré ici (putDeck) qui fait passer un palier : annoncé
+  await p.evaluate(dk => putDeck(dk.id, dk), DK(20)[19]); await p.waitForSelector('.prg-pop.on', { timeout: 6000 });
+  assert.match(await popT(), /Palier or atteint/, '20e deck enregistré ici : « Palier or atteint »'); assert.equal((await got()).dk_count, 2);
+  await p.evaluate(() => document.querySelectorAll('.prg-pop').forEach(e => e.remove()));
+}
+ok('bannière au bon moment : decks lus en retard acquis sans bruit, un scan n\'annonce que ses badges, mémoire des paliers jamais revue à la baisse, deck enregistré ici annoncé');
+
 assert.deepEqual(errs, []);
 await browser.close(); world.stop(); console.log('\nPROGRESS E2E OK'); process.exit(0);

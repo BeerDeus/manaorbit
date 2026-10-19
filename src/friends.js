@@ -105,7 +105,7 @@ function amRefresh(force) {
       const l = amTidy(await amCall(''));
       if (D.uid !== uid) return null;
       if (!l.need) { delete AM.sig.t; delete AM.sig.d; delete AM.sig.c; }      // plus d'ami : le serveur a effacé ses copies, tout repartira au prochain
-      AM.l = l; AM.at = Date.now(); AM.err = ''; amStore(); amPaint(); amAfter();
+      AM.l = l; AM.at = Date.now(); AM.err = ''; amStore(); amPaint(); amAfter(); if (typeof prgAbsorbSoon === 'function') prgAbsorbSoon();      // amis lus : badges acquis sans bannière
       if (typeof trocInvites === 'function') trocInvites(l.tr);      // un ami t'invite à un échange en direct : toast « Rejoindre »
       return l;
     } catch (e) { AM.err = e.code || 'net'; amPaint(); return AM.l; }
@@ -362,7 +362,7 @@ function amPubMount(wrap, P) {
     try {
       const r = b.dataset.am === 'accept' && P.am ? await amCall('/answer', { method: 'POST', body: { id: P.am.id, ok: true, ...(await amProf()) } })
         : await amCall('/ask', { method: 'POST', body: { share: P.id, ...(await amProf()) } });
-      P.am = { ...(P.am || {}), ...r, state: r.state }; paint(r.state); haptic('ok');
+      P.am = { ...(P.am || {}), ...r, state: r.state }; paint(r.state); haptic('ok'); if (r.state === 'friend' && typeof prgSoon === 'function') prgSoon('social');
       if (r.state === 'sent' && !PROF.name) toast(T('Demande envoyée. Choisis un pseudo pour qu\'il te reconnaisse.'), { label: T('Pseudo'), fn: openProfile });      // sans pseudo, il verrait « Joueur sans pseudo »
       else toast(r.state === 'friend' ? T('Vous êtes amis') : r.state === 'sent' ? T('Demande envoyée à {name}', { name: P.sh.by || T('ce joueur') }) : T('C\'est ta propre liste'));
       amRefresh(true);
