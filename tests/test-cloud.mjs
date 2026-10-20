@@ -40,6 +40,16 @@ const app = await import('firebase/app'), auth = await import('firebase/auth'), 
 const { makeCloud, authMessage, cloudClearLocal } = require('../src/cloud.js');
 const cloud = makeCloud({ app, auth, fs });
 console.log('✓ makeCloud avec le vrai SDK (repli getFirestore sans IndexedDB)');
+{ // domaine d'authentification : manaorbit.app seulement sur ce site et sur le lien de test (relais /__/auth/* de proxy.mjs), Firebase ailleurs
+  const vm = await import('node:vm'), { readFileSync } = await import('node:fs'), src = readFileSync('src/cloud.js', 'utf8');
+  const dom = (hostname, win) => { const c = vm.createContext({ location: { hostname }, ...(win ? { window: win } : {}) }); vm.runInContext(src, c); return vm.runInContext('FIREBASE_CONFIG.authDomain', c); };
+  assert.equal(require('../src/cloud.js').FIREBASE_CONFIG.authDomain, 'm2s-mtg.firebaseapp.com', 'Node : domaine de Firebase');
+  assert.equal(dom('manaorbit.app', { MO_TEST: true }), 'manaorbit.app');
+  assert.equal(dom('manaorbit.app', {}), 'm2s-mtg.firebaseapp.com', 'page normale : pas encore');
+  assert.equal(dom('127.0.0.1', { MO_TEST: true }), 'm2s-mtg.firebaseapp.com');
+  assert.equal(dom('card.m2s-photo.fr', { MO_TEST: true }), 'm2s-mtg.firebaseapp.com');
+  console.log('✓ authDomain : manaorbit.app sur le lien de test de manaorbit.app, m2s-mtg.firebaseapp.com ailleurs');
+}
 
 // état initial
 const seen = [];
