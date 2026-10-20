@@ -46,7 +46,8 @@ for (const [k, t] of [['play', /Bientôt Appli Android · Google Play.*arrive tr
   await p.click(`[data-store="${k}"]`); await p.waitForFunction(() => sheets.length === 1);
   assert.match(await txt(p, '.sheet'), t); await p.click('.sheet-foot [data-close]'); await p.waitForFunction(() => !sheets.length);
 }
-ok('Google Play et App Store : fenêtre « Bientôt »');
+assert.deepEqual(await p.$$eval('#hmStores .hm-st-lg a', l => l.map(a => [a.getAttribute('href'), a.textContent])), [['privacy', 'Politique de confidentialité'], ['legal', 'Mentions légales']], 'accueil → confidentialité et mentions légales');
+ok('Google Play et App Store : fenêtre « Bientôt » ; liens Confidentialité et Mentions légales');
 
 await p.setViewportSize({ width: 900, height: 900 }); await p.waitForFunction(() => !document.querySelector('.hm-cols'));
 assert.deepEqual(await p.evaluate(() => [...document.querySelector('#viewHome').children].map(x => x.id || x.className.split(' ')[0])),

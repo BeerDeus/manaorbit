@@ -84,6 +84,9 @@
   .hm-st-h b{font-family:var(--font-display);font-size:16px;font-weight:700;letter-spacing:-.02em}
   .hm-st-h span{font-size:12.5px;color:var(--ink-3)}
   .hm-st-bs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hm-st-lg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;font-size:12px}      /* liens de l'accueil vers la politique de confidentialité (exigée par la validation de marque Google) et les mentions légales */
+  .hm-st-lg a{color:var(--ink-3);text-underline-offset:2px}
+  .hm-st-lg a:hover{color:var(--ink)}
   .hm-st-b{display:flex;align-items:center;gap:10px;height:52px;padding:0 14px;border-radius:14px;border:1px solid rgba(255,255,255,.16);background:#0b0d14;color:#fff;text-align:left;font:inherit;cursor:pointer;transition:transform .15s,border-color .15s}
   .hm-st-b:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.4)}
   .hm-st-b:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
