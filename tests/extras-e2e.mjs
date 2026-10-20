@@ -97,7 +97,7 @@ const errsOf = [];
     D.user = { uid: 'u1', email: 'x@y.z' }; D.uid = 'u1';
     xsUser(D.user);
   });
-  assert.deepEqual(await p.evaluate(() => Object.keys(window.__w).sort()), ['engaged', 'history'], 'écoute des deux documents annexes');
+  assert.deepEqual(await p.evaluate(() => Object.keys(window.__w).sort()), ['engaged', 'history', 'prices'], 'écoute des documents annexes (decks montés, historique, prix partagés)');
   // l'autre appareil a monté « Deck Z » ; ce n'est pas du cache : fusion
   const T = Date.now();
   await p.evaluate(t => window.__w.engaged({ decks: { deckZ: { n: 'Deck Z', at: t, q: { 'sol ring': 1 } } }, updatedAt: t }, false, false), T);
