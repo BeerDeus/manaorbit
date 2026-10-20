@@ -52,8 +52,9 @@ const PARTS = [
   { c: '#b5a3c8', h: 'Classeur', p: 'rangement et masterset' },
   { c: '#ff7a5c', h: 'Commander', p: 'decks et compteur de vie' },
 ];
-const H1 = 'Combien vaut<br>ton <em>classeur</em>&nbsp;?';
-const SUB = 'Scanne tes cartes avec ton téléphone : <b>Mana Orbit te donne leur cote Cardmarket</b>, mise à jour chaque jour.';
+// « Magic » écrit en toutes lettres (titre, pastille, texte) : jamais le logo ni un symbole de Wizards (Fan Content Policy), seulement le nom du jeu en texte
+const H1 = 'Combien vaut<br>ton classeur <em>Magic</em>&nbsp;?';
+const SUB = 'Scanne tes cartes Magic avec ton téléphone : <b>Mana Orbit te donne leur cote Cardmarket</b>, mise à jour chaque jour.';
 
 /* ── Dessin (mm, format fini 210 × 297) ─────────────────────────────────────────────────────────────────────────────── */
 /** Orbite : ellipse inclinée. at(t) : point à l'angle t (0 à 180 : demi-orbite de devant) ; atX(x) : t de la demi-orbite de devant qui passe en x. */
@@ -103,7 +104,7 @@ const V = {
   },
   'solo-c': () => ({      // miroir : le téléphone à gauche, la liste à droite
     art: svg(halo(52, 156, 62, 76)) + orbited(phone(14, 92, 66, -4), orbit(48, 160, 58, 20, 16), [250, 128, 40, 330, 88]) + list('r'),
-    css: '.list.r{left:114mm;top:112mm;width:84mm}', h1: 48, sub: { top: 73, w: 120 }, sky: y => y < 30,
+    css: '.list.r{left:114mm;top:112mm;width:84mm}', h1: 48, sub: { top: 73, w: 170 }, sky: y => y < 30,
   }),
   'solo-d': () => ({      // téléphone géant qui déborde à droite, liste serrée à gauche
     art: svg(halo(160, 150, 70, 90)) + orbited(phone(108, 64, 98, 9), orbit(160, 150, 78, 28, -22), [300, 40, 95, 330, 122], [2.2, 2.8, 3, 2.4, 2.6]) + list('l s'),      // orbes côté téléphone : jamais sur la liste
@@ -115,7 +116,7 @@ const V = {
     css: `h1{line-height:.94!important}
   .chips{position:absolute;left:14mm;top:150mm;width:90mm;display:flex;flex-direction:column;align-items:flex-start;gap:3.6mm}
   .chips span{display:inline-flex;align-items:center;gap:2mm;padding:2mm 3.6mm 2mm 2.6mm;border:.3mm solid rgba(255,255,255,.22);border-radius:10mm;background:rgba(255,255,255,.05);font-family:'MO Display';font-weight:700;font-size:14pt}
-  .chips i{width:3.8mm;height:3.8mm;border-radius:50%}`, h1: 66, h1Text: 'Combien<br>vaut ton<br><em>classeur</em>&nbsp;?', sub: { top: 113, w: 92 }, sky: y => y < 26,
+  .chips i{width:3.8mm;height:3.8mm;border-radius:50%}`, h1: 60, h1Text: 'Combien vaut<br>ton classeur<br><em>Magic</em>&nbsp;?', sub: { top: 113, w: 92 }, sky: y => y < 26,
   }),
   'solo-f': () => {      // une carte foil entre dans le téléphone : cadre du scan (coins), traînée jusqu'à l'écran
     const cx = 136, cy = 96, w = 32, h = 44.7, g = 2.6, k = 6;      // carte et coins du cadre de scan
@@ -179,7 +180,7 @@ function page(v) {
   ${FMT === 'a5' ? A5_CSS : ''}
   </style></head><body><div class="pg"><div class="sc"><div class="bg"></div>${stars}</div><div class="t">
   ${d.art}
-  <div class="head">${LOGO}<b>Mana Orbit</b><small>Android · iPhone · ordinateur</small></div>
+  <div class="head">${LOGO}<b>Mana Orbit</b><small>Pour Magic: The Gathering</small></div>
   <h1>${d.h1Text || H1}</h1>
   <p class="sub">${SUB}</p>
   <div class="cta"><div class="qr">${QR}</div><div class="tx"><b>Scanne pour l'installer</b><span><strong>Android</strong> : Google Play<br><strong>iPhone</strong> : App Store <em class="soon">à venir</em><br><strong>Ordinateur et iPhone</strong> : manaorbit.app</span></div><div class="free">0 €<small>pour toujours</small></div></div>
