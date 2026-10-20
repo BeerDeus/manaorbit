@@ -103,11 +103,13 @@ Les textes de #bienvenue et #règles (français puis anglais) sont dans le scrip
 
 ## 3. Flyers pour les boutiques (A4, fond sombre)
 
-Quatre pistes, refaites par `node tools/flyer.mjs` (ou `node tools/flyer.mjs mix` pour une seule) :
-- `apercus` : trois vraies captures sur l'orbite foil, quatre points ;
-- `mix` : les trois captures prises dans l'orbite, cinq orbes de mana (Scan, Cote, Classeur, Échange, Commander) ;
-- `orbite` : sans capture, une carte foil au centre de l'orbite ;
-- `solo` : « Combien vaut ton classeur ? », une capture en grand, la liste des cinq parties.
+Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (valeur de la collection dans l'orbite foil, les cinq parties : Scan, Échange, Cote, Classeur, Commander). Six déclinaisons, refaites par `node tools/flyer.mjs` (ou `node tools/flyer.mjs solo-d` pour une seule) :
+- `solo-a` : liste à gauche, téléphone à droite ;
+- `solo-b` : centrée, les cinq orbes en rangée sous le téléphone ;
+- `solo-c` : miroir (téléphone à gauche, liste à droite) ;
+- `solo-d` : téléphone géant qui déborde à droite ;
+- `solo-e` : titre géant sur trois lignes, parties en pastilles ;
+- `solo-f` : une carte foil qui entre dans le téléphone (cadre du scan).
 
 **Fichiers** : `docs/print/flyer-a4-<piste>.pdf` (à envoyer à l'imprimeur : texte, dessin et QR en vectoriel) et `.png` (aperçu, imprimable aussi : 300 dpi).
 
