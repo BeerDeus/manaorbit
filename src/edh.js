@@ -253,9 +253,11 @@ function edhHelpHtml(kindsHave, gcOn) {
   if ((e.themeOrder || []).length) items.push(row(T('Thèmes'), T('Style du commandant d\'après EDHREC. Le nombre : decks qui l\'ont avec tes autres filtres.')));
   items.push(row(T('Classer par… puis…'), T('1er tri par paliers (tier, tranches de 10 % possédées, tranches de prix), le 2nd départage dans chaque palier.')));
   items.push(row(T('Terrains de base'), T('Ignorés : jamais comptés à acheter.')));
-  const src = [['EDHREC', 'https://edhrec.com'], ['Archidekt', 'https://archidekt.com'], ['EDHTop16', 'https://edhtop16.com']].map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join(' · ');
+  const src = [['EDHREC', 'https://edhrec.com'], ['Archidekt', 'https://archidekt.com'], ['EDHTop16', 'https://edhtop16.com']].map(([n, u]) => `<a href="${esc(edhRef(u))}" target="_blank" rel="noopener">${n}</a>`).join(' · ');
   return `<details class="dk-help"><summary>${gcOn ? T('Decks, tier, Game Changers et thèmes : comment lire') : T('Decks, tier et thèmes : comment lire')}</summary><ul class="dk-hl">${items.join('')}</ul><p class="hint dk-src">${T('Sources :')} ${src}</p></details>`;
 }
+/** Lien sortant vers une source (EDHREC, Archidekt…) : marqué utm_source=manaorbit, et le référent est envoyé (rel sans noreferrer) — la source voit d'où vient la visite. */
+function edhRef(u) { try { const x = new URL(u); x.searchParams.set('utm_source', 'manaorbit'); return x.href; } catch { return u; } }
 /** Tri « Classer » : une seule liste déroulante, « Meilleur tier » ou « Meilleur tier, puis moins cher ». Valeur : 'pop' ou 'pop>cost'. */
 const EDH_SORTS_LC = { have: 'plus possédées', cost: 'moins cher', pop: 'meilleur tier' };
 const edhSortLabel = (s, t) => { const a = T((EDH_SORTS.find(x => x[0] === s) || EDH_SORTS[0])[1]); return t ? T('{a}, puis {b}', { a, b: T(EDH_SORTS_LC[t]) }) : a; };
@@ -484,7 +486,7 @@ function openEdhDeck(r) {
     };
     api.body.addEventListener('click', e => { const rw = e.target.closest('.crow[data-ik]'); if (rw) open(rw); });
     api.body.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.crow[data-ik]')) { e.preventDefault(); open(e.target); } });
-    api.setFoot(`${url ? `<a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${r.deck.src === 'edhrec' ? 'EDHREC' : 'Archidekt'} ↗</a>` : `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`}<button class="btn" type="button" id="dkGo">${r.miss ? T('Chercher les manquantes') : T('Charger le deck')}</button>`);
+    api.setFoot(`${url ? `<a class="btn ghost" href="${esc(edhRef(url))}" target="_blank" rel="noopener">${r.deck.src === 'edhrec' ? 'EDHREC' : 'Archidekt'} ↗</a>` : `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`}<button class="btn" type="button" id="dkGo">${r.miss ? T('Chercher les manquantes') : T('Charger le deck')}</button>`);
     $('#dkGo', api.foot).onclick = () => { api.close(); edhUseDeck(r); };
   });
 }

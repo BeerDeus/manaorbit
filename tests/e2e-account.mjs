@@ -359,7 +359,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
       window.__g = { calls: [], outs: 0, cancel: false, err: '', token: 'jeton-google-natif', missing: false };
       window.__opens = 0; window.open = () => { window.__opens++; return null; };
       // coque sans plugin ManaOrbit = très ancienne : « Mise à jour de l'appli » (pwa.js › apkPop) s'ouvrirait au premier moment calme et couvrirait les boutons ; elle a son propre test (apkupd-e2e)
-      new MutationObserver(() => { const x = document.getElementById('apkPop'); if (x) x.remove(); }).observe(document.documentElement, { childList: true, subtree: true });
+      new MutationObserver(() => { const x = document.getElementById('apkPop'); if (x) x.remove(); }).observe(document, { childList: true, subtree: true });      // document : la racine n'existe pas encore quand ce script passe
       window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'FirebaseAuthentication' && !window.__g.missing, Plugins: { FirebaseAuthentication: {
         signInWithGoogle: async o => { window.__g.calls.push(o); if (window.__g.cancel) throw new Error('The user canceled the sign-in flow.'); if (window.__g.err) throw new Error(window.__g.err); return { user: null, credential: { providerId: 'google.com', idToken: window.__g.token, accessToken: 'acc' } }; },
         signOut: async () => { window.__g.outs++; } } } };

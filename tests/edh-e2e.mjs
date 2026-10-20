@@ -79,6 +79,7 @@ assert.equal(await txt(p, '[data-act="dfilt"]'), 'Filtres', 'aucun filtre actif'
 assert.match(await txt(p, '.dk-sum'), /4 decks sur 4/); assert.equal(await txt(p, '.coll-main > p.hint'), 'Decks des commandants les plus joués, comparés à ta collection. Prix Cardmarket du 03/10/2026.', 'intro raccourcie');
 assert.deepEqual(await p.$$eval('.dk-help .dk-hl li b', b => b.map(x => x.textContent)), ['Moyen', 'Archidekt', 'Tier', 'Game Changers et bracket', 'Classer par… puis…', 'Terrains de base'], 'aide : une information par ligne (types présents seulement)');
 assert.deepEqual(await p.$$eval('.dk-help .dk-src a', a => a.map(x => x.textContent)), ['EDHREC', 'Archidekt', 'EDHTop16'], 'sources');
+assert.deepEqual(await p.$$eval('.dk-help .dk-src a', a => a.map(x => x.href)), ['https://edhrec.com/?utm_source=manaorbit', 'https://archidekt.com/?utm_source=manaorbit', 'https://edhtop16.com/?utm_source=manaorbit'], 'sources : liens marqués Mana Orbit');
 await p.screenshot({ path: 'shots/edh-2-decks.png' });
 // type de deck (filtre) et tri combiné « Meilleur tier, puis moins cher »
 await openF(); assert.deepEqual(await p.$$eval('.dkf-sheet [data-act="dkind"]', b => b.map(x => x.textContent)), ['Moyen', 'Archidekt'], 'types présents seulement');
@@ -172,7 +173,7 @@ assert.equal(await p.$eval('.sheet-body > *:nth-child(1)', e => e.className), 'c
 assert.deepEqual(await p.$$eval('.dk-cmd .row-name', n => n.map(x => x.textContent)), ['Edgar Markov']); assert.equal(await p.$eval('.dk-cmd .row-price b', e => e.textContent.trim()), '✓', 'commandant possédé : coche');
 const miss = await p.$$eval('.dk-miss .row-name', n => n.map(x => x.textContent)); assert.equal(miss.length, 23); assert.equal(miss[0], 'Swords to Plowshares', 'la plus chère d\'abord'); assert.ok(!miss.includes('Sol Ring'));
 assert.match(await txt(p, '.dk-own summary'), /Déjà dans ta collection \(2\)/);
-assert.equal(await p.$eval('.sheet-foot a', a => a.href), 'https://edhrec.com/average-decks/edgar-markov'); assert.equal(await p.$eval('.sheet-foot a', a => a.rel), 'noopener noreferrer');
+assert.equal(await p.$eval('.sheet-foot a', a => a.href), 'https://edhrec.com/average-decks/edgar-markov?utm_source=manaorbit'); assert.equal(await p.$eval('.sheet-foot a', a => a.rel), 'noopener', 'lien EDHREC : marqué Mana Orbit, référent envoyé');
 await p.screenshot({ path: 'shots/edh-3-feuille.png' });
 /* ── 4a) actions de la feuille : « Je recherche » (sans doublon, annulable), enregistrer dans Mes decks ; pas d'alertes sans serveur de notifications ── */
 const acts = () => p.$$eval('.dk-acts2 .dk-act', b => b.map(x => [x.dataset.act, x.querySelector('b').textContent, (x.querySelector('small') || { textContent: '' }).textContent, x.disabled]));
@@ -269,7 +270,7 @@ for (const [mode, headers] of [['gzip transparent', { 'content-encoding': 'gzip'
   await openDecks(c.p);
   assert.deepEqual(await names(c.p), ['Craterhoof Behemoth 3 / 25 possédées', 'Edgar Markov 3 / 26 possédées', 'Edgar Markov 3 / 27 possédées', 'Tymna the Weaver + Thrasios, Triton Hero 2 / 29 possédées'], mode + ' : mêmes decks qu\'avec le texte');
   assert.equal(binHits, 1, mode + ' : une seule requête'); assert.equal(tsvHits, 0, 'le texte n\'est pas demandé quand le binaire répond');
-  await c.p.click('.crow.dk >> nth=1'); await c.p.waitForSelector('.sheet .ci-sum'); assert.match(await txt(c.p, '.sheet .ci-sum'), /23 cartes à acheter/); assert.equal(await c.p.$eval('.sheet-foot a', a => a.href), 'https://edhrec.com/average-decks/edgar-markov'); await c.p.click('.sheet [data-close].icon-btn');
+  await c.p.click('.crow.dk >> nth=1'); await c.p.waitForSelector('.sheet .ci-sum'); assert.match(await txt(c.p, '.sheet .ci-sum'), /23 cartes à acheter/); assert.equal(await c.p.$eval('.sheet-foot a', a => a.href), 'https://edhrec.com/average-decks/edgar-markov?utm_source=manaorbit'); await c.p.click('.sheet [data-close].icon-btn');
   await c.p.fill('#dkQ', 'tymna'); await c.p.waitForTimeout(260); assert.equal((await names(c.p)).length, 1, 'recherche sur l\'index binaire');
   if (mode === 'gzip brut') {      // copie gardée : après rechargement, affichée tout de suite ; le texte n'est pas redemandé, le binaire n'est qu'une lecture de contrôle
     await c.p.unroute('**/edh.bin.gz'); await c.p.unroute('**/edh.tsv'); let again = 0; await c.p.route('**/edh.bin.gz', r => { again++; return r.fulfill({ status: 404, body: '{}' }); }); await c.p.route('**/edh.tsv', r => { again++; return r.fulfill({ status: 404, body: '{}' }); });
