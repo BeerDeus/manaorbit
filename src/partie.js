@@ -8,11 +8,13 @@
    · Fin : partieEnd (vainqueurs, ou aucun) → partieResult (résultat compact) → partieDone : historique de l'appareil, file d'envoi, partieFlush.
    · Résultat en lien / QR code (encodeResult, decodeResult ; https://manaorbit.app/?partie=<données>) : un autre joueur le scanne, choisit
      « c'était moi : place N » (partieClaim) et la partie s'ajoute à son historique, envoyée au serveur dès que possible.
-   · Stockage de l'appareil : deckdeal:partie:cur (partie en cours), deckdeal:partie:queue (envois en attente), deckdeal:partie:hist (historique,
+   · Stockage de l'appareil : deckdeal:partie:cur (partie en cours ; deckdeal:partie:at, sa dernière sauvegarde : laissée 12 h en préparation ou 48 h
+     sans action, l'accueil l'efface, partieStale), deckdeal:partie:queue (envois en attente), deckdeal:partie:hist (historique,
      200 au plus), deckdeal:partie:room (salle d'attente créée ou rejointe ici). Toujours dans des try/catch : sans stockage, rien ne casse.
    Sous Node (tests, proxy.mjs) : module.exports en fin de fichier ; aucune dépendance aux autres fichiers de src/ (globales de l'appli lues avec typeof).
    Retirer la fonction : ôter 'partie.js' de build.mjs (crochets gardés par typeof dans app.js et decks.js), PARTIE=0 coupe le serveur. */
 const PRT_CUR = 'deckdeal:partie:cur', PRT_QUEUE = 'deckdeal:partie:queue', PRT_HIST = 'deckdeal:partie:hist', PRT_ROOM = 'deckdeal:partie:room';
+const PRT_AT = 'deckdeal:partie:at', PRT_IDLE_SETUP = 12 * 3600e3, PRT_IDLE_GAME = 48 * 3600e3;      // dernière sauvegarde de la partie en cours ; inactivité au-delà de laquelle elle est effacée (partieStale)
 const PRT_HIST_MAX = 200, PRT_QUEUE_MAX = 300, PRT_LOG_MAX = 5000, PRT_MERGE_MS = 2500, PRT_POS_MAX = 8, PRT_V = 1;
 const PRT_FORMATS = [40, 30, 25, 20], PRT_COUNTERS = ['poison', 'impot', 'energie', 'experience'], PRT_FREE_MAX = 8;
 const PRT_CAUSES = ['vie', 'poison', 'commandant', 'abandon', 'autre'], PRT_SORTES = ['moi', 'compte', 'invite'], PRT_SRC = ['h', 's', 'q'];
@@ -459,9 +461,17 @@ function partieLogOk(e) {
   }
 }
 /** Partie en cours sur cet appareil : enregistrée (journal raccourci si le stockage est plein), relue, effacée. */
-function partieSave(st) { if (!st) return partieLsSet(PRT_CUR, null); return partieLsSet(PRT_CUR, st) || partieLsSet(PRT_CUR, { ...st, journal: st.journal.slice(-300) }); }
+function partieSave(st) { if (!st) return partieClear(); partieLsSet(PRT_AT, Date.now()); return partieLsSet(PRT_CUR, st) || partieLsSet(PRT_CUR, { ...st, journal: st.journal.slice(-300) }); }
 const partieLoad = () => partieStateClean(partieLs(PRT_CUR));
-const partieClear = () => partieLsSet(PRT_CUR, null);
+const partieClear = () => { partieLsSet(PRT_AT, null); return partieLsSet(PRT_CUR, null); };
+/** Partie laissée de côté : en préparation sans changement depuis 12 h, commencée sans action depuis 48 h (l'accueil l'efface, sans résultat).
+ *  at : dernière sauvegarde (PRT_AT ; 0 : inconnue, la création, le début et la dernière action du journal comptent seuls). */
+function partieStale(st, at, now = Date.now()) {
+  if (!st || st.fin) return false;
+  const e = st.journal[st.journal.length - 1], last = Math.max(Number(at) || 0, st.cree || 0, st.debut || 0, (e && e.t) || 0);
+  return now - last > (st.debut ? PRT_IDLE_GAME : PRT_IDLE_SETUP);
+}
+const partieSavedAt = () => Number(partieLs(PRT_AT)) || 0;
 /** Historique de cet appareil (la plus récente d'abord, PRT_HIST_MAX au plus). */
 function partieHist() { const a = partieLs(PRT_HIST); return Array.isArray(a) ? a.map(partieHistClean).filter(Boolean) : []; }
 /** Ajoute une entrée (même partie déjà là : gardée, « envoyée » et sa place complétées). */
@@ -740,6 +750,6 @@ if (typeof module !== 'undefined' && module.exports) {
     partieId, partieStr, partieCut, partieDeck, partieDeckOf, partieNew, partieAddPlace, partieRemovePlace, partieMovePlace, partieSetPlace, partieSetFormat,
     partieLife, partieCmdDamage, partieCounter, partieMark, partieMonarch, partieInitiative, partieEliminate, partieRevive, partieStart, partieFirst, partieNextTurn, partieEnd, partieSetRanks, partieUndo,
     partieProposals, partieRanks, partieResult, partieResClean, partieHistClean, partieStats, partieCk, encodeResult, decodeResult, partieResultLink, partieTableLink, partieParseUrl,
-    partieStateClean, partieSave, partieLoad, partieClear, partieHist, partieHistAdd, partieHistDrop, partieQueue, partieEnqueue, partieDone, partieClaim, partieFlush, partieKick, partieWipe, partieHistFetch, partieHistDelete,
+    partieStateClean, partieSave, partieLoad, partieClear, partieStale, partieSavedAt, PRT_AT, PRT_IDLE_SETUP, PRT_IDLE_GAME, partieHist, partieHistAdd, partieHistDrop, partieQueue, partieEnqueue, partieDone, partieClaim, partieFlush, partieKick, partieWipe, partieHistFetch, partieHistDelete,
     partieRoom, partieRoomCreate, partiePeek, partieRoomJoin, partieRoomOp, partieRoomLeave, partieFromRoom, partieRoomResult, partieRoomWatch, partieRoomStop, partieInit, partieUser };
 }

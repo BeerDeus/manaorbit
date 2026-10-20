@@ -231,6 +231,17 @@ test('lien abîmé, tronqué, trafiqué, d\'une autre version : refusé propreme
   assert.equal(P.partieParseUrl('https://manaorbit.app/?troc=ABC234'), null); assert.equal(P.partieTableLink('ABC234'), 'https://manaorbit.app/?table=ABC234'); assert.equal(P.partieTableLink('nope'), '');
 });
 
+test('partie laissée de côté : 12 h en préparation, 48 h commencée, dernière sauvegarde comptée ; jamais une partie finie', () => {
+  const H = 3600e3, prep = P.partieNew({ moi: { nom: 'Max' }, now: T0, id: 'prep00000001' });
+  assert.equal(P.partieStale(prep, 0, T0 + 11 * H), false); assert.equal(P.partieStale(prep, 0, T0 + 13 * H), true);
+  assert.equal(P.partieStale(prep, T0 + 10 * H, T0 + 13 * H), false, 'modifiée il y a 3 h : gardée');
+  const g = P.partieLife(table4(), 2, -3, { now: at(60) });
+  assert.equal(P.partieStale(g, 0, at(60) + 47 * H), false); assert.equal(P.partieStale(g, 0, at(60) + 49 * H), true);
+  assert.equal(P.partieStale(P.partieEnd(g, [1], { now: at(90) }), 0, at(90) + 400 * H), false); assert.equal(P.partieStale(null, 0), false);
+  globalThis.localStorage = fakeLs(); assert.equal(P.partieSavedAt(), 0);
+  const t = Date.now(); P.partieSave(prep); assert.ok(P.partieSavedAt() >= t); P.partieClear(); assert.equal(P.partieSavedAt(), 0, 'effacée avec la partie');
+});
+
 test('stockage de l\'appareil : partie en cours, historique (200 au plus, sans doublon), relecture prudente, stockage en panne', () => {
   globalThis.localStorage = fakeLs();
   const s = P.partieLife(table4(), 2, -3, { now: at(5) });

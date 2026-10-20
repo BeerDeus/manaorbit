@@ -1,6 +1,11 @@
 /* ── Partie de Commander (partie-ui.js) ─────────────────────────────────────────────────────────── */
 .hm-partie .hm-tr-ic{color:#ff7a90}
 .hm-partie .hm-tr-ic .i{width:20px;height:20px}
+.hm-partie.live .hm-tr-acts{grid-template-columns:1fr 1fr 44px}      /* partie en cours : supprimer / abandonner (corbeille) */
+.hm-pu-drop{padding:0;color:var(--ink-3)}
+.hm-pu-drop:hover{color:var(--bad)}
+.pu-foot:has(.pu-drop){flex-wrap:wrap;row-gap:2px}
+.pu-foot .pu-drop{flex:1 0 100%;justify-content:center;margin:0;color:var(--ink-3);font-size:13px}      /* préparation : « Supprimer cette partie » sous « Lancer » */
 /* Préparation, fin, rejoindre */
 .pu-setup{gap:12px}
 .pu-card{border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:10px}

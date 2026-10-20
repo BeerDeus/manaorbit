@@ -140,5 +140,10 @@
 "{n} partie · {w} gagnée(s)": "{n} game · {w} won",
 "{n} parties · {w} gagnée(s)": "{n} games · {w} won",
 "Énergie": "Energy",
-"Expérience": "Experience"
+"Expérience": "Experience",
+"Supprimer la partie": "Delete the game",
+"Supprimer cette partie": "Delete this game",
+"Supprimer la partie ?": "Delete the game?",
+"La partie en préparation est effacée de ce téléphone.": "The game being set up is deleted from this phone.",
+"En préparation · {n} joueur": "Setting up · {n} player"
 }

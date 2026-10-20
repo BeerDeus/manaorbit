@@ -26,7 +26,7 @@
   - [ ] **Republier les règles Firestore** (nouveau document `meta/prices`, 20 octobre : prix du jour partagés entre les appareils, la même valeur sur PC et téléphone ; sans elles, chaque appareil garde ses prix).
   - [ ] Google Cloud › IAM : ajouter au compte de service (`FCM_SERVICE_ACCOUNT`) le rôle **« Administrateur Firebase Authentication »** (`roles/firebaseauth.admin`) pour « Désactiver » dans `/admin` (sans lui : message clair, le reste marche).
   - [ ] APK 1.0.6 : `git pull`, `npm run setup` dans `android-app`, Android Studio › Sync Project with Gradle Files (première vraie vérification des bibliothèques ML Kit et Review), Run ▶ sur le téléphone (Réglages : « APK : 1.0.6 (7) »), scanner une carte chinoise, japonaise, coréenne et russe sans rien régler ; puis `.aab` signé envoyé sur le test fermé, et `APK_LATEST` = 7 dans `proxy.mjs` une fois en ligne.
-  - [ ] À la production : `RATE_ASK = true` (`src/help.js`) ; la carte de note de Google ne s'affiche que pour une appli installée depuis le Play Store.
+  - [ ] À la production : `RATE_ASK = true` (`src/help.js`) ; la carte de note de Google ne s'affiche que pour une appli installée depuis le Play Store. Le même interrupteur fait passer le bouton **Google Play** de l'accueil sur ordinateur de « Bientôt » au lien de la fiche (App Store reste « Bientôt »).
 - **Retours du propriétaire et des testeurs (19 octobre)** : scan automatique validé sur 2 400 cartes (sans la lampe, qui fait un reflet ; gardée pour les endroits sombres), scan mobile + PC validé, masterset gardé tel quel (dense exprès : vue d'ensemble), import ManaBox, classeur, session d'ouverture, amis, échange en direct : rien à redire ; russe pas encore essayé.
 
 ## Prévu (plus tard, mais sûr)

@@ -28,7 +28,7 @@ const SAME = {
   de: ['Berlin', 'Jackpot', 'Marathon', 'Profil', 'Liste', 'Mana', 'Decklist', 'Scan', 'Initiative', 'Partie', 'Cyborg', 'Arsenal', 'Shogun', 'Mentor', 'Saison'],
   es: ['Niv. {n}', 'Rentable', 'de {name}', 'libre', 'Arsenal', 'Shogun', 'Mentor', 'Indestructible', 'Variantes'],
   it: ['Taipei', 'Tokyo', '{n} PV', 'Mana', 'Test…', 'non foil', 'Multicolore', 'Incolore', 'incolore', 'Cyborg', 'Shogun'],
-  pt: ['Moscou', 'Vitrine', 'Variantes', 'bronze', 'de {name}', 'Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}', 'Arsenal', 'Mentor'],
+  pt: ['Moscou', 'Vitrine', 'Variantes', 'bronze', 'de {name}', 'Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Cardmarket ou CardTrader', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}', 'Arsenal', 'Mentor'],
 };
 const sameOk = (l, k) => SAME['*'].includes(k) || (SAME[l] || []).includes(k) || !/\p{L}/u.test(k.replace(/\{\w+\}/g, '').replace(/<[^>]+>/g, ''));
 const vars = s => [...String(s).matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort();

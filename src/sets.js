@@ -7,7 +7,7 @@
    · Hors ligne, en erreur ou sans rien à venir : la carte reste cachée, sans message ; nouvel essai au prochain lancement.
    · Chaque ligne : la page de l'extension dans l'appli (setview.js : cartes révélées, recherche, filtres, souhaits), plus « Précommander » (à venir)
      ou « Acheter » (sortie récente) vers Cardmarket, lien séparé. */
-const SETS_KEY = 'sets:v1', SETS_TTL = DAY, SETS_RECENT = 14, SETS_MAX = 4;
+const SETS_KEY = 'sets:v1', SETS_TTL = DAY, SETS_RECENT = 14, SETS_MAX = 4, SETS_MAX_DESK = 8;      // 8 sur ordinateur : la colonne de l'accueil a la place (la liste défile au-delà)
 /** Produits papier « grand public » : les autres types (promo, jetons, funny, cartes numériques, boîtes…) n'intéressent pas l'accueil. */
 const SETS_TYPES = ['expansion', 'core', 'masters', 'draft_innovation', 'commander'];
 const SETS = { list: null, st: '', t: 0, sig: '', delay: 2500 };      // st : '' · 'cache' (lecture) · 'wait' (requête prévue) · 'net' · 'done' · 'fail'
@@ -34,7 +34,7 @@ function setsKeep(data, now = Date.now()) {
 }
 /** Éditions à afficher aujourd'hui : les produits rattachés à une édition affichée (decks Commander, Jumpstart…) rejoignent leur parent ;
  *  au plus une sortie récente (la dernière), puis les prochaines, par date. d : jours jusqu'à la sortie (négatif : déjà sortie). */
-function setsPick(list, now = Date.now()) {
+function setsPick(list, now = Date.now(), max = SETS_MAX) {
   const t0 = new Date(now); t0.setHours(0, 0, 0, 0);
   const rows = (Array.isArray(list) ? list : []).map(s => ({ ...s, d: Math.round((setsDay(s.at) - t0) / DAY), kids: [] })).filter(s => Number.isFinite(s.d) && s.d >= -SETS_RECENT);
   const by = new Map(rows.map(s => [s.code, s])), top = [];
@@ -42,7 +42,7 @@ function setsPick(list, now = Date.now()) {
   const rank = t => (t === 'expansion' || t === 'core' ? 0 : t === 'masters' || t === 'draft_innovation' ? 1 : 2);
   top.sort((a, b) => a.d - b.d || rank(a.type) - rank(b.type) || a.name.localeCompare(b.name));
   const past = top.filter(s => s.d < 0), next = top.filter(s => s.d >= 0);
-  return (past.length ? [past[past.length - 1]] : []).concat(next).slice(0, SETS_MAX)
+  return (past.length ? [past[past.length - 1]] : []).concat(next).slice(0, max)
     .map(s => ({ code: s.code, name: s.name, at: s.at, d: s.d, icon: s.icon, url: s.url, cmd: s.kids.some(k => k.type === 'commander') }));
 }
 /** « 14 novembre » (année seulement si ce n'est pas celle en cours) ; la pastille dit déjà « dans 12 jours » ou « Sortie récente ». */
@@ -100,7 +100,7 @@ async function setsFetch() {
 }
 function setsPaint() {
   const box = $('#hmSets'), ul = $('#hmSetsList'); if (!box || !ul) return;
-  const rows = setsPick(SETS.list), sig = [I18N.lang, new Date().toDateString(), rows.map(r => r.code + r.d).join()].join('|');
+  const rows = setsPick(SETS.list, Date.now(), typeof homeDeskOn === 'function' && homeDeskOn() ? SETS_MAX_DESK : SETS_MAX), sig = [I18N.lang, new Date().toDateString(), rows.map(r => r.code + r.d).join()].join('|');
   if (sig === SETS.sig) return; SETS.sig = sig;
   box.hidden = !rows.length;
   if (!ul._err) { ul._err = true; ul.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true); }      // icône injoignable : la pastille reste, vide

@@ -115,9 +115,9 @@ const valCls = x => (x > 0 ? 'vu' : x < 0 ? 'vd' : '');
 const valDate = t => new Date(t).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' });
 const valTag = m => `<span class="tag vm ${valCls(m.d)}" title="${T('Cardmarket : {a} → {b}', { a: esc(fmt(m.u0, 'EUR')), b: esc(fmt(m.u1, 'EUR')) })}">${m.d > 0 ? '▲' : '▼'} ${valPct(m.pct)}</span>`;
 
-/** Courbe de la valeur (SVG à l'échelle : axes min/max réels, temps proportionnel). */
-function valChartHtml(h) {
-  const W = 320, H = 132, pl = 8, pr = 8, pt = 16, pb = 20, vs = h.map(x => x.v), min = Math.min(...vs), max = Math.max(...vs);
+/** Courbe de la valeur (SVG à l'échelle : axes min/max réels, temps proportionnel). W, H : taille du dessin (l'accueil sur ordinateur la prend de sa case). */
+function valChartHtml(h, W = 320, H = 132) {
+  const pl = 8, pr = 8, pt = 16, pb = 20, vs = h.map(x => x.v), min = Math.min(...vs), max = Math.max(...vs);
   const pad = (max - min) * 0.14 || max * 0.03 || 1, lo = min - pad, hi = max + pad, t0 = h[0].t, t1 = h[h.length - 1].t;
   const X = t => pl + (W - pl - pr) * (t1 > t0 ? (t - t0) / (t1 - t0) : 1), Y = v => pt + (H - pt - pb) * (1 - (v - lo) / (hi - lo)), f = n => n.toFixed(1);
   const pts = h.map(x => f(X(x.t)) + ',' + f(Y(x.v))), last = h[h.length - 1];

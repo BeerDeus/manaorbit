@@ -26,19 +26,27 @@ function puHomeInit() {
   const tr = $('#hmTrade'); if (!tr || $('#hmPartie')) return;
   tr.insertAdjacentHTML('afterend', `<section class="hm-trade hm-partie" id="hmPartie" aria-labelledby="hmPartieT">
       <button class="hm-tr-h" type="button" data-pu="go"><span class="hm-tr-ic" aria-hidden="true">${PU_HEART}</span><span class="hm-tr-t"><b id="hmPartieT">${T('Partie de Commander')}</b><span class="hm-pu-sub"></span></span></button>
-      <div class="hm-tr-acts"><button class="btn ghost" type="button" data-pu="go"><span class="hm-pu-go"></span></button><button class="btn ghost" type="button" data-pu="hist"><span>${T('Mes parties')}</span></button></div></section>`);
-  $('#hmPartie').addEventListener('click', e => { const b = e.target.closest('[data-pu]'); if (!b) return; haptic('tap'); if (b.dataset.pu === 'hist') puHist(); else puGo(); });
+      <div class="hm-tr-acts"><button class="btn ghost" type="button" data-pu="go"><span class="hm-pu-go"></span></button><button class="btn ghost" type="button" data-pu="hist"><span>${T('Mes parties')}</span></button><button class="btn ghost hm-pu-drop" type="button" data-pu="drop" hidden><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg></button></div></section>`);
+  $('#hmPartie').addEventListener('click', e => { const b = e.target.closest('[data-pu]'); if (!b) return; haptic('tap'); const a = b.dataset.pu; if (a === 'hist') puHist(); else if (a === 'drop') puDropSheet(); else puGo(); });
   puHomePaint();
+}
+/** Partie en cours de ce téléphone ; laissée de côté trop longtemps (partieStale : 12 h en préparation, 48 h commencée), elle est effacée sans résultat. */
+function puCur() {
+  const cur = partieLoad(); if (!cur || cur.fin || !partieStale(cur, partieSavedAt())) return cur;
+  partieClear(); const r = partieRoom(); if (r && r.id === cur.id) partieRoomOp('end').catch(() => partieRoomForget());
+  return null;
 }
 function puHomePaint() {
   const box = $('#hmPartie'); if (!box) return;
-  const cur = partieLoad(), live = cur && !cur.fin;
-  $('.hm-pu-sub', box).textContent = live ? (cur.debut ? T('En cours · tour {t} · {n} joueurs', { t: cur.tour, n: cur.places.length }) : T('En préparation · {n} joueurs', { n: cur.places.length })) : T('Compteur de vie, jusqu\'à 8 joueurs');
+  const cur = PU.el ? partieLoad() : puCur(), live = cur && !cur.fin, x = $('.hm-pu-drop', box);
+  x.hidden = !live; box.classList.toggle('live', !!live);
+  if (live) { const l = cur.debut ? T('Abandonner la partie') : T('Supprimer la partie'); x.setAttribute('aria-label', l); x.title = l; }
+  $('.hm-pu-sub', box).textContent = live ? (cur.debut ? T('En cours · tour {t} · {n} joueurs', { t: cur.tour, n: cur.places.length }) : TN(cur.places.length, 'En préparation · {n} joueur', 'En préparation · {n} joueurs')) : T('Compteur de vie, jusqu\'à 8 joueurs');
   $('.hm-pu-go', box).textContent = live ? T('Reprendre') : T('Nouvelle partie');
 }
 /** Bouton principal : reprend la partie en cours, sinon en prépare une nouvelle. */
 function puGo() {
-  const cur = partieLoad();
+  const cur = puCur();
   if (cur && !cur.fin) { puOpen(cur); return; }
   puOpen(partieNew({ moi: { nom: puMe() } }));
 }
@@ -104,7 +112,7 @@ function puSetupPaint() {
       <section class="pu-card"><p class="pu-h">${T('Autour de la table')}</p><ol class="pu-seats">${seats}</ol>${st.places.length < 8 ? `<button class="plc-add" type="button" data-pu="guest">${T('+ Invité')}</button>` : ''}</section>
       ${st.places.length > 1 ? `<section class="pu-card"><p class="pu-h">${T('Premier joueur')}</p><div class="pu-chips"><button type="button" data-pu="first" data-pos="0" aria-pressed="${!st.premier}">${T('Au hasard')}</button>${st.places.map(p => `<button type="button" data-pu="first" data-pos="${p.pos}" aria-pressed="${st.premier === p.pos}">${esc(p.nom || p.pos)}</button>`).join('')}</div></section>` : ''}
     </div></div>
-    <div class="pu-foot"><button class="btn block" type="button" data-pu="start"${st.places.length < 2 ? ' disabled' : ''}>${st.places.length < 2 ? T('Il faut au moins 2 joueurs') : T('Lancer la partie')}</button></div>`;
+    <div class="pu-foot"><button class="btn block" type="button" data-pu="start"${st.places.length < 2 ? ' disabled' : ''}>${st.places.length < 2 ? T('Il faut au moins 2 joueurs') : T('Lancer la partie')}</button><button class="link-btn pu-drop" type="button" data-pu="drop">${T('Supprimer cette partie')}</button></div>`;
   mountSeg($('.pu-fmt', el), PRT_FORMATS.map(f => ({ v: String(f), label: String(f) })), String(st.format), v => { puSet(partieSetFormat(PU.st, Number(v))); if (partieRoom()) partieRoomOp('opts', { format: Number(v) }).catch(() => {}); });
   const sel = $('select[data-pu="mydeck"]', el);
   if (sel) sel.onchange = () => { const d = decks.find(x => x.id === sel.value), deck = d ? partieDeckOf(d, puDeckImg(d)) : null; puSet(partieSetPlace(PU.st, me.pos, { deck })); if (partieRoom()) partieRoomOp('me', { deck }).catch(() => {}); };
@@ -312,11 +320,14 @@ function puMenu() {
     });
   });
 }
+/** Abandon (partie commencée) ou suppression (en préparation) : depuis le menu de la partie, l'écran de préparation ou la carte de l'accueil. */
 function puDropSheet() {
-  openSheet(T('Abandonner la partie ?'), '', api => {
-    api.body.innerHTML = `<p class="cf-msg">${T('La partie est effacée de ce téléphone, sans résultat.')}</p>`;
-    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ok>${T('Abandonner')}</button>`);
-    api.foot.addEventListener('click', e => { if (!e.target.closest('[data-ok]')) return; api.close(); partieClear(); if (partieRoom()) partieRoomOp('end').catch(() => partieRoomForget()); puClose(); });
+  const st = PU.el ? PU.st : partieLoad(); if (!st || st.fin) { puHomePaint(); return; }
+  const go = !!st.debut;
+  openSheet(go ? T('Abandonner la partie ?') : T('Supprimer la partie ?'), '', api => {
+    api.body.innerHTML = `<p class="cf-msg">${go ? T('La partie est effacée de ce téléphone, sans résultat.') : T('La partie en préparation est effacée de ce téléphone.')}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ok>${go ? T('Abandonner') : T('Supprimer')}</button>`);
+    api.foot.addEventListener('click', e => { if (!e.target.closest('[data-ok]')) return; api.close(); partieClear(); if (partieRoom()) partieRoomOp('end').catch(() => partieRoomForget()); if (PU.el) puClose(); else puHomePaint(); });
   });
 }
 
@@ -389,6 +400,7 @@ function puClick(e) {
   else if (a === 'kick') { if (partieRoom() && PU.view && PU.view.places && PU.view.places.some(x => x.pos === pos)) partieRoomOp('kick', { pos }).then(v => { PU.view = v; }).catch(() => {}); puSet(partieRemovePlace(PU.st, pos)); }
   else if (a === 'first') { puSet(pos ? partieFirst(PU.st, pos) : { ...PU.st, premier: 0 }); }
   else if (a === 'start') puStart();
+  else if (a === 'drop') puDropSheet();
   else if (a === 'menu') { haptic('tap'); puMenu(); }
   else if (a === 'next') { haptic('tap'); puSet(partieNextTurn(PU.st)); }
   else if (a === 'pl') puPlayerSheet(pos);

@@ -101,6 +101,8 @@
 
       <aside class="installbar buybar" id="buyBar" aria-label="Panier à valider" hidden></aside>
 
+      <div class="hm-dk hm-dk-head"><p class="hm-dk-date" id="hmDkDate"></p><h1 class="hm-dk-hi" id="hmDkHi">Bonjour</h1></div>
+
       <div class="hm-hero">
         <div class="hm-stage">
           <div class="hm-orbit" aria-hidden="true">
@@ -117,7 +119,20 @@
           </button>
         </div>
         <p class="hm-sub" id="collSub">Ajoute tes cartes (import, photo, saisie) : elles seront déduites du panier.</p>
+        <div class="hm-dk hm-dk-kpi" id="hmDkKpi"></div>
       </div>
+
+      <section class="hm-dk hm-dk-val" aria-labelledby="hmDkValT">
+        <div class="hm-dk-vh"><b id="hmDkValT">Valeur de la collection</b><button class="link-btn" type="button" data-hm="stats">Statistiques</button></div>
+        <div class="hm-dk-chart" id="hmDkChart"></div>
+      </section>
+
+      <nav class="hm-dk hm-dk-acts" aria-label="Raccourcis">
+        <button type="button" class="hm-dk-a" data-hm="scan"><i aria-hidden="true"><svg class="i"><use href="#i-camera"/></svg></i><span><b>Scanner</b><small>Webcam ou appareil photo</small></span></button>
+        <button type="button" class="hm-dk-a" data-hm="import"><i aria-hidden="true"><svg class="i"><use href="#i-download"/></svg></i><span><b>Importer</b><small>ManaBox, Moxfield, CSV…</small></span></button>
+        <button type="button" class="hm-dk-a" data-hm="price"><i aria-hidden="true"><svg class="i"><use href="#i-cart"/></svg></i><span><b>Prix d'une liste</b><small>Cardmarket ou CardTrader</small></span></button>
+        <button type="button" class="hm-dk-a" data-hm="build"><i aria-hidden="true"><svg class="i"><use href="#i-layers"/></svg></i><span><b>Decks à monter</b><small>D'après ta collection</small></span></button>
+      </nav>
 
       <section class="hm-trade" id="hmTrade" aria-labelledby="hmTradeT">
         <button class="hm-tr-h" id="btnTrade" type="button">
@@ -139,6 +154,14 @@
         <div class="hm-sets-h"><b id="hmSetsT">Prochaines extensions</b><span>Scryfall</span></div>
         <ul class="hm-sets-l" id="hmSetsList"></ul>
         <a class="hm-sets-sl" id="hmSetsSl" href="https://secretlair.wizards.com/" target="_blank" rel="noopener"><span>Secret Lair : drops en cours et à venir</span><i aria-hidden="true">↗</i></a>
+      </section>
+
+      <section class="hm-dk hm-stores" id="hmStores" aria-labelledby="hmStoresT">
+        <div class="hm-st-h"><b id="hmStoresT">Mana Orbit sur ton téléphone</b><span>Scan à l'appareil photo, compteur de vie, widget : ta collection suit ton compte.</span></div>
+        <div class="hm-st-bs">
+          <button type="button" class="hm-st-b" data-store="play"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg><span><small>Appli Android</small><b>Google Play</b></span></button>
+          <button type="button" class="hm-st-b" data-store="ios"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg><span><small>Appli iPhone</small><b>App Store</b></span></button>
+        </div>
       </section>
 
       <button class="hm-help" id="btnHelp" type="button"><i aria-hidden="true">?</i><span>Comment ça marche ?</span></button>

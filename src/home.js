@@ -6,8 +6,10 @@
      avec ce qu'elles ont pour toi (relevé à la dernière ouverture, homeSeen).
    · « Prochaines extensions » (sets.js, cachée tant qu'elle n'a rien à montrer) et « Comment ça marche ? » (aide, help.js) en bas.
    Mes decks, decks à monter et prix d'une liste sont dans la section Decks ; le scan (et son prix rapide) au milieu de la barre.
-   Tout est repeint en différé (homeSoon) quand la collection, les decks, les prix ou la liste d'échange changent. */
-const HM = { t: 0, v: null, raf: 0, lands: false };
+   Tout est repeint en différé (homeSoon) quand la collection, les decks, les prix ou la liste d'échange changent.
+   · Ordinateur (souris, écran ≥ 1 100 px : NAV_DESK de nav.js, même requête que css/zz-desktop.css) : tableau de bord en trois colonnes à la hauteur
+     de l'écran (homeDesk) ; blocs .hm-dk de body.html (salutation, chiffres, courbe de valeur, raccourcis, « Mana Orbit sur ton téléphone ») cachés ailleurs. */
+const HM = { t: 0, v: null, raf: 0, lands: false, ord: null, rz: 0 };
 const HM_SEEN_KEY = 'deckdeal:hmseen:v1', HM_SEEN_MAX = 5;
 /* Jusqu'au 19 octobre, les listes ouvertes étaient gardées sous deckdeal:seen:v1, la clé des documents du compte vus sur le serveur (decks.js › acctSeen) :
    chacun écrasait l'autre. Liste d'avant déplacée sous sa propre clé ; les documents vus sont renotés à la synchro suivante. */
@@ -59,6 +61,7 @@ function homePaint() {
   homeForYou();
   if (typeof setsSoon === 'function') setsSoon();                                        // prochaines extensions (sets.js)
   if (typeof rateTick === 'function') rateTick();                                        // demande de note : decks devenus complets (help.js)
+  homeDeskPaint();
 }
 /** Illustrations des terrains de base : celles de la collection si elle les a, sinon la fiche Scryfall lue une fois par la file de l'appli
  *  (cache de l'appareil, pause Scryfall respectée) ; en attendant, un dégradé aux couleurs du terrain. */
@@ -107,6 +110,60 @@ async function homeTradeAct(qr) {
   if (qr) trQrOpen(); else trSend(TR.share);
 }
 
+/* ── Ordinateur : tableau de bord ────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Trois colonnes créées ici (le téléphone garde son DOM tel quel) : salutation, orbe et chiffres, courbe de valeur · raccourcis, échange, partie,
+   « Mana Orbit sur ton téléphone » · installation, prochaines extensions (8 au lieu de 4, la liste défile seule), aide. Défaites si la fenêtre redevient étroite (ordre d'origine rendu). */
+const HM_COLS = [['hm-c1', ['.hm-dk-head', '.hm-hero', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmPartie', '#hmStores']], ['hm-c3', ['#installWrap', '#buyBar', '#hmSets', '#btnHelp']]];
+const homeDeskOn = () => !!(typeof NAV_DESK !== 'undefined' && NAV_DESK && NAV_DESK.matches);
+function homeDesk() {
+  const home = $('#viewHome'); if (!home) return;
+  const on = homeDeskOn(), box = $('.hm-cols', home);
+  if (on === !!box) return;
+  if (on) {
+    HM.ord = [...home.children];
+    const cols = document.createElement('div'); cols.className = 'hm-cols';
+    for (const [c, sel] of HM_COLS) { const col = document.createElement('div'); col.className = 'hm-col ' + c; for (const q of sel) { const el = $(q, home); if (el) col.appendChild(el); } cols.appendChild(col); }
+    home.prepend(cols); homeDeskPaint(); if (typeof setsSoon === 'function') setsSoon(); return;
+  }
+  const kids = $$('.hm-col > *', box), ord = (HM.ord || []).filter(x => kids.includes(x) || x.parentNode === home);
+  for (const k of kids) if (!ord.includes(k)) { const p = k.previousElementSibling, i = p ? ord.indexOf(p) : -1; ord.splice(i < 0 ? ord.length : i + 1, 0, k); }      // ajouté pendant (carte « Partie ») : après son voisin
+  box.remove(); home.append(...ord); if (typeof setsSoon === 'function') setsSoon();      // 4 extensions de nouveau
+}
+/** Salutation, chiffres de la collection et courbe de valeur (rien hors ordinateur). */
+function homeDeskPaint() {
+  if (!homeDeskOn() || !$('.hm-cols')) return;
+  const now = new Date(), hr = now.getHours(), eve = hr >= 18 || hr < 5, nm = String(PROF.name || (D.user && D.user.displayName) || '').trim().split(/\s+/)[0].slice(0, 24);
+  const d = now.toLocaleDateString(LOC(), { weekday: 'long', day: 'numeric', month: 'long' });
+  $('#hmDkDate').textContent = d.charAt(0).toUpperCase() + d.slice(1);
+  $('#hmDkHi').textContent = nm ? T(eve ? 'Bonsoir {name}' : 'Bonjour {name}', { name: nm }) : T(eve ? 'Bonsoir' : 'Bonjour');
+  const n = collCount(), dl = days => { const h = histDelta(VAL.hist, days); return h && Math.abs(h.d) >= 100 ? `<b class="${valCls(h.d)}">${(h.d < 0 ? '−' : '+') + esc(hmEur(Math.abs(h.d)))}</b>` : '<b>—</b>'; };      // euros entiers, comme l'orbe
+  const al = n ? valAlertN() : 0;
+  $('#hmDkKpi').innerHTML = `<div><b>${nf0(n)}</b><span>${TN(n, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(collCopies())}</b><span>${T('exemplaires')}</span></div>`
+    + `<div>${dl(7)}<span>${T('sur 7 jours')}</span></div><div>${dl(30)}<span>${T('sur 30 jours')}</span></div>`
+    + (al ? `<button type="button" class="hm-dk-mv" data-hm="stats">${TN(al, '{n} prix a bougé', '{n} prix ont bougé')} ›</button>` : '');
+  homeDeskChart();
+}
+/** Courbe de valeur à la taille de sa case (redessinée quand sa case change de taille, accueil caché puis rouvert compris). */
+function homeDeskChart() {
+  const el = $('#hmDkChart'); if (!el || !el.isConnected || !homeDeskOn()) return;
+  const h = VAL.hist.slice(-120), W = Math.round(el.clientWidth), H = Math.round(el.clientHeight);
+  if (!W) return;      // accueil caché (autre vue) : redessinée à son retour
+  if (h.length < 2 || W < 120 || H < 60) { el.innerHTML = `<p class="hint">${collCount() ? T('La courbe se dessine jour après jour : un relevé des prix par jour.') : T('Ajoute tes cartes : leur valeur sera suivie chaque jour.')}</p>`; return; }
+  el.innerHTML = valChartHtml(h, W, H);
+}
+/** Google Play / App Store : « Bientôt » tant que l'appli n'est pas publiée ; Google Play mène à la fiche dès que RATE_ASK passe à true (help.js). */
+function homeStore(k) {
+  haptic('tap');
+  if (k === 'play' && RATE_ASK) { window.open(PLAY_URL, '_blank', 'noopener'); return; }
+  const api = openSheet(T('Bientôt'), k === 'play' ? T('Appli Android · Google Play') : T('Appli iPhone · App Store'), a => {
+    a.body.innerHTML = `<div class="hm-soon"><span class="hm-soon-i" aria-hidden="true"><svg class="i"><use href="#${k === 'play' ? 'i-play' : 'i-phone'}"/></svg></span>`
+      + `<p><b>${k === 'play' ? T('L\'appli Android arrive très bientôt sur Google Play.') : T('L\'appli iPhone est en préparation.')}</b></p>`
+      + `<p class="hint">${T('Ta collection, tes decks et ta liste d\'échange suivent ton compte : tu les retrouveras tels quels sur ton téléphone.')}</p></div>`;
+    a.setFoot(`<button class="btn" type="button" data-close>${T('OK')}</button>`);
+  });
+  api.wrap.classList.add('hm-soon-w');
+}
+
 function homeInit() {
   $('#btnTrade').onclick = () => { haptic('tap'); if (typeof navOpen === 'function') navOpen(() => openCollection('trade')); else openCollection('trade'); };
   $('#btnTradeQr').onclick = () => homeTradeAct(true);
@@ -114,5 +171,18 @@ function homeInit() {
   $('#hmFyList').addEventListener('click', e => { const a = e.target.closest('[data-fa]'), b = e.target.closest('[data-fy]'); if (a) { haptic('tap'); amOpenFriend(a.dataset.fa); } else if (b) { haptic('tap'); openPublicLink(b.dataset.fy); } });
   $('#btnHome').onclick = () => { haptic('tap'); showView('home'); };
   $('#btnHelp').onclick = () => { haptic('tap'); openHelp(); };
+  $('#viewHome').addEventListener('click', e => {
+    const s = e.target.closest('[data-store]'); if (s) { homeStore(s.dataset.store); return; }
+    const b = e.target.closest('[data-hm]'); if (!b) return;
+    const a = b.dataset.hm; if (a === 'scan') { navGo('scan'); return; }
+    haptic('tap');
+    if (a === 'import') openCollImport();
+    else if (a === 'stats') navOpen(() => openCollection('stats'));
+    else if (a === 'price' || a === 'build') dkTabGo(a);
+  });
+  if (isNativeApp()) $('#hmStores').remove();      // l'appli Android n'annonce pas les stores
+  homeDesk();
+  if (typeof NAV_DESK !== 'undefined' && NAV_DESK) NAV_DESK.addEventListener('change', homeDesk);
+  if (typeof ResizeObserver === 'function') new ResizeObserver(() => { clearTimeout(HM.rz); HM.rz = setTimeout(homeDeskChart, 120); }).observe($('#hmDkChart'));
   homePaint();
 }

@@ -35,6 +35,7 @@
 .hm-sets-sl:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 :root[data-theme="dark"] .hm-set-ic img{filter:invert(1) brightness(.92)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hm-set-ic img{filter:invert(1) brightness(.92)}}
+.hm-dk{display:none}      /* blocs de l'accueil réservés à l'ordinateur (home.js › homeDesk, css/zz-desktop.css) */
 .hm-help{align-self:center;display:inline-flex;align-items:center;gap:8px;margin-top:-2px;border:0;background:transparent;color:var(--ink-3);font-size:13px;font-weight:600;padding:8px 14px;border-radius:99px;transition:color .2s,background .2s}
 .hm-help i{width:19px;height:19px;border-radius:50%;border:1.5px solid currentColor;display:grid;place-items:center;font-style:normal;font-size:11.5px;font-weight:800;line-height:1}
 .hm-help:active{background:var(--surface-2)}

@@ -140,5 +140,10 @@
 "{n} partie · {w} gagnée(s)": "{n} Partie · {w} gewonnen",
 "{n} parties · {w} gagnée(s)": "{n} Partien · {w} gewonnen",
 "Énergie": "Energie",
-"Expérience": "Erfahrung"
+"Expérience": "Erfahrung",
+"Supprimer la partie": "Partie löschen",
+"Supprimer cette partie": "Diese Partie löschen",
+"Supprimer la partie ?": "Partie löschen?",
+"La partie en préparation est effacée de ce téléphone.": "Die vorbereitete Partie wird von diesem Handy gelöscht.",
+"En préparation · {n} joueur": "In Vorbereitung · {n} Spieler"
 }

@@ -19,6 +19,29 @@ assert.match(await txt(p, '#hmPartie'), /Partie de Commander Compteur de vie, ju
 await p.$eval('#hmPartie', e => e.scrollIntoView({ block: 'center' })); await p.waitForTimeout(300); await p.screenshot({ path: 'shots/partie-0-accueil.png' });
 ok('accueil : carte sous l\'Échange, au-dessus de « Prochaines extensions »');
 
+/* ── Partie en attente : supprimée à la main (accueil, écran de préparation) ou laissée de côté (12 h en préparation, 48 h commencée) ── */
+assert.equal(await p.$eval('#hmPartie .hm-pu-drop', b => b.hidden), true, 'aucune partie : pas de corbeille');
+await p.click('#hmPartie .hm-tr-acts [data-pu="go"]'); await p.waitForSelector('.pu.on .pu-setup');
+assert.equal(await txt(p, '.pu-foot [data-pu="drop"]'), 'Supprimer cette partie');
+await p.evaluate(() => puSet(partieSetFormat(PU.st, 30)));      // un réglage : la partie est enregistrée
+await p.click('.pu [data-pu="close"]'); await p.waitForFunction(() => !document.querySelector('.pu'));
+assert.match(await txt(p, '#hmPartie'), /En préparation · 1 joueur Reprendre/);
+assert.equal(await p.$eval('#hmPartie .hm-pu-drop', b => [b.hidden, b.getAttribute('aria-label')].join()), 'false,Supprimer la partie');
+await p.click('#hmPartie .hm-pu-drop'); await p.waitForFunction(() => sheets.length === 1);
+assert.equal(await sheetTop(), 'Supprimer la partie ?'); assert.match(await txt(p, '.sheet .cf-msg'), /en préparation est effacée/);
+await p.click('.sheet [data-ok]'); await p.waitForFunction(() => !sheets.length);
+assert.equal(await p.evaluate(() => partieLoad()), null); assert.match(await txt(p, '#hmPartie'), /Nouvelle partie/); assert.equal(await p.$eval('#hmPartie .hm-pu-drop', b => b.hidden), true);
+await p.click('#hmPartie .hm-tr-acts [data-pu="go"]'); await p.waitForSelector('.pu.on .pu-setup');
+await p.click('.pu-foot [data-pu="drop"]'); await p.waitForFunction(() => sheets.length === 1); await p.click('.sheet [data-ok]');
+await p.waitForFunction(() => !document.querySelector('.pu') && !sheets.length); assert.equal(await p.evaluate(() => partieLoad()), null, 'depuis la préparation');
+await p.evaluate(() => { partieSave(partieNew({ moi: { nom: 'Max' }, now: Date.now() - 13 * 3600e3 })); localStorage.setItem('deckdeal:partie:at', String(Date.now() - 13 * 3600e3)); puHomePaint(); });
+assert.equal(await p.evaluate(() => partieLoad()), null, '13 h en préparation : effacée'); assert.match(await txt(p, '#hmPartie'), /Nouvelle partie/);
+await p.evaluate(() => { const g = partieStart(partieAddPlace(partieNew({ moi: { nom: 'Max' }, now: Date.now() - 50 * 3600e3 }), { nom: 'Bob' }), { now: Date.now() - 50 * 3600e3 }); partieSave(g); localStorage.setItem('deckdeal:partie:at', String(Date.now() - 30 * 3600e3)); puHomePaint(); });
+assert.ok(await p.evaluate(() => partieLoad()), 'commencée il y a 50 h, dernière action il y a 30 h : gardée'); assert.equal(await p.$eval('#hmPartie .hm-pu-drop', b => b.getAttribute('aria-label')), 'Abandonner la partie');
+await p.evaluate(() => { localStorage.setItem('deckdeal:partie:at', String(Date.now() - 49 * 3600e3)); puHomePaint(); });
+assert.equal(await p.evaluate(() => partieLoad()), null, '49 h sans action : effacée');
+ok('partie en attente : corbeille de l\'accueil, « Supprimer cette partie » en préparation ; effacée seule après 12 h (préparation) ou 48 h (commencée)');
+
 /* ── Préparation sans compte : invités ───────────────────────────────────────────────────────── */
 await p.click('#hmPartie .hm-tr-acts [data-pu="go"]'); await p.waitForSelector('.pu.on .pu-setup');
 assert.match(await txt(p, '.pu-qr'), /Connecte-toi pour que les autres rejoignent la table/);
