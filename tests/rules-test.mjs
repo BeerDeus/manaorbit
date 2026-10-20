@@ -142,6 +142,16 @@ await T.assertFails(setDoc(doc(u1, 'users/u1/meta/masterset'), msDoc({ o: Object
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/masterset'), drop(msDoc(), 'updatedAt')));
 ok('options du masterset : le compte seul, un objet « o » de 12 champs au plus, rien d\'autre');
 
+const pxDoc = (extra = {}) => ({ at: Date.now(), p: { 'sol ring': [150, 420], "jace, the mind sculptor": [2500, 0] }, e: { 'cmm|400': [180, 0] }, updatedAt: Date.now(), ...extra });      // prix partagés (value.js)
+await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/prices'), pxDoc()));
+await T.assertSucceeds(getDoc(doc(u1, 'users/u1/meta/prices')));
+await T.assertFails(setDoc(doc(u2, 'users/u1/meta/prices'), pxDoc()));
+await T.assertFails(getDoc(doc(u2, 'users/u1/meta/prices')));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prices'), pxDoc({ evil: 1 })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prices'), pxDoc({ p: 'x' })));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prices'), drop(pxDoc(), 'at')));
+ok('prix partagés : le compte seul, at + p + e (objets), rien d\'autre');
+
 const prof = (extra = {}) => ({ name: 'Martin', photo: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==', updatedAt: Date.now(), ...extra });
 const photo = (n, type = 'jpeg') => { const p = `data:image/${type};base64,`; return p + 'A'.repeat(n - p.length); };      // n caractères en tout
 await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/profile'), prof()));

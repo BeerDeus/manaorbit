@@ -227,6 +227,18 @@ ok('3e téléphone avec cartes locales : union (plus grande quantité) avec le c
 await quiet(); for (const P of [A, B, C]) noErrs(P);
 ok('aucune erreur JS, synchro stable (plus aucune écriture une fois les téléphones d\'accord)');
 
+/* 13 bis) prix du jour partagés (meta/prices, value.js) : A relit les prix, B les prend tels quels → même valeur sur les deux ; plus anciens : ignorés */
+{
+  const k = await A.p.evaluate(() => Object.keys(COLL.map)[0]);
+  const at = await A.p.evaluate(k => { const now = Date.now(); COLL.meta[k] = { ...(COLL.meta[k] || { ci: '' }), eu: 4321, ef: 9876 }; VAL.at = now; COLL.freshAt = now; xsPush('prices'); return now; }, k);
+  await B.p.evaluate(k => { if (!COLL.meta[k]) COLL.meta[k] = { ci: '', eu: 1 }; }, k);      // B connaît la carte (ses infos lues)
+  await B.p.waitForFunction(([k, at]) => COLL.meta[k] && COLL.meta[k].eu === 4321 && COLL.meta[k].ef === 9876 && VAL.at === at, [k, at], { timeout: 8000 });
+  assert.equal(await B.p.evaluate(k => collCardVal(k), k), await A.p.evaluate(k => collCardVal(k), k), 'même valeur pour la carte sur A et B');
+  assert.equal(await B.p.evaluate(d => prcApply(d), { at: at - 3600e3, p: {}, e: {} }), false, 'relevé plus ancien : ignoré');
+  await quiet();
+}
+ok('prix du jour partagés : relus par A, appliqués sur B (même valeur), relevé plus ancien ignoré');
+
 /* 14) compte supprimé depuis A pendant que B et C restent connectés : rien n'est recréé (collection, decks complets, échange), B et C sont déconnectés */
 await B.p.evaluate(() => { TR.wish = { ...TR.wish, 'time walk': { n: 'Time Walk', q: 1 } }; trChanged(); });
 await A.p.evaluate(() => { XS.eng = { ...XS.eng, deckM: { n: 'Deck monté', at: Date.now(), q: { 'sol ring': 1 } } }; engSaved(); });
@@ -243,7 +255,7 @@ await B.p.waitForFunction(() => D.hold === 'u1', null, { timeout: 5000 });
 assert.equal(await B.p.evaluate(() => { collAdd([{ k: 'black lotus', n: 'Black Lotus', q: 1 }], 'add'); TR.wish = { ...TR.wish, 'ancestral recall': { n: 'Ancestral Recall', q: 1 } }; trChanged(); XS.eng = { ...XS.eng, deckB: { n: 'Deck B', at: Date.now(), q: { 'sol ring': 2 } } }; engSaved(); return !!D.user; }), true, 'B encore connecté pendant la vérification');
 await Promise.all([B, C].map(P => P.p.waitForFunction(() => !D.user, null, { timeout: 8000 })));
 await sleep(2500);
-assert.equal(server.doc, null, 'collection pas recréée'); assert.deepEqual(server.meta, { engaged: null, history: null, trade: null, prefs: null, progress: null }, 'documents annexes pas recréés (réglages du scan, niveau et badges compris)');
+assert.equal(server.doc, null, 'collection pas recréée'); assert.deepEqual(server.meta, { engaged: null, history: null, trade: null, prefs: null, progress: null, prices: null }, 'documents annexes pas recréés (réglages du scan, niveau et badges, prix partagés compris)');
 assert.equal(server.writes, w14); assert.equal(server.metaWrites, m14, 'aucune écriture après l\'effacement');
 assert.equal(server.wipeStopped, true, 'A : plus aucune écoute ni synchro pendant l\'effacement');
 assert.match(await txt(B.p, '#toast'), /Ce compte a été supprimé ou désactivé : tu es déconnecté/);

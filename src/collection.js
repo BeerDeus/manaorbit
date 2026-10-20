@@ -114,7 +114,7 @@ async function edRefresh(all, signal) {
   if (COLL.edRun) return COLL.edRun;
   const eds = collEds(!all); if (!eds.length || scryLeft() > 0 || collOffline()) return;
   COLL.edRun = (async () => {
-    try { const got = await scryEditions(eds, signal); for (const [e, x] of got) edPut(e, x); collMetaSave(); collPaintSoon(); paintCollSection(); }
+    try { const got = await scryEditions(eds, signal); for (const [e, x] of got) { edPut(e, x); if (!all && typeof prcOver === 'function') prcOver('', e); } collMetaSave(); collPaintSoon(); paintCollSection(); }      // relecture du jour (all) : les prix du moment, partagés ensuite
     catch (e) { /* hors ligne, pause Scryfall : nouvel essai à la prochaine ouverture */ }
     finally { COLL.edRun = null; }
   })();
@@ -701,7 +701,7 @@ async function collEnrich() {
     try {
       for (let i = 0; i < miss.length; i += 75) {
         const chunk = miss.slice(i, i + 75), got = await scryCollection(chunk.map(k => COLL.map[k] ? COLL.map[k].n : k), st.ctrl.signal);
-        for (const k of chunk) { const g = got.get(k), old = COLL.meta[k]; COLL.meta[k] = g || (old ? { ...old, ci: old.ci ?? '' } : null); }
+        for (const k of chunk) { const g = got.get(k), old = COLL.meta[k]; COLL.meta[k] = g || (old ? { ...old, ci: old.ci ?? '' } : null); if (g && typeof prcOver === 'function') prcOver(k); }      // prix du relevé partagé du compte, s'il y en a un
         st.done = Math.min(miss.length, i + 75); collMetaSave(); collPaintHead(); collPaintSoon();
       }
       if (full) COLL.freshAt = Date.now();

@@ -25,6 +25,37 @@ function valSave(base) {
   try { localStorage.setItem(VAL_HIST_KEY, JSON.stringify(VAL.hist)); localStorage.setItem(VAL_AT_KEY, String(VAL.at)); } catch (e) { /* stockage plein : l'historique reste en mémoire */ }
   if (base) Cache.set(VAL_BASE_KEY, VAL.base);
 }
+/* ── Prix du jour partagés entre les appareils du compte (users/{uid}/meta/prices, extras.js › xsRemote) ─────────────────────────────────────
+   Avant, chaque appareil relisait lui-même les prix (une fois par jour, à son heure) : le PC et le téléphone montraient deux valeurs pour la même
+   collection, et la courbe (un relevé par jour, le dernier gagne) sautait de l'un à l'autre. Le relevé du jour part dans le compte : prix de référence
+   (eu, ef) des cartes et prix des éditions des lignes ; un appareil qui reçoit des prix plus récents que les siens les prend tels quels (VAL.at :
+   pas de relecture Scryfall avant 20 h). Cartes ou éditions encore inconnues ici : prises à leur lecture (leurs infos d'abord). */
+function prcPushSoon() { if (typeof xsPushSoon === 'function' && D.user) xsPushSoon('prices'); }
+/** Document des prix (null : rien à envoyer, ou trop gros pour le compte). */
+function prcDoc() {
+  const p = {}, e = {}, two = (a, b) => [a > 0 ? a : 0, b > 0 ? b : 0];
+  for (const k in COLL.map) { const m = COLL.meta[k]; if (m && (m.eu > 0 || m.ef > 0)) p[k] = two(m.eu, m.ef); }
+  for (const ed of collEds()) { const x = COLL.ed[ed]; if (x && !x.none && (x.eu > 0 || x.ef > 0)) e[ed] = two(x.eu, x.ef); }
+  if (!VAL.at || !Object.keys(p).length || JSON.stringify(p).length + JSON.stringify(e).length > 800000) return null;
+  return { at: VAL.at, p, e, updatedAt: Date.now() };
+}
+/** Prix plus récents venus du compte : appliqués (true), ou pas plus récents que ceux d'ici (false). */
+function prcApply(data) {
+  const at = Number(data && data.at) || 0; if (!(at > VAL.at) || at > Date.now() + 864e5) return false;
+  const num = v => (Number.isFinite(v) && v > 0 ? Math.round(v) : null), pair = v => Array.isArray(v) && v.length === 2;
+  const p = data.p && typeof data.p === 'object' ? data.p : {}, e = data.e && typeof data.e === 'object' ? data.e : {};
+  for (const k in p) { const m = COLL.meta[k], v = p[k]; if (m && pair(v)) COLL.meta[k] = { ...m, eu: num(v[0]), ef: num(v[1]) }; }
+  for (const ed in e) { const x = COLL.ed[ed], v = e[ed]; if (x && !x.none && pair(v)) COLL.ed[ed] = { ...x, eu: num(v[0]), ef: num(v[1]) }; }
+  VAL.at = at; VAL.shared = { p, e }; VAL.memo = null; valSave(false); collMetaSave(); paintCollSection(); if (typeof homeSoon === 'function') homeSoon(); if (COLL.el) collPaintBody(true);
+  return true;
+}
+/** Prix partagés pour une carte (k) ou une édition (ed) lue après eux sur cet appareil : ceux du relevé du compte, pas ceux du moment. */
+function prcOver(k, ed) {
+  const s = VAL.shared; if (!s) return;
+  const num = v => (Number.isFinite(v) && v > 0 ? Math.round(v) : null), pair = v => Array.isArray(v) && v.length === 2;
+  if (k && COLL.meta[k] && pair(s.p[k])) COLL.meta[k] = { ...COLL.meta[k], eu: num(s.p[k][0]), ef: num(s.p[k][1]) };
+  if (ed && COLL.ed[ed] && !COLL.ed[ed].none && pair(s.e[ed])) COLL.ed[ed] = { ...COLL.ed[ed], eu: num(s.e[ed][0]), ef: num(s.e[ed][1]) };
+}
 const valSetSeen = d => { VAL.seen = d; try { localStorage.setItem(VAL_SEEN_KEY, String(d)); } catch (e) { /* stockage indisponible */ } };
 
 /** Enregistre le relevé du jour et les prix de référence, d'après les prix Cardmarket (eu) déjà lus dans COLL.meta. */
@@ -47,15 +78,15 @@ async function valRefresh(opts) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) { if (opts.force) { VAL.err = T('Hors ligne : réessaie avec du réseau.'); collPaint(); } return; }
   if (scryLeft() > 0) { if (opts.force) { VAL.err = T('Scryfall demande une pause : réessaie dans {s} s.', { s: Math.ceil(scryLeft() / 1000) }); collPaint(); } return; }
   await valLoad();
-  if (!opts.force && COLL.freshAt && Date.now() - COLL.freshAt < 15 * 60e3) { await valCommit(); collPaint(); paintCollSection(); return; }      // la collection vient d'être lue en entier : prix déjà à jour
+  if (!opts.force && COLL.freshAt && Date.now() - COLL.freshAt < 15 * 60e3) { await valCommit(); prcPushSoon(); collPaint(); paintCollSection(); return; }      // la collection vient d'être lue en entier : prix déjà à jour
   const keys = Object.keys(COLL.map), run = VAL.run = { done: 0, total: keys.length, ctrl: new AbortController() };
   VAL.err = '';
   run.p = (async () => {
     try {
       const got = await scryCollection(keys.map(k => COLL.map[k].n), run.ctrl.signal, n => { run.done = n; collPaintHead(); });
-      for (const k of keys) { const g = got.get(k), old = COLL.meta[k]; if (g && old && g.eu > 0) COLL.meta[k] = { ...old, eu: g.eu }; }
+      for (const k of keys) { const g = got.get(k), old = COLL.meta[k]; if (g && old && (g.eu > 0 || g.ef > 0)) COLL.meta[k] = { ...old, ...(g.eu > 0 ? { eu: g.eu } : {}), ...(g.ef > 0 ? { ef: g.ef } : {}) }; }      // prix foil aussi (avant : jamais relu)
       await edRefresh(true, run.ctrl.signal);      // prix des éditions des lignes, relus avec le reste
-      COLL.freshAt = Date.now(); collMetaSave(); await valCommit();
+      COLL.freshAt = Date.now(); collMetaSave(); await valCommit(); prcPushSoon();      // prix du jour : partagés avec les autres appareils du compte
     } catch (e) { if (e.name !== 'AbortError') VAL.err = e.code === 'rate' ? T('Scryfall limite les requêtes : réessaie dans une minute.') : T('Prix Cardmarket injoignables pour l\'instant.'); }
     finally { VAL.run = null; collPaint(); paintCollSection(); }
   })();

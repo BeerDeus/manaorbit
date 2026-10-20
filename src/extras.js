@@ -5,7 +5,7 @@
    · Engagés et historique de valeur passent par le compte (users/{uid}/meta/engaged et /history) ; sans les règles Firestore à jour,
      tout reste sur l'appareil et un message le dit une fois. */
 const BUY_KEY = 'deckdeal:buy:v1', ENG_KEY = 'deckdeal:eng:v1';
-const XS = { buy: null, eng: {}, warned: false, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 } } };
+const XS = { buy: null, eng: {}, warned: false, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
 
 function xsRead() {
   try { XS.buy = buyClean(JSON.parse(localStorage.getItem(BUY_KEY) || 'null')); } catch (e) { XS.buy = null; }
@@ -132,7 +132,7 @@ function engTag(k) {
 /* ── Synchro avec le compte (engagés, historique de valeur) ───────────────────────────────────── */
 function xsFail(id, err) {
   const d = XS.docs[id]; d.state = 'error';
-  if (err && err.code === 'permission-denied' && !XS.warned) { XS.warned = true; toast(T('Règles Firestore à publier pour synchroniser decks montés et historique (voir README)')); }
+  if (err && err.code === 'permission-denied' && !XS.warned && id !== 'prices') { XS.warned = true; toast(T('Règles Firestore à publier pour synchroniser decks montés et historique (voir README)')); }
 }
 function xsUser(user) {
   for (const id in XS.docs) { const d = XS.docs[id]; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.state = 'off'; d.uid = ''; }
@@ -150,6 +150,9 @@ function xsRemote(id, uid, data, pending, fromCache) {
     const remote = data ? engClean(data.decks) : {}, merged = engMerge(XS.eng, remote);
     if (!engSame(merged, XS.eng)) { XS.eng = merged; engWrite(); engApplied(); }
     if (!engSame(merged, remote)) xsPushSoon('engaged');
+  } else if (id === 'prices') {
+    if (data && prcApply(data)) return;                                     // prix plus récents lus par un autre appareil : pris tels quels
+    if (VAL.at > (Number(data && data.at) || 0) && COLL.freshAt) xsPushSoon('prices');      // prix d'ici plus récents (relus aujourd'hui) : envoyés
   } else {
     const remote = data && Array.isArray(data.pts) ? data.pts.map(p => (Array.isArray(p) ? { t: p[0], v: p[1], n: p[2], q: p[3] } : p && typeof p === 'object' ? { t: p.t, v: p.v, n: p.n, q: p.q } : null)).filter(Boolean) : [], merged = histMerge(VAL.hist, remote);
     if (!histSame(merged, VAL.hist)) { VAL.hist = merged; VAL.memo = null; valSave(false); paintCollSection(); if (COLL.el) collPaintBody(true); }
@@ -162,7 +165,8 @@ async function xsPush(id) {
   const d = XS.docs[id]; if (d) { clearTimeout(d.pushT); d.pushT = 0; }
   if (!d || !d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-  const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : { pts: VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0 })), updatedAt: Date.now() };
+  const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : id === 'prices' ? prcDoc() : { pts: VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0 })), updatedAt: Date.now() };
+  if (!doc) return;
   try { await D.cloud.saveMeta(d.uid, id, doc); d.state = 'ok'; acctSaw(id, d.uid); } catch (err) { xsFail(id, err); }
 }
 

@@ -64,6 +64,7 @@ service cloud.firestore {
     //  · prefs      : réglages du compte ({ scan: { ed, auto, delay, same, lang, vib, snd } }) : réglages du scan, les mêmes sur tous les appareils
     //  · masterset  : options du masterset ({ o: { foil, basic, vars, need, lang } }) : ce que le joueur compte dans un masterset (src/masterset.js)
     //  · progress   : niveau et badges ({ c: { compteur: nombre } ≤ 140 }) : cartes scannées, langues lues, victoires à 5 PV ou moins… (src/progress.js)
+    //  · prices     : prix du jour partagés entre les appareils ({ at, p: { carte: [eu, ef] }, e: { 'set|num': [eu, ef] } }, centimes) : la même valeur partout (src/value.js)
     match /users/{uid}/meta/{docId} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
@@ -107,6 +108,11 @@ service cloud.firestore {
             && request.resource.data.keys().hasOnly(['scan', 'updatedAt'])
             && request.resource.data.scan is map
             && request.resource.data.scan.size() <= 12)
+          || (docId == 'prices'
+            && request.resource.data.keys().hasOnly(['at', 'p', 'e', 'updatedAt'])
+            && request.resource.data.at is number
+            && request.resource.data.p is map && request.resource.data.p.size() <= 30000
+            && request.resource.data.e is map && request.resource.data.e.size() <= 30000)
           || (docId == 'masterset'
             && request.resource.data.keys().hasOnly(['o', 'updatedAt'])
             && request.resource.data.o is map
