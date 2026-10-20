@@ -33,6 +33,9 @@ function locOf(l, navs) {
 /** Ordre alphabétique des noms de cartes, accents et casse ignorés : un Intl.Collator par langue de l'interface, créé une fois (localeCompare(…, 'fr', options) en recrée un à chaque comparaison : ×40 sur le tri de 5 000 cartes). */
 const NAME_COLL = {};
 const NAME_CMP = (a, b) => (NAME_COLL[I18N.lang] || (NAME_COLL[I18N.lang] = new Intl.Collator(I18N.lang, { sensitivity: 'base' }).compare))(a, b);
+/** Ordre anglais (listes d'échange, export) : même résultat que localeCompare(…, 'en'), avec un seul Intl.Collator (localeCompare en recrée un à chaque comparaison). */
+let EN_COLL = null;
+const EN_CMP = (a, b) => (EN_COLL || (EN_COLL = new Intl.Collator('en').compare))(a, b);
 /** Langue livrée : le français (celle du code), sinon une langue de I18N_LANGS dont le dictionnaire est dans la page (bloc i18n-<code>),
  *  ou dans all / I18N_ALL sous Node. Une langue sans dictionnaire n'est ni choisie ni proposée (jamais une interface à moitié traduite). */
 function i18nHas(code, all) {
@@ -1192,7 +1195,7 @@ const csvCell = v => {
 function collToCsv(map, trade = typeof trSpare === 'function' ? trSpare(map) : null) {
   const rows = ['Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Collector Number'], tl = new Map();
   for (const x of trade || []) if (x && x.k) tl.set(x.k, new Map(x.lines || []));
-  for (const [k, x] of Object.entries(map || {}).filter(([, x]) => x && x.n).sort(([, a], [, b]) => a.n.localeCompare(b.n, 'en')))
+  for (const [k, x] of Object.entries(map || {}).filter(([, x]) => x && x.n).sort(([, a], [, b]) => EN_CMP(a.n, b.n)))
     for (const [g, q] of collLines(x)) { const e = lineEd(g); rows.push([q, Math.min(q, (tl.get(k) && tl.get(k).get(g)) || 0), csvCell(x.n), edSet(e), COND_OUT[lineAttrs(g).c] || 'Near Mint', CSV_LANG[lineLang(g)] || '', lineFoil(g) ? 'foil' : '', csvCell(edNum(e))].join(',')); }
   return rows.join('\n') + '\n';
 }
@@ -1212,7 +1215,7 @@ function mergeColl(base, add, mode, now) {
 }
 /** Texte compact d'une collection (une ligne par carte, langue et édition : « 3 Sol Ring (CMM) 400 *FR* ») pour le cloud, et son inverse. dates : ajoute la date d'ajout « (Dxxxxxx) » (stockage et compte ; pas l'export). */
 /** Texte de la collection : « 2 Sol Ring (FOIL) (CMM) 400 (Dh7zqkx) *FR* ». « (FOIL) » avant l'édition : l'ancienne version le lit comme un code d'extension et l'ignore (carte, édition et langue restent justes). */
-const collToText = (coll, dates) => Object.values(coll).filter(x => x && x.q > 0 && x.n).sort((a, b) => a.n.localeCompare(b.n, 'en')).flatMap(x => {
+const collToText = (coll, dates) => Object.values(coll).filter(x => x && x.q > 0 && x.n).sort((a, b) => EN_CMP(a.n, b.n)).flatMap(x => {
   let ls = collLines(x);
   if (!dates && ls.some(e => lineAw(e[0]))) { const m = new Map(); for (const [g, q] of ls) m.set(lineHead(g), (m.get(lineHead(g)) || 0) + q); ls = [...m]; }      // export : sans emplacement ni détails, les lignes de même édition regroupées
   return ls.map(([g, q]) => { const l = lineLang(g), e = lineEd(g), w = dates ? lineAw(g) : ''; return q + ' ' + x.n + (w ? ' (DETAILS) ' + w : '') + (lineFoil(g) ? ' (FOIL)' : '') + (e ? ' (' + edSet(e).toUpperCase() + ') ' + edNum(e) : '') + (dates && x.d > 0 ? ' (D' + Math.floor(x.d).toString(36) + ')' : '') + (l ? ' *' + langCode(l) + '*' : ''); });
@@ -1417,7 +1420,7 @@ function buyMerge(cart, added, replace, now) {
     const cur = by.get(k), l = a.l ? cardLang(a.l) : '';
     by.set(k, { k, n: (cur && cur.n) || name, q: Math.min(999, (cur ? cur.q : 0) + q), ...(l ? { l } : cur && cur.l ? { l: cur.l } : {}) });
   }
-  const items = [...by.values()].sort((x, y) => x.n.localeCompare(y.n, 'en')).slice(0, BUY_MAX);
+  const items = [...by.values()].sort((x, y) => EN_CMP(x.n, y.n)).slice(0, BUY_MAX);
   return items.length ? { at: Number.isFinite(now) ? now : Date.now(), items } : null;
 }
 /** Lecture tolérante du panier en attente (stockage local) ; null si illisible, vide ou vieux de plus de 30 jours. */
@@ -2173,7 +2176,7 @@ function tradeLists(coll, use, keep, kept) {
     for (const [l, q] of collLines(x)) { const g = Math.max(0, q - skip), h = lineHead(l), e = lines.find(y => y[0] === h); skip = Math.max(0, skip - q); if (g) { if (e) e[1] += g; else lines.push([h, g]); } }      // sans emplacement ni détails : ils ne quittent pas l'appareil
     have.push({ k, n: x.n, q: spare, lines });
   }
-  const byN = (a, b) => a.n.localeCompare(b.n, 'en');
+  const byN = (a, b) => EN_CMP(a.n, b.n);
   return { have: have.sort(byN), held: held.sort(byN) };
 }
 /** Cartes recherchées : ce qui manque aux decks (somme des decks − possédé) + la liste de souhaits (wish : clé → { n, q, i?, w?, l? }, exemplaires voulus en plus ;
@@ -2188,7 +2191,7 @@ function tradeWant(coll, use, wish) {
     x.w = q; x.q += q; if (w.i) x.p = { i: w.i, ...(w.w ? { w: w.w } : {}), ...(w.l ? { l: w.l } : {}) };      // illustration choisie (carte en grand)
     if (!cur) out.set(k, x);
   }
-  return [...out.values()].sort((a, b) => a.n.localeCompare(b.n, 'en'));
+  return [...out.values()].sort((a, b) => EN_CMP(a.n, b.n));
 }
 /**
  * Échange possible avec la liste partagée d'un autre joueur (côté visiteur) : ce qu'il a et que je cherche, ce qu'il cherche et que j'ai EN TROP.
@@ -2208,7 +2211,7 @@ function tradeMatch(sh, want, spare, price) {
     e.has += it.q; if (it.l && !e.ls.includes(it.l)) e.ls.push(it.l); if (!e.it.im && it.im) e.it = it;
   }
   for (const it of (sh && sh.want) || []) { const s = it && sm.get(it.k); if (s && !give.some(x => x.k === it.k)) give.push({ k: it.k, n: it.n, q: Math.min(it.q, s.q), it, s }); }
-  const by = (a, b) => (b.v || 0) - (a.v || 0) || a.n.localeCompare(b.n, 'en');
+  const by = (a, b) => (b.v || 0) - (a.v || 0) || EN_CMP(a.n, b.n);
   const get = [...g.values()].map(e => tradePriced({ ...e, q: Math.min(e.has, e.w.q) }, price)).sort(by);
   give.forEach(x => tradePriced(x, price)); give.sort(by);
   return { get, give, sum: { get: tradeSum(get), give: tradeSum(give) }, n: get.length + give.length };
@@ -2225,7 +2228,7 @@ const tradeSum = list => (list || []).reduce((t, x) => { t.n++; t.q += x.q; if (
 function tradeView(list, o = {}) {
   let rows = (list || []).map(x => tradePriced({ ...x }, o.price));
   if (o.min > 0) rows = rows.filter(x => x.u != null && x.u >= o.min);
-  if (o.sort === 'price') rows.sort((a, b) => (b.u == null ? -1 : b.u) - (a.u == null ? -1 : a.u) || a.n.localeCompare(b.n, 'en'));
+  if (o.sort === 'price') rows.sort((a, b) => (b.u == null ? -1 : b.u) - (a.u == null ? -1 : a.u) || EN_CMP(a.n, b.n));
   return { rows, sum: tradeSum(rows) };
 }
 

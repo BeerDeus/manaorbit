@@ -32,6 +32,7 @@ function navSync() {
   const cur = navCur(), on = !!cur, it = $('#inTabs');
   if (it) { const want = S.view === 'input'; if (want && !it.firstChild) it.innerHTML = dkTabsHtml('price'); if (it.hidden === want) it.hidden = !want; }      // « Prix d'une liste » : les onglets de la section Decks en haut
   if (cur === NAV.cur) return; NAV.cur = cur;      // rien n'a changé : on ne touche pas au DOM (l'observateur ne se relance pas)
+  if (cur === 'home' && typeof HM !== 'undefined' && HM.stale) homeSoon(0);      // accueil de retour : le repeint sauté pendant qu'il était caché (home.js)
   el.classList.toggle('off', !on); el.setAttribute('aria-hidden', String(!on)); el.inert = !on;
   document.body.classList.toggle('nav-on', on);
   for (const b of $$('.nav-b', el)) { if (b.dataset.nav === cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); }

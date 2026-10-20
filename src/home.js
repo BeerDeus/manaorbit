@@ -9,16 +9,19 @@
    Tout est repeint en différé (homeSoon) quand la collection, les decks, les prix ou la liste d'échange changent.
    · Ordinateur (souris, écran ≥ 1 100 px : NAV_DESK de nav.js, même requête que css/zz-desktop.css) : tableau de bord en trois colonnes à la hauteur
      de l'écran (homeDesk) ; blocs .hm-dk de body.html (salutation, chiffres, courbe de valeur, raccourcis, « Mana Orbit sur ton téléphone ») cachés ailleurs. */
-const HM = { t: 0, v: null, raf: 0, lands: false, ord: null, rz: 0 };
+const HM = { t: 0, v: null, raf: 0, lands: false, ord: null, rz: 0, stale: false };      // stale : repeint sauté pendant que l'accueil était caché
 const HM_SEEN_KEY = 'deckdeal:hmseen:v1', HM_SEEN_MAX = 5;
 /* Jusqu'au 19 octobre, les listes ouvertes étaient gardées sous deckdeal:seen:v1, la clé des documents du compte vus sur le serveur (decks.js › acctSeen) :
    chacun écrasait l'autre. Liste d'avant déplacée sous sa propre clé ; les documents vus sont renotés à la synchro suivante. */
 try { const old = JSON.parse(localStorage.getItem('deckdeal:seen:v1') || 'null'); if (Array.isArray(old)) { if (!localStorage.getItem(HM_SEEN_KEY)) localStorage.setItem(HM_SEEN_KEY, JSON.stringify(old)); localStorage.removeItem('deckdeal:seen:v1'); } } catch (e) { /* stockage indisponible */ }
 const HM_LANDS = [['W', 'plains', 'Plains'], ['U', 'island', 'Island'], ['B', 'swamp', 'Swamp'], ['R', 'mountain', 'Mountain'], ['G', 'forest', 'Forest']];
-const hmEur = c => new Intl.NumberFormat(LOC(), { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(c / 100));      // euros entiers dans l'écriture de la langue : « 1 234 € », « €1,234 », « 1.234 € »
+const HM_NF = {};      // un Intl.NumberFormat par langue, créé une fois (le chiffre de l'orbe défile image par image)
+const hmEur = c => { const l = LOC(); return (HM_NF[l] || (HM_NF[l] = new Intl.NumberFormat(l, { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }))).format(Math.round(c / 100)); };      // euros entiers dans l'écriture de la langue : « 1 234 € », « €1,234 », « 1.234 € »
 /** Petite image Scryfall → recadrage de l'illustration (même chemin, autre taille). */
 const hmArt = u => String(u || '').replace('/small/', '/art_crop/').replace('/normal/', '/art_crop/');
 
+/** Accueil caché par une section ou un écran (collection, decks, « Prix d'une liste »…) : rien à repeindre avant son retour (nav.js › navSync). */
+const homeHidden = () => S.view !== 'home' || !!document.querySelector('body > .dv.on');
 function homeSoon(ms = 120) { if (typeof document === 'undefined') return; clearTimeout(HM.t); HM.t = setTimeout(homePaint, ms); }
 
 /** Valeur de la collection : somme des prix tendance (centimes) ; à défaut le dernier relevé de l'historique. */
@@ -30,7 +33,7 @@ function homeValue() {
 /** Le chiffre défile jusqu'à sa valeur (euros entiers). */
 function homeCount(el, to) {
   const from = HM.v == null ? 0 : HM.v; HM.v = to; cancelAnimationFrame(HM.raf);
-  if (reduceMotion() || from === to || document.getElementById('splash')) { el.textContent = hmEur(to); return; }      // sous l'écran de lancement : valeur finale (le défilement, invisible, repeignait chaque image)
+  if (reduceMotion() || from === to || document.getElementById('splash') || homeHidden()) { el.textContent = hmEur(to); return; }      // sous l'écran de lancement ou une section (collection pendant la lecture des cartes) : valeur finale (le défilement, invisible, repeignait chaque image)
   const t0 = performance.now(), d = from ? 600 : 1400;
   const step = now => { const p = Math.min(1, (now - t0) / d), e = 1 - Math.pow(1 - p, 3); el.textContent = hmEur(Math.round(from + (to - from) * e)); if (p < 1) HM.raf = requestAnimationFrame(step); };
   HM.raf = requestAnimationFrame(step);
@@ -38,6 +41,10 @@ function homeCount(el, to) {
 
 function homePaint() {
   const home = $('#viewHome'); if (!home) return;
+  // Caché : seulement le widget (ses propres chiffres) et la demande de note ; le reste au retour de l'accueil. Pendant la lecture des cartes d'une grosse collection,
+  // chaque lot repeignait l'accueil invisible (liste d'échange recalculée : ≈ 1 s de tâches longues sur 15 s, CPU ×4, tests/perf-e2e.mjs).
+  if (homeHidden()) { HM.stale = true; widgetSoon(); if (typeof rateTick === 'function') rateTick(); return; }
+  HM.stale = false;
   // Orbe
   const sv = typeof opnSv === 'function' ? opnSv() : null;      // mode streamer (opening.js) : l'orbe ne montre que la session (le widget Android garde la vraie collection)
   const n = sv ? sv.n : collCount(), orb = $('#btnColl'), val = $('#hmValue'), cnt = $('#hmCount'), dl = $('#hmDelta');

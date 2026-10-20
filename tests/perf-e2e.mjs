@@ -1,6 +1,8 @@
 // Budget de performance, CPU ×4 (≈ téléphone Android moyen) : collection de 5 000 cartes. Aucun port : page en file://, faux Scryfall par routes Playwright.
 // Mesures du 9 oct. 2026 (avant → après) : ouverture 1 530 → 375 ms ; « Afficher plus » 1 070 → 85 ms, 1 830 → 130 ms à 1 200 lignes ;
 // lecture des infos Scryfall, liste ouverte, 15 premières s : ~790 → ~2 000 cartes lues, tâches longues ~65 % → ~8 % du temps.
+// 20 oct. 2026 : tâches longues revenues à ~4,1 – 5,6 s (accueil caché repeint à chaque lot, liste d'échange recalculée, localeCompare(…, 'en'), Intl.NumberFormat
+// recréé à chaque image du chiffre de l'orbe, comptes de l'en-tête faits même pendant la lecture) → ~2,2 – 2,5 s.
 // Budgets avec ~3× de marge (CI plus lente) : ils attrapent un retour en arrière grossier (tri sans collator, liste repeinte à chaque lot), pas une variation.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';

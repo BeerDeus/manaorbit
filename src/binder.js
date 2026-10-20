@@ -427,7 +427,7 @@ function bndTake(sh) {
   const NC = typeof NAME_CMP === 'function' ? NAME_CMP : null, pins = sh.bd ? sh.bd.k : [];
   if (sh.bd) {
     sh.bo = { have: sh.have, want: sh.want };
-    const by = (a, b) => a.n.localeCompare(b.n, 'en') || lineRank(a.l) - lineRank(b.l);
+    const by = (a, b) => EN_CMP(a.n, b.n) || lineRank(a.l) - lineRank(b.l);
     sh.have = sh.have.slice().sort(by); sh.want = sh.want.slice().sort(by);
   } else {
     const ord = a => bndArrange(a.map((x, i) => ({ k: x.k, nm: x.dn || x.n, i })), 'name', [], NC).map(e => a[e.i]);
