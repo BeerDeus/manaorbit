@@ -4,7 +4,7 @@
 const COLL_KEY = 'deckdeal:coll:v1', COLL_SRC_KEY = 'deckdeal:coll:src', COLL_META_KEY = 'coll:meta', COLL_LI_KEY = 'coll:li', COLL_ED_KEY = 'coll:ed', COLL_PAGE = 120;
 const COLL_RETRY = { off: 15000, err: 20000, live: 12000 };       // délais (ms) : nouvel essai hors ligne / en erreur, attente du serveur au démarrage
 const PX_KEY = 'deckdeal:px:v1', PX_TTL = 2 * DAY, PX_CHUNK = 40;
-const COLL = { mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, prox: {}, places: {}, place: '', meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
+const COLL = { when: { dir: '', t: 0 }, mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, prox: {}, places: {}, place: '', meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
 try { if (localStorage.getItem(COLL_SRC_KEY) === 'ct') COLL.src = 'ct'; } catch (e) { /* stockage indisponible */ }
 const collCount = () => Object.keys(COLL.map).length;
 const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k].q; return n; };
@@ -891,6 +891,22 @@ const frWait = (ms = 4000) => (FRX.ix || !FRN.p ? Promise.resolve() : Promise.ra
 function collFrLoad() { if (collCount()) frLoad(); }
 const SORT_OPTS = [['name', T('Nom')], ['qty', T('Quantité')], ['price', T('Prix')], ['set', T('Édition')], ['new', T('Ajout : récentes en haut')], ['old', T('Ajout : anciennes en haut')]];
 const isDateSort = () => COLL.sort === 'new' || COLL.sort === 'old';
+/* ── Filtre « Ajoutées avant / depuis » (tri par date d'ajout seulement) : ligne sous « Trier », heure précise (datetime-local) ; la liste, le compte
+   et les actions du bandeau d'un emplacement (« Ranger ces cartes… », « Retirer… ») ne voient que ces cartes — ex. rattraper un rangement raté
+   depuis 10 h 24. Date d'ajout = première entrée de la carte dans la collection (un exemplaire ajouté plus tard ne la change pas). ── */
+const collWhenOn = () => isDateSort() && !!COLL.when.dir && COLL.when.t > 0 && COLL.tab === 'list';
+const collWhenVal = t => { const d = new Date(t * 1000), z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; };
+function collWhenPaint(el, none) {
+  const box = $('#collWhen', el); if (!box) return;
+  const show = !none && COLL.mode === 'coll' && COLL.tab === 'list' && isDateSort() && !(typeof msActive === 'function' && msActive());
+  box.hidden = !show; if (!show) return;
+  if (!COLL.when.t) { const ds = Object.values(COLL.map).map(x => x.d || 0); COLL.when.t = Math.max(0, ...ds) || Math.floor(Date.now() / 1000); }      // par défaut : la dernière carte ajoutée
+  const w = COLL.when, key = w.dir + '|' + w.t; if (box.dataset.k === key) return; box.dataset.k = key;
+  box.innerHTML = `<label class="sortsel coll-wsel"><span>${T('Ajoutées')}</span><select id="collWhenDir" aria-label="${T('Filtrer par date d\'ajout')}"><option value="">${T('à toute date')}</option><option value="before">${T('avant')}</option><option value="after">${T('depuis')}</option></select></label><input type="datetime-local" class="coll-wt" id="collWhenT" aria-label="${T('Date et heure d\'ajout')}" value="${collWhenVal(w.t)}"${w.dir ? '' : ' disabled'}>`;
+  $('#collWhenDir', box).value = w.dir;
+  $('#collWhenDir', box).onchange = e => { COLL.when.dir = e.target.value; COLL.shown = COLL_PAGE; haptic('tap'); collPaintBody(false); };
+  $('#collWhenT', box).onchange = e => { const t = Math.floor(new Date(e.target.value).getTime() / 1000); if (!(t > 0)) return; COLL.when.t = t; COLL.shown = COLL_PAGE; collPaintBody(false); };
+}
 /** Cartes de l'écran, gardées tant que rien ne change (5 000 cartes : liste, filtre et tri coûtent ~0,3 s sur un téléphone moyen). Clé : COLL.seq, monté à chaque changement des cartes, des infos ou des prix (collChanged, collPaint, collPaintSoon), et les objets remplacés ailleurs (compte, noms français, EDHREC). */
 function collAll() {
   const v = COLL.view, frc = typeof FRC !== 'undefined' ? FRC.cat : null;
@@ -899,8 +915,8 @@ function collAll() {
 }
 /** …filtrées puis triées, gardées pour un même tri, une même source de prix et un même filtre. */
 function collListOf(v) {
-  const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr, f.set, COLL.place, SETIC.m ? 1 : 0].join('\u0001');      // SETIC.m : dates des extensions arrivées (tri par édition)
-  if (v.sk !== sk) { v.filtered = filterItems(v.all, f); if (COLL.place) v.filtered = v.filtered.filter(it => collLines(COLL.map[it.k]).some(([g]) => plcIn(g))); v.sorted = collSorted(v.filtered); v.sk = sk; }      // emplacement affiché (Rangement) : les cartes qui y ont au moins un exemplaire
+  const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr, f.set, COLL.place, SETIC.m ? 1 : 0, collWhenOn() ? COLL.when.dir + COLL.when.t : ''].join('\u0001');      // SETIC.m : dates des extensions arrivées (tri par édition)
+  if (v.sk !== sk) { v.filtered = filterItems(v.all, f); if (collWhenOn()) { const w = COLL.when; v.filtered = v.filtered.filter(it => it.d > 0 && (w.dir === 'before' ? it.d < w.t : it.d >= w.t)); } if (COLL.place) v.filtered = v.filtered.filter(it => collLines(COLL.map[it.k]).some(([g]) => plcIn(g))); v.sorted = collSorted(v.filtered); v.sk = sk; }      // emplacement affiché (Rangement) : les cartes qui y ont au moins un exemplaire
   return v;
 }
 function collItems() {
@@ -1149,7 +1165,7 @@ function collPaintBody(keep) {
   // collection vide : les onglets restent (Decks et Échange marchent sans carte) ; recherche, filtres, tri et prix réels n'auraient rien à montrer
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
   $('.coll-px', el).hidden = none; $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
-  $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); valPaintAlert();      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
+  $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); collWhenPaint(el, none); valPaintAlert();      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
   if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
   else if (none && COLL.tab === 'stats') host.innerHTML = collStatsEmptyHtml();
   else if (COLL.tab === 'decks' && edhGate() !== 'ok') { host.innerHTML = edhGateHtml(); vfTick(); }      // decks EDHREC réservés aux comptes (edh.js) ; vfTick : « Renvoyer » grisé pendant la minute qui suit un envoi
@@ -1160,7 +1176,7 @@ function collPaintBody(keep) {
   else if (typeof msActive === 'function' && msActive()) { host.innerHTML = msHtml(); msAfterPaint(); }      // masterset (masterset.js) : une extension, toutes ses cartes par numéro
   else if (COLL.f.cmdr === 'played' && !EDH.data) { host.innerHTML = edhWaitHtml(); edhEnsure(); }
   else {
-    const { filtered, sorted } = collListOf(v), shown = sorted.slice(0, COLL.shown), act = filterActive(COLL.f);
+    const { filtered, sorted } = collListOf(v), shown = sorted.slice(0, COLL.shown), act = filterActive(COLL.f) || collWhenOn();
     const known = all.filter(i => i.tl != null || i.cm != null).length, hid = (COLL.f.colors.size || COLL.f.type || COLL.f.cmc !== '' || COLL.f.cmdr) && known < all.length;
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
     host.innerHTML = `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
@@ -1211,7 +1227,7 @@ function openCollection(tab) {
       <div class="coll-status" hidden></div>
       <div class="coll-alert" hidden></div>
       <div class="coll-controls"><div class="coll-top"><div class="seg" id="collSeg" role="radiogroup" aria-label="${T('Affichage')}"></div><button class="icon-btn coll-px" type="button" data-act="prices" aria-label="${T('Lire les prix réels des cartes (CardTrader)')}" title="${T('Prix réels')}"><svg class="i" aria-hidden="true"><use href="#i-coin"/></svg></button></div>
-        <div class="coll-fwrap"><div id="collF"></div><div class="coll-srow"><label class="sortsel coll-sort"><span>${T('Trier')}</span><select id="collSort" aria-label="${T('Trier la collection')}">${SORT_OPTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>${md === 'coll' && typeof msBarHtml === 'function' ? msBarHtml() : ''}</div></div></div>
+        <div class="coll-fwrap"><div id="collF"></div><div class="coll-srow"><label class="sortsel coll-sort"><span>${T('Trier')}</span><select id="collSort" aria-label="${T('Trier la collection')}">${SORT_OPTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>${md === 'coll' && typeof msBarHtml === 'function' ? msBarHtml() : ''}</div><div class="coll-when" id="collWhen" hidden></div></div></div>
       <div class="coll-main"></div></div></div>`;
   COLL.el = wrap; const prevFocus = document.activeElement;
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length && !$$('body > .dv.on').some(x => x !== wrap && wrap.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING)) { e.stopPropagation(); wrap.__close(); } };      // un écran ouvert par-dessus (ajout de cartes, scan) se ferme seul
@@ -1230,7 +1246,7 @@ function openCollection(tab) {
     : filterActive({ ...COLL.f, set: '' }) ? TN(n, '{n} extension parmi les cartes affichées', '{n} extensions parmi les cartes affichées') : TN(n, '{n} extension dans ta collection', '{n} extensions dans ta collection')) });
   COLL.cmdrSeen = COLL.f.cmdr;
   $('#collSort', wrap).value = COLL.sort;
-  $('#collSort', wrap).onchange = e => { COLL.sort = e.target.value; COLL.shown = COLL_PAGE; haptic('tap'); collPaintBody(false); };
+  $('#collSort', wrap).onchange = e => { COLL.sort = e.target.value; COLL.shown = COLL_PAGE; if (!isDateSort()) COLL.when.dir = ''; haptic('tap'); collPaintBody(false); };
   wrap.addEventListener('input', edhInput);
   wrap.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'dkQ') e.target.blur(); });
   wrap.addEventListener('change', e => {

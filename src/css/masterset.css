@@ -1,6 +1,9 @@
 /* ── masterset.css : mode « Masterset » de la collection (masterset.js) : interrupteur, sélecteur d'édition et roue des options, en-tête et progression, grille (cartes manquantes en noir et blanc, paires normale · foil ; variantes à la suite), feuilles des éditions et des options ── */
 .coll-srow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .coll-srow [hidden]{display:none}
+.coll-when{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;margin-top:8px}.coll-when[hidden]{display:none}      /* « Ajoutées avant / depuis » (collection.js › collWhenPaint) */
+.coll-when .coll-wt{height:34px;padding:0 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;min-width:0;flex:1 1 0;max-width:230px;color-scheme:light dark}
+.coll-when .coll-wt:disabled{opacity:.45}
 .coll-ms{display:inline-flex;align-items:center;gap:6px}
 .coll-ms .i{width:15px;height:15px;fill:currentColor;stroke:none}
 .ms-pick{min-width:0;max-width:min(64vw,280px);cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent}

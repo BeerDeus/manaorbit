@@ -2,6 +2,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
+import { closeSheets } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18927 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -96,6 +97,25 @@ assert.deepEqual(await where(), { 'arcane signet': '1', 'sol ring': '1 1@Classeu
 assert.deepEqual(await lines('sol ring'), [['fr', 1], [`fr#p${red}-cex-s`, 1]], 'détails gardés');
 await p.evaluate(() => { COLL.place = ''; collPaintBody(true); });
 ok('« Retirer… » : les exemplaires affichés de « Non rangé » quittent la collection après confirmation, les rangés restent ; Annuler remet tout');
+
+/* ── Filtre « Ajoutées avant / depuis » : seulement en tri par date d'ajout, ligne sous « Trier » ; liste et actions du bandeau limitées ── */
+{
+  const at = await p.evaluate(() => { const now = Math.floor(Date.now() / 1000); COLL.map['sol ring'] = { ...COLL.map['sol ring'], d: now - 7200 }; COLL.map['arcane signet'] = { ...COLL.map['arcane signet'], d: now - 60 }; collChanged(); COLL.place = ''; collPaintBody(true); return collWhenVal(now - 3600); });
+  assert.equal(await p.$eval('#collWhen', e => e.hidden), true, 'tri par nom : pas de filtre de date');
+  await p.selectOption('#collSort', 'new'); await p.waitForSelector('#collWhen:not([hidden])');
+  assert.equal(await p.$eval('#collWhenT', e => e.disabled), true, '« à toute date » : heure grisée');
+  await p.selectOption('#collWhenDir', 'after'); await p.fill('#collWhenT', at); await p.$eval('#collWhenT', e => e.dispatchEvent(new Event('change')));
+  await p.waitForFunction(() => document.querySelectorAll('.crow').length === 1);
+  assert.deepEqual(await p.$$eval('.crow', r => r.map(x => x.dataset.k)), ['arcane signet'], 'depuis : la carte ajoutée il y a une minute');
+  await p.selectOption('#collWhenDir', 'before'); await p.waitForFunction(() => [...document.querySelectorAll('.crow')].every(r => r.dataset.k === 'sol ring') && document.querySelector('.crow'));
+  await p.evaluate(() => plcShow('')); await p.waitForSelector('.plc-bar .plc-mv');      // « Non rangé » + avant : le Sol Ring non rangé seulement (l'Arcane Signet, non rangé lui aussi, est ajouté après)
+  assert.deepEqual(await p.$$eval('.crow', r => [...new Set(r.map(x => x.dataset.k))]), ['sol ring']); await p.click('.plc-bar .plc-mv'); await p.waitForSelector('.sheet-wrap.open .plc-opt');
+  assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Ranger 1 exemplaire\s*1 carte affichée/, 'le bandeau ne voit que les cartes du filtre de date'); await closeSheets(p);
+  await p.evaluate(() => { COLL.place = ''; collPaintBody(true); });
+  await p.selectOption('#collSort', 'name'); await p.waitForFunction(() => document.querySelector('#collWhen').hidden && new Set([...document.querySelectorAll('.crow')].map(r => r.dataset.k)).size === 2);
+  assert.equal(await p.evaluate(() => COLL.when.dir), '', 'tri par nom : filtre de date remis à zéro');
+}
+ok('filtre « Ajoutées avant / depuis » : en tri par date seulement, heure précise, liste et « Ranger ces cartes… » limités, remis à zéro hors tri par date');
 
 /* ── Enregistré avec la collection (même texte, lu par l'ancienne version) ───────────────────── */
 const stored = await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t);
