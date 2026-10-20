@@ -101,9 +101,9 @@ Les textes de #bienvenue et #règles (français puis anglais) sont dans le scrip
 - Lien Discord à mettre : message aux testeurs (§ 1), page /testeurs, réseaux (bio), et dans l'appli (Réglages, à ajouter quand le lien existe).
 - Possible plus tard : publication automatique de chaque nouvelle version dans `#annonces` (webhook Discord appelé par le serveur).
 
-## 3. Flyers pour les boutiques (A4, fond sombre)
+## 3. Flyers pour les boutiques (A5, fond sombre)
 
-Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (valeur de la collection dans l'orbite foil, les cinq parties : Scan, Échange, Cote, Classeur, Commander). Six déclinaisons, refaites par `node tools/flyer.mjs` (ou `node tools/flyer.mjs solo-d` pour une seule) :
+Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (valeur de la collection dans l'orbite foil, les cinq parties : Scan, Échange, Cote, Classeur, Commander). Six déclinaisons, refaites par `node tools/flyer.mjs` (A5 ; `node tools/flyer.mjs solo-d` pour une seule ; `node tools/flyer.mjs a4` pour une affiche A4) :
 - `solo-a` : liste à gauche, téléphone à droite ;
 - `solo-b` : centrée, les cinq orbes en rangée sous le téléphone ;
 - `solo-c` : miroir (téléphone à gauche, liste à droite) ;
@@ -111,11 +111,11 @@ Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (va
 - `solo-e` : titre géant sur trois lignes, parties en pastilles ;
 - `solo-f` : une carte foil qui entre dans le téléphone (cadre du scan).
 
-**Fichiers** : `docs/print/flyer-a4-<piste>.pdf` (à envoyer à l'imprimeur : texte, dessin et QR en vectoriel) et `.png` (aperçu, imprimable aussi : 300 dpi).
+**Fichiers** : `docs/print/flyer-a5-<déclinaison>.pdf` (à envoyer à l'imprimeur : texte, dessin et QR en vectoriel) et `.png` (aperçu, imprimable aussi : 300 dpi). En A4 (affiche au mur d'une boutique) : `flyer-a4-<déclinaison>`.
 
-**Format** : A4 avec **fond perdu de 3 mm** (fichier de 216 × 303 mm, coupé à 210 × 297) ; textes et QR à 14 mm du bord au moins.
+**Format** : A5 avec **fond perdu de 3 mm** (fichier de 154 × 216 mm, coupé à 148 × 210). Ce n'est pas l'A4 réduit : petits textes et QR agrandis pour l'A5 (mentions à 6 pt, QR ≈ 25 mm), textes à 10 mm du bord au moins. Ne pas laisser l'imprimeur réduire le fichier A4 : mentions illisibles, fond perdu trop court.
 
-**Vistaprint** : Flyers › A4 › recto › papier épais (170 g ou plus), **mat** de préférence (pas de reflet sur le QR) › « Importer votre design » › le PDF. Vérifier l'aperçu (ligne de coupe, zone de sécurité). Le fond sombre ressort un peu moins foncé qu'à l'écran (conversion en quadrichromie).
+**Vistaprint** : Flyers › A5 (14,8 × 21 cm) › recto › papier épais (170 g ou plus), **mat** de préférence (pas de reflet sur le QR) › « Importer votre design » › le PDF A5. Vérifier l'aperçu (ligne de coupe, zone de sécurité). Le fond sombre ressort un peu moins foncé qu'à l'écran (conversion en quadrichromie).
 
 **QR** : `https://manaorbit.app/flyer`, **ne change jamais** (test `pwa-e2e.mjs`). Le serveur décide où il mène : Android → fiche Google Play (source « flyer » dans Play Console › Statistiques › Acquisition), iPhone et ordinateur → le site. Avant d'en commander 500 : en imprimer un chez soi et le scanner avec un Android et un iPhone.
 

@@ -7,7 +7,9 @@
 // Captures : shots/store/fr-*.png (faites ici par `node tools/store-assets.mjs raw fr` si elles manquent), cartes factices.
 // QR : src/qr.js, lien FIXE https://manaorbit.app/flyer (imprimé : ne jamais le changer ; la destination se règle dans proxy.mjs › /flyer :
 // Android → Google Play, iPhone → App Store dès que APP_STORE_URL est posée, sinon le site).
-//   node tools/flyer.mjs            les six        node tools/flyer.mjs solo-b
+// Format : A5 par défaut (154 × 216 mm avec le fond perdu, coupe à 148 × 210) : la page A4 réduite (× 0,705), petits textes et QR agrandis pour rester
+// lisibles et scannables (mentions ≥ 6 pt, QR ≈ 25 mm) ; « a4 » : l'affiche A4. Fichiers docs/print/flyer-<a5|a4>-<piste>.pdf et .png.
+//   node tools/flyer.mjs            les six en A5        node tools/flyer.mjs solo-b        node tools/flyer.mjs a4 solo-d
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
@@ -16,7 +18,9 @@ const require = createRequire(import.meta.url);
 const { qrSvg } = require('../src/qr.js');
 const { chromium } = createRequire(new URL('../tests/', import.meta.url))('playwright-core');      // celui des tests (tests/node_modules)
 export const FLYER_URL = 'https://manaorbit.app/flyer';      // imprimé : ne change jamais
-const OUT = 'docs/print/', SHOTS = 'shots/store/fr-', which = process.argv[2] || 'all';
+const OUT = 'docs/print/', SHOTS = 'shots/store/fr-', ARGS = process.argv.slice(2);
+const FMT = ARGS.includes('a4') ? 'a4' : 'a5', which = ARGS.find(a => a !== 'a4' && a !== 'a5') || 'all';
+const S = FMT === 'a5' ? 148 / 210 : 1, PW = 210 * S + 6, PH = 297 * S + 6;      // échelle de la mise en page (tracée en A4, mm) ; page avec 3 mm de fond perdu
 
 const b64 = f => readFileSync(f).toString('base64');
 const font = (fam, f) => existsSync(f) ? `@font-face{font-family:'${fam}';font-weight:200 800;src:url(data:font/woff2;base64,${b64(f)}) format('woff2')}` : '';
@@ -34,6 +38,12 @@ const LOGO = `<svg viewBox="6 8 88 88" class="logo" aria-hidden="true"><defs><li
 <g transform="rotate(-11 51 50)"><rect x="37" y="27" width="28" height="41" rx="5" fill="url(#lgF)"/><rect x="39.6" y="29.6" width="22.8" height="35.8" rx="3.2" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.2"/></g>
 <g transform="rotate(-20 50 52)"><path d="M12 52A38 13 0 0 0 88 52" fill="none" stroke="#9aa3b8" stroke-width="2.6" stroke-linecap="round"/><circle cx="86.1" cy="56" r="4.6" fill="#7fb0ff"/><circle cx="50" cy="65" r="4.6" fill="#f8f6d8"/><circle cx="13.9" cy="56" r="4.6" fill="#b5a3c8"/></g></svg>`;
 const FINE = 'Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Policy, ni approuvé ni soutenu par Wizards of the Coast. Magic: The Gathering est une marque de Wizards of the Coast LLC. Éditeur : manaorbit.app/legal · Imprimeur : Vistaprint · Ne pas jeter sur la voie publique.';
+// A5 (dans les mm de la mise en page A4, réduits ensuite par S) : textes de lecture ≥ 8 pt une fois imprimés, mentions ≥ 6 pt, QR ≈ 25 mm
+const A5_CSS = `.head b{font-size:19pt}.head small{font-size:10.5pt}
+  .sub{font-size:13.5pt}.list b{font-size:16.5pt}.list span{font-size:12.5pt}.lab{width:40mm!important}.lab b{font-size:14pt}.lab span{font-size:10.6pt}.chips span{font-size:15.5pt!important}
+  .cta{top:236mm!important;height:41mm!important;gap:5mm!important}.cta .qr{width:36mm!important;height:36mm!important}
+  .cta .tx b{font-size:19pt}.cta .tx span{font-size:12pt}.cta .soon{font-size:8.6pt}.cta .free{font-size:27pt}.cta .free small{font-size:10pt}
+  .fine{top:280.5mm!important;font-size:8.6pt!important;line-height:1.3!important}`;
 // Les cinq parties de l'appli, dans l'ordre de la liste (Échange en deuxième : choix du 20 octobre), une couleur de mana du logo chacune
 const PARTS = [
   { c: '#f8f6d8', h: 'Scan', p: '11 langues, même le japonais' },
@@ -87,7 +97,7 @@ const V = {
     const O = orbit(105, 158, 101, 44, 0), pts = [30, 67.5, 105, 142.5, 180].map(x => O.at(O.atX(x)));
     return {
       art: svg(halo(105, 146, 82, 74) + O.arc(false, .8, .7)) + phone(71, 84, 66, -3) + svg(O.arc(true, 1.1, 1) + PARTS.map((o, i) => orb(pts[i], o.c, 3.2)).join(''))
-        + PARTS.map((o, i) => `<div class="lab" style="left:${(pts[i].x - 18).toFixed(1)}mm;top:${(pts[i].y + 6).toFixed(1)}mm"><b>${o.h}</b><span>${o.p}</span></div>`).join(''),
+        + PARTS.map((o, i) => `<div class="lab" style="left:${pts[i].x.toFixed(1)}mm;top:${(pts[i].y + 6).toFixed(1)}mm"><b>${o.h}</b><span>${o.p}</span></div>`).join(''),
       css: 'h1,.sub{text-align:center;left:14mm!important;width:182mm!important}', h1: 46, sub: { top: 66, w: 182 }, sky: y => y < 28,
     };
   },
@@ -96,7 +106,7 @@ const V = {
     css: '.list.r{left:114mm;top:112mm;width:84mm}', h1: 48, sub: { top: 73, w: 120 }, sky: y => y < 30,
   }),
   'solo-d': () => ({      // téléphone géant qui déborde à droite, liste serrée à gauche
-    art: svg(halo(160, 150, 70, 90)) + orbited(phone(108, 64, 98, 9), orbit(158, 150, 92, 30, -22), [300, 68, 170, 210, 120], [2.2, 2.8, 3, 2.4, 2.6]) + list('l s'),
+    art: svg(halo(160, 150, 70, 90)) + orbited(phone(108, 64, 98, 9), orbit(160, 150, 78, 28, -22), [300, 40, 95, 330, 122], [2.2, 2.8, 3, 2.4, 2.6]) + list('l s'),      // orbes côté téléphone : jamais sur la liste
     css: '.list.l{left:14mm;top:116mm;width:84mm}.list.s{gap:6.6mm}', h1: 40, sub: { top: 66, w: 84 }, sky: y => y < 28,
   }),
   'solo-e': () => ({      // titre géant sur trois lignes, parties en pastilles, téléphone en bas à droite
@@ -126,14 +136,15 @@ function page(v) {
     for (let i = 0; i < 46; i++) { const x = r() * 216, y = r() * 303, z = (.18 + r() * .38).toFixed(2), op = (.25 + r() * .5).toFixed(2); if (d.sky(y)) o += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${z}" fill="#fff" opacity="${op}"/>`; }
     return `<svg class="sky" viewBox="0 0 216 303">${o}</svg>`; })();
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${FACES}
-  @page{size:216mm 303mm;margin:0}
+  @page{size:${PW}mm ${PH}mm;margin:0}
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{width:216mm;height:303mm;-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .pg{position:relative;width:216mm;height:303mm;overflow:hidden;background:#0b0f1c;color:#eef1fb;font-family:'MO Text',sans-serif}
+  body{width:${PW}mm;height:${PH}mm;-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pg{position:relative;width:${PW}mm;height:${PH}mm;overflow:hidden;background:#0b0f1c;color:#eef1fb;font-family:'MO Text',sans-serif}
+  .sc{position:absolute;left:0;top:0;width:216mm;height:303mm;transform:scale(${PW / 216});transform-origin:0 0}      /* fond et étoiles, à la taille de la page */
   .bg{position:absolute;inset:0;background:radial-gradient(110mm 90mm at 18% 4%,rgba(58,78,170,.5),transparent 70%),radial-gradient(100mm 90mm at 100% 56%,rgba(224,83,61,.2),transparent 70%),radial-gradient(90mm 70mm at 0% 92%,rgba(63,168,120,.12),transparent 70%)}
   .sky{position:absolute;inset:0;width:100%;height:100%}
-  .t{position:absolute;left:3mm;top:3mm;width:210mm;height:297mm}      /* format fini : tout en mm depuis le bord coupé */
+  .t{position:absolute;left:3mm;top:3mm;width:210mm;height:297mm;transform:scale(${S});transform-origin:0 0}      /* format fini, tracé en mm A4 depuis le bord coupé, réduit en A5 */
   .art{position:absolute;inset:0;width:210mm;height:297mm}
   .dev{position:absolute;padding:1.5mm;border-radius:8mm;background:linear-gradient(180deg,#323a5e,#151b30 22%,#0f1426);box-shadow:0 0 0 .35mm rgba(255,255,255,.14),0 6mm 14mm rgba(0,0,0,.45)}
   .dev img{display:block;border-radius:6.6mm}
@@ -150,7 +161,7 @@ function page(v) {
   .list i{grid-row:span 2;width:4.4mm;height:4.4mm;border-radius:50%;border:.3mm solid rgba(255,255,255,.4)}
   .list b{font-family:'MO Display';font-weight:720;font-size:15pt;letter-spacing:-.015em;line-height:1.1}
   .list span{font-size:11pt;line-height:1.3;color:#b3bad2}
-  .lab{position:absolute;width:36mm;display:flex;flex-direction:column;gap:.5mm;text-align:center}
+  .lab{position:absolute;width:36mm;transform:translateX(-50%);display:flex;flex-direction:column;gap:.5mm;text-align:center}      /* centré sur son orbe */
   .lab b{font-family:'MO Display';font-weight:720;font-size:12.5pt;letter-spacing:-.01em}
   .lab span{font-size:8.8pt;line-height:1.3;color:#b3bad2}
   .cta{position:absolute;left:14mm;top:245mm;width:182mm;height:33mm;display:flex;align-items:center;gap:6mm;padding:0 7mm 0 2.5mm;border-radius:6mm;background:#fff;color:#10152b}
@@ -165,12 +176,13 @@ function page(v) {
   .cta .free small{display:block;margin-top:1.3mm;font-family:'MO Text';font-weight:650;font-size:8.5pt;letter-spacing:.06em;text-transform:uppercase;color:#5a6484}
   .fine{position:absolute;left:14mm;top:283.5mm;width:182mm;margin:0;font-size:6.2pt;line-height:1.35;color:#737c99}
   ${d.css}
-  </style></head><body><div class="pg"><div class="bg"></div>${stars}<div class="t">
+  ${FMT === 'a5' ? A5_CSS : ''}
+  </style></head><body><div class="pg"><div class="sc"><div class="bg"></div>${stars}</div><div class="t">
   ${d.art}
   <div class="head">${LOGO}<b>Mana Orbit</b><small>Android · iPhone · ordinateur</small></div>
   <h1>${d.h1Text || H1}</h1>
   <p class="sub">${SUB}</p>
-  <div class="cta"><div class="qr">${QR}</div><div class="tx"><b>Scanne pour l'installer</b><span>Avec l'appareil photo de ton téléphone.<br><strong>Android</strong> : Google Play · <strong>Ordinateur</strong> : manaorbit.app<br><strong>iPhone</strong> : App Store <em class="soon">à venir</em> · en attendant, manaorbit.app</span></div><div class="free">0 €<small>pour toujours</small></div></div>
+  <div class="cta"><div class="qr">${QR}</div><div class="tx"><b>Scanne pour l'installer</b><span><strong>Android</strong> : Google Play<br><strong>iPhone</strong> : App Store <em class="soon">à venir</em><br><strong>Ordinateur et iPhone</strong> : manaorbit.app</span></div><div class="free">0 €<small>pour toujours</small></div></div>
   <p class="fine">${FINE}</p>
   </div></div></body></html>`;
 }
@@ -178,11 +190,12 @@ function page(v) {
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || (existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined), args: ['--no-sandbox'] });
 mkdirSync(OUT, { recursive: true });
 for (const v of VARIANTS) {
-  const ctx = await browser.newContext({ viewport: { width: 817, height: 1146 }, deviceScaleFactor: 300 / 96 });      // 216 × 303 mm à 96 px/po ; PNG à 300 dpi
+  const px = mm => Math.ceil(mm / 25.4 * 96);
+  const ctx = await browser.newContext({ viewport: { width: px(PW), height: px(PH) }, deviceScaleFactor: 300 / 96 });      // page à 96 px/po ; PNG à 300 dpi
   const p = await ctx.newPage(); await p.setContent(page(v), { waitUntil: 'load' }); await p.evaluate(() => document.fonts.ready);
-  const base = OUT + 'flyer-a4-' + v;
-  await p.pdf({ path: base + '.pdf', width: '216mm', height: '303mm', printBackground: true, preferCSSPageSize: true });
-  writeFileSync(base + '.png', await p.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 216 / 25.4 * 96, height: 303 / 25.4 * 96 } }));
+  const base = OUT + 'flyer-' + FMT + '-' + v;
+  await p.pdf({ path: base + '.pdf', width: PW + 'mm', height: PH + 'mm', printBackground: true, preferCSSPageSize: true });
+  writeFileSync(base + '.png', await p.screenshot({ type: 'png', clip: { x: 0, y: 0, width: PW / 25.4 * 96, height: PH / 25.4 * 96 } }));
   console.log('  ' + base + '.pdf · .png');
   await ctx.close();
 }
