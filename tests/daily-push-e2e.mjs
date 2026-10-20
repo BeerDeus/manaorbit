@@ -49,7 +49,7 @@ const tc = sel => p.$eval(sel, e => e.textContent.replace(/\s+/g, ' ').trim());
 const calls = () => p.evaluate(() => window.__pn.calls.slice());
 const sw = id => p.$eval('#' + id, c => c.checked);
 const flip = async id => { await p.click(`label[for="${id}"] .switch`); await p.waitForFunction(i => !document.getElementById(i).disabled, id, { timeout: 8000 }); };
-const openSet = async () => { await closeSheets(p).catch(() => {}); await openMe(p); await p.click('#btnNotif'); await p.waitForSelector('#dlyPushBox #dlyPushSw', { timeout: 8000 }); await p.waitForSelector('#pushBox #setPush', { timeout: 5000 }); };
+const openSet = async () => { await closeSheets(p).catch(() => {}); await openMe(p); await p.click('#btnNotif'); await p.waitForSelector('.sheet-wrap.open #dlyPushBox #dlyPushSw', { timeout: 8000 }); await p.waitForSelector('#pushBox #setPush', { timeout: 5000 }); };
 
 /* ── Notifications pas encore activées : interrupteur coupé, rien d'enregistré ─────────────────────────────────────────── */
 await openSet();
