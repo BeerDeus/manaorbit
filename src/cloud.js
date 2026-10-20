@@ -1,9 +1,9 @@
 /* ── cloud.js : compte + decks (Firebase Auth / Firestore). Chargé à la demande, jamais bloquant. ──
    Sans SDK (hors ligne, CSP, file://) l'app reste entièrement utilisable en mode local. */
-/** Domaine d'authentification : manaorbit.app (proxy.mjs relaie /__/auth/* vers m2s-mtg.firebaseapp.com : la fenêtre Google dit « continuer vers manaorbit.app ») ;
- *  ailleurs (local, tests, ancienne adresse) celui de Firebase. Essayé d'abord sur le lien de test (/test, window.MO_TEST). Sans effet sur la session gardée
+/** Domaine d'authentification : manaorbit.app (proxy.mjs relaie /__/auth/* vers m2s-mtg.firebaseapp.com : la fenêtre Google dit « continuer vers manaorbit.app »,
+ *  validé sur le lien de test le 20 octobre 2026) ; ailleurs (local, tests, ancienne adresse) celui de Firebase. Sans effet sur la session gardée
  *  (clé : apiKey et nom de l'appli) ni sur l'appli Android (connexion Google native). */
-const FB_AUTH_SELF = typeof location !== 'undefined' && location.hostname === 'manaorbit.app' && typeof window !== 'undefined' && window.MO_TEST === true;
+const FB_AUTH_SELF = typeof location !== 'undefined' && location.hostname === 'manaorbit.app';
 const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyCznNtazqWMhiYlPxce3O0Ss06mycgp6TY',
   authDomain: FB_AUTH_SELF ? 'manaorbit.app' : 'm2s-mtg.firebaseapp.com',
