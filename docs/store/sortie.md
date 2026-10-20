@@ -53,67 +53,50 @@ Un seul envoi avec les deux langues (français d'abord, puis « English below »
 
 ## 2. Discord
 
-Je ne peux pas piloter ton navigateur depuis cette session (conteneur dans le cloud). Deux façons :
-- **À la main, ≈ 20 min** avec le plan ci-dessous ;
-- **Script** : je peux écrire `tools/discord-setup.mjs` qui crée tout (rôles, salons, permissions, messages) via un bot à toi. Tu crées l'application sur https://discord.com/developers, invites le bot sur le serveur, et lances le script sur ton PC avec le jeton en variable d'environnement (jamais dans le dépôt, jamais dans une conversation).
+Tout est créé par `tools/discord-setup.mjs` avec un bot à toi (≈ 10 min, dont 5 sur le portail Discord). Un bot pour ton propre serveur ne passe par aucune validation : il marche dès qu'il est invité. Relancé, le script ne crée rien en double et remet les textes à jour.
 
-### Réglages du serveur
-- Nom **Mana Orbit**, icône `pwa/icons/icon-512.png`.
-- **Activer la communauté** (Paramètres du serveur › Activer la communauté) : salon des règles = `#règles`, salon des mises à jour = `#annonces`.
-- Niveau de vérification : **Moyen** ; filtre de contenu explicite : **tous les membres** ; notifications par défaut : **@mentions seulement**.
-- **AutoMod** : spam, spam de mentions, mots-clés « nitro », « free », « gift », « airdrop » (liens d'arnaque) → bloquer le message.
-- **Intégration** (Accueil / Onboarding) : question « Tu parles ? » Français / English → rôle de langue ; question « Notifications ? » → rôle @Annonces.
-- Lien d'invitation **permanent** (n'expire jamais, sans limite), depuis `#bienvenue`.
+### Mise en place
+1. **Serveur** : Discord › « + » › Créer le mien › Pour moi et mes amis › nom **Mana Orbit** (l'icône est posée par le script).
+2. **Bot** : https://discord.com/developers/applications › **New Application** (« Mana Orbit Setup ») ›
+   - onglet **Bot** › **Reset Token** › **Copy** : c'est le jeton, garde-le pour toi (jamais dans le dépôt ni dans une conversation) ; décoche **Public Bot** ; aucun « Privileged Gateway Intent » à cocher ;
+   - onglet **OAuth2** › **URL Generator** : cocher `bot`, puis la permission **Administrator** ; ouvrir le lien généré, choisir le serveur Mana Orbit, **Autoriser**.
+3. **Script** (PowerShell, dans le dossier du dépôt, après `git pull`) :
+   ```
+   $env:DISCORD_TOKEN = "colle-le-jeton-ici"
+   node tools/discord-setup.mjs --dry
+   node tools/discord-setup.mjs
+   ```
+   `--dry` montre ce qui serait fait, sans rien changer. Le vrai lancement affiche le **lien d'invitation permanent** à la fin.
+4. **Après** : expulse le bot du serveur (clic droit › Expulser) et, sur le portail, **Reset Token** (l'ancien jeton ne marche plus). Pour relancer plus tard : réinviter le bot (même lien OAuth2) et un nouveau jeton.
+5. **À la main** : le rôle **Testeur** aux testeurs qui arrivent (clic droit sur un membre › Rôles).
 
-### Rôles
-- **@Équipe** : toi (et un modérateur plus tard) ; gérer les messages, expulser, exclure temporairement.
-- **@Testeur** : les testeurs du test fermé (badge de reconnaissance, couleur à part).
-- **@Annonces** : ceux qui veulent être prévenus (mentionné à chaque nouvelle version, jamais @everyone).
-- **@FR**, **@EN** : langue (affiche ou non `#english`).
-- @everyone : pas de @everyone / @here, pas de création de fils dans les salons d'annonces.
+Si le script dit « mode communauté non activé » : Paramètres du serveur › **Activer la communauté** ; à l'étape des salons, choisir **#règles** pour les règles et **#modération** pour les mises à jour de Discord (pas « Créer pour moi ») ; puis relancer le script (il ajoute #annonces et les forums).
+
+### Ce que fait le script
+- **Réglages** : mode communauté ; vérification **moyenne** ; filtre de contenu explicite pour **tous les membres** ; notifications par défaut **@mentions seulement** ; langue française ; icône (`pwa/icons/icon-512.png`) si le serveur n'en a pas.
+- **Rôles** : **Équipe** (toi : gérer les messages et les fils, expulser, bannir, exclure temporairement, rendre muet ; jamais administrateur), **Testeur** (couleur à part, affiché à part). @everyone : plus de @everyone / @here.
+- **AutoMod** (bloqué + alerte dans #modération, Équipe exemptée) : arnaques (« free nitro », « discord.gift », « airdrop »…), spam, mentions en masse (5 et plus), contenu sexuel et insultes (listes de Discord).
+- **Lien d'invitation** permanent (n'expire jamais, sans limite), sur #bienvenue.
 
 ### Salons
-**BIENVENUE** (lecture seule pour tous sauf @Équipe)
-- `#bienvenue` : présentation, liens (Play Store, site, guide « Passer de ManaBox »).
+**BIENVENUE** (lecture seule, sauf Équipe)
+- `#bienvenue` : présentation, liens (Play Store, site, guide « Passer de ManaBox »), renvois vers les salons.
 - `#règles`
 - `#annonces` : salon d'annonces (les autres serveurs peuvent le suivre) : sorties, nouveautés.
 
-**APPLI**
-- `#aide` : salon **forum**, étiquettes Scan · Collection · Decks · Prix · Compte et synchro · Autre.
-- `#bugs` : forum, étiquettes Ouvert · Corrigé · Prochaine version ; modèle de message : appareil, version (Réglages), étapes, capture.
-- `#idées` : forum, étiquettes Envisagé · Prévu · Fait · Pas pour l'instant.
+**APPLI** (forums : un fil par sujet)
+- `#aide` : étiquettes Scan · Collection · Decks · Prix · Compte et synchro · Autre.
+- `#bugs` : mêmes étiquettes + Corrigé · Prochaine version (posées par l'équipe) ; consigne : appareil, version (Réglages), étapes, capture.
+- `#idées` : Envisagé · Prévu · Fait · Pas pour l'instant (posées par l'équipe).
 
 **COMMUNAUTÉ**
-- `#général` (mode lent 10 s)
-- `#ouvertures` : photos de boosters et de sessions d'ouverture.
-- `#decks` : liens de decks partagés depuis l'appli.
-- `#échanges` : listes d'échange (liens de l'appli) ; rappel : échanges entre membres, Mana Orbit n'est pas intermédiaire.
-- `#english` (rôle @EN)
-- 🔊 `Commander` (vocal)
+- `#général` (le salon du serveur neuf, déplacé ; mode lent 10 s), `#ouvertures`, `#decks`, `#échanges` (rappel : entre membres, Mana Orbit n'est pas intermédiaire), `#english`, vocal `Commander` (le vocal « Général » renommé).
 
-### Textes
+**ÉQUIPE** (invisible pour les membres)
+- `#modération` : alertes AutoMod, messages de Discord pour les modérateurs.
 
-**#bienvenue**
-> **Bienvenue sur le Discord de Mana Orbit** 👋
-> Mana Orbit : scanne tes cartes Magic, suis la valeur de ta collection, construis et partage tes decks.
-> 📲 Google Play : https://play.google.com/store/apps/details?id=app.manaorbit
-> 🌐 Site : https://manaorbit.app · 🔁 Tu viens de ManaBox ? https://manaorbit.app/passer-de-manabox
-> ❓ Une question → #aide · 🐞 Un bug → #bugs · 💡 Une idée → #idées
-> Commence par lire #règles.
->
-> **Welcome to the Mana Orbit Discord** · questions → #aide, bugs → #bugs, ideas → #idées, English chat → #english.
-
-**#règles**
-> 1. Respect : pas d'insulte, de harcèlement ni de propos discriminatoires.
-> 2. Pas de spam ni de pub sans accord de l'équipe.
-> 3. Échanges et ventes : à vos risques, entre membres ; Mana Orbit n'est pas intermédiaire. Jamais de paiement « entre proches ».
-> 4. Pas de contenu piraté ni de fuite non officielle.
-> 5. Un bug : un fil dans #bugs avec ta version (Réglages) et les étapes.
-> 6. L'équipe peut supprimer un message ou exclure sans préavis.
-> Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Policy, ni approuvé ni soutenu par Wizards of the Coast.
->
-> *English: be respectful, no spam or ads, trades at your own risk between members, no pirated content or leaks, bugs in #bugs with your version. Mods may remove messages or members.*
+Les textes de #bienvenue et #règles (français puis anglais) sont dans le script (`welcome`, `rulesText`) : les changer là puis relancer.
 
 ### Après
-- Lien Discord à mettre : message aux testeurs, page /testeurs, réseaux (bio), et dans l'appli (Réglages, à ajouter quand le lien existe).
+- Lien Discord à mettre : message aux testeurs (§ 1), page /testeurs, réseaux (bio), et dans l'appli (Réglages, à ajouter quand le lien existe).
 - Possible plus tard : publication automatique de chaque nouvelle version dans `#annonces` (webhook Discord appelé par le serveur).
