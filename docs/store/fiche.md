@@ -1,9 +1,9 @@
 # Fiche Google Play : Mana Orbit
 
-Tout ce qu'il faut copier dans la Play Console, dans les 6 langues de l'appli : français, anglais, allemand, espagnol, italien et portugais du Brésil (**Présence sur le Play Store › Fiche principale › Gérer les traductions › Ajouter vos propres traductions** : fr-FR, en-US, de-DE, es-ES, it-IT, pt-BR). Textes remis à jour le 20 octobre 2026 pour la production (masterset, Carte mystère, niveau et badges, ordinateur ; partie de Commander corrigée) ; visuels à refaire (`docs/a-faire.md`).
+Tout ce qu'il faut copier dans la Play Console, dans les 6 langues de l'appli : français, anglais, allemand, espagnol, italien et portugais du Brésil (**Présence sur le Play Store › Fiche principale › Gérer les traductions › Ajouter vos propres traductions** : fr-FR, en-US, de-DE, es-ES, it-IT, pt-BR). Textes remis à jour le 20 octobre 2026 pour la production (masterset, Carte mystère, niveau et badges, ordinateur ; partie de Commander corrigée).
 Les textes à coller sont dans les blocs gris : copie le bloc entier. Les longueurs sont vérifiées (limites de Google entre parenthèses).
 
-Visuels : dans ce dossier, générés par `node tools/store-assets.mjs` (voir la fin de ce fichier).
+Visuels (piste A, 6 langues, 20 octobre) : dans ce dossier, générés par `node tools/store-assets.mjs` (§ 9).
 
 ---
 
@@ -530,44 +530,46 @@ Avant d'envoyer le formulaire, compare avec les pages officielles (elles changen
 - La politique de confidentialité (`/privacy`) doit déjà parler du bandeau AdMob le jour de la publication. C'est le cas dans la version qui ajoute AdMob ; vérifie qu'elle est bien en ligne.
 - EDHREC et Archidekt (`docs/mails-partenaires.md`) : toujours sans réponse au 20 octobre. Décision (`docs/a-faire.md`) : sans réponse à la production, publier avec crédit et lien (déjà là), lecture hebdomadaire par le serveur seulement, interrupteurs `EDHREC_OFF` / `ARCHIDEKT_OFF` prêts ; en cas de refus, plan B.
 
-## 9. Visuels
+## 9. Visuels (piste A « Orbite continue », choisie le 20 octobre)
+
+Une seule orbite foil, avec les cinq orbes de mana, traverse les 8 captures d'un bout à l'autre (l'espace entre deux captures compris) : en faisant défiler la fiche, l'image continue d'une capture à la suivante. Téléphones inclinés tour à tour à gauche et à droite, légende en haut. Maquettes des trois pistes : canvas « Mana Orbit – visuels Play Store » (claude.ai).
 
 | Fichier | Format | Usage |
 |---|---|---|
-| `feature-graphic.png` | 1024 × 500, PNG sans transparence | Image de présentation (fiche française) |
-| `feature-graphic-en.png` | 1024 × 500 | Image de présentation (fiche anglaise) |
-| `fr/01-scan.png` … `fr/08-deck.png` | 1080 × 1920 (9:16) | Captures du téléphone, fiche française (8 au plus) |
-| `en/01-scan.png` … `en/08-deck.png` | 1080 × 1920 | Captures du téléphone, fiche anglaise |
+| `feature-graphic-<langue>.png` (fr, en, de, es, it, pt) | 1024 × 500, sans transparence | Image de présentation de chaque fiche |
+| `<langue>/01-scan` … `<langue>/08-valeur` (.png, ou .jpg au-delà de 1 Mo) | 1080 × 1920 (9:16) | Les 8 captures du téléphone de chaque fiche, dans cet ordre |
 | `../../pwa/icons/icon-512.png` | 512 × 512 | Icône de l'appli |
-| `developer-header.jpg` | 4096 × 2304, JPEG | Image d'en-tête de la page de développeur (sans texte, valable pour une future appli sœur) ; icône de développeur : celle de l'appli |
+| `developer-header.jpg` | 4096 × 2304, JPEG | Image d'en-tête de la page de développeur ; icône de développeur : celle de l'appli |
 
-Les fichiers sont numérotés dans l'ordre de la fiche : envoie-les dans cet ordre. Le scan d'abord, comme chez tous les concurrents ; les deux premières comptent le plus (ce sont celles des résultats de recherche). L'échange vient en 3e : c'est ce qui distingue Mana Orbit des autres scanners.
+Play Console › Fiche principale › chaque langue › « Captures d'écran du téléphone » : envoie les 8 fichiers **dans l'ordre des numéros** (l'orbite ne se raccorde que dans cet ordre) ; « Image de présentation » : la bannière de la langue.
 
-| # | Écran | Légende FR | Légende EN |
-|---|---|---|---|
-| 1 | Scan | Scanne tes cartes VF ou VO · Lues sur ton téléphone, la photo n'est jamais envoyée | Scan cards in any language · Read on your phone, photos never leave it |
-| 2 | Accueil | La cote de ta collection · Au prix tendance Cardmarket, mise à jour chaque jour | Your collection, valued · Cardmarket trend prices, updated daily |
-| 3 | Échange | Tes échanges en un lien · Lien ou QR code, doublons et recherches toujours à jour | Trade with one link · Link or QR code, spares and wants always up to date |
-| 4 | Decks à monter | Les decks que tu peux monter · Decks Commander comparés à ta collection | Decks you can build · Commander decks matched to your cards |
-| 5 | Valeur dans le temps | Suis sa valeur jour après jour · Courbe, variations à 7 et 30 jours, alertes de prix | Watch its value grow · Daily chart, 7- and 30-day changes, price alerts |
-| 6 | Collection (langues) | Chaque carte, sa langue · VF, VO, japonais… et son prix Cardmarket | Every copy, its language · English, French, Japanese… and its Cardmarket price |
-| 7 | Prix d'une liste | Colle une liste, vois le prix · Sans les cartes que tu as déjà, prête pour Cardmarket | Paste a list, see the price · Minus the cards you own, ready for Cardmarket |
-| 8 | Viewer de deck | Chaque deck en un coup d'œil · Valeur, courbe de mana, main de départ | Every deck at a glance · Value, mana curve, opening hand |
+| # | Fichier | Écran | Légende FR | Légende EN |
+|---|---|---|---|---|
+| 1 | `01-scan` | Scan | Scanne en 11 langues · Même le japonais, lu sur ton téléphone | Scan in 11 languages · Even Japanese, read right on your phone |
+| 2 | `02-cote` | Accueil | La cote de ta collection · Au prix Cardmarket, mise à jour chaque jour | Your collection, valued · Cardmarket prices, updated every day |
+| 3 | `03-classeur` | Classeur d'échange | Ton classeur en un lien · Doublons et recherches, toujours à jour | Your binder, one link · Spares and wants, always up to date |
+| 4 | `04-masterset` | Masterset | Complète tes extensions · Ce qui manque, en noir et blanc, avec son prix | Complete your sets · Missing cards in black and white, with their price |
+| 5 | `05-partie` | Compteur de la partie | Ta table de Commander · Vie, blessures de commandant, poison, monarque | Your Commander table · Life, commander damage, poison, monarch |
+| 6 | `06-decks` | Decks à monter | Les decks que tu peux monter · Decks Commander comparés à ta collection | Decks you can build · Commander decks matched to your collection |
+| 7 | `07-carte-mystere` | Carte mystère (étape 4) | La Carte mystère du jour · Devine-la avant les autres, chaque soir à 18 h | The daily Mystery card · Guess it before everyone else, every evening |
+| 8 | `08-valeur` | Stats, courbe de valeur | Sa valeur, jour après jour · Courbe, variations à 7 et 30 jours, alertes de prix | Its value, day by day · Chart, 7- and 30-day changes, price alerts |
 
-Les captures sont celles de la vraie appli (thème sombre), vue par un visiteur sans compte ni token CardTrader, comme la plupart des utilisateurs : prix Cardmarket seulement, aucune offre CardTrader (Google refuse les visuels qui promettent ce que l'appli ne donne pas). Collection d'exemple : 515 cartes (1 030 exemplaires), environ 2 340 €, quatre decks. Les images des cartes y sont des cartes factices dessinées par le script (aucune illustration réelle) ; les vrais téléphones affichent les images Scryfall. La bannière ne contient ni logo ni symbole de Wizards of the Coast, ni écran de l'appli (rien à refaire quand l'interface change). Aucune capture ne montre le bandeau publicitaire.
+Allemand, espagnol, italien, portugais : légendes dans `SHOTS` (`tools/store-assets.mjs`), écrans de l'appli dans la langue.
 
-Si EDHREC ou Archidekt refusent : remplace la capture 4 par l'éditeur de deck (`SHOTS` dans `tools/store-assets.mjs`).
+Les captures sont celles de la vraie appli (thème sombre), vue par un visiteur sans token CardTrader, comme la plupart des utilisateurs : prix Cardmarket seulement, aucune offre CardTrader (Google refuse les visuels qui promettent ce que l'appli ne donne pas). Collection d'exemple : 505 cartes, environ 2 330 €, quatre decks. Les images des cartes sont des cartes factices dessinées par le script (aucune illustration réelle), Carte mystère comprise (servie par le vrai serveur du jeu, compte connecté par le faux Firebase des tests) ; les vrais téléphones affichent les images Scryfall. Ni logo ni symbole de Wizards of the Coast. Aucune capture ne montre le bandeau publicitaire.
+
+Si EDHREC ou Archidekt refusent : remplace la capture 6 par l'éditeur de deck (`SHOTS` dans `tools/store-assets.mjs`).
 Après le lancement : teste la description courte et la première capture avec les tests de fiche de la Play Console (« Store listing experiments » en anglais).
 
 ### Refaire les visuels
 
 ```
-node tools/store-assets.mjs            # tout : bannières + 16 captures (≈ 2 min)
-node tools/store-assets.mjs feature    # bannières seulement
-node tools/store-assets.mjs shots en   # captures anglaises seulement
-RAW=1 node tools/store-assets.mjs shots   # garde aussi les écrans bruts (shots/store/, non versionné)
-node tools/store-assets.mjs raw fr      # écrans bruts seulement, avec classeur, partie et masterset (MORE) : maquettes
+node tools/store-assets.mjs              # tout : 8 captures + bannière, 6 langues (≈ 1 min par langue)
+node tools/store-assets.mjs shots de     # une langue
+node tools/store-assets.mjs feature      # bannières seulement
+RAW=1 node tools/store-assets.mjs shots  # garde aussi les écrans bruts (shots/store/, non versionné)
+node tools/store-assets.mjs raw fr       # écrans bruts seulement (maquettes)
 ```
 
-Prérequis : `tests/node_modules` installé (Playwright), Chromium dans `/opt/pw-browsers/chromium` (ou la variable `CHROMIUM`), port 18980 libre. Aucune connexion Internet : le script sert l'appli avec le monde des tests (token CardTrader du serveur réservé à un compte, comme en production) et simule Scryfall. Les polices de l'appli (Bricolage Grotesque, Instrument Sans, licence OFL) sont dans `tools/fonts/` ; sans elles, le script prend les polices du système.
-Les légendes, les données d'exemple (collection, decks, historique) et l'ordre des écrans sont en tête de `tools/store-assets.mjs` (`SHOTS`, `DB_TXT`, `DECKS`).
+Prérequis : `tests/node_modules` installé (Playwright), Chromium dans `/opt/pw-browsers/chromium` (ou la variable `CHROMIUM`), port 18980 libre. Aucune connexion Internet : le script sert l'appli avec le monde des tests (token CardTrader du serveur réservé à un compte, comme en production, Carte mystère allumée avec son faux Scryfall) et simule Scryfall côté navigateur. Les polices de l'appli (Bricolage Grotesque, Instrument Sans, licence OFL) sont dans `tools/fonts/` ; sans elles, le script prend les polices du système.
+Les légendes, les données d'exemple (collection, decks, historique, extension du masterset, carte du jour) et l'ordre des écrans sont dans `tools/store-assets.mjs` (`SHOTS`, `DB_TXT`, `DECKS`, `MS_CARDS`, `DLY_CARD`).

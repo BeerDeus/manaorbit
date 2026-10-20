@@ -1,22 +1,25 @@
-// Visuels de la fiche Google Play → docs/store/ : bannière 1024×500 (FR + EN) et captures 1080×1920 (FR + EN) de la vraie appli.
+// Visuels de la fiche Google Play → docs/store/ : bannière 1024×500 et 8 captures 1080×1920 de la vraie appli, dans les 6 langues de l'appli (piste A « Orbite continue »,
+// choisie le 20 octobre 2026 : une orbite foil traverse les 8 captures d'un bout à l'autre, téléphones inclinés tour à tour).
 // L'appli est servie par le monde des tests (proxy.mjs + faux CardTrader, tests/e2e-world.mjs), Scryfall est simulé ici : aucune requête ne sort.
 // Données réalistes posées dans localStorage avant le chargement (collection, decks, historique de valeur), decks EDHREC = vrai pwa/edh.bin.gz.
 // Images des cartes : cartes factices dessinées ici (dégradés, aucune illustration réelle). Polices : tools/fonts/ si présentes (OFL), sinon repli système.
-//   node tools/store-assets.mjs              tout (bannières + captures FR et EN)
-//   node tools/store-assets.mjs feature      bannières seulement      node tools/store-assets.mjs shots en   captures anglaises seulement
+//   node tools/store-assets.mjs              tout : captures et bannière, 6 langues (≈ 2 min par langue)
+//   node tools/store-assets.mjs feature      bannières seulement      node tools/store-assets.mjs shots de   captures (et bannière) allemandes seulement
 //   node tools/store-assets.mjs raw fr      captures brutes seulement (SHOTS + MORE) dans shots/store/ (maquettes)
 //   RAW=1 : garde aussi les captures brutes de l'appli (sans bandeau) dans shots/store/ (non versionné) · CHROMIUM : chemin du navigateur
 import '../tests/setup-env.mjs';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, unlinkSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { createRequire } from 'node:module';
-import { chromium, startWorld, newPage } from '../tests/e2e-world.mjs';
+import { chromium, startWorld, newPage, signInFake } from '../tests/e2e-world.mjs';
+import { startFakes } from '../tests/amis-fakes.mjs';
 
 const require = createRequire(import.meta.url);
 const { edhUnpack } = require('../edhbin.cjs');
 const OUT = 'docs/store/', PORT = 18980;
 const what = process.argv[2] || 'all', onlyLang = process.argv[3] || '';
-const LANGS = ['fr', 'en'].filter(l => !onlyLang || l === onlyLang);
+const LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt'].filter(l => !onlyLang || l === onlyLang);
+const LOCALE = { fr: 'fr-FR', en: 'en-GB', de: 'de-DE', es: 'es-ES', it: 'it-IT', pt: 'pt-BR' };
 const DAY = 86400e3, NOW = Date.now();
 mkdirSync(OUT, { recursive: true });
 
@@ -252,7 +255,9 @@ const LANDS = [['Plains', 36], ['Island', 24], ['Swamp', 41], ['Mountain', 33], 
 const priced = [...OWN.values()].map(o => ({ ...o, c: card(o.name) })).filter(o => o.c.eur > 0);
 const VALUE = priced.reduce((a, o) => a + o.c.eur * o.q, 0), COPIES = [...OWN.values()].reduce((a, o) => a + o.q, 0) + LANDS.reduce((a, l) => a + l[1], 0);
 /** Quelques exemplaires dans d'autres langues parmi les cartes les plus chères (en tête de la liste triée par prix) : capture « Chaque carte, sa langue ». */
-const LANG_FIX = { fr: { 'chrome mox': 'JA', 'mox amber': 'EN', 'the great henge': 'DE' }, en: { 'chrome mox': 'JA', 'deflecting swat': 'FR', 'the great henge': 'DE' } };
+const LANG_FIX = { fr: { 'chrome mox': 'JA', 'mox amber': 'EN', 'the great henge': 'DE' }, en: { 'chrome mox': 'JA', 'deflecting swat': 'FR', 'the great henge': 'DE' },
+  de: { 'chrome mox': 'JA', 'deflecting swat': 'FR', 'the great henge': 'DE' }, es: { 'chrome mox': 'JA', 'deflecting swat': 'FR', 'the great henge': 'ES' },
+  it: { 'chrome mox': 'JA', 'deflecting swat': 'FR', 'the great henge': 'IT' }, pt: { 'chrome mox': 'JA', 'deflecting swat': 'FR', 'the great henge': 'PT' } };
 /** Texte de la collection : FR → une bonne part des cartes en français (nom imprimé connu), EN → exemplaires anglais ; LANG_FIX par-dessus (même tirage pour les autres). */
 function collText(lang) {
   const r = rnd('langs'), lines = [], fix = LANG_FIX[lang] || {};
@@ -261,12 +266,13 @@ function collText(lang) {
   return lines.join('\n');
 }
 const deckText = cards => '// Deck Deal : commander\nCommander\n1 ' + cards[0][0] + '\n\nDeck\n' + cards.slice(1).map(([n, q]) => q + ' ' + n).join('\n');
+const DECK_NAMES = { fr: ['Krenko gobelins', 'Atraxa poison', 'Ur-Dragon', 'Giada anges'], en: ['Krenko Goblins', 'Atraxa Poison', 'The Ur-Dragon', 'Giada Angels'],
+  de: ['Krenko Goblins', 'Atraxa Gift', 'Ur-Drache', 'Giada Engel'], es: ['Krenko goblins', 'Atraxa veneno', 'Ur-Dragón', 'Giada ángeles'],
+  it: ['Krenko goblin', 'Atraxa veleno', 'Ur-Drago', 'Giada angeli'], pt: ['Krenko goblins', 'Atraxa veneno', 'Ur-Dragão', 'Giada anjos'] };
 const DECKS = lang => [
-  { id: 'd-krenko', name: lang === 'fr' ? 'Krenko gobelins' : 'Krenko Goblins', cards: KRENKO, at: NOW - 3 * 3600e3 },
-  { id: 'd-atraxa', name: lang === 'fr' ? 'Atraxa poison' : 'Atraxa Poison', cards: ATRAXA, at: NOW - 2 * DAY },
-  { id: 'd-urd', name: lang === 'fr' ? 'Ur-Dragon' : 'The Ur-Dragon', cards: URD, at: NOW - 6 * DAY },
-  { id: 'd-giada', name: lang === 'fr' ? 'Giada anges' : 'Giada Angels', cards: GIADA, at: NOW - 13 * DAY },
-].map(d => ({ id: d.id, name: d.name, text: deckText(d.cards), opts: {}, cards: d.cards.reduce((a, c) => a + c[1], 0), history: [], createdAt: d.at - 20 * DAY, updatedAt: d.at }));
+  { id: 'd-krenko', cards: KRENKO, at: NOW - 3 * 3600e3 }, { id: 'd-atraxa', cards: ATRAXA, at: NOW - 2 * DAY },
+  { id: 'd-urd', cards: URD, at: NOW - 6 * DAY }, { id: 'd-giada', cards: GIADA, at: NOW - 13 * DAY },
+].map((d, i) => ({ ...d, name: (DECK_NAMES[lang] || DECK_NAMES.en)[i] })).map(d => ({ id: d.id, name: d.name, text: deckText(d.cards), opts: {}, cards: d.cards.reduce((a, c) => a + c[1], 0), history: [], createdAt: d.at - 20 * DAY, updatedAt: d.at }));
 /** Historique de valeur : 120 jours, hausse régulière (achats, prix), dernier relevé = valeur actuelle. */
 function history() {
   const r = rnd('hist'), out = [], n = 120;
@@ -429,7 +435,7 @@ function seed(lang) {
 }
 /* ── Mise en page d'une capture : bandeau de légende en haut, écran de l'appli (984 × 1584 px = 410 × 660 à ×2,4) qui sort par le bas ──────── */
 const VIEW = { width: 410, height: 660 }, DPR = 2.4, SCR = { x: 48, y: 336, w: 984, h: 1584 };
-let world = null, browser = null;
+let world = null, browser = null, FAKES = null;
 async function openApp(lang) {
   const init = `(() => { try { if (!localStorage.getItem('store:seeded')) { const S = ${JSON.stringify(seed(lang))}; for (const k in S) localStorage.setItem(k, S[k]); localStorage.setItem('store:seeded', '1'); } } catch (e) {}
     window.__noFpsWatch = true;
@@ -439,7 +445,7 @@ async function openApp(lang) {
       const draw = () => g.drawImage(im, 0, 0); draw(); setInterval(draw, 120); return cv.captureStream(12);
     };
   })();`;
-  const c = await newPage(browser, world, { goto: false, perms: ['camera'], init, ctx: { viewport: VIEW, deviceScaleFactor: DPR, isMobile: true, hasTouch: true, colorScheme: 'dark', locale: lang === 'fr' ? 'fr-FR' : 'en-GB', timezoneId: 'Europe/Paris' } });
+  const c = await newPage(browser, world, { goto: false, perms: ['camera'], init, ctx: { viewport: VIEW, deviceScaleFactor: DPR, isMobile: true, hasTouch: true, colorScheme: 'dark', locale: LOCALE[lang], timezoneId: 'Europe/Paris' } });
   const { ctx, p } = c;
   await ctx.route('**/*', r => { const u = r.request().url(); return u.startsWith(world.url) || /^(data|blob):/.test(u) ? r.continue() : r.abort(); });      // rien ne sort
   await p.route('https://api.scryfall.com/**', scryRoute);
@@ -448,8 +454,9 @@ async function openApp(lang) {
   await p.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, fontRoute);
   await p.route('**/edh.bin.gz', r => r.fulfill({ status: 200, contentType: 'application/octet-stream', headers: { 'content-encoding': 'gzip' }, body: BIN }));
   await p.route('**/fr-names.tsv', r => r.fulfill({ status: 200, contentType: 'text/tab-separated-values; charset=utf-8', body: readFileSync('pwa/fr-names.tsv') }));
+  await p.route(/\/names-[a-z]{2,3}\.tsv$/, r => { const f = 'pwa/' + new URL(r.request().url()).pathname.split('/').pop(); return existsSync(f) ? r.fulfill({ status: 200, contentType: 'text/tab-separated-values; charset=utf-8', body: readFileSync(f) }) : r.fulfill({ status: 404, body: '' }); });      // noms imprimés des autres langues (sinon « Téléchargement interrompu » sur le scan)
   await p.route('**/prices.tsv', r => r.fulfill({ status: 404, body: '' }));
-  await p.goto(world.url + (lang === 'en' ? '?lang=en' : ''));
+  await p.goto(world.url + (lang !== 'fr' ? '?lang=' + lang : ''));
   await p.waitForFunction(() => typeof COLL !== 'undefined' && Object.keys(COLL.map).length > 50);
   await p.evaluate(() => { BACKOFF.scry = [60, 60, 60]; BACKOFF.cool429 = 100; collEnrich(); });      // infos des cartes (sur un vrai téléphone, déjà en cache)
   await p.waitForFunction(() => !collMissing().length && !COLL.enrich, null, { timeout: 60000 });
@@ -470,10 +477,14 @@ const scrollIn = (p, scroller, target) => p.evaluate(([s, t]) => {
   sc.scrollTop += b + 1 - sc.getBoundingClientRect().top;
 }, [scroller, target]);
 
-/** Les captures, dans l'ordre de la fiche (le scan d'abord, comme chez tous les concurrents) : légende (FR, EN ; *mot* en dégradé foil) et mise en état de l'appli.
- *  Aucune promesse que l'utilisateur sans token ne verrait pas : prix tendance Cardmarket seulement, pas d'offres CardTrader. */
+/** Les 8 captures, dans l'ordre de la fiche (le scan d'abord, comme chez tous les concurrents ; les deux premières comptent le plus) : légende dans les 6 langues
+ *  (*mot* en dégradé foil) et mise en état de l'appli. at : ordre de capture (le masterset ajoute des lignes avec édition à la collection, la Carte mystère connecte
+ *  un compte : en dernier). Aucune promesse que l'utilisateur sans token ne verrait pas : prix tendance Cardmarket seulement, pas d'offres CardTrader. */
 const SHOTS = [
-  { id: '01-scan', en: '01-scan', cap: { fr: ['Scanne tes cartes *VF ou VO*', 'Lues sur ton téléphone, la photo n\'est jamais envoyée'], en: ['*Scan* cards in any language', 'Read on your phone, photos never leave it'] },
+  { id: '01-scan', at: 1, cap: {
+      fr: ['Scanne en *11 langues*', 'Même le japonais, lu sur ton téléphone'], en: ['Scan in *11 languages*', 'Even Japanese, read right on your phone'],
+      de: ['Scanne in *11 Sprachen*', 'Sogar Japanisch, direkt auf dem Handy gelesen'], es: ['Escanea en *11 idiomas*', 'Hasta el japonés, leído en tu teléfono'],
+      it: ['Scansiona in *11 lingue*', 'Anche il giapponese, letto sul telefono'], pt: ['Escaneie em *11 idiomas*', 'Até japonês, lido no seu celular'] },
     async go(p, lang) {
       await p.evaluate(() => openScan()); await p.waitForSelector('.scan .sc-stage[data-cam="on"]', { timeout: 15000 });
       await p.evaluate(lang => {
@@ -484,41 +495,32 @@ const SHOTS = [
       await p.waitForFunction(() => !document.querySelector('.scan .sc-ed.load'), null, { timeout: 60000 });      // éditions posées d'office (les lectures du scan passent après celles de fond)
       await p.waitForTimeout(1200); await imgsReady(p); await p.waitForTimeout(400);
     } },
-  { id: '02-accueil', en: '02-home', cap: { fr: ['La *cote* de ta collection', 'Au prix tendance Cardmarket, mise à jour chaque jour'], en: ['Your collection, *valued*', 'Cardmarket trend prices, updated daily'] },
+  { id: '02-cote', at: 2, cap: {
+      fr: ['La *cote* de ta collection', 'Au prix Cardmarket, mise à jour chaque jour'], en: ['Your collection, *valued*', 'Cardmarket prices, updated every day'],
+      de: ['Der *Wert* deiner Sammlung', 'Zu Cardmarket-Preisen, jeden Tag aktuell'], es: ['El *valor* de tu colección', 'A precio de Cardmarket, actualizado cada día'],
+      it: ['Il *valore* della collezione', 'Ai prezzi Cardmarket, aggiornato ogni giorno'], pt: ['O *valor* da sua coleção', 'Pelo preço da Cardmarket, atualizado todo dia'] },
     async go(p) { await p.waitForFunction(() => HM.v != null && HM.v === homeValue() && document.querySelector('#hmTrade') && !document.querySelector('#nav.off'), null, { timeout: 20000 }); await imgsReady(p); await p.waitForTimeout(2600); } },      // accueil : valeur, carte Échange, barre du bas
-  { id: '03-echange', en: '03-trade', cap: { fr: ['Tes échanges *en un lien*', 'Lien ou QR code, doublons et recherches toujours à jour'], en: ['Trade with *one link*', 'Link or QR code, spares and wants always up to date'] },
-    async go(p) {
-      await p.evaluate(() => openCollection('trade')); await p.waitForSelector('.coll.on .tr-box'); await p.waitForTimeout(1000);
-      // lien public tel qu'il apparaît une fois connecté (ici, pas de compte Firebase) : même rendu que l'appli, adresse du site
-      const fake = () => p.evaluate(() => { if (document.querySelector('.tr-box .tr-link')) return false; const u = D.user; D.user = { uid: 'store' }; TR.share = 'k7Qe2xPm4w'; const h = trShareBoxHtml(TR.st || trState()); D.user = u; TR.share = null; document.querySelector('.tr-box').outerHTML = h; document.querySelector('.tr-link input').value = 'https://manaorbit.app/?p=k7Qe2xPm4w'; return true; });
-      await fake(); await scrollIn(p, '.coll.on .dv-scroll', '.tr-box'); await imgsReady(p); await p.waitForTimeout(500);
-      if (await fake()) { await scrollIn(p, '.coll.on .dv-scroll', '.tr-box'); await p.waitForTimeout(150); }      // la section s'est repeinte entre-temps (prix arrivés) : le lien est remis juste avant la capture
-    } },
-  { id: '04-decks-a-monter', en: '04-decks-to-build', cap: { fr: ['Les decks que tu peux *monter*', 'Decks Commander comparés à ta collection'], en: ['Decks you can *build*', 'Commander decks matched to your cards'] },
-    async go(p) { await p.evaluate(() => openCollection('decks')); await p.waitForSelector('.dk-res .crow, .dk-res [role="button"]', { timeout: 30000 }); await p.waitForTimeout(1500); await scrollIn(p, '.coll.on .dv-scroll', '.dk-res .coll-list'); await imgsReady(p); await p.waitForTimeout(800); } },
-  { id: '05-valeur', en: '05-value', cap: { fr: ['Suis sa valeur *jour après jour*', 'Courbe, variations à 7 et 30 jours, alertes de prix'], en: ['Watch its value *grow*', 'Daily chart, 7- and 30-day changes, price alerts'] },
-    async go(p) { await p.evaluate(() => openCollection('stats')); await p.waitForSelector('.coll.on .vl-box'); await p.waitForTimeout(1500); } },
-  { id: '06-collection', en: '06-collection', cap: { fr: ['Chaque carte, *sa langue*', 'VF, VO, japonais… et son prix Cardmarket'], en: ['Every copy, *its language*', 'English, French, Japanese… and its Cardmarket price'] },
-    async go(p) { await p.evaluate(() => openCollection('list')); await p.waitForSelector('.coll.on'); await p.selectOption('#collSort', 'price'); await p.waitForTimeout(900); await imgsReady(p); await p.waitForTimeout(600); } },
-  { id: '07-recherche', en: '07-search', cap: { fr: ['Colle une liste, vois le *prix*', 'Sans les cartes que tu as déjà, prête pour Cardmarket'], en: ['Paste a list, see the *price*', 'Minus the cards you own, ready for Cardmarket'] },
-    async go(p) {
-      await p.evaluate(t => { showView('input'); const ta = document.querySelector('#deckText'); ta.value = t; ta.dispatchEvent(new Event('input', { bubbles: true })); }, deckText(EDGAR));
-      await p.waitForTimeout(500); await p.click('#btnRun');
-      await p.waitForFunction(() => S.run && S.run.status !== 'running' && !document.querySelector('#viewResults').hidden, null, { timeout: 60000 }); await p.waitForTimeout(1800);
-      await p.selectOption('#optSort', 'price-desc'); await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(900);
-    } },
-  { id: '08-deck', en: '08-deck', cap: { fr: ['Chaque deck *en un coup d\'œil*', 'Valeur, courbe de mana, main de départ'], en: ['Every deck *at a glance*', 'Value, mana curve, opening hand'] },
-    async go(p) { await p.evaluate(() => { const r = edhRows()[0]; openDeckViewer({ text: edhDeckText(r.deck), name: r.cmd.names.join(' + ') }); }); await p.waitForSelector('.dv.on'); await p.waitForTimeout(2500); await imgsReady(p); await p.waitForTimeout(500); } },
-];
-/** Écrans en plus (fonctions arrivées après les visuels du 15 octobre) : captures brutes pour les maquettes (node tools/store-assets.mjs raw), puis dans SHOTS une fois la fiche choisie.
- *  Le masterset ajoute des lignes avec édition à la collection : toujours en dernier. */
-const MORE = [
-  { id: '09-classeur', en: '09-binder', cap: { fr: ['Ton classeur *à feuilleter*', 'Tes doublons en pochettes, partagés en un lien'], en: ['Your binder, *ready to flip*', 'Your spares in sleeves, shared with one link'] },
+  { id: '03-classeur', at: 3, cap: {
+      fr: ['Ton classeur *en un lien*', 'Doublons et recherches, toujours à jour'], en: ['Your binder, *one link*', 'Spares and wants, always up to date'],
+      de: ['Dein Ordner *per Link*', 'Doppelte und Gesuchte, immer aktuell'], es: ['Tu carpeta *en un enlace*', 'Repetidas y buscadas, siempre al día'],
+      it: ['Il raccoglitore *in un link*', 'Doppioni e carte cercate, sempre aggiornati'], pt: ['Seu fichário *em um link*', 'Repetidas e procuradas, sempre em dia'] },
     async go(p) {
       await p.evaluate(() => openCollection('trade')); await p.waitForSelector('.coll.on #trView [data-v="binder"]'); await p.click('#trView [data-v="binder"]');
       await p.waitForSelector('.coll-main .bnd .bnd-card'); await p.waitForTimeout(1200); await scrollIn(p, '.coll.on .dv-scroll', '.coll-main .bnd-cust'); await imgsReady(p); await p.waitForTimeout(500);
+    },
+    after: p => p.click('#trView [data-v="list"]') },      // l'interrupteur est gardé sur l'appareil : la liste revient pour les captures suivantes
+  { id: '04-masterset', at: 7, cap: {
+      fr: ['Complète tes *extensions*', 'Ce qui manque, en noir et blanc, avec son prix'], en: ['Complete your *sets*', 'Missing cards in black and white, with their price'],
+      de: ['Vervollständige deine *Sets*', 'Was fehlt, in Schwarz-Weiß, mit Preis'], es: ['Completa tus *expansiones*', 'Lo que falta, en blanco y negro, con su precio'],
+      it: ['Completa le tue *espansioni*', 'Ciò che manca, in bianco e nero, con il prezzo'], pt: ['Complete suas *expansões*', 'O que falta, em preto e branco, com o preço'] },
+    async go(p) {
+      await p.evaluate(t => { collAdd(parseCollection(t).items, 'add'); MS.on = true; MS.set = 'cmm'; MS.cols = 4; msSave(); openCollection('list'); }, msCollText());
+      await p.waitForFunction(() => document.querySelectorAll('.coll.on .ms-grid .ms-c').length > 12, null, { timeout: 30000 }); await p.waitForTimeout(1500); await scrollIn(p, '.coll.on .dv-scroll', '.coll.on .ms-head'); await imgsReady(p); await p.waitForTimeout(500);
     } },
-  { id: '10-partie', en: '10-game', cap: { fr: ['Ta table de *Commander*', 'Points de vie, blessures de commandant, un téléphone pour tous'], en: ['Your *Commander* table', 'Life, commander damage, one phone for the table'] },
+  { id: '05-partie', at: 4, cap: {
+      fr: ['Ta table de *Commander*', 'Vie, blessures de commandant, poison, monarque'], en: ['Your *Commander* table', 'Life, commander damage, poison, monarch'],
+      de: ['Dein *Commander*-Tisch', 'Leben, Commander-Schaden, Gift, Monarch'], es: ['Tu mesa de *Commander*', 'Vidas, daño de comandante, veneno, monarca'],
+      it: ['Il tavolo di *Commander*', 'Punti vita, danni da comandante, veleno, monarca'], pt: ['Sua mesa de *Commander*', 'Vida, dano de comandante, veneno, monarca'] },
     async go(p, lang) {
       await p.evaluate(([me, pl]) => {
         const now = Date.now() - 38 * 60e3;
@@ -528,44 +530,97 @@ const MORE = [
         for (const [pos, d] of [[1, -6], [2, -19], [3, -11], [4, -27]]) g = partieLife(g, pos, d);
         g = partieCmdDamage(g, 4, 1, 7); g = partieCounter(g, 2, 'poison', 3); g = partieMonarch(g, 1); g = partieNextTurn(g); g = partieNextTurn(g);
         partieSave(g); puOpen(g);
-      }, [lang === 'fr' ? 'Moi' : 'Me', [['Léa', 'Atraxa, Praetors\' Voice'], ['Paul', 'Krenko, Mob Boss'], ['Zoé', 'The Ur-Dragon']]]);
+      }, [{ fr: 'Moi', en: 'Me', de: 'Ich', es: 'Yo', it: 'Io', pt: 'Eu' }[lang], [['Léa', 'Atraxa, Praetors\' Voice'], ['Paul', 'Krenko, Mob Boss'], ['Zoé', 'The Ur-Dragon']]]);
       await p.waitForSelector('.pu.pu-game .pu-a'); await p.waitForTimeout(1200);
+    },
+    after: p => p.evaluate(() => { puClose(); partieSave(null); }) },
+  { id: '06-decks', at: 5, cap: {
+      fr: ['Les decks que tu peux *monter*', 'Decks Commander comparés à ta collection'], en: ['Decks you can *build*', 'Commander decks matched to your collection'],
+      de: ['Decks, die du *bauen* kannst', 'Commander-Decks im Vergleich mit deiner Sammlung'], es: ['Los mazos que puedes *montar*', 'Mazos Commander comparados con tu colección'],
+      it: ['I mazzi che puoi *costruire*', 'Mazzi Commander confrontati con la tua collezione'], pt: ['Os decks que você pode *montar*', 'Decks Commander comparados com a sua coleção'] },
+    async go(p) { await p.evaluate(() => openCollection('decks')); await p.waitForSelector('.dk-res .crow, .dk-res [role="button"]', { timeout: 30000 }); await p.waitForTimeout(1500); await scrollIn(p, '.coll.on .dv-scroll', '.dk-res .coll-list'); await imgsReady(p); await p.waitForTimeout(800); } },
+  { id: '07-carte-mystere', at: 8, cap: {
+      fr: ['La *Carte mystère* du jour', 'Devine-la avant les autres, chaque soir à 18 h'], en: ['The daily *Mystery card*', 'Guess it before everyone else, every evening'],
+      de: ['Die *Mysterykarte* des Tages', 'Errate sie vor allen anderen, jeden Abend'], es: ['La *Carta misteriosa* del día', 'Adivínala antes que nadie, cada tarde'],
+      it: ['La *Carta misteriosa* del giorno', 'Indovinala prima degli altri, ogni sera'], pt: ['A *Carta mistério* do dia', 'Adivinhe antes de todo mundo, toda noite'] },
+    async go(p, lang) {
+      // compte connecté (faux Firebase de tests/amis-fakes.mjs : le serveur vérifie le jeton) : la partie du jour, classée ; gros plan de l'étape 4 sur la carte dessinée ici
+      const uid = 'uid-store-' + lang;
+      await p.evaluate(tok => { window.__idTok = tok; }, FAKES.jwt(uid));
+      await signInFake(p, { uid, email: uid + '@manaorbit.app', displayName: 'Martin' }, { owner: true }); await p.waitForTimeout(400);
+      await p.evaluate(() => { PROF.name = 'Martin'; });
+      await p.waitForSelector('#btnDaily', { timeout: 20000 }); await p.click('#btnDaily'); await p.waitForSelector('.dly-ask.open [data-dly="go"]', { timeout: 10000 });
+      await p.click('.dly-ask [data-dly="go"]'); await p.waitForSelector('.dly .dly-chrono', { timeout: 15000 });
+      const art = () => p.waitForFunction(() => { const f = document.querySelector('.dly-art'), i = f && f.querySelector('img'); return !!(f && f.classList.contains('ok') && i && i.naturalWidth > 0); }, null, { timeout: 15000 });
+      const stepNo = () => p.evaluate(() => { const e = document.querySelector('.dly .dly-stp'), m = e && /(\d+)/.exec(e.textContent); return m ? Number(m[1]) : 0; });
+      await art();
+      while (await stepNo() < 4) { const n = await stepNo(); await p.click('.dly [data-dly="next"]:not([disabled])'); await p.waitForFunction(n => { const e = document.querySelector('.dly .dly-stp'), m = e && /(\d+)/.exec(e.textContent); return m && Number(m[1]) > n; }, n, { timeout: 10000 }); await p.waitForTimeout(900); await art(); }
+      await p.waitForTimeout(1500);
     } },
-  { id: '11-masterset', en: '11-master-set', cap: { fr: ['Complète tes *extensions*', 'Les cartes qui te manquent, en noir et blanc, et leur prix'], en: ['Complete your *sets*', 'Missing cards in black and white, with their price'] },
+  { id: '08-valeur', at: 6, cap: {
+      fr: ['Sa valeur, *jour après jour*', 'Courbe, variations à 7 et 30 jours, alertes de prix'], en: ['Its value, *day by day*', 'Chart, 7- and 30-day changes, price alerts'],
+      de: ['Ihr Wert, *Tag für Tag*', 'Kurve, Änderungen über 7 und 30 Tage, Preisalarme'], es: ['Su valor, *día a día*', 'Gráfica, variaciones a 7 y 30 días, alertas de precio'],
+      it: ['Il valore, *giorno per giorno*', 'Grafico, variazioni a 7 e 30 giorni, avvisi di prezzo'], pt: ['O valor, *dia após dia*', 'Gráfico, variações em 7 e 30 dias, alertas de preço'] },
+    async go(p) { await p.evaluate(() => openCollection('stats')); await p.waitForSelector('.coll.on .vl-box'); await p.waitForTimeout(1500); } },
+];
+const SHOTS_AT = SHOTS.slice().sort((a, b) => a.at - b.at);
+/** Écrans de la série du 15 octobre, gardés pour les captures brutes (raw) : liste d'échange avec le lien, collection par langue. */
+const OLD_SHOTS = [
+  { id: '90-echange',
     async go(p) {
-      await p.evaluate(t => { collAdd(parseCollection(t).items, 'add'); MS.on = true; MS.set = 'cmm'; MS.cols = 4; msSave(); openCollection('list'); }, msCollText());
-      await p.waitForFunction(() => document.querySelectorAll('.coll.on .ms-grid .ms-c').length > 12, null, { timeout: 30000 }); await p.waitForTimeout(1500); await scrollIn(p, '.coll.on .dv-scroll', '.coll.on .ms-head'); await imgsReady(p); await p.waitForTimeout(500);
+      await p.evaluate(() => openCollection('trade')); await p.waitForSelector('.coll.on .tr-box'); await p.waitForTimeout(1000);
+      // lien public tel qu'il apparaît une fois connecté (ici, pas de compte Firebase) : même rendu que l'appli, adresse du site
+      const fake = () => p.evaluate(() => { if (document.querySelector('.tr-box .tr-link')) return false; const u = D.user; D.user = { uid: 'store' }; TR.share = 'k7Qe2xPm4w'; const h = trShareBoxHtml(TR.st || trState()); D.user = u; TR.share = null; document.querySelector('.tr-box').outerHTML = h; document.querySelector('.tr-link input').value = 'https://manaorbit.app/?p=k7Qe2xPm4w'; return true; });
+      await fake(); await scrollIn(p, '.coll.on .dv-scroll', '.tr-box'); await imgsReady(p); await p.waitForTimeout(500);
+      if (await fake()) { await scrollIn(p, '.coll.on .dv-scroll', '.tr-box'); await p.waitForTimeout(150); }      // la section s'est repeinte entre-temps (prix arrivés) : le lien est remis juste avant la capture
     } },
+  { id: '91-collection', async go(p) { await p.evaluate(() => openCollection('list')); await p.waitForSelector('.coll.on'); await p.selectOption('#collSort', 'price'); await p.waitForTimeout(900); await imgsReady(p); await p.waitForTimeout(600); } },
 ];
 
-/* ── Composition : fond aurore, légende, écran de l'appli ─────────────────────────────────────────────────────────────────────────────── */
+/* ── Composition (piste A) : orbite continue, légende, téléphone incliné ─────────────────────────────────────────────────────────────────────────────── */
 const fontData = f => existsSync(FONT_DIR + f) ? `url(data:font/woff2;base64,${readFileSync(FONT_DIR + f).toString('base64')}) format('woff2'),` : '';
 const FACES = `@font-face{font-family:'MO Display';font-weight:200 800;src:${fontData(FONT_FILES['Bricolage Grotesque'])}local('Inter Display'),local('Inter')}
   @font-face{font-family:'MO Text';font-weight:200 800;src:${fontData(FONT_FILES['Instrument Sans'])}local('Inter'),local('Liberation Sans')}`;
 const FOIL = 'linear-gradient(100deg,#ff8fc3 0%,#ffd479 28%,#7be8c8 52%,#7fb0ff 76%,#c79bff 100%)';
-const AURORA = (w, h, k = 1) => `<div class="au" style="left:${-0.24 * w}px;top:${-0.13 * h}px;width:${0.8 * w * k}px;height:${0.8 * w * k}px;background:radial-gradient(circle,rgba(63,143,224,.55),transparent 66%)"></div>
-  <div class="au" style="right:${-0.3 * w}px;top:${0.05 * h}px;width:${0.75 * w * k}px;height:${0.75 * w * k}px;background:radial-gradient(circle,rgba(224,83,61,.42),transparent 66%)"></div>
-  <div class="au" style="left:${-0.25 * w}px;top:${0.48 * h}px;width:${0.7 * w * k}px;height:${0.7 * w * k}px;background:radial-gradient(circle,rgba(58,154,94,.36),transparent 66%)"></div>
-  <div class="au" style="right:${-0.22 * w}px;top:${0.66 * h}px;width:${0.7 * w * k}px;height:${0.7 * w * k}px;background:radial-gradient(circle,rgba(199,155,255,.36),transparent 66%)"></div>`;
 const capHtml = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\*(.+?)\*/g, '<em>$1</em>');
-function shotPage([title, sub], src) {
+/** Orbite continue (piste A) : nuit, aurores, étoiles et une orbite foil avec les cinq orbes de mana, d'un seul tenant sur W × H (dessin de référence : 3020 × 640). */
+function panoSvg(W, H) {
+  const k = W / 3020, r = rnd('pano');
+  const blobs = [[120, 80, 420, '#3f8fe0', 0.55], [620, 520, 380, '#3a9a5e', 0.4], [1000, 60, 400, '#c79bff', 0.42], [1480, 560, 420, '#e0533d', 0.4], [1880, 90, 380, '#3f8fe0', 0.48], [2300, 520, 400, '#c79bff', 0.4], [2760, 120, 420, '#3a9a5e', 0.4], [2950, 560, 360, '#e0533d', 0.36]];
+  const defs = blobs.map(([, , , c, o], i) => `<radialGradient id="pg${i}"><stop offset="0" stop-color="${c}" stop-opacity="${o}"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`).join('');
+  const glow = blobs.map(([x, y, rr], i) => `<circle cx="${x * k}" cy="${y * k}" r="${rr * k}" fill="url(#pg${i})"/>`).join('');
+  const stars = Array.from({ length: 90 }, () => `<circle cx="${(r() * W).toFixed(0)}" cy="${(r() * H).toFixed(0)}" r="${([1, 1, 1.4, 1.8][Math.floor(r() * 4)] * k).toFixed(1)}" fill="#fff" fill-opacity="${(0.15 + r() * 0.3).toFixed(2)}"/>`).join('');
+  const pts = []; for (let x = 0; x <= W + 1; x += 20 * k) pts.push([x, (470 + 95 * Math.sin(x / W * 2 * Math.PI * 1.25 + 0.6)) * k]);
+  const path = f => 'M' + pts.map(([x, y]) => x.toFixed(0) + ' ' + f(x, y).toFixed(1)).join(' L');
+  const orbs = [['#f8f6d8', 0.07], ['#7fb0ff', 0.2], ['#b5a3c8', 0.33], ['#ff7a5c', 0.46], ['#6fd08c', 0.59], ['#f8f6d8', 0.72], ['#7fb0ff', 0.85], ['#ff7a5c', 0.97]].map(([c, t]) => {
+    const [x, y] = pts[Math.min(pts.length - 1, Math.floor(t * (pts.length - 1)))];
+    return `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${22 * k}" fill="${c}" fill-opacity=".18"/><circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${9 * k}" fill="${c}"/>`;
+  }).join('');
+  return `<svg class="pano" xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs>${defs}<linearGradient id="pfoil" x1="0" y1="0" x2="1" y2="0">${FOIL_STOPS}</linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="#0b0f1c"/>${glow}${stars}
+    <path d="${path((x, y) => y - 210 * k + 40 * k * Math.sin(x / W * 2 * Math.PI * 2.1))}" fill="none" stroke="#c3cbe0" stroke-opacity=".22" stroke-width="${1.5 * k}" stroke-dasharray="${4 * k} ${7 * k}"/>
+    <path d="${path((x, y) => y)}" fill="none" stroke="url(#pfoil)" stroke-opacity=".9" stroke-width="${3 * k}" stroke-linecap="round"/>${orbs}</svg>`;
+}
+/** Les 8 captures côte à côte, avec l'espace que la fiche laisse entre elles : l'orbite continue d'une capture à l'autre. */
+const PANO_GAP = 60, PANO_W = SHOTS.length * 1080 + (SHOTS.length - 1) * PANO_GAP;
+let PANO = '';
+/** Capture i (0 à 7) : sa tranche de l'orbite, légende en haut, téléphone incliné (à gauche, puis à droite) qui sort par le bas. */
+function shotPage([title, sub], src, i) {
+  if (!PANO) PANO = panoSvg(PANO_W, 1920);
+  const odd = i % 2 === 1;
   return `<!doctype html><html><head><meta charset="utf-8"><style>${FACES}
   html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:#0b0f1c;-webkit-font-smoothing:antialiased}
-  .au{position:absolute;border-radius:50%;filter:blur(40px)}
-  .st{position:absolute;width:4px;height:4px;border-radius:50%;background:#fff;opacity:.28}
-  .cap{position:absolute;left:70px;right:70px;top:0;height:${SCR.y - 14}px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
-  h1{margin:0;font:760 70px/1.04 'MO Display',sans-serif;letter-spacing:-.028em;color:#f4f6ff;text-wrap:balance}
+  .pano{position:absolute;left:${-i * (1080 + PANO_GAP)}px;top:0}
+  .cap{position:absolute;left:66px;right:66px;top:112px;text-align:center}
+  h1{margin:0;font:760 81px/1.05 'MO Display',sans-serif;letter-spacing:-.025em;color:#f4f6ff;text-wrap:balance}
   h1 em{font-style:normal;background:${FOIL};-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:.04em}
-  p{margin:20px 0 0;font:500 33px/1.3 'MO Text',sans-serif;letter-spacing:-.003em;color:#a9b3cf;text-wrap:balance}
-  .dev{position:absolute;left:${SCR.x - 13}px;top:${SCR.y - 13}px;width:${SCR.w + 26}px;height:${SCR.h + 40}px;border-radius:74px 74px 0 0;background:linear-gradient(180deg,#323a5e,#151b30 22%,#0f1426);
-    box-shadow:0 0 0 1.5px rgba(255,255,255,.13),0 -18px 90px rgba(127,150,255,.22),0 40px 120px rgba(0,0,0,.6)}
-  .dev::after{content:'';position:absolute;left:13px;top:13px;width:${SCR.w}px;height:${SCR.h}px;border-radius:61px 61px 0 0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);pointer-events:none}
-  .scr{position:absolute;left:13px;top:13px;width:${SCR.w}px;height:${SCR.h + 30}px;border-radius:61px 61px 0 0;overflow:hidden;background:#0b0f1c}
-  .scr img{display:block;width:${SCR.w}px;height:${SCR.h}px}
-  </style></head><body>${AURORA(1080, 1920)}
-  <i class="st" style="left:150px;top:70px"></i><i class="st" style="left:930px;top:250px"></i><i class="st" style="left:860px;top:42px;opacity:.18"></i><i class="st" style="left:96px;top:300px;opacity:.16"></i>
+  p{margin:30px 0 0;font:500 39px/1.32 'MO Text',sans-serif;letter-spacing:-.003em;color:#b3bdd8;text-wrap:balance}
+  .dev{position:absolute;left:${odd ? 156 : 138}px;top:528px;width:768px;padding:18px;border-radius:102px;background:linear-gradient(180deg,#323a5e,#151b30 22%,#0f1426);
+    box-shadow:0 0 0 4px rgba(255,255,255,.13),0 84px 180px rgba(0,0,0,.55);transform:rotate(${odd ? 3 : -3}deg)}
+  .dev img{display:block;width:768px;height:1236px;border-radius:84px}
+  </style></head><body>${PANO}
   <div class="cap"><h1>${capHtml(title)}</h1><p>${capHtml(sub)}</p></div>
-  <div class="dev"><div class="scr"><img src="${src}"></div></div></body></html>`;
+  <div class="dev"><img src="${src}"></div></body></html>`;
 }
 let comp = null;
 /** Rend une page HTML en image : PNG si elle tient sous 1 Mo, sinon JPEG de haute qualité. Retourne le chemin écrit. */
@@ -578,96 +633,87 @@ async function render(html, w, h, base) {
   for (const ext of ['.png', '.jpg']) if (base + ext !== file && existsSync(base + ext)) unlinkSync(base + ext);      // l'autre format d'un rendu précédent
   writeFileSync(file, buf); return file;
 }
-async function shotsFor(lang) {
-  const t0 = Date.now(), { ctx, p, errs } = await openApp(lang), dir = OUT + lang + '/'; mkdirSync(dir, { recursive: true });
-  for (const s of SHOTS) {
-    await toHome(p); await s.go(p, lang);
-    await p.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); }); await p.waitForTimeout(250);      // pas d'anneau de focus
-    const shot = await p.screenshot({ type: 'png' });
-    if (process.env.RAW) { mkdirSync('shots/store/', { recursive: true }); writeFileSync('shots/store/' + lang + '-' + s.id + '.png', shot); }
-    const f = await render(shotPage(s.cap[lang], 'data:image/png;base64,' + shot.toString('base64')), 1080, 1920, dir + (lang === 'fr' ? s.id : s.en));
+const dataUrl = b => 'data:image/png;base64,' + b.toString('base64');
+const blur = p => p.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); }).then(() => p.waitForTimeout(250));      // pas d'anneau de focus
+/** Les 8 captures d'une langue (docs/store/<langue>/), puis sa bannière (accueil et scan de cette langue). only : ids à capturer (bannière seule : scan et accueil). */
+async function shotsFor(lang, only) {
+  const t0 = Date.now(), { ctx, p, errs } = await openApp(lang), dir = OUT + lang + '/', raw = {}; mkdirSync(dir, { recursive: true });
+  for (const s of SHOTS_AT.filter(s => !only || only.includes(s.id))) {
+    await toHome(p); await s.go(p, lang); await blur(p);
+    raw[s.id] = await p.screenshot({ type: 'png' });
+    if (s.after) await s.after(p).catch(() => {});
+    if (process.env.RAW) { mkdirSync('shots/store/', { recursive: true }); writeFileSync('shots/store/' + lang + '-' + s.id + '.png', raw[s.id]); }
+    if (only) continue;
+    const f = await render(shotPage(s.cap[lang], dataUrl(raw[s.id]), SHOTS.indexOf(s)), 1080, 1920, dir + s.id);
     console.log(`  ${f}  ${(statSync(f).size / 1024).toFixed(0)} Ko`);
   }
+  const f = await render(featurePage(lang, dataUrl(raw['02-cote']), dataUrl(raw['01-scan'])), 1024, 500, OUT + 'feature-graphic-' + lang);
+  console.log(`  ${f}  ${(statSync(f).size / 1024).toFixed(0)} Ko`);
   if (errs.length) console.log('  erreurs de la page :\n  ' + errs.join('\n  '));
   await ctx.close(); console.log(`  ${lang} : ${((Date.now() - t0) / 1000).toFixed(0)} s`);
 }
-
-/** Captures brutes de l'appli (sans bandeau ni légende) de SHOTS et MORE → shots/store/<langue>-<id>.png (maquettes des visuels). */
+/** Captures brutes de l'appli (sans légende), 8 écrans de la fiche et ceux de la série d'avant → shots/store/<langue>-<id>.png (maquettes). */
 async function rawFor(lang) {
   const { ctx, p, errs } = await openApp(lang); mkdirSync('shots/store/', { recursive: true });
-  for (const s of [...SHOTS, ...MORE]) {
-    await toHome(p); await s.go(p, lang);
-    await p.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); }); await p.waitForTimeout(250);
+  for (const s of [...OLD_SHOTS, ...SHOTS_AT]) {
+    await toHome(p); await s.go(p, lang); await blur(p);
     const f = 'shots/store/' + lang + '-' + s.id + '.png'; writeFileSync(f, await p.screenshot({ type: 'png' })); console.log('  ' + f);
+    if (s.after) await s.after(p).catch(() => {});
   }
   if (errs.length) console.log('  erreurs de la page :\n  ' + errs.join('\n  '));
   await ctx.close();
 }
 
-/* ── Bannière 1024 × 500 : logo, nom, accroche, cartes foil en éventail sur l'aurore de l'appli ─────────────────────────────────────────── */
+/* ── Bannière 1024 × 500 : la même orbite, logo, nom, accroche, deux téléphones de la langue (accueil, scan) ───────────────────────────── */
 const LOGO = `
     <g transform="rotate(-20 50 52)"><path d="M12 52A38 13 0 0 1 88 52" fill="none" stroke="#9aa3b8" stroke-width="2.4" stroke-linecap="round"/><circle cx="27.7" cy="41.5" r="3.4" fill="#ff7a5c" fill-opacity=".85"/><circle cx="72.3" cy="41.5" r="3.4" fill="#6fd08c" fill-opacity=".85"/></g>
     <g transform="rotate(-11 51 50)"><rect x="37" y="27" width="28" height="41" rx="5" fill="url(#foil)"/><rect x="39.6" y="29.6" width="22.8" height="35.8" rx="3.2" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.1"/></g>
     <g transform="rotate(-20 50 52)"><path d="M12 52A38 13 0 0 0 88 52" fill="none" stroke="#9aa3b8" stroke-width="2.4" stroke-linecap="round"/><circle cx="86.1" cy="56" r="4.3" fill="#7fb0ff"/><circle cx="50" cy="65" r="4.3" fill="#f8f6d8"/><circle cx="13.9" cy="56" r="4.3" fill="#b5a3c8"/></g>`;      // même dessin que tools/make-icons.mjs
 const FOIL_STOPS = '<stop offset="0" stop-color="#ff8fc3"/><stop offset=".26" stop-color="#ffd479"/><stop offset=".5" stop-color="#7be8c8"/><stop offset=".74" stop-color="#7fb0ff"/><stop offset="1" stop-color="#c79bff"/>';
-const TAG = { fr: 'Ta collection Magic,<br><b>sa valeur</b>, tes decks.', en: 'Your Magic collection,<br><b>its value</b>, your decks.' };
-/** Éventail de cartes foil tenu en main (pivot sous les cartes), cerclé d'une orbite à cinq billes comme le logo. */
-function fanSvg() {
-  const P = { x: 772, y: 618 }, R = 352, W = 146, H = 204, angles = [-20, -6.8, 6.8, 20], dim = [0.2, 0.11, 0.04, 0];
-  const cards = angles.map((a, i) => {
-    const t = a * Math.PI / 180, cx = P.x + R * Math.sin(t), cy = P.y - R * Math.cos(t);
-    return `<g transform="translate(${cx.toFixed(1)} ${cy.toFixed(1)}) rotate(${a})">
-      <rect x="${-W / 2}" y="${-H / 2}" width="${W}" height="${H}" rx="14" fill="#000" opacity=".5" filter="url(#blur)" transform="translate(4 14)"/>
-      <rect x="${-W / 2}" y="${-H / 2}" width="${W}" height="${H}" rx="14" fill="url(#f${i})"/>
-      <rect x="${-W / 2}" y="${-H / 2}" width="${W}" height="${H}" rx="14" fill="url(#sheen)"/>
-      <rect x="${-W / 2 + 8}" y="${-H / 2 + 8}" width="${W - 16}" height="${H - 16}" rx="9" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
-      <rect x="${-W / 2 + 17}" y="${-H / 2 + 20}" width="${W - 34}" height="${H * 0.36}" rx="6" fill="#fff" fill-opacity=".18"/>
-      <rect x="${-W / 2 + 17}" y="${H * 0.06}" width="${W * 0.55}" height="6" rx="3" fill="#fff" fill-opacity=".36"/><rect x="${-W / 2 + 17}" y="${H * 0.06 + 15}" width="${W - 34}" height="6" rx="3" fill="#fff" fill-opacity=".26"/><rect x="${-W / 2 + 17}" y="${H * 0.06 + 30}" width="${W * 0.45}" height="6" rx="3" fill="#fff" fill-opacity=".26"/>
-      ${dim[i] ? `<rect x="${-W / 2}" y="${-H / 2}" width="${W}" height="${H}" rx="14" fill="#0b0f1c" opacity="${dim[i]}"/>` : ''}</g>`;
-  }).join('');
-  const O = { x: 772, y: 276, rx: 238, ry: 64, rot: -12 }, pt = d => { const t = d * Math.PI / 180; return [(O.x + O.rx * Math.cos(t)).toFixed(1), (O.y + O.ry * Math.sin(t)).toFixed(1)]; };
-  const dot = (d, r, c, op = 1) => { const [x, y] = pt(d); return `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}" fill-opacity="${op}" stroke="#0b0f1c" stroke-opacity=".35" stroke-width="2"/>`; };
-  const half = front => `<path d="M${O.x - O.rx} ${O.y}A${O.rx} ${O.ry} 0 0 ${front ? 0 : 1} ${O.x + O.rx} ${O.y}" fill="none" stroke="${front ? '#c3cbe0' : '#8f98b0'}" stroke-opacity="${front ? 0.85 : 0.5}" stroke-width="3" stroke-linecap="round"/>`;
-  const grads = [0, 1, 2, 3].map(i => `<linearGradient id="f${i}" x1="0" y1="0" x2="1" y2="1" gradientTransform="rotate(${i * 7 - 10} .5 .5)">${FOIL_STOPS}</linearGradient>`).join('');
-  return `<svg class="fan" viewBox="0 0 1024 500"><defs>${grads}
-    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".42"/><stop offset=".32" stop-color="#fff" stop-opacity="0"/><stop offset=".68" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"/></filter>
-    <radialGradient id="glow"><stop offset="0" stop-color="#b9c8ff" stop-opacity=".22"/><stop offset="1" stop-color="#b9c8ff" stop-opacity="0"/></radialGradient></defs>
-    <ellipse cx="${O.x}" cy="${O.y}" rx="300" ry="230" fill="url(#glow)"/>
-    <g transform="rotate(${O.rot} ${O.x} ${O.y})">${half(false)}${dot(208, 9, '#ff7a5c', 0.85)}${dot(326, 9, '#6fd08c', 0.85)}</g>
-    ${cards}
-    <g transform="rotate(${O.rot} ${O.x} ${O.y})">${half(true)}${dot(28, 12, '#7fb0ff')}${dot(96, 12, '#f8f6d8')}${dot(160, 12, '#b5a3c8')}</g></svg>`;
-}
-function featurePage(lang) {
+const TAG = { fr: 'Scanne, chiffre et échange<br>ta collection <b>Magic</b>.', en: 'Scan, value and trade<br>your <b>Magic</b> collection.', de: 'Scanne, bewerte und tausche<br>deine <b>Magic</b>-Sammlung.',
+  es: 'Escanea, valora e intercambia<br>tu colección <b>Magic</b>.', it: 'Scansiona, valuta e scambia<br>la tua collezione <b>Magic</b>.', pt: 'Escaneie, avalie e troque<br>sua coleção <b>Magic</b>.' };
+function featurePage(lang, home, scan) {
+  const phone = (src, x, y, a) => `<div class="dev" style="left:${x}px;top:${y}px;transform:rotate(${a}deg)"><img src="${src}"></div>`;
   return `<!doctype html><html><head><meta charset="utf-8"><style>${FACES}
   html,body{margin:0;width:1024px;height:500px;overflow:hidden;background:#0b0f1c;-webkit-font-smoothing:antialiased}
-  .au{position:absolute;border-radius:50%;filter:blur(30px)}
-  .st{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:.35}
-  .txt{position:absolute;left:66px;top:0;height:500px;display:flex;flex-direction:column;justify-content:center}
+  .pano{position:absolute;left:-760px;top:-70px}
+  .txt{position:absolute;left:62px;top:0;height:500px;display:flex;flex-direction:column;justify-content:center}
   .brand{display:flex;align-items:center;gap:10px}
-  .brand svg{width:92px;height:92px;flex:none;margin-left:-10px;filter:drop-shadow(0 6px 22px rgba(127,176,255,.4))}
-  h1{margin:0;font:800 70px/1 'MO Display',sans-serif;letter-spacing:-.028em;color:#f5f7ff;white-space:nowrap}
-  p{margin:26px 0 0 4px;font:500 28px/1.32 'MO Text',sans-serif;color:#b9c2dc;letter-spacing:-.002em}
-  p b{font-weight:600;background:${FOIL};-webkit-background-clip:text;background-clip:text;color:transparent}
-  .fan{position:absolute;inset:0}
-  </style></head><body>
-  <div class="au" style="left:-180px;top:-260px;width:620px;height:620px;background:radial-gradient(circle,rgba(63,143,224,.6),transparent 66%)"></div>
-  <div class="au" style="left:600px;top:-300px;width:560px;height:560px;background:radial-gradient(circle,rgba(199,155,255,.44),transparent 66%)"></div>
-  <div class="au" style="left:690px;top:190px;width:560px;height:560px;background:radial-gradient(circle,rgba(224,83,61,.46),transparent 66%)"></div>
-  <div class="au" style="left:160px;top:260px;width:520px;height:520px;background:radial-gradient(circle,rgba(58,154,94,.34),transparent 66%)"></div>
-  <i class="st" style="left:560px;top:64px"></i><i class="st" style="left:600px;top:430px;opacity:.22"></i><i class="st" style="left:985px;top:52px;opacity:.25"></i><i class="st" style="left:44px;top:446px;opacity:.2"></i>
-  ${fanSvg()}
+  .brand svg{width:88px;height:88px;flex:none;margin-left:-10px;filter:drop-shadow(0 6px 22px rgba(127,176,255,.4))}
+  h1{margin:0;font:800 66px/1 'MO Display',sans-serif;letter-spacing:-.028em;color:#f5f7ff;white-space:nowrap}
+  p{margin:24px 0 0 4px;font:500 27px/1.32 'MO Text',sans-serif;color:#c3cbe0;letter-spacing:-.002em}
+  p b{font-weight:700;background:${FOIL};-webkit-background-clip:text;background-clip:text;color:transparent}
+  .dev{position:absolute;width:178px;padding:5px;border-radius:26px;background:linear-gradient(180deg,#323a5e,#151b30 22%,#0f1426);box-shadow:0 0 0 1.5px rgba(255,255,255,.13),0 28px 60px rgba(0,0,0,.55)}
+  .dev img{display:block;width:178px;height:287px;border-radius:21px}
+  </style></head><body>${panoSvg(3020, 640)}
+  ${phone(home, 600, 120, -8)}${phone(scan, 790, 70, 6)}
   <div class="txt"><div class="brand"><svg viewBox="6 8 88 88"><defs><linearGradient id="foil" x1="0" y1="0" x2="1" y2="1">${FOIL_STOPS}</linearGradient></defs>${LOGO}</svg><h1>Mana Orbit</h1></div>
     <p>${TAG[lang]}</p></div>
   </body></html>`;
 }
 
+/** Carte mystère : une carte du jeu dessinée ici (même rendu que les autres), en PNG 745 × 1040 par langue, servie au serveur par le faux Scryfall de tests/daily-fakes.mjs. */
+const DLY_CARD = { set: 'tst', num: '17', en: 'Blood Artist', names: { fr: 'Artiste sanglant', de: 'Blutkünstler', es: 'Artista sangriento', it: 'Artista del sangue', pt: 'Artista sangrento' }, type: 'Creature — Vampire', text: 'Whenever a creature dies, target player loses 1 life.' };
+async function dailyPngs() {
+  const pg = await browser.newPage({ viewport: { width: 745, height: 1040 }, deviceScaleFactor: 1 }), out = {};
+  for (const l of ['fr', 'en', 'de', 'es', 'it', 'pt']) {
+    const svg = cardSvg(DLY_CARD.en, l).replace('width="488" height="680"', 'width="745" height="1040"');
+    await pg.setContent(`<!doctype html><html><body style="margin:0;background:#121214">${svg}</body></html>`);
+    out[l] = await pg.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 745, height: 1040 } });
+  }
+  await pg.close(); return out;
+}
 
-world = await startWorld({ port: PORT, env: { ALLOWED_UIDS: 'store-owner' } });      // comme en production : token CardTrader du serveur réservé au compte du propriétaire, le visiteur n'a que Cardmarket
+
+FAKES = await startFakes();      // faux Firebase (jetons vérifiés par le serveur) : compte connecté de la Carte mystère
 browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--font-render-hinting=none'] });
+const DLY_PNG = await dailyPngs();
+// comme en production : token CardTrader du serveur réservé au compte du propriétaire, le visiteur n'a que Cardmarket
+world = await startWorld({ port: PORT, daily: { cards: [DLY_CARD], png: (set, num, l) => DLY_PNG[l] || DLY_PNG.en }, env: { ALLOWED_UIDS: 'store-owner', FIREBASE_JWKS_URL: FAKES.env.FIREBASE_JWKS_URL, DAILY_MIN_AGE_DAYS: '0' } });
+for (let i = 0; i < 150; i++) { try { const j = await (await fetch(world.url + 'api/daily')).json(); if (j.st === 'ready') break; } catch (e) { /* serveur pas encore là */ } await new Promise(r => setTimeout(r, 200)); }
 try {
-  if (what === 'all' || what === 'feature') for (const l of LANGS) { const f = await render(featurePage(l), 1024, 500, OUT + (l === 'fr' ? 'feature-graphic' : 'feature-graphic-en')); console.log(`  ${f}  ${(statSync(f).size / 1024).toFixed(0)} Ko`); }
   if (what === 'all' || what === 'shots') for (const l of LANGS) await shotsFor(l);
+  if (what === 'feature') for (const l of LANGS) await shotsFor(l, ['01-scan', '02-cote']);
   if (what === 'raw') for (const l of LANGS) await rawFor(l);
-} finally { await browser.close(); world.stop(); }
+} finally { await browser.close(); world.stop(); FAKES.stop(); }
 process.exit(0);

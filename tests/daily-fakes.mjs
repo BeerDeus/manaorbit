@@ -26,7 +26,7 @@ export const fakeCardPng = (lang, seed) => pngEncode(fakeCardImg(lang, seed), { 
 export const SERRA = { set: 'tst', num: '17', en: 'Serra Angel', names: { fr: 'Ange de Serra', de: 'Serra-Engel', es: 'Ángel de Serra', it: 'Angelo di Serra', pt: 'Anjo de Serra' }, type: 'Creature — Angel', text: 'Flying, vigilance' };
 export const LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt'];
 
-/** Démarre le faux Scryfall. o : { cards, per (cartes par page de recherche), pngFail: Set('set/num/lang') }. → { url, hits, cards, pngs, stop } */
+/** Démarre le faux Scryfall. o : { cards, per (cartes par page de recherche), pngFail: Set('set/num/lang'), png?: (set, num, lang) => Buffer PNG }. → { url, hits, cards, pngs, stop } */
 export async function startDailyScry(o = {}) {
   const S = { cards: o.cards || [SERRA], per: o.per || 175, hits: [], pngs: [], pngFail: o.pngFail || new Set(), cache: new Map() };
   const cardOf = (c, l, base) => ({
@@ -50,7 +50,7 @@ export async function startDailyScry(o = {}) {
       const k = m.slice(1).join('/'); S.pngs.push(k);
       if (S.pngFail.has(k)) { res.writeHead(500); return res.end('boom'); }
       const i = S.cards.findIndex(x => x.set === m[1] && x.num === m[2]);
-      if (!S.cache.has(k)) S.cache.set(k, fakeCardPng(m[3], i));
+      if (!S.cache.has(k)) S.cache.set(k, o.png ? o.png(m[1], m[2], m[3]) : fakeCardPng(m[3], i));      // o.png : images fournies (visuels de la fiche, tools/store-assets.mjs)
       res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(S.cache.get(k));
     }
     send(404, { object: 'error' });
