@@ -8,6 +8,10 @@ import { join } from 'node:path';
 const root = new URL('../', import.meta.url).pathname;
 process.chdir(root);
 if (process.env.PRICES_SOURCE_URL === undefined) process.env.PRICES_SOURCE_URL = '';      // le proxy des tests ne va jamais chercher les prix sur GitHub
+if (!process.env.EDH_DATA_DIR) {      // copies du serveur (prices.tsv.gz, edh.bin.gz, boot.json) : dossier temporaire ; un .data/ laissé par un « node proxy.mjs » lancé à la main changeait les prix des tests
+  const d = mkdtempSync(join(tmpdir(), 'deckdeal-data-')); process.env.EDH_DATA_DIR = d;
+  process.on('exit', () => { try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
+}
 if (!process.env.SCAN_REPORTS_DIR) {      // scans signalés (proxy.mjs) : dossier temporaire, jamais le vrai .data/ du dépôt
   const d = mkdtempSync(join(tmpdir(), 'deckdeal-scanrep-')); process.env.SCAN_REPORTS_DIR = join(d, 'scan-reports');
   process.on('exit', () => { try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
