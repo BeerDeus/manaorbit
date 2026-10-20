@@ -13,6 +13,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
+import { crc32 } from 'node:zlib';
 import { MANA } from './fonts/mana-symbols.mjs';
 
 const require = createRequire(import.meta.url);
@@ -21,7 +22,9 @@ const { chromium } = createRequire(new URL('../tests/', import.meta.url))('playw
 export const FLYER_URL = 'https://manaorbit.app/flyer';      // imprimé : ne change jamais
 const OUT = 'docs/print/', SHOTS = 'shots/store/fr-', ARGS = process.argv.slice(2);
 const FMT = ARGS.includes('a4') ? 'a4' : 'a5', which = ARGS.find(a => a !== 'a4' && a !== 'a5') || 'all';
-const S = FMT === 'a5' ? 148 / 210 : 1, PW = 210 * S + 6, PH = 297 * S + 6;      // échelle de la mise en page (tracée en A4, mm) ; page avec 3 mm de fond perdu
+// Page avec 3 mm de fond perdu, à la taille exacte du format (A5 : 154 × 216 mm) ; mise en page tracée en A4 (mm), réduite d'un seul facteur (210 → 297 sur la hauteur :
+// l'A5 n'est pas tout à fait un A4 réduit, les 0,5 mm de trop en largeur sont centrés dans le fond perdu)
+const [TW, TH] = FMT === 'a5' ? [148, 210] : [210, 297], S = TH / 297, PW = TW + 6, PH = TH + 6, TX = 3 + (TW - 210 * S) / 2;
 
 const b64 = f => readFileSync(f).toString('base64');
 const font = (fam, f) => existsSync(f) ? `@font-face{font-family:'${fam}';font-weight:200 800;src:url(data:font/woff2;base64,${b64(f)}) format('woff2')}` : '';
@@ -181,7 +184,7 @@ function page(v) {
   .sc{position:absolute;left:0;top:0;width:216mm;height:303mm;transform:scale(${PW / 216});transform-origin:0 0}      /* fond et étoiles, à la taille de la page */
   .bg{position:absolute;inset:0;background:radial-gradient(110mm 90mm at 18% 4%,rgba(58,78,170,.5),transparent 70%),radial-gradient(100mm 90mm at 100% 56%,rgba(224,83,61,.2),transparent 70%),radial-gradient(90mm 70mm at 0% 92%,rgba(63,168,120,.12),transparent 70%)}
   .sky{position:absolute;inset:0;width:100%;height:100%}
-  .t{position:absolute;left:3mm;top:3mm;width:210mm;height:297mm;transform:scale(${S});transform-origin:0 0}      /* format fini, tracé en mm A4 depuis le bord coupé, réduit en A5 */
+  .t{position:absolute;left:${TX}mm;top:3mm;width:210mm;height:297mm;transform:scale(${S});transform-origin:0 0}      /* format fini, tracé en mm A4 depuis le bord coupé, réduit en A5 */
   .art{position:absolute;inset:0;width:210mm;height:297mm}
   .dev{position:absolute;padding:1.5mm;border-radius:8mm;background:linear-gradient(180deg,#323a5e,#151b30 22%,#0f1426);box-shadow:0 0 0 .35mm rgba(255,255,255,.14),0 6mm 14mm rgba(0,0,0,.45)}
   .dev img{display:block;border-radius:6.6mm}
@@ -224,16 +227,29 @@ function page(v) {
   </div></div></body></html>`;
 }
 
+// Fichiers : PDF pour l'imprimeur = la page en image (JPEG 600 dpi) dans un PDF à la taille exacte, sans aucune police (Chromium intègre nos polices
+// variables en « Type 3 », refusées par le contrôle de Vistaprint : « polices non incorporées ») ; PNG 300 dpi (aperçu, ou à envoyer tel quel), dpi déclarés.
+/** PNG : déclare sa résolution (bloc pHYs, juste après IHDR). */
+const pngDpi = (buf, dpi) => {
+  const ppm = Math.round(dpi / .0254), data = Buffer.alloc(9); data.writeUInt32BE(ppm, 0); data.writeUInt32BE(ppm, 4); data[8] = 1;
+  const type = Buffer.from('pHYs'), len = Buffer.alloc(4), crc = Buffer.alloc(4); len.writeUInt32BE(9); crc.writeUInt32BE(crc32(Buffer.concat([type, data])) >>> 0);
+  const at = 8 + 25; return Buffer.concat([buf.subarray(0, at), len, type, data, crc, buf.subarray(at)]);      // signature (8) + IHDR (25)
+};
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || (existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined), args: ['--no-sandbox'] });
 mkdirSync(OUT, { recursive: true });
-for (const v of VARIANTS) {
-  const px = mm => Math.ceil(mm / 25.4 * 96);
-  const ctx = await browser.newContext({ viewport: { width: px(PW), height: px(PH) }, deviceScaleFactor: 300 / 96 });      // page à 96 px/po ; PNG à 300 dpi
+const cssPx = mm => mm / 25.4 * 96, clip = { x: 0, y: 0, width: cssPx(PW), height: cssPx(PH) };
+const shotAt = async (v, dpi, opt) => {      // la page rendue à dpi points par pouce, à la taille exacte de la page (fond perdu compris)
+  const ctx = await browser.newContext({ viewport: { width: Math.ceil(clip.width) + 2, height: Math.ceil(clip.height) + 2 }, deviceScaleFactor: dpi / 96 });
   const p = await ctx.newPage(); await p.setContent(page(v), { waitUntil: 'load' }); await p.evaluate(() => document.fonts.ready);
+  const b = await p.screenshot({ ...opt, clip }); await ctx.close(); return b;
+};
+for (const v of VARIANTS) {
   const base = OUT + 'flyer-' + FMT + '-' + v;
-  await p.pdf({ path: base + '.pdf', width: PW + 'mm', height: PH + 'mm', printBackground: true, preferCSSPageSize: true });
-  writeFileSync(base + '.png', await p.screenshot({ type: 'png', clip: { x: 0, y: 0, width: PW / 25.4 * 96, height: PH / 25.4 * 96 } }));
-  console.log('  ' + base + '.pdf · .png');
-  await ctx.close();
+  writeFileSync(base + '.png', pngDpi(await shotAt(v, 300, { type: 'png' }), 300));
+  const jpg = await shotAt(v, 600, { type: 'jpeg', quality: 93 });
+  const ctx = await browser.newContext(), p = await ctx.newPage();
+  await p.setContent(`<!doctype html><html><head><style>@page{size:${PW}mm ${PH}mm;margin:0}html,body{margin:0;padding:0}img{display:block;width:${PW}mm;height:${PH}mm}</style></head><body><img src="data:image/jpeg;base64,${jpg.toString('base64')}"></body></html>`, { waitUntil: 'load' });
+  await p.pdf({ path: base + '.pdf', width: PW + 'mm', height: PH + 'mm', printBackground: true, preferCSSPageSize: true }); await ctx.close();
+  console.log('  ' + base + '.pdf (600 dpi, sans police) · .png (300 dpi)');
 }
 await browser.close();

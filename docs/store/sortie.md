@@ -116,7 +116,9 @@ Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (va
   Nom et coût de vraies cartes en texte (permis). Illustration : la vraie pour Lightning Bolt (`tools/flyer-art/lightning-bolt.jpg`, recadrage « art crop » de Scryfall, Christopher Moeller, crédité dans les mentions) ; dégradé foil pour The Ur-Dragon tant que `the-ur-dragon.jpg` n'est pas déposée.
 - **Retenue le 20 octobre : `solo-a-bolt`** (`docs/print/flyer-a5-solo-a-bolt.pdf`).
 
-**Fichiers** : `docs/print/flyer-a5-<déclinaison>.pdf` (à envoyer à l'imprimeur : texte, dessin et QR en vectoriel) et `.png` (aperçu, imprimable aussi : 300 dpi). En A4 (affiche au mur d'une boutique) : `flyer-a4-<déclinaison>`.
+**Fichiers** (seule la déclinaison retenue est gardée dans `docs/print/`, les autres se refont avec `node tools/flyer.mjs <déclinaison>`) : `docs/print/flyer-a5-solo-a-bolt.pdf` (à envoyer à l'imprimeur) et `.png` (aperçu, imprimable aussi : 300 dpi, déclarés dans le fichier). En A4 (affiche au mur d'une boutique) : `flyer-a4-solo-a-bolt`.
+
+**PDF sans police** : la page y est une image à 600 dpi (deux fois la résolution d'impression). Un PDF avec nos polices variables était refusé par Vistaprint (« polices non incorporées » : Chromium les intègre en Type 3). Vérifier avec `pdffonts docs/print/flyer-a5-solo-a-bolt.pdf` : aucune ligne sous l'en-tête.
 
 **Format** : A5 avec **fond perdu de 3 mm** (fichier de 154 × 216 mm, coupé à 148 × 210). Ce n'est pas l'A4 réduit : petits textes et QR agrandis pour l'A5 (mentions à 6 pt, QR ≈ 25 mm), textes à 10 mm du bord au moins. Ne pas laisser l'imprimeur réduire le fichier A4 : mentions illisibles, fond perdu trop court.
 
