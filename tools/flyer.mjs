@@ -124,6 +124,7 @@ const V = {
   'solo-a-bolt': () => ({      // la A en symboles de mana, et derrière le téléphone une carte « Lightning Bolt » ({R}, éphémère)
     art: svg(halo(150, 156, 64, 76) + ghostCard(160, 113, 64, 10, ['R'], 'Lightning Bolt', 'Éphémère', null, artOf('lightning-bolt'))) + orbited(phone(116, 92, 66, 4), orbit(150, 160, 68, 22, -16), [315, 58, 140, 240, 95], [2.2, 2.3, 2.5, 2.2, 2.3], true) + list('l', true),
     css: '.list.l{left:14mm;top:118mm;width:92mm}.list i.ms{width:8.4mm;height:8.4mm;border:0;margin-left:-1mm}.list li{grid-template-columns:10.5mm 1fr!important}', h1: 48, sub: { top: 73, w: 94 }, sky: y => y < 30,
+    credit: artOf('lightning-bolt') ? 'Illustration de Lightning Bolt : Christopher Moeller.' : '',
   }),
   'solo-a-dragon': () => ({      // la A en symboles de mana, et derrière le téléphone « The Ur-Dragon » ({4}{W}{U}{B}{R}{G} : les cinq couleurs des orbes)
     art: svg(halo(150, 156, 64, 76) + ghostCard(160, 113, 64, 10, ['4', 'W', 'U', 'B', 'R', 'G'], 'The Ur-Dragon', 'Créature légendaire : dragon et avatar', '10/10', artOf('the-ur-dragon'))) + orbited(phone(116, 92, 66, 4), orbit(150, 160, 68, 22, -16), [315, 58, 140, 240, 95], [2.2, 2.3, 2.5, 2.2, 2.3], true) + list('l', true),
@@ -219,7 +220,7 @@ function page(v) {
   <h1>${d.h1Text || H1}</h1>
   <p class="sub">${SUB}</p>
   <div class="cta"><div class="qr">${QR}</div><div class="tx"><b>Scanne pour l'installer</b><span><strong>Android</strong> : Google Play<br><strong>iPhone</strong> : App Store <em class="soon">à venir</em><br><strong>Ordinateur et iPhone</strong> : manaorbit.app</span></div><div class="free">0 €<small>pour toujours</small></div></div>
-  <p class="fine">${FINE}</p>
+  <p class="fine">${FINE}${d.credit ? ' ' + d.credit : ''}</p>
   </div></div></body></html>`;
 }
 

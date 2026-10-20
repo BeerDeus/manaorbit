@@ -113,7 +113,8 @@ Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (va
 - `solo-a-mana` : la A (retenue le 20 octobre), orbes et puces en **vrais symboles de mana** (Scan blanc, Échange bleu, Cote vert, Classeur noir, Commander rouge) ;
 - `solo-a-bolt` : la même, avec derrière le téléphone une carte « Lightning Bolt » ({R}, éphémère) ;
 - `solo-a-dragon` : pareil avec « The Ur-Dragon » ({4}{W}{U}{B}{R}{G} : les cinq couleurs des orbes).
-  Nom et coût de vraies cartes en texte (permis). Illustration : dégradé foil, ou la vraie illustration si elle est déposée dans `tools/flyer-art/lightning-bolt.jpg` ou `the-ur-dragon.jpg` (recadrage « art crop » de Scryfall).
+  Nom et coût de vraies cartes en texte (permis). Illustration : la vraie pour Lightning Bolt (`tools/flyer-art/lightning-bolt.jpg`, recadrage « art crop » de Scryfall, Christopher Moeller, crédité dans les mentions) ; dégradé foil pour The Ur-Dragon tant que `the-ur-dragon.jpg` n'est pas déposée.
+- **Retenue le 20 octobre : `solo-a-bolt`** (`docs/print/flyer-a5-solo-a-bolt.pdf`).
 
 **Fichiers** : `docs/print/flyer-a5-<déclinaison>.pdf` (à envoyer à l'imprimeur : texte, dessin et QR en vectoriel) et `.png` (aperçu, imprimable aussi : 300 dpi). En A4 (affiche au mur d'une boutique) : `flyer-a4-<déclinaison>`.
 
