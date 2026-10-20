@@ -20,15 +20,20 @@ const closeSheets = p => p.evaluate(() => { while (sheets.length) sheets[sheets.
 
 /* ── Ordinateur 1890 × 900 ── */
 const { p, errs } = await newPage(browser, world, { init, ctx: { viewport: { width: 1890, height: 900 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1 } });
-await p.waitForSelector('.hm-cols'); await sets()(p); await p.waitForTimeout(300);
-const lay = await p.evaluate(() => ({ cols: [...document.querySelectorAll('.hm-col')].map(c => [...c.children].map(x => x.id || x.className.split(' ')[0]).join(',')), over: document.documentElement.scrollHeight - innerHeight, rows: [...document.querySelectorAll('.hm-col')].map(c => Math.round(c.getBoundingClientRect().top)) }));
-assert.deepEqual(lay.cols, ['hm-dk,hm-hero,hm-dk', 'hm-dk,hmTrade,hmPartie,hmStores', 'installWrap,buyBar,hmSets,btnHelp'], JSON.stringify(lay.cols));
-assert.ok(lay.over <= 0, 'rien à faire défiler (' + lay.over + ' px de trop)'); assert.equal(new Set(lay.rows).size, 1, 'colonnes alignées en haut');
+await p.waitForSelector('.hm-cols'); await sets()(p); await p.waitForTimeout(1000);      // fin de l'arrivée animée des extensions (hmDeal)
+const lay = await p.evaluate(() => ({ cols: [...document.querySelectorAll('.hm-col')].map(c => [...c.children].map(x => x.id || x.className.split(' ')[0]).join(',')), over: document.documentElement.scrollHeight - innerHeight,
+  tops: ['.hm-hero', '.hm-dk-acts', '#hmSets'].map(q => Math.round(document.querySelector(q).getBoundingClientRect().top)), head: document.querySelector('.hm-cols > .hm-dk-head') ? Math.round(document.querySelector('.hm-dk-head').getBoundingClientRect().bottom) : -1 }));
+assert.deepEqual(lay.cols, ['hm-hero,hm-dk', 'hm-dk,hmTrade,hmPartie,hmStores', 'installWrap,buyBar,hmSets,btnHelp'], JSON.stringify(lay.cols));
+assert.ok(lay.over <= 0, 'rien à faire défiler (' + lay.over + ' px de trop)');
+assert.equal(new Set(lay.tops).size, 1, 'orbe, raccourcis et extensions (barre d\'installation fermée) à la même hauteur : ' + lay.tops); assert.ok(lay.head > 0 && lay.head < lay.tops[0], 'salutation au-dessus, sur toute la largeur');
 assert.match(await txt(p, '#hmDkHi'), /^Bon(jour|soir)$/); assert.ok((await txt(p, '#hmDkDate')).length > 6, 'date du jour');
 assert.match(await txt(p, '#hmDkKpi'), /^3 cartes différentes 9 exemplaires [+−].+€ sur 7 jours [+−].+€ sur 30 jours/);
 assert.equal(await p.$$eval('#hmDkChart svg.vl-svg', l => l.length), 1, 'courbe de valeur');
 assert.equal(await p.$$eval('#hmSetsList > li', l => l.length), 8, '8 prochaines extensions');
-ok('ordinateur : trois colonnes à la hauteur de l\'écran, chiffres, courbe, 8 extensions');
+await p.evaluate(() => { const w = document.getElementById('installWrap'); w.classList.remove('closed'); w.removeAttribute('aria-hidden'); }); await p.waitForTimeout(700);
+assert.equal(await p.evaluate(() => Math.round(document.querySelector('#installBar').getBoundingClientRect().top) - Math.round(document.querySelector('.hm-hero').getBoundingClientRect().top)), 0, 'barre d\'installation ouverte : alignée sur l\'orbe');
+assert.ok(await p.evaluate(() => document.documentElement.scrollHeight <= innerHeight), 'toujours rien à faire défiler');
+ok('ordinateur : salutation sur toute la largeur, trois colonnes alignées à la hauteur de l\'écran, chiffres, courbe, 8 extensions');
 
 await p.click('.hm-dk-a[data-hm="import"]'); await p.waitForFunction(() => sheets.length === 1); await closeSheets(p);
 await p.click('.hm-dk-a[data-hm="price"]'); await p.waitForFunction(() => S.view === 'input'); await p.evaluate(() => homePaint()); await p.click('.nav-b[data-nav="home"]'); await p.waitForFunction(() => S.view === 'home');

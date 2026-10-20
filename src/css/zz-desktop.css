@@ -36,11 +36,11 @@
   /* ── accueil : tableau de bord en trois colonnes (home.js › homeDesk), à la hauteur de l'écran ── */
   #app[data-view="home"] .wrap,#app[data-view="home"] .bar-in{max-width:1680px}
   body.nav-on #app[data-view="home"] .wrap{padding-top:14px;padding-bottom:22px}
-  .hm-cols{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr);gap:20px}
+  .hm-cols{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:16px 20px}
   .hm-col{display:flex;flex-direction:column;gap:16px;min-width:0;min-height:0;container-type:inline-size}
   @media (min-width:1380px) and (min-height:640px){.hm-cols{height:calc(100dvh - var(--hd-h) - var(--top-in,0px) - 40px)}}
   @media (max-width:1379px){.hm-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.hm-c3{grid-column:1 / -1}}
-  .hm-dk-head{display:block;padding:0 4px}
+  .hm-dk-head{display:block;grid-column:1 / -1;padding:0 4px}      /* au-dessus des colonnes : orbe, raccourcis et installation alignés en haut */
   .hm-dk-date{margin:0;font-size:13px;font-weight:600;color:var(--ink-3)}
   .hm-dk-hi{margin:2px 0 0;font-family:var(--font-display);font-size:30px;font-weight:750;letter-spacing:-.03em;line-height:1.15}
   /* orbe et chiffres */
@@ -92,6 +92,7 @@
   .hm-st-b span{display:flex;flex-direction:column;line-height:1.15;min-width:0}
   .hm-st-b small{font-size:10.5px;opacity:.72}
   .hm-st-b b{font-size:15.5px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+  @container (max-width:440px){.hm-stores{padding:12px 14px;gap:10px}.hm-st-h span{display:none}.hm-st-b{height:46px}}      /* colonne étroite : tout tient sans défiler */
   .hm-soon-w .sheet{max-width:420px}
   .hm-soon{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:6px 8px 4px}
   .hm-soon p{margin:0}
@@ -101,6 +102,8 @@
   .hm-c3 .hm-sets{display:flex;flex-direction:column;flex:0 1 auto;min-height:150px}
   .hm-c3 .hm-sets-l{flex:1 1 auto;min-height:0;overflow-y:auto}
   .hm-c3 .hm-help{margin-top:-6px}
+  .hm-c3>#installWrap{margin-top:0}
+  .hm-c3>#installWrap.closed{margin-bottom:-16px}      /* barre d'installation fermée : les extensions remontent en haut de la colonne (alignées sur l'orbe) */
 
   body.nav-on .bar .brand{visibility:hidden}      /* le nom est déjà en tête de la barre latérale */
 

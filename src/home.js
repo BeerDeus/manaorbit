@@ -111,9 +111,9 @@ async function homeTradeAct(qr) {
 }
 
 /* ── Ordinateur : tableau de bord ────────────────────────────────────────────────────────────────────────────────────────────────────────
-   Trois colonnes créées ici (le téléphone garde son DOM tel quel) : salutation, orbe et chiffres, courbe de valeur · raccourcis, échange, partie,
+   Salutation sur toute la largeur, puis trois colonnes créées ici (le téléphone garde son DOM tel quel) : orbe et chiffres, courbe de valeur · raccourcis, échange, partie,
    « Mana Orbit sur ton téléphone » · installation, prochaines extensions (8 au lieu de 4, la liste défile seule), aide. Défaites si la fenêtre redevient étroite (ordre d'origine rendu). */
-const HM_COLS = [['hm-c1', ['.hm-dk-head', '.hm-hero', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmPartie', '#hmStores']], ['hm-c3', ['#installWrap', '#buyBar', '#hmSets', '#btnHelp']]];
+const HM_COLS = [['hm-c1', ['.hm-hero', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmPartie', '#hmStores']], ['hm-c3', ['#installWrap', '#buyBar', '#hmSets', '#btnHelp']]];
 const homeDeskOn = () => !!(typeof NAV_DESK !== 'undefined' && NAV_DESK && NAV_DESK.matches);
 function homeDesk() {
   const home = $('#viewHome'); if (!home) return;
@@ -122,10 +122,11 @@ function homeDesk() {
   if (on) {
     HM.ord = [...home.children];
     const cols = document.createElement('div'); cols.className = 'hm-cols';
+    const hd = $('.hm-dk-head', home); if (hd) cols.appendChild(hd);      // salutation sur toute la largeur : les trois colonnes commencent à la même hauteur
     for (const [c, sel] of HM_COLS) { const col = document.createElement('div'); col.className = 'hm-col ' + c; for (const q of sel) { const el = $(q, home); if (el) col.appendChild(el); } cols.appendChild(col); }
     home.prepend(cols); homeDeskPaint(); if (typeof setsSoon === 'function') setsSoon(); return;
   }
-  const kids = $$('.hm-col > *', box), ord = (HM.ord || []).filter(x => kids.includes(x) || x.parentNode === home);
+  const kids = $$('.hm-cols > .hm-dk-head, .hm-col > *', box), ord = (HM.ord || []).filter(x => kids.includes(x) || x.parentNode === home);
   for (const k of kids) if (!ord.includes(k)) { const p = k.previousElementSibling, i = p ? ord.indexOf(p) : -1; ord.splice(i < 0 ? ord.length : i + 1, 0, k); }      // ajouté pendant (carte « Partie ») : après son voisin
   box.remove(); home.append(...ord); if (typeof setsSoon === 'function') setsSoon();      // 4 extensions de nouveau
 }
