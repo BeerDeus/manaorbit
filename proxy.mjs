@@ -3152,6 +3152,11 @@ const server = http.createServer(async (req, res) => {
     if (String(req.headers['x-forwarded-proto'] || '').split(',').pop().trim().toLowerCase() === 'https') res.setHeader('Strict-Transport-Security', 'max-age=15552000');
     const url = new URL(String(req.url).replace(/^\/+/, '/'), 'http://x'); // « // » ou « //hôte/chemin » ne doivent pas être lus comme une URL absolue
     if (OLD_HOSTS.length && OLD_HOSTS.includes(String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase()) && oldHost(req, res, url)) return;
+    if (url.pathname === '/flyer') {      // QR des flyers et affiches imprimés (tools/flyer.mjs) : lien fixe, la destination peut changer sans réimprimer
+      // Android → fiche Google Play (source « flyer » dans les rapports d'acquisition de la Play Console) ; iPhone, ordinateur → le site (?ref=flyer : ouverture normale)
+      const to = /\bAndroid\b/i.test(req.headers['user-agent'] || '') ? 'https://play.google.com/store/apps/details?id=app.manaorbit&referrer=' + encodeURIComponent('utm_source=flyer&utm_medium=print') : '/?ref=flyer';
+      res.writeHead(302, { Location: to, 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }); return res.end();
+    }
     if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });
     if (url.pathname === '/.well-known/assetlinks.json') return assetLinks(req, res);      // App Links de l'appli Android
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)

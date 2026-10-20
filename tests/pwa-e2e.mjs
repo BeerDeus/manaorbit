@@ -4,6 +4,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
 const up = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"id":1,"name":"t"}'); });
@@ -164,6 +165,13 @@ const fakePrompt = outcome => {
   { const r = await fetch(URL0 + 'sitemap.xml'); assert.equal(r.status, 200); assert.match(r.headers.get('content-type'), /^application\/xml/); const t = await r.text(), locs = [...t.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]);
     assert.deepEqual(locs, ['https://manaorbit.app/', 'https://manaorbit.app/passer-de-manabox', 'https://manaorbit.app/privacy', 'https://manaorbit.app/legal'], 'plan du site : pages publiques seulement');
     for (const u of locs.slice(1)) assert.equal((await fetch(URL0 + u.slice(22))).status, 200, u); }
+  { // /flyer (QR des flyers) : Android → fiche Google Play avec la source « flyer », le reste → le site
+    const go = ua => fetch(URL0 + 'flyer', { redirect: 'manual', headers: { 'user-agent': ua } });
+    let r = await go('Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/141.0 Mobile Safari/537.36'); assert.equal(r.status, 302);
+    assert.equal(r.headers.get('location'), 'https://play.google.com/store/apps/details?id=app.manaorbit&referrer=utm_source%3Dflyer%26utm_medium%3Dprint');
+    r = await go('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1'); assert.equal(r.status, 302); assert.equal(r.headers.get('location'), '/?ref=flyer');
+    assert.equal(r.headers.get('cache-control'), 'no-store');
+    assert.match(readFileSync('tools/flyer.mjs', 'utf8'), /export const FLYER_URL = 'https:\/\/manaorbit\.app\/flyer';/, 'lien des flyers déjà imprimés : jamais changé (la destination se règle ici, dans /flyer)'); }
   assert.equal((await fetch(URL0 + 'privacy.html')).status, 200); assert.match(html, /href="legal"/, 'confidentialité → mentions légales');
   for (const u of ['legal', 'legal.html', 'mentions-legales']) { const r = await fetch(URL0 + u); assert.equal(r.status, 200, u); const l = await r.text();
     for (const re of [/Mentions légales/, /Legal notice/, /104 711 445 00015/, /Hostinger International Ltd/, /Fan Content Policy/, /href="privacy"/]) assert.match(l, re, u + ' : ' + re); }
@@ -181,7 +189,7 @@ const fakePrompt = outcome => {
   await pg.click('#btnWipe'); await pg.click('#btnWipeGo'); await pg.waitForEvent('load', { timeout: 8000 }); await pg.waitForTimeout(400);
   assert.equal(await pg.evaluate(() => localStorage.getItem('deckdeal:coll:v1')), null); assert.equal(await pg.evaluate(() => localStorage.getItem('autre-site')), '1', 'seules les clés de l\'appli sont effacées');
   assert.deepEqual(errs, []); await c.close();
-  console.log('✓ confidentialité : /privacy servie (6 langues, lien de suppression, mention Fan Content), /legal (mentions légales : éditeur, SIRET, hébergeur), robots.txt et sitemap.xml, reliée depuis /privacy et les Réglages, mentions et sources, plus d\'adresse, effacement de l\'appareil en deux temps');
+  console.log('✓ confidentialité : /privacy servie (6 langues, lien de suppression, mention Fan Content), /legal (mentions légales : éditeur, SIRET, hébergeur), robots.txt et sitemap.xml, /flyer (Android → Play, sinon le site), reliée depuis /privacy et les Réglages, mentions et sources, plus d\'adresse, effacement de l\'appareil en deux temps');
 }
 console.log('\nPWA E2E OK');
 await browser.close(); proxy.kill(); up.close(); process.exit(0);

@@ -100,3 +100,21 @@ Les textes de #bienvenue et #règles (français puis anglais) sont dans le scrip
 ### Après
 - Lien Discord à mettre : message aux testeurs (§ 1), page /testeurs, réseaux (bio), et dans l'appli (Réglages, à ajouter quand le lien existe).
 - Possible plus tard : publication automatique de chaque nouvelle version dans `#annonces` (webhook Discord appelé par le serveur).
+
+## 3. Flyers pour les boutiques (A4, fond sombre)
+
+Quatre pistes, refaites par `node tools/flyer.mjs` (ou `node tools/flyer.mjs mix` pour une seule) :
+- `apercus` : trois vraies captures sur l'orbite foil, quatre points ;
+- `mix` : les trois captures prises dans l'orbite, cinq orbes de mana (Scan, Cote, Classeur, Échange, Commander) ;
+- `orbite` : sans capture, une carte foil au centre de l'orbite ;
+- `solo` : « Combien vaut ton classeur ? », une capture en grand, la liste des cinq parties.
+
+**Fichiers** : `docs/print/flyer-a4-<piste>.pdf` (à envoyer à l'imprimeur : texte, dessin et QR en vectoriel) et `.png` (aperçu, imprimable aussi : 300 dpi).
+
+**Format** : A4 avec **fond perdu de 3 mm** (fichier de 216 × 303 mm, coupé à 210 × 297) ; textes et QR à 14 mm du bord au moins.
+
+**Vistaprint** : Flyers › A4 › recto › papier épais (170 g ou plus), **mat** de préférence (pas de reflet sur le QR) › « Importer votre design » › le PDF. Vérifier l'aperçu (ligne de coupe, zone de sécurité). Le fond sombre ressort un peu moins foncé qu'à l'écran (conversion en quadrichromie).
+
+**QR** : `https://manaorbit.app/flyer`, **ne change jamais** (test `pwa-e2e.mjs`). Le serveur décide où il mène : Android → fiche Google Play (source « flyer » dans Play Console › Statistiques › Acquisition), iPhone et ordinateur → le site. Avant d'en commander 500 : en imprimer un chez soi et le scanner avec un Android et un iPhone.
+
+**En boutique** : demander au gérant avant de déposer ; 20 à 30 près de la caisse ou des tables de jeu ; un exemplaire au tableau d'affichage s'il y en a un.
