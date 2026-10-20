@@ -4,6 +4,7 @@
 // Images des cartes : cartes factices dessinées ici (dégradés, aucune illustration réelle). Polices : tools/fonts/ si présentes (OFL), sinon repli système.
 //   node tools/store-assets.mjs              tout (bannières + captures FR et EN)
 //   node tools/store-assets.mjs feature      bannières seulement      node tools/store-assets.mjs shots en   captures anglaises seulement
+//   node tools/store-assets.mjs raw fr      captures brutes seulement (SHOTS + MORE) dans shots/store/ (maquettes)
 //   RAW=1 : garde aussi les captures brutes de l'appli (sans bandeau) dans shots/store/ (non versionné) · CHROMIUM : chemin du navigateur
 import '../tests/setup-env.mjs';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, unlinkSync } from 'node:fs';
@@ -327,6 +328,17 @@ function scryCard(name, lang = 'en') {
     cmc: c.cmc, type_line: c.type, mana_cost: c.cost, colors: c.colors, color_identity: c.ci, oracle_text: '', legalities: { commander: 'legal' }, prices: { eur: c.eur ? (c.eur / 100).toFixed(2) : null, eur_foil: null },
     image_uris: { small: imgUrl('small', c, lang), normal: imgUrl('normal', c, lang), large: imgUrl('large', c, lang), art_crop: imgUrl('art_crop', c, lang) } };
 }
+/** Extension du masterset (capture « Masterset ») : 48 cartes du deck d'Edgar Markov, rangées comme une vraie extension (couleur, puis nom), raretés au prix. */
+const MS_CODE = 'cmm', MS_NAME = 'Commander Masters', MS_ORD = c => (c.colors.length > 1 ? 5 : c.colors.length ? 'WUBRG'.indexOf(c.colors[0]) : /Land/.test(c.type) ? 7 : 6);
+const MS_CARDS = EDGAR.map(([n]) => card(n)).filter(c => c && !BASICS[front(c.name)]).slice(0, 48).sort((a, b) => MS_ORD(a) - MS_ORD(b) || a.name.localeCompare(b.name, 'en'))
+  .map((c, i) => ({ c, num: String(i + 1), rarity: c.eur > 1500 ? 'mythic' : c.eur > 400 ? 'rare' : c.eur > 90 ? 'uncommon' : 'common' }));
+const msScry = (x, lang = 'en') => ({ ...scryCard(x.c.name, lang), set: MS_CODE, set_name: MS_NAME, collector_number: x.num, rarity: x.rarity, finishes: ['nonfoil', 'foil'] });
+/** Lignes de la collection pour cette extension : les cartes possédées, avec leur édition (« 1 Sol Ring (CMM) 12 »). */
+const msCollText = () => MS_CARDS.filter(x => OWN.has(front(x.c.name))).map(x => `1 ${x.c.name} (${MS_CODE.toUpperCase()}) ${x.num}`).join('\n');
+const SETS_LIST = [[MS_CODE, MS_NAME, 'masters', '2023-08-04', 48], ['vow', 'Innistrad: Crimson Vow', 'expansion', '2021-11-19', 277], ['cmr', 'Commander Legends', 'draft_innovation', '2020-11-20', 361],
+  ['fdn', 'Foundations', 'core', '2024-11-15', 271], ['m3c', 'Modern Horizons 3 Commander', 'commander', '2024-06-14', 336], ['lci', 'The Lost Caverns of Ixalan', 'expansion', '2023-11-17', 291]]
+  .map(([code, name, set_type, released_at, n]) => ({ object: 'set', code, name, set_type, released_at, printed_size: n, card_count: n, icon_svg_uri: `https://svgs.scryfall.io/sets/${code}.svg?1700000000` }));
+const SET_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M16 2 29 8.5 26.5 24 16 30 5.5 24 3 8.5Z" fill="#000"/><path d="M16 8 22 11v8l-6 4-6-4v-8Z" fill="#fff"/></svg>';
 const namesIn = q => [...String(q).matchAll(/!"(.+?)"/g)].map(m => m[1]);
 let BY_NUM = null;
 const CORS = { 'access-control-allow-origin': '*' };
@@ -338,8 +350,11 @@ async function scryRoute(route) {
     for (const i of ids) { const c = scryCard(i.name || ''); if (c) data.push(c); else not_found.push(i); }
     return json({ object: 'list', not_found, data });
   }
+  if (u.pathname === '/sets') return json({ object: 'list', has_more: false, data: SETS_LIST });
   if (u.pathname === '/cards/search') {
     const q = u.searchParams.get('q') || '', nm = namesIn(q), l = (/lang:([a-z]+)/.exec(q) || [])[1];
+    const em = /^e:([a-z0-9]+)(?: lang:([a-z]+))?$/.exec(q);
+    if (em) return em[1] === MS_CODE && !em[2] ? json({ object: 'list', has_more: false, total_cards: MS_CARDS.length, data: MS_CARDS.map(x => msScry(x)) }) : nf();      // cartes d'une extension (masterset)
     if (/paperprints=1/.test(q)) return nf();      // aucune édition posée d'office dans la collection : les numéros factices se recoupent d'une carte à l'autre (prix et images mélangés)
     if (u.searchParams.get('unique') === 'prints' && l) {      // une seule impression par carte : son édition est posée d'office (scan, collection)
       const c = nm.length && card(nm[0]), data = c && (l === 'en' || (l === 'fr' && c.fr)) ? [scryCard(c.name, l)] : [];
@@ -429,6 +444,7 @@ async function openApp(lang) {
   await ctx.route('**/*', r => { const u = r.request().url(); return u.startsWith(world.url) || /^(data|blob):/.test(u) ? r.continue() : r.abort(); });      // rien ne sort
   await p.route('https://api.scryfall.com/**', scryRoute);
   await p.route('https://cards.scryfall.io/**', imgRoute);
+  await p.route('https://svgs.scryfall.io/**', r => r.fulfill({ status: 200, headers: CORS, contentType: 'image/svg+xml', body: SET_SVG }));      // symboles d'extension
   await p.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, fontRoute);
   await p.route('**/edh.bin.gz', r => r.fulfill({ status: 200, contentType: 'application/octet-stream', headers: { 'content-encoding': 'gzip' }, body: BIN }));
   await p.route('**/fr-names.tsv', r => r.fulfill({ status: 200, contentType: 'text/tab-separated-values; charset=utf-8', body: readFileSync('pwa/fr-names.tsv') }));
@@ -443,7 +459,7 @@ async function openApp(lang) {
   return c;
 }
 /** Revient à l'accueil : ferme feuilles, visionneuses, scan, collection, decks. */
-const toHome = p => p.evaluate(() => { try { sheets.slice().reverse().forEach(s => s.close()); } catch (e) { /* aucune */ } for (const f of [closeCardImage, closeDeckViewer, closeScan, closeCollection, closeDecks]) try { f(); } catch (e) { /* déjà fermé */ } showView('home'); window.scrollTo(0, 0); }).then(() => p.waitForTimeout(700));
+const toHome = p => p.evaluate(() => { try { sheets.slice().reverse().forEach(s => s.close()); } catch (e) { /* aucune */ } for (const f of [closeCardImage, closeDeckViewer, closeScan, closeCollection, closeDecks, puClose]) try { f(); } catch (e) { /* déjà fermé */ } showView('home'); window.scrollTo(0, 0); }).then(() => p.waitForTimeout(700));
 /** Attend que les images visibles soient chargées. */
 const imgsReady = p => p.waitForFunction(() => [...document.images].filter(i => { const r = i.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight && r.width > 0; }).every(i => i.complete), null, { timeout: 15000 }).catch(() => {});
 /** Fait défiler pour que `target` arrive en haut : la coupure tombe juste sous l'élément précédent (pas de liseré d'un bloc à moitié caché sous l'en-tête). */
@@ -493,6 +509,33 @@ const SHOTS = [
     } },
   { id: '08-deck', en: '08-deck', cap: { fr: ['Chaque deck *en un coup d\'œil*', 'Valeur, courbe de mana, main de départ'], en: ['Every deck *at a glance*', 'Value, mana curve, opening hand'] },
     async go(p) { await p.evaluate(() => { const r = edhRows()[0]; openDeckViewer({ text: edhDeckText(r.deck), name: r.cmd.names.join(' + ') }); }); await p.waitForSelector('.dv.on'); await p.waitForTimeout(2500); await imgsReady(p); await p.waitForTimeout(500); } },
+];
+/** Écrans en plus (fonctions arrivées après les visuels du 15 octobre) : captures brutes pour les maquettes (node tools/store-assets.mjs raw), puis dans SHOTS une fois la fiche choisie.
+ *  Le masterset ajoute des lignes avec édition à la collection : toujours en dernier. */
+const MORE = [
+  { id: '09-classeur', en: '09-binder', cap: { fr: ['Ton classeur *à feuilleter*', 'Tes doublons en pochettes, partagés en un lien'], en: ['Your binder, *ready to flip*', 'Your spares in sleeves, shared with one link'] },
+    async go(p) {
+      await p.evaluate(() => openCollection('trade')); await p.waitForSelector('.coll.on #trView [data-v="binder"]'); await p.click('#trView [data-v="binder"]');
+      await p.waitForSelector('.coll-main .bnd .bnd-card'); await p.waitForTimeout(1200); await scrollIn(p, '.coll.on .dv-scroll', '.coll-main .bnd-cust'); await imgsReady(p); await p.waitForTimeout(500);
+    } },
+  { id: '10-partie', en: '10-game', cap: { fr: ['Ta table de *Commander*', 'Points de vie, blessures de commandant, un téléphone pour tous'], en: ['Your *Commander* table', 'Life, commander damage, one phone for the table'] },
+    async go(p, lang) {
+      await p.evaluate(([me, pl]) => {
+        const now = Date.now() - 38 * 60e3;
+        let g = partieNew({ moi: { nom: me, deck: { nom: 'Edgar Markov', commandant: 'Edgar Markov' } }, now });
+        for (const [nom, cmd] of pl) g = partieAddPlace(g, { nom, deck: { nom: cmd, commandant: cmd } });
+        g = partieStart(g, { now });
+        for (const [pos, d] of [[1, -6], [2, -19], [3, -11], [4, -27]]) g = partieLife(g, pos, d);
+        g = partieCmdDamage(g, 4, 1, 7); g = partieCounter(g, 2, 'poison', 3); g = partieMonarch(g, 1); g = partieNextTurn(g); g = partieNextTurn(g);
+        partieSave(g); puOpen(g);
+      }, [lang === 'fr' ? 'Moi' : 'Me', [['Léa', 'Atraxa, Praetors\' Voice'], ['Paul', 'Krenko, Mob Boss'], ['Zoé', 'The Ur-Dragon']]]);
+      await p.waitForSelector('.pu.pu-game .pu-a'); await p.waitForTimeout(1200);
+    } },
+  { id: '11-masterset', en: '11-master-set', cap: { fr: ['Complète tes *extensions*', 'Les cartes qui te manquent, en noir et blanc, et leur prix'], en: ['Complete your *sets*', 'Missing cards in black and white, with their price'] },
+    async go(p) {
+      await p.evaluate(t => { collAdd(parseCollection(t).items, 'add'); MS.on = true; MS.set = 'cmm'; MS.cols = 4; msSave(); openCollection('list'); }, msCollText());
+      await p.waitForFunction(() => document.querySelectorAll('.coll.on .ms-grid .ms-c').length > 12, null, { timeout: 30000 }); await p.waitForTimeout(1500); await scrollIn(p, '.coll.on .dv-scroll', '.coll.on .ms-head'); await imgsReady(p); await p.waitForTimeout(500);
+    } },
 ];
 
 /* ── Composition : fond aurore, légende, écran de l'appli ─────────────────────────────────────────────────────────────────────────────── */
@@ -547,6 +590,18 @@ async function shotsFor(lang) {
   }
   if (errs.length) console.log('  erreurs de la page :\n  ' + errs.join('\n  '));
   await ctx.close(); console.log(`  ${lang} : ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+}
+
+/** Captures brutes de l'appli (sans bandeau ni légende) de SHOTS et MORE → shots/store/<langue>-<id>.png (maquettes des visuels). */
+async function rawFor(lang) {
+  const { ctx, p, errs } = await openApp(lang); mkdirSync('shots/store/', { recursive: true });
+  for (const s of [...SHOTS, ...MORE]) {
+    await toHome(p); await s.go(p, lang);
+    await p.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); }); await p.waitForTimeout(250);
+    const f = 'shots/store/' + lang + '-' + s.id + '.png'; writeFileSync(f, await p.screenshot({ type: 'png' })); console.log('  ' + f);
+  }
+  if (errs.length) console.log('  erreurs de la page :\n  ' + errs.join('\n  '));
+  await ctx.close();
 }
 
 /* ── Bannière 1024 × 500 : logo, nom, accroche, cartes foil en éventail sur l'aurore de l'appli ─────────────────────────────────────────── */
@@ -613,5 +668,6 @@ browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/
 try {
   if (what === 'all' || what === 'feature') for (const l of LANGS) { const f = await render(featurePage(l), 1024, 500, OUT + (l === 'fr' ? 'feature-graphic' : 'feature-graphic-en')); console.log(`  ${f}  ${(statSync(f).size / 1024).toFixed(0)} Ko`); }
   if (what === 'all' || what === 'shots') for (const l of LANGS) await shotsFor(l);
+  if (what === 'raw') for (const l of LANGS) await rawFor(l);
 } finally { await browser.close(); world.stop(); }
 process.exit(0);

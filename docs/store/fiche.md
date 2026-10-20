@@ -566,6 +566,7 @@ node tools/store-assets.mjs            # tout : bannières + 16 captures (≈ 2 
 node tools/store-assets.mjs feature    # bannières seulement
 node tools/store-assets.mjs shots en   # captures anglaises seulement
 RAW=1 node tools/store-assets.mjs shots   # garde aussi les écrans bruts (shots/store/, non versionné)
+node tools/store-assets.mjs raw fr      # écrans bruts seulement, avec classeur, partie et masterset (MORE) : maquettes
 ```
 
 Prérequis : `tests/node_modules` installé (Playwright), Chromium dans `/opt/pw-browsers/chromium` (ou la variable `CHROMIUM`), port 18980 libre. Aucune connexion Internet : le script sert l'appli avec le monde des tests (token CardTrader du serveur réservé à un compte, comme en production) et simule Scryfall. Les polices de l'appli (Bricolage Grotesque, Instrument Sans, licence OFL) sont dans `tools/fonts/` ; sans elles, le script prend les polices du système.
