@@ -346,5 +346,10 @@
   "Rituels": "Hexereien",
   "Terrains": "Länder",
   "Autres": "Andere",
- "Édition": "Edition"
+  "Édition": "Edition",
+  "Recommencer la courbe": "Kurve neu beginnen",
+  "Recommencer la courbe ?": "Kurve neu beginnen?",
+  "Les relevés d'avant aujourd'hui sont effacés, sur cet appareil et sur ton compte. La courbe et les variations à 7 et 30 jours repartent de la valeur d'aujourd'hui. Tes cartes ne changent pas.": "Die Werte vor heute werden gelöscht, auf diesem Gerät und in deinem Konto. Die Kurve und die Änderungen über 7 und 30 Tage beginnen beim heutigen Wert neu. Deine Karten bleiben unverändert.",
+  "Recommencer": "Neu beginnen",
+  "Courbe remise à zéro": "Kurve zurückgesetzt"
 }

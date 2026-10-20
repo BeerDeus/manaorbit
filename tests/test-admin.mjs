@@ -18,7 +18,7 @@ const NOW = Date.now(), FX = A.seed(NOW, 120);
 
 /* ── 0) Page : même configuration Firebase que l'appli ; empreinte seulement dans le serveur ─────────────────────────────────────── */
 {
-  const cfg = f => { const s = readFileSync(f, 'utf8'), m = /const FIREBASE_CONFIG = (\{[\s\S]*?\});/.exec(s), b = /const FB_BASE = '([^']+)'/.exec(s); return { c: new Function('return ' + m[1])(), base: b[1] }; };
+  const cfg = f => { const s = readFileSync(f, 'utf8'), m = /const FIREBASE_CONFIG = (\{[\s\S]*?\});/.exec(s), b = /const FB_BASE = '([^']+)'/.exec(s); return { c: new Function('FB_AUTH_SELF', 'return ' + m[1])(false), base: b[1] }; };      // hors manaorbit.app : domaine d'auth Firebase (la page admin reste en fenêtre)
   const app = cfg('src/cloud.js'), adm = cfg('pwa/admin.js');
   assert.deepEqual(adm.c, app.c, 'configuration Firebase de la page admin = celle de l\'appli'); assert.equal(adm.base, app.base, 'même version du SDK');
   const src = readFileSync('proxy.mjs', 'utf8'), def = /const ADMIN_DEFAULT = \['([0-9a-f]+)'\];/.exec(src);

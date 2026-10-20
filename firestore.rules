@@ -57,7 +57,8 @@ service cloud.firestore {
     // Deck Deal : données annexes du compte, un document chacune
     //  · collection : cartes possédées (liste « 3 Sol Ring » une carte par ligne)
     //  · engaged    : cartes réservées par des decks « montés » ({ decks: { idDeck: { n, at, q: { carte: exemplaires } } } })
-    //  · history    : valeur de la collection dans le temps ({ pts: [{ t, v: centimes, n: cartes, q: exemplaires }, …] }, un par jour, 420 au plus ; pas de tableaux imbriqués dans Firestore)
+    //  · history    : valeur de la collection dans le temps ({ pts: [{ t, v: centimes, n: cartes, q: exemplaires }, …], reset? }, un par jour, 420 au plus ; pas de tableaux imbriqués dans Firestore ;
+    //                 reset : date de « Recommencer la courbe », aucun relevé d'avant ne revient)
     //  · trade      : liste d'échange ({ keep: réserve, kept: [cartes gardées], wish: { carte: { n, q } }, share: id du lien, dsh: { deck: id du lien } })
     //  · profile    : pseudo (30 caractères) et photo (data:image, ≤ 40 Ko), affichés sur les liens partagés
     //  · scan       : scan mobile ({ on, s, dev, by, at, items: [{ i, k, n, q, l, e }] ≤ 60 }) : le PC attend, le téléphone y dépose les cartes scannées
@@ -81,10 +82,11 @@ service cloud.firestore {
             && request.resource.data.decks is map
             && request.resource.data.decks.size() <= 80)
           || (docId == 'history'
-            && request.resource.data.keys().hasOnly(['pts', 'updatedAt'])
+            && request.resource.data.keys().hasOnly(['pts', 'reset', 'updatedAt'])
             && request.resource.data.keys().hasAll(['pts', 'updatedAt'])
             && request.resource.data.pts is list
-            && request.resource.data.pts.size() <= 420)
+            && request.resource.data.pts.size() <= 420
+            && (!('reset' in request.resource.data) || request.resource.data.reset is number))
           || (docId == 'trade'
             && request.resource.data.keys().hasOnly(['keep', 'kept', 'wish', 'share', 'dsh', 'updatedAt'])
             && request.resource.data.keep is number

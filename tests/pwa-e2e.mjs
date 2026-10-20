@@ -158,6 +158,12 @@ const fakePrompt = outcome => {
 { // politique de confidentialité servie (lien de la fiche Google Play), mentions et sources, effacement des données de l'appareil
   const pol = await fetch(URL0 + 'privacy'); assert.equal(pol.status, 200); const html = await pol.text();
   assert.match(html, /Politique de confidentialité/); assert.match(html, /Privacy policy/); assert.match(html, /\?delete-account/); assert.match(html, /Fan Content Policy/);
+  for (const re of [/Datenschutzerklärung/, /Política de privacidad/, /Informativa sulla privacy/, /Política de privacidade/, /href="#pt" hreflang="pt-BR"/]) assert.match(html, re, 'confidentialité 6 langues : ' + re);
+  { const r = await fetch(URL0 + 'robots.txt'); assert.equal(r.status, 200); assert.match(r.headers.get('content-type'), /^text\/plain/); const t = await r.text();
+    for (const re of [/Disallow: \/admin/, /Disallow: \/api\//, /Sitemap: https:\/\/manaorbit\.app\/sitemap\.xml/]) assert.match(t, re, 'robots.txt : ' + re); }
+  { const r = await fetch(URL0 + 'sitemap.xml'); assert.equal(r.status, 200); assert.match(r.headers.get('content-type'), /^application\/xml/); const t = await r.text(), locs = [...t.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]);
+    assert.deepEqual(locs, ['https://manaorbit.app/', 'https://manaorbit.app/passer-de-manabox', 'https://manaorbit.app/privacy', 'https://manaorbit.app/legal'], 'plan du site : pages publiques seulement');
+    for (const u of locs.slice(1)) assert.equal((await fetch(URL0 + u.slice(22))).status, 200, u); }
   assert.equal((await fetch(URL0 + 'privacy.html')).status, 200); assert.match(html, /href="legal"/, 'confidentialité → mentions légales');
   for (const u of ['legal', 'legal.html', 'mentions-legales']) { const r = await fetch(URL0 + u); assert.equal(r.status, 200, u); const l = await r.text();
     for (const re of [/Mentions légales/, /Legal notice/, /104 711 445 00015/, /Hostinger International Ltd/, /Fan Content Policy/, /href="privacy"/]) assert.match(l, re, u + ' : ' + re); }
@@ -175,7 +181,7 @@ const fakePrompt = outcome => {
   await pg.click('#btnWipe'); await pg.click('#btnWipeGo'); await pg.waitForEvent('load', { timeout: 8000 }); await pg.waitForTimeout(400);
   assert.equal(await pg.evaluate(() => localStorage.getItem('deckdeal:coll:v1')), null); assert.equal(await pg.evaluate(() => localStorage.getItem('autre-site')), '1', 'seules les clés de l\'appli sont effacées');
   assert.deepEqual(errs, []); await c.close();
-  console.log('✓ confidentialité : /privacy servie (FR + EN, lien de suppression, mention Fan Content), /legal (mentions légales : éditeur, SIRET, hébergeur), reliée depuis /privacy et les Réglages, mentions et sources, plus d\'adresse, effacement de l\'appareil en deux temps');
+  console.log('✓ confidentialité : /privacy servie (6 langues, lien de suppression, mention Fan Content), /legal (mentions légales : éditeur, SIRET, hébergeur), robots.txt et sitemap.xml, reliée depuis /privacy et les Réglages, mentions et sources, plus d\'adresse, effacement de l\'appareil en deux temps');
 }
 console.log('\nPWA E2E OK');
 await browser.close(); proxy.kill(); up.close(); process.exit(0);

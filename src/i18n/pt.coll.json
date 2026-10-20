@@ -346,5 +346,10 @@
   "Rituels": "Feitiços",
   "Terrains": "Terrenos",
   "Autres": "Outros",
- "Édition": "Edição"
+  "Édition": "Edição",
+  "Recommencer la courbe": "Recomeçar o gráfico",
+  "Recommencer la courbe ?": "Recomeçar o gráfico?",
+  "Les relevés d'avant aujourd'hui sont effacés, sur cet appareil et sur ton compte. La courbe et les variations à 7 et 30 jours repartent de la valeur d'aujourd'hui. Tes cartes ne changent pas.": "Os registros anteriores a hoje são apagados, neste aparelho e na sua conta. O gráfico e as variações em 7 e 30 dias recomeçam a partir do valor de hoje. Suas cartas não mudam.",
+  "Recommencer": "Recomeçar",
+  "Courbe remise à zéro": "Gráfico zerado"
 }

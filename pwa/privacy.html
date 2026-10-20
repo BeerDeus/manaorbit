@@ -28,7 +28,7 @@ ul{padding-left:20px}
 <body>
 <main>
 <header><img src="icons/icon-192.png" alt=""><h1>Mana Orbit</h1></header>
-<nav><a href="#fr" hreflang="fr">Français</a><a href="#en" hreflang="en">English</a><a href="legal">Mentions légales</a></nav>
+<nav><a href="#fr" hreflang="fr">Français</a><a href="#en" hreflang="en">English</a><a href="#de" hreflang="de">Deutsch</a><a href="#es" hreflang="es">Español</a><a href="#it" hreflang="it">Italiano</a><a href="#pt" hreflang="pt-BR">Português</a><a href="legal">Mentions légales</a></nav>
 
 <section id="fr" lang="fr">
 <h2>Politique de confidentialité</h2>
@@ -194,6 +194,338 @@ ul{padding-left:20px}
 <h2>Fan content</h2>
 <p class="mute">Mana Orbit is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
 </section>
+
+<section id="de" lang="de">
+<h2>Datenschutzerklärung</h2>
+<p class="mute">Letzte Aktualisierung: 19. Oktober 2026 · Übersetzung der französischen Fassung, die bei Abweichungen maßgeblich ist.</p>
+<p>Mana Orbit ist eine kostenlose App, mit der du deine Sammlung von Magic-Karten, deine Decks und ihre Preise verfolgst. Sie erhebt so wenige Daten wie möglich und verkauft niemals welche.</p>
+<p><b>Verantwortlicher:</b> Martin Stuis EI (M2S Photo), Entwickler von Mana Orbit, Frankreich (alle Angaben im <a href="legal#en">Impressum</a>, auf Französisch und Englisch). Kontakt: <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Ohne Konto: Alles bleibt auf deinem Gerät</h2>
+<p>Deine Sammlung, deine Decks und deine Einstellungen werden im Speicher deines Browsers oder der App gespeichert, auf deinem Gerät. Wir haben keinen Zugriff darauf. Wenn du einen CardTrader-Token eingibst, wird er am selben Ort gespeichert und nur mit deinen CardTrader-Suchen an unseren Server gesendet (siehe „Unser Server“). Die Daten der Android-App sind von der Android-Sicherung (Google) ausgenommen.</p>
+<p>Der Kartenscan nutzt die Kamera nur, solange du ihn geöffnet hast. Die Bilder werden auf deinem Gerät ausgewertet und nur hochgeladen, wenn du einen Scan meldest (siehe „Scanproblem melden“). In der Android-App erfolgt die Erkennung mit Google ML Kit auf dem Handy; die Google-Play-Dienste können Google anonyme Diagnosedaten senden, gemäß den Bedingungen von ML Kit.</p>
+
+<h2>Mit Konto (optional)</h2>
+<p>Mit einem Konto findest du deine Daten auf all deinen Geräten wieder. Es beruht auf Firebase Authentication und Cloud Firestore (Google). Wir speichern:</p>
+<ul>
+<li>deine E-Mail-Adresse und die Anmeldemethode (E-Mail oder Google);</li>
+<li>bei Google deinen Google-Namen und dein Profilfoto (von Firebase Authentication gespeichert; das Foto erscheint auf deinem Konto-Button);</li>
+<li>falls du sie festlegst, deinen Spitznamen und dein Profilfoto (ein auf 128 Pixel verkleinertes Bild);</li>
+<li>deine Decks, deine Sammlung, den Verlauf ihres Werts, deine Tauschliste und deine Scan-Einstellungen.</li>
+</ul>
+<p>Diese Daten werden aufbewahrt, solange das Konto besteht. Dein CardTrader-Token wird nie im Konto gespeichert.</p>
+<p>Für den Betrieb des Dienstes kann der Herausgeber zusammengefasste, minimierte Kontostatistiken einsehen (Vorname und Initiale des Nachnamens, maskierte E-Mail-Adresse, Datum der Registrierung und der Aktivität, Anzahl der Karten, Decks und Freunde), niemals den Inhalt deiner Sammlung oder deiner Decks. Bei Missbrauch kann der Herausgeber ein in der Community veröffentlichtes Deck entfernen oder ein Konto deaktivieren (es kann sich nicht mehr anmelden; seine Daten bleiben erhalten); jede dieser Aktionen wird auf unserem Server mit Datum sowie Vorname, Initiale des Nachnamens und maskierter E-Mail-Adresse des betroffenen Kontos protokolliert.</p>
+
+<h2>Geteilte Links</h2>
+<p>Wenn du deine Tauschliste oder ein Deck teilst, kann jeder mit dem Link den Inhalt lesen. Er enthält weder deine E-Mail-Adresse noch deine Konto-ID, nur einen Fingerabdruck (SHA-256) dieser ID, der zeigt, dass der Link von dir ist. Wenn du einen Spitznamen oder ein Profilfoto festgelegt hast, erscheinen sie dort ebenfalls („Tauschliste von …“); dein Google-Foto nie. Du kannst einen Link jederzeit entfernen.</p>
+<p><b>Eine Freigabe melden:</b> Auf einer geteilten Liste oder einem geteilten Deck öffnet „Diese Freigabe melden“ eine E-Mail an contact@manaorbit.app mit der Adresse des Links. Gemeldete Inhalte werden so schnell wie möglich geprüft, und der Link wird deaktiviert, wenn er gegen das Gesetz oder diese Regeln verstößt (rechtswidrige oder missbräuchliche Inhalte, personenbezogene Daten anderer). Die E-Mail der Meldung dient nur dazu, die Meldung zu bearbeiten und dir zu antworten.</p>
+
+<h2>Freunde (optional)</h2>
+<p>Du kannst einen Freund über seine Tauschliste hinzufügen (Link oder QR-Code). Eine Anfrage übermittelt ihm deinen Spitznamen und dein Profilfoto (auf 64 Pixel verkleinert); er nimmt sie an oder lehnt sie ab (eine Ablehnung wird dir nie angezeigt und sperrt neue Anfragen von dir für 30 Tage).</p>
+<p><b>Was ein Freund sieht:</b> deine Tauschliste (Doppelte und gesuchte Karten, wie auf deinem Link), deine gespeicherten Decks und, nur wenn du es erlaubst (Konto › Freunde › „Meine Sammlung teilen“, standardmäßig aus), deine Sammlung. Du siehst bei ihm dasselbe. Nie deine E-Mail-Adresse, nie deine Konto-ID.</p>
+<p>Dafür sendet deine App diese Listen an unseren Server, wenn sie sich ändern, solange du mindestens einen Freund oder eine gesendete Anfrage hast. Der Server speichert sie in Cloud Firestore (Google), in Sammlungen, die nur er liest und schreibt; dein Konto ist dort als SHA-256-Fingerabdruck seiner ID gespeichert, mit deinem Spitznamen, deinem verkleinerten Foto, der Sprache deiner Benachrichtigungen, deinen Freunden und offenen Anfragen sowie kurzen Fingerabdrücken der Karten deiner Tauschliste (um einem Freund mitzuteilen, dass eine Karte, die er sucht, angekommen ist). Wenn du einen Freund entfernst, endet der Zugriff in beide Richtungen; ohne Freund und ohne Anfrage werden deine Listen vom Server gelöscht; wenn du das Teilen der Sammlung ausschaltest, wird sie sofort gelöscht.</p>
+<p><b>Freundes-Benachrichtigungen</b> (wenn deine Benachrichtigungen an sind): Die Abo-Adresse deines Browsers oder das Firebase-Cloud-Messaging-Token der App wird auf dem Server mit deinem Konto verknüpft, um dir eine Anfrage, eine Annahme oder einen Freund zu melden, der eine von dir gesuchte Karte hinzugefügt hat (höchstens einmal am Tag). Sie wird entfernt, wenn du dich auf diesem Gerät abmeldest, wenn du diese Benachrichtigungen ausschaltest (Einstellungen › Benachrichtigungen › Freunde) oder wenn der Push-Dienst sie ablehnt.</p>
+
+<h2>Live-Tausch (optional)</h2>
+<p>Für einen Tausch von Angesicht zu Angesicht, jeder auf seinem Handy, sendet deine App für die Dauer der Sitzung an unseren Server: deinen Spitznamen, dein verkleinertes Profilfoto, deine Tauschliste und die Karten, die ihr beide auswählt. Der andere Spieler sieht sie (nie deine E-Mail-Adresse, nie deine Konto-ID). Die Sitzung existiert nur im Speicher des Servers: Nichts wird gespeichert, und sie verschwindet mit dem Ende des Tauschs (spätestens 24 Stunden später, damit beide Apps ihn übernehmen können). Wenn du einen Freund einlädst, erhält er eine Benachrichtigung mit deinem Spitznamen. Der Verlauf „Meine Tausche“ bleibt auf deinem Gerät.</p>
+
+<h2>Scanproblem melden (optional)</h2>
+<p>Wenn ein Scan schiefgegangen ist, sendet „Scanproblem melden“ (auf der groß angezeigten gescannten Karte oder auf einer Zeile „Name nicht erkannt“) nur dann, wenn du auf „Senden“ tippst, an unseren Server: das beim Scan aufgenommene Foto der Karte (verkleinert), was die App gelesen hat (Text des Namens, untere Zeile, Karte, gewählte Sprache und Ausgabe, Erkennungsmodul, Bildausschnitt und Einstellungen des Scans, Maße der Kameravorschau), die App-Version, die Sprache der Oberfläche, was nicht stimmt, und deinen Kommentar, falls du einen geschrieben hast. Wenn du angemeldet bist, einen Fingerabdruck (SHA-256) deiner Konto-ID, nie deine E-Mail-Adresse oder die ID selbst; die Meldung speichert deine IP-Adresse nicht. Meldungen dienen nur dazu, die Kartenerkennung zu verbessern; nur der Herausgeber kann sie sehen. Sie werden höchstens 90 Tage aufbewahrt und dann gelöscht, oder früher auf Anfrage an <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Mysterykarte, Stufe und Ranglisten (optional)</h2>
+<p>Deine Stufe und deine Abzeichen werden auf deinem Gerät aus dem berechnet, was du in der App tust; wenn du angemeldet bist, werden ihre Zähler auch in deinem Konto gespeichert (um sie auf einem anderen Gerät wiederzufinden). Wenn du die Mysterykarte spielst oder angemeldet bist, speichert unser Server: deine Partien (Uhrzeit, Schritte, Vorschläge, Punktzahl), die für die Stufen-Rangliste berücksichtigten XP und den Spitznamen deines Profils, <b>öffentlich in den Ranglisten angezeigt</b> mit deiner Punktzahl und deiner Stufe (ohne Spitznamen: „Joueur“ und 4 aus deinem Konto abgeleitete Zeichen, nichts, was dich identifiziert). Um Konten zu unterscheiden und Betrug zu begrenzen, verwendet er außerdem das Erstellungsdatum deines Kontos, eine zufällige, deinem Gerät eigene Kennung (auf dem Gerät gespeichert) und einen täglich gesalzenen Fingerabdruck deiner IP-Adresse, nie die Adresse selbst, der am Ende des Spieltags gelöscht wird. Partien werden 400 Tage aufbewahrt, Stufe und Statistiken so lange, wie dein Konto besteht; du kannst ihre Löschung unter <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a> verlangen. Ohne Konto wird deine Partie nicht gewertet, und nichts identifiziert dich.</p>
+
+<h2>Anmeldung zum Test (Seite „Testeurs“)</h2>
+<p>Wenn du dich auf der Seite <a href="testeurs">Testeurs</a> für den Test der App anmeldest, speichert unser Server deine E-Mail-Adresse und das Anmeldedatum, sonst nichts. Sie dient nur dazu, dich zur Testerliste auf Google Play hinzuzufügen und dich über den Start des Tests zu informieren; nur der Herausgeber kann sie sehen. Sie wird am Ende des Tests gelöscht, oder früher auf Anfrage an contact@manaorbit.app.</p>
+
+<h2>Unser Server</h2>
+<p>Der Server von Mana Orbit (gehostet bei Hostinger) leitet Anfragen an CardTrader, Scryfall und EDHREC weiter und speichert öffentliche Preise zwischen. Er ruft auch die Links ab, die du einfügst, um ein Deck zu importieren (EDHREC, Archidekt). Wenn du sie einschaltest:</p>
+<ul>
+<li><b>Benachrichtigungen</b>: die Abo-Adresse deines Browsers oder, in der Android-App, das Firebase-Cloud-Messaging-Token;</li>
+<li><b>Preisalarme</b>: die beobachteten Karten, deine Schwellenwerte und die Namen der betroffenen Decks;</li>
+<li><b>Freunde</b>: siehe „Freunde“ oben.</li>
+</ul>
+<p>Sie werden gelöscht, wenn du sie ausschaltest oder dein Konto löschst. Der Text der Benachrichtigungen (Namen von Karten und Decks) läuft über den Push-Dienst von Google oder des Herstellers deines Browsers.</p>
+<p><b>CardTrader-Token:</b> Er wird nur mit deinen CardTrader-Suchen gesendet (nie mit Alarmen oder Importen). Der Server nutzt ihn, um CardTrader mit deinem Konto abzufragen, und behält ihn für die Dauer der Suche im Speicher; er bewahrt nur einen Fingerabdruck (SHA-256) davon auf, um die Anfragen zu takten. Er schreibt ihn nie auf die Festplatte, in seine Protokolle oder in dein Konto.</p>
+<p>Wenn du angemeldet bist, zeigt ihm die App einen Firebase-Anmeldenachweis, um zu prüfen, ob dein Konto besondere Rechte hat; der Server prüft ihn, ohne ihn zu speichern. Um Missbrauch zu begrenzen, zählt er Anfragen pro IP-Adresse im Speicher. Der Hoster kann zur Sicherheit technische Protokolle (IP-Adresse, Datum, aufgerufene Seite) aufbewahren; er bewahrt sie für eine begrenzte Zeit auf, gemäß seiner eigenen Richtlinie.</p>
+
+<h2>Dienste Dritter</h2>
+<p>Dein Gerät kontaktiert direkt: Scryfall (Bilder und Daten der Karten, Trendpreise), Google Fonts (Schriften), Google (Firebase-SDK) und jsDelivr (Erkennungsmodul des Scans). Wie bei jeder Website erhalten diese Dienste deine IP-Adresse. Wenn du deinen CardTrader-Token eingibst, laufen deine Suchen und dein Warenkorb über CardTrader mit deinem eigenen Konto.</p>
+
+<h2>Werbung und Reichweitenmessung</h2>
+<p><b>Android-App:</b> Ein kleines Werbebanner von Google AdMob wird oben auf dem Bildschirm angezeigt, um das Hosting zu bezahlen. Für manche Konten und während des Scans erscheint es nicht. In der Europäischen Union und überall, wo das Gesetz es verlangt, wird deine Einwilligung vor der ersten Anzeige über das Einwilligungsformular von Google eingeholt; du kannst deine Meinung jederzeit unter Einstellungen › Datenschutz und Impressum › Werbeeinstellungen ändern.</p>
+<p>Um seine Anzeigen auszuwählen und zu zählen, kann AdMob (Google) die Werbe-ID deines Geräts, deine IP-Adresse und technische Informationen über das Gerät und die App verwenden. Je nach deiner Antwort sind die Anzeigen personalisiert oder nicht. Du kannst die Werbe-ID in den Android-Einstellungen zurücksetzen oder löschen (Google › Werbung). Einzelheiten: <a href="https://policies.google.com/technologies/partner-sites" rel="noopener">wie Google Informationen aus Partner-Apps verwendet</a>.</p>
+<p><b>Webversion</b> (Browser oder von der Website installierte App): keine Werbung.</p>
+<p>Mana Orbit führt keine Reichweitenmessung durch.</p>
+
+<h2>Rechtsgrundlagen</h2>
+<ul>
+<li><b>Erbringung des Dienstes</b>: das Konto, die Synchronisierung, die geteilten Links, die Freunde, die Importe und die Anmeldung zum Test;</li>
+<li><b>Einwilligung</b>: Werbung (Formular von Google), Benachrichtigungen einschließlich Preisalarmen und die Scans, die du meldest; du kannst sie jederzeit widerrufen;</li>
+<li><b>berechtigtes Interesse</b>: Sicherheitsprotokolle, Begrenzung der Anfragen und der Preis-Cache.</li>
+</ul>
+
+<h2>Außerhalb der Europäischen Union</h2>
+<p>Google (Firebase, AdMob, Firebase Cloud Messaging, ML Kit über die Google-Play-Dienste) und Scryfall haben ihren Sitz in den Vereinigten Staaten: Was sie erhalten, kann dort verarbeitet werden. Google gibt an, diese Übermittlungen durch das EU-US Data Privacy Framework und Standardvertragsklauseln abzusichern. Scryfall erhält, wie jede Website, nur deine IP-Adresse und die angefragten Karten.</p>
+
+<h2>Deine Rechte</h2>
+<p>Du kannst deine Daten jederzeit einsehen, exportieren, berichtigen oder löschen (DSGVO). Du kannst dich außerdem bei deiner Datenschutzbehörde beschweren.</p>
+<p><b>Dein Konto löschen:</b> in der App unter Konto › Mein Konto löschen, oder direkt über <a href="./?delete-account">diese Seite</a>. Alles, was das Konto online enthält, wird gelöscht: Decks, Sammlung, Verlauf, Tauschliste, Einstellungen, geteilte Links, veröffentlichte Decks und alles zu deinen Freunden (du verschwindest aus ihren Listen, deine Listen und Geräte werden vom Server gelöscht). Deine Preisalarme und Benachrichtigungen werden auf dem Server ebenfalls beendet, und die auf dem Gerät gespeicherte Kopie des Kontos wird gelöscht. Die Daten auf deinem Gerät kannst du gleichzeitig löschen oder separat in den Einstellungen.</p>
+<p>Für Fragen oder um deine Rechte auszuüben, schreib an <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Fan-Content</h2>
+<p class="mute">Mana Orbit ist inoffizieller Fan-Content gemäß der Fan Content Policy. Nicht von Wizards genehmigt oder unterstützt. Teile der verwendeten Materialien sind Eigentum von Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+</section>
+
+<section id="es" lang="es">
+<h2>Política de privacidad</h2>
+<p class="mute">Última actualización: 19 de octubre de 2026 · Traducción de la versión francesa, que prevalece en caso de diferencia.</p>
+<p>Mana Orbit es una app gratuita para seguir tu colección de cartas Magic, tus mazos y sus precios. Recoge los menos datos posibles y nunca vende ninguno.</p>
+<p><b>Responsable del tratamiento:</b> Martin Stuis EI (M2S Photo), desarrollador de Mana Orbit, Francia (datos completos en el <a href="legal#en">aviso legal</a>, en francés e inglés). Contacto: <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Sin cuenta: todo se queda en tu dispositivo</h2>
+<p>Tu colección, tus mazos y tus ajustes se guardan en el almacenamiento de tu navegador o de la app, en tu dispositivo. No tenemos acceso a ellos. Si introduces un token de CardTrader, se guarda en el mismo sitio y solo se envía a nuestro servidor con tus búsquedas en CardTrader (ver «Nuestro servidor»). Los datos de la app Android están excluidos de la copia de seguridad de Android (Google).</p>
+<p>El escaneo de cartas solo usa la cámara mientras lo tienes abierto. Las imágenes se analizan en tu dispositivo y solo se suben si informas de un escaneo (ver «Informar de un problema de escaneo»). En la app Android, el reconocimiento usa Google ML Kit, en el teléfono; los servicios de Google Play pueden enviar a Google diagnósticos anónimos, según las condiciones de ML Kit.</p>
+
+<h2>Con cuenta (opcional)</h2>
+<p>Una cuenta te permite recuperar tus datos en todos tus dispositivos. Se basa en Firebase Authentication y Cloud Firestore (Google). Guardamos:</p>
+<ul>
+<li>tu dirección de correo y el método de inicio de sesión (correo o Google);</li>
+<li>con Google, tu nombre y tu foto de perfil de Google (guardados por Firebase Authentication; la foto aparece en tu botón de Cuenta);</li>
+<li>si los defines, tu apodo y tu foto de perfil (una imagen reducida a 128 píxeles);</li>
+<li>tus mazos, tu colección, el historial de su valor, tu lista de intercambio y tus ajustes de escaneo.</li>
+</ul>
+<p>Estos datos se conservan mientras exista la cuenta. Tu token de CardTrader nunca se guarda en la cuenta.</p>
+<p>Para el funcionamiento del servicio, el editor puede consultar estadísticas de cuentas agregadas y minimizadas (nombre e inicial del apellido, correo enmascarado, fechas de registro y de actividad, número de cartas, mazos y amigos), nunca el contenido de tu colección ni de tus mazos. En caso de abuso, el editor puede retirar un mazo publicado en la comunidad o desactivar una cuenta (ya no puede iniciar sesión; sus datos se conservan); cada una de estas acciones queda registrada en nuestro servidor con su fecha y el nombre, la inicial del apellido y el correo enmascarado de la cuenta afectada.</p>
+
+<h2>Enlaces compartidos</h2>
+<p>Cuando compartes tu lista de intercambio o un mazo, su contenido lo puede leer cualquiera que tenga el enlace. No contiene ni tu correo ni el identificador de tu cuenta, solo una huella (SHA-256) de ese identificador, que muestra que el enlace es tuyo. Si has definido un apodo o una foto de perfil, también aparecen («Lista de intercambio de …»); tu foto de Google, nunca. Puedes retirar un enlace en cualquier momento.</p>
+<p><b>Denunciar un enlace:</b> en una lista o un mazo compartido, «Denunciar este enlace» abre un correo a contact@manaorbit.app con la dirección del enlace. El contenido denunciado se revisa lo antes posible y el enlace se desactiva si infringe la ley o estas normas (contenido ilegal o abusivo, datos personales de otra persona). El correo de la denuncia solo sirve para tramitarla y responderte.</p>
+
+<h2>Amigos (opcional)</h2>
+<p>Puedes añadir a un amigo desde su lista de intercambio (enlace o código QR). Una solicitud le transmite tu apodo y tu foto de perfil (reducida a 64 píxeles); él la acepta o la rechaza (un rechazo nunca se te muestra y bloquea tus nuevas solicitudes durante 30 días).</p>
+<p><b>Lo que ve un amigo:</b> tu lista de intercambio (repetidas y cartas buscadas, como en tu enlace), tus mazos guardados y, solo si lo permites (Cuenta › Amigos › «Compartir mi colección», desactivado por defecto), tu colección. Tú ves lo mismo de él. Nunca tu correo ni el identificador de tu cuenta.</p>
+<p>Para ello, tu app envía estas listas a nuestro servidor cuando cambian, mientras tengas al menos un amigo o una solicitud enviada. El servidor las guarda en Cloud Firestore (Google), en colecciones que solo él lee y escribe; tu cuenta figura ahí como la huella SHA-256 de su identificador, con tu apodo, tu foto reducida, el idioma de tus notificaciones, tus amigos y solicitudes pendientes, y huellas cortas de las cartas de tu lista de intercambio (para avisar a un amigo de que ha llegado una carta que busca). Quitar a un amigo corta el acceso en ambos sentidos; sin amigos ni solicitudes, tus listas se borran del servidor; desactivar el uso compartido de la colección la borra al momento.</p>
+<p><b>Notificaciones de amigos</b> (si tus notificaciones están activadas): la dirección de suscripción de tu navegador o el token de Firebase Cloud Messaging de la app se vincula a tu cuenta en el servidor, para avisarte de una solicitud, una aceptación o un amigo que ha añadido una carta que buscas (una vez al día como máximo). Se elimina cuando cierras sesión en ese dispositivo, cuando desactivas estas notificaciones (Ajustes › Notificaciones › Amigos) o cuando el servicio de notificaciones la rechaza.</p>
+
+<h2>Intercambio en directo (opcional)</h2>
+<p>Para un intercambio cara a cara, cada uno con su teléfono, tu app envía a nuestro servidor, durante la sesión: tu apodo, tu foto de perfil reducida, tu lista de intercambio y las cartas que elegís. El otro jugador los ve (nunca tu correo ni el identificador de tu cuenta). La sesión solo existe en la memoria del servidor: no se guarda nada y desaparece cuando termina el intercambio (24 horas después como máximo, para que ambas apps puedan aplicarlo). Si invitas a un amigo, recibe una notificación con tu apodo. El historial «Mis intercambios» se queda en tu dispositivo.</p>
+
+<h2>Informar de un problema de escaneo (opcional)</h2>
+<p>Cuando un escaneo ha fallado, «Informar de un problema de escaneo» (en la carta escaneada vista en grande, o en una línea «Nombre no reconocido») envía a nuestro servidor, solo cuando tocas «Enviar»: la foto de la carta tomada al escanear (reducida), lo que leyó la app (texto del nombre, línea inferior, carta, idioma y edición elegidos, motor de reconocimiento, encuadre y ajustes del escaneo, medidas de la vista previa de la cámara), la versión de la app, el idioma de la interfaz, lo que falla y tu comentario si escribiste uno. Si has iniciado sesión, una huella (SHA-256) del identificador de tu cuenta, nunca tu correo ni el identificador; el informe no guarda tu dirección IP. Los informes solo sirven para mejorar el reconocimiento de las cartas; solo el editor puede verlos. Se conservan 90 días como máximo y luego se borran, o antes si lo pides a <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Carta misteriosa, nivel y clasificaciones (opcional)</h2>
+<p>Tu nivel y tus insignias se calculan en tu dispositivo a partir de lo que haces en la app; con la sesión iniciada, sus contadores también se guardan en tu cuenta (para recuperarlos en otro dispositivo). Si juegas a la Carta misteriosa o has iniciado sesión, nuestro servidor guarda: tus partidas (hora, etapas, propuestas, puntuación), la XP tenida en cuenta para la clasificación de niveles y el apodo de tu perfil, <b>mostrado públicamente en las clasificaciones</b> con tu puntuación y tu nivel (sin apodo: «Joueur» y 4 caracteres sacados de tu cuenta, nada que te identifique). Para distinguir las cuentas y limitar las trampas, también usa la fecha de creación de tu cuenta, un identificador aleatorio propio de tu dispositivo (guardado en el dispositivo) y una huella de tu dirección IP salada cada día, nunca la dirección en sí, borrada al final de la jornada de juego. Las partidas se conservan 400 días, el nivel y las estadísticas mientras exista tu cuenta; puedes pedir que se borren en <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>. Sin cuenta, tu partida no se clasifica y nada te identifica.</p>
+
+<h2>Inscripción en la prueba (página «Testeurs»)</h2>
+<p>Si te inscribes en la prueba de la app en la página <a href="testeurs">Testeurs</a>, nuestro servidor guarda tu dirección de correo y la fecha de inscripción, nada más. Solo sirve para añadirte a la lista de testers en Google Play y avisarte de la apertura de la prueba; solo el editor puede verla. Se borra al final de la prueba, o antes si lo pides a contact@manaorbit.app.</p>
+
+<h2>Nuestro servidor</h2>
+<p>El servidor de Mana Orbit (alojado por Hostinger) transmite las solicitudes a CardTrader, Scryfall y EDHREC y guarda en caché los precios públicos. También lee los enlaces que pegas para importar un mazo (EDHREC, Archidekt). Si los activas:</p>
+<ul>
+<li><b>notificaciones</b>: la dirección de suscripción de tu navegador o, en la app Android, el token de Firebase Cloud Messaging;</li>
+<li><b>alertas de precio</b>: las cartas vigiladas, tus umbrales y los nombres de los mazos afectados;</li>
+<li><b>amigos</b>: ver «Amigos» más arriba.</li>
+</ul>
+<p>Se borran cuando los desactivas o eliminas tu cuenta. El texto de las notificaciones (nombres de cartas y de mazos) pasa por el servicio de notificaciones de Google o del fabricante de tu navegador.</p>
+<p><b>Token de CardTrader:</b> solo viaja con tus búsquedas en CardTrader (nunca con las alertas ni las importaciones). El servidor lo usa para consultar CardTrader con tu cuenta y lo mantiene en memoria mientras dura la búsqueda; solo guarda una huella (SHA-256) para espaciar las solicitudes. Nunca lo escribe en disco, en sus registros ni en tu cuenta.</p>
+<p>Con la sesión iniciada, la app le muestra una prueba de inicio de sesión de Firebase para comprobar si tu cuenta tiene derechos especiales; el servidor la verifica sin guardarla. Para limitar los abusos, cuenta en memoria las solicitudes por dirección IP. El proveedor de alojamiento puede conservar registros técnicos (dirección IP, fecha, página solicitada) por seguridad; los guarda durante un tiempo limitado, según su propia política.</p>
+
+<h2>Servicios de terceros</h2>
+<p>Tu dispositivo contacta directamente con: Scryfall (imágenes y datos de las cartas, precios de tendencia), Google Fonts (tipografías), Google (SDK de Firebase) y jsDelivr (motor de reconocimiento del escaneo). Como con cualquier sitio web, estos servicios reciben tu dirección IP. Si introduces tu token de CardTrader, tus búsquedas y tu cesta pasan por CardTrader con tu propia cuenta.</p>
+
+<h2>Publicidad y medición de audiencia</h2>
+<p><b>App Android:</b> un pequeño banner publicitario de Google AdMob se muestra en la parte superior de la pantalla para pagar el alojamiento. No aparece para algunas cuentas ni durante el escaneo. En la Unión Europea y allí donde la ley lo exija, se pide tu consentimiento antes del primer anuncio, con el formulario de consentimiento de Google; puedes cambiar de opinión en cualquier momento en Ajustes › Privacidad y aviso legal › Opciones de publicidad.</p>
+<p>Para elegir y contar sus anuncios, AdMob (Google) puede usar el identificador de publicidad de tu dispositivo, tu dirección IP e información técnica sobre el dispositivo y la app. Según tu respuesta, los anuncios son personalizados o no. Puedes restablecer o eliminar el identificador de publicidad en los ajustes de Android (Google › Anuncios). Más información: <a href="https://policies.google.com/technologies/partner-sites" rel="noopener">cómo usa Google la información de las apps asociadas</a>.</p>
+<p><b>Versión web</b> (navegador, o app instalada desde el sitio web): sin publicidad.</p>
+<p>Mana Orbit no realiza ninguna medición de audiencia.</p>
+
+<h2>Bases legales</h2>
+<ul>
+<li><b>prestación del servicio</b>: la cuenta, la sincronización, los enlaces compartidos, los amigos, las importaciones y la inscripción en la prueba;</li>
+<li><b>consentimiento</b>: la publicidad (formulario de Google), las notificaciones, alertas de precio incluidas, y los escaneos de los que informas; puedes retirarlo en cualquier momento;</li>
+<li><b>interés legítimo</b>: los registros de seguridad, los límites de solicitudes y la caché de precios.</li>
+</ul>
+
+<h2>Fuera de la Unión Europea</h2>
+<p>Google (Firebase, AdMob, Firebase Cloud Messaging, ML Kit a través de los servicios de Google Play) y Scryfall tienen su sede en Estados Unidos: lo que reciben puede tratarse allí. Google indica que cubre estas transferencias con el Marco de Privacidad de Datos UE-EE. UU. y cláusulas contractuales tipo. Scryfall, al que se accede como a cualquier sitio web, solo recibe tu dirección IP y las cartas solicitadas.</p>
+
+<h2>Tus derechos</h2>
+<p>Puedes acceder a tus datos, exportarlos, corregirlos o borrarlos en cualquier momento (RGPD). También puedes presentar una reclamación ante tu autoridad de protección de datos.</p>
+<p><b>Eliminar tu cuenta:</b> en la app, Cuenta › Eliminar mi cuenta, o directamente desde <a href="./?delete-account">esta página</a>. Se borra todo lo que la cuenta tiene en línea: mazos, colección, historial, lista de intercambio, ajustes, enlaces compartidos, mazos publicados y todo lo relativo a tus amigos (desapareces de sus listas, tus listas y dispositivos se borran del servidor). Tus alertas de precio y notificaciones también se detienen en el servidor, y se borra la copia de la cuenta guardada en el dispositivo. Los datos de tu dispositivo se pueden borrar al mismo tiempo, o por separado desde los ajustes.</p>
+<p>Para cualquier pregunta o para ejercer tus derechos, escribe a <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Contenido de fans</h2>
+<p class="mute">Mana Orbit es contenido de fans no oficial permitido por la Fan Content Policy. No está aprobado ni respaldado por Wizards. Parte de los materiales utilizados son propiedad de Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+</section>
+
+<section id="it" lang="it">
+<h2>Informativa sulla privacy</h2>
+<p class="mute">Ultimo aggiornamento: 19 ottobre 2026 · Traduzione della versione francese, che prevale in caso di differenze.</p>
+<p>Mana Orbit è un'app gratuita per seguire la tua collezione di carte Magic, i tuoi mazzi e i loro prezzi. Raccoglie meno dati possibile e non ne vende mai.</p>
+<p><b>Titolare del trattamento:</b> Martin Stuis EI (M2S Photo), sviluppatore di Mana Orbit, Francia (dati completi nelle <a href="legal#en">note legali</a>, in francese e in inglese). Contatto: <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Senza account: tutto resta sul tuo dispositivo</h2>
+<p>La tua collezione, i tuoi mazzi e le tue impostazioni sono salvati nella memoria del tuo browser o dell'app, sul tuo dispositivo. Noi non vi abbiamo accesso. Se inserisci un token CardTrader, viene conservato nello stesso posto e inviato al nostro server solo con le tue ricerche su CardTrader (vedi «Il nostro server»). I dati dell'app Android sono esclusi dal backup di Android (Google).</p>
+<p>La scansione delle carte usa la fotocamera solo mentre è aperta. Le immagini vengono analizzate sul tuo dispositivo e caricate solo se segnali una scansione (vedi «Segnala un problema di scansione»). Nell'app Android il riconoscimento usa Google ML Kit, sul telefono; i servizi Google Play possono inviare a Google diagnostica anonima, secondo le condizioni di ML Kit.</p>
+
+<h2>Con un account (facoltativo)</h2>
+<p>Un account ti permette di ritrovare i tuoi dati su tutti i tuoi dispositivi. Si basa su Firebase Authentication e Cloud Firestore (Google). Conserviamo:</p>
+<ul>
+<li>il tuo indirizzo e-mail e il metodo di accesso (e-mail o Google);</li>
+<li>con Google, il tuo nome e la tua foto del profilo Google (conservati da Firebase Authentication; la foto compare sul tuo pulsante Account);</li>
+<li>se li imposti, il tuo nickname e la tua foto del profilo (un'immagine ridotta a 128 pixel);</li>
+<li>i tuoi mazzi, la tua collezione, la cronologia del suo valore, la tua lista scambi e le tue impostazioni di scansione.</li>
+</ul>
+<p>Questi dati vengono conservati finché l'account esiste. Il tuo token CardTrader non viene mai salvato nell'account.</p>
+<p>Per il funzionamento del servizio, l'editore può consultare statistiche degli account aggregate e minimizzate (nome e iniziale del cognome, indirizzo e-mail mascherato, date di registrazione e di attività, numero di carte, mazzi e amici), mai il contenuto della tua collezione o dei tuoi mazzi. In caso di abuso, l'editore può rimuovere un mazzo pubblicato nella community o disattivare un account (non può più accedere; i suoi dati restano); ogni azione di questo tipo viene registrata sul nostro server con la data e il nome, l'iniziale del cognome e l'indirizzo e-mail mascherato dell'account interessato.</p>
+
+<h2>Link condivisi</h2>
+<p>Quando condividi la tua lista scambi o un mazzo, il suo contenuto può essere letto da chiunque abbia il link. Non contiene né il tuo indirizzo e-mail né l'identificativo del tuo account, solo un'impronta (SHA-256) di questo identificativo, che mostra che il link è tuo. Se hai impostato un nickname o una foto del profilo, compaiono anche lì («Lista scambi di …»); la tua foto Google mai. Puoi rimuovere un link in qualsiasi momento.</p>
+<p><b>Segnalare una condivisione:</b> su una lista o un mazzo condiviso, «Segnala questa condivisione» apre un'e-mail a contact@manaorbit.app con l'indirizzo del link. I contenuti segnalati vengono esaminati il prima possibile e il link viene disattivato se viola la legge o queste regole (contenuti illegali o offensivi, dati personali di altri). L'e-mail della segnalazione serve solo a gestirla e a risponderti.</p>
+
+<h2>Amici (facoltativo)</h2>
+<p>Puoi aggiungere un amico dalla sua lista scambi (link o codice QR). Una richiesta gli trasmette il tuo nickname e la tua foto del profilo (ridotta a 64 pixel); lui la accetta o la rifiuta (un rifiuto non ti viene mai mostrato e blocca le tue nuove richieste per 30 giorni).</p>
+<p><b>Cosa vede un amico:</b> la tua lista scambi (doppioni e carte cercate, come sul tuo link), i tuoi mazzi salvati e, solo se lo consenti (Account › Amici › «Condividi la mia collezione», disattivato per impostazione predefinita), la tua collezione. Tu vedi le stesse cose di lui. Mai il tuo indirizzo e-mail né l'identificativo del tuo account.</p>
+<p>Per questo la tua app invia queste liste al nostro server quando cambiano, finché hai almeno un amico o una richiesta inviata. Il server le conserva in Cloud Firestore (Google), in raccolte che solo lui legge e scrive; il tuo account vi è registrato come impronta SHA-256 del suo identificativo, con il tuo nickname, la tua foto ridotta, la lingua delle tue notifiche, i tuoi amici e le richieste in sospeso, più impronte brevi delle carte della tua lista scambi (per avvisare un amico che è arrivata una carta che cerca). Rimuovere un amico interrompe l'accesso in entrambe le direzioni; senza amici né richieste, le tue liste vengono cancellate dal server; disattivare la condivisione della collezione la cancella subito.</p>
+<p><b>Notifiche degli amici</b> (se le notifiche sono attive): l'indirizzo di iscrizione del tuo browser o il token Firebase Cloud Messaging dell'app viene collegato al tuo account sul server, per avvisarti di una richiesta, di un'accettazione o di un amico che ha aggiunto una carta che cerchi (al massimo una volta al giorno). Viene rimosso quando esci dall'account su quel dispositivo, quando disattivi queste notifiche (Impostazioni › Notifiche › Amici) o quando il servizio di notifica lo rifiuta.</p>
+
+<h2>Scambio dal vivo (facoltativo)</h2>
+<p>Per uno scambio faccia a faccia, ognuno sul proprio telefono, la tua app invia al nostro server, per la durata della sessione: il tuo nickname, la tua foto del profilo ridotta, la tua lista scambi e le carte che scegliete. L'altro giocatore li vede (mai il tuo indirizzo e-mail né l'identificativo del tuo account). La sessione esiste solo nella memoria del server: non viene salvato nulla e scompare alla fine dello scambio (al massimo 24 ore dopo, perché entrambe le app possano applicarlo). Se inviti un amico, riceve una notifica con il tuo nickname. La cronologia «I miei scambi» resta sul tuo dispositivo.</p>
+
+<h2>Segnala un problema di scansione (facoltativo)</h2>
+<p>Quando una scansione non è riuscita, «Segnala un problema di scansione» (sulla carta scansionata vista in grande, o su una riga «Nome non riconosciuto») invia al nostro server, solo quando tocchi «Invia»: la foto della carta scattata durante la scansione (ridotta), ciò che l'app ha letto (testo del nome, riga in basso, carta, lingua ed edizione scelte, motore di riconoscimento, inquadratura e impostazioni della scansione, misure dell'anteprima della fotocamera), la versione dell'app, la lingua dell'interfaccia, cosa non va e il tuo commento se ne hai scritto uno. Se hai effettuato l'accesso, un'impronta (SHA-256) dell'identificativo del tuo account, mai il tuo indirizzo e-mail né l'identificativo stesso; la segnalazione non conserva il tuo indirizzo IP. Le segnalazioni servono solo a migliorare il riconoscimento delle carte; solo l'editore può vederle. Vengono conservate al massimo 90 giorni, poi cancellate, o prima su richiesta a <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Carta misteriosa, livello e classifiche (facoltativo)</h2>
+<p>Il tuo livello e i tuoi badge vengono calcolati sul tuo dispositivo in base a ciò che fai nell'app; se hai effettuato l'accesso, i loro contatori vengono conservati anche nel tuo account (per ritrovarli su un altro dispositivo). Se giochi alla Carta misteriosa o hai effettuato l'accesso, il nostro server conserva: le tue partite (ora, tappe, proposte, punteggio), gli XP considerati per la classifica dei livelli e il nickname del tuo profilo, <b>mostrato pubblicamente nelle classifiche</b> con il tuo punteggio e il tuo livello (senza nickname: «Joueur» e 4 caratteri ricavati dal tuo account, niente che ti identifichi). Per distinguere gli account e limitare gli imbrogli, usa anche la data di creazione del tuo account, un identificativo casuale proprio del tuo dispositivo (conservato sul dispositivo) e un'impronta del tuo indirizzo IP con un sale diverso ogni giorno, mai l'indirizzo stesso, cancellata alla fine della giornata di gioco. Le partite vengono conservate 400 giorni, il livello e le statistiche finché esiste il tuo account; puoi chiederne la cancellazione a <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>. Senza account, la tua partita non entra in classifica e niente ti identifica.</p>
+
+<h2>Iscrizione al test (pagina «Testeurs»)</h2>
+<p>Se ti iscrivi al test dell'app sulla pagina <a href="testeurs">Testeurs</a>, il nostro server conserva il tuo indirizzo e-mail e la data di iscrizione, nient'altro. Serve solo ad aggiungerti all'elenco dei tester su Google Play e ad avvisarti dell'apertura del test; solo l'editore può vederlo. Viene cancellato alla fine del test, o prima su richiesta a contact@manaorbit.app.</p>
+
+<h2>Il nostro server</h2>
+<p>Il server di Mana Orbit (ospitato da Hostinger) inoltra le richieste a CardTrader, Scryfall ed EDHREC e tiene in cache i prezzi pubblici. Legge anche i link che incolli per importare un mazzo (EDHREC, Archidekt). Se li attivi:</p>
+<ul>
+<li><b>notifiche</b>: l'indirizzo di iscrizione del tuo browser o, nell'app Android, il token Firebase Cloud Messaging;</li>
+<li><b>avvisi di prezzo</b>: le carte seguite, le tue soglie e i nomi dei mazzi interessati;</li>
+<li><b>amici</b>: vedi «Amici» sopra.</li>
+</ul>
+<p>Vengono cancellati quando li disattivi o elimini il tuo account. Il testo delle notifiche (nomi di carte e mazzi) passa dal servizio di notifica di Google o del produttore del tuo browser.</p>
+<p><b>Token CardTrader:</b> viaggia solo con le tue ricerche su CardTrader (mai con gli avvisi né con le importazioni). Il server lo usa per interrogare CardTrader con il tuo account e lo tiene in memoria per la durata della ricerca; ne conserva solo un'impronta (SHA-256) per distanziare le richieste. Non lo scrive mai su disco, nei suoi log né nel tuo account.</p>
+<p>Se hai effettuato l'accesso, l'app gli mostra una prova di accesso Firebase per verificare se il tuo account ha diritti particolari; il server la verifica senza conservarla. Per limitare gli abusi, conta in memoria le richieste per indirizzo IP. L'hosting può conservare log tecnici (indirizzo IP, data, pagina richiesta) per sicurezza; li conserva per un periodo limitato, secondo la propria policy.</p>
+
+<h2>Servizi di terze parti</h2>
+<p>Il tuo dispositivo contatta direttamente: Scryfall (immagini e dati delle carte, prezzi di tendenza), Google Fonts (caratteri), Google (SDK Firebase) e jsDelivr (motore di riconoscimento della scansione). Come per qualsiasi sito web, questi servizi ricevono il tuo indirizzo IP. Se inserisci il tuo token CardTrader, le tue ricerche e il tuo carrello passano da CardTrader con il tuo account.</p>
+
+<h2>Pubblicità e misurazione dell'audience</h2>
+<p><b>App Android:</b> un piccolo banner pubblicitario Google AdMob viene mostrato in cima allo schermo per pagare l'hosting. Non compare per alcuni account né durante la scansione. Nell'Unione europea e ovunque la legge lo richieda, il tuo consenso viene chiesto prima del primo annuncio, con il modulo di consenso di Google; puoi cambiare idea in qualsiasi momento in Impostazioni › Privacy e note legali › Scelte pubblicitarie.</p>
+<p>Per scegliere e contare i suoi annunci, AdMob (Google) può usare l'ID pubblicità del tuo dispositivo, il tuo indirizzo IP e informazioni tecniche sul dispositivo e sull'app. In base alla tua risposta, gli annunci sono personalizzati o no. Puoi reimpostare o eliminare l'ID pubblicità nelle impostazioni di Android (Google › Annunci). Dettagli: <a href="https://policies.google.com/technologies/partner-sites" rel="noopener">come Google utilizza le informazioni delle app partner</a>.</p>
+<p><b>Versione web</b> (browser, o app installata dal sito): nessuna pubblicità.</p>
+<p>Mana Orbit non effettua alcuna misurazione dell'audience.</p>
+
+<h2>Basi giuridiche</h2>
+<ul>
+<li><b>esecuzione del servizio</b>: l'account, la sincronizzazione, i link condivisi, gli amici, le importazioni e l'iscrizione al test;</li>
+<li><b>consenso</b>: la pubblicità (modulo di Google), le notifiche, avvisi di prezzo compresi, e le scansioni che segnali; puoi revocarlo in qualsiasi momento;</li>
+<li><b>legittimo interesse</b>: i log di sicurezza, i limiti delle richieste e la cache dei prezzi.</li>
+</ul>
+
+<h2>Fuori dall'Unione europea</h2>
+<p>Google (Firebase, AdMob, Firebase Cloud Messaging, ML Kit tramite i servizi Google Play) e Scryfall hanno sede negli Stati Uniti: ciò che ricevono può essere trattato lì. Google dichiara di coprire questi trasferimenti con il Data Privacy Framework UE-USA e con clausole contrattuali tipo. Scryfall, contattato come qualsiasi sito web, riceve solo il tuo indirizzo IP e le carte richieste.</p>
+
+<h2>I tuoi diritti</h2>
+<p>Puoi accedere ai tuoi dati, esportarli, correggerli o cancellarli in qualsiasi momento (GDPR). Puoi anche presentare un reclamo all'autorità per la protezione dei dati.</p>
+<p><b>Eliminare il tuo account:</b> nell'app, Account › Elimina il mio account, oppure direttamente da <a href="./?delete-account">questa pagina</a>. Tutto ciò che l'account contiene online viene cancellato: mazzi, collezione, cronologia, lista scambi, impostazioni, link condivisi, mazzi pubblicati e tutto ciò che riguarda i tuoi amici (scompari dalle loro liste, le tue liste e i tuoi dispositivi vengono cancellati dal server). Anche i tuoi avvisi di prezzo e le tue notifiche vengono interrotti sul server, e la copia dell'account conservata sul dispositivo viene cancellata. I dati sul tuo dispositivo possono essere cancellati nello stesso momento, oppure separatamente dalle impostazioni.</p>
+<p>Per qualsiasi domanda o per esercitare i tuoi diritti, scrivi a <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Contenuto di fan</h2>
+<p class="mute">Mana Orbit è un contenuto di fan non ufficiale consentito dalla Fan Content Policy. Non è approvato né sostenuto da Wizards. Parte dei materiali utilizzati è di proprietà di Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+</section>
+
+<section id="pt" lang="pt-BR">
+<h2>Política de privacidade</h2>
+<p class="mute">Última atualização: 19 de outubro de 2026 · Tradução da versão francesa, que prevalece em caso de diferença.</p>
+<p>Mana Orbit é um app gratuito para acompanhar sua coleção de cartas Magic, seus decks e os preços deles. Ele coleta o mínimo possível de dados e nunca vende nenhum.</p>
+<p><b>Controlador dos dados:</b> Martin Stuis EI (M2S Photo), desenvolvedor do Mana Orbit, França (dados completos nos <a href="legal#en">avisos legais</a>, em francês e inglês). Contato: <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Sem conta: tudo fica no seu aparelho</h2>
+<p>Sua coleção, seus decks e suas configurações ficam salvos no armazenamento do seu navegador ou do app, no seu aparelho. Não temos acesso a eles. Se você informar um token da CardTrader, ele fica guardado no mesmo lugar e só é enviado ao nosso servidor com suas buscas na CardTrader (veja «Nosso servidor»). Os dados do app Android ficam fora do backup do Android (Google).</p>
+<p>O escaneamento de cartas só usa a câmera enquanto ele está aberto. As imagens são analisadas no seu aparelho e só são enviadas se você relatar um escaneamento (veja «Relatar um problema de escaneamento»). No app Android, o reconhecimento usa o Google ML Kit, no celular; os serviços do Google Play podem enviar ao Google diagnósticos anônimos, conforme os termos do ML Kit.</p>
+
+<h2>Com conta (opcional)</h2>
+<p>Uma conta permite recuperar seus dados em todos os seus aparelhos. Ela usa o Firebase Authentication e o Cloud Firestore (Google). Guardamos:</p>
+<ul>
+<li>seu endereço de e-mail e o método de login (e-mail ou Google);</li>
+<li>com o Google, seu nome e sua foto de perfil do Google (guardados pelo Firebase Authentication; a foto aparece no seu botão de Conta);</li>
+<li>se você os definir, seu apelido e sua foto de perfil (uma imagem reduzida a 128 pixels);</li>
+<li>seus decks, sua coleção, o histórico do valor dela, sua lista de trocas e suas configurações de escaneamento.</li>
+</ul>
+<p>Esses dados são guardados enquanto a conta existir. Seu token da CardTrader nunca é salvo na conta.</p>
+<p>Para operar o serviço, o editor pode consultar estatísticas de contas agregadas e minimizadas (nome e inicial do sobrenome, e-mail mascarado, datas de cadastro e de atividade, número de cartas, decks e amigos), nunca o conteúdo da sua coleção ou dos seus decks. Em caso de abuso, o editor pode remover um deck publicado na comunidade ou desativar uma conta (ela não consegue mais fazer login; os dados dela permanecem); cada uma dessas ações fica registrada no nosso servidor com a data e o nome, a inicial do sobrenome e o e-mail mascarado da conta envolvida.</p>
+
+<h2>Links compartilhados</h2>
+<p>Quando você compartilha sua lista de trocas ou um deck, o conteúdo pode ser lido por qualquer pessoa que tenha o link. Ele não contém nem seu e-mail nem o identificador da sua conta, apenas uma impressão digital (SHA-256) desse identificador, que mostra que o link é seu. Se você definiu um apelido ou uma foto de perfil, eles também aparecem («Lista de trocas de …»); sua foto do Google, nunca. Você pode remover um link a qualquer momento.</p>
+<p><b>Denunciar um compartilhamento:</b> em uma lista ou deck compartilhado, «Denunciar este compartilhamento» abre um e-mail para contact@manaorbit.app com o endereço do link. O conteúdo denunciado é analisado o quanto antes, e o link é desativado se violar a lei ou estas regras (conteúdo ilegal ou abusivo, dados pessoais de outra pessoa). O e-mail da denúncia serve apenas para tratá-la e responder a você.</p>
+
+<h2>Amigos (opcional)</h2>
+<p>Você pode adicionar um amigo a partir da lista de trocas dele (link ou QR code). Uma solicitação envia a ele seu apelido e sua foto de perfil (reduzida a 64 pixels); ele aceita ou recusa (uma recusa nunca é mostrada a você e bloqueia novas solicitações suas por 30 dias).</p>
+<p><b>O que um amigo vê:</b> sua lista de trocas (repetidas e cartas procuradas, como no seu link), seus decks salvos e, só se você permitir (Conta › Amigos › «Compartilhar minha coleção», desativado por padrão), sua coleção. Você vê o mesmo dele. Nunca seu e-mail nem o identificador da sua conta.</p>
+<p>Para isso, seu app envia essas listas ao nosso servidor quando elas mudam, enquanto você tiver pelo menos um amigo ou uma solicitação enviada. O servidor as guarda no Cloud Firestore (Google), em coleções que só ele lê e escreve; sua conta aparece lá como a impressão digital SHA-256 do identificador dela, com seu apelido, sua foto reduzida, o idioma das suas notificações, seus amigos e solicitações pendentes, além de impressões digitais curtas das cartas da sua lista de trocas (para avisar um amigo de que chegou uma carta que ele procura). Remover um amigo encerra o acesso nos dois sentidos; sem amigos nem solicitações, suas listas são apagadas do servidor; desativar o compartilhamento da coleção a apaga na hora.</p>
+<p><b>Notificações de amigos</b> (se suas notificações estiverem ativadas): o endereço de inscrição do seu navegador ou o token do Firebase Cloud Messaging do app fica vinculado à sua conta no servidor, para avisar você de uma solicitação, de uma aceitação ou de um amigo que adicionou uma carta que você procura (no máximo uma vez por dia). Ele é removido quando você sai da conta nesse aparelho, quando desativa essas notificações (Configurações › Notificações › Amigos) ou quando o serviço de notificações o recusa.</p>
+
+<h2>Troca ao vivo (opcional)</h2>
+<p>Para uma troca cara a cara, cada um no seu celular, seu app envia ao nosso servidor, durante a sessão: seu apelido, sua foto de perfil reduzida, sua lista de trocas e as cartas que vocês escolhem. O outro jogador os vê (nunca seu e-mail nem o identificador da sua conta). A sessão existe apenas na memória do servidor: nada é salvo, e ela desaparece quando a troca termina (no máximo 24 horas depois, para que os dois apps possam aplicá-la). Se você convidar um amigo, ele recebe uma notificação com seu apelido. O histórico «Minhas trocas» fica no seu aparelho.</p>
+
+<h2>Relatar um problema de escaneamento (opcional)</h2>
+<p>Quando um escaneamento deu errado, «Relatar um problema de escaneamento» (na carta escaneada vista em tamanho grande, ou em uma linha «Nome não reconhecido») envia ao nosso servidor, só quando você toca em «Enviar»: a foto da carta tirada no escaneamento (reduzida), o que o app leu (texto do nome, linha de baixo, carta, idioma e edição escolhidos, mecanismo de reconhecimento, enquadramento e configurações do escaneamento, medidas da prévia da câmera), a versão do app, o idioma da interface, o que está errado e seu comentário, se você escreveu um. Se você estiver logado, uma impressão digital (SHA-256) do identificador da sua conta, nunca seu e-mail nem o próprio identificador; o relato não guarda seu endereço IP. Os relatos servem apenas para melhorar o reconhecimento das cartas; só o editor pode vê-los. Eles são guardados por no máximo 90 dias e depois apagados, ou antes, mediante pedido para <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Carta mistério, nível e classificações (opcional)</h2>
+<p>Seu nível e seus distintivos são calculados no seu aparelho a partir do que você faz no app; quando você está logado, os contadores deles também ficam guardados na sua conta (para recuperá-los em outro aparelho). Se você joga a Carta mistério ou está logado, nosso servidor guarda: suas partidas (horário, etapas, palpites, pontuação), o XP considerado para a classificação de níveis e o apelido do seu perfil, <b>exibido publicamente nas classificações</b> com sua pontuação e seu nível (sem apelido: «Joueur» e 4 caracteres tirados da sua conta, nada que identifique você). Para distinguir as contas e limitar trapaças, ele também usa a data de criação da sua conta, um identificador aleatório próprio do seu aparelho (guardado no aparelho) e uma impressão digital do seu endereço IP com um sal diferente a cada dia, nunca o endereço em si, apagada no fim do dia de jogo. As partidas são guardadas por 400 dias, o nível e as estatísticas enquanto sua conta existir; você pode pedir que sejam apagados em <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>. Sem conta, sua partida não entra na classificação e nada identifica você.</p>
+
+<h2>Inscrição no teste (página «Testeurs»)</h2>
+<p>Se você se inscrever no teste do app na página <a href="testeurs">Testeurs</a>, nosso servidor guarda seu endereço de e-mail e a data de inscrição, nada mais. Ele serve apenas para adicionar você à lista de testadores no Google Play e avisar quando o teste abrir; só o editor pode vê-lo. Ele é apagado no fim do teste, ou antes, mediante pedido para contact@manaorbit.app.</p>
+
+<h2>Nosso servidor</h2>
+<p>O servidor do Mana Orbit (hospedado pela Hostinger) repassa as solicitações para a CardTrader, a Scryfall e o EDHREC e guarda em cache os preços públicos. Ele também lê os links que você cola para importar um deck (EDHREC, Archidekt). Se você ativá-los:</p>
+<ul>
+<li><b>notificações</b>: o endereço de inscrição do seu navegador ou, no app Android, o token do Firebase Cloud Messaging;</li>
+<li><b>alertas de preço</b>: as cartas acompanhadas, seus limites e os nomes dos decks envolvidos;</li>
+<li><b>amigos</b>: veja «Amigos» acima.</li>
+</ul>
+<p>Eles são apagados quando você os desativa ou exclui sua conta. O texto das notificações (nomes de cartas e de decks) passa pelo serviço de notificações do Google ou do fabricante do seu navegador.</p>
+<p><b>Token da CardTrader:</b> ele só vai junto com suas buscas na CardTrader (nunca com os alertas nem com as importações). O servidor o usa para consultar a CardTrader com sua conta e o mantém na memória durante a busca; ele guarda apenas uma impressão digital (SHA-256) para espaçar as solicitações. Ele nunca o grava em disco, nos registros nem na sua conta.</p>
+<p>Quando você está logado, o app mostra a ele uma prova de login do Firebase para verificar se sua conta tem direitos especiais; o servidor a verifica sem guardá-la. Para limitar abusos, ele conta na memória as solicitações por endereço IP. A hospedagem pode guardar registros técnicos (endereço IP, data, página solicitada) por segurança; ela os guarda por um tempo limitado, conforme sua própria política.</p>
+
+<h2>Serviços de terceiros</h2>
+<p>Seu aparelho se comunica diretamente com: Scryfall (imagens e dados das cartas, preços de tendência), Google Fonts (fontes), Google (SDK do Firebase) e jsDelivr (mecanismo de reconhecimento do escaneamento). Como em qualquer site, esses serviços recebem seu endereço IP. Se você informar seu token da CardTrader, suas buscas e seu carrinho passam pela CardTrader com sua própria conta.</p>
+
+<h2>Publicidade e medição de audiência</h2>
+<p><b>App Android:</b> um pequeno banner de anúncio do Google AdMob aparece no topo da tela para pagar a hospedagem. Ele não aparece para algumas contas nem durante o escaneamento. Na União Europeia e onde a lei exigir, seu consentimento é pedido antes do primeiro anúncio, com o formulário de consentimento do Google; você pode mudar de ideia a qualquer momento em Configurações › Privacidade e avisos legais › Opções de anúncios.</p>
+<p>Para escolher e contar seus anúncios, o AdMob (Google) pode usar o ID de publicidade do seu aparelho, seu endereço IP e informações técnicas sobre o aparelho e o app. Conforme sua resposta, os anúncios são personalizados ou não. Você pode redefinir ou excluir o ID de publicidade nas configurações do Android (Google › Anúncios). Detalhes: <a href="https://policies.google.com/technologies/partner-sites" rel="noopener">como o Google usa informações de apps parceiros</a>.</p>
+<p><b>Versão web</b> (navegador, ou app instalado pelo site): sem anúncios.</p>
+<p>O Mana Orbit não faz nenhuma medição de audiência.</p>
+
+<h2>Bases legais</h2>
+<ul>
+<li><b>execução do serviço</b>: a conta, a sincronização, os links compartilhados, os amigos, as importações e a inscrição no teste;</li>
+<li><b>consentimento</b>: os anúncios (formulário do Google), as notificações, incluindo os alertas de preço, e os escaneamentos que você relata; você pode retirá-lo a qualquer momento;</li>
+<li><b>interesse legítimo</b>: os registros de segurança, os limites de solicitações e o cache de preços.</li>
+</ul>
+
+<h2>Fora da União Europeia</h2>
+<p>O Google (Firebase, AdMob, Firebase Cloud Messaging, ML Kit pelos serviços do Google Play) e a Scryfall ficam nos Estados Unidos: o que eles recebem pode ser tratado lá. O Google informa que cobre essas transferências com o EU-US Data Privacy Framework e cláusulas contratuais padrão. A Scryfall, acessada como qualquer site, recebe apenas seu endereço IP e as cartas solicitadas.</p>
+
+<h2>Seus direitos</h2>
+<p>Você pode acessar, exportar, corrigir ou apagar seus dados a qualquer momento (RGPD da União Europeia; no Brasil, LGPD). Você também pode apresentar uma reclamação à autoridade de proteção de dados.</p>
+<p><b>Excluir sua conta:</b> no app, Conta › Excluir minha conta, ou diretamente por <a href="./?delete-account">esta página</a>. Tudo o que a conta guarda on-line é apagado: decks, coleção, histórico, lista de trocas, configurações, links compartilhados, decks publicados e tudo o que se refere aos seus amigos (você some das listas deles, suas listas e aparelhos são apagados do servidor). Seus alertas de preço e notificações também são interrompidos no servidor, e a cópia da conta guardada no aparelho é apagada. Os dados do seu aparelho podem ser apagados ao mesmo tempo, ou separadamente nas configurações.</p>
+<p>Para qualquer dúvida ou para exercer seus direitos, escreva para <a href="mailto:contact@manaorbit.app">contact@manaorbit.app</a>.</p>
+
+<h2>Conteúdo de fã</h2>
+<p class="mute">Mana Orbit é conteúdo de fã não oficial permitido pela Fan Content Policy. Não é aprovado nem endossado pela Wizards. Parte dos materiais utilizados é propriedade da Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+</section>
 </main>
+<script>
+/* Sans ancre : va directement à la langue du visiteur (le français reste en tête de page) */
+if (!location.hash) { const l = (navigator.languages || [navigator.language || '']).map(x => String(x).slice(0, 2).toLowerCase()).find(x => ['fr', 'en', 'de', 'es', 'it', 'pt'].includes(x)); if (l && l !== 'fr') { const e = document.getElementById(l); if (e) e.scrollIntoView(); } }
+</script>
 </body>
 </html>

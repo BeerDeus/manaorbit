@@ -219,6 +219,8 @@ await T.assertFails(setDoc(doc(u1, 'users/u1/meta/history'), hist({ pts: Array.f
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/history'), hist({ pts: {} })));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/history'), drop(hist(), 'pts')));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/history'), hist({ evil: 1 })));
+await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/history'), hist({ reset: Date.now() })));      // « Recommencer la courbe »
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/history'), hist({ reset: 'hier' })));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/history'), hist({ updatedAt: '1' })));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/evil'), { updatedAt: 1 }));      // document annexe inconnu
 ok('collection, cartes réservées, historique de valeur : champs, types et bornes (900 000 caractères, 80 decks, 420 jours) ; document inconnu refusé');

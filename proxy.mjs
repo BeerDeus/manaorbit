@@ -74,6 +74,8 @@ const STATIC = new Map([
   ['/mentions-legales', ['legal.html', 'text/html; charset=utf-8', 'public, max-age=3600']],
   ['/passer-de-manabox', ['passer-de-manabox.html', 'text/html; charset=utf-8', 'public, max-age=3600']],                // guide public « Passer de ManaBox » (référencé ; même contenu que la feuille de src/switch.js)
   ['/passer-de-manabox.html', ['passer-de-manabox.html', 'text/html; charset=utf-8', 'public, max-age=3600']],
+  ['/robots.txt', ['robots.txt', 'text/plain; charset=utf-8', 'public, max-age=86400']],                                  // moteurs de recherche : /admin, /api/ et /test exclus ; renvoie au plan du site
+  ['/sitemap.xml', ['sitemap.xml', 'application/xml; charset=utf-8', 'public, max-age=86400']],                          // plan du site (Google Search Console) : pages publiques seulement
   ['/testeurs', ['testeurs.html', 'text/html; charset=utf-8', 'public, max-age=600']],                                  // page « Deviens testeur » (lien en bio des réseaux) : en attendant le lien d'inscription du 19 octobre
   ['/testeurs.html', ['testeurs.html', 'text/html; charset=utf-8', 'public, max-age=600']],
   ['/prices.tsv', ['prices.tsv.gz', 'text/tab-separated-values; charset=utf-8', 'public, max-age=3600', 'pre', 'px']],          // prix « à partir de » (gen-prices.mjs, relu depuis GitHub) : servi seulement une fois récupéré

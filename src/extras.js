@@ -154,9 +154,13 @@ function xsRemote(id, uid, data, pending, fromCache) {
     if (data && prcApply(data)) return;                                     // prix plus récents lus par un autre appareil : pris tels quels
     if (VAL.at > (Number(data && data.at) || 0) && COLL.freshAt) xsPushSoon('prices');      // prix d'ici plus récents (relus aujourd'hui) : envoyés
   } else {
-    const remote = data && Array.isArray(data.pts) ? data.pts.map(p => (Array.isArray(p) ? { t: p[0], v: p[1], n: p[2], q: p[3] } : p && typeof p === 'object' ? { t: p.t, v: p.v, n: p.n, q: p.q } : null)).filter(Boolean) : [], merged = histMerge(VAL.hist, remote);
-    if (!histSame(merged, VAL.hist)) { VAL.hist = merged; VAL.memo = null; valSave(false); paintCollSection(); if (COLL.el) collPaintBody(true); }
-    if (!histSame(merged, remote)) xsPushSoon('history');
+    // reset : « Recommencer la courbe » (value.js) fait ici ou sur un autre appareil ; le plus récent gagne, aucun relevé d'avant ne revient d'un côté ni de l'autre
+    const rr = Number(data && data.reset) || 0, newer = rr > VAL.reset;
+    if (newer) { VAL.reset = rr; VAL.hist = VAL.hist.filter(h => h.t >= rr); }
+    const all = data && Array.isArray(data.pts) ? data.pts.map(p => (Array.isArray(p) ? { t: p[0], v: p[1], n: p[2], q: p[3] } : p && typeof p === 'object' ? { t: p.t, v: p.v, n: p.n, q: p.q } : null)).filter(Boolean) : [];
+    const remote = all.filter(h => !(h.t < VAL.reset)), merged = histMerge(VAL.hist, remote);
+    if (newer || !histSame(merged, VAL.hist)) { VAL.hist = merged; VAL.memo = null; valSave(false); paintCollSection(); if (COLL.el) collPaintBody(true); }
+    if (!histSame(merged, all) || rr < VAL.reset) xsPushSoon('history');
   }
 }
 function xsPushSoon(id) { const d = XS.docs[id]; if (!d || !d.uid) return; clearTimeout(d.pushT); d.pushT = setTimeout(() => xsPush(id), 900); }      // pushT remis à 0 à l'envoi : non nul = envoi en attente (syncFlush)
@@ -165,7 +169,7 @@ async function xsPush(id) {
   const d = XS.docs[id]; if (d) { clearTimeout(d.pushT); d.pushT = 0; }
   if (!d || !d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-  const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : id === 'prices' ? prcDoc() : { pts: VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0 })), updatedAt: Date.now() };
+  const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : id === 'prices' ? prcDoc() : { pts: VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0 })), ...(VAL.reset ? { reset: VAL.reset } : {}), updatedAt: Date.now() };      // reset : règles Firestore du 21 octobre
   if (!doc) return;
   try { await D.cloud.saveMeta(d.uid, id, doc); d.state = 'ok'; acctSaw(id, d.uid); } catch (err) { xsFail(id, err); }
 }

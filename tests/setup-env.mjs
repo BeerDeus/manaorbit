@@ -26,7 +26,7 @@ if (!process.env.ADMIN_DIR) {      // panneau d'administration (journal des acti
 }
 if (!process.env.PWA_DIR) {
   const dir = mkdtempSync(join(tmpdir(), 'deckdeal-pwa-'));
-  for (const f of ['manifest.webmanifest', 'sw.js', 'privacy.html', 'legal.html', 'passer-de-manabox.html', 'admin.html', 'admin.js', 'admin.css', 'icons']) cpSync(join(root, 'pwa', f), join(dir, f), { recursive: true });
+  for (const f of ['manifest.webmanifest', 'sw.js', 'privacy.html', 'legal.html', 'passer-de-manabox.html', 'robots.txt', 'sitemap.xml', 'admin.html', 'admin.js', 'admin.css', 'icons']) cpSync(join(root, 'pwa', f), join(dir, f), { recursive: true });
   process.env.PWA_DIR = dir;
   process.on('exit', () => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ } });
 }

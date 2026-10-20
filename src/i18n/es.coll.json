@@ -346,5 +346,10 @@
   "Rituels": "Conjuros",
   "Terrains": "Tierras",
   "Autres": "Otros",
- "Édition": "Edición"
+  "Édition": "Edición",
+  "Recommencer la courbe": "Empezar la gráfica de nuevo",
+  "Recommencer la courbe ?": "¿Empezar la gráfica de nuevo?",
+  "Les relevés d'avant aujourd'hui sont effacés, sur cet appareil et sur ton compte. La courbe et les variations à 7 et 30 jours repartent de la valeur d'aujourd'hui. Tes cartes ne changent pas.": "Se borran los registros anteriores a hoy, en este dispositivo y en tu cuenta. La gráfica y las variaciones a 7 y 30 días vuelven a empezar desde el valor de hoy. Tus cartas no cambian.",
+  "Recommencer": "Empezar de nuevo",
+  "Courbe remise à zéro": "Gráfica reiniciada"
 }

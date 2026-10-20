@@ -346,5 +346,10 @@
   "Rituels": "Stregonerie",
   "Terrains": "Terre",
   "Autres": "Altro",
- "Édition": "Edizione"
+  "Édition": "Edizione",
+  "Recommencer la courbe": "Ricomincia il grafico",
+  "Recommencer la courbe ?": "Ricominciare il grafico?",
+  "Les relevés d'avant aujourd'hui sont effacés, sur cet appareil et sur ton compte. La courbe et les variations à 7 et 30 jours repartent de la valeur d'aujourd'hui. Tes cartes ne changent pas.": "I rilevamenti precedenti a oggi vengono cancellati, su questo dispositivo e sul tuo account. Il grafico e le variazioni a 7 e 30 giorni ripartono dal valore di oggi. Le tue carte non cambiano.",
+  "Recommencer": "Ricomincia",
+  "Courbe remise à zéro": "Grafico azzerato"
 }

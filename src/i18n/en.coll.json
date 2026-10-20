@@ -346,5 +346,10 @@
  "Rituels": "Sorceries",
  "Terrains": "Lands",
  "Autres": "Other",
- "Édition": "Set"
+ "Édition": "Set",
+ "Recommencer la courbe": "Start the chart over",
+ "Recommencer la courbe ?": "Start the chart over?",
+ "Les relevés d'avant aujourd'hui sont effacés, sur cet appareil et sur ton compte. La courbe et les variations à 7 et 30 jours repartent de la valeur d'aujourd'hui. Tes cartes ne changent pas.": "Readings from before today are deleted, on this device and in your account. The chart and the 7- and 30-day changes start again from today's value. Your cards don't change.",
+ "Recommencer": "Start over",
+ "Courbe remise à zéro": "Chart reset"
 }

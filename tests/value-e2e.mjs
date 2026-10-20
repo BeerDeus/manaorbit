@@ -102,5 +102,32 @@ assert.equal(posts() - b4, 1, '« Actualiser » relit même si le relevé date d
 await ctx.setOffline(true); await p.click('[data-act="valnow"]'); await p.waitForFunction(() => /Hors ligne/.test(document.querySelector('.vl-foot span').textContent)); await ctx.setOffline(false);
 ok('« Actualiser » : une lecture, relevé du jour remplacé (3 relevés) ; hors ligne : message clair');
 
+/* ── 10) « Recommencer la courbe » : relevés effacés ici et dans le compte, relevé du jour refait ; une copie plus ancienne ne les fait pas revenir ── */
+await p.click('#collSeg [data-v="stats"]'); await p.waitForSelector('.vl-box');
+assert.equal(await p.evaluate(() => VAL.hist.length), 3);
+await p.click('[data-act="valreset"]'); await p.waitForSelector('.sheet-wrap.open [data-ok]');
+assert.match(await txt(p, '.sheet-wrap.open .cf-msg'), /sur cet appareil et sur ton compte.*Tes cartes ne changent pas\./);
+await p.click('.sheet-wrap.open [data-ok]');
+await p.waitForFunction(() => VAL.reset > 0 && VAL.hist.length === 1 && VAL.hist[0].t >= VAL.reset, null, { timeout: 8000 });
+{
+  const st = await p.evaluate(() => ({ r: Number(localStorage.getItem('deckdeal:coll:histreset')), h: JSON.parse(localStorage.getItem('deckdeal:coll:hist')) }));
+  assert.ok(st.r > Date.now() - 60000, 'date de la remise à zéro gardée'); assert.equal(st.h.length, 1, 'un seul relevé, celui d\'aujourd\'hui'); assert.equal(st.h[0].v, await p.evaluate(() => collValue()));
+  assert.match(await txt(p, '.vl-first'), /Premier relevé/, 'la courbe repart du relevé du jour');
+  // compte : un appareil resté sur l'ancien historique (sans reset) renvoie les relevés d'avant → ignorés ; un reset plus récent fait ailleurs → appliqué ici
+  const r = await p.evaluate(day => {
+    const uid = 'u-val', prev = D.uid; D.uid = uid; XS.docs.history.uid = uid;
+    const old = Date.now() - 9 * day, t0 = VAL.hist[0].t;
+    xsRemote('history', uid, { pts: [{ t: old, v: 184500, n: 5, q: 6 }, ...VAL.hist], updatedAt: 1 }, false, false);
+    const a = { n: VAL.hist.length, old: VAL.hist.some(h => h.t === old) };
+    xsRemote('history', uid, { pts: [], reset: t0 + 1, updatedAt: 2 }, false, false);
+    const b = { n: VAL.hist.length, reset: VAL.reset === t0 + 1, saved: Number(localStorage.getItem('deckdeal:coll:histreset')) === t0 + 1 };
+    D.uid = prev; XS.docs.history.uid = ''; clearTimeout(XS.docs.history.pushT);
+    return { a, b };
+  }, D);
+  assert.deepEqual(r.a, { n: 1, old: false }, 'relevé d\'avant la remise à zéro venu du compte : jamais repris');
+  assert.deepEqual(r.b, { n: 0, reset: true, saved: true }, 'remise à zéro plus récente faite sur un autre appareil : appliquée et gardée');
+}
+ok('« Recommencer la courbe » : confirmation, relevés effacés (appareil, compte), relevé du jour refait ; anciens relevés d\'un autre appareil ignorés, remise à zéro venue d\'ailleurs appliquée');
+
 assert.deepEqual(errs, [], 'aucune erreur JS : ' + errs.join(' | '));
 await browser.close(); world.stop(); console.log('\nVALUE E2E OK'); process.exit(0);

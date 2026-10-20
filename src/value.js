@@ -3,14 +3,15 @@
    - un relevé de la valeur totale par jour (localStorage + compte si connecté, 400 jours au plus) → courbe et variations à 7 / 30 jours ;
    - sur CET appareil, les prix carte par carte de la semaine (IndexedDB) → cartes dont le prix a bougé de plus du seuil (10 / 25 / 50 %), bannière et pastilles ▲▼.
    L'historique de valeur est synchronisé avec le compte (extras.js, document meta/history) ; les prix carte par carte restent locaux. Lecture au lancement, au retour sur l'appli et à l'ouverture de la collection (pas en arrière-plan, appli fermée). */
-const VAL_HIST_KEY = 'deckdeal:coll:hist', VAL_AT_KEY = 'deckdeal:coll:pxat', VAL_THR_KEY = 'deckdeal:coll:alert', VAL_SEEN_KEY = 'deckdeal:coll:alertseen', VAL_BASE_KEY = 'coll:base';
+const VAL_HIST_KEY = 'deckdeal:coll:hist', VAL_RESET_KEY = 'deckdeal:coll:histreset', VAL_AT_KEY = 'deckdeal:coll:pxat', VAL_THR_KEY = 'deckdeal:coll:alert', VAL_SEEN_KEY = 'deckdeal:coll:alertseen', VAL_BASE_KEY = 'coll:base';
 const VAL_EVERY = 20 * 3600e3, VAL_THRS = [10, 25, 50];
-const VAL = { hist: [], base: null, at: 0, thr: 25, seen: -1, run: null, err: '', loaded: null, memo: null, topN: 8 };
+const VAL = { hist: [], reset: 0, base: null, at: 0, thr: 25, seen: -1, run: null, err: '', loaded: null, memo: null, topN: 8 };
 
 function valRead() {
   try {
     const h = JSON.parse(localStorage.getItem(VAL_HIST_KEY) || 'null');
-    if (Array.isArray(h)) VAL.hist = h.filter(x => x && Number.isFinite(x.t) && Number.isFinite(x.v)).sort((a, b) => a.t - b.t).slice(-VAL_MAX);
+    VAL.reset = Number(localStorage.getItem(VAL_RESET_KEY)) || 0;
+    if (Array.isArray(h)) VAL.hist = h.filter(x => x && Number.isFinite(x.t) && Number.isFinite(x.v) && x.t >= VAL.reset).sort((a, b) => a.t - b.t).slice(-VAL_MAX);
     VAL.at = Number(localStorage.getItem(VAL_AT_KEY)) || 0;
     const t = Number(localStorage.getItem(VAL_THR_KEY)); if (VAL_THRS.includes(t)) VAL.thr = t;
     const s = localStorage.getItem(VAL_SEEN_KEY); VAL.seen = s == null ? -1 : Number(s);
@@ -22,7 +23,7 @@ function valLoad() {
   return VAL.loaded;
 }
 function valSave(base) {
-  try { localStorage.setItem(VAL_HIST_KEY, JSON.stringify(VAL.hist)); localStorage.setItem(VAL_AT_KEY, String(VAL.at)); } catch (e) { /* stockage plein : l'historique reste en mémoire */ }
+  try { localStorage.setItem(VAL_HIST_KEY, JSON.stringify(VAL.hist)); localStorage.setItem(VAL_AT_KEY, String(VAL.at)); if (VAL.reset) localStorage.setItem(VAL_RESET_KEY, String(VAL.reset)); } catch (e) { /* stockage plein : l'historique reste en mémoire */ }
   if (base) Cache.set(VAL_BASE_KEY, VAL.base);
 }
 /* ── Prix du jour partagés entre les appareils du compte (users/{uid}/meta/prices, extras.js › xsRemote) ─────────────────────────────────────
@@ -68,6 +69,21 @@ async function valCommit() {
   const nb = baseRoll(VAL.base, p, now), chg = nb !== VAL.base; VAL.base = nb;
   VAL.at = now; VAL.memo = null; VAL.err = '';
   valSave(chg); xsPushSoon('history'); return true;
+}
+/** « Recommencer la courbe » (Stats) : les relevés d'avant disparaissent, ici et dans le compte. reset (date) part avec l'historique (meta/history) :
+ *  un autre appareil ou une copie plus ancienne ne fait jamais revenir un relevé d'avant (extras.js › xsRemote). Le relevé du jour est refait aussitôt. */
+function valResetHist() {
+  VAL.reset = Date.now(); VAL.hist = []; VAL.memo = null;
+  valSave(false); xsPushSoon('history');
+  valCommit().then(() => { paintCollSection(); if (COLL.el) collPaintBody(true); }, () => {});
+  paintCollSection(); if (COLL.el) collPaintBody(true);
+}
+function valResetAsk() {
+  openSheet(T('Recommencer la courbe ?'), '', api => {
+    api.body.innerHTML = `<p class="cf-msg">${T('Les relevés d\'avant aujourd\'hui sont effacés, sur cet appareil et sur ton compte. La courbe et les variations à 7 et 30 jours repartent de la valeur d\'aujourd\'hui. Tes cartes ne changent pas.')}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ok>${T('Recommencer')}</button>`);
+    api.foot.addEventListener('click', e => { if (e.target.closest('[data-ok]')) { api.close(); haptic('ok'); valResetHist(); toast(T('Courbe remise à zéro')); } });
+  });
 }
 /** Relit les prix de toutes les cartes (si le dernier relevé a plus de 20 h, ou sur demande), puis enregistre le relevé. Silencieux en cas d'échec. */
 async function valRefresh(opts) {
@@ -148,7 +164,7 @@ function valStatsHtml() {
   else if (h.length === 1) chart = `<p class="hint vl-first">${T('Premier relevé : <b>{v}</b>. La courbe apparaît dès demain.', { v: esc(fmt(h[0].v, 'EUR')) })}</p>`;
   else chart = `<p class="hint vl-first">${VAL.err || run ? T('Relevé en cours…') : collMissing().length ? T('Le premier relevé aura lieu quand toutes les cartes auront leurs infos.') : T('Le premier relevé va être enregistré.')}</p>`;
   const val = `<h3 class="cs-h">${T('Valeur dans le temps')} <small>${T('tendance Cardmarket')}</small></h3><div class="vl-box">${chart}<div class="vl-foot"><span>${status}</span>${act}</div></div>
-    <p class="hint">${T('Un relevé par jour, gardé sur cet appareil (et sur ton compte si tu es connecté). La valeur varie aussi quand tu ajoutes ou retires des cartes.')}</p>`;
+    <p class="hint">${T('Un relevé par jour, gardé sur cet appareil (et sur ton compte si tu es connecté). La valeur varie aussi quand tu ajoutes ou retires des cartes.')}${h.length ? ` <button class="link-btn" type="button" data-act="valreset">${T('Recommencer la courbe')}</button>` : ''}</p>`;
   const mv = valMovers();
   const thr = `<span class="cs-sw" role="group" aria-label="${T('Seuil de variation')}">${VAL_THRS.map(t => `<button type="button" data-act="valthr" data-v="${t}" aria-pressed="${VAL.thr === t}" class="${VAL.thr === t ? 'on' : ''}">${T('{n} %', { n: t })}</button>`).join('')}</span>`;
   let body;
@@ -175,6 +191,7 @@ function valClick(e) {
   const b = e.target.closest('button[data-act]'); if (!b) return false;
   const act = b.dataset.act;
   if (act === 'valnow') { haptic('tap'); valRefresh({ force: true }); }
+  else if (act === 'valreset') { haptic('tap'); valResetAsk(); }
   else if (act === 'valthr') { const t = Number(b.dataset.v); if (VAL_THRS.includes(t) && t !== VAL.thr) { VAL.thr = t; VAL.memo = null; VAL.topN = 8; try { localStorage.setItem(VAL_THR_KEY, String(t)); } catch (x) { /* stockage indisponible */ } haptic('tap'); collPaintBody(true); paintCollSection(); } }
   else if (act === 'valmore') { VAL.topN += 8; collPaintBody(true); }
   else if (act === 'valhide') { valSetSeen(dayOf(VAL.at)); haptic('tap'); valPaintAlert(); paintCollSection(); }
