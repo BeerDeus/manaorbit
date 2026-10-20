@@ -87,9 +87,13 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.match(rules, /^-dontwarn com\.facebook\.\*\*$/m, 'SDK Facebook absent (compileOnly du plugin de connexion) : R8 ne s\'arrête pas');
   assert.deepEqual(JSON.parse(readFileSync('android-app/capacitor.config.json', 'utf8')).plugins.FirebaseAuthentication.providers, ['google.com'], 'connexion Facebook jamais chargée : Google seulement');
   const java = readFileSync('android-app/android/app/src/main/java/app/manaorbit/MainActivity.java', 'utf8');
-  assert.match(java, /EdgeToEdge\.enable\(this\);\s*super\.onCreate\(savedInstanceState\);/, 'EdgeToEdge avant super.onCreate (fenêtre bord à bord avant setContentView)');
+  // EdgeToEdge APRÈS super.onCreate (APK 1.0.8) : avant (1.0.7), la fenêtre était créée avec le thème de lancement, barre d'action Android affichée en haut
+  const iSuper = java.indexOf('super.onCreate(savedInstanceState);'), iE2E = java.indexOf('EdgeToEdge.enable(this);');
+  assert.ok(iSuper > 0 && iE2E > iSuper, 'EdgeToEdge après super.onCreate (BridgeActivity y pose le thème sans barre et la vue)');
+  assert.equal((java.match(/EdgeToEdge\.enable\(/g) || []).length, 1, 'un seul appel');
+  assert.doesNotMatch(java.slice(0, iSuper), /getDecorView\(|getWindow\(\)/, 'rien ne touche la fenêtre avant super.onCreate (elle serait créée avec le thème de lancement)');
   assert.doesNotMatch(java, /LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES/, 'plus de constante de découpe obsolète');
   assert.match(gradle, /implementation "androidx\.activity:activity:\$androidxActivityVersion"/, 'androidx.activity déclarée (EdgeToEdge)');
-  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 8, 'code natif changé : versionCode 8 et plus');
-  console.log('✓ APK 1.0.7 : R8 (règles par défaut optimisées, FirebaseApp.getApps gardé, sans shrinkResources), EdgeToEdge avant super.onCreate, versionCode ≥ 8');
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 9, 'code natif changé : versionCode 9 et plus (1.0.8 : EdgeToEdge déplacé)');
+  console.log('✓ APK 1.0.7 / 1.0.8 : R8 (règles par défaut optimisées, FirebaseApp.getApps gardé, sans shrinkResources), EdgeToEdge après super.onCreate (rien ne touche la fenêtre avant), versionCode ≥ 9');
 }

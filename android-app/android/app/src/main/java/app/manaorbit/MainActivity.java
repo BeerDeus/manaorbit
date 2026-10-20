@@ -20,11 +20,13 @@ public class MainActivity extends BridgeActivity {
         // en cours, liste d'un autre joueur rouverte par App.getLaunchUrl et « appUrlOpen »).
         Intent launch = getIntent();
         if (savedInstanceState != null || (launch != null && (launch.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0)) ManaOrbitPlugin.forget(launch);
-        // Bord à bord sur toutes les versions (APK 1.0.7, demandé par la Play Console) : Android 15 et plus l'imposent déjà (cible SDK 35+) ; Android 7 à 14
+        super.onCreate(savedInstanceState);
+        // Bord à bord sur toutes les versions (demandé par la Play Console) : Android 15 et plus l'imposent déjà (cible SDK 35+) ; Android 7 à 14
         // s'affichent pareil (barres transparentes ; SystemBars de Capacitor donne les marges au site). Sur Android 9 et 10, EdgeToEdge dessine aussi sur
         // la ligne de la caméra frontale (SHORT_EDGES, réglé par la bibliothèque : plus de constante obsolète ici).
+        // APRÈS super.onCreate (APK 1.0.8) : BridgeActivity y pose le thème sans barre (AppTheme.NoActionBar) puis la vue. Appelé avant (1.0.7), EdgeToEdge
+        // créait la fenêtre avec le thème de lancement : barre d'action Android en haut (titre « Mana Orbit » tronqué, logo de lancement étiré en fond).
         EdgeToEdge.enable(this);
-        super.onCreate(savedInstanceState);
         // Plein écran (barre d'état cachée par le site, SystemBars) : la page dessine aussi sur la ligne de la caméra frontale, sans bande noire, même en paysage
         // (Android 11 et plus). Le site lit la découpe (ManaOrbit.cutout) pour l'éviter.
         if (Build.VERSION.SDK_INT >= 30) {

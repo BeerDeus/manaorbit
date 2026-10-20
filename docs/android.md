@@ -212,6 +212,34 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.0.8 (versionCode 9) : barre en haut de l'écran corrigée (20 octobre 2026)
+
+**Bug de la 1.0.7** (vu par le propriétaire le 20 octobre, avant validation) : une barre Android de 56 dp en haut (titre « Man… » tronqué, logo de lancement étiré en fond), au-dessus de la page. Cause : `EdgeToEdge.enable(this)` était appelé **avant** `super.onCreate`, donc la fenêtre était créée avec le thème de lancement (`AppTheme.NoActionBarLaunch`, dont `android:background` est le logo) au lieu du thème sans barre que `BridgeActivity` pose dans `super.onCreate`. **Correctif** : appel déplacé juste après `super.onCreate` (test `test-android-xml.mjs` : rien ne touche la fenêtre avant). Ce bug ne dépend pas de R8 : **Run ▶** (version debug) sur le téléphone suffit pour vérifier.
+
+1. `git pull`, Android Studio › Sync Project with Gradle Files, **Run ▶** sur le téléphone : plus de barre en haut (accueil du premier lancement compris : Réglages du téléphone › Applis › Mana Orbit › Stockage › Effacer les données pour le revoir), en-tête à sa place, « APK : 1.0.8 (9) » en bas des Réglages.
+2. `.aab` signé (§ 4.1) › Test fermé › **Créer une version** avec la 1.0.8 : elle remplace la 1.0.7 encore en examen. Notes de version :
+```
+<fr-FR>
+Correction : une barre s'affichait en haut de l'écran depuis la 1.0.7. Merci pour vos retours !
+</fr-FR>
+<en-US>
+Fix: a bar was showing at the top of the screen since 1.0.7. Thanks for your feedback!
+</en-US>
+<de-DE>
+Korrektur: Seit 1.0.7 wurde oben auf dem Bildschirm eine Leiste angezeigt. Danke für euer Feedback!
+</de-DE>
+<es-ES>
+Corrección: desde la 1.0.7 aparecía una barra en la parte superior de la pantalla. ¡Gracias por vuestros comentarios!
+</es-ES>
+<it-IT>
+Correzione: dalla 1.0.7 compariva una barra in cima allo schermo. Grazie per i vostri feedback!
+</it-IT>
+<pt-BR>
+Correção: desde a 1.0.7 aparecia uma barra no topo da tela. Obrigado pelo feedback!
+</pt-BR>
+```
+3. `APK_LATEST` : **7** tant que la 1.0.8 n'est pas en ligne (sinon les 1.0.6 seraient poussées vers la 1.0.7), puis **9**.
+
 ### APK 1.0.7 (versionCode 8) : R8 et bord à bord (demandés par la Play Console, 20 octobre 2026)
 
 Prête dans le code, **à construire après la mise en production** (rien ne presse : échéance février 2027 ; la 1.0.6 part en production telle quelle).
