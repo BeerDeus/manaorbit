@@ -153,7 +153,7 @@ r = await j(B + '/__ping', { headers: { 'x-forwarded-proto': 'https' } }); asser
 r = await j(B + '/', { headers: { 'x-forwarded-proto': 'https' } }); assert.equal(r.h.get('strict-transport-security'), 'max-age=15552000');
 r = await j(B + '/__ping'); assert.equal(r.h.get('strict-transport-security'), null); r = await j(B + '/__ping', { headers: { 'x-forwarded-proto': 'http' } }); assert.equal(r.h.get('strict-transport-security'), null);
 console.log('✓ HSTS seulement derrière https (X-Forwarded-Proto)');
-{ const pg = await j(B + '/__ping'); assert.equal(pg.o.apk, 6, 'dernière appli publiée par défaut : 1.0.5 (versionCode 6)'); }
+{ const pg = await j(B + '/__ping'); assert.equal(pg.o.apk, 9, 'dernière appli publiée par défaut : 1.0.8 (versionCode 9)'); }
 r = await j(B + '/.well-known/assetlinks.json'); assert.equal(r.s, 200); assert.deepEqual(r.o[0].target.sha256_cert_fingerprints, ['96:57:5F:6F:FD:89:38:E5:FE:46:BD:72:3B:E0:94:E6:27:5C:10:26:B9:14:01:57:D3:37:70:91:B7:A5:8A:33', 'B2:5B:42:63:AE:39:5B:E7:17:E9:3A:CF:9F:F7:88:13:A8:06:5B:83:2B:5D:41:91:3C:6D:E9:4B:25:24:0D:93']); console.log('✓ /.well-known/assetlinks.json sans ASSETLINKS_SHA256 : les empreintes de l\'appli Play (clé de signature, clé d\'importation)');
 p.kill();
 { // App Links Android : /.well-known/assetlinks.json avec ASSETLINKS_SHA256 (empreintes de la clé de signature Play et de la clé d'importation)
@@ -179,6 +179,19 @@ p.kill();
   const pc = await start({ CARDTRADER_TOKEN: '', HOST: '0.0.0.0', ASSETLINKS_SHA256: '0' }, P);
   assert.equal((await fetch(AB)).status, 404, 'ASSETLINKS_SHA256=0 : App Links coupés'); pc.kill();
   console.log('✓ /.well-known/assetlinks.json : application/json, sans redirection ni cookie, empreintes normalisées (majuscules, « : »), invalides ignorées et signalées, HEAD, lecture seule, ancienne adresse comprise ; aucune valide : 404');
+}
+{ // QR des flyers (/flyer) : iPhone et iPad → fiche App Store une fois APP_STORE_URL posée (le QR imprimé ne change pas) ; adresse invalide : le site
+  const P = 18781, go = ua => fetch('http://127.0.0.1:' + P + '/flyer', { redirect: 'manual', headers: { 'user-agent': ua } });
+  const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1', IPAD = 'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148', PC = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141.0';
+  const AND = 'Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/141.0 Mobile Safari/537.36';
+  let pq = await start({ CARDTRADER_TOKEN: '', APP_STORE_URL: ' https://apps.apple.com/fr/app/mana-orbit/id1234567890 ' }, P);
+  for (const ua of [IOS, IPAD]) assert.equal((await go(ua)).headers.get('location'), 'https://apps.apple.com/fr/app/mana-orbit/id1234567890', 'iPhone, iPad → App Store');
+  assert.match((await go(AND)).headers.get('location'), /^https:\/\/play\.google\.com\/store\/apps\/details\?id=app\.manaorbit&referrer=/, 'Android → Google Play');
+  assert.equal((await go(PC)).headers.get('location'), '/?ref=flyer', 'ordinateur → le site');
+  pq.kill(); await new Promise(res2 => setTimeout(res2, 200));
+  pq = await start({ CARDTRADER_TOKEN: '', APP_STORE_URL: 'apps.apple.com/pas-https' }, P);
+  assert.equal((await go(IOS)).headers.get('location'), '/?ref=flyer', 'APP_STORE_URL invalide (pas https) : le site'); pq.kill(); await new Promise(res2 => setTimeout(res2, 200));
+  console.log('✓ /flyer : iPhone et iPad → App Store dès APP_STORE_URL posée (https seulement), Android → Google Play, ordinateur → le site');
 }
 { // Domaine d'authentification manaorbit.app : /__/auth/* et /__/firebase/init.json relayés vers <projet>.firebaseapp.com (faux amont)
   const got = [], big = 'x'.repeat(5000);

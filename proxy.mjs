@@ -43,7 +43,9 @@ const ADMOB_PUB = (/pub-\d{10,20}/.exec(String(process.env.ADMOB_PUB_ID || proce
 // Publiques par nature (servies telles quelles) ; ASSETLINKS_SHA256 les remplace si elle est définie, « 0 » coupe les App Links.
 // Dernière appli Android publiée sur le Play Store (versionCode) : une coque plus ancienne affiche « Mise à jour de l'appli » au lancement (pwa.js › apkCheck).
 // À monter quand la nouvelle version est en ligne (test fermé compris) ; APK_LATEST sur Hostinger la remplace sans redéployer le code. 0 : jamais.
-const APK_LATEST = Math.max(0, Math.min(1e6, Math.floor(Number(process.env.APK_LATEST ?? 6)) || 0));      // 6 = 1.0.5 (en ligne le 15 octobre)
+const APK_LATEST = Math.max(0, Math.min(1e6, Math.floor(Number(process.env.APK_LATEST ?? 9)) || 0));      // 9 = 1.0.8 (en ligne le 20 octobre)
+// Fiche App Store de l'appli iPhone (vide tant qu'elle n'existe pas) : /flyer y envoie les iPhone et iPad ; vide ou pas https : le site
+const APP_STORE_URL = /^https:\/\/[^\s]+$/.test(String(process.env.APP_STORE_URL || '').trim()) ? String(process.env.APP_STORE_URL).trim() : '';
 const ASSETLINKS_DEF = '96:57:5F:6F:FD:89:38:E5:FE:46:BD:72:3B:E0:94:E6:27:5C:10:26:B9:14:01:57:D3:37:70:91:B7:A5:8A:33,B2:5B:42:63:AE:39:5B:E7:17:E9:3A:CF:9F:F7:88:13:A8:06:5B:83:2B:5D:41:91:3C:6D:E9:4B:25:24:0D:93';
 const ASSETLINKS_ENV = process.env.ASSETLINKS_SHA256 == null ? ASSETLINKS_DEF : String(process.env.ASSETLINKS_SHA256).trim() === '0' ? '' : String(process.env.ASSETLINKS_SHA256);
 const ASSETLINKS_RAW = ASSETLINKS_ENV.split(',').map(x => x.trim()).filter(Boolean);
@@ -3153,8 +3155,11 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(String(req.url).replace(/^\/+/, '/'), 'http://x'); // « // » ou « //hôte/chemin » ne doivent pas être lus comme une URL absolue
     if (OLD_HOSTS.length && OLD_HOSTS.includes(String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase()) && oldHost(req, res, url)) return;
     if (url.pathname === '/flyer') {      // QR des flyers et affiches imprimés (tools/flyer.mjs) : lien fixe, la destination peut changer sans réimprimer
-      // Android → fiche Google Play (source « flyer » dans les rapports d'acquisition de la Play Console) ; iPhone, ordinateur → le site (?ref=flyer : ouverture normale)
-      const to = /\bAndroid\b/i.test(req.headers['user-agent'] || '') ? 'https://play.google.com/store/apps/details?id=app.manaorbit&referrer=' + encodeURIComponent('utm_source=flyer&utm_medium=print') : '/?ref=flyer';
+      // Android → fiche Google Play (source « flyer » dans les rapports d'acquisition de la Play Console) ; iPhone et iPad → fiche App Store (APP_STORE_URL,
+      // le jour où elle existe) ; le reste, et l'iPhone en attendant → le site (?ref=flyer : ouverture normale)
+      const ua = req.headers['user-agent'] || '';
+      const to = /\bAndroid\b/i.test(ua) ? 'https://play.google.com/store/apps/details?id=app.manaorbit&referrer=' + encodeURIComponent('utm_source=flyer&utm_medium=print')
+        : APP_STORE_URL && /\b(iPhone|iPad|iPod)\b/.test(ua) ? APP_STORE_URL : '/?ref=flyer';
       res.writeHead(302, { Location: to, 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }); return res.end();
     }
     if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });

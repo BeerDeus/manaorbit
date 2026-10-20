@@ -5,7 +5,8 @@
 //   « orbite »  : sans capture, une carte foil au centre de l'orbite et ses cinq orbes ;
 //   « solo »    : « Combien vaut ton classeur ? », une capture en grand dans l'orbite, la liste des cinq parties.
 // Captures : shots/store/fr-*.png (faites ici par `node tools/store-assets.mjs raw fr` si elles manquent), cartes factices.
-// QR : src/qr.js, lien FIXE https://manaorbit.app/flyer (imprimé : ne jamais le changer ; la destination se règle dans proxy.mjs › /flyer).
+// QR : src/qr.js, lien FIXE https://manaorbit.app/flyer (imprimé : ne jamais le changer ; la destination se règle dans proxy.mjs › /flyer :
+// Android → Google Play, iPhone → App Store dès que APP_STORE_URL est posée, sinon le site).
 //   node tools/flyer.mjs            les quatre        node tools/flyer.mjs mix
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -129,7 +130,7 @@ const SUB = {
 };
 
 function page(v) {
-  const keep = { apercus: (x, y) => y < 92 || y > 286, mix: (x, y) => y < 84 || y > 286, orbite: (x, y) => y < 64 || (y > 226 && y < 246) || y > 286, solo: (x, y) => y < 30 || y > 286 }[v];
+  const keep = { apercus: (x, y) => y < 92, mix: (x, y) => y < 84, orbite: (x, y) => y < 64 || (y > 226 && y < 246), solo: (x, y) => y < 30 }[v];      // étoiles : jamais derrière le dessin, les textes ni les mentions du bas
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${FACES}
   @page{size:216mm 303mm;margin:0}
   *{box-sizing:border-box}
@@ -171,6 +172,7 @@ function page(v) {
   .cta .tx b{font-family:'MO Display';font-weight:780;font-size:17pt;letter-spacing:-.02em}
   .cta .tx span{font-size:10.5pt;line-height:1.38;color:#3d4766}
   .cta .tx span strong{color:#10152b;font-weight:650}
+  .cta .soon{display:inline-block;margin:0 .6mm;padding:.35mm 1.7mm;border-radius:2mm;background:#10152b;color:#fff;font-style:normal;font-size:7.4pt;font-weight:700;letter-spacing:.06em;text-transform:uppercase;vertical-align:.25mm}
   .cta .free{flex:none;text-align:right;font-family:'MO Display';font-weight:780;font-size:24pt;letter-spacing:-.03em;line-height:1}
   .cta .free small{display:block;margin-top:1.3mm;font-family:'MO Text';font-weight:650;font-size:8.5pt;letter-spacing:.06em;text-transform:uppercase;color:#5a6484}
   .fine{position:absolute;left:14mm;top:283.5mm;width:182mm;margin:0;font-size:6.2pt;line-height:1.35;color:#737c99}
@@ -179,7 +181,7 @@ function page(v) {
   <div class="head">${LOGO}<b>Mana Orbit</b><small>Android · iPhone · ordinateur</small></div>
   <h1>${H1[v]}</h1>
   ${SUB[v] ? `<p class="sub">${SUB[v]}</p>` : ''}
-  <div class="cta"><div class="qr">${QR}</div><div class="tx"><b>Scanne pour l'installer</b><span>Avec l'appareil photo de ton téléphone.<br><strong>Android</strong> : Google Play · <strong>iPhone et ordinateur</strong> : manaorbit.app</span></div><div class="free">0 €<small>pour toujours</small></div></div>
+  <div class="cta"><div class="qr">${QR}</div><div class="tx"><b>Scanne pour l'installer</b><span>Avec l'appareil photo de ton téléphone.<br><strong>Android</strong> : Google Play · <strong>Ordinateur</strong> : manaorbit.app<br><strong>iPhone</strong> : App Store <em class="soon">à venir</em> · en attendant, manaorbit.app</span></div><div class="free">0 €<small>pour toujours</small></div></div>
   <p class="fine">${FINE}</p>
   </div></div></body></html>`;
 }
