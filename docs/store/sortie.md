@@ -111,7 +111,9 @@ Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (va
 - `solo-e` : titre géant sur trois lignes, parties en pastilles ;
 - `solo-f` : une carte foil qui entre dans le téléphone (cadre du scan).
 - `solo-a-mana` : la A (retenue le 20 octobre), orbes et puces en **vrais symboles de mana** (Scan blanc, Échange bleu, Cote vert, Classeur noir, Commander rouge) ;
-- `solo-a-carte` : la même, avec derrière le téléphone une silhouette de carte « Sol Ring » (son vrai coût : {1}, artefact ; nom de carte en texte, permis).
+- `solo-a-bolt` : la même, avec derrière le téléphone une carte « Lightning Bolt » ({R}, éphémère) ;
+- `solo-a-dragon` : pareil avec « The Ur-Dragon » ({4}{W}{U}{B}{R}{G} : les cinq couleurs des orbes).
+  Nom et coût de vraies cartes en texte (permis). Illustration : dégradé foil, ou la vraie illustration si elle est déposée dans `tools/flyer-art/lightning-bolt.jpg` ou `the-ur-dragon.jpg` (recadrage « art crop » de Scryfall).
 
 **Fichiers** : `docs/print/flyer-a5-<déclinaison>.pdf` (à envoyer à l'imprimeur : texte, dessin et QR en vectoriel) et `.png` (aperçu, imprimable aussi : 300 dpi). En A4 (affiche au mur d'une boutique) : `flyer-a4-<déclinaison>`.
 
