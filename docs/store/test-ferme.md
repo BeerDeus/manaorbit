@@ -35,7 +35,7 @@ Les mails de demande disent « un projet personnel que j'utilise seul » (`docs/
 - Les corrections du site arrivent tout de suite chez les testeurs (l'appli charge le site en ligne). Une correction native part sur le même canal avec un nouveau `versionCode` : les 14 jours ne repartent pas.
 
 **J15 ou plus tard : la production**
-- Play Console › Tableau de bord › **Demander l'accès à la production**. Réponses : § 5, dernier bloc.
+- Play Console › Tableau de bord › **Demander l'accès à la production**. Réponses : `docs/store/production.md`.
 - **Garde tous les testeurs inscrits jusqu'à l'accord.** Préviens-les dans `#annonces` : « ne vous désinscrivez pas encore ».
 
 L'appli n'a aucune mesure d'audience (c'est voulu) : les seules preuves d'engagement seront les questionnaires, Discord, les e-mails et Android vitals. Tiens un tableau tout simple : *retour · gravité · corrigé le*. Il servira pour le formulaire de production.
@@ -192,15 +192,7 @@ I'll test your app back for the full 14 days: drop your opt-in link in the comme
 On-device card scanner, collection value at Cardmarket prices with a home screen widget, Commander decks you can already build, trade list by link or QR code. Feedback welcome in English or French: Settings › Help and feedback › Send feedback.
 ```
 
-**Demande d'accès à la production** (squelette, remplace les chiffres)
-```
-Recrutement : joueurs de Magic de mon groupe de jeu, de la boutique [nom] et des serveurs Discord francophones (MTG [FR], Le Royaume des Commandants), plus quelques développeurs en échange de tests. [N] testeurs inscrits, dont [N] joueurs de Magic.
-Engagement : missions et questionnaire chaque semaine ([N] réponses), salon Discord ([N] messages), [N] avis envoyés depuis l'appli. L'appli n'a volontairement aucun outil de mesure d'audience : les retours viennent des testeurs eux-mêmes.
-Retours principaux et corrections : [3 à 5 exemples datés : bug, correction, date].
-Public : joueurs de Magic, 13 ans et plus, francophones d'abord, qui possèdent des cartes physiques.
-Valeur : collection et cote au prix Cardmarket, scan sur le téléphone, decks à compléter avec ses propres cartes, liste d'échange partagée, gratuit et sans compte.
-Prêt pour la production : [taux sans plantage %], rapport de pré-lancement sans erreur bloquante, retours de la 2e semaine positifs ([moyenne]/5).
-```
+**Demande d'accès à la production** : réponses prêtes (français et anglais) et étapes du jour de la production dans `docs/store/production.md`.
 
 ## 6. Chaque jour (5 minutes)
 

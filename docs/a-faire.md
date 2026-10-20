@@ -2,6 +2,7 @@
 
 ## Priorités (mises à jour le 20 octobre au soir)
 - **Prochaine étape : le lancement officiel** (conversation dédiée) : fiche Play (textes, visuels stylisés, 6 langues), formulaire « Demander l'accès à la production », puis les réglages du 29 octobre (`RATE_ASK`, `ADMOB_BANNER_ID`, `APK_LATEST=7`).
+  - **Fait le 20 octobre (soir)** : textes de la fiche remis à jour dans les 6 langues (`docs/store/fiche.md` § 0 à 4 : masterset, Carte mystère, badges, ordinateur, partie de Commander corrigée ; notes de version de la production ; **langue par défaut à passer en en-US**) ; réponses du formulaire de production et étapes du jour J (`docs/store/production.md`) ; sécurité des données : lignes Carte mystère à vérifier (§ 8). Reste : visuels.
 - **Test fermé en cours** : lancé vers le 15 octobre, 12 testeurs inscrits → 14 jours atteints vers le 29 octobre (7 jours restants au 20 octobre au soir), puis Play Console › Demander l'accès à la production (sortie publique visée fin octobre).
 - **APK 1.0.6 (versionCode 7)** : construite, testée et envoyée le 20 octobre ; **en cours d'examen par Google**. Notes de version (fr-FR / en-US) écrites le 20 octobre. Une fois en ligne : `APK_LATEST=7` sur Hostinger (les 1.0.5 verront « Mise à jour de l'appli »).
 - **Scan chinois, japonais, coréen, russe** : corrigé le 19 octobre (voir ci-dessous) ; lecture native ML Kit dans la 1.0.6 ; retours des testeurs à suivre.

@@ -1,11 +1,17 @@
 # Fiche Google Play : Mana Orbit
 
-Tout ce qu'il faut copier dans la Play Console : en français (langue par défaut), puis en anglais, allemand, espagnol, italien et portugais du Brésil, les langues de l'appli (**Présence sur le Play Store › Fiche principale › Gérer les traductions › Ajouter vos propres traductions** : en-US, de-DE, es-ES, it-IT, pt-BR). Textes remis à jour le 15 octobre 2026 (scan dans 11 langues, édition lue en bas de la carte, rangement, partie de Commander, échange en direct) ; visuels à refaire à la fin du test fermé (`docs/a-faire.md`).
+Tout ce qu'il faut copier dans la Play Console, dans les 6 langues de l'appli : français, anglais, allemand, espagnol, italien et portugais du Brésil (**Présence sur le Play Store › Fiche principale › Gérer les traductions › Ajouter vos propres traductions** : fr-FR, en-US, de-DE, es-ES, it-IT, pt-BR). Textes remis à jour le 20 octobre 2026 pour la production (masterset, Carte mystère, niveau et badges, ordinateur ; partie de Commander corrigée) ; visuels à refaire (`docs/a-faire.md`).
 Les textes à coller sont dans les blocs gris : copie le bloc entier. Les longueurs sont vérifiées (limites de Google entre parenthèses).
 
 Visuels : dans ce dossier, générés par `node tools/store-assets.mjs` (voir la fin de ce fichier).
 
 ---
+
+## 0. Langue par défaut : l'anglais (à changer avant la production)
+
+La langue par défaut est celle que voient **toutes les langues sans traduction** (néerlandais, polonais, japonais, coréen, chinois, russe…). En français, un joueur néerlandais ou japonais tombe sur une fiche qu'il ne lit pas, alors que l'appli, elle, s'ouvre en anglais quand la langue du téléphone n'est pas disponible. Un téléphone réglé en français garde la traduction fr-FR.
+- Play Console › Présence sur le Play Store › Fiche principale › **Gérer les traductions › Modifier la langue par défaut** › **Anglais (États-Unis) – en-US**, puis vérifie que le français reste dans les traductions.
+- Les visuels anglais (`feature-graphic-en.png`, `en/`) deviennent ceux par défaut ; les visuels français restent attachés à fr-FR (« Ajouter des éléments graphiques localisés »).
 
 ## 1. Titre de l'appli (30 caractères au plus)
 
@@ -13,8 +19,8 @@ Ni « MTG » ni « Magic: The Gathering » dans le titre : ce sont des marques d
 
 | Langue | Titre | Longueur |
 |---|---|---|
-| Français (fr-FR, langue par défaut) | `Mana Orbit – Scan, cote, decks` | 30 |
-| Anglais (en-US) | `Mana Orbit: Scan, Value, Decks` | 30 |
+| Français (fr-FR) | `Mana Orbit – Scan, cote, decks` | 30 |
+| Anglais (en-US, par défaut) | `Mana Orbit: Scan, Value, Decks` | 30 |
 | Allemand (de-DE) | `Mana Orbit: Scan, Wert, Decks` | 29 |
 | Espagnol (es-ES) | `Mana Orbit: escáner, valor` | 26 |
 | Italien (it-IT) | `Mana Orbit: scanner, valore` | 27 |
@@ -35,13 +41,13 @@ Repli dans toutes les langues : `Mana Orbit` (10). Google déconseille les titre
 
 Elle ne parle pas d'EDHREC : elle reste valable si EDHREC refuse. Le scan dans 11 langues d'abord (aucun concurrent ne lit le japonais, le coréen et le chinois sur le téléphone), puis la cote, le rangement, l'échange et la partie.
 
-Français (fr-FR, langue par défaut) (78) :
+Français (fr-FR) (78) :
 
 ```
 Scanne tes cartes Magic en 11 langues, suis leur cote, range, échange et joue.
 ```
 
-Anglais (en-US) (80) :
+Anglais (en-US, par défaut) (80) :
 
 ```
 Scan your Magic cards in 11 languages, track their value, organize, trade, play.
@@ -74,353 +80,361 @@ Escaneie cartas Magic em 11 idiomas, acompanhe o valor, organize, troque, jogue.
 ## 3. Description complète (4 000 caractères au plus)
 
 Google n'affiche ni gras ni titres : les majuscules et les puces « • » servent de repères. « Magic » seul, pour dire à qui s'adresse l'appli, est admis ; jamais le logo ni « Magic: The Gathering » en accroche.
-Seules les premières lignes s'affichent avant « Plus » : elles disent l'essentiel (scan, cote, rangement, échange, partie de Commander, decks, gratuit). Le scanner passe en premier.
-La Play Console n'a pas de champ de mots-clés : ils sont dans le texte (scanner de cartes, cartes Magic, cote, Commander, liste d'échange, doublons, classeur, alerte de prix). Les noms des fonctions sont ceux de l'appli dans chaque langue (« À vérifier », « À aller chercher », « Pour toi », « Échange en direct »…).
-Avant de coller : toutes les fonctions citées doivent être en ligne (Google refuse une fiche qui promet ce que l'appli ne fait pas). Les noms japonais, coréens et chinois sont lus dès que le workflow « Catalogues des noms imprimés » a produit `names-ja/ko/zhs/zht.tsv`.
+Seules les premières lignes s'affichent avant « Plus » : elles disent l'essentiel (scan, cote, rangement, masterset, échange, partie de Commander, decks, gratuit). Le scanner passe en premier.
+La Play Console n'a pas de champ de mots-clés : ils sont dans le texte (scanner de cartes, cartes Magic, cote, Commander, liste d'échange, doublons, classeur, masterset, alerte de prix). Les noms des fonctions sont ceux de l'appli dans chaque langue (« À vérifier », « À aller chercher », « Pour toi », « Échange en direct », « Carte mystère »…).
+Remis à jour le 20 octobre d'après le README : masterset, Carte mystère, niveau et badges, ordinateur, Delver Lens ; partie de Commander corrigée (un seul téléphone tient les compteurs, les autres rejoignent la table par QR code) ; ce qui demande un compte est dit (synchro, decks à monter, partage, classements) ; « jamais pendant le scan ni les parties » pour la pub.
+Avant de coller : toutes les fonctions citées doivent être en ligne (Google refuse une fiche qui promet ce que l'appli ne fait pas).
 
-### Français (fr-FR, langue par défaut) (3830 caractères)
+### Français (fr-FR) (3831 caractères)
 
 ```
-Scanne tes cartes Magic dans 11 langues, découvre la cote de ta collection au prix Cardmarket, range-la, échange tes doublons en un lien ou un QR code, joue tes parties de Commander et trouve les decks que tu peux déjà monter. Gratuit, sans compte obligatoire.
+Scanne tes cartes Magic dans 11 langues, suis la cote de ta collection au prix Cardmarket, range-la, complète tes mastersets, échange tes doublons en un lien ou un QR code, joue tes parties de Commander et trouve les decks que tu peux déjà monter. Gratuit, sans compte obligatoire.
 
 LE SCANNER DE CARTES
 • Cadre la carte et appuie, ou laisse le scan automatique ajouter chaque carte posée devant l'objectif.
-• L'édition exacte est lue en bas de la carte (extension, numéro, langue) ; pour les cartes plus anciennes, l'illustration et le symbole d'extension la retrouvent.
-• 11 langues : français, anglais, allemand, espagnol, italien, portugais, russe, japonais, coréen, chinois simplifié et traditionnel. Les lots mélangés sont lus carte par carte.
-• En cas de doute, la carte est « à vérifier », avec ta photo pour comparer.
-• La lecture se fait sur ton téléphone : la photo n'est envoyée que si tu signales un scan raté.
-• Prix rapide, session d'ouverture de boosters (bilan gain ou perte, image à partager), scan au téléphone vers l'ordinateur.
+• L'édition exacte est lue en bas de la carte ; pour les plus anciennes, l'illustration et le symbole d'extension la retrouvent.
+• 11 langues : français, anglais, allemand, espagnol, italien, portugais, russe, japonais, coréen, chinois simplifié et traditionnel.
+• En cas de doute, la carte est « à vérifier », avec ta photo pour comparer. La lecture se fait sur ton téléphone.
+• Prix rapide, et session d'ouverture de boosters avec son bilan gain ou perte.
 
 TA COLLECTION ET SA COTE
-• Importe tes cartes en un geste : CSV de ManaBox (classeurs compris), Moxfield, Archidekt, Deckbox, Dragon Shield, ou une simple liste « 3 Sol Ring ».
-• Chaque exemplaire garde sa langue, son édition, son état et son foil.
-• La cote jour après jour : courbe, variations à 7 et 30 jours, cartes dont le prix a bougé, stats.
+• Importe tes cartes : CSV de ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield, Delver Lens, ou une liste « 3 Sol Ring ».
+• Chaque exemplaire garde sa langue, son édition, son foil et, si tu veux, son état.
+• La cote jour après jour : courbe, variations à 7 et 30 jours, cartes dont le prix a bougé.
+• Classeurs, boîtes, decks : chaque carte sait où elle est. « À aller chercher » te dit où trouver les cartes d'un deck.
 
-TON RANGEMENT
-• Classeurs, boîtes, decks : chaque carte sait où elle est. Range-les dès le scan.
-• « À aller chercher » : pour monter un deck, la liste des cartes et l'endroit où elles sont rangées.
-• Tes proxys sont comptés à part.
+LE MASTERSET
+• Une extension dans l'ordre des numéros : tes cartes en couleur, les manquantes en noir et blanc, ta progression et le prix de ce qui manque.
 
 TES ÉCHANGES
-• Ta liste d'échange se fait toute seule : tes doublons et les cartes que tu recherches, avec leur valeur, en liste ou en classeur à feuilleter.
-• Partage-la en un lien ou un QR code : ton ami la consulte sans appli ni compte.
-• « Pour toi » : ce qui t'intéresse chez lui, et l'inverse.
-• Échange en direct, face à face : chacun choisit ses cartes, vous validez, vos collections sont mises à jour. Et une liste d'amis.
+• Ta liste d'échange se fait toute seule : tes doublons et tes recherches, avec leur valeur, en liste ou en classeur à feuilleter.
+• Partage-la en un lien ou un QR code : ton ami la voit sans appli ni compte. « Pour toi » : ce qui t'intéresse chez lui, et l'inverse.
+• Échange en direct, face à face : vous validez, vos collections se mettent à jour. Et une liste d'amis.
 
 TES PARTIES DE COMMANDER
-• Points de vie, blessures de commandant et éliminations, sur un seul téléphone ou un par joueur (QR code pour rejoindre la table).
-• Le résultat arrive chez chaque joueur, avec l'historique de tes parties.
+• Points de vie, blessures de commandant, poison, monarque : un téléphone tient la table, les autres joueurs la rejoignent par QR code et reçoivent le résultat.
 
 TES DECKS
 • Les decks Commander que ta collection monte presque (EDHREC), avec les cartes qui manquent et leur prix ; filtres par couleurs, budget, thème et bracket.
-• Crée un deck ou colle une decklist (Moxfield, Archidekt, EDHREC…) : images, courbe de mana, main de départ, valeur. Communauté : les decks publiés par les joueurs.
+• Crée un deck ou colle une decklist : images, courbe de mana, main de départ, valeur. Et les decks publiés par les joueurs.
+• Prix d'une liste : le total au prix Cardmarket, sans les cartes que tu as déjà. Avec ton token CardTrader : le panier le moins cher, port compris.
 
-LE PRIX D'UNE LISTE
-• Colle une liste : le total au prix Cardmarket, sans les cartes que tu as déjà, prêt pour ta Wants list. Avec ton token CardTrader : le panier le moins cher, port compris.
+LA CARTE MYSTÈRE ET TES BADGES
+• Chaque jour, une carte à deviner pendant qu'elle se dévoile, avec ses classements.
+• Un niveau et 78 badges, du bronze au diamant : scan, collection, decks, parties, échanges…
 
 ALERTES ET WIDGETS
-• Alerte quand une carte qui manque à tes decks, ou une carte que tu suis, baisse fortement.
+• Alerte de forte baisse sur les cartes qui manquent à tes decks ou que tu suis.
 • Widgets : la cote de ta collection et ton QR code d'échange sur l'écran d'accueil.
 
 ET AUSSI
-• Hors ligne : ta collection reste sur ton téléphone. Compte facultatif (e-mail ou Google) pour la retrouver partout, synchronisée en direct.
-• Visite guidée, aide intégrée et « Envoyer un avis » : je lis tout.
+• Hors ligne : ta collection reste sur ton téléphone. Compte facultatif (e-mail ou Google) : synchro avec tes autres appareils et l'ordinateur (manaorbit.app), decks à monter, partage, classements.
+• Prochaines extensions, interface en 6 langues, aide intégrée et « Envoyer un avis » : je lis tout.
 
 CONFIDENTIALITÉ
-Sans compte, tout reste sur ton appareil. Aucune donnée n'est vendue. Un petit bandeau publicitaire paie l'hébergement.
+Sans compte, tout reste sur ton appareil. Aucune donnée n'est vendue. La photo d'un scan n'est envoyée que si tu signales un scan raté. Un petit bandeau publicitaire, jamais pendant le scan ni les parties, paie l'hébergement.
 Politique de confidentialité : https://manaorbit.app/privacy
 
 Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Policy. Il n'est ni approuvé ni soutenu par Wizards of the Coast. Certains éléments utilisés sont la propriété de Wizards of the Coast. ©Wizards of the Coast LLC.
-Mana Orbit n'est lié à aucun des sites et applis cités (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, ManaBox, Scryfall…). Données et images des cartes : Scryfall.
+Mana Orbit n'est lié à aucun des sites et applis cités. Données et images des cartes : Scryfall.
 ```
 
-### Anglais (en-US) (3489 caractères)
+### Anglais (en-US, langue par défaut) (3513 caractères)
 
 ```
-Scan your Magic cards in 11 languages, see what your collection is worth at Cardmarket prices, organize it, trade your spares with a link or a QR code, play your Commander games and find the decks you can already build. Free, no account required.
+Scan your Magic cards in 11 languages, track your collection's value at Cardmarket prices, organize it, complete your master sets, trade your spares with a link or a QR code, play your Commander games and find the decks you can already build. Free, no account required.
 
 THE CARD SCANNER
 • Frame the card and tap, or let auto scan add each card you place in front of the camera.
-• The exact printing is read at the bottom of the card (set, number, language); for older cards, the artwork and the set symbol find it.
-• 11 languages: English, French, German, Spanish, Italian, Portuguese, Russian, Japanese, Korean, Simplified and Traditional Chinese. Mixed piles are read card by card.
-• When in doubt, the card is marked "to check", with your photo to compare.
-• Recognition runs on your phone: the photo is only sent if you report a failed scan.
-• Quick price, booster opening sessions (profit or loss, an image to share), scan with your phone straight to your computer.
+• The exact printing is read at the bottom of the card; for older cards, the artwork and the set symbol find it.
+• 11 languages: English, French, German, Spanish, Italian, Portuguese, Russian, Japanese, Korean, Simplified and Traditional Chinese.
+• When in doubt, the card is marked "to check", with your photo to compare. Recognition runs on your phone.
+• Quick price, and booster opening sessions with their profit or loss.
 
 YOUR COLLECTION AND ITS VALUE
-• Import your cards in one go: CSV from ManaBox (binders included), Moxfield, Archidekt, Deckbox, Dragon Shield, or a simple "3 Sol Ring" list.
-• Every copy keeps its language, printing, condition and foil.
-• Its value day after day: chart, 7- and 30-day changes, cards whose price moved, stats.
+• Import your cards: CSV from ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield, Delver Lens, or a simple "3 Sol Ring" list.
+• Every copy keeps its language, printing, foil and, if you like, its condition.
+• Its value day after day: chart, 7- and 30-day changes, cards whose price moved.
+• Binders, boxes, decks: every card knows where it is. "To fetch" tells you where to find a deck's cards.
 
-YOUR STORAGE
-• Binders, boxes, decks: every card knows where it is. File them as you scan.
-• "To fetch": to build a deck, the list of cards and where each one is stored.
-• Your proxies are counted separately.
+MASTER SET
+• A set in collector number order: your cards in color, missing ones in black and white, your progress and the price of what's missing.
 
 YOUR TRADES
-• Your trade list builds itself: your spares and the cards you want, with their value, as a list or a binder to flip through.
-• Share it with a link or a QR code: your friend opens it with no app and no account.
-• "For you": what you want from them, and the other way around.
-• Live trade, face to face: each picks their cards, you both confirm, your collections are updated. Plus a friends list.
+• Your trade list builds itself: your spares and your wants, with their value, as a list or a binder to flip through.
+• Share it with a link or a QR code: your friend sees it with no app and no account. "For you": what you want from them, and the other way around.
+• Live trade, face to face: you both confirm, your collections update. Plus a friends list.
 
 YOUR COMMANDER GAMES
-• Life totals, commander damage and eliminations, on one phone or one per player (QR code to join the table).
-• The result reaches every player, with your game history.
+• Life, commander damage, poison, monarch: one phone runs the table, the other players join with a QR code and get the result.
 
 YOUR DECKS
 • The Commander decks your collection almost builds (EDHREC), with the missing cards and their price; filter by colors, budget, theme and bracket.
-• Build a deck or paste a decklist (Moxfield, Archidekt, EDHREC…): images, mana curve, sample hand, value. Community: decks published by players.
+• Build a deck or paste a decklist: images, mana curve, sample hand, value. Plus decks published by players.
+• Price a list: the Cardmarket total, minus the cards you own. With your CardTrader token: the cheapest cart, shipping included.
 
-PRICE A LIST
-• Paste a list: the Cardmarket total, minus the cards you own, ready for your Wants list. With your CardTrader token: the cheapest cart, shipping included.
+MYSTERY CARD AND BADGES
+• Every day, a card to guess as it reveals itself, with leaderboards.
+• A level and 78 badges, from bronze to diamond: scanning, collection, decks, games, trades…
 
 ALERTS AND WIDGETS
-• An alert when a card your decks are missing, or a card you follow, drops sharply.
+• Alerts when cards your decks are missing, or cards you follow, drop sharply.
 • Widgets: your collection's value and your trade QR code on your home screen.
 
 ALSO
-• Offline: your collection stays on your phone. Optional account (email or Google) to get it everywhere, synced live.
-• Guided tour, built-in help and "Send feedback": I read everything.
+• Offline: your collection stays on your phone. Optional account (email or Google): sync with your other devices and your computer (manaorbit.app), decks to build, sharing, leaderboards.
+• Upcoming sets, app in 6 languages, built-in help and "Send feedback": I read everything.
 
 PRIVACY
-Without an account, everything stays on your device. No data is ever sold. A small ad banner pays for hosting.
+Without an account, everything stays on your device. No data is ever sold. A scan photo is only sent if you report a failed scan. A small ad banner, never while scanning or playing, pays for hosting.
 Privacy policy: https://manaorbit.app/privacy
 
 Mana Orbit is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
-Mana Orbit is not affiliated with any of the sites and apps named here (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, ManaBox, Scryfall…). Card data and images: Scryfall.
+Mana Orbit is not affiliated with any of the sites and apps named here. Card data and images: Scryfall.
 ```
 
-### Allemand (de-DE) (3769 caractères)
+### Allemand (de-DE) (3812 caractères)
 
 ```
-Scanne deine Magic-Karten in 11 Sprachen, sieh den Wert deiner Sammlung zu Cardmarket-Preisen, ordne sie, tausche deine Doppelten per Link oder QR-Code, spiel deine Commander-Partien und finde die Decks, die du schon bauen kannst. Kostenlos, ohne Konto.
+Scanne deine Magic-Karten in 11 Sprachen, verfolge den Wert deiner Sammlung zu Cardmarket-Preisen, ordne sie, vervollständige deine Master-Sets, tausche deine Doppelten per Link oder QR-Code, spiel deine Commander-Partien und finde die Decks, die du schon bauen kannst. Kostenlos, ohne Konto.
 
 DER KARTENSCANNER
 • Karte ins Bild halten und tippen – oder der Auto-Scan fügt jede Karte hinzu, die du vor die Kamera legst.
-• Die genaue Ausgabe wird unten auf der Karte gelesen (Edition, Nummer, Sprache); bei älteren Karten finden Illustration und Editionssymbol sie.
-• 11 Sprachen: Deutsch, Englisch, Französisch, Spanisch, Italienisch, Portugiesisch, Russisch, Japanisch, Koreanisch, Chinesisch (vereinfacht und traditionell). Gemischte Stapel werden Karte für Karte gelesen.
-• Im Zweifel steht die Karte auf „Prüfen“, mit deinem Foto zum Vergleich.
-• Die Erkennung läuft auf deinem Handy: Das Foto wird nur gesendet, wenn du einen fehlgeschlagenen Scan meldest.
-• Schnellpreis, Booster-Öffnungen (Gewinn oder Verlust, Bild zum Teilen), Scan mit dem Handy direkt auf den Computer.
+• Die genaue Ausgabe wird unten auf der Karte gelesen; bei älteren Karten finden Illustration und Editionssymbol sie.
+• 11 Sprachen: Deutsch, Englisch, Französisch, Spanisch, Italienisch, Portugiesisch, Russisch, Japanisch, Koreanisch, Chinesisch (vereinfacht und traditionell).
+• Im Zweifel steht die Karte auf „Prüfen“, mit deinem Foto zum Vergleich. Die Erkennung läuft auf deinem Handy.
+• Schnellpreis und Booster-Öffnungen mit Gewinn- oder Verlustbilanz.
 
 DEINE SAMMLUNG UND IHR WERT
-• Importiere deine Karten auf einmal: CSV aus ManaBox (mit Ordnern), Moxfield, Archidekt, Deckbox, Dragon Shield oder eine einfache Liste „3 Sol Ring“.
-• Jedes Exemplar behält Sprache, Ausgabe, Zustand und Foil.
-• Der Wert Tag für Tag: Kurve, Änderung über 7 und 30 Tage, Karten mit Preisbewegung, Statistiken.
+• Importiere deine Karten: CSV aus ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield, Delver Lens oder eine Liste „3 Sol Ring“.
+• Jedes Exemplar behält Sprache, Ausgabe, Foil und, wenn du willst, seinen Zustand.
+• Der Wert Tag für Tag: Kurve, Änderung über 7 und 30 Tage, Karten mit Preisbewegung.
+• Ordner, Boxen, Decks: Jede Karte weiß, wo sie liegt. „Zum Holen“ zeigt dir, wo die Karten eines Decks liegen.
 
-DEINE ORDNUNG
-• Ordner, Boxen, Decks: Jede Karte weiß, wo sie liegt. Einsortieren schon beim Scannen.
-• „Zum Holen“: Für ein Deck die Liste der Karten und wo jede liegt.
-• Deine Proxys werden getrennt gezählt.
+MASTER-SET
+• Eine Edition in Nummernfolge: deine Karten in Farbe, fehlende in Schwarz-Weiß, dein Fortschritt und der Preis dessen, was fehlt.
 
 DEINE TAUSCHGESCHÄFTE
 • Deine Tauschliste entsteht von selbst: deine Doppelten und deine gesuchten Karten, mit Wert, als Liste oder als Ordner zum Blättern.
-• Teile sie per Link oder QR-Code: Dein Freund öffnet sie ohne App und ohne Konto.
-• „Für dich“: was du bei ihm suchst, und umgekehrt.
-• Live-Tausch von Angesicht zu Angesicht: Jeder wählt seine Karten, ihr bestätigt beide, eure Sammlungen werden aktualisiert. Dazu eine Freundesliste.
+• Teile sie per Link oder QR-Code: Dein Freund sieht sie ohne App und ohne Konto. „Für dich“: was du bei ihm suchst, und umgekehrt.
+• Live-Tausch von Angesicht zu Angesicht: Ihr bestätigt beide, eure Sammlungen werden aktualisiert. Dazu eine Freundesliste.
 
 DEINE COMMANDER-PARTIEN
-• Lebenspunkte, Commander-Schaden und Ausscheiden, auf einem Handy oder einem pro Spieler (QR-Code, um dem Tisch beizutreten).
-• Das Ergebnis kommt bei jedem Spieler an, mit deinem Partieverlauf.
+• Lebenspunkte, Commander-Schaden, Gift, Monarch: Ein Handy führt den Tisch, die anderen treten per QR-Code bei und erhalten das Ergebnis.
 
 DEINE DECKS
 • Die Commander-Decks, die deine Sammlung fast baut (EDHREC), mit fehlenden Karten und Preis; Filter nach Farben, Budget, Thema und Bracket.
-• Baue ein Deck oder füge eine Deckliste ein (Moxfield, Archidekt, EDHREC…): Bilder, Manakurve, Starthand, Wert. Community: von Spielern veröffentlichte Decks.
+• Baue ein Deck oder füge eine Deckliste ein: Bilder, Manakurve, Starthand, Wert. Dazu die von Spielern veröffentlichten Decks.
+• Preis einer Liste: der Cardmarket-Gesamtpreis ohne die Karten, die du schon hast. Mit deinem CardTrader-Token: der günstigste Warenkorb inklusive Versand.
 
-PREIS EINER LISTE
-• Füge eine Liste ein: der Cardmarket-Gesamtpreis ohne die Karten, die du schon hast, bereit für deine Wants-Liste. Mit deinem CardTrader-Token: der günstigste Warenkorb inklusive Versand.
+MYSTERYKARTE UND ABZEICHEN
+• Jeden Tag eine Karte zum Erraten, während sie sich nach und nach zeigt, mit Ranglisten.
+• Eine Stufe und 78 Abzeichen von Bronze bis Diamant: Scan, Sammlung, Decks, Partien, Tausch…
 
 ALARME UND WIDGETS
-• Ein Alarm, wenn eine Karte, die deinen Decks fehlt, oder eine beobachtete Karte stark fällt.
+• Alarm, wenn Karten, die deinen Decks fehlen oder die du beobachtest, stark im Preis fallen.
 • Widgets: der Wert deiner Sammlung und dein Tausch-QR-Code auf dem Startbildschirm.
 
 AUSSERDEM
-• Offline: Deine Sammlung bleibt auf deinem Handy. Optionales Konto (E-Mail oder Google), um sie überall live synchronisiert zu haben.
-• Rundgang, integrierte Hilfe und „Feedback senden“: Ich lese alles.
+• Offline: Deine Sammlung bleibt auf deinem Handy. Optionales Konto (E-Mail oder Google): Synchronisierung mit deinen anderen Geräten und dem Computer (manaorbit.app), baubare Decks, Teilen, Ranglisten.
+• Kommende Sets, App in 6 Sprachen, integrierte Hilfe und „Feedback senden“: Ich lese alles.
 
 DATENSCHUTZ
-Ohne Konto bleibt alles auf deinem Gerät. Keine Daten werden verkauft. Ein kleines Werbebanner bezahlt das Hosting.
+Ohne Konto bleibt alles auf deinem Gerät. Keine Daten werden verkauft. Ein Scan-Foto wird nur gesendet, wenn du einen fehlgeschlagenen Scan meldest. Ein kleines Werbebanner, nie beim Scannen oder Spielen, bezahlt das Hosting.
 Datenschutzerklärung: https://manaorbit.app/privacy
 
 Mana Orbit ist inoffizieller Fan-Content gemäß der Fan Content Policy. Nicht von Wizards genehmigt oder unterstützt. Teile der verwendeten Materialien sind Eigentum von Wizards of the Coast. ©Wizards of the Coast LLC.
-Mana Orbit ist mit keiner der genannten Seiten und Apps verbunden (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, ManaBox, Scryfall…). Kartendaten und -bilder: Scryfall.
+Mana Orbit ist mit keiner der genannten Seiten und Apps verbunden. Kartendaten und -bilder: Scryfall.
 ```
 
-### Espagnol (es-ES) (3788 caractères)
+### Espagnol (es-ES) (3832 caractères)
 
 ```
-Escanea tus cartas Magic en 11 idiomas, descubre el valor de tu colección a precio de Cardmarket, organízala, intercambia tus repetidas con un enlace o un código QR, juega tus partidas de Commander y encuentra los mazos que ya puedes montar. Gratis, sin cuenta obligatoria.
+Escanea tus cartas Magic en 11 idiomas, sigue el valor de tu colección a precio de Cardmarket, organízala, completa tus colecciones maestras, intercambia tus repetidas con un enlace o un código QR, juega tus partidas de Commander y encuentra los mazos que ya puedes montar. Gratis, sin cuenta obligatoria.
 
 EL ESCÁNER DE CARTAS
 • Encuadra la carta y toca, o deja que el escaneo automático añada cada carta que pongas delante de la cámara.
-• La edición exacta se lee en la parte inferior de la carta (expansión, número, idioma); en las cartas más antiguas, la ilustración y el símbolo de expansión la encuentran.
-• 11 idiomas: español, inglés, francés, alemán, italiano, portugués, ruso, japonés, coreano, chino simplificado y tradicional. Los lotes mezclados se leen carta por carta.
-• Si hay dudas, la carta queda «por revisar», con tu foto para comparar.
-• El reconocimiento se hace en tu teléfono: la foto solo se envía si informas de un escaneo fallido.
-• Precio rápido, sesiones de apertura de sobres (ganancia o pérdida, imagen para compartir), escaneo con el teléfono directo al ordenador.
+• La edición exacta se lee en la parte inferior de la carta; en las más antiguas, la ilustración y el símbolo de expansión la encuentran.
+• 11 idiomas: español, inglés, francés, alemán, italiano, portugués, ruso, japonés, coreano, chino simplificado y tradicional.
+• Si hay dudas, la carta queda «por revisar», con tu foto para comparar. El reconocimiento se hace en tu teléfono.
+• Precio rápido y sesiones de apertura de sobres con su balance de ganancia o pérdida.
 
 TU COLECCIÓN Y SU VALOR
-• Importa tus cartas de una vez: CSV de ManaBox (carpetas incluidas), Moxfield, Archidekt, Deckbox, Dragon Shield o una simple lista «3 Sol Ring».
-• Cada copia conserva su idioma, su edición, su estado y su foil.
-• Su valor día a día: gráfica, variaciones a 7 y 30 días, cartas cuyo precio ha cambiado, estadísticas.
+• Importa tus cartas: CSV de ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield, Delver Lens o una lista «3 Sol Ring».
+• Cada copia conserva su idioma, su edición, su foil y, si quieres, su estado.
+• Su valor día a día: gráfica, variaciones a 7 y 30 días, cartas cuyo precio ha cambiado.
+• Carpetas, cajas, mazos: cada carta sabe dónde está. «Por buscar» te dice dónde encontrar las cartas de un mazo.
 
-TU ORDEN
-• Carpetas, cajas, mazos: cada carta sabe dónde está. Guárdalas al escanear.
-• «Por buscar»: para montar un mazo, la lista de cartas y dónde está guardada cada una.
-• Tus proxies se cuentan aparte.
+COLECCIÓN MAESTRA
+• Una expansión en orden de número: tus cartas en color, las que faltan en blanco y negro, tu progreso y el precio de lo que falta.
 
 TUS INTERCAMBIOS
 • Tu lista de intercambio se hace sola: tus repetidas y las cartas que buscas, con su valor, en lista o en carpeta para hojear.
-• Compártela con un enlace o un código QR: tu amigo la abre sin app y sin cuenta.
-• «Para ti»: lo que te interesa de él, y al revés.
-• Intercambio en directo, cara a cara: cada uno elige sus cartas, ambos confirmáis y vuestras colecciones se actualizan. Y una lista de amigos.
+• Compártela con un enlace o un código QR: tu amigo la ve sin app y sin cuenta. «Para ti»: lo que te interesa de él, y al revés.
+• Intercambio en directo, cara a cara: ambos confirmáis y vuestras colecciones se actualizan. Y una lista de amigos.
 
 TUS PARTIDAS DE COMMANDER
-• Vidas, daño de comandante y eliminaciones, en un solo teléfono o uno por jugador (código QR para unirse a la mesa).
-• El resultado llega a cada jugador, con el historial de tus partidas.
+• Vidas, daño de comandante, veneno, monarca: un teléfono lleva la mesa, los demás jugadores se unen con un código QR y reciben el resultado.
 
 TUS MAZOS
 • Los mazos Commander que tu colección casi monta (EDHREC), con las cartas que faltan y su precio; filtros por colores, presupuesto, tema y bracket.
-• Crea un mazo o pega una lista (Moxfield, Archidekt, EDHREC…): imágenes, curva de maná, mano inicial, valor. Comunidad: mazos publicados por los jugadores.
+• Crea un mazo o pega una lista: imágenes, curva de maná, mano inicial, valor. Y los mazos publicados por los jugadores.
+• Precio de una lista: el total a precio de Cardmarket, sin las cartas que ya tienes. Con tu token de CardTrader: la cesta más barata, envío incluido.
 
-EL PRECIO DE UNA LISTA
-• Pega una lista: el total a precio de Cardmarket, sin las cartas que ya tienes, lista para tu Wants list. Con tu token de CardTrader: la cesta más barata, envío incluido.
+CARTA MISTERIOSA E INSIGNIAS
+• Cada día, una carta que adivinar mientras se va desvelando, con sus clasificaciones.
+• Un nivel y 78 insignias, del bronce al diamante: escaneo, colección, mazos, partidas, intercambios…
 
 ALERTAS Y WIDGETS
-• Una alerta cuando una carta que les falta a tus mazos, o una carta que sigues, baja mucho.
+• Alerta cuando las cartas que les faltan a tus mazos, o las que sigues, bajan mucho.
 • Widgets: el valor de tu colección y tu código QR de intercambio en la pantalla de inicio.
 
 ADEMÁS
-• Sin conexión: tu colección se queda en tu teléfono. Cuenta opcional (correo o Google) para tenerla en todas partes, sincronizada en directo.
-• Visita guiada, ayuda integrada y «Enviar una opinión»: lo leo todo.
+• Sin conexión: tu colección se queda en tu teléfono. Cuenta opcional (correo o Google): sincronización con tus otros dispositivos y el ordenador (manaorbit.app), mazos por montar, compartir, clasificaciones.
+• Próximas expansiones, app en 6 idiomas, ayuda integrada y «Enviar una opinión»: lo leo todo.
 
 PRIVACIDAD
-Sin cuenta, todo se queda en tu dispositivo. Nunca se venden datos. Un pequeño banner publicitario paga el alojamiento.
+Sin cuenta, todo se queda en tu dispositivo. Nunca se venden datos. La foto de un escaneo solo se envía si informas de un escaneo fallido. Un pequeño banner publicitario, nunca al escanear ni al jugar, paga el alojamiento.
 Política de privacidad: https://manaorbit.app/privacy
 
 Mana Orbit es contenido de fans no oficial permitido por la Fan Content Policy. No está aprobado ni respaldado por Wizards. Parte de los materiales utilizados son propiedad de Wizards of the Coast. ©Wizards of the Coast LLC.
-Mana Orbit no está vinculado a ninguno de los sitios y apps citados (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, ManaBox, Scryfall…). Datos e imágenes de las cartas: Scryfall.
+Mana Orbit no está vinculado a ninguno de los sitios y apps citados. Datos e imágenes de las cartas: Scryfall.
 ```
 
-### Italien (it-IT) (3932 caractères)
+### Italien (it-IT) (3920 caractères)
 
 ```
-Scansiona le tue carte Magic in 11 lingue, scopri il valore della tua collezione ai prezzi Cardmarket, sistemala, scambia i tuoi doppioni con un link o un codice QR, gioca le tue partite di Commander e trova i mazzi che puoi già costruire. Gratis, senza account obbligatorio.
+Scansiona le tue carte Magic in 11 lingue, segui il valore della tua collezione ai prezzi Cardmarket, sistemala, completa i tuoi master set, scambia i tuoi doppioni con un link o un codice QR, gioca le tue partite di Commander e trova i mazzi che puoi già costruire. Gratis, senza account obbligatorio.
 
 LO SCANNER DI CARTE
 • Inquadra la carta e tocca, oppure lascia che la scansione automatica aggiunga ogni carta che metti davanti alla fotocamera.
-• L'edizione esatta viene letta in fondo alla carta (espansione, numero, lingua); per le carte più vecchie la trovano l'illustrazione e il simbolo dell'espansione.
-• 11 lingue: italiano, inglese, francese, tedesco, spagnolo, portoghese, russo, giapponese, coreano, cinese semplificato e tradizionale. I lotti misti vengono letti carta per carta.
-• Nel dubbio la carta resta «Da verificare», con la tua foto per confrontare.
-• Il riconoscimento avviene sul telefono: la foto viene inviata solo se segnali una scansione non riuscita.
-• Prezzo rapido, sessioni di apertura delle buste (guadagno o perdita, immagine da condividere), scansione col telefono direttamente sul computer.
+• L'edizione esatta viene letta in fondo alla carta; per quelle più vecchie la trovano l'illustrazione e il simbolo dell'espansione.
+• 11 lingue: italiano, inglese, francese, tedesco, spagnolo, portoghese, russo, giapponese, coreano, cinese semplificato e tradizionale.
+• Nel dubbio la carta resta «Da verificare», con la tua foto per confrontare. Il riconoscimento avviene sul telefono.
+• Prezzo rapido e sessioni di apertura delle buste con il bilancio di guadagno o perdita.
 
 LA TUA COLLEZIONE E IL SUO VALORE
-• Importa le tue carte in un colpo solo: CSV di ManaBox (raccoglitori compresi), Moxfield, Archidekt, Deckbox, Dragon Shield o una semplice lista «3 Sol Ring».
-• Ogni copia conserva lingua, edizione, condizione e foil.
-• Il valore giorno per giorno: grafico, variazioni a 7 e 30 giorni, carte il cui prezzo è cambiato, statistiche.
+• Importa le tue carte: CSV di ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield, Delver Lens o una lista «3 Sol Ring».
+• Ogni copia conserva lingua, edizione, foil e, se vuoi, condizione.
+• Il valore giorno per giorno: grafico, variazioni a 7 e 30 giorni, carte il cui prezzo è cambiato.
+• Raccoglitori, scatole, mazzi: ogni carta sa dov'è. «Da prendere» ti dice dove trovare le carte di un mazzo.
 
-LA TUA SISTEMAZIONE
-• Raccoglitori, scatole, mazzi: ogni carta sa dov'è. Sistemale già durante la scansione.
-• «Da prendere»: per costruire un mazzo, l'elenco delle carte e dove si trova ciascuna.
-• I tuoi proxy sono contati a parte.
+MASTER SET
+• Un'espansione in ordine di numero: le tue carte a colori, quelle mancanti in bianco e nero, i tuoi progressi e il prezzo di ciò che manca.
 
 I TUOI SCAMBI
 • La tua lista scambi si crea da sola: i tuoi doppioni e le carte che cerchi, con il loro valore, in lista o in un raccoglitore da sfogliare.
-• Condividila con un link o un codice QR: il tuo amico la apre senza app e senza account.
-• «Per te»: ciò che ti interessa da lui, e viceversa.
-• Scambio dal vivo, faccia a faccia: ognuno sceglie le sue carte, confermate entrambi e le vostre collezioni vengono aggiornate. E una lista di amici.
+• Condividila con un link o un codice QR: il tuo amico la vede senza app e senza account. «Per te»: ciò che ti interessa da lui, e viceversa.
+• Scambio dal vivo, faccia a faccia: confermate entrambi e le vostre collezioni si aggiornano. E una lista di amici.
 
 LE TUE PARTITE DI COMMANDER
-• Punti vita, danni da comandante ed eliminazioni, su un solo telefono o uno per giocatore (codice QR per unirsi al tavolo).
-• Il risultato arriva a ogni giocatore, con lo storico delle tue partite.
+• Punti vita, danni da comandante, veleno, monarca: un telefono gestisce il tavolo, gli altri giocatori si uniscono con un codice QR e ricevono il risultato.
 
 I TUOI MAZZI
 • I mazzi Commander che la tua collezione costruisce quasi (EDHREC), con le carte mancanti e il loro prezzo; filtri per colori, budget, tema e bracket.
-• Crea un mazzo o incolla una lista (Moxfield, Archidekt, EDHREC…): immagini, curva di mana, mano iniziale, valore. Community: i mazzi pubblicati dai giocatori.
+• Crea un mazzo o incolla una lista: immagini, curva di mana, mano iniziale, valore. E i mazzi pubblicati dai giocatori.
+• Prezzo di una lista: il totale ai prezzi Cardmarket, senza le carte che hai già. Con il tuo token CardTrader: il carrello più economico, spedizione compresa.
 
-IL PREZZO DI UNA LISTA
-• Incolla una lista: il totale ai prezzi Cardmarket, senza le carte che hai già, pronta per la tua Wants list. Con il tuo token CardTrader: il carrello più economico, spedizione compresa.
+CARTA MISTERIOSA E BADGE
+• Ogni giorno una carta da indovinare mentre si svela, con le sue classifiche.
+• Un livello e 78 badge, dal bronzo al diamante: scansione, collezione, mazzi, partite, scambi…
 
 AVVISI E WIDGET
-• Un avviso quando una carta che manca ai tuoi mazzi, o una carta che segui, cala molto.
+• Un avviso quando le carte che mancano ai tuoi mazzi, o quelle che segui, calano molto.
 • Widget: il valore della tua collezione e il tuo codice QR di scambio nella schermata Home.
 
 E INOLTRE
-• Offline: la tua collezione resta sul telefono. Account facoltativo (e-mail o Google) per ritrovarla ovunque, sincronizzata in tempo reale.
-• Tour guidato, guida integrata e «Invia un feedback»: leggo tutto.
+• Offline: la tua collezione resta sul telefono. Account facoltativo (e-mail o Google): sincronizzazione con gli altri dispositivi e il computer (manaorbit.app), mazzi da costruire, condivisione, classifiche.
+• Prossime espansioni, app in 6 lingue, guida integrata e «Invia un feedback»: leggo tutto.
 
 PRIVACY
-Senza account tutto resta sul tuo dispositivo. Nessun dato viene venduto. Un piccolo banner pubblicitario paga l'hosting.
+Senza account tutto resta sul tuo dispositivo. Nessun dato viene venduto. La foto di una scansione viene inviata solo se segnali una scansione non riuscita. Un piccolo banner pubblicitario, mai durante la scansione né le partite, paga l'hosting.
 Informativa sulla privacy: https://manaorbit.app/privacy
 
 Mana Orbit è un contenuto di fan non ufficiale consentito dalla Fan Content Policy. Non è approvato né sostenuto da Wizards. Parte dei materiali utilizzati è di proprietà di Wizards of the Coast. ©Wizards of the Coast LLC.
-Mana Orbit non è collegato a nessuno dei siti e delle app citati (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, ManaBox, Scryfall…). Dati e immagini delle carte: Scryfall.
+Mana Orbit non è collegato a nessuno dei siti e delle app citati. Dati e immagini delle carte: Scryfall.
 ```
 
-### Portugais (Brésil, pt-BR) (3735 caractères)
+### Portugais (Brésil, pt-BR) (3750 caractères)
 
 ```
-Escaneie suas cartas Magic em 11 idiomas, descubra o valor da sua coleção pelo preço da Cardmarket, organize tudo, troque suas repetidas com um link ou um QR code, jogue suas partidas de Commander e encontre os decks que você já pode montar. Grátis, sem conta obrigatória.
+Escaneie suas cartas Magic em 11 idiomas, acompanhe o valor da sua coleção pelo preço da Cardmarket, organize tudo, complete seus master sets, troque suas repetidas com um link ou um QR code, jogue suas partidas de Commander e encontre os decks que você já pode montar. Grátis, sem conta obrigatória.
 
 O ESCÂNER DE CARTAS
 • Enquadre a carta e toque, ou deixe o escaneamento automático adicionar cada carta colocada na frente da câmera.
-• A edição exata é lida na parte de baixo da carta (coleção, número, idioma); nas cartas mais antigas, a ilustração e o símbolo da coleção a encontram.
-• 11 idiomas: português, inglês, francês, alemão, espanhol, italiano, russo, japonês, coreano, chinês simplificado e tradicional. Lotes misturados são lidos carta por carta.
-• Na dúvida, a carta fica «A verificar», com a sua foto para comparar.
-• O reconhecimento é feito no seu celular: a foto só é enviada se você relatar um escaneamento que falhou.
-• Preço rápido, sessões de abertura de boosters (lucro ou prejuízo, imagem para compartilhar), escaneamento com o celular direto para o computador.
+• A edição exata é lida na parte de baixo da carta; nas mais antigas, a ilustração e o símbolo da coleção a encontram.
+• 11 idiomas: português, inglês, francês, alemão, espanhol, italiano, russo, japonês, coreano, chinês simplificado e tradicional.
+• Na dúvida, a carta fica «A verificar», com a sua foto para comparar. O reconhecimento é feito no seu celular.
+• Preço rápido e sessões de abertura de boosters com o balanço de lucro ou prejuízo.
 
 SUA COLEÇÃO E SEU VALOR
-• Importe suas cartas de uma vez: CSV do ManaBox (fichários incluídos), Moxfield, Archidekt, Deckbox, Dragon Shield ou uma lista simples «3 Sol Ring».
-• Cada cópia guarda o idioma, a edição, o estado e o foil.
-• O valor dia após dia: gráfico, variações em 7 e 30 dias, cartas cujo preço mudou, estatísticas.
+• Importe suas cartas: CSV do ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield, Delver Lens ou uma lista «3 Sol Ring».
+• Cada cópia guarda o idioma, a edição, o foil e, se você quiser, o estado.
+• O valor dia após dia: gráfico, variações em 7 e 30 dias, cartas cujo preço mudou.
+• Fichários, caixas, decks: cada carta sabe onde está. «Para buscar» diz onde encontrar as cartas de um deck.
 
-SUA ORGANIZAÇÃO
-• Fichários, caixas, decks: cada carta sabe onde está. Guarde já ao escanear.
-• «Para buscar»: para montar um deck, a lista das cartas e onde cada uma está guardada.
-• Seus proxies são contados à parte.
+MASTER SET
+• Uma expansão na ordem dos números: suas cartas em cores, as que faltam em preto e branco, seu progresso e o preço do que falta.
 
 SUAS TROCAS
 • Sua lista de trocas se monta sozinha: suas repetidas e as cartas que você procura, com o valor, em lista ou em fichário para folhear.
-• Compartilhe com um link ou um QR code: seu amigo abre sem app e sem conta.
-• «Para você»: o que te interessa na lista dele, e vice-versa.
-• Troca ao vivo, cara a cara: cada um escolhe suas cartas, vocês dois confirmam e as coleções são atualizadas. E uma lista de amigos.
+• Compartilhe com um link ou um QR code: seu amigo vê sem app e sem conta. «Para você»: o que te interessa na lista dele, e vice-versa.
+• Troca ao vivo, cara a cara: vocês dois confirmam e as coleções são atualizadas. E uma lista de amigos.
 
 SUAS PARTIDAS DE COMMANDER
-• Pontos de vida, dano de comandante e eliminações, em um só celular ou um por jogador (QR code para entrar na mesa).
-• O resultado chega a cada jogador, com o histórico das suas partidas.
+• Vida, dano de comandante, veneno, monarca: um celular cuida da mesa, os outros jogadores entram com um QR code e recebem o resultado.
 
 SEUS DECKS
 • Os decks Commander que sua coleção quase monta (EDHREC), com as cartas que faltam e o preço; filtros por cores, orçamento, tema e bracket.
-• Crie um deck ou cole uma lista (Moxfield, Archidekt, EDHREC…): imagens, curva de mana, mão inicial, valor. Comunidade: decks publicados pelos jogadores.
+• Crie um deck ou cole uma lista: imagens, curva de mana, mão inicial, valor. E os decks publicados pelos jogadores.
+• Preço de uma lista: o total pelo preço da Cardmarket, sem as cartas que você já tem. Com seu token da CardTrader: o carrinho mais barato, frete incluído.
 
-O PREÇO DE UMA LISTA
-• Cole uma lista: o total pelo preço da Cardmarket, sem as cartas que você já tem, pronta para a sua Wants list. Com seu token da CardTrader: o carrinho mais barato, frete incluído.
+CARTA MISTÉRIO E DISTINTIVOS
+• Todo dia, uma carta para adivinhar enquanto ela se revela, com classificações.
+• Um nível e 78 distintivos, do bronze ao diamante: escaneamento, coleção, decks, partidas, trocas…
 
 ALERTAS E WIDGETS
-• Um alerta quando uma carta que falta nos seus decks, ou uma carta que você acompanha, cai muito.
+• Um alerta quando as cartas que faltam nos seus decks, ou as que você acompanha, caem muito.
 • Widgets: o valor da sua coleção e o seu QR code de troca na tela inicial.
 
 E AINDA
-• Offline: sua coleção fica no seu celular. Conta opcional (e-mail ou Google) para ter tudo em qualquer lugar, sincronizado ao vivo.
-• Tour guiado, ajuda integrada e «Enviar feedback»: eu leio tudo.
+• Offline: sua coleção fica no seu celular. Conta opcional (e-mail ou Google): sincronização com seus outros aparelhos e o computador (manaorbit.app), decks para montar, compartilhamento, classificações.
+• Próximas expansões, app em 6 idiomas, ajuda integrada e «Enviar feedback»: eu leio tudo.
 
 PRIVACIDADE
-Sem conta, tudo fica no seu aparelho. Nenhum dado é vendido. Um pequeno banner de anúncio paga a hospedagem.
+Sem conta, tudo fica no seu aparelho. Nenhum dado é vendido. A foto de um escaneamento só é enviada se você relatar um escaneamento que falhou. Um pequeno banner de anúncio, nunca durante o escaneamento nem as partidas, paga a hospedagem.
 Política de privacidade: https://manaorbit.app/privacy
 
 Mana Orbit é conteúdo de fã não oficial permitido pela Fan Content Policy. Não é aprovado nem endossado pela Wizards. Parte dos materiais utilizados é propriedade da Wizards of the Coast. ©Wizards of the Coast LLC.
-Mana Orbit não tem vínculo com nenhum dos sites e apps citados (Cardmarket, CardTrader, EDHREC, Archidekt, Moxfield, ManaBox, Scryfall…). Dados e imagens das cartas: Scryfall.
+Mana Orbit não tem vínculo com nenhum dos sites e apps citados. Dados e imagens das cartas: Scryfall.
 ```
 
-**Si EDHREC ou Archidekt refusent** : retire le premier point du bloc « LES DECKS » (premier point), "YOUR DECKS" (first bullet), „DEINE DECKS“ (erster Punkt), «TUS MAZOS» (primer punto), «I TUOI MAZZI» (primo punto), «SEUS DECKS» (primeiro item), et « EDHREC » des decklists collées. Titre et description courte ne changent pas.
+**Si EDHREC ou Archidekt refusent** : retire le premier point du bloc « TES DECKS », "YOUR DECKS" (first bullet), „DEINE DECKS“ (erster Punkt), «TUS MAZOS» (primer punto), «I TUOI MAZZI» (primo punto), «SEUS DECKS» (primeiro item), et « decks à monter » du bloc « ET AUSSI » (et ses traductions). Titre et description courte ne changent pas.
 
-## 4. Notes de version (500 caractères au plus)
+## 4. Notes de version de la production (500 caractères au plus par langue)
 
-Français (224) : `Première version Android : scan des cartes VF ou VO sur le téléphone, cote de ta collection au prix Cardmarket, decks Commander à monter, liste d'échange en un lien ou un QR code, alertes de prix et widget d'écran d'accueil.`
+Pour la première version publique (1.0.6 promue du test fermé, ou la suivante). Play Console › Production › Créer une version › « Notes de version » : colle le bloc entier, les balises disent la langue (fr-FR 387 · en-US 354 · de-DE 386 · es-ES 421 · it-IT 392 · pt-BR 385).
 
-Anglais (219) : `First Android release: on-device card scanning in any language, your collection's value at Cardmarket prices, Commander decks you can build, a trade list shared by link or QR code, price alerts and a home screen widget.`
+```
+<fr-FR>
+Mana Orbit sort en version publique ! Scan des cartes en 11 langues (japonais, coréen et chinois lus sur le téléphone), cote de ta collection au prix Cardmarket, rangement et masterset, liste d'échange en un lien ou un QR code, échange en direct, parties de Commander, decks à monter, Carte mystère chaque jour, badges, alertes de prix et widgets. Merci aux testeurs pour leurs retours !
+</fr-FR>
+<en-US>
+Mana Orbit is now public! Card scanning in 11 languages (Japanese, Korean and Chinese read on your phone), your collection's value at Cardmarket prices, storage and master sets, a trade list by link or QR code, live trades, Commander games, decks to build, a daily Mystery card, badges, price alerts and widgets. Thanks to our testers for their feedback!
+</en-US>
+<de-DE>
+Mana Orbit ist jetzt öffentlich! Kartenscan in 11 Sprachen (Japanisch, Koreanisch und Chinesisch direkt auf dem Handy gelesen), Wert deiner Sammlung zu Cardmarket-Preisen, Aufbewahrung und Master-Sets, Tauschliste per Link oder QR-Code, Live-Tausch, Commander-Partien, baubare Decks, jeden Tag eine Mysterykarte, Abzeichen, Preisalarme und Widgets. Danke an die Tester für ihr Feedback!
+</de-DE>
+<es-ES>
+¡Mana Orbit ya es pública! Escaneo de cartas en 11 idiomas (japonés, coreano y chino leídos en el teléfono), valor de tu colección a precio de Cardmarket, almacenamiento y colección maestra, lista de intercambio con un enlace o un código QR, intercambio en directo, partidas de Commander, mazos por montar, una Carta misteriosa cada día, insignias, alertas de precio y widgets. ¡Gracias a los testers por sus comentarios!
+</es-ES>
+<it-IT>
+Mana Orbit è ora pubblica! Scansione delle carte in 11 lingue (giapponese, coreano e cinese letti sul telefono), valore della collezione ai prezzi Cardmarket, sistemazione e master set, lista scambi con un link o un codice QR, scambio dal vivo, partite di Commander, mazzi da costruire, una Carta misteriosa ogni giorno, badge, avvisi di prezzo e widget. Grazie ai tester per i loro feedback!
+</it-IT>
+<pt-BR>
+Mana Orbit agora é pública! Escaneamento de cartas em 11 idiomas (japonês, coreano e chinês lidos no celular), valor da sua coleção pelo preço da Cardmarket, organização e master set, lista de trocas com link ou QR code, troca ao vivo, partidas de Commander, decks para montar, uma Carta mistério por dia, distintivos, alertas de preço e widgets. Obrigado aos testadores pelo feedback!
+</pt-BR>
+```
 
 ## 5. Catégorie, tags, coordonnées
 
@@ -452,10 +466,10 @@ Classification obtenue (12 octobre 2026) : **PEGI « Accord parental »** (ce qu
 
 ## 6 bis. Accès aux applis (Contenu de l'appli)
 
-- **Certaines fonctionnalités sont limitées** : la synchronisation, les decks EDHREC (onglet Decks, « Deck à monter ») et le partage demandent un compte ; tout le reste marche sans compte.
+- **Certaines fonctionnalités sont limitées** : la synchronisation, les decks EDHREC (Decks › À monter : compte Google ou adresse vérifiée), le partage (liste d'échange, decks publiés), l'échange en direct, le QR code de la table d'une partie et le classement de la Carte mystère demandent un compte ; tout le reste marche sans compte.
 - Compte de vérification pour Google : une adresse dédiée (par exemple `review@manaorbit.app`, boîte Hostinger), inscrite dans l'appli par **Compte** (icône en haut à droite) › E-mail + Mot de passe › **Créer mon compte**, puis le lien de vérification reçu dans la boîte ouvert. Le propriétaire saisit l'adresse et le mot de passe directement dans la Play Console (jamais dans le dépôt ni dans une conversation).
-- Instructions à coller : « Toucher l'icône Compte en haut à droite › saisir l'e-mail et le mot de passe ci-dessus › Me connecter. Les decks EDHREC sont dans l'onglet Decks. »
-- Instructions en anglais : “Tap the Account icon (top right) › enter the email and password above › Sign in. EDHREC decks are in the Decks tab.”
+- Instructions à coller : « Toucher l'avatar en haut à droite › Se connecter › saisir l'e-mail et le mot de passe ci-dessus › Me connecter. Decks EDHREC : barre du bas › Decks › À monter. Carte mystère : icône en haut de l'accueil. »
+- Instructions en anglais : “Tap the avatar (top right) › Sign in › enter the email and password above › Sign in. EDHREC decks: bottom bar › Decks › To build. Mystery card: icon at the top of the home screen.”
 
 ## 7. Public cible et annonces
 
@@ -494,6 +508,8 @@ Types de données à cocher :
 | Infos personnelles › **Autres infos** | Oui, **traitement éphémère** | Non | Oui | Fonctionnalités de l'appli | Avec un token CardTrader seulement : envoyé au serveur avec les seules recherches CardTrader (jamais les alertes ni l'import), utilisé en mémoire le temps de la recherche ; le serveur n'en garde qu'une empreinte SHA-256 pour espacer les requêtes et ne l'écrit jamais sur disque, dans les journaux ni dans le compte. Cas limite : un token n'est pas une donnée personnelle classique, mais le déclarer ne coûte rien. |
 | Photos et vidéos › **Photos** (2e usage) | Oui | Non | Oui | Fonctionnalités de l'appli, statistiques | « Signaler un problème de scan » : seulement si l'utilisateur appuie sur Envoyer, la photo de la carte ratée (réduite, ≈ 900 px) part au serveur avec son commentaire ; gardée 90 jours au plus, visible du seul éditeur (`/admin`), supprimable sur demande. Dans le formulaire, coche « Photos » une seule fois avec les deux finalités. |
 | Infos et performances de l'appli › **Diagnostics** (2e usage) | Oui | Non | Oui | Fonctionnalités de l'appli, statistiques | Même envoi : ce que l'appli a lu (texte du nom, ligne du bas, carte retenue, moteur de lecture, version) ; avec un compte, une empreinte de l'identifiant (jamais l'e-mail ni l'IP). Dans le formulaire : la même case « Diagnostics » que pour AdMob, avec la finalité « Fonctionnalités de l'appli » en plus. |
+| Activité dans l'appli › **Autres actions** (2e usage) | Oui | Non | Oui | Fonctionnalités de l'appli, prévention des fraudes | Carte mystère et niveau (depuis le 16 octobre) : parties (heure, étapes, propositions, score), XP retenue pour le classement des niveaux ; pseudo du profil, score et niveau **affichés dans les classements** (l'utilisateur le choisit en jouant : pas un « partage » au sens de Google). Coche la même case « Autres actions » avec la finalité « Prévention des fraudes » en plus. |
+| Identifiants › **ID de l'appareil ou autres** (2e usage) | Oui | Non | Oui | Prévention des fraudes, fonctionnalités de l'appli | Carte mystère : identifiant aléatoire propre à l'appareil (anti-triche des comptes secondaires) et empreinte de l'adresse IP salée chaque jour, effacée à la fin de la journée de jeu (jamais l'adresse elle-même). Même case que AdMob et FCM, finalité « Prévention des fraudes » déjà cochée. |
 
 Non collecté : vidéos, photos du scan hors signalement (lues sur le téléphone, jamais envoyées), contacts, position précise, données financières, santé, messages, fichiers, historique de navigation.
 
@@ -512,7 +528,7 @@ Avant d'envoyer le formulaire, compare avec les pages officielles (elles changen
 
 À garder en tête :
 - La politique de confidentialité (`/privacy`) doit déjà parler du bandeau AdMob le jour de la publication. C'est le cas dans la version qui ajoute AdMob ; vérifie qu'elle est bien en ligne.
-- Ne publie qu'une fois l'accord d'EDHREC et d'Archidekt obtenu (voir `docs/mails-partenaires.md`). Avant le test fermé, envoie-leur la relance (même fichier) : voir `docs/store/test-ferme.md`.
+- EDHREC et Archidekt (`docs/mails-partenaires.md`) : toujours sans réponse au 20 octobre. Décision (`docs/a-faire.md`) : sans réponse à la production, publier avec crédit et lien (déjà là), lecture hebdomadaire par le serveur seulement, interrupteurs `EDHREC_OFF` / `ARCHIDEKT_OFF` prêts ; en cas de refus, plan B.
 
 ## 9. Visuels
 
