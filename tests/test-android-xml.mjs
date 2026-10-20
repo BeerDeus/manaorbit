@@ -84,6 +84,8 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.match(rules, /-keep class com\.google\.firebase\.FirebaseApp \{ public static java\.util\.List getApps\(android\.content\.Context\); \}/, 'FirebaseApp.getApps lu par réflexion (ManaOrbitPlugin.hasFirebase)');
   assert.match(readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8'), /Class\.forName\("com\.google\.firebase\.FirebaseApp"\)[\s\S]{0,80}getMethod\("getApps"/, 'la réflexion que la règle protège');
   assert.match(rules, /-keepattributes SourceFile,LineNumberTable/, 'traces de plantage lisibles');
+  assert.match(rules, /^-dontwarn com\.facebook\.\*\*$/m, 'SDK Facebook absent (compileOnly du plugin de connexion) : R8 ne s\'arrête pas');
+  assert.deepEqual(JSON.parse(readFileSync('android-app/capacitor.config.json', 'utf8')).plugins.FirebaseAuthentication.providers, ['google.com'], 'connexion Facebook jamais chargée : Google seulement');
   const java = readFileSync('android-app/android/app/src/main/java/app/manaorbit/MainActivity.java', 'utf8');
   assert.match(java, /EdgeToEdge\.enable\(this\);\s*super\.onCreate\(savedInstanceState\);/, 'EdgeToEdge avant super.onCreate (fenêtre bord à bord avant setContentView)');
   assert.doesNotMatch(java, /LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES/, 'plus de constante de découpe obsolète');

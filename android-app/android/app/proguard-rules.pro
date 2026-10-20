@@ -25,6 +25,9 @@
 # du manifeste : gardés par les règles de capacitor-android, de proguard-android-optimize.txt et d'AAPT.
 # ManaOrbitPlugin.hasFirebase lit FirebaseApp.getApps par réflexion (Firebase n'est visible qu'à l'exécution).
 -keep class com.google.firebase.FirebaseApp { public static java.util.List getApps(android.content.Context); }
+# @capacitor-firebase/authentication : connexion Facebook compilée sans le SDK Facebook (compileOnly, rgcfaIncludeFacebook absent) ; jamais chargée,
+# capacitor.config.json n'active que google.com (« Missing classes detected while running R8 » sans cette ligne).
+-dontwarn com.facebook.**
 # Traces de plantage de la Play Console : fichiers et lignes (avec le fichier de correspondance de l'.aab).
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
