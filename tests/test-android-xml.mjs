@@ -73,3 +73,21 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.match(readFileSync('src/help.js', 'utf8'), /typeof mo\.requestReview === 'function'/, 'site : In-App Review seulement si la coque l\'a (APK 1.0.6)');
   console.log(`✓ APK 1.0.6 : detectText (${[...scripts].join(', ')}) et requestReview déclarées, ML Kit chinois, japonais, coréen des services Google Play, Play In-App Review`);
 }
+
+// APK 1.0.7 : R8 (Play Console : optimisation du code DEX ≥ 25 %, d'ici février 2027) et bord à bord sur toutes les versions d'Android
+{
+  const gradle = readFileSync('android-app/android/app/build.gradle', 'utf8'), rules = readFileSync('android-app/android/app/proguard-rules.pro', 'utf8');
+  const rel = (/release \{([\s\S]*?)\n {8}\}/.exec(gradle) || [])[1] || '';
+  assert.match(rel, /minifyEnabled true/, 'release : R8 allumé');
+  assert.match(rel, /getDefaultProguardFile\('proguard-android-optimize\.txt'\)/, 'règles par défaut optimisées (gardent @JavascriptInterface)');
+  assert.doesNotMatch(rel, /shrinkResources true/, 'ressources lues par leur nom (google_app_id) : jamais retirées');
+  assert.match(rules, /-keep class com\.google\.firebase\.FirebaseApp \{ public static java\.util\.List getApps\(android\.content\.Context\); \}/, 'FirebaseApp.getApps lu par réflexion (ManaOrbitPlugin.hasFirebase)');
+  assert.match(readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8'), /Class\.forName\("com\.google\.firebase\.FirebaseApp"\)[\s\S]{0,80}getMethod\("getApps"/, 'la réflexion que la règle protège');
+  assert.match(rules, /-keepattributes SourceFile,LineNumberTable/, 'traces de plantage lisibles');
+  const java = readFileSync('android-app/android/app/src/main/java/app/manaorbit/MainActivity.java', 'utf8');
+  assert.match(java, /EdgeToEdge\.enable\(this\);\s*super\.onCreate\(savedInstanceState\);/, 'EdgeToEdge avant super.onCreate (fenêtre bord à bord avant setContentView)');
+  assert.doesNotMatch(java, /LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES/, 'plus de constante de découpe obsolète');
+  assert.match(gradle, /implementation "androidx\.activity:activity:\$androidxActivityVersion"/, 'androidx.activity déclarée (EdgeToEdge)');
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 8, 'code natif changé : versionCode 8 et plus');
+  console.log('✓ APK 1.0.7 : R8 (règles par défaut optimisées, FirebaseApp.getApps gardé, sans shrinkResources), EdgeToEdge avant super.onCreate, versionCode ≥ 8');
+}

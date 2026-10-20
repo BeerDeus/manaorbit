@@ -212,6 +212,22 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.0.7 (versionCode 8) : R8 et bord à bord (demandés par la Play Console, 20 octobre 2026)
+
+Prête dans le code, **à construire après la mise en production** (rien ne presse : échéance février 2027 ; la 1.0.6 part en production telle quelle).
+
+- **Optimisation du code DEX** (« Obscurcissement 1 % », seuil 25 %, catégorie Utilisation de mémoire) : **R8 allumé** pour la version release (`minifyEnabled true`, `proguard-android-optimize.txt`). Les plugins Capacitor, le pont JavaScript, les widgets et le service du manifeste sont gardés par les règles des bibliothèques ; `proguard-rules.pro` garde en plus `FirebaseApp.getApps` (lu par réflexion) et les numéros de ligne des plantages. `shrinkResources` reste éteint. Le fichier de correspondance part tout seul dans l'`.aab` : les plantages de la Play Console restent lisibles.
+- **Bord à bord** : `EdgeToEdge.enable(this)` dans `MainActivity` : Android 7 à 14 s'affichent comme Android 15 et plus (déjà bord à bord, cible SDK 36), les marges des barres passent au site par SystemBars de Capacitor. La constante de découpe `SHORT_EDGES` (obsolète) n'est plus dans notre code.
+- **« API obsolètes pour le bord à bord »** : notre code n'en appelle plus ; ni Capacitor 8 ni ses plugins n'appellent `setStatusBarColor` / `setNavigationBarColor`. Si l'alerte reste avec la 1.0.7, ouvre son détail dans la Play Console : il nomme la bibliothèque (souvent une bibliothèque Google, rien à faire de notre côté).
+- **Picture-in-picture** : pour les applis vidéo, sans objet ici.
+
+**À faire (après la production) :**
+
+1. `git pull`, `npm run setup` dans `android-app`, Android Studio › **Sync Project with Gradle Files**.
+2. **Run ▶** n'essaie que la version debug, **sans R8** : la vraie vérification se fait sur la version release. `.aab` signé (§ 4.1), envoyé sur le **test interne** (§ 4.3), installé depuis le Play Store sur le Xiaomi.
+3. À vérifier sur cette version : lancement, connexion Google, synchro, scan (latin et une carte japonaise), widget « Valeur de la collection » et widget QR, notification (une alerte de prix ou « Partie enregistrée »), raccourcis de l'icône, partage d'une liste vers l'appli, lien `https://manaorbit.app/?p=…` touché dans une messagerie, bandeau AdMob, demande de note. En bas de **Réglages** : « APK : 1.0.7 (8) ».
+4. Tout va bien : passer la même version du test interne à la production (Play Console › Production › « Promouvoir la version »), puis `APK_LATEST` à 8.
+
 ---
 
 ## 4. Publier sur le Play Store
