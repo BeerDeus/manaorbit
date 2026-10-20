@@ -111,7 +111,7 @@ Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (va
 - `solo-e` : titre géant sur trois lignes, parties en pastilles ;
 - `solo-f` : une carte foil qui entre dans le téléphone (cadre du scan).
 - `solo-a-mana` : la A (retenue le 20 octobre), orbes et puces en **vrais symboles de mana** (Scan blanc, Échange bleu, Cote vert, Classeur noir, Commander rouge) ;
-- `solo-a-carte` : la même, avec une silhouette de carte et son coût de mana derrière le téléphone.
+- `solo-a-carte` : la même, avec derrière le téléphone une silhouette de carte « Sol Ring » (son vrai coût : {1}, artefact ; nom de carte en texte, permis).
 
 **Fichiers** : `docs/print/flyer-a5-<déclinaison>.pdf` (à envoyer à l'imprimeur : texte, dessin et QR en vectoriel) et `.png` (aperçu, imprimable aussi : 300 dpi). En A4 (affiche au mur d'une boutique) : `flyer-a4-<déclinaison>`.
 

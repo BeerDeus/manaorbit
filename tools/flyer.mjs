@@ -54,7 +54,7 @@ const PARTS = [
   { c: '#ff7a5c', m: 'R', h: 'Commander', p: 'decks et compteur de vie' },
 ];
 // Symboles de mana (déclinaisons « -mana ») : couleurs de fond des symboles des cartes, symbole noir (tools/fonts/mana-symbols.mjs)
-const MANA_BG = { W: '#fffbd5', U: '#aae0fa', B: '#cbc2bf', R: '#f9aa8f', G: '#9bd3ae' };
+const MANA_BG = { W: '#fffbd5', U: '#aae0fa', B: '#cbc2bf', R: '#f9aa8f', G: '#9bd3ae', 1: '#cac5c0' };      // 1 : mana générique (gris)
 // « Magic » écrit en toutes lettres (titre, pastille, texte) : jamais le logo ni un symbole de Wizards (Fan Content Policy), seulement le nom du jeu en texte
 const H1 = 'Combien vaut<br>ton classeur <em>Magic</em>&nbsp;?';
 const SUB = 'Scanne tes cartes Magic avec ton téléphone : <b>Mana Orbit te donne leur cote Cardmarket</b>, mise à jour chaque jour.';
@@ -88,16 +88,17 @@ const orbited = (ph, O, ts, r = [2, 2.4, 2.8, 2.2, 2.2], mana = false) => {
   return svg(O.arc(false, .8, .7) + PARTS.map((_, i) => front(i) ? '' : o(i)).join('')) + ph + svg(O.arc(true, 1.1, 1) + PARTS.map((_, i) => front(i) ? o(i) : '').join(''));
 };
 const list = (cls, mana = false) => `<ul class="list ${cls}">${PARTS.map(o => `<li>${mana ? `<i class="ms"><svg viewBox="0 0 10 10">${manaSym(5.3, 4.7, 4.3, o.m)}</svg></i>` : `<i style="background:${o.c};box-shadow:0 0 3.2mm ${o.c}88"></i>`}<b>${o.h}</b><span>${o.p}</span></li>`).join('')}</ul>`;
-/** Silhouette de carte Magic (sans rien de Wizards : ni cadre ni illustration réels) : titre et coût de mana en haut à droite, illustration, type, texte, force et endurance. */
-const ghostCard = (cx, cy, w, a, cost) => {
+/** Silhouette de carte Magic (sans rien de Wizards : ni cadre, ni illustration, ni police réels) : nom et coût de mana, illustration, type, texte ; force et
+ *  endurance seulement pour une créature (pt). Le nom d'une vraie carte s'écrit en texte, avec son vrai coût (Sol Ring : {1}, artefact). */
+const ghostCard = (cx, cy, w, a, cost, name, type, pt) => {
   const h = w * 88 / 63, x = cx - w / 2, y = cy - h / 2, m = w * .05, iw = w - 2 * m, line = 'rgba(214,221,240,';
   const pips = cost.map((c, i) => manaSym(x + w - m - 3 - (cost.length - 1 - i) * 6.2, y + m + 3.2, 2.6, c)).join('');
   return `<g transform="rotate(${a} ${cx} ${cy})"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * .045}" fill="#141b36" stroke="url(#rgF)" stroke-width=".6"/>
-    <rect x="${x + m}" y="${y + m}" width="${iw}" height="6.4" rx="1.6" fill="${line}.08)" stroke="${line}.35)" stroke-width=".3"/><rect x="${x + m + 2.4}" y="${y + m + 2.5}" width="${iw * .42}" height="1.4" rx=".7" fill="${line}.5)"/>${pips}
+    <rect x="${x + m}" y="${y + m}" width="${iw}" height="6.4" rx="1.6" fill="${line}.08)" stroke="${line}.35)" stroke-width=".3"/><text x="${x + m + 2.2}" y="${y + m + 4.6}" font-family="MO Display" font-weight="700" font-size="3.7" letter-spacing="-.05" fill="#eef1fb" fill-opacity=".92">${name}</text>${pips}
     <rect x="${x + m + 1}" y="${y + m + 8}" width="${iw - 2}" height="${h * .4}" rx="1" fill="url(#cdF)" opacity=".35"/>
-    <rect x="${x + m}" y="${y + m + 9.4 + h * .4}" width="${iw}" height="5.2" rx="1.4" fill="${line}.08)" stroke="${line}.35)" stroke-width=".3"/>
+    <rect x="${x + m}" y="${y + m + 9.4 + h * .4}" width="${iw}" height="5.2" rx="1.4" fill="${line}.08)" stroke="${line}.35)" stroke-width=".3"/><text x="${x + m + 2.2}" y="${y + m + 13 + h * .4}" font-family="MO Text" font-weight="650" font-size="2.7" fill="#eef1fb" fill-opacity=".8">${type}</text>
     <rect x="${x + m + 1}" y="${y + m + 16.4 + h * .4}" width="${iw - 2}" height="${h * .27}" rx="1" fill="${line}.05)" stroke="${line}.22)" stroke-width=".3"/>
-    <rect x="${x + w - m - 11}" y="${y + h - m - 6.4}" width="11" height="6.4" rx="1.6" fill="#141b36" stroke="${line}.35)" stroke-width=".3"/></g>`;
+    ${pt ? `<rect x="${x + w - m - 11}" y="${y + h - m - 6.4}" width="11" height="6.4" rx="1.6" fill="#141b36" stroke="${line}.35)" stroke-width=".3"/><text x="${x + w - m - 5.5}" y="${y + h - m - 2.1}" text-anchor="middle" font-family="MO Display" font-weight="700" font-size="3.2" fill="#eef1fb">${pt}</text>` : ''}</g>`;
 };
 /** Carte foil (sans illustration réelle) : w × h mm, centre (cx, cy), inclinée de a degrés. */
 const foilCard = (cx, cy, w, h, a) => `<g transform="rotate(${a} ${cx} ${cy})"><rect x="${cx - w / 2 + 1}" y="${cy - h / 2 + 2.4}" width="${w}" height="${h}" rx="${w * .07}" fill="#000" opacity=".55" filter="url(#bl)"/>
@@ -118,7 +119,7 @@ const V = {
     css: '.list.l{left:14mm;top:118mm;width:92mm}.list i.ms{width:8.4mm;height:8.4mm;border:0;margin-left:-1mm}.list li{grid-template-columns:10.5mm 1fr!important}', h1: 48, sub: { top: 73, w: 94 }, sky: y => y < 30,
   }),
   'solo-a-carte': () => ({      // la A en symboles de mana, et une silhouette de carte Magic (coût de mana) derrière le téléphone
-    art: svg(halo(150, 156, 64, 76) + ghostCard(160, 117, 64, 10, ['G', 'U'])) + orbited(phone(116, 92, 66, 4), orbit(150, 160, 68, 22, -16), [315, 58, 140, 240, 95], [2.2, 2.3, 2.5, 2.2, 2.3], true) + list('l', true),
+    art: svg(halo(150, 156, 64, 76) + ghostCard(160, 117, 64, 10, ['1'], 'Sol Ring', 'Artefact')) + orbited(phone(116, 92, 66, 4), orbit(150, 160, 68, 22, -16), [315, 58, 140, 240, 95], [2.2, 2.3, 2.5, 2.2, 2.3], true) + list('l', true),
     css: '.list.l{left:14mm;top:118mm;width:92mm}.list i.ms{width:8.4mm;height:8.4mm;border:0;margin-left:-1mm}.list li{grid-template-columns:10.5mm 1fr!important}', h1: 48, sub: { top: 73, w: 94 }, sky: y => y < 30,
   }),
   'solo-b': () => {      // centrée : le téléphone au milieu, les cinq orbes en rangée sur l'orbite de devant, leur texte dessous
