@@ -37,6 +37,14 @@ function navSync() {
   for (const b of $$('.nav-b', el)) { if (b.dataset.nav === cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); }
 }
 const navSoon = () => { if (!NAV.raf) NAV.raf = requestAnimationFrame(navSync); };
+/* Ordinateur (souris, écran large : la même requête que css/zz-desktop.css) : « / » met le curseur dans la recherche de l'écran affiché. */
+const NAV_DESK = typeof matchMedia === 'function' ? matchMedia('(min-width:1100px) and (hover:hover) and (pointer:fine)') : null;
+if (typeof document !== 'undefined') document.addEventListener('keydown', e => {
+  if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || !NAV_DESK || !NAV_DESK.matches || (typeof sheets !== 'undefined' && sheets.length)) return;
+  const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  const scope = navTopDv() || document.getElementById('app'), inp = scope && [...scope.querySelectorAll('.fsearch input[type="search"]')].find(i => i.offsetParent);
+  if (!inp) return; e.preventDefault(); inp.focus(); if (inp.select) inp.select();
+});
 
 /** Ferme les écrans de section (collection, échange, decks) ; les autres écrans restent (ils ferment la barre de toute façon). */
 function navCloseSections(keep) {

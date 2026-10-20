@@ -1,0 +1,63 @@
+/* ── zz-desktop.css : rendu ordinateur (souris, écran large). Tout est sous la même requête : téléphones et tablettes tactiles ne voient rien changer.
+   Barre du bas → barre latérale (Scanner en tête) ; accueil et sections à côté d'elle ; feuilles du bas → fenêtres centrées ; survols ; barres de
+   défilement fines. Chargé en dernier (ordre alphabétique de build.mjs) : à spécificité égale, ces règles passent devant. ── */
+@media (min-width:1100px) and (hover:hover) and (pointer:fine){
+  :root{--side-w:236px}
+
+  /* ── barre latérale ── */
+  .nav{top:0;right:auto;width:var(--side-w);height:auto;display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:88px 14px 24px;border-top:0;border-right:1px solid var(--line);transition:transform .3s cubic-bezier(.2,.85,.25,1),opacity .2s}
+  .nav.off{transform:translateX(-110%)}
+  .nav::before{content:"Mana Orbit";position:absolute;top:30px;left:26px;font-family:var(--font-display);font-size:21px;font-weight:700;letter-spacing:-.02em;background:linear-gradient(90deg,#c79bff,#ff8fc3 60%,#ffd479);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .nav-b{height:46px;flex-direction:row;justify-content:flex-start;align-items:center;gap:12px;padding:0 12px;border-radius:12px;font-size:14.5px;color:var(--ink-2);transition:background .15s,color .15s}
+  .nav-b:hover{background:var(--surface-2);color:var(--ink)}
+  .nav-b:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .nav-i{width:26px;height:26px;border-radius:8px;background:none}
+  .nav-b[aria-current="page"]{background:var(--accent-soft);color:var(--ink)}
+  .nav-b[aria-current="page"] .nav-i{background:none;color:var(--accent)}
+  .nav-b:active .nav-i{transform:none}
+  .nav-scan{order:-1;height:54px;margin:0 0 14px;border-radius:15px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700}
+  .nav-scan:hover{border-color:var(--accent)}
+  .nav-foil{width:38px;height:38px;margin:0 -2px;transform:none;box-shadow:0 6px 18px -6px rgba(127,176,255,.7)}
+  .nav-scan:active .nav-foil{transform:scale(.94)}
+  .nav-sc{width:26px;height:26px}
+
+  /* ── place laissée à la barre : accueil, saisie et sections s'ouvrent à côté ── */
+  body.nav-on #app{padding-left:var(--side-w)}
+  body.nav-on .dv.sec{left:var(--side-w)}
+  body.nav-on .wrap{padding-bottom:72px}
+  body.nav-on .dock{left:var(--side-w);bottom:0;padding-bottom:14px}
+  body.nav-on .toast{bottom:28px;left:calc(50% + var(--side-w) / 2)}
+  body.nav-on .upd-pop{bottom:24px;left:calc(50% + var(--side-w) / 2)}
+  .dv.sec .dv-scroll{padding-bottom:32px}
+
+  /* ── accueil : plus large, l'orbite à gauche, les cartes à droite ── */
+  .wrap{max-width:1080px;padding-inline:32px}
+  .bar-in{max-width:1080px;padding-inline:32px}
+  .home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-flow:row dense;column-gap:28px;row-gap:16px;align-items:start}
+  .home>*{grid-column:2}
+  .home>.hm-hero{grid-column:1;grid-row:1 / span 6;position:sticky;top:96px}
+
+  body.nav-on .bar .brand{visibility:hidden}      /* le nom est déjà en tête de la barre latérale */
+
+  /* ── listes des écrans (collection, échange, decks) : deux colonnes ── */
+  .dv .dv-body .coll-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dv .dv-body .coll-list>.crow:nth-child(odd){border-right:1px solid var(--line)}
+  .dv .dv-body .coll-list>.crow:nth-child(-n+2){border-top:0}
+  .dv .dv-body .coll-list>.crow{margin-top:0}
+
+  .plc-grid{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}      /* Rangement : 3 à 5 emplacements par ligne */
+
+  /* ── feuilles du bas → fenêtres centrées ── */
+  .sheet{top:50%;bottom:auto;max-width:600px;max-height:min(86vh,860px);border-radius:22px;box-shadow:0 30px 80px -20px rgba(0,0,0,.6),0 0 0 1px var(--line);transform:translate(-50%,-47%) scale(.97);opacity:0;transition:transform .26s cubic-bezier(.2,.85,.25,1),opacity .2s;padding-bottom:0}
+  .sheet-wrap.open .sheet{transform:translate(-50%,-50%);opacity:1}
+  .sheet .grab{visibility:hidden;height:2px;margin-top:6px}
+
+  /* ── survols, curseurs, défilement ── */
+  .crow:hover{background:color-mix(in srgb,var(--surface-2) 55%,transparent)}
+  .btn,.icon-btn,.link-btn,.chip,.fchip,.sortsel,.plc-card,.hm-fy-r,.cv,.dk-tab{cursor:pointer}
+  .plc-card:hover,.hm-trade:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+  *{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-track{background:transparent}
+}
