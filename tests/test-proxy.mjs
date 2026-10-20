@@ -180,6 +180,48 @@ p.kill();
   assert.equal((await fetch(AB)).status, 404, 'ASSETLINKS_SHA256=0 : App Links coupés'); pc.kill();
   console.log('✓ /.well-known/assetlinks.json : application/json, sans redirection ni cookie, empreintes normalisées (majuscules, « : »), invalides ignorées et signalées, HEAD, lecture seule, ancienne adresse comprise ; aucune valide : 404');
 }
+{ // Domaine d'authentification manaorbit.app : /__/auth/* et /__/firebase/init.json relayés vers <projet>.firebaseapp.com (faux amont)
+  const got = [], big = 'x'.repeat(5000);
+  const fb = http.createServer((req, res) => {
+    got.push({ m: req.method, u: req.url, h: req.headers });
+    if (req.url.startsWith('/__/auth/handler.js')) {
+      if (req.headers['if-none-match'] === '"v1"') { res.writeHead(304, { ETag: '"v1"' }); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'public, max-age=1800', ETag: '"v1"', 'Set-Cookie': 'a=b', 'X-Frame-Options': 'DENY', 'X-Autre': '1' }); return res.end(req.method === 'HEAD' ? undefined : big);
+    }
+    if (req.url.startsWith('/__/auth/handler')) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end('<!doctype html><title>handler</title>'); }
+    if (req.url === '/__/firebase/init.json') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end('{"projectId":"m2s-mtg"}'); }
+    if (req.url === '/__/auth/aller') { res.writeHead(302, { Location: 'https://accounts.google.com/o/oauth2/auth' }); return res.end(); }
+    res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('absent');
+  });
+  await new Promise(r => fb.listen(0, '127.0.0.1', r));
+  const P = 18783, FB = 'http://127.0.0.1:' + P;
+  const pf = await start({ CARDTRADER_TOKEN: '', FB_AUTH_UPSTREAM: `http://127.0.0.1:${fb.address().port}/` }, P);
+  let r = await fetch(FB + '/__/auth/handler?apiKey=k&appName=%5BDEFAULT%5D&authType=signInViaPopup', { headers: { 'Accept-Language': 'de', 'User-Agent': 'Test/1', Cookie: 'secret=1', Authorization: 'Bearer x' } });
+  assert.equal(r.status, 200); assert.match(await r.text(), /<title>handler<\/title>/); assert.match(r.headers.get('content-type'), /text\/html/);
+  assert.equal(got.at(-1).u, '/__/auth/handler?apiKey=k&appName=%5BDEFAULT%5D&authType=signInViaPopup', 'chemin et paramètres tels quels');
+  assert.equal(got.at(-1).h['accept-language'], 'de'); assert.equal(got.at(-1).h['user-agent'], 'Test/1');
+  assert.equal(got.at(-1).h.cookie, undefined, 'aucun cookie relayé'); assert.equal(got.at(-1).h.authorization, undefined, 'aucun jeton relayé');
+  assert.equal(r.headers.get('x-frame-options'), null, 'pas de X-Frame-Options : /__/auth/iframe est chargée dans la page');
+  r = await fetch(FB + '/__/auth/handler.js', { headers: { 'Accept-Encoding': 'gzip' } });
+  assert.equal(r.status, 200); assert.equal(await r.text(), big, 'compressé puis décompressé par fetch'); assert.equal(r.headers.get('content-encoding'), 'gzip');
+  assert.equal(r.headers.get('cache-control'), 'public, max-age=1800'); assert.equal(r.headers.get('etag'), '"v1"');
+  for (const h of ['set-cookie', 'x-frame-options', 'x-autre']) assert.equal(r.headers.get(h), null, h + ' de l\'amont jamais relayé');
+  r = await fetch(FB + '/__/auth/handler.js', { headers: { 'If-None-Match': '"v1"' } }); assert.equal(r.status, 304, 'validation relayée');
+  r = await fetch(FB + '/__/auth/handler.js', { method: 'HEAD' }); assert.equal(r.status, 200); assert.equal(got.at(-1).m, 'HEAD');
+  r = await fetch(FB + '/__/firebase/init.json'); assert.equal(r.status, 200); assert.deepEqual(await r.json(), { projectId: 'm2s-mtg' });
+  r = await fetch(FB + '/__/auth/aller', { redirect: 'manual' }); assert.equal(r.status, 302); assert.equal(r.headers.get('location'), 'https://accounts.google.com/o/oauth2/auth', 'redirection rendue, jamais suivie ici');
+  r = await fetch(FB + '/__/auth/inconnu'); assert.equal(r.status, 404); assert.equal(await r.text(), 'absent');
+  const n = got.length;
+  r = await fetch(FB + '/__/auth/handler', { method: 'POST', body: 'x' }); assert.equal(r.status, 405);
+  for (const u of ['/__/firebase/autre.json', '/__/authx/handler', '/__/auth/', '/__/auth/a/b', '/__/auth/%2e%2e/%2e%2e/x']) assert.notEqual((await fetch(FB + u)).status, 200, u);
+  assert.equal(got.length, n, 'rien d\'autre ne part vers l\'amont');
+  pf.kill(); fb.close();
+  const pz = await start({ CARDTRADER_TOKEN: '', FB_AUTH_UPSTREAM: 'http://127.0.0.1:9' }, P);
+  r = await fetch(FB + '/__/auth/handler'); assert.equal(r.status, 502, 'amont injoignable'); pz.kill();
+  const po = await start({ CARDTRADER_TOKEN: '', FB_AUTH: '0' }, P);
+  r = await fetch(FB + '/__/auth/handler'); assert.equal(r.status, 404, 'FB_AUTH=0 : coupé'); po.kill();
+  console.log('✓ /__/auth/* et /__/firebase/init.json relayés vers firebaseapp.com (paramètres, langue, 304, HEAD, redirection rendue ; ni cookie ni jeton envoyés, ni cookie ni X-Frame-Options rendus ; gzip ; autres chemins et POST refusés ; amont HS : 502 ; FB_AUTH=0 : 404)');
+}
 { // erreur interne : réponse générique, détail dans le journal seulement
   const { mkdtempSync, mkdirSync, rmSync } = await import('node:fs'), { tmpdir } = await import('node:os'), dir = mkdtempSync(join(tmpdir(), 'pwa500-'));
   mkdirSync(join(dir, 'privacy.html'));                               // un dossier à la place du fichier : lecture impossible (EISDIR)

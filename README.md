@@ -10,6 +10,7 @@ Page (`deck-deal.html`) + proxy CardTrader (`proxy.mjs`, zéro dépendance, Node
 | `ALLOWED_UIDS` | Identifiants Firebase autorisés (séparés par des virgules) : recherche avec le token du serveur, et aucun bandeau de pub, si `CARDTRADER_TOKEN` est défini. Recommandé : c'est l'accès par compte |
 | `ALLOWED_EMAILS` | Alternative à `ALLOWED_UIDS` : e-mails vérifiés autorisés. Moins sûr (un UID ne change jamais) |
 | `FIREBASE_PROJECT_ID` | Projet Firebase des comptes (défaut `m2s-mtg`) |
+| `FB_AUTH` | `0` : coupe le relais de la fenêtre de connexion Google (`/__/auth/*`, `/__/firebase/init.json` → `<projet>.firebaseapp.com`, voir « Adresse du site ») |
 | `APP_KEY` | Ancienne clé d'accès, facultative : sert de repli tant qu'elle est définie. À supprimer une fois la connexion par compte validée |
 | `HOST` | `0.0.0.0` en hébergement. Avec `CARDTRADER_TOKEN` : refusé si ni `APP_KEY` ni `ALLOWED_UIDS`/`ALLOWED_EMAILS` n'est défini |
 | `PRICES_SOURCE_URL` | Relevé des prix « à partir de » (défaut : branche `data` du dépôt, régénérée chaque jour par `gen-prices.mjs`) ; vide = désactivé |
@@ -117,6 +118,7 @@ L'ancienne adresse `card.m2s-photo.fr` doit rester reliée au même site Hosting
   Seulement pour une appli installée **avant** le 12 octobre 2026 (`info().installed` du plugin ManaOrbit, versionCode 2 et plus) : une installation depuis le Play Store
   n'a rien à reprendre et démarre directement. Une coque sans cette date (versionCode 1) fait le détour, comme avant.
 - `/app-ads.txt` : servi d'office (éditeur `pub-9859793504995886`), vérifié par AdMob à l'examen de l'appli.
+- **Domaine d'authentification** (connexion Google sur le web, depuis le 20 octobre 2026) : `proxy.mjs` relaie `/__/auth/*` et `/__/firebase/init.json` tels quels vers `m2s-mtg.firebaseapp.com` (méthode « proxy » de Firebase : GET et HEAD, ni cookie ni jeton envoyés, ni cookie ni `X-Frame-Options` rendus, `FB_AUTH=0` le coupe ; test `tests/test-proxy.mjs`). Avec `authDomain: 'manaorbit.app'` (`src/cloud.js`), la fenêtre Google dit « continuer vers manaorbit.app » et l'iframe du SDK est sur le site de la page. **Avant de passer `authDomain`** : URI de redirection `https://manaorbit.app/__/auth/handler` dans le client OAuth web (Google Cloud › API et services › Identifiants), sinon la fenêtre Google répond `redirect_uri_mismatch`. L'appli Android n'est pas concernée (connexion Google native).
 
 ## Garde-fous (optionnels)
 

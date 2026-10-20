@@ -3113,6 +3113,36 @@ function assetLinks(req, res) {
   res.end(req.method === 'HEAD' ? undefined : ASSETLINKS);
 }
 
+/** Connexion Google sur le web avec manaorbit.app comme domaine d'authentification (authDomain de src/cloud.js) : la fenêtre Google dit « continuer vers
+ *  manaorbit.app » au lieu de m2s-mtg.firebaseapp.com, et l'iframe du SDK est sur le site de la page (stockage tiers bloqué : Safari, Chrome). Méthode « proxy »
+ *  de Firebase : /__/auth/* et /__/firebase/init.json relayés tels quels vers <projet>.firebaseapp.com (GET et HEAD ; ni cookie ni compte lu ou gardé ici ;
+ *  sans X-Frame-Options : /__/auth/iframe est chargée dans la page). FB_AUTH=0 : coupé (404). FB_AUTH_UPSTREAM : autre origine (tests). */
+const FB_AUTH_ON = process.env.FB_AUTH !== '0';
+const FB_AUTH_UP = (process.env.FB_AUTH_UPSTREAM || `https://${FB_PROJECT}.firebaseapp.com`).replace(/\/+$/, '');
+const FB_AUTH_PATH = /^\/__\/(auth\/[\w.-]+|firebase\/init\.json)$/;
+const FB_AUTH_KEEP = ['content-type', 'cache-control', 'expires', 'etag', 'last-modified', 'location', 'content-security-policy', 'cross-origin-opener-policy'];
+const FB_AUTH_MAX = 4 << 20;      // 4 Mo : les pages et scripts de Firebase en font quelques centaines de Ko
+async function fbAuthRelay(req, res, url) {
+  if (!FB_AUTH_ON) return json(res, 404, { error: 'not_found' });
+  if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'method_not_allowed' });
+  const hd = { accept: String(req.headers.accept || '*/*') };
+  for (const k of ['accept-language', 'user-agent', 'if-none-match', 'if-modified-since']) if (req.headers[k]) hd[k] = String(req.headers[k]);
+  let r, body;
+  try {
+    r = await fetch(FB_AUTH_UP + url.pathname + url.search, { method: req.method, headers: hd, redirect: 'manual', signal: AbortSignal.timeout(10e3) });
+    body = req.method === 'HEAD' ? Buffer.alloc(0) : Buffer.from(await r.arrayBuffer());
+  } catch (e) { return json(res, 502, { error: 'auth_upstream' }); }
+  if (body.length > FB_AUTH_MAX) return json(res, 502, { error: 'auth_upstream' });
+  const out = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin' };
+  for (const k of FB_AUTH_KEEP) { const v = r.headers.get(k); if (v) out[k] = v; }
+  if (body.length > 1024 && /\bgzip\b/i.test(String(req.headers['accept-encoding'] || '')) && /text|javascript|json/.test(out['content-type'] || '')) {
+    body = await gzipA(body); out['Content-Encoding'] = 'gzip'; out.Vary = 'Accept-Encoding';
+  }
+  if (req.method !== 'HEAD') out['Content-Length'] = body.length;
+  res.writeHead(r.status, out);
+  res.end(req.method === 'HEAD' ? undefined : body);
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (LOCAL && !LOCAL_HOSTS.test(String(req.headers.host || ''))) return json(res, 403, { error: 'bad_host', message: 'Serveur local : ouvre-le par http://localhost.' });
@@ -3122,6 +3152,7 @@ const server = http.createServer(async (req, res) => {
     if (OLD_HOSTS.length && OLD_HOSTS.includes(String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase()) && oldHost(req, res, url)) return;
     if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });
     if (url.pathname === '/.well-known/assetlinks.json') return assetLinks(req, res);      // App Links de l'appli Android
+    if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
     if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, scanrep: SR_ON, daily: !!DLY, off: OFF, apk: APK_LATEST, build: await pageBuild() });
