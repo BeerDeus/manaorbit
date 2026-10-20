@@ -110,12 +110,16 @@ Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (va
 - `solo-d` : téléphone géant qui déborde à droite ;
 - `solo-e` : titre géant sur trois lignes, parties en pastilles ;
 - `solo-f` : une carte foil qui entre dans le téléphone (cadre du scan).
+- `solo-a-mana` : la A (retenue le 20 octobre), orbes et puces en **vrais symboles de mana** (Scan blanc, Échange bleu, Cote vert, Classeur noir, Commander rouge) ;
+- `solo-a-carte` : la même, avec une silhouette de carte et son coût de mana derrière le téléphone.
 
 **Fichiers** : `docs/print/flyer-a5-<déclinaison>.pdf` (à envoyer à l'imprimeur : texte, dessin et QR en vectoriel) et `.png` (aperçu, imprimable aussi : 300 dpi). En A4 (affiche au mur d'une boutique) : `flyer-a4-<déclinaison>`.
 
 **Format** : A5 avec **fond perdu de 3 mm** (fichier de 154 × 216 mm, coupé à 148 × 210). Ce n'est pas l'A4 réduit : petits textes et QR agrandis pour l'A5 (mentions à 6 pt, QR ≈ 25 mm), textes à 10 mm du bord au moins. Ne pas laisser l'imprimeur réduire le fichier A4 : mentions illisibles, fond perdu trop court.
 
 **Vistaprint** : Flyers › A5 (14,8 × 21 cm) › recto › papier épais (170 g ou plus), **mat** de préférence (pas de reflet sur le QR) › « Importer votre design » › le PDF A5. Vérifier l'aperçu (ligne de coupe, zone de sécurité). Le fond sombre ressort un peu moins foncé qu'à l'écran (conversion en quadrichromie).
+
+**Symboles de mana** (`solo-a-mana`, `solo-a-carte`) : tracés de la police Mana d'Andrew Gioia (`tools/fonts/mana-symbols.mjs`, licence `tools/fonts/OFL-Mana.txt`), symboles © Wizards of the Coast, permis comme contenu de fan (ce ne sont ni le logo ni le symbole des planeswalkers).
 
 **Magic en toutes lettres** : titre « Combien vaut ton classeur Magic ? », pastille « Pour Magic: The Gathering », « Scanne tes cartes Magic… ». Jamais le logo Magic ni le symbole des planeswalkers : la Fan Content Policy de Wizards interdit leurs logos et symboles (le nom du jeu en texte est permis), et un logo ferait croire à une appli officielle.
 

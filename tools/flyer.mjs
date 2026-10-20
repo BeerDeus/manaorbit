@@ -13,6 +13,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
+import { MANA } from './fonts/mana-symbols.mjs';
 
 const require = createRequire(import.meta.url);
 const { qrSvg } = require('../src/qr.js');
@@ -46,12 +47,14 @@ const A5_CSS = `.head b{font-size:19pt}.head small{font-size:10.5pt}
   .fine{top:280.5mm!important;font-size:8.6pt!important;line-height:1.3!important}`;
 // Les cinq parties de l'appli, dans l'ordre de la liste (Échange en deuxième : choix du 20 octobre), une couleur de mana du logo chacune
 const PARTS = [
-  { c: '#f8f6d8', h: 'Scan', p: '11 langues, même le japonais' },
-  { c: '#7fb0ff', h: 'Échange', p: 'ta liste en un QR code' },
-  { c: '#6fd08c', h: 'Cote', p: 'prix Cardmarket chaque jour' },
-  { c: '#b5a3c8', h: 'Classeur', p: 'rangement et masterset' },
-  { c: '#ff7a5c', h: 'Commander', p: 'decks et compteur de vie' },
+  { c: '#f8f6d8', m: 'W', h: 'Scan', p: '11 langues, même le japonais' },
+  { c: '#7fb0ff', m: 'U', h: 'Échange', p: 'ta liste en un QR code' },
+  { c: '#6fd08c', m: 'G', h: 'Cote', p: 'prix Cardmarket chaque jour' },
+  { c: '#b5a3c8', m: 'B', h: 'Classeur', p: 'rangement et masterset' },
+  { c: '#ff7a5c', m: 'R', h: 'Commander', p: 'decks et compteur de vie' },
 ];
+// Symboles de mana (déclinaisons « -mana ») : couleurs de fond des symboles des cartes, symbole noir (tools/fonts/mana-symbols.mjs)
+const MANA_BG = { W: '#fffbd5', U: '#aae0fa', B: '#cbc2bf', R: '#f9aa8f', G: '#9bd3ae' };
 // « Magic » écrit en toutes lettres (titre, pastille, texte) : jamais le logo ni un symbole de Wizards (Fan Content Policy), seulement le nom du jeu en texte
 const H1 = 'Combien vaut<br>ton classeur <em>Magic</em>&nbsp;?';
 const SUB = 'Scanne tes cartes Magic avec ton téléphone : <b>Mana Orbit te donne leur cote Cardmarket</b>, mise à jour chaque jour.';
@@ -65,21 +68,37 @@ const orbit = (cx, cy, rx, ry, deg) => {
   const arc = (front, w, op) => { const pts = []; for (let t = front ? 0 : 180; t <= (front ? 180 : 360); t += 2) pts.push(at(t)); return `<path d="M${pts.map(p => p.x.toFixed(2) + ' ' + p.y.toFixed(2)).join('L')}" fill="none" stroke="url(#rgF)" stroke-width="${w}" stroke-linecap="round" opacity="${op}"/>`; };
   return { at, atX, arc };
 };
+/** Symbole de mana comme sur les cartes : ombre décalée, disque de couleur, symbole noir. */
+const manaSym = (cx, cy, r, m) => `<circle cx="${cx - r * .12}" cy="${cy + r * .14}" r="${r}" fill="#000" opacity=".55"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="${MANA_BG[m]}"/>`
+  + `<path d="${MANA[m]}" fill="#0d0f0f" transform="translate(${cx - r * .7} ${cy - r * .7}) scale(${r * 1.4 / 32})"/>`;
+const manaOrb = (p, o, r) => `<circle cx="${p.x}" cy="${p.y}" r="${r * 2.8}" fill="url(#gm${o.m})"/>` + manaSym(p.x, p.y, r, o.m);
 const orb = (p, c, r = 2.4) => `<circle cx="${p.x}" cy="${p.y}" r="${r * 3.2}" fill="url(#gl${c.slice(1)})"/><circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${c}" stroke="rgba(255,255,255,.4)" stroke-width=".3"/>`;
 const DEFS = `<defs><linearGradient id="rgF" x1="0" y1="0" x2="1" y2="0">${foilStops}</linearGradient><linearGradient id="cdF" x1="0" y1="0" x2="1" y2="1">${foilStops}</linearGradient>
   <linearGradient id="sh" x1="0" y1="0" x2="1" y2=".55"><stop offset=".3" stop-color="#fff" stop-opacity="0"/><stop offset=".48" stop-color="#fff" stop-opacity=".42"/><stop offset=".62" stop-color="#fff" stop-opacity="0"/></linearGradient>
   <radialGradient id="halo"><stop offset="0" stop-color="#5b6ee6" stop-opacity=".4"/><stop offset="1" stop-color="#5b6ee6" stop-opacity="0"/></radialGradient>
   <filter id="bl" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4"/></filter>
-  ${PARTS.map(o => `<radialGradient id="gl${o.c.slice(1)}"><stop offset="0" stop-color="${o.c}" stop-opacity=".5"/><stop offset="1" stop-color="${o.c}" stop-opacity="0"/></radialGradient>`).join('')}</defs>`;
+  ${PARTS.map(o => `<radialGradient id="gl${o.c.slice(1)}"><stop offset="0" stop-color="${o.c}" stop-opacity=".5"/><stop offset="1" stop-color="${o.c}" stop-opacity="0"/></radialGradient>`).join('')}
+  ${PARTS.map(o => `<radialGradient id="gm${o.m}"><stop offset="0" stop-color="${MANA_BG[o.m]}" stop-opacity=".45"/><stop offset="1" stop-color="${MANA_BG[o.m]}" stop-opacity="0"/></radialGradient>`).join('')}</defs>`;
 const svg = body => `<svg class="art" viewBox="0 0 210 297" aria-hidden="true">${DEFS}${body}</svg>`;
 const phone = (x, y, w, a) => `<div class="dev" style="left:${x}mm;top:${y}mm;transform:rotate(${a}deg)"><img src="${VALUE}" style="width:${w}mm;height:${(w * 1584 / 984).toFixed(2)}mm"></div>`;
 const halo = (cx, cy, rx, ry) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#halo)"/>`;
 /** Téléphone pris dans l'orbite : arc arrière et ses orbes derrière, arc avant et ses orbes devant. ts : angles des cinq orbes (ordre de PARTS). */
-const orbited = (ph, O, ts, r = [2, 2.4, 2.8, 2.2, 2.2]) => {
-  const front = i => ts[i] % 360 < 180, o = i => orb(O.at(ts[i]), PARTS[i].c, r[i]);
+const orbited = (ph, O, ts, r = [2, 2.4, 2.8, 2.2, 2.2], mana = false) => {
+  const front = i => ts[i] % 360 < 180, o = i => mana ? manaOrb(O.at(ts[i]), PARTS[i], r[i] * 1.9) : orb(O.at(ts[i]), PARTS[i].c, r[i]);
   return svg(O.arc(false, .8, .7) + PARTS.map((_, i) => front(i) ? '' : o(i)).join('')) + ph + svg(O.arc(true, 1.1, 1) + PARTS.map((_, i) => front(i) ? o(i) : '').join(''));
 };
-const list = cls => `<ul class="list ${cls}">${PARTS.map(o => `<li><i style="background:${o.c};box-shadow:0 0 3.2mm ${o.c}88"></i><b>${o.h}</b><span>${o.p}</span></li>`).join('')}</ul>`;
+const list = (cls, mana = false) => `<ul class="list ${cls}">${PARTS.map(o => `<li>${mana ? `<i class="ms"><svg viewBox="0 0 10 10">${manaSym(5.3, 4.7, 4.3, o.m)}</svg></i>` : `<i style="background:${o.c};box-shadow:0 0 3.2mm ${o.c}88"></i>`}<b>${o.h}</b><span>${o.p}</span></li>`).join('')}</ul>`;
+/** Silhouette de carte Magic (sans rien de Wizards : ni cadre ni illustration réels) : titre et coût de mana en haut à droite, illustration, type, texte, force et endurance. */
+const ghostCard = (cx, cy, w, a, cost) => {
+  const h = w * 88 / 63, x = cx - w / 2, y = cy - h / 2, m = w * .05, iw = w - 2 * m, line = 'rgba(214,221,240,';
+  const pips = cost.map((c, i) => manaSym(x + w - m - 3 - (cost.length - 1 - i) * 6.2, y + m + 3.2, 2.6, c)).join('');
+  return `<g transform="rotate(${a} ${cx} ${cy})"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * .045}" fill="#141b36" stroke="url(#rgF)" stroke-width=".6"/>
+    <rect x="${x + m}" y="${y + m}" width="${iw}" height="6.4" rx="1.6" fill="${line}.08)" stroke="${line}.35)" stroke-width=".3"/><rect x="${x + m + 2.4}" y="${y + m + 2.5}" width="${iw * .42}" height="1.4" rx=".7" fill="${line}.5)"/>${pips}
+    <rect x="${x + m + 1}" y="${y + m + 8}" width="${iw - 2}" height="${h * .4}" rx="1" fill="url(#cdF)" opacity=".35"/>
+    <rect x="${x + m}" y="${y + m + 9.4 + h * .4}" width="${iw}" height="5.2" rx="1.4" fill="${line}.08)" stroke="${line}.35)" stroke-width=".3"/>
+    <rect x="${x + m + 1}" y="${y + m + 16.4 + h * .4}" width="${iw - 2}" height="${h * .27}" rx="1" fill="${line}.05)" stroke="${line}.22)" stroke-width=".3"/>
+    <rect x="${x + w - m - 11}" y="${y + h - m - 6.4}" width="11" height="6.4" rx="1.6" fill="#141b36" stroke="${line}.35)" stroke-width=".3"/></g>`;
+};
 /** Carte foil (sans illustration réelle) : w × h mm, centre (cx, cy), inclinée de a degrés. */
 const foilCard = (cx, cy, w, h, a) => `<g transform="rotate(${a} ${cx} ${cy})"><rect x="${cx - w / 2 + 1}" y="${cy - h / 2 + 2.4}" width="${w}" height="${h}" rx="${w * .07}" fill="#000" opacity=".55" filter="url(#bl)"/>
   <rect x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" rx="${w * .07}" fill="url(#cdF)"/><rect x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" rx="${w * .07}" fill="url(#sh)"/>
@@ -93,6 +112,14 @@ const V = {
   'solo-a': () => ({      // liste à gauche, téléphone à droite (la piste retenue)
     art: svg(halo(150, 156, 64, 76)) + orbited(phone(116, 92, 66, 4), orbit(150, 160, 68, 22, -16), [292, 58, 150, 205, 95]) + list('l'),
     css: '.list.l{left:14mm;top:118mm;width:92mm}', h1: 48, sub: { top: 73, w: 94 }, sky: y => y < 30,
+  }),
+  'solo-a-mana': () => ({      // la A, orbes et puces en vrais symboles de mana
+    art: svg(halo(150, 156, 64, 76)) + orbited(phone(116, 92, 66, 4), orbit(150, 160, 68, 22, -16), [315, 58, 140, 240, 95], [2.2, 2.3, 2.5, 2.2, 2.3], true) + list('l', true),
+    css: '.list.l{left:14mm;top:118mm;width:92mm}.list i.ms{width:8.4mm;height:8.4mm;border:0;margin-left:-1mm}.list li{grid-template-columns:10.5mm 1fr!important}', h1: 48, sub: { top: 73, w: 94 }, sky: y => y < 30,
+  }),
+  'solo-a-carte': () => ({      // la A en symboles de mana, et une silhouette de carte Magic (coût de mana) derrière le téléphone
+    art: svg(halo(150, 156, 64, 76) + ghostCard(160, 117, 64, 10, ['G', 'U'])) + orbited(phone(116, 92, 66, 4), orbit(150, 160, 68, 22, -16), [315, 58, 140, 240, 95], [2.2, 2.3, 2.5, 2.2, 2.3], true) + list('l', true),
+    css: '.list.l{left:14mm;top:118mm;width:92mm}.list i.ms{width:8.4mm;height:8.4mm;border:0;margin-left:-1mm}.list li{grid-template-columns:10.5mm 1fr!important}', h1: 48, sub: { top: 73, w: 94 }, sky: y => y < 30,
   }),
   'solo-b': () => {      // centrée : le téléphone au milieu, les cinq orbes en rangée sur l'orbite de devant, leur texte dessous
     const O = orbit(105, 158, 101, 44, 0), pts = [30, 67.5, 105, 142.5, 180].map(x => O.at(O.atX(x)));
