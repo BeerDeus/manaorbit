@@ -27,7 +27,7 @@
       "id": "l4-echange",
       "titre": "Tes doublons en un QR code",
       "ton": "Complice, comme une astuce entre joueurs.",
-      "texte": "Ton pote te demande ce que t'as en double ? Pas besoin de sortir tout ton classeur. Tu lui montres ton QR code : il le scanne, et il voit ta liste d'échange, toujours à jour."
+      "texte": "Ton pote te demande ce que t'as en double ? Pas besoin de sortir tout ton classeur. Tu lui montres ton QR code : il le scanne, et il voit ta liste d'échange, toujours à jour grâce à ta collection."
     },
     {
       "id": "l5-decks",
@@ -45,7 +45,7 @@
       "id": "l7-mystere",
       "titre": "La Carte mystère du soir",
       "ton": "Joueur, comme un défi lancé aux copains.",
-      "texte": "Chaque soir à dix-huit heures, une nouvelle carte mystère. Un indice après l'autre, à toi de la deviner avant les autres. Tu la trouves en combien ?"
+      "texte": "Chaque soir à dix-huit heures, une nouvelle carte mystère. Un indice toutes les douze secondes : à toi de la deviner le plus vite possible. Tu la trouves en combien ?"
     },
     {
       "id": "l8-manabox",

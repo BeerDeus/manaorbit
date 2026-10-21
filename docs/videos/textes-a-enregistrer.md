@@ -37,7 +37,7 @@ Le mieux est de les lire tels quels. Si tu changes un mot, dis-le moi : les sous
 > Ta carte est en japonais ? Le scan la lit quand même. Et en allemand, en russe, en italien… Mana Orbit reconnaît tes cartes dans onze langues, même le chinois et le coréen.
 
 **l4-echange** (≈ 9 s)
-> Ton pote te demande ce que t'as en double ? Pas besoin de sortir tout ton classeur. Tu lui montres ton QR code : il le scanne, et il voit ta liste d'échange, toujours à jour.
+> Ton pote te demande ce que t'as en double ? Pas besoin de sortir tout ton classeur. Tu lui montres ton QR code : il le scanne, et il voit ta liste d'échange, toujours à jour grâce à ta collection.
 
 **l5-decks** (≈ 9 s)
 > Tu as peut-être déjà presque tout un deck Commander, sans le savoir. Mana Orbit compare ta collection aux decks les plus joués, et te dit ce qu'il te manque, et combien ça coûte.
@@ -46,7 +46,7 @@ Le mieux est de les lire tels quels. Si tu changes un mot, dis-le moi : les sous
 > Ta prochaine partie de Commander ? Pose ton téléphone au milieu de la table : points de vie, blessures de commandant, poison, monarque… tout est compté. Et pour savoir qui commence, on tire au hasard.
 
 **l7-mystere** (≈ 8,5 s)
-> Chaque soir à dix-huit heures, une nouvelle carte mystère. Un indice après l'autre, à toi de la deviner avant les autres. Tu la trouves en combien ?
+> Chaque soir à dix-huit heures, une nouvelle carte mystère. Un indice toutes les douze secondes : à toi de la deviner le plus vite possible. Tu la trouves en combien ?
 
 **l8-manabox** (≈ 8,5 s)
 > Tu utilises ManaBox ? Exporte ta collection en CSV, importe le fichier dans Mana Orbit, et c'est fait. Tes cartes, tes quantités, tes langues : rien ne se perd.
