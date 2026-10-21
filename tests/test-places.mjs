@@ -74,6 +74,14 @@ test('collection complète : proxys et emplacements dans le même texte', () => 
   assert.equal(C.collDocText(C.collDoc({}, { x: { n: 'Sol Ring', q: 1 } })), '//@P 1 Sol Ring', 'proxys seuls');
   assert.deepEqual(Object.keys(C.collDocFromText('//@P 1 Sol Ring').prox), ['sol ring']);
   assert.equal(C.collDocFromText('//@L zz other').places.zz, undefined, 'emplacement sans nom : ignoré');
+  // règle d'échange (x : skip / all) écrite après le type : « box!skip » ; inconnue ou sur un deck monté : retirée
+  const pl = C.collDocFromText('//@L ab12 box!skip Boîte à garder\n//@L cd34 sale!all Bac à vendre\n//@L ef56 binder!foo Classeur\n//@L gh78 deck!all:dk1 Mon deck').places;
+  assert.deepEqual(pl, { ab12: { t: 'box', n: 'Boîte à garder', x: 'skip' }, cd34: { t: 'sale', n: 'Bac à vendre', x: 'all' }, ef56: { t: 'binder', n: 'Classeur' }, gh78: { t: 'deck', n: 'Mon deck', r: 'dk1' } });
+  assert.equal(C.placesText(pl), '//@L ab12 box!skip Boîte à garder\n//@L cd34 sale!all Bac à vendre\n//@L ef56 binder Classeur\n//@L gh78 deck:dk1 Mon deck', 'aller-retour de la règle');
+  assert.deepEqual(C.placeNorm({ t: 'deck', n: 'D', x: 'skip', r: 'dk1' }), { t: 'deck', n: 'D', r: 'dk1' }, 'jamais de règle sur un deck monté');
+  const b0 = { ab12: { t: 'box', n: 'B' } };
+  assert.deepEqual(C.placesMerge3(b0, { ab12: { t: 'box', n: 'B', x: 'skip' } }, b0).ab12.x, 'skip', 'règle posée ici : gardée à la fusion');
+  assert.deepEqual(C.placesMerge3(b0, b0, { ab12: { t: 'box', n: 'B', x: 'all' } }).ab12.x, 'all', 'règle posée ailleurs : reprise');
 });
 
 test('fusions : déplacements d\'emplacement, emplacements, proxys', () => {

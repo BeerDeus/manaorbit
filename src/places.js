@@ -53,7 +53,7 @@ function lineBump(map, k, g, d) {
   return m;
 }
 function plcCreate(t, n, r) {
-  const x = placeNorm({ t, n, r }); if (!x) return '';
+  const x = placeNorm({ t, n, r, x: t === 'sale' ? 'all' : '' }); if (!x) return '';      // « À vendre » : tout part dans l'échange d'office (règle modifiable dans Échange › Mes rangements)
   let id = placeNewId(); while (COLL.places[id]) id = placeNewId();
   COLL.places = { ...COLL.places, [id]: x }; collChanged();
   return id;

@@ -1228,15 +1228,18 @@ const collFromText = text => { const o = {}; for (const it of parseCollection(te
 const PLACE_TYPES = ['binder', 'box', 'deck', 'sale', 'other'];
 /** Nom d'emplacement : une ligne, sans séparateur de CSV ni guillemet (le texte de la collection reste lisible comme avant), 40 caractères au plus. */
 const placeName = n => String(n == null ? '' : n).replace(/[\p{Cc}\p{Cf},;"]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
-/** Emplacement lu ou créé : { t (type), n (nom), r? (deck monté : id du deck) } ; null si illisible. */
+const PLACE_TRADES = ['skip', 'all'];      // règle d'échange d'un emplacement (share.js › « Mes rangements ») : skip = jamais proposé (compte dans la réserve), all = tout part, même le dernier ; absent = classique
+/** Emplacement lu ou créé : { t (type), n (nom), x? (règle d'échange, jamais sur un deck monté), r? (deck monté : id du deck) } ; null si illisible. */
 function placeNorm(x) {
   if (!x) return null;
-  const n = placeName(x.n), t = PLACE_TYPES.includes(x.t) ? x.t : 'other', r = /^[A-Za-z0-9_-]{1,40}$/.test(x.r || '') ? x.r : '';
-  return n ? { t, n, ...(r ? { r } : {}) } : null;
+  const n = placeName(x.n), t = PLACE_TYPES.includes(x.t) ? x.t : 'other', r = /^[A-Za-z0-9_-]{1,40}$/.test(x.r || '') ? x.r : '', tr = t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : '';
+  return n ? { t, n, ...(tr ? { x: tr } : {}), ...(r ? { r } : {}) } : null;
 }
+/** Règle d'échange d'un emplacement ('' : classique, aussi pour un deck monté ou un emplacement inconnu). */
+const placeTrade = (places, id) => { const x = id && places && places[id]; return x && x.t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : ''; };
 /** Nouvel identifiant d'emplacement : date en base 36 et deux caractères au hasard (deux appareils ne se croisent pas). */
 const placeNewId = () => (Math.floor(Date.now() / 1000).toString(36) + Math.floor(Math.random() * 1296).toString(36).padStart(2, '0')).slice(-12);
-const placesText = places => Object.keys(places || {}).sort().map(id => { const x = places[id]; return x ? '//@L ' + id + ' ' + x.t + (x.r ? ':' + x.r : '') + ' ' + x.n : ''; }).filter(Boolean).join('\n');
+const placesText = places => Object.keys(places || {}).sort().map(id => { const x = places[id]; return x ? '//@L ' + id + ' ' + x.t + (x.x ? '!' + x.x : '') + (x.r ? ':' + x.r : '') + ' ' + x.n : ''; }).filter(Boolean).join('\n');      // « //@L k3x9a box!skip Boîte à garder »
 /** Collection complète : { map (cartes), prox (proxys, même forme), places (id → emplacement) }. */
 const collDoc = (map, prox, places) => ({ map: map || {}, prox: prox || {}, places: places || {} });
 const collDocText = d => [collToText(d.map, true), collToText(d.prox, true).split('\n').filter(Boolean).map(x => '//@P ' + x).join('\n'), placesText(d.places)].filter(Boolean).join('\n');
@@ -1244,7 +1247,7 @@ function collDocFromText(text) {
   const main = [], px = [], places = {};
   for (const ln of String(text || '').split('\n')) {
     if (ln.startsWith('//@P ')) px.push(ln.slice(5));
-    else if (ln.startsWith('//@L ')) { const m = /^\/\/@L ([a-z0-9]{2,12}) ([a-z]+)(?::(\S+))? (.+)$/.exec(ln.trimEnd()); const x = m && placeNorm({ t: m[2], r: m[3], n: m[4] }); if (x) places[m[1]] = x; }
+    else if (ln.startsWith('//@L ')) { const m = /^\/\/@L ([a-z0-9]{2,12}) ([a-z]+)(?:!([a-z]+))?(?::(\S+))? (.+)$/.exec(ln.trimEnd()); const x = m && placeNorm({ t: m[2], x: m[3], r: m[4], n: m[5] }); if (x) places[m[1]] = x; }
     else main.push(ln);
   }
   return collDoc(collFromText(main.join('\n')), px.length ? collFromText(px.join('\n')) : {}, places);
@@ -2162,18 +2165,26 @@ function deckUse(texts) {
   return use;
 }
 /**
- * Cartes à échanger. coll : clé → { n, q, l?, x? } · use : deckUse(…) · keep : réserve gardée en plus des decks (0, 1, 2…) · kept : Set des clés que l'utilisateur garde.
+ * Cartes à échanger. coll : clé → { n, q, l?, x? } · use : deckUse(…) · keep : réserve gardée en plus des decks (0, 1, 2…) · kept : Set des clés que l'utilisateur garde
+ * · places : emplacements (COLL.places) pour leur règle d'échange (placeTrade) : « skip » : ses exemplaires ne sont jamais proposés et remplissent la réserve (decks + keep) en premier ;
+ *   « all » : ses exemplaires partent tous, même le dernier, même s'ils manquent à un deck ; sans règle (ou deck monté) : classique, la réserve se prend sur eux, dans l'ordre d'affichage.
  * Retourne { have: [{ k, n, q, lines: [[langue, exemplaires]] }], held: [{ k, n, q }] } (held : cartes gardées à la main qui auraient été proposées), triés par nom.
  */
-function tradeLists(coll, use, keep, kept) {
-  const have = [], held = [], kp = Math.max(0, Math.floor(Number(keep) || 0));
+function tradeLists(coll, use, keep, kept, places) {
+  const have = [], held = [], kp = Math.max(0, Math.floor(Number(keep) || 0)), rule = places ? g => placeTrade(places, lineAttrs(g).p) : () => '';
   for (const [k, x] of Object.entries(coll || {})) {
     if (!x || !(x.q > 0) || BASIC_NAMES.has(k)) continue;
-    const u = use && use.get(k), hold = (u ? u.q : 0) + kp, spare = x.q - hold;
+    const u = use && use.get(k), hold = (u ? u.q : 0) + kp, ls = collLines(x);
+    let ign = 0, forced = 0, std = 0; for (const [g, q] of ls) { const m = rule(g); if (m === 'skip') ign += q; else if (m === 'all') forced += q; else std += q; }
+    let skip = Math.max(0, hold - ign); const spare = Math.max(0, std - skip) + forced;
     if (spare <= 0) continue;
     if (kept && kept.has(k)) { held.push({ k, n: x.n, q: spare }); continue; }
-    let skip = hold; const lines = [];
-    for (const [l, q] of collLines(x)) { const g = Math.max(0, q - skip), h = lineHead(l), e = lines.find(y => y[0] === h); skip = Math.max(0, skip - q); if (g) { if (e) e[1] += g; else lines.push([h, g]); } }      // sans emplacement ni détails : ils ne quittent pas l'appareil
+    const lines = [];
+    for (const [l, q] of ls) {      // sans emplacement ni détails : ils ne quittent pas l'appareil
+      const m = rule(l); if (m === 'skip') continue;
+      let g = q; if (m !== 'all') { g = Math.max(0, q - skip); skip = Math.max(0, skip - q); }
+      const h = lineHead(l), e = lines.find(y => y[0] === h); if (g) { if (e) e[1] += g; else lines.push([h, g]); }
+    }
     have.push({ k, n: x.n, q: spare, lines });
   }
   const byN = (a, b) => EN_CMP(a.n, b.n);
@@ -2356,7 +2367,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { NAME_CMP, byName });
 // Emplacements, détails d'exemplaire et proxys (test-places.mjs)
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { COND_CM, PLACE_TRADES, placeTrade, lineCmp, attrOf, attrWord, lineHead, lineAw, lineAttrs, linePlace, lineSet, csvCond, PLACE_TYPES, placeName, placeNorm, placeNewId, placesText, collDoc, collDocText, collDocFromText, samePlaces, sameDoc, placesMerge3, mergeDoc3 });
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FRX, frKey, frUse, frIndex, frLookup, frToEn, enToFr, nameSuggest });
 // Langue des cartes et liens selon la langue de l'utilisateur (test.mjs) : exportés à part, eux aussi

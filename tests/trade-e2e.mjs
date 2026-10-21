@@ -90,6 +90,27 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade
   assert.ok(!(await p.$('.tr-held')), 'réserve 1 : Wrath n\'aurait pas été proposée, rien à montrer dans « Gardées »');
   ok('À échanger : possédé − deck − réserve (0 ou 1), Garder, terrains de base exclus');
 }
+{      // règle d'échange par rangement : « Mes rangements » (share.js › trPlacesSheet), rangée avec l'emplacement (COLL.places[id].x)
+  assert.ok(!(await p.$('.tr-plc')), 'sans emplacement : pas de bouton');
+  const pid = await p.evaluate(() => { const id = plcCreate('box', 'Boîte à garder'), g = collLines(COLL.map['sol ring'])[0][0]; COLL.map = linesMove(COLL.map, 'sol ring', g, 3, lineSet(g, { p: id })); collChanged(); return id; });
+  await p.waitForSelector('.tr-plc'); assert.equal(await txt(p, '.tr-plc'), 'Mes rangements', 'bouton sans compteur : aucune règle');
+  await p.click('.tr-plc'); await p.waitForSelector('.sheet-wrap.open .trp-row .seg-opt');
+  assert.equal(await txt(p, '.sheet-wrap.open .sheet-head h2'), 'Mes rangements dans l\'échange');
+  assert.deepEqual(await p.$$eval('.sheet-wrap.open .trp-row', r => r.map(x => [x.dataset.p, x.querySelector('b').textContent, x.querySelector('small').textContent, [...x.querySelectorAll('.seg-opt')].map(b => b.dataset.v + (b.getAttribute('aria-checked') === 'true' ? '*' : ''))])), [[pid, 'Boîte à garder', '3 cartes', ['*', 'skip', 'all']]], 'une ligne par rangement, classique coché');
+  await p.waitForTimeout(500); await p.screenshot({ path: 'shots/trade-plc.png' });
+  await p.click(`.sheet-wrap.open .trp-row[data-p="${pid}"] [data-v="skip"]`);      // 3 ignorés remplissent la réserve (deck 1 + 1) : les 2 autres partent
+  await p.waitForFunction(() => /× 2$/.test((document.querySelector('.tr-list .tr-row[data-k="sol ring"] .tr-q b') || {}).textContent || ''));
+  assert.equal(await p.evaluate(() => COLL.places[Object.keys(COLL.places)[0]].x), 'skip', 'règle rangée avec l\'emplacement');
+  await p.click(`.sheet-wrap.open .trp-row[data-p="${pid}"] [data-v="all"]`);      // 3 quoi qu'il arrive + (2 − 2 gardés) = 3
+  await p.waitForFunction(() => /× 3$/.test((document.querySelector('.tr-list .tr-row[data-k="sol ring"] .tr-q b') || {}).textContent || ''));
+  await p.click('.sheet-wrap.open [data-close]'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
+  assert.equal(await txt(p, '.tr-plc small'), '1', 'compteur : une règle posée');
+  await p.click('#trKeep [data-v="4"]');      // réserve 4 : plus rien de classique à proposer, les 3 du bac partent quand même
+  await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 1 && /× 3$/.test(document.querySelector('.tr-list .tr-row[data-k="sol ring"] .tr-q b').textContent));
+  await p.click('#trKeep [data-v="1"]'); await p.evaluate(id => plcDelete(id), pid);      // retour à l'état d'avant : emplacement supprimé (cartes « Non rangé »), réserve 1
+  await p.waitForFunction(() => !document.querySelector('.tr-plc') && document.querySelectorAll('.tr-list .tr-row').length === 2 && /× 3$/.test(document.querySelector('.tr-list .tr-row[data-k="sol ring"] .tr-q b').textContent));
+  ok('Mes rangements : Ignoré (compte dans la réserve), Tout inclure (même au-delà de la réserve), rangé avec l\'emplacement, compteur sur le bouton');
+}
 {
   await p.click('#trSub [data-v="want"]'); await p.waitForSelector('.tr-addw');
   assert.deepEqual(await p.$$eval('.tr-list .tr-row', r => r.map(x => x.dataset.k)), ['arcane signet', 'command tower', 'craterhoof behemoth', 'edgar markov'], 'manquantes du deck, commandant compris');

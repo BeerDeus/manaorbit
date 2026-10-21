@@ -31,6 +31,30 @@ const use = C.deckUse(decks);
   assert.equal(C.tradeLists({ 'x': { n: 'X', q: 1 } }, new Map(), 1).have.length, 0, 'un seul exemplaire, réserve 1 : rien');
   console.log('✓ tradeLists : possédé − decks − réserve, langues gardées dans l\'ordre, « Garder », terrains de base exclus');
 }
+{      // règle d'échange par emplacement (places : skip / all ; deck monté ou sans règle : classique)
+  const places = { ab12: { t: 'box', n: 'Boîte à garder', x: 'skip' }, cd34: { t: 'sale', n: 'Bac à vendre', x: 'all' }, ef56: { t: 'binder', n: 'Classeur' }, gh78: { t: 'deck', n: 'Mon deck', r: 'dk1' } };
+  const mk = (n, lines) => C.collFromLines({ n }, lines);
+  // Sol Ring : 5 ex, decks 2 + réserve 1 = 3 gardés ; 2 ignorés remplissent la réserve d'abord, 1 non rangé la finit, les 2 du classeur partent
+  let r = C.tradeLists({ 'sol ring': mk('Sol Ring', [['fr', 1], ['fr#pab12', 2], ['en#pef56', 2]]) }, use, 1, new Set(), places);
+  assert.deepEqual(r.have, [{ k: 'sol ring', n: 'Sol Ring', q: 2, lines: [['en', 2]] }], 'ignorés = réserve, classiques proposés');
+  // les 2 ignorés seuls en trop : rien (même avec réserve 0 et sans deck)
+  assert.equal(C.tradeLists({ 'x': mk('X', [['fr#pab12', 2]]) }, new Map(), 0, new Set(), places).have.length, 0, 'ignoré : jamais proposé');
+  // « Tout inclure » : les 4 Bolt du bac partent bien que les decks en veuillent 4 ; le classeur reste classique
+  r = C.tradeLists({ 'lightning bolt': mk('Lightning Bolt', [['en#pcd34', 4]]) }, use, 1, new Set(), places);
+  assert.deepEqual(r.have, [{ k: 'lightning bolt', n: 'Lightning Bolt', q: 4, lines: [['en', 4]] }], 'tout inclure : même ce qui manque aux decks');
+  r = C.tradeLists({ 'sol ring': mk('Sol Ring', [['fr#pef56', 3], ['en#pcd34', 1]]) }, use, 1, new Set(), places);
+  assert.deepEqual(r.have, [{ k: 'sol ring', n: 'Sol Ring', q: 1, lines: [['en', 1]] }], 'classeur : 3 − 3 gardés = 0 ; bac : 1 quoi qu\'il arrive');
+  r = C.tradeLists({ 'sol ring': mk('Sol Ring', [['fr#pef56', 4], ['en#pcd34', 1]]) }, use, 1, new Set(), places);
+  assert.deepEqual(r.have[0].lines, [['fr', 1], ['en', 1]], 'classeur : 4 − 3 = 1, plus le bac');
+  // deck monté (gh78) et emplacement inconnu : classiques ; « Garder » à la main prime ; sans places : comme avant
+  assert.equal(C.tradeLists({ 'sol ring': mk('Sol Ring', [['fr#pgh78', 4]]) }, use, 1, new Set(), places).have[0].q, 1, 'deck monté : classique');
+  assert.equal(C.tradeLists({ 'sol ring': mk('Sol Ring', [['fr#pzz99', 4]]) }, use, 1, new Set(), places).have[0].q, 1, 'emplacement inconnu : classique');
+  r = C.tradeLists({ 'sol ring': mk('Sol Ring', [['en#pcd34', 2]]) }, use, 1, new Set(['sol ring']), places);
+  assert.deepEqual([r.have, r.held], [[], [{ k: 'sol ring', n: 'Sol Ring', q: 2 }]], 'gardée à la main : prime sur « Tout inclure »');
+  assert.deepEqual(C.tradeLists({ 'sol ring': mk('Sol Ring', [['fr', 1], ['fr#pab12', 2], ['en#pef56', 2]]) }, use, 1, new Set()).have[0], { k: 'sol ring', n: 'Sol Ring', q: 2, lines: [['en', 2]] }, 'sans places : les emplacements ne comptent pas (réserve prise sur les 3 FR)');
+  assert.deepEqual([C.placeTrade(places, 'ab12'), C.placeTrade(places, 'cd34'), C.placeTrade(places, 'ef56'), C.placeTrade(places, 'gh78'), C.placeTrade(places, ''), C.placeTrade(null, 'ab12')], ['skip', 'all', '', '', '', '']);
+  console.log('✓ tradeLists : règle par emplacement (ignoré = réserve, tout inclure même ce qui manque aux decks, deck monté classique, « Garder » prime)');
+}
 {
   const w = C.tradeWant(coll, use, { 'lightning bolt': { n: 'Lightning Bolt', q: 2 }, 'mana crypt': { n: 'Mana Crypt' }, 'forest': { n: 'Forest', q: 3 } });
   const by = k => w.find(x => x.k === k);

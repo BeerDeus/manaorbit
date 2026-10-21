@@ -73,11 +73,11 @@ async function trPush() {
 /* ── Listes ────────────────────────────────────────────────────────────────────────────────────── */
 const trDeckTexts = () => allDecks().map(d => d.text || '');
 function trState() {
-  const use = deckUse(trDeckTexts()), { have, held } = tradeLists(COLL.map, use, TR.keep, TR.kept);
+  const use = deckUse(trDeckTexts()), { have, held } = tradeLists(COLL.map, use, TR.keep, TR.kept, COLL.places);
   return { use, have, held, want: tradeWant(COLL.map, use, TR.wish), decks: allDecks().length };
 }
 /** Doublons à échanger d'une collection (decks et réglages de cet appareil) : colonne « Tradelist Count » de l'export CSV (collToCsv, core.js ; déclaration hoistée, jamais en zone morte). */
-function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, TR.kept).have; }
+function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, TR.kept, COLL.places).have; }
 /** Prix unitaire (centimes) des estimations d'échange, chez le propriétaire comme chez le visiteur : tendance Cardmarket du fichier de prix (impression la moins chère), sinon le prix Scryfall déjà connu de l'appareil. */
 const trPrice = k => { const t = PXT && PXT.map && PXT.map.get(k); return (t && t.e) || (dmOf(k) || {}).eu || null; };
 /** Carte d'un partage : nom, exemplaires, langue, édition (e : « cmm/400 »), nom français, image (édition : cette impression exacte, sinon la carte ; dans la langue de l'exemplaire si Scryfall l'a), coût, type, couleurs, symboles.
@@ -316,7 +316,7 @@ function trPanelHtml() {
   const { rows: list, sum } = tradeView(fil, { price: trPrice, sort: TR.sort, min }), shown = bv ? [] : list.slice(0, TR.shown);
   TR.bv = bv && list.length ? { list, want } : null;
   return `${trShareBoxHtml(st)}
-    <div class="tr-keep"><span class="label">${T('Garder en plus de mes decks : 0–4 exemplaires')}</span><div class="seg" id="trKeep" role="radiogroup" aria-label="${T('Garder en plus de mes decks')}"></div><p class="hint">${T('Tu proposes seulement ce que tu as en trop.')}</p></div>
+    <div class="tr-keep"><span class="label">${T('Garder en plus de mes decks : 0–4 exemplaires')}</span><div class="seg" id="trKeep" role="radiogroup" aria-label="${T('Garder en plus de mes decks')}"></div><p class="hint">${T('Tu proposes seulement ce que tu as en trop.')}</p>${trPlcBtnHtml()}</div>
     <div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>
     ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div>` : ''}
     ${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}
@@ -365,6 +365,7 @@ function trClick(e) {
   else if (act === 'trcopy') copyText(shareUrl(TR.share));
   else if (act === 'trsend') trSend(TR.share);
   else if (act === 'trqr') trQrOpen();
+  else if (act === 'trplc') trPlacesSheet();      // règle d'échange par rangement
   else if (act === 'trimg') simgTrade();      // image à partager avec le QR code du lien (simg.js)
   else if (act === 'trlive' && typeof trocEntry === 'function') trocEntry();      // échange en direct, face à face (troc.js)
   else if (act === 'trview') { const p = trPayload(); openPublicTrade(readShare('trade', { ...p, ...profShare(), at: Date.now() }), true); }
@@ -414,6 +415,29 @@ function openWishAdd() {
     say(T('Chargement du catalogue (une seule fois)…'), false);
     collCatalog().then(c => { cat = c; say(''); paint(); }).catch(e => say(e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'), false));
     setTimeout(() => inp.focus(), 380);
+  });
+}
+
+/* ── Mes rangements : règle d'échange par emplacement (core.js › placeTrade, tradeLists) ─────────────────────────────────────────────
+   Classique : decks et réserve gardent les leurs · Ignoré : jamais proposé, compte dans la réserve · Tout inclure : tout part, même le dernier exemplaire.
+   Rangée avec l'emplacement (COLL.places[id].x : collection, synchro, fusion) ; les decks montés restent classiques (leur deck les garde déjà). */
+const TR_PLC = [['', 'Classique'], ['skip', 'Ignoré'], ['all', 'Tout inclure']];
+const trPlcPlaces = () => plcList().filter(x => x.t !== 'deck');
+/** Bouton « Mes rangements » sous la réserve, avec le nombre de règles posées ; rien sans emplacement (hors decks montés). */
+function trPlcBtnHtml() {
+  const ps = trPlcPlaces(); if (!ps.length) return '';
+  const n = ps.filter(x => placeTrade(COLL.places, x.id)).length;
+  return `<button class="btn ghost small tr-plc" type="button" data-act="trplc"><svg class="i" aria-hidden="true"><use href="#i-box"/></svg>${T('Mes rangements')}${n ? `<small>${nf0(n)}</small>` : ''}</button>`;
+}
+function trPlacesSheet() {
+  openSheet(T('Mes rangements dans l\'échange'), T('Ce qui part dans l\'échange, rangement par rangement'), api => {
+    const ps = trPlcPlaces(), st = plcStats();
+    api.body.innerHTML = `<p class="hint trp-help">${T('Classique : tes decks et ta réserve gardent les leurs. Ignoré : jamais proposé, et compte dans ta réserve. Tout inclure : tout part dans l\'échange, même le dernier exemplaire.')}</p>
+      ${ps.length ? ps.map(x => { const q = (st.get(x.id) || {}).q || 0; return `<div class="trp-row" data-p="${esc(x.id)}"><div class="trp-who">${plcIc(x.id)}<i style="--c:${plcColor(x.id)}"></i><b>${esc(plcName(x.id))}</b><small>${q ? TN(q, '{n} carte', '{n} cartes') : ''}</small></div><div class="seg trp-seg" role="radiogroup" aria-label="${esc(plcName(x.id))}"></div></div>`; }).join('')
+        : `<p class="hint">${T('Aucun rangement pour l\'instant : ouvre une carte, puis « Ranger dans ».')}</p>`}
+      ${Object.values(COLL.places).some(x => x.t === 'deck') ? `<p class="hint trp-deck">${T('Les decks montés gardent toujours leurs cartes.')}</p>` : ''}`;
+    $$('.trp-row', api.body).forEach(row => mountSeg($('.trp-seg', row), TR_PLC.map(([v, l]) => ({ v, label: T(l) })), placeTrade(COLL.places, row.dataset.p), v => { plcSave(row.dataset.p, { x: v }); haptic('tap'); }));
+    api.setFoot('<button class="btn" type="button" data-close>' + T('Fermer') + '</button>');
   });
 }
 

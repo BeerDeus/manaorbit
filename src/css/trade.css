@@ -55,3 +55,15 @@
 .cm-part.done .btn{color:var(--good);border-color:var(--good)}
 .cm-said{margin-top:12px;font-size:13.5px}
 .cm-said .dot{background:var(--good)}
+/* Mes rangements (règle d'échange par emplacement, share.js › trPlacesSheet) */
+.tr-plc{align-self:flex-start;height:34px;padding:0 12px;gap:7px}
+.tr-plc small{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.trp-help{margin:0 0 6px}
+.trp-row{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
+.trp-who{display:flex;align-items:center;gap:8px;min-width:0}
+.trp-who .i{width:18px;height:18px;flex:none;color:var(--ink-2)}
+.trp-who i{width:9px;height:9px;flex:none;border-radius:50%;background:var(--c)}
+.trp-who b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:650}
+.trp-who small{flex:none;color:var(--ink-3)}
+.trp-seg{--n:3}
+.trp-deck{margin:10px 0 0}
