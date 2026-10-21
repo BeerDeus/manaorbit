@@ -9,7 +9,7 @@
       "id": "l1-lancement",
       "titre": "Elle est sur Google Play",
       "ton": "Un peu plus enthousiaste, fier mais simple, comme quand on montre enfin son projet à ses potes.",
-      "texte": "Ça fait des mois que je code l'appli que j'aurais voulu avoir en tant que joueur de Magic. Tu scannes tes cartes, tu vois ce qu'elles valent, tu ranges ton classeur, tu échanges tes doublons, et tu joues tes parties de Commander. Elle s'appelle Mana Orbit, elle est gratuite, et elle est enfin sur Google Play."
+      "texte": "Ça fait des mois que je code l'appli que j'aurais voulu en tant que joueur de Magic. Tu scannes tes cartes, tu vois ce qu'elles valent, tu ranges ton classeur, tu échanges tes doublons, et tu joues tes parties de Commander. Elle s'appelle Mana Orbit, elle est gratuite, et elle est enfin disponible sur Google Play."
     },
     {
       "id": "l2-classeur",
@@ -21,7 +21,7 @@
       "id": "l3-langues",
       "titre": "Le scan lit tes cartes en 11 langues",
       "ton": "Complice, un peu fier sur « onze langues ».",
-      "texte": "Ta carte est en japonais ? Le scan la lit quand même. Et en allemand, en russe, en italien… Mana Orbit reconnaît tes cartes dans onze langues, même le chinois et le coréen."
+      "texte": "Ta carte est en japonais ? Le scan la lit quand même. Elle est en allemand, en russe, en italien ? Mana Orbit reconnaît tes cartes dans onze langues, même le chinois et le coréen."
     },
     {
       "id": "l4-echange",
@@ -33,7 +33,7 @@
       "id": "l5-decks",
       "titre": "Le deck que tu as déjà",
       "ton": "Avec une petite surprise dans la voix sur la première phrase.",
-      "texte": "Tu as peut-être déjà presque tout un deck Commander, sans le savoir. Mana Orbit compare ta collection aux decks les plus joués, et te dit ce qu'il te manque, et combien ça coûte."
+      "texte": "Tu as peut-être déjà tout un deck Commander, sans le savoir. Mana Orbit compare ta collection aux decks les plus joués, et te dit ce qu'il te manque, et combien ça te coûte."
     },
     {
       "id": "l6-partie",

@@ -5,10 +5,9 @@ Tout est en code, rendu déterministe : une page HTML animée par vidéo, captur
 ## Fichiers
 - `voix.json` : modèle, voix, température, coupe de fin (0,2 s : le souffle final), consigne de style, textes (`id`, `titre`, `texte`, `ton` facultatif).
 - `voix.mjs` : voix off par Gemini TTS → `voix/<id>.wav` (clé `GEMINI_API_KEY` dans l'environnement).
-- `ma-voix.mjs` : une voix enregistrée (mémo vocal, n'importe quel format) à la place de la voix Gemini → `voix/<id>.wav` nettoyé (Gemini gardée en `voix/<id>.gemini.wav`) ; la vidéo se recale seule au rendu. Textes et conseils d'enregistrement : `docs/videos/textes-a-enregistrer.md`.
+- `ma-voix.mjs` : une voix enregistrée (mémo vocal, n'importe quel format) à la place de la voix Gemini → `voix/<id>.wav` nettoyé (l'ancienne voix reste dans l'historique git) ; la vidéo se recale seule au rendu. Textes et conseils d'enregistrement : `docs/videos/textes-a-enregistrer.md` ; prises déposées dans `docs/videos/voix/`, vidé une fois posées.
 - `ecoute.mjs` : contrôle d'une voix par transcription Gemini (mots en trop ou sautés, prononciation, souffle de fin) → OK / À REFAIRE. Refaire avec `voix.mjs <id>` tant que ce n'est pas OK.
 - `mots.mjs` : instant de chaque mot d'une voix (énergie du WAV + ponctuation du texte), pour les sous-titres et les apparitions calées sur la voix.
-- `phrases.mjs` : instants de chaque phrase (silences mesurés par ffmpeg).
 - `base.css` + `base.js` : socle commun (polices, couleurs, fond, animations, logo, `seek`).
 - `lancement.css` + `lancement.js` : série de lancement (téléphone avec les vrais écrans, sous-titres, loupes, compteurs, orbites de mana, carte de fin).
 - `<id>.html` : la vidéo elle-même. Série de lancement : `l1-lancement` à `l8-import`.

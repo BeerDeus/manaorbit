@@ -28,19 +28,19 @@ Un fichier par vidéo, **brut** (sans effet ni normalisation : je m'en occupe), 
 Le mieux est de les lire tels quels. Si tu changes un mot, dis-le moi : les sous-titres affichent ce texte, et certaines apparitions sont accrochées à un mot (« scanne », « QR code »…).
 
 **l1-lancement** (≈ 15 s)
-> Ça fait des mois que je code l'appli que j'aurais voulu avoir en tant que joueur de Magic. Tu scannes tes cartes, tu vois ce qu'elles valent, tu ranges ton classeur, tu échanges tes doublons, et tu joues tes parties de Commander. Elle s'appelle Mana Orbit, elle est gratuite, et elle est enfin sur Google Play.
+> Ça fait des mois que je code l'appli que j'aurais voulu en tant que joueur de Magic. Tu scannes tes cartes, tu vois ce qu'elles valent, tu ranges ton classeur, tu échanges tes doublons, et tu joues tes parties de Commander. Elle s'appelle Mana Orbit, elle est gratuite, et elle est enfin disponible sur Google Play.
 
 **l2-classeur** (≈ 9 s)
 > Ton classeur Magic, tu sais vraiment combien il vaut ? Scanne tes cartes : Mana Orbit les reconnaît, et te donne leur cote Cardmarket. Et chaque jour, tu vois ce qui monte.
 
 **l3-langues** (≈ 10 s)
-> Ta carte est en japonais ? Le scan la lit quand même. Et en allemand, en russe, en italien… Mana Orbit reconnaît tes cartes dans onze langues, même le chinois et le coréen.
+> Ta carte est en japonais ? Le scan la lit quand même. Elle est en allemand, en russe, en italien ? Mana Orbit reconnaît tes cartes dans onze langues, même le chinois et le coréen.
 
 **l4-echange** (≈ 9 s)
 > Ton pote te demande ce que t'as en double ? Pas besoin de sortir tout ton classeur. Tu lui montres ton QR code : il le scanne, et il voit ta liste d'échange, toujours à jour grâce à ta collection.
 
 **l5-decks** (≈ 9 s)
-> Tu as peut-être déjà presque tout un deck Commander, sans le savoir. Mana Orbit compare ta collection aux decks les plus joués, et te dit ce qu'il te manque, et combien ça coûte.
+> Tu as peut-être déjà tout un deck Commander, sans le savoir. Mana Orbit compare ta collection aux decks les plus joués, et te dit ce qu'il te manque, et combien ça te coûte.
 
 **l6-partie** (≈ 10 s)
 > Ta prochaine partie de Commander ? Pose ton téléphone au milieu de la table : points de vie, blessures de commandant, poison, monarque… tout est compté. Et pour savoir qui commence, on tire au hasard.
@@ -51,7 +51,7 @@ Le mieux est de les lire tels quels. Si tu changes un mot, dis-le moi : les sous
 **l8-import** (≈ 12 s)
 > Ta collection est déjà dans une autre appli ? ManaBox, Moxfield, Delver Lens, Dragon Shield… Exporte-la en CSV, importe le fichier dans Mana Orbit, et c'est fait. Tes cartes, tes quantités, tes langues : rien ne se perd.
 
-l2-classeur : fait (21 octobre). Les 7 autres : même réglages, même distance au micro, pour que la série sonne pareil.
+Enregistrées le 21 octobre : toutes sauf **l7-mystere**, à refaire (« toutes les deux secondes » entendu : c'est **douze**). Les textes ci-dessus sont ceux réellement dits (l1, l3, l5 ajustés à la lecture).
 
 ## De mon côté (pour mémoire)
-`node tools/shorts/ma-voix.mjs <id> <fichier>` (nettoyage, voix Gemini gardée en `voix/<id>.gemini.wav`), `node tools/shorts/ecoute.mjs <id>` (le texte lu correspond-il ?), `node tools/shorts/rendu.mjs <id>`, contrôle des images, puis copie dans `docs/videos/`. Source des textes : `tools/shorts/voix.json`.
+`node tools/shorts/ma-voix.mjs <id> <fichier>` (nettoyage ; prises brutes déposées dans `docs/videos/voix/`, retirées une fois posées), `node tools/shorts/ecoute.mjs <id>` (le texte lu correspond-il ?), `node tools/shorts/rendu.mjs <id>`, contrôle des images, puis copie dans `docs/videos/`. Source des textes : `tools/shorts/voix.json`.
