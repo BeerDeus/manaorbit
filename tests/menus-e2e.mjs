@@ -82,6 +82,26 @@ const SCREENS_ALL = [
   ['masterset-options', () => { openCollection('list'); msOptSheet(); }, '.sheet-wrap.open'],
   ['decks-communaute', () => pdListSheet(), '.sheet-wrap.open'],
   ['scan', () => openScan(), '.dv.scan.on'],
+  ['scan-reglages', () => { openScan(); scsSheet(); }, '.sheet-wrap.open'],
+  // sous-écrans et feuilles secondaires
+  ['carte', () => { openCollection('list'); openCardSheet('sol ring'); }, '.sheet-wrap.open'],
+  ['coll-ajouter', () => openLot(), '.dv.lot.on'],
+  ['coll-importer', () => { openCollection('list'); openCollImport(); }, '.sheet-wrap.open'],
+  ['coll-filtres', () => { openCollection('list'); setTimeout(() => document.querySelector('.coll.m-coll.on .fbtn').click(), 150); }, '.coll.m-coll.on .fbtn[aria-expanded="true"], .sheet-wrap.open'],
+  ['coll-emplacement', () => { openCollection('places'); plcShow('ab12'); }, '.coll.m-coll.on .crow'],
+  ['coll-masterset', () => { openCollection('list'); setTimeout(() => document.querySelector('.coll.m-coll.on .coll-ms').click(), 150); }, '.coll.m-coll.on .coll-ms[aria-pressed="true"]'],
+  ['echange-souhait', () => { openCollection('trade'); openWishAdd(); }, '.sheet-wrap.open'],
+  ['echange-direct-historique', () => trocHistSheet(), '.sheet-wrap.open'],
+  ['deck-menu', () => { openDecks(); openDeckSheet('deckA'); }, '.sheet-wrap.open'],
+  ['deck-editeur', () => openBuilder({ id: 'deckA' }), '.dv.bd.on'],
+  ['deck-main-depart', () => { openDeckViewer({ id: 'deckA' }); setTimeout(() => document.querySelector('.dv.on [data-act="hand"]').click(), 400); }, '.sheet-wrap.open'],
+  ['partie-en-cours', () => puOpen(partieStart(partieAddPlace(partieNew({ moi: { nom: 'Moi' } }), { nom: 'Léa' }))), '.dv.pu.on'],
+  ['partie-mes-parties', () => puHist(), '.sheet-wrap.open, .dv.on'],
+  ['ouverture-en-cours', () => { opnStartSheet(); setTimeout(() => document.querySelector('.sheet-wrap.open [data-opn="go"]').click(), 300); }, '.sheet-wrap.open'],
+  ['ouverture-historique', () => opnHistSheet(), '.sheet-wrap.open'],
+  ['extension', () => { SETS.list = [{ code: 'cmm', name: 'Commander Masters', at: '2023-08-04', icon: '', url: '', type: 'masters' }]; openSetView('cmm'); }, '.dv.setv.on'],
+  ['alertes', () => openAlertSheet(), '.sheet-wrap.open'],
+  ['visite-guidee', () => tourStart(), '.tour'],
 ].filter(([id]) => !SCREENS.length || SCREENS.includes(id));
 
 /* ── Vérifications dans la page ── */
