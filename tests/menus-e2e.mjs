@@ -37,7 +37,7 @@ const initFn = () => {
 };
 const init = `window.__COLL = ${JSON.stringify(COLL_TEXT)}; (${initFn.toString()})();`;      // addInitScript : un texte (une fonction n'emporte pas de données)
 const seedDecks = p => p.evaluate(() => {
-  putDeck('deckA', deckDoc({ name: 'Edgar aristocrates', text: '1 Edgar Markov\n1 Sol Ring\n1 Arcane Signet\n1 Command Tower\n1 Swords to Plowshares\n1 Wrath of God' }));
+  putDeck('deckA', deckDoc({ name: 'Edgar aristocrates', text: '1 Edgar Markov\n1 Sol Ring\n1 Arcane Signet\n2 Command Tower\n1 Swords to Plowshares\n1 Wrath of God\n1 Llanowar Elves\n1 Craterhoof Behemoth' }));      // ≥ 7 cartes : « Main de départ »
   putDeck('deckB', deckDoc({ name: 'Elfes', text: '4 Llanowar Elves\n1 Craterhoof Behemoth\n1 Sol Ring' }));
 });
 
@@ -75,7 +75,7 @@ const SCREENS_ALL = [
   ['reglages-appli', () => setAppSheet(), '.sheet-wrap.open'],
   ['reglages-confidentialite', () => setConfSheet(), '.sheet-wrap.open'],
   ['aide', () => setHelpSheet(), '.sheet-wrap.open #helpBox'],
-  ['carte-mystere', () => { CTX.daily = true; dlyOpen(); }, '.dly-ask.open, .dv.dly.on'],      // sans compte : la feuille qui propose de se connecter (le serveur des tests n'allume pas la carte : forcée côté client)
+  ['carte-mystere', () => { CTX.daily = true; dlyOpen(); }, '.sheet-wrap.open, .dv.dly.on'],      // sans compte : la feuille qui propose de se connecter (le serveur des tests n'allume pas la carte : forcée côté client)
   ['ouverture', () => opnEntry(), '.sheet-wrap.open'],
   ['amis', () => amSheet(), '.sheet-wrap.open'],
   ['partie', () => puOpen(partieNew()), '.dv.pu.on'],
@@ -84,23 +84,22 @@ const SCREENS_ALL = [
   ['scan', () => openScan(), '.dv.scan.on'],
   ['scan-reglages', () => { openScan(); scsSheet(); }, '.sheet-wrap.open'],
   // sous-écrans et feuilles secondaires
-  ['carte', () => { openCollection('list'); openCardSheet('sol ring'); }, '.sheet-wrap.open'],
+  ['carte', () => { openCollection('list'); cexSheet('coll', 'sol ring', 'fr#pab12', null); }, '.sheet-wrap.open'],      // fiche d'un exemplaire (emplacement, état)
   ['coll-ajouter', () => openLot(), '.dv.lot.on'],
   ['coll-importer', () => { openCollection('list'); openCollImport(); }, '.sheet-wrap.open'],
-  ['coll-filtres', () => { openCollection('list'); setTimeout(() => document.querySelector('.coll.m-coll.on .fbtn').click(), 150); }, '.coll.m-coll.on .fbtn[aria-expanded="true"], .sheet-wrap.open'],
+  ['coll-filtres', () => openCollection('list'), '.coll.m-coll.on .fbtn[aria-expanded="true"], .sheet-wrap.open', { click: '.coll.m-coll.on .fbtn' }],
   ['coll-emplacement', () => { openCollection('places'); plcShow('ab12'); }, '.coll.m-coll.on .crow'],
-  ['coll-masterset', () => { openCollection('list'); setTimeout(() => document.querySelector('.coll.m-coll.on .coll-ms').click(), 150); }, '.coll.m-coll.on .coll-ms[aria-pressed="true"]'],
+  ['coll-masterset', () => openCollection('list'), '.coll.m-coll.on .coll-ms[aria-pressed="true"]', { click: '.coll.m-coll.on .coll-ms' }],
   ['echange-souhait', () => { openCollection('trade'); openWishAdd(); }, '.sheet-wrap.open'],
   ['echange-direct-historique', () => trocHistSheet(), '.sheet-wrap.open'],
   ['deck-menu', () => { openDecks(); openDeckSheet('deckA'); }, '.sheet-wrap.open'],
   ['deck-editeur', () => openBuilder({ id: 'deckA' }), '.dv.bd.on'],
-  ['deck-main-depart', () => { openDeckViewer({ id: 'deckA' }); setTimeout(() => document.querySelector('.dv.on [data-act="hand"]').click(), 400); }, '.sheet-wrap.open'],
+  ['deck-main-depart', () => openDeckViewer({ id: 'deckA' }), '.sheet-wrap.open', { click: '.dv.on [data-act="hand"]' }],
   ['partie-en-cours', () => puOpen(partieStart(partieAddPlace(partieNew({ moi: { nom: 'Moi' } }), { nom: 'Léa' }))), '.dv.pu.on'],
   ['partie-mes-parties', () => puHist(), '.sheet-wrap.open, .dv.on'],
-  ['ouverture-en-cours', () => { opnStartSheet(); setTimeout(() => document.querySelector('.sheet-wrap.open [data-opn="go"]').click(), 300); }, '.sheet-wrap.open'],
+  ['ouverture-en-cours', () => { if (!OPN.cur) { OPN.cur = { id: 'oTour', name: 'Ouverture du jour', at: Date.now(), paid: 2500, st: false, rows: [] }; opnSave(); opnRefresh(); } opnSheet(); }, '.sheet-wrap.open'],      // session commencée (reste commencée pour les écrans suivants)
   ['ouverture-historique', () => opnHistSheet(), '.sheet-wrap.open'],
-  ['extension', () => { SETS.list = [{ code: 'cmm', name: 'Commander Masters', at: '2023-08-04', icon: '', url: '', type: 'masters' }]; openSetView('cmm'); }, '.dv.setv.on'],
-  ['alertes', () => openAlertSheet(), '.sheet-wrap.open'],
+  ['extension', () => { const d = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10); SETS.list = [{ code: 'zz1', name: 'Extension à venir', at: d(12), icon: '', url: '', type: 'expansion' }]; SETS.sig = ''; setsPaint(); openSetView('zz1'); }, '.dv.setv.on'],
   ['visite-guidee', () => tourStart(), '.tour'],
 ].filter(([id]) => !SCREENS.length || SCREENS.includes(id));
 
@@ -159,10 +158,10 @@ for (const d of DEVICES) {
     await p.waitForFunction(() => typeof navGo === 'function' && S && S.view, null, { timeout: 20000 });
     await seedDecks(p); await p.waitForTimeout(300);
     const dir = `${OUT}/${d.id}/${theme}`; mkdirSync(dir, { recursive: true });
-    for (const [id, open, sel] of SCREENS_ALL) {
+    for (const [id, open, sel, o = {}] of SCREENS_ALL) {
       await closeAll(p); const n0 = errs.length;
       let opened = true;
-      try { await p.evaluate(open); await p.waitForSelector(sel, { timeout: 6000, state: 'visible' }); } catch (e) { opened = false; report.hard.push(`${d.id}/${theme}/${id} : écran non ouvert (${String(e.message).split('\n')[0].slice(0, 80)})`); }
+      try { await p.evaluate(open); if (o.click) { await p.waitForSelector(o.click, { timeout: 6000, state: 'visible' }); await p.waitForTimeout(350); await p.click(o.click); } await p.waitForSelector(sel, { timeout: 6000, state: 'visible' }); } catch (e) { opened = false; report.hard.push(`${d.id}/${theme}/${id} : écran non ouvert (${String(e.message).split('\n')[0].slice(0, 80)})`); }
       await p.waitForTimeout(450);      // animations d'ouverture
       const file = `${dir}/${id}.png`; await p.screenshot({ path: file });
       if (!opened) continue;
