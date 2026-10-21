@@ -118,6 +118,6 @@ Le message de consentement AdMob (Europe) n'est cité que s'il est publié (AdMo
 3. **À l'accord de Google** :
    - `ADMOB_BANNER_ID` sur Hostinger (AdMob › Applis › Mana Orbit › Blocs d'annonces › « Bannière »), puis redémarrer l'app Node.
    - `RATE_ASK = true` dans `src/help.js` : demande de note (carte de Google Play dans la 1.0.6) et bouton Google Play de l'accueil sur ordinateur vers la fiche.
-   - `APK_LATEST=7` sur Hostinger dès que la 1.0.6 est en ligne (les 1.0.5 voient « Mise à jour de l'appli »).
-   - Production › Créer une version › promouvoir la 1.0.6 (versionCode 7) du test fermé, notes de version (§ 4 de la fiche), **déploiement progressif** 20 % → 50 % → 100 % (quelques jours à chaque palier, Android vitals entre deux).
+   - `APK_LATEST=10` sur Hostinger (déjà fait si la 1.0.9 est en ligne sur le test fermé).
+   - Production › Créer une version › promouvoir la **1.0.9 (versionCode 10)** du test fermé (code natif de la 1.0.6, caméra vérifiée), notes de version (§ 4 de la fiche), **déploiement progressif** 20 % → 50 % → 100 % (quelques jours à chaque palier, Android vitals entre deux).
 4. **Après** : Google Search Console (`manaorbit.app`, page `/passer-de-manabox`), vidéos courtes, prévenir les testeurs (ils peuvent quitter le test), supprimer `.data/testeurs.json` sur le serveur (fin du test).
