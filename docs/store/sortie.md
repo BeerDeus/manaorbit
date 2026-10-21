@@ -131,3 +131,13 @@ Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (va
 **QR** : `https://manaorbit.app/flyer`, **ne change jamais** (test `pwa-e2e.mjs`). Le serveur décide où il mène : Android → fiche Google Play (source « flyer » dans Play Console › Statistiques › Acquisition), iPhone et ordinateur → le site. Avant d'en commander 500 : en imprimer un chez soi et le scanner avec un Android et un iPhone.
 
 **En boutique** : demander au gérant avant de déposer ; 20 à 30 près de la caisse ou des tables de jeu ; un exemplaire au tableau d'affichage s'il y en a un.
+
+## 4. Cartes de visite (à donner de la main à la main)
+
+Pour les tournois, soirées Commander et discussions en boutique : ça tient dans une poche, un portefeuille ou une deck box.
+
+- **Fichiers** : `docs/print/carte-visite-recto-verso.pdf` (2 pages : recto puis verso), ou `carte-visite-recto.pdf` et `carte-visite-verso.pdf` séparés ; aperçus `.png` (300 dpi). Refaits par `node tools/flyer.mjs carte`.
+- **Format** : 85 × 55 mm, **fond perdu de 3 mm** (fichiers de 91 × 61 mm), textes à 4 mm du bord au moins ; PDF sans police (images 600 dpi), comme le flyer. Si Vistaprint demande une autre taille de fond perdu (indiquée sur leur page « Format du document »), changer `CB` dans `tools/flyer.mjs`.
+- **Recto** : « Combien vaut ton classeur Magic ? », Lightning Bolt (illustration de Christopher Moeller, texte de règle) dans l'orbite des cinq symboles de mana, manaorbit.app · Gratuit.
+- **Verso** : QR fixe (`https://manaorbit.app/flyer`, ≈ 26 mm, comme les flyers), « Scanne pour l'installer », Android / iPhone (à venir) / manaorbit.app, mentions (Fan Content Policy, crédit de l'illustration).
+- **Vistaprint** : Cartes de visite › format standard (8,5 × 5,5 cm) › recto verso › papier épais, **mat**.

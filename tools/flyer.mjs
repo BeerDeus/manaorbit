@@ -62,6 +62,7 @@ const PARTS = [
 const MANA_BG = { W: '#fffbd5', U: '#aae0fa', B: '#cbc2bf', R: '#f9aa8f', G: '#9bd3ae', 1: '#cac5c0', 4: '#cac5c0' };      // 1, 4 : mana générique (gris)
 // « Magic » écrit en toutes lettres (titre, pastille, texte) : jamais le logo ni un symbole de Wizards (Fan Content Policy), seulement le nom du jeu en texte
 const H1 = 'Combien vaut<br>ton classeur <em>Magic</em>&nbsp;?';
+const BOLT_TEXT = ['Lightning Bolt deals 3 damage', 'to any target.'];      // texte de règle de la carte (anglais, comme son nom)
 const SUB = 'Scanne tes cartes Magic avec ton téléphone : <b>Mana Orbit te donne leur cote Cardmarket</b>, mise à jour chaque jour.';
 
 /* ── Dessin (mm, format fini 210 × 297) ─────────────────────────────────────────────────────────────────────────────── */
@@ -95,16 +96,19 @@ const orbited = (ph, O, ts, r = [2, 2.4, 2.8, 2.2, 2.2], mana = false) => {
 const list = (cls, mana = false) => `<ul class="list ${cls}">${PARTS.map(o => `<li>${mana ? `<i class="ms"><svg viewBox="0 0 10 10">${manaSym(5.3, 4.7, 4.3, o.m)}</svg></i>` : `<i style="background:${o.c};box-shadow:0 0 3.2mm ${o.c}88"></i>`}<b>${o.h}</b><span>${o.p}</span></li>`).join('')}</ul>`;
 /** Silhouette de carte Magic (sans rien de Wizards : ni cadre, ni illustration, ni police réels) : nom et coût de mana, illustration, type, texte ; force et
  *  endurance seulement pour une créature (pt). Le nom d'une vraie carte s'écrit en texte, avec son vrai coût et son vrai type. */
-const ghostCard = (cx, cy, w, a, cost, name, type, pt, art) => {
-  const h = w * 88 / 63, x = cx - w / 2, y = cy - h / 2, m = w * .05, iw = w - 2 * m, line = 'rgba(214,221,240,';
-  const pr = cost.length > 3 ? 2.05 : 2.6, pips = cost.map((c, i) => manaSym(x + w - m - 1.2 - pr - (cost.length - 1 - i) * pr * 2.3, y + m + 3.2, pr, c)).join('');      // coût long : symboles plus petits
-  return `<g transform="rotate(${a} ${cx} ${cy})"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * .045}" fill="#141b36" stroke="url(#rgF)" stroke-width=".6"/>
-    <rect x="${x + m}" y="${y + m}" width="${iw}" height="6.4" rx="1.6" fill="${line}.08)" stroke="${line}.35)" stroke-width=".3"/><text x="${x + m + 2.2}" y="${y + m + 4.6}" font-family="MO Display" font-weight="700" font-size="3.7" letter-spacing="-.05" fill="#eef1fb" fill-opacity=".92">${name}</text>${pips}
-    ${art ? `<clipPath id="ca"><rect x="${x + m + 1}" y="${y + m + 8}" width="${iw - 2}" height="${h * .4}" rx="1"/></clipPath><image href="${art}" x="${x + m + 1}" y="${y + m + 8}" width="${iw - 2}" height="${h * .4}" preserveAspectRatio="xMidYMid slice" clip-path="url(#ca)"/>`
-      : `<rect x="${x + m + 1}" y="${y + m + 8}" width="${iw - 2}" height="${h * .4}" rx="1" fill="url(#cdF)" opacity=".35"/>`}
-    <rect x="${x + m}" y="${y + m + 9.4 + h * .4}" width="${iw}" height="5.2" rx="1.4" fill="${line}.08)" stroke="${line}.35)" stroke-width=".3"/><text x="${x + m + 2.2}" y="${y + m + 13 + h * .4}" font-family="MO Text" font-weight="650" font-size="2.7" fill="#eef1fb" fill-opacity=".8">${type}</text>
-    <rect x="${x + m + 1}" y="${y + m + 16.4 + h * .4}" width="${iw - 2}" height="${h * .27}" rx="1" fill="${line}.05)" stroke="${line}.22)" stroke-width=".3"/>
-    ${pt ? `<rect x="${x + w - m - 11}" y="${y + h - m - 6.4}" width="11" height="6.4" rx="1.6" fill="#141b36" stroke="${line}.35)" stroke-width=".3"/><text x="${x + w - m - 5.5}" y="${y + h - m - 2.1}" text-anchor="middle" font-family="MO Display" font-weight="700" font-size="3.2" fill="#eef1fb">${pt}</text>` : ''}</g>`;
+const ghostCard = (cx, cy, w, a, cost, name, type, pt, art, text = []) => {
+  // mesures tracées pour une carte de 64 mm de large (flyer), proportionnelles à w (k) : la même silhouette à toutes les tailles
+  const k = w / 64, h = w * 88 / 63, x = cx - w / 2, y = cy - h / 2, m = w * .05, iw = w - 2 * m, line = 'rgba(214,221,240,', sw = (.3 * k).toFixed(3);
+  const pr = (cost.length > 3 ? 2.05 : 2.6) * k, pips = cost.map((c, i) => manaSym(x + w - m - 1.2 * k - pr - (cost.length - 1 - i) * pr * 2.3, y + m + 3.2 * k, pr, c)).join('');      // coût long : symboles plus petits
+  const artY = y + m + 8 * k, typeY = y + m + 9.4 * k + h * .4;
+  return `<g transform="rotate(${a} ${cx} ${cy})"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * .045}" fill="#141b36" stroke="url(#rgF)" stroke-width="${.6 * k}"/>
+    <rect x="${x + m}" y="${y + m}" width="${iw}" height="${6.4 * k}" rx="${1.6 * k}" fill="${line}.08)" stroke="${line}.35)" stroke-width="${sw}"/><text x="${x + m + 2.2 * k}" y="${y + m + 4.6 * k}" font-family="MO Display" font-weight="700" font-size="${3.7 * k}" letter-spacing="${-.05 * k}" fill="#eef1fb" fill-opacity=".92">${name}</text>${pips}
+    ${art ? `<clipPath id="ca"><rect x="${x + m + k}" y="${artY}" width="${iw - 2 * k}" height="${h * .4}" rx="${k}"/></clipPath><image href="${art}" x="${x + m + k}" y="${artY}" width="${iw - 2 * k}" height="${h * .4}" preserveAspectRatio="xMidYMid slice" clip-path="url(#ca)"/>`
+      : `<rect x="${x + m + k}" y="${artY}" width="${iw - 2 * k}" height="${h * .4}" rx="${k}" fill="url(#cdF)" opacity=".35"/>`}
+    <rect x="${x + m}" y="${typeY}" width="${iw}" height="${5.2 * k}" rx="${1.4 * k}" fill="${line}.08)" stroke="${line}.35)" stroke-width="${sw}"/><text x="${x + m + 2.2 * k}" y="${typeY + 3.6 * k}" font-family="MO Text" font-weight="650" font-size="${2.7 * k}" fill="#eef1fb" fill-opacity=".8">${type}</text>
+    <rect x="${x + m + k}" y="${typeY + 7 * k}" width="${iw - 2 * k}" height="${h * .27}" rx="${k}" fill="${line}.05)" stroke="${line}.22)" stroke-width="${sw}"/>
+    ${text.map((l, i) => `<text x="${x + m + 3 * k}" y="${typeY + 12.4 * k + i * 4.2 * k}" font-family="MO Text" font-weight="500" font-size="${3 * k}" fill="#eef1fb" fill-opacity=".78">${l}</text>`).join('')}
+    ${pt ? `<rect x="${x + w - m - 11 * k}" y="${y + h - m - 6.4 * k}" width="${11 * k}" height="${6.4 * k}" rx="${1.6 * k}" fill="#141b36" stroke="${line}.35)" stroke-width="${sw}"/><text x="${x + w - m - 5.5 * k}" y="${y + h - m - 2.1 * k}" text-anchor="middle" font-family="MO Display" font-weight="700" font-size="${3.2 * k}" fill="#eef1fb">${pt}</text>` : ''}</g>`;
 };
 /** Carte foil (sans illustration réelle) : w × h mm, centre (cx, cy), inclinée de a degrés. */
 const foilCard = (cx, cy, w, h, a) => `<g transform="rotate(${a} ${cx} ${cy})"><rect x="${cx - w / 2 + 1}" y="${cy - h / 2 + 2.4}" width="${w}" height="${h}" rx="${w * .07}" fill="#000" opacity=".55" filter="url(#bl)"/>
@@ -125,7 +129,7 @@ const V = {
     css: '.list.l{left:14mm;top:118mm;width:92mm}.list i.ms{width:8.4mm;height:8.4mm;border:0;margin-left:-1mm}.list li{grid-template-columns:10.5mm 1fr!important}', h1: 48, sub: { top: 73, w: 94 }, sky: y => y < 30,
   }),
   'solo-a-bolt': () => ({      // la A en symboles de mana, et derrière le téléphone une carte « Lightning Bolt » ({R}, éphémère)
-    art: svg(halo(150, 156, 64, 76) + ghostCard(160, 113, 64, 10, ['R'], 'Lightning Bolt', 'Éphémère', null, artOf('lightning-bolt'))) + orbited(phone(116, 92, 66, 4), orbit(150, 160, 68, 22, -16), [315, 58, 140, 240, 95], [2.2, 2.3, 2.5, 2.2, 2.3], true) + list('l', true),
+    art: svg(halo(150, 156, 64, 76) + ghostCard(160, 113, 64, 10, ['R'], 'Lightning Bolt', 'Instant', null, artOf('lightning-bolt'), BOLT_TEXT)) + orbited(phone(116, 92, 66, 4), orbit(150, 160, 68, 22, -16), [315, 58, 140, 240, 95], [2.2, 2.3, 2.5, 2.2, 2.3], true) + list('l', true),
     css: '.list.l{left:14mm;top:118mm;width:92mm}.list i.ms{width:8.4mm;height:8.4mm;border:0;margin-left:-1mm}.list li{grid-template-columns:10.5mm 1fr!important}', h1: 48, sub: { top: 73, w: 94 }, sky: y => y < 30,
     credit: artOf('lightning-bolt') ? 'Illustration de Lightning Bolt : Christopher Moeller.' : '',
   }),
@@ -227,6 +231,62 @@ function page(v) {
   </div></div></body></html>`;
 }
 
+/* ── Carte de visite (85 × 55 mm, fond perdu CB) : à donner de la main à la main, même QR fixe que les flyers ─────────────────────────────
+   Recto : nom, accroche, Lightning Bolt (vraie illustration si déposée) dans l'orbite des cinq symboles de mana. Verso : QR, plateformes, mentions. */
+const CW = 85, CH = 55, CB = 3;
+const cardSvg = body => `<svg class="art" viewBox="0 0 ${CW} ${CH}" aria-hidden="true">${DEFS}${body}</svg>`;
+const CARD_FINE = 'Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Policy, ni approuvé ni soutenu par Wizards of the Coast. Magic: The Gathering est une marque de Wizards of the Coast LLC.';
+function cardPage(side) {
+  const art = artOf('lightning-bolt');
+  let body;
+  if (side === 'recto') {
+    const O = orbit(65, 27, 24, 8, -14), ts = [200, 235, 150, 110, 60];      // W U B R G le long de l'orbite (0 à 180 : devant la carte), tous visibles, hors des textes
+    const sym = (t, m, r) => { const p = O.at(t); return `<circle cx="${p.x}" cy="${p.y}" r="${r * 2.6}" fill="url(#gm${m})"/>` + manaSym(p.x, p.y, r, m); };
+    const front = ts.map((t, i) => [t, ['W', 'U', 'B', 'R', 'G'][i]]).filter(([t]) => t < 180), back = ts.map((t, i) => [t, ['W', 'U', 'B', 'R', 'G'][i]]).filter(([t]) => t >= 180);
+    body = cardSvg(`<ellipse cx="65" cy="26" rx="26" ry="24" fill="url(#halo)"/>${O.arc(false, .35, .7)}${back.map(([t, m]) => sym(t, m, 1.9)).join('')}
+      ${ghostCard(66, 25, 27, 11, ['R'], 'Lightning Bolt', 'Instant', null, art, BOLT_TEXT)}
+      ${O.arc(true, .5, 1)}${front.map(([t, m]) => sym(t, m, 1.9)).join('')}`)
+      + `<div class="cid">${LOGO}<b>Mana Orbit</b></div>
+      <h2>Combien vaut<br>ton classeur<br><em>Magic</em>&nbsp;?</h2>
+      <p class="tag">Scan · cote Cardmarket · échange<br>classeur · Commander</p>
+      <p class="url">manaorbit.app <small>Gratuit</small></p>`;
+  } else {
+    body = cardSvg(`<ellipse cx="18" cy="22" rx="26" ry="22" fill="url(#halo)"/>${['W', 'U', 'B', 'R', 'G'].map((m, i) => manaSym(39.5 + i * 5.6, 41.2, 2, m)).join('')}`)
+      + `<div class="qrb">${QR}</div>
+      <div class="cx"><b>Scanne pour l'installer</b><small>Gratuit, sans abonnement</small>
+      <span><strong>Android</strong> : Google Play<br><strong>iPhone</strong> : App Store <em class="soon">à venir</em><br><strong>Ordinateur et iPhone</strong> : manaorbit.app</span></div>
+      <p class="cfine">${CARD_FINE}${art ? ' Illustration de Lightning Bolt : Christopher Moeller.' : ''}</p>`;
+  }
+  const PWc = CW + 2 * CB, PHc = CH + 2 * CB;
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${FACES}
+  @page{size:${PWc}mm ${PHc}mm;margin:0}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{width:${PWc}mm;height:${PHc}mm;-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pg{position:relative;width:${PWc}mm;height:${PHc}mm;overflow:hidden;background:#0b0f1c;color:#eef1fb;font-family:'MO Text',sans-serif}
+  .bg{position:absolute;inset:0;background:radial-gradient(60mm 40mm at ${side === 'recto' ? '10% 0%' : '0% 10%'},rgba(58,78,170,.55),transparent 70%),radial-gradient(50mm 40mm at 100% 90%,rgba(224,83,61,.22),transparent 70%)}
+  .t{position:absolute;left:${CB}mm;top:${CB}mm;width:${CW}mm;height:${CH}mm}      /* format fini (85 × 55), en mm depuis le bord coupé */
+  .art{position:absolute;inset:0;width:${CW}mm;height:${CH}mm}
+  .logo{display:block}
+  .cid{position:absolute;left:5mm;top:5mm;display:flex;align-items:center;gap:1.4mm}
+  .cid .logo{width:5.6mm;height:5.6mm}
+  .cid b{font-family:'MO Display';font-weight:700;font-size:8.5pt;letter-spacing:-.02em}
+  h2{position:absolute;left:5mm;top:14mm;margin:0;font-family:'MO Display';font-weight:780;font-size:12.5pt;line-height:1.02;letter-spacing:-.035em}
+  h2 em{font-style:normal;background:linear-gradient(100deg,${FOIL.join(',')});-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{position:absolute;left:5mm;top:37mm;margin:0;font-size:6.2pt;line-height:1.35;color:#b9c0d8}
+  .url{position:absolute;left:5mm;bottom:5mm;margin:0;font-family:'MO Display';font-weight:720;font-size:8pt;letter-spacing:-.01em}
+  .url small{margin-left:1.4mm;padding:.3mm 1.4mm;border:.2mm solid rgba(255,255,255,.35);border-radius:3mm;font-family:'MO Text';font-weight:650;font-size:5.4pt;letter-spacing:.06em;text-transform:uppercase;color:#c9d0e6;vertical-align:.3mm}
+  .qrb{position:absolute;left:5mm;top:5mm;width:27mm;height:27mm;padding:.6mm;border-radius:2.4mm;background:#fff}
+  .qrb svg{display:block;width:100%;height:100%}
+  .cx{position:absolute;left:36mm;top:5.4mm;right:4mm;display:flex;flex-direction:column;gap:.9mm}
+  .cx b{font-family:'MO Display';font-weight:780;font-size:9.6pt;letter-spacing:-.02em;line-height:1.05}
+  .cx small{font-size:6.2pt;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:#7be8c8}
+  .cx span{margin-top:.6mm;font-size:6.4pt;line-height:1.45;color:#b9c0d8}
+  .cx strong{color:#eef1fb;font-weight:650}
+  .cx .soon{display:inline-block;padding:.1mm .9mm;border-radius:1.2mm;background:#eef1fb;color:#10152b;font-style:normal;font-size:4.8pt;font-weight:700;letter-spacing:.05em;text-transform:uppercase;vertical-align:.2mm}
+  .cfine{position:absolute;left:5mm;right:5mm;bottom:3.6mm;margin:0;font-size:4.6pt;line-height:1.3;color:#8a92ad}
+  </style></head><body><div class="pg"><div class="bg"></div><div class="t">${body}</div></div></body></html>`;
+}
 // Fichiers : PDF pour l'imprimeur = la page en image (JPEG 600 dpi) dans un PDF à la taille exacte, sans aucune police (Chromium intègre nos polices
 // variables en « Type 3 », refusées par le contrôle de Vistaprint : « polices non incorporées ») ; PNG 300 dpi (aperçu, ou à envoyer tel quel), dpi déclarés.
 /** PNG : déclare sa résolution (bloc pHYs, juste après IHDR). */
@@ -237,19 +297,30 @@ const pngDpi = (buf, dpi) => {
 };
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || (existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined), args: ['--no-sandbox'] });
 mkdirSync(OUT, { recursive: true });
-const cssPx = mm => mm / 25.4 * 96, clip = { x: 0, y: 0, width: cssPx(PW), height: cssPx(PH) };
-const shotAt = async (v, dpi, opt) => {      // la page rendue à dpi points par pouce, à la taille exacte de la page (fond perdu compris)
+const cssPx = mm => mm / 25.4 * 96;
+/** La page html (pw × ph mm, fond perdu compris) rendue à dpi points par pouce. */
+const shotAt = async (html, pw, ph, dpi, opt) => {
+  const clip = { x: 0, y: 0, width: cssPx(pw), height: cssPx(ph) };
   const ctx = await browser.newContext({ viewport: { width: Math.ceil(clip.width) + 2, height: Math.ceil(clip.height) + 2 }, deviceScaleFactor: dpi / 96 });
-  const p = await ctx.newPage(); await p.setContent(page(v), { waitUntil: 'load' }); await p.evaluate(() => document.fonts.ready);
+  const p = await ctx.newPage(); await p.setContent(html, { waitUntil: 'load' }); await p.evaluate(() => document.fonts.ready);
   const b = await p.screenshot({ ...opt, clip }); await ctx.close(); return b;
 };
-for (const v of VARIANTS) {
-  const base = OUT + 'flyer-' + FMT + '-' + v;
-  writeFileSync(base + '.png', pngDpi(await shotAt(v, 300, { type: 'png' }), 300));
-  const jpg = await shotAt(v, 600, { type: 'jpeg', quality: 93 });
+/** PDF sans police : une page par image JPEG (600 dpi), à la taille exacte. */
+const imagesPdf = async (jpgs, pw, ph, path) => {
   const ctx = await browser.newContext(), p = await ctx.newPage();
-  await p.setContent(`<!doctype html><html><head><style>@page{size:${PW}mm ${PH}mm;margin:0}html,body{margin:0;padding:0}img{display:block;width:${PW}mm;height:${PH}mm}</style></head><body><img src="data:image/jpeg;base64,${jpg.toString('base64')}"></body></html>`, { waitUntil: 'load' });
-  await p.pdf({ path: base + '.pdf', width: PW + 'mm', height: PH + 'mm', printBackground: true, preferCSSPageSize: true }); await ctx.close();
-  console.log('  ' + base + '.pdf (600 dpi, sans police) · .png (300 dpi)');
-}
+  await p.setContent(`<!doctype html><html><head><style>@page{size:${pw}mm ${ph}mm;margin:0}html,body{margin:0;padding:0}img{display:block;width:${pw}mm;height:${ph}mm;break-after:page}img:last-child{break-after:auto}</style></head><body>${jpgs.map(j => `<img src="data:image/jpeg;base64,${j.toString('base64')}">`).join('')}</body></html>`, { waitUntil: 'load' });
+  await p.pdf({ path, width: pw + 'mm', height: ph + 'mm', printBackground: true, preferCSSPageSize: true }); await ctx.close();
+};
+/** Une page : base.png (300 dpi déclarés) et base.pdf (600 dpi, sans police) ; rend le JPEG 600 dpi. */
+const render = async (html, pw, ph, base) => {
+  writeFileSync(base + '.png', pngDpi(await shotAt(html, pw, ph, 300, { type: 'png' }), 300));
+  const jpg = await shotAt(html, pw, ph, 600, { type: 'jpeg', quality: 93 });
+  await imagesPdf([jpg], pw, ph, base + '.pdf'); console.log('  ' + base + '.pdf (600 dpi, sans police) · .png (300 dpi)');
+  return jpg;
+};
+if (which === 'carte') {      // cartes de visite : recto, verso, et les deux dans un seul PDF
+  const jpgs = [];
+  for (const side of ['recto', 'verso']) jpgs.push(await render(cardPage(side), CW + 2 * CB, CH + 2 * CB, OUT + 'carte-visite-' + side));
+  await imagesPdf(jpgs, CW + 2 * CB, CH + 2 * CB, OUT + 'carte-visite-recto-verso.pdf'); console.log('  ' + OUT + 'carte-visite-recto-verso.pdf (2 pages)');
+} else for (const v of VARIANTS) await render(page(v), PW, PH, OUT + 'flyer-' + FMT + '-' + v);
 await browser.close();
