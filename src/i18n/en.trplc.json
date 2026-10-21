@@ -2,10 +2,12 @@
   "Mes rangements": "Storage rules",
   "Mes rangements dans l'échange": "Storage and trades",
   "Ce qui part dans l'échange, rangement par rangement": "What goes up for trade, storage by storage",
-  "Classique : tes decks et ta réserve gardent les leurs. Ignoré : jamais proposé, et compte dans ta réserve. Tout inclure : tout part dans l'échange, même le dernier exemplaire.": "Classic: your decks and your reserve keep theirs. Ignored: never offered, and counts toward your reserve. Include all: everything goes up for trade, even the last copy.",
   "Aucun rangement pour l'instant : ouvre une carte, puis « Ranger dans ».": "No storage yet: open a card, then “Store in”.",
   "Les decks montés gardent toujours leurs cartes.": "Built decks always keep their cards.",
   "Classique": "Classic",
   "Ignoré": "Ignored",
-  "Tout inclure": "Include all"
+  "Tout inclure": "Include all",
+  "tes decks et ta réserve gardent les leurs.": "your decks and your reserve keep theirs.",
+  "jamais proposé, et compte dans ta réserve.": "never offered, and counts toward your reserve.",
+  "tout part dans l'échange, même le dernier exemplaire.": "everything goes up for trade, even the last copy."
 }

@@ -2,10 +2,12 @@
   "Mes rangements": "Regeln je Aufbewahrung",
   "Mes rangements dans l'échange": "Aufbewahrung und Tausch",
   "Ce qui part dans l'échange, rangement par rangement": "Was in den Tausch geht, Aufbewahrung für Aufbewahrung",
-  "Classique : tes decks et ta réserve gardent les leurs. Ignoré : jamais proposé, et compte dans ta réserve. Tout inclure : tout part dans l'échange, même le dernier exemplaire.": "Klassisch: deine Decks und deine Reserve behalten ihre Karten. Ignoriert: nie angeboten, zählt zu deiner Reserve. Alles einschließen: alles geht in den Tausch, auch das letzte Exemplar.",
   "Aucun rangement pour l'instant : ouvre une carte, puis « Ranger dans ».": "Noch keine Aufbewahrung: öffne eine Karte, dann „Einsortieren in“.",
   "Les decks montés gardent toujours leurs cartes.": "Gebaute Decks behalten immer ihre Karten.",
   "Classique": "Klassisch",
   "Ignoré": "Ignoriert",
-  "Tout inclure": "Alles einschließen"
+  "Tout inclure": "Alles einschließen",
+  "tes decks et ta réserve gardent les leurs.": "deine Decks und deine Reserve behalten ihre Karten.",
+  "jamais proposé, et compte dans ta réserve.": "nie angeboten, zählt zu deiner Reserve.",
+  "tout part dans l'échange, même le dernier exemplaire.": "alles geht in den Tausch, auch das letzte Exemplar."
 }

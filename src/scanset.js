@@ -90,7 +90,7 @@ function scsHtml() {
       <div class="scs-row"><span>${T('Même carte à la suite')}</span><span class="scs-chips">${chip('same', 'ask', T('Demander'), SCS.same === 'ask')}${chip('same', 'add', T('Ajouter +1'), SCS.same === 'add')}</span></div>` : ''}
     <p class="scs-h">${T('Langue des cartes')}</p>
     <div class="scs-chips">${chip('lang', '', T('Auto'), !SCS.lang)}${chip('lang', 'fr', scsLangName('fr'), SCS.lang === 'fr')}${chip('lang', 'en', scsLangName('en'), SCS.lang === 'en')}<label class="fopt scs-oth"${othOn ? ' data-on="1"' : ''}><select data-s="lang" aria-label="${esc(T('Autre langue'))}"><option value=""${othOn ? '' : ' selected'}>${esc(othOn ? '—' : T('Autre…'))}</option>${oth.map(l => `<option value="${l}"${SCS.lang === l ? ' selected' : ''}>${esc(scsLangName(l))}</option>`).join('')}</select></label></div>
-    <p class="hint scs-note">${T('Auto : la langue est lue sur chaque carte. Une seule langue dans le paquet : choisis-la, c\'est plus rapide.')}</p>
+    <p class="hint scs-note">${T('Auto : la langue est lue sur chaque carte.')}<br>${T('Une seule langue dans le paquet : choisis-la, c\'est plus rapide.')}</p>
     <p class="scs-h">${T('À chaque carte')}</p>
     ${sw('scsVib', 'vib', T('Vibration'), '', SCS.vib)}${sw('scsSnd', 'snd', T('Son'), '', SCS.snd)}</div>`;
 }

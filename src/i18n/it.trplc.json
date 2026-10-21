@@ -2,10 +2,12 @@
   "Mes rangements": "Regole per sistemazione",
   "Mes rangements dans l'échange": "Sistemazioni e scambi",
   "Ce qui part dans l'échange, rangement par rangement": "Cosa va nello scambio, sistemazione per sistemazione",
-  "Classique : tes decks et ta réserve gardent les leurs. Ignoré : jamais proposé, et compte dans ta réserve. Tout inclure : tout part dans l'échange, même le dernier exemplaire.": "Classico: i tuoi mazzi e la tua riserva tengono le loro. Ignorata: mai proposta, e conta nella tua riserva. Includi tutto: tutto va nello scambio, anche l'ultima copia.",
   "Aucun rangement pour l'instant : ouvre une carte, puis « Ranger dans ».": "Nessuna sistemazione per ora: apri una carta, poi «Sistema in».",
   "Les decks montés gardent toujours leurs cartes.": "I mazzi montati tengono sempre le loro carte.",
   "Classique": "Classico",
   "Ignoré": "Ignorata",
-  "Tout inclure": "Includi tutto"
+  "Tout inclure": "Includi tutto",
+  "tes decks et ta réserve gardent les leurs.": "i tuoi mazzi e la tua riserva tengono le loro.",
+  "jamais proposé, et compte dans ta réserve.": "mai proposta, e conta nella tua riserva.",
+  "tout part dans l'échange, même le dernier exemplaire.": "tutto va nello scambio, anche l'ultima copia."
 }

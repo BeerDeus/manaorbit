@@ -2,10 +2,12 @@
   "Mes rangements": "Reglas por almacenamiento",
   "Mes rangements dans l'échange": "Almacenamiento e intercambios",
   "Ce qui part dans l'échange, rangement par rangement": "Lo que sale al intercambio, almacenamiento por almacenamiento",
-  "Classique : tes decks et ta réserve gardent les leurs. Ignoré : jamais proposé, et compte dans ta réserve. Tout inclure : tout part dans l'échange, même le dernier exemplaire.": "Clásico: tus mazos y tu reserva se quedan con las suyas. Ignorado: nunca se ofrece y cuenta en tu reserva. Incluir todo: todo sale al intercambio, incluso el último ejemplar.",
   "Aucun rangement pour l'instant : ouvre une carte, puis « Ranger dans ».": "Aún no hay almacenamiento: abre una carta y luego «Guardar en».",
   "Les decks montés gardent toujours leurs cartes.": "Los mazos montados siempre conservan sus cartas.",
   "Classique": "Clásico",
   "Ignoré": "Ignorado",
-  "Tout inclure": "Incluir todo"
+  "Tout inclure": "Incluir todo",
+  "tes decks et ta réserve gardent les leurs.": "tus mazos y tu reserva se quedan con las suyas.",
+  "jamais proposé, et compte dans ta réserve.": "nunca se ofrece y cuenta en tu reserva.",
+  "tout part dans l'échange, même le dernier exemplaire.": "todo sale al intercambio, incluso el último ejemplar."
 }

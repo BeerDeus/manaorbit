@@ -430,7 +430,7 @@ button.sync:active{background:var(--surface-2)}
 .sortsel:active{transform:scale(.97)}
 .sortsel span{color:var(--ink-3);font-weight:600}
 select option,select optgroup{background-color:var(--surface);color:var(--ink)}      /* liste ouverte d'un menu déroulant sur ordinateur (Windows) : fond clair par défaut, texte de l'appli invisible dessus */
-.sortsel select{appearance:none;-webkit-appearance:none;field-sizing:content;border:0;background:transparent;font-weight:650;font-size:12.5px;color:var(--ink);padding:0;max-width:132px;outline:none;cursor:pointer}
+.sortsel select{appearance:none;-webkit-appearance:none;field-sizing:content;border:0;background:transparent;font-weight:650;font-size:12.5px;color:var(--ink);padding:0;height:32px;max-width:132px;outline:none;cursor:pointer}      /* height : toute la hauteur de la pilule se touche (le texte reste centré) */
 .sortsel::after{content:"";position:absolute;right:12px;top:50%;width:6px;height:6px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:translateY(-70%) rotate(45deg);pointer-events:none}
 .sortsel:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
 .fchips{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0}

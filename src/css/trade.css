@@ -58,7 +58,9 @@
 /* Mes rangements (règle d'échange par emplacement, share.js › trPlacesSheet) */
 .tr-plc{align-self:flex-start;height:34px;padding:0 12px;gap:7px}
 .tr-plc small{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:700;line-height:18px;text-align:center}
-.trp-help{margin:0 0 6px}
+.trp-help{margin:0 0 6px;padding-left:18px}
+.trp-help li{margin:3px 0}
+.trp-help b{color:var(--ink);font-weight:650}
 .trp-row{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
 .trp-who{display:flex;align-items:center;gap:8px;min-width:0}
 .trp-who .i{width:18px;height:18px;flex:none;color:var(--ink-2)}

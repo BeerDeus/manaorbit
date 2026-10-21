@@ -28,6 +28,7 @@ BROWSER=(
   places-e2e.mjs
   partie-ui-e2e.mjs
   partie-room-e2e.mjs
+  menus-e2e.mjs
   applink-e2e.mjs
   apkupd-e2e.mjs
   scanreport-e2e.mjs

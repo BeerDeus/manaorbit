@@ -23,7 +23,6 @@
   "Retour au scan": "Back to the scan",
   "{i} sur {n}": "{i} of {n}",
   "Ajouter +1": "Add +1",
-  "Auto : la langue est lue sur chaque carte. Une seule langue dans le paquet : choisis-la, c'est plus rapide.": "Auto: the language is read on each card. Only one language in the pile? Pick it, it's faster.",
   "Demander": "Ask",
   "Délai entre deux cartes": "Delay between two cards",
   "Enregistrés dans ton compte, les mêmes sur tous tes appareils": "Saved in your account, the same on all your devices",
@@ -73,5 +72,7 @@
   "Carte entière (réglage du cadrage) : la petite ligne en bas à gauche (« 0123 R », « MKM • FR ») est lue aussi : l'édition exacte est posée d'office, et la langue imprimée sur la carte retenue. Cartes d'avant 2014 : l'édition se choisit comme d'habitude.": "Whole card (framing setting): the small line at the bottom left (“0123 R”, “MKM • EN”) is read too: the exact edition is set automatically, and the language printed on the card is kept. Cards from before 2014: choose the edition as usual.",
   "reconnue à l'illustration": "recognised from the artwork",
   "illustration · {name} : {res}": "artwork · {name}: {res}",
-  "{n} pareilles": "{n} alike"
+  "{n} pareilles": "{n} alike",
+  "Auto : la langue est lue sur chaque carte.": "Auto: the language is read on each card.",
+  "Une seule langue dans le paquet : choisis-la, c'est plus rapide.": "Only one language in the pile? Pick it, it's faster."
 }

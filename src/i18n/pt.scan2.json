@@ -23,7 +23,6 @@
   "Retour au scan": "Voltar ao escaneamento",
   "{i} sur {n}": "{i} de {n}",
   "Ajouter +1": "Adicionar +1",
-  "Auto : la langue est lue sur chaque carte. Une seule langue dans le paquet : choisis-la, c'est plus rapide.": "Auto: o idioma é lido em cada card. Só um idioma no monte? Escolha-o, é mais rápido.",
   "Demander": "Perguntar",
   "Délai entre deux cartes": "Intervalo entre dois cards",
   "Enregistrés dans ton compte, les mêmes sur tous tes appareils": "Salvos na sua conta, os mesmos em todos os seus aparelhos",
@@ -73,5 +72,7 @@
   "Carte entière (réglage du cadrage) : la petite ligne en bas à gauche (« 0123 R », « MKM • FR ») est lue aussi : l'édition exacte est posée d'office, et la langue imprimée sur la carte retenue. Cartes d'avant 2014 : l'édition se choisit comme d'habitude.": "Carta inteira (definição de enquadramento): a pequena linha no canto inferior esquerdo («0123 R», «MKM • PT») também é lida: a edição exata é definida sozinha e fica a língua impressa na carta. Cartas anteriores a 2014: escolhe a edição como de costume.",
   "reconnue à l'illustration": "reconhecida pela ilustração",
   "illustration · {name} : {res}": "ilustração · {name}: {res}",
-  "{n} pareilles": "{n} iguais"
+  "{n} pareilles": "{n} iguais",
+  "Auto : la langue est lue sur chaque carte.": "Auto: o idioma é lido em cada card.",
+  "Une seule langue dans le paquet : choisis-la, c'est plus rapide.": "Só um idioma no monte? Escolha-o, é mais rápido."
 }

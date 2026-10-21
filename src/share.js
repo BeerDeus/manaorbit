@@ -432,7 +432,7 @@ function trPlcBtnHtml() {
 function trPlacesSheet() {
   openSheet(T('Mes rangements dans l\'échange'), T('Ce qui part dans l\'échange, rangement par rangement'), api => {
     const ps = trPlcPlaces(), st = plcStats();
-    api.body.innerHTML = `<p class="hint trp-help">${T('Classique : tes decks et ta réserve gardent les leurs. Ignoré : jamais proposé, et compte dans ta réserve. Tout inclure : tout part dans l\'échange, même le dernier exemplaire.')}</p>
+    api.body.innerHTML = `<ul class="hint trp-help"><li><b>${T('Classique')}</b> : ${T('tes decks et ta réserve gardent les leurs.')}</li><li><b>${T('Ignoré')}</b> : ${T('jamais proposé, et compte dans ta réserve.')}</li><li><b>${T('Tout inclure')}</b> : ${T('tout part dans l\'échange, même le dernier exemplaire.')}</li></ul>
       ${ps.length ? ps.map(x => { const q = (st.get(x.id) || {}).q || 0; return `<div class="trp-row" data-p="${esc(x.id)}"><div class="trp-who">${plcIc(x.id)}<i style="--c:${plcColor(x.id)}"></i><b>${esc(plcName(x.id))}</b><small>${q ? TN(q, '{n} carte', '{n} cartes') : ''}</small></div><div class="seg trp-seg" role="radiogroup" aria-label="${esc(plcName(x.id))}"></div></div>`; }).join('')
         : `<p class="hint">${T('Aucun rangement pour l\'instant : ouvre une carte, puis « Ranger dans ».')}</p>`}
       ${Object.values(COLL.places).some(x => x.t === 'deck') ? `<p class="hint trp-deck">${T('Les decks montés gardent toujours leurs cartes.')}</p>` : ''}`;
