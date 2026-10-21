@@ -51,7 +51,7 @@ Le mieux est de les lire tels quels. Si tu changes un mot, dis-le moi : les sous
 **l8-import** (≈ 12 s)
 > Ta collection est déjà dans une autre appli ? ManaBox, Moxfield, Delver Lens, Dragon Shield… Exporte-la en CSV, importe le fichier dans Mana Orbit, et c'est fait. Tes cartes, tes quantités, tes langues : rien ne se perd.
 
-Enregistrées le 21 octobre : toutes sauf **l7-mystere**, à refaire (« toutes les deux secondes » entendu : c'est **douze**). Les textes ci-dessus sont ceux réellement dits (l1, l3, l5 ajustés à la lecture).
+Les 8 enregistrées et posées le 21 octobre. Les textes ci-dessus sont ceux réellement dits (l1, l3, l5 ajustés à la lecture).
 
 ## De mon côté (pour mémoire)
 `node tools/shorts/ma-voix.mjs <id> <fichier>` (nettoyage ; prises brutes déposées dans `docs/videos/voix/`, retirées une fois posées), `node tools/shorts/ecoute.mjs <id>` (le texte lu correspond-il ?), `node tools/shorts/rendu.mjs <id>`, contrôle des images, puis copie dans `docs/videos/`. Source des textes : `tools/shorts/voix.json`.
