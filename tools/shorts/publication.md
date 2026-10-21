@@ -12,7 +12,7 @@ On part de zéro : les anciennes vidéos (série s0, test fermé) sont supprimé
 | l5-decks | Le deck Commander que tu as presque | 12,2 s | oui |
 | l6-partie | Le compteur de vie de la table de Commander | ≈ 13,5 s | oui |
 | l7-mystere | La carte mystère de 18 h | 11,8 s | oui |
-| l8-manabox | Passer de ManaBox en 2 minutes | 12,2 s | oui |
+| l8-import | Ta collection te suit, d'où qu'elle vienne (ManaBox, Moxfield…) | ≈ 15 s | oui |
 
 ## À faire une fois (propriétaire)
 
@@ -53,7 +53,7 @@ J = jour où l'appli est visible par tous sur Google Play (accès production acc
 | J+5 | l3-langues | se démarque de la concurrence (japonais, coréen, chinois) |
 | J+7 | l5-decks | Commander, le format le plus joué |
 | J+9 | l7-mystere | donne une raison de revenir chaque soir (publier vers 17 h 30, avant la carte de 18 h) |
-| J+11 | l8-manabox | vise les joueurs déjà équipés d'une autre appli |
+| J+11 | l8-import | vise les joueurs déjà équipés d'une autre appli |
 | J+13 | l6-partie | le compteur de vie, utile à chaque partie |
 
 Ensuite : 2 à 3 vidéos par semaine. Les meilleures des 8 (vues, partages, abonnés gagnés au bout de 3 jours) disent quoi décliner.
@@ -125,12 +125,13 @@ Mana Orbit, gratuit sur Google Play. Ton score de ce soir en commentaire 👇
 ```
 Instagram : `#mtg #magicthegathering #mtgfrance #mtgquiz #commander #edh` · TikTok : `#mtg #mtgquiz #magicthegathering #mtgfrance` · YouTube : `#mtg #mtgquiz`
 
-### l8-manabox · Passer de ManaBox en 2 minutes
+### l8-import · Ta collection te suit, d'où qu'elle vienne
 ```
-Tu utilises ManaBox ? Exporte ta collection en CSV, importe le fichier dans Mana Orbit, et c'est fait ✅ Tes cartes, tes quantités, tes langues : rien ne se perd. Marche aussi depuis Moxfield, Delver Lens et Dragon Shield.
-Gratuit sur Google Play.
+Ta collection est déjà dans une autre appli ? ManaBox, Moxfield, Delver Lens, Dragon Shield… Exporte-la en CSV, importe le fichier dans Mana Orbit, et c'est fait ✅ Tes cartes, tes quantités, tes langues : rien ne se perd.
+Gratuit sur Google Play. Tu utilises quoi aujourd'hui ? 👇
 ```
 Instagram : `#mtg #magicthegathering #mtgcollection #manabox #mtgfrance #edh` · TikTok : `#mtg #mtgcollection #manabox #mtgfrance` · YouTube : `#mtg #mtgcollection`
+Jamais Archidekt ni EDHREC dans ces vidéos et descriptions : on lit leurs decks, on ne vise pas leurs utilisateurs.
 
 ## Publicité payante (plus tard, petit budget)
 

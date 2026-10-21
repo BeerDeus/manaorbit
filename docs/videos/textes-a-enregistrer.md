@@ -48,8 +48,8 @@ Le mieux est de les lire tels quels. Si tu changes un mot, dis-le moi : les sous
 **l7-mystere** (≈ 8,5 s)
 > Chaque soir à dix-huit heures, une nouvelle carte mystère. Un indice toutes les douze secondes : à toi de la deviner le plus vite possible. Tu la trouves en combien ?
 
-**l8-manabox** (≈ 8,5 s)
-> Tu utilises ManaBox ? Exporte ta collection en CSV, importe le fichier dans Mana Orbit, et c'est fait. Tes cartes, tes quantités, tes langues : rien ne se perd.
+**l8-import** (≈ 12 s)
+> Ta collection est déjà dans une autre appli ? ManaBox, Moxfield, Delver Lens, Dragon Shield… Exporte-la en CSV, importe le fichier dans Mana Orbit, et c'est fait. Tes cartes, tes quantités, tes langues : rien ne se perd.
 
 l2-classeur : fait (21 octobre). Les 7 autres : même réglages, même distance au micro, pour que la série sonne pareil.
 

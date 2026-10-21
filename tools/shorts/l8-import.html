@@ -2,15 +2,19 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>l8-manabox · Passer de ManaBox à Mana Orbit</title>
+<title>l8-import · Ta collection te suit, d'où qu'elle vienne</title>
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="lancement.css">
 <script>window.APRES_VOIX = 3.45; window.DECALAGE_VOIX = 0.3; window.COUVERTURE = 'fichier+0.12';</script>
 <style>
-  .de-a{position:absolute;left:0;right:0;top:760px;z-index:20;text-align:center;animation:pop .5s var(--ressort) var(--in) both,fondu .25s linear var(--out) forwards}
-  .de-a span{display:inline-block;padding:24px 46px;border-radius:999px;background:var(--surface);border:2px solid var(--line);font-family:Bricolage;font-weight:800;font-size:70px;letter-spacing:-.03em;box-shadow:0 30px 70px -20px rgba(0,0,0,.95)}
-  .de-a span.nous{background:var(--accent);color:#0b0f1c;border-color:var(--accent)}
-  .de-a i{display:block;font-style:normal;font-family:Bricolage;font-weight:800;font-size:110px;color:var(--accent);line-height:1.1}
+  /* les applis d'où l'on vient (noms seulement, jamais leurs logos), qui apparaissent quand la voix les nomme ; jamais Archidekt ni EDHREC : on lit
+     leurs decks, on ne vise pas leurs utilisateurs */
+  .applis{position:absolute;left:80px;right:80px;top:640px;z-index:20;display:flex;flex-wrap:wrap;justify-content:center;gap:22px 20px;animation:fondu .25s linear var(--out) forwards}
+  .applis span{padding:22px 38px;border-radius:999px;background:var(--surface);border:2px solid var(--line);font-family:Bricolage;font-weight:800;font-size:58px;letter-spacing:-.03em;box-shadow:0 24px 60px -20px rgba(0,0,0,.95);
+    animation:pop .4s var(--ressort) var(--in) both;rotate:var(--r,0deg)}
+  .applis span.p{font-size:44px;color:var(--ink-2);padding:18px 30px}
+  /* accroche : ta collection (trois cartes) avant que les applis soient nommées */
+  .paquet{position:absolute;left:300px;top:720px;width:500px;height:480px;z-index:20;animation:fondu .2s linear var(--out) forwards}
   /* fichier CSV qui tombe dans le téléphone */
   .csv{position:absolute;left:350px;top:700px;width:380px;height:480px;z-index:30;border-radius:26px;background:#f4f6fb;color:#0b0f1c;box-shadow:0 40px 80px -20px rgba(0,0,0,.95);overflow:hidden;
     animation:pop .45s var(--ressort) var(--in) both,chute .55s cubic-bezier(.5,0,.75,0) var(--out) forwards;rotate:-6deg}
@@ -32,8 +36,13 @@
   <div class="halo" style="--y:1100px"></div>
   <div class="orbite" data-rx="600" data-ry="150" data-mana="WUBRG" style="--y:1560px;--tour:16s;--deg:-10deg"></div>
 
-  <div class="de-a" style="--in:.1s" data-out="exporte-0.15"><span>ManaBox</span><i>↓</i><span class="nous">Mana Orbit</span></div>
-  <div class="csv" data-in="exporte-0.05" data-out="fichier"><b>CSV</b>
+  <div class="paquet" style="--in:.15s" data-out="manabox-0.1"><div class="carte" style="--c1:var(--rose);--c2:var(--violet);left:0;top:40px;rotate:-12deg"></div><div class="carte" style="--c1:var(--warm);--c2:var(--corail);left:100px;top:0;rotate:-2deg;--in:.3s"></div><div class="carte" style="--c1:var(--menthe);--c2:var(--bleu);left:200px;top:30px;rotate:9deg;--in:.45s"></div></div>
+  <div class="applis" data-out="exportela-0.05">
+    <span data-in="manabox" style="--r:-3deg">ManaBox</span><span data-in="moxfield" style="--r:2deg">Moxfield</span>
+    <span data-in="delver" style="--r:3deg">Delver Lens</span><span data-in="dragon" style="--r:-2deg">Dragon Shield</span>
+    <span class="p" data-in="shield-0.1" style="--r:2deg">Deckbox</span><span class="p" data-in="shield+0.05" style="--r:-3deg">TCGplayer</span><span class="p" data-in="shield+0.2" style="--r:1deg">Decked Builder</span>
+  </div>
+  <div class="csv" data-in="exportela+0.05" data-out="fichier"><b>CSV</b>
     <pre>Name,Set code,Quantity,Language
 Sol Ring,CMM,1,fr
 Cyclonic Rift,RTR,1,ja
@@ -45,14 +54,14 @@ Edgar Markov,C17,1,en
   <div class="tel2 flotte" data-in="importe-0.25">
     <div class="vue">
       <div class="ecr" data-src="manabox" style="--in:0s"></div>
-      <div class="tap" data-in="dans" style="--x:67%;--y:94%"></div>
+      <div class="tap" data-in="dans#2" style="--x:67%;--y:94%"></div>
       <div class="ecr monte2 zoom" data-src="collection" data-in="fait-0.25" data-zin="quantites-0.2" style="--z:1.35;--ox:100%;--oy:78%"></div>
     </div>
   </div>
   <div class="pastille ok" data-in="fait-0.1" data-out="tes-0.1" style="left:250px;top:560px;rotate:-2deg;animation:pop .45s var(--ressort) var(--in) both,fondu .2s linear var(--out) forwards"><b>✓</b> 505 cartes importées</div>
   <div class="coches"><div class="pastille ok" data-in="cartes"><b>✓</b> cartes</div><div class="pastille ok" data-in="quantites"><b>✓</b> quantités</div><div class="pastille ok" data-in="langues"><b>✓</b> langues</div></div>
 
-  <div class="titre couvt">Tu viens de <em>ManaBox</em> ?<br><small>Ta collection te suit en 2 minutes</small></div>
+  <div class="titre couvt">Ta collection est dans<br>une autre <em>appli</em>&nbsp;?<small>Elle te suit en 2 minutes</small></div>
   <div class="fin" data-in="perd>+0.8"></div>
 </div>
 <script src="base.js"></script>

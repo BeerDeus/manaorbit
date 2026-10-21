@@ -11,7 +11,7 @@ Tout est en code, rendu déterministe : une page HTML animée par vidéo, captur
 - `phrases.mjs` : instants de chaque phrase (silences mesurés par ffmpeg).
 - `base.css` + `base.js` : socle commun (polices, couleurs, fond, animations, logo, `seek`).
 - `lancement.css` + `lancement.js` : série de lancement (téléphone avec les vrais écrans, sous-titres, loupes, compteurs, orbites de mana, carte de fin).
-- `<id>.html` : la vidéo elle-même. Série de lancement : `l1-lancement` à `l8-manabox`.
+- `<id>.html` : la vidéo elle-même. Série de lancement : `l1-lancement` à `l8-import`.
 - `rendu.mjs` : page → images (Playwright, JPEG) → `rendu/<id>.mp4` + `rendu/<id>.png` (couverture).
 
 ## Écrans de l'appli

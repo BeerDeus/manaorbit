@@ -48,10 +48,10 @@
       "texte": "Chaque soir à dix-huit heures, une nouvelle carte mystère. Un indice toutes les douze secondes : à toi de la deviner le plus vite possible. Tu la trouves en combien ?"
     },
     {
-      "id": "l8-manabox",
-      "titre": "Tu viens de ManaBox ?",
-      "ton": "Rassurant, simple, sans vendre.",
-      "texte": "Tu utilises ManaBox ? Exporte ta collection en CSV, importe le fichier dans Mana Orbit, et c'est fait. Tes cartes, tes quantités, tes langues : rien ne se perd."
+      "id": "l8-import",
+      "titre": "Ta collection te suit, d'où qu'elle vienne",
+      "ton": "Rassurant et simple, comme quand on explique à un pote que c'est facile.",
+      "texte": "Ta collection est déjà dans une autre appli ? ManaBox, Moxfield, Delver Lens, Dragon Shield… Exporte-la en CSV, importe le fichier dans Mana Orbit, et c'est fait. Tes cartes, tes quantités, tes langues : rien ne se perd."
     }
   ]
 }
