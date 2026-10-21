@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>l4-echange · Ta liste d'échange en QR code</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="lancement.css">
+<script>window.DUREE = 12.4; window.DECALAGE_VOIX = 0.3; window.COUVERTURE = 5.9;</script>
+<style>
+  /* bulle de message du pote, pile de classeurs barrée */
+  .bulle{position:absolute;left:150px;top:690px;z-index:36;max-width:640px;padding:30px 40px;border-radius:44px 44px 44px 12px;background:#27314d;font-size:50px;font-weight:600;line-height:1.2;box-shadow:0 30px 60px -20px rgba(0,0,0,.9);
+    animation:pop .45s var(--ressort) var(--in) both,fondu .2s linear var(--out) forwards;transform-origin:0 100%}
+  .bulle small{display:block;font-size:30px;color:var(--ink-3);font-weight:600;margin-bottom:6px}
+  .bulle.moi{left:auto;right:150px;top:900px;background:var(--accent);color:#0b0f1c;border-radius:44px 44px 12px 44px;transform-origin:100% 100%}
+  .bulle.moi small{color:rgba(11,15,28,.6)}
+  .pile{position:absolute;left:290px;top:760px;width:500px;height:560px;z-index:20;animation:pop .45s var(--ressort) var(--in) both,fondu .25s linear var(--out) forwards}
+  .pile i{position:absolute;left:0;width:440px;height:520px;border-radius:30px;border:6px solid #3a4468;background:linear-gradient(160deg,#1f2740,#141a2c);box-shadow:0 30px 60px -20px rgba(0,0,0,.9)}
+  .pile i::before{content:"";position:absolute;inset:40px 40px auto 40px;height:440px;background:repeating-linear-gradient(90deg,rgba(146,156,255,.18) 0 100px,transparent 100px 120px),repeating-linear-gradient(0deg,transparent 0 130px,rgba(11,15,28,.9) 130px 150px);border-radius:10px}
+  .pile i:nth-child(1){rotate:-9deg;top:30px}.pile i:nth-child(2){rotate:4deg;left:40px;top:10px}.pile i:nth-child(3){rotate:-2deg;left:20px;top:0}
+  .barre{position:absolute;left:220px;top:1000px;width:640px;height:30px;border-radius:15px;background:var(--corail);z-index:22;rotate:-28deg;box-shadow:0 10px 30px rgba(0,0,0,.6);transform-origin:0 50%;animation:trait .3s var(--doux) var(--in) both,fondu .25s linear var(--out) forwards}
+  @keyframes trait{from{scale:0 1}to{scale:1 1}}
+  .couvt{display:none}
+  .couv .couvt{display:block;top:240px}
+  .couv .st{display:none}
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="bg"></div>
+  <div class="halo" style="--y:1150px"></div>
+  <div class="orbite" data-rx="600" data-ry="150" data-mana="WUBRG" style="--y:1560px;--tour:16s;--deg:-10deg"></div>
+
+  <div class="bulle" style="--in:.15s" data-out="pas-0.15"><small>Thomas</small>T'as quoi en double ?</div>
+  <div class="pile" data-in="pas" data-out="tu-0.1"><i></i><i></i><i></i></div>
+  <div class="barre" data-in="classeur" data-out="tu-0.1"></div>
+
+  <div class="tel2 flotte" data-in="tu-0.2">
+    <div class="vue">
+      <div class="ecr" data-src="echange" style="--in:0s"></div>
+      <div class="tap" data-in="qr" style="--x:33%;--y:43%"></div>
+      <div class="ecr monte2 zoom" data-src="qr" data-in="code" data-zin="scanne-0.3" style="--z:1.25;--oy:55%"></div>
+      <div class="ecr pousse zoom" data-src="liste" data-in="voit-0.15" data-zin="toujours-0.25" style="--z:1.18;--ox:0%;--oy:30%"></div>
+    </div>
+  </div>
+  <div class="pastille a" data-in="scanne" data-out="voit-0.2" style="left:200px;top:560px;rotate:2deg;animation:pop .45s var(--ressort) var(--in) both,fondu .2s linear var(--out) forwards"><b>✓</b> sans installer l'appli</div>
+  <div class="pastille ok" data-in="jour-0.1" style="left:150px;top:560px;rotate:-3deg;animation:pop .45s var(--ressort) var(--in) both"><b>156</b> doublons · <b>161</b> recherchées</div>
+
+  <div class="titre couvt">Tes doublons<br>en un <em>QR code</em></div>
+  <div class="fin" data-in="jour>+0.9"></div>
+</div>
+<script src="base.js"></script>
+<script src="lancement.js"></script>
+</body>
+</html>

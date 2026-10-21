@@ -1,29 +1,33 @@
-# Vidéos courtes (Reels / Shorts) : générateur
+# Vidéos courtes (Reels / Shorts / TikTok) : générateur
 
-Tout est en code, rendu déterministe : une page HTML animée par vidéo, capturée image par image, assemblée avec la voix off en MP4. Format 1080 × 1920, 30 i/s, 10 à 20 s. Les fichiers produits (`voix/`, `rendu/`) ne vont pas dans le dépôt.
+Tout est en code, rendu déterministe : une page HTML animée par vidéo, capturée image par image, assemblée avec la voix off en MP4. Format 1080 × 1920, 30 i/s, 10 à 20 s. Les fichiers produits (`voix/`, `rendu/`) ne vont pas dans le dépôt ; la copie à publier va dans `docs/videos/`. Publication (bios, calendrier, descriptions, son) : `publication.md`.
 
 ## Fichiers
-- `voix.json` : modèle, voix, température, consigne de style, textes (`id`, `titre`, `texte`, `ton` facultatif).
+- `voix.json` : modèle, voix, température, coupe de fin (0,2 s : le souffle final), consigne de style, textes (`id`, `titre`, `texte`, `ton` facultatif).
 - `voix.mjs` : voix off par Gemini TTS → `voix/<id>.wav` (clé `GEMINI_API_KEY` dans l'environnement).
-- `phrases.mjs` : instants de chaque phrase d'une voix (silences), pour caler l'animation.
-- `base.css` + `base.js` : socle commun (polices, couleurs, fond à orbites, composants, animations, logo, `seek`).
-- `<id>.html` : la vidéo elle-même (éléments + instants). `s0-v3.html` sert de modèle.
-- `rendu.mjs` : page → images (Playwright) → `rendu/<id>.mp4` + `rendu/<id>.png` (couverture).
+- `ecoute.mjs` : contrôle d'une voix par transcription Gemini (mots en trop ou sautés, prononciation, souffle de fin) → OK / À REFAIRE. Refaire avec `voix.mjs <id>` tant que ce n'est pas OK.
+- `mots.mjs` : instant de chaque mot d'une voix (énergie du WAV + ponctuation du texte), pour les sous-titres et les apparitions calées sur la voix.
+- `phrases.mjs` : instants de chaque phrase (silences mesurés par ffmpeg).
+- `base.css` + `base.js` : socle commun (polices, couleurs, fond, animations, logo, `seek`).
+- `lancement.css` + `lancement.js` : série de lancement (téléphone avec les vrais écrans, sous-titres, loupes, compteurs, orbites de mana, carte de fin).
+- `<id>.html` : la vidéo elle-même. Série de lancement : `l1-lancement` à `l8-manabox`.
+- `rendu.mjs` : page → images (Playwright, JPEG) → `rendu/<id>.mp4` + `rendu/<id>.png` (couverture).
+
+## Écrans de l'appli
+`node tools/store-assets.mjs video fr [étapes]` → `shots/video/fr-<écran>.png` (984 × 1584, non versionnés) : accueil, scan-0 à scan-6 (une carte de plus à chaque fois, langues différentes), classeur, echange, qr (lien fixe des flyers), liste (la liste d'échange vue par le pote), decks, deck, partie, valeur, collection, manabox, masterset, mystere-0 à mystere-5. `étapes` (facultatif, séparées par des virgules : `liste,qr`) : seulement celles-là.
 
 ## Faire une vidéo
-1. Ajouter le texte dans `voix.json`, puis `node tools/shorts/voix.mjs <id>`.
-2. `node tools/shorts/phrases.mjs <id>` : début et fin de chaque phrase (décalage de 0,4 s compris).
-3. Copier `s0-v3.html` en `<id>.html` ; régler `window.DUREE` (fin de la voix + 2 à 3 s) et `window.DECALAGE_VOIX`.
-4. Composer les écrans : chaque élément porte ses instants en secondes dans `style`, `--in` (entrée) et, pour les `.ecran` et le téléphone, `--out` (sortie). Les enfants héritent du `--in` du parent s'ils n'en ont pas.
-5. `node tools/shorts/rendu.mjs <id>` (option `--garder-images` pour inspecter les images dans `rendu/<id>-images/`).
+1. Ajouter le texte dans `voix.json`, puis `node tools/shorts/voix.mjs <id>` et `node tools/shorts/ecoute.mjs <id>`.
+2. `node tools/shorts/mots.mjs <id> --decalage=0.3` : instant de chaque mot dans la vidéo.
+3. Partir d'une page de la série (`l2-classeur.html` est la plus simple) ; régler `window.DUREE` (fin de la voix + 2,5 à 3 s pour la carte de fin), `window.DECALAGE_VOIX`, `window.COUVERTURE` (instant de la couverture, page en classe `couv` : titre `.couvt` à la place des sous-titres).
+4. Instants : `data-in` / `data-out` (et `data-zin` / `data-zout` pour un zoom) valent un nombre de secondes ou un **mot de la voix** : `scannes`, `tu#2` (2e « tu »), `valent>` (fin du mot), `doublons+0.2` (décalage). Sans voix : `window.SOUS_TITRES = [[début, fin, 'texte <em>accent</em>'], …]` et des `--in` en secondes.
+5. Aperçu de quelques instants : `node tools/shorts/rendu.mjs <id> --apercu=1,3.5,7` (images dans `rendu/`). Puis le rendu complet : `node tools/shorts/rendu.mjs <id>` (environ 1 min 30) ; `--couverture` refait la couverture seule.
 
-## Composants de `base.css`
-- Fond : `.bg`, `.orbit` (+ `.orbit.b`).
-- `.ecran` : bloc plein écran (entre en montant, sort vers le haut ; `.ecran.fondu` sort en fondu) ; dedans `.num`, `h1`/`h2` (`<em>` = accent), `.ill` (zone d'illustration sous le titre).
-- Entrées utilitaires : `.monte`, `.pop`, `.glisse`, `.leve` (téléphone, avec `--out`).
-- Illustrations : `.carte` (`--c1`/`--c2` dégradé), `.etiquette`, `.ligne-deck` (`--p` = barre), `.joueur` (+ `.ami`), `.doublon.vers-droite` / `.vers-gauche`, `.fleches`, `.ligne` + `.coche`.
-- Aperçu de l'appli : `.tel > .app` avec `.entete` et des `.tuile` (`b.a` accent, `b.o` vert).
-- Fin : `.marque` (`.logo`, `h1`, `p`) et `.cta` (`span` bouton, `small` sous-titre). Le logo est le symbole SVG `#logo` injecté par `base.js`.
-- Couleurs : `--accent`, `--ok`, `--warm`, `--rose`, `--violet`, `--corail`, `--menthe`, `--bleu`.
+## Composants de `lancement.css`
+- `.tel2` (téléphone, `--top`, `.flotte` = léger mouvement 3D) > `.vue` > `.ecr` (`data-src="<écran>"` ; l'écran suivant recouvre le précédent) : `.pousse` (arrive par la droite), `.monte2` (par le bas), `.zoom` (`--z`, `--ox`, `--oy`, `data-zin`, `data-zout`). Un `.ecr` sans `data-src` regroupe des écrans sous un même zoom.
+- `.tap` (toucher, `--x` / `--y` en % de l'écran, non zoomé) ; `.loupe` (`data-src`, `data-crop="x,y,l,h"` en pixels de la capture, `style="width"`).
+- `.compte` (`data-de`, `data-a`, `data-in`, `data-duree`, `data-dec`, `data-suffixe`) ; `.pastille` (`b` en couleur ; `.ok`, `.a`) ; `.titre`.
+- `.orbite` (`data-rx`, `data-ry`, `data-mana="WUBRG"`, `--y`, `--deg`, `--tour`) : symboles de mana qui passent devant puis derrière ; `[data-mana-sym="R"]` : un symbole seul.
+- `.fin` : carte de fin (logo en orbite, nom, « Gratuit sur Google Play », site, « Lien en bio ») ; `data-gp` / `data-plus` / `data-h1` / `data-logo2` : instant propre d'un de ses éléments.
 
-Zones sûres : rien d'important sous y = 1536 (20 % du bas) ni à droite de x ≈ 900 (boutons des applis).
+Zones sûres : rien d'important sous y = 1536 (20 % du bas) ni à droite de x ≈ 900 (boutons des applis) ; sous-titres entre y = 250 et 580.

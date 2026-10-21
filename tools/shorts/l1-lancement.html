@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>l1-lancement · Elle est sur Google Play</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="lancement.css">
+<script>window.DUREE = 17.2; window.DECALAGE_VOIX = 0.3; window.COUVERTURE = 3.6;</script>
+<style>
+  /* fenêtre d'éditeur : le vrai début de scanAdd (src/scan.js), tapé ligne par ligne */
+  .code{position:absolute;left:90px;top:640px;width:900px;z-index:20;border-radius:30px;background:#0d1220;border:2px solid var(--line);box-shadow:0 50px 100px -30px rgba(0,0,0,.95);overflow:hidden;
+    animation:loupe .5s var(--ressort) var(--in) both,telo .4s cubic-bezier(.5,0,.8,.4) var(--out) forwards;rotate:-2deg}
+  .code header{display:flex;align-items:center;gap:12px;padding:22px 28px;border-bottom:2px solid var(--line);font-size:26px;color:var(--ink-3);font-weight:600}
+  .code header i{width:18px;height:18px;border-radius:50%;background:#ff7a5c}.code header i+i{background:#ffd479}.code header i+i+i{background:#6fd08c;margin-right:14px}
+  .code pre{margin:0;padding:26px 30px 34px;font-family:'JetBrains Mono',monospace;font-size:27px;line-height:1.62;color:#cfd6ee;white-space:pre;overflow:hidden}
+  .code .l{display:block;clip-path:inset(0 100% 0 0);animation:tape .3s steps(24) var(--in) both}
+  .code .k{color:#c79bff}.code .f{color:#7fb0ff}.code .s{color:#ffd479}.code .c{color:#6b7699}.code .n{color:#ff8fc3}
+  @keyframes tape{to{clip-path:inset(0 0 0 0)}}
+  .curseur{display:inline-block;width:14px;height:30px;background:var(--accent);vertical-align:-5px;animation:clignote 1s steps(1) infinite}
+  @keyframes clignote{50%{opacity:0}}
+  /* tampon « 0 € » sur la carte de fin */
+  .tampon{position:absolute;left:640px;top:330px;z-index:70;width:250px;height:250px;border-radius:50%;background:var(--warm);color:#0b0f1c;display:flex;flex-direction:column;align-items:center;justify-content:center;rotate:14deg;
+    box-shadow:0 0 0 10px rgba(255,212,121,.25),0 30px 60px -20px rgba(0,0,0,.9);animation:tamponne .45s cubic-bezier(.3,1.6,.4,1) var(--in) both}
+  .tampon b{font-family:Bricolage;font-weight:800;font-size:110px;letter-spacing:-.05em;line-height:.9}
+  .tampon small{font-size:28px;font-weight:700;margin-top:6px}
+  @keyframes tamponne{from{opacity:0;scale:2.2;rotate:-10deg}to{opacity:1;scale:1;rotate:14deg}}
+  /* la voix continue sur la carte de fin : sous-titres au-dessus, carte décalée vers le bas */
+  .st{z-index:65}
+  .fin .orbite{--y:780px!important}.fin .logo2{top:780px}.fin h1{top:1060px}.fin .gp{top:1250px}.fin .plus{top:1400px}
+  .tampon{top:560px}
+  .couvt{display:none}
+  .couv .couvt{display:block;top:240px}
+  .couv .st{display:none}
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="bg"></div>
+  <div class="halo" style="--y:1150px"></div>
+  <div class="orbite" data-rx="600" data-ry="150" data-mana="WUBRG" style="--y:1560px;--tour:16s;--deg:-10deg"></div>
+
+  <div class="code" style="--in:.05s" data-out="aurais-0.1">
+    <header><i></i><i></i><i></i>scan.js — Mana Orbit</header>
+    <pre><span class="l" style="--in:.25s"><span class="k">function</span> <span class="f">scanAdd</span>(m, d, maybe, shot) {</span><span class="l" style="--in:.45s">  m = <span class="f">scanLangOf</span>(m);</span><span class="l" style="--in:.65s">  <span class="k">const</span> l = m.card || <span class="s">'en'</span>, ed = <span class="f">scanEdNew</span>(m.key, m.name, l…</span><span class="l" style="--in:.85s">  <span class="k">let</span> id = <span class="f">scanId</span>(m.key, l, ed.e), cur = SC.items.<span class="f">get</span>(id);</span><span class="l" style="--in:1.05s">  <span class="k">if</span> (m.img && l !== <span class="s">'en'</span>) {</span><span class="l" style="--in:1.25s">    <span class="c">// image de la carte dans sa langue,</span></span><span class="l" style="--in:1.45s">    <span class="c">// vue pendant la lecture : gardée</span></span><span class="l" style="--in:1.65s">    COLL.li[<span class="f">liKey</span>(l, m.key)] = m.img; <span class="curseur"></span></span></pre>
+  </div>
+
+  <div class="tel2 flotte" data-in="aurais-0.15" data-out="elle-0.2">
+    <div class="vue">
+      <div class="ecr" data-src="accueil" style="--in:0s"></div>
+      <div class="ecr pousse" data-src="scan-3" data-in="scannes-0.1"></div>
+      <div class="ecr" data-src="scan-6" data-in="cartes"></div>
+      <div class="ecr pousse" data-src="collection" data-in="vois-0.1"></div>
+      <div class="ecr pousse" data-src="classeur" data-in="ranges-0.1"></div>
+      <div class="ecr pousse zoom" data-src="liste" data-in="echanges-0.1" data-zin="echanges" style="--z:1.12;--ox:0%;--oy:20%"></div>
+      <div class="ecr pousse" data-src="partie" data-in="joues-0.1"></div>
+      <div class="tap" data-in="joues+0.35" style="--x:28%;--y:30%"></div>
+      <div class="tap" data-in="commander-0.1" style="--x:72%;--y:72%"></div>
+    </div>
+  </div>
+  <div class="loupe" data-src="collection" data-crop="36,186,909,243" data-in="valent-0.15" data-out="ranges-0.15" style="left:100px;top:600px;width:880px;--rot:-2deg"></div>
+
+  <div class="titre couvt">Mon appli <em>Magic</em><br>est sortie&nbsp;!</div>
+  <div class="fin" data-in="elle-0.15" data-gp="google-0.45" data-plus="google-0.4"></div>
+  <div class="tampon" data-in="gratuite-0.05"><b>0 €</b><small>pour toujours</small></div>
+</div>
+<script src="base.js"></script>
+<script src="lancement.js"></script>
+</body>
+</html>

@@ -14,6 +14,14 @@
     return (m[3] ? w.t1 : w.t0) + Number(m[4] || 0);
   };
   window.temps = temps;
+  // carte de fin (avant les instants : ses éléments peuvent en porter)
+  for (const e of document.querySelectorAll('.fin')) {
+    e.innerHTML = `<div class="fond"></div><div class="orbite" data-rx="330" data-ry="96" data-mana="WUBRG" style="--y:560px;--deg:-16deg;--tour:9s;--s:76px"></div>
+      <div class="logo2"><svg viewBox="0 0 512 512"><use href="#logo"/></svg></div><h1>Mana Orbit</h1>
+      <div class="gp"><span>Gratuit sur Google Play</span></div>
+      <p class="plus">iPhone et ordi : <b>manaorbit.app</b><br><i>Lien en bio</i></p>`;
+    for (const k of ['logo2', 'h1', 'gp', 'plus']) if (e.dataset[k]) e.querySelector(k === 'h1' ? 'h1' : '.' + k).dataset.in = e.dataset[k];      // data-gp="google-0.45" : instant propre (le décalage de base.css s'y ajoute)
+  }
   for (const [a, cssVar] of [['in', '--in'], ['out', '--out'], ['zin', '--zin'], ['zout', '--zout']])
     for (const e of document.querySelectorAll(`[data-${a}]`)) e.style.setProperty(cssVar, temps(e.dataset[a]).toFixed(3) + 's');
   const src = n => `${SHOTS}${LANGUE}-${n}.png`;
@@ -46,13 +54,6 @@
     }
   };
 
-  // carte de fin
-  for (const e of document.querySelectorAll('.fin')) {
-    e.innerHTML = `<div class="fond"></div><div class="orbite" data-rx="330" data-ry="96" data-mana="WUBRG" style="--y:560px;--deg:-16deg;--tour:9s;--s:76px"></div>
-      <div class="logo2"><svg viewBox="0 0 512 512"><use href="#logo"/></svg></div><h1>Mana Orbit</h1>
-      <div class="gp"><span>Gratuit sur Google Play</span></div>
-      <p class="plus">iPhone et ordi : <b>manaorbit.app</b><br><i>Lien en bio</i></p>`;
-  }
   orbites(document);
 
   // grain fixe (bruit pseudo-aléatoire à graine : même image à chaque rendu)
@@ -64,12 +65,12 @@
   const comptes = [...document.querySelectorAll('.compte')].map(e => ({ e, de: Number(e.dataset.de || 0), a: Number(e.dataset.a), t: temps(e.dataset.in || '0'), d: Number(e.dataset.duree || 1.2), dec: Number(e.dataset.dec || 0), suf: e.dataset.suffixe || '' }));
   const fmt = (v, dec) => v.toLocaleString('fr-FR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
-  // sous-titres : groupes de 1 à 4 mots (coupés aux ponctuations, jamais après un petit mot), mot prononcé en couleur
-  const PETITS = new Set(['de', 'a', 'tes', 'ton', 'ta', 'le', 'la', 'les', 'un', 'une', 'en', 'et', 'ce', 'que', 'qui', 'tu', 'il', 'sur', 'aux', 'du', 'des', 'se', 'ne', 'te', 'lui', 'leur', 'sans', 'dans', 'pas', 'est', 'elle', 'ca', 'je', 'au', 'mon', 'ma', 'mes', 'son', 'sa', 'ses', 'chaque', 'tout']);
+  // sous-titres : groupes de 1 à 5 mots (coupés aux ponctuations, jamais après un petit mot), mot prononcé en couleur
+  const PETITS = new Set(['de', 'a', 'tes', 'ton', 'ta', 'le', 'la', 'les', 'un', 'une', 'en', 'et', 'ce', 'que', 'qui', 'tu', 'il', 'sur', 'aux', 'du', 'des', 'se', 'ne', 'te', 'lui', 'leur', 'sans', 'dans', 'pas', 'est', 'elle', 'ca', 'je', 'au', 'mon', 'ma', 'mes', 'son', 'sa', 'ses', 'chaque', 'tout', 'mana', 'google']);      // « Mana Orbit », « Google Play » : jamais coupés
   const groupes = [];
   { let g = [];
     MOTS.forEach((m, i) => { g.push(m); const lettres = g.reduce((a, x) => a + x.w.length, 0), dernier = i === MOTS.length - 1;
-      if (dernier || m.ponct || ((g.length >= 3 || lettres >= 15) && !PETITS.has(norm(m.w))) || g.length >= 4) { groupes.push(g); g = []; } }); }
+      if (dernier || m.ponct || ((g.length >= 3 || lettres >= 15) && !PETITS.has(norm(m.w))) || g.length >= 5) { groupes.push(g); g = []; } }); }
   const st = document.createElement('div'); st.className = 'st'; st.innerHTML = '<p></p>'; document.querySelector('.scene').appendChild(st);
   const p = st.firstChild;
   const plages = groupes.map((g, i) => { const a = g[0].t0 - 0.06, n = groupes[i + 1], fin = g[g.length - 1].t1; return { g, a, b: n && n[0].t0 - 0.06 - fin < 0.5 ? n[0].t0 - 0.06 : fin + 0.4 }; });

@@ -668,9 +668,10 @@ async function rawFor(lang) {
 /* ── Écrans des vidéos courtes (tools/shorts, node tools/store-assets.mjs video fr) → shots/video/<langue>-<écran>.png (984 × 1584, non versionnés) ─────────
    Les écrans de la fiche, plus des étapes : scan carte par carte (langues), QR de la liste d'échange, guide « Passer de ManaBox », Carte mystère indice par indice. */
 async function videoFor(lang) {
+  const only = (process.argv[4] || '').split(',').filter(Boolean);      // node tools/store-assets.mjs video fr liste,qr : ces étapes seulement
   const { ctx, p, errs } = await openApp(lang), dir = 'shots/video/'; mkdirSync(dir, { recursive: true });
   const snap = async n => { await imgsReady(p); await p.waitForTimeout(250); writeFileSync(dir + lang + '-' + n + '.png', await p.screenshot({ type: 'png' })); console.log('  ' + dir + lang + '-' + n + '.png'); };
-  const step = async (n, f) => { try { await toHome(p); await p.waitForTimeout(300); await f(); } catch (e) { console.log(`  ! ${n} : ${String(e.message || e).split('\n')[0]}`); } };
+  const step = async (n, f) => { if (only.length && !only.includes(n)) return; try { await toHome(p); await p.waitForTimeout(300); await f(); } catch (e) { console.log(`  ! ${n} : ${String(e.message || e).split('\n')[0]}`); } };
   const shot = id => SHOTS.find(x => x.id === id) || OLD_SHOTS.find(x => x.id === id);
   await step('accueil', async () => { await shot('02-cote').go(p, lang); await snap('accueil'); });
   await step('scan', async () => {
@@ -690,6 +691,13 @@ async function videoFor(lang) {
     await p.evaluate(u => { const b = document.querySelector('.sheet-wrap.open'); b.querySelector('.qr-img').innerHTML = qrSvg(u).svg; b.querySelector('.qr-url').textContent = u; }, 'https://manaorbit.app/flyer');
     await p.waitForTimeout(700); await snap('qr');
     await p.evaluate(() => { D.user = window.__u; TR.share = null; });
+  });
+  await step('liste', async () => {      // la liste d'échange vue par le pote qui a scanné le QR code (onglet « À échanger »)
+    await shot('90-echange').go(p, lang);
+    await p.evaluate(() => openPublicTrade(readShare('trade', { ...trPayload(), by: 'Martin', at: Date.now() - 180e3 }), false, ''));
+    await p.waitForSelector('.pubv.on #pubSub [data-v="have"]'); await p.click('.pubv.on #pubSub [data-v="have"]'); await p.waitForTimeout(1200);
+    await p.addStyleTag({ content: '.pubv .tag.good{display:none}' }); await snap('liste');      // « déjà à toi » : le visiteur est ici le propriétaire lui-même
+    await p.evaluate(() => TR.pub && TR.pub.el && TR.pub.el.__close());
   });
   await step('decks', async () => {
     await shot('06-decks').go(p, lang); await snap('decks');

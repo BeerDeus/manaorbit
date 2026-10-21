@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>l5-decks · Le deck Commander que tu as presque</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="lancement.css">
+<script>window.DUREE = 12.2; window.DECALAGE_VOIX = 0.3; window.COUVERTURE = 2.6;</script>
+<style>
+  /* anneau de progression : 75 cartes sur 85 du deck Edgar Markov (vraie ligne de l'écran Decks) */
+  .anneau2{position:absolute;left:240px;top:640px;width:600px;height:600px;z-index:20;animation:pop .5s var(--ressort) var(--in) both,telo .4s cubic-bezier(.5,0,.8,.4) var(--out) forwards}
+  .anneau2 > svg{position:absolute;inset:0;rotate:-90deg}
+  .anneau2 > svg circle{fill:none;stroke-width:40;stroke-linecap:round}
+  .anneau2 .fondr{stroke:var(--surface-2)}
+  .anneau2 .plein{stroke:url(#gr);stroke-dasharray:1634;stroke-dashoffset:1634;animation:remplit 1.6s var(--doux) calc(var(--in) + .2s) both}
+  @keyframes remplit{to{stroke-dashoffset:196}}
+  .anneau2 .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .anneau2 b{font-family:Bricolage;font-weight:800;font-size:170px;letter-spacing:-.05em;line-height:1}
+  .anneau2 small{font-size:36px;font-weight:600;color:var(--ink-2);margin-top:4px}
+  .anneau2 .pips{display:flex;gap:12px;margin-top:22px}.anneau2 .pips i{display:block;width:56px;height:56px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))}
+  .couvt{display:none}
+  .couv .couvt{display:block;top:240px}
+  .couv .st{display:none}
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="bg"></div>
+  <div class="halo" style="--y:1100px"></div>
+  <div class="orbite" data-rx="600" data-ry="150" data-mana="RWB" style="--y:1560px;--tour:16s;--deg:-10deg"></div>
+
+  <div class="anneau2" style="--in:.1s" data-out="mana-0.15">
+    <svg viewBox="0 0 600 600"><defs><linearGradient id="gr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd08c"/><stop offset="1" stop-color="#7be8c8"/></linearGradient></defs>
+      <circle class="fondr" cx="300" cy="300" r="260"/><circle class="plein" cx="300" cy="300" r="260"/></svg>
+    <div class="mid"><b class="compte" style="--in:.3s" data-in="0.3" data-a="88" data-duree="1.6" data-suffixe=" %">0</b><small>du deck Edgar Markov</small>
+      <div class="pips"><i data-mana-sym="R"></i><i data-mana-sym="W"></i><i data-mana-sym="B"></i></div></div>
+  </div>
+
+  <div class="tel2 flotte" data-in="mana-0.2">
+    <div class="vue">
+      <div class="ecr zoom" data-src="decks" style="--in:0s;--z:1.7;--ox:92%;--oy:33%" data-zin="manque-0.35" data-zout="combien>+0.25"></div>
+      <div class="tap" data-in="collection" style="--x:38%;--y:18.5%"></div>
+    </div>
+  </div>
+  <div class="pastille ok" data-in="savoir-0.1" data-out="mana-0.15" style="left:270px;top:1290px;rotate:-3deg;animation:pop .45s var(--ressort) var(--in) both,fondu .2s linear var(--out) forwards"><b>75 / 85</b> cartes déjà à toi</div>
+
+  <div class="titre couvt">Tu as <em>presque</em> tout<br>ce deck Commander</div>
+  <div class="fin" data-in="coute>+0.8"></div>
+</div>
+<script src="base.js"></script>
+<script src="lancement.js"></script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>l7-mystere · La carte mystère de 18 h</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="lancement.css">
+<script>window.DUREE = 11.8; window.DECALAGE_VOIX = 0.3; window.COUVERTURE = 5.9;</script>
+<style>
+  .heure{position:absolute;left:0;right:0;top:720px;text-align:center;z-index:20;animation:pop .5s var(--ressort) var(--in) both,telo .4s cubic-bezier(.5,0,.8,.4) var(--out) forwards}
+  .heure b{display:inline-block;padding:10px 60px 26px;border-radius:60px;background:var(--surface);border:3px solid var(--line);font-family:Bricolage;font-weight:800;font-size:260px;letter-spacing:-.05em;line-height:1;color:var(--warm);text-shadow:0 20px 60px rgba(255,212,121,.35);box-shadow:0 40px 90px -30px rgba(0,0,0,.95)}
+  .heure small{display:block;margin-top:30px;font-size:44px;font-weight:600;color:var(--ink-2)}
+  .indices{position:absolute;left:0;right:0;top:560px;z-index:36;display:flex;justify-content:center;gap:14px}
+  .indices i{width:58px;height:58px;border-radius:50%;background:var(--surface-2);border:3px solid var(--line);display:flex;align-items:center;justify-content:center;font-style:normal;font-family:Bricolage;font-weight:800;font-size:28px;color:var(--ink-3);
+    animation:allume .25s var(--ressort) var(--in) both}
+  @keyframes allume{from{background:var(--surface-2);color:var(--ink-3);border-color:var(--line);scale:1}to{background:var(--accent);color:#0b0f1c;border-color:var(--accent);scale:1.12}}
+  .indices.part{animation:pop .4s var(--ressort) var(--in) both,fondu .25s linear var(--out) forwards}
+  .question{position:absolute;left:0;right:0;top:600px;z-index:36;text-align:center;animation:pop .5s var(--ressort) var(--in) both}
+  .question b{display:inline-block;padding:20px 50px;border-radius:999px;background:rgba(19,26,43,.95);border:2px solid var(--line);font-family:Bricolage;font-weight:800;font-size:86px;letter-spacing:-.03em;box-shadow:0 30px 70px -20px rgba(0,0,0,.95);rotate:-2deg}
+  .question em{color:var(--warm)}
+  .couvt{display:none}
+  .couv .couvt{display:block;top:230px}
+  .couv .st,.couv .indices{display:none}
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="bg"></div>
+  <div class="halo" style="--y:1100px"></div>
+  <div class="orbite" data-rx="600" data-ry="150" data-mana="WUBRG" style="--y:1560px;--tour:16s;--deg:-10deg"></div>
+
+  <div class="heure" style="--in:.1s" data-out="une-0.15"><b>18:00</b><small>chaque soir</small></div>
+
+  <div class="tel2 flotte" data-in="nouvelle-0.1">
+    <div class="vue">
+      <div class="ecr" data-src="mystere-0" style="--in:0s"></div>
+      <div class="tap" data-in="mystere-0.05" style="--x:73%;--y:94%"></div>
+      <div class="ecr zoom" data-in="un-0.15" data-zin="un" style="--z:1.22;--oy:28%">
+        <div class="ecr" data-src="mystere-1" style="--in:0s"></div>
+        <div class="ecr" data-src="mystere-2" data-in="indice"></div>
+        <div class="ecr" data-src="mystere-3" data-in="apres"></div>
+        <div class="ecr" data-src="mystere-4" data-in="autre"></div>
+        <div class="ecr" data-src="mystere-5" data-in="deviner-0.1"></div>
+      </div>
+      <div class="tap" data-in="avant" style="--x:30%;--y:95%"></div>
+    </div>
+  </div>
+  <div class="indices part" data-in="un-0.15" data-out="tu-0.15"><i data-in="un">1</i><i data-in="indice">2</i><i data-in="apres">3</i><i data-in="autre">4</i><i data-in="deviner-0.1">5</i><i data-in="999">6</i><i data-in="999">7</i><i data-in="999">8</i><i data-in="999">9</i><i data-in="999">10</i></div>
+  <div class="question" data-in="combien-0.2"><b>Tu la trouves en <em>?</em> indices</b></div>
+
+  <div class="titre couvt">Devine la carte<br><em>mystère</em> du jour</div>
+  <div class="fin" data-in="combien>+0.9"></div>
+</div>
+<script src="base.js"></script>
+<script src="lancement.js"></script>
+</body>
+</html>

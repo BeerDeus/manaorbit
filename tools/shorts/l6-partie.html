@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>l6-partie · Le compteur de la table de Commander</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="lancement.css">
+<!-- Sans voix (musique ajoutée dans l'appli au moment de publier) : sous-titres écrits, instants en secondes -->
+<script>window.DUREE = 11.4; window.COUVERTURE = 2.4;
+  window.SOUS_TITRES = [[0.15, 2.3, 'Ta prochaine partie de <em>Commander</em>'], [2.3, 4.3, '4 joueurs, un seul téléphone'], [4.3, 7.0, 'Tout est compté'], [7.0, 8.8, 'Et qui commence&nbsp;? <em>Au hasard</em>']];</script>
+<style>
+  .opts{position:absolute;left:70px;right:70px;top:560px;z-index:36;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+  .opts .pastille{position:static;font-size:40px;padding:16px 28px;animation:pop .4s var(--ressort) var(--in) both,fondu .2s linear var(--out) forwards}
+  .opts .pastille i{width:22px;height:22px;border-radius:50%;background:var(--c)}
+  .de{position:absolute;left:390px;top:1000px;width:300px;height:300px;z-index:36;border-radius:60px;background:var(--warm);color:#0b0f1c;display:flex;align-items:center;justify-content:center;font-family:Bricolage;font-weight:800;font-size:190px;
+    box-shadow:0 40px 80px -20px rgba(0,0,0,.95);animation:lance 1s cubic-bezier(.2,.9,.3,1.2) var(--in) both,fondu .2s linear var(--out) forwards}
+  @keyframes lance{0%{opacity:0;translate:-500px -300px;rotate:-400deg;scale:.4}60%{opacity:1}100%{opacity:1;translate:0 0;rotate:8deg;scale:1}}
+  .qui{position:absolute;left:0;right:0;top:1330px;z-index:36;text-align:center;animation:pop .4s var(--ressort) var(--in) both,fondu .2s linear var(--out) forwards}
+  .qui span{display:inline-block;padding:18px 40px;border-radius:999px;background:var(--accent);color:#0b0f1c;font-family:Bricolage;font-weight:800;font-size:54px}
+  .couvt{display:none}
+  .couv .couvt{display:block;top:240px}
+  .couv .st,.couv .opts{display:none}
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="bg"></div>
+  <div class="halo" style="--y:1100px"></div>
+  <div class="orbite" data-rx="600" data-ry="150" data-mana="WUBRG" style="--y:1560px;--tour:16s;--deg:-10deg"></div>
+
+  <div class="tel2 flotte" style="--in:0s">
+    <div class="vue">
+      <div class="ecr zoom" data-src="partie" style="--in:0s;--zin:2.4s;--zout:4.3s;--z:1.5;--ox:0%;--oy:0%"></div>
+      <div class="tap" style="--in:1.2s;--x:25%;--y:25%"></div>
+      <div class="tap" style="--in:1.55s;--x:75%;--y:75%"></div>
+      <div class="tap" style="--in:6.0s;--x:50%;--y:50%"></div>
+    </div>
+  </div>
+  <div class="opts">
+    <div class="pastille" style="--in:4.4s;--out:7s;--c:var(--ink)"><i></i>Points de vie</div>
+    <div class="pastille" style="--in:4.75s;--out:7s;--c:var(--corail)"><i></i>Blessures de commandant</div>
+    <div class="pastille" style="--in:5.1s;--out:7s;--c:var(--ok)"><i></i>Poison</div>
+    <div class="pastille" style="--in:5.45s;--out:7s;--c:var(--warm)"><i></i>Monarque</div>
+    <div class="pastille" style="--in:5.8s;--out:7s;--c:var(--violet)"><i></i>Initiative</div>
+    <div class="pastille" style="--in:6.15s;--out:7s;--c:var(--bleu)"><i></i>Tours</div>
+  </div>
+  <div class="de" style="--in:7.05s;--out:8.8s">3</div>
+  <div class="qui" style="--in:7.9s;--out:8.8s"><span>Zoé commence</span></div>
+
+  <div class="titre couvt">Le compteur de vie<br>de ta table de <em>Commander</em></div>
+  <div class="fin" style="--in:8.8s"></div>
+</div>
+<script src="base.js"></script>
+<script src="lancement.js"></script>
+</body>
+</html>
