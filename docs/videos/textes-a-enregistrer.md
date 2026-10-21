@@ -1,13 +1,28 @@
 # Ta voix sur les vidéos de lancement
 
-Un fichier par vidéo, envoyé tel quel (mémo vocal du téléphone en .m4a, ou .mp3, .wav) et nommé par la vidéo (`l2-classeur.m4a`…). Je le nettoie et je le pose, et la vidéo se recale toute seule sur ta voix : sous-titres, écrans, zooms, durée.
+Un fichier par vidéo, **brut** (sans effet ni normalisation : je m'en occupe), nommé par la vidéo (`l2-classeur.wav`…). Je le nettoie et je le pose, et la vidéo se recale toute seule sur ta voix : sous-titres, écrans, zooms, durée.
+
+## Sur le PC (micro Rode + Scarlett, Windows)
+1. **Pilote** : Focusrite Control (Scarlett 3e génération) ou Focusrite Control 2 (4e) sur focusrite.com. Si la Scarlett apparaît comme une clé USB (« Easy Start ») : 3e génération, garder le bouton 48V appuyé 5 s puis la rebrancher ; 4e génération, l'installation de Focusrite Control 2 s'en charge.
+2. **Windows** : Paramètres › Son › Focusrite (entrée) › Propriétés : format 24 bits, 48 000 Hz, « Améliorations audio » désactivées. Mêmes réglages pour la sortie casque.
+3. **Micro** : entrée 1 de la Scarlett, câble XLR.
+   - Condensateur (NT1, NT1-A, NT2-A…) : **48V allumé** ; on parle **sur la face** (logo / point doré face à la bouche) à 15-20 cm, avec un filtre anti-pop.
+   - Dynamique (PodMic, Procaster) : **48V éteint** ; on parle **dans le bout** à 5-10 cm ; il faut beaucoup de gain (bouton aux trois quarts, c'est normal).
+   - USB (NT-USB, PodMic USB) : branché directement au PC, la Scarlett ne sert pas.
+   - Dans tous les cas : micro un peu de biais (15-30°), pas pile face à la bouche : les « p » de « pote », « parties », « Google Play » ne claquent pas.
+4. **Casque** branché sur la Scarlett, **Direct Monitor** allumé (bouton en façade en 3e génération, Focusrite Control 2 en 4e) : tu t'entends sans décalage. Jamais d'enceintes pendant la prise.
+5. **Gain** : parle comme pour la vraie prise ; le cercle autour du bouton reste vert, orange seulement sur les mots les plus forts, jamais rouge (une saturation ne se répare pas). 4e génération : « Auto Gain » (appui, puis 10 s de parole) fait le réglage. **Air** : à essayer, souvent mieux sur la voix ; garder ce qui sonne le plus naturel au casque.
+6. **Audacity** (gratuit, audacityteam.org) : Paramètres audio › hôte **Windows WASAPI**, enregistrement « Focusrite USB » (Analogue 1), **1 canal (mono)**, fréquence du projet **48 000 Hz**. Pendant la prise, les crêtes du vumètre vers **-12 à -6 dB**.
+7. **Test** : 10 s de silence, puis réécoute au casque, volume fort. Souffle, ventilateur, frigo, PC ? Éloigne le micro de la tour, coupe ce qui ronronne.
+8. **Prises** : chaque texte 2 ou 3 fois d'affilée sur la même piste, une seconde de silence entre les prises. Sélectionne la meilleure, puis Fichier › Exporter l'audio (ou « Exporter la sélection ») : **WAV, PCM 24 bits, mono**.
 
 ## Pour que ça sonne bien
-- Pièce calme et « molle » (rideaux, canapé, placard à vêtements) plutôt que cuisine ou salle de bain ; pas de musique ni de télé.
-- Téléphone à 15-20 cm, un peu sur le côté de la bouche (pas de souffle sur le micro) ; mode avion pour éviter un appel en plein milieu.
+- Pièce calme et « molle » (rideaux, canapé, lit, placard à vêtements derrière toi) plutôt qu'un mur nu, une cuisine ou une salle de bain. Pas de musique ni de télé.
 - Une seconde de silence avant de parler et après le dernier mot : je coupe le reste.
-- Parle comme à un pote à la table de jeu, pas comme une pub. Plusieurs prises, garde celle qui te plaît.
+- Assis droit ou debout, de l'eau à portée (pas de café ni de lait juste avant). Lis chaque texte une fois à voix haute pour te chauffer.
+- Parle comme à un pote à la table de jeu, pas comme une pub ; souris en parlant, ça s'entend.
 - Rythme : environ la durée indiquée ; plus long ou plus court, la vidéo s'adapte (évite juste de dépasser de beaucoup).
+- Sans le PC : un mémo vocal du téléphone marche aussi (.m4a), téléphone à 15-20 cm, mode avion.
 
 ## Les textes
 Le mieux est de les lire tels quels. Si tu changes un mot, dis-le moi : les sous-titres affichent ce texte, et certaines apparitions sont accrochées à un mot (« scanne », « QR code »…).
