@@ -16,9 +16,12 @@ On part de zéro : les anciennes vidéos (série s0, test fermé) sont supprimé
 
 ## À faire une fois (propriétaire)
 
+Comptes créés ; **rien ne change sur les trois réseaux avant la mise en production** (bios, publications), décidé le 21 octobre.
+
+
 - **Instagram** (@manaorbit.app, existant) : nouvelle bio ci-dessous, lien de la bio, et archiver (pas supprimer) les publications du test fermé s'il y en a.
-- **TikTok** : créer le compte **@manaorbit** (sinon @manaorbit.app), même photo de profil (logo). Compte **personnel**, pas « Entreprise » : un compte Entreprise n'a que la bibliothèque musicale commerciale, sans les sons tendance qui portent la portée. Limite : le lien cliquable de la bio n'arrive qu'avec un certain nombre d'abonnés (1 000 aujourd'hui selon TikTok) ; d'ici là, écrire `manaorbit.app` en clair dans la bio et dire « Mana Orbit sur Google Play » dans la description.
-- **YouTube** : chaîne « Mana Orbit » (identifiant @manaorbit), même logo, bannière facultative (le visuel de fonctionnalité de la fiche Play convient).
+- **TikTok** : compte **@mana.orbit** créé le 21 octobre, même photo de profil (logo). Compte **personnel**, pas « Entreprise » : un compte Entreprise n'a que la bibliothèque musicale commerciale, sans les sons tendance qui portent la portée. Limite : le lien cliquable de la bio n'arrive qu'avec un certain nombre d'abonnés (1 000 aujourd'hui selon TikTok) ; d'ici là, écrire `manaorbit.app` en clair dans la bio et dire « Mana Orbit sur Google Play » dans la description.
+- **YouTube** : chaîne « Mana Orbit » créée le 21 octobre, même logo, bannière facultative (le visuel de fonctionnalité de la fiche Play convient).
 - Activer les **notifications de commentaires** sur les trois : répondre dans la première heure compte autant que la vidéo.
 
 ## Bios
