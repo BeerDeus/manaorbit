@@ -36,7 +36,7 @@ if (!existsSync(SHOTS + '08-valeur.png')) {
 const VALUE = `data:image/png;base64,${b64(SHOTS + '08-valeur.png')}`;
 /** Illustration d'une vraie carte, si elle a été déposée dans tools/flyer-art/<nom>.jpg ou .png (recadrage « art crop » de Scryfall) ; sinon null (dégradé foil). */
 const artOf = n => { for (const e of ['jpg', 'png']) { const f = `tools/flyer-art/${n}.${e}`; if (existsSync(f)) return `data:image/${e === 'jpg' ? 'jpeg' : 'png'};base64,${b64(f)}`; } return null; };
-const QR = qrSvgLogo(FLYER_URL, { minV: 5 }).svg;      // celui de l'appli : encre marine, niveau H, logo au centre ; version 5 imposée (37 modules, fenêtre du logo de 11 : ≈ 6 mm sur le QR de 25 mm de l'A5, ≈ 0,55 mm par module)
+const QR = qrSvgLogo(FLYER_URL, { minV: 5 }).svg;      // celui de l'appli : encre marine, niveau H, logo au centre ; version 5 imposée (37 modules, fenêtre du logo de 11 : ≈ 6 mm sur le QR de 25 mm de l'A5, ≈ 0,55 mm par module ; carte de visite : QR de 30 mm, 0,64 mm par module)
 const FOIL = ['#ff8fc3', '#ffd479', '#7be8c8', '#7fb0ff', '#c79bff'];
 const foilStops = FOIL.map((c, i) => `<stop offset="${i / 4}" stop-color="${c}"/>`).join('');
 const LOGO = `<svg viewBox="6 8 88 88" class="logo" aria-hidden="true"><defs><linearGradient id="lgF" x1="0" y1="0" x2="1" y2="1">${foilStops}</linearGradient></defs>
@@ -276,14 +276,14 @@ function cardPage(side) {
   .tag{position:absolute;left:5mm;top:37mm;margin:0;font-size:6.2pt;line-height:1.35;color:#b9c0d8}
   .url{position:absolute;left:5mm;bottom:5mm;margin:0;font-family:'MO Display';font-weight:720;font-size:8pt;letter-spacing:-.01em}
   .url small{margin-left:1.4mm;padding:.3mm 1.4mm;border:.2mm solid rgba(255,255,255,.35);border-radius:3mm;font-family:'MO Text';font-weight:650;font-size:5.4pt;letter-spacing:.06em;text-transform:uppercase;color:#c9d0e6;vertical-align:.3mm}
-  .qrb{position:absolute;left:5mm;top:5mm;width:27mm;height:27mm;padding:.6mm;border-radius:2.4mm;background:#fff;overflow:hidden}      /* overflow : le fond blanc carré du SVG ne pointe pas hors des coins arrondis */
+  .qrb{position:absolute;left:5mm;top:5mm;width:30mm;height:30mm;padding:.6mm;border-radius:2.4mm;background:#fff;overflow:hidden}      /* overflow : le fond blanc carré du SVG ne pointe pas hors des coins arrondis */
   .qrb svg{display:block;width:100%;height:100%}
-  .cx{position:absolute;left:36mm;top:5.4mm;right:4mm;display:flex;flex-direction:column;gap:.9mm}
-  .cx b{font-family:'MO Display';font-weight:780;font-size:9.6pt;letter-spacing:-.02em;line-height:1.05}
-  .cx small{font-size:6.2pt;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:#7be8c8}
-  .cx span{margin-top:.6mm;font-size:6.4pt;line-height:1.45;color:#b9c0d8}
+  .cx{position:absolute;left:39mm;top:5.4mm;right:3.5mm;display:flex;flex-direction:column;gap:1mm}
+  .cx b{font-family:'MO Display';font-weight:780;font-size:10.4pt;letter-spacing:-.02em;line-height:1.05}
+  .cx small{font-size:6.7pt;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:#7be8c8}
+  .cx span{margin-top:.6mm;font-size:6.9pt;line-height:1.45;color:#b9c0d8}
   .cx strong{color:#eef1fb;font-weight:650}
-  .cx .soon{display:inline-block;padding:.1mm .9mm;border-radius:1.2mm;background:#eef1fb;color:#10152b;font-style:normal;font-size:4.8pt;font-weight:700;letter-spacing:.05em;text-transform:uppercase;vertical-align:.2mm}
+  .cx .soon{display:inline-block;padding:.1mm .9mm;border-radius:1.2mm;background:#eef1fb;color:#10152b;font-style:normal;font-size:5.2pt;font-weight:700;letter-spacing:.05em;text-transform:uppercase;vertical-align:.2mm}
   .cfine{position:absolute;left:5mm;right:5mm;bottom:3.6mm;margin:0;font-size:4.6pt;line-height:1.3;color:#8a92ad}
   </style></head><body><div class="pg"><div class="bg"></div><div class="t">${body}</div></div></body></html>`;
 }
