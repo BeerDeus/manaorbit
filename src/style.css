@@ -274,6 +274,11 @@ textarea#deckText:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0
 @media (max-width:380px){
   .grid2{grid-template-columns:1fr}
   .hero-amt{font-size:38px}
+  /* lignes de cartes sur un écran étroit (Android 360, iPhone SE) : vignette et compteur plus fins, le prix passe sous le nom plutôt que de le couper au milieu d'un mot */
+  .crow{grid-template-columns:36px minmax(0,1fr) auto;gap:8px;padding:8px}
+  .crow .thumb{width:36px;height:50px;font-size:18px}
+  .crow .row-top{flex-wrap:wrap;row-gap:2px}
+  .qstep button{width:28px}.qstep b{min-width:20px}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
@@ -1457,7 +1462,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .imgv-wish[hidden]{display:none}
 .set-ver{margin:14px 0 0;text-align:center;font-family:var(--font-code);font-size:11.5px}
 .dv-acts{margin-top:2px}.dv-acts .btn,.tr-wacts .btn{flex:1 1 auto;height:44px;font-size:14px}
-.dv-acts .btn{flex-basis:calc(50% - 4px);min-width:0;font-size:13.5px}      /* viewer d'un deck : deux boutons par ligne quand leurs libellés tiennent (sinon la ligne entière), la liste des cartes remonte d'autant */
+.dv-acts .btn{flex-basis:calc(50% - 4px);min-width:0;height:auto;min-height:44px;padding:6px 10px;font-size:13.5px;line-height:1.15}      /* viewer d'un deck : deux boutons par ligne quand leurs libellés tiennent (sinon la ligne entière), la liste des cartes remonte d'autant */
 .tr-wacts{margin-bottom:10px}
 
 /* ── Identité « Arcane » (celle de l'accueil) sur toute l'appli : aurore de mana en fond, surfaces en verre, foil ─────────────

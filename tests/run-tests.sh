@@ -43,7 +43,8 @@ fail=0
 for t in "${T[@]}"; do
   # node:test : sortie dès le dernier test fini (même code retour) ; une poignée restée ouverte (une fois sur la CI, test-daily : 21 tests passés) gardait sinon le processus jusqu'au timeout
   f=(); grep -q "from 'node:test'" "tests/$t" && f=(--test-force-exit)
-  s=$(date +%s); timeout 420 node "${f[@]}" "tests/$t" > "tests/logs/$t.txt" 2>&1; rc=$?
+  to=420; [ "$t" = menus-e2e.mjs ] && to=900      # tour de l'interface : 4 passes × 48 écrans
+  s=$(date +%s); timeout $to node "${f[@]}" "tests/$t" > "tests/logs/$t.txt" 2>&1; rc=$?
   echo "$t rc=$rc $(( $(date +%s)-s ))s" | tee -a tests/run-tests.out
   # Échec : la fin du log s'affiche aussi (lisible directement dans le journal de la CI, sans télécharger l'artefact).
   if [ $rc -ne 0 ]; then fail=$((fail+1)); tail -n 30 "tests/logs/$t.txt" | sed 's/^/    │ /'; fi

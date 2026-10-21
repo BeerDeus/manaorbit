@@ -3,7 +3,7 @@
 // et vérifications d'affichage : aucune erreur de page, rien qui dépasse à droite (défilement horizontal, élément hors de l'écran), aucun texte
 // coupé sans « … », textes ≥ 11 px, boutons touchables (≥ 28 px), dernier contenu pas caché sous la barre du bas, titre du dialogue présent.
 // Les manques « doux » (petit texte, bouton étroit) sont listés sans faire échouer, sauf UI_STRICT=1. Comparaison à des captures de référence :
-// UI_BASE=<dossier> (même arborescence) : écart de pixels > 0,6 % listé (échec avec UI_STRICT=1) ; UI_ONLY=<appareil> et UI_SCREENS=a,b pour cibler.
+// UI_BASE=<dossier> (même arborescence) : écart de pixels > 0,6 % listé (échec avec UI_STRICT=1) ; UI_ONLY=<appareil> et UI_SCREENS=a,b pour cibler ; UI_FULL=1 : les 8 appareils et les deux thèmes (12 passes, ≈ 20 min), sinon 4 passes.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
@@ -25,6 +25,8 @@ const DEVICES = [
   { id: 'desktop', w: 1280, h: 800, dpr: 1, mobile: false, themes: ['light', 'dark'] },
   { id: 'desktop-xl', w: 1890, h: 900, dpr: 1, mobile: false, themes: ['light'] },
 ].filter(d => !ONLY || d.id === ONLY);
+// Dans la série (run-tests.sh) : quatre passes, le plus petit iPhone, l'iPhone courant en sombre, l'Android étroit et l'ordinateur ; UI_FULL=1 : les douze passes
+if (!process.env.UI_FULL && !ONLY) for (const d of DEVICES) d.themes = { 'iphone-se': ['light'], 'iphone-15': ['dark'], 'android-s': ['light'], desktop: ['light'] }[d.id] || [];
 
 /* ── Données : une collection rangée, des decks, un historique de valeur, visite guidée faite ── */
 const COLL_TEXT = ['//@L ab12 binder Classeur rouge', '//@L cd34 box!skip Boîte à garder', '//@L ef56 sale!all Bac à vendre',
@@ -45,7 +47,7 @@ const seedDecks = p => p.evaluate(() => {
 const closeAll = async p => {
   await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
   for (let i = 0; i < 4; i++) {
-    const open = await p.evaluate(() => { const l = document.querySelectorAll('body > .dv.on'); const top = l[l.length - 1]; if (!top) return false; const b = top.querySelector('.dv-back, [data-pu="close"], .sc-close, [data-close]'); if (b) b.click(); else if (typeof navGo === 'function') navGo('home'); return true; });
+    const open = await p.evaluate(() => { const l = document.querySelectorAll('body > .dv.on'); const top = l[l.length - 1]; if (!top) return false; if (typeof top.__close === 'function') { top.__close(); return true; } const b = top.querySelector('.dv-back, [data-pu="close"], .sc-close, [data-close]'); if (b) b.click(); else if (typeof navGo === 'function') navGo('home'); return true; });      // chaque écran pose son __close (partie en cours : pas de bouton retour)
     if (!open) break; await p.waitForTimeout(250);
   }
   await p.evaluate(() => { if (typeof navGo === 'function') navGo('home'); });
