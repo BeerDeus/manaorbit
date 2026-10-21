@@ -71,7 +71,7 @@ const pubOn = (p, who) => p.waitForFunction(w => { const el = document.querySele
   assert.ok(last.rep <= b.top, '« Signaler ce partage » (bas de la page) au-dessus de la barre : ' + JSON.stringify([last, b.top]));
   assert.ok(last.hit, 'le bas de la page reste touchable');
   await p.screenshot({ path: 'shots/applink-1-barre.png' });
-  const row = await p.$('.pubv .pub-row'); await row.scrollIntoViewIfNeeded(); await row.click();
+  await p.locator('.pubv .pub-row').first().click();      // localisateur relu au moment du clic : la liste se repeint quand les images arrivent (élément détaché sinon)
   await p.waitForFunction(() => typeof imgView !== 'undefined' && imgView, null, { timeout: 5000 });
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !imgView, null, { timeout: 5000 });
   ok('la page reste utilisable : barre en bas (z 84, sous les feuilles), liste et « Signaler » défilent au-dessus d\'elle, carte en grand au toucher');
