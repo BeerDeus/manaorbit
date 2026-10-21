@@ -7,10 +7,10 @@ On part de zéro : les anciennes vidéos (série s0, test fermé) sont supprimé
 |---|---|---|---|
 | l1-lancement | « Mon appli Magic est sortie » : tout en 15 s | 17,2 s | oui |
 | l2-classeur | Combien vaut ton classeur ? (scan → cote Cardmarket → ce qui monte) | 12,4 s | oui |
-| l3-langues | Le scan lit tes cartes en 11 langues | 11,8 s | non (musique) |
+| l3-langues | Le scan lit tes cartes en 11 langues | ≈ 13 s | oui |
 | l4-echange | Tes doublons en un QR code | 12,4 s | oui |
 | l5-decks | Le deck Commander que tu as presque | 12,2 s | oui |
-| l6-partie | Le compteur de vie de la table de Commander | 11,4 s | non (musique) |
+| l6-partie | Le compteur de vie de la table de Commander | ≈ 13,5 s | oui |
 | l7-mystere | La carte mystère de 18 h | 11,8 s | oui |
 | l8-manabox | Passer de ManaBox en 2 minutes | 12,2 s | oui |
 
@@ -60,8 +60,7 @@ Ensuite : 2 à 3 vidéos par semaine. Les meilleures des 8 (vues, partages, abon
 
 ## Son
 
-- **Vidéos avec voix** (l1, l2, l4, l5, l7, l8) : ajouter dans l'appli du réseau un son tendance **instrumental**, volume de la musique à **10-15 %** (la voix doit rester devant), volume du son d'origine à 100 %.
-- **Vidéos sans voix** (l3, l6) : son tendance plein volume ; les sous-titres portent le message.
+- Toutes les vidéos ont une voix : ajouter dans l'appli du réseau un son tendance **instrumental**, volume de la musique à **10-15 %** (la voix doit rester devant), volume du son d'origine à 100 %.
 - Jamais de musique ajoutée hors des bibliothèques des réseaux (droits d'auteur : son coupé ou vidéo bloquée). Sur YouTube, la bibliothèque audio de YouTube Studio, ou rien.
 - **Voix** : le propriétaire enregistrera la sienne (les voix de synthèse s'entendent sur les Reels) : textes et conseils dans `docs/videos/textes-a-enregistrer.md`, pose par `ma-voix.mjs`. Tant que c'est la voix Gemini, cocher « contenu généré par l'IA » si l'appli du réseau le demande.
 

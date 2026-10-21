@@ -5,9 +5,7 @@
 <title>l3-langues · Le scan lit tes cartes en 11 langues</title>
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="lancement.css">
-<!-- Sans voix (musique ajoutée dans l'appli au moment de publier) : sous-titres écrits, instants en secondes -->
-<script>window.DUREE = 11.8; window.COUVERTURE = 3.2;
-  window.SOUS_TITRES = [[0.15, 2.2, 'Ta carte est en <em>japonais</em>&nbsp;?'], [2.2, 3.45, 'Le scan la lit quand même'], [3.45, 6.9, 'Allemand, russe, italien…'], [6.9, 9.25, '<em>11 langues</em>, chinois et coréen compris']];</script>
+<script>window.APRES_VOIX = 3; window.DECALAGE_VOIX = 0.3; window.COUVERTURE = 'lit';</script>
 <style>
   .langue{position:absolute;left:0;right:0;top:560px;z-index:36;text-align:center;animation:pop .4s var(--ressort) var(--in) both,fondu .15s linear var(--out) forwards}
   .langue span{display:inline-flex;align-items:center;gap:18px;padding:20px 38px;border-radius:999px;background:rgba(19,26,43,.95);border:2px solid var(--line);font-family:Bricolage;font-weight:750;font-size:46px;letter-spacing:-.02em;box-shadow:0 24px 50px -18px rgba(0,0,0,.9);rotate:-2deg}
@@ -27,31 +25,31 @@
   <div class="halo" style="--y:1100px"></div>
   <div class="orbite" data-rx="600" data-ry="150" data-mana="WUBRG" style="--y:1560px;--tour:16s;--deg:-10deg"></div>
 
-  <div class="tel2 flotte" style="--in:0s;--out:6.95s">
+  <div class="tel2 flotte" style="--in:0s" data-out="dans-0.2">
     <div class="vue">
-      <div class="ecr zoom" style="--in:0s;--zin:.9s;--z:1.3;--ox:0%;--oy:100%">
+      <div class="ecr zoom" style="--in:0s;--zin:.5s;--z:1.3;--ox:0%;--oy:100%">
         <div class="ecr" data-src="scan-0" style="--in:0s"></div>
-        <div class="ecr" data-src="scan-2" style="--in:2.2s"></div>
-        <div class="ecr" data-src="scan-3" style="--in:3.45s"></div>
-        <div class="ecr" data-src="scan-4" style="--in:4.6s"></div>
-        <div class="ecr" data-src="scan-5" style="--in:5.75s"></div>
+        <div class="ecr" data-src="scan-2" data-in="japonais"></div>
+        <div class="ecr" data-src="scan-3" data-in="allemand"></div>
+        <div class="ecr" data-src="scan-4" data-in="russe"></div>
+        <div class="ecr" data-src="scan-5" data-in="italien"></div>
       </div>
-      <div class="tap" style="--in:1.9s;--x:65%;--y:91%"></div>
-      <div class="tap" style="--in:3.15s;--x:65%;--y:91%"></div>
-      <div class="tap" style="--in:4.3s;--x:65%;--y:91%"></div>
-      <div class="tap" style="--in:5.45s;--x:65%;--y:91%"></div>
+      <div class="tap" data-in="japonais-0.25" style="--x:65%;--y:91%"></div>
+      <div class="tap" data-in="allemand-0.25" style="--x:65%;--y:91%"></div>
+      <div class="tap" data-in="russe-0.25" style="--x:65%;--y:91%"></div>
+      <div class="tap" data-in="italien-0.25" style="--x:65%;--y:91%"></div>
     </div>
   </div>
-  <div class="langue" style="--in:2.25s;--out:3.45s"><span><b>Japonais</b> · Cyclonic Rift</span></div>
-  <div class="langue" style="--in:3.5s;--out:4.6s"><span><b>Allemand</b> · Vampiric Tutor</span></div>
-  <div class="langue" style="--in:4.65s;--out:5.75s"><span><b>Russe</b> · Teferi's Protection</span></div>
-  <div class="langue" style="--in:5.8s;--out:6.9s"><span><b>Italien</b> · Rhystic Study</span></div>
-  <div class="onze" style="--in:7s"><div>
-    <span style="--in:7.05s">Français</span><span style="--in:7.12s">Anglais</span><span style="--in:7.19s">Allemand</span><span style="--in:7.26s">Espagnol</span><span style="--in:7.33s">Italien</span><span style="--in:7.4s">Portugais</span>
-    <span style="--in:7.47s">Russe</span><span class="a" style="--in:7.54s">Japonais</span><span class="a" style="--in:7.61s">Coréen</span><span class="a" style="--in:7.68s">Chinois simplifié</span><span class="a" style="--in:7.75s">Chinois traditionnel</span></div></div>
+  <div class="langue" data-in="japonais+0.05" data-out="allemand"><span><b>Japonais</b> · Cyclonic Rift</span></div>
+  <div class="langue" data-in="allemand+0.05" data-out="russe"><span><b>Allemand</b> · Vampiric Tutor</span></div>
+  <div class="langue" data-in="russe+0.05" data-out="italien"><span><b>Russe</b> · Teferi's Protection</span></div>
+  <div class="langue" data-in="italien+0.05" data-out="dans-0.2"><span><b>Italien</b> · Rhystic Study</span></div>
+  <div class="onze" data-in="onze-0.15"><div>
+    <span data-in="onze-0.1">Français</span><span data-in="onze-0.04">Anglais</span><span data-in="onze+0.02">Allemand</span><span data-in="onze+0.08">Espagnol</span><span data-in="onze+0.14">Italien</span><span data-in="onze+0.2">Portugais</span>
+    <span data-in="onze+0.26">Russe</span><span class="a" data-in="onze+0.32">Japonais</span><span class="a" data-in="coreen">Coréen</span><span class="a" data-in="chinois">Chinois simplifié</span><span class="a" data-in="chinois+0.1">Chinois traditionnel</span></div></div>
 
   <div class="titre couvt">Ta carte est en<br><em>japonais</em>&nbsp;?<small>Le scan la lit quand même</small></div>
-  <div class="fin" style="--in:9.25s"></div>
+  <div class="fin" data-in="coreen>+0.7"></div>
 </div>
 <script src="base.js"></script>
 <script src="lancement.js"></script>

@@ -33,11 +33,17 @@ Le mieux est de les lire tels quels. Si tu changes un mot, dis-le moi : les sous
 **l2-classeur** (≈ 9 s)
 > Ton classeur Magic, tu sais vraiment combien il vaut ? Scanne tes cartes : Mana Orbit les reconnaît, et te donne leur cote Cardmarket. Et chaque jour, tu vois ce qui monte.
 
+**l3-langues** (≈ 10 s)
+> Ta carte est en japonais ? Le scan la lit quand même. Et en allemand, en russe, en italien… Mana Orbit reconnaît tes cartes dans onze langues, même le chinois et le coréen.
+
 **l4-echange** (≈ 9 s)
 > Ton pote te demande ce que t'as en double ? Pas besoin de sortir tout ton classeur. Tu lui montres ton QR code : il le scanne, et il voit ta liste d'échange, toujours à jour.
 
 **l5-decks** (≈ 9 s)
 > Tu as peut-être déjà presque tout un deck Commander, sans le savoir. Mana Orbit compare ta collection aux decks les plus joués, et te dit ce qu'il te manque, et combien ça coûte.
+
+**l6-partie** (≈ 10 s)
+> Ta prochaine partie de Commander ? Pose ton téléphone au milieu de la table : points de vie, blessures de commandant, poison, monarque… tout est compté. Et pour savoir qui commence, on tire au hasard.
 
 **l7-mystere** (≈ 8,5 s)
 > Chaque soir à dix-huit heures, une nouvelle carte mystère. Un indice après l'autre, à toi de la deviner avant les autres. Tu la trouves en combien ?
@@ -45,7 +51,7 @@ Le mieux est de les lire tels quels. Si tu changes un mot, dis-le moi : les sous
 **l8-manabox** (≈ 8,5 s)
 > Tu utilises ManaBox ? Exporte ta collection en CSV, importe le fichier dans Mana Orbit, et c'est fait. Tes cartes, tes quantités, tes langues : rien ne se perd.
 
-l3-langues et l6-partie n'ont pas de voix (musique seule) ; si tu veux en mettre une, je t'écris un texte.
+l2-classeur : fait (21 octobre). Les 7 autres : même réglages, même distance au micro, pour que la série sonne pareil.
 
 ## De mon côté (pour mémoire)
 `node tools/shorts/ma-voix.mjs <id> <fichier>` (nettoyage, voix Gemini gardée en `voix/<id>.gemini.wav`), `node tools/shorts/ecoute.mjs <id>` (le texte lu correspond-il ?), `node tools/shorts/rendu.mjs <id>`, contrôle des images, puis copie dans `docs/videos/`. Source des textes : `tools/shorts/voix.json`.

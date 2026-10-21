@@ -18,6 +18,12 @@
       "texte": "Ton classeur Magic, tu sais vraiment combien il vaut ? Scanne tes cartes : Mana Orbit les reconnaît, et te donne leur cote Cardmarket. Et chaque jour, tu vois ce qui monte."
     },
     {
+      "id": "l3-langues",
+      "titre": "Le scan lit tes cartes en 11 langues",
+      "ton": "Complice, un peu fier sur « onze langues ».",
+      "texte": "Ta carte est en japonais ? Le scan la lit quand même. Et en allemand, en russe, en italien… Mana Orbit reconnaît tes cartes dans onze langues, même le chinois et le coréen."
+    },
+    {
       "id": "l4-echange",
       "titre": "Tes doublons en un QR code",
       "ton": "Complice, comme une astuce entre joueurs.",
@@ -28,6 +34,12 @@
       "titre": "Le deck que tu as déjà",
       "ton": "Avec une petite surprise dans la voix sur la première phrase.",
       "texte": "Tu as peut-être déjà presque tout un deck Commander, sans le savoir. Mana Orbit compare ta collection aux decks les plus joués, et te dit ce qu'il te manque, et combien ça coûte."
+    },
+    {
+      "id": "l6-partie",
+      "titre": "Le compteur de vie de la table de Commander",
+      "ton": "Détendu, comme en sortant les decks pour une partie entre potes.",
+      "texte": "Ta prochaine partie de Commander ? Pose ton téléphone au milieu de la table : points de vie, blessures de commandant, poison, monarque… tout est compté. Et pour savoir qui commence, on tire au hasard."
     },
     {
       "id": "l7-mystere",

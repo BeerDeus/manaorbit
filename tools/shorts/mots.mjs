@@ -29,7 +29,7 @@ function niveaux({ s, rate }) {
 const syllabes = w => Math.max(1, (w.toLowerCase().replace(/es?$/, '').match(/[aeiouyàâäéèêëîïôöûùü]+/g) || []).length);
 /** Mots du texte (ponctuation gardée pour l'affichage) et force de la ponctuation qui suit chacun (0 : aucune, 1 : virgule, 2 : point). */
 export function decoupe(texte) {
-  return texte.replace(/\s+([:;?!»])/g, ' $1').split(/[ \t\n]+/).filter(Boolean).map(w => ({ w, syl: syllabes(w.replace(/[^\p{L}\p{N}]/gu, '') || 'a'), ponct: /[.?!]$/.test(w) ? 2 : /[,:;]$/.test(w) ? 1 : 0 }));
+  return texte.replace(/\s+([:;?!»])/g, ' $1').split(/[ \t\n]+/).filter(Boolean).map(w => ({ w, syl: syllabes(w.replace(/[^\p{L}\p{N}]/gu, '') || 'a'), ponct: /[.?!…]$/.test(w) ? 2 : /[,:;]$/.test(w) ? 1 : 0 }));
 }
 
 export function mots(wav, texte, decalage = 0.4) {

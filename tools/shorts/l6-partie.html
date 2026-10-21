@@ -5,9 +5,7 @@
 <title>l6-partie · Le compteur de la table de Commander</title>
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="lancement.css">
-<!-- Sans voix (musique ajoutée dans l'appli au moment de publier) : sous-titres écrits, instants en secondes -->
-<script>window.DUREE = 11.4; window.COUVERTURE = 2.4;
-  window.SOUS_TITRES = [[0.15, 2.3, 'Ta prochaine partie de <em>Commander</em>'], [2.3, 4.3, '4 joueurs, un seul téléphone'], [4.3, 7.0, 'Tout est compté'], [7.0, 8.8, 'Et qui commence&nbsp;? <em>Au hasard</em>']];</script>
+<script>window.APRES_VOIX = 3.2; window.DECALAGE_VOIX = 0.3; window.COUVERTURE = 'pose';</script>
 <style>
   .opts{position:absolute;left:70px;right:70px;top:560px;z-index:36;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
   .opts .pastille{position:static;font-size:40px;padding:16px 28px;animation:pop .4s var(--ressort) var(--in) both,fondu .2s linear var(--out) forwards}
@@ -30,25 +28,25 @@
 
   <div class="tel2 flotte" style="--in:0s">
     <div class="vue">
-      <div class="ecr zoom" data-src="partie" style="--in:0s;--zin:2.4s;--zout:4.3s;--z:1.5;--ox:0%;--oy:0%"></div>
-      <div class="tap" style="--in:1.2s;--x:25%;--y:25%"></div>
-      <div class="tap" style="--in:1.55s;--x:75%;--y:75%"></div>
-      <div class="tap" style="--in:6.0s;--x:50%;--y:50%"></div>
+      <div class="ecr zoom" data-src="partie" style="--in:0s;--z:1.5;--ox:0%;--oy:0%" data-zin="milieu" data-zout="points-0.2"></div>
+      <div class="tap" data-in="pose" style="--x:25%;--y:25%"></div>
+      <div class="tap" data-in="telephone" style="--x:75%;--y:75%"></div>
+      <div class="tap" data-in="commence-0.4" style="--x:50%;--y:50%"></div>
     </div>
   </div>
   <div class="opts">
-    <div class="pastille" style="--in:4.4s;--out:7s;--c:var(--ink)"><i></i>Points de vie</div>
-    <div class="pastille" style="--in:4.75s;--out:7s;--c:var(--corail)"><i></i>Blessures de commandant</div>
-    <div class="pastille" style="--in:5.1s;--out:7s;--c:var(--ok)"><i></i>Poison</div>
-    <div class="pastille" style="--in:5.45s;--out:7s;--c:var(--warm)"><i></i>Monarque</div>
-    <div class="pastille" style="--in:5.8s;--out:7s;--c:var(--violet)"><i></i>Initiative</div>
-    <div class="pastille" style="--in:6.15s;--out:7s;--c:var(--bleu)"><i></i>Tours</div>
+    <div class="pastille" data-in="points" data-out="et-0.1" style="--c:var(--ink)"><i></i>Points de vie</div>
+    <div class="pastille" data-in="blessures" data-out="et-0.1" style="--c:var(--corail)"><i></i>Blessures de commandant</div>
+    <div class="pastille" data-in="poison" data-out="et-0.1" style="--c:var(--ok)"><i></i>Poison</div>
+    <div class="pastille" data-in="monarque" data-out="et-0.1" style="--c:var(--warm)"><i></i>Monarque</div>
+    <div class="pastille" data-in="monarque+0.3" data-out="et-0.1" style="--c:var(--violet)"><i></i>Initiative</div>
+    <div class="pastille" data-in="monarque+0.6" data-out="et-0.1" style="--c:var(--bleu)"><i></i>Tours</div>
   </div>
-  <div class="de" style="--in:7.05s;--out:8.8s">3</div>
-  <div class="qui" style="--in:7.9s;--out:8.8s"><span>Zoé commence</span></div>
+  <div class="de" data-in="commence-0.2" data-out="hasard>+0.7">3</div>
+  <div class="qui" data-in="hasard" data-out="hasard>+0.7"><span>Zoé commence</span></div>
 
   <div class="titre couvt">Ton compteur<br>de vie <em>Commander</em></div>
-  <div class="fin" style="--in:8.8s"></div>
+  <div class="fin" data-in="hasard>+0.7"></div>
 </div>
 <script src="base.js"></script>
 <script src="lancement.js"></script>
