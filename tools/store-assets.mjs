@@ -688,7 +688,7 @@ async function videoFor(lang) {
     await p.evaluate(() => { window.__u = D.user; D.user = D.user || { uid: 'store' }; TR.share = 'k7Qe2xPm4w'; trQrOpen(); });
     await p.waitForSelector('.sheet-wrap.open .qr-img svg');
     // QR scannable depuis la vidéo : le lien fixe des flyers, jamais l'adresse du serveur local (shareUrl est une constante : on remplace le rendu)
-    await p.evaluate(u => { const b = document.querySelector('.sheet-wrap.open'); b.querySelector('.qr-img').innerHTML = qrSvg(u).svg; b.querySelector('.qr-url').textContent = u; }, 'https://manaorbit.app/flyer');
+    await p.evaluate(u => { const b = document.querySelector('.sheet-wrap.open'); b.querySelector('.qr-img').innerHTML = qrSvgLogo(u).svg; b.querySelector('.qr-url').textContent = u; }, 'https://manaorbit.app/flyer');
     await p.waitForTimeout(700); await snap('qr');
     await p.evaluate(() => { D.user = window.__u; TR.share = null; });
   });

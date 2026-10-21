@@ -337,7 +337,7 @@ function trocQrFit() {
   fit(); requestAnimationFrame(fit);
 }
 function trocWaitHtml(s) {
-  let q = null; try { q = qrSvg(trocUrl(s.c)); } catch (e) { q = null; }
+  let q = null; try { q = qrSvgLogo(trocUrl(s.c)); } catch (e) { q = null; }
   const inv = TRC.sent, me = s.me, svg = q ? q.svg.replace('<svg', `<svg data-n="${q.n}"`) : '';
   const note = inv ? (inv.k > 0 ? T('Invitation envoyée à {name}.', { name: esc(inv.n || T('ton ami')) }) : inv.k === 0 ? T('{name} n\'a pas activé les notifications : donne-lui le code.', { name: esc(inv.n || T('Ton ami')) }) : T('Invitation envoyée à {name}.', { name: esc(inv.n || T('ton ami')) })) : '';
   return `<section class="trc-wait">

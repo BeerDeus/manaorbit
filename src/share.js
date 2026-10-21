@@ -425,7 +425,7 @@ function trQrOpen() {
   if (typeof streamOn === 'function' && streamOn()) { toast(T('Masqué en mode streamer')); return; }      // mode streamer (opening.js) : jamais le lien ni le QR code à l'écran
   if (!TR.share) return;
   const url = shareUrl(TR.share); let q;
-  try { q = qrSvg(url); } catch (e) { toast(T('Lien trop long pour un QR code')); return; }
+  try { q = qrSvgLogo(url); } catch (e) { toast(T('Lien trop long pour un QR code')); return; }
   const { by, bp } = profShare();
   openSheet(T('QR code de ta liste'), T('Lien public · lecture seule'), api => {
     api.body.innerHTML = `<div class="qr-card">

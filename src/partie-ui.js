@@ -96,7 +96,7 @@ function puPaint() {
 function puSetupPaint() {
   const st = PU.st, el = PU.el, me = st.places.find(p => p.sorte === 'moi'), room = partieRoom(), roomOk = room && room.host && room.id === st.id;
   if (!roomOk && !PU.roomTry && puNet()) { PU.roomTry = true; puRoomOpen(); }
-  const qr = roomOk ? (() => { try { return qrSvg(partieTableLink(room.c)).svg; } catch (e) { return ''; } })() : '';
+  const qr = roomOk ? (() => { try { return qrSvgLogo(partieTableLink(room.c)).svg; } catch (e) { return ''; } })() : '';
   const decks = typeof allDecks === 'function' ? allDecks().filter(d => d && d.name) : [];
   const on = new Set(PU.on), seats = st.places.map(p => {
     const v = PU.view && PU.view.places ? PU.view.places.find(x => x.pos === p.pos) : null, phone = p.sorte === 'moi' || (v && v.dev);
@@ -349,7 +349,7 @@ function puEndSheet() {
 }
 function puEndPaint() {
   const st = PU.st, r = PU.res || partieResult(st), link = partieResultLink(r, { max: PU_QR_MAX });
-  let qr = ''; try { qr = link ? qrSvg(link).svg : ''; } catch (e) { qr = ''; }
+  let qr = ''; try { qr = link ? qrSvgLogo(link).svg : ''; } catch (e) { qr = ''; }
   const ps = r.places.slice().sort((a, b) => a.rang - b.rang || a.pos - b.pos), room = partieRoom();
   PU.el.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-pu="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Partie terminée')}</b><span>${esc([TN(r.tours, '{n} tour', '{n} tours'), puDur(r.duree)].join(' · '))}</span></div></header>
     <div class="dv-scroll"><div class="dv-body pu-setup">
@@ -368,7 +368,7 @@ const puAndroid = () => typeof navigator !== 'undefined' && /android/i.test(navi
 const puIos = () => typeof PWA !== 'undefined' && PWA.ios();
 /** Fin de partie, chez le créateur : QR code « télécharge l'appli » et lien à partager, pour les invités sans l'appli. */
 function puInviteCard() {
-  let qr = ''; try { qr = qrSvg(PU_INV_URL).svg; } catch (e) { qr = ''; }
+  let qr = ''; try { qr = qrSvgLogo(PU_INV_URL).svg; } catch (e) { qr = ''; }
   return `<section class="pu-card pu-qr pu-inv">${qr ? `<div class="pu-qr-img" role="img" aria-label="${T('QR code pour installer Mana Orbit')}">${qr}</div>` : ''}<div class="pu-qr-t"><b>${T('Fais découvrir Mana Orbit')}</b><span>${T('Les invités le scannent : l\'appli pour leurs prochaines parties, leurs statistiques et leur collection.')}</span><button class="btn ghost small" type="button" data-pu="share-app">${T('Partager le lien')}</button></div></section>`;
 }
 /** Joueur venu par le navigateur du téléphone (table rejointe, résultat scanné) : Google Play sur Android, écran d'accueil sur iPhone ; rien dans l'appli ni sur ordinateur. */
@@ -523,7 +523,7 @@ function puDeckStatHtml(name) {
   return `<div class="pu-dstat"><svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg><span>${esc(TN(s.wins, '{n} victoire', '{n} victoires') + ' ' + TN(s.n, 'sur {n} partie', 'sur {n} parties') + ' (' + Math.round(s.rate * 100) + ' %)')}</span><button class="link-btn" type="button" data-act="games">${T('Statistiques')}</button></div>`;
 }
 function puHistOne(x) {
-  const link = partieResultLink(x, { max: PU_QR_MAX }); let qr = ''; try { qr = link ? qrSvg(link).svg : ''; } catch (e) { qr = ''; }
+  const link = partieResultLink(x, { max: PU_QR_MAX }); let qr = ''; try { qr = link ? qrSvgLogo(link).svg : ''; } catch (e) { qr = ''; }
   openSheet(new Date(x.date).toLocaleString(LOC(), { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), [T('{f} points', { f: x.format }), TN(x.tours, '{n} tour', '{n} tours'), puDur(x.duree)].join(' · '), api => {
     api.wrap.classList.add('pu-sheet');
     api.body.innerHTML = `<ol class="pu-rank">${x.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === x.moi ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol>

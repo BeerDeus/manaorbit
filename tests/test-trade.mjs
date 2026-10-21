@@ -172,6 +172,8 @@ const Q = createRequire(import.meta.url)('../src/qr.js');
 const QR_ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50], [6, 30, 54], [6, 32, 58], [6, 34, 62], [6, 26, 46, 66], [6, 26, 48, 70], [6, 26, 50, 74], [6, 30, 54, 78], [6, 30, 56, 82], [6, 30, 58, 86], [6, 34, 62, 90], [6, 28, 50, 72, 94]];
 const QR_M = { 1: [[1, 26, 16]], 2: [[1, 44, 28]], 3: [[1, 70, 44]], 4: [[2, 50, 32]], 5: [[2, 67, 43]], 6: [[4, 43, 27]], 7: [[4, 49, 31]], 8: [[2, 60, 38], [2, 61, 39]], 9: [[3, 58, 36], [2, 59, 37]], 10: [[4, 69, 43], [1, 70, 44]],
   11: [[1, 80, 50], [4, 81, 51]], 12: [[6, 58, 36], [2, 59, 37]], 13: [[8, 59, 37], [1, 60, 38]], 14: [[4, 64, 40], [5, 65, 41]], 15: [[5, 65, 41], [5, 66, 42]], 16: [[7, 73, 45], [3, 74, 46]], 17: [[10, 74, 46], [1, 75, 47]], 18: [[9, 69, 43], [4, 70, 44]], 19: [[3, 70, 44], [11, 71, 45]], 20: [[3, 67, 41], [13, 68, 42]] };      // niveau M : [blocs, octets, dont données]
+const QR_H = { 1: [[1, 26, 9]], 2: [[1, 44, 16]], 3: [[2, 35, 13]], 4: [[4, 25, 9]], 5: [[2, 33, 11], [2, 34, 12]], 6: [[4, 43, 15]], 7: [[4, 39, 13], [1, 40, 14]], 8: [[4, 40, 14], [2, 41, 15]], 9: [[4, 36, 12], [4, 37, 13]], 10: [[6, 43, 15], [2, 44, 16]],
+  11: [[3, 36, 12], [8, 37, 13]], 12: [[7, 42, 14], [4, 43, 15]], 13: [[12, 33, 11], [4, 34, 12]], 14: [[11, 36, 12], [5, 37, 13]], 15: [[11, 36, 12], [7, 37, 13]], 16: [[3, 45, 15], [13, 46, 16]], 17: [[2, 42, 14], [17, 43, 15]], 18: [[2, 42, 14], [19, 43, 15]], 19: [[9, 39, 13], [16, 40, 14]], 20: [[15, 43, 15], [10, 44, 16]] };      // niveau H
 const GF = { exp: [], log: [] }; { let x = 1; for (let i = 0; i < 255; i++) { GF.exp[i] = x; GF.log[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11D; } }
 const gmul = (a, b) => (a && b ? GF.exp[(GF.log[a] + GF.log[b]) % 255] : 0);
 const bchOk = (word, gen, dataBits, eccBits) => { let r = (word >> eccBits) << eccBits; for (let i = dataBits + eccBits - 1; i >= eccBits; i--) if ((r >> i) & 1) r ^= gen << (i - eccBits); return r === (word & ((1 << eccBits) - 1)); };
@@ -189,7 +191,7 @@ function qrDecode(m) {
   for (let y = n - 1; y >= n - 7; y--) f2 = (f2 << 1) | get(8, y);
   for (let x = n - 8; x < n; x++) f2 = (f2 << 1) | get(x, 8);
   assert.equal(f1, f2, 'deux copies du format'); const fmt = f1 ^ 0x5412;
-  assert.ok(bchOk(fmt, 0x537, 5, 10), 'BCH du format'); assert.equal(fmt >> 13, 0, 'niveau M'); const mask = (fmt >> 10) & 7;
+  assert.ok(bchOk(fmt, 0x537, 5, 10), 'BCH du format'); const lvl = fmt >> 13; assert.ok(lvl === 0 || lvl === 2, 'niveau M ou H'); const mask = (fmt >> 10) & 7, TBL = lvl ? QR_H : QR_M;
   if (v >= 7) { let vb = 0; for (let y = 5; y >= 0; y--) for (let x = n - 9; x >= n - 11; x--) vb = (vb << 1) | get(x, y); assert.equal(vb >> 12, v, 'version écrite'); assert.ok(bchOk(vb, 0x1F25, 6, 12), 'BCH de la version');
     let vb2 = 0; for (let x = 5; x >= 0; x--) for (let y = n - 9; y >= n - 11; y--) vb2 = (vb2 << 1) | get(x, y); assert.equal(vb2, vb, 'deux copies de la version'); }
   const fn = Array.from({ length: n }, () => new Uint8Array(n)), region = (l, t, w, h) => { for (let y = t; y < t + h; y++) for (let x = l; x < l + w; x++) fn[y][x] = 1; };
@@ -204,7 +206,7 @@ function qrDecode(m) {
     for (let c = 0; c < n; c++) { const i = up ? n - 1 - c : c; for (let k = 0; k < 2; k++) { const x = j - k; if (fn[i][x]) continue; cur = (cur << 1) | (get(x, i) ^ +masked(i, x)); if (++nb === 8) { raw.push(cur); cur = nb = 0; } } }
     up = !up;
   }
-  const groups = QR_M[v].flatMap(([k, len, dlen]) => Array.from({ length: k }, () => ({ len, dlen, d: [], e: [] })));
+  const groups = TBL[v].flatMap(([k, len, dlen]) => Array.from({ length: k }, () => ({ len, dlen, d: [], e: [] })));
   let o = 0; const maxD = Math.max(...groups.map(g => g.dlen));
   for (let i = 0; i < maxD; i++) for (const g of groups) if (i < g.dlen) g.d.push(raw[o++]);
   for (let i = 0; i < groups[0].len - groups[0].dlen; i++) for (const g of groups) g.e.push(raw[o++]);
@@ -216,7 +218,7 @@ function qrDecode(m) {
   const rest = bits.length - p; if (rest >= 4) assert.equal(take(4), 0, 'fin de message'); else take(rest);
   while (p % 8) assert.equal(take(1), 0, 'complément à l\'octet');
   for (let pad = 0xEC; p < bits.length; pad ^= 0xEC ^ 0x11) assert.equal(take(8), pad, 'remplissage 0xEC / 0x11');
-  return { v, mask, text: new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(bytes)) };
+  return { v, mask, ec: lvl ? 'H' : 'M', text: new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(bytes)) };
 }
 {
   const url = 'https://card.m2s-photo.fr/?p=Abcdef1234567890XyZw', d = qrDecode(Q.qrMatrix(url).m);
@@ -246,6 +248,43 @@ function qrDecode(m) {
   for (const [, x, y, w] of svg.matchAll(/M(\d+) (\d+)h(\d+)v1h-\3z/g)) for (let i = 0; i < +w; i++) { assert.equal(got[y - 4][x - 4 + i], 0, 'jamais deux fois'); got[y - 4][x - 4 + i] = 1; }
   assert.deepEqual(got.map(r => [...r].join('')), [...mx.m].map(r => [...r].join('')), 'SVG = matrice');
   console.log('✓ QR code : décodé (repères, format, version, masque, Reed-Solomon, texte) pour les versions 1 à 10 et les 8 masques, identique aux matrices de référence, SVG fidèle');
+  // Niveau H (qrSvgLogo) : décodé pour les 20 versions et les 8 masques ; capacités de la norme ; identique bit à bit à un autre encodeur (node-qrcode 1.5.4, mode octets, son masque imposé)
+  assert.deepEqual([1, 4, 6, 10, 15, 20].map(v => Q.qrDataCap(v, 'H')), [9, 36, 60, 122, 223, 385], 'octets de données en H');
+  for (let v = 1; v <= 20; v++) {
+    const cap = Q.qrDataCap(v, 'H'), len = Math.floor((cap * 8 - 4 - (v < 10 ? 8 : 16)) / 8), t = ('https://card.m2s-photo.fr/?p=' + 'Xy7'.repeat(140)).slice(0, len);
+    for (let k = 0; k < 8; k++) { const mx = Q.qrMatrix(t, k, 'H'), r = qrDecode(mx.m); assert.deepEqual([r.text, r.v, r.mask, r.ec], [t, v, k, 'H'], `H version ${v}, masque ${k}`); }
+    if (v < 20) assert.equal(Q.qrMatrix(t + 'z', undefined, 'H').v, v + 1, 'H : un octet de plus, version suivante');
+  }
+  assert.throws(() => Q.qrMatrix('x'.repeat(383), undefined, 'H'), /trop long/); assert.equal(Q.qrMatrix('x'.repeat(382), undefined, 'H').v, 20);      // 385 octets dont 3 d'en-tête
+  for (const [t, v, k, hex] of [['https://manaorbit.app/flyer', 4, 3, 'fe6645bfc114ee906e9594cbb749d075dbab1bdaec107a8907faaaaafe015df10033a1e568362233b250ad2a49feace2338ebc18cc1943def420ebbe3168e877df27832025bc58bb4fbd79fd771cd00a954036b8804a67e85014149d1986a2fa5c10aa8b4132f9005bbac63fa4ab6b104eea31fba412bfb5d62d7cb2ea106d8104862585fe373d380'],
+    ['https://card.m2s-photo.fr/?p=Abcdef1234567890XyZw', 6, 7, 'fee45dd9bfc167303e506e9f1d534bb7550deda5dbadb77302ec150dd4ad07faaaaaaafe004d3cbf00124f01291dbe284d26733494fd0957dca6f2b90664fd94735a49210e46f70989283094ff51ff1ea9782fb8110e1442c0c0335b65991019326e8d52e422a3bb2b6846280c3211613dbd87ecad1ccb893e94d4abf4919da48645bcc782059f3d22b6343e0c8b9c0078c964660a2dbc1cce8affffebe03e6b812b0ca9aae32b92ff005c79d3467f837d00aa1048e405714ba4ecc02f95d5f47d7b52e86ee008330449c19b22fe4e85349b0']]) {
+    const mx = Q.qrMatrix(t, k, 'H'), bits = [...hex].flatMap(h => [...parseInt(h, 16).toString(2).padStart(4, '0')].map(Number)), n = v * 4 + 17;
+    assert.equal(mx.n, n); for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) assert.equal(mx.m[y][x], bits[y * n + x], `H référence, module ${x},${y}`);
+  }
+  // Fenêtre du logo : impaire, centrée, ≈ 30 % du code au plus, et le pire bloc Reed-Solomon n'y a jamais plus de 60 % de ⌊correcteurs / 2⌋ octets, tous les modules cachés comptés faux
+  const EC_H = [0, 17, 28, 22, 16, 22, 28, 26, 26, 24, 28, 24, 28, 22, 24, 24, 30, 28, 28, 26, 28];
+  assert.equal(Q.qrLogoSide(Q.qrMatrix('x'.repeat(10), undefined, 'H')), 0, 'version 2 (25 modules) : même 7 modules sont de trop, pas de logo');
+  for (let v = 3; v <= 20; v++) {
+    const mx = Q.qrMatrix('x'.repeat(Q.qrDataCap(v, 'H') - 3), undefined, 'H'), L = Q.qrLogoSide(mx), n = mx.n;
+    assert.ok(L >= 7 && L % 2 === 1 && L <= Math.round(n * .3) + 1 && (n - L) % 2 === 0, `fenêtre v${v} : ${L}`);
+    const a = (n - L) / 2, per = {}, seen = new Set();
+    for (let y = a; y < a + L; y++) for (let x = a; x < a + L; x++) { const k = mx.idx[y][x]; if (k < 0 || seen.has(k)) continue; seen.add(k); const b = Q.qrBlockOf(k, v, 'H'); per[b] = (per[b] || 0) + 1; }
+    assert.ok(Math.max(...Object.values(per)) <= Math.floor(EC_H[v] / 2) * .6, `v${v} : ${Math.max(...Object.values(per))} octets du pire bloc sous le logo`);
+    assert.equal(Q.qrLogoSide({ ...mx, idx: mx.idx.map(r => r.map(k => Math.max(0, k))) }) <= L, true);      // tous les octets dans un même bloc : jamais plus grand
+  }
+  // Au placement : qrBlockOf couvre chaque octet, et chaque bloc reçoit ses octets (données puis correction)
+  for (const v of [5, 8, 13, 20]) { const nb = QR_H[v].reduce((s, [k]) => s + k, 0), cnt = new Array(nb).fill(0), total = QR_H[v].reduce((s, [k, len]) => s + k * len, 0); for (let k = 0; k < total; k++) cnt[Q.qrBlockOf(k, v, 'H')]++; assert.deepEqual(cnt, QR_H[v].flatMap(([k, len]) => Array(k).fill(len)), 'octets par bloc v' + v); }
+  // qrSvgLogo : marine, niveau H, le logo au centre et aucun module dessiné sous lui ; texte trop long pour H ≤ version 15 : niveau M, sans logo, même encre
+  { const r = Q.qrSvgLogo(url), mx = Q.qrMatrix(url, undefined, 'H'), L = Q.qrLogoSide(mx), a = (mx.n - L) / 2 + 4;
+    assert.equal(r.n, mx.n + 8); assert.ok(r.logo && L > 0); assert.match(r.svg, /^<svg xmlns="http:\/\/www.w3.org\/2000\/svg" viewBox="0 0 \d+ \d+" shape-rendering="crispEdges"/); assert.match(r.svg, /<path d="[^"]*" fill="#10152b"\/>/);
+    assert.ok(r.svg.includes('<linearGradient id="qrf') && r.svg.includes('<rect x="' + (a + .5) + '"'), 'pastille du logo');
+    const got = Array.from({ length: mx.n }, () => new Uint8Array(mx.n)); for (const [, x, y, w] of /<path d="([^"]*)"/.exec(r.svg)[1].matchAll(/M(\d+) (\d+)h(\d+)v1h-\3z/g)) for (let i = 0; i < +w; i++) got[y - 4][x - 4 + i] = 1;
+    for (let y = 0; y < mx.n; y++) for (let x = 0; x < mx.n; x++) { const hole = x >= a - 4 && x < a - 4 + L && y >= a - 4 && y < a - 4 + L; assert.equal(got[y][x], hole ? 0 : mx.m[y][x], `module ${x},${y}`); }
+    const r2 = Q.qrSvgLogo('x'.repeat(300)); assert.ok(!r2.logo && !r2.svg.includes('linearGradient') && r2.svg.includes('fill="#10152b"') && r2.n === Q.qrMatrix('x'.repeat(300)).n + 8, 'long : niveau M sans logo');
+    const r3 = Q.qrSvgLogo('x'.repeat(220)); assert.ok(r3.logo && r3.n === 77 + 8, 'version 15 en H : encore le logo');
+    assert.deepEqual([Q.qrMatrix('abc', undefined, 'H', 5).v, Q.qrSvgLogo('https://manaorbit.app/flyer', { minV: 5 }).n, Q.qrMatrix('abc', undefined, 'M', 99).v], [5, 37 + 8, 20], 'version plancher (imprimés)');
+    assert.equal(qrDecode(Q.qrMatrix('https://manaorbit.app/flyer', undefined, 'H', 5).m).text, 'https://manaorbit.app/flyer', 'décodé en version 5 imposée'); }
+  console.log('✓ QR code niveau H : décodé pour les versions 1 à 20 et les 8 masques, identique à un autre encodeur ; fenêtre du logo bornée par bloc ; qrSvgLogo fidèle, repli sans logo');
 }
 /* ── Classeur (binder.js) : ordre des pochettes, réglages publiés dans le partage ── */
 {

@@ -4,7 +4,7 @@
    Sortes (spec.kind), montants en euros (nombres, pas en centimes) :
    · 'coll'    { value, n (cartes différentes), copies, top: [{ name, img, eur }] (3 plus chères), date }      Stats de la collection (simgColl)
    · 'deck'    { name, sub (commandant ou format), colors ('WUBRG'), img (carte de présentation), value, part (valeur partielle), n, url? }   « Partager le deck » (simgDeck)
-   · 'trade'   { by (pseudo), n (cartes à échanger), copies, value, want (cartes recherchées), top: [...], url (lien public → QR, qrSvg de qr.js) }   Échange (simgTrade)
+   · 'trade'   { by (pseudo), n (cartes à échanger), copies, value, want (cartes recherchées), top: [...], url (lien public → QR, qrSvgLogo de qr.js) }   Échange (simgTrade)
    · 'opening' CONTRAT avec la session d'ouverture (une autre fonction l'appelle depuis son bilan) :
                simgShare({ kind: 'opening', name, date (ms), n (cartes), value (€), paid (€ ou null), best: [{ name, img (image Scryfall « normal »), eur }] (5 au plus) })
                → nom de la session, valeur, payé et gain ou perte (si payé), meilleures cartes avec leurs images.
@@ -110,6 +110,14 @@ async function simgImg(url, ms = 6000) {
     const b = await r.blob();
     try { if (typeof createImageBitmap === 'function') return await createImageBitmap(b); } catch (e) { /* format que createImageBitmap ne lit pas (SVG) : par une image */ }
     const u = URL.createObjectURL(b), im = new Image();
+    try { im.src = u; await im.decode(); return im; } finally { setTimeout(() => URL.revokeObjectURL(u), 1000); }
+  })().catch(() => null);
+  return Promise.race([go, sleep(ms).then(() => null)]);
+}
+/** Un SVG (texte) décodé en image carrée de px pixels (QR code), ou null. Même origine (blob) : le canvas reste exportable. */
+async function simgSvg(svg, px, ms = 3000) {
+  const go = (async () => {
+    const b = new Blob([svg.replace('<svg ', `<svg width="${px}" height="${px}" `)], { type: 'image/svg+xml' }), u = URL.createObjectURL(b), im = new Image();
     try { im.src = u; await im.decode(); return im; } finally { setTimeout(() => URL.revokeObjectURL(u), 1000); }
   })().catch(() => null);
   return Promise.race([go, sleep(ms).then(() => null)]);
@@ -224,12 +232,15 @@ async function simgDrawTrade(x, s) {
   const sub = [s.value > 0 ? '≈ ' + simgEur(s.value, s.value >= 1000) : '', s.want ? TN(s.want, '{n} carte recherchée', '{n} cartes recherchées') : ''].filter(Boolean).join(' · ');
   if (sub) x.fillText(simgClip(x, sub, SIMG_W - 2 * SIMG_M), SIMG_M, 378);
   if (top.length) { const listY = 960 - (top.length - 1) * 48; simgFanIn(x, top, 410, listY - 46, 300); simgRanks(x, top, listY, 48); }
-  // QR code du lien public : modules noirs sur blanc (ce qu'attend un lecteur), dessinés depuis le chemin de qrSvg (net : un nombre entier de pixels par module)
-  let q = null; try { q = s.url ? qrSvg(s.url) : null; } catch (e) { q = null; }
+  // QR code du lien public : celui de l'appli (qrSvgLogo : encre marine sur blanc, logo au centre), son SVG rendu à un nombre entier de pixels par module (net) ;
+  // si l'image ne se décode pas, les modules seuls depuis le chemin du SVG (son premier <path>)
+  let q = null; try { q = s.url ? qrSvgLogo(s.url) : null; } catch (e) { q = null; }
   if (q) {
-    const box = 252, by = 1004, d = (/ d="([^"]+)"/.exec(q.svg) || [])[1] || '', k = Math.floor((box - 24) / q.n), side = k * q.n, pad = (box - side) / 2;
+    const box = 252, by = 1004, k = Math.floor((box - 24) / q.n), side = k * q.n, pad = (box - side) / 2;
     x.save(); x.shadowColor = 'rgba(0,0,0,.4)'; x.shadowBlur = 30; x.shadowOffsetY = 12; simgRR(x, SIMG_M, by, box, box, 26); x.fillStyle = '#fff'; x.fill(); x.restore();
-    x.save(); x.translate(SIMG_M + pad, by + pad); x.scale(k, k); x.fillStyle = '#000'; x.fill(new Path2D(d)); x.restore();
+    const im = await simgSvg(q.svg, side);
+    if (im) x.drawImage(im, SIMG_M + pad, by + pad, side, side);
+    else { const d = (/ d="([^"]+)"/.exec(q.svg) || [])[1] || ''; x.save(); x.translate(SIMG_M + pad, by + pad); x.scale(k, k); x.fillStyle = '#10152b'; x.fill(new Path2D(d)); x.restore(); }
     const tx = SIMG_M + box + 40, tw = SIMG_W - SIMG_M - tx;
     x.fillStyle = SIMG_INK; simgFont(x, 700, 38, SIMG_FD); simgWrap(x, T('Scanne pour voir toute ma liste'), tw, 2).forEach((l, i) => x.fillText(l, tx, by + 92 + i * 46));
     x.fillStyle = SIMG_MUTE; simgFont(x, 500, 24, SIMG_FB); x.fillText(simgClip(x, String(s.url).replace(/^https?:\/\//, ''), tw), tx, by + 172);

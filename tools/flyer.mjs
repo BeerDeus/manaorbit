@@ -5,7 +5,7 @@
 //   solo-a (liste à gauche, téléphone à droite) · solo-b (centrée, les cinq orbes en rangée) · solo-c (miroir) · solo-d (téléphone géant qui déborde)
 //   solo-e (titre géant, parties en pastilles) · solo-f (une carte foil qui entre dans le téléphone, cadre du scan)
 // Captures : shots/store/fr-*.png (faites ici par `node tools/store-assets.mjs raw fr` si elles manquent), cartes factices.
-// QR : src/qr.js, lien FIXE https://manaorbit.app/flyer (imprimé : ne jamais le changer ; la destination se règle dans proxy.mjs › /flyer :
+// QR : src/qr.js (qrSvgLogo : logo au centre, niveau H), lien FIXE https://manaorbit.app/flyer (imprimé : ne jamais le changer ; la destination se règle dans proxy.mjs › /flyer :
 // Android → Google Play, iPhone → App Store dès que APP_STORE_URL est posée, sinon le site).
 // Format : A5 par défaut (154 × 216 mm avec le fond perdu, coupe à 148 × 210) : la page A4 réduite (× 0,705), petits textes et QR agrandis pour rester
 // lisibles et scannables (mentions ≥ 6 pt, QR ≈ 25 mm) ; « a4 » : l'affiche A4. Fichiers docs/print/flyer-<a5|a4>-<piste>.pdf et .png.
@@ -17,7 +17,7 @@ import { crc32 } from 'node:zlib';
 import { MANA } from './fonts/mana-symbols.mjs';
 
 const require = createRequire(import.meta.url);
-const { qrSvg } = require('../src/qr.js');
+const { qrSvgLogo } = require('../src/qr.js');
 const { chromium } = createRequire(new URL('../tests/', import.meta.url))('playwright-core');      // celui des tests (tests/node_modules)
 export const FLYER_URL = 'https://manaorbit.app/flyer';      // imprimé : ne change jamais
 const OUT = 'docs/print/', SHOTS = 'shots/store/fr-', ARGS = process.argv.slice(2);
@@ -29,14 +29,14 @@ const [TW, TH] = FMT === 'a5' ? [148, 210] : [210, 297], S = TH / 297, PW = TW +
 const b64 = f => readFileSync(f).toString('base64');
 const font = (fam, f) => existsSync(f) ? `@font-face{font-family:'${fam}';font-weight:200 800;src:url(data:font/woff2;base64,${b64(f)}) format('woff2')}` : '';
 const FACES = font('MO Display', 'tools/fonts/bricolage-grotesque-latin-opsz-normal.woff2') + font('MO Text', 'tools/fonts/instrument-sans-latin-wght-normal.woff2');
-if (!existsSync(SHOTS + '05-valeur.png')) {
+if (!existsSync(SHOTS + '08-valeur.png')) {
   console.log('Captures de l\'appli absentes : node tools/store-assets.mjs raw fr …');
   const r = spawnSync('node', ['tools/store-assets.mjs', 'raw', 'fr'], { stdio: 'inherit' }); if (r.status) process.exit(r.status);
 }
-const VALUE = `data:image/png;base64,${b64(SHOTS + '05-valeur.png')}`;
+const VALUE = `data:image/png;base64,${b64(SHOTS + '08-valeur.png')}`;
 /** Illustration d'une vraie carte, si elle a été déposée dans tools/flyer-art/<nom>.jpg ou .png (recadrage « art crop » de Scryfall) ; sinon null (dégradé foil). */
 const artOf = n => { for (const e of ['jpg', 'png']) { const f = `tools/flyer-art/${n}.${e}`; if (existsSync(f)) return `data:image/${e === 'jpg' ? 'jpeg' : 'png'};base64,${b64(f)}`; } return null; };
-const QR = qrSvg(FLYER_URL).svg;
+const QR = qrSvgLogo(FLYER_URL, { minV: 5 }).svg;      // celui de l'appli : encre marine, niveau H, logo au centre ; version 5 imposée (37 modules, fenêtre du logo de 11 : ≈ 6 mm sur le QR de 25 mm de l'A5, ≈ 0,55 mm par module)
 const FOIL = ['#ff8fc3', '#ffd479', '#7be8c8', '#7fb0ff', '#c79bff'];
 const foilStops = FOIL.map((c, i) => `<stop offset="${i / 4}" stop-color="${c}"/>`).join('');
 const LOGO = `<svg viewBox="6 8 88 88" class="logo" aria-hidden="true"><defs><linearGradient id="lgF" x1="0" y1="0" x2="1" y2="1">${foilStops}</linearGradient></defs>
@@ -276,7 +276,7 @@ function cardPage(side) {
   .tag{position:absolute;left:5mm;top:37mm;margin:0;font-size:6.2pt;line-height:1.35;color:#b9c0d8}
   .url{position:absolute;left:5mm;bottom:5mm;margin:0;font-family:'MO Display';font-weight:720;font-size:8pt;letter-spacing:-.01em}
   .url small{margin-left:1.4mm;padding:.3mm 1.4mm;border:.2mm solid rgba(255,255,255,.35);border-radius:3mm;font-family:'MO Text';font-weight:650;font-size:5.4pt;letter-spacing:.06em;text-transform:uppercase;color:#c9d0e6;vertical-align:.3mm}
-  .qrb{position:absolute;left:5mm;top:5mm;width:27mm;height:27mm;padding:.6mm;border-radius:2.4mm;background:#fff}
+  .qrb{position:absolute;left:5mm;top:5mm;width:27mm;height:27mm;padding:.6mm;border-radius:2.4mm;background:#fff;overflow:hidden}      /* overflow : le fond blanc carré du SVG ne pointe pas hors des coins arrondis */
   .qrb svg{display:block;width:100%;height:100%}
   .cx{position:absolute;left:36mm;top:5.4mm;right:4mm;display:flex;flex-direction:column;gap:.9mm}
   .cx b{font-family:'MO Display';font-weight:780;font-size:9.6pt;letter-spacing:-.02em;line-height:1.05}
