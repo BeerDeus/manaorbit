@@ -6,6 +6,7 @@
 //   node tools/store-assets.mjs              tout : captures et bannière, 6 langues (≈ 2 min par langue)
 //   node tools/store-assets.mjs feature      bannières seulement      node tools/store-assets.mjs shots de   captures (et bannière) allemandes seulement
 //   node tools/store-assets.mjs raw fr      captures brutes seulement (SHOTS + MORE) dans shots/store/ (maquettes)
+//   node tools/store-assets.mjs video fr    écrans des vidéos courtes (étapes du scan, QR, guide ManaBox, Carte mystère…) dans shots/video/
 //   RAW=1 : garde aussi les captures brutes de l'appli (sans bandeau) dans shots/store/ (non versionné) · CHROMIUM : chemin du navigateur
 import '../tests/setup-env.mjs';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, unlinkSync } from 'node:fs';
@@ -664,6 +665,60 @@ async function rawFor(lang) {
   await ctx.close();
 }
 
+/* ── Écrans des vidéos courtes (tools/shorts, node tools/store-assets.mjs video fr) → shots/video/<langue>-<écran>.png (984 × 1584, non versionnés) ─────────
+   Les écrans de la fiche, plus des étapes : scan carte par carte (langues), QR de la liste d'échange, guide « Passer de ManaBox », Carte mystère indice par indice. */
+async function videoFor(lang) {
+  const { ctx, p, errs } = await openApp(lang), dir = 'shots/video/'; mkdirSync(dir, { recursive: true });
+  const snap = async n => { await imgsReady(p); await p.waitForTimeout(250); writeFileSync(dir + lang + '-' + n + '.png', await p.screenshot({ type: 'png' })); console.log('  ' + dir + lang + '-' + n + '.png'); };
+  const step = async (n, f) => { try { await toHome(p); await p.waitForTimeout(300); await f(); } catch (e) { console.log(`  ! ${n} : ${String(e.message || e).split('\n')[0]}`); } };
+  const shot = id => SHOTS.find(x => x.id === id) || OLD_SHOTS.find(x => x.id === id);
+  await step('accueil', async () => { await shot('02-cote').go(p, lang); await snap('accueil'); });
+  await step('scan', async () => {
+    await p.evaluate(() => openScan()); await p.waitForSelector('.scan .sc-stage[data-cam="on"]', { timeout: 15000 }); await p.waitForTimeout(800); await snap('scan-0');
+    const cards = [['Sol Ring', 'fr'], ['Cyclonic Rift', 'ja'], ['Vampiric Tutor', 'de'], ["Teferi's Protection", 'ru'], ['Rhystic Study', 'it'], ['Edgar Markov', 'en']];
+    for (const [i, [name, cl]] of cards.entries()) {
+      await p.evaluate(([name, cl]) => { scanAdd({ key: ownKey(name), name, card: cl, score: 0.97, raw: name }, 1, false); scanHint('✓ ' + name, 'ok'); clearTimeout(SC.hintT); }, [name, cl]);
+      await p.waitForFunction(() => !document.querySelector('.scan .sc-ed.load'), null, { timeout: 60000 }).catch(() => {}); await p.waitForTimeout(700); await snap('scan-' + (i + 1));
+    }
+  });
+  await step('classeur', async () => { const s3 = shot('03-classeur'); await s3.go(p, lang); await snap('classeur'); await s3.after(p); });
+  await step('echange', async () => {
+    await shot('90-echange').go(p, lang); await snap('echange');
+    await p.evaluate(() => { window.__u = D.user; D.user = D.user || { uid: 'store' }; TR.share = 'k7Qe2xPm4w'; trQrOpen(); });
+    await p.waitForSelector('.sheet-wrap.open .qr-img svg');
+    // QR scannable depuis la vidéo : le lien fixe des flyers, jamais l'adresse du serveur local (shareUrl est une constante : on remplace le rendu)
+    await p.evaluate(u => { const b = document.querySelector('.sheet-wrap.open'); b.querySelector('.qr-img').innerHTML = qrSvg(u).svg; b.querySelector('.qr-url').textContent = u; }, 'https://manaorbit.app/flyer');
+    await p.waitForTimeout(700); await snap('qr');
+    await p.evaluate(() => { D.user = window.__u; TR.share = null; });
+  });
+  await step('decks', async () => {
+    await shot('06-decks').go(p, lang); await snap('decks');
+    await p.evaluate(() => { const r = edhRows()[0]; openDeckViewer({ text: edhDeckText(r.deck), name: r.name || (r.deck && r.deck.name) || 'Deck' }); }); await p.waitForTimeout(2500); await snap('deck');
+  });
+  await step('partie', async () => { const s5 = shot('05-partie'); await s5.go(p, lang); await snap('partie'); await s5.after(p); });
+  await step('valeur', async () => { await shot('08-valeur').go(p, lang); await snap('valeur'); });
+  await step('collection', async () => { await shot('91-collection').go(p, lang); await snap('collection'); });
+  await step('manabox', async () => { await p.evaluate(() => swgOpen({ from: 'help' })); await p.waitForSelector('.sheet-wrap.open.swg-sheet, .swg-sheet.open', { timeout: 10000 }).catch(() => {}); await p.waitForTimeout(900); await snap('manabox'); });
+  await step('masterset', async () => { await shot('04-masterset').go(p, lang); await snap('masterset'); });
+  await step('mystere', async () => {      // dernier : connecte un compte (comme la capture de la fiche), indice après indice
+    const uid = 'uid-video-' + lang;
+    await p.evaluate(tok => { window.__idTok = tok; }, FAKES.jwt(uid));
+    await signInFake(p, { uid, email: uid + '@manaorbit.app', displayName: 'Martin' }, { owner: true }); await p.waitForTimeout(400);
+    await p.evaluate(() => { PROF.name = 'Martin'; });
+    await p.waitForSelector('#btnDaily', { timeout: 20000 }); await p.click('#btnDaily'); await p.waitForSelector('.dly-ask.open [data-dly="go"]', { timeout: 10000 }); await snap('mystere-0');
+    await p.click('.dly-ask [data-dly="go"]'); await p.waitForSelector('.dly .dly-chrono', { timeout: 15000 });
+    await p.waitForFunction(() => { const f = document.querySelector('.dly-art'), i = f && f.querySelector('img'); return !!(f && f.classList.contains('ok') && i && i.naturalWidth > 0); }, null, { timeout: 15000 });
+    const stepNo = () => p.evaluate(() => { const e = document.querySelector('.dly .dly-stp'), m = e && /(\d+)/.exec(e.textContent); return m ? Number(m[1]) : 0; });
+    await p.waitForTimeout(900); await snap('mystere-1');
+    while (await stepNo() < 5) {
+      const n = await stepNo(); const b = await p.$('.dly [data-dly="next"]:not([disabled])'); if (!b) break; await b.click();
+      await p.waitForFunction(n => { const e = document.querySelector('.dly .dly-stp'), m = e && /(\d+)/.exec(e.textContent); return m && Number(m[1]) > n; }, n, { timeout: 10000 }); await p.waitForTimeout(1100); await snap('mystere-' + (n + 1));
+    }
+  });
+  if (errs.length) console.log('  erreurs de la page :\n  ' + errs.slice(0, 8).join('\n  '));
+  await ctx.close();
+}
+
 /* ── Bannière 1024 × 500 : la même orbite, logo, nom, accroche, deux téléphones de la langue (accueil, scan) ───────────────────────────── */
 const LOGO = `
     <g transform="rotate(-20 50 52)"><path d="M12 52A38 13 0 0 1 88 52" fill="none" stroke="#9aa3b8" stroke-width="2.4" stroke-linecap="round"/><circle cx="27.7" cy="41.5" r="3.4" fill="#ff7a5c" fill-opacity=".85"/><circle cx="72.3" cy="41.5" r="3.4" fill="#6fd08c" fill-opacity=".85"/></g>
@@ -715,5 +770,6 @@ try {
   if (what === 'all' || what === 'shots') for (const l of LANGS) await shotsFor(l);
   if (what === 'feature') for (const l of LANGS) await shotsFor(l, ['01-scan', '02-cote']);
   if (what === 'raw') for (const l of LANGS) await rawFor(l);
+  if (what === 'video') for (const l of LANGS) await videoFor(l);
 } finally { await browser.close(); world.stop(); FAKES.stop(); }
 process.exit(0);

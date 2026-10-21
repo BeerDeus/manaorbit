@@ -1,0 +1,83 @@
+/* Série de lancement (l1 à l8) : téléphone avec les vrais écrans de l'appli (shots/video/, node tools/store-assets.mjs video fr), sous-titres calés
+   sur la voix, loupes, touchers, orbites de mana, carte de fin. S'ajoute à base.css ; les instants viennent de lancement.js (data-in="mot"). */
+:root{--tw:630px;--th:1014px}
+.grain{position:absolute;inset:0;z-index:50;pointer-events:none;opacity:.07;mix-blend-mode:overlay;background-size:256px}
+.halo{position:absolute;left:50%;top:var(--y,1100px);width:1300px;height:1300px;margin:-650px 0 0 -650px;border-radius:50%;background:radial-gradient(closest-side,rgba(146,156,255,.28),rgba(146,156,255,0));animation:respire 6s ease-in-out infinite alternate}
+@keyframes respire{to{scale:1.12;opacity:.7}}
+
+/* orbite de mana : anneau incliné (SVG) et symboles qui le parcourent, devant puis derrière (z-index animé) */
+.orbite{position:absolute;left:50%;top:var(--y);width:0;height:0;rotate:var(--deg,-18deg)}
+.orbite svg.anneau{position:absolute;overflow:visible}
+.orbite .sym{position:absolute;left:0;top:0;width:var(--s,74px);height:var(--s,74px);margin:calc(var(--s,74px) / -2) 0 0 calc(var(--s,74px) / -2);offset-rotate:0deg;animation:tour-av var(--tour,14s) linear infinite}
+.orbite .sym svg{width:100%;height:100%;rotate:calc(-1 * var(--deg,-18deg));filter:drop-shadow(0 10px 18px rgba(0,0,0,.55))}
+@keyframes tour-av{0%{offset-distance:0%;scale:1;opacity:1}25%{scale:1.2}49.9%{opacity:1}50%{offset-distance:50%;scale:1;opacity:0}100%{offset-distance:100%;opacity:0}}
+@keyframes tour-ar{0%{offset-distance:0%;opacity:0}49.9%{opacity:0}50%{offset-distance:50%;scale:1;opacity:.85}75%{scale:.7;opacity:.5}100%{offset-distance:100%;scale:1;opacity:.85}}
+.orbite.devant{z-index:30}.orbite.derriere{z-index:1}
+
+/* téléphone : cadre, écran (630 × 1014 pour des captures 984 × 1584), reflet, caméra */
+.tel2{position:absolute;left:209px;top:var(--top,600px);width:662px;height:1046px;padding:16px;border-radius:92px;z-index:10;
+  background:linear-gradient(150deg,#4a5480 0%,#1a2036 32%,#10141f 60%,#343c5e 100%);box-shadow:0 0 0 2px rgba(255,255,255,.06),0 70px 120px -30px rgba(0,0,0,.95),0 0 0 14px rgba(11,15,28,.0);
+  animation:telv .8s var(--doux) var(--in) both,telo .45s cubic-bezier(.5,0,.8,.4) var(--out) forwards}
+.tel2 .vue{position:relative;width:var(--tw);height:var(--th);border-radius:76px;overflow:hidden;background:#0b0f1c;isolation:isolate}
+.tel2 .vue::after{content:"";position:absolute;left:50%;top:22px;width:30px;height:30px;margin-left:-15px;border-radius:50%;background:#020308;box-shadow:0 0 0 3px #11151f;z-index:20}
+.tel2 .vue::before{content:"";position:absolute;inset:0;z-index:19;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.09) 0%,rgba(255,255,255,0) 28%,rgba(255,255,255,0) 70%,rgba(255,255,255,.04) 100%)}
+@keyframes telv{from{opacity:0;translate:0 420px;rotate:6deg}to{opacity:1;translate:0 0;rotate:0deg}}
+@keyframes telo{to{opacity:0;translate:0 260px;scale:.9}}
+.tel2.flotte{animation:telv .8s var(--doux) var(--in) both,flotte 7s ease-in-out var(--in) infinite alternate,telo .45s cubic-bezier(.5,0,.8,.4) var(--out) forwards}
+@keyframes flotte{0%{transform:perspective(2400px) rotateY(-5deg) rotateX(3deg)}100%{transform:perspective(2400px) rotateY(5deg) rotateX(-2deg)}}
+
+/* écrans de l'appli : le suivant recouvre le précédent (ordre du document) ; .pousse = navigation (arrive par la droite) ; zoom dans l'écran */
+.ecr{position:absolute;inset:0;opacity:0;animation:ecrv .2s linear var(--in) both;transform-origin:var(--ox,50%) var(--oy,50%)}
+.ecr.pousse{animation:pousse .42s var(--doux) var(--in) both}
+.ecr.monte2{animation:monte2 .45s var(--doux) var(--in) both}
+.ecr.zoom{animation:ecrv .2s linear var(--in) both,zoom .7s var(--doux) var(--zin) both,dezoom .6s var(--doux) var(--zout,999s) forwards}
+.ecr.pousse.zoom{animation:pousse .42s var(--doux) var(--in) both,zoom .7s var(--doux) var(--zin) both,dezoom .6s var(--doux) var(--zout,999s) forwards}
+.ecr img{display:block;width:100%;height:100%}
+@keyframes ecrv{from{opacity:0}to{opacity:1}}
+@keyframes pousse{from{opacity:1;translate:100% 0}to{opacity:1;translate:0 0}}
+@keyframes monte2{from{opacity:1;translate:0 100%}to{opacity:1;translate:0 0}}
+@keyframes zoom{from{scale:1}to{scale:var(--z,1.5)}}
+@keyframes dezoom{from{scale:var(--z,1.5)}to{scale:1}}
+
+/* toucher : doigt (disque clair) puis onde, en % de l'écran */
+.tap{position:absolute;left:var(--x);top:var(--y);width:0;height:0;z-index:15}
+.tap::before,.tap::after{content:"";position:absolute;left:-46px;top:-46px;width:92px;height:92px;border-radius:50%}
+.tap::before{background:rgba(255,255,255,.55);box-shadow:0 0 0 3px rgba(255,255,255,.25);animation:doigt .55s ease-out calc(var(--in) - .18s) both}
+.tap::after{border:5px solid rgba(255,255,255,.9);animation:onde .55s ease-out var(--in) both}
+@keyframes doigt{0%{opacity:0;scale:1.3}30%{opacity:1;scale:1}55%{opacity:1;scale:.86}100%{opacity:0;scale:.86}}
+@keyframes onde{0%{opacity:0;scale:.5}15%{opacity:1}100%{opacity:0;scale:2.1}}
+
+/* loupe : morceau agrandi d'une capture qui sort du téléphone (lancement.js pose fond, taille et position) */
+.loupe{position:absolute;z-index:35;border-radius:var(--r,34px);background-repeat:no-repeat;background-color:#0b0f1c;box-shadow:0 0 0 3px rgba(146,156,255,.55),0 40px 80px -20px rgba(0,0,0,.95),0 0 90px -10px rgba(146,156,255,.45);
+  animation:loupe .5s var(--ressort) var(--in) both,fondu .25s linear var(--out) forwards;rotate:var(--rot,-2deg)}
+@keyframes loupe{from{opacity:0;scale:.55;translate:var(--dx,0) var(--dy,120px)}to{opacity:1;scale:1;translate:0 0}}
+
+/* sous-titres (lancement.js) : groupe de mots courant, mot prononcé en couleur */
+.st{position:absolute;left:90px;right:90px;top:var(--st-top,250px);height:330px;z-index:40;display:flex;align-items:center;justify-content:center;text-align:center}
+.st p{font-family:Bricolage;font-weight:800;font-size:var(--st-taille,92px);line-height:1.04;letter-spacing:-.035em;text-wrap:balance;color:#fff;text-shadow:0 6px 0 rgba(5,7,15,.55),0 14px 40px rgba(0,0,0,.6)}
+.st p span{display:inline-block;transition:none}
+.st p span.dit{color:var(--warm)}
+.st p span.pas{opacity:.92}
+
+/* grands textes libres et pastilles */
+.titre{position:absolute;left:80px;right:80px;text-align:center;z-index:40;font-family:Bricolage;font-weight:800;font-size:120px;line-height:1;letter-spacing:-.045em;text-shadow:0 14px 40px rgba(0,0,0,.6)}
+.titre small{display:block;font-family:Instrument;font-weight:600;font-size:44px;letter-spacing:0;color:var(--ink-2);margin-top:22px}
+.pastille{position:absolute;z-index:36;display:inline-flex;align-items:center;gap:16px;padding:20px 34px;border-radius:999px;background:rgba(19,26,43,.92);border:2px solid var(--line);font-family:Bricolage;font-weight:750;font-size:46px;letter-spacing:-.02em;white-space:nowrap;box-shadow:0 24px 50px -18px rgba(0,0,0,.9)}
+.pastille b{color:var(--warm)}.pastille.ok b{color:var(--ok)}.pastille.a b{color:var(--accent)}
+.pastille .ms{width:54px;height:54px}
+
+/* compteur (lancement.js) */
+.compte{font-variant-numeric:tabular-nums}
+
+/* carte de fin (lancement.js la remplit) : fond qui couvre tout, logo dans son orbite de mana, nom, Google Play, site */
+.fin{position:absolute;inset:0;z-index:60;opacity:0;animation:ecrv .35s linear var(--in) both}
+.fin .fond{position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 35%,#232b5c 0%,#0b0f1c 70%)}
+.fin .logo2{position:absolute;left:50%;top:560px;width:330px;height:330px;margin:-165px 0 0 -165px;z-index:5;animation:pop .6s cubic-bezier(.3,1.5,.4,1) calc(var(--in) + .1s) both}
+.fin .logo2 svg{width:100%;height:100%;filter:drop-shadow(0 40px 60px rgba(146,156,255,.35))}
+.fin h1{position:absolute;left:0;right:0;top:850px;text-align:center;font-family:Bricolage;font-weight:800;font-size:150px;letter-spacing:-.045em;line-height:1;animation:monte .5s var(--doux) calc(var(--in) + .25s) both}
+.fin .gp{position:absolute;left:0;right:0;top:1060px;text-align:center;animation:pop .45s var(--ressort) calc(var(--in) + .45s) both}
+.fin .gp span{display:inline-flex;align-items:center;gap:22px;padding:30px 52px;border-radius:999px;background:var(--accent);color:#0b0f1c;font-family:Bricolage;font-weight:750;font-size:54px;letter-spacing:-.02em;box-shadow:0 24px 60px -18px var(--accent)}
+.fin .gp svg{width:46px;height:46px}
+.fin .plus{position:absolute;left:0;right:0;top:1230px;text-align:center;font-size:40px;font-weight:500;color:var(--ink-2);line-height:1.5;animation:monte .5s var(--doux) calc(var(--in) + .6s) both}
+.fin .plus b{color:var(--ink);font-weight:600}
+.fin .plus i{font-style:normal;color:var(--warm);font-weight:600}
