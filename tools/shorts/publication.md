@@ -1,6 +1,6 @@
 # Publication des vidéos de lancement (Instagram Reels, TikTok, YouTube Shorts)
 
-8 vidéos verticales (1080 × 1920, 11 à 17 s), rendues par `node tools/shorts/rendu.mjs <id>` (mode d'emploi : `LISEZMOI.md`). Copie livrée : `docs/videos/` (MP4 + couverture PNG).
+8 vidéos verticales (1080 × 1920, 11 à 17 s), rendues par `node tools/shorts/rendu.mjs <id>` (mode d'emploi : `LISEZMOI.md`). Copie livrée : `docs/videos/` (MP4 + couverture JPEG).
 On part de zéro : les anciennes vidéos (série s0, test fermé) sont supprimées, rien n'en est republié.
 
 | Id | Sujet | Durée | Voix |
@@ -67,7 +67,7 @@ Ensuite : 2 à 3 vidéos par semaine. Les meilleures des 8 (vues, partages, abon
 
 ## Publication, réseau par réseau
 
-- **Couverture** : `docs/videos/<id>.png` (titre en grand, sans sous-titres). Instagram : « Modifier la couverture » › « Ajouter depuis la pellicule ». TikTok : « Couverture » › image. YouTube Shorts : la couverture se choisit dans la vidéo seulement (choisir l'image de fin, avec le logo).
+- **Couverture** : `docs/videos/<id>.jpg` (titre en grand, sans sous-titres). Instagram : « Modifier la couverture » › « Ajouter depuis la pellicule ». TikTok : « Couverture » › image. YouTube Shorts : la couverture se choisit dans la vidéo seulement (choisir l'image de fin, avec le logo).
 - **Instagram** : partager aussi dans le fil (option par défaut) ; lieu facultatif ; « Ajouter un sujet » : Magic: The Gathering. Après publication : story « Nouvelle vidéo » avec l'autocollant de lien vers `manaorbit.app`.
 - **TikTok** : description courte, 3 à 5 hashtags, épingler en commentaire « Gratuit sur Google Play : cherche Mana Orbit » ; ne pas mettre de lien dans la vidéo (portée réduite).
 - **YouTube Shorts** : titre = première ligne de la description (moins de 70 caractères), le reste en description ; catégorie Jeux ; public « pas conçu pour les enfants ».
