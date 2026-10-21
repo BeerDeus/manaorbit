@@ -15,11 +15,17 @@ const out = join(DIR, 'voix', id + '.wav'), gem = join(DIR, 'voix', id + '.gemin
 const duree = f => Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' }));
 if (existsSync(out) && !existsSync(gem)) copyFileSync(out, gem);
 const avant = existsSync(gem) ? duree(gem) : 0;
-const af = ['highpass=f=80', 'afftdn=nf=-30',
+// bruit de fond mesuré (tranches de 20 ms les plus calmes) : réduction de bruit seulement s'il s'entend, réglée sur lui (sur un enregistrement propre,
+// un débruiteur trop fort mange la voix)
+const st = execFileSync('ffmpeg', ['-hide_banner', '-i', src, '-af', 'asetnsamples=960,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-', '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'ignore'] });
+const lv = [...st.matchAll(/RMS_level=(-?[\d.]+|-inf)/g)].map(m => m[1] === '-inf' ? -120 : Number(m[1])).sort((x, y) => x - y);
+const fond = lv.length ? lv[Math.floor(lv.length * 0.15)] : -60;
+const af = ['highpass=f=80', ...(fond > -58 ? [`afftdn=nf=${Math.round(Math.min(-25, fond + 4))}`] : []),
   'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.3', 'areverse', 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.3', 'areverse',
   'acompressor=threshold=-22dB:ratio=2.5:attack=8:release=120:makeup=2'].join(',');
-execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', src, '-af', af, '-ac', '1', '-ar', '24000', '-c:a', 'pcm_s16le', out], { stdio: 'inherit' });
+execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', src, '-af', af, '-ac', '1', '-ar', '48000', '-c:a', 'pcm_s16le', out], { stdio: 'inherit' });      // 48 kHz : les aigus d'un bon micro restent
 const apres = duree(out), M = mots(out, v.texte, 0.3);
+console.log(`${id} : bruit de fond ${fond.toFixed(0)} dB (${fond > -58 ? 'réduit' : 'propre, rien à enlever'})`);
 console.log(`${id} : ${apres.toFixed(2)} s de voix${avant ? ` (Gemini : ${avant.toFixed(2)} s, ${apres > avant ? '+' : ''}${(apres - avant).toFixed(2)} s)` : ''} → voix/${id}.wav`);
 console.log(`  premier mot ${M[0].t0.toFixed(2)} s, dernier ${M[M.length - 1].t1.toFixed(2)} s dans la vidéo ; la page s'allonge ou raccourcit d'autant`);
 console.log(`  vérifier que le texte lu est bien celui de voix.json : node tools/shorts/ecoute.mjs ${id}   (sinon corriger « texte » : les sous-titres le reprennent)`);
