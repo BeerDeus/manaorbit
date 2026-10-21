@@ -2,19 +2,19 @@
 
 Un fichier par vidéo, **brut** (sans effet ni normalisation : je m'en occupe), nommé par la vidéo (`l2-classeur.wav`…). Je le nettoie et je le pose, et la vidéo se recale toute seule sur ta voix : sous-titres, écrans, zooms, durée.
 
-## Sur le PC (micro Rode + Scarlett, Windows)
-1. **Pilote** : Focusrite Control (Scarlett 3e génération) ou Focusrite Control 2 (4e) sur focusrite.com. Si la Scarlett apparaît comme une clé USB (« Easy Start ») : 3e génération, garder le bouton 48V appuyé 5 s puis la rebrancher ; 4e génération, l'installation de Focusrite Control 2 s'en charge.
-2. **Windows** : Paramètres › Son › Focusrite (entrée) › Propriétés : format 24 bits, 48 000 Hz, « Améliorations audio » désactivées. Mêmes réglages pour la sortie casque.
-3. **Micro** : entrée 1 de la Scarlett, câble XLR.
-   - Condensateur (NT1, NT1-A, NT2-A…) : **48V allumé** ; on parle **sur la face** (logo / point doré face à la bouche) à 15-20 cm, avec un filtre anti-pop.
-   - Dynamique (PodMic, Procaster) : **48V éteint** ; on parle **dans le bout** à 5-10 cm ; il faut beaucoup de gain (bouton aux trois quarts, c'est normal).
-   - USB (NT-USB, PodMic USB) : branché directement au PC, la Scarlett ne sert pas.
-   - Dans tous les cas : micro un peu de biais (15-30°), pas pile face à la bouche : les « p » de « pote », « parties », « Google Play » ne claquent pas.
-4. **Casque** branché sur la Scarlett, **Direct Monitor** allumé (bouton en façade en 3e génération, Focusrite Control 2 en 4e) : tu t'entends sans décalage. Jamais d'enceintes pendant la prise.
-5. **Gain** : parle comme pour la vraie prise ; le cercle autour du bouton reste vert, orange seulement sur les mots les plus forts, jamais rouge (une saturation ne se répare pas). 4e génération : « Auto Gain » (appui, puis 10 s de parole) fait le réglage. **Air** : à essayer, souvent mieux sur la voix ; garder ce qui sonne le plus naturel au casque.
-6. **Audacity** (gratuit, audacityteam.org) : Paramètres audio › hôte **Windows WASAPI**, enregistrement « Focusrite USB » (Analogue 1), **1 canal (mono)**, fréquence du projet **48 000 Hz**. Pendant la prise, les crêtes du vumètre vers **-12 à -6 dB**.
-7. **Test** : 10 s de silence, puis réécoute au casque, volume fort. Souffle, ventilateur, frigo, PC ? Éloigne le micro de la tour, coupe ce qui ronronne.
-8. **Prises** : chaque texte 2 ou 3 fois d'affilée sur la même piste, une seconde de silence entre les prises. Sélectionne la meilleure, puis Fichier › Exporter l'audio (ou « Exporter la sélection ») : **WAV, PCM 24 bits, mono**.
+## Sur le PC : Rode PodMic + Scarlett Solo (3e génération), Windows
+1. **Pilote** : focusrite.com › Téléchargements › Scarlett Solo 3rd Gen › « Focusrite USB Driver » (la Solo 3e génération n'a pas besoin de Focusrite Control). Si, une fois branchée, la Scarlett apparaît comme une clé USB (« Easy Start ») : garde le bouton **48V** appuyé 5 s, elle redémarre en carte son normale.
+2. **Windows** : Paramètres › Son › entrée « Analogue 1 + 2 (Focusrite USB Audio) » › Propriétés : **24 bits, 48 000 Hz**, « Améliorations audio » désactivées.
+3. **Branchement** : le PodMic en **XLR** sur l'entrée de gauche (la prise micro, avec 48V et AIR à côté), pas sur la prise jack « INST ».
+4. **Boutons de la Scarlett** :
+   - **48V éteint** : le PodMic est dynamique, il n'en a pas besoin.
+   - **AIR allumé** : le PodMic est un peu sourd, AIR rend la voix plus claire. Compare avec et sans au casque, garde ce qui sonne le plus naturel.
+   - **DIRECT MONITOR allumé**, casque branché sur la Scarlett, volume avec le gros bouton MONITOR. Jamais d'enceintes pendant la prise.
+5. **Position** : on parle **dans le bout rond** du PodMic (pas sur le côté), à **5-10 cm** de la bouche, micro un peu de biais. Son filtre anti-pop est intégré. Micro sur un pied ou un bras, pas posé sur le bureau où tu tapes (chaque choc s'entend).
+6. **Gain** : le PodMic demande beaucoup de gain, la Solo sera presque au maximum, c'est normal. Parle comme pour la vraie prise : cercle vert, orange seulement sur les mots les plus forts, jamais rouge. Si tout au bout le son reste faible, rapproche-toi (5 cm) plutôt que de crier.
+7. **Audacity** (gratuit, audacityteam.org) : Paramètres audio › hôte **Windows WASAPI**, enregistrement « Analogue 1 + 2 (Focusrite USB Audio) », **1 canal (mono)**, fréquence du projet **48 000 Hz**. Crêtes vers **-18 à -6 dB** au vumètre : plus bas que -6 n'est pas grave, je remonte le niveau ; ce qui compte, c'est de ne jamais toucher 0.
+8. **Test** : 10 s de silence, puis réécoute au casque, volume fort. Un léger souffle au gain maximum est normal (je l'enlève) ; un ronronnement (ventilateur du PC, frigo) : éloigne le micro de la tour, coupe ce qui tourne.
+9. **Prises** : chaque texte 2 ou 3 fois d'affilée sur la même piste, une seconde de silence entre les prises. Sélectionne la meilleure, puis Fichier › Exporter l'audio (ou « Exporter la sélection ») : **WAV, PCM 24 bits, mono**, nommé `l2-classeur.wav`…
 
 ## Pour que ça sonne bien
 - Pièce calme et « molle » (rideaux, canapé, lit, placard à vêtements derrière toi) plutôt qu'un mur nu, une cuisine ou une salle de bain. Pas de musique ni de télé.
