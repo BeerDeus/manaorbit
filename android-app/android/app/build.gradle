@@ -7,8 +7,8 @@ android {
         applicationId "app.manaorbit"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 9
-        versionName "1.0.8"
+        versionCode 10
+        versionName "1.0.9"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,11 +18,10 @@ android {
     }
     buildTypes {
         release {
-            // R8 (APK 1.0.7) : code réduit et obscurci, exigé par la Play Console (« optimisation du code DEX », seuil de 25 %, d'ici février 2027).
-            // Règles : celles de capacitor-android et de chaque bibliothèque (consumerProguardFiles), plus proguard-rules.pro. Le fichier de correspondance
-            // (traces de plantage lisibles) part dans l'.aab. shrinkResources laissé à false : des ressources sont lues par leur nom (google_app_id…).
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // APK 1.0.9 : code natif de la 1.0.6 (R8 et EdgeToEdge des 1.0.7 / 1.0.8 retirés : la caméra du scan ne s'ouvrait plus dans la version du
+            // Play Store). R8 à rallumer seulement après une version release essayée sur le téléphone (test interne) ; échéance Play Console : février 2027.
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
@@ -36,7 +35,6 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
-    implementation "androidx.activity:activity:$androidxActivityVersion"      // EdgeToEdge (MainActivity, APK 1.0.7)
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')

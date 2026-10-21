@@ -108,6 +108,8 @@ La connexion Google utilise le compte Google du téléphone : un sélecteur nati
 2. Clique le bouton vert **Run ▶** (exécuter), ou **Run › Run 'app'**.
 3. L'appli s'installe et s'ouvre sur le téléphone.
 
+**Run ▶ installe la version debug.** Elle suffit pour essayer une modification, mais pas pour valider une APK avant de l'envoyer aux testeurs : la version du Play Store est la version release (signée, et réduite par R8 s'il est allumé). Avant chaque envoi : test interne, voir « APK 1.0.9 » plus bas.
+
 **Pour tester le scan :** dans Ma collection, l'icône appareil photo **Scanner des cartes**, ou **Prix rapide** sur l'accueil. L'aperçu de l'appareil photo est natif. Le nom de la carte est lu sur le téléphone par ML Kit (Google), dont le modèle arrive avec les services Google Play à l'installation de l'appli. Cartes chinoises, japonaises, coréennes : voir « Scan des cartes chinoises, japonaises, coréennes » plus bas (APK 1.0.6).
 
 **En ligne de commande**, depuis `android-app` (Windows, Mac ou Linux) : `npm run apk` fabrique le même APK de test sans Android Studio ; sous Windows, définis d'abord `JAVA_HOME` comme au 2 bis. Pour le Play Store, passe par l'étape 4.1 (fichier signé).
@@ -212,7 +214,43 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.0.9 (versionCode 10) : caméra du scan revenue, code natif de la 1.0.6 (21 octobre 2026)
+
+**Bug des 1.0.7 et 1.0.8** (vu par le propriétaire le 21 octobre sur deux téléphones, version du Play Store) : la caméra du scan ne s'ouvrait plus. Le site demande bien la caméra native, au bon endroit, sur une zone transparente (vérifié en simulant l'appli, test `scan-e2e.mjs`). Entre la 1.0.6 (caméra vérifiée) et la 1.0.8, le code natif n'a changé que sur deux points : **R8** (1.0.7) et l'appel `EdgeToEdge.enable` (1.0.7, déplacé en 1.0.8). R8 n'agit que sur la version release, celle du Play Store, la même sur tous les téléphones, et **jamais essayée sur un téléphone** : **Run ▶** installe la version debug, sans R8 (la 1.0.8 avait été vérifiée ainsi, pour la barre du haut seulement).
+
+**Correctif** (choix du propriétaire) : **code natif exact de la 1.0.6** (`MainActivity`, `build.gradle`, `proguard-rules.pro`), seul le numéro de version change. Le bord à bord et R8 étaient de simples recommandations de la Play Console (échéance février 2027 pour R8) : à reprendre un par un, chacun essayé en version release sur le téléphone avant tout envoi. **Filet côté site** (en ligne tout de suite, aussi pour les 1.0.7 et 1.0.8 déjà installées) : si la caméra native ne répond pas en 8 s, elle est arrêtée et le scan passe à la caméra du WebView (lecture toujours par ML Kit) ; retenu jusqu'au prochain lancement de l'appli (`scan.js › natStart`, test `scan-e2e.mjs`).
+
+**À partir de maintenant, toute APK passe par le test interne avant le test fermé ou la production** (Run ▶ ne montre pas ce que voient les testeurs) :
+
+1. `git pull`, `npm run setup` dans `android-app`, Android Studio › **Sync Project with Gradle Files**, `.aab` signé (§ 4.1).
+2. Play Console › **Tester › Test interne** › Créer une version avec ce fichier (testeur : ton adresse ; l'examen y est quasi immédiat). Installe-la depuis le lien du test interne, sur le Xiaomi.
+3. Liste à vérifier sur cette version (5 minutes) : « APK : 1.0.9 (10) » en bas des Réglages, tous les plugins en ✓ à côté ; **scan** (une carte française et une japonaise ; l'image de la caméra doit apparaître en moins de 2 s) ; connexion Google ; une notification (« Partie enregistrée ») ; widget « Valeur de la collection » ; lien `https://manaorbit.app/?p=…` touché dans une messagerie ; bandeau de pub ; pas de barre en haut de l'écran (comme en 1.0.6, barre d'état cachée).
+4. Tout va bien : Test interne › la version › **Promouvoir** vers le test fermé (ou la production). Notes de version :
+```
+<fr-FR>
+Correction : la caméra du scan s'ouvre de nouveau. Merci pour vos retours !
+</fr-FR>
+<en-US>
+Fix: the scanner camera opens again. Thanks for your feedback!
+</en-US>
+<de-DE>
+Korrektur: Die Kamera des Scanners öffnet sich wieder. Danke für euer Feedback!
+</de-DE>
+<es-ES>
+Corrección: la cámara del escáner vuelve a abrirse. ¡Gracias por vuestros comentarios!
+</es-ES>
+<it-IT>
+Correzione: la fotocamera dello scanner si apre di nuovo. Grazie per i vostri feedback!
+</it-IT>
+<pt-BR>
+Correção: a câmera do scanner abre de novo. Obrigado pelo feedback!
+</pt-BR>
+```
+5. `APK_LATEST` : **9** tant que la 1.0.9 n'est pas en ligne pour les testeurs, puis **10** (les 1.0.8 verront « Mise à jour de l'appli »).
+
 ### APK 1.0.8 (versionCode 9) : barre en haut de l'écran corrigée (20 octobre 2026)
+
+> **Retirée par la 1.0.9** (21 octobre) : la caméra du scan ne s'ouvrait plus dans la version du Play Store ; retour au code natif de la 1.0.6. Gardé ici pour le jour où on reprend R8 et le bord à bord.
 
 **Bug de la 1.0.7** (vu par le propriétaire le 20 octobre, avant validation) : une barre Android de 56 dp en haut (titre « Man… » tronqué, logo de lancement étiré en fond), au-dessus de la page. Cause : `EdgeToEdge.enable(this)` était appelé **avant** `super.onCreate`, donc la fenêtre était créée avec le thème de lancement (`AppTheme.NoActionBarLaunch`, dont `android:background` est le logo) au lieu du thème sans barre que `BridgeActivity` pose dans `super.onCreate`. **Correctif** : appel déplacé juste après `super.onCreate` (test `test-android-xml.mjs` : rien ne touche la fenêtre avant). Ce bug ne dépend pas de R8 : **Run ▶** (version debug) sur le téléphone suffit pour vérifier.
 
@@ -241,6 +279,8 @@ Correção: desde a 1.0.7 aparecia uma barra no topo da tela. Obrigado pelo feed
 3. `APK_LATEST` : **7** tant que la 1.0.8 n'est pas en ligne (sinon les 1.0.6 seraient poussées vers la 1.0.7), puis **9**.
 
 ### APK 1.0.7 (versionCode 8) : R8 et bord à bord (demandés par la Play Console, 20 octobre 2026)
+
+> **Retirée par la 1.0.9** (21 octobre) : la caméra du scan ne s'ouvrait plus dans la version du Play Store ; retour au code natif de la 1.0.6. Gardé ici pour le jour où on reprend R8 et le bord à bord.
 
 Prête dans le code, **à construire après la mise en production** (rien ne presse : échéance février 2027 ; la 1.0.6 part en production telle quelle).
 

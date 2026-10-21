@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowManager;
-import androidx.activity.EdgeToEdge;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
@@ -21,17 +20,13 @@ public class MainActivity extends BridgeActivity {
         Intent launch = getIntent();
         if (savedInstanceState != null || (launch != null && (launch.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0)) ManaOrbitPlugin.forget(launch);
         super.onCreate(savedInstanceState);
-        // Bord à bord sur toutes les versions (demandé par la Play Console) : Android 15 et plus l'imposent déjà (cible SDK 35+) ; Android 7 à 14
-        // s'affichent pareil (barres transparentes ; SystemBars de Capacitor donne les marges au site). Sur Android 9 et 10, EdgeToEdge dessine aussi sur
-        // la ligne de la caméra frontale (SHORT_EDGES, réglé par la bibliothèque : plus de constante obsolète ici).
-        // APRÈS super.onCreate (APK 1.0.8) : BridgeActivity y pose le thème sans barre (AppTheme.NoActionBar) puis la vue. Appelé avant (1.0.7), EdgeToEdge
-        // créait la fenêtre avec le thème de lancement : barre d'action Android en haut (titre « Mana Orbit » tronqué, logo de lancement étiré en fond).
-        EdgeToEdge.enable(this);
-        // Plein écran (barre d'état cachée par le site, SystemBars) : la page dessine aussi sur la ligne de la caméra frontale, sans bande noire, même en paysage
-        // (Android 11 et plus). Le site lit la découpe (ManaOrbit.cutout) pour l'éviter.
-        if (Build.VERSION.SDK_INT >= 30) {
+        // Plein écran (barre d'état cachée par le site, SystemBars) : la page dessine aussi sur la ligne de la caméra frontale, sans bande noire
+        // (Android 9 à 14 ; Android 15 et plus le font déjà pour une appli bord à bord). Le site lit la découpe (ManaOrbit.cutout) pour l'éviter.
+        if (Build.VERSION.SDK_INT >= 28) {
             WindowManager.LayoutParams lp = getWindow().getAttributes();
-            lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+            lp.layoutInDisplayCutoutMode = Build.VERSION.SDK_INT >= 30
+                ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
             getWindow().setAttributes(lp);
         }
         // Barre d'état cachée : un glissé du haut (ou le volet des notifications) ne la montre qu'en passant, elle se recache seule ensuite

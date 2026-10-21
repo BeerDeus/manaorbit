@@ -397,8 +397,31 @@ await camN.close();
   await fp.waitForFunction(() => document.querySelector('.sc-stage').dataset.native === '1', null, { timeout: 5000 });
   assert.equal(await fp.evaluate(() => [window.__nat.starts, document.documentElement.classList.contains('nat-cam')].join()), '2,true', 'réouverture : caméra native redémarrée');
   await fp.click('.scan [data-act="close"]'); await fp.waitForTimeout(400);
-  assert.deepEqual(nf.errs, []); await nf.ctx.close(); await bN.close();
+  assert.deepEqual(nf.errs, []); await nf.ctx.close();
   ok('appli Android : démarrage natif raté → caméra arrêtée, repli web, et la réouverture redémarre la caméra native');
+
+  // caméra native muette (APK 1.0.7 et 1.0.8 du Play Store : start() ne répondait jamais, aperçu noir) : au bout du délai, arrêt et repli sur la caméra du
+  // WebView ; les ouvertures suivantes y vont tout de suite (sans réattendre), jusqu'au prochain lancement de l'appli
+  const nm = await newPage(bN, world, { goto: false }), mp = nm.p; await bandOnly(nm.ctx);
+  await nm.ctx.addInitScript(() => {
+    window.__natWait = 600; window.__nat = { starts: 0, stops: 0 };
+    window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: () => true, Plugins: {
+      CameraPreview: { start: () => { window.__nat.starts++; return new Promise(() => {}); }, stop: async () => { window.__nat.stops++; return {}; }, captureSample: async () => ({ value: '' }) },
+      CapacitorPluginMlKitTextRecognition: { detectText: async () => ({ text: '', blocks: [] }) } } };
+  });
+  await routeCdn(nm.ctx); await mp.goto(world.url); await mp.waitForTimeout(700);
+  await toHome(mp); await mp.click('#btnColl'); await mp.waitForSelector('.coll.on'); await mp.click('#nav [data-nav="scan"]'); await mp.waitForSelector('.scan.on');
+  await mp.waitForFunction(() => document.documentElement.classList.contains('nat-cam'), null, { timeout: 3000 });
+  await mp.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'no', null, { timeout: 5000 });
+  assert.deepEqual(await mp.evaluate(() => [window.__nat.starts, window.__nat.stops, document.documentElement.classList.contains('nat-cam'), NAT.on, NAT.bad, sessionStorage.getItem('deckdeal:natcam-ko')]), [1, 1, false, false, true, '1'], 'caméra muette : arrêtée, page opaque, retenu');
+  assert.match(await txt(mp, '.sc-nocam'), /Aucun appareil photo/, 'repli : caméra du WebView (absente ici)');
+  await mp.click('.scan [data-act="close"]'); await mp.waitForTimeout(400);
+  const t0 = Date.now(); await mp.click('#nav [data-nav="scan"]'); await mp.waitForSelector('.scan.on');
+  await mp.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'no', null, { timeout: 5000 });
+  assert.ok(Date.now() - t0 < 2500, 'réouverture : caméra du WebView tout de suite'); assert.equal(await mp.evaluate(() => window.__nat.starts), 1, 'caméra native plus redemandée');
+  await mp.click('.scan [data-act="close"]'); await mp.waitForTimeout(400);
+  assert.deepEqual(nm.errs, []); await nm.ctx.close(); await bN.close();
+  ok('appli Android : caméra native muette → arrêt au bout du délai, repli sur la caméra du WebView, retenu jusqu\'au prochain lancement');
 }
 
 world.stop(); console.log('\nSCAN E2E OK'); process.exit(0);

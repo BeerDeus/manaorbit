@@ -1076,8 +1076,12 @@ const NATW = {};
 const natHas = lang => { const s = NAT_SCRIPT[lang]; return s === 'latin' ? !!natOcr() : !!s && !!natCjk() && !(NATW[s] > Date.now()); };
 /** Demande tout de suite le modèle ML Kit d'une écriture d'Asie (lecture d'une petite image vide : les services Google Play le téléchargent s'il manque ; refusé : Tesseract d'abord, NATW). */
 function natWarm(s) { const c = document.createElement('canvas'); c.width = c.height = 32; c.getContext('2d').fillRect(0, 0, 32, 32); natLines(c, s).catch(() => { NATW[s] = Date.now() + 30e3; }).finally(() => { c.width = c.height = 0; }); }
+/** Caméra native qui ne démarre pas (APK 1.0.7 et 1.0.8 du Play Store : R8 l'avait cassée, l'aperçu restait noir sans jamais répondre) : au bout de
+    NAT_WAIT, arrêt et repli sur la caméra du WebView (getUserMedia, lecture toujours par ML Kit), retenu jusqu'au prochain lancement de l'appli. */
+const NAT_WAIT = 8000;
 async function natStart() {
   const cam = natCam(), el = SC.el, stage = el && $('.sc-stage', el); if (!cam || !stage) return false;
+  try { if (NAT.bad || sessionStorage.getItem('deckdeal:natcam-ko')) return false; } catch (e) { if (NAT.bad) return false; }
   if (NAT.p) { try { await NAT.p; } catch (e) { /* ignore */ } }      // un démarrage précédent encore en cours : on l'attend (« caméra déjà démarrée » sinon)
   // L'aperçu natif ne se déplace plus une fois posé : on mesure la zone écran ouvert (transition de 0,3 s finie) et bandeau de pub retiré.
   for (let i = 0; i < 20 && SC.el === el && (!el.classList.contains('on') || document.documentElement.classList.contains('ad-on')); i++) await new Promise(r => setTimeout(r, 50));
@@ -1087,10 +1091,14 @@ async function natStart() {
   document.documentElement.classList.add('nat-cam');      // page transparente au-dessus de l'aperçu natif
   try {
     NAT.p = cam.start({ position: 'rear', toBack: true, x: Math.round(r.left), y: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height), disableAudio: true, enableZoom: true, lockAndroidOrientation: true });
-    await NAT.p;
+    let late;
+    await Promise.race([NAT.p, new Promise((ok, ko) => { late = setTimeout(() => ko(Object.assign(new Error('caméra native muette'), { slow: true })), window.__natWait || NAT_WAIT); })]).finally(() => clearTimeout(late));
     if (SC.el !== el) { await natHalt(); return true; }      // scan fermé pendant le démarrage : la caméra ne doit pas rester allumée
     NAT.on = true; stage.dataset.cam = 'on'; stage.dataset.native = '1'; return true;
-  } catch (e) { await natHalt(); return false; }      // démarrage raté : aperçu, page transparente et orientation verrouillée défaits, sinon le repli web et le prochain start (« caméra déjà démarrée ») échouent
+  } catch (e) {      // démarrage raté : aperçu, page transparente et orientation verrouillée défaits, sinon le repli web et le prochain start (« caméra déjà démarrée ») échouent
+    if (e && e.slow) { NAT.bad = true; try { sessionStorage.setItem('deckdeal:natcam-ko', '1'); } catch (x) { /* stockage bloqué : NAT.bad suffit */ } }
+    await natHalt(); return false;
+  }
   finally { NAT.p = null; }
 }
 /** Arrêt de la caméra native, que l'aperçu soit déjà affiché ou encore en train de démarrer. */

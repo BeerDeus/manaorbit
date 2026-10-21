@@ -74,26 +74,18 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   console.log(`✓ APK 1.0.6 : detectText (${[...scripts].join(', ')}) et requestReview déclarées, ML Kit chinois, japonais, coréen des services Google Play, Play In-App Review`);
 }
 
-// APK 1.0.7 : R8 (Play Console : optimisation du code DEX ≥ 25 %, d'ici février 2027) et bord à bord sur toutes les versions d'Android
+// APK 1.0.9 : code natif de la 1.0.6. R8 (1.0.7) et EdgeToEdge (1.0.7, déplacé en 1.0.8) retirés : dans la version du Play Store, la caméra du scan
+// ne s'ouvrait plus (version release jamais essayée sur le téléphone : Run ▶ installe la version debug, sans R8). À rallumer après un test interne.
 {
-  const gradle = readFileSync('android-app/android/app/build.gradle', 'utf8'), rules = readFileSync('android-app/android/app/proguard-rules.pro', 'utf8');
+  const gradle = readFileSync('android-app/android/app/build.gradle', 'utf8');
   const rel = (/release \{([\s\S]*?)\n {8}\}/.exec(gradle) || [])[1] || '';
-  assert.match(rel, /minifyEnabled true/, 'release : R8 allumé');
-  assert.match(rel, /getDefaultProguardFile\('proguard-android-optimize\.txt'\)/, 'règles par défaut optimisées (gardent @JavascriptInterface)');
+  assert.match(rel, /minifyEnabled false/, 'release : R8 coupé (1.0.9), comme en 1.0.6');
   assert.doesNotMatch(rel, /shrinkResources true/, 'ressources lues par leur nom (google_app_id) : jamais retirées');
-  assert.match(rules, /-keep class com\.google\.firebase\.FirebaseApp \{ public static java\.util\.List getApps\(android\.content\.Context\); \}/, 'FirebaseApp.getApps lu par réflexion (ManaOrbitPlugin.hasFirebase)');
-  assert.match(readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8'), /Class\.forName\("com\.google\.firebase\.FirebaseApp"\)[\s\S]{0,80}getMethod\("getApps"/, 'la réflexion que la règle protège');
-  assert.match(rules, /-keepattributes SourceFile,LineNumberTable/, 'traces de plantage lisibles');
-  assert.match(rules, /^-dontwarn com\.facebook\.\*\*$/m, 'SDK Facebook absent (compileOnly du plugin de connexion) : R8 ne s\'arrête pas');
-  assert.deepEqual(JSON.parse(readFileSync('android-app/capacitor.config.json', 'utf8')).plugins.FirebaseAuthentication.providers, ['google.com'], 'connexion Facebook jamais chargée : Google seulement');
   const java = readFileSync('android-app/android/app/src/main/java/app/manaorbit/MainActivity.java', 'utf8');
-  // EdgeToEdge APRÈS super.onCreate (APK 1.0.8) : avant (1.0.7), la fenêtre était créée avec le thème de lancement, barre d'action Android affichée en haut
-  const iSuper = java.indexOf('super.onCreate(savedInstanceState);'), iE2E = java.indexOf('EdgeToEdge.enable(this);');
-  assert.ok(iSuper > 0 && iE2E > iSuper, 'EdgeToEdge après super.onCreate (BridgeActivity y pose le thème sans barre et la vue)');
-  assert.equal((java.match(/EdgeToEdge\.enable\(/g) || []).length, 1, 'un seul appel');
-  assert.doesNotMatch(java.slice(0, iSuper), /getDecorView\(|getWindow\(\)/, 'rien ne touche la fenêtre avant super.onCreate (elle serait créée avec le thème de lancement)');
-  assert.doesNotMatch(java, /LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES/, 'plus de constante de découpe obsolète');
-  assert.match(gradle, /implementation "androidx\.activity:activity:\$androidxActivityVersion"/, 'androidx.activity déclarée (EdgeToEdge)');
-  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 9, 'code natif changé : versionCode 9 et plus (1.0.8 : EdgeToEdge déplacé)');
-  console.log('✓ APK 1.0.7 / 1.0.8 : R8 (règles par défaut optimisées, FirebaseApp.getApps gardé, sans shrinkResources), EdgeToEdge après super.onCreate (rien ne touche la fenêtre avant), versionCode ≥ 9');
+  assert.doesNotMatch(java, /EdgeToEdge/, 'pas de bord à bord forcé (1.0.6) : Android 15 et plus l\'imposent déjà (cible SDK 36)');
+  const iSuper = java.indexOf('super.onCreate(savedInstanceState);');
+  assert.ok(iSuper > 0, 'super.onCreate appelé');
+  assert.doesNotMatch(java.slice(0, iSuper), /getDecorView\(|getWindow\(\)/, 'rien ne touche la fenêtre avant super.onCreate (elle serait créée avec le thème de lancement : barre en haut, bug de la 1.0.7)');
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 10, 'code natif changé : versionCode 10 et plus (1.0.9)');
+  console.log('✓ APK 1.0.9 : code natif de la 1.0.6 (R8 coupé, sans EdgeToEdge), rien ne touche la fenêtre avant super.onCreate, versionCode ≥ 10');
 }
