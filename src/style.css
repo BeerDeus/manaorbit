@@ -904,7 +904,7 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .cs-sw{display:inline-flex;padding:2px;border-radius:9px;background:var(--surface-2)}
 .cs-sw i{font-style:normal;font-weight:700;font-size:11px;letter-spacing:.04em;padding:2px 9px;border-radius:7px;color:var(--ink-3)}
 .cs-sw i.on,.cs-sw button.on{background:var(--accent);color:var(--accent-ink)}
-.cs-sw button{border:0;background:transparent;font:inherit;font-weight:650;font-size:11.5px;letter-spacing:0;padding:3px 10px;border-radius:7px;color:var(--ink-3);cursor:pointer}
+.cs-sw button{border:0;background:transparent;font:inherit;font-weight:650;font-size:11.5px;letter-spacing:0;padding:6px 12px;border-radius:7px;color:var(--ink-3);cursor:pointer}      /* ≥ 28 px de haut : se touche au doigt */
 .cs-sw button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .cs-topnote{margin:-2px 2px 0}
 .cs-tiles+.hint{margin-top:6px}
@@ -1457,6 +1457,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .imgv-wish[hidden]{display:none}
 .set-ver{margin:14px 0 0;text-align:center;font-family:var(--font-code);font-size:11.5px}
 .dv-acts{margin-top:2px}.dv-acts .btn,.tr-wacts .btn{flex:1 1 auto;height:44px;font-size:14px}
+.dv-acts .btn{flex-basis:calc(50% - 4px);min-width:0;font-size:13.5px}      /* viewer d'un deck : deux boutons par ligne quand leurs libellés tiennent (sinon la ligne entière), la liste des cartes remonte d'autant */
 .tr-wacts{margin-bottom:10px}
 
 /* ── Identité « Arcane » (celle de l'accueil) sur toute l'appli : aurore de mana en fond, surfaces en verre, foil ─────────────

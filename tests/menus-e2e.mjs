@@ -75,7 +75,7 @@ const SCREENS_ALL = [
   ['reglages-appli', () => setAppSheet(), '.sheet-wrap.open'],
   ['reglages-confidentialite', () => setConfSheet(), '.sheet-wrap.open'],
   ['aide', () => setHelpSheet(), '.sheet-wrap.open #helpBox'],
-  ['carte-mystere', () => dlyOpen(), '.dly-ask.open, .dv.dly.on'],      // sans compte : la feuille qui propose de se connecter
+  ['carte-mystere', () => { CTX.daily = true; dlyOpen(); }, '.dly-ask.open, .dv.dly.on'],      // sans compte : la feuille qui propose de se connecter (le serveur des tests n'allume pas la carte : forcée côté client)
   ['ouverture', () => opnEntry(), '.sheet-wrap.open'],
   ['amis', () => amSheet(), '.sheet-wrap.open'],
   ['partie', () => puOpen(partieNew()), '.dv.pu.on'],
@@ -110,7 +110,7 @@ function uiCheck() {
   const name = el => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '') + (el.textContent ? ' « ' + el.textContent.trim().replace(/\s+/g, ' ').slice(0, 30) + ' »' : '');
   const clipped = el => { for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) { const o = getComputedStyle(a); if (/(hidden|auto|scroll|clip)/.test(o.overflowX + o.overflow)) return true; } return false; };
   if (document.documentElement.scrollWidth > W + 1) out.hard.push(`défilement horizontal de la page : ${document.documentElement.scrollWidth} > ${W}`);
-  const all = [...document.body.querySelectorAll('*')].filter(el => !el.closest('svg') && !el.closest('#splash') && vis(el));
+  const all = [...document.body.querySelectorAll('*')].filter(el => !el.closest('svg') && !el.closest('#splash') && !el.closest('[aria-hidden="true"], [inert]') && vis(el));      // barre du bas repliée (aria-hidden) : hors champ exprès
   for (const el of all) {
     const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
     if (cs.position === 'fixed' && (r.width === 0 || r.height === 0)) continue;
@@ -119,14 +119,15 @@ function uiCheck() {
       out.hard.push(`texte coupé sans « … » : ${name(el)} (${el.scrollWidth} > ${el.clientWidth})`);
     const txt = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
     if (txt && parseFloat(cs.fontSize) < 11 && !el.closest('.sr-only, [aria-hidden="true"], .mc')) out.soft.push(`texte ${cs.fontSize} : ${name(el)}`);      // .mc : lettre d'un symbole de mana (icône)
-    if ((el.matches('button, a[href], [role="button"], input[type="checkbox"], input[type="radio"], select') && !el.matches('.link-btn, .seg-opt, .fchip, .chip, .tag, .pub-tab, .plc-opt, .scs-chip, [class*="chip"]')) && r.top < H && r.bottom > 0) {
+    if ((el.matches('button, a[href], [role="button"], input[type="checkbox"], input[type="radio"], select') && !el.matches('.link-btn, .seg-opt, .fchip, .chip, .tag, .pub-tab, .plc-opt, .scs-chip, [class*="chip"], p a, .hint a, small a, li a')) && r.top < H && r.bottom > 0) {      // liens dans un texte : pas des cibles à part
       const b = getComputedStyle(el, '::before'), zone = b.position === 'absolute' && b.content !== 'none' && parseFloat(b.top) < 0;      // ::before débordant : zone de toucher agrandie (.coll-dot)
       const sz = Math.min(r.width, r.height); if (sz < 28 && !zone) out.soft.push(`cible ${Math.round(r.width)}×${Math.round(r.height)} : ${name(el)}`);
     }
   }
   // contenu sous la barre du bas : le défileur de l'écran du dessus, poussé en bas, laisse son dernier enfant au-dessus de la barre
   const nav = document.querySelector('#nav, .nav'), sc = [...document.querySelectorAll('.dv.on .dv-scroll, .sheet-wrap.open .sheet-body, .sheet-wrap.open .sheet, #app .scroll')].filter(vis).pop();
-  if (nav && vis(nav) && sc && !document.querySelector('.sheet-wrap.open')) {
+  const nr0 = nav && vis(nav) ? nav.getBoundingClientRect() : null;
+  if (nr0 && nr0.top > H * .6 && nr0.width > W * .6 && sc && !document.querySelector('.sheet-wrap.open')) {      // seulement une barre en bas (sur ordinateur elle est sur le côté)
     const prev = sc.scrollTop; sc.scrollTop = sc.scrollHeight; const nr = nav.getBoundingClientRect(), kids = [...sc.querySelectorAll(':scope > * > *, :scope > *')].filter(vis); const last = kids[kids.length - 1];
     if (last) { const lr = last.getBoundingClientRect(); if (lr.bottom > nr.top + 1 && lr.top < nr.top) out.hard.push(`dernier contenu sous la barre du bas : ${name(last)} (${Math.round(lr.bottom)} > ${Math.round(nr.top)})`); }
     sc.scrollTop = prev;
