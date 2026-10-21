@@ -31,12 +31,28 @@ async function say(text, style) {
   if (!r.ok) throw new Error(`HTTP ${r.status} : ${(j.error && j.error.message) || ''}`.slice(0, 300));
   const part = (((j.candidates || [])[0] || {}).content || {}).parts || [], d = part.find(p => p.inlineData && p.inlineData.data);
   if (!d) throw new Error('pas d\'audio dans la réponse');
-  const rate = Number((/rate=(\d+)/.exec(d.inlineData.mimeType || '') || [])[1]) || 24000;
-  return wav(coupe(Buffer.from(d.inlineData.data, 'base64'), rate), rate);
+  const { pcm, rate } = pcmOf(Buffer.from(d.inlineData.data, 'base64'), d.inlineData.mimeType);
+  return wav(coupe(pcm, rate), rate);
 }
-/** Retire la fin du PCM (cfg.coupe s, 0,3 par défaut : le modèle laisse un souffle dans les 0,15 dernières secondes) avec un fondu de 50 ms. */
+/** Son de la réponse : PCM brut (audio/L16;rate=…), ou fichier WAV (audio/wav, depuis octobre 2026) dont on ne garde que le bloc « data ». Le WAV porte après
+ *  le son un bloc de provenance « C2PA » (≈ 6 Ko) : lu comme du son, il faisait un « pfff » d'environ 0,13 s à la fin de chaque voix. */
+function pcmOf(buf, mime) {
+  if (buf.length >= 12 && buf.toString('latin1', 0, 4) === 'RIFF' && buf.toString('latin1', 8, 12) === 'WAVE') {
+    let rate = 24000, pcm = null;
+    for (let o = 12; o + 8 <= buf.length;) {
+      const id = buf.toString('latin1', o, o + 4), n = buf.readUInt32LE(o + 4);
+      if (id === 'fmt ') { rate = buf.readUInt32LE(o + 12); if (buf.readUInt16LE(o + 8) !== 1 || buf.readUInt16LE(o + 10) !== 1 || buf.readUInt16LE(o + 22) !== 16) throw new Error('WAV inattendu (PCM 16 bits mono attendu)'); }
+      if (id === 'data') pcm = buf.subarray(o + 8, Math.min(buf.length, o + 8 + n));
+      o += 8 + n + (n & 1);
+    }
+    if (!pcm) throw new Error('WAV sans données');
+    return { pcm, rate };
+  }
+  return { pcm: buf, rate: Number((/rate=(\d+)/.exec(mime || '') || [])[1]) || 24000 };
+}
+/** Retire la fin du PCM (cfg.coupe s, 0,2 par défaut : demandé par le propriétaire, la voix finit souvent sur un souffle) avec un fondu de 50 ms. */
 function coupe(pcm, rate) {
-  const s = Number(cfg.coupe ?? 0.3), n = Math.max(0, pcm.length / 2 - Math.round(s * rate)), out = pcm.subarray(0, n * 2), f = Math.min(n, Math.round(0.05 * rate));
+  const s = Number(cfg.coupe ?? 0.2), n = Math.max(0, pcm.length / 2 - Math.round(s * rate)), out = pcm.subarray(0, n * 2), f = Math.min(n, Math.round(0.05 * rate));
   for (let i = n - f; i < n; i++) out.writeInt16LE(Math.round(out.readInt16LE(i * 2) * (n - i) / f), i * 2);
   return out;
 }
