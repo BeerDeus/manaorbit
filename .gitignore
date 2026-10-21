@@ -25,8 +25,7 @@ service-account*.json
 *.jks
 *.keystore
 
-# voix off générées (Gemini TTS) : refaites à la demande, pas dans le dépôt
-tools/shorts/voix/
+# voix off (tools/shorts/voix/) : versionnées, une voix Gemini ne se refait jamais à l'identique ; voix du propriétaire posée par ma-voix.mjs
 
 # vidéos courtes rendues (MP4, couvertures, images) : refaites à la demande, pas dans le dépôt
 tools/shorts/rendu/

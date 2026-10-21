@@ -63,7 +63,7 @@ Ensuite : 2 à 3 vidéos par semaine. Les meilleures des 8 (vues, partages, abon
 - **Vidéos avec voix** (l1, l2, l4, l5, l7, l8) : ajouter dans l'appli du réseau un son tendance **instrumental**, volume de la musique à **10-15 %** (la voix doit rester devant), volume du son d'origine à 100 %.
 - **Vidéos sans voix** (l3, l6) : son tendance plein volume ; les sous-titres portent le message.
 - Jamais de musique ajoutée hors des bibliothèques des réseaux (droits d'auteur : son coupé ou vidéo bloquée). Sur YouTube, la bibliothèque audio de YouTube Studio, ou rien.
-- La voix est générée (Gemini) ; Instagram et TikTok demandent parfois d'indiquer un contenu généré par l'IA : cocher l'option « contenu généré par l'IA » si l'appli la propose pour la voix, c'est sans effet sur la portée.
+- **Voix** : le propriétaire enregistrera la sienne (les voix de synthèse s'entendent sur les Reels) : textes et conseils dans `docs/videos/textes-a-enregistrer.md`, pose par `ma-voix.mjs`. Tant que c'est la voix Gemini, cocher « contenu généré par l'IA » si l'appli du réseau le demande.
 
 ## Publication, réseau par réseau
 

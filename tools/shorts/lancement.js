@@ -2,6 +2,7 @@
 // rendu.mjs injecte window.MOTS_VOIX (mots de voix.json avec leurs instants dans voix/<id>.wav, tools/shorts/mots.mjs) et window.MANA (symboles de mana).
 // Instants : data-in / data-out / data-zin / data-zout = secondes (« 2.4 ») ou mot de la voix (« scannes », « tu#3 » = 3e « tu », « valent> » = fin du mot,
 // « doublons+0.2 » = décalage) → variables CSS --in / --out / --zin / --zout. Sans voix : window.SOUS_TITRES = [[début, fin, 'texte <em>accent</em>'], …].
+// Tout est relatif aux mots : une autre voix (node tools/shorts/ma-voix.mjs) recale la vidéo sans toucher à la page.
 (() => {
   const DEC = window.DECALAGE_VOIX || 0, LANGUE = window.LANGUE || 'fr', SHOTS = '../../shots/video/';
   const MOTS = (window.MOTS_VOIX || []).map(m => ({ ...m, t0: m.t0 + DEC, t1: m.t1 + DEC }));
@@ -84,6 +85,10 @@
     p.style.opacity = Math.min(1, k * 1.6); p.style.transform = `scale(${(0.82 + 0.18 * e).toFixed(4)}) translateY(${((1 - k) * 24).toFixed(1)}px)`;
     if (r.g) [...p.children].forEach((s, i) => { const m = r.g[i], n = r.g[i + 1]; s.className = t >= m.t0 && (!n || t < n.t0) ? 'dit' : ''; });
   };
+
+  // durée et couverture suivent la voix (autre voix, autre débit) : window.APRES_VOIX = secondes après le dernier mot, COUVERTURE = mot
+  if (window.APRES_VOIX != null) window.DUREE = +(MOTS[MOTS.length - 1].t1 + window.APRES_VOIX).toFixed(2);
+  if (typeof window.COUVERTURE === 'string') window.COUVERTURE = temps(window.COUVERTURE);
 
   const seek = window.seek;
   window.seek = ms => { seek(ms); const t = ms / 1000;
