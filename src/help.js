@@ -65,8 +65,8 @@ function helpApk() {
   if (!helpApkP) { const mo = typeof natPlugin === 'function' && natPlugin('ManaOrbit'); helpApkP = mo ? Promise.resolve().then(() => mo.info()).then(i => (i && i.version ? i.version + (i.build ? ' (' + i.build + ')' : '') : ''), () => '') : Promise.resolve(''); }
   return helpApkP;
 }
-/** Liens d'avis d'un bloc : complétés par la version de l'APK dès qu'elle est connue. */
-/** Serveur avec le bot Discord (CTX.feedback) et réseau là : la feuille d'avis (fbOpen) au lieu du mailto ; sinon le mailto, et le badge « Voix du peuple » (progress.js). */
+/** Liens d'avis d'un bloc : complétés par la version de l'APK dès qu'elle est connue. Au clic : serveur avec le bot Discord (CTX.feedback) et réseau là,
+ *  la feuille d'avis (fbOpen) au lieu du mailto ; sinon le mailto, et le badge « Voix du peuple » (progress.js). */
 function helpMailLinks(root) {
   helpApk().then(v => { if (v) $$('a[data-help="mail"]', root).forEach(a => { a.href = feedbackHref(v); }); });
   $$('a[data-help="mail"]', root).forEach(a => a.addEventListener('click', e => {
