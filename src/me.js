@@ -1,11 +1,12 @@
 /* ── me.js : « Compte et réglages », une seule fiche du bas (bouton du compte, dans l'en-tête), qui se ferme en la tirant vers le bas ─────────────
    En haut, le compte : connecté, photo, pseudo, e-mail, état de la synchro et « Modifier » ; sinon « Se connecter ». Puis cartes · decks · valeur.
    Mon compte (connecté) : gérer le compte, decks publiés, lien d'échange, amis (friends.js) · Préférences : langue, thème, vibrations, astuces (tour.js) (changés sur place), notifications,
-   scan, widget (appli Android) · Prix : CardTrader · Plus : aide et avis, données de l'appareil, application (navigateur), confidentialité et mentions ·
+   scan, widget (appli Android) · Prix : CardTrader · Plus : « Signaler un bug ou une idée » (ligne à part : la fenêtre d'avis ou le mailto, help.js › helpReport),
+   aide et avis, données de l'appareil, application (navigateur), confidentialité et mentions ·
    version, « Se déconnecter ». Les rubriques ouvrent leur propre fiche par-dessus (app.js › setPrixSheet, setDataSheet…). */
 const ME = { api: null, sig: '', raf: 0 };
 const meOpen = () => !!(ME.api && sheets.indexOf(ME.api) >= 0);
-/** Ouvre la fiche (ou la garde si elle l'est déjà) ; sub : rubrique à ouvrir par-dessus ('prix', 'donnees', 'conf', 'app', 'aide', 'scan', 'widget', 'compte', 'pub', 'notif', 'amis'). */
+/** Ouvre la fiche (ou la garde si elle l'est déjà) ; sub : rubrique à ouvrir par-dessus ('prix', 'donnees', 'conf', 'app', 'aide', 'signaler', 'scan', 'widget', 'compte', 'pub', 'notif', 'amis'). */
 function openSettings(sub) {
   if (!meOpen()) openSheet(T('Compte et réglages'), null, api => {
     ME.api = api; ME.sig = ''; api.wrap.classList.add('me-sheet');
@@ -60,6 +61,7 @@ function mePaint() {
   ]);
   const price = meGroup(T('Prix'), [meRow('prix', 'CardTrader', S.token ? T('Ton token') : typeof ctReady === 'function' && ctReady() ? T('Compte du serveur') : T('Sans token'))]);
   const more = meGroup(T('Plus'), [
+    meRow('signaler', T('Signaler un bug ou une idée'), ''),      // à part, plus simple d'accès qu'au fond d'« Aide et avis »
     meRow('aide', T('Aide et avis'), ''),
     meRow('donnees', T('Données de l\'appareil'), ''),
     ...(nat ? [] : [meRow('app', T('Application'), PWA.state() === 'standalone' || PWA.state() === 'installed' ? T('Installée') : '')]),
@@ -97,6 +99,7 @@ function meSub(k) {
   else if (k === 'notif') openNotifSettings();
   else if (k === 'prix') setPrixSheet();
   else if (k === 'aide') setHelpSheet();
+  else if (k === 'signaler') helpReport();      // la fenêtre d'avis (Discord), ou le mailto
   else if (k === 'donnees') setDataSheet();
   else if (k === 'app') setAppSheet();
   else if (k === 'conf') setConfSheet();

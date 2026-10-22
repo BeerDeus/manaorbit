@@ -1,31 +1,39 @@
-/* ── help.js : aide « Comment ça marche », avis (Discord ou e-mail), demande de note ──────────────────────────────────────────────────────
-   · Réglages › « Aide et avis » (helpSettings, emplacement #helpBox) : l'aide, « Envoyer un avis », « Rejoindre le Discord » (DISCORD_URL), « Noter » (appli Android).
+/* ── help.js : aide « Comment ça marche », « Signaler un bug ou une idée » (Discord ou e-mail), avis sur Google Play, demande de note ──────────────
+   · Réglages › « Aide et avis » (helpSettings, emplacement #helpBox) : en tête « Signaler un bug ou une idée », puis l'aide, la visite guidée,
+     « Laisser un avis sur Google Play » (partout sauf sur iPhone et iPad), « Rejoindre le Discord » (DISCORD_URL).
    · Aide : questions courantes, réponses courtes, d'après ce que fait vraiment le code (prix, ajout de cartes, venir de ManaBox (guide de switch.js),
      valeur, decks EDHREC, échange, amis, compte, notifications, effacement). Ouverte aussi par « Comment ça marche ? » en bas de l'accueil.
-     En tête, « Visite guidée » (tour.js, s'il est là), aussi dans « Aide et avis ».
-   · Avis (« Envoyer un avis » des réglages et du pied de l'aide) : serveur avec le bot Discord (/__ping feedback → CTX.feedback) et réseau là : feuille
-     « Envoyer un avis » (fbOpen) → POST api/feedback (proxy.mjs), qui ouvre un fil public dans le forum #bugs, #idées ou #aide du Discord de Mana Orbit.
+     En tête, « Visite guidée » (tour.js, s'il est là), aussi dans « Aide et avis ». Pied : « Signaler un bug ou une idée ».
+   · « Signaler un bug ou une idée » (lien data-help="report" des réglages et du pied de l'aide ; ligne à part du menu « Compte et réglages », me.js › helpReport) :
+     serveur avec le bot Discord (/__ping feedback → CTX.feedback) et réseau là : fenêtre (fbOpen, type Bug par défaut) → POST api/feedback (proxy.mjs),
+     qui ouvre un fil public dans le forum #bugs, #idées ou #aide du Discord de Mana Orbit.
      Type (bug, idée, question), partie de l'appli (étiquette du forum), titre (3 à 90), description (1 500 caractères, 30 lignes), 3 captures au plus
      (réduites ici : JPEG 1 600 px de côté, qualité 0,82, plus petites au-delà de 1,5 Mo), pseudo Discord facultatif pour être recontacté ; part avec :
      version, plateforme, version de l'APK, langue, navigateur (jamais la collection) ; connecté : jeton Firebase (le serveur n'en garde qu'une empreinte, budget).
      Brouillon gardé à la fermeture (mémoire, textes aussi dans sessionStorage), vidé après un envoi réussi ; « Merci ! » : « Voir sur Discord » (le fil),
      « Rejoindre le serveur ». Serveur ancien (pas de feedback), hors ligne, ou 404 (bot coupé : CTX.feedback = false) : mailto comme avant.
-   · Avis par e-mail (repli) : mailto avec la version, la plateforme, la langue et le navigateur (pour reproduire un bug) ; jamais la collection.
+     Badge « Voix du peuple » (progress.js, prgAdd('fb')) : après un envoi réussi, ou au clic sur le mailto.
+   · Repli par e-mail : mailto avec la version, la plateforme, la langue et le navigateur (pour reproduire un bug) ; jamais la collection.
+   · « Laisser un avis sur Google Play » (data-help="rate") : lien vers la fiche (PLAY_URL, onglet à part) ; dans l'appli Android, la coque Capacitor
+     confie toute adresse d'un autre site à Android (intention VIEW), qui ouvre l'appli Play Store sur la fiche (comme « Mettre à jour » de pwa.js et
+     « L'installer » d'applink.js). Absent sur iPhone et iPad (PWA.ios : aucune appli iOS). Au clic : rateDone (plus de demande de note) ; pas de badge
+     (une note n'est pas un avis envoyé). Jamais la carte In-App Review de Google depuis ce bouton (Google le déconseille : son quota peut être atteint,
+     rien ne s'afficherait).
    · Note : demande neutre (« Noter » / « Plus tard », aucune question sur l'avis avant : Google interdit de trier les gens selon leur réponse),
      seulement dans l'appli Android, après un bon moment (5 cartes ou plus ajoutées d'un scan, un deck enregistré qui devient complet),
      si l'appli sert depuis au moins 4 jours et qu'aucune erreur n'a eu lieu pendant la session ; au plus une fois tous les 120 jours, 3 fois en tout,
      plus jamais après « Noter ». Entièrement coupée tant que RATE_ASK est faux. APK 1.0.6 et plus : au même moment et dans les mêmes limites, la carte de note
-     de Google Play s'ouvre dans l'appli (In-App Review, ManaOrbit.requestReview, neutre elle aussi) au lieu de notre feuille ; jamais depuis un bouton (Google le
-     déconseille : son quota peut être atteint, rien ne s'afficherait) : « Noter sur le Play Store » des réglages reste un lien vers la fiche. */
+     de Google Play s'ouvre dans l'appli (In-App Review, ManaOrbit.requestReview, neutre elle aussi) au lieu de notre feuille. */
 /** Invitation permanente du serveur Discord de Mana Orbit : « Rejoindre le Discord » des réglages, « Rejoindre le serveur » après un avis envoyé. */
 const DISCORD_URL = 'https://discord.gg/TTwrP94agb';
-/** Fiche Play Store de l'appli, seule adresse du Play Store dans le code : bouton « Noter », lien « L'installer » et repli du bouton « Ouvrir dans l'appli »
+/** Fiche Play Store de l'appli, seule adresse du Play Store dans le code : « Laisser un avis sur Google Play », « Noter », lien « L'installer » et repli du bouton « Ouvrir dans l'appli »
  *  de la barre du navigateur Android (applink.js). À remplacer au besoin (lien d'inscription au test, autre fiche). */
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=app.manaorbit';
-/** Demande de note et bouton « Noter sur le Play Store » : à passer à true une fois l'appli publiée (fiche publique) ; false = aucune demande, aucun bouton. */
+/** Demande automatique de note (rateMoment, rateSheet, In-App Review) : à passer à true une fois l'appli publiée (fiche publique) ; false = aucune demande.
+ *  Sans effet sur « Laisser un avis sur Google Play » des réglages (toujours là, sauf sur iPhone et iPad). */
 const RATE_ASK = false;
 /* Option « Supporter » (achat intégré) : volontairement absente, en attente de l'analyse Fan Content Policy / Google Play Billing. Point d'accroche prévu :
-   const SUPPORTER_SKU = '';      // identifiant du produit Play Billing ; vide = rien d'affiché. Entrée sous « Envoyer un avis » dans helpSettings, appli Android seulement. */
+   const SUPPORTER_SKU = '';      // identifiant du produit Play Billing ; vide = rien d'affiché. Entrée sous « Signaler un bug ou une idée » dans helpSettings, appli Android seulement. */
 const HELP_MAIL = 'contact@manaorbit.app', HELP_SUBJECT = 'Mana Orbit · avis';      // objet fixe dans toutes les langues : les avis se trient d'un seul filtre
 /** Questions et réponses de l'aide (texte français, traduit par T ; HTML fixe, aucune donnée de l'utilisateur). Réponse en fonction : texte qui dépend de l'appli (langue des noms lus au scan, nmT). */
 const HELP_QA = [
@@ -46,7 +54,7 @@ const HELP_QA = [
 
 /** Typographie française à l'affichage : espace insécable avant « ; : ? ! » et dans les guillemets (jamais un « ; » seul en début de ligne). Sans effet en anglais. */
 const helpNb = s => String(s).replace(/ ([;:!?»])/g, '\u00a0$1').replace(/« /g, '«\u00a0');
-/** Lien « Envoyer un avis » : objet fixe, corps prérempli (une place pour le message, puis de quoi reproduire un bug). apk : version de l'appli Android, lue à part ;
+/** Repli e-mail de « Signaler un bug ou une idée » : objet fixe, corps prérempli (une place pour le message, puis de quoi reproduire un bug). apk : version de l'appli Android, lue à part ;
  *  pre : message déjà écrit (feuille d'avis, envoi par le Discord coupé), mis à la place des lignes vides. */
 function feedbackHref(apk, pre) {
   const nat = typeof isNativeApp === 'function' && isNativeApp();
@@ -60,32 +68,45 @@ function feedbackHref(apk, pre) {
   return 'mailto:' + HELP_MAIL + '?subject=' + encodeURIComponent(HELP_SUBJECT) + '&body=' + encodeURIComponent(body);
 }
 /** Version de l'APK (« 1.0 (3) »), lue une fois auprès de la coque ; '' ailleurs ou si la coque ne la donne pas. */
-let helpApkP = null;
+let helpApkP = null, helpApkV = '';      // helpApkV : la même, une fois lue (helpReport, sans attendre)
 function helpApk() {
-  if (!helpApkP) { const mo = typeof natPlugin === 'function' && natPlugin('ManaOrbit'); helpApkP = mo ? Promise.resolve().then(() => mo.info()).then(i => (i && i.version ? i.version + (i.build ? ' (' + i.build + ')' : '') : ''), () => '') : Promise.resolve(''); }
+  if (!helpApkP) { const mo = typeof natPlugin === 'function' && natPlugin('ManaOrbit'); helpApkP = mo ? Promise.resolve().then(() => mo.info()).then(i => (helpApkV = i && i.version ? i.version + (i.build ? ' (' + i.build + ')' : '') : ''), () => '') : Promise.resolve(''); }
   return helpApkP;
 }
-/** Liens d'avis d'un bloc : complétés par la version de l'APK dès qu'elle est connue. Au clic : serveur avec le bot Discord (CTX.feedback) et réseau là,
- *  la feuille d'avis (fbOpen) au lieu du mailto ; sinon le mailto, et le badge « Voix du peuple » (progress.js). */
+/** Lien « Signaler un bug ou une idée » (mailto, data-help="report"), le même partout ; cls : classes du bouton. */
+const helpReportA = cls => `<a class="${cls}" data-help="report" href="${esc(feedbackHref(helpApkV))}"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg><span>${T('Signaler un bug ou une idée')}</span></a>`;
+/** Liens « Signaler un bug ou une idée » d'un bloc : complétés par la version de l'APK dès qu'elle est connue.
+ *  Serveur avec le bot Discord (CTX.feedback) et réseau là : la fenêtre (fbOpen) au lieu du mailto ; sinon le mailto, et le badge « Voix du peuple » (progress.js). */
 function helpMailLinks(root) {
-  helpApk().then(v => { if (v) $$('a[data-help="mail"]', root).forEach(a => { a.href = feedbackHref(v); }); });
-  $$('a[data-help="mail"]', root).forEach(a => a.addEventListener('click', e => {
+  helpApk().then(v => { if (v) $$('a[data-help="report"]', root).forEach(a => { a.href = feedbackHref(v); }); });
+  $$('a[data-help="report"]', root).forEach(a => a.addEventListener('click', e => {
     if (fbOn()) { e.preventDefault(); haptic('tap'); fbOpen(); return; }
     if (typeof prgAdd === 'function') prgAdd('fb');
   }));
 }
+/** « Signaler un bug ou une idée » depuis un bouton (ligne du menu « Compte et réglages », me.js) : la fenêtre si fbOn, sinon le même mailto,
+ *  suivi par un lien posé le temps du clic (badge au clic, comme le lien des réglages). */
+function helpReport() {
+  if (fbOn()) { fbOpen(); return; }
+  if (typeof prgAdd === 'function') prgAdd('fb');
+  const a = document.createElement('a'); a.href = feedbackHref(helpApkV); a.dataset.help = 'report'; a.hidden = true;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+/** « Laisser un avis sur Google Play » : partout sauf sur iPhone et iPad (aucune appli iOS ; iPadOS se dit Mac : PWA.ios le reconnaît au toucher). */
+const helpPlayOk = () => { try { return !PWA.ios(); } catch (e) { return true; } };
 
 /** Réglages › « Aide et avis ». */
 function helpSettings(el, own) {      // own : dans sa propre fiche « Aide et avis » (le titre y est déjà)
   if (!el) return;
-  const rate = RATE.url && isNativeApp();
+  const play = helpPlayOk();
   el.innerHTML = `${own ? '' : `<div class="sec-title">${T('Aide et avis')}</div>`}
-    <div class="installbox"><p class="hint">${helpNb(fbOn() ? T('Les réponses aux questions courantes. Un bug, une idée, une question ? Envoie-nous un avis : il arrive sur le Discord de Mana Orbit, avec la version de l\'appli déjà notée.') : T('Les réponses aux questions courantes. Un bug, une idée ? Écris-nous : ton appli mail s\'ouvre avec la version de Mana Orbit déjà notée.'))}</p>
-      <div class="cart-actions"><button class="btn ghost small" type="button" data-help="open">${T('Comment ça marche')}</button>${typeof tourHelpBtn === 'function' ? tourHelpBtn() : ''}<a class="btn ghost small" data-help="mail" href="${esc(feedbackHref())}">${T('Envoyer un avis')}</a><a class="btn ghost small" data-help="discord" href="${esc(DISCORD_URL)}" target="_blank" rel="noopener">${T('Rejoindre le Discord')}</a>${rate ? `<a class="btn ghost small" data-help="rate" href="${esc(RATE.url)}" target="_blank" rel="noopener">${T('Noter sur le Play Store')}</a>` : ''}</div>
+    <div class="installbox"><p class="hint">${helpNb((fbOn() ? T('Les réponses aux questions courantes. Un bug, une idée, une question ? Dis-le-nous : ça arrive sur le Discord de Mana Orbit, avec la version de l\'appli déjà notée.') : T('Les réponses aux questions courantes. Un bug, une idée ? Écris-nous : ton appli mail s\'ouvre avec la version de Mana Orbit déjà notée.'))
+      + (play ? ' ' + T('Un avis sur l\'appli ? Laisse-le sur Google Play, il aide d\'autres joueurs à la trouver.') : ''))}</p>
+      <div class="cart-actions">${helpReportA('btn small')}<button class="btn ghost small" type="button" data-help="open">${T('Comment ça marche')}</button>${typeof tourHelpBtn === 'function' ? tourHelpBtn() : ''}${play ? `<a class="btn ghost small" data-help="rate" href="${esc(PLAY_URL)}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg><span>${T('Laisser un avis sur Google Play')}</span></a>` : ''}<a class="btn ghost small" data-help="discord" href="${esc(DISCORD_URL)}" target="_blank" rel="noopener">${T('Rejoindre le Discord')}</a></div>
       <p class="hint hp-mail">${T('Ou écris à {mail}', { mail: `<span>${HELP_MAIL}</span>` })}</p></div>`;
   $('[data-help="open"]', el).onclick = () => { haptic('tap'); openHelp(); };
   const tb = $('[data-help="tour"]', el); if (tb) tb.onclick = () => { haptic('tap'); tourStart({ from: 'settings' }); };      // visite guidée (tour.js)
-  const r = $('[data-help="rate"]', el); if (r) r.addEventListener('click', () => rateDone());
+  const r = $('[data-help="rate"]', el); if (r) r.addEventListener('click', () => { haptic('tap'); rateDone(); });      // la fiche Play (l'appli Play Store, dans l'appli Android) ; plus de demande de note ; pas de badge
   helpMailLinks(el);
 }
 /** Feuille « Comment ça marche » : questions repliées, une seule ouverte à la fois. */
@@ -94,7 +115,7 @@ function openHelp() {
     api.wrap.classList.add('hp-sheet');
     api.body.innerHTML = `${typeof tourHelpHtml === 'function' ? tourHelpHtml() : ''}<div class="hp-list">${HELP_QA.map(([q, a], i) => `<details class="hp-q" data-i="${i}"><summary><span>${helpNb(T(q))}</span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></summary><p>${helpNb(typeof a === 'function' ? a() : T(a))}</p></details>`).join('')}</div>
       <p class="hint hp-more">${helpNb(T('Une autre question, un bug, une idée ? Écris-nous, on lit tout.'))}</p>`;
-    api.setFoot(`<a class="btn ghost" data-help="mail" href="${esc(feedbackHref())}">${T('Envoyer un avis')}</a><button class="btn" type="button" data-close>${T('Fermer')}</button>`);
+    api.setFoot(`${helpReportA('btn ghost')}<button class="btn" type="button" data-close>${T('Fermer')}</button>`);
     // une question ouverte referme les autres : la liste reste courte sur un téléphone
     api.body.addEventListener('toggle', e => { const d = e.target; if (d.open) $$('.hp-q[open]', api.body).forEach(x => { if (x !== d) x.open = false; }); }, true);
     api.body.addEventListener('click', e => { if (e.target.closest('[data-help="switch"]')) { haptic('tap'); swgOpen({ from: 'help' }); } else if (e.target.closest('[data-help="tour"]')) { haptic('tap'); tourStart({ from: 'help' }); } });      // « Visite guidée » (tour.js), en tête      // « Je viens de ManaBox » : le guide (switch.js), par-dessus l'aide
@@ -102,7 +123,7 @@ function openHelp() {
   });
 }
 
-/* ── Avis par le Discord (CTX.feedback) : feuille « Envoyer un avis » → POST api/feedback ─────────────────────────────────────────── */
+/* ── Avis par le Discord (CTX.feedback) : fenêtre « Signaler un bug ou une idée » → POST api/feedback ─────────────────────────────────────────── */
 /** Types (kind du serveur → forum #bugs, #idées, #aide) et parties de l'appli (area → étiquette du forum, tools/discord-setup.mjs) : valeur envoyée, libellé. */
 const FB_KINDS = [['bug', 'Bug'], ['idea', 'Idée'], ['help', 'Question']];
 const FB_AREAS = [['scan', 'Scan'], ['collection', 'Collection'], ['decks', 'Decks'], ['prix', 'Prix'], ['compte', 'Compte et synchro'], ['alertes', 'Alertes'],
@@ -183,10 +204,10 @@ function fbErrText(r) {
 const fbPlaceholders = k => (k === 'idea' ? [T('Par exemple : trier mes decks par couleur'), T('Ton idée, et ce qu\'elle changerait pour toi.')]
   : k === 'help' ? [T('Par exemple : comment exporter ma collection ?'), T('Ta question, le plus précisément possible : ce que tu cherches à faire, où tu bloques.')]
     : [T('Par exemple : le scan ne lit pas les cartes japonaises'), T('Étapes : ce que tu as fait.\nAttendu : ce qui devait se passer.\nObtenu : ce qui s\'est passé à la place.')]);
-/** Feuille « Envoyer un avis » : type, partie de l'appli, titre, description, captures, pseudo Discord ; « Envoyer » → fil public sur le Discord de Mana Orbit. */
+/** Fenêtre « Signaler un bug ou une idée » : type (Bug par défaut, sinon celui du brouillon), partie de l'appli, titre, description, captures, pseudo Discord ; « Envoyer » → fil public sur le Discord de Mana Orbit. */
 function fbOpen() {
   const d = fbDraft(); let busy = 0, sending = false;      // busy : captures en cours de réduction
-  const api = openSheet(T('Envoyer un avis'), T('Il arrive sur le Discord de Mana Orbit'), a => a.wrap.classList.add('fb-sheet'));
+  const api = openSheet(T('Signaler un bug ou une idée'), T('Ton message arrive sur le Discord de Mana Orbit'), a => a.wrap.classList.add('fb-sheet'));
   api.body.innerHTML = `<form class="fb" novalidate>
       <div class="field-in"><span class="label" id="fbKindL">${T('Type')}</span><div class="seg fb-kind" role="radiogroup" aria-labelledby="fbKindL"></div></div>
       <div class="field-in"><label class="label" for="fbArea">${T('Partie de l\'appli')}</label><div class="sel"><select id="fbArea">${FB_AREAS.map(([v, l]) => `<option value="${v}">${esc(T(l))}</option>`).join('')}</select></div></div>
@@ -262,7 +283,7 @@ function fbOpen() {
       if (open) fbDone(api, r.url); else toast(T('Merci ! Ton avis est publié sur le Discord de Mana Orbit.'));
       return;
     }
-    if (r.status === 404) { CTX.feedback = false; if (open) fbMail(api, title, text); return; }      // bot coupé sur le serveur : « Envoyer un avis » repasse au mailto
+    if (r.status === 404) { CTX.feedback = false; if (open) fbMail(api, title, text); return; }      // bot coupé sur le serveur : « Signaler un bug ou une idée » repasse au mailto
     if (!open) { toast(fbErrText(r)); return; }
     paint(); fail(fbErrText(r));
   });

@@ -1,8 +1,11 @@
 // E2E contenus (sets.js, setview.js, help.js) : « Prochaines extensions » de l'accueil (faux Scryfall /sets : tri, éditions numériques et hors sujet écartées,
 // produits rattachés à leur parent, cache 24 h relu au 2e lancement, carte cachée en erreur ou hors ligne) ; page d'une extension (faux /cards/search :
 // grille, noms et images dans la langue des cartes, recherche, rareté, versions spéciales, tri, pastilles, étoiles de la liste de souhaits, carte en grand,
-// extension sans carte révélée, copie gardée) ; Réglages › Aide et avis (feuille d'aide, lien d'avis mailto encodé, « Rejoindre le Discord ») ; avis par le Discord
-// (/__ping feedback et api/feedback simulés : feuille, requis, captures réduites, 3 au plus, corps du contrat, erreurs, « Merci ! », brouillon, 404 et absent → mailto, anglais) ; demande de note neutre (coupée tant que RATE_ASK est faux, appli Android seulement, bons moments, fréquence, session sans erreur).
+// extension sans carte révélée, copie gardée) ; Réglages › Aide et avis (boutons, feuille d'aide et son pied, « Signaler un bug ou une idée » : mailto encodé,
+// « Laisser un avis sur Google Play » : fiche exacte, onglet à part, rateDone au clic, pas de badge, absent sur iPhone et iPad, « Rejoindre le Discord ») ;
+// ligne « Signaler un bug ou une idée » du menu Compte (mailto sans bot, fenêtre avec) ; avis par le Discord (/__ping feedback et api/feedback simulés :
+// fenêtre, requis, captures réduites, 3 au plus, corps du contrat, erreurs, « Merci ! », brouillon, 404 et absent → mailto, anglais) ; demande de note neutre
+// (coupée tant que RATE_ASK est faux, appli Android seulement, bons moments, fréquence, session sans erreur).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
@@ -11,6 +14,8 @@ import { chromium, startWorld, newPage, txt, ok, toHome, rcGo, openMe, closeShee
 const world = await startWorld({ port: 18990 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const DAY = 86400000, PLAY = 'https://play.google.com/store/apps/details?id=app.manaorbit';
+/** Boutons de Réglages › Aide et avis (navigateur, appli Android) ; sur iPhone et iPad, sans Google Play. */
+const HELP_BTNS = ['Signaler un bug ou une idée', 'Comment ça marche', 'Visite guidée', 'Laisser un avis sur Google Play', 'Rejoindre le Discord'];
 const errsAll = [];
 const iso = n => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const set = (code, name, days, type, o = {}) => ({ object: 'set', code, name, released_at: iso(days), set_type: type, digital: false, card_count: 100,
@@ -267,11 +272,15 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   const { p, ctx } = await page({ init: seed, ctx: { colorScheme: 'dark' } });
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
   assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Aide et avis');
-  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), ['Comment ça marche', 'Visite guidée', 'Envoyer un avis', 'Rejoindre le Discord'], 'navigateur : pas de « Noter » (« Visite guidée » : tour.js)');
+  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), HELP_BTNS, '« Signaler un bug ou une idée » en tête ; avis sur Google Play dans le navigateur aussi (« Visite guidée » : tour.js)');
+  assert.deepEqual(await p.$eval('#helpBox [data-help="report"]', a => [a.className, a.querySelector('use').getAttribute('href')]), ['btn small', '#i-edit'], '« Signaler » : bouton plein, icône du crayon');
   assert.equal(await p.$eval('#helpBox a[data-help="discord"]', a => [a.getAttribute('href'), a.target, a.rel].join()), 'https://discord.gg/TTwrP94agb,_blank,noopener', '« Rejoindre le Discord » : invitation, onglet à part');
+  assert.equal(await p.$eval('#helpBox a[data-help="rate"]', a => [a.getAttribute('href'), a.target, a.rel, a.querySelector('use').getAttribute('href')].join()), PLAY + ',_blank,noopener,#i-star', '« Laisser un avis sur Google Play » : la fiche exacte, onglet à part');
   assert.notEqual(await p.evaluate(() => CTX.feedback), true, 'serveur des tests sans bot Discord : /__ping sans feedback');
   assert.match(await txt(p, '#helpBox .hint'), /ton appli mail s.ouvre/, 'texte du mailto');
-  const href = await p.$eval('#helpBox a[data-help="mail"]', a => a.getAttribute('href'));
+  assert.match(await txt(p, '#helpBox .hint'), /Un avis sur l.appli\s\?\sLaisse-le sur Google Play/, 'texte : l\'avis sur l\'appli va sur Google Play');
+  assert.doesNotMatch(await txt(p, '#helpBox'), /Envoyer un avis|Noter sur le Play Store/, 'plus d\'« Envoyer un avis » ni de « Noter sur le Play Store »');
+  const href = await p.$eval('#helpBox a[data-help="report"]', a => a.getAttribute('href'));
   const m = /^mailto:contact@manaorbit\.app\?subject=([^&]*)&body=([^&]*)$/.exec(href);
   assert.ok(m, 'mailto : adresse, objet, corps : ' + href.slice(0, 120));
   assert.equal(m[1], 'Mana%20Orbit%20%C2%B7%20avis', 'objet encodé (espaces en %20, point médian en UTF-8)');
@@ -284,6 +293,15 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   assert.doesNotMatch(body, /Sol Ring|Craterhoof/, 'jamais la collection');
   assert.ok(!/\r\n/.test(body.replace(/\r\n/g, '')) && !/[^\r]\n/.test(body), 'fins de ligne CRLF');
   ok('Réglages : « Aide et avis », mailto encodé (objet, version, plateforme, langue, navigateur, phrase de confidentialité), sans la collection');
+  // « Laisser un avis sur Google Play » : la fiche dans un onglet à part, plus de demande de note (rateDone), pas de badge « Voix du peuple »
+  await ctx.route(u => String(u).startsWith(PLAY), route => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Play</title>' }));
+  await p.$eval('#helpBox', e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  const [pop] = await Promise.all([ctx.waitForEvent('page'), p.click('#helpBox a[data-help="rate"]')]);
+  await pop.waitForLoadState('domcontentloaded'); assert.equal(pop.url(), PLAY, 'onglet ouvert sur la fiche Google Play'); await pop.close();
+  assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:rate') || '{}').done), 1, 'clic : rateDone (plus de demande de note)');
+  assert.equal(await p.evaluate(() => prgC().fb || 0), 0, 'une note n\'est pas un avis : pas de badge');
+  assert.equal(await p.$$eval('.sheet-wrap.open', s => s.length), 2, 'la fiche reste ouverte');
+  ok('« Laisser un avis sur Google Play » : fiche exacte (onglet à part), rateDone au clic, pas de badge');
   await p.$eval('#helpBox', e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await p.click('#helpBox [data-help="open"]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 3);      // Compte et réglages › Aide et avis › Comment ça marche
   assert.equal(await txt(p, '.hp-sheet .sheet-head h2'), 'Comment ça marche');
@@ -293,10 +311,22 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   assert.match(await txt(p, '.hp-sheet .hp-q[data-i="0"] p'), /« Prix d'une liste » › Critères › Prix/);
   await p.click('.hp-sheet .hp-q[data-i="2"] summary'); await p.waitForTimeout(150);
   assert.deepEqual(await p.$$eval('.hp-sheet .hp-q[open]', q => q.map(x => x.dataset.i)), ['2'], 'une seule question ouverte à la fois');
-  assert.match(await p.$eval('.hp-sheet .sheet-foot a[data-help="mail"]', a => a.getAttribute('href')), /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
+  assert.match(await p.$eval('.hp-sheet .sheet-foot a[data-help="report"]', a => a.getAttribute('href')), /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
+  assert.deepEqual(await p.$$eval('.hp-sheet .sheet-foot .btn', b => b.map(x => x.textContent)), ['Signaler un bug ou une idée', 'Fermer'], 'pied : « Signaler un bug ou une idée », Fermer');
+  assert.equal(await p.$eval('.hp-sheet .sheet-foot a[data-help="report"]', a => { const r = a.getBoundingClientRect(), i = a.querySelector('svg').getBoundingClientRect(); return i.top >= r.top && i.bottom <= r.bottom && a.scrollWidth <= a.clientWidth + 1; }), true, 'pied : icône sur la ligne du texte, libellé entier à 390 px');
   await p.waitForTimeout(500); await p.screenshot({ path: 'shots/content-2-aide.png' });
   await p.keyboard.press('Escape'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2);
-  ok('feuille « Comment ça marche » depuis les Réglages : 16 questions repliables, une ouverte à la fois, avis en pied');
+  ok('feuille « Comment ça marche » depuis les Réglages : 16 questions repliables, une ouverte à la fois, « Signaler un bug ou une idée » en pied');
+  // menu « Compte et réglages » : « Signaler un bug ou une idée », ligne à part juste avant « Aide et avis » ; sans bot : le mailto (badge au clic)
+  await closeSheets(p); await openMe(p);
+  const rowsMe = await p.$$eval('.me-sheet .me-row[data-me]', r => r.map(x => x.dataset.me));
+  assert.equal(rowsMe[rowsMe.indexOf('aide') - 1], 'signaler', 'ligne « Signaler » juste avant « Aide et avis »');
+  assert.equal(await txt(p, '.me-sheet [data-me="signaler"] .me-t'), 'Signaler un bug ou une idée');
+  const mr = await mailClick(p, '.me-sheet [data-me="signaler"]');
+  assert.equal(mr.prevented, false, 'ligne du menu, sans bot : mailto suivi'); assert.equal(mr.sheet, false, 'aucune fenêtre d\'avis');
+  assert.match(mr.href, /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/, 'le même mailto');
+  assert.equal(await p.evaluate(() => [prgC().fb, document.querySelectorAll('a[data-help="report"][hidden]').length].join()), '1,0', 'badge au clic ; lien de passage retiré');
+  ok('menu Compte : ligne « Signaler un bug ou une idée » avant « Aide et avis » ; sans bot : le mailto, badge au clic');
   await closeSheets(p);
   await toHome(p); await p.click('#btnHelp'); await p.waitForSelector('.hp-sheet.open');
   ok('accueil : « Comment ça marche ? » ouvre la même aide');
@@ -306,14 +336,29 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   const { p, ctx } = await page({ path: '?lang=en' });
   assert.equal(await txt(p, '#btnHelp'), '? How does it work?');
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
-  assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Help and feedback'); assert.match(await txt(p, '#helpBox'), /Send feedback/);
-  const body = decodeURIComponent(/body=(.*)$/.exec(await p.$eval('#helpBox a[data-help="mail"]', a => a.getAttribute('href')))[1]);
+  assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Help and feedback');
+  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), ['Report a bug or idea', 'How it works', 'Guided tour', 'Leave a review on Google Play', 'Join the Discord']);
+  assert.match(await txt(p, '#helpBox .hint'), /Thoughts on the app\? Leave a review on Google Play, it helps other players find it\./);
+  assert.equal(await txt(p, '.me-sheet [data-me="signaler"] .me-t'), 'Report a bug or idea', 'menu Compte : la ligne, en anglais');
+  const body = decodeURIComponent(/body=(.*)$/.exec(await p.$eval('#helpBox a[data-help="report"]', a => a.getAttribute('href')))[1]);
   assert.match(body, /This information helps us reproduce a bug\. Your collection is not sent\.\r\nVersion: \w+\r\nPlatform: web\r\nLanguage: en/);
   await p.click('#helpBox [data-help="open"]'); await p.waitForSelector('.hp-sheet.open');
   assert.deepEqual((await p.$$eval('.hp-sheet summary', s => s.map(x => x.textContent))).slice(0, 2), ['Cardmarket or CardTrader: which prices?', 'How do I add my cards?']);
+  assert.deepEqual(await p.$$eval('.hp-sheet .sheet-foot .btn', b => b.map(x => x.textContent)), ['Report a bug or idea', 'Close']);
   await ctx.close();
 }
-ok('anglais : « Help and feedback », aide et corps du mail traduits');
+ok('anglais : « Help and feedback » (Report a bug or idea, Leave a review on Google Play), ligne du menu, aide, pied et corps du mail traduits');
+for (const [ua, why] of [['Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', 'iPhone'],
+  ['Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', 'iPad']]) { // aucune appli iOS : pas d'avis sur Google Play
+  const { p, ctx } = await page({ ctx: { userAgent: ua } });
+  assert.equal(await p.evaluate(() => PWA.ios()), true);
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
+  assert.equal(await p.$('#helpBox [data-help="rate"]'), null, why + ' : pas de « Laisser un avis sur Google Play »');
+  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), HELP_BTNS.filter(x => !/Google Play/.test(x)), why + ' : les autres boutons');
+  assert.doesNotMatch(await txt(p, '#helpBox .hint'), /Google Play/, why + ' : texte sans Google Play');
+  await ctx.close();
+}
+ok('iPhone et iPad (user agent) : pas d\'avis sur Google Play (ni bouton, ni phrase), le reste identique');
 
 /* ── 2b) Avis par le Discord (help.js › fbOpen) : /__ping feedback: true et api/feedback simulés (routes Playwright) ──────────────────────── */
 // Images de test : BMP 24 bits fabriqués ici (dégradé 3 000 × 1 500, bruit 1 600 × 1 600 qui dépasse 1,5 Mo en JPEG 0,82, petite image), fichier abîmé.
@@ -363,16 +408,16 @@ async function fbSend(p) {
   await p.click('.fb-sheet [data-fb="go"]');
   await p.waitForFunction(() => { const b = document.querySelector('.fb-sheet [data-fb="go"]'); return !b || !b.disabled; }, null, { timeout: 10000 });
 }
-/** Clic sur un lien « Envoyer un avis » : la feuille s'ouvre-t-elle, le mailto est-il empêché ? (le lien n'est jamais suivi : le test garde la page) */
+/** Clic sur « Signaler un bug ou une idée » (lien, ou ligne du menu Compte) : la feuille s'ouvre-t-elle, le mailto est-il empêché ? (le lien n'est jamais suivi : le test garde la page) */
 async function mailClick(p, sel) {
-  await p.evaluate(() => { window.__mail = null; document.addEventListener('click', e => { if (e.target.closest('a[data-help="mail"]')) { window.__mail = { prevented: e.defaultPrevented, href: e.target.closest('a').getAttribute('href') }; e.preventDefault(); } }, { once: true }); });
+  await p.evaluate(() => { window.__mail = null; const f = e => { const a = e.target.closest && e.target.closest('a[data-help="report"]'); if (!a) return; document.removeEventListener('click', f); window.__mail = { prevented: e.defaultPrevented, href: a.getAttribute('href') }; e.preventDefault(); }; document.addEventListener('click', f); });      // aussi le lien posé le temps du clic par la ligne du menu (helpReport)
   await p.click(sel); await p.waitForTimeout(600);
   return p.evaluate(() => ({ ...window.__mail, sheet: !!document.querySelector('.fb-sheet') }));
 }
 { // serveur sans bot (feedback absent de /__ping, cas du serveur des tests) : « Envoyer un avis » reste le mailto, sans feuille ; hors ligne avec le bot : mailto aussi
   const { p, ctx } = await fbPage({ ping: false });
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
-  const m = await mailClick(p, '#helpBox a[data-help="mail"]');
+  const m = await mailClick(p, '#helpBox a[data-help="report"]');
   assert.equal(m.prevented, false, 'mailto suivi'); assert.equal(m.sheet, false, 'aucune feuille d\'avis'); assert.match(m.href, /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
   assert.equal(await p.evaluate(() => prgC().fb), 1, 'badge « Voix du peuple » au clic, comme avant');
   await ctx.close();
@@ -381,21 +426,36 @@ async function mailClick(p, sel) {
   const { p, ctx, fb } = await fbPage({});
   await ctx.setOffline(true);
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
-  const m = await mailClick(p, '#helpBox a[data-help="mail"]');
+  const m = await mailClick(p, '#helpBox a[data-help="report"]');
   assert.equal(m.prevented, false); assert.equal(m.sheet, false, 'hors ligne : le mailto, qui partira plus tard'); assert.equal(fb.calls.length, 0);
   await ctx.close();
 }
-ok('avis : serveur sans bot Discord (feedback absent) ou hors ligne : « Envoyer un avis » reste le mailto (badge au clic), aucune feuille');
+ok('avis : serveur sans bot Discord (feedback absent) ou hors ligne : « Signaler un bug ou une idée » reste le mailto (badge au clic), aucune fenêtre');
+{ // menu « Compte et réglages » › « Signaler un bug ou une idée », bot là : la fenêtre directement (sans passer par « Aide et avis »), type Bug par défaut
+  const { p, ctx, fb } = await fbPage({});
+  await openMe(p);
+  const m = await mailClick(p, '.me-sheet [data-me="signaler"]');
+  assert.equal(m.href, undefined, 'aucun mailto suivi'); assert.equal(m.sheet, true, 'la fenêtre d\'avis');
+  await p.waitForSelector(FB_SHEET);
+  assert.equal(await txt(p, '.fb-sheet .sheet-head h2'), 'Signaler un bug ou une idée');
+  assert.equal(await p.$eval('.fb-kind .seg-opt[aria-checked="true"]', b => b.dataset.v), 'bug', 'type : Bug par défaut');
+  assert.deepEqual(await p.evaluate(() => [sheets.length, !!document.querySelector('#helpBox')]), [2, false], 'par-dessus « Compte et réglages », sans « Aide et avis »');
+  assert.equal(await p.evaluate(() => prgC().fb || 0), 0, 'pas de badge avant un envoi réussi');
+  await p.fill('#fbTitle', 'Depuis le menu'); await p.fill('#fbText', 'Envoyé depuis la ligne du menu.'); await fbSend(p); await p.waitForSelector('.fb-sheet .fb-done');
+  assert.equal(fb.calls.length, 1); assert.equal(fb.calls[0].body.kind, 'bug'); assert.equal(await p.evaluate(() => prgC().fb), 1, 'badge après l\'envoi réussi');
+  await ctx.close();
+}
+ok('menu Compte › « Signaler un bug ou une idée » (bot là) : la fenêtre, type Bug, envoi et badge');
 { // la feuille, à 360 px en sombre : champs, requis, captures (réduites, 3 au plus, ✕, illisible), brouillon, 429, 503, réseau, 400, 413, succès, connecté, 404 → mailto
   const seed = `localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: '2 Sol Ring\\n1 Craterhoof Behemoth', u: 1, s: '', b: null }));`;
   const { p, ctx, fb } = await fbPage({ init: seed, ctx: { colorScheme: 'dark', viewport: { width: 360, height: 780 } } });
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
-  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), ['Comment ça marche', 'Visite guidée', 'Envoyer un avis', 'Rejoindre le Discord']);
+  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), HELP_BTNS);
   assert.match(await txt(p, '#helpBox .hint'), /arrive sur le Discord de Mana Orbit/, 'texte : l\'avis part sur le Discord');
-  const m = await mailClick(p, '#helpBox a[data-help="mail"]');
+  const m = await mailClick(p, '#helpBox a[data-help="report"]');
   assert.equal(m.prevented, true, 'mailto empêché'); assert.equal(m.sheet, true, 'feuille d\'avis ouverte');
   await p.waitForSelector(FB_SHEET);
-  assert.equal(await txt(p, '.fb-sheet .sheet-head h2'), 'Envoyer un avis');
+  assert.equal(await txt(p, '.fb-sheet .sheet-head h2'), 'Signaler un bug ou une idée'); assert.equal(await txt(p, '.fb-sheet .sheet-head p'), 'Ton message arrive sur le Discord de Mana Orbit');
   assert.equal(await p.evaluate(() => prgC().fb || 0), 0, 'pas de badge avant un envoi réussi');
   assert.deepEqual(await p.$$eval('.fb-kind .seg-opt', b => b.map(x => [x.dataset.v, x.textContent, x.getAttribute('aria-checked')].join(':'))), ['bug:Bug:true', 'idea:Idée:false', 'help:Question:false'], 'type : Bug par défaut');
   assert.equal(await p.$eval('.fb-kind', e => e.getAttribute('role')), 'radiogroup');
@@ -447,7 +507,7 @@ ok('avis : serveur sans bot Discord (feedback absent) ou hors ligne : « Envoyer
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.fb-sheet.open'));
   await p.$eval('#helpBox', e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await p.click('#helpBox [data-help="open"]'); await p.waitForSelector('.hp-sheet.open');
-  assert.equal((await mailClick(p, '.hp-sheet .sheet-foot a[data-help="mail"]')).sheet, true, 'pied de l\'aide : la feuille d\'avis');
+  assert.equal((await mailClick(p, '.hp-sheet .sheet-foot a[data-help="report"]')).sheet, true, 'pied de l\'aide : la feuille d\'avis');
   await p.waitForSelector(FB_SHEET);
   assert.deepEqual(await fbVals(p), before, 'brouillon gardé (type, partie, titre, description, pseudo, captures)');
   assert.deepEqual(await p.evaluate(() => Object.keys(JSON.parse(sessionStorage.getItem('deckdeal:fb')))), ['kind', 'area', 'title', 'text', 'contact'], 'textes aussi dans la session (pas les captures)');
@@ -488,7 +548,7 @@ ok('avis : serveur sans bot Discord (feedback absent) ou hors ligne : « Envoyer
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.fb-sheet.open'));
   assert.equal(await p.evaluate(() => sessionStorage.getItem('deckdeal:fb')), null, 'brouillon vidé (session)');
   await closeSheets(p); await p.evaluate(() => { window.__idTok = 'jeton-test'; }); await signInFake(p);
-  await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn'); await mailClick(p, '#helpBox a[data-help="mail"]'); await p.waitForSelector(FB_SHEET);
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn'); await mailClick(p, '#helpBox a[data-help="report"]'); await p.waitForSelector(FB_SHEET);
   assert.deepEqual(await fbVals(p), { kind: 'bug', area: 'autre', title: '', text: '', contact: '', imgs: 0 }, 'feuille vide après un envoi réussi');
   await p.click('.fb-kind .seg-opt[data-v="help"]'); await p.fill('#fbTitle', 'Exporter ?'); await p.fill('#fbText', 'Comment exporter ?');
   fb.next.push({ status: 200, json: { ok: true, url: 'https://evil.example/x', id: '1' } });
@@ -498,7 +558,7 @@ ok('avis : serveur sans bot Discord (feedback absent) ou hors ligne : « Envoyer
   assert.equal(await p.$('.fb-done [data-fb="see"]'), null, 'adresse qui n\'est pas un fil Discord : pas de lien'); assert.ok(await p.$('.fb-done [data-fb="join"]'));
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.fb-sheet.open'));
   // 404 : envoi coupé → repli mailto (message recopié), et « Envoyer un avis » repasse au mailto
-  await mailClick(p, '#helpBox a[data-help="mail"]'); await p.waitForSelector(FB_SHEET);
+  await mailClick(p, '#helpBox a[data-help="report"]'); await p.waitForSelector(FB_SHEET);
   await p.fill('#fbTitle', 'Bot coupé'); await p.fill('#fbText', 'Ligne 1\nLigne 2');
   fb.next.push({ status: 404, json: { error: 'not_found' } }); await p.click('.fb-sheet [data-fb="go"]'); await p.waitForSelector('.fb-sheet [data-fb="mail"]');
   assert.match(await fbErr(p), /par e-mail/); assert.equal(await p.evaluate(() => CTX.feedback), false, '404 : CTX.feedback = false');
@@ -506,16 +566,16 @@ ok('avis : serveur sans bot Discord (feedback absent) ou hors ligne : « Envoyer
   assert.match(mh, /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
   assert.match(decodeURIComponent(mh.split('body=')[1]), /^Bot coupé\r\n\r\nLigne 1\r\nLigne 2\r\n\r\n———\r\nCes informations aident/, 'mailto : le message déjà écrit, puis la version');
   await closeSheets(p); await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
-  const m2 = await mailClick(p, '#helpBox a[data-help="mail"]'); assert.equal(m2.prevented, false); assert.equal(m2.sheet, false, 'après le 404 : mailto');
+  const m2 = await mailClick(p, '#helpBox a[data-help="report"]'); assert.equal(m2.prevented, false); assert.equal(m2.sheet, false, 'après le 404 : mailto');
   await ctx.close();
 }
-ok('avis par le Discord : feuille au lieu du mailto (réglages, pied de l\'aide), type / partie / titre / description / pseudo, requis, captures réduites (1 600 px, ≤ 1,5 Mo, JPEG), 3 au plus, ✕, image illisible, 360 px sombre');
+ok('avis par le Discord : fenêtre « Signaler un bug ou une idée » au lieu du mailto (réglages, pied de l\'aide), type / partie / titre / description / pseudo, requis, captures réduites (1 600 px, ≤ 1,5 Mo, JPEG), 3 au plus, ✕, image illisible, 360 px sombre');
 ok('avis : corps exact (kind, area, meta, imgs), bouton coupé pendant l\'envoi, 429 (N min), 503, réseau, 400, 413 (saisie gardée), « Merci ! » (Voir sur Discord, Rejoindre le serveur, badge), brouillon gardé puis vidé, jeton Firebase, 404 → mailto');
 { // anglais, depuis le pied de « Comment ça marche », thème clair
   const { p, ctx, fb } = await fbPage({ path: '?lang=en' });
   await p.click('#btnHelp'); await p.waitForSelector('.hp-sheet.open');
-  await mailClick(p, '.hp-sheet .sheet-foot a[data-help="mail"]'); await p.waitForSelector(FB_SHEET);
-  assert.equal(await txt(p, '.fb-sheet .sheet-head h2'), 'Send feedback'); assert.match(await txt(p, '.fb-sheet .sheet-head p'), /It goes to the Mana Orbit Discord/);
+  await mailClick(p, '.hp-sheet .sheet-foot a[data-help="report"]'); await p.waitForSelector(FB_SHEET);
+  assert.equal(await txt(p, '.fb-sheet .sheet-head h2'), 'Report a bug or idea'); assert.match(await txt(p, '.fb-sheet .sheet-head p'), /Your message goes to the Mana Orbit Discord/);
   assert.deepEqual(await p.$$eval('.fb-kind .seg-opt', b => b.map(x => x.textContent)), ['Bug', 'Idea', 'Question']);
   assert.deepEqual(await p.$$eval('#fbArea option', o => o.map(x => x.textContent)), ['Scan', 'Collection', 'Decks', 'Price', 'Account and sync', 'Alerts', 'Trade', 'Game', 'Mystery card', 'Friends', 'Other']);
   assert.match(await p.$eval('#fbText', e => e.placeholder), /^Steps: .*\nExpected: .*\nActual: /);
@@ -568,22 +628,29 @@ async function ratePage(o = {}) {
   await pg.p.evaluate(() => homeSoon(0)); await pg.p.waitForTimeout(300);                                                                               // premier relevé des decks complets (aucun)
   return pg;
 }
-{ // RATE_ASK faux (valeur livrée) : rien, même dans l'appli et après un bon moment, alors que PLAY_URL est rempli (barre « Ouvrir dans l'appli », applink.js)
-  const { p, ctx } = await ratePage({ url: '' });
+{ // RATE_ASK faux (valeur livrée) : aucune demande, même dans l'appli et après un bon moment, alors que PLAY_URL est rempli (barre « Ouvrir dans l'appli », applink.js) ;
+  // « Laisser un avis sur Google Play » des réglages, lui, est là (lien vers la fiche, jamais In-App Review) et marque rateDone au clic
+  const { p, ctx } = await ratePage({ url: '', review: 'ok' });
   assert.equal(await p.evaluate(() => [RATE_ASK, PLAY_URL, RATE.url, isNativeApp()].join('|')), 'false|https://play.google.com/store/apps/details?id=app.manaorbit||true');
   await mount(p, 'd1'); await p.waitForTimeout(1500);
   assert.equal(await sheetUp(p), null, 'aucune demande'); assert.equal(await rateSt(p), null, 'rien d\'enregistré');
+  assert.equal(await p.evaluate(() => window.__rv), 0, 'pas de carte In-App Review');
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
-  assert.equal(await p.$('#helpBox [data-help="rate"]'), null, 'pas de bouton « Noter »');
+  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), HELP_BTNS, 'appli Android : mêmes boutons que le navigateur');
+  assert.equal(await p.$eval('#helpBox [data-help="rate"]', a => [a.getAttribute('href'), a.target, a.rel].join()), PLAY + ',_blank,noopener', 'appli Android : la fiche (la coque la confie à Android, qui ouvre l\'appli Play Store)');
+  await p.evaluate(() => document.addEventListener('click', e => { if (e.target.closest('[data-help="rate"]')) e.preventDefault(); }, true));      // la page reste (l'adresse est vérifiée au-dessus)
+  await p.click('#helpBox [data-help="rate"]'); await p.waitForTimeout(300);
+  assert.deepEqual(await rateSt(p), { done: 1 }, 'clic : rateDone, rien d\'autre (ni compteur, ni date)');
+  assert.deepEqual(await p.evaluate(() => [window.__rv, prgC().fb || 0]), [0, 0], 'jamais In-App Review depuis le bouton ; pas de badge « Voix du peuple »');
   await ctx.close();
 }
-ok('note : coupée tant que RATE_ASK est faux (ni demande, ni bouton, ni compteur)');
+ok('note : demande coupée tant que RATE_ASK est faux ; « Laisser un avis sur Google Play » dans l\'appli : la fiche, rateDone au clic, ni In-App Review ni badge');
 { // appli Android, adresse de test : deck devenu complet → demande neutre, après la fermeture de la feuille ouverte
   const { p, ctx } = await ratePage({ ctx: { colorScheme: 'dark' } });
   assert.deepEqual((await rateSt(p)).dk, [], 'premier relevé des decks complets');
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox [data-help="rate"]');
-  assert.equal(await p.$eval('#helpBox [data-help="rate"]', a => [a.getAttribute('href'), a.target].join()), PLAY + ',_blank', 'Réglages : « Noter sur le Play Store »');
-  assert.match(await p.$eval('#helpBox a[data-help="mail"]', a => decodeURIComponent(a.getAttribute('href'))), /Plateforme : appli Android 1\.0 \(1\)/, 'avis : version de l\'APK');
+  assert.equal(await p.$eval('#helpBox [data-help="rate"]', a => [a.getAttribute('href'), a.target].join()), PLAY + ',_blank', 'Réglages : « Laisser un avis sur Google Play »');
+  assert.match(await p.$eval('#helpBox a[data-help="report"]', a => decodeURIComponent(a.getAttribute('href'))), /Plateforme : appli Android 1\.0 \(1\)/, 'avis : version de l\'APK');
   await mount(p, 'd1'); await p.waitForTimeout(1200);
   assert.equal(await sheetUp(p), null, 'feuille ouverte (Réglages) : la demande attend');
   await p.keyboard.press('Escape'); await p.waitForTimeout(300); assert.equal(await sheetUp(p), null, 'encore une feuille (Compte et réglages) : la demande attend'); await p.keyboard.press('Escape');
@@ -643,7 +710,7 @@ ok('note : après 5 exemplaires ou plus ajoutés d\'un scan, une fois le toast p
 { // APK 1.0.6 : au même bon moment, la carte de note de Google Play (In-App Review) au lieu de notre feuille ; comptée comme une demande (120 jours, 3 au plus)
   const { p, ctx } = await ratePage({ review: 'ok' });
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox [data-help="rate"]');
-  assert.equal(await p.$eval('#helpBox [data-help="rate"]', a => a.getAttribute('href')), PLAY, 'Réglages : « Noter sur le Play Store » reste un lien vers la fiche (jamais la carte de Google depuis un bouton)');
+  assert.equal(await p.$eval('#helpBox [data-help="rate"]', a => a.getAttribute('href')), PLAY, 'Réglages : « Laisser un avis sur Google Play » reste un lien vers la fiche (jamais la carte de Google depuis un bouton)');
   assert.equal(await p.evaluate(() => window.__rv), 0, 'le bouton des réglages n\'appelle pas In-App Review');
   await p.keyboard.press('Escape'); await p.waitForTimeout(300); await p.keyboard.press('Escape');
   await mount(p, 'd1'); await p.waitForFunction(() => window.__rv === 1, null, { timeout: 5000 }); await p.waitForTimeout(600);
