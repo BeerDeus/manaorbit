@@ -5,7 +5,9 @@
 // exacts, publication d'une annonce, refus, suppression, historique gardé sur le disque, budget) ; Carte mystère de la veille (message, embed) ; jeton jamais
 // affiché ; fils des forums (/api/admin/discord/threads, thread, reply, thread-delete : ouverts, fermés et pages, filtre par forum, premier message gardé,
 // lectures 4 à la fois, auteur sans id, hidden, fil hors des forums → 404, étiquettes du forum, fermer / rouvrir / verrouiller / renommer, réponse sans ping
-// puis fermeture, suppression, garde-fous, CSP de /admin, journal sans texte). Ports 19800–19803 ; faux Firebase de amis-fakes.mjs.
+// puis fermeture, suppression, garde-fous, CSP de /admin, journal sans texte) ; membres du serveur pour le champ « Pseudo Discord » (/api/feedback/members :
+// préfixe du nom ou de l'identifiant, casse et accents ignorés, bots exclus, 5 au plus, avatars, cache, budget, intention absente → 503) et avis avec member
+// (membre vérifié → « Signalé par <@id> », allowed_mentions.users exact ; inconnu, bot, mal formé → sans mention). Ports 19800–19803 ; faux Firebase de amis-fakes.mjs.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -61,9 +63,15 @@ function world() {
 }
 // Faux Discord : calls (méthode et chemin), posts (corps JSON ou multipart lus), down (réponses 503 restantes), limit (429 restants), auth (en-têtes reçus) ;
 // th (fils des forums et d'un salon écrit), msgs (messages de chaque fil, du plus ancien au plus récent), arcQ (requêtes des fils fermés), inflight / maxPar (lectures simultanées du premier message)
-const D = { ...world(), calls: [], posts: [], down: 0, limit: 0, auth: new Set(), ua: new Set(), n: 5000, deleted: [], th: new Map(), msgs: new Map(), arcQ: [], inflight: 0, maxPar: 0 };
+const D = { ...world(), calls: [], posts: [], down: 0, limit: 0, auth: new Set(), ua: new Set(), n: 5000, deleted: [], th: new Map(), msgs: new Map(), arcQ: [], inflight: 0, maxPar: 0, members: [], memQ: [], noIntent: false };
 // OAuth2 de l'utilisateur (liaison) : codes donnés par la page d'autorisation (code → utilisateur), jetons d'accès, révoqués, redirect_uri reçues, membres du serveur
 const OA = { cid: '950000000000000001', secret: 'secret-oauth-SECRET-abcdef', codes: new Map(), tokens: new Map(), revoked: [], redirs: [], reqs: [], members: new Set(), down: 0 };
+// Membres du serveur (members/search, members/{id}) : le faux Discord est plus large que le vrai (le nom contient la recherche, accents ignorés) : le filtre par préfixe est celui du bot
+const HASH = 'a1'.repeat(16), HASH2 = 'b2'.repeat(16), mem = (n, username, o = {}) => ({ user: { id: '95000000000000' + String(n).padStart(4, '0'), username, global_name: o.g ?? null, avatar: o.av ?? null, ...(o.bot ? { bot: true } : {}) }, nick: o.nick ?? null, avatar: o.mav ?? null, roles: [] });
+const M = { beer: mem(1, 'beergod_', { g: 'Beer', av: HASH }), beer2: mem(2, 'beer'), abeer: mem(3, 'abeer', { g: 'Abeer' }), bot: mem(4, 'beerbot', { bot: true, g: 'Beer Bot' }), fan: mem(5, 'beer_fan', { g: 'Fan' }),
+  bea: mem(6, 'zed', { g: 'Zed', nick: 'Béatrice', mav: HASH2, av: HASH }), x1: mem(7, 'beerx1'), x2: mem(8, 'beerx2'), x3: mem(9, 'beerx3'), bad: mem(10, 'beerbad', { av: '../x' }) };
+D.members = Object.values(M);
+const fold0 = s => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const EPOCH = 1420070400000, snow = (ms, n = 0) => String((BigInt(Math.floor(ms) - EPOCH) << 22n) + BigInt(n)), nid = () => snow(Date.now(), ++D.n & 4095);
 const U = { jeanne: { id: '940000000000000001', username: 'jeanne_42', global_name: 'Jeanne', bot: false }, paul: { id: '940000000000000002', username: 'paul.m', global_name: null }, bot: { id: BOT, username: 'Mana Orbit', bot: true } };
 const T0 = Date.now() - 20 * 86400e3, DAY = 86400e3, iso = ms => new Date(ms).toISOString();
@@ -111,8 +119,14 @@ const srv = http.createServer((q, r) => {
     if (m === 'GET' && p === `/guilds/${G}`) return send(200, { id: G, name: 'Mana Orbit' });
     if (m === 'GET' && p === `/guilds/${G}/channels`) return send(200, D.channels);
     if (m === 'GET' && p === `/guilds/${G}/roles`) return send(200, D.roles);
-    if (m === 'GET' && p === `/guilds/${G}/members/${BOT}`) return send(200, { user: { id: BOT }, roles: [R.bot] });
-    if (m === 'GET' && (x = new RegExp(`^/guilds/${G}/members/(\\d+)$`).exec(p))) return OA.members.has(x[1]) ? send(200, { user: { id: x[1] }, roles: [] }) : send(404, { message: 'Unknown Member', code: 10007 });
+    if (m === 'GET' && p === `/guilds/${G}/members/${BOT}`) return send(200, { user: { id: BOT, username: 'Mana Orbit', bot: true }, roles: [R.bot] });
+    if (m === 'GET' && p === `/guilds/${G}/members/search`) {
+      const sp = new URL(q.url, 'http://x').searchParams; D.memQ.push(sp.toString());
+      if (D.noIntent) return send(403, { message: 'Missing Access', code: 50001 });
+      const qq = fold0(sp.get('query')), lim = Number(sp.get('limit')) || 1;
+      return send(200, D.members.filter(y => [y.nick, y.user.global_name, y.user.username].some(n => n && fold0(n).includes(qq))).slice(0, lim));
+    }
+    if ((x = /^\/guilds\/\d+\/members\/(\d+)$/.exec(p)) && m === 'GET') { const mm = D.members.find(y => y.user.id === x[1]); if (mm) return send(200, mm); return OA.members.has(x[1]) ? send(200, { user: { id: x[1] }, roles: [] }) : send(404, { message: 'Unknown Member', code: 10007 }); }      // membres de la recherche (avis), ou ceux de la liaison du compte
     let body = null, files = [];
     if (/^multipart\/form-data/.test(q.headers['content-type'] || '')) {
       const fd = await new Response(raw, { headers: { 'content-type': q.headers['content-type'] } }).formData();
@@ -205,6 +219,7 @@ const last = () => D.posts[D.posts.length - 1];
   let P = await start({}, 19800); BASE = P.url;
   assert.equal((await call('GET', '/__ping')).o.feedback, false, '/__ping feedback: false');
   assert.equal((await call('POST', '/api/feedback', { body: FB() })).s, 404);
+  assert.equal((await call('GET', '/api/feedback/members?q=beer')).s, 404, 'membres : coupé sans bot');
   let r = await call('GET', '/api/admin/discord', { tok: ADM() });
   assert.equal(r.s, 200); assert.equal(r.o.on, false); assert.match(r.o.message, /non configuré/); assert.deepEqual([r.o.channels, r.o.roles, r.o.guild], [[], [], null]);
   assert.equal((await call('POST', '/api/admin/discord/send', { tok: ADM(), body: { channel: C.general, content: 'x' } })).s, 404);
@@ -212,7 +227,7 @@ const last = () => D.posts[D.posts.length - 1];
   assert.equal((await call('POST', '/api/admin/discord/reply', { tok: ADM(), body: { id: T.t1, content: 'x' } })).s, 404);
   assert.doesNotMatch(P.log(), /Bot Discord/); await stop(P);
   P = await start({ DISCORD: '0', DISCORD_BOT_TOKEN: TOKEN, DISCORD_API: DAPI }, 19801); BASE = P.url;
-  assert.equal((await call('GET', '/__ping')).o.feedback, false); assert.equal((await call('POST', '/api/feedback', { body: FB() })).s, 404);
+  assert.equal((await call('GET', '/__ping')).o.feedback, false); assert.equal((await call('POST', '/api/feedback', { body: FB() })).s, 404); assert.equal((await call('GET', '/api/feedback/members?q=beer')).s, 404);
   r = await call('GET', '/api/admin/discord', { tok: ADM() }); assert.equal(r.s, 404); assert.match(r.o.message, /DISCORD=0/);
   assert.equal((await call('GET', '/api/admin/discord/threads', { tok: ADM() })).s, 404); assert.equal((await call('GET', '/api/admin/discord/thread?id=' + T.t1, { tok: ADM() })).s, 404);
   await stop(P); assert.equal(D.calls.length, 0, 'aucun appel à Discord');
@@ -295,6 +310,55 @@ let P = await start(ENV, 19802); BASE = P.url;
   r = await call('POST', '/api/feedback', { body: FB() }); assert.equal(r.s, 503); r = await call('POST', '/api/feedback', { body: FB() }); assert.equal(r.s, 503); assert.match(r.o.message, /Forum/);
   D.channels = saved;
   ok('Discord : 429 attendu (retry_after), 5xx réessayé une fois, en panne → 503, limite qui dure → 503 borné ; forum disparu : liste relue, repli sur #bugs ; aucun forum → 503');
+}
+
+/* ── 2 bis) Champ « Pseudo Discord » : membres du serveur, avis avec member ─────────────────────────────────────────────────── */
+{
+  await stop(P); P = await start(ENV, 19802); BASE = P.url;      // caches vides (forums rendus)
+  const ids = r => r.o.members.map(x => x.id), mq = q => call('GET', '/api/feedback/members?q=' + encodeURIComponent(q));
+  let r = await mq('Beer');
+  assert.equal(r.s, 200, r.t); assert.deepEqual(Object.keys(r.o), ['members']);
+  assert.deepEqual(ids(r), [M.beer, M.beer2, M.fan, M.x1, M.x2].map(x => x.user.id), 'préfixe du nom ou de l\'identifiant (ni « abeer », ni le bot), 5 au plus, ordre de Discord');
+  assert.deepEqual(r.o.members[0], { id: M.beer.user.id, name: 'Beer', user: 'beergod_', avatar: `https://cdn.discordapp.com/avatars/${M.beer.user.id}/${HASH}.png?size=64` }, 'nom affiché, identifiant, avatar de l\'utilisateur (64 px)');
+  assert.deepEqual(r.o.members[1], { id: M.beer2.user.id, name: 'beer', user: 'beer', avatar: '' }, 'sans nom affiché : l\'identifiant ; sans avatar : vide');
+  assert.deepEqual(r.o.members[2].name, 'Fan', 'trouvé par son identifiant (beer_fan), affiché sous son nom');
+  assert.equal(D.memQ.at(-1), 'query=Beer&limit=10', 'members/search : la saisie, 10 au plus');
+  const n0 = D.memQ.length;
+  r = await mq('BEER'); assert.deepEqual(ids(r), [M.beer, M.beer2, M.fan, M.x1, M.x2].map(x => x.user.id), 'casse ignorée');
+  r = await mq('beer'); assert.equal(D.memQ.length, n0, 'même recherche (casse près) : gardée 60 s, rien redemandé à Discord');
+  r = await mq('bea'); assert.deepEqual(r.o.members, [{ id: M.bea.user.id, name: 'Béatrice', user: 'zed', avatar: `https://cdn.discordapp.com/guilds/${G}/users/${M.bea.user.id}/avatars/${HASH2}.png?size=64` }], 'accents ignorés ; surnom du serveur ; avatar du membre d\'abord');
+  r = await mq('ZE'); assert.deepEqual(ids(r), [M.bea.user.id], 'identifiant (zed) sous un surnom');
+  r = await mq('beerb'); assert.deepEqual(r.o.members, [{ id: M.bad.user.id, name: 'beerbad', user: 'beerbad', avatar: '' }], 'bot exclu ; avatar mal formé : vide');
+  r = await mq('beerx'); assert.equal(r.o.members.length, 3);
+  for (const q of ['b', ' b ', '', 'x'.repeat(33)]) { r = await mq(q); assert.deepEqual([r.s, r.o.error], [400, 'bad_query'], JSON.stringify(q)); assert.ok(r.o.message); }
+  assert.equal((await call('GET', '/api/feedback/members')).s, 400);
+  assert.equal((await call('POST', '/api/feedback/members?q=beer', { body: {} })).s, 405);
+  const net = '198.51.100.40'; let last429 = null;
+  for (let i = 0; i < 61; i++) last429 = await call('GET', '/api/feedback/members?q=beer', { ip: net });
+  assert.equal(last429.s, 429, '60 recherches par 10 min et par réseau'); assert.equal(last429.o.error, 'rate_limited'); assert.ok(Number(last429.h.get('retry-after')) > 0);
+  assert.equal((await call('GET', '/api/feedback/members?q=beer')).s, 200, 'autre réseau : son propre budget');
+  ok('membres : préfixe du nom (surnom, nom affiché, identifiant) ou de l\'identifiant, casse et accents ignorés, bots exclus, 5 au plus, avatar du membre ou de l\'utilisateur (CDN, 64 px), recherche de 2 à 32 caractères, gardée 60 s, 60 par 10 min et par réseau');
+
+  r = await call('POST', '/api/feedback', { body: FB({ member: M.beer.user.id, contact: 'beergod_' }) });
+  assert.equal(r.s, 200, r.t); let t = last();
+  assert.ok(D.calls.includes(`GET /guilds/${G}/members/${M.beer.user.id}`), 'membre vérifié auprès de Discord');
+  assert.deepEqual(t.body.message.allowed_mentions, { parse: [], users: [M.beer.user.id] }, 'seul le membre choisi peut être pingé (ni @everyone ni le rôle du texte)');
+  assert.ok(t.body.message.content.startsWith(`Ligne 1\nLigne 2 @everyone <@&${R.team}>\n\nSignalé par <@${M.beer.user.id}>\n\n-# Android`), 'texte, « Signalé par <@id> », puis les détails : ' + t.body.message.content);
+  assert.doesNotMatch(t.body.message.content, /Contact Discord/, 'mentionné : pas de ligne de contact en plus');
+  for (const [member, what] of [['950000000000009999', 'inconnu'], [M.bot.user.id, 'bot'], ['abc', 'mal formé'], [42, 'pas un texte'], [BOT, 'le bot lui-même']]) {
+    r = await call('POST', '/api/feedback', { body: FB({ member }) }); assert.equal(r.s, 200, what + ' : ' + r.t); t = last();
+    assert.deepEqual(t.body.message.allowed_mentions, { parse: [] }, what + ' : aucun ping'); assert.doesNotMatch(t.body.message.content, /Signalé par/, what);
+    assert.match(t.body.message.content, /^-# Contact Discord : jeanne\\_42$/m, what + ' : le pseudo écrit, comme avant');
+  }
+  ok('avis avec member : membre vérifié (members/{id}) → « Signalé par <@id> » après le texte, allowed_mentions { parse: [], users: [id] } ; inconnu, bot, mal formé → publié sans mention, contact gardé');
+
+  D.noIntent = true; const nq = D.memQ.length;
+  r = await mq('Noé'); assert.deepEqual([r.s, r.o.error], [503, 'no_intent']); assert.match(r.o.message, /Server Members/); assert.ok(Number(r.h.get('retry-after')) > 0);
+  r = await mq('autre'); assert.equal(r.s, 503); assert.equal(D.memQ.length, nq + 1, 'refus gardé : plus rien demandé à Discord pendant 5 min');
+  assert.equal((P.log().match(/Server Members Intent/g) || []).length, 1, 'une seule ligne de journal'); assert.ok(!P.log().includes(TOKEN));
+  r = await call('POST', '/api/feedback', { body: FB({ member: M.beer.user.id }) }); assert.equal(r.s, 200, 'l\'avis part toujours'); assert.deepEqual(last().body.message.allowed_mentions.users, [M.beer.user.id]);
+  D.noIntent = false;
+  ok('intention « Server Members » absente (403, 50001) : 503 no_intent avec un message clair, une ligne de journal, pause de 5 min sans appel ; l\'avis part toujours');
 }
 
 /* ── 3) Panneau /admin ────────────────────────────────────────────────────────────────────────────────────────────────────── */

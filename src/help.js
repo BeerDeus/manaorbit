@@ -8,7 +8,9 @@
      serveur avec le bot Discord (/__ping feedback → CTX.feedback) et réseau là : fenêtre (fbOpen, type Bug par défaut) → POST api/feedback (proxy.mjs),
      qui ouvre un fil public dans le forum #bugs, #idées ou #aide du Discord de Mana Orbit.
      Type (bug, idée, question), partie de l'appli (étiquette du forum), titre (3 à 90), description (1 500 caractères, 30 lignes), 3 captures au plus
-     (réduites ici : JPEG 1 600 px de côté, qualité 0,82, plus petites au-delà de 1,5 Mo), pseudo Discord facultatif pour être recontacté ; part avec :
+     (réduites ici : JPEG 1 600 px de côté, qualité 0,82, plus petites au-delà de 1,5 Mo), pseudo Discord facultatif pour être recontacté : liste déroulante des
+     membres du serveur dont le nom commence par les lettres tapées (fbMembers, GET api/feedback/members, après 2 lettres) ; le membre choisi (puce « @Beer ✕ »)
+     part en member et sera mentionné dans le fil (notifié des réponses) ; sans choix, la saisie libre part en contact comme avant ; part avec :
      version, plateforme, version de l'APK, langue, navigateur (jamais la collection) ; connecté : jeton Firebase (le serveur n'en garde qu'une empreinte, budget).
      Brouillon gardé à la fermeture (mémoire, textes aussi dans sessionStorage), vidé après un envoi réussi ; « Merci ! » : « Voir sur Discord » (le fil),
      « Rejoindre le serveur ». Serveur ancien (pas de feedback), hors ligne, ou 404 (bot coupé : CTX.feedback = false) : mailto comme avant.
@@ -129,7 +131,7 @@ const FB_KINDS = [['bug', 'Bug'], ['idea', 'Idée'], ['help', 'Question']];
 const FB_AREAS = [['scan', 'Scan'], ['collection', 'Collection'], ['decks', 'Decks'], ['prix', 'Prix'], ['compte', 'Compte et synchro'], ['alertes', 'Alertes'],
   ['echange', 'Échange'], ['partie', 'Partie'], ['mystere', 'Carte mystère'], ['amis', 'Amis'], ['autre', 'Autre']];
 /** Bornes du contrat (proxy.mjs › /api/feedback) ; side, q, bytes : taille, qualité et poids des captures ; draft : brouillon de la session (captures comprises). */
-const FB = { max: 3, side: 1600, q: 0.82, bytes: 1.5 * 1024 * 1024, title: 90, text: 1500, lines: 30, contact: 60, key: 'deckdeal:fb', draft: null };
+const FB = { max: 3, side: 1600, q: 0.82, bytes: 1.5 * 1024 * 1024, title: 90, text: 1500, lines: 30, contact: 60, key: 'deckdeal:fb', draft: null, acMs: 250, memOff: false };      // acMs : délai avant la recherche des membres ; memOff : recherche absente (404) ou refusée (503 no_intent) pour la session
 /** La feuille remplace-t-elle le mailto ? Serveur qui l'annonce (/__ping feedback) et réseau là (hors ligne : le mailto, qui partira plus tard). */
 const fbOn = () => typeof CTX !== 'undefined' && CTX.feedback === true && !collOffline();
 /** Titre, pseudo : caractères de contrôle retirés, espaces resserrés (comme le serveur). Description : sauts de ligne gardés, 2 lignes vides de suite au plus. */
@@ -142,11 +144,23 @@ function fbDraft() {
   let o = null; try { o = JSON.parse(sessionStorage.getItem(FB.key) || 'null'); } catch (e) { o = null; }
   o = o && typeof o === 'object' ? o : {};
   const str = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
-  FB.draft = { kind: o.kind === 'idea' || o.kind === 'help' ? o.kind : 'bug', area: fbPick(o.area, FB_AREAS), title: str(o.title, FB.title), text: str(o.text, FB.text), contact: str(o.contact, FB.contact), imgs: [] };
+  FB.draft = { kind: o.kind === 'idea' || o.kind === 'help' ? o.kind : 'bug', area: fbPick(o.area, FB_AREAS), title: str(o.title, FB.title), text: str(o.text, FB.text), contact: str(o.contact, FB.contact), member: fbMemOk(o.member), imgs: [] };
   return FB.draft;
 }
-function fbKeep() { const d = FB.draft; if (!d) return; try { sessionStorage.setItem(FB.key, JSON.stringify({ kind: d.kind, area: d.area, title: d.title, text: d.text, contact: d.contact })); } catch (e) { /* stockage indisponible : brouillon en mémoire seulement */ } }
+function fbKeep() { const d = FB.draft; if (!d) return; try { sessionStorage.setItem(FB.key, JSON.stringify({ kind: d.kind, area: d.area, title: d.title, text: d.text, contact: d.contact, member: d.member })); } catch (e) { /* stockage indisponible : brouillon en mémoire seulement */ } }
 function fbForget() { FB.draft = null; try { sessionStorage.removeItem(FB.key); } catch (e) { /* ignore */ } }
+/** Membre du serveur (réponse de api/feedback/members, brouillon) vérifié → { id, name, user, avatar } ; avatar : CDN de Discord seulement ; sinon null. */
+function fbMemOk(m) {
+  if (!m || typeof m !== 'object' || typeof m.id !== 'string' || !/^\d{5,25}$/.test(m.id) || typeof m.name !== 'string' || typeof m.user !== 'string') return null;
+  const name = fbLine(m.name).slice(0, 80), user = fbLine(m.user).slice(0, 40); if (!name && !user) return null;
+  return { id: m.id, name: name || user, user, avatar: typeof m.avatar === 'string' && /^https:\/\/cdn\.discordapp\.com\/[^\s"'<>]+$/.test(m.avatar) ? m.avatar : '' };
+}
+/** GET api/feedback/members?q= : membres du serveur Discord dont le nom commence par q (5 au plus) → { status (0 : réseau ou annulée), code, members }. */
+async function fbMembers(q, signal) {
+  let r; try { r = await fetch('api/feedback/members?q=' + encodeURIComponent(q), { cache: 'no-store', headers: { Accept: 'application/json' }, signal }); } catch (e) { return { status: 0, code: 'net', members: [] }; }
+  const j = await r.json().catch(() => null);
+  return { status: r.status, code: (j && typeof j.error === 'string' && j.error) || '', members: r.ok && j && Array.isArray(j.members) ? j.members.map(fbMemOk).filter(Boolean).slice(0, 5) : [] };
+}
 const fbDataUrl = b => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => ko(r.error); r.readAsDataURL(b); });
 /** Capture choisie → { url (data:image/jpeg;base64), w, h, kb } : 1 600 px au plus de côté, qualité 0,82, refaite plus petite tant qu'elle dépasse 1,5 Mo ;
  *  fond blanc (PNG transparent). Image illisible (pas une image, format inconnu, fichier abîmé) : rejet. */
@@ -217,14 +231,19 @@ function fbOpen() {
       <div class="field-in"><span class="label" id="fbImgL">${T('Captures d\'écran')}</span><div class="fb-imgs" role="list" aria-labelledby="fbImgL"></div>
         <button type="button" class="btn ghost small fb-add" aria-describedby="fbImgH"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg><span>${T('Ajouter une capture')}</span></button>
         <span class="hint" id="fbImgH">${T('3 au plus, réduites avant l\'envoi.')}</span><input type="file" id="fbFile" accept="image/*" multiple hidden></div>
-      <div class="field-in"><label class="label" for="fbContact">${T('Pseudo Discord (facultatif)')}</label><input type="text" id="fbContact" class="fb-contact" maxlength="${FB.contact}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="fbContactH">
-        <span class="hint" id="fbContactH">${T('Pour qu\'on puisse te recontacter.')}</span></div>
+      <div class="field-in"><label class="label" for="fbContact">${T('Pseudo Discord (facultatif)')}</label>
+        <div class="fb-ac"><input type="text" id="fbContact" class="fb-contact" maxlength="${FB.contact}" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="fbMemList" aria-describedby="fbContactH">
+          <ul class="fb-mems" id="fbMemList" role="listbox" aria-label="${T('Membres du serveur Discord')}" hidden></ul></div>
+        <div class="fb-mem" hidden></div>
+        <span class="hint" id="fbContactH"></span></div>
       <p class="hint fb-why">${helpNb(T('Envoyé avec ton message : la version de Mana Orbit, la plateforme, la langue et le navigateur ; jamais ta collection. Ton message sera public sur le Discord de Mana Orbit.'))}</p>
       <p class="fb-err" role="alert" hidden></p></form>`;
   api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-fb="go">${T('Envoyer')}</button>`);
   const $b = s => $(s, api.body), form = $b('.fb'), seg = $b('.fb-kind'), areaS = $b('#fbArea'), tI = $b('#fbTitle'), xI = $b('#fbText'), cI = $b('#fbContact'), cnt = $b('#fbCnt');
   const imgs = $b('.fb-imgs'), addB = $b('.fb-add'), fileI = $b('#fbFile'), err = $b('.fb-err'), goB = $('[data-fb="go"]', api.foot);
+  const memList = $b('#fbMemList'), chip = $b('.fb-mem'), cH = $b('#fbContactH');
   areaS.value = d.area; tI.value = d.title; xI.value = d.text; cI.value = d.contact;
+  if (d.member && d.contact !== d.member.name) d.member = null;      // brouillon : le membre choisi seulement si le champ montre encore son nom
   const fail = (t, el) => { err.textContent = t; err.hidden = false; haptic('warn'); if (el) { el.setAttribute('aria-invalid', 'true'); el.focus(); } };
   const calm = () => { err.hidden = true; [tI, xI].forEach(x => x.removeAttribute('aria-invalid')); };
   const paint = () => {
@@ -234,7 +253,40 @@ function fbOpen() {
     const full = d.imgs.length + busy >= FB.max; addB.disabled = full || sending; $('span', addB).textContent = T('Ajouter une capture') + (d.imgs.length ? ` (${d.imgs.length}/${FB.max})` : '');
     goB.disabled = sending || busy > 0; goB.textContent = sending ? T('Envoi…') : T('Envoyer');
     [areaS, tI, xI, cI].forEach(x => { x.disabled = sending; }); seg.classList.toggle('dim', sending);
+    const cx = $('.fb-mem-x', chip); if (cx) cx.disabled = sending;
   };
+  /* Pseudo Discord : liste des membres (combobox) ; ac.seq : numéro de la dernière recherche (réponses dépassées ignorées), ac.ctl : requête en cours (annulée). */
+  const ac = { hits: [], sel: -1, seq: 0, ctl: null, t: 0 };
+  const memAv = m => `<span class="fb-mem-av" aria-hidden="true">${esc(([...(m.name || m.user || '?')][0] || '?').toUpperCase())}${m.avatar && !(typeof streamOn === 'function' && streamOn()) ? `<img src="${esc(m.avatar)}" alt="" width="28" height="28" loading="lazy" referrerpolicy="no-referrer">` : ''}</span>`;      // mode streamer : pas d'avatars, l'initiale
+  const acShow = () => {
+    const open = ac.hits.length > 0, was = !memList.hidden;
+    memList.innerHTML = ac.hits.map((m, i) => `<li role="option" id="fbMem${i}" class="fb-mem-o" data-i="${i}" aria-selected="${i === ac.sel}">${memAv(m)}<span class="fb-mem-t"><b>${esc(m.name)}</b><small>@${esc(m.user)}</small></span></li>`).join('');
+    memList.hidden = !open; cI.setAttribute('aria-expanded', String(open));
+    if (open && !was && memList.scrollIntoView) memList.scrollIntoView({ block: 'nearest' });      // liste ouverte : visible en entier dans la feuille
+    if (open && ac.sel >= 0) { cI.setAttribute('aria-activedescendant', 'fbMem' + ac.sel); const li = memList.children[ac.sel]; if (li && li.scrollIntoView) li.scrollIntoView({ block: 'nearest' }); } else cI.removeAttribute('aria-activedescendant');
+  };
+  const acStop = () => { clearTimeout(ac.t); ac.seq++; if (ac.ctl) { try { ac.ctl.abort(); } catch (e) { /* ignore */ } ac.ctl = null; } };
+  const acClose = () => { acStop(); ac.hits = []; ac.sel = -1; acShow(); };
+  const acHint = () => { cH.textContent = FB.memOff ? T('Pour qu\'on puisse te recontacter.') : T('Choisis ton pseudo dans la liste : tu seras mentionné dans le fil et notifié des réponses.'); };
+  const paintMem = () => {
+    const m = d.member; chip.hidden = !m;
+    chip.innerHTML = m ? `${memAv(m)}<span class="fb-mem-n" title="@${esc(m.user)}">@${esc(m.name)}</span><button type="button" class="fb-mem-x" aria-label="${esc(T('Retirer {name}', { name: '@' + m.name }))}"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>` : '';
+  };
+  /** Recherche après 2 lettres et FB.acMs sans frappe ; hors ligne, route absente ou refusée, membre déjà choisi : rien (saisie libre). */
+  const acSearch = () => {
+    acStop();
+    const q = fbLine(cI.value), n = [...q].length, my = ac.seq;
+    if (d.member || FB.memOff || n < 2 || n > 32 || sending || collOffline()) { ac.hits = []; ac.sel = -1; acShow(); return; }
+    ac.t = setTimeout(async () => {
+      const ctl = typeof AbortController === 'function' ? new AbortController() : null; ac.ctl = ctl;
+      const r = await fbMembers(q, ctl ? ctl.signal : undefined);
+      if (my !== ac.seq || !sheets.includes(api)) return;      // dépassée (autre frappe, choix, fermeture)
+      ac.ctl = null;
+      if (r.status === 404 || (r.status === 503 && r.code === 'no_intent')) { FB.memOff = true; acHint(); }      // serveur sans la route, ou intention « Server Members » absente : texte libre
+      ac.hits = document.activeElement === cI && !d.member ? r.members : []; ac.sel = -1; acShow();
+    }, FB.acMs);
+  };
+  const acPick = i => { const m = ac.hits[i]; if (!m) return; haptic('tap'); d.member = m; cI.value = m.name; acClose(); sync(); paintMem(); paint(); };
   const paintImgs = () => {
     imgs.innerHTML = d.imgs.map((x, i) => `<div class="fb-th" role="listitem"><img src="${x.url}" alt="${esc(T('Capture {n}', { n: i + 1 }))}" width="${x.w}" height="${x.h}"><button type="button" class="fb-x" data-fb-x="${i}" aria-label="${esc(T('Retirer la capture {n}', { n: i + 1 }))}"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button></div>`).join('')
       + Array.from({ length: busy }, () => `<div class="fb-th busy" role="listitem" aria-label="${esc(T('Préparation de la capture…'))}"></div>`).join('');
@@ -242,6 +294,20 @@ function fbOpen() {
   };
   mountSeg(seg, FB_KINDS.map(([v, l]) => ({ v, label: T(l) })), d.kind, v => { d.kind = v; fbKeep(); paint(); });
   const sync = () => { d.area = areaS.value; d.title = tI.value; d.text = xI.value; d.contact = cI.value; fbKeep(); };
+  cI.addEventListener('input', () => { if (d.member && cI.value !== d.member.name) { d.member = null; paintMem(); } acSearch(); });      // texte modifié après un choix : choix annulé
+  cI.addEventListener('keydown', e => {
+    const n = ac.hits.length, open = !memList.hidden;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) { e.preventDefault(); ac.sel = e.key === 'ArrowDown' ? (ac.sel + 1) % n : (ac.sel <= 0 ? n - 1 : ac.sel - 1); acShow(); }
+    else if (e.key === 'Enter' && open && !e.ctrlKey && !e.metaKey) { e.preventDefault(); e.stopPropagation(); if (ac.sel >= 0) acPick(ac.sel); else acClose(); }
+    else if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); acClose(); }      // Échap : la liste seulement, la feuille reste
+    else if (e.key === 'Tab') acClose();
+  });
+  cI.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== cI) acClose(); }, 150));
+  memList.addEventListener('mousedown', e => e.preventDefault());      // le focus reste dans le champ
+  memList.addEventListener('click', e => { const li = e.target.closest('.fb-mem-o'); if (li) acPick(Number(li.dataset.i)); });
+  const avGone = e => { if (e.target && e.target.tagName === 'IMG') e.target.remove(); };      // avatar illisible : l'initiale
+  memList.addEventListener('error', avGone, true); chip.addEventListener('error', avGone, true);
+  chip.addEventListener('click', e => { if (!e.target.closest('.fb-mem-x') || sending) return; haptic('tap'); d.member = null; cI.value = ''; sync(); paintMem(); cI.focus(); });
   form.addEventListener('submit', e => e.preventDefault());
   form.addEventListener('input', e => { sync(); if (e.target.getAttribute('aria-invalid')) calm(); paint(); });      // champ corrigé : le message s'efface
   areaS.addEventListener('change', sync);
@@ -269,13 +335,14 @@ function fbOpen() {
   goB.addEventListener('click', async () => {
     if (sending || busy) return;
     calm(); sync();
-    const title = fbLine(d.title), text = fbBody(d.text), contact = fbLine(d.contact).slice(0, FB.contact);
+    acClose();
+    const title = fbLine(d.title), text = fbBody(d.text), mem = d.member, contact = (mem ? mem.user || mem.name : fbLine(d.contact)).slice(0, FB.contact);      // membre choisi : son identifiant en contact (si le serveur ne le retrouve pas)
     if (title.length < 3) { fail(T('Donne un titre à ton avis (3 caractères au moins).'), tI); return; }
     if (!text) { fail(T('Décris ton avis en quelques mots.'), xI); return; }
     if (text.split('\n').length > FB.lines) { fail(T('La description doit faire de 1 à 1500 caractères, sur 30 lignes au plus.'), xI); return; }
     if (collOffline()) { fail(T('Hors ligne : ton avis n\'est pas parti. Réessaie une fois connecté, ton message est gardé.')); return; }
     sending = true; paint();
-    let r; try { r = await fbPost({ kind: d.kind, title: title.slice(0, FB.title), text: text.slice(0, FB.text), area: d.area, contact, meta: await fbMeta(), imgs: d.imgs.map(x => x.url) }); } catch (e) { r = { status: 0, code: 'net' }; }
+    let r; try { r = await fbPost({ kind: d.kind, title: title.slice(0, FB.title), text: text.slice(0, FB.text), area: d.area, contact, meta: await fbMeta(), imgs: d.imgs.map(x => x.url), ...(mem ? { member: mem.id } : {}) }); } catch (e) { r = { status: 0, code: 'net' }; }
     sending = false;
     const open = sheets.includes(api);
     if (r.status === 200) {
@@ -287,7 +354,7 @@ function fbOpen() {
     if (!open) { toast(fbErrText(r)); return; }
     paint(); fail(fbErrText(r));
   });
-  paintImgs();
+  paintImgs(); paintMem(); acHint();
   return api;
 }
 /** Avis publié : « Merci ! », le fil sur Discord (adresse reçue, seulement si c'est bien un lien Discord) et l'invitation au serveur. */
