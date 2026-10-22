@@ -472,7 +472,8 @@ function tipPlace() {
   const vw = innerWidth, vh = innerHeight, m = 12, gap = 12, w = Math.min(280, vw - 2 * m);
   el.style.maxWidth = w + 'px';
   const bw = el.offsetWidth, bh = el.offsetHeight, below = vh - 96 - (r.bottom + gap) >= bh;
-  const x = Math.max(m, Math.min(vw - bw - m, r.left + r.width / 2 - bw / 2)), y = below ? r.bottom + gap : Math.max(tourTopIn() + m, r.top - gap - bh);
+  const top = Math.max(tourTopIn(), typeof adsBot === 'function' ? adsBot() : 0) + m;      // bandeau de pub (ads.js) : vue native par-dessus la page, la bulle reste dessous
+  const x = Math.max(m, Math.min(vw - bw - m, r.left + r.width / 2 - bw / 2)), y = below ? r.bottom + gap : Math.max(top, r.top - gap - bh);
   el.dataset.side = below ? 'down' : 'up';
   el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px)`;
   $('.tip-ar', el).style.left = Math.max(14, Math.min(bw - 14, r.left + r.width / 2 - x)) + 'px';

@@ -40,7 +40,7 @@ const shown = p => p.waitForFunction(h => document.documentElement.classList.con
 const gone = p => p.waitForFunction(() => !document.documentElement.classList.contains('ad-on') && getComputedStyle(document.querySelector('#app .wrap')).paddingTop === '20px', null, { timeout: 8000 });
 /** Page de l'appli « Android ». firebase : 'abort' (SDK injoignable, compte connu tout de suite) ou 'hang' (session qui tarde : pg.held, à relâcher). */
 async function natPage(o = {}) {
-  const pg = await newPage(browser, world, { goto: false });
+  const pg = await newPage(browser, world, { goto: false, pop: o.pop });
   pg.held = []; await pg.p.route('https://www.gstatic.com/**', r => (o.firebase === 'hang' ? pg.held.push(r) : r.abort()));
   if (o.ping) await pg.p.route('**/__ping', async r => { const res = await r.fetch(); r.fulfill({ response: res, json: { ...(await res.json()), ...o.ping } }); });
   if (o.native !== false) await pg.p.addInitScript(fakeNative, o);
@@ -232,6 +232,68 @@ async function natPage(o = {}) {
   pg = await run(null);
   assert.equal(await cls(pg), 'fs', 'APK sans ManaOrbit.cutout : barre d\'état cachée, en-tête sous la caméra'); assert.deepEqual(await band(), ['24px', 24]); assert.deepEqual(pg.errs, []); await pg.ctx.close();
   ok('plein écran : barre d\'état cachée, recachée au retour et au 1er appui ; bande de 24 px en haut ; découpe au milieu → en-tête sur la ligne de la caméra, titres arrêtés avant ; coin ou APK ancienne → sous la caméra');
+}
+
+{ // 8) ce qui se pose en haut de l'écran par-dessus la page reste SOUS le bandeau : la vue native AdMob couvre la WebView (aucun z-index n'y peut rien),
+  //    ce qui la chevauche est caché. Annonce d'un nouveau badge (progress.js › prgPop, 76 px de haut : coupée à moitié avant), tâches (#tasks), astuces
+  //    (tour.js › tipPlace, bulle posée au-dessus de sa cible) ; à 360 et 390 px ; sans bandeau, chacun revient à sa place d'origine.
+  //    ADS_SHOTS=<dossier> : captures avec un faux bandeau dessiné à la place de la vue native.
+  const { p, errs } = await natPage({ pop: true }), SHOTS = process.env.ADS_SHOTS;
+  await p.evaluate(() => { AD.grace = 0; AD.offMs = 0; AD.delay = 200; AD.back = 100; AD.idle = 0; adsRefresh(); });
+  await shown(p);
+  const zone = await p.evaluate(h => [window.__ad.last.margin, window.__ad.last.margin + h], H);      // la vue native : sous la zone de la caméra (0 ici) à « margin », H de haut
+  assert.deepEqual(zone, [71, 132]);
+  const fakeAd = on => p.evaluate(([on, z]) => {      // captures seulement : Chromium ne dessine pas la vue native, on la figure (hors de body : l'observateur d'ads.js ne la voit pas)
+    let e = document.getElementById('fakeAdView'); if (!on) { if (e) e.remove(); return; }
+    if (!e) { e = document.createElement('div'); e.id = 'fakeAdView'; document.documentElement.appendChild(e); }
+    e.textContent = 'Bandeau AdMob (vue native, par-dessus la page)';
+    e.style.cssText = `position:fixed;left:0;right:0;top:${z[0]}px;height:${z[1] - z[0]}px;z-index:2147483647;pointer-events:none;display:grid;place-items:center;font:600 13px system-ui;color:#333;background:repeating-linear-gradient(45deg,#ffe08a,#ffe08a 10px,#ffd24d 10px,#ffd24d 20px)`;
+  }, [on, zone]);
+  /** Annonce d'un badge (palier bronze du premier badge du catalogue, « +2 autres ») : sa place une fois arrivée. */
+  const pop = async () => {
+    await p.evaluate(() => { document.querySelectorAll('.prg-pop').forEach(e => e.remove()); const x = prgBadges()[0]; prgPop({ b: x.b, t: 0 }, 2); });
+    await p.waitForSelector('.prg-pop.on'); await p.waitForTimeout(600);      // fin de l'arrivée (transform)
+    return p.$eval('.prg-pop', e => { const r = e.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; });
+  };
+  /** Astuce posée AU-DESSUS de sa cible (cible haute, rien ne tient dessous), dans la collection. */
+  const tip = async () => {
+    await p.evaluate(() => {
+      tipHide(); const t = document.createElement('div'); t.id = 'tipTgt';
+      t.style.cssText = 'position:fixed;left:40px;right:40px;top:' + (Math.max(adsBot(), 63) + 30) + 'px;bottom:110px;pointer-events:none';
+      document.documentElement.appendChild(t); tipShow('fset', t, navTopDv());
+    });
+    await p.waitForSelector('.tip.on'); await p.waitForTimeout(300);
+    const r = await p.$eval('.tip', e => { const r = e.getBoundingClientRect(); return { side: e.dataset.side, top: Math.round(r.top), bottom: Math.round(r.bottom) }; });
+    await p.evaluate(() => { tipHide(); document.getElementById('tipTgt').remove(); });
+    return r;
+  };
+  const tasksTop = () => p.$eval('#tasks', e => Math.round(e.getBoundingClientRect().top));
+  await p.evaluate(() => { tourSet({ tips: {} }); openCollection(); }); await p.waitForSelector('.coll.on'); await p.waitForTimeout(400);
+  await p.evaluate(() => { const x = TIP_DEFS.fset[0]; TIP_DEFS.fset[0] = () => true; window.__fsetOk = x; });      // astuce montrée à la demande
+  for (const w of [360, 390]) {
+    await p.setViewportSize({ width: w, height: w === 360 ? 780 : 844 }); await p.waitForTimeout(250);
+    assert.equal(await p.evaluate(() => adsBot()), 63 + H + 20, w + ' px : bas de la zone du bandeau (--ad-bot) = en-tête + bandeau + écarts');
+    const r = await pop();
+    assert.equal(r.top, 63 + H + 20 + 8, w + ' px : annonce du badge posée sous la zone du bandeau');
+    assert.ok(r.top >= zone[1] && r.bottom <= (w === 360 ? 780 : 844) && r.left >= 0 && r.right <= w, w + ' px : annonce entière, hors de la vue native et dans l\'écran : ' + JSON.stringify(r));
+    if (SHOTS) { await fakeAd(true); await p.screenshot({ path: `${SHOTS}/badge-bandeau-${w}.png` }); await fakeAd(false); }
+    assert.ok(await tasksTop() >= zone[1], w + ' px : tâches sous le bandeau');
+    const t = await tip();
+    assert.ok(t.side === 'up' && t.top >= 63 + H + 20 + 12, w + ' px : astuce au-dessus de sa cible mais sous le bandeau : ' + JSON.stringify(t));
+  }
+  await p.evaluate(() => { CTX.serverOk = true; adsRefresh(); }); await gone(p);      // plus de bandeau (compte autorisé : comme un abonné sans pub)
+  assert.equal(await p.evaluate(() => adsBot()), 0, 'sans bandeau : --ad-bot ne joue plus');
+  for (const w of [360, 390]) {
+    await p.setViewportSize({ width: w, height: w === 360 ? 780 : 844 }); await p.waitForTimeout(250);
+    const r = await pop();
+    assert.equal(r.top, 10, w + ' px, sans bandeau : annonce revenue en haut (10 px, par-dessus l\'en-tête)');
+    if (SHOTS) await p.screenshot({ path: `${SHOTS}/badge-sans-bandeau-${w}.png` });
+    assert.equal(await tasksTop(), 62, 'tâches à leur place d\'origine');
+    const t = await tip(); assert.deepEqual([t.side, t.top >= 12, t.top < 63 + H], ['up', true, true], 'astuce : de nouveau jusqu\'en haut de l\'écran : ' + JSON.stringify(t));
+  }
+  await p.evaluate(() => { TIP_DEFS.fset[0] = window.__fsetOk; document.querySelectorAll('.prg-pop').forEach(e => e.remove()); });
+  assert.deepEqual(errs, []); await p.context().close();
+  ok('bandeau affiché : annonce d\'un badge, tâches et astuces posées sous sa zone (360 et 390 px), jamais sous la vue native ; sans bandeau : à leur place d\'origine');
 }
 
 await browser.close(); world.stop(); console.log('\nADS E2E OK'); process.exit(0);

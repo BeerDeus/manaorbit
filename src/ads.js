@@ -57,12 +57,18 @@ function adsPad(h) {
 /** Marge du bandeau (px CSS) : bas des en-têtes (--top-in + --hd-h, les mêmes partout) − zone de la caméra que le plugin ajoute lui-même + écart au-dessus.
  *  Mesuré sur des sondes (jamais sur un écran en train de s'ouvrir, décalé par son animation). */
 function adsMargin() {
+  return Math.max(0, Math.round(adsPx('calc(var(--top-in) + var(--hd-h))') - adsPx('env(safe-area-inset-top,0px)') + adsPx('var(--ad-gt)')));
+}
+/** Hauteur CSS (calc, var, env) mesurée en px sur la sonde. */
+function adsPx(h) {
   // une sonde posée une fois pour toutes (ajouter et retirer un élément à chaque mesure relancerait l'observateur de la page, donc adsStep, sans fin)
   const e = AD.probe || (AD.probe = Object.assign(document.createElement('div'), { id: 'adProbe', ariaHidden: 'true' }));
   if (!e.isConnected) { e.style.cssText = 'position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none'; document.documentElement.appendChild(e); }      // sous <html> : hors de la liste observée (body)
-  const probe = h => { e.style.height = h; return e.offsetHeight; };
-  return Math.max(0, Math.round(probe('calc(var(--top-in) + var(--hd-h))') - probe('env(safe-area-inset-top,0px)') + probe('var(--ad-gt)')));
+  e.style.height = h; return e.offsetHeight;
 }
+/** Bas de la zone du bandeau (--ad-bot, css/ads.css), en px depuis le haut de l'écran ; 0 sans bandeau. Pour ce qui se place en JS en haut de l'écran
+ *  (astuces de tour.js) : rien ne doit monter au-dessus, la vue native du bandeau couvre la WebView. */
+function adsBot() { return document.documentElement.classList.contains('ad-on') ? adsPx('var(--ad-bot,0px)') : 0; }
 /** Écran où la pub n'a pas sa place : accueil du premier lancement, scan (aperçu natif compris), carte en grand ; et tout ce qui n'est pas de la consultation :
  *  saisie, recherche et résultats, éditeur de deck, partie de Commander. Écran du dessus : la dernière vue plein écran (.dv) de la page, même en train de s'ouvrir ou de se fermer
  *  (retirée après son animation : réévalué à ce moment-là), sinon la vue de l'appli (#app[data-view]). */
