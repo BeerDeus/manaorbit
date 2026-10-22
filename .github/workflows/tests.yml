@@ -1,6 +1,6 @@
 # Tests de Mana Orbit (voir DEV.md).
 # · Chaque push / pull request : build à jour (deck-deal.html = build de src/).
-# · Puis TOUS les tests de tests/run-tests.sh (Node, jsdom et navigateur, ~22 min) : un nouveau test listé là y est lancé d'office.
+# · Puis TOUS les tests de tests/run-tests.sh (Node, jsdom et navigateur, ~60 min ; l'installation de Chromium prend parfois 30 min de plus) : un nouveau test listé là y est lancé d'office.
 #   On pousse directement sur main (déployé par Hostinger) : les tests navigateur doivent tourner à chaque push, pas seulement en pull request.
 name: Tests
 on:
@@ -14,7 +14,7 @@ concurrency:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120      # la série seule dépasse 60 min depuis octobre 2026 (coupée avant la fin : « cancelled »)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
