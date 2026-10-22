@@ -17,12 +17,27 @@
 </head>
 <body>
 <div class="foil"></div>
+<div class="chrome" id="chrome">
 <header class="top">
   <div class="brand"><img src="/icons/icon.svg" alt="" width="30" height="30"><b>Mana Orbit</b><span class="pill">Admin</span></div>
   <div class="acts" id="acts" hidden>
-    <button class="btn ghost small" id="btnRefresh" type="button">Rafraîchir</button>
+    <button class="btn ghost small" id="btnRefresh" type="button" title="Recalculer les statistiques (une fois par minute au plus)">Rafraîchir</button>
   </div>
 </header>
+<!-- Une partie du panneau par onglet ; l'onglet est dans l'adresse (#discord…) : retour, rechargement et lien direct. Onglet sans objet (section coupée sur le serveur) masqué. -->
+<nav class="tabs" id="tabs" aria-label="Parties du panneau" hidden>
+  <div class="tabl" id="tabl" role="tablist" aria-label="Parties du panneau">
+    <button class="tab" id="t-apercu" type="button" role="tab" aria-controls="p-apercu" data-tab="apercu">Vue d'ensemble</button>
+    <button class="tab" id="t-comptes" type="button" role="tab" aria-controls="p-comptes" data-tab="comptes">Utilisateurs</button>
+    <button class="tab" id="t-mystere" type="button" role="tab" aria-controls="p-mystere" data-tab="mystere">Carte mystère<span class="badge" hidden></span></button>
+    <button class="tab" id="t-discord" type="button" role="tab" aria-controls="p-discord" data-tab="discord">Discord</button>
+    <button class="tab" id="t-fils" type="button" role="tab" aria-controls="p-fils" data-tab="fils">Fils<span class="badge" hidden></span></button>
+    <button class="tab" id="t-signalements" type="button" role="tab" aria-controls="p-signalements" data-tab="signalements">Signalements<span class="badge" hidden></span></button>
+    <button class="tab" id="t-journal" type="button" role="tab" aria-controls="p-journal" data-tab="journal">Journal</button>
+    <button class="tab" id="t-serveur" type="button" role="tab" aria-controls="p-serveur" data-tab="serveur">Serveur<span class="badge warn" hidden></span></button>
+  </div>
+</nav>
+</div>
 <main>
   <section class="state" id="vLoad"><span class="spin" aria-hidden="true"></span><p>Chargement…</p></section>
   <section class="state" id="vOut" hidden>
@@ -43,41 +58,56 @@
   </section>
   <section id="vMain" hidden>
     <p class="meta" id="meta"></p>
-    <div id="notes"></div>
-    <div class="kpis" id="kpis"></div>
-    <div class="duo">
-      <section class="card" id="chart"></section>
-      <section class="card" id="achart"></section>
-    </div>
-    <div class="duo">
-      <section class="card" id="mix"></section>
-      <section class="card" id="testers"></section>
-    </div>
-    <section class="card" id="scans" hidden></section>
-    <section class="card" id="daily" hidden></section>
-    <section class="card" id="discord" hidden></section>
-    <section class="card users">
-      <div class="uhead">
-        <h2>Utilisateurs <small id="uCount"></small></h2>
-        <div class="ctl">
-          <input id="q" type="search" placeholder="Rechercher…" autocomplete="off" spellcheck="false" aria-label="Rechercher un nom">
-          <select id="sort" aria-label="Trier par">
-            <option value="created">Inscription</option>
-            <option value="login">Connexion</option>
-            <option value="seen">Activité</option>
-            <option value="cards">Cartes</option>
-            <option value="decks">Decks</option>
-          </select>
-          <button class="btn ghost small dir" id="dir" type="button" aria-label="Ordre du tri">↓</button>
-          <button class="btn ghost small" id="btnCsv" type="button" title="Télécharger la liste en CSV : mêmes champs réduits, tri et recherche en cours">CSV</button>
-        </div>
+    <section class="panel" id="p-apercu" role="tabpanel" aria-labelledby="t-apercu" tabindex="-1">
+      <div id="notes"></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="duo">
+        <section class="card" id="chart"></section>
+        <section class="card" id="achart"></section>
       </div>
-      <div class="ulist" id="ulist"></div>
-      <nav class="pager" id="pager" aria-label="Pages"></nav>
+      <section class="card" id="mix"></section>
     </section>
-    <section class="card" id="pubrep"></section>
-    <section class="card" id="journal"></section>
-    <section class="card" id="srv"></section>
+    <section class="panel" id="p-comptes" role="tabpanel" aria-labelledby="t-comptes" tabindex="-1" hidden>
+      <section class="card users">
+        <div class="uhead">
+          <h2>Utilisateurs <small id="uCount"></small></h2>
+          <div class="ctl">
+            <input id="q" type="search" placeholder="Rechercher…" autocomplete="off" spellcheck="false" aria-label="Rechercher un nom">
+            <select id="sort" aria-label="Trier par">
+              <option value="created">Inscription</option>
+              <option value="login">Connexion</option>
+              <option value="seen">Activité</option>
+              <option value="cards">Cartes</option>
+              <option value="decks">Decks</option>
+            </select>
+            <button class="btn ghost small dir" id="dir" type="button" aria-label="Ordre du tri">↓</button>
+            <button class="btn ghost small" id="btnCsv" type="button" title="Télécharger la liste en CSV : mêmes champs réduits, tri et recherche en cours">CSV</button>
+          </div>
+        </div>
+        <div class="ulist" id="ulist"></div>
+        <nav class="pager" id="pager" aria-label="Pages"></nav>
+      </section>
+    </section>
+    <section class="panel" id="p-mystere" role="tabpanel" aria-labelledby="t-mystere" tabindex="-1" hidden>
+      <section class="card" id="daily"></section>
+    </section>
+    <section class="panel" id="p-discord" role="tabpanel" aria-labelledby="t-discord" tabindex="-1" hidden>
+      <div id="discord"></div>
+    </section>
+    <section class="panel" id="p-fils" role="tabpanel" aria-labelledby="t-fils" tabindex="-1" hidden>
+      <div id="threads"></div>
+    </section>
+    <section class="panel" id="p-signalements" role="tabpanel" aria-labelledby="t-signalements" tabindex="-1" hidden>
+      <section class="card" id="dyRepCard" hidden></section>
+      <section class="card" id="pubrep"></section>
+      <section class="card" id="scans" hidden></section>
+    </section>
+    <section class="panel" id="p-journal" role="tabpanel" aria-labelledby="t-journal" tabindex="-1" hidden>
+      <section class="card" id="journal"></section>
+    </section>
+    <section class="panel" id="p-serveur" role="tabpanel" aria-labelledby="t-serveur" tabindex="-1" hidden>
+      <section class="card" id="srv"></section>
+    </section>
     <div class="foot"><button class="btn ghost small" id="btnOut" type="button" title="Déconnecte aussi l'appli dans ce navigateur">Se déconnecter</button></div>
   </section>
 </main>

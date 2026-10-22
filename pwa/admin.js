@@ -6,6 +6,8 @@
    Tri, recherche et pages : côté serveur (?sort, dir, q, page). « Rafraîchir » : POST /api/admin/refresh (une fois par minute au plus). « CSV » : la même
    liste (tri et recherche en cours) par GET /api/admin/export. Actions, toujours confirmées : désactiver / réactiver un compte (fenêtre qui dit lequel),
    retirer un deck public (deux appuis) ; POST en JSON avec le jeton ; journal des actions tenu par le serveur. Discord : messages du bot dans un salon (pings, historique).
+   Onglets en haut (Vue d'ensemble, Utilisateurs, Carte mystère, Discord, Signalements, Journal, Serveur), l'onglet dans l'adresse (#discord…) ; blocs repliables
+   (état gardé sur l'appareil).
    CSP stricte (proxy.mjs › ADM_CSP) : aucun script ni style en ligne, d'où ce fichier et admin.css ; graphiques en SVG dessinés ici, sans bibliothèque. */
 (function () {
   'use strict';
@@ -28,10 +30,12 @@
   function h(tag, at, ...kids) {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(at || {})) if (v != null && v !== false) e.setAttribute(k, v === true ? '' : String(v));
-    for (const k of kids.flat()) if (k != null && k !== false) e.append(typeof k === 'object' ? k : document.createTextNode(String(k)));
+    for (const k of kids.flat(Infinity)) if (k != null && k !== false) e.append(typeof k === 'object' ? k : document.createTextNode(String(k)));
     return e;
   }
-  const SVG = 'http://www.w3.org/2000/svg';
+  /** Remplace le contenu d'une boîte : null et false ignorés (replaceChildren les écrirait « null » / « false »). */
+  const fill = (box, ...kids) => box.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false));
+  const SVG ='http://www.w3.org/2000/svg';
   const s = (tag, at) => { const e = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(at || {})) e.setAttribute(k, String(v)); return e; };
   const NF = new Intl.NumberFormat('fr-FR'), nf = n => NF.format(Number(n) || 0);
   const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
@@ -56,13 +60,89 @@
   /** Une seule vue visible : chargement, connexion, refus, erreur, tableau de bord. */
   function show(v, msg) {
     for (const id of ['vLoad', 'vOut', 'vDeny', 'vErr', 'vMain']) $('#' + id).hidden = id !== v;
-    $('#acts').hidden = v !== 'vMain';
+    $('#acts').hidden = v !== 'vMain'; $('#tabs').hidden = v !== 'vMain';
     if (v === 'vErr') $('#errTxt').textContent = msg || 'Le serveur ne répond pas.';
     if (v !== 'vMain') {      // rien ne reste affiché d'une session admin précédente
-      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#notes', '#meta', '#scans', '#daily', '#discord']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false;
+      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#notes', '#meta', '#scans', '#daily', '#discord', '#dyRepCard', '#threads']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; $('#dyRepCard').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dy.d = null; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false; thReset();
+      $('#uCount').textContent = ''; tb.cur = ''; tb.y = {}; for (const k of TABS) { tabOf(k).hidden = false; badge(k, 0); }      // onglets rendus : la prochaine session redit ce qui est coupé
       const d = $('#dlg'); if (d.open) d.close(); d.replaceChildren();
     }
   }
+
+  /* Onglets (barre collante sous l'en-tête) : une partie du panneau chacun, l'onglet dans l'adresse (#discord…) : retour, rechargement et lien direct.
+     Onglet sans objet (Carte mystère ou Discord coupés sur le serveur : 404) masqué, et l'adresse ramenée à la vue d'ensemble ; pastille : ce qui attend
+     une décision. Clavier (motif « tablist » de l'ARIA) : flèches, Début, Fin ; focus mobile (un seul onglet dans l'ordre de tabulation). */
+  const TABS = ['apercu', 'comptes', 'mystere', 'discord', 'fils', 'signalements', 'journal', 'serveur'];
+  const tb = { cur: '', y: {} };      // onglet affiché, position de défilement de chacun (rendue au retour sur l'onglet)
+  const tabOf = k => document.getElementById('t-' + k);
+  const tabOn = k => TABS.includes(k) && !tabOf(k).hidden;
+  /** Adresse → [onglet, suite] : « #fils/123 » → ['fils', '123'] (un fil ouvert : retour = la liste). */
+  const hashParts = () => { let k = ''; try { k = decodeURIComponent(location.hash.slice(1)); } catch (e) { /* adresse abîmée */ } const i = k.indexOf('/'); return i < 0 ? [k, ''] : [k.slice(0, i), k.slice(i + 1)]; };
+  const hashTab = () => { const k = hashParts()[0]; return tabOn(k) ? k : 'apercu'; };
+  function tabShow(k) {
+    if (!tabOn(k)) k = 'apercu';
+    const prev = tb.cur; if (prev && prev !== k) tb.y[prev] = scrollY;
+    tb.cur = k;
+    for (const t of TABS) { const b = tabOf(t), on = t === k; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; $('#p-' + t).hidden = !on; }
+    if (location.hash && hashParts()[0] !== k) history.replaceState(null, '', '#' + k);      // onglet inconnu ou masqué : l'adresse dit ce qui est affiché
+    if (prev !== k) { scrollTo(0, tb.y[k] || 0); tabReveal(tabOf(k)); if (k === 'apercu') charts(); }
+    if (k === 'fils') thRoute(hashParts()[0] === 'fils' ? hashParts()[1] : '');
+  }
+  /** Onglet demandé (clic, flèches, tuile) : nouvelle entrée de l'historique (retour : hashchange, l'onglet d'avant), sauf replace. */
+  function go(k, replace) {
+    if (!tabOn(k)) return;
+    if (location.hash !== '#' + k && !(replace && hashParts()[0] === k)) history[replace ? 'replaceState' : 'pushState'](null, '', '#' + k);
+    tabShow(k);
+  }
+  /** Barre qui défile de côté (téléphone) : l'onglet choisi ramené dans la vue, fondu sur le bord qui cache encore des onglets. */
+  function tabReveal(b) {
+    const l = $('#tabl'), L = b.offsetLeft, R = L + b.offsetWidth;
+    if (L < l.scrollLeft + 24) l.scrollLeft = L - 24; else if (R > l.scrollLeft + l.clientWidth - 24) l.scrollLeft = R - l.clientWidth + 24;
+    tabEdge();
+  }
+  function tabEdge() { const l = $('#tabl'); l.classList.toggle('fl', l.scrollLeft > 2); l.classList.toggle('fr', l.scrollLeft + l.clientWidth < l.scrollWidth - 2); }
+  /** Pastille d'un onglet : nombre de choses à traiter (0 : rien d'affiché). */
+  function badge(k, n, what) {
+    const b = tabOf(k) && tabOf(k).querySelector('.badge'); if (!b) return;
+    b.hidden = !(n > 0); fill(b, n > 0 ? [n > 99 ? '99+' : String(n), h('span', { class: 'sr' }, ' : ' + (what || 'à traiter'))] : []);
+  }
+  const plural = (n, one, many) => nf(n) + ' ' + (n > 1 ? many || one + 's' : one);
+  function badges() {
+    const rep = dy.d ? (dy.d.reports || []).length : 0, dk = data && Array.isArray(data.reported) ? data.reported.length : 0, scn = data && data.scans ? (sc.seen >= 0 ? sc.seen : data.scans.n) || 0 : 0;
+    badge('signalements', rep + dk + scn, [rep ? plural(rep, 'pseudo') : '', dk ? plural(dk, 'deck') : '', scn ? plural(scn, 'scan') : ''].filter(Boolean).join(', ') + ' à traiter');
+    const chk = dy.d ? (dy.d.chk || []).length + (dy.d.sus || []).length : 0;
+    badge('mystere', chk, plural(chk, 'partie ou compte', 'parties ou comptes') + ' à vérifier');
+    const todo = th.state === 'on' ? thTodoAll() : 0; badge('fils', todo, plural(todo, 'fil') + ' à trier');
+    const bad = $$('#srv dd.bad').length; badge('serveur', bad, plural(bad, 'point', 'points') + ' à regarder');
+  }
+  function tabsBoot() {
+    const l = $('#tabl');
+    for (const k of TABS) tabOf(k).addEventListener('click', () => go(k));
+    l.addEventListener('keydown', e => {
+      const vis = TABS.filter(tabOn), i = Math.max(0, vis.indexOf(tb.cur)); let j = -1;
+      if (e.key === 'ArrowRight') j = (i + 1) % vis.length; else if (e.key === 'ArrowLeft') j = (i - 1 + vis.length) % vis.length;
+      else if (e.key === 'Home') j = 0; else if (e.key === 'End') j = vis.length - 1; else return;
+      e.preventDefault(); go(vis[j], true); tabOf(vis[j]).focus();
+    });
+    l.addEventListener('scroll', tabEdge, { passive: true });
+    addEventListener('hashchange', () => { if (data) tabShow(hashTab()); });
+  }
+  /* Blocs repliables (<details>) : ouverts d'office, état de chacun gardé sur cet appareil (rendu à chaque repeint et au rechargement). */
+  const FOLD_KEY = 'manaorbit:admin:fold';
+  const foldAll = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || '{}') || {}; } catch (e) { return {}; } };
+  /** fold(clé, titre (élément), contenu, { meta : à droite du titre, id, cls }) → <details class="fold">. */
+  function fold(k, head, kids, o = {}) {
+    const was = foldAll()[k];
+    const d = h('details', { class: 'fold' + (o.cls ? ' ' + o.cls : ''), 'data-fold': k, id: o.id, open: was == null ? true : !!was },
+      h('summary', null, h('span', { class: 'fh' }, head, o.meta != null && o.meta !== '' ? h('small', { class: 'fm' }, o.meta) : null), h('span', { class: 'chev', 'aria-hidden': 'true' })),
+      h('div', { class: 'fb' }, kids));
+    d.addEventListener('toggle', () => { const a = foldAll(); if (a[k] === d.open) return; a[k] = d.open; try { localStorage.setItem(FOLD_KEY, JSON.stringify(a)); } catch (e) { /* stockage absent */ } });
+    return d;
+  }
+  /** En-tête d'une carte : titre, à droite un petit texte (ou des boutons). */
+  const chead = (title, small, tag = 'h2') => h('div', { class: 'chead' }, h(tag, null, title), small != null && small !== '' ? (typeof small === 'object' ? small : h('small', null, small)) : null);
+  const loading = what => h('div', { class: 'loading', role: 'status' }, h('span', { class: 'spin sm', 'aria-hidden': 'true' }), what || 'Chargement…');
+  const empty = t => h('p', { class: 'empty' }, t);
 
   async function boot() {
     show('vLoad');
@@ -75,7 +155,8 @@
     $('#q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { st.q = $('#q').value.trim(); st.page = 1; load(); }, 280); });
     $('#sort').addEventListener('change', () => { st.sort = $('#sort').value; st.page = 1; load(); });
     $('#dir').addEventListener('click', () => { st.dir = st.dir === 'desc' ? 'asc' : 'desc'; st.page = 1; load(); });
-    let resize = 0; addEventListener('resize', () => { clearTimeout(resize); resize = setTimeout(() => { if (data) { if (data.ov) chart(data.ov); achart(data.active); } }, 150); });
+    tabsBoot();
+    let resize = 0; addEventListener('resize', () => { clearTimeout(resize); resize = setTimeout(() => { if (data && tb.cur === 'apercu') charts(); tabEdge(); }, 150); });
     try {
       const [app, auth] = await Promise.all([import(FB_BASE + 'firebase-app.js'), import(FB_BASE + 'firebase-auth.js')]);
       const a = app.getApps().length ? app.getApp() : app.initializeApp(FIREBASE_CONFIG);
@@ -121,33 +202,47 @@
     if (r.status !== 200 || !r.body) return data ? toast('Le serveur ne répond pas.') : show('vErr', (r.body && r.body.message) || 'Le serveur ne répond pas.');
     data = r.body; render();
   }
-  function refresh() { const b = $('#btnRefresh'); b.disabled = true; dc.force = true; load('/refresh', 'POST').finally(() => { b.disabled = false; }); }
+  function refresh() { const b = $('#btnRefresh'); b.disabled = true; dc.force = true; th.force = true; load('/refresh', 'POST').finally(() => { b.disabled = false; }); }
   let toastT = 0;
   function toast(m) { let t = $('.toast'); if (!t) document.body.append(t = h('div', { class: 'toast', role: 'status' })); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 3200); }
 
   function render() {
+    const first = !tb.cur;
     show('vMain');
     const d = data, ov = d.ov;
     const src = { auth: 'Firebase Authentication + Firestore', firestore: 'Firestore seulement', none: 'aucune' }[d.src] || d.src;
-    $('#meta').replaceChildren(d.at ? 'Données du ' + D_TIME.format(d.at) + ' (' + ago(d.at) + ') · source : ' + src + ' · gardées ' + Math.round(d.ttl / 60e3) + ' min' : 'Pas encore de données.');
-    $('#notes').replaceChildren(...(d.notes || []).map(x => h('p', { class: 'note', 'data-k': x.k }, x.t)));
-    $('#kpis').replaceChildren(...(ov ? kpis(ov) : []), ...(d.scans ? [kpi('Scans signalés', nf(d.scans.n), nf(d.scans.n7) + ' en 7 jours · ' + String(d.scans.mb).replace('.', ',') + ' Mo', 'scans')] : []));
-    if (ov) chart(ov); else $('#chart').replaceChildren();
-    achart(d.active);
-    $('#mix').replaceChildren(...(ov ? mix(ov) : []));
+    fill($('#meta'), d.at ? 'Données du ' + D_TIME.format(d.at) + ' (' + ago(d.at) + ') · source : ' + src + ' · gardées ' + Math.round(d.ttl / 60e3) + ' min' : 'Pas encore de données.');
+    fill($('#notes'), (d.notes || []).map(x => h('p', { class: 'note', 'data-k': x.k }, x.t)));
+    const sk = d.scans ? kpi('Scans signalés', nf(d.scans.n), nf(d.scans.n7) + ' en 7 jours · ' + String(d.scans.mb).replace('.', ',') + ' Mo', 'scans') : null;
+    if (sk) kpiGo(sk, 'signalements', '#scans');
+    fill($('#kpis'), ov ? kpis(ov) : [], sk);
+    if (dy.d) dyKpi();      // tuile « Pseudos signalés » gardée d'un calcul à l'autre (relue ensuite par daily())
+    fill($('#mix'), ov ? mix(ov) : []);
     users(d.users);
-    testers(d.testers);
     scans(d.scans);
-    daily();
-    discord();
     pubrep(d.reported || []);
     journal(d.log);
     server(d.srv);
+    if (first) tabShow(hashTab()); else if (tb.cur === 'apercu') charts();
+    if (first && tb.cur !== 'apercu') charts();      // dessinés une fois (onglet caché : largeur par défaut, redessinés à l'affichage)
+    daily();
+    discord();
+    threads();
+    badges();
   }
+  /** Les deux graphiques, à la largeur de leur carte (redessinés quand la vue d'ensemble s'affiche ou que la fenêtre change). */
+  function charts() { if (!data) return; if (data.ov) chart(data.ov); else $('#chart').replaceChildren(); achart(data.active); }
   const kpi = (label, val, sub, k) => h('div', { class: 'kpi', 'data-k': k }, h('span', { class: 'l' }, label), h('b', null, val), sub ? h('small', null, sub) : null);
+  /** Tuile qui mène à son onglet (clic, Entrée, Espace) et, si sel, à cette carte (dépliée). */
+  function kpiGo(t, tab, sel) {
+    t.setAttribute('role', 'link'); t.tabIndex = 0; t.classList.add('go'); t.title = 'Ouvrir';
+    const run = () => { go(tab); const x = sel && $(sel); if (!x || x.hidden) return; const f = x.matches('details') ? x : x.querySelector('details.fold'); if (f) f.open = true; x.scrollIntoView({ block: 'start' }); };
+    t.addEventListener('click', run); t.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); run(); } });
+    return t;
+  }
   function kpis(ov) {
     return [
-      kpi('Comptes', nf(ov.users), nf(ov.mo) + ' avec des données Mana Orbit', 'users'),
+      kpiGo(kpi('Comptes', nf(ov.users), nf(ov.mo) + ' avec des données Mana Orbit', 'users'), 'comptes'),
       kpi('Nouveaux', nf(ov.new7) + ' · ' + nf(ov.new30), '7 jours · 30 jours', 'new'),
       kpi('Actifs', nf(ov.act7) + ' · ' + nf(ov.act30), '7 j · 30 j · connectés ' + nf(ov.log7) + ' · ' + nf(ov.log30), 'act'),
       kpi('Cartes', nf(ov.cards), nf(ov.copies) + ' exemplaires · ' + nf(ov.colls) + ' collections', 'cards'),
@@ -274,7 +369,7 @@
   function dlg(title, body, btns) {
     const d = $('#dlg'); if (d.open) d.close();
     return new Promise(done => {
-      d.replaceChildren(h('h2', { id: 'dlgT' }, title), ...body, h('div', { class: 'dlgb' }, btns.map(([label, v, cls]) => { const b = h('button', { class: 'btn ' + (cls || 'ghost'), type: 'button', 'data-v': v }, label); b.addEventListener('click', () => d.close(v)); return b; })));
+      fill(d, h('h2', { id: 'dlgT' }, title), body, h('div', { class: 'dlgb' }, btns.map(([label, v, cls]) => { const b = h('button', { class: 'btn ' + (cls || 'ghost'), type: 'button', 'data-v': v }, label); b.addEventListener('click', () => d.close(v)); return b; })));
       d.returnValue = ''; d.addEventListener('close', () => done(d.returnValue), { once: true }); d.showModal();
       const f = d.querySelector('.dlgb .btn.ghost'); if (f) f.focus();      // Annuler en premier : rien ne part par mégarde
     });
@@ -326,38 +421,18 @@
   /** Decks publics signalés (« Signaler ce deck » dans la Communauté), les plus signalés d'abord. */
   function pubrep(list) {
     const n = (data && data.pubMax) || 3;
-    $('#pubrep').replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Decks publics signalés'), h('small', null, nf(list.length) + ' deck' + (list.length > 1 ? 's' : ''))),
+    fill($('#pubrep'), fold('pubrep', h('h2', null, 'Decks publics signalés'), [
       h('p', { class: 'hint' }, '« Signaler ce deck » dans la Communauté ; au bout de ' + n + ' signalements, le deck est masqué tout seul. « Retirer » efface le deck public : il disparaît de la Communauté tout de suite ; son auteur peut le republier (ses signalements restent).'),
-      h('div', { class: 'dyl pdl', 'data-empty': 'Aucun deck signalé.' }, list.length ? list.map(p => deckRow(p, true)) : [h('p', { class: 'empty' }, 'Aucun deck signalé.')]));
+      h('div', { class: 'dyl pdl', 'data-empty': 'Aucun deck signalé.' }, list.length ? list.map(p => deckRow(p, true)) : [empty('Aucun deck signalé.')])], { meta: plural(list.length, 'deck') }));
   }
   const ACT = { off: ['Compte désactivé', 'Désactivation refusée'], on: ['Compte réactivé', 'Réactivation refusée'], pub: ['Deck public retiré', 'Retrait refusé'] };
   /** Journal des actions (tenu par le serveur, les plus récentes d'abord) : action, compte (nom réduit, e-mail masqué), deck, date, éditeur. */
   function journal(log) {
-    const box = $('#journal'), head = h('div', { class: 'chead' }, h('h2', null, 'Journal des actions'), h('small', null, log && log.length ? nf(log.length) + ' dernière' + (log.length > 1 ? 's' : '') : ''));
+    const box = $('#journal'), head = chead('Journal des actions', log && log.length ? nf(log.length) + ' dernière' + (log.length > 1 ? 's' : '') : '');
     if (log == null) return box.replaceChildren(head, h('p', { class: 'note' }, 'Journal des actions illisible sur le serveur.'));
     box.replaceChildren(head, h('p', { class: 'hint' }, 'Tenu par le serveur (500 dernières actions, réussies ou refusées) : nom réduit et e-mail masqué seulement.'), h('div', { class: 'dyl' }, log.length ? log.map(e => h('div', { class: 'dyr' + (e.ok ? '' : ' ko'), 'data-a': e.a },
       h('span', { class: 'pdt' }, h('b', null, (ACT[e.a] || [e.a, e.a])[e.ok ? 0 : 1]), h('small', null, [e.n || (e.a === 'pub' ? 'compte inconnu' : 'Sans nom'), e.m, e.d, e.t ? D_TIME.format(e.t) : '', e.by ? 'par ' + e.by : ''].filter(Boolean).join(' · '))),
       e.ok ? (e.e ? h('span', { class: 'tag' }, e.e) : null) : h('span', { class: 'tag bad' }, e.e || 'échec'))) : [h('p', { class: 'empty' }, 'Aucune action pour l\'instant.')]));
-  }
-  /** Inscrits au test fermé (page /testeurs) : nombre ; adresses complètes demandées au serveur seulement au clic (copie ou CSV pour la Play Console). */
-  function testers(n) {
-    const box = $('#testers');
-    if (n == null) return box.replaceChildren(h('h2', null, 'Testeurs inscrits'), h('p', { class: 'note' }, 'Fichier des testeurs illisible sur le serveur.'));
-    const get = async () => { const r = await call('/testeurs').catch(() => null); if (!r || r.status !== 200 || !r.body) { toast((r && r.body && r.body.message) || 'Le serveur ne répond pas.'); return null; } return r.body.rows || []; };
-    const copy = h('button', { class: 'btn ghost small', type: 'button', disabled: !n }, 'Copier les adresses');
-    copy.addEventListener('click', async () => {
-      const rows = await get(); if (!rows) return;
-      try { await navigator.clipboard.writeText(rows.map(r => r.e).join(', ')); toast(nf(rows.length) + ' adresse' + (rows.length > 1 ? 's' : '') + ' copiée' + (rows.length > 1 ? 's' : '') + '.'); }
-      catch (e) { toast('Copie refusée par le navigateur : utilise le CSV.'); }
-    });
-    const csv = h('button', { class: 'btn ghost small', type: 'button', disabled: !n }, 'Télécharger le CSV');
-    csv.addEventListener('click', async () => {
-      const rows = await get(); if (!rows) return;
-      save(new Blob([rows.map(r => r.e).join('\n') + '\n'], { type: 'text/csv;charset=utf-8' }), 'testeurs-mana-orbit-' + new Date().toISOString().slice(0, 10) + '.csv');
-    });
-    box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Testeurs inscrits'), h('small', null, nf(n) + ' adresse' + (n > 1 ? 's' : ''))),
-      h('p', { class: 'note' }, 'Formulaire de la page /testeurs. Le CSV (une adresse par ligne) s\'importe dans Play Console › Tests › Test fermé › Testeurs › liste d\'adresses e-mail.'),
-      h('div', { class: 'flags' }, copy, csv));
   }
   /* Scans signalés depuis l'appli (« Signaler un problème de scan », proxy.mjs › /api/admin/scans) : du plus récent au plus ancien, par pages ; la photo est
      demandée au serveur avec le jeton (jamais publique) quand la fiche apparaît, puis affichée en data: (CSP) ; données de lecture dépliables ; Supprimer (deux appuis). */
@@ -371,9 +446,10 @@
     const box = $('#scans');
     if (!sum) { box.hidden = true; box.replaceChildren(); return; }
     box.hidden = false;
-    if (!$('#scList')) box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Scans signalés'), h('small', { id: 'scCount' })),
+    if (!$('#scList')) fill(box, fold('scans', h('h2', null, 'Scans signalés'), [
       h('p', { class: 'hint' }, '« Signaler un problème de scan » dans l\'appli : la photo de la carte et ce que l\'appli a lu. Effacés après ' + sum.days + ' jours.'),
-      ...(sum.err ? [h('p', { class: 'note' }, 'Dossier des signalements illisible sur le serveur.')] : []), h('div', { class: 'scl', id: 'scList' }), h('div', { class: 'pager', id: 'scMore' }));
+      sum.err ? h('p', { class: 'note' }, 'Dossier des signalements illisible sur le serveur.') : null, h('div', { class: 'scl', id: 'scList' }, loading('Chargement des signalements…')), h('div', { class: 'pager', id: 'scMore' })],
+      { meta: h('span', { id: 'scCount' }) }));
     $('#scCount').textContent = scSum(sum);
     if (sc.seen !== sum.n) { sc.seen = sum.n; scLoad(1); }      // nouveaux signalements (ou première ouverture) : première page relue
   }
@@ -385,7 +461,7 @@
     const b = r.body; sc.page = b.page; sc.pages = b.pages; sc.total = b.total;
     const list = $('#scList'), rows = b.rows.map(scRow);
     if (page === 1) list.replaceChildren(...(rows.length ? rows : [h('p', { class: 'empty' }, 'Aucun scan signalé pour l\'instant.')])); else list.append(...rows);
-    $('#scCount').textContent = scSum(b); scMore();
+    $('#scCount').textContent = scSum(b); scMore(); badges();
   }
   function scMore() {
     const box = $('#scMore'), left = sc.total - $$('#scList .scr').length;
@@ -431,113 +507,126 @@
       if (!x || x.status !== 200 || !x.body) { del.disabled = false; return toast((x && x.body && x.body.message) || 'Suppression impossible.'); }
       art.remove(); sc.total = Math.max(0, sc.total - 1); sc.seen = x.body.n; $('#scCount').textContent = scSum(x.body); scMore();
       const k = $('#kpis [data-k="scans"] b'); if (k) k.textContent = nf(x.body.n);
-      if (!$('#scList .scr')) $('#scList').replaceChildren(h('p', { class: 'empty' }, 'Aucun scan signalé pour l\'instant.'));
-      toast('Signalement supprimé.');
+      if (!$('#scList .scr')) $('#scList').replaceChildren(empty('Aucun scan signalé pour l\'instant.'));
+      badges(); toast('Signalement supprimé.');
     });
     return art;
   }
-  /* Carte mystère (proxy.mjs › /api/admin/daily, daily-srv.mjs) : carte du jour (réponse repliée), joueurs des 7 derniers jours (et niveau de compte) ; « Masquer »
-     remplace un pseudo par « Pseudo masqué » dans tous les classements, jeu et niveaux (le score reste), « Rétablir » le rend. Anti-triche : parties « à vérifier »
-     (même réseau, juste après un autre joueur : hors du top 100 public) et comptes trop souvent trouvés à l'étape 1 (signalés seulement) ; « Valider » les remet.
-     Pseudos écrits en textContent seulement. */
+  /* Carte mystère (proxy.mjs › /api/admin/daily, daily-srv.mjs) : onglet « Carte mystère » : en-tête (numéro, jour, parties) toujours visible, puis des blocs
+     repliables : réponse du jour (repliée à part) et joueurs des 7 derniers jours (et niveau de compte) ; « Masquer » remplace un pseudo par « Pseudo masqué »
+     dans tous les classements, jeu et niveaux (le score reste), « Rétablir » le rend. Anti-triche : parties « à vérifier » (même réseau, juste après un autre
+     joueur : hors du top 100 public) et comptes trop souvent trouvés à l'étape 1 (signalés seulement) ; « Valider » les remet. Pseudos signalés depuis les
+     classements : onglet « Signalements ». Pseudos écrits en textContent seulement. */
   const dy = { gen: 0, q: '', d: null };
-  const fold = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const unacc = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   async function daily() {
-    const g = ++dy.gen; let r; try { r = await call('/daily'); } catch (e) { r = null; }
+    const g = ++dy.gen, box = $('#daily');
+    if (!box.firstChild) { box.hidden = false; fill(box, chead('Carte mystère'), loading()); }      // première ouverture : la carte se montre tout de suite
+    let r; try { r = await call('/daily'); } catch (e) { r = null; }
     if (g !== dy.gen) return;
-    const box = $('#daily');
-    if (r && r.status === 404) { box.hidden = true; return box.replaceChildren(); }      // DAILY=0 sur le serveur
-    box.hidden = false;
-    if (!r || r.status !== 200 || !r.body) return box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Carte mystère')), h('p', { class: 'note' }, (r && r.body && r.body.message) || 'Le serveur ne répond pas.'));
+    if (r && r.status === 404) {      // DAILY=0 sur le serveur : ni onglet, ni tuile, ni pseudos signalés
+      dy.d = null; box.hidden = true; box.replaceChildren(); $('#dyRepCard').hidden = true; $('#dyRepCard').replaceChildren();
+      const k = $('#kpis [data-k="pseudos"]'); if (k) k.remove();
+      tabOf('mystere').hidden = true; if (tb.cur === 'mystere') tabShow('apercu'); badges(); return;
+    }
+    box.hidden = false; tabOf('mystere').hidden = false;
+    if (!r || r.status !== 200 || !r.body) { $('#dyRepCard').hidden = true; return fill(box, chead('Carte mystère'), h('p', { class: 'note' }, (r && r.body && r.body.message) || 'Le serveur ne répond pas.')); }
     dy.d = r.body; dyPaint(); dyKpi();
   }
-  /** Tuile « Pseudos signalés » en haut du panneau (signalements des classements à traiter) ; un appui descend à la liste. */
+  /** Tuile « Pseudos signalés » en haut du panneau (signalements des classements à traiter) ; un appui mène à la liste (onglet « Signalements »). */
   function dyKpi() {
     const rep = (dy.d && dy.d.reports) || [], hid = rep.filter(r => r.hid).length, old = $('#kpis [data-k="pseudos"]');
-    const t = kpi('Pseudos signalés', nf(rep.length), rep.length ? nf(hid) + ' masqué' + (hid > 1 ? 's' : '') + ' en attente de ta décision' : 'rien à traiter', 'pseudos');
+    const t = kpiGo(kpi('Pseudos signalés', nf(rep.length), rep.length ? nf(hid) + ' masqué' + (hid > 1 ? 's' : '') + ' en attente de ta décision' : 'rien à traiter', 'pseudos'), 'signalements', '#dyRepCard');
     if (rep.length) t.classList.add('alert');
-    t.setAttribute('role', 'button'); t.tabIndex = 0; t.addEventListener('click', () => { const x = $('#dyRep'); if (x) x.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     if (old) old.replaceWith(t); else $('#kpis').append(t);
+    badges();
   }
-  function dyPaint() {
-    const d = dy.d, box = $('#daily'), list = h('div', { class: 'dyl', id: 'dyList' }), q = h('input', { type: 'search', placeholder: 'Chercher un pseudo…', 'aria-label': 'Chercher un pseudo', autocomplete: 'off', spellcheck: 'false' });
-    q.value = dy.q; q.addEventListener('input', () => { dy.q = q.value.trim(); rows(); });
-    const rows = () => {
-      const l = d.rows.filter(r => !dy.q || fold(r.n).includes(fold(dy.q)));
-      list.replaceChildren(...(l.length ? l.slice(0, 200).map(r => {
-        const b = h('button', { class: 'btn ghost small', type: 'button' }, r.x ? 'Rétablir' : 'Masquer');
-        b.addEventListener('click', async () => {
-          b.disabled = true; let x; try { x = await call('/daily/hide', 'POST', { id: r.id, on: !r.x }); } catch (e) { x = null; }
-          if (!x || x.status !== 200 || !x.body) { b.disabled = false; return toast((x && x.body && x.body.message) || 'Modification impossible.'); }
-          d.rows = x.body.rows; d.hidden = x.body.hidden; toast(r.x ? 'Pseudo rétabli.' : 'Pseudo masqué dans les classements.'); dyPaint();
-        });
-        return h('div', { class: 'dyr' + (r.x ? ' off' : '') }, h('b', null, r.n), h('small', null, (r.d ? nf(r.s) + ' pts · ' + r.d + ' jour' + (r.d > 1 ? 's' : '') + (r.last ? ' · ' + r.last : '') : 'pas joué') + (r.lv ? ' · niv. ' + r.lv : '')), r.x ? h('span', { class: 'tag bad' }, 'masqué') : null, b);
-      }) : [h('p', { class: 'empty' }, dy.q ? 'Aucun pseudo ne correspond.' : 'Personne n\'a encore joué cette semaine.')]));
-    };
-    const c = d.card;
-    box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Carte mystère'), h('small', null, 'n° ' + d.no + ' · ' + d.day + ' · ' + nf(d.done) + ' terminée' + (d.done > 1 ? 's' : '') + ' sur ' + nf(d.plays) + ' · ' + nf(d.hidden) + ' masqué' + (d.hidden > 1 ? 's' : ''))),
-      d.prep ? h('p', { class: 'note' }, 'Carte du jour en préparation' + (d.prep.since ? ' depuis ' + D_TIME.format(d.prep.since) : '') + (d.prep.err ? ' · dernier échec ' + D_TIME.format(d.prep.err.at) + ' : ' + d.prep.err.m + ' (nouvel essai toutes les 5 min)' : ' (tirage et images : une à deux minutes)')) : null,
-      c ? h('details', { class: 'scd' }, h('summary', null, 'Réponse du jour'), h('p', null, c.en + (c.fr && c.fr !== c.en ? ' (' + c.fr + ')' : '') + (c.set ? ' · ' + c.set : '') + (d.fb && d.fb.length ? ' · image anglaise pour : ' + d.fb.join(', ') : ''))) : h('p', { class: 'note' }, d.st === 'ready' ? '' : 'Carte du jour en préparation.'),
-      h('p', { class: 'hint' }, 'Joueurs des 7 derniers jours et classement des niveaux. « Masquer » remplace un pseudo par « Pseudo masqué » dans tous les classements ; le score reste. Classement public : comptes de plus de ' + (d.minAge || 0) + ' jours, Google ou adresse vérifiée.'), q, list,
-      ...dyChecks(d));
-    rows();
-  }
-  /** Parties « à vérifier » et comptes soupçonnés : « Valider » (POST /api/admin/daily/ok) remet la partie au classement, ou laisse le compte tranquille 7 parties. */
-  function dyChecks(d) {
-    const ok = (id, b, msg) => async () => {
-      b.disabled = true; let x; try { x = await call('/daily/ok', 'POST', { id }); } catch (e) { x = null; }
-      if (!x || x.status !== 200 || !x.body) { b.disabled = false; return toast((x && x.body && x.body.message) || 'Validation impossible.'); }
-      dy.d = x.body; toast(msg); dyPaint();
-    };
-    const btn = (id, msg) => { const b = h('button', { class: 'btn ghost small', type: 'button' }, 'Valider'); b.addEventListener('click', ok(id, b, msg)); return b; };
-    const mmss = ms => { const s = Math.round((ms || 0) / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-    const chk = d.chk || [], sus = d.sus || [], rep = d.reports || [];
-    const act = (path, body, b, msg) => async () => {      // signalements : masquer / rétablir (hide), ignorer (report)
+  /** Bouton d'action de la Carte mystère : POST, puis la réponse (vue complète) repeinte ; refus : message, bouton rendu. */
+  function dyAct(path, body, b, msg) {
+    return async () => {
       b.disabled = true; let x; try { x = await call(path, 'POST', body); } catch (e) { x = null; }
       if (!x || x.status !== 200 || !x.body) { b.disabled = false; return toast((x && x.body && x.body.message) || 'Modification impossible.'); }
       dy.d = { ...dy.d, ...x.body }; toast(msg); dyPaint(); dyKpi();
     };
-    const repRow = r => {
-      const hide = h('button', { class: 'btn ghost small', type: 'button' }, r.hid ? 'Rétablir' : 'Masquer'), skip = h('button', { class: 'btn ghost small', type: 'button' }, 'Ignorer');
-      hide.addEventListener('click', act('/daily/hide', { id: r.id, on: !r.hid }, hide, r.hid ? 'Pseudo rétabli, signalements effacés.' : 'Pseudo masqué dans les classements.'));
-      skip.addEventListener('click', act('/daily/report', { id: r.id }, skip, 'Signalements effacés.'));
-      return h('div', { class: 'dyr' + (r.hid ? ' off' : '') }, h('b', null, r.n), h('small', null, r.k + ' signalement' + (r.k > 1 ? 's' : '') + (r.at ? ' · ' + new Date(r.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '')), r.hid ? h('span', { class: 'tag warn' }, 'masqué') : null, hide, skip);
-    };
-    return [h('h3', { class: 'dyh', id: 'dyRep' }, 'Pseudos signalés (' + nf(rep.length) + ')'),
-      h('p', { class: 'hint' }, 'Signalés depuis les classements (jeu et niveaux). Au bout de ' + (d.repHide || 3) + ' personnes différentes, le pseudo est masqué tout seul en attendant ta décision. « Rétablir » : le pseudo est correct, ses signalements partent ; « Ignorer » : signalements effacés, pseudo laissé tel quel.'),
-      h('div', { class: 'dyl' }, ...(rep.length ? rep.map(repRow) : [h('p', { class: 'empty' }, 'Aucun pseudo signalé.')])),
-      h('h3', { class: 'dyh' }, 'À vérifier (' + nf(chk.length) + ')'),
-      h('p', { class: 'hint' }, 'Même réseau, trouvée juste après un autre joueur qui avait vu autant d\'indices : hors du top 100 public et de son badge, sans que le joueur le sache. « Valider » (même box, famille…) la remet au classement.'),
-      h('div', { class: 'dyl' }, ...(chk.length ? chk.map(r => h('div', { class: 'dyr' }, h('b', null, r.n), h('small', null, r.day + ' · ' + nf(r.s) + ' pts · étape ' + r.step + (r.ms ? ' en ' + mmss(r.ms) : '') + ' · ' + r.gap + ' s après ' + (r.by === 'win' ? 'une victoire' : 'l\'étape ' + r.other) + ' sur ce réseau'), h('span', { class: 'tag warn' }, 'à vérifier'), btn(r.id, 'Partie remise au classement.')))
-        : [h('p', { class: 'empty' }, 'Aucune partie à vérifier.')])),
-      h('h3', { class: 'dyh' }, 'Trop souvent à l\'étape 1 (' + nf(sus.length) + ')'),
-      h('p', { class: 'hint' }, 'Signalés seulement, jamais exclus. « Valider » : plus de signalement pendant ses 7 prochaines parties.'),
-      h('div', { class: 'dyl' }, ...(sus.length ? sus.map(r => h('div', { class: 'dyr' }, h('b', null, r.n), h('small', null, r.c + ' fois sur ses ' + r.of + ' dernières parties · ' + r.rate + ' % pour tous'), h('span', { class: 'tag warn' }, 'soupçon'), btn(r.id, 'Compte laissé tranquille.')))
-        : [h('p', { class: 'empty' }, 'Aucun compte signalé.')]))];
   }
-  /* Discord (proxy.mjs › /api/admin/discord, bot « Mana Orbit ») : écrire et envoyer un message dans un salon du serveur, pings de rôles au besoin.
-     Salons groupés par catégorie (📢 : salon d'annonces, « Publier aux serveurs abonnés » coché d'office) ; dernier salon gardé sur cet appareil, sinon le
-     premier « annonces ». Le serveur met les mentions en tête : 2000 caractères en tout, mentions comprises (compteur). Aperçu en textContent (**gras** et
-     sauts de ligne seulement). Envoi confirmé dans la fenêtre (salon et pings redits), pings remis à zéro après l'envoi ; historique des 50 derniers
-     (Ouvrir, Supprimer en deux appuis). Brouillon et choix gardés quand le panneau se repeint ; salons relus au plus une fois par minute (« Rafraîchir » : tout de suite). */
+  const dyBtn = (label, path, body, msg) => { const b = h('button', { class: 'btn ghost small', type: 'button' }, label); b.addEventListener('click', dyAct(path, body, b, msg)); return b; };
+  function dyPaint() {
+    const d = dy.d, box = $('#daily'), rowsAll = Array.isArray(d.rows) ? d.rows : [], list = h('div', { class: 'dyl', id: 'dyList' }), cnt = h('small', { class: 'dyn', id: 'dyN', 'aria-live': 'polite' });
+    const q = h('input', { type: 'search', placeholder: 'Chercher un pseudo…', 'aria-label': 'Chercher un pseudo', autocomplete: 'off', spellcheck: 'false' });
+    q.value = dy.q; q.addEventListener('input', () => { dy.q = q.value.trim(); rows(); });
+    const rows = () => {
+      const l = rowsAll.filter(r => !dy.q || unacc(r.n).includes(unacc(dy.q)));
+      cnt.textContent = dy.q ? nf(l.length) + ' sur ' + nf(rowsAll.length) : l.length > 200 ? '200 premiers sur ' + nf(l.length) : '';
+      fill(list, l.length ? l.slice(0, 200).map(r => h('div', { class: 'dyr' + (r.x ? ' off' : '') }, h('span', { class: 'pdt' }, h('b', null, r.n),
+        h('small', null, (r.d ? nf(r.s) + ' pts · ' + r.d + ' jour' + (r.d > 1 ? 's' : '') + (r.last ? ' · ' + r.last : '') : 'pas joué') + (r.lv ? ' · niv. ' + r.lv : ''))), h('span', { class: 'dcra' }, r.x ? h('span', { class: 'tag bad' }, 'masqué') : null,
+        dyBtn(r.x ? 'Rétablir' : 'Masquer', '/daily/hide', { id: r.id, on: !r.x }, r.x ? 'Pseudo rétabli.' : 'Pseudo masqué dans les classements.'))))
+        : empty(dy.q ? 'Aucun pseudo ne correspond.' : 'Personne n\'a encore joué cette semaine.'));
+    };
+    const c = d.card;
+    const prep = d.prep ? h('p', { class: 'note' }, 'Carte du jour en préparation' + (d.prep.since ? ' depuis ' + D_TIME.format(d.prep.since) : '') + (d.prep.err ? ' · dernier échec ' + D_TIME.format(d.prep.err.at) + ' : ' + d.prep.err.m + ' (nouvel essai toutes les 5 min)' : ' (tirage et images : une à deux minutes)'))
+      : !c && d.st !== 'ready' ? h('p', { class: 'note' }, 'Carte du jour en préparation.') : null;
+    const players = fold('dy-players', h('h3', null, 'Réponse du jour et joueurs'), [
+      c ? h('details', { class: 'scd dyans' }, h('summary', null, 'Réponse du jour'), h('p', null, c.en + (c.fr && c.fr !== c.en ? ' (' + c.fr + ')' : '') + (c.set ? ' · ' + c.set : '') + (d.fb && d.fb.length ? ' · image anglaise pour : ' + d.fb.join(', ') : ''))) : null,
+      h('p', { class: 'hint' }, 'Joueurs des 7 derniers jours et classement des niveaux. « Masquer » remplace un pseudo par « Pseudo masqué » dans tous les classements ; le score reste. Classement public : comptes de plus de ' + (d.minAge || 0) + ' jours, Google ou adresse vérifiée.'),
+      h('div', { class: 'dyq' }, q, cnt), list], { meta: plural(rowsAll.length, 'joueur'), id: 'dyPlayers' });
+    fill(box, h('div', { class: 'chead dyhead' }, h('h2', null, 'Carte mystère'), h('small', null, 'n° ' + d.no + ' · ' + d.day + ' · ' + nf(d.done) + ' terminée' + (d.done > 1 ? 's' : '') + ' sur ' + nf(d.plays) + ' · ' + nf(d.hidden) + ' masqué' + (d.hidden > 1 ? 's' : ''))),
+      prep, players, dyChecks(d));
+    rows(); dyRep(d);
+  }
+  /** Parties « à vérifier » et comptes soupçonnés : « Valider » (POST /api/admin/daily/ok) remet la partie au classement, ou laisse le compte tranquille 7 parties. */
+  function dyChecks(d) {
+    const mmss = ms => { const s = Math.round((ms || 0) / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+    const chk = d.chk || [], sus = d.sus || [];
+    return [fold('dy-chk', h('h3', null, 'À vérifier'), [
+      h('p', { class: 'hint' }, 'Même réseau, trouvée juste après un autre joueur qui avait vu autant d\'indices : hors du top 100 public et de son badge, sans que le joueur le sache. « Valider » (même box, famille…) la remet au classement.'),
+      h('div', { class: 'dyl' }, chk.length ? chk.map(r => h('div', { class: 'dyr' }, h('span', { class: 'pdt' }, h('b', null, r.n), h('small', null, r.day + ' · ' + nf(r.s) + ' pts · étape ' + r.step + (r.ms ? ' en ' + mmss(r.ms) : '') + ' · ' + r.gap + ' s après ' + (r.by === 'win' ? 'une victoire' : 'l\'étape ' + r.other) + ' sur ce réseau')), h('span', { class: 'dcra' }, h('span', { class: 'tag warn' }, 'à vérifier'), dyBtn('Valider', '/daily/ok', { id: r.id }, 'Partie remise au classement.'))))
+        : empty('Aucune partie à vérifier.'))], { meta: nf(chk.length), id: 'dyChk', cls: chk.length ? 'todo' : '' }),
+    fold('dy-sus', h('h3', null, 'Trop souvent à l\'étape 1'), [
+      h('p', { class: 'hint' }, 'Signalés seulement, jamais exclus. « Valider » : plus de signalement pendant ses 7 prochaines parties.'),
+      h('div', { class: 'dyl' }, sus.length ? sus.map(r => h('div', { class: 'dyr' }, h('span', { class: 'pdt' }, h('b', null, r.n), h('small', null, r.c + ' fois sur ses ' + r.of + ' dernières parties · ' + nf(r.rate) + ' % pour tous')), h('span', { class: 'dcra' }, h('span', { class: 'tag warn' }, 'soupçon'), dyBtn('Valider', '/daily/ok', { id: r.id }, 'Compte laissé tranquille.'))))
+        : empty('Aucun compte signalé.'))], { meta: nf(sus.length), id: 'dySus', cls: sus.length ? 'todo' : '' })];
+  }
+  /** Pseudos signalés depuis les classements (jeu et niveaux) : onglet « Signalements » ; Masquer / Rétablir (hide), Ignorer (report). */
+  function dyRep(d) {
+    const rep = d.reports || [], box = $('#dyRepCard');
+    const repRow = r => h('div', { class: 'dyr' + (r.hid ? ' off' : '') }, h('span', { class: 'pdt' }, h('b', null, r.n), h('small', null, r.k + ' signalement' + (r.k > 1 ? 's' : '') + (r.at ? ' · ' + new Date(r.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : ''))), h('span', { class: 'dcra' }, r.hid ? h('span', { class: 'tag warn' }, 'masqué') : null,
+      dyBtn(r.hid ? 'Rétablir' : 'Masquer', '/daily/hide', { id: r.id, on: !r.hid }, r.hid ? 'Pseudo rétabli, signalements effacés.' : 'Pseudo masqué dans les classements.'),
+      dyBtn('Ignorer', '/daily/report', { id: r.id }, 'Signalements effacés.')));
+    box.hidden = false;
+    fill(box, fold('dy-rep', h('h2', null, 'Pseudos signalés'), [
+      h('p', { class: 'hint' }, 'Signalés depuis les classements de la Carte mystère (jeu et niveaux). Au bout de ' + (d.repHide || 3) + ' personnes différentes, le pseudo est masqué tout seul en attendant ta décision. « Rétablir » : le pseudo est correct, ses signalements partent ; « Ignorer » : signalements effacés, pseudo laissé tel quel.'),
+      h('div', { class: 'dyl' }, rep.length ? rep.map(repRow) : empty('Aucun pseudo signalé.'))], { meta: plural(rep.length, 'pseudo'), id: 'dyRep' }));
+  }
+  /* Discord (proxy.mjs › /api/admin/discord, bot « Mana Orbit ») : onglet « Discord » : état du bot (serveur, salons, rôles), rédaction (salon, modèles,
+     texte, pings, publier ; aperçu à côté sur grand écran), puis l'historique à part. Salons groupés par catégorie (📢 : salon d'annonces, « Publier aux
+     serveurs abonnés » coché d'office) ; raccourcis vers #annonces et #changelog ; dernier salon gardé sur cet appareil, sinon le premier « annonces ».
+     Modèles « Annonce » / « Changelog » : début de message mis en tête du texte. Le serveur met les mentions en tête : 2000 caractères en tout, mentions
+     comprises (compteur). Aperçu en textContent (**gras** et sauts de ligne seulement). Envoi confirmé dans la fenêtre (salon et pings redits ; Ctrl+Entrée
+     l'ouvre), pings remis à zéro après l'envoi ; historique des 50 derniers (Ouvrir, Supprimer en deux appuis). Brouillon et choix gardés quand le panneau
+     se repeint ; salons relus au plus une fois par minute (« Rafraîchir » : tout de suite). */
   const DC_MAX = 2000, DC_ROLES = 5, DC_KEY = 'manaorbit:admin:discord-ch';
   const dc = { gen: 0, d: null, at: 0, force: false, busy: false, draft: '', ch: '', roles: [], every: false, pub: true };
   const dcGet = () => { try { return localStorage.getItem(DC_KEY) || ''; } catch (e) { return ''; } };
   const dcSet = v => { try { localStorage.setItem(DC_KEY, v); } catch (e) { /* stockage absent */ } };
   const dcName = c => (c.type === 5 ? '📢 ' : '# ') + c.name;
   const dcAt = n => (n.startsWith('@') ? n : '@' + n);
+  /** Modèles de début de message : texte, et la partie à remplacer tout de suite (sélectionnée). */
+  const DC_TPL = { annonce: { label: '📢 Annonce', text: '📢 **Nouveauté** : ', sel: '' }, changelog: { label: '🆕 Changelog', text: '🆕 **Version x.y**\n• ', sel: 'x.y' } };
   /** Couleur d'un rôle (nombre de Discord ou « #rrggbb » ; 0 : aucune) → « #rrggbb » ou null. */
   const dcColor = c => { if (typeof c === 'number' && c > 0 && c <= 0xffffff) return '#' + c.toString(16).padStart(6, '0'); return typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : null; };
+  /** Carte « Bot Discord » : état (pastille), puis des détails ou un message. */
+  const dcState = (ok, label, ...kids) => h('section', { class: 'card dcstat', id: 'dcStat' }, h('div', { class: 'chead' }, h('h2', null, 'Bot Discord'), h('span', { class: 'tag ' + (ok ? 'ok' : ok === false ? 'bad' : '') }, label)), ...kids);
   async function discord() {
     if (dc.d && !dc.force && Date.now() - dc.at < 60e3) return dcSent(dc.d.sent);
     dc.force = false;
+    const box = $('#discord');
+    if (!box.firstChild) { box.hidden = false; fill(box, dcState(null, 'Connexion…', loading('Lecture des salons…'))); }
     const g = ++dc.gen; let r; try { r = await call('/discord'); } catch (e) { r = null; }
     if (g !== dc.gen) return;
-    const box = $('#discord'), head = h('div', { class: 'chead' }, h('h2', null, 'Discord'));
-    if (r && r.status === 404) { dc.d = null; box.hidden = true; return box.replaceChildren(); }      // route absente ou DISCORD=0
-    box.hidden = false;
-    if (!r || r.status !== 200 || !r.body) { dc.d = null; return box.replaceChildren(head, h('p', { class: 'note' }, (r && r.body && r.body.message) || 'Le serveur ne répond pas.')); }
-    if (!r.body.on) { dc.d = null; return box.replaceChildren(head, h('p', { class: 'note' }, r.body.message || 'Bot Discord indisponible.')); }      // bot non configuré, Discord injoignable : rien d'autre
+    if (r && r.status === 404) { dc.d = null; box.hidden = true; box.replaceChildren(); tabOf('discord').hidden = true; if (tb.cur === 'discord') tabShow('apercu'); return; }      // route absente ou DISCORD=0
+    box.hidden = false; tabOf('discord').hidden = false;
+    if (!r || r.status !== 200 || !r.body) { dc.d = null; return fill(box, dcState(false, 'Injoignable', h('p', { class: 'note' }, (r && r.body && r.body.message) || 'Le serveur ne répond pas.'))); }
+    if (!r.body.on) { dc.d = null; return fill(box, dcState(false, 'Indisponible', h('p', { class: 'note' }, r.body.message || 'Bot Discord indisponible.'))); }      // bot non configuré, Discord injoignable : rien d'autre
     dc.d = r.body; dc.at = Date.now(); dcPaint();
   }
   function dcPaint() {
@@ -545,13 +634,31 @@
     const byId = new Map(chans.map(c => [String(c.id), c]));
     if (!byId.has(dc.ch)) { const k = dcGet(); dc.ch = byId.has(k) ? k : String((chans.find(c => /annonces/i.test(c.name)) || chans[0] || { id: '' }).id); }
     dc.roles = dc.roles.filter(id => roles.some(x => String(x.id) === id));
-    // Salon : un groupe par catégorie (ordre du serveur)
+    // Salon : un groupe par catégorie (ordre du serveur) ; raccourcis vers #annonces et #changelog quand ils existent
     const cats = new Map(); for (const c of chans) { const k = c.cat || ''; if (!cats.has(k)) cats.set(k, []); cats.get(k).push(c); }
     const sel = h('select', { id: 'dcCh' }, [...cats].map(([k, l]) => h('optgroup', { label: k || 'Sans catégorie' }, l.map(c => h('option', { value: c.id }, dcName(c))))));
     sel.value = dc.ch;
-    sel.addEventListener('change', () => { dc.ch = sel.value; dcSet(dc.ch); sync(); });
-    const txt = h('textarea', { id: 'dcTxt', rows: 6, maxlength: DC_MAX, placeholder: 'Ton message… (**gras**, sauts de ligne)', spellcheck: 'true' });
+    const pickCh = id => { dc.ch = id; sel.value = id; dcSet(id); sync(); };
+    sel.addEventListener('change', () => pickCh(sel.value));
+    const quick = ['annonces', 'changelog'].map(n => chans.find(c => unacc(c.name).includes(n))).filter((c, i, a) => c && a.indexOf(c) === i).map(c => {
+      const b = h('button', { class: 'chip', type: 'button', 'data-ch': c.id, 'aria-pressed': 'false', title: 'Écrire dans ' + dcName(c) + (c.cat ? ' (' + c.cat + ')' : '') }, dcName(c));
+      b.addEventListener('click', () => pickCh(String(c.id))); return b;
+    });
+    const txt = h('textarea', { id: 'dcTxt', rows: 9, maxlength: DC_MAX, placeholder: 'Ton message… (**gras**, sauts de ligne)', spellcheck: 'true' });
     txt.value = dc.draft; txt.addEventListener('input', () => { dc.draft = txt.value; sync(); });
+    txt.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (!send.disabled) send.click(); } });
+    // Modèles : début de message mis en tête (une fois), curseur placé (ou partie à remplacer sélectionnée)
+    const tpls = Object.entries(DC_TPL).map(([k, t]) => {
+      const b = h('button', { class: 'chip', type: 'button', 'data-tpl': k, title: 'Commencer le message par « ' + t.text.trim().replace(/\n/g, ' ') + ' »' }, t.label);
+      b.addEventListener('click', () => {
+        if (dc.busy) return;
+        const v = txt.value.startsWith(t.text) ? txt.value : txt.value.trim() ? t.text + '\n' + txt.value : t.text;
+        txt.value = v.slice(0, DC_MAX); dc.draft = txt.value; sync(); txt.focus();
+        const i = t.sel ? txt.value.indexOf(t.sel) : -1;
+        if (i >= 0) txt.setSelectionRange(i, i + t.sel.length); else txt.setSelectionRange(t.text.length, t.text.length);
+      });
+      return b;
+    });
     const cnt = h('small', { class: 'dcn', id: 'dcCount', 'aria-live': 'polite' }), prev = h('div', { class: 'dcprev', id: 'dcPrev' });
     // Pings : rôles (5 au plus) et @everyone
     const chk = (cls, cb, ...label) => h('label', { class: 'dcchk' + (cls ? ' ' + cls : '') }, cb, ...label);
@@ -569,6 +676,7 @@
     pub.addEventListener('change', () => { dc.pub = pub.checked; });
     const pubL = chk('', pub, 'Publier aux serveurs abonnés'); pubL.id = 'dcPubL'; pubL.title = 'Salon d\'annonces : le message est aussi poussé dans les serveurs qui suivent ce salon';
     const send = h('button', { class: 'btn main', id: 'dcSend', type: 'button' }, 'Envoyer…');
+    const pvCh = h('span', { class: 'dcpch', id: 'dcPrevCh' });
     const pick = () => roles.filter(x => dc.roles.includes(String(x.id)));
     const pings = () => [...pick().map(x => dcAt(x.name)), ...(dc.every ? ['@everyone'] : [])];
     const total = () => { const m = [...dc.roles.map(id => '<@&' + id + '>'), ...(dc.every ? ['@everyone'] : [])]; return dc.draft.length + (m.length ? m.join(' ').length + 1 : 0); };      // « <@&id> <@&id> @everyone\n » + texte
@@ -577,9 +685,12 @@
       cnt.textContent = nf(n) + ' / ' + nf(DC_MAX) + (n > dc.draft.length ? ' (mentions comprises)' : '');
       cnt.classList.toggle('over', n > DC_MAX);
       pubL.hidden = !(c && c.type === 5); warn.hidden = !dc.every; txt.readOnly = dc.busy; sel.disabled = dc.busy; every.disabled = dc.busy;
+      for (const b of quick) { b.setAttribute('aria-pressed', String(b.dataset.ch === dc.ch)); b.disabled = dc.busy; }
+      for (const b of tpls) b.disabled = dc.busy;
       for (const cb of rcb.map(l => l.querySelector('input'))) cb.disabled = dc.busy || (!cb.checked && dc.roles.length >= DC_ROLES);
       send.disabled = dc.busy || !c || !dc.draft.trim() || n > DC_MAX;
       send.textContent = dc.busy ? 'Envoi…' : 'Envoyer…';
+      pvCh.textContent = c ? dcName(c) + (c.cat ? ' · ' + c.cat : '') : 'Aucun salon';
       dcPreview(prev, pings(), dc.draft);
     }
     send.addEventListener('click', async () => {
@@ -589,7 +700,7 @@
         h('p', { class: 'dcpg' }, p.length ? 'Pings : ' + p.join(', ') : 'Aucun ping.'),
         dc.every ? h('p', { class: 'note' }, '@everyone : tous les membres du serveur seront notifiés.') : null,
         c.type === 5 ? h('p', null, publish ? 'Publié aussi aux serveurs abonnés.' : 'Pas publié aux serveurs abonnés.') : null,
-        h('p', { class: 'dcq' }, content.length > 400 ? content.slice(0, 400) + '…' : content)].filter(Boolean),
+        h('p', { class: 'dcq' }, content.length > 400 ? content.slice(0, 400) + '…' : content)],
         [['Annuler', ''], ['Envoyer', 'ok', dc.every ? 'main danger' : 'main']]);
       if (v !== 'ok' || dc.busy || !dc.d) return;
       dc.busy = true; sync();
@@ -601,16 +712,22 @@
       dc.roles = []; dc.every = false;      // pings remis à zéro : jamais deux fois par mégarde
       toast('Message envoyé dans ' + c.name + '.'); dcPaint();
     });
-    const g = d.guild && d.guild.name ? d.guild.name : '';
-    box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Discord'), h('small', null, g)),
-      h('p', { class: 'hint' }, 'Le message part au nom du bot « Mana Orbit ». Les mentions des pings sont ajoutées en tête par le serveur.'),
-      h('div', { class: 'dcw' }, h('div', { class: 'dcf' },
-        h('label', { class: 'dcl' }, 'Salon', sel),
-        h('label', { class: 'dcl' }, 'Message', txt), cnt,
-        h('fieldset', { class: 'dcp' }, h('legend', null, 'Pings', h('small', null, ' · ' + DC_ROLES + ' rôles au plus')), ...rcb, chk('every', every, '@everyone'), warn),
-        pubL, h('div', { class: 'dcb' }, send)),
-      h('div', { class: 'dcpv' }, h('h3', { class: 'dyh' }, 'Aperçu'), prev)),
-      h('h3', { class: 'dyh' }, 'Envoyés ', h('small', { id: 'dcSentN' })), h('div', { class: 'dyl', id: 'dcSent' }));
+    const g = d.guild && d.guild.name ? d.guild.name : '', ann = chans.filter(c => c.type === 5).length;
+    const stat = (k, v) => h('div', { class: 'dcs' }, h('span', null, k), h('b', null, v));
+    fill(box,
+      dcState(true, 'En ligne', h('div', { class: 'dcsg' }, stat('Serveur', g || '—'), stat('Salons', nf(chans.length) + (ann ? ' · ' + nf(ann) + ' d\'annonces' : '')), stat('Rôles à pinger', nf(roles.length)), stat('Messages gardés', nf((d.sent || []).length))),
+        h('p', { class: 'hint' }, 'Le message part au nom du bot « Mana Orbit ». Les mentions des pings sont ajoutées en tête par le serveur.')),
+      h('div', { class: 'dcw' },
+        h('section', { class: 'card dcf', id: 'dcForm' }, chead('Nouveau message'),
+          h('div', { class: 'dcrow' }, h('label', { class: 'dcl', for: 'dcCh' }, 'Salon'), sel, quick.length ? h('div', { class: 'chips', role: 'group', 'aria-label': 'Salons fréquents' }, quick) : null),
+          h('div', { class: 'dcrow' }, h('div', { class: 'dclh' }, h('label', { class: 'dcl', for: 'dcTxt' }, 'Message'), h('div', { class: 'chips', role: 'group', 'aria-label': 'Modèles de début de message' }, h('span', { class: 'chipl' }, 'Modèles'), tpls)),
+            txt, h('div', { class: 'dcnl' }, h('small', { class: 'dckb' }, '**gras** · Ctrl+Entrée : envoyer'), cnt)),
+          h('fieldset', { class: 'dcp' }, h('legend', null, 'Pings', h('small', null, ' · ' + DC_ROLES + ' rôles au plus')), ...rcb, chk('every', every, '@everyone'), warn),
+          h('div', { class: 'dcb' }, pubL, send)),
+        h('section', { class: 'card dcpv' }, chead('Aperçu', pvCh),
+          h('div', { class: 'dcmsg' }, h('img', { class: 'dcav', src: '/icons/icon.svg', alt: '', width: 40, height: 40 }),
+            h('div', { class: 'dcmb' }, h('p', { class: 'dcmh' }, h('b', null, 'Mana Orbit'), h('span', { class: 'dcbot' }, 'APP'), h('small', null, 'aujourd\'hui')), prev)))),
+      h('section', { class: 'card dchist' }, chead('Envoyés', h('small', { id: 'dcSentN' })), h('p', { class: 'hint' }, '50 derniers messages du bot, tenus par le serveur (le plus récent en haut).'), h('div', { class: 'dyl', id: 'dcSent' })));
     sync(); dcSent(d.sent);
   }
   /** Aperçu : mentions en tête, puis le texte ligne par ligne, **gras** seulement (nœuds de texte : rien d'interprété). */
@@ -647,6 +764,224 @@
       dcSent(dc.d.sent); toast('Message supprimé de Discord.');
     });
     return row;
+  }
+  /* Fils des forums Discord (bugs, idées, aide) : onglet « Fils » (proxy.mjs › /api/admin/discord/threads, thread, reply, thread-delete). Filtre par forum
+     (Bugs, Idées, Questions = aide) et Ouverts / Fermés (« Plus anciens » : page suivante des fermés) ; un fil ouvert (#fils/<id>, retour = la liste) : ses
+     messages (texte en textContent ; captures de Discord en <img> loading=lazy, touchées : en grand dans un nouvel onglet), étiquettes (celles de l'équipe
+     d'abord), Fermer / Rouvrir, Verrouiller / Déverrouiller, Renommer, Répondre (aucun ping ; « Répondre et fermer »), Supprimer (confirmé), Ouvrir sur
+     Discord. Pastille : fils ouverts sans étiquette d'équipe (à trier). Téléphone : la liste, puis le fil (← Fils) ; grand écran : côte à côte.
+     Fils ouverts des trois forums relus au plus une fois par minute (« Rafraîchir » : tout de suite) ; route absente (404) : onglet masqué. */
+  const TH_F = [['bugs', 'Bugs'], ['idées', 'Idées'], ['aide', 'Questions']];
+  const th = { gen: 0, dgen: 0, at: 0, force: false, state: '', forums: [], open: {}, note: {}, f: 'tous', st: 'open', closed: null, cur: '', det: null, pushed: false, draft: '' };
+  function thReset() { th.gen++; th.dgen++; Object.assign(th, { at: 0, force: false, state: '', forums: [], open: {}, note: {}, closed: null, cur: '', det: null, pushed: false, draft: '' }); }
+  const thForum = k => th.forums.find(f => f.key === k);
+  const thTagsOf = t => { const f = thForum(t.forum); return f ? (t.tags || []).map(id => f.tags.find(x => String(x.id) === String(id))).filter(Boolean) : []; };
+  const thTeam = t => thTagsOf(t).some(x => x.moderated);
+  /** Fils ouverts d'un forum, ou des trois (« Tous » : le plus récent d'abord). */
+  const thOpenOf = k => (k === 'tous' ? [].concat(...TH_F.map(([f]) => th.open[f] || [])).sort((a, b) => (b.last || b.created || 0) - (a.last || a.created || 0)) : th.open[k] || []);
+  const thTodo = k => thOpenOf(k).filter(t => !t.archived && !thTeam(t)).length;
+  const thTodoAll = () => thTodo('tous');
+  const thLabel = k => (TH_F.find(x => x[0] === k) || [k, k])[1];
+  const thHidTxt = '(texte non lisible : active Message Content Intent sur le portail Discord)';
+  /** Emoji d'une étiquette : un vrai emoji seulement (le nom d'un emoji personnalisé du serveur n'en est pas un). */
+  const thEmo = e => (typeof e === 'string' && e && !/^[\w-]+$/.test(e) ? e + ' ' : '');
+  const thTag = x => h('span', { class: 'tag' + (x.moderated ? ' team' : '') }, thEmo(x.emoji) + x.name);
+  /** Adresse d'une pièce jointe : Discord (CSP : img-src cdn.discordapp.com, media.discordapp.net) ou la même origine ; rien d'autre. */
+  const thFile = u => { try { const x = new URL(String(u || ''), location.href); return x.protocol === 'https:' && /^(cdn\.discordapp\.com|media\.discordapp\.net)$/.test(x.hostname) || x.origin === location.origin ? x.href : null; } catch (e) { return null; } };
+  const thBy = b => (b && b.name ? b.name + (b.bot ? ' (bot)' : '') : 'inconnu');
+  const thCard = (...kids) => h('section', { class: 'card thcard' }, chead('Fils des forums'), ...kids);
+  async function threads() {
+    if (th.state && !th.force && Date.now() - th.at < 60e3) return th.state === 'on' ? thPaint() : undefined;
+    th.force = false;
+    const box = $('#threads'), g = ++th.gen;
+    if (!box.firstChild) fill(box, thCard(loading('Lecture des fils…')));
+    let rs; try { rs = await Promise.all(TH_F.map(([k]) => call('/discord/threads?' + new URLSearchParams({ forum: k, state: 'open' })).catch(() => null))); } catch (e) { rs = []; }
+    if (g !== th.gen) return;
+    th.at = Date.now();
+    if (rs.length && rs.every(r => r && r.status === 404)) {      // route absente (ou DISCORD=0) : pas d'onglet
+      th.state = 'gone'; box.replaceChildren(); tabOf('fils').hidden = true; if (tb.cur === 'fils') tabShow('apercu'); badges(); return;
+    }
+    tabOf('fils').hidden = false;
+    const good = rs.filter(r => r && r.status === 200 && r.body);
+    if (!good.length) { const r = rs.find(x => x && x.body && x.body.message); th.state = 'err'; badges(); return fill(box, thCard(h('p', { class: 'note' }, (r && r.body.message) || 'Le serveur ne répond pas.'))); }
+    if (good.every(r => !r.body.on)) { th.state = 'off'; badges(); return fill(box, thCard(h('p', { class: 'note' }, good[0].body.message || 'Bot Discord indisponible.'))); }
+    const forums = new Map(); th.open = {}; th.note = {};
+    rs.forEach((r, i) => {
+      if (!r || r.status !== 200 || !r.body || !r.body.on) { if (r && r.body && r.body.message) th.note[TH_F[i][0]] = r.body.message; return; }
+      if (r.body.message) th.note[TH_F[i][0]] = r.body.message;      // forum introuvable sur le serveur Discord…
+      for (const f of r.body.forums || []) if (f && f.key && !forums.has(f.key)) forums.set(f.key, { ...f, tags: Array.isArray(f.tags) ? f.tags : [] });
+      th.open[TH_F[i][0]] = (Array.isArray(r.body.threads) ? r.body.threads : []).filter(t => !t.forum || t.forum === TH_F[i][0]).map(t => ({ ...t, forum: t.forum || TH_F[i][0] }));
+    });
+    th.forums = [...forums.values()]; th.state = 'on';
+    if (th.st === 'closed' && (!th.closed || th.closed.f !== th.f)) thClosed(false); else thPaint();
+    badges();
+  }
+  /** Fils fermés du forum choisi (« Tous » : sans forum, les trois mêlés), 25 par page ; « Plus anciens » : before = next de la réponse, tel quel. */
+  async function thClosed(more) {
+    const f = th.f, g = th.gen, prev = more && th.closed && th.closed.f === f ? th.closed : null, old = prev ? prev.list || [] : [];
+    if (!prev) th.closed = { f, list: null, more: false, next: '' }; else prev.busy = true;
+    thPaint();
+    let r; try { r = await call('/discord/threads?' + new URLSearchParams({ ...(f === 'tous' ? {} : { forum: f }), state: 'closed', ...(prev && prev.next ? { before: prev.next } : {}) })); } catch (e) { r = null; }
+    if (g !== th.gen || !th.closed || th.closed.f !== f) return;
+    if (!r || r.status !== 200 || !r.body || r.body.on === false) { th.closed = { f, list: old, more: !!prev && prev.more, next: prev ? prev.next : '', err: (r && r.body && r.body.message) || 'Fils fermés illisibles : le serveur ne répond pas.' }; return thPaint(); }
+    const seen = new Set(old.map(t => t.id)), add = (Array.isArray(r.body.threads) ? r.body.threads : []).filter(t => !seen.has(t.id)).map(t => ({ ...t, forum: t.forum || f }));
+    th.closed = { f, list: old.concat(add), more: !!r.body.more && !!r.body.next, next: typeof r.body.next === 'string' ? r.body.next : '', err: !add.length && !old.length && r.body.message ? r.body.message : '' };
+    thPaint();
+  }
+  /** Un fil choisi : nouvelle entrée de l'historique (#fils/<id>) ; retour du navigateur ou « ← Fils » : la liste. */
+  function thGo(id) { history.pushState(null, '', '#fils/' + encodeURIComponent(id)); th.pushed = true; thRoute(id); }
+  function thBack() {
+    if (th.pushed && hashParts()[1]) { th.pushed = false; history.back(); return; }      // → hashchange → thRoute('')
+    history.replaceState(null, '', '#fils'); thRoute('');
+  }
+  /** Fil affiché d'après l'adresse (rien : la liste seule). */
+  function thRoute(id) {
+    if (id === th.cur) { if (th.state === 'on') thPaint(); return; }
+    th.cur = id; th.det = null; th.dgen++;
+    if (th.state === 'on') thPaint();
+    if (id) thLoad(id);
+  }
+  async function thLoad(id) {
+    const g = ++th.dgen; let r; try { r = await call('/discord/thread?' + new URLSearchParams({ id })); } catch (e) { r = null; }
+    if (g !== th.dgen || th.cur !== id) return;
+    th.det = r && r.status === 200 && r.body && r.body.thread ? { thread: r.body.thread, messages: Array.isArray(r.body.messages) ? r.body.messages : [], more: !!r.body.more }
+      : { err: (r && r.body && r.body.message) || 'Fil illisible : le serveur ne répond pas.' };
+    if (th.det.thread && !th.det.thread.forum) th.det.thread.forum = (th.forums.find(f => String(f.id) === String(th.det.thread.parent)) || {}).key || '';
+    thDetPaint();
+  }
+  /** Fil modifié (réponse du serveur) : mis à jour dans les listes (fermé : passe chez les fermés, rouvert : chez les ouverts) et dans le détail. */
+  function thUpd(t) {
+    if (!t || !t.id) return;
+    const prev = (th.det && th.det.thread && th.det.thread.id === t.id && th.det.thread) || [].concat(...Object.values(th.open), (th.closed && th.closed.list) || []).find(x => x.id === t.id) || {};
+    t = { ...prev, ...t, forum: t.forum || prev.forum };
+    for (const k of Object.keys(th.open)) th.open[k] = th.open[k].filter(x => x.id !== t.id);
+    if (th.closed && th.closed.list) th.closed.list = th.closed.list.filter(x => x.id !== t.id);
+    if (!t.archived) { if (th.open[t.forum]) th.open[t.forum].unshift(t); }
+    else if (th.closed && th.closed.list && (th.closed.f === t.forum || th.closed.f === 'tous')) th.closed.list.unshift(t);
+    if (th.det && th.det.thread && th.det.thread.id === t.id) th.det.thread = t;
+    thPaint(); badges();
+  }
+  /** Action sur un fil (POST) : bouton grisé le temps de la réponse ; refus : message du serveur, bouton rendu. */
+  async function thPost(path, body, b, msg) {
+    if (b) b.disabled = true;
+    let x; try { x = await call(path, 'POST', body); } catch (e) { x = null; }
+    if (!x || x.status !== 200 || !x.body || !x.body.ok) { if (b) b.disabled = false; toast((x && x.body && x.body.message) || 'Action impossible : le serveur ne répond pas.'); return null; }
+    if (msg) toast(msg);
+    return x.body;
+  }
+  function thPaint() {
+    const box = $('#threads'); if (th.state !== 'on') return;
+    const seg = (items, cur, pick, label) => h('div', { class: 'seg', role: 'group', 'aria-label': label }, items.map(([k, l, n]) => {
+      const b = h('button', { class: 'chip', type: 'button', 'aria-pressed': String(k === cur), 'data-k': k }, l, n ? h('span', { class: 'badge' }, String(n), h('span', { class: 'sr' }, ' à trier')) : null);
+      b.addEventListener('click', () => pick(k)); return b;
+    }));
+    const forums = seg([['tous', 'Tous', thTodoAll()], ...TH_F.filter(([k]) => thForum(k)).map(([k, l]) => [k, l, thTodo(k)])], th.f, k => { if (k === th.f) return; th.f = k; if (th.st === 'closed') thClosed(false); else thPaint(); }, 'Forum');
+    const states = seg([['open', 'Ouverts', 0], ['closed', 'Fermés', 0]], th.st, k => { if (k === th.st) return; th.st = k; if (k === 'closed' && (!th.closed || th.closed.f !== th.f)) thClosed(false); else thPaint(); }, 'État');
+    const list = th.st === 'open' ? thOpenOf(th.f) : th.closed && th.closed.f === th.f ? th.closed.list : null;
+    const notes = th.st === 'open' ? (th.f === 'tous' ? TH_F.map(([k]) => th.note[k] && thLabel(k) + ' : ' + th.note[k]) : [th.note[th.f]]).filter(Boolean) : [];
+    const item = t => {
+      const tags = thTagsOf(t), b = h('button', { class: 'thi' + (t.id === th.cur ? ' on' : ''), type: 'button', 'data-id': t.id, 'aria-current': t.id === th.cur ? 'true' : null },
+        h('span', { class: 'tht' }, h('b', null, t.name || '(sans titre)'), t.locked ? h('span', { class: 'tag' }, '🔒 verrouillé') : null, t.archived ? h('span', { class: 'tag off' }, 'fermé') : !thTeam(t) ? h('span', { class: 'tag warn' }, 'à trier') : null),
+        tags.length ? h('span', { class: 'tags' }, tags.map(thTag)) : null,
+        t.firstHidden ? h('span', { class: 'thx hid' }, thHidTxt) : t.first ? h('span', { class: 'thx' }, t.first) : null,
+        h('small', null, [th.f === 'tous' ? thLabel(t.forum) : '', thBy(t.by), t.archived && t.closed ? 'fermé ' + ago(t.closed) : ago(t.last || t.created), plural(t.count || 0, 'message')].filter(Boolean).join(' · ')));
+      b.addEventListener('click', () => (t.id === th.cur ? null : thGo(t.id)));
+      return b;
+    };
+    const more = th.st === 'closed' && th.closed && th.closed.f === th.f && th.closed.more ? h('button', { class: 'btn ghost small', type: 'button', id: 'thMore', disabled: !!th.closed.busy }, th.closed.busy ? 'Chargement…' : 'Plus anciens') : null;
+    if (more) more.addEventListener('click', () => thClosed(true));
+    const nOpen = TH_F.reduce((n, [k]) => n + (th.open[k] || []).length, 0), todo = thTodoAll();
+    fill(box, h('section', { class: 'card thcard' }, chead('Fils des forums', plural(nOpen, 'fil ouvert', 'fils ouverts') + (todo ? ' · ' + nf(todo) + ' à trier' : '')),
+      h('p', { class: 'hint' }, 'Forums du serveur Discord : avis envoyés depuis l\'appli (« Aide et avis ») et fils des membres. « À trier » : fil ouvert sans étiquette de l\'équipe.'),
+      h('div', { class: 'thctl' }, forums, states),
+      h('div', { class: 'thw' + (th.cur ? ' det' : '') },
+        h('div', { class: 'thl', id: 'thList' }, list == null ? loading('Lecture des fils fermés…') : [
+          th.st === 'closed' && th.closed && th.closed.err ? h('p', { class: 'note' }, th.closed.err) : null, notes.map(n => h('p', { class: 'note' }, n)),
+          list.length ? list.map(item) : empty(th.st === 'open' ? (th.f === 'tous' ? 'Aucun fil ouvert.' : 'Aucun fil ouvert dans ce forum.') : 'Aucun fil fermé.'),
+          more ? h('div', { class: 'pager' }, more) : null]),
+        h('div', { class: 'thd', id: 'thDet' }))));
+    thDetPaint();
+  }
+  function thDetPaint() {
+    const box = $('#thDet'); if (!box) return;
+    const back = h('button', { class: 'btn ghost small thback', type: 'button' }, '← Fils'); back.addEventListener('click', thBack);
+    if (!th.cur) return fill(box, h('div', { class: 'thnone' }, h('p', null, 'Choisis un fil dans la liste : ses messages, ses étiquettes et les actions s\'affichent ici.')));
+    if (!th.det) return fill(box, back, loading('Lecture du fil…'));
+    if (th.det.err) return fill(box, back, h('p', { class: 'note' }, th.det.err));
+    const t = th.det.thread, f = thForum(t.forum), url = typeof t.url === 'string' && /^https:\/\/(?:[a-z]+\.)?discord(?:app)?\.com\//.test(t.url) ? t.url : null;
+    // Actions
+    const btn = (label, cls, fn) => { const b = h('button', { class: 'btn ghost small' + (cls ? ' ' + cls : ''), type: 'button' }, label); b.addEventListener('click', () => fn(b)); return b; };
+    const patch = (body, msg) => async b => { const x = await thPost('/discord/thread', { id: t.id, ...body }, b, msg); if (x) thUpd(x.thread || { ...t, ...body }); };
+    const close = btn(t.archived ? 'Rouvrir' : 'Fermer', '', patch({ archived: !t.archived }, t.archived ? 'Fil rouvert.' : 'Fil fermé.')); close.dataset.act = 'archive';
+    const lock = btn(t.locked ? 'Déverrouiller' : 'Verrouiller', '', patch({ locked: !t.locked }, t.locked ? 'Fil déverrouillé.' : 'Fil verrouillé : seuls les modérateurs y écrivent.')); lock.dataset.act = 'lock';
+    const ren = btn('Renommer…', '', async b => {
+      const inp = h('input', { type: 'text', class: 'dlgi', maxlength: 100, 'aria-label': 'Nouveau titre', autocomplete: 'off' }); inp.value = t.name || '';
+      const p = dlg('Renommer le fil', [h('p', null, 'Nouveau titre (100 caractères au plus) :'), inp], [['Annuler', ''], ['Renommer', 'ok', 'main']]);
+      inp.focus(); inp.select(); inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#dlg').close('ok'); } });
+      const v = await p, name = inp.value.trim().slice(0, 100);
+      if (v !== 'ok' || !name || name === t.name) return;
+      patch({ name }, 'Fil renommé.')(b);
+    }); ren.dataset.act = 'rename';
+    const del = btn('Supprimer…', 'sdel', async b => {
+      const v = await dlg('Supprimer le fil ?', [h('p', { class: 'dlgw' }, t.name || '(sans titre)'), h('p', null, 'Le fil et tous ses messages sont effacés de Discord, pour tout le monde. Impossible à annuler.')], [['Annuler', ''], ['Supprimer', 'ok', 'main danger']]);
+      if (v !== 'ok') return;
+      const x = await thPost('/discord/thread-delete', { id: t.id }, b, 'Fil supprimé de Discord.'); if (!x) return;
+      for (const k of Object.keys(th.open)) th.open[k] = th.open[k].filter(y => y.id !== t.id);
+      if (th.closed && th.closed.list) th.closed.list = th.closed.list.filter(y => y.id !== t.id);
+      th.pushed = false; history.replaceState(null, '', '#fils'); th.cur = ''; th.det = null; thPaint(); badges();
+    }); del.dataset.act = 'delete';
+    const open = url ? h('a', { class: 'btn ghost small', href: url, target: '_blank', rel: 'noopener noreferrer' }, 'Ouvrir sur Discord') : null;
+    // Étiquettes : celles de l'équipe d'abord (mises en avant), 5 au plus
+    const all = f ? f.tags.slice().sort((a, b) => (b.moderated ? 1 : 0) - (a.moderated ? 1 : 0)) : [], mine = new Set((t.tags || []).map(String));
+    const save = h('button', { class: 'btn ghost small', type: 'button', id: 'thTagSave', disabled: true }, 'Enregistrer les étiquettes');
+    const cbs = all.map(x => { const cb = h('input', { type: 'checkbox', value: x.id, 'data-tag': x.id }); cb.checked = mine.has(String(x.id)); return [x, cb]; });
+    const pickNow = () => cbs.filter(([, cb]) => cb.checked).map(([x]) => String(x.id));
+    const tsync = () => { const p = pickNow(); for (const [, cb] of cbs) cb.disabled = !cb.checked && p.length >= 5; save.disabled = p.length === mine.size && p.every(id => mine.has(id)); };
+    for (const [, cb] of cbs) cb.addEventListener('change', tsync);
+    save.addEventListener('click', () => patch({ tags: pickNow() }, 'Étiquettes enregistrées.')(save));
+    const tagBox = all.length ? h('fieldset', { class: 'dcp thtags' }, h('legend', null, 'Étiquettes', h('small', null, ' · 5 au plus · celles de l\'équipe en premier')),
+      cbs.map(([x, cb]) => h('label', { class: 'dcchk' + (x.moderated ? ' team' : '') }, cb, thEmo(x.emoji) + x.name)), h('div', { class: 'thsave' }, save)) : null;
+    tsync();
+    // Messages
+    const msgs = th.det.messages.map(m => {
+      const files = (Array.isArray(m.attachments) ? m.attachments : []).map(a => {
+        const u = thFile(a.url); if (!u) return null;
+        return /^image\//.test(a.type || '') ? h('a', { class: 'thimg', href: u, target: '_blank', rel: 'noopener noreferrer', title: 'Voir en grand : ' + (a.name || 'capture') }, h('img', { src: u, alt: a.name || 'Capture', loading: 'lazy', ...(a.w && a.h ? { width: a.w, height: a.h } : {}) }))
+          : h('a', { class: 'btn ghost small', href: u, target: '_blank', rel: 'noopener noreferrer' }, '📎 ' + (a.name || 'pièce jointe'));
+      }).filter(Boolean);
+      return h('article', { class: 'thm' + (m.by && m.by.bot ? ' bot' : ''), 'data-id': m.id },
+        h('p', { class: 'thmh' }, h('b', null, (m.by && m.by.name) || 'inconnu'), m.by && m.by.bot ? h('span', { class: 'dcbot' }, 'APP') : null, h('small', null, (m.t ? D_TIME.format(m.t) + ' (' + ago(m.t) + ')' : '') + (m.edited ? ' · modifié' : ''))),
+        m.hidden ? h('p', { class: 'note thhid' }, thHidTxt) : m.content ? h('p', { class: 'thc' }, m.content) : files.length ? null : h('p', { class: 'thc empty-t' }, '(sans texte)'),
+        files.length ? h('div', { class: 'thf' }, files) : null);
+    });
+    // Répondre (aucun ping), puis fermer au besoin ; confirmé
+    const ta = h('textarea', { id: 'thReply', rows: 4, maxlength: 2000, placeholder: 'Réponse du bot dans le fil (aucun ping)…', spellcheck: 'true' }); ta.value = th.draft;
+    const rc = h('small', { class: 'dcn' }), r1 = h('button', { class: 'btn ghost', type: 'button', id: 'thSend' }, 'Répondre'), r2 = h('button', { class: 'btn main', type: 'button', id: 'thSendClose' }, 'Répondre et fermer');
+    const rsync = () => { rc.textContent = nf(ta.value.length) + ' / 2 000'; r1.disabled = r2.disabled = !ta.value.trim(); };
+    ta.addEventListener('input', () => { th.draft = ta.value; rsync(); }); rsync();
+    const reply = closeIt => async () => {
+      const content = ta.value.trim(); if (!content) return;
+      const v = await dlg(closeIt ? 'Répondre et fermer le fil ?' : 'Répondre dans le fil ?', [h('p', { class: 'dlgw' }, t.name || '(sans titre)'), h('p', null, 'Réponse publique du bot « Mana Orbit », sans ping.' + (closeIt ? ' Le fil est fermé ensuite.' : '')), h('p', { class: 'dcq' }, content.length > 400 ? content.slice(0, 400) + '…' : content)], [['Annuler', ''], [closeIt ? 'Répondre et fermer' : 'Répondre', 'ok', 'main']]);
+      if (v !== 'ok') return;
+      r1.disabled = r2.disabled = true; ta.readOnly = true;
+      const x = await thPost('/discord/reply', { id: t.id, content, ...(closeIt ? { close: true } : {}) }, null, '');
+      ta.readOnly = false; if (!x) return rsync();
+      toast(closeIt && x.closed === false ? x.message || 'Réponse envoyée, mais le fil n\'a pas pu être fermé.' : closeIt ? 'Réponse envoyée, fil fermé.' : 'Réponse envoyée.');      // réponse partie, fermeture refusée : fil laissé ouvert
+      if (th.draft.trim() === content) th.draft = '';
+      if (x.thread) thUpd(x.thread);
+      if (th.cur === t.id) thLoad(t.id);
+    };
+    r1.addEventListener('click', reply(false)); r2.addEventListener('click', reply(true));
+    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (!r1.disabled) r1.click(); } });
+    const tags = thTagsOf(t);
+    fill(box,
+      h('div', { class: 'thdh' }, back, h('h2', { id: 'thTitle' }, t.name || '(sans titre)'),
+        h('p', { class: 'thdm' }, [f ? thLabel(f.key) : thLabel(t.forum), 'par ' + thBy(t.by), t.created ? 'ouvert ' + ago(t.created) : '', t.archived && t.closed ? 'fermé ' + ago(t.closed) : '', plural(t.count || 0, 'message')].filter(Boolean).join(' · ')),
+        h('span', { class: 'tags' }, t.archived ? h('span', { class: 'tag off' }, 'fermé') : h('span', { class: 'tag ok' }, 'ouvert'), t.locked ? h('span', { class: 'tag' }, '🔒 verrouillé') : null, tags.map(thTag))),
+      h('div', { class: 'thact' }, open, close, lock, ren, del),
+      tagBox,
+      h('div', { class: 'thms' }, th.det.more ? h('p', { class: 'hint' }, 'Messages plus anciens : sur Discord.') : null, msgs.length ? msgs : empty('Aucun message lisible.')),
+      h('div', { class: 'threp' }, h('label', { class: 'dcl', for: 'thReply' }, 'Répondre'), ta, h('div', { class: 'dcnl' }, h('small', { class: 'dckb' }, 'Ctrl+Entrée : répondre'), rc), h('div', { class: 'dcb' }, r1, r2)));
   }
   function server(v) {
     if (!v) return $('#srv').replaceChildren();
