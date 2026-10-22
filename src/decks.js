@@ -704,7 +704,7 @@ function onUser(user) {
   renderAccountBtn(); renderDecks(); paintAccount(); refreshDeck(); edhGateSync();      // decks EDHREC : réservés aux comptes vérifiés
   collUser(user); xsUser(user); trUser(user); mobUser(user); scsUser(user); msUser(user); if (prev !== D.uid) profUser(user); if (typeof prgUser === 'function') prgUser(user);      // niveau et badges dans le compte : lien de test seulement (règles Firestore)
   amUser(user); if (typeof trocUser === 'function') trocUser(user);      // échange en direct : reprend après la connexion, ou quitte (autre compte)
-  if (typeof partieUser === 'function') partieUser(user);      // parties de Commander en attente d'envoi pour ce compte
+  if (typeof partieUser === 'function') partieUser(user);      // parties (compteur de vie) en attente d'envoi pour ce compte
   if (typeof dlyUser === 'function') dlyUser(user);      // Carte mystère : partie et badges du nouveau compte
   if (typeof dlUser === 'function') dlUser(user);      // compte Discord lié : l'invitation de l'accueil se cache pour un membre du serveur
   if (prev !== D.uid && typeof checkServer === 'function') { CTX.serverOk = null; checkServer(); }      // autre compte : a-t-il droit au token du serveur ?

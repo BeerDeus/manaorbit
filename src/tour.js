@@ -4,7 +4,7 @@
    nommé, focus gardé dedans, étape annoncée aux lecteurs d'écran ; animations coupées si l'appareil réduit les animations.
    Étapes : Scanner (barre du bas) · Session d'ouverture (réglages du scan, ouverts en feuille : jamais la caméra) · lien et QR code (carte
    Échange de l'accueil) · Classeur (interrupteur de l'onglet Échange) · Échange en direct · Amis (bouton du compte) · Carte mystère, niveau et
-   badges (icônes de l'en-tête) · Partie de Commander (carte de l'accueil) · Rangement (onglet de la collection : emplacements, « Ranger ces
+   badges (icônes de l'en-tête) · Compteur de vie (carte de l'accueil) · Rangement (onglet de la collection : emplacements, « Ranger ces
    cartes… », proxys) · Masterset (interrupteur de l'onglet Cartes ; édition et foil d'une ligne, filtre Extension) · Scan mobile (ordinateur
    seulement : « + » de la collection) · Decks › À monter · Prix d'une liste · Partager en image (Stats), plus widgets et raccourcis (appli
    Android) ou l'installation (web). Étape sans objet (fonction coupée par le serveur, déconnecté, collection vide, APK ancienne, web) : texte
@@ -89,9 +89,9 @@ const TOUR_STEPS = [
       : T('Avec un compte : une carte par jour, la même pour tous, à deviner pendant qu\'elle se dévoile. Le podium ouvre les classements.')),
     x2: () => (typeof prgPill === 'function' ? T('Scans, decks, parties, échanges : tout fait monter ton niveau et gagner des badges. Ils sont dans Compte et réglages, pastille « Niv. ».') : '') },
   { id: 'partie', v: 2, at: 'home', ok: () => typeof puGo === 'function', el: () => $('#hmPartie'),
-    t: () => T('Partie de Commander'),
-    x: () => (D.user && CTX.partie ? T('Le compteur de vie de la table, jusqu\'à 8 joueurs : blessures de commandant, poison, monarque. Les autres rejoignent avec le QR code, et la partie s\'enregistre chez chacun.')
-      : T('Le compteur de vie de la table, jusqu\'à 8 joueurs : blessures de commandant, poison, monarque, et l\'historique de tes parties.')) },
+    t: () => T('Compteur de vie'),
+    x: () => (D.user && CTX.partie ? T('Le compteur de vie de la table : Commander jusqu\'à 8 joueurs (blessures de commandant, monarque), Standard en 1 contre 1 ou format libre. Les autres rejoignent avec le QR code, et la partie s\'enregistre chez chacun.')
+      : T('Le compteur de vie de la table : Commander jusqu\'à 8 joueurs (blessures de commandant, monarque), Standard en 1 contre 1 ou format libre, et l\'historique de tes parties.')) },
   { id: 'places', v: 2, at: 'places', ok: () => typeof plcTabHtml === 'function', el: () => tourIn('#collSeg [data-v="places"]'),
     t: () => T('Rangement'),
     x: () => T('Classeurs, boîtes, pile à vendre : note où est chaque carte. Touche un emplacement pour voir ses cartes, et « Ranger ces cartes… » les déplace toutes d\'un coup.'),
@@ -398,7 +398,7 @@ const tourHelpHtml = () => `<button class="tour-help" type="button" data-help="t
 const tourHelpBtn = () => `<button class="btn ghost small" type="button" data-help="tour">${T('Visite guidée')}</button>`;
 if (typeof HELP_QA !== 'undefined') {
   const i = HELP_QA.findIndex(q => q[0] === 'Faut-il un compte ?');
-  HELP_QA.splice(i < 0 ? HELP_QA.length : i, 0, ['Où sont les fonctions moins visibles ?', 'Touche <b>Visite guidée</b>, en haut de cette aide : en 2 minutes, elle montre le scan et la session d\'ouverture, ton lien d\'échange, le classeur, l\'échange en direct, les amis, la Carte mystère, la partie de Commander, le rangement, le masterset, les decks à monter, le prix d\'une liste et le partage en image. Les <b>astuces</b> (petites bulles, une fois par écran) se coupent dans Compte et réglages › Préférences.']);
+  HELP_QA.splice(i < 0 ? HELP_QA.length : i, 0, ['Où sont les fonctions moins visibles ?', 'Touche <b>Visite guidée</b>, en haut de cette aide : en 2 minutes, elle montre le scan et la session d\'ouverture, ton lien d\'échange, le classeur, l\'échange en direct, les amis, la Carte mystère, le compteur de vie, le rangement, le masterset, les decks à monter, le prix d\'une liste et le partage en image. Les <b>astuces</b> (petites bulles, une fois par écran) se coupent dans Compte et réglages › Préférences.']);
 }
 
 /* ── Astuces : une bulle, une fois, la première fois qu'on arrive sur l'écran ─────────────────────────────────────────── */

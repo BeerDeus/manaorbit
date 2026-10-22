@@ -21,7 +21,13 @@ await p.goto(world.url + '?lang=en'); await p.waitForTimeout(800);
 assert.equal(await p.evaluate(() => [I18N.lang, document.documentElement.lang, localStorage.getItem('deckdeal:lang')].join()), 'en,en,en');
 assert.equal(await p.evaluate(() => location.search), '', 'adresse nettoyée');
 assert.equal(await txt(p, '#nav [data-nav="home"]'), 'Home'); assert.equal(await txt(p, '#nav [data-nav="trade"]'), 'Trade'); assert.match(await txt(p, '#hmTrade'), /Trade/); assert.equal(await p.evaluate(() => priceSrc()), 'cm');
+assert.match(await txt(p, '#hmPartie'), /^Life counter Commander, Standard or free-form New game My games/, 'compteur de vie : nom global traduit');
 const home = await leftovers(p); console.log('  accueil, encore en français :', home.length ? home : 'rien');
+await p.evaluate(() => puGo()); await p.waitForSelector('.pu.on .pu-jeu');
+assert.deepEqual(await p.$$eval('.pu-jeu .seg-opt', b => b.map(x => x.textContent.trim())), ['Commanderup to 8', 'Standard1 vs 1', 'Free-formany life'], 'formats de la partie en anglais');
+assert.equal(await p.$eval('.pu.on', e => e.getAttribute('aria-label')), 'Life counter');
+const pu = await leftovers(p); console.log('  compteur de vie (préparation), encore en français :', pu.length ? pu : 'rien');
+await p.evaluate(() => { partieClear(); puClose(); }); await p.waitForFunction(() => !document.querySelector('.pu'));
 ok('?lang=en : langue gardée, accueil en anglais');
 // dictionnaire : bloc JSON inerte de la page (jamais compilé comme du code), analysé seulement pour l'anglais
 assert.equal(await p.evaluate(() => [typeof I18N_ALL, document.getElementById('i18n-en').type, T('Nouvelle version disponible'), T('Recharger')].join('|')), 'undefined|application/json|New version available|Reload');

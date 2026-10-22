@@ -1,6 +1,6 @@
 /* ── qr.js : QR codes (lien de la liste d'échange, échange en direct, table et résultat d'une partie, flyers) ─────────────────────────────
    Encodeur autonome, sans réseau ni bibliothèque : mode octets (UTF-8), correction M (≈ 15 % du code peut manquer) ou H (≈ 30 %), versions 1 à 20
-   (jusqu'à 666 octets en M, 385 en H ; un lien de partage en fait ≈ 50 → version 4 en M, 6 en H ; le résultat d'une partie de Commander jusqu'à ≈ 360),
+   (jusqu'à 666 octets en M, 385 en H ; un lien de partage en fait ≈ 50 → version 4 en M, 6 en H ; le résultat d'une partie (compteur de vie) jusqu'à ≈ 360),
    masque choisi par les pénalités de la norme ISO/IEC 18004.
    Rendu : qrSvg, un SVG à un seul chemin, modules noirs carrés, marge de 4 modules (zone de silence) : le widget Android et l'image à partager le relisent tel quel.
    qrSvgLogo : la même chose en encre marine, niveau H, et le logo de l'appli au centre : les modules sous le logo ne sont pas dessinés, la correction d'erreurs les
@@ -153,7 +153,7 @@ const QR_LOGO = '<g transform="rotate(-20 50 52)"><path d="M12 52A38 13 0 0 1 88
   + '<g transform="rotate(-20 50 52)"><path d="M12 52A38 13 0 0 0 88 52" fill="none" stroke="#9aa3b8" stroke-width="2.6" stroke-linecap="round"/><circle cx="86.1" cy="56" r="4.6" fill="#7fb0ff"/><circle cx="50" cy="65" r="4.6" fill="#f8f6d8"/><circle cx="13.9" cy="56" r="4.6" fill="#b5a3c8"/></g>';
 const QR_FOIL = '<stop offset="0" stop-color="#ff8fc3"/><stop offset=".26" stop-color="#ffd479"/><stop offset=".5" stop-color="#7be8c8"/><stop offset=".74" stop-color="#7fb0ff"/><stop offset="1" stop-color="#c79bff"/>';
 let qrUid = 0;
-const QR_LOGO_VMAX = 15;      // au-delà (plus de ≈ 220 octets) : niveau M sans logo, comme le résultat d'une partie de Commander (partie-ui.js, PU_QR_MAX)
+const QR_LOGO_VMAX = 15;      // au-delà (plus de ≈ 220 octets) : niveau M sans logo, comme le résultat d'une partie (compteur de vie, partie-ui.js, PU_QR_MAX)
 /** SVG du QR code de l'appli : fond blanc, modules carrés en encre marine, niveau H et le logo au centre (sur une pastille blanche arrondie).
     → { n (côté avec la marge), svg, logo (faux si le texte demande plus que la version 15 en H : niveau M, sans logo, même encre ; le code reste assez aéré pour un écran de téléphone) }. Le chemin des modules est le premier
     <path> du SVG (l'image à partager le relit). Le dégradé du logo a un identifiant unique : plusieurs codes peuvent vivre dans la même page.

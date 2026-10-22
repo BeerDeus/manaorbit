@@ -1,6 +1,6 @@
-/* ── partie-ui.js : partie de Commander, l'interface (le moteur est dans partie.js) ─────────────────────────────────────────────
-   · Accueil : carte « Partie de Commander » sous l'Échange (nouvelle partie ou reprendre, mes parties).
-   · Préparation : points de départ, ma place et mon deck, QR code de la table (compte connecté et en ligne : les autres rejoignent avec leur téléphone),
+/* ── partie-ui.js : compteur de vie (parties de Commander, Standard ou libre), l'interface (le moteur est dans partie.js) ───────────────────
+   · Accueil : carte « Compteur de vie » sous l'Échange (nouvelle partie ou reprendre, mes parties).
+   · Préparation : format en un appui (Commander, Standard 1 contre 1, Libre ; gardé pour la fois suivante : deckdeal:partie:jeu), points de départ, ma place et mon deck, QR code de la table (compte connecté et en ligne : les autres rejoignent avec leur téléphone),
      invités ajoutés ici (sans téléphone, ou hors ligne), premier joueur, lancement.
    · Compteur (le téléphone du créateur, posé sur la table) : trois affichages au choix dans le menu « … » — A tourné vers chacun, B liste, C table —
      toucher la moitié gauche / droite d'un joueur : −1 / +1 (maintenu : ±10) ; son nom : sa fiche (blessures de commandant, poison, impôt, monarque…).
@@ -14,6 +14,19 @@ const PU_HEART = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d=
 const PU_QR_MAX = 360;      // données du QR code d'un résultat : noms raccourcis au besoin, le code reste lisible par un téléphone (version 15 au plus)
 const puAff = () => { try { const v = localStorage.getItem(PU_AFF_KEY); return PU_AFFS.includes(v) ? v : 'A'; } catch (e) { return 'A'; } };
 const puAffSet = v => { try { localStorage.setItem(PU_AFF_KEY, v); } catch (e) { /* choix pour cette fois */ } };
+/* Format choisi la dernière fois, et les points de départ de chaque format : { j, f: { commander, standard, libre } } (rien de lisible : Commander, 40). */
+const PU_JEU_KEY = 'deckdeal:partie:jeu';
+function puPref() {
+  let o = null; try { o = JSON.parse(localStorage.getItem(PU_JEU_KEY) || 'null'); } catch (e) { o = null; }
+  const f = {}; for (const k of PRT_JEUX) f[k] = o && o.f && partieVieOk(k, o.f[k]) ? o.f[k] : PRT_JEU[k].def;
+  return { j: o && PRT_JEUX.includes(o.j) ? o.j : 'commander', f };
+}
+function puPrefSave(st) { const p = puPref(), j = partieJeu(st); p.j = j; p.f[j] = st.format; try { localStorage.setItem(PU_JEU_KEY, JSON.stringify(p)); } catch (e) { /* choix pour cette fois */ } }
+const puJeuName = j => (j === 'standard' ? T('Standard') : j === 'libre' ? T('Libre') : T('Commander'));
+/** « Standard · 20 PV » : format et points de départ d'une partie, d'un résultat ou d'une salle (sans jeu : Commander). */
+const puJeuTxt = x => puJeuName(partieJeu(x)) + ' · ' + T('{n} PV', { n: x.format });
+/** Places d'après la salle (partie.js › partieFromRoom), le format et les points de départ restant ceux de ce téléphone (le créateur les règle ici). */
+const puFromRoom = (st, v) => { const n = partieFromRoom(st, v); return n === st ? st : partieSetJeu(n, partieJeu(st), st.format); };
 const puOnline = () => !(typeof navigator !== 'undefined' && navigator.onLine === false);
 const puNet = () => !!(D.user && CTX.partie && puOnline());      // salle d'attente possible : compte, serveur qui l'annonce, réseau
 const puMe = () => (PROF.name || (D.user && D.user.displayName) || '').trim().slice(0, 24) || T('Moi');
@@ -25,7 +38,7 @@ const puDur = s => { const m = Math.round(s / 60); return m < 60 ? T('{n} min', 
 function puHomeInit() {
   const tr = $('#hmTrade'); if (!tr || $('#hmPartie')) return;
   tr.insertAdjacentHTML('afterend', `<section class="hm-trade hm-partie" id="hmPartie" aria-labelledby="hmPartieT">
-      <button class="hm-tr-h" type="button" data-pu="go"><span class="hm-tr-ic" aria-hidden="true">${PU_HEART}</span><span class="hm-tr-t"><b id="hmPartieT">${T('Partie de Commander')}</b><span class="hm-pu-sub"></span></span></button>
+      <button class="hm-tr-h" type="button" data-pu="go"><span class="hm-tr-ic" aria-hidden="true">${PU_HEART}</span><span class="hm-tr-t"><b id="hmPartieT">${T('Compteur de vie')}</b><span class="hm-pu-sub"></span></span></button>
       <div class="hm-tr-acts"><button class="btn ghost" type="button" data-pu="go"><span class="hm-pu-go"></span></button><button class="btn ghost" type="button" data-pu="hist"><span>${T('Mes parties')}</span></button><button class="btn ghost hm-pu-drop" type="button" data-pu="drop" hidden><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg></button></div></section>`);
   $('#hmPartie').addEventListener('click', e => { const b = e.target.closest('[data-pu]'); if (!b) return; haptic('tap'); const a = b.dataset.pu; if (a === 'hist') puHist(); else if (a === 'drop') puDropSheet(); else puGo(); });
   puHomePaint();
@@ -41,20 +54,20 @@ function puHomePaint() {
   const cur = PU.el ? partieLoad() : puCur(), live = cur && !cur.fin, x = $('.hm-pu-drop', box);
   x.hidden = !live; box.classList.toggle('live', !!live);
   if (live) { const l = cur.debut ? T('Abandonner la partie') : T('Supprimer la partie'); x.setAttribute('aria-label', l); x.title = l; }
-  $('.hm-pu-sub', box).textContent = live ? (cur.debut ? T('En cours · tour {t} · {n} joueurs', { t: cur.tour, n: cur.places.length }) : TN(cur.places.length, 'En préparation · {n} joueur', 'En préparation · {n} joueurs')) : T('Compteur de vie, jusqu\'à 8 joueurs');
+  $('.hm-pu-sub', box).textContent = live ? (cur.debut ? T('En cours · tour {t} · {n} joueurs', { t: cur.tour, n: cur.places.length }) : TN(cur.places.length, 'En préparation · {n} joueur', 'En préparation · {n} joueurs')) : T('Commander, Standard ou libre');
   $('.hm-pu-go', box).textContent = live ? T('Reprendre') : T('Nouvelle partie');
 }
-/** Bouton principal : reprend la partie en cours, sinon en prépare une nouvelle. */
+/** Bouton principal : reprend la partie en cours, sinon en prépare une nouvelle (dans le format de la dernière fois). */
 function puGo() {
   const cur = puCur();
   if (cur && !cur.fin) { puOpen(cur); return; }
-  puOpen(partieNew({ moi: { nom: puMe() } }));
+  const pr = puPref(); puOpen(partieNew({ jeu: pr.j, format: pr.f[pr.j], moi: { nom: puMe() } }));
 }
 
 /* ── Écran de la partie (préparation, compteur, fin) ───────────────────────────────────────────── */
 function puOpen(st) {
   puClose(); PU.st = st; PU.gone = new Set(); PU.deltas = {}; PU.roomTry = false; PU.low = Infinity;
-  const wrap = document.createElement('div'); wrap.className = 'dv pu'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Partie de Commander'));
+  const wrap = document.createElement('div'); wrap.className = 'dv pu'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Compteur de vie'));
   PU.el = wrap; wrap.__close = () => puClose();
   wrap.addEventListener('click', puClick);
   wrap.addEventListener('pointerdown', puDown); wrap.addEventListener('pointerup', puUp); wrap.addEventListener('pointercancel', puCancel); wrap.addEventListener('pointerleave', puCancel);
@@ -94,7 +107,7 @@ function puPaint() {
 
 /* ── Préparation et salle d'attente ────────────────────────────────────────────────────────────── */
 function puSetupPaint() {
-  const st = PU.st, el = PU.el, me = st.places.find(p => p.sorte === 'moi'), room = partieRoom(), roomOk = room && room.host && room.id === st.id;
+  const st = PU.st, el = PU.el, me = st.places.find(p => p.sorte === 'moi'), room = partieRoom(), roomOk = room && room.host && room.id === st.id, jeu = partieJeu(st);
   if (!roomOk && !PU.roomTry && puNet()) { PU.roomTry = true; puRoomOpen(); }
   const qr = roomOk ? (() => { try { return qrSvgLogo(partieTableLink(room.c)).svg; } catch (e) { return ''; } })() : '';
   const decks = typeof allDecks === 'function' ? allDecks().filter(d => d && d.name) : [];
@@ -105,17 +118,39 @@ function puSetupPaint() {
   }).join('');
   el.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-pu="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Nouvelle partie')}</b><span>${TN(st.places.length, '{n} joueur', '{n} joueurs')}</span></div></header>
     <div class="dv-scroll"><div class="dv-body pu-setup">
-      <section class="pu-card"><p class="pu-h">${T('Points de départ')}</p><div class="seg pu-fmt" role="radiogroup" aria-label="${T('Points de départ')}"></div></section>
+      <section class="pu-card pu-jeu-card"><p class="pu-h">${T('Format')}</p><div class="seg pu-jeu" role="radiogroup" aria-label="${T('Format')}"></div>
+        ${jeu === 'commander' ? `<p class="pu-h">${T('Points de départ')}</p><div class="seg pu-fmt" role="radiogroup" aria-label="${T('Points de départ')}"></div>`
+          : jeu === 'libre' ? `<p class="pu-h">${T('Points de départ')}</p><div class="pu-vie" role="group" aria-label="${T('Points de départ')}">${[-10, -1].map(n => `<button type="button" data-pu="vie" data-n="${n}"${st.format + n < 1 ? ' disabled' : ''}>−${-n}</button>`).join('')}<b aria-live="polite">${st.format}</b>${[1, 10].map(n => `<button type="button" data-pu="vie" data-n="${n}"${st.format + n > PRT_VIE_MAX ? ' disabled' : ''}>+${n}</button>`).join('')}</div>` : ''}
+        <p class="hint pu-jeu-hint">${jeu === 'standard' ? T('20 points de vie, 1 contre 1 (une place de plus au besoin) : poison, énergie, expérience. Ni commandant ni blessures de commandant.') : jeu === 'libre' ? T('Points de vie au choix, jusqu\'à 8 joueurs : poison, monarque, initiative. Sans blessures de commandant.') : T('Jusqu\'à 8 joueurs : blessures de commandant, impôt, monarque, initiative, poison.')}</p></section>
       ${me ? `<section class="pu-card"><p class="pu-h">${T('Mon deck')}</p>${decks.length ? `<label class="sortsel pu-deck"><select data-pu="mydeck" aria-label="${T('Mon deck')}"><option value="">${T('Aucun')}</option>${decks.map(d => `<option value="${esc(d.id)}"${me.deck && me.deck.nom === partieStr(d.name, PRT_LEN.deck) ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : `<p class="hint">${T('Aucun deck dans « Mes decks » : tu joueras sans deck affiché.')}</p>`}</section>` : ''}
       <section class="pu-card pu-qr">${qr ? `<div class="pu-qr-img" role="img" aria-label="${T('QR code de la table')}">${qr}</div><div class="pu-qr-t"><b>${T('Les autres scannent ce QR code')}</b><span>${T('Ils choisissent leur place et leur deck, puis rangent leur téléphone. Code : {c}', { c: room.c })}</span></div>`
         : `<div class="pu-qr-t"><b>${T('Joueurs sans téléphone ou hors ligne')}</b><span>${!puOnline() ? T('Hors ligne : ajoute les joueurs ici, le résultat partira au retour du réseau.') : !D.user ? T('Connecte-toi pour que les autres rejoignent la table avec leur téléphone (QR code).') : !CTX.partie ? T('Serveur indisponible : ajoute les joueurs ici.') : T('Ouverture de la table…')}</span>${!D.user && puOnline() ? `<button class="btn ghost small" type="button" data-pu="login">${T('Se connecter')}</button>` : ''}</div>`}</section>
-      <section class="pu-card"><p class="pu-h">${T('Autour de la table')}</p><ol class="pu-seats">${seats}</ol>${st.places.length < 8 ? `<button class="plc-add" type="button" data-pu="guest">${T('+ Invité')}</button>` : ''}</section>
+      <section class="pu-card"><p class="pu-h">${T('Autour de la table')}</p><ol class="pu-seats">${seats}</ol>${st.places.length < 8 ? `<button class="plc-add" type="button" data-pu="guest">${T('+ Invité')}</button>` : ''}${roomOk && PU.view && PU.view.st === 'wait' && PU.view.size < 8 && (PU.view.places || []).length >= PU.view.size ? `<button class="plc-add" type="button" data-pu="seat+">${T('+ Une place de plus')}</button>` : ''}</section>
       ${st.places.length > 1 ? `<section class="pu-card"><p class="pu-h">${T('Premier joueur')}</p><div class="pu-chips"><button type="button" data-pu="first" data-pos="0" aria-pressed="${!st.premier}">${T('Au hasard')}</button>${st.places.map(p => `<button type="button" data-pu="first" data-pos="${p.pos}" aria-pressed="${st.premier === p.pos}">${esc(p.nom || p.pos)}</button>`).join('')}</div></section>` : ''}
     </div></div>
     <div class="pu-foot"><button class="btn block" type="button" data-pu="start"${st.places.length < 2 ? ' disabled' : ''}>${st.places.length < 2 ? T('Il faut au moins 2 joueurs') : T('Lancer la partie')}</button><button class="link-btn pu-drop" type="button" data-pu="drop">${T('Supprimer cette partie')}</button></div>`;
-  mountSeg($('.pu-fmt', el), PRT_FORMATS.map(f => ({ v: String(f), label: String(f) })), String(st.format), v => { puSet(partieSetFormat(PU.st, Number(v))); if (partieRoom()) partieRoomOp('opts', { format: Number(v) }).catch(() => {}); });
+  mountSeg($('.pu-jeu', el), [{ v: 'commander', label: T('Commander'), sub: T('jusqu\'à 8') }, { v: 'standard', label: T('Standard'), sub: T('1 contre 1') }, { v: 'libre', label: T('Libre'), sub: T('PV au choix') }], jeu, v => puJeuSet(v, puPref().f[v]));
+  if ($('.pu-fmt', el)) mountSeg($('.pu-fmt', el), PRT_FORMATS.map(f => ({ v: String(f), label: String(f) })), String(st.format), v => puVieSet(Number(v)));
   const sel = $('select[data-pu="mydeck"]', el);
   if (sel) sel.onchange = () => { const d = decks.find(x => x.id === sel.value), deck = d ? partieDeckOf(d, puDeckImg(d)) : null; puSet(partieSetPlace(PU.st, me.pos, { deck })); if (partieRoom()) partieRoomOp('me', { deck }).catch(() => {}); };
+}
+/** Plus haute place prise dans la salle (vue du serveur), 0 sans salle. */
+const puViewMax = () => (PU.view && Array.isArray(PU.view.places) ? PU.view.places.reduce((a, x) => Math.max(a, x.pos), 0) : 0);
+/** Réglages de la salle (format, points de départ, places), envoyés un instant après le dernier appui (le ±1 des points de départ en Libre). */
+function puRoomOpts(o, now) {
+  clearTimeout(PU.ot); if (!partieRoom() || !PU.view) return;
+  const go = () => partieRoomOp('opts', o).then(v => { PU.view = v; if (PU.el && PU.mode === 'setup') puPaint(); }).catch(() => {});
+  if (now) go(); else PU.ot = setTimeout(go, 500);
+}
+/** Format choisi (un appui) : points de départ de ce format la dernière fois, table de 2 en Standard (plus si des places sont déjà prises), gardé pour la fois suivante. */
+function puJeuSet(jeu, f) {
+  const next = partieSetJeu(PU.st, jeu, f); if (!puSet(next)) return;
+  puPrefSave(next); puRoomOpts({ jeu, format: next.format, size: partieRoomSize(next, puViewMax()) }, true);
+}
+/** Points de départ (Commander : 40, 30, 25, 20 ; Libre : 1 à 999). */
+function puVieSet(f) {
+  const next = partieSetFormat(PU.st, f); if (!puSet(next)) return;
+  puPrefSave(next); puRoomOpts({ jeu: partieJeu(next), format: next.format });
 }
 /** Image du commandant d'un deck (petite image Scryfall connue de l'appli), '' sinon. */
 function puDeckImg(d) {
@@ -125,6 +160,7 @@ async function puRoomOpen() {
   try {
     const v = await partieRoomCreate(PU.st, { n: puMe(), p: PROF.photo || '', l: I18N.lang });
     PU.view = v; puWatch();
+    if (PU.st && (partieJeu(v) !== partieJeu(PU.st) || v.format !== PU.st.format)) puRoomOpts({ jeu: partieJeu(PU.st), format: PU.st.format, size: partieRoomSize(PU.st, puViewMax()) }, true);      // format changé pendant l'ouverture
   } catch (e) { PU.view = null; }
   if (PU.el && PU.mode === 'setup') puPaint();
 }
@@ -134,33 +170,40 @@ function puWatch() {
     if (!PU.el) return;
     if (x && x.gone) { PU.view = null; toast(T('Table fermée par le serveur : continue avec des invités')); puPaint(); return; }
     PU.net = !x || x.net !== false; PU.on = (x && x.on) || [];
-    if (v) { PU.view = v; if (PU.mode === 'setup' && v.st === 'wait') puSet(partieFromRoom(PU.st, v), { paint: false }); }
+    if (v) { PU.view = v; if (PU.mode === 'setup' && v.st === 'wait') puSet(puFromRoom(PU.st, v), { paint: false }); }
     if (PU.mode === 'setup') puPaint();
   });
 }
 function puWatchStop() { if (PU.stopW) { PU.stopW(); PU.stopW = null; } }
-/** Invité (sans téléphone) : prénom, commandant facultatif. */
+/** Invité (sans téléphone) : prénom, commandant facultatif (Standard, Libre : son deck). */
 function puGuestSheet() {
+  const cmd = partieCmdOn(PU.st);
   openSheet(T('Ajouter un invité'), T('Un joueur sans téléphone ou sans l\'appli'), api => {
     api.body.innerHTML = `<div class="field-in"><label class="label" for="puGn">${T('Prénom')}</label><input type="text" id="puGn" maxlength="24" autocomplete="off"></div>
-      <div class="field-in"><label class="label" for="puGc">${T('Commandant (facultatif)')}</label><input type="text" id="puGc" maxlength="80" autocomplete="off"></div>`;
+      <div class="field-in"><label class="label" for="puGc">${cmd ? T('Commandant (facultatif)') : T('Deck (facultatif)')}</label><input type="text" id="puGc" maxlength="${cmd ? 80 : 40}" autocomplete="off"></div>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ok>${T('Ajouter')}</button>`);
     const n = $('#puGn', api.body), c = $('#puGc', api.body);
     const ok = async () => {
       const nom = partieStr(n.value, PRT_LEN.nom); if (!nom) { n.focus(); return; }
-      const deck = partieDeck({ commandant: c.value }); api.close(); haptic('ok');
+      const deck = partieDeck(cmd ? { commandant: c.value } : { nom: c.value }); api.close(); haptic('ok');
       const next = partieAddPlace(PU.st, { sorte: 'invite', nom, deck });
-      if (partieRoom() && PU.view) { try { const v = await partieRoomOp('add', { pos: next.places.find(p => !PU.st.places.some(q => q.pos === p.pos)).pos, n: nom, ...(deck ? { deck } : {}) }); PU.view = v; puSet(partieFromRoom(PU.st, v)); return; } catch (e) { /* hors ligne : ici seulement */ } }
+      if (partieRoom() && PU.view && next !== PU.st) {
+        try {
+          const pos = next.places.find(p => !PU.st.places.some(q => q.pos === p.pos)).pos;
+          if (pos > (PU.view.size || 8)) PU.view = await partieRoomOp('opts', { size: pos });      // Standard (table de 2) : une place de plus
+          const v = await partieRoomOp('add', { pos, n: nom, ...(deck ? { deck } : {}) }); PU.view = v; puSet(puFromRoom(PU.st, v)); return;
+        } catch (e) { /* hors ligne : ici seulement */ }
+      }
       puSet(next);
     };
     [n, c].forEach(x => x.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ok(); } }));
     api.foot.addEventListener('click', e => { if (e.target.closest('[data-ok]')) ok(); });
-    setTimeout(() => n.focus(), 60);
+    setTimeout(() => { if (!api.body.contains(document.activeElement)) n.focus(); }, 60);      // déjà dans un champ (appui rapide) : on n'y touche pas
   });
 }
 async function puStart() {
   let st = PU.st; if (st.places.length < 2) return;
-  if (partieRoom() && PU.view) { try { const v = await partieRoomOp('start'); st = partieFromRoom(st, v); } catch (e) { /* la salle ne répond plus : on joue quand même */ } }
+  if (partieRoom() && PU.view) { try { const v = await partieRoomOp('start'); st = puFromRoom(st, v); } catch (e) { /* la salle ne répond plus : on joue quand même */ } }
   puWatchStop();
   if (!st.premier) st = partieFirst(st, 0);
   st = partieStart(st); haptic('ok'); puSet(st);
@@ -245,11 +288,11 @@ function puPlayerSheet(pos) {
     const paint = () => {
       const st = PU.st, p = st.places.find(x => x.pos === pos); if (!p) { api.close(); return; }
       $('h2', api.wrap).textContent = p.nom || T('Joueur {n}', { n: pos });
-      const opp = st.places.filter(x => x.pos !== pos);
+      const opp = st.places.filter(x => x.pos !== pos), cmd = partieCmdOn(st);      // Standard, Libre : ni blessures de commandant ni impôt ; Standard : ni monarque ni initiative
       api.body.innerHTML = `<div class="pu-lifebig"><button type="button" data-k="v" data-n="-10">−10</button><button type="button" data-k="v" data-n="-1">−1</button><b>${p.vie}</b><button type="button" data-k="v" data-n="1">+1</button><button type="button" data-k="v" data-n="10">+10</button></div>
-        <p class="pu-h">${T('Blessures de commandant reçues')}</p>${opp.map(o => { const two = puCmd(o).includes(' + '); return step('b', p.blessures[String(o.pos)] || 0, esc(T('de {name}', { name: o.nom || o.pos })) + (puCmd(o) ? ` <small>${esc(two ? puCmd(o).split(' + ')[0] : puCmd(o))}</small>` : ''), ` data-s="${o.pos}"`) + (two ? step('b', p.blessures[o.pos + 'b'] || 0, `<small>${esc(puCmd(o).split(' + ')[1])}</small>`, ` data-s="${o.pos}" data-b="1"`) : ''); }).join('')}
-        <p class="pu-h">${T('Compteurs')}</p>${PU_CNT.map(([k, l]) => step('c', p.compteurs[k] || 0, T(l), ` data-c="${k}"`)).join('')}
-        <div class="pu-chips pu-marks"><button type="button" data-mk="monarque" aria-pressed="${st.monarque === pos}"><svg class="i" aria-hidden="true"><use href="#i-crown"/></svg>${T('Monarque')}</button><button type="button" data-mk="initiative" aria-pressed="${st.initiative === pos}"><svg class="i" aria-hidden="true"><use href="#i-castle"/></svg>${T('Initiative')}</button></div>
+        ${cmd ? `<p class="pu-h">${T('Blessures de commandant reçues')}</p>${opp.map(o => { const two = puCmd(o).includes(' + '); return step('b', p.blessures[String(o.pos)] || 0, esc(T('de {name}', { name: o.nom || o.pos })) + (puCmd(o) ? ` <small>${esc(two ? puCmd(o).split(' + ')[0] : puCmd(o))}</small>` : ''), ` data-s="${o.pos}"`) + (two ? step('b', p.blessures[o.pos + 'b'] || 0, `<small>${esc(puCmd(o).split(' + ')[1])}</small>`, ` data-s="${o.pos}" data-b="1"`) : ''); }).join('')}` : ''}
+        <p class="pu-h">${T('Compteurs')}</p>${PU_CNT.filter(([k]) => cmd || k !== 'impot').map(([k, l]) => step('c', p.compteurs[k] || 0, T(l), ` data-c="${k}"`)).join('')}
+        ${partieMarksOn(st) ? `<div class="pu-chips pu-marks"><button type="button" data-mk="monarque" aria-pressed="${st.monarque === pos}"><svg class="i" aria-hidden="true"><use href="#i-crown"/></svg>${T('Monarque')}</button><button type="button" data-mk="initiative" aria-pressed="${st.initiative === pos}"><svg class="i" aria-hidden="true"><use href="#i-castle"/></svg>${T('Initiative')}</button></div>` : ''}
         <div class="pu-acts">${p.elimine ? `<button class="btn ghost" type="button" data-x="revive">${T('Revenir en jeu')}</button>` : `<button class="btn ghost" type="button" data-x="elim">${T('Éliminer')}</button>`}<button class="btn ghost" type="button" data-x="ren">${T('Renommer')}</button></div>`;
     };
     paint();
@@ -269,7 +312,7 @@ function puPlayerSheet(pos) {
 }
 function puElimSheet(pos, cause, par, done) {
   openSheet(T('Éliminer {name} ?', { name: puName(PU.st, pos) }), '', api => {
-    const causes = [['vie', T('Plus de points de vie')], ['commandant', T('Blessures de commandant')], ['poison', T('Poison')], ['abandon', T('Abandon')], ['autre', T('Autre')]];
+    const causes = [['vie', T('Plus de points de vie')], ['commandant', T('Blessures de commandant')], ['poison', T('Poison')], ['abandon', T('Abandon')], ['autre', T('Autre')]].filter(([c]) => c !== 'commandant' || partieCmdOn(PU.st));
     api.body.innerHTML = `<div class="pu-chips">${causes.map(([c, l]) => `<button type="button" data-c="${c}" aria-pressed="${c === (cause || 'vie')}">${l}</button>`).join('')}</div>`;
     let c = cause || 'vie';
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; c = b.dataset.c; $$('[data-c]', api.body).forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
@@ -351,7 +394,7 @@ function puEndPaint() {
   const st = PU.st, r = PU.res || partieResult(st), link = partieResultLink(r, { max: PU_QR_MAX });
   let qr = ''; try { qr = link ? qrSvgLogo(link).svg : ''; } catch (e) { qr = ''; }
   const ps = r.places.slice().sort((a, b) => a.rang - b.rang || a.pos - b.pos), room = partieRoom();
-  PU.el.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-pu="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Partie terminée')}</b><span>${esc([TN(r.tours, '{n} tour', '{n} tours'), puDur(r.duree)].join(' · '))}</span></div></header>
+  PU.el.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-pu="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Partie terminée')}</b><span>${esc([puJeuName(partieJeu(r)), TN(r.tours, '{n} tour', '{n} tours'), puDur(r.duree)].join(' · '))}</span></div></header>
     <div class="dv-scroll"><div class="dv-body pu-setup">
       <section class="pu-card"><ol class="pu-rank">${ps.map(p => `<li class="${p.vainqueur ? 'win' : ''}"><span class="pu-pos">${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || T('Joueur {n}', { n: p.pos }))}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol></section>
       ${qr ? `<section class="pu-card pu-qr big"><div class="pu-qr-img" role="img" aria-label="${T('QR code du résultat')}">${qr}</div><div class="pu-qr-t"><b>${T('Résultat à scanner')}</b><span>${T('Les joueurs qui n\'ont pas rejoint la table le scannent pour garder la partie dans leur historique.')}</span></div></section>` : ''}
@@ -406,8 +449,10 @@ function puClick(e) {
   else if (a === 'pl') puPlayerSheet(pos);
   else if (a === 'elim') puElimSheet(pos, b.dataset.c, Number(b.dataset.par) || 0);
   else if (a === 'keep') { PU.gone.add(b.dataset.k); puPaint(); }
+  else if (a === 'vie') { haptic('tap'); puVieSet(Math.max(1, Math.min(PRT_VIE_MAX, PU.st.format + Number(b.dataset.n)))); }
+  else if (a === 'seat+' && PU.view && PU.view.size < 8) { b.disabled = true; puRoomOpts({ size: PU.view.size + 1 }, true); }
   else if (a === 'share-app' && typeof shareOut === 'function') shareOut({ title: 'Mana Orbit', text: T('Le compteur de points de vie et le scanner de cartes Magic de notre partie :'), url: PU_INV_URL });
-  else if (a === 'again') { const old = PU.st; let st = partieNew({ format: old.format, moi: null }); for (const p of old.places) st = partieAddPlace(st, { pos: p.pos, sorte: p.sorte === 'compte' ? 'invite' : p.sorte, nom: p.nom, deck: p.deck }); PU.res = null; PU.roomTry = false; puSet(st); }
+  else if (a === 'again') { const old = PU.st; let st = partieNew({ jeu: partieJeu(old), format: old.format, moi: null }); for (const p of old.places) st = partieAddPlace(st, { pos: p.pos, sorte: p.sorte === 'compte' ? 'invite' : p.sorte, nom: p.nom, deck: p.deck }); PU.res = null; PU.roomTry = false; puSet(st); }
 }
 
 /* ── Liens : rejoindre une table (?table=CODE), résultat (?partie=…) ───────────────────────────── */
@@ -437,11 +482,11 @@ function puJoin(code) {
     else if (!D.user && !J.guest) body = `<section class="pu-card"><p class="pu-h">${esc(T('Partie de {name}', { name: P.host || '' }))}</p><p class="hint">${T('Connecte-toi pour garder la partie dans ton historique, ou continue en invité.')}</p><div class="pu-acts"><button class="btn" type="button" data-j="login">${T('Se connecter')}</button><button class="btn ghost" type="button" data-j="guest">${T('Continuer en invité')}</button></div></section>`;
     else {
       const seats = Array.from({ length: P.size || 8 }, (_, i) => i + 1);
-      body = `<section class="pu-card"><p class="pu-h">${esc(T('Partie de {name} · {f} points', { name: P.host || '', f: P.format }))}</p>
+      body = `<section class="pu-card"><p class="pu-h">${esc(T('Partie de {name}', { name: P.host || '' }) + ' · ' + puJeuTxt(P))}</p>
           ${J.guest ? `<div class="field-in"><label class="label" for="puJn">${T('Prénom')}</label><input type="text" id="puJn" maxlength="24" autocomplete="off" value="${esc(J.name)}"></div>` : ''}
           <p class="pu-h">${T('Ta place autour de la table')}</p><div class="pu-places">${seats.map(n => `<button type="button" data-seat="${n}" aria-pressed="${J.pos === n}"${taken.has(n) ? ' disabled' : ''}><b>${n}</b><small>${esc(taken.get(n) || T('libre'))}</small></button>`).join('')}</div>
           ${!J.guest && decks().length ? `<p class="pu-h">${T('Ton deck')}</p><label class="sortsel pu-deck"><select data-j="deck"><option value="">${T('Aucun')}</option>${decks().map(d => `<option value="${esc(d.id)}"${J.deck === d.id ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : ''}
-          ${J.guest ? `<div class="field-in"><label class="label" for="puJc">${T('Commandant (facultatif)')}</label><input type="text" id="puJc" maxlength="80" autocomplete="off" value="${esc(J.cmd)}"></div>` : ''}</section>`;
+          ${J.guest ? `<div class="field-in"><label class="label" for="puJc">${partieJeu(P) === 'commander' ? T('Commandant (facultatif)') : T('Deck (facultatif)')}</label><input type="text" id="puJc" maxlength="${partieJeu(P) === 'commander' ? 80 : 40}" autocomplete="off" value="${esc(J.cmd)}"></div>` : ''}</section>`;
     }
     wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-j="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Rejoindre la partie')}</b><span>${esc(T('Table {c}', { c: code }))}</span></div></header>
       <div class="dv-scroll"><div class="dv-body pu-setup">${body}</div></div>${!J.joined && P && (D.user || J.guest) ? `<div class="pu-foot"><button class="btn block" type="button" data-j="go"${J.pos ? '' : ' disabled'}>${J.pos ? T('Prendre la place {n}', { n: J.pos }) : T('Choisis ta place')}</button></div>` : ''}`;
@@ -459,7 +504,7 @@ function puJoin(code) {
     else if (a === 'leave') { await partieRoomLeave(); J.joined = null; J.view = null; if (J.stop) J.stop(); wrap.__close(); }
     else if (a === 'go') {
       const nom = J.guest ? partieStr(($('#puJn', wrap) || {}).value || J.name, PRT_LEN.nom) : puMe(); if (J.guest && !nom) { const n = $('#puJn', wrap); if (n) n.focus(); return; }
-      const d = decks().find(x => x.id === J.deck), deck = J.guest ? partieDeck({ commandant: J.cmd }) : d ? partieDeckOf(d, puDeckImg(d)) : null;
+      const d = decks().find(x => x.id === J.deck), deck = J.guest ? partieDeck(partieJeu(J.peek) === 'commander' ? { commandant: J.cmd } : { nom: J.cmd }) : d ? partieDeckOf(d, puDeckImg(d)) : null;
       b.disabled = true;
       try { J.view = await partieRoomJoin(code, { pos: J.pos, n: nom, p: J.guest ? '' : PROF.photo || '', l: I18N.lang, ...(deck ? { deck } : {}), guest: J.guest }); J.joined = partieRoom(); haptic('ok'); watch(); }
       catch (er) { toast(er && er.code === 'taken' ? T('Place déjà prise : choisis-en une autre') : er && er.code === 'net' ? T('Pas de réseau : réessaie') : T('Impossible de rejoindre la table')); try { J.peek = await partiePeek(code); } catch (x) { /* garde l'ancienne vue */ } }
@@ -469,10 +514,23 @@ function puJoin(code) {
   document.body.appendChild(wrap); holdApp(); paint(); requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('on')));
   if (J.joined) watch();
   else partiePeek(code).then(p => { J.peek = p; if (p && p.st && p.st !== 'wait') J.err = T('La partie a déjà commencé.'); paint(); }, er => { J.err = er && er.code === 'net' ? T('Pas de réseau : la table ne peut pas être lue.') : T('Cette table n\'existe plus.'); paint(); });
+  // pas encore assis : la table relue toutes les 6 s pendant 10 min (place ajoutée par le créateur en Standard, places prises) ; repeinte seulement si elle a changé,
+  // le champ en cours de saisie (prénom, deck) gardé avec son curseur
+  const t0 = Date.now(), seen = () => JSON.stringify(J.peek && [J.peek.size, J.peek.jeu, J.peek.format, J.peek.places]);
+  const tick = setInterval(() => {
+    if (!wrap.isConnected || Date.now() - t0 > 600e3) { clearInterval(tick); return; }
+    if (J.joined || J.err || !J.peek) return;
+    partiePeek(code).then(p => {
+      if (!p || J.joined || !wrap.isConnected) return; const was = seen(); J.peek = p; if (seen() === was) return;
+      const a = document.activeElement, id = a && wrap.contains(a) && a.id, at = id && typeof a.selectionStart === 'number' ? a.selectionStart : null;
+      paint();
+      const b = id && $('#' + id, wrap); if (b) { b.focus(); if (at != null) try { b.setSelectionRange(at, at); } catch (e) { /* champ sans curseur */ } }
+    }, () => {});
+  }, 6000);
 }
 /** Résultat scanné (?partie=…) : « c'était moi : place N » → historique (et compte). */
 function puClaimSheet(r) {
-  openSheet(T('Résultat d\'une partie'), new Date(r.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }) + ' · ' + TN(r.tours, '{n} tour', '{n} tours'), api => {
+  openSheet(T('Résultat d\'une partie'), [new Date(r.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }), puJeuName(partieJeu(r)), TN(r.tours, '{n} tour', '{n} tours')].join(' · '), api => {
     api.wrap.classList.add('pu-sheet');
     api.body.innerHTML = `<p class="pu-h">${T('Quelle place était la tienne ?')}</p><div class="pu-wins">${r.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<button type="button" data-cl="${p.pos}"><span>${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : ''}${esc(p.nom || p.pos)}</span><small>${esc(p.commandant || p.deck || T('Place {n}', { n: p.pos }))}</small></button>`).join('')}</div><p class="hint">${D.user ? T('Ajoutée à « Mes parties » et à ton compte.') : T('Ajoutée à « Mes parties » sur ce téléphone.')}</p>`;
     api.body.insertAdjacentHTML('beforeend', puGetAppHtml());
@@ -484,14 +542,14 @@ function puClaimSheet(r) {
 async function puHist(tab) {
   openSheet(T('Mes parties'), '', api => {
     api.wrap.classList.add('pu-sheet');
-    let items = partieHist().sort((a, b) => b.date - a.date), view = tab === 'stats' ? 'stats' : 'list';
+    let items = partieHist().sort((a, b) => b.date - a.date), view = tab === 'stats' ? 'stats' : 'list', jf = '';      // jf : statistiques d'un seul format ('' : tous)
     api.body.innerHTML = `<div class="seg pu-tabs" role="radiogroup" aria-label="${T('Mes parties')}"></div><div class="pu-hbody"></div>`;
     mountSeg($('.pu-tabs', api.body), [{ v: 'list', label: T('Parties') }, { v: 'stats', label: T('Statistiques') }], view, v => { view = v; paint(); });
     const paint = () => {
       const won = items.filter(x => x.moi && (x.places.find(p => p.pos === x.moi) || {}).vainqueur).length;
       let sub = $('.sheet-head p', api.wrap); if (!sub) { sub = document.createElement('p'); $('.sheet-head > div', api.wrap).appendChild(sub); }
       sub.textContent = items.length ? TN(items.length, '{n} partie · {w} gagnée(s)', '{n} parties · {w} gagnée(s)', { n: items.length, w: won }) : '';
-      $('.pu-hbody', api.body).innerHTML = view === 'stats' ? puStatsHtml(partieStats(items)) : items.length ? `<ul class="pu-hist">${items.map(x => { const me = x.places.find(p => p.pos === x.moi), w = x.places.filter(p => p.vainqueur).map(p => p.nom || p.pos); return `<li><button type="button" data-h="${esc(x.id)}"><span class="pu-hd">${esc(new Date(x.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' }))}</span><span class="pu-who"><b>${me && me.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : ''}${esc(x.places.map(p => p.nom || p.pos).join(', '))}</b><small>${esc([me && (me.commandant || me.deck), w.length ? T('vainqueur : {name}', { name: w.join(', ') }) : T('aucun vainqueur'), TN(x.tours, '{n} tour', '{n} tours')].filter(Boolean).join(' · '))}</small></span></button></li>`; }).join('')}</ul>`
+      $('.pu-hbody', api.body).innerHTML = view === 'stats' ? puStatsJeuHtml(items, jf) : items.length ? `<ul class="pu-hist">${items.map(x => { const me = x.places.find(p => p.pos === x.moi), w = x.places.filter(p => p.vainqueur).map(p => p.nom || p.pos); return `<li><button type="button" data-h="${esc(x.id)}"><span class="pu-hd">${esc(new Date(x.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' }))}</span><span class="pu-who"><b>${me && me.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : ''}${esc(x.places.map(p => p.nom || p.pos).join(', '))}</b><small>${partieJeu(x) !== 'commander' ? `<span class="pu-jtag">${esc(puJeuName(partieJeu(x)))}</span> ` : ''}${esc([me && (me.commandant || me.deck), w.length ? T('vainqueur : {name}', { name: w.join(', ') }) : T('aucun vainqueur'), TN(x.tours, '{n} tour', '{n} tours')].filter(Boolean).join(' · '))}</small></span></button></li>`; }).join('')}</ul>`
         : `<p class="hint">${T('Aucune partie pour l\'instant. Lance-en une depuis l\'accueil : les résultats arrivent ici.')}</p>`;
     };
     paint();
@@ -499,8 +557,17 @@ async function puHist(tab) {
       const by = new Map(items.map(x => [x.id, x])); for (const it of (j && j.items) || []) { const c = partieHistClean(it); if (c && !by.has(c.id)) by.set(c.id, c); }
       items = [...by.values()].sort((a, b) => b.date - a.date); if (sheets.includes(api)) paint();
     }, () => {});
-    api.body.addEventListener('click', e => { const b = e.target.closest('[data-h]'); if (!b) return; const x = items.find(y => y.id === b.dataset.h); if (x) puHistOne(x); });
+    api.body.addEventListener('click', e => {
+      const j = e.target.closest('[data-sj]'); if (j) { jf = j.dataset.sj; haptic('tap'); paint(); return; }
+      const b = e.target.closest('[data-h]'); if (!b) return; const x = items.find(y => y.id === b.dataset.h); if (x) puHistOne(x);
+    });
   });
+}
+/** Statistiques, avec un choix du format dès que l'historique en mêle plusieurs (Tous, Commander, Standard, Libre : chaque format compté à part). */
+function puStatsJeuHtml(items, jf) {
+  const all = partieStats(items), js = PRT_JEUX.filter(j => all.jeux[j]), cur = js.includes(jf) ? jf : '';
+  const chips = js.length > 1 ? `<div class="pu-chips pu-sjeu" role="group" aria-label="${T('Format')}">${[['', T('Tous'), all.n], ...js.map(j => [j, puJeuName(j), all.jeux[j]])].map(([v, l, n]) => `<button type="button" data-sj="${v}" aria-pressed="${cur === v}">${esc(l)} <small>${n}</small></button>`).join('')}</div>` : '';
+  return chips + puStatsHtml(cur ? partieStats(items, { jeu: cur }) : all);
 }
 /** Statistiques (core : partieStats) : chiffres clés, mes decks, adversaires, commandants vus à ma table. */
 function puStatsHtml(s) {
@@ -524,7 +591,7 @@ function puDeckStatHtml(name) {
 }
 function puHistOne(x) {
   const link = partieResultLink(x, { max: PU_QR_MAX }); let qr = ''; try { qr = link ? qrSvgLogo(link).svg : ''; } catch (e) { qr = ''; }
-  openSheet(new Date(x.date).toLocaleString(LOC(), { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), [T('{f} points', { f: x.format }), TN(x.tours, '{n} tour', '{n} tours'), puDur(x.duree)].join(' · '), api => {
+  openSheet(new Date(x.date).toLocaleString(LOC(), { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), [puJeuTxt(x), TN(x.tours, '{n} tour', '{n} tours'), puDur(x.duree)].join(' · '), api => {
     api.wrap.classList.add('pu-sheet');
     api.body.innerHTML = `<ol class="pu-rank">${x.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === x.moi ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol>
       ${qr ? `<div class="pu-qr pu-card big"><div class="pu-qr-img" role="img" aria-label="${T('QR code du résultat')}">${qr}</div><div class="pu-qr-t"><b>${T('Partager le résultat')}</b><span>${T('Un autre joueur le scanne pour l\'ajouter à ses parties.')}</span></div></div>` : ''}`;

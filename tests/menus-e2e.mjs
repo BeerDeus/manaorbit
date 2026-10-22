@@ -102,6 +102,8 @@ const SCREENS_ALL = [
   ['deck-main-depart', () => openDeckViewer({ id: 'deckA' }), '.sheet-wrap.open', { click: '.dv.on [data-act="hand"]' }],
   ['partie-en-cours', () => puOpen(partieStart(partieAddPlace(partieNew({ moi: { nom: 'Moi' } }), { nom: 'Léa' }))), '.dv.pu.on'],
   ['partie-mes-parties', () => puHist(), '.sheet-wrap.open, .dv.on'],
+  ['partie-standard', () => puOpen(partieNew({ jeu: 'standard', moi: { nom: 'Moi' } })), '.dv.pu.on .pu-jeu'],      // compteur de vie : format Standard choisi (table de 2, 20 PV)
+  ['partie-standard-en-cours', () => puOpen(partieStart(partieAddPlace(partieNew({ jeu: 'standard', moi: { nom: 'Moi' } }), { nom: 'Léa', deck: { nom: 'Contrôle Azorius' } }))), '.dv.pu.on'],
   ['ouverture-en-cours', () => { if (!OPN.cur) { OPN.cur = { id: 'oTour', name: 'Ouverture du jour', at: Date.now(), paid: 2500, st: false, rows: [] }; opnSave(); opnRefresh(); } opnSheet(); }, '.sheet-wrap.open'],      // session commencée (reste commencée pour les écrans suivants)
   ['ouverture-historique', () => opnHistSheet(), '.sheet-wrap.open'],
   ['extension', () => { const d = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10); SETS.list = [{ code: 'zz1', name: 'Extension à venir', at: d(12), icon: '', url: '', type: 'expansion' }]; SETS.sig = ''; setsPaint(); openSetView('zz1'); }, '.dv.setv.on'],

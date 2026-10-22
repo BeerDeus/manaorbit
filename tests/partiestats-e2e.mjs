@@ -1,6 +1,6 @@
 // E2E statistiques des parties et invitation à installer l'appli : « Mes parties » › Statistiques (chiffres clés, mes decks, adversaires, commandants
 // vus à ma table) depuis l'historique de l'appareil ; page d'un deck joué (victoires sur parties) ; fin de partie avec un invité (QR code « Fais
-// découvrir Mana Orbit », partager le lien) ; lien ?invite=partie ouvert dans le navigateur d'un téléphone Android (Google Play) ou d'un ordinateur (rien).
+// découvrir Mana Orbit », partager le lien) ; lien ?invite=partie ouvert dans le navigateur d'un téléphone Android (Google Play) ou d'un ordinateur (rien) ; partie Standard : marquée dans la liste, statistiques par format (Tous, Commander, Standard).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
@@ -48,6 +48,24 @@ await p.click('.pu-inv [data-pu="share-app"]'); assert.equal(await p.evaluate(()
 assert.equal(await p.evaluate(() => partieStats(partieHist()).n), 4, 'la partie gagnée rejoint les statistiques');
 await p.screenshot({ path: 'shots/partie-invite.png' });
 ok('fin de partie avec un invité : QR code « Fais découvrir Mana Orbit » et lien à partager ; partie comptée dans les statistiques');
+await p.evaluate(() => puClose()); await p.waitForFunction(() => !document.querySelector(".pu"));
+/* ── Partie Standard dans l'historique : marquée dans la liste, comptée à part dans les statistiques (Tous / Commander / Standard) ─────────── */
+await p.evaluate(T0 => partieHistAdd({ id: 'e2estd000001', date: T0 + 9 * 86400e3, duree: 900, tours: 7, format: 20, jeu: 'standard', moi: 1, src: 'h', at: T0, u: '', sv: 0,
+  places: [{ pos: 1, nom: 'Max', sorte: 'moi', deck: 'Mono-rouge', rang: 1, vainqueur: true }, { pos: 2, nom: 'Léa', sorte: 'invite', deck: 'Azorius', rang: 2, vainqueur: false }] }), T0);
+await p.evaluate(() => puHist()); await p.waitForSelector('.pu-hist li');
+assert.equal(await p.$$eval('.pu-hist li', l => l.filter(x => x.querySelector('.pu-jtag')).map(x => x.querySelector('.pu-jtag').textContent).join()), 'Standard', 'liste : la partie Standard marquée, les autres non');
+await p.click('.pu-tabs [data-v="stats"]'); await p.waitForSelector('.pu-sjeu');
+assert.deepEqual(await p.$$eval('.pu-sjeu button', b => b.map(x => x.textContent.replace(/\s+/g, ' ').trim())), ['Tous 5', 'Commander 4', 'Standard 1']);
+assert.equal(await p.$eval('.pu-kpis > div b', b => b.textContent), '5', 'Tous : les deux formats');
+await p.click('.pu-sjeu [data-sj="standard"]'); await p.waitForFunction(() => document.querySelector('.pu-kpis > div b').textContent === '1');
+const rowsS = await p.$$eval('.pu-st', u => u.map(x => [...x.querySelectorAll('li')].map(li => [...li.querySelectorAll('b, small')].map(e => e.textContent.trim()).filter(Boolean).join(' '))));
+assert.deepEqual(rowsS, [['Mono-rouge 100 % 1 sur 1'], ['Léa 1 partie ensemble 1 – 0']], 'Standard : mes decks et adversaires, pas de commandants');
+await p.screenshot({ path: 'shots/partie-stats-standard.png' });
+await p.click('.pu-sjeu [data-sj="commander"]'); await p.waitForFunction(() => document.querySelector('.pu-kpis > div b').textContent === '4');
+assert.match(await txt(p, '.pu-hbody'), /Commandants à ta table/);
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
+assert.match(await p.evaluate(() => puDeckStatHtml('Mono-rouge')), /1 victoire sur 1 partie \(100 %\)/, 'page d\'un deck : ses parties, tous formats');
+ok('partie Standard : marquée dans Mes parties, statistiques Tous 5 / Commander 4 / Standard 1, decks et adversaires du Standard à part');
 assert.deepEqual(errs, []); await ctx.close();
 
 /* ── Lien ?invite=partie : téléphone Android dans le navigateur, ordinateur ──────────────────────────────────── */
