@@ -4,7 +4,8 @@
 // extension sans carte révélée, copie gardée) ; Réglages › Aide et avis (boutons, feuille d'aide et son pied, « Signaler un bug ou une idée » : mailto encodé,
 // « Laisser un avis sur Google Play » : fiche exacte, onglet à part, rateDone au clic, pas de badge, absent sur iPhone et iPad, « Rejoindre le Discord ») ;
 // ligne « Signaler un bug ou une idée » du menu Compte (mailto sans bot, fenêtre avec) ; avis par le Discord (/__ping feedback et api/feedback simulés :
-// fenêtre, requis, captures réduites, 3 au plus, corps du contrat, erreurs, « Merci ! », brouillon, 404 et absent → mailto, anglais) ; demande de note neutre
+// fenêtre, requis, captures réduites, 3 au plus, corps du contrat, erreurs, « Merci ! », brouillon, 404 et absent → mailto, anglais ; pseudo Discord : membres du
+// serveur proposés après 2 lettres (api/feedback/members simulé), clavier, choix, puce, member envoyé, texte modifié → choix annulé, réponse dépassée, 503 → texte libre) ; demande de note neutre
 // (coupée tant que RATE_ASK est faux, appli Android seulement, bons moments, fréquence, session sans erreur).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
@@ -391,6 +392,7 @@ async function fbPage(o = {}) {
   const fb = { calls: [], next: [] };
   const pg = await page({ ...o, routes: async p => {
     if (o.ping !== false) await p.route(u => new URL(u).pathname.endsWith('/__ping'), async route => { const r = await route.fetch(), j = await r.json(); return route.fulfill({ response: r, json: { ...j, feedback: true } }); });
+    if (o.more) await o.more(p);
     await p.route(u => new URL(u).pathname.endsWith('/api/feedback'), async route => {
       const req = route.request(), r = fb.next.shift() || { status: 200, json: { ok: true, url: FB_URL, id: '222' } };
       fb.calls.push({ method: req.method(), headers: req.headers(), body: req.postDataJSON() });
@@ -512,7 +514,7 @@ ok('menu Compte › « Signaler un bug ou une idée » (bot là) : la fenêtre, 
   assert.equal((await mailClick(p, '.hp-sheet .sheet-foot a[data-help="report"]')).sheet, true, 'pied de l\'aide : la feuille d\'avis');
   await p.waitForSelector(FB_SHEET);
   assert.deepEqual(await fbVals(p), before, 'brouillon gardé (type, partie, titre, description, pseudo, captures)');
-  assert.deepEqual(await p.evaluate(() => Object.keys(JSON.parse(sessionStorage.getItem('deckdeal:fb')))), ['kind', 'area', 'title', 'text', 'contact'], 'textes aussi dans la session (pas les captures)');
+  assert.deepEqual(await p.evaluate(() => Object.keys(JSON.parse(sessionStorage.getItem('deckdeal:fb')))), ['kind', 'area', 'title', 'text', 'contact', 'member'], 'textes aussi dans la session (pas les captures)');
   // 429 : « réessaie dans N min », bouton coupé pendant l'envoi, saisie gardée
   fb.next.push({ status: 429, json: { error: 'rate_limited', message: 'Trop d\'avis', retry: 540 }, headers: { 'retry-after': '540' }, delay: 500 });
   await p.click('.fb-sheet [data-fb="go"]'); await p.waitForTimeout(150);
@@ -595,6 +597,144 @@ ok('avis : corps exact (kind, area, meta, imgs), bouton coupé pendant l\'envoi,
   await ctx.close();
 }
 ok('avis en anglais : feuille, types, parties, textes d\'aide, erreurs (titre, image illisible, 429), « Thank you! », « Join the Discord »');
+/* ── 2c) Pseudo Discord : membres du serveur proposés (api/feedback/members simulé), avatars du CDN de Discord simulés ──────────────────────── */
+const PNG1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const AV1 = 'https://cdn.discordapp.com/avatars/950000000000000001/' + 'a1'.repeat(16) + '.png?size=64';
+const MEMS = [{ id: '950000000000000001', name: 'Beer', user: 'beergod_', avatar: AV1 }, { id: '950000000000000002', name: 'beer', user: 'beer', avatar: '' }, { id: '950000000000000005', name: 'Fan', user: 'beer_fan', avatar: '' }];
+/** Route des membres : mem.calls (recherches reçues), mem.next (réponses suivantes : { status, json, delay }), sinon les membres dont le nom ou l'identifiant contient q. */
+const memRoutes = mem => async p => {
+  await p.route('https://cdn.discordapp.com/**', route => { mem.av = (mem.av || 0) + 1; return route.fulfill({ status: 200, contentType: 'image/png', body: PNG1 }); });
+  await p.route(u => new URL(u).pathname.endsWith('/api/feedback/members'), async route => {
+    const q = new URL(route.request().url()).searchParams.get('q') || '', r = mem.next.shift() || { json: { members: MEMS.filter(m => (m.name + ' ' + m.user).toLowerCase().includes(q.toLowerCase())) } };
+    mem.calls.push(q);
+    if (r.delay) await new Promise(ok => setTimeout(ok, r.delay));
+    try { await route.fulfill({ status: r.status || 200, json: r.json }); } catch (e) { /* requête annulée par la page (réponse dépassée) */ }
+  });
+};
+const memOpen = p => p.waitForFunction(() => !document.querySelector('#fbMemList').hidden, null, { timeout: 5000 });
+const memRows = p => p.$$eval('#fbMemList [role="option"]', l => l.map(x => [x.querySelector('b').textContent, x.querySelector('small').textContent, x.getAttribute('aria-selected'), x.querySelector('img') ? x.querySelector('img').getAttribute('src') : x.querySelector('.fb-mem-av').textContent].join('|')));
+const memState = p => p.evaluate(() => { const c = document.querySelector('#fbContact'), ch = document.querySelector('.fb-mem');
+  return { value: c.value, expanded: c.getAttribute('aria-expanded'), active: c.getAttribute('aria-activedescendant'), list: !document.querySelector('#fbMemList').hidden, chip: ch.hidden ? '' : ch.querySelector('.fb-mem-n').textContent, hint: document.querySelector('#fbContactH').textContent, err: document.querySelector('.fb-err').hidden ? '' : document.querySelector('.fb-err').textContent }; });
+const HINT_MEM = 'Choisis ton pseudo dans la liste : tu seras mentionné dans le fil et notifié des réponses.';
+{ // propositions après 2 lettres, délai, réponse dépassée, clavier (flèches, Entrée, Échap), clic, puce, brouillon, member envoyé, texte modifié → choix annulé, ✕, mode streamer
+  const mem = { calls: [], next: [] };
+  const { p, ctx, fb } = await fbPage({ more: memRoutes(mem), ctx: { viewport: { width: 360, height: 780 } } });
+  await openMe(p); await mailClick(p, '.me-sheet [data-me="signaler"]'); await p.waitForSelector(FB_SHEET);
+  assert.deepEqual(await p.$eval('#fbContact', e => ['role', 'aria-autocomplete', 'aria-expanded', 'aria-controls'].map(a => e.getAttribute(a))), ['combobox', 'list', 'false', 'fbMemList'], 'combobox accessible');
+  assert.deepEqual(await p.$eval('#fbMemList', e => [e.getAttribute('role'), e.getAttribute('aria-label'), e.hidden]), ['listbox', 'Membres du serveur Discord', true]);
+  assert.equal((await memState(p)).hint, HINT_MEM, 'ligne d\'aide sous le champ');
+  await p.fill('#fbContact', 'B'); await p.waitForTimeout(500);
+  assert.deepEqual(mem.calls, [], '1 lettre : aucune recherche');
+  await p.type('#fbContact', 'ee'); await memOpen(p);
+  assert.deepEqual(mem.calls, ['Bee'], 'après 2 lettres, une recherche après le délai (pas une par frappe)');
+  assert.deepEqual(await memRows(p), ['Beer|@beergod_|false|' + AV1, 'beer|@beer|false|B', 'Fan|@beer_fan|false|F'], 'avatar rond (CDN de Discord) ou initiale, nom, @identifiant');
+  await p.waitForFunction(() => { const i = document.querySelector('#fbMemList img'); return i && i.complete && i.naturalWidth > 0; });
+  await p.$eval('#fbContact', e => e.scrollIntoView({ block: 'start', behavior: 'instant' })); await p.waitForTimeout(200); await p.screenshot({ path: 'shots/content-2c-membres.png' });
+  let st = await memState(p); assert.deepEqual([st.expanded, st.active], ['true', null]);
+  // réponse dépassée : la recherche « Beer » (lente) annulée par la frappe suivante, jamais affichée
+  mem.next.push({ delay: 900, json: { members: [{ id: '950000000000000777', name: 'Périmé', user: 'stale', avatar: '' }] } });
+  await p.type('#fbContact', 'r'); await p.waitForTimeout(400); await p.type('#fbContact', '_');
+  await p.waitForFunction(() => document.querySelectorAll('#fbMemList [role="option"]').length === 1, null, { timeout: 5000 });
+  await p.waitForTimeout(900);
+  assert.deepEqual(await memRows(p), ['Fan|@beer_fan|false|F'], 'seule la dernière recherche compte'); assert.deepEqual(mem.calls, ['Bee', 'Beer', 'Beer_']);
+  await p.keyboard.press('Backspace'); await p.waitForFunction(() => document.querySelectorAll('#fbMemList [role="option"]').length === 3, null, { timeout: 5000 });
+  // clavier
+  const act = async () => { const s2 = await memState(p); return [s2.active, (await memRows(p)).map(r => r.split('|')[2]).join()]; };
+  await p.keyboard.press('ArrowDown'); assert.deepEqual(await act(), ['fbMem0', 'true,false,false']);
+  await p.keyboard.press('ArrowDown'); assert.deepEqual(await act(), ['fbMem1', 'false,true,false']);
+  await p.keyboard.press('ArrowUp'); await p.keyboard.press('ArrowUp'); assert.deepEqual(await act(), ['fbMem2', 'false,false,true'], 'flèche vers le haut : de la première à la dernière');
+  await p.keyboard.press('ArrowDown'); assert.deepEqual(await act(), ['fbMem0', 'true,false,false'], 'et de la dernière à la première');
+  await p.keyboard.press('Escape'); st = await memState(p);
+  assert.deepEqual([st.list, st.expanded, !!(await p.$(FB_SHEET))], [false, 'false', true], 'Échap : la liste se ferme, la feuille reste');
+  await p.keyboard.press('Backspace'); await p.keyboard.type('r'); await memOpen(p);
+  await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter');
+  st = await memState(p);
+  assert.deepEqual([st.value, st.chip, st.list, st.expanded, !!(await p.$(FB_SHEET))], ['Beer', '@Beer', false, 'false', true], 'Entrée : membre choisi, nom dans le champ, puce « @Beer »');
+  assert.equal(await p.$eval('.fb-mem img', i => i.getAttribute('src')), AV1, 'puce : son avatar');
+  assert.equal(await p.$eval('.fb-mem-x', b => b.getAttribute('aria-label')), 'Retirer @Beer');
+  await p.screenshot({ path: 'shots/content-2c-puce.png' });
+  const nCalls = mem.calls.length; await p.waitForTimeout(400); assert.equal(mem.calls.length, nCalls, 'membre choisi : plus de recherche');
+  // 360 px : rien ne déborde (liste ouverte comprise)
+  const over = await p.evaluate(() => { const W = innerWidth, out = []; for (const e of document.querySelectorAll('.fb-sheet .sheet *')) { const r = e.getBoundingClientRect(); if (r.width && (r.right > W + 0.5 || r.left < -0.5)) out.push(e.className || e.tagName); } return out; });
+  assert.deepEqual(over, [], '360 px : puce dans l\'écran');
+  // brouillon : membre gardé (session comprise)
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.fb-sheet.open'));
+  assert.equal(await p.evaluate(() => JSON.parse(sessionStorage.getItem('deckdeal:fb')).member.id), MEMS[0].id, 'brouillon : membre dans la session');
+  await openMe(p); await mailClick(p, '.me-sheet [data-me="signaler"]'); await p.waitForSelector(FB_SHEET);
+  st = await memState(p); assert.deepEqual([st.value, st.chip], ['Beer', '@Beer'], 'rouverte : membre toujours choisi');
+  await p.fill('#fbTitle', 'Le scan bloque'); await p.fill('#fbText', 'Depuis la 1.0.11.'); await fbSend(p); await p.waitForSelector('.fb-sheet .fb-done');
+  let b = fb.calls.at(-1).body;
+  assert.deepEqual(Object.keys(b).sort(), ['area', 'contact', 'imgs', 'kind', 'member', 'meta', 'text', 'title']);
+  assert.deepEqual([b.member, b.contact], [MEMS[0].id, 'beergod_'], 'corps : member (id) et l\'identifiant en contact');
+  await closeSheets(p);
+  // clic sur une proposition, puis texte modifié → choix annulé (saisie libre envoyée en contact)
+  await openMe(p); await mailClick(p, '.me-sheet [data-me="signaler"]'); await p.waitForSelector(FB_SHEET);
+  assert.deepEqual([(await memState(p)).value, (await memState(p)).chip], ['', ''], 'après un envoi : rien de choisi');
+  await p.fill('#fbContact', 'fa'); await memOpen(p); assert.deepEqual(await memRows(p), ['Fan|@beer_fan|false|F']);
+  await p.click('#fbMemList [role="option"]'); st = await memState(p); assert.deepEqual([st.value, st.chip, st.list], ['Fan', '@Fan', false], 'clic : choisi');
+  assert.equal(await p.evaluate(() => document.activeElement.id), 'fbContact', 'le focus reste dans le champ');
+  await p.keyboard.press('End'); await p.keyboard.type('ny'); st = await memState(p);
+  assert.deepEqual([st.value, st.chip], ['Fanny', ''], 'texte modifié : choix annulé');
+  await p.waitForTimeout(500); assert.equal((await memState(p)).list, false, 'aucune proposition : la liste reste fermée');
+  await p.fill('#fbTitle', 'Autre avis'); await p.fill('#fbText', 'Texte libre.'); await fbSend(p); await p.waitForSelector('.fb-sheet .fb-done');
+  b = fb.calls.at(-1).body; assert.equal(b.member, undefined, 'choix annulé : pas de member'); assert.equal(b.contact, 'Fanny', 'saisie libre en contact');
+  await closeSheets(p);
+  // ✕ de la puce ; mode streamer : pas d'avatars des autres
+  await openMe(p); await mailClick(p, '.me-sheet [data-me="signaler"]'); await p.waitForSelector(FB_SHEET);
+  await p.evaluate(() => { window.__so = streamOn; window.streamOn = () => true; });
+  const nAv = mem.av || 0;
+  await p.fill('#fbContact', 'bee'); await memOpen(p);
+  assert.deepEqual(await memRows(p), ['Beer|@beergod_|false|B', 'beer|@beer|false|B', 'Fan|@beer_fan|false|F'], 'mode streamer : l\'initiale, jamais l\'avatar');
+  await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); assert.equal(await p.$('.fb-mem img'), null, 'puce sans avatar en mode streamer');
+  assert.equal(mem.av || 0, nAv, 'aucun avatar demandé au CDN');
+  await p.evaluate(() => { window.streamOn = window.__so; });
+  await p.click('.fb-mem-x'); st = await memState(p);
+  assert.deepEqual([st.value, st.chip], ['', ''], '✕ : choix retiré, champ vidé'); assert.equal(await p.evaluate(() => document.activeElement.id), 'fbContact');
+  assert.equal(await p.evaluate(() => JSON.parse(sessionStorage.getItem('deckdeal:fb')).member), null);
+  await ctx.close();
+}
+ok('pseudo Discord : membres proposés après 2 lettres et un délai (une recherche), réponse dépassée ignorée, avatar ou initiale, nom, @identifiant ; flèches, Entrée, Échap (la feuille reste), clic ; puce « @Beer » et ✕ ; brouillon ; member + identifiant envoyés ; texte modifié → choix annulé, saisie libre en contact ; mode streamer sans avatars ; 360 px');
+{ // recherche refusée (503 no_intent : intention « Server Members » absente) puis serveur sans la route (404) : texte libre, sans message ; hors ligne : aucune recherche
+  const mem = { calls: [], next: [{ status: 503, json: { error: 'no_intent', message: 'Recherche des membres indisponible' } }] };
+  const { p, ctx, fb } = await fbPage({ more: memRoutes(mem) });
+  await openMe(p); await mailClick(p, '.me-sheet [data-me="signaler"]'); await p.waitForSelector(FB_SHEET);
+  await p.fill('#fbContact', 'Be'); await p.waitForTimeout(700);
+  let st = await memState(p);
+  assert.deepEqual([st.list, st.err, st.hint], [false, '', 'Pour qu\'on puisse te recontacter.'], '503 : pas de liste ni de message, l\'aide d\'avant');
+  await p.type('#fbContact', 'er_libre'); await p.waitForTimeout(600); assert.deepEqual(mem.calls, ['Be'], 'recherche coupée pour la session');
+  await p.fill('#fbTitle', 'Sans liste'); await p.fill('#fbText', 'Texte.'); await fbSend(p); await p.waitForSelector('.fb-sheet .fb-done');
+  assert.deepEqual([fb.calls.at(-1).body.contact, fb.calls.at(-1).body.member], ['Beer_libre', undefined], 'saisie libre envoyée en contact');
+  await ctx.close();
+}
+{
+  const { p, ctx } = await fbPage({});      // pas de route simulée : le serveur des tests n'a pas de bot (404)
+  await openMe(p); await mailClick(p, '.me-sheet [data-me="signaler"]'); await p.waitForSelector(FB_SHEET);
+  await p.fill('#fbContact', 'Beer'); await p.waitForFunction(() => document.querySelector('#fbContactH').textContent === 'Pour qu\'on puisse te recontacter.', null, { timeout: 5000 });
+  assert.deepEqual([(await memState(p)).list, (await memState(p)).err], [false, ''], '404 : texte libre, sans message');
+  await ctx.close();
+}
+{
+  const mem = { calls: [], next: [] };
+  const { p, ctx } = await fbPage({ more: memRoutes(mem) });
+  await openMe(p); await mailClick(p, '.me-sheet [data-me="signaler"]'); await p.waitForSelector(FB_SHEET);
+  await ctx.setOffline(true); await p.fill('#fbContact', 'Beer'); await p.waitForTimeout(600);
+  assert.deepEqual([mem.calls, (await memState(p)).list, (await memState(p)).err], [[], false, ''], 'hors ligne : aucune recherche, texte libre');
+  await ctx.close();
+}
+ok('pseudo Discord : 503 (intention absente) et serveur sans la route (404) → texte libre envoyé en contact, aide d\'avant, aucun message ; hors ligne : aucune recherche');
+{ // anglais
+  const mem = { calls: [], next: [] };
+  const { p, ctx, fb } = await fbPage({ path: '?lang=en', more: memRoutes(mem) });
+  await openMe(p); await mailClick(p, '.me-sheet [data-me="signaler"]'); await p.waitForSelector(FB_SHEET);
+  assert.equal((await memState(p)).hint, 'Pick your username from the list: you\'ll be mentioned in the thread and notified of replies.');
+  assert.equal(await p.$eval('#fbMemList', e => e.getAttribute('aria-label')), 'Discord server members');
+  await p.fill('#fbContact', 'beer'); await memOpen(p); await p.click('#fbMemList [role="option"]:nth-child(2)');
+  assert.deepEqual([(await memState(p)).chip, await p.$eval('.fb-mem-x', b => b.getAttribute('aria-label'))], ['@beer', 'Remove @beer']);
+  await p.fill('#fbTitle', 'Dark mode'); await p.fill('#fbText', 'Please'); await fbSend(p); await p.waitForSelector('.fb-sheet .fb-done');
+  assert.deepEqual([fb.calls.at(-1).body.member, fb.calls.at(-1).body.contact], [MEMS[1].id, 'beer']);
+  await ctx.close();
+}
+ok('pseudo Discord en anglais : aide, liste, puce et ✕ traduits ; member envoyé');
 { // textes de l'avis (help.js) : traduits dans les 5 langues
   const { readFileSync, readdirSync } = await import('node:fs');
   const src = readFileSync('src/help.js', 'utf8'), keys = new Set();

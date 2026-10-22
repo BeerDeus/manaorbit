@@ -1,6 +1,7 @@
 // Mana Orbit — le bot Discord, côté serveur (aucune dépendance npm : fetch, FormData et Blob de Node 18+). Chargé par proxy.mjs (discordMake), testé par
 // tests/test-discord-srv.mjs (faux Discord HTTP, vrai proxy.mjs). Trois usages :
-//   · « Aide et avis » de l'appli : POST /api/feedback → un fil dans le forum #bugs, #idées ou #aide (étiquettes de la plateforme et de la partie de l'appli, captures en pièces jointes) ;
+//   · « Aide et avis » de l'appli : POST /api/feedback → un fil dans le forum #bugs, #idées ou #aide (étiquettes de la plateforme et de la partie de l'appli, captures en pièces jointes,
+//     « Signalé par @membre » quand le membre choisi dans l'appli est vérifié) ; GET /api/feedback/members?q= : membres dont le nom commence par q (intention « Server Members ») ;
 //   · panneau /admin : GET /api/admin/discord (salons, rôles, derniers envois), POST …/send (message de l'éditeur, pings de rôles, publication d'une annonce), POST …/delete ;
 //     modération des fils des forums bugs, idées, aide : GET …/threads (ouverts, fermés), GET …/thread (messages), POST …/thread (étiquettes, fermer, verrouiller,
 //     renommer), POST …/reply (réponse du bot, sans ping), POST …/thread-delete. Texte des messages des membres : seulement avec l'intention « Message Content »
@@ -11,7 +12,8 @@
 // Serveur Discord : DISCORD_GUILD_ID, sinon le seul serveur du bot. Salons et rôles relus au plus toutes les 5 min (tout de suite si un salon gardé n'existe plus) ;
 // salons trouvés par leur nom utile (« 🐞・bugs » → bugs, ou le nom exact d'un ancien serveur), accents et casse ignorés. Limite de débit (429) : attente de
 // retry_after (10 s au plus en tout, 4 essais) ; Discord en panne (5xx, réseau) : un nouvel essai. Jeton : seulement dans l'en-tête Authorization, jamais dans
-// un journal, une erreur ni une réponse. Mentions : jamais de ping venu d'un utilisateur (allowed_mentions vide) ; ceux de l'éditeur, exactement ceux demandés.
+// un journal, une erreur ni une réponse. Mentions : jamais de ping venu d'un utilisateur (allowed_mentions vide ; seul le membre vérifié d'un avis : users: [id]) ;
+// ceux de l'éditeur, exactement ceux demandés.
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 
@@ -55,7 +57,8 @@ export function dscRevealMsg(info) {
 
 /** Crée le bot. o : { token, guild (DISCORD_GUILD_ID, facultatif), api (DISCORD_API), off (DISCORD=0), dir (dossier de l'historique, ADMIN_DIR), fetch, now, sleep, log,
  *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, verify (jeton → { uid }), amTag, jpegSize, adminHeaders, feedbackPerH (10), actPerH (ADMIN_ACTIONS_PER_H),
- *  cacheMs (5 min), maxWaitMs (10 s), tries (4), retryMs (attente avant le nouvel essai d'une panne, 1 s), timeoutMs (15 s), threadListMs (liste des fils gardée, 30 s) }. */
+ *  cacheMs (5 min), maxWaitMs (10 s), tries (4), retryMs (attente avant le nouvel essai d'une panne, 1 s), timeoutMs (15 s), threadListMs (liste des fils gardée, 30 s),
+ *  membersPer (recherches de membres par 10 min et par réseau, 60), membersCacheMs (60 s), membersOffMs (pause après un refus d'intention, 5 min) }. */
 export function discordMake(o = {}) {
   const TOKEN = String(o.token || '').trim(), ON = !!TOKEN && !o.off, API = String(o.api || 'https://discord.com/api/v10').replace(/\/+$/, '');
   const fetchFn = o.fetch || globalThis.fetch, now = o.now || Date.now, sleep = o.sleep || (ms => new Promise(r => setTimeout(r, ms))), log = o.log || console;
@@ -180,15 +183,18 @@ export function discordMake(o = {}) {
       const dim = o.jpegSize ? o.jpegSize(img) : null; if (!dim || dim.w > 4096 || dim.h > 4096) return bad('bad_image', 'Capture JPEG attendue (4 096 px au plus de côté).');
       imgs.push(img);
     }
-    return { kind: b.kind, title, text, area: b.area, contact, meta, imgs };
+    const member = typeof b.member === 'string' && ID_RE.test(b.member) ? b.member : '';      // membre choisi dans la liste (id) ; mal formé : ignoré comme un inconnu
+    return { kind: b.kind, title, text, area: b.area, contact, meta, imgs, member };
   }
-  /** Message du fil : le texte, puis en petit la plateforme et la version, la langue, le pseudo de contact, le navigateur (2 000 caractères au plus en tout). */
+  /** Message du fil : le texte, « Signalé par <@id> » (membre vérifié : f.by), puis en petit la plateforme et la version, la langue, le pseudo de contact (sans membre),
+   *  le navigateur (2 000 caractères au plus en tout). */
   function feedbackText(f) {
     const m = f.meta, cut = (s, n) => (len(s) > n ? [...s].slice(0, n - 1).join('') + '…' : s);
     const head = [DSC_PLATS[m.plat] || '', m.v ? 'version ' + cut(m.v, 40) : '', m.apk ? 'APK ' + cut(m.apk, 40) : '', m.lang ? 'langue ' + cut(m.lang, 20) : ''].filter(Boolean).join(' · ');
-    const foot = [head, f.contact ? 'Contact Discord : ' + f.contact : '', m.nav || m.ua ? 'Navigateur : ' + cut(m.nav || m.ua, 200) : ''].filter(Boolean).map(s => '-# ' + md(s));
-    let out = f.text + (foot.length ? '\n\n' + foot.join('\n') : '');
-    while (out.length > 2000 && foot.length) { foot.pop(); out = f.text + (foot.length ? '\n\n' + foot.join('\n') : ''); }
+    const foot = [head, f.contact && !f.by ? 'Contact Discord : ' + f.contact : '', m.nav || m.ua ? 'Navigateur : ' + cut(m.nav || m.ua, 200) : ''].filter(Boolean).map(s => '-# ' + md(s));
+    const body = f.text + (f.by ? `\n\nSignalé par <@${f.by}>` : ''), all = () => body + (foot.length ? '\n\n' + foot.join('\n') : '');
+    let out = all();
+    while (out.length > 2000 && foot.length) { foot.pop(); out = all(); }
     return out;
   }
   async function feedback(req, res) {
@@ -217,7 +223,8 @@ export function discordMake(o = {}) {
       const tags = Array.isArray(c.available_tags) ? c.available_tags.filter(t => t && t.id && !t.moderated) : [], want = [DSC_PLATS[f.meta.plat], DSC_AREAS[f.area]].filter(Boolean).map(fold);
       let applied = tags.filter(t => want.includes(fold(t.name))).map(t => String(t.id));
       if (!applied.length && (c.flags & REQUIRE_TAG) && tags.length) applied = [String((tags.find(t => fold(t.name) === 'autre') || tags[0]).id)];      // forum qui exige une étiquette
-      const message = { content: feedbackText(f), allowed_mentions: { parse: [] }, flags: 4 };      // 4 : sans aperçu des liens écrits par l'utilisateur
+      f.by = await memberOk(d.gid, f.member);      // membre choisi dans l'appli, vérifié : mentionné (seul ping permis) ; sinon rien
+      const message = { content: feedbackText(f), allowed_mentions: f.by ? { parse: [], users: [f.by] } : { parse: [] }, flags: 4 };      // 4 : sans aperçu des liens écrits par l'utilisateur
       let form;
       if (f.imgs.length) {      // captures : multipart (payload_json + files[n])
         message.attachments = f.imgs.map((_, i) => ({ id: i, filename: `capture-${i + 1}.jpg` }));
@@ -226,12 +233,64 @@ export function discordMake(o = {}) {
       }
       const th = await post(c, `/channels/${c.id}/threads`, form ? undefined : { name: f.title, applied_tags: applied.slice(0, 5), message }, form);
       const id = String(th && th.id || '');
-      log.log(`Discord : avis (${f.kind}) publié dans #${dscName(c.name)}${f.imgs.length ? ', ' + f.imgs.length + ' capture' + (f.imgs.length > 1 ? 's' : '') : ''}.`);
+      log.log(`Discord : avis (${f.kind}) publié dans #${dscName(c.name)}${f.imgs.length ? ', ' + f.imgs.length + ' capture' + (f.imgs.length > 1 ? 's' : '') : ''}${f.by ? ', membre mentionné' : ''}.`);
       return json(res, 200, { ok: true, url: `https://discord.com/channels/${d.gid}/${id}`, id });
     } catch (e) {
       log.warn('Discord : avis non publié (' + e.message + ')');
       if (e.kind === 'limit') return json(res, 503, { error: 'unavailable', message: 'Discord est très demandé : réessaie dans une minute.' }, { 'Retry-After': String(e.retry || 60) });
       return down();
+    }
+  }
+
+  /* ── « Aide et avis » : membres du serveur (GET /api/feedback/members?q=) ──
+     Champ « Pseudo Discord » de l'appli : les membres dont le nom (surnom, nom affiché ou identifiant) ou l'identifiant commence par q (2 à 32 caractères ; casse et
+     accents ignorés), 5 au plus, sans les bots ; recherche de Discord (members/search, 10), puis filtre ici. Il faut l'intention « Server Members » (portail
+     Discord › Bot › Privileged Gateway Intents) : sans elle Discord refuse (403) → 503, une ligne de journal une seule fois, plus rien demandé pendant membersOffMs.
+     Budget par réseau (membersPer par 10 min, 60), réponse gardée membersCacheMs (60 s) par requête. Avatar : CDN de Discord, 64 px (membre, sinon utilisateur). */
+  const MEM_N = Number(o.membersPer ?? 60), MEM_CACHE = o.membersCacheMs ?? 60e3, MEM_OFF = o.membersOffMs ?? 5 * 60e3, HASH_RE = /^(a_)?[0-9a-f]{32}$/;
+  const MEM = { hit: new Map(), off: 0, warned: false };
+  const noIntent = e => e && e.kind === 'refused' && (e.status === 403 || e.code === 50001 || e.code === 50013);
+  /** Membre de Discord (objet guild member) → { id, name, user, avatar } ; null pour un bot ou un membre illisible. */
+  function memberOut(m, gid) {
+    const u = m && m.user; if (!u || u.bot || !ID_RE.test(String(u.id || ''))) return null;
+    const id = String(u.id), user = line(u.username || '').slice(0, 40), name = line(m.nick || u.global_name || u.username || '').slice(0, 80);
+    const avatar = HASH_RE.test(String(m.avatar || '')) ? `https://cdn.discordapp.com/guilds/${gid}/users/${id}/avatars/${m.avatar}.png?size=64`
+      : HASH_RE.test(String(u.avatar || '')) ? `https://cdn.discordapp.com/avatars/${id}/${u.avatar}.png?size=64` : '';
+    return user || name ? { id, name: name || user, user, avatar } : null;
+  }
+  /** L'id est-il celui d'un membre du serveur (pas un bot) ? → l'id, sinon '' (inconnu, parti, Discord muet : l'avis part sans mention). */
+  async function memberOk(gid, id) {
+    if (!id || id === G.me) return '';
+    try { const m = await call('GET', `/guilds/${gid}/members/${id}`); return memberOut(m, gid) && String(m.user.id) === id ? id : ''; }
+    catch (e) { if (!(e.kind === 'refused' && (e.status === 404 || e.code === 10007 || e.code === 10013))) log.warn('Discord : membre de l\'avis non vérifié (' + e.message + '), avis sans mention'); return ''; }
+  }
+  async function members(req, res, url) {
+    if (!ON) return json(res, 404, { error: 'not_found' });
+    if (req.method !== 'GET') return json(res, 405, { error: 'method_not_allowed' });
+    const q = line(url.searchParams.get('q') || ''), n = len(q);
+    if (n < 2 || n > 32) return json(res, 400, { error: 'bad_query', message: 'Recherche : 2 à 32 caractères.' });
+    const w = rateWait(req, 'fbmembers', MEM_N, 600e3); if (w) return json(res, 429, { error: 'rate_limited', message: 'Trop de recherches depuis ce réseau : réessaie dans quelques minutes.', retry: w }, { 'Retry-After': String(w) });
+    const off = () => json(res, 503, { error: 'no_intent', message: 'Recherche des membres indisponible : l\'intention « Server Members » du bot n\'est pas activée sur le portail Discord.' }, { 'Retry-After': String(Math.ceil(MEM_OFF / 1000)) });
+    if (MEM.off && now() - MEM.off < MEM_OFF) return off();
+    const key = q.toLowerCase(), hit = MEM.hit.get(key);
+    if (hit && now() - hit.at < MEM_CACHE) return json(res, 200, { members: hit.members });
+    const want = fold(q);
+    try {
+      const g = await guild(), list = await call('GET', `/guilds/${g.id}/members/search?query=${encodeURIComponent(q)}&limit=10`);
+      MEM.off = 0; MEM.warned = false;
+      const out = [];
+      for (const m of Array.isArray(list) ? list : []) {
+        const x = memberOut(m, g.id); if (!x || out.some(y => y.id === x.id)) continue;
+        if (fold(x.name).startsWith(want) || fold(x.user).startsWith(want)) out.push(x);
+        if (out.length >= 5) break;
+      }
+      if (MEM.hit.size >= 500) for (const [k, v] of MEM.hit) if (now() - v.at >= MEM_CACHE || MEM.hit.size >= 500) MEM.hit.delete(k);
+      MEM.hit.set(key, { at: now(), members: out });
+      return json(res, 200, { members: out });
+    } catch (e) {
+      if (noIntent(e)) { MEM.off = now(); if (!MEM.warned) { MEM.warned = true; log.warn('Discord : recherche des membres refusée (' + e.message + ') : cocher « Server Members Intent » sur le portail Discord (Bot › Privileged Gateway Intents)'); } return off(); }
+      if (e.kind === 'limit') return json(res, 503, { error: 'unavailable', message: 'Discord est très demandé : réessaie dans une minute.' }, { 'Retry-After': String(e.retry || 60) });
+      return json(res, 503, { error: 'unavailable', message: e.kind === 'setup' ? e.message : 'Discord est injoignable pour le moment : réessaie plus tard.' }, { 'Retry-After': '60' });
     }
   }
 
@@ -606,5 +665,5 @@ export function discordMake(o = {}) {
   function start() { if (ON && typeof WS === 'function' && o.presence !== false && !GW.ws && !GW.wait) { GW.stop = false; gwOpen(); } }
   function stop() { GW.stop = true; gwClear(); clearTimeout(GW.wait); GW.wait = null; const ws = GW.ws; GW.ws = null; if (ws) { try { ws.close(1000); } catch (e) { /* déjà fermée */ } } }
 
-  return { on: ON, feedback, admin, reveal, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
+  return { on: ON, feedback, members, admin, reveal, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
 }

@@ -2927,7 +2927,8 @@ async function srAdmin(req, res, sub, url) {
 
 /* ── Bot Discord (discord-srv.mjs) ───────────────────────────────────────────────────────────────────────────────────────────────────
    Un bot permanent sur le serveur Discord de Mana Orbit (README › « Bot Discord ») : « Aide et avis » de l'appli (POST /api/feedback → un fil dans #bugs, #idées ou #aide,
-   captures en pièces jointes ; sans compte exigé ; FEEDBACK_PER_H par heure et par réseau, autant par compte), messages de l'éditeur depuis /admin
+   captures en pièces jointes, « Signalé par @membre » ; sans compte exigé ; FEEDBACK_PER_H par heure et par réseau, autant par compte ; GET /api/feedback/members : membres
+   dont le nom commence par les lettres tapées, 60 par 10 min et par réseau, intention « Server Members » du bot), messages de l'éditeur depuis /admin
    (/api/admin/discord… ; historique : ADMIN_DIR/discord.json) et modération des fils des forums (…/threads, …/thread, …/reply, …/thread-delete), Carte mystère de la veille dans #carte-mystère (daily-srv.mjs › reveal). DISCORD_BOT_TOKEN : jeton du bot
    (jamais affiché ni écrit dans un journal ; absent : tout est coupé, /__ping feedback: false, l'appli garde le courriel) ; DISCORD_GUILD_ID : facultatif (sinon le seul
    serveur du bot) ; DISCORD_API : autre adresse de l'API (tests) ; DISCORD=0 : coupé ; DISCORD_PRESENCE=0 : pas de statut « En ligne » (passerelle). */
@@ -2989,6 +2990,7 @@ async function api(req, res, url) {
   if (path === 'testeurs') return testersApi(req, res);      // inscription au test fermé (page /testeurs), ouverte à tous, bornée
   if (path === 'scan-report') return scanReportApi(req, res);      // « Signaler un problème de scan » : photo et lecture envoyées par l'utilisateur, sans compte exigé, bornées
   if (path === 'feedback') return DSC ? DSC.feedback(req, res) : json(res, 404, { error: 'not_found' });      // « Aide et avis » : un fil sur le Discord (bot), sans compte exigé, borné
+  if (path === 'feedback/members') return DSC ? DSC.members(req, res, url) : json(res, 404, { error: 'not_found' });      // champ « Pseudo Discord » de l'avis : membres du serveur (intention Server Members), borné
   if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
   if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège
   if (path === 'partie' || path.startsWith('partie/')) return partieApi(req, res, path, url);      // partie de Commander : salle d'attente (jeton Firebase, ou invité sans compte), résultats des comptes

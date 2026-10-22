@@ -24,6 +24,8 @@
   "3 au plus, réduites avant l'envoi.": "3 at most, resized before sending.",
   "Pseudo Discord (facultatif)": "Discord username (optional)",
   "Pour qu'on puisse te recontacter.": "So we can get back to you.",
+  "Choisis ton pseudo dans la liste : tu seras mentionné dans le fil et notifié des réponses.": "Pick your username from the list: you'll be mentioned in the thread and notified of replies.",
+  "Membres du serveur Discord": "Discord server members",
   "Envoyé avec ton message : la version de Mana Orbit, la plateforme, la langue et le navigateur ; jamais ta collection. Ton message sera public sur le Discord de Mana Orbit.": "Sent with your message: the Mana Orbit version, platform, language and browser; never your collection. Your message will be public on the Mana Orbit Discord.",
   "Capture {n}": "Screenshot {n}",
   "Retirer la capture {n}": "Remove screenshot {n}",

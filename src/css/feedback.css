@@ -1,5 +1,5 @@
 /* ── feedback.css : feuille « Envoyer un avis » par le Discord (help.js › fbOpen) ──
-   Type, partie, titre, description (compteur), captures en vignettes (✕), pseudo Discord ; « Merci ! » avec les liens Discord. Couleurs du thème (clair et sombre). */
+   Type, partie, titre, description (compteur), captures en vignettes (✕), pseudo Discord (liste des membres du serveur, puce du membre choisi) ; « Merci ! » avec les liens Discord. Couleurs du thème (clair et sombre). */
 .fb{display:flex;flex-direction:column;gap:14px}
 .fb-kind{--n:3}
 .fb-lh{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
@@ -34,6 +34,25 @@
 .fb-links{display:flex;flex-direction:column;gap:8px;width:100%;max-width:320px;margin-top:6px}
 .fb-links .btn{text-decoration:none}
 #helpBox a[data-help="discord"]{text-decoration:none}
-/* mode streamer : ni le pseudo ni les captures lisibles à l'écran (sauf pendant la saisie du pseudo) */
-html.streamer .fb-contact:not(:focus),html.streamer .fb-th img{filter:blur(6px)}
+/* pseudo Discord : liste des membres du serveur (combobox) sous le champ, puce du membre choisi */
+.fb-ac{position:relative}
+.fb-mems{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:3;list-style:none;margin:0;padding:4px;border-radius:12px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);max-height:min(40vh,260px);overflow-y:auto}
+.fb-mems[hidden]{display:none}
+.fb-mem-o{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 8px;border-radius:9px;cursor:pointer}
+.fb-mem-o[aria-selected="true"]{background:var(--accent-soft)}
+@media (hover:hover){.fb-mem-o:hover{background:var(--accent-soft)}}
+.fb-mem-av{position:relative;flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;overflow:hidden;background:var(--surface-2);color:var(--ink-2);font-size:13px;font-weight:700}
+.fb-mem-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.fb-mem-t{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+.fb-mem-t b,.fb-mem-t small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fb-mem-t b{font-weight:600}
+.fb-mem-t small{color:var(--ink-3);font-size:12px}
+.fb-mem{display:flex;align-items:center;gap:8px;width:fit-content;max-width:100%;padding:3px 2px 3px 4px;border-radius:999px;background:var(--accent-soft);font-weight:600;font-size:14px}
+.fb-mem[hidden]{display:none}
+.fb-mem-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fb-mem-x{flex:none;display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--ink-2)}
+.fb-mem-x .i{width:15px;height:15px}
+.fb-mem-x:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+/* mode streamer : ni le pseudo ni les captures lisibles à l'écran (sauf pendant la saisie du pseudo) ; pas d'avatars des autres (help.js : l'initiale) */
+html.streamer .fb-contact:not(:focus),html.streamer .fb-mem-n,html.streamer .fb-th img{filter:blur(6px)}
 @media (prefers-reduced-motion:reduce){.fb-th.busy::after{animation-duration:2.4s}}
