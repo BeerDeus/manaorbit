@@ -1,5 +1,4 @@
 {
-  "Les réponses aux questions courantes. Un bug, une idée, une question ? Envoie-nous un avis : il arrive sur le Discord de Mana Orbit, avec la version de l'appli déjà notée.": "Answers to common questions. A bug, an idea, a question? Send us feedback: it goes to the Mana Orbit Discord, with your app version already filled in.",
   "Rejoindre le Discord": "Join the Discord",
   "Hors ligne : ton avis n'est pas parti. Réessaie une fois connecté, ton message est gardé.": "Offline: your feedback was not sent. Try again once you're connected, your message is kept.",
   "Serveur injoignable : ton avis n'est pas parti. Réessaie plus tard, ton message est gardé.": "Server unreachable: your feedback was not sent. Try again later, your message is kept.",
@@ -17,7 +16,6 @@
   "Ta question, le plus précisément possible : ce que tu cherches à faire, où tu bloques.": "Your question, as precisely as possible: what you're trying to do, where you're stuck.",
   "Par exemple : le scan ne lit pas les cartes japonaises": "For example: the scan doesn't read Japanese cards",
   "Étapes : ce que tu as fait.\nAttendu : ce qui devait se passer.\nObtenu : ce qui s'est passé à la place.": "Steps: what you did.\nExpected: what should have happened.\nActual: what happened instead.",
-  "Il arrive sur le Discord de Mana Orbit": "It goes to the Mana Orbit Discord",
   "Partie de l'appli": "Part of the app",
   "Titre": "Title",
   "Description": "Description",
@@ -45,5 +43,10 @@
   "Idée": "Idea",
   "Question": "Question",
   "Compte et synchro": "Account and sync",
-  "Alertes": "Alerts"
+  "Alertes": "Alerts",
+  "Signaler un bug ou une idée": "Report a bug or idea",
+  "Laisser un avis sur Google Play": "Leave a review on Google Play",
+  "Les réponses aux questions courantes. Un bug, une idée, une question ? Dis-le-nous : ça arrive sur le Discord de Mana Orbit, avec la version de l'appli déjà notée.": "Answers to common questions. A bug, an idea, a question? Tell us: it goes to the Mana Orbit Discord, with your app version already filled in.",
+  "Un avis sur l'appli ? Laisse-le sur Google Play, il aide d'autres joueurs à la trouver.": "Thoughts on the app? Leave a review on Google Play, it helps other players find it.",
+  "Ton message arrive sur le Discord de Mana Orbit": "Your message goes to the Mana Orbit Discord"
 }

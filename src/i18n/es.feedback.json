@@ -1,5 +1,4 @@
 {
-  "Les réponses aux questions courantes. Un bug, une idée, une question ? Envoie-nous un avis : il arrive sur le Discord de Mana Orbit, avec la version de l'appli déjà notée.": "Respuestas a las preguntas frecuentes. ¿Un error, una idea, una pregunta? Envíanos tu opinión: llega al Discord de Mana Orbit, con la versión de la app ya indicada.",
   "Rejoindre le Discord": "Unirse al Discord",
   "Hors ligne : ton avis n'est pas parti. Réessaie une fois connecté, ton message est gardé.": "Sin conexión: tu opinión no se ha enviado. Vuelve a intentarlo cuando tengas conexión, tu mensaje se conserva.",
   "Serveur injoignable : ton avis n'est pas parti. Réessaie plus tard, ton message est gardé.": "Servidor inaccesible: tu opinión no se ha enviado. Vuelve a intentarlo más tarde, tu mensaje se conserva.",
@@ -17,7 +16,6 @@
   "Ta question, le plus précisément possible : ce que tu cherches à faire, où tu bloques.": "Tu pregunta, lo más precisa posible: lo que intentas hacer, dónde te atascas.",
   "Par exemple : le scan ne lit pas les cartes japonaises": "Por ejemplo: el escaneo no lee las cartas japonesas",
   "Étapes : ce que tu as fait.\nAttendu : ce qui devait se passer.\nObtenu : ce qui s'est passé à la place.": "Pasos: lo que hiciste.\nEsperado: lo que debía pasar.\nObtenido: lo que pasó en su lugar.",
-  "Il arrive sur le Discord de Mana Orbit": "Llega al Discord de Mana Orbit",
   "Partie de l'appli": "Parte de la app",
   "Titre": "Título",
   "Description": "Descripción",
@@ -45,5 +43,10 @@
   "Idée": "Idea",
   "Question": "Pregunta",
   "Compte et synchro": "Cuenta y sincronización",
-  "Alertes": "Alertas"
+  "Alertes": "Alertas",
+  "Signaler un bug ou une idée": "Informar de un error o una idea",
+  "Laisser un avis sur Google Play": "Dejar una reseña en Google Play",
+  "Les réponses aux questions courantes. Un bug, une idée, une question ? Dis-le-nous : ça arrive sur le Discord de Mana Orbit, avec la version de l'appli déjà notée.": "Respuestas a las preguntas frecuentes. ¿Un error, una idea, una pregunta? Cuéntanoslo: llega al Discord de Mana Orbit, con la versión de la app ya indicada.",
+  "Un avis sur l'appli ? Laisse-le sur Google Play, il aide d'autres joueurs à la trouver.": "¿Una opinión sobre la app? Déjala en Google Play, ayuda a otros jugadores a encontrarla.",
+  "Ton message arrive sur le Discord de Mana Orbit": "Tu mensaje llega al Discord de Mana Orbit"
 }

@@ -77,7 +77,9 @@ const SCREENS_ALL = [
   ['reglages-appli', () => setAppSheet(), '.sheet-wrap.open'],
   ['reglages-confidentialite', () => setConfSheet(), '.sheet-wrap.open'],
   ['aide', () => setHelpSheet(), '.sheet-wrap.open #helpBox'],
+  ['aide-comment', () => openHelp(), '.sheet-wrap.open.hp-sheet .sheet-foot [data-help="report"]'],      // « Comment ça marche », « Signaler un bug ou une idée » en pied
   ['aide-avis', () => { CTX.feedback = true; fbOpen(); }, '.sheet-wrap.open .fb'],      // avis par le Discord (help.js) : le serveur des tests n'a pas de bot, la feuille est ouverte côté client
+  ['compte-signaler', () => { CTX.feedback = true; openSettings(); }, '.sheet-wrap.open .fb', { click: '.me-sheet [data-me="signaler"]' }],      // ligne « Signaler un bug ou une idée » du menu Compte → la fenêtre d'avis
   ['carte-mystere', () => { CTX.daily = true; dlyOpen(); }, '.sheet-wrap.open, .dv.dly.on'],      // sans compte : la feuille qui propose de se connecter (le serveur des tests n'allume pas la carte : forcée côté client)
   ['ouverture', () => opnEntry(), '.sheet-wrap.open'],
   ['amis', () => amSheet(), '.sheet-wrap.open'],
