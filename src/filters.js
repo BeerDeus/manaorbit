@@ -82,7 +82,8 @@ function fsetSheet(list, cur, onPick, sub) {
     const row = (c, name, sub, n, ic) => `<button type="button" class="fs-row" role="radio" data-c="${esc(c)}" aria-checked="${c === cur}"><span class="fs-ic">${ic || ''}</span><span class="fs-n"><b>${esc(name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span>${n ? `<em>${nf0(n)}</em>` : ''}</button>`;
     const paint = () => {
       const q = inp.value.trim(), hit = c => !q || (typeof edHit === 'function' ? edHit({ sn: (typeof setName === 'function' && setName(c)) || '', set: c, y: (typeof setDate === 'function' ? setDate(c) : '').slice(0, 4), num: '' }, q) : c.includes(q.toLowerCase()));
-      const sets = rows.filter(([c]) => c !== '-' && hit(c));
+      const sd = c => (typeof setDate === 'function' ? setDate(c) : ''), sn = (c, n) => (typeof setName === 'function' && setName(c)) || n || c;
+      const sets = rows.filter(([c]) => c !== '-' && hit(c)).sort((a, b) => sd(b[0]).localeCompare(sd(a[0])) || sn(a[0], a[1]).localeCompare(sn(b[0], b[1])));      // retriées à chaque repeint : dates des extensions arrivées après l'ouverture (setIcLoad)
       box.innerHTML = (q ? '' : row('', T('Toutes les extensions'), '', all, '<i class="fs-all" aria-hidden="true"></i>') + (rows.some(x => x[0] === '-') ? row('-', T('Sans édition'), '', (rows.find(x => x[0] === '-') || [])[2], '<i class="fs-none" aria-hidden="true"></i>') : ''))
         + sets.map(([c, n, k]) => { const y = typeof setDate === 'function' ? setDate(c).slice(0, 4) : ''; return row(c, (typeof setName === 'function' && setName(c)) || n || c.toUpperCase(), [c.toUpperCase(), y].filter(Boolean).join(' · '), k, typeof setIcHtml === 'function' ? setIcHtml(c) : ''); }).join('')
         + (q && !sets.length ? `<p class="hint listempty">${T('Aucune extension ne correspond.')}</p>` : '');
