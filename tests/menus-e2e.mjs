@@ -77,6 +77,7 @@ const SCREENS_ALL = [
   ['reglages-appli', () => setAppSheet(), '.sheet-wrap.open'],
   ['reglages-confidentialite', () => setConfSheet(), '.sheet-wrap.open'],
   ['aide', () => setHelpSheet(), '.sheet-wrap.open #helpBox'],
+  ['aide-avis', () => { CTX.feedback = true; fbOpen(); }, '.sheet-wrap.open .fb'],      // avis par le Discord (help.js) : le serveur des tests n'a pas de bot, la feuille est ouverte côté client
   ['carte-mystere', () => { CTX.daily = true; dlyOpen(); }, '.sheet-wrap.open, .dv.dly.on'],      // sans compte : la feuille qui propose de se connecter (le serveur des tests n'allume pas la carte : forcée côté client)
   ['ouverture', () => opnEntry(), '.sheet-wrap.open'],
   ['amis', () => amSheet(), '.sheet-wrap.open'],

@@ -1,15 +1,24 @@
-/* ── help.js : aide « Comment ça marche », avis, demande de note ──────────────────────────────────────────────────────
-   · Réglages › « Aide et avis » (helpSettings, emplacement #helpBox) : l'aide, « Envoyer un avis » (e-mail prérempli), « Noter » (appli Android).
+/* ── help.js : aide « Comment ça marche », avis (Discord ou e-mail), demande de note ──────────────────────────────────────────────────────
+   · Réglages › « Aide et avis » (helpSettings, emplacement #helpBox) : l'aide, « Envoyer un avis », « Rejoindre le Discord » (DISCORD_URL), « Noter » (appli Android).
    · Aide : questions courantes, réponses courtes, d'après ce que fait vraiment le code (prix, ajout de cartes, venir de ManaBox (guide de switch.js),
      valeur, decks EDHREC, échange, amis, compte, notifications, effacement). Ouverte aussi par « Comment ça marche ? » en bas de l'accueil.
      En tête, « Visite guidée » (tour.js, s'il est là), aussi dans « Aide et avis ».
-   · Avis : mailto avec la version, la plateforme, la langue et le navigateur (pour reproduire un bug) ; jamais la collection.
+   · Avis (« Envoyer un avis » des réglages et du pied de l'aide) : serveur avec le bot Discord (/__ping feedback → CTX.feedback) et réseau là : feuille
+     « Envoyer un avis » (fbOpen) → POST api/feedback (proxy.mjs), qui ouvre un fil public dans le forum #bugs, #idées ou #aide du Discord de Mana Orbit.
+     Type (bug, idée, question), partie de l'appli (étiquette du forum), titre (3 à 90), description (1 500 caractères, 30 lignes), 3 captures au plus
+     (réduites ici : JPEG 1 600 px de côté, qualité 0,82, plus petites au-delà de 1,5 Mo), pseudo Discord facultatif pour être recontacté ; part avec :
+     version, plateforme, version de l'APK, langue, navigateur (jamais la collection) ; connecté : jeton Firebase (le serveur n'en garde qu'une empreinte, budget).
+     Brouillon gardé à la fermeture (mémoire, textes aussi dans sessionStorage), vidé après un envoi réussi ; « Merci ! » : « Voir sur Discord » (le fil),
+     « Rejoindre le serveur ». Serveur ancien (pas de feedback), hors ligne, ou 404 (bot coupé : CTX.feedback = false) : mailto comme avant.
+   · Avis par e-mail (repli) : mailto avec la version, la plateforme, la langue et le navigateur (pour reproduire un bug) ; jamais la collection.
    · Note : demande neutre (« Noter » / « Plus tard », aucune question sur l'avis avant : Google interdit de trier les gens selon leur réponse),
      seulement dans l'appli Android, après un bon moment (5 cartes ou plus ajoutées d'un scan, un deck enregistré qui devient complet),
      si l'appli sert depuis au moins 4 jours et qu'aucune erreur n'a eu lieu pendant la session ; au plus une fois tous les 120 jours, 3 fois en tout,
      plus jamais après « Noter ». Entièrement coupée tant que RATE_ASK est faux. APK 1.0.6 et plus : au même moment et dans les mêmes limites, la carte de note
      de Google Play s'ouvre dans l'appli (In-App Review, ManaOrbit.requestReview, neutre elle aussi) au lieu de notre feuille ; jamais depuis un bouton (Google le
      déconseille : son quota peut être atteint, rien ne s'afficherait) : « Noter sur le Play Store » des réglages reste un lien vers la fiche. */
+/** Invitation permanente du serveur Discord de Mana Orbit : « Rejoindre le Discord » des réglages, « Rejoindre le serveur » après un avis envoyé. */
+const DISCORD_URL = 'https://discord.gg/TTwrP94agb';
 /** Fiche Play Store de l'appli, seule adresse du Play Store dans le code : bouton « Noter », lien « L'installer » et repli du bouton « Ouvrir dans l'appli »
  *  de la barre du navigateur Android (applink.js). À remplacer au besoin (lien d'inscription au test, autre fiche). */
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=app.manaorbit';
@@ -37,12 +46,13 @@ const HELP_QA = [
 
 /** Typographie française à l'affichage : espace insécable avant « ; : ? ! » et dans les guillemets (jamais un « ; » seul en début de ligne). Sans effet en anglais. */
 const helpNb = s => String(s).replace(/ ([;:!?»])/g, '\u00a0$1').replace(/« /g, '«\u00a0');
-/** Lien « Envoyer un avis » : objet fixe, corps prérempli (une place pour le message, puis de quoi reproduire un bug). apk : version de l'appli Android, lue à part. */
-function feedbackHref(apk) {
+/** Lien « Envoyer un avis » : objet fixe, corps prérempli (une place pour le message, puis de quoi reproduire un bug). apk : version de l'appli Android, lue à part ;
+ *  pre : message déjà écrit (feuille d'avis, envoi par le Discord coupé), mis à la place des lignes vides. */
+function feedbackHref(apk, pre) {
   const nat = typeof isNativeApp === 'function' && isNativeApp();
   let web = T('web');
   try { if (!nat && PWA.state() === 'standalone') web = T('web, application installée'); } catch (e) { /* PWA indisponible */ }
-  const body = ['', '', '', '———', T('Ces informations aident à reproduire un bug. Ta collection n\'est pas envoyée.'),
+  const body = [...(pre ? [String(pre).replace(/\r?\n/g, '\r\n'), ''] : ['', '', '']), '———', T('Ces informations aident à reproduire un bug. Ta collection n\'est pas envoyée.'),
     T('Version : {v}', { v: typeof DD_BUILD === 'string' ? DD_BUILD : 'dev' }),
     T('Plateforme : {p}', { p: nat ? T('appli Android') + (apk ? ' ' + apk : '') : web }),
     T('Langue : {l}', { l: I18N.lang + ' (' + I18N.nav + ')' }),
@@ -56,15 +66,22 @@ function helpApk() {
   return helpApkP;
 }
 /** Liens d'avis d'un bloc : complétés par la version de l'APK dès qu'elle est connue. */
-function helpMailLinks(root) { helpApk().then(v => { if (v) $$('a[data-help="mail"]', root).forEach(a => { a.href = feedbackHref(v); }); }); $$('a[data-help="mail"]', root).forEach(a => a.addEventListener('click', () => { if (typeof prgAdd === 'function') prgAdd('fb'); })); }      // avis envoyé : badge « Voix du peuple » (progress.js)
+/** Serveur avec le bot Discord (CTX.feedback) et réseau là : la feuille d'avis (fbOpen) au lieu du mailto ; sinon le mailto, et le badge « Voix du peuple » (progress.js). */
+function helpMailLinks(root) {
+  helpApk().then(v => { if (v) $$('a[data-help="mail"]', root).forEach(a => { a.href = feedbackHref(v); }); });
+  $$('a[data-help="mail"]', root).forEach(a => a.addEventListener('click', e => {
+    if (fbOn()) { e.preventDefault(); haptic('tap'); fbOpen(); return; }
+    if (typeof prgAdd === 'function') prgAdd('fb');
+  }));
+}
 
 /** Réglages › « Aide et avis ». */
 function helpSettings(el, own) {      // own : dans sa propre fiche « Aide et avis » (le titre y est déjà)
   if (!el) return;
   const rate = RATE.url && isNativeApp();
   el.innerHTML = `${own ? '' : `<div class="sec-title">${T('Aide et avis')}</div>`}
-    <div class="installbox"><p class="hint">${helpNb(T('Les réponses aux questions courantes. Un bug, une idée ? Écris-nous : ton appli mail s\'ouvre avec la version de Mana Orbit déjà notée.'))}</p>
-      <div class="cart-actions"><button class="btn ghost small" type="button" data-help="open">${T('Comment ça marche')}</button>${typeof tourHelpBtn === 'function' ? tourHelpBtn() : ''}<a class="btn ghost small" data-help="mail" href="${esc(feedbackHref())}">${T('Envoyer un avis')}</a>${rate ? `<a class="btn ghost small" data-help="rate" href="${esc(RATE.url)}" target="_blank" rel="noopener">${T('Noter sur le Play Store')}</a>` : ''}</div>
+    <div class="installbox"><p class="hint">${helpNb(fbOn() ? T('Les réponses aux questions courantes. Un bug, une idée, une question ? Envoie-nous un avis : il arrive sur le Discord de Mana Orbit, avec la version de l\'appli déjà notée.') : T('Les réponses aux questions courantes. Un bug, une idée ? Écris-nous : ton appli mail s\'ouvre avec la version de Mana Orbit déjà notée.'))}</p>
+      <div class="cart-actions"><button class="btn ghost small" type="button" data-help="open">${T('Comment ça marche')}</button>${typeof tourHelpBtn === 'function' ? tourHelpBtn() : ''}<a class="btn ghost small" data-help="mail" href="${esc(feedbackHref())}">${T('Envoyer un avis')}</a><a class="btn ghost small" data-help="discord" href="${esc(DISCORD_URL)}" target="_blank" rel="noopener">${T('Rejoindre le Discord')}</a>${rate ? `<a class="btn ghost small" data-help="rate" href="${esc(RATE.url)}" target="_blank" rel="noopener">${T('Noter sur le Play Store')}</a>` : ''}</div>
       <p class="hint hp-mail">${T('Ou écris à {mail}', { mail: `<span>${HELP_MAIL}</span>` })}</p></div>`;
   $('[data-help="open"]', el).onclick = () => { haptic('tap'); openHelp(); };
   const tb = $('[data-help="tour"]', el); if (tb) tb.onclick = () => { haptic('tap'); tourStart({ from: 'settings' }); };      // visite guidée (tour.js)
@@ -83,6 +100,194 @@ function openHelp() {
     api.body.addEventListener('click', e => { if (e.target.closest('[data-help="switch"]')) { haptic('tap'); swgOpen({ from: 'help' }); } else if (e.target.closest('[data-help="tour"]')) { haptic('tap'); tourStart({ from: 'help' }); } });      // « Visite guidée » (tour.js), en tête      // « Je viens de ManaBox » : le guide (switch.js), par-dessus l'aide
     helpMailLinks(api.foot);
   });
+}
+
+/* ── Avis par le Discord (CTX.feedback) : feuille « Envoyer un avis » → POST api/feedback ─────────────────────────────────────────── */
+/** Types (kind du serveur → forum #bugs, #idées, #aide) et parties de l'appli (area → étiquette du forum, tools/discord-setup.mjs) : valeur envoyée, libellé. */
+const FB_KINDS = [['bug', 'Bug'], ['idea', 'Idée'], ['help', 'Question']];
+const FB_AREAS = [['scan', 'Scan'], ['collection', 'Collection'], ['decks', 'Decks'], ['prix', 'Prix'], ['compte', 'Compte et synchro'], ['alertes', 'Alertes'],
+  ['echange', 'Échange'], ['partie', 'Partie'], ['mystere', 'Carte mystère'], ['amis', 'Amis'], ['autre', 'Autre']];
+/** Bornes du contrat (proxy.mjs › /api/feedback) ; side, q, bytes : taille, qualité et poids des captures ; draft : brouillon de la session (captures comprises). */
+const FB = { max: 3, side: 1600, q: 0.82, bytes: 1.5 * 1024 * 1024, title: 90, text: 1500, lines: 30, contact: 60, key: 'deckdeal:fb', draft: null };
+/** La feuille remplace-t-elle le mailto ? Serveur qui l'annonce (/__ping feedback) et réseau là (hors ligne : le mailto, qui partira plus tard). */
+const fbOn = () => typeof CTX !== 'undefined' && CTX.feedback === true && !collOffline();
+/** Titre, pseudo : caractères de contrôle retirés, espaces resserrés (comme le serveur). Description : sauts de ligne gardés, 2 lignes vides de suite au plus. */
+const fbLine = s => String(s || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+const fbBody = s => String(s || '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+const fbPick = (v, list) => (list.some(([k]) => k === v) ? v : list[list.length - 1][0]);
+/** Brouillon : en mémoire (captures comprises) ; type, partie et textes aussi dans sessionStorage (rechargement de la page). */
+function fbDraft() {
+  if (FB.draft) return FB.draft;
+  let o = null; try { o = JSON.parse(sessionStorage.getItem(FB.key) || 'null'); } catch (e) { o = null; }
+  o = o && typeof o === 'object' ? o : {};
+  const str = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
+  FB.draft = { kind: o.kind === 'idea' || o.kind === 'help' ? o.kind : 'bug', area: fbPick(o.area, FB_AREAS), title: str(o.title, FB.title), text: str(o.text, FB.text), contact: str(o.contact, FB.contact), imgs: [] };
+  return FB.draft;
+}
+function fbKeep() { const d = FB.draft; if (!d) return; try { sessionStorage.setItem(FB.key, JSON.stringify({ kind: d.kind, area: d.area, title: d.title, text: d.text, contact: d.contact })); } catch (e) { /* stockage indisponible : brouillon en mémoire seulement */ } }
+function fbForget() { FB.draft = null; try { sessionStorage.removeItem(FB.key); } catch (e) { /* ignore */ } }
+const fbDataUrl = b => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => ko(r.error); r.readAsDataURL(b); });
+/** Capture choisie → { url (data:image/jpeg;base64), w, h, kb } : 1 600 px au plus de côté, qualité 0,82, refaite plus petite tant qu'elle dépasse 1,5 Mo ;
+ *  fond blanc (PNG transparent). Image illisible (pas une image, format inconnu, fichier abîmé) : rejet. */
+async function fbShrink(file) {
+  if (!file || (file.type && !/^image\//.test(file.type))) throw new Error('not_image');
+  const u = URL.createObjectURL(file), im = new Image(), c = document.createElement('canvas');
+  try {
+    im.src = u; await im.decode();
+    const W = im.naturalWidth, H = im.naturalHeight; if (!(W > 0 && H > 0)) throw new Error('empty');
+    const enc = q => new Promise(r => { try { c.toBlob(b => r(b), 'image/jpeg', q); } catch (e) { r(null); } });
+    let k = Math.min(1, FB.side / Math.max(W, H));
+    for (let i = 0; i < 10; i++) {
+      c.width = Math.max(1, Math.round(W * k)); c.height = Math.max(1, Math.round(H * k));
+      const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.imageSmoothingQuality = 'high'; x.drawImage(im, 0, 0, c.width, c.height);
+      const b = await enc(i < 5 ? FB.q : 0.7); if (!b) throw new Error('encode');
+      if (b.size <= FB.bytes) return { url: await fbDataUrl(b), w: c.width, h: c.height, kb: Math.round(b.size / 1024) };
+      k *= 0.8;
+    }
+    throw new Error('too_big');
+  } finally { URL.revokeObjectURL(u); c.width = c.height = 0; }
+}
+/** Ce qui part avec l'avis (contrat : textes de 300 caractères au plus) : version, plateforme (comme feedbackHref), version de l'APK, langue, navigateur. */
+async function fbMeta() {
+  const nat = typeof isNativeApp === 'function' && isNativeApp(), cut = s => String(s || '').slice(0, 300);
+  let pwa = false; try { pwa = !nat && PWA.state() === 'standalone'; } catch (e) { /* PWA indisponible */ }
+  const apk = nat ? await Promise.race([helpApk(), new Promise(r => setTimeout(() => r(''), 800))]) : '';      // coque muette : envoyé sans
+  return { v: cut(typeof DD_BUILD === 'string' ? DD_BUILD : 'dev'), plat: nat ? 'android' : pwa ? 'pwa' : 'web', apk: cut(apk), lang: cut(I18N.lang), nav: cut(I18N.nav), ua: cut(typeof navigator !== 'undefined' ? navigator.userAgent : '') };
+}
+/** POST api/feedback ; connecté : jeton Firebase (renouvelé une fois s'il a expiré ; indisponible : envoyé sans compte), comme scanreport.js › srPost.
+ *  → { status (0 : réseau), code, message, url, retry (secondes, 429) }. */
+async function fbPost(o) {
+  const u = typeof D !== 'undefined' && D.user, body = JSON.stringify(o);
+  for (let a = 0; a < 2; a++) {
+    let tok = ''; if (u) { try { tok = await u.getIdToken(a > 0); } catch (e) { tok = ''; } }
+    let r; try { r = await fetch('api/feedback', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(tok ? { 'x-firebase-token': tok } : {}) }, body }); } catch (e) { return { status: 0, code: 'net' }; }
+    const j = await r.json().catch(() => null);
+    if (r.status === 401 && j && j.error === 'token_expired' && a === 0) continue;
+    const ra = Number(r.headers.get('retry-after')) || 0;
+    return { status: r.status, code: (j && typeof j.error === 'string' && j.error) || '', message: (j && typeof j.message === 'string' && j.message) || '', url: (j && typeof j.url === 'string' && j.url) || '', retry: Number(j && j.retry) || ra };
+  }
+  return { status: 401, code: 'token_expired' };
+}
+/** Message d'un envoi refusé : la saisie reste dans la feuille (sauf 404 : repli e-mail, fbMail). */
+function fbErrText(r) {
+  if (!r.status) return collOffline() ? T('Hors ligne : ton avis n\'est pas parti. Réessaie une fois connecté, ton message est gardé.') : T('Serveur injoignable : ton avis n\'est pas parti. Réessaie plus tard, ton message est gardé.');
+  if (r.status === 429) return T('Trop d\'avis envoyés d\'ici pour le moment : réessaie dans {n} min.', { n: Math.max(1, Math.ceil((r.retry || 60) / 60)) });
+  if (r.status === 413) return T('Captures trop lourdes : retire-en une et réessaie.');
+  if (r.status === 400) {
+    const known = { bad_title: T('Le titre doit faire de 3 à 90 caractères.'), bad_text: T('La description doit faire de 1 à 1500 caractères, sur 30 lignes au plus.'),
+      bad_image: T('Une capture n\'a pas été acceptée : retire-la ou choisis-en une autre.'), bad_contact: T('Le pseudo Discord fait 60 caractères au plus.') };
+    return known[r.code] || (I18N.lang === 'fr' && r.message) || T('Avis refusé par le serveur : vérifie les champs et réessaie.');      // message du serveur : en français
+  }
+  return T('Envoi impossible pour le moment : réessaie plus tard, ton message est gardé.');
+}
+const fbPlaceholders = k => (k === 'idea' ? [T('Par exemple : trier mes decks par couleur'), T('Ton idée, et ce qu\'elle changerait pour toi.')]
+  : k === 'help' ? [T('Par exemple : comment exporter ma collection ?'), T('Ta question, le plus précisément possible : ce que tu cherches à faire, où tu bloques.')]
+    : [T('Par exemple : le scan ne lit pas les cartes japonaises'), T('Étapes : ce que tu as fait.\nAttendu : ce qui devait se passer.\nObtenu : ce qui s\'est passé à la place.')]);
+/** Feuille « Envoyer un avis » : type, partie de l'appli, titre, description, captures, pseudo Discord ; « Envoyer » → fil public sur le Discord de Mana Orbit. */
+function fbOpen() {
+  const d = fbDraft(); let busy = 0, sending = false;      // busy : captures en cours de réduction
+  const api = openSheet(T('Envoyer un avis'), T('Il arrive sur le Discord de Mana Orbit'), a => a.wrap.classList.add('fb-sheet'));
+  api.body.innerHTML = `<form class="fb" novalidate>
+      <div class="field-in"><span class="label" id="fbKindL">${T('Type')}</span><div class="seg fb-kind" role="radiogroup" aria-labelledby="fbKindL"></div></div>
+      <div class="field-in"><label class="label" for="fbArea">${T('Partie de l\'appli')}</label><div class="sel"><select id="fbArea">${FB_AREAS.map(([v, l]) => `<option value="${v}">${esc(T(l))}</option>`).join('')}</select></div></div>
+      <div class="field-in"><label class="label" for="fbTitle">${T('Titre')}</label><input type="text" id="fbTitle" maxlength="${FB.title}" required aria-required="true" autocomplete="off" enterkeyhint="next"></div>
+      <div class="field-in"><div class="fb-lh"><label class="label" for="fbText">${T('Description')}</label><span class="fb-cnt" id="fbCnt"></span></div>
+        <textarea id="fbText" class="fb-text" rows="5" maxlength="${FB.text}" required aria-required="true" aria-describedby="fbCnt"></textarea></div>
+      <div class="field-in"><span class="label" id="fbImgL">${T('Captures d\'écran')}</span><div class="fb-imgs" role="list" aria-labelledby="fbImgL"></div>
+        <button type="button" class="btn ghost small fb-add" aria-describedby="fbImgH"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg><span>${T('Ajouter une capture')}</span></button>
+        <span class="hint" id="fbImgH">${T('3 au plus, réduites avant l\'envoi.')}</span><input type="file" id="fbFile" accept="image/*" multiple hidden></div>
+      <div class="field-in"><label class="label" for="fbContact">${T('Pseudo Discord (facultatif)')}</label><input type="text" id="fbContact" class="fb-contact" maxlength="${FB.contact}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="fbContactH">
+        <span class="hint" id="fbContactH">${T('Pour qu\'on puisse te recontacter.')}</span></div>
+      <p class="hint fb-why">${helpNb(T('Envoyé avec ton message : la version de Mana Orbit, la plateforme, la langue et le navigateur ; jamais ta collection. Ton message sera public sur le Discord de Mana Orbit.'))}</p>
+      <p class="fb-err" role="alert" hidden></p></form>`;
+  api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-fb="go">${T('Envoyer')}</button>`);
+  const $b = s => $(s, api.body), form = $b('.fb'), seg = $b('.fb-kind'), areaS = $b('#fbArea'), tI = $b('#fbTitle'), xI = $b('#fbText'), cI = $b('#fbContact'), cnt = $b('#fbCnt');
+  const imgs = $b('.fb-imgs'), addB = $b('.fb-add'), fileI = $b('#fbFile'), err = $b('.fb-err'), goB = $('[data-fb="go"]', api.foot);
+  areaS.value = d.area; tI.value = d.title; xI.value = d.text; cI.value = d.contact;
+  const fail = (t, el) => { err.textContent = t; err.hidden = false; haptic('warn'); if (el) { el.setAttribute('aria-invalid', 'true'); el.focus(); } };
+  const calm = () => { err.hidden = true; [tI, xI].forEach(x => x.removeAttribute('aria-invalid')); };
+  const paint = () => {
+    const [pt, px] = fbPlaceholders(d.kind); tI.placeholder = pt; xI.placeholder = px;
+    cnt.textContent = xI.value.length + ' / ' + FB.text;
+    cnt.classList.toggle('warn', xI.value.length > FB.text - 100);
+    const full = d.imgs.length + busy >= FB.max; addB.disabled = full || sending; $('span', addB).textContent = T('Ajouter une capture') + (d.imgs.length ? ` (${d.imgs.length}/${FB.max})` : '');
+    goB.disabled = sending || busy > 0; goB.textContent = sending ? T('Envoi…') : T('Envoyer');
+    [areaS, tI, xI, cI].forEach(x => { x.disabled = sending; }); seg.classList.toggle('dim', sending);
+  };
+  const paintImgs = () => {
+    imgs.innerHTML = d.imgs.map((x, i) => `<div class="fb-th" role="listitem"><img src="${x.url}" alt="${esc(T('Capture {n}', { n: i + 1 }))}" width="${x.w}" height="${x.h}"><button type="button" class="fb-x" data-fb-x="${i}" aria-label="${esc(T('Retirer la capture {n}', { n: i + 1 }))}"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button></div>`).join('')
+      + Array.from({ length: busy }, () => `<div class="fb-th busy" role="listitem" aria-label="${esc(T('Préparation de la capture…'))}"></div>`).join('');
+    imgs.hidden = !d.imgs.length && !busy; paint();
+  };
+  mountSeg(seg, FB_KINDS.map(([v, l]) => ({ v, label: T(l) })), d.kind, v => { d.kind = v; fbKeep(); paint(); });
+  const sync = () => { d.area = areaS.value; d.title = tI.value; d.text = xI.value; d.contact = cI.value; fbKeep(); };
+  form.addEventListener('submit', e => e.preventDefault());
+  form.addEventListener('input', e => { sync(); if (e.target.getAttribute('aria-invalid')) calm(); paint(); });      // champ corrigé : le message s'efface
+  areaS.addEventListener('change', sync);
+  tI.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); xI.focus(); } });
+  form.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); goB.click(); } });      // Ctrl+Entrée : envoyer
+  addB.addEventListener('click', () => { haptic('tap'); fileI.value = ''; fileI.click(); });
+  fileI.addEventListener('change', async () => {
+    const files = [...(fileI.files || [])]; fileI.value = ''; if (!files.length) return;
+    calm();
+    const room = FB.max - d.imgs.length - busy, take = files.slice(0, Math.max(0, room)), msgs = [];
+    if (files.length > take.length) msgs.push(T('3 captures au plus : les autres ne sont pas ajoutées.'));
+    busy += take.length; paintImgs();
+    for (const f of take) {
+      let x = null; try { x = await fbShrink(f); } catch (e) { msgs.push(T('Image illisible : {name}. Choisis une capture d\'écran en PNG ou en JPEG.', { name: String(f.name || '?').slice(0, 60) })); }
+      busy--; if (x && d.imgs.length < FB.max) d.imgs.push(x);
+      if (sheets.includes(api)) paintImgs();
+    }
+    if (msgs.length && sheets.includes(api)) fail(msgs.join(' '));
+  });
+  imgs.addEventListener('click', e => {
+    const b = e.target.closest('[data-fb-x]'); if (!b || sending) return;
+    const i = Number(b.dataset.fbX); haptic('tap'); d.imgs.splice(i, 1); paintImgs();
+    const nx = $$('.fb-x', imgs)[Math.min(i, d.imgs.length - 1)]; (nx || addB).focus();      // le focus reste dans la liste (ou passe au bouton d'ajout)
+  });
+  goB.addEventListener('click', async () => {
+    if (sending || busy) return;
+    calm(); sync();
+    const title = fbLine(d.title), text = fbBody(d.text), contact = fbLine(d.contact).slice(0, FB.contact);
+    if (title.length < 3) { fail(T('Donne un titre à ton avis (3 caractères au moins).'), tI); return; }
+    if (!text) { fail(T('Décris ton avis en quelques mots.'), xI); return; }
+    if (text.split('\n').length > FB.lines) { fail(T('La description doit faire de 1 à 1500 caractères, sur 30 lignes au plus.'), xI); return; }
+    if (collOffline()) { fail(T('Hors ligne : ton avis n\'est pas parti. Réessaie une fois connecté, ton message est gardé.')); return; }
+    sending = true; paint();
+    let r; try { r = await fbPost({ kind: d.kind, title: title.slice(0, FB.title), text: text.slice(0, FB.text), area: d.area, contact, meta: await fbMeta(), imgs: d.imgs.map(x => x.url) }); } catch (e) { r = { status: 0, code: 'net' }; }
+    sending = false;
+    const open = sheets.includes(api);
+    if (r.status === 200) {
+      fbForget(); haptic('ok'); if (typeof prgAdd === 'function') prgAdd('fb');      // avis envoyé : badge « Voix du peuple » (progress.js)
+      if (open) fbDone(api, r.url); else toast(T('Merci ! Ton avis est publié sur le Discord de Mana Orbit.'));
+      return;
+    }
+    if (r.status === 404) { CTX.feedback = false; if (open) fbMail(api, title, text); return; }      // bot coupé sur le serveur : « Envoyer un avis » repasse au mailto
+    if (!open) { toast(fbErrText(r)); return; }
+    paint(); fail(fbErrText(r));
+  });
+  paintImgs();
+  return api;
+}
+/** Avis publié : « Merci ! », le fil sur Discord (adresse reçue, seulement si c'est bien un lien Discord) et l'invitation au serveur. */
+function fbDone(api, url) {
+  const see = /^https:\/\/(?:[a-z]+\.)?discord\.com\/channels\/\d+\/\d+(?:\/\d+)?$/.test(url || '');
+  api.body.innerHTML = `<div class="fb-done"><span class="fb-ok" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+      <h3 tabindex="-1">${T('Merci !')}</h3><p>${helpNb(T('Ton avis est publié sur le Discord de Mana Orbit. L\'équipe y répond : suis la discussion là-bas.'))}</p>
+      <div class="fb-links">${see ? `<a class="btn" data-fb="see" href="${esc(url)}" target="_blank" rel="noopener">${T('Voir sur Discord')}</a>` : ''}<a class="btn ghost" data-fb="join" href="${esc(DISCORD_URL)}" target="_blank" rel="noopener">${T('Rejoindre le serveur')}</a></div></div>`;
+  api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`);
+  const h = $('h3', api.body); try { h.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+}
+/** Envoi par le Discord coupé (404) : le message, déjà écrit, part par e-mail (mailto prérempli). */
+function fbMail(api, title, text) {
+  const err = $('.fb-err', api.body);
+  err.textContent = T('L\'envoi par le Discord est coupé pour le moment : envoie ton avis par e-mail, ton message y est déjà recopié.'); err.hidden = false; haptic('warn');
+  const pre = title + '\n\n' + text;
+  api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><a class="btn" data-fb="mail" href="${esc(feedbackHref('', pre))}">${T('Écrire un e-mail')}</a>`);
+  const a = $('[data-fb="mail"]', api.foot);
+  helpApk().then(v => { if (v) a.href = feedbackHref(v, pre); });
+  a.addEventListener('click', () => { if (typeof prgAdd === 'function') prgAdd('fb'); setTimeout(() => api.close(), 0); });
+  a.focus();
 }
 
 /* ── Demande de note (appli Android) ─────────────────────────────────────────────────────────────── */
