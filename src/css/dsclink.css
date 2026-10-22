@@ -1,0 +1,30 @@
+/* ── dsclink.css : bloc « Rejoins le Discord » de l'accueil, feuille Discord du compte (dsclink.js) ── */
+.hm-dsc{--dsc:#5865f2}
+:root[data-theme="dark"] .hm-dsc,:root[data-theme="dark"] .dl-sheet{--dsc:#8f98ff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hm-dsc,:root:not([data-theme="light"]) .dl-sheet{--dsc:#8f98ff}}
+.hm-dsc[hidden]{display:none}
+.hm-dsc .hm-tr-h{cursor:default;align-items:flex-start}
+.hm-dsc .hm-tr-ic{background:color-mix(in srgb,var(--dsc) 16%,var(--surface-2));color:var(--dsc)}
+.hm-dsc .hm-tr-t span{line-height:1.35}
+.hm-dsc-x{flex:none;width:32px;height:32px;margin:-4px -4px 0 0;border-color:transparent;background:none;color:var(--ink-3)}
+.hm-dsc-acts{display:grid;grid-template-columns:1fr;gap:8px}
+.hm-dsc-acts .btn{height:44px;font-size:14.5px;min-width:0}
+.hm-dsc-acts a.btn{background:#5865f2;color:#fff}      /* bleu de Discord, texte blanc lisible dans les deux thèmes */
+.hm-dsc-link{height:auto!important;min-height:44px;padding:8px 14px;white-space:normal;line-height:1.25;text-align:center}
+.dl-sheet{--dsc:#5865f2}
+.dl-head{display:flex;align-items:center;gap:12px}
+.dl-head>div{min-width:0;display:flex;flex-direction:column;gap:2px}
+.dl-head b{font-family:var(--font-display);font-size:17px;font-weight:700;overflow-wrap:anywhere}
+.dl-head .hint{margin:0}
+.dl-ic{flex:none;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--dsc) 16%,var(--surface-2));color:var(--dsc)}
+.dl-ic .i{width:24px;height:24px}
+.dl-why{margin:14px 0 0}
+/* Ordinateur (tableau de bord de l'accueil, colonne du milieu à la hauteur de l'écran) : sur une ligne, boutons à droite */
+.hm-cols .hm-dsc{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 14px}
+.hm-cols .hm-dsc .hm-tr-h{flex:1 1 240px;align-items:center}
+.hm-cols .hm-dsc .hm-tr-t b{font-size:16px}
+.hm-cols .hm-dsc .hm-tr-t span{font-size:12.5px}
+.hm-cols .hm-dsc .hm-tr-ic{width:40px;height:40px;border-radius:12px}
+.hm-cols .hm-dsc-acts{display:flex;flex-wrap:wrap;gap:8px;flex:0 1 auto}
+.hm-cols .hm-dsc-acts .btn{padding:0 18px}
+.hm-cols .hm-dsc-link{min-height:44px;padding:0 14px}

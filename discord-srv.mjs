@@ -6,6 +6,8 @@
 //     renommer), POST …/reply (réponse du bot, sans ping), POST …/thread-delete. Texte des messages des membres : seulement avec l'intention « Message Content »
 //     cochée sur le portail Discord (sinon vide : hidden) ;
 //   · Carte mystère de la veille (reveal, appelé par daily-srv.mjs au tour de garde) : message FR + EN dans #carte-mystère ;
+//   · liaison du compte Discord (OAuth2 « Se connecter avec Discord », portée identify) : POST /api/discord/link → adresse d'autorisation (state signé),
+//     GET /api/discord/callback (code échangé, compte lu, adhésion au serveur vérifiée par le bot), GET /api/discord/me, POST /api/discord/unlink ;
 //   · statut « En ligne » (passerelle Discord, WebSocket de Node 22+ ; sans lui : bot affiché hors ligne, le reste marche pareil) : « 🔮 Carte mystère n° 42 »,
 //     dans une langue après l'autre (une toutes les presenceMs, 30 s). Aucune intention à la passerelle (intents 0) : rien n'y est lu, il se montre seulement.
 // Serveur Discord : DISCORD_GUILD_ID, sinon le seul serveur du bot. Salons et rôles relus au plus toutes les 5 min (tout de suite si un salon gardé n'existe plus) ;
@@ -14,11 +16,13 @@
 // un journal, une erreur ni une réponse. Mentions : jamais de ping venu d'un utilisateur (allowed_mentions vide) ; ceux de l'éditeur, exactement ceux demandés.
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
+import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const TX = 0, CAT = 4, NEWS = 5, FORUM = 15, REQUIRE_TAG = 16;
 const B = n => 1n << BigInt(n), P_ADMIN = B(3), P_VIEW = B(10), P_SEND = B(11), P_EMBED = B(14), P_ATTACH = B(15), P_MENTION = B(17), P_ALL = (1n << 53n) - 1n;
 export const DSC_PERMS = P_VIEW | P_SEND | P_EMBED | P_ATTACH | P_MENTION;      // permissions du bot (183296) : voir les salons, envoyer (et créer un fil de forum), liens intégrés, fichiers, @everyone et rôles non mentionnables
 export const DSC_GAME = 'https://manaorbit.app/?mystere=1';
+export const DSC_INVITE = 'https://discord.gg/TTwrP94agb';      // invitation permanente du serveur (src/help.js › DISCORD_URL)
 const KINDS = { bug: 'bugs', idea: 'idées', help: 'aide' };
 export const DSC_AREAS = { scan: 'Scan', collection: 'Collection', decks: 'Decks', prix: 'Prix', compte: 'Compte et synchro', alertes: 'Alertes', echange: 'Échange', partie: 'Partie', mystere: 'Carte mystère', amis: 'Amis', autre: 'Autre' };
 export const DSC_PLATS = { android: 'Android', pwa: 'PWA', web: 'Site' };
@@ -55,7 +59,9 @@ export function dscRevealMsg(info) {
 
 /** Crée le bot. o : { token, guild (DISCORD_GUILD_ID, facultatif), api (DISCORD_API), off (DISCORD=0), dir (dossier de l'historique, ADMIN_DIR), fetch, now, sleep, log,
  *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, verify (jeton → { uid }), amTag, jpegSize, adminHeaders, feedbackPerH (10), actPerH (ADMIN_ACTIONS_PER_H),
- *  cacheMs (5 min), maxWaitMs (10 s), tries (4), retryMs (attente avant le nouvel essai d'une panne, 1 s), timeoutMs (15 s), threadListMs (liste des fils gardée, 30 s) }. */
+ *  cacheMs (5 min), maxWaitMs (10 s), tries (4), retryMs (attente avant le nouvel essai d'une panne, 1 s), timeoutMs (15 s), threadListMs (liste des fils gardée, 30 s),
+ *  liaison du compte : clientId, clientSecret (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET), redirect (req → adresse de retour), appUrl (req → adresse de l'appli),
+ *  authorizeUrl, stateMs (10 min), recheckMs (lié, pas membre : 10 min), memberMs (membre : 24 h), linkFile, budgets linkPerH, backPerH, mePerH }. */
 export function discordMake(o = {}) {
   const TOKEN = String(o.token || '').trim(), ON = !!TOKEN && !o.off, API = String(o.api || 'https://discord.com/api/v10').replace(/\/+$/, '');
   const fetchFn = o.fetch || globalThis.fetch, now = o.now || Date.now, sleep = o.sleep || (ms => new Promise(r => setTimeout(r, ms))), log = o.log || console;
@@ -526,6 +532,187 @@ export function discordMake(o = {}) {
     return json(res, 200, { ok: true, msg: { id, url }, sent: list, ...(pub === false ? { published: false, message: 'Envoyé, mais pas publié aux serveurs abonnés (Discord a refusé) : publie-le depuis Discord.' } : pub ? { published: true } : {}) }, HD);
   }
 
+  /* ── Liaison du compte Discord : /api/discord/link, callback, me, unlink ──
+     Pour savoir si un compte de l'appli est sur le serveur (l'accueil n'invite plus à le rejoindre). OAuth2 « Se connecter avec Discord », portée identify
+     seulement (ni e-mail, ni serveurs, ni messages) ; prompt=consent : la page de Discord s'affiche à chaque liaison. Le state est signé (HMAC-SHA256, clé tirée
+     du secret de l'application) : empreinte du compte (amTag), expiration (stateMs), nonce ; une seule utilisation (nonces vus gardés en mémoire jusqu'à leur
+     expiration). Le jeton d'accès sert à lire GET /users/@me, puis il est révoqué : jamais gardé ni écrit. L'adhésion est vérifiée par le bot
+     (GET /guilds/{g}/members/{id} : 200 membre, 404 non ; pas d'intention privilégiée pour un seul membre). Gardé par compte (empreinte) dans linkFile
+     (ADMIN_DIR/discord-links.json, une écriture à la fois, atomique) : { id, name (global_name ou username), member, at }. L'id Discord n'est jamais renvoyé
+     à l'appli (seulement le pseudo) ; ni UID ni jeton dans un journal ou une réponse ; le secret ne part que vers /oauth2/token. */
+  const CID = String(o.clientId || '').trim(), CSEC = String(o.clientSecret || '').trim(), LINK_ON = ON && /^\d{5,25}$/.test(CID) && !!CSEC;
+  const AUTH_URL = o.authorizeUrl || 'https://discord.com/oauth2/authorize', STATE_MS = o.stateMs ?? 10 * 60e3, NO_MS = o.recheckMs ?? 10 * 60e3, YES_MS = o.memberMs ?? 86400e3;
+  const LINK_H = Number(o.linkPerH ?? 20), BACK_H = Number(o.backPerH ?? 30), ME_H = Number(o.mePerH ?? 240);
+  const LINK_FILE = o.linkFile || join(o.dir || join(process.cwd(), '.data', 'admin'), 'discord-links.json');
+  const SKEY = LINK_ON ? createHmac('sha256', 'mana-orbit/discord-link-state').update(CSEC).digest() : null;
+  const redirOf = req => (typeof o.redirect === 'function' ? o.redirect(req) : o.redirect) || 'https://manaorbit.app/api/discord/callback';
+  const appOf = req => (typeof o.appUrl === 'function' ? o.appUrl(req) : o.appUrl) || 'https://manaorbit.app/';
+  const LK = { map: null, loading: null, chain: Promise.resolve(), used: new Map(), chk: new Map(), fail: new Map() };
+  const TAG_RE = /^[0-9a-f]{64}$/;
+  const sign = s => createHmac('sha256', SKEY).update(s).digest('base64url').slice(0, 32);
+  /** state → { tag } si signé, pas expiré, jamais servi (il est alors consommé) ; sinon null. */
+  function stateTake(st) {
+    const p = String(st || '').split('.');
+    if (p.length !== 4 || !TAG_RE.test(p[0]) || !/^[0-9a-z]{1,12}$/.test(p[1]) || !/^[\w-]{16}$/.test(p[2]) || !/^[\w-]{32}$/.test(p[3])) return null;
+    const want = Buffer.from(sign(p.slice(0, 3).join('.'))), got = Buffer.from(p[3]);
+    if (want.length !== got.length || !timingSafeEqual(want, got)) return null;
+    const exp = parseInt(p[1], 36), t = now();
+    if (!(exp > t) || exp > t + STATE_MS + 60e3 || LK.used.has(p[2])) return null;
+    if (LK.used.size > 2000) for (const [k, e] of LK.used) if (e <= t) LK.used.delete(k);
+    LK.used.set(p[2], exp);
+    return { tag: p[0] };
+  }
+  /** Liaisons gardées (empreinte du compte → { id, name, member, at }), lues une fois. */
+  function links() {
+    if (LK.map) return Promise.resolve(LK.map);
+    if (!LK.loading) LK.loading = (async () => {
+      let m = new Map();
+      try { const j = JSON.parse(await readFile(LINK_FILE, 'utf8')); m = new Map(Object.entries((j && j.links) || {}).filter(([k, v]) => TAG_RE.test(k) && v && ID_RE.test(String(v.id)))); }
+      catch (e) { if (e && e.code !== 'ENOENT') log.warn('Discord : liaisons illisibles (' + (e.code || 'JSON') + '), reprises à vide'); }
+      return (LK.map = m);
+    })().finally(() => { LK.loading = null; });
+    return LK.loading;
+  }
+  function linksSave() {
+    const run = LK.chain.then(async () => { await mkdir(dirname(LINK_FILE), { recursive: true }); await writeFile(LINK_FILE + '.tmp', JSON.stringify({ v: 1, links: Object.fromEntries(LK.map) })); await rename(LINK_FILE + '.tmp', LINK_FILE); });
+    LK.chain = run.catch(() => {});
+    return run.catch(e => log.warn('Discord : liaisons non enregistrées (' + (e && e.code || e) + ')'));
+  }
+  /** Membre du serveur ? (bot) true / false ; erreur levée si Discord ne sait pas répondre. */
+  async function memberOf(id) {
+    const g = await guild();
+    try { await call('GET', `/guilds/${g.id}/members/${id}`); return true; }
+    catch (e) { if (e.kind === 'refused' && (e.status === 404 || e.code === 10007 || e.code === 10013)) return false; throw e; }
+  }
+  /** Adhésion relue (une seule lecture à la fois par compte ; Discord en panne : statut gardé, nouvel essai après 1 min). */
+  function recheck(tag, x) {
+    if (now() - (LK.fail.get(tag) || 0) < 60e3) return Promise.resolve();
+    if (!LK.chk.has(tag)) LK.chk.set(tag, (async () => {
+      try { const mb = await memberOf(x.id), cur = LK.map.get(tag); if (cur && cur.id === x.id) { const was = cur.member; cur.member = mb; cur.at = now(); await linksSave(); if (was !== mb) log.log('Discord : compte lié, ' + (mb ? 'devenu membre du serveur.' : 'plus membre du serveur.')); } }
+      catch (e) { if (LK.fail.size > 5000) LK.fail.clear(); LK.fail.set(tag, now()); log.warn('Discord : adhésion non vérifiée (' + e.message + ')'); }
+    })().finally(() => LK.chk.delete(tag)));
+    return LK.chk.get(tag);
+  }
+  /** Appel OAuth2 de l'utilisateur (échange du code, /users/@me, révocation) : formulaire ou jeton Bearer ; jamais le jeton du bot. Erreurs sans secret ni jeton. */
+  async function oauth(path, { form, bearer } = {}) {
+    let r;
+    try { r = await fetchFn(API + path, { method: form ? 'POST' : 'GET', headers: { 'User-Agent': UA, Accept: 'application/json', ...(form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}), ...(bearer ? { Authorization: 'Bearer ' + bearer } : {}) }, body: form ? new URLSearchParams(form).toString() : undefined, redirect: 'manual', signal: AbortSignal.timeout(TIMEOUT) }); }
+    catch (e) { throw dErr('down', 'Discord injoignable'); }
+    const t = await r.text().catch(() => ''); let j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { /* réponse non JSON */ }
+    if (!r.ok) throw dErr(r.status === 429 ? 'limit' : r.status >= 500 ? 'down' : 'refused', 'Discord a refusé (HTTP ' + r.status + (j && typeof j.error === 'string' ? ' : ' + line(j.error).replace(/[^\w ]/g, '').slice(0, 40) : '') + ')', { status: r.status });
+    return j;
+  }
+  /** Compte de l'appli (jeton Firebase vérifié) → empreinte ; sinon la réponse est déjà partie (null). */
+  async function acctOf(req, res) {
+    if (isLocked(req)) { json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { 'Retry-After': '300' }); return null; }
+    const tok = String(req.headers['x-firebase-token'] || '');
+    if (!tok) { json(res, 401, { error: 'auth_required', message: 'Connecte-toi d\'abord.' }); return null; }
+    try { return o.amTag(String((await o.verify(tok)).uid)); }
+    catch (e) {
+      const code = e && e.authCode;
+      if (code === 'expired') json(res, 401, { error: 'token_expired', message: 'Session expirée : le navigateur va la renouveler.' });
+      else if (code === 'unavailable') json(res, 503, { error: 'auth_unavailable', message: 'Vérification du compte impossible pour le moment.' }, { 'Retry-After': '5' });
+      else await badKey(req, res, 'bad_token', 401);
+      return null;
+    }
+  }
+  /* Page de retour (navigateur : dans l'appli Android, l'autorisation s'ouvre dans le navigateur) : français ou anglais selon Accept-Language, aucun script,
+     CSP stricte (style par son empreinte), jamais en cache ni indexée, sans Referer (l'adresse porte le code et le state). */
+  const PG_CSS = 'body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0f1c;color:#e9ecf5;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}'
+    + 'main{max-width:420px;margin:24px 16px;padding:28px 24px;border-radius:20px;background:#151b2e;border:1px solid #273150;text-align:center}'
+    + '.i{width:56px;height:56px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;font-size:28px;background:#5865f2;color:#fff}.i.bad{background:#7a3348}'
+    + 'h1{margin:0 0 8px;font-size:22px}p{margin:0 0 20px;color:#b7bfd6}a{display:block;margin:10px 0 0;padding:12px 16px;border-radius:12px;background:#8b5cf6;color:#fff;font-weight:600;text-decoration:none}a.g{background:#273150}';
+  const PG_CSP = `default-src 'none'; style-src 'sha256-${createHash('sha256').update(PG_CSS).digest('base64')}'; img-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+  const PG_TX = {
+    fr: { ok: ['Compte Discord lié', 'Tu es bien sur le serveur Mana Orbit : l\'invitation disparaît de l\'accueil. Tu peux revenir dans l\'appli.'],
+      join: ['Compte Discord lié', 'Tu n\'es pas encore sur le serveur Mana Orbit : rejoins-le, l\'appli le verra d\'elle-même. Tu peux revenir dans l\'appli.'],
+      denied: ['Liaison annulée', 'Tu as refusé l\'accès : rien n\'a été gardé. Tu peux réessayer depuis l\'appli (Compte et réglages › Discord).'],
+      expired: ['Lien expiré', 'Ce lien a expiré ou a déjà servi : rien n\'a été gardé. Recommence depuis l\'appli (Compte et réglages › Discord).'],
+      code: ['Liaison impossible', 'Discord n\'a pas accepté la demande : rien n\'a été gardé. Recommence depuis l\'appli.'],
+      down: ['Discord injoignable', 'Discord ne répond pas pour le moment : rien n\'a été gardé. Réessaie dans quelques minutes depuis l\'appli.'],
+      limit: ['Trop d\'essais', 'Trop de tentatives depuis ce réseau : rien n\'a été gardé. Réessaie plus tard.'],
+      back: 'Revenir dans l\'appli', invite: 'Rejoindre le serveur', lang: 'fr' },
+    en: { ok: ['Discord account linked', 'You\'re on the Mana Orbit server: the invitation is gone from the home screen. You can go back to the app.'],
+      join: ['Discord account linked', 'You\'re not on the Mana Orbit server yet: join it, the app will notice by itself. You can go back to the app.'],
+      denied: ['Linking cancelled', 'You declined access: nothing was kept. You can try again from the app (Account and settings › Discord).'],
+      expired: ['Link expired', 'This link has expired or was already used: nothing was kept. Start again from the app (Account and settings › Discord).'],
+      code: ['Linking failed', 'Discord did not accept the request: nothing was kept. Start again from the app.'],
+      down: ['Discord unreachable', 'Discord is not responding right now: nothing was kept. Try again in a few minutes from the app.'],
+      limit: ['Too many attempts', 'Too many attempts from this network: nothing was kept. Try again later.'],
+      back: 'Back to the app', invite: 'Join the server', lang: 'en' },
+  };
+  /** Français si Accept-Language le préfère à l'anglais ; sinon anglais. */
+  function pgLang(req) {
+    const l = String(req.headers['accept-language'] || '').toLowerCase().split(',').map((x, i) => { const [t, ...pp] = x.trim().split(';'); const q = pp.map(s => /^q=([\d.]+)$/.exec(s.trim())).find(Boolean); return { t: t.split('-')[0], q: q ? Number(q[1]) : 1, i }; })
+      .filter(x => (x.t === 'fr' || x.t === 'en') && x.q > 0).sort((a, b) => b.q - a.q || a.i - b.i);
+    return l.length && l[0].t === 'fr' ? PG_TX.fr : PG_TX.en;
+  }
+  const hEsc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);      // attributs entre guillemets doubles
+  function linkPage(req, res, status, kind) {
+    const tx = pgLang(req), [h, p] = tx[kind], good = kind === 'ok' || kind === 'join', app = appOf(req);
+    const html = `<!doctype html><html lang="${tx.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${hEsc(h)} · Mana Orbit</title><style>${PG_CSS}</style></head>`
+      + `<body><main><div class="i${good ? '' : ' bad'}" aria-hidden="true">${good ? '✓' : '!'}</div><h1>${hEsc(h)}</h1><p>${hEsc(p)}</p>`
+      + (kind === 'join' ? `<a href="${hEsc(DSC_INVITE)}" rel="noopener noreferrer">${hEsc(tx.invite)}</a>` : '') + `<a${kind === 'join' ? ' class="g"' : ''} href="${hEsc(app)}">${hEsc(tx.back)}</a></main></body></html>`;
+    res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Security-Policy': PG_CSP, 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'X-Robots-Tag': 'noindex, nofollow', 'Content-Language': tx.lang });
+    res.end(req.method === 'HEAD' ? undefined : html);
+  }
+  /** GET /api/discord/callback?code&state (ou error&state : refus de l'utilisateur). */
+  async function linkBack(req, res, u) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'method_not_allowed' });
+    const w = rateWait(req, 'dscback', BACK_H, 3600e3); if (w) return linkPage(req, res, 429, 'limit');
+    const q = u.searchParams, st = stateTake(q.get('state'));
+    if (q.has('error')) { log.log('Discord : liaison refusée par l\'utilisateur.'); return linkPage(req, res, 200, 'denied'); }      // state consommé s'il était bon ; rien de gardé
+    if (!st) return linkPage(req, res, 400, 'expired');
+    const code = q.get('code') || ''; if (!/^[\w.~-]{1,200}$/.test(code)) return linkPage(req, res, 400, 'code');
+    let user, member;
+    try {
+      const tk = await oauth('/oauth2/token', { form: { grant_type: 'authorization_code', code, redirect_uri: redirOf(req), client_id: CID, client_secret: CSEC } });
+      const at = tk && typeof tk.access_token === 'string' ? tk.access_token : ''; if (!at) throw dErr('refused', 'jeton d\'accès absent', { status: 400 });
+      try { user = await oauth('/users/@me', { bearer: at }); }
+      finally { oauth('/oauth2/token/revoke', { form: { token: at, token_type_hint: 'access_token', client_id: CID, client_secret: CSEC } }).catch(() => {}); }      // jeton d'accès oublié tout de suite
+      if (!user || !ID_RE.test(String(user.id || ''))) throw dErr('refused', 'compte Discord illisible', { status: 400 });
+      member = await memberOf(String(user.id)).catch(e => { log.warn('Discord : adhésion non vérifiée (' + e.message + ')'); return null; });
+    } catch (e) {
+      log.warn('Discord : liaison impossible (' + e.message + ')');
+      return e.kind === 'refused' ? linkPage(req, res, 400, 'code') : linkPage(req, res, 502, 'down');
+    }
+    const name = line(user.global_name || user.username || '').slice(0, 80) || 'Discord', m = await links();
+    m.set(st.tag, { id: String(user.id), name, member: member === true, at: member === null ? 0 : now() });      // adhésion inconnue : relue à la prochaine lecture
+    LK.fail.delete(st.tag); await linksSave();
+    log.log(`Discord : compte lié (${member ? 'membre du serveur' : member === false ? 'pas membre du serveur' : 'adhésion à vérifier'}).`);
+    return linkPage(req, res, 200, member ? 'ok' : 'join');
+  }
+  /** /api/discord/<sub> : link, callback, me, unlink. */
+  async function link(req, res, sub, u) {
+    if (!LINK_ON) return json(res, 404, { error: 'not_found' });
+    const qu = u || new URL(req.url || '/', 'http://x');
+    if (sub === 'callback') return linkBack(req, res, qu);
+    if (sub === 'me') {
+      if (req.method !== 'GET') return json(res, 405, { error: 'method_not_allowed' });
+      const w = rateWait(req, 'dscme', ME_H, 3600e3); if (w) return tooMany(res, w);
+      const tag = await acctOf(req, res); if (!tag) return;
+      const m = await links(), x = m.get(tag);
+      if (!x) return json(res, 200, { linked: false });
+      if (now() - (x.at || 0) > (x.member ? YES_MS : NO_MS)) await recheck(tag, x);      // pas membre : il a pu rejoindre (10 min) ; membre : il a pu partir (24 h)
+      const y = m.get(tag) || x;
+      return json(res, 200, { linked: true, name: y.name, member: !!y.member });
+    }
+    if (sub !== 'link' && sub !== 'unlink') return json(res, 404, { error: 'not_found' });
+    if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' });
+    if (!/^application\/json\b/i.test(String(req.headers['content-type'] || ''))) return json(res, 415, { error: 'bad_content_type', message: 'Content-Type: application/json attendu.' });
+    const w = rateWait(req, sub === 'link' ? 'dsclink' : 'dscunlink', LINK_H, 3600e3); if (w) return tooMany(res, w);
+    try { await readBody(req, 4096); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); }
+    const tag = await acctOf(req, res); if (!tag) return;
+    if (sub === 'unlink') {
+      const m = await links();
+      if (m.delete(tag)) { await linksSave(); log.log('Discord : compte délié.'); }
+      return json(res, 200, { ok: true });
+    }
+    const pay = `${tag}.${(now() + STATE_MS).toString(36)}.${randomBytes(12).toString('base64url')}`;
+    const qs = new URLSearchParams({ response_type: 'code', client_id: CID, scope: 'identify', state: pay + '.' + sign(pay), redirect_uri: redirOf(req), prompt: 'consent' });
+    return json(res, 200, { url: AUTH_URL + '?' + qs });
+  }
+
   /* ── Carte mystère de la veille ── */
   /** Poste la carte de la veille dans #carte-mystère (info : daily-srv.mjs). Erreur levée si rien n'est parti (daily-srv.mjs réessaie au tour suivant). */
   async function reveal(info) {
@@ -606,5 +793,5 @@ export function discordMake(o = {}) {
   function start() { if (ON && typeof WS === 'function' && o.presence !== false && !GW.ws && !GW.wait) { GW.stop = false; gwOpen(); } }
   function stop() { GW.stop = true; gwClear(); clearTimeout(GW.wait); GW.wait = null; const ws = GW.ws; GW.ws = null; if (ws) { try { ws.close(1000); } catch (e) { /* déjà fermée */ } } }
 
-  return { on: ON, feedback, admin, reveal, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
+  return { on: ON, linkOn: LINK_ON, feedback, admin, link, reveal, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
 }
