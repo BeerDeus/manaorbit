@@ -2,13 +2,18 @@
 // faux SDK Firebase servi à l'adresse du vrai (la CSP stricte de la page s'applique). Déconnecté : « Se connecter avec Google », aucune donnée demandée ;
 // autre compte : « Accès réservé » et rien d'autre ; éditeur : chiffres, graphiques (inscriptions, actifs par jour), liste des comptes (tri, recherche, pages,
 // en-têtes cliquables sur ordinateur), export CSV, « Rafraîchir » ; actions confirmées (désactiver / réactiver, rôle IAM manquant, retirer un deck public),
-// journal ; déjà connecté dans l'appli : tableau de bord d'emblée ; sombre ; Discord (/api/admin/discord simulé par des routes : section cachée sur 404,
-// bot non configuré, salons groupés, pings, publier, envoi confirmé, historique, suppression, erreur, 360 px) ; aucune erreur (CSP comprise).
+// journal ; déjà connecté dans l'appli : tableau de bord d'emblée ; sombre. Onglets (clic, #adresse, retour, rechargement, lien direct, clavier, pastilles,
+// onglets masqués quand une partie est coupée), Carte mystère (/api/admin/daily simulé : en-tête, bloc repliable gardé au rechargement, actions), Discord
+// (/api/admin/discord simulé par des routes : onglet caché sur 404, bot non configuré, salons groupés, raccourcis, modèles, pings, publier, envoi confirmé,
+// historique, suppression, erreur, 360 px), Fils des forums (/api/admin/discord/threads… simulés : filtres, fil, étiquettes, fermer, verrouiller, renommer,
+// répondre, supprimer, téléphone), ni « null » ni « undefined » à l'écran, 360 px clair et sombre sans défilement de côté ; aucune erreur (CSP comprise).
+// Captures de chaque onglet (1280 et 390 px, clair et sombre) : ADMIN_SHOTS=<dossier>.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { startFakes } from './amis-fakes.mjs';
 import { startAdminFakes, routeAdminPage, ADMIN } from './admin-fakes.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
@@ -25,47 +30,67 @@ const ADM = { uid: 'uid-admin-00', email: ADMIN, tok: F.jwt('uid-admin-00', 3 * 
 const JEANNE = { uid: 'uid-jeanne-01', email: 'jeanne.dupont@gmail.com', tok: F.jwt('uid-jeanne-01', 3 * 3600, { email: 'jeanne.dupont@gmail.com', email_verified: true }) };
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const txt = (p, sel) => p.$eval(sel, e => e.innerText.replace(/\s+/g, ' ').trim());
-const visible = (p, sel) => p.$eval(sel, e => !e.hidden && e.offsetParent !== null).catch(() => false);
+const visible = (p, sel) => p.$eval(sel, e => !e.hidden && e.offsetParent !== null && e.checkVisibility()).catch(() => false);      // checkVisibility : aussi le contenu d'un <details> fermé
 /** Nouvelle page (téléphone par défaut) ; user : compte déjà connecté (même origine que l'appli). Erreurs de la page et de la console relevées (CSP comprise). */
 async function open(opts = {}) {
-  const ctx = await browser.newContext({ viewport: opts.vp || opts.phone || { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: !opts.vp, hasTouch: !opts.vp, serviceWorkers: 'block', colorScheme: opts.dark ? 'dark' : 'light' });
-  await routeAdminPage(ctx); if (opts.before) await opts.before(ctx);
+  const ctx = await browser.newContext({ viewport: opts.vp || opts.phone || { width: 390, height: 844 }, deviceScaleFactor: opts.dpr || 2, isMobile: !opts.vp, hasTouch: !opts.vp, serviceWorkers: 'block', colorScheme: opts.dark ? 'dark' : 'light' });
+  await routeAdminPage(ctx); if (opts.before) for (const f of [].concat(opts.before)) await f(ctx);
   const p = await ctx.newPage(), errs = [], api = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message));
   p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push('console: ' + m.text()); });
   p.on('request', r => { if (r.url().includes('/api/admin')) api.push(r.method() + ' ' + new URL(r.url()).pathname + new URL(r.url()).search); });
   if (opts.user) await p.addInitScript(u => { window.__fbUser = u; }, opts.user);
-  await p.goto(URL0);
+  await p.goto(URL0 + (opts.hash || ''));
   return { ctx, p, errs, api };
 }
-const dash = p => p.waitForSelector('#vMain:not([hidden]) #ulist tr[data-id]', { timeout: 10000 });
+const dash = p => p.waitForSelector('#vMain:not([hidden]) #ulist tr[data-id]', { state: 'attached', timeout: 10000 });
 const settle = p => p.waitForFunction(() => !document.querySelector('#ulist.busy'), null, { timeout: 8000 }).then(() => p.waitForTimeout(80));
+/** Onglet par un clic (comme l'éditeur) ; attend sa partie affichée. */
+async function tab(p, k) {
+  await p.click('#t-' + k);
+  await p.waitForFunction(k => !document.querySelector('#p-' + k).hidden && document.querySelector('#t-' + k).getAttribute('aria-selected') === 'true', k, { timeout: 5000 });
+}
+const curTab = p => p.evaluate(() => { const t = document.querySelector('#tabl [aria-selected="true"]'); return t ? t.dataset.tab : ''; });
+const shownPanels = p => p.$$eval('.panel', e => e.filter(x => !x.hidden).map(x => x.id));
+const tabsShown = p => p.$$eval('#tabl .tab', e => e.filter(x => !x.hidden).map(x => x.dataset.tab));
+const badgeOf = (p, k) => p.$eval('#t-' + k + ' .badge', b => (b.hidden ? '' : b.firstChild ? b.firstChild.textContent : ''));
+/** Rien de « null » / « undefined » / « NaN » écrit dans la page (onglet affiché). */
+const noJunk = async (p, where) => { const t = await p.evaluate(() => document.body.innerText); assert.doesNotMatch(t, /\bnull\b|\bundefined\b|\bNaN\b|\[object /, where + ' : texte parasite'); };
+/** Largeur : pas de défilement de côté, rien hors de l'écran. */
+async function noOverflow(p, w, where) {
+  const sw = await p.evaluate(() => document.documentElement.scrollWidth); assert.ok(sw <= w, where + ' : pas de défilement de côté (' + sw + ')');
+  const out = await p.$$eval('#vMain *, .top *', (e, w) => e.filter(x => x.getClientRects().length && x.getBoundingClientRect().right > w + 0.5 && !x.closest('.tabl')).map(x => x.tagName + '.' + x.className + ' ' + Math.round(x.getBoundingClientRect().right)), w);
+  assert.deepEqual(out, [], where + ' : rien hors de l\'écran');
+}
+const TAB_ORDER = ['apercu', 'comptes', 'mystere', 'discord', 'fils', 'signalements', 'journal', 'serveur'];
 
 /* ── Déconnecté, puis autre compte : rien ───────────────────────────────────────────────────────────────────────────────────── */
 {
   const { ctx, p, errs, api } = await open();
   await p.waitForSelector('#vOut:not([hidden])');
   assert.equal(await txt(p, '#btnIn'), 'Se connecter avec Google'); assert.equal(await visible(p, '#vMain'), false); assert.equal(await visible(p, '#acts'), false);
+  assert.equal(await visible(p, '#tabs'), false, 'déconnecté : pas d\'onglets');
   assert.deepEqual(api, [], 'déconnecté : aucune demande au serveur');
   assert.deepEqual(await p.evaluate(() => window.__fbCfg && window.__fbCfg.projectId), 'm2s-mtg', 'configuration Firebase de l\'appli');
   await p.click('#btnIn'); await p.waitForTimeout(150);
   assert.equal(await visible(p, '#vOut'), true, 'fenêtre fermée : rien ne change'); assert.equal(await visible(p, '#inErr'), false);
-  ok('déconnecté : « Se connecter avec Google », aucune demande au serveur ; fenêtre Google fermée : rien ne change');
+  ok('déconnecté : « Se connecter avec Google », aucune demande au serveur, pas d\'onglets ; fenêtre Google fermée : rien ne change');
 
   await p.evaluate(u => { window.__nextUser = u; }, JEANNE);
   await p.click('#btnIn'); await p.waitForSelector('#vDeny:not([hidden])');
   assert.equal(await txt(p, '#vDeny h1'), 'Accès réservé');
   assert.equal(await visible(p, '#vMain'), false); assert.equal(await p.$('#ulist tr'), null); assert.equal(await txt(p, '#kpis').catch(() => ''), '');
   assert.equal(await p.evaluate(() => document.querySelector('main').innerText.replace(/\s+/g, ' ').trim()), 'Accès réservé Changer de compte', 'rien d\'autre');
+  assert.equal(await visible(p, '#tabs'), false);
   assert.deepEqual(api, ['GET /api/admin?page=1&sort=created&dir=desc']);
   ok('autre compte : « Accès réservé » (403) et rien d\'autre');
 
-  // changer de compte → l'éditeur
+  // changer de compte → l'éditeur (vue d'ensemble d'abord)
   await p.evaluate(u => { window.__nextUser = u; }, ADM);
   await p.click('#btnSwitch'); await dash(p);
+  assert.equal(await curTab(p), 'apercu'); assert.deepEqual(await shownPanels(p), ['p-apercu']);
   assert.equal(await p.$$eval('#kpis .kpi', e => e.length), 9, '8 chiffres + scans signalés');
   assert.match(await txt(p, '#kpis [data-k="scans"]'), /Scans signalés 0 0 en 7 jours/i);
-  await p.waitForSelector('#scans:not([hidden]) .empty'); assert.match(await txt(p, '#scans'), /Scans signalés .*Aucun scan signalé pour l'instant/);      // fiches, photo et suppression : scanreport-e2e.mjs
   assert.match(await txt(p, '#kpis [data-k="users"]'), /Comptes 124 123 avec des données Mana Orbit/i);
   assert.match(await txt(p, '#kpis [data-k="decks"]'), /Decks 183 2 publiés · 1 signalement/i);
   assert.match(await txt(p, '#kpis [data-k="value"]'), /123 €/);
@@ -74,15 +99,21 @@ const settle = p => p.waitForFunction(() => !document.querySelector('#ulist.busy
   assert.equal(await p.$$eval('#achart svg .pt', e => e.length), 30); assert.equal(await p.$$eval('#achart svg .dot', e => e.length), 1, 'actifs : un seul jour relevé (aujourd\'hui)');
   assert.match(await p.$eval('#achart svg .pt:last-of-type title', e => e.textContent), /: \d+ comptes? actifs?$/); assert.match(await p.$eval('#achart svg .pt:first-of-type title', e => e.textContent), /pas de relevé$/);
   assert.match(await txt(p, '#achart'), /Actifs par jour \d+ aujourd'hui/); assert.match(await txt(p, '#achart'), /chaque heure/);
-  assert.match(await txt(p, '#pubrep'), /Decks publics signalés 1 deck .*Atraxa, Praetors' Voice par Jeanne · Jeanne D\. \(je•••@gmail\.com\).*1 signalement Retirer/);
-  assert.match(await txt(p, '#journal'), /Aucune action pour l'instant/);
-  assert.equal(await p.$$eval('#ulist tr[data-id]', e => e.length), 50); assert.equal(await txt(p, '#pager .pg'), 'Page 1 / 3'); assert.equal(await txt(p, '#uCount'), '(124)');
+  assert.ok(await p.$eval('#chart svg', s => Number(s.getAttribute('width')) > 300), 'graphique à la largeur de sa carte');
+  assert.match(await txt(p, '#mix'), /Google 123 · E-mail 1/);
+  assert.equal(await p.$('#testers'), null, 'plus de section « Testeurs inscrits »'); assert.ok(!api.some(a => a.includes('/testeurs')), 'ni sa liste demandée');
   assert.match(await txt(p, '#meta'), /source : Firebase Authentication \+ Firestore/);
-  assert.match(await txt(p, '#mix'), /Google 123 · E-mail 1/); assert.match(await txt(p, '#srv'), /Serveur/); assert.match(await txt(p, '#srv'), /Échanges en direct/);
-  assert.equal(await visible(p, '#acts'), true);
-  const body = await p.evaluate(() => document.body.innerText);
+  assert.equal(await visible(p, '#acts'), true); assert.equal(await visible(p, '#tabs'), true);
+  await tab(p, 'signalements');
+  await p.waitForSelector('#scans:not([hidden]) .empty'); assert.match(await txt(p, '#scans'), /Scans signalés .*Aucun scan signalé pour l'instant/);      // fiches, photo et suppression : scanreport-e2e.mjs
+  assert.match(await txt(p, '#pubrep'), /Decks publics signalés 1 deck .*Atraxa, Praetors' Voice par Jeanne · Jeanne D\. \(je•••@gmail\.com\).*1 signalement Retirer/);
+  await tab(p, 'journal'); assert.match(await txt(p, '#journal'), /Aucune action pour l'instant/);
+  await tab(p, 'serveur'); assert.match(await txt(p, '#srv'), /Serveur/); assert.match(await txt(p, '#srv'), /Échanges en direct/);
+  await tab(p, 'comptes');
+  assert.equal(await p.$$eval('#ulist tr[data-id]', e => e.length), 50); assert.equal(await txt(p, '#pager .pg'), 'Page 1 / 3'); assert.equal(await txt(p, '#uCount'), '(124)');
+  const body = await p.evaluate(() => document.body.textContent);
   assert.ok(!/jeanne\.dupont@|Dupont|uid-/.test(body), 'page : ni e-mail complet, ni nom complet, ni UID');
-  ok('changer de compte → éditeur : 9 chiffres (dont les scans signalés), inscriptions et actifs sur 30 jours (SVG, survol), 50 comptes, page 1 / 3, comptes, decks signalés, journal, serveur ; rien d\'identifiant');
+  ok('changer de compte → éditeur, vue d\'ensemble : 9 chiffres (dont les scans signalés), inscriptions et actifs sur 30 jours (SVG, survol), comptes ; Signalements (scans, decks), Journal, Serveur, Utilisateurs (50 comptes, page 1 / 3) ; plus de « Testeurs » ; rien d\'identifiant');
 
   // recherche, tri, pages
   await p.fill('#q', 'jeanne'); await p.waitForFunction(() => document.querySelectorAll('#ulist tr[data-id]').length === 1, null, { timeout: 5000 });
@@ -102,12 +133,13 @@ const settle = p => p.waitForFunction(() => !document.querySelector('#ulist.busy
   await p.click('#pager [data-page="3"]'); await p.waitForFunction(() => /Page 3 \/ 3/.test(document.querySelector('#pager').innerText), null, { timeout: 5000 });
   assert.equal(await p.$$eval('#ulist tr[data-id]', e => e.length), 24); assert.equal(await p.$eval('#pager [data-page="4"]', b => b.disabled), true);
   assert.ok(api.some(a => /sort=decks&dir=asc/.test(a) && /page=3/.test(a)));
-  ok('recherche (nom réduit, ligne complète), « aucun compte », tri par decks dans les deux sens, pages 2 et 3 (24 comptes, « Suivante » grisée)');
+  assert.equal(await curTab(p), 'comptes', 'repeint de la liste : on reste sur l\'onglet');
+  ok('recherche (nom réduit, ligne complète), « aucun compte », tri par decks dans les deux sens, pages 2 et 3 (24 comptes, « Suivante » grisée), toujours sur l\'onglet Utilisateurs');
 
   // CSV : la liste en cours (tri par decks croissant), mêmes champs réduits
   const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#btnCsv')]);
   assert.match(dl.suggestedFilename(), /^comptes-mana-orbit-\d{4}-\d{2}-\d{2}\.csv$/);
-  const csv = readFileSync(await dl.path(), 'utf8').replace(/^\uFEFF/, ''), lines = csv.trimEnd().split('\r\n');
+  const csv = readFileSync(await dl.path(), 'utf8').replace(/^﻿/, ''), lines = csv.trimEnd().split('\r\n');
   assert.equal(lines.length, 125); assert.match(lines[0], /^Nom;E-mail \(masqué\);Connexion;/); assert.ok(!/jeanne\.dupont@|uid-|Dupont/.test(csv));
   const dk = lines.slice(1).map(l => Number(l.split(';')[11])); assert.deepEqual(dk, dk.slice().sort((a, b) => a - b), 'tri en cours (decks croissants)');
   assert.ok(api.some(a => /^GET \/api\/admin\/export\?.*sort=decks&dir=asc/.test(a))); await p.waitForSelector('.toast.on'); assert.match(await txt(p, '.toast'), /124 comptes exportés/);
@@ -125,15 +157,16 @@ const settle = p => p.waitForFunction(() => !document.querySelector('#ulist.busy
 
   // se déconnecter : plus rien à l'écran
   await p.click('#btnOut'); await p.waitForSelector('#vOut:not([hidden])');
-  assert.equal(await p.$('#ulist tr'), null); assert.equal(await txt(p, '#kpis').catch(() => ''), '');
+  assert.equal(await p.$('#ulist tr'), null); assert.equal(await txt(p, '#kpis').catch(() => ''), ''); assert.equal(await visible(p, '#tabs'), false);
   assert.deepEqual(errs, []); await ctx.close();
-  ok('se déconnecter : retour à la connexion, plus aucune donnée dans la page ; aucune erreur (CSP comprise)');
+  ok('se déconnecter : retour à la connexion, plus aucune donnée dans la page ni d\'onglets ; aucune erreur (CSP comprise)');
 }
 
 /* ── Déjà connecté dans l'appli (même origine) : tableau de bord d'emblée ; ordinateur : tableau, en-têtes cliquables ; sombre ──────── */
 {
-  const { ctx, p, errs, api } = await open({ user: ADM, vp: { width: 1280, height: 900 }, dark: true });
+  const { ctx, p, errs, api } = await open({ user: ADM, vp: { width: 1280, height: 900 }, dark: true, hash: '#comptes' });
   await dash(p);
+  assert.equal(await curTab(p), 'comptes', 'lien direct vers un onglet');
   assert.equal(await p.evaluate(() => window.__popups || 0), 0, 'aucune fenêtre de connexion');
   assert.equal(await p.$eval('.ut thead', e => getComputedStyle(e).display), 'table-header-group', 'ordinateur : vrai tableau');
   assert.equal(await p.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(11, 15, 28)', 'thème sombre');
@@ -142,10 +175,11 @@ const settle = p => p.waitForFunction(() => !document.querySelector('#ulist.busy
   assert.deepEqual(v, v.slice().sort((a, b) => b - a)); assert.equal(await p.$eval('#sort', s => s.value), 'cards');
   await p.click('.ut th[data-sort="cards"]'); await p.waitForFunction(() => document.querySelector('.ut th[data-sort="cards"]').getAttribute('aria-sort') === 'ascending', null, { timeout: 5000 });
   const w = await p.evaluate(() => document.documentElement.scrollWidth); assert.ok(w <= 1280, 'pas de défilement de côté (' + w + ')');
-  ok('déjà connecté dans l\'appli : tableau de bord sans fenêtre de connexion ; ordinateur : tableau, tri par en-tête (deux sens) ; thème sombre');
+  ok('déjà connecté dans l\'appli : tableau de bord sans fenêtre de connexion, lien direct #comptes ; ordinateur : tableau, tri par en-tête (deux sens) ; thème sombre');
 
   // Désactiver : fenêtre de confirmation (Annuler : rien ne part), puis effet ; réactiver refusé (rôle IAM manquant : message dans la fenêtre), puis accepté
   const posts = () => api.filter(a => a.startsWith('POST /api/admin/disable')).length;
+  const seeTxt = async (k, sel) => { await tab(p, k); const t = await txt(p, sel); await tab(p, 'comptes'); return t; };
   await p.fill('#q', 'jeanne'); await p.waitForFunction(() => document.querySelectorAll('#ulist tr[data-id]').length === 1, null, { timeout: 5000 });
   assert.equal(await p.$eval('#ulist .uacts', e => getComputedStyle(e).opacity), '0', 'ordinateur : actions au survol de la ligne');
   await p.hover('#ulist tr[data-id]'); await p.waitForFunction(() => getComputedStyle(document.querySelector('#ulist .uacts')).opacity === '1', null, { timeout: 3000 });
@@ -157,14 +191,14 @@ const settle = p => p.waitForFunction(() => !document.querySelector('#ulist.busy
   await p.click('#ulist [data-act="off"]'); await p.click('#dlg [data-v="ok"]');
   await p.waitForSelector('#ulist tr[data-id] .tag.bad'); assert.match(await txt(p, '#ulist tr[data-id] .who'), /désactivé.*Réactiver/);
   assert.match(await txt(p, '.toast'), /Compte désactivé/); assert.equal(A.it.updates.at(-1).disableUser, true);
-  assert.match(await txt(p, '#journal'), /Compte désactivé Jeanne D\. · je•••@gmail\.com · .* · par ad•••@e•••\.org/);
-  assert.match(await txt(p, '#mix'), /Comptes désactivés 2/);
+  assert.match(await seeTxt('journal', '#journal'), /Compte désactivé Jeanne D\. · je•••@gmail\.com · .* · par ad•••@e•••\.org/);
+  assert.match(await seeTxt('apercu', '#mix'), /Comptes désactivés 2/);
   A.it.denyUpdate = 1;
   await p.click('#ulist [data-act="on"]'); await p.waitForSelector('#dlg[open]'); assert.match(await txt(p, '#dlg h2'), /^Réactiver Jeanne D\. \?$/); await p.click('#dlg [data-v="ok"]');
   await p.waitForFunction(() => document.querySelector('#dlg').open && /Action impossible/.test(document.querySelector('#dlg').innerText), null, { timeout: 5000 });
   assert.match(await txt(p, '#dlg'), /Réactivation refusée au compte de service \(HTTP 403\)\. Rôle IAM à ajouter au compte de service : « Administrateur Firebase Authentication » \(roles\/firebaseauth\.admin\)/);
   await p.click('#dlg [data-v="ok"]'); A.it.denyUpdate = 0;
-  assert.match(await txt(p, '#journal'), /^Journal des actions 2 dernières .*Réactivation refusée .*HTTP 403 Compte désactivé/);
+  assert.match(await seeTxt('journal', '#journal'), /^Journal des actions 2 dernières .*Réactivation refusée .*HTTP 403 Compte désactivé/);
   await p.click('#ulist [data-act="on"]'); await p.click('#dlg [data-v="ok"]');
   await p.waitForFunction(() => !document.querySelector('#ulist tr[data-id] .tag.bad'), null, { timeout: 5000 }); assert.equal(A.it.updates.at(-1).disableUser, false);
   ok('désactiver : fenêtre qui dit quel compte (Échap, Annuler : rien envoyé), puis désactivé (étiquette, chiffres, journal) ; rôle IAM manquant : message clair dans la fenêtre ; réactivé');
@@ -177,10 +211,10 @@ const settle = p => p.waitForFunction(() => !document.querySelector('#ulist.busy
   await p.click(del); assert.equal(await txt(p, del), 'Confirmer le retrait'); assert.ok(A.fs.docs.has(`pubdecks/${T0}_0`), 'un appui : rien');
   await p.click(del); await p.waitForFunction(() => document.querySelectorAll('#dlg .pdr').length === 1, null, { timeout: 5000 });
   assert.ok(!A.fs.docs.has(`pubdecks/${T0}_0`)); assert.match(await txt(p, '.toast'), /Deck retiré de la Communauté/);
-  await p.click('#dlg [data-v=""]'); await p.waitForFunction(() => /Aucun deck signalé/.test(document.querySelector('#pubrep').innerText), null, { timeout: 5000 });
+  await p.click('#dlg [data-v=""]'); await p.waitForFunction(() => /Aucun deck signalé/.test(document.querySelector('#pubrep').textContent), null, { timeout: 5000 });
   await p.waitForFunction(() => /Decks publics \(1\)/.test(document.querySelector('#ulist .uacts').innerText), null, { timeout: 5000 });
-  assert.match(await txt(p, '#journal'), /^Journal des actions 4 dernières .*Deck public retiré Jeanne D\. · je•••@gmail\.com · Atraxa, Praetors' Voice · par Jeanne/);
-  assert.match(await txt(p, '#kpis [data-k="decks"]'), /1 publié/);
+  assert.match(await seeTxt('journal', '#journal'), /^Journal des actions 4 dernières .*Deck public retiré Jeanne D\. · je•••@gmail\.com · Atraxa, Praetors' Voice · par Jeanne/);
+  assert.match(await seeTxt('apercu', '#kpis [data-k="decks"]'), /1 publié/);
   const shot = process.env.ADMIN_SHOT; if (shot) await p.screenshot({ path: shot, fullPage: true });
   assert.deepEqual(errs, []); await ctx.close();
   ok('decks publics : fenêtre des decks du compte, « Retirer » puis « Confirmer le retrait » (un appui : rien), deck effacé, signalés vidés, ligne, chiffres et journal à jour ; aucune erreur');
@@ -193,7 +227,8 @@ const settle = p => p.waitForFunction(() => !document.querySelector('#ulist.busy
   assert.deepEqual(errs, []); await ctx.close();
   ok('téléphone (390 px) : fiches, pas de défilement de côté');
 }
-/* ── Discord : /api/admin/discord* simulé par des routes (le contrat : salons, rôles, historique ; send, delete) ─────────────────────────── */
+
+/* ── Routes simulées : Discord (salons, rôles, historique ; send, delete), Fils des forums, Carte mystère, réponse de /api/admin modifiée ─────── */
 const DC_CH = [
   { id: '100', name: 'hors-catégorie', type: 0, cat: null },
   { id: '101', name: 'bienvenue', type: 0, cat: 'Bienvenue' }, { id: '102', name: 'règles', type: 0, cat: 'Bienvenue' }, { id: '103', name: 'annonces', type: 5, cat: 'Bienvenue' },
@@ -203,9 +238,10 @@ const DC_CH = [
 const DC_ROLES = [{ id: '201', name: 'Équipe', color: 0x9fb4ff }, { id: '202', name: 'Testeur', color: 0xf0b45a }, { id: '203', name: 'Annonces', color: 0 }, { id: '204', name: 'Événements', color: 0 }, { id: '205', name: 'Changelog', color: 0 }, { id: '206', name: 'Carte mystère', color: 0x7be8c8 }];
 const DC = { mode: 'on', delay: 0, fail: null, posts: [], n: 0, sent: [] };
 const dcOld = () => [{ t: Date.now() - 3 * 3600e3, ch: '104', chn: 'général', id: '800', url: 'https://discord.com/channels/9/104/800', text: 'Ancien message', ping: [] }];
+const json = (r, status, body) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 async function routeDiscord(ctx) {
-  await ctx.route('**/api/admin/discord**', async r => {
-    const q = r.request(), u = new URL(q.url()), j = (status, body) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+  await ctx.route(u => u.pathname === '/api/admin/discord' || /^\/api\/admin\/discord\/(send|delete)$/.test(u.pathname), async r => {
+    const q = r.request(), u = new URL(q.url()), j = (status, body) => json(r, status, body);
     if (DC.mode === '404') return j(404, { error: 'not_found' });
     if (u.pathname === '/api/admin/discord' && q.method() === 'GET') {
       return j(200, DC.mode === 'off' ? { on: false, guild: null, channels: [], roles: [], sent: [], message: 'Bot Discord non configuré (DISCORD_BOT_TOKEN absent).' }
@@ -224,42 +260,233 @@ async function routeDiscord(ctx) {
     return j(404, { error: 'not_found' });
   });
 }
-const toastIs = (p, re) => p.waitForFunction(r => new RegExp(r).test((document.querySelector('.toast.on') || {}).textContent || ''), re.source, { timeout: 5000 });
-const dcAsked = (api) => (async () => { for (let i = 0; i < 100 && !api.some(a => a === 'GET /api/admin/discord'); i++) await sleep(50); })();
-{
-  // route absente (ou DISCORD=0) : section cachée ; sombre
-  DC.mode = '404';
-  const { ctx, p, errs, api } = await open({ user: ADM, before: routeDiscord, dark: true });
-  await dash(p); await dcAsked(api); await p.waitForTimeout(200);
-  assert.ok(api.includes('GET /api/admin/discord')); assert.equal(await p.$eval('#discord', e => e.hidden), true, '404 : section cachée'); assert.equal(await p.$('#discord *'), null);
-  assert.deepEqual(errs, []); await ctx.close();
-  ok('Discord : 404 → section cachée');
+// Fils des forums (contrat : scratchpad contract-threads.md) : 3 forums et leurs étiquettes ; fils ouverts et fermés ; un fil : ses messages
+const TH_FORUMS = [
+  { key: 'bugs', id: '300', name: '🐞・bugs', tags: [{ id: 'a1', name: 'Android', emoji: '🤖', moderated: false }, { id: 'a2', name: 'Confirmé', emoji: '✅', moderated: true }, { id: 'a3', name: 'Corrigé', emoji: '🛠️', moderated: true }, { id: 'a4', name: 'Prochaine version', emoji: 'pv', moderated: true }] },
+  { key: 'idées', id: '301', name: '💡・idées', tags: [{ id: 'b1', name: 'Retenue', emoji: '👍', moderated: true }] },
+  { key: 'aide', id: '302', name: '❓・aide', tags: [] },
+];
+const H = 3600e3;
+const thSeed = () => [
+  { id: '700', forum: 'bugs', name: 'Le scan plante sur Android', tags: ['a1'], created: Date.now() - 5 * H, last: Date.now() - 1 * H, count: 3, archived: false, locked: false, by: { name: 'Mana Orbit', bot: true }, first: 'Quand je scanne une carte en japonais, l\'appli se ferme.' },
+  { id: '701', forum: 'bugs', name: 'Prix faux pour les foils', tags: ['a2'], created: Date.now() - 30 * H, last: Date.now() - 2 * H, count: 1, archived: false, locked: false, by: { name: 'Lucie', bot: false }, first: '' },
+  { id: '702', forum: 'idées', name: 'Mode sombre plus contrasté', tags: [], created: Date.now() - 50 * H, last: Date.now() - 3 * H, count: 0, archived: false, locked: false, by: { name: 'Paul', bot: false }, first: '', firstHidden: true },
+  ...[1, 2, 3].map(i => ({ id: '71' + i, forum: 'bugs', name: 'Ancien bug ' + i, tags: ['a3'], created: Date.now() - (100 + i * 10) * H, last: Date.now() - (90 + i * 10) * H, closed: Date.now() - (90 + i * 10) * H, count: 2, archived: true, locked: i === 1, by: { name: 'Mana Orbit', bot: true }, first: 'Réglé.' })),
+].map(t => ({ ...t, url: 'https://discord.com/channels/9/' + t.id }));
+const TH = { mode: 'on', fail: null, closeFail: false, posts: [], gets: [], list: thSeed(), msgs: {} };
+const thMsgs = id => TH.msgs[id] || (TH.msgs[id] = id === '700' ? [
+  { id: '700', by: { name: 'Mana Orbit', bot: true }, t: Date.now() - 5 * H, content: 'Quand je scanne une carte en japonais, l\'appli se ferme.\n\nAndroid 14 · APK 1.0.11', edited: false, attachments: [{ url: '/icons/icon.svg', name: 'capture-1.jpg', type: 'image/jpeg', w: 192, h: 192 }, { url: 'https://evil.example/x.png', name: 'piege.png', type: 'image/png' }] },
+  { id: '7001', by: { name: 'Lucie', bot: false }, t: Date.now() - 2 * H, content: '', hidden: true, edited: false, attachments: [] },
+  { id: '7002', by: { name: 'Paul', bot: false }, t: Date.now() - 1 * H, content: 'Pareil chez moi <img src=x onerror="window.__xss=1">', edited: true, attachments: [] },
+] : [{ id, by: { name: 'Lucie', bot: false }, t: Date.now() - 3 * H, content: 'Premier message', edited: false, attachments: [] }]);
+async function routeThreads(ctx) {
+  await ctx.route(u => /^\/api\/admin\/discord\/(threads|thread|reply|thread-delete)$/.test(u.pathname), async r => {
+    const q = r.request(), u = new URL(q.url()), j = (status, body) => json(r, status, body);
+    if (TH.mode === '404') return j(404, { error: 'not_found' });
+    if (q.method() === 'GET') TH.gets.push(u.pathname + u.search);
+    if (u.pathname === '/api/admin/discord/threads') {
+      if (TH.mode === 'off') return j(200, { on: false, message: 'Bot Discord non configuré (DISCORD_BOT_TOKEN absent).', forums: [], threads: [] });
+      const f = u.searchParams.get('forum'), closed = u.searchParams.get('state') === 'closed', b0 = u.searchParams.get('before') || '', bef = b0.startsWith('cur-') ? Number(b0.slice(4)) : Infinity;
+      if (f === 'aide') return j(200, { on: true, forums: TH_FORUMS, threads: [], message: 'Forum « aide » introuvable sur le serveur Discord.' });
+      const all = TH.list.filter(t => (!f || t.forum === f) && t.archived === closed && t.last < bef).sort((a, b) => b.last - a.last), page = closed ? all.slice(0, 2) : all;
+      return j(200, { on: true, forums: TH_FORUMS, threads: page, more: closed && all.length > 2, ...(closed && all.length > 2 ? { next: 'cur-' + page.at(-1).last } : {}) });      // next : chaîne opaque (comme Discord)
+    }
+    if (u.pathname === '/api/admin/discord/thread' && q.method() === 'GET') {
+      const t = TH.list.find(x => x.id === u.searchParams.get('id')); if (!t) return j(404, { error: 'not_found', message: 'Fil introuvable.' });
+      return j(200, { thread: t, messages: thMsgs(t.id), more: t.id === '700' });
+    }
+    const b = JSON.parse(q.postData() || '{}'); TH.posts.push({ path: u.pathname, body: b, tok: q.headers()['x-firebase-token'] || '', type: q.headers()['content-type'] });
+    if (TH.fail) return j(TH.fail[0], TH.fail[1]);
+    const t = TH.list.find(x => x.id === b.id); if (!t) return j(404, { error: 'not_found', message: 'Fil introuvable.' });
+    if (u.pathname === '/api/admin/discord/thread') { for (const k of ['tags', 'archived', 'locked', 'name']) if (b[k] !== undefined) t[k] = b[k]; return j(200, { ok: true, thread: t }); }
+    if (u.pathname === '/api/admin/discord/reply') {
+      const id = String(7100 + TH.posts.length); thMsgs(t.id).push({ id, by: { name: 'Mana Orbit', bot: true }, t: Date.now(), content: b.content, edited: false, attachments: [] });
+      t.count++; t.last = Date.now();
+      if (b.close && TH.closeFail) return j(200, { ok: true, closed: false, message: 'Réponse envoyée, mais Discord a refusé de fermer le fil.', msg: { id, url: t.url + '/' + id }, thread: t });
+      if (b.close) { t.archived = true; t.closed = Date.now(); }
+      return j(200, { ok: true, msg: { id, url: t.url + '/' + id }, thread: t });
+    }
+    if (u.pathname === '/api/admin/discord/thread-delete') { TH.list = TH.list.filter(x => x.id !== b.id); return j(200, { ok: true }); }
+    return j(404, { error: 'not_found' });
+  });
 }
+// Carte mystère (/api/admin/daily ; DAILY=0 sur ce serveur de test : sans cette route, l'onglet est masqué)
+const DY = { mode: 'on', prep: false, posts: [] };
+const dySeed = () => ({
+  rows: [{ id: 'p1', n: 'BobLeMage', s: 980, d: 3, last: '2026-10-22', lv: 4 }, { id: 'p2', n: 'Zoé', s: 400, d: 1, last: '2026-10-21' }, { id: 'p3', n: 'Masquée', s: 120, d: 1, last: '2026-10-20', x: 1 }],
+  chk: [{ id: '2026-10-22:p4', day: '2026-10-22', n: 'Rapide', s: 1000, step: 1, ms: 12000, by: 'win', gap: 30, other: 0 }],
+  sus: [{ id: 'p5', n: 'Chanceux', c: 5, of: 7, rate: 4.2 }],
+  reports: [{ id: 'p6', n: 'VilainPseudo', k: 2, at: Date.now() - H, hid: false }, { id: 'p7', n: 'Grossier', k: 3, at: Date.now() - 2 * H, hid: true }],
+});
+let DYS = dySeed();
+const dyView = () => ({ day: '2026-10-22', no: 8, st: DY.prep ? 'prep' : 'ready', next: '2026-10-23', plays: 1, done: 1, fb: [], card: DY.prep ? null : { en: 'Lightning Bolt', set: 'Magic 2010', fr: 'Foudre' },
+  rows: DYS.rows, hidden: DYS.rows.filter(r => r.x).length, chk: DYS.chk, sus: DYS.sus, minAge: 0, prep: DY.prep ? { since: Date.now() - 60e3, err: null } : null, reports: DYS.reports, repHide: 3 });
+async function routeDaily(ctx) {
+  await ctx.route(u => /^\/api\/admin\/daily(\/|$)/.test(u.pathname), async r => {
+    const q = r.request(), u = new URL(q.url()), j = (status, body) => json(r, status, body);
+    if (DY.mode === '404') return j(404, { error: 'not_found' });
+    if (q.method() === 'GET') return j(200, dyView());
+    const b = JSON.parse(q.postData() || '{}'); DY.posts.push({ path: u.pathname, body: b });
+    if (u.pathname === '/api/admin/daily/hide') { for (const r0 of DYS.rows) if (r0.id === b.id) r0.x = b.on ? 1 : undefined; DYS.reports = DYS.reports.filter(x => !(x.id === b.id && b.on === false)).map(x => (x.id === b.id ? { ...x, hid: !!b.on } : x)); }
+    if (u.pathname === '/api/admin/daily/report') DYS.reports = DYS.reports.filter(x => x.id !== b.id);
+    if (u.pathname === '/api/admin/daily/ok') { DYS.chk = DYS.chk.filter(x => x.id !== b.id); DYS.sus = DYS.sus.filter(x => x.id !== b.id); }
+    return j(200, { ok: true, ...dyView() });
+  });
+}
+/** Réponse de /api/admin retouchée (ex. scans coupés sur le serveur : scans null). */
+const routeAdminPatch = patch => async ctx => ctx.route(u => u.pathname === '/api/admin', async r => { const res = await r.fetch(); const b = await res.json(); return r.fulfill({ response: res, body: JSON.stringify(patch(b)) }); });
+const ALL = [routeDiscord, routeThreads, routeDaily];
+const toastIs = (p, re) => p.waitForFunction(r => new RegExp(r).test((document.querySelector('.toast.on') || {}).textContent || ''), re.source, { timeout: 5000 });
+const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some(a => a.startsWith('GET ' + path)); i++) await sleep(50); })();
+
+/* ── Onglets : clic, adresse, retour, rechargement, lien direct, clavier, pastilles, tuiles ─────────────────────────────────────────── */
+{
+  DC.mode = 'on'; DC.sent = dcOld(); TH.mode = 'on'; DY.mode = 'on';
+  const { ctx, p, errs, api } = await open({ user: ADM, before: ALL, vp: { width: 1280, height: 900 } });
+  await dash(p); await p.waitForSelector('#kpis [data-k="pseudos"]'); await p.waitForFunction(() => !document.querySelector('#t-fils .badge').hidden, null, { timeout: 5000 });
+  assert.deepEqual(await tabsShown(p), TAB_ORDER, 'tous les onglets (Carte mystère, Discord et Fils servis)');
+  assert.equal(await p.$eval('#tabl', e => e.getAttribute('role')), 'tablist');
+  assert.deepEqual(await p.$$eval('#tabl .tab', e => e.map(x => [x.getAttribute('role'), x.getAttribute('aria-controls'), x.tabIndex])), TAB_ORDER.map(k => ['tab', 'p-' + k, k === 'apercu' ? 0 : -1]), 'role tab, aria-controls, un seul dans l\'ordre de tabulation');
+  assert.equal(await p.evaluate(() => location.hash), '', 'adresse sans onglet : vue d\'ensemble');
+  // pastilles : Signalements = 2 pseudos + 0 deck (retiré plus haut) + 0 scan ; Carte mystère = 1 à vérifier + 1 soupçon ; Fils = fils ouverts sans étiquette d'équipe (700, 702)
+  assert.equal(await badgeOf(p, 'signalements'), '2'); assert.equal(await badgeOf(p, 'mystere'), '2'); assert.equal(await badgeOf(p, 'fils'), '2');
+  const nBad = await p.$$eval('#srv dd.bad', e => e.length); assert.equal(await badgeOf(p, 'serveur'), nBad ? String(nBad) : '', 'Serveur : une pastille par point en rouge');
+  assert.match(await p.$eval('#t-signalements', e => e.textContent), /Signalements2 : 2 pseudos à traiter/, 'pastille lue par un lecteur d\'écran');
+  assert.equal(await p.$$eval('#kpis .kpi', e => e.length), 10, '8 chiffres + scans + pseudos signalés');
+  ok('onglets : tablist / tab, un seul tabulable ; pastilles Signalements (2), Carte mystère (2), Fils (2), Serveur (points en rouge)');
+
+  await tab(p, 'journal'); assert.equal(await p.evaluate(() => location.hash), '#journal'); assert.deepEqual(await shownPanels(p), ['p-journal']);
+  await tab(p, 'serveur'); assert.equal(await p.evaluate(() => location.hash), '#serveur');
+  await p.goBack(); await p.waitForFunction(() => document.querySelector('#t-journal').getAttribute('aria-selected') === 'true'); assert.deepEqual(await shownPanels(p), ['p-journal'], 'retour : l\'onglet d\'avant');
+  await p.goBack(); await p.waitForFunction(() => document.querySelector('#t-apercu').getAttribute('aria-selected') === 'true'); assert.deepEqual(await shownPanels(p), ['p-apercu']);
+  await p.goForward(); await p.waitForFunction(() => document.querySelector('#t-journal').getAttribute('aria-selected') === 'true');
+  await tab(p, 'mystere'); await p.reload(); await dash(p); await p.waitForSelector('#daily .dyhead');
+  assert.equal(await curTab(p), 'mystere', 'rechargement : même onglet'); assert.deepEqual(await shownPanels(p), ['p-mystere']);
+  await p.goto(URL0 + '#discord'); await dash(p); await p.waitForSelector('#dcCh');
+  assert.equal(await curTab(p), 'discord', 'lien direct #discord'); assert.equal(await visible(p, '#dcCh'), true);
+  await p.goto(URL0 + '#inconnu'); await dash(p); assert.equal(await curTab(p), 'apercu'); assert.equal(await p.evaluate(() => location.hash), '#apercu', 'onglet inconnu : vue d\'ensemble');
+  ok('onglets : clic → #adresse, retour / avancer, rechargement sur le même onglet, lien direct #discord, adresse inconnue → vue d\'ensemble');
+
+  // clavier : flèches, Début, Fin (en boucle), focus visible, l'onglet choisi suit
+  await p.focus('#t-apercu'); await p.keyboard.press('ArrowRight');
+  assert.equal(await p.evaluate(() => document.activeElement.id), 't-comptes'); assert.equal(await curTab(p), 'comptes'); assert.equal(await p.evaluate(() => location.hash), '#comptes');
+  assert.equal(await p.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), 'solid', 'focus visible au clavier');
+  await p.keyboard.press('End'); assert.equal(await curTab(p), 'serveur'); assert.equal(await p.evaluate(() => document.activeElement.id), 't-serveur');
+  await p.keyboard.press('ArrowRight'); assert.equal(await curTab(p), 'apercu', 'après le dernier : le premier');
+  await p.keyboard.press('ArrowLeft'); assert.equal(await curTab(p), 'serveur');
+  await p.keyboard.press('Home'); assert.equal(await curTab(p), 'apercu');
+  assert.deepEqual(await p.$$eval('#tabl .tab', e => e.filter(x => x.tabIndex === 0).map(x => x.id)), ['t-apercu']);
+  await p.keyboard.press('Tab'); assert.notEqual(await p.evaluate(() => document.activeElement.closest('#tabl') ? 1 : 0), 1, 'Tab : sort de la barre');
+  ok('onglets au clavier : → ← Début Fin (en boucle), focus visible, un seul onglet tabulable, Tab quitte la barre');
+
+  // tuiles : « Pseudos signalés » → Signalements (carte des pseudos) ; « Comptes » → Utilisateurs
+  await p.click('#kpis [data-k="pseudos"]'); assert.equal(await curTab(p), 'signalements'); assert.equal(await visible(p, '#dyRepCard'), true);
+  assert.match(await txt(p, '#dyRepCard'), /^Pseudos signalés 2 pseudos .*VilainPseudo 2 signalements .*Masquer Ignorer Grossier 3 signalements .*masqué Rétablir Ignorer$/);
+  await p.click('#dyRepCard .dyr:first-child button:last-child'); await toastIs(p, /Signalements effacés\./);
+  assert.deepEqual(DY.posts.at(-1), { path: '/api/admin/daily/report', body: { id: 'p6' } });
+  await p.waitForFunction(() => document.querySelector('#t-signalements .badge').firstChild.textContent === '1'); assert.match(await p.$eval('#kpis [data-k="pseudos"]', e => e.textContent), /^Pseudos signalés11 masqué/);
+  await tab(p, 'apercu'); await p.click('#kpis [data-k="users"]'); assert.equal(await curTab(p), 'comptes');
+  await noJunk(p, 'onglets');
+  assert.deepEqual(errs, []); await ctx.close(); DYS = dySeed();
+  ok('tuiles : « Pseudos signalés » → Signalements (Ignorer : pastille et tuile à jour), « Comptes » → Utilisateurs ; aucune erreur');
+}
+
+/* ── Onglets masqués : Carte mystère (DAILY=0), Discord et Fils (404), scans coupés ; adresse vers un onglet masqué ───────────────── */
+{
+  DC.mode = '404'; TH.mode = '404';
+  const { ctx, p, errs, api } = await open({ user: ADM, before: [routeDiscord, routeThreads, routeAdminPatch(b => ({ ...b, scans: null }))], dark: true, hash: '#discord' });
+  await dash(p); await asked(api, '/api/admin/discord'); await asked(api, '/api/admin/daily'); await asked(api, '/api/admin/discord/threads'); await p.waitForTimeout(250);
+  assert.ok(api.includes('GET /api/admin/discord')); assert.equal(await p.$eval('#discord', e => e.hidden), true, '404 : section cachée'); assert.equal(await p.$('#discord *'), null);
+  assert.deepEqual(await tabsShown(p), ['apercu', 'comptes', 'signalements', 'journal', 'serveur'], 'Carte mystère (DAILY=0), Discord et Fils (404) masqués');
+  assert.equal(await curTab(p), 'apercu', '#discord coupé : vue d\'ensemble'); assert.equal(await p.evaluate(() => location.hash), '#apercu');
+  assert.equal(await p.$('#kpis [data-k="scans"]'), null, 'scans coupés : pas de tuile'); assert.equal(await p.$('#kpis [data-k="pseudos"]'), null);
+  await tab(p, 'signalements'); assert.equal(await p.$eval('#scans', e => e.hidden), true, 'scans coupés : carte cachée'); assert.equal(await p.$eval('#dyRepCard', e => e.hidden), true);
+  assert.equal(await visible(p, '#pubrep'), true, 'decks signalés toujours là'); assert.equal(await badgeOf(p, 'signalements'), '', 'rien à traiter : pas de pastille');
+  await p.focus('#t-signalements'); await p.keyboard.press('ArrowLeft'); assert.equal(await curTab(p), 'comptes', 'flèches : les onglets masqués sautés');
+  assert.deepEqual(errs, []); await ctx.close(); DC.mode = 'on'; TH.mode = 'on';
+  ok('onglets masqués : Carte mystère (DAILY=0), Discord et Fils (404), lien #discord → vue d\'ensemble ; scans coupés : ni tuile ni carte, l\'onglet Signalements reste ; flèches sautent les masqués');
+}
+
+/* ── Carte mystère : en-tête toujours là, réponse et joueurs dans un bloc repliable (gardé au rechargement), actions, carte en préparation ── */
+{
+  DY.mode = 'on'; DY.prep = false; DYS = dySeed();
+  const { ctx, p, errs } = await open({ user: ADM, before: routeDaily, hash: '#mystere' });
+  await dash(p); await p.waitForSelector('#daily .dyhead');
+  assert.equal(await txt(p, '#daily .dyhead'), 'Carte mystère n° 8 · 2026-10-22 · 1 terminée sur 1 · 1 masqué');
+  await noJunk(p, 'Carte mystère'); assert.doesNotMatch(await p.$eval('#daily', e => e.textContent), /null|undefined/, 'plus de « null » sous l\'en-tête');
+  assert.equal(await p.$eval('#dyPlayers', d => d.open), true, 'ouvert d\'office');
+  assert.match(await txt(p, '#dyPlayers'), /^Réponse du jour et joueurs 3 joueurs Réponse du jour Joueurs des 7 derniers jours .* BobLeMage 980 pts · 3 jours · 2026-10-22 · niv\. 4 Masquer Zoé .* Masquée .*masqué Rétablir$/);
+  { const hh = await p.$eval('#dyPlayers > summary', e => e.getBoundingClientRect().height); assert.ok(Math.round(hh) >= 44, 'titre du bloc : 44 px au moins (' + hh + ')'); }
+  await p.click('#dyPlayers .dyans summary'); assert.match(await txt(p, '#dyPlayers .dyans'), /Lightning Bolt \(Foudre\) · Magic 2010/);
+  await p.fill('#dyPlayers input[type="search"]', 'zoe'); assert.equal(await p.$$eval('#dyList .dyr', e => e.length), 1); assert.equal(await txt(p, '#dyN'), '1 sur 3');
+  await p.fill('#dyPlayers input[type="search"]', '');
+  assert.match(await txt(p, '#dyChk'), /^À vérifier 1 .*Rapide 2026-10-22 · 1 000 pts · étape 1 en 0:12 · 30 s après une victoire sur ce réseau à vérifier Valider$/);
+  assert.match(await txt(p, '#dySus'), /^Trop souvent à l'étape 1 1 .*Chanceux 5 fois sur ses 7 dernières parties · 4,2 % pour tous soupçon Valider$/);
+  // replier : en-tête toujours là, le reste caché ; gardé au rechargement et au repeint
+  await p.click('#dyPlayers > summary');
+  assert.equal(await p.$eval('#dyPlayers', d => d.open), false); assert.equal(await visible(p, '#dyList'), false); assert.equal(await visible(p, '#dyPlayers input[type="search"]'), false);
+  assert.equal(await visible(p, '#daily .dyhead'), true, 'en-tête toujours visible');
+  await p.reload(); await dash(p); await p.waitForSelector('#daily .dyhead');
+  assert.equal(await p.$eval('#dyPlayers', d => d.open), false, 'replié : gardé après le rechargement');
+  await p.click('#dyChk .dyr button'); await toastIs(p, /Partie remise au classement\./);
+  assert.deepEqual(DY.posts.at(-1), { path: '/api/admin/daily/ok', body: { id: '2026-10-22:p4' } });
+  assert.equal(await p.$eval('#dyPlayers', d => d.open), false, 'repeint après une action : toujours replié');
+  assert.match(await txt(p, '#dyChk'), /Aucune partie à vérifier/); assert.equal(await badgeOf(p, 'mystere'), '1');
+  await p.click('#dyPlayers > summary'); assert.equal(await p.$eval('#dyPlayers', d => d.open), true);
+  await p.click('#dyList .dyr:first-child button'); await toastIs(p, /Pseudo masqué dans les classements\./);
+  assert.deepEqual(DY.posts.at(-1), { path: '/api/admin/daily/hide', body: { id: 'p1', on: true } });
+  assert.match(await txt(p, '#daily .dyhead'), /2 masqués$/);
+  await noOverflow(p, 390, 'Carte mystère 390 px');
+  // carte du jour en préparation : la note, ni réponse ni « null »
+  DY.prep = true; await p.reload(); await dash(p); await p.waitForSelector('#daily .dyhead');
+  assert.match(await txt(p, '#daily'), /Carte du jour en préparation depuis .* \(tirage et images : une à deux minutes\)/); assert.equal(await p.$('#daily .dyans'), null);
+  await noJunk(p, 'Carte mystère en préparation'); DY.prep = false;
+  assert.deepEqual(errs, []); await ctx.close(); DYS = dySeed();
+  ok('Carte mystère : en-tête toujours visible, plus de « null » ; réponse, aide, recherche et joueurs dans un bloc repliable (44 px, gardé au rechargement et au repeint) ; à vérifier et soupçons repliables, Valider, Masquer ; carte en préparation');
+}
+
+/* ── Discord : bot non configuré ; onglet dédié (salons, raccourcis, modèles, pings, aperçu, envoi, historique) ─────────────────────── */
 {
   // bot non configuré (on: false) : le message du serveur et rien d'autre
   DC.mode = 'off';
-  const { ctx, p, errs } = await open({ user: ADM, before: routeDiscord });
+  const { ctx, p, errs } = await open({ user: ADM, before: routeDiscord, hash: '#discord' });
   await dash(p); await p.waitForSelector('#discord:not([hidden]) .note');
-  assert.equal(await txt(p, '#discord'), 'Discord Bot Discord non configuré (DISCORD_BOT_TOKEN absent).');
+  assert.equal(await txt(p, '#discord'), 'Bot Discord Indisponible Bot Discord non configuré (DISCORD_BOT_TOKEN absent).');
   assert.equal(await p.$$eval('#discord select, #discord textarea, #discord button, #discord input', e => e.length), 0, 'rien d\'autre');
+  assert.equal(await visible(p, '#t-discord'), true, 'on false : l\'onglet reste (il dit pourquoi)');
   assert.deepEqual(errs, []); await ctx.close();
-  ok('Discord : on false → le message du serveur seulement');
+  ok('Discord : on false → l\'état du bot et le message du serveur seulement');
 }
 {
-  DC.mode = 'on'; DC.sent = dcOld();
-  const { ctx, p, errs, api } = await open({ user: ADM, before: routeDiscord, phone: { width: 360, height: 740 } });
+  DC.mode = 'on'; DC.sent = dcOld(); DC.posts = [];
+  const { ctx, p, errs, api } = await open({ user: ADM, before: routeDiscord, phone: { width: 360, height: 740 }, hash: '#discord' });
   await dash(p); await p.waitForSelector('#discord:not([hidden]) #dcCh');
   const groups = await p.$$eval('#dcCh optgroup', g => g.map(x => [x.label, ...[...x.children].map(o => o.value + ' ' + o.textContent)]));
   assert.deepEqual(groups, [['Sans catégorie', '100 # hors-catégorie'], ['Bienvenue', '101 # bienvenue', '102 # règles', '103 📢 annonces'], ['Communauté', '104 # général', '105 # 🃏・decks'], ['Équipe', '106 📢 changelog']]);
-  assert.match(await txt(p, '#discord .chead'), /^Discord Mana Orbit$/);
+  assert.match(await txt(p, '#dcStat'), /^Bot Discord En ligne Serveur Mana Orbit Salons 7 · 2 d'annonces Rôles à pinger 6 Messages gardés 1 Le message part au nom du bot/i);
   assert.equal(await p.$eval('#dcCh', e => e.value), '103', 'rien de gardé : le premier salon « annonces »');
+  assert.deepEqual(await p.$$eval('#dcForm [data-ch]', e => e.map(x => [x.dataset.ch, x.textContent, x.getAttribute('aria-pressed')])), [['103', '📢 annonces', 'true'], ['106', '📢 changelog', 'false']], 'raccourcis #annonces et #changelog');
   assert.equal(await visible(p, '#dcPubL'), true); assert.equal(await p.$eval('#dcPub', e => e.checked), true, 'publier : coché d\'office');
   await p.selectOption('#dcCh', '104'); assert.equal(await visible(p, '#dcPubL'), false, 'salon écrit : pas de « Publier »');
-  await p.selectOption('#dcCh', '106'); assert.equal(await visible(p, '#dcPubL'), true, 'autre salon d\'annonces : « Publier »');
+  assert.deepEqual(await p.$$eval('#dcForm [data-ch]', e => e.map(x => x.getAttribute('aria-pressed'))), ['false', 'false']);
+  await p.click('#dcForm [data-ch="106"]'); assert.equal(await p.$eval('#dcCh', e => e.value), '106', 'raccourci → salon choisi'); assert.equal(await visible(p, '#dcPubL'), true, 'autre salon d\'annonces : « Publier »');
+  assert.equal(await txt(p, '#dcPrevCh'), '📢 changelog · Équipe', 'aperçu : le salon');
   await p.reload(); await dash(p); await p.waitForSelector('#dcCh');
-  assert.equal(await p.$eval('#dcCh', e => e.value), '106', 'dernier salon choisi gardé sur l\'appareil');
-  await p.selectOption('#dcCh', '103');
-  ok('Discord : salons groupés par catégorie (<optgroup>, 📢 pour les annonces), #annonces d\'office puis le dernier choisi, « Publier » seulement pour un salon d\'annonces');
+  assert.equal(await p.$eval('#dcCh', e => e.value), '106', 'dernier salon choisi gardé sur l\'appareil'); assert.equal(await curTab(p), 'discord');
+  await p.click('#dcForm [data-ch="103"]');
+  ok('Discord : état du bot (serveur, salons, rôles), salons groupés par catégorie (<optgroup>, 📢), raccourcis #annonces / #changelog, #annonces d\'office puis le dernier choisi, « Publier » seulement pour un salon d\'annonces');
+
+  // modèles : début de message en tête, une fois ; « x.y » sélectionné
+  await p.click('#dcForm [data-tpl="changelog"]');
+  assert.equal(await p.$eval('#dcTxt', e => e.value), '🆕 **Version x.y**\n• ');
+  assert.deepEqual(await p.$eval('#dcTxt', e => [document.activeElement === e, e.value.slice(e.selectionStart, e.selectionEnd)]), [true, 'x.y'], 'version à taper : sélectionnée');
+  await p.keyboard.type('1.0.12'); assert.equal(await p.$eval('#dcTxt', e => e.value), '🆕 **Version 1.0.12**\n• ');
+  await p.fill('#dcTxt', 'Le scan est plus rapide'); await p.click('#dcForm [data-tpl="annonce"]');
+  assert.equal(await p.$eval('#dcTxt', e => e.value), '📢 **Nouveauté** : \nLe scan est plus rapide', 'texte déjà là : le modèle en tête');
+  await p.click('#dcForm [data-tpl="annonce"]'); assert.equal(await p.$eval('#dcTxt', e => e.value), '📢 **Nouveauté** : \nLe scan est plus rapide', 'deux fois : pas deux en-têtes');
+  assert.deepEqual(await p.$$eval('#dcPrev b', e => e.map(x => x.textContent)), ['Nouveauté']);
+  await p.fill('#dcTxt', '');
+  ok('Discord : modèles « Annonce » et « Changelog » (début de message en tête une seule fois, « x.y » sélectionné, aperçu)');
 
   // historique d'avant ; texte, aperçu (gras, sauts de ligne, rien d'interprété), compteur
   assert.equal(await p.$$eval('#dcSent .dcr', e => e.length), 1); assert.match(await txt(p, '#dcSent .dcr'), /^Ancien message .* · général Ouvrir Supprimer$/);
@@ -289,7 +516,7 @@ const dcAsked = (api) => (async () => { for (let i = 0; i < 100 && !api.some(a =
   assert.equal(await p.evaluate(() => document.activeElement.textContent), 'Annuler');
   await p.click('#dlg [data-v=""]'); await p.waitForTimeout(100); assert.equal(DC.posts.length, 0, 'Annuler : rien envoyé');
   DC.delay = 600;
-  await p.click('#dcSend'); await p.click('#dlg [data-v="ok"]');
+  await p.focus('#dcTxt'); await p.keyboard.press('Control+Enter'); await p.waitForSelector('#dlg[open]'); await p.click('#dlg [data-v="ok"]');      // Ctrl+Entrée : la même confirmation
   await p.waitForFunction(() => document.querySelector('#dcSend').disabled && document.querySelector('#dcSend').textContent === 'Envoi…', null, { timeout: 3000 });
   assert.equal(await p.$eval('#dcTxt', e => e.readOnly), true); assert.equal(await p.$eval('#dcCh', e => e.disabled), true);
   await toastIs(p, /Message envoyé dans annonces\./); DC.delay = 0;
@@ -301,7 +528,7 @@ const dcAsked = (api) => (async () => { for (let i = 0; i < 100 && !api.some(a =
   assert.equal(await p.$$eval('#dcSent .dcr', e => e.length), 2);
   assert.match(await txt(p, '#dcSent .dcr:first-child'), /^Nouvelle version \*\*1\.0\.11\*\* ! Scan plus rapide .* · annonces · @Équipe @Testeur @everyone Ouvrir Supprimer$/);
   assert.deepEqual(await p.$eval('#dcSent .dcr:first-child a', a => [a.getAttribute('href'), a.target, a.rel]), ['https://discord.com/channels/9/103/901', '_blank', 'noopener noreferrer']);
-  ok('Discord : Envoyer → confirmation (salon, pings, @everyone, publier ; Annuler : rien), corps exact, grisé pendant l\'envoi, toast, texte et pings vidés, historique en tête (Ouvrir : nouvel onglet, noopener)');
+  ok('Discord : Envoyer (ou Ctrl+Entrée) → confirmation (salon, pings, @everyone, publier ; Annuler : rien), corps exact, grisé pendant l\'envoi, toast, texte et pings vidés, historique en tête (Ouvrir : nouvel onglet, noopener)');
 
   // salon écrit : publish false ; salon d'annonces décoché : publish false ; trop long : grisé
   await p.selectOption('#dcCh', '104'); await p.fill('#dcTxt', 'Salut tout le monde');
@@ -338,15 +565,152 @@ const dcAsked = (api) => (async () => { for (let i = 0; i < 100 && !api.some(a =
   assert.equal(await p.$$eval('#dcSent .dcr', e => e.length), 3); assert.equal(await txt(p, '#dcSent .dcr[data-id="800"] .sdel'), 'Supprimer');
   ok('Discord : Supprimer en deux appuis → POST /api/admin/discord/delete { id }, historique à jour ; refus : message du serveur, ligne gardée');
 
-  // repeint du panneau (tri) : brouillon gardé ; 360 px : rien ne déborde
-  await p.fill('#dcTxt', 'Brouillon'); await p.selectOption('#sort', 'cards'); await settle(p);
+  // repeint du panneau (tri, autre onglet) : brouillon gardé ; 360 px : rien ne déborde
+  await p.fill('#dcTxt', 'Brouillon'); await tab(p, 'comptes'); await p.selectOption('#sort', 'cards'); await settle(p); await tab(p, 'discord');
   assert.equal(await p.$eval('#dcTxt', e => e.value), 'Brouillon', 'brouillon gardé quand le panneau se repeint');
-  const w = await p.evaluate(() => document.documentElement.scrollWidth); assert.ok(w <= 360, '360 px : pas de défilement de côté (' + w + ')');
-  const out = await p.$$eval('#discord *', e => e.filter(x => x.getClientRects().length && x.getBoundingClientRect().right > 360.5).map(x => x.tagName + '.' + x.className));
-  assert.deepEqual(out, [], 'rien hors de l\'écran');
+  await noOverflow(p, 360, 'Discord 360 px');
   const shot = process.env.ADMIN_DC_SHOT; if (shot) await p.locator('#discord').screenshot({ path: shot });
   assert.equal(await p.evaluate(() => window.__xss), undefined); assert.deepEqual(errs, []); await ctx.close();
-  ok('Discord : brouillon gardé au repeint ; 360 px sans défilement de côté ; aucune erreur (CSP comprise)');
+  ok('Discord : brouillon gardé au repeint et d\'un onglet à l\'autre ; 360 px sans défilement de côté ; aucune erreur (CSP comprise)');
+}
+
+/* ── Fils des forums : filtres, un fil (messages, captures, texte illisible), étiquettes, fermer, verrouiller, renommer, répondre, supprimer ── */
+{
+  TH.mode = 'on'; TH.list = thSeed(); TH.msgs = {}; TH.posts = []; TH.gets = [];
+  const { ctx, p, errs } = await open({ user: ADM, before: routeThreads, vp: { width: 1280, height: 900 }, hash: '#fils' });
+  await dash(p); await p.waitForSelector('#thList .thi');
+  assert.deepEqual(TH.gets.filter(g => /state=open/.test(g)).map(g => new URLSearchParams(g.split('?')[1]).get('forum')).sort(), ['aide', 'bugs', 'idées'], 'fils ouverts des trois forums');
+  assert.deepEqual(await p.$$eval('#threads .seg:first-child .chip', e => e.map(x => [x.dataset.k, x.textContent, x.getAttribute('aria-pressed')])), [['tous', 'Tous2 à trier', 'true'], ['bugs', 'Bugs1 à trier', 'false'], ['idées', 'Idées1 à trier', 'false'], ['aide', 'Questions', 'false']], 'filtre forum, à trier par forum');
+  assert.match(await txt(p, '#threads .chead'), /^Fils des forums 3 fils ouverts · 2 à trier$/);
+  assert.deepEqual(await p.$$eval('#thList .thi', e => e.map(x => x.dataset.id)), ['700', '701', '702'], 'Tous : les trois forums, le plus récent d\'abord');
+  assert.match(await txt(p, '#thList .thi[data-id="702"]'), /^Mode sombre plus contrasté à trier \(texte non lisible : active Message Content Intent sur le portail Discord\) Idées · Paul · il y a 3 h · 0 message$/, 'premier message illisible : l\'avertissement');
+  await p.click('#threads .seg:first-child [data-k="bugs"]'); assert.deepEqual(await p.$$eval('#thList .thi', e => e.map(x => x.dataset.id)), ['700', '701']);
+  assert.match(await txt(p, '#thList .thi[data-id="700"]'), /^Le scan plante sur Android à trier 🤖 Android Quand je scanne une carte en japonais, l'appli se ferme\. Mana Orbit \(bot\) · il y a 1 h · 3 messages$/);
+  assert.match(await txt(p, '#thList .thi[data-id="701"]'), /^Prix faux pour les foils ✅ Confirmé Lucie · il y a 2 h · 1 message$/, 'étiquette d\'équipe : pas « à trier »');
+  assert.match(await txt(p, '#thDet'), /Choisis un fil dans la liste/);
+  await p.click('#threads .seg:first-child [data-k="idées"]'); assert.deepEqual(await p.$$eval('#thList .thi', e => e.map(x => x.dataset.id)), ['702']);
+  await p.click('#threads .seg:first-child [data-k="aide"]'); assert.match(await txt(p, '#thList'), /^Forum « aide » introuvable sur le serveur Discord\. Aucun fil ouvert dans ce forum\.$/, 'message du serveur affiché');
+  await p.click('#threads .seg:first-child [data-k="bugs"]');
+  ok('Fils : fils ouverts des trois forums, filtre Tous / Bugs / Idées / Questions (à trier par forum), fiche (titre, étiquettes avec emoji, auteur, date, messages, début du texte ou avertissement s\'il est illisible, « à trier »), message du serveur pour un forum introuvable');
+
+  // un fil : #fils/700, messages (texte en textContent, illisible : intention à activer, captures en loading=lazy dans un nouvel onglet, rien d'une autre adresse)
+  await p.click('#thList .thi[data-id="700"]'); await p.waitForSelector('#thDet .thm');
+  assert.equal(await p.evaluate(() => location.hash), '#fils/700');
+  assert.match(await txt(p, '#thDet .thdh'), /^Le scan plante sur Android Bugs · par Mana Orbit \(bot\) · ouvert il y a 5 h · 3 messages ouvert 🤖 Android$/);
+  assert.equal(await p.$$eval('#thDet .thm', e => e.length), 3); assert.match(await txt(p, '#thDet .thms'), /^Messages plus anciens : sur Discord\./);
+  assert.equal(await p.$eval('#thDet .thm[data-id="700"] .thc', e => e.textContent), 'Quand je scanne une carte en japonais, l\'appli se ferme.\n\nAndroid 14 · APK 1.0.11');
+  assert.equal(await txt(p, '#thDet .thm[data-id="7001"] .thhid'), '(texte non lisible : active Message Content Intent sur le portail Discord)');
+  assert.match(await txt(p, '#thDet .thm[data-id="7002"]'), /^Paul .* · modifié Pareil chez moi <img src=x onerror="window\.__xss=1">$/); assert.equal(await p.$$eval('#thDet .thc img', e => e.length), 0);
+  assert.deepEqual(await p.$$eval('#thDet .thimg', e => e.map(a => [a.getAttribute('href'), a.target, a.rel, a.querySelector('img').getAttribute('loading'), a.querySelector('img').alt])), [[`http://127.0.0.1:${PORT}/icons/icon.svg`, '_blank', 'noopener noreferrer', 'lazy', 'capture-1.jpg']], 'capture : <img loading=lazy>, en grand dans un nouvel onglet ; autre adresse ignorée');
+  assert.deepEqual(await p.$eval('#thDet .thact a', a => [a.textContent, a.getAttribute('href'), a.target]), ['Ouvrir sur Discord', 'https://discord.com/channels/9/700', '_blank']);
+  assert.equal(await p.$eval('#thList .thi[data-id="700"]', e => e.classList.contains('on')), true, 'grand écran : la liste reste à côté');
+  ok('Fils : un fil (#fils/700) : messages (textContent, illisible → « active Message Content Intent »), capture en <img loading=lazy> (nouvel onglet), adresse étrangère ignorée, Ouvrir sur Discord');
+
+  // étiquettes : celles de l'équipe d'abord ; Enregistrer seulement quand ça change ; la pastille suit
+  assert.deepEqual(await p.$$eval('#thDet .thtags label', e => e.map(x => [x.textContent, x.classList.contains('team'), x.querySelector('input').checked])), [['✅ Confirmé', true, false], ['🛠️ Corrigé', true, false], ['Prochaine version', true, false], ['🤖 Android', false, true]], 'étiquettes d\'équipe en premier (emoji personnalisé ignoré)');
+  assert.equal(await p.$eval('#thTagSave', b => b.disabled), true);
+  await p.check('#thDet [data-tag="a2"]'); assert.equal(await p.$eval('#thTagSave', b => b.disabled), false);
+  await p.click('#thTagSave'); await toastIs(p, /Étiquettes enregistrées\./);
+  assert.deepEqual(TH.posts.at(-1).body, { id: '700', tags: ['a2', 'a1'] }); assert.match(TH.posts.at(-1).type, /application\/json/); assert.ok(TH.posts.at(-1).tok);
+  assert.equal(await badgeOf(p, 'fils'), '1', 'trié : pastille à 1'); assert.doesNotMatch(await txt(p, '#thList .thi[data-id="700"]'), /à trier/);
+  // verrouiller, renommer (fenêtre), fermer (passe chez les fermés), rouvrir
+  await p.click('#thDet [data-act="lock"]'); await toastIs(p, /Fil verrouillé/); assert.deepEqual(TH.posts.at(-1).body, { id: '700', locked: true });
+  assert.match(await txt(p, '#thDet .thdh'), /🔒 verrouillé/); assert.equal(await txt(p, '#thDet [data-act="lock"]'), 'Déverrouiller');
+  await p.click('#thDet [data-act="rename"]'); await p.waitForSelector('#dlg[open] .dlgi');
+  assert.equal(await p.evaluate(() => document.activeElement.className), 'dlgi', 'le titre a le focus');
+  await p.fill('#dlg .dlgi', 'Le scan plante (japonais)'); await p.keyboard.press('Enter'); await toastIs(p, /Fil renommé\./);
+  assert.deepEqual(TH.posts.at(-1).body, { id: '700', name: 'Le scan plante (japonais)' }); assert.equal(await txt(p, '#thTitle'), 'Le scan plante (japonais)');
+  const nRen = TH.posts.length; await p.click('#thDet [data-act="rename"]'); await p.click('#dlg [data-v=""]'); await p.waitForTimeout(100); assert.equal(TH.posts.length, nRen, 'Annuler : rien');
+  await p.click('#thDet [data-act="archive"]'); await toastIs(p, /Fil fermé\./); assert.deepEqual(TH.posts.at(-1).body, { id: '700', archived: true });
+  assert.deepEqual(await p.$$eval('#thList .thi', e => e.map(x => x.dataset.id)), ['701'], 'fermé : plus dans les ouverts'); assert.equal(await txt(p, '#thDet [data-act="archive"]'), 'Rouvrir');
+  await p.click('#threads .seg:last-child [data-k="closed"]'); await p.waitForSelector('#thList .thi');
+  assert.ok(TH.gets.some(g => /forum=bugs&state=closed$/.test(g)));
+  assert.deepEqual(await p.$$eval('#thList .thi', e => e.map(x => x.dataset.id)), ['700', '711']); await p.click('#thMore'); await p.waitForFunction(() => document.querySelectorAll('#thList .thi').length === 4);
+  const nx = 'cur-' + TH.list.find(t => t.id === '711').last;
+  assert.ok(TH.gets.includes('/api/admin/discord/threads?' + new URLSearchParams({ forum: 'bugs', state: 'closed', before: nx })), 'Plus anciens : before = next de la réponse, tel quel'); assert.equal(await p.$('#thMore'), null, 'plus rien : pas de bouton');
+  assert.match(await txt(p, '#thList .thi[data-id="711"]'), /Mana Orbit \(bot\) · fermé il y a 4 j/, 'fermé : depuis quand');
+  await p.click('#threads .seg:first-child [data-k="tous"]'); await p.waitForFunction(() => document.querySelectorAll('#thList .thi').length === 2);
+  assert.equal(TH.gets.at(-1), '/api/admin/discord/threads?state=closed', 'Tous les fermés : sans forum'); await p.click('#threads .seg:first-child [data-k="bugs"]'); await p.waitForSelector('#thList .thi');
+  await p.click('#thDet [data-act="archive"]'); await toastIs(p, /Fil rouvert\./); assert.deepEqual(TH.posts.at(-1).body, { id: '700', archived: false });
+  await p.click('#threads .seg:last-child [data-k="open"]'); assert.deepEqual(await p.$$eval('#thList .thi', e => e.map(x => x.dataset.id)), ['700', '701']);
+  ok('Fils : étiquettes (équipe d\'abord, Enregistrer quand ça change, pastille), Verrouiller, Renommer (fenêtre, Entrée, Annuler), Fermer → chez les fermés (depuis quand), « Plus anciens » (before = next), Tous les fermés (sans forum), Rouvrir');
+
+  // répondre (confirmé, aucun ping), répondre et fermer, erreur du serveur ; supprimer (confirmé)
+  await p.fill('#thReply', 'Merci, corrigé dans la 1.0.12 !');
+  await p.click('#thSend'); await p.waitForSelector('#dlg[open]'); assert.match(await txt(p, '#dlg'), /^Répondre dans le fil \? Le scan plante \(japonais\) Réponse publique du bot « Mana Orbit », sans ping\. Merci, corrigé/);
+  await p.click('#dlg [data-v=""]'); assert.notEqual(TH.posts.at(-1).path, '/api/admin/discord/reply', 'Annuler : rien');
+  TH.fail = [502, { error: 'discord', message: 'Discord a refusé la réponse : Missing Access.' }];
+  await p.click('#thSend'); await p.click('#dlg [data-v="ok"]'); await toastIs(p, /^Discord a refusé la réponse : Missing Access\.$/); TH.fail = null;
+  assert.equal(await p.$eval('#thReply', e => e.value), 'Merci, corrigé dans la 1.0.12 !', 'refus : texte gardé');
+  TH.closeFail = true; await p.click('#thSendClose'); await p.click('#dlg [data-v="ok"]');
+  await toastIs(p, /^Réponse envoyée, mais Discord a refusé de fermer le fil\.$/); TH.closeFail = false;
+  assert.equal(await txt(p, '#thDet [data-act="archive"]'), 'Fermer', 'fermeture refusée : fil laissé ouvert'); await p.waitForFunction(() => document.querySelectorAll('#thDet .thm').length === 4);
+  await p.fill('#thReply', 'Merci, corrigé dans la 1.0.12 !');
+  await p.click('#thSendClose'); await p.waitForSelector('#dlg[open]'); assert.match(await txt(p, '#dlg'), /Le fil est fermé ensuite\./); await p.click('#dlg [data-v="ok"]');
+  await toastIs(p, /Réponse envoyée, fil fermé\./); assert.deepEqual(TH.posts.at(-1).body, { id: '700', content: 'Merci, corrigé dans la 1.0.12 !', close: true });
+  await p.waitForFunction(() => document.querySelectorAll('#thDet .thm').length === 5); assert.equal(await p.$eval('#thReply', e => e.value), '', 'réponse partie : texte vidé');
+  assert.match(await txt(p, '#thDet .thm:last-child'), /^Mana Orbit APP .*Merci, corrigé dans la 1\.0\.12 !$/);
+  await p.click('#thDet [data-act="delete"]'); await p.waitForSelector('#dlg[open]'); assert.match(await txt(p, '#dlg'), /^Supprimer le fil \? Le scan plante \(japonais\) Le fil et tous ses messages sont effacés de Discord/);
+  await p.click('#dlg [data-v="ok"]'); await toastIs(p, /Fil supprimé de Discord\./); assert.deepEqual(TH.posts.at(-1).body, { id: '700' }); assert.equal(TH.posts.at(-1).path, '/api/admin/discord/thread-delete');
+  assert.equal(await p.evaluate(() => location.hash), '#fils'); assert.match(await txt(p, '#thDet'), /Choisis un fil/);
+  await noJunk(p, 'Fils');
+  assert.equal(await p.evaluate(() => window.__xss), undefined); assert.deepEqual(errs, []); await ctx.close();
+  ok('Fils : Répondre (confirmé, sans ping ; refus : message, texte gardé), « Répondre et fermer » (fermeture refusée : message, fil ouvert), Supprimer (confirmé) → retour à la liste ; aucune erreur');
+}
+{
+  // téléphone : la liste, puis le fil seul (← Fils, retour du navigateur) ; bot non configuré
+  TH.list = thSeed(); TH.msgs = {};
+  const { ctx, p, errs } = await open({ user: ADM, before: routeThreads, phone: { width: 360, height: 740 }, hash: '#fils' });
+  await dash(p); await p.waitForSelector('#thList .thi');
+  assert.equal(await visible(p, '#thDet'), false, 'téléphone : la liste seule');
+  await noOverflow(p, 360, 'Fils 360 px (liste)');
+  await p.click('#thList .thi[data-id="700"]'); await p.waitForSelector('#thDet .thm');
+  assert.equal(await visible(p, '#thList'), false, 'puis le fil seul'); assert.equal(await visible(p, '#thDet .thback'), true);
+  await noOverflow(p, 360, 'Fils 360 px (fil)');
+  await p.goBack(); await p.waitForFunction(() => document.querySelector('#thList').offsetParent !== null); assert.equal(await p.evaluate(() => location.hash), '#fils'); assert.equal(await visible(p, '#thList'), true, 'retour du navigateur : la liste');
+  await p.click('#thList .thi[data-id="701"]'); await p.waitForSelector('#thDet .thm'); await p.click('#thDet .thback'); await p.waitForFunction(() => location.hash === '#fils');
+  assert.equal(await visible(p, '#thList'), true, '« ← Fils » : la liste');
+  await p.goto(URL0 + '#fils/702'); await dash(p); await p.waitForSelector('#thDet .thm'); assert.equal(await txt(p, '#thTitle'), 'Mode sombre plus contrasté', 'lien direct vers un fil');
+  await p.click('#thDet .thback'); assert.equal(await p.evaluate(() => location.hash), '#fils'); assert.equal(await visible(p, '#thList'), true);
+  TH.mode = 'off'; await p.reload(); await dash(p); await p.waitForSelector('#threads .note');
+  assert.equal(await txt(p, '#threads'), 'Fils des forums Bot Discord non configuré (DISCORD_BOT_TOKEN absent).'); TH.mode = 'on';
+  assert.deepEqual(errs, []); await ctx.close();
+  ok('Fils au téléphone (360 px) : la liste, puis le fil seul, retour du navigateur et « ← Fils », lien direct #fils/702 ; bot non configuré : le message');
+}
+
+/* ── 360 px, clair et sombre : chaque onglet sans défilement de côté, cibles des onglets ≥ 44 px, ni « null » ni « undefined » ───────── */
+for (const dark of [false, true]) {
+  DC.mode = 'on'; DC.sent = dcOld(); TH.mode = 'on'; TH.list = thSeed(); DY.mode = 'on'; DYS = dySeed();
+  const { ctx, p, errs } = await open({ user: ADM, before: ALL, phone: { width: 360, height: 740 }, dark });
+  await dash(p); await p.waitForSelector('#kpis [data-k="pseudos"]'); await p.waitForSelector('#dcCh', { state: 'attached' }); await p.waitForSelector('#thList', { state: 'attached' });
+  assert.ok(await p.$$eval('#tabl .tab', e => e.every(x => x.getBoundingClientRect().height >= 44)), 'onglets : 44 px de haut au moins');
+  assert.ok(await p.$eval('#tabl', e => e.scrollWidth > e.clientWidth), '360 px : la barre défile de côté');
+  for (const k of TAB_ORDER) {
+    await tab(p, k); await p.waitForTimeout(60);
+    assert.ok(await p.$eval('#t-' + k, b => { const r = b.getBoundingClientRect(), l = b.parentElement.getBoundingClientRect(); return r.left >= l.left - 1 && r.right <= l.right + 1; }), k + ' : onglet choisi ramené dans la barre');
+    await noOverflow(p, 360, k + (dark ? ' sombre' : ' clair') + ' 360 px'); await noJunk(p, k);
+  }
+  assert.deepEqual(errs, []); await ctx.close();
+  ok('360 px ' + (dark ? 'sombre' : 'clair') + ' : les 8 onglets sans défilement de côté ni texte parasite, onglet choisi ramené dans la barre, cibles ≥ 44 px');
+}
+
+/* ── Captures (ADMIN_SHOTS=<dossier>) : chaque onglet, 1280 et 390 px, clair et sombre ────────────────────────────────────────────── */
+if (process.env.ADMIN_SHOTS) {
+  const dir = process.env.ADMIN_SHOTS; mkdirSync(dir, { recursive: true });
+  for (const [name, vp] of [['1280', { width: 1280, height: 900 }], ['390', null]]) for (const dark of [false, true]) {
+    DC.sent = dcOld(); TH.list = thSeed(); TH.msgs = {}; DYS = dySeed();
+    const { ctx, p } = await open({ user: ADM, before: ALL, vp: vp || undefined, phone: vp ? undefined : { width: 390, height: 844 }, dark, dpr: 1 });
+    await dash(p); await p.waitForSelector('#kpis [data-k="pseudos"]'); await p.waitForSelector('#dcCh', { state: 'attached' }); await p.waitForSelector('#thList .thi', { state: 'attached' });
+    for (const k of TAB_ORDER) {
+      await tab(p, k); await p.waitForTimeout(250);
+      if (k === 'discord') { await p.fill('#dcTxt', '📢 **Nouveauté** : le scan lit maintenant les cartes japonaises.\nÀ essayer dans la 1.0.12 !'); await p.check('[data-role="202"]'); }
+      await p.evaluate(() => { document.activeElement.blur(); scrollTo(0, 0); }); await p.waitForTimeout(80);
+      await p.screenshot({ path: join(dir, `${name}-${dark ? 'sombre' : 'clair'}-${k}.png`), fullPage: true });
+      if (k === 'fils') { await p.click('#thList .thi[data-id="700"]'); await p.waitForSelector('#thDet .thm'); await p.evaluate(() => scrollTo(0, 0)); await p.waitForTimeout(250); await p.screenshot({ path: join(dir, `${name}-${dark ? 'sombre' : 'clair'}-fils-fil.png`), fullPage: true }); await p.goBack(); }
+    }
+    await ctx.close();
+  }
+  ok('captures dans ' + dir);
 }
 await browser.close();
 console.log('\nADMIN E2E OK');
