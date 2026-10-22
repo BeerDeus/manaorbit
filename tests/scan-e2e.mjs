@@ -379,6 +379,37 @@ await camN.close();
   assert.deepEqual(nat.errs, []); await nat.ctx.close();
   ok('appli Android : caméra native derrière la page, bande recadrée, ML Kit (sans Tesseract), rotation selon l\'écran, carte en grand visible, caméra rendue à la fermeture');
 
+  // écran gardé allumé tant que le scan est ouvert (sinon la mise en veille automatique du téléphone l'éteint en plein cadrage) : APK 1.0.10 → ManaOrbit.keepAwake
+  // (le WebView n'a pas navigator.wakeLock) ; page rechargée scan ouvert → rendu à la veille ; APK plus ancienne ou navigateur → Wake Lock, repris au retour sur la page
+  const nw = await newPage(bN, world, { goto: false }), wp = nw.p; await bandOnly(nw.ctx);
+  await nw.ctx.addInitScript(() => {
+    window.__aw = []; window.__wl = 0;
+    window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: () => true, Plugins: {
+      CameraPreview: { start: async () => ({}), stop: async () => ({}), captureSample: async () => ({ value: '' }) },
+      CapacitorPluginMlKitTextRecognition: { detectText: async () => ({ text: '', blocks: [] }) },
+      ManaOrbit: { info: async () => ({ version: '1.0.10', build: 11 }), addListener: async () => ({ remove() {} }), setWidget: async () => ({}), setTradeWidget: async () => ({}), keepAwake: async o => { window.__aw.push(o.on); return { on: o.on }; } } } };
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => { window.__wl++; return { release: async () => {}, addEventListener() {} }; } } });
+  });
+  await wp.goto(world.url); await wp.waitForTimeout(700);
+  await toHome(wp); await wp.click('#btnColl'); await wp.waitForSelector('.coll.on');
+  assert.deepEqual(await wp.evaluate(() => window.__aw), [], 'écran laissé à la veille hors du scan');
+  await wp.click('#nav [data-nav="scan"]'); await wp.waitForSelector('.scan.on'); await wp.waitForFunction(() => window.__aw.length === 1);
+  assert.deepEqual(await wp.evaluate(() => [window.__aw, sessionStorage.getItem('deckdeal:awake'), window.__wl]), [[true], '1', 0], 'scan ouvert : écran gardé allumé par la coque, sans Wake Lock');
+  await wp.click('.scan [data-act="close"]'); await wp.waitForFunction(() => window.__aw.length === 2);
+  assert.deepEqual(await wp.evaluate(() => [window.__aw, sessionStorage.getItem('deckdeal:awake')]), [[true, false], null], 'scan fermé : veille rendue');
+  await wp.click('#nav [data-nav="scan"]'); await wp.waitForSelector('.scan.on'); await wp.waitForFunction(() => window.__aw.length === 3);
+  await wp.reload(); await wp.waitForFunction(() => window.__aw.length === 1, null, { timeout: 5000 });
+  assert.deepEqual(await wp.evaluate(() => [window.__aw, sessionStorage.getItem('deckdeal:awake')]), [[false], null], 'page rechargée scan ouvert : veille rendue au lancement');
+  // APK 1.0.9 et moins (pas de keepAwake) : Wake Lock du WebView s'il l'a, relâché à la fermeture, redemandé au retour sur la page
+  await wp.evaluate(() => { delete Capacitor.Plugins.ManaOrbit.keepAwake; window.__wlr = 0; navigator.wakeLock.request = async () => { window.__wl++; return { release: async () => { window.__wlr++; }, addEventListener() {} }; }; });
+  await toHome(wp); await wp.click('#btnColl'); await wp.waitForSelector('.coll.on'); await wp.click('#nav [data-nav="scan"]'); await wp.waitForSelector('.scan.on'); await wp.waitForFunction(() => window.__wl === 1);
+  await wp.evaluate(() => { AWAKE.wl = null; document.dispatchEvent(new Event('visibilitychange')); }); await wp.waitForFunction(() => window.__wl === 2);      // verrou tombé (page quittée) : repris au retour
+  await wp.click('.scan [data-act="close"]'); await wp.waitForFunction(() => window.__wlr === 1);
+  await wp.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await wp.waitForTimeout(200);
+  assert.deepEqual(await wp.evaluate(() => [window.__wl, window.__wlr, AWAKE.wl]), [2, 1, null], 'scan fermé : Wake Lock relâché, plus redemandé');
+  assert.deepEqual(nw.errs, []); await nw.ctx.close();
+  ok('écran gardé allumé pendant le scan : ManaOrbit.keepAwake (APK 1.0.10), rendu à la fermeture et au rechargement ; Wake Lock sinon, repris au retour');
+
   // démarrage natif raté : caméra native arrêtée (sinon « caméra déjà démarrée » au suivant), page de nouveau opaque, repli sur la caméra du navigateur ; puis la réouverture la redémarre
   const nf = await newPage(bN, world, { goto: false }), fp = nf.p; await bandOnly(nf.ctx);
   await nf.ctx.addInitScript(() => {

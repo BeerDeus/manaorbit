@@ -18,6 +18,30 @@ function natBright(full) {
 }
 if (typeof document !== 'undefined') setTimeout(() => { try { if (sessionStorage.getItem('deckdeal:bright')) natBright(false); } catch (e) { /* stockage bloqué */ } }, 0);
 
+/** Écran gardé allumé (scan ouvert : sans ça, la mise en veille automatique du téléphone l'éteint en plein cadrage) ou rendu à la veille habituelle.
+    APK 1.0.10 et plus : ManaOrbit.keepAwake (le WebView n'a pas navigator.wakeLock). Navigateur, PWA ou APK plus ancienne : Wake Lock du navigateur s'il
+    l'a (il tombe quand on quitte la page : repris au retour). Page rechargée scan ouvert : écran rendu à la veille au lancement. */
+const AWAKE = { on: false, wl: null };
+function natAwake(on) {
+  AWAKE.on = !!on;
+  const mo = natPlugin('ManaOrbit');
+  if (mo && typeof mo.keepAwake === 'function') {
+    try { if (on) sessionStorage.setItem('deckdeal:awake', '1'); else sessionStorage.removeItem('deckdeal:awake'); } catch (e) { /* stockage bloqué */ }
+    Promise.resolve().then(() => mo.keepAwake({ on: !!on })).catch(() => {});
+    return;
+  }
+  if (on) { awakeLock(); return; }
+  try { if (AWAKE.wl) AWAKE.wl.release(); } catch (e) { /* déjà relâché */ } AWAKE.wl = null;
+}
+async function awakeLock() {
+  if (!AWAKE.on || AWAKE.wl || typeof navigator === 'undefined' || !navigator.wakeLock || document.visibilityState !== 'visible') return;
+  try { const l = await navigator.wakeLock.request('screen'); if (!AWAKE.on) { l.release(); return; } AWAKE.wl = l; if (l.addEventListener) l.addEventListener('release', () => { if (AWAKE.wl === l) AWAKE.wl = null; }); } catch (e) { AWAKE.wl = null; }      // refusé (économie d'énergie) : l'écran s'éteindra comme d'habitude
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') awakeLock(); });
+  setTimeout(() => { try { if (sessionStorage.getItem('deckdeal:awake')) natAwake(false); } catch (e) { /* stockage bloqué */ } }, 0);
+}
+
 /* ── Plein écran (appli Android) : barre d'état cachée, barre de gestes gardée ───────────────────────────────────────────────────────────────
    SystemBars (plugin de Capacitor 8, présent dans toutes nos APK) cache la barre d'état ; un glissé du haut la fait revenir un instant.
    Volet des notifications tiré puis refermé : la barre d'état restait affichée (APK 1.0.2) → recachée au retour dans l'appli (focus, page de nouveau

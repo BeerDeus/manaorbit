@@ -214,6 +214,37 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.0.10 (versionCode 11) : écran allumé pendant le scan (22 octobre 2026)
+
+**Retour d'un testeur** : pendant le scan, le téléphone se verrouillait tout seul (mise en veille automatique au bout de quelques secondes sans toucher l'écran). Le cadrage d'une carte ne touche pas l'écran, et le WebView d'Android n'a pas `navigator.wakeLock` : rien ne l'empêchait.
+
+**Correctif** : méthode `keepAwake({ on })` du plugin local `ManaOrbit` (`FLAG_KEEP_SCREEN_ON` de la fenêtre, aucune autorisation ; seulement tant que l'appli est à l'écran). Le site la demande à l'ouverture du scan et la retire à sa fermeture (`native.js › natAwake`, `scan.js › openScan`) ; page rechargée scan ouvert : veille rendue au lancement. **Côté site, en ligne tout de suite** : navigateur et PWA (et APK 1.0.9 et moins, si leur WebView a un jour le Wake Lock) prennent le Wake Lock du navigateur pendant le scan, repris au retour sur la page. Tests : `scan-e2e.mjs`, `test-android-xml.mjs`.
+
+1. `git pull`, `npm run setup` dans `android-app`, Android Studio › **Sync Project with Gradle Files**, `.aab` signé (§ 4.1).
+2. **Test interne** (voir la 1.0.9 ci-dessous) : « APK : 1.0.10 (11) » en bas des Réglages ; mise en veille du téléphone sur 15 ou 30 s, scan ouvert sans toucher l'écran pendant 1 minute : l'écran reste allumé ; scan fermé : il s'éteint de nouveau au bout du délai. Puis la liste habituelle (scan d'une carte, connexion Google, notification, widget, lien, pub).
+3. Promouvoir vers le test fermé (ou la production). Notes de version :
+```
+<fr-FR>
+L'écran ne se met plus en veille pendant le scan des cartes : plus besoin de toucher le téléphone entre deux cartes. Merci pour vos retours !
+</fr-FR>
+<en-US>
+The screen no longer goes to sleep while you scan cards: no need to tap your phone between two cards. Thanks for your feedback!
+</en-US>
+<de-DE>
+Der Bildschirm geht beim Scannen von Karten nicht mehr in den Ruhemodus: Du musst das Handy zwischen zwei Karten nicht mehr berühren. Danke für euer Feedback!
+</de-DE>
+<es-ES>
+La pantalla ya no se apaga mientras escaneas cartas: no hace falta tocar el móvil entre una carta y otra. ¡Gracias por vuestros comentarios!
+</es-ES>
+<it-IT>
+Lo schermo non va più in standby durante la scansione delle carte: non serve più toccare il telefono tra una carta e l'altra. Grazie per i vostri feedback!
+</it-IT>
+<pt-BR>
+A tela não apaga mais durante o escaneamento das cartas: não precisa mais tocar no celular entre uma carta e outra. Obrigado pelo feedback!
+</pt-BR>
+```
+4. `APK_LATEST` à **11** une fois la 1.0.10 en ligne pour les testeurs (les 1.0.9 verront « Mise à jour de l'appli »).
+
 ### APK 1.0.9 (versionCode 10) : caméra du scan revenue, code natif de la 1.0.6 (21 octobre 2026)
 
 **Bug des 1.0.7 et 1.0.8** (vu par le propriétaire le 21 octobre sur deux téléphones, version du Play Store) : la caméra du scan ne s'ouvrait plus. Le site demande bien la caméra native, au bon endroit, sur une zone transparente (vérifié en simulant l'appli, test `scan-e2e.mjs`). Entre la 1.0.6 (caméra vérifiée) et la 1.0.8, le code natif n'a changé que sur deux points : **R8** (1.0.7) et l'appel `EdgeToEdge.enable` (1.0.7, déplacé en 1.0.8). R8 n'agit que sur la version release, celle du Play Store, la même sur tous les téléphones, et **jamais essayée sur un téléphone** : **Run ▶** installe la version debug, sans R8 (la 1.0.8 avait été vérifiée ainsi, pour la barre du haut seulement).

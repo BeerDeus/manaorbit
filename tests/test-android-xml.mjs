@@ -89,3 +89,13 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 10, 'code natif changé : versionCode 10 et plus (1.0.9)');
   console.log('✓ APK 1.0.9 : code natif de la 1.0.6 (R8 coupé, sans EdgeToEdge), rien ne touche la fenêtre avant super.onCreate, versionCode ≥ 10');
 }
+
+// APK 1.0.10 : écran gardé allumé pendant le scan (mise en veille automatique du téléphone), le WebView n'ayant pas navigator.wakeLock.
+{
+  const plug = readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8'), gradle = readFileSync('android-app/android/app/build.gradle', 'utf8');
+  assert.match(plug, /@PluginMethod\s+public void keepAwake\(PluginCall call\)/, 'méthode keepAwake'); assert.match(plug, / \* - keepAwake\(/, 'keepAwake décrite dans l\'en-tête du plugin');
+  assert.match(plug, /addFlags\(WindowManager\.LayoutParams\.FLAG_KEEP_SCREEN_ON\)/); assert.match(plug, /clearFlags\(WindowManager\.LayoutParams\.FLAG_KEEP_SCREEN_ON\)/);
+  assert.match(readFileSync('src/native.js', 'utf8'), /typeof mo\.keepAwake === 'function'/, 'site : keepAwake seulement si la coque l\'a (APK 1.0.10)');
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 11, 'code natif changé : versionCode 11 et plus (1.0.10)');
+  console.log('✓ APK 1.0.10 : keepAwake (FLAG_KEEP_SCREEN_ON) déclarée et demandée par le site, versionCode ≥ 11');
+}

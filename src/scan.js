@@ -1194,7 +1194,7 @@ function openScan(o) {
   const stop = () => { auReset(); SC.alive = false; SC.warm = false; clearInterval(SC.diagT); clearTimeout(SC.hintT); SC.queue.forEach(j => scanFree(j.src)); SC.queue = []; SC.pend = []; if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; } natStop(); };
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); if (SC.ef) $('.sc-ef [data-ef="close"]').click(); else wrap.__close(); } };      // écran « Éditions à choisir » ouvert : Échap le ferme seul
   wrap.__close = () => {
-    if (SC.el !== wrap) return; SC.el = null; stop(); othFree(); if (typeof srFree === 'function') srFree(); document.removeEventListener('keydown', onKey, true);      // srFree : captures gardées pour « Signaler » (scanreport.js)
+    if (SC.el !== wrap) return; SC.el = null; stop(); natAwake(false); othFree(); if (typeof srFree === 'function') srFree(); document.removeEventListener('keydown', onKey, true);      // srFree : captures gardées pour « Signaler » (scanreport.js)
     if (SC.remote) { SC.remote = false; setTimeout(mobBar, 400); }      // scan mobile terminé : le bandeau revient tant que le PC attend
     wrap.classList.remove('on'); setTimeout(() => wrap.remove(), reduceMotion() ? 0 : 240); releaseApp();
     try { if (prevFocus && prevFocus.focus && prevFocus.isConnected) prevFocus.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
@@ -1264,7 +1264,7 @@ function openScan(o) {
     scanEdPass(); scanPaintList();
   });
   scNoteShow(false);      // aide fermée au départ : « ? » l'ouvre
-  document.body.appendChild(wrap); holdApp(); scanPaintTools(); scanPaintList();
+  document.body.appendChild(wrap); holdApp(); natAwake(true); scanPaintTools(); scanPaintList();      // écran gardé allumé tant que le scan est ouvert (native.js)
   if (typeof opnBands === 'function') opnBands();      // session d'ouverture (opening.js) : bandeau au-dessus de la liste
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.sc-tools [data-act="close"]', wrap).focus({ preventScroll: true }); }));
   haptic('tap'); scanCamera().finally(() => { if (SC.el !== wrap) return; auLampProbe(); auSync(); if (auOn()) scanHint(auHint(), ''); scanWarm(); if (typeof tipSoon === 'function') tipSoon(1200); });      // astuces (tour.js) : session d'ouverture, mode Auto

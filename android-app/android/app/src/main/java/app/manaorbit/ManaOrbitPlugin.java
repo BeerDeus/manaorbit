@@ -79,6 +79,8 @@ import org.json.JSONObject;
  *   traditionnel). Mêmes champs que detectText du plugin ML Kit (latin), qui reste utilisé pour le latin. Modèles des services Google Play (non embarqués :
  *   ≈ 260 Ko par écriture dans l'APK au lieu de ≈ 4 Mo), téléchargés à la première lecture d'une écriture ; tant qu'il n'est pas là : refusé, code « wait »
  *   (le site lit avec Tesseract en attendant). APK 1.0.6 et plus ; plus ancienne : pas de méthode, chinois, japonais, coréen par Tesseract.
+ * - keepAwake({ on }) → { on } : écran gardé allumé pendant le scan (FLAG_KEEP_SCREEN_ON de la fenêtre), sans quoi la mise en veille automatique du téléphone
+ *   l'éteint en plein cadrage ; le WebView n'a pas navigator.wakeLock. APK 1.0.10 et plus ; plus ancienne : pas de méthode, l'écran s'éteint comme d'habitude.
  * - requestReview() → { ok: true } : demande de note Google Play dans l'appli (In-App Review), voir requestReview. APK 1.0.6 et plus ; plus ancienne : le site
  *   montre sa propre demande, qui ouvre la fiche Play Store.
  * - événement « open », gardé jusqu'à ce que la page l'écoute (lancement à froid) : { view: 'collection' | 'scan' | 'quick' } le widget ou son bouton a été
@@ -444,6 +446,19 @@ public class ManaOrbitPlugin extends Plugin {
             getActivity().getWindow().setAttributes(lp);
             JSObject ret = new JSObject();
             ret.put("full", full);
+            call.resolve(ret);
+        });
+    }
+
+    /** Écran gardé allumé (FLAG_KEEP_SCREEN_ON, scan ouvert) ou rendu à la mise en veille du téléphone. Seulement tant que la fenêtre de l'appli est visible ; aucune autorisation. */
+    @PluginMethod
+    public void keepAwake(PluginCall call) {
+        boolean on = Boolean.TRUE.equals(call.getBoolean("on", false));
+        getActivity().runOnUiThread(() -> {
+            if (on) getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            JSObject ret = new JSObject();
+            ret.put("on", on);
             call.resolve(ret);
         });
     }
