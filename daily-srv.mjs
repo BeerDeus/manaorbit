@@ -8,6 +8,7 @@
 //   · Score, temps et classements calculés ici seulement ; stockage : DAILY_DIR (défaut .data/daily, non versionné), un JSON par jour.
 //   · Comptes secondaires : perdant sans réponse avant la carte suivante, un appareil = un compte classé par jour, même réseau → « à vérifier », comptes établis seulement.
 //   · Notification « nouvelle Carte mystère » (o.push : envoi Web Push ou FCM de proxy.mjs) : les appareils des comptes qui l'acceptent, prévenus une fois par jour dès que la carte est prête.
+//   · Carte de la veille révélée (o.reveal : discord-srv.mjs, message dans #carte-mystère) : une fois par jour, dès que la nouvelle carte est prête.
 import { inflateSync, deflateSync } from 'node:zlib';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename, readdir, rm, unlink } from 'node:fs/promises';
@@ -310,7 +311,8 @@ const dlyCmp = (a, b) => b.s - a.s || (b.d || 1) - (a.d || 1) || a.ms - b.ms || 
 
 /** Crée le jeu. o : { dir, scry (API Scryfall), imgHosts (débuts d'adresse permis pour les PNG), hour, tz, now, fetch, secret, verify (jeton → { uid, emailVerified, provider }), bad (filtre de mots),
  *  account (uid → { created } : date de création du compte, ou null), net (requête → réseau du client, '' si inconnu), minAgeDays (âge minimal d'un compte classé ; 0 par défaut : aucun), ipWindowMs (10 min),
- *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, log, gapMs (écart entre deux requêtes Scryfall), firstMs, tickMs, earlyMs, retryMs, query, tries, pages, ua }.
+ *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, log, gapMs (écart entre deux requêtes Scryfall), firstMs, tickMs, earlyMs, retryMs, query, tries, pages, ua,
+ *  push ({ send, target } : notification), reveal (info → promesse : carte de la veille annoncée ailleurs ; null : rien) }.
  *  Contre les comptes secondaires (on ne peut pas tout empêcher, la triche doit coûter et ne rien rapporter au classement) : réponse jamais donnée à un perdant avant la carte
  *  suivante ; un appareil = un compte classé par jour (sinon entraînement) ; même réseau juste après un autre joueur : « à vérifier », hors du top 100 public sans le dire ;
  *  classement réservé aux comptes Google ou à adresse vérifiée (et, si minAgeDays, de plus de minAgeDays jours) ; trop de cartes trouvées à l'étape 1 : signalé au panneau. */
@@ -473,6 +475,7 @@ export function dailyMake(o = {}) {
       }
       if (G.purged !== rec.day) { G.purged = rec.day; await purge(rec.day); }
       if (PUSH) { if (!G.pushing) G.pushing = pushRun(rec).catch(e => { log.warn('Carte mystère : notification pas encore envoyée (' + (e && (e.code || e.message) || e) + ')'); return 0; }).finally(() => { G.pushing = null; }); await G.pushing; }      // un seul envoi à la fois (les tours suivants l'attendent)
+      if (REVEAL) { if (!G.revealing) G.revealing = revealRun(rec).catch(e => { log.warn('Carte mystère : carte d\'hier pas encore révélée (' + (e && (e.code || e.message) || e) + ')'); return false; }).finally(() => { G.revealing = null; }); await G.revealing; }      // après la notification : jamais elle ne l'attend
     } catch (e) { log.warn('Carte mystère : ' + (e && e.message || e)); }
   }
   /** Fichiers des jours de plus de 400 jours, images de plus de 2 jours : effacés ; jours restés ouverts (serveur arrêté au changement de jour) : clos. */
@@ -1007,6 +1010,39 @@ export function dailyMake(o = {}) {
     return ok;
   }
 
+  /* ── Carte de la veille révélée (o.reveal : proxy.mjs › discord-srv.mjs, message dans #carte-mystère ; null : rien) ──────────────────────
+     Tour de garde : la carte du jour prête (images faites) et son heure passée → la carte de la VEILLE passée une fois à reveal(info). Serveur arrêté plusieurs
+     jours : seulement la veille du jour en cours (jamais une carte plus ancienne) ; veille sans carte (serveur arrêté ce jour-là) : rien. Jour noté dans reveal.json
+     AVANT l'envoi (comme la position de la notification) : un redémarrage en plein envoi ne la révèle jamais deux fois (au pire, pas du tout ce jour-là) ;
+     reveal refuse (erreur, ou false) : fichier remis comme avant, nouvel essai au tour suivant. Écrit après seulement, un arrêt entre l'envoi et l'écriture
+     (redéploiement) la reposterait au démarrage : un doublon public se voit plus qu'un oubli. Fichier illisible au départ : rien (on ne sait pas ce qui est parti). */
+  const REVEAL = typeof o.reveal === 'function' ? o.reveal : null, RV_FILE = join(dir, 'reveal.json');
+  async function revealRun(rec) {
+    if (rec.st !== 'ready' || !G.imgs.has(rec.day) || now() < C.startOf(rec.day)) return false;
+    const day = dlyAdd(rec.day, -1);
+    if (G.rv === undefined) {
+      let j = null; try { j = JSON.parse(await readFile(RV_FILE, 'utf8')); } catch (e) { if (e && e.code !== 'ENOENT') { log.warn('Carte mystère : reveal.json illisible, rien de révélé'); G.rv = '9999-12-31'; return false; } }
+      G.rv = j && DAY_RE.test(j.day) ? j.day : '';
+    }
+    if (G.rv >= day || G.rvNone === day) return false;
+    const w = G.saving.get(day), y = (w && w.rec) || await recLoad(day);
+    if (!y || !y.card || !y.card.l) { G.rvNone = day; return false; }      // pas de carte ce jour-là : rien à révéler (pas relu à chaque tour)
+    const c = y.card, fr = c.l.fr && !c.l.fr.fb ? c.l.fr : null, en = c.l.en || Object.values(c.l)[0] || {};
+    const done = Object.values(y.plays).filter(finished), info = { day, fr: (fr || en).n || c.en, en: c.en, set: c.set, setName: c.sn || '', num: c.num, img: (fr || en).img || '',
+      scry: `https://scryfall.com/card/${encodeURIComponent(c.set)}/${encodeURIComponent(c.num)}`, plays: done.length, wins: done.filter(p => p.st === 'win').length };
+    const prev = G.rv;
+    await put(RV_FILE, JSON.stringify({ v: 1, day, st: 'send', at: now() }));      // AVANT l'envoi (sans lui, rien ne part : nouvel essai au tour suivant)
+    G.rv = day;
+    let ok = false, err = null; try { ok = (await REVEAL(info)) !== false; } catch (e) { err = e; }
+    if (!ok) {
+      G.rv = prev; await put(RV_FILE, JSON.stringify({ v: 1, day: prev, st: 'done', at: now() })).catch(() => {});      // remis : nouvel essai au tour suivant (fichier pas remis : ce serveur réessaie quand même, un redémarrage non)
+      if (G.rvWarn !== day) { G.rvWarn = day; log.warn(`Carte mystère du ${day} pas encore révélée (${err ? err.message || err : 'refusé'}) : nouvel essai à chaque tour`); }
+      return false;
+    }
+    await put(RV_FILE, JSON.stringify({ v: 1, day, st: 'done', at: now() })).catch(() => {});
+    return true;
+  }
+
   /** Démarrage : premier tour peu après (firstMs), puis chaque minute. */
   function start() {
     if (G.timer) return;
@@ -1014,5 +1050,5 @@ export function dailyMake(o = {}) {
     G.timer = first;
   }
   async function stop() { clearInterval(G.timer); clearTimeout(G.timer); G.timer = null; for (const w of [...G.saving.values()]) if (w.t) { clearTimeout(w.t); await saveSoon(w.rec, true); } if (statsT) { clearTimeout(statsT); statsT = null; await statsSave(); } if (lvT) { clearTimeout(lvT); lvT = null; await lvSave(); } if (pushT) await pushSave(); }
-  return { api, admin, level, tick, start, stop, clock: C, current, pushOn: !!PUSH, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
+  return { api, admin, level, tick, start, stop, clock: C, current, pushOn: !!PUSH, revealOn: !!REVEAL, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
 }

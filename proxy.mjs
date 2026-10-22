@@ -2683,6 +2683,7 @@ async function adminApi(req, res, path, url) {
   const sub = path.replace(/^admin\/?/, '');
   if (sub === 'scans' || sub.startsWith('scans/')) return srAdmin(req, res, sub, url);      // scans signalés depuis l'appli
   if (sub === 'daily' || sub.startsWith('daily/')) return DLY ? DLY.admin(req, res, sub, url) : json(res, 404, { error: 'not_found' }, ADM_HD);      // Carte mystère : joueurs des 7 derniers jours, pseudo masqué
+  if (sub === 'discord' || sub.startsWith('discord/')) return DSC ? DSC.admin(req, res, sub, url) : json(res, 404, { error: 'not_found', message: 'Bot Discord indisponible.' }, ADM_HD);      // messages du bot dans les salons (mêmes garde-fous que admAct)
   if (req.method === 'GET' && !sub) {
     if (!ADM.snap || Date.now() - ADM.snap.at > ADM_TTL) await admRefresh();      // trop ancien : recalculé (la page attend : c'est l'éditeur qui l'a demandé)
     return admSend(res, url);
@@ -2923,6 +2924,21 @@ async function srAdmin(req, res, sub, url) {
   return json(res, 200, { ok: true, ...(await srSummary()) }, ADM_HD);
 }
 
+/* ── Bot Discord (discord-srv.mjs) ───────────────────────────────────────────────────────────────────────────────────────────────────
+   Un bot permanent sur le serveur Discord de Mana Orbit (README › « Bot Discord ») : « Aide et avis » de l'appli (POST /api/feedback → un fil dans #bugs, #idées ou #aide,
+   captures en pièces jointes ; sans compte exigé ; FEEDBACK_PER_H par heure et par réseau, autant par compte), messages de l'éditeur depuis /admin
+   (/api/admin/discord… ; historique : ADMIN_DIR/discord.json), Carte mystère de la veille dans #carte-mystère (daily-srv.mjs › reveal). DISCORD_BOT_TOKEN : jeton du bot
+   (jamais affiché ni écrit dans un journal ; absent : tout est coupé, /__ping feedback: false, l'appli garde le courriel) ; DISCORD_GUILD_ID : facultatif (sinon le seul
+   serveur du bot) ; DISCORD_API : autre adresse de l'API (tests) ; DISCORD=0 : coupé. */
+let DSC = null;
+try {
+  const { discordMake } = await import('./discord-srv.mjs');
+  DSC = discordMake({ token: process.env.DISCORD_BOT_TOKEN, guild: String(process.env.DISCORD_GUILD_ID || '').trim(), api: process.env.DISCORD_API || undefined, off: process.env.DISCORD === '0', dir: ADM_DIR,
+    json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, verify: tok => verifyIdToken(tok, true), amTag, jpegSize, adminHeaders: ADM_HD, actPerH: ADM_ACT_H,
+    feedbackPerH: Number(process.env.FEEDBACK_PER_H ?? 10) });
+} catch (e) { console.warn('Discord : module illisible (' + (e && e.message || e) + '), bot coupé'); DSC = null; }
+const DSC_ON = !!(DSC && DSC.on);
+
 /* ── Carte mystère : le jeu du jour (daily-srv.mjs) ────────────────────────────────────────────────────────────────────────────────────
    Une carte par jour à DAILY_HOUR (18 h) heure de DAILY_TZ (Europe/Paris), la même pour tous ; images des étapes fabriquées ici, score et classements
    vérifiés ici (README › « Carte mystère »). Jeton Firebase de n'importe quel compte pour jouer classé (sans compte : partie pour le plaisir, non classée).
@@ -2955,6 +2971,7 @@ if (DLY_ON) {
       levelDayCap: Number.isFinite(Number(process.env.LEVEL_DAY_CAP)) && process.env.LEVEL_DAY_CAP !== '' && process.env.LEVEL_DAY_CAP !== undefined ? Math.max(0, Number(process.env.LEVEL_DAY_CAP)) : 20000,
       push: FCM_ON && process.env.DAILY_PUSH !== '0' ? { send: sendPush, target: parseTarget } : null,      // notification « nouvelle Carte mystère » (rien sans compte de service, comme les amis)
       pushWindowMs: process.env.DAILY_PUSH_WINDOW_MS !== undefined && process.env.DAILY_PUSH_WINDOW_MS !== '' && Number.isFinite(Number(process.env.DAILY_PUSH_WINDOW_MS)) ? Math.max(0, Number(process.env.DAILY_PUSH_WINDOW_MS)) : undefined,
+      reveal: DSC_ON ? info => DSC.reveal(info) : null,      // carte de la veille dans #carte-mystère (bot Discord)
       account: dlyAccount, net: req => netOf(ipOf(req)), minAgeDays: process.env.DAILY_MIN_AGE_DAYS === undefined || process.env.DAILY_MIN_AGE_DAYS === '' || !Number.isFinite(Number(process.env.DAILY_MIN_AGE_DAYS)) ? 0 : Math.max(0, Number(process.env.DAILY_MIN_AGE_DAYS)) });      // net : empreinte du réseau (HMAC salé du jour, dans daily-srv.mjs)
   } catch (e) { console.warn('Carte mystère : module illisible (' + (e && e.message || e) + '), jeu coupé'); DLY = null; }
 }
@@ -2970,6 +2987,7 @@ async function api(req, res, url) {
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
   if (path === 'testeurs') return testersApi(req, res);      // inscription au test fermé (page /testeurs), ouverte à tous, bornée
   if (path === 'scan-report') return scanReportApi(req, res);      // « Signaler un problème de scan » : photo et lecture envoyées par l'utilisateur, sans compte exigé, bornées
+  if (path === 'feedback') return DSC ? DSC.feedback(req, res) : json(res, 404, { error: 'not_found' });      // « Aide et avis » : un fil sur le Discord (bot), sans compte exigé, borné
   if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
   if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège
   if (path === 'partie' || path.startsWith('partie/')) return partieApi(req, res, path, url);      // partie de Commander : salle d'attente (jeton Firebase, ou invité sans compte), résultats des comptes
@@ -3167,7 +3185,7 @@ const server = http.createServer(async (req, res) => {
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, scanrep: SR_ON, daily: !!DLY, off: OFF, apk: APK_LATEST, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, scanrep: SR_ON, daily: !!DLY, feedback: DSC_ON, off: OFF, apk: APK_LATEST, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte
@@ -3238,6 +3256,7 @@ server.listen(PORT, HOST, () => {
     console.log(`Scans signalés : ${SR_MAX} au plus, ${Math.round(SR_BYTES / 1048576)} Mo, gardés ${Math.round(SR_TTL / 86400e3)} jours.`);
   }
   if (DLY) { DLY.start(); console.log(`Carte mystère : nouvelle carte chaque jour à ${DLY.clock.hour} h (${DLY.clock.tz})${DLY.pushOn ? ', annoncée par une notification aux appareils qui l\'acceptent' : ''}.`); }
+  if (DSC_ON) console.log(`Bot Discord : avis de l'appli (forums), messages du panneau${DLY && DLY.revealOn ? ', Carte mystère de la veille' : ''}${process.env.DISCORD_GUILD_ID ? ' (DISCORD_GUILD_ID)' : ''}.`);      // jamais le jeton
   if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
   if (ADMIN_ON && FCM_ON && ADM_EVERY > 0) setInterval(() => { admTick().catch(() => {}); }, Math.max(1000, ADM_EVERY)).unref();      // comptes actifs du jour (courbe du panneau) : premier relevé après un intervalle, jamais au démarrage
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
