@@ -2929,13 +2929,13 @@ async function srAdmin(req, res, sub, url) {
    captures en pièces jointes ; sans compte exigé ; FEEDBACK_PER_H par heure et par réseau, autant par compte), messages de l'éditeur depuis /admin
    (/api/admin/discord… ; historique : ADMIN_DIR/discord.json), Carte mystère de la veille dans #carte-mystère (daily-srv.mjs › reveal). DISCORD_BOT_TOKEN : jeton du bot
    (jamais affiché ni écrit dans un journal ; absent : tout est coupé, /__ping feedback: false, l'appli garde le courriel) ; DISCORD_GUILD_ID : facultatif (sinon le seul
-   serveur du bot) ; DISCORD_API : autre adresse de l'API (tests) ; DISCORD=0 : coupé. */
+   serveur du bot) ; DISCORD_API : autre adresse de l'API (tests) ; DISCORD=0 : coupé ; DISCORD_PRESENCE=0 : pas de statut « En ligne » (passerelle). */
 let DSC = null;
 try {
   const { discordMake } = await import('./discord-srv.mjs');
   DSC = discordMake({ token: process.env.DISCORD_BOT_TOKEN, guild: String(process.env.DISCORD_GUILD_ID || '').trim(), api: process.env.DISCORD_API || undefined, off: process.env.DISCORD === '0', dir: ADM_DIR,
     json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, verify: tok => verifyIdToken(tok, true), amTag, jpegSize, adminHeaders: ADM_HD, actPerH: ADM_ACT_H,
-    feedbackPerH: Number(process.env.FEEDBACK_PER_H ?? 10) });
+    feedbackPerH: Number(process.env.FEEDBACK_PER_H ?? 10), presence: process.env.DISCORD_PRESENCE !== '0', cardNo: () => (DLY && DLY.no ? DLY.no() : 0) });      // statut « En ligne » : numéro de la Carte mystère du jour
 } catch (e) { console.warn('Discord : module illisible (' + (e && e.message || e) + '), bot coupé'); DSC = null; }
 const DSC_ON = !!(DSC && DSC.on);
 
@@ -3256,7 +3256,7 @@ server.listen(PORT, HOST, () => {
     console.log(`Scans signalés : ${SR_MAX} au plus, ${Math.round(SR_BYTES / 1048576)} Mo, gardés ${Math.round(SR_TTL / 86400e3)} jours.`);
   }
   if (DLY) { DLY.start(); console.log(`Carte mystère : nouvelle carte chaque jour à ${DLY.clock.hour} h (${DLY.clock.tz})${DLY.pushOn ? ', annoncée par une notification aux appareils qui l\'acceptent' : ''}.`); }
-  if (DSC_ON) console.log(`Bot Discord : avis de l'appli (forums), messages du panneau${DLY && DLY.revealOn ? ', Carte mystère de la veille' : ''}${process.env.DISCORD_GUILD_ID ? ' (DISCORD_GUILD_ID)' : ''}.`);      // jamais le jeton
+  if (DSC_ON) { DSC.start(); console.log(`Bot Discord : avis de l'appli (forums), messages du panneau${DLY && DLY.revealOn ? ', Carte mystère de la veille' : ''}${DSC.gwOn ? ', statut « En ligne »' : process.env.DISCORD_PRESENCE === '0' ? '' : ' (statut « En ligne » : Node 22 ou plus)'}${process.env.DISCORD_GUILD_ID ? ' (DISCORD_GUILD_ID)' : ''}.`); }      // jamais le jeton
   if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
   if (ADMIN_ON && FCM_ON && ADM_EVERY > 0) setInterval(() => { admTick().catch(() => {}); }, Math.max(1000, ADM_EVERY)).unref();      // comptes actifs du jour (courbe du panneau) : premier relevé après un intervalle, jamais au démarrage
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);

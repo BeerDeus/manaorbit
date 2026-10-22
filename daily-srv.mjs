@@ -1050,5 +1050,5 @@ export function dailyMake(o = {}) {
     G.timer = first;
   }
   async function stop() { clearInterval(G.timer); clearTimeout(G.timer); G.timer = null; for (const w of [...G.saving.values()]) if (w.t) { clearTimeout(w.t); await saveSoon(w.rec, true); } if (statsT) { clearTimeout(statsT); statsT = null; await statsSave(); } if (lvT) { clearTimeout(lvT); lvT = null; await lvSave(); } if (pushT) await pushSave(); }
-  return { api, admin, level, tick, start, stop, clock: C, current, pushOn: !!PUSH, revealOn: !!REVEAL, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
+  return { api, admin, level, tick, start, stop, clock: C, current, no: () => dlyNo(C.dayOf(now())), pushOn: !!PUSH, revealOn: !!REVEAL, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
 }

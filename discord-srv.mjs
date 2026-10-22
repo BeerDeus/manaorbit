@@ -2,7 +2,9 @@
 // tests/test-discord-srv.mjs (faux Discord HTTP, vrai proxy.mjs). Trois usages :
 //   · « Aide et avis » de l'appli : POST /api/feedback → un fil dans le forum #bugs, #idées ou #aide (étiquettes de la plateforme et de la partie de l'appli, captures en pièces jointes) ;
 //   · panneau /admin : GET /api/admin/discord (salons, rôles, derniers envois), POST …/send (message de l'éditeur, pings de rôles, publication d'une annonce), POST …/delete ;
-//   · Carte mystère de la veille (reveal, appelé par daily-srv.mjs au tour de garde) : message FR + EN dans #carte-mystère.
+//   · Carte mystère de la veille (reveal, appelé par daily-srv.mjs au tour de garde) : message FR + EN dans #carte-mystère ;
+//   · statut « En ligne » (passerelle Discord, WebSocket de Node 22+ ; sans lui : bot affiché hors ligne, le reste marche pareil) : « 🔮 Carte mystère n° 42 »,
+//     dans une langue après l'autre (une toutes les presenceMs, 30 s). Aucune intention (intents 0) : le bot ne lit rien, il se montre seulement.
 // Serveur Discord : DISCORD_GUILD_ID, sinon le seul serveur du bot. Salons et rôles relus au plus toutes les 5 min (tout de suite si un salon gardé n'existe plus) ;
 // salons trouvés par leur nom utile (« 🐞・bugs » → bugs, ou le nom exact d'un ancien serveur), accents et casse ignorés. Limite de débit (429) : attente de
 // retry_after (10 s au plus en tout, 4 essais) ; Discord en panne (5xx, réseau) : un nouvel essai. Jeton : seulement dans l'en-tête Authorization, jamais dans
@@ -19,6 +21,11 @@ export const DSC_AREAS = { scan: 'Scan', collection: 'Collection', decks: 'Decks
 export const DSC_PLATS = { android: 'Android', pwa: 'PWA', web: 'Site' };
 const META_KEYS = ['v', 'plat', 'apk', 'lang', 'nav', 'ua'], ID_RE = /^\d{5,25}$/, IMG_RE = /^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/;
 const SENT_MAX = 50, SENT_TEXT = 140;
+// Statut du bot, une langue après l'autre ({n} : numéro de la Carte mystère du jour) ; sans numéro (jeu coupé) : l'adresse du site
+export const DSC_PRESENCE = [['fr', 'Carte mystère n° {n}'], ['en', 'Mystery card #{n}'], ['de', 'Mysterykarte Nr. {n}'], ['es', 'Carta misteriosa n.º {n}'], ['it', 'Carta misteriosa n. {n}'],
+  ['pt', 'Carta mistério n.º {n}'], ['ru', 'Карта-загадка № {n}'], ['ja', 'ミステリーカード No.{n}'], ['ko', '미스터리 카드 {n}번'], ['zh', '神秘卡牌 第 {n} 期']];
+export const dscPresence = (i, n) => '🔮 ' + (n > 0 ? DSC_PRESENCE[((i % DSC_PRESENCE.length) + DSC_PRESENCE.length) % DSC_PRESENCE.length][1].replace('{n}', String(n)) : 'manaorbit.app');
+const GW_FATAL = [4004, 4010, 4011, 4012, 4013, 4014];      // jeton refusé, réglages refusés par Discord : plus de nouvel essai (le reste du bot continue par l'API)
 
 /** Comparaison des noms : sans accents ni casse (« Idées » = « idees »). */
 const fold = s => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase();
@@ -332,5 +339,74 @@ export function discordMake(o = {}) {
     return true;
   }
 
-  return { on: ON, feedback, admin, reveal, _g: G };
+  /* ── Statut « En ligne » : passerelle Discord (WebSocket) ──
+     HELLO → battements de cœur (heartbeat_interval, le premier après une part tirée au sort), IDENTIFY (intents 0, statut personnalisé) ou RESUME après une coupure ;
+     battement sans réponse : connexion morte, refaite. Reconnexion : 1 s, 2 s, 4 s… 60 s au plus ; session reprise quand Discord le permet (RECONNECT, coupure
+     réseau), sinon nouvelle identification (INVALID_SESSION, 4007, 4009). Jeton refusé (4004) ou réglage refusé : arrêt, signalé une fois. Statut changé toutes
+     les presenceMs (une langue après l'autre ; numéro relu à chaque fois : nouveau jour à 18 h). o.WebSocket : faux pour les tests ; o.presence false : coupé. */
+  const WS = o.WebSocket || globalThis.WebSocket, ROT = Math.max(20, o.presenceMs || 30e3), GW_MAX = o.gwMaxMs ?? 60e3;
+  const GW = { ws: null, seq: null, sid: '', url: '', hb: null, hb0: null, rot: null, wait: null, acked: true, i: 0, tries: 0, stop: false, up: false };
+  const cardNo = () => { try { const n = o.cardNo ? Number(o.cardNo()) : 0; return n > 0 ? n : 0; } catch (e) { return 0; } };
+  const presence = () => ({ since: null, activities: [{ type: 4, name: 'Custom Status', state: dscPresence(GW.i, cardNo()) }], status: 'online', afk: false });
+  function gwSend(ws, op, d) { try { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ op, d })); } catch (e) { /* connexion en train de tomber : la fermeture suit */ } }
+  function gwClear() { clearInterval(GW.hb); clearTimeout(GW.hb0); clearInterval(GW.rot); GW.hb = GW.hb0 = GW.rot = null; }
+  const unref = t => { if (t && t.unref) t.unref(); return t; };
+  function gwLater() {
+    if (GW.stop || GW.wait) return;
+    const base = Math.min(GW_MAX, 1000 * 2 ** Math.min(GW.tries++, 10)), ms = base + Math.floor(Math.random() * Math.min(500, base / 2));
+    GW.wait = unref(setTimeout(() => { GW.wait = null; gwOpen(); }, ms));
+  }
+  async function gwOpen() {
+    if (GW.stop || GW.ws) return;
+    let url = GW.sid && GW.url ? GW.url : '';      // reprise : l'adresse donnée par READY
+    if (!url) {
+      try { const j = await call('GET', '/gateway/bot'); url = j && typeof j.url === 'string' && /^wss:\/\//.test(j.url) ? j.url : ''; }
+      catch (e) { if (e.kind === 'refused' && e.status === 401) { GW.stop = true; log.warn('Discord : jeton du bot refusé, statut « En ligne » coupé'); return; } }
+      if (!url && !o.api) url = 'wss://gateway.discord.gg';      // vraie API seulement (un faux Discord de test n'envoie jamais vers le vrai)
+      if (!url) return gwLater();
+    }
+    if (GW.stop) return;
+    let ws; try { ws = new WS(url.replace(/\/+$/, '') + '/?v=10&encoding=json'); } catch (e) { return gwLater(); }
+    GW.ws = ws;
+    ws.addEventListener('message', ev => gwMsg(ws, ev.data));
+    ws.addEventListener('close', ev => gwClose(ws, ev && ev.code));
+    ws.addEventListener('error', () => { /* la fermeture suit */ });
+  }
+  function gwMsg(ws, data) {
+    if (ws !== GW.ws) return;
+    let m; try { m = JSON.parse(String(data)); } catch (e) { return; }
+    if (!m || typeof m !== 'object') return;
+    if (m.s != null) GW.seq = m.s;
+    if (m.op === 10) {      // HELLO
+      const every = Math.max(1000, Number(m.d && m.d.heartbeat_interval) || 41250), beat = () => {
+        if (!GW.acked) { try { ws.close(4000); } catch (e) { /* déjà fermée */ } return; }      // pas de réponse au battement précédent : connexion morte
+        GW.acked = false; gwSend(ws, 1, GW.seq);
+      };
+      gwClear(); GW.acked = true;
+      GW.hb0 = unref(setTimeout(() => { beat(); GW.hb = unref(setInterval(beat, every)); }, Math.floor(every * Math.random())));
+      if (GW.sid) gwSend(ws, 6, { token: TOKEN, session_id: GW.sid, seq: GW.seq });
+      else gwSend(ws, 2, { token: TOKEN, intents: 0, properties: { os: process.platform, browser: 'manaorbit', device: 'manaorbit' }, presence: presence() });
+    } else if (m.op === 11) GW.acked = true;
+    else if (m.op === 1) gwSend(ws, 1, GW.seq);
+    else if (m.op === 7) { try { ws.close(4000); } catch (e) { /* déjà fermée */ } }      // RECONNECT : reprise
+    else if (m.op === 9) { if (!m.d) { GW.sid = ''; GW.seq = null; } try { ws.close(4000); } catch (e) { /* déjà fermée */ } }      // INVALID_SESSION
+    else if (m.op === 0 && (m.t === 'READY' || m.t === 'RESUMED')) {
+      if (m.t === 'READY') { GW.sid = String(m.d && m.d.session_id || ''); GW.url = String(m.d && m.d.resume_gateway_url || ''); }
+      GW.tries = 0;
+      if (!GW.up) { GW.up = true; log.log('Discord : bot en ligne (statut « Carte mystère », ' + DSC_PRESENCE.length + ' langues).'); }
+      if (m.t === 'RESUMED') gwSend(ws, 3, presence());
+      clearInterval(GW.rot); GW.rot = unref(setInterval(() => { GW.i++; gwSend(ws, 3, presence()); }, ROT));
+    }
+  }
+  function gwClose(ws, code) {
+    if (ws !== GW.ws) return;
+    gwClear(); GW.ws = null;
+    if (GW_FATAL.includes(code)) { GW.stop = true; log.warn('Discord : statut « En ligne » refusé par Discord (code ' + code + '), coupé'); return; }
+    if (code === 4007 || code === 4009) { GW.sid = ''; GW.seq = null; }      // numéro de séquence faux, session expirée : nouvelle identification
+    gwLater();
+  }
+  function start() { if (ON && typeof WS === 'function' && o.presence !== false && !GW.ws && !GW.wait) { GW.stop = false; gwOpen(); } }
+  function stop() { GW.stop = true; gwClear(); clearTimeout(GW.wait); GW.wait = null; const ws = GW.ws; GW.ws = null; if (ws) { try { ws.close(1000); } catch (e) { /* déjà fermée */ } } }
+
+  return { on: ON, feedback, admin, reveal, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
 }
