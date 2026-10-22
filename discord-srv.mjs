@@ -2,9 +2,12 @@
 // tests/test-discord-srv.mjs (faux Discord HTTP, vrai proxy.mjs). Trois usages :
 //   · « Aide et avis » de l'appli : POST /api/feedback → un fil dans le forum #bugs, #idées ou #aide (étiquettes de la plateforme et de la partie de l'appli, captures en pièces jointes) ;
 //   · panneau /admin : GET /api/admin/discord (salons, rôles, derniers envois), POST …/send (message de l'éditeur, pings de rôles, publication d'une annonce), POST …/delete ;
+//     modération des fils des forums bugs, idées, aide : GET …/threads (ouverts, fermés), GET …/thread (messages), POST …/thread (étiquettes, fermer, verrouiller,
+//     renommer), POST …/reply (réponse du bot, sans ping), POST …/thread-delete. Texte des messages des membres : seulement avec l'intention « Message Content »
+//     cochée sur le portail Discord (sinon vide : hidden) ;
 //   · Carte mystère de la veille (reveal, appelé par daily-srv.mjs au tour de garde) : message FR + EN dans #carte-mystère ;
 //   · statut « En ligne » (passerelle Discord, WebSocket de Node 22+ ; sans lui : bot affiché hors ligne, le reste marche pareil) : « 🔮 Carte mystère n° 42 »,
-//     dans une langue après l'autre (une toutes les presenceMs, 30 s). Aucune intention (intents 0) : le bot ne lit rien, il se montre seulement.
+//     dans une langue après l'autre (une toutes les presenceMs, 30 s). Aucune intention à la passerelle (intents 0) : rien n'y est lu, il se montre seulement.
 // Serveur Discord : DISCORD_GUILD_ID, sinon le seul serveur du bot. Salons et rôles relus au plus toutes les 5 min (tout de suite si un salon gardé n'existe plus) ;
 // salons trouvés par leur nom utile (« 🐞・bugs » → bugs, ou le nom exact d'un ancien serveur), accents et casse ignorés. Limite de débit (429) : attente de
 // retry_after (10 s au plus en tout, 4 essais) ; Discord en panne (5xx, réseau) : un nouvel essai. Jeton : seulement dans l'en-tête Authorization, jamais dans
@@ -52,7 +55,7 @@ export function dscRevealMsg(info) {
 
 /** Crée le bot. o : { token, guild (DISCORD_GUILD_ID, facultatif), api (DISCORD_API), off (DISCORD=0), dir (dossier de l'historique, ADMIN_DIR), fetch, now, sleep, log,
  *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, verify (jeton → { uid }), amTag, jpegSize, adminHeaders, feedbackPerH (10), actPerH (ADMIN_ACTIONS_PER_H),
- *  cacheMs (5 min), maxWaitMs (10 s), tries (4), retryMs (attente avant le nouvel essai d'une panne, 1 s), timeoutMs (15 s) }. */
+ *  cacheMs (5 min), maxWaitMs (10 s), tries (4), retryMs (attente avant le nouvel essai d'une panne, 1 s), timeoutMs (15 s), threadListMs (liste des fils gardée, 30 s) }. */
 export function discordMake(o = {}) {
   const TOKEN = String(o.token || '').trim(), ON = !!TOKEN && !o.off, API = String(o.api || 'https://discord.com/api/v10').replace(/\/+$/, '');
   const fetchFn = o.fetch || globalThis.fetch, now = o.now || Date.now, sleep = o.sleep || (ms => new Promise(r => setTimeout(r, ms))), log = o.log || console;
@@ -267,17 +270,211 @@ export function discordMake(o = {}) {
     return json(res, 503, { error: 'unavailable', message: 'Discord injoignable pour le moment : réessaie plus tard.' }, { ...HD, 'Retry-After': '30' });
   }
   const msgUrl = (gid, ch, id) => `https://discord.com/channels/${gid}/${ch}/${id}`;
-  async function admin(req, res, sub) {
+  /** Raison affichable d'un serveur illisible (panneau : on false). */
+  const offMsg = e => (e.kind === 'setup' ? e.message : e.kind === 'refused' && e.status === 401 ? 'Jeton du bot refusé par Discord (DISCORD_BOT_TOKEN à recopier).' : e.kind === 'refused' ? 'Discord a refusé : ' + (e.dm || 'HTTP ' + e.status) + '.' : e.kind === 'limit' ? e.message : 'Discord injoignable pour le moment.');
+
+  /* ── Panneau /admin : fils des forums bugs, idées, aide (modération) ──
+     Liste : fils actifs du serveur filtrés par forum, ou fils fermés (archivés publics) d'un forum, 25 par page ; réponse gardée threadListMs (30 s), oubliée à chaque
+     écriture. Premier message d'un fil (même id que le fil) lu une fois et gardé (FIRST_MAX fils au plus), 4 lectures à la fois. Un fil n'est lu ou modifié qu'après
+     vérification : c'est un fil d'un des trois forums (parent_id), du même serveur. Aucun id d'utilisateur dans les réponses (auteur : nom affiché et bot ou non ;
+     mentions <@id> remplacées par le nom). Journal : fil, forum, action (jamais le texte). */
+  const FORUMS = ['bugs', 'idées', 'aide'], FIRST_MAX = 1000, FIRST_LEN = 300, LIST_MS = o.threadListMs ?? 30e3, PAR = 4;
+  const TH = { first: new Map(), list: new Map(), run: 0, q: [] };
+  const CDN_RE = /^https:\/\/(cdn\.discordapp\.com|media\.discordapp\.net)\/[^\s"'<>]+$/;
+  const snowMs = id => { try { return Number(BigInt(id) >> 22n) + 1420070400000; } catch (e) { return 0; } };
+  const isoMs = s => { const t = Date.parse(s || ''); return Number.isFinite(t) ? t : 0; };
+  const cutTo = (s, n) => { const a = [...s]; return a.length > n ? a.slice(0, n - 1).join('') + '…' : s; };
+  const byOf = u => ({ name: line((u && (u.global_name || u.username)) || '').slice(0, 80) || '?', bot: !!(u && u.bot) });
+  /** Lecture bornée : PAR à la fois (le reste attend son tour). */
+  async function par(fn) {
+    while (TH.run >= PAR) await new Promise(r => TH.q.push(r));
+    TH.run++;
+    try { return await fn(); } finally { TH.run--; const r = TH.q.shift(); if (r) r(); }
+  }
+  /** Les trois forums trouvés (comme l'avis : nom utile) → { d, list: [{ key, c }] }. */
+  async function forums() {
+    let d = null; const list = [];
+    for (const key of FORUMS) { const r = await find([key], [FORUM]); d = r.d; if (r.c && !list.some(x => x.c.id === r.c.id)) list.push({ key, c: r.c }); }
+    return { d, list };
+  }
+  const forumOut = f => ({ key: f.key, id: String(f.c.id), name: String(f.c.name || ''), tags: (Array.isArray(f.c.available_tags) ? f.c.available_tags : []).filter(t => t && t.id)
+    .map(t => ({ id: String(t.id), name: String(t.name || ''), emoji: typeof t.emoji_name === 'string' ? t.emoji_name : '', moderated: !!t.moderated })) });
+  /** Texte d'un message : mentions <@id>, <@&id>, <#id> remplacées par le nom (aucun id d'utilisateur dans la réponse). */
+  function msgText(m, d) {
+    const users = new Map((Array.isArray(m.mentions) ? m.mentions : []).filter(u => u && u.id).map(u => [String(u.id), byOf(u).name]));
+    return String(m.content || '').replace(/<@!?(\d+)>/g, (_, id) => '@' + (users.get(id) || 'membre'))
+      .replace(/<@&(\d+)>/g, (_, id) => '@' + ((d.roles.find(r => r.id === id) || {}).name || 'rôle'))
+      .replace(/<#(\d+)>/g, (_, id) => '#' + ((d.chans.find(c => c.id === id) || {}).name || 'salon'));
+  }
+  /** Message → { id, by, t, content, edited, attachments, hidden? } ; hidden : message d'un autre que le bot sans rien de lisible (intention Message Content absente). */
+  function msgOut(m, d) {
+    const content = msgText(m, d), attachments = (Array.isArray(m.attachments) ? m.attachments : []).filter(a => a && CDN_RE.test(String(a.url || '')))
+      .map(a => ({ url: String(a.url), name: String(a.filename || ''), type: String(a.content_type || ''), w: Number(a.width) || 0, h: Number(a.height) || 0 }));
+    const empty = !content && !attachments.length && !(Array.isArray(m.embeds) && m.embeds.length) && !(Array.isArray(m.sticker_items) && m.sticker_items.length);
+    const hidden = empty && (m.type == null || m.type === 0 || m.type === 19) && !(m.author && String(m.author.id) === d.me);
+    return { id: String(m.id), by: byOf(m.author), t: isoMs(m.timestamp) || snowMs(m.id), content, edited: !!m.edited_timestamp, attachments, ...(hidden ? { hidden: true } : {}) };
+  }
+  /** Premier message d'un fil (id du fil) : { first, by, hidden? }, gardé ; disparu (404) : gardé vide ; autre erreur : vide, relu la fois suivante. */
+  async function firstOf(t, d) {
+    const id = String(t.id), hit = TH.first.get(id); if (hit) return hit;
+    const none = { first: '', by: { name: '', bot: String(t.owner_id || '') === d.me } };
+    let v;
+    try { const x = msgOut(await par(() => call('GET', `/channels/${id}/messages/${id}`)), d); v = { first: x.hidden ? '' : cutTo(x.content, FIRST_LEN), by: x.by, ...(x.hidden ? { hidden: true } : {}) }; }
+    catch (e) { if (!(e.kind === 'refused' && (e.status === 404 || e.code === 10008))) return none; v = none; }
+    if (TH.first.size >= FIRST_MAX) TH.first.delete(TH.first.keys().next().value);
+    TH.first.set(id, v); return v;
+  }
+  function threadOut(t, key, d, f) {
+    const m = t.thread_metadata || {}, created = isoMs(m.create_timestamp) || snowMs(t.id), last = Math.max(created, t.last_message_id ? snowMs(t.last_message_id) : 0);
+    return { id: String(t.id), forum: key, name: String(t.name || ''), tags: (Array.isArray(t.applied_tags) ? t.applied_tags : []).map(String), created, last, count: Number(t.message_count) || 0,
+      archived: !!m.archived, locked: !!m.locked, ...(m.archived ? { closed: isoMs(m.archive_timestamp) } : {}), by: f.by, url: `https://discord.com/channels/${d.gid}/${t.id}`, first: f.first, ...(f.hidden ? { firstHidden: true } : {}) };
+  }
+  /** Fil d'un des trois forums → { t, f: { key, c }, d } ; sinon null (id mal formé, inconnu, fermé au bot, autre salon, autre serveur). */
+  async function threadGet(id) {
+    if (!ID_RE.test(id)) return null;
+    const { d, list } = await forums();
+    let t; try { t = await call('GET', `/channels/${id}`); } catch (e) { if (e.kind === 'refused' && (e.status === 404 || e.status === 403 || e.code === 10003 || e.code === 50001)) return null; throw e; }
+    if (!t || t.type !== 11 || String(t.guild_id || d.gid) !== d.gid) return null;
+    const f = list.find(x => x.c.id === String(t.parent_id || ''));
+    return f ? { t, f, d } : null;
+  }
+  const noThread = res => json(res, 404, { error: 'not_found', message: 'Fil introuvable (supprimé, ou hors des forums bugs, idées et aide) : recharge la liste.' }, HD);
+  /** GET …/threads?forum=&state=open|closed&before= */
+  async function threadList(res, url) {
+    const off = m => json(res, 200, { on: false, message: m, forums: [], threads: [] }, HD);
+    if (!ON) return off('Bot Discord non configuré (DISCORD_BOT_TOKEN absent chez l\'hébergeur).');
+    const q = url.searchParams, fq = q.get('forum') || '', state = q.get('state') || 'open', bq = q.get('before') || '';
+    if (state !== 'open' && state !== 'closed') return json(res, 400, { error: 'bad_request', message: 'state : open ou closed.' }, HD);
+    const want = fq ? FORUMS.find(k => fold(k) === fold(fq)) : null;
+    if (fq && !want) return json(res, 400, { error: 'bad_forum', message: 'Forum : bugs, idées ou aide.' }, HD);
+    let before = '';
+    if (bq && state === 'closed') {      // date ISO (gardée telle quelle : microsecondes de Discord) ou millisecondes
+      const iso = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d{1,6})?(Z|[+-]\d\d:\d\d)$/.test(bq), t = iso ? Date.parse(bq) : /^\d{1,15}$/.test(bq) ? Number(bq) : NaN;
+      if (!Number.isFinite(t) || t <= 0) return json(res, 400, { error: 'bad_request', message: 'before : date ISO attendue.' }, HD);
+      before = iso ? bq : new Date(t).toISOString();
+    }
+    const key = [want || '*', state, before].join('|'), hit = TH.list.get(key);
+    if (hit && now() - hit.at < LIST_MS) return json(res, 200, hit.body, HD);
+    let body;
+    try {
+      const { d, list } = await forums(), fs = list.filter(x => !want || x.key === want), raw = [];
+      let more = false, next = '';
+      if (!fs.length) body = { on: true, forums: list.map(forumOut), threads: [], more: false, message: want ? `Forum « ${want} » introuvable sur le serveur.` : 'Aucun forum bugs, idées ou aide sur le serveur.' };
+      else {
+        if (state === 'open') {
+          const j = await call('GET', `/guilds/${d.gid}/threads/active`);
+          for (const t of (j && Array.isArray(j.threads) ? j.threads : [])) { const f = t && fs.find(x => x.c.id === String(t.parent_id || '')); if (f) raw.push([t, f.key]); }
+        } else {      // un forum par page de Discord ; plusieurs : coupés à la date la plus récente où un forum s'arrête (la page suivante reprend là, rien de perdu ni de répété)
+          const arc = t => isoMs(t && t.thread_metadata && t.thread_metadata.archive_timestamp);
+          const pages = await Promise.all(fs.map(async f => { const j = await call('GET', `/channels/${f.c.id}/threads/archived/public?limit=25${before ? '&before=' + encodeURIComponent(before) : ''}`); return { f, ts: (j && Array.isArray(j.threads) ? j.threads : []).filter(Boolean), more: !!(j && j.has_more) }; }));
+          let cut = 0;
+          for (const p of pages) if (p.more && p.ts.length) { const old = p.ts.reduce((a, t) => (arc(t) < arc(a) ? t : a)); if (arc(old) > cut) { cut = arc(old); next = String(old.thread_metadata.archive_timestamp); } }
+          for (const p of pages) for (const t of p.ts) if (!cut || arc(t) >= cut) raw.push([t, p.f.key]);
+          more = pages.some(p => p.more);
+        }
+        const firsts = await Promise.all(raw.map(([t]) => firstOf(t, d)));
+        const threads = raw.map(([t, k], i) => threadOut(t, k, d, firsts[i])).sort((a, b) => b.last - a.last || (a.id < b.id ? 1 : -1));
+        body = { on: true, forums: list.map(forumOut), threads, more, ...(more && next ? { next } : {}) };
+      }
+    } catch (e) {
+      log.warn('Discord : panneau, fils illisibles (' + e.message + ')');
+      if (e.kind === 'limit') return admErr(res, e);
+      return off(offMsg(e));
+    }
+    if (TH.list.size > 50) TH.list.clear();
+    TH.list.set(key, { at: now(), body });
+    return json(res, 200, body, HD);
+  }
+  /** GET …/thread?id= : le fil et ses 50 derniers messages (du plus ancien au plus récent). */
+  async function threadRead(res, url) {
+    if (!ON) return json(res, 404, { error: 'not_found', message: 'Bot Discord non configuré.' }, HD);
+    try {
+      const x = await threadGet(url.searchParams.get('id') || ''); if (!x) return noThread(res);
+      const [ms, f] = await Promise.all([call('GET', `/channels/${x.t.id}/messages?limit=51`), firstOf(x.t, x.d)]);
+      const all = Array.isArray(ms) ? ms.filter(m => m && m.id) : [], more = all.length > 50;
+      const messages = all.slice(0, 50).sort((a, b) => String(a.id).length - String(b.id).length || (String(a.id) < String(b.id) ? -1 : 1)).map(m => msgOut(m, x.d));
+      return json(res, 200, { thread: threadOut(x.t, x.f.key, x.d, f), messages, more }, HD);
+    } catch (e) { if (gone(e)) return noThread(res); return admErr(res, e); }
+  }
+  /** Écritures sur un fil (corps déjà vérifié par les garde-fous) : thread (étiquettes, fermé, verrouillé, nom), reply, thread-delete. */
+  async function threadWrite(res, sub, b) {
+    const id = typeof b.id === 'string' ? b.id : '';
+    if (!ID_RE.test(id)) return json(res, 400, { error: 'bad_request', message: 'Fil attendu (id).' }, HD);
+    const done = (x, what) => { TH.list.clear(); log.log(`Discord : fil ${x.t.id} (#${x.f.key}) : ${what}.`); };
+    const isB = v => v == null || typeof v === 'boolean';
+    let patch = null, content = '';
+    if (sub === 'discord/thread') {
+      patch = {};
+      if (b.tags != null) {
+        if (!Array.isArray(b.tags) || b.tags.length > 5 || b.tags.some(t => typeof t !== 'string' || !/^\d{1,25}$/.test(t)) || new Set(b.tags).size !== b.tags.length) return json(res, 400, { error: 'bad_tags', message: '5 étiquettes au plus, celles du forum.' }, HD);
+        patch.applied_tags = b.tags;
+      }
+      if (b.name != null) {
+        const n = typeof b.name === 'string' ? line(b.name) : ''; if (len(n) < 1 || len(n) > 100) return json(res, 400, { error: 'bad_name', message: 'Titre du fil : 1 à 100 caractères.' }, HD);
+        patch.name = n;
+      }
+      if (!isB(b.archived) || !isB(b.locked)) return json(res, 400, { error: 'bad_request', message: 'archived et locked : vrai ou faux.' }, HD);
+      if (b.locked != null) patch.locked = b.locked;
+      if (b.archived != null) patch.archived = b.archived;
+      if (!Object.keys(patch).length) return json(res, 400, { error: 'bad_request', message: 'Rien à changer.' }, HD);
+    } else if (sub === 'discord/reply') {
+      if (typeof b.content !== 'string' || !b.content.trim()) return json(res, 400, { error: 'bad_content', message: 'Texte de la réponse attendu.' }, HD);
+      if (b.content.length > 2000) return json(res, 400, { error: 'too_long', message: `Réponse trop longue : ${b.content.length} caractères pour 2 000 au plus.` }, HD);
+      if (!isB(b.close)) return json(res, 400, { error: 'bad_request', message: 'close : vrai ou faux.' }, HD);
+      content = b.content;      // tel quel, comme /send (aucun ping : allowed_mentions vide)
+    }
+    try {
+      const x = await threadGet(id); if (!x) return noThread(res);
+      const path = `/channels/${x.t.id}`, out = t => threadOut(t && t.id ? t : x.t, x.f.key, x.d, TH.first.get(String(x.t.id)) || { first: '', by: { name: '', bot: false } });
+      if (sub === 'discord/thread-delete') {
+        try { await call('DELETE', path); } catch (e) { if (!gone(e)) throw e; }
+        TH.first.delete(String(x.t.id)); done(x, 'supprimé');
+        return json(res, 200, { ok: true }, HD);
+      }
+      await firstOf(x.t, x.d);      // auteur et début du fil pour la réponse (souvent déjà gardés)
+      if (patch) {
+        if (patch.applied_tags) {      // étiquettes de ce forum seulement (liste relue une fois si une étiquette est inconnue : ajoutée depuis peu ?)
+          const okTags = c => { const ids = new Set((Array.isArray(c.available_tags) ? c.available_tags : []).map(t => String(t && t.id))); return patch.applied_tags.every(t => ids.has(t)); };
+          if (!okTags(x.f.c)) { const c = (await load(true)).chans.find(y => y.id === x.f.c.id); if (!c || !okTags(c)) return json(res, 400, { error: 'bad_tags', message: 'Étiquette inconnue dans ce forum : recharge la page.' }, HD); }
+        }
+        const arc = !!(x.t.thread_metadata && x.t.thread_metadata.archived), rest = Object.keys(patch).filter(k => k !== 'archived');
+        let t;
+        if (arc && patch.archived !== false && rest.length) {      // fil fermé : Discord n'y change rien sans le rouvrir ; rouvert le temps du changement, refermé ensuite
+          t = await call('PATCH', path, { ...patch, archived: false });
+          t = await call('PATCH', path, { archived: true });
+        } else t = await call('PATCH', path, patch);
+        const what = [patch.applied_tags ? 'étiquettes' : '', patch.name ? 'renommé' : '', patch.locked === true ? 'verrouillé' : patch.locked === false ? 'déverrouillé' : '', patch.archived === true ? 'fermé' : patch.archived === false ? 'rouvert' : ''].filter(Boolean).join(', ');
+        done(x, what);
+        return json(res, 200, { ok: true, thread: out(t) }, HD);
+      }
+      const m = await call('POST', `${path}/messages`, { content, allowed_mentions: { parse: [] } });
+      const mid = String(m && m.id || ''), msg = { id: mid, url: msgUrl(x.d.gid, x.t.id, mid) };
+      let t = null, closed = null;
+      if (b.close === true) { try { t = await call('PATCH', path, { archived: true }); closed = true; } catch (e) { closed = false; log.warn('Discord : réponse envoyée, fil pas fermé (' + e.message + ')'); } }
+      if (!t) t = await call('GET', path).catch(() => null);
+      done(x, closed ? 'réponse, fermé' : 'réponse');
+      return json(res, 200, { ok: true, msg, thread: out(t), ...(closed === false ? { closed: false, message: 'Réponse envoyée, mais le fil n\'a pas été fermé (Discord a refusé) : ferme-le depuis la liste.' } : {}) }, HD);
+    } catch (e) { if (gone(e)) return noThread(res); return admErr(res, e); }
+  }
+
+  const WRITES = ['discord/send', 'discord/delete', 'discord/thread', 'discord/reply', 'discord/thread-delete'];
+  async function admin(req, res, sub, u) {
+    const qu = u || new URL(req.url || '/', 'http://x');
     if (sub === 'discord') {
       if (req.method !== 'GET') return json(res, 405, { error: 'method_not_allowed' }, HD);
       if (o.off) return json(res, 404, { error: 'not_found', message: 'Bot Discord coupé (DISCORD=0).' }, HD);
       const sent = await sentList(), off = m => json(res, 200, { on: false, guild: null, channels: [], roles: [], sent, message: m }, HD);
       if (!ON) return off('Bot Discord non configuré (DISCORD_BOT_TOKEN absent chez l\'hébergeur).');
       let d; try { d = await load(); }
-      catch (e) { log.warn('Discord : panneau, serveur illisible (' + e.message + ')'); return off(e.kind === 'setup' ? e.message : e.kind === 'refused' && e.status === 401 ? 'Jeton du bot refusé par Discord (DISCORD_BOT_TOKEN à recopier).' : e.kind === 'refused' ? 'Discord a refusé : ' + (e.dm || 'HTTP ' + e.status) + '.' : e.kind === 'limit' ? e.message : 'Discord injoignable pour le moment.'); }
+      catch (e) { log.warn('Discord : panneau, serveur illisible (' + e.message + ')'); return off(offMsg(e)); }
       return json(res, 200, { on: true, guild: { id: d.gid, name: d.gname }, channels: chanList(d), roles: roleList(d), sent }, HD);
     }
-    if (sub !== 'discord/send' && sub !== 'discord/delete') return json(res, 404, { error: 'not_found' }, HD);
+    if (sub === 'discord/threads' || (sub === 'discord/thread' && req.method === 'GET')) {      // lectures : budget de lecture de /api/admin (proxy.mjs › adminApi)
+      if (req.method !== 'GET') return json(res, 405, { error: 'method_not_allowed' }, HD);
+      if (o.off) return json(res, 404, { error: 'not_found', message: 'Bot Discord coupé (DISCORD=0).' }, HD);
+      return sub === 'discord/threads' ? threadList(res, qu) : threadRead(res, qu);
+    }
+    if (!WRITES.includes(sub)) return json(res, 404, { error: 'not_found' }, HD);
     if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' }, HD);
     // Mêmes garde-fous que proxy.mjs › admAct : même origine, JSON, budget ADMIN_ACTIONS_PER_H par heure et par réseau (le même que les autres actions)
     const sf = String(req.headers['sec-fetch-site'] || '');
@@ -287,6 +484,7 @@ export function discordMake(o = {}) {
     let b; try { b = JSON.parse((await readBody(req, 16 * 1024)).toString('utf8') || '{}'); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }, HD); }
     if (!b || typeof b !== 'object' || Array.isArray(b)) return json(res, 400, { error: 'bad_request', message: 'JSON invalide' }, HD);
     if (!ON) return json(res, 404, { error: 'not_found', message: o.off ? 'Bot Discord coupé (DISCORD=0).' : 'Bot Discord non configuré.' }, HD);
+    if (sub !== 'discord/send' && sub !== 'discord/delete') return threadWrite(res, sub, b);
     const list = await sentList();
     if (sub === 'discord/delete') {
       const id = typeof b.id === 'string' ? b.id : '', i = list.findIndex(x => x.id === id), x = list[i];

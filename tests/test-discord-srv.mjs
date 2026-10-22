@@ -3,7 +3,9 @@
 // refus de chaque champ, budget par réseau et par compte, Discord en panne → 503, limite de débit attendue, salon disparu relu, coupé → 404) ; panneau
 // (/api/admin/discord : sans compte, autre compte, salons où le bot peut écrire dans l'ordre du serveur, rôles à pinger, envoi avec pings et allowed_mentions
 // exacts, publication d'une annonce, refus, suppression, historique gardé sur le disque, budget) ; Carte mystère de la veille (message, embed) ; jeton jamais
-// affiché. Ports 19800–19803 ; faux Firebase de amis-fakes.mjs.
+// affiché ; fils des forums (/api/admin/discord/threads, thread, reply, thread-delete : ouverts, fermés et pages, filtre par forum, premier message gardé,
+// lectures 4 à la fois, auteur sans id, hidden, fil hors des forums → 404, étiquettes du forum, fermer / rouvrir / verrouiller / renommer, réponse sans ping
+// puis fermeture, suppression, garde-fous, CSP de /admin, journal sans texte). Ports 19800–19803 ; faux Firebase de amis-fakes.mjs.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -55,8 +57,30 @@ function world() {
     ],
   };
 }
-// Faux Discord : calls (méthode et chemin), posts (corps JSON ou multipart lus), down (réponses 503 restantes), limit (429 restants), auth (en-têtes reçus)
-const D = { ...world(), calls: [], posts: [], down: 0, limit: 0, auth: new Set(), ua: new Set(), n: 5000, deleted: [] };
+// Faux Discord : calls (méthode et chemin), posts (corps JSON ou multipart lus), down (réponses 503 restantes), limit (429 restants), auth (en-têtes reçus) ;
+// th (fils des forums et d'un salon écrit), msgs (messages de chaque fil, du plus ancien au plus récent), arcQ (requêtes des fils fermés), inflight / maxPar (lectures simultanées du premier message)
+const D = { ...world(), calls: [], posts: [], down: 0, limit: 0, auth: new Set(), ua: new Set(), n: 5000, deleted: [], th: new Map(), msgs: new Map(), arcQ: [], inflight: 0, maxPar: 0 };
+const EPOCH = 1420070400000, snow = (ms, n = 0) => String((BigInt(Math.floor(ms) - EPOCH) << 22n) + BigInt(n)), nid = () => snow(Date.now(), ++D.n & 4095);
+const U = { jeanne: { id: '940000000000000001', username: 'jeanne_42', global_name: 'Jeanne', bot: false }, paul: { id: '940000000000000002', username: 'paul.m', global_name: null }, bot: { id: BOT, username: 'Mana Orbit', bot: true } };
+const T0 = Date.now() - 20 * 86400e3, DAY = 86400e3, iso = ms => new Date(ms).toISOString();
+/** Fil de forum : starter (même id que le fil) puis les messages ; msgs : [auteur, texte, { mentions, attachments, edited }]. */
+function th(parent, at, { name = 'Fil', tags = [], owner = U.jeanne, archived = false, locked = false, arcAt = 0, msgs = [] } = {}) {
+  const id = snow(at, D.th.size + 1), list = msgs.map(([a, content, x = {}], j) => ({ id: j ? snow(at + j * 60e3, j) : id, channel_id: id, type: 0, author: a, content, timestamp: iso(j ? at + j * 60e3 : at), edited_timestamp: x.edited ? iso(at + j * 60e3 + 5e3) : null, mentions: x.mentions || [], attachments: x.attachments || [], embeds: [] }));
+  D.th.set(id, { id, type: 11, guild_id: G, parent_id: parent, name, owner_id: owner.id, applied_tags: tags, message_count: Math.max(0, list.length - 1), last_message_id: list.length ? list[list.length - 1].id : null,
+    thread_metadata: { archived, locked, archive_timestamp: iso(arcAt || at), create_timestamp: iso(at), auto_archive_duration: 10080 } });
+  D.msgs.set(id, list); return id;
+}
+const LONG = 'Début ' + 'é'.repeat(400);
+const T = {
+  t1: th(C.bugs, T0 + 10 * DAY, { name: 'Le scan ne lit pas les cartes', tags: ['800', '813'], owner: U.bot, msgs: [[U.bot, 'Le scan ne lit pas les cartes\n\n-# Android'], [U.jeanne, `Merci <@${BOT}> et <@&${R.team}> ! Voir <#${C.general}>`, { mentions: [U.bot], edited: true }],
+    [U.paul, ''], [U.jeanne, '', { attachments: [{ id: '1', filename: 'capture.png', content_type: 'image/png', width: 640, height: 480, url: 'https://cdn.discordapp.com/attachments/1/2/capture.png?ex=1' }, { id: '2', filename: 'x.png', url: 'https://evil.example/x.png' }] }]] }),
+  t2: th(C.bugs, T0 + 12 * DAY, { name: 'Plantage au lancement', owner: U.jeanne, msgs: [[U.jeanne, '']] }),
+  t3: th(C.bugs, T0 + 5 * DAY, { name: 'Prix faux', owner: U.paul, locked: true, msgs: [[U.paul, LONG], ...Array.from({ length: 60 }, (_, i) => [U.paul, 'm' + (i + 1)])] }),
+  t4: th(C.idees, T0 + 8 * DAY, { name: 'Mode sombre', owner: U.paul, msgs: [[U.paul, `Comme <@${U.jeanne.id}> le disait`, { mentions: [U.jeanne] }]] }),
+  tx: th(C.general, T0 + 15 * DAY, { name: 'Fil du salon général', owner: U.jeanne, msgs: [[U.jeanne, 'hors forum']] }),
+};
+const ARC = Array.from({ length: 30 }, (_, k) => th(C.bugs, T0 - (k + 1) * 5 * 3600e3, { name: 'Fermé ' + k, archived: true, arcAt: T0 - (k + 1) * 5 * 3600e3 + 3600e3, msgs: [[U.bot, 'archivé ' + k]] }));
+const ARC_I = [th(C.idees, T0 - 21 * 3600e3, { name: 'Idée fermée A', archived: true, arcAt: T0 - 20 * 3600e3, msgs: [[U.paul, 'a']] }), th(C.idees, T0 - 137 * 3600e3, { name: 'Idée fermée B', archived: true, arcAt: T0 - 136 * 3600e3, msgs: [[U.paul, 'b']] })];
 const srv = http.createServer((q, r) => {
   const c = []; q.on('data', d => c.push(d)); q.on('end', async () => {
     const raw = Buffer.concat(c), send = (code, o) => { r.writeHead(code, { 'content-type': 'application/json' }); r.end(o === undefined ? '' : JSON.stringify(o)); };
@@ -77,20 +101,50 @@ const srv = http.createServer((q, r) => {
       body = JSON.parse(fd.get('payload_json'));
       for (const [k, v] of fd.entries()) if (k !== 'payload_json') files.push({ field: k, name: v.name, type: v.type, bytes: Buffer.from(await v.arrayBuffer()) });
     } else if (raw.length) body = JSON.parse(raw.toString());
-    const ch = id => D.channels.find(y => y.id === id);
+    const ch = id => D.channels.find(y => y.id === id) || D.th.get(id), u = new URL(q.url, 'http://x');
     if ((x = /^\/channels\/(\d+)\/threads$/.exec(p)) && m === 'POST') {
       if (!ch(x[1]) || ch(x[1]).type !== 15) return send(404, { message: 'Unknown Channel', code: 10003 });
-      const id = String(++D.n); D.posts.push({ kind: 'thread', ch: x[1], body, files, ct: q.headers['content-type'] }); return send(201, { id, name: body.name, parent_id: x[1], type: 11 });
+      const id = nid(); D.posts.push({ kind: 'thread', ch: x[1], body, files, ct: q.headers['content-type'] }); return send(201, { id, name: body.name, parent_id: x[1], type: 11 });
     }
     if ((x = /^\/channels\/(\d+)\/messages$/.exec(p)) && m === 'POST') {
       if (!ch(x[1])) return send(404, { message: 'Unknown Channel', code: 10003 });
       if (x[1] === C.interdit) return send(403, { message: 'Missing Permissions', code: 50013 });
-      const id = String(++D.n); D.posts.push({ kind: 'msg', ch: x[1], id, body }); return send(200, { id, channel_id: x[1], ...body });
+      const id = nid(); D.posts.push({ kind: 'msg', ch: x[1], id, body });
+      const t = D.th.get(x[1]);
+      if (t) { t.thread_metadata.archived = false; t.message_count++; t.last_message_id = id; D.msgs.get(x[1]).push({ id, channel_id: x[1], type: 0, author: U.bot, content: body.content, timestamp: iso(Date.now()), edited_timestamp: null, mentions: [], attachments: [], embeds: [] }); }
+      return send(200, { id, channel_id: x[1], ...body });
     }
     if ((x = /^\/channels\/(\d+)\/messages\/(\d+)\/crosspost$/.exec(p)) && m === 'POST') { D.posts.push({ kind: 'crosspost', ch: x[1], id: x[2] }); return send(200, { id: x[2] }); }
     if ((x = /^\/channels\/(\d+)\/messages\/(\d+)$/.exec(p)) && m === 'DELETE') {
       if (D.deleted.includes(x[2])) return send(404, { message: 'Unknown Message', code: 10008 });
       D.deleted.push(x[2]); return send(204);
+    }
+    if (m === 'GET' && p === `/guilds/${G}/threads/active`) return send(200, { threads: [...D.th.values()].filter(t => !t.thread_metadata.archived), members: [] });
+    if ((x = /^\/channels\/(\d+)\/threads\/archived\/public$/.exec(p)) && m === 'GET') {
+      D.arcQ.push(x[1] + u.search);
+      const lim = Number(u.searchParams.get('limit')) || 50, bf = u.searchParams.get('before'), bt = bf ? Date.parse(bf) : Infinity, at = t => Date.parse(t.thread_metadata.archive_timestamp);
+      const all = [...D.th.values()].filter(t => t.parent_id === x[1] && t.thread_metadata.archived && at(t) < bt).sort((a, b) => at(b) - at(a));
+      return send(200, { threads: all.slice(0, lim), members: [], has_more: all.length > lim });
+    }
+    if ((x = /^\/channels\/(\d+)\/messages\/(\d+)$/.exec(p)) && m === 'GET') {
+      D.inflight++; D.maxPar = Math.max(D.maxPar, D.inflight); await new Promise(res => setTimeout(res, 25)); D.inflight--;
+      const mm = (D.msgs.get(x[1]) || []).find(y => y.id === x[2]); return mm ? send(200, mm) : send(404, { message: 'Unknown Message', code: 10008 });
+    }
+    if ((x = /^\/channels\/(\d+)\/messages$/.exec(p)) && m === 'GET') return send(200, [...(D.msgs.get(x[1]) || [])].reverse().slice(0, Number(u.searchParams.get('limit')) || 50));
+    if ((x = /^\/channels\/(\d+)$/.exec(p))) {
+      const t = D.th.get(x[1]);
+      if (m === 'GET') { const c = ch(x[1]); return c ? send(200, { guild_id: G, ...c }) : send(404, { message: 'Unknown Channel', code: 10003 }); }
+      if (!t) return send(404, { message: 'Unknown Channel', code: 10003 });
+      if (m === 'PATCH') {
+        D.posts.push({ kind: 'patch', id: x[1], body });
+        if (t.thread_metadata.archived && body.archived !== false) return send(400, { message: 'Thread is archived', code: 50083 });
+        if (body.name !== undefined) t.name = body.name;
+        if (body.applied_tags !== undefined) t.applied_tags = body.applied_tags;
+        if (body.locked !== undefined) t.thread_metadata.locked = body.locked;
+        if (body.archived !== undefined) { t.thread_metadata.archived = body.archived; t.thread_metadata.archive_timestamp = iso(Date.now()); }
+        return send(200, t);
+      }
+      if (m === 'DELETE') { D.th.delete(x[1]); D.posts.push({ kind: 'thdel', id: x[1] }); return send(200, t); }
     }
     return send(404, { message: 'Unknown route ' + m + ' ' + p });
   });
@@ -136,10 +190,13 @@ const last = () => D.posts[D.posts.length - 1];
   let r = await call('GET', '/api/admin/discord', { tok: ADM() });
   assert.equal(r.s, 200); assert.equal(r.o.on, false); assert.match(r.o.message, /non configuré/); assert.deepEqual([r.o.channels, r.o.roles, r.o.guild], [[], [], null]);
   assert.equal((await call('POST', '/api/admin/discord/send', { tok: ADM(), body: { channel: C.general, content: 'x' } })).s, 404);
+  r = await call('GET', '/api/admin/discord/threads', { tok: ADM() }); assert.equal(r.s, 200); assert.deepEqual([r.o.on, r.o.forums, r.o.threads], [false, [], []]); assert.match(r.o.message, /non configuré/);
+  assert.equal((await call('POST', '/api/admin/discord/reply', { tok: ADM(), body: { id: T.t1, content: 'x' } })).s, 404);
   assert.doesNotMatch(P.log(), /Bot Discord/); await stop(P);
   P = await start({ DISCORD: '0', DISCORD_BOT_TOKEN: TOKEN, DISCORD_API: DAPI }, 19801); BASE = P.url;
   assert.equal((await call('GET', '/__ping')).o.feedback, false); assert.equal((await call('POST', '/api/feedback', { body: FB() })).s, 404);
   r = await call('GET', '/api/admin/discord', { tok: ADM() }); assert.equal(r.s, 404); assert.match(r.o.message, /DISCORD=0/);
+  assert.equal((await call('GET', '/api/admin/discord/threads', { tok: ADM() })).s, 404); assert.equal((await call('GET', '/api/admin/discord/thread?id=' + T.t1, { tok: ADM() })).s, 404);
   await stop(P); assert.equal(D.calls.length, 0, 'aucun appel à Discord');
   ok('sans DISCORD_BOT_TOKEN : /__ping feedback false, /api/feedback 404, panneau « bot non configuré » (200, on: false) ; DISCORD=0 : tout en 404, rien demandé à Discord');
 }
@@ -285,12 +342,137 @@ let P = await start(ENV, 19802); BASE = P.url;
   ok('suppression (id de l\'historique seulement, déjà supprimé sur Discord : retiré), historique du plus récent au plus ancien, gardé sur le disque et relu au redémarrage, 50 au plus ; budget ADMIN_ACTIONS_PER_H');
 }
 
+/* ── 3 bis) Fils des forums depuis /admin ─────────────────────────────────────────────────────────────────────────────────────── */
+{
+  await stop(P); P = await start(ENV, 19803); BASE = P.url;      // caches vides
+  const get = (q, o = {}) => call('GET', '/api/admin/discord/' + q, { tok: ADM(), ...o });
+  const act = (sub, body, o = {}) => call('POST', '/api/admin/discord/' + sub, { tok: ADM(), body, ...o });
+  const firstReads = id => D.calls.filter(c => c === `GET /channels/${id}/messages/${id}`).length;
+  const noIds = (t, what) => { for (const id of [U.jeanne.id, U.paul.id, BOT]) assert.ok(!t.includes(id), what + ' : aucun id d\'utilisateur (' + id + ')'); };
+  let r = await get('threads');
+  assert.equal(r.s, 200, r.t); assert.equal(r.o.on, true); assert.equal(r.o.more, false);
+  assert.deepEqual(r.o.forums.map(f => [f.key, f.id, f.name, f.tags.length]), [['bugs', C.bugs, '🐞・bugs', 16], ['idées', C.idees, '💡・Idées', 3], ['aide', C.aide, 'aide', 4]], 'les trois forums, trouvés par leur nom utile');
+  assert.deepEqual(r.o.forums[0].tags[14], { id: '814', name: 'Corrigé', emoji: '', moderated: true }, 'étiquettes du forum (emoji, réservées à l\'équipe)');
+  assert.deepEqual(r.o.threads.map(t => t.id), [T.t2, T.t1, T.t4, T.t3], 'fils ouverts des trois forums (pas celui du salon général, ni les fermés), le plus récent d\'abord');
+  const t1 = r.o.threads[1];
+  assert.deepEqual({ ...t1, created: 0, last: 0 }, { id: T.t1, forum: 'bugs', name: 'Le scan ne lit pas les cartes', tags: ['800', '813'], created: 0, last: 0, count: 3, archived: false, locked: false, by: { name: 'Mana Orbit', bot: true }, url: `https://discord.com/channels/${G}/${T.t1}`, first: 'Le scan ne lit pas les cartes\n\n-# Android' });
+  assert.equal(t1.created, T0 + 10 * DAY); assert.equal(t1.last, T0 + 10 * DAY + 3 * 60e3, 'last : dernier message');
+  const t2 = r.o.threads[0], t3 = r.o.threads[3], t4 = r.o.threads[2];
+  assert.deepEqual([t2.first, t2.firstHidden, t2.by], ['', true, { name: 'Jeanne', bot: false }], 'premier message d\'un membre illisible (intention absente) : vide, signalé');
+  assert.deepEqual([t3.locked, t3.by, [...t3.first].length, t3.first.endsWith('…'), t3.count], [true, { name: 'paul.m', bot: false }, 300, true, 60], 'début du premier message : 300 caractères ; sans global_name : username');
+  assert.equal(t4.first, 'Comme @Jeanne le disait', 'mention <@id> → @nom'); assert.equal(t4.forum, 'idées');
+  noIds(r.t, 'liste');
+  for (const t of [T.t1, T.t2, T.t3, T.t4]) assert.equal(firstReads(t), 1, 'premier message lu une fois');
+  assert.equal(firstReads(T.tx), 0, 'fil hors des forums : jamais lu');
+  const nList = D.calls.length; r = await get('threads');
+  assert.equal(r.s, 200); assert.equal(D.calls.length, nList, 'liste gardée (30 s) : rien redemandé à Discord');
+  r = await get('threads?forum=idees&state=open'); assert.deepEqual(r.o.threads.map(t => t.id), [T.t4], 'filtre par forum (accent ignoré)');
+  r = await get('threads?forum=bugs'); assert.deepEqual(r.o.threads.map(t => t.id), [T.t2, T.t1, T.t3]);
+  r = await get('threads?forum=aide'); assert.deepEqual(r.o.threads, []);
+  assert.equal(D.calls.filter(c => c === `GET /guilds/${G}/threads/active`).length, 4, 'un appel des fils actifs par liste');
+  for (const t of [T.t1, T.t2, T.t3, T.t4]) assert.equal(firstReads(t), 1, 'premier message toujours gardé');
+  for (const q of ['threads?forum=spam', 'threads?state=tout', 'threads?state=closed&before=hier']) { r = await get(q); assert.equal(r.s, 400, q); assert.ok(r.o.message); }
+  ok('fils ouverts : les trois forums et leurs étiquettes, fils actifs filtrés par forum (ni salon écrit ni fermés), le plus récent d\'abord, auteur (nom, bot) sans id, début du premier message (300 caractères, mentions → noms, illisible → firstHidden) lu une fois, liste gardée 30 s ; filtre forum');
+
+  D.maxPar = 0; r = await get('threads?forum=bugs&state=closed');
+  assert.equal(r.s, 200, r.t); assert.equal(r.o.threads.length, 25); assert.equal(r.o.more, true); assert.ok(r.o.next, 'next : date à passer en before');
+  assert.deepEqual(r.o.threads.map(t => t.id), ARC.slice(0, 25), 'fermés : 25 par page, le plus récent d\'abord'); assert.ok(r.o.threads.every(t => t.archived && t.closed > 0 && t.forum === 'bugs'));
+  assert.ok(D.maxPar >= 2 && D.maxPar <= 4, 'premiers messages lus en parallèle, 4 à la fois au plus (' + D.maxPar + ')');
+  assert.equal(D.arcQ[D.arcQ.length - 1], C.bugs + '?limit=25');
+  r = await get('threads?forum=bugs&state=closed&before=' + encodeURIComponent(r.o.next));
+  assert.deepEqual([r.o.threads.map(t => t.id), r.o.more, r.o.next], [ARC.slice(25), false, undefined], 'page suivante : les 5 derniers');
+  assert.match(D.arcQ[D.arcQ.length - 1], /^\d+\?limit=25&before=\d{4}-/);
+  const all = []; let before = '', pages = 0;
+  do { r = await get('threads?state=closed' + (before ? '&before=' + encodeURIComponent(before) : '')); assert.equal(r.s, 200); all.push(...r.o.threads.map(t => t.id)); before = r.o.next; pages++; } while (r.o.more && pages < 5);
+  assert.equal(pages, 2); assert.equal(new Set(all).size, all.length, 'aucun fil répété'); assert.deepEqual(all.slice().sort(), [...ARC, ...ARC_I].sort(), 'trois forums : tous les fermés, rien de perdu');
+  assert.ok(all.indexOf(ARC_I[0]) < 26 && all.indexOf(ARC_I[1]) >= 26, 'pages coupées à la même date dans chaque forum');
+  ok('fils fermés : 25 par page (archived/public, limit et before), more et next, page suivante ; trois forums mêlés sans perte ni doublon ; premiers messages 4 à la fois au plus');
+
+  r = await get('thread?id=' + T.t1);
+  assert.equal(r.s, 200, r.t); assert.equal(r.o.thread.id, T.t1); assert.equal(r.o.more, false);
+  const ms = r.o.messages; assert.equal(ms.length, 4); assert.ok(ms[0].t < ms[1].t && ms[1].t < ms[3].t, 'du plus ancien au plus récent');
+  assert.deepEqual([ms[0].by, ms[0].content, ms[0].edited], [{ name: 'Mana Orbit', bot: true }, 'Le scan ne lit pas les cartes\n\n-# Android', false]);
+  assert.deepEqual([ms[1].by, ms[1].content, ms[1].edited, ms[1].hidden], [{ name: 'Jeanne', bot: false }, 'Merci @Mana Orbit et @Équipe ! Voir #💬・général', true, undefined], 'mentions remplacées par les noms, modifié');
+  assert.deepEqual([ms[2].content, ms[2].hidden], ['', true], 'message d\'un membre sans texte lisible : hidden');
+  assert.deepEqual([ms[3].hidden, ms[3].attachments], [undefined, [{ url: 'https://cdn.discordapp.com/attachments/1/2/capture.png?ex=1', name: 'capture.png', type: 'image/png', w: 640, h: 480 }]], 'pièces jointes du CDN de Discord seulement');
+  noIds(r.t, 'fil'); assert.equal(firstReads(T.t1), 1, 'premier message toujours pas relu');
+  r = await get('thread?id=' + T.t3); assert.equal(r.o.messages.length, 50); assert.equal(r.o.more, true); assert.deepEqual([r.o.messages[0].content, r.o.messages[49].content], ['m11', 'm60'], '50 derniers, more');
+  const n1 = D.calls.length;
+  for (const id of [T.tx, C.general, C.bugs, '939999999999999999', 'abc', '']) { r = await get('thread?id=' + id); assert.equal(r.s, 404, id + ' → ' + r.t); assert.equal(r.o.error, 'not_found'); assert.ok(r.o.message); }
+  assert.ok(!D.calls.slice(n1).some(c => /\/messages/.test(c)), 'fil hors des forums : aucun message lu');
+  ok('fil : 50 derniers messages du plus ancien au plus récent (more), auteur sans id, mentions → noms, modifié, hidden, pièces jointes du CDN ; fil d\'un autre salon, salon, inconnu, mal formé → 404 sans rien lire');
+
+  const n2 = D.posts.length;
+  for (const [sub, b] of [['thread', { id: T.tx, archived: true }], ['reply', { id: T.tx, content: 'x' }], ['thread-delete', { id: T.tx }], ['thread', { id: C.general, locked: true }], ['reply', { id: '939999999999999999', content: 'x' }]]) {
+    r = await act(sub, b); assert.equal(r.s, 404, sub + ' ' + JSON.stringify(b)); assert.equal(r.o.error, 'not_found');
+  }
+  assert.equal(D.posts.length, n2, 'rien écrit hors des forums'); assert.ok(D.th.has(T.tx));
+  for (const [sub, b, err] of [['thread', { id: T.t1, tags: ['850'] }, 'bad_tags'], ['thread', { id: T.t1, tags: ['800', '801', '802', '803', '804', '805'] }, 'bad_tags'], ['thread', { id: T.t1, tags: ['800', '800'] }, 'bad_tags'],
+    ['thread', { id: T.t1, tags: 'Scan' }, 'bad_tags'], ['thread', { id: T.t1, name: '  \u0007 ' }, 'bad_name'], ['thread', { id: T.t1, name: 'x'.repeat(101) }, 'bad_name'], ['thread', { id: T.t1, name: 5 }, 'bad_name'],
+    ['thread', { id: T.t1, archived: 'oui' }, 'bad_request'], ['thread', { id: T.t1 }, 'bad_request'], ['thread', { id: 5 }, 'bad_request'],
+    ['reply', { id: T.t1, content: '  ' }, 'bad_content'], ['reply', { id: T.t1 }, 'bad_content'], ['reply', { id: T.t1, content: 'x'.repeat(2001) }, 'too_long'], ['reply', { id: T.t1, content: 'x', close: 1 }, 'bad_request']]) {
+    r = await act(sub, b); assert.equal(r.s, 400, sub + ' ' + JSON.stringify(b).slice(0, 80) + ' → ' + r.t); assert.equal(r.o.error, err); assert.ok(r.o.message);
+  }
+  assert.equal(D.posts.length, n2, 'rien écrit');
+  ok('écritures refusées : fil hors des forums (404, rien écrit), étiquettes d\'un autre forum, 6, en double, nom vide ou > 100, rien à changer, réponse vide ou > 2 000');
+
+  const patches = () => D.posts.filter(p => p.kind === 'patch' && p.id === T.t1).map(p => p.body);
+  r = await act('thread', { id: T.t1, tags: ['801', '814'] }); assert.equal(r.s, 200, r.t); assert.deepEqual(r.o.thread.tags, ['801', '814']); assert.equal(r.o.thread.first, 'Le scan ne lit pas les cartes\n\n-# Android');
+  r = await act('thread', { id: T.t1, archived: true }); assert.equal(r.s, 200); assert.equal(r.o.thread.archived, true);
+  r = await get('threads?forum=bugs'); assert.ok(!r.o.threads.some(t => t.id === T.t1), 'liste oubliée après une écriture : fil fermé absent des ouverts');
+  r = await act('thread', { id: T.t1, name: '  Scan :\u0007 cartes   illisibles ', locked: true }); assert.equal(r.s, 200, r.t);
+  assert.deepEqual([r.o.thread.name, r.o.thread.locked, r.o.thread.archived], ['Scan : cartes illisibles', true, true], 'fil fermé : renommé et verrouillé, toujours fermé');
+  r = await act('thread', { id: T.t1, archived: false, locked: false }); assert.deepEqual([r.s, r.o.thread.archived, r.o.thread.locked], [200, false, false], 'rouvert, déverrouillé');
+  assert.deepEqual(patches(), [{ applied_tags: ['801', '814'] }, { archived: true }, { name: 'Scan : cartes illisibles', locked: true, archived: false }, { archived: true }, { locked: false, archived: false }], 'PATCH envoyés (fil fermé : rouvert le temps du changement)');
+  ok('étiquettes du forum, fermer, renommer et verrouiller un fil fermé (rouvert puis refermé), rouvrir, déverrouiller ; liste oubliée après chaque écriture');
+
+  r = await act('reply', { id: T.t2, content: `Corrigé dans la 1.0.11, merci @everyone <@&${R.team}> <@${U.jeanne.id}> !`, close: true });
+  assert.equal(r.s, 200, r.t); const rep = D.posts.filter(p => p.kind === 'msg' && p.ch === T.t2).pop();
+  assert.deepEqual(rep.body, { content: `Corrigé dans la 1.0.11, merci @everyone <@&${R.team}> <@${U.jeanne.id}> !`, allowed_mentions: { parse: [] } }, 'réponse telle quelle, aucun ping');
+  assert.deepEqual(r.o.msg, { id: rep.id, url: `https://discord.com/channels/${G}/${T.t2}/${rep.id}` });
+  assert.deepEqual(D.posts.filter(p => p.kind === 'patch' && p.id === T.t2).map(p => p.body), [{ archived: true }], 'puis fermé'); assert.equal(r.o.thread.archived, true);
+  r = await act('reply', { id: T.t2, content: 'Rouvert par la réponse' }); assert.equal(r.s, 200); assert.equal(r.o.thread.archived, false, 'réponse dans un fil fermé : rouvert par Discord'); assert.equal(r.o.thread.count, 2);
+  r = await get('thread?id=' + T.t2); assert.deepEqual(r.o.messages.slice(1).map(m => [m.by.bot, m.content]), [[true, 'Corrigé dans la 1.0.11, merci @everyone @Équipe @membre !'], [true, 'Rouvert par la réponse']]);
+  r = await act('thread-delete', { id: T.t4 }); assert.equal(r.s, 200); assert.deepEqual(r.o, { ok: true }); assert.ok(D.calls.includes(`DELETE /channels/${T.t4}`)); assert.ok(!D.th.has(T.t4));
+  assert.equal((await get('thread?id=' + T.t4)).s, 404, 'supprimé : introuvable'); r = await get('threads'); assert.ok(!r.o.threads.some(t => t.id === T.t4));
+  assert.equal((await act('thread-delete', { id: T.t4 })).s, 404);
+  ok('réponse du bot (texte tel quel, allowed_mentions vide) puis fermeture, lien du message ; réponse dans un fil fermé ; suppression d\'un fil (DELETE), introuvable ensuite');
+
+  r = await call('GET', '/api/admin/discord/threads'); assert.equal(r.s, 401);
+  r = await call('GET', '/api/admin/discord/threads', { tok: JEANNE() }); assert.equal(r.s, 403); assert.doesNotMatch(r.t, /bugs|Mana Orbit/);
+  r = await call('GET', '/api/admin/discord/thread?id=' + T.t1, { tok: JEANNE() }); assert.equal(r.s, 403);
+  const n3 = D.posts.length;
+  for (const sub of ['thread', 'reply', 'thread-delete']) {
+    assert.equal((await call('POST', '/api/admin/discord/' + sub, { body: { id: T.t3, content: 'x', archived: true } })).s, 401, sub + ' sans compte');
+    assert.equal((await call('POST', '/api/admin/discord/' + sub, { tok: JEANNE(), body: { id: T.t3, content: 'x', archived: true } })).s, 403, sub + ' autre compte');
+    assert.equal((await act(sub, { id: T.t3, content: 'x', archived: true }, { hd: { 'sec-fetch-site': 'cross-site' } })).s, 403, sub + ' autre site');
+    assert.equal((await call('POST', '/api/admin/discord/' + sub, { tok: ADM(), raw: JSON.stringify({ id: T.t3, content: 'x' }), hd: { 'Content-Type': 'text/plain' } })).s, 415, sub + ' pas en JSON');
+    assert.equal((await call('GET', '/api/admin/discord/' + sub + '?id=' + T.t3, { tok: ADM() })).s, sub === 'thread' ? 200 : 405);
+  }
+  assert.equal((await call('POST', '/api/admin/discord/threads', { tok: ADM(), body: {} })).s, 405);
+  assert.equal(D.posts.length, n3, 'rien écrit'); assert.ok(D.th.has(T.t3));
+  const net = '198.51.100.123'; let rr = null;
+  for (let i = 0; i < 13; i++) rr = await act('thread', { id: 'x' }, { ip: net });
+  assert.equal(rr.s, 429, 'ADMIN_ACTIONS_PER_H (12) par réseau, comme /send'); assert.equal(rr.o.error, 'rate_limited');
+  r = await call('GET', '/admin'); const csp = r.h.get('content-security-policy') || '';
+  assert.match(csp, /img-src 'self' data: https:\/\/cdn\.discordapp\.com https:\/\/media\.discordapp\.net;/, 'CSP de /admin : images des pièces jointes de Discord');
+  const lg = P.log();
+  assert.match(lg, new RegExp(`Discord : fil ${T.t1} \\(#bugs\\) : étiquettes\\.`)); assert.match(lg, new RegExp(`Discord : fil ${T.t1} \\(#bugs\\) : renommé, verrouillé\\.`));
+  assert.match(lg, new RegExp(`Discord : fil ${T.t2} \\(#bugs\\) : réponse, fermé\\.`)); assert.match(lg, new RegExp(`Discord : fil ${T.t4} \\(#idées\\) : supprimé\\.`));
+  for (const x of ['Corrigé dans', 'Rouvert par', 'cartes illisibles', 'Mode sombre', 'Jeanne', TOKEN]) assert.ok(!lg.includes(x), 'journal sans texte, nom ni jeton : ' + x);
+  ok('garde-fous des fils : sans compte 401, autre compte 403 (rien), autre site, pas en JSON, mauvaise méthode, budget ADMIN_ACTIONS_PER_H ; CSP de /admin avec cdn.discordapp.com et media.discordapp.net ; journal : fil, forum, action (ni texte, ni nom, ni jeton)');
+}
+
 /* ── 4) Discord injoignable pour le panneau, jeton jamais affiché ────────────────────────────────────────────────────────────── */
 {
   await stop(P); P = await start(ENV, 19803); BASE = P.url;
   D.down = 99; let r = await call('GET', '/api/admin/discord', { tok: ADM() });
   assert.equal(r.s, 200); assert.equal(r.o.on, false); assert.match(r.o.message, /injoignable/); assert.equal(r.o.sent.length, 50, 'historique quand même'); D.down = 0;
   r = await call('GET', '/api/admin/discord', { tok: ADM() }); assert.equal(r.o.on, true, 'revenu : relu');
+  D.down = 99; r = await call('GET', '/api/admin/discord/threads', { tok: ADM() }); D.down = 0;
+  assert.equal(r.s, 200); assert.deepEqual([r.o.on, r.o.forums, r.o.threads], [false, [], []]); assert.match(r.o.message, /injoignable/, 'fils : Discord injoignable → on: false');
+  D.down = 99; r = await call('GET', '/api/admin/discord/thread?id=' + T.t1, { tok: ADM() }); D.down = 0; assert.deepEqual([r.s, r.o.error], [503, 'unavailable']);
+  r = await call('GET', '/api/admin/discord/threads', { tok: ADM() }); assert.equal(r.o.on, true, 'revenu');
   await stop(P);
   P = await start({ ...ENV, DISCORD_BOT_TOKEN: 'mauvais-jeton-SECRET' }, 19803); BASE = P.url;
   r = await call('GET', '/api/admin/discord', { tok: ADM() }); assert.equal(r.o.on, false); assert.match(r.o.message, /Jeton du bot refusé/);
