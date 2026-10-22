@@ -5,7 +5,7 @@
    Tout ce qui vient du serveur est déjà réduit (prénom + initiale, e-mail masqué, identifiant opaque) et n'est écrit qu'en textContent (pseudos libres).
    Tri, recherche et pages : côté serveur (?sort, dir, q, page). « Rafraîchir » : POST /api/admin/refresh (une fois par minute au plus). « CSV » : la même
    liste (tri et recherche en cours) par GET /api/admin/export. Actions, toujours confirmées : désactiver / réactiver un compte (fenêtre qui dit lequel),
-   retirer un deck public (deux appuis) ; POST en JSON avec le jeton ; journal des actions tenu par le serveur.
+   retirer un deck public (deux appuis) ; POST en JSON avec le jeton ; journal des actions tenu par le serveur. Discord : messages du bot dans un salon (pings, historique).
    CSP stricte (proxy.mjs › ADM_CSP) : aucun script ni style en ligne, d'où ce fichier et admin.css ; graphiques en SVG dessinés ici, sans bibliothèque. */
 (function () {
   'use strict';
@@ -59,7 +59,7 @@
     $('#acts').hidden = v !== 'vMain';
     if (v === 'vErr') $('#errTxt').textContent = msg || 'Le serveur ne répond pas.';
     if (v !== 'vMain') {      // rien ne reste affiché d'une session admin précédente
-      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#notes', '#meta', '#scans', '#daily']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; sc.seen = -1; sc.gen++; dy.gen++;
+      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#notes', '#meta', '#scans', '#daily', '#discord']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false;
       const d = $('#dlg'); if (d.open) d.close(); d.replaceChildren();
     }
   }
@@ -121,7 +121,7 @@
     if (r.status !== 200 || !r.body) return data ? toast('Le serveur ne répond pas.') : show('vErr', (r.body && r.body.message) || 'Le serveur ne répond pas.');
     data = r.body; render();
   }
-  function refresh() { const b = $('#btnRefresh'); b.disabled = true; load('/refresh', 'POST').finally(() => { b.disabled = false; }); }
+  function refresh() { const b = $('#btnRefresh'); b.disabled = true; dc.force = true; load('/refresh', 'POST').finally(() => { b.disabled = false; }); }
   let toastT = 0;
   function toast(m) { let t = $('.toast'); if (!t) document.body.append(t = h('div', { class: 'toast', role: 'status' })); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 3200); }
 
@@ -139,6 +139,7 @@
     testers(d.testers);
     scans(d.scans);
     daily();
+    discord();
     pubrep(d.reported || []);
     journal(d.log);
     server(d.srv);
@@ -513,6 +514,139 @@
       h('p', { class: 'hint' }, 'Signalés seulement, jamais exclus. « Valider » : plus de signalement pendant ses 7 prochaines parties.'),
       h('div', { class: 'dyl' }, ...(sus.length ? sus.map(r => h('div', { class: 'dyr' }, h('b', null, r.n), h('small', null, r.c + ' fois sur ses ' + r.of + ' dernières parties · ' + r.rate + ' % pour tous'), h('span', { class: 'tag warn' }, 'soupçon'), btn(r.id, 'Compte laissé tranquille.')))
         : [h('p', { class: 'empty' }, 'Aucun compte signalé.')]))];
+  }
+  /* Discord (proxy.mjs › /api/admin/discord, bot « Mana Orbit ») : écrire et envoyer un message dans un salon du serveur, pings de rôles au besoin.
+     Salons groupés par catégorie (📢 : salon d'annonces, « Publier aux serveurs abonnés » coché d'office) ; dernier salon gardé sur cet appareil, sinon le
+     premier « annonces ». Le serveur met les mentions en tête : 2000 caractères en tout, mentions comprises (compteur). Aperçu en textContent (**gras** et
+     sauts de ligne seulement). Envoi confirmé dans la fenêtre (salon et pings redits), pings remis à zéro après l'envoi ; historique des 50 derniers
+     (Ouvrir, Supprimer en deux appuis). Brouillon et choix gardés quand le panneau se repeint ; salons relus au plus une fois par minute (« Rafraîchir » : tout de suite). */
+  const DC_MAX = 2000, DC_ROLES = 5, DC_KEY = 'manaorbit:admin:discord-ch';
+  const dc = { gen: 0, d: null, at: 0, force: false, busy: false, draft: '', ch: '', roles: [], every: false, pub: true };
+  const dcGet = () => { try { return localStorage.getItem(DC_KEY) || ''; } catch (e) { return ''; } };
+  const dcSet = v => { try { localStorage.setItem(DC_KEY, v); } catch (e) { /* stockage absent */ } };
+  const dcName = c => (c.type === 5 ? '📢 ' : '# ') + c.name;
+  const dcAt = n => (n.startsWith('@') ? n : '@' + n);
+  /** Couleur d'un rôle (nombre de Discord ou « #rrggbb » ; 0 : aucune) → « #rrggbb » ou null. */
+  const dcColor = c => { if (typeof c === 'number' && c > 0 && c <= 0xffffff) return '#' + c.toString(16).padStart(6, '0'); return typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : null; };
+  async function discord() {
+    if (dc.d && !dc.force && Date.now() - dc.at < 60e3) return dcSent(dc.d.sent);
+    dc.force = false;
+    const g = ++dc.gen; let r; try { r = await call('/discord'); } catch (e) { r = null; }
+    if (g !== dc.gen) return;
+    const box = $('#discord'), head = h('div', { class: 'chead' }, h('h2', null, 'Discord'));
+    if (r && r.status === 404) { dc.d = null; box.hidden = true; return box.replaceChildren(); }      // route absente ou DISCORD=0
+    box.hidden = false;
+    if (!r || r.status !== 200 || !r.body) { dc.d = null; return box.replaceChildren(head, h('p', { class: 'note' }, (r && r.body && r.body.message) || 'Le serveur ne répond pas.')); }
+    if (!r.body.on) { dc.d = null; return box.replaceChildren(head, h('p', { class: 'note' }, r.body.message || 'Bot Discord indisponible.')); }      // bot non configuré, Discord injoignable : rien d'autre
+    dc.d = r.body; dc.at = Date.now(); dcPaint();
+  }
+  function dcPaint() {
+    const d = dc.d, box = $('#discord'), chans = Array.isArray(d.channels) ? d.channels : [], roles = Array.isArray(d.roles) ? d.roles : [];
+    const byId = new Map(chans.map(c => [String(c.id), c]));
+    if (!byId.has(dc.ch)) { const k = dcGet(); dc.ch = byId.has(k) ? k : String((chans.find(c => /annonces/i.test(c.name)) || chans[0] || { id: '' }).id); }
+    dc.roles = dc.roles.filter(id => roles.some(x => String(x.id) === id));
+    // Salon : un groupe par catégorie (ordre du serveur)
+    const cats = new Map(); for (const c of chans) { const k = c.cat || ''; if (!cats.has(k)) cats.set(k, []); cats.get(k).push(c); }
+    const sel = h('select', { id: 'dcCh' }, [...cats].map(([k, l]) => h('optgroup', { label: k || 'Sans catégorie' }, l.map(c => h('option', { value: c.id }, dcName(c))))));
+    sel.value = dc.ch;
+    sel.addEventListener('change', () => { dc.ch = sel.value; dcSet(dc.ch); sync(); });
+    const txt = h('textarea', { id: 'dcTxt', rows: 6, maxlength: DC_MAX, placeholder: 'Ton message… (**gras**, sauts de ligne)', spellcheck: 'true' });
+    txt.value = dc.draft; txt.addEventListener('input', () => { dc.draft = txt.value; sync(); });
+    const cnt = h('small', { class: 'dcn', id: 'dcCount', 'aria-live': 'polite' }), prev = h('div', { class: 'dcprev', id: 'dcPrev' });
+    // Pings : rôles (5 au plus) et @everyone
+    const chk = (cls, cb, ...label) => h('label', { class: 'dcchk' + (cls ? ' ' + cls : '') }, cb, ...label);
+    const rcb = roles.map(x => {
+      const cb = h('input', { type: 'checkbox', value: x.id, 'data-role': x.id }); cb.checked = dc.roles.includes(String(x.id));
+      cb.addEventListener('change', () => { dc.roles = roles.map(y => String(y.id)).filter(id => id === String(x.id) ? cb.checked : dc.roles.includes(id)); sync(); });
+      const col = dcColor(x.color), dot = col ? s('svg', { class: 'dcdot', width: 10, height: 10, viewBox: '0 0 10 10', 'aria-hidden': 'true' }) : null;      // couleur du rôle : attribut SVG (aucun style en ligne)
+      if (dot) dot.append(s('circle', { cx: 5, cy: 5, r: 5, fill: col }));
+      return chk('', cb, dot, dcAt(x.name));
+    });
+    const every = h('input', { type: 'checkbox', id: 'dcEvery' }); every.checked = dc.every;
+    every.addEventListener('change', () => { dc.every = every.checked; sync(); });
+    const warn = h('p', { class: 'note dcwarn', id: 'dcWarn' }, '@everyone notifie tous les membres du serveur : à garder pour les grandes annonces.');
+    const pub = h('input', { type: 'checkbox', id: 'dcPub' }); pub.checked = dc.pub;
+    pub.addEventListener('change', () => { dc.pub = pub.checked; });
+    const pubL = chk('', pub, 'Publier aux serveurs abonnés'); pubL.id = 'dcPubL'; pubL.title = 'Salon d\'annonces : le message est aussi poussé dans les serveurs qui suivent ce salon';
+    const send = h('button', { class: 'btn main', id: 'dcSend', type: 'button' }, 'Envoyer…');
+    const pick = () => roles.filter(x => dc.roles.includes(String(x.id)));
+    const pings = () => [...pick().map(x => dcAt(x.name)), ...(dc.every ? ['@everyone'] : [])];
+    const total = () => { const m = [...dc.roles.map(id => '<@&' + id + '>'), ...(dc.every ? ['@everyone'] : [])]; return dc.draft.length + (m.length ? m.join(' ').length + 1 : 0); };      // « <@&id> <@&id> @everyone\n » + texte
+    function sync() {
+      const c = byId.get(dc.ch), n = total();
+      cnt.textContent = nf(n) + ' / ' + nf(DC_MAX) + (n > dc.draft.length ? ' (mentions comprises)' : '');
+      cnt.classList.toggle('over', n > DC_MAX);
+      pubL.hidden = !(c && c.type === 5); warn.hidden = !dc.every; txt.readOnly = dc.busy; sel.disabled = dc.busy; every.disabled = dc.busy;
+      for (const cb of rcb.map(l => l.querySelector('input'))) cb.disabled = dc.busy || (!cb.checked && dc.roles.length >= DC_ROLES);
+      send.disabled = dc.busy || !c || !dc.draft.trim() || n > DC_MAX;
+      send.textContent = dc.busy ? 'Envoi…' : 'Envoyer…';
+      dcPreview(prev, pings(), dc.draft);
+    }
+    send.addEventListener('click', async () => {
+      const c = byId.get(dc.ch); if (!c || dc.busy) return;
+      const rl = pick(), p = pings(), publish = c.type === 5 && dc.pub, content = dc.draft;
+      const v = await dlg('Envoyer le message ?', [h('p', { class: 'dlgw' }, dcName(c) + (c.cat ? ' · ' + c.cat : '')),
+        h('p', { class: 'dcpg' }, p.length ? 'Pings : ' + p.join(', ') : 'Aucun ping.'),
+        dc.every ? h('p', { class: 'note' }, '@everyone : tous les membres du serveur seront notifiés.') : null,
+        c.type === 5 ? h('p', null, publish ? 'Publié aussi aux serveurs abonnés.' : 'Pas publié aux serveurs abonnés.') : null,
+        h('p', { class: 'dcq' }, content.length > 400 ? content.slice(0, 400) + '…' : content)].filter(Boolean),
+        [['Annuler', ''], ['Envoyer', 'ok', dc.every ? 'main danger' : 'main']]);
+      if (v !== 'ok' || dc.busy || !dc.d) return;
+      dc.busy = true; sync();
+      let x; try { x = await call('/discord/send', 'POST', { channel: c.id, content, roles: rl.map(r => r.id), everyone: dc.every, publish }); } catch (e) { x = null; }
+      dc.busy = false; if (!dc.d) return;      // déconnecté entre-temps
+      if (!x || x.status !== 200 || !x.body || !x.body.ok) { dcPaint(); return toast((x && x.body && x.body.message) || 'Envoi impossible : le serveur ne répond pas.'); }
+      if (Array.isArray(x.body.sent)) dc.d.sent = x.body.sent;
+      if (dc.draft === content) dc.draft = '';
+      dc.roles = []; dc.every = false;      // pings remis à zéro : jamais deux fois par mégarde
+      toast('Message envoyé dans ' + c.name + '.'); dcPaint();
+    });
+    const g = d.guild && d.guild.name ? d.guild.name : '';
+    box.replaceChildren(h('div', { class: 'chead' }, h('h2', null, 'Discord'), h('small', null, g)),
+      h('p', { class: 'hint' }, 'Le message part au nom du bot « Mana Orbit ». Les mentions des pings sont ajoutées en tête par le serveur.'),
+      h('div', { class: 'dcw' }, h('div', { class: 'dcf' },
+        h('label', { class: 'dcl' }, 'Salon', sel),
+        h('label', { class: 'dcl' }, 'Message', txt), cnt,
+        h('fieldset', { class: 'dcp' }, h('legend', null, 'Pings', h('small', null, ' · ' + DC_ROLES + ' rôles au plus')), ...rcb, chk('every', every, '@everyone'), warn),
+        pubL, h('div', { class: 'dcb' }, send)),
+      h('div', { class: 'dcpv' }, h('h3', { class: 'dyh' }, 'Aperçu'), prev)),
+      h('h3', { class: 'dyh' }, 'Envoyés ', h('small', { id: 'dcSentN' })), h('div', { class: 'dyl', id: 'dcSent' }));
+    sync(); dcSent(d.sent);
+  }
+  /** Aperçu : mentions en tête, puis le texte ligne par ligne, **gras** seulement (nœuds de texte : rien d'interprété). */
+  function dcPreview(box, pings, text) {
+    const kids = [];
+    if (pings.length) kids.push(h('p', { class: 'dcpm' }, pings.map(p => h('span', { class: 'dcm' }, p))));
+    if (text.trim()) kids.push(h('div', { class: 'dcpt' }, text.split('\n').map((l, i) => [i ? h('br') : null, ...l.split(/\*\*(.+?)\*\*/).map((x, j) => (j % 2 ? h('b', null, x) : x))]).flat()));
+    else kids.push(h('p', { class: 'empty' }, 'L\'aperçu du message s\'affiche ici.'));
+    box.replaceChildren(...kids);
+  }
+  /** Historique des envois (tenu par le serveur, le plus récent en haut) : date, salon, début du texte, pings ; Ouvrir, Supprimer (deux appuis). */
+  function dcSent(list) {
+    const box = $('#dcSent'); if (!box) return;
+    const l = (Array.isArray(list) ? list : []).slice().sort((a, b) => (b.t || 0) - (a.t || 0));
+    $('#dcSentN').textContent = l.length ? '(' + nf(l.length) + ')' : '';
+    box.replaceChildren(...(l.length ? l.map(dcRow) : [h('p', { class: 'empty' }, 'Aucun message envoyé pour l\'instant.')]));
+  }
+  function dcRow(e) {
+    const url = typeof e.url === 'string' && /^https:\/\/(?:[a-z]+\.)?discord(?:app)?\.com\//.test(e.url) ? e.url : null;      // jamais d'autre adresse (javascript:…)
+    const open = url ? h('a', { class: 'btn ghost small', href: url, target: '_blank', rel: 'noopener noreferrer' }, 'Ouvrir') : null;
+    const del = h('button', { class: 'btn ghost small sdel', type: 'button' }, 'Supprimer');
+    const ping = Array.isArray(e.ping) && e.ping.length ? e.ping.map(n => dcAt(String(n))).join(' ') : '';
+    const row = h('div', { class: 'dyr dcr', 'data-id': e.id }, h('span', { class: 'pdt' }, h('b', null, String(e.text || '').replace(/\s+/g, ' ').trim() || '(sans texte)'),
+      h('small', null, [e.t ? D_TIME.format(e.t) : '', e.chn || '', ping].filter(Boolean).join(' · '))), h('span', { class: 'dcra' }, open, del));
+    let armT = 0;
+    const disarm = () => { clearTimeout(armT); del.classList.remove('arm'); del.textContent = 'Supprimer'; };
+    del.addEventListener('click', async () => {
+      if (!del.classList.contains('arm')) { del.classList.add('arm'); del.textContent = 'Confirmer la suppression'; clearTimeout(armT); armT = setTimeout(disarm, 4000); return; }
+      clearTimeout(armT); del.disabled = true;
+      let x; try { x = await call('/discord/delete', 'POST', { id: e.id }); } catch (er) { x = null; }
+      if (!x || x.status !== 200 || !x.body) { del.disabled = false; disarm(); return toast((x && x.body && x.body.message) || 'Suppression impossible : le serveur ne répond pas.'); }
+      if (!dc.d) return;
+      dc.d.sent = Array.isArray(x.body.sent) ? x.body.sent : (dc.d.sent || []).filter(y => y.id !== e.id);
+      dcSent(dc.d.sent); toast('Message supprimé de Discord.');
+    });
+    return row;
   }
   function server(v) {
     if (!v) return $('#srv').replaceChildren();
