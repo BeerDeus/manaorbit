@@ -2326,8 +2326,9 @@ const ADM_ACT_H = Number(process.env.ADMIN_ACTIONS_PER_H ?? 30), ADM_EXP_H = 20,
 const ADM_EVERY = Number(process.env.ADMIN_ACTIVE_EVERY_MS ?? 3600e3);      // relevé des comptes actifs du jour (0 : seulement à chaque calcul)
 const ADM_LOG = { list: null, chain: Promise.resolve() }, ADM_ACT = { days: null, bad: false, err: -1, chain: Promise.resolve() };
 const ADM_HD = { 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' };
-// Page : aucun script en ligne ; SDK Firebase (gstatic) et fenêtre de connexion Google (apis.google.com, domaine d'authentification du projet) seulement.
-const ADM_CSP = `default-src 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; `
+// Page : aucun script en ligne ; SDK Firebase (gstatic) et fenêtre de connexion Google (apis.google.com, domaine d'authentification du projet) seulement ;
+// images : les siennes, data: (photos des scans signalés) et les pièces jointes des fils Discord (cdn.discordapp.com, media.discordapp.net).
+const ADM_CSP = `default-src 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://cdn.discordapp.com https://media.discordapp.net; `
   + `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; frame-src https://${FB_PROJECT}.firebaseapp.com https://accounts.google.com; `
   + `base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'`;
 const ADM_FILES = new Map([['/admin', ['admin.html', 'text/html; charset=utf-8']], ['/admin/', ['admin.html', 'text/html; charset=utf-8']], ['/admin/app.js', ['admin.js', 'text/javascript; charset=utf-8']], ['/admin/app.css', ['admin.css', 'text/css; charset=utf-8']]]);
@@ -2927,7 +2928,7 @@ async function srAdmin(req, res, sub, url) {
 /* ── Bot Discord (discord-srv.mjs) ───────────────────────────────────────────────────────────────────────────────────────────────────
    Un bot permanent sur le serveur Discord de Mana Orbit (README › « Bot Discord ») : « Aide et avis » de l'appli (POST /api/feedback → un fil dans #bugs, #idées ou #aide,
    captures en pièces jointes ; sans compte exigé ; FEEDBACK_PER_H par heure et par réseau, autant par compte), messages de l'éditeur depuis /admin
-   (/api/admin/discord… ; historique : ADMIN_DIR/discord.json), Carte mystère de la veille dans #carte-mystère (daily-srv.mjs › reveal). DISCORD_BOT_TOKEN : jeton du bot
+   (/api/admin/discord… ; historique : ADMIN_DIR/discord.json) et modération des fils des forums (…/threads, …/thread, …/reply, …/thread-delete), Carte mystère de la veille dans #carte-mystère (daily-srv.mjs › reveal). DISCORD_BOT_TOKEN : jeton du bot
    (jamais affiché ni écrit dans un journal ; absent : tout est coupé, /__ping feedback: false, l'appli garde le courriel) ; DISCORD_GUILD_ID : facultatif (sinon le seul
    serveur du bot) ; DISCORD_API : autre adresse de l'API (tests) ; DISCORD=0 : coupé ; DISCORD_PRESENCE=0 : pas de statut « En ligne » (passerelle). */
 let DSC = null;
