@@ -2,7 +2,7 @@
 // scan « prix rapide ». Faux CardTrader / Scryfall (e2e-world), vrai proxy.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, done, toInput, toHome, rcGo } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, done, toInput, toHome, rcGo, scanClose } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18950 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -171,9 +171,9 @@ const errsOf = [];
   await toHome(p); await p.evaluate(() => wgtOpen('quick')); await p.waitForSelector('.scan.on');
   assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true, 'scan ouvert en mode prix'); assert.equal(await p.$eval('.sc-pmode', b => b.getAttribute('aria-checked')), 'true');
   assert.equal(await p.$eval('.dv-foot [data-act="done"]', b => b.hidden), true, 'rien à ajouter'); assert.equal(await p.$('.coll.on'), null, 'la collection n\'est pas ouverte');
-  await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+  await scanClose(p); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
   await toHome(p); await p.evaluate(() => wgtOpen('quick')); await p.waitForSelector('.scan.on'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), true, 'à chaque ouverture');
-  await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+  await scanClose(p); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
   await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on'); assert.equal(await p.$eval('.scan', e => e.classList.contains('pm')), false, 'Scanner de la barre du bas : mode ajout');
   ok('raccourci « Prix rapide » → scan directement en mode prix (sans collection ouverte) ; Scanner de la barre : ajout');
   await p.context().close();

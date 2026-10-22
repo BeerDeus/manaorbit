@@ -4,7 +4,7 @@
 // cartes « à choisir » revues après chaque choix, une ligne par édition ; récap : prix de l'édition, confirmation des cartes sans édition (choisir / ajouter quand même).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toHome, signInFake } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toHome, signInFake, scanClose } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18986 });
 Object.assign(world.psets, {
@@ -237,7 +237,7 @@ assert.deepEqual([await allQ() - q0, await foilQ() - f0], [4, 2], 'collection : 
 assert.equal(await p.evaluate(e => (COLL.map['wrath of god'].x || {})['en|' + e + '*'] >= 2, ed), true, 'foil sur la ligne de leur édition');
 await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
 ok('foil au scan : « Foil ✦ » 2 sur 3, étiquette ✦ 2, ajoutés foil à la collection ; carte relue (ligne à part puis rangée) : remonte en haut');
-await p.click('.scan [data-act="close"]');
+await scanClose(p);
 
 /* ── cadre « carte entière » réduit (carte vers 15 cm), textes dans les bandes de côté ; carte ajoutée : son symbole d'édition descend sur sa ligne ── */
 await p.evaluate(() => { scsSet({ frame: 'card' }); openScan(); }); await p.waitForFunction(() => SC.el && SC.el.classList.contains('full') && SC.el.classList.contains('on'));
@@ -262,7 +262,7 @@ await p.evaluate(() => { SCD.p = plcCreate('binder', 'Classeur du scan'); scanPa
 assert.equal(await p.evaluate(() => { const b = SC.el.querySelector('.sc-edm'); return [b.classList.contains('ico'), !!b.querySelector('.ms-gear'), getComputedStyle(b.querySelector('.sc-edm-t')).display, b.getAttribute('aria-label')].join(); }), 'true,true,none,Réglages du scan · Éditions : comme la 1re');
 await p.evaluate(() => { SCD.p = ''; scanPaintTools(); }); assert.equal(await p.evaluate(() => SC.el.querySelector('.sc-edm').classList.contains('ico')), false);
 ok('cadre « carte entière » ≈ 48 % (carte vers 15 cm), textes hors du cadre ; symbole de l\'édition trouvée : du bas du cadre à sa ligne, qui s\'éclaire (pastille blanche dans l\'appli en thème sombre) ; « Ranger dans » : roue des réglages');
-await p.click('.scan [data-act="close"]');
+await scanClose(p);
 
 assert.deepEqual(errs, [], 'erreurs page');
 await browser.close(); world.stop();

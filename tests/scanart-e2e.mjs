@@ -4,7 +4,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { chromium, startWorld, newPage, ok, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, toHome, scanClose } from './e2e-world.mjs';
 
 const FX = new URL('./fixtures/art/', import.meta.url).pathname;
 const world = await startWorld({ port: 18921 });
@@ -59,7 +59,7 @@ await p.evaluate(async b64 => {
 await settle(); L = await lines();
 assert.equal(L['wrath of god en m21|265'], 'art ×2', 'numéro unique parmi ses éditions : la même édition, rangée avec le 1er exemplaire ' + JSON.stringify(L));
 ok('terrain de base (66 éditions) : l\'ancienne trouvée à l\'illustration ; numéro de 2003-2014 lu : édition posée');
-await p.click('.scan [data-act="close"]');
+await scanClose(p);
 
 assert.deepEqual(errs, [], 'erreurs page');
 await browser.close(); world.stop();

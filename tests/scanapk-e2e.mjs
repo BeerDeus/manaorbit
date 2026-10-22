@@ -154,11 +154,11 @@ const card = r => (r.it ? [r.it.key, r.it.l, r.it.maybe] : null);
   r = await pg.shoot({ name: '라노워 엘프', font: FONTS.ko, cjk: { script: 'korean', text: '라노워 엘프' } });
   assert.deepEqual(card(r), ['llanowar elves', 'kr', false]); assert.ok(!r.workers.includes('kor'), 'coréen : ML Kit, pas Tesseract');
   ok('APK 1.0.6 : ML Kit chinois, japonais, coréen sur le téléphone ; modèle pas encore là → Tesseract en attendant, ML Kit ensuite');
-  await p.evaluate(() => { scsSet({ lang: 'kr' }); closeScan(); window.__nat.calls = []; openScan(); });
+  await p.evaluate(() => { scsSet({ lang: 'kr' }); if (SC.el) SC.el.__close('done'); window.__nat.calls = []; openScan(); });
   await p.waitForFunction(() => window.__nat.calls.includes('korean'), null, { timeout: 8000 });
   ok('APK 1.0.6, coréen imposé : son modèle ML Kit est demandé dès l\'ouverture du scan');
   // modèle russe introuvable (CDN, 404) : Tesseract.js reste pendu sans erreur ; le scan l'abandonne après OCR.wait, la carte finit « non reconnue », la file continue
-  await p.evaluate(() => { scsSet({ lang: '' }); closeScan(); openScan(); OCR.wait = 1500; }); await p.waitForSelector('.scan.on'); pg.seen = 0; pg.block.add('rus');
+  await p.evaluate(() => { scsSet({ lang: '' }); if (SC.el) SC.el.__close('done'); openScan(); OCR.wait = 1500; }); await p.waitForSelector('.scan.on'); pg.seen = 0; pg.block.add('rus');
   r = await pg.shoot({ name: '', font: FONTS.en }, 60000);
   assert.equal(r.miss, 1, 'nom illisible, modèle russe introuvable : non reconnue, sans bloquer la file');
   assert.ok(await p.evaluate(() => OCR.bad.rus > Date.now() && !OCR.workers.rus), 'moteur russe laissé de côté (10 min)');

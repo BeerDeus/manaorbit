@@ -5,7 +5,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { chromium, startWorld, newPage, txt, ok, toHome, bandOnly } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toHome, bandOnly, scanClose } from './e2e-world.mjs';
 
 const FX = new URL('./fixtures/', import.meta.url).pathname;
 const world = await startWorld({ port: 18977 });
@@ -102,12 +102,12 @@ await p.click('.sc-shot'); await p.waitForFunction(() => [...SC.items.values()].
 ok('cercle = pause / reprise ; nom pas reconnu : message seul ; Auto coupé : le cercle reprend la photo');
 
 /* ── 4) réglage gardé ; fermeture : plus rien ne tourne ─────────────────────────────────────────── */
-await p.click('.sc-auto'); await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+await p.click('.sc-auto'); await scanClose(p); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
 const c0 = await p.evaluate(() => window.__nat.caps.length); await p.waitForTimeout(1200);
 assert.equal(await p.evaluate(() => window.__nat.caps.length), c0, 'scan fermé : l\'aperçu n\'est plus regardé');
 await p.evaluate(() => openScan()); await p.waitForFunction(() => document.querySelector('.scan.on.auto'), null, { timeout: 6000 });
 assert.equal(await p.getAttribute('.sc-lamp', 'aria-pressed'), 'false', 'lampe éteinte à chaque scan');
-await p.click('.scan [data-act="close"]');
+await scanClose(p);
 assert.deepEqual(errs, [], 'erreurs page');
 ok('Auto gardé d\'un scan à l\'autre ; fermé : la boucle s\'arrête');
 
@@ -128,7 +128,7 @@ await c.p.waitForFunction(() => document.querySelector('.scan.auto') && !documen
 const g = await c.p.evaluate(async () => { const f = await auGrab(); return f && [f.src.width > 50, f.src.height > 10, f.dev >= 0]; });
 assert.deepEqual(g, [true, true, true], 'bande prise dans la vidéo');
 await c.p.waitForTimeout(1200); assert.equal(await c.p.$eval('.sc-lamp', b => b.hidden), true, 'caméra sans torche : pas de lampe');
-await c.p.click('.scan [data-act="close"]'); assert.deepEqual(c.errs, []); await cam.close();
+await scanClose(c.p); assert.deepEqual(c.errs, []); await cam.close();
 ok('caméra du navigateur : Auto proposé, bande regardée dans la vidéo, pas de lampe sans torche');
 
 await browser.close(); world.stop();

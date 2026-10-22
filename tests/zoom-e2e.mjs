@@ -143,7 +143,7 @@ await p.waitForTimeout(500); await p.screenshot({ path: SHOTS + '/zoom-3-scan.pn
 await closeV(); assert.ok(await p.$('.rc-sheet'), 'Échap ferme la carte, pas la fiche'); await p.keyboard.press('Escape'); await p.waitForTimeout(350);
 await p.evaluate(() => { scanPriceMode(true); SC.pq = [{ key: 'sol ring', name: 'Sol Ring', l: '', n: 1, cm: 1.5, ct: 'off' }, { key: 'arcane signet', name: 'Arcane Signet', l: '', n: 1, cm: 0.4, ct: 'off' }]; scanPaintList(); });
 v = await tap('.sc-item.pr[data-k="arcane signet"] .sc-th'); assert.equal(v.name, 'Arcane Signet'); assert.equal(v.count, '2 / 2'); await closeV();
-await p.evaluate(() => SC.el.__close()); await p.waitForTimeout(300);
+await p.evaluate(() => SC.el.__close('done')); await p.waitForTimeout(300);
 ok('scan : miniatures (liste, prix rapide) au doigt et au clavier, zone ≥ 44 px ; fiche « Ajouter » : les plus chères s\'ouvrent en grand (rien avant)');
 
 /* ── 8) Nom tapé en français (« Anneau solaire ») : la carte en grand le garde en titre ; image et Scryfall sur le nom anglais ─────── */

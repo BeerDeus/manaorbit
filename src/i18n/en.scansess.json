@@ -1,0 +1,19 @@
+{
+  "Quitter le scan ?": "Leave the scanner?",
+  "{n} carte pas encore ajoutée": "{n} card not added yet",
+  "{n} cartes pas encore ajoutées": "{n} cards not added yet",
+  "{n} prix lu": "{n} price checked",
+  "{n} prix lus": "{n} prices checked",
+  "Elles restent gardées sur ce téléphone : tu les retrouveras en rouvrant le scan.": "They stay saved on this phone: you'll find them again when you reopen the scanner.",
+  "Tout effacer et quitter": "Clear everything and leave",
+  "Continuer le scan": "Keep scanning",
+  "Scan effacé": "Scan cleared",
+  "Scan repris": "Scan resumed",
+  "Nouvelle session": "New session",
+  "Aucun rangement choisi.": "No storage location chosen.",
+  "Ajouter les cartes à ta collection sans emplacement ?": "Add the cards to your collection without a location?",
+  "Choisir un rangement": "Choose a location",
+  "Classeur, boîte, à vendre… : un emplacement t'aide à retrouver tes cartes.": "Binder, box, for sale…: a location helps you find your cards.",
+  "Ne plus me demander (tant que je n'ai pas d'emplacement)": "Don't ask again (while I have no location)",
+  "Créer un emplacement": "Create a location"
+}

@@ -6,7 +6,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { chromium, startWorld, newPage, ok, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, toHome, scanClose } from './e2e-world.mjs';
 
 const FX = new URL('./fixtures/sym/', import.meta.url).pathname;
 const world = await startWorld({ port: 19600 });
@@ -87,7 +87,7 @@ assert.equal(await p.evaluate(() => window.__symCalls), 0, 'aucun symbole cherch
 assert.equal(await symRes(), before, 'diagnostic inchangé');
 assert.equal(await p.evaluate(() => [...SC.items.values()].some(x => x.sym)), false, 'aucune signature gardée');
 ok('ligne du bas lue : rien n\'est comparé au symbole');
-await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !SC.el);
+await scanClose(p); await p.waitForFunction(() => !SC.el);
 
 /* ── symboles gardés sur l'appareil : relance de l'appli, aucune requête ──────────────────────────── */
 await p.reload(); await p.waitForTimeout(700); await toHome(p);
@@ -98,7 +98,7 @@ L = await lines(); console.log('  ', JSON.stringify(L), '·', await symRes());
 assert.equal(L['swords to plowshares en tsb|201'], 'sym ×1', 'nouveau scan : TSB au symbole');
 assert.equal(fetched().length, n0, 'symboles relus de l\'appareil (IndexedDB), aucun téléchargé');
 ok('symboles de référence gardés sur l\'appareil : rien de retéléchargé');
-await p.click('.scan [data-act="close"]');
+await scanClose(p);
 
 assert.deepEqual(errs, [], 'erreurs page');
 await browser.close(); world.stop();

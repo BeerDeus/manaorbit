@@ -145,7 +145,7 @@ function scanLangOf(m) {
   return { ...m, card: SCS.lang, img: '', via: '' };
 }
 function scanAdd(m, d, maybe, shot) {
-  m = scanLangOf(m);
+  SC.resume = null; m = scanLangOf(m);
   const l = m.card || 'en', ed = scanEdNew(m.key, m.name, l, maybe, m.ft, m.sig);
   let id = scanId(m.key, l, ed.e), cur = SC.items.get(id);
   const artq = !!m.sig && !['read', 'solo', 'off', 'none'].includes(ed.es);      // illustration à comparer (scanart.js) : l'édition peut encore changer
@@ -200,12 +200,12 @@ function scanPaintList() {
   const miss = SC.miss.map(m => `<div class="sc-item miss" data-m="${m.id}">${pic(m.shot)}${th(m.thumb)}<span class="sc-n"><b>${esc(m.label)}</b><small>${T('Nom non reconnu')}${m.raw ? ' · ' + T('lu « {raw} »', { raw: esc(m.raw) }) : ''}</small>${typeof srMissBtn === 'function' ? srMissBtn(m) : ''}</span><button type="button" class="btn ghost small" data-a="type">${T('Saisir')}</button><button type="button" class="sc-x" data-a="rm" aria-label="${T('Ignorer {name}', { name: esc(m.label) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`).join('');
   const head = (count, sub) => { $('.sc-count', el).textContent = count; $('.sc-sub', el).textContent = sub; };
   if (SC.pm) {      // prix rapide : la liste montre des prix, rien à ajouter
-    list.innerHTML = pend + miss + (SC.pq.length ? SC.pq.map(scanPriceRow).join('') : pend || miss ? '' : '<p class="hint sc-empty">' + T('Prix rapide : cadre une carte et appuie sur le cercle. Tu vois sa tendance Cardmarket et l\'offre CardTrader la moins chère ; rien n\'est ajouté à ta collection (le bouton + le fait si tu la gardes).') + '</p>');
+    list.innerHTML = sssBandHtml() + pend + miss + (SC.pq.length ? SC.pq.map(scanPriceRow).join('') : pend || miss ? '' : '<p class="hint sc-empty">' + T('Prix rapide : cadre une carte et appuie sur le cercle. Tu vois sa tendance Cardmarket et l\'offre CardTrader la moins chère ; rien n\'est ajouté à ta collection (le bouton + le fait si tu la gardes).') + '</p>');
     $('.sc-head [data-act="done"]', el).hidden = true;
     head(T('Prix rapide'), SC.pq.length ? TN(SC.pq.length, '{n} carte lue', '{n} cartes lues') : T('Rien n\'est ajouté à ta collection'));
     const tot = $('.sc-total', el); tot.hidden = !SC.pq.length; if (SC.pq.length) tot.innerHTML = scanLotHtml(scanLot());
     const prog = $('.sc-prog', el); prog.hidden = !SC.pend.length; prog.textContent = TN(SC.pend.length, '{n} en lecture', '{n} en lecture');
-    return;
+    sssSoon(); return;
   }
   $('.sc-head [data-act="done"]', el).hidden = false; $('.sc-total', el).hidden = true;
   const ae = document.activeElement, keep = ae && ae !== list && list.contains(ae) ? { row: ae.closest('.sc-item'), a: ae.dataset.a, cls: ae.classList[0] } : null;      // focus clavier dans la liste : rendu à son équivalent après le repeint (éditions qui arrivent…)
@@ -215,7 +215,7 @@ function scanPaintList() {
   const maybe = arr.filter(x => x.maybe), todo = arr.filter(scanEdIsTodo), rest = arr.filter(x => !x.maybe && !scanEdIsTodo(x)), many = (maybe.length ? 1 : 0) + (todo.length ? 1 : 0) + (rest.length ? 1 : 0) > 1;      // à vérifier, puis éditions à choisir, puis le reste (dernière lue en haut)
   const sec = (h, cls, rows) => (rows.length ? (many ? `<p class="sc-h${cls}">${esc(h)}</p>` : '') + rows.map(row).join('') : '');
   const ask = scanEdAsk();
-  list.innerHTML = (ask ? scanEdAskHtml(ask) : '') + pend + miss + (arr.length ? sec(T('À vérifier'), ' warn', maybe) + sec(TN(todo.reduce((a, x) => a + x.q, 0), '{n} édition à choisir', '{n} éditions à choisir'), ' todo', todo) + sec(T('Dans le scan'), '', rest)
+  list.innerHTML = sssBandHtml() + (ask ? scanEdAskHtml(ask) : '') + pend + miss + (arr.length ? sec(T('À vérifier'), ' warn', maybe) + sec(TN(todo.reduce((a, x) => a + x.q, 0), '{n} édition à choisir', '{n} éditions à choisir'), ' todo', todo) + sec(T('Dans le scan'), '', rest)
     : pend || miss ? '' : '<p class="hint sc-empty">' + T('Les cartes reconnues apparaîtront ici avec leur miniature Scryfall. Tu peux corriger les quantités avant d\'ajouter.') + '</p>');
   if (keep && keep.row) {
     const rows = [...list.querySelectorAll('.sc-item')], r = (keep.row.dataset.id && rows.find(x => x.dataset.id === keep.row.dataset.id)) || rows.find(x => x.dataset.k && x.dataset.k === keep.row.dataset.k);
@@ -230,7 +230,7 @@ function scanPaintList() {
   const prog = $('.sc-prog', el); prog.hidden = !SC.pend.length; prog.textContent = TN(SC.pend.length, '{n} en lecture', '{n} en lecture');
   if (SC.recap) SC.recap();
   if (SC.ef) SC.ef();      // écran « Éditions à choisir » : les éditions arrivent
-  scanFlyCheck();
+  scanFlyCheck(); sssSoon();      // scan gardé sur l'appareil (scansess.js)
 }
 /** Boutons de l'écran de scan qui suivent les réglages (scanset.js) : pastille des éditions. */
 /** Mode deck (builder.js › bdScan) : « Deck : <nom> », l'emplacement où les cartes sont rangées à l'enregistrement du deck ('' hors mode deck). */
@@ -243,6 +243,7 @@ function scanPaintTools() {
   else if (d) { d.hidden = !scdSet(); d.innerHTML = `<i style="--c:${SCD.x ? '#c79bff' : plcColor(scdPlace())}"></i><span>${esc(scdLabel())}</span>`; d.setAttribute('aria-label', T('Ranger dans') + ' · ' + scdLabel()); }      // pastille « Ranger dans » : seulement si le scan range ailleurs
   if (b && d) b.classList.toggle('ico', !d.hidden);      // « Ranger dans » affiché : plus la place pour « Éditions : comme la 1re » (coupé en « comme ») → la roue des réglages seule
   auSync();      // scan automatique : interrupteur, cercle, lecture en continu (scanauto.js)
+  sssSoon();      // « Ranger dans » gardé avec la session (scansess.js)
 }
 /** Fiche récap au tap sur « Ajouter » : exemplaires, valeur estimée Cardmarket, les plus chères, nouvelles / déjà possédées, langues. Suit la liste du scan en direct ; « Ajouter » dans la fiche fait l'ajout. Les prix des cartes pas encore lues par Scryfall sont lus ici (un lot). */
 /** Cartes lues du scan (pas celles « à vérifier ») : { k, n, q, f (exemplaires foil), l, e, p (édition posée et son impression, scaned.js) }. */
@@ -252,7 +253,7 @@ function scanRecap() {
   /** Une ligne du scan en lignes de la collection : les non foil, puis les foil (même langue, même édition). */
   const byFoil = x => [{ ...x, q: x.q - x.f, f: 0 }, { ...x, q: x.f, f: 1 }].filter(y => y.q > 0);
   if (!live().length || sheets.some(x => x.wrap.classList.contains('rc-sheet'))) return;
-  const asked = new Set(), got = new Map(); let err = '', busy = false, sure = false;      // sure : « Ajouter » touché avec des cartes sans édition → confirmation
+  const asked = new Set(), got = new Map(); let err = '', busy = false, sure = false, noPl = false, plOk = false, quiet = false;      // sure : « Ajouter » touché avec des cartes sans édition → confirmation ; noPl : sans rangement → confirmation (plOk : « Ajouter quand même », quiet : « Ne plus me demander »)
   const info = k => (got.has(k) ? got.get(k) : COLL.meta[k]);      // undefined : pas encore lu · null : inconnue de Scryfall · objet { eu, … }
   const api = openSheet(T('Ajouter'), '', a => { a.wrap.classList.add('rc-sheet'); a.body.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true); });      // les miniatures n'apparaissent qu'une fois chargées (classe ok)
   const paint = () => {
@@ -269,12 +270,12 @@ function scanRecap() {
     }
     const uniq = new Set(items.map(x => x.k)), haveK = new Set([...uniq].filter(k => collQty(k) > 0)), have = items.filter(x => haveK.has(x.k)), haveN = have.reduce((a, x) => a + x.q, 0), langs = new Map();
     for (const x of items) langs.set(x.l, (langs.get(x.l) || 0) + x.q);
-    const td = scanEdTodo(), edN = items.reduce((a, x) => a + (x.e ? x.q : 0), 0); if (!td.n) sure = false;
+    const td = scanEdTodo(), edN = items.reduce((a, x) => a + (x.e ? x.q : 0), 0); if (!td.n) sure = false; if (scdSet()) noPl = false;
     rows.sort((a, b) => b.eu - a.eu || byName(a.x, b.x));
     $('h2', api.wrap).textContent = TN(n, 'Ajouter {n} carte', 'Ajouter {n} cartes'); let sub = $('.sheet-head p', api.wrap);
     if (!sub) { sub = document.createElement('p'); $('.sheet-head > div', api.wrap).appendChild(sub); } sub.textContent = TN(uniq.size, '{n} carte différente', '{n} cartes différentes');
     const note = wait ? T('Lecture des prix…') : !nopx ? '' : err ? T(priced ? 'Valeur partielle : {err}.' : 'Prix indisponibles : {err}.', { err }) : TN(nopx, '{n} exemplaire sans prix Cardmarket, non comptés.', '{n} exemplaires sans prix Cardmarket, non comptés.');
-    api.body.innerHTML = `<div class="rc">${typeof opnRcNote === 'function' ? opnRcNote() : ''}${SC.lot || (typeof opnOn === 'function' && opnOn()) ? '' : scdRowHtml()}${sure ? `<p class="rc-ask" role="alert"><b>${esc(TN(td.n, '{n} carte n\'a pas d\'édition.', '{n} cartes n\'ont pas d\'édition.'))}</b> ${esc(td.load ? T('Lecture des éditions…') : T('Ajoutées sans édition : tu pourras la choisir plus tard dans ta collection.'))}</p>` : ''}<div class="cs-tiles"><div><b>${nf0(uniq.size)}</b><span>${TN(uniq.size, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(n)}</b><span>${TN(n, 'exemplaire', 'exemplaires')}</span></div><div class="rc-val"><b>${wait || (!priced && err) ? (wait ? '…' : '—') : priced ? esc(fmt(val, 'EUR')) : '—'}</b><span>${T('valeur estimée · tendance Cardmarket')}</span></div></div>
+    api.body.innerHTML = `<div class="rc">${typeof opnRcNote === 'function' ? opnRcNote() : ''}${SC.lot || (typeof opnOn === 'function' && opnOn()) ? '' : scdRowHtml()}${sure ? `<p class="rc-ask" role="alert"><b>${esc(TN(td.n, '{n} carte n\'a pas d\'édition.', '{n} cartes n\'ont pas d\'édition.'))}</b> ${esc(td.load ? T('Lecture des éditions…') : T('Ajoutées sans édition : tu pourras la choisir plus tard dans ta collection.'))}</p>` : ''}${noPl ? `<p class="rc-ask" role="alert"><b>${T('Aucun rangement choisi.')}</b> ${T('Ajouter les cartes à ta collection sans emplacement ?')}${scdHasPlaces() ? '' : ' ' + T('Classeur, boîte, à vendre… : un emplacement t\'aide à retrouver tes cartes.')}</p>${scdHasPlaces() ? '' : `<label class="rc-quiet"><input type="checkbox" data-rcq${quiet ? ' checked' : ''}><span>${T('Ne plus me demander (tant que je n\'ai pas d\'emplacement)')}</span></label>`}` : ''}<div class="cs-tiles"><div><b>${nf0(uniq.size)}</b><span>${TN(uniq.size, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(n)}</b><span>${TN(n, 'exemplaire', 'exemplaires')}</span></div><div class="rc-val"><b>${wait || (!priced && err) ? (wait ? '…' : '—') : priced ? esc(fmt(val, 'EUR')) : '—'}</b><span>${T('valeur estimée · tendance Cardmarket')}</span></div></div>
       ${note ? `<p class="hint rc-note">${esc(note)}</p>` : ''}
       ${rows.length && !wait ? `<h3 class="cs-h">${T('Les plus chères')}</h3><div class="cs-top">${rows.slice(0, 3).map(({ x, eu }) => `<div class="crow ro" data-k="${esc(x.k)}" data-n="${esc(x.n)}" data-q="${x.q}" data-ln="${esc(x.l)}"><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('rc', x.n)}>${esc((x.n.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(scanThumb({ key: x.k, name: x.n, l: x.l, pk: x.p }))}"></span><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta">${x.e ? `<span class="tag ed">${setIcHtml(edSet(x.e))}${esc(edLabel(x.e))}</span>` : ''}${x.q > 1 ? `<span class="tag accent">× ${nf0(x.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(eu, 'EUR'))}</b>${x.q > 1 ? `<small>${T('{p} le lot', { p: esc(fmt(eu * x.q, 'EUR')) })}</small>` : ''}</span></div>`).join('')}</div>` : ''}
       <dl class="rc-facts"><div><dt>${T('Nouvelles dans ta collection')}</dt><dd>${TN(uniq.size - haveK.size, '{n} carte', '{n} cartes')}</dd></div>
@@ -282,6 +283,7 @@ function scanRecap() {
         <div><dt>${T('Éditions')}</dt><dd>${SCS.ed === 'none' && !edN ? T('sans (réglage du scan)') : td.n ? esc(TN(td.n, '{n} sans édition', '{n} sans édition')) + (edN ? ' · ' + esc(TN(edN, '{n} posée', '{n} posées')) : '') : T('toutes posées')}</dd></div>
         <div><dt>${T('Langues')}</dt><dd>${[...langs].sort((a, b) => b[1] - a[1]).map(([l, c]) => `${l ? esc(langCode(l)) : T('Langue ?')} × ${nf0(c)}`).join(' · ')}</dd></div></dl></div>`;
     api.setFoot(sure ? `<button class="btn ghost" type="button" data-rc="pick">${T('Choisir les éditions')}</button><button class="btn" type="button" data-rc="force">${T('Ajouter quand même')}</button>`
+      : noPl ? `<button class="btn ghost" type="button" data-rc="place">${scdHasPlaces() ? T('Choisir un rangement') : T('Créer un emplacement')}</button><button class="btn" type="button" data-rc="pforce">${T('Ajouter quand même')}</button>`
       : `<button class="btn ghost" type="button" data-close>${T('Retour')}</button><button class="btn" type="button" data-rc="go">${TN(n, 'Ajouter {n} carte', 'Ajouter {n} cartes')}</button>`);
   };
   const ask = async () => {
@@ -296,25 +298,29 @@ function scanRecap() {
   };
   const hook = () => { paint(); ask(); };
   api.body.addEventListener('click', e => { if (e.target.closest('[data-rcd]')) scdPick(() => { paint(); scanPaintTools(); }); });      // « Ranger dans » (places.js)
+  api.body.addEventListener('change', e => { if (e.target.matches('[data-rcq]')) quiet = e.target.checked; });
   api.foot.addEventListener('click', e => {
     const b = e.target.closest('[data-rc]'); if (!b) return;
     if (b.dataset.rc === 'pick') { api.close(); SC.recap = null; scanEdFocus(); return; }
     if (b.dataset.rc === 'go' && scanEdTodo().n) { sure = true; haptic('tap'); paint(); return; }      // cartes sans édition : on demande d'abord
+    if (b.dataset.rc === 'place') { scdPick(() => { paint(); scanPaintTools(); }); return; }
+    if (b.dataset.rc === 'pforce') { plOk = true; if (quiet && !scdHasPlaces()) scdQuietSet(); }
+    else if (!plOk && scdAsk()) { noPl = true; sure = false; haptic('tap'); paint(); return; }      // aucun rangement choisi (alors qu'il en existe) : on demande aussi
     const items = live(); if (!items.length) return;
     if (typeof prgScan === 'function') prgScan([...SC.items.values()].filter(x => !x.maybe));      // niveau et badges (progress.js) : cartes, langues, éditions lues…
     const before = COLL.map, n = items.reduce((a, x) => a + x.q, 0);
     if (typeof opnTake === 'function' && opnTake(items.flatMap(byFoil).map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e, !!x.f), p: x.e ? x.p : null })), { toast: true })) {      // session d'ouverture (opening.js) : les cartes vont dans la session, ajoutées à la collection à la fin
-      api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok'); return;
+      api.close(); SC.recap = null; if (SC.el) SC.el.__close('done'); haptic('ok'); return;
     }
     if (SC.lot && LOT.el) {      // depuis le lot : chaque carte y rejoint aussi la liste, avec l'extension collante si elle y existe
-      api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok');
+      api.close(); SC.recap = null; if (SC.el) SC.el.__close('done'); haptic('ok');
       lotFromScan(items.flatMap(byFoil)).then(() => toast(TN(n, '{n} carte ajoutée au lot', '{n} cartes ajoutées au lot', { n })));
       return;
     }
     for (const x of items) if (x.e && x.p) edRemember(x.k, x.l, x.e, edInfoOf(x.p, x.l));      // infos de l'édition (prix, extension, image) gardées tout de suite
     const add = items.flatMap(byFoil).map(x => ({ k: x.k, n: x.n, q: x.q, l: scdLine(x.l, x.e, x.f) })), px0 = COLL.prox, where = scdPlace() ? ' · ' + plcName(scdPlace()) : '';      // « Ranger dans » : emplacement, ou proxys (places.js)
     if (SCD.x) proxAdd(add); else collAdd(add, 'add');
-    api.close(); SC.recap = null; if (SC.el) SC.el.__close(); haptic('ok');
+    api.close(); SC.recap = null; if (SC.el) SC.el.__close('done'); haptic('ok');
     toast((SCD.x ? TN(n, '{n} proxy ajouté', '{n} proxys ajoutés', { n }) : TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection')) + where, { label: T('Annuler'), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
     collEnrich();
   });
@@ -347,6 +353,7 @@ function scanLotHtml(t) {
   return `<small>${T('Lot : {note}', { note: esc(note) })}</small><span class="lot-v">${part('CM', t.cm, t.cmN)}${t.ctOn ? part('CT', t.ct, t.ctN) : ''}</span>`;
 }
 function scanPriceAdd(m) {
+  SC.resume = null;
   if (typeof prgAdd === 'function') prgAdd('pq');      // prix rapides (progress.js)
   m = scanLangOf(m);
   const l = m.card || 'en'; let e = SC.pq.find(x => x.key === m.key);
@@ -1162,7 +1169,7 @@ function scanPhotos(files, cam) {
   list.forEach((f, i) => scanEnqueue({ label: cam ? T('Carte {n}', { n: ++SC.cap }) : T('Photo {n}', { n: i + 1 }) + (f.name && f.name.length <= 24 ? ' · ' + f.name : ''), file: f }));
 }
 
-function closeScan() { if (SC.el) SC.el.__close(); }
+function closeScan() { if (SC.el) SC.el.__close('keep'); }      // scan rouvert par-dessus lui-même : sans question, la session reste gardée
 /** o.lot : scan ouvert depuis « Ajouter des cartes » : « Ajouter » envoie les cartes dans le lot (extension collante) au lieu de la collection seule.
  *  o.remote : « Scan mobile » (téléphone) : chaque carte reconnue part tout de suite vers le lot du PC (mobscan.js), rien n'est ajouté ici ; « Terminer » ferme. */
 function openScan(o) {
@@ -1190,11 +1197,16 @@ function openScan(o) {
       <span class="sc-bslot"><button class="sc-auto" type="button" role="switch" data-act="auto" aria-checked="false" hidden><span class="sc-sw" aria-hidden="true"><i></i></span>${T('Auto')}</button></span></div>`;
   if (scanFull()) { wrap.classList.add('full'); $('.sc-cap', wrap).textContent = T('Carte entière'); }      // cadrage « carte entière » (réglage par défaut) : cadre de carte, ligne du bas lue aussi
   SC.lot = !!(o && o.lot); SC.deck = !!(o && o.deck); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.lv = []; SC.alt = []; SC.calt = null; SC.lotLast = null; SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
+  sssResume();      // session gardée de ce contexte : reprise (scansess.js)
   auReset();
   const stop = () => { auReset(); SC.alive = false; SC.warm = false; clearInterval(SC.diagT); clearTimeout(SC.hintT); SC.queue.forEach(j => scanFree(j.src)); SC.queue = []; SC.pend = []; if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; } natStop(); };
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); if (SC.ef) $('.sc-ef [data-ef="close"]').click(); else wrap.__close(); } };      // écran « Éditions à choisir » ouvert : Échap le ferme seul
-  wrap.__close = () => {
-    if (SC.el !== wrap) return; SC.el = null; stop(); natAwake(false); othFree(); if (typeof srFree === 'function') srFree(); document.removeEventListener('keydown', onKey, true);      // srFree : captures gardées pour « Signaler » (scanreport.js)
+  /** how : rien (←, Retour, Échap) → « Quitter le scan ? » s'il reste des cartes ; 'keep' : fermé, session gardée ; 'done' : cartes ajoutées, session effacée (scansess.js). */
+  wrap.__close = how => {
+    if (SC.el !== wrap) return;
+    if (!how && sssUnsaved()) { sssQuitAsk(() => wrap.__close('keep')); return; }
+    if (how === 'done') { clearTimeout(SSS.t); SSS.t = 0; sssDrop(SC.ctx); } else sssSave();
+    SC.el = null; stop(); natAwake(false); othFree(); if (typeof srFree === 'function') srFree(); document.removeEventListener('keydown', onKey, true);      // srFree : captures gardées pour « Signaler » (scanreport.js)
     if (SC.remote) { SC.remote = false; setTimeout(mobBar, 400); }      // scan mobile terminé : le bandeau revient tant que le PC attend
     wrap.classList.remove('on'); setTimeout(() => wrap.remove(), reduceMotion() ? 0 : 240); releaseApp();
     try { if (prevFocus && prevFocus.focus && prevFocus.isConnected) prevFocus.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
@@ -1219,6 +1231,8 @@ function openScan(o) {
       else if (act === 'auto' || act === 'lamp' || act === 'au1' || act === 'au0') auAct(act);
       else if (act === 'frc') frcStart(true);
       else if (act === 'note') scNoteShow($('.sc-note', wrap).hidden);
+      else if (act === 'ssnew') sssNew();      // bandeau « Scan repris » (scansess.js)
+      else if (act === 'ssok') { SC.resume = null; scanPaintList(); }
       else if (act === 'scset') scsSheet();
       else if (act === 'scdest') { if (scanDeckPlace()) toast(T('Les cartes du deck sont rangées dans « {place} » à son enregistrement.', { place: scanDeckPlace() })); else scdPick(scanPaintTools); }
       else if (act === 'pmode') { const on = b.dataset.v === '1'; if (on !== SC.pm) { haptic('tap'); scanPriceMode(on); } }

@@ -170,6 +170,7 @@ export async function newPage(browser, world, opts = {}) {
   await p.route('https://cards.scryfall.io/**', route => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: SVG }));
   await routeFonts(p);
   if (!opts.pop) await p.addInitScript(() => { window.MO_NOPOP = true; });      // bannières de badge : elles couvrent le haut de l'écran 4,5 s (progress-e2e les teste)
+  if (!opts.scdAsk) await p.addInitScript(() => { try { localStorage.setItem('deckdeal:scdquiet', '1'); } catch (e) { /* stockage refusé */ } });      // « Ajouter » du scan sans rangement : « Ne plus me demander » déjà répondu (scansess-e2e teste la question)
   if (opts.init) await p.addInitScript(opts.init);
   if (opts.goto !== false) { await p.goto(world.url + (opts.path || '')); await p.waitForTimeout(700); await p.evaluate(() => { BACKOFF.scry = [60, 60, 60]; BACKOFF.cool429 = 100; }); }
   return { ctx, p, errs };
@@ -225,9 +226,17 @@ export async function openMe(p, sub) {
 }
 /** Ferme toutes les fiches ouvertes (rubrique, puis « Compte et réglages »). */
 export const closeSheets = p => p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }).then(() => p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 5000 }));
-/** « Ajouter » du récap du scan ; cartes sans édition (scaned.js) : « Ajouter quand même ». */
+/** ← du scan ; cartes pas encore ajoutées (scansess.js : « Quitter le scan ? ») : « Tout effacer et quitter », comme avant la sauvegarde du scan (scan suivant vierge). */
+export async function scanClose(p) {
+  await p.click('.scan [data-act="close"]');
+  await p.waitForFunction(() => !SC.el || document.querySelector('.sss-sheet'), null, { timeout: 3000 });
+  if (await p.$('.sss-sheet')) { await p.click('.sss-sheet [data-ss="del"]'); await p.waitForFunction(() => !SC.el, null, { timeout: 3000 }); await p.evaluate(() => document.getElementById('toast').classList.remove('on')); }
+}
+/** « Ajouter » du récap du scan ; cartes sans édition (scaned.js), sans rangement (places.js › scdAsk) : « Ajouter quand même ». */
 export async function rcGo(p) {
   await p.click('.rc-sheet [data-rc="go"]');
-  await p.waitForFunction(() => !document.querySelector('.rc-sheet') || document.querySelector('.rc-sheet [data-rc="force"]') || !sheets.some(s => s.wrap.classList.contains('rc-sheet')), null, { timeout: 5000 });
+  await p.waitForFunction(() => !document.querySelector('.rc-sheet') || document.querySelector('.rc-sheet [data-rc="force"], .rc-sheet [data-rc="pforce"]') || !sheets.some(s => s.wrap.classList.contains('rc-sheet')), null, { timeout: 5000 });
   if (await p.$('.rc-sheet [data-rc="force"]')) await p.click('.rc-sheet [data-rc="force"]');
+  await p.waitForFunction(() => !sheets.some(s => s.wrap.classList.contains('rc-sheet')) || document.querySelector('.rc-sheet [data-rc="pforce"]'), null, { timeout: 5000 });
+  if (await p.$('.rc-sheet [data-rc="pforce"]')) await p.click('.rc-sheet [data-rc="pforce"]');      // sans rangement (scansess.js) : « Ajouter quand même »
 }

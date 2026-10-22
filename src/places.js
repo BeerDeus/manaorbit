@@ -392,6 +392,16 @@ const scdPlace = () => (SCD.p && COLL.places[SCD.p] ? SCD.p : '');
 const scdLabel = () => (SCD.x ? T('Mes proxys') + (scdPlace() ? ' · ' + plcName(scdPlace()) : '') : scdPlace() ? plcName(scdPlace()) : T('Ma collection'));
 /** Le scan range-t-il ailleurs que dans la collection, non rangé ? (pastille sur la caméra) */
 const scdSet = () => SCD.x || !!scdPlace();
+/** Des emplacements existent-ils ? Sans emplacement, la question du scan peut être coupée (« Ne plus me demander », SCD_QUIET) jusqu'au premier emplacement créé. */
+const scdHasPlaces = () => Object.keys(COLL.places || {}).length > 0;
+const SCD_QUIET = 'deckdeal:scdquiet';
+const scdQuiet = () => { try { return localStorage.getItem(SCD_QUIET) === '1'; } catch (e) { return false; } };
+function scdQuietSet() { try { localStorage.setItem(SCD_QUIET, '1'); } catch (e) { /* redemandé la prochaine fois */ } }
+/** « Ajouter » du scan sans rangement choisi (ni emplacement ni proxys) : confirmation (scan.js › scanRecap), même sans emplacement (on apprend qu'on peut ranger ses cartes),
+    sauf « Ne plus me demander » tant qu'il n'y en a aucun. Lot, session d'ouverture : leurs propres cartes, rien à demander. */
+const scdAsk = () => !scdSet() && (scdHasPlaces() || !scdQuiet()) && !(SC.lot && typeof LOT !== 'undefined' && LOT.el) && !(typeof opnOn === 'function' && opnOn());
+/** Rangement du scan : posé (session reprise, scansess.js) ou remis à vide (nouvelle séance : « Ma collection », sans emplacement). */
+function scdReset(d) { SCD.x = !!(d && d.x); SCD.p = d && typeof d.p === 'string' ? d.p : ''; scdSave(); }
 /** Ligne « Ranger dans » de la fiche d'ajout du scan. */
 const scdRowHtml = () => `<button type="button" class="plc-cur rc-dest" data-rcd><i style="--c:${SCD.x ? '#c79bff' : plcColor(scdPlace())}"></i><span><small>${T('Ranger dans')}</small><b>${esc(scdLabel())}</b></span><svg class="i" aria-hidden="true"><use href="#i-back"/></svg></button>`;
 /** Clé de ligne d'une carte scannée, avec l'emplacement choisi. */

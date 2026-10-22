@@ -7,7 +7,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { chromium, startWorld, newPage, ok, toHome, txt, openMe } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, toHome, txt, openMe, scanClose } from './e2e-world.mjs';
 const Q = createRequire(import.meta.url)('../src/qr.js');
 
 const world = await startWorld({ port: 18974 });
@@ -164,10 +164,10 @@ const errsAll = [];
   assert.equal(await p.evaluate(() => SC.el === window.__scEl), true, 'scan déjà ouvert : passe en prix rapide sans rouvrir (cartes lues gardées)');
   await p.evaluate(() => window.__mo.ls.open({ view: 'scan' })); await p.waitForFunction(() => SC.pm === false, null, { timeout: 3000 });
   assert.equal(await p.evaluate(() => SC.el === window.__scEl), true, 'puis retour au mode ajout, même écran');
-  await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !SC.el);
+  await scanClose(p); await p.waitForFunction(() => !SC.el);
   await p.evaluate(() => window.__mo.ls.open({ view: 'quick' })); await p.waitForSelector('.scan.on', { timeout: 3000 });
   assert.deepEqual(await p.evaluate(() => [SC.pm, document.querySelector('.scan').classList.contains('pm'), document.querySelector('.sc-pmode').getAttribute('aria-checked')]), [true, true, 'true'], 'prix rapide : scan ouvert en mode prix');
-  await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !SC.el);
+  await scanClose(p); await p.waitForFunction(() => !SC.el);
   await p.context().close();
   // choix gardé : relu au lancement suivant (premier envoi déjà en « quick »), réglage coché
   const q = await newPage(browser, world, { init: seed({ btn: 'quick' }) + shell() }); errsAll.push(q.errs);

@@ -4,7 +4,7 @@
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { chromium, startWorld, newPage, ok, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, toHome, scanClose } from './e2e-world.mjs';
 
 const TESS_DIR = process.env.TESS_DIR || new URL('../tests/node_modules', import.meta.url).pathname;
 if (!existsSync(TESS_DIR + '/tesseract.js')) { console.log('· tesseract.js absent (TESS_DIR) : test OCR ignoré'); process.exit(0); }
@@ -91,7 +91,7 @@ await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.queryS
 assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:scanset')).s.frame), 'name', 'réglage gardé');
 await p.evaluate(() => scsSet({ frame: 'card' })); assert.equal(await p.$eval('.scan.on', s => s.classList.contains('full')), true);
 ok('réglages du scan › Cadrage : carte entière (défaut) ou nom seulement, appliqué à l\'écran ouvert et gardé');
-await p.click('.scan [data-act="close"]');
+await scanClose(p);
 
 assert.deepEqual(errs.filter(e => !/getUserMedia|NotFoundError|Requested device/.test(e)), [], 'erreurs page');
 await browser.close(); world.stop();

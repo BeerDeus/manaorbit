@@ -75,7 +75,7 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   await p.evaluate(() => { openScan(); scanPriceMode(true); SC.pq = [{ key: 'arcane signet', name: 'Arcane Signet', l: 'en', n: 1, cm: 40, ct: 'off' }]; scanPaintList(); });
   await p.click('.sc-item.pr[data-k="arcane signet"] [data-a="padd"]'); await p.waitForFunction(() => OPN.cur.rows.some(r => r.k === 'arcane signet'));
   assert.equal(await p.evaluate(() => [collQty('arcane signet'), OPN.cur.rows.find(r => r.k === 'arcane signet').eu].join()), '3,40', 'prix rapide : dans la session (prix lu gardé), la collection inchangée');
-  await p.evaluate(() => { closeScan(); opnDec(OPN.cur.rows.find(r => r.k === 'arcane signet').id); }); await p.waitForFunction(() => !OPN.cur.rows.some(r => r.k === 'arcane signet'));
+  await p.evaluate(() => { if (SC.el) SC.el.__close('done'); opnDec(OPN.cur.rows.find(r => r.k === 'arcane signet').id); }); await p.waitForFunction(() => !OPN.cur.rows.some(r => r.k === 'arcane signet'));
   await p.waitForTimeout(300);
   assert.deepEqual(await realColl(p), before);
   ok('« Ajouter des cartes », « Saisir », prix rapide › + : dans la session, jamais dans la collection ni dans le lot');

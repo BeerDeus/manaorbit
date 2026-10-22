@@ -225,7 +225,7 @@ function bdScanDone() {
       }
       const coll0 = COLL.map, add = mode === 'take' ? [] : bdScanColl(items, mode === 'add');
       if (add.length) { for (const x of add) if (x.e && x.p) edRemember(x.k, x.lang, x.e, edInfoOf(x.p, x.lang)); collAdd(add.map(x => ({ k: x.k, n: x.n, q: x.q, l: x.l })), 'add'); collEnrich(); }
-      if (SC.el) SC.el.__close();
+      if (SC.el) SC.el.__close('done');
       bdPaint(); bdMetaSoon(); haptic('ok');
       const refused = no.copies + no.side + no.cmdr, nAdd = add.reduce((a, x) => a + x.q, 0);
       const msg = [TN(ok, '{n} carte ajoutée au deck', '{n} cartes ajoutées au deck'), nAdd ? TN(nAdd, '{n} dans ta collection', '{n} dans ta collection') : '',

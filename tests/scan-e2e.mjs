@@ -3,7 +3,7 @@ import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { chromium, startWorld, newPage, txt, ok, CARDS, toInput, toHome, rcGo, bandOnly } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, CARDS, toInput, toHome, rcGo, bandOnly, scanClose } from './e2e-world.mjs';
 
 const TESS_DIR = process.env.TESS_DIR || new URL('../tests/node_modules', import.meta.url).pathname;
 if (!existsSync(TESS_DIR + '/tesseract.js')) { console.log('· tesseract.js absent (TESS_DIR) : test OCR ignoré'); process.exit(0); }
@@ -45,7 +45,7 @@ assert.equal(await p.isVisible('.sc-note'), false, 'aide fermée au départ'); a
 await p.click('.sc-help'); assert.equal(await p.isVisible('.sc-note'), true); assert.equal(await p.getAttribute('.sc-help', 'aria-pressed'), 'true');
 await p.click('.sc-note [data-act="note"]'); assert.equal(await p.isVisible('.sc-note'), false);
 await p.click('.sc-help'); await p.screenshot({ path: 'shots/scan-0b-aide.png' });
-await p.click('.scan [data-act="close"]'); await p.waitForTimeout(400); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on');
+await scanClose(p); await p.waitForTimeout(400); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on');
 assert.equal(await p.isVisible('.sc-note'), false, 'aide refermée au scan suivant'); assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:scnote')), null);
 ok('aide fermée au départ, ouverte par « ? », refermée par ×');
 
@@ -157,7 +157,7 @@ assert.equal(await p.$('.sc-item:not(.maybe) .sc-pic'), null, 'pas de photo sur 
 await p.click('.sc-item.maybe .sc-th'); await p.waitForSelector('.imgv.on'); assert.equal(await p.isVisible('.imgv-shot'), true, 'visionneuse : photo prise visible'); assert.match(await p.$eval('.imgv-shot', i => i.src), /^data:image\/jpeg/); assert.match(await txt(p, '.imgv-extra'), /à vérifier/i);
 await p.waitForTimeout(700); await p.screenshot({ path: 'shots/scan-1d-verif.png' }); await p.keyboard.press('Escape'); await p.waitForSelector('.imgv', { state: 'detached' }); assert.equal(await p.isVisible('.scan.on'), true, 'Échap ferme la visionneuse seulement, pas l\'écran de scan');
 await p.evaluate(() => scanAdd({ key: 'sol ring', name: 'Sol Ring', score: 0.97, raw: 'Sol Ring', card: 'en' }, 1, false)); assert.equal(await p.$('.sc-item.maybe'), null, 'relue sûrement : plus « à vérifier »'); assert.equal(await p.$('.sc-pic'), null);
-await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
+await scanClose(p); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 3000 });
 ok('« à vérifier » : photo prise au-dessus, aperçu cliquable en grand avec la photo ; en-tête sous la caméra, capture en bas');
 await p.waitForTimeout(300);
 assert.ok(!(await p.evaluate(() => JSON.stringify(localStorage))).includes('data:image'), 'aucune photo enregistrée dans le navigateur');
@@ -237,7 +237,7 @@ assert.deepEqual([gc.q, gc.pend, gc.miss], [0, 0, 0]);
 assert.ok(!(await c2.p.evaluate(() => JSON.stringify(localStorage))).includes('data:image'), 'aucune photo enregistrée');
 assert.equal(await c2.p.evaluate(() => document.querySelector('.sc-video').paused), false);
 await c2.p.screenshot({ path: 'shots/scan-3-camera.png' });
-await c2.p.click('.scan [data-act="close"]'); await c2.p.waitForTimeout(400);
+await scanClose(c2.p); await c2.p.waitForTimeout(400);
 assert.equal(await c2.p.evaluate(() => SC.stream), null, 'caméra coupée à la fermeture');
 ok('caméra : le cercle prend la photo, lecture en arrière-plan sans figer l\'aperçu, 3 cartes enchaînées (la 3e en français), photos vidées');
 assert.deepEqual(c2.errs.filter(e => !/WebAssembly|worker/i.test(e)), []);
@@ -270,7 +270,7 @@ await cam.close();
   const dg = await cs.p.evaluate(() => { const d = document.querySelector('.sc-diag'); return { hidden: d.hidden, t: d.textContent }; });
   console.log('  diagnostic :', dg.t); assert.equal(dg.hidden, false); assert.match(dg.t, /aperçu .* i\/s/); assert.match(dg.t, /mode lent/); assert.match(dg.t, /redémarrages 4/);
   await cs.p.click('.sc-diag'); assert.equal(await cs.p.evaluate(() => localStorage.getItem('deckdeal:cam2')), null, 'toucher le diagnostic : retour au mode normal');
-  await cs.p.click('.scan [data-act="close"]'); await camS.close();
+  await scanClose(cs.p); await camS.close();
 }
 ok('caméra lente : 4 redémarrages dont 2 en qualité réduite, bouton « Photos » ; rien pendant une lecture ; diagnostic (5 appuis sur le nombre de cartes)');
 
@@ -284,12 +284,12 @@ ok('caméra lente : 4 redémarrages dont 2 en qualité réduite, bouton « Photo
   await open();
   let r = await cf.p.evaluate(() => ({ req: window.__req, fixed: SC.fixed, old: localStorage.getItem('deckdeal:cam'), slow: camSlow() }));
   assert.deepEqual(r.req, ['{"min":24,"ideal":30}']); assert.equal(r.fixed, true); assert.equal(r.slow, false, 'ancien indicateur « lent » ignoré'); 
-  await cf.p.click('.scan [data-act="close"]'); await cf.p.waitForTimeout(400);
+  await scanClose(cf.p); await cf.p.waitForTimeout(400);
   await cf.p.evaluate(() => { window.__refuseMin = true; window.__req = []; });
   await cf.p.click('#nav [data-nav="scan"]'); await cf.p.waitForSelector('.scan.on'); await cf.p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'on', null, { timeout: 8000 });
   r = await cf.p.evaluate(() => ({ req: window.__req, fixed: SC.fixed }));
   assert.deepEqual(r.req, ['{"min":24,"ideal":30}', '{"ideal":30}']); assert.equal(r.fixed, false, 'repli : caméra ouverte sans plancher');
-  await cf.p.click('.scan [data-act="close"]'); await camF.close();
+  await scanClose(cf.p); await camF.close();
 }
 ok('caméra : plancher 24 i/s demandé d\'abord, repli si refusé');
 
@@ -335,7 +335,7 @@ assert.deepEqual([fr.q, fr.pend], [0, 0]);
 assert.ok(fr.th.every(n => n > 200 && n < 9000), 'vignette minuscule du tiers haut pour la carte non lue (' + fr.th.join(',') + ' car.)');
 assert.ok(!(await cn.p.evaluate(() => JSON.stringify(localStorage))).includes('data:image'), 'aucune photo enregistrée');
 await cn.p.screenshot({ path: 'shots/scan-3-appareil.png' });
-await cn.p.click('.scan [data-act="close"]'); await cn.p.waitForTimeout(400);
+await scanClose(cn.p); await cn.p.waitForTimeout(400);
 ok('« Photos » une à une : 5 photos portrait enchaînées (titre bas dans le tiers haut, EXIF, français), lecture en arrière-plan, tiers haut seulement, photos vidées');
 assert.deepEqual(cn.errs.filter(e => !/WebAssembly|worker/i.test(e)), []);
 await camN.close();
@@ -374,7 +374,7 @@ await camN.close();
   await np.click('.sc-item[data-k] .sc-th'); await np.waitForSelector('.imgv');
   assert.deepEqual(await np.evaluate(() => [document.documentElement.classList.contains('nat-cam'), getComputedStyle(document.querySelector('.imgv')).visibility]), [true, 'visible'], 'carte en grand visible pendant le scan natif');
   await np.click('.imgv-x'); await np.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 });
-  await np.click('.scan [data-act="close"]'); await np.waitForTimeout(400);
+  await scanClose(np); await np.waitForTimeout(400);
   assert.equal(await np.evaluate(() => [window.__nat.stops, document.documentElement.classList.contains('nat-cam')].join()), '1,false');
   assert.deepEqual(nat.errs, []); await nat.ctx.close();
   ok('appli Android : caméra native derrière la page, bande recadrée, ML Kit (sans Tesseract), rotation selon l\'écran, carte en grand visible, caméra rendue à la fermeture');
@@ -395,7 +395,7 @@ await camN.close();
   assert.deepEqual(await wp.evaluate(() => window.__aw), [], 'écran laissé à la veille hors du scan');
   await wp.click('#nav [data-nav="scan"]'); await wp.waitForSelector('.scan.on'); await wp.waitForFunction(() => window.__aw.length === 1);
   assert.deepEqual(await wp.evaluate(() => [window.__aw, sessionStorage.getItem('deckdeal:awake'), window.__wl]), [[true], '1', 0], 'scan ouvert : écran gardé allumé par la coque, sans Wake Lock');
-  await wp.click('.scan [data-act="close"]'); await wp.waitForFunction(() => window.__aw.length === 2);
+  await scanClose(wp); await wp.waitForFunction(() => window.__aw.length === 2);
   assert.deepEqual(await wp.evaluate(() => [window.__aw, sessionStorage.getItem('deckdeal:awake')]), [[true, false], null], 'scan fermé : veille rendue');
   await wp.click('#nav [data-nav="scan"]'); await wp.waitForSelector('.scan.on'); await wp.waitForFunction(() => window.__aw.length === 3);
   await wp.reload(); await wp.waitForFunction(() => window.__aw.length === 1, null, { timeout: 5000 });
@@ -404,7 +404,7 @@ await camN.close();
   await wp.evaluate(() => { delete Capacitor.Plugins.ManaOrbit.keepAwake; window.__wlr = 0; navigator.wakeLock.request = async () => { window.__wl++; return { release: async () => { window.__wlr++; }, addEventListener() {} }; }; });
   await toHome(wp); await wp.click('#btnColl'); await wp.waitForSelector('.coll.on'); await wp.click('#nav [data-nav="scan"]'); await wp.waitForSelector('.scan.on'); await wp.waitForFunction(() => window.__wl === 1);
   await wp.evaluate(() => { AWAKE.wl = null; document.dispatchEvent(new Event('visibilitychange')); }); await wp.waitForFunction(() => window.__wl === 2);      // verrou tombé (page quittée) : repris au retour
-  await wp.click('.scan [data-act="close"]'); await wp.waitForFunction(() => window.__wlr === 1);
+  await scanClose(wp); await wp.waitForFunction(() => window.__wlr === 1);
   await wp.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await wp.waitForTimeout(200);
   assert.deepEqual(await wp.evaluate(() => [window.__wl, window.__wlr, AWAKE.wl]), [2, 1, null], 'scan fermé : Wake Lock relâché, plus redemandé');
   assert.deepEqual(nw.errs, []); await nw.ctx.close();
@@ -423,11 +423,11 @@ await camN.close();
   await fp.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'no', null, { timeout: 5000 });
   assert.deepEqual(await fp.evaluate(() => [window.__nat.starts, window.__nat.stops, document.documentElement.classList.contains('nat-cam'), NAT.on, document.querySelector('.sc-stage').dataset.native || '']), [1, 1, false, false, ''], 'démarrage raté : arrêt demandé, page opaque');
   assert.match(await txt(fp, '.sc-nocam'), /Aucun appareil photo/, 'repli : caméra du navigateur (absente ici)');
-  await fp.click('.scan [data-act="close"]'); await fp.waitForTimeout(400);
+  await scanClose(fp); await fp.waitForTimeout(400);
   await fp.click('#nav [data-nav="scan"]'); await fp.waitForSelector('.scan.on');
   await fp.waitForFunction(() => document.querySelector('.sc-stage').dataset.native === '1', null, { timeout: 5000 });
   assert.equal(await fp.evaluate(() => [window.__nat.starts, document.documentElement.classList.contains('nat-cam')].join()), '2,true', 'réouverture : caméra native redémarrée');
-  await fp.click('.scan [data-act="close"]'); await fp.waitForTimeout(400);
+  await scanClose(fp); await fp.waitForTimeout(400);
   assert.deepEqual(nf.errs, []); await nf.ctx.close();
   ok('appli Android : démarrage natif raté → caméra arrêtée, repli web, et la réouverture redémarre la caméra native');
 
@@ -446,11 +446,11 @@ await camN.close();
   await mp.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'no', null, { timeout: 5000 });
   assert.deepEqual(await mp.evaluate(() => [window.__nat.starts, window.__nat.stops, document.documentElement.classList.contains('nat-cam'), NAT.on, NAT.bad, sessionStorage.getItem('deckdeal:natcam-ko')]), [1, 1, false, false, true, '1'], 'caméra muette : arrêtée, page opaque, retenu');
   assert.match(await txt(mp, '.sc-nocam'), /Aucun appareil photo/, 'repli : caméra du WebView (absente ici)');
-  await mp.click('.scan [data-act="close"]'); await mp.waitForTimeout(400);
+  await scanClose(mp); await mp.waitForTimeout(400);
   const t0 = Date.now(); await mp.click('#nav [data-nav="scan"]'); await mp.waitForSelector('.scan.on');
   await mp.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'no', null, { timeout: 5000 });
   assert.ok(Date.now() - t0 < 2500, 'réouverture : caméra du WebView tout de suite'); assert.equal(await mp.evaluate(() => window.__nat.starts), 1, 'caméra native plus redemandée');
-  await mp.click('.scan [data-act="close"]'); await mp.waitForTimeout(400);
+  await scanClose(mp); await mp.waitForTimeout(400);
   assert.deepEqual(nm.errs, []); await nm.ctx.close(); await bN.close();
   ok('appli Android : caméra native muette → arrêt au bout du délai, repli sur la caméra du WebView, retenu jusqu\'au prochain lancement');
 }

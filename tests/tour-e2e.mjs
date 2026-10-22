@@ -355,7 +355,7 @@ const tipCheckGeo = (g, tag) => {
   await tipOn(p, /Tu ouvres des boosters \? Lance une session d'ouverture ici\./, 8000); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'scan');
   assert.match(await p.evaluate(() => TIP.tgt.className), /sc-set/);
   await p.keyboard.press('Escape'); await tipGone(p);      // une touche l'efface (et Échap ferme le scan)
-  await p.evaluate(() => { if (SC.el) SC.el.__close(); }); await p.waitForTimeout(400);
+  await p.evaluate(() => { if (SC.el) SC.el.__close('done'); }); await p.waitForTimeout(400);
   ok('astuce scan : « Tu ouvres des boosters ? » sur les réglages du scan');
   // liste d'échange d'un autre joueur : « Ajoute-le en ami » (déconnecté : le bouton invite à se connecter)
   await p.evaluate(() => openPublicTrade(readShare('trade', { have: [trCard('sol ring', 'Sol Ring', 1, '')], want: [], by: 'Léa', at: Date.now() }), false, 'AbcDef123456'));
@@ -369,7 +369,7 @@ const tipCheckGeo = (g, tag) => {
   await p.waitForSelector('.pubv.on [data-am="add"]'); await p.waitForTimeout(2500); assert.equal(await p.$('.tip'), null, 'Ajouter en ami : une seule fois');
   await p.evaluate(() => TR.pub.el.__close()); await p.waitForTimeout(300);
   await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on'); await p.waitForTimeout(3000); assert.equal(await p.$('.tip'), null, 'scan : une seule fois');
-  await p.evaluate(() => SC.el.__close()); await p.waitForTimeout(300);
+  await p.evaluate(() => SC.el.__close('done')); await p.waitForTimeout(300);
   await p.click('#nav [data-nav="coll"]'); await p.waitForSelector('#collSeg'); await p.waitForTimeout(2500); assert.equal(await p.$('.tip'), null, 'Stats : une seule fois');
   ok('astuces : chacune une seule fois (écrans rouverts)');
   // Cartes : le rond de l'édition d'une ligne (« . » : espace insécable du français avant « : », tourNb)
@@ -404,7 +404,7 @@ const tipCheckGeo = (g, tag) => {
   await tipOn(p, /Auto.: pose tes cartes l'une après l'autre, le scan les lit tout seul\./); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'auto');
   assert.match(await p.evaluate(() => TIP.tgt.className), /sc-auto/);
   await p.keyboard.press('Shift'); await tipGone(p);
-  await p.evaluate(() => SC.el.__close()); await p.waitForTimeout(400);
+  await p.evaluate(() => SC.el.__close('done')); await p.waitForTimeout(400);
   assert.deepEqual(Object.keys((await st(p)).tips).sort(), ['ami', 'auto', 'bnd', 'ed', 'fset', 'msopt', 'opn', 'rng', 'simg']);
   ok('astuces de la version 2 : rond de l\'édition (Cartes), filtre Extension (filtres ouverts), options du masterset, « Ranger ces cartes… » (emplacement ouvert), mode Auto du scan');
   assert.deepEqual(errs, []);

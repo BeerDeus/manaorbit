@@ -1,7 +1,7 @@
 // E2E catalogue des noms français : fichier du site (fr-names.tsv) ou pages Scryfall, réseau mobile (on demande), reprise, mise à jour, échecs.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, toInput, toHome, scanClose } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18940 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -27,7 +27,7 @@ const banner = p => p.evaluate(() => { const e = document.querySelector('.sc-cat
   assert.equal(await p.evaluate(() => FRC.state), 'ready'); assert.equal(b.sHits, 1, 'une seule requête'); assert.deepEqual(hits(), [], 'aucune page Scryfall'); assert.equal(await banner(p), null, 'bandeau masqué');
   assert.equal(await catRows(p), 801, 'lignes gardées sur l\'appareil (ligne # ignorée)');
   assert.deepEqual(await p.evaluate(() => { const m = matchFr([{ text: 'Anneau solaire' }], FRC.cat); return [m.name, m.card, m.img]; }), ['Sol Ring', 'fr', 'https://cards.scryfall.io/small/front/fr/sol-ring.jpg']);
-  await p.click('.scan [data-act="close"]'); await p.waitForTimeout(400); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on'); await settled(p);
+  await scanClose(p); await p.waitForTimeout(400); await p.click('#nav [data-nav="scan"]'); await p.waitForSelector('.scan.on'); await settled(p);
   assert.equal(b.sHits, 1, 'catalogue frais : pas retéléchargé à la réouverture'); assert.equal(await p.evaluate(() => FRC.state), 'ready');
   assert.deepEqual(b.errs.filter(e => !/WebAssembly|worker|ERR_|Tesseract/i.test(e)), []); await b.ctx.close();
   ok('catalogue : fichier du site = 1 requête (0 page Scryfall), pas de question en réseau mobile, gardé sur l\'appareil');
@@ -56,7 +56,7 @@ let keep;
   await p.reload(); await p.waitForTimeout(500); await keep.open(); await settled(p);
   assert.deepEqual(await p.evaluate(() => [FRC.state, !!FRC.cat, FRC.cat.n]), ['ready', true, 608], 'échec de la mise à jour : ancien catalogue gardé et utilisé');
   assert.equal(await banner(p), null, 'pas de bandeau d\'erreur : le catalogue marche déjà');
-  world.frFail = false; hits(); world.scry.length = 0; await p.click('.scan [data-act="close"]'); await p.waitForTimeout(400); await p.reload(); await p.waitForTimeout(500); await keep.open(); await settled(p);
+  world.frFail = false; hits(); world.scry.length = 0; await scanClose(p); await p.waitForTimeout(400); await p.reload(); await p.waitForTimeout(500); await keep.open(); await settled(p);
   assert.equal(await p.evaluate(() => [FRC.state, FRC.cat.n]).then(x => x.join()), 'ready,609', 'nouveauté ajoutée');
   assert.ok(world.scry.some(s => /\/cards\/search/.test(s) && /date%3E%3D\d{4}-\d\d-\d\d/.test(s)), 'recherche des nouveautés depuis la dernière mise à jour'); assert.deepEqual(hits(), [1], 'une seule page, pas tout le catalogue');
   assert.equal(await catRows(p), 609); assert.ok(await p.evaluate(async () => Date.now() - (await scryFrCached()).at < 60000), 'date de mise à jour rafraîchie');

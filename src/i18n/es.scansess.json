@@ -1,0 +1,19 @@
+{
+  "Quitter le scan ?": "¿Salir del escáner?",
+  "{n} carte pas encore ajoutée": "{n} carta aún sin añadir",
+  "{n} cartes pas encore ajoutées": "{n} cartas aún sin añadir",
+  "{n} prix lu": "{n} precio consultado",
+  "{n} prix lus": "{n} precios consultados",
+  "Elles restent gardées sur ce téléphone : tu les retrouveras en rouvrant le scan.": "Se quedan guardadas en este móvil: las encontrarás al volver a abrir el escáner.",
+  "Tout effacer et quitter": "Borrar todo y salir",
+  "Continuer le scan": "Seguir escaneando",
+  "Scan effacé": "Escaneo borrado",
+  "Scan repris": "Escaneo retomado",
+  "Nouvelle session": "Nueva sesión",
+  "Aucun rangement choisi.": "No has elegido ninguna ubicación.",
+  "Ajouter les cartes à ta collection sans emplacement ?": "¿Añadir las cartas a tu colección sin ubicación?",
+  "Choisir un rangement": "Elegir una ubicación",
+  "Classeur, boîte, à vendre… : un emplacement t'aide à retrouver tes cartes.": "Carpeta, caja, en venta…: una ubicación te ayuda a encontrar tus cartas.",
+  "Ne plus me demander (tant que je n'ai pas d'emplacement)": "No volver a preguntar (mientras no tenga ubicación)",
+  "Créer un emplacement": "Crear una ubicación"
+}

@@ -8,7 +8,7 @@ import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { chromium, startWorld, newPage, ok, toHome, signInFake } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, ok, toHome, signInFake, scanClose } from './e2e-world.mjs';
 import { startFakes } from './amis-fakes.mjs';
 import { routeAdminPage, ADMIN } from './admin-fakes.mjs';
 
@@ -136,7 +136,7 @@ assert.equal(await vis('.imgv-rep'), false, 'fonction coupée (/__ping scanrep: 
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'), null, { timeout: 3000 });
 assert.equal(await p.$('.sc-item.miss [data-sr]'), null);
 await p.evaluate(() => { CTX.scanrep = true; });
-await p.click('.scan [data-act="close"]'); await p.waitForFunction(() => !SC.el);
+await scanClose(p); await p.waitForFunction(() => !SC.el);
 assert.equal(await p.evaluate(() => SR.keep.length), 0, 'scan fermé : captures libérées');
 assert.deepEqual(errs.filter(e => !/getUserMedia|NotFoundError|Requested device/.test(e)), [], 'erreurs page');
 ok('fonction coupée par le serveur : bouton caché (carte en grand et ligne non reconnue) ; scan fermé : captures libérées ; aucune erreur');

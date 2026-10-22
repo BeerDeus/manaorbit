@@ -32,6 +32,7 @@ BROWSER=(
   applink-e2e.mjs
   apkupd-e2e.mjs
   scanreport-e2e.mjs
+  scansess-e2e.mjs
   daily-e2e.mjs
   daily-push-e2e.mjs
   masterset-e2e.mjs

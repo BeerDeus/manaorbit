@@ -1,0 +1,19 @@
+{
+  "Quitter le scan ?": "Scanner verlassen?",
+  "{n} carte pas encore ajoutée": "{n} Karte noch nicht hinzugefügt",
+  "{n} cartes pas encore ajoutées": "{n} Karten noch nicht hinzugefügt",
+  "{n} prix lu": "{n} Preis abgefragt",
+  "{n} prix lus": "{n} Preise abgefragt",
+  "Elles restent gardées sur ce téléphone : tu les retrouveras en rouvrant le scan.": "Sie bleiben auf diesem Handy gespeichert: Du findest sie wieder, wenn du den Scanner erneut öffnest.",
+  "Tout effacer et quitter": "Alles löschen und verlassen",
+  "Continuer le scan": "Weiter scannen",
+  "Scan effacé": "Scan gelöscht",
+  "Scan repris": "Scan fortgesetzt",
+  "Nouvelle session": "Neue Sitzung",
+  "Aucun rangement choisi.": "Kein Ort gewählt.",
+  "Ajouter les cartes à ta collection sans emplacement ?": "Die Karten ohne Ort zu deiner Sammlung hinzufügen?",
+  "Choisir un rangement": "Ort wählen",
+  "Classeur, boîte, à vendre… : un emplacement t'aide à retrouver tes cartes.": "Ordner, Box, zu verkaufen…: Ein Ort hilft dir, deine Karten wiederzufinden.",
+  "Ne plus me demander (tant que je n'ai pas d'emplacement)": "Nicht mehr fragen (solange ich keinen Ort habe)",
+  "Créer un emplacement": "Ort erstellen"
+}
