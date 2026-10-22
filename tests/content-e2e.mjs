@@ -273,7 +273,7 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
   assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Aide et avis');
   assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), HELP_BTNS, '« Signaler un bug ou une idée » en tête ; avis sur Google Play dans le navigateur aussi (« Visite guidée » : tour.js)');
-  assert.deepEqual(await p.$eval('#helpBox [data-help="report"]', a => [a.className, a.querySelector('use').getAttribute('href')]), ['btn small', '#i-edit'], '« Signaler » : bouton plein, icône du crayon');
+  assert.deepEqual(await p.$eval('#helpBox [data-help="report"]', a => [a.className, a.querySelector('use').getAttribute('href')]), ['btn small', '#i-bug'], '« Signaler » : bouton plein, icône du scarabée');
   assert.equal(await p.$eval('#helpBox a[data-help="discord"]', a => [a.getAttribute('href'), a.target, a.rel].join()), 'https://discord.gg/TTwrP94agb,_blank,noopener', '« Rejoindre le Discord » : invitation, onglet à part');
   assert.equal(await p.$eval('#helpBox a[data-help="rate"]', a => [a.getAttribute('href'), a.target, a.rel, a.querySelector('use').getAttribute('href')].join()), PLAY + ',_blank,noopener,#i-star', '« Laisser un avis sur Google Play » : la fiche exacte, onglet à part');
   assert.notEqual(await p.evaluate(() => CTX.feedback), true, 'serveur des tests sans bot Discord : /__ping sans feedback');
@@ -317,16 +317,18 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   await p.waitForTimeout(500); await p.screenshot({ path: 'shots/content-2-aide.png' });
   await p.keyboard.press('Escape'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 2);
   ok('feuille « Comment ça marche » depuis les Réglages : 16 questions repliables, une ouverte à la fois, « Signaler un bug ou une idée » en pied');
-  // menu « Compte et réglages » : « Signaler un bug ou une idée », ligne à part juste avant « Aide et avis » ; sans bot : le mailto (badge au clic)
+  // menu « Compte et réglages » : carte « Signaler un bug ou une idée » en haut, juste sous les chiffres (symbole de mana « scarabée ») ; sans bot : le mailto (badge au clic)
   await closeSheets(p); await openMe(p);
-  const rowsMe = await p.$$eval('.me-sheet .me-row[data-me]', r => r.map(x => x.dataset.me));
-  assert.equal(rowsMe[rowsMe.indexOf('aide') - 1], 'signaler', 'ligne « Signaler » juste avant « Aide et avis »');
+  assert.equal(await p.$eval('.me-sheet .me-stats', e => e.nextElementSibling.matches('button.me-bug[data-me="signaler"]')), true, 'carte « Signaler » juste sous les chiffres, avant les rubriques');
+  assert.equal(await p.$$eval('.me-sheet [data-me="signaler"]', l => l.length), 1, 'une seule entrée (plus de ligne dans « Plus »)');
+  assert.deepEqual(await p.$eval('.me-bug .bug-pip', e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), e.querySelector('use').getAttribute('href')]; }), [44, '#i-bug'], 'symbole de 44 px');
   assert.equal(await txt(p, '.me-sheet [data-me="signaler"] .me-t'), 'Signaler un bug ou une idée');
+  assert.match(await txt(p, '.me-bug-t span'), /ça arrive directement à l'équipe/);
   const mr = await mailClick(p, '.me-sheet [data-me="signaler"]');
   assert.equal(mr.prevented, false, 'ligne du menu, sans bot : mailto suivi'); assert.equal(mr.sheet, false, 'aucune fenêtre d\'avis');
   assert.match(mr.href, /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/, 'le même mailto');
   assert.equal(await p.evaluate(() => [prgC().fb, document.querySelectorAll('a[data-help="report"][hidden]').length].join()), '1,0', 'badge au clic ; lien de passage retiré');
-  ok('menu Compte : ligne « Signaler un bug ou une idée » avant « Aide et avis » ; sans bot : le mailto, badge au clic');
+  ok('menu Compte : carte « Signaler un bug ou une idée » en haut (symbole scarabée), une seule entrée ; sans bot : le mailto, badge au clic');
   await closeSheets(p);
   await toHome(p); await p.click('#btnHelp'); await p.waitForSelector('.hp-sheet.open');
   ok('accueil : « Comment ça marche ? » ouvre la même aide');

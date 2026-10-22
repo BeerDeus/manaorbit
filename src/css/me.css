@@ -15,6 +15,12 @@
 .me-stats button{min-width:0;display:flex;flex-direction:column;align-items:flex-start;padding:8px 10px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
 .me-stats b{max-width:100%;font-family:var(--font-display);font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .me-stats span{font-size:12px;color:var(--ink-3)}
+.me-bug{width:100%;display:flex;align-items:center;gap:12px;margin:12px 0 0;padding:10px 10px 10px 12px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(135deg,var(--accent-soft),var(--surface) 70%);color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.me-bug:active{background:var(--surface-2)}
+.me-bug .bug-pip{width:44px;height:44px;flex:none}
+.me-bug-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.me-bug-t b{font-family:var(--font-display);font-size:15.5px;font-weight:700;letter-spacing:-.005em}
+.me-bug-t span{font-size:12.5px;line-height:1.35;color:var(--ink-3)}
 .me-h{margin:16px 4px 6px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
 .me-g{border-radius:16px;border:1px solid var(--line);background:var(--surface);overflow:hidden}
 .me-row{width:100%;min-height:48px;display:flex;align-items:center;gap:10px;padding:0 12px;border:0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}

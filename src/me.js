@@ -1,8 +1,8 @@
 /* ── me.js : « Compte et réglages », une seule fiche du bas (bouton du compte, dans l'en-tête), qui se ferme en la tirant vers le bas ─────────────
-   En haut, le compte : connecté, photo, pseudo, e-mail, état de la synchro et « Modifier » ; sinon « Se connecter ». Puis cartes · decks · valeur.
+   En haut, le compte : connecté, photo, pseudo, e-mail, état de la synchro et « Modifier » ; sinon « Se connecter ». Puis cartes · decks · valeur, puis la carte
+   « Signaler un bug ou une idée » (symbole de mana « scarabée », bien en vue : la fenêtre d'avis ou le mailto, help.js › helpReport).
    Mon compte (connecté) : gérer le compte, decks publiés, lien d'échange, amis (friends.js) · Préférences : langue, thème, vibrations, astuces (tour.js) (changés sur place), notifications,
-   scan, widget (appli Android) · Prix : CardTrader · Plus : « Signaler un bug ou une idée » (ligne à part : la fenêtre d'avis ou le mailto, help.js › helpReport),
-   aide et avis, données de l'appareil, application (navigateur), confidentialité et mentions ·
+   scan, widget (appli Android) · Prix : CardTrader · Plus : aide et avis, données de l'appareil, application (navigateur), confidentialité et mentions ·
    version, « Se déconnecter ». Les rubriques ouvrent leur propre fiche par-dessus (app.js › setPrixSheet, setDataSheet…). */
 const ME = { api: null, sig: '', raf: 0 };
 const meOpen = () => !!(ME.api && sheets.indexOf(ME.api) >= 0);
@@ -22,6 +22,8 @@ const meSoon = () => { if (!ME.raf) ME.raf = requestAnimationFrame(() => { ME.ra
 const meName = u => PROF.name || (u && (u.displayName || u.email)) || '';
 const meGroup = (title, rows) => `<div class="me-h">${title}</div><div class="me-g">${rows.join('')}</div>`;
 const meChev = '<svg class="i me-chev" aria-hidden="true"><use href="#i-chev"/></svg>';
+/** Symbole « scarabée » à la manière d'un symbole de mana (pastille du noir {B}, ombre portée en bas à gauche) : carte « Signaler un bug ou une idée ». */
+const BUG_PIP = '<svg class="bug-pip" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14.6" cy="17.4" r="14" fill="#0b0b0c"/><circle cx="16" cy="16" r="14" fill="#cbc2bf"/><circle cx="16" cy="16" r="13.3" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width=".7"/><use href="#i-bug" color="#161414" transform="translate(16 16.3) scale(.74) translate(-16 -16)"/></svg>';
 const meRow = (me, title, value, warn, id) => `<button type="button" class="me-row"${id ? ` id="${id}"` : ''} data-me="${me}"><span class="me-t">${title}</span>${value ? `<span class="me-v${warn ? ' warn' : ''}">${value}</span>` : ''}${meChev}</button>`;
 /** Ce qui change l'affichage de la fiche : elle n'est repeinte que si ceci change (une synchro ne doit pas fermer la liste des langues qu'on parcourt). */
 function meSigNow() {
@@ -43,6 +45,7 @@ function mePaint() {
     : `<div class="me-in"><b>${T('Connecte-toi')}${typeof prgPill === 'function' ? prgPill() : ''}</b><span class="hint">${T('Sauvegarde ta collection, tes decks et ta liste d\'échange, et retrouve-les sur tous tes appareils.')}</span><button class="btn small" type="button" data-me="compte" id="meLogin">${T('Se connecter')}</button></div>`;
   const n = sv ? sv.n : collCount(), v = sv ? sv.v : homeValue();
   const stats = `<div class="me-stats"><button type="button" data-me="coll"><b>${nf0(n)}</b><span>${T(n > 1 ? 'cartes' : 'carte')}</span></button><button type="button" data-me="decks"><b>${nf0(allDecks().length)}</b><span>${T(allDecks().length > 1 ? 'decks' : 'deck')}</span></button><button type="button" data-me="valeur"><b>${v ? '≈ ' + esc(fmt(Math.round(v / 100) * 100)).replace(/[,.]00(?=\s|$| )/, '') : '—'}</b><span>${T('valeur')}</span></button></div>`;
+  const bug = `<button type="button" class="me-bug" data-me="signaler">${BUG_PIP}<span class="me-bug-t"><b class="me-t">${T('Signaler un bug ou une idée')}</b><span>${T('Un souci, une idée, une question : ça arrive directement à l\'équipe.')}</span></span>${meChev}</button>`;
   const mine = PD.mine && u && PD.mineUid === u.uid ? PD.mine.size : -1;
   const acct = sv ? meGroup(T('Mode streamer'), [meRow('opn', T('Session d\'ouverture'), esc(opnPillTxt(OPN.cur)))]) : u ? meGroup(T('Mon compte'), [
     meRow('compte', T('Gérer le compte'), acctVerified(u) ? '' : T('Adresse à vérifier'), !acctVerified(u), 'meAcct'),
@@ -61,14 +64,13 @@ function mePaint() {
   ]);
   const price = meGroup(T('Prix'), [meRow('prix', 'CardTrader', S.token ? T('Ton token') : typeof ctReady === 'function' && ctReady() ? T('Compte du serveur') : T('Sans token'))]);
   const more = meGroup(T('Plus'), [
-    meRow('signaler', T('Signaler un bug ou une idée'), ''),      // à part, plus simple d'accès qu'au fond d'« Aide et avis »
     meRow('aide', T('Aide et avis'), ''),
     meRow('donnees', T('Données de l\'appareil'), ''),
     ...(nat ? [] : [meRow('app', T('Application'), PWA.state() === 'standalone' || PWA.state() === 'installed' ? T('Installée') : '')]),
     meRow('conf', T('Confidentialité et mentions'), ''),
   ]);
   const ver = `<p class="hint set-ver">${T('Version {v}', { v: esc(typeof DD_BUILD === 'string' ? DD_BUILD : 'dev') })}${nat ? ' · APK<span class="set-apkv"></span> : ' + NAT_PLUGINS.map(([nn, l]) => (natPlugin(nn) ? '✓' : '✗') + l).join(' ') + '<span class="set-fb"></span>' : ''}</p>`;
-  b.innerHTML = top + stats + acct + prefs + price + more + ver + (u ? `<button class="btn ghost-danger small me-out" type="button" data-me="out">${T('Se déconnecter')}</button>` : '');
+  b.innerHTML = top + stats + bug + acct + prefs + price + more + ver + (u ? `<button class="btn ghost-danger small me-out" type="button" data-me="out">${T('Se déconnecter')}</button>` : '');
   if (u) profImg($('#meAv', b), profAvatar());
   mountSeg($('#segTheme', b), [{ v: 'auto', label: T('Auto') }, { v: 'light', label: T('Clair') }, { v: 'dark', label: T('Sombre') }], S.theme, val => { S.theme = val; applyTheme(); saveStore(); if (val === 'dark' && typeof prgSoon === 'function') prgSoon('fun'); });
   // APK : sa version et Firebase (google-services.json), lus auprès de la coque ; APK sans plugin ManaOrbit ou info() refusé : la ligne reste telle quelle

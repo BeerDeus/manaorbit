@@ -74,7 +74,7 @@ function helpApk() {
   return helpApkP;
 }
 /** Lien « Signaler un bug ou une idée » (mailto, data-help="report"), le même partout ; cls : classes du bouton. */
-const helpReportA = cls => `<a class="${cls}" data-help="report" href="${esc(feedbackHref(helpApkV))}"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg><span>${T('Signaler un bug ou une idée')}</span></a>`;
+const helpReportA = cls => `<a class="${cls}" data-help="report" href="${esc(feedbackHref(helpApkV))}"><svg class="i" aria-hidden="true"><use href="#i-bug"/></svg><span>${T('Signaler un bug ou une idée')}</span></a>`;
 /** Liens « Signaler un bug ou une idée » d'un bloc : complétés par la version de l'APK dès qu'elle est connue.
  *  Serveur avec le bot Discord (CTX.feedback) et réseau là : la fenêtre (fbOpen) au lieu du mailto ; sinon le mailto, et le badge « Voix du peuple » (progress.js). */
 function helpMailLinks(root) {
