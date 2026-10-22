@@ -85,15 +85,15 @@ Tout est créé par `tools/discord-setup.mjs` avec un bot à toi (≈ 10 min, do
 - **Lien d'invitation** permanent (n'expire jamais, sans limite), sur #bienvenue.
 
 ### Salons
-Catégories au style `╔ … ╝`, salons `emoji・nom`.
+Catégories au style `『…』` (l’ancien `╔ … ╝` est repris et renommé), salons `emoji・nom`.
 
-- **╔ BIENVENUE ╝** (lecture seule, sauf l'équipe) : `👋・bienvenue` (présentation, liens, renvois), `📜・règles` (français, puis anglais), `📢・annonces` et `🆕・changelog` (salons d'annonces, que d'autres serveurs peuvent suivre ; changelog alimenté par GitHub), `❓・faq` (forum, fils ouverts par l'équipe).
-- **╔ SUPPORT ╝** (forums, toutes langues) : `🆘・aide` (étiquettes Site · PWA · Android + Scan · Collection · Decks · Prix · Compte et synchro · Autre), `🐞・bugs` (les mêmes + Alertes · Échange · Partie · Carte mystère · Amis ; étiquette obligatoire ; Confirmé · Prochaine version · Corrigé · Pas un bug · Doublon posées par l'équipe ; modèle à remplir), `💡・idées` (👍 ; Envisagé · Prévu · Fait · Pas pour l'instant).
-- **╔ COMMUNAUTÉ ╝** (toutes langues) : `🃏・decks`, `🖼️・collections`, `📦・ouvertures`, `🔮・carte-mystère` (mode lent 10 s, réponses sous spoiler), `🔁・échanges` (entre membres, Mana Orbit n'est pas intermédiaire), `💶・prix-et-marché`, `✨・spoilers`.
-- **╔ JOUER ╝** : `🎲・lfg`, vocaux `🔊 Table 1` à `3` (5 places), `☕ Chill`.
+- **『BIENVENUE』** (lecture seule, sauf l'équipe) : `👋・bienvenue` (présentation, liens, renvois), `📜・règles` (français, puis anglais), `📢・annonces` et `🆕・changelog` (salons d'annonces, que d'autres serveurs peuvent suivre ; changelog alimenté par GitHub), `❓・faq` (forum, fils ouverts par l'équipe).
+- **『SUPPORT』** (forums, toutes langues) : `🆘・aide` (étiquettes Site · PWA · Android + Scan · Collection · Decks · Prix · Compte et synchro · Autre), `🐞・bugs` (les mêmes + Alertes · Échange · Partie · Carte mystère · Amis ; étiquette obligatoire ; Confirmé · Prochaine version · Corrigé · Pas un bug · Doublon posées par l'équipe ; modèle à remplir), `💡・idées` (👍 ; Envisagé · Prévu · Fait · Pas pour l'instant).
+- **『COMMUNAUTÉ』** (toutes langues) : `🃏・decks`, `🖼️・collections`, `📦・ouvertures`, `🔮・carte-mystère` (mode lent 10 s, réponses sous spoiler), `🔁・échanges` (entre membres, Mana Orbit n'est pas intermédiaire), `💶・prix-et-marché`, `✨・spoilers`.
+- **『JOUER』** : `🎲・lfg`, vocaux `🔊 Table 1` à `3` (5 places), `☕ Chill`.
 - **Une catégorie par langue**, visible seulement avec le rôle de la langue (ou « Toutes les langues », et l'équipe) : **🇫🇷 FRANÇAIS** (`💬・général`, `🆘・entraide`, `🔊 Vocal FR`), **🇬🇧 ENGLISH** (`💬・general`, `🆘・help`, `🔊 Voice EN`), puis **DEUTSCH, ESPAÑOL, ITALIANO, PORTUGUÊS, РУССКИЙ, 日本語, 한국어, 中文** : les règles traduites (lecture seule ; le chinois en simplifié et en traditionnel) et une discussion.
-- **╔ BÊTA ╝** (Testeur et équipe) : `📣・bêta-annonces`, `🧪・bêta-feedback`, `📦・builds-android`.
-- **╔ ÉQUIPE ╝** (Modo, Support) : `🛡️・modération` (AutoMod, arrivées, messages de Discord), `💬・staff`, `🐞・bug-triage` (issues GitHub), `🚨・alertes-serveur`.
+- **『BÊTA』** (Testeur et équipe) : `📣・bêta-annonces`, `🧪・bêta-feedback`, `📦・builds-android`.
+- **『ÉQUIPE』** (Modo, Support) : `🛡️・modération` (AutoMod, arrivées, messages de Discord), `💬・staff`, `🐞・bug-triage` (issues GitHub), `🚨・alertes-serveur`.
 
 Les textes (accueil, règles et leurs traductions, sujets des salons, questions d'arrivée) sont dans le script (`welcome`, `RULES`, `L10N`, `PLAN`) : les changer là puis relancer. Les traductions des règles sont à faire relire par un membre natif quand il y en a un (le français fait foi, c'est écrit sous chaque traduction).
 

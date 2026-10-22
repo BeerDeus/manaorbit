@@ -1,5 +1,5 @@
 // tools/discord-setup.mjs contre un faux Discord (aucun accès réseau). Serveur neuf : rôles rangés sous celui du bot (rôle d'un bot de tickets gardé sous Support),
-// catégories « ╔ … ╝ » et salons, une catégorie par langue visible avec son rôle, lecture seule, forums et leurs étiquettes, mode communauté, accueil (questions,
+// catégories « 『…』 » et salons, une catégorie par langue visible avec son rôle, lecture seule, forums et leurs étiquettes, mode communauté, accueil (questions,
 // salons par défaut), écran des règles refusé au bot (à faire à la main, texte affiché), AutoMod, messages (accueil, règles dans chaque langue), webhooks GitHub,
 // lien permanent ; relancé : rien en double ni réécrit, identifiants de l'accueil gardés ; serveur de l'ancienne version : salons repris (mêmes identifiants,
 // renommés, déplacés), étiquettes et messages gardés, salons inconnus jamais touchés ; limite de débit (429) attendue ; jeton jamais affiché ; --dry : aucun changement.
@@ -109,7 +109,7 @@ const role = name => S.roles.find(x => x.name === name);
 const P = k => BigInt(k);
 const owOf = (c, id) => (c.permission_overwrites || []).find(o => o.id === id) || { allow: '0', deny: '0' };
 const kidsOf = cat => S.channels.filter(x => x.parent_id === cat.id).sort((a, b) => (a.type === 2) - (b.type === 2) || a.position - b.position).map(x => x.name + ':' + x.type);
-const CATS = ['╔ BIENVENUE ╝', '╔ SUPPORT ╝', '╔ COMMUNAUTÉ ╝', '╔ JOUER ╝', '╔ 🇫🇷 FRANÇAIS ╝', '╔ 🇬🇧 ENGLISH ╝', '╔ 🇩🇪 DEUTSCH ╝', '╔ 🇪🇸 ESPAÑOL ╝', '╔ 🇮🇹 ITALIANO ╝', '╔ 🇧🇷🇵🇹 PORTUGUÊS ╝', '╔ 🇷🇺 РУССКИЙ ╝', '╔ 🇯🇵 日本語 ╝', '╔ 🇰🇷 한국어 ╝', '╔ 🀄 中文 ╝', '╔ BÊTA ╝', '╔ ÉQUIPE ╝'];
+const CATS = ['『BIENVENUE』', '『SUPPORT』', '『COMMUNAUTÉ』', '『JOUER』', '『🇫🇷 FRANÇAIS』', '『🇬🇧 ENGLISH』', '『🇩🇪 DEUTSCH』', '『🇪🇸 ESPAÑOL』', '『🇮🇹 ITALIANO』', '『🇧🇷🇵🇹 PORTUGUÊS』', '『🇷🇺 РУССКИЙ』', '『🇯🇵 日本語』', '『🇰🇷 한국어』', '『🀄 中文』', '『BÊTA』', '『ÉQUIPE』'];
 const LANG_ROLES = ['Français', 'English', 'Deutsch', 'Español', 'Italiano', 'Português', 'Русский', '日本語', '한국어', '中文'];
 
 /* ── Sans jeton : refus clair, aucun appel ── */
@@ -143,29 +143,29 @@ assert.equal(r1.code, 0, r1.out); assert.ok(!r1.out.includes(TOKEN), 'jeton jama
 
   const cats = S.channels.filter(c => c.type === 4).sort((a, b) => a.position - b.position).map(c => c.name);
   assert.deepEqual(cats, CATS, 'catégories stylisées, dans l\'ordre'); const cat = name => byName(name, 4);
-  assert.deepEqual(kidsOf(cat('╔ BIENVENUE ╝')), ['👋・bienvenue:0', '📜・règles:0', '📢・annonces:5', '🆕・changelog:5', '❓・faq:15']);
-  assert.deepEqual(kidsOf(cat('╔ SUPPORT ╝')), ['🆘・aide:15', '🐞・bugs:15', '💡・idées:15']);
-  assert.deepEqual(kidsOf(cat('╔ COMMUNAUTÉ ╝')), ['🃏・decks:0', '🖼️・collections:0', '📦・ouvertures:0', '🔮・carte-mystère:0', '🔁・échanges:0', '💶・prix-et-marché:0', '✨・spoilers:0']);
-  assert.deepEqual(kidsOf(cat('╔ JOUER ╝')), ['🎲・lfg:0', '🔊 Table 1:2', '🔊 Table 2:2', '🔊 Table 3:2', '☕ Chill:2']);
-  assert.deepEqual(kidsOf(cat('╔ 🇫🇷 FRANÇAIS ╝')), ['💬・général:0', '🆘・entraide:0', '🔊 Vocal FR:2']);
-  assert.deepEqual(kidsOf(cat('╔ 🇩🇪 DEUTSCH ╝')), ['📜・regeln:0', '💬・allgemein:0']);
-  assert.deepEqual(kidsOf(cat('╔ 🀄 中文 ╝')), ['📜・规则:0', '💬・闲聊:0']);
-  assert.deepEqual(kidsOf(cat('╔ ÉQUIPE ╝')), ['🛡️・modération:0', '💬・staff:0', '🐞・bug-triage:0', '🚨・alertes-serveur:0']);
+  assert.deepEqual(kidsOf(cat('『BIENVENUE』')), ['👋・bienvenue:0', '📜・règles:0', '📢・annonces:5', '🆕・changelog:5', '❓・faq:15']);
+  assert.deepEqual(kidsOf(cat('『SUPPORT』')), ['🆘・aide:15', '🐞・bugs:15', '💡・idées:15']);
+  assert.deepEqual(kidsOf(cat('『COMMUNAUTÉ』')), ['🃏・decks:0', '🖼️・collections:0', '📦・ouvertures:0', '🔮・carte-mystère:0', '🔁・échanges:0', '💶・prix-et-marché:0', '✨・spoilers:0']);
+  assert.deepEqual(kidsOf(cat('『JOUER』')), ['🎲・lfg:0', '🔊 Table 1:2', '🔊 Table 2:2', '🔊 Table 3:2', '☕ Chill:2']);
+  assert.deepEqual(kidsOf(cat('『🇫🇷 FRANÇAIS』')), ['💬・général:0', '🆘・entraide:0', '🔊 Vocal FR:2']);
+  assert.deepEqual(kidsOf(cat('『🇩🇪 DEUTSCH』')), ['📜・regeln:0', '💬・allgemein:0']);
+  assert.deepEqual(kidsOf(cat('『🀄 中文』')), ['📜・规则:0', '💬・闲聊:0']);
+  assert.deepEqual(kidsOf(cat('『ÉQUIPE』')), ['🛡️・modération:0', '💬・staff:0', '🐞・bug-triage:0', '🚨・alertes-serveur:0']);
   assert.equal(byName('💬・général').id, '503', '« général » du serveur neuf gardé (déplacé dans Français)'); assert.equal(byName('🔊 Table 1').id, '504', 'vocal « Général » repris');
   assert.ok(!byName('Salons textuels') && !byName('Salons vocaux'), 'catégories par défaut vides retirées');
   assert.equal(byName('🔮・carte-mystère').rate_limit_per_user, 10); assert.equal(byName('🔊 Table 2').user_limit, 5);
-  ok('catégories « ╔ … ╝ » dans l\'ordre, salons de chaque catégorie, « général » et vocal du serveur neuf repris, mode lent, tables de 5');
+  ok('catégories « 『…』 » dans l\'ordre, salons de chaque catégorie, « général » et vocal du serveur neuf repris, mode lent, tables de 5');
 
-  const de = cat('╔ 🇩🇪 DEUTSCH ╝'), rg = byName('📜・regeln');
+  const de = cat('『🇩🇪 DEUTSCH』'), rg = byName('📜・regeln');
   assert.ok(P(owOf(de, G).deny) & VIEW, 'langue : invisible sans le rôle'); assert.ok(P(owOf(de, role('Deutsch').id).allow) & VIEW && P(owOf(de, role('🌍 Toutes les langues').id).allow) & VIEW && P(owOf(de, role('Modo').id).allow) & VIEW);
   assert.equal(P(owOf(de, role('Français').id).allow), 0n, 'une langue ne voit pas les autres');
   assert.ok(P(owOf(rg, G).deny) & SEND && P(owOf(rg, G).deny) & VIEW, 'règles traduites : lecture seule'); assert.equal(P(owOf(rg, role('Deutsch').id).allow) & SEND, 0n);
-  const fr = cat('╔ 🇫🇷 FRANÇAIS ╝'); assert.ok(P(owOf(fr, role('Modo FR').id).allow) & (1n << 13n), 'Modo FR : gère les messages de la catégorie française'); assert.equal(P(owOf(de, role('Modo FR').id).allow), 0n);
+  const fr = cat('『🇫🇷 FRANÇAIS』'); assert.ok(P(owOf(fr, role('Modo FR').id).allow) & (1n << 13n), 'Modo FR : gère les messages de la catégorie française'); assert.equal(P(owOf(de, role('Modo FR').id).allow), 0n);
   assert.ok(P(owOf(byName('📢・annonces'), G).deny) & SEND && P(owOf(byName('📢・annonces'), role('Modo').id).allow) & SEND, 'annonces : lecture seule sauf équipe');
   assert.ok(P(owOf(byName('❓・faq'), G).deny) & SEND, 'faq : fils ouverts par l\'équipe seulement');
-  assert.ok(P(owOf(cat('╔ BÊTA ╝'), G).deny) & VIEW && P(owOf(cat('╔ BÊTA ╝'), role('Testeur').id).allow) & VIEW, 'bêta : Testeur'); assert.ok(P(owOf(byName('📦・builds-android'), G).deny) & SEND);
-  assert.ok(P(owOf(cat('╔ ÉQUIPE ╝'), G).deny) & VIEW && P(owOf(cat('╔ ÉQUIPE ╝'), role('Support').id).allow) & VIEW, 'équipe : Modo et Support');
-  assert.deepEqual(cat('╔ COMMUNAUTÉ ╝').permission_overwrites, [], 'communauté : ouverte à tous');
+  assert.ok(P(owOf(cat('『BÊTA』'), G).deny) & VIEW && P(owOf(cat('『BÊTA』'), role('Testeur').id).allow) & VIEW, 'bêta : Testeur'); assert.ok(P(owOf(byName('📦・builds-android'), G).deny) & SEND);
+  assert.ok(P(owOf(cat('『ÉQUIPE』'), G).deny) & VIEW && P(owOf(cat('『ÉQUIPE』'), role('Support').id).allow) & VIEW, 'équipe : Modo et Support');
+  assert.deepEqual(cat('『COMMUNAUTÉ』').permission_overwrites, [], 'communauté : ouverte à tous');
   ok('permissions : langue visible avec son rôle (ou « toutes »), règles traduites en lecture seule, Modo FR sur le français seulement, annonces / faq / bêta / équipe');
 
   const bugs = byName('🐞・bugs');
@@ -227,7 +227,7 @@ assert.equal(r1.code, 0, r1.out); assert.ok(!r1.out.includes(TOKEN), 'jeton jama
   const t = (id, name) => ({ id, name, emoji_name: '', moderated: false });
   S.channels.push(
     { id: '601', name: 'Bienvenue', type: 4, position: 0, permission_overwrites: RO }, { id: '602', name: 'Appli', type: 4, position: 1, permission_overwrites: [] },
-    { id: '603', name: 'Communauté', type: 4, position: 2, permission_overwrites: [] }, { id: '604', name: 'Équipe', type: 4, position: 3, permission_overwrites: [] },
+    { id: '603', name: 'Communauté', type: 4, position: 2, permission_overwrites: [] }, { id: '604', name: '╔ ÉQUIPE ╝', type: 4, position: 3, permission_overwrites: [] },
     { id: '605', name: 'Tickets', type: 4, position: 4, permission_overwrites: [] }, { id: '606', name: 'ouvrir-un-ticket', type: 0, parent_id: '605', position: 0 },
     { id: '610', name: 'bienvenue', type: 0, parent_id: '601', position: 0 }, { id: '611', name: 'règles', type: 0, parent_id: '601', position: 1 }, { id: '612', name: 'annonces', type: 5, parent_id: '601', position: 2 },
     { id: '620', name: 'aide', type: 15, parent_id: '602', position: 0, flags: 0, available_tags: [t('801', 'Scan')] },
@@ -240,10 +240,10 @@ assert.equal(r1.code, 0, r1.out); assert.ok(!r1.out.includes(TOKEN), 'jeton jama
   S.automod.push({ id: '950', name: 'Spam', trigger_type: 3, actions: [{ type: 1 }], exempt_roles: ['700'], enabled: true });
   const r3 = await run({ DISCORD_TOKEN: TOKEN }); assert.equal(r3.code, 0, r3.out);
   assert.equal(role('Modo').id, '700', 'Équipe renommé Modo'); assert.equal(role('Testeur').id, '701'); assert.ok(!role('Équipe'));
-  const got = { '601': '╔ BIENVENUE ╝', '602': '╔ SUPPORT ╝', '603': '╔ COMMUNAUTÉ ╝', '604': '╔ ÉQUIPE ╝', '610': '👋・bienvenue', '611': '📜・règles', '612': '📢・annonces', '620': '🆘・aide', '621': '🐞・bugs', '622': '💡・idées',
+  const got = { '601': '『BIENVENUE』', '602': '『SUPPORT』', '603': '『COMMUNAUTÉ』', '604': '『ÉQUIPE』', '610': '👋・bienvenue', '611': '📜・règles', '612': '📢・annonces', '620': '🆘・aide', '621': '🐞・bugs', '622': '💡・idées',
     '630': '💬・général', '631': '📦・ouvertures', '632': '🃏・decks', '633': '🔁・échanges', '634': '💬・general', '635': '🔊 Table 1', '640': '🛡️・modération' };
   for (const [cid, name] of Object.entries(got)) assert.equal(S.channels.find(c => c.id === cid).name, name, cid);
-  assert.equal(byName('💬・général').parent_id, byName('╔ 🇫🇷 FRANÇAIS ╝').id); assert.equal(byName('💬・general').parent_id, byName('╔ 🇬🇧 ENGLISH ╝').id); assert.equal(byName('🔊 Table 1').parent_id, byName('╔ JOUER ╝').id);
+  assert.equal(byName('💬・général').parent_id, byName('『🇫🇷 FRANÇAIS』').id); assert.equal(byName('💬・general').parent_id, byName('『🇬🇧 ENGLISH』').id); assert.equal(byName('🔊 Table 1').parent_id, byName('『JOUER』').id);
   assert.equal(byName('💬・général').rate_limit_per_user, 0);
   assert.equal(S.channels.filter(c => c.name === '📜・règles').length, 1, 'pas de doublon');
   const bt = byName('🐞・bugs').available_tags; assert.equal(bt.length, 19); assert.equal(bt.find(x => x.name === 'Corrigé').id, '816', 'étiquettes gardées (mêmes identifiants)'); assert.ok(bt.find(x => x.name === 'Corrigé').moderated);

@@ -1,4 +1,4 @@
-// Serveur Discord de Mana Orbit, complet : réglages et mode communauté, rôles (équipe, langues, formats, notifications) rangés dans l'ordre, catégories « ╔ … ╝ »
+// Serveur Discord de Mana Orbit, complet : réglages et mode communauté, rôles (équipe, langues, formats, notifications) rangés dans l'ordre, catégories « 『…』 »
 // et salons avec leurs permissions (une catégorie par langue, visible avec le rôle de la langue), forums et leurs étiquettes, accueil (questions d'arrivée :
 // langues, formats, notifications ; salons par défaut), écran des règles, AutoMod, messages (accueil, règles traduites dans chaque langue), webhooks GitHub,
 // lien d'invitation permanent. Lancé sur le PC du propriétaire avec le jeton d'un bot à lui (docs/store/sortie.md § 2). Relancé, il ne crée rien en double :
@@ -25,7 +25,7 @@ const TEAM_PERMS = B(1) | B(2) | B(7) | MANAGE_MSG | MENTION_ALL | B(22) | B(24)
 const SUPPORT_PERMS = MANAGE_MSG | MANAGE_THREADS;      // trier les forums (étiquettes, fils fermés), retirer un message
 const WRITE = SEND | THREADS_PUB | SEND_THREADS, RO_DENY = SEND | THREADS_PUB | THREADS_PRIV | SEND_THREADS, LANG_MOD = VIEW | WRITE | MANAGE_MSG | MANAGE_THREADS;
 const TX = 0, VOICE = 2, CAT = 4, NEWS = 5, FORUM = 15, REQUIRE_TAG = 16;
-const box = t => `╔ ${t} ╝`;
+const box = t => `『${t}』`, OLD_BOX = t => `╔ ${t} ╝`;      // ancien style des catégories : repris et renommé
 
 let writes = 0;
 async function api(method, path, body) {
@@ -375,7 +375,7 @@ async function main() {
     console.log(`✓ ${type === CAT ? 'catégorie' : 'salon'} ${d.name} (${ex.name !== d.name || p.name ? 'repris, ' : ''}mis à jour : ${Object.keys(p).join(', ')})`); return ex;
   };
   const cats = [];
-  for (const [i, c] of PLAN.entries()) cats.push(await chan({ ...c, type: CAT }, null, i));
+  for (const [i, c] of PLAN.entries()) cats.push(await chan({ ...c, type: CAT, was: [...(c.was || []), OLD_BOX(c.name.slice(1, -1))] }, null, i));
   const put = async (ci, k) => { const c = PLAN[ci], i = c.chans.findIndex(x => x.k === k), d = c.chans[i]; const r = await chan({ ...d, ow: d.ro ? RO(c.ow) : c.ow }, cats[ci].id, i); id[k] = d.id = r.id; return r; };
   await put(0, 'règles'); await put(PLAN.length - 1, 'modération');
 
