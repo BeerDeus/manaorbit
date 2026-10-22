@@ -170,7 +170,15 @@ export async function newPage(browser, world, opts = {}) {
   await p.route('https://cards.scryfall.io/**', route => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: SVG }));
   await routeFonts(p);
   if (!opts.pop) await p.addInitScript(() => { window.MO_NOPOP = true; });      // bannières de badge : elles couvrent le haut de l'écran 4,5 s (progress-e2e les teste)
-  if (!opts.scdAsk) await p.addInitScript(() => { try { localStorage.setItem('deckdeal:scdquiet', '1'); } catch (e) { /* stockage refusé */ } });      // « Ajouter » du scan sans rangement : « Ne plus me demander » déjà répondu (scansess-e2e teste la question)
+  // Scan gardé sur l'appareil (scansess.js), testé par scansess-e2e ({ scanSess: true }) ; ailleurs, comme avant lui : chaque ouverture du scan repart à vide
+  // (session effacée, scan déjà ouvert fermé sans reprise) et « Ajouter » sans rangement ne demande rien (« Ne plus me demander » déjà répondu).
+  if (!opts.scanSess) await p.addInitScript(() => {
+    try { localStorage.setItem('deckdeal:scdquiet', '1'); } catch (e) { /* stockage refusé */ }
+    addEventListener('DOMContentLoaded', () => {
+      const o0 = window.openScan; if (typeof o0 !== 'function') return;
+      window.openScan = o => { if (SC.el) SC.el.__close('done'); try { Object.keys(localStorage).filter(k => k.startsWith('deckdeal:scansess:')).forEach(k => localStorage.removeItem(k)); } catch (e) { /* ignore */ } return o0(o); };
+    });
+  });
   if (opts.init) await p.addInitScript(opts.init);
   if (opts.goto !== false) { await p.goto(world.url + (opts.path || '')); await p.waitForTimeout(700); await p.evaluate(() => { BACKOFF.scry = [60, 60, 60]; BACKOFF.cool429 = 100; }); }
   return { ctx, p, errs };

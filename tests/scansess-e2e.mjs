@@ -10,7 +10,7 @@ import { chromium, startWorld, newPage, txt, ok, toHome, rcGo } from './e2e-worl
 const world = await startWorld({ port: 19520 });
 Object.assign(world.psets, { 'Sol Ring': ['cmm', 'blb'], 'Arcane Signet': ['cmm'], 'Llanowar Elves': ['dsk'] });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
-const { p, errs } = await newPage(browser, world, { scdAsk: true });
+const { p, errs } = await newPage(browser, world, { scanSess: true });
 const KEY = 'deckdeal:scansess:coll';
 const add = (name, l = 'en') => p.evaluate(([name, l]) => scanAdd({ key: ownKey(name), name, score: 0.99, raw: name, card: l }, 1, false), [name, l]);
 const settle = () => p.waitForFunction(() => SC.items.size && ![...SC.items.values()].some(x => x.es === 'load'), null, { timeout: 8000 });
