@@ -54,7 +54,10 @@ const srv = http.createServer((q, r) => {
     if ((x = /^\/guilds\/\d+\/members\/(\d+)\/roles\/(\d+)$/.exec(p)) && m === 'PUT') { if (!S.memberRoles.includes(x[1] + ':' + x[2])) S.memberRoles.push(x[1] + ':' + x[2]); return send(204); }
     if (p === `/guilds/${G}/channels`) {
       if (m === 'GET') return send(200, S.channels);
-      if (m === 'PATCH') { for (const o of body) Object.assign(S.channels.find(c => c.id === o.id), o); return send(204); }
+      if (m === 'PATCH') {      // comme Discord : un seul changement de catégorie par appel
+        if (body.filter(o => 'parent_id' in o).length > 1) return send(400, { message: 'Only one channel can have a parent_id modified at a time' });
+        for (const o of body) Object.assign(S.channels.find(c => c.id === o.id), o); return send(204);
+      }
       if ((body.type === 5 || body.type === 15) && !S.guild.features.includes('COMMUNITY')) return send(400, { message: 'Community required' });
       x = { id: nid(), flags: 0, ...body }; if (x.available_tags) x.available_tags = x.available_tags.map(t => ({ id: nid(), ...t })); S.channels.push(x); return send(200, x);
     }

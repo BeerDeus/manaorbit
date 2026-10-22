@@ -398,11 +398,11 @@ async function main() {
   // Ordre des catégories et des salons : seulement s'il a changé (les salons d'autres bots gardent leur place)
   // (vocaux rangés à part des salons écrits, comme Discord les affiche ; objets de l'essai laissés de côté)
   const pos = c => (chans.find(x => x.id === c) || {}).position ?? 0, sorted = ids => ids.slice().sort((a, b) => pos(a) - pos(b) || bySnow(a, b)), real = x => x && !String(x).startsWith('essai');
-  const kids = (ci, voice) => ({ ids: PLAN[ci].chans.filter(d => real(d.id) && ((d.type === VOICE) === voice)).map(d => d.id), parent: cats[ci].id });
+  const kids = (ci, voice) => ({ ids: PLAN[ci].chans.filter(d => real(d.id) && ((d.type === VOICE) === voice)).map(d => d.id) });      // catégorie déjà posée salon par salon (Discord : un seul changement de catégorie par appel groupé)
   const wantOrder = [{ ids: cats.map(c => c.id).filter(real) }, ...PLAN.flatMap((c, ci) => real(cats[ci].id) ? [kids(ci, false), kids(ci, true)] : [])];
   if (wantOrder.some(g => sorted(g.ids).join() !== g.ids.join())) {
-    await api('PATCH', `/guilds/${gid}/channels`, wantOrder.flatMap(g => g.ids.map((cid, i) => ({ id: cid, position: i, ...(g.parent ? { parent_id: g.parent } : {}) }))));
-    console.log('✓ catégories et salons rangés');
+    try { await api('PATCH', `/guilds/${gid}/channels`, wantOrder.flatMap(g => g.ids.map((cid, i) => ({ id: cid, position: i })))); console.log('✓ catégories et salons rangés'); }
+    catch (e) { todo.push(`Ranger les catégories et salons (glisser-déposer), ou relancer le script (${e.message})`); }
   }
   for (const c of chans.filter(c => c.type === CAT && !claimed.has(c.id) && /^(salons (textuels|vocaux)|text channels|voice channels)$/i.test(c.name))) {      // catégories du serveur neuf, vidées
     if (!chans.some(x => x.parent_id === c.id)) { await api('DELETE', `/channels/${c.id}`); console.log(`✓ catégorie vide « ${c.name} » retirée`); }
