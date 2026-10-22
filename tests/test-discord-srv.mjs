@@ -10,8 +10,10 @@ import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { startFakes } from './amis-fakes.mjs';
 import { discordMake, dscRevealMsg, dscName, DSC_PERMS } from '../discord-srv.mjs';
 
@@ -60,6 +62,8 @@ function world() {
 // Faux Discord : calls (méthode et chemin), posts (corps JSON ou multipart lus), down (réponses 503 restantes), limit (429 restants), auth (en-têtes reçus) ;
 // th (fils des forums et d'un salon écrit), msgs (messages de chaque fil, du plus ancien au plus récent), arcQ (requêtes des fils fermés), inflight / maxPar (lectures simultanées du premier message)
 const D = { ...world(), calls: [], posts: [], down: 0, limit: 0, auth: new Set(), ua: new Set(), n: 5000, deleted: [], th: new Map(), msgs: new Map(), arcQ: [], inflight: 0, maxPar: 0 };
+// OAuth2 de l'utilisateur (liaison) : codes donnés par la page d'autorisation (code → utilisateur), jetons d'accès, révoqués, redirect_uri reçues, membres du serveur
+const OA = { cid: '950000000000000001', secret: 'secret-oauth-SECRET-abcdef', codes: new Map(), tokens: new Map(), revoked: [], redirs: [], reqs: [], members: new Set(), down: 0 };
 const EPOCH = 1420070400000, snow = (ms, n = 0) => String((BigInt(Math.floor(ms) - EPOCH) << 22n) + BigInt(n)), nid = () => snow(Date.now(), ++D.n & 4095);
 const U = { jeanne: { id: '940000000000000001', username: 'jeanne_42', global_name: 'Jeanne', bot: false }, paul: { id: '940000000000000002', username: 'paul.m', global_name: null }, bot: { id: BOT, username: 'Mana Orbit', bot: true } };
 const T0 = Date.now() - 20 * 86400e3, DAY = 86400e3, iso = ms => new Date(ms).toISOString();
@@ -85,6 +89,19 @@ const srv = http.createServer((q, r) => {
   const c = []; q.on('data', d => c.push(d)); q.on('end', async () => {
     const raw = Buffer.concat(c), send = (code, o) => { r.writeHead(code, { 'content-type': 'application/json' }); r.end(o === undefined ? '' : JSON.stringify(o)); };
     const p = new URL(q.url, 'http://x').pathname.replace(/^\/api\/v10/, ''), m = q.method; let x;
+    if (p.startsWith('/oauth2/') || /^Bearer /.test(q.headers.authorization || '')) {      // OAuth2 de l'utilisateur (liaison du compte) : à part, jamais avec le jeton du bot
+      const f = new URLSearchParams(raw.toString()); OA.reqs.push({ m, p, auth: q.headers.authorization || '', body: raw.toString(), ua: q.headers['user-agent'] || '', ct: q.headers['content-type'] || '' });
+      if (OA.down > 0) { OA.down--; return send(503, { message: 'upstream connect error' }); }
+      if (m === 'POST' && p === '/oauth2/token') {
+        if (f.get('client_id') !== OA.cid || f.get('client_secret') !== OA.secret) return send(401, { error: 'invalid_client' });
+        const u = OA.codes.get(f.get('code')); if (!u || f.get('grant_type') !== 'authorization_code') return send(400, { error: 'invalid_grant', error_description: 'Invalid "code" in request.' });
+        OA.codes.delete(f.get('code')); OA.redirs.push(f.get('redirect_uri'));
+        const at = 'acc-tok-' + nid(); OA.tokens.set(at, u); return send(200, { access_token: at, token_type: 'Bearer', expires_in: 604800, refresh_token: 'ref-tok-' + nid(), scope: 'identify' });
+      }
+      if (m === 'POST' && p === '/oauth2/token/revoke') { OA.revoked.push(f.get('token')); OA.tokens.delete(f.get('token')); return send(200, {}); }
+      if (m === 'GET' && p === '/users/@me') { const u = OA.tokens.get((q.headers.authorization || '').slice(7)); return u ? send(200, { ...u, avatar: null, discriminator: '0' }) : send(401, { message: '401: Unauthorized', code: 0 }); }
+      return send(404, { message: 'Unknown OAuth route ' + m + ' ' + p });
+    }
     D.calls.push(m + ' ' + p); D.auth.add(q.headers.authorization || ''); D.ua.add(q.headers['user-agent'] || '');
     if (q.headers.authorization !== 'Bot ' + TOKEN) return send(401, { message: '401: Unauthorized', code: 0 });
     if (D.down > 0) { D.down--; return send(503, { message: 'upstream connect error' }); }
@@ -95,6 +112,7 @@ const srv = http.createServer((q, r) => {
     if (m === 'GET' && p === `/guilds/${G}/channels`) return send(200, D.channels);
     if (m === 'GET' && p === `/guilds/${G}/roles`) return send(200, D.roles);
     if (m === 'GET' && p === `/guilds/${G}/members/${BOT}`) return send(200, { user: { id: BOT }, roles: [R.bot] });
+    if (m === 'GET' && (x = new RegExp(`^/guilds/${G}/members/(\\d+)$`).exec(p))) return OA.members.has(x[1]) ? send(200, { user: { id: x[1] }, roles: [] }) : send(404, { message: 'Unknown Member', code: 10007 });
     let body = null, files = [];
     if (/^multipart\/form-data/.test(q.headers['content-type'] || '')) {
       const fd = await new Response(raw, { headers: { 'content-type': q.headers['content-type'] } }).formData();
@@ -506,6 +524,151 @@ let P = await start(ENV, 19802); BASE = P.url;
   await assert.rejects(discordMake({ token: '', api: DAPI }).reveal(info), /non configuré/);
   assert.equal(dscName('🔮・Carte-Mystere'), 'carte-mystere'); assert.equal(dscName('🔮・carte-mystère'), 'carte-mystere'); assert.equal(DSC_PERMS, 183296n);
   ok('Carte mystère de la veille : #carte-mystère, FR + EN (trouvée par X joueurs sur Y, pluriels), embed (nom, image, page Scryfall), lien vers le jeu, aucun ping ; salon disparu : erreur puis liste relue');
+}
+/* ── 6) Liaison du compte Discord (OAuth2) : vrai proxy.mjs ──────────────────────────────────────────────────────────────────── */
+const seen = [];      // toutes les réponses de la liaison (corps et en-têtes) : ni secret, ni UID, ni jeton, ni id Discord
+const lc = async (method, path, o) => { const r = await call(method, path, o); seen.push(r.t + ' ' + JSON.stringify([...r.h])); return r; };
+const back = (code, state, lang = 'fr-FR,fr;q=0.9,en;q=0.8', ip) => lc('GET', '/api/discord/callback?' + new URLSearchParams({ ...(code ? { code } : {}), ...(state != null ? { state } : {}) }), { hd: { 'accept-language': lang }, ...(ip ? { ip } : {}) });
+const linkUrl = async tok => { const r = await lc('POST', '/api/discord/link', { tok, body: {} }); assert.equal(r.s, 200, r.t); return new URL(r.o.url); };
+const LINKS = () => { const f = join(process.env.ADMIN_DIR, 'discord-links.json'); return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')).links : {}; };
+const LENV = { ...ENV, DISCORD_CLIENT_ID: OA.cid, DISCORD_CLIENT_SECRET: OA.secret }, P0 = procs.length;
+{
+  P = await start(ENV, 19802); BASE = P.url;      // bot sans identifiant ni secret de l'application : liaison coupée
+  assert.equal((await call('GET', '/__ping')).o.discordLink, false, '/__ping discordLink: false');
+  for (const [m, pth] of [['POST', '/api/discord/link'], ['GET', '/api/discord/me'], ['GET', '/api/discord/callback?code=x&state=y'], ['POST', '/api/discord/unlink']]) assert.equal((await call(m, pth, { tok: JEANNE(), body: m === 'POST' ? {} : undefined })).s, 404, pth);
+  await stop(P);
+  P = await start({ DISCORD_CLIENT_ID: OA.cid, DISCORD_CLIENT_SECRET: OA.secret, DISCORD_API: DAPI }, 19802); BASE = P.url;      // application sans bot : coupée aussi (l'adhésion se vérifie avec le bot)
+  assert.equal((await call('GET', '/__ping')).o.discordLink, false); assert.equal((await call('POST', '/api/discord/link', { tok: JEANNE(), body: {} })).s, 404);
+  assert.match(P.log(), /Liaison des comptes Discord coupée/); assert.ok(!P.log().includes(OA.secret));
+  await stop(P);
+  ok('liaison coupée sans DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET, ou sans le bot : /__ping discordLink false, /api/discord/* en 404 (avertissement sans le secret)');
+
+  P = await start(LENV, 19802); BASE = P.url;
+  assert.equal((await call('GET', '/__ping')).o.discordLink, true, '/__ping discordLink: true'); assert.match(P.log(), /liaison des comptes \(OAuth2\)/);
+  let r = await lc('POST', '/api/discord/link', { body: {} }); assert.deepEqual([r.s, r.o.error], [401, 'auth_required']);
+  r = await lc('POST', '/api/discord/link', { body: {}, tok: 'abc.def.ghi' }); assert.deepEqual([r.s, r.o.error], [401, 'bad_token']);
+  r = await lc('POST', '/api/discord/link', { body: {}, tok: F.jwt('uid-jeanne-01', -60) }); assert.equal(r.o.error, 'token_expired');
+  assert.equal((await lc('GET', '/api/discord/link', { tok: JEANNE() })).s, 405);
+  assert.equal((await lc('POST', '/api/discord/link', { tok: JEANNE(), raw: '{}', hd: { 'Content-Type': 'text/plain' } })).s, 415);
+  assert.equal((await lc('GET', '/api/discord/me')).s, 401); assert.equal((await lc('POST', '/api/discord/me', { tok: JEANNE(), body: {} })).s, 405); assert.equal((await lc('GET', '/api/discord/autre', { tok: JEANNE() })).s, 404);
+  assert.deepEqual((await lc('GET', '/api/discord/me', { tok: JEANNE() })).o, { linked: false }, 'pas encore lié');
+
+  const au = await linkUrl(JEANNE()), qs = Object.fromEntries(au.searchParams);
+  assert.equal(au.origin + au.pathname, 'https://discord.com/oauth2/authorize');
+  assert.deepEqual([qs.response_type, qs.client_id, qs.scope, qs.prompt, qs.redirect_uri], ['code', OA.cid, 'identify', 'consent', BASE + '/api/discord/callback'], 'portée identify seulement, consentement demandé, retour sur l\'origine du serveur local');
+  assert.match(qs.state, /^[0-9a-f]{64}\.[0-9a-z]+\.[\w-]{16}\.[\w-]{32}$/, 'state : empreinte du compte, expiration, nonce, signature');
+  assert.ok(!au.href.includes('uid-jeanne') && !au.href.includes(OA.secret), 'ni UID ni secret dans l\'adresse');
+  const st1 = qs.state;
+  OA.codes.set('code-j1', U.jeanne);
+  r = await back('code-j1', st1);
+  assert.equal(r.s, 200, r.t); assert.match(r.h.get('content-type'), /^text\/html/); assert.equal(r.h.get('content-language'), 'fr');
+  assert.match(r.t, /<h1>Compte Discord lié<\/h1>/); assert.match(r.t, /Tu peux revenir dans l'appli\./); assert.match(r.t, /pas encore sur le serveur/);
+  assert.match(r.t, /href="https:\/\/discord\.gg\/TTwrP94agb"/, 'pas membre : lien d\'invitation'); assert.ok(r.t.includes(`href="${BASE}/"`), 'serveur local : retour sur son origine');
+  const csp = r.h.get('content-security-policy');
+  assert.match(csp, /^default-src 'none'; style-src 'sha256-[\w+/=]+'; img-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'$/, 'CSP stricte : ' + csp);
+  assert.doesNotMatch(r.t, /<script|\son\w+=/i, 'aucun script'); const css = /<style>([\s\S]*?)<\/style>/.exec(r.t)[1];
+  assert.ok(csp.includes(`'sha256-${createHash('sha256').update(css).digest('base64')}'`), 'style permis par son empreinte');
+  assert.deepEqual([r.h.get('cache-control'), r.h.get('referrer-policy'), r.h.get('x-frame-options')], ['no-store', 'no-referrer', 'DENY']); assert.match(r.h.get('x-robots-tag'), /noindex/);
+  assert.equal(OA.redirs.at(-1), BASE + '/api/discord/callback', 'même redirect_uri à l\'échange du code');
+  assert.equal(OA.tokens.size, 0, 'jeton d\'accès révoqué tout de suite'); assert.ok(OA.revoked.length === 1 && OA.revoked[0].startsWith('acc-tok-'));
+  const ex = OA.reqs.filter(x => x.p === '/oauth2/token');
+  assert.ok(ex.length === 1 && /^application\/x-www-form-urlencoded/.test(ex[0].ct) && ex[0].auth === '', 'échange : formulaire, sans le jeton du bot');
+  assert.ok(OA.reqs.filter(x => x.p === '/users/@me').every(x => /^Bearer acc-tok-/.test(x.auth)), '/users/@me avec le jeton de l\'utilisateur');
+  assert.ok(OA.reqs.every(x => x.p !== '/users/@me' ? true : !x.body.includes(OA.secret)) && OA.reqs.filter(x => x.body.includes(OA.secret)).every(x => x.p.startsWith('/oauth2/token')), 'secret envoyé seulement à /oauth2/token');
+  assert.ok(D.calls.includes(`GET /guilds/${G}/members/${U.jeanne.id}`), 'adhésion vérifiée par le bot');
+  let L = LINKS(), keys = Object.keys(L);
+  assert.equal(keys.length, 1); assert.match(keys[0], /^[0-9a-f]{64}$/, 'gardé sous l\'empreinte du compte');
+  assert.deepEqual({ ...L[keys[0]], at: 0 }, { id: U.jeanne.id, name: 'Jeanne', member: false, at: 0 }); assert.ok(L[keys[0]].at > 0);
+  assert.ok(!existsSync(join(process.env.ADMIN_DIR, 'discord-links.json.tmp')), 'écriture atomique');
+  r = await lc('GET', '/api/discord/me', { tok: JEANNE() }); assert.deepEqual(r.o, { linked: true, name: 'Jeanne', member: false }, 'pseudo seulement, jamais l\'id Discord');
+  ok('liaison : POST /api/discord/link (compte exigé : 401, jeton faux, expiré, 405, 415) → adresse d\'autorisation (identify, consent, state signé, redirect_uri) ; retour : code échangé (formulaire, secret), /users/@me (Bearer), jeton révoqué, adhésion par le bot, gardé sous l\'empreinte (atomique) ; page HTML en français, CSP stricte sans script ; /me : pseudo et adhésion');
+
+  OA.codes.set('code-j2', U.paul);
+  r = await back('code-j2', st1, 'en-US,en;q=0.9'); assert.equal(r.s, 400, 'state rejoué'); assert.match(r.t, /<h1>Link expired<\/h1>/); assert.equal(r.h.get('content-language'), 'en'); assert.ok(OA.codes.has('code-j2'), 'code jamais échangé');
+  const [h, ex1, n1, s1] = st1.split('.'), flip = c => (c === 'A' ? 'B' : 'A');
+  const forged = [[h, ex1, n1, flip(s1[0]) + s1.slice(1)], [createHash('sha256').update('uid-paul').digest('hex'), ex1, n1, s1], [h, (parseInt(ex1, 36) + 3600e3).toString(36), n1, s1], [h, ex1, flip(n1[0]) + n1.slice(1), s1]].map(x => x.join('.'));
+  for (const s of [...forged, '', 'abc', st1 + '.x', 'a'.repeat(5000)]) { r = await back('code-j2', s); assert.equal(r.s, 400, 'state falsifié : ' + s.slice(0, 40)); assert.match(r.t, /Lien expiré/); }
+  r = await back('code-j2', null); assert.equal(r.s, 400, 'sans state');
+  assert.ok(OA.codes.has('code-j2') && OA.reqs.filter(x => x.p === '/oauth2/token').length === 1, 'state falsifié : rien demandé à Discord');
+  assert.deepEqual(Object.keys(LINKS()), keys, 'rien de gardé');
+  ok('state rejoué, falsifié (signature, autre compte, expiration ou nonce changés, tronqué, vide, absent) → 400 « Lien expiré » (anglais selon Accept-Language), code jamais échangé, rien de gardé');
+
+  const st2 = (await linkUrl(JEANNE())).searchParams.get('state');
+  r = await lc('GET', '/api/discord/callback?' + new URLSearchParams({ error: 'access_denied', error_description: 'The resource owner or authorization server denied the request', state: st2 }), { hd: { 'accept-language': 'fr' } });
+  assert.equal(r.s, 200); assert.match(r.t, /<h1>Liaison annulée<\/h1>/); assert.match(r.t, /rien n'a été gardé/); assert.doesNotMatch(r.t, /discord\.gg/);
+  r = await back('code-j2', st2); assert.equal(r.s, 400, 'state d\'un refus : consommé');
+  const st3 = (await linkUrl(JEANNE())).searchParams.get('state');
+  r = await back('code-inconnu', st3); assert.equal(r.s, 400); assert.match(r.t, /Liaison impossible/, 'code refusé par Discord');
+  const st4 = (await linkUrl(JEANNE())).searchParams.get('state'); OA.down = 2;
+  r = await back('code-j2', st4); assert.equal(r.s, 502); assert.match(r.t, /Discord injoignable/); OA.down = 0;
+  assert.deepEqual(LINKS()[keys[0]].id, U.jeanne.id, 'refus, code refusé, panne : liaison d\'avant intacte');
+  ok('refus de l\'utilisateur (error=access_denied) : page « Liaison annulée », rien de gardé, state consommé ; code refusé (400) ; Discord en panne (502)');
+
+  OA.members.add(U.jeanne.id); const nm = () => D.calls.filter(c => c === `GET /guilds/${G}/members/${U.jeanne.id}`).length, m0 = nm();
+  r = await lc('GET', '/api/discord/me', { tok: JEANNE() }); assert.equal(r.o.member, false, 'pas membre il y a moins de 10 min : pas revérifié'); assert.equal(nm(), m0);
+  const PAUL = () => F.jwt('uid-paul-02', 3600); OA.members.add(U.paul.id); OA.codes.set('code-p1', U.paul);
+  r = await back('code-p1', (await linkUrl(PAUL())).searchParams.get('state'));
+  assert.equal(r.s, 200); assert.match(r.t, /Tu es bien sur le serveur Mana Orbit/); assert.doesNotMatch(r.t, /discord\.gg/, 'membre : pas d\'invitation');
+  r = await lc('GET', '/api/discord/me', { tok: PAUL() }); assert.deepEqual(r.o, { linked: true, name: 'paul.m', member: true }, 'sans global_name : username');
+  r = await lc('POST', '/api/discord/unlink', { tok: JEANNE(), body: {} }); assert.deepEqual([r.s, r.o], [200, { ok: true }]);
+  assert.deepEqual((await lc('GET', '/api/discord/me', { tok: JEANNE() })).o, { linked: false }, 'délié : oublié');
+  assert.deepEqual(Object.values(LINKS()).map(x => x.id), [U.paul.id], 'effacé du disque');
+  assert.deepEqual((await lc('POST', '/api/discord/unlink', { tok: JEANNE(), body: {} })).o, { ok: true }, 'délier deux fois : ok');
+  assert.equal((await lc('POST', '/api/discord/unlink', { body: {} })).s, 401);
+  await stop(P); P = await start(LENV, 19802); BASE = P.url;
+  assert.deepEqual((await lc('GET', '/api/discord/me', { tok: PAUL() })).o, { linked: true, name: 'paul.m', member: true }, 'relu après un redémarrage');
+  ok('membre : page sans invitation, /me member true ; pas membre : revérifié au plus toutes les 10 min ; délier : oublié (disque compris), sans compte 401 ; liaisons relues au redémarrage');
+
+  const net = '198.51.100.200'; let rr;
+  for (let i = 0; i < 21; i++) rr = await lc('POST', '/api/discord/link', { tok: PAUL(), body: {}, ip: net });
+  assert.equal(rr.s, 429, 'link : 20 par heure et par réseau');
+  const net2 = '198.51.100.201';
+  for (let i = 0; i < 31; i++) rr = await back('x', 'y', 'fr', net2);
+  assert.equal(rr.s, 429, 'callback : 30 par heure et par réseau'); assert.match(rr.t, /Trop d'essais/);
+  const all = seen.join('\n') + procs.slice(P0).map(p => p.log()).join('');
+  for (const x of [OA.secret, 'uid-jeanne', 'uid-paul', U.jeanne.id, U.paul.id, 'acc-tok-', 'ref-tok-', TOKEN]) assert.ok(!all.includes(x), 'ni secret, ni UID, ni id Discord, ni jeton dans les réponses et le journal : ' + x);
+  assert.ok(OA.reqs.every(x => x.ua.startsWith('DiscordBot (')), 'User-Agent DiscordBot');
+  await stop(P);
+  P = await start({ ...LENV, DISCORD_REDIRECT_URI: 'https://manaorbit.app/api/discord/callback' }, 19802); BASE = P.url;
+  const au2 = await linkUrl(PAUL()); assert.equal(au2.searchParams.get('redirect_uri'), 'https://manaorbit.app/api/discord/callback', 'DISCORD_REDIRECT_URI');
+  OA.codes.set('code-p2', U.paul); r = await back('code-p2', au2.searchParams.get('state'));
+  assert.equal(r.s, 200); assert.ok(r.t.includes('href="https://manaorbit.app/"'), 'lien « Revenir dans l\'appli » : https://manaorbit.app/'); assert.equal(OA.redirs.at(-1), 'https://manaorbit.app/api/discord/callback');
+  await stop(P);
+  ok('budgets (link 20/h, callback 30/h par réseau) ; secret, UID, id Discord et jetons jamais dans une réponse ni le journal ; DISCORD_REDIRECT_URI → retour et lien https://manaorbit.app/');
+}
+
+/* ── 7) Liaison : expiration du state et revérifications (discord-srv.mjs seul, horloge injectée) ────────────────────────────────── */
+{
+  let t = Date.now(); const logs = [], dir = mkdtempSync(join(tmpdir(), 'dsclink-'));
+  const jsonR = (res, s, o, h = {}) => { res.writeHead(s, { 'content-type': 'application/json', ...h }); res.end(JSON.stringify(o)); };
+  const readB = req => new Promise(r => { const c = []; req.on('data', d => c.push(d)); req.on('end', () => r(Buffer.concat(c))); });
+  const bot = discordMake({ token: TOKEN, api: DAPI, guild: G, clientId: OA.cid, clientSecret: OA.secret, now: () => t, dir, json: jsonR, readBody: readB, verify: async tok => ({ uid: tok }),
+    amTag: uid => createHash('sha256').update(uid).digest('hex'), log: { log: m => logs.push(m), warn: m => logs.push(m) }, sleep: () => Promise.resolve(), redirect: 'https://manaorbit.app/api/discord/callback' });
+  const s2 = http.createServer((req, res) => { const u = new URL(req.url, 'http://x'); bot.link(req, res, u.pathname.replace(/^\/api\/discord\//, ''), u); });
+  await new Promise(r => s2.listen(0, '127.0.0.1', r)); const B2 = `http://127.0.0.1:${s2.address().port}`;
+  const go = async (m, p, tok) => { const r = await fetch(B2 + p, { method: m, headers: { ...(tok ? { 'x-firebase-token': tok } : {}), ...(m === 'POST' ? { 'content-type': 'application/json' } : {}) }, body: m === 'POST' ? '{}' : undefined }); const tx = await r.text(); let o = null; try { o = JSON.parse(tx); } catch { /* page */ } return { s: r.status, o, t: tx }; };
+  const stOf = async tok => new URL((await go('POST', '/api/discord/link', tok)).o.url).searchParams.get('state');
+  const zoe = { id: '940000000000000009', username: 'zoe', global_name: 'Zoé ✨' }, nm = () => D.calls.filter(c => c === `GET /guilds/${G}/members/${zoe.id}`).length;
+  let st = await stOf('uid-zoe'); t += 10 * 60e3 + 1000; OA.codes.set('code-z0', zoe);
+  let r = await go('GET', '/api/discord/callback?code=code-z0&state=' + st); assert.equal(r.s, 400, 'state de plus de 10 min : expiré'); assert.match(r.t, /Link expired/);
+  st = await stOf('uid-zoe'); t += 9 * 60e3; r = await go('GET', '/api/discord/callback?code=code-z0&state=' + st); assert.equal(r.s, 200, '9 min : encore bon'); assert.match(r.t, /not on the Mana Orbit server yet/);
+  assert.deepEqual((await go('GET', '/api/discord/me', 'uid-zoe')).o, { linked: true, name: 'Zoé ✨', member: false });
+  OA.members.add(zoe.id); const c0 = nm();
+  t += 9 * 60e3; assert.equal((await go('GET', '/api/discord/me', 'uid-zoe')).o.member, false, '9 min : pas revérifié'); assert.equal(nm(), c0);
+  t += 2 * 60e3; assert.equal((await go('GET', '/api/discord/me', 'uid-zoe')).o.member, true, 'plus de 10 min : revérifié, a rejoint'); assert.equal(nm(), c0 + 1);
+  await Promise.all([1, 2, 3].map(() => go('GET', '/api/discord/me', 'uid-zoe'))); assert.equal(nm(), c0 + 1, 'membre : pas relu dans la journée');
+  OA.members.delete(zoe.id); t += 23 * 3600e3; assert.equal((await go('GET', '/api/discord/me', 'uid-zoe')).o.member, true, '23 h : gardé'); assert.equal(nm(), c0 + 1);
+  t += 2 * 3600e3; const all3 = await Promise.all([1, 2, 3].map(() => go('GET', '/api/discord/me', 'uid-zoe')));
+  assert.deepEqual(all3.map(x => x.o.member), [false, false, false], 'plus de 24 h : revérifié, parti'); assert.equal(nm(), c0 + 2, 'une seule lecture pour trois demandes');
+  OA.members.add(zoe.id); D.down = 99; t += 11 * 60e3;
+  r = await go('GET', '/api/discord/me', 'uid-zoe'); assert.deepEqual([r.s, r.o.member], [200, false], 'Discord en panne : statut gardé'); D.down = 0;
+  r = await go('GET', '/api/discord/me', 'uid-zoe'); assert.equal(r.o.member, false, 'panne : nouvel essai après 1 min seulement');
+  t += 61e3; r = await go('GET', '/api/discord/me', 'uid-zoe'); assert.equal(r.o.member, true, 'puis relu');
+  assert.ok(logs.some(m => /devenu membre/.test(m)) && logs.every(m => !m.includes(zoe.id) && !m.includes('uid-zoe') && !m.includes(OA.secret)), 'journal sans id ni UID ni secret');
+  assert.equal(discordMake({ token: TOKEN, api: DAPI, clientId: OA.cid, clientSecret: '' }).linkOn, false); assert.equal(discordMake({ token: '', api: DAPI, clientId: OA.cid, clientSecret: 'x' }).linkOn, false);
+  assert.equal(discordMake({ token: TOKEN, api: DAPI, clientId: 'pas-un-id', clientSecret: 'x' }).linkOn, false); assert.equal(discordMake({ token: TOKEN, off: true, api: DAPI, clientId: OA.cid, clientSecret: 'x' }).linkOn, false);
+  s2.close();
+  ok('state expiré après 10 min ; lié pas membre : revérifié après 10 min (a rejoint) ; membre : gardé 24 h, puis revérifié (parti), une lecture pour plusieurs demandes ; Discord en panne : statut gardé, nouvel essai après 1 min ; linkOn faux sans secret, sans bot, id invalide, DISCORD=0');
 }
 console.log('OK test-discord-srv');
 process.exit(0);

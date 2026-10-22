@@ -4,6 +4,7 @@
    · Carte « Échange » : doublons, cartes recherchées, lien en direct ; QR code et Partager (le lien est créé au besoin) ;
      « Pour toi » : tes amis qui ont le plus de cartes pour toi (friends.js, toujours à jour), puis les listes ouvertes récemment par un lien,
      avec ce qu'elles ont pour toi (relevé à la dernière ouverture, homeSeen).
+   · « Rejoins le Discord de Mana Orbit » (dsclink.js) juste au-dessus du bloc des parties (partie-ui.js), caché pour un compte lié et membre du serveur.
    · « Prochaines extensions » (sets.js, cachée tant qu'elle n'a rien à montrer) et « Comment ça marche ? » (aide, help.js) en bas.
    Mes decks, decks à monter et prix d'une liste sont dans la section Decks ; le scan (et son prix rapide) au milieu de la barre.
    Tout est repeint en différé (homeSoon) quand la collection, les decks, les prix ou la liste d'échange changent.
@@ -66,6 +67,7 @@ function homePaint() {
     $('#hmLive').hidden = !TR.share;
   } catch (e) { /* liste d'échange pas encore prête */ }
   homeForYou();
+  if (typeof dlPlace === 'function') dlPlace();                                           // bloc Discord toujours juste au-dessus du bloc des parties
   if (typeof setsSoon === 'function') setsSoon();                                        // prochaines extensions (sets.js)
   if (typeof rateTick === 'function') rateTick();                                        // demande de note : decks devenus complets (help.js)
   homeDeskPaint();
@@ -120,7 +122,7 @@ async function homeTradeAct(qr) {
 /* ── Ordinateur : tableau de bord ────────────────────────────────────────────────────────────────────────────────────────────────────────
    Salutation sur toute la largeur, puis trois colonnes créées ici (le téléphone garde son DOM tel quel) : orbe et chiffres, courbe de valeur · raccourcis, échange, partie,
    « Mana Orbit sur ton téléphone » · installation, prochaines extensions (8 au lieu de 4, la liste défile seule), aide. Défaites si la fenêtre redevient étroite (ordre d'origine rendu). */
-const HM_COLS = [['hm-c1', ['.hm-hero', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmPartie', '#hmStores']], ['hm-c3', ['#installWrap', '#buyBar', '#hmSets', '#btnHelp']]];
+const HM_COLS = [['hm-c1', ['.hm-hero', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmDiscord', '#hmPartie', '#hmStores']], ['hm-c3', ['#installWrap', '#buyBar', '#hmSets', '#btnHelp']]];
 const homeDeskOn = () => !!(typeof NAV_DESK !== 'undefined' && NAV_DESK && NAV_DESK.matches);
 function homeDesk() {
   const home = $('#viewHome'); if (!home) return;
@@ -189,6 +191,7 @@ function homeInit() {
     else if (a === 'price' || a === 'build') dkTabGo(a);
   });
   if (isNativeApp()) $('#hmStores').remove();      // l'appli Android n'annonce pas les stores
+  if (typeof dlHomeInit === 'function') dlHomeInit();      // « Rejoins le Discord » au-dessus du bloc des parties (dsclink.js)
   homeDesk();
   if (typeof NAV_DESK !== 'undefined' && NAV_DESK) NAV_DESK.addEventListener('change', homeDesk);
   if (typeof ResizeObserver === 'function') new ResizeObserver(() => { clearTimeout(HM.rz); HM.rz = setTimeout(homeDeskChart, 120); }).observe($('#hmDkChart'));
