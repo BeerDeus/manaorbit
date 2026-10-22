@@ -135,6 +135,7 @@ assert.equal(r1.code, 0, r1.out); assert.ok(!r1.out.includes(TOKEN), 'jeton jama
   assert.deepEqual(order.slice(9, 20), [...LANG_ROLES, '🌍 Toutes les langues']); assert.equal(order.at(-1), '@everyone');
   assert.equal(new Set(S.roles.map(x => x.position)).size, S.roles.length, 'positions toutes différentes');
   assert.equal(P(role('Admin').permissions), 8n); assert.equal(P(role('Modo').permissions) & 8n, 0n, 'Modo : jamais administrateur'); assert.ok(P(role('Modo').permissions) & (1n << 13n));
+  for (const b of [13n, 16n, 34n, 38n]) assert.ok(P(role('Support').permissions) & (1n << b), 'Support (rôle du bot) : gérer les messages et les fils, lire l\'historique, répondre dans les fils ' + b);
   assert.ok(role('🎲 LFG').mentionable && role('Commander').mentionable && !role('Français').mentionable && !role('📢 Annonces').mentionable);
   assert.ok(role('Admin').hoist && role('Testeur').hoist && !role('Français').hoist);
   assert.equal(P(S.roles.find(x => x.id === G).permissions) & MENTION, 0n, '@everyone : plus de @everyone / @here');

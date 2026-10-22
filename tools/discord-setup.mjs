@@ -22,7 +22,7 @@ const bySnow = (a, b) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0);   
 const B = n => 1n << BigInt(n);
 const ADMIN = B(3), VIEW = B(10), SEND = B(11), MANAGE_MSG = B(13), MENTION_ALL = B(17), MANAGE_THREADS = B(34), THREADS_PUB = B(35), THREADS_PRIV = B(36), SEND_THREADS = B(38);
 const TEAM_PERMS = B(1) | B(2) | B(7) | MANAGE_MSG | MENTION_ALL | B(22) | B(24) | B(27) | MANAGE_THREADS | B(40);      // expulser, bannir, journal, gérer les messages, @everyone, rendre muet, déplacer, pseudos, gérer les fils, exclure temporairement
-const SUPPORT_PERMS = MANAGE_MSG | MANAGE_THREADS;      // trier les forums (étiquettes, fils fermés), retirer un message
+const SUPPORT_PERMS = MANAGE_MSG | MANAGE_THREADS | B(16) | SEND_THREADS;      // trier les forums (étiquettes, fils fermés), retirer un message, lire l'historique et répondre dans les fils (le bot a ce rôle : modération des fils depuis /admin)
 const WRITE = SEND | THREADS_PUB | SEND_THREADS, RO_DENY = SEND | THREADS_PUB | THREADS_PRIV | SEND_THREADS, LANG_MOD = VIEW | WRITE | MANAGE_MSG | MANAGE_THREADS;
 const TX = 0, VOICE = 2, CAT = 4, NEWS = 5, FORUM = 15, REQUIRE_TAG = 16;
 const box = t => `『${t}』`, OLD_BOX = t => `╔ ${t} ╝`;      // ancien style des catégories : repris et renommé
