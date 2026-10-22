@@ -1,0 +1,5 @@
+{
+ "errors": [
+  "Only persisted queries are allowed in production. Plain text queries are disabled."
+ ]
+}
