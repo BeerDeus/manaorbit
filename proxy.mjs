@@ -1876,8 +1876,10 @@ async function trocApi(req, res, path, url) {
   }
 }
 
-/* ── Partie de Commander : /api/partie… (salle d'attente en mémoire, résultats dans l'historique de chaque compte) ─────────────────────────────
-   Le compteur ne tourne que sur le téléphone du créateur (src/partie.js, chargé aussi ici : mêmes règles de lecture des résultats). Le serveur sert à deux choses :
+/* ── Compteur de vie (parties de Commander, Standard ou libre) : /api/partie… (salle d'attente en mémoire, résultats dans l'historique de chaque compte) ──────
+   Le compteur ne tourne que sur le téléphone du créateur (src/partie.js, chargé aussi ici : mêmes règles de lecture des résultats). Format de jeu (jeu :
+   'commander', 'standard', 'libre') : validé à la création et dans opts, gardé dans la salle, renvoyé (vue, coup d'œil) ; salle sans jeu : Commander ; une appli
+   d'avant ne lit que format (les points de départ : 20 en Standard) et l'ignore. Le résultat porte jeu hors Commander (historique, statistiques). Le serveur sert à deux choses :
    · Salle d'attente, EN MÉMOIRE (comme l'échange en direct : un redémarrage la termine, rien n'est écrit) : le créateur (compte connecté) l'ouvre pour SA partie
      (POST /api/partie, id de la partie) : code de 6 caractères (mêmes symboles que l'échange en direct), montré en QR code (./?table=<code>). Chacun regarde
      la table sans compte (GET /api/partie/peek), puis la rejoint (POST /api/partie/join) sur une place libre (1 à 8) avec son deck (nom, commandant, image
@@ -1905,7 +1907,10 @@ const PT_KEEP = Number(process.env.PARTIE_KEEP_MS ?? 12 * 3600e3), PT_AWAY = Num
 const PT_NEW_H = Number(process.env.PARTIE_NEW_PER_H ?? 20), PT_BAD_H = Number(process.env.PARTIE_BAD_PER_H ?? 20), PT_GUEST_H = Number(process.env.PARTIE_GUEST_PER_H ?? 30), PT_RES_H = Number(process.env.PARTIE_RES_PER_H ?? 30);
 const PT_HIST_MAX = Math.max(1, Number(process.env.PARTIE_HIST_MAX) || 500), PT_HIST_B = 900 * 1024, PT_BODY = 32 * 1024, PT_SEATS = 8, PT_TTL = 10 * 60e3, PT_KICKS = 50;
 const PT_CACHE_B = (Number(process.env.PARTIE_CACHE_MB) || 16) * 1024 * 1024;      // historiques gardés en mémoire (les plus anciens partent d'abord)
-const PT_KEY_RE = /^[\w-]{24}$/, PT_ID_RE = /^[0-9a-z]{8,24}$/, PT_FMTS = [40, 30, 25, 20];
+const PT_KEY_RE = /^[\w-]{24}$/, PT_ID_RE = /^[0-9a-z]{8,24}$/;
+/** Format de jeu d'une salle (champ absent : salle d'avant, Commander) ; points de départ par défaut et permis pour ce format (src/partie.js : mêmes règles). */
+const ptJeu = r => (r && PT_CORE && PT_CORE.PRT_JEUX.includes(r.jeu) ? r.jeu : 'commander');
+const ptVieDef = jeu => PT_CORE.PRT_JEU[jeu].def;
 const PT = { s: new Map(), u: new Map(), hist: new Map(), hb: 0, t: null, k: null };
 // Notification « Partie enregistrée », dans la langue de l'appareil (h : pseudo du créateur, w : vainqueurs, me : ce compte a gagné).
 const PT_TXT = {
@@ -1975,14 +1980,14 @@ function ptWake() { if (!PT.t) { PT.t = setInterval(ptTick, PT_TICK); PT.t.unref
 /** La salle vue d'une place (le créateur voit aussi les jetons des places « compte », une fois la partie commencée). */
 function ptView(r, me) {
   const now = Date.now(), host = !!(me && me.h);
-  return { c: r.code, v: r.v, st: r.st, why: r.why, id: r.id, format: r.format, size: r.size, at: r.at, me: me ? me.pos : 0, host,
+  return { c: r.code, v: r.v, st: r.st, why: r.why, id: r.id, jeu: ptJeu(r), format: r.format, size: r.size, at: r.at, me: me ? me.pos : 0, host,
     places: r.seats.slice().sort((a, b) => a.pos - b.pos).map(s => ({ pos: s.pos, n: s.n, k: s.k, ...(s.h ? { h: 1 } : {}), dev: s.key ? 1 : 0, on: s.key && now - s.seen < PT_AWAY ? 1 : 0,
       ...(s.p ? { p: s.p } : {}), ...(s.deck ? { deck: s.deck } : {}), ...(host && s.tk ? { t: s.tk } : {}) })), ...(r.res ? { res: r.res } : {}) };
 }
-/** Coup d'œil avant d'entrer (sans clé) : places prises (pseudo ou prénom, compte ou invité), libres, format. */
+/** Coup d'œil avant d'entrer (sans clé) : places prises (pseudo ou prénom, compte ou invité), libres, format de jeu et points de départ. */
 function ptPublic(r) {
   const h = r.seats.find(s => s.h);
-  return { c: r.code, st: r.st, format: r.format, size: r.size, host: h ? h.n : '', free: r.st === 'wait' ? ptFree(r) : [], places: r.seats.slice().sort((a, b) => a.pos - b.pos).map(s => ({ pos: s.pos, n: s.n, k: s.k, ...(s.h ? { h: 1 } : {}) })) };
+  return { c: r.code, st: r.st, jeu: ptJeu(r), format: r.format, size: r.size, host: h ? h.n : '', free: r.st === 'wait' ? ptFree(r) : [], places: r.seats.slice().sort((a, b) => a.pos - b.pos).map(s => ({ pos: s.pos, n: s.n, k: s.k, ...(s.h ? { h: 1 } : {}) })) };
 }
 /** Salle et place d'après le code et la clé (x-partie-key) ; sinon réponse d'erreur envoyée (null). Chaque requête compte comme signe de vie. */
 function ptSeatOf(req, res, code) {
@@ -1994,8 +1999,9 @@ function ptSeatOf(req, res, code) {
   me.seen = Date.now(); if (ptOpen(r)) r.act = me.seen;
   return { r, me };
 }
-/** POST /api/partie { id, n, p, l, pos, deck, format, size } : salle d'attente de la partie id (déjà ouverte par ce compte pour cette partie : la même, rechargement ;
-    sa salle précédente encore en attente se termine). → { key, s } */
+/** POST /api/partie { id, n, p, l, pos, deck, jeu, format, size } : salle d'attente de la partie id (déjà ouverte par ce compte pour cette partie : la même, rechargement ;
+    sa salle précédente encore en attente se termine). jeu : 'commander' (absent : appli d'avant), 'standard', 'libre' ; autre valeur : 400. format (points de départ)
+    qui ne va pas au jeu : ceux par défaut ; size absente : 8, 2 en Standard. → { key, s } */
 async function ptNew(req, res, me) {
   const b = await amBody(req, res, PT_BODY); if (!b) return;
   const id = typeof b.id === 'string' && PT_ID_RE.test(b.id) ? b.id : PT_CORE.partieId(), cur = PT.s.get(PT.u.get(me.tag));
@@ -2004,9 +2010,10 @@ async function ptNew(req, res, me) {
   let open = 0; for (const r of PT.s.values()) if (ptOpen(r) && r !== cur) open++;
   if (open >= PT_MAX) return json(res, 503, { error: 'busy', message: 'Trop de parties en cours : réessaie dans un moment.' }, { 'Retry-After': '60' });
   const deck = ptDeckIn(b.deck); if (deck === false) return json(res, 400, { error: 'bad_image', message: 'Image Scryfall attendue.' });
-  const size = Number.isInteger(b.size) && b.size >= 2 && b.size <= PT_SEATS ? b.size : PT_SEATS, pos = Number.isInteger(b.pos) && b.pos >= 1 && b.pos <= size ? b.pos : 1;
+  const jeu = b.jeu == null ? 'commander' : b.jeu; if (!PT_CORE.PRT_JEUX.includes(jeu)) return json(res, 400, { error: 'bad_jeu', message: 'Format de jeu invalide (commander, standard ou libre).' });
+  const size = Number.isInteger(b.size) && b.size >= 2 && b.size <= PT_SEATS ? b.size : PT_CORE.PRT_JEU[jeu].size, pos = Number.isInteger(b.pos) && b.pos >= 1 && b.pos <= size ? b.pos : 1;
   if (cur && cur.st === 'wait') ptEnd(cur, 'replaced');
-  const now = Date.now(), r = { code: ptCode(), id, host: me.tag, at: now, act: now, st: 'wait', why: '', v: 1, format: PT_FMTS.includes(b.format) ? b.format : 40, size, seats: [], kick: new Set(), res: null, startAt: 0, endAt: 0 };
+  const now = Date.now(), r = { code: ptCode(), id, host: me.tag, at: now, act: now, st: 'wait', why: '', v: 1, jeu, format: PT_CORE.partieVieOk(jeu, b.format) ? b.format : ptVieDef(jeu), size, seats: [], kick: new Set(), res: null, startAt: 0, endAt: 0 };
   const s = ptSeat({ pos, k: 'compte', tag: me.tag, key: ptNewKey(), n: ptName(b.n), p: amPic(b.p), deck, h: true });
   r.seats.push(s); PT.s.set(r.code, r); PT.u.set(me.tag, r.code); ptWake();
   return json(res, 200, { key: s.key, s: ptView(r, s) });
@@ -2055,7 +2062,8 @@ function ptPoll(req, res, url) {
   return json(res, 200, ptView(x.r, x.me));
 }
 /** POST /api/partie/op { c, op, … } : seat { pos } · me { n?, p?, deck? } · leave ; créateur seulement : add { pos?, n, deck? } · move { from, to } · kick { pos } ·
-    opts { format?, size? } · start · end. Changements de places : seulement en attente. Répond la salle vue de cette place (erreur : { error, message, s }). */
+    opts { jeu?, format?, size? } · start · end. Changements de places : seulement en attente. opts : jeu inconnu (400 bad_jeu), points de départ qui ne vont pas au
+    jeu (400 ; jeu changé sans format : ceux d'avant s'ils lui vont, sinon ceux par défaut). Répond la salle vue de cette place (erreur : { error, message, s }). */
 async function ptOp(req, res) {
   const b = await amBody(req, res, PT_BODY); if (!b) return;
   const x = ptSeatOf(req, res, ptCodeOf(b.c)); if (!x) return;
@@ -2101,8 +2109,11 @@ async function ptOp(req, res) {
     r.seats.splice(r.seats.indexOf(s), 1); return bump();
   }
   if (op === 'opts') {
-    if ('format' in b) { if (!PT_FMTS.includes(b.format)) return fail(400, 'bad_request', 'Format invalide.'); r.format = b.format; }
-    if ('size' in b) { if (!Number.isInteger(b.size) || b.size < 2 || b.size > PT_SEATS || r.seats.some(s => s.pos > b.size)) return fail(400, 'bad_request', 'Nombre de places invalide.'); r.size = b.size; }
+    const jeu = 'jeu' in b ? b.jeu : ptJeu(r); if (!PT_CORE.PRT_JEUX.includes(jeu)) return fail(400, 'bad_jeu', 'Format de jeu invalide (commander, standard ou libre).');
+    if ('format' in b && !PT_CORE.partieVieOk(jeu, b.format)) return fail(400, 'bad_request', 'Points de départ invalides pour ce format.');
+    if ('size' in b && (!Number.isInteger(b.size) || b.size < 2 || b.size > PT_SEATS || r.seats.some(s => s.pos > b.size))) return fail(400, 'bad_request', 'Nombre de places invalide.');
+    r.jeu = jeu; r.format = 'format' in b ? b.format : PT_CORE.partieVieOk(jeu, r.format) ? r.format : ptVieDef(jeu);
+    if ('size' in b) r.size = b.size;
     return bump();
   }
   if (op === 'start') {      // liste figée ; un jeton par place « compte » (autre que le créateur) : la partie s'enregistrera chez ces comptes
@@ -2197,7 +2208,7 @@ async function ptWipe(req, res, me) {
   return json(res, 200, { ok: true });
 }
 async function partieApi(req, res, path, url) {
-  if (!PT_ON) return json(res, 404, { error: 'partie_disabled', message: 'Partie de Commander désactivée sur ce serveur.' });
+  if (!PT_ON) return json(res, 404, { error: 'partie_disabled', message: 'Compteur de vie (parties) désactivé sur ce serveur.' });
   const sub = path.replace(/^partie\/?/, '');
   try {
     if (req.method === 'GET' && sub === 's') return ptPoll(req, res, url);
@@ -2991,7 +3002,7 @@ async function api(req, res, url) {
   if (path === 'feedback') return DSC ? DSC.feedback(req, res) : json(res, 404, { error: 'not_found' });      // « Aide et avis » : un fil sur le Discord (bot), sans compte exigé, borné
   if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
   if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège
-  if (path === 'partie' || path.startsWith('partie/')) return partieApi(req, res, path, url);      // partie de Commander : salle d'attente (jeton Firebase, ou invité sans compte), résultats des comptes
+  if (path === 'partie' || path.startsWith('partie/')) return partieApi(req, res, path, url);      // compteur de vie (Commander, Standard, libre) : salle d'attente (jeton Firebase, ou invité sans compte), résultats des comptes
   if (path === 'admin' || path.startsWith('admin/')) return adminApi(req, res, path, url);      // panneau d'administration : compte de l'éditeur seulement
   if (path === 'daily' || path.startsWith('daily/')) return DLY ? DLY.api(req, res, path, url) : json(res, 404, { error: 'not_found' });
   if (path === 'level' || path.startsWith('level/')) return DLY ? DLY.level(req, res, path, url) : json(res, 404, { error: 'not_found' });      // classement des niveaux de compte : XP envoyée par l'appli, plafonnée par jour      // Carte mystère : jeton Firebase (classé) ou sans compte (pour le plaisir), clé de partie ensuite
@@ -3250,7 +3261,7 @@ server.listen(PORT, HOST, () => {
   if (FCM_ON) console.log(`Notifications de l'appli Android (FCM) : projet Firebase « ${fcmSa.project} ».`);
   if (AM_ON) { console.log(`Amis : ${AM_MAX} au plus par compte, « un ami a une carte que tu cherches » toutes les ${Math.round(AM_GAP / 360000) / 10} h au plus.`); }
   if (TROC_ON) console.log(`Échange en direct : ${TROC_MAX} sessions au plus, en mémoire (terminées après ${Math.round(TROC_IDLE / 60e3)} min sans activité).`);
-  if (PT_ON) console.log(`Partie de Commander : ${PT_MAX} salles d'attente au plus, en mémoire ; historiques des comptes dans Firestore (parties).`);
+  if (PT_ON) console.log(`Compteur de vie (parties de Commander, Standard ou libre) : ${PT_MAX} salles d'attente au plus, en mémoire ; historiques des comptes dans Firestore (parties).`);
   if (SR_ON) {      // scans signalés : trop vieux ou au-delà des plafonds, effacés au démarrage puis toutes les 6 h
     const purge = () => srRun(srPurge).then(n => { if (n) console.log(`Scans signalés : ${n} effacé${n > 1 ? 's' : ''} (durée ou place).`); }, e => console.warn('Scans signalés : dossier illisible (' + (e && e.code || 'erreur') + ')'));
     setTimeout(purge, 20e3).unref(); setInterval(purge, 6 * 3600e3).unref();

@@ -1,4 +1,4 @@
-// Partie de Commander (src/partie.js), logique seule sous Node : création, places, points de vie, blessures de commandant (qui retirent les points de vie),
+// Compteur de vie (src/partie.js), logique seule sous Node : formats (Commander, Standard 1 contre 1 à 20 PV sans blessures de commandant, Libre), création, places, points de vie, blessures de commandant (qui retirent les points de vie),
 // compteurs, monarque / initiative, élimination et retour, tours, premier joueur, annuler (chaque action, appuis fusionnés, journal borné), propositions
 // d'élimination, fin et classement, résultat, lien / QR du résultat (aller-retour, taille pour 8 joueurs, textes raccourcis, liens abîmés ou trafiqués),
 // stockage de l'appareil (faux localStorage), file d'envoi et partieFlush (faux serveur), salle d'attente côté appli (places, résultat reçu). Aucun port.
@@ -380,6 +380,119 @@ test('statistiques : parties où ma place est connue, mes decks, adversaires (pr
   assert.deepEqual(s.adv.map(a => [a.nom, a.n, a.mine, a.theirs]), [['Léa', 3, 2, 1], ['Bob', 2, 1, 0]], 'Léa et « lea » : la même joueuse');
   assert.deepEqual(s.cmds.map(c => [c.nom, c.n, c.wins]), [['Edgar Markov', 3, 1], ['Krenko', 1, 0]]);
   const k = P.partieStats(h, { deck: 'krenko TOKENS' }); assert.deepEqual([k.n, k.wins, k.serie, k.decks.length], [2, 2, 2, 1], 'filtre par deck');
-  assert.deepEqual(P.partieStats([]), { n: 0, wins: 0, rate: 0, duree: 0, tours: 0, rang: 0, serie: 0, best: 0, decks: [], adv: [], cmds: [] }, 'aucune partie');
+  assert.deepEqual(P.partieStats([]), { n: 0, wins: 0, rate: 0, duree: 0, tours: 0, rang: 0, serie: 0, best: 0, decks: [], adv: [], cmds: [], jeux: {} }, 'aucune partie');
   assert.equal(P.partieStats([g(9, 1, [pl(1, 'Max'), pl(2, 'Bob', { w: true })])]).serie, 0, 'défaite la plus récente : série à 0');
+});
+
+/* ── Formats : Commander (par défaut), Standard (1 contre 1, 20 PV), Libre (PV au choix) ────────────────────────────────────────────────────── */
+/** Partie Standard à deux : Max (moi) et Léa (compte) ; commencée à T0. */
+function duel() {
+  let s = P.partieNew({ jeu: 'standard', moi: { nom: 'Max', deck: { nom: 'Mono-rouge' } }, now: T0 - 60e3, id: 'duel00000001' });
+  s = P.partieAddPlace(s, { sorte: 'compte', nom: 'Léa', uid: TK, deck: { nom: 'Contrôle Azorius' } });
+  return P.partieStart(s, { now: T0 });
+}
+
+test('formats : Standard 20 PV (jamais autre chose), Libre au choix (1 à 999), Commander par défaut ; valeurs inconnues refusées', () => {
+  const s = P.partieNew({ jeu: 'standard', moi: { nom: 'Max' } });
+  assert.deepEqual([s.jeu, s.format, s.places[0].vie], ['standard', 20, 20]);
+  assert.equal(P.partieNew({ jeu: 'standard', format: 40 }).format, 20, 'Standard : 20 points, toujours');
+  assert.deepEqual([P.partieNew({ jeu: 'libre', format: 37 }).format, P.partieNew({ jeu: 'libre', format: 999 }).format], [37, 999]);
+  for (const f of [0, 1000, 2.5, -4]) assert.equal(P.partieNew({ jeu: 'libre', format: f }).format, 20, 'Libre : ' + f + ' refusé, 20 par défaut');
+  assert.deepEqual([P.partieNew().jeu, P.partieNew().format], ['commander', 40], 'sans format : Commander, 40');
+  assert.deepEqual([P.partieNew({ jeu: 'brawl' }).jeu, P.partieNew({ jeu: '__proto__' }).jeu], ['commander', 'commander'], 'format inconnu : Commander');
+  assert.equal(P.partieSetFormat(s, 40), s, 'Standard : pas d\'autres points de départ');
+  const l = P.partieNew({ jeu: 'libre', moi: { nom: 'Max' } }); assert.deepEqual(P.partieSetFormat(l, 55).places.map(p => p.vie), [55]);
+  assert.equal(P.partieSetFormat(P.partieNew(), 55).format, 40, 'Commander : 40, 30, 25, 20 seulement');
+  assert.deepEqual([P.partieRoomSize(s), P.partieRoomSize(l), P.partieRoomSize(P.partieNew())], [2, 8, 8], 'table de 2 en Standard, 8 sinon');
+  assert.equal(P.partieRoomSize(P.partieAddPlace(s, { nom: 'Bob', pos: 3 })), 3, 'Standard : agrandie pour une place déjà prise');
+  assert.equal(P.partieRoomSize(s, 4), 4); assert.equal(P.partieRoomSize(s, 12), 8, '8 au plus');
+});
+
+test('formats : changement en préparation (un appui), points de vie remis, refusé une fois la partie commencée', () => {
+  let s = P.partieNew({ moi: { nom: 'Max' } }); s = P.partieAddPlace(s, { nom: 'Bob' });
+  s = P.partieSetJeu(s, 'standard'); assert.deepEqual([s.jeu, s.format, s.places.map(p => p.vie)], ['standard', 20, [20, 20]]);
+  assert.equal(P.partieSetJeu(s, 'standard', 20), s, 'rien ne change : même objet');
+  s = P.partieSetJeu(s, 'libre', 30); assert.deepEqual([s.jeu, s.format, s.places[1].vie], ['libre', 30, 30]);
+  s = P.partieSetJeu(s, 'commander', 33); assert.deepEqual([s.jeu, s.format], ['commander', 40], 'points de départ qui ne vont pas : ceux par défaut');
+  s = P.partieSetJeu(s, 'commander', 25); assert.equal(s.format, 25);
+  assert.equal(P.partieSetJeu(s, 'vintage'), s, 'format inconnu : refusé');
+  const g = P.partieStart(s, { now: T0 }); assert.equal(P.partieSetJeu(g, 'standard'), g, 'partie commencée : format figé');
+});
+
+test('Standard : sans blessures de commandant ni impôt ni monarque / initiative ; poison, énergie, compteurs libres ; élimination et fin', () => {
+  let s = duel();
+  assert.equal(P.partieCmdDamage(s, 2, 1, 5), s, 'blessures de commandant : refusées');
+  assert.equal(P.partieCounter(s, 2, 'impot', 1), s, 'impôt de commandant : refusé');
+  assert.equal(P.partieMonarch(s, 1), s); assert.equal(P.partieInitiative(s, 2), s, 'ni monarque ni initiative');
+  s = P.partieCounter(s, 2, 'energie', 3, { now: at(1) }); s = P.partieCounter(s, 2, 'experience', 1, { now: at(10) }); s = P.partieCounter(s, 2, 'Radiation', 2, { now: at(20) });
+  assert.deepEqual(s.places[1].compteurs, { poison: 0, impot: 0, energie: 3, experience: 1, Radiation: 2 });
+  s = P.partieLife(s, 1, -7, { now: at(30) }); assert.equal(s.places[0].vie, 13);
+  s = P.partieCounter(s, 1, 'poison', 10, { now: at(40) }); assert.deepEqual(P.partieProposals(s), [{ pos: 1, cause: 'poison' }], 'poison : 10 marqueurs, comme partout');
+  s = P.partieLife(s, 1, -13, { now: at(50) }); assert.deepEqual(P.partieProposals(s), [{ pos: 1, cause: 'vie' }, { pos: 1, cause: 'poison' }]);
+  const blessures = { ...s, places: s.places.map(p => (p.pos === 1 ? { ...p, blessures: { 2: 25 } } : p)) };
+  assert.deepEqual(P.partieProposals(blessures).map(x => x.cause), ['vie', 'poison'], 'jamais de proposition « 21 blessures » hors Commander');
+  s = P.partieEliminate(s, 1, 'commandant'); assert.equal(s.places[0].elimine.cause, 'autre', 'cause « blessures de commandant » : impossible en Standard');
+  s = P.partieUndo(s); s = P.partieEliminate(s, 1, 'poison', { now: at(60) }); assert.equal(s.places[0].elimine.cause, 'poison');
+  const e = P.partieEnd(s, undefined, { now: at(600) }); assert.deepEqual(e.vainqueurs, [2], 'le dernier en jeu gagne');
+  const r = P.partieResult(e);
+  assert.deepEqual([r.jeu, r.format, r.places.map(p => [p.nom, p.deck, p.rang, p.vainqueur])], ['standard', 20, [['Max', 'Mono-rouge', 2, false], ['Léa', 'Contrôle Azorius', 1, true]]]);
+  assert.deepEqual(P.partieResClean(r), { ...r, places: r.places.map(({ uid, ...p }) => p) }, 'relu tel quel (jeu gardé)');
+  let u = e; while (u.journal.length) u = P.partieUndo(u); assert.deepEqual(u.places.map(p => [p.vie, p.compteurs.poison]), [[20, 0], [20, 0]], 'tout s\'annule');
+});
+
+test('Libre : points de vie au choix, monarque et initiative, sans blessures de commandant', () => {
+  let s = P.partieNew({ jeu: 'libre', format: 30, moi: { nom: 'A' } }); s = P.partieAddPlace(s, { nom: 'B' }); s = P.partieAddPlace(s, { nom: 'C' }); s = P.partieStart(s, { now: T0 });
+  assert.deepEqual(s.places.map(p => p.vie), [30, 30, 30]);
+  assert.equal(P.partieCmdDamage(s, 2, 1, 3), s); s = P.partieMonarch(s, 2); assert.equal(s.monarque, 2, 'monarque permis');
+  const r = P.partieResult(P.partieEnd(s, [2], { now: at(60) })); assert.deepEqual([r.jeu, r.format], ['libre', 30]);
+  const back = P.decodeResult(P.partieResultLink(r)); assert.deepEqual([back.jeu, back.format, back.places.length], ['libre', 30, 3], 'lien : format gardé');
+});
+
+test('résultat et lien : format relu, refusé s\'il est inconnu ou mal assorti ; ancien lien et ancien résultat sans format = Commander', () => {
+  const r = P.partieResult(P.partieEnd(duel(), [2], { now: at(300) }));
+  const bad = [{ ...r, jeu: 'vintage' }, { ...r, jeu: 'standard', format: 40 }, { ...r, jeu: 'libre', format: 0 }, { ...r, jeu: 'libre', format: 1000 }, { ...r, jeu: 7 }, { ...r, jeu: undefined, format: 55 }];
+  for (const b of bad) assert.equal(P.partieResClean(b), null, JSON.stringify([b.jeu, b.format]));
+  assert.equal(P.partieResClean({ ...r, jeu: 'commander' }).jeu, undefined, 'Commander (20 points permis) : pas de champ, comme avant');
+  const cmd = P.partieResult(P.partieEnd(table4(), [1], { now: at(300) })); assert.equal('jeu' in cmd, false, 'résultat de Commander : inchangé');
+  const old = { id: cmd.id, date: cmd.date, duree: cmd.duree, tours: cmd.tours, format: 40, places: cmd.places };      // historique ou serveur d'avant : sans jeu
+  assert.equal(P.partieJeu(P.partieResClean(old)), 'commander'); assert.equal(P.partieJeu(P.partieHistClean({ ...old, moi: 1 })), 'commander');
+  // lien : Commander garde les 8 éléments d'avant (lisible par une appli d'avant), Standard en a un de plus
+  const dc = JSON.parse(Buffer.from(P.encodeResult(cmd), 'base64url').toString()), ds = JSON.parse(Buffer.from(P.encodeResult(r), 'base64url').toString());
+  assert.deepEqual([dc.length, ds.length, ds[7]], [8, 9, 's']);
+  const back = P.decodeResult(P.partieResultLink(r)); assert.deepEqual([back.jeu, back.format, back.places.map(p => [p.nom, p.deck, p.vainqueur])], ['standard', 20, [['Max', 'Mono-rouge', false], ['Léa', 'Contrôle Azorius', true]]]);
+  assert.equal(P.decodeResult(P.partieResultLink(cmd)).jeu, undefined, 'ancien format de lien : Commander');
+  const enc = a => Buffer.from(JSON.stringify(a)).toString('base64url'), resign = a => { const b = a.slice(0, -1); return enc([...b, P.partieCk(JSON.stringify(b))]); };
+  assert.equal(P.decodeResult(resign([...ds.slice(0, 7), 'x', 'ck'])), null, 'code de format inconnu : refusé');
+  assert.equal(P.decodeResult(resign([...ds.slice(0, 5), 40, ds[6], 's', 'ck'])), null, 'Standard à 40 : refusé');
+  assert.equal(P.decodeResult(resign([...dc.slice(0, 7), 'c', 'ck'])), null, 'Commander n\'a pas de code');
+  assert.deepEqual(P.partieParseUrl(P.partieResultLink(r)).partie.jeu, 'standard');
+});
+
+test('formats : partie gardée sur l\'appareil, salle d\'attente (format de la salle, salle d\'avant sans format), statistiques par format', () => {
+  globalThis.localStorage = fakeLs();
+  const s = P.partieCounter(duel(), 1, 'poison', 2, { now: at(5) }); P.partieSave(s); assert.deepEqual(P.partieLoad(), s, 'Standard relu tel quel');
+  P.partieSave({ ...s, places: s.places.map(p => ({ ...p, blessures: { 2: 4 } })), monarque: 1 });
+  assert.deepEqual([P.partieLoad().places[0].blessures, P.partieLoad().monarque], [{}, 0], 'relu prudemment : ni blessures ni monarque en Standard');
+  const { jeu, ...old } = P.partieNew({ moi: { nom: 'A' }, id: 'oldstate0001', format: 30 }); P.partieSave(old);
+  assert.deepEqual([P.partieLoad().jeu, P.partieLoad().format], ['commander', 30], 'partie d\'une version d\'avant (sans jeu) : Commander');
+  P.partieClear();
+  // salle : le format vient de la salle ; un serveur d'avant (sans jeu) garde celui de la partie
+  const st = P.partieNew({ jeu: 'standard', moi: { nom: 'Max' }, id: 'roomstd00001' });
+  const view = { c: 'ABC234', v: 2, st: 'wait', id: st.id, jeu: 'standard', format: 20, size: 2, me: 1, host: true, places: [{ pos: 1, n: 'Max', k: 'compte', h: 1, dev: 1, on: 1 }, { pos: 2, n: 'Léa', k: 'invite', dev: 1, on: 1, deck: { nom: 'Elfes' } }] };
+  const a = P.partieFromRoom(st, view); assert.deepEqual([a.jeu, a.format, a.places.map(p => [p.pos, p.sorte, p.vie])], ['standard', 20, [[1, 'moi', 20], [2, 'invite', 20]]]);
+  const { jeu: _j, ...oldView } = { ...view, format: 40 }; const b = P.partieFromRoom(st, oldView); assert.deepEqual([b.jeu, b.format], ['standard', 20], 'vue sans jeu : celui de la partie, 40 refusé en Standard');
+  const c = P.partieFromRoom(P.partieNew({ moi: { nom: 'Max' } }), { ...view, jeu: 'libre', format: 50 }); assert.deepEqual([c.jeu, c.format, c.places[1].vie], ['libre', 50, 50]);
+  // statistiques : Standard compté à part, commandants vus seulement en Commander
+  const pl = (pos, nom, o = {}) => ({ pos, nom, sorte: pos === 1 ? 'moi' : 'invite', rang: o.w ? 1 : 2, vainqueur: !!o.w, ...(o.deck ? { deck: o.deck } : {}), ...(o.cmd ? { commandant: o.cmd } : {}) });
+  const g = (i, j, places) => P.partieHistClean({ id: 'fmt' + String(i).padStart(9, '0'), date: at(i * 86400), duree: 1200, tours: 6, format: j === 'commander' ? 40 : j === 'libre' ? 30 : 20, ...(j !== 'commander' ? { jeu: j } : {}), places, moi: 1 });
+  const h = [g(1, 'commander', [pl(1, 'Max', { deck: 'Krenko', cmd: 'Krenko, Mob Boss', w: true }), pl(2, 'Léa', { cmd: 'Edgar Markov' })]),
+    g(2, 'standard', [pl(1, 'Max', { deck: 'Mono-rouge' }), pl(2, 'Léa', { deck: 'Azorius', cmd: 'Pas un commandant', w: true })]),
+    g(3, 'standard', [pl(1, 'Max', { deck: 'Mono-rouge', w: true }), pl(2, 'Bob')]), g(4, 'libre', [pl(1, 'Max', { w: true }), pl(2, 'Zoé')])];
+  assert.ok(h.every(Boolean));
+  const all = P.partieStats(h); assert.deepEqual([all.n, all.wins, all.jeux], [4, 3, { commander: 1, standard: 2, libre: 1 }]);
+  assert.deepEqual(all.cmds.map(x => x.nom), ['Edgar Markov'], 'commandants : parties de Commander seulement');
+  const std = P.partieStats(h, { jeu: 'standard' });
+  assert.deepEqual([std.n, std.wins, std.decks.map(d => [d.nom, d.n, d.wins]), std.adv.map(x => [x.nom, x.mine, x.theirs]), std.jeux.standard], [2, 1, [['Mono-rouge', 2, 1]], [['Léa', 0, 1], ['Bob', 1, 0]], 2]);
+  assert.deepEqual([P.partieStats(h, { jeu: 'commander' }).n, P.partieStats(h, { jeu: 'libre' }).wins], [1, 1]);
+  delete globalThis.localStorage;
 });

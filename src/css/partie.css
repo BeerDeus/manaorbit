@@ -1,4 +1,4 @@
-/* ── Partie de Commander (partie-ui.js) ─────────────────────────────────────────────────────────── */
+/* ── Compteur de vie : parties de Commander, Standard ou libre (partie-ui.js) ────────────────────── */
 .hm-partie .hm-tr-ic{color:#ff7a90}
 .hm-partie .hm-tr-ic .i{width:20px;height:20px}
 .hm-partie.live .hm-tr-acts{grid-template-columns:1fr 1fr 44px}      /* partie en cours : supprimer / abandonner (corbeille) */
@@ -11,6 +11,16 @@
 .pu-card{border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:10px}
 .pu-h{margin:2px 0 0;font-size:13px;font-weight:700;color:var(--ink-2)}
 .pu-deck select{width:100%}
+.pu-jeu .seg-opt{min-height:48px;padding:5px 4px}      /* format : un appui (Commander, Standard, Libre), sous-titre court */
+.pu-jeu .seg-opt small{font-family:inherit;font-size:11.5px}
+.pu-jeu-card .hint{margin:0;font-size:12.5px}
+.pu-vie{display:flex;align-items:center;justify-content:center;gap:8px}      /* Libre : points de départ au choix */
+.pu-vie button{min-width:48px;height:40px;border:1px solid var(--line);background:var(--surface-3);color:var(--ink);border-radius:12px;font-family:inherit;font-size:14px;font-weight:700}
+.pu-vie button:disabled{opacity:.4}
+.pu-vie b{min-width:64px;text-align:center;font-size:28px;font-weight:800;font-variant-numeric:tabular-nums}
+.pu-jtag{display:inline-block;padding:0 6px;border-radius:6px;background:var(--accent-soft);color:var(--ink-2);font-weight:700;font-size:11.5px}      /* Mes parties : partie hors Commander */
+.pu-sjeu{margin:2px 0 12px}
+.pu-sjeu small{color:var(--ink-3);font-weight:600}
 .pu-qr{flex-direction:row;align-items:center;gap:14px}
 .pu-qr-img{flex:none;width:132px;height:132px;padding:8px;border-radius:14px;background:#fff}
 .pu-qr-img svg{width:100%;height:100%;display:block}

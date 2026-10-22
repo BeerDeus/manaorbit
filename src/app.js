@@ -1326,7 +1326,7 @@ function init() {
   if (typeof partieInit === 'function') partieInit();      // partie.js : envoi des résultats en attente (retour du réseau, retour sur l'appli), rien d'autre
   initDecks();
   refreshDeck();
-  homeInit(); if (typeof puHomeInit === 'function') puHomeInit();      // carte « Partie de Commander » de l'accueil (partie-ui.js)
+  homeInit(); if (typeof puHomeInit === 'function') puHomeInit();      // carte « Compteur de vie » de l'accueil (partie-ui.js)
   setTimeout(obMaybe, 400);      // premier lancement sur un appareil vierge
   $('#optColl').onchange = e => { S.useColl = e.target.checked; saveStore(); haptic('tap'); refreshDeck(); };
   $('#btnColl').onclick = () => openCollection();
@@ -1402,7 +1402,7 @@ function handleLaunch() {
   else if ((q.has('table') || q.has('partie')) && typeof puLaunch === 'function') puLaunch('?' + q.toString());
   else if (q.has('invite') && typeof puInvite === 'function') setTimeout(puInvite, 700);      // lien « Fais découvrir Mana Orbit » de la fin de partie (partie-ui.js)
   else if (q.has('mystere') && typeof dlyLaunch === 'function') dlyLaunch();      // Carte mystère (résultat partagé) : seulement sur le lien d'essai (daily.js › dlyOn)
-  else if (q.has('parties') && typeof puHist === 'function') setTimeout(puHist, 600);      // notification « Partie enregistrée » ouverte dans une nouvelle fenêtre      // partie de Commander : rejoindre une table, résultat scanné (partie-ui.js)      // échange en direct : QR code de l'hôte scanné, invitation touchée (troc.js)
+  else if (q.has('parties') && typeof puHist === 'function') setTimeout(puHist, 600);      // notification « Partie enregistrée » ouverte dans une nouvelle fenêtre      // compteur de vie : rejoindre une table, résultat scanné (partie-ui.js)      // échange en direct : QR code de l'hôte scanné, invitation touchée (troc.js)
   else if (shared) onShared(extractShared({ title: q.get('title'), text: q.get('text'), url: q.get('url') }));
   else if (q.has('collection')) setTimeout(() => openCollection(), 600);                  // lien direct vers la collection (?collection)
   else if (q.has('import')) { obMark(); setTimeout(() => { if (OB.el) obClose(); openCollection('list'); setTimeout(() => openCollImport(), 350); }, 600); }      // « Importer ma collection » de la page /passer-de-manabox : ni premier lancement, ni détour

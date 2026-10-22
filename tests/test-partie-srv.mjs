@@ -1,11 +1,13 @@
-// Partie de Commander côté serveur (/api/partie) : salle d'attente (création par un compte, coup d'œil sans compte, entrée par le code avec ou sans compte,
+// Compteur de vie côté serveur (/api/partie) : formats de jeu (Commander, Standard, Libre : validés, gardés dans la salle, renvoyés ; salle sans jeu = Commander ;
+// résultat Standard dans l'historique ; appli d'avant dans une salle Standard), salle d'attente (création par un compte, coup d'œil sans compte, entrée par le code avec ou sans compte,
 // places prises ou libres, invités du créateur, déplacer, retirer, format, « commencer » qui fige la liste et donne les jetons des comptes, présence,
 // relevé versionné, expiration, départ, redémarrage), résultats (POST result : historique de chaque compte dans Firestore, notification FCM dans sa langue,
 // résultat remis aux téléphones restés sur la page, invités compris ; jetons faux, d'une autre partie ou d'un autre créateur refusés ; idempotent ;
 // Firestore en panne puis relance sans doublon), réclamation par le QR code du résultat, historique paginé, suppression, bornes, PARTIE=0.
 // Faux Firebase (jetons, OAuth2, Firestore REST, FCM) de amis-fakes.mjs : aucun accès réseau réel. Ports 19500–19503.
 import './setup-env.mjs';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { startFakes, tag } from './amis-fakes.mjs';
@@ -58,7 +60,7 @@ const hist = k => { const d = F.fs.docs.get('parties/' + T[k]); return d ? JSON.
 /* ── 1) Serveur normal ───────────────────────────────────────────────────────────────────────────── */
 const P1 = await start({ ...F.env, PARTIE_AWAY_MS: '1500', PARTIE_RES_PER_H: '200' }, 19501); BASE = 'http://127.0.0.1:19501';
 assert.equal((await (await fetch(BASE + '/__ping')).json()).partie, true);
-assert.match(P1.log(), /Partie de Commander : 500 salles d'attente au plus/);
+assert.match(P1.log(), /Compteur de vie \(parties de Commander, Standard ou libre\) : 500 salles d'attente au plus/);
 {
   let r = await call('POST', '', { body: { id: 'abc' } }); assert.equal(r.s, 401); assert.equal(r.o.error, 'auth_required');
   r = await call('POST', '', { tok: 'abc.def.ghi', body: {} }); assert.equal(r.s, 401); assert.equal(r.o.error, 'bad_token');
@@ -86,7 +88,7 @@ ok('création : code, clé, place du créateur ; même partie rouverte : la mêm
 
 // coup d'œil sans compte
 r = await call('GET', '/peek?c=' + A.c.toLowerCase());
-assert.deepEqual(r.o, { c: A.c, st: 'wait', format: 40, size: 8, host: 'Alice', free: [2, 3, 4, 5, 6, 7, 8], places: [{ pos: 1, n: 'Alice', k: 'compte', h: 1 }] });
+assert.deepEqual(r.o, { c: A.c, st: 'wait', jeu: 'commander', format: 40, size: 8, host: 'Alice', free: [2, 3, 4, 5, 6, 7, 8], places: [{ pos: 1, n: 'Alice', k: 'compte', h: 1 }] });
 r = await call('GET', '/peek?c=ZZZZZZ'); assert.equal(r.s, 404); assert.equal(r.o.error, 'not_found');
 ok('coup d\'œil avant d\'entrer, sans compte : places prises et libres');
 
@@ -260,6 +262,78 @@ ok('historique : paginé (20 par défaut, 50 au plus), la plus récente d\'abord
   assert.deepEqual([P.partieHist()[0].id, P.partieHist()[0].moi, P.partieHist()[0].sv], ['appflow00001', 2, 0], 'l\'invitée garde la partie dans son navigateur'); assert.equal(P.partieRoom(), null);
   delete globalThis.localStorage;
   ok('par l\'API de l\'appli : salle créée, coup d\'œil, un compte et une invitée entrent, début, fin, envoi ; résultat chez Bob et dans le navigateur de l\'invitée');
+}
+
+// formats : salle Standard (table de 2, 20 points), format refusé, salle d'une appli d'avant (sans jeu : Commander), réglages, place de plus, résultat Standard
+// dans l'historique de chaque compte, résultats mal assortis refusés, QR code du résultat ; puis une appli d'avant (src/partie.js du commit a7b92dc) qui rejoint
+{
+  const UF = 'uid-fred-partie6', UG = 'uid-gina-partie7', UI = 'uid-ines-partie8', hf = uid => { const d = F.fs.docs.get('parties/' + tag(uid)); return d ? JSON.parse(d.j).h : []; };
+  r = await call('POST', '', { uid: UF, body: { id: 'fmtbad000001', n: 'Fred', jeu: 'vintage' } }); assert.equal(r.s, 400); assert.equal(r.o.error, 'bad_jeu');
+  r = await call('POST', '', { uid: UF, body: { id: 'fmtbad000002', n: 'Fred', jeu: 7 } }); assert.equal(r.s, 400); assert.equal(r.o.error, 'bad_jeu');
+  r = await call('POST', '', { uid: UF, body: { id: 'oldapp000001', n: 'Fred', format: 30 } }); const O = { c: r.o.s.c, key: r.o.key };      // appli d'avant : sans jeu
+  assert.deepEqual([r.o.s.jeu, r.o.s.format, r.o.s.size], ['commander', 30, 8], 'sans jeu : Commander, comme avant');
+  r = await call('GET', '/peek?c=' + O.c); assert.deepEqual([r.o.jeu, r.o.format], ['commander', 30]);
+  r = await call('POST', '', { uid: UF, body: { id: 'duelstd00001', n: 'Fred', jeu: 'standard', format: 40, deck: { nom: 'Mono-rouge' } } });
+  assert.equal(r.s, 200, JSON.stringify(r.o)); const S = { c: r.o.s.c, key: r.o.key };
+  assert.deepEqual([r.o.s.jeu, r.o.s.format, r.o.s.size], ['standard', 20, 2], 'Standard : 20 points (40 refusé), table de 2');
+  r = await poll(O); assert.deepEqual([r.o.st, r.o.why], ['end', 'replaced']);
+  r = await call('GET', '/peek?c=' + S.c); assert.deepEqual([r.o.jeu, r.o.format, r.o.size, r.o.free], ['standard', 20, 2, [2]], 'coup d\'œil : format, une place libre');
+  r = await op(S, { op: 'opts', jeu: 'modern' }); assert.equal(r.s, 400); assert.equal(r.o.error, 'bad_jeu'); assert.equal(r.o.s.jeu, 'standard', 'rien de changé');
+  r = await op(S, { op: 'opts', format: 40 }); assert.equal(r.s, 400, 'Standard : 40 refusé'); assert.equal(r.o.s.format, 20);
+  r = await op(S, { op: 'opts', jeu: 'libre', format: 55, size: 8 }); assert.deepEqual([r.o.jeu, r.o.format, r.o.size], ['libre', 55, 8]);
+  r = await op(S, { op: 'opts', jeu: 'libre', format: 1000 }); assert.equal(r.s, 400, 'Libre : 999 au plus');
+  r = await op(S, { op: 'opts', jeu: 'commander' }); assert.deepEqual([r.o.jeu, r.o.format], ['commander', 40], 'jeu changé seul : 55 ne va pas en Commander, 40');
+  r = await op(S, { op: 'opts', jeu: 'standard', format: 20, size: 2 }); assert.deepEqual([r.o.jeu, r.o.format, r.o.size], ['standard', 20, 2]);
+  // Gina (compte) rejoint par le QR code ; Hugo (invité) : table complète, puis une place de plus
+  r = await call('POST', '/join', { uid: UG, body: { c: S.c, n: 'Gina', deck: { nom: 'Azorius' } } }); assert.equal(r.s, 200, JSON.stringify(r.o)); const G = { c: S.c, key: r.o.key };
+  assert.deepEqual([r.o.s.me, r.o.s.jeu, r.o.s.format, r.o.s.size], [2, 'standard', 20, 2]);
+  r = await call('POST', '/join', { body: { c: S.c, n: 'Hugo' }, ip: '192.0.2.77' }); assert.equal(r.s, 409); assert.equal(r.o.error, 'full', 'table de 2 complète');
+  r = await op(S, { op: 'opts', size: 1 }); assert.equal(r.s, 400);
+  r = await op(S, { op: 'opts', size: 3 }); assert.equal(r.o.size, 3);
+  r = await call('POST', '/join', { body: { c: S.c, n: 'Hugo' }, ip: '192.0.2.77' }); assert.equal(r.s, 200); const H = { c: S.c, key: r.o.key }; assert.equal(r.o.s.me, 3, 'place de plus : Hugo entre');
+  r = await op(H, { op: 'leave' }); r = await op(S, { op: 'opts', size: 2 }); assert.equal(r.o.size, 2, 'Hugo parti : de nouveau 2');
+  r = await op(S, { op: 'start' }); assert.deepEqual([r.o.st, r.o.jeu], ['live', 'standard']); const vs = r.o;
+  // la partie sur le téléphone de Fred (src/partie.js)
+  let g = P.partieNew({ jeu: 'standard', moi: { nom: 'Fred', deck: { nom: 'Mono-rouge' } }, id: 'duelstd00001' });
+  g = P.partieFromRoom(g, vs); assert.deepEqual([g.jeu, g.format, g.places.map(p => [p.pos, p.sorte, p.vie, !!p.uid])], ['standard', 20, [[1, 'moi', 20, false], [2, 'compte', 20, true]]]);
+  g = P.partieStart(g); assert.equal(P.partieCmdDamage(g, 1, 2, 5), g, 'Standard : pas de blessures de commandant');
+  g = P.partieCounter(g, 1, 'poison', 10); g = P.partieEliminate(g, 1, 'poison'); g = P.partieEnd(g);
+  const rs = P.partieResult(g); assert.deepEqual([rs.jeu, rs.format, rs.places.find(p => p.pos === 2).vainqueur], ['standard', 20, true]);
+  r = await call('POST', '/result', { uid: UF, body: { r: rs, c: S.c, key: S.key } }); assert.deepEqual(r.o, { ok: true, n: 2, skip: 0 });
+  assert.deepEqual(hf(UG).map(x => [x.id, x.jeu, x.format, x.moi, x.src]), [['duelstd00001', 'standard', 20, 2, 's']], 'historique de Gina : partie Standard marquée');
+  assert.deepEqual(hf(UF).map(x => [x.id, x.jeu, x.format, x.src]), [['duelstd00001', 'standard', 20, 'h']]);
+  r = await poll(G); assert.deepEqual([r.o.st, r.o.jeu, r.o.res.jeu, r.o.res.format], ['done', 'standard', 'standard', 20], 'résultat remis à Gina');
+  r = await call('GET', '/hist', { uid: UG }); assert.deepEqual(Object.keys(r.o.items[0]).sort(), ['at', 'date', 'duree', 'format', 'id', 'jeu', 'moi', 'places', 'src', 'tours']);
+  assert.equal(P.partieStats(r.o.items.map(P.partieHistClean), { jeu: 'standard' }).wins, 1, 'statistiques Standard de Gina (historique du compte)');
+  for (const bad of [{ ...rs, format: 40 }, { ...rs, jeu: 'vintage' }, { ...rs, jeu: 'libre', format: 0 }]) {
+    r = await call('POST', '/result', { uid: UF, body: { r: bad } }); assert.equal(r.s, 400, JSON.stringify([bad.jeu, bad.format])); assert.equal(r.o.error, 'bad_result');
+  }
+  r = await call('POST', '/claim', { uid: UI, body: { r: { ...rs, jeu: 'brawl' }, pos: 2 } }); assert.equal(r.s, 400);
+  const qr = P.decodeResult(P.partieResultLink(rs)); assert.equal(qr.jeu, 'standard');
+  r = await call('POST', '/claim', { uid: UI, body: { r: qr, pos: 1 } }); assert.deepEqual(r.o, { ok: true, dup: false }); assert.deepEqual(hf(UI).map(x => [x.jeu, x.format, x.moi, x.src]), [['standard', 20, 1, 'q']]);
+  ok('formats : salle Standard (20 points, table de 2, une place de plus), jeu et points refusés, salle sans jeu = Commander, résultat Standard chez chaque compte et par le QR code');
+
+  // une appli d'avant (moteur du commit a7b92dc : ne connaît pas jeu) rejoint une salle Standard en invitée : 20 points, résultat gardé, rien ne casse
+  let V1 = null;
+  try { const src = execFileSync('git', ['show', 'a7b92dc:src/partie.js'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); mkdirSync('tests/.tmp', { recursive: true }); writeFileSync('tests/.tmp/partie-v1.cjs', src); V1 = require('./.tmp/partie-v1.cjs'); } catch (e) { V1 = null; }
+  if (!V1) console.log('  (appli d\'avant : moteur du commit a7b92dc introuvable dans l\'historique git, vérification sautée)');
+  else {
+    const mm = new Map(); globalThis.localStorage = { getItem: k => mm.get(k) ?? null, setItem: (k, x) => mm.set(k, String(x)), removeItem: k => mm.delete(k) };
+    r = await call('POST', '', { uid: UF, body: { id: 'duelstd00002', n: 'Fred', jeu: 'standard' } }); const S2 = { c: r.o.s.c, key: r.o.key };
+    const env = { user: null, online: true, on: true, base: BASE + '/' };
+    const pk = await V1.partiePeek(S2.c, env); assert.deepEqual([pk.format, pk.size, pk.free], [20, 2, [2]], 'appli d\'avant : voit 20 points, une place');
+    const sv = await V1.partieRoomJoin(S2.c, { ...env, guest: true, n: 'Vieux' }); assert.equal(sv.me, 2);
+    r = await op(S2, { op: 'start' }); let g2 = P.partieStart(P.partieFromRoom(P.partieNew({ jeu: 'standard', moi: { nom: 'Fred' }, id: 'duelstd00002' }), r.o));
+    g2 = P.partieEnd(P.partieEliminate(P.partieLife(g2, 1, -20), 1, 'vie')); const r2 = P.partieResult(g2);
+    r = await call('POST', '/result', { uid: UF, body: { r: r2, c: S2.c, key: S2.key } }); assert.equal(r.s, 200);
+    await new Promise((res, rej) => { const t = setTimeout(() => rej(new Error('résultat jamais reçu par l\'appli d\'avant')), 8000); const stop = V1.partieRoomWatch(x => { if (x && x.st === 'done') { clearTimeout(t); stop(); res(); } }, env); });
+    const h1 = V1.partieHist(); assert.deepEqual([h1.length, h1[0].id, h1[0].format, h1[0].moi, h1[0].places.find(p => p.pos === 2).vainqueur, 'jeu' in h1[0]], [1, 'duelstd00002', 20, 2, true, false], 'gardée comme une partie à 20 points');
+    assert.equal(V1.decodeResult(P.partieResultLink(r2)), null, 'lien ?partie= Standard : « illisible » pour une appli d\'avant (sans planter)');
+    assert.ok(V1.decodeResult(P.partieResultLink(res)), 'lien de Commander : toujours lisible par une appli d\'avant');
+    assert.ok(P.decodeResult(V1.partieResultLink(V1.partieResult(V1.partieEnd(V1.partieNew({ moi: { nom: 'A' }, id: 'oldlink00001' }), [1])))).id, 'ancien lien (sans format) lu par l\'appli : Commander');
+    delete globalThis.localStorage;
+    ok('appli d\'avant dans une salle Standard : coup d\'œil (20 points, table de 2), entrée en invitée, résultat reçu et gardé ; lien Standard refusé proprement');
+  }
 }
 
 // départ : un joueur en attente libère sa place ; le créateur qui part termine la salle ; taille du corps

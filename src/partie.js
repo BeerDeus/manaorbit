@@ -1,6 +1,9 @@
-/* ── partie.js : partie de Commander (compteur de points de vie) : mécanique seule, aucune interface ───────────────────────────────────────
+/* ── partie.js : compteur de vie (parties de Commander, Standard ou libre) : mécanique seule, aucune interface ─────────────────────────────
+   · Formats (jeu) : 'commander' (40 points de départ, ou 30, 25, 20 ; blessures de commandant, impôt, monarque, initiative ; table de 8), 'standard' (20 points,
+     sans commandant ni blessures de commandant, ni monarque ni initiative ; poison ; table de 2, agrandie au besoin), 'libre' (1 à 999 points au choix, sans
+     blessures de commandant ; table de 8). Absent (anciennes parties, salles, liens) : Commander. format : les points de départ (nom historique, gardé).
    · Le créateur (joueur 1) crée la partie sur SON téléphone : le compteur ne tourne que là. Les autres scannent le QR code de la table
-     (lien ?table=<code> : salle d'attente du serveur, proxy.mjs › /api/partie), choisissent leur place (1 à 8) et un deck de « Mes decks », puis rangent
+     (lien ?table=<code> : salle d'attente du serveur, proxy.mjs › /api/partie), choisissent leur place (1 à 8, 2 en Standard) et un deck de « Mes decks », puis rangent
      leur téléphone ; un joueur sans l'appli peut entrer en invité (prénom, commandant facultatif) ; le créateur ajoute lui-même des invités.
      Sans réseau : invités seulement, tout reste sur ce téléphone, le résultat part au retour du réseau.
    · État : un objet JSON jamais modifié en place (chaque action rend un nouvel état, ou le même objet si l'action est refusée) ; forme : partieNew.
@@ -19,6 +22,11 @@ const PRT_HIST_MAX = 200, PRT_QUEUE_MAX = 300, PRT_LOG_MAX = 5000, PRT_MERGE_MS 
 const PRT_FORMATS = [40, 30, 25, 20], PRT_COUNTERS = ['poison', 'impot', 'energie', 'experience'], PRT_FREE_MAX = 8;
 const PRT_CAUSES = ['vie', 'poison', 'commandant', 'abandon', 'autre'], PRT_SORTES = ['moi', 'compte', 'invite'], PRT_SRC = ['h', 's', 'q'];
 const PRT_LEN = { nom: 24, deck: 40, cmd: 80 };
+/* Formats de jeu : points de départ permis (null : 1 à PRT_VIE_MAX, au choix), par défaut, places de la salle d'attente, blessures de commandant et impôt (cmd),
+   monarque et initiative (marks). Code d'une lettre dans le lien ?partie= (Commander : aucun, le lien reste celui des versions d'avant). */
+const PRT_JEUX = ['commander', 'standard', 'libre'], PRT_VIE_MAX = 999;
+const PRT_JEU = { commander: { vie: PRT_FORMATS, def: 40, size: 8, cmd: true, marks: true }, standard: { vie: [20], def: 20, size: 2, cmd: false, marks: false }, libre: { vie: null, def: 20, size: 8, cmd: false, marks: true } };
+const PRT_JEU_CODE = { standard: 's', libre: 'l' };
 const PRT_SITE = 'https://manaorbit.app/', PRT_LINK_MAX = 900;
 const PRT_ID_RE = /^[0-9a-z]{8,24}$/, PRT_CODE_RE = /^[A-HJKMNP-Z2-9]{6}$/, PRT_TK_RE = /^[\w-]{20,200}$/;
 const PRT_IMG_RE = /^https:\/\/cards\.scryfall\.io\/(?![\w./-]*(?:\/\/|\.\.))[\w./-]+(\?\d+)?$/;      // images Scryfall seulement (comme SHARE_IMG_RE)
@@ -29,6 +37,13 @@ const partieNow = t => (Number.isFinite(t) ? t : Date.now());
 const partieInt = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null);
 const partieIdOk = v => typeof v === 'string' && PRT_ID_RE.test(v);
 const partieOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);      // « toString » n'est pas un compteur
+/** Format de jeu d'un état, d'un résultat, d'une salle ou d'une entrée d'historique : son champ jeu, Commander s'il manque (ou s'il est inconnu). */
+const partieJeu = x => (x && typeof x.jeu === 'string' && PRT_JEUX.includes(x.jeu) ? x.jeu : 'commander');
+/** Points de départ permis pour ce format (entier ; Libre : 1 à 999). */
+const partieVieOk = (jeu, f) => { const d = PRT_JEU[jeu]; return !!d && PRT_JEUX.includes(jeu) && Number.isInteger(f) && (d.vie ? d.vie.includes(f) : f >= 1 && f <= PRT_VIE_MAX); };
+/** Blessures de commandant (et impôt) dans cette partie ; monarque et initiative. */
+const partieCmdOn = st => PRT_JEU[partieJeu(st)].cmd;
+const partieMarksOn = st => PRT_JEU[partieJeu(st)].marks;
 /** Texte d'un joueur ou d'un deck : sans caractères de contrôle ni chevrons, espaces resserrés, n caractères au plus. */
 function partieStr(v, n) {
   if (typeof v !== 'string') return '';
@@ -111,14 +126,14 @@ function partiePlace(o, vie) {
   return { pos: o.pos, sorte, nom: partieStr(o.nom, PRT_LEN.nom), ...(uid ? { uid } : {}), ...(deck ? { deck } : {}), vie, blessures: {}, compteurs: { poison: 0, impot: 0, energie: 0, experience: 0 }, elimine: null };
 }
 /**
- * Nouvelle partie. o : { format (points de départ : 40 par défaut ; 30, 25, 20), moi ({ nom, deck?, pos? } : le créateur, place 1 par défaut ; null : pas de place pour lui),
- * id?, now? }. État : { v, id, cree, format, places [partiePlace…], monarque (place, 0 : personne), initiative, tour (tour de table, 0 : pas commencé), actif (place qui joue),
+ * Nouvelle partie. o : { jeu ('commander' par défaut, 'standard', 'libre'), format (points de départ permis pour ce jeu, sinon ceux par défaut : 40 en Commander,
+ * 20 sinon), moi ({ nom, deck?, pos? } : le créateur, place 1 par défaut ; null : pas de place pour lui), id?, now? }. État : { v, id, cree, jeu, format, places [partiePlace…], monarque (place, 0 : personne), initiative, tour (tour de table, 0 : pas commencé), actif (place qui joue),
  * premier, debut, fin (horodatages, 0 : pas encore), vainqueurs (null tant que la partie n'est pas finie, puis [places], vide : aucun), rangs (null : déduits ; sinon { place: rang }),
  * ne (éliminations numérotées), journal [entrées] }.
  */
 function partieNew(o = {}) {
-  const format = PRT_FORMATS.includes(Number(o.format)) ? Number(o.format) : 40;
-  let st = { v: PRT_V, id: partieIdOk(o.id) ? o.id : partieId(), cree: partieNow(o.now), format, places: [], monarque: 0, initiative: 0, tour: 0, actif: 0, premier: 0, debut: 0, fin: 0, vainqueurs: null, rangs: null, ne: 0, journal: [] };
+  const jeu = PRT_JEUX.includes(o.jeu) ? o.jeu : 'commander', format = partieVieOk(jeu, Number(o.format)) ? Number(o.format) : PRT_JEU[jeu].def;
+  let st = { v: PRT_V, id: partieIdOk(o.id) ? o.id : partieId(), cree: partieNow(o.now), jeu, format, places: [], monarque: 0, initiative: 0, tour: 0, actif: 0, premier: 0, debut: 0, fin: 0, vainqueurs: null, rangs: null, ne: 0, journal: [] };
   if (o.moi !== null) st = partieAddPlace(st, { ...(o.moi || {}), sorte: 'moi' });
   return st;
 }
@@ -156,10 +171,18 @@ function partieSetPlace(st, pos, o = {}) {
   if ('uid' in o && p.sorte === 'compte') { if (typeof o.uid === 'string' && PRT_TK_RE.test(o.uid)) p.uid = o.uid; else delete p.uid; }
   places[i] = p; return { ...st, places };
 }
-/** Format (points de départ) : avant le début, remet chaque place à ce total. */
+/** Points de départ (permis pour le format de jeu) : avant le début, remet chaque place à ce total. */
 function partieSetFormat(st, format) {
-  const f = Number(format); if (!partieSetup(st) || !PRT_FORMATS.includes(f) || st.journal.length) return st;
+  const f = Number(format); if (!partieSetup(st) || !partieVieOk(partieJeu(st), f) || st.journal.length) return st;
   return { ...st, format: f, places: st.places.map(p => ({ ...p, vie: f })) };
+}
+/** Format de jeu (Commander, Standard, Libre) et ses points de départ (format ; absent ou pas permis : ceux par défaut du jeu) : avant le début seulement. */
+function partieSetJeu(st, jeu, format) {
+  if (!partieSetup(st) || !PRT_JEUX.includes(jeu) || st.journal.length) return st;
+  const f = partieVieOk(jeu, Number(format)) ? Number(format) : PRT_JEU[jeu].def, d = PRT_JEU[jeu];
+  if (jeu === partieJeu(st) && f === st.format) return st;
+  return { ...st, jeu, format: f, monarque: d.marks ? st.monarque : 0, initiative: d.marks ? st.initiative : 0,
+    places: st.places.map(p => ({ ...p, vie: f, blessures: d.cmd ? p.blessures : {}, compteurs: d.cmd ? p.compteurs : { ...p.compteurs, impot: 0 } })) };
 }
 
 /* ── Actions de jeu (état → nouvel état, journalisées) ───────────────────────────────────────────────────────────────────── */
@@ -171,18 +194,18 @@ function partieLife(st, pos, n, o = {}) {
   return { ...st, places, journal: partieLog(st.journal, { a: 'v', p: pos, n: d, t: partieNow(o.now) }, o.merge) };
 }
 /** Blessures du commandant de la place src reçues par la place pos : ±n, et autant de points de vie en moins (ou rendus pour une correction : règle Commander).
-    o.second : 2e commandant de src (partenaire), compté à part. */
+    o.second : 2e commandant de src (partenaire), compté à part. Commander seulement (Standard, Libre : refusé). */
 function partieCmdDamage(st, pos, src, n, o = {}) {
-  n = Math.trunc(Number(n)); const i = partieIdx(st, pos); if (!n || i < 0 || partieIdx(st, src) < 0 || st.fin) return st;
+  n = Math.trunc(Number(n)); const i = partieIdx(st, pos); if (!n || i < 0 || partieIdx(st, src) < 0 || st.fin || !partieCmdOn(st)) return st;
   const k = String(src) + (o.second ? 'b' : ''), [places, p] = partieClonePl(st, i), cur = p.blessures[k] || 0, nb = Math.max(0, Math.min(999, cur + n)), d = nb - cur;
   if (!d) return st;
   if (nb) p.blessures[k] = nb; else delete p.blessures[k];
   const v = Math.max(-999, Math.min(9999, p.vie - d)), dv = v - p.vie; p.vie = v;
   return { ...st, places, journal: partieLog(st.journal, { a: 'b', p: pos, s: k, n: d, v: dv, t: partieNow(o.now) }, o.merge) };
 }
-/** Compteur ±n (jamais sous 0) : poison, impot (impôt de commandant), energie, experience, ou un compteur libre (nom ; 8 au plus par place). */
+/** Compteur ±n (jamais sous 0) : poison, impot (impôt de commandant : Commander seulement), energie, experience, ou un compteur libre (nom ; 8 au plus par place). */
 function partieCounter(st, pos, name, n, o = {}) {
-  n = Math.trunc(Number(n)); const i = partieIdx(st, pos), k = partieCounterName(name); if (!n || i < 0 || !k || st.fin) return st;
+  n = Math.trunc(Number(n)); const i = partieIdx(st, pos), k = partieCounterName(name); if (!n || i < 0 || !k || st.fin || (k === 'impot' && !partieCmdOn(st))) return st;
   const pl = st.places[i];
   if (!partieOwn(pl.compteurs, k) && Object.keys(pl.compteurs).length >= PRT_COUNTERS.length + PRT_FREE_MAX) return st;
   const [places, p] = partieClonePl(st, i), cur = partieOwn(p.compteurs, k) ? p.compteurs[k] : 0, nv = Math.max(0, Math.min(999, cur + n)), d = nv - cur;
@@ -190,10 +213,10 @@ function partieCounter(st, pos, name, n, o = {}) {
   p.compteurs[k] = nv;
   return { ...st, places, journal: partieLog(st.journal, { a: 'c', p: pos, k, n: d, t: partieNow(o.now) }, o.merge) };
 }
-/** Monarque (which = 'monarque') ou initiative ('initiative') : une seule place à la fois ; pos 0 : personne. */
+/** Monarque (which = 'monarque') ou initiative ('initiative') : une seule place à la fois ; pos 0 : personne. Pas en Standard. */
 function partieMark(st, which, pos, o = {}) {
   pos = Number(pos) || 0;
-  if (st.fin || (which !== 'monarque' && which !== 'initiative') || st[which] === pos || (pos && !partieAliveAt(st, pos))) return st;
+  if (st.fin || !partieMarksOn(st) || (which !== 'monarque' && which !== 'initiative') || st[which] === pos || (pos && !partieAliveAt(st, pos))) return st;
   return { ...st, [which]: pos, journal: partieLog(st.journal, { a: which === 'monarque' ? 'm' : 'i', p: pos, w: st[which], t: partieNow(o.now) }, false) };
 }
 const partieMonarch = (st, pos, o) => partieMark(st, 'monarque', pos, o);
@@ -203,7 +226,7 @@ const partieInitiative = (st, pos, o) => partieMark(st, 'initiative', pos, o);
 function partieEliminate(st, pos, cause, o = {}) {
   const i = partieIdx(st, pos); if (i < 0 || st.fin || st.places[i].elimine) return st;
   const ne = (st.ne || 0) + 1, [places, p] = partieClonePl(st, i), par = Number(o.par);
-  p.elimine = { tour: st.tour, cause: PRT_CAUSES.includes(cause) ? cause : 'autre', n: ne, ...(par && par !== pos && partieIdx(st, par) >= 0 ? { par } : {}) };
+  p.elimine = { tour: st.tour, cause: PRT_CAUSES.includes(cause) && (cause !== 'commandant' || partieCmdOn(st)) ? cause : 'autre', n: ne, ...(par && par !== pos && partieIdx(st, par) >= 0 ? { par } : {}) };
   const next = { ...st, places, ne }, heir = partieHeir(next, pos);
   if (st.monarque === pos) next.monarque = heir;
   if (st.initiative === pos) next.initiative = heir;
@@ -295,14 +318,15 @@ function partieUndo(st) {
 }
 
 /* ── Propositions d'élimination, classement, résultat ─────────────────────────────────────────────────────────────────────── */
-/** Places à proposer d'éliminer (jamais d'office) : [{ pos, cause: 'vie' (≤ 0) | 'poison' (≥ 10) | 'commandant' (21 blessures d'un même commandant : par, second ?) }]. */
+/** Places à proposer d'éliminer (jamais d'office) : [{ pos, cause: 'vie' (≤ 0) | 'poison' (≥ 10) | 'commandant' (21 blessures d'un même commandant : par, second ? ;
+    Commander seulement) }]. */
 function partieProposals(st) {
-  const out = []; if (st.fin) return out;
+  const out = []; if (st.fin) return out; const cmd = partieCmdOn(st);
   for (const p of st.places) {
     if (p.elimine) continue;
     if (p.vie <= 0) out.push({ pos: p.pos, cause: 'vie' });
     if ((p.compteurs.poison || 0) >= 10) out.push({ pos: p.pos, cause: 'poison' });
-    for (const [k, v] of Object.entries(p.blessures)) if (v >= 21) out.push({ pos: p.pos, cause: 'commandant', par: parseInt(k, 10), ...(k.endsWith('b') ? { second: true } : {}) });
+    if (cmd) for (const [k, v] of Object.entries(p.blessures)) if (v >= 21) out.push({ pos: p.pos, cause: 'commandant', par: parseInt(k, 10), ...(k.endsWith('b') ? { second: true } : {}) });
   }
   return out;
 }
@@ -316,22 +340,23 @@ function partieRanks(st) {
   return out;
 }
 /**
- * Résultat compact : { id, date (début, ms), duree (s), tours, format, places [{ pos, nom, sorte, uid? (jeton du serveur, places « compte »), commandant?, deck?, image?, rang, vainqueur }] }.
+ * Résultat compact : { id, date (début, ms), duree (s), tours, format (points de départ), jeu? ('standard' | 'libre' ; absent : Commander), places [{ pos, nom, sorte, uid? (jeton du serveur, places « compte »), commandant?, deck?, image?, rang, vainqueur }] }.
  * Partie pas finie : durée jusqu'à o.now.
  */
 function partieResult(st, o = {}) {
-  const ranks = partieRanks(st), w = new Set(st.vainqueurs || []), debut = st.debut || st.cree, fin = st.fin || partieNow(o.now);
-  return { id: st.id, date: Math.round(debut), duree: Math.max(0, Math.min(30 * 86400, Math.round((fin - debut) / 1000))), tours: Math.min(9999, st.tour), format: st.format,
+  const ranks = partieRanks(st), w = new Set(st.vainqueurs || []), debut = st.debut || st.cree, fin = st.fin || partieNow(o.now), jeu = partieJeu(st);
+  return { id: st.id, date: Math.round(debut), duree: Math.max(0, Math.min(30 * 86400, Math.round((fin - debut) / 1000))), tours: Math.min(9999, st.tour), format: st.format, ...(jeu !== 'commander' ? { jeu } : {}),
     places: st.places.slice().sort((a, b) => a.pos - b.pos).map(p => ({ pos: p.pos, nom: p.nom, sorte: p.sorte, ...(p.uid ? { uid: p.uid } : {}), ...(p.deck && p.deck.commandant ? { commandant: p.deck.commandant } : {}),
       ...(p.deck && p.deck.nom ? { deck: p.deck.nom } : {}), ...(p.deck && p.deck.image ? { image: p.deck.image } : {}), rang: ranks[p.pos] || st.places.length, vainqueur: w.has(p.pos) })) };
 }
 /**
  * Résultat relu (serveur, stockage, lien) : le même, champs bornés, ou null. o.tickets : garde les jetons uid des places « compte » (envoi du créateur).
- * Partagé avec le serveur (proxy.mjs › /api/partie) : mêmes règles des deux côtés.
+ * jeu absent : Commander ; inconnu, ou points de départ qui ne lui vont pas : null. Partagé avec le serveur (proxy.mjs › /api/partie) : mêmes règles des deux côtés.
  */
 function partieResClean(r, o = {}) {
   if (!r || typeof r !== 'object' || !partieIdOk(r.id)) return null;
-  const date = partieInt(r.date, 1.5e12, 4.1e12), duree = partieInt(r.duree, 0, 30 * 86400), tours = partieInt(r.tours, 0, 9999), format = PRT_FORMATS.includes(r.format) ? r.format : null;
+  const jeu = r.jeu == null ? 'commander' : PRT_JEUX.includes(r.jeu) ? r.jeu : null; if (!jeu) return null;
+  const date = partieInt(r.date, 1.5e12, 4.1e12), duree = partieInt(r.duree, 0, 30 * 86400), tours = partieInt(r.tours, 0, 9999), format = partieVieOk(jeu, r.format) ? r.format : null;
   if (date == null || duree == null || tours == null || format == null || !Array.isArray(r.places) || !r.places.length || r.places.length > PRT_POS_MAX) return null;
   const seen = new Set(), places = []; let moi = 0;
   for (const x of r.places) {
@@ -344,7 +369,7 @@ function partieResClean(r, o = {}) {
     places.push({ pos, nom: partieStr(x.nom, PRT_LEN.nom), sorte, ...(uid ? { uid } : {}), ...(cmd ? { commandant: cmd } : {}), ...(deck ? { deck } : {}), ...(img ? { image: img } : {}), rang, vainqueur: x.vainqueur === true });
   }
   places.sort((a, b) => a.pos - b.pos);
-  return { id: r.id, date, duree, tours, format, places };
+  return { id: r.id, date, duree, tours, format, ...(jeu !== 'commander' ? { jeu } : {}), places };
 }
 /** Entrée d'historique : un résultat (sans jetons) + moi (place du propriétaire de l'historique, 0 : aucune), src ('h' : créée ici, 's' : salle d'attente, 'q' : QR code du résultat),
     at (enregistrée), u (compte de l'appareil, '' : aucun), sv (1 : enregistrée par le serveur). */
@@ -356,7 +381,8 @@ function partieHistClean(e) {
 
 /* ── Résultat en lien / QR code : https://manaorbit.app/?partie=<données> ─────────────────────────────────────────────────── */
 /* Données : base64url du JSON minifié [version, id, date (s), durée (s), tours, format, places [[pos, nom, sorte (0 moi, 1 compte, 2 invité), commandant, deck, rang, vainqueur (0/1)]…],
-   somme de contrôle (FNV-1a 32 bits, base 36, du JSON sans elle)]. Jamais de jeton uid ni d'image. Textes raccourcis jusqu'à tenir dans PRT_LINK_MAX caractères (lien entier). */
+   jeu ('s' Standard, 'l' Libre ; seulement hors Commander), somme de contrôle (FNV-1a 32 bits, base 36, du JSON sans elle)]. Sans jeu (8 éléments, comme les liens
+   des versions d'avant) : Commander ; une appli d'avant lit les liens de Commander, pas les autres (« illisible »). Jamais de jeton uid ni d'image. Textes raccourcis jusqu'à tenir dans PRT_LINK_MAX caractères (lien entier). */
 const PRT_SORTE_CODE = { moi: 0, compte: 1, invite: 2 };
 function partieCk(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); }
 function partieB64(s) {
@@ -371,6 +397,7 @@ function partieUnB64(s) {
 }
 function partiePack(r, pl) {
   const a = [PRT_V, r.id, Math.round(r.date / 1000), r.duree, r.tours, r.format, pl.map(p => [p.pos, p.nom, PRT_SORTE_CODE[p.sorte] ?? 2, p.cmd, p.deck, p.rang, p.win ? 1 : 0])];
+  if (PRT_JEU_CODE[r.jeu]) a.push(PRT_JEU_CODE[r.jeu]);
   a.push(partieCk(JSON.stringify(a)));
   return partieB64(JSON.stringify(a));
 }
@@ -393,17 +420,17 @@ function decodeResult(input) {
     const m = /[?&#]partie=([^&#\s]*)/.exec(s); if (m) s = decodeURIComponent(m[1]);
     if (!/^[A-Za-z0-9_-]{20,6000}$/.test(s)) return null;
     const a = JSON.parse(partieUnB64(s));
-    if (!Array.isArray(a) || a.length !== 8 || a[0] !== PRT_V) return null;
+    if (!Array.isArray(a) || (a.length !== 8 && a.length !== 9) || a[0] !== PRT_V) return null;
     const ck = a.pop(); if (typeof ck !== 'string' || ck !== partieCk(JSON.stringify(a))) return null;
-    const [, id, date, duree, tours, format, pl] = a;
-    if (!Array.isArray(pl) || !Number.isInteger(date)) return null;
+    const [, id, date, duree, tours, format, pl, jc] = a, jeu = a.length === 8 ? Object.keys(PRT_JEU_CODE).find(k => PRT_JEU_CODE[k] === jc) : 'commander';
+    if (!jeu || !Array.isArray(pl) || !Number.isInteger(date)) return null;
     const places = [];
     for (const x of pl) {
       if (!Array.isArray(x) || x.length !== 7 || typeof x[1] !== 'string' || typeof x[3] !== 'string' || typeof x[4] !== 'string' || (x[6] !== 0 && x[6] !== 1)) return null;
       const sorte = PRT_SORTES[x[2]]; if (!sorte) return null;
       places.push({ pos: x[0], nom: x[1], sorte, commandant: x[3], deck: x[4], rang: x[5], vainqueur: x[6] === 1 });
     }
-    return partieResClean({ id, date: date * 1000, duree, tours, format, places });
+    return partieResClean({ id, date: date * 1000, duree, tours, format, jeu, places });
   } catch (e) { return null; }
 }
 /** Adresse du site pour un lien (?partie= ou ?table=). */
@@ -426,12 +453,12 @@ function partieLsSet(k, v) { try { if (v == null) localStorage.removeItem(k); el
 /** État relu (stockage) : complété et borné, ou null. */
 function partieStateClean(o) {
   if (!o || typeof o !== 'object' || o.v !== PRT_V || !partieIdOk(o.id) || !Array.isArray(o.places) || o.places.length > PRT_POS_MAX) return null;
-  const format = PRT_FORMATS.includes(o.format) ? o.format : 40, seen = new Set(), places = [], num = (v, lo, hi, d = 0) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.trunc(v))) : d);
+  const jeu = partieJeu(o), cmd = PRT_JEU[jeu].cmd, marks = PRT_JEU[jeu].marks, format = partieVieOk(jeu, o.format) ? o.format : PRT_JEU[jeu].def, seen = new Set(), places = [], num = (v, lo, hi, d = 0) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.trunc(v))) : d);
   for (const x of o.places) {
     const pos = x && partieInt(x.pos, 1, PRT_POS_MAX); if (!pos || seen.has(pos)) return null;
     seen.add(pos);
     const p = partiePlace(x, num(x.vie, -999, 9999, format));
-    for (const [k, v] of Object.entries(x.blessures && typeof x.blessures === 'object' ? x.blessures : {})) if (/^[1-8]b?$/.test(k) && v > 0) p.blessures[k] = num(v, 0, 999);
+    if (cmd) for (const [k, v] of Object.entries(x.blessures && typeof x.blessures === 'object' ? x.blessures : {})) if (/^[1-8]b?$/.test(k) && v > 0) p.blessures[k] = num(v, 0, 999);
     for (const [k, v] of Object.entries(x.compteurs && typeof x.compteurs === 'object' ? x.compteurs : {}).slice(0, PRT_COUNTERS.length + PRT_FREE_MAX)) { const kk = partieCounterName(k); if (kk) p.compteurs[kk] = num(v, 0, 999); }
     const e = x.elimine; if (e && typeof e === 'object') p.elimine = { tour: num(e.tour, 0, 9999), cause: PRT_CAUSES.includes(e.cause) ? e.cause : 'autre', n: num(e.n, 0, 999), ...(partieInt(e.par, 1, PRT_POS_MAX) ? { par: e.par } : {}) };
     places.push(p);
@@ -439,7 +466,7 @@ function partieStateClean(o) {
   places.sort((a, b) => a.pos - b.pos);
   const at = v => (seen.has(v) ? v : 0), ts = v => num(v, 0, 4.1e12);
   const w = Array.isArray(o.vainqueurs) ? o.vainqueurs.filter(x => seen.has(x)) : null;
-  const st = { v: PRT_V, id: o.id, cree: ts(o.cree) || Date.now(), format, places, monarque: at(o.monarque), initiative: at(o.initiative), tour: num(o.tour, 0, 9999), actif: at(o.actif), premier: at(o.premier),
+  const st = { v: PRT_V, id: o.id, cree: ts(o.cree) || Date.now(), jeu, format, places, monarque: marks ? at(o.monarque) : 0, initiative: marks ? at(o.initiative) : 0, tour: num(o.tour, 0, 9999), actif: at(o.actif), premier: at(o.premier),
     debut: ts(o.debut), fin: ts(o.fin), vainqueurs: o.fin ? w || [] : null, rangs: null, ne: num(o.ne, 0, 999), journal: Array.isArray(o.journal) ? o.journal.filter(partieLogOk).slice(-PRT_LOG_MAX) : [] };
   if (o.rangs && st.fin) st.rangs = partieRanksClean(st, o.rangs);
   return st;
@@ -492,12 +519,15 @@ const partieKey = s => String(s || '').toLowerCase().normalize('NFD').replace(/[
 /**
  * items : entrées d'historique (partieHistClean). → { n, wins, rate (0..1), duree (s, moyenne), tours (moyenne), rang (moyen), serie (victoires d'affilée en cours), best (meilleure série),
  *   decks [{ nom, commandant, n, wins, last }] (mes decks, le deck sans nom groupé par commandant), adv [{ nom, n, mine (mes victoires), theirs (les siennes) }] (adversaires, par prénom),
- *   cmds [{ nom, n, wins }] (commandants adverses vus à ma table) } ; listes triées par parties jouées. o.deck : seulement les parties jouées avec ce deck (nom).
+ *   cmds [{ nom, n, wins }] (commandants adverses vus à ma table, parties de Commander seulement), jeux { commander?, standard?, libre? : parties de chaque format,
+ *   sans le filtre o.jeu } } ; listes triées par parties jouées. o.deck : seulement les parties jouées avec ce deck (nom) ; o.jeu : seulement ce format (Standard compté à part).
  */
 function partieStats(items, o = {}) {
-  const want = o.deck ? partieKey(o.deck) : '';
-  const mine = (items || []).map(x => ({ x, me: x && x.moi ? (x.places || []).find(p => p.pos === x.moi) : null })).filter(e => e.me && (!want || partieKey(e.me.deck) === want)).sort((a, b) => b.x.date - a.x.date);
-  const out = { n: mine.length, wins: 0, rate: 0, duree: 0, tours: 0, rang: 0, serie: 0, best: 0, decks: [], adv: [], cmds: [] };
+  const want = o.deck ? partieKey(o.deck) : '', jeux = {};
+  const all = (items || []).map(x => ({ x, me: x && x.moi ? (x.places || []).find(p => p.pos === x.moi) : null })).filter(e => e.me && (!want || partieKey(e.me.deck) === want));
+  for (const e of all) { const j = partieJeu(e.x); jeux[j] = (jeux[j] || 0) + 1; }
+  const mine = all.filter(e => !o.jeu || partieJeu(e.x) === o.jeu).sort((a, b) => b.x.date - a.x.date);
+  const out = { n: mine.length, wins: 0, rate: 0, duree: 0, tours: 0, rang: 0, serie: 0, best: 0, decks: [], adv: [], cmds: [], jeux };
   if (!mine.length) return out;
   const decks = new Map(), adv = new Map(), cmds = new Map(); let run = 0, open = true;
   for (const { x, me } of mine) {
@@ -509,7 +539,7 @@ function partieStats(items, o = {}) {
     for (const p of x.places) {
       if (p.pos === me.pos) continue;
       const ak = partieKey(p.nom); if (ak) { const a = adv.get(ak) || { nom: p.nom, n: 0, mine: 0, theirs: 0 }; a.n++; if (me.vainqueur) a.mine++; if (p.vainqueur) a.theirs++; adv.set(ak, a); }
-      const ck = partieKey(p.commandant); if (ck) { const c = cmds.get(ck) || { nom: p.commandant, n: 0, wins: 0 }; c.n++; if (p.vainqueur) c.wins++; cmds.set(ck, c); }
+      const ck = partieJeu(x) === 'commander' ? partieKey(p.commandant) : ''; if (ck) { const c = cmds.get(ck) || { nom: p.commandant, n: 0, wins: 0 }; c.n++; if (p.vainqueur) c.wins++; cmds.set(ck, c); }
     }
   }
   for (const { me } of mine.slice().reverse()) { run = me.vainqueur ? run + 1 : 0; if (run > out.best) out.best = run; }      // du plus ancien au plus récent
@@ -638,20 +668,23 @@ async function partieHistDelete(id, o = {}) { const r = await partieCall(partieE
 
 /* ── Salle d'attente (serveur : /api/partie ; relevé comme l'échange en direct) ─────────────────────────────────────────── */
 /* Salle gardée sur l'appareil (PRT_ROOM) : { c (code), key (clé de place), host (créateur), guest (entré sans compte), id (partie), pos, u (compte) }.
-   Vue renvoyée par le serveur : { c, v, st ('wait' | 'live' : commencée, liste figée | 'done' : résultat là | 'end'), why, id, format, size, at, me (ma place), host,
+   Vue renvoyée par le serveur : { c, v, st ('wait' | 'live' : commencée, liste figée | 'done' : résultat là | 'end'), why, id, jeu (absent d'un serveur d'avant : Commander),
+   format (points de départ), size, at, me (ma place), host,
    places [{ pos, n, k ('compte' | 'invite'), h? (créateur), dev (un téléphone a rejoint), on (présent il y a moins de 15 s), p? (miniature), deck?, t? (jeton : vue du créateur,
    partie commencée) }], res? (résultat sans jetons) }. */
 const partieRoom = () => { const r = partieLs(PRT_ROOM); return r && PRT_CODE_RE.test(r.c) && typeof r.key === 'string' ? r : null; };
 const partieRoomForget = () => { partieRoomStop(); partieLsSet(PRT_ROOM, null); };
 function partieRoomKeep(v, j, extra) { partieLsSet(PRT_ROOM, { c: v.c, key: j.key, id: v.id, pos: v.me, ...extra }); }
-/** Le créateur ouvre la salle d'attente de sa partie (compte connecté exigé). o : { n (pseudo), p (miniature), l (langue), size (places, 8 par défaut) }. → vue. */
+/** Places de la salle d'attente pour cette partie : celles du format (8, 2 en Standard), plus s'il le faut pour les places déjà prises (au moins 2, 8 au plus). */
+const partieRoomSize = (st, more = 0) => Math.min(PRT_POS_MAX, Math.max(2, PRT_JEU[partieJeu(st)].size, more, ...st.places.map(p => p.pos)));
+/** Le créateur ouvre la salle d'attente de sa partie (compte connecté exigé). o : { n (pseudo), p (miniature), l (langue), size (places ; défaut : partieRoomSize) }. → vue. */
 async function partieRoomCreate(st, o = {}) {
   const env = partieEnv(o), me = st.places.find(p => p.sorte === 'moi') || {};
-  const j = await partieCall(env, '', { method: 'POST', auth: 'need', body: { id: st.id, n: o.n || me.nom || '', ...(o.p ? { p: o.p } : {}), l: o.l || '', pos: me.pos || 1, ...(me.deck ? { deck: me.deck } : {}), format: st.format, size: o.size || PRT_POS_MAX } });
+  const j = await partieCall(env, '', { method: 'POST', auth: 'need', body: { id: st.id, n: o.n || me.nom || '', ...(o.p ? { p: o.p } : {}), l: o.l || '', pos: me.pos || 1, ...(me.deck ? { deck: me.deck } : {}), jeu: partieJeu(st), format: st.format, size: o.size || partieRoomSize(st) } });
   partieRoomKeep(j.s, j, { host: true, guest: false, u: (env.user && env.user.uid) || '' });
   return j.s;
 }
-/** Avant d'entrer : la table (sans clé) → { c, st, format, size, host (pseudo du créateur), places [{ pos, n, k }] }. */
+/** Avant d'entrer : la table (sans clé) → { c, st, jeu, format, size, host (pseudo du créateur), places [{ pos, n, k }] }. */
 const partiePeek = (code, o = {}) => partieCall(partieEnv(o), '/peek?c=' + encodeURIComponent(code));
 /** Rejoindre la table : o : { pos (sinon la première libre), n (pseudo, ou prénom de l'invité), p, l, deck, guest (true : sans compte même connecté) }. → vue. */
 async function partieRoomJoin(code, o = {}) {
@@ -662,7 +695,7 @@ async function partieRoomJoin(code, o = {}) {
 }
 /**
  * Action sur la salle (clé gardée) : seat { pos } · me { n?, deck? } · leave ; créateur : add { pos?, n, deck? } (invité sans téléphone) · move { from, to } ·
- * kick { pos } · opts { format?, size? } · start (liste figée, jetons des comptes) · end. → vue ; salle disparue ou joueur retiré : oubliée (erreur gone / kicked).
+ * kick { pos } · opts { jeu?, format?, size? } · start (liste figée, jetons des comptes) · end. → vue ; salle disparue ou joueur retiré : oubliée (erreur gone / kicked).
  */
 async function partieRoomOp(op, extra = {}, o = {}) {
   const room = partieRoom(); if (!room) throw Object.assign(new Error('pas de salle'), { code: 'gone' });
@@ -676,8 +709,8 @@ const partieRoomLeave = o => partieRoomOp('leave', {}, o).catch(() => { partieRo
 /** Places de la partie d'après la salle (créateur, avant le début) : sa place « moi », les comptes (uid : jeton du serveur, donné au lancement), les invités. */
 function partieFromRoom(st, view) {
   if (!view || !Array.isArray(view.places) || !partieSetup(st)) return st;
-  let next = { ...st, places: [], format: PRT_FORMATS.includes(view.format) ? view.format : st.format };
-  for (const x of view.places) {
+  const jeu = PRT_JEUX.includes(view.jeu) ? view.jeu : partieJeu(st);      // serveur d'avant (sans jeu) : celui de la partie
+  let next = { ...st, places: [], jeu, format: partieVieOk(jeu, view.format) ? view.format : partieVieOk(jeu, st.format) ? st.format : PRT_JEU[jeu].def };  for (const x of view.places) {
     const old = st.places.find(p => p.pos === x.pos);
     next = partieAddPlace(next, { pos: x.pos, sorte: x.h ? 'moi' : x.k === 'compte' ? 'compte' : 'invite', nom: x.n, ...(x.t ? { uid: x.t } : {}), deck: x.deck || (old && old.deck) || null });
   }
@@ -747,6 +780,7 @@ function partieUser(user) { if (user && typeof window !== 'undefined') setTimeou
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { PRT_CUR, PRT_QUEUE, PRT_HIST, PRT_ROOM, PRT_HIST_MAX, PRT_LOG_MAX, PRT_MERGE_MS, PRT_FORMATS, PRT_COUNTERS, PRT_CAUSES, PRT_SORTES, PRT_LEN, PRT_SITE, PRT_LINK_MAX, PRT_ID_RE, PRT_CODE_RE, PRT_TK_RE, PRT_IMG_RE,
+    PRT_JEUX, PRT_JEU, PRT_VIE_MAX, partieJeu, partieVieOk, partieCmdOn, partieMarksOn, partieSetJeu, partieRoomSize,
     partieId, partieStr, partieCut, partieDeck, partieDeckOf, partieNew, partieAddPlace, partieRemovePlace, partieMovePlace, partieSetPlace, partieSetFormat,
     partieLife, partieCmdDamage, partieCounter, partieMark, partieMonarch, partieInitiative, partieEliminate, partieRevive, partieStart, partieFirst, partieNextTurn, partieEnd, partieSetRanks, partieUndo,
     partieProposals, partieRanks, partieResult, partieResClean, partieHistClean, partieStats, partieCk, encodeResult, decodeResult, partieResultLink, partieTableLink, partieParseUrl,
