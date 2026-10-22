@@ -6,14 +6,19 @@
 :root{--hd-h:63px;--ad-gt:8px;--ad-g:12px}
 .bar-in{min-height:calc(var(--hd-h) - 1px)}
 .dv-head{min-height:calc(var(--top-in) + var(--hd-h))}
-html.ad-on{--ad-sp:calc(var(--ad-h,0px) + var(--ad-gt) + var(--ad-g));scroll-padding-top:calc(72px + var(--ad-sp))}
+/* --ad-bot : bas de la zone réservée au bandeau (en-tête + bandeau + écarts), LA référence de tout ce qui se pose en haut de l'écran par-dessus la page
+   (tâches, annonce d'un badge, astuces de tour.js : adsBot()). Le bandeau est une vue native AU-DESSUS de la WebView : aucun z-index ne passe
+   devant, ce qui le chevauche est caché ; on décale donc sous --ad-bot. 0 sans bandeau (règles ad-on inactives : places d'origine). */
+html.ad-on{--ad-sp:calc(var(--ad-h,0px) + var(--ad-gt) + var(--ad-g));--ad-bot:calc(var(--top-in) + var(--hd-h) + var(--ad-sp));scroll-padding-top:calc(72px + var(--ad-sp))}
 /* accueil, saisie : bande fixe sous l'en-tête (le contenu qui défile passe dessous, jamais sous le bandeau), contenu décalé d'autant */
 html.ad-on::after{content:'';position:fixed;left:0;right:0;top:calc(var(--top-in) + var(--hd-h));height:var(--ad-sp);background:var(--bg);border-bottom:1px solid var(--line);z-index:19;pointer-events:none}
 html.ad-on .wrap{padding-top:calc(20px + var(--ad-sp))}
 /* écrans plein écran : la place du bandeau sous leur en-tête */
 html.ad-on .dv:not(.scan):not(.bd)>.dv-head{margin-bottom:var(--ad-sp)}
-html.ad-on .tasks{top:calc(var(--top-in) + var(--hd-h) + var(--ad-sp) + 8px)}
-html.ad-on .tasks.over{top:calc(var(--top-in) + var(--hd-h) + var(--ad-sp) + 8px)}
+html.ad-on .tasks,html.ad-on .tasks.over{top:calc(var(--ad-bot) + 8px)}
+/* annonce d'un nouveau badge (progress.js › prgPop) : d'ordinaire en haut par-dessus l'en-tête, elle (76 px) descendait sous le bandeau qui la
+   coupait à moitié (nom du palier et ce qu'il récompense cachés) ; avec le bandeau, elle se pose juste dessous, sur le contenu */
+html.ad-on .prg-pop{top:calc(var(--ad-bot) + 8px)}
 /* feuilles : le voile couvre tout l'écran, mais la feuille s'arrête sous le bandeau (en bas sur téléphone, centrée sur grand écran) */
-html.ad-on .sheet{max-height:min(90%,calc(100% - var(--top-in) - var(--hd-h) - var(--ad-sp) - 12px))}
-@media (min-width:720px){html.ad-on .sheet{max-height:min(86%,calc(100% - 2 * (var(--top-in) + var(--hd-h) + var(--ad-sp) + 12px)))}}
+html.ad-on .sheet{max-height:min(90%,calc(100% - var(--ad-bot) - 12px))}
+@media (min-width:720px){html.ad-on .sheet{max-height:min(86%,calc(100% - 2 * (var(--ad-bot) + 12px)))}}
