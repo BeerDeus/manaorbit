@@ -1,0 +1,39 @@
+/* ── feedback.css : feuille « Envoyer un avis » par le Discord (help.js › fbOpen) ──
+   Type, partie, titre, description (compteur), captures en vignettes (✕), pseudo Discord ; « Merci ! » avec les liens Discord. Couleurs du thème (clair et sombre). */
+.fb{display:flex;flex-direction:column;gap:14px}
+.fb-kind{--n:3}
+.fb-lh{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.fb-cnt{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.fb-cnt.warn{color:var(--warn)}
+.fb-text{width:100%;min-height:118px;max-height:40vh;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);color:var(--ink);font:inherit;font-size:14.5px;line-height:1.45;resize:vertical}
+.fb-text:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.fb [aria-invalid="true"]{border-color:var(--bad)}
+.fb input:disabled,.fb textarea:disabled,.fb select:disabled{opacity:.6}
+.fb-text::placeholder,.fb input::placeholder{color:var(--ink-3)}
+.fb-imgs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fb-imgs[hidden]{display:none}
+.fb-th{position:relative;aspect-ratio:3/4;max-height:180px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--surface-2)}
+.fb-th img{display:block;width:100%;height:100%;object-fit:cover}
+.fb-th.busy{display:grid;place-items:center}
+.fb-th.busy::after{content:'';width:20px;height:20px;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}
+.fb-x{position:absolute;top:4px;right:4px;display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:rgba(10,13,26,.72);color:#fff}
+.fb-x .i{width:16px;height:16px}
+.fb-x:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.fb-x:active{transform:scale(.94)}
+.fb-add{align-self:flex-start;max-width:100%}
+.fb-add span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fb-why{margin:0;text-wrap:pretty}
+.fb-err{margin:0;padding:8px 12px;border-radius:10px;background:var(--bad-soft);color:var(--bad);font-size:13px;font-weight:600}
+.fb-err[hidden]{display:none}
+.fb-done{display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 4px 6px;text-align:center}
+.fb-done h3{margin:0;font-family:var(--font-display);font-size:24px;letter-spacing:-.02em}
+.fb-done h3:focus{outline:none}
+.fb-done p{margin:0;max-width:40ch;color:var(--ink-2);text-wrap:pretty}
+.fb-ok{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:var(--good-soft);color:var(--good)}
+.fb-ok .i{width:28px;height:28px}
+.fb-links{display:flex;flex-direction:column;gap:8px;width:100%;max-width:320px;margin-top:6px}
+.fb-links .btn{text-decoration:none}
+#helpBox a[data-help="discord"]{text-decoration:none}
+/* mode streamer : ni le pseudo ni les captures lisibles à l'écran (sauf pendant la saisie du pseudo) */
+html.streamer .fb-contact:not(:focus),html.streamer .fb-th img{filter:blur(6px)}
+@media (prefers-reduced-motion:reduce){.fb-th.busy::after{animation-duration:2.4s}}

@@ -1,11 +1,12 @@
 // E2E contenus (sets.js, setview.js, help.js) : « Prochaines extensions » de l'accueil (faux Scryfall /sets : tri, éditions numériques et hors sujet écartées,
 // produits rattachés à leur parent, cache 24 h relu au 2e lancement, carte cachée en erreur ou hors ligne) ; page d'une extension (faux /cards/search :
 // grille, noms et images dans la langue des cartes, recherche, rareté, versions spéciales, tri, pastilles, étoiles de la liste de souhaits, carte en grand,
-// extension sans carte révélée, copie gardée) ; Réglages › Aide et avis (feuille d'aide,
-// lien d'avis mailto encodé) ; demande de note neutre (coupée tant que RATE_ASK est faux, appli Android seulement, bons moments, fréquence, session sans erreur).
+// extension sans carte révélée, copie gardée) ; Réglages › Aide et avis (feuille d'aide, lien d'avis mailto encodé, « Rejoindre le Discord ») ; avis par le Discord
+// (/__ping feedback et api/feedback simulés : feuille, requis, captures réduites, 3 au plus, corps du contrat, erreurs, « Merci ! », brouillon, 404 et absent → mailto, anglais) ; demande de note neutre (coupée tant que RATE_ASK est faux, appli Android seulement, bons moments, fréquence, session sans erreur).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, toHome, rcGo, openMe, closeSheets } from './e2e-world.mjs';
+import { randomBytes } from 'node:crypto';
+import { chromium, startWorld, newPage, txt, ok, toHome, rcGo, openMe, closeSheets, signInFake } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18990 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -23,13 +24,15 @@ const SETS = [
   set('bbb', 'Beta Masters', 1, 'masters'), set('xss', '<img src=x onerror="window.__xss=1">', 150, 'expansion', { icon_svg_uri: 'javascript:alert(1)', scryfall_uri: 'https://evil.example/sets/xss' }),
   set('ccc', 'Gamma Core', 200, 'core'), set('ddd', 'Delta Draft', 400, 'draft_innovation'),
 ];
-/** Page branchée sur un /sets simulé : mode 'ok' (liste), 'err' (500), sinon le faux Scryfall commun (404). Compteur de requêtes /sets dans hits. */
+/** Page branchée sur un /sets simulé : mode 'ok' (liste), 'err' (500), sinon le faux Scryfall commun (404). Compteur de requêtes /sets dans hits.
+ *  o.routes(p) : routes de plus, posées avant le chargement (avis par le Discord : /__ping, api/feedback). */
 async function page(o = {}) {
   const pg = await newPage(browser, world, { goto: false, ...(o.ctx ? { ctx: o.ctx } : {}), init: o.init });
   const hits = { n: 0 };
   await pg.p.route('https://api.scryfall.com/sets', route => { hits.n++; const h = { 'access-control-allow-origin': '*' };
     return o.sets === 'err' ? route.fulfill({ status: 500, headers: h, json: { object: 'error' } }) : o.sets === 'ok' ? route.fulfill({ status: 200, headers: h, json: { object: 'list', has_more: false, data: SETS } }) : route.fallback(); });
   await pg.p.route('https://svgs.scryfall.io/**', route => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>' }));
+  if (o.routes) await o.routes(pg.p);
   await pg.p.goto(world.url + (o.path || '')); await pg.p.waitForTimeout(700);
   await pg.p.evaluate(() => { BACKOFF.scry = [60, 60, 60]; BACKOFF.cool429 = 100; });
   errsAll.push(pg.errs);
@@ -264,7 +267,10 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   const { p, ctx } = await page({ init: seed, ctx: { colorScheme: 'dark' } });
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
   assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Aide et avis');
-  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), ['Comment ça marche', 'Visite guidée', 'Envoyer un avis'], 'navigateur : pas de « Noter » (« Visite guidée » : tour.js)');
+  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), ['Comment ça marche', 'Visite guidée', 'Envoyer un avis', 'Rejoindre le Discord'], 'navigateur : pas de « Noter » (« Visite guidée » : tour.js)');
+  assert.equal(await p.$eval('#helpBox a[data-help="discord"]', a => [a.getAttribute('href'), a.target, a.rel].join()), 'https://discord.gg/TTwrP94agb,_blank,noopener', '« Rejoindre le Discord » : invitation, onglet à part');
+  assert.notEqual(await p.evaluate(() => CTX.feedback), true, 'serveur des tests sans bot Discord : /__ping sans feedback');
+  assert.match(await txt(p, '#helpBox .hint'), /ton appli mail s.ouvre/, 'texte du mailto');
   const href = await p.$eval('#helpBox a[data-help="mail"]', a => a.getAttribute('href'));
   const m = /^mailto:contact@manaorbit\.app\?subject=([^&]*)&body=([^&]*)$/.exec(href);
   assert.ok(m, 'mailto : adresse, objet, corps : ' + href.slice(0, 120));
@@ -308,6 +314,237 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   await ctx.close();
 }
 ok('anglais : « Help and feedback », aide et corps du mail traduits');
+
+/* ── 2b) Avis par le Discord (help.js › fbOpen) : /__ping feedback: true et api/feedback simulés (routes Playwright) ──────────────────────── */
+// Images de test : BMP 24 bits fabriqués ici (dégradé 3 000 × 1 500, bruit 1 600 × 1 600 qui dépasse 1,5 Mo en JPEG 0,82, petite image), fichier abîmé.
+const bmp = (w, h, px) => {
+  const row = Math.ceil(w * 3 / 4) * 4, size = 54 + row * h, b = Buffer.alloc(size);
+  b.write('BM', 0); b.writeUInt32LE(size, 2); b.writeUInt32LE(54, 10); b.writeUInt32LE(40, 14); b.writeInt32LE(w, 18); b.writeInt32LE(h, 22); b.writeUInt16LE(1, 26); b.writeUInt16LE(24, 28); b.writeUInt32LE(row * h, 34);
+  if (!px) randomBytes(row * h).copy(b, 54);      // bruit : incompressible
+  else for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const [r, g, bl] = px(x, h - 1 - y), o = 54 + y * row + x * 3; b[o] = bl; b[o + 1] = g; b[o + 2] = r; }
+  return b;
+};
+const IMG = {
+  big: { name: 'grande.bmp', mimeType: 'image/bmp', buffer: bmp(3000, 1500, (x, y) => [x * 255 / 3000 | 0, y * 255 / 1500 | 0, 128]) },
+  noise: { name: 'bruit.bmp', mimeType: 'image/bmp', buffer: bmp(1600, 1600, null) },
+  small: { name: 'petite.bmp', mimeType: 'image/bmp', buffer: bmp(200, 300, x => [20, x, 200]) },
+  small2: { name: 'petite-2.bmp', mimeType: 'image/bmp', buffer: bmp(120, 90, () => [200, 40, 40]) },
+  bad: { name: 'abimee.png', mimeType: 'image/png', buffer: Buffer.from('pas une image du tout') },
+};
+/** Taille d'un JPEG (segment SOF) : { w, h } ; null si ce n'en est pas un. */
+const jpegSize = buf => {
+  if (buf[0] !== 0xFF || buf[1] !== 0xD8) return null;
+  for (let i = 2; i + 9 < buf.length;) { if (buf[i] !== 0xFF) return null; const m = buf[i + 1], len = buf.readUInt16BE(i + 2); if (m >= 0xC0 && m <= 0xCF && ![0xC4, 0xC8, 0xCC].includes(m)) return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) }; i += 2 + len; }
+  return null;
+};
+const FB_URL = 'https://discord.com/channels/111/222', FB_SHEET = '.fb-sheet.open';
+/** Page avec le bot Discord annoncé (/__ping du vrai proxy + feedback: true, sauf o.ping false) et api/feedback simulé : fb.calls (corps, en-têtes),
+ *  fb.next (réponses suivantes : { status, json, headers, delay, abort }), sinon 200 { ok, url, id }. */
+async function fbPage(o = {}) {
+  const fb = { calls: [], next: [] };
+  const pg = await page({ ...o, routes: async p => {
+    if (o.ping !== false) await p.route(u => new URL(u).pathname.endsWith('/__ping'), async route => { const r = await route.fetch(), j = await r.json(); return route.fulfill({ response: r, json: { ...j, feedback: true } }); });
+    await p.route(u => new URL(u).pathname.endsWith('/api/feedback'), async route => {
+      const req = route.request(), r = fb.next.shift() || { status: 200, json: { ok: true, url: FB_URL, id: '222' } };
+      fb.calls.push({ method: req.method(), headers: req.headers(), body: req.postDataJSON() });
+      if (r.delay) await new Promise(ok => setTimeout(ok, r.delay));
+      return r.abort ? route.abort('connectionrefused') : route.fulfill({ status: r.status, headers: r.headers || {}, json: r.json });
+    });
+  } });
+  if (o.ping !== false) await pg.p.waitForFunction(() => CTX.feedback === true, null, { timeout: 8000 });
+  return { ...pg, fb };
+}
+const fbVals = p => p.evaluate(() => ({ kind: (document.querySelector('.fb-kind .seg-opt[aria-checked="true"]') || {}).dataset?.v, area: document.querySelector('#fbArea').value, title: document.querySelector('#fbTitle').value,
+  text: document.querySelector('#fbText').value, contact: document.querySelector('#fbContact').value, imgs: document.querySelectorAll('.fb-th:not(.busy) img').length }));
+const fbErr = p => p.$eval('.fb-sheet .fb-err', e => (e.hidden ? '' : e.textContent));
+const fbThumbs = (p, n) => p.waitForFunction(n => document.querySelectorAll('.fb-th:not(.busy)').length === n && !document.querySelector('.fb-th.busy'), n, { timeout: 15000 });
+/** « Envoyer » : retourne la réponse de la feuille une fois l'envoi fini (bouton réactivé ou écran « Merci ! »). */
+async function fbSend(p) {
+  await p.click('.fb-sheet [data-fb="go"]');
+  await p.waitForFunction(() => { const b = document.querySelector('.fb-sheet [data-fb="go"]'); return !b || !b.disabled; }, null, { timeout: 10000 });
+}
+/** Clic sur un lien « Envoyer un avis » : la feuille s'ouvre-t-elle, le mailto est-il empêché ? (le lien n'est jamais suivi : le test garde la page) */
+async function mailClick(p, sel) {
+  await p.evaluate(() => { window.__mail = null; document.addEventListener('click', e => { if (e.target.closest('a[data-help="mail"]')) { window.__mail = { prevented: e.defaultPrevented, href: e.target.closest('a').getAttribute('href') }; e.preventDefault(); } }, { once: true }); });
+  await p.click(sel); await p.waitForTimeout(600);
+  return p.evaluate(() => ({ ...window.__mail, sheet: !!document.querySelector('.fb-sheet') }));
+}
+{ // serveur sans bot (feedback absent de /__ping, cas du serveur des tests) : « Envoyer un avis » reste le mailto, sans feuille ; hors ligne avec le bot : mailto aussi
+  const { p, ctx } = await fbPage({ ping: false });
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
+  const m = await mailClick(p, '#helpBox a[data-help="mail"]');
+  assert.equal(m.prevented, false, 'mailto suivi'); assert.equal(m.sheet, false, 'aucune feuille d\'avis'); assert.match(m.href, /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
+  assert.equal(await p.evaluate(() => prgC().fb), 1, 'badge « Voix du peuple » au clic, comme avant');
+  await ctx.close();
+}
+{
+  const { p, ctx, fb } = await fbPage({});
+  await ctx.setOffline(true);
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
+  const m = await mailClick(p, '#helpBox a[data-help="mail"]');
+  assert.equal(m.prevented, false); assert.equal(m.sheet, false, 'hors ligne : le mailto, qui partira plus tard'); assert.equal(fb.calls.length, 0);
+  await ctx.close();
+}
+ok('avis : serveur sans bot Discord (feedback absent) ou hors ligne : « Envoyer un avis » reste le mailto (badge au clic), aucune feuille');
+{ // la feuille, à 360 px en sombre : champs, requis, captures (réduites, 3 au plus, ✕, illisible), brouillon, 429, 503, réseau, 400, 413, succès, connecté, 404 → mailto
+  const seed = `localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: '2 Sol Ring\\n1 Craterhoof Behemoth', u: 1, s: '', b: null }));`;
+  const { p, ctx, fb } = await fbPage({ init: seed, ctx: { colorScheme: 'dark', viewport: { width: 360, height: 780 } } });
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
+  assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), ['Comment ça marche', 'Visite guidée', 'Envoyer un avis', 'Rejoindre le Discord']);
+  assert.match(await txt(p, '#helpBox .hint'), /arrive sur le Discord de Mana Orbit/, 'texte : l\'avis part sur le Discord');
+  const m = await mailClick(p, '#helpBox a[data-help="mail"]');
+  assert.equal(m.prevented, true, 'mailto empêché'); assert.equal(m.sheet, true, 'feuille d\'avis ouverte');
+  await p.waitForSelector(FB_SHEET);
+  assert.equal(await txt(p, '.fb-sheet .sheet-head h2'), 'Envoyer un avis');
+  assert.equal(await p.evaluate(() => prgC().fb || 0), 0, 'pas de badge avant un envoi réussi');
+  assert.deepEqual(await p.$$eval('.fb-kind .seg-opt', b => b.map(x => [x.dataset.v, x.textContent, x.getAttribute('aria-checked')].join(':'))), ['bug:Bug:true', 'idea:Idée:false', 'help:Question:false'], 'type : Bug par défaut');
+  assert.equal(await p.$eval('.fb-kind', e => e.getAttribute('role')), 'radiogroup');
+  assert.deepEqual(await p.$$eval('#fbArea option', o => o.map(x => x.value)), ['scan', 'collection', 'decks', 'prix', 'compte', 'alertes', 'echange', 'partie', 'mystere', 'amis', 'autre'], 'parties du contrat');
+  assert.deepEqual(await p.$$eval('#fbArea option', o => o.map(x => x.textContent)), ['Scan', 'Collection', 'Decks', 'Prix', 'Compte et synchro', 'Alertes', 'Échange', 'Partie', 'Carte mystère', 'Amis', 'Autre']);
+  assert.equal(await p.$eval('#fbArea', s => s.value), 'autre', 'partie : « Autre » par défaut');
+  // chaque champ a son libellé (label for, ou aria-labelledby)
+  assert.deepEqual(await p.$$eval('.fb input:not([type=file]), .fb textarea, .fb select', els => els.filter(e => !(e.labels && e.labels.length)).map(e => e.id)), [], 'libellés');
+  assert.deepEqual(await p.$$eval('.fb [required]', e => e.map(x => x.id)), ['fbTitle', 'fbText'], 'titre et description requis');
+  assert.equal(await p.$eval('#fbTitle', e => e.maxLength), 90); assert.equal(await p.$eval('#fbText', e => e.maxLength), 1500); assert.equal(await p.$eval('#fbContact', e => e.maxLength), 60);
+  assert.match(await p.$eval('#fbText', e => e.placeholder), /^Étapes : .*\nAttendu : .*\nObtenu : /, 'bug : étapes, attendu, obtenu');
+  assert.match(await p.$eval('#fbTitle', e => e.placeholder), /scan ne lit pas/);
+  assert.match(await txt(p, '.fb-why'), /version de Mana Orbit, la plateforme, la langue et le navigateur ; jamais ta collection\. Ton message sera public sur le Discord de Mana Orbit\./);
+  assert.equal(await txt(p, '.fb-sheet .fb-cnt'), '0 / 1500');
+  // requis : rien ne part
+  await fbSend(p);
+  assert.match(await fbErr(p), /Donne un titre/); assert.equal(await p.$eval('#fbTitle', e => [e.getAttribute('aria-invalid'), document.activeElement === e].join()), 'true,true', 'titre : invalide et focus');
+  await p.fill('#fbTitle', '  ab  '); await fbSend(p); assert.match(await fbErr(p), /3 caractères au moins/, 'titre de 2 caractères refusé');
+  await p.fill('#fbTitle', 'Le classeur  ne\tdéfile plus'); assert.equal(await fbErr(p), '', 'saisie : message effacé'); assert.equal(await p.$eval('#fbTitle', e => e.getAttribute('aria-invalid')), null);
+  await fbSend(p); assert.match(await fbErr(p), /Décris ton avis/); assert.equal(await p.evaluate(() => document.activeElement.id), 'fbText');
+  assert.equal(fb.calls.length, 0, 'champs requis : rien envoyé');
+  // type et partie
+  await p.click('.fb-kind .seg-opt[data-v="idea"]');
+  assert.match(await p.$eval('#fbText', e => e.placeholder), /Ton idée/, 'idée : autre texte d\'aide'); assert.match(await p.$eval('#fbTitle', e => e.placeholder), /trier mes decks/);
+  await p.click('.fb-kind .seg-opt[data-v="bug"]'); await p.selectOption('#fbArea', 'scan');
+  await p.click('#fbText'); await p.keyboard.type('Étapes : ouvrir le classeur.'); await p.keyboard.press('Enter'); await p.keyboard.type('Obtenu : rien ne bouge.');
+  assert.equal(await txt(p, '.fb-sheet .fb-cnt'), (await fbVals(p)).text.length + ' / 1500', 'compteur');
+  await p.fill('#fbContact', 'jace_beleren');
+  // captures : 2 grandes (réduites), une illisible (message), 2 petites dont une de trop (3 au plus), ✕
+  await p.setInputFiles('#fbFile', [IMG.big, IMG.noise]); await fbThumbs(p, 2);
+  const dims = await p.$$eval('.fb-th img', im => im.map(x => [x.naturalWidth, x.naturalHeight]));
+  assert.deepEqual(dims[0], [1600, 800], 'dégradé 3 000 × 1 500 → 1 600 × 800'); assert.ok(dims[1][0] < 1600 && dims[1][0] === dims[1][1], 'bruit : JPEG trop lourd à 1 600 px, refait plus petit (' + dims[1] + ')');
+  await p.setInputFiles('#fbFile', [IMG.bad]); await p.waitForFunction(() => !document.querySelector('.fb-th.busy') && !document.querySelector('.fb-err').hidden, null, { timeout: 8000 });
+  assert.match(await fbErr(p), /Image illisible : abimee\.png/); assert.equal((await fbVals(p)).imgs, 2);
+  await p.setInputFiles('#fbFile', [IMG.small, IMG.small2]); await fbThumbs(p, 3);
+  assert.match(await fbErr(p), /3 captures au plus/, 'la 4e capture n\'est pas ajoutée'); assert.equal(await p.$eval('.fb-add', b => b.disabled), true, 'bouton d\'ajout coupé à 3');
+  assert.equal(await txt(p, '.fb-add'), 'Ajouter une capture (3/3)');
+  assert.deepEqual(await p.$$eval('.fb-x', b => b.map(x => x.getAttribute('aria-label'))), ['Retirer la capture 1', 'Retirer la capture 2', 'Retirer la capture 3']);
+  await p.click('.fb-x[data-fb-x="2"]'); await fbThumbs(p, 2);
+  assert.equal(await p.$eval('.fb-add', b => b.disabled), false); assert.equal(await p.evaluate(() => document.activeElement.className), 'fb-x', '✕ : le focus reste sur une vignette');
+  await p.setInputFiles('#fbFile', [IMG.small2]); await fbThumbs(p, 3);
+  assert.deepEqual(await p.$$eval('.fb-th img', im => im.map(x => x.naturalWidth)).then(w => w[2]), 120, '✕ : la 3e capture remplacée');
+  // 360 px : rien ne déborde
+  const over = await p.evaluate(() => { const W = innerWidth, out = []; for (const e of document.querySelectorAll('.fb-sheet .sheet *')) { const r = e.getBoundingClientRect(); if (r.width && (r.right > W + 0.5 || r.left < -0.5)) out.push(e.className || e.tagName); } return { out, sw: document.documentElement.scrollWidth, W, body: document.querySelector('.fb-sheet .sheet-body').scrollWidth - document.querySelector('.fb-sheet .sheet-body').clientWidth }; });
+  assert.deepEqual(over.out, [], '360 px : éléments hors de l\'écran'); assert.ok(over.sw <= over.W && over.body <= 0, '360 px : aucun défilement horizontal');
+  await p.waitForTimeout(300); await p.screenshot({ path: 'shots/content-2b-avis.png' });
+  // brouillon : feuille fermée (Échap) puis rouverte depuis le pied de « Comment ça marche »
+  const before = await fbVals(p);
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.fb-sheet.open'));
+  await p.$eval('#helpBox', e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await p.click('#helpBox [data-help="open"]'); await p.waitForSelector('.hp-sheet.open');
+  assert.equal((await mailClick(p, '.hp-sheet .sheet-foot a[data-help="mail"]')).sheet, true, 'pied de l\'aide : la feuille d\'avis');
+  await p.waitForSelector(FB_SHEET);
+  assert.deepEqual(await fbVals(p), before, 'brouillon gardé (type, partie, titre, description, pseudo, captures)');
+  assert.deepEqual(await p.evaluate(() => Object.keys(JSON.parse(sessionStorage.getItem('deckdeal:fb')))), ['kind', 'area', 'title', 'text', 'contact'], 'textes aussi dans la session (pas les captures)');
+  // 429 : « réessaie dans N min », bouton coupé pendant l'envoi, saisie gardée
+  fb.next.push({ status: 429, json: { error: 'rate_limited', message: 'Trop d\'avis', retry: 540 }, headers: { 'retry-after': '540' }, delay: 500 });
+  await p.click('.fb-sheet [data-fb="go"]'); await p.waitForTimeout(150);
+  assert.deepEqual(await p.$eval('.fb-sheet [data-fb="go"]', b => [b.disabled, b.textContent]), [true, 'Envoi…'], 'bouton désactivé pendant l\'envoi');
+  assert.equal(await p.$eval('#fbTitle', e => e.disabled), true, 'champs figés pendant l\'envoi');
+  await p.waitForFunction(() => !document.querySelector('.fb-sheet [data-fb="go"]').disabled);
+  assert.match(await fbErr(p), /réessaie dans 9 min/); assert.deepEqual(await fbVals(p), before, '429 : saisie gardée');
+  // 503, réseau coupé, 400 (code connu), 413 : messages, saisie gardée
+  fb.next.push({ status: 503, json: { error: 'unavailable', message: 'Discord injoignable' } }); await fbSend(p);
+  assert.match(await fbErr(p), /Envoi impossible pour le moment : réessaie plus tard, ton message est gardé/); assert.deepEqual(await fbVals(p), before, '503 : saisie gardée');
+  fb.next.push({ abort: true }); await fbSend(p); assert.match(await fbErr(p), /Serveur injoignable.*réessaie plus tard/i, 'réseau : réessaie plus tard');
+  fb.next.push({ status: 400, json: { error: 'bad_image', message: 'Capture refusée' } }); await fbSend(p); assert.match(await fbErr(p), /Une capture n'a pas été acceptée/);
+  fb.next.push({ status: 400, json: { error: 'bad_request', message: 'Message du serveur, tel quel' } }); await fbSend(p); assert.equal(await fbErr(p), 'Message du serveur, tel quel', '400 inconnu : message du serveur (français)');
+  fb.next.push({ status: 413, json: { error: 'too_large' } }); await fbSend(p); assert.match(await fbErr(p), /Captures trop lourdes/);
+  assert.deepEqual(await fbVals(p), before, 'erreurs : saisie gardée'); assert.equal(await p.evaluate(() => prgC().fb || 0), 0);
+  // succès : corps exact
+  const n0 = fb.calls.length; await fbSend(p);
+  await p.waitForSelector('.fb-sheet .fb-done');
+  const c = fb.calls[n0], b = c.body, info = await p.evaluate(() => [DD_BUILD, navigator.userAgent, I18N.nav]);
+  assert.equal(c.method, 'POST'); assert.match(c.headers['content-type'], /^application\/json/); assert.equal(c.headers['x-firebase-token'], undefined, 'pas connecté : pas de jeton');
+  assert.deepEqual(Object.keys(b).sort(), ['area', 'contact', 'imgs', 'kind', 'meta', 'text', 'title']);
+  assert.deepEqual([b.kind, b.area, b.title, b.contact], ['bug', 'scan', 'Le classeur ne défile plus', 'jace_beleren'], 'titre nettoyé (espaces resserrés, tabulation)');
+  assert.equal(b.text, 'Étapes : ouvrir le classeur.\nObtenu : rien ne bouge.', 'saut de ligne gardé');
+  assert.deepEqual(b.meta, { v: info[0], plat: 'web', apk: '', lang: 'fr', nav: info[2], ua: info[1] }, 'meta du contrat');
+  assert.equal(b.imgs.length, 3);
+  const sizes = b.imgs.map(u => { assert.match(u, /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/); const buf = Buffer.from(u.slice(23), 'base64'); assert.ok(buf.length <= 1.5 * 1024 * 1024, 'capture ≤ 1,5 Mo : ' + buf.length); return jpegSize(buf); });
+  assert.deepEqual(sizes[0], { w: 1600, h: 800 }); assert.ok(sizes[1].w < 1600 && sizes[1].w >= 800); assert.deepEqual(sizes[2], { w: 120, h: 90 }, 'petite image : taille gardée');
+  assert.doesNotMatch(JSON.stringify(b), /Sol Ring|Craterhoof/, 'jamais la collection');
+  assert.equal(await txt(p, '.fb-done h3'), 'Merci !'); assert.equal(await p.evaluate(() => document.activeElement.tagName), 'H3', 'focus sur « Merci ! »');
+  assert.equal(await p.$eval('.fb-done [data-fb="see"]', a => [a.textContent, a.getAttribute('href'), a.target, a.rel].join()), 'Voir sur Discord,' + FB_URL + ',_blank,noopener');
+  assert.equal(await p.$eval('.fb-done [data-fb="join"]', a => [a.textContent, a.getAttribute('href'), a.target].join()), 'Rejoindre le serveur,https://discord.gg/TTwrP94agb,_blank');
+  assert.equal(await p.evaluate(() => prgC().fb), 1, 'badge « Voix du peuple » après l\'envoi');
+  await p.waitForTimeout(300); await p.screenshot({ path: 'shots/content-2b-merci.png' });
+  // brouillon vidé ; connecté : jeton Firebase ; adresse reçue qui n'est pas un fil Discord : pas de « Voir sur Discord »
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.fb-sheet.open'));
+  assert.equal(await p.evaluate(() => sessionStorage.getItem('deckdeal:fb')), null, 'brouillon vidé (session)');
+  await closeSheets(p); await p.evaluate(() => { window.__idTok = 'jeton-test'; }); await signInFake(p);
+  await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn'); await mailClick(p, '#helpBox a[data-help="mail"]'); await p.waitForSelector(FB_SHEET);
+  assert.deepEqual(await fbVals(p), { kind: 'bug', area: 'autre', title: '', text: '', contact: '', imgs: 0 }, 'feuille vide après un envoi réussi');
+  await p.click('.fb-kind .seg-opt[data-v="help"]'); await p.fill('#fbTitle', 'Exporter ?'); await p.fill('#fbText', 'Comment exporter ?');
+  fb.next.push({ status: 200, json: { ok: true, url: 'https://evil.example/x', id: '1' } });
+  await p.focus('#fbText'); await p.keyboard.press('Control+Enter'); await p.waitForSelector('.fb-sheet .fb-done');
+  const c2 = fb.calls.at(-1);
+  assert.equal(c2.headers['x-firebase-token'], 'jeton-test', 'connecté : jeton Firebase'); assert.deepEqual([c2.body.kind, c2.body.area, c2.body.imgs.length, c2.body.contact], ['help', 'autre', 0, '']);
+  assert.equal(await p.$('.fb-done [data-fb="see"]'), null, 'adresse qui n\'est pas un fil Discord : pas de lien'); assert.ok(await p.$('.fb-done [data-fb="join"]'));
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.fb-sheet.open'));
+  // 404 : envoi coupé → repli mailto (message recopié), et « Envoyer un avis » repasse au mailto
+  await mailClick(p, '#helpBox a[data-help="mail"]'); await p.waitForSelector(FB_SHEET);
+  await p.fill('#fbTitle', 'Bot coupé'); await p.fill('#fbText', 'Ligne 1\nLigne 2');
+  fb.next.push({ status: 404, json: { error: 'not_found' } }); await p.click('.fb-sheet [data-fb="go"]'); await p.waitForSelector('.fb-sheet [data-fb="mail"]');
+  assert.match(await fbErr(p), /par e-mail/); assert.equal(await p.evaluate(() => CTX.feedback), false, '404 : CTX.feedback = false');
+  const mh = await p.$eval('.fb-sheet [data-fb="mail"]', a => a.getAttribute('href'));
+  assert.match(mh, /^mailto:contact@manaorbit\.app\?subject=Mana%20Orbit%20%C2%B7%20avis&body=/);
+  assert.match(decodeURIComponent(mh.split('body=')[1]), /^Bot coupé\r\n\r\nLigne 1\r\nLigne 2\r\n\r\n———\r\nCes informations aident/, 'mailto : le message déjà écrit, puis la version');
+  await closeSheets(p); await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
+  const m2 = await mailClick(p, '#helpBox a[data-help="mail"]'); assert.equal(m2.prevented, false); assert.equal(m2.sheet, false, 'après le 404 : mailto');
+  await ctx.close();
+}
+ok('avis par le Discord : feuille au lieu du mailto (réglages, pied de l\'aide), type / partie / titre / description / pseudo, requis, captures réduites (1 600 px, ≤ 1,5 Mo, JPEG), 3 au plus, ✕, image illisible, 360 px sombre');
+ok('avis : corps exact (kind, area, meta, imgs), bouton coupé pendant l\'envoi, 429 (N min), 503, réseau, 400, 413 (saisie gardée), « Merci ! » (Voir sur Discord, Rejoindre le serveur, badge), brouillon gardé puis vidé, jeton Firebase, 404 → mailto');
+{ // anglais, depuis le pied de « Comment ça marche », thème clair
+  const { p, ctx, fb } = await fbPage({ path: '?lang=en' });
+  await p.click('#btnHelp'); await p.waitForSelector('.hp-sheet.open');
+  await mailClick(p, '.hp-sheet .sheet-foot a[data-help="mail"]'); await p.waitForSelector(FB_SHEET);
+  assert.equal(await txt(p, '.fb-sheet .sheet-head h2'), 'Send feedback'); assert.match(await txt(p, '.fb-sheet .sheet-head p'), /It goes to the Mana Orbit Discord/);
+  assert.deepEqual(await p.$$eval('.fb-kind .seg-opt', b => b.map(x => x.textContent)), ['Bug', 'Idea', 'Question']);
+  assert.deepEqual(await p.$$eval('#fbArea option', o => o.map(x => x.textContent)), ['Scan', 'Collection', 'Decks', 'Price', 'Account and sync', 'Alerts', 'Trade', 'Game', 'Mystery card', 'Friends', 'Other']);
+  assert.match(await p.$eval('#fbText', e => e.placeholder), /^Steps: .*\nExpected: .*\nActual: /);
+  assert.match(await txt(p, '.fb-why'), /never your collection\. Your message will be public on the Mana Orbit Discord\./);
+  assert.deepEqual(await p.$$eval('.fb .label', l => l.map(x => x.textContent)), ['Type', 'Part of the app', 'Title', 'Description', 'Screenshots', 'Discord username (optional)']);
+  await fbSend(p); assert.match(await fbErr(p), /Give your feedback a title/);
+  await p.setInputFiles('#fbFile', [IMG.bad]); await p.waitForFunction(() => /Unreadable image/.test(document.querySelector('.fb-err').textContent));
+  await p.fill('#fbTitle', 'Dark mode'); await p.fill('#fbText', 'More contrast please'); await p.click('.fb-kind .seg-opt[data-v="idea"]');
+  fb.next.push({ status: 429, json: { error: 'rate_limited', retry: 30 } }); await fbSend(p); assert.match(await fbErr(p), /try again in 1 min/);
+  await fbSend(p); await p.waitForSelector('.fb-sheet .fb-done');
+  assert.equal(fb.calls.at(-1).body.meta.lang, 'en'); assert.equal(fb.calls.at(-1).body.kind, 'idea');
+  assert.equal(await txt(p, '.fb-done h3'), 'Thank you!'); assert.equal(await txt(p, '.fb-done [data-fb="see"]'), 'View on Discord'); assert.equal(await txt(p, '.fb-done [data-fb="join"]'), 'Join the server');
+  await closeSheets(p); await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
+  assert.match(await txt(p, '#helpBox'), /Join the Discord/); assert.match(await txt(p, '#helpBox .hint'), /goes to the Mana Orbit Discord/);
+  await ctx.close();
+}
+ok('avis en anglais : feuille, types, parties, textes d\'aide, erreurs (titre, image illisible, 429), « Thank you! », « Join the Discord »');
+{ // textes de l'avis (help.js) : traduits dans les 5 langues
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const src = readFileSync('src/help.js', 'utf8'), keys = new Set();
+  for (const m of src.matchAll(/\bTN?\(\s*(?:[\w.]+\s*,\s*)?'((?:[^'\\]|\\.)*)'(?:\s*,\s*'((?:[^'\\]|\\.)*)')?/g)) for (const k of [m[1], m[2]]) if (k) keys.add(k.replace(/\\'/g, '\'').replace(/\\n/g, '\n'));
+  for (const m of src.matchAll(/\['[a-z]+', '([^']+)'\]/g)) keys.add(m[1]);      // libellés de FB_KINDS et FB_AREAS
+  assert.ok(keys.size >= 60, 'textes trouvés : ' + keys.size);
+  for (const l of ['en', 'de', 'es', 'it', 'pt']) {
+    const all = Object.assign({}, ...readdirSync('src/i18n').filter(f => f.startsWith(l + '.')).map(f => JSON.parse(readFileSync('src/i18n/' + f, 'utf8'))));
+    assert.deepEqual([...keys].filter(k => !(k in all)), [], l + ' : textes de help.js sans traduction');
+  }
+  ok(keys.size + ' textes de help.js traduits en anglais, allemand, espagnol, italien et portugais');
+}
 
 /* ── 3) Demande de note ───────────────────────────────────────────────────────────────────────────────────────── */
 // appli Android simulée (coque avec le plugin ManaOrbit : version de l'APK), collection et deck enregistré prêts à être « complets »

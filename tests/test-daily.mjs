@@ -3,7 +3,7 @@
 // semaines / saisons à l'heure de Paris (changement d'heure compris), parties (classée ou non, une par compte et par jour), classements, badges, masque d'un
 // pseudo, purge, relecture du disque ; anti-triche : ni nom, ni identifiant, ni extension, ni adresse Scryfall dans les réponses avant la fin, images sans
 // la bande du titre ni la ligne du bas. Notification « nouvelle Carte mystère » : appareils par compte, une fois par jour dès 18:00, jamais deux fois (redémarrage,
-// arrêt en plein envoi), rattrapage dans les 2 h, cibles périmées retirées. Puis le vrai proxy.mjs (ports 19700–19706) : /__ping, jetons Firebase, DAILY=0,
+// arrêt en plein envoi), rattrapage dans les 2 h, cibles périmées retirées. Carte de la veille révélée (option reveal) : une fois, pas avant la nouvelle carte, nouvel essai, jamais deux fois. Puis le vrai proxy.mjs (ports 19700–19706) : /__ping, jetons Firebase, DAILY=0,
 // panneau /admin, notification envoyée par FCM (faux compte de service), DAILY_PUSH=0. Traductions de src/daily.js.
 import './setup-env.mjs';
 import test from 'node:test';
@@ -446,6 +446,48 @@ test('notification : serveur arrêté en plein envoi → la reprise part après 
   const all = [...A.sent, ...B.sent].map(x => x.sub.fcm); assert.equal(new Set(all).size, all.length, 'jamais deux fois le même appareil');
   await h2.D.tick(); assert.equal(B.sent.length, 1);
   await h2.stop(); await h1.stop(); S.stop();
+});
+
+/* ── Carte de la veille révélée (option reveal : discord-srv.mjs dans proxy.mjs) ─────────────────────────────────────────────── */
+/** Faux reveal : infos reçues ; fail : refus restants ; hang : plus aucune réponse (serveur arrêté en plein envoi). */
+function fakeReveal(o = {}) { const R = { got: [], fail: o.fail || 0, hang: !!o.hang }; R.fn = async info => { R.got.push(info); if (R.hang) return new Promise(() => {}); if (R.fail > 0) { R.fail--; throw new Error('Discord en panne'); } return true; }; return R; }
+const somePlays = rec => { const t = Date.now(); rec.plays = { ...rec.plays, ta: { k: 'a'.repeat(24), n: 'A', st: 'win', s: 50, ms: 9000, at: t, step: 2, wrong: [] }, tb: { k: 'b'.repeat(24), n: 'B', st: 'lost', s: 0, ms: 40000, at: t, step: 7, wrong: [] }, tc: { k: 'c'.repeat(24), n: 'C', st: 'play', s: 0, ms: 0, at: 0, step: 1, wrong: [] } }; rec.v++; };
+test('carte de la veille révélée : une seule fois, quand la nouvelle carte est prête (jamais avant), infos de la carte et des parties, nouvel essai après un échec, jamais deux fois (redémarrage, arrêt en plein envoi), seulement la veille, rien sans l\'option', async () => {
+  const dir = newDir(), S = await startDailyScry(), R = fakeReveal({ fail: 1 });
+  let h = await harness({ at: Date.UTC(2026, 9, 15, 15, 30), dir, scry: S, opts: { reveal: R.fn } });      // 17:30 à Paris : carte du 14 (et celle du 15 préparée d'avance)
+  await h.ready(); await h.D.tick(); assert.equal(R.got.length, 0, 'veille (13) sans carte : rien');
+  somePlays(h.D._g.cur); await h.D.flush();
+  h.T.now = Date.UTC(2026, 9, 15, 16, 0, 30); await h.D.tick();      // 18:00:30 : carte du 15 prête → celle du 14, refusée une fois
+  assert.equal(R.got.length, 1);
+  assert.deepEqual(R.got[0], { day: '2026-10-14', fr: 'Ange de Serra', en: 'Serra Angel', set: 'tst', setName: 'Test Set TST', num: '17', img: 'https://cards.scryfall.io/large/front/x/tst-17-fr.jpg', scry: 'https://scryfall.com/card/tst/17', plays: 2, wins: 1 }, 'nom français, image « large », page Scryfall, parties terminées et trouvées');
+  assert.equal(JSON.parse(readFileSync(join(dir, 'reveal.json'), 'utf8')).day, '', 'échec : fichier remis comme avant');
+  assert.ok(h.warns.some(w => /pas encore révélée/.test(w)));
+  await h.D.tick(); assert.equal(R.got.length, 2, 'nouvel essai au tour suivant'); await h.D.tick(); h.T.now += 3600e3; await h.D.tick(); assert.equal(R.got.length, 2, 'une seule fois');
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'reveal.json'), 'utf8')).day, '2026-10-14');
+  await h.stop();
+  h = await harness({ at: Date.UTC(2026, 9, 15, 17), dir, scry: S, opts: { reveal: R.fn } }); await h.ready(); await h.D.tick(); assert.equal(R.got.length, 2, 'redémarré : pas de seconde fois');
+  await h.stop();
+  // jamais avant que la nouvelle carte soit prête : images du 16 impossibles à faire
+  const R2 = fakeReveal(); for (const l of LANGS) S.pngFail.add('tst/17/' + l);
+  h = await harness({ at: Date.UTC(2026, 9, 16, 16, 0, 30), dir, scry: S, opts: { reveal: R2.fn, retryMs: 30 } });
+  await h.D.tick(); await h.D.tick(); assert.notEqual(h.D._g.cur.st, 'ready'); assert.equal(R2.got.length, 0, 'carte du 16 pas prête : rien');
+  S.pngFail.clear(); await sleep(80); await h.D.tick(); assert.equal(h.D._g.cur.st, 'ready');
+  assert.deepEqual(R2.got.map(x => [x.day, x.plays]), [['2026-10-15', 0]], 'prête : la veille (15), aucune partie');
+  await h.stop();
+  // arrêt en plein envoi : jour noté avant, jamais renvoyé
+  const R3 = fakeReveal({ hang: true }), h1 = await harness({ at: Date.UTC(2026, 9, 17, 16, 1), dir, scry: S, opts: { reveal: R3.fn } });
+  h1.D.tick(); for (let i = 0; i < 100 && !R3.got.length; i++) await sleep(50);
+  assert.deepEqual(R3.got.map(x => x.day), ['2026-10-16']);
+  const R4 = fakeReveal(), h2 = await harness({ at: Date.UTC(2026, 9, 17, 16, 2), dir, scry: S, opts: { reveal: R4.fn } }); await h2.ready(); await h2.D.tick();
+  assert.equal(R4.got.length, 0, 'redémarré après un arrêt en plein envoi : pas de doublon (au pire, pas révélée)');
+  await h2.stop(); h1.stop().catch(() => {});
+  // serveur arrêté plusieurs jours : seulement la veille du jour en cours (le 20 : veille du 21, sans carte → rien ; jamais le 16 ni avant)
+  const R5 = fakeReveal(); h = await harness({ at: Date.UTC(2026, 9, 21, 17), dir, scry: S, opts: { reveal: R5.fn } }); await h.ready(); await h.D.tick();
+  assert.equal(R5.got.length, 0, 'veille (20) sans carte : rien, et rien de plus ancien'); await h.stop();
+  // sans l'option : rien, aucun fichier
+  const dir2 = newDir(); h = await harness({ at: Date.UTC(2026, 9, 15, 15, 30), dir: dir2, scry: S }); await h.ready(); h.T.now = Date.UTC(2026, 9, 15, 16, 0, 30); await h.D.tick();
+  assert.equal(h.D.revealOn, false); assert.ok(!existsSync(join(dir2, 'reveal.json'))); await h.stop();
+  S.stop();
 });
 
 /* ── Le vrai serveur ───────────────────────────────────────────────────────────────────────────────────────────────── */

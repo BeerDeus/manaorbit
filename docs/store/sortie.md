@@ -53,53 +53,53 @@ Un seul envoi avec les deux langues (français d'abord, puis « English below »
 
 ## 2. Discord
 
-Tout est créé par `tools/discord-setup.mjs` avec un bot à toi (≈ 10 min, dont 5 sur le portail Discord). Un bot pour ton propre serveur ne passe par aucune validation : il marche dès qu'il est invité. Relancé, le script ne crée rien en double et remet les textes à jour.
+Tout est créé par `tools/discord-setup.mjs` avec un bot à toi (≈ 10 min, dont 5 sur le portail Discord). Un bot pour ton propre serveur ne passe par aucune validation : il marche dès qu'il est invité. Relancé, le script ne crée rien en double et remet les textes à jour. Un serveur déjà fait par l'ancienne version du script (Bienvenue, Appli, Communauté, Équipe) est repris tel quel : salons renommés et déplacés, messages, étiquettes et membres gardés. Les salons qu'il ne connaît pas (bot de tickets…) ne sont jamais touchés : pas besoin d'un nouveau serveur.
 
 ### Mise en place
-1. **Serveur** : Discord › « + » › Créer le mien › Pour moi et mes amis › nom **Mana Orbit** (l'icône est posée par le script).
+1. **Serveur** (s'il n'existe pas encore) : Discord › « + » › Créer le mien › Pour moi et mes amis › nom **Mana Orbit** (l'icône est posée par le script).
 2. **Bot** : https://discord.com/developers/applications › **New Application** (« Mana Orbit Setup ») ›
-   - onglet **Bot** › **Reset Token** › **Copy** : c'est le jeton, garde-le pour toi (jamais dans le dépôt ni dans une conversation) ; décoche **Public Bot** ; aucun « Privileged Gateway Intent » à cocher ;
+   - onglet **Installation** › **Install Link** : **None** (sinon Discord refuse de décocher Public Bot : « Une application privée ne peut pas avoir de lien d'autorisation par défaut ») ; Installation Contexts : **Guild Install** seulement ;
+   - onglet **Bot** › décoche **Public Bot** › **Save** ; **Reset Token** › **Copy** : c'est le jeton, garde-le pour toi (jamais dans le dépôt ni dans une conversation) ; aucun « Privileged Gateway Intent » à cocher ;
    - onglet **OAuth2** › **URL Generator** : cocher `bot`, puis la permission **Administrator** ; ouvrir le lien généré, choisir le serveur Mana Orbit, **Autoriser**.
+   - Paramètres du serveur › **Rôles** : glisse le rôle du bot (« Mana Orbit Setup ») **tout en haut** de la liste (il ne peut ranger que les rôles placés sous le sien).
 3. **Script** (PowerShell, dans le dossier du dépôt, après `git pull`) :
    ```
    $env:DISCORD_TOKEN = "colle-le-jeton-ici"
    node tools/discord-setup.mjs --dry
    node tools/discord-setup.mjs
    ```
-   `--dry` montre ce qui serait fait, sans rien changer. Le vrai lancement affiche le **lien d'invitation permanent** à la fin.
-4. **Après** : expulse le bot du serveur (clic droit › Expulser) et, sur le portail, **Reset Token** (l'ancien jeton ne marche plus). Pour relancer plus tard : réinviter le bot (même lien OAuth2) et un nouveau jeton.
-5. **À la main** : le rôle **Testeur** aux testeurs qui arrivent (clic droit sur un membre › Rôles).
-
-Si le script dit « mode communauté non activé » : Paramètres du serveur › **Activer la communauté** ; à l'étape des salons, choisir **#règles** pour les règles et **#modération** pour les mises à jour de Discord (pas « Créer pour moi ») ; puis relancer le script (il ajoute #annonces et les forums).
+   `--dry` montre ce qui serait fait, sans rien changer. Le vrai lancement affiche à la fin le **lien d'invitation permanent**, les **adresses des webhooks GitHub** et la liste **À faire à la main**. Au 1er lancement sur un ancien serveur, Discord peut faire attendre quelques minutes (renommer un salon : 2 fois par 10 min) : laisser tourner.
+4. **À la main** (le script le rappelle) :
+   - **Écran des règles** : Paramètres › Sécurité (ou Onboarding) › Règles du serveur : coller les 8 lignes anglaises affichées par le script (Discord ne le permet pas aux bots) ;
+   - **Guide du serveur** : Paramètres › Onboarding › Guide du serveur : message d'accueil, 3 premières actions (lire #règles, se présenter dans sa langue, partager un deck), ressources (site, Google Play) ;
+   - **2FA** pour la modération : Paramètres › Sécurité (propriétaire seulement) ;
+   - **Webhooks GitHub** : BeerDeus/manaorbit › Settings › Webhooks › Add webhook, une fois par adresse affichée (Content type `application/json`) : #changelog avec l'événement **Releases**, #bug-triage avec **Issues** ;
+   - **Rôles** : Testeur aux testeurs, Admin / Modo / Modo FR / Modo EN / Support à l'équipe (clic droit sur un membre › Rôles).
+5. **Après** : expulse le bot du serveur (clic droit › Expulser ; les webhooks restent) et, sur le portail, **Reset Token** (l'ancien jeton ne marche plus). Pour relancer plus tard : réinviter le bot (même lien OAuth2), le remettre en haut des rôles, nouveau jeton.
 
 ### Ce que fait le script
-- **Réglages** : mode communauté ; vérification **moyenne** ; filtre de contenu explicite pour **tous les membres** ; notifications par défaut **@mentions seulement** ; langue française ; icône (`pwa/icons/icon-512.png`) si le serveur n'en a pas.
-- **Rôles** : **Équipe** (toi : gérer les messages et les fils, expulser, bannir, exclure temporairement, rendre muet ; jamais administrateur), **Testeur** (couleur à part, affiché à part). @everyone : plus de @everyone / @here.
-- **AutoMod** (bloqué + alerte dans #modération, Équipe exemptée) : arnaques (« free nitro », « discord.gift », « airdrop »…), spam, mentions en masse (5 et plus), contenu sexuel et insultes (listes de Discord).
+- **Réglages** : mode communauté ; vérification **moyenne** ; filtre de contenu explicite pour **tous les membres** ; notifications par défaut **@mentions seulement** ; arrivées, messages de Discord et alertes dans #modération ; langue française ; icône (`pwa/icons/icon-512.png`) si le serveur n'en a pas.
+- **Rôles**, rangés de haut en bas : **👑 Créateur** (toi, affiché en haut, sans droit en plus : le propriétaire les a déjà), **Admin** (administrateur), **Modo** (l'ancien « Équipe » : gérer les messages, fils et pseudos, expulser, bannir, exclure temporairement, rendre muet), **Support** (gérer les messages et les fils : trier les forums), puis les rôles des autres bots (tickets…), **Modo FR**, **Modo EN** (gèrent leur catégorie seulement), **Testeur**, les 10 langues + **🌍 Toutes les langues**, notifications (**📢 Annonces**, **🔮 Carte mystère**, **🎲 LFG**), usage (**🌐 Site**, **📱 Android**, **🔭 Découverte**), formats (Commander, Modern, Pioneer, Standard, Pauper, Legacy, Limited ; mentionnables, comme 🎲 LFG). @everyone : plus de @everyone / @here.
+- **Accueil (Onboarding)** : 4 questions à l'arrivée. **Langue(s)** obligatoire (choix multiple : donne l'accès aux catégories des langues choisies) ; usage, formats, notifications facultatifs. Salons par défaut : les salons publics. À changer plus tard par chaque membre : « Salons et rôles » en haut de la liste des salons.
+- **AutoMod** (bloqué + alerte dans #modération, équipe exemptée) : arnaques (« free nitro », « discord.gift », « airdrop »…), invitations vers d'autres serveurs, spam, mentions en masse (5 et plus, plus 10 min d'exclusion), contenu sexuel et insultes (listes de Discord).
 - **Lien d'invitation** permanent (n'expire jamais, sans limite), sur #bienvenue.
 
 ### Salons
-**BIENVENUE** (lecture seule, sauf Équipe)
-- `#bienvenue` : présentation, liens (Play Store, site, guide « Passer de ManaBox »), renvois vers les salons.
-- `#règles`
-- `#annonces` : salon d'annonces (les autres serveurs peuvent le suivre) : sorties, nouveautés.
+Catégories au style `『…』` (l’ancien `╔ … ╝` est repris et renommé), salons `emoji・nom`.
 
-**APPLI** (forums : un fil par sujet)
-- `#aide` : étiquettes Scan · Collection · Decks · Prix · Compte et synchro · Autre.
-- `#bugs` : mêmes étiquettes + Corrigé · Prochaine version (posées par l'équipe) ; consigne : appareil, version (Réglages), étapes, capture.
-- `#idées` : Envisagé · Prévu · Fait · Pas pour l'instant (posées par l'équipe).
+- **『BIENVENUE』** (lecture seule, sauf l'équipe) : `👋・bienvenue` (présentation, liens, renvois), `📜・règles` (français, puis anglais), `📢・annonces` et `🆕・changelog` (salons d'annonces, que d'autres serveurs peuvent suivre ; changelog alimenté par GitHub), `❓・faq` (forum, fils ouverts par l'équipe).
+- **『SUPPORT』** (forums, toutes langues) : `🆘・aide` (étiquettes Site · PWA · Android + Scan · Collection · Decks · Prix · Compte et synchro · Autre), `🐞・bugs` (les mêmes + Alertes · Échange · Partie · Carte mystère · Amis ; étiquette obligatoire ; Confirmé · Prochaine version · Corrigé · Pas un bug · Doublon posées par l'équipe ; modèle à remplir), `💡・idées` (👍 ; Envisagé · Prévu · Fait · Pas pour l'instant).
+- **『COMMUNAUTÉ』** (toutes langues) : `🃏・decks`, `🖼️・collections`, `📦・ouvertures`, `🔮・carte-mystère` (mode lent 10 s, réponses sous spoiler), `🔁・échanges` (entre membres, Mana Orbit n'est pas intermédiaire), `💶・prix-et-marché`, `✨・spoilers`.
+- **『JOUER』** : `🎲・lfg`, vocaux `🔊 Table 1` à `3` (5 places), `☕ Chill`.
+- **Une catégorie par langue**, visible seulement avec le rôle de la langue (ou « Toutes les langues », et l'équipe) : **🇫🇷 FRANÇAIS** (`💬・général`, `🆘・entraide`, `🔊 Vocal FR`), **🇬🇧 ENGLISH** (`💬・general`, `🆘・help`, `🔊 Voice EN`), puis **DEUTSCH, ESPAÑOL, ITALIANO, PORTUGUÊS, РУССКИЙ, 日本語, 한국어, 中文** : les règles traduites (lecture seule ; le chinois en simplifié et en traditionnel) et une discussion.
+- **『BÊTA』** (Testeur et équipe) : `📣・bêta-annonces`, `🧪・bêta-feedback`, `📦・builds-android`.
+- **『ÉQUIPE』** (Modo, Support) : `🛡️・modération` (AutoMod, arrivées, messages de Discord), `💬・staff`, `🐞・bug-triage` (issues GitHub), `🚨・alertes-serveur`.
 
-**COMMUNAUTÉ**
-- `#général` (le salon du serveur neuf, déplacé ; mode lent 10 s), `#ouvertures`, `#decks`, `#échanges` (rappel : entre membres, Mana Orbit n'est pas intermédiaire), `#english`, vocal `Commander` (le vocal « Général » renommé).
-
-**ÉQUIPE** (invisible pour les membres)
-- `#modération` : alertes AutoMod, messages de Discord pour les modérateurs.
-
-Les textes de #bienvenue et #règles (français puis anglais) sont dans le script (`welcome`, `rulesText`) : les changer là puis relancer.
+Les textes (accueil, règles et leurs traductions, sujets des salons, questions d'arrivée) sont dans le script (`welcome`, `RULES`, `L10N`, `PLAN`) : les changer là puis relancer. Les traductions des règles sont à faire relire par un membre natif quand il y en a un (le français fait foi, c'est écrit sous chaque traduction).
 
 ### Après
 - Lien Discord à mettre : message aux testeurs (§ 1), page /testeurs, réseaux (bio), et dans l'appli (Réglages, à ajouter quand le lien existe).
-- Possible plus tard : publication automatique de chaque nouvelle version dans `#annonces` (webhook Discord appelé par le serveur).
+- Possible plus tard : un bot à nous qui publie la Carte mystère du jour et les classements.
 
 ## 3. Flyers pour les boutiques (A5, fond sombre)
 
