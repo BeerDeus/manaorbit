@@ -433,6 +433,50 @@ ok('historique : paginé (20 par défaut, 50 au plus), la plus récente d\'abord
   ok('fin sans résultat : raison reçue par les places (drop en cours, host en préparation, stale trop vieille) ; « Tout le monde est co-hôte » dès la création');
 }
 
+// écran 2 (grande table sur deux téléphones) : ouvert par le créateur seul (op duo, places de l'écran 2), pris par le code sans compte, en attente comme en cours ; un seul
+// (remplacé s'il ne répond plus, l'ancien retiré) ; co-hôte d'office (deltas sur toute la table, tour suivant ; pas coupé par lock), rien d'autre ; présent : 0 dans « on » ;
+// coupé par le créateur : retiré (410) ; jamais dans les places
+{
+  const UK = 'uid-kim-partie11', dl = (S, d) => paced(() => call('POST', '/op', { key: S.key, body: { c: S.c, op: 'delta', d } })), liveOp = (S, g) => paced(() => call('POST', '/op', { key: S.key, body: { c: S.c, op: 'live', g } }));
+  r = await call('POST', '', { uid: UK, body: { id: 'duogame00001', n: 'Kim' } }); const K = { c: r.o.s.c, key: r.o.key };
+  r = await call('POST', '/join', { body: { c: K.c, ecran: 1 }, ip: '192.0.2.170' }); assert.deepEqual([r.s, r.o.error], [409, 'no_duo'], 'écran 2 pas ouvert');
+  r = await call('GET', '/peek?c=' + K.c); assert.equal(r.o.duo, undefined);
+  r = await call('POST', '/join', { body: { c: K.c, n: 'Lou', pos: 2 }, ip: '192.0.2.171' }); const L = { c: K.c, key: r.o.key };
+  r = await op(L, { op: 'duo', on: true, b: [2] }); assert.equal(r.o.error, 'not_host');
+  for (const b of [[0], [2, 2], [9], [1.5], 'x']) { r = await op(K, { op: 'duo', on: true, b }); assert.equal(r.o.error, 'bad_request', JSON.stringify(b)); }
+  r = await op(K, { op: 'duo', on: true, b: [3, 2] }); assert.deepEqual(r.o.duo, { b: [2, 3], dev: 0, on: 0 });
+  r = await call('GET', '/peek?c=' + K.c); assert.deepEqual([r.o.duo, r.o.scr], [1, 0]);
+  r = await call('POST', '/join', { body: { c: K.c, ecran: 1 }, ip: '192.0.2.172' }); assert.equal(r.s, 200, JSON.stringify(r.o)); let S = { c: K.c, key: r.o.key };
+  assert.deepEqual([r.o.s.ecran, r.o.s.co, r.o.s.me, r.o.s.places.map(p => p.pos)], [1, 1, 0, [1, 2]], 'écran 2 : co-hôte d\'office, aucune place'); noIds(r.o, 'vue de l\'écran 2');
+  r = await call('POST', '/join', { body: { c: K.c, ecran: 1 }, ip: '192.0.2.173' }); assert.deepEqual([r.s, r.o.error], [409, 'screen_taken'], 'un seul écran 2');
+  r = await call('GET', '/peek?c=' + K.c); assert.deepEqual([r.o.duo, r.o.scr], [1, 1]);
+  r = await poll(K); assert.deepEqual(r.o.duo, { b: [2, 3], dev: 1, on: 1 }); r = await poll(K, r.o.v); assert.deepEqual(r.o.on, [0, 1, 2], 'présent : 0 dans « on »');
+  for (const o of [{ op: 'me', n: 'Zed' }, { op: 'ask' }, { op: 'seat', pos: 4 }, { op: 'start' }]) { r = await op(S, o); assert.deepEqual([r.s, r.o.error], [403, 'not_allowed'], o.op); }
+  // partie commencée : deltas sur toute la table, tour suivant, saisie coupée sans effet sur lui
+  r = await op(K, { op: 'add', n: 'Max', pos: 3 }); r = await op(K, { op: 'start' });
+  let g = P.partieStart(P.partieFirst(P.partieFromRoom(P.partieNew({ moi: { nom: 'Kim' }, id: 'duogame00001' }), r.o), 1));
+  r = await liveOp(K, P.partieLive(g)); assert.equal(r.s, 200);
+  r = await dl(S, [{ id: 'scr-0001', pos: 3, k: 'v', n: -2 }, { id: 'scr-0002', pos: 2, k: 'b', src: 1, n: 1 }, { id: 'scr-0003', k: 't', n: 1 }]); assert.equal(r.s, 200, JSON.stringify(r.o));
+  r = await dl(S, [{ id: 'scr-0004', k: 'v', n: 1 }]); await sleep(160); r = await dl(S, [{ id: 'scr-0004', k: 'v', n: 1 }]); assert.deepEqual([r.s, r.o.error], [400, 'bad_place'], 'une place à préciser');
+  r = await poll(K); assert.deepEqual(r.o.q.map(d => [d.by, d.pos, d.k, d.n]), [[0, 3, 'v', -2], [0, 2, 'b', 1], [0, 1, 't', 1]], 'file : by 0 (l\'écran 2), tour suivant sur une place de la partie');
+  let x = P.partieRemote(g, r.o.q); g = x.st; assert.deepEqual([x.done.length, g.places.find(p => p.pos === 3).vie, g.places.find(p => p.pos === 2).blessures['1'], g.actif], [3, 38, 1, 2]);
+  g = P.partieRemoteOff(g, true); await sleep(450); r = await liveOp(K, P.partieLive(g));
+  await sleep(160); r = await dl(L, [{ id: 'lou-lock-1', k: 'v', n: -1 }]); assert.deepEqual([r.s, r.o.error], [409, 'locked']);
+  r = await dl(S, [{ id: 'scr-lock-1', pos: 2, k: 'v', n: -1 }]); assert.equal(r.s, 200, 'saisie coupée : pas pour l\'écran 2 (celui du créateur)');
+  x = P.partieRemote(g, (await poll(K)).o.q); g = x.st; assert.deepEqual([x.done.length, g.places.find(p => p.pos === 2).vie], [1, 38], 'appliquée par le créateur malgré la coupure');
+  assert.equal(P.partieRemote(g, [{ s: 99, id: 'lou-lock-2', pos: 2, by: 2, k: 'v', n: -1 }]).st.places[1].vie, 38, 'celles des places : toujours ignorées');
+  // départ, nouvel écran (partie commencée), remplacement s'il ne répond plus, coupé par le créateur
+  r = await op(S, { op: 'leave' }); assert.deepEqual(r.o, { ok: true }); r = await poll(K); assert.deepEqual(r.o.duo, { b: [2, 3], dev: 0, on: 0 });
+  r = await call('GET', '/peek?c=' + K.c); assert.deepEqual([r.o.st, r.o.duo, r.o.scr], ['live', 1, 0]);
+  r = await call('POST', '/join', { body: { c: K.c, ecran: 1 }, ip: '192.0.2.174' }); assert.equal(r.s, 200, 'partie commencée : l\'écran 2 peut encore la rejoindre'); S = { c: K.c, key: r.o.key };
+  r = await call('POST', '/join', { body: { c: K.c, n: 'Ned' }, ip: '192.0.2.175' }); assert.deepEqual([r.s, r.o.error], [409, 'started'], 'une place, non');
+  await sleep(1600); r = await call('POST', '/join', { body: { c: K.c, ecran: 1 }, ip: '192.0.2.176' }); assert.equal(r.s, 200, 'ne répond plus : remplacé'); const S2 = { c: K.c, key: r.o.key };
+  r = await poll(S); assert.deepEqual([r.s, r.o.error], [410, 'kicked'], 'l\'ancien est retiré');
+  r = await op(K, { op: 'duo', on: false }); assert.equal(r.o.duo, undefined); r = await poll(S2); assert.deepEqual([r.s, r.o.error], [410, 'kicked'], 'coupé : l\'écran 2 est retiré');
+  r = await call('POST', '/join', { body: { c: K.c, ecran: 1 }, ip: '192.0.2.177' }); assert.deepEqual([r.s, r.o.error], [409, 'no_duo']);
+  ok('écran 2 : ouvert par le créateur seul (places), pris par le code sans compte (en attente ou commencée), un seul (remplacé s\'il ne répond plus), co-hôte d\'office jamais coupé, rien d\'autre, retiré quand le créateur le coupe');
+}
+
 // départ : un joueur en attente libère sa place ; le créateur qui part termine la salle ; taille du corps
 {
   r = await call('POST', '', { uid: U.d, body: { id: 'davegame0001', n: 'Dave' } }); const D1 = { c: r.o.s.c, key: r.o.key };

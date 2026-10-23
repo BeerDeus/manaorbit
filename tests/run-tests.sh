@@ -29,6 +29,7 @@ BROWSER=(
   partie-ui-e2e.mjs
   partie-room-e2e.mjs
   partie-live-e2e.mjs
+  partie-duo-e2e.mjs
   menus-e2e.mjs
   applink-e2e.mjs
   apkupd-e2e.mjs

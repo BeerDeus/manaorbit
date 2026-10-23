@@ -256,3 +256,62 @@
 .pu-life .pu-dead{width:.72em;height:.72em;stroke-width:1.6;opacity:.85}
 .pu-marks button .i{width:16px;height:16px;margin-right:5px;vertical-align:-3px}
 .pu-tag .i[aria-hidden]{flex:none}
+/* ── Grande table sur deux téléphones (partie-ui.js › puLayoutHalf, puHalfHtml, puDuoCardHtml, écran 2 de puJoin) ──────────────────────────────────────── */
+.pu-duo-st{margin:0;display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--ink-2)}
+.pu-duo-st::before{content:'';flex:none;width:8px;height:8px;margin-top:5px;border-radius:50%;background:var(--ink-3)}
+.pu-duo-st.on::before{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 25%,transparent)}
+.pu-duo-st.off::before{background:var(--warn)}
+.pu-duo-st.on{color:var(--ink);font-weight:650}
+/* plan de la table : l'affichage A en petit, chaque place sur ce téléphone ou sur l'écran 2 (toucher : l'autre écran) */
+.pu-duo-map{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-auto-rows:minmax(54px,auto);gap:6px;padding:8px;border-radius:16px;background:var(--surface-2);border:1px dashed var(--line)}
+.pu-dm{position:relative;min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:7px;align-items:center;padding:6px 8px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-family:inherit;text-align:left;touch-action:manipulation}
+.pu-dm b{grid-row:1 / span 2;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:hsl(var(--h) 62% 50%);color:#fff;font-size:12.5px}
+.pu-dm span{font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-dm small{font-size:11.5px;font-weight:650;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-dm.s2{border-color:var(--accent);background:var(--accent-soft)}
+.pu-dm.s2 small{color:var(--accent)}
+.pu-dm:active{transform:scale(.97)}
+.pu-dm-hint{margin:0;font-size:12.5px}
+.pu-dm-hint .link-btn{padding:0 4px;font-size:12.5px}
+.pu-tmenu.pu-duo .btn{align-self:flex-start}
+.pu-tmenu .pu-qr-img{width:112px;height:112px}
+/* bascule « Ma moitié · L'autre moitié · Toute la table » (menus des deux écrans) : la table en petit, la partie montrée pleine */
+.pu-ico-me,.pu-ico-other,.pu-ico-all{width:30px;height:44px;border-radius:7px}
+.pu-ico-me::before,.pu-ico-other::before,.pu-ico-all::before{left:3px;right:3px;opacity:.75}
+.pu-ico-me::before{top:50%;bottom:3px}
+.pu-ico-other::before{top:3px;bottom:50%}
+.pu-ico-all::before{top:3px;bottom:3px}
+/* moitié de la table : grille aux rangées pondérées (puLayoutHalf) ; pastilles en haut (vue choisie, hors ligne) : les noms des tuiles du haut s'en écartent */
+.pu-t.pk-l .pu-top{--nl:40px}
+.pu-t.pk-r .pu-top{--nr:40px}
+.pu-t.pk-c .pu-top{margin-top:40px}
+.pu-pills{position:absolute;left:50%;top:2px;z-index:6;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;max-width:min(64%,230px);pointer-events:none}
+.pu-see,.pu-scr-st{pointer-events:auto;display:inline-flex;align-items:center;gap:6px;max-width:100%;min-height:30px;margin:0;padding:4px 10px 4px 12px;border-radius:99px;border:1px solid rgba(255,255,255,.55);background:rgba(11,15,28,.88);box-shadow:0 4px 16px rgba(0,0,0,.5);color:#fff;font-family:inherit;font-size:12.5px;font-weight:750;line-height:1.2;white-space:nowrap}
+.pu-see .i{flex:none;width:14px;height:14px;opacity:.85}
+.pu-scr-st{padding:4px 12px;border-color:rgba(232,180,94,.7);background:#33270f;color:#ffe2a8;white-space:normal;text-align:center}
+.pu-mid.warn::after{content:'';position:absolute;top:3px;right:3px;width:11px;height:11px;border-radius:50%;background:#e8b45e;box-shadow:0 0 0 2px #0b0f1c}
+.pu-none{display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:rgba(255,255,255,.7);font-size:14px}
+.pu-bar .pu-see-b{color:#fff;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.06)}
+/* écran 2 : en attente du lancement (plein écran sombre), carte « Devenir l'écran 2 » avant d'entrer */
+.pu-scr-wait{align-items:center;justify-content:center;padding:24px}
+.pu-scr-box{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:340px;text-align:center}
+.pu-scr-box>b{font-size:22px}
+.pu-scr-box p{margin:0;color:rgba(255,255,255,.82);font-size:14.5px}
+.pu-scr-box .hint{color:rgba(255,255,255,.6);font-size:13px}
+.pu-scr-box .pu-scr-who b{color:#fff}
+.pu-scr-box .btn{margin-top:6px;color:#fff;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.06)}
+.pu-scr-n{flex:none;width:56px;height:76px;border-radius:12px;border:2px solid currentColor;display:grid;place-items:center;font-size:30px;font-weight:800;line-height:1}
+.pu-scr-wait .pu-scr-n{color:#fff;box-shadow:0 0 0 6px rgba(255,255,255,.06)}
+.pu-scr-card{flex-direction:row;align-items:center;gap:14px;border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.pu-scr-card .pu-scr-n{width:44px;height:60px;font-size:24px;color:var(--accent)}
+.pu-scr-or{margin:4px 2px -2px}
+/* table en direct des téléphones qui rejoignent : illustration du commandant en fond (comme les tuiles du compteur), sous un voile de la couleur de la page :
+   plus couvrant à gauche (nom, commandant), l'illustration plus visible à droite ; PV lisibles en clair comme en sombre */
+.pu-lv>*{position:relative;z-index:1}
+.pu-lv::before{z-index:2}
+.pu-lv>.pu-lv-bg{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.pu-lv-bg img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 28%;filter:saturate(.9)}
+.pu-lv-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(160deg,hsl(var(--h) 70% 55% / .2),hsl(var(--h) 70% 55% / .06)),linear-gradient(100deg,color-mix(in srgb,var(--surface) 94%,transparent) 0%,color-mix(in srgb,var(--surface) 86%,transparent) 42%,color-mix(in srgb,var(--surface) 62%,transparent) 100%)}
+.pu-lv.me .pu-lv-bg::after{background:linear-gradient(160deg,hsl(var(--h) 70% 55% / .2),hsl(var(--h) 70% 55% / .06)),linear-gradient(180deg,color-mix(in srgb,var(--surface) 90%,transparent) 0%,color-mix(in srgb,var(--surface) 70%,transparent) 50%,color-mix(in srgb,var(--surface) 90%,transparent) 100%)}
+.pu-lv.art .pu-lv-life{text-shadow:0 1px 10px color-mix(in srgb,var(--surface) 80%,transparent)}
+.pu-lv.art .pu-lv-b{background:color-mix(in srgb,var(--surface) 88%,transparent)}
