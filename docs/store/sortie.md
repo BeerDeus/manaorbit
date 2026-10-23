@@ -100,7 +100,7 @@ Les textes (accueil, règles et leurs traductions, sujets des salons, questions 
 
 ### Après
 - Lien Discord à mettre : message aux testeurs (§ 1), page /testeurs, réseaux (bio), et dans l'appli (Réglages, à ajouter quand le lien existe).
-- Possible plus tard : un bot à nous qui publie la Carte mystère du jour et les classements.
+- Fait le 22 octobre : le bot « Mana Orbit » annonce la Carte mystère du jour (18 h, ping 🔮) et publie le classement de la semaine le dimanche (README › « Bot Discord »).
 
 ## 3. Flyers pour les boutiques (A5, fond sombre)
 
