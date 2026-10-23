@@ -234,7 +234,7 @@ const last = () => D.posts[D.posts.length - 1];
   ok('sans DISCORD_BOT_TOKEN : /__ping feedback false, /api/feedback 404, panneau « bot non configuré » (200, on: false) ; DISCORD=0 : tout en 404, rien demandé à Discord');
 }
 
-const ENV = { DISCORD_BOT_TOKEN: TOKEN, DISCORD_API: DAPI, FEEDBACK_PER_H: '3', ADMIN_ACTIONS_PER_H: '12' };
+const ENV = { DISCORD_BOT_TOKEN: TOKEN, DISCORD_API: DAPI, FEEDBACK_PER_H: '3', ADMIN_ACTIONS_PER_H: '12', DISCORD_FEEDBACK_SIMILAR: '0' };      // titres proches : tests/test-discord-forum.mjs (sinon des appels de plus en arrière-plan)
 let P = await start(ENV, 19802); BASE = P.url;
 
 /* ── 2) Aide et avis ──────────────────────────────────────────────────────────────────────────────────────────────────────── */

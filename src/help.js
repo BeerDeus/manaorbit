@@ -13,7 +13,10 @@
      part en member et sera mentionné dans le fil (notifié des réponses) ; sans choix, la saisie libre part en contact comme avant ; part avec :
      version, plateforme, version de l'APK, langue, navigateur (jamais la collection) ; connecté : jeton Firebase (le serveur n'en garde qu'une empreinte, budget).
      Brouillon gardé à la fermeture (mémoire, textes aussi dans sessionStorage), vidé après un envoi réussi ; « Merci ! » : « Voir sur Discord » (le fil),
-     « Rejoindre le serveur ». Serveur ancien (pas de feedback), hors ligne, ou 404 (bot coupé : CTX.feedback = false) : mailto comme avant.
+     « Rejoindre le serveur ». Nonce tiré au premier envoi et gardé dans le brouillon jusqu'au succès : un envoi retenté (réseau coupé, retour puis « Envoyer »)
+     repart avec le même, le serveur renvoie le fil déjà créé au lieu d'en ouvrir un second (discord-forum.mjs).
+     Notification « Du nouveau sur ton avis » touchée (./?avis=<fil>&g=<serveur> : l'équipe a étiqueté, répondu, fermé) : fbAvisOpen ouvre le fil sur Discord
+     (appli Android : tout de suite, Android le confie à l'appli Discord ; navigateur : une feuille avec « Voir sur Discord », un onglet ne s'ouvre pas sans geste). Serveur ancien (pas de feedback), hors ligne, ou 404 (bot coupé : CTX.feedback = false) : mailto comme avant.
      Badge « Voix du peuple » (progress.js, prgAdd('fb')) : après un envoi réussi, ou au clic sur le mailto.
    · Repli par e-mail : mailto avec la version, la plateforme, la langue et le navigateur (pour reproduire un bug) ; jamais la collection.
    · « Laisser un avis sur Google Play » (data-help="rate") : lien vers la fiche (PLAY_URL, onglet à part) ; dans l'appli Android, la coque Capacitor
@@ -144,11 +147,17 @@ function fbDraft() {
   let o = null; try { o = JSON.parse(sessionStorage.getItem(FB.key) || 'null'); } catch (e) { o = null; }
   o = o && typeof o === 'object' ? o : {};
   const str = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
-  FB.draft = { kind: o.kind === 'idea' || o.kind === 'help' ? o.kind : 'bug', area: fbPick(o.area, FB_AREAS), title: str(o.title, FB.title), text: str(o.text, FB.text), contact: str(o.contact, FB.contact), member: fbMemOk(o.member), imgs: [] };
+  FB.draft = { kind: o.kind === 'idea' || o.kind === 'help' ? o.kind : 'bug', area: fbPick(o.area, FB_AREAS), title: str(o.title, FB.title), text: str(o.text, FB.text), contact: str(o.contact, FB.contact), member: fbMemOk(o.member), imgs: [],
+    nonce: typeof o.nonce === 'string' && /^[\w-]{16,64}$/.test(o.nonce) ? o.nonce : '' };      // nonce : celui du premier envoi, gardé jusqu'au succès (même envoi retenté = même fil)
   return FB.draft;
 }
-function fbKeep() { const d = FB.draft; if (!d) return; try { sessionStorage.setItem(FB.key, JSON.stringify({ kind: d.kind, area: d.area, title: d.title, text: d.text, contact: d.contact, member: d.member })); } catch (e) { /* stockage indisponible : brouillon en mémoire seulement */ } }
+function fbKeep() { const d = FB.draft; if (!d) return; try { sessionStorage.setItem(FB.key, JSON.stringify({ kind: d.kind, area: d.area, title: d.title, text: d.text, contact: d.contact, member: d.member, nonce: d.nonce })); } catch (e) { /* stockage indisponible : brouillon en mémoire seulement */ } }
 function fbForget() { FB.draft = null; try { sessionStorage.removeItem(FB.key); } catch (e) { /* ignore */ } }
+/** Nonce d'un envoi : 16 octets au hasard en base64url (22 caractères). */
+function fbNonce() {
+  const a = new Uint8Array(16); try { crypto.getRandomValues(a); } catch (e) { for (let i = 0; i < 16; i++) a[i] = Math.floor(Math.random() * 256); }
+  return btoa(String.fromCharCode(...a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 /** Membre du serveur (réponse de api/feedback/members, brouillon) vérifié → { id, name, user, avatar } ; avatar : CDN de Discord seulement ; sinon null. */
 function fbMemOk(m) {
   if (!m || typeof m !== 'object' || typeof m.id !== 'string' || !/^\d{5,25}$/.test(m.id) || typeof m.name !== 'string' || typeof m.user !== 'string') return null;
@@ -342,7 +351,8 @@ function fbOpen() {
     if (text.split('\n').length > FB.lines) { fail(T('La description doit faire de 1 à 1500 caractères, sur 30 lignes au plus.'), xI); return; }
     if (collOffline()) { fail(T('Hors ligne : ton avis n\'est pas parti. Réessaie une fois connecté, ton message est gardé.')); return; }
     sending = true; paint();
-    let r; try { r = await fbPost({ kind: d.kind, title: title.slice(0, FB.title), text: text.slice(0, FB.text), area: d.area, contact, meta: await fbMeta(), imgs: d.imgs.map(x => x.url), ...(mem ? { member: mem.id } : {}) }); } catch (e) { r = { status: 0, code: 'net' }; }
+    if (!d.nonce) { d.nonce = fbNonce(); fbKeep(); }      // gardé jusqu'au succès : « Envoyer » de nouveau après un échec = le même envoi
+    let r; try { r = await fbPost({ nonce: d.nonce, kind: d.kind, title: title.slice(0, FB.title), text: text.slice(0, FB.text), area: d.area, contact, meta: await fbMeta(), imgs: d.imgs.map(x => x.url), ...(mem ? { member: mem.id } : {}) }); } catch (e) { r = { status: 0, code: 'net' }; }
     sending = false;
     const open = sheets.includes(api);
     if (r.status === 200) {
@@ -365,6 +375,22 @@ function fbDone(api, url) {
       <div class="fb-links">${see ? `<a class="btn" data-fb="see" href="${esc(url)}" target="_blank" rel="noopener">${T('Voir sur Discord')}</a>` : ''}<a class="btn ghost" data-fb="join" href="${esc(DISCORD_URL)}" target="_blank" rel="noopener">${T('Rejoindre le serveur')}</a></div></div>`;
   api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button>`);
   const h = $('h3', api.body); try { h.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+}
+/** Notification « Du nouveau sur ton avis » touchée (push.js › pushOpen, app.js › handleLaunch) : ./?avis=<fil>&g=<serveur> → le fil sur Discord. Appli Android :
+ *  ouvert tout de suite (Android le confie à l'appli Discord ou au navigateur) ; navigateur : feuille avec « Voir sur Discord » (sans geste, l'onglet serait bloqué).
+ *  → true si l'adresse était bien celle d'un avis. */
+function fbAvisOpen(u) {
+  let q; try { q = new URLSearchParams(String(u || '').replace(/^[^?]*/, '')); } catch (e) { return false; }
+  const id = q.get('avis') || '', g = q.get('g') || '';
+  if (!/^\d{5,25}$/.test(id) || !/^\d{5,25}$/.test(g)) return false;
+  const url = `https://discord.com/channels/${g}/${id}`;
+  if (typeof isNativeApp === 'function' && isNativeApp()) { try { window.open(url, '_blank', 'noopener'); } catch (e) { /* coque muette : rien de plus */ } return true; }
+  setTimeout(() => openSheet(T('Ton avis sur Discord'), null, a => {
+    a.wrap.classList.add('fb-avis');
+    a.body.innerHTML = `<p class="hint">${helpNb(T('Du nouveau sur ton avis : l\'équipe y a répondu, l\'a étiqueté ou l\'a fermé. Tout est sur le Discord de Mana Orbit.'))}</p>`;
+    a.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><a class="btn" data-fb="see" href="${esc(url)}" target="_blank" rel="noopener" data-close>${T('Voir sur Discord')}</a>`);
+  }), 500);
+  return true;
 }
 /** Envoi par le Discord coupé (404) : le message, déjà écrit, part par e-mail (mailto prérempli). */
 function fbMail(api, title, text) {

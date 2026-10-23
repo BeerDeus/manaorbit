@@ -1564,6 +1564,7 @@ async function amWipe(req, res, me) {
   await amEdit([me.tag], st => { st[me.tag] = null; });
   await Promise.all([amDropParts(me.tag), ...drop.filter(t => t !== me.tag).map(amDropParts)]);
   if (AMI.due.has(me.tag)) amDue(me.tag, 0);
+  if (DSC && DSC.fbForget) await DSC.fbForget(me.tag).catch(() => 0);      // ses fils d'avis suivis (bot Discord) : oubliés
   return json(res, 200, { ok: true });
 }
 async function friendsApi(req, res, path, url) {
@@ -2950,7 +2951,10 @@ async function srAdmin(req, res, sub, url) {
    série et Top 100 de la Carte mystère, Scanner ; créés par le bot s'ils manquent, ids dans ADMIN_DIR/discord-roles.json ; permission « Gérer les rôles ») : DISCORD_ROLES=0 les coupe.
    Commandes slash /moi et /partie (discord-cmd.mjs ; POST /api/discord/interactions, « Interactions Endpoint URL » du portail) : DISCORD_PUBLIC_KEY (clé publique de
    l'application, 64 caractères hexadécimaux : signature Ed25519 de chaque requête ; absente : route 404, aucune commande enregistrée) ; /moi lit le niveau et les
-   badges (daily-srv.mjs › profile) et l'historique du compteur de vie (ptHistLoad, partieStats) du compte lié, /partie le coup d'œil d'une salle d'attente (ptPublic). */
+   badges (daily-srv.mjs › profile) et l'historique du compteur de vie (ptHistLoad, partieStats) du compte lié, /partie le coup d'œil d'une salle d'attente (ptPublic).
+   Fils des avis (discord-forum.mjs) : DISCORD_STAFF_ROLES (rôles de l'équipe mentionnés dans chaque nouveau fil, noms séparés par des virgules ; défaut
+   « Créateur,Admin,Modo,Support » ; 0 : aucun) ; auteur prévenu par notifyUser (amis en marche) quand l'équipe étiquette, répond ou ferme son fil, relève toutes les
+   DISCORD_FEEDBACK_POLL_MS (10 min ; 0 : seulement les actions de /admin) ; DISCORD_FEEDBACK_SIMILAR : seuil des titres proches (0,6 ; 0 : coupé) ; fils suivis : ADMIN_DIR/discord-feedback.json (oubliés avec le compte : DELETE /api/friends/me). */
 const DSC_REDIR = (() => { const v = String(process.env.DISCORD_REDIRECT_URI || '').trim(); if (!v) return ''; try { const u = new URL(v); if (/^https?:$/.test(u.protocol)) return u.href; } catch (e) { /* invalide */ } console.warn('⚠ DISCORD_REDIRECT_URI ignorée : adresse http(s) attendue.'); return ''; })();
 const dscOrigin = req => (DSC_REDIR ? new URL(DSC_REDIR).origin : LOCAL ? 'http://' + String(req.headers.host || 'localhost') : 'https://manaorbit.app');      // LOCAL : hôte déjà limité à localhost (LOCAL_HOSTS)
 let DSC = null;
@@ -2963,7 +2967,8 @@ try {
       parties: PT_ON ? async tag => { const st = PT_CORE.partieStats(await ptHistLoad(tag)); return { n: st.n, wins: st.wins }; } : null,
       peek: PT_ON ? code => { const r = PT.s.get(ptCodeOf(code)); return r && r.st !== 'end' ? ptPublic(r) : null; } : null, tableLink: PT_CORE ? code => PT_CORE.partieTableLink(code) : null },
     roles: process.env.DISCORD_ROLES !== '0', daily: tag => (DLY && DLY.badgesOf ? DLY.badgesOf(tag) : null),      // rôles des comptes liés (discord-roles.mjs) : badges vérifiés de la Carte mystère, compteur du scan (Firestore, compte de service)
-    progress: fcmSa ? async uid => { const d = await fsDoc('GET', `users/${encodeURIComponent(uid)}/meta/progress`); return d ? fsFields(d) : null; } : null });
+    progress: fcmSa ? async uid => { const d = await fsDoc('GET', `users/${encodeURIComponent(uid)}/meta/progress`); return d ? fsFields(d) : null; } : null,
+    net: req => clientOf(req), notify: AM_ON ? notifyUser : null, staffRoles: process.env.DISCORD_STAFF_ROLES, feedbackPollMs: Number(process.env.DISCORD_FEEDBACK_POLL_MS ?? 600e3), similar: Number(process.env.DISCORD_FEEDBACK_SIMILAR ?? 0.6) });      // fils des avis (discord-forum.mjs) : doublons par réseau, auteur prévenu, ping de l'équipe
 } catch (e) { console.warn('Discord : module illisible (' + (e && e.message || e) + '), bot coupé'); DSC = null; }
 const DSC_ON = !!(DSC && DSC.on);
 /* Sorties d'extensions annoncées dans #spoilers (discord-sets.mjs, README › « Bot Discord ») : à J-7 et le jour J, vers DISCORD_SETS_HOUR (10 h) heure de Paris, les

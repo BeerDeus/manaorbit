@@ -514,7 +514,7 @@ ok('menu Compte › « Signaler un bug ou une idée » (bot là) : la fenêtre, 
   assert.equal((await mailClick(p, '.hp-sheet .sheet-foot a[data-help="report"]')).sheet, true, 'pied de l\'aide : la feuille d\'avis');
   await p.waitForSelector(FB_SHEET);
   assert.deepEqual(await fbVals(p), before, 'brouillon gardé (type, partie, titre, description, pseudo, captures)');
-  assert.deepEqual(await p.evaluate(() => Object.keys(JSON.parse(sessionStorage.getItem('deckdeal:fb')))), ['kind', 'area', 'title', 'text', 'contact', 'member'], 'textes aussi dans la session (pas les captures)');
+  assert.deepEqual(await p.evaluate(() => Object.keys(JSON.parse(sessionStorage.getItem('deckdeal:fb')))), ['kind', 'area', 'title', 'text', 'contact', 'member', 'nonce'], 'textes aussi dans la session (pas les captures)');
   // 429 : « réessaie dans N min », bouton coupé pendant l'envoi, saisie gardée
   fb.next.push({ status: 429, json: { error: 'rate_limited', message: 'Trop d\'avis', retry: 540 }, headers: { 'retry-after': '540' }, delay: 500 });
   await p.click('.fb-sheet [data-fb="go"]'); await p.waitForTimeout(150);
@@ -535,7 +535,7 @@ ok('menu Compte › « Signaler un bug ou une idée » (bot là) : la fenêtre, 
   await p.waitForSelector('.fb-sheet .fb-done');
   const c = fb.calls[n0], b = c.body, info = await p.evaluate(() => [DD_BUILD, navigator.userAgent, I18N.nav]);
   assert.equal(c.method, 'POST'); assert.match(c.headers['content-type'], /^application\/json/); assert.equal(c.headers['x-firebase-token'], undefined, 'pas connecté : pas de jeton');
-  assert.deepEqual(Object.keys(b).sort(), ['area', 'contact', 'imgs', 'kind', 'meta', 'text', 'title']);
+  assert.deepEqual(Object.keys(b).sort(), ['area', 'contact', 'imgs', 'kind', 'meta', 'nonce', 'text', 'title']);
   assert.deepEqual([b.kind, b.area, b.title, b.contact], ['bug', 'scan', 'Le classeur ne défile plus', 'jace_beleren'], 'titre nettoyé (espaces resserrés, tabulation)');
   assert.equal(b.text, 'Étapes : ouvrir le classeur.\nObtenu : rien ne bouge.', 'saut de ligne gardé');
   assert.deepEqual(b.meta, { v: info[0], plat: 'web', apk: '', lang: 'fr', nav: info[2], ua: info[1] }, 'meta du contrat');
@@ -664,7 +664,7 @@ const HINT_MEM = 'Choisis ton pseudo dans la liste : tu seras mentionné dans le
   st = await memState(p); assert.deepEqual([st.value, st.chip], ['Beer', '@Beer'], 'rouverte : membre toujours choisi');
   await p.fill('#fbTitle', 'Le scan bloque'); await p.fill('#fbText', 'Depuis la 1.0.11.'); await fbSend(p); await p.waitForSelector('.fb-sheet .fb-done');
   let b = fb.calls.at(-1).body;
-  assert.deepEqual(Object.keys(b).sort(), ['area', 'contact', 'imgs', 'kind', 'member', 'meta', 'text', 'title']);
+  assert.deepEqual(Object.keys(b).sort(), ['area', 'contact', 'imgs', 'kind', 'member', 'meta', 'nonce', 'text', 'title']);
   assert.deepEqual([b.member, b.contact], [MEMS[0].id, 'beergod_'], 'corps : member (id) et l\'identifiant en contact');
   await closeSheets(p);
   // clic sur une proposition, puis texte modifié → choix annulé (saisie libre envoyée en contact)

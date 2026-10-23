@@ -1404,6 +1404,7 @@ function handleLaunch() {
   else if (q.has('pd') && typeof pdLaunch === 'function') { const v = q.get('pd'); setTimeout(() => pdLaunch(v), 600); }      // deck public partagé sur Discord (« Voir le deck » : pubdecks.js)
   else if (q.has('mystere') && typeof dlyLaunch === 'function') dlyLaunch();      // Carte mystère (résultat partagé) : seulement sur le lien d'essai (daily.js › dlyOn)
   else if (q.has('compteur') && typeof puGo === 'function') { const j = q.get('compteur'); setTimeout(() => puGo(j), 600); }      // compteur de vie (?compteur=commander | standard | libre | 1 : bouton des annonces /partie du bot Discord)
+  else if (q.has('avis') && typeof fbAvisOpen === 'function') fbAvisOpen('?' + q.toString());      // notification « Du nouveau sur ton avis » (nouvelle fenêtre) : le fil sur Discord
   else if (q.has('parties') && typeof puHist === 'function') setTimeout(puHist, 600);      // notification « Partie enregistrée » ouverte dans une nouvelle fenêtre      // compteur de vie : rejoindre une table, résultat scanné (partie-ui.js)      // échange en direct : QR code de l'hôte scanné, invitation touchée (troc.js)
   else if (shared) onShared(extractShared({ title: q.get('title'), text: q.get('text'), url: q.get('url') }));
   else if (q.has('collection')) setTimeout(() => openCollection(), 600);                  // lien direct vers la collection (?collection)
