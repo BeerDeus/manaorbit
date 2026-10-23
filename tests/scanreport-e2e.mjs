@@ -150,7 +150,9 @@ await ctx.close();
   ap.on('pageerror', e => aerr.push('pageerror: ' + e.message)); ap.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) aerr.push('console: ' + m.text()); });
   await ap.addInitScript(u => { window.__fbUser = u; }, { uid: 'uid-admin-00', email: ADMIN, tok: F.jwt('uid-admin-00', 3600, { email: ADMIN, email_verified: true }) });
   await ap.goto(world.url + 'admin');
-  await ap.waitForSelector('#scans:not([hidden]) .scr', { timeout: 10000 });
+  await ap.waitForSelector('#scans:not([hidden]) .scr', { state: 'attached', timeout: 10000 });      // onglet « Vue d'ensemble » d'abord : la carte est chargée mais pas affichée
+  assert.equal(await ap.$$eval('#scans .scph img', a => a.filter(i => i.src).length), 0, 'onglet Signalements fermé : aucune photo demandée');
+  await ap.click('#t-signalements'); await ap.waitForSelector('#scans:not([hidden]) .scr', { timeout: 10000 });      // scans signalés : onglet Signalements (refonte du panneau)
   assert.equal(await ap.$$eval('#scans .scr', a => a.length), 2);
   assert.match(await ap.textContent('#kpis [data-k="scans"]'), /Scans signalés\s*2\s*2 en 7 jours/);
   assert.match(await ap.textContent('#scCount'), /2 signalements · .* Mo · gardés 90 jours/);
@@ -158,7 +160,6 @@ await ctx.close();
   assert.match(first, /Non reconnue/); assert.match(first, /Tesseract/); assert.match(first, /compte [0-9a-f]{8}/);
   const second = await ap.$eval('#scans .scr:nth-child(2)', a => a.innerText);
   assert.match(second, /Mauvaise langue/); assert.match(second, /Command Tower/); assert.match(second, /FR/); assert.match(second, /BLB/); assert.match(second, /Carte française, lue en allemand/); assert.match(second, /version [0-9a-f]{8}/); assert.match(second, /sans compte/);
-  assert.equal(await ap.$$eval('#scans .scph img', a => a.filter(i => i.src).length), 0, 'photos demandées seulement quand la section apparaît');
   await ap.$eval('#scans', e => e.scrollIntoView());
   await ap.waitForFunction(() => [...document.querySelectorAll('#scans .scph img')].every(i => /^data:image\/jpeg/.test(i.src)), null, { timeout: 8000 });
   await ap.click('#scans .scr:nth-child(2) .scph'); assert.equal(await ap.$eval('#scans .scr:nth-child(2) .scph', b => b.classList.contains('big')), true, 'photo en grand');
