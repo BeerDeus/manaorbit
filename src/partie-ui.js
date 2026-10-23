@@ -11,6 +11,7 @@
      un co-hôte, des deltas que le téléphone du créateur applique ; partie annulée ou abandonnée : l'écran se ferme avec la raison) et ?partie=… (résultat : « c'était moi »).
    · Téléphones de la table pendant la partie (créateur) : état envoyé à la salle (regroupé ~1 s), saisies des autres téléphones appliquées une fois chacune,
      demandes de co-hôte (feuille Accepter / Refuser), « Tout le monde est co-hôte » et saisie coupée (préparation, menu « … »).
+   · Sans réseau (soirée en boutique) : « Mon QR joueur », « Ajouter un joueur par QR », messages hors ligne, état de l'envoi du résultat : partie-qr.js.
    Aucune publicité pendant la partie (écran plein, au-dessus de tout). Écran gardé allumé (Wake Lock) pendant le compteur. */
 const PU = { el: null, st: null, mode: '', room: null, view: null, on: [], net: true, stopW: null, wl: null, gone: new Set(), deltas: {}, hold: null, joinEl: null, roomTry: false };
 const PU_AFF_KEY = 'deckdeal:partie:aff', PU_AFFS = ['A', 'B', 'C'];
@@ -43,9 +44,9 @@ const puDur = s => { const m = Math.round(s / 60); return m < 60 ? T('{n} min', 
 function puHomeInit() {
   const tr = $('#hmTrade'); if (!tr || $('#hmPartie')) return;
   tr.insertAdjacentHTML('afterend', `<section class="hm-trade hm-partie" id="hmPartie" aria-labelledby="hmPartieT">
-      <button class="hm-tr-h" type="button" data-pu="go"><span class="hm-tr-ic" aria-hidden="true">${PU_HEART}</span><span class="hm-tr-t"><b id="hmPartieT">${T('Compteur de vie')}</b><span class="hm-pu-sub"></span></span></button>
+      <button class="hm-tr-h" type="button" data-pu="go"><span class="hm-tr-ic" aria-hidden="true">${PU_HEART}</span><span class="hm-tr-t"><b id="hmPartieT">${T('Compteur de vie')}</b><span class="hm-pu-sub"></span></span></button><button class="icon-btn hm-pu-qr" type="button" data-pu="myqr" aria-label="${T('Mon QR joueur')}" title="${T('Mon QR joueur')}"><svg class="i" aria-hidden="true"><use href="#i-qr"/></svg></button>
       <div class="hm-tr-acts"><button class="btn ghost" type="button" data-pu="go"><span class="hm-pu-go"></span></button><button class="btn ghost" type="button" data-pu="hist"><span>${T('Mes parties')}</span></button><button class="btn ghost hm-pu-drop" type="button" data-pu="drop" hidden><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg></button></div></section>`);
-  $('#hmPartie').addEventListener('click', e => { const b = e.target.closest('[data-pu]'); if (!b) return; haptic('tap'); const a = b.dataset.pu; if (a === 'hist') puHist(); else if (a === 'drop') puDropSheet(); else puGo(); });
+  $('#hmPartie').addEventListener('click', e => { const b = e.target.closest('[data-pu]'); if (!b) return; haptic('tap'); const a = b.dataset.pu; if (a === 'hist') puHist(); else if (a === 'drop') puDropSheet(); else if (a === 'myqr') puMyQr(); else puGo(); });      // myqr : partie-qr.js
   puHomePaint();
 }
 /** Partie en cours de ce téléphone ; laissée de côté trop longtemps (partieStale : 12 h en préparation, 48 h commencée), elle est effacée sans résultat. */
@@ -115,16 +116,17 @@ function puPaint() {
 
 /* ── Préparation et salle d'attente ────────────────────────────────────────────────────────────── */
 function puSetupPaint() {
-  const st = PU.st, el = PU.el, me = st.places.find(p => p.sorte === 'moi'), room = partieRoom(), roomOk = room && room.host && room.id === st.id, jeu = partieJeu(st);
+  const st = PU.st, el = PU.el, me = st.places.find(p => p.sorte === 'moi'), room = partieRoom(), roomOk = room && room.host && room.id === st.id && puOnline(), jeu = partieJeu(st);      // hors ligne : ni QR code de la table ni co-hôtes (partie-qr.js)
   if (!roomOk && !PU.roomTry && puNet()) { PU.roomTry = true; puRoomOpen(); }
+  puQrSetup();
   const qr = roomOk ? (() => { try { return qrSvgLogo(partieTableLink(room.c)).svg; } catch (e) { return ''; } })() : '';
   const decks = typeof allDecks === 'function' ? allDecks().filter(d => d && d.name) : [];
   const on = new Set(PU.on), seats = st.places.map(p => {
     const v = PU.view && PU.view.places ? PU.view.places.find(x => x.pos === p.pos) : null, phone = p.sorte === 'moi' || (v && v.dev);
-    return `<li class="pu-seat"><span class="pu-pos">${p.pos}</span><span class="pu-who"><b>${esc(p.nom || T('Joueur {n}', { n: p.pos }))}${p.sorte === 'moi' ? ` <small>${T('(toi)')}</small>` : ''}</b><small>${esc(puCmd(p) || (p.sorte === 'invite' && !phone ? T('Invité') : T('Deck pas encore choisi')))}</small></span>
+    return `<li class="pu-seat"><span class="pu-pos">${p.pos}</span><span class="pu-who"><b>${esc(p.nom || T('Joueur {n}', { n: p.pos }))}${p.sorte === 'moi' ? ` <small>${T('(toi)')}</small>` : ''}${puCarteTag(p)}</b><small>${esc(puCmd(p) || (p.sorte === 'invite' && !phone ? T('Invité') : T('Deck pas encore choisi')))}</small></span>
       ${phone ? `<span class="pu-dev${p.sorte === 'moi' || on.has(p.pos) ? ' on' : ''}" title="${T('A rejoint avec son téléphone')}"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg></span>` : ''}${p.sorte !== 'moi' ? `<button type="button" class="icon-btn pu-x" data-pu="kick" data-pos="${p.pos}" aria-label="${T('Retirer {name}', { name: esc(p.nom || p.pos) })}"><svg class="i"><use href="#i-close"/></svg></button>` : ''}</li>`;
   }).join('');
-  el.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-pu="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Nouvelle partie')}</b><span>${TN(st.places.length, '{n} joueur', '{n} joueurs')}</span></div></header>
+  el.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-pu="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Nouvelle partie')}</b><span>${TN(st.places.length, '{n} joueur', '{n} joueurs')}</span></div><button class="icon-btn pu-hdq" type="button" data-pu="myqr" aria-label="${T('Mon QR joueur')}" title="${T('Mon QR joueur')}"><svg class="i" aria-hidden="true"><use href="#i-qr"/></svg></button></header>
     <div class="dv-scroll"><div class="dv-body pu-setup">
       <section class="pu-card pu-jeu-card"><p class="pu-h">${T('Format')}</p><div class="seg pu-jeu" role="radiogroup" aria-label="${T('Format')}"></div>
         ${jeu === 'commander' ? `<p class="pu-h">${T('Points de départ')}</p><div class="seg pu-fmt" role="radiogroup" aria-label="${T('Points de départ')}"></div>`
@@ -132,9 +134,9 @@ function puSetupPaint() {
         <p class="hint pu-jeu-hint">${jeu === 'standard' ? T('20 points de vie, 1 contre 1 (une place de plus au besoin) : poison, énergie, expérience. Ni commandant ni blessures de commandant.') : jeu === 'libre' ? T('Points de vie au choix, jusqu\'à 8 joueurs : poison, monarque, initiative. Sans blessures de commandant.') : T('Jusqu\'à 8 joueurs : blessures de commandant, impôt, monarque, initiative, poison.')}</p></section>
       ${me ? `<section class="pu-card"><p class="pu-h">${T('Mon deck')}</p>${decks.length ? `<label class="sortsel pu-deck"><select data-pu="mydeck" aria-label="${T('Mon deck')}"><option value="">${T('Aucun')}</option>${decks.map(d => `<option value="${esc(d.id)}"${me.deck && me.deck.nom === partieStr(d.name, PRT_LEN.deck) ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>${me.deck && (puArt(me) || puCmd(me)) ? `<div class="pu-mydk" style="--h:${puHue(me.pos)}">${puArt(me) ? `<img class="pu-art" alt="" loading="lazy" decoding="async" src="${esc(puArt(me))}">` : ''}<span>${esc(puCmd(me))}</span></div>` : ''}` : `<p class="hint">${T('Aucun deck dans « Mes decks » : tu joueras sans deck affiché.')}</p>`}</section>` : ''}
       <section class="pu-card pu-qr">${qr ? `<div class="pu-qr-img" role="img" aria-label="${T('QR code de la table')}">${qr}</div><div class="pu-qr-t"><b>${T('Les autres scannent ce QR code')}</b><span>${T('Ils choisissent leur place et leur deck, puis rangent leur téléphone. Code : {c}', { c: room.c })}</span></div>`
-        : `<div class="pu-qr-t"><b>${T('Joueurs sans téléphone ou hors ligne')}</b><span>${!puOnline() ? T('Hors ligne : ajoute les joueurs ici, le résultat partira au retour du réseau.') : !D.user ? T('Connecte-toi pour que les autres rejoignent la table avec leur téléphone (QR code).') : !CTX.partie ? T('Serveur indisponible : ajoute les joueurs ici.') : T('Ouverture de la table…')}</span>${!D.user && puOnline() ? `<button class="btn ghost small" type="button" data-pu="login">${T('Se connecter')}</button>` : ''}</div>`}</section>
-      ${roomOk ? `<section class="pu-card"><label class="switch-row" for="puAllco"><span class="t"><b>${T('Tout le monde est co-hôte')}</b><span class="hint">${T('Chaque téléphone qui rejoint compte aussi les points de toute la table et passe au tour suivant. Abandonner, éliminer ou terminer reste sur ce téléphone.')}</span></span><span class="switch"><input type="checkbox" id="puAllco"${PU.view && PU.view.allco ? ' checked' : ''}><i></i></span></label></section>` : ''}
-      <section class="pu-card"><p class="pu-h">${T('Autour de la table')}</p><ol class="pu-seats">${seats}</ol>${st.places.length < 8 ? `<button class="plc-add" type="button" data-pu="guest">${T('+ Invité')}</button>` : ''}${roomOk && PU.view && PU.view.st === 'wait' && PU.view.size < 8 && (PU.view.places || []).length >= PU.view.size ? `<button class="plc-add" type="button" data-pu="seat+">${T('+ Une place de plus')}</button>` : ''}</section>
+        : `<div class="pu-qr-t"><b>${T('Joueurs sans téléphone ou hors ligne')}</b><span>${!puOnline() ? T('Hors ligne : ajoute les joueurs par leur QR joueur ou en invités ; le résultat partira au retour du réseau.') : !D.user ? T('Connecte-toi pour que les autres rejoignent la table avec leur téléphone (QR code).') : !CTX.partie ? T('Serveur indisponible : ajoute les joueurs ici.') : T('Ouverture de la table…')}</span>${!D.user && puOnline() ? `<button class="btn ghost small" type="button" data-pu="login">${T('Se connecter')}</button>` : ''}</div>`}</section>
+      ${!puOnline() ? puOffHtml() : ''}${roomOk ? `<section class="pu-card"><label class="switch-row" for="puAllco"><span class="t"><b>${T('Tout le monde est co-hôte')}</b><span class="hint">${T('Chaque téléphone qui rejoint compte aussi les points de toute la table et passe au tour suivant. Abandonner, éliminer ou terminer reste sur ce téléphone.')}</span></span><span class="switch"><input type="checkbox" id="puAllco"${PU.view && PU.view.allco ? ' checked' : ''}><i></i></span></label></section>` : ''}
+      <section class="pu-card"><p class="pu-h">${T('Autour de la table')}</p><ol class="pu-seats">${seats}</ol>${st.places.length < 8 ? `<div class="pu-adds"><button class="plc-add" type="button" data-pu="guest">${T('+ Invité')}</button><button class="plc-add pu-qradd" type="button" data-pu="scan"><svg class="i" aria-hidden="true"><use href="#i-qr"/></svg>${T('Ajouter un joueur par QR')}</button></div>` : ''}${roomOk && PU.view && PU.view.st === 'wait' && PU.view.size < 8 && (PU.view.places || []).length >= PU.view.size ? `<button class="plc-add" type="button" data-pu="seat+">${T('+ Une place de plus')}</button>` : ''}</section>
       ${st.places.length > 1 ? `<section class="pu-card"><p class="pu-h">${T('Premier joueur')}</p><div class="pu-chips"><button type="button" data-pu="first" data-pos="0" aria-pressed="${!st.premier}">${T('Au hasard')}</button>${st.places.map(p => `<button type="button" data-pu="first" data-pos="${p.pos}" aria-pressed="${st.premier === p.pos}">${esc(p.nom || p.pos)}</button>`).join('')}</div></section>` : ''}
     </div></div>
     <div class="pu-foot"><button class="btn block" type="button" data-pu="start"${st.places.length < 2 ? ' disabled' : ''}>${st.places.length < 2 ? T('Il faut au moins 2 joueurs') : T('Lancer la partie')}</button><button class="link-btn pu-drop" type="button" data-pu="drop">${T('Supprimer cette partie')}</button></div>`;
@@ -201,7 +203,7 @@ async function puArtSoon() {
 /** Illustrations déjà chargées remises dans l'écran repeint (même adresse) : pas de clignotement à chaque ±1 ni au tour suivant. */
 function puKeepArt(old, root) {
   const by = new Map(); for (const im of old) by.set(im.dataset.pos + ' ' + im.getAttribute('src'), im);
-  for (const im of $$('img.pu-art', root)) { const o = by.get(im.dataset.pos + ' ' + im.getAttribute('src')); if (o && o !== im) im.replaceWith(o); }
+  for (const im of $$('img.pu-art', root)) { const o = by.get(im.dataset.pos + ' ' + im.getAttribute('src')); if (o && o !== im && !(o.complete && !o.naturalWidth)) im.replaceWith(o); }      // ratée (hors ligne) : la nouvelle la recharge
 }
 async function puRoomOpen() {
   try {
@@ -525,6 +527,7 @@ function puAllco(on) {
 }
 /** Menu « … » : téléphones de la table (partie avec une salle) : saisie des autres téléphones permise ou coupée, tout le monde co-hôte, co-hôtes à retirer. */
 function puTableMenuHtml() {
+  if (!puOnline()) return puOffHtml();      // hors ligne : rien à régler, les autres téléphones ne suivent pas (partie-qr.js)
   const room = partieRoom(), v = PU.view; if (!room || !room.host || room.id !== PU.st.id || !v || v.st !== 'live') return '';
   const cos = (v.places || []).filter(x => x.co && !v.allco), off = !!(PU.st.rq && PU.st.rq.off);
   return `<p class="pu-h">${T('Téléphones de la table')}</p><div class="pu-card pu-tmenu">
@@ -556,9 +559,9 @@ function puEndPaint() {
   PU.el.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-pu="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Partie terminée')}</b><span>${esc([puJeuName(partieJeu(r)), TN(r.tours, '{n} tour', '{n} tours'), puDur(r.duree)].join(' · '))}</span></div></header>
     <div class="dv-scroll"><div class="dv-body pu-setup">
       <section class="pu-card"><ol class="pu-rank">${ps.map(p => `<li class="${p.vainqueur ? 'win' : ''}"><span class="pu-pos">${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || T('Joueur {n}', { n: p.pos }))}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol></section>
-      ${qr ? `<section class="pu-card pu-qr big"><div class="pu-qr-img" role="img" aria-label="${T('QR code du résultat')}">${qr}</div><div class="pu-qr-t"><b>${T('Résultat à scanner')}</b><span>${T('Les joueurs qui n\'ont pas rejoint la table le scannent pour garder la partie dans leur historique.')}</span></div></section>` : ''}
+      ${puEndNet(r)}${qr ? `<section class="pu-card pu-qr big"><div class="pu-qr-img" role="img" aria-label="${T('QR code du résultat')}">${qr}</div><div class="pu-qr-t"><b>${T('Résultat à scanner')}</b><span>${T('Les joueurs qui n\'ont pas rejoint la table le scannent pour garder la partie dans leur historique.')}</span></div></section>` : ''}
       ${r.places.some(p => p.sorte === 'invite') ? puInviteCard() : ''}
-      <p class="hint">${room ? T('Les joueurs qui ont rejoint avec leur téléphone ont reçu le résultat.') : ''} ${D.user ? T('Partie gardée dans « Mes parties » ; envoyée à ton compte dès que possible.') : T('Partie gardée sur ce téléphone (« Mes parties »).')}</p>
+      <p class="hint">${room && puOnline() ? T('Les joueurs qui ont rejoint avec leur téléphone ont reçu le résultat.') : ''} ${D.user ? T('Partie gardée dans « Mes parties » ; envoyée à ton compte dès que possible.') : T('Partie gardée sur ce téléphone (« Mes parties »).')}</p>
     </div></div>
     <div class="pu-foot"><button class="btn ghost" type="button" data-pu="again">${T('Rejouer avec les mêmes')}</button><button class="btn" type="button" data-pu="close">${T('Fermer')}</button></div>`;
 }
@@ -599,6 +602,8 @@ function puClick(e) {
   if (a === 'close') puClose();
   else if (a === 'login') openAccount();
   else if (a === 'guest') puGuestSheet();
+  else if (a === 'myqr') puMyQr();      // partie-qr.js : QR code joueur, ajout par QR code
+  else if (a === 'scan') puScanAdd();
   else if (a === 'kick') { if (partieRoom() && PU.view && PU.view.places && PU.view.places.some(x => x.pos === pos)) partieRoomOp('kick', { pos }).then(v => { PU.view = v; }).catch(() => {}); puSet(partieRemovePlace(PU.st, pos)); }
   else if (a === 'first') { puSet(pos ? partieFirst(PU.st, pos) : { ...PU.st, premier: 0 }); }
   else if (a === 'start') puStart();
@@ -611,7 +616,7 @@ function puClick(e) {
   else if (a === 'vie') { haptic('tap'); puVieSet(Math.max(1, Math.min(PRT_VIE_MAX, PU.st.format + Number(b.dataset.n)))); }
   else if (a === 'seat+' && PU.view && PU.view.size < 8) { b.disabled = true; puRoomOpts({ size: PU.view.size + 1 }, true); }
   else if (a === 'share-app' && typeof shareOut === 'function') shareOut({ title: 'Mana Orbit', text: T('Le compteur de points de vie et le scanner de cartes Magic de notre partie :'), url: PU_INV_URL });
-  else if (a === 'again') { const old = PU.st; let st = partieNew({ jeu: partieJeu(old), format: old.format, moi: null }); for (const p of old.places) st = partieAddPlace(st, { pos: p.pos, sorte: p.sorte === 'compte' ? 'invite' : p.sorte, nom: p.nom, deck: p.deck }); PU.res = null; PU.roomTry = false; puSet(st); }
+  else if (a === 'again') { const old = PU.st; let st = partieNew({ jeu: partieJeu(old), format: old.format, moi: null }); for (const p of old.places) st = partieAddPlace(st, { pos: p.pos, sorte: p.sorte === 'compte' && !partieCarteRead(p.uid) ? 'invite' : p.sorte, nom: p.nom, uid: p.uid, deck: p.deck }); PU.res = null; PU.roomTry = false; puSet(st); }      // carte joueur (QR code) : encore valable pour la suivante
 }
 
 /* ── Liens : rejoindre une table (?table=CODE), résultat (?partie=…) ───────────────────────────── */
@@ -911,7 +916,7 @@ function puJoin(code) {
 function puClaimSheet(r) {
   openSheet(T('Résultat d\'une partie'), [new Date(r.date).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }), puJeuName(partieJeu(r)), TN(r.tours, '{n} tour', '{n} tours')].join(' · '), api => {
     api.wrap.classList.add('pu-sheet');
-    api.body.innerHTML = `<p class="pu-h">${T('Quelle place était la tienne ?')}</p><div class="pu-wins">${r.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<button type="button" data-cl="${p.pos}"><span>${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : ''}${esc(p.nom || p.pos)}</span><small>${esc(p.commandant || p.deck || T('Place {n}', { n: p.pos }))}</small></button>`).join('')}</div><p class="hint">${D.user ? T('Ajoutée à « Mes parties » et à ton compte.') : T('Ajoutée à « Mes parties » sur ce téléphone.')}</p>`;
+    api.body.innerHTML = `<p class="pu-h">${T('Quelle place était la tienne ?')}</p><div class="pu-wins">${r.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<button type="button" data-cl="${p.pos}"><span>${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : ''}${esc(p.nom || p.pos)}</span><small>${esc(p.commandant || p.deck || T('Place {n}', { n: p.pos }))}</small></button>`).join('')}</div><p class="hint">${D.user && !puOnline() ? T('Hors ligne : ajoutée à « Mes parties » tout de suite, envoyée à ton compte au retour du réseau.') : D.user ? T('Ajoutée à « Mes parties » et à ton compte.') : T('Ajoutée à « Mes parties » sur ce téléphone.')}</p>`;      // hors ligne : la réclamation attend en file (partie.js › partieFlush, au retour du réseau)
     api.body.insertAdjacentHTML('beforeend', puGetAppHtml());
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-cl]'); if (!b) return; if (partieClaim(r, Number(b.dataset.cl))) { haptic('ok'); api.close(); toast(T('Partie ajoutée à « Mes parties »')); puHomePaint(); } });
   });

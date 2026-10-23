@@ -55,6 +55,7 @@
 
 ## Prévu (plus tard, mais sûr)
 - Partie de Commander à 8 sur deux téléphones de 4 compteurs ; statistiques par deck (taux de victoire).
+- Plus tard : table en direct sans réseau par Bluetooth / Wi-Fi direct (module natif Nearby Connections dans l'appli Android Capacitor ; impossible dans le navigateur et sur iPhone). Sans réseau aujourd'hui : un seul téléphone compte, les joueurs entrent par leur QR code joueur (carte signée, partie dans leur historique au retour du réseau).
 - Langues : manifest, politique de confidentialité, fiche Play dans les 6 langues (à préparer dans la semaine du 19 octobre).
 - Achat « Soutenir » : 2 ou 3 packs cosmétiques au plus (couleurs de classeur premium…), un achat retire toute la pub ; contenu exact plus tard (voir « Plus tard : achat « Soutenir » »).
 

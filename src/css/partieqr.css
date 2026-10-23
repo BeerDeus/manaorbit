@@ -1,0 +1,42 @@
+/* ── Compteur de vie sans réseau (partie-qr.js) : « Mon QR joueur », « Ajouter un joueur par QR », messages hors ligne, état de l'envoi du résultat ; lecteur de QR code (qrscan.js).
+   Le QR code reste noir sur blanc (.qr-card de trade.css), thème sombre compris. */
+.hm-partie{position:relative}
+.hm-partie .hm-tr-h{padding-right:44px}
+.hm-pu-qr{position:absolute;top:12px;right:12px;width:40px;height:40px;color:var(--ink-2)}      /* carte de l'accueil : Mon QR joueur, en haut à droite */
+.hm-pu-qr .i{width:22px;height:22px}
+.pu .dv-head .pu-hdq{margin-left:auto;flex:none}      /* préparation : Mon QR joueur, en haut à droite de l'en-tête */
+.pu-hdq .i{width:22px;height:22px}
+.pu-adds{display:flex;flex-wrap:wrap;gap:0 8px}
+.pu-adds .plc-add{flex:1 1 7em;width:auto}
+.pu-adds .pu-qradd{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:2 1 13em;padding:0 10px;border-style:solid;border-color:color-mix(in srgb,var(--accent) 40%,var(--line));color:var(--accent)}
+.pu-adds .pu-qradd .i{width:17px;height:17px;flex:none;color:inherit}
+.pu-ctag{display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px 1px 5px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:650;line-height:1.5;vertical-align:2px;white-space:nowrap}
+.pu-ctag .i{width:12px;height:12px;color:inherit}
+.pu-off,.pu-net{display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 12px;border-radius:14px;background:var(--surface-2);color:var(--ink-2);font-size:13px;line-height:1.4}
+.pu-off,.pu-net.off{background:var(--warn-soft);color:var(--ink)}
+.pu-net.ok{background:var(--good-soft);color:var(--ink)}
+.pu-off .i,.pu-net .i{flex:none;width:17px;height:17px;margin-top:1px}
+.pu-off .i,.pu-net.off .i{color:var(--warn)}
+.pu-net.ok .i{color:var(--good)}
+.pu-sheet .pu-off{margin-top:12px}
+/* Mon QR joueur */
+.pu-myqr .qr-card{gap:10px;padding:16px 14px 14px}
+.pu-myqr .qr-img svg{max-width:100%;height:auto!important;aspect-ratio:1}      /* écran plus étroit que prévu (rotation, fenêtre réduite) : jamais hors de la carte */
+.pu-myqr .qr-who{justify-content:center}
+.pu-myqr .qr-who .pu-ctag{margin-left:0;background:#e7f6ee;color:#127a45}
+.pu-myqr-dk{max-width:100%;font-size:13.5px;color:#4a5470;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-myqr .qr-card .hint{color:#4a5470;text-align:center}
+.pu-myqr-st{margin:12px 2px 0;text-align:center}
+.pu-myqr-st.ok{color:var(--ink-2)}
+.pu-myqr-show>.btn{display:flex;margin:10px auto 0}
+.pu-myqr-opts{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.pu-myqr-opts .pu-deck{width:100%}
+.pu-myqr-opts select{width:100%}
+/* Lecteur de QR code */
+.qrs-view{position:relative;width:min(100%,360px);aspect-ratio:1;margin:0 auto;border-radius:20px;overflow:hidden;background:#0b0f1c}
+.qrs-view video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.qrs-frame{position:absolute;inset:16%;border:3px solid rgba(255,255,255,.92);border-radius:18px;box-shadow:0 0 0 999px rgba(5,8,20,.32)}
+.qrs-cam{position:absolute;inset:0;display:grid;place-items:center;margin:0;padding:28px;color:#fff;font-size:14px;line-height:1.4;text-align:center;background:rgba(5,8,20,.55)}
+.qrs-msg{margin:14px 4px 0;min-height:2.8em;text-align:center;font-weight:600;font-size:14.5px;line-height:1.4;color:var(--ink-2)}
+.qrs-msg.ok{color:var(--good)}
+.qrs-msg.bad{color:var(--warn)}

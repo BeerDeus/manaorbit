@@ -1,10 +1,11 @@
 // Compteur de vie (src/partie.js), logique seule sous Node : formats (Commander, Standard 1 contre 1 à 20 PV sans blessures de commandant, Libre), création, places, points de vie, blessures de commandant (qui retirent les points de vie),
 // compteurs, monarque / initiative, élimination et retour, tours, premier joueur, annuler (chaque action, appuis fusionnés, journal borné), propositions
 // d'élimination, fin et classement, résultat, lien / QR du résultat (aller-retour, taille pour 8 joueurs, textes raccourcis, liens abîmés ou trafiqués),
-// stockage de l'appareil (faux localStorage), file d'envoi et partieFlush (faux serveur), salle d'attente côté appli (places, résultat reçu). Aucun port.
+// stockage de l'appareil (faux localStorage), file d'envoi et partieFlush (faux serveur), salle d'attente côté appli (places, résultat reçu), carte joueur et QR code joueur (parties sans réseau). Aucun port.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { generateKeyPairSync, sign as ecSign, randomBytes } from 'node:crypto';
 
 const require = createRequire(import.meta.url);
 const P = require('../src/partie.js');
@@ -520,4 +521,64 @@ test('partie suivie d\'un autre téléphone : état envoyé (partieLive, relu pa
   for (const bad of [{ s: 7, id: 'x', pos: 2, k: 'v', n: 1 }, { s: 7, id: 'lea-c1', pos: 2, k: 'v', n: 500 }, { s: 7, id: 'lea-c2', pos: 2, k: 'b', src: 2, n: 1 }, { s: 7, id: 'lea-c3', pos: 2, k: 'c', c: 'toString', n: 1 }, { s: 0, id: 'lea-c4', pos: 2, k: 'v', n: 1 }])
     assert.equal(P.partieRemote(x.st, [bad]).done.length, 0, JSON.stringify(bad));
   assert.equal(P.partieRemote(P.partieEnd(x.st, [1]), q.map(d => ({ ...d, s: d.s + 10 }))).done.length, 0, 'partie finie : rien');
+});
+
+/* Carte joueur (parties sans réseau) : jeton signé ECDSA P-256 comme le serveur (proxy.mjs › ptCardMake), avec une clé de test. */
+const CK = generateKeyPairSync('ec', { namedCurve: 'P-256' }), CJ = CK.publicKey.export({ format: 'jwk' });
+const CPK65 = Buffer.concat([Buffer.from([4]), Buffer.from(CJ.x, 'base64url'), Buffer.from(CJ.y, 'base64url')]).toString('base64url');
+function carte(n, x, id = randomBytes(32), key = CK.privateKey) {
+  const pre = Buffer.alloc(37); pre[0] = 1; pre.writeUInt32BE(Math.floor(x / 1000), 1); id.copy(pre, 5);
+  const nb = Buffer.from(n), sig = ecSign('sha256', Buffer.concat([pre, nb]), { key, dsaEncoding: 'ieee-p1363' });
+  return Buffer.concat([pre, sig, nb]).toString('base64url');
+}
+
+test('carte joueur : lecture, vérification sans réseau (signature, expiration, falsification), QR code joueur (aller-retour, taille, échappement), salle, stockage, renouvellement', async () => {
+  const id = randomBytes(32), t = carte('Léa', Date.now() + 86400e3, id);
+  const c = P.partieCarteRead(t); assert.deepEqual([c.n, c.id], ['Léa', id.toString('base64url')]); assert.ok(Math.abs(c.x - (Date.now() + 86400e3)) < 1000);
+  for (const bad of [TK, '', null, 'x'.repeat(150), carte('', Date.now()), carte('a<b', Date.now()), Buffer.from(t, 'base64url').subarray(0, 100).toString('base64url')]) assert.equal(P.partieCarteRead(bad), null, String(bad).slice(0, 20));
+  assert.deepEqual(await P.partieCarteCheck(t, { pk: CPK65 }).then(x => [x.ok, x.why]), [true, '']);
+  assert.deepEqual(await P.partieCarteCheck(carte('Léa', Date.now() - 1000, id), { pk: CPK65 }).then(x => [x.ok, x.why]), [false, 'exp'], 'expirée');
+  const other = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  assert.deepEqual(await P.partieCarteCheck(carte('Léa', Date.now() + 9e5, id, other.privateKey), { pk: CPK65 }).then(x => [x.ok, x.why]), [false, 'bad'], 'signée par une autre clé');
+  const b = Buffer.from(t, 'base64url'); b[b.length - 1] ^= 1;
+  assert.equal(await P.partieCarteCheck(b.toString('base64url'), { pk: CPK65 }).then(x => x.ok), false, 'pseudo changé');
+  assert.equal((await P.partieCarteCheck(t, { pk: '' })).ok, null, 'clé du serveur inconnue ici : le serveur tranchera');
+  assert.equal((await P.partieCarteCheck('abc')).why, 'bad');
+
+  // QR code joueur : aller-retour, image compacte, textes échappés (ASCII seulement), raccourcis pour tenir, version 15 au plus
+  const deck = { nom: 'Vampires | 100% Édition', commandant: 'Edgar Markov', image: IMG };
+  let q = P.partieJoueurText({ t, deck }); assert.match(q, /^MO1\|[\w-]+\|\|/); assert.ok(/^[\x20-\x7e]+$/.test(q), 'ASCII');
+  let j = P.partieJoueurParse(q); assert.deepEqual([j.t, j.n, j.deck.nom, j.deck.commandant, j.deck.image], [t, 'Léa', 'Vampires | 100% Édition', 'Edgar Markov', IMG.replace(/\?\d+$/, '')]);
+  q = P.partieJoueurText({ n: 'Zoé', deck: null }); assert.equal(q, 'MO1||Zo%C3%A9'); assert.deepEqual(P.partieJoueurParse(q), { t: '', n: 'Zoé', deck: null });
+  const { qrEncode } = require('../src/qr.js');
+  const long = { t: carte('Éléonore-Françoise Àçèùë', Date.now() + 9e5), deck: { nom: 'Équipe très très longue à décrire ïëüö', commandant: 'Tymna the Weaver, Bénédicte + Kraum, Ludevic’s Opus éàè', image: IMG } };
+  q = P.partieJoueurText(long); assert.ok(q.length <= P.PRT_JOUEUR_MAX, q.length + ' caractères'); assert.ok(qrEncode(q).v <= 15, 'version ' + qrEncode(q).v);
+  j = P.partieJoueurParse(q); assert.equal(j.n, 'Éléonore-Françoise Àçèùë'); assert.ok(j.deck.commandant.startsWith('Tymna'), 'commandant raccourci, pas perdu');
+  assert.equal(P.partieJoueurParse('https://manaorbit.app/?table=ABC234'), null); assert.equal(P.partieJoueurParse('MO1||'), null, 'sans prénom'); assert.equal(P.partieJoueurParse('bonjour'), null);
+  assert.deepEqual(P.partieJoueurParse('MO1|abime|Max'), { t: '', n: 'Max', deck: null, bad: true }, 'jeton abîmé : invité');
+  assert.equal(P.partieImgPack('https://cards.scryfall.io/small/front/en/x.jpg'), '', 'image sans identifiant Scryfall : rien'); assert.equal(P.partieImgUnpack('zzz'), '');
+
+  // place d'une carte : « compte » avec la carte pour jeton ; la salle (table ouverte) la voit en invité, la carte reste ici
+  let st = P.partieNew({ moi: { nom: 'Max' }, id: 'carte0000001', now: T0 });
+  st = P.partieAddPlace(st, { sorte: 'compte', nom: 'Léa', uid: t, deck });
+  st = P.partieAddPlace(st, { sorte: 'compte', nom: 'Paul', uid: carte('Paul', Date.now() + 9e5), pos: 5 });
+  assert.equal(st.places[1].uid, t, 'carte gardée comme jeton (jusqu\'à 280 caractères)');
+  const view = { c: 'ABC234', v: 3, st: 'wait', id: st.id, format: 40, size: 8, me: 1, host: true, places: [{ pos: 1, n: 'Max', k: 'compte', h: 1, dev: 1 }, { pos: 2, n: 'Léa', k: 'invite', dev: 0, deck: { commandant: 'Edgar Markov' } }, { pos: 3, n: 'Zoé', k: 'invite', dev: 1 }] };
+  const s = P.partieFromRoom(st, view);
+  assert.deepEqual(s.places.map(p => [p.pos, p.sorte, p.nom, !!p.uid]), [[1, 'moi', 'Max', false], [2, 'compte', 'Léa', true], [3, 'invite', 'Zoé', false], [5, 'compte', 'Paul', true]], 'carte gardée (salle : invité), carte hors salle gardée');
+  assert.equal(P.partieResult(s).places.find(p => p.pos === 2).uid, t, 'le résultat part avec la carte');
+
+  // stockage : la carte de CE compte ; renouvelée (moins de 25 jours, autre pseudo), jamais sans réseau ; clé publique gardée
+  globalThis.localStorage = fakeLs();
+  const S = fakeServer({ '/carte': body => [200, { t: carte(body.n, Date.now() + 30 * 864e5, id), x: Date.now() + 30 * 864e5, n: body.n, pk: CPK65 }] });
+  const o = { fetch: S.fetch, user: user('u1'), online: true, on: true };
+  assert.equal(await P.partieCarteSoon({ ...o, online: false }), null, 'hors ligne : rien');
+  let k = await P.partieCarteSoon({ ...o, n: 'Léa', force: true }); assert.equal(k.n, 'Léa'); assert.equal(P.partiePk(), CPK65, 'clé publique gardée'); assert.equal(S.calls.length, 1);
+  assert.deepEqual(S.calls[0].body, { n: 'Léa' }); assert.equal(S.calls[0].h['x-firebase-token'], 'tok-u1');
+  assert.equal((await P.partieCarteSoon({ ...o, n: 'Léa', force: true })).t, k.t); assert.equal(S.calls.length, 1, 'fraîche : pas renouvelée');
+  assert.equal(P.partieCarte({ user: user('u2') }), null, 'autre compte : pas sa carte');
+  k = await P.partieCarteSoon({ ...o, n: 'Léa B', force: true }); assert.equal(k.n, 'Léa B', 'autre pseudo : renouvelée'); assert.equal(S.calls.length, 2);
+  localStorage.setItem(P.PRT_CARTE, JSON.stringify({ ...P.partieCarte({ user: user('u1') }), t: carte('Léa B', Date.now() + 20 * 864e5, id), x: Date.now() + 20 * 864e5 }));
+  await P.partieCarteSoon({ ...o, force: true }); assert.equal(S.calls.length, 3, 'moins de 25 jours : renouvelée');
+  delete globalThis.localStorage;
 });

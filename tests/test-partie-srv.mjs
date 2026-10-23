@@ -3,8 +3,9 @@
 // places prises ou libres, invités du créateur, déplacer, retirer, format, « commencer » qui fige la liste et donne les jetons des comptes, présence,
 // relevé versionné, expiration, départ, redémarrage ; partie en direct : état du compteur, deltas des places, co-hôtes, « Tout le monde est co-hôte », fin avec sa raison), résultats (POST result : historique de chaque compte dans Firestore, notification FCM dans sa langue,
 // résultat remis aux téléphones restés sur la page, invités compris ; jetons faux, d'une autre partie ou d'un autre créateur refusés ; idempotent ;
-// Firestore en panne puis relance sans doublon), réclamation par le QR code du résultat, historique paginé, suppression, bornes, PARTIE=0.
-// Faux Firebase (jetons, OAuth2, Firestore REST, FCM) de amis-fakes.mjs : aucun accès réseau réel. Ports 19500–19503.
+// Firestore en panne puis relance sans doublon), réclamation par le QR code du résultat, historique paginé, suppression, bornes, PARTIE=0 ; carte joueur (parties sans réseau : signée, vérifiée par l'appli sans réseau,
+// expiration, falsification, résultat rangé chez chaque compte d'une carte valable, idempotent).
+// Faux Firebase (jetons, OAuth2, Firestore REST, FCM) de amis-fakes.mjs : aucun accès réseau réel. Ports 19500–19505.
 import './setup-env.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -492,6 +493,78 @@ ok('redémarrage : salles terminées, jetons toujours valables (clé tirée du c
   r = await poll(E); assert.deepEqual([r.o.st, r.o.why], ['end', 'idle'], 'salle en attente inactive : terminée');
   PB.kill();
   ok('bornes : invités par réseau (429), demande de co-hôte expirée, résultats par compte (429), salle inactive terminée (idle)');
+}
+
+/* ── 3) Carte joueur (parties sans réseau) : signée par le serveur, vérifiée sans réseau par l'appli (clé publique), expiration, falsification, résultat rangé
+      chez chaque compte d'une carte valable, idempotent ; même compte deux fois : une entrée ─────────────────────────────────────────────────────────── */
+{
+  const PC = await start({ ...F.env, PARTIE_RES_PER_H: '200' }, 19504); BASE = 'http://127.0.0.1:19504';
+  const ping = await (await fetch(BASE + '/__ping')).json(); assert.match(ping.ptk, /^[\w-]{87}$/, 'clé publique des cartes annoncée (/__ping › ptk)');
+  let r = await call('POST', '/carte', { body: { n: 'Bob' } }); assert.equal(r.s, 401, 'jeton Firebase exigé');
+  r = await call('POST', '/carte', { uid: U.b, body: { n: '' } }); assert.equal(r.s, 400); assert.equal(r.o.error, 'name');
+  r = await call('POST', '/carte', { uid: U.b, body: { n: 'Bob' } }); assert.equal(r.s, 200, JSON.stringify(r.o));
+  const cb = r.o; assert.deepEqual([cb.n, cb.pk], ['Bob', ping.ptk]); assert.ok(Math.abs(cb.x - (Date.now() + 30 * 864e5)) < 5000, 'valable 30 jours');
+  noIds(cb, 'carte joueur');
+  const rb = P.partieCarteRead(cb.t); assert.deepEqual([rb.n, rb.x], ['Bob', cb.x]);
+  assert.deepEqual(await P.partieCarteCheck(cb.t, { pk: cb.pk }).then(x => [x.ok, x.why]), [true, ''], 'signature vérifiée par l\'appli, sans réseau (WebCrypto)');
+  assert.deepEqual(await P.partieCarteCheck(cb.t).then(x => x.ok), null, 'clé publique inconnue de l\'appareil : à vérifier par le serveur');
+  r = await call('POST', '/carte', { uid: U.b, body: { n: 'Bobby' } }); const cb2 = r.o;
+  assert.equal(P.partieCarteRead(cb2.t).id, rb.id, 'même identifiant opaque à chaque carte (renouvelée, autre pseudo) : une seule place');
+  const cc = (await call('POST', '/carte', { uid: U.c, body: { n: 'Carol' } })).o, ca = (await call('POST', '/carte', { uid: U.a, body: { n: 'Alice' } })).o, ce = (await call('POST', '/carte', { uid: U.e, body: { n: 'Eve' } })).o;
+  assert.notEqual(P.partieCarteRead(cc.t).id, rb.id);
+  // falsifications : pseudo changé, autre compte glissé dans la carte, signature d'une autre carte
+  const raw = Buffer.from(cb.t, 'base64url'), fake = (f) => { const b = Buffer.from(raw); f(b); return b.toString('base64url'); };
+  const forged = [Buffer.concat([raw.subarray(0, 101), Buffer.from('Mallory')]).toString('base64url'), fake(b => { Buffer.from(cc.t, 'base64url').copy(b, 5, 5, 37); }), fake(b => { Buffer.from(ce.t, 'base64url').copy(b, 37, 37, 101); }), fake(b => { b[2] ^= 1; })];
+  for (const t of forged) assert.deepEqual(await P.partieCarteCheck(t, { pk: cb.pk }).then(x => [x.ok, x.why]), [false, 'bad'], 'carte falsifiée : refusée sans réseau');
+  const jt = P.partieJoueurText({ t: cb.t, deck: { nom: 'Vampires', commandant: 'Edgar Markov', image: IMG } }), jp = P.partieJoueurParse(jt);
+  assert.deepEqual([jp.t, jp.n, jp.deck.commandant, jp.deck.image.replace(/\?.*$/, '')], [cb.t, 'Bob', 'Edgar Markov', IMG.replace(/\?.*$/, '')]);
+  assert.ok(jt.length <= P.PRT_JOUEUR_MAX, 'QR code joueur : ' + jt.length + ' caractères');
+  ok('carte joueur : jeton Firebase exigé, pseudo filtré, 30 jours, ni UID ni empreinte en clair, signature vérifiée par l\'appli sans réseau (falsifications refusées), identifiant stable');
+
+  // partie jouée sans réseau chez Alice : Bob et Carol par leur QR code, Eve avec une carte falsifiée, Dan invité ; Bob scanné deux fois (deux places, même compte) refusé côté appli,
+  // mais le serveur n'en garde qu'une entrée ; la carte d'Alice elle-même : rien de doublé
+  let g = P.partieNew({ moi: { nom: 'Alice' }, id: 'cartepart001' });
+  g = P.partieAddPlace(g, { sorte: 'compte', nom: 'Bob', uid: cb.t, deck: { commandant: 'Edgar Markov', image: IMG } });
+  g = P.partieAddPlace(g, { sorte: 'compte', nom: 'Carol', uid: cc.t });
+  g = P.partieAddPlace(g, { sorte: 'compte', nom: 'Eve', uid: forged[0] });
+  g = P.partieAddPlace(g, { sorte: 'invite', nom: 'Dan' });
+  g = P.partieAddPlace(g, { sorte: 'compte', nom: 'Bob bis', uid: cb2.t });
+  g = P.partieAddPlace(g, { sorte: 'compte', nom: 'Alice bis', uid: ca.t });
+  assert.deepEqual(g.places.map(p => [p.pos, p.sorte, !!p.uid]), [[1, 'moi', false], [2, 'compte', true], [3, 'compte', true], [4, 'compte', true], [5, 'invite', false], [6, 'compte', true], [7, 'compte', true]]);
+  g = P.partieEnd(P.partieStart(g), [3]);
+  const res = P.partieResult(g);
+  r = await call('POST', '/result', { uid: U.a, body: { r: res } }); assert.equal(r.s, 200, JSON.stringify(r.o)); assert.deepEqual([r.o.n, r.o.skip], [3, 1], 'Alice, Bob, Carol ; Eve (falsifiée) refusée');
+  for (const [k, moi] of [['a', 1], ['b', 2], ['c', 3]]) { const h = hist(k).filter(x => x.id === 'cartepart001'); assert.equal(h.length, 1, k); assert.equal(h[0].moi, moi, k + ' : sa place'); assert.equal(h[0].src, k === 'a' ? 'h' : 's'); }
+  assert.equal(hist('e').filter(x => x.id === 'cartepart001').length, 0, 'carte falsifiée : rien chez Eve');
+  assert.ok(!JSON.stringify(hist('b')).includes(cb.t.slice(0, 40)), 'la carte n\'est pas gardée dans l\'historique');
+  assert.equal(hist('c')[0].places.find(p => p.pos === 3).vainqueur, true);
+  r = await call('POST', '/result', { uid: U.a, body: { r: res } }); assert.deepEqual([r.o.n, r.o.skip], [3, 1]);
+  for (const k of ['a', 'b', 'c']) assert.equal(hist(k).filter(x => x.id === 'cartepart001').length, 1, k + ' : renvoyé, une seule entrée');
+  ok('résultat d\'une partie sans réseau : rangé chez chaque compte d\'une carte valable (sa place), carte falsifiée ignorée, même compte deux fois une seule entrée, idempotent');
+
+  // carte d'une autre période : partie jouée après son expiration, ou bien avant qu'elle soit donnée
+  for (const [id, now] of [['cartetard001', Date.now() + 31 * 864e5], ['cartetot0001', Date.now() - 32 * 864e5]]) {
+    const h = P.partieEnd(P.partieStart(P.partieAddPlace(P.partieNew({ moi: { nom: 'Alice' }, id, now }), { sorte: 'compte', nom: 'Bob', uid: cb.t }), { now }), [1], { now: now + 60e3 });
+    r = await call('POST', '/result', { uid: U.a, body: { r: P.partieResult(h) } }); assert.deepEqual([r.o.n, r.o.skip], [1, 1], id);
+    assert.equal(hist('b').filter(x => x.id === id).length, 0, id);
+  }
+  ok('carte joueur : partie jouée hors de sa validité (après l\'expiration, avant la carte) : pas chez ce compte');
+  PC.kill(); await sleep(200);
+
+  // expiration (cartes de 1,5 s) et envoi trop tardif (1 s après l'expiration)
+  const PE = await start({ ...F.env, PARTIE_CARD_MS: '1500', PARTIE_CARD_LATE_MS: '1500' }, 19505); BASE = 'http://127.0.0.1:19505';
+  const cx = (await call('POST', '/carte', { uid: U.d, body: { n: 'Dave' } })).o;
+  assert.equal((await P.partieCarteCheck(cx.t, { pk: cx.pk })).ok, true);
+  const gx = P.partieEnd(P.partieStart(P.partieAddPlace(P.partieNew({ moi: { nom: 'Alice' }, id: 'carteexp0001' }), { sorte: 'compte', nom: 'Dave', uid: cx.t })), [2]);
+  await sleep(2200);
+  assert.deepEqual(await P.partieCarteCheck(cx.t, { pk: cx.pk }).then(x => [x.ok, x.why]), [false, 'exp'], 'carte expirée : invité, vu sans réseau');
+  r = await call('POST', '/result', { uid: U.a, body: { r: P.partieResult(gx) } }); assert.deepEqual([r.o.n, r.o.skip], [2, 0], 'partie jouée pendant la validité, envoyée peu après : chez Dave');
+  assert.equal(hist('d').filter(x => x.id === 'carteexp0001').length, 1);
+  await sleep(1200);
+  const gy = P.partieEnd(P.partieStart(P.partieAddPlace(P.partieNew({ moi: { nom: 'Alice' }, id: 'carteexp0002', now: cx.x - 800 }), { sorte: 'compte', nom: 'Dave', uid: cx.t }), { now: cx.x - 800 }), [2], { now: cx.x - 500 });
+  r = await call('POST', '/result', { uid: U.a, body: { r: P.partieResult(gy) } }); assert.deepEqual([r.o.n, r.o.skip], [1, 1], 'envoyée trop tard après l\'expiration (PARTIE_CARD_LATE_MS) : refusée');
+  PE.kill(); await sleep(200);
+  ok('carte joueur expirée : vue sans réseau ; résultat d\'une partie jouée pendant sa validité accepté, trop tard refusé');
 }
 
 F.stop();

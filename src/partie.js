@@ -5,7 +5,8 @@
    · Le créateur (joueur 1) crée la partie sur SON téléphone : le compteur ne tourne que là. Les autres scannent le QR code de la table
      (lien ?table=<code> : salle d'attente du serveur, proxy.mjs › /api/partie), choisissent leur place (1 à 8, 2 en Standard) et un deck de « Mes decks », puis rangent
      leur téléphone ; un joueur sans l'appli peut entrer en invité (prénom, commandant facultatif) ; le créateur ajoute lui-même des invités.
-     Sans réseau : invités seulement, tout reste sur ce téléphone, le résultat part au retour du réseau.
+     Sans réseau : invités, et joueurs ajoutés par leur QR code joueur (carte signée par le serveur, gardée sur leur téléphone : partieCarte…) ; tout reste
+     sur ce téléphone, le résultat part au retour du réseau et va dans l'historique de chaque carte valable.
    · État : un objet JSON jamais modifié en place (chaque action rend un nouvel état, ou le même objet si l'action est refusée) ; forme : partieNew.
      Journal des actions pour annuler (PRT_LOG_MAX entrées ; les appuis répétés sur le même compteur à moins de PRT_MERGE_MS d'écart n'en font qu'une).
    · Fin : partieEnd (vainqueurs, ou aucun) → partieResult (résultat compact) → partieDone : historique de l'appareil, file d'envoi, partieFlush.
@@ -14,7 +15,8 @@
    · Stockage de l'appareil : deckdeal:partie:cur (partie en cours ; deckdeal:partie:at, sa dernière sauvegarde : laissée 12 h en préparation ou 48 h
      sans action, l'accueil l'efface, partieStale), deckdeal:partie:queue (envois en attente), deckdeal:partie:hist (historique,
      200 au plus), deckdeal:partie:room (salle d'attente créée ou rejointe ici), deckdeal:partie:roomend (fin d'une salle
-     décidée sans réseau, renvoyée plus tard : partieRoomEnd). Toujours dans des try/catch : sans stockage, rien ne casse.
+     décidée sans réseau, renvoyée plus tard : partieRoomEnd), deckdeal:partie:carte (carte joueur de ce compte), deckdeal:partie:pk (clé publique du serveur,
+     vérification des cartes sans réseau). Toujours dans des try/catch : sans stockage, rien ne casse.
    Sous Node (tests, proxy.mjs) : module.exports en fin de fichier ; aucune dépendance aux autres fichiers de src/ (globales de l'appli lues avec typeof).
    Retirer la fonction : ôter 'partie.js' de build.mjs (crochets gardés par typeof dans app.js et decks.js), PARTIE=0 coupe le serveur. */
 const PRT_CUR = 'deckdeal:partie:cur', PRT_QUEUE = 'deckdeal:partie:queue', PRT_HIST = 'deckdeal:partie:hist', PRT_ROOM = 'deckdeal:partie:room';
@@ -30,7 +32,7 @@ const PRT_JEUX = ['commander', 'standard', 'libre'], PRT_VIE_MAX = 999;
 const PRT_JEU = { commander: { vie: PRT_FORMATS, def: 40, size: 8, cmd: true, marks: true }, standard: { vie: [20], def: 20, size: 2, cmd: false, marks: false }, libre: { vie: null, def: 20, size: 8, cmd: false, marks: true } };
 const PRT_JEU_CODE = { standard: 's', libre: 'l' };
 const PRT_SITE = 'https://manaorbit.app/', PRT_LINK_MAX = 900;
-const PRT_ID_RE = /^[0-9a-z]{8,24}$/, PRT_CODE_RE = /^[A-HJKMNP-Z2-9]{6}$/, PRT_TK_RE = /^[\w-]{20,200}$/;
+const PRT_ID_RE = /^[0-9a-z]{8,24}$/, PRT_CODE_RE = /^[A-HJKMNP-Z2-9]{6}$/, PRT_TK_RE = /^[\w-]{20,280}$/;      // jeton d'une place « compte » : celui de la salle d'attente (80 caractères) ou une carte joueur (partieCarteRead, 136 à 263)
 const PRT_IMG_RE = /^https:\/\/cards\.scryfall\.io\/(?![\w./-]*(?:\/\/|\.\.))[\w./-]+(\?\d+)?$/;      // images Scryfall seulement (comme SHARE_IMG_RE)
 const PRT = { flush: null, retry: 0, t: null, watch: null, inited: false };
 /* Saisie depuis le téléphone d'une place (partieRemote) : identifiant d'un delta (« place:identifiant »), identifiants gardés avec la partie, valeur d'un delta. */
@@ -669,6 +671,7 @@ function partieFlush(o = {}) {
       partieHistMark(it.id, env.user.uid); out.sent++;
     }
     out.left = partieQueue().filter(x => !x.err).length;
+    if (out.sent && typeof window !== 'undefined' && typeof CustomEvent === 'function') window.dispatchEvent(new CustomEvent('partie-sent', { detail: { sent: out.sent, late: todo.some(x => Date.now() - (x.at || 0) > 60e3) } }));      // l'écran de fin le dit (partie-qr.js) ; late : envoi qui attendait le réseau
     return out;
   })().finally(() => { PRT.flush = null; });
   return PRT.flush;
@@ -777,10 +780,10 @@ function partieFromRoom(st, view) {
   if (!view || !Array.isArray(view.places) || !partieSetup(st)) return st;
   const jeu = PRT_JEUX.includes(view.jeu) ? view.jeu : partieJeu(st);      // serveur d'avant (sans jeu) : celui de la partie
   let next = { ...st, places: [], jeu, format: partieVieOk(jeu, view.format) ? view.format : partieVieOk(jeu, st.format) ? st.format : PRT_JEU[jeu].def };  for (const x of view.places) {
-    const old = st.places.find(p => p.pos === x.pos);
-    next = partieAddPlace(next, { pos: x.pos, sorte: x.h ? 'moi' : x.k === 'compte' ? 'compte' : 'invite', nom: x.n, ...(x.t ? { uid: x.t } : {}), deck: x.deck || (old && old.deck) || null });
+    const old = st.places.find(p => p.pos === x.pos), card = !x.h && x.k !== 'compte' ? [old, ...st.places].find(p => p && p.sorte === 'compte' && p.nom === x.n && partieCarteRead(p.uid)) : null;      // joueur ajouté par sa carte (QR code joueur) : invité dans la salle, sa carte reste ici
+    next = partieAddPlace(next, { pos: x.pos, sorte: x.h ? 'moi' : x.k === 'compte' || card ? 'compte' : 'invite', nom: x.n, ...(x.t ? { uid: x.t } : card ? { uid: card.uid } : {}), deck: x.deck || (old && old.deck) || null });
   }
-  for (const p of st.places) if (p.sorte === 'invite' && partieIdx(next, p.pos) < 0) next = partieAddPlace(next, p);      // invités ajoutés ici seulement (hors ligne au moment de l'ajout)
+  for (const p of st.places) if ((p.sorte === 'invite' || (p.sorte === 'compte' && partieCarteRead(p.uid))) && partieIdx(next, p.pos) < 0) next = partieAddPlace(next, p);      // invités et joueurs venus par leur QR code ajoutés ici seulement (hors ligne au moment de l'ajout)
   return next;
 }
 /** Le résultat arrive dans la salle (st done) : gardé dans l'historique de cet appareil (une fois ; enregistré par le serveur pour un compte, local pour un invité). */
@@ -837,17 +840,115 @@ function partieRoomStop() { const w = PRT.watch; if (w) { w.stop = true; clearTi
 /** Partie suivie en direct sur ce téléphone (points de vie affichés) : relevé toutes les 2 s, relancé tout de suite à l'ouverture. */
 function partieRoomPace(fast) { const w = PRT.watch; if (!w || w.stop || !!w.fast === !!fast) return; w.fast = !!fast; if (fast && w.tick) { clearTimeout(w.t); w.t = setTimeout(w.tick, 50); } }
 
+/* ── Carte joueur (parties sans réseau : soirée en boutique) ─────────────────────────────────────────────────────────────── */
+/* Chaque compte reçoit du serveur, quand il y a du réseau, une carte joueur signée (POST /api/partie/carte, jeton Firebase) gardée sur l'appareil et renouvelée
+   seule (partieCarteSoon : moins de 25 jours de validité restants, autre pseudo, autre compte). Jeton de la carte (base64url) : [version 1][expiration, secondes
+   (4 octets)][identifiant du compte : son empreinte chiffrée par le serveur (AES-256, 32 octets ; jamais l'UID ni l'empreinte en clair ; le même à chaque
+   carte : une carte scannée deux fois, même renouvelée, ne fait qu'une place)][signature ECDSA P-256 du serveur (64 octets) sur ce qui précède + le pseudo][pseudo,
+   UTF-8]. Signature à clé publique (et non un HMAC) : le téléphone de l'hôte la vérifie SANS réseau (clé publique du serveur gardée : /__ping › ptk, réponse de
+   /carte) ; carte expirée ou falsifiée : place ajoutée en invité. Le serveur revérifie tout à l'envoi du résultat (proxy.mjs › ptCardOpen).
+   QR code joueur (texte ASCII, PRT_JOUEUR_MAX octets au plus, version 15 au plus) : « MO1|<jeton>|<prénom (sans carte)>|<deck>|<commandant>|<image> » ; image :
+   « f » ou « b » (face) + l'identifiant Scryfall de la carte, relue en cards.scryfall.io/normal/… ; textes échappés (« % », « | » et hors ASCII : %XX).
+   Sans compte, ou carte pas encore reçue : prénom seul (non signé), place d'invité. Place d'une carte : sorte 'compte', uid = jeton de la carte (comme le jeton
+   d'une place de la salle d'attente) : le résultat part avec, et le serveur la range dans l'historique de ce compte. */
+const PRT_CARTE = 'deckdeal:partie:carte', PRT_PK = 'deckdeal:partie:pk', PRT_JOUEUR_V = 'MO1', PRT_JOUEUR_MAX = 360, PRT_CARTE_RENEW = 25 * 864e5, PRT_CARTE_WAIT = 10 * 60e3;
+const partieBytes = s => { const t = String(s).replace(/-/g, '+').replace(/_/g, '/'), bin = atob(t + '==='.slice((t.length + 3) % 4)), b = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i); return b; };
+const partieB64B = b => { let bin = ''; for (const x of b) bin += String.fromCharCode(x); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+/** Jeton d'une carte joueur → { x (expiration, ms), id (identifiant opaque du compte), n (pseudo), data (octets signés), sig } ; null : pas une carte (jeton d'une salle,
+    abîmé, pseudo illisible). Ne dit rien de la signature (partieCarteCheck). */
+function partieCarteRead(t) {
+  try {
+    if (typeof t !== 'string' || !PRT_TK_RE.test(t) || t.length < 136) return null;
+    const b = partieBytes(t); if (b.length < 102 || b.length > 101 + 4 * PRT_LEN.nom || b[0] !== 1) return null;
+    const n = new TextDecoder('utf-8', { fatal: true }).decode(b.subarray(101)); if (!n || partieStr(n, PRT_LEN.nom) !== n) return null;
+    const data = new Uint8Array(37 + b.length - 101); data.set(b.subarray(0, 37)); data.set(b.subarray(101), 37);
+    return { x: new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(1) * 1000, id: partieB64B(b.subarray(5, 37)), n, data, sig: b.slice(37, 101) };
+  } catch (e) { return null; }
+}
+/** Clé publique du serveur (65 octets, base64url) gardée sur l'appareil : vérification des cartes sans réseau. */
+const partiePk = () => { const k = partieLs(PRT_PK); return typeof k === 'string' && /^[\w-]{87}$/.test(k) ? k : ''; };
+function partiePkKeep(k) { if (typeof k === 'string' && /^[\w-]{87}$/.test(k) && k !== partiePk()) partieLsSet(PRT_PK, k); }
+/**
+ * Carte vérifiée ici (sans réseau) : { ok (true : signée par le serveur et valable | false | null : clé publique inconnue de cet appareil, le serveur tranchera à l'envoi),
+ * why ('' | 'bad' : abîmée ou falsifiée | 'exp' : expirée), c (partieCarteRead) }. o : { pk, now }.
+ */
+async function partieCarteCheck(t, o = {}) {
+  const c = partieCarteRead(t); if (!c) return { ok: false, why: 'bad', c: null };
+  if (c.x < partieNow(o.now)) return { ok: false, why: 'exp', c };
+  const pk = o.pk || partiePk(), sub = typeof crypto !== 'undefined' && crypto.subtle; if (!pk || !sub) return { ok: null, why: '', c };
+  try {
+    const key = await sub.importKey('raw', partieBytes(pk), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    const ok = await sub.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, c.sig, c.data);
+    return { ok, why: ok ? '' : 'bad', c };
+  } catch (e) { return { ok: null, why: '', c }; }
+}
+/** Texte d'un champ du QR code joueur : ASCII seulement (« % », « | » et le reste échappés), relu par decodeURIComponent. */
+const partieQrEsc = s => String(s || '').replace(/[^\x20-\x7e]|[%|]/gu, ch => { try { return encodeURIComponent(ch); } catch (e) { return ''; } });      // demi-caractère isolé : retiré
+const PRT_IMG_ID_RE = /^https:\/\/cards\.scryfall\.io\/[a-z_]+\/(front|back)\/[0-9a-f]\/[0-9a-f]\/([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})\.(?:jpg|png)(?:\?\d+)?$/;
+/** Image Scryfall → « f » ou « b » + identifiant de la carte en base64url (23 caractères) ; '' si l'adresse n'a pas cette forme. */
+function partieImgPack(u) { const m = PRT_IMG_ID_RE.exec(String(u || '')); if (!m) return ''; const h = m.slice(2, 7).join(''), b = new Uint8Array(16); for (let i = 0; i < 16; i++) b[i] = parseInt(h.slice(2 * i, 2 * i + 2), 16); return (m[1] === 'back' ? 'b' : 'f') + partieB64B(b); }
+function partieImgUnpack(s) {
+  if (!/^[fb][\w-]{22}$/.test(String(s || ''))) return '';
+  let h = ''; for (const x of partieBytes(s.slice(1))) h += x.toString(16).padStart(2, '0'); if (h.length !== 32) return '';
+  return `https://cards.scryfall.io/normal/${s[0] === 'b' ? 'back' : 'front'}/${h[0]}/${h[1]}/${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}.jpg`;
+}
+/** QR code joueur : { t (jeton de la carte, '' : sans carte), n (prénom, sans carte), deck ({ nom, commandant, image }) } → texte, raccourci (deck, commandant) pour tenir dans o.max octets. */
+function partieJoueurText(j, o = {}) {
+  const max = o.max || PRT_JOUEUR_MAX, t = partieCarteRead(j && j.t) ? j.t : '', d = partieDeck(j && j.deck) || {};
+  let x = { n: t ? '' : partieStr(j && j.n, PRT_LEN.nom), deck: d.nom || '', cmd: d.commandant || '', img: partieImgPack(d.image) }, out = '';
+  const steps = [v => v, v => ({ ...v, deck: partieCut(v.deck, 20) }), v => ({ ...v, cmd: Array.from(v.cmd).length > 24 ? partieShortCmd(v.cmd) : v.cmd }), v => ({ ...v, deck: partieCut(v.deck, 10) }),
+    v => ({ ...v, cmd: partieCut(v.cmd, 16) }), v => ({ ...v, img: '' }), v => ({ ...v, deck: '' }), v => ({ ...v, n: partieCut(v.n, 10) }), v => ({ ...v, cmd: '' })];
+  for (const f of steps) { x = f(x); out = [PRT_JOUEUR_V, t, x.n, x.deck, x.cmd, x.img].map((s, i) => (i < 2 ? s : partieQrEsc(s))).join('|').replace(/\|+$/, ''); if (out.length <= max) break; }
+  return out;
+}
+/** Texte lu sur un QR code joueur → { t (jeton, '' : sans carte), n (pseudo de la carte, sinon le prénom), deck (null : aucun) } ; null : pas un QR code joueur. */
+function partieJoueurParse(text) {
+  try {
+    const a = String(text == null ? '' : text).trim().split('|'); if (a[0] !== PRT_JOUEUR_V || a.length > 6 || a.join('|').length > 2000) return null;
+    const u = s => partieStr(decodeURIComponent(s || ''), 200), c = a[1] ? partieCarteRead(a[1]) : null; if (a[1] && !c) return { t: '', n: partieStr(u(a[2]), PRT_LEN.nom), deck: null, bad: true };      // jeton abîmé : invité
+    const n = c ? c.n : partieStr(u(a[2]), PRT_LEN.nom); if (!n) return null;
+    return { t: c ? a[1] : '', n, deck: partieDeck({ nom: u(a[3]), commandant: u(a[4]), image: partieImgUnpack(a[5]) }) };
+  } catch (e) { return null; }
+}
+/** Carte de ce compte gardée sur l'appareil : { u, t, n, x, at } ; null (aucune, autre compte, illisible). */
+function partieCarte(o = {}) {
+  const env = partieEnv(o), c = partieLs(PRT_CARTE), uid = (env.user && env.user.uid) || '';
+  return c && uid && c.u === uid && partieCarteRead(c.t) ? c : null;
+}
+/** Nouvelle carte du serveur (n : pseudo ; défaut : celui du profil, sinon le nom du compte) : gardée sur l'appareil avec la clé publique du serveur. → carte. */
+async function partieCarteGet(o = {}) {
+  const env = partieEnv(o), n = partieStr(o.n || (typeof PROF !== 'undefined' && PROF && PROF.name) || (env.user && env.user.displayName) || '', PRT_LEN.nom);
+  const j = await partieCall(env, '/carte', { method: 'POST', auth: 'need', body: { n } });
+  if (!partieCarteRead(j.t)) throw Object.assign(new Error('carte illisible'), { code: 'bad_card' });
+  partiePkKeep(j.pk);
+  const c = { u: env.user.uid, t: j.t, n: partieCarteRead(j.t).n, x: partieCarteRead(j.t).x, at: Date.now() }; partieLsSet(PRT_CARTE, c);
+  return c;
+}
+/** Carte renouvelée si besoin et possible (en ligne, compte, serveur qui annonce la partie) : aucune, autre compte, autre pseudo (o.n), moins de 25 jours de validité.
+    Un échec attend 10 min avant un nouvel essai (o.force : tout de suite). → la carte (gardée ou nouvelle), null sans compte ni carte. */
+async function partieCarteSoon(o = {}) {
+  const env = partieEnv(o), c = partieCarte(o), want = o.n ? partieStr(o.n, PRT_LEN.nom) : '';
+  if (!env.user || !env.online || !env.on || (c && c.x - Date.now() > PRT_CARTE_RENEW && (!want || want === c.n))) return c;
+  if (!o.force && Date.now() - (PRT.cartT || 0) < PRT_CARTE_WAIT) return c;
+  if (PRT.cart) return PRT.cart;
+  PRT.cartT = Date.now();
+  PRT.cart = partieCarteGet(o).then(x => { PRT.cartT = 0; return x; }, () => c).finally(() => { PRT.cart = null; });
+  return PRT.cart;
+}
+
 /* ── Crochets de l'appli (app.js, decks.js) ──────────────────────────────────────────────────────────────────────────────── */
 /** Lancement : envoi de la file au retour du réseau, au retour sur l'appli, et une fois le serveur interrogé (/__ping). Rien d'autre (aucune interface). */
 function partieInit() {
   if (PRT.inited || typeof window === 'undefined') return; PRT.inited = true;
-  const kick = () => { if (partieQueue().some(x => !x.err)) partieKick(); if (partieLs(PRT_ROOM_END)) partieRoomEndFlush(); };
-  window.addEventListener('online', () => { PRT.retry = 0; kick(); });
-  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
-  setTimeout(kick, 6000);
+  window.addEventListener('online', () => { PRT.retry = 0; partieWake(); });
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (!document.hidden) partieWake(); });
+  setTimeout(partieWake, 6000);
 }
-/** Connexion ou changement de compte (decks.js › onUser) : ce qui attendait ce compte part. */
-function partieUser(user) { if (user && typeof window !== 'undefined') setTimeout(() => { if (partieQueue().some(x => !x.err)) partieKick(); }, 1500); }
+/** Réseau revenu, appli au premier plan, serveur de nouveau joint (app.js › pingAgain : appli lancée sans réseau, CTX.partie n'était pas encore là) : la file part,
+    la fin d'une salle aussi, la carte joueur se renouvelle au besoin. */
+function partieWake() { if (partieQueue().some(x => !x.err)) partieKick(); if (partieLs(PRT_ROOM_END)) partieRoomEndFlush(); partieCarteSoon().catch(() => {}); }
+/** Connexion ou changement de compte (decks.js › onUser) : ce qui attendait ce compte part ; sa carte joueur arrive. */
+function partieUser(user) { if (user && typeof window !== 'undefined') setTimeout(() => { if (partieQueue().some(x => !x.err)) partieKick(); partieCarteSoon({ force: true }).catch(() => {}); }, 1500); }
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { PRT_CUR, PRT_QUEUE, PRT_HIST, PRT_ROOM, PRT_HIST_MAX, PRT_LOG_MAX, PRT_MERGE_MS, PRT_FORMATS, PRT_COUNTERS, PRT_CAUSES, PRT_SORTES, PRT_LEN, PRT_SITE, PRT_LINK_MAX, PRT_ID_RE, PRT_CODE_RE, PRT_TK_RE, PRT_IMG_RE,
@@ -857,5 +958,6 @@ if (typeof module !== 'undefined' && module.exports) {
     partieProposals, partieRanks, partieResult, partieResClean, partieHistClean, partieStats, partieCk, encodeResult, decodeResult, partieResultLink, partieTableLink, partieParseUrl,
     partieStateClean, partieSave, partieLoad, partieClear, partieStale, partieSavedAt, PRT_AT, PRT_IDLE_SETUP, PRT_IDLE_GAME, partieHist, partieHistAdd, partieHistDrop, partieQueue, partieEnqueue, partieDone, partieClaim, partieFlush, partieKick, partieWipe, partieHistFetch, partieHistDelete,
     partieRoom, partieRoomCreate, partiePeek, partieRoomJoin, partieRoomOp, partieRoomLeave, partieRoomEnd, partieRoomEndFlush, partieLive, partieLiveClean, partieRoomLive, partieRoomPace, PRT_ROOM_END, partieRemote, partieRemoteOff, PRT_DQ_ID_RE, PRT_DQ_N,
-    partieFromRoom, partieRoomResult, partieRoomWatch, partieRoomStop, partieInit, partieUser };
+    partieFromRoom, partieRoomResult, partieRoomWatch, partieRoomStop, partieInit, partieUser, partieWake,
+    PRT_CARTE, PRT_PK, PRT_JOUEUR_MAX, partieCarteRead, partieCarteCheck, partiePk, partiePkKeep, partieImgPack, partieImgUnpack, partieJoueurText, partieJoueurParse, partieCarte, partieCarteGet, partieCarteSoon };
 }

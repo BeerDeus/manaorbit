@@ -1980,7 +1980,7 @@ const PT_DQ_MAX = Number(process.env.PARTIE_DQ_MAX ?? 40), PT_DQ_REQ = 20, PT_DQ
 /** Format de jeu d'une salle (champ absent : salle d'avant, Commander) ; points de départ par défaut et permis pour ce format (src/partie.js : mêmes règles). */
 const ptJeu = r => (r && PT_CORE && PT_CORE.PRT_JEUX.includes(r.jeu) ? r.jeu : 'commander');
 const ptVieDef = jeu => PT_CORE.PRT_JEU[jeu].def;
-const PT = { s: new Map(), u: new Map(), hist: new Map(), hb: 0, t: null, k: null };
+const PT = { s: new Map(), u: new Map(), hist: new Map(), hb: 0, t: null, k: null, ck: null };      // ck : clés des cartes joueur (ptCardKeys)
 // Notification « Partie enregistrée », dans la langue de l'appareil (h : pseudo du créateur, w : vainqueurs, me : ce compte a gagné).
 const PT_TXT = {
   fr: ['Partie enregistrée', (h, w, me) => (me ? `Partie de ${h} : tu as gagné !` : w ? `Partie de ${h} : victoire de ${w}.` : `Partie de ${h} : pas de vainqueur.`)],
@@ -2030,6 +2030,47 @@ function ptTicketOpen(t, id, host) {
     const tag = Buffer.concat([d.update(b.subarray(12, 44)), d.final()]).toString('hex');
     return AM_TAG.test(tag) ? tag : '';
   } catch (e) { return ''; }
+}
+/* Carte joueur (parties sans réseau, src/partie.js › partieCarte…) : POST /api/partie/carte (jeton Firebase) rend un jeton [1][expiration, s][identifiant du compte :
+   son empreinte chiffrée en AES-256 (un bloc de 32 octets, le même à chaque carte : jamais l'UID ni l'empreinte en clair)][signature ECDSA P-256][pseudo]. Clés tirées
+   de la clé privée du compte de service (HKDF, comme les jetons des places) : rien à configurer, valables après un redémarrage. Clé publique donnée à l'appli
+   (/__ping › ptk, réponse de /carte) : le téléphone de l'hôte vérifie une carte SANS réseau (un HMAC ne le permettrait pas). Le résultat qui la porte (place
+   « compte », uid = la carte) est rangé chez ce compte si la signature est bonne, la partie jouée pendant sa validité et envoyée au plus PARTIE_CARD_LATE_MS
+   après son expiration. */
+const PT_CARD_TTL = Number(process.env.PARTIE_CARD_MS ?? 30 * 864e5), PT_CARD_LATE = Number(process.env.PARTIE_CARD_LATE_MS ?? 30 * 864e5), PT_CARD_H = Number(process.env.PARTIE_CARD_PER_H ?? 20);
+const PT_P256_N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
+function ptCardKeys() {
+  if (PT.ck) return PT.ck;
+  const ikm = fcmSa.key.export({ type: 'pkcs8', format: 'der' }); let d = null;
+  for (let i = 0; !d; i++) { const x = Buffer.from(hkdfSync('sha256', ikm, 'mana-orbit', 'partie/carte/cle/v1/' + i, 32)), v = BigInt('0x' + x.toString('hex')); if (v > 0n && v < PT_P256_N) d = x; }      // scalaire de la courbe (hors bornes : une chance sur 2³²)
+  const e = createECDH('prime256v1'); e.setPrivateKey(d); const pub = e.getPublicKey(), jwk = { kty: 'EC', crv: 'P-256', x: pub.subarray(1, 33).toString('base64url'), y: pub.subarray(33).toString('base64url') };
+  PT.ck = { priv: createPrivateKey({ key: { ...jwk, d: d.toString('base64url') }, format: 'jwk' }), pubKey: createPublicKey({ key: jwk, format: 'jwk' }), pk: pub.toString('base64url'), aes: Buffer.from(hkdfSync('sha256', ikm, 'mana-orbit', 'partie/carte/id/v1', 32)) };
+  return PT.ck;
+}
+function ptCardAes(b, enc) { const c = (enc ? createCipheriv : createDecipheriv)('aes-256-ecb', ptCardKeys().aes, null); c.setAutoPadding(false); return Buffer.concat([c.update(b), c.final()]); }
+/** Carte joueur de ce compte (empreinte tag), pseudo n (déjà filtré), expiration x (ms). */
+function ptCardMake(tag, n, x) {
+  const pre = Buffer.alloc(37); pre[0] = 1; pre.writeUInt32BE(Math.floor(x / 1000), 1); ptCardAes(Buffer.from(tag, 'hex'), true).copy(pre, 5);
+  const nb = Buffer.from(n, 'utf8'), sig = dsaSign('sha256', Buffer.concat([pre, nb]), { key: ptCardKeys().priv, dsaEncoding: 'ieee-p1363' });
+  return Buffer.concat([pre, sig, nb]).toString('base64url');
+}
+/** Carte → { tag, n, x } si la signature est la nôtre (expiration non vérifiée ici) ; null sinon. */
+function ptCardOpen(t) {
+  try {
+    if (typeof t !== 'string' || !/^[\w-]{136,280}$/.test(t)) return null;
+    const b = Buffer.from(t, 'base64url'); if (b.length < 102 || b[0] !== 1) return null;
+    if (!rsaVerify('sha256', Buffer.concat([b.subarray(0, 37), b.subarray(101)]), { key: ptCardKeys().pubKey, dsaEncoding: 'ieee-p1363' }, b.subarray(37, 101))) return null;
+    const tag = ptCardAes(b.subarray(5, 37), false).toString('hex'), n = new TextDecoder('utf-8', { fatal: true }).decode(b.subarray(101));
+    return AM_TAG.test(tag) ? { tag, n, x: b.readUInt32BE(1) * 1000 } : null;
+  } catch (e) { return null; }
+}
+/** POST /api/partie/carte { n } : carte joueur signée de ce compte (pseudo n filtré comme les places, PARTIE_CARD_MS de validité, 30 jours). → { t, x, n, pk }. */
+async function ptCard(req, res, me) {
+  const w = trocLim('ptcard', me.tag, PT_CARD_H, 3600e3) || rateWait(req, 'ptcard', 3 * PT_CARD_H, 3600e3); if (w) return tooMany(res, w);
+  const b = await amBody(req, res, 4096); if (!b) return;
+  const n = ptName(b.n); if (!n) return json(res, 400, { error: 'name', message: 'Pseudo requis (sans mot grossier).' });
+  const x = Date.now() + PT_CARD_TTL;
+  return json(res, 200, { t: ptCardMake(me.tag, n, x), x: Math.floor(x / 1000) * 1000, n, pk: ptCardKeys().pk });
 }
 /** Fin de la salle sans résultat : créateur parti ou remplacée (host, replaced), inactive ou trop vieille (idle). */
 /** Salle finie : les miniatures des profils ne servent plus (mémoire rendue). */
@@ -2319,7 +2360,12 @@ async function ptResult(req, res, me) {
   const b = await amBody(req, res, PT_BODY); if (!b) return;
   const r = PT_CORE.partieResClean(b.r, { tickets: true }); if (!r) return json(res, 400, { error: 'bad_result', message: 'Résultat illisible.' });
   const who = new Map([[me.tag, (r.places.find(p => p.sorte === 'moi') || {}).pos || 0]]); let skip = 0;
-  for (const p of r.places) if (p.uid) { const t = ptTicketOpen(p.uid, r.id, me.tag); if (!t) skip++; else if (!who.has(t)) who.set(t, p.pos); }
+  const now0 = Date.now();
+  for (const p of r.places) if (p.uid) {
+    let t = p.uid.length === 80 ? ptTicketOpen(p.uid, r.id, me.tag) : '';      // jeton de la salle d'attente
+    if (!t) { const c = ptCardOpen(p.uid); if (c && r.date <= c.x && r.date >= c.x - PT_CARD_TTL - 864e5 && now0 <= c.x + PT_CARD_LATE) t = c.tag; }      // carte joueur (QR code) : partie jouée pendant sa validité
+    if (!t) skip++; else if (!who.has(t)) who.set(t, p.pos);      // même compte deux fois (carte du créateur, carte scannée deux fois) : une seule entrée
+  }
   const pub = ptStrip(r), now = Date.now(), fresh = [];
   for (const [t, moi] of who) { const st = await ptHistPut(t, { ...pub, moi, src: t === me.tag ? 'h' : 's', at: now }, 'upsert'); if (st === 'new' && t !== me.tag) fresh.push([t, moi]); }
   const room = TROC_CODE.test(ptCodeOf(b.c)) ? PT.s.get(ptCodeOf(b.c)) : null, key = String(b.key || '');
@@ -2371,7 +2417,7 @@ async function partieApi(req, res, path, url) {
     if (req.method === 'GET' && sub === 'peek') return ptPeek(req, res, url);
     if (req.method === 'POST' && sub === 'op') return await ptOp(req, res);
     if (req.method === 'POST' && sub === 'join') return await ptJoin(req, res);
-    const route = req.method === 'POST' && !sub ? ptNew : req.method === 'POST' && sub === 'result' ? ptResult : req.method === 'POST' && sub === 'claim' ? ptClaim
+    const route = req.method === 'POST' && !sub ? ptNew : req.method === 'POST' && sub === 'result' ? ptResult : req.method === 'POST' && sub === 'claim' ? ptClaim : req.method === 'POST' && sub === 'carte' ? ptCard
       : req.method === 'GET' && sub === 'hist' ? ptHistGet : req.method === 'DELETE' && sub === 'hist' ? ptHistDel : req.method === 'DELETE' && sub === 'me' ? ptWipe : null;
     if (!route) return json(res, 405, { error: 'method_not_allowed' });
     const me = await amAuth(req, res, sub ? 'Connecte-toi pour enregistrer tes parties.' : 'Connecte-toi pour créer une partie.'); if (!me) return;
@@ -3429,7 +3475,7 @@ const server = http.createServer(async (req, res) => {
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, scanrep: SR_ON, daily: !!DLY, feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte
