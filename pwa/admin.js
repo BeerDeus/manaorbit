@@ -6,7 +6,8 @@
    Tri, recherche et pages : côté serveur (?sort, dir, q, page). « Rafraîchir » : POST /api/admin/refresh (une fois par minute au plus). « CSV » : la même
    liste (tri et recherche en cours) par GET /api/admin/export. Actions, toujours confirmées : désactiver / réactiver un compte (fenêtre qui dit lequel),
    retirer un deck public (deux appuis) ; POST en JSON avec le jeton ; journal des actions tenu par le serveur. Discord : messages du bot dans un salon (pings, historique).
-   Onglets en haut (Vue d'ensemble, Utilisateurs, Carte mystère, Discord, Signalements, Journal, Serveur), l'onglet dans l'adresse (#discord…) ; blocs repliables
+   QR codes fixes (flyers, affiches, Discord) : destination, scans, SVG et PNG ; jamais supprimés.
+   Onglets en haut (Vue d'ensemble, Utilisateurs, Carte mystère, Discord, Fils, QR codes, Signalements, Journal, Serveur), l'onglet dans l'adresse (#discord, #qr…) ; blocs repliables
    (état gardé sur l'appareil).
    CSP stricte (proxy.mjs › ADM_CSP) : aucun script ni style en ligne, d'où ce fichier et admin.css ; graphiques en SVG dessinés ici, sans bibliothèque. */
 (function () {
@@ -63,7 +64,7 @@
     $('#acts').hidden = v !== 'vMain'; $('#tabs').hidden = v !== 'vMain';
     if (v === 'vErr') $('#errTxt').textContent = msg || 'Le serveur ne répond pas.';
     if (v !== 'vMain') {      // rien ne reste affiché d'une session admin précédente
-      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#notes', '#meta', '#scans', '#daily', '#discord', '#dyRepCard', '#threads']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; $('#dyRepCard').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dy.d = null; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false; thReset();
+      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#notes', '#meta', '#scans', '#daily', '#discord', '#dyRepCard', '#threads', '#qrcodes']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; $('#dyRepCard').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dy.d = null; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false; thReset(); qcReset();
       $('#uCount').textContent = ''; tb.cur = ''; tb.y = {}; for (const k of TABS) { tabOf(k).hidden = false; badge(k, 0); }      // onglets rendus : la prochaine session redit ce qui est coupé
       const d = $('#dlg'); if (d.open) d.close(); d.replaceChildren();
     }
@@ -72,7 +73,7 @@
   /* Onglets (barre collante sous l'en-tête) : une partie du panneau chacun, l'onglet dans l'adresse (#discord…) : retour, rechargement et lien direct.
      Onglet sans objet (Carte mystère ou Discord coupés sur le serveur : 404) masqué, et l'adresse ramenée à la vue d'ensemble ; pastille : ce qui attend
      une décision. Clavier (motif « tablist » de l'ARIA) : flèches, Début, Fin ; focus mobile (un seul onglet dans l'ordre de tabulation). */
-  const TABS = ['apercu', 'comptes', 'mystere', 'discord', 'fils', 'signalements', 'journal', 'serveur'];
+  const TABS = ['apercu', 'comptes', 'mystere', 'discord', 'fils', 'qr', 'signalements', 'journal', 'serveur'];
   const tb = { cur: '', y: {} };      // onglet affiché, position de défilement de chacun (rendue au retour sur l'onglet)
   const tabOf = k => document.getElementById('t-' + k);
   const tabOn = k => TABS.includes(k) && !tabOf(k).hidden;
@@ -130,10 +131,10 @@
   /* Blocs repliables (<details>) : ouverts d'office, état de chacun gardé sur cet appareil (rendu à chaque repeint et au rechargement). */
   const FOLD_KEY = 'manaorbit:admin:fold';
   const foldAll = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || '{}') || {}; } catch (e) { return {}; } };
-  /** fold(clé, titre (élément), contenu, { meta : à droite du titre, id, cls }) → <details class="fold">. */
+  /** fold(clé, titre (élément), contenu, { meta : à droite du titre, id, cls, shut : fermé d'office }) → <details class="fold">. */
   function fold(k, head, kids, o = {}) {
     const was = foldAll()[k];
-    const d = h('details', { class: 'fold' + (o.cls ? ' ' + o.cls : ''), 'data-fold': k, id: o.id, open: was == null ? true : !!was },
+    const d = h('details', { class: 'fold' + (o.cls ? ' ' + o.cls : ''), 'data-fold': k, id: o.id, open: was == null ? !o.shut : !!was },
       h('summary', null, h('span', { class: 'fh' }, head, o.meta != null && o.meta !== '' ? h('small', { class: 'fm' }, o.meta) : null), h('span', { class: 'chev', 'aria-hidden': 'true' })),
       h('div', { class: 'fb' }, kids));
     d.addEventListener('toggle', () => { const a = foldAll(); if (a[k] === d.open) return; a[k] = d.open; try { localStorage.setItem(FOLD_KEY, JSON.stringify(a)); } catch (e) { /* stockage absent */ } });
@@ -202,7 +203,7 @@
     if (r.status !== 200 || !r.body) return data ? toast('Le serveur ne répond pas.') : show('vErr', (r.body && r.body.message) || 'Le serveur ne répond pas.');
     data = r.body; render();
   }
-  function refresh() { const b = $('#btnRefresh'); b.disabled = true; dc.force = true; th.force = true; load('/refresh', 'POST').finally(() => { b.disabled = false; }); }
+  function refresh() { const b = $('#btnRefresh'); b.disabled = true; dc.force = true; th.force = true; qc.force = true; load('/refresh', 'POST').finally(() => { b.disabled = false; }); }
   let toastT = 0;
   function toast(m) { let t = $('.toast'); if (!t) document.body.append(t = h('div', { class: 'toast', role: 'status' })); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 3200); }
 
@@ -228,6 +229,7 @@
     daily();
     discord();
     threads();
+    qrcodes();
     badges();
   }
   /** Les deux graphiques, à la largeur de leur carte (redessinés quand la vue d'ensemble s'affiche ou que la fenêtre change). */
@@ -425,7 +427,8 @@
       h('p', { class: 'hint' }, '« Signaler ce deck » dans la Communauté ; au bout de ' + n + ' signalements, le deck est masqué tout seul. « Retirer » efface le deck public : il disparaît de la Communauté tout de suite ; son auteur peut le republier (ses signalements restent).'),
       h('div', { class: 'dyl pdl', 'data-empty': 'Aucun deck signalé.' }, list.length ? list.map(p => deckRow(p, true)) : [empty('Aucun deck signalé.')])], { meta: plural(list.length, 'deck') }));
   }
-  const ACT = { off: ['Compte désactivé', 'Désactivation refusée'], on: ['Compte réactivé', 'Réactivation refusée'], pub: ['Deck public retiré', 'Retrait refusé'] };
+  const ACT = { off: ['Compte désactivé', 'Désactivation refusée'], on: ['Compte réactivé', 'Réactivation refusée'], pub: ['Deck public retiré', 'Retrait refusé'],
+    qrnew: ['QR code créé', 'Création refusée'], qrto: ['Destination d\'un QR code changée', 'Changement refusé'], qrname: ['QR code renommé', 'Renommage refusé'] };
   /** Journal des actions (tenu par le serveur, les plus récentes d'abord) : action, compte (nom réduit, e-mail masqué), deck, date, éditeur. */
   function journal(log) {
     const box = $('#journal'), head = chead('Journal des actions', log && log.length ? nf(log.length) + ' dernière' + (log.length > 1 ? 's' : '') : '');
@@ -982,6 +985,179 @@
       tagBox,
       h('div', { class: 'thms' }, th.det.more ? h('p', { class: 'hint' }, 'Messages plus anciens : sur Discord.') : null, msgs.length ? msgs : empty('Aucun message lisible.')),
       h('div', { class: 'threp' }, h('label', { class: 'dcl', for: 'thReply' }, 'Répondre'), ta, h('div', { class: 'dcnl' }, h('small', { class: 'dckb' }, 'Ctrl+Entrée : répondre'), rc), h('div', { class: 'dcb' }, r1, r2)));
+  }
+  /* QR codes fixes (proxy.mjs › /api/admin/qr ; flyers, affiches, cartes de visite, Discord) : onglet « QR codes » (#qr). Une carte par QR : aperçu (SVG du serveur,
+     src/qr.js › qrSvgLogo : niveau H, logo de l'appli, encre marine ; en <img> data: : CSP), nom (« Renommer »), lien imprimé (jamais modifiable), scans (total,
+     aujourd'hui, 7 et 30 jours, Android / iPhone / autre, barres des 30 derniers jours), destination modifiable (adresse https://, chemin du site ou « Selon le
+     téléphone » ; « Enregistrer » confirmé : les QR déjà imprimés suivent la nouvelle destination), « Tester ↗ » (le lien avec ?test=1 : pas compté),
+     « Télécharger SVG » (le fichier du serveur) et « PNG » (2 048 px au moins, dessiné ici dans un canvas, chaque module en pixels entiers : impression).
+     Création (bloc repliable, fermé d'office) : nom, lien (tiré du nom tant qu'on n'y touche pas ; figé une fois créé : confirmé), destination. Jamais de
+     suppression (le serveur n'en a aucune). Liste relue au plus une fois par minute (« Rafraîchir » : tout de suite) ; saisies en cours gardées au repeint. */
+  const QC_PNG = 2048, QC_ID = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])$/;
+  const qc = { gen: 0, d: null, at: 0, force: false, busy: '', ed: {}, nw: { name: '', id: '', idSet: false, k: 'url', to: '' } };
+  const qcReset = () => { qc.gen++; Object.assign(qc, { d: null, at: 0, force: false, busy: '', ed: {}, nw: { name: '', id: '', idSet: false, k: 'url', to: '' } }); };
+  const qcTxt = to => (to === 'app' ? 'Selon le téléphone (appli)' : to);
+  const qcUri = svg => 'data:image/svg+xml;base64,' + btoa(svg);
+  /** Nom → lien proposé : « Affiche boutique Lyon » → « affiche-boutique-lyon » (accents retirés, 32 caractères au plus). */
+  const qcSlug = v => unacc(v).replace(/[^a-z0-9]+/g, '-').replace(/^-+/, '').slice(0, 32).replace(/-+$/, '');
+  /** Destination tapée : '' (vide), 'bad' (ni https:// ni /…), sinon la valeur (le serveur la vérifie pour de bon). */
+  const qcCheck = (k, v) => { if (k === 'app') return 'app'; const t = String(v || '').trim(); return !t ? '' : /^https:\/\/[^\s/]+\.[^\s]+$|^\/(?!\/)\S*$/.test(t) ? t : 'bad'; };
+  async function qrcodes() {
+    if (qc.d && !qc.force && Date.now() - qc.at < 60e3) return;
+    qc.force = false;
+    const box = $('#qrcodes');
+    if (!box.firstChild) fill(box, h('section', { class: 'card' }, chead('QR codes fixes'), loading('Lecture des QR codes…')));
+    const g = ++qc.gen; let r; try { r = await call('/qr'); } catch (e) { r = null; }
+    if (g !== qc.gen) return;
+    if (r && r.status === 404) { qc.d = null; box.replaceChildren(); tabOf('qr').hidden = true; if (tb.cur === 'qr') tabShow('apercu'); return; }
+    tabOf('qr').hidden = false;
+    if (!r || r.status !== 200 || !r.body || !Array.isArray(r.body.list)) { if (!qc.d) fill(box, h('section', { class: 'card' }, chead('QR codes fixes'), h('p', { class: 'note' }, (r && r.body && r.body.message) || 'Le serveur ne répond pas.'))); return; }
+    qc.d = r.body; qc.at = Date.now(); qcPaint();
+  }
+  /** Réponse d'une action : liste et journal à jour, carte repeinte. */
+  function qcTake(x) { if (x && x.body && Array.isArray(x.body.log)) journal(x.body.log); if (x && x.body && Array.isArray(x.body.list) && qc.d) { qc.d.list = x.body.list; qc.at = Date.now(); } }
+  /** Choix du type de destination (deux pastilles) + champ ; o.k / o.to : état gardé ; onChange après chaque saisie. */
+  function qcDest(o, idp, onChange) {
+    const inp = h('input', { class: 'qcin', id: idp + 'To', type: 'url', inputmode: 'url', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off', maxlength: 500, placeholder: 'https://… ou /chemin du site', 'aria-label': 'Adresse de destination' });
+    inp.value = o.to;
+    const app = h('p', { class: 'qcapp' }, 'Android → fiche Google Play · iPhone et iPad → App Store dès qu\'elle existe, le site en attendant · ordinateur → le site.');
+    const seg = h('div', { class: 'seg qcseg', role: 'group', 'aria-label': 'Type de destination' }, [['url', 'Adresse'], ['app', 'Selon le téléphone (appli)']].map(([k, label]) => {
+      const b = h('button', { class: 'chip', type: 'button', 'data-k': k, 'aria-pressed': String(o.k === k) }, label);
+      b.addEventListener('click', () => { if (o.k === k) return; o.k = k; sync(); onChange(); if (k === 'url') inp.focus(); });
+      return b;
+    }));
+    inp.addEventListener('input', () => { o.to = inp.value; onChange(); });
+    function sync() { for (const b of seg.children) b.setAttribute('aria-pressed', String(b.dataset.k === o.k)); inp.hidden = o.k === 'app'; app.hidden = o.k !== 'app'; }
+    sync();
+    return { els: [seg, inp, app], inp, dis: on => { inp.disabled = on; for (const b of seg.children) b.disabled = on; } };
+  }
+  function qcPaint() {
+    const d = qc.d, box = $('#qrcodes'); if (!d) return;
+    const list = d.list.slice().sort((a, b) => (a.id === 'flyer' ? -1 : b.id === 'flyer' ? 1 : (a.at || 0) - (b.at || 0)));      // les flyers en premier, puis dans l'ordre de création
+    const scans = list.reduce((t, q) => t + (q.n || 0), 0);
+    fill(box,
+      h('section', { class: 'card qchead' }, chead('QR codes fixes', plural(list.length, 'QR code') + ' · ' + plural(scans, 'scan')),
+        h('p', { class: 'hint' }, 'Liens imprimés (flyers, affiches, cartes de visite) ou partagés (Discord…). Un lien ne change jamais et un QR code ne se supprime pas : seule sa destination change, et les QR déjà imprimés la suivent. Scans comptés sans rien garder de personnel (ni adresse ni appareil) ; robots d\'aperçu et « Tester » non comptés.'),
+        d.bad ? h('p', { class: 'note' }, 'Fichier des QR codes illisible sur le serveur (qrcodes.json) : redirections d\'office seulement, rien ne peut être modifié ni compté.') : null,
+        qcNew()),
+      h('div', { class: 'qcl', id: 'qcList' }, list.map(qcCard)));
+  }
+  /** Bloc « Nouveau QR code » : nom, lien (figé à la création), destination ; « Créer… » confirmé. */
+  function qcNew() {
+    const o = qc.nw, taken = id => qc.d.list.some(q => q.id === id);
+    const name = h('input', { class: 'qcin', id: 'qcName', type: 'text', maxlength: 60, autocomplete: 'off', placeholder: 'Affiche boutique, flyer tournoi…' });
+    const id = h('input', { class: 'qcin', id: 'qcId', type: 'text', maxlength: 32, autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off', placeholder: 'affiche-boutique' });
+    name.value = o.name; id.value = o.id;
+    const tip = h('small', { class: 'qctip', id: 'qcIdTip', 'aria-live': 'polite' });
+    const go = h('button', { class: 'btn main', id: 'qcCreate', type: 'button' }, 'Créer…');
+    const dest = qcDest(o, 'qcNew', () => sync());
+    function sync() {
+      const v = id.value.trim().toLowerCase(), bad = v && !QC_ID.test(v), dup = v && taken(v), to = qcCheck(o.k, o.to);
+      tip.textContent = dup ? 'Ce lien existe déjà.' : bad ? 'Minuscules, chiffres et tirets ; 2 à 32 caractères, pas de tiret au début ni à la fin.' : v ? 'QR imprimé : ' + qc.d.origin + '/q/' + v + ' (figé une fois créé)' : 'Minuscules, chiffres et tirets : figé une fois créé.';
+      tip.classList.toggle('bad', !!(bad || dup));
+      go.disabled = !!qc.busy || !name.value.trim() || !v || bad || dup || !to || to === 'bad' || qc.d.bad;
+    }
+    name.addEventListener('input', () => { o.name = name.value; if (!o.idSet) { o.id = qcSlug(name.value); id.value = o.id; } sync(); });
+    id.addEventListener('input', () => { const v = id.value.toLowerCase().replace(/[^a-z0-9-]/g, ''); if (v !== id.value) id.value = v; o.id = v; o.idSet = !!v; sync(); });
+    go.addEventListener('click', async () => {
+      const v = id.value.trim(), to = qcCheck(o.k, o.to), link = qc.d.origin + '/q/' + v;
+      const ok = await dlg('Créer ce QR code ?', [h('p', { class: 'dlgw' }, name.value.trim() + ' · ' + link), h('p', null, 'Destination : ' + qcTxt(to)),
+        h('p', { class: 'note' }, 'Le lien ' + link + ' ne pourra plus jamais changer, et le QR code ne pourra pas être supprimé : seuls son nom et sa destination changeront.')],
+        [['Annuler', ''], ['Créer', 'ok', 'main']]);
+      if (ok !== 'ok' || qc.busy) return;
+      qc.busy = 'new'; sync(); dest.dis(true);
+      let x; try { x = await call('/qr', 'POST', { id: v, name: name.value.trim(), to }); } catch (e) { x = null; }
+      qc.busy = ''; qcTake(x);
+      if (!x || x.status !== 201 || !x.body || !x.body.ok) { dest.dis(false); sync(); return oops(x, 'Création impossible : le serveur ne répond pas.'); }
+      qc.nw = { name: '', id: '', idSet: false, k: 'url', to: '' }; qcPaint(); toast('QR code créé : ' + link.replace(/^https:\/\//, '') + '.');
+      const c = $('#qcList .qc[data-id="' + v + '"]'); if (c) c.scrollIntoView({ block: 'center' });
+    });
+    sync();
+    const lab = (f, t) => h('label', { class: 'dcl', for: f }, t);
+    return fold('qrnew', h('h3', null, 'Nouveau QR code'), h('div', { class: 'qcf' },
+      h('div', { class: 'dcrow' }, lab('qcName', 'Nom'), name),
+      h('div', { class: 'dcrow' }, lab('qcId', 'Lien'), h('div', { class: 'qcpre' }, h('span', null, 'manaorbit.app/q/'), id), tip),
+      h('div', { class: 'dcrow' }, h('span', { class: 'dcl' }, 'Destination'), dest.els),
+      h('div', { class: 'dcb' }, go)), { shut: true, cls: 'qcnew' });
+  }
+  /** Scans des 30 derniers jours : petites barres (survol : jour et nombre). */
+  function qcBars(days) {
+    const W = 150, H = 26, n = days.length || 1, step = W / n, max = Math.max(1, ...days.map(x => x[1]));
+    const svg = s('svg', { class: 'qcbars', width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Scans par jour sur 30 jours' });
+    days.forEach(([day, k], i) => {
+      const g = s('g', { class: 'bar' + (k ? '' : ' zero') }), tt = s('title'), bh = k ? Math.max(2, k / max * (H - 2)) : 1;
+      tt.textContent = D_DAY.format(Date.parse(day + 'T12:00:00Z')) + ' : ' + plural(k, 'scan'); g.append(tt);
+      g.append(s('rect', { x: i * step, y: 0, width: step, height: H, class: 'hit' }), s('rect', { x: i * step + .6, y: H - bh, width: Math.max(1, step - 1.2), height: bh, rx: 1, class: 'fill' }));
+      svg.append(g);
+    });
+    return svg;
+  }
+  function qcCard(q) {
+    const e = qc.ed[q.id] || (qc.ed[q.id] = { k: q.to === 'app' ? 'app' : 'url', to: q.to === 'app' ? '' : q.to });
+    const img = q.svg ? h('img', { class: 'qcimg', src: qcUri(q.svg), alt: 'QR code de ' + q.link, width: 120, height: 120 }) : h('div', { class: 'qcimg none' }, 'Aperçu indisponible');
+    const sv = h('button', { class: 'btn main small', type: 'button', 'data-act': 'save' }, 'Enregistrer…');
+    const undo = h('button', { class: 'btn ghost small', type: 'button', 'data-act': 'undo' }, 'Annuler');
+    const dest = qcDest(e, 'qc-' + q.id, () => sync()), row = h('div', { class: 'qcsave' }, undo, sv);      // Annuler et Enregistrer : seulement quand la destination change
+    const cur = () => { const v = qcCheck(e.k, e.to); return v === 'app' ? 'app' : v; };
+    function sync() { const v = cur(), ch = v !== q.to; sv.disabled = !ch || !v || v === 'bad' || !!qc.busy || !!(qc.d && qc.d.bad); row.hidden = !ch; card.classList.toggle('dirty', ch); }
+    undo.addEventListener('click', () => { delete qc.ed[q.id]; card.replaceWith(qcCard(q)); });
+    sv.addEventListener('click', async () => {
+      const to = cur(); if (!to || to === 'bad' || to === q.to || qc.busy) return;
+      const ok = await dlg('Changer la destination ?', [h('p', { class: 'dlgw' }, q.name + ' · ' + q.link), h('p', { class: 'qcwas' }, 'Avant : ' + qcTxt(q.to)), h('p', { class: 'qcnow' }, 'Après : ' + qcTxt(to)),
+        h('p', { class: 'note' }, 'Les QR déjà imprimés (et partagés) suivront la nouvelle destination dès maintenant.')], [['Annuler', ''], ['Changer la destination', 'ok', 'main']]);
+      if (ok !== 'ok' || qc.busy) return;
+      qc.busy = q.id; sync(); dest.dis(true);
+      let x; try { x = await call('/qr/' + encodeURIComponent(q.id), 'POST', { to }); } catch (er) { x = null; }
+      qc.busy = ''; qcTake(x);
+      if (!x || x.status !== 200 || !x.body || !x.body.ok) { dest.dis(false); sync(); return oops(x, 'Modification impossible : le serveur ne répond pas.'); }
+      delete qc.ed[q.id]; card.replaceWith(qcCard(x.body.qr)); toast('Destination changée : les QR imprimés y mènent déjà.');
+    });
+    const ren = h('button', { class: 'btn ghost tiny', type: 'button', 'data-act': 'rename', title: 'Changer le nom (le lien ne change pas)' }, 'Renommer');
+    ren.addEventListener('click', async () => {
+      const inp = h('input', { class: 'dlgi', id: 'qcRen', type: 'text', maxlength: 60, autocomplete: 'off', 'aria-label': 'Nouveau nom' }); inp.value = q.name;
+      const p = dlg('Renommer le QR code', [h('p', { class: 'dlgw' }, q.link), inp, h('p', { class: 'hint' }, 'Seulement pour le panneau : le lien imprimé ne change pas.')], [['Annuler', ''], ['Renommer', 'ok', 'main']]);
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); $('#dlg').close('ok'); } });
+      inp.focus(); inp.select();
+      if (await p !== 'ok' || qc.busy) return;
+      const name = inp.value.replace(/\s+/g, ' ').trim(); if (!name || name === q.name) return;
+      qc.busy = q.id; ren.disabled = true;
+      let x; try { x = await call('/qr/' + encodeURIComponent(q.id), 'POST', { name }); } catch (er) { x = null; }
+      qc.busy = ''; ren.disabled = false; qcTake(x);
+      if (!x || x.status !== 200 || !x.body || !x.body.ok) return oops(x, 'Modification impossible : le serveur ne répond pas.');
+      card.replaceWith(qcCard(x.body.qr)); toast('QR code renommé.');
+    });
+    const test = h('a', { class: 'btn ghost small', href: q.path + '?test=1', target: '_blank', rel: 'noopener noreferrer', 'data-act': 'test', title: 'Ouvrir le lien comme un téléphone qui scanne (ce test n\'est pas compté)' }, 'Tester ↗');
+    const svgB = h('button', { class: 'btn ghost small', type: 'button', 'data-act': 'svg', title: 'Vectoriel : pour l\'imprimeur' }, 'Télécharger SVG');
+    const pngB = h('button', { class: 'btn ghost small', type: 'button', 'data-act': 'png', title: 'Image de ' + QC_PNG + ' px au moins : impression, réseaux' }, 'Télécharger PNG');
+    if (!q.svg) { svgB.disabled = true; pngB.disabled = true; }
+    svgB.addEventListener('click', () => { save(new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + q.svg], { type: 'image/svg+xml' }), 'qr-mana-orbit-' + q.id + '.svg'); toast('SVG téléchargé.'); });
+    pngB.addEventListener('click', () => qcPng(q, pngB));
+    const p = q.p || {}, meta = q.up > q.at ? 'modifié ' + ago(q.up) : q.at ? 'créé le ' + D_SHORT.format(q.at) : '';
+    const card = h('article', { class: 'card qc', 'data-id': q.id },
+      img,
+      h('div', { class: 'qch' },
+        h('div', { class: 'qct' }, h('h3', null, q.name), ren),
+        h('p', { class: 'qclink' }, 'QR imprimé : ', h('code', null, q.link.slice(0, q.link.length - q.path.length), h('wbr'), q.path)),      // coupé avant « /q/… » sur un téléphone
+        h('p', { class: 'qcn' }, h('b', null, nf(q.n)), ' scan' + (q.n > 1 ? 's' : '')),
+        h('p', { class: 'qcst' }, 'aujourd\'hui ' + nf(q.today) + ' · 7 j : ' + nf(q.d7) + ' · 30 j : ' + nf(q.d30)),
+        h('p', { class: 'qcst' }, 'Android ' + nf(p.a) + ' · iPhone ' + nf(p.i) + ' · autre ' + nf(p.o)),
+        Array.isArray(q.days) && q.days.length ? qcBars(q.days) : null),
+      h('div', { class: 'qcdest' }, h('div', { class: 'dclh' }, h('span', { class: 'dcl' }, 'Destination'), meta ? h('small', { class: 'qcm' }, meta) : null), dest.els, row),
+      h('div', { class: 'qcacts' }, test, svgB, pngB));
+    sync();
+    return card;
+  }
+  /** PNG pour l'impression : le SVG du serveur dessiné dans un canvas de 2 048 px au moins, chaque module sur un nombre entier de pixels (bords nets). */
+  async function qcPng(q, b) {
+    b.disabled = true;
+    try {
+      const side = q.side || 45, px = Math.ceil(QC_PNG / side) * side, img = new Image();
+      img.src = qcUri(q.svg.replace('<svg ', '<svg width="' + px + '" height="' + px + '" ')); await img.decode();
+      const c = document.createElement('canvas'); c.width = c.height = px;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, px, px); g.drawImage(img, 0, 0, px, px);
+      const blob = await new Promise(r => c.toBlob(r, 'image/png')); if (!blob) throw new Error('png');
+      save(blob, 'qr-mana-orbit-' + q.id + '.png'); toast('PNG ' + nf(px) + ' × ' + nf(px) + ' px téléchargé.');
+    } catch (e) { toast('PNG impossible dans ce navigateur : prends le SVG.'); } finally { b.disabled = false; }
   }
   function server(v) {
     if (!v) return $('#srv').replaceChildren();

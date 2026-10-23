@@ -129,7 +129,7 @@ Piste retenue le 20 octobre (unanimité) : « Combien vaut ton classeur ? » (va
 
 **Magic en toutes lettres** : titre « Combien vaut ton classeur Magic ? », pastille « Pour Magic: The Gathering », « Scanne tes cartes Magic… ». Jamais le logo Magic ni le symbole des planeswalkers : la Fan Content Policy de Wizards interdit leurs logos et symboles (le nom du jeu en texte est permis), et un logo ferait croire à une appli officielle.
 
-**QR** : `https://manaorbit.app/flyer`, **ne change jamais** (test `pwa-e2e.mjs`). Le serveur décide où il mène : Android → fiche Google Play (source « flyer » dans Play Console › Statistiques › Acquisition), iPhone et ordinateur → le site. Avant d'en commander 500 : en imprimer un chez soi et le scanner avec un Android et un iPhone.
+**QR** : `https://manaorbit.app/flyer`, **ne change jamais** (tests `pwa-e2e.mjs`, `test-qrcodes.mjs`). Le serveur décide où il mène, réglé dans **`/admin` › QR codes** (QR fixe « Flyers », jamais supprimable) : d'office « selon le téléphone » : Android → fiche Google Play (source « flyer » dans Play Console › Statistiques › Acquisition), iPhone et ordinateur → le site ; scans comptés au même endroit. Une affiche ou un autre support : un nouveau QR fixe (`/q/<lien>`) dans le même onglet, SVG pour l'imprimeur ou PNG haute définition. Avant d'en commander 500 : en imprimer un chez soi et le scanner avec un Android et un iPhone.
 
 **En boutique** : demander au gérant avant de déposer ; 20 à 30 près de la caisse ou des tables de jeu ; un exemplaire au tableau d'affichage s'il y en a un.
 

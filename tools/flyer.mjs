@@ -5,8 +5,8 @@
 //   solo-a (liste à gauche, téléphone à droite) · solo-b (centrée, les cinq orbes en rangée) · solo-c (miroir) · solo-d (téléphone géant qui déborde)
 //   solo-e (titre géant, parties en pastilles) · solo-f (une carte foil qui entre dans le téléphone, cadre du scan)
 // Captures : shots/store/fr-*.png (faites ici par `node tools/store-assets.mjs raw fr` si elles manquent), cartes factices.
-// QR : src/qr.js (qrSvgLogo : logo au centre, niveau H), lien FIXE https://manaorbit.app/flyer (imprimé : ne jamais le changer ; la destination se règle dans proxy.mjs › /flyer :
-// Android → Google Play, iPhone → App Store dès que APP_STORE_URL est posée, sinon le site).
+// QR : src/qr.js (qrSvgLogo : logo au centre, niveau H), lien FIXE https://manaorbit.app/flyer (imprimé : ne jamais le changer ; la destination se règle dans /admin › QR codes, QR « Flyers » :
+// « selon le téléphone » d'office : Android → Google Play, iPhone → App Store dès que APP_STORE_URL est posée, sinon le site ; proxy.mjs › qrGo).
 // Format : A5 par défaut (154 × 216 mm avec le fond perdu, coupe à 148 × 210) : la page A4 réduite (× 0,705), petits textes et QR agrandis pour rester
 // lisibles et scannables (mentions ≥ 6 pt, QR ≈ 25 mm) ; « a4 » : l'affiche A4. Fichiers docs/print/flyer-<a5|a4>-<piste>.pdf et .png.
 //   node tools/flyer.mjs            les six en A5        node tools/flyer.mjs solo-b        node tools/flyer.mjs a4 solo-d
