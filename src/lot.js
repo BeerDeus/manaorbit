@@ -99,6 +99,7 @@ function lotEdSheet() {
   openSheet(T('Édition de {name}', { name: c.p || c.n }), T('L\'extension choisie sera proposée pour les cartes suivantes'), api => {
     api.wrap.classList.add('lot-eds-sheet');
     let q = '';
+    const more = edQFinder(() => c.prints, q => scryPrintsFind(c.n, lotLangOf(c), q), extra => { c.prints.push(...extra); paint(); });      // liste tronquée (terrains de base) : code ou numéro cherchés sur Scryfall
     const paint = () => {
       const keep = edQKeep(api.body); q = keep.q || q;
       api.body.innerHTML = `${edQHtml(c.prints.length, q)}<div class="lot-eds">${c.prints.map((p, i) => { const px = p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', on = c.pick === p || (c.e && edKey(p.set, p.num) === c.e);
@@ -107,7 +108,7 @@ function lotEdSheet() {
       edQApply($('.lot-eds', api.body), c.prints, q, '.lot-ev'); keep.restore();
       const on = $('.lot-ev[aria-pressed="true"]:not(.ed-off)', api.body); if (on && on.scrollIntoView && !q) on.scrollIntoView({ block: 'nearest' });
     };
-    api.body.addEventListener('input', e => { if (!e.target.matches('[data-edq]')) return; q = e.target.value; edQApply($('.lot-eds', api.body), c.prints, q, '.lot-ev'); });
+    api.body.addEventListener('input', e => { if (!e.target.matches('[data-edq]')) return; q = e.target.value; const g = $('.lot-eds', api.body); more(q, edQApply(g, c.prints, q, '.lot-ev'), g); });
     paint(); setIcLoad(() => { if (sheets.includes(api)) paint(); });
     api.body.addEventListener('click', e => {
       const b = e.target.closest('.lot-ev'); if (!b) return;

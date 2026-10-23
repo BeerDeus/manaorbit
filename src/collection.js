@@ -176,6 +176,22 @@ function edQHtml(n, q = '') {
   const t = esc(T('Chercher une extension'));
   return `<label class="fsearch ed-q"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" data-edq inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${t}" aria-label="${t}" value="${esc(q)}"></label>`;
 }
+/** Recherche sans résultat dans la liste lue (liste tronquée : terrains de base aux centaines d'impressions) : demandée à Scryfall 450 ms après la dernière frappe
+ *  (find(q) → impressions : data.js › scryPrintsFind, d'après le code d'extension ou le numéro tapés), « Recherche sur Scryfall… » pendant ce temps ;
+ *  les impressions nouvelles (sans doublon) partent à add(liste), qui les ajoute et repeint. Retourne la fonction à appeler à chaque frappe : (q, n trouvées, box). */
+function edQFinder(prints, find, add) {
+  let t = 0; const done = new Set();
+  return (q, n, box) => {
+    clearTimeout(t); const k = String(q || '').trim().toLowerCase();
+    if (!find || !k || n || done.has(k)) return;
+    t = setTimeout(async () => {
+      done.add(k); const m = box && box.querySelector('.ed-q-none'); if (m) m.textContent = T('Recherche sur Scryfall…');
+      let got = []; try { got = (await find(k)) || []; } catch (e) { got = []; }
+      const have = new Set((prints() || []).map(p => p.set + '/' + p.num)), extra = got.filter(p => !have.has(p.set + '/' + p.num));
+      if (extra.length) add(extra); else if (m && m.isConnected) m.textContent = T('Aucune extension ne correspond à « {q} »', { q: String(q).trim() });
+    }, 450);
+  };
+}
 /** Filtre les tuiles (sel, data-i = index dans prints ; « Sans édition » reste) d'après la recherche q : en-têtes de groupe cachés pendant la recherche, message si rien. */
 function edQApply(box, prints, q, sel) {
   let n = 0;
@@ -210,7 +226,8 @@ function edSheet(o) {
       return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
     };
     let q = '', wantQ = !!o.focusQ;      // focusQ : la feuille s'ouvre sur la recherche (bandeau du scan › « Chercher une extension »)
-    const filter = () => { const g = $('.ced-grid', api.body); if (g) edQApply(g, prints, q, '.ced-t'); };
+    const more = edQFinder(() => prints, o.find, extra => { prints.push(...extra); paint(); });      // o.find : recherche sur Scryfall quand la liste n'a rien (code, numéro)
+    const filter = () => { const g = $('.ced-grid', api.body); if (g) more(q, edQApply(g, prints, q, '.ced-t'), g); };
     const paint = () => {
       if (!sheets.includes(api)) return;
       if (!prints) { api.body.innerHTML = `${cnt()}<p class="hint">${err ? esc(err) : T('Éditions…')}</p>`; return; }
@@ -252,7 +269,7 @@ function collEdPick(k, g) {
   const l = lineLang(g), cur = lineEd(g), aw = lineAw(g), name = frName(k, l) || x.n; haptic('tap');
   const gN = lineKey(l, cur, false, aw), gF = lineKey(l, cur, true, aw), qOf = h => (collLines(COLL.map[k]).find(e => e[0] === h) || [h, 0])[1];
   const total = () => qOf(gN) + qOf(gF), grp = edGroup(k, g);
-  edSheet({ name, sub: l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', cur, count: total, load: () => scryArtPrints(x.n, l || 'en'),
+  edSheet({ name, sub: l ? T('Exemplaires {lang}', { lang: langCode(l) }) : '', cur, count: total, load: () => scryArtPrints(x.n, l || 'en'), find: q => scryPrintsFind(x.n, l || 'en', q),
     ...(grp.total > 1 ? { onSplit: () => edSplit(k, qOf(g) ? g : g === gN ? gF : gN) } : {}),
     foilN: {
       get: () => ({ n: qOf(gF), total: total() }),
@@ -308,7 +325,7 @@ function edSplit(k, g) {
       const b = e.target.closest('[data-d]');
       if (b) { const r = rows[Number(b.dataset.i)], d = Number(b.dataset.d); if (!r || (d > 0 && !rest())) return; r.q = Math.max(0, r.q + d); haptic('tap'); paint(); return; }
       if (!e.target.closest('[data-add]')) return;
-      edSheet({ name, sub: T('Édition à ajouter'), cur: '', foil: f, load: () => scryArtPrints(x.n, l || 'en'), onPick: p => {
+      edSheet({ name, sub: T('Édition à ajouter'), cur: '', foil: f, load: () => scryArtPrints(x.n, l || 'en'), find: q => scryPrintsFind(x.n, l || 'en', q), onPick: p => {
         const ne = p ? edKey(p.set, p.num) : ''; if (!ne || !sheets.includes(api)) return;
         let r = rows.find(y => y.e === ne); if (!r) rows.push(r = { e: ne, q: 0, info: edInfoOf(p, l) }); else if (!r.info) r.info = edInfoOf(p, l);
         if (rest() > 0) r.q++; paint();      // l'édition ajoutée prend un exemplaire du reste

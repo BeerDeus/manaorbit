@@ -283,7 +283,7 @@ async function scryBySetNum(set, num, lang, signal) {
 async function scryArtPrints(name, lang, signal, prio = true) {      // prio : devant les lectures de fond (écran qui attend) ; false : dans la file (scan)
   const sl = SCRY_LANG[lang] || 'en', n = String(name || '').split('//')[0].trim();
   if (!n || n.includes('"')) return [];
-  const key = (BASIC_NAMES.has(ownKey(n)) ? 'pr4:' : 'pr3:') + ownKey(n) + ':' + sl, hit = await Cache.get(key, 2 * DAY); if (hit) return hit;
+  const key = (BASIC_NAMES.has(ownKey(n)) ? 'pr5:' : 'pr4:') + ownKey(n) + ':' + sl, hit = await Cache.get(key, 2 * DAY); if (hit) return hit;
   const out = await scryPrintsIn(n, sl, signal, prio);
   if (sl !== 'en') {
     const en = await scryPrintsIn(n, 'en', signal, prio), by = new Map(en.map(p => [p.set + '/' + p.num, p])), have = new Set(out.map(p => p.set + '/' + p.num));
@@ -293,10 +293,23 @@ async function scryArtPrints(name, lang, signal, prio = true) {      // prio : d
   await Cache.set(key, out);
   return out;
 }
-async function scryPrintsIn(n, sl, signal, prio = true) {
-  let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('!"' + n + '" lang:' + sl + ' game:paper') + '&unique=prints&order=released&dir=desc';
+/** Impressions d'une carte cherchées sur Scryfall d'après la recherche « Chercher une extension » quand la liste lue n'en a aucune (liste tronquée : terrains de
+ *  base aux centaines d'impressions) : chaque mot qui ressemble à un code d'extension (« neo ») ou à un numéro (« 295 », « 295a ») devient set:… ou cn:… ;
+ *  langue de la carte, puis anglais (impressions marquées « anglais » comme dans scryArtPrints). [] : rien à chercher ou rien trouvé. */
+async function scryPrintsFind(name, lang, q, signal) {
+  const sl = SCRY_LANG[lang] || 'en', n = String(name || '').split('//')[0].trim(), w = String(q || '').toLowerCase().split(/[\s,#·]+/).filter(Boolean);
+  if (!n || n.includes('"') || !w.length || w.length > 4) return [];
+  const sets = w.filter(x => /^[a-z0-9]{2,6}$/.test(x) && /[a-z]/.test(x)), nums = w.filter(x => /^\d{1,4}[a-z★]?$/.test(x));
+  if (!sets.length && !nums.length) return [];
+  const crit = ' ' + [sets.length ? '(' + sets.map(x => 'set:' + x).join(' or ') + ')' : '', nums.length ? '(' + nums.map(x => 'cn:' + x).join(' or ') + ')' : ''].filter(Boolean).join(' ');
+  const out = await scryPrintsIn(n, sl, signal, true, crit, 1);
+  if (sl !== 'en') { const have = new Set(out.map(p => p.set + '/' + p.num)); for (const p of await scryPrintsIn(n, 'en', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) out.push({ ...p, l: 'en', fx: [...p.fx, T('anglais')] }); }
+  return out;
+}
+async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0) {      // extra : critères en plus (scryPrintsFind : « (set:neo or cn:295) »)
+  let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('!"' + n + '" lang:' + sl + ' game:paper' + extra) + '&unique=prints&order=released&dir=desc&include_variations=true';      // variantes comprises (terrains plein art d'une même extension…)
   const out = [], seen = new Set();
-  const pages = BASIC_NAMES.has(ownKey(n)) ? 8 : 3;      // terrains de base : des centaines d'impressions (toutes, pour les retrouver par extension)
+  const pages = maxPages || (BASIC_NAMES.has(ownKey(n)) ? 8 : 3);      // terrains de base : des centaines d'impressions (toutes, pour les retrouver par extension)
   for (let pg = 0; url && pg < pages; pg++) {
     let j; try { j = await httpJson(limScry, url, SCRY_JSON, signal, 4, prio); } catch (e) { if (e.code === '404') j = { data: [] }; else throw e; }
     for (const c of j.data || []) {

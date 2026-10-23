@@ -35,6 +35,9 @@ await p.waitForFunction(() => document.querySelectorAll('.lot-ev .set-ic').lengt
 const evs = await p.$$eval('.lot-ev:not(.none)', b => b.map(x => [x.querySelector('span').textContent, (x.querySelector('em') || {}).textContent, ((x.querySelector('b') || {}).textContent || '').replace(/\s/g, ' ')]));
 assert.deepEqual(evs, [['CMM 100', 'Commander Masters', '1,00 €'], ['2X2 101', 'Double Masters 2022', '3,50 €'], ['LEA 102', 'Limited Edition Alpha', '6,00 €'], ['M21 103', 'Core Set 2021', '8,50 €']], 'impressions françaises puis anglaises seules, prix de l\'édition');
 await p.screenshot({ path: 'shots/lot-1-editions.png' });
+// « Chercher une extension » reste en haut de la feuille pendant le défilement des impressions
+assert.equal(await p.$eval('.sheet-wrap.open .sheet-body > .ed-q', e => getComputedStyle(e).position), 'sticky');
+assert.ok(await p.$eval('.sheet-wrap.open .sheet-body', b => { b.style.maxHeight = '260px'; b.scrollTop = b.scrollHeight; const q = b.querySelector(':scope > .ed-q').getBoundingClientRect(), r = b.getBoundingClientRect(); const ok = b.scrollTop > 0 && q.top >= r.top - 1 && q.bottom <= r.bottom; b.style.maxHeight = ''; b.scrollTop = 0; return ok; }), 'champ toujours visible après défilement');
 await p.click('.lot-ev:not(.none) >> nth=1'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
 assert.match(await txt(p, '.lot-ed'), /Double Masters 2022 2X2 · #101/); assert.equal(nb(await txt(p, '.lot-px')), '3,50 €');
 assert.match(await txt(p, '.lot-sticky'), /Extension proposée Double Masters 2022/);

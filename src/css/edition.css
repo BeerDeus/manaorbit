@@ -44,6 +44,7 @@
 /* recherche d'une extension dans un choix d'édition (à partir de 8 impressions) */
 .ed-off{display:none!important}
 .fsearch.ed-q{flex:none;margin:0 0 12px}
+.sheet-body>.fsearch.ed-q{position:sticky;top:0;z-index:2;box-shadow:0 8px 14px -12px rgba(0,0,0,.45)}      /* choix d'édition d'une feuille : la recherche reste en haut pendant le défilement des impressions */
 .sc-ef-body .fsearch.ed-q{margin:4px 0 0}
 .ed-q-none{grid-column:1/-1;margin:4px 0}
 .fsearch.sc-ask-q{flex:none;width:100%;height:38px;margin:2px 0 8px;font:inherit;font-size:14px;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}

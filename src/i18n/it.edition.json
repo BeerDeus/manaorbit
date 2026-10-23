@@ -33,5 +33,6 @@
   "Édition : {ed}": "Edizione: {ed}",
   "Choisir l'édition de {name}": "Scegli l'edizione di {name}",
   "Chercher une extension": "Cerca un'espansione",
-  "Aucune extension ne correspond à « {q} »": "Nessuna espansione corrisponde a «{q}»"
+  "Aucune extension ne correspond à « {q} »": "Nessuna espansione corrisponde a «{q}»",
+  "Recherche sur Scryfall…": "Ricerca su Scryfall…"
 }

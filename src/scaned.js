@@ -223,7 +223,7 @@ function scanEdPick(it, focusQ) {
   if (pr === 'err') { SC.pr.delete(pk); it.es = 'load'; scanEdNeed(it); scanPaintList(); }      // illisible : on relit
   haptic('tap');
   edSheet({ name: scanShown(it), sub: TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l && it.l !== 'en' ? ' · ' + langCode(it.l) : ''), cur: it.e, count: it.q,
-    load: () => (Array.isArray(pr) ? Promise.resolve(pr) : scryArtPrints(it.name, it.l || 'en')), front: scanEdFront(), frontLabel: T('Dans ce scan'), focusQ: !!focusQ,
+    load: () => (Array.isArray(pr) ? Promise.resolve(pr) : scryArtPrints(it.name, it.l || 'en')), find: q => scryPrintsFind(it.name, it.l || 'en', q), front: scanEdFront(), frontLabel: T('Dans ce scan'), focusQ: !!focusQ,
     foilN: { get: () => ({ n: Math.min(it.fq || 0, it.q), total: it.q }), set: n => { it.fq = Math.max(0, Math.min(it.q, n)); scanPaintList(); } },      // exemplaires foil de la ligne (fq), ajoutés foil à la collection
     onPick: (p, n) => scanEdChoose(it.id, p, n) });
 }

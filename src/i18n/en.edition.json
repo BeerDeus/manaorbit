@@ -33,5 +33,6 @@
   "Édition : {ed}": "Edition: {ed}",
   "Choisir l'édition de {name}": "Choose the edition of {name}",
   "Chercher une extension": "Search for a set",
-  "Aucune extension ne correspond à « {q} »": "No set matches “{q}”"
+  "Aucune extension ne correspond à « {q} »": "No set matches “{q}”",
+  "Recherche sur Scryfall…": "Searching Scryfall…"
 }
