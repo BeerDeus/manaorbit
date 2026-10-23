@@ -1,5 +1,5 @@
 // E2E compteur de vie (interface) : carte « Compteur de vie » de l'accueil, préparation avec invités (sans compte), compteur (3 affichages, ±1, ±10 maintenu, fiche d'un joueur),
-// proposition d'élimination, menu « … », fin de partie (classement, QR code du résultat), Mes parties, lien ?partie= (c'était moi), lien ?table= sans compte ; formats à 360 px (un appui : Commander, Standard, Libre ±, gardé pour la fois suivante), partie Standard à deux (20 PV, invité avec son deck, ni blessures de commandant ni impôt ni monarque, poison), Mes parties marquées, statistiques par format, lien du résultat Standard.
+// proposition d'élimination, menu « … », fin de partie (classement, QR code du résultat), Mes parties, lien ?partie= (c'était moi), lien ?table= sans compte ; formats à 360 px (un appui : Commander, Standard, Libre ±, gardé pour la fois suivante), partie Standard à deux (20 PV, invité avec son deck, ni blessures de commandant ni impôt ni monarque, poison), Mes parties marquées, statistiques par format, lien du résultat Standard ; bouton rond « … » sur une jointure à 2–8 joueurs (boîtes englobantes, 360 à 430 px, A B C), tuiles sans chevauchement, nom-bouton (réglages, compteurs), illustration du commandant en fond (art_crop), image de mon deck lue à la préparation.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { chromium, startWorld, newPage, txt, ok, toHome } from './e2e-world.mjs';
@@ -214,6 +214,87 @@ await qs.p.click('.pu-sheet [data-cl="2"]'); await qs.p.waitForFunction(() => pa
 assert.deepEqual(await qs.p.evaluate(() => [partieHist()[0].jeu, partieHist()[0].moi]), ['standard', 2]);
 assert.deepEqual(qs.errs, []); await qs.p.close();
 ok('formats à 360 px : un appui (Commander, Standard, Libre ±), gardé pour la fois suivante ; Standard à deux : 20 PV, invité avec son deck, ni blessures de commandant ni impôt ni monarque, poison ; fin, Mes parties marquées, statistiques par format, lien du résultat');
+
+/* ── Bouton rond, tailles, illustrations, nom-bouton : de 2 à 8 joueurs, trois affichages, quatre écrans ───────────────────────── */
+// partie de n joueurs ouverte d'office (moi : Martin, avec l'image de son deck ; Léa : poison, monarque ; les autres sans image)
+const IMG = 'https://cards.scryfall.io/small/front/a/b/x0.jpg';
+const game = (n, aff) => p.evaluate(async ({ n, aff, IMG }) => {
+  if (PU.el) { puClose(); await new Promise(r => setTimeout(r, 300)); }
+  while (sheets.length) sheets[sheets.length - 1].close();
+  const names = ['Martin', 'Léa', 'Paul', 'Zoé', 'Hugo', 'Inès', 'Noah', 'Jade'];
+  let g = partieNew({ moi: { nom: names[0], deck: { nom: 'Atraxa', commandant: 'Atraxa, Praetors\' Voice', image: IMG } }, now: Date.now() });
+  for (let i = 1; i < n; i++) g = partieAddPlace(g, { nom: names[i], deck: { commandant: i === 1 ? 'Yuriko, the Tiger\'s Shadow' : 'Commandant numéro ' + i } });
+  g = partieFirst(partieStart(g), 1); g = partieMark(partieCounter(g, 2, 'poison', 3), 'monarque', 2);
+  partieSave(g); localStorage.setItem('deckdeal:partie:aff', aff); puGo();
+}, { n, aff, IMG }).then(() => p.waitForSelector('.pu.on .pu-g.aff-' + aff + ' .pu-t')).then(() => p.waitForTimeout(400));      // l'écran finit d'arriver (glissé de 14 px)
+// boîtes englobantes : le bouton rond ne touche ni un nom, ni des PV, ni un signe − / +, ni « Fin du tour » ; il est sur une jointure (entre deux tuiles) ;
+// les tuiles ne se chevauchent pas et restent dans l'écran ; dans chaque tuile, les PV (sans le blanc de leur ligne) ne touchent ni le nom ni « Fin du tour »
+const layout = () => p.evaluate(() => {
+  const out = [], R = e => e.getBoundingClientRect(), X = (a, b, m = 0) => a.left < b.right - m && a.right > b.left + m && a.top < b.bottom - m && a.bottom > b.top + m;
+  const mid = document.querySelector('.pu-mid'), ts = [...document.querySelectorAll('.pu-t')];
+  if (mid) {
+    const m = R(mid), c = { x: m.left + m.width / 2, y: m.top + m.height / 2 };
+    for (const e of document.querySelectorAll('.pu-nm, .pu-life, .pu-hit > span, .pu-turn')) if (X(R(e), m)) out.push('rond sur ' + e.className + ' (' + e.closest('.pu-t').dataset.pos + ')');
+    if (ts.some(t => { const r = R(t); return c.x > r.left + 2 && c.x < r.right - 2 && c.y > r.top + 2 && c.y < r.bottom - 2; })) out.push('rond au milieu d\'une tuile');
+  }
+  for (let i = 0; i < ts.length; i++) {
+    const a = R(ts[i]); if (a.left < -1 || a.right > innerWidth + 1 || a.top < -1 || a.bottom > innerHeight + 1) out.push('tuile hors de l\'écran ' + ts[i].dataset.pos);
+    for (let k = i + 1; k < ts.length; k++) if (X(a, R(ts[k]))) out.push('tuiles l\'une sur l\'autre ' + ts[i].dataset.pos + '/' + ts[k].dataset.pos);
+    const l = R(ts[i].querySelector('.pu-life')), rv = ts[i].classList.contains('rv'), dx = rv ? l.width * .2 : 0, dy = rv ? 0 : l.height * .2, L = { left: l.left + dx, right: l.right - dx, top: l.top + dy, bottom: l.bottom - dy };
+    for (const e of ts[i].querySelectorAll('.pu-nm, .pu-turn')) if (X(R(e), L, 3)) out.push('PV sur ' + e.className + ' (' + ts[i].dataset.pos + ')');
+  }
+  return out;
+});
+const lifePx = () => p.$$eval('.pu-t .pu-life', b => b.map(x => parseFloat(getComputedStyle(x).fontSize)));
+for (const [W, H] of [[390, 844], [360, 740], [360, 640], [430, 932]]) {
+  await p.setViewportSize({ width: W, height: H });
+  for (let n = 2; n <= 8; n++) for (const aff of ['A', 'B', 'C']) {
+    await game(n, aff);
+    assert.deepEqual(await layout(), [], `${W}×${H}, ${n} joueurs, affichage ${aff}`);
+    assert.ok(Math.min(...await lifePx()) >= (n <= 4 ? 44 : 34), `${W}×${H}, ${n} joueurs, ${aff} : PV lisibles (${await lifePx()})`);
+    if (aff === 'A') {
+      const midOn = await p.evaluate(() => [...document.querySelectorAll('.pu-t[data-m]')].map(t => t.dataset.m).sort().join(''));
+      assert.equal(midOn, n === 2 ? 'cc' : n === 3 ? 'clr' : 'llrr', `${n} joueurs : les tuiles qui touchent le bouton rond écartent leur nom`);
+    }
+  }
+}
+await game(5, 'A'); await p.screenshot({ path: 'shots/partie-11-A-5.png' });
+ok('bouton rond « … » sur une jointure (jamais sur un nom, des PV, un signe − / +), tuiles sans chevauchement, PV à la taille des tuiles : 2 à 8 joueurs, A B C, 360 à 430 px');
+
+// nom : un bouton (icône de réglages, bordure), assez grand au doigt, les compteurs non nuls dedans ; il ouvre la fiche (son commandant en sous-titre)
+await p.setViewportSize({ width: 390, height: 844 }); await game(4, 'A');
+const nm = await p.$eval('.pu-t[data-pos="2"] .pu-nm', b => { const r = b.getBoundingClientRect(), cs = getComputedStyle(b); return { tags: [...b.querySelectorAll('.pu-tags use')].map(u => u.getAttribute('href')), ic: !!b.querySelector('.pu-nm-i use[href="#i-sliders"]'), thick: Math.min(r.width, r.height), border: cs.borderTopWidth, title: b.title }; });
+assert.deepEqual(nm.tags, ['#i-crown', '#i-poison'], 'monarque et poison dans le bouton du nom'); assert.ok(nm.ic, 'icône de réglages'); assert.ok(nm.thick >= 36, 'au doigt : ' + nm.thick); assert.equal(nm.border, '1px'); assert.match(nm.title, /Fiche du joueur/);
+await p.click('.pu-t[data-pos="2"] .pu-nm'); await p.waitForSelector('.pu-sheet .pu-lifebig');
+assert.equal(await sheetTop(), 'Léa'); assert.match(await p.evaluate(() => sheets[sheets.length - 1].wrap.querySelector('.sheet-head').textContent), /Yuriko, the Tiger's Shadow/, 'fiche : son commandant en sous-titre');
+await p.click('.pu-sheet [data-k="v"][data-n="-10"]'); await closeSheets();
+await p.click('.pu-mid'); await p.waitForSelector('[data-m="undo"]'); assert.equal(await txt(p, '[data-m="undo"] small'), 'Léa : −10 PV', 'annuler : ce qui sera défait, en clair'); await closeSheets();
+await p.click('.pu-t[data-pos="3"] .pu-hit.p'); assert.equal(await p.$eval('.pu-t[data-pos="3"] .pu-hit.p', h => h.classList.contains('fl')), true, '+1 : la moitié touchée s\'allume');
+assert.equal(await p.evaluate(() => { const d = TIP_DEFS.pnm; return d[0](PU.el) && d[1](PU.el) === PU.el.querySelector('.pu-nm'); }), true, 'astuce de la première fois (tour.js) : le nom d\'un joueur');
+ok('nom d\'un joueur : bouton (réglages, bordure, compteurs dedans), fiche avec son commandant ; « Annuler » dit quoi ; ±1 visible ; astuce');
+
+// illustration du commandant en fond (art_crop), gardée d'un appui à l'autre ; invité qui a tapé un nom connu de Scryfall : son image retrouvée ; sans image : rien
+const arts = () => p.$$eval('.pu-t', t => t.map(x => [x.dataset.pos, (x.querySelector('img.pu-art') || {}).src || ''].join(' ')));
+assert.deepEqual((await arts()).filter(x => !x.endsWith(' ')), ['1 https://cards.scryfall.io/art_crop/front/a/b/x0.jpg'], 'image du deck en art_crop ; sans image (commandant inconnu de Scryfall) : rien');
+assert.equal(await p.$eval('.pu-t[data-pos="1"]', t => t.classList.contains('art') && getComputedStyle(t.querySelector('.pu-bg'), '::after').backgroundImage.includes('gradient')), true, 'dégradé de sa couleur par-dessus');
+const img1 = await p.$('.pu-t[data-pos="1"] img.pu-art'); await p.click('.pu-t[data-pos="1"] .pu-hit.m');
+assert.equal(await img1.evaluate(e => e.isConnected && !!e.closest('.pu-t[data-pos="1"]')), true, 'la même image après −1 (pas de clignotement)');
+for (const aff of ['B', 'C']) { await game(3, aff); assert.match((await arts()).find(a => a.startsWith('1 ')), /art_crop\/front\/a\/b\/x0\.jpg$/, 'affichage ' + aff); }
+await p.evaluate(() => { const g = partieAddPlace(partieNew({ moi: { nom: 'Max' } }), { sorte: 'invite', nom: 'Bob', deck: { commandant: 'Edgar Markov' } }); partieSave(partieStart(g)); localStorage.setItem('deckdeal:partie:aff', 'A'); puClose(); });
+await p.waitForTimeout(300); await p.evaluate(() => puGo());
+await p.waitForFunction(() => /art_crop\/front\/a\/b\/edgar-markov\.jpg/.test((document.querySelector('.pu-t[data-pos="2"] img.pu-art') || {}).src || ''), null, { timeout: 8000 });
+assert.equal(await p.$('.pu-t[data-pos="1"] img.pu-art'), null, 'sans deck : pas d\'image');
+assert.equal(await p.evaluate(() => puArtUrl('https://cards.scryfall.io/png/front/1/2/abc.png?123')), 'https://cards.scryfall.io/art_crop/front/1/2/abc.jpg?123'); assert.equal(await p.evaluate(() => puArtUrl('https://example.com/small/a.jpg')), '');
+// mon deck à la préparation : commandant hors de la collection, fiche jamais lue (« Mes decks » pas ouvert) → lue à l'instant, l'image suit la place
+await p.evaluate(() => { puClose(); partieClear(); D.localList.push({ id: 'dkv', name: 'Vampires', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Sol Ring', updatedAt: Date.now() }); for (const k in DM) delete DM[k]; dmTried.clear(); });
+await p.waitForTimeout(300); await p.evaluate(() => puGo()); await p.waitForSelector('.pu.on select[data-pu="mydeck"]');
+assert.equal(await p.evaluate(() => puDeckImg(D.localList.find(d => d.id === 'dkv'))), '', 'fiche pas encore connue');
+await p.selectOption('select[data-pu="mydeck"]', 'dkv');
+await p.waitForFunction(() => (PU.st.places[0].deck || {}).image === 'https://cards.scryfall.io/small/front/a/b/edgar-markov.jpg', null, { timeout: 8000 });
+await p.waitForSelector('.pu-mydk img.pu-art[src*="art_crop/front/a/b/edgar-markov.jpg"]'); assert.match(await txt(p, '.pu-mydk'), /Edgar Markov/);
+await p.screenshot({ path: 'shots/partie-12-mon-deck.png' });
+await p.click('.pu-foot [data-pu="drop"]'); await p.waitForSelector('.sheet [data-ok]'); await p.click('.sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.pu') && !sheets.length);
+ok('illustration du commandant en fond (art_crop, dégradé, A B C), gardée d\'un appui à l\'autre ; invité : retrouvée par son nom ; mon deck : fiche lue à l\'instant, l\'image suit');
 
 const all = [...errs, ...q.errs, ...j.errs];
 console.log('erreurs page :', all.length ? all : 'aucune'); assert.deepEqual(all, []);

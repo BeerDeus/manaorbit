@@ -3,7 +3,9 @@
    · Préparation : format en un appui (Commander, Standard 1 contre 1, Libre ; gardé pour la fois suivante : deckdeal:partie:jeu), points de départ, ma place et mon deck, QR code de la table (compte connecté et en ligne : les autres rejoignent avec leur téléphone),
      invités ajoutés ici (sans téléphone, ou hors ligne), premier joueur, lancement.
    · Compteur (le téléphone du créateur, posé sur la table) : trois affichages au choix dans le menu « … » — A tourné vers chacun, B liste, C table —
-     toucher la moitié gauche / droite d'un joueur : −1 / +1 (maintenu : ±10) ; son nom : sa fiche (blessures de commandant, poison, impôt, monarque…).
+     toucher la moitié gauche / droite d'un joueur : −1 / +1 (maintenu : ±10, la moitié touchée s'allume) ; son nom (un bouton : icône de réglages, ses compteurs
+     en pastilles) : sa fiche (blessures de commandant, poison, impôt, monarque…). Bouton rond « … » de A sur une jointure de la grille, jamais sur un nom ni des PV ;
+     illustration du commandant en fond de chaque tuile (art_crop de Scryfall, sous un dégradé de la couleur du joueur), PV à la taille de la tuile.
    · Fin : vainqueur(s), résultat gardé et envoyé (partie.js › partieDone), QR code du résultat pour ceux qui n'ont pas rejoint.
    · Liens : ?table=CODE (rejoindre : se connecter ou continuer en invité, place, deck ; puis la table en direct au choix : ses points comptés d'ici, toute la table pour
      un co-hôte, des deltas que le téléphone du créateur applique ; partie annulée ou abandonnée : l'écran se ferme avec la raison) et ?partie=… (résultat : « c'était moi »).
@@ -128,7 +130,7 @@ function puSetupPaint() {
         ${jeu === 'commander' ? `<p class="pu-h">${T('Points de départ')}</p><div class="seg pu-fmt" role="radiogroup" aria-label="${T('Points de départ')}"></div>`
           : jeu === 'libre' ? `<p class="pu-h">${T('Points de départ')}</p><div class="pu-vie" role="group" aria-label="${T('Points de départ')}">${[-10, -1].map(n => `<button type="button" data-pu="vie" data-n="${n}"${st.format + n < 1 ? ' disabled' : ''}>−${-n}</button>`).join('')}<b aria-live="polite">${st.format}</b>${[1, 10].map(n => `<button type="button" data-pu="vie" data-n="${n}"${st.format + n > PRT_VIE_MAX ? ' disabled' : ''}>+${n}</button>`).join('')}</div>` : ''}
         <p class="hint pu-jeu-hint">${jeu === 'standard' ? T('20 points de vie, 1 contre 1 (une place de plus au besoin) : poison, énergie, expérience. Ni commandant ni blessures de commandant.') : jeu === 'libre' ? T('Points de vie au choix, jusqu\'à 8 joueurs : poison, monarque, initiative. Sans blessures de commandant.') : T('Jusqu\'à 8 joueurs : blessures de commandant, impôt, monarque, initiative, poison.')}</p></section>
-      ${me ? `<section class="pu-card"><p class="pu-h">${T('Mon deck')}</p>${decks.length ? `<label class="sortsel pu-deck"><select data-pu="mydeck" aria-label="${T('Mon deck')}"><option value="">${T('Aucun')}</option>${decks.map(d => `<option value="${esc(d.id)}"${me.deck && me.deck.nom === partieStr(d.name, PRT_LEN.deck) ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : `<p class="hint">${T('Aucun deck dans « Mes decks » : tu joueras sans deck affiché.')}</p>`}</section>` : ''}
+      ${me ? `<section class="pu-card"><p class="pu-h">${T('Mon deck')}</p>${decks.length ? `<label class="sortsel pu-deck"><select data-pu="mydeck" aria-label="${T('Mon deck')}"><option value="">${T('Aucun')}</option>${decks.map(d => `<option value="${esc(d.id)}"${me.deck && me.deck.nom === partieStr(d.name, PRT_LEN.deck) ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>${me.deck && (puArt(me) || puCmd(me)) ? `<div class="pu-mydk" style="--h:${puHue(me.pos)}">${puArt(me) ? `<img class="pu-art" alt="" loading="lazy" decoding="async" src="${esc(puArt(me))}">` : ''}<span>${esc(puCmd(me))}</span></div>` : ''}` : `<p class="hint">${T('Aucun deck dans « Mes decks » : tu joueras sans deck affiché.')}</p>`}</section>` : ''}
       <section class="pu-card pu-qr">${qr ? `<div class="pu-qr-img" role="img" aria-label="${T('QR code de la table')}">${qr}</div><div class="pu-qr-t"><b>${T('Les autres scannent ce QR code')}</b><span>${T('Ils choisissent leur place et leur deck, puis rangent leur téléphone. Code : {c}', { c: room.c })}</span></div>`
         : `<div class="pu-qr-t"><b>${T('Joueurs sans téléphone ou hors ligne')}</b><span>${!puOnline() ? T('Hors ligne : ajoute les joueurs ici, le résultat partira au retour du réseau.') : !D.user ? T('Connecte-toi pour que les autres rejoignent la table avec leur téléphone (QR code).') : !CTX.partie ? T('Serveur indisponible : ajoute les joueurs ici.') : T('Ouverture de la table…')}</span>${!D.user && puOnline() ? `<button class="btn ghost small" type="button" data-pu="login">${T('Se connecter')}</button>` : ''}</div>`}</section>
       ${roomOk ? `<section class="pu-card"><label class="switch-row" for="puAllco"><span class="t"><b>${T('Tout le monde est co-hôte')}</b><span class="hint">${T('Chaque téléphone qui rejoint compte aussi les points de toute la table et passe au tour suivant. Abandonner, éliminer ou terminer reste sur ce téléphone.')}</span></span><span class="switch"><input type="checkbox" id="puAllco"${PU.view && PU.view.allco ? ' checked' : ''}><i></i></span></label></section>` : ''}
@@ -140,7 +142,12 @@ function puSetupPaint() {
   if ($('.pu-fmt', el)) mountSeg($('.pu-fmt', el), PRT_FORMATS.map(f => ({ v: String(f), label: String(f) })), String(st.format), v => puVieSet(Number(v)));
   const ac = $('#puAllco', el); if (ac) ac.onchange = () => puAllco(ac.checked);
   const sel = $('select[data-pu="mydeck"]', el);
-  if (sel) sel.onchange = () => { const d = decks.find(x => x.id === sel.value), deck = d ? partieDeckOf(d, puDeckImg(d)) : null; puSet(partieSetPlace(PU.st, me.pos, { deck })); if (partieRoom()) partieRoomOp('me', { deck }).catch(() => {}); };
+  if (sel) sel.onchange = () => {
+    const d = decks.find(x => x.id === sel.value), deck = d ? partieDeckOf(d, puDeckImg(d)) : null, send = dk => { puSet(partieSetPlace(PU.st, me.pos, { deck: dk })); if (partieRoom()) partieRoomOp('me', { deck: dk }).catch(() => {}); };
+    send(deck);
+    if (d && deck && !deck.image) puDeckImgLoad(d).then(im => { const cur = PU.st && PU.st.places.find(p => p.pos === me.pos); if (im && PU.mode === 'setup' && cur && cur.deck && cur.deck.nom === deck.nom && !cur.deck.image) send(partieDeckOf(d, im)); });      // fiche du commandant lue à l'instant : l'image suit (tuile, salle, résultat)
+  };
+  puArtSoon();
 }
 /** Plus haute place prise dans la salle (vue du serveur), 0 sans salle. */
 const puViewMax = () => (PU.view && Array.isArray(PU.view.places) ? PU.view.places.reduce((a, x) => Math.max(a, x.pos), 0) : 0);
@@ -160,9 +167,41 @@ function puVieSet(f) {
   const next = partieSetFormat(PU.st, f); if (!puSet(next)) return;
   puPrefSave(next); puRoomOpts({ jeu: partieJeu(next), format: next.format });
 }
-/** Image du commandant d'un deck (petite image Scryfall connue de l'appli), '' sinon. */
+/** Image du commandant d'un deck (petite image Scryfall connue de l'appli : collection ou cache des decks), '' sinon. */
 function puDeckImg(d) {
-  try { const k = commanderKeys(d.text || '')[0], m = k && ((typeof COLL !== 'undefined' && COLL.meta[k]) || (typeof dmOf === 'function' && dmOf(k))); return m && m.im && PRT_IMG_RE.test(m.im) ? m.im : ''; } catch (e) { return ''; }
+  try { const k = commanderKeys(d.text || '')[0], m = k && puMeta(k); return m && m.im && PRT_IMG_RE.test(m.im) ? m.im : ''; } catch (e) { return ''; }
+}
+/** Même chose, la fiche du commandant lue au besoin : cache des decks relu (dmLoad), sinon Scryfall (dmFetch, gardée sur l'appareil). Avant, un commandant hors de la
+ *  collection n'avait d'image que si « Mes decks » avait été ouvert pendant la session : la place partait sans. '' : hors ligne, carte inconnue. */
+async function puDeckImgLoad(d) {      // lecture déjà partie pour la même carte (puArtSoon : dmFetch ne la refait pas) : son résultat attendu
+  let im = puDeckImg(d); if (im || typeof dmFetch !== 'function') return im;
+  try { if (typeof dmLoad === 'function') await dmLoad(); if (PU.artP) await PU.artP; im = puDeckImg(d); if (im) return im; const k = commanderKeys(d.text || '')[0], c = k && parseDeck(d.text || '').cards.find(x => x.key === k); if (c) await dmFetch([{ key: ownKey(c.key), name: c.name }]); } catch (e) { /* hors ligne */ }
+  return puDeckImg(d);
+}
+/* ── Illustration du commandant en fond de sa tuile ──────────────────────────────────────────── */
+/** Fiche Scryfall d'une carte connue de l'appli (collection, cache des decks : builder.js › DM), null sinon. */
+const puMeta = name => { try { const k = ownKey(name); return (typeof COLL !== 'undefined' && COLL.meta[k]) || (typeof DM !== 'undefined' && DM[k]) || null; } catch (e) { return null; } };
+/** Recadrage de l'illustration (art_crop de Scryfall) d'après une image de carte (cards.scryfall.io/<taille>/…) ; '' sinon. */
+const puArtUrl = u => (typeof u === 'string' && PRT_IMG_RE.test(u) ? u.replace(/^(https:\/\/cards\.scryfall\.io\/)(?:small|normal|large|png|border_crop)\//, '$1art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '');
+/** Premier commandant d'une place (« A + B » : partenaires). */
+const puCmd1 = p => String((p.deck && p.deck.commandant) || '').split(' + ')[0].trim();
+/** Illustration d'une place : l'image de son deck, sinon celle de son commandant si l'appli la connaît (invité qui a tapé son nom) ; '' : rien en fond. */
+function puArt(p) { const im = p.deck && p.deck.image; if (im) return puArtUrl(im); const c = puCmd1(p), m = c && puMeta(c); return m && m.im ? puArtUrl(m.im) : ''; }
+/** Commandants sans image (invité qui a tapé un nom, joueur venu avec un deck sans image) : fiches relues du cache, sinon lues sur Scryfall une fois (dmFetch : une seule
+ *  tentative par carte), puis l'écran repeint s'il y a du nouveau. Hors ligne, nom inconnu : la tuile garde sa couleur. */
+async function puArtSoon() {
+  const st = PU.st; if (PU.artRun || !st || typeof dmFetch !== 'function') return;
+  const need = [...new Set(st.places.filter(p => !(p.deck && p.deck.image)).map(puCmd1).filter(Boolean))], known = () => need.filter(n => { const m = puMeta(n); return m && m.im; }).length;
+  if (!need.length || known() === need.length) return;
+  PU.artRun = true; const k0 = known();
+  await (PU.artP = (async () => { try { if (typeof dmLoad === 'function') await dmLoad(); const miss = need.filter(n => !puMeta(n)).map(n => ({ key: ownKey(n), name: n })); if (miss.length) await dmFetch(miss); } catch (e) { /* hors ligne */ } })());
+  PU.artRun = false; PU.artP = null; if (!PU.el || !PU.st || PU.mode === 'end') return;
+  if (known() > k0) puPaint(); else if (PU.st.places.some(p => !(p.deck && p.deck.image) && puCmd1(p) && !need.includes(puCmd1(p)))) puArtSoon();      // place ajoutée, autre partie pendant la lecture : son tour
+}
+/** Illustrations déjà chargées remises dans l'écran repeint (même adresse) : pas de clignotement à chaque ±1 ni au tour suivant. */
+function puKeepArt(old, root) {
+  const by = new Map(); for (const im of old) by.set(im.dataset.pos + ' ' + im.getAttribute('src'), im);
+  for (const im of $$('img.pu-art', root)) { const o = by.get(im.dataset.pos + ' ' + im.getAttribute('src')); if (o && o !== im) im.replaceWith(o); }
 }
 async function puRoomOpen() {
   try {
@@ -221,64 +260,88 @@ async function puStart() {
 }
 
 /* ── Compteur ─────────────────────────────────────────────────────────────────────────────────── */
-/** Ordre de la table pour l'affichage A (tourné vers chacun) : [place, sens] ; sens 0 (en bas), 180 (en haut), 90 (colonne de gauche), 270 (colonne de droite). */
+/** Ordre de la table pour l'affichage A (tourné vers chacun) : [place, sens] ; sens 0 (en bas), 180 (en haut), 90 (colonne de gauche), 270 (colonne de droite).
+ *  mid : jointure où poser le bouton rond « … / Tour » (entre les rangées mid et mid + 1, au milieu en largeur) : au croisement de quatre tuiles tournées dès qu'il y en a
+ *  (leurs noms sont au milieu de leur bord intérieur, loin des coins), la plus proche du milieu de l'écran (à égalité, la plus basse) ; à 2 et 3 joueurs, contre le haut
+ *  d'une tuile droite. Chaque tuile qui touche le bouton le sait (m : 'l' / 'r', coin gauche / droit du haut de la tuile vue par son joueur ; 'c', milieu du haut) : son nom s'en écarte. */
 function puLayoutA(places) {
   const ps = places.slice().sort((a, b) => a.pos - b.pos), n = ps.length;
-  if (n === 2) return { cols: 1, cells: [{ p: ps[1], r: 180, area: 't' }, { p: ps[0], r: 0, area: 'b' }] };
-  const odd = n % 2 === 1, rest = odd ? ps.slice(1) : ps, k = rest.length / 2, cells = [];
+  if (n === 2) return { cols: 1, rows: 2, mid: 1, cells: [{ p: ps[1], r: 180, row: 1, col: 1, m: 'c' }, { p: ps[0], r: 0, row: 2, col: 1, m: 'c' }] };
+  const odd = n % 2 === 1, rest = odd ? ps.slice(1) : ps, k = rest.length / 2, R = k + (odd ? 1 : 0), cells = [];
   const left = rest.slice(0, k).reverse(), right = rest.slice(k);      // dans le sens des aiguilles d'une montre : colonne de gauche de bas en haut, puis la droite de haut en bas
   for (let i = 0; i < k; i++) { cells.push({ p: left[i], r: 90, row: i + 1, col: 1 }); cells.push({ p: right[i], r: 270, row: i + 1, col: 2 }); }
   if (odd) cells.push({ p: ps[0], r: 0, row: k + 1, col: '1 / span 2' });
-  return { cols: 2, rows: k + (odd ? 1 : 0), cells };
+  let mid = k; if (k >= 2) { mid = 1; for (let j = 2; j < k; j++) if (Math.abs(j - R / 2) <= Math.abs(mid - R / 2)) mid = j; }
+  for (const c of cells) {      // 90° : le haut de la tuile est à droite de l'écran, sa gauche en haut ; 270° : le haut à gauche, sa gauche en bas
+    if (c.r === 0) { if (c.row === mid + 1) c.m = 'c'; } else if (c.row === mid) c.m = c.r === 90 ? 'r' : 'l'; else if (c.row === mid + 1) c.m = c.r === 90 ? 'l' : 'r';
+  }
+  return { cols: 2, rows: R, mid, cells };
 }
-function puTile(st, p, r) {
-  const dead = !!p.elimine, act = st.actif === p.pos && !dead, d = PU.deltas[p.pos], tags = [];
+/** Affichage C (table) : moi en bas, puis dans le sens des aiguilles d'une montre la colonne de gauche (de bas en haut), le haut (nombre impair d'adversaires), la colonne
+ *  de droite (de haut en bas), autour de la table (tour, joueur qui joue) ; tuiles droites en grille : jamais l'une sur l'autre, toute la hauteur de l'écran prise. */
+function puLayoutC(places) {
+  const ps = places.slice().sort((a, b) => a.pos - b.pos), rest = ps.slice(1), top = rest.length % 2 === 1, s = Math.floor(rest.length / 2), r0 = top ? 2 : 1, cells = [];
+  rest.slice(0, s).forEach((p, i) => cells.push({ p, row: r0 + s - 1 - i, col: 1 }));
+  if (top) cells.push({ p: rest[s], row: 1, col: '1 / -1' });
+  rest.slice(s + (top ? 1 : 0)).forEach((p, i) => cells.push({ p, row: r0 + i, col: 3 }));
+  cells.push({ p: ps[0], row: s ? r0 + s : 3, col: '1 / -1' });      // à deux : la table entre les deux tuiles
+  return { s, r0, rows: s ? r0 + s : 3, cells };
+}
+const puHue = pos => [265, 200, 150, 28, 340, 52, 180, 300][(pos - 1) % 8];
+/** Tuile d'un joueur. m : coin ou milieu du haut touché par le bouton rond (puLayoutA). Son nom est un bouton (icône de réglages, ses compteurs non nuls en pastilles) :
+ *  sa fiche. Illustration de son commandant en fond (recadrée, sous un dégradé de sa couleur) ; PV à la taille de la tuile (cq : la cellule, tournée ou non). */
+function puTile(st, p, r, m = '') {
+  const dead = !!p.elimine, act = st.actif === p.pos && !dead, d = PU.deltas[p.pos], tags = [], art = puArt(p), nm = esc(p.nom || T('Joueur {n}', { n: p.pos }));
   if (st.monarque === p.pos) tags.push(`<span class="pu-tag" title="${T('Monarque')}"><svg class="i" aria-hidden="true"><use href="#i-crown"/></svg></span>`);
   if (st.initiative === p.pos) tags.push(`<span class="pu-tag" title="${T('Initiative')}"><svg class="i" aria-hidden="true"><use href="#i-castle"/></svg></span>`);
   if (p.compteurs.poison) tags.push(`<span class="pu-tag" title="${T('Poison')}"><svg class="i" aria-hidden="true"><use href="#i-poison"/></svg>${p.compteurs.poison}</span>`);
   if (p.compteurs.impot) tags.push(`<span class="pu-tag" title="${T('Impôt de commandant')}">+${p.compteurs.impot * 2}</span>`);
   if (puCoOf(p.pos)) tags.push(`<span class="pu-tag pu-cotag" title="${T('Co-hôte : compte aussi pour la table depuis son téléphone')}">${T('Co-hôte')}</span>`);
   const bl = Object.values(p.blessures).reduce((a, x) => Math.max(a, x), 0); if (bl) tags.push(`<span class="pu-tag" title="${T('Blessures de commandant (la plus haute)')}"><svg class="i" aria-hidden="true"><use href="#i-sword"/></svg>${bl}</span>`);
-  return `<div class="pu-t${dead ? ' dead' : ''}${act ? ' act' : ''}${r === 90 || r === 270 ? ' rv' : ''}" data-pos="${p.pos}" style="--r:${r || 0}deg;--h:${[265, 200, 150, 28, 340, 52, 180, 300][(p.pos - 1) % 8]}"><div class="pu-in">
-      <button type="button" class="pu-hit m" data-d="-1" aria-label="${T('{name} : −1 point de vie', { name: esc(p.nom || p.pos) })}"><span aria-hidden="true">−</span></button>
-      <button type="button" class="pu-hit p" data-d="1" aria-label="${T('{name} : +1 point de vie', { name: esc(p.nom || p.pos) })}"><span aria-hidden="true">+</span></button>
-      <button type="button" class="pu-nm" data-pu="pl" data-pos="${p.pos}">${esc(p.nom || T('Joueur {n}', { n: p.pos }))}${puCmd(p) ? `<small>${esc(puCmd(p))}</small>` : ''}</button>
-      <b class="pu-life" aria-live="polite">${dead ? '<svg class="i pu-dead" aria-hidden="true"><use href="#i-skull"/></svg>' : p.vie}</b>${d && d.n ? `<span class="pu-dl">${d.n > 0 ? '+' : ''}${d.n}</span>` : ''}
-      <span class="pu-tags">${tags.join('')}</span>
+  return `<div class="pu-t${dead ? ' dead' : ''}${act ? ' act' : ''}${r === 90 || r === 270 ? ' rv' : ''}${art ? ' art' : ''}${m ? ' mid-' + m : ''}" data-pos="${p.pos}"${m ? ` data-m="${m}"` : ''} style="--r:${r || 0}deg;--h:${puHue(p.pos)}"><div class="pu-in">
+      ${art ? `<span class="pu-bg" aria-hidden="true"><img class="pu-art" data-pos="${p.pos}" alt="" loading="lazy" decoding="async" src="${esc(art)}"></span>` : ''}
+      <button type="button" class="pu-hit m" data-d="-1" aria-label="${T('{name} : −1 point de vie', { name: nm })}"><span aria-hidden="true">−</span></button>
+      <button type="button" class="pu-hit p" data-d="1" aria-label="${T('{name} : +1 point de vie', { name: nm })}"><span aria-hidden="true">+</span></button>
+      <div class="pu-top"><button type="button" class="pu-nm" data-pu="pl" data-pos="${p.pos}" title="${T('Fiche du joueur : blessures de commandant, compteurs')}"><span class="pu-nm-h"><svg class="i pu-nm-i" aria-hidden="true"><use href="#i-sliders"/></svg><span class="pu-nm-w"><b>${nm}</b>${puCmd(p) ? `<small>${esc(puCmd(p))}</small>` : ''}</span></span>${tags.length ? `<span class="pu-tags">${tags.join('')}</span>` : ''}</button></div>
+      <span class="pu-lb"><b class="pu-life${!dead && (p.vie >= 100 || p.vie <= -10) ? ' l3' : ''}" aria-live="polite">${dead ? '<svg class="i pu-dead" aria-hidden="true"><use href="#i-skull"/></svg>' : p.vie}${d && d.n ? `<span class="pu-dl">${d.n > 0 ? '+' : ''}${d.n}</span>` : ''}</b></span>
       ${act ? `<button type="button" class="pu-turn" data-pu="next">${T('Fin du tour')}</button>` : ''}
     </div></div>`;
 }
 function puGamePaint() {
-  const st = PU.st, el = PU.el, aff = puAff(), prop = partieProposals(st).find(x => !PU.gone.has(x.pos + ':' + x.cause + ':' + (x.par || '')));
+  const st = PU.st, el = PU.el, aff = puAff(), prop = partieProposals(st).find(x => !PU.gone.has(x.pos + ':' + x.cause + ':' + (x.par || ''))), old = $$('img.pu-art', el);
+  const cell = (c, r) => `<div class="pu-cell" style="grid-row:${c.row};grid-column:${c.col}">${puTile(st, c.p, r, c.m)}</div>`;
   let body = '';
   if (aff === 'A') {
     const L = puLayoutA(st.places);
-    body = `<div class="pu-a" style="--cols:${L.cols};--rows:${L.rows || 2}">${L.cells.map(c => `<div class="pu-cell" style="${c.row ? `grid-row:${c.row};grid-column:${c.col}` : ''}">${puTile(st, c.p, c.r)}</div>`).join('')}</div>`;
+    body = `<div class="pu-a" style="--cols:${L.cols};--rows:${L.rows};--mj:${L.mid}">${L.cells.map(c => cell(c, c.r)).join('')}<button type="button" class="pu-mid" data-pu="menu" aria-label="${T('Options de la partie')}"><svg class="i"><use href="#i-more"/></svg><small>${T('Tour {t}', { t: st.tour })}</small></button></div>`;
   } else if (aff === 'B') {
     body = `<div class="pu-b">${st.places.slice().sort((a, b) => a.pos - b.pos).map(p => `<div class="pu-cell">${puTile(st, p, 0)}</div>`).join('')}</div>`;
   } else {
-    const n = st.places.length, ps = st.places.slice().sort((a, b) => a.pos - b.pos);
-    const w = n <= 4 ? 40 : n <= 6 ? 36 : 32, h = n <= 4 ? 25 : n <= 6 ? 21 : 18, rx = 50 - w / 2 - 0.5, ry = 50 - h / 2 - 0.5;      // tuiles autour d'un ovale, sans déborder de l'écran
-    body = `<div class="pu-c" style="--w:${w}%;--h2:${h}%">${ps.map((p, i) => { const a = Math.PI / 2 + (2 * Math.PI * i) / n; return `<div class="pu-cell" style="--x:${(50 + rx * Math.cos(a)).toFixed(1)}%;--y:${(50 + ry * Math.sin(a)).toFixed(1)}%">${puTile(st, p, 0)}</div>`; }).join('')}<div class="pu-c-mid"><b>${T('Tour {t}', { t: st.tour })}</b><span>${esc(puName(st, st.actif))}</span></div></div>`;
+    const L = puLayoutC(st.places);
+    body = `<div class="pu-c" style="grid-template-rows:${L.s ? `repeat(${L.rows},minmax(0,1fr))` : 'minmax(0,1fr) auto minmax(0,1fr)'}">${L.cells.map(c => cell(c, 0)).join('')}<div class="pu-c-mid" style="${L.s ? `grid-row:${L.r0} / span ${L.s};grid-column:2` : 'grid-row:2;grid-column:1 / -1'}"><b>${T('Tour {t}', { t: st.tour })}</b><span>${esc(puName(st, st.actif))}</span></div></div>`;
   }
   el.innerHTML = `<div class="pu-g aff-${aff}">${aff !== 'A' ? `<div class="pu-bar"><span><b>${T('Tour {t}', { t: st.tour })}</b> · ${esc(T('{name} joue', { name: puName(st, st.actif) }))}</span><button type="button" class="btn small" data-pu="next">${T('Tour suivant')}</button><button type="button" class="icon-btn pu-more" data-pu="menu" aria-label="${T('Options de la partie')}"><svg class="i"><use href="#i-more"/></svg></button></div>` : ''}
-      ${body}${aff === 'A' ? `<button type="button" class="pu-mid" data-pu="menu" aria-label="${T('Options de la partie')}"><svg class="i"><use href="#i-more"/></svg><small>${T('Tour {t}', { t: st.tour })}</small></button>` : ''}
+      ${body}
       ${prop ? `<div class="pu-prop" role="alert"><span>${esc(prop.cause === 'vie' ? T('{name} n\'a plus de points de vie', { name: puName(st, prop.pos) }) : prop.cause === 'poison' ? T('{name} a 10 marqueurs poison', { name: puName(st, prop.pos) }) : T('{name} a reçu 21 blessures du commandant de {src}', { name: puName(st, prop.pos), src: puName(st, prop.par) }))}</span><button type="button" class="btn small" data-pu="elim" data-pos="${prop.pos}" data-c="${prop.cause}" data-par="${prop.par || ''}">${T('Éliminer')}</button><button type="button" class="btn ghost small" data-pu="keep" data-k="${prop.pos}:${prop.cause}:${prop.par || ''}">${T('Pas encore')}</button></div>` : ''}
     </div>`;
+  puKeepArt(old, el); puArtSoon();
+  if (typeof tipSoon === 'function') tipSoon(1500);      // astuce (tour.js) : toucher le nom d'un joueur ouvre sa fiche
 }
-/** ±n points de vie (cumul affiché quelques secondes sur la tuile). */
+/** ±n points de vie (cumul affiché quelques secondes sur la tuile, la moitié touchée s'allume un instant). */
 function puLife(pos, n) {
   const next = partieLife(PU.st, pos, n); if (next === PU.st) return;
   const d = PU.deltas[pos] = PU.deltas[pos] && Date.now() - PU.deltas[pos].t < PRT_MERGE_MS ? PU.deltas[pos] : { n: 0, t: 0 };
   d.n += n; d.t = Date.now(); clearTimeout(d.to); d.to = setTimeout(() => { if (PU.deltas[pos] === d) { delete PU.deltas[pos]; if (PU.mode === 'game') puPaintTile(pos); } }, PRT_MERGE_MS);
-  haptic('tap'); puSet(next, { paint: false }); puPaintTile(pos);
+  haptic('tap'); puSet(next, { paint: false });
+  const t = puPaintTile(pos), h = t && $(n < 0 ? '.pu-hit.m' : '.pu-hit.p', t); if (h) h.classList.add('fl');
   if (partieProposals(PU.st).some(x => x.pos === pos && !PU.gone.has(x.pos + ':' + x.cause + ':' + (x.par || '')))) puPaint();
 }
-/** Repeint une seule tuile (appuis rapides : pas de liste entière refaite). */
+/** Repeint une seule tuile (appuis rapides : pas de liste entière refaite, l'illustration gardée) ; la nouvelle tuile, null si tout a été repeint. */
 function puPaintTile(pos) {
-  const t = PU.el && $(`.pu-t[data-pos="${pos}"]`, PU.el), p = PU.st.places.find(x => x.pos === pos); if (!t || !p) { puPaint(); return; }
-  const r = getComputedStyle(t).getPropertyValue('--r').trim(), tmp = document.createElement('div'); tmp.innerHTML = puTile(PU.st, p, parseFloat(r) || 0);
-  t.replaceWith(tmp.firstElementChild);
+  const t = PU.el && $(`.pu-t[data-pos="${pos}"]`, PU.el), p = PU.st.places.find(x => x.pos === pos); if (!t || !p) { puPaint(); return null; }
+  const r = getComputedStyle(t).getPropertyValue('--r').trim(), tmp = document.createElement('div'); tmp.innerHTML = puTile(PU.st, p, parseFloat(r) || 0, t.dataset.m || '');
+  const n = tmp.firstElementChild; puKeepArt($$('img.pu-art', t), n); t.replaceWith(n);
+  return n;
 }
 /* Appui maintenu sur une moitié de tuile : ±10 tout de suite, puis toutes les 0,5 s ; appui court : ±1 (au relâché). */
 function puDown(e) {
@@ -294,7 +357,7 @@ function puCancel() { if (PU.hold) { clearTimeout(PU.hold.t); PU.hold = null; } 
 
 /** Fiche d'un joueur : vie, blessures de commandant (par adversaire, 2e commandant pour les partenaires), compteurs, monarque, initiative, élimination, nom. */
 function puPlayerSheet(pos) {
-  openSheet(puName(PU.st, pos), '', api => {
+  openSheet(puName(PU.st, pos), puCmd(PU.st.places.find(x => x.pos === pos) || {}), api => {      // sous-titre : son commandant (ou son deck)
     api.wrap.classList.add('pu-sheet');
     const step = (k, v, lbl, extra = '') => `<div class="pu-row"><span>${lbl}</span><span class="qstep"><button type="button" data-k="${k}" data-n="-1"${extra}>−</button><b>${v}</b><button type="button" data-k="${k}" data-n="1"${extra}>+</button></span></div>`;
     const paint = () => {
@@ -349,16 +412,27 @@ function puRename(pos, done) {
     setTimeout(() => inp.select(), 60);
   });
 }
-/** Menu « … » : affichage (A, B, C), tour suivant, premier joueur au hasard, annuler, terminer, mettre en pause, abandonner. */
+/** Dernière action du journal, en clair sous « Annuler la dernière action » (« Léa : −3 PV ») ; '' : rien à dire (lancement, premier joueur). */
+function puLastTxt(st, e) {
+  if (!e) return ''; const nm = puName(st, e.p), sg = n => (n > 0 ? '+' : '−') + Math.abs(n);
+  if (e.a === 'v') return T('{name} : {n} PV', { name: nm, n: sg(e.n) });
+  if (e.a === 'b') return T('{name} : {n} blessures de commandant', { name: nm, n: sg(e.n) });
+  if (e.a === 'c') { const c = PU_CNT.find(([k]) => k === e.k); return c ? T('{name} : {what} {n}', { name: nm, what: T(c[1]), n: sg(e.n) }) : ''; }
+  if (e.a === 'n') return T('Tour suivant');
+  if (e.a === 'm' || e.a === 'i') return (e.a === 'm' ? T('Monarque') : T('Initiative')) + (e.p ? ' : ' + nm : '');
+  if (e.a === 'e') return T('Élimination de {name}', { name: nm });
+  return '';
+}
+/** Menu « … » : affichage (A, B, C), tour suivant, premier joueur au hasard, annuler (ce qui sera défait, en clair), terminer, mettre en pause, abandonner. */
 function puMenu() {
   openSheet(T('Partie'), T('Tour {t} · {name} joue', { t: PU.st.tour, name: puName(PU.st, PU.st.actif) }), api => {
     api.wrap.classList.add('pu-sheet');
-    const last = PU.st.journal[PU.st.journal.length - 1];
+    const last = PU.st.journal[PU.st.journal.length - 1], lt = puLastTxt(PU.st, last);
     api.body.innerHTML = `<p class="pu-h">${T('Affichage')}</p><div class="pu-affs" role="radiogroup" aria-label="${T('Affichage')}">${[['A', T('Tourné vers chacun')], ['B', T('Liste')], ['C', T('Table')]].map(([v, l]) => `<button type="button" role="radio" data-aff="${v}" aria-checked="${puAff() === v}"><i class="pu-ico pu-ico-${v}" aria-hidden="true"></i><span>${l}</span></button>`).join('')}</div>
       <div class="pu-menu">
         <button type="button" data-m="next"><b>${T('Tour suivant')}</b></button>
         ${PU.st.tour <= 1 ? `<button type="button" data-m="first"><b>${T('Premier joueur au hasard')}</b></button>` : ''}
-        <button type="button" data-m="undo"${last ? '' : ' disabled'}><b>${T('Annuler la dernière action')}</b></button>
+        <button type="button" data-m="undo"${last ? '' : ' disabled'}><b>${T('Annuler la dernière action')}</b>${lt ? `<small>${esc(lt)}</small>` : ''}</button>
         <button type="button" data-m="end"><b>${T('Terminer la partie')}</b><small>${T('Vainqueur, résultat envoyé aux joueurs')}</small></button>
         <button type="button" data-m="pause"><b>${T('Mettre en pause')}</b><small>${T('Reprendre plus tard depuis l\'accueil')}</small></button>
         <button type="button" data-m="drop" class="danger-txt"><b>${T('Abandonner la partie')}</b><small>${T('Rien n\'est gardé')}</small></button>

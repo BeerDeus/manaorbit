@@ -1,0 +1,8 @@
+{
+"Fiche du joueur : blessures de commandant, compteurs": "Player sheet: commander damage, counters",
+"{name} : {n} PV": "{name}: {n} life",
+"{name} : {n} blessures de commandant": "{name}: {n} commander damage",
+"{name} : {what} {n}": "{name}: {what} {n}",
+"Élimination de {name}": "{name} eliminated",
+"Touche le nom d'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…": "Tap a player's name: their sheet, with commander damage, poison, the monarch…"
+}

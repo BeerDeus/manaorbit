@@ -142,42 +142,85 @@
 /* Compteur : plein écran sombre, quel que soit le thème */
 .pu.pu-game{background:#05070f;color:#f3f5ff}
 .pu-g{position:absolute;inset:0;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 6px) 6px calc(env(safe-area-inset-bottom) + 6px);gap:6px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.pu-a{flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:6px}
+.pu-a{flex:1;min-height:0;position:relative;display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-template-rows:repeat(var(--rows),minmax(0,1fr));gap:6px}
 .pu-b{flex:1;min-height:0;display:grid;grid-auto-rows:minmax(0,1fr);gap:6px}
-.pu-c{flex:1;min-height:0;position:relative}
-.pu-cell{position:relative;container-type:size;min-width:0;min-height:0}
-.pu-c .pu-cell{position:absolute;left:var(--x);top:var(--y);width:var(--w);height:var(--h2);transform:translate(-50%,-50%)}
+.pu-c{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) clamp(44px,13%,72px) minmax(0,1fr);gap:6px}      /* table : colonnes de gauche et de droite, la table au milieu, le haut et le bas sur toute la largeur (puLayoutC) */
+.pu-cell{position:relative;container:pucell / size;min-width:0;min-height:0}
+/* tuile : vue par son joueur (tournée : .pu-in a la largeur et la hauteur de la cellule échangées), en colonne : nom, PV (toute la place qui reste), « Fin du tour » */
 .pu-t{position:absolute;inset:0;border-radius:20px;overflow:hidden;background:linear-gradient(160deg,hsl(var(--h) 55% 30%),hsl(var(--h) 50% 18%));box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
 .pu-t.act{box-shadow:inset 0 0 0 3px rgba(255,255,255,.85),0 0 24px hsl(var(--h) 80% 60% / .55)}
 .pu-t.dead{filter:grayscale(1);opacity:.45}
-.pu-in{position:absolute;left:50%;top:50%;width:100cqw;height:100cqh;transform:translate(-50%,-50%) rotate(var(--r));display:flex;align-items:center;justify-content:center}
+.pu-in{position:absolute;left:50%;top:50%;width:100cqw;height:100cqh;transform:translate(-50%,-50%) rotate(var(--r));display:flex;flex-direction:column;align-items:stretch;padding-bottom:10px}
 .pu-t.rv .pu-in{width:100cqh;height:100cqw}
-.pu-hit{position:absolute;top:0;bottom:0;width:50%;border:0;background:none;color:rgba(255,255,255,.45);font-size:clamp(18px,9cqmin,40px);font-weight:300;font-family:inherit;display:flex;align-items:center;padding:0 7%;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+/* illustration du commandant (art_crop), tournée avec le joueur, sous un dégradé de sa couleur : plus sombre en haut (nom) et en bas (« Fin du tour »), les PV lisibles */
+.pu-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.pu-bg img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 28%;filter:saturate(.85)}
+.pu-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,hsl(var(--h) 60% 11% / .86) 0%,hsl(var(--h) 55% 16% / .58) 34%,hsl(var(--h) 55% 16% / .58) 64%,hsl(var(--h) 60% 9% / .9) 100%)}
+.pu-t.art .pu-life{text-shadow:0 2px 16px rgba(0,0,0,.6),0 0 2px rgba(0,0,0,.35)}
+.pu-hit{position:absolute;top:0;bottom:0;width:50%;border:0;background:none;color:rgba(255,255,255,.55);font-size:clamp(20px,10cqmin,44px);font-weight:300;font-family:inherit;display:flex;align-items:center;padding:0 7%;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .pu-hit.m{left:0;justify-content:flex-start}
 .pu-hit.p{right:0;justify-content:flex-end}
 .pu-hit:active{background:rgba(255,255,255,.07)}
-.pu-nm{position:absolute;top:7%;left:50%;transform:translateX(-50%);z-index:2;max-width:70%;border:0;border-radius:99px;padding:4px 12px;background:rgba(0,0,0,.25);color:#fff;font-family:inherit;font-size:clamp(12px,6cqmin,17px);font-weight:700;display:flex;flex-direction:column;align-items:center;line-height:1.15;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.pu-nm small{font-size:.72em;font-weight:600;opacity:.75;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.pu-life{position:relative;z-index:1;pointer-events:none;font-size:clamp(38px,38cqmin,150px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
-.pu-dl{position:absolute;left:50%;top:22%;transform:translateX(-50%);z-index:1;pointer-events:none;font-size:clamp(13px,8cqmin,24px);font-weight:800;color:#fff;opacity:.9;animation:puDl .25s ease-out}
-@keyframes puDl{from{opacity:0;transform:translate(-50%,6px)}}
-.pu-tags{position:absolute;bottom:7%;left:50%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:none;font-size:clamp(11px,5.5cqmin,15px);font-weight:700;white-space:nowrap}
-.pu-tag{padding:2px 7px;border-radius:99px;background:rgba(0,0,0,.28)}
-.pu-turn{position:absolute;bottom:20%;left:50%;transform:translateX(-50%);z-index:2;border:0;border-radius:99px;padding:5px 12px;background:#fff;color:#0b0f1c;font-family:inherit;font-size:clamp(11px,5cqmin,14px);font-weight:800;white-space:nowrap}
-.pu-t:not(.act) .pu-tags:empty{display:none}
-.pu-mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;width:62px;height:62px;border-radius:50%;border:2px solid rgba(255,255,255,.9);background:#0b0f1c;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;box-shadow:0 6px 24px rgba(0,0,0,.6);font-family:inherit}
+.pu-hit.fl{animation:puFl .4s ease-out}      /* ±1 : la moitié touchée s'allume un instant (la tuile est repeinte à chaque appui) */
+.pu-hit.m.fl{--fl:rgba(255,120,120,.22)}
+.pu-hit.p.fl{--fl:rgba(140,255,170,.2)}
+@keyframes puFl{from{background:var(--fl)}to{background:transparent}}
+/* nom : un vrai bouton (icône de réglages, bordure) → fiche du joueur ; ses compteurs non nuls en pastilles ; écarté du bouton rond (mid-l, mid-r, mid-c : puLayoutA) */
+.pu-top{position:relative;z-index:2;flex:none;margin:8px var(--nr,10px) 4px var(--nl,10px);display:flex;justify-content:center;pointer-events:none}
+.pu-t.mid-l .pu-top{--nl:40px}
+.pu-t.mid-r .pu-top{--nr:40px}
+.pu-t.mid-c .pu-top{margin-top:40px}
+.pu-nm{pointer-events:auto;max-width:100%;min-height:38px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:3px 7px;padding:4px 11px 4px 8px;border:1px solid rgba(255,255,255,.32);border-radius:14px;background:rgba(8,10,22,.48);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.28);color:#fff;font-family:inherit;font-size:clamp(13px,6.4cqmin,18px);font-weight:750;line-height:1.15;text-align:left;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.pu-nm:active{transform:scale(.97);background:rgba(255,255,255,.18)}
+.pu-nm-h{display:flex;align-items:center;gap:6px;min-width:0;max-width:100%}
+.pu-nm-i{flex:none;width:1.05em;height:1.05em;opacity:.8}
+.pu-nm-w{display:flex;flex-direction:column;min-width:0}
+.pu-nm-w b,.pu-nm-w small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-nm-w small{font-size:.7em;font-weight:600;opacity:.78}
+.pu-tags{display:flex;gap:4px;flex:none;font-size:.78em;font-weight:750;white-space:nowrap}
+.pu-tag{padding:1px 6px;border-radius:99px;background:rgba(255,255,255,.17)}
+/* PV : aussi grands que la place sous le nom le permet (.pu-lb, conteneur : hauteur et largeur entre les signes − et +) ; 3 chiffres : plus petits */
+.pu-lb{position:relative;z-index:1;flex:1 1 0;min-height:0;container:pulb / size;display:grid;place-items:center;pointer-events:none}
+.pu-life{--k:1;position:relative;pointer-events:none;font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64) * var(--k)),200px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.pu-life.l3{--k:.7}
+.pu-dl{position:absolute;left:100%;top:.06em;margin-left:.05em;font-size:max(14px,.28em);font-weight:800;letter-spacing:0;color:#fff;opacity:.92;animation:puDl .25s ease-out}      /* cumul des derniers appuis, en exposant des PV */
+@keyframes puDl{from{opacity:0;transform:translateY(6px)}}
+.pu-turn{position:relative;z-index:2;flex:none;align-self:center;margin-top:2px;border:0;border-radius:99px;min-height:32px;padding:5px 14px;background:#fff;color:#0b0f1c;font-family:inherit;font-size:clamp(12px,5cqmin,15px);font-weight:800;white-space:nowrap}
+/* tuile basse et large (liste à 5 joueurs et plus, haut et bas de la table) : nom en haut à gauche par-dessus, signes − et + en bas, PV à droite du milieu (loin du nom) */
+@container pucell (max-height:170px) and (min-aspect-ratio:3/2){
+  .pu-t:not(.rv) .pu-top{position:absolute;top:6px;left:8px;margin:0;max-width:48%;justify-content:flex-start}
+  .pu-t:not(.rv) .pu-turn{display:none}      /* « Tour suivant » est dans la barre du haut, la tuile qui joue est cerclée de blanc */
+  .pu-t:not(.rv) .pu-hit{align-items:flex-end;padding-bottom:6px;font-size:clamp(18px,24cqh,30px)}
+  .pu-t:not(.rv) .pu-in{padding-bottom:0}
+  .pu-t:not(.rv) .pu-lb{container-type:normal;padding-left:34%}      /* PV à la taille de la cellule */
+  .pu-t:not(.rv) .pu-life{font-size:clamp(26px,calc(min(100cqh * .72,(100cqw - 56px) * .36) * var(--k)),120px)}
+}
+/* tuile basse et étroite (côtés de la table à 8) : sans le commandant ni « Fin du tour » (dans la barre du haut), signes − et + en bas */
+@container pucell (max-height:150px){
+  .pu-t:not(.rv) .pu-nm-w small{display:none}
+  .pu-t:not(.rv) .pu-turn{display:none}
+}
+@container pucell (max-height:150px) and (max-aspect-ratio:3/2){
+  .pu-t:not(.rv) .pu-hit{align-items:flex-end;padding-bottom:6px;font-size:clamp(18px,22cqh,28px)}
+}
+.pu-mid{position:absolute;left:50%;top:calc((100% - (var(--rows) - 1) * 6px) * var(--mj) / var(--rows) + (var(--mj) - .5) * 6px);transform:translate(-50%,-50%);z-index:5;width:58px;height:58px;border-radius:50%;border:2px solid rgba(255,255,255,.9);background:#0b0f1c;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;box-shadow:0 6px 24px rgba(0,0,0,.6);font-family:inherit}      /* sur une jointure de la grille (puLayoutA › mid) */
 .pu-mid .i{width:22px;height:22px}
 .pu-mid small{font-size:10px;font-weight:700;opacity:.8}
 .pu-bar{display:flex;align-items:center;gap:8px;padding:2px 4px;font-size:14px}
 .pu-bar>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pu-bar .icon-btn{color:#fff;border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.06)}
-.pu-c-mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;display:flex;flex-direction:column;gap:2px;pointer-events:none}
-.pu-c-mid b{font-size:18px}
-.pu-c-mid span{font-size:13px;opacity:.75}
+.pu-c-mid{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 4px;border-radius:18px;border:1px solid rgba(255,255,255,.1);background:radial-gradient(ellipse at 50% 40%,rgba(255,255,255,.07),rgba(255,255,255,.02));text-align:center;pointer-events:none}
+.pu-c-mid b{font-size:14.5px;white-space:nowrap}
+.pu-c-mid span{max-width:100%;font-size:12px;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pu-prop{position:absolute;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px;border-radius:16px;background:#1a2136;border:1px solid #3a4470;box-shadow:0 12px 32px rgba(0,0,0,.6);color:#fff}
 .pu-prop span{flex:1 1 100%;font-size:14px;font-weight:600}
 .pu-prop .btn{flex:1}
-@media (prefers-reduced-motion: reduce){.pu-dl{animation:none}}
+@media (prefers-reduced-motion: reduce){.pu-dl,.pu-hit.fl{animation:none}}
+/* Préparation : mon deck choisi, avec l'illustration de son commandant */
+.pu-mydk{position:relative;display:flex;align-items:flex-end;min-height:78px;padding:10px 12px;border-radius:14px;overflow:hidden;background:linear-gradient(160deg,hsl(var(--h) 55% 30%),hsl(var(--h) 50% 18%));color:#fff;font-size:14px;font-weight:700}
+.pu-mydk img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 28%}
+.pu-mydk::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,hsl(var(--h) 60% 10% / .85))}
+.pu-mydk span{position:relative;z-index:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Mes parties › Statistiques (partie-ui.js › puStatsHtml) */
 .pu-tabs{margin-bottom:12px}
 .pu-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:6px}

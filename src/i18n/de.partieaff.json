@@ -1,0 +1,8 @@
+{
+"Fiche du joueur : blessures de commandant, compteurs": "Spielerblatt: Commander-Schaden, Marken",
+"{name} : {n} PV": "{name}: {n} Leben",
+"{name} : {n} blessures de commandant": "{name}: {n} Commander-Schaden",
+"{name} : {what} {n}": "{name}: {what} {n}",
+"Élimination de {name}": "{name} ausgeschieden",
+"Touche le nom d'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…": "Tippe auf den Namen eines Spielers: sein Blatt mit Commander-Schaden, Gift, Monarch…"
+}
