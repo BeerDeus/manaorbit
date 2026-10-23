@@ -146,6 +146,7 @@ async function openPubSheet(deckId) {
         </ul>
         ${CTX.pub === false ? `<p class="hint pub-off">${T('Ce serveur ne relaie pas encore les decks publics : ils n\'apparaîtront pas dans À monter.')}</p>` : ''}
         ${cur ? `<p class="hint pub-state">${T('Publié le {date}', { date: esc(new Date(cur.at).toLocaleDateString(LOC())) })}${cur.sig !== sig && sig ? ' · ' + T('la liste a changé depuis') : ''}</p>` : ''}
+        ${cur ? (b => (b ? `<p class="pub-dsc">${b}</p>` : ''))(pdDscBtn('btn ghost', 'data-pub="dsc"')) : ''}
         <p class="hint pub-rules">${T('Pas de contenu offensant dans le pseudo ou le nom : un deck signalé plusieurs fois est retiré.')}</p>
         <div class="status pub-msg" role="status"${msg ? '' : ' hidden'}><span class="dot"></span><span>${esc(msg)}</span></div>`;
       api.setFoot(cur ? `<button class="btn ghost" type="button" data-pub="drop"${busy ? ' disabled' : ''}>${T('Retirer')}</button><button class="btn" type="button" data-pub="go"${busy || !can || cur.sig === sig ? ' disabled' : ''}>${cur.sig === sig ? '✓ ' + T('À jour') : T('Mettre à jour')}</button>`
@@ -157,6 +158,7 @@ async function openPubSheet(deckId) {
       const act = x.dataset.pub;
       if (act === 'prof') { openProfile(); return; }
       if (busy || !mine) return;
+      if (act === 'dsc') { const c = mine.get(d.id); if (c) pdDscShare(c.id); return; }      // « Partager sur Discord » : le deck tel qu'il est publié
       busy = true; paint();
       try {
         const tag = await pdTag(), cur = mine.get(d.id);
@@ -242,4 +244,75 @@ function pdListSheet() {
       catch (err) { x.disabled = false; toast(T('Publication impossible : réessaie en ligne.')); }
     });
   });
+}
+
+/* ── « Partager sur Discord » (deck public de l'auteur) et lien d'un deck public (?pd=<id>) ─────────────────────────────────────────────────────────────
+   Bouton dans la feuille « Publier » d'un deck publié et dans la feuille du deck de « À monter » (« C'est ton deck ») : seulement pour l'auteur, connecté, en ligne,
+   quand le serveur a le bot (/__ping feedback) et les decks publics ; caché en mode streamer (opening.js › streamOn), comme la ligne Discord du compte (dsclink.js).
+   Confirmation (où, sous quel nom : le compte Discord lié et membre du serveur, sinon le pseudo de l'appli), puis POST api/discord/deck { id } avec le jeton
+   Firebase (serveur : discord-deck.mjs) → « Partagé sur Discord » et « Voir » (le message sur Discord). Serveur sans la route (404 not_found) : bouton caché.
+   Le bouton « Voir le deck » du message ouvre <site>/?pd=<id> : pdLaunch lit la liste publique et ouvre le deck (viewer : collection comparée, « Enregistrer »). */
+const PD_ID_RE = /^[0-9a-f]{64}_[0-9]$/;
+const pdDscOn = () => !!(CTX.proxy && CTX.feedback && CTX.pub !== false && CTX.dscDeck !== false && D.user && !(typeof navigator !== 'undefined' && navigator.onLine === false) && !(typeof streamOn === 'function' && streamOn()));
+/** Bouton « Partager sur Discord » (vide si le partage n'est pas possible ici) ; cls : classes du bouton, act : attribut de l'action. */
+function pdDscBtn(cls = 'link-btn', act = 'data-act="dkdsc"') {
+  return pdDscOn() ? `<button class="${cls} pub-dscb" type="button" ${act}>${typeof DL_ICON !== 'undefined' ? DL_ICON : ''}${T('Partager sur Discord')}</button>` : '';
+}
+/** POST api/discord/deck avec le jeton Firebase (renouvelé une fois s'il a expiré) → { status, j } (status 0 : réseau). */
+async function pdDscPost(id) {
+  const u = D.user; if (!u) return { status: 401, j: null };
+  for (let a = 0; a < 2; a++) {
+    let tok = ''; try { tok = await u.getIdToken(a > 0); } catch (e) { tok = ''; }
+    if (!tok) return { status: 401, j: null };
+    let r; try { r = await fetch('api/discord/deck', { method: 'POST', cache: 'no-store', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'x-firebase-token': tok }, body: JSON.stringify({ id }) }); }
+    catch (e) { return { status: 0, j: null }; }
+    const j = await r.json().catch(() => null);
+    if (r.status === 401 && j && j.error === 'token_expired' && a === 0) continue;
+    return { status: r.status, j };
+  }
+  return { status: 401, j: null };
+}
+const pdDscOpen = url => { if (/^https:\/\/discord\.com\//.test(url)) window.open(url, '_blank', 'noopener'); };
+/** Confirmation puis partage du deck public pid dans #decks. */
+function pdDscShare(pid) {
+  if (!PD_ID_RE.test(String(pid || ''))) return;
+  if (typeof streamOn === 'function' && streamOn()) { toast(T('Masqué en mode streamer')); return; }
+  if (!D.user) { openAccount(); return; }
+  haptic('tap');
+  openSheet(T('Partager sur Discord'), null, api => {
+    api.wrap.classList.add('pub-dsc-sheet');
+    const s = typeof dlState === 'function' ? dlState() : null, linked = !!(s && s.l && s.m);
+    api.body.innerHTML = `<p class="hint">${T('Ton deck sera posté dans le salon #decks du Discord de Mana Orbit, avec son commandant, son prix estimé et un lien pour l\'ouvrir dans l\'appli.')}</p>
+      <p class="pub-dsc-who">${linked ? T('Auteur : ton compte Discord {name} (mentionné, sans notification).', { name: '<b>' + esc(s.n || 'Discord') + '</b>' }) : T('Auteur : ton pseudo public de l\'appli.')}</p>
+      ${!linked && CTX.discordLink ? `<p class="hint">${T('Lie ton compte Discord (Compte et réglages › Discord) pour y apparaître sous ton nom Discord.')}</p>` : ''}
+      <p class="hint">${T('Un même deck une fois par jour, 5 partages par jour au plus.')}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-dsc="go">${T('Partager')}</button>`);
+    $('[data-dsc="go"]', api.foot).onclick = async e => {
+      const b = e.currentTarget; b.disabled = true;
+      const { status, j } = await pdDscPost(pid), err = (j && j.error) || '';
+      if (status === 200 && j && j.ok) {
+        api.close(); haptic('ok');
+        const url = typeof j.url === 'string' ? j.url : '';
+        toast(j.again ? T('Déjà partagé sur Discord aujourd\'hui') : T('Partagé sur Discord'), url ? { label: T('Voir'), fn: () => pdDscOpen(url) } : undefined);
+        return;
+      }
+      if (status === 404 && err === 'not_found') { CTX.dscDeck = false; api.close(); toast(T('Partage sur Discord indisponible sur ce serveur.')); return; }
+      b.disabled = false;
+      toast(status === 0 ? T('Hors ligne : réessaie une fois connecté.') : status === 404 ? T('Ce deck n\'est pas encore dans la communauté : réessaie dans quelques minutes.') : status === 403 && err === 'not_owner' ? T('Seul l\'auteur du deck peut le partager.')
+        : status === 429 && err === 'daily_limit' ? T('Assez de partages pour aujourd\'hui : réessaie demain.') : status === 429 ? T('Trop d\'essais : réessaie dans quelques minutes.') : T('Discord est injoignable pour le moment : réessaie plus tard.'));
+    };
+  });
+}
+/** Liste du deck public (commandants en tête, section « Commander »), comme edhDeckText. */
+const pdText = d => { const ck = new Set(d.cmd.map(ownKey)); return ['Commander', ...d.cmd.map(n => '1 ' + n), '', ...d.cards.map(([n, q]) => [n, ck.has(ownKey(n)) ? q - 1 : q]).filter(([, q]) => q > 0).map(([n, q]) => q + ' ' + n)].join('\n'); };
+/** Lien d'un deck public (?pd=<id>, bouton « Voir le deck » du message Discord) : le deck dans le viewer, sinon la raison. */
+async function pdLaunch(id) {
+  if (!PD_ID_RE.test(String(id || ''))) return;
+  const t = Tasks.start(T('Lecture du deck'));
+  let list = null; try { list = await pdFetch(false, 10000); } finally { t.remove(); }
+  if (!list) { const c = await Cache.get(PD_CACHE, 7 * DAY).catch(() => null); list = PD.list || (c && Array.isArray(c.decks) ? c.decks : null); }
+  const d = (list || []).find(x => x && x.id === id);
+  if (!d || !Array.isArray(d.cmd) || !d.cmd.length || !Array.isArray(d.cards)) { toast(list ? T('Ce deck n\'est plus dans la communauté.') : T('Deck injoignable : vérifie ta connexion puis recharge la page.')); return; }
+  const name = d.cmd.join(' + ');
+  openDeckViewer({ text: pdText(d), name, saveAs: (name + ' · ' + T('deck de {name}', { name: String(d.by || '') })).slice(0, 120) });
 }

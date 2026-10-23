@@ -1401,6 +1401,7 @@ function handleLaunch() {
   else if (q.has('troc') && typeof trocPushOpen === 'function') trocPushOpen('?' + q.toString());
   else if ((q.has('table') || q.has('partie')) && typeof puLaunch === 'function') puLaunch('?' + q.toString());
   else if (q.has('invite') && typeof puInvite === 'function') setTimeout(puInvite, 700);      // lien « Fais découvrir Mana Orbit » de la fin de partie (partie-ui.js)
+  else if (q.has('pd') && typeof pdLaunch === 'function') { const v = q.get('pd'); setTimeout(() => pdLaunch(v), 600); }      // deck public partagé sur Discord (« Voir le deck » : pubdecks.js)
   else if (q.has('mystere') && typeof dlyLaunch === 'function') dlyLaunch();      // Carte mystère (résultat partagé) : seulement sur le lien d'essai (daily.js › dlyOn)
   else if (q.has('parties') && typeof puHist === 'function') setTimeout(puHist, 600);      // notification « Partie enregistrée » ouverte dans une nouvelle fenêtre      // compteur de vie : rejoindre une table, résultat scanné (partie-ui.js)      // échange en direct : QR code de l'hôte scanné, invitation touchée (troc.js)
   else if (shared) onShared(extractShared({ title: q.get('title'), text: q.get('text'), url: q.get('url') }));
