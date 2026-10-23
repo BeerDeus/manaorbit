@@ -141,7 +141,7 @@ export function dssMake(o = {}) {
       try { await save(today); }      // noté AVANT l'envoi : sans écriture, rien ne part (sinon il repartirait à chaque tour)
       catch (e) { delete st.done[x.key]; warn('save', today, 'Discord : discord-sets.json non enregistré (' + (e && e.code || e) + '), sorties pas annoncées'); break; }
       try {
-        await o.post(c, `/channels/${c.id}/messages`, dssMsg(x.r, x.stage, { n: { printed: s.printed_size, count: s.card_count }, prev: x.prev, cm: cmOf(x.r.name), app: APP }));
+        await o.post(c, `/channels/${c.id}/messages`, { ...dssMsg(x.r, x.stage, { n: { printed: s.printed_size, count: s.card_count }, prev: x.prev, cm: cmOf(x.r.name), app: APP }), nonce: ('mo-' + x.stage + '-' + x.r.code + '-' + String(x.r.at).replace(/-/g, '')).slice(0, 25) });      // nonce par extension, étape et date
         sent++; log.log(`Discord : sortie de ${line(x.r.name)} (${x.r.code.toUpperCase()}, ${x.r.at}) annoncée dans #${NAME} (${x.stage === 'j' ? 'jour J' : 'J-' + x.r.d}).`);
       } catch (e) {
         delete st.done[x.key]; await save(today).catch(() => {});      // remis : nouvel essai au tour suivant

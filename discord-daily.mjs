@@ -73,14 +73,14 @@ export function dscDailyMake(h) {
   /** Nouvelle carte du jour annoncée (info : { day, no }). */
   async function announce(info) {
     const { d, c } = await chan(), role = roleOf(d, c);
-    await post(c, `/channels/${c.id}/messages`, dscAnnounceMsg(info, role, game));
+    await post(c, `/channels/${c.id}/messages`, { ...dscAnnounceMsg(info, role, game), nonce: 'mo-an-' + info.day });      // nonce du jour (discord-srv.mjs › call) : une seule annonce
     log.log(`Discord : Carte mystère n° ${info.no} annoncée dans #carte-mystère${role ? ' (rôle pingé)' : ' (sans ping)'}.`);
     return true;
   }
   /** Classement de la semaine (info : { week, total, rows… }). */
   async function weekly(info) {
     const { c } = await chan();
-    await post(c, `/channels/${c.id}/messages`, dscWeeklyMsg(info, game));
+    await post(c, `/channels/${c.id}/messages`, { ...dscWeeklyMsg(info, game), nonce: 'mo-wk-' + info.week });      // nonce de la semaine : un seul classement
     log.log(`Discord : classement de la semaine du ${info.week} posté dans #carte-mystère (${info.total} joueur${info.total > 1 ? 's' : ''} classé${info.total > 1 ? 's' : ''}).`);
     return true;
   }

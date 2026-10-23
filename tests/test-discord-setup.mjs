@@ -150,7 +150,7 @@ assert.equal(r1.code, 0, r1.out); assert.ok(!r1.out.includes(TOKEN), 'jeton jama
   assert.deepEqual(cats, CATS, 'catégories stylisées, dans l\'ordre'); const cat = name => byName(name, 4);
   assert.deepEqual(kidsOf(cat('『BIENVENUE』')), ['👋・bienvenue:0', '📜・règles:0', '📢・annonces:5', '🆕・changelog:5', '❓・faq:15']);
   assert.deepEqual(kidsOf(cat('『SUPPORT』')), ['🆘・aide:15', '🐞・bugs:15', '💡・idées:15']);
-  assert.deepEqual(kidsOf(cat('『COMMUNAUTÉ』')), ['🃏・decks:0', '🖼️・collections:0', '📦・ouvertures:0', '🔮・carte-mystère:0', '🔁・échanges:0', '💶・prix-et-marché:0', '✨・spoilers:0']);
+  assert.deepEqual(kidsOf(cat('『COMMUNAUTÉ』')), ['💬・global:0', '🃏・decks:0', '🖼️・collections:0', '📦・ouvertures:0', '🔮・carte-mystère:0', '🔁・échanges:0', '💶・prix-et-marché:0', '✨・spoilers:0']);
   assert.deepEqual(kidsOf(cat('『JOUER』')), ['🎲・lfg:0', '🔊 Table 1:2', '🔊 Table 2:2', '🔊 Table 3:2', '☕ Chill:2']);
   assert.deepEqual(kidsOf(cat('『🇫🇷 FRANÇAIS』')), ['💬・général:0', '🆘・entraide:0', '🔊 Vocal FR:2']);
   assert.deepEqual(kidsOf(cat('『🇩🇪 DEUTSCH』')), ['📜・regeln:0', '💬・allgemein:0']);

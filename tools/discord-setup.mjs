@@ -314,6 +314,7 @@ async function main() {
       { k: 'bugs', name: '🐞・bugs', type: FORUM, was: ['bugs'], layout: 1, sort: 1, requireTag: true, topic: BUG_TEMPLATE },
       { k: 'idées', name: '💡・idées', type: FORUM, was: ['idées'], layout: 1, react: '👍', topic: 'Une idée pour Mana Orbit : un fil par idée, les 👍 aident à choisir. L\'équipe indique où elle en est (Envisagé, Prévu, Fait, Pas pour l\'instant).\nOne thread per idea, upvote with 👍.' }] },
     { name: box('COMMUNAUTÉ'), was: ['Communauté'], ow: PUB, chans: [
+      { k: 'global', name: '💬・global', topic: 'Discussion générale, toutes langues · General chat, any language', was: ['global'] },      // créé à la main le 23 octobre en tête de la catégorie (id 1562911701010096218), repris tel quel
       { k: 'decks', name: '🃏・decks', topic: 'Partage tes decks (liens de l\'appli), toutes langues · Share your decks, any language', was: ['decks'] },
       { k: 'collections', name: '🖼️・collections', topic: 'Classeurs, vitrines, belles pièces · Binders, showcases, prized cards' },
       { k: 'ouvertures', name: '📦・ouvertures', topic: 'Tes ouvertures de boosters, photos bienvenues · Your booster openings', was: ['ouvertures'] },
@@ -435,7 +436,7 @@ async function main() {
       return { id: old ? old.id : snow(), type: 0, title: p.title, single_select: false, required: !!p.required, in_onboarding: true,
         options: p.options.map(o => { const x = old && old.options.find(y => (y.role_ids || []).includes(o.role_ids[0])); return { id: x ? x.id : snow(), ...o }; }) };
     });
-    const defaults = ['bienvenue', 'règles', 'annonces', 'aide', 'bugs', 'idées', 'decks', 'collections', 'ouvertures', 'carte', 'échanges', 'prix', 'lfg'].map(k => id[k]).filter(Boolean);
+    const defaults = ['bienvenue', 'règles', 'annonces', 'aide', 'bugs', 'idées', 'global', 'decks', 'collections', 'ouvertures', 'carte', 'échanges', 'prix', 'lfg'].map(k => id[k]).filter(Boolean);
     try { await api('PUT', `/guilds/${gid}/onboarding`, { prompts, default_channel_ids: defaults, enabled: true, mode: 0 }); console.log(`✓ accueil : ${prompts.length} questions (langue obligatoire), ${defaults.length} salons par défaut`); }
     catch (e) { todo.push(`Accueil (Paramètres › Onboarding) refusé par Discord : ${e.message}`); }
 

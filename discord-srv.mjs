@@ -96,6 +96,10 @@ export function discordMake(o = {}) {
    *  'refused' (4xx : status, code et message de Discord). Le jeton n'apparaît dans aucune erreur. */
   async function call(method, path, body, form, hd) {
     let waited = 0, again = false;
+    // Nouveau message (POST /channels/<id>/messages, JSON) : un nonce, gardé d'un essai à l'autre, avec enforce_nonce : Discord ne crée pas un 2e message au même
+    // nonce dans les minutes qui suivent (envoi parti mais réponse perdue : délai dépassé à 18 h pendant la fabrication des images de la Carte mystère, panne 5xx…).
+    // Nonce donné par l'appelant (body.nonce : reveal, announce… déterministes) : aussi entre deux tours de garde ou deux serveurs qui se chevauchent.
+    if (method === 'POST' && !form && body && typeof body === 'object' && /^\/channels\/\d+\/messages$/.test(path)) body = { ...body, nonce: String(body.nonce || randomBytes(9).toString('base64url')).slice(0, 25), enforce_nonce: true };
     for (let i = 0; ; i++) {
       let r;
       try { r = await fetchFn(API + path, { method, headers: { Authorization: 'Bot ' + TOKEN, 'User-Agent': UA, ...(body !== undefined && !form ? { 'Content-Type': 'application/json' } : {}), ...(hd || {}) }, body: form || (body === undefined ? undefined : JSON.stringify(body)), redirect: 'manual', signal: AbortSignal.timeout(TIMEOUT) }); }
@@ -811,7 +815,7 @@ export function discordMake(o = {}) {
     if (!ON) throw dErr('setup', 'bot Discord non configuré');
     const { c } = await find(['carte-mystère'], [TX, NEWS]);
     if (!c) throw dErr('setup', 'salon #carte-mystère introuvable');
-    await post(c, `/channels/${c.id}/messages`, dscRevealMsg(info));
+    await post(c, `/channels/${c.id}/messages`, { ...dscRevealMsg(info), nonce: 'mo-rv-' + info.day });      // nonce du jour : jamais deux fois la carte d'hier
     log.log(`Discord : Carte mystère du ${info.day} révélée dans #${dscName(c.name)}.`);
     return true;
   }

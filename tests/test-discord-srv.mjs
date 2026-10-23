@@ -134,6 +134,12 @@ const srv = http.createServer((q, r) => {
       for (const [k, v] of fd.entries()) if (k !== 'payload_json') files.push({ field: k, name: v.name, type: v.type, bytes: Buffer.from(await v.arrayBuffer()) });
     } else if (raw.length) body = JSON.parse(raw.toString());
     const ch = id => D.channels.find(y => y.id === id) || D.th.get(id), u = new URL(q.url, 'http://x');
+    // nouveau message : nonce + enforce_nonce toujours envoyés (discord-srv.mjs › call) ; même nonce dans le même salon → le message déjà créé, rien de neuf (comme Discord)
+    if (m === 'POST' && body && /^\/channels\/\d+\/messages$/.test(p)) {
+      assert.equal(body.enforce_nonce, true, 'enforce_nonce'); assert.ok(typeof body.nonce === 'string' && body.nonce.length >= 6 && body.nonce.length <= 25, 'nonce');
+      const k = p + '|' + body.nonce, old = (D.nonceSeen ||= new Map()).get(k); delete body.nonce; delete body.enforce_nonce;
+      q.nonceKey = k; q.nonceOld = old;
+    }
     if ((x = /^\/channels\/(\d+)\/threads$/.exec(p)) && m === 'POST') {
       if (!ch(x[1]) || ch(x[1]).type !== 15) return send(404, { message: 'Unknown Channel', code: 10003 });
       const id = nid(); D.posts.push({ kind: 'thread', ch: x[1], body, files, ct: q.headers['content-type'] }); return send(201, { id, name: body.name, parent_id: x[1], type: 11 });
@@ -141,10 +147,12 @@ const srv = http.createServer((q, r) => {
     if ((x = /^\/channels\/(\d+)\/messages$/.exec(p)) && m === 'POST') {
       if (!ch(x[1])) return send(404, { message: 'Unknown Channel', code: 10003 });
       if (x[1] === C.interdit) return send(403, { message: 'Missing Permissions', code: 50013 });
+      if (q.nonceOld) return send(200, q.nonceOld);
       const id = nid(); D.posts.push({ kind: 'msg', ch: x[1], id, body });
       const t = D.th.get(x[1]);
       if (t) { t.thread_metadata.archived = false; t.message_count++; t.last_message_id = id; D.msgs.get(x[1]).push({ id, channel_id: x[1], type: 0, author: U.bot, content: body.content, timestamp: iso(Date.now()), edited_timestamp: null, mentions: [], attachments: [], embeds: [] }); }
-      return send(200, { id, channel_id: x[1], ...body });
+      const out = { id, channel_id: x[1], ...body }; if (q.nonceKey) D.nonceSeen.set(q.nonceKey, out);
+      return send(200, out);
     }
     if ((x = /^\/channels\/(\d+)\/messages\/(\d+)\/crosspost$/.exec(p)) && m === 'POST') { D.posts.push({ kind: 'crosspost', ch: x[1], id: x[2] }); return send(200, { id: x[2] }); }
     if ((x = /^\/channels\/(\d+)\/messages\/(\d+)$/.exec(p)) && m === 'DELETE') {
@@ -582,6 +590,7 @@ let P = await start(ENV, 19802); BASE = P.url;
   assert.match(dscRevealMsg({ ...info, plays: 1, wins: 1 }).content, /Trouvée par 1 joueur sur 1\.[\s\S]*Found by 1 player out of 1\./);
   assert.match(dscRevealMsg({ ...info, plays: 0, wins: 0 }).content, /Personne ne l'a jouée\./);
   assert.equal(dscRevealMsg({ ...info, img: 'http://x/y.jpg' }).embeds[0].image, undefined, 'image en https seulement');
+  const n0 = D.posts.length; await bot.reveal(info); assert.equal(D.posts.length, n0, 'même carte renvoyée (réponse perdue, nouvel essai, deux serveurs) : nonce du jour, aucun 2e message');
   const saved = D.channels; D.channels = saved.filter(c => c.id !== C.mystere);
   await assert.rejects(bot.reveal(info), /Discord a refusé/, 'salon disparu : erreur (nouvel essai au tour suivant)');
   await assert.rejects(bot.reveal(info), /carte-mystère introuvable/, 'liste relue : salon introuvable'); D.channels = saved;
