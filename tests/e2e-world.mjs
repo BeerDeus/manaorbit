@@ -35,7 +35,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0, daily
     image_uris: { small: `https://cards.scryfall.io/small/front/a/b/${slug(n)}.jpg` } }]; });
   const bps = CARDS.map(([n, bp]) => ({ id: bp, name: n, scryfall_id: 's-' + slug(n) }));
   // eds['cmm|400'] = { n: 'Sol Ring', langs: ['fr'] } : impression connue par son extension et son numéro (/cards/collection), avec ses langues (recherche « (set:cmm cn:400 or …) lang:fr ») ; edLangQ : ces recherches
-  const world = { eds: {}, edLangQ: [], edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, symbols: {}, svgs: [], basics: false, en: {}, offers: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
+  const world = { hidden: {}, eds: {}, edLangQ: [], edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, symbols: {}, svgs: [], basics: false, en: {}, offers: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
   const up = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x'), path = u.pathname.replace('/api/v2/', ''); log.push({ path, q: Object.fromEntries(u.searchParams) });
     const send = (o, s = 200) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
@@ -90,6 +90,12 @@ export async function newPage(browser, world, opts = {}) {
     const req = route.request(), u = new URL(req.url()); world.scry.push(req.method() + ' ' + u.pathname + u.search); const h = { 'access-control-allow-origin': '*' };
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { ...h, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,OPTIONS' } });
     const json = (o, status = 200) => route.fulfill({ status, headers: h, json: o });
+    if (u.pathname === '/cards/search' && /\((?:set|cn):/.test(u.searchParams.get('q') || '')) {      // impressions cherchées par code d'extension ou numéro (data.js › scryPrintsFind) : world.hidden[nom] = [[set, n°]] absentes de la liste complète
+      const q = u.searchParams.get('q'), l = (/lang:([a-z]+)/.exec(q) || [])[1] || 'en', nm = namesIn(q)[0], sets = [...q.matchAll(/set:([a-z0-9]+)/g)].map(m => m[1]), nums = [...q.matchAll(/cn:([^\s)]+)/g)].map(m => m[1]);
+      world.findQ = [...(world.findQ || []), q];
+      const data = (world.hidden[nm] || []).filter(([s, n]) => (!sets.length || sets.includes(s)) && (!nums.length || nums.includes(n))).map(([s, n]) => ({ name: nm, lang: l, set: s, set_name: s.toUpperCase() + ' Set', collector_number: n, released_at: '2022-02-18', full_art: true, border_color: 'black', frame_effects: [], promo: false, rarity: 'common', prices: { eur: l === 'en' ? '2.00' : null, eur_foil: null }, image_uris: { small: `https://cards.scryfall.io/small/front/${l}/${s}-${n}.jpg`, normal: `https://cards.scryfall.io/normal/front/${l}/${s}-${n}.jpg` } }));
+      return data.length ? json({ object: 'list', has_more: false, data }) : json({ object: 'error', code: 'not_found' }, 404);
+    }
     if (u.pathname === '/cards/search' && /\bcn:/.test(u.searchParams.get('q') || '')) {      // images d'impressions précises dans une langue (classeur) : celles de world.eds qui existent dans cette langue
       const q = u.searchParams.get('q'), l = (/lang:([a-z]+)/.exec(q) || [])[1] || 'en'; world.edLangQ.push(q);
       const data = [...q.matchAll(/set:([a-z0-9]+) cn:"?([^\s")]+)"?/g)].map(m => [m[1], m[2], world.eds[m[1] + '|' + m[2]]]).filter(([, , x]) => x && (x.langs || []).includes(l))

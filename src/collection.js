@@ -176,16 +176,17 @@ function edQHtml(n, q = '') {
   const t = esc(T('Chercher une extension'));
   return `<label class="fsearch ed-q"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" data-edq inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${t}" aria-label="${t}" value="${esc(q)}"></label>`;
 }
-/** Recherche sans résultat dans la liste lue (liste tronquée : terrains de base aux centaines d'impressions) : demandée à Scryfall 450 ms après la dernière frappe
- *  (find(q) → impressions : data.js › scryPrintsFind, d'après le code d'extension ou le numéro tapés), « Recherche sur Scryfall… » pendant ce temps ;
- *  les impressions nouvelles (sans doublon) partent à add(liste), qui les ajoute et repeint. Retourne la fonction à appeler à chaque frappe : (q, n trouvées, box). */
+/** Recherche d'un code d'extension ou d'un numéro (« neo », « 295 ») : aussi demandée à Scryfall 450 ms après la dernière frappe, même si la liste lue en a déjà
+ *  (liste incomplète : terrains de base aux centaines d'impressions, variantes plein art d'une extension dont seuls les terrains classiques sont dans la liste) ;
+ *  find(q) → impressions (data.js › scryPrintsFind) ; « Recherche sur Scryfall… » pendant ce temps quand rien n'est encore affiché ; les impressions nouvelles
+ *  (sans doublon) partent à add(liste), qui les ajoute et repeint. Une fois par recherche. Retourne la fonction à appeler à chaque frappe : (q, n trouvées, box). */
 function edQFinder(prints, find, add) {
   let t = 0; const done = new Set();
   return (q, n, box) => {
     clearTimeout(t); const k = String(q || '').trim().toLowerCase();
-    if (!find || !k || n || done.has(k)) return;
+    if (!find || !k || done.has(k) || !k.split(/[\s,#·]+/).some(x => (/^[a-z0-9]{2,6}$/.test(x) && /[a-z]/.test(x)) || /^\d{1,4}[a-z★]?$/.test(x))) return;      // ni code ni numéro : la liste lue suffit
     t = setTimeout(async () => {
-      done.add(k); const m = box && box.querySelector('.ed-q-none'); if (m) m.textContent = T('Recherche sur Scryfall…');
+      done.add(k); const m = !n && box && box.querySelector('.ed-q-none'); if (m) m.textContent = T('Recherche sur Scryfall…');
       let got = []; try { got = (await find(k)) || []; } catch (e) { got = []; }
       const have = new Set((prints() || []).map(p => p.set + '/' + p.num)), extra = got.filter(p => !have.has(p.set + '/' + p.num));
       if (extra.length) add(extra); else if (m && m.isConnected) m.textContent = T('Aucune extension ne correspond à « {q} »', { q: String(q).trim() });

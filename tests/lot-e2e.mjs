@@ -38,6 +38,21 @@ await p.screenshot({ path: 'shots/lot-1-editions.png' });
 // « Chercher une extension » reste en haut de la feuille pendant le défilement des impressions
 assert.equal(await p.$eval('.sheet-wrap.open .sheet-body > .ed-q', e => getComputedStyle(e).position), 'sticky');
 assert.ok(await p.$eval('.sheet-wrap.open .sheet-body', b => { b.style.maxHeight = '260px'; b.scrollTop = b.scrollHeight; const q = b.querySelector(':scope > .ed-q').getBoundingClientRect(), r = b.getBoundingClientRect(); const ok = b.scrollTop > 0 && q.top >= r.top - 1 && q.bottom <= r.bottom; b.style.maxHeight = ''; b.scrollTop = 0; return ok; }), 'champ toujours visible après défilement');
+// impression absente de la liste lue (terrain plein art NEO 295 au-delà des pages lues) : code ou numéro cherchés sur Scryfall, ajoutés à la liste
+world.hidden['Sol Ring'] = [['neo', '295']];
+await p.fill('.sheet-wrap.open [data-edq]', 'neo 295');
+await p.waitForSelector('.lot-ev:not(.ed-off) >> text=NEO 295', { timeout: 8000 });
+assert.ok((world.findQ || []).some(q => /set:neo/.test(q) && /cn:295/.test(q)), 'recherche Scryfall par code et numéro');
+assert.equal(await p.$$eval('.lot-ev:not(.none):not(.ed-off)', b => b.length), 1, 'seule l\'impression trouvée reste affichée');
+// extension déjà dans la liste (CMM 100) mais une variante manque (CMM 999) : cherchée quand même, ajoutée à côté
+world.hidden['Sol Ring'] = [['cmm', '999']];
+await p.fill('.sheet-wrap.open [data-edq]', 'cmm');
+await p.waitForSelector('.lot-ev:not(.ed-off) >> text=CMM 999', { timeout: 8000 });
+assert.deepEqual(await p.$$eval('.lot-ev:not(.none):not(.ed-off) span', s => s.map(x => x.textContent.trim().split(/\s+/).slice(-2).join(' '))), ['CMM 100', 'CMM 999'], 'variante ajoutée à côté de l\'impression déjà lue');
+await p.fill('.sheet-wrap.open [data-edq]', '');
+// « Chercher une extension » reste en haut de la feuille pendant le défilement des impressions
+assert.equal(await p.$eval('.sheet-wrap.open .sheet-body > .ed-q', e => getComputedStyle(e).position), 'sticky');
+assert.ok(await p.$eval('.sheet-wrap.open .sheet-body', b => { b.style.maxHeight = '260px'; b.scrollTop = b.scrollHeight; const q = b.querySelector(':scope > .ed-q').getBoundingClientRect(), r = b.getBoundingClientRect(); const ok = b.scrollTop > 0 && q.top >= r.top - 1 && q.bottom <= r.bottom; b.style.maxHeight = ''; b.scrollTop = 0; return ok; }), 'champ toujours visible après défilement');
 await p.click('.lot-ev:not(.none) >> nth=1'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
 assert.match(await txt(p, '.lot-ed'), /Double Masters 2022 2X2 · #101/); assert.equal(nb(await txt(p, '.lot-px')), '3,50 €');
 assert.match(await txt(p, '.lot-sticky'), /Extension proposée Double Masters 2022/);
