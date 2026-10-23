@@ -295,15 +295,18 @@ async function scryArtPrints(name, lang, signal, prio = true) {      // prio : d
 }
 /** Impressions d'une carte cherchées sur Scryfall d'après la recherche « Chercher une extension » quand la liste lue n'en a aucune (liste tronquée : terrains de
  *  base aux centaines d'impressions) : chaque mot qui ressemble à un code d'extension (« neo ») ou à un numéro (« 295 », « 295a ») devient set:… ou cn:… ;
- *  langue de la carte, puis anglais (impressions marquées « anglais » comme dans scryArtPrints). [] : rien à chercher ou rien trouvé. */
+ *  langue de la carte, puis anglais (impressions marquées « anglais » comme dans scryArtPrints), puis toutes langues (impression d'une seule langue : « JP »). [] : rien à chercher ou rien trouvé. */
 async function scryPrintsFind(name, lang, q, signal) {
   const sl = SCRY_LANG[lang] || 'en', n = String(name || '').split('//')[0].trim(), w = String(q || '').toLowerCase().split(/[\s,#·]+/).filter(Boolean);
   if (!n || n.includes('"') || !w.length || w.length > 4) return [];
   const sets = w.filter(x => /^[a-z0-9]{2,6}$/.test(x) && /[a-z]/.test(x)), nums = w.filter(x => /^\d{1,4}[a-z★]?$/.test(x));
   if (!sets.length && !nums.length) return [];
   const crit = ' ' + [sets.length ? '(' + sets.map(x => 'set:' + x).join(' or ') + ')' : '', nums.length ? '(' + nums.map(x => 'cn:' + x).join(' or ') + ')' : ''].filter(Boolean).join(' ');
-  const out = await scryPrintsIn(n, sl, signal, true, crit, 1);
-  if (sl !== 'en') { const have = new Set(out.map(p => p.set + '/' + p.num)); for (const p of await scryPrintsIn(n, 'en', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) out.push({ ...p, l: 'en', fx: [...p.fx, T('anglais')] }); }
+  const out = await scryPrintsIn(n, sl, signal, true, crit, 1), have = new Set(out.map(p => p.set + '/' + p.num));
+  if (sl !== 'en') for (const p of await scryPrintsIn(n, 'en', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, l: 'en', fx: [...p.fx, T('anglais')] }); }
+  // impressions d'une seule autre langue (terrain plein art NEO 295 : japonais seulement) : toutes langues, marquées de leur langue (« JP »)
+  const back = Object.fromEntries(Object.entries(SCRY_LANG).map(([a, s]) => [s, a]));
+  for (const p of await scryPrintsIn(n, 'any', signal, true, crit, 1)) if (!have.has(p.set + '/' + p.num)) { have.add(p.set + '/' + p.num); out.push({ ...p, fx: [...p.fx, langCode(back[p.l] || p.l)] }); }
   return out;
 }
 async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0) {      // extra : critères en plus (scryPrintsFind : « (set:neo or cn:295) »)
@@ -316,7 +319,7 @@ async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0
       const urls = facesOf(c), im = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris) || {}, id = c.set + '/' + c.collector_number;
       if (!urls.length || seen.has(id)) continue; seen.add(id);
       const fe = c.frame_effects || [], fx = [c.full_art ? T('plein art') : '', c.border_color === 'borderless' ? T('sans bordure') : '', fe.includes('extendedart') ? T('étendue') : '', fe.includes('showcase') ? 'showcase' : '', c.promo ? 'promo' : ''].filter(Boolean);
-      out.push({ set: c.set, num: c.collector_number, sn: c.set_name || '', y: String(c.released_at || '').slice(0, 4), th: im.small || urls[0], urls, fx, l: sl, ...eurOf(c), r: c.rarity || '' });
+      out.push({ set: c.set, num: c.collector_number, sn: c.set_name || '', y: String(c.released_at || '').slice(0, 4), th: im.small || urls[0], urls, fx, l: sl === 'any' ? c.lang || 'en' : sl, ...eurOf(c), r: c.rarity || '' });
     }
     url = j.has_more ? j.next_page : '';
   }
