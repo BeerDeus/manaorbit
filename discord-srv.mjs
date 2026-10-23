@@ -7,6 +7,7 @@
 //     renommer), POST …/reply (réponse du bot, sans ping), POST …/thread-delete. Texte des messages des membres : seulement avec l'intention « Message Content »
 //     cochée sur le portail Discord (sinon vide : hidden) ;
 //   · Carte mystère de la veille (reveal, appelé par daily-srv.mjs au tour de garde) : message FR + EN dans #carte-mystère ;
+//   · Carte mystère du jour annoncée (ping du rôle « 🔮 Carte mystère ») et classement de la semaine le dimanche (announce, weekly : discord-daily.mjs, appelés par daily-srv.mjs) ;
 //   · liaison du compte Discord (OAuth2 « Se connecter avec Discord », portée identify) : POST /api/discord/link → adresse d'autorisation (state signé),
 //     GET /api/discord/callback (code échangé, compte lu, adhésion au serveur vérifiée par le bot), GET /api/discord/me, POST /api/discord/unlink ;
 //   · statut « En ligne » (passerelle Discord, WebSocket de Node 22+ ; sans lui : bot affiché hors ligne, le reste marche pareil) : « 🔮 Carte mystère n° 42 »,
@@ -19,6 +20,7 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { dscDailyMake } from './discord-daily.mjs';
 
 const TX = 0, CAT = 4, NEWS = 5, FORUM = 15, REQUIRE_TAG = 16;
 const B = n => 1n << BigInt(n), P_ADMIN = B(3), P_VIEW = B(10), P_SEND = B(11), P_EMBED = B(14), P_ATTACH = B(15), P_MENTION = B(17), P_ALL = (1n << 53n) - 1n;
@@ -852,5 +854,6 @@ export function discordMake(o = {}) {
   function start() { if (ON && typeof WS === 'function' && o.presence !== false && !GW.ws && !GW.wait) { GW.stop = false; gwOpen(); } }
   function stop() { GW.stop = true; gwClear(); clearTimeout(GW.wait); GW.wait = null; const ws = GW.ws; GW.ws = null; if (ws) { try { ws.close(1000); } catch (e) { /* déjà fermée */ } } }
 
-  return { on: ON, linkOn: LINK_ON, feedback, members, admin, link, reveal, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
+  const DD = dscDailyMake({ on: ON, find, post, log, dErr, TX, NEWS, P_MENTION, game: DSC_GAME });      // Carte mystère du jour annoncée, classement de la semaine (discord-daily.mjs)
+  return { on: ON, linkOn: LINK_ON, feedback, members, admin, link, reveal, announce: DD.announce, weekly: DD.weekly, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
 }
