@@ -148,7 +148,7 @@ const TAB_ORDER = ['apercu', 'comptes', 'mystere', 'discord', 'fils', 'signaleme
   // Rafraîchir : trop tôt → message ; ensuite recalculé
   const done = () => p.waitForFunction(() => !document.querySelector('#btnRefresh').disabled, null, { timeout: 8000 });
   await p.waitForTimeout(1600); await p.click('#btnRefresh'); await done();      // recalcul (plus de 1,5 s après le précédent : ADMIN_REFRESH_GAP_MS)
-  await p.click('#btnRefresh'); await p.waitForSelector('.toast.on'); assert.match(await txt(p, '.toast'), /moins d'une minute/);
+  await p.click('#btnRefresh'); await p.waitForFunction(() => /moins d'une minute/.test((document.querySelector('.toast.on') || {}).textContent || ''), null, { timeout: 5000 });      // le message de l'export peut être encore affiché : on attend le nouveau
   assert.equal(await p.$$eval('#ulist tr[data-id]', e => e.length), 24, 'refusé : la liste reste affichée');
   await p.waitForTimeout(1600); const before = A.it.calls.length;
   await p.click('#btnRefresh'); await done();
