@@ -7,7 +7,9 @@
    · Hors ligne, en erreur ou sans rien à venir : la carte reste cachée, sans message ; nouvel essai au prochain lancement.
    · Chaque ligne : la page de l'extension dans l'appli (setview.js : cartes révélées, recherche, filtres, souhaits), plus « Précommander » (à venir)
      ou « Acheter » (sortie récente) vers Cardmarket, lien séparé. */
-const SETS_KEY = 'sets:v1', SETS_TTL = DAY, SETS_RECENT = 14, SETS_MAX = 4, SETS_MAX_DESK = 8;      // 8 sur ordinateur : la colonne de l'accueil a la place (la liste défile au-delà)
+/** Un jour en ms : DAY de data.js dans l'appli ; sous Node (discord-sets.mjs, par createRequire), le fichier est lu seul. */
+const SETS_DAY = typeof DAY !== 'undefined' ? DAY : 86400000;
+const SETS_KEY = 'sets:v1', SETS_TTL = SETS_DAY, SETS_RECENT = 14, SETS_MAX = 4, SETS_MAX_DESK = 8;      // 8 sur ordinateur : la colonne de l'accueil a la place (la liste défile au-delà)
 /** Produits papier « grand public » : les autres types (promo, jetons, funny, cartes numériques, boîtes…) n'intéressent pas l'accueil. */
 const SETS_TYPES = ['expansion', 'core', 'masters', 'draft_innovation', 'commander'];
 const SETS = { list: null, st: '', t: 0, sig: '', delay: 2500 };      // st : '' · 'cache' (lecture) · 'wait' (requête prévue) · 'net' · 'done' · 'fail'
@@ -23,7 +25,7 @@ function setsKeep(data, now = Date.now()) {
   const out = [];
   for (const s of Array.isArray(data) ? data : []) {
     if (!s || s.digital || !SETS_TYPES.includes(s.set_type) || typeof s.name !== 'string' || typeof s.code !== 'string') continue;
-    const d = setsDay(s.released_at); if (!d || Math.round((d - t0) / DAY) < -SETS_RECENT) continue;
+    const d = setsDay(s.released_at); if (!d || Math.round((d - t0) / SETS_DAY) < -SETS_RECENT) continue;
     const code = s.code.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10); if (!code) continue;
     out.push({ code, name: s.name.slice(0, 80), at: s.released_at, type: s.set_type,
       parent: typeof s.parent_set_code === 'string' ? s.parent_set_code.toLowerCase() : '',
@@ -36,7 +38,7 @@ function setsKeep(data, now = Date.now()) {
  *  au plus une sortie récente (la dernière), puis les prochaines, par date. d : jours jusqu'à la sortie (négatif : déjà sortie). */
 function setsPick(list, now = Date.now(), max = SETS_MAX) {
   const t0 = new Date(now); t0.setHours(0, 0, 0, 0);
-  const rows = (Array.isArray(list) ? list : []).map(s => ({ ...s, d: Math.round((setsDay(s.at) - t0) / DAY), kids: [] })).filter(s => Number.isFinite(s.d) && s.d >= -SETS_RECENT);
+  const rows = (Array.isArray(list) ? list : []).map(s => ({ ...s, d: Math.round((setsDay(s.at) - t0) / SETS_DAY), kids: [] })).filter(s => Number.isFinite(s.d) && s.d >= -SETS_RECENT);
   const by = new Map(rows.map(s => [s.code, s])), top = [];
   for (const s of rows) { const p = s.parent && by.get(s.parent); if (p && p !== s && !p.parent) p.kids.push(s); else top.push(s); }
   const rank = t => (t === 'expansion' || t === 'core' ? 0 : t === 'masters' || t === 'draft_innovation' ? 1 : 2);
@@ -119,7 +121,7 @@ function setsPaint() {
 /* ── Symboles et noms de toutes les extensions (illustrations d'une carte, édition des lignes de la collection) ──────────────────────
    Même requête GET /sets (≈ 1 000 éditions), réduite à { code: [symbole, nom, date de sortie, total imprimé, cartes, numérique, type] } et gardée 30 jours ; relue au plus une fois par lancement, à la demande.
    Total imprimé (« 17/277 »), nombre de cartes et type (« promo » : faite de variantes) : progression des masterset (masterset.js). */
-const SETIC_KEY = 'sets:ic:v4', SETIC_TTL = 30 * DAY;
+const SETIC_KEY = 'sets:ic:v4', SETIC_TTL = 30 * SETS_DAY;
 const SETIC = { m: null, p: null, on: new Set(), fail: 0 };
 /** Réponse /sets → { code: [symbole, nom, date AAAA-MM-JJ, total imprimé (0 : inconnu), cartes, 1 si numérique, type Scryfall (« expansion », « promo »…)] } ; symbole : nom du fichier svgs.scryfall.io (les promos partagent souvent celui d'une autre extension). */
 function setIcKeep(data) {
@@ -166,3 +168,6 @@ const setDigital = code => { const x = SETIC.m && SETIC.m[String(code || '').toL
 const setType = code => { const x = SETIC.m && SETIC.m[String(code || '').toLowerCase()]; return (x && x[6]) || ''; };
 /** Symbole en HTML (fond d'un <i> : aucune requête CORS, blanc sur fond sombre avec la classe « inv ») ; '' sans symbole connu. */
 const setIcHtml = (code, cls) => { const u = setIcon(code); return u ? `<i class="set-ic${cls ? ' ' + cls : ''}" aria-hidden="true" style="background-image:url('${u}')"></i>` : ''; };
+
+// Sous Node (discord-sets.mjs : sorties annoncées dans #spoilers, exactement les extensions de cette carte) : filtre et regroupement, sans rien du navigateur.
+if (typeof module !== 'undefined' && module.exports) module.exports = { SETS_TYPES, SETS_RECENT, SETS_CM_RE, setsDay, setsKeep, setsPick };

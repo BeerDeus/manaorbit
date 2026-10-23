@@ -852,5 +852,6 @@ export function discordMake(o = {}) {
   function start() { if (ON && typeof WS === 'function' && o.presence !== false && !GW.ws && !GW.wait) { GW.stop = false; gwOpen(); } }
   function stop() { GW.stop = true; gwClear(); clearTimeout(GW.wait); GW.wait = null; const ws = GW.ws; GW.ws = null; if (ws) { try { ws.close(1000); } catch (e) { /* déjà fermée */ } } }
 
-  return { on: ON, linkOn: LINK_ON, feedback, members, admin, link, reveal, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
+  return { on: ON, linkOn: LINK_ON, feedback, members, admin, link, reveal, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW,
+    helpers: { find, post, chanTypes: [TX, NEWS] } };      // pour les modules du bot (discord-sets.mjs : sorties dans #spoilers) : salon par nom utile, envoi avec limite de débit
 }
