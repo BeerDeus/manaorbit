@@ -1564,6 +1564,7 @@ async function amWipe(req, res, me) {
   await amEdit([me.tag], st => { st[me.tag] = null; });
   await Promise.all([amDropParts(me.tag), ...drop.filter(t => t !== me.tag).map(amDropParts)]);
   if (AMI.due.has(me.tag)) amDue(me.tag, 0);
+  if (DSC && DSC.fbForget) await DSC.fbForget(me.tag).catch(() => 0);      // ses fils d'avis suivis (bot Discord) : oubliés
   return json(res, 200, { ok: true });
 }
 async function friendsApi(req, res, path, url) {
@@ -2946,7 +2947,10 @@ async function srAdmin(req, res, sub, url) {
    Liaison du compte Discord (/api/discord/link, callback, me, unlink : l'accueil n'invite plus à rejoindre le serveur un compte qui y est déjà) : DISCORD_CLIENT_ID
    (identifiant de l'application du bot) et DISCORD_CLIENT_SECRET (secret OAuth2 : jamais affiché ni écrit dans un journal ; sans l'un ou l'autre, liaison coupée,
    /__ping discordLink: false, routes 404) ; DISCORD_REDIRECT_URI : adresse de retour déclarée sur le portail (défaut https://manaorbit.app/api/discord/callback ;
-   serveur local : l'origine de la requête). Liaisons : ADMIN_DIR/discord-links.json. */
+   serveur local : l'origine de la requête). Liaisons : ADMIN_DIR/discord-links.json.
+   Fils des avis (discord-forum.mjs) : DISCORD_STAFF_ROLES (rôles de l'équipe mentionnés dans chaque nouveau fil, noms séparés par des virgules ; défaut
+   « Créateur,Admin,Modo,Support » ; 0 : aucun) ; auteur prévenu par notifyUser (amis en marche) quand l'équipe étiquette, répond ou ferme son fil, relève toutes les
+   DISCORD_FEEDBACK_POLL_MS (10 min ; 0 : seulement les actions de /admin) ; DISCORD_FEEDBACK_SIMILAR : seuil des titres proches (0,6 ; 0 : coupé) ; fils suivis : ADMIN_DIR/discord-feedback.json (oubliés avec le compte : DELETE /api/friends/me). */
 const DSC_REDIR = (() => { const v = String(process.env.DISCORD_REDIRECT_URI || '').trim(); if (!v) return ''; try { const u = new URL(v); if (/^https?:$/.test(u.protocol)) return u.href; } catch (e) { /* invalide */ } console.warn('⚠ DISCORD_REDIRECT_URI ignorée : adresse http(s) attendue.'); return ''; })();
 const dscOrigin = req => (DSC_REDIR ? new URL(DSC_REDIR).origin : LOCAL ? 'http://' + String(req.headers.host || 'localhost') : 'https://manaorbit.app');      // LOCAL : hôte déjà limité à localhost (LOCAL_HOSTS)
 let DSC = null;
@@ -2954,7 +2958,8 @@ try {
   const { discordMake } = await import('./discord-srv.mjs');
   DSC = discordMake({ clientId: process.env.DISCORD_CLIENT_ID, clientSecret: process.env.DISCORD_CLIENT_SECRET, redirect: req => DSC_REDIR || dscOrigin(req) + '/api/discord/callback', appUrl: req => dscOrigin(req) + '/', token: process.env.DISCORD_BOT_TOKEN, guild: String(process.env.DISCORD_GUILD_ID || '').trim(), api: process.env.DISCORD_API || undefined, off: process.env.DISCORD === '0', dir: ADM_DIR,
     json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, verify: tok => verifyIdToken(tok, true), amTag, jpegSize, adminHeaders: ADM_HD, actPerH: ADM_ACT_H,
-    feedbackPerH: Number(process.env.FEEDBACK_PER_H ?? 10), presence: process.env.DISCORD_PRESENCE !== '0', cardNo: () => (DLY && DLY.no ? DLY.no() : 0) });      // statut « En ligne » : numéro de la Carte mystère du jour
+    feedbackPerH: Number(process.env.FEEDBACK_PER_H ?? 10), presence: process.env.DISCORD_PRESENCE !== '0', cardNo: () => (DLY && DLY.no ? DLY.no() : 0),      // statut « En ligne » : numéro de la Carte mystère du jour
+    net: req => clientOf(req), notify: AM_ON ? notifyUser : null, staffRoles: process.env.DISCORD_STAFF_ROLES, feedbackPollMs: Number(process.env.DISCORD_FEEDBACK_POLL_MS ?? 600e3), similar: Number(process.env.DISCORD_FEEDBACK_SIMILAR ?? 0.6) });      // fils des avis (discord-forum.mjs) : doublons par réseau, auteur prévenu, ping de l'équipe
 } catch (e) { console.warn('Discord : module illisible (' + (e && e.message || e) + '), bot coupé'); DSC = null; }
 const DSC_ON = !!(DSC && DSC.on);
 

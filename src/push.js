@@ -22,12 +22,13 @@ function pnTokSet(t) { PN.tok = t || ''; try { if (t) localStorage.setItem(PN_KE
 function pnDone(r) { for (const f of PN.wait.splice(0)) f(r); }
 /** Destination d'une notification touchée : les mêmes liens que Web Push (./?resume=1 : la recherche, ./?alerts=1 : les alertes,
     ./?amis=1 : la feuille Amis, ./?ami=<id> : la page d'un ami — friends.js › amPushOpen ; ./?troc=<code> : invitation à un échange en direct — troc.js ;
-    ./?mystere=1 : nouvelle Carte mystère — daily.js › dlyLaunch). */
+    ./?mystere=1 : nouvelle Carte mystère — daily.js › dlyLaunch ; ./?avis=<fil>&g=<serveur> : du nouveau sur un avis — help.js › fbAvisOpen). */
 function pushOpen(url) {
   const u = String(url || '');
   if (typeof trocPushOpen === 'function' && trocPushOpen(u)) return;
   if (/[?&]mystere\b/.test(u) && typeof dlyLaunch === 'function') { dlyLaunch(); return; }      // « La Carte mystère du jour est là » : le jeu
   if (/[?&]parties\b/.test(u) && typeof puHist === 'function') { setTimeout(puHist, 500); return; }      // « Partie enregistrée » (partie-ui.js) : Mes parties
+  if (/[?&]avis=/.test(u) && typeof fbAvisOpen === 'function' && fbAvisOpen(u)) return;      // « Du nouveau sur ton avis » (help.js) : le fil sur Discord
   if (amPushOpen(u)) return;
   if (/[?&]alerts\b/.test(u)) setTimeout(alertsOpen, 500);
   else if (/[?&]resume\b/.test(u)) resumeRun();
@@ -52,7 +53,7 @@ async function pnListen(P) {
       if (/[?&]troc=/.test(String(url || ''))) { if (typeof trocPushed === 'function') trocPushed({ title: n.title, body: n.body, url }); return; }      // invitation à un échange en direct : toast « Rejoindre »
       if (/[?&]ami/.test(String(url || ''))) { amPushed({ title: n.title, body: n.body, url }); return; }      // ami : liste relue, toast (sauf mode streamer)
       if (/[?&]mystere\b/.test(String(url || ''))) { if (typeof dlyPushed === 'function') dlyPushed({ title: n.title, body: n.body }); return; }      // nouvelle Carte mystère : bouton relu, toast « Jouer »
-      if (msg) toast(msg, /[?&](alerts|resume)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);
+      if (msg) toast(msg, /[?&](alerts|resume|avis)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);      // avis : le fil sur Discord
     }),
     on('pushNotificationActionPerformed', a => pushOpen(a && a.notification && a.notification.data && a.notification.data.url)),
   ]);

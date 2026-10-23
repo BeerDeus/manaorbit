@@ -16,6 +16,9 @@
 // retry_after (10 s au plus en tout, 4 essais) ; Discord en panne (5xx, réseau) : un nouvel essai. Jeton : seulement dans l'en-tête Authorization, jamais dans
 // un journal, une erreur ni une réponse. Mentions : jamais de ping venu d'un utilisateur (allowed_mentions vide ; seul le membre vérifié d'un avis : users: [id]) ;
 // ceux de l'éditeur, exactement ceux demandés.
+// Autour des fils des avis (discord-forum.mjs) : ping de l'équipe (rôles 👑 Créateur, Admin, Modo, Support : allowed_mentions.roles), un seul fil par envoi (nonce),
+// titres proches signalés dans le nouveau fil, auteur prévenu dans l'appli (notifyUser) quand l'équipe étiquette, répond ou ferme son fil.
+import { forumMake } from './discord-forum.mjs';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
@@ -64,7 +67,9 @@ export function dscRevealMsg(info) {
  *  cacheMs (5 min), maxWaitMs (10 s), tries (4), retryMs (attente avant le nouvel essai d'une panne, 1 s), timeoutMs (15 s), threadListMs (liste des fils gardée, 30 s),
  *  liaison du compte : clientId, clientSecret (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET), redirect (req → adresse de retour), appUrl (req → adresse de l'appli),
  *  authorizeUrl, stateMs (10 min), recheckMs (lié, pas membre : 10 min), memberMs (membre : 24 h), linkFile, budgets linkPerH, backPerH, mePerH,
- *  membersPer (recherches de membres par 10 min et par réseau, 60), membersCacheMs (60 s), membersOffMs (pause après un refus d'intention, 5 min) }. */
+ *  membersPer (recherches de membres par 10 min et par réseau, 60), membersCacheMs (60 s), membersOffMs (pause après un refus d'intention, 5 min) ;
+ *  fils des avis (discord-forum.mjs) : net (req → réseau du client), notify (notifyUser de proxy.mjs, ou null), staffRoles (DISCORD_STAFF_ROLES), feedbackPollMs
+ *  (DISCORD_FEEDBACK_POLL_MS, 10 min), feedbackFile, similar (seuil des titres proches, 0,6), dupMs (30 min) }. */
 export function discordMake(o = {}) {
   const TOKEN = String(o.token || '').trim(), ON = !!TOKEN && !o.off, API = String(o.api || 'https://discord.com/api/v10').replace(/\/+$/, '');
   const fetchFn = o.fetch || globalThis.fetch, now = o.now || Date.now, sleep = o.sleep || (ms => new Promise(r => setTimeout(r, ms))), log = o.log || console;
@@ -150,6 +155,8 @@ export function discordMake(o = {}) {
   }
 
   /* ── « Aide et avis » : POST /api/feedback ── */
+  const FX = forumMake({ call, load, forums: () => forums(), now, log, on: ON, notify: typeof o.notify === 'function' ? o.notify : null, dir: o.dir, file: o.feedbackFile, staff: o.staffRoles,
+    pollMs: o.feedbackPollMs, similar: o.similar, dupMs: o.dupMs });      // ping de l'équipe, doublons, titres proches, auteur prévenu (discord-forum.mjs)
   /** Budget d'un compte (feedbackPerH par heure, comme proxy.mjs › srLim) : 0 si permis, sinon secondes à attendre. */
   function lim(k) {
     if (!(FB_H > 0)) return 0;
@@ -198,7 +205,7 @@ export function discordMake(o = {}) {
     const m = f.meta, cut = (s, n) => (len(s) > n ? [...s].slice(0, n - 1).join('') + '…' : s);
     const head = [DSC_PLATS[m.plat] || '', m.v ? 'version ' + cut(m.v, 40) : '', m.apk ? 'APK ' + cut(m.apk, 40) : '', m.lang ? 'langue ' + cut(m.lang, 20) : ''].filter(Boolean).join(' · ');
     const foot = [head, f.contact && !f.by ? 'Contact Discord : ' + f.contact : '', m.nav || m.ua ? 'Navigateur : ' + cut(m.nav || m.ua, 200) : ''].filter(Boolean).map(s => '-# ' + md(s));
-    const body = f.text + (f.by ? `\n\nSignalé par <@${f.by}>` : ''), all = () => body + (foot.length ? '\n\n' + foot.join('\n') : '');
+    const body = f.text + (f.by ? `\n\nSignalé par <@${f.by}>` : ''), all = () => body + (foot.length ? '\n\n' + foot.join('\n') : '') + (f.ping ? (foot.length ? '\n' : '\n\n') + f.ping : '');      // f.ping : rôles de l'équipe, en dernier
     let out = all();
     while (out.length > 2000 && foot.length) { foot.pop(); out = all(); }
     return out;
@@ -209,10 +216,10 @@ export function discordMake(o = {}) {
     if (!/^application\/json\b/i.test(String(req.headers['content-type'] || ''))) return json(res, 415, { error: 'bad_content_type', message: 'Content-Type: application/json attendu.' });
     const w = rateWait(req, 'feedback', FB_H, 3600e3); if (w) return json(res, 429, { error: 'rate_limited', message: 'Trop d\'avis envoyés depuis ce réseau : réessaie plus tard.', retry: w }, { 'Retry-After': String(w) });
     const tok = String(req.headers['x-firebase-token'] || '');
+    let full = '', acct = '';      // empreinte du compte (amTag) : notifications de l'auteur (discord-forum.mjs) ; acct : ses 16 premiers caractères (budget, doublons)
     if (tok) {      // connecté : budget du compte (empreinte seulement, jamais affichée ni envoyée à Discord)
       if (isLocked(req)) return json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { 'Retry-After': '300' });
-      let acct = '';
-      try { acct = o.amTag(String((await o.verify(tok)).uid)).slice(0, 16); }
+      try { full = o.amTag(String((await o.verify(tok)).uid)); acct = full.slice(0, 16); }
       catch (e) {
         const code = e && e.authCode;
         if (code === 'expired') return json(res, 401, { error: 'token_expired', message: 'Session expirée : le navigateur va la renouveler.' });
@@ -223,14 +230,15 @@ export function discordMake(o = {}) {
     let b; try { b = JSON.parse((await readBody(req, 7 * 1048576)).toString('utf8') || '{}'); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); }
     const f = feedbackOf(b); if (f.e) return json(res, 400, { error: f.e[0], message: f.e[1] });
     const down = m => json(res, 503, { error: 'unavailable', message: m || 'Discord est injoignable pour le moment : réessaie plus tard.' }, { 'Retry-After': '60' });
-    try {
+    const make = async () => {      // le fil (une seule fois par envoi : FX.once) → { url, id }
       const { d, c } = await find([KINDS[f.kind], 'bugs'], [FORUM]);
-      if (!c) { log.warn('Discord : forum #' + KINDS[f.kind] + ' introuvable, avis refusé'); return down('Forum Discord introuvable : réessaie plus tard.'); }
+      if (!c) { log.warn('Discord : forum #' + KINDS[f.kind] + ' introuvable, avis refusé'); throw dErr('noforum', 'Forum Discord introuvable : réessaie plus tard.'); }
       const tags = Array.isArray(c.available_tags) ? c.available_tags.filter(t => t && t.id && !t.moderated) : [], want = [DSC_PLATS[f.meta.plat], DSC_AREAS[f.area]].filter(Boolean).map(fold);
       let applied = tags.filter(t => want.includes(fold(t.name))).map(t => String(t.id));
       if (!applied.length && (c.flags & REQUIRE_TAG) && tags.length) applied = [String((tags.find(t => fold(t.name) === 'autre') || tags[0]).id)];      // forum qui exige une étiquette
-      f.by = await memberOk(d.gid, f.member);      // membre choisi dans l'appli, vérifié : mentionné (seul ping permis) ; sinon rien
-      const message = { content: feedbackText(f), allowed_mentions: f.by ? { parse: [], users: [f.by] } : { parse: [] }, flags: 4 };      // 4 : sans aperçu des liens écrits par l'utilisateur
+      f.by = await memberOk(d.gid, f.member);      // membre choisi dans l'appli, vérifié : mentionné ; sinon rien
+      const staff = FX.staff(d); f.ping = staff.length ? '-# 🔔 ' + staff.map(r => `<@&${r}>`).join(' ') : '';      // rôles de l'équipe : les seuls autres pings permis
+      const message = { content: feedbackText(f), allowed_mentions: { parse: [], ...(f.by ? { users: [f.by] } : {}), ...(staff.length ? { roles: staff } : {}) }, flags: 4 };      // 4 : sans aperçu des liens écrits par l'utilisateur
       let form;
       if (f.imgs.length) {      // captures : multipart (payload_json + files[n])
         message.attachments = f.imgs.map((_, i) => ({ id: i, filename: `capture-${i + 1}.jpg` }));
@@ -239,9 +247,16 @@ export function discordMake(o = {}) {
       }
       const th = await post(c, `/channels/${c.id}/threads`, form ? undefined : { name: f.title, applied_tags: applied.slice(0, 5), message }, form);
       const id = String(th && th.id || '');
-      log.log(`Discord : avis (${f.kind}) publié dans #${dscName(c.name)}${f.imgs.length ? ', ' + f.imgs.length + ' capture' + (f.imgs.length > 1 ? 's' : '') : ''}${f.by ? ', membre mentionné' : ''}.`);
-      return json(res, 200, { ok: true, url: `https://discord.com/channels/${d.gid}/${id}`, id });
+      log.log(`Discord : avis (${f.kind}) publié dans #${dscName(c.name)}${f.imgs.length ? ', ' + f.imgs.length + ' capture' + (f.imgs.length > 1 ? 's' : '') : ''}${f.by ? ', membre mentionné' : ''}${staff.length ? ', équipe mentionnée' : ''}.`);
+      FX.created({ id, tag: full, f, tags: applied.slice(0, 5) });      // suivi (compte connu) et titres proches, sans retarder la réponse
+      return { url: `https://discord.com/channels/${d.gid}/${id}`, id };
+    };
+    try {
+      const r = await FX.once(FX.keys(acct, o.net ? o.net(req) : '', b.nonce, f), make);
+      if (r.dup) log.log(`Discord : avis (${f.kind}) déjà publié par le même envoi, fil renvoyé.`);
+      return json(res, 200, { ok: true, url: r.url, id: r.id, ...(r.dup ? { dup: true } : {}) });
     } catch (e) {
+      if (e.kind === 'noforum') return down(e.message);
       log.warn('Discord : avis non publié (' + e.message + ')');
       if (e.kind === 'limit') return json(res, 503, { error: 'unavailable', message: 'Discord est très demandé : réessaie dans une minute.' }, { 'Retry-After': String(e.retry || 60) });
       return down();
@@ -427,7 +442,7 @@ export function discordMake(o = {}) {
       if (!fs.length) body = { on: true, forums: list.map(forumOut), threads: [], more: false, message: want ? `Forum « ${want} » introuvable sur le serveur.` : 'Aucun forum bugs, idées ou aide sur le serveur.' };
       else {
         if (state === 'open') {
-          const j = await call('GET', `/guilds/${d.gid}/threads/active`);
+          const j = await call('GET', `/guilds/${d.gid}/threads/active`); FX.seen(j);      // gardée aussi pour les avis (titres proches, relève)
           for (const t of (j && Array.isArray(j.threads) ? j.threads : [])) { const f = t && fs.find(x => x.c.id === String(t.parent_id || '')); if (f) raw.push([t, f.key]); }
         } else {      // un forum par page de Discord ; plusieurs : coupés à la date la plus récente où un forum s'arrête (la page suivante reprend là, rien de perdu ni de répété)
           const arc = t => isoMs(t && t.thread_metadata && t.thread_metadata.archive_timestamp);
@@ -493,7 +508,7 @@ export function discordMake(o = {}) {
       const path = `/channels/${x.t.id}`, out = t => threadOut(t && t.id ? t : x.t, x.f.key, x.d, TH.first.get(String(x.t.id)) || { first: '', by: { name: '', bot: false } });
       if (sub === 'discord/thread-delete') {
         try { await call('DELETE', path); } catch (e) { if (!gone(e)) throw e; }
-        TH.first.delete(String(x.t.id)); done(x, 'supprimé');
+        TH.first.delete(String(x.t.id)); FX.drop(String(x.t.id)).catch(() => {}); done(x, 'supprimé');
         return json(res, 200, { ok: true }, HD);
       }
       await firstOf(x.t, x.d);      // auteur et début du fil pour la réponse (souvent déjà gardés)
@@ -509,7 +524,7 @@ export function discordMake(o = {}) {
           t = await call('PATCH', path, { archived: true });
         } else t = await call('PATCH', path, patch);
         const what = [patch.applied_tags ? 'étiquettes' : '', patch.name ? 'renommé' : '', patch.locked === true ? 'verrouillé' : patch.locked === false ? 'déverrouillé' : '', patch.archived === true ? 'fermé' : patch.archived === false ? 'rouvert' : ''].filter(Boolean).join(', ');
-        done(x, what);
+        done(x, what); FX.admin(String(x.t.id), t && t.id ? t : null, x.f.c).catch(() => {});      // avis suivi : auteur prévenu (étiquette de l'équipe, fermé)
         return json(res, 200, { ok: true, thread: out(t) }, HD);
       }
       const m = await call('POST', `${path}/messages`, { content, allowed_mentions: { parse: [] } });
@@ -517,7 +532,7 @@ export function discordMake(o = {}) {
       let t = null, closed = null;
       if (b.close === true) { try { t = await call('PATCH', path, { archived: true }); closed = true; } catch (e) { closed = false; log.warn('Discord : réponse envoyée, fil pas fermé (' + e.message + ')'); } }
       if (!t) t = await call('GET', path).catch(() => null);
-      done(x, closed ? 'réponse, fermé' : 'réponse');
+      done(x, closed ? 'réponse, fermé' : 'réponse'); FX.admin(String(x.t.id), t && t.id ? t : null, x.f.c, mid).catch(() => {});      // avis suivi : auteur prévenu (réponse, fermé)
       return json(res, 200, { ok: true, msg, thread: out(t), ...(closed === false ? { closed: false, message: 'Réponse envoyée, mais le fil n\'a pas été fermé (Discord a refusé) : ferme-le depuis la liste.' } : {}) }, HD);
     } catch (e) { if (gone(e)) return noThread(res); return admErr(res, e); }
   }
@@ -849,8 +864,8 @@ export function discordMake(o = {}) {
     if (code === 4007 || code === 4009) { GW.sid = ''; GW.seq = null; }      // numéro de séquence faux, session expirée : nouvelle identification
     gwLater();
   }
-  function start() { if (ON && typeof WS === 'function' && o.presence !== false && !GW.ws && !GW.wait) { GW.stop = false; gwOpen(); } }
-  function stop() { GW.stop = true; gwClear(); clearTimeout(GW.wait); GW.wait = null; const ws = GW.ws; GW.ws = null; if (ws) { try { ws.close(1000); } catch (e) { /* déjà fermée */ } } }
+  function start() { FX.start(); if (ON && typeof WS === 'function' && o.presence !== false && !GW.ws && !GW.wait) { GW.stop = false; gwOpen(); } }
+  function stop() { FX.stop(); GW.stop = true; gwClear(); clearTimeout(GW.wait); GW.wait = null; const ws = GW.ws; GW.ws = null; if (ws) { try { ws.close(1000); } catch (e) { /* déjà fermée */ } } }
 
-  return { on: ON, linkOn: LINK_ON, feedback, members, admin, link, reveal, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
+  return { on: ON, linkOn: LINK_ON, feedback, members, admin, link, reveal, start, stop, fbForget: tag => FX.forget(tag), _fx: FX, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
 }
