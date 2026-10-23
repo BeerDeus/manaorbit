@@ -1,0 +1,12 @@
+{
+  "Recevoir les alertes": "Ricevi gli avvisi",
+  "Notification": "Notifica",
+  "Discord (MP)": "Discord (DM)",
+  "Les deux": "Entrambi",
+  "Discord : accepte les messages privés des membres du serveur Mana Orbit (réglages de confidentialité du serveur, dans Discord).": "Discord: accetta i messaggi diretti dai membri del server Mana Orbit (impostazioni di privacy del server, in Discord).",
+  "MP Discord refusés : vérifie tes réglages de confidentialité Discord.": "DM di Discord rifiutati: controlla le tue impostazioni di privacy di Discord.",
+  "MP Discord impossibles : tu n'es plus sur le serveur Mana Orbit.": "DM di Discord impossibili: non sei più sul server Mana Orbit.",
+  "MP Discord impossibles : ton compte Discord n'est plus lié.": "DM di Discord impossibili: il tuo account Discord non è più collegato.",
+  "Dernier MP Discord non envoyé (Discord injoignable) : nouvel essai à la prochaine alerte.": "Ultimo DM di Discord non inviato (Discord irraggiungibile): nuovo tentativo al prossimo avviso.",
+  "Notifications impossibles sur cet appareil : alertes en message privé Discord.": "Notifiche impossibili su questo dispositivo: avvisi tramite messaggio diretto di Discord."
+}

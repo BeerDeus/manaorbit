@@ -11,6 +11,7 @@
 //   · liaison du compte Discord (OAuth2 « Se connecter avec Discord », portée identify) : POST /api/discord/link → adresse d'autorisation (state signé),
 //     GET /api/discord/callback (code échangé, compte lu, adhésion au serveur vérifiée par le bot), GET /api/discord/me, POST /api/discord/unlink ;
 //   · rôles des comptes liés (discord-roles.mjs : « ✅ Compte lié » et paliers de badges ; créés par le bot s'ils manquent, permission « Gérer les rôles ») ;
+//   · messages privés (dm, appelé par proxy.mjs › alPass : alertes de prix « Discord (MP) ») au compte Discord lié d'un compte de l'appli, membre du serveur ;
 //   · statut « En ligne » (passerelle Discord, WebSocket de Node 22+ ; sans lui : bot affiché hors ligne, le reste marche pareil) : « 🔮 Carte mystère n° 42 »,
 //     dans une langue après l'autre (une toutes les presenceMs, 30 s). Aucune intention à la passerelle (intents 0) : rien n'y est lu, il se montre seulement.
 //   · commandes slash /moi et /partie (discord-cmd.mjs : Interactions Endpoint URL, POST /api/discord/interactions signé en Ed25519, DISCORD_PUBLIC_KEY ; o.cmd).
@@ -815,6 +816,45 @@ export function discordMake(o = {}) {
     return true;
   }
 
+  /* ── Messages privés : alertes de prix (proxy.mjs › alPass) ──
+     dm(tag, msg) : compte de l'appli (empreinte amTag) → message privé du bot à son compte Discord lié. Discord ne laisse un bot écrire qu'à un membre d'un serveur
+     commun : l'adhésion gardée par la liaison est relue comme pour /me (pas membre : 10 min ; membre : 24 h). Canal privé ouvert une fois
+     (POST /users/@me/channels { recipient_id }), gardé en mémoire (id Discord → canal ; disparu : rouvert une fois). allowed_mentions toujours vide.
+     Échec : erreur levée avec why = 'unlinked' (pas de liaison), 'member' (plus membre du serveur), 'closed' (50007 « Cannot send messages to this user » :
+     MP des membres du serveur refusés dans ses réglages de confidentialité, ou 403 ; adhésion relue tout de suite : parti du serveur → 'member'), 'down' (panne,
+     limite de débit, autre refus). Aucun journal ici (l'appelant écrit le sien, sans id ni empreinte). Présente seulement avec la liaison des comptes (LINK_ON). */
+  const DMC = new Map();
+  const dmErr = (why, e) => Object.assign(e || dErr('setup', why), { why });
+  async function dm(tag, msg) {
+    if (!TAG_RE.test(String(tag || ''))) throw dmErr('unlinked');
+    const m = await links(), x = m.get(tag);
+    if (!x) throw dmErr('unlinked');
+    if (now() - (x.at || 0) > (x.member ? YES_MS : NO_MS)) await recheck(tag, x);
+    const y = m.get(tag); if (!y) throw dmErr('unlinked');
+    if (!y.member) throw dmErr('member');
+    const body = { ...msg, allowed_mentions: { parse: [] } };
+    for (let a = 0; ; a++) {
+      let ch = DMC.get(y.id);
+      try {
+        if (!ch) {
+          const c = await call('POST', '/users/@me/channels', { recipient_id: y.id }); ch = String(c && c.id || '');
+          if (!ID_RE.test(ch)) throw dErr('down', 'canal privé illisible');
+          if (DMC.size > 5000) DMC.clear();
+          DMC.set(y.id, ch);
+        }
+        await call('POST', `/channels/${ch}/messages`, body);
+        return true;
+      } catch (e) {
+        if (gone(e) && DMC.get(y.id) === ch && a === 0) { DMC.delete(y.id); continue; }      // canal privé oublié par Discord : rouvert une fois
+        if (e.kind === 'refused' && (e.code === 50007 || e.status === 403)) {
+          await recheck(tag, y); const z = m.get(tag);
+          throw dmErr(!z ? 'unlinked' : z.member ? 'closed' : 'member', e);
+        }
+        throw dmErr('down', e);
+      }
+    }
+  }
+
   /* ── Statut « En ligne » : passerelle Discord (WebSocket) ──
      HELLO → battements de cœur (heartbeat_interval, le premier après une part tirée au sort), IDENTIFY (intents 0, statut personnalisé) ou RESUME après une coupure ;
      battement sans réponse : connexion morte, refaite. Reconnexion : 1 s, 2 s, 4 s… 60 s au plus ; session reprise quand Discord le permet (RECONNECT, coupure
@@ -888,7 +928,7 @@ export function discordMake(o = {}) {
   /* ── Commandes slash /moi et /partie (discord-cmd.mjs : POST /api/discord/interactions, o.cmd : clé publique et fonctions de proxy.mjs) ── */
   const CMD = dscCmdMake({ ...(o.cmd || {}), on: ON, clientId: CID, call, guild, load, links, line, md, fold, json, readBody, rateWait, now, sleep, log });
 
-  return { on: ON, linkOn: LINK_ON, rolesOn: !!RL, rolesDay: RL ? tags => RL.day(tags) : null, rolesIdle: () => (RL ? RL.idle() : Promise.resolve()), feedback, members, admin, link, reveal, announce: DD.announce, weekly: DD.weekly, start: () => { CMD.start(); start(); }, stop, fbForget: tag => FX.forget(tag), _fx: FX, interactions: CMD.interactions, cmdOn: CMD.on, cmdStart: CMD.start, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW,
+  return { on: ON, linkOn: LINK_ON, rolesOn: !!RL, rolesDay: RL ? tags => RL.day(tags) : null, rolesIdle: () => (RL ? RL.idle() : Promise.resolve()), feedback, members, admin, link, reveal, dm: LINK_ON ? dm : null, announce: DD.announce, weekly: DD.weekly, start: () => { CMD.start(); start(); }, stop, fbForget: tag => FX.forget(tag), _fx: FX, interactions: CMD.interactions, cmdOn: CMD.on, cmdStart: CMD.start, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW,
     helpers: { find, post, chanTypes: [TX, NEWS] },      // pour les modules du bot (discord-sets.mjs : sorties dans #spoilers) : salon par nom utile, envoi avec limite de débit
     kit: { find, post, links, acctOf } };      // helpers prêtés aux modules du bot (discord-deck.mjs : partage d'un deck public)
 

@@ -6,9 +6,13 @@
      depuis la feuille d'un deck EDHREC (« Surveiller leurs prix »), ses cartes manquantes, avec le nom du deck, jusqu'à ce qu'elles soient dans la collection.
    La liste part avec l'abonnement push de CET appareil (PUT /api/alerts) à chaque changement (différé de 3 s) et au plus toutes les 12 h ;
    dans l'appli Android, avec son jeton FCM ({ fcm }) à la place de l'abonnement (voir push.js).
-   Les cartes suivies à la main et les réglages restent sur l'appareil (deckdeal:alert:v1). */
+   Les cartes suivies à la main et les réglages restent sur l'appareil (deckdeal:alert:v1).
+   Compte connecté, lié à Discord et membre du serveur (dsclink.js) : « Recevoir les alertes : Notification · Discord (MP) · Les deux » (AC.dm : '', 'only', 'both') ;
+   le mode part avec le PUT (dm) et le jeton Firebase (x-firebase-token : le serveur garde l'empreinte du compte, jamais l'UID) ; MP impossible : le serveur notifie
+   à la place et le dit (GET : dmErr), affiché dans la feuille. Notifications impossibles sur l'appareil (refusées, iPhone hors écran d'accueil) mais Discord lié :
+   alertes en MP seulement, sans abonnement, avec une clé d'appareil tirée au sort (AC.dev). */
 const AL_KEY = 'deckdeal:alert:v1', AL_THRS = [20, 30, 40, 50], AL_RESYNC = 12 * 3600e3, AL_ROWS = 150;
-const AC = { on: false, thr: 30, deck: true, watch: {}, mute: {}, id: '', at: 0, sig: '', t: 0, busy: false, err: '', info: null };
+const AC = { on: false, thr: 30, deck: true, watch: {}, mute: {}, id: '', at: 0, sig: '', t: 0, busy: false, err: '', info: null, dm: '', dev: '', nosub: false };
 
 function alRead() {
   try {
@@ -16,10 +20,23 @@ function alRead() {
     AC.on = !!j.on; AC.thr = AL_THRS.includes(j.thr) ? j.thr : 30; AC.deck = j.deck !== false;
     AC.watch = j.watch && typeof j.watch === 'object' ? j.watch : {}; AC.mute = j.mute && typeof j.mute === 'object' ? j.mute : {};
     AC.id = typeof j.id === 'string' ? j.id : ''; AC.at = Number(j.at) || 0; AC.sig = typeof j.sig === 'string' ? j.sig : '';
+    AC.dm = j.dm === 'only' || j.dm === 'both' ? j.dm : ''; AC.dev = typeof j.dev === 'string' && /^[\w-]{16,64}$/.test(j.dev) ? j.dev : ''; AC.nosub = !!j.nosub;
   } catch (e) { /* neuf */ }
 }
 function alWrite() {
-  try { localStorage.setItem(AL_KEY, JSON.stringify({ on: AC.on, thr: AC.thr, deck: AC.deck, watch: AC.watch, mute: AC.mute, id: AC.id, at: AC.at, sig: AC.sig })); } catch (e) { /* stockage indisponible */ }
+  try { localStorage.setItem(AL_KEY, JSON.stringify({ on: AC.on, thr: AC.thr, deck: AC.deck, watch: AC.watch, mute: AC.mute, id: AC.id, at: AC.at, sig: AC.sig, dm: AC.dm, dev: AC.dev, nosub: AC.nosub })); } catch (e) { /* stockage indisponible */ }
+}
+/** Compte connecté, lié à Discord et membre du serveur (dsclink.js) : le choix « Recevoir les alertes » s'affiche. */
+function alDscOk() { if (typeof dlOn !== 'function' || !dlOn() || !D.user) return false; const s = dlState(); return !!(s && s.l && s.m); }
+/** Mode envoyé au serveur : celui choisi, sauf sans compte ou liaison connue rompue (état pas encore relu : gardé, le serveur vérifie de lui-même). */
+function alDmEff() {
+  if (!AC.dm || !D.user || typeof dlOn !== 'function' || !dlOn()) return '';
+  const s = dlState(); return s && !(s.l && s.m) ? '' : AC.dm;
+}
+/** Clé de cet appareil pour les alertes en MP sans notification (tirée une fois, gardée). */
+function alDev() {
+  if (!AC.dev) { const a = new Uint8Array(18); crypto.getRandomValues(a); AC.dev = 'd' + [...a].map(x => x.toString(16).padStart(2, '0')).join(''); alWrite(); }
+  return AC.dev;
 }
 const alAvail = () => !!(CTX.proxy && CTX.alerts && (pushNat() ? CTX.fcm : CTX.vapid) && !S.demo);
 /** Prix cible saisi (« 2,5 », « 2.50 € ») → centimes, 0 si vide ou illisible. */
@@ -64,30 +81,39 @@ const alSubJson = () => pushTarget();
 /** Envoie la liste au serveur (rien si inchangée depuis moins de 12 h). */
 async function alSync(force) {
   if (!AC.on || AC.busy || !alAvail()) return;
-  const items = alItems(), sig = AC.thr + '|' + I18N.lang + '|' + JSON.stringify(items);      // langue dans la signature : le serveur réapprend la langue des notifications quand elle change
+  if (AC.dm && !D.authReady) { clearTimeout(AC.t); AC.t = setTimeout(() => alSync(force), 2000); return; }      // lancement : le compte n'est pas encore revenu (sans quoi le mode Discord serait effacé)
+  const dm = alDmEff(), items = alItems(), sig = AC.thr + '|' + I18N.lang + '|' + dm + '|' + JSON.stringify(items);      // langue dans la signature : le serveur réapprend la langue des notifications quand elle change
   if (!force && sig === AC.sig && Date.now() - AC.at < AL_RESYNC) return;
   if (!items.length && !AC.id) { AC.sig = sig; return; }
-  AC.busy = true;
+  AC.busy = true; let sub = null;
   try {
-    const sub = await alSubJson(); if (!sub) { AC.err = 'push'; return; }
-    const j = await ct('alerts', { method: 'PUT', body: { sub, thr: AC.thr, lang: I18N.lang, items: items.map(({ h, ...x }) => x) } }), prev = AC.id;
-    if (prev && j.id && j.id !== prev) ct('alerts', { method: 'DELETE', params: { id: prev } }).catch(() => {});   // nouvel abonnement ou jeton FCM renouvelé : l'ancien ne doit plus notifier
-    AC.id = items.length ? (j.id || AC.id) : ''; AC.sig = sig; AC.at = Date.now(); AC.err = ''; AC.info = { watching: j.watching | 0 }; alWrite();
-  } catch (e) { AC.err = e && e.code === 'auth' ? 'auth' : 'net'; }
+    sub = await alSubJson();
+    if (!sub && dm !== 'only') {      // aucune cible : un enregistrement « MP seulement » de cet appareil ne doit plus écrire (compte déconnecté, Discord délié)
+      if (AC.nosub && AC.id) { ct('alerts', { method: 'DELETE', params: { id: AC.id } }).catch(() => {}); AC.id = ''; AC.nosub = false; AC.sig = ''; alWrite(); }
+      AC.err = 'push'; return;
+    }
+    let hdr; if (dm) { try { const t = await D.user.getIdToken(); if (t) hdr = { 'x-firebase-token': t }; } catch (e) { /* sans jeton : le serveur ignore le mode */ } }
+    const j = await ct('alerts', { method: 'PUT', hdr, body: { ...(sub ? { sub } : { dev: alDev() }), thr: AC.thr, lang: I18N.lang, ...(dm ? { dm } : {}), items: items.map(({ h, ...x }) => x) } }), prev = AC.id;
+    if (prev && j.id && j.id !== prev) ct('alerts', { method: 'DELETE', params: { id: prev } }).catch(() => {});   // nouvel abonnement ou jeton FCM renouvelé (ou passage MP ↔ notification) : l'ancien ne doit plus écrire
+    AC.id = items.length ? (j.id || AC.id) : ''; AC.nosub = !sub; AC.sig = sig; AC.at = Date.now(); AC.err = ''; AC.info = { watching: j.watching | 0, dm: j.dm || '' }; alWrite();
+  } catch (e) { AC.err = e && e.code === 'auth' ? 'auth' : !sub && e && e.status === 400 ? 'push' : 'net'; }
   finally { AC.busy = false; alPaintBox(); }
 }
 function alSoon() { if (!AC.on) return; clearTimeout(AC.t); AC.t = setTimeout(() => alSync(), 3000); }
 
 async function alEnable() {
   if (!alAvail()) return { ok: false, why: S.demo ? 'demo' : 'unavailable' };
-  const r = await pushEnable(); if (!r.ok) return r;
+  const r = await pushEnable(), dmOnly = !r.ok && r.why !== 'error' && alDscOk();      // notifications impossibles ici, mais Discord lié : alertes en MP seulement
+  if (!r.ok && !dmOnly) return r;
+  if (dmOnly) AC.dm = 'only';
   AC.on = true; AC.mute = AC.mute || {}; alWrite(); await alSync(true);
-  return AC.err === 'net' || AC.err === 'auth' ? { ok: true, warn: AC.err } : { ok: true };
+  if (dmOnly && AC.err === 'push') { AC.on = false; alWrite(); return r; }
+  return { ok: true, ...(AC.err === 'net' || AC.err === 'auth' ? { warn: AC.err } : {}), ...(dmOnly ? { dmOnly: true } : {}) };
 }
 async function alDisable() {
   AC.on = false; clearTimeout(AC.t);
   try { if (AC.id && CTX.proxy) await ct('alerts', { method: 'DELETE', params: { id: AC.id } }); } catch (e) { /* le serveur nettoiera l'abonnement à son prochain refus */ }
-  AC.id = ''; AC.sig = ''; AC.err = ''; AC.info = null; alWrite();
+  AC.id = ''; AC.sig = ''; AC.err = ''; AC.info = null; AC.nosub = false; alWrite();
   if (!S.push && !amHoldsPush() && !(typeof dlyHoldsPush === 'function' && dlyHoldsPush())) await pushDisable();      // les notifications des amis (friends.js) et de la Carte mystère (daily.js) gardent l'abonnement
 }
 /** Texte d'un refus d'activation (permission, appareil…). */
@@ -154,7 +180,7 @@ async function alPaintBox(box) {
   const sub = !AC.on ? T('Une notification quand une carte qui te manque, ou une carte suivie, chute de prix.')
     : AC.err === 'net' ? T('Liste pas encore envoyée au serveur : nouvel essai à la prochaine modification.')
     : AC.err === 'auth' ? T('Connecte-toi (icône en haut) pour que le serveur surveille tes cartes.')
-    : AC.err === 'push' || st !== 'on' ? T('Notifications coupées pour cet appareil : réactive l\'alerte.')
+    : AC.err === 'push' || (st !== 'on' && !(AC.nosub && alDmEff() === 'only')) ? T('Notifications coupées pour cet appareil : réactive l\'alerte.')
     : TN(n, '{n} carte surveillée · baisse d\'au moins {thr} %.', '{n} cartes surveillées · baisse d\'au moins {thr} %.', { thr: AC.thr });
   box.innerHTML = `<label class="switch-row" for="setAlert"><span class="t"><b>${T('Prévenir en cas de forte baisse')}</b><span class="hint">${esc(sub)}</span></span><span class="switch"><input type="checkbox" id="setAlert" ${AC.on ? 'checked' : ''}><i></i></span></label>
     <p class="hint" id="alertMsg" hidden></p>${AC.on ? `<button class="btn ghost small" type="button" id="btnAlertOpen" style="align-self:flex-start">${T('Cartes surveillées et réglages')}</button>` : ''}`;
@@ -163,7 +189,7 @@ async function alPaintBox(box) {
     msg.hidden = true; cb.disabled = true;
     if (cb.checked) {
       const r = await alEnable(); cb.disabled = false;
-      if (r.ok) { haptic('ok'); toast(T('Alertes de prix activées')); } else { cb.checked = false; msg.hidden = false; msg.textContent = alWhy(r); return; }
+      if (r.ok) { haptic('ok'); toast(r.dmOnly ? T('Notifications impossibles sur cet appareil : alertes en message privé Discord.') : T('Alertes de prix activées')); } else { cb.checked = false; msg.hidden = false; msg.textContent = alWhy(r); return; }
     } else { await alDisable(); cb.disabled = false; toast(T('Alertes de prix coupées')); }
     alPaintBox(box);
   };
@@ -187,7 +213,7 @@ async function openAlertSheet() {
       if (!AC.on) {
         api.body.innerHTML = `<p class="hint">${T('Les alertes surveillent les cartes qui manquent à tes decks et celles que tu suis. Tu reçois une notification dès que l\'une d\'elles baisse, même appli fermée.')}</p>`;
         api.setFoot(`<button class="btn" type="button" id="alOn">${T('Activer les alertes')}</button>`);
-        $('#alOn', api.foot).onclick = async e => { e.target.disabled = true; const r = await alEnable(); if (!r.ok) { e.target.disabled = false; toast(alWhy(r)); return; } haptic('ok'); await load(); paint(); };
+        $('#alOn', api.foot).onclick = async e => { e.target.disabled = true; const r = await alEnable(); if (!r.ok) { e.target.disabled = false; toast(alWhy(r)); return; } haptic('ok'); if (r.dmOnly) toast(T('Notifications impossibles sur cet appareil : alertes en message privé Discord.')); await load(); paint(); };
         return;
       }
       const items = alItems(), px = (data && data.prices) || {};
@@ -201,10 +227,14 @@ async function openAlertSheet() {
           <span class="al-px">${r.c ? `<b>${esc(fmt(r.c))}</b>${r.b && r.pct ? `<small class="${r.pct < 0 ? 'dn' : 'up'}">${r.pct > 0 ? '+' : '−'}${Math.abs(r.pct)} %</small>` : ''}` : `<small>${T('pas encore de prix')}</small>`}</span>
           <button class="ib-x" type="button" data-rm="${esc(r.k)}" aria-label="${T(r.h ? 'Ne plus suivre {name}' : 'Exclure de la surveillance {name}', { name: esc(r.n) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
       };
+      const dmWhy = alDscOk() && data && data.dm && data.dmErr ? data.dmErr : '';      // dernier MP impossible : la raison donnée par le serveur
+      const dmErr = !dmWhy ? '' : dmWhy === 'closed' ? T('MP Discord refusés : vérifie tes réglages de confidentialité Discord.') : dmWhy === 'member' ? T('MP Discord impossibles : tu n\'es plus sur le serveur Mana Orbit.')
+        : dmWhy === 'unlinked' ? T('MP Discord impossibles : ton compte Discord n\'est plus lié.') : T('Dernier MP Discord non envoyé (Discord injoignable) : nouvel essai à la prochaine alerte.');
       api.body.innerHTML = `
         ${hits.length ? `<div class="sec-title">${T('Dernières alertes')}</div><div class="al-list hits">${hits.map(h => `<div class="al-row"><span class="al-n"><b>${esc(h.n)}</b><small>${esc(relTime(h.at))}${h.d && h.d.length ? ' · ' + T('manque à {deck}', { deck: esc(h.d[0]) }) : ''}</small></span><span class="al-px"><b>${esc(fmt(h.to))}</b><small class="dn">${h.why === 'target' ? T('sous ta cible') : '−' + h.pct + ' %'}</small></span></div>`).join('')}</div>` : ''}
         <div class="switch-row"><span class="t"><b>${T('Cartes manquantes de mes decks')}</b><span class="hint">${T('Toutes les cartes qu\'il te reste à acheter pour tes decks enregistrés.')}</span></span><label class="switch"><input type="checkbox" id="alDeck" ${AC.deck ? 'checked' : ''}><i></i></label></div>
         <div class="field-in"><span class="label">${T('Alerter à partir d\'une baisse de')}</span><div class="seg" id="alThr" role="radiogroup" aria-label="${T('Seuil de baisse')}"></div><span class="hint">${T('Et d\'au moins 0,50 €, comparé au prix des derniers jours.')}</span></div>
+        ${alDscOk() ? `<div class="field-in" id="alDmBox"><span class="label">${T('Recevoir les alertes')}</span><div class="seg" id="alDm" role="radiogroup" aria-label="${T('Recevoir les alertes')}"></div><span class="hint">${T('Discord : accepte les messages privés des membres du serveur Mana Orbit (réglages de confidentialité du serveur, dans Discord).')}</span>${dmErr ? `<span class="hint al-dm-err" id="alDmErr" role="status">${esc(dmErr)}</span>` : ''}</div>` : ''}
         <div class="sec-title">${T('Suivre une carte')}</div>
         <form class="al-add" id="alAdd" autocomplete="off"><input type="text" id="alName" placeholder="${T('Nom de la carte')}" aria-label="${T('Nom de la carte')}" autocapitalize="words" spellcheck="false"><input type="text" id="alTarget" inputmode="decimal" placeholder="${T('Cible €')}" aria-label="${T('Prix cible en euros (facultatif)')}"><button class="btn small" type="submit">${T('Suivre')}</button></form>
         <p class="hint" id="alAddMsg" hidden></p>
@@ -214,6 +244,12 @@ async function openAlertSheet() {
         <p class="hint">${esc(last)}</p>`;
       api.setFoot(`<button class="btn ghost" type="button" id="alOff">${T('Couper')}</button><button class="btn" type="button" id="alCheck">${T('Vérifier les prix')}</button>`);
       mountSeg($('#alThr', api.body), AL_THRS.map(v => ({ v: String(v), label: v + ' %' })), String(AC.thr), v => { AC.thr = Number(v); alWrite(); alSoon(); });
+      const dmSeg = $('#alDm', api.body);
+      if (dmSeg) mountSeg(dmSeg, [{ v: 'push', label: T('Notification') }, { v: 'only', label: T('Discord (MP)') }, { v: 'both', label: T('Les deux') }], AC.dm || 'push', async v => {
+        const dm = v === 'push' ? '' : v;
+        if (dm !== 'only') { const r = await pushEnable(); if (!r.ok) { toast(alWhy(r)); paint(); return; } }      // notification (seule ou avec le MP) : il faut les notifications sur l'appareil
+        AC.dm = dm; alWrite(); await alSync(true); await load(); paint();
+      });
       $('#alDeck', api.body).onchange = e => { AC.deck = e.target.checked; alWrite(); alSoon(); setTimeout(() => { alSync(true).then(load).then(paint); }, 50); };
       const um = $('#alUnmute', api.body); if (um) um.onclick = () => { AC.mute = {}; alWrite(); alSoon(); paint(); };
       const add = $('#alAdd', api.body), msg = $('#alAddMsg', api.body);
@@ -247,6 +283,7 @@ async function openAlertSheet() {
       };
     };
     paint(); load().then(paint);
+    const dsc0 = alDscOk(); if (typeof dlCheck === 'function') dlCheck().then(() => { if (alDscOk() !== dsc0) paint(); });      // liaison Discord relue : le choix « Recevoir les alertes » apparaît ou disparaît
   });
 }
 
