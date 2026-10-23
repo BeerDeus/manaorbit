@@ -496,3 +496,28 @@ test('formats : partie gardée sur l\'appareil, salle d\'attente (format de la s
   assert.deepEqual([P.partieStats(h, { jeu: 'commander' }).n, P.partieStats(h, { jeu: 'libre' }).wins], [1, 1]);
   delete globalThis.localStorage;
 });
+
+test('partie suivie d\'un autre téléphone : état envoyé (partieLive, relu par partieLiveClean), saisies des places (partieRemote : une fois chacune, annulables, coupées, éliminé)', () => {
+  let s = table4(); s = P.partieCmdDamage(s, 2, 1, 5, { now: at(1) }); s = P.partieCounter(s, 3, 'poison', 2, { now: at(2) }); s = P.partieMark(s, 'monarque', 4, { now: at(3) });
+  const L = P.partieLive(s);
+  assert.deepEqual(Object.keys(L).sort(), ['actif', 'initiative', 'monarque', 'places', 'tour']);
+  assert.deepEqual(L.places.map(p => [p.pos, p.vie, p.blessures, p.compteurs]), [[1, 40, {}, {}], [2, 35, { 1: 5 }, {}], [3, 40, {}, { poison: 2 }], [4, 40, {}, {}]]);
+  assert.ok(!JSON.stringify(L).includes(TK) && !('journal' in L), 'ni jeton ni journal');
+  assert.deepEqual(P.partieLiveClean(JSON.parse(JSON.stringify(L)), 'commander'), L, 'relu à l\'identique');
+  assert.equal(P.partieLiveClean({ ...L, places: L.places.map(p => ({ ...p, vie: 1e9, nom: 'x'.repeat(99) })) }, 'commander').places[0].vie, 9999, 'borné');
+  assert.deepEqual(P.partieLiveClean(L, 'standard').places[1].blessures, {}, 'Standard : pas de blessures de commandant');
+  assert.equal(P.partieLiveClean({ places: [] }, 'commander'), null); assert.equal(P.partieLiveClean({ places: Array(9).fill(L.places[0]) }, 'commander'), null);
+  const q = [{ s: 1, id: 'lea-a1', pos: 2, by: 2, k: 'v', n: -3 }, { s: 2, id: 'lea-a2', pos: 2, by: 2, k: 'b', src: 3, n: 2 }, { s: 3, id: 'bob-a1', pos: 3, by: 3, k: 'c', c: 'poison', n: 1 }, { s: 4, id: 'lea-co', pos: 4, by: 2, k: 't', n: 1 }];
+  let x = P.partieRemote(s, q, { now: at(10) });
+  assert.deepEqual([x.done.length, x.st.places[1].vie, x.st.places[1].blessures, x.st.places[2].compteurs.poison, x.st.actif, x.st.rq.s, x.st.rq.ids], [4, 30, { 1: 5, 3: 2 }, 3, 2, 4, ['2:lea-a1', '2:lea-a2', '3:bob-a1', '2:lea-co']]);
+  assert.equal(P.partieLive(x.st).ack, 4, 'ack : dernier numéro appliqué');
+  assert.equal(P.partieRemote(x.st, q).st, x.st, 'relus : rien de refait');
+  assert.equal(P.partieRemote(P.partieStateClean(JSON.parse(JSON.stringify(x.st))), [{ ...q[0], s: 9 }]).st.places[1].vie, 30, 'identifiant déjà vu (partie relue du stockage) : rien de refait');
+  assert.equal(P.partieUndo(x.st).actif, 1, 'annulable comme un appui (le tour suivant d\'abord)'); assert.equal(P.partieUndo(x.st).rq.s, 4, 'sans être réappliqué ensuite');
+  const off = P.partieRemoteOff(x.st, true); assert.equal(P.partieLive(off).lock, 1);
+  let y = P.partieRemote(off, [{ s: 5, id: 'lea-b1', pos: 2, by: 2, k: 'v', n: -1 }]); assert.deepEqual([y.done.length, y.st.places[1].vie, y.st.rq.s], [0, 30, 5], 'saisie coupée : ignorée (mais vue)');
+  y = P.partieRemote(P.partieEliminate(x.st, 3, 'vie'), [{ s: 6, id: 'bob-b1', pos: 3, by: 3, k: 'v', n: 5 }]); assert.equal(y.done.length, 0, 'éliminé : ignoré');
+  for (const bad of [{ s: 7, id: 'x', pos: 2, k: 'v', n: 1 }, { s: 7, id: 'lea-c1', pos: 2, k: 'v', n: 500 }, { s: 7, id: 'lea-c2', pos: 2, k: 'b', src: 2, n: 1 }, { s: 7, id: 'lea-c3', pos: 2, k: 'c', c: 'toString', n: 1 }, { s: 0, id: 'lea-c4', pos: 2, k: 'v', n: 1 }])
+    assert.equal(P.partieRemote(x.st, [bad]).done.length, 0, JSON.stringify(bad));
+  assert.equal(P.partieRemote(P.partieEnd(x.st, [1]), q.map(d => ({ ...d, s: d.s + 10 }))).done.length, 0, 'partie finie : rien');
+});

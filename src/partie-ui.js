@@ -5,7 +5,10 @@
    · Compteur (le téléphone du créateur, posé sur la table) : trois affichages au choix dans le menu « … » — A tourné vers chacun, B liste, C table —
      toucher la moitié gauche / droite d'un joueur : −1 / +1 (maintenu : ±10) ; son nom : sa fiche (blessures de commandant, poison, impôt, monarque…).
    · Fin : vainqueur(s), résultat gardé et envoyé (partie.js › partieDone), QR code du résultat pour ceux qui n'ont pas rejoint.
-   · Liens : ?table=CODE (rejoindre : se connecter ou continuer en invité, place, deck) et ?partie=… (résultat : « c'était moi »).
+   · Liens : ?table=CODE (rejoindre : se connecter ou continuer en invité, place, deck ; puis la table en direct au choix : ses points comptés d'ici, toute la table pour
+     un co-hôte, des deltas que le téléphone du créateur applique ; partie annulée ou abandonnée : l'écran se ferme avec la raison) et ?partie=… (résultat : « c'était moi »).
+   · Téléphones de la table pendant la partie (créateur) : état envoyé à la salle (regroupé ~1 s), saisies des autres téléphones appliquées une fois chacune,
+     demandes de co-hôte (feuille Accepter / Refuser), « Tout le monde est co-hôte » et saisie coupée (préparation, menu « … »).
    Aucune publicité pendant la partie (écran plein, au-dessus de tout). Écran gardé allumé (Wake Lock) pendant le compteur. */
 const PU = { el: null, st: null, mode: '', room: null, view: null, on: [], net: true, stopW: null, wl: null, gone: new Set(), deltas: {}, hold: null, joinEl: null, roomTry: false };
 const PU_AFF_KEY = 'deckdeal:partie:aff', PU_AFFS = ['A', 'B', 'C'];
@@ -46,7 +49,7 @@ function puHomeInit() {
 /** Partie en cours de ce téléphone ; laissée de côté trop longtemps (partieStale : 12 h en préparation, 48 h commencée), elle est effacée sans résultat. */
 function puCur() {
   const cur = partieLoad(); if (!cur || cur.fin || !partieStale(cur, partieSavedAt())) return cur;
-  partieClear(); const r = partieRoom(); if (r && r.id === cur.id) partieRoomOp('end').catch(() => partieRoomForget());
+  partieClear(); const r = partieRoom(); if (r && r.id === cur.id) partieRoomEnd('stale');      // les téléphones de la table l'apprennent (raison : trop vieille)
   return null;
 }
 function puHomePaint() {
@@ -75,6 +78,8 @@ function puOpen(st) {
   document.body.appendChild(wrap); holdApp(); puPaint();
   requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('on')));
   document.addEventListener('visibilitychange', puVis);
+  const rm = partieRoom(); PU.lvJ = ''; PU.lvOff = '';
+  if (rm && rm.host && rm.id === st.id && !st.fin && !PU.stopW) { puWatch(); if (st.debut) { partieRoomPace(true); puLiveSoon(); } }      // partie reprise : la table suit de nouveau (saisies des autres téléphones, état envoyé)
 }
 function puClose() {
   const w = PU.el; if (!w) return; PU.el = null;
@@ -92,6 +97,7 @@ async function puWake(on) {
 function puSet(next, o = {}) {
   if (!next || next === PU.st) return false;
   PU.st = next; if (next.fin) partieClear(); else partieSave(next);
+  puLiveSoon();      // partie commencée avec une table : l'état part vers les autres téléphones (regroupé)
   const me = next.places.find(p => p.sorte === 'moi'); if (me && next.debut && !next.fin) PU.low = Math.min(PU.low ?? Infinity, me.vie);      // plus bas de mes points de vie (badge « Revenant », progress.js)
   if (o.paint !== false) puPaint();
   return true;
@@ -125,12 +131,14 @@ function puSetupPaint() {
       ${me ? `<section class="pu-card"><p class="pu-h">${T('Mon deck')}</p>${decks.length ? `<label class="sortsel pu-deck"><select data-pu="mydeck" aria-label="${T('Mon deck')}"><option value="">${T('Aucun')}</option>${decks.map(d => `<option value="${esc(d.id)}"${me.deck && me.deck.nom === partieStr(d.name, PRT_LEN.deck) ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : `<p class="hint">${T('Aucun deck dans « Mes decks » : tu joueras sans deck affiché.')}</p>`}</section>` : ''}
       <section class="pu-card pu-qr">${qr ? `<div class="pu-qr-img" role="img" aria-label="${T('QR code de la table')}">${qr}</div><div class="pu-qr-t"><b>${T('Les autres scannent ce QR code')}</b><span>${T('Ils choisissent leur place et leur deck, puis rangent leur téléphone. Code : {c}', { c: room.c })}</span></div>`
         : `<div class="pu-qr-t"><b>${T('Joueurs sans téléphone ou hors ligne')}</b><span>${!puOnline() ? T('Hors ligne : ajoute les joueurs ici, le résultat partira au retour du réseau.') : !D.user ? T('Connecte-toi pour que les autres rejoignent la table avec leur téléphone (QR code).') : !CTX.partie ? T('Serveur indisponible : ajoute les joueurs ici.') : T('Ouverture de la table…')}</span>${!D.user && puOnline() ? `<button class="btn ghost small" type="button" data-pu="login">${T('Se connecter')}</button>` : ''}</div>`}</section>
+      ${roomOk ? `<section class="pu-card"><label class="switch-row" for="puAllco"><span class="t"><b>${T('Tout le monde est co-hôte')}</b><span class="hint">${T('Chaque téléphone qui rejoint compte aussi les points de toute la table et passe au tour suivant. Abandonner, éliminer ou terminer reste sur ce téléphone.')}</span></span><span class="switch"><input type="checkbox" id="puAllco"${PU.view && PU.view.allco ? ' checked' : ''}><i></i></span></label></section>` : ''}
       <section class="pu-card"><p class="pu-h">${T('Autour de la table')}</p><ol class="pu-seats">${seats}</ol>${st.places.length < 8 ? `<button class="plc-add" type="button" data-pu="guest">${T('+ Invité')}</button>` : ''}${roomOk && PU.view && PU.view.st === 'wait' && PU.view.size < 8 && (PU.view.places || []).length >= PU.view.size ? `<button class="plc-add" type="button" data-pu="seat+">${T('+ Une place de plus')}</button>` : ''}</section>
       ${st.places.length > 1 ? `<section class="pu-card"><p class="pu-h">${T('Premier joueur')}</p><div class="pu-chips"><button type="button" data-pu="first" data-pos="0" aria-pressed="${!st.premier}">${T('Au hasard')}</button>${st.places.map(p => `<button type="button" data-pu="first" data-pos="${p.pos}" aria-pressed="${st.premier === p.pos}">${esc(p.nom || p.pos)}</button>`).join('')}</div></section>` : ''}
     </div></div>
     <div class="pu-foot"><button class="btn block" type="button" data-pu="start"${st.places.length < 2 ? ' disabled' : ''}>${st.places.length < 2 ? T('Il faut au moins 2 joueurs') : T('Lancer la partie')}</button><button class="link-btn pu-drop" type="button" data-pu="drop">${T('Supprimer cette partie')}</button></div>`;
   mountSeg($('.pu-jeu', el), [{ v: 'commander', label: T('Commander'), sub: T('jusqu\'à 8') }, { v: 'standard', label: T('Standard'), sub: T('1 contre 1') }, { v: 'libre', label: T('Libre'), sub: T('PV au choix') }], jeu, v => puJeuSet(v, puPref().f[v]));
   if ($('.pu-fmt', el)) mountSeg($('.pu-fmt', el), PRT_FORMATS.map(f => ({ v: String(f), label: String(f) })), String(st.format), v => puVieSet(Number(v)));
+  const ac = $('#puAllco', el); if (ac) ac.onchange = () => puAllco(ac.checked);
   const sel = $('select[data-pu="mydeck"]', el);
   if (sel) sel.onchange = () => { const d = decks.find(x => x.id === sel.value), deck = d ? partieDeckOf(d, puDeckImg(d)) : null; puSet(partieSetPlace(PU.st, me.pos, { deck })); if (partieRoom()) partieRoomOp('me', { deck }).catch(() => {}); };
 }
@@ -158,7 +166,7 @@ function puDeckImg(d) {
 }
 async function puRoomOpen() {
   try {
-    const v = await partieRoomCreate(PU.st, { n: puMe(), p: PROF.photo || '', l: I18N.lang });
+    const v = await partieRoomCreate(PU.st, { n: puMe(), p: PROF.photo || '', l: I18N.lang, allco: puAllcoPref() });
     PU.view = v; puWatch();
     if (PU.st && (partieJeu(v) !== partieJeu(PU.st) || v.format !== PU.st.format)) puRoomOpts({ jeu: partieJeu(PU.st), format: PU.st.format, size: partieRoomSize(PU.st, puViewMax()) }, true);      // format changé pendant l'ouverture
   } catch (e) { PU.view = null; }
@@ -168,11 +176,12 @@ function puWatch() {
   puWatchStop();
   PU.stopW = partieRoomWatch((v, x) => {
     if (!PU.el) return;
-    if (x && x.gone) { PU.view = null; toast(T('Table fermée par le serveur : continue avec des invités')); puPaint(); return; }
+    if (x && x.gone) { PU.view = null; toast(PU.mode === 'game' ? T('Table fermée par le serveur : les autres téléphones ne suivent plus la partie.') : T('Table fermée par le serveur : continue avec des invités')); puPaint(); return; }
     PU.net = !x || x.net !== false; PU.on = (x && x.on) || [];
     if (v) { PU.view = v; if (PU.mode === 'setup' && v.st === 'wait') puSet(puFromRoom(PU.st, v), { paint: false }); }
     if (PU.mode === 'setup') puPaint();
-  });
+    else if (PU.mode === 'game' && v) puCoSync(v);
+  }, { qa: () => (PU.st && PU.st.rq && PU.st.rq.s) || 0, onQ: puRemote });      // partie commencée : saisies des autres téléphones (partieRemote)
 }
 function puWatchStop() { if (PU.stopW) { PU.stopW(); PU.stopW = null; } }
 /** Invité (sans téléphone) : prénom, commandant facultatif (Standard, Libre : son deck). */
@@ -203,10 +212,12 @@ function puGuestSheet() {
 }
 async function puStart() {
   let st = PU.st; if (st.places.length < 2) return;
-  if (partieRoom() && PU.view) { try { const v = await partieRoomOp('start'); st = puFromRoom(st, v); } catch (e) { /* la salle ne répond plus : on joue quand même */ } }
+  let live = false;
+  if (partieRoom() && PU.view) { try { const v = await partieRoomOp('start'); st = puFromRoom(st, v); PU.view = v; live = true; } catch (e) { /* la salle ne répond plus : on joue quand même */ } }
   puWatchStop();
   if (!st.premier) st = partieFirst(st, 0);
   st = partieStart(st); haptic('ok'); puSet(st);
+  if (live) { puWatch(); partieRoomPace(true); }      // la table continue de suivre : saisies des autres téléphones, co-hôtes
 }
 
 /* ── Compteur ─────────────────────────────────────────────────────────────────────────────────── */
@@ -226,6 +237,7 @@ function puTile(st, p, r) {
   if (st.initiative === p.pos) tags.push(`<span class="pu-tag" title="${T('Initiative')}"><svg class="i" aria-hidden="true"><use href="#i-castle"/></svg></span>`);
   if (p.compteurs.poison) tags.push(`<span class="pu-tag" title="${T('Poison')}"><svg class="i" aria-hidden="true"><use href="#i-poison"/></svg>${p.compteurs.poison}</span>`);
   if (p.compteurs.impot) tags.push(`<span class="pu-tag" title="${T('Impôt de commandant')}">+${p.compteurs.impot * 2}</span>`);
+  if (puCoOf(p.pos)) tags.push(`<span class="pu-tag pu-cotag" title="${T('Co-hôte : compte aussi pour la table depuis son téléphone')}">${T('Co-hôte')}</span>`);
   const bl = Object.values(p.blessures).reduce((a, x) => Math.max(a, x), 0); if (bl) tags.push(`<span class="pu-tag" title="${T('Blessures de commandant (la plus haute)')}"><svg class="i" aria-hidden="true"><use href="#i-sword"/></svg>${bl}</span>`);
   return `<div class="pu-t${dead ? ' dead' : ''}${act ? ' act' : ''}${r === 90 || r === 270 ? ' rv' : ''}" data-pos="${p.pos}" style="--r:${r || 0}deg;--h:${[265, 200, 150, 28, 340, 52, 180, 300][(p.pos - 1) % 8]}"><div class="pu-in">
       <button type="button" class="pu-hit m" data-d="-1" aria-label="${T('{name} : −1 point de vie', { name: esc(p.nom || p.pos) })}"><span aria-hidden="true">−</span></button>
@@ -350,9 +362,11 @@ function puMenu() {
         <button type="button" data-m="end"><b>${T('Terminer la partie')}</b><small>${T('Vainqueur, résultat envoyé aux joueurs')}</small></button>
         <button type="button" data-m="pause"><b>${T('Mettre en pause')}</b><small>${T('Reprendre plus tard depuis l\'accueil')}</small></button>
         <button type="button" data-m="drop" class="danger-txt"><b>${T('Abandonner la partie')}</b><small>${T('Rien n\'est gardé')}</small></button>
-      </div>`;
+      </div>${puTableMenuHtml()}`;
+    api.body.addEventListener('change', e => { if (e.target.id === 'puMAllco') puAllco(e.target.checked); else if (e.target.id === 'puMLock') { haptic('tap'); puSet(partieRemoteOff(PU.st, !e.target.checked)); } });
     api.body.addEventListener('click', e => {
       const a = e.target.closest('[data-aff]'); if (a) { puAffSet(a.dataset.aff); haptic('tap'); api.close(); puPaint(); return; }
+      const u = e.target.closest('[data-unco]'); if (u) { haptic('tap'); puCoSet(Number(u.dataset.unco), false); api.close(); return; }
       const m = e.target.closest('[data-m]'); if (!m || m.disabled) return; const k = m.dataset.m; api.close();
       if (k === 'next') puSet(partieNextTurn(PU.st));
       else if (k === 'first') { const st = partieFirst(PU.st, 0); puSet(st); toast(T('{name} commence', { name: puName(st, st.premier) })); }
@@ -368,10 +382,81 @@ function puDropSheet() {
   const st = PU.el ? PU.st : partieLoad(); if (!st || st.fin) { puHomePaint(); return; }
   const go = !!st.debut;
   openSheet(go ? T('Abandonner la partie ?') : T('Supprimer la partie ?'), '', api => {
-    api.body.innerHTML = `<p class="cf-msg">${go ? T('La partie est effacée de ce téléphone, sans résultat.') : T('La partie en préparation est effacée de ce téléphone.')}</p>`;
+    const room = partieRoom(), table = room && room.host && room.id === st.id;
+    api.body.innerHTML = `<p class="cf-msg">${go ? T('La partie est effacée de ce téléphone, sans résultat.') : T('La partie en préparation est effacée de ce téléphone.')}${table ? ' ' + T('Les téléphones de la table sont prévenus.') : ''}</p>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ok>${go ? T('Abandonner') : T('Supprimer')}</button>`);
-    api.foot.addEventListener('click', e => { if (!e.target.closest('[data-ok]')) return; api.close(); partieClear(); if (partieRoom()) partieRoomOp('end').catch(() => partieRoomForget()); if (PU.el) puClose(); else puHomePaint(); });
+    api.foot.addEventListener('click', e => { if (!e.target.closest('[data-ok]')) return; api.close(); partieClear(); if (partieRoom()) partieRoomEnd(); if (PU.el) puClose(); else puHomePaint(); });      // salle close : les places quittent (« X a annulé / abandonné la partie »)
   });
+}
+
+/* ── Téléphones de la table pendant la partie : état envoyé (en direct), saisies des autres téléphones, co-hôtes ─────────────────────────── */
+const PU_LIVE_MS = 1000, PU_ALLCO_KEY = 'deckdeal:partie:allco';
+const puAllcoPref = () => { try { return localStorage.getItem(PU_ALLCO_KEY) === '1'; } catch (e) { return false; } };
+/** Co-hôte (vue de la salle) : compte pour toute la table depuis son téléphone. */
+const puCoOf = pos => !!(PU.view && PU.view.st === 'live' && Array.isArray(PU.view.places) && PU.view.places.some(x => x.pos === pos && x.co));
+/** Partie commencée avec une table : l'état du compteur part vers les téléphones de la table PU_LIVE_MS après le premier changement (les suivants regroupés). */
+function puLiveSoon() {
+  const st = PU.st, room = partieRoom();
+  if (!st || !st.debut || st.fin || !room || !room.host || room.id !== st.id || PU.lvOff === st.id || PU.lvT) return;
+  PU.lvT = setTimeout(puLivePush, PU_LIVE_MS);
+}
+async function puLivePush() {
+  PU.lvT = 0; const st = PU.st, room = partieRoom();
+  if (!st || !st.debut || st.fin || !room || !room.host || room.id !== st.id) return;
+  const j = JSON.stringify(partieLive(st)); if (j === PU.lvJ) return;
+  if (PU.lvBusy) { PU.lvAgain = true; return; }
+  PU.lvBusy = true; let wait = 0;
+  try { await partieRoomLive(st); PU.lvJ = j; }
+  catch (e) { if (e.code === 'closed' || e.code === 'not_started' || e.code === 'gone' || e.code === 'kicked' || e.status === 400 || e.status === 413) PU.lvOff = st.id; else wait = e.status === 429 ? 1500 : 5000; }      // salle finie ou refus définitif : plus d'envoi ; panne : nouvel essai
+  PU.lvBusy = false;
+  if (PU.lvAgain || wait) { PU.lvAgain = false; if (wait) { clearTimeout(PU.lvT); PU.lvT = setTimeout(puLivePush, wait); } else puLiveSoon(); }
+}
+/** Saisies arrivées des autres téléphones (deltas : leur place, ou toute la table pour un co-hôte) : appliquées une fois chacune comme un appui ici (journal, annuler, « −3 » sur la tuile). */
+function puRemote(list) {
+  if (!PU.st || PU.mode !== 'game') return;
+  const { st, done } = partieRemote(PU.st, list); if (st === PU.st) return;
+  for (const d of done) {
+    const n = d.k === 'v' ? d.n : d.k === 'b' ? -d.n : 0; if (!n) continue;
+    const x = PU.deltas[d.pos] = PU.deltas[d.pos] && Date.now() - PU.deltas[d.pos].t < PRT_MERGE_MS ? PU.deltas[d.pos] : { n: 0, t: 0 };
+    x.n += n; x.t = Date.now(); clearTimeout(x.to); x.to = setTimeout(() => { if (PU.deltas[d.pos] === x) { delete PU.deltas[d.pos]; if (PU.mode === 'game') puPaintTile(d.pos); } }, PRT_MERGE_MS);
+  }
+  puSet(st);
+}
+/** Vue de la salle pendant la partie : demandes de co-hôte (feuille, une à la fois), pastilles « Co-hôte » des tuiles. */
+function puCoSync(v) {
+  const key = (v.places || []).filter(x => x.co).map(x => x.pos).join(',');
+  if (key !== PU.coKey) { PU.coKey = key; puPaint(); }
+  const sheet = sheets.some(a => a.wrap && a.wrap.classList.contains('pu-ask')), ask = (v.places || []).find(x => x.ask && x.pos !== PU.askBusy);
+  if (ask && !sheet) puAskSheet(ask);
+}
+function puAskSheet(x) {
+  const name = x.n || T('Joueur {n}', { n: x.pos });
+  openSheet(T('{name} demande à être co-hôte', { name }), T('Place {n}', { n: x.pos }), api => {
+    api.wrap.classList.add('pu-sheet', 'pu-ask');
+    api.body.innerHTML = `<p class="cf-msg">${T('Un co-hôte compte les points de toute la table depuis son téléphone et peut passer au tour suivant. Abandonner, éliminer, annuler ou terminer la partie restent sur ce téléphone.')}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-no>${T('Refuser')}</button><button class="btn" type="button" data-ok>${T('Accepter')}</button>`);
+    api.foot.addEventListener('click', e => { const ok = e.target.closest('[data-ok]'), no = e.target.closest('[data-no]'); if (!ok && !no) return; haptic(ok ? 'ok' : 'tap'); api.close(); puCoSet(x.pos, !!ok); });
+  });      // fermée sans répondre : reproposée au relevé suivant (la demande expire au bout de 5 min)
+}
+/** Le créateur accepte (ok), refuse ou retire le rôle de co-hôte d'une place. */
+function puCoSet(pos, ok) {
+  PU.askBusy = pos;      // réponse en route : la demande n'est pas reproposée entre-temps
+  partieRoomOp('co', { pos, ok }).then(v => { PU.view = v; PU.askBusy = 0; if (PU.el && PU.mode === 'game') puCoSync(v); }, () => { PU.askBusy = 0; toast(T('Pas de réseau : réessaie')); });
+}
+/** « Tout le monde est co-hôte » : réglage de la salle, gardé pour la fois suivante. */
+function puAllco(on) {
+  try { localStorage.setItem(PU_ALLCO_KEY, on ? '1' : '0'); } catch (e) { /* choix pour cette fois */ }
+  if (!partieRoom()) return;
+  partieRoomOp('allco', { on }).then(v => { PU.view = v; if (PU.el && PU.mode === 'setup') puPaint(); else if (PU.el && PU.mode === 'game') puCoSync(v); }, () => toast(T('Pas de réseau : réessaie')));
+}
+/** Menu « … » : téléphones de la table (partie avec une salle) : saisie des autres téléphones permise ou coupée, tout le monde co-hôte, co-hôtes à retirer. */
+function puTableMenuHtml() {
+  const room = partieRoom(), v = PU.view; if (!room || !room.host || room.id !== PU.st.id || !v || v.st !== 'live') return '';
+  const cos = (v.places || []).filter(x => x.co && !v.allco), off = !!(PU.st.rq && PU.st.rq.off);
+  return `<p class="pu-h">${T('Téléphones de la table')}</p><div class="pu-card pu-tmenu">
+      <label class="switch-row" for="puMLock"><span class="t"><b>${T('Saisie depuis les autres téléphones')}</b><span class="hint">${off ? T('Coupée : ils regardent la partie sans rien changer.') : T('Permise : chacun ses points, les co-hôtes toute la table.')}</span></span><span class="switch"><input type="checkbox" id="puMLock"${off ? '' : ' checked'}><i></i></span></label>
+      <label class="switch-row" for="puMAllco"><span class="t"><b>${T('Tout le monde est co-hôte')}</b><span class="hint">${T('Chaque téléphone de la table compte pour tous. Coupé : seuls restent co-hôtes ceux que tu as acceptés.')}</span></span><span class="switch"><input type="checkbox" id="puMAllco"${v.allco ? ' checked' : ''}><i></i></span></label>
+      ${cos.map(x => `<div class="pu-row"><span>${esc(x.n || T('Joueur {n}', { n: x.pos }))} <small>${T('Co-hôte')}</small></span><button class="btn ghost small" type="button" data-unco="${x.pos}">${T('Retirer le rôle')}</button></div>`).join('')}</div>`;
 }
 
 /* ── Fin de la partie ─────────────────────────────────────────────────────────────────────────── */
@@ -463,68 +548,288 @@ function puLaunch(qs) {
   else toast(T('Résultat de partie illisible'));
   return true;
 }
-/** Rejoindre la table : se connecter ou continuer en invité, place, deck ; puis attente (le téléphone peut être rangé) jusqu'au résultat. */
+/* Téléphone d'une place : choix gardés pour la fois suivante (prénom et commandant de l'invité, deck, partie suivie en direct) : deckdeal:partie:join { n, c, d, live }. */
+const PU_JOIN_KEY = 'deckdeal:partie:join';
+const puJoinPref = () => { try { const o = JSON.parse(localStorage.getItem(PU_JOIN_KEY) || 'null'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } };
+const puJoinPrefSet = o => { try { localStorage.setItem(PU_JOIN_KEY, JSON.stringify({ ...puJoinPref(), ...o })); } catch (e) { /* choix pour cette fois */ } };
+/** Connexion ou changement de compte (decks.js › onUser) : l'écran « Rejoindre la partie » se met à jour (il attendait peut-être le compte). */
+function puUser(user) { if (PU.joinEl && PU.joinEl.__user) PU.joinEl.__user(user); }
+const PU_HUES = [265, 200, 150, 28, 340, 52, 180, 300];      // couleur de chaque place, comme les tuiles du compteur
+const puDqId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-5);
+/** Raison de la fin d'une table (salle st 'end', retiré, disparue) → [titre, message] pour le téléphone d'une place. */
+function puEndWhy(why, name) {
+  const n = name || T('Le créateur');
+  if (why === 'host') return [T('Partie annulée'), T('{name} a annulé la partie.', { name: n })];
+  if (why === 'drop') return [T('Partie abandonnée'), T('{name} a abandonné la partie : pas de résultat.', { name: n })];
+  if (why === 'stale') return [T('Partie effacée'), T('La partie a été effacée du téléphone de {name} : laissée de côté trop longtemps.', { name: n })];
+  if (why === 'replaced') return [T('Table fermée'), T('{name} prépare une autre partie : cette table est fermée.', { name: n })];
+  if (why === 'kicked') return [T('Retiré de la table'), T('Le créateur t\'a retiré de la table.')];
+  if (why === 'idle') return [T('Table fermée'), T('Table fermée : plus d\'activité depuis un moment.')];
+  return [T('Table fermée'), T('La table est fermée.')];
+}
+/** Rejoindre la table : se connecter ou continuer en invité, place, deck ; puis attente (le téléphone peut être rangé) jusqu'au résultat ; partie commencée : la table
+    en direct au choix (points de vie de chacun, tour ; SES points, ses blessures et compteurs changés d'ici, toute la table pour un co-hôte : des deltas que le téléphone
+    du créateur applique, affichés tout de suite ici et recalés à son retour) ; partie annulée ou abandonnée par le créateur : écran fermé avec la raison, place oubliée. */
 function puJoin(code) {
   if (PU.joinEl) PU.joinEl.__close();
   const wrap = document.createElement('div'); wrap.className = 'dv pu pu-join'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Rejoindre la partie'));
-  const J = { code, peek: null, err: '', guest: false, pos: 0, deck: '', name: '', cmd: '', joined: partieRoom() && partieRoom().c === code ? partieRoom() : null, view: null, stop: null };
-  PU.joinEl = wrap; wrap.__close = () => { if (J.stop) J.stop(); PU.joinEl = null; wrap.classList.remove('on'); setTimeout(() => wrap.remove(), 240); releaseApp(); };
+  const pref = puJoinPref();
+  const J = { code, peek: null, err: '', end: '', endName: '', guest: false, pos: 0, deck: pref.d || '', name: pref.n || '', cmd: pref.c || '', joined: partieRoom() && partieRoom().c === code ? partieRoom() : null, view: null, stop: null,
+    t0: Date.now(), acct: null, live: !!pref.live, lv: null, net: true, on: [], buf: [], pend: [], bt: 0, sending: false, hold: null, shown: {}, dl: {}, prev: null, wl: null, sheet: null };
+  PU.joinEl = wrap;
+  wrap.__close = () => { if (J.stop) J.stop(); partieRoomPace(false); lock(false); clearTimeout(J.bt); document.removeEventListener('visibilitychange', vis); PU.joinEl = null; wrap.classList.remove('on'); setTimeout(() => wrap.remove(), 240); releaseApp(); };
   const decks = () => (D.user && typeof allDecks === 'function' ? allDecks().filter(d => d && d.name) : []);
+  const authWait = () => !D.authReady && !!D.hint && Date.now() - J.t0 < 8000;      // compte connu de cet appareil, session pas encore revenue : on l'attend (jamais l'écran de connexion pour rien)
+  const hostName = () => { const h = ((J.view || {}).places || []).find(x => x.h); return (h && h.n) || (J.peek && J.peek.host) || ''; };
+  const liveOn = () => !!(J.joined && J.view && J.view.st === 'live' && J.live);
+  /* Écran gardé allumé pendant que la partie se suit en direct (Wake Lock, comme le compteur). */
+  async function lock(on) {
+    if (!on) { if (J.wl) { try { J.wl.release(); } catch (e) { /* déjà relâché */ } J.wl = null; } return; }
+    if (J.wl || !navigator.wakeLock || document.visibilityState !== 'visible') return;
+    try { J.wl = await navigator.wakeLock.request('screen'); J.wl.addEventListener('release', () => { J.wl = null; }); } catch (e) { J.wl = null; }
+  }
+  const vis = () => { if (!document.hidden && liveOn()) lock(true); };
+  document.addEventListener('visibilitychange', vis);
+
+  /* ── Saisie depuis ce téléphone : deltas regroupés (300 ms), envoyés avec un identifiant (refaits sans doublon après une coupure), affichés tout de suite ── */
+  const unacked = () => { const a = (J.lv && J.lv.ack) || 0; return J.pend.filter(x => !x.s || x.s > a); };
+  /** État affiché : celui du créateur, plus mes saisies pas encore appliquées par lui. */
+  function lvShow() {
+    const L = J.lv; if (!L) return null;
+    const ps = L.places.map(p => ({ ...p, blessures: { ...p.blessures }, compteurs: { ...p.compteurs } }));
+    for (const d of [...unacked(), ...J.buf]) {
+      const p = ps.find(x => x.pos === d.pos); if (!p || p.elimine) continue;
+      if (d.k === 'v') p.vie += d.n;
+      else if (d.k === 'b') { const k = d.src + (d.b ? 'b' : ''), cur = p.blessures[k] || 0, nb = Math.max(0, cur + d.n); if (nb) p.blessures[k] = nb; else delete p.blessures[k]; p.vie -= nb - cur; }
+      else if (d.k === 'c') p.compteurs[d.c] = Math.max(0, (p.compteurs[d.c] || 0) + d.n);
+    }
+    return { ...L, places: ps };
+  }
+  /** Ce téléphone peut-il changer cette place (la sienne ; toutes pour un co-hôte) ? '' : oui ; sinon la raison (affichée). */
+  function tableWhy() {
+    const v = J.view, L = J.lv; if (!v || !L || v.st !== 'live') return 'off';
+    if (L.lock) return 'lock';
+    const hp = (v.places || []).find(x => x.h); return hp && !J.on.includes(hp.pos) ? 'host' : '';
+  }
+  function canWhy(pos) {
+    const w = tableWhy(), v = J.view; if (w) return w;
+    const p = J.lv.places.find(x => x.pos === pos); if (!p) return 'off';
+    if (pos !== v.me && !v.co) return 'off';
+    return p.elimine ? 'dead' : '';
+  }
+  function add(d) {
+    if (d.k === 't' ? !J.view.co || tableWhy() : canWhy(d.pos)) return;
+    if (d.k === 't') J.buf.push({ ...d, n: 1, t: 1 });
+    else { const same = J.buf.find(x => x.pos === d.pos && x.k === d.k && x.src === d.src && !!x.b === !!d.b && x.c === d.c && Math.abs(x.n + d.n) <= PRT_DQ_N); if (same) same.n += d.n; else J.buf.push({ ...d }); }
+    J.buf = J.buf.filter(x => x.n); haptic('tap');
+    if (!J.bt) J.bt = setTimeout(flush, 300);
+    deltas(); paint();
+  }
+  function flush() {
+    J.bt = 0; for (const x of J.buf) J.pend.push({ ...x, id: puDqId() }); J.buf = [];
+    const todo = J.pend.filter(x => !x.s).slice(0, 20); if (!todo.length || J.sending || !partieRoom()) return;
+    J.sending = true;
+    partieRoomOp('delta', { d: todo.map(x => ({ id: x.id, pos: x.pos, k: x.k, n: x.n, ...(x.src ? { src: x.src } : {}), ...(x.b ? { b: 1 } : {}), ...(x.c ? { c: x.c } : {}) })) }).then(r => {
+      for (const a of (r && r.acc) || []) { const x = J.pend.find(y => y.id === a.id); if (x) x.s = a.s; }
+      J.net = true;
+    }, e => {
+      if (e.code === 'net' || e.status === 429 || e.status >= 500) { J.net = e.code !== 'net'; J.retry = setTimeout(flush, e.status === 429 ? 600 : 2500); return; }      // panne : renvoyés plus tard (mêmes identifiants : rien de doublé)
+      J.pend = J.pend.filter(x => !todo.includes(x));
+      toast(e.code === 'locked' ? T('Saisie coupée par le créateur') : e.code === 'eliminated' ? T('Joueur éliminé : saisie impossible') : e.code === 'not_cohost' ? T('Tu n\'es plus co-hôte : tu ne comptes plus que ta place.') : T('Saisie refusée'));
+    }).finally(() => { J.sending = false; if (J.pend.some(x => !x.s) && !J.retry) setTimeout(flush, 200); J.retry = 0; paint(); });
+  }
+  /** Fiche d'une place que ce téléphone peut changer : points de vie, blessures de commandant reçues, compteurs (comme celle du compteur, en deltas). */
+  function lvSheet(pos) {
+    openSheet('', '', api => {
+      api.wrap.classList.add('pu-sheet', 'pu-lvsheet');
+      const step = (k, v, lbl, extra = '') => `<div class="pu-row"><span>${lbl}</span><span class="qstep"><button type="button" data-k="${k}" data-n="-1"${extra}>−</button><b>${v}</b><button type="button" data-k="${k}" data-n="1"${extra}>+</button></span></div>`;
+      const sp = () => {
+        const L = lvShow(), p = L && L.places.find(x => x.pos === pos), why = canWhy(pos); if (!p || why === 'off') { api.close(); return; }
+        $('h2', api.wrap).textContent = p.nom || T('Joueur {n}', { n: pos });
+        const opp = L.places.filter(x => x.pos !== pos), cmd = partieCmdOn(J.view), dis = why ? ' disabled' : '';
+        api.body.innerHTML = `${why ? `<p class="hint pu-lv-why">${esc(lvWhy(why))}</p>` : ''}<div class="pu-lifebig"><button type="button" data-k="v" data-n="-10"${dis}>−10</button><button type="button" data-k="v" data-n="-1"${dis}>−1</button><b>${p.vie}</b><button type="button" data-k="v" data-n="1"${dis}>+1</button><button type="button" data-k="v" data-n="10"${dis}>+10</button></div>
+          ${cmd ? `<p class="pu-h">${T('Blessures de commandant reçues')}</p>${opp.map(o => { const c = puCmd(o), two = c.includes(' + '); return step('b', p.blessures[String(o.pos)] || 0, esc(T('de {name}', { name: o.nom || o.pos })) + (c ? ` <small>${esc(two ? c.split(' + ')[0] : c)}</small>` : ''), ` data-s="${o.pos}"${dis}`) + (two ? step('b', p.blessures[o.pos + 'b'] || 0, `<small>${esc(c.split(' + ')[1])}</small>`, ` data-s="${o.pos}" data-b="1"${dis}`) : ''); }).join('')}` : ''}
+          <p class="pu-h">${T('Compteurs')}</p>${PU_CNT.filter(([k]) => cmd || k !== 'impot').map(([k, l]) => step('c', p.compteurs[k] || 0, T(l), ` data-c="${k}"${dis}`)).join('')}
+          <p class="hint">${T('Compté sur le téléphone de {name}, qui garde la partie.', { name: hostName() || T('Le créateur') })}</p>`;
+      };
+      J.sheet = { api, paint: sp }; sp();
+      api.body.addEventListener('click', e => {
+        const b = e.target.closest('button[data-k]'); if (!b || b.disabled) return; const n = Number(b.dataset.n);
+        if (b.dataset.k === 'v') add({ pos, k: 'v', n }); else if (b.dataset.k === 'b') add({ pos, k: 'b', src: Number(b.dataset.s), n, ...(b.dataset.b ? { b: 1 } : {}) }); else add({ pos, k: 'c', c: b.dataset.c, n });
+      });
+    });
+  }
+  const lvWhy = w => (w === 'lock' ? T('{name} a coupé la saisie depuis les autres téléphones : tu suis la partie sans rien changer.', { name: hostName() || T('Le créateur') })
+    : w === 'host' ? (hostName() ? T('Le téléphone de {name} ne répond pas : la saisie reprendra à son retour.', { name: hostName() }) : T('Le téléphone du créateur ne répond pas : la saisie reprendra à son retour.')) : w === 'dead' ? T('Éliminé : tu suis la fin de la partie.') : '');
+  /** La table en direct : chaque place (la mienne d'abord, puis dans l'ordre du tour), points de vie, tour, joueur actif, éliminés, blessures, poison, monarque, initiative. */
+  function liveHtml() {
+    const v = J.view, L = lvShow(), host = hostName(), me = v.me;
+    if (!L) return `<section class="pu-card pu-wait">${PU_HEART}<b>${T('Tu es à la place {n}', { n: me })}</b><p>${esc(T('Les points de vie arrivent du téléphone de {name}…', { name: host }))}</p></section>`;
+    const ps = L.places.slice().sort((a, b) => a.pos - b.pos), i = Math.max(0, ps.findIndex(p => p.pos >= me)), order = ps[i] && ps[i].pos === me ? [...ps.slice(i), ...ps.slice(0, i)] : ps;
+    const cmd = partieCmdOn(v), co = new Set((v.places || []).filter(x => x.co).map(x => x.pos)), pending = unacked().length + J.buf.length, why = canWhy(me), coWhy = v.co ? tableWhy() : '';
+    const cards = order.map(p => {
+      const dead = !!p.elimine, act = L.actif === p.pos && !dead, mine = p.pos === me, can = !canWhy(p.pos), c = puCmd(p), tags = [];
+      if (L.monarque === p.pos) tags.push(`<span class="pu-tag" title="${T('Monarque')}"><svg class="i" aria-hidden="true"><use href="#i-crown"/></svg></span>`);
+      if (L.initiative === p.pos) tags.push(`<span class="pu-tag" title="${T('Initiative')}"><svg class="i" aria-hidden="true"><use href="#i-castle"/></svg></span>`);
+      if (p.compteurs.poison) tags.push(`<span class="pu-tag" title="${T('Poison')}"><svg class="i" aria-hidden="true"><use href="#i-poison"/></svg>${p.compteurs.poison}</span>`);
+      const bl = Object.values(p.blessures).reduce((a, x) => Math.max(a, x), 0); if (bl && cmd) tags.push(`<span class="pu-tag" title="${T('Blessures de commandant (la plus haute)')}"><svg class="i" aria-hidden="true"><use href="#i-sword"/></svg>${bl}</span>`);
+      if (p.compteurs.impot && cmd) tags.push(`<span class="pu-tag" title="${T('Impôt de commandant')}">+${p.compteurs.impot * 2}</span>`);
+      if (p.compteurs.energie) tags.push(`<span class="pu-tag" title="${T('Énergie')}"><svg class="i" aria-hidden="true"><use href="#i-bolt"/></svg>${p.compteurs.energie}</span>`);
+      if (p.compteurs.experience) tags.push(`<span class="pu-tag" title="${T('Expérience')}"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg>${p.compteurs.experience}</span>`);
+      const d = J.dl[p.pos], nm = esc(p.nom || T('Joueur {n}', { n: p.pos }));
+      const recv = mine && cmd && !dead ? Object.entries(p.blessures).filter(([, n]) => n).map(([k, n]) => { const o = L.places.find(x => x.pos === parseInt(k, 10)); return `<span>${esc(T('de {name}', { name: (o && o.nom) || parseInt(k, 10) }))} <b>${n}</b></span>`; }).join('') : '';
+      return `<div class="pu-lv${mine ? ' me' : ''}${act ? ' act' : ''}${dead ? ' dead' : ''}${can ? ' can' : ''}" data-lp="${p.pos}" style="--h:${PU_HUES[(p.pos - 1) % 8]}">
+          <div class="pu-lv-top"><span class="pu-lv-pos">${p.pos}</span><b class="pu-lv-n">${nm}</b>${mine ? `<small class="pu-lv-pill me">${T('Toi')}</small>` : ''}${co.has(p.pos) ? `<small class="pu-lv-pill">${T('Co-hôte')}</small>` : ''}${act ? `<small class="pu-lv-pill act">${T('Joue')}</small>` : ''}</div>
+          ${c ? `<small class="pu-lv-cmd">${esc(c)}</small>` : ''}
+          <div class="pu-lv-mid">${can ? `<button type="button" class="pu-lv-b" data-lv="-1" aria-label="${T('{name} : −1 point de vie', { name: nm })}">−</button>` : ''}<b class="pu-lv-life">${dead ? `<svg class="i" aria-hidden="true"><use href="#i-skull"/></svg>` : p.vie}</b>${d && d.n ? `<span class="pu-lv-dl">${d.n > 0 ? '+' : ''}${d.n}</span>` : ''}${can ? `<button type="button" class="pu-lv-b" data-lv="1" aria-label="${T('{name} : +1 point de vie', { name: nm })}">+</button>` : ''}</div>
+          ${dead ? `<small class="pu-lv-cmd pu-lv-out">${T('éliminé')}</small>` : tags.length ? `<div class="pu-lv-tags">${tags.join('')}</div>` : ''}
+          ${recv ? `<div class="pu-lv-recv"><small>${T('Blessures de commandant reçues')}</small>${recv}</div>` : ''}
+          ${can ? `<button type="button" class="pu-lv-more" data-lvs="${p.pos}">${mine ? T('Ma fiche : blessures, compteurs') : T('Fiche')}</button>` : ''}
+        </div>`;
+    }).join('');
+    const state = pending ? `<span class="pu-lv-st">${J.net ? T('Envoi…') : T('Hors ligne : envoi au retour du réseau')}</span>` : !J.net ? `<span class="pu-lv-st">${T('Connexion perdue · nouvel essai…')}</span>` : `<span class="pu-lv-st on">${T('En direct')}</span>`;
+    const msg = why && why !== 'off' ? lvWhy(why) : coWhy && coWhy !== 'off' ? lvWhy(coWhy) : '';
+    return `<section class="pu-card pu-live"><div class="pu-lv-bar"><span><b>${T('Tour {t}', { t: L.tour })}</b> · ${esc(T('{name} joue', { name: (L.places.find(p => p.pos === L.actif) || {}).nom || T('Joueur {n}', { n: L.actif }) }))}</span>${state}</div>
+        ${msg ? `<p class="hint pu-lv-why">${esc(msg)}</p>` : ''}
+        <div class="pu-lv-g">${cards}</div>
+        ${v.co && !coWhy ? `<button class="btn ghost block" type="button" data-j="turn">${T('Tour suivant')}</button>` : ''}
+        <p class="hint">${v.co ? esc(T('Co-hôte : tu comptes pour toute la table. Le téléphone de {name} garde la partie.', { name: host })) : esc(T('Tu changes tes points d\'ici ; les autres places sont comptées sur le téléphone de {name}.', { name: host }))}</p></section>`;
+  }
+  /** Co-hôte : demande, demande en attente, rôle (sauf « Tout le monde est co-hôte » : rien à demander). */
+  function coHtml() {
+    const v = J.view; if (!v || !(v.st === 'live' || v.st === 'wait') || v.allco) return '';
+    if (v.co) return `<button class="link-btn pu-co-off" type="button" data-j="unask">${T('Ne plus être co-hôte')}</button>`;
+    if (v.ask) return `<p class="hint pu-co-wait">${esc(T('Demande envoyée : {name} doit l\'accepter sur son téléphone.', { name: hostName() || T('le créateur') }))} <button class="link-btn" type="button" data-j="unask">${T('Annuler la demande')}</button></p>`;
+    return `<button class="btn ghost block" type="button" data-j="ask">${T('Demander à être co-hôte')}</button>`;
+  }
   const paint = () => {
     const P = J.peek, taken = new Map(((J.view || P || {}).places || []).map(x => [x.pos, x.n]));
-    let body;
-    if (J.joined) {
-      const v = J.view, res = v && v.res, me = v ? v.me : J.joined.pos;
-      body = res ? `<section class="pu-card"><p class="pu-h">${T('Partie terminée')}</p><ol class="pu-rank">${res.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === me ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol><p class="hint">${T('Gardée dans « Mes parties ».')}</p></section>${puGetAppHtml()}`
-        : `<section class="pu-card pu-wait">${PU_HEART}<b>${T('Tu es à la place {n}', { n: me })}</b><p>${esc(T('Range ton téléphone : la partie se joue sur le téléphone de {name}. Le résultat arrivera ici.', { name: (v && v.host) || (P && P.host) || '' }))}</p>${v && v.st === 'live' ? `<p class="hint">${T('Partie en cours…')}</p>` : `<p class="hint">${T('En attente du lancement…')}</p>`}<button class="btn ghost small" type="button" data-j="leave">${T('Quitter la table')}</button></section>`;
+    let body, foot = '';
+    if (J.end) {
+      const [h, m] = puEndWhy(J.end, J.endName);
+      body = `<section class="pu-card pu-wait pu-end"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg><b>${esc(h)}</b><p>${esc(m)}</p><p class="hint">${T('Ta place à cette table est oubliée.')}</p></section>${puGetAppHtml()}`;
+      foot = `<div class="pu-foot"><button class="btn block" type="button" data-j="close">${T('Fermer')}</button></div>`;
+    } else if (J.joined) {
+      const v = J.view, res = v && v.res, me = v ? v.me : J.joined.pos, live = v && v.st === 'live';
+      if (res) body = `<section class="pu-card"><p class="pu-h">${T('Partie terminée')}</p><ol class="pu-rank">${res.places.slice().sort((a, b) => a.rang - b.rang).map(p => `<li class="${p.vainqueur ? 'win' : ''}${p.pos === me ? ' me' : ''}"><span class="pu-pos">${p.vainqueur ? '<svg class="i" aria-hidden="true"><use href="#i-trophy"/></svg>' : p.rang}</span><span class="pu-who"><b>${esc(p.nom || p.pos)}</b>${p.commandant || p.deck ? `<small>${esc(p.commandant || p.deck)}</small>` : ''}</span></li>`).join('')}</ol><p class="hint">${T('Gardée dans « Mes parties ».')}</p></section>${puGetAppHtml()}`;
+      if (res) foot = `<div class="pu-foot"><button class="btn block" type="button" data-j="close">${T('Fermer')}</button></div>`;
+      else if (live && J.live) {
+        body = liveHtml() + `<section class="pu-card pu-lv-foot">${coHtml()}<div class="pu-acts"><button class="btn ghost small" type="button" data-j="hide">${T('Masquer les points de vie')}</button><button class="btn ghost small" type="button" data-j="leave">${T('Quitter la table')}</button></div></section>`;
+      } else {
+        body = `<section class="pu-card pu-wait">${PU_HEART}<b>${T('Tu es à la place {n}', { n: me })}</b><p>${esc(T('Range ton téléphone : la partie se joue sur le téléphone de {name}. Le résultat arrivera ici.', { name: hostName() }))}</p>${live ? `<p class="hint">${T('Partie en cours…')}</p><button class="btn block" type="button" data-j="show">${T('Voir les points de vie')}</button>` : `<p class="hint">${T('En attente du lancement…')}</p><p class="hint">${T('Une fois la partie lancée, tu pourras suivre les points de vie de la table ici et compter les tiens.')}</p>`}
+          ${coHtml()}<button class="btn ghost small" type="button" data-j="leave">${T('Quitter la table')}</button></section>`;
+      }
     } else if (J.err) body = `<section class="pu-card"><p class="pu-h">${T('Table introuvable')}</p><p class="hint">${esc(J.err)}</p></section>`;
-    else if (!P) body = `<section class="pu-card"><p class="hint">${T('Lecture de la table…')}</p></section>`;
-    else if (!D.user && !J.guest) body = `<section class="pu-card"><p class="pu-h">${esc(T('Partie de {name}', { name: P.host || '' }))}</p><p class="hint">${T('Connecte-toi pour garder la partie dans ton historique, ou continue en invité.')}</p><div class="pu-acts"><button class="btn" type="button" data-j="login">${T('Se connecter')}</button><button class="btn ghost" type="button" data-j="guest">${T('Continuer en invité')}</button></div></section>`;
+    else if (!P || authWait()) body = `<section class="pu-card pu-load"><span class="dot" aria-hidden="true"></span><p class="hint">${P ? T('Connexion à ton compte…') : T('Lecture de la table…')}</p></section>`;
+    else if (!D.user && !J.guest) body = `<section class="pu-card"><p class="pu-h">${esc(T('Partie de {name}', { name: P.host || '' }) + ' · ' + puJeuTxt(P))}</p><p class="hint">${T('Connecte-toi pour garder la partie dans ton historique, ou continue en invité.')}</p><div class="pu-acts"><button class="btn" type="button" data-j="login">${T('Se connecter')}</button><button class="btn ghost" type="button" data-j="guest">${T('Continuer en invité')}</button></div></section>`;
     else {
-      const seats = Array.from({ length: P.size || 8 }, (_, i) => i + 1);
+      const seats = Array.from({ length: P.size || 8 }, (_, i) => i + 1), ds = decks();
+      if (J.deck && !ds.some(d => d.id === J.deck)) J.deck = '';
+      if (J.pos && taken.has(J.pos)) J.pos = 0;      // prise entre-temps par un autre
       body = `<section class="pu-card"><p class="pu-h">${esc(T('Partie de {name}', { name: P.host || '' }) + ' · ' + puJeuTxt(P))}</p>
-          ${J.guest ? `<div class="field-in"><label class="label" for="puJn">${T('Prénom')}</label><input type="text" id="puJn" maxlength="24" autocomplete="off" value="${esc(J.name)}"></div>` : ''}
+          ${J.guest ? `<div class="field-in"><label class="label" for="puJn">${T('Prénom')}</label><input type="text" id="puJn" maxlength="24" autocomplete="given-name" value="${esc(J.name)}"></div>` : `<p class="hint pu-j-me">${esc(T('Tu joues avec ton compte : {name}', { name: puMe() }))}</p>`}
           <p class="pu-h">${T('Ta place autour de la table')}</p><div class="pu-places">${seats.map(n => `<button type="button" data-seat="${n}" aria-pressed="${J.pos === n}"${taken.has(n) ? ' disabled' : ''}><b>${n}</b><small>${esc(taken.get(n) || T('libre'))}</small></button>`).join('')}</div>
-          ${!J.guest && decks().length ? `<p class="pu-h">${T('Ton deck')}</p><label class="sortsel pu-deck"><select data-j="deck"><option value="">${T('Aucun')}</option>${decks().map(d => `<option value="${esc(d.id)}"${J.deck === d.id ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : ''}
+          <p class="hint pu-j-turn">${T('Dans l\'ordre du tour : la place suivante est celle du joueur à ta gauche.')}</p>
+          ${!J.guest ? (ds.length ? `<p class="pu-h">${T('Ton deck')}</p><label class="sortsel pu-deck"><select data-j="deck" aria-label="${T('Ton deck')}"><option value="">${T('Aucun')}</option>${ds.map(d => `<option value="${esc(d.id)}"${J.deck === d.id ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : `<p class="hint">${T('Aucun deck dans « Mes decks » : tu joueras sans deck affiché.')}</p>`) : ''}
           ${J.guest ? `<div class="field-in"><label class="label" for="puJc">${partieJeu(P) === 'commander' ? T('Commandant (facultatif)') : T('Deck (facultatif)')}</label><input type="text" id="puJc" maxlength="${partieJeu(P) === 'commander' ? 80 : 40}" autocomplete="off" value="${esc(J.cmd)}"></div>` : ''}</section>`;
+      foot = `<div class="pu-foot"><button class="btn block" type="button" data-j="go"${J.pos ? '' : ' disabled'}>${J.pos ? T('Prendre la place {n}', { n: J.pos }) : T('Choisis ta place')}</button></div>`;
     }
+    const sc = $('.dv-scroll', wrap), top = sc ? sc.scrollTop : 0;
     wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-j="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button><div class="dv-title"><b>${T('Rejoindre la partie')}</b><span>${esc(T('Table {c}', { c: code }))}</span></div></header>
-      <div class="dv-scroll"><div class="dv-body pu-setup">${body}</div></div>${!J.joined && P && (D.user || J.guest) ? `<div class="pu-foot"><button class="btn block" type="button" data-j="go"${J.pos ? '' : ' disabled'}>${J.pos ? T('Prendre la place {n}', { n: J.pos }) : T('Choisis ta place')}</button></div>` : ''}`;
+      <div class="dv-scroll"><div class="dv-body pu-setup">${body}</div></div>${foot}`;
+    if (top) { const s2 = $('.dv-scroll', wrap); if (s2) s2.scrollTop = top; }      // repeint (relevé, saisie) : la page reste où elle était
+    const on = liveOn(); partieRoomPace(on); lock(on);
+    if (J.sheet) { if (sheets.includes(J.sheet.api)) J.sheet.paint(); else J.sheet = null; }
   };
-  const watch = () => { if (J.stop) J.stop(); J.stop = partieRoomWatch((v, x) => { if (x && x.gone) { J.joined = null; J.err = x.gone === 'kicked' ? T('Le créateur t\'a retiré de la table.') : T('La table est fermée.'); } else if (v) J.view = v; paint(); }); };
+  /** Repeint en gardant le champ en cours de saisie (prénom, commandant) avec son curseur. */
+  const refresh = () => {
+    const a = document.activeElement, id = a && wrap.contains(a) && a.id, at = id && typeof a.selectionStart === 'number' ? a.selectionStart : null;
+    paint();
+    const b = id && $('#' + id, wrap); if (b) { b.focus(); if (at != null) try { b.setSelectionRange(at, at); } catch (e) { /* champ sans curseur */ } }
+  };
+  /** Écarts affichés quelques secondes sur une place (« −3 ») : saisis ici ou arrivés du téléphone du créateur. */
+  function deltas() {
+    const L = lvShow(); if (!L) return;
+    for (const p of L.places) {
+      const was = J.shown[p.pos]; J.shown[p.pos] = p.vie; if (was == null || was === p.vie || p.elimine) continue;
+      const d = J.dl[p.pos] = J.dl[p.pos] && Date.now() - J.dl[p.pos].t < 3000 ? J.dl[p.pos] : { n: 0, t: 0 };
+      d.n += p.vie - was; d.t = Date.now(); clearTimeout(d.to); d.to = setTimeout(() => { if (J.dl[p.pos] === d) { delete J.dl[p.pos]; if (wrap.isConnected) paint(); } }, 3000);
+    }
+  }
+  /** Rôle de co-hôte : message clair au joueur quand il change (accepté, refusé, retiré, expiré, tout le monde). */
+  function coNote(v) {
+    const was = J.prev; J.prev = { co: !!v.co, ask: !!v.ask }; if (!was) return;
+    const h = hostName() || T('Le créateur');
+    if (!was.co && v.co) toast(v.allco && !was.ask ? T('Tout le monde est co-hôte : tu comptes aussi pour toute la table.') : T('{name} t\'a accepté comme co-hôte : tu comptes aussi pour toute la table.', { name: h }));
+    else if (was.co && !v.co) toast(T('Tu n\'es plus co-hôte : tu ne comptes plus que ta place.'));
+    else if (was.ask && !v.ask && !v.co && v.cw) toast(v.cw === 'exp' ? T('Ta demande de co-hôte est restée sans réponse.') : T('{name} a refusé ta demande de co-hôte.', { name: h }));
+  }
+  const watch = () => {
+    if (J.stop) J.stop();
+    J.stop = partieRoomWatch((v, x) => {
+      if (x && x.gone) { J.joined = null; J.end = x.gone === 'kicked' ? 'kicked' : 'gone'; J.endName = hostName(); haptic('tap'); paint(); return; }
+      J.net = !x || x.net !== false; J.on = (x && x.on) || J.on;
+      if (v) {
+        if (v.st === 'end') { J.view = v; J.endName = hostName(); J.joined = null; J.end = v.why || 'host'; haptic('tap'); paint(); return; }      // annulée, abandonnée par le créateur… : place oubliée (partieRoomWatch)
+        J.view = v; coNote(v);
+        if (v.live) { J.lv = v.live; const a = v.live.ack || 0; J.pend = J.pend.filter(y => !y.s || y.s > a); }
+      }
+      deltas(); paint();
+    });
+  };
   wrap.addEventListener('input', e => { if (e.target.id === 'puJn') J.name = e.target.value; else if (e.target.id === 'puJc') J.cmd = e.target.value; });      // gardés quand l'écran se repeint (choix de la place)
   wrap.addEventListener('change', e => { if (e.target.closest('[data-j="deck"]')) J.deck = e.target.value; });
+  /* ±1 d'un appui, ±10 maintenu (puis toutes les 0,5 s), comme le compteur ; le repeint pendant l'appui ne l'interrompt pas (suivi au niveau de l'écran). */
+  wrap.addEventListener('pointerdown', e => {
+    const b = e.target.closest('.pu-lv-b'); if (!b) return; const pos = Number(b.closest('[data-lp]').dataset.lp), d = Number(b.dataset.lv);
+    clearTimeout(J.hold && J.hold.t); J.hold = { pos, d, long: false, t: setTimeout(function rep() { if (!J.hold) return; J.hold.long = true; add({ pos, k: 'v', n: d * 10 }); J.hold.t = setTimeout(rep, 500); }, 450) };
+  });
+  const up = e => { const h = J.hold; if (!h) return; clearTimeout(h.t); J.hold = null; J.ptr = Date.now(); if (!h.long && e.type === 'pointerup') add({ pos: h.pos, k: 'v', n: h.d }); };
+  wrap.addEventListener('pointerup', up); wrap.addEventListener('pointercancel', up);
+  wrap.addEventListener('contextmenu', e => { if (e.target.closest('.pu-lv-b')) e.preventDefault(); });
   wrap.addEventListener('click', async e => {
-    const s = e.target.closest('[data-seat]'); if (s && !s.disabled) { J.pos = Number(s.dataset.seat); haptic('tap'); paint(); return; }
+    const lb = e.target.closest('.pu-lv-b'); if (lb || Date.now() - (J.ptr || 0) < 700) { if (lb && Date.now() - (J.ptr || 0) > 700) add({ pos: Number(lb.closest('[data-lp]').dataset.lp), k: 'v', n: Number(lb.dataset.lv) }); return; }      // clavier : ±1 (le toucher, déjà compté au relâché : le clic qui suit est ignoré)
+    const ls = e.target.closest('[data-lvs]'); if (ls) { haptic('tap'); lvSheet(Number(ls.dataset.lvs)); return; }
+    const s = e.target.closest('[data-seat]'); if (s && !s.disabled) { J.pos = Number(s.dataset.seat); haptic('tap'); refresh(); return; }
     const b = e.target.closest('[data-j]'); if (!b || b.tagName === 'SELECT') return;
     const a = b.dataset.j;
     if (a === 'close') wrap.__close();
-    else if (a === 'login') { openAccount(); const t = setInterval(() => { if (!wrap.isConnected) { clearInterval(t); return; } if (D.user) { clearInterval(t); paint(); } }, 800); }
-    else if (a === 'guest') { J.guest = true; paint(); setTimeout(() => { const n = $('#puJn', wrap); if (n) n.focus(); }, 60); }
+    else if (a === 'login') { openAccount(); J.acct = D.account && D.account.api; }      // connecté : la feuille du compte se ferme et l'écran passe au choix de la place (puUser)
+    else if (a === 'guest') { J.guest = true; paint(); setTimeout(() => { const n = $('#puJn', wrap); if (n && !n.value) n.focus(); }, 60); }
     else if (a === 'leave') { await partieRoomLeave(); J.joined = null; J.view = null; if (J.stop) J.stop(); wrap.__close(); }
+    else if (a === 'show' || a === 'hide') { J.live = a === 'show'; puJoinPrefSet({ live: J.live }); haptic('tap'); paint(); }
+    else if (a === 'turn') add({ pos: J.view.me, k: 't', n: 1 });
+    else if (a === 'ask' || a === 'unask') { b.disabled = true; try { J.view = await partieRoomOp('ask', a === 'unask' ? { off: 1 } : {}); coNote(J.view); haptic('tap'); } catch (er) { toast(er && er.code === 'ask_wait' ? T('Demande refusée il y a un instant : attends un peu.') : T('Pas de réseau : réessaie')); } paint(); }
     else if (a === 'go') {
       const nom = J.guest ? partieStr(($('#puJn', wrap) || {}).value || J.name, PRT_LEN.nom) : puMe(); if (J.guest && !nom) { const n = $('#puJn', wrap); if (n) n.focus(); return; }
       const d = decks().find(x => x.id === J.deck), deck = J.guest ? partieDeck(partieJeu(J.peek) === 'commander' ? { commandant: J.cmd } : { nom: J.cmd }) : d ? partieDeckOf(d, puDeckImg(d)) : null;
       b.disabled = true;
-      try { J.view = await partieRoomJoin(code, { pos: J.pos, n: nom, p: J.guest ? '' : PROF.photo || '', l: I18N.lang, ...(deck ? { deck } : {}), guest: J.guest }); J.joined = partieRoom(); haptic('ok'); watch(); }
-      catch (er) { toast(er && er.code === 'taken' ? T('Place déjà prise : choisis-en une autre') : er && er.code === 'net' ? T('Pas de réseau : réessaie') : T('Impossible de rejoindre la table')); try { J.peek = await partiePeek(code); } catch (x) { /* garde l'ancienne vue */ } }
+      try {
+        J.view = await partieRoomJoin(code, { pos: J.pos, n: nom, p: J.guest ? '' : PROF.photo || '', l: I18N.lang, ...(deck ? { deck } : {}), guest: J.guest }); J.joined = partieRoom(); haptic('ok'); watch();
+        puJoinPrefSet(J.guest ? { n: nom, c: partieStr(J.cmd, PRT_LEN.cmd) } : { d: J.deck });      // la fois suivante : déjà rempli
+      } catch (er) { toast(er && er.code === 'taken' ? T('Place déjà prise : choisis-en une autre') : er && er.code === 'net' ? T('Pas de réseau : réessaie') : T('Impossible de rejoindre la table')); try { J.peek = await partiePeek(code); } catch (x) { /* garde l'ancienne vue */ } }
       paint();
     }
   });
+  /* Compte arrivé (session restaurée après l'ouverture du lien, ou connexion depuis cet écran) : choix de la place, sans la feuille du compte par-dessus ; decks relus. */
+  wrap.__user = u => {
+    if (u && J.acct) { if (sheets.includes(J.acct)) J.acct.close(); J.acct = null; }
+    if (!wrap.isConnected) return; refresh();
+    for (const ms of [900, 2500]) setTimeout(() => { if (wrap.isConnected && !J.joined) refresh(); }, ms);      // « Mes decks » du compte : lus juste après
+  };
   document.body.appendChild(wrap); holdApp(); paint(); requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('on')));
+  if (authWait()) setTimeout(() => { if (wrap.isConnected) refresh(); }, 8100);      // session qui ne revient pas : connexion ou invité
   if (J.joined) watch();
   else partiePeek(code).then(p => { J.peek = p; if (p && p.st && p.st !== 'wait') J.err = T('La partie a déjà commencé.'); paint(); }, er => { J.err = er && er.code === 'net' ? T('Pas de réseau : la table ne peut pas être lue.') : T('Cette table n\'existe plus.'); paint(); });
-  // pas encore assis : la table relue toutes les 6 s pendant 10 min (place ajoutée par le créateur en Standard, places prises) ; repeinte seulement si elle a changé,
-  // le champ en cours de saisie (prénom, deck) gardé avec son curseur
-  const t0 = Date.now(), seen = () => JSON.stringify(J.peek && [J.peek.size, J.peek.jeu, J.peek.format, J.peek.places]);
+  // pas encore assis : la table relue toutes les 6 s pendant 10 min (place ajoutée par le créateur en Standard, places prises ; decks du compte arrivés) ; repeinte seulement
+  // si elle a changé, le champ en cours de saisie (prénom, deck) gardé avec son curseur
+  const t0 = Date.now(), seen = () => JSON.stringify(J.peek && [J.peek.size, J.peek.jeu, J.peek.format, J.peek.places, decks().length, D.uid || '']);
   const tick = setInterval(() => {
     if (!wrap.isConnected || Date.now() - t0 > 600e3) { clearInterval(tick); return; }
-    if (J.joined || J.err || !J.peek) return;
+    if (J.joined || J.err || J.end || !J.peek) return;
     partiePeek(code).then(p => {
       if (!p || J.joined || !wrap.isConnected) return; const was = seen(); J.peek = p; if (seen() === was) return;
-      const a = document.activeElement, id = a && wrap.contains(a) && a.id, at = id && typeof a.selectionStart === 'number' ? a.selectionStart : null;
-      paint();
-      const b = id && $('#' + id, wrap); if (b) { b.focus(); if (at != null) try { b.setSelectionRange(at, at); } catch (e) { /* champ sans curseur */ } }
+      refresh();
     }, () => {});
   }, 6000);
 }

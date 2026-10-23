@@ -1,7 +1,7 @@
 // Compteur de vie côté serveur (/api/partie) : formats de jeu (Commander, Standard, Libre : validés, gardés dans la salle, renvoyés ; salle sans jeu = Commander ;
 // résultat Standard dans l'historique ; appli d'avant dans une salle Standard), salle d'attente (création par un compte, coup d'œil sans compte, entrée par le code avec ou sans compte,
 // places prises ou libres, invités du créateur, déplacer, retirer, format, « commencer » qui fige la liste et donne les jetons des comptes, présence,
-// relevé versionné, expiration, départ, redémarrage), résultats (POST result : historique de chaque compte dans Firestore, notification FCM dans sa langue,
+// relevé versionné, expiration, départ, redémarrage ; partie en direct : état du compteur, deltas des places, co-hôtes, « Tout le monde est co-hôte », fin avec sa raison), résultats (POST result : historique de chaque compte dans Firestore, notification FCM dans sa langue,
 // résultat remis aux téléphones restés sur la page, invités compris ; jetons faux, d'une autre partie ou d'un autre créateur refusés ; idempotent ;
 // Firestore en panne puis relance sans doublon), réclamation par le QR code du résultat, historique paginé, suppression, bornes, PARTIE=0.
 // Faux Firebase (jetons, OAuth2, Firestore REST, FCM) de amis-fakes.mjs : aucun accès réseau réel. Ports 19500–19503.
@@ -336,6 +336,103 @@ ok('historique : paginé (20 par défaut, 50 au plus), la plus récente d\'abord
   }
 }
 
+// partie en direct : le créateur envoie l'état du compteur (op live), les places le lisent (vue › live) ; chaque joueur change SES points par des deltas (op delta,
+// file pour le créateur, idempotente, bornée) ; co-hôtes (demande, acceptation par le créateur seul, droits sur toute la table, retrait, départ), « Tout le monde est
+// co-hôte » (allco) ; saisie coupée (lock), joueur éliminé ; fin sans résultat avec sa raison (drop, host, stale) ; rien de personnel dans ce qui est rendu
+{
+  const UK = 'uid-kim-partie9', UL = 'uid-lea-partie10', liveOp = (S, g) => paced(() => call('POST', '/op', { key: S.key, body: { c: S.c, op: 'live', g } }));
+  const dl = (S, d) => paced(() => call('POST', '/op', { key: S.key, body: { c: S.c, op: 'delta', d } }));
+  r = await call('POST', '', { uid: UK, body: { id: 'livegame0001', n: 'Kim', p: 'data:image/png;base64,KKKK' } }); const K = { c: r.o.s.c, key: r.o.key };
+  r = await call('POST', '/join', { uid: UL, body: { c: K.c, n: 'Léa', pos: 2, p: 'data:image/png;base64,LLLL', deck: { commandant: 'Edgar Markov', image: IMG } } }); const L = { c: K.c, key: r.o.key };
+  r = await call('POST', '/join', { body: { c: K.c, n: 'Max', pos: 3 }, ip: '192.0.2.150' }); const M = { c: K.c, key: r.o.key };
+  r = await op(K, { op: 'add', n: 'Nor', pos: 4 });
+  let g = P.partieNew({ moi: { nom: 'Kim' }, id: 'livegame0001' });
+  r = await liveOp(K, P.partieLive(g)); assert.deepEqual([r.s, r.o.error], [409, 'not_started'], 'pas encore commencée');
+  r = await dl(L, [{ id: 'lea-0000', k: 'v', n: -1 }]); assert.deepEqual([r.s, r.o.error], [409, 'not_started']);
+  r = await op(K, { op: 'start' }); g = P.partieStart(P.partieFromRoom(g, r.o));
+  r = await poll(L); assert.equal(r.o.places.some(p => p.p), false, 'partie commencée : plus de miniatures dans les relevés'); assert.equal(r.o.live, undefined);
+  r = await dl(L, [{ id: 'lea-0001', k: 'v', n: -3 }]); assert.deepEqual([r.s, r.o.error], [409, 'not_ready'], 'état du compteur pas encore envoyé');
+  r = await liveOp(L, P.partieLive(g)); assert.deepEqual([r.s, r.o.error], [403, 'not_host']);
+  r = await liveOp(K, { places: [] }); assert.deepEqual([r.s, r.o.error], [400, 'bad_live']);
+  await sleep(450); r = await liveOp(K, { ...P.partieLive(g), places: P.partieLive(g).places.map(p => (p.pos === 3 ? { ...p, nom: 'Fuck', uid: 'x'.repeat(40), vie: 1e9 } : p)) });
+  assert.equal(r.s, 200, JSON.stringify(r.o)); const v1 = r.o.v;
+  r = await call('POST', '/op', { key: K.key, body: { c: K.c, op: 'live', g: P.partieLive(g) } }); assert.deepEqual([r.s, r.o.error], [429, 'rate_limited'], 'un envoi par PARTIE_LIVE_GAP_MS');
+  r = await poll(L); assert.equal(r.o.v, v1); assert.deepEqual(r.o.live.places.map(p => [p.pos, p.nom, p.vie]), [[1, 'Kim', 40], [2, 'Léa', 40], [3, '', 9999], [4, 'Nor', 40]], 'noms filtrés, valeurs bornées');
+  assert.equal(r.o.live.places[1].deck.commandant, 'Edgar Markov'); assert.ok(!JSON.stringify(r.o).includes('"uid"')); noIds(r.o, 'vue en direct'); assert.ok(!JSON.stringify(r.o).includes(UK) && !JSON.stringify(r.o).includes(tag(UL)));
+  await sleep(450); r = await liveOp(K, P.partieLive(g)); const v2 = r.o.v; await sleep(450); r = await liveOp(K, P.partieLive(g)); assert.equal(r.o.v, v2, 'même état : version inchangée');
+  ok('en direct : état du compteur envoyé par le créateur seul, partie commencée, borné (noms filtrés, valeurs), un envoi à la fois ; places : vue › live, sans miniatures ni identifiants');
+
+  // deltas d'une place : sa place seulement, idempotents, bornés
+  r = await dl(L, [{ id: 'lea-0001', k: 'v', n: -3 }]); assert.equal(r.s, 200, JSON.stringify(r.o)); assert.deepEqual(r.o.acc, [{ id: 'lea-0001', s: 1 }]);
+  r = await call('POST', '/op', { key: L.key, body: { c: L.c, op: 'delta', d: [{ id: 'lea-0002', k: 'v', n: -1 }] } }); assert.deepEqual([r.s, r.o.error], [429, 'rate_limited'], 'deux envois trop proches');
+  await sleep(200); r = await dl(L, [{ id: 'lea-0001', k: 'v', n: -3 }, { id: 'lea-0002', k: 'b', src: 1, n: 2 }]); assert.deepEqual(r.o.acc, [{ id: 'lea-0001', s: 1 }, { id: 'lea-0002', s: 2 }], 'déjà reçu : même numéro, rien de doublé');
+  await sleep(200);
+  for (const [d, e] of [[{ id: 'lea-0003', pos: 3, k: 'v', n: -1 }, 'not_cohost'], [{ id: 'lea-0004', k: 't', n: 1 }, 'not_cohost'], [{ id: 'lea-0005', k: 'v', n: 500 }, 'bad_delta'], [{ id: 'lea-0006', k: 'b', src: 2, n: 1 }, 'bad_delta'],
+    [{ id: 'x', k: 'v', n: 1 }, 'bad_delta'], [{ id: 'lea-0007', k: 'c', c: 'toString', n: 1 }, 'bad_delta'], [{ id: 'lea-0008', k: 'v', vie: 12 }, 'bad_delta']]) { r = await dl(L, [d]); assert.equal(r.o.error, e, JSON.stringify(d)); await sleep(160); }
+  r = await dl(M, [{ id: 'max-0001', k: 'c', c: 'poison', n: 2 }]); assert.deepEqual(r.o.acc, [{ id: 'max-0001', s: 3 }], 'invité avec téléphone : sa place aussi');
+  r = await call('POST', '/op', { key: K.key, body: { c: K.c, op: 'delta', d: [{ id: 'kim-0001', k: 'v', n: 1 }] } }); assert.equal(r.s, 400, 'le créateur compte sur son téléphone');
+  r = await poll(K, v2); assert.equal(r.o.same, 1, 'deltas : pas de nouvelle version pour les places'); assert.deepEqual(r.o.q.map(d => [d.s, d.by, d.pos, d.k, d.n]), [[1, 2, 2, 'v', -3], [2, 2, 2, 'b', 2], [3, 3, 3, 'c', 2]]);
+  r = await poll(L, v2); assert.equal(r.o.q, undefined, 'la file : au créateur seulement');
+  let x = P.partieRemote(g, (await poll(K, v2)).o.q); g = x.st; assert.deepEqual([x.done.length, g.places.find(p => p.pos === 2).vie, g.places.find(p => p.pos === 2).blessures['1'], g.places.find(p => p.pos === 3).compteurs.poison, g.rq.s], [3, 35, 2, 2, 3]);
+  assert.equal(P.partieRemote(g, (await poll(K, v2)).o.q).st, g, 'appliqués une seule fois (même file relue, redémarrage du créateur)');
+  assert.equal(P.partieRemote(P.partieStateClean(JSON.parse(JSON.stringify(g))), [{ s: 2, id: 'lea-0002', pos: 2, by: 2, k: 'b', src: 1, n: 2 }]).st.places[1].vie, 35, 'partie relue du stockage : toujours une seule fois');
+  await sleep(450); r = await liveOp(K, P.partieLive(g)); r = await poll(K, v2); assert.equal(r.o.q, undefined, 'live.ack : appliqués, hors de la file');
+  r = await poll(L, v2); assert.deepEqual([r.o.live.ack, r.o.live.places[1].vie], [3, 35]);
+  for (let i = 0; i < 2; i++) { r = await dl(M, Array.from({ length: 20 }, (_, j) => ({ id: `max-q${i}-${j}`, k: 'v', n: -1 }))); assert.equal(r.s, 200); await sleep(160); }
+  r = await dl(M, [{ id: 'max-qx-1', k: 'v', n: -1 }]); assert.deepEqual([r.s, r.o.error], [429, 'queue_full'], 'PARTIE_DQ_MAX en file par place');
+  r = await paced(() => call('GET', `/s?c=${K.c}&q=999`, { key: K.key })); assert.equal(r.o.q, undefined, 'relevé du créateur avec q : file vidée');
+  await sleep(160); r = await dl(M, Array.from({ length: 21 }, (_, j) => ({ id: 'max-big-' + j, k: 'v', n: -1 }))); assert.equal(r.o.error, 'bad_delta', '20 par envoi');
+  ok('deltas : sa place seulement, file pour le créateur (numérotée, relevée et vidée par lui seul), même identifiant jamais refait, bornes (valeur, type, fréquence, file, taille de l\'envoi)');
+
+  // co-hôtes
+  r = await op(L, { op: 'ask' }); assert.deepEqual([r.o.co, r.o.ask], [0, 1]);
+  r = await op(M, { op: 'ask' }); r = await op(M, { op: 'ask' }); assert.equal(r.o.ask, 1, 'une demande à la fois');
+  r = await poll(K); assert.deepEqual(r.o.places.filter(p => p.ask).map(p => p.pos), [2, 3], 'le créateur voit les demandes'); r = await poll(L); assert.equal(r.o.places.some(p => p.ask), false, 'les autres non');
+  r = await op(L, { op: 'co', pos: 2, ok: true }); assert.deepEqual([r.s, r.o.error], [403, 'not_host'], 'acceptation : le créateur seulement');
+  r = await op(K, { op: 'co', pos: 2, ok: true }); assert.deepEqual(r.o.places.find(p => p.pos === 2).co, 1);
+  r = await op(K, { op: 'co', pos: 3, ok: false }); r = await poll(M); assert.deepEqual([r.o.co, r.o.ask, r.o.cw], [0, 0, 'no'], 'refusée');
+  r = await op(M, { op: 'ask' }); assert.deepEqual([r.s, r.o.error], [429, 'ask_wait'], 'nouvelle demande trop tôt après un refus');
+  r = await op(K, { op: 'co', pos: 4, ok: true }); assert.equal(r.o.error, 'bad_place', 'invité sans téléphone : pas de co-hôte');
+  r = await poll(L); assert.deepEqual([r.o.co, r.o.cw, r.o.places.find(p => p.pos === 2).co], [1, 'ok', 1], 'acceptée : rôle visible de tous');
+  await sleep(160); r = await dl(L, [{ id: 'lea-co-01', pos: 3, k: 'v', n: -5 }, { id: 'lea-co-02', pos: 4, k: 'b', src: 2, n: 3 }, { id: 'lea-co-03', k: 't', n: 1 }]); assert.equal(r.s, 200, JSON.stringify(r.o));
+  x = P.partieRemote(g, (await poll(K)).o.q); g = x.st;
+  assert.deepEqual([g.places.find(p => p.pos === 3).vie, g.places.find(p => p.pos === 4).vie, g.places.find(p => p.pos === 4).blessures['2'], g.actif], [35, 37, 3, 2], 'co-hôte : toute la table, tour suivant');
+  await sleep(450); r = await liveOp(K, P.partieLive(g));
+  r = await op(K, { op: 'co', pos: 2, ok: false }); r = await poll(L); assert.deepEqual([r.o.co, r.o.cw], [0, 'off'], 'rôle retiré');
+  await sleep(160); r = await dl(L, [{ id: 'lea-co-04', pos: 3, k: 'v', n: -1 }]); assert.equal(r.o.error, 'not_cohost');
+  ok('co-hôtes : demande (une à la fois, vue du créateur seul), acceptée ou refusée par le créateur seul (attente après un refus), droits sur toute la table et tour suivant, retrait');
+
+  // « Tout le monde est co-hôte » : d'office, sans demande ; coupé : restent ceux acceptés un par un
+  r = await op(L, { op: 'allco', on: true }); assert.equal(r.o.error, 'not_host');
+  r = await op(K, { op: 'allco', on: true }); assert.deepEqual([r.o.allco, r.o.places.filter(p => p.co).map(p => p.pos)], [1, [2, 3]], 'chaque téléphone de la table (pas l\'invité sans téléphone)');
+  r = await op(M, { op: 'ask' }); assert.deepEqual([r.o.co, r.o.ask], [1, 0], 'déjà co-hôte : rien à demander');
+  await sleep(160); r = await dl(M, [{ id: 'max-all-1', pos: 2, k: 'v', n: 1 }]); assert.equal(r.s, 200);
+  r = await op(K, { op: 'co', pos: 2, ok: true }); r = await op(K, { op: 'allco', on: false }); assert.deepEqual([r.o.allco, r.o.places.filter(p => p.co).map(p => p.pos)], [undefined, [2]], 'coupé : Léa (acceptée) le reste, Max non');
+  await sleep(160); r = await dl(M, [{ id: 'max-all-2', pos: 2, k: 'v', n: 1 }]); assert.equal(r.o.error, 'not_cohost');
+  ok('« Tout le monde est co-hôte » : le créateur seul, d\'office pour chaque téléphone, sans demande ; coupé, les co-hôtes acceptés un par un le restent');
+
+  // saisie coupée par le créateur, joueur éliminé, départ d'un co-hôte
+  x = P.partieRemote(g, (await poll(K)).o.q); g = P.partieRemoteOff(x.st, true); await sleep(450); r = await liveOp(K, P.partieLive(g)); assert.equal(r.s, 200);
+  r = await poll(L); assert.equal(r.o.live.lock, 1); await sleep(160); r = await dl(L, [{ id: 'lea-lock-1', k: 'v', n: -1 }]); assert.deepEqual([r.s, r.o.error], [409, 'locked']);
+  assert.equal(P.partieRemote(g, [{ s: 99, id: 'lea-lock-0', pos: 2, by: 2, k: 'v', n: -1 }]).st.places[1].vie, g.places[1].vie, 'coupée : ignorée par le créateur aussi');
+  g = P.partieEliminate(P.partieRemoteOff(g, false), 3, 'vie'); await sleep(450); r = await liveOp(K, P.partieLive(g));
+  await sleep(160); r = await dl(M, [{ id: 'max-dead-1', k: 'v', n: 1 }]); assert.deepEqual([r.s, r.o.error], [409, 'eliminated']);
+  r = await dl(L, [{ id: 'lea-dead-1', pos: 3, k: 'v', n: 1 }]); assert.deepEqual([r.s, r.o.error], [409, 'eliminated'], 'co-hôte : pas sur un joueur éliminé');
+  r = await op(L, { op: 'leave' }); r = await poll(K); assert.equal(r.o.places.find(p => p.pos === 2).co, undefined, 'départ : le rôle tombe');
+  ok('saisie coupée (live.lock : refusée par le serveur et ignorée par le créateur), joueur éliminé, départ d\'un co-hôte');
+
+  // fin sans résultat : abandonnée en cours (drop), annulée en préparation (host), effacée car trop vieille (stale) ; création avec allco
+  r = await op(K, { op: 'end' }); r = await poll(M); assert.deepEqual([r.o.st, r.o.why, r.o.live], ['end', 'drop', undefined], 'abandonnée en cours : drop');
+  r = await call('POST', '', { uid: UK, body: { id: 'livegame0002', n: 'Kim', allco: true } }); const K2 = { c: r.o.s.c, key: r.o.key }; assert.equal(r.o.s.allco, 1);
+  r = await call('POST', '/join', { body: { c: K2.c, n: 'Ola' }, ip: '192.0.2.151' }); const O2 = { c: K2.c, key: r.o.key }; assert.equal(r.o.s.co, 1, 'allco à la création : co-hôte d\'office');
+  r = await op(K2, { op: 'end' }); r = await poll(O2); assert.deepEqual([r.o.st, r.o.why], ['end', 'host'], 'annulée en préparation : host');
+  r = await call('POST', '', { uid: UK, body: { id: 'livegame0003', n: 'Kim' } }); const K3 = { c: r.o.s.c, key: r.o.key };
+  r = await call('POST', '/join', { body: { c: K3.c, n: 'Pia' }, ip: '192.0.2.152' }); const P3 = { c: K3.c, key: r.o.key };
+  r = await op(K3, { op: 'end', why: 'stale' }); r = await poll(P3); assert.deepEqual([r.o.st, r.o.why], ['end', 'stale'], 'trop vieille : stale');
+  r = await op(K3, { op: 'end' }); r = await poll(P3); assert.equal(r.o.why, 'stale', 'déjà finie : raison gardée');
+  ok('fin sans résultat : raison reçue par les places (drop en cours, host en préparation, stale trop vieille) ; « Tout le monde est co-hôte » dès la création');
+}
+
 // départ : un joueur en attente libère sa place ; le créateur qui part termine la salle ; taille du corps
 {
   r = await call('POST', '', { uid: U.d, body: { id: 'davegame0001', n: 'Dave' } }); const D1 = { c: r.o.s.c, key: r.o.key };
@@ -362,7 +459,7 @@ ok('redémarrage : salles terminées, jetons toujours valables (clé tirée du c
 
 /* ── 2) Bornes : salles ouvertes, créations, codes faux, invités par réseau, résultats, inactivité ─────────────────── */
 {
-  const PB = await start({ ...F.env, PARTIE_MAX: '2', PARTIE_NEW_PER_H: '3', PARTIE_BAD_PER_H: '4', PARTIE_GUEST_PER_H: '2', PARTIE_RES_PER_H: '2', PARTIE_IDLE_MS: '1500', PARTIE_TICK_MS: '200' }, 19503); BASE = 'http://127.0.0.1:19503';
+  const PB = await start({ ...F.env, PARTIE_MAX: '2', PARTIE_NEW_PER_H: '3', PARTIE_BAD_PER_H: '4', PARTIE_GUEST_PER_H: '2', PARTIE_RES_PER_H: '2', PARTIE_IDLE_MS: '1500', PARTIE_TICK_MS: '200', PARTIE_ASK_MS: '500' }, 19503); BASE = 'http://127.0.0.1:19503';
   r = await call('POST', '', { uid: U.a, body: { id: 'borne0000001' } }); const X = { c: r.o.s.c, key: r.o.key };
   r = await call('POST', '', { uid: U.b, body: { id: 'borne0000002' } }); assert.equal(r.s, 200);
   r = await call('POST', '', { uid: U.c, body: { id: 'borne0000003' } }); assert.equal(r.s, 503); assert.equal(r.o.error, 'busy', 'PARTIE_MAX salles ouvertes');
@@ -382,7 +479,10 @@ ok('redémarrage : salles terminées, jetons toujours valables (clé tirée du c
   r = await call('POST', '', { uid: U.e, body: { id: 'borne0000021' } }); assert.equal(r.s, 200, 'salles inactives terminées : places libérées'); const E = { c: r.o.s.c, key: r.o.key };
   for (const n of ['Un', 'Deux']) { r = await call('POST', '/join', { body: { c: E.c, n }, ip: '192.0.2.9' }); assert.equal(r.s, 200); }
   r = await call('POST', '/join', { body: { c: E.c, n: 'Trois' }, ip: '192.0.2.9' }); assert.equal(r.s, 429, 'PARTIE_GUEST_PER_H invités par réseau');
-  r = await call('POST', '/join', { body: { c: E.c, n: 'Quatre' }, ip: '192.0.2.10' }); assert.equal(r.s, 200, 'autre réseau');
+  r = await call('POST', '/join', { body: { c: E.c, n: 'Quatre' }, ip: '192.0.2.10' }); assert.equal(r.s, 200, 'autre réseau'); const Q4 = { c: E.c, key: r.o.key };
+  r = await op(Q4, { op: 'ask' }); assert.equal(r.o.ask, 1); await sleep(900);
+  r = await poll(Q4); assert.deepEqual([r.o.co, r.o.ask, r.o.cw], [0, 0, 'exp'], 'demande de co-hôte sans réponse : expirée (PARTIE_ASK_MS)');
+  r = await op(Q4, { op: 'ask' }); assert.equal(r.o.ask, 1, 'expirée (pas refusée) : nouvelle demande permise tout de suite');
   // résultats par compte
   const g = P.partieResult(P.partieEnd(P.partieNew({ moi: { nom: 'Eve' }, id: 'bornres00001' }), [1]));
   for (let i = 0; i < 2; i++) { r = await call('POST', '/result', { uid: U.e, body: { r: g } }); assert.equal(r.s, 200); }
@@ -391,7 +491,7 @@ ok('redémarrage : salles terminées, jetons toujours valables (clé tirée du c
   await sleep(1900);
   r = await poll(E); assert.deepEqual([r.o.st, r.o.why], ['end', 'idle'], 'salle en attente inactive : terminée');
   PB.kill();
-  ok('bornes : invités par réseau (429), résultats par compte (429), salle inactive terminée (idle)');
+  ok('bornes : invités par réseau (429), demande de co-hôte expirée, résultats par compte (429), salle inactive terminée (idle)');
 }
 
 F.stop();
