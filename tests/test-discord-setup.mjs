@@ -7,6 +7,7 @@ import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
+import { DSC_ROLE_DEFS } from '../discord-roles.mjs';
 
 const ok = m => console.log('✓ ' + m);
 const TOKEN = 'secret-jeton-de-test-123';
@@ -133,6 +134,9 @@ assert.equal(r1.code, 0, r1.out); assert.ok(!r1.out.includes(TOKEN), 'jeton jama
   const order = S.roles.slice().sort((a, b) => b.position - a.position).map(x => x.name);
   assert.deepEqual(order.slice(0, 9), ['Mana Orbit Setup', '👑 Créateur', 'Admin', 'Modo', 'Support', 'Ticket Tool', 'Modo FR', 'Modo EN', 'Testeur'], 'équipe en haut, rôle du bot de tickets sous Support');
   assert.deepEqual(order.slice(9, 20), [...LANG_ROLES, '🌍 Toutes les langues']); assert.equal(order.at(-1), '@everyone');
+  assert.deepEqual(order.slice(-1 - DSC_ROLE_DEFS.length, -1), DSC_ROLE_DEFS.map(d => d.name), 'rôles des comptes liés tout en bas : Compte lié, puis diamant, or, argent, bronze');
+  assert.equal(DSC_ROLE_DEFS.length, 13); assert.equal(role('✅ Compte lié').color, 0); assert.equal(role('🔍 Oracle du scan').color, 0x6fd6f2); assert.equal(role('📅 Assidu').color, 0xcd7f32);
+  assert.ok(DSC_ROLE_DEFS.every(d => !role(d.name).mentionable && !role(d.name).hoist && P(role(d.name).permissions) === 0n), 'non mentionnables, pas à part, sans permission');
   assert.equal(new Set(S.roles.map(x => x.position)).size, S.roles.length, 'positions toutes différentes');
   assert.equal(P(role('Admin').permissions), 8n); assert.equal(P(role('Modo').permissions) & 8n, 0n, 'Modo : jamais administrateur'); assert.ok(P(role('Modo').permissions) & (1n << 13n));
   for (const b of [13n, 16n, 34n, 38n]) assert.ok(P(role('Support').permissions) & (1n << b), 'Support (rôle du bot) : gérer les messages et les fils, lire l\'historique, répondre dans les fils ' + b);
@@ -252,6 +256,17 @@ assert.equal(r1.code, 0, r1.out); assert.ok(!r1.out.includes(TOKEN), 'jeton jama
   assert.deepEqual(S.msgs['611'].map(x => x.id)[0], '900', 'règles : ancien message remis à jour sur place'); assert.equal(S.msgs['611'].length, 2); assert.equal(S.msgs['610'][0].id, '901');
   assert.equal(S.automod.find(a => a.id === '950').exempt_roles.length, 3, 'AutoMod existante mise à jour'); assert.equal(S.automod.length, 5);
   ok('serveur de l\'ancienne version : catégories et salons repris (mêmes identifiants, renommés, déplacés), Équipe → Modo, étiquettes et messages gardés, tickets intacts');
+}
+/* ── Bot permanent « Mana Orbit » sans « Gérer les rôles » : rangé au-dessus des rôles des comptes liés, permission rappelée ── */
+{
+  for (const ro of S.roles) if (ro.position >= 1) ro.position++;
+  S.roles.push({ id: '960', name: 'Mana Orbit', permissions: String(VIEW | SEND), position: 1, managed: true, tags: { bot_id: '961' } });
+  const r = await run({ DISCORD_TOKEN: TOKEN }); assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /Bot « Mana Orbit » : Paramètres › Rôles › Mana Orbit › Permissions › coche « Gérer les rôles »/);
+  assert.ok(role('Mana Orbit').position > role('✅ Compte lié').position, 'rôle du bot permanent au-dessus des rôles gérés'); assert.doesNotMatch(r.out, /glisse son rôle au-dessus/);
+  role('Mana Orbit').permissions = String(VIEW | SEND | (1n << 28n));
+  assert.doesNotMatch((await run({ DISCORD_TOKEN: TOKEN })).out, /Bot « Mana Orbit »/, 'permission présente : plus rien à dire');
+  ok('bot permanent « Mana Orbit » : rangé au-dessus des rôles des comptes liés ; sans « Gérer les rôles » : rappelé dans « À faire à la main »');
 }
 /* ── Jeton refusé ── */
 {

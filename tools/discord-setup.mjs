@@ -1,4 +1,4 @@
-// Serveur Discord de Mana Orbit, complet : réglages et mode communauté, rôles (équipe, langues, formats, notifications) rangés dans l'ordre, catégories « 『…』 »
+// Serveur Discord de Mana Orbit, complet : réglages et mode communauté, rôles (équipe, langues, formats, notifications, comptes liés : discord-roles.mjs) rangés dans l'ordre, catégories « 『…』 »
 // et salons avec leurs permissions (une catégorie par langue, visible avec le rôle de la langue), forums et leurs étiquettes, accueil (questions d'arrivée :
 // langues, formats, notifications ; salons par défaut), écran des règles, AutoMod, messages (accueil, règles traduites dans chaque langue), webhooks GitHub,
 // lien d'invitation permanent. Lancé sur le PC du propriétaire avec le jeton d'un bot à lui (docs/store/sortie.md § 2). Relancé, il ne crée rien en double :
@@ -9,6 +9,7 @@
 //   Bot présent sur plusieurs serveurs : node tools/discord-setup.mjs <identifiant du serveur>
 // DISCORD_API : autre adresse de l'API (tests/test-discord-setup.mjs, faux Discord). Node 18 ou plus (fetch).
 import { readFileSync, existsSync } from 'node:fs';
+import { DSC_ROLE_DEFS } from '../discord-roles.mjs';      // rôles des comptes liés (Compte lié, paliers des badges) : mêmes noms et couleurs que le bot permanent
 
 const API = (process.env.DISCORD_API || 'https://discord.com/api/v10').replace(/\/$/, '');
 const TOKEN = String(process.env.DISCORD_TOKEN || '').trim();
@@ -20,7 +21,7 @@ const bySnow = (a, b) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0);   
 
 // Permissions Discord (bits)
 const B = n => 1n << BigInt(n);
-const ADMIN = B(3), VIEW = B(10), SEND = B(11), MANAGE_MSG = B(13), MENTION_ALL = B(17), MANAGE_THREADS = B(34), THREADS_PUB = B(35), THREADS_PRIV = B(36), SEND_THREADS = B(38);
+const ADMIN = B(3), MANAGE_ROLES = B(28), VIEW = B(10), SEND = B(11), MANAGE_MSG = B(13), MENTION_ALL = B(17), MANAGE_THREADS = B(34), THREADS_PUB = B(35), THREADS_PRIV = B(36), SEND_THREADS = B(38);
 const TEAM_PERMS = B(1) | B(2) | B(7) | MANAGE_MSG | MENTION_ALL | B(22) | B(24) | B(27) | MANAGE_THREADS | B(40);      // expulser, bannir, journal, gérer les messages, @everyone, rendre muet, déplacer, pseudos, gérer les fils, exclure temporairement
 const SUPPORT_PERMS = MANAGE_MSG | MANAGE_THREADS | B(16) | SEND_THREADS;      // trier les forums (étiquettes, fils fermés), retirer un message, lire l'historique et répondre dans les fils (le bot a ce rôle : modération des fils depuis /admin)
 const WRITE = SEND | THREADS_PUB | SEND_THREADS, RO_DENY = SEND | THREADS_PUB | THREADS_PRIV | SEND_THREADS, LANG_MOD = VIEW | WRITE | MANAGE_MSG | MANAGE_THREADS;
@@ -189,6 +190,7 @@ const MEMBER_ROLES = [
   ...NOTIFS.map(([name]) => ({ name, perms: 0n, mentionable: name === '🎲 LFG' })),
   ...USES.map(([name]) => ({ name, perms: 0n })),
   ...FORMATS.map(name => ({ name, perms: 0n, mentionable: true })),
+  ...DSC_ROLE_DEFS.map(r => ({ name: r.name, perms: 0n, color: r.color, linked: true })),      // tout en bas : donnés et retirés par le bot permanent (discord-roles.mjs), qui doit être au-dessus
 ];
 
 // ── Textes des salons ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -279,6 +281,14 @@ async function main() {
     if (byPos(below).map(r => r.id).filter(id => want.includes(id)).join() !== want.join()) { await api('PATCH', `/guilds/${gid}/roles`, want.map((id, i) => ({ id, position: top - 1 - i }))); console.log('✓ rôles rangés'); }
     else console.log('✓ rôles déjà rangés');
   } catch (e) { todo.push(`Ranger les rôles à la main (${e.message})`); }
+  // Bot permanent « Mana Orbit » (pas celui du script) : il donne les rôles des comptes liés, il lui faut « Gérer les rôles » et un rôle au-dessus d'eux
+  try {
+    const now = (await api('GET', `/guilds/${gid}/roles`)) || roles, low = Math.max(0, ...MEMBER_ROLES.filter(o => o.linked).map(o => (now.find(r => r.id === R[o.name]) || {}).position || 0));
+    for (const r of now.filter(x => x.managed && x.tags && x.tags.bot_id && x.tags.bot_id !== me.id && /mana\s*orbit/i.test(x.name || ''))) {
+      if (!(BigInt(r.permissions || 0) & (ADMIN | MANAGE_ROLES))) todo.push(`Bot « ${r.name} » : Paramètres › Rôles › ${r.name} › Permissions › coche « Gérer les rôles » (rôles des comptes liés)`);
+      if ((r.position || 0) <= low) todo.push(`Bot « ${r.name} » : glisse son rôle au-dessus de « ${DSC_ROLE_DEFS[0].name} » et des paliers (Paramètres › Rôles)`);
+    }
+  } catch (e) { /* liste illisible : rien de plus à dire */ }
 
   // ── Permissions ──
   const ow = (id, allow, deny) => ({ id, type: 0, allow: String(allow), deny: String(deny) });
