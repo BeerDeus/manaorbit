@@ -9,6 +9,8 @@
 //   · Comptes secondaires : perdant sans réponse avant la carte suivante, un appareil = un compte classé par jour, même réseau → « à vérifier », comptes établis seulement.
 //   · Notification « nouvelle Carte mystère » (o.push : envoi Web Push ou FCM de proxy.mjs) : les appareils des comptes qui l'acceptent, prévenus une fois par jour dès que la carte est prête.
 //   · Carte de la veille révélée (o.reveal : discord-srv.mjs, message dans #carte-mystère) : une fois par jour, dès que la nouvelle carte est prête.
+//   · Sur Discord aussi (o.announce, o.weekly : discord-daily.mjs) : nouvelle carte annoncée avec le ping du rôle « 🔮 Carte mystère » (une fois par jour, dès qu'elle est prête),
+//     classement de la semaine le dimanche à l'ouverture de la carte (lundi → samedi clos).
 import { inflateSync, deflateSync } from 'node:zlib';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename, readdir, rm, unlink } from 'node:fs/promises';
@@ -312,7 +314,8 @@ const dlyCmp = (a, b) => b.s - a.s || (b.d || 1) - (a.d || 1) || a.ms - b.ms || 
 /** Crée le jeu. o : { dir, scry (API Scryfall), imgHosts (débuts d'adresse permis pour les PNG), hour, tz, now, fetch, secret, verify (jeton → { uid, emailVerified, provider }), bad (filtre de mots),
  *  account (uid → { created } : date de création du compte, ou null), net (requête → réseau du client, '' si inconnu), minAgeDays (âge minimal d'un compte classé ; 0 par défaut : aucun), ipWindowMs (10 min),
  *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, log, gapMs (écart entre deux requêtes Scryfall), firstMs, tickMs, earlyMs, retryMs, query, tries, pages, ua,
- *  push ({ send, target } : notification), reveal (info → promesse : carte de la veille annoncée ailleurs ; null : rien) }.
+ *  push ({ send, target } : notification), reveal (info → promesse : carte de la veille annoncée ailleurs ; null : rien),
+ *  announce, weekly (info → promesse : carte du jour annoncée, classement du dimanche ; null : rien), announceWindowMs (pushWindowMs), announceOrderMs (10 min) }.
  *  Contre les comptes secondaires (on ne peut pas tout empêcher, la triche doit coûter et ne rien rapporter au classement) : réponse jamais donnée à un perdant avant la carte
  *  suivante ; un appareil = un compte classé par jour (sinon entraînement) ; même réseau juste après un autre joueur : « à vérifier », hors du top 100 public sans le dire ;
  *  classement réservé aux comptes Google ou à adresse vérifiée (et, si minAgeDays, de plus de minAgeDays jours) ; trop de cartes trouvées à l'étape 1 : signalé au panneau. */
@@ -476,6 +479,7 @@ export function dailyMake(o = {}) {
       if (G.purged !== rec.day) { G.purged = rec.day; await purge(rec.day); }
       if (PUSH) { if (!G.pushing) G.pushing = pushRun(rec).catch(e => { log.warn('Carte mystère : notification pas encore envoyée (' + (e && (e.code || e.message) || e) + ')'); return 0; }).finally(() => { G.pushing = null; }); await G.pushing; }      // un seul envoi à la fois (les tours suivants l'attendent)
       if (REVEAL) { if (!G.revealing) G.revealing = revealRun(rec).catch(e => { log.warn('Carte mystère : carte d\'hier pas encore révélée (' + (e && (e.code || e.message) || e) + ')'); return false; }).finally(() => { G.revealing = null; }); await G.revealing; }      // après la notification : jamais elle ne l'attend
+      if (ANNOUNCE || WEEKLY) { if (!G.dscing) G.dscing = dscRun(rec).finally(() => { G.dscing = null; }); await G.dscing; }      // après la carte d'hier : classement du dimanche, puis la nouvelle carte (ping)
     } catch (e) { log.warn('Carte mystère : ' + (e && e.message || e)); }
   }
   /** Fichiers des jours de plus de 400 jours, images de plus de 2 jours : effacés ; jours restés ouverts (serveur arrêté au changement de jour) : clos. */
@@ -1035,12 +1039,67 @@ export function dailyMake(o = {}) {
     G.rv = day;
     let ok = false, err = null; try { ok = (await REVEAL(info)) !== false; } catch (e) { err = e; }
     if (!ok) {
-      G.rv = prev; await put(RV_FILE, JSON.stringify({ v: 1, day: prev, st: 'done', at: now() })).catch(() => {});      // remis : nouvel essai au tour suivant (fichier pas remis : ce serveur réessaie quand même, un redémarrage non)
+      G.rvFail = day; G.rv = prev; await put(RV_FILE, JSON.stringify({ v: 1, day: prev, st: 'done', at: now() })).catch(() => {});      // remis : nouvel essai au tour suivant (fichier pas remis : ce serveur réessaie quand même, un redémarrage non)
       if (G.rvWarn !== day) { G.rvWarn = day; log.warn(`Carte mystère du ${day} pas encore révélée (${err ? err.message || err : 'refusé'}) : nouvel essai à chaque tour`); }
       return false;
     }
-    await put(RV_FILE, JSON.stringify({ v: 1, day, st: 'done', at: now() })).catch(() => {});
+    G.rvFail = null; await put(RV_FILE, JSON.stringify({ v: 1, day, st: 'done', at: now() })).catch(() => {});
     return true;
+  }
+
+  /* ── Discord : carte du jour annoncée, classement de la semaine (o.announce, o.weekly : proxy.mjs › discord-srv.mjs › discord-daily.mjs ; null : rien) ──────
+     Tour de garde, après la carte d'hier (reveal) : le dimanche, classement de la semaine du jeu (weekOf : lundi 18 h → lundi 18 h) sur les cartes déjà closes, du lundi
+     au samedi (mêmes règles que le classement « week » de l'appli : comptes établis, hors entraînement, « à vérifier » exclus, pseudos masqués par le panneau
+     affichés comme tels) ; puis la carte du jour annoncée (ping du rôle). Toutes deux seulement quand la carte du jour est prête (images faites) et son heure passée.
+     Annonce : dans les announceWindowMs après l'heure de la carte (pushWindowMs, 2 h : serveur relancé plus tard, rien ce jour-là, jamais une annonce en retard) ;
+     carte d'hier refusée par Discord : l'annonce attend son nouvel essai (l'ordre reste) pendant announceOrderMs (10 min) au plus. Classement : tout le dimanche
+     (jusqu'à lundi 18 h, il reste juste) ; personne de classé : rien. Jour et semaine notés dans discord-daily.json AVANT l'envoi, comme reveal.json : jamais deux
+     fois (redémarrage, arrêt en plein envoi : au pire pas du tout) ; refus de Discord : remis comme avant, nouvel essai au tour suivant. Fichier illisible : rien. */
+  const ANNOUNCE = typeof o.announce === 'function' ? o.announce : null, WEEKLY = typeof o.weekly === 'function' ? o.weekly : null, DD_FILE = join(dir, 'discord-daily.json');
+  const AN_WIN = Math.max(0, o.announceWindowMs ?? PUSH_WIN), AN_ORDER = Math.max(0, o.announceOrderMs ?? 10 * 60e3);
+  /** État (jour annoncé, semaine postée), relu une fois ; null : fichier illisible (on ne sait pas ce qui est parti : rien). */
+  async function ddLoad() {
+    if (G.dd === undefined) {
+      let j = null; try { j = JSON.parse(await readFile(DD_FILE, 'utf8')); } catch (e) { if (e && e.code !== 'ENOENT') { log.warn('Carte mystère : discord-daily.json illisible, rien d\'annoncé sur Discord'); return (G.dd = null); } }
+      G.dd = { day: j && DAY_RE.test(j.day) ? j.day : '', week: j && DAY_RE.test(j.week) ? j.week : '' };
+    }
+    return G.dd;
+  }
+  const ddSave = S => put(DD_FILE, JSON.stringify({ v: 1, day: S.day, week: S.week, at: now() }));
+  /** Un envoi : clé k (day ou week) notée avant, remise si Discord refuse (journal une fois par valeur). */
+  async function ddSend(S, k, v, fn, info, what) {
+    const prev = S[k]; S[k] = v;
+    try { await ddSave(S); } catch (e) { S[k] = prev; throw e; }      // sans l'état écrit, rien ne part (nouvel essai au tour suivant)
+    let ok = false, err = null; try { ok = (await fn(info)) !== false; } catch (e) { err = e; }
+    if (ok) return true;
+    S[k] = prev; await ddSave(S).catch(() => {});
+    const wk = k + '|' + v; if (G.ddWarn !== wk) { G.ddWarn = wk; log.warn(`Carte mystère : ${what} pas encore posté sur Discord (${err ? err.message || err : 'refusé'}) : nouvel essai à chaque tour`); }
+    return false;
+  }
+  /** Classement de la semaine (dimanche) : lundi → samedi, top 10. */
+  async function weekRun(rec) {
+    if (new Date(dlyUtc(rec.day)).getUTCDay() !== 0) return false;      // dimanche seulement (la carte du dimanche 18 h ouvre le dernier jour de la semaine du jeu)
+    const wk = C.weekOf(rec.day), S = await ddLoad(); if (!S || S.week >= wk || G.wkNone === wk) return false;
+    const days = []; for (let d = wk; d < rec.day; d = dlyAdd(d, 1)) days.push(d);
+    const sums = new Map(); for (const d of days) { const w = G.saving.get(d); sums.set(d, w && w.rec ? daySum(w.rec) : await sumOf(d)); }
+    const rows = boardRows(days, sums);
+    if (!rows.length) { G.wkNone = wk; return false; }      // personne de classé : rien (pas relu à chaque tour)
+    const info = { day: rec.day, week: wk, days: days.length, total: rows.length, hour: C.hour, tz: C.tz, to: C.startOf(dlyAdd(wk, 7)),
+      rows: rows.slice(0, 10).map((r, i) => { const h = G.hidden.has(r.tag); return { r: i + 1, n: h ? '' : r.n || dlyFall(r.tag), s: r.s, d: r.d, ...(h ? { x: 1 } : {}) }; }) };
+    return ddSend(S, 'week', wk, WEEKLY, info, `classement de la semaine du ${wk}`);
+  }
+  /** Carte du jour annoncée (ping du rôle) : une fois, dans la fenêtre, après la carte d'hier. */
+  async function annRun(rec) {
+    const t = now(), t0 = C.startOf(rec.day); if (t - t0 > AN_WIN) return false;      // trop tard (serveur arrêté) : rien aujourd'hui
+    const S = await ddLoad(); if (!S || S.day >= rec.day) return false;
+    if (REVEAL && G.rvFail === dlyAdd(rec.day, -1) && t - t0 < AN_ORDER) return false;      // carte d'hier pas encore partie : elle d'abord
+    return ddSend(S, 'day', rec.day, ANNOUNCE, { day: rec.day, no: dlyNo(rec.day) }, `Carte mystère du ${rec.day} (annonce)`);
+  }
+  async function dscRun(rec) {
+    if (rec.st !== 'ready' || !G.imgs.has(rec.day) || now() < C.startOf(rec.day)) return;      // jamais avant que la carte du jour soit prête
+    const w = e => log.warn('Carte mystère : Discord (' + (e && (e.code || e.message) || e) + ')');
+    if (WEEKLY) await weekRun(rec).catch(w);
+    if (ANNOUNCE) await annRun(rec).catch(w);
   }
 
   /** Démarrage : premier tour peu après (firstMs), puis chaque minute. */
@@ -1050,5 +1109,5 @@ export function dailyMake(o = {}) {
     G.timer = first;
   }
   async function stop() { clearInterval(G.timer); clearTimeout(G.timer); G.timer = null; for (const w of [...G.saving.values()]) if (w.t) { clearTimeout(w.t); await saveSoon(w.rec, true); } if (statsT) { clearTimeout(statsT); statsT = null; await statsSave(); } if (lvT) { clearTimeout(lvT); lvT = null; await lvSave(); } if (pushT) await pushSave(); }
-  return { api, admin, level, tick, start, stop, clock: C, current, no: () => dlyNo(C.dayOf(now())), pushOn: !!PUSH, revealOn: !!REVEAL, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
+  return { api, admin, level, tick, start, stop, clock: C, current, no: () => dlyNo(C.dayOf(now())), pushOn: !!PUSH, revealOn: !!REVEAL, announceOn: !!ANNOUNCE, weeklyOn: !!WEEKLY, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
 }

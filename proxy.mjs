@@ -2963,7 +2963,9 @@ const DSC_ON = !!(DSC && DSC.on);
    vérifiés ici (README › « Carte mystère »). Jeton Firebase de n'importe quel compte pour jouer classé (sans compte : partie pour le plaisir, non classée).
    Stockage : DAILY_DIR (défaut .data/daily). DAILY=0 coupe tout (404, /__ping daily: false : l'appli cache le bouton).
    Notification « nouvelle Carte mystère » (daily-srv.mjs › pushRun) : sendPush et parseTarget ci-dessus, comme les amis ; seulement avec le compte de service
-   (FCM_SERVICE_ACCOUNT), DAILY_PUSH=0 la coupe ; DAILY_PUSH_WINDOW_MS : rattrapage après un redémarrage (2 h après l'heure de la carte). */
+   (FCM_SERVICE_ACCOUNT), DAILY_PUSH=0 la coupe ; DAILY_PUSH_WINDOW_MS : rattrapage après un redémarrage (2 h après l'heure de la carte ; aussi pour l'annonce sur Discord).
+   Bot Discord (#carte-mystère) : carte de la veille, carte du jour annoncée avec le ping du rôle « 🔮 Carte mystère » (DISCORD_DAILY_ANNOUNCE=0 la coupe), classement
+   de la semaine le dimanche (DISCORD_WEEKLY=0 le coupe). */
 const DLY_ON = process.env.DAILY !== '0';
 let DLY = null;
 const DLY_ACCT = new Map();      // UID → { v: { created } | null, at } : date de création du compte Firebase, gardée 12 h
@@ -2991,6 +2993,7 @@ if (DLY_ON) {
       push: FCM_ON && process.env.DAILY_PUSH !== '0' ? { send: sendPush, target: parseTarget } : null,      // notification « nouvelle Carte mystère » (rien sans compte de service, comme les amis)
       pushWindowMs: process.env.DAILY_PUSH_WINDOW_MS !== undefined && process.env.DAILY_PUSH_WINDOW_MS !== '' && Number.isFinite(Number(process.env.DAILY_PUSH_WINDOW_MS)) ? Math.max(0, Number(process.env.DAILY_PUSH_WINDOW_MS)) : undefined,
       reveal: DSC_ON ? info => DSC.reveal(info) : null,      // carte de la veille dans #carte-mystère (bot Discord)
+      announce: DSC_ON && process.env.DISCORD_DAILY_ANNOUNCE !== '0' ? info => DSC.announce(info) : null, weekly: DSC_ON && process.env.DISCORD_WEEKLY !== '0' ? info => DSC.weekly(info) : null,      // #carte-mystère : carte du jour annoncée (ping du rôle), classement du dimanche
       account: dlyAccount, net: req => netOf(ipOf(req)), minAgeDays: process.env.DAILY_MIN_AGE_DAYS === undefined || process.env.DAILY_MIN_AGE_DAYS === '' || !Number.isFinite(Number(process.env.DAILY_MIN_AGE_DAYS)) ? 0 : Math.max(0, Number(process.env.DAILY_MIN_AGE_DAYS)) });      // net : empreinte du réseau (HMAC salé du jour, dans daily-srv.mjs)
   } catch (e) { console.warn('Carte mystère : module illisible (' + (e && e.message || e) + '), jeu coupé'); DLY = null; }
 }
