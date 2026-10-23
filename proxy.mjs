@@ -2961,7 +2961,7 @@ try {
     feedbackPerH: Number(process.env.FEEDBACK_PER_H ?? 10), presence: process.env.DISCORD_PRESENCE !== '0', cardNo: () => (DLY && DLY.no ? DLY.no() : 0),      // statut « En ligne » : numéro de la Carte mystère du jour
     cmd: { publicKey: process.env.DISCORD_PUBLIC_KEY, bad: v => !!(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(v)), profile: tag => (DLY && DLY.profile ? DLY.profile(tag) : null),      // /moi et /partie (discord-cmd.mjs)
       parties: PT_ON ? async tag => { const st = PT_CORE.partieStats(await ptHistLoad(tag)); return { n: st.n, wins: st.wins }; } : null,
-      peek: PT_ON ? code => { const r = PT.s.get(ptCodeOf(code)); return r && r.st !== 'end' ? ptPublic(r) : null; } : null, tableLink: PT_CORE ? code => PT_CORE.partieTableLink(code) : null } },
+      peek: PT_ON ? code => { const r = PT.s.get(ptCodeOf(code)); return r && r.st !== 'end' ? ptPublic(r) : null; } : null, tableLink: PT_CORE ? code => PT_CORE.partieTableLink(code) : null },
     roles: process.env.DISCORD_ROLES !== '0', daily: tag => (DLY && DLY.badgesOf ? DLY.badgesOf(tag) : null),      // rôles des comptes liés (discord-roles.mjs) : badges vérifiés de la Carte mystère, compteur du scan (Firestore, compte de service)
     progress: fcmSa ? async uid => { const d = await fsDoc('GET', `users/${encodeURIComponent(uid)}/meta/progress`); return d ? fsFields(d) : null; } : null });
 } catch (e) { console.warn('Discord : module illisible (' + (e && e.message || e) + '), bot coupé'); DSC = null; }
