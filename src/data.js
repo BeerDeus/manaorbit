@@ -494,12 +494,12 @@ async function scryLangImages(names, lang, signal, onProgress, prio = false) {
 }
 
 /* ── CardTrader ───────────────────────────────────────────────────────────────────────────── */
-async function ct(path, { method = 'GET', params, body, signal, lim = limCT } = {}) {
+async function ct(path, { method = 'GET', params, body, signal, lim = limCT, hdr } = {}) {      // hdr : en-têtes en plus (alertes : jeton Firebase pour le MP Discord)
   if (!CTX.proxy && !CTX.token) throw netErr('notoken', T('Token CardTrader manquant'));
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   const url = CTX.proxy ? 'api/' + path + qs : 'https://api.cardtrader.com/api/v2/' + path + qs;
   const call = async force => {
-    const headers = { Accept: 'application/json' };
+    const headers = { Accept: 'application/json', ...(CTX.proxy && hdr ? hdr : {}) };
     if (CTX.proxy) {
       if (CTX.token && !/^(import|alerts)(\/|$)/.test(path)) headers['x-ct-token'] = CTX.token;  // ton token : seulement là où le serveur interroge CardTrader avec ton compte (relais, recherches) ; ni import ni alertes
       if (CTX.appKey) headers['x-app-key'] = CTX.appKey;

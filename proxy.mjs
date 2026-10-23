@@ -497,7 +497,14 @@ function pushWhenDone(job) {
    abonnement refusé par le service de push (404 / 410, jeton FCM périmé) est retiré. Le serveur doit tourner en continu pour que les passages aient lieu.
    Route publique, donc bornée : enregistrements et contrôles à la demande comptés par IP, 10 appareils par IP, 64 Ko par liste, cartes au total plafonnées ;
    serveur plein : un nouvel appareil est refusé (507), jamais un abonné évincé (seulement un enregistrement sans prix ni notification réussie).
-   « Vérifier les prix » ne relève que les cartes de cet appareil ; un relevé par carte et par heure au plus (sinon il remplace le dernier). */
+   « Vérifier les prix » ne relève que les cartes de cet appareil ; un relevé par carte et par heure au plus (sinon il remplace le dernier).
+   Message privé Discord (« Recevoir les alertes : Notification · Discord (MP) · Les deux ») : le PUT porte dm 'both' ou 'only' et le jeton Firebase
+   (x-firebase-token) ; jeton vérifié → l'enregistrement garde l'empreinte du compte (amTag, jamais l'UID) et le mode ; jeton absent ou refusé, bot ou liaison
+   coupés : mode ignoré (pas d'erreur), notification seule. Au passage, le bot (discord-srv.mjs › dm) écrit au compte Discord lié s'il est membre du serveur :
+   'only' → MP seul, 'both' → MP et notification ; MP impossible (pas lié, plus membre, MP refusés : 50007 ou 403, panne) → la notification à la place, et la
+   raison gardée (dmErr, rendue par GET pour la feuille de l'appli) jusqu'au prochain MP réussi. Mêmes règles qu'avant (5 jours, un message par passage, résumé).
+   Appareil sans notification (permission refusée, iPhone hors écran d'accueil) : 'only' sans abonnement, avec une clé d'appareil tirée au sort (dev) ;
+   enregistrement alId('dm|' + empreinte + '|' + dev), 5 au plus par compte ; MP impossible : rien n'arrive, dmErr le dit à l'appli. */
 const ALERTS_ON = (PUSH_ON || FCM_ON) && process.env.ALERTS !== '0';
 const SCRY_UP = (process.env.SCRYFALL_UPSTREAM || 'https://api.scryfall.com').replace(/\/+$/, '');            // surchargeable pour les tests
 const AL_EVERY = Number(process.env.ALERT_EVERY_MS) || 6 * 3600e3;
@@ -518,7 +525,7 @@ const alMedian = a => { const s = a.slice().sort((x, y) => x - y), m = s.length 
 async function alLoad() {
   try {
     const j = JSON.parse(await readFile(AL_FILE, 'utf8'));
-    for (const r of Array.isArray(j.subs) ? j.subs : []) if (r && r.id && r.sub && Array.isArray(r.items)) AL.subs.set(r.id, r);
+    for (const r of Array.isArray(j.subs) ? j.subs : []) if (r && r.id && (r.sub || (r.dm === 'only' && r.tag)) && Array.isArray(r.items)) AL.subs.set(r.id, r);      // sans sub : MP Discord seulement
     for (const [k, h] of Object.entries(j.px || {})) if (Array.isArray(h)) AL.px.set(k, h);
     if (j.last && typeof j.last === 'object') AL.last = { ...AL.last, ...j.last, err: '' };
   } catch (e) { if (e && e.code !== 'ENOENT') console.warn('Alertes : fichier illisible (' + e.message + '), repart de zéro'); }
@@ -601,6 +608,28 @@ function alMessage(hits, lang) {
   const part = h => h.why === 'target' ? `${h.n} ${L.eur(h.to)}` : `${h.n} ${L.pct(h.pct)}`;
   return { title: L.many(hits.length), body: hits.slice(0, 3).map(part).join(', ') + (hits.length > 3 ? L.more(hits.length - 3) : '') };
 }
+// Message privé Discord (dm 'both' / 'only') : mêmes phrases que la notification (AL_TXT), plus ces quelques mots ; carte : prix actuel (titre), habituel ou cible
+// (ligne), deck, lien Cardmarket (site de la langue, comme l'appli : core.js › cmUrl) ; lien vers les alertes de l'appli. Nom des cartes et des decks : Markdown neutralisé.
+const AL_APP = 'https://manaorbit.app/?alerts=1', AL_DM_MAX = 10, AL_DM_DEVS = 5, AL_DM_WHY = ['unlinked', 'member', 'closed', 'down', 'off'];
+const AL_DM = {
+  fr: { title: 'Alertes de prix', open: 'Ouvrir mes alertes dans Mana Orbit', cm: 'Voir sur Cardmarket', why: 'Tu reçois ce message parce que tu as choisi les alertes de prix en message privé dans Mana Orbit (Alertes de prix › Recevoir les alertes).' },
+  en: { title: 'Price alerts', open: 'Open my alerts in Mana Orbit', cm: 'View on Cardmarket', why: 'You get this message because you chose price alerts by direct message in Mana Orbit (Price alerts › Receive alerts).' },
+  de: { title: 'Preisalarme', open: 'Meine Alarme in Mana Orbit öffnen', cm: 'Auf Cardmarket ansehen', why: 'Du erhältst diese Nachricht, weil du in Mana Orbit Preisalarme per Direktnachricht gewählt hast (Preisalarme › Alarme erhalten).' },
+  es: { title: 'Alertas de precio', open: 'Abrir mis alertas en Mana Orbit', cm: 'Ver en Cardmarket', why: 'Recibes este mensaje porque elegiste las alertas de precio por mensaje directo en Mana Orbit (Alertas de precio › Recibir las alertas).' },
+  it: { title: 'Avvisi di prezzo', open: 'Apri i miei avvisi in Mana Orbit', cm: 'Vedi su Cardmarket', why: 'Ricevi questo messaggio perché hai scelto gli avvisi di prezzo in messaggio diretto in Mana Orbit (Avvisi di prezzo › Ricevi gli avvisi).' },
+  pt: { title: 'Alertas de preço', open: 'Abrir meus alertas no Mana Orbit', cm: 'Ver no Cardmarket', why: 'Você recebe esta mensagem porque escolheu os alertas de preço por mensagem direta no Mana Orbit (Alertas de preço › Receber os alertas).' },
+};
+const alMd = s => String(s).replace(/[\\`*_~|>[\]()<@#]/g, '\\$&');
+const alCm = (n, l) => `https://www.cardmarket.com/${['fr', 'de', 'es', 'it'].includes(l) ? l : 'en'}/Magic/Products/Search?searchString=${encodeURIComponent(String(n || '').split('//')[0].trim())}`;
+function alDmMsg(hits, lang) {
+  const l = alLang(lang), L = AL_TXT[l], X = AL_DM[l], m = alMessage(hits, l);
+  const fields = hits.slice(0, AL_DM_MAX).map(h => ({
+    name: alMd(h.why === 'target' ? L.at(h.n, L.eur(h.to)) : L.drop(h.n, L.pct(h.pct))).slice(0, 250),
+    value: alMd((h.why === 'target' ? L.under(L.eur(h.t)) : L.trend(L.eur(h.from), L.eur(h.to))) + (h.d && h.d.length ? L.deck(h.d[0]) : '')).slice(0, 900) + `\n[${X.cm}](${alCm(h.n, l)})`,
+  }));
+  return { content: '📉 **' + alMd(m.title.slice(0, 200)) + '**', embeds: [{ title: X.title + ' · Mana Orbit', url: AL_APP, color: 0x8b5cf6,
+    description: `[${X.open}](${AL_APP})` + (hits.length > AL_DM_MAX ? '\n…' + alMd(L.more(hits.length - AL_DM_MAX)) : ''), fields, footer: { text: X.why } }] };
+}
 
 /** Un passage : relève les prix des cartes suivies, puis prévient chaque appareil concerné. `seed` : seulement les cartes jamais relevées (pas d'alerte) ;
     `rec` : un seul appareil (« Vérifier les prix »), résultat gardé dans rec.last. Les passages s'attendent les uns les autres, jamais deux à la fois. */
@@ -632,10 +661,19 @@ async function alPass({ seed = false, rec = null }) {
       for (const r of recs) {
         const hits = alEval(r, now); if (!hits.length) continue;
         r.hits = [...hits, ...(r.hits || [])].slice(0, AL_HITS_KEEP);
+        const n = hits.length + ' carte' + (hits.length > 1 ? 's' : '');
+        let viaDm = false;
+        if (r.dm && r.tag) {      // MP Discord ; impossible : notification à la place (sub), raison gardée pour l'appli (dmErr)
+          try { if (!DSC || !DSC.dm) throw Object.assign(new Error('bot Discord ou liaison coupés'), { why: 'off' }); await DSC.dm(r.tag, alDmMsg(hits, r.lang)); viaDm = true; delete r.dmErr; }
+          catch (e) { r.dmErr = AL_DM_WHY.includes(e && e.why) ? e.why : 'down'; console.warn('alerte : MP Discord impossible (' + r.dmErr + (r.dmErr === 'down' ? ' : ' + String(e && e.message || e).slice(0, 120) : '') + ')' + (r.sub ? ', notification à la place' : ', rien d\'autre sur cet appareil')); }
+        }
+        if (viaDm && (r.dm === 'only' || !r.sub)) { out.hits++; r.pushed = now; console.log('alerte envoyée en MP Discord (' + n + ')'); continue; }
+        if (!r.sub) continue;
         const m = alMessage(hits, r.lang), st = await sendPush({ sub: r.sub, title: m.title.slice(0, 80), body: m.body.slice(0, 200), url: './?alerts=1', kind: 'alert', topic: 'deckdeal-alert', ttl: 43200, urgency: 'normal' });
-        if (st && st < 300) { out.hits++; r.pushed = now; console.log('alerte envoyée (' + hits.length + ' carte' + (hits.length > 1 ? 's' : '') + ')'); }
-        else if (st === 404 || st === 410) { AL.subs.delete(r.id); console.warn('alerte : ' + (r.sub.fcm ? 'jeton FCM périmé' : 'abonnement expiré') + ', retiré'); }
-        else console.warn('alerte refusée (' + (st || 'réseau') + ')');
+        if (viaDm || (st && st < 300)) { out.hits++; r.pushed = now; }
+        if (st && st < 300) console.log('alerte envoyée (' + n + (viaDm ? ', et en MP Discord' : '') + ')');
+        else if (st === 404 || st === 410) { AL.subs.delete(r.id); console.warn('alerte : ' + (r.sub.fcm ? 'jeton FCM périmé' : 'abonnement expiré') + ', retiré' + (viaDm ? ' (MP Discord envoyé)' : '')); }
+        else console.warn('alerte refusée (' + (st || 'réseau') + ')' + (viaDm ? ', MP Discord envoyé' : ''));
       }
       if (!rec) AL.last = out;
     }
@@ -646,6 +684,14 @@ async function alPass({ seed = false, rec = null }) {
 }
 function alSeedSoon() { if (AL.seedT) return; AL.seedT = setTimeout(() => { AL.seedT = null; alTick({ seed: true }); }, AL_SEED); AL.seedT.unref(); }
 
+/** Compte de l'appli pour le MP Discord (jeton Firebase du PUT) : { tag } ; vérification en panne : { keep: true } ; sans jeton, jeton refusé, bot ou liaison
+    coupés : null (mode ignoré, sans erreur ni pénalité : un jeton Firebase ne se devine pas). */
+async function alAcct(req) {
+  const tok = String(req.headers['x-firebase-token'] || '');
+  if (!tok || !(DSC && DSC.dm)) return null;
+  try { return { tag: amTag((await verifyIdToken(tok, true)).uid) }; }
+  catch (e) { return e && e.authCode === 'unavailable' ? { keep: true } : null; }
+}
 const alStr = (v, n) => typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n) : '';
 /** Serveur plein : retire l'enregistrement le plus ancien qui ne peut être un abonné actif (aucune notification réussie, et aucune carte au prix connu
     depuis plus d'une heure, ou pas réenregistré depuis 30 jours alors que l'appli le refait toutes les 12 h). Faux si aucun : le nouveau venu est refusé. */
@@ -665,9 +711,11 @@ async function alertsApi(req, res, path, url) {
   if (req.method === 'PUT' && !sub) {
     const wait = rateWait(req, 'alerts', AL_RATE, 3600e3); if (wait) return tooMany(res, wait);
     let b; try { b = JSON.parse((await readBody(req, AL_BODY_MAX)).toString('utf8') || '{}'); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); }
-    const pu = parsePush({ sub: b && b.sub, url: './?alerts=1' });
-    if (!pu) return json(res, 400, { error: 'bad_subscription', message: 'Abonnement push invalide ou refusé.' });
-    const rid = alId(pushKey(pu.sub)), old = AL.subs.get(rid), oldItems = new Map(((old && old.items) || []).map(x => [x.nk, x])), net = clientOf(req), now = Date.now();
+    const pu = parsePush({ sub: b && b.sub, url: './?alerts=1' }), dmAsk = b && (b.dm === 'both' || b.dm === 'only') ? b.dm : '', acct = dmAsk ? await alAcct(req) : null;
+    const dev = !pu && b && b.sub == null && dmAsk === 'only' && typeof b.dev === 'string' && /^[\w-]{16,64}$/.test(b.dev) ? b.dev : '';      // MP seulement, sans notification sur cet appareil
+    if (dev && acct && acct.keep) return json(res, 503, { error: 'auth_unavailable', message: 'Vérification du compte impossible pour le moment.' }, { 'Retry-After': '5' });
+    if (!pu && !(dev && acct && acct.tag)) return json(res, 400, { error: 'bad_subscription', message: 'Abonnement push invalide ou refusé.' });
+    const rid = pu ? alId(pushKey(pu.sub)) : alId('dm|' + acct.tag + '|' + dev), old = AL.subs.get(rid), oldItems = new Map(((old && old.items) || []).map(x => [x.nk, x])), net = clientOf(req), now = Date.now();
     const items = new Map();
     for (const x of Array.isArray(b.items) ? b.items : []) {
       if (items.size >= AL_MAX_ITEMS) break;
@@ -680,13 +728,18 @@ async function alertsApi(req, res, path, url) {
     if (!old) {
       if (net && [...AL.subs.keys()].filter(k => AL.ip.get(k) === net).length >= AL_PER_IP) return json(res, 429, { error: 'too_many_devices', message: 'Trop d\'appareils enregistrés depuis ce réseau.' });
       if (AL.subs.size >= AL_MAX_SUBS && !alEvict(now)) return json(res, 507, { error: 'alerts_full', message: 'Le serveur surveille déjà le maximum d\'appareils : réessaie plus tard.' }, { 'Retry-After': '3600' });
+      if (!pu && [...AL.subs.values()].filter(r => !r.sub && r.tag === acct.tag).length >= AL_DM_DEVS) return json(res, 429, { error: 'too_many_devices', message: 'Trop d\'appareils de ce compte reçoivent les alertes en message privé seulement.' });
     }
     const cards = () => { let n = items.size; for (const r of AL.subs.values()) if (r.id !== rid) n += r.items.length; return n; };
     while (cards() > AL_MAX_CARDS) if (!alEvict(now, rid)) return json(res, 507, { error: 'alerts_full', message: 'Le serveur surveille déjà le maximum de cartes : réessaie plus tard.' }, { 'Retry-After': '3600' });
-    AL.subs.set(rid, { ...(old || {}), id: rid, sub: pu.sub, thr, lang: alLang(b.lang), at: now, items: [...items.values()], hits: (old && old.hits) || [] });
+    const rec = { ...(old || {}), id: rid, sub: pu ? pu.sub : null, thr, lang: alLang(b.lang), at: now, items: [...items.values()], hits: (old && old.hits) || [] };
+    const dmSet = acct && acct.tag ? { tag: acct.tag, dm: dmAsk } : acct && acct.keep && old && old.tag && old.dm === dmAsk ? { tag: old.tag, dm: dmAsk } : null;      // vérification du compte en panne : mode d'avant gardé
+    if (!dmSet) { delete rec.tag; delete rec.dm; delete rec.dmErr; }
+    else { if (rec.tag !== dmSet.tag || rec.dm !== dmSet.dm) delete rec.dmErr; Object.assign(rec, dmSet); }
+    AL.subs.set(rid, rec);
     if (net) { AL.ip.set(rid, net); if (AL.ip.size > 2 * AL_MAX_SUBS) for (const k of AL.ip.keys()) if (!AL.subs.has(k)) AL.ip.delete(k); }
     alSaveSoon(); alSeedSoon();
-    return json(res, 200, { ok: true, id: rid, watching: items.size, thr, last: AL.last.at, next: AL.last.at ? AL.last.at + AL_EVERY : 0 });
+    return json(res, 200, { ok: true, id: rid, watching: items.size, thr, dm: rec.dm || '', last: AL.last.at, next: AL.last.at ? AL.last.at + AL_EVERY : 0 });
   }
   const rec = AL.subs.get(id);
   if (req.method === 'GET' && !sub) {
@@ -694,7 +747,7 @@ async function alertsApi(req, res, path, url) {
     const prices = {};
     for (const it of rec.items) { const h = AL.px.get(it.nk); if (h && h.length) prices[it.k] = { c: h[h.length - 1][1], b: h.length > 1 ? alMedian(h.slice(0, -1).slice(-AL_BASE_WIN).map(x => x[1])) : 0 }; }
     const last = rec.last && rec.last.at > AL.last.at ? rec.last : AL.last;          // le plus récent : passage de toutes les 6 h ou contrôle de cet appareil
-    return json(res, 200, { id: rec.id, thr: rec.thr, watching: rec.items.length, priced: Object.keys(prices).length, last, next: AL.last.at ? AL.last.at + AL_EVERY : 0, every: AL_EVERY, prices, hits: rec.hits || [] });
+    return json(res, 200, { id: rec.id, thr: rec.thr, dm: rec.dm || '', ...(rec.dm && rec.dmErr ? { dmErr: rec.dmErr } : {}), push: !!rec.sub, watching: rec.items.length, priced: Object.keys(prices).length, last, next: AL.last.at ? AL.last.at + AL_EVERY : 0, every: AL_EVERY, prices, hits: rec.hits || [] });
   }
   if (req.method === 'DELETE' && !sub) { const had = AL.subs.delete(id); if (had) alSaveSoon(); return json(res, 200, { ok: true, removed: had }); }
   if (req.method === 'POST' && sub === 'check') {
