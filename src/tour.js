@@ -19,7 +19,7 @@
    et Compte et réglages › Aide et avis.
    Astuces : une petite bulle, une seule fois, la première fois qu'on arrive sur l'écran (classeur de l'Échange, réglages et mode Auto du scan,
    « Ajouter en ami » de la liste d'un autre, « Partager en image » des Stats, « Ranger ces cartes… » d'un emplacement, options du masterset,
-   filtre Extension, rond de l'édition d'une ligne) ; une seule à la fois, effacée au premier toucher ou après quelques secondes ; jamais pendant
+   filtre Extension, rond de l'édition d'une ligne, nom d'un joueur du compteur de vie : sa fiche) ; une seule à la fois, effacée au premier toucher ou après quelques secondes ; jamais pendant
    la visite, le mode streamer ou le premier lancement ; interrupteur « Astuces » dans Compte et réglages › Préférences.
    Collection vide : pas d'astuce « Tu viens de ManaBox ? », le lien de l'écran vide le dit déjà.
    État sur l'appareil seulement (deckdeal:tour) : offre faite, vue, refusée, étape atteinte, version, astuces vues. Rien au démarrage hormis un
@@ -414,6 +414,7 @@ const TIP_DEFS = {
   fset: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode !== 'decks', top => { const b = $('.fset', top); return b && !b.closest('[hidden]') ? b : null; }, () => T('Une seule extension à la fois : cherche-la par son nom, son code ou son année.')],      // panneau des filtres ouvert (filters.js)
   ed: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode === 'coll' && COLL.tab === 'list' && !(typeof msActive === 'function' && msActive()), top => $('.crow .row-ed', top), () => T('Touche ce rond : l\'édition exacte de ta carte, et foil ✦ ou non.')],
   auto: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote, top => $('.sc-auto:not([hidden])', top), () => T('Auto : pose tes cartes l\'une après l\'autre, le scan les lit tout seul.')],
+  pnm: [top => typeof PU !== 'undefined' && top === PU.el && PU.mode === 'game', top => $('.pu-t .pu-nm', top), () => T('Touche le nom d\'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…')],      // compteur de vie (partie-ui.js › puGamePaint)
 };
 const tipOff = () => !!tourRead().tipsOff;
 /** Ligne « Astuces » de Compte et réglages › Préférences (me.js). */

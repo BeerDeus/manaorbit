@@ -1,0 +1,8 @@
+{
+"Fiche du joueur : blessures de commandant, compteurs": "Ficha del jugador: daño de comandante, contadores",
+"{name} : {n} PV": "{name}: {n} vidas",
+"{name} : {n} blessures de commandant": "{name}: {n} de daño de comandante",
+"{name} : {what} {n}": "{name}: {what} {n}",
+"Élimination de {name}": "{name} eliminado",
+"Touche le nom d'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…": "Toca el nombre de un jugador: su ficha, con el daño de comandante, el veneno, el monarca…"
+}
