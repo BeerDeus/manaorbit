@@ -426,6 +426,7 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
   await p.click('#dyPlayers > summary');
   assert.equal(await p.$eval('#dyPlayers', d => d.open), false); assert.equal(await visible(p, '#dyList'), false); assert.equal(await visible(p, '#dyPlayers input[type="search"]'), false);
   assert.equal(await visible(p, '#daily .dyhead'), true, 'en-tête toujours visible');
+  await p.waitForFunction(() => /false/.test(localStorage.getItem('manaorbit:admin:fold') || ''), null, { timeout: 3000 });      // état gardé par l'événement « toggle » (après le clic) : enregistré avant de recharger
   await p.reload(); await dash(p); await p.waitForSelector('#daily .dyhead');
   assert.equal(await p.$eval('#dyPlayers', d => d.open), false, 'replié : gardé après le rechargement');
   await p.click('#dyChk .dyr button'); await toastIs(p, /Partie remise au classement\./);
