@@ -586,7 +586,7 @@ let P = await start(ENV, 19802); BASE = P.url;
   await assert.rejects(bot.reveal(info), /Discord a refusé/, 'salon disparu : erreur (nouvel essai au tour suivant)');
   await assert.rejects(bot.reveal(info), /carte-mystère introuvable/, 'liste relue : salon introuvable'); D.channels = saved;
   await assert.rejects(discordMake({ token: '', api: DAPI }).reveal(info), /non configuré/);
-  assert.equal(dscName('🔮・Carte-Mystere'), 'carte-mystere'); assert.equal(dscName('🔮・carte-mystère'), 'carte-mystere'); assert.equal(DSC_PERMS, 183296n);
+  assert.equal(dscName('🔮・Carte-Mystere'), 'carte-mystere'); assert.equal(dscName('🔮・carte-mystère'), 'carte-mystere'); assert.equal(DSC_PERMS, 268618752n, "183296 + Gérer les rôles (bit 28)");
   ok('Carte mystère de la veille : #carte-mystère, FR + EN (trouvée par X joueurs sur Y, pluriels), embed (nom, image, page Scryfall), lien vers le jeu, aucun ping ; salon disparu : erreur puis liste relue');
 }
 /* ── 6) Liaison du compte Discord (OAuth2) : vrai proxy.mjs ──────────────────────────────────────────────────────────────────── */

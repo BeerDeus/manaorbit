@@ -5,7 +5,8 @@ import { generateKeyPairSync, sign as rsaSign, createHash } from 'node:crypto';
 
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
 export const tag = uid => createHash('sha256').update(uid).digest('hex');
-const sv = v => (Array.isArray(v) ? { arrayValue: { values: v.map(sv) } } : typeof v === 'number' ? { integerValue: String(v) } : typeof v === 'boolean' ? { booleanValue: v } : v === null ? { nullValue: null } : { stringValue: String(v) });
+const sv = v => (Array.isArray(v) ? { arrayValue: { values: v.map(sv) } } : typeof v === 'number' ? { integerValue: String(v) } : typeof v === 'boolean' ? { booleanValue: v } : v === null ? { nullValue: null }
+  : typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sv(x)])) } } : { stringValue: String(v) });      // objet : users/{uid}/meta/progress { c: { sc } } (test-discord-roles)
 
 export async function startFakes() {
   const KP = generateKeyPairSync('rsa', { modulusLength: 2048 }), SAK = generateKeyPairSync('rsa', { modulusLength: 2048 });

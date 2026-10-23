@@ -314,7 +314,8 @@ const dlyCmp = (a, b) => b.s - a.s || (b.d || 1) - (a.d || 1) || a.ms - b.ms || 
 /** Crée le jeu. o : { dir, scry (API Scryfall), imgHosts (débuts d'adresse permis pour les PNG), hour, tz, now, fetch, secret, verify (jeton → { uid, emailVerified, provider }), bad (filtre de mots),
  *  account (uid → { created } : date de création du compte, ou null), net (requête → réseau du client, '' si inconnu), minAgeDays (âge minimal d'un compte classé ; 0 par défaut : aucun), ipWindowMs (10 min),
  *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, log, gapMs (écart entre deux requêtes Scryfall), firstMs, tickMs, earlyMs, retryMs, query, tries, pages, ua,
- *  push ({ send, target } : notification), reveal (info → promesse : carte de la veille annoncée ailleurs ; null : rien),
+ *  push ({ send, target } : notification), reveal (info → promesse : carte de la veille annoncée ailleurs ; null : rien), closed (empreintes des joueurs d'une journée close → rien
+ *  d'attendu : rôles Discord des comptes liés, discord-srv.mjs › rolesDay),
  *  announce, weekly (info → promesse : carte du jour annoncée, classement du dimanche ; null : rien), announceWindowMs (pushWindowMs), announceOrderMs (10 min) }.
  *  Contre les comptes secondaires (on ne peut pas tout empêcher, la triche doit coûter et ne rien rapporter au classement) : réponse jamais donnée à un perdant avant la carte
  *  suivante ; un appareil = un compte classé par jour (sinon entraînement) ; même réseau juste après un autre joueur : « à vérifier », hors du top 100 public sans le dire ;
@@ -520,6 +521,7 @@ export function dailyMake(o = {}) {
     award(rec);
     delete rec.salt; delete rec.devs; for (const p of Object.values(rec.plays)) if (p) { delete p.ip; delete p.dh; }
     rec.closed = true; G.sums.delete(rec.day); await saveSoon(rec, true); await statsSave();
+    if (typeof o.closed === 'function') { try { Promise.resolve(o.closed(Object.entries(rec.plays).filter(([, p]) => p && !p.pr).map(([t]) => t))).catch(() => {}); } catch (e) { /* rôles Discord : sans effet sur le jeu */ } }      // sans attendre
   }
   const mkKey = () => randomBytes(18).toString('base64url');
   /** Partie d'une clé (classée ou non) : { rec, play, tag } ou null. */
@@ -1111,5 +1113,5 @@ export function dailyMake(o = {}) {
     G.timer = first;
   }
   async function stop() { clearInterval(G.timer); clearTimeout(G.timer); G.timer = null; for (const w of [...G.saving.values()]) if (w.t) { clearTimeout(w.t); await saveSoon(w.rec, true); } if (statsT) { clearTimeout(statsT); statsT = null; await statsSave(); } if (lvT) { clearTimeout(lvT); lvT = null; await lvSave(); } if (pushT) await pushSave(); }
-  return { api, admin, level, profile, tick, start, stop, clock: C, current, no: () => dlyNo(C.dayOf(now())), pushOn: !!PUSH, revealOn: !!REVEAL, announceOn: !!ANNOUNCE, weeklyOn: !!WEEKLY, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
+  return { api, admin, level, profile, tick, start, stop, clock: C, current, badgesOf: async tag => { await bootLoad(); return badges(tag); } /* badges vérifiés d'un compte (rôles Discord) */, no: () => dlyNo(C.dayOf(now())), pushOn: !!PUSH, revealOn: !!REVEAL, announceOn: !!ANNOUNCE, weeklyOn: !!WEEKLY, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
 }

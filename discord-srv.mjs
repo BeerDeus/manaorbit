@@ -10,6 +10,7 @@
 //   · Carte mystère du jour annoncée (ping du rôle « 🔮 Carte mystère ») et classement de la semaine le dimanche (announce, weekly : discord-daily.mjs, appelés par daily-srv.mjs) ;
 //   · liaison du compte Discord (OAuth2 « Se connecter avec Discord », portée identify) : POST /api/discord/link → adresse d'autorisation (state signé),
 //     GET /api/discord/callback (code échangé, compte lu, adhésion au serveur vérifiée par le bot), GET /api/discord/me, POST /api/discord/unlink ;
+//   · rôles des comptes liés (discord-roles.mjs : « ✅ Compte lié » et paliers de badges ; créés par le bot s'ils manquent, permission « Gérer les rôles ») ;
 //   · statut « En ligne » (passerelle Discord, WebSocket de Node 22+ ; sans lui : bot affiché hors ligne, le reste marche pareil) : « 🔮 Carte mystère n° 42 »,
 //     dans une langue après l'autre (une toutes les presenceMs, 30 s). Aucune intention à la passerelle (intents 0) : rien n'y est lu, il se montre seulement.
 //   · commandes slash /moi et /partie (discord-cmd.mjs : Interactions Endpoint URL, POST /api/discord/interactions signé en Ed25519, DISCORD_PUBLIC_KEY ; o.cmd).
@@ -23,10 +24,11 @@ import { join, dirname } from 'node:path';
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { dscDailyMake } from './discord-daily.mjs';
 import { dscCmdMake } from './discord-cmd.mjs';
+import { rolesMake } from './discord-roles.mjs';
 
 const TX = 0, CAT = 4, NEWS = 5, FORUM = 15, REQUIRE_TAG = 16;
-const B = n => 1n << BigInt(n), P_ADMIN = B(3), P_VIEW = B(10), P_SEND = B(11), P_EMBED = B(14), P_ATTACH = B(15), P_MENTION = B(17), P_ALL = (1n << 53n) - 1n;
-export const DSC_PERMS = P_VIEW | P_SEND | P_EMBED | P_ATTACH | P_MENTION;      // permissions du bot (183296) : voir les salons, envoyer (et créer un fil de forum), liens intégrés, fichiers, @everyone et rôles non mentionnables
+const B = n => 1n << BigInt(n), P_ADMIN = B(3), P_VIEW = B(10), P_SEND = B(11), P_EMBED = B(14), P_ATTACH = B(15), P_MENTION = B(17), P_ROLES = B(28), P_ALL = (1n << 53n) - 1n;
+export const DSC_PERMS = P_VIEW | P_SEND | P_EMBED | P_ATTACH | P_MENTION | P_ROLES;      // permissions du bot (268618752) : voir les salons, envoyer (et créer un fil de forum), liens intégrés, fichiers, @everyone et rôles non mentionnables, gérer les rôles (rôles des comptes liés)
 export const DSC_GAME = 'https://manaorbit.app/?mystere=1';
 export const DSC_INVITE = 'https://discord.gg/TTwrP94agb';      // invitation permanente du serveur (src/help.js › DISCORD_URL)
 const KINDS = { bug: 'bugs', idea: 'idées', help: 'aide' };
@@ -68,7 +70,9 @@ export function dscRevealMsg(info) {
  *  cacheMs (5 min), maxWaitMs (10 s), tries (4), retryMs (attente avant le nouvel essai d'une panne, 1 s), timeoutMs (15 s), threadListMs (liste des fils gardée, 30 s),
  *  liaison du compte : clientId, clientSecret (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET), redirect (req → adresse de retour), appUrl (req → adresse de l'appli),
  *  authorizeUrl, stateMs (10 min), recheckMs (lié, pas membre : 10 min), memberMs (membre : 24 h), linkFile, budgets linkPerH, backPerH, mePerH,
- *  membersPer (recherches de membres par 10 min et par réseau, 60), membersCacheMs (60 s), membersOffMs (pause après un refus d'intention, 5 min) }. */
+ *  membersPer (recherches de membres par 10 min et par réseau, 60), membersCacheMs (60 s), membersOffMs (pause après un refus d'intention, 5 min),
+ *  rôles des comptes liés (discord-roles.mjs) : roles (false : coupés), rolesFile, rolesMs (synchro par compte, 6 h), rolesRetryMs (10 min), daily (empreinte → badges de la
+ *  Carte mystère), progress (UID → document users/{uid}/meta/progress) }. */
 export function discordMake(o = {}) {
   const TOKEN = String(o.token || '').trim(), ON = !!TOKEN && !o.off, API = String(o.api || 'https://discord.com/api/v10').replace(/\/+$/, '');
   const fetchFn = o.fetch || globalThis.fetch, now = o.now || Date.now, sleep = o.sleep || (ms => new Promise(r => setTimeout(r, ms))), log = o.log || console;
@@ -84,11 +88,11 @@ export function discordMake(o = {}) {
   /* ── API REST ── */
   /** Appel de l'API (corps JSON, ou form : FormData multipart) → réponse JSON (null pour 204). Erreurs : kind 'limit' (retry, secondes), 'down' (injoignable, 5xx),
    *  'refused' (4xx : status, code et message de Discord). Le jeton n'apparaît dans aucune erreur. */
-  async function call(method, path, body, form) {
+  async function call(method, path, body, form, hd) {
     let waited = 0, again = false;
     for (let i = 0; ; i++) {
       let r;
-      try { r = await fetchFn(API + path, { method, headers: { Authorization: 'Bot ' + TOKEN, 'User-Agent': UA, ...(body !== undefined && !form ? { 'Content-Type': 'application/json' } : {}) }, body: form || (body === undefined ? undefined : JSON.stringify(body)), redirect: 'manual', signal: AbortSignal.timeout(TIMEOUT) }); }
+      try { r = await fetchFn(API + path, { method, headers: { Authorization: 'Bot ' + TOKEN, 'User-Agent': UA, ...(body !== undefined && !form ? { 'Content-Type': 'application/json' } : {}), ...(hd || {}) }, body: form || (body === undefined ? undefined : JSON.stringify(body)), redirect: 'manual', signal: AbortSignal.timeout(TIMEOUT) }); }
       catch (e) { if (!again) { again = true; await sleep(RETRY); continue; } throw dErr('down', 'Discord injoignable'); }
       if (r.status === 429) {      // limite de débit : on attend ce que Discord demande, sans dépasser MAX_WAIT en tout
         const j = await r.json().catch(() => null), s = Number(j && j.retry_after) || Number(r.headers.get('retry-after')) || 1, ms = Math.ceil(s * 1000) + 50;
@@ -641,17 +645,20 @@ export function discordMake(o = {}) {
     LK.chain = run.catch(() => {});
     return run.catch(e => log.warn('Discord : liaisons non enregistrées (' + (e && e.code || e) + ')'));
   }
+  /* Rôles des comptes liés (discord-roles.mjs) : seulement avec la liaison ; roles: false les coupe (DISCORD_ROLES=0). */
+  const RL = LINK_ON && o.roles !== false ? rolesMake({ call, load, guild, links, linksSave, now, log, file: o.rolesFile || join(o.dir || join(process.cwd(), '.data', 'admin'), 'discord-roles.json'),
+    daily: o.daily, progress: o.progress, windowMs: o.rolesMs, retryMs: o.rolesRetryMs }) : null;
   /** Membre du serveur ? (bot) true / false ; erreur levée si Discord ne sait pas répondre. */
   async function memberOf(id) {
     const g = await guild();
-    try { await call('GET', `/guilds/${g.id}/members/${id}`); return true; }
+    try { RL && RL.seen(id, await call('GET', `/guilds/${g.id}/members/${id}`)); return true; }
     catch (e) { if (e.kind === 'refused' && (e.status === 404 || e.code === 10007 || e.code === 10013)) return false; throw e; }
   }
   /** Adhésion relue (une seule lecture à la fois par compte ; Discord en panne : statut gardé, nouvel essai après 1 min). */
   function recheck(tag, x) {
     if (now() - (LK.fail.get(tag) || 0) < 60e3) return Promise.resolve();
     if (!LK.chk.has(tag)) LK.chk.set(tag, (async () => {
-      try { const mb = await memberOf(x.id), cur = LK.map.get(tag); if (cur && cur.id === x.id) { const was = cur.member; cur.member = mb; cur.at = now(); await linksSave(); if (was !== mb) log.log('Discord : compte lié, ' + (mb ? 'devenu membre du serveur.' : 'plus membre du serveur.')); } }
+      try { const mb = await memberOf(x.id), cur = LK.map.get(tag); if (cur && cur.id === x.id) { const was = cur.member; cur.member = mb; cur.at = now(); if (mb && !was) cur.rt = 0; await linksSave(); if (was !== mb) log.log('Discord : compte lié, ' + (mb ? 'devenu membre du serveur.' : 'plus membre du serveur.')); } }
       catch (e) { if (LK.fail.size > 5000) LK.fail.clear(); LK.fail.set(tag, now()); log.warn('Discord : adhésion non vérifiée (' + e.message + ')'); }
     })().finally(() => LK.chk.delete(tag)));
     return LK.chk.get(tag);
@@ -670,7 +677,7 @@ export function discordMake(o = {}) {
     if (isLocked(req)) { json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { 'Retry-After': '300' }); return null; }
     const tok = String(req.headers['x-firebase-token'] || '');
     if (!tok) { json(res, 401, { error: 'auth_required', message: 'Connecte-toi d\'abord.' }); return null; }
-    try { return o.amTag(String((await o.verify(tok)).uid)); }
+    try { const uid = String((await o.verify(tok)).uid), tag = o.amTag(uid); if (RL) RL.uidSet(tag, uid); return tag; }      // UID en mémoire seulement (rôles : compteur du scan)
     catch (e) {
       const code = e && e.authCode;
       if (code === 'expired') json(res, 401, { error: 'token_expired', message: 'Session expirée : le navigateur va la renouveler.' });
@@ -739,9 +746,13 @@ export function discordMake(o = {}) {
       log.warn('Discord : liaison impossible (' + e.message + ')');
       return e.kind === 'refused' ? linkPage(req, res, 400, 'code') : linkPage(req, res, 502, 'down');
     }
-    const name = line(user.global_name || user.username || '').slice(0, 80) || 'Discord', m = await links();
-    m.set(st.tag, { id: String(user.id), name, member: member === true, at: member === null ? 0 : now() });      // adhésion inconnue : relue à la prochaine lecture
+    const name = line(user.global_name || user.username || '').slice(0, 80) || 'Discord', m = await links(), uid0 = String(user.id), old = m.get(st.tag);
+    let took = 0; for (const [k, v] of m) if (k !== st.tag && v.id === uid0) { m.delete(k); took++; }      // un compte Discord, un seul compte Mana Orbit : la dernière liaison l'emporte
+    const rec = { id: uid0, name, member: member === true, at: member === null ? 0 : now(), ...(old && old.id === uid0 && typeof old.sc === 'number' ? { sc: old.sc } : {}) };
+    m.set(st.tag, rec);      // adhésion inconnue : relue à la prochaine lecture
     LK.fail.delete(st.tag); await linksSave();
+    if (took) log.log('Discord : ce compte Discord était lié à un autre compte, ancienne liaison oubliée.');
+    if (RL) { if (old && old.id !== uid0 && ![...m.values()].some(v => v.id === old.id)) RL.drop(old.id, 'autre compte Discord lié'); if (rec.member) RL.sync(st.tag, rec, 'compte lié'); }      // rôles : sans attendre
     log.log(`Discord : compte lié (${member ? 'membre du serveur' : member === false ? 'pas membre du serveur' : 'adhésion à vérifier'}).`);
     return linkPage(req, res, 200, member ? 'ok' : 'join');
   }
@@ -758,6 +769,7 @@ export function discordMake(o = {}) {
       if (!x) return json(res, 200, { linked: false });
       if (now() - (x.at || 0) > (x.member ? YES_MS : NO_MS)) await recheck(tag, x);      // pas membre : il a pu rejoindre (10 min) ; membre : il a pu partir (24 h)
       const y = m.get(tag) || x;
+      if (RL && RL.due(y)) RL.sync(tag, y);      // rôles : au plus une fois par rolesMs, sans attendre
       return json(res, 200, { linked: true, name: y.name, member: !!y.member });
     }
     if (sub !== 'link' && sub !== 'unlink') return json(res, 404, { error: 'not_found' });
@@ -768,7 +780,8 @@ export function discordMake(o = {}) {
     const tag = await acctOf(req, res); if (!tag) return;
     if (sub === 'unlink') {
       const m = await links();
-      if (m.delete(tag)) { await linksSave(); log.log('Discord : compte délié.'); }
+      const x = m.get(tag);
+      if (m.delete(tag)) { await linksSave(); log.log('Discord : compte délié.'); if (RL && ![...m.values()].some(v => v.id === x.id)) RL.drop(x.id, 'compte délié'); }      // délier ou supprimer le compte (src/dsclink.js › dlWipe) : rôles retirés
       return json(res, 200, { ok: true });
     }
     const pay = `${tag}.${(now() + STATE_MS).toString(36)}.${randomBytes(12).toString('base64url')}`;
@@ -853,13 +866,13 @@ export function discordMake(o = {}) {
     if (code === 4007 || code === 4009) { GW.sid = ''; GW.seq = null; }      // numéro de séquence faux, session expirée : nouvelle identification
     gwLater();
   }
-  function start() { if (ON && typeof WS === 'function' && o.presence !== false && !GW.ws && !GW.wait) { GW.stop = false; gwOpen(); } }
+  function start() { if (RL) RL.boot(); if (ON && typeof WS === 'function' && o.presence !== false && !GW.ws && !GW.wait) { GW.stop = false; gwOpen(); } }
   function stop() { GW.stop = true; gwClear(); clearTimeout(GW.wait); GW.wait = null; const ws = GW.ws; GW.ws = null; if (ws) { try { ws.close(1000); } catch (e) { /* déjà fermée */ } } }
 
   const DD = dscDailyMake({ on: ON, find, post, log, dErr, TX, NEWS, P_MENTION, game: DSC_GAME });      // Carte mystère du jour annoncée, classement de la semaine (discord-daily.mjs)
   /* ── Commandes slash /moi et /partie (discord-cmd.mjs : POST /api/discord/interactions, o.cmd : clé publique et fonctions de proxy.mjs) ── */
   const CMD = dscCmdMake({ ...(o.cmd || {}), on: ON, clientId: CID, call, guild, load, links, line, md, fold, json, readBody, rateWait, now, sleep, log });
 
-  return { on: ON, linkOn: LINK_ON, feedback, members, admin, link, reveal, announce: DD.announce, weekly: DD.weekly, start: () => { CMD.start(); start(); }, stop, interactions: CMD.interactions, cmdOn: CMD.on, cmdStart: CMD.start, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
+  return { on: ON, linkOn: LINK_ON, rolesOn: !!RL, rolesDay: RL ? tags => RL.day(tags) : null, rolesIdle: () => (RL ? RL.idle() : Promise.resolve()), feedback, members, admin, link, reveal, announce: DD.announce, weekly: DD.weekly, start: () => { CMD.start(); start(); }, stop, interactions: CMD.interactions, cmdOn: CMD.on, cmdStart: CMD.start, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
 
 }
