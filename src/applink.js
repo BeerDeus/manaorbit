@@ -16,7 +16,7 @@
      pied de page, toasts au-dessus d'elle) ; la bannière « Installer Mana Orbit » de la PWA (paintInstallBar) attend qu'elle soit fermée. */
 const APL_HOST = 'manaorbit.app', APL_PKG = 'app.manaorbit';
 const APL_KEYS = ['p', 'troc', 'table', 'partie'];      // paramètres d'un lien vers une page de l'appli : la barre du navigateur Android le propose dans l'appli
-const APL_HERE = /^(p|troc|table|partie|parties|compteur|open|collection|import|delete-account|alerts|resume|amis?|text|url|title|splash|source|ref|utm_\w+)$/;      // lus sur place (openPublicLink, handleLaunch : partie-ui.js pour ?table=, ?partie=, ?parties, ?compteur) ; un autre : page chargée sur le lien
+const APL_HERE = /^(p|pd|troc|table|partie|parties|compteur|open|collection|import|delete-account|alerts|resume|amis?|text|url|title|splash|source|ref|utm_\w+)$/;      // lus sur place (openPublicLink, handleLaunch : partie-ui.js pour ?table=, ?partie=, ?parties, ?compteur) ; un autre : page chargée sur le lien
 const APL_X = 'deckdeal:apl-x', APL_LAUNCH = 'deckdeal:apl-launch';      // sessionStorage : barre fermée ; adresse de lancement déjà suivie
 const APL = { path: '/', q: '', last: '', lastAt: 0, bar: null };
 if (typeof location !== 'undefined') { APL.path = location.pathname; APL.q = location.search; }      // lu au chargement : handleLaunch retire ensuite les paramètres de l'adresse

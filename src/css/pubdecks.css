@@ -17,3 +17,12 @@
 .tag.dk-by{max-width:14ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pub-report .link-btn{color:var(--ink-3);font-size:12.5px;text-decoration:underline;text-underline-offset:2px}
 .pub-own{margin-top:8px;text-align:center}
+/* « Partager sur Discord » (deck publié : feuille « Publier », feuille du deck dans À monter) ; violet de Discord plus clair en thème sombre, comme dsclink.css */
+.pub-dsc,.pub-own{--dsc:#5865f2}
+:root[data-theme="dark"] .pub-dsc,:root[data-theme="dark"] .pub-own{--dsc:#8f98ff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pub-dsc,:root:not([data-theme="light"]) .pub-own{--dsc:#8f98ff}}
+.pub-dsc{margin:0 0 10px}
+.pub-dsc .btn{width:100%}
+.pub-dscb .i{width:18px;height:18px;flex:none;color:var(--dsc)}
+.pub-own .pub-dscb{display:inline-flex;align-items:center;gap:6px;vertical-align:middle;min-height:32px}
+.pub-dsc-who{margin:0 0 10px;font-size:14px}

@@ -2979,6 +2979,42 @@ if (DSC_ON && process.env.DISCORD_SETS !== '0') {
   } catch (e) { console.warn('Discord : discord-sets.mjs illisible (' + (e && e.message || e) + '), sorties d\'extensions coupées'); DSS = null; }
 }
 
+/* ── « Partager sur Discord » d'un deck public (discord-deck.mjs) ────────────────────────────────────────────────────────────────────────
+   POST /api/discord/deck { id } : l'auteur d'un deck public (connecté, jeton Firebase) le poste dans #🃏・decks (README › « Bot Discord »). Il faut le bot (DISCORD_BOT_TOKEN)
+   et les decks publics (PUBDECKS, compte de service) ; sinon 404 (l'appli cache le bouton). Le deck doit être dans la liste servie (/api/pubdecks) : absent, la liste
+   est relue une fois (pas plus d'une fois par PUBDECKS_SOON_MS). Titre : le nom du deck lu dans Firestore (pubdecks/{id}, champ name ; une lecture), refusé par le
+   filtre de mots → le commandant. Prix : prices.tsv du serveur (le même que l'échange en direct, trocPxLoad). Lien du deck : <origine>/?pd=<id> (l'appli ouvre le
+   deck : pubdecks.js › pdLaunch). DISCORD_DECKS_PER_DAY partages par compte et par 24 h (5), DISCORD_DECKS_PER_H par heure et par réseau (10) ;
+   historique : ADMIN_DIR/discord-decks.json. */
+const PUB_DSC = { etag: '', map: null };
+/** Deck de la liste servie (null s'il n'y est pas) ; erreur si la liste est illisible. */
+async function pubDeckOf(id) {
+  const find = () => {
+    if (!PUB.raw) return null;
+    if (PUB_DSC.etag !== PUB.etag) { const j = JSON.parse(PUB.raw.toString('utf8')); PUB_DSC.map = new Map(j.decks.filter(d => d && typeof d.id === 'string').map(d => [d.id, d])); PUB_DSC.etag = PUB.etag; }
+    return PUB_DSC.map.get(id) || null;
+  };
+  let d = find();
+  if (!d && Date.now() - PUB.tried > PUB_SOON) { await pubRefresh(); d = find(); }      // tout juste publié : la liste est relue une fois
+  if (!d && !PUB.raw) throw new Error('liste des decks publics illisible');
+  return d;
+}
+/** Nom du deck (champ name du document Firestore) ; '' si illisible. */
+async function pubDeckName(id) {
+  const r = await fetch(`${FS_BASE}/v1/projects/${fcmSa.project}/databases/(default)/documents/pubdecks/${encodeURIComponent(id)}?mask.fieldPaths=name`, { headers: { Authorization: 'Bearer ' + await fcmAccess(DS_SCOPE), Accept: 'application/json' }, signal: AbortSignal.timeout(8000), redirect: 'manual' });
+  const j = r.ok ? await r.json().catch(() => null) : null, n = j ? fsFields(j).name : '';
+  return typeof n === 'string' ? n : '';
+}
+let DSC_DECK = null;
+if (DSC_ON && PUB_ON && DSC.kit) {
+  try {
+    const { dscDeckMake } = await import('./discord-deck.mjs');
+    DSC_DECK = dscDeckMake({ kit: DSC.kit, json, readBody, rateWait, tooLarge, dir: ADM_DIR, pubDeck: pubDeckOf, deckName: pubDeckName, bad: v => !!(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(v)),
+      prices: async () => { const px = await trocPxLoad(); return px ? n => px.map.get(trocKey(n)) || 0 : null; }, deckUrl: (req, id) => dscOrigin(req) + '/?pd=' + id,
+      perDay: Number(process.env.DISCORD_DECKS_PER_DAY ?? 5), perH: Number(process.env.DISCORD_DECKS_PER_H ?? 10) });
+  } catch (e) { console.warn('Discord : partage des decks illisible (' + (e && e.message || e) + '), coupé'); DSC_DECK = null; }
+}
+
 /* ── Carte mystère : le jeu du jour (daily-srv.mjs) ────────────────────────────────────────────────────────────────────────────────────
    Une carte par jour à DAILY_HOUR (18 h) heure de DAILY_TZ (Europe/Paris), la même pour tous ; images des étapes fabriquées ici, score et classements
    vérifiés ici (README › « Carte mystère »). Jeton Firebase de n'importe quel compte pour jouer classé (sans compte : partie pour le plaisir, non classée).
@@ -3034,6 +3070,7 @@ async function api(req, res, url) {
   if (path === 'feedback') return DSC ? DSC.feedback(req, res) : json(res, 404, { error: 'not_found' });      // « Aide et avis » : un fil sur le Discord (bot), sans compte exigé, borné
   if (path === 'feedback/members') return DSC ? DSC.members(req, res, url) : json(res, 404, { error: 'not_found' });      // champ « Pseudo Discord » de l'avis : membres du serveur (intention Server Members), borné
   if (path === 'discord/interactions') return DSC ? DSC.interactions(req, res) : json(res, 404, { error: 'not_found' });      // commandes slash /moi, /partie (Interactions Endpoint URL : signature Ed25519, DISCORD_PUBLIC_KEY)
+  if (path === 'discord/deck') return DSC_DECK ? DSC_DECK(req, res) : json(res, 404, { error: 'not_found' });      // « Partager sur Discord » d'un deck public : son auteur seulement (jeton Firebase), borné
   if (path.startsWith('discord/')) return DSC ? DSC.link(req, res, path.slice(8), url) : json(res, 404, { error: 'not_found' });      // liaison du compte Discord (OAuth2) : jeton Firebase, adhésion vérifiée par le bot
   if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
   if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège

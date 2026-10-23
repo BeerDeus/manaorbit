@@ -874,6 +874,7 @@ export function discordMake(o = {}) {
   const CMD = dscCmdMake({ ...(o.cmd || {}), on: ON, clientId: CID, call, guild, load, links, line, md, fold, json, readBody, rateWait, now, sleep, log });
 
   return { on: ON, linkOn: LINK_ON, rolesOn: !!RL, rolesDay: RL ? tags => RL.day(tags) : null, rolesIdle: () => (RL ? RL.idle() : Promise.resolve()), feedback, members, admin, link, reveal, announce: DD.announce, weekly: DD.weekly, start: () => { CMD.start(); start(); }, stop, interactions: CMD.interactions, cmdOn: CMD.on, cmdStart: CMD.start, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW,
-    helpers: { find, post, chanTypes: [TX, NEWS] } };      // pour les modules du bot (discord-sets.mjs : sorties dans #spoilers) : salon par nom utile, envoi avec limite de débit
+    helpers: { find, post, chanTypes: [TX, NEWS] },      // pour les modules du bot (discord-sets.mjs : sorties dans #spoilers) : salon par nom utile, envoi avec limite de débit
+    kit: { find, post, links, acctOf } };      // helpers prêtés aux modules du bot (discord-deck.mjs : partage d'un deck public)
 
 }

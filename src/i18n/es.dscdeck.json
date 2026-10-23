@@ -1,0 +1,18 @@
+{
+  "Partager sur Discord": "Compartir en Discord",
+  "Ton deck sera posté dans le salon #decks du Discord de Mana Orbit, avec son commandant, son prix estimé et un lien pour l'ouvrir dans l'appli.": "Tu mazo se publicará en el canal #decks del Discord de Mana Orbit, con su comandante, su precio estimado y un enlace para abrirlo en la app.",
+  "Auteur : ton compte Discord {name} (mentionné, sans notification).": "Autor: tu cuenta de Discord {name} (mencionada, sin notificación).",
+  "Auteur : ton pseudo public de l'appli.": "Autor: tu nombre público en la app.",
+  "Lie ton compte Discord (Compte et réglages › Discord) pour y apparaître sous ton nom Discord.": "Vincula tu cuenta de Discord (Cuenta y ajustes › Discord) para aparecer allí con tu nombre de Discord.",
+  "Un même deck une fois par jour, 5 partages par jour au plus.": "El mismo mazo una vez al día, 5 publicaciones al día como máximo.",
+  "Déjà partagé sur Discord aujourd'hui": "Ya compartido en Discord hoy",
+  "Partagé sur Discord": "Compartido en Discord",
+  "Partage sur Discord indisponible sur ce serveur.": "Compartir en Discord no está disponible en este servidor.",
+  "Ce deck n'est pas encore dans la communauté : réessaie dans quelques minutes.": "Este mazo aún no está en la comunidad: vuelve a intentarlo en unos minutos.",
+  "Seul l'auteur du deck peut le partager.": "Solo el autor del mazo puede compartirlo.",
+  "Assez de partages pour aujourd'hui : réessaie demain.": "Suficientes publicaciones por hoy: vuelve a intentarlo mañana.",
+  "Discord est injoignable pour le moment : réessaie plus tard.": "No se puede contactar con Discord ahora: vuelve a intentarlo más tarde.",
+  "Lecture du deck": "Cargando el mazo",
+  "Ce deck n'est plus dans la communauté.": "Este mazo ya no está en la comunidad.",
+  "Deck injoignable : vérifie ta connexion puis recharge la page.": "No se puede cargar el mazo: comprueba tu conexión y recarga la página."
+}

@@ -1,0 +1,18 @@
+{
+  "Partager sur Discord": "Share on Discord",
+  "Ton deck sera posté dans le salon #decks du Discord de Mana Orbit, avec son commandant, son prix estimé et un lien pour l'ouvrir dans l'appli.": "Your deck will be posted in the #decks channel of the Mana Orbit Discord, with its commander, its estimated price and a link to open it in the app.",
+  "Auteur : ton compte Discord {name} (mentionné, sans notification).": "Author: your Discord account {name} (mentioned, without a notification).",
+  "Auteur : ton pseudo public de l'appli.": "Author: your public username in the app.",
+  "Lie ton compte Discord (Compte et réglages › Discord) pour y apparaître sous ton nom Discord.": "Link your Discord account (Account and settings › Discord) to appear there under your Discord name.",
+  "Un même deck une fois par jour, 5 partages par jour au plus.": "The same deck once a day, 5 shares a day at most.",
+  "Déjà partagé sur Discord aujourd'hui": "Already shared on Discord today",
+  "Partagé sur Discord": "Shared on Discord",
+  "Partage sur Discord indisponible sur ce serveur.": "Sharing on Discord isn't available on this server.",
+  "Ce deck n'est pas encore dans la communauté : réessaie dans quelques minutes.": "This deck isn't in the community yet: try again in a few minutes.",
+  "Seul l'auteur du deck peut le partager.": "Only the deck's author can share it.",
+  "Assez de partages pour aujourd'hui : réessaie demain.": "That's enough shares for today: try again tomorrow.",
+  "Discord est injoignable pour le moment : réessaie plus tard.": "Discord can't be reached right now: try again later.",
+  "Lecture du deck": "Loading the deck",
+  "Ce deck n'est plus dans la communauté.": "This deck is no longer in the community.",
+  "Deck injoignable : vérifie ta connexion puis recharge la page.": "Deck unreachable: check your connection, then reload the page."
+}
