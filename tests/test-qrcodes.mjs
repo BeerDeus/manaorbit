@@ -202,6 +202,18 @@ let MEM = [];
   assert.deepEqual(r.o.list.map(q => q.id), ['flyer', 'discord', 'affiche-lyon', 'tournoi-2026', 'mystere'], 'Flyers et Discord pas recréés');
   assert.equal(fl.name, 'Flyers salon', 'renommé : gardé'); assert.deepEqual(r.o.list.map(q => [q.id, q.n]), MEM, 'compteurs gardés'); assert.equal(dc.to, 'https://discord.gg/nouveau2');
   assert.equal(await loc('/flyer', AND), PLAY('flyer'));
+  // « Exporter » : JSON = le fichier du serveur tel quel (restaurable), CSV lisible ; éditeur seulement ; « export » n'est pas un lien possible
+  await sleep(200); let x = await api('/export');
+  assert.equal(x.s, 200); assert.match(x.h.get('content-disposition'), /attachment; filename="qrcodes-mana-orbit-\d{4}-\d{2}-\d{2}\.json"/); assert.equal(x.h.get('cache-control'), 'no-store');
+  assert.deepEqual(x.o.list.map(q => q.id), ['flyer', 'discord', 'affiche-lyon', 'tournoi-2026', 'mystere']); assert.equal(x.o.v, 1);
+  assert.deepEqual(x.o.list.map(q => [q.id, q.name, q.to, q.n]), readQ().list.map(q => [q.id, q.name, q.to, q.n]), 'même contenu que ADMIN_DIR/qrcodes.json');
+  x = await api('/export?f=csv'); assert.equal(x.s, 200); assert.match(x.h.get('content-type'), /text\/csv/); assert.match(x.h.get('content-disposition'), /\.csv"/);
+  const rows = x.o.replace(/^\ufeff/, '').trim().split('\r\n');
+  assert.equal(rows[0], 'Lien imprimé;Nom;Destination;Créé;Modifié;Scans;Android;iPhone;Autre'); assert.equal(rows.length, 6);
+  assert.match(rows[1], /^https:\/\/manaorbit\.app\/flyer;Flyers salon;selon le téléphone;/); assert.match(rows[2], /^https:\/\/manaorbit\.app\/q\/discord;Discord;https:\/\/discord\.gg\/nouveau2;/);
+  x = await api('/export', { tok: JEANNE() }); assert.equal(x.s, 403); x = await api('/export', { tok: '' }); assert.equal(x.s, 401);
+  x = await post('', { id: 'export', name: 'X', to: 'https://example.org' }); assert.equal(x.o.error, 'reserved_id');
+  ok('export : JSON au format du fichier (restaurable tel quel), CSV lisible (lien imprimé, nom, destination, dates, scans par plateforme) ; éditeur seulement ; « export » réservé');
   await stop(P);
   const f = readQ(); f.list = f.list.filter(q => q.id !== 'discord'); writeFileSync(FILE, JSON.stringify(f));      // retiré à la main du fichier : pas recréé
   P = await start({}, 19951); BASE = 'http://127.0.0.1:19951';

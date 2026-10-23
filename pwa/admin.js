@@ -1039,8 +1039,22 @@
       h('section', { class: 'card qchead' }, chead('QR codes fixes', plural(list.length, 'QR code') + ' · ' + plural(scans, 'scan')),
         h('p', { class: 'hint' }, 'Liens imprimés (flyers, affiches, cartes de visite) ou partagés (Discord…). Un lien ne change jamais et un QR code ne se supprime pas : seule sa destination change, et les QR déjà imprimés la suivent. Scans comptés sans rien garder de personnel (ni adresse ni appareil) ; robots d\'aperçu et « Tester » non comptés.'),
         d.bad ? h('p', { class: 'note' }, 'Fichier des QR codes illisible sur le serveur (qrcodes.json) : redirections d\'office seulement, rien ne peut être modifié ni compté.') : null,
+        h('div', { class: 'qcx' }, h('button', { class: 'btn', type: 'button', onclick: e => qcExport(e.currentTarget, false), title: 'Fichier qrcodes.json tel quel : en cas de perte, le recopier dans le dossier ADMIN_DIR du serveur (appli Node arrêtée), puis relancer' }, 'Exporter (sauvegarde JSON)'),
+          h('button', { class: 'btn', type: 'button', onclick: e => qcExport(e.currentTarget, true) }, 'Exporter (CSV)')),
         qcNew()),
       h('div', { class: 'qcl', id: 'qcList' }, list.map(qcCard)));
+  }
+  /** « Exporter » : GET /api/admin/qr/export (JSON au format du fichier du serveur, pour le restaurer à l'identique ; ou CSV lisible). */
+  async function qcExport(b, csv) {
+    const u = user; if (!u) return; b.disabled = true;
+    try {
+      for (let a = 0; a < 2; a++) {
+        const r = await fetch('/api/admin/qr/export' + (csv ? '?f=csv' : ''), { cache: 'no-store', headers: { 'x-firebase-token': await u.getIdToken(a > 0) } });
+        if (r.ok) { save(await r.blob(), (/filename="([^"]+)"/.exec(r.headers.get('content-disposition') || '') || [])[1] || 'qrcodes-mana-orbit.' + (csv ? 'csv' : 'json')); return toast(csv ? 'QR codes exportés (CSV).' : 'Sauvegarde des QR codes téléchargée.'); }
+        const j = await r.json().catch(() => null); if (r.status === 401 && j && j.error === 'token_expired' && a === 0) continue;
+        return toast((j && j.message) || 'Export impossible.');
+      }
+    } catch (e) { toast('Réseau indisponible.'); } finally { b.disabled = false; }
   }
   /** Bloc « Nouveau QR code » : nom, lien (figé à la création), destination ; « Créer… » confirmé. */
   function qcNew() {

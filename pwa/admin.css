@@ -425,6 +425,7 @@ main{max-width:1240px;margin:0 auto;padding:14px 16px 48px}
 /* ── QR codes fixes : en-tête (création repliable), une carte par QR (aperçu, nom, lien imprimé, scans, destination, téléchargements) ── */
 .qchead .hint{margin-bottom:6px}
 .qchead .note{margin:4px 0 6px}
+.qcx{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 10px}      /* « Exporter » : sauvegarde JSON, CSV */
 .qcnew{border-top:1px solid var(--line);padding-top:10px;margin-top:8px}
 .qcnew h3,.qct h3{margin:0;font:680 16.5px/1.25 var(--font-display);letter-spacing:-.01em;overflow-wrap:anywhere}
 .qcf{display:grid;gap:14px;max-width:640px}

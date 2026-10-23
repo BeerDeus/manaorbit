@@ -2974,11 +2974,11 @@ async function adminApi(req, res, path, url) {
    GET seulement ; robots d'aperçu (Discordbot, facebookexternalhit, Slackbot…), navigateur sans nom et « Tester » du panneau (?test=1) non comptés. Compteurs
    écrits en différé (QR_SAVE_MS, 15 s : au plus autant de scans perdus à un redémarrage). Fichier : ADMIN_DIR/qrcodes.json (écriture atomique ; illisible :
    jamais réécrit, QR créés d'office servis tels quels, modifications refusées). Panneau : GET /api/admin/qr (liste, compteurs, SVG de src/qr.js › qrSvgLogo),
-   POST /api/admin/qr { id, name, to } (création), POST /api/admin/qr/<lien> { name?, to? } ; mêmes garde-fous que les autres actions (admBody), notées au journal. */
+   POST /api/admin/qr { id, name, to } (création), POST /api/admin/qr/<lien> { name?, to? }, GET /api/admin/qr/export[?f=csv] (sauvegarde : JSON du fichier tel quel, ou CSV) ; mêmes garde-fous que les autres actions (admBody), notées au journal. */
 const QR_FILE = join(ADM_DIR, 'qrcodes.json'), QR_ORIGIN = 'https://manaorbit.app', QR_DAYS = 90, QR_MAX = 200, QR_NAME_MAX = 60, QR_TO_MAX = 500;
 const QR_SAVE = Math.max(0, Number(process.env.QR_SAVE_MS ?? 15e3));
 const QR_ID = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])$/;      // 2 à 32 caractères, pas de tiret au début ni à la fin
-const QR_RESERVED = new Set(['q', 'qr', 'admin', 'api', 'app', 'flyer', 'flyers', 'test', 'tests', 'www', 'static', 'assets', 'icons', 'index', 'new', 'nouveau', 'edit', 'delete', 'null', 'undefined',
+const QR_RESERVED = new Set(['q', 'qr', 'admin', 'api', 'app', 'flyer', 'flyers', 'test', 'tests', 'export', 'www', 'static', 'assets', 'icons', 'index', 'new', 'nouveau', 'edit', 'delete', 'null', 'undefined',
   'manaorbit', 'mana-orbit', 'legal', 'privacy', 'testeurs', 'login', 'logout', 'play', 'store', 'apple', 'google', 'android', 'ios', 'iphone']);
 // Robots qui lisent le lien pour en faire un aperçu (messageries, réseaux, moteurs) : redirigés pareil, jamais comptés. « bot » seul ne suffit pas (téléphones Cubot).
 const QR_BOT = /Discordbot|facebookexternalhit|Facebot|meta-externalagent|Slackbot|Slack-ImgProxy|Twitterbot|TelegramBot|WhatsApp|LinkedInBot|redditbot|Pinterest|SkypeUriPreview|Embedly|Iframely|vkShare|Mastodon|Bluesky|Applebot|Googlebot|Google-InspectionTool|bingbot|DuckDuckBot|YandexBot|Baiduspider|HeadlessChrome|python-requests|curl\/|Wget\/|Go-http-client|(?:bot|crawler|spider)\/\d|\b(?:bot|crawler|spider|preview)\b/i;
@@ -3071,8 +3071,19 @@ function qrOut(q, now = Date.now()) {
 }
 const qrList = () => QR.list.map(x => qrOut(x));
 /** /api/admin/qr… (compte de l'éditeur déjà vérifié) : liste, création, nom et destination. Jamais de suppression (aucune route : 405). */
+/** Export des QR codes (bouton « Exporter » de l'onglet) : JSON au format exact de ADMIN_DIR/qrcodes.json (en cas de perte : arrêter l'appli Node, le recopier
+ *  là, relancer : liens, noms, destinations et compteurs reviennent tels quels), ou CSV lisible (point-virgule, BOM, cellules protégées comme l'export des comptes). */
+function qrExport(res, csv) {
+  const day = admDay(Date.now()), name = `qrcodes-mana-orbit-${day}.${csv ? 'csv' : 'json'}`;
+  const body = Buffer.from(csv
+    ? '\ufeff' + [['Lien imprimé', 'Nom', 'Destination', 'Créé', 'Modifié', 'Scans', 'Android', 'iPhone', 'Autre'], ...QR.list.map(q => [QR_ORIGIN + qrPath(q.id), q.name, qrToTxt(q.to), admStamp(q.at), admStamp(q.up), q.n, q.p.a, q.p.i, q.p.o])].map(l => l.map(admCell).join(';')).join('\r\n') + '\r\n'
+    : JSON.stringify(qrJson(), null, 2) + '\n');
+  res.writeHead(200, { ...SEC, ...ADM_HD, 'Content-Type': csv ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Length': body.length, 'Content-Disposition': `attachment; filename="${name}"` });
+  return res.end(body);
+}
 async function qrAdmin(req, res, sub, u) {
   const list = await qrLoad(), id = sub === 'qr' ? '' : sub.slice(3);
+  if (req.method === 'GET' && id === 'export') return qrExport(res, new URL(req.url, 'http://x').searchParams.get('f') === 'csv');      // sauvegarde : JSON (ADMIN_DIR/qrcodes.json tel quel) ou CSV lisible
   if (req.method === 'GET' && !id) return json(res, 200, { origin: QR_ORIGIN, max: QR_MAX, bad: QR.bad, appStore: !!APP_STORE_URL, list: qrList() }, ADM_HD);
   if (req.method !== 'POST' || (id && !QR_ID.test(id))) return json(res, 405, { error: 'method_not_allowed', message: 'Un QR code imprimé ne se supprime jamais : change sa destination.' }, { ...ADM_HD, Allow: 'GET, POST' });
   const b = await admBody(req, res, 4096); if (!b) return;
