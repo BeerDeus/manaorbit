@@ -6,7 +6,8 @@
 // onglets masqués quand une partie est coupée), Carte mystère (/api/admin/daily simulé : en-tête, bloc repliable gardé au rechargement, actions), Discord
 // (/api/admin/discord simulé par des routes : onglet caché sur 404, bot non configuré, salons groupés, raccourcis, modèles, pings, publier, envoi confirmé,
 // historique, suppression, erreur, 360 px), Fils des forums (/api/admin/discord/threads… simulés : filtres, fil, étiquettes, fermer, verrouiller, renommer,
-// répondre, supprimer, téléphone), ni « null » ni « undefined » à l'écran, 360 px clair et sombre sans défilement de côté ; aucune erreur (CSP comprise).
+// répondre, supprimer, téléphone), QR codes fixes (vrai serveur : cartes, scans, destination confirmée, création, renommer, Tester, SVG, PNG ≥ 2 048 px,
+// aucune suppression), ni « null » ni « undefined » à l'écran, 360 px clair et sombre sans défilement de côté ; aucune erreur (CSP comprise).
 // Captures de chaque onglet (1280 et 390 px, clair et sombre) : ADMIN_SHOTS=<dossier>.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
@@ -62,7 +63,7 @@ async function noOverflow(p, w, where) {
   const out = await p.$$eval('#vMain *, .top *', (e, w) => e.filter(x => x.getClientRects().length && x.getBoundingClientRect().right > w + 0.5 && !x.closest('.tabl')).map(x => x.tagName + '.' + x.className + ' ' + Math.round(x.getBoundingClientRect().right)), w);
   assert.deepEqual(out, [], where + ' : rien hors de l\'écran');
 }
-const TAB_ORDER = ['apercu', 'comptes', 'mystere', 'discord', 'fils', 'signalements', 'journal', 'serveur'];
+const TAB_ORDER = ['apercu', 'comptes', 'mystere', 'discord', 'fils', 'qr', 'signalements', 'journal', 'serveur'];
 
 /* ── Déconnecté, puis autre compte : rien ───────────────────────────────────────────────────────────────────────────────────── */
 {
@@ -397,12 +398,12 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
   const { ctx, p, errs, api } = await open({ user: ADM, before: [routeDiscord, routeThreads, routeAdminPatch(b => ({ ...b, scans: null }))], dark: true, hash: '#discord' });
   await dash(p); await asked(api, '/api/admin/discord'); await asked(api, '/api/admin/daily'); await asked(api, '/api/admin/discord/threads'); await p.waitForTimeout(250);
   assert.ok(api.includes('GET /api/admin/discord')); assert.equal(await p.$eval('#discord', e => e.hidden), true, '404 : section cachée'); assert.equal(await p.$('#discord *'), null);
-  assert.deepEqual(await tabsShown(p), ['apercu', 'comptes', 'signalements', 'journal', 'serveur'], 'Carte mystère (DAILY=0), Discord et Fils (404) masqués');
+  assert.deepEqual(await tabsShown(p), ['apercu', 'comptes', 'qr', 'signalements', 'journal', 'serveur'], 'Carte mystère (DAILY=0), Discord et Fils (404) masqués');
   assert.equal(await curTab(p), 'apercu', '#discord coupé : vue d\'ensemble'); assert.equal(await p.evaluate(() => location.hash), '#apercu');
   assert.equal(await p.$('#kpis [data-k="scans"]'), null, 'scans coupés : pas de tuile'); assert.equal(await p.$('#kpis [data-k="pseudos"]'), null);
   await tab(p, 'signalements'); assert.equal(await p.$eval('#scans', e => e.hidden), true, 'scans coupés : carte cachée'); assert.equal(await p.$eval('#dyRepCard', e => e.hidden), true);
   assert.equal(await visible(p, '#pubrep'), true, 'decks signalés toujours là'); assert.equal(await badgeOf(p, 'signalements'), '', 'rien à traiter : pas de pastille');
-  await p.focus('#t-signalements'); await p.keyboard.press('ArrowLeft'); assert.equal(await curTab(p), 'comptes', 'flèches : les onglets masqués sautés');
+  await p.focus('#t-signalements'); await p.keyboard.press('ArrowLeft'); assert.equal(await curTab(p), 'qr'); await p.keyboard.press('ArrowLeft'); assert.equal(await curTab(p), 'comptes', 'flèches : les onglets masqués sautés');
   assert.deepEqual(errs, []); await ctx.close(); DC.mode = 'on'; TH.mode = 'on';
   ok('onglets masqués : Carte mystère (DAILY=0), Discord et Fils (404), lien #discord → vue d\'ensemble ; scans coupés : ni tuile ni carte, l\'onglet Signalements reste ; flèches sautent les masqués');
 }
@@ -679,6 +680,109 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
   ok('Fils au téléphone (360 px) : la liste, puis le fil seul, retour du navigateur et « ← Fils », lien direct #fils/702 ; bot non configuré : le message');
 }
 
+/* ── QR codes fixes (vrai serveur : /api/admin/qr, /q/…) : cartes Flyers et Discord, scans, destination modifiable (confirmée, journal), création, renommer,
+   Tester, téléchargements SVG et PNG (≥ 2 048 px), aucune suppression ; captures (ADMIN_SHOTS) : onglet, création, modification ──────────────────────── */
+{
+  const AND = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36';
+  const goQ = (path, ua = AND) => fetch(`http://127.0.0.1:${PORT}${path}`, { redirect: 'manual', headers: { 'user-agent': ua } }).then(r => r.headers.get('location'));
+  assert.equal(await goQ('/q/discord'), 'https://discord.gg/TTwrP94agb'); await goQ('/flyer'); await goQ('/flyer', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile/15E148 Safari/604.1');
+  const shots = process.env.ADMIN_SHOTS; if (shots) mkdirSync(shots, { recursive: true });
+  const { ctx, p, errs, api } = await open({ user: ADM, before: ALL, hash: '#qr' });
+  await dash(p); await p.waitForSelector('#qcList .qc[data-id="discord"]');
+  assert.equal(await curTab(p), 'qr', 'lien direct #qr'); assert.deepEqual(await shownPanels(p), ['p-qr']);
+  assert.deepEqual(await p.$$eval('#qcList .qc', e => e.map(x => x.dataset.id)), ['flyer', 'discord'], 'créés d\'office : Flyers puis Discord');
+  assert.match(await txt(p, '.qchead .chead'), /^QR codes fixes 2 QR codes · 3 scans$/);
+  assert.match(await txt(p, '.qc[data-id="flyer"] .qch'), /^Flyers Renommer QR imprimé : https:\/\/manaorbit\.app\/flyer 2 scans aujourd'hui 2 · 7 j : 2 · 30 j : 2 Android 1 · iPhone 1 · autre 0/);
+  assert.match(await txt(p, '.qc[data-id="discord"] .qch'), /^Discord Renommer QR imprimé : https:\/\/manaorbit\.app\/q\/discord 1 scan aujourd'hui 1 .* Android 1 · iPhone 0 · autre 0/);
+  assert.equal(await p.$$eval('.qc[data-id="flyer"] .qcbars .bar', e => e.length), 30, '30 jours en barres');
+  assert.ok(await p.$eval('.qc[data-id="flyer"] img.qcimg', i => i.complete && i.naturalWidth > 0 && i.src.startsWith('data:image/svg+xml;base64,')), 'aperçu du QR (SVG du serveur, data:)');
+  assert.equal(await p.$eval('.qc[data-id="flyer"] .qcseg [data-k="app"]', b => b.getAttribute('aria-pressed')), 'true', 'Flyers : selon le téléphone');
+  assert.equal(await visible(p, '.qc[data-id="flyer"] .qcin'), false); assert.match(await txt(p, '.qc[data-id="flyer"] .qcapp'), /^Android → fiche Google Play/);
+  assert.equal(await p.$eval('.qc[data-id="discord"] .qcin', i => i.value), 'https://discord.gg/TTwrP94agb');
+  assert.deepEqual(await p.$$eval('.qc[data-id="discord"] .qcacts > *', e => e.map(x => x.textContent)), ['Tester ↗', 'Télécharger SVG', 'Télécharger PNG']);
+  assert.deepEqual(await p.$eval('.qc[data-id="discord"] [data-act="test"]', a => [a.getAttribute('href'), a.target, a.rel]), ['/q/discord?test=1', '_blank', 'noopener noreferrer'], 'Tester : le lien, pas compté');
+  assert.equal(await p.$eval('.qc[data-id="discord"] [data-act="save"]', b => b.disabled), true, 'Enregistrer grisé tant que rien ne change');
+  assert.equal(await p.$$eval('#qrcodes button, #qrcodes a', e => e.filter(x => /suppr|retir|effac/i.test(x.textContent)).length), 0, 'aucun bouton de suppression');
+  assert.equal(await p.$eval('.qcnew', d => d.open), false, 'création : bloc fermé d\'office');
+  ok('QR codes (#qr) : cartes Flyers et Discord (aperçu, nom, lien imprimé, scans du jour, 7 et 30 jours, plateformes, barres), destination modifiable, Tester ↗ (?test=1), SVG, PNG ; aucun bouton de suppression');
+  if (shots) { await p.evaluate(() => scrollTo(0, 0)); await p.screenshot({ path: join(shots, 'qr-390-clair.png'), fullPage: true }); }
+
+  // Modification : confirmée (avant → après, « les QR déjà imprimés suivront ») ; Annuler : rien envoyé
+  const dcard = '.qc[data-id="discord"]';
+  await p.fill(dcard + ' .qcin', 'https://discord.gg/nouveau');
+  assert.equal(await p.$eval(dcard, c => c.classList.contains('dirty')), true); assert.equal(await visible(p, dcard + ' [data-act="undo"]'), true);
+  await p.click(dcard + ' [data-act="undo"]'); assert.equal(await p.$eval(dcard + ' .qcin', i => i.value), 'https://discord.gg/TTwrP94agb', 'Annuler : la destination d\'avant');
+  await p.fill(dcard + ' .qcin', 'http://pas-https.example'); assert.equal(await p.$eval(dcard + ' [data-act="save"]', b => b.disabled), true, 'http:// : grisé');
+  await p.fill(dcard + ' .qcin', 'https://discord.gg/nouveau'); await p.click(dcard + ' [data-act="save"]'); await p.waitForSelector('#dlg[open]');
+  assert.match(await txt(p, '#dlg'), /^Changer la destination \? Discord · https:\/\/manaorbit\.app\/q\/discord Avant : https:\/\/discord\.gg\/TTwrP94agb Après : https:\/\/discord\.gg\/nouveau Les QR déjà imprimés \(et partagés\) suivront la nouvelle destination dès maintenant\. Annuler Changer la destination$/);
+  if (shots) await p.screenshot({ path: join(shots, 'qr-modification.png') });
+  await p.click('#dlg [data-v=""]'); await p.waitForTimeout(150);
+  assert.ok(!api.some(a => a.startsWith('POST /api/admin/qr')), 'Annuler : rien envoyé'); assert.equal(await goQ('/q/discord?test=1'), 'https://discord.gg/TTwrP94agb');
+  await p.click(dcard + ' [data-act="save"]'); await p.waitForSelector('#dlg[open]'); await p.click('#dlg [data-v="ok"]'); await toastIs(p, /Destination changée/);
+  assert.ok(api.includes('POST /api/admin/qr/discord')); assert.equal(await goQ('/q/discord?test=1'), 'https://discord.gg/nouveau', 'le serveur redirige déjà vers la nouvelle destination');
+  assert.equal(await p.$eval(dcard + ' .qcin', i => i.value), 'https://discord.gg/nouveau'); assert.equal(await p.$eval(dcard, c => c.classList.contains('dirty')), false);
+  assert.match(await txt(p, dcard + ' .qcm'), /^modifié à l'instant$/);
+  // « Selon le téléphone » : le champ disparaît, l'explication s'affiche ; on revient sans enregistrer
+  await p.click(dcard + ' .qcseg [data-k="app"]'); assert.equal(await visible(p, dcard + ' .qcin'), false); assert.equal(await visible(p, dcard + ' .qcapp'), true);
+  assert.equal(await p.$eval(dcard + ' [data-act="save"]', b => b.disabled), false); await p.click(dcard + ' [data-act="undo"]');
+  assert.equal(await p.$eval(dcard + ' .qcseg [data-k="url"]', b => b.getAttribute('aria-pressed')), 'true');
+  await tab(p, 'journal'); assert.match(await txt(p, '#journal'), /Destination d'un QR code changée Discord · \/q\/discord : https:\/\/discord\.gg\/TTwrP94agb → https:\/\/discord\.gg\/nouveau · .* · par ad•••@e•••\.org/);
+  await tab(p, 'qr');
+  ok('modification : brouillon (Annuler), http:// grisé, fenêtre « avant → après, les QR déjà imprimés suivront » (Annuler : rien envoyé), enregistrée sur le serveur, journal ; « Selon le téléphone » cache le champ');
+
+  // Création : nom → lien proposé, lien pris ou invalide, destination ; fenêtre « ne pourra plus jamais changer » ; refus du serveur (lien réservé) dans une fenêtre
+  await p.click('.qcnew > summary'); await p.waitForSelector('#qcName', { state: 'visible' });
+  await p.fill('#qcName', 'Affiche boutique Lyon'); assert.equal(await p.$eval('#qcId', i => i.value), 'affiche-boutique-lyon', 'lien tiré du nom');
+  await p.fill('#qcId', 'discord'); assert.match(await txt(p, '#qcIdTip'), /^Ce lien existe déjà\.$/); assert.equal(await p.$eval('#qcCreate', b => b.disabled), true);
+  await p.fill('#qcId', 'Affiche_Lyon!'); assert.equal(await p.$eval('#qcId', i => i.value), 'affichelyon', 'minuscules, chiffres et tirets seulement');
+  await p.fill('#qcId', 'affiche-lyon'); assert.match(await txt(p, '#qcIdTip'), /^QR imprimé : https:\/\/manaorbit\.app\/q\/affiche-lyon \(figé une fois créé\)$/);
+  assert.equal(await p.$eval('#qcCreate', b => b.disabled), true, 'sans destination : grisé');
+  await p.fill('#qcNewTo', 'https://example.org/lyon'); assert.equal(await p.$eval('#qcCreate', b => b.disabled), false);
+  if (shots) { await p.$eval('.qchead', e => e.scrollIntoView()); await p.screenshot({ path: join(shots, 'qr-creation.png'), fullPage: true }); }
+  await p.click('#qcCreate'); await p.waitForSelector('#dlg[open]');
+  assert.match(await txt(p, '#dlg'), /^Créer ce QR code \? Affiche boutique Lyon · https:\/\/manaorbit\.app\/q\/affiche-lyon Destination : https:\/\/example\.org\/lyon Le lien https:\/\/manaorbit\.app\/q\/affiche-lyon ne pourra plus jamais changer, et le QR code ne pourra pas être supprimé/);
+  if (shots) await p.screenshot({ path: join(shots, 'qr-creation-confirmer.png') });
+  await p.click('#dlg [data-v="ok"]'); await toastIs(p, /QR code créé : manaorbit\.app\/q\/affiche-lyon\./);
+  assert.deepEqual(await p.$$eval('#qcList .qc', e => e.map(x => x.dataset.id)), ['flyer', 'discord', 'affiche-lyon']);
+  assert.equal(await goQ('/q/affiche-lyon?test=1'), 'https://example.org/lyon');
+  assert.equal(await p.$eval('#qcName', i => i.value), '', 'formulaire vidé'); assert.equal(await p.$eval('#qcId', i => i.value), '');
+  await p.fill('#qcName', 'Pirate'); await p.fill('#qcId', 'admin'); await p.click('.qcnew .qcseg [data-k="app"]');
+  await p.click('#qcCreate'); await p.waitForSelector('#dlg[open]'); await p.click('#dlg [data-v="ok"]');
+  await p.waitForFunction(() => /Action impossible Lien réservé : choisis-en un autre\./.test(document.querySelector('#dlg[open]') ? document.querySelector('#dlg').innerText.replace(/\s+/g, ' ') : ''), null, { timeout: 5000 });
+  await p.click('#dlg [data-v="ok"]'); assert.equal(await p.$$eval('#qcList .qc', e => e.length), 3);
+  ok('création : lien tiré du nom, nettoyé, « existe déjà » ; destination exigée ; fenêtre « ne pourra plus jamais changer ni être supprimé » ; carte ajoutée, redirection en place ; lien réservé : message du serveur');
+
+  // Renommer (fenêtre, Entrée) ; le lien ne change pas
+  await p.click('.qc[data-id="affiche-lyon"] [data-act="rename"]'); await p.waitForSelector('#dlg[open] #qcRen');
+  await p.fill('#qcRen', 'Affiche Lyon centre'); await p.press('#qcRen', 'Enter'); await toastIs(p, /QR code renommé\./);
+  assert.equal(await txt(p, '.qc[data-id="affiche-lyon"] h3'), 'Affiche Lyon centre'); assert.match(await txt(p, '.qc[data-id="affiche-lyon"] .qclink'), /\/q\/affiche-lyon$/);
+  ok('renommer : fenêtre (Entrée), nom changé, lien identique');
+
+  // Téléchargements : SVG (celui du serveur, qrSvgLogo version 5) et PNG (≥ 2 048 px, multiple du côté du QR : modules nets)
+  const [d1] = await Promise.all([p.waitForEvent('download'), p.click('.qc[data-id="flyer"] [data-act="svg"]')]);
+  assert.equal(d1.suggestedFilename(), 'qr-mana-orbit-flyer.svg');
+  const svg = readFileSync(await d1.path(), 'utf8'), Q = createRequire(import.meta.url)('../src/qr.js');
+  assert.match(svg, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 45 45"/);
+  assert.equal(svg.split('\n')[1].replace(/qrf\d+/g, 'qrf'), Q.qrSvgLogo('https://manaorbit.app/flyer', { minV: 5 }).svg.replace(/qrf\d+/g, 'qrf'), 'le même QR que les flyers imprimés');
+  const [d2] = await Promise.all([p.waitForEvent('download'), p.click('.qc[data-id="discord"] [data-act="png"]')]);
+  assert.equal(d2.suggestedFilename(), 'qr-mana-orbit-discord.png');
+  const png = readFileSync(await d2.path()), W = png.readUInt32BE(16), Hh = png.readUInt32BE(20);
+  assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', 'PNG'); assert.equal(W, Hh); assert.ok(W >= 2048, 'au moins 2 048 px : ' + W); assert.equal(W % 45, 0, 'modules entiers (45 de côté)');
+  await toastIs(p, /PNG 2\s070 × 2\s070 px téléchargé\./);
+  ok('téléchargements : SVG (« qr-mana-orbit-flyer.svg », le même que tools/flyer.mjs) et PNG ' + W + ' × ' + Hh + ' px (« qr-mana-orbit-discord.png ») dessiné dans la page');
+
+  assert.ok(!api.some(a => /^(DELETE|PUT|PATCH) /.test(a)), 'jamais de suppression demandée');
+  await noOverflow(p, 390, 'QR codes 390 px'); await noJunk(p, 'QR codes');
+  assert.deepEqual(errs, []); await ctx.close();
+  if (shots) for (const dark of [false, true]) {
+    const o = await open({ user: ADM, before: ALL, hash: '#qr', dark, dpr: 2 }); await dash(o.p); await o.p.waitForSelector('#qcList .qc'); await o.p.waitForTimeout(250);
+    await o.p.screenshot({ path: join(shots, `qr-390-${dark ? 'sombre' : 'clair'}-fin.png`), fullPage: true });
+    if (dark) { await o.p.click('.qcnew > summary'); await o.p.fill('#qcName', 'Flyer tournoi'); await o.p.waitForTimeout(100); await o.p.screenshot({ path: join(shots, 'qr-390-sombre-creation.png'), fullPage: true }); }
+    await o.ctx.close();
+  }
+  ok('QR codes à 390 px : sans défilement de côté ni texte parasite ; aucune erreur');
+}
+
 /* ── 360 px, clair et sombre : chaque onglet sans défilement de côté, cibles des onglets ≥ 44 px, ni « null » ni « undefined » ───────── */
 for (const dark of [false, true]) {
   DC.mode = 'on'; DC.sent = dcOld(); TH.mode = 'on'; TH.list = thSeed(); DY.mode = 'on'; DYS = dySeed();
@@ -692,7 +796,7 @@ for (const dark of [false, true]) {
     await noOverflow(p, 360, k + (dark ? ' sombre' : ' clair') + ' 360 px'); await noJunk(p, k);
   }
   assert.deepEqual(errs, []); await ctx.close();
-  ok('360 px ' + (dark ? 'sombre' : 'clair') + ' : les 8 onglets sans défilement de côté ni texte parasite, onglet choisi ramené dans la barre, cibles ≥ 44 px');
+  ok('360 px ' + (dark ? 'sombre' : 'clair') + ' : les 9 onglets sans défilement de côté ni texte parasite, onglet choisi ramené dans la barre, cibles ≥ 44 px');
 }
 
 /* ── Captures (ADMIN_SHOTS=<dossier>) : chaque onglet, 1280 et 390 px, clair et sombre ────────────────────────────────────────────── */

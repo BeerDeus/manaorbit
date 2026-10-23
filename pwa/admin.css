@@ -422,3 +422,47 @@ main{max-width:1240px;margin:0 auto;padding:14px 16px 48px}
 #srv .kv dt,#srv .kv dd{padding:8px 0;border-top:1px solid var(--line)}
 #srv .kv dt{padding-right:18px}
 @media (min-width:640px){ #srv .kv{grid-template-columns:minmax(170px,240px) minmax(0,1fr)} #srv .kv dd{text-align:left} }
+/* ── QR codes fixes : en-tête (création repliable), une carte par QR (aperçu, nom, lien imprimé, scans, destination, téléchargements) ── */
+.qchead .hint{margin-bottom:6px}
+.qchead .note{margin:4px 0 6px}
+.qcnew{border-top:1px solid var(--line);padding-top:10px;margin-top:8px}
+.qcnew h3,.qct h3{margin:0;font:680 16.5px/1.25 var(--font-display);letter-spacing:-.01em;overflow-wrap:anywhere}
+.qcf{display:grid;gap:14px;max-width:640px}
+.qcin{width:100%;min-width:0;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);color:var(--ink);font-size:15px}
+.qcin:disabled{opacity:.6}
+.qcpre{display:flex;align-items:center;min-width:0;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);overflow:hidden}
+.qcpre:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.qcpre span{flex:none;padding:0 2px 0 12px;font-size:14px;color:var(--ink-3);white-space:nowrap}
+.qcpre .qcin{flex:1;border:0;border-radius:0;padding-left:2px;background:none;outline:none}
+.qctip{font-size:12.5px;color:var(--ink-3);overflow-wrap:anywhere}
+.qctip.bad{color:var(--bad);font-weight:600}
+.qcseg{justify-self:start}
+.qcapp{margin:0;padding:9px 12px;border-radius:var(--r-sm);background:var(--surface-2);font-size:13.5px;color:var(--ink-2)}
+.qcl{display:grid;gap:14px}
+.qc{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:start;margin:0;transition:border-color .15s}
+.qc.dirty{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.qcimg{display:block;width:120px;height:120px;border-radius:12px;background:#fff;border:1px solid var(--line);box-shadow:0 6px 18px -12px rgba(16,21,43,.45)}
+.qcimg.none{display:flex;align-items:center;justify-content:center;padding:8px;text-align:center;font-size:12px;color:#5a6480}
+.qch{display:flex;flex-direction:column;gap:2px;min-width:0}
+.qct{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-bottom:2px}
+.qch p{margin:0}
+.qclink{font-size:13px;color:var(--ink-3);overflow-wrap:anywhere}
+.qclink code{font:600 12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink-2)}
+.qch .qcn{margin-top:4px;font-size:14px;color:var(--ink-2)}
+.qcn b{font:750 26px/1.1 var(--font-display);letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums}
+.qcst{font-size:12.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.qcbars{display:block;max-width:100%;height:auto;margin-top:6px}
+.qcbars .hit{fill:transparent}
+.qcbars .fill{fill:var(--accent)}
+.qcbars .zero .fill{fill:var(--line)}
+.qcbars .bar:hover .fill{fill:var(--ink)}
+.qcdest{grid-column:1/-1;display:grid;gap:8px;min-width:0;padding-top:12px;border-top:1px solid var(--line)}
+.qcm{font-size:12.5px;color:var(--ink-3)}
+.qcsave{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.qcacts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+.qcacts .btn{flex:1 1 auto}
+.dlg .qcwas{color:var(--ink-3);text-decoration:line-through}
+.dlg .qcnow{color:var(--ink);font-weight:650}
+.dlg .note{margin:4px 0 0}
+@media (max-width:420px){ .qcimg{width:104px;height:104px} .qc{gap:12px} }
+@media (min-width:980px){ .qcl{grid-template-columns:repeat(2,minmax(0,1fr))} .qcacts .btn{flex:0 1 auto} }

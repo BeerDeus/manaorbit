@@ -2855,16 +2855,22 @@ async function pubForget(id) {
     const raw = Buffer.from(JSON.stringify(j)); Object.assign(PUB, { raw, gz: await gzipA(raw), etag: '"' + sha1Of(raw) + '"', n: j.decks.length });
   } catch (e) { /* liste illisible : relue au prochain passage */ }
 }
+/** Garde-fous d'une action du panneau (POST) : autre page refusée (Sec-Fetch-Site), JSON exigé, ADMIN_ACTIONS_PER_H par heure et par réseau ;
+ *  → l'objet JSON reçu, ou null (réponse d'erreur déjà envoyée). */
+async function admBody(req, res, max = 1024) {
+  const sf = String(req.headers['sec-fetch-site'] || '');
+  if (sf && sf !== 'same-origin' && sf !== 'none') { json(res, 403, { error: 'cross_site', message: 'Action refusée : demande venue d\'une autre page.' }, ADM_HD); return null; }
+  if (!/^application\/json\b/i.test(String(req.headers['content-type'] || ''))) { json(res, 415, { error: 'bad_content_type', message: 'Content-Type: application/json attendu.' }, ADM_HD); return null; }
+  const w = rateWait(req, 'adminact', ADM_ACT_H, 3600e3); if (w) { tooMany(res, w); return null; }
+  let b; try { b = JSON.parse((await readBody(req, max)).toString('utf8') || '{}'); } catch (e) { if (e.status === 413) tooLarge(res); else json(res, 400, { error: 'bad_request', message: 'JSON invalide' }, ADM_HD); return null; }
+  if (!b || typeof b !== 'object' || Array.isArray(b)) { json(res, 400, { error: 'bad_request', message: 'JSON invalide' }, ADM_HD); return null; }
+  return b;
+}
 /** Actions (POST, compte de l'éditeur déjà vérifié) : disable { id, on } désactive (on: true) ou réactive un compte, pubdel { k } retire un deck public.
  *  Contre les requêtes d'une autre page : jeton dans un en-tête (jamais un cookie), JSON exigé (un formulaire ne peut pas en envoyer), Sec-Fetch-Site
  *  same-origin quand le navigateur l'envoie. ADMIN_ACTIONS_PER_H par heure et par réseau. Chaque essai est noté au journal (jamais d'UID). */
 async function admAct(req, res, sub, u) {
-  const sf = String(req.headers['sec-fetch-site'] || '');
-  if (sf && sf !== 'same-origin' && sf !== 'none') return json(res, 403, { error: 'cross_site', message: 'Action refusée : demande venue d\'une autre page.' }, ADM_HD);
-  if (!/^application\/json\b/i.test(String(req.headers['content-type'] || ''))) return json(res, 415, { error: 'bad_content_type', message: 'Content-Type: application/json attendu.' }, ADM_HD);
-  const w = rateWait(req, 'adminact', ADM_ACT_H, 3600e3); if (w) return tooMany(res, w);
-  let b; try { b = JSON.parse((await readBody(req, 1024)).toString('utf8') || '{}'); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }, ADM_HD); }
-  if (!b || typeof b !== 'object' || Array.isArray(b)) return json(res, 400, { error: 'bad_request', message: 'JSON invalide' }, ADM_HD);
+  const b = await admBody(req, res); if (!b) return;
   const s = ADM.snap; if (!FCM_ON || !s) return json(res, 503, { error: 'unavailable', message: FCM_ON ? 'Statistiques pas encore calculées : recharge la page.' : 'Compte de service absent (FCM_SERVICE_ACCOUNT) : action impossible.' }, ADM_HD);
   const by = admMail(u.email), fail = (e, rec, what) => {
     const st = e && e.http || 0; console.warn('Admin : ' + what + ' impossible (' + (st ? 'HTTP ' + st : 'réseau') + ')');
@@ -2928,6 +2934,7 @@ async function adminApi(req, res, path, url) {
   if (sub === 'scans' || sub.startsWith('scans/')) return srAdmin(req, res, sub, url);      // scans signalés depuis l'appli
   if (sub === 'daily' || sub.startsWith('daily/')) return DLY ? DLY.admin(req, res, sub, url) : json(res, 404, { error: 'not_found' }, ADM_HD);      // Carte mystère : joueurs des 7 derniers jours, pseudo masqué
   if (sub === 'discord' || sub.startsWith('discord/')) return DSC ? DSC.admin(req, res, sub, url) : json(res, 404, { error: 'not_found', message: 'Bot Discord indisponible.' }, ADM_HD);      // messages du bot dans les salons (mêmes garde-fous que admAct)
+  if (sub === 'qr' || sub.startsWith('qr/')) return qrAdmin(req, res, sub, u);      // QR codes fixes (flyers, affiches) : liste, création, destination ; jamais de suppression
   if (req.method === 'GET' && !sub) {
     if (!ADM.snap || Date.now() - ADM.snap.at > ADM_TTL) await admRefresh();      // trop ancien : recalculé (la page attend : c'est l'éditeur qui l'a demandé)
     return admSend(res, url);
@@ -2953,6 +2960,159 @@ async function adminApi(req, res, path, url) {
   }
   if (req.method === 'POST' && (sub === 'disable' || sub === 'pubdel')) return admAct(req, res, sub, u);
   return json(res, 405, { error: 'method_not_allowed' }, ADM_HD);
+}
+
+/* ── QR codes fixes (flyers, affiches, Discord…) : /q/<lien> et /flyer, gérés dans /admin › QR codes ──────────────────────────────────────────
+   Un lien imprimé ne change JAMAIS et un QR code ne se supprime pas : aucune route de suppression (DELETE : 405), lien choisi à la création (minuscules,
+   chiffres, tirets, 2 à 32 caractères, unique, mots réservés refusés) puis figé ; seuls le nom et la destination changent. Destination : une adresse https://
+   ou un chemin du site (« /… »), ou « selon le téléphone » (to: 'app') : Android → fiche Google Play (referrer utm_source=<lien>&utm_medium=print : source dans
+   Play Console › Statistiques › Acquisition), iPhone et iPad → APP_STORE_URL quand elle existe, sinon (et le reste) le site avec ?ref=<lien>.
+   /flyer : le QR « Flyers » (tools/flyer.mjs, flyers et cartes de visite déjà imprimés), même réponse qu'avant ; lien https://manaorbit.app/flyer.
+   Créés d'office une seule fois (fichier absent, premier démarrage) : « Flyers » (/flyer, selon le téléphone) et « Discord » (/q/discord → invitation du serveur,
+   discord-srv.mjs › DSC_INVITE) ; jamais recréés ensuite. Redirection : 302, no-store, noindex ; lien inconnu : l'accueil du site (jamais d'erreur sous un QR
+   imprimé). Rien de personnel gardé (ni IP ni navigateur) : des compteurs seulement (total, par jour sur QR_DAYS jours, par plateforme Android / iPhone / autre),
+   GET seulement ; robots d'aperçu (Discordbot, facebookexternalhit, Slackbot…), navigateur sans nom et « Tester » du panneau (?test=1) non comptés. Compteurs
+   écrits en différé (QR_SAVE_MS, 15 s : au plus autant de scans perdus à un redémarrage). Fichier : ADMIN_DIR/qrcodes.json (écriture atomique ; illisible :
+   jamais réécrit, QR créés d'office servis tels quels, modifications refusées). Panneau : GET /api/admin/qr (liste, compteurs, SVG de src/qr.js › qrSvgLogo),
+   POST /api/admin/qr { id, name, to } (création), POST /api/admin/qr/<lien> { name?, to? } ; mêmes garde-fous que les autres actions (admBody), notées au journal. */
+const QR_FILE = join(ADM_DIR, 'qrcodes.json'), QR_ORIGIN = 'https://manaorbit.app', QR_DAYS = 90, QR_MAX = 200, QR_NAME_MAX = 60, QR_TO_MAX = 500;
+const QR_SAVE = Math.max(0, Number(process.env.QR_SAVE_MS ?? 15e3));
+const QR_ID = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])$/;      // 2 à 32 caractères, pas de tiret au début ni à la fin
+const QR_RESERVED = new Set(['q', 'qr', 'admin', 'api', 'app', 'flyer', 'flyers', 'test', 'tests', 'www', 'static', 'assets', 'icons', 'index', 'new', 'nouveau', 'edit', 'delete', 'null', 'undefined',
+  'manaorbit', 'mana-orbit', 'legal', 'privacy', 'testeurs', 'login', 'logout', 'play', 'store', 'apple', 'google', 'android', 'ios', 'iphone']);
+// Robots qui lisent le lien pour en faire un aperçu (messageries, réseaux, moteurs) : redirigés pareil, jamais comptés. « bot » seul ne suffit pas (téléphones Cubot).
+const QR_BOT = /Discordbot|facebookexternalhit|Facebot|meta-externalagent|Slackbot|Slack-ImgProxy|Twitterbot|TelegramBot|WhatsApp|LinkedInBot|redditbot|Pinterest|SkypeUriPreview|Embedly|Iframely|vkShare|Mastodon|Bluesky|Applebot|Googlebot|Google-InspectionTool|bingbot|DuckDuckBot|YandexBot|Baiduspider|HeadlessChrome|python-requests|curl\/|Wget\/|Go-http-client|(?:bot|crawler|spider)\/\d|\b(?:bot|crawler|spider|preview)\b/i;
+let QR_DISCORD = ''; try { ({ DSC_INVITE: QR_DISCORD } = await import('./discord-srv.mjs')); } catch (e) { /* module absent : pas de QR Discord créé d'office */ }
+let QR_LIB = null; try { QR_LIB = createRequire(import.meta.url)('./src/qr.js'); } catch (e) { /* sources absentes : liste sans aperçu ni téléchargement */ }
+const QR = { list: null, load: null, bad: false, timer: null, svg: new Map(), chain: Promise.resolve() };
+const qrPath = id => (id === 'flyer' ? '/flyer' : '/q/' + id);
+const qrPlat = ua => (/\bAndroid\b/i.test(ua) ? 'a' : /\b(iPhone|iPad|iPod)\b/.test(ua) ? 'i' : 'o');
+const qrName = v => String(v ?? '').replace(/[\p{Cc}\p{Cf}<>]/gu, '').replace(/\s+/g, ' ').trim().slice(0, QR_NAME_MAX);
+/** Fiche lue dans le fichier, remise en forme (compteurs entiers, jours au format AAAA-MM-JJ). */
+function qrClean(x) {
+  const days = {}; for (const [k, v] of Object.entries(x.d && typeof x.d === 'object' ? x.d : {})) if (/^\d{4}-\d{2}-\d{2}$/.test(k) && v > 0) days[k] = Math.floor(v);
+  const p = x.p && typeof x.p === 'object' ? x.p : {}, int = v => (Number(v) > 0 ? Math.floor(Number(v)) : 0);
+  return { id: x.id, name: qrName(x.name) || x.id, to: typeof x.to === 'string' && x.to ? x.to : 'app', at: int(x.at), up: int(x.up), n: int(x.n), d: days, p: { a: int(p.a), i: int(p.i), o: int(p.o) } };
+}
+const qrNew = (id, name, to, t = Date.now()) => ({ id, name, to, at: t, up: t, n: 0, d: {}, p: { a: 0, i: 0, o: 0 } });
+/** QR créés d'office (une seule fois, fichier absent). */
+const qrSeed = () => [qrNew('flyer', 'Flyers', 'app'), ...(QR_DISCORD ? [qrNew('discord', 'Discord', QR_DISCORD)] : [])];
+const qrJson = () => ({ v: 1, list: QR.list });
+/** Liste des QR codes, lue une fois ; fichier absent : QR créés d'office et fichier écrit ; illisible : ceux d'office en mémoire, fichier jamais réécrit. */
+function qrLoad() {
+  if (QR.list) return Promise.resolve(QR.list);
+  return QR.load || (QR.load = (async () => {
+    let list;
+    try {
+      const j = JSON.parse(await readFile(QR_FILE, 'utf8')), seen = new Set();
+      list = (Array.isArray(j.list) ? j.list : []).filter(x => x && typeof x.id === 'string' && QR_ID.test(x.id) && !seen.has(x.id) && seen.add(x.id)).map(qrClean);
+    } catch (e) {
+      list = qrSeed();
+      if (e && e.code !== 'ENOENT') { QR.bad = true; console.warn('QR codes : ' + QR_FILE + ' illisible, jamais réécrit (modifications refusées, compteurs non gardés)'); }
+      else await admRun(QR, () => admSave(QR_FILE, { v: 1, list })).catch(er => console.warn('QR codes : fichier impossible à écrire (' + (er && er.code || 'erreur') + ')'));
+    }
+    return (QR.list = list);
+  })());
+}
+/** Compteurs écrits en différé (un seul envoi par QR_SAVE_MS). */
+function qrLater() {
+  if (QR.bad || QR.timer) return;
+  QR.timer = setTimeout(() => { QR.timer = null; admRun(QR, () => admSave(QR_FILE, qrJson())).catch(e => console.warn('QR codes : compteurs impossibles à écrire (' + (e && e.code || 'erreur') + ')')); }, QR_SAVE);
+  QR.timer.unref();
+}
+/** Un scan : total, jour (heure de Paris ; QR_DAYS jours gardés), plateforme. Rien d'autre (ni adresse, ni navigateur). */
+function qrHit(q, ua, now = Date.now()) {
+  const day = admDay(now); q.n++; q.d[day] = (q.d[day] || 0) + 1; q.p[qrPlat(ua)]++;
+  const keys = Object.keys(q.d); if (keys.length > QR_DAYS) { const old = admDays(now, QR_DAYS)[0]; for (const k of keys) if (k < old) delete q.d[k]; }
+  qrLater();
+}
+/** Où mène le QR q pour ce navigateur. « Selon le téléphone » : exactement l'ancienne réponse de /flyer (référent et ?ref= au nom du lien). */
+function qrDest(q, ua) {
+  if (q.to !== 'app') return q.to;
+  return /\bAndroid\b/i.test(ua) ? 'https://play.google.com/store/apps/details?id=app.manaorbit&referrer=' + encodeURIComponent('utm_source=' + q.id + '&utm_medium=print')
+    : APP_STORE_URL && /\b(iPhone|iPad|iPod)\b/.test(ua) ? APP_STORE_URL : '/?ref=' + q.id;
+}
+/** /flyer et /q/<lien> : redirection (302) vers la destination, l'accueil si le lien est inconnu ; scan compté (GET d'un vrai navigateur). */
+async function qrGo(req, res, url) {
+  const fly = url.pathname === '/flyer', m = fly ? ['', 'flyer'] : /^\/q\/([^/]+)\/?$/.exec(url.pathname);
+  let id = ''; try { id = m ? decodeURIComponent(m[1]).toLowerCase() : ''; } catch (e) { /* lien abîmé : l'accueil */ }
+  const list = await qrLoad(), ok = id && (id === 'flyer') === fly;
+  const q = ok ? list.find(x => x.id === id) || (fly ? qrNew('flyer', 'Flyers', 'app') : null) : null;      // /flyer marche toujours (fiche absente : selon le téléphone)
+  const ua = String(req.headers['user-agent'] || '');
+  if (q && req.method === 'GET' && url.searchParams.get('test') !== '1' && ua && !QR_BOT.test(ua) && list.includes(q)) qrHit(q, ua);
+  res.writeHead(302, { Location: q ? qrDest(q, ua) : '/', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }); return res.end();
+}
+/** Destination tapée dans le panneau → valeur gardée ('app', adresse https:// normalisée, chemin du site), ou { e } (message). */
+function qrTo(v) {
+  if (v === 'app') return 'app';
+  const t = String(v ?? '').trim(), bad = { e: 'Destination : une adresse https://… ou un chemin du site qui commence par /.' }, loop = { e: 'Destination : pas vers un QR code (/q/… ou /flyer), il tournerait en rond.' };
+  if (!t || t.length > QR_TO_MAX || /[\s\\\u0000-\u001f\u007f]/.test(t)) return bad;
+  const qr = p => /^\/(?:q(?:\/|$)|flyer\/?$)/i.test(p);
+  if (t.startsWith('/')) {
+    if (t.startsWith('//')) return bad;
+    let u; try { u = new URL(t, QR_ORIGIN); } catch (e) { return bad; }
+    return u.origin !== QR_ORIGIN ? bad : qr(u.pathname) ? loop : u.pathname + u.search + u.hash;
+  }
+  let u; try { u = new URL(t); } catch (e) { return bad; }
+  if (u.protocol !== 'https:' || !u.hostname.includes('.') || u.username || u.password) return bad;
+  return /^(?:www\.)?manaorbit\.app$/.test(u.hostname) && qr(u.pathname) ? loop : u.href;
+}
+const qrToTxt = to => (to === 'app' ? 'selon le téléphone' : to);
+/** SVG du QR imprimé (qrSvgLogo : niveau H, logo de l'appli, encre marine ; version 5 au moins, comme les flyers), gardé en mémoire. */
+function qrSvgOf(id) {
+  if (!QR_LIB) return null;
+  if (!QR.svg.has(id)) { try { const { n, svg } = QR_LIB.qrSvgLogo(QR_ORIGIN + qrPath(id), { minV: 5 }); QR.svg.set(id, { n, svg }); } catch (e) { return null; } }
+  return QR.svg.get(id);
+}
+/** Fiche telle que la page la reçoit : lien imprimé, destination, compteurs (total, aujourd'hui, 7 et 30 jours, 30 derniers jours, plateformes), SVG. */
+function qrOut(q, now = Date.now()) {
+  const days = admDays(now, 30).map(d => [d, q.d[d] || 0]), sum = k => days.slice(-k).reduce((t, x) => t + x[1], 0), g = qrSvgOf(q.id);
+  return { id: q.id, name: q.name, path: qrPath(q.id), link: QR_ORIGIN + qrPath(q.id), to: q.to, at: q.at, up: q.up, n: q.n, today: sum(1), d7: sum(7), d30: sum(30), days, p: { ...q.p }, ...(g ? { svg: g.svg, side: g.n } : {}) };
+}
+const qrList = () => QR.list.map(x => qrOut(x));
+/** /api/admin/qr… (compte de l'éditeur déjà vérifié) : liste, création, nom et destination. Jamais de suppression (aucune route : 405). */
+async function qrAdmin(req, res, sub, u) {
+  const list = await qrLoad(), id = sub === 'qr' ? '' : sub.slice(3);
+  if (req.method === 'GET' && !id) return json(res, 200, { origin: QR_ORIGIN, max: QR_MAX, bad: QR.bad, appStore: !!APP_STORE_URL, list: qrList() }, ADM_HD);
+  if (req.method !== 'POST' || (id && !QR_ID.test(id))) return json(res, 405, { error: 'method_not_allowed', message: 'Un QR code imprimé ne se supprime jamais : change sa destination.' }, { ...ADM_HD, Allow: 'GET, POST' });
+  const b = await admBody(req, res, 4096); if (!b) return;
+  if (QR.bad) return json(res, 503, { error: 'unavailable', message: 'Fichier des QR codes illisible sur le serveur : rien n\'est modifié.' }, ADM_HD);
+  const by = admMail(u.email), name = b.name === undefined ? undefined : qrName(b.name), to = b.to === undefined ? undefined : qrTo(b.to);
+  if (name !== undefined && !name) return json(res, 400, { error: 'bad_name', message: 'Nom : 1 à ' + QR_NAME_MAX + ' caractères.' }, ADM_HD);
+  if (to && to.e) return json(res, 400, { error: 'bad_to', message: to.e }, ADM_HD);
+  const done = async (st, q, rec) => { await admLog({ t: Date.now(), ok: true, by, ...rec }); return json(res, st, { ok: true, qr: qrOut(q), list: qrList(), log: await admLogShow() }, ADM_HD); };
+  if (!id) {      // création : lien figé dès maintenant
+    const nid = typeof b.id === 'string' ? b.id.trim().toLowerCase() : '';
+    if (!QR_ID.test(nid)) return json(res, 400, { error: 'bad_id', message: 'Lien : 2 à 32 caractères, minuscules, chiffres et tirets (pas au début ni à la fin).' }, ADM_HD);
+    if (QR_RESERVED.has(nid)) return json(res, 400, { error: 'reserved_id', message: 'Lien réservé : choisis-en un autre.' }, ADM_HD);
+    if (!name || !to) return json(res, 400, { error: 'bad_request', message: 'Nom et destination attendus.' }, ADM_HD);
+    let q = null, err = '';
+    await admRun(QR, async () => {
+      if (list.some(x => x.id === nid)) { err = 'taken'; return; }
+      if (list.length >= QR_MAX) { err = 'max'; return; }
+      q = qrNew(nid, name, to); list.push(q);
+      try { await admSave(QR_FILE, qrJson()); } catch (e) { list.splice(list.indexOf(q), 1); q = null; err = 'io'; }
+    });
+    if (err === 'taken') return json(res, 409, { error: 'id_taken', message: 'Ce lien existe déjà : un lien imprimé ne sert qu\'une fois.' }, ADM_HD);
+    if (err === 'max') return json(res, 400, { error: 'too_many', message: QR_MAX + ' QR codes au plus.' }, ADM_HD);
+    if (err) return json(res, 500, { error: 'io', message: 'Écriture impossible sur le serveur : réessaie.' }, ADM_HD);
+    return done(201, q, { a: 'qrnew', n: q.name, d: qrPath(q.id) + ' → ' + qrToTxt(q.to) });
+  }
+  const q = list.find(x => x.id === id);
+  if (!q) return json(res, 404, { error: 'not_found', message: 'QR code introuvable : recharge la page.' }, ADM_HD);
+  if (name === undefined && to === undefined) return json(res, 400, { error: 'bad_request', message: 'Nom ou destination attendus.' }, ADM_HD);
+  const was = { name: q.name, to: q.to, up: q.up }; let err = false;
+  await admRun(QR, async () => {
+    if (name !== undefined) q.name = name; if (to !== undefined) q.to = to;
+    if (q.name === was.name && q.to === was.to) return;      // rien de changé : rien d'écrit
+    q.up = Date.now();
+    try { await admSave(QR_FILE, qrJson()); } catch (e) { Object.assign(q, was); err = true; }
+  });
+  if (err) return json(res, 500, { error: 'io', message: 'Écriture impossible sur le serveur : réessaie.' }, ADM_HD);
+  const moved = q.to !== was.to, renamed = q.name !== was.name;
+  if (!moved && !renamed) return json(res, 200, { ok: true, same: true, qr: qrOut(q), list: qrList(), log: await admLogShow() }, ADM_HD);
+  return done(200, q, moved ? { a: 'qrto', n: q.name, d: qrPath(q.id) + ' : ' + qrToTxt(was.to) + ' → ' + qrToTxt(q.to) + (renamed ? ' · avant « ' + was.name + ' »' : '') }
+    : { a: 'qrname', n: q.name, d: qrPath(q.id) + ' · avant « ' + was.name + ' »' });
 }
 
 /* ── Inscriptions au test fermé : formulaire de la page /testeurs ──────────────────────────────────────────────────────────────
@@ -3492,14 +3652,7 @@ const server = http.createServer(async (req, res) => {
     if (String(req.headers['x-forwarded-proto'] || '').split(',').pop().trim().toLowerCase() === 'https') res.setHeader('Strict-Transport-Security', 'max-age=15552000');
     const url = new URL(String(req.url).replace(/^\/+/, '/'), 'http://x'); // « // » ou « //hôte/chemin » ne doivent pas être lus comme une URL absolue
     if (OLD_HOSTS.length && OLD_HOSTS.includes(String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase()) && oldHost(req, res, url)) return;
-    if (url.pathname === '/flyer') {      // QR des flyers et affiches imprimés (tools/flyer.mjs) : lien fixe, la destination peut changer sans réimprimer
-      // Android → fiche Google Play (source « flyer » dans les rapports d'acquisition de la Play Console) ; iPhone et iPad → fiche App Store (APP_STORE_URL,
-      // le jour où elle existe) ; le reste, et l'iPhone en attendant → le site (?ref=flyer : ouverture normale)
-      const ua = req.headers['user-agent'] || '';
-      const to = /\bAndroid\b/i.test(ua) ? 'https://play.google.com/store/apps/details?id=app.manaorbit&referrer=' + encodeURIComponent('utm_source=flyer&utm_medium=print')
-        : APP_STORE_URL && /\b(iPhone|iPad|iPod)\b/.test(ua) ? APP_STORE_URL : '/?ref=flyer';
-      res.writeHead(302, { Location: to, 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }); return res.end();
-    }
+    if (url.pathname === '/flyer' || url.pathname === '/q' || url.pathname.startsWith('/q/')) return await qrGo(req, res, url);      // QR imprimés (flyers, affiches, Discord) : lien fixe, destination réglée dans /admin › QR codes
     if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });
     if (url.pathname === '/.well-known/assetlinks.json') return assetLinks(req, res);      // App Links de l'appli Android
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
@@ -3580,6 +3733,7 @@ server.listen(PORT, HOST, () => {
   if (DSS) { DSS.start(); console.log(`Bot Discord : sorties d'extensions annoncées dans #spoilers (J-7 et jour J, ${DSS.hour} h, ${DSS.tz}).`); }
   if ((String(process.env.DISCORD_CLIENT_ID || '').trim() || String(process.env.DISCORD_CLIENT_SECRET || '').trim()) && !(DSC && DSC.linkOn) && process.env.DISCORD !== '0') console.warn('⚠ Liaison des comptes Discord coupée : DISCORD_BOT_TOKEN, DISCORD_CLIENT_ID (identifiant numérique de l\'application) et DISCORD_CLIENT_SECRET sont tous nécessaires.');      // jamais leurs valeurs
   if (String(process.env.DISCORD_PUBLIC_KEY || '').trim() && DSC_ON && !DSC.cmdOn) console.warn('⚠ Commandes slash Discord coupées : DISCORD_PUBLIC_KEY attendue en 64 caractères hexadécimaux (portail Discord › General Information › Public Key).');
+  qrLoad().then(l => console.log(`QR codes fixes : ${l.length} (/flyer, /q/…)${QR.bad ? ', fichier illisible : jamais réécrit' : ''}.`));      // créés d'office au premier démarrage
   if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
   if (ADMIN_ON && FCM_ON && ADM_EVERY > 0) setInterval(() => { admTick().catch(() => {}); }, Math.max(1000, ADM_EVERY)).unref();      // comptes actifs du jour (courbe du panneau) : premier relevé après un intervalle, jamais au démarrage
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);
