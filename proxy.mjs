@@ -2946,7 +2946,10 @@ async function srAdmin(req, res, sub, url) {
    Liaison du compte Discord (/api/discord/link, callback, me, unlink : l'accueil n'invite plus à rejoindre le serveur un compte qui y est déjà) : DISCORD_CLIENT_ID
    (identifiant de l'application du bot) et DISCORD_CLIENT_SECRET (secret OAuth2 : jamais affiché ni écrit dans un journal ; sans l'un ou l'autre, liaison coupée,
    /__ping discordLink: false, routes 404) ; DISCORD_REDIRECT_URI : adresse de retour déclarée sur le portail (défaut https://manaorbit.app/api/discord/callback ;
-   serveur local : l'origine de la requête). Liaisons : ADMIN_DIR/discord-links.json. */
+   serveur local : l'origine de la requête). Liaisons : ADMIN_DIR/discord-links.json.
+   Commandes slash /moi et /partie (discord-cmd.mjs ; POST /api/discord/interactions, « Interactions Endpoint URL » du portail) : DISCORD_PUBLIC_KEY (clé publique de
+   l'application, 64 caractères hexadécimaux : signature Ed25519 de chaque requête ; absente : route 404, aucune commande enregistrée) ; /moi lit le niveau et les
+   badges (daily-srv.mjs › profile) et l'historique du compteur de vie (ptHistLoad, partieStats) du compte lié, /partie le coup d'œil d'une salle d'attente (ptPublic). */
 const DSC_REDIR = (() => { const v = String(process.env.DISCORD_REDIRECT_URI || '').trim(); if (!v) return ''; try { const u = new URL(v); if (/^https?:$/.test(u.protocol)) return u.href; } catch (e) { /* invalide */ } console.warn('⚠ DISCORD_REDIRECT_URI ignorée : adresse http(s) attendue.'); return ''; })();
 const dscOrigin = req => (DSC_REDIR ? new URL(DSC_REDIR).origin : LOCAL ? 'http://' + String(req.headers.host || 'localhost') : 'https://manaorbit.app');      // LOCAL : hôte déjà limité à localhost (LOCAL_HOSTS)
 let DSC = null;
@@ -2954,7 +2957,10 @@ try {
   const { discordMake } = await import('./discord-srv.mjs');
   DSC = discordMake({ clientId: process.env.DISCORD_CLIENT_ID, clientSecret: process.env.DISCORD_CLIENT_SECRET, redirect: req => DSC_REDIR || dscOrigin(req) + '/api/discord/callback', appUrl: req => dscOrigin(req) + '/', token: process.env.DISCORD_BOT_TOKEN, guild: String(process.env.DISCORD_GUILD_ID || '').trim(), api: process.env.DISCORD_API || undefined, off: process.env.DISCORD === '0', dir: ADM_DIR,
     json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, verify: tok => verifyIdToken(tok, true), amTag, jpegSize, adminHeaders: ADM_HD, actPerH: ADM_ACT_H,
-    feedbackPerH: Number(process.env.FEEDBACK_PER_H ?? 10), presence: process.env.DISCORD_PRESENCE !== '0', cardNo: () => (DLY && DLY.no ? DLY.no() : 0) });      // statut « En ligne » : numéro de la Carte mystère du jour
+    feedbackPerH: Number(process.env.FEEDBACK_PER_H ?? 10), presence: process.env.DISCORD_PRESENCE !== '0', cardNo: () => (DLY && DLY.no ? DLY.no() : 0),      // statut « En ligne » : numéro de la Carte mystère du jour
+    cmd: { publicKey: process.env.DISCORD_PUBLIC_KEY, bad: v => !!(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(v)), profile: tag => (DLY && DLY.profile ? DLY.profile(tag) : null),      // /moi et /partie (discord-cmd.mjs)
+      parties: PT_ON ? async tag => { const st = PT_CORE.partieStats(await ptHistLoad(tag)); return { n: st.n, wins: st.wins }; } : null,
+      peek: PT_ON ? code => { const r = PT.s.get(ptCodeOf(code)); return r && r.st !== 'end' ? ptPublic(r) : null; } : null, tableLink: PT_CORE ? code => PT_CORE.partieTableLink(code) : null } });
 } catch (e) { console.warn('Discord : module illisible (' + (e && e.message || e) + '), bot coupé'); DSC = null; }
 const DSC_ON = !!(DSC && DSC.on);
 
@@ -3008,6 +3014,7 @@ async function api(req, res, url) {
   if (path === 'scan-report') return scanReportApi(req, res);      // « Signaler un problème de scan » : photo et lecture envoyées par l'utilisateur, sans compte exigé, bornées
   if (path === 'feedback') return DSC ? DSC.feedback(req, res) : json(res, 404, { error: 'not_found' });      // « Aide et avis » : un fil sur le Discord (bot), sans compte exigé, borné
   if (path === 'feedback/members') return DSC ? DSC.members(req, res, url) : json(res, 404, { error: 'not_found' });      // champ « Pseudo Discord » de l'avis : membres du serveur (intention Server Members), borné
+  if (path === 'discord/interactions') return DSC ? DSC.interactions(req, res) : json(res, 404, { error: 'not_found' });      // commandes slash /moi, /partie (Interactions Endpoint URL : signature Ed25519, DISCORD_PUBLIC_KEY)
   if (path.startsWith('discord/')) return DSC ? DSC.link(req, res, path.slice(8), url) : json(res, 404, { error: 'not_found' });      // liaison du compte Discord (OAuth2) : jeton Firebase, adhésion vérifiée par le bot
   if (path === 'friends' || path.startsWith('friends/')) return friendsApi(req, res, path, url);      // amis : jeton Firebase de n'importe quel compte, pas le token CardTrader
   if (path === 'troc' || path.startsWith('troc/')) return trocApi(req, res, path, url);      // échange en direct : jeton Firebase (création, entrée), puis clé de siège
@@ -3277,8 +3284,9 @@ server.listen(PORT, HOST, () => {
     console.log(`Scans signalés : ${SR_MAX} au plus, ${Math.round(SR_BYTES / 1048576)} Mo, gardés ${Math.round(SR_TTL / 86400e3)} jours.`);
   }
   if (DLY) { DLY.start(); console.log(`Carte mystère : nouvelle carte chaque jour à ${DLY.clock.hour} h (${DLY.clock.tz})${DLY.pushOn ? ', annoncée par une notification aux appareils qui l\'acceptent' : ''}.`); }
-  if (DSC_ON) { DSC.start(); console.log(`Bot Discord : avis de l'appli (forums), messages du panneau${DLY && DLY.revealOn ? ', Carte mystère de la veille' : ''}${DSC.linkOn ? ', liaison des comptes (OAuth2)' : ''}${DSC.gwOn ? ', statut « En ligne »' : process.env.DISCORD_PRESENCE === '0' ? '' : ' (statut « En ligne » : Node 22 ou plus)'}${process.env.DISCORD_GUILD_ID ? ' (DISCORD_GUILD_ID)' : ''}.`); }      // jamais le jeton
+  if (DSC_ON) { DSC.start(); console.log(`Bot Discord : avis de l'appli (forums), messages du panneau${DLY && DLY.revealOn ? ', Carte mystère de la veille' : ''}${DSC.linkOn ? ', liaison des comptes (OAuth2)' : ''}${DSC.cmdOn ? ', commandes /moi et /partie' : ''}${DSC.gwOn ? ', statut « En ligne »' : process.env.DISCORD_PRESENCE === '0' ? '' : ' (statut « En ligne » : Node 22 ou plus)'}${process.env.DISCORD_GUILD_ID ? ' (DISCORD_GUILD_ID)' : ''}.`); }      // jamais le jeton
   if ((String(process.env.DISCORD_CLIENT_ID || '').trim() || String(process.env.DISCORD_CLIENT_SECRET || '').trim()) && !(DSC && DSC.linkOn) && process.env.DISCORD !== '0') console.warn('⚠ Liaison des comptes Discord coupée : DISCORD_BOT_TOKEN, DISCORD_CLIENT_ID (identifiant numérique de l\'application) et DISCORD_CLIENT_SECRET sont tous nécessaires.');      // jamais leurs valeurs
+  if (String(process.env.DISCORD_PUBLIC_KEY || '').trim() && DSC_ON && !DSC.cmdOn) console.warn('⚠ Commandes slash Discord coupées : DISCORD_PUBLIC_KEY attendue en 64 caractères hexadécimaux (portail Discord › General Information › Public Key).');
   if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
   if (ADMIN_ON && FCM_ON && ADM_EVERY > 0) setInterval(() => { admTick().catch(() => {}); }, Math.max(1000, ADM_EVERY)).unref();      // comptes actifs du jour (courbe du panneau) : premier relevé après un intervalle, jamais au démarrage
   if (PUB_ON) console.log(`Decks publics : lus dans Firestore au plus toutes les ${Math.round(PUB_TTL / 60e3)} min, retirés après ${PUB_REPORTS} signalement${PUB_REPORTS > 1 ? 's' : ''}${PUB_HIDE.size ? ', ' + PUB_HIDE.size + ' masqué' + (PUB_HIDE.size > 1 ? 's' : '') + ' (PUBDECKS_HIDE)' : ''}.`);

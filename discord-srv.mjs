@@ -11,6 +11,7 @@
 //     GET /api/discord/callback (code échangé, compte lu, adhésion au serveur vérifiée par le bot), GET /api/discord/me, POST /api/discord/unlink ;
 //   · statut « En ligne » (passerelle Discord, WebSocket de Node 22+ ; sans lui : bot affiché hors ligne, le reste marche pareil) : « 🔮 Carte mystère n° 42 »,
 //     dans une langue après l'autre (une toutes les presenceMs, 30 s). Aucune intention à la passerelle (intents 0) : rien n'y est lu, il se montre seulement.
+//   · commandes slash /moi et /partie (discord-cmd.mjs : Interactions Endpoint URL, POST /api/discord/interactions signé en Ed25519, DISCORD_PUBLIC_KEY ; o.cmd).
 // Serveur Discord : DISCORD_GUILD_ID, sinon le seul serveur du bot. Salons et rôles relus au plus toutes les 5 min (tout de suite si un salon gardé n'existe plus) ;
 // salons trouvés par leur nom utile (« 🐞・bugs » → bugs, ou le nom exact d'un ancien serveur), accents et casse ignorés. Limite de débit (429) : attente de
 // retry_after (10 s au plus en tout, 4 essais) ; Discord en panne (5xx, réseau) : un nouvel essai. Jeton : seulement dans l'en-tête Authorization, jamais dans
@@ -19,6 +20,7 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { dscCmdMake } from './discord-cmd.mjs';
 
 const TX = 0, CAT = 4, NEWS = 5, FORUM = 15, REQUIRE_TAG = 16;
 const B = n => 1n << BigInt(n), P_ADMIN = B(3), P_VIEW = B(10), P_SEND = B(11), P_EMBED = B(14), P_ATTACH = B(15), P_MENTION = B(17), P_ALL = (1n << 53n) - 1n;
@@ -852,5 +854,8 @@ export function discordMake(o = {}) {
   function start() { if (ON && typeof WS === 'function' && o.presence !== false && !GW.ws && !GW.wait) { GW.stop = false; gwOpen(); } }
   function stop() { GW.stop = true; gwClear(); clearTimeout(GW.wait); GW.wait = null; const ws = GW.ws; GW.ws = null; if (ws) { try { ws.close(1000); } catch (e) { /* déjà fermée */ } } }
 
-  return { on: ON, linkOn: LINK_ON, feedback, members, admin, link, reveal, start, stop, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
+  /* ── Commandes slash /moi et /partie (discord-cmd.mjs : POST /api/discord/interactions, o.cmd : clé publique et fonctions de proxy.mjs) ── */
+  const CMD = dscCmdMake({ ...(o.cmd || {}), on: ON, clientId: CID, call, guild, load, links, line, md, fold, json, readBody, rateWait, now, sleep, log });
+
+  return { on: ON, linkOn: LINK_ON, feedback, members, admin, link, reveal, start: () => { CMD.start(); start(); }, stop, interactions: CMD.interactions, cmdOn: CMD.on, cmdStart: CMD.start, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW };
 }

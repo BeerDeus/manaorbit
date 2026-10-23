@@ -57,11 +57,11 @@ function puHomePaint() {
   $('.hm-pu-sub', box).textContent = live ? (cur.debut ? T('En cours · tour {t} · {n} joueurs', { t: cur.tour, n: cur.places.length }) : TN(cur.places.length, 'En préparation · {n} joueur', 'En préparation · {n} joueurs')) : T('Commander, Standard ou libre');
   $('.hm-pu-go', box).textContent = live ? T('Reprendre') : T('Nouvelle partie');
 }
-/** Bouton principal : reprend la partie en cours, sinon en prépare une nouvelle (dans le format de la dernière fois). */
-function puGo() {
+/** Bouton principal : reprend la partie en cours, sinon en prépare une nouvelle (dans le format de la dernière fois, ou jeu : lien ?compteur=<format> d'une annonce du bot Discord). */
+function puGo(jeu) {
   const cur = puCur();
   if (cur && !cur.fin) { puOpen(cur); return; }
-  const pr = puPref(); puOpen(partieNew({ jeu: pr.j, format: pr.f[pr.j], moi: { nom: puMe() } }));
+  const pr = puPref(), j = PRT_JEUX.includes(jeu) ? jeu : pr.j; puOpen(partieNew({ jeu: j, format: pr.f[j], moi: { nom: puMe() } }));
 }
 
 /* ── Écran de la partie (préparation, compteur, fin) ───────────────────────────────────────────── */

@@ -922,6 +922,8 @@ export function dailyMake(o = {}) {
     const i = tag ? rows.findIndex(r => r.tag === tag) : -1;
     return { p: 'level', total: rows.length, rows: rows.slice(0, 100).map((r, j) => ({ r: j + 1, ...show(r) })), me: i >= 0 ? { r: i + 1, ...show(rows[i]) } : null };
   }
+  /** Profil d'un compte pour le bot Discord (/moi, discord-cmd.mjs) : niveau retenu (levels.json ; 0 : jamais envoyé) et badges vérifiés de la Carte mystère. */
+  async function profile(tag) { await bootLoad(); const r = (await lvLoad()).p[tag]; return { lv: r && r.x > 0 ? levelOf(r.x) : 0, badges: badges(tag) }; }
   async function level(req, res, path) {
     const sub = path.replace(/^level\/?/, '');
     if (sub && sub !== 'board') return json(res, 404, { error: 'not_found' });
@@ -1050,5 +1052,5 @@ export function dailyMake(o = {}) {
     G.timer = first;
   }
   async function stop() { clearInterval(G.timer); clearTimeout(G.timer); G.timer = null; for (const w of [...G.saving.values()]) if (w.t) { clearTimeout(w.t); await saveSoon(w.rec, true); } if (statsT) { clearTimeout(statsT); statsT = null; await statsSave(); } if (lvT) { clearTimeout(lvT); lvT = null; await lvSave(); } if (pushT) await pushSave(); }
-  return { api, admin, level, tick, start, stop, clock: C, current, no: () => dlyNo(C.dayOf(now())), pushOn: !!PUSH, revealOn: !!REVEAL, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
+  return { api, admin, level, profile, tick, start, stop, clock: C, current, no: () => dlyNo(C.dayOf(now())), pushOn: !!PUSH, revealOn: !!REVEAL, flush: async () => { for (const w of [...G.saving.values()]) await saveSoon(w.rec, true); if (G.stats) await statsSave(); if (G.lv) await lvSave(); if (G.pu) await pushSave(); }, _g: G };
 }
