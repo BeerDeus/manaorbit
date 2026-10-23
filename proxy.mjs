@@ -1942,6 +1942,18 @@ async function trocApi(req, res, path, url) {
      (GET /api/partie/s : rien de neuf → réponse courte avec les places présentes), actions (POST /api/partie/op). Le créateur déplace, retire, ajoute des
      invités sans téléphone, règle le format, puis « commence » : liste figée, et pour chaque place « compte » un jeton (AES-256-GCM, clé tirée du compte de
      service, lié à la partie et au créateur), seul moyen d'enregistrer la partie chez ce compte. Aucun UID ni empreinte n'est jamais renvoyé.
+     Partie commencée : le téléphone du créateur envoie l'état du compteur (op live { g } : partie.js › partieLive, relu par partieLiveClean, noms et decks filtrés
+     comme à l'entrée, PARTIE_LIVE_KB Ko au plus, un envoi par PARTIE_LIVE_GAP_MS au plus, regroupé ~1 s par l'appli) ; le relevé des places le rend (vue › live :
+     points de vie, tour, éliminés, blessures, poison, monarque…). Chaque joueur peut aussi changer SES points (op delta { d: [{ id, k, n, src?, b?, c? }] } : des
+     deltas, jamais une valeur, sa place seulement, d'après sa clé ; PARTIE_DQ_MAX en file par place, 20 par envoi, ±99 chacun ; identifiant déjà vu : rendu sans
+     être refait) : file numérotée que le créateur relève (GET /s?q=<dernier numéro appliqué> : q [deltas]) et applique à SA partie (partieRemote : une fois chacun),
+     puis renvoie l'état (live.ack : dernier numéro appliqué ; live.lock : saisie coupée par le créateur). Co-hôtes : une place demande (op ask ; une demande à la fois,
+     expirée après PARTIE_ASK_MS, nouvelle demande 60 s après un refus ; ask { off } : retirée, ou rôle rendu), le créateur seul accepte, refuse ou retire (op co { pos, ok }) ;
+     un co-hôte compte pour toute la table (deltas sur toutes les places en jeu, pos ; tour suivant, k 't'), jamais les actions du créateur (éliminer, annuler, terminer,
+     abandonner, retirer un joueur, couper la saisie) ; le rôle tombe s'il quitte la table. « Tout le monde est co-hôte » (allco, à la création ou op allco { on },
+     en attente comme en cours) : chaque téléphone qui a rejoint l'est d'office, sans demande ; coupé, seuls restent ceux acceptés un par un. Rien de cela n'est écrit : la salle reste en mémoire.
+     Fin sans résultat (op end, ou leave du créateur) : why 'host' (annulée en préparation), 'drop' (abandonnée en cours), 'stale' (effacée de son téléphone,
+     trop vieille) ; aussi 'replaced' (il en prépare une autre) et 'idle' (inactive) ; les places la reçoivent dans leur relevé (st 'end').
    · Résultats, dans Firestore par le compte de service (collection parties : l'appli n'y a pas accès, refus par défaut des règles, rien à publier) :
      parties/{empreinte SHA-256 de l'UID} { j: JSON { v: 1, h: [entrées, la partie la plus récente d'abord] }, at } ; entrée = résultat (partieResClean, sans jetons)
      + moi (place de ce compte, 0 : aucune) + src ('h' : il l'a créée, 's' : salle d'attente, 'q' : QR code du résultat) + at (enregistrée) ; PARTIE_HIST_MAX parties
@@ -1962,6 +1974,9 @@ const PT_NEW_H = Number(process.env.PARTIE_NEW_PER_H ?? 20), PT_BAD_H = Number(p
 const PT_HIST_MAX = Math.max(1, Number(process.env.PARTIE_HIST_MAX) || 500), PT_HIST_B = 900 * 1024, PT_BODY = 32 * 1024, PT_SEATS = 8, PT_TTL = 10 * 60e3, PT_KICKS = 50;
 const PT_CACHE_B = (Number(process.env.PARTIE_CACHE_MB) || 16) * 1024 * 1024;      // historiques gardés en mémoire (les plus anciens partent d'abord)
 const PT_KEY_RE = /^[\w-]{24}$/, PT_ID_RE = /^[0-9a-z]{8,24}$/;
+const PT_LIVE_B = (Number(process.env.PARTIE_LIVE_KB) || 8) * 1024, PT_LIVE_GAP = Number(process.env.PARTIE_LIVE_GAP_MS ?? 400);      // état du compteur envoyé par le créateur : taille, écart entre deux envois
+const PT_ASK = Number(process.env.PARTIE_ASK_MS ?? 5 * 60e3), PT_ASK_COOL = Number(process.env.PARTIE_ASK_COOL_MS ?? 60e3);      // demande de co-hôte : durée, attente après un refus
+const PT_DQ_MAX = Number(process.env.PARTIE_DQ_MAX ?? 40), PT_DQ_REQ = 20, PT_DQ_IDS = 800, PT_DQ_GAP = Number(process.env.PARTIE_DQ_GAP_MS ?? 150);      // deltas des places : file par place, par envoi, identifiants gardés, écart
 /** Format de jeu d'une salle (champ absent : salle d'avant, Commander) ; points de départ par défaut et permis pour ce format (src/partie.js : mêmes règles). */
 const ptJeu = r => (r && PT_CORE && PT_CORE.PRT_JEUX.includes(r.jeu) ? r.jeu : 'commander');
 const ptVieDef = jeu => PT_CORE.PRT_JEU[jeu].def;
@@ -1987,8 +2002,9 @@ function ptDeckIn(d) {
   return Object.keys(c).length ? c : null;
 }
 const ptNewKey = () => randomBytes(18).toString('base64url');
-const ptSeat = o => ({ pos: 1, k: 'invite', tag: '', key: '', n: '', p: '', deck: null, h: false, tk: '', seen: Date.now(), rn: 12, rt: Date.now(), ...o });
+const ptSeat = o => ({ pos: 1, k: 'invite', tag: '', key: '', n: '', p: '', deck: null, h: false, tk: '', seen: Date.now(), rn: 12, rt: Date.now(), co: false, ask: 0, cw: '', askNo: 0, ...o });      // co : co-hôte ; ask : demande en attente (date) ; cw : dernière décision (ok, no, off, exp)
 const ptOpen = r => r.st === 'wait' || r.st === 'live';
+const ptCo = (r, s) => !!s && !s.h && (s.co || (r.allco && !!s.key));      // co-hôte : accepté par le créateur, ou d'office (« Tout le monde est co-hôte »)
 const ptFree = r => { const out = []; for (let i = 1; i <= r.size; i++) if (!r.seats.some(s => s.pos === i)) out.push(i); return out; };
 const ptOn = r => r.seats.filter(s => s.key && Date.now() - s.seen < PT_AWAY).map(s => s.pos).sort((a, b) => a - b);
 const ptCodeOf = v => String(v || '').toUpperCase().replace(/[\s-]/g, '');
@@ -2018,12 +2034,13 @@ function ptTicketOpen(t, id, host) {
 /** Fin de la salle sans résultat : créateur parti ou remplacée (host, replaced), inactive ou trop vieille (idle). */
 /** Salle finie : les miniatures des profils ne servent plus (mémoire rendue). */
 const ptLight = r => { for (const s of r.seats) s.p = ''; };
-function ptEnd(r, why) { if (r.st === 'end') return; r.st = 'end'; r.why = why; r.endAt = Date.now(); r.v++; ptLight(r); if (PT.u.get(r.host) === r.code) PT.u.delete(r.host); }
+function ptEnd(r, why) { if (r.st === 'end') return; r.st = 'end'; r.why = why; r.endAt = Date.now(); r.v++; ptLight(r); r.g = null; r.gj = ''; r.q = []; if (PT.u.get(r.host) === r.code) PT.u.delete(r.host); }
 function ptTick() {
   const now = Date.now(), old = [];
   for (const [c, r] of PT.s) {
     if (r.st === 'wait' && (now - r.act > PT_IDLE || now - r.at > PT_LIFE)) ptEnd(r, 'idle');
     if (r.st === 'live' && now - r.startAt > PT_KEEP) ptEnd(r, 'idle');
+    if (ptOpen(r)) for (const s of r.seats) if (s.ask && now - s.ask > PT_ASK) { s.ask = 0; s.cw = 'exp'; r.v++; }      // demande de co-hôte restée sans réponse
     if ((r.st === 'end' && now - r.endAt > 10 * 60e3) || (r.st === 'done' && now - r.endAt > PT_KEEP)) PT.s.delete(c);
     else if (!ptOpen(r)) old.push(c);
   }
@@ -2035,8 +2052,9 @@ function ptWake() { if (!PT.t) { PT.t = setInterval(ptTick, PT_TICK); PT.t.unref
 function ptView(r, me) {
   const now = Date.now(), host = !!(me && me.h);
   return { c: r.code, v: r.v, st: r.st, why: r.why, id: r.id, jeu: ptJeu(r), format: r.format, size: r.size, at: r.at, me: me ? me.pos : 0, host,
-    places: r.seats.slice().sort((a, b) => a.pos - b.pos).map(s => ({ pos: s.pos, n: s.n, k: s.k, ...(s.h ? { h: 1 } : {}), dev: s.key ? 1 : 0, on: s.key && now - s.seen < PT_AWAY ? 1 : 0,
-      ...(s.p ? { p: s.p } : {}), ...(s.deck ? { deck: s.deck } : {}), ...(host && s.tk ? { t: s.tk } : {}) })), ...(r.res ? { res: r.res } : {}) };
+    ...(r.allco ? { allco: 1 } : {}), ...(me && !me.h ? { co: ptCo(r, me) ? 1 : 0, ask: me.ask ? 1 : 0, ...(me.cw ? { cw: me.cw } : {}) } : {}),      // ce téléphone : co-hôte, demande en attente, dernière décision du créateur
+    places: r.seats.slice().sort((a, b) => a.pos - b.pos).map(s => ({ pos: s.pos, n: s.n, k: s.k, ...(s.h ? { h: 1 } : {}), ...(ptCo(r, s) ? { co: 1 } : {}), ...(host && s.ask ? { ask: 1 } : {}), dev: s.key ? 1 : 0, on: s.key && now - s.seen < PT_AWAY ? 1 : 0,
+      ...(s.p && r.st === 'wait' ? { p: s.p } : {}), ...(s.deck ? { deck: s.deck } : {}), ...(host && s.tk ? { t: s.tk } : {}) })), ...(r.res ? { res: r.res } : {}), ...(r.g && r.st === 'live' ? { live: r.g } : {}) };      // miniatures : en attente seulement (relevés plus légers pendant la partie)
 }
 /** Coup d'œil avant d'entrer (sans clé) : places prises (pseudo ou prénom, compte ou invité), libres, format de jeu et points de départ. */
 function ptPublic(r) {
@@ -2053,7 +2071,7 @@ function ptSeatOf(req, res, code) {
   me.seen = Date.now(); if (ptOpen(r)) r.act = me.seen;
   return { r, me };
 }
-/** POST /api/partie { id, n, p, l, pos, deck, jeu, format, size } : salle d'attente de la partie id (déjà ouverte par ce compte pour cette partie : la même, rechargement ;
+/** POST /api/partie { id, n, p, l, pos, deck, jeu, format, size, allco } : salle d'attente de la partie id (déjà ouverte par ce compte pour cette partie : la même, rechargement ;
     sa salle précédente encore en attente se termine). jeu : 'commander' (absent : appli d'avant), 'standard', 'libre' ; autre valeur : 400. format (points de départ)
     qui ne va pas au jeu : ceux par défaut ; size absente : 8, 2 en Standard. → { key, s } */
 async function ptNew(req, res, me) {
@@ -2067,7 +2085,8 @@ async function ptNew(req, res, me) {
   const jeu = b.jeu == null ? 'commander' : b.jeu; if (!PT_CORE.PRT_JEUX.includes(jeu)) return json(res, 400, { error: 'bad_jeu', message: 'Format de jeu invalide (commander, standard ou libre).' });
   const size = Number.isInteger(b.size) && b.size >= 2 && b.size <= PT_SEATS ? b.size : PT_CORE.PRT_JEU[jeu].size, pos = Number.isInteger(b.pos) && b.pos >= 1 && b.pos <= size ? b.pos : 1;
   if (cur && cur.st === 'wait') ptEnd(cur, 'replaced');
-  const now = Date.now(), r = { code: ptCode(), id, host: me.tag, at: now, act: now, st: 'wait', why: '', v: 1, jeu, format: PT_CORE.partieVieOk(jeu, b.format) ? b.format : ptVieDef(jeu), size, seats: [], kick: new Set(), res: null, startAt: 0, endAt: 0 };
+  const now = Date.now(), r = { code: ptCode(), id, host: me.tag, at: now, act: now, st: 'wait', why: '', v: 1, jeu, format: PT_CORE.partieVieOk(jeu, b.format) ? b.format : ptVieDef(jeu), size, seats: [], kick: new Set(), res: null, startAt: 0, endAt: 0,
+    g: null, gj: '', gAt: 0, q: [], qs: 0, qid: new Map(), allco: !!b.allco };      // g : état du compteur (partie commencée) ; q : deltas des places pour le créateur (qs : dernier numéro, qid : identifiants vus)
   const s = ptSeat({ pos, k: 'compte', tag: me.tag, key: ptNewKey(), n: ptName(b.n), p: amPic(b.p), deck, h: true });
   r.seats.push(s); PT.s.set(r.code, r); PT.u.set(me.tag, r.code); ptWake();
   return json(res, 200, { key: s.key, s: ptView(r, s) });
@@ -2109,11 +2128,37 @@ function ptPeek(req, res, url) {
   if (!r || r.st === 'end') { trocLim('ptbadg', net, badCap, 3600e3); return json(res, 404, { error: 'not_found', message: 'Code inconnu, ou partie terminée.' }); }
   return json(res, 200, ptPublic(r));
 }
-/** GET /api/partie/s?c=<code>&v=<version> : la salle (rien de neuf : { v, same, on : places présentes }). */
+/** GET /api/partie/s?c=<code>&v=<version>[&q=<numéro>] : la salle (rien de neuf : { v, same, on : places présentes }). Créateur, partie commencée : q, les deltas des
+    places après ce numéro (les précédents, appliqués, sortent de la file). */
 function ptPoll(req, res, url) {
   const x = ptSeatOf(req, res, ptCodeOf(url.searchParams.get('c'))); if (!x) return;
-  if (Number(url.searchParams.get('v')) === x.r.v) return json(res, 200, { v: x.r.v, same: 1, on: ptOn(x.r) });
-  return json(res, 200, ptView(x.r, x.me));
+  let q = null;
+  if (x.me.h && x.r.st === 'live') { const a = Number(url.searchParams.get('q')); if (Number.isInteger(a) && a > 0) ptAck(x.r, a); if (x.r.q.length) q = x.r.q.slice(0, 200); }
+  if (Number(url.searchParams.get('v')) === x.r.v) return json(res, 200, { v: x.r.v, same: 1, on: ptOn(x.r), ...(q ? { q } : {}) });
+  return json(res, 200, { ...ptView(x.r, x.me), ...(q ? { q } : {}) });
+}
+/** Deltas appliqués par le créateur (jusqu'au numéro a) : hors de la file. */
+const ptAck = (r, a) => { if (r.q.length && r.q[0].s <= a) r.q = r.q.filter(d => d.s > a); };
+/** Deltas d'une place (op delta) : [{ id, k, n, src?, b?, c? }] lus et bornés, ou null (un seul faux : tout refusé). */
+/** Deltas d'une place (op delta) : [{ id, pos?, k, n, src?, b?, c? }] lus et bornés → { ds } ; sinon { error, message } (un seul faux : tout refusé). pos : la place
+    changée, autre que la sienne pour un co-hôte seulement (place en jeu) ; k 't' (tour suivant, n = 1) : co-hôte seulement. */
+function ptDeltas(r, me, d) {
+  const bad = (error, message) => ({ error, message }), live = pos => r.g.places.find(p => p.pos === pos);
+  if (!Array.isArray(d) || !d.length || d.length > PT_DQ_REQ) return bad('bad_delta', 'Saisie illisible.');
+  const cmd = PT_CORE.PRT_JEU[ptJeu(r)].cmd, ds = [];
+  for (const x of d) {
+    if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !PT_CORE.PRT_DQ_ID_RE.test(x.id) || !Number.isInteger(x.n) || !x.n || Math.abs(x.n) > PT_CORE.PRT_DQ_N) return bad('bad_delta', 'Saisie illisible.');
+    if (x.k === 't') { if (!ptCo(r, me)) return bad('not_cohost', 'Réservé au créateur et aux co-hôtes.'); if (x.n !== 1) return bad('bad_delta', 'Saisie illisible.'); ds.push({ id: x.id, pos: me.pos, k: 't', n: 1 }); continue; }
+    const pos = x.pos == null ? me.pos : x.pos;
+    if (pos !== me.pos && !ptCo(r, me)) return bad('not_cohost', 'Tu ne changes que ta place (le créateur peut te nommer co-hôte).');
+    const p = Number.isInteger(pos) ? live(pos) : null; if (!p) return bad('bad_place', 'Place invalide.');
+    if (p.elimine) return bad('eliminated', pos === me.pos ? 'Tu es éliminé.' : 'Joueur éliminé.');
+    if (x.k === 'v') ds.push({ id: x.id, pos, k: 'v', n: x.n });
+    else if (x.k === 'b' && cmd && Number.isInteger(x.src) && x.src !== pos && live(x.src)) ds.push({ id: x.id, pos, k: 'b', n: x.n, src: x.src, ...(x.b ? { b: 1 } : {}) });
+    else if (x.k === 'c' && PT_CORE.PRT_COUNTERS.includes(x.c) && (cmd || x.c !== 'impot')) ds.push({ id: x.id, pos, k: 'c', n: x.n, c: x.c });
+    else return bad('bad_delta', 'Saisie illisible.');
+  }
+  return { ds };
 }
 /** POST /api/partie/op { c, op, … } : seat { pos } · me { n?, p?, deck? } · leave ; créateur seulement : add { pos?, n, deck? } · move { from, to } · kick { pos } ·
     opts { jeu?, format?, size? } · start · end. Changements de places : seulement en attente. opts : jeu inconnu (400 bad_jeu), points de départ qui ne vont pas au
@@ -2125,12 +2170,69 @@ async function ptOp(req, res) {
   const done = () => json(res, 200, ptView(r, me)), bump = () => { r.v++; r.act = Date.now(); return done(); };
   const fail = (st, error, message, extra = {}) => json(res, st, { error, message, ...extra, s: ptView(r, me) });
   const posOk = p => Number.isInteger(p) && p >= 1 && p <= r.size, at = p => r.seats.find(s => s.pos === p);
+  const why = () => (b.why === 'stale' ? 'stale' : r.st === 'live' ? 'drop' : 'host');      // fin sans résultat voulue par le créateur : la raison que reçoivent les places
   if (op === 'leave') {
-    if (me.h) { ptEnd(r, 'host'); return json(res, 200, { ok: true }); }      // le créateur part : plus de partie
+    if (me.h) { ptEnd(r, why()); return json(res, 200, { ok: true }); }      // le créateur part : plus de partie
+    me.co = false; me.ask = 0;      // co-hôte : le rôle tombe avec le départ
     if (wait) r.seats.splice(r.seats.indexOf(me), 1); else me.key = '';      // commencée : sa place reste (liste figée), ce téléphone ne suit plus
     r.v++; return json(res, 200, { ok: true });
   }
-  if (op === 'end') { if (!me.h) return fail(403, 'not_host', 'Réservé au créateur de la partie.'); ptEnd(r, 'host'); return done(); }
+  if (op === 'end') { if (!me.h) return fail(403, 'not_host', 'Réservé au créateur de la partie.'); ptEnd(r, why()); return done(); }
+  if (op === 'live') {      // le créateur, partie commencée : état du compteur pour les téléphones de la table (réponse courte : pas de vue)
+    if (!me.h) return json(res, 403, { error: 'not_host', message: 'Réservé au créateur de la partie.' });
+    if (r.st !== 'live') return json(res, 409, { error: wait ? 'not_started' : 'closed', message: wait ? 'La partie n\'a pas commencé.' : 'Partie terminée.' });
+    const now = Date.now(); if (now - r.gAt < PT_LIVE_GAP) return json(res, 429, { error: 'rate_limited', message: 'Trop d\'envois.', retry: 1 }, { 'Retry-After': '1' });
+    const g = PT_CORE.partieLiveClean(b.g, ptJeu(r)); if (!g) return json(res, 400, { error: 'bad_live', message: 'État de la partie illisible.' });
+    for (const p of g.places) { p.nom = ptName(p.nom); const d = p.deck ? ptDeckIn(p.deck) : null; if (d) p.deck = d; else delete p.deck; }
+    const j = JSON.stringify(g); if (Buffer.byteLength(j) > PT_LIVE_B) return json(res, 413, { error: 'too_big', message: 'État de la partie trop gros.' });
+    r.gAt = now; r.act = now; if (g.ack) ptAck(r, g.ack);
+    if (j !== r.gj) { r.g = g; r.gj = j; r.v++; }
+    return json(res, 200, { ok: true, v: r.v });
+  }
+  if (op === 'ask') {      // une place demande à être co-hôte (ask { off } : demande retirée, ou rôle rendu)
+    if (me.h) return fail(400, 'bad_request', 'Le créateur compte déjà pour toute la table.');
+    if (!ptOpen(r)) return fail(409, 'closed', 'Partie terminée.');
+    if (b.off) { if (!me.ask && !me.co) return done(); me.ask = 0; me.co = false; me.cw = ''; return bump(); }      // (co-hôte d'office : le reste tant que l'interrupteur est mis)
+    if (ptCo(r, me) || me.ask) return done();      // déjà co-hôte, ou demande en attente : une seule à la fois
+    if (Date.now() - me.askNo < PT_ASK_COOL) return fail(429, 'ask_wait', 'Demande refusée il y a un instant : attends un peu.', { retry: Math.ceil((PT_ASK_COOL - (Date.now() - me.askNo)) / 1000) });
+    me.ask = Date.now(); me.cw = ''; return bump();
+  }
+  if (op === 'allco') {      // le créateur : « Tout le monde est co-hôte » (en attente comme en cours ; coupé : les co-hôtes acceptés un par un le restent)
+    if (!me.h) return fail(403, 'not_host', 'Réservé au créateur de la partie.');
+    if (!ptOpen(r)) return fail(409, 'closed', 'Partie terminée.');
+    if (r.allco === !!b.on) return done();
+    r.allco = !!b.on; if (r.allco) for (const s of r.seats) s.ask = 0;      // demandes en attente : sans objet
+    return bump();
+  }
+  if (op === 'co') {      // le créateur : accepte ou refuse une demande (ok), retire le rôle (ok: false), ou nomme une place qui a rejoint avec son téléphone
+    if (!me.h) return fail(403, 'not_host', 'Réservé au créateur de la partie.');
+    if (!ptOpen(r)) return fail(409, 'closed', 'Partie terminée.');
+    const s = at(b.pos); if (!s || s.h || !s.key) return fail(400, 'bad_place', 'Place invalide.');
+    if (b.ok) { if (s.co && !s.ask) return done(); s.co = true; s.ask = 0; s.cw = 'ok'; }
+    else if (s.ask) { s.ask = 0; s.co = false; s.cw = 'no'; s.askNo = Date.now(); }
+    else if (s.co) { s.co = false; s.cw = 'off'; }
+    else return done();
+    return bump();
+  }
+  if (op === 'delta') {      // un joueur change SES points depuis son téléphone : des deltas, mis en file pour le créateur (réponse : { ok, acc [{ id, s (numéro) }] })
+    const no = (st, error, message, extra = {}) => json(res, st, { error, message, ...extra });
+    if (me.h) return no(400, 'bad_request', 'Le créateur compte sur son téléphone.');
+    if (r.st !== 'live') return no(409, wait ? 'not_started' : 'closed', wait ? 'La partie n\'a pas commencé.' : 'Partie terminée.');
+    if (!r.g) return no(409, 'not_ready', 'Le téléphone du créateur n\'a pas encore envoyé la partie.');
+    if (r.g.lock) return no(409, 'locked', 'Le créateur a coupé la saisie depuis les autres téléphones.');
+    if (!r.g.places.some(p => p.pos === me.pos)) return no(409, 'not_ready', 'Ta place n\'est pas dans la partie.');
+    const now = Date.now(); if (now - (me.dAt || 0) < PT_DQ_GAP) return no(429, 'rate_limited', 'Trop d\'envois.', { retry: 1 });
+    const x0 = ptDeltas(r, me, b.d); if (x0.error) return no(x0.error === 'not_cohost' ? 403 : x0.error === 'eliminated' ? 409 : 400, x0.error, x0.message);
+    const ds = x0.ds, acc = [], fresh = ds.filter(x => !r.qid.has(me.pos + ':' + x.id));
+    if (r.q.filter(x => x.by === me.pos).length + fresh.length > PT_DQ_MAX) return no(429, 'queue_full', 'Le téléphone du créateur ne suit plus : réessaie dans un moment.', { retry: 5 });
+    for (const x of ds) {
+      const key = me.pos + ':' + x.id; if (r.qid.has(key)) { acc.push({ id: x.id, s: r.qid.get(key) }); continue; }      // déjà reçu (envoi refait après une coupure) : rien de doublé
+      const e = { s: ++r.qs, by: me.pos, ...x }; r.q.push(e); r.qid.set(key, e.s); acc.push({ id: x.id, s: e.s });      // by : la place qui l'a saisi (pos : celle qu'il change)
+      if (r.qid.size > PT_DQ_IDS) r.qid.delete(r.qid.keys().next().value);
+    }
+    me.dAt = now; r.act = now;
+    return json(res, 200, { ok: true, acc });
+  }
   if (!wait) return fail(409, r.st === 'live' ? 'started' : 'closed', r.st === 'live' ? 'La partie a déjà commencé.' : 'Partie terminée.');
   if (op === 'me') {
     if ('n' in b) { const n = ptName(b.n); if (!n && me.k === 'invite') return fail(400, 'name', 'Prénom requis (sans mot grossier).'); me.n = n; }

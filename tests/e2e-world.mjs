@@ -195,7 +195,7 @@ export const toHome = p => p.evaluate(() => { if (S.view !== 'home') showView('h
 /** Compte connecté factice, adresse vérifiée (les decks EDHREC de la collection sont réservés aux comptes, voir gate-e2e) : faux cloud en mémoire
  *  (decks, collection, documents annexes, partages ; decks de l'appareil déjà dedans), puis onUser. À rappeler après chaque rechargement. user : champs à remplacer (emailVerified, providerData…). */
 export async function signInFake(p, user = {}, o = {}) {
-  await p.waitForFunction(() => D.authReady, null, { timeout: 15000 });
+  if (!o.early) await p.waitForFunction(() => D.authReady, null, { timeout: 15000 });      // o.early : session restaurée pendant que le SDK se charge encore (lien ouvert avant que le compte soit connu)
   await p.evaluate(([u, o]) => {
     const decks = new Map(), meta = {}, subs = new Set(); let coll = null, n = 0;
     const docs = () => [...decks].map(([id, data]) => ({ id, data })).sort((a, b) => (b.data.updatedAt || 0) - (a.data.updatedAt || 0));
