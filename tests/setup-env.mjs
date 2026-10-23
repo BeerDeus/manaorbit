@@ -19,6 +19,8 @@ if (!process.env.SCAN_REPORTS_DIR) {      // scans signalés (proxy.mjs) : dossi
 // Carte mystère (daily-srv.mjs) : coupée par défaut sous les tests (le proxy tirerait sinon la carte du jour chez le vrai Scryfall), dossier temporaire ;
 // test-daily.mjs et daily-e2e.mjs l'allument (DAILY=1) avec leur faux Scryfall (daily-fakes.mjs). Classement des niveaux (LEVELS_FILE) : même dossier temporaire.
 if (process.env.DAILY === undefined) process.env.DAILY = '0';
+// Sorties d'extensions dans #spoilers (discord-sets.mjs) : coupées par défaut (le proxy d'un test avec bot lirait sinon le vrai Scryfall /sets) ; test-discord-sets.mjs les allume
+if (process.env.DISCORD_SETS === undefined) process.env.DISCORD_SETS = '0';
 if (!process.env.DAILY_DIR) {
   const d = mkdtempSync(join(tmpdir(), 'deckdeal-daily-')); process.env.DAILY_DIR = join(d, 'daily');
   if (!process.env.LEVELS_FILE) process.env.LEVELS_FILE = join(d, 'levels.json');      // classement des niveaux : jamais le vrai .data/levels.json

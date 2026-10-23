@@ -2966,6 +2966,18 @@ try {
     progress: fcmSa ? async uid => { const d = await fsDoc('GET', `users/${encodeURIComponent(uid)}/meta/progress`); return d ? fsFields(d) : null; } : null });
 } catch (e) { console.warn('Discord : module illisible (' + (e && e.message || e) + '), bot coupé'); DSC = null; }
 const DSC_ON = !!(DSC && DSC.on);
+/* Sorties d'extensions annoncées dans #spoilers (discord-sets.mjs, README › « Bot Discord ») : à J-7 et le jour J, vers DISCORD_SETS_HOUR (10 h) heure de Paris, les
+   extensions de la carte « Prochaines extensions » de l'accueil (src/sets.js lu tel quel) ; Scryfall /sets (SCRY_UP) lu au plus toutes les 6 h, seulement après
+   l'heure ; une seule fois par extension, étape et date (ADMIN_DIR/discord-sets.json). DISCORD_SETS=0 : coupé ; DISCORD_SETS_FIRST_MS : premier tour (tests). */
+let DSS = null;
+if (DSC_ON && process.env.DISCORD_SETS !== '0') {
+  try {
+    const { dssMake } = await import('./discord-sets.mjs'), h = DSC.helpers || {};
+    DSS = dssMake({ find: h.find, post: h.post, types: h.chanTypes, dir: ADM_DIR, scry: SCRY_UP, ua: UA, cmUrl: NM_CORE && NM_CORE.cmUrl, hour: process.env.DISCORD_SETS_HOUR || undefined,
+      firstMs: Number(process.env.DISCORD_SETS_FIRST_MS) >= 0 && process.env.DISCORD_SETS_FIRST_MS !== '' ? Number(process.env.DISCORD_SETS_FIRST_MS) : undefined });
+    if (!DSS.on) { console.warn('Discord : sorties d\'extensions coupées (src/sets.js illisible)'); DSS = null; }
+  } catch (e) { console.warn('Discord : discord-sets.mjs illisible (' + (e && e.message || e) + '), sorties d\'extensions coupées'); DSS = null; }
+}
 
 /* ── Carte mystère : le jeu du jour (daily-srv.mjs) ────────────────────────────────────────────────────────────────────────────────────
    Une carte par jour à DAILY_HOUR (18 h) heure de DAILY_TZ (Europe/Paris), la même pour tous ; images des étapes fabriquées ici, score et classements
@@ -3292,6 +3304,7 @@ server.listen(PORT, HOST, () => {
   }
   if (DLY) { DLY.start(); console.log(`Carte mystère : nouvelle carte chaque jour à ${DLY.clock.hour} h (${DLY.clock.tz})${DLY.pushOn ? ', annoncée par une notification aux appareils qui l\'acceptent' : ''}.`); }
   if (DSC_ON) { DSC.start(); console.log(`Bot Discord : avis de l'appli (forums), messages du panneau${DLY && DLY.revealOn ? ', Carte mystère de la veille' : ''}${DSC.linkOn ? ', liaison des comptes (OAuth2)' : ''}${DSC.rolesOn ? ', rôles des comptes liés' : ''}${DSC.cmdOn ? ', commandes /moi et /partie' : ''}${DSC.gwOn ? ', statut « En ligne »' : process.env.DISCORD_PRESENCE === '0' ? '' : ' (statut « En ligne » : Node 22 ou plus)'}${process.env.DISCORD_GUILD_ID ? ' (DISCORD_GUILD_ID)' : ''}.`); }      // jamais le jeton
+  if (DSS) { DSS.start(); console.log(`Bot Discord : sorties d'extensions annoncées dans #spoilers (J-7 et jour J, ${DSS.hour} h, ${DSS.tz}).`); }
   if ((String(process.env.DISCORD_CLIENT_ID || '').trim() || String(process.env.DISCORD_CLIENT_SECRET || '').trim()) && !(DSC && DSC.linkOn) && process.env.DISCORD !== '0') console.warn('⚠ Liaison des comptes Discord coupée : DISCORD_BOT_TOKEN, DISCORD_CLIENT_ID (identifiant numérique de l\'application) et DISCORD_CLIENT_SECRET sont tous nécessaires.');      // jamais leurs valeurs
   if (String(process.env.DISCORD_PUBLIC_KEY || '').trim() && DSC_ON && !DSC.cmdOn) console.warn('⚠ Commandes slash Discord coupées : DISCORD_PUBLIC_KEY attendue en 64 caractères hexadécimaux (portail Discord › General Information › Public Key).');
   if (ADMIN_ON) console.log(`Administration : /admin, ${ADMIN_SET.size} adresse${ADMIN_SET.size > 1 ? 's' : ''} autorisée${ADMIN_SET.size > 1 ? 's' : ''}${String(process.env.ADMIN_EMAILS || '').trim() ? ' (ADMIN_EMAILS)' : ''}.`);      // jamais les adresses elles-mêmes
