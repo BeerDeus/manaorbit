@@ -13,7 +13,8 @@
      « c'était moi : place N » (partieClaim) et la partie s'ajoute à son historique, envoyée au serveur dès que possible.
    · Stockage de l'appareil : deckdeal:partie:cur (partie en cours ; deckdeal:partie:at, sa dernière sauvegarde : laissée 12 h en préparation ou 48 h
      sans action, l'accueil l'efface, partieStale), deckdeal:partie:queue (envois en attente), deckdeal:partie:hist (historique,
-     200 au plus), deckdeal:partie:room (salle d'attente créée ou rejointe ici). Toujours dans des try/catch : sans stockage, rien ne casse.
+     200 au plus), deckdeal:partie:room (salle d'attente créée ou rejointe ici), deckdeal:partie:roomend (fin d'une salle
+     décidée sans réseau, renvoyée plus tard : partieRoomEnd). Toujours dans des try/catch : sans stockage, rien ne casse.
    Sous Node (tests, proxy.mjs) : module.exports en fin de fichier ; aucune dépendance aux autres fichiers de src/ (globales de l'appli lues avec typeof).
    Retirer la fonction : ôter 'partie.js' de build.mjs (crochets gardés par typeof dans app.js et decks.js), PARTIE=0 coupe le serveur. */
 const PRT_CUR = 'deckdeal:partie:cur', PRT_QUEUE = 'deckdeal:partie:queue', PRT_HIST = 'deckdeal:partie:hist', PRT_ROOM = 'deckdeal:partie:room';
@@ -330,7 +331,7 @@ function partieRemote(st, list, o = {}) {
   const rq = st.rq || { s: 0, ids: [] }, ids = rq.ids.slice(), done = []; let next = st, s = rq.s;
   for (const d of list) {
     if (!d || !Number.isInteger(d.s) || d.s <= rq.s || typeof d.id !== 'string' || !PRT_DQ_ID_RE.test(d.id) || !partieInt(d.pos, 1, PRT_POS_MAX)) continue;
-    const key = d.pos + ':' + d.id; s = Math.max(s, d.s); if (ids.includes(key)) continue; ids.push(key);
+    const key = (partieInt(d.by, 1, PRT_POS_MAX) || d.pos) + ':' + d.id; s = Math.max(s, d.s); if (ids.includes(key)) continue; ids.push(key);      // identifiant propre à la place qui l'a saisi
     const p = next.places.find(x => x.pos === d.pos), n = partieInt(d.n, -PRT_DQ_N, PRT_DQ_N);
     if (rq.off || !n) continue;
     if (d.k === 't') { const t = n === 1 ? partieNextTurn(next, o) : next; if (t !== next) { next = t; done.push(d); } continue; }      // tour suivant (co-hôte)
@@ -706,11 +707,12 @@ const partieRoomForget = () => { partieRoomStop(); partieLsSet(PRT_ROOM, null); 
 function partieRoomKeep(v, j, extra) { partieLsSet(PRT_ROOM, { c: v.c, key: j.key, id: v.id, pos: v.me, ...extra }); }
 /** Places de la salle d'attente pour cette partie : celles du format (8, 2 en Standard), plus s'il le faut pour les places déjà prises (au moins 2, 8 au plus). */
 const partieRoomSize = (st, more = 0) => Math.min(PRT_POS_MAX, Math.max(2, PRT_JEU[partieJeu(st)].size, more, ...st.places.map(p => p.pos)));
-/** Le créateur ouvre la salle d'attente de sa partie (compte connecté exigé). o : { n (pseudo), p (miniature), l (langue), size (places ; défaut : partieRoomSize) }. → vue. */
+/** Le créateur ouvre la salle d'attente de sa partie (compte connecté exigé). o : { n (pseudo), p (miniature), l (langue), size (places ; défaut : partieRoomSize),
+    allco (« Tout le monde est co-hôte ») }. → vue. */
 async function partieRoomCreate(st, o = {}) {
   const env = partieEnv(o), me = st.places.find(p => p.sorte === 'moi') || {};
   if (partieLs(PRT_ROOM_END)) await partieRoomEndFlush(o);      // la table d'avant, terminée sans réseau : ses téléphones sont prévenus d'abord
-  const j = await partieCall(env, '', { method: 'POST', auth: 'need', body: { id: st.id, n: o.n || me.nom || '', ...(o.p ? { p: o.p } : {}), l: o.l || '', pos: me.pos || 1, ...(me.deck ? { deck: me.deck } : {}), jeu: partieJeu(st), format: st.format, size: o.size || partieRoomSize(st) } });
+  const j = await partieCall(env, '', { method: 'POST', auth: 'need', body: { id: st.id, n: o.n || me.nom || '', ...(o.p ? { p: o.p } : {}), l: o.l || '', pos: me.pos || 1, ...(me.deck ? { deck: me.deck } : {}), jeu: partieJeu(st), format: st.format, size: o.size || partieRoomSize(st), ...(o.allco ? { allco: true } : {}) } });
   partieRoomKeep(j.s, j, { host: true, guest: false, u: (env.user && env.user.uid) || '' });
   return j.s;
 }
@@ -797,6 +799,7 @@ function partieRoomGap(w, st) {
 /**
  * Suit la salle gardée sur cet appareil (comme l'échange en direct : version, réponse courte sans nouveauté, présence). cb(vue, { on (places présentes), net (false : connexion perdue),
  * gone ('gone' | 'kicked' : salle oubliée) }) à chaque changement. Le résultat arrivé est rangé dans l'historique (partieRoomResult). Rend une fonction d'arrêt.
+ * Le créateur, partie commencée : o.qa() (dernier delta des places appliqué) et o.onQ(deltas) : la file des saisies des autres téléphones (partieRemote).
  */
 function partieRoomWatch(cb, o = {}) {
   partieRoomStop();
@@ -805,8 +808,9 @@ function partieRoomWatch(cb, o = {}) {
   const tick = async () => {
     const room = partieRoom(); if (w.stop || !room) return;
     try {
-      const j = await partieCall(env, `/s?c=${room.c}&v=${w.v}`, { key: room.key });
+      const j = await partieCall(env, `/s?c=${room.c}&v=${w.v}${typeof o.qa === 'function' ? '&q=' + (o.qa() || 0) : ''}`, { key: room.key });
       if (w.stop) return;
+      if (Array.isArray(j.q) && j.q.length && typeof o.onQ === 'function') o.onQ(j.q);
       const was = w.fail; w.fail = 0;
       if (j.same) { const on = (j.on || []).join(','); if (on !== w.on || was) { w.on = on; if (w.view) call(w.view, { on: j.on || [], net: true }); } }
       else {

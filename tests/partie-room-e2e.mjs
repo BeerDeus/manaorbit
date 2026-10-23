@@ -121,7 +121,7 @@ await B.p.click('[data-seat="3"]'); await B.p.click('[data-j="go"]'); await B.p.
 ok('Bob (invité, QR code) : table complète, Alice ouvre une place de plus, Bob la voit et la prend (saisie gardée)');
 
 await A.p.waitForFunction(() => PU.st.places.length === 3, null, { timeout: 10000 });
-assert.deepEqual(await A.p.evaluate(() => PU.st.places.map(p => [p.pos, p.sorte, p.nom, p.vie, (p.deck || {}).nom || ''])), [[1, 'moi', 'Alice', 20, ''], [2, 'compte', 'Carol', 20, ''], [3, 'invite', 'Bob', 20, 'Mono-vert']]);
+assert.deepEqual(await A.p.evaluate(() => PU.st.places.map(p => [p.pos, p.sorte, p.nom, p.vie, (p.deck || {}).nom || ''])), [[1, 'moi', 'Alice', 20, ''], [2, 'compte', 'Carol', 20, 'Atraxa superfriends'], [3, 'invite', 'Bob', 20, 'Mono-vert']]);      // Carol : son deck de la partie d'avant, gardé pour la fois suivante
 await A.p.click('[data-pu="start"]'); await A.p.waitForSelector('.pu.pu-game', { timeout: 10000 });
 assert.equal(await A.p.evaluate(() => PU.st.jeu), 'standard'); assert.ok(await A.p.evaluate(() => /^[\w-]{20,}$/.test(PU.st.places.find(p => p.pos === 2).uid || '')), 'Carol : jeton du serveur');
 await A.p.click('.pu-t[data-pos="1"] .pu-nm'); await A.p.waitForSelector('.pu-sheet .pu-lifebig');
