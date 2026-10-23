@@ -326,7 +326,7 @@ function partieUndo(st) {
  * Saisie d'un joueur depuis son téléphone (salle : op delta, file relevée par le créateur) : deltas { s (numéro donné par le serveur), id, pos, k ('v' : points de vie |
  * 'b' : blessures du commandant de src reçues, b : son 2e commandant | 'c' : compteur c | 't' : tour suivant, co-hôte), n (±, jamais une valeur), by (place qui l'a saisi) }, appliqués une fois chacun (st.rq : dernier numéro
  * et identifiants déjà vus, gardés avec la partie : rien de doublé après une coupure ou un redémarrage) comme un appui sur ce téléphone (journal, annuler). Saisie coupée
- * (rq.off), partie pas commencée ou finie, joueur éliminé : ignorés (mais comptés comme vus). → { st, done [deltas appliqués] } ; st inchangé : rien de neuf.
+ * (rq.off ; sauf ceux de l'écran 2, by 0 : l'écran du créateur), partie pas commencée ou finie, joueur éliminé : ignorés (mais comptés comme vus). → { st, done [deltas appliqués] } ; st inchangé : rien de neuf.
  */
 function partieRemote(st, list, o = {}) {
   if (!st || !st.debut || st.fin || !Array.isArray(list) || !list.length) return { st, done: [] };
@@ -335,7 +335,7 @@ function partieRemote(st, list, o = {}) {
     if (!d || !Number.isInteger(d.s) || d.s <= rq.s || typeof d.id !== 'string' || !PRT_DQ_ID_RE.test(d.id) || !partieInt(d.pos, 1, PRT_POS_MAX)) continue;
     const key = (partieInt(d.by, 1, PRT_POS_MAX) || d.pos) + ':' + d.id; s = Math.max(s, d.s); if (ids.includes(key)) continue; ids.push(key);      // identifiant propre à la place qui l'a saisi
     const p = next.places.find(x => x.pos === d.pos), n = partieInt(d.n, -PRT_DQ_N, PRT_DQ_N);
-    if (rq.off || !n) continue;
+    if ((rq.off && d.by !== 0) || !n) continue;
     if (d.k === 't') { const t = n === 1 ? partieNextTurn(next, o) : next; if (t !== next) { next = t; done.push(d); } continue; }      // tour suivant (co-hôte)
     if (!p || p.elimine) continue;
     const t = d.k === 'v' ? partieLife(next, d.pos, n, o) : d.k === 'b' && d.src !== d.pos ? partieCmdDamage(next, d.pos, d.src, n, { ...o, second: !!d.b }) : d.k === 'c' && PRT_COUNTERS.includes(d.c) ? partieCounter(next, d.pos, d.c, n, o) : next;
@@ -699,11 +699,12 @@ const partieHistFetch = (from = 0, n = 20, o = {}) => partieCall(partieEnv(o), `
 async function partieHistDelete(id, o = {}) { const r = await partieCall(partieEnv(o), '/hist?id=' + encodeURIComponent(id), { method: 'DELETE', auth: 'need' }); partieHistDrop(id); return r; }
 
 /* ── Salle d'attente (serveur : /api/partie ; relevé comme l'échange en direct) ─────────────────────────────────────────── */
-/* Salle gardée sur l'appareil (PRT_ROOM) : { c (code), key (clé de place), host (créateur), guest (entré sans compte), id (partie), pos, u (compte) }.
+/* Salle gardée sur l'appareil (PRT_ROOM) : { c (code), key (clé de place), host (créateur), guest (entré sans compte), id (partie), pos, u (compte), ecran (l'écran 2 de la table) }.
    Vue renvoyée par le serveur : { c, v, st ('wait' | 'live' : commencée, liste figée | 'done' : résultat là | 'end'), why, id, jeu (absent d'un serveur d'avant : Commander),
    format (points de départ), size, at, me (ma place), host,
    places [{ pos, n, k ('compte' | 'invite'), h? (créateur), dev (un téléphone a rejoint), on (présent il y a moins de 15 s), p? (miniature, en attente seulement), deck?, t? (jeton : vue du créateur,
-   partie commencée) }], res? (résultat sans jetons), live? (partie commencée : état du compteur envoyé par le créateur, partieLive) }. why (st 'end') : 'host' (le créateur a annulé
+   partie commencée) }], res? (résultat sans jetons), live? (partie commencée : état du compteur envoyé par le créateur, partieLive), duo? ({ b : places montrées par l'écran 2,
+   dev : un écran 2 a rejoint, on : présent }), ecran? (ce téléphone est l'écran 2) }. why (st 'end') : 'host' (le créateur a annulé
    la partie en préparation), 'drop' (abandonnée en cours), 'stale' (effacée de son téléphone, laissée de côté trop longtemps), 'replaced' (il en prépare une autre), 'idle' (inactive). */
 const partieRoom = () => { const r = partieLs(PRT_ROOM); return r && PRT_CODE_RE.test(r.c) && typeof r.key === 'string' ? r : null; };
 const partieRoomForget = () => { partieRoomStop(); partieLsSet(PRT_ROOM, null); };
@@ -721,11 +722,12 @@ async function partieRoomCreate(st, o = {}) {
 }
 /** Avant d'entrer : la table (sans clé) → { c, st, jeu, format, size, host (pseudo du créateur), places [{ pos, n, k }] }. */
 const partiePeek = (code, o = {}) => partieCall(partieEnv(o), '/peek?c=' + encodeURIComponent(code));
-/** Rejoindre la table : o : { pos (sinon la première libre), n (pseudo, ou prénom de l'invité), p, l, deck, guest (true : sans compte même connecté) }. → vue. */
+/** Rejoindre la table : o : { pos (sinon la première libre), n (pseudo, ou prénom de l'invité), p, l, deck, guest (true : sans compte même connecté) }. → vue.
+    o.ecran : ce téléphone devient l'écran 2 de la table (grande table répartie sur 2 téléphones : aucune place, sans compte ; gardé avec ecran: true). */
 async function partieRoomJoin(code, o = {}) {
-  const env = partieEnv(o), auth = !o.guest && env.user ? 'need' : '';
-  const j = await partieCall(env, '/join', { method: 'POST', auth, body: { c: code, ...(o.pos ? { pos: o.pos } : {}), n: o.n || '', ...(o.p ? { p: o.p } : {}), l: o.l || '', ...(o.deck ? { deck: o.deck } : {}) } });
-  partieRoomKeep(j.s, j, { host: false, guest: !auth, u: auth ? env.user.uid : '' });
+  const env = partieEnv(o), auth = !o.guest && !o.ecran && env.user ? 'need' : '';
+  const j = await partieCall(env, '/join', { method: 'POST', auth, body: o.ecran ? { c: code, ecran: 1 } : { c: code, ...(o.pos ? { pos: o.pos } : {}), n: o.n || '', ...(o.p ? { p: o.p } : {}), l: o.l || '', ...(o.deck ? { deck: o.deck } : {}) } });
+  partieRoomKeep(j.s, j, { host: false, guest: !auth, u: auth ? env.user.uid : '', ...(o.ecran ? { ecran: true } : {}) });
   return j.s;
 }
 /**
@@ -788,7 +790,7 @@ function partieFromRoom(st, view) {
 }
 /** Le résultat arrive dans la salle (st done) : gardé dans l'historique de cet appareil (une fois ; enregistré par le serveur pour un compte, local pour un invité). */
 function partieRoomResult(view, room) {
-  if (!view || !view.res || !room || room.host) return false;
+  if (!view || !view.res || !room || room.host || room.ecran) return false;      // l'écran 2 n'a pas de place : rien dans son historique
   return partieHistAdd({ ...view.res, moi: view.me || room.pos || 0, src: 's', at: Date.now(), u: room.guest ? '' : room.u || '', sv: room.guest ? 0 : 1 });
 }
 /** Délai avant le relevé suivant : salle qui se remplit 1,2 s (5 s écran caché, 10 s après 2 min) ; partie en cours 10 s (2 s quand ce téléphone la suit en direct :
@@ -800,7 +802,7 @@ function partieRoomGap(w, st) {
   return hid ? (Date.now() - w.hid > 120e3 ? 10000 : 5000) : 1200;
 }
 /**
- * Suit la salle gardée sur cet appareil (comme l'échange en direct : version, réponse courte sans nouveauté, présence). cb(vue, { on (places présentes), net (false : connexion perdue),
+ * Suit la salle gardée sur cet appareil (comme l'échange en direct : version, réponse courte sans nouveauté, présence). cb(vue, { on (places présentes ; 0 : l'écran 2), net (false : connexion perdue),
  * gone ('gone' | 'kicked' : salle oubliée) }) à chaque changement. Le résultat arrivé est rangé dans l'historique (partieRoomResult). Rend une fonction d'arrêt.
  * Le créateur, partie commencée : o.qa() (dernier delta des places appliqué) et o.onQ(deltas) : la file des saisies des autres téléphones (partieRemote).
  */
@@ -817,9 +819,10 @@ function partieRoomWatch(cb, o = {}) {
       const was = w.fail; w.fail = 0;
       if (j.same) { const on = (j.on || []).join(','); if (on !== w.on || was) { w.on = on; if (w.view) call(w.view, { on: j.on || [], net: true }); } }
       else {
-        w.v = j.v; w.view = j; w.on = j.places.filter(p => p.on).map(p => p.pos).join(',');
+        const on = [...(j.duo && j.duo.on ? [0] : []), ...j.places.filter(p => p.on).map(p => p.pos)];      // 0 : l'écran 2 (présent)
+        w.v = j.v; w.view = j; w.on = on.join(',');
         if (j.st === 'done') partieRoomResult(j, room);
-        call(j, { on: j.places.filter(p => p.on).map(p => p.pos), net: true });
+        call(j, { on, net: true });
         if (j.st === 'end' || j.st === 'done') { partieRoomForget(); return; }      // finie : plus rien à suivre (le résultat est rangé)
       }
     } catch (e) {
