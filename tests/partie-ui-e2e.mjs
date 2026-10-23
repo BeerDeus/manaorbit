@@ -293,8 +293,11 @@ await p.selectOption('select[data-pu="mydeck"]', 'dkv');
 await p.waitForFunction(() => (PU.st.places[0].deck || {}).image === 'https://cards.scryfall.io/small/front/a/b/edgar-markov.jpg', null, { timeout: 8000 });
 await p.waitForSelector('.pu-mydk img.pu-art[src*="art_crop/front/a/b/edgar-markov.jpg"]'); assert.match(await txt(p, '.pu-mydk'), /Edgar Markov/);
 await p.screenshot({ path: 'shots/partie-12-mon-deck.png' });
+// deck sans commandant (Standard « Elfes ») : l'image choisie pour le deck (ligne « Deck Deal cover »), comme dans « Mes decks »
+await p.evaluate(() => D.localList.push({ id: 'dke', name: 'Elfes', text: '// Deck Deal cover : Craterhoof Behemoth\nDeck\n4 Llanowar Elves\n1 Craterhoof Behemoth\n16 Forest', updatedAt: Date.now() }));
+assert.equal(await p.evaluate(() => puDeckImgLoad(D.localList.find(d => d.id === 'dke'))), 'https://cards.scryfall.io/small/front/a/b/craterhoof-behemoth.jpg', 'Standard : la carte de présentation choisie');
 await p.click('.pu-foot [data-pu="drop"]'); await p.waitForSelector('.sheet [data-ok]'); await p.click('.sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.pu') && !sheets.length);
-ok('illustration du commandant en fond (art_crop, dégradé, A B C), gardée d\'un appui à l\'autre ; invité : retrouvée par son nom ; mon deck : fiche lue à l\'instant, l\'image suit');
+ok('illustration du commandant en fond (art_crop, dégradé, A B C), gardée d\'un appui à l\'autre ; invité : retrouvée par son nom ; mon deck : fiche lue à l\'instant, l\'image suit ; deck sans commandant : son image de présentation');
 
 const all = [...errs, ...q.errs, ...j.errs];
 console.log('erreurs page :', all.length ? all : 'aucune'); assert.deepEqual(all, []);

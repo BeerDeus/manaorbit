@@ -175,15 +175,17 @@ function puVieSet(f) {
   const next = partieSetFormat(PU.st, f); if (!puSet(next)) return;
   puPrefSave(next); puRoomOpts({ jeu: partieJeu(next), format: next.format });
 }
-/** Image du commandant d'un deck (petite image Scryfall connue de l'appli : collection ou cache des decks), '' sinon. */
+/** Carte de présentation d'un deck, comme dans « Mes decks » (core.js › dkCoverCard) : l'image choisie pour le deck, sinon son commandant, sinon sa carte la plus chère ; null : deck vide. */
+const puCoverCard = d => { try { return dkCoverCard(d.text || '', k => puMeta(k)); } catch (e) { return null; } };
+/** Image d'un deck (petite image Scryfall connue de l'appli : collection ou cache des decks) : sa carte de présentation (deck Standard « Elfes » sans commandant compris), '' sinon. */
 function puDeckImg(d) {
-  try { const k = commanderKeys(d.text || '')[0], m = k && puMeta(k); return m && m.im && PRT_IMG_RE.test(m.im) ? m.im : ''; } catch (e) { return ''; }
+  try { const c = puCoverCard(d), m = c && puMeta(c.key); return m && m.im && PRT_IMG_RE.test(m.im) ? m.im : ''; } catch (e) { return ''; }
 }
-/** Même chose, la fiche du commandant lue au besoin : cache des decks relu (dmLoad), sinon Scryfall (dmFetch, gardée sur l'appareil). Avant, un commandant hors de la
+/** Même chose, la fiche de la carte lue au besoin : cache des decks relu (dmLoad), sinon Scryfall (dmFetch, gardée sur l'appareil). Avant, une carte hors de la
  *  collection n'avait d'image que si « Mes decks » avait été ouvert pendant la session : la place partait sans. '' : hors ligne, carte inconnue. */
 async function puDeckImgLoad(d) {      // lecture déjà partie pour la même carte (puArtSoon : dmFetch ne la refait pas) : son résultat attendu
   let im = puDeckImg(d); if (im || typeof dmFetch !== 'function') return im;
-  try { if (typeof dmLoad === 'function') await dmLoad(); if (PU.artP) await PU.artP; im = puDeckImg(d); if (im) return im; const k = commanderKeys(d.text || '')[0], c = k && parseDeck(d.text || '').cards.find(x => x.key === k); if (c) await dmFetch([{ key: ownKey(c.key), name: c.name }]); } catch (e) { /* hors ligne */ }
+  try { if (typeof dmLoad === 'function') await dmLoad(); if (PU.artP) await PU.artP; im = puDeckImg(d); if (im) return im; const c = puCoverCard(d); if (c) await dmFetch([{ key: c.key, name: c.name }]); } catch (e) { /* hors ligne */ }
   return puDeckImg(d);
 }
 /* ── Illustration du commandant en fond de sa tuile ──────────────────────────────────────────── */

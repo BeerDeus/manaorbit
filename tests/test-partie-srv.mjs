@@ -595,16 +595,16 @@ ok('redémarrage : salles terminées, jetons toujours valables (clé tirée du c
   ok('carte joueur : partie jouée hors de sa validité (après l\'expiration, avant la carte) : pas chez ce compte');
   PC.kill(); await sleep(200);
 
-  // expiration (cartes de 1,5 s) et envoi trop tardif (1 s après l'expiration)
-  const PE = await start({ ...F.env, PARTIE_CARD_MS: '1500', PARTIE_CARD_LATE_MS: '1500' }, 19505); BASE = 'http://127.0.0.1:19505';
+  // expiration (cartes de 3 s) et envoi trop tardif (3 s après l'expiration) : marges larges, la CI est parfois lente
+  const PE = await start({ ...F.env, PARTIE_CARD_MS: '3000', PARTIE_CARD_LATE_MS: '3000' }, 19505); BASE = 'http://127.0.0.1:19505';
   const cx = (await call('POST', '/carte', { uid: U.d, body: { n: 'Dave' } })).o;
   assert.equal((await P.partieCarteCheck(cx.t, { pk: cx.pk })).ok, true);
   const gx = P.partieEnd(P.partieStart(P.partieAddPlace(P.partieNew({ moi: { nom: 'Alice' }, id: 'carteexp0001' }), { sorte: 'compte', nom: 'Dave', uid: cx.t })), [2]);
-  await sleep(2200);
+  await sleep(3300);
   assert.deepEqual(await P.partieCarteCheck(cx.t, { pk: cx.pk }).then(x => [x.ok, x.why]), [false, 'exp'], 'carte expirée : invité, vu sans réseau');
   r = await call('POST', '/result', { uid: U.a, body: { r: P.partieResult(gx) } }); assert.deepEqual([r.o.n, r.o.skip], [2, 0], 'partie jouée pendant la validité, envoyée peu après : chez Dave');
   assert.equal(hist('d').filter(x => x.id === 'carteexp0001').length, 1);
-  await sleep(1200);
+  await sleep(3200);
   const gy = P.partieEnd(P.partieStart(P.partieAddPlace(P.partieNew({ moi: { nom: 'Alice' }, id: 'carteexp0002', now: cx.x - 800 }), { sorte: 'compte', nom: 'Dave', uid: cx.t }), { now: cx.x - 800 }), [2], { now: cx.x - 500 });
   r = await call('POST', '/result', { uid: U.a, body: { r: P.partieResult(gy) } }); assert.deepEqual([r.o.n, r.o.skip], [1, 1], 'envoyée trop tard après l\'expiration (PARTIE_CARD_LATE_MS) : refusée');
   PE.kill(); await sleep(200);
