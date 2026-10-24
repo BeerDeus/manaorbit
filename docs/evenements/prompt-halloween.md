@@ -100,6 +100,7 @@ Tu construis **le système d'événements saisonniers** de Mana Orbit et son **p
   - une seule fois ;
   - pas pendant le premier lancement, la visite guidée, le mode streamer ou un lien ouvert de l'extérieur ;
   - « réduire les animations » donne une version sans mouvement.
+- **Notifications push** (voir aussi `docs/a-faire.md` › « Notifications push des événements ») : demande d'autorisation native à la fin du premier lancement (après « Sauvegarde ta collection ») ; annonces automatiques de l'événement (J-3, J0, « il reste X jours », dernier jour, une par jour au plus) ; envoi manuel depuis `/admin` (titre, texte, cible, confirmation, historique). Priorité : la demande d'autorisation et les annonces automatiques ; l'envoi manuel ensuite.
 - Pense aussi à : une notification push « La chasse commence » (`push.js` / FCM existants, si l'utilisateur les a acceptées), et une astuce `tour.js` la première fois qu'une citrouille est visible.
 
 ### 5. Annonces Discord automatiques (canal `#annonces`)
