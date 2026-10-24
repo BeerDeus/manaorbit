@@ -351,5 +351,16 @@
   "Recommencer la courbe ?": "¿Empezar la gráfica de nuevo?",
   "Les relevés d'avant aujourd'hui sont effacés, sur cet appareil et sur ton compte. La courbe et les variations à 7 et 30 jours repartent de la valeur d'aujourd'hui. Tes cartes ne changent pas.": "Se borran los registros anteriores a hoy, en este dispositivo y en tu cuenta. La gráfica y las variaciones a 7 y 30 días vuelven a empezar desde el valor de hoy. Tus cartas no cambian.",
   "Recommencer": "Empezar de nuevo",
-  "Courbe remise à zéro": "Gráfica reiniciada"
+  "Courbe remise à zéro": "Gráfica reiniciada",
+  "Remplacer ta collection ?": "¿Reemplazar tu colección?",
+  "Ta collection compte <b>{n}</b> carte différente.": "Tu colección tiene <b>{n}</b> carta distinta.",
+  "Ta collection compte <b>{n}</b> cartes différentes.": "Tu colección tiene <b>{n}</b> cartas distintas.",
+  "Elle sera remplacée par l'unique carte de ce fichier.": "Se reemplazará por la única carta de este archivo.",
+  "Elle sera remplacée par les {n} cartes de ce fichier.": "Se reemplazará por las {n} cartas de este archivo.",
+  "Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.": "Las cartas que no están en el archivo salen de tu colección. «Cancelar», justo después, la restaura.",
+  "Déjà dans ta collection ?": "¿Ya está en tu colección?",
+  "<b>{n}</b> exemplaire sur {t} de ce fichier est déjà dans ta collection : l'ajouter le compterait deux fois.": "<b>{n}</b> de los {t} ejemplares de este archivo ya está en tu colección: añadirlo lo contaría dos veces.",
+  "<b>{n}</b> exemplaires sur {t} de ce fichier sont déjà dans ta collection : les ajouter les compterait deux fois.": "<b>{n}</b> de los {t} ejemplares de este archivo ya están en tu colección: añadirlos los contaría dos veces.",
+  "Tu as déjà importé ce fichier ? Remplace plutôt ta collection par son contenu.": "¿Ya importaste este archivo? Mejor reemplaza tu colección por su contenido.",
+  "Remplacer ma collection…": "Reemplazar mi colección…"
 }

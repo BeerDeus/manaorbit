@@ -4,7 +4,7 @@
    Passé, terminé ou abandonné : on ne le revoit plus (deckdeal:onboard). Les navigateurs pilotés par les tests ne le voient pas, sauf avec ?onboarding. */
 const OB_KEY = 'deckdeal:onboard';
 const OB_FORCE = typeof location !== 'undefined' && /[?&]onboarding\b/.test(location.search);
-const OB = { el: null, i: 0 };
+const OB = { el: null, i: 0, key: null };
 
 function obSeen() { try { return !!localStorage.getItem(OB_KEY); } catch (e) { return true; } }
 function obMark() { try { localStorage.setItem(OB_KEY, String(Date.now())); } catch (e) { /* ignore */ } }
@@ -50,6 +50,9 @@ function obOpen() {
     </div>
     <div class="ob-dots" aria-hidden="true"><i></i><i></i><i></i></div>`;
   document.body.appendChild(el);
+  holdApp();      // dialogue modal : l'appli dessous (inerte) ne prend ni le focus ni le lecteur d'écran (viewer.js)
+  OB.key = e => { if (e.key === 'Escape' && OB.el && !sheets.length) { e.stopPropagation(); obClose(); } };      // Échap = « Passer »
+  document.addEventListener('keydown', OB.key);
   OB.i = 0; obGo(0);
   el.addEventListener('click', e => {
     const b = e.target.closest('[data-ob]'); if (!b) return;
@@ -83,6 +86,7 @@ function obGo(i) {
 function obBack() { if (OB.i > 0) obGo(OB.i - 1); else obClose(); }
 function obClose(then) {
   const el = OB.el; if (!el) return; OB.el = null; obMark();
+  document.removeEventListener('keydown', OB.key); releaseApp();
   el.classList.remove('on'); setTimeout(() => el.remove(), reduceMotion() ? 0 : 380);
   homeSoon(0);
   if (then) setTimeout(then, reduceMotion() ? 0 : 260);

@@ -1,4 +1,4 @@
-// E2E collection : import CSV, infos Scryfall, filtres, stats, saisie à la main, persistance ; déduction du panier ; réf. Cardmarket ;
+// E2E collection : import CSV (« Remplacer ta collection ? », « Déjà dans ta collection ? »), infos Scryfall, filtres, stats, saisie à la main, persistance ; déduction du panier ; réf. Cardmarket ;
 // commandant ; évolution des prix ; filtres du viewer ; partage et reprise.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
@@ -7,7 +7,8 @@ import { chromium, startWorld, newPage, done, txt, ok, CARDS, toInput, toHome } 
 const world = await startWorld({ port: 18900 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const { p, errs } = await newPage(browser, world);
-const scryCalls = pat => world.scry.filter(s => pat.test(s)).length;
+const collPosts = []; p.on('request', q => { if (q.method() === 'POST' && /\/cards\/collection$/.test(q.url())) collPosts.push(q.postData() || ''); });
+const cardPosts = () => collPosts.filter(b => !/"name":"Plains"/.test(b)).length;      // lots de cartes lus sur Scryfall, sans les terrains de l'accueil (home.js › homeLands : lus 3 s après son affichage, selon le temps passé dessus)
 const rows = () => p.$$eval('.crow', r => r.map(x => ({ k: x.dataset.k, name: x.querySelector('.row-name').textContent, q: Number(x.querySelector('.qstep b').textContent), tags: [...x.querySelectorAll('.tag')].map(t => t.textContent.replace(/\s+/g, ' ').trim()), px: [...x.querySelectorAll('.px')].map(t => t.textContent.replace(/\s+/g, ' ').trim()) })));
 const flush = ms => p.waitForTimeout(ms);
 
@@ -30,7 +31,7 @@ await p.click('#ciGo'); await p.waitForFunction(() => document.querySelectorAll(
 assert.match(await txt(p, '.coll .dv-title span'), /^3 cartes · 8 exemplaires · sur cet appareil/); ok('import CSV : éditions additionnées (3 cartes, 8 exemplaires)');
 // infos Scryfall lues par lot (une seule requête POST pour 3 cartes)
 await p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length === 3, null, { timeout: 8000 });
-assert.equal(scryCalls(/^POST \/cards\/collection/), 1);
+assert.equal(cardPosts(), 1);
 let r = await rows(); const by = Object.fromEntries(r.map(x => [x.name, x]));
 assert.deepEqual(r.map(x => x.name), ['Llanowar Elves', 'Sol Ring', 'Swords to Plowshares'], 'tri par nom'); assert.equal(by['Sol Ring'].q, 3);
 assert.deepEqual(by['Sol Ring'].tags, ['Artefacts', 'Coût 1']); assert.deepEqual(by['Llanowar Elves'].tags, ['Créatures', 'Coût 1']); assert.deepEqual(by['Sol Ring'].px, ['CM 1,50 €'], 'prix Cardmarket (tendance) à gauche de la quantité'); assert.deepEqual(by['Llanowar Elves'].px, ['CM 0,20 €']);
@@ -104,18 +105,18 @@ await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lo
 await p.fill('#caName', 'ring'); await p.waitForSelector('.ca-opt'); assert.deepEqual(await p.$$eval('.ca-opt i', s => s.map(x => x.textContent)), ['× 3'], 'quantité déjà possédée affichée');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('#caName'), null, { timeout: 3000 }); await p.waitForSelector('.coll.on');
 await p.waitForFunction(() => document.querySelectorAll('.crow').length === 4); assert.match(await txt(p, '.coll .dv-title span'), /^4 cartes · 10 exemplaires/);
-await p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length === 4, null, { timeout: 8000 }); assert.equal(scryCalls(/^POST \/cards\/collection/), 2, 'seule la nouvelle carte est lue');
+await p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length === 4, null, { timeout: 8000 }); assert.equal(cardPosts(), 2, 'seule la nouvelle carte est lue');
 ok('ajout à la main : suggestions du catalogue, quantité déjà possédée, infos lues pour la seule nouvelle carte');
 
 /* ── 5) persistance ──────────────────────────────────────────────────────────────────────── */
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.coll'), null, { timeout: 3000 });
 assert.match(await txt(p, '#collSub'), /^4 cartes · 10 exemplaires$/);
 await p.waitForTimeout(3300);      // fond de l'accueil (terrains de base, lus 3 s après le retour à l'accueil ; inconnus du faux Scryfall) : avant le compte, pas pendant
-const callsBefore = scryCalls(/^POST \/cards\/collection/);
+const callsBefore = cardPosts();
 await p.waitForTimeout(900);      // infos Scryfall enregistrées sur l'appareil 0,8 s après leur lecture (regroupées)
 await p.reload(); await p.waitForTimeout(900);
 assert.match(await txt(p, '#collSub'), /^4 cartes · 10 exemplaires$/); await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.crow .px.cm', { timeout: 5000 });
-assert.equal(scryCalls(/^POST \/cards\/collection/), callsBefore, 'infos Scryfall gardées (cache), rien à relire');
+assert.equal(cardPosts(), callsBefore, 'infos Scryfall gardées (cache), rien à relire');
 assert.equal((await rows()).length, 4); await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 ok('rechargement : collection et infos gardées sur l\'appareil, aucune requête');
 
@@ -159,7 +160,8 @@ await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 // collection de départ propre : 1 Sol Ring, 1 Llanowar Elves (le deck en veut 2)
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('.coll-tools [data-act="import"]'); await p.waitForSelector('#ciText');
 await p.fill('#ciText', '1 Sol Ring\n1 Llanowar Elves'); await p.click('#ciMode [data-v="replace"]'); await p.waitForTimeout(150);
-assert.match(await txt(p, '#ciSum'), /remplace les 4 cartes actuelles/); await p.click('#ciGo'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 2);
+assert.match(await txt(p, '#ciSum'), /remplace les 4 cartes actuelles/); await p.click('#ciGo');
+await p.waitForSelector('.sheet-wrap.open [data-ci="replace"]'); await p.click('.sheet-wrap.open [data-ci="replace"]'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 2);      // « Remplacer ta collection ? » (bloc 12)
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 const DECK = "Commander\n1 Edgar Markov\n\nDeck\n1 Sol Ring\n1 Swords to Plowshares\n1 Arcane Signet\n1 Wrath of God\n1 Craterhoof Behemoth\n1 Command Tower\n2 Llanowar Elves\n1 Ranger's Hawk\n5 Forest";
 await toInput(p); await p.fill('#deckText', DECK); await p.waitForTimeout(300);
@@ -341,6 +343,47 @@ await bg.ctx.setOffline(false); off = false;
 await q.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length === 2 && !COLL.enrichErr, null, { timeout: 8000 });
 ok('hors ligne : message clair, lecture des infos reprise seule au retour du réseau');
 assert.deepEqual(bg.errs, []); await bg.ctx.close();
+
+/* ── 12) import : « Remplacer ma collection » confirmé ; même fichier importé deux fois en « Ajouter » : signalé avant ───────────── */
+{ const im = await newPage(browser, world), r = im.p;
+  const LIST = '2 Sol Ring\n1 Swords to Plowshares\n1 Arcane Signet\n1 Wrath of God\n1 Craterhoof Behemoth\n4 Llanowar Elves';
+  const qty = () => r.evaluate(() => Object.fromEntries(Object.entries(COLL.map).map(([k, x]) => [k, x.q]).sort()));
+  const imp = async text => { await r.evaluate(() => openCollImport()); await r.waitForSelector('#ciText'); await r.fill('#ciText', text); await r.waitForTimeout(150); };
+  const gone = () => r.waitForFunction(() => !document.querySelector('#ciText') && !sheets.length);
+  const TOP = '#sheetRoot > .sheet-wrap.open:last-child';      // la fiche du dessus
+  const top = async () => { await r.waitForSelector(TOP + ' [data-ci]'); return r.$eval(TOP + ' .sheet', s => s.getAttribute('aria-label') + ' | ' + s.querySelector('.sheet-body').innerText.replace(/\s+/g, ' ').trim()); };
+  const L1 = { 'arcane signet': 1, 'craterhoof behemoth': 1, 'llanowar elves': 4, 'sol ring': 2, 'swords to plowshares': 1, 'wrath of god': 1 };
+  await imp(LIST); assert.equal(await r.$eval('#ciMode', e => e._v), 'replace', 'collection vide : Remplacer par défaut'); await r.click('#ciGo'); await gone();
+  assert.deepEqual(await qty(), L1, 'collection vide : importée sans question');
+  // le même fichier, mode « Ajouter » (par défaut) : « Déjà dans ta collection ? »
+  await imp(LIST); assert.equal(await r.$eval('#ciMode', e => e._v), 'add'); await r.click('#ciGo');
+  assert.equal(await top(), 'Déjà dans ta collection ? | 10 exemplaires sur 10 de ce fichier sont déjà dans ta collection : les ajouter les compterait deux fois. Tu as déjà importé ce fichier ? Remplace plutôt ta collection par son contenu. Remplacer ma collection…');
+  await r.click(TOP + ' .sheet-foot [data-close]'); await r.waitForFunction(() => sheets.length === 1 && document.querySelector('#ciText'));
+  assert.deepEqual(await qty(), L1, 'Annuler : rien d\'ajouté, l\'import reste ouvert');
+  await r.click('#ciGo'); await top(); await r.click(TOP + ' [data-ci="add"]'); await gone();
+  assert.deepEqual(await qty(), { ...L1, 'llanowar elves': 8, 'sol ring': 4, 'swords to plowshares': 2, 'arcane signet': 2, 'craterhoof behemoth': 2, 'wrath of god': 2 }, 'Ajouter quand même : quantités doublées');
+  await imp(LIST); await r.click('#ciGo'); await top(); await r.click(TOP + ' [data-ci="replace"]');
+  assert.equal(await top(), 'Remplacer ta collection ? | Ta collection compte 6 cartes différentes. Elle sera remplacée par les 6 cartes de ce fichier. Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.');
+  await r.click(TOP + ' [data-ci="replace"]'); await gone();
+  assert.deepEqual(await qty(), L1, '« Remplacer ma collection… » puis Remplacer : la collection redevient le fichier');
+  ok('import : même fichier une 2e fois en « Ajouter » → « Déjà dans ta collection ? » (Annuler, Ajouter quand même, Remplacer ma collection…)');
+  // « Remplacer ma collection » choisi : confirmation avec le nombre de cartes ; Annuler ne touche à rien
+  await imp('1 Sol Ring\n1 Edgar Markov'); await r.click('#ciMode [data-v="replace"]'); await r.waitForTimeout(100); await r.click('#ciGo');
+  assert.equal(await top(), 'Remplacer ta collection ? | Ta collection compte 6 cartes différentes. Elle sera remplacée par les 2 cartes de ce fichier. Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.');
+  assert.equal(await r.$eval(TOP + ' [data-ci="replace"]', b => b.className + ' ' + b.textContent), 'btn danger Remplacer');
+  await r.click(TOP + ' .sheet-foot [data-close]'); await r.waitForFunction(() => sheets.length === 1 && document.querySelector('#ciText'));
+  assert.deepEqual(await qty(), L1, 'Annuler : collection intacte');
+  await r.click('#ciGo'); await top(); await r.keyboard.press('Escape'); await r.waitForFunction(() => sheets.length === 1); assert.deepEqual(await qty(), L1, 'Échap : collection intacte');
+  await r.click('#ciGo'); await top(); await r.click(TOP + ' [data-ci="replace"]'); await gone();
+  assert.deepEqual(await qty(), { 'edgar markov': 1, 'sol ring': 1 }, 'Remplacer confirmé');
+  await r.click('#toast button'); await r.waitForFunction(() => collCount() === 6); assert.deepEqual(await qty(), L1, '« Annuler » du toast : la collection d\'avant');
+  ok('import : « Remplacer ma collection » → « Remplacer ta collection ? » (6 cartes → 2), Annuler et Échap n\'y touchent pas, toast « Annuler » ensuite');
+  // pas d'alerte à tort : fichier surtout nouveau, ou moins de 5 cartes déjà là
+  await imp('1 Sol Ring\n1 Command Tower\n1 Edgar Markov\n1 Arcane Signet\n1 Wrath of God'); await r.click('#ciGo'); await gone();
+  await imp('1 Sol Ring\n1 Llanowar Elves'); await r.click('#ciGo'); await gone();
+  assert.deepEqual(await qty(), { ...L1, 'sol ring': 4, 'command tower': 1, 'edgar markov': 1, 'arcane signet': 2, 'wrath of god': 2, 'llanowar elves': 5 }, 'ajoutés sans question');
+  ok('import en « Ajouter » : fichier surtout nouveau (3 exemplaires sur 5 déjà là) ou 2 cartes déjà là → ajouté sans question');
+  assert.deepEqual(im.errs, []); await im.ctx.close(); }
 
 console.log('erreurs page :', errs.length ? errs : 'aucune'); assert.deepEqual(errs, []);
 await browser.close(); world.stop(); console.log('\nCOLL E2E OK'); process.exit(0);

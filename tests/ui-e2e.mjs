@@ -81,6 +81,34 @@ ok('collection : fondu des onglets');
   assert.deepEqual(S2.errs, []); await S2.ctx.close(); }
 ok('premier lancement : défile sur un petit écran, « Commencer » atteignable');
 
+// premier lancement plus large que 520 px (ordinateur, tablette, téléphone à l'horizontale) : à chaque étape, l'écran actif seul, entier et centré
+for (const [w, h, rm] of [[1280, 800], [1890, 1000, 'reduce'], [820, 1180], [844, 390], [360, 780]]) {
+  const S3 = await newPage(browser, world, { ctx: { viewport: { width: w, height: h }, reducedMotion: rm || 'no-preference' } });
+  await S3.p.evaluate(() => obOpen()); await S3.p.waitForSelector('.ob.on');
+  for (let i = 0; i < 3; i++) {
+    await S3.p.evaluate(i => obGo(i), i); await S3.p.waitForTimeout(rm ? 80 : 600);
+    const g = await S3.p.evaluate(() => {
+      const vw = innerWidth, ss = [...document.querySelectorAll('.ob-s')], a = ss[OB.i], kids = [...a.children].map(k => k.getBoundingClientRect()).filter(r => r.width);
+      const L = Math.min(...kids.map(r => r.left)), R = Math.max(...kids.map(r => r.right));
+      const ar = a.getBoundingClientRect(), cs = getComputedStyle(a), cl = ar.left + parseFloat(cs.paddingLeft), cr = ar.right - parseFloat(cs.paddingRight);      // colonne : boîte de contenu
+      return { vw, L: Math.round(L), R: Math.round(R), mid: Math.round((cl + cr) / 2), cw: Math.round(cr - cl), sc: document.querySelector('.ob').scrollLeft,
+        others: ss.filter(s => s !== a).map(s => s.getBoundingClientRect()).filter(r => r.right > 1 && r.left < vw - 1).length };
+    });
+    const tag = `${w}×${h} étape ${i + 1} : ${JSON.stringify(g)}`;
+    assert.ok(g.L >= 0 && g.R <= g.vw, 'contenu de l\'écran actif entier dans la fenêtre — ' + tag);
+    assert.ok(Math.abs(g.mid - g.vw / 2) <= 2, 'écran actif centré — ' + tag);
+    assert.ok(g.cw <= 472 && g.cw >= Math.min(472, g.vw - 48), 'colonne de 520 px au plus, marges de 24 px comprises — ' + tag);
+    assert.equal(g.others, 0, 'les autres écrans hors de la fenêtre — ' + tag); assert.equal(g.sc, 0, tag);
+  }
+  // dialogue modal : l'appli dessous est inerte ; Échap = « Passer »
+  assert.equal(await S3.p.$eval('#app', a => a.inert), true, 'appli inerte sous le premier lancement');
+  await S3.p.keyboard.press('Escape'); await S3.p.waitForFunction(() => !document.querySelector('.ob'), null, { timeout: 3000 });
+  assert.equal(await S3.p.$eval('#app', a => a.inert), false, 'Échap : premier lancement fermé, appli rendue active');
+  assert.equal(await S3.p.evaluate(() => !!localStorage.getItem('deckdeal:onboard')), true, 'Échap : marqué comme vu');
+  assert.deepEqual(S3.errs, []); await S3.ctx.close();
+}
+ok('premier lancement à 1280, 1890 (sans animation), 820, 844 × 390 et 360 px : chaque étape entière et centrée ; appli inerte, Échap = Passer');
+
 /* Réglages : chaque contrôle a un nom accessible (arbre d'accessibilité, comme TalkBack) ; texte secondaire (--ink-3) ≥ 4,5:1 sur les fonds, en clair et en sombre */
 await p.evaluate(() => openSettings()); await p.waitForSelector('.sheet-wrap.open #setHaptic');
 assert.equal(await p.getByRole('checkbox', { name: /^Vibrations/ }).count(), 1, '« Vibrations » : interrupteur nommé');
