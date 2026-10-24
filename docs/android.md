@@ -214,6 +214,37 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.0.12 (versionCode 13) : orientation gardée pendant une partie (24 octobre 2026)
+
+**Pourquoi** : un téléphone posé à plat au milieu de la table bascule tout seul entre portrait et paysage pendant une partie du compteur de vie. Le site sait mettre la table en page en paysage, mais le WebView ne peut pas verrouiller l'orientation (`screen.orientation.lock` y est refusé).
+
+**Correctif** : méthode `orientation({ lock })` du plugin local `ManaOrbit` : `setRequestedOrientation(SCREEN_ORIENTATION_LOCKED)` garde l'orientation du moment, `SCREEN_ORIENTATION_UNSPECIFIED` la rend au capteur ; aucune autorisation. Le site l'appelle au début de la partie et la rend à la pause, à la fin et à la fermeture (`partie-jeu.js` › `puOrient`). APK plus ancienne : la méthode manque, le site garde ses mises en page paysage (rien ne casse).
+
+1. `git pull`, `npm run setup` dans `android-app`, Android Studio › **Sync Project with Gradle Files**, `.aab` signé (§ 4.1).
+2. **Test interne** : « APK : 1.0.12 (13) » en bas des Réglages ; lancer une partie (4 joueurs), poser le téléphone à plat et le tourner : l'écran ne bascule plus ; quitter la partie : l'appli tourne de nouveau avec le téléphone. Puis la liste habituelle (scan d'une carte, connexion Google, notifications).
+3. Notes de version :
+```
+<fr-FR>
+Compteur de vie : l'écran ne bascule plus quand le téléphone est posé sur la table pendant une partie. Merci pour vos retours !
+</fr-FR>
+<en-US>
+Life counter: the screen no longer rotates when the phone lies on the table during a game. Thanks for your feedback!
+</en-US>
+<de-DE>
+Lebenspunktezähler: Der Bildschirm dreht sich während einer Partie nicht mehr, wenn das Handy auf dem Tisch liegt. Danke für euer Feedback!
+</de-DE>
+<es-ES>
+Contador de vidas: la pantalla ya no gira cuando el móvil está sobre la mesa durante una partida. ¡Gracias por vuestros comentarios!
+</es-ES>
+<it-IT>
+Contatore di vita: lo schermo non ruota più quando il telefono è appoggiato sul tavolo durante una partita. Grazie per i vostri feedback!
+</it-IT>
+<pt-BR>
+Contador de vida: a tela não gira mais quando o celular está na mesa durante uma partida. Obrigado pelo feedback!
+</pt-BR>
+```
+4. `APK_LATEST` à **13** une fois la 1.0.12 en ligne.
+
 ### APK 1.0.11 (versionCode 12) : mise au point du scan qui ne saute plus (24 octobre 2026)
 
 **Retour du propriétaire** : pendant le scan, toucher un bouton sous l'aperçu (+ / −, déclencheur, liste) refaisait la mise au point de la caméra, au mauvais endroit, alors qu'elle était faite sur la carte. Cause : le plugin `@capacitor-community/camera-preview` (`toBack`, `enableZoom`) envoie **tous** les touchers du WebView à la caméra (mise au point au point touché, puis plus de mise au point continue), quel que soit l'élément touché.

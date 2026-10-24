@@ -1,7 +1,7 @@
 /* ── partie-jeu.js : outils de la table du compteur de vie (le moteur est dans partie.js, l'écran dans partie-ui.js) ─────────────────────────────
    · Hasard : crypto.getRandomValues (puRnd, puRandInt), jamais Math.random.
-   · Dés et pièce (menu « … » › Dés et pièce) : d4, d6, d8, d10, d12, d20, pile ou face. Résultat dans chaque tuile, tourné vers son joueur (toucher : fermé, sinon
-     au bout de 10 s), court tirage animé (aucun avec prefers-reduced-motion) ; envoyé aux téléphones de la table avec l'état en direct (champ `de`, partie.js ›
+   · Dés et pièce (menu « … » › Dés et pièce) : d4, d6, d8, d10, d12, d20, pile ou face. Résultat dans chaque tuile, tourné vers son joueur (il reste jusqu'à un
+     toucher), court tirage animé (aucun avec prefers-reduced-motion) ; envoyé aux téléphones de la table avec l'état en direct (champ `de`, partie.js ›
      partieLiveClean) : bandeau sur la table en direct, tuiles de l'écran 2.
    · Premier joueur au hasard : tirage animé (les tuiles s'allument tour à tour puis s'arrêtent sur lui), au lancement (« Au hasard ») et dans le menu au tour 1.
    · Chrono : durée de la partie au centre du bouton rond (A) et dans la barre du haut (B, C) ; en option, le temps du tour en cours ; menu « … › Chrono »
@@ -42,7 +42,7 @@ function puRollTile(st, p, ext) {
 function puRoll(k) {
   const n = k === 'pf' ? 2 : Number(String(k).slice(1)); if (!(k === 'pf' || PU_DICE.includes(n))) return;
   const v = k === 'pf' ? puRandInt(2) : 1 + puRandInt(n), anim = !reduceMotion();
-  puRollSet({ id: puRid(), k, v, t: Date.now(), anim, until: Date.now() + PU_ROLL_MS });
+  puRollSet({ id: puRid(), k, v, t: Date.now(), anim, until: 0 });      // jusqu'à un toucher (choix du propriétaire)
   haptic('ok');
   if (anim) {      // court tirage : des valeurs défilent 0,6 s dans chaque tuile, puis le résultat
     const R = PU.roll, t0 = Date.now(), face = () => (k === 'pf' ? (puRandInt(2) ? T('Face') : T('Pile')) : String(1 + puRandInt(n)));
@@ -73,7 +73,7 @@ function puDrawShow(pos) {
   const ord = PU.st.places.filter(p => !p.elimine).map(p => p.pos).sort((a, b) => a - b), spin = !reduceMotion() && ord.length > 1;
   const R = { id: puRid(), k: 'j1', v: pos, t: Date.now(), spin, until: 0 };
   puRollSet(R); haptic('tap');
-  const done = () => { if (PU.roll !== R) return; R.spin = false; R.until = Date.now() + PU_ROLL_MS; puRollSet(R); haptic('ok'); };
+  const done = () => { if (PU.roll !== R) return; R.spin = false; puRollSet(R); haptic('ok'); };
   if (!spin) { done(); return; }
   const steps = ord.length * 2 + ((ord.indexOf(pos) - 0 + ord.length) % ord.length) + 1;      // deux tours de table, puis jusqu'à lui
   let i = 0;
@@ -265,7 +265,7 @@ function puJeuKey(e) {
 }
 
 /* ── Orientation : gardée pendant la partie quand c'est possible ──────────────────────────────── */
-/** Appli Android : le plugin ManaOrbit s'il a la méthode orientation({ lock }) (APK à venir) ; navigateur, PWA installée : screen.orientation.lock sur l'orientation
+/** Appli Android : le plugin ManaOrbit s'il a la méthode orientation({ lock }) (APK 1.0.12 et plus) ; navigateur, PWA installée : screen.orientation.lock sur l'orientation
  *  du moment (souvent refusé hors plein écran : sans effet, le compteur se met alors en page en paysage). */
 function puOrient(on) {
   if (!!PU.olk === !!on) return; PU.olk = !!on;

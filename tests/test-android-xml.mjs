@@ -110,3 +110,13 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 12, 'code natif changé : versionCode 12 et plus (1.0.11)');
   console.log('✓ APK 1.0.11 : camTouch (touchers de la caméra limités à l\'aperçu) déclarée et demandée par le site, versionCode ≥ 12');
 }
+
+// APK 1.0.12 : orientation gardée pendant une partie du compteur de vie (le WebView refuse screen.orientation.lock).
+{
+  const plug = readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8'), gradle = readFileSync('android-app/android/app/build.gradle', 'utf8');
+  assert.match(plug, /@PluginMethod\s+public void orientation\(PluginCall call\)/, 'méthode orientation'); assert.match(plug, / \* - orientation\(/, 'orientation décrite dans l\'en-tête du plugin');
+  assert.match(plug, /SCREEN_ORIENTATION_LOCKED : ActivityInfo\.SCREEN_ORIENTATION_UNSPECIFIED/, 'verrou et retour au capteur');
+  assert.match(readFileSync('src/partie-jeu.js', 'utf8'), /typeof mo\.orientation === 'function'/, 'site : orientation seulement si la coque l\'a (APK 1.0.12)');
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 13, 'code natif changé : versionCode 13 et plus (1.0.12)');
+  console.log('✓ APK 1.0.12 : orientation (compteur de vie) déclarée et demandée par le site, versionCode ≥ 13');
+}

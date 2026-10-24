@@ -498,7 +498,7 @@ ok('préparation : plan de la table (ordre du tour, premier joueur), « Changer 
 const w = await newPage(browser, world, { goto: false });
 await w.p.addInitScript(() => {
   try { Object.defineProperty(Navigator.prototype, 'wakeLock', { get: () => undefined, configurable: true }); } catch (e) { /* déjà absent */ }
-  window.__aw = []; window.__or = []; const P = { ManaOrbit: { keepAwake: async o => { window.__aw.push(o.on); return o; }, brightness: async o => o, orientation: async o => { window.__or.push(o.lock); return o; } } };      // orientation : méthode attendue d'une APK à venir
+  window.__aw = []; window.__or = []; const P = { ManaOrbit: { keepAwake: async o => { window.__aw.push(o.on); return o; }, brightness: async o => o, orientation: async o => { window.__or.push(o.lock); return o; } } };      // orientation : méthode de l'APK 1.0.12 et plus
   window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => !!P[n], Plugins: P, getPlatform: () => 'android' };
 });
 await w.p.goto(world.url); await toHome(w.p);
