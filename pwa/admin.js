@@ -7,7 +7,7 @@
    liste (tri et recherche en cours) par GET /api/admin/export. Actions, toujours confirmées : désactiver / réactiver un compte (fenêtre qui dit lequel),
    retirer un deck public (deux appuis) ; POST en JSON avec le jeton ; journal des actions tenu par le serveur. Discord : messages du bot dans un salon (pings, historique).
    QR codes fixes (flyers, affiches, Discord) : destination, scans, SVG et PNG ; jamais supprimés.
-   Onglets en haut (Vue d'ensemble, Utilisateurs, Carte mystère, Discord, Fils, QR codes, Signalements, Journal, Serveur), l'onglet dans l'adresse (#discord, #qr…) ; blocs repliables
+   Onglets en haut (Vue d'ensemble, Utilisateurs, Carte mystère, Événements, Discord, Fils, QR codes, Signalements, Journal, Serveur), l'onglet dans l'adresse (#discord, #qr…) ; blocs repliables
    (état gardé sur l'appareil).
    CSP stricte (proxy.mjs › ADM_CSP) : aucun script ni style en ligne, d'où ce fichier et admin.css ; graphiques en SVG dessinés ici, sans bibliothèque. */
 (function () {
@@ -64,7 +64,7 @@
     $('#acts').hidden = v !== 'vMain'; $('#tabs').hidden = v !== 'vMain';
     if (v === 'vErr') $('#errTxt').textContent = msg || 'Le serveur ne répond pas.';
     if (v !== 'vMain') {      // rien ne reste affiché d'une session admin précédente
-      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#health', '#notes', '#meta', '#scans', '#daily', '#discord', '#dyRepCard', '#threads', '#qrcodes']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; $('#dyRepCard').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dy.d = null; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false; thReset(); qcReset(); hcReset();
+      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#health', '#notes', '#meta', '#scans', '#daily', '#discord', '#dyRepCard', '#threads', '#qrcodes', '#events']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; $('#dyRepCard').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dy.d = null; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false; thReset(); qcReset(); hcReset(); evReset();
       $('#uCount').textContent = ''; tb.cur = ''; tb.y = {}; for (const k of TABS) { tabOf(k).hidden = false; badge(k, 0); }      // onglets rendus : la prochaine session redit ce qui est coupé
       const d = $('#dlg'); if (d.open) d.close(); d.replaceChildren();
     }
@@ -73,7 +73,7 @@
   /* Onglets (barre collante sous l'en-tête) : une partie du panneau chacun, l'onglet dans l'adresse (#discord…) : retour, rechargement et lien direct.
      Onglet sans objet (Carte mystère ou Discord coupés sur le serveur : 404) masqué, et l'adresse ramenée à la vue d'ensemble ; pastille : ce qui attend
      une décision. Clavier (motif « tablist » de l'ARIA) : flèches, Début, Fin ; focus mobile (un seul onglet dans l'ordre de tabulation). */
-  const TABS = ['apercu', 'comptes', 'mystere', 'discord', 'fils', 'qr', 'signalements', 'journal', 'serveur'];
+  const TABS = ['apercu', 'comptes', 'mystere', 'evenements', 'discord', 'fils', 'qr', 'signalements', 'journal', 'serveur'];
   const tb = { cur: '', y: {} };      // onglet affiché, position de défilement de chacun (rendue au retour sur l'onglet)
   const tabOf = k => document.getElementById('t-' + k);
   const tabOn = k => TABS.includes(k) && !tabOf(k).hidden;
@@ -88,6 +88,7 @@
     if (location.hash && hashParts()[0] !== k) history.replaceState(null, '', '#' + k);      // onglet inconnu ou masqué : l'adresse dit ce qui est affiché
     if (prev !== k) { scrollTo(0, tb.y[k] || 0); tabReveal(tabOf(k)); if (k === 'apercu') charts(); }
     if (k === 'fils') thRoute(hashParts()[0] === 'fils' ? hashParts()[1] : '');
+    if (prev !== k && k === 'evenements') { evCharts(); events(); }      // Événements : relu à chaque affichage de l'onglet
     hcSoon();      // Serveur : relu toutes les 20 s tant qu'il est affiché
   }
   /** Onglet demandé (clic, flèches, tuile) : nouvelle entrée de l'historique (retour : hashchange, l'onglet d'avant), sauf replace. */
@@ -116,6 +117,7 @@
     badge('mystere', chk, plural(chk, 'partie ou compte', 'parties ou comptes') + ' à vérifier');
     const todo = th.state === 'on' ? thTodoAll() : 0; badge('fils', todo, plural(todo, 'fil') + ' à trier');
     const bad = $$('#srv dd.bad, #health .hi[data-lv="bad"]').length; badge('serveur', bad, plural(bad, 'point', 'points') + ' à regarder');
+    evDot();
   }
   function tabsBoot() {
     const l = $('#tabl');
@@ -159,7 +161,7 @@
     $('#sort').addEventListener('change', () => { st.sort = $('#sort').value; st.page = 1; load(); });
     $('#dir').addEventListener('click', () => { st.dir = st.dir === 'desc' ? 'asc' : 'desc'; st.page = 1; load(); });
     tabsBoot();
-    let resize = 0; addEventListener('resize', () => { clearTimeout(resize); resize = setTimeout(() => { if (data && tb.cur === 'apercu') charts(); tabEdge(); }, 150); });
+    let resize = 0; addEventListener('resize', () => { clearTimeout(resize); resize = setTimeout(() => { if (data && tb.cur === 'apercu') charts(); if (data && tb.cur === 'evenements') evCharts(); tabEdge(); }, 150); });
     try {
       const [app, auth] = await Promise.all([import(FB_BASE + 'firebase-app.js'), import(FB_BASE + 'firebase-auth.js')]);
       const a = app.getApps().length ? app.getApp() : app.initializeApp(FIREBASE_CONFIG);
@@ -230,6 +232,7 @@
     if (first) tabShow(hashTab()); else if (tb.cur === 'apercu') charts();
     if (first && tb.cur !== 'apercu') charts();      // dessinés une fois (onglet caché : largeur par défaut, redessinés à l'affichage)
     daily();
+    if (first || !ev.d || tb.cur === 'evenements') events();      // sinon relu à l'affichage de l'onglet
     discord();
     threads();
     qrcodes();
@@ -431,13 +434,14 @@
       h('div', { class: 'dyl pdl', 'data-empty': 'Aucun deck signalé.' }, list.length ? list.map(p => deckRow(p, true)) : [empty('Aucun deck signalé.')])], { meta: plural(list.length, 'deck') }));
   }
   const ACT = { off: ['Compte désactivé', 'Désactivation refusée'], on: ['Compte réactivé', 'Réactivation refusée'], pub: ['Deck public retiré', 'Retrait refusé'],
-    qrnew: ['QR code créé', 'Création refusée'], qrto: ['Destination d\'un QR code changée', 'Changement refusé'], qrname: ['QR code renommé', 'Renommage refusé'] };
+    qrnew: ['QR code créé', 'Création refusée'], qrto: ['Destination d\'un QR code changée', 'Changement refusé'], qrname: ['QR code renommé', 'Renommage refusé'],
+    event: ['Événement', 'Événement : changement refusé'] };
   /** Journal des actions (tenu par le serveur, les plus récentes d'abord) : action, compte (nom réduit, e-mail masqué), deck, date, éditeur. */
   function journal(log) {
     const box = $('#journal'), head = chead('Journal des actions', log && log.length ? nf(log.length) + ' dernière' + (log.length > 1 ? 's' : '') : '');
     if (log == null) return box.replaceChildren(head, h('p', { class: 'note' }, 'Journal des actions illisible sur le serveur.'));
     box.replaceChildren(head, h('p', { class: 'hint' }, 'Tenu par le serveur (500 dernières actions, réussies ou refusées) : nom réduit et e-mail masqué seulement.'), h('div', { class: 'dyl' }, log.length ? log.map(e => h('div', { class: 'dyr' + (e.ok ? '' : ' ko'), 'data-a': e.a },
-      h('span', { class: 'pdt' }, h('b', null, (ACT[e.a] || [e.a, e.a])[e.ok ? 0 : 1]), h('small', null, [e.n || (e.a === 'pub' ? 'compte inconnu' : 'Sans nom'), e.m, e.d, e.t ? D_TIME.format(e.t) : '', e.by ? 'par ' + e.by : ''].filter(Boolean).join(' · '))),
+      h('span', { class: 'pdt' }, h('b', null, (ACT[e.a] || [e.a, e.a])[e.ok ? 0 : 1]), h('small', null, [e.n || (e.a === 'pub' ? 'compte inconnu' : e.a === 'event' ? '' : 'Sans nom'), e.m, e.d, e.t ? D_TIME.format(e.t) : '', e.by ? 'par ' + e.by : ''].filter(Boolean).join(' · '))),
       e.ok ? (e.e ? h('span', { class: 'tag' }, e.e) : null) : h('span', { class: 'tag bad' }, e.e || 'échec'))) : [h('p', { class: 'empty' }, 'Aucune action pour l\'instant.')]));
   }
   /* Scans signalés depuis l'appli (« Signaler un problème de scan », proxy.mjs › /api/admin/scans) : du plus récent au plus ancien, par pages ; la photo est
@@ -1175,6 +1179,199 @@
       const blob = await new Promise(r => c.toBlob(r, 'image/png')); if (!blob) throw new Error('png');
       save(blob, 'qr-mana-orbit-' + q.id + '.png'); toast('PNG ' + nf(px) + ' × ' + nf(px) + ' px téléchargé.');
     } catch (e) { toast('PNG impossible dans ce navigateur : prends le SVG.'); } finally { b.disabled = false; }
+  }
+  /* Événements saisonniers (proxy.mjs › /api/admin/events, event-srv.mjs) : onglet « Événements » : une carte par édition (en cours, à venir dans les 60 jours,
+     passées avec des données) : emoji, nom, dates, état (« En cours · jour 3 / 15 », « Dans 12 jours », « Terminé »), interrupteur « Événement actif » (role
+     switch, aria-checked) coupé à chaud par POST /api/admin/events/switch { id, on } : couper est confirmé dans la fenêtre, rallumer part tout de suite ;
+     avertissements EVENT=0 (tout coupé) et EVENT_FORCE (essais). Statistiques : tuiles (chasseurs, dont comptes / sans compte ; à total / total ; objets trouvés ;
+     aujourd'hui ou meilleur jour), trouvées par jour (barres, toute la durée de l'édition : jours à venir en gris) et chasseurs par jour (courbe, même échelle),
+     répartition des chasseurs par total trouvé (histogramme, total / total en vert), top 20 des pseudos publics (textContent, date à l'heure de Paris).
+     Relu à chaque affichage de l'onglet et par « Actualiser » ; route absente (404, ou 405 d'un serveur sans le module) : onglet masqué. Pastille : un point
+     quand une édition en cours est coupée (interrupteur ou EVENT=0). */
+  const ev = { gen: 0, d: null, busy: false, sw: '' };
+  const evReset = () => { ev.gen++; Object.assign(ev, { d: null, busy: false, sw: '' }); };
+  const D_DAYY = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const D_PARIS = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+  const NF1 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
+  const evT = d => (/^\d{4}-\d{2}-\d{2}$/.test(String(d)) ? Date.parse(d + 'T12:00:00Z') : NaN);
+  const evGap = (a, b) => Math.round((evT(b) - evT(a)) / 864e5);      // jours de a à b (NaN si une date manque)
+  const evDay = d => (Number.isFinite(evT(d)) ? D_DAY.format(evT(d)) : '');
+  const evOne = o => o.replace(/(?<=\S)s(?=\s|$)/, '');      // « citrouilles » → « citrouille », « boules de Noël » → « boule de Noël »
+  const evCap = o => o.charAt(0).toUpperCase() + o.slice(1);
+  const evObj = e => String((e && e.obj) || 'objets');
+  /** Nom affiché : « Halloween 2026 » (l'année des dates, si le nom ne la dit pas déjà). */
+  const evName = e => { const n = String(e.name || e.id || 'Événement'), y = String(e.from || '').slice(0, 4); return /^\d{4}$/.test(y) && !n.includes(y) ? n + ' ' + y : n; };
+  /** « du 25 oct. au 8 nov. 2026 » ('' si les dates manquent). */
+  const evDates = e => (Number.isFinite(evT(e.from)) && Number.isFinite(evT(e.to)) ? 'du ' + (String(e.from).slice(0, 4) === String(e.to).slice(0, 4) ? D_DAY : D_DAYY).format(evT(e.from)) + ' au ' + D_DAYY.format(evT(e.to)) : '');
+  /** État d'une édition → [classe de l'étiquette, texte]. */
+  function evState(e, day) {
+    const len = evGap(e.from, e.to) + 1;
+    if (e.state === 'live') { const i = evGap(e.from, day) + 1; return ['ok', Number.isFinite(len) && Number.isFinite(i) ? 'En cours · jour ' + Math.min(len, Math.max(1, i)) + ' / ' + len : 'En cours']; }
+    if (e.state === 'soon') { const n = evGap(day, e.from); return ['', !Number.isFinite(n) ? 'À venir' : n <= 0 ? 'Commence aujourd\'hui' : n === 1 ? 'Demain' : 'Dans ' + n + ' jours']; }
+    return ['', evDay(e.to) ? 'Terminé le ' + evDay(e.to) : 'Terminé'];
+  }
+  /** Maximum « rond » de l'axe (1 ; 1,2 ; 1,5 ; 2 ; 2,5 ; 3 ; 4 ; 5 ; 6 ou 8 × 10ⁿ) : repères lisibles, barres hautes. */
+  const evNice = v => { if (!(v > 0)) return 1; const p = 10 ** Math.floor(Math.log10(v)); for (const k of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (v <= k * p) return Math.max(1, Math.round(k * p)); return v; };
+  const evGoBtn = () => { const b = h('button', { class: 'btn ghost small', id: 'evGo', type: 'button', title: 'Relire le calendrier et les statistiques' }, 'Actualiser'); b.disabled = ev.busy; b.addEventListener('click', () => events(true)); return b; };
+  async function events(force) {
+    if (!user || (ev.busy && !force)) return;
+    const g = ++ev.gen, box = $('#events'); ev.busy = true;
+    if (!box.firstChild) fill(box, h('section', { class: 'card' }, chead('Événements'), loading('Lecture du calendrier…')));
+    if ($('#evGo')) $('#evGo').disabled = true;
+    let r; try { r = await call('/events'); } catch (e) { r = null; }
+    if (g !== ev.gen) return;
+    ev.busy = false; if ($('#evGo')) $('#evGo').disabled = false;
+    if (r && (r.status === 404 || r.status === 405)) { ev.d = null; box.replaceChildren(); tabOf('evenements').hidden = true; if (tb.cur === 'evenements') tabShow('apercu'); badges(); return; }      // serveur sans le module
+    tabOf('evenements').hidden = false;
+    if (!r || r.status !== 200 || !r.body || typeof r.body !== 'object') {
+      const m = (r && r.body && r.body.message) || 'Le serveur ne répond pas.';
+      if (ev.d) { if (force) toast(m); return; }      // déjà affiché : on garde ce qu'on a
+      return fill(box, h('section', { class: 'card evhead' }, chead('Événements', evGoBtn()), h('p', { class: 'note' }, m)));
+    }
+    ev.d = r.body; evPaint(); badges();
+  }
+  /** Pastille de l'onglet : un point (sans nombre) quand une édition en cours est coupée. */
+  function evDot() {
+    const b = tabOf('evenements').querySelector('.badge'), d = ev.d, cut = d && Array.isArray(d.list) ? d.list.filter(e => e && e.state === 'live' && (e.off || d.on === false)).length : 0;
+    b.classList.add('dot'); b.hidden = !cut; fill(b, cut ? h('span', { class: 'sr' }, ' : événement en cours coupé') : []);
+  }
+  function evPaint() {
+    const d = ev.d, box = $('#events'); if (!d) return;
+    const list = Array.isArray(d.list) ? d.list.filter(e => e && e.id) : [], stats = d.stats && typeof d.stats === 'object' ? d.stats : {}, forced = d.force ? list.find(e => e.id === d.force) : null;
+    const head = h('section', { class: 'card evhead' },
+      chead('Événements', h('span', { class: 'evhb' }, evDay(d.day) ? h('small', null, 'Aujourd\'hui : ' + evDay(d.day) + ' (heure de Paris)') : null, evGoBtn())),
+      d.on === false ? h('p', { class: 'note', 'data-k': 'off' }, h('b', null, 'EVENT=0 sur le serveur : tout est coupé.'), ' Ni chasse ni décorations dans l\'appli, quels que soient les interrupteurs ci-dessous.') : null,
+      d.force ? h('p', { class: 'note', 'data-k': 'force' }, h('b', null, 'Forcé par EVENT_FORCE : ' + (forced ? evName(forced) : String(d.force)) + '.'), ' Réservé aux essais : l\'édition est servie même hors de ses dates.') : null,
+      h('p', { class: 'hint' }, 'Éditions en cours, à venir (60 jours) et terminées avec des données. « Événement actif » coupe une édition à chaud, sans redémarrer le serveur : plus de chasse ni de décorations dans l\'appli ; les progressions sont gardées et reviennent quand tu la rallumes.'));
+    fill(box, head, list.length ? list.map(e => evCard(e, stats[e.id], d)) : h('section', { class: 'card' }, empty('Aucun événement en cours, à venir dans les 60 jours ou terminé avec des données.')));
+    evCharts();
+  }
+  function evCard(e, st, d) {
+    const [cls, label] = evState(e, d.day), obj = evObj(e), total = Number(e.total) || 0;
+    const tags = h('div', { class: 'evtags' }, h('span', { class: 'tag ' + cls, 'data-k': 'state' }, label), e.off ? h('span', { class: 'tag bad', 'data-k': 'off' }, 'coupé') : null,
+      d.force && d.force === e.id ? h('span', { class: 'tag warn', 'data-k': 'force' }, 'forcé par EVENT_FORCE') : null);
+    const sub = [evDates(e), total ? nf(total) + ' ' + obj + (e.per ? ', ' + nf(e.per) + ' par jour au plus' : '') : ''].filter(Boolean).join(' · ');
+    const top = h('div', { class: 'evtop' }, h('span', { class: 'evemo', 'aria-hidden': 'true' }, String(e.emoji || '✨')),
+      h('div', { class: 'evid' }, h('h2', null, evName(e)), sub ? h('p', { class: 'evdates' }, sub) : null, tags),
+      e.state === 'past' ? null : evSwitch(e, d));      // terminée : plus rien à couper
+    return h('article', { class: 'card evc' + (e.off ? ' cut' : ''), 'data-id': e.id }, top,
+      st && typeof st === 'object' ? evStats(e, st, d) : h('p', { class: 'hint evnone' }, e.state === 'soon' ? 'Pas encore commencé : les statistiques arrivent dès le premier jour.' : 'Aucune statistique pour cette édition.'));
+  }
+  function evSwitch(e, d) {
+    const on = !e.off, id = 'evsw-' + e.id;
+    const b = h('button', { class: 'evsw', type: 'button', role: 'switch', 'aria-checked': String(on), 'aria-describedby': id, 'data-id': e.id },
+      h('span', { class: 'trk', 'aria-hidden': 'true' }, h('span', { class: 'knb' })), h('span', { class: 'evswl' }, 'Événement actif'));
+    b.disabled = ev.sw === e.id; b.addEventListener('click', () => evToggle(e, b));
+    const txt = !on ? 'Coupé : ni chasse ni décorations ; progressions gardées.' : d.on === false ? 'Allumé ici, mais EVENT=0 coupe tout sur le serveur.'
+      : e.state === 'soon' ? 'S\'ouvrira tout seul le ' + (Number.isFinite(evT(e.from)) ? D_DAYY.format(evT(e.from)) : 'premier jour') + '.' : 'Chasse et décorations visibles dans l\'appli.';
+    return h('div', { class: 'evswr' }, b, h('small', { class: 'evswd', id }, txt));
+  }
+  /** Interrupteur : couper (confirmé) ou rallumer (tout de suite) ; la réponse donne les éditions coupées ; refus : dans la fenêtre. */
+  async function evToggle(e, b) {
+    if (ev.sw) return;
+    const on = !!e.off;      // coupé → on rallume
+    if (!on) {
+      const v = await dlg('Couper ' + evName(e) + ' ?', [h('p', { class: 'dlgw' }, [e.emoji, evName(e), evDates(e)].filter(Boolean).join(' · ')),
+        h('p', null, 'Plus personne ne verra la chasse ni les décorations ; les progressions sont gardées.'),
+        h('p', { class: 'hint' }, 'Effet immédiat, sans redémarrer le serveur. Tu pourras la rallumer ici.')], [['Annuler', ''], ['Couper l\'événement', 'ok', 'main danger']]);
+      if (v !== 'ok' || ev.sw) return;
+    }
+    ev.sw = e.id; b.disabled = true; b.setAttribute('aria-busy', 'true');
+    let x; try { x = await call('/events/switch', 'POST', { id: e.id, on }); } catch (er) { x = null; }
+    ev.sw = '';
+    if (x && x.body && Array.isArray(x.body.log)) journal(x.body.log);
+    if (!x || x.status !== 200 || !x.body || !x.body.ok) { b.disabled = false; b.removeAttribute('aria-busy'); return oops(x, (on ? 'Impossible de rallumer l\'événement' : 'Impossible de couper l\'événement') + ' : le serveur ne répond pas.'); }
+    const off = Array.isArray(x.body.off) ? x.body.off.map(String) : null;
+    if (ev.d && Array.isArray(ev.d.list)) for (const it of ev.d.list) if (it) it.off = off ? off.includes(it.id) : it.id === e.id ? !on : !!it.off;
+    evPaint(); badges(); toast(on ? evName(e) + ' rallumé.' : evName(e) + ' coupé : plus de chasse ni de décorations.');
+    const nb = $('#events .evsw[data-id="' + CSS.escape(e.id) + '"]'); if (nb) nb.focus();
+  }
+  function evStats(e, st, d) {
+    const obj = evObj(e), total = Number(e.total) || 0, hunters = Number(st.hunters) || 0, finds = Number(st.finds) || 0, full = Number(st.full) || 0, days = Array.isArray(st.days) ? st.days.filter(Boolean) : [];
+    const today = days.find(x => x.day === d.day), best = days.reduce((m, x) => ((Number(x.finds) || 0) > (m ? m.f : 0) ? { day: x.day, f: Number(x.finds) } : m), null);
+    const tiles = h('div', { class: 'kpis evk' },
+      kpi('Chasseurs', nf(hunters), nf(st.accounts) + ' avec un compte · ' + nf(st.devices) + ' sans compte', 'hunters'),
+      kpi('À ' + total + ' / ' + total, nf(full), hunters ? PCT(full / hunters) + ' des chasseurs' : 'personne pour l\'instant', 'full'),
+      kpi(evCap(obj) + ' trouvées', nf(finds), hunters ? NF1.format(finds / hunters) + ' par chasseur en moyenne' : 'aucune pour l\'instant', 'finds'),
+      e.state === 'live' ? kpi('Aujourd\'hui', nf(today ? today.finds : 0), 'par ' + plural(today ? Number(today.hunters) || 0 : 0, 'chasseur'), 'today')
+        : kpi('Meilleur jour', best ? nf(best.f) : '—', best && evDay(best.day) ? evDay(best.day) : 'aucune trouvaille', 'best'));
+    const leg = h('span', { class: 'evleg', 'aria-hidden': 'true' }, h('span', { class: 'lb' }, 'trouvées'), h('span', { class: 'll' }, 'chasseurs'));
+    const chart = h('section', { class: 'evs' }, h('div', { class: 'chead' }, h('h3', null, evCap(obj) + ' trouvées par jour'), leg), h('div', { class: 'evch', 'data-id': e.id, 'data-k': 'days' }));
+    const hist = h('section', { class: 'evs' }, chead('Répartition des chasseurs', 'selon leur total', 'h3'), h('div', { class: 'evch', 'data-id': e.id, 'data-k': 'dist' }));
+    const rows = (Array.isArray(st.top) ? st.top : []).filter(Boolean).slice(0, 20);
+    const list = rows.length ? h('ol', { class: 'evtl' }, rows.map((r, i) => { const c = Number(r.c) || 0; return h('li', { class: 'evr' + (i < 3 ? ' p' : '') + (total && c >= total ? ' done' : '') },
+      h('span', { class: 'evrk' }, String(i + 1)), h('b', { class: 'evpn' }, String(r.n || 'Pseudo masqué')), h('span', { class: 'evn' }, nf(c) + (total ? ' / ' + total : '')),
+      h('small', null, r.at > 0 ? D_PARIS.format(r.at) : '—')); })) : empty('Aucun chasseur classé pour l\'instant.');
+    const top = fold('ev-top-' + e.id, h('h3', null, 'Top 20 des chasseurs'), [h('p', { class: 'hint' }, 'Pseudos publics de la Carte mystère (jamais le nom Google) ; date de la dernière trouvaille, heure de Paris ; à égalité, le premier arrivé devant.'), list],
+      { meta: plural(rows.length, 'pseudo'), cls: 'evs evtop20', shut: e.state === 'past' });      // édition terminée : replié d'office
+    return [tiles, h('div', { class: 'evg' }, chart, hist), top];
+  }
+  /** Graphiques des éditions, à la largeur de leur boîte (redessinés à l'affichage de l'onglet et quand la fenêtre change). */
+  function evCharts() {
+    const d = ev.d; if (!d) return;
+    const list = Array.isArray(d.list) ? d.list : [], stats = d.stats && typeof d.stats === 'object' ? d.stats : {};
+    for (const box of $$('#events .evch')) {
+      const e = list.find(x => x && x.id === box.dataset.id), st = e && stats[e.id]; if (!st) continue;
+      box.replaceChildren(...(box.dataset.k === 'days' ? evDays(box, e, st, d.day) : evDist(box, e, st)));
+    }
+  }
+  /** Cadre : repères (maximum et moitié), ligne de base, libellés de l'axe horizontal (premier, milieu, dernier) ; lab(i) : texte du i-ième. */
+  function evFrame(box, n, max, aria, lab) {
+    const W = Math.max(260, Math.round(box.clientWidth) || 320), H = 168, top = 12, bot = 22, left = 12 + 6.5 * nf(max).length, plotW = W - left - 4, plotH = H - top - bot, step = plotW / Math.max(1, n);
+    const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': aria });
+    for (const v of max > 1 ? [max, Math.round(max / 2)] : [max]) {
+      const y = top + plotH - v / max * plotH;
+      svg.append(s('line', { x1: left, x2: W - 4, y1: y, y2: y, class: 'grid' }));
+      const t = s('text', { x: left - 6, y: y + 4, class: 'ax', 'text-anchor': 'end' }); t.textContent = nf(v); svg.append(t);
+    }
+    svg.append(s('line', { x1: left, x2: W - 4, y1: top + plotH, y2: top + plotH, class: 'base' }));
+    for (const i of [...new Set([0, Math.floor((n - 1) / 2), n - 1])]) {
+      if (i < 0) continue;
+      const t = s('text', { x: left + i * step + step / 2, y: H - 6, class: 'ax', 'text-anchor': n > 1 && i === 0 ? 'start' : n > 1 && i === n - 1 ? 'end' : 'middle' });
+      t.textContent = lab(i); svg.append(t);
+    }
+    return { svg, top, left, plotH, step, y: v => top + plotH - v / max * plotH };
+  }
+  /** Barre arrondie en haut, posée sur la ligne de base. */
+  const evBar = (x, bw, base, bh) => { const y = base - bh, r = Math.min(4, bw / 2, bh); return s('path', { d: `M${x},${base}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${base}Z`, class: 'fill' }); };
+  /** Trouvées par jour (barres) et chasseurs par jour (courbe, même échelle) sur toute la durée de l'édition ; jours à venir : un trait gris. */
+  function evDays(box, e, st, day) {
+    const obj = evObj(e), rows = (Array.isArray(st.days) ? st.days : []).filter(x => x && x.day), by = new Map(rows.map(x => [x.day, x]));
+    let dates = [];
+    if (Number.isFinite(evT(e.from)) && Number.isFinite(evT(e.to))) for (let t = evT(e.from); t <= evT(e.to) && dates.length < 120; t += 864e5) dates.push(new Date(t).toISOString().slice(0, 10));
+    if (!dates.length) dates = rows.map(x => x.day);
+    if (!dates.length) return [empty('Aucune trouvaille pour l\'instant.')];
+    const val = (x, k) => Number(x && x[k]) || 0, last = day || dates[dates.length - 1];
+    const max = evNice(Math.max(1, ...rows.map(x => Math.max(val(x, 'finds'), val(x, 'hunters')))));
+    const { svg, top, left, plotH, step, y } = evFrame(box, dates.length, max, evCap(obj) + ' trouvées par jour : ' + nf(st.finds) + ' en tout ; chasseurs par jour en courbe', i => evDay(dates[i]));
+    const base = top + plotH, bw = Math.max(3, Math.min(28, step * 0.62)), X = i => left + i * step + step / 2, pts = [];
+    dates.forEach((dt, i) => {
+      const fut = dt > last, x = by.get(dt), f = val(x, 'finds'), hh = val(x, 'hunters');
+      const g = s('g', { class: 'bar' + (fut ? ' fut' : f ? '' : ' zero') + (dt === day ? ' today' : '') }), tt = s('title');
+      tt.textContent = evDay(dt) + ' : ' + (fut ? 'à venir' : nf(f) + ' ' + (f > 1 ? obj : evOne(obj)) + ' · ' + plural(hh, 'chasseur'));
+      g.append(tt, s('rect', { x: left + i * step, y: top, width: step, height: plotH, class: 'hit' }));
+      if (fut) g.append(s('rect', { x: X(i) - bw / 2, y: base - 2, width: bw, height: 2, rx: 1, class: 'futb' }));
+      else { if (f) g.append(evBar(X(i) - bw / 2, bw, base, Math.max(3, f / max * plotH))); pts.push([X(i), y(hh)]); }
+      svg.append(g);
+    });
+    if (pts.length > 1) svg.append(s('path', { d: 'M' + pts.map(p => p[0] + ',' + p[1]).join(' L'), class: 'line' }));
+    for (const [cx, cy] of pts) svg.append(s('circle', { cx, cy, r: 3.5, class: 'dot' }));
+    return [svg];
+  }
+  /** Répartition : nombre de chasseurs pour chaque total trouvé (0 à total) ; total / total en vert. */
+  function evDist(box, e, st) {
+    const total = Math.max(0, Math.min(500, Number(e.total) || 0)), src = Array.isArray(st.dist) ? st.dist : [], n = Math.max(total + 1, Math.min(501, src.length));
+    const dist = Array.from({ length: n }, (_, i) => Math.max(0, Number(src[i]) || 0)), max = evNice(Math.max(1, ...dist)), sum = dist.reduce((t, v) => t + v, 0);
+    if (!sum) return [empty('Personne n\'a encore trouvé de ' + evOne(evObj(e)) + '.')];
+    const { svg, top, plotH, left, step } = evFrame(box, n, max, 'Répartition de ' + plural(sum, 'chasseur') + ' selon leur total, de 0 à ' + (n - 1), i => String(i));
+    const base = top + plotH, bw = Math.max(2, step - (step > 6 ? 2 : 1));
+    dist.forEach((v, i) => {
+      const g = s('g', { class: 'bar' + (total && i === total ? ' full' : '') + (v ? '' : ' zero') }), tt = s('title');
+      tt.textContent = i + (total ? ' / ' + total : '') + ' : ' + plural(v, 'chasseur'); g.append(tt, s('rect', { x: left + i * step, y: top, width: step, height: plotH, class: 'hit' }));
+      if (v) g.append(evBar(left + i * step + (step - bw) / 2, bw, base, Math.max(3, v / max * plotH)));
+      svg.append(g);
+    });
+    return [svg, h('p', { class: 'hint evcap' }, 'Hauteur : nombre de chasseurs ; en bas : ' + evObj(e) + ' trouvées' + (total ? ' (en vert : ' + total + ' / ' + total + ')' : '') + '.')];
   }
   /* Santé du serveur (onglet « Serveur », proxy.mjs › GET /api/admin/server) : mémoire et caches, démarrages, processeur, requêtes par minute, en direct,
      disque, historique des prix, et l'avis « quand envisager un VPS » tiré de ces signaux (niveaux ok / warn / bad décidés par le serveur). Lu au premier

@@ -3,7 +3,9 @@
 // autre compte : « Accès réservé » et rien d'autre ; éditeur : chiffres, graphiques (inscriptions, actifs par jour), liste des comptes (tri, recherche, pages,
 // en-têtes cliquables sur ordinateur), export CSV, « Rafraîchir » ; actions confirmées (désactiver / réactiver, rôle IAM manquant, retirer un deck public),
 // journal ; déjà connecté dans l'appli : tableau de bord d'emblée ; sombre. Onglets (clic, #adresse, retour, rechargement, lien direct, clavier, pastilles,
-// onglets masqués quand une partie est coupée), Carte mystère (/api/admin/daily simulé : en-tête, bloc repliable gardé au rechargement, actions), Discord
+// onglets masqués quand une partie est coupée), Carte mystère (/api/admin/daily simulé : en-tête, bloc repliable gardé au rechargement, actions), Événements
+// (/api/admin/events et …/switch simulés : cartes, tuiles, trouvées par jour, répartition, top 20, interrupteur confirmé, refus 403, EVENT=0, EVENT_FORCE,
+// onglet masqué sur 404 ou 405, journal, 360 px sombre), Discord
 // (/api/admin/discord simulé par des routes : onglet caché sur 404, bot non configuré, salons groupés, raccourcis, modèles, pings, publier, envoi confirmé,
 // historique, suppression, erreur, 360 px), Fils des forums (/api/admin/discord/threads… simulés : filtres, fil, étiquettes, fermer, verrouiller, renommer,
 // répondre, supprimer, téléphone), QR codes fixes (vrai serveur : cartes, scans, destination confirmée, création, renommer, Tester, SVG, PNG ≥ 2 048 px,
@@ -63,7 +65,7 @@ async function noOverflow(p, w, where) {
   const out = await p.$$eval('#vMain *, .top *', (e, w) => e.filter(x => x.getClientRects().length && x.getBoundingClientRect().right > w + 0.5 && !x.closest('.tabl')).map(x => x.tagName + '.' + x.className + ' ' + Math.round(x.getBoundingClientRect().right)), w);
   assert.deepEqual(out, [], where + ' : rien hors de l\'écran');
 }
-const TAB_ORDER = ['apercu', 'comptes', 'mystere', 'discord', 'fils', 'qr', 'signalements', 'journal', 'serveur'];
+const TAB_ORDER = ['apercu', 'comptes', 'mystere', 'evenements', 'discord', 'fils', 'qr', 'signalements', 'journal', 'serveur'];
 
 /* ── Déconnecté, puis autre compte : rien ───────────────────────────────────────────────────────────────────────────────────── */
 {
@@ -334,9 +336,44 @@ async function routeDaily(ctx) {
     return j(200, { ok: true, ...dyView() });
   });
 }
+// Événements (/api/admin/events, …/switch ; contrat du module event-srv.mjs) : Halloween en cours (jour 3 / 15), Noël à venir, anniversaire de Magic terminé
+const EVT = { mode: 'on', fail: null, posts: [], gets: 0, log: null };
+const EV_AT = (d, hh, mm) => Date.UTC(2026, 9, d, hh, mm);      // 27 octobre 2026 13:32 UTC = 14:32 à Paris (heure d'hiver depuis le 25)
+const EV_TOP = () => ['BobLeMage', 'Zoé', '<img src=x onerror="window.__xss=1">', ...Array.from({ length: 19 }, (_, i) => 'Chasseur' + (i + 4))].slice(0, 20)
+  .map((n, i) => ({ n, c: i < 3 ? 30 : Math.max(5, 29 - i), at: EV_AT(27 - (i % 3), 13 - (i % 5), 32) }));
+const evSeed = () => ({
+  on: true, force: '', day: '2026-10-27', cur: 'halloween-2026',
+  list: [
+    { id: 'halloween-2026', pack: 'halloween', name: 'Halloween', emoji: '🎃', obj: 'citrouilles', from: '2026-10-25', to: '2026-11-08', total: 30, per: 5, state: 'live', off: false },
+    { id: 'noel-2026', pack: 'noel', name: 'Noël', emoji: '🎄', obj: 'boules de Noël', from: '2026-12-18', to: '2027-01-01', total: 30, per: 5, state: 'soon', off: false },
+    { id: 'magic-2026', pack: 'magic', name: 'Anniversaire de Magic', emoji: '🎂', obj: 'cartes dorées', from: '2026-07-30', to: '2026-08-12', total: 30, per: 5, state: 'past', off: false },
+  ],
+  stats: {
+    'halloween-2026': { hunters: 412, accounts: 380, devices: 32, full: 17, finds: 3120,
+      days: [{ day: '2026-10-25', finds: 900, hunters: 230 }, { day: '2026-10-26', finds: 1250, hunters: 300 }, { day: '2026-10-27', finds: 970, hunters: 260 }],
+      dist: [12, 13, 16, 18, 21, 24, 25, 39, 27, 27, 25, 24, 21, 18, 16, 13, 11, 8, 7, 5, 4, 3, 3, 3, 2, 2, 2, 2, 2, 2, 17], top: EV_TOP() },
+    'magic-2026': { hunters: 50, accounts: 45, devices: 5, full: 6, finds: 600,
+      days: Array.from({ length: 14 }, (_, i) => ({ day: '2026-' + (i < 2 ? '07-' + (30 + i) : '08-' + String(i - 1).padStart(2, '0')), finds: 20 + (i * 7) % 40, hunters: 10 + (i * 3) % 15 })),
+      dist: [2, 3, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 6], top: [{ n: 'Zoé', c: 30, at: Date.UTC(2026, 7, 9, 18, 5) }] },
+  },
+});
+let EVS = evSeed();
+async function routeEvents(ctx) {
+  await ctx.route(u => /^\/api\/admin\/events(\/switch)?$/.test(u.pathname), async r => {
+    const q = r.request(), u = new URL(q.url()), j = (status, body) => json(r, status, body);
+    if (EVT.mode === '404') return j(404, { error: 'not_found' });
+    if (EVT.mode === '405') return j(405, { error: 'method_not_allowed' });      // serveur sans le module : /api/admin/<inconnu>
+    if (u.pathname === '/api/admin/events' && q.method() === 'GET') { EVT.gets++; return j(200, EVS); }
+    const b = JSON.parse(q.postData() || '{}'); EVT.posts.push({ path: u.pathname, body: b, tok: q.headers()['x-firebase-token'] || '', type: q.headers()['content-type'] });
+    if (EVT.fail) return j(EVT.fail[0], EVT.fail[1]);
+    const e = EVS.list.find(x => x.id === b.id); if (!e) return j(404, { error: 'not_found', message: 'Événement inconnu.' });
+    e.off = !b.on;
+    return j(200, { ok: true, off: EVS.list.filter(x => x.off).map(x => x.id), ...(EVT.log ? { log: EVT.log } : {}) });      // log : facultatif (ne pas en dépendre)
+  });
+}
 /** Réponse de /api/admin retouchée (ex. scans coupés sur le serveur : scans null). */
 const routeAdminPatch = patch => async ctx => ctx.route(u => u.pathname === '/api/admin', async r => { const res = await r.fetch(); const b = await res.json(); return r.fulfill({ response: res, body: JSON.stringify(patch(b)) }); });
-const ALL = [routeDiscord, routeThreads, routeDaily];
+const ALL = [routeDiscord, routeThreads, routeDaily, routeEvents];
 const toastIs = (p, re) => p.waitForFunction(r => new RegExp(r).test((document.querySelector('.toast.on') || {}).textContent || ''), re.source, { timeout: 5000 });
 const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some(a => a.startsWith('GET ' + path)); i++) await sleep(50); })();
 
@@ -394,18 +431,18 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
 
 /* ── Onglets masqués : Carte mystère (DAILY=0), Discord et Fils (404), scans coupés ; adresse vers un onglet masqué ───────────────── */
 {
-  DC.mode = '404'; TH.mode = '404';
-  const { ctx, p, errs, api } = await open({ user: ADM, before: [routeDiscord, routeThreads, routeAdminPatch(b => ({ ...b, scans: null }))], dark: true, hash: '#discord' });
-  await dash(p); await asked(api, '/api/admin/discord'); await asked(api, '/api/admin/daily'); await asked(api, '/api/admin/discord/threads'); await p.waitForTimeout(250);
+  DC.mode = '404'; TH.mode = '404'; EVT.mode = '404';
+  const { ctx, p, errs, api } = await open({ user: ADM, before: [routeDiscord, routeThreads, routeEvents, routeAdminPatch(b => ({ ...b, scans: null }))], dark: true, hash: '#discord' });
+  await dash(p); await asked(api, '/api/admin/discord'); await asked(api, '/api/admin/daily'); await asked(api, '/api/admin/discord/threads'); await asked(api, '/api/admin/events'); await p.waitForTimeout(250);
   assert.ok(api.includes('GET /api/admin/discord')); assert.equal(await p.$eval('#discord', e => e.hidden), true, '404 : section cachée'); assert.equal(await p.$('#discord *'), null);
-  assert.deepEqual(await tabsShown(p), ['apercu', 'comptes', 'qr', 'signalements', 'journal', 'serveur'], 'Carte mystère (DAILY=0), Discord et Fils (404) masqués');
+  assert.deepEqual(await tabsShown(p), ['apercu', 'comptes', 'qr', 'signalements', 'journal', 'serveur'], 'Carte mystère (DAILY=0), Événements, Discord et Fils (404) masqués');
   assert.equal(await curTab(p), 'apercu', '#discord coupé : vue d\'ensemble'); assert.equal(await p.evaluate(() => location.hash), '#apercu');
   assert.equal(await p.$('#kpis [data-k="scans"]'), null, 'scans coupés : pas de tuile'); assert.equal(await p.$('#kpis [data-k="pseudos"]'), null);
   await tab(p, 'signalements'); assert.equal(await p.$eval('#scans', e => e.hidden), true, 'scans coupés : carte cachée'); assert.equal(await p.$eval('#dyRepCard', e => e.hidden), true);
   assert.equal(await visible(p, '#pubrep'), true, 'decks signalés toujours là'); assert.equal(await badgeOf(p, 'signalements'), '', 'rien à traiter : pas de pastille');
   await p.focus('#t-signalements'); await p.keyboard.press('ArrowLeft'); assert.equal(await curTab(p), 'qr'); await p.keyboard.press('ArrowLeft'); assert.equal(await curTab(p), 'comptes', 'flèches : les onglets masqués sautés');
-  assert.deepEqual(errs, []); await ctx.close(); DC.mode = 'on'; TH.mode = 'on';
-  ok('onglets masqués : Carte mystère (DAILY=0), Discord et Fils (404), lien #discord → vue d\'ensemble ; scans coupés : ni tuile ni carte, l\'onglet Signalements reste ; flèches sautent les masqués');
+  assert.deepEqual(errs, []); await ctx.close(); DC.mode = 'on'; TH.mode = 'on'; EVT.mode = 'on';
+  ok('onglets masqués : Carte mystère (DAILY=0), Événements, Discord et Fils (404), lien #discord → vue d\'ensemble ; scans coupés : ni tuile ni carte, l\'onglet Signalements reste ; flèches sautent les masqués');
 }
 
 /* ── Carte mystère : en-tête toujours là, réponse et joueurs dans un bloc repliable (gardé au rechargement), actions, carte en préparation ── */
@@ -445,6 +482,129 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
   await noJunk(p, 'Carte mystère en préparation'); DY.prep = false;
   assert.deepEqual(errs, []); await ctx.close(); DYS = dySeed();
   ok('Carte mystère : en-tête toujours visible, plus de « null » ; réponse, aide, recherche et joueurs dans un bloc repliable (44 px, gardé au rechargement et au repeint) ; à vérifier et soupçons repliables, Valider, Masquer ; carte en préparation');
+}
+
+/* ── Événements : lien direct #evenements, cartes (dates, état), tuiles, trouvées par jour + chasseurs, répartition, top 20 ; interrupteur (confirmation pour
+   couper, POST avec le jeton, état et pastille à jour, journal ; rallumer sans fenêtre ; refus 403 dans la fenêtre), relu à l'affichage et par « Actualiser »,
+   EVENT=0 et EVENT_FORCE ; onglet masqué sur 404 et 405 ; 360 px sombre ─────────────────────────────────────────────────────────────────────────────── */
+{
+  EVT.mode = 'on'; EVT.posts = []; EVT.fail = null; EVT.gets = 0; EVT.log = null; EVS = evSeed();
+  const { ctx, p, errs } = await open({ user: ADM, before: routeEvents, vp: { width: 1280, height: 900 }, hash: '#evenements' });
+  await dash(p); await p.waitForSelector('#events .evc .evch svg');
+  assert.equal(await curTab(p), 'evenements', 'lien direct #evenements'); assert.deepEqual(await shownPanels(p), ['p-evenements']);
+  assert.equal(await p.$eval('#t-evenements', t => [t.getAttribute('role'), t.getAttribute('aria-controls')].join(' ')), 'tab p-evenements');
+  assert.equal(await p.$eval('#t-evenements .badge', b => b.hidden), true, 'rien de coupé : pas de pastille');
+  const H1 = '#events .evc[data-id="halloween-2026"]', N1 = '#events .evc[data-id="noel-2026"]', M1 = '#events .evc[data-id="magic-2026"]';
+  assert.deepEqual(await p.$$eval('#events .evc', e => e.map(x => x.dataset.id)), ['halloween-2026', 'noel-2026', 'magic-2026']);
+  assert.match(await txt(p, '#events .evhead'), /^Événements Aujourd'hui : 27 oct\. \(heure de Paris\) Actualiser Éditions en cours/);
+  assert.equal(await p.$('#events .evhead .note'), null, 'ni EVENT=0 ni EVENT_FORCE : pas d\'avertissement');
+  assert.equal(await txt(p, H1 + ' .evtop'), '🎃 Halloween 2026 du 25 oct. au 8 nov. 2026 · 30 citrouilles, 5 par jour au plus En cours · jour 3 / 15 Événement actif Chasse et décorations visibles dans l\'appli.');
+  assert.equal(await txt(p, N1 + ' .evtop'), '🎄 Noël 2026 du 18 déc. 2026 au 1 janv. 2027 · 30 boules de Noël, 5 par jour au plus Dans 52 jours Événement actif S\'ouvrira tout seul le 18 déc. 2026.');
+  assert.match(await txt(p, N1), /Pas encore commencé : les statistiques arrivent dès le premier jour\.$/);
+  assert.equal(await txt(p, M1 + ' .evtop'), '🎂 Anniversaire de Magic 2026 du 30 juil. au 12 août 2026 · 30 cartes dorées, 5 par jour au plus Terminé le 12 août');
+  assert.equal(await p.$(M1 + ' .evsw'), null, 'terminé : pas d\'interrupteur'); assert.equal(await p.$eval(M1 + ' .evtop20', d => d.open), false, 'terminé : top replié d\'office');
+  ok('Événements : lien direct #evenements, 3 éditions (en cours « jour 3 / 15 », à venir « Dans 52 jours », terminée « Terminé le 12 août »), dates, quotas ; interrupteur sauf pour la terminée');
+
+  // tuiles
+  assert.match(await txt(p, H1 + ' .kpi[data-k="hunters"]'), /^Chasseurs 412 380 avec un compte · 32 sans compte$/i);
+  assert.match(await txt(p, H1 + ' .kpi[data-k="full"]'), /^À 30 \/ 30 17 4 % des chasseurs$/i);
+  assert.match(await txt(p, H1 + ' .kpi[data-k="finds"]'), /^Citrouilles trouvées 3 120 7,6 par chasseur en moyenne$/i);
+  assert.match(await txt(p, H1 + ' .kpi[data-k="today"]'), /^Aujourd'hui 970 par 260 chasseurs$/i);
+  assert.match(await txt(p, M1 + ' .kpi[data-k="best"]'), /^Meilleur jour 57 10 août$/i);
+  // trouvées par jour : 15 jours (3 passés, 12 à venir), courbe des chasseurs
+  const D1 = H1 + ' .evch[data-k="days"] svg';
+  assert.equal(await p.$$eval(D1 + ' .bar', e => e.length), 15); assert.equal(await p.$$eval(D1 + ' .fill', e => e.length), 3); assert.equal(await p.$$eval(D1 + ' .bar.fut', e => e.length), 12);
+  assert.equal(await p.$$eval(D1 + ' .line', e => e.length), 1); assert.equal(await p.$$eval(D1 + ' .dot', e => e.length), 3);
+  const t1 = await p.$$eval(D1 + ' .bar title', e => e.map(x => x.textContent));
+  assert.deepEqual([t1[0], t1[2], t1[14]], ['25 oct. : 900 citrouilles · 230 chasseurs', '27 oct. : 970 citrouilles · 260 chasseurs', '8 nov. : à venir']);
+  assert.match(await p.$eval(D1, s => s.getAttribute('aria-label')), /^Citrouilles trouvées par jour : 3\s120 en tout/);
+  assert.deepEqual(await p.$$eval(D1 + ' text.ax', e => e.map(x => x.textContent.replace(/\s/g, ' '))), ['1 500', '750', '25 oct.', '1 nov.', '8 nov.'], 'repères ronds, premier, milieu et dernier jour');
+  assert.ok(await p.$eval(D1, s => Number(s.getAttribute('width')) > 400), 'graphique à la largeur de sa colonne');
+  assert.match(await txt(p, H1 + ' .evs .evleg'), /trouvées chasseurs/);
+  // répartition : 0 à 30, 30 / 30 en vert
+  const S1 = H1 + ' .evch[data-k="dist"] svg';
+  assert.equal(await p.$$eval(S1 + ' .bar', e => e.length), 31); assert.equal(await p.$$eval(S1 + ' .full .fill', e => e.length), 1);
+  const t2 = await p.$$eval(S1 + ' .bar title', e => e.map(x => x.textContent)); assert.deepEqual([t2[0], t2[30]], ['0 / 30 : 12 chasseurs', '30 / 30 : 17 chasseurs']);
+  assert.equal(await p.$eval(S1 + ' .full .fill', f => getComputedStyle(f).fill), await p.evaluate(() => { const t = document.createElement('i'); t.style.color = getComputedStyle(document.documentElement).getPropertyValue('--good'); document.body.append(t); const c = getComputedStyle(t).color; t.remove(); return c; }), '30 / 30 en vert');
+  // top 20 : rang, pseudo (texte seulement), trouvées, date à l'heure de Paris
+  assert.equal(await p.$$eval(H1 + ' .evtl li', e => e.length), 20); assert.equal(await p.$$eval(H1 + ' .evtl li.done', e => e.length), 3);
+  assert.match(await txt(p, H1 + ' .evtl li:first-child'), /^1 BobLeMage 30 \/ 30 27 oct\.,? (à )?14:32$/);
+  assert.match(await txt(p, H1 + ' .evtl li:nth-child(3)'), /^3 <img src=x onerror="window\.__xss=1"> 30 \/ 30 /);
+  assert.equal(await p.$$eval('#events img', e => e.length), 0); assert.equal(await p.evaluate(() => window.__xss), undefined, 'pseudo écrit en texte');
+  assert.match(await txt(p, H1 + ' .evtop20 > summary'), /^Top 20 des chasseurs 20 pseudos$/);
+  await noJunk(p, 'Événements');
+  ok('Événements : tuiles (412 chasseurs dont 380 comptes et 32 sans compte, 17 à 30 / 30, 3 120 trouvées, aujourd\'hui), trouvées par jour (15 jours, 12 à venir, courbe des chasseurs, infobulles), répartition (31 barres, 30 / 30 en vert), top 20 (textContent, heure de Paris)');
+
+  // interrupteur : couper (confirmation ; Annuler : rien), POST avec le jeton, état, pastille, journal
+  const SW = H1 + ' .evsw';
+  assert.deepEqual(await p.$eval(SW, b => [b.getAttribute('role'), b.getAttribute('aria-checked'), b.textContent, document.getElementById(b.getAttribute('aria-describedby')).textContent, b.getBoundingClientRect().height >= 44]),
+    ['switch', 'true', 'Événement actif', 'Chasse et décorations visibles dans l\'appli.', true]);
+  await p.click(SW); await p.waitForSelector('#dlg[open]');
+  assert.match(await txt(p, '#dlg'), /^Couper Halloween 2026 \? 🎃 · Halloween 2026 · du 25 oct\. au 8 nov\. 2026 Plus personne ne verra la chasse ni les décorations ; les progressions sont gardées\. Effet immédiat.* Annuler Couper l'événement$/);
+  assert.equal(await p.evaluate(() => document.activeElement.textContent), 'Annuler', 'Annuler a le focus');
+  await p.click('#dlg [data-v=""]'); await p.waitForTimeout(100); assert.equal(EVT.posts.length, 0, 'Annuler : rien envoyé'); assert.equal(await p.$eval(SW, b => b.getAttribute('aria-checked')), 'true');
+  EVT.log = [{ t: Date.now(), a: 'event', n: '', m: '', d: 'halloween-2026 : coupé', by: 'ad•••@e•••.org', ok: true }];
+  await p.click(SW); await p.click('#dlg [data-v="ok"]'); await toastIs(p, /Halloween 2026 coupé : plus de chasse ni de décorations\./);
+  assert.equal(EVT.posts.length, 1); assert.equal(EVT.posts[0].path, '/api/admin/events/switch'); assert.deepEqual(EVT.posts[0].body, { id: 'halloween-2026', on: false }, 'corps exact');
+  assert.ok(EVT.posts[0].tok, 'avec le jeton dans l\'en-tête'); assert.match(EVT.posts[0].type, /application\/json/);
+  assert.equal(await p.$eval(SW, b => b.getAttribute('aria-checked')), 'false'); assert.equal(await p.$eval(H1, e => e.classList.contains('cut')), true);
+  assert.match(await txt(p, H1 + ' .evtags'), /^En cours · jour 3 \/ 15 coupé$/); assert.equal(await txt(p, H1 + ' .evswd'), 'Coupé : ni chasse ni décorations ; progressions gardées.');
+  assert.equal(await p.evaluate(() => document.activeElement.matches('.evsw[data-id="halloween-2026"]')), true, 'focus rendu à l\'interrupteur');
+  assert.equal(await p.$eval('#t-evenements .badge', b => b.hidden), false, 'édition en cours coupée : un point'); assert.match(await p.$eval('#t-evenements', e => e.textContent), /Événements : événement en cours coupé$/);
+  assert.equal(await p.$eval('#t-evenements .badge', b => Math.round(b.getBoundingClientRect().width)), 10, 'un point, sans nombre');
+  await tab(p, 'journal'); const jt = await txt(p, '#journal');
+  assert.match(jt, /Événement halloween-2026 : coupé · \d+ \S+ \d\d:\d\d · par ad•••@e•••\.org/); assert.doesNotMatch(jt, /Sans nom|undefined|null/, 'journal : rien de parasite');
+  EVT.log = null;
+  ok('Événements : interrupteur (role switch, aria-checked, 44 px) → fenêtre « Plus personne ne verra la chasse ni les décorations ; les progressions sont gardées. » (Annuler : rien), POST { id, on: false } en JSON avec le jeton, carte coupée, point sur l\'onglet, ligne « Événement » du journal');
+
+  // relu à l'affichage de l'onglet ; rallumer : sans fenêtre
+  const g0 = EVT.gets; await tab(p, 'evenements'); for (let i = 0; i < 100 && EVT.gets === g0; i++) await sleep(30); await p.waitForTimeout(150);
+  assert.equal(EVT.gets, g0 + 1, 'relu à l\'affichage de l\'onglet'); assert.equal(await p.$eval(SW, b => b.getAttribute('aria-checked')), 'false', 'toujours coupé (serveur)');
+  await p.click(SW); await toastIs(p, /Halloween 2026 rallumé\./);
+  assert.equal(await p.$eval('#dlg', d => d.open), false, 'rallumer : pas de fenêtre'); assert.deepEqual(EVT.posts[1].body, { id: 'halloween-2026', on: true });
+  assert.equal(await p.$eval(SW, b => b.getAttribute('aria-checked')), 'true'); assert.equal(await p.$eval('#t-evenements .badge', b => b.hidden), true, 'plus de point');
+  // refus (403) : message dans la fenêtre, rien ne change
+  EVT.fail = [403, { error: 'forbidden', message: 'Action refusée : la demande doit venir du panneau.' }];
+  await p.click(SW); await p.click('#dlg [data-v="ok"]');
+  await p.waitForFunction(() => document.querySelector('#dlg').open && /Action impossible/.test(document.querySelector('#dlg').innerText), null, { timeout: 5000 });
+  assert.equal(await txt(p, '#dlg'), 'Action impossible Action refusée : la demande doit venir du panneau. OK');
+  await p.click('#dlg [data-v="ok"]'); EVT.fail = null;
+  assert.equal(EVT.posts.length, 3); assert.deepEqual(await p.$eval(SW, b => [b.getAttribute('aria-checked'), b.disabled]), ['true', false], 'refusé : toujours actif, interrupteur rendu');
+  ok('Événements : relu à l\'affichage de l\'onglet ; rallumer sans fenêtre (POST { on: true }, point retiré) ; refus 403 : « Action impossible » et le message du serveur, état inchangé');
+
+  // « Actualiser » : EVENT=0 et EVENT_FORCE
+  EVS.on = false; EVS.force = 'halloween-2026'; const g1 = EVT.gets;
+  await p.click('#evGo'); await p.waitForSelector('#events .note[data-k="off"]'); assert.equal(EVT.gets, g1 + 1, '« Actualiser » : relu');
+  assert.match(await txt(p, '#events .note[data-k="off"]'), /^EVENT=0 sur le serveur : tout est coupé\. /);
+  assert.match(await txt(p, '#events .note[data-k="force"]'), /^Forcé par EVENT_FORCE : Halloween 2026\. Réservé aux essais/);
+  assert.match(await txt(p, H1 + ' .evtags'), /forcé par EVENT_FORCE$/); assert.equal(await txt(p, H1 + ' .evswd'), 'Allumé ici, mais EVENT=0 coupe tout sur le serveur.');
+  assert.equal(await p.$eval('#t-evenements .badge', b => b.hidden), false, 'EVENT=0 pendant une édition : un point');
+  await noJunk(p, 'Événements EVENT=0');
+  assert.deepEqual(errs, []); await ctx.close(); EVS = evSeed();
+  ok('Événements : « Actualiser » relit ; EVENT=0 (« tout est coupé », point sur l\'onglet) et EVENT_FORCE (avertissement, étiquette « forcé par EVENT_FORCE ») ; aucune erreur');
+}
+{
+  // serveur sans le module : 404 (ou 405 : /api/admin/<inconnu> d'un serveur plus ancien) → onglet masqué, #evenements → vue d'ensemble
+  EVT.mode = '404';
+  const { ctx, p, errs, api } = await open({ user: ADM, before: routeEvents, hash: '#evenements' });
+  await dash(p); await asked(api, '/api/admin/events'); await p.waitForFunction(() => document.querySelector('#t-evenements').hidden, null, { timeout: 5000 });
+  assert.equal(await curTab(p), 'apercu'); assert.equal(await p.evaluate(() => location.hash), '#apercu'); assert.equal(await p.$('#events *'), null);
+  EVT.mode = '405'; await p.goto(URL0 + '#evenements'); await dash(p); await p.waitForFunction(() => document.querySelector('#t-evenements').hidden, null, { timeout: 5000 });
+  assert.equal(await curTab(p), 'apercu', '405 : masqué aussi'); assert.ok(!(await tabsShown(p)).includes('evenements'));
+  assert.deepEqual(errs, []); await ctx.close(); EVT.mode = 'on';
+  ok('Événements : 404 ou 405 (serveur sans le module) → onglet masqué, #evenements ramené à la vue d\'ensemble');
+}
+{
+  // 360 px sombre : cartes, graphiques et top sans défilement de côté
+  EVT.mode = 'on'; EVS = evSeed();
+  const { ctx, p, errs } = await open({ user: ADM, before: routeEvents, phone: { width: 360, height: 740 }, dark: true, hash: '#evenements' });
+  await dash(p); await p.waitForSelector('#events .evc .evch svg');
+  assert.equal(await p.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(11, 15, 28)', 'sombre');
+  await noOverflow(p, 360, 'Événements 360 px sombre'); await noJunk(p, 'Événements 360 px');
+  assert.ok(await p.$eval('#events .evsw', b => b.getBoundingClientRect().height >= 44), 'interrupteur : 44 px au moins');
+  assert.ok(await p.$eval('#events .evch[data-k="days"] svg', s => s.getBoundingClientRect().right <= 360 - 16), 'graphique dans la carte');
+  assert.deepEqual(errs, []); await ctx.close();
+  ok('Événements à 360 px sombre : sans défilement de côté ni texte parasite, interrupteur ≥ 44 px');
 }
 
 /* ── Discord : bot non configuré ; onglet dédié (salons, raccourcis, modèles, pings, aperçu, envoi, historique) ─────────────────────── */
@@ -866,7 +1026,7 @@ if (process.env.ADMIN_SRV_SHOTS || process.env.ADMIN_SHOTS) {
 
 /* ── 360 px, clair et sombre : chaque onglet sans défilement de côté, cibles des onglets ≥ 44 px, ni « null » ni « undefined » ───────── */
 for (const dark of [false, true]) {
-  DC.mode = 'on'; DC.sent = dcOld(); TH.mode = 'on'; TH.list = thSeed(); DY.mode = 'on'; DYS = dySeed();
+  DC.mode = 'on'; DC.sent = dcOld(); TH.mode = 'on'; TH.list = thSeed(); DY.mode = 'on'; DYS = dySeed(); EVT.mode = 'on'; EVS = evSeed();
   const { ctx, p, errs } = await open({ user: ADM, before: ALL, phone: { width: 360, height: 740 }, dark });
   await dash(p); await p.waitForSelector('#kpis [data-k="pseudos"]'); await p.waitForSelector('#dcCh', { state: 'attached' }); await p.waitForSelector('#thList', { state: 'attached' });
   assert.ok(await p.$$eval('#tabl .tab', e => e.every(x => x.getBoundingClientRect().height >= 44)), 'onglets : 44 px de haut au moins');
@@ -877,14 +1037,14 @@ for (const dark of [false, true]) {
     await noOverflow(p, 360, k + (dark ? ' sombre' : ' clair') + ' 360 px'); await noJunk(p, k);
   }
   assert.deepEqual(errs, []); await ctx.close();
-  ok('360 px ' + (dark ? 'sombre' : 'clair') + ' : les 9 onglets sans défilement de côté ni texte parasite, onglet choisi ramené dans la barre, cibles ≥ 44 px');
+  ok('360 px ' + (dark ? 'sombre' : 'clair') + ' : les ' + TAB_ORDER.length + ' onglets sans défilement de côté ni texte parasite, onglet choisi ramené dans la barre, cibles ≥ 44 px');
 }
 
 /* ── Captures (ADMIN_SHOTS=<dossier>) : chaque onglet, 1280 et 390 px, clair et sombre ────────────────────────────────────────────── */
 if (process.env.ADMIN_SHOTS) {
   const dir = process.env.ADMIN_SHOTS; mkdirSync(dir, { recursive: true });
   for (const [name, vp] of [['1280', { width: 1280, height: 900 }], ['390', null]]) for (const dark of [false, true]) {
-    DC.sent = dcOld(); TH.list = thSeed(); TH.msgs = {}; DYS = dySeed();
+    DC.sent = dcOld(); TH.list = thSeed(); TH.msgs = {}; DYS = dySeed(); EVT.mode = 'on'; EVS = evSeed();
     const { ctx, p } = await open({ user: ADM, before: ALL, vp: vp || undefined, phone: vp ? undefined : { width: 390, height: 844 }, dark, dpr: 1 });
     await dash(p); await p.waitForSelector('#kpis [data-k="pseudos"]'); await p.waitForSelector('#dcCh', { state: 'attached' }); await p.waitForSelector('#thList .thi', { state: 'attached' });
     for (const k of TAB_ORDER) {
