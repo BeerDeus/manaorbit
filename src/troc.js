@@ -303,17 +303,14 @@ function trocOpenWin() {
 function trocCloseWin() {
   const w = TRC.el; if (!w) return; TRC.el = null;
   if (TRC.pick) { try { TRC.pick.close(); } catch (e) { /* déjà fermée */ } TRC.pick = null; }
-  trocBright(false); try { if (TRC.wl) TRC.wl.release(); } catch (e) { /* déjà relâché */ } TRC.wl = null;
+  trocBright(false); natAwake(false, 'troc');
   document.removeEventListener('visibilitychange', TRC.vis); document.removeEventListener('keydown', trocKey, true);
   w.classList.remove('on'); setTimeout(() => w.remove(), reduceMotion() ? 0 : 240); releaseApp();
   if (!TRC.c || !trocOpenSt(TRC.s)) TRC.s = null;
 }
 function trocKey(e) { if (e.key === 'Escape' && TRC.el && !imgView && !sheets.length) { e.stopPropagation(); trocAskLeave(); } }
-/** Écran allumé pendant l'échange (Wake Lock, si le navigateur l'a) : on se parle, on ne touche pas toujours le téléphone. */
-async function trocLock() {
-  if (!TRC.el || TRC.wl || !navigator.wakeLock || document.visibilityState !== 'visible') return;
-  try { const l = await navigator.wakeLock.request('screen'); if (!TRC.el) { l.release(); return; } TRC.wl = l; if (l.addEventListener) l.addEventListener('release', () => { if (TRC.wl === l) TRC.wl = null; }); } catch (e) { TRC.wl = null; }
-}
+/** Écran allumé pendant l'échange (la coque dans l'appli Android, Wake Lock sinon ; native.js) : on se parle, on ne touche pas toujours le téléphone. */
+function trocLock() { if (TRC.el) natAwake(true, 'troc'); }
 /** Pleine luminosité tant que le QR code attend d'être scanné (appli Android, APK 1.0.4 : natBright). */
 function trocBright(on) { if (TRC.bright === on) return; TRC.bright = on; natBright(on); }
 const trocPhase = s => (!s ? 'wait' : s.st === 'done' ? 'done' : s.st === 'end' ? 'end' : s.st === 'wait' || !s.ot ? 'wait' : s.me.ready && s.ot.ready ? 'confirm' : 'live');

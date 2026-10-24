@@ -443,7 +443,7 @@ function trPlacesSheet() {
 
 /* ── QR code du lien (échange en vrai : l'autre joueur le scanne avec l'appareil photo de son téléphone) ── */
 const QR_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 14h2M14 20h2M18 18v2h2"/></svg>';
-/** Feuille du QR code : grand, net (modules calés sur les pixels de l'écran), pseudo ou photo du profil, adresse en clair ; l'écran reste allumé tant qu'elle est ouverte (Wake Lock, si le navigateur l'a),
+/** Feuille du QR code : grand, net (modules calés sur les pixels de l'écran), pseudo ou photo du profil, adresse en clair ; l'écran reste allumé tant qu'elle est ouverte (natAwake : la coque dans l'appli Android, Wake Lock sinon),
     à pleine luminosité dans l'appli Android (APK 1.0.4 et plus, natBright). */
 function trQrOpen() {
   if (typeof streamOn === 'function' && streamOn()) { toast(T('Masqué en mode streamer')); return; }      // mode streamer (opening.js) : jamais le lien ni le QR code à l'écran
@@ -461,16 +461,10 @@ function trQrOpen() {
     // taille : un nombre entier de pixels physiques par module (aucun module flou ou plus large que ses voisins)
     const fit = () => { const w = Math.min(box.clientWidth || 300, 380), r = window.devicePixelRatio || 1, px = Math.max(2, Math.floor(w * r / q.n)) * q.n / r; svg.style.width = svg.style.height = px + 'px'; };
     fit(); requestAnimationFrame(fit);
-    let wl = null, on = true;
-    const lock = async () => {
-      if (!on || wl || !navigator.wakeLock || document.visibilityState !== 'visible') return;
-      try { const l = await navigator.wakeLock.request('screen'); if (!on) { l.release(); return; } wl = l; if (l.addEventListener) l.addEventListener('release', () => { if (wl === l) wl = null; }); } catch (e) { wl = null; }      // refusé (économie d'énergie) : l'écran s'éteindra comme d'habitude
-      const h = $('.qr-lock', api.body); if (h) h.hidden = !wl;
-    };
-    const vis = () => { if (document.visibilityState === 'visible') lock(); };      // le verrou tombe quand on quitte l'appli : repris au retour
-    document.addEventListener('visibilitychange', vis); lock(); natBright(true);
+    // écran gardé allumé (la coque dans l'appli Android, Wake Lock sinon, repris au retour ; native.js) ; refusé : l'écran s'éteindra comme d'habitude
+    natAwake(true, 'tradeqr').then(ok => { const h = $('.qr-lock', api.body); if (h) h.hidden = !ok; }); natBright(true);
     const close = api.close;
-    api.close = () => { on = false; natBright(false); document.removeEventListener('visibilitychange', vis); try { if (wl) wl.release(); } catch (e) { /* déjà relâché */ } wl = null; close(); };
+    api.close = () => { natAwake(false, 'tradeqr'); natBright(false); close(); };
   });
 }
 

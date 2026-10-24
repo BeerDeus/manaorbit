@@ -81,12 +81,9 @@ function puMyQr() {
     if (cIn) cIn.addEventListener('input', () => { cmd = cIn.value; puJoinPrefSet({ c: partieStr(cmd, PRT_LEN.cmd) }); paint(); });
     show.addEventListener('click', e => { if (e.target.closest('[data-login]')) { api.close(); openAccount(); } });
     if (D.user && puOnline()) { const done = () => { wait = false; if (sheets.includes(api)) paint(); }; partieCarteSoon({ n: puMe() }).then(done, done); }      // carte absente, vieille ou d'un autre pseudo : renouvelée
-    let wl = null, on = true;
-    const lock = async () => { if (!on || wl || !navigator.wakeLock || document.visibilityState !== 'visible') return; try { const l = await navigator.wakeLock.request('screen'); if (!on) { l.release(); return; } wl = l; } catch (e) { wl = null; } };
-    const vis = () => { if (document.visibilityState === 'visible') { wl = null; lock(); } };
-    document.addEventListener('visibilitychange', vis); lock(); natBright(true);
+    natAwake(true, 'myqr'); natBright(true);      // écran gardé allumé (la coque dans l'appli Android, Wake Lock sinon ; native.js), luminosité à fond
     const close = api.close;
-    api.close = () => { on = false; natBright(false); document.removeEventListener('visibilitychange', vis); try { if (wl) wl.release(); } catch (e) { /* déjà relâché */ } wl = null; close(); };
+    api.close = () => { natAwake(false, 'myqr'); natBright(false); close(); };
   });
 }
 

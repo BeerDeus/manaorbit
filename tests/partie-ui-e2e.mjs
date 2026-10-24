@@ -69,6 +69,22 @@ await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await p.mouse
 assert.equal((await st()).places[0].vie, 20, 'maintenu : −10');
 await p.screenshot({ path: 'shots/partie-2-compteur-A.png' });
 ok('compteur A : ±1 au toucher, −10 maintenu, chaque joueur tourné vers lui');
+// plusieurs doigts en même temps (joueurs différents) : chaque appui compte le sien, au bon joueur ; l'appui d'un autre n'annule pas un appui maintenu
+const touch = (ty, pos, d, id) => p.evaluate(([ty, pos, d, id]) => { document.querySelector(`.pu-t[data-pos="${pos}"] .pu-hit.${d < 0 ? 'm' : 'p'}`).dispatchEvent(new PointerEvent(ty, { bubbles: true, pointerId: id, pointerType: 'touch', isPrimary: id === 11 })); }, [ty, pos, d, id]);
+const lives = async () => (await st()).places.map(x => x.vie);
+const keep = await st(); let v0 = await lives();
+await touch('pointerdown', 2, -1, 11); await touch('pointerdown', 4, -1, 12); await touch('pointerup', 2, -1, 11); await touch('pointerup', 4, -1, 12);
+assert.deepEqual(await lives(), [v0[0], v0[1] - 1, v0[2], v0[3] - 1], 'deux doigts presque ensemble : −1 chacun, au bon joueur');
+v0 = await lives();
+for (const [i, pos] of [1, 2, 3, 4].entries()) await touch('pointerdown', pos, -1, 21 + i);
+for (const [i, pos] of [1, 2, 3, 4].entries()) await touch('pointerup', pos, -1, 21 + i);
+assert.deepEqual(await lives(), v0.map(x => x - 1), 'quatre doigts (balayage du plateau) : quatre −1');
+v0 = await lives();
+await touch('pointerdown', 1, 1, 31); await p.waitForTimeout(200); await touch('pointerdown', 3, -1, 32); await touch('pointerup', 3, -1, 32);
+await p.waitForTimeout(350); await touch('pointerup', 1, 1, 31);
+assert.deepEqual(await lives(), [v0[0] + 10, v0[1], v0[2] - 1, v0[3]], 'appui maintenu (+10) pendant le −1 d\'un autre joueur : les deux comptent');
+await p.evaluate(g => puSet(g), keep);      // vies d'avant (la suite les attend)
+ok('compteur A : plusieurs doigts en même temps (un appui suivi par doigt) : chacun son ±1 ou son appui maintenu, au bon joueur');
 
 /* ── Fiche d'un joueur : blessures de commandant, poison, monarque ───────────────────────────── */
 await p.click('.pu-t[data-pos="1"] .pu-nm'); await p.waitForSelector('.pu-sheet .pu-lifebig');
@@ -298,6 +314,30 @@ await p.evaluate(() => D.localList.push({ id: 'dke', name: 'Elfes', text: '// De
 assert.equal(await p.evaluate(() => puDeckImgLoad(D.localList.find(d => d.id === 'dke'))), 'https://cards.scryfall.io/small/front/a/b/craterhoof-behemoth.jpg', 'Standard : la carte de présentation choisie');
 await p.click('.pu-foot [data-pu="drop"]'); await p.waitForSelector('.sheet [data-ok]'); await p.click('.sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.pu') && !sheets.length);
 ok('illustration du commandant en fond (art_crop, dégradé, A B C), gardée d\'un appui à l\'autre ; invité : retrouvée par son nom ; mon deck : fiche lue à l\'instant, l\'image suit ; deck sans commandant : son image de présentation');
+
+/* ── Appli Android (WebView sans navigator.wakeLock, ManaOrbit.keepAwake de l'APK 1.0.10) : écran gardé allumé par la coque ── */
+const w = await newPage(browser, world, { goto: false });
+await w.p.addInitScript(() => {
+  try { Object.defineProperty(Navigator.prototype, 'wakeLock', { get: () => undefined, configurable: true }); } catch (e) { /* déjà absent */ }
+  window.__aw = []; const P = { ManaOrbit: { keepAwake: async o => { window.__aw.push(o.on); return o; }, brightness: async o => o } };
+  window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => !!P[n], Plugins: P, getPlatform: () => 'android' };
+});
+await w.p.goto(world.url); await toHome(w.p);
+const aw = () => w.p.evaluate(() => [window.__aw, sessionStorage.getItem('deckdeal:awake')]);
+assert.equal(await w.p.evaluate(() => !!navigator.wakeLock), false, 'WebView simulée : pas de Wake Lock');
+await w.p.evaluate(() => { partieSave(partieStart(partieAddPlace(partieNew({ moi: { nom: 'Max' } }), { nom: 'Bob' }))); puGo(); }); await w.p.waitForSelector('.pu.pu-game');
+await w.p.waitForFunction(() => window.__aw.length === 1); assert.deepEqual(await aw(), [[true], '1'], 'compteur : écran gardé allumé par la coque');
+await w.p.evaluate(() => puMyQr()); await w.p.waitForSelector('.pu-myqr'); await w.p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
+await w.p.waitForTimeout(200); assert.deepEqual(await aw(), [[true], '1'], 'QR joueur ouvert puis fermé par-dessus le compteur : l\'écran reste allumé');
+await w.p.evaluate(() => puClose()); await w.p.waitForFunction(() => window.__aw.length === 2); assert.deepEqual(await aw(), [[true, false], null], 'compteur fermé : veille rendue');
+await w.p.evaluate(() => { TR.share = 'abc123'; trQrOpen(); }); await w.p.waitForSelector('.sheet-wrap.open .qr-img svg');
+await w.p.waitForFunction(() => window.__aw.length === 3 && !document.querySelector('.qr-lock').hidden);
+await w.p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await w.p.waitForFunction(() => window.__aw.length === 4);
+await w.p.evaluate(() => trocOpenWin()); await w.p.waitForFunction(() => window.__aw.length === 5);
+await w.p.evaluate(() => trocCloseWin()); await w.p.waitForFunction(() => window.__aw.length === 6);
+assert.deepEqual(await aw(), [[true, false, true, false, true, false], null], 'QR code d\'échange, échange en vrai : gardé allumé puis rendu');
+assert.deepEqual(w.errs, []); await w.p.context().close();
+ok('appli Android (pas de Wake Lock dans le WebView) : compteur, QR joueur, QR code d\'échange et échange en vrai gardent l\'écran allumé par la coque (keepAwake), rendu à la fermeture ; un écran refermé par-dessus un autre ne rend pas la veille');
 
 const all = [...errs, ...q.errs, ...j.errs];
 console.log('erreurs page :', all.length ? all : 'aucune'); assert.deepEqual(all, []);

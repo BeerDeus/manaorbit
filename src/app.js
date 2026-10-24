@@ -114,7 +114,7 @@ const S = {
   demo: true, demoPref: null, src: 'auto', proxy: false, token: '', appKey: '', theme: 'auto', draft: null,
   opts: { lang: 'fr', langSet: false, cond: 'Slightly Played', foil: 'no', mode: 'zero', ship: 280, fallbackEn: true, exactEd: false },      // exactEd : seulement l'édition de chaque ligne (« (CMM) 400 »)
   deck: { cards: [], basics: [], lines: 0, ignored: 0, copies: 0, basicCopies: 0 },
-  view: 'home', tab: 'cards', run: null, res: null, fo: {}, fl: {}, overrides: {}, cur: 'EUR', isSample: false, wake: null, deckId: null, runDelta: null,
+  view: 'home', tab: 'cards', run: null, res: null, fo: {}, fl: {}, overrides: {}, cur: 'EUR', isSample: false, deckId: null, runDelta: null,
   enBusy: null, enCtrl: null, gone: new Set(), haptic: true, sort: 'deck', filter: 'all', removed: [], useColl: true, push: false,
 };
 let runSeq = 0;
@@ -192,8 +192,9 @@ async function copyText(text) {
     toast(ok ? T('Copié') : T('Copie impossible, sélectionne le texte à la main'));
   } catch (e) { toast(T('Copie impossible')); }
 }
-async function lockScreen() { try { S.wake = await navigator.wakeLock.request('screen'); } catch (e) { /* refusé */ } }
-function unlockScreen() { try { if (S.wake) S.wake.release(); } catch (e) { /* ignore */ } S.wake = null; }
+/** Écran gardé allumé pendant la recherche des offres (la coque dans l'appli Android, Wake Lock sinon ; native.js). */
+function lockScreen() { natAwake(true, 'search'); }
+function unlockScreen() { natAwake(false, 'search'); }
 
 function mountSeg(root, options, value, onChange) {
   root.style.setProperty('--n', options.length);
