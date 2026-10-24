@@ -521,3 +521,73 @@ main{max-width:1240px;margin:0 auto;padding:14px 16px 48px}
 @media (max-width:979px){ .hcol{display:contents} #hcMem{order:1} #hcBoot{order:2} #hcLive{order:3} #hcReq{order:4} #hcDisk{order:5} #hcHist{order:6} }
 @media (min-width:980px){ .hgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start} }
 @media (prefers-reduced-motion:reduce){ .hbar i{transition:none} }
+
+/* ── Événements saisonniers : en-tête (avertissements EVENT=0, EVENT_FORCE), une carte par édition (emoji, dates, état, interrupteur « Événement actif »),
+   tuiles, trouvées par jour (barres) + chasseurs (courbe orange, même échelle), répartition (histogramme, total / total en vert), top 20 ── */
+.badge.dot{min-width:10px;width:10px;height:10px;padding:0;background:var(--warn)}
+.evhead .chead{align-items:center}
+.evhb{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px 12px}
+.evhb small{color:var(--ink-3);font-size:13px}
+.evhead .note{margin:4px 0 10px}
+.evhead .hint{margin:0}
+.evtop{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px 14px;align-items:start}
+.evemo{display:grid;place-items:center;width:54px;height:54px;border-radius:16px;background:var(--surface-2);font-size:31px;line-height:1}
+.evid{display:flex;flex-direction:column;gap:3px;min-width:0;padding-top:2px}
+.evid h2{font-size:21px;overflow-wrap:anywhere}
+.evdates{margin:0;font-size:13.5px;color:var(--ink-2)}
+.evtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.evtags .tag{font-size:12px;padding:5px 8px}
+.evswr{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:2px 12px;padding:6px 14px 6px 10px;border-radius:var(--r-md);background:var(--surface-2);min-width:0}
+.evsw{display:inline-flex;align-items:center;gap:11px;min-height:44px;padding:0 6px 0 2px;border:0;border-radius:99px;background:none;color:var(--ink);font-weight:650;font-size:15px;cursor:pointer}
+.evsw .trk{position:relative;flex:none;width:48px;height:28px;border-radius:99px;background:var(--ink-3);transition:background .18s}
+.evsw .knb{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .18s}
+.evsw[aria-checked="true"] .trk{background:var(--good)}
+.evsw[aria-checked="true"] .knb{transform:translateX(20px)}
+.evsw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.evsw:disabled{opacity:.55;cursor:progress}
+.evswd{font-size:13px;color:var(--ink-2);min-width:0}
+.evc.cut{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.evc.cut .evswr{background:var(--bad-soft)}
+.evc.cut .evswd{color:var(--bad);font-weight:600}
+.card .hint.evnone{margin:12px 0 0}
+.evk{margin:14px 0 2px}
+.evk .kpi{box-shadow:none;background:var(--bg)}
+.evg{display:grid;gap:0 28px}
+.evs{min-width:0;padding-top:12px;margin-top:12px;border-top:1px solid var(--line)}
+.evs .chead{margin-bottom:6px}
+.evs .chead small{font-size:12.5px}
+.evch{min-height:168px;min-width:0}
+.evch svg{display:block;max-width:100%}
+.evch .grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
+.evch .base{stroke:var(--ink-3);stroke-width:1}
+.evch .ax{fill:var(--ink-3);font:500 11px var(--font-body)}
+.evch .hit{fill:transparent}
+.evch .bar:hover .hit{fill:var(--accent-soft)}
+.evch .fill{fill:var(--accent)}
+.evch .full .fill{fill:var(--good)}
+.evch .bar:hover .fill{fill:var(--ink)}
+.evch .futb{fill:var(--line)}
+.evch .line{fill:none;stroke:var(--warn);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;pointer-events:none}
+.evch .dot{fill:var(--warn);stroke:var(--surface);stroke-width:2;pointer-events:none}
+.evch .empty{margin:6px 0 0}
+.card .hint.evcap{margin:6px 0 0}
+.evleg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--ink-2)}
+.evleg span{display:inline-flex;align-items:center;gap:6px}
+.evleg .lb::before{content:'';width:10px;height:10px;border-radius:3px;background:var(--accent)}
+.evleg .ll::before{content:'';width:16px;height:3px;border-radius:2px;background:var(--warn)}
+.evtop20.fold>.fb{padding-top:6px}
+.evtl{list-style:none;margin:0;padding:0;column-gap:28px}
+.evr{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:baseline;gap:0 10px;padding:8px 2px;border-top:1px solid var(--line);break-inside:avoid}
+.evrk{font:700 14px/1.2 var(--font-display);color:var(--ink-3);text-align:right;font-variant-numeric:tabular-nums}
+.evr.p .evrk{color:var(--accent)}
+.evpn{min-width:0;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.evn{font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.evr.done .evn{color:var(--good)}
+.evr small{grid-column:2/-1;font-size:12px;color:var(--ink-3)}
+@media (min-width:640px){ .evtl{columns:2} }
+@media (min-width:980px){
+  .evtop{grid-template-columns:auto minmax(0,1fr) auto}
+  .evswr{grid-column:auto;align-self:center;max-width:340px}
+  .evg{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){ .evsw .trk,.evsw .knb{transition:none} }

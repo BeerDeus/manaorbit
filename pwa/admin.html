@@ -24,12 +24,13 @@
     <button class="btn ghost small" id="btnRefresh" type="button" title="Recalculer les statistiques (une fois par minute au plus)">Rafraîchir</button>
   </div>
 </header>
-<!-- Une partie du panneau par onglet ; l'onglet est dans l'adresse (#discord…) : retour, rechargement et lien direct. Onglet sans objet (section coupée sur le serveur) masqué. -->
+<!-- Une partie du panneau par onglet ; l'onglet est dans l'adresse (#discord, #evenements…) : retour, rechargement et lien direct. Onglet sans objet (section coupée sur le serveur) masqué. -->
 <nav class="tabs" id="tabs" aria-label="Parties du panneau" hidden>
   <div class="tabl" id="tabl" role="tablist" aria-label="Parties du panneau">
     <button class="tab" id="t-apercu" type="button" role="tab" aria-controls="p-apercu" data-tab="apercu">Vue d'ensemble</button>
     <button class="tab" id="t-comptes" type="button" role="tab" aria-controls="p-comptes" data-tab="comptes">Utilisateurs</button>
     <button class="tab" id="t-mystere" type="button" role="tab" aria-controls="p-mystere" data-tab="mystere">Carte mystère<span class="badge" hidden></span></button>
+    <button class="tab" id="t-evenements" type="button" role="tab" aria-controls="p-evenements" data-tab="evenements">Événements<span class="badge dot" hidden></span></button>
     <button class="tab" id="t-discord" type="button" role="tab" aria-controls="p-discord" data-tab="discord">Discord</button>
     <button class="tab" id="t-fils" type="button" role="tab" aria-controls="p-fils" data-tab="fils">Fils<span class="badge" hidden></span></button>
     <button class="tab" id="t-qr" type="button" role="tab" aria-controls="p-qr" data-tab="qr">QR codes</button>
@@ -91,6 +92,9 @@
     </section>
     <section class="panel" id="p-mystere" role="tabpanel" aria-labelledby="t-mystere" tabindex="-1" hidden>
       <section class="card" id="daily"></section>
+    </section>
+    <section class="panel" id="p-evenements" role="tabpanel" aria-labelledby="t-evenements" tabindex="-1" hidden>
+      <div id="events"></div>
     </section>
     <section class="panel" id="p-discord" role="tabpanel" aria-labelledby="t-discord" tabindex="-1" hidden>
       <div id="discord"></div>
