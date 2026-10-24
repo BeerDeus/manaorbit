@@ -192,7 +192,7 @@ ok('réf. Cardmarket par carte : bon prix / correct / cher (+ %), absente sur un
 await p.click('#btnSave2'); await p.waitForSelector('#svName'); await p.fill('#svName', 'Edgar'); await p.click('#svGo'); await p.waitForTimeout(500);
 await p.click('#btnViewer'); await p.waitForSelector('.dv.on .dv-g');
 assert.equal(await p.$$eval('.dv-cmd', c => c.length), 1); assert.match(await txt(p, '.dv-cmd'), /commandant edgar markov legendary creature — vampire knight .*5,00 €.*réf\. cardmarket 5,00 €/i);
-assert.equal(await p.$eval('.dv-body', b => b.firstElementChild.nextElementSibling.id), 'dvCmd', 'le commandant vient juste après le résumé');
+assert.equal(await p.$eval('.dv-body', b => b.firstElementChild.classList.contains('dv-side') && b.firstElementChild.nextElementSibling.firstElementChild.id), 'dvCmd', 'le commandant ouvre la colonne des cartes, juste après la colonne du résumé');
 assert.deepEqual(await p.$$eval('.dv-g .dvc', t => t.map(x => x.getAttribute('aria-label')).filter(l => /Edgar/.test(l))), [], 'le commandant n\'est pas répété dans les colonnes');
 assert.match(await txt(p, '.dv-g[data-g="m1"] .dvc[data-s="own"]'), /possédée/i); assert.match(await txt(p, '.dv-title span'), /· 1 possédée/);
 assert.match(await txt(p, '.dv-ref'), /Réf\. Cardmarket pour les mêmes cartes/);
