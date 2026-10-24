@@ -13,7 +13,7 @@ La doc produit est dans `README.md`. Ce fichier décrit le code, le build et les
 | `gen-*.mjs` | Générateurs (decks EDHREC, prix, noms imprimés en français et dans d'autres langues, clés VAPID). |
 | `prices-hist.mjs` | Historique des prix sur 30 jours (format MOPH1 : `histPack`, `histUnpack`, `histRoll`, `histRow`), sans dépendance : fabriqué par `gen-prices.mjs` (GitHub Actions, branche `data`), relu par `proxy.mjs` (`/api/hist`). |
 | `tests/` | Tests (Node, jsdom, navigateur) + `fixtures/` (photos de cartes synthétiques pour l'OCR). Dépendances de dev dans `tests/package.json` (jamais installées par l'hébergeur). |
-| `tools/` | Outils hors tests : captures d'écran, banc OCR, icônes, génération des fixtures. |
+| `tools/` | Outils hors tests : captures d'écran, banc OCR, icônes, génération des fixtures. `node tools/make-event-logos.mjs [pack…]` : logos de l'appli aux couleurs des fêtes (dessins de `src/evlogo.js`, Chromium) → `pwa/icons/events/<pack>/` (icônes, favicon, Discord, réseaux), sources SVG et icône Android dans `docs/evenements/logos/<pack>/`, planche de contrôle `shots/event-logos.png`. |
 
 Le `package.json` de la racine est celui du déploiement : **aucune dépendance**, ne pas en ajouter.
 
