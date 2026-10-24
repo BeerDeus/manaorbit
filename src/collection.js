@@ -1488,6 +1488,11 @@ function openCollAdd() {
 /** Langue proposée pour les cartes importées sans langue : la langue de cartes de l'utilisateur (interface en français → cartes françaises ; anglais sur un téléphone allemand → allemandes). */
 const collImportLang = () => { const l = userLang(); return CARD_LANG_LIST.includes(l) ? l : I18N.lang === 'en' ? 'en' : 'fr'; };
 const GLANCE_MIN = 10;      // « coup d'œil » après un import d'au moins 10 cartes (pas après 2 cartes ajoutées)
+const REIMPORT_MIN = 5;      // « Déjà importé ? » : à partir de 5 cartes différentes (ajouter « 1 Sol Ring » qu'on a déjà n'est pas une erreur)
+/** Exemplaires d'un import déjà dans la collection (au plus la quantité de chaque carte). 90 % ou plus en « Ajouter » : sans doute le même fichier
+ *  (ou son nouvel export, quelques cartes en plus) importé une 2e fois, qui doublerait toutes les quantités. */
+const collAlready = items => items.reduce((a, x) => a + Math.min(x.q, collQty(x.k)), 0);
+const collReimport = p => p.items.length >= REIMPORT_MIN && collAlready(p.items) >= p.copies * 0.9;
 function openCollImport(initial) {
   frLoad();      // noms français reconnus dès que l'index est là (aperçu repeint à son arrivée)
   openSheet(T('Importer ma collection'), T('ManaBox, Moxfield, Archidekt, Deckbox, Dragon Shield… ou une liste « 3 Sol Ring »'), api => {
@@ -1530,14 +1535,35 @@ function openCollImport(initial) {
       if (f.size > 8 * 1024 * 1024) { toast(T('Fichier trop gros (8 Mo maximum)')); return; }
       try { ta.value = await f.text(); paint(); haptic('tap'); } catch (err) { toast(T('Fichier illisible')); }
     };
-    go.onclick = () => {
-      if (!parsed || !parsed.items.length) return;
-      const before = COLL.map, pl0 = COLL.places, m = mode(), n = parsed.items.length, undo = () => { COLL.map = before; COLL.places = pl0; collChanged(); };
+    const run = (parsed, m) => {
+      const before = COLL.map, pl0 = COLL.places, n = parsed.items.length, undo = () => { COLL.map = before; COLL.places = pl0; collChanged(); };
       collAdd(typeof plcImport === 'function' ? plcImport(parsed) : parsed.items, m); api.close(); haptic('ok'); FRN.on.delete(onFr);      // classeurs ManaBox → emplacements (places.js)
       if (parsed.format === 'csv' && typeof prgAdd === 'function') prgAdd('imp');      // badge « Déménageur » (progress.js)
       toast(m === 'replace' ? TN(n, '{n} carte dans ta collection', '{n} cartes dans ta collection') : TN(n, '{n} carte ajoutée', '{n} cartes ajoutées'), { label: T('Annuler'), fn: undo });
       collEnrich();
       if (n >= GLANCE_MIN) setTimeout(() => openCollGlance(n, m, undo), reduceMotion() ? 0 : 480);      // après la fermeture de l'import ; l'annulation reste possible depuis le coup d'œil
+    };
+    /** Petite fiche par-dessus l'import (même modèle que « Retirer… ») ; on(choix) au clic d'un [data-ci]. */
+    const ask = (title, html, foot, on) => openSheet(title, '', a => {
+      a.body.innerHTML = html; a.setFoot(foot);
+      a.wrap.addEventListener('click', e => { const b = e.target.closest('[data-ci]'); if (b) { a.close(); on(b.dataset.ci); } });
+    });
+    // « Remplacer ma collection » : jamais sans le dire, avec le nombre de cartes qui partent
+    const askReplace = p => { const had = collCount(); haptic('tap');
+      ask(T('Remplacer ta collection ?'), `<p class="cf-msg"><span>${TN(had, 'Ta collection compte <b>{n}</b> carte différente.', 'Ta collection compte <b>{n}</b> cartes différentes.')} ${TN(p.items.length, 'Elle sera remplacée par l\'unique carte de ce fichier.', 'Elle sera remplacée par les {n} cartes de ce fichier.')}</span><span>${T('Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.')}</span></p>`,
+        `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn danger" type="button" data-ci="replace">${T('Remplacer')}</button>`, () => run(p, 'replace')); };
+    go.onclick = () => {
+      if (!parsed || !parsed.items.length) return;
+      const p = parsed, m = mode();
+      if (m === 'replace' && collCount()) { askReplace(p); return; }
+      if (m === 'add' && collReimport(p)) {      // même fichier une 2e fois : toutes les quantités doubleraient
+        haptic('tap');
+        ask(T('Déjà dans ta collection ?'), `<p class="cf-msg"><span>${TN(collAlready(p.items), '<b>{n}</b> exemplaire sur {t} de ce fichier est déjà dans ta collection : l\'ajouter le compterait deux fois.', '<b>{n}</b> exemplaires sur {t} de ce fichier sont déjà dans ta collection : les ajouter les compterait deux fois.', { t: nf0(p.copies) })}</span><span>${T('Tu as déjà importé ce fichier ? Remplace plutôt ta collection par son contenu.')}</span></p><button class="link-btn ci-rep" type="button" data-ci="replace">${T('Remplacer ma collection…')}</button>`,
+          `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ci="add">${T('Ajouter quand même')}</button>`,
+          c => { if (c === 'add') run(p, 'add'); else setTimeout(() => askReplace(p), reduceMotion() ? 0 : 300); });
+        return;
+      }
+      run(p, m);
     };
     if (initial) { ta.value = initial; paint(); }
   });

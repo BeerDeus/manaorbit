@@ -351,5 +351,16 @@
   "Recommencer la courbe ?": "Recomeçar o gráfico?",
   "Les relevés d'avant aujourd'hui sont effacés, sur cet appareil et sur ton compte. La courbe et les variations à 7 et 30 jours repartent de la valeur d'aujourd'hui. Tes cartes ne changent pas.": "Os registros anteriores a hoje são apagados, neste aparelho e na sua conta. O gráfico e as variações em 7 e 30 dias recomeçam a partir do valor de hoje. Suas cartas não mudam.",
   "Recommencer": "Recomeçar",
-  "Courbe remise à zéro": "Gráfico zerado"
+  "Courbe remise à zéro": "Gráfico zerado",
+  "Remplacer ta collection ?": "Substituir sua coleção?",
+  "Ta collection compte <b>{n}</b> carte différente.": "Sua coleção tem <b>{n}</b> carta diferente.",
+  "Ta collection compte <b>{n}</b> cartes différentes.": "Sua coleção tem <b>{n}</b> cartas diferentes.",
+  "Elle sera remplacée par l'unique carte de ce fichier.": "Ela será substituída pela única carta deste arquivo.",
+  "Elle sera remplacée par les {n} cartes de ce fichier.": "Ela será substituída pelas {n} cartas deste arquivo.",
+  "Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.": "As cartas que não estão no arquivo saem da sua coleção. \"Cancelar\", logo depois, a restaura.",
+  "Déjà dans ta collection ?": "Já está na sua coleção?",
+  "<b>{n}</b> exemplaire sur {t} de ce fichier est déjà dans ta collection : l'ajouter le compterait deux fois.": "<b>{n}</b> de {t} cópias deste arquivo já está na sua coleção: adicioná-la a contaria duas vezes.",
+  "<b>{n}</b> exemplaires sur {t} de ce fichier sont déjà dans ta collection : les ajouter les compterait deux fois.": "<b>{n}</b> de {t} cópias deste arquivo já estão na sua coleção: adicioná-las as contaria duas vezes.",
+  "Tu as déjà importé ce fichier ? Remplace plutôt ta collection par son contenu.": "Já importou este arquivo? Melhor substituir sua coleção pelo conteúdo dele.",
+  "Remplacer ma collection…": "Substituir minha coleção…"
 }

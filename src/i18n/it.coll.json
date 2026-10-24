@@ -351,5 +351,16 @@
   "Recommencer la courbe ?": "Ricominciare il grafico?",
   "Les relevés d'avant aujourd'hui sont effacés, sur cet appareil et sur ton compte. La courbe et les variations à 7 et 30 jours repartent de la valeur d'aujourd'hui. Tes cartes ne changent pas.": "I rilevamenti precedenti a oggi vengono cancellati, su questo dispositivo e sul tuo account. Il grafico e le variazioni a 7 e 30 giorni ripartono dal valore di oggi. Le tue carte non cambiano.",
   "Recommencer": "Ricomincia",
-  "Courbe remise à zéro": "Grafico azzerato"
+  "Courbe remise à zéro": "Grafico azzerato",
+  "Remplacer ta collection ?": "Sostituire la tua collezione?",
+  "Ta collection compte <b>{n}</b> carte différente.": "La tua collezione ha <b>{n}</b> carta diversa.",
+  "Ta collection compte <b>{n}</b> cartes différentes.": "La tua collezione ha <b>{n}</b> carte diverse.",
+  "Elle sera remplacée par l'unique carte de ce fichier.": "Sarà sostituita dall'unica carta di questo file.",
+  "Elle sera remplacée par les {n} cartes de ce fichier.": "Sarà sostituita dalle {n} carte di questo file.",
+  "Les cartes absentes du fichier quittent ta collection. « Annuler », juste après, la remet.": "Le carte che non sono nel file escono dalla tua collezione. «Annulla», subito dopo, la ripristina.",
+  "Déjà dans ta collection ?": "Già nella tua collezione?",
+  "<b>{n}</b> exemplaire sur {t} de ce fichier est déjà dans ta collection : l'ajouter le compterait deux fois.": "<b>{n}</b> copia su {t} di questo file è già nella tua collezione: aggiungerla la conterebbe due volte.",
+  "<b>{n}</b> exemplaires sur {t} de ce fichier sont déjà dans ta collection : les ajouter les compterait deux fois.": "<b>{n}</b> copie su {t} di questo file sono già nella tua collezione: aggiungerle le conterebbe due volte.",
+  "Tu as déjà importé ce fichier ? Remplace plutôt ta collection par son contenu.": "Hai già importato questo file? Meglio sostituire la tua collezione con il suo contenuto.",
+  "Remplacer ma collection…": "Sostituisci la mia collezione…"
 }
