@@ -226,7 +226,7 @@ const errsOf = [];
   await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3);
   const lines = () => p.$$eval('.crow', r => r.map(x => [x.dataset.k, x.dataset.ln, Number(x.querySelector('.qstep b').textContent), x.classList.contains('sub')]));
   assert.deepEqual(await lines(), [['counterspell', '', 1, false], ['sol ring', 'fr', 2, false], ['sol ring', 'en', 1, true]], 'une ligne par langue : fr puis en, la 2e allégée');
-  assert.match(await txt(p, '.dv-title span'), /^2 cartes · 4 exemplaires/, '2 cartes différentes, 4 exemplaires');
+  assert.match(await txt(p, '.dv-title span'), /^2 cartes · 4 ex\./, '2 cartes différentes, 4 exemplaires');
   assert.deepEqual(await p.$$eval('.crow[data-k="sol ring"] .row-top .lchip', c => c.map(x => x.dataset.l)), ['fr', 'en'], 'un drapeau par ligne');
   assert.equal(await p.$eval('.crow[data-k="sol ring"][data-ln="en"] .row-meta', e => !!e && e.textContent.trim() === '') .catch(() => true), true, 'la 2e ligne ne répète pas les tags de la carte');
   await p.screenshot({ path: 'shots/coll-langues.png' });

@@ -49,6 +49,9 @@ await p.evaluate(deck => {
   D.state = 'ready'; D.err = '';
   onUser({ uid: 'u1', email: 'beer@example.com', displayName: 'Beer', reload: async () => {} });
 }, DECK);
+const setOpen = async () => { await p.click('.coll.m-trade [data-act="trset"]'); await p.waitForSelector('.sheet-wrap.open .trs-sheet #trKeep .seg-opt'); await p.waitForTimeout(450); };      // réserve et rangements : feuille « Réglages de l'échange » (densite.js)
+const sheetsClose = async () => { await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await p.waitForFunction(() => !document.querySelector('.sheet-wrap')); };
+const linkOpen = async () => { await p.click('.tr-box.on [data-act="trlink"]'); await p.waitForSelector('.sheet-wrap.open .trl-sheet .tr-link input'); await p.waitForTimeout(450); };      // adresse, Copier, Aperçu, Nouveau lien, Arrêter : feuille du lien
 const nextId = async () => { const id = 'Share' + String(++ids).padStart(12, '0'); await p.evaluate(i => { window.__shareIdNext = i; }, id); return id; };
 
 await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on');
@@ -67,7 +70,13 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade
   const have = await p.$$eval('.tr-list .tr-row', r => r.map(x => [x.dataset.k, x.querySelector('.tr-q b').textContent.trim()]));
   assert.deepEqual(have, [['llanowar elves', '× 2'], ['sol ring', '× 3']], 'réserve 1 : Sol Ring 5 − 1 (deck) − 1 ; Swords 2 − 1 − 1 = 0 ; Wrath 1 − 1 = 0 ; terrains de base exclus');
   assert.match(await tc(p, '.tr-list .tr-row[data-k="sol ring"] .row-name'), /Anneau solaire|Sol Ring/);
+  assert.ok(!(await p.$('.coll-main .tr-keep')), 'réserve : plus dans l\'écran, dans « Réglages de l\'échange »');
+  assert.equal(await p.$eval('.coll.m-trade .tr-setb', b => [b.querySelector('span').textContent, b.getAttribute('aria-label')].join(' | ')), 'Garde 1 ex. | Réglages de l\'échange · Garde 1 ex.', 'la roue rappelle la réserve');
+  assert.ok(await p.evaluate(() => { const f = document.querySelector('.coll.m-trade .fbtn').getBoundingClientRect(), g = document.querySelector('.coll.m-trade .tr-setb').getBoundingClientRect(); return Math.abs(f.top - g.top) < 2 && g.left > f.right; }), 'roue à côté de Filtres');
+  await setOpen();
+  assert.equal(await txt(p, '.sheet-wrap.open .sheet-head h2'), 'Réglages de l\'échange');
   assert.equal(await txt(p, '.tr-keep .label'), 'Garder en plus de mes decks : 0–4 exemplaires'); assert.equal(await txt(p, '.tr-keep .hint'), 'Tu proposes seulement ce que tu as en trop.');
+  await sheetsClose();
   // valeurs : même base que « Pour toi » (fichier de prix : tendance Cardmarket de l'impression la moins chère, sinon Scryfall), total des doublons, tri, « ≥ X € »
   await p.waitForFunction(() => /1,20/.test((document.querySelector('.tr-row[data-k="sol ring"] .tr-px') || {}).textContent || ''), null, { timeout: 8000 });
   assert.match(await tc(p, '.tr-row[data-k="sol ring"] .tr-q'), /^≈ 1,20\s€\s*× 3/, 'prix unitaire du fichier de prix (Scryfall : 1,50 €)'); assert.match(await tc(p, '.tr-row[data-k="llanowar elves"] .tr-q'), /^≈ 0,25\s€\s*× 2/);
@@ -82,20 +91,21 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade
   await p.selectOption('#trMin', '0'); await p.selectOption('#trSort', 'name');
   await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 2 && document.querySelector('.tr-list .tr-row').dataset.k === 'llanowar elves');
   await p.waitForTimeout(600); await p.screenshot({ path: 'shots/trade-1-echange.png' });
-  await p.click('#trKeep [data-v="0"]'); await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 4);
+  await setOpen(); await p.click('#trKeep [data-v="0"]'); await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 4);
+  assert.equal(await txt(p, '.coll.m-trade .tr-setb span'), 'Garde 0 ex.', 'la roue suit le réglage'); await sheetsClose();
   assert.deepEqual(await p.$$eval('.tr-list .tr-row', r => r.map(x => x.dataset.k + ' ' + x.querySelector('.tr-q b').textContent.trim())), ['llanowar elves × 3', 'sol ring × 4', 'swords to plowshares × 1', 'wrath of god × 1'], 'réserve 0 : tout ce que les decks n\'utilisent pas');
   await p.click('.tr-row[data-k="wrath of god"] [data-act="tkeep"]'); await p.waitForFunction(() => !document.querySelector('.tr-list .tr-row[data-k="wrath of god"]'));
   assert.match(await txt(p, '.tr-held summary'), /Gardées à la main \(1\)/);
-  await p.click('#trKeep [data-v="1"]'); await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 2);
+  await setOpen(); await p.click('#trKeep [data-v="1"]'); await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 2); await sheetsClose();
   assert.ok(!(await p.$('.tr-held')), 'réserve 1 : Wrath n\'aurait pas été proposée, rien à montrer dans « Gardées »');
   ok('À échanger : possédé − deck − réserve (0 ou 1), Garder, terrains de base exclus');
 }
 {      // règle d'échange par rangement : « Mes rangements » (share.js › trPlacesSheet), rangée avec l'emplacement (COLL.places[id].x)
-  assert.ok(!(await p.$('.tr-plc')), 'sans emplacement : pas de bouton');
+  await setOpen(); assert.ok(!(await p.$('.tr-plc')), 'sans emplacement : pas de bouton'); assert.match(await txt(p, '.trs-plc'), /Aucun rangement pour l'instant/); await sheetsClose();
   const pid = await p.evaluate(() => { const id = plcCreate('box', 'Boîte à garder'), g = collLines(COLL.map['sol ring'])[0][0]; COLL.map = linesMove(COLL.map, 'sol ring', g, 3, lineSet(g, { p: id })); collChanged(); return id; });
-  await p.waitForSelector('.tr-plc'); assert.equal(await txt(p, '.tr-plc'), 'Mes rangements', 'bouton sans compteur : aucune règle');
+  await setOpen(); await p.waitForSelector('.tr-plc'); assert.equal(await txt(p, '.tr-plc'), 'Mes rangements', 'bouton sans compteur : aucune règle');
   await p.click('.tr-plc'); await p.waitForSelector('.sheet-wrap.open .trp-row .seg-opt');
-  assert.equal(await txt(p, '.sheet-wrap.open .sheet-head h2'), 'Mes rangements dans l\'échange');
+  assert.equal(await txt(p, '.sheet-wrap.open:last-child .sheet-head h2'), 'Mes rangements dans l\'échange', 'par-dessus les réglages');
   assert.deepEqual(await p.$$eval('.sheet-wrap.open .trp-row', r => r.map(x => [x.dataset.p, x.querySelector('b').textContent, x.querySelector('small').textContent, [...x.querySelectorAll('.seg-opt')].map(b => b.dataset.v + (b.getAttribute('aria-checked') === 'true' ? '*' : ''))])), [[pid, 'Boîte à garder', '3 cartes', ['*', 'skip', 'all']]], 'une ligne par rangement, classique coché');
   await p.waitForTimeout(500); await p.screenshot({ path: 'shots/trade-plc.png' });
   await p.click(`.sheet-wrap.open .trp-row[data-p="${pid}"] [data-v="skip"]`);      // 3 ignorés remplissent la réserve (deck 1 + 1) : les 2 autres partent
@@ -103,11 +113,11 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade
   assert.equal(await p.evaluate(() => COLL.places[Object.keys(COLL.places)[0]].x), 'skip', 'règle rangée avec l\'emplacement');
   await p.click(`.sheet-wrap.open .trp-row[data-p="${pid}"] [data-v="all"]`);      // 3 quoi qu'il arrive + (2 − 2 gardés) = 3
   await p.waitForFunction(() => /× 3$/.test((document.querySelector('.tr-list .tr-row[data-k="sol ring"] .tr-q b') || {}).textContent || ''));
-  await p.click('.sheet-wrap.open [data-close]'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
-  assert.equal(await txt(p, '.tr-plc small'), '1', 'compteur : une règle posée');
+  await p.click('.sheet-wrap.open:last-child .sheet-head [data-close]'); await p.waitForFunction(() => document.querySelectorAll('.sheet-wrap.open').length === 1 && !document.querySelector('.trp-row'));      // « Mes rangements » fermée : retour aux réglages
+  assert.equal(await txt(p, '.tr-plc small'), '1', 'compteur : une règle posée'); assert.equal(await p.$eval('.coll.m-trade .tr-setb b', b => b.hidden ? '' : b.textContent), '1', 'et sur la roue');
   await p.click('#trKeep [data-v="4"]');      // réserve 4 : plus rien de classique à proposer, les 3 du bac partent quand même
   await p.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row').length === 1 && /× 3$/.test(document.querySelector('.tr-list .tr-row[data-k="sol ring"] .tr-q b').textContent));
-  await p.click('#trKeep [data-v="1"]'); await p.evaluate(id => plcDelete(id), pid);      // retour à l'état d'avant : emplacement supprimé (cartes « Non rangé »), réserve 1
+  await p.click('#trKeep [data-v="1"]'); await sheetsClose(); await p.evaluate(id => plcDelete(id), pid);      // retour à l'état d'avant : emplacement supprimé (cartes « Non rangé »), réserve 1
   await p.waitForFunction(() => !document.querySelector('.tr-plc') && document.querySelectorAll('.tr-list .tr-row').length === 2 && /× 3$/.test(document.querySelector('.tr-list .tr-row[data-k="sol ring"] .tr-q b').textContent));
   ok('Mes rangements : Ignoré (compte dans la réserve), Tout inclure (même au-delà de la réserve), rangé avec l\'emplacement, compteur sur le bouton');
 }
@@ -153,7 +163,12 @@ await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.coll.m-trade
   assert.equal(shareWrites, 0, 'rien n\'est partagé avant « Créer le lien »');
   await p.click('#trSub [data-v="have"]'); const id = await nextId();
   await p.click('[data-act="tron"]'); await p.waitForSelector('.tr-box.on');
+  assert.deepEqual(await p.$$eval('.coll-main .tr-box.on [data-act]', b => b.map(x => x.dataset.act).filter(a => a !== 'trlive')), ['trlink', 'trqr', 'trsend'], 'barre d\'une ligne : Lien actif, QR, Partager');
+  assert.ok(await p.$eval('.coll-main .tr-box.on', b => b.getBoundingClientRect().height <= 60), 'une seule ligne');
+  await linkOpen();
   assert.equal(await p.$eval('.tr-link input', i => i.value), world.url + '?p=' + id); await p.screenshot({ path: 'shots/trade-3-lien.png' });
+  assert.deepEqual(await p.$$eval('.sheet-wrap.open [data-act]', b => b.map(x => x.dataset.act).filter(a => a !== 'trlive')), ['trcopy', 'trsend', 'trview', 'trqr', 'trimg', 'trnew', 'troff'], 'feuille du lien : toutes les actions de la carte d\'avant');
+  await sheetsClose();
   const s = shares.get(id); assert.equal(s.kind, 'trade'); assert.equal(s.v, 1); assert.deepEqual(Object.keys(s).sort(), ['d', 'kind', 'o', 'updatedAt', 'v'], 'jamais l\'UID dans le document public');
   assert.equal(s.o, (await import('node:crypto')).createHash('sha256').update('u1').digest('hex'), 'propriétaire : empreinte SHA-256 de l\'UID');
   const d = JSON.parse(s.d);
@@ -203,7 +218,7 @@ const tradeId = [...shares.keys()][0];
   await p.emulateMedia({ colorScheme: 'light' });
   ok('QR code du lien : SVG de l\'encodeur vérifié, net (modules entiers), pseudo et photo, adresse, Wake Lock pris puis rendu, luminosité à fond (appli) puis rendue');
   // aperçu du propriétaire : ce que voient les visiteurs, sans « Pour toi », sans connexion ni signalement
-  await p.click('.tr-box.on [data-act="trview"]'); await p.waitForSelector('.pubv.on');
+  await linkOpen(); await p.click('.sheet-wrap.open [data-act="trview"]'); await p.waitForSelector('.pubv.on'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
   assert.match(await txt(p, '.pubv .dv-title'), /Aperçu de ta liste/); assert.equal(await p.$$eval('#pubSub .seg-opt', b => b.map(x => x.dataset.v).join()), 'have,want', 'pas d\'onglet « Pour toi »');
   assert.ok(!(await p.$('.pubv [data-act="login"]')) && !(await p.$('.pubv .pub-report')), 'ni connexion ni signalement dans l\'aperçu');
   assert.equal(await p.$$eval('.pubv .pub-row .tag.good, .pubv .pub-row .tag.accent', t => t.length), 0, 'aucune étiquette du visiteur (déjà à toi…) sur sa propre liste');
@@ -401,7 +416,7 @@ const tradeId = [...shares.keys()][0];
     await p.evaluate(`(async () => { trPayload = window.__tp; ${idle} await trSync(); })()`);
     await p.waitForFunction(() => !document.querySelector('.tr-box.on .hint.warn'));
     ok('F1 : photo comptée dans la taille du lien ; trop gros quand même → « liste trop longue », sans écriture'); }
-  await p.click('[data-act="troff"]'); await p.waitForSelector('[data-act="tron"]');
+  await linkOpen(); await p.click('.sheet-wrap.open [data-act="troff"]'); await p.waitForSelector('[data-act="tron"]');
   assert.ok(!shares.has(tradeId), 'document supprimé');
   const V = await newPage(browser, world, { goto: false }); errsOf.push(V.errs);
   await routeRest(V.p);

@@ -185,8 +185,8 @@ await add(B, 'Wrath of God', 1); await bump(B, 'Sol Ring', 2); await bump(B, 'Ca
 await add(A, 'Command Tower', 1); await bump(A, 'Sol Ring', 1); await bump(A, 'Carte 2', -1);
 const onlyA = { ...all17, 'command tower': '1', 'sol ring': '8/de' }; delete onlyA['carte 2'];
 await expectMap(A, onlyA, 'A seul'); await sleep(800);
-assert.equal(await cloudState(B), 'offline'); assert.match(await txt(B.p, '.coll-sync'), /Hors ligne : tes changements restent sur cet appareil/); assert.equal(await B.p.$eval('.coll-sync', e => e.dataset.k), 'warn');
-assert.match(await txt(B.p, '.coll .dv-title span'), /hors ligne/);
+assert.equal(await cloudState(B), 'offline'); assert.match(await B.p.$eval('.coll-dot', d => d.getAttribute('aria-label')), /Hors ligne : tes changements restent sur cet appareil/); assert.equal(await B.p.$eval('.coll-dot', e => e.dataset.k), 'warn');
+assert.equal(await B.p.$eval('.coll-sync', e => e.hidden), true, 'hors ligne : le point orange suffit (densite.js), le bandeau reste pour une erreur du compte');
 await B.p.screenshot({ path: 'shots/sync-offline.png' });
 assert.equal((await mapOf(B))['wrath of god'], '1', 'B garde ses cartes en local');
 assert.equal((await mapOf(A))['wrath of god'], undefined, 'A ne voit pas encore les cartes de B');

@@ -28,7 +28,7 @@ await p.fill('#ciText', CSV); await p.waitForTimeout(150);
 assert.match(await txt(p, '#ciSum'), /3 cartes différentes · 8 exemplaires Fichier CSV/); assert.equal(await p.$eval('#ciGo', b => b.disabled), false); assert.match(await txt(p, '#ciGo'), /Importer 3 cartes/);
 await p.screenshot({ path: 'shots/coll-1-import.png' });
 await p.click('#ciGo'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3);
-assert.match(await txt(p, '.coll .dv-title span'), /^3 cartes · 8 exemplaires · sur cet appareil/); ok('import CSV : éditions additionnées (3 cartes, 8 exemplaires)');
+assert.match(await txt(p, '.coll .dv-title span'), /^3 cartes · 8 ex\.( · \d+ €)?$/, 'sous-titre : cartes, exemplaires, valeur (l\'état de la sauvegarde est dans le point)'); ok('import CSV : éditions additionnées (3 cartes, 8 exemplaires)');
 // infos Scryfall lues par lot (une seule requête POST pour 3 cartes)
 await p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length === 3, null, { timeout: 8000 });
 assert.equal(cardPosts(), 1);
@@ -104,7 +104,7 @@ await p.waitForSelector('.ca-opt'); assert.deepEqual(await p.$$eval('.ca-opt spa
 await p.click('.ca-opt'); await p.waitForSelector('#lotAdd'); await p.click('#lotAdd'); await p.waitForTimeout(250); assert.match(await txt(p, '#caStatus'), /Arcane Signet · 1 dans ta collection/);
 await p.fill('#caName', 'ring'); await p.waitForSelector('.ca-opt'); assert.deepEqual(await p.$$eval('.ca-opt i', s => s.map(x => x.textContent)), ['× 3'], 'quantité déjà possédée affichée');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('#caName'), null, { timeout: 3000 }); await p.waitForSelector('.coll.on');
-await p.waitForFunction(() => document.querySelectorAll('.crow').length === 4); assert.match(await txt(p, '.coll .dv-title span'), /^4 cartes · 10 exemplaires/);
+await p.waitForFunction(() => document.querySelectorAll('.crow').length === 4); assert.match(await txt(p, '.coll .dv-title span'), /^4 cartes · 10 ex\./);
 await p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length === 4, null, { timeout: 8000 }); assert.equal(cardPosts(), 2, 'seule la nouvelle carte est lue');
 ok('ajout à la main : suggestions du catalogue, quantité déjà possédée, infos lues pour la seule nouvelle carte');
 
@@ -121,9 +121,14 @@ assert.equal((await rows()).length, 4); await p.keyboard.press('Escape'); await 
 ok('rechargement : collection et infos gardées sur l\'appareil, aucune requête');
 
 /* ── 5b) sauvegarde : l'état est dit en toutes lettres, export, compte plus récent = annulable ──────────────── */
-await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForFunction(() => !document.querySelector('.coll-sync').hidden, null, { timeout: 8000 });
-assert.match(await txt(p, '.coll-sync'), /ne sont que sur cet appareil/); assert.ok(['warn', 'bad'].includes(await p.$eval('.coll-sync', e => e.dataset.k)), 'hors compte : bandeau d\'alerte');
-assert.equal(await p.$eval('.coll-dot', d => [d.hidden, d.dataset.k === (document.querySelector('.coll-sync').dataset.k)].join()), 'false,true', 'point du titre, même couleur que le bandeau');
+await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.waitForFunction(() => { const d = document.querySelector('.coll-dot'); return d && !d.hidden && ['warn', 'bad'].includes(d.dataset.k); }, null, { timeout: 8000 });
+// hors compte : plus de bandeau (place gardée pour la liste, densite.js) ; le point orange ou rouge à côté du titre dit tout (libellé lu), et touché, la feuille qui explique
+assert.equal(await p.$eval('.coll-sync', e => e.hidden), true, 'hors compte : pas de bandeau, le point suffit'); assert.match(await p.$eval('.coll-dot', d => d.getAttribute('aria-label')), /ne sont que sur cet appareil/, 'texte complet dans le libellé du point');
+await p.click('.coll-dot'); await p.waitForSelector('.sheet-wrap.open .sync-sheet');
+assert.match(await txt(p, '.sheet-wrap.open .sync-sheet'), /ne sont que sur cet appareil/); assert.equal(await p.$eval('.sheet-wrap.open .sync-sheet', e => e.dataset.k), await p.$eval('.coll-dot', d => d.dataset.k), 'même couleur que le point');
+{ const acts = await p.$$eval('.sheet-wrap.open [data-sy]', b => b.map(x => x.dataset.sy)), unav = await p.evaluate(() => D.state === 'unavailable');
+  assert.deepEqual(acts, unav ? ['export'] : ['login', 'export'], 'Exporter une copie (et Se connecter quand le compte est joignable)'); }
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap.open'));
 assert.equal(await p.$('.coll-sync [data-act="export"]'), null, 'Exporter : plus dans le bandeau');
 assert.deepEqual(await p.$$eval('.coll-tools .icon-btn', l => l.map(b => [b.dataset.act, b.querySelector('use').getAttribute('href')])), [['add', '#i-plus'], ['import', '#i-download'], ['export', '#i-upload']], 'Exporter à côté d\'Importer (flèche vers le bac : importer ; qui en sort : exporter)');
 await p.click('.coll-tools [data-act="export"]'); await p.waitForSelector('.sheet-wrap.open .ex-opt[data-x="txt"]');

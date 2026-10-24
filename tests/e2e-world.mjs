@@ -185,6 +185,8 @@ export async function newPage(browser, world, opts = {}) {
       window.openScan = o => { if (SC.el) SC.el.__close('done'); try { Object.keys(localStorage).filter(k => k.startsWith('deckdeal:scansess:')).forEach(k => localStorage.removeItem(k)); } catch (e) { /* ignore */ } return o0(o); };
     });
   });
+  // vue de la liste de la collection (densite.js) : la vue détaillée (− / +, édition, pastilles) que vérifient les tests ; densite-e2e.mjs : cview false (vue par défaut, compacte) ou une autre vue
+  if (opts.cview !== false) await p.addInitScript(v => { try { if (!localStorage.getItem('deckdeal:coll:view')) localStorage.setItem('deckdeal:coll:view', v); } catch (e) { /* stockage indisponible */ } }, opts.cview || 'detail');
   if (opts.init) await p.addInitScript(opts.init);
   if (opts.goto !== false) { await p.goto(world.url + (opts.path || '')); await p.waitForTimeout(700); await p.evaluate(() => { BACKOFF.scry = [60, 60, 60]; BACKOFF.cool429 = 100; }); }
   return { ctx, p, errs };
