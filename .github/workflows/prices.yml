@@ -1,5 +1,6 @@
 # Prix « à partir de » de chaque carte (tendance Cardmarket et TCGplayer, via le fichier complet de Scryfall), régénérés chaque jour.
-# Publiés sur la branche « data » en un seul commit réécrit à chaque fois : le dépôt ne grossit pas. Le serveur relit le fichier toutes les 6 h.
+# Publiés sur la branche « data » en un seul commit réécrit à chaque fois : le dépôt ne grossit pas. Le serveur relit les fichiers toutes les 6 h.
+# Historique des 30 derniers jours (prices-hist.bin.gz, prices-hist.mjs) : celui de la veille, relu sur la branche data, + le relevé du jour.
 # Lancement manuel : onglet Actions › Prix des cartes › Run workflow.
 name: Prix des cartes
 on:
@@ -20,8 +21,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Générer prices.tsv.gz
-        run: mkdir -p out && node gen-prices.mjs out/prices.tsv.gz 2>&1 | tee gen.log; exit ${PIPESTATUS[0]}
+      - name: Historique de la veille (branche data)
+        run: |
+          mkdir -p out
+          (git fetch -q --depth 1 origin data && git show FETCH_HEAD:prices-hist.bin.gz > prev-hist.bin.gz) || { rm -f prev-hist.bin.gz; echo "pas encore d'historique : il commence aujourd'hui"; }
+      - name: Générer prices.tsv.gz et prices-hist.bin.gz
+        run: node gen-prices.mjs out/prices.tsv.gz out/prices-hist.bin.gz prev-hist.bin.gz 2>&1 | tee gen.log; exit ${PIPESTATUS[0]}
       - name: Erreur (dernières lignes du journal en annotation)
         if: failure()
         run: echo "::error title=gen-prices::$(tail -c 900 gen.log | sed ':a;N;$!ba;s/\n/ | /g')"
@@ -33,5 +38,5 @@ jobs:
           git init -q && git checkout -q -b data
           git config user.name "deck-deal-bot"
           git config user.email "deck-deal-bot@users.noreply.github.com"
-          git add prices.tsv.gz && git commit -qm "Prix des cartes : $(date -u +%F)"
+          git add prices.tsv.gz && { [ ! -f prices-hist.bin.gz ] || git add prices-hist.bin.gz; } && git commit -qm "Prix des cartes : $(date -u +%F)"
           for i in 1 2 3; do git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data && exit 0; sleep $((i * 10)); done; exit 1
