@@ -2227,8 +2227,13 @@ function tradeMatch(sh, want, spare, price) {
   give.forEach(x => tradePriced(x, price)); give.sort(by);
   return { get, give, sum: { get: tradeSum(get), give: tradeSum(give) }, n: get.length + give.length };
 }
-/** Pose sur x (modifié) u : prix unitaire en centimes (null sans prix), et v = u × x.q. price(k) : centimes, ou null. */
-function tradePriced(x, price) { const c = price ? Number(price(x.k)) : 0, u = c > 0 ? Math.round(c) : null; return Object.assign(x, { u, v: u == null ? null : u * x.q }); }
+/** Pose sur x (modifié) u : prix unitaire en centimes (null sans prix), et v = u × x.q. price(k, x) : centimes, ou null ; ou { u, v, … } quand les exemplaires
+ *  n'ont pas tous le même prix (lignes foil, éditions : share.js › trRowPx) : posé tel quel (v : la valeur de la ligne). */
+function tradePriced(x, price) {
+  const r = price ? price(x.k, x) : 0;
+  if (r && typeof r === 'object') { const u = r.u > 0 ? Math.round(r.u) : null; return Object.assign(x, r, { u, v: r.v > 0 ? Math.round(r.v) : u == null ? null : u * x.q }); }
+  const c = Number(r), u = c > 0 ? Math.round(c) : null; return Object.assign(x, { u, v: u == null ? null : u * x.q });
+}
 /** Total d'une liste chiffrée (tradePriced) : { n cartes, q exemplaires, v centimes (cartes chiffrées), nv cartes sans prix }. */
 const tradeSum = list => (list || []).reduce((t, x) => { t.n++; t.q += x.q; if (x.v == null) t.nv++; else t.v += x.v; return t; }, { n: 0, q: 0, v: 0, nv: 0 });
 /**
@@ -2285,7 +2290,7 @@ const shNum = (v, lo, hi) => { const x = Number(v); return Number.isFinite(x) ? 
 const edShare = e => (e ? edSet(e) + '/' + edNum(e) : '');
 /** « cmm/400 » relu d'un partage (contenu d'un autre compte) → 'cmm|400' ; '' si absent ou illisible (code de 2 à 6 lettres et chiffres, numéro de 12 signes au plus, lettres, chiffres, ★ † Φ • -). */
 const edUnshare = v => { if (typeof v !== 'string' || v.length > 19) return ''; const i = v.indexOf('/'), n = v.slice(i + 1); return i > 0 && /^[\p{L}\p{N}★†Φ•-]{1,12}$/u.test(n) ? edKey(v.slice(0, i), n) : ''; };
-/** Une carte d'un partage : { n, q, l?, e? (édition « cmm/400 »), fo? (exemplaires foil parmi q), f? (nom français), i? (image), c? (coût), t? (type), o? (couleurs), m? (symboles) } → item d'affichage, null si illisible. */
+/** Une carte d'un partage : { n, q, l?, e? (édition « cmm/400 »), fo? (exemplaires foil parmi q), p? / pf? (prix à l'unité de l'impression, de ses foil), f? (nom français), i? (image), c? (coût), t? (type), o? (couleurs), m? (symboles) } → item d'affichage, null si illisible. */
 function shareCard(x) {
   if (!x || typeof x !== 'object') return null;
   const n = shStr(x.n, 160).trim(), q = shNum(x.q, 1, 9999); if (!n || q == null) return null;
@@ -2294,6 +2299,7 @@ function shareCard(x) {
   if (SHARE_LANGS.includes(x.l)) it.l = x.l;
   const e = edUnshare(x.e); if (e) it.e = e;      // impression exacte de ces exemplaires (classeur, liste : son image) ; absente d'un partage d'avant ou sans édition
   const fo = shNum(x.fo, 0, q); if (fo) it.fo = fo;      // foil (classeur : pochette à part) ; absent d'un partage d'avant
+  const p = shNum(x.p, 0, 1e7), pf = fo ? shNum(x.pf, 0, 1e7) : 0; if (p) it.p = p; if (pf) it.pf = pf;      // prix à l'unité (centimes) de cette impression et de ses foil, publiés par le propriétaire ; absents : prix de la carte
   const f = shStr(x.f, 160).trim(); if (f) { it.fn = f; if (it.l === (SHARE_LANGS.includes(x.fl) ? x.fl : 'fr')) it.dn = f; }      // fl : langue de f (partage d'un appareil en allemand…), français sans elle
   { const iv = shStr(x.i, 300), full = !iv || /^https:/.test(iv) ? iv : SCRY_IMG + iv; if (SHARE_IMG_RE.test(full)) it.im = full; }      // adresse complète ou raccourcie (imgShort)
   const pw = shStr(x.w, 90).trim(); if (pw) it.pw = pw;      // illustration recherchée : « Extension · CODE 123 »

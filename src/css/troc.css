@@ -82,6 +82,10 @@
 .trc-q{position:absolute;right:4px;bottom:4px;padding:1px 6px;border-radius:99px;background:rgba(10,14,30,.82);color:#fff;font-style:normal;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
 .trc-fl{position:absolute;left:4px;top:4px;line-height:0}
 .trc-fl .flag{width:18px;height:12px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+/* exemplaire foil : pastille ✦ et liseré irisé (comme la pochette foil du classeur, binder.css) */
+.trc-fo{position:absolute;z-index:1;right:4px;top:4px;width:20px;height:20px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(135deg,#ffe29a,#ffb3e6 50%,#9ad7ff);color:#2a2238;font-style:normal;font-size:12px;font-weight:700;line-height:1;box-shadow:0 0 0 1px rgba(255,255,255,.55),0 1px 3px rgba(0,0,0,.45)}
+.trc-card.foil .trc-art::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:2px;background:var(--foil-ring);pointer-events:none;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.trc-lfo{font-style:normal;font-weight:700;background:var(--foil-ink);-webkit-background-clip:text;background-clip:text;color:transparent}
 .trc-badge{position:absolute;left:0;right:0;bottom:0;padding:3px 2px 3px;background:var(--warn);color:var(--bg);font-style:normal;font-size:10.5px;font-weight:700;text-align:center;letter-spacing:.01em}
 .trc-badge.on{background:var(--good)}
 
@@ -150,6 +154,11 @@
 .trc-mi img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .trc-mn{min-width:0;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trc-mn b{font-weight:700;color:var(--ink-2)}
+.trc-mw{min-width:0;display:flex;flex-direction:column;gap:1px}
+.trc-mw .trc-mn{display:block}
+.trc-mt{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.trc-mt .flag{width:16px;height:11px;border-radius:2px}
+.trc-mt.fo{color:var(--ink-2)}
 .trc-mp{font-size:13px;font-weight:650;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .trc-fs{margin:0;text-align:center;font-size:13.5px;font-weight:600;color:var(--ink-3);display:flex;align-items:center;justify-content:center;gap:6px}
 .trc-fs[data-ok="1"]{color:var(--good)}
@@ -158,6 +167,11 @@
 .trc-done>b{font-family:var(--font-display);font-size:22px;font-weight:750;letter-spacing:-.01em;text-wrap:balance}
 .trc-done>p{margin:-4px 0 4px;color:var(--ink-2);text-wrap:balance}
 .trc-done .trc-col{text-align:left}
+/* annulation d'un échange fait (proposée, à accepter ou refuser) : même encadré que les demandes de cartes (.trc-req) */
+.trc-undo{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 10px;padding:10px 12px;border-radius:var(--r-md);background:var(--warn-soft);color:var(--warn);font-size:13.5px;font-weight:650;text-align:left}
+.trc-undo>span:first-child{flex:1 1 200px;min-width:0;text-wrap:balance}
+.trc-ua{display:flex;gap:8px;flex:none}
+.trc-undo .btn.small{height:36px;padding:0 12px;font-size:13.5px}
 .trc-tick{align-self:center;width:64px;height:64px;margin-top:10px;border-radius:50%;display:grid;place-items:center;background:var(--good-soft);color:var(--good);animation:trcIn .55s var(--spring) both}
 .trc-tick .i{width:34px;height:34px;stroke-width:2.4}
 .trc-tick.off{background:var(--surface-2);color:var(--ink-3)}

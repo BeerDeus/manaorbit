@@ -30,8 +30,8 @@
   "Tu ne cherches aucune carte pour l'instant : tes decks sont complets et ta liste de souhaits est vide.": "You're not looking for any cards yet: your decks are complete and your wishlist is empty.",
   "Il ne cherche aucun de tes doublons.": "They don't want any of your spares.",
   "Aucune carte en trop dans ta collection pour l'instant (tes decks et ta réserve gardent les leurs).": "No spare cards in your collection yet (your decks and reserve keep theirs).",
-  "≈ valeur indicative : tendance Cardmarket ({when}), sans l'état ni l'édition des cartes.": "≈ rough value: Cardmarket trend ({when}), regardless of card condition or edition.",
-  "≈ valeur indicative : tendance Cardmarket, sans l'état ni l'édition des cartes.": "≈ rough value: Cardmarket trend, regardless of card condition or edition.",
+  "≈ valeur indicative : tendance Cardmarket ({when}), sans l'état des cartes.": "≈ rough value: Cardmarket trend ({when}), regardless of card condition.",
+  "≈ valeur indicative : tendance Cardmarket, sans l'état des cartes.": "≈ rough value: Cardmarket trend, regardless of card condition.",
   "tu la cherches × {n}": "you want it × {n}",
   "illustration souhaitée : {name}": "wanted art: {name}",
   "tu peux l'échanger × {n}": "you can trade it × {n}",
@@ -57,5 +57,6 @@
   "{n} cartes sans prix": "{n} cards without a price",
   "Valeur estimée": "Estimated value",
   "Prix minimal à l'unité": "Minimum unit price",
-  "Tous les prix": "All prices"
+  "Tous les prix": "All prices",
+  "Prix foil inconnu : compté au prix normal": "Foil price unknown: counted at the regular price"
 }

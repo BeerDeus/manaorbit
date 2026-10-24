@@ -2,8 +2,8 @@
 // Alice crée l'échange depuis l'onglet Échange (QR code, code) et prépare ce qu'elle donne ; Bob ouvre ./?troc=<code> déconnecté (connexion d'abord,
 // puis il entre tout seul) ; il demande une carte de la liste d'Alice et donne les siennes ; « Prêt » retiré à Bob quand Alice accepte (règle des RPG) ;
 // « Équilibrer » ; les deux prêts → récapitulatif → les deux valident → chaque collection mise à jour (langue gardée), souhait comblé, « Mes échanges » ;
-// « Annuler » chez Bob ; invitation d'un ami (page de l'ami › Échange en direct → notification FCM ./?troc=, toast « Rejoindre » par la liste des amis) ;
-// départ (« Bob a quitté l'échange ») ; connexion perdue puis revenue ; mode streamer ; aucune erreur dans la console. Captures : TROC_SHOTS (dossier).
+// « Annuler l'échange » proposé par Bob, refusé puis accepté par Alice (défait des deux côtés) ; invitation d'un ami (page de l'ami › Échange en direct → notification FCM ./?troc=, toast « Rejoindre » par la liste des amis) ;
+// départ (« Bob a quitté l'échange ») ; un exemplaire foil (langue, foil, prix foil) donné, demandé, appliqué tel quel ; connexion perdue puis revenue ; mode streamer ; aucune erreur dans la console. Captures : TROC_SHOTS (dossier).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -166,23 +166,45 @@ assert.match(await tc(pb, '.trc .trc-done'), /Échange terminé.*Ta collection e
 await shot(pa, '11-alice-fait'); await shot(pb, '11-bob-fait');
 const hist = await pa.evaluate(() => trocHist().map(h => [h.who, h.qg, h.qr, h.vg, h.vr]));
 assert.deepEqual(hist, [['Bob', 6, 3, 530, 620]], '« Mes échanges » d\'Alice');
-await pa.waitForFunction(() => !localStorage.getItem('deckdeal:troc:cur'), null, { timeout: 5000 });
+assert.equal(await pb.$('#toast .toast-act'), null, 'plus d\'« Annuler » d\'un seul côté dans le toast');
+const after = { a: await coll(pa), b: await coll(pb) };
 ok('les deux prêts → récapitulatif ; une validation ne change rien ; les deux → chaque collection mise à jour, souhait comblé, « Mes échanges »');
 
-// « Annuler » chez Bob : sa collection revient comme avant (Alice garde son échange)
-await pb.click('#toast .toast-act'); await pb.waitForFunction(() => /annulé sur cet appareil/.test(document.querySelector('#toast').textContent));
-assert.deepEqual(await coll(pb), before.b, 'Bob : collection d\'avant');
-assert.equal(await pb.evaluate(() => TR.wish['sol ring'] && TR.wish['sol ring'].q), 1, 'souhait rendu');
-assert.equal(await pb.evaluate(() => trocHist()[0].u), 1, 'historique : marqué annulé');
+// « Annuler l'échange » (écran de fin) : proposé par Bob, refusé puis accepté par Alice → défait des DEUX côtés (avant : « Annuler » du toast, chez Bob seulement : collections divergentes)
+await pb.waitForSelector('.trc .trc-foot [data-trc="undo"]');
+await pb.click('.trc [data-trc="undo"]'); await pb.waitForSelector('.sheet-wrap.open [data-trc="unask"]');
+assert.match(await tc(pb, '.sheet-wrap.open .sheet-body'), /Alice doit accepter : vos deux collections reviendront alors comme avant/);
+await shot(pb, '11b-bob-annuler');
+await pb.click('.sheet-wrap.open [data-trc="unask"]'); await pb.waitForSelector('.trc .trc-undo[data-st="me"]');
+assert.match(await tc(pb, '.trc .trc-undo'), /Annulation proposée à Alice : en attente de sa réponse/);
+await pa.waitForSelector('.trc .trc-undo[data-st="ot"]', { timeout: 8000 });
+assert.match(await tc(pa, '.trc .trc-undo'), /Bob propose d'annuler l'échange : vos deux collections reviendraient comme avant/);
+assert.equal(await pa.$('.trc .trc-foot [data-trc="undo"]'), null, 'une demande à la fois');
+await shot(pa, '11c-alice-proposition');
+await pa.click('.trc .trc-undo [data-trc="unno"]');
+await pb.waitForFunction(() => /Alice préfère garder l'échange/.test(document.querySelector('#toast').textContent), null, { timeout: 8000 });
+await pb.waitForSelector('.trc .trc-foot [data-trc="undo"]');
+assert.deepEqual([await coll(pa), await coll(pb)], [after.a, after.b], 'refusée : rien ne change');
+await pb.click('.trc [data-trc="undo"]'); await pb.waitForSelector('.sheet-wrap.open [data-trc="unask"]'); await pb.click('.sheet-wrap.open [data-trc="unask"]');
+await pa.waitForSelector('.trc .trc-undo [data-trc="unyes"]', { timeout: 8000 }); await pa.click('.trc .trc-undo [data-trc="unyes"]');
+for (const p of [pa, pb]) await p.waitForFunction(() => /Échange annulé des deux côtés : ta collection est revenue comme avant/.test(document.querySelector('#toast').textContent), null, { timeout: 8000 });
+assert.deepEqual(await coll(pa), before.a, 'Alice : collection d\'avant'); assert.deepEqual(await coll(pb), before.b, 'Bob : collection d\'avant');
+assert.equal(await pb.evaluate(() => TR.wish['sol ring'] && TR.wish['sol ring'].q), 1, 'souhait de Bob rendu');
+for (const p of [pa, pb]) {
+  assert.match(await tc(p, '.trc .trc-done'), /Échange annulé des deux côtés\s*Vos deux collections sont revenues comme avant/);
+  assert.equal(await p.evaluate(() => trocHist()[0].u), 2, 'historique : annulé des deux côtés');
+  await p.waitForFunction(() => !localStorage.getItem('deckdeal:troc:cur'), null, { timeout: 5000 });
+}
+await shot(pa, '11d-alice-annule');
 await pb.click('.trc [data-trc="close"]'); await pb.waitForFunction(() => !document.querySelector('.dv.trc'));
-ok('« Annuler » du toast : sur cet appareil seulement, collection et souhait revenus, échange marqué annulé dans l\'historique');
+ok('« Annuler l\'échange » : proposé à l\'autre, refusé (rien ne change), accepté → les deux collections et le souhait reviennent comme avant, historique « annulé des deux côtés »');
 
 // « Mes échanges » chez Alice
 await pa.click('.trc [data-trc="close"]'); await pa.waitForFunction(() => !document.querySelector('.dv.trc'));
 await pa.waitForSelector('.tr-box .trc-entry'); await pa.click('.trc-entry'); await pa.waitForSelector('.trc-entry-sheet.open [data-trc="hist"]');
 assert.match(await tc(pa, '.trc-entry-sheet [data-trc="hist"]'), /Mes échanges\s*1/);
 await pa.click('.trc-entry-sheet [data-trc="hist"]'); await pa.waitForSelector('.sheet-wrap.open .trc-h');
-assert.match(await tc(pa, '.sheet-wrap.open .trc-h'), /Bob.*− 6 · 5,30.*\+ 3 · 6,20/);
+assert.match(await tc(pa, '.sheet-wrap.open .trc-h'), /Bob.*annulé des deux côtés.*− 6 · 5,30.*\+ 3 · 6,20/);
 await shot(pa, '12-mes-echanges');
 await pa.click('.sheet-wrap.open .trc-h'); await pa.waitForSelector('.trc-hs.open .trc-col.get li');
 assert.deepEqual(await pa.$$eval('.trc-hs.open .trc-col.give li .trc-mn', l => l.map(x => x.textContent)), ['Sol Ring × 4', 'Llanowar Elves × 2'], 'détail : une ligne par carte (demandée et ajoutée réunies)');
@@ -224,6 +246,42 @@ ok('« Mes échanges » : ligne par échange (donné, reçu, valeurs), détail')
   await pa.click('.trc [data-trc="close"]'); await pa.waitForFunction(() => !document.querySelector('.dv.trc'));
   await pa.evaluate(() => { if (TR.pub && TR.pub.el) TR.pub.el.__close(); });
   ok('départ (Retour → confirmer) : « Bob a quitté l\'échange », rien n\'a changé');
+}
+
+/* ── Foil : un exemplaire foil d'Alice arrive foil (et anglais) chez Bob, au prix foil ; Alice perd ce foil, pas un exemplaire normal ─────
+   Avant : le serveur rejetait la clé « en* » (ni langue ni foil), Alice perdait un normal et Bob recevait une carte sans langue ni foil. */
+{
+  await pa.evaluate(() => { COLL.map = mergeColl(COLL.map, [{ k: 'llanowar elves', n: 'Llanowar Elves', q: 2, l: 'en*' }], 'add'); COLL.meta['llanowar elves'] = { ...(COLL.meta['llanowar elves'] || {}), ef: 300 }; collChanged(); });
+  const a0 = await coll(pa), b0 = await coll(pb);
+  assert.equal(a0['Llanowar Elves'], 'en:3,en*:2'); assert.equal(b0['Llanowar Elves'], undefined);
+  await pa.evaluate(() => trocHost()); await phase(pa, 'wait');
+  const C3 = await pa.evaluate(() => TRC.c);
+  await pa.click('.trc [data-trc="give"]'); await pa.waitForSelector('.trc-pick.open .trc-prow[data-k="llanowar elves"] .trc-ln.fo[data-g="en*"]');
+  assert.match(await tc(pa, '.trc-pick .trc-prow[data-k="llanowar elves"] .trc-ln[data-g="en*"]'), /✦\s*× 2\s*3,00/, 'pastille foil : ✦, exemplaires, prix foil');
+  await pa.click('.trc-pick .trc-prow[data-k="llanowar elves"] .trc-ln[data-g="en*"]'); await pa.waitForFunction(() => TRC.s.me.give.length === 1);
+  await closeSheets(pa);
+  assert.deepEqual(await pa.evaluate(() => TRC.s.me.give.map(x => [x.n, x.g, x.u])), [['Llanowar Elves', 'en*', 300]], 'ligne foil gardée par le serveur, au prix foil de l\'appareil');
+  await pb.evaluate(c => trocJoinCode(c), C3); await phase(pb, 'live'); await phase(pa, 'live');
+  await pb.waitForSelector('.trc .trc-zone.get .trc-card.foil .trc-fo');
+  assert.match(await pb.$eval('.trc .trc-zone.get .trc-card.foil', b => b.getAttribute('aria-label')), /Foil · 3,00/, 'tuile : foil et prix foil');
+  await pb.click('.trc [data-trc="ask"]'); await pb.waitForSelector('.trc-pick.open .trc-tabs'); await pb.click('.trc-pick .trc-tabs .seg-opt[data-v="all"]'); await pb.waitForSelector('.trc-pick.open .trc-prow[data-k="llanowar elves"] .trc-ln.fo[data-g="en*"]');
+  await pb.click('.trc-pick .trc-prow[data-k="llanowar elves"] .trc-ln[data-g="en*"]'); await pb.waitForFunction(() => TRC.s.ot.give.some(x => x.g === 'en*' && x.r));
+  await closeSheets(pb);
+  await pa.waitForSelector('.trc [data-trc="acceptall"]'); await pa.click('.trc [data-trc="acceptall"]'); await pa.waitForFunction(() => !TRC.s.me.give.some(x => x.r));
+  await pb.waitForFunction(() => TRC.s.ot.give.every(x => !x.r) && TRC.s.ot.give.reduce((t, x) => t + x.q, 0) === 2);
+  await shot(pb, '19-bob-foil');
+  await pa.click('.trc [data-trc="ready"]'); await pa.waitForSelector('.trc [data-trc="ready"][aria-pressed="true"]');
+  await pb.waitForSelector('.trc .trc-who[data-st="ready"]'); await pb.click('.trc [data-trc="ready"]');
+  await phase(pa, 'confirm'); await phase(pb, 'confirm');
+  assert.match(await tc(pb, '.trc .trc-final .trc-col.get'), /Llanowar Elves × 2\s*anglais\s*✦ Foil\s*6,00/, 'récapitulatif : langue, foil et prix foil');
+  await pa.click('.trc [data-trc="ok"]'); await pb.click('.trc [data-trc="ok"]');
+  await phase(pa, 'done'); await phase(pb, 'done');
+  await pb.waitForFunction(() => /Échange appliqué/.test(document.querySelector('#toast').textContent));
+  assert.equal((await coll(pa))['Llanowar Elves'], 'en:3', 'Alice : ses deux foil partis, ses normaux gardés');
+  assert.equal((await coll(pb))['Llanowar Elves'], 'en*:2', 'Bob : deux foil anglais');
+  assert.ok(await pb.$('.trc .trc-done .trc-col.get .trc-mt.fo'), 'écran de fin : ✦ Foil');
+  for (const p of [pa, pb]) { await p.click('.trc [data-trc="close"]'); await p.waitForFunction(() => !document.querySelector('.dv.trc')); }
+  ok('foil : donné et demandé avec sa langue et son foil (✦ sur la pastille, la tuile, le récapitulatif), au prix foil ; appliqué tel quel des deux côtés');
 }
 
 /* ── Mode streamer, code invalide ─────────────────────────────────────────────────────────────────── */

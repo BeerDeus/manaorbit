@@ -403,7 +403,7 @@ const simgDeck = o => simgShare(simgDeckSpec(o));
 /** Échange (lien actif) : doublons à échanger, valeur estimée, cartes recherchées, les 3 doublons les plus chers, QR code du lien public. */
 function simgTrade() {
   if (!TR.share) return null;
-  const st = TR.st || trState(), { rows, sum } = tradeView(st.have, { price: trPrice, sort: 'price', min: 0 });
+  const st = TR.st || trState(), { rows, sum } = tradeView(st.have, { price: trRowPx, sort: 'price', min: 0 });
   const top = rows.filter(r => r.u > 0).slice(0, 3).map(r => { const it = trItem(r.k, r.n, r.q, r.lines && r.lines[0] ? lineLang(r.lines[0][0]) : ''); return { name: it.dn || it.n, img: bndThumb(r, it.l, it.im).src || collImage(r.k, it.l, it.im).src, eur: r.u / 100 }; });      // l'impression de sa 1re ligne (comme la liste et le classeur)
   return simgShare({ kind: 'trade', by: profShare().by || '', n: sum.n, copies: sum.q, value: sum.v / 100, want: st.want.length, top, url: shareUrl(TR.share), date: Date.now() });
 }

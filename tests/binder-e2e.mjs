@@ -1,7 +1,7 @@
 // E2E classeur d'échange (binder.js) : interrupteur Liste | Classeur (section Échange du propriétaire, page publique), « Mon classeur » (couleur, tri,
 // cartes épinglées), réglages publiés DANS le champ d du partage et vus par un visiteur, pages (flèches, glisser, clavier), carte en grand, 1 carte,
 // 2 000 cartes (3 feuilles seulement dans la page), deux pages face à face sur grand écran, choix gardé, réglages relus par un autre appareil du compte.
-// Foil : pochette à part (voile irisé, pastille ✦), publiée (fo) et vue par le visiteur. « Aller à la page » : tuiles (12 pages), curseur (223 pages), clavier.
+// Foil : pochette à part (voile irisé, liseré, pastille ✦, prix foil ; inconnu : sans prix), publiée (fo, pf) et vue par le visiteur ; éditions : chaque pochette au prix de son impression (p). « Aller à la page » : tuiles (12 pages), curseur (223 pages), clavier.
 // Captures (clair et sombre) : BND_SHOTS=<dossier> (fausses cartes dessinées pour juger du rendu).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
@@ -72,6 +72,8 @@ const sleeves = (p, root) => p.$$eval(root + ' ' + SL, c => c.map(x => { const i
 /** Regroupées par carte, dans leur ordre (l'ordre entre cartes suit les noms affichés). */
 const perCard = list => [...new Set(list.map(x => x[0]))].sort().flatMap(k => list.filter(x => x[0] === k));
 const sleevesAre = async (p, root, want) => { let got; for (let i = 0; i < 100; i++) { got = perCard(await sleeves(p, root)); if (JSON.stringify(got) === JSON.stringify(perCard(want))) break; await sleep(200); } return got; };
+/** Prix des pochettes d'une carte (page affichée) : [édition lue, foil, prix affiché]. */
+const sleevePx = (p, root, k) => p.$$eval(root + ' ' + SL, (c, k) => c.filter(x => x.dataset.k === k).map(x => [(/, ([0-9A-Z]{2,6} [^,]+?)(?:,|$)/.exec(x.getAttribute('aria-label')) || [])[1] || '', x.classList.contains('foil'), ((x.querySelector('.bnd-p') || {}).textContent || '').replace(/\s/g, ' ')]), k);
 /** Carte en grand d'une pochette (clé, édition, foil) : image affichée et légende, une fois l'impression lue. */
 async function bigOf(p, root, k, ed, foil, re) {
   const i = await p.$$eval(root + ' ' + SL, (c, [k, ed, foil]) => c.findIndex(x => x.dataset.k === k && x.getAttribute('aria-label').includes(ed) && x.classList.contains('foil') === foil), [k, ed, foil]);
@@ -104,6 +106,14 @@ assert.equal(await p.$eval('.coll-main .bnd', e => e.dataset.cover), 'nuit', 'co
   assert.ok(await p.$('.coll-main .bnd-card[data-k="edgar markov"] .bnd-fo') && !(await p.$('.coll-main .bnd-card[data-k="sol ring"] .bnd-fo')), 'pastille ✦');
   assert.match(await p.$eval('.coll-main .bnd-card[data-k="edgar markov"]', b => b.getAttribute('aria-label')), /^Edgar Markov, Foil, × 2/);
   assert.deepEqual(await p.$eval('.coll-main .bnd-card.foil .bnd-art', a => { const s = getComputedStyle(a, '::after'); return [s.animationName, s.mixBlendMode]; }), ['bndfoil', 'screen'], 'voile irisé qui glisse');
+  assert.ok(await p.$eval('.coll-main .bnd-card.foil', b => /conic-gradient/.test(getComputedStyle(b, '::before').backgroundImage)), 'liseré irisé : reconnaissable même sur une illustration chargée');
+  // prix de la pochette foil : le prix foil ; inconnu (ni l'édition ni la carte n'en ont) : pas de prix, jamais le prix normal présenté comme le sien
+  assert.equal(await p.$('.coll-main .bnd-card[data-k="edgar markov"] .bnd-p'), null, 'prix foil inconnu : pochette foil sans prix');
+  const sumOf = () => p.$eval('.tr-sum em', e => Math.round(Number(e.textContent.replace(/[^\d,]/g, '').replace(',', '.')) * 100)), v0 = await sumOf(), base = await p.evaluate(() => trPrice('edgar markov'));
+  await p.evaluate(() => { COLL.meta['edgar markov'] = { ...COLL.meta['edgar markov'], ef: 450 }; trRepaint(); });
+  await p.waitForSelector('.coll-main .bnd-card[data-k="edgar markov"] .bnd-p');
+  assert.match(await txt(p, '.coll-main .bnd-card[data-k="edgar markov"] .bnd-p'), /^4,50\s€$/, 'prix foil Cardmarket de la carte');
+  assert.equal(await sumOf(), v0 + 2 * (450 - base), 'total « ≈ … € » : ses 2 foil comptés au prix foil (inconnu : au prix normal)');
   assert.deepEqual(await p.evaluate(() => bndOwnItems([{ k: 'sol ring', n: 'Sol Ring', q: 4, u: 120, lines: [['fr', 2], ['fr|cmm|400*', 1], ['en', 1]] }], false).map(x => [x.l, x.q, !!x.foil])), [['fr', 2, false], ['fr', 1, true], ['en', 1, false]], 'foil d\'une langue : sa pochette après les autres');
   await p.waitForFunction(() => document.querySelectorAll('.coll-main .bnd-sheet[data-pos="0"] img.ok').length === 9, null, { timeout: 8000 }).catch(() => {});
   await shot(p, 'owner-foil', '.coll-main .bnd'); await shot(p, 'foil-card', '.coll-main .bnd-slot:has(.bnd-card.foil)');
@@ -361,6 +371,8 @@ ok('propriétaire : classeur et réglages retrouvés après rechargement, retour
 // Sol Ring CMM 400 : imprimé en français (faux Scryfall : world.eds) ; 2X2 101 (impression des « Illustrations » simulées) et M21 103 : en anglais seulement
 world.eds['cmm|400'] = { n: 'Sol Ring', langs: ['fr'] }; world.setnum = { ...(world.setnum || {}), '2x2/101': { name: 'Sol Ring', printed: {} } };
 const COLL_ED = ['1 Sol Ring *FR*', '2 Sol Ring (CMM) 400 *FR*', '1 Sol Ring (FOIL) (CMM) 400 *FR*', '2 Sol Ring (2X2) 101 *FR*', '2 Llanowar Elves *EN*', '2 Llanowar Elves (M21) 103 *EN*', '3 Arcane Signet'].join('\n');
+/** Prix des pochettes Sol Ring CMM 400 (faux Scryfall : 2,00 €, foil 6,00 €), une fois lus. */
+const CMM_PX = [['CMM 400', false, '2,00 €'], ['CMM 400', true, '6,00 €']], cmmPx = async (p, root) => { let got; for (let i = 0; i < 50; i++) { got = (await sleevePx(p, root, 'sol ring')).filter(x => x[0] === 'CMM 400'); if (JSON.stringify(got) === JSON.stringify(CMM_PX)) break; await sleep(200); } return got; };
 const OWN_ED = [['sol ring', '2X2 101', false, '×2', 'en/ed-2x2-101.jpg'], ['sol ring', 'CMM 400', false, '×2', 'fr/ed-cmm-400.jpg'], ['sol ring', 'CMM 400', true, '', 'fr/ed-cmm-400.jpg'],
   ['llanowar elves', '', false, '', 'a/b/llanowar-elves.jpg'], ['llanowar elves', 'M21 103', false, '×2', 'en/ed-m21-103.jpg'], ['arcane signet', '', false, '×2', 'a/b/arcane-signet.jpg']];
 {
@@ -369,6 +381,8 @@ const OWN_ED = [['sol ring', '2X2 101', false, '×2', 'en/ed-2x2-101.jpg'], ['so
   // vue Liste : vignette d'une carte = l'impression de sa 1re ligne (FR 2X2 101 : l'image anglaise de cette impression, Scryfall n'a pas la française)
   await q.waitForFunction(() => /\/small\/front\/en\/ed-2x2-101\.jpg$/.test((document.querySelector('.tr-row[data-k="sol ring"] .thumb img') || { src: '' }).src), null, { timeout: 15000 });
   assert.deepEqual(await q.$$eval('.tr-list .tr-row', r => r.map(x => [x.dataset.k, x.dataset.e || ''])), [['arcane signet', ''], ['llanowar elves', ''], ['sol ring', '2x2|101']], 'vignettes : l\'impression de la 1re ligne de chaque carte');
+  await q.waitForFunction(() => /6,00/.test((document.querySelector('.tr-row[data-k="sol ring"] .tag.foil') || {}).textContent || ''), null, { timeout: 10000 });
+  assert.match(await txt(q, '.tr-row[data-k="sol ring"] .tag.foil'), /^✦ Foil × 1 · 6,00 €$/, 'liste : la partie foil à son prix foil (celui de son impression)');
   await q.waitForFunction(() => document.querySelectorAll('.tr-list .tr-row .thumb img.ok').length === 3, null, { timeout: 8000 }).catch(() => {});
   await shot(q, 'owner-editions-list', '.tr-list');
   await q.click('.tr-row[data-k="sol ring"] .thumb'); await q.waitForSelector('.imgv.on');
@@ -378,6 +392,7 @@ const OWN_ED = [['sol ring', '2X2 101', false, '×2', 'en/ed-2x2-101.jpg'], ['so
   // classeur : une pochette par langue et par édition (la foil juste après), image de l'impression exacte (française si Scryfall l'a) ; lignes sans édition : comme avant
   await q.click('#trView [data-v="binder"]'); await q.waitForSelector('.coll-main .bnd .bnd-card');
   assert.deepEqual(await sleevesAre(q, '.coll-main', OWN_ED), perCard(OWN_ED), 'pochettes du propriétaire');
+  assert.deepEqual(await cmmPx(q, '.coll-main'), CMM_PX, 'chaque pochette au prix de son impression, la foil au prix foil de cette impression (avant : 1,20 € partout)');
   assert.ok(world.edLangQ.some(x => /\(set:cmm cn:400\)/.test(x) && /\(set:2x2 cn:101\)/.test(x) && /lang:fr$/.test(x)), 'images françaises des éditions : une recherche pour les deux');
   assert.ok(world.scry.some(x => /^POST \/cards\/collection/.test(x)), 'éditions lues par code et numéro');
   const [im0, cap0] = await bigOf(q, '.coll-main', 'sol ring', 'CMM 400', false, /\/cmm\/400-fr\.jpg$/);
@@ -390,6 +405,7 @@ const OWN_ED = [['sol ring', '2X2 101', false, '×2', 'en/ed-2x2-101.jpg'], ['so
   for (let i = 0; i < 40 && !shares.has('ShareBinderEds01'); i++) await sleep(150);
   const d = shareD('ShareBinderEds01'), by = n => d.have.filter(x => x.n === n);
   assert.deepEqual(by('Sol Ring').map(x => [x.l, x.e, x.q, x.fo || 0, x.i]), [['fr', '2x2/101', 2, 0, 'small/front/en/ed-2x2-101.jpg'], ['fr', 'cmm/400', 3, 1, 'small/front/fr/ed-cmm-400.jpg']], 'Sol Ring : deux éditions, deux cartes (foil comptées dans fo)');
+  assert.deepEqual(by('Sol Ring').filter(x => x.e === 'cmm/400').map(x => [x.p, x.pf]), [[200, 600]], 'prix de cette impression et de ses foil publiés (p, pf) : le visiteur n\'a que celui de la carte');
   assert.deepEqual(by('Llanowar Elves').map(x => [x.l, x.e, x.q, x.i]), [['en', undefined, 1, 'small/front/a/b/llanowar-elves.jpg'], ['en', 'm21/103', 2, 'small/front/en/ed-m21-103.jpg']], 'sans édition puis édition');
   assert.deepEqual(by('Arcane Signet').map(x => [x.e, x.q]), [[undefined, 2]]);
   await O.ctx.close();
@@ -402,8 +418,9 @@ const OWN_ED = [['sol ring', '2X2 101', false, '×2', 'en/ed-2x2-101.jpg'], ['so
   await V.p.click('#pubSub [data-v="have"]'); await V.p.waitForSelector('.pubv .pub-row');
   assert.equal(await txt(V.p, '.bnd-cnt'), '3 cartes · 10 exemplaires', 'le compte ne change pas');
   // vue Liste : une ligne par impression, son image et son édition
-  assert.deepEqual(await V.p.$$eval('.pubv .pub-row', r => r.map(x => [x.dataset.k, x.dataset.e || '', ((x.querySelector('.thumb img') || { getAttribute: () => '' }).getAttribute('src') || '').replace(/^.*\/front\//, ''), [...x.querySelectorAll('.tag')].map(t => t.textContent).filter(t => /\d/.test(t)).join(' | ')])),
-    [['arcane signet', '', 'a/b/arcane-signet.jpg', ''], ['llanowar elves', '', 'a/b/llanowar-elves.jpg', ''], ['llanowar elves', 'm21|103', 'en/ed-m21-103.jpg', 'M21 103'], ['sol ring', '2x2|101', 'en/ed-2x2-101.jpg', '2X2 101'], ['sol ring', 'cmm|400', 'fr/ed-cmm-400.jpg', 'CMM 400 | ✦ Foil × 1']], 'liste du visiteur');
+  assert.deepEqual(await V.p.$$eval('.pubv .pub-row', r => r.map(x => [x.dataset.k, x.dataset.e || '', ((x.querySelector('.thumb img') || { getAttribute: () => '' }).getAttribute('src') || '').replace(/^.*\/front\//, ''), [...x.querySelectorAll('.tag')].map(t => t.textContent.replace(/\s/g, ' ')).filter(t => /\d/.test(t)).join(' | ')])),
+    [['arcane signet', '', 'a/b/arcane-signet.jpg', ''], ['llanowar elves', '', 'a/b/llanowar-elves.jpg', ''], ['llanowar elves', 'm21|103', 'en/ed-m21-103.jpg', 'M21 103'], ['sol ring', '2x2|101', 'en/ed-2x2-101.jpg', '2X2 101'], ['sol ring', 'cmm|400', 'fr/ed-cmm-400.jpg', 'CMM 400 | ✦ Foil × 1 · 6,00 €']], 'liste du visiteur');
+  assert.equal(await txt(V.p, '.pubv .pub-row[data-e="cmm|400"] .tr-px'), '≈ 2,00 €', 'visiteur : prix de cette impression (publié), pas celui de la carte');
   await V.p.waitForFunction(() => document.querySelectorAll('.pubv .pub-row .thumb img.ok').length === 5, null, { timeout: 8000 }).catch(() => {});
   await shot(V.p, 'pub-editions-list', '.pubv .pub-main');
   await V.p.click('.pubv .pub-row[data-e="cmm|400"]'); await V.p.waitForSelector('.imgv.on');
@@ -412,6 +429,7 @@ const OWN_ED = [['sol ring', '2X2 101', false, '×2', 'en/ed-2x2-101.jpg'], ['so
   // classeur : les mêmes pochettes que chez le propriétaire, dans le même ordre pour chaque carte, mêmes images
   await V.p.click('#pubView [data-v="binder"]'); await V.p.waitForSelector('.pubv .bnd .bnd-card');
   assert.deepEqual(await sleevesAre(V.p, '.pubv', OWN_ED), perCard(OWN_ED), 'pochettes du visiteur = celles du propriétaire');
+  assert.deepEqual(await cmmPx(V.p, '.pubv'), CMM_PX, 'visiteur : les mêmes prix que le propriétaire (impression, foil)');
   assert.equal(await txt(V.p, '.bnd-cnt'), '3 cartes · 10 exemplaires');
   const [im1, cap1] = await bigOf(V.p, '.pubv', 'sol ring', 'CMM 400', true, /\/cmm\/400-fr\.jpg$/);
   assert.ok(im1 === 'cmm/400-fr.jpg' && /CMM 400/.test(cap1) && await V.p.$('.imgv-card.foil'), 'carte en grand : cette impression, en français, foil');

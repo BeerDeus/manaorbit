@@ -5,8 +5,9 @@
    · Écran à part (.dv) : « Tu reçois » (ce que l'autre donne) en haut, la balance au milieu (écart en € et en %, du vert au rouge), « Tu donnes » en bas ;
      vignettes (image, nom, × exemplaires, prix à l'unité) et total de chaque côté. Je choisis ce que je donne (ma liste d'échange, sinon toute ma collection),
      je demande des cartes de SA liste (elles arrivent de son côté, « Demandée » : il accepte ou retire). Tout changement retire « Prêt » aux deux ;
-     les deux « Prêt » → récapitulatif ; les deux « Valider » → appliqué : chacun retire ce qu'il donne et ajoute ce qu'il reçoit (langue et édition
-     gardées), liste de souhaits allégée, « Annuler » dans le toast (sur cet appareil), « Mes échanges » (historique sur cet appareil, comme « Mes ouvertures »).
+     les deux « Prêt » → récapitulatif ; les deux « Valider » → appliqué : chacun retire ce qu'il donne et ajoute ce qu'il reçoit (langue, édition et foil
+     gardés), liste de souhaits allégée ; « Annuler l'échange » sur l'écran de fin (15 min) : proposé à l'autre, défait des DEUX côtés s'il accepte
+     (op undo), sinon rien ne change ; « Mes échanges » (historique sur cet appareil, comme « Mes ouvertures »).
    · « Équilibrer » : propose des cartes peu chères (de ma liste, ou à lui demander) pour approcher 0 € d'écart ; rien ne part sans « Ajouter ».
    · Serveur : proxy.mjs › /api/troc (sessions en mémoire, une clé de siège par joueur) ; relevé toutes les 1,2 s écran visible, 5 s caché, 10 s après
      2 min ; version de la session (rien de neuf : réponse courte). Prix : ceux de la session (fichier de prix du serveur), les mêmes chez les deux.
@@ -14,7 +15,7 @@
      l'échange ; une session faite mais pas encore appliquée l'est au retour). Mode streamer (opening.js › streamOn) : pas d'échange en direct.
    Retirer la fonction : ôter 'troc.js' de build.mjs (crochets gardés par typeof dans share.js, friends.js, push.js, app.js, decks.js), css/troc.css, i18n/*.troc.json. */
 const TRC_CUR = 'deckdeal:troc:cur', TRC_HIST = 'deckdeal:troc:hist', TRC_HIST_MAX = 50, TRC_CODE_RE = /^[A-HJKMNP-Z2-9]{6}$/, TRC_PAGE = 60;
-const TRC = { s: null, c: '', key: '', uid: '', el: null, t: 0, fail: 0, hid: 0, q: Promise.resolve(), ot: null, pick: null, flash: new Set(), myCv: 0, want: '', hist: null, inv: null, bright: false, wl: null, sent: null, applying: false, vis: null };
+const TRC = { s: null, c: '', key: '', uid: '', el: null, t: 0, fail: 0, hid: 0, q: Promise.resolve(), ot: null, pick: null, flash: new Set(), myCv: 0, want: '', hist: null, inv: null, bright: false, wl: null, sent: null, applying: false, vis: null, undo: null, unBy: '' };      // undo : échange fait sur cet appareil, encore annulable (trocApply) ; unBy : « me » quand je retire ma demande d'annulation
 const TRC_SWAP = '<svg class="i" aria-hidden="true"><use href="#i-swap"/></svg>';
 const TRC_EQ = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M8 19h8M5 7h14M5 7l-2.6 6.2a2.6 2.6 0 0 0 5.2 0zM19 7l-2.6 6.2a2.6 2.6 0 0 0 5.2 0z"/></svg>';
 const TRC_OK = '<svg class="i" aria-hidden="true"><use href="#i-check"/></svg>';
@@ -26,6 +27,8 @@ const trocFmtCode = c => (c ? c.slice(0, 3) + ' ' + c.slice(3) : '');
 const trocUrl = c => { try { return new URL('./?troc=' + c, location.href).href.replace(/#.*$/, ''); } catch (e) { return '?troc=' + c; } };
 const trocNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const trocOpenSt = s => !!s && (s.st === 'wait' || s.st === 'live');
+/** Échange fait et appliqué sur cet appareil, encore annulable des deux côtés (op undo, TROC_UNDO_MS du serveur) : la session est encore relevée. */
+const trocUndoable = () => { const s = TRC.s, u = TRC.undo; return !!(s && u && s.st === 'done' && !s.ud && TRC.c === s.c && u.c === s.c && Date.now() < u.until); };
 /** Typographie française (comme l'aide) : espace insécable avant « ; : ? ! » et après « « » ; sans effet en anglais. Texte et HTML sans attribut « a :b ». */
 const trocNb = s => String(s).replace(/ ([;:!?»])/g, ' $1').replace(/« /g, '« ');
 const trocWho = () => (TRC.s && TRC.s.ot && TRC.s.ot.n) || T('l\'autre joueur');
@@ -42,21 +45,24 @@ const trocAv = (x, cls = 'trc-av') => `<span class="${cls}" style="--h:${hash32(
 function trocSum(list) { const t = { n: 0, q: 0, v: 0, nv: 0 }; for (const x of list || []) { if (x.r) continue; t.n++; t.q += x.q; if (x.u > 0) t.v += x.u * x.q; else t.nv++; } return t; }
 /** Exemplaires d'une carte (clé) et d'une ligne déjà dans une liste de la session. */
 const trocIn = (list, k, g) => (list || []).reduce((t, x) => t + (ownKey(x.n) === k && x.g === g ? x.q : 0), 0);
-/** Ma liste d'échange pour la session : une entrée par ligne (langue|édition), nom imprimé, image, prix de l'appareil (le serveur pose les siens). */
+/** Ma liste d'échange pour la session : une entrée par ligne (langue|édition, '*' foil), nom imprimé, image, prix de l'appareil (celui de l'impression et de la finition :
+ *  share.js › trLinePx ; le serveur pose le sien sur les lignes sans édition ni foil). */
 function trocMyList() {
   const out = [];
   for (const x of trState().have) for (const [g, q] of x.lines) {
-    const l = lineLang(g), f = l ? frName(x.k, l) : '', i = imgShort(collLineImage(x.k, g, (COLL.meta[x.k] || {}).im).src), u = trPrice(x.k);
-    out.push({ n: x.n, q, g, ...(f ? { f, fl: FRX.l } : {}), ...(i ? { i } : {}), ...(u ? { u } : {}) });
+    out.push({ ...trocMine(x.k, x.n, g), q });
     if (out.length >= 3000) return out;
   }
   return out;
 }
-/** Une ligne de ma collection, prête pour la session (give). */
+/** Une ligne de ma collection, prête pour la session (give) : sa clé sans emplacement ni détails (ils ne quittent pas l'appareil), foil et édition gardés. */
 function trocMine(k, n, g) {
-  const l = lineLang(g), f = l ? frName(k, l) : '', i = imgShort(collLineImage(k, g, (COLL.meta[k] || {}).im).src), u = trPrice(k);
+  g = lineHead(g);
+  const l = lineLang(g), f = l ? frName(k, l) : '', i = imgShort(collLineImage(k, g, (COLL.meta[k] || {}).im).src), u = trLinePx(k, g);
   return { n, q: 1, g, ...(f ? { f, fl: FRX.l } : {}), ...(i ? { i } : {}), ...(u ? { u } : {}) };
 }
+/** Pastille foil (✦) d'une ligne de la session ('' sans foil). */
+const trocFo = g => (lineFoil(g) ? `<i class="trc-fo" title="${T('Foil')}" aria-hidden="true">✦</i>` : '');
 async function trocProf() { if (typeof amProf === 'function') { try { return await amProf(); } catch (e) { /* miniature illisible */ } } return { n: PROF.name || '', l: I18N.lang }; }
 
 /* ── Serveur ─────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -88,6 +94,7 @@ function trocErr(code) {
     : code === 'max' ? T('Pas plus d\'exemplaires.')
     : code === 'items' ? T('Trop de cartes de ce côté.')
     : code === 'not_listed' ? T('Cette carte n\'est plus dans sa liste.')
+    : code === 'late' ? T('Trop tard : cet échange ne peut plus être annulé.')
     : code === 'closed' || code === 'gone' ? T('Échange terminé.')
     : code === 'troc_disabled' ? T('Échange en direct indisponible sur ce serveur.')
     : T('Échange injoignable : réessaie dans un moment.');
@@ -113,7 +120,7 @@ function trocSaveCur() {
   try { if (TRC.c && TRC.key) localStorage.setItem(TRC_CUR, JSON.stringify({ c: TRC.c, k: TRC.key, u: D.uid || '', at: Date.now() })); else localStorage.removeItem(TRC_CUR); } catch (e) { /* stockage indisponible */ }
 }
 /** Plus de session sur cet appareil (fenêtre laissée ouverte : elle montre la fin). */
-function trocReset() { clearTimeout(TRC.t); TRC.c = ''; TRC.key = ''; TRC.ot = null; TRC.sent = null; trocSaveCur(); }
+function trocReset() { clearTimeout(TRC.t); TRC.c = ''; TRC.key = ''; TRC.ot = null; TRC.sent = null; TRC.undo = null; trocSaveCur(); }
 const trocGap = () => (TRC.fail ? Math.min(10000, 1500 * TRC.fail) : document.hidden ? (Date.now() - TRC.hid > 120e3 ? 10000 : 5000) : 1200);
 function trocPollSoon(ms) { clearTimeout(TRC.t); if (TRC.c) TRC.t = setTimeout(trocPoll, ms == null ? trocGap() : ms); }
 async function trocPoll() {
@@ -129,7 +136,9 @@ async function trocPoll() {
     if (e.code === 'gone') { trocGone(); return; }
     TRC.fail++; trocNet(false);
   }
-  if (TRC.c === c && trocOpenSt(TRC.s)) trocPollSoon();
+  if (TRC.c !== c) return;
+  if (trocOpenSt(TRC.s) || trocUndoable()) trocPollSoon();
+  else if (TRC.s && TRC.s.st === 'done' && TRC.undo) { trocReset(); trocPaint(); }      // plus annulable : la session est oubliée ici (l'écran de fin reste)
 }
 /** Connexion perdue / revenue : bandeau sous l'en-tête. */
 function trocNet(ok) { const b = TRC.el && $('.trc-net', TRC.el); if (b) b.hidden = ok; }
@@ -153,7 +162,16 @@ function trocTake(s) {
   else if (prev && prev.me.ready && !s.me.ready && s.cv !== prev.cv && s.cv !== TRC.myCv && s.st === 'live') { haptic('warn'); toast(T('{name} a changé l\'échange : vérifie, puis « Prêt »', { name })); }
   else if (prev && prev.ot && s.ot && !prev.ot.ready && s.ot.ready && s.st === 'live') haptic('tap');
   if (s.ot && TRC.ot && TRC.ot.lv !== s.ot.lv) TRC.ot = null;      // sa liste a changé : relue à la prochaine ouverture
-  if (s.st === 'done') { trocPaint(); trocApply(s); return; }
+  if (s.st === 'done') {      // fait : appliqué chez moi (une fois) ; puis, tant qu'il est annulable, les demandes d'annulation (op undo) ; annulé des deux côtés : défait ici aussi
+    if (s.ud) trocUndone(s);
+    else {
+      trocApply(s);
+      if (prev && prev.ot && s.ot && !prev.ot.un && s.ot.un && !s.me.un) { haptic('warn'); toast(T('{name} propose d\'annuler l\'échange', { name })); }
+      else if (prev && prev.me.un && !s.me.un && TRC.unBy !== 'me') { haptic('tap'); toast(T('{name} préfère garder l\'échange', { name })); }
+      TRC.unBy = '';
+    }
+    trocPaint(); return;
+  }
   if (s.st === 'end') { if (prev && trocOpenSt(prev) && s.by === 'ot') haptic('warn'); trocReset(); trocPaint(); return; }
   trocSaveCur(); trocPaint();
   if (TRC.pick && TRC.pick.paint) TRC.pick.paint();
@@ -276,7 +294,10 @@ function trocInit() {
     TRC.c = cur.c; TRC.key = cur.k; TRC.uid = D.uid;
     try {
       const s = await trocCall(`/s?c=${cur.c}`);
-      if (s.st === 'done' && trocHist().some(h => h.id === trocRecId(s.c))) { trocReset(); return; }
+      if (s.st === 'done' && trocHist().some(h => h.id === trocRecId(s.c))) {      // déjà appliqué : annulé des deux côtés entre-temps → défait ici aussi ; ma demande d'annulation en attente → retirée
+        if (s.ud) trocUndone(s); else { if (s.me.un) trocUnDrop(s); trocReset(); }
+        return;
+      }
       if (s.st === 'done' || trocOpenSt(s)) { trocOpenWin(); trocTake(s); if (trocOpenSt(s)) trocPollSoon(1200); }
       else trocReset();
     } catch (e) { if (e.code === 'gone' || e.status === 404) trocReset(); else { TRC.c = ''; TRC.key = ''; } }      // hors ligne : on réessaiera au prochain lancement
@@ -294,7 +315,7 @@ function trocOpenWin() {
   TRC.el = wrap; wrap.__close = trocAskLeave;
   wrap.addEventListener('click', trocClick);
   wrap.addEventListener('error', e => { const im = e.target; if (im.tagName !== 'IMG') return; if (im.dataset.n && !im.dataset.fb) { im.dataset.fb = '1'; im.src = scImg(im.dataset.n); } else im.remove(); }, true);      // image de la session absente : celle de Scryfall par le nom
-  TRC.vis = () => { if (document.hidden) TRC.hid = Date.now(); else { trocLock(); if (TRC.c && trocOpenSt(TRC.s)) trocPollSoon(0); } };
+  TRC.vis = () => { if (document.hidden) TRC.hid = Date.now(); else { trocLock(); if (TRC.c && (trocOpenSt(TRC.s) || trocUndoable())) trocPollSoon(0); } };
   document.addEventListener('visibilitychange', TRC.vis);
   document.addEventListener('keydown', trocKey, true);
   document.body.appendChild(wrap); holdApp(); trocLock();
@@ -302,6 +323,7 @@ function trocOpenWin() {
 }
 function trocCloseWin() {
   const w = TRC.el; if (!w) return; TRC.el = null;
+  const s = TRC.s; if (s && s.st === 'done' && TRC.c === s.c) { if (s.me.un && !s.ud) trocUnDrop(s); trocReset(); }      // échange fait : plus annulable une fois l'écran fermé
   if (TRC.pick) { try { TRC.pick.close(); } catch (e) { /* déjà fermée */ } TRC.pick = null; }
   trocBright(false); try { if (TRC.wl) TRC.wl.release(); } catch (e) { /* déjà relâché */ } TRC.wl = null;
   document.removeEventListener('visibilitychange', TRC.vis); document.removeEventListener('keydown', trocKey, true);
@@ -355,11 +377,11 @@ function trocOtState(s) {
   return ['', s.me.ready ? T('choisit encore…') : T('choisit ses cartes…')];
 }
 function trocTile(x, side) {
-  const k = ownKey(x.n), dn = trocName(x), l = lineLang(x.g), e = lineEd(x.g);
-  const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), x.u ? fmt(x.u, 'EUR') : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ');
-  return `<button class="trc-card${TRC.flash.has(x.id) ? ' new' : ''}${x.r ? ' pend' : ''}" type="button" data-id="${esc(x.id)}" data-side="${side}" aria-label="${esc(lab)}">
+  const k = ownKey(x.n), dn = trocName(x), l = lineLang(x.g), e = lineEd(x.g), fo = lineFoil(x.g);
+  const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, 'EUR') : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ');
+  return `<button class="trc-card${TRC.flash.has(x.id) ? ' new' : ''}${x.r ? ' pend' : ''}${fo ? ' foil' : ''}" type="button" data-id="${esc(x.id)}" data-side="${side}" aria-label="${esc(lab)}">
     <span class="trc-art" style="--h:${hash32(k) % 360}"><b aria-hidden="true">${esc((dn.trim()[0] || '?').toUpperCase())}</b><img alt="" loading="lazy" decoding="async" src="${esc(trocSrc(x))}" data-n="${esc(x.n)}">
-      ${x.q > 1 ? `<i class="trc-q">×${x.q}</i>` : ''}${l && l !== 'en' ? `<i class="trc-fl">${flag(l)}</i>` : ''}${x.a ? `<i class="trc-badge${x.r ? '' : ' on'}">${x.r ? T('Demandée') : T('Acceptée')}</i>` : ''}</span>
+      ${x.q > 1 ? `<i class="trc-q">×${x.q}</i>` : ''}${l && l !== 'en' ? `<i class="trc-fl">${flag(l)}</i>` : ''}${trocFo(x.g)}${x.a ? `<i class="trc-badge${x.r ? '' : ' on'}">${x.r ? T('Demandée') : T('Acceptée')}</i>` : ''}</span>
     <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? esc(fmt(x.u, 'EUR')) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
 }
 function trocZoneHtml(cls, title, list, side, add, empty, extra = '') {
@@ -398,11 +420,12 @@ function trocBalHtml(get, give, any) {
     <div class="trc-meter" aria-hidden="true"><span>${T('tu donnes plus')}</span><i class="trc-track"><i class="trc-mark" style="--x:${x.toFixed(1)}%"></i></i><span>${T('tu reçois plus')}</span></div>
     <div class="trc-bt"><b>${esc(txt)}</b>${b.base && !b.even ? `<em>${b.pct} %</em>` : ''}</div></div>`;
 }
-/** Liste courte (récapitulatif, fin, historique) : une ligne par carte et par ligne (langue|édition), demandée ou non. */
+/** Liste courte (récapitulatif, fin, historique) : une ligne par carte et par ligne (langue|édition|foil), demandée ou non ; sous le nom : drapeau, édition, « ✦ Foil ». */
 function trocMiniList(list) {
   const by = new Map();
   for (const x of list) { if (x.r) continue; const k = ownKey(x.n) + '|' + (x.g || ''), e = by.get(k); if (e) e.q += x.q; else by.set(k, { ...x }); }
-  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" src="${esc(trocSrc(x))}" data-n="${esc(x.n)}"></span><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, 'EUR')) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
+  const meta = g => [lineLang(g) ? flag(lineLang(g)) : '', lineEd(g) ? esc(edLabel(lineEd(g))) : '', lineFoil(g) ? '✦ ' + T('Foil') : ''].filter(Boolean).join(' ');
+  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" src="${esc(trocSrc(x))}" data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, 'EUR')) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
 }
 function trocConfirmHtml(s) {
   const sg = trocSum(s.ot.give), sv = trocSum(s.me.give), name = esc(trocWho());
@@ -413,8 +436,11 @@ function trocConfirmHtml(s) {
     <p class="trc-fs" data-ok="${s.ot.ok ? 1 : 0}">${s.ot.ok ? TRC_OK + T('{name} a validé', { name }) : T('{name} n\'a pas encore validé', { name })}</p></section>`;
 }
 function trocDoneHtml(s) {
-  const sg = trocSum(s.ot ? s.ot.give : []), sv = trocSum(s.me.give);
-  return `<section class="trc-done"><span class="trc-tick">${TRC_OK}</span><b>${T('Échange terminé')}</b><p>${T('Ta collection est à jour : {give}, {get}.', { give: TN(sv.q, '{n} carte donnée', '{n} cartes données'), get: TN(sg.q, '{n} reçue', '{n} reçues') })}</p>
+  const sg = trocSum(s.ot ? s.ot.give : []), sv = trocSum(s.me.give), name = esc(trocWho());
+  if (s.ud) return `<section class="trc-done trc-end"><span class="trc-tick off"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></span><b>${T('Échange annulé des deux côtés')}</b><p>${T('Vos deux collections sont revenues comme avant.')}</p></section>`;
+  const un = !trocUndoable() ? '' : s.me.un ? `<div class="trc-undo" data-st="me"><span>${T('Annulation proposée à {name} : en attente de sa réponse…', { name })}</span><button class="btn small ghost" type="button" data-trc="unno">${T('Retirer ma demande')}</button></div>`
+    : s.ot && s.ot.un ? `<div class="trc-undo" data-st="ot"><span>${T('{name} propose d\'annuler l\'échange : vos deux collections reviendraient comme avant.', { name })}</span><span class="trc-ua"><button class="btn small ghost" type="button" data-trc="unno">${T('Garder l\'échange')}</button><button class="btn small danger" type="button" data-trc="unyes">${T('Annuler l\'échange')}</button></span></div>` : '';
+  return `<section class="trc-done"><span class="trc-tick">${TRC_OK}</span><b>${T('Échange terminé')}</b><p>${T('Ta collection est à jour : {give}, {get}.', { give: TN(sv.q, '{n} carte donnée', '{n} cartes données'), get: TN(sg.q, '{n} reçue', '{n} reçues') })}</p>${un}
     <div class="trc-col get"><h3>${T('Tu as reçu')}<span>${sg.v ? esc(fmt(sg.v, 'EUR')) : ''}</span></h3>${trocMiniList(s.ot ? s.ot.give : [])}</div>
     <div class="trc-col give"><h3>${T('Tu as donné')}<span>${sv.v ? esc(fmt(sv.v, 'EUR')) : ''}</span></h3>${trocMiniList(s.me.give)}</div>
     <p class="hint">${T('Retrouve-le dans Échange › Échange en direct › « Mes échanges ».')}</p></section>`;
@@ -426,6 +452,7 @@ function trocEndHtml(s) {
 }
 function trocFootHtml(s, ph, name) {
   if (ph === 'wait') return `<button class="btn ghost" type="button" data-trc="quit">${T('Annuler l\'échange')}</button>`;
+  if (ph === 'done' && trocUndoable() && !s.me.un && !(s.ot && s.ot.un)) return `<button class="btn ghost" type="button" data-trc="undo">${T('Annuler l\'échange')}</button><button class="btn" type="button" data-trc="close">${T('Fermer')}</button>`;      // annuler : proposé à l'autre (trocUndoAsk)
   if (ph === 'done' || ph === 'end') return `<button class="btn" type="button" data-trc="close">${T('Fermer')}</button>`;
   if (ph === 'confirm') return `<button class="btn ghost" type="button" data-trc="edit">${T('Modifier')}</button><button class="btn trc-go" type="button" data-trc="ok"${s.me.ok ? ' disabled' : ''}>${s.me.ok ? T('En attente de {name}…', { name }) : T('Valider l\'échange')}</button>`;
   const pend = s.me.give.some(x => x.r), empty = !s.me.give.length && !s.ot.give.length, b = trocBal(trocSum(s.ot.give).v, trocSum(s.me.give).v);
@@ -440,6 +467,12 @@ async function trocClick(e) {
   if (a === 'close') { trocAskLeave(); return; }
   if (a === 'code') { if (s && s.c) copyText(trocFmtCode(s.c)); return; }
   if (a === 'quit') { haptic('tap'); await trocQuit(); trocCloseWin(); toast(T('Échange annulé')); return; }
+  if (a === 'undo' || a === 'unyes' || a === 'unno') {      // échange fait : proposer l'annulation, l'accepter (les deux : défait des deux côtés), la refuser ou la retirer
+    if (!trocUndoable()) return;
+    haptic('tap');
+    if (a === 'undo') trocUndoAsk(); else { if (a === 'unno') TRC.unBy = 'me'; b.disabled = true; trocDo({ op: 'undo', on: a === 'unyes' }); }
+    return;
+  }
   if (!s || !trocOpenSt(s)) return;
   haptic('tap');
   if (a === 'give') trocGiveSheet();
@@ -457,7 +490,7 @@ function trocTileSheet(id, side) {
   const list = side === 'me' ? s.me.give : s.ot ? s.ot.give : [], x = list.find(y => y.id === id); if (!x) return;
   if (side === 'ot' && !x.a || !trocOpenSt(s)) { trocZoom(list, x); return; }
   const name = esc(trocName(x)), l = lineLang(x.g), e = lineEd(x.g), who = esc(trocWho());
-  const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', x.u ? T('{v} pièce', { v: fmt(x.u, 'EUR') }) : ''].filter(Boolean).join(' · ');
+  const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', lineFoil(x.g) ? T('Foil') + ' ✦' : '', x.u ? T('{v} pièce', { v: fmt(x.u, 'EUR') }) : ''].filter(Boolean).join(' · ');
   openSheet(trocName(x), sub, api => {
     api.wrap.classList.add('trc-ts');
     const own = side === 'me' ? collLines(COLL.map[ownKey(x.n)]).reduce((t, y) => t + (lineHead(y[0]) === x.g ? y[1] : 0), 0) : 0;
@@ -489,18 +522,18 @@ function trocTileSheet(id, side) {
 }
 /** Carte en grand (visionneuse de l'appli), avec ses voisines du même côté. */
 function trocZoom(list, x) {
-  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: '', plain: true, extra: [y.q > 1 ? '× ' + y.q : '', y.u ? fmt(y.u, 'EUR') : ''].filter(Boolean).join(' · ') }));
+  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: '', plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, 'EUR') : ''].filter(Boolean).join(' · ') }));
   haptic('tap'); openCardViewer(items, Math.max(0, list.indexOf(x)));
 }
 
 /* ── Choisir ce que je donne : ma liste d'échange, sinon toute ma collection ──────────────────────────────────────────────── */
-/** Une ligne par carte, une pastille par ligne (langue, édition) : touchée, un exemplaire de plus part dans « Tu donnes ». */
+/** Une ligne par carte, une pastille par ligne (langue, édition, foil ✦) : touchée, un exemplaire de plus part dans « Tu donnes ». */
 function trocRowHtml(it, kind) {
   const l0 = it.lines[0] ? lineLang(it.lines[0][0]) : '', dn = (l0 && frName(it.k, l0)) || it.dn || it.n, img = it.img || '';
   const tags = it.tags || '';
   const chips = it.lines.map(([g, q, u]) => {
-    const l = lineLang(g), e = lineEd(g), had = trocIn(kind === 'ask' ? (TRC.s.ot || {}).give : TRC.s.me.give, it.k, g), full = had >= q;
-    return `<button class="trc-ln${had ? ' on' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${esc(fmt(u, 'EUR'))}</small>` : ''}</button>`;
+    const l = lineLang(g), e = lineEd(g), fo = lineFoil(g), had = trocIn(kind === 'ask' ? (TRC.s.ot || {}).give : TRC.s.me.give, it.k, g), full = had >= q;
+    return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${esc(fmt(u, 'EUR'))}</small>` : ''}</button>`;
   }).join('');
   return `<div class="crow trc-prow" data-k="${esc(it.k)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((dn.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(dn)}</span>${tags || dn !== it.n ? `<span class="row-meta">${tags}${dn !== it.n ? `<span class="tag">${esc(it.n)}</span>` : ''}</span>` : ''}<span class="trc-lns">${chips}</span></span>${it.u ? `<span class="trc-pp">${esc(fmt(it.u, 'EUR'))}</span>` : ''}</div>`;
@@ -539,7 +572,11 @@ function trocPicker({ title, sub, tabs, rows, onTap, kind }) {
 }
 function trocGiveSheet() {
   const st = trState(), meta = k => COLL.meta[k] || {};
-  const item = (k, n, lines) => { const l0 = lines[0] ? lineLang(lines[0][0]) : ''; return { k, n, dn: (l0 && frName(k, l0)) || n, fn: frOf(k), lines, img: collImage(k, l0, meta(k).im).src, u: trPrice(k) }; };
+  const item = (k, n, ls) => {      // une pastille par ligne sans emplacement ni détails (ils ne partent pas : trocMine) ; foil ou édition : son prix sur la pastille
+    const by = new Map(); for (const [g, q] of ls) by.set(lineHead(g), (by.get(lineHead(g)) || 0) + q);
+    const lines = [...by].map(([g, q]) => [g, q, lineFoil(g) || lineEd(g) ? trLinePx(k, g) || 0 : 0]), l0 = lines[0] ? lineLang(lines[0][0]) : '';
+    return { k, n, dn: (l0 && frName(k, l0)) || n, fn: frOf(k), lines, img: collImage(k, l0, meta(k).im).src, u: trPrice(k) };
+  };
   const list = st.have.map(x => item(x.k, x.n, x.lines));
   let all = null;
   trocPicker({
@@ -593,7 +630,7 @@ async function trocBalance() {
   if (Math.abs(d) <= tol) { toast(T('Déjà équilibré')); return; }
   let cands = [];
   if (d > 0) {      // je reçois plus : de mes doublons, ce qui n'est pas déjà donné
-    for (const x of trState().have) for (const [g, q] of x.lines) cands.push({ ...trocMine(x.k, x.n, g), k: x.k, u: trPrice(x.k) || 0, avail: q - trocIn(s.me.give, x.k, g) });
+    for (const x of trState().have) for (const [g, q] of x.lines) cands.push({ ...trocMine(x.k, x.n, g), k: x.k, u: trLinePx(x.k, g) || trPrice(x.k) || 0, avail: q - trocIn(s.me.give, x.k, g) });
   } else {          // je donne plus : de sa liste, ce qui n'est pas déjà de son côté
     let L; try { L = await trocOtList(); } catch (e) { toast(trocErr(e.code)); return; }
     cands = L.map(x => ({ n: x.n, g: x.g, i: x.i, f: x.f, fl: x.fl, k: ownKey(x.n), u: x.u || 0, avail: x.q - trocIn(s.ot.give, ownKey(x.n), x.g) }));
@@ -628,32 +665,54 @@ const trocRecId = c => c + ':' + String(TRC.key || '').slice(0, 8);
 function trocApply(s) {
   const id = trocRecId(s.c);
   if (TRC.applying) return;
-  if (trocHist().some(h => h.id === id)) { trocReset(); return; }      // déjà appliqué sur cet appareil
+  if (trocHist().some(h => h.id === id)) { if (!trocUndoable()) trocReset(); return; }      // déjà appliqué sur cet appareil (encore annulable : la session reste relevée)
   if (D.user && !COLL.live) { TRC.applying = true; setTimeout(() => { TRC.applying = false; if (TRC.c === s.c) trocApply(s); }, 1000); return; }      // collection du compte pas encore là (reprise au lancement)
   const giveL = s.me.give.filter(x => !x.r), getL = (s.ot ? s.ot.give : []).filter(x => !x.r), m = { ...COLL.map }, took = [];
   for (const x of giveL) { const k = ownKey(x.n); for (const [g, q] of trocDrop(m, k, x.g, x.q)) took.push({ k, n: x.n, g, q }); }
   const add = getL.map(x => ({ k: ownKey(x.n), n: x.n, q: x.q, l: lineHead(x.g) }));
   COLL.map = mergeColl(m, add, 'add');
-  const wish0 = JSON.stringify(TR.wish); let wch = false;
-  for (const x of getL) { const k = ownKey(x.n), w = TR.wish[k]; if (!w) continue; const q = w.q - x.q; if (q > 0) TR.wish[k] = { ...w, q }; else delete TR.wish[k]; wch = true; }      // souhait comblé (en partie)
+  const wd = []; let wch = false;      // souhaits d'avant (rendus si l'échange est annulé)
+  for (const x of getL) { const k = ownKey(x.n), w = TR.wish[k]; if (!w) continue; if (!wd.some(y => y[0] === k)) wd.push([k, w]); const q = w.q - x.q; if (q > 0) TR.wish[k] = { ...w, q }; else delete TR.wish[k]; wch = true; }      // souhait comblé (en partie)
   collChanged(); collEnrich(); if (wch) trChanged();
   if (typeof prgTrade === 'function') prgTrade();      // niveau et badges (progress.js)
   const sg = trocSum(getL), sv = trocSum(giveL), row = x => [x.n, x.g || '', x.q, x.u || 0, x.i || ''];
-  const rec = { id, c: s.c, at: Date.now(), who: (s.ot && s.ot.n) || '', give: giveL.slice(0, 100).map(row), get: getL.slice(0, 100).map(row), vg: sv.v, vr: sg.v, qg: sv.q, qr: sg.q };
+  const rec = { id, c: s.c, at: Date.now(), who: (s.ot && s.ot.n) || '', give: giveL.slice(0, 100).map(row), get: getL.slice(0, 100).map(row), vg: sv.v, vr: sg.v, qg: sv.q, qr: sg.q, rv: { took, add, wd } };      // rv : de quoi le défaire (annulé des deux côtés, même après un redémarrage)
   TRC.hist = [rec, ...trocHist().filter(h => h.id !== id)]; trocHistSave();
-  trocDo({ op: 'got' }).then(() => trocReset());
+  TRC.undo = { c: s.c, id, until: Date.now() + (Number(s.ut) || 0) };      // annulable des deux côtés tant que le serveur le permet (ut) : la session reste relevée (trocPoll)
+  trocSaveCur(); trocDo({ op: 'got' }); trocPollSoon();
   haptic('ok');
-  toast(T('Échange appliqué : {give}, {get}', { give: TN(sv.q, '{n} carte donnée', '{n} cartes données'), get: TN(sg.q, '{n} reçue', '{n} reçues') }), { label: T('Annuler'), fn: () => trocUndo(rec, took, add, wish0) });
+  toast(T('Échange appliqué : {give}, {get}', { give: TN(sv.q, '{n} carte donnée', '{n} cartes données'), get: TN(sg.q, '{n} reçue', '{n} reçues') }));
 }
-/** « Annuler » du toast : sur cet appareil seulement (l'autre garde son échange) ; l'échange reste dans l'historique, marqué annulé. */
-function trocUndo(rec, took, add, wish0) {
+/** Défait chez moi un échange appliqué (rec.rv : retiré, ajouté, souhaits d'avant) ; l'échange reste dans l'historique, marqué annulé (u = 2 : des deux côtés). Vrai si c'était à faire. */
+function trocUndo(rec) {
+  const rv = rec && rec.rv; if (!rv || rec.u) return false;
   const m = { ...COLL.map };
-  for (const x of add) trocDrop(m, x.k, x.l, x.q);
-  COLL.map = mergeColl(m, took.map(t => ({ k: t.k, n: t.n, q: t.q, l: t.g })), 'add');
-  try { TR.wish = JSON.parse(wish0); } catch (e) { /* souhaits laissés tels quels */ }
+  for (const x of rv.add) trocDrop(m, x.k, x.l, x.q);
+  COLL.map = mergeColl(m, rv.took.map(t => ({ k: t.k, n: t.n, q: t.q, l: t.g })), 'add');
+  for (const [k, w] of rv.wd || []) TR.wish[k] = w;
   collChanged(); trChanged();
-  const h = trocHist().find(x => x.id === rec.id); if (h) { h.u = 1; trocHistSave(); }
-  haptic('tap'); toast(T('Échange annulé sur cet appareil : ta collection est revenue comme avant'));
+  rec.u = 2; trocHistSave();
+  return true;
+}
+/** Annulé des deux côtés (s.ud) : défait ici (une fois), puis la session est oubliée ; l'écran de fin le dit. id : l'échange dans l'historique (clé de siège déjà oubliée). */
+function trocUndone(s, id = trocRecId(s.c)) {
+  const rec = trocHist().find(h => h.id === id);
+  if (trocUndo(rec)) { haptic('ok'); toast(T('Échange annulé des deux côtés : ta collection est revenue comme avant')); }
+  if (TRC.c === s.c) trocReset();
+}
+/** Fenêtre fermée, ou appli relancée, avec ma demande d'annulation en attente : retirée (plus rien ne la suit ici) ; acceptée entre-temps : défaite ici aussi. */
+function trocUnDrop(s) {
+  const id = trocRecId(s.c);
+  trocCall('/op', { method: 'POST', body: { c: s.c, op: 'undo', on: false } }).catch(e => { if (e.s && e.s.ud) trocUndone(e.s, id); });      // clé de siège lue tout de suite : la session peut être oubliée juste après
+}
+/** « Annuler l'échange » (écran de fin) : proposé à l'autre joueur ; rien ne change tant qu'il n'a pas accepté. */
+function trocUndoAsk() {
+  const name = esc(trocWho());
+  openSheet(T('Annuler l\'échange ?'), null, api => {
+    api.body.innerHTML = `<p class="hint">${T('{name} doit accepter : vos deux collections reviendront alors comme avant. Sans sa réponse, rien ne change.', { name })}</p>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Garder l\'échange')}</button><button class="btn danger" type="button" data-trc="unask">${T('Proposer l\'annulation')}</button>`);
+    api.wrap.addEventListener('click', e => { if (!e.target.closest('[data-trc="unask"]')) return; api.close(); haptic('tap'); if (trocUndoable()) trocDo({ op: 'undo', on: true }); });
+  });
 }
 
 /* ── Mes échanges (historique, sur cet appareil) ─────────────────────────────────────────────────────────────────────────── */
@@ -670,11 +729,13 @@ function trocHistSave() {
 }
 const trocRecRows = a => a.map(([n, g, q, u, i]) => ({ id: '', n: String(n), g: String(g || ''), q: Number(q) || 1, u: Number(u) || 0, i: typeof i === 'string' ? i : '' }));
 const trocWhen = at => new Date(at).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: 'numeric' });
+/** Échange annulé : des deux côtés (u = 2), ou sur cet appareil seulement (u = 1 : « Annuler » d'avant, d'un seul côté). */
+const trocUnLab = r => (r.u === 2 ? T('annulé des deux côtés') : T('annulé sur cet appareil'));
 function trocHistSheet() {
   openSheet(T('Mes échanges'), T('Gardés sur cet appareil'), api => {
     const paint = () => {
       const list = trocHist();
-      api.body.innerHTML = list.length ? `<div class="trc-hl">${list.map(r => `<button type="button" class="trc-h" data-id="${esc(r.id)}"><span class="trc-ht"><b>${esc(r.who || T('Joueur sans pseudo'))}</b><small>${esc(trocWhen(r.at))}${r.u ? ' · ' + T('annulé sur cet appareil') : ''}</small></span>
+      api.body.innerHTML = list.length ? `<div class="trc-hl">${list.map(r => `<button type="button" class="trc-h" data-id="${esc(r.id)}"><span class="trc-ht"><b>${esc(r.who || T('Joueur sans pseudo'))}</b><small>${esc(trocWhen(r.at))}${r.u ? ' · ' + trocUnLab(r) : ''}</small></span>
           <span class="trc-hv"><span class="give">− ${nf0(r.qg)}${r.vg ? ' · ' + esc(fmt(r.vg, 'EUR')) : ''}</span><span class="get">+ ${nf0(r.qr)}${r.vr ? ' · ' + esc(fmt(r.vr, 'EUR')) : ''}</span></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`).join('')}</div>`
         : `<p class="hint">${T('Aucun échange pour l\'instant.')}</p>`;
     };
@@ -683,7 +744,7 @@ function trocHistSheet() {
   });
 }
 function trocHistOpen(r, after) {
-  openSheet(T('Échange avec {name}', { name: r.who || T('Joueur sans pseudo') }), trocWhen(r.at) + (r.u ? ' · ' + T('annulé sur cet appareil') : ''), api => {
+  openSheet(T('Échange avec {name}', { name: r.who || T('Joueur sans pseudo') }), trocWhen(r.at) + (r.u ? ' · ' + trocUnLab(r) : ''), api => {
     api.wrap.classList.add('trc-hs');
     api.body.innerHTML = `<div class="trc-col get"><h3>${T('Tu as reçu')}<span>${r.vr ? esc(fmt(r.vr, 'EUR')) : ''}</span></h3>${trocMiniList(trocRecRows(r.get))}</div>
       <div class="trc-col give"><h3>${T('Tu as donné')}<span>${r.vg ? esc(fmt(r.vg, 'EUR')) : ''}</span></h3>${trocMiniList(trocRecRows(r.give))}</div>
