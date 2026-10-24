@@ -1308,7 +1308,12 @@ function openScan(o) {
       else { SC.pq = SC.pq.filter(x => x !== it); scanPaintList(); }
       return;
     }
-    const a = e.target.closest('[data-a]'); if (!a) return;
+    const a = e.target.closest('[data-a]');
+    if (!a) {      // toucher une carte reconnue (hors boutons, puce de langue, vignette) : sa fiche (cardsheet.js) ; pas les cartes « à vérifier »
+      const r = typeof openCardSheet === 'function' && e.target.closest('.sc-item[data-k]:not(.maybe):not(.pend)'), it = r && (SC.pm ? SC.pq.find(x => x.key === r.dataset.k) : SC.items.get(r.dataset.id));
+      if (it) openCardSheet(it.key, { from: 'scan', l: it.l || '', n: it.name });
+      return;
+    }
     const ask = a.closest('.sc-ask');
     if (ask) {                                                                    // bandeau « Édition de la 1re carte » / « Nouvelle extension »
       const it = SC.items.get(ask.dataset.id); if (!it) return;

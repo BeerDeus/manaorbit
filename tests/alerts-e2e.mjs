@@ -129,7 +129,7 @@ await p.keyboard.press('Escape'); await sleep(350); await p.keyboard.press('Esca
 
 /* ── Fiche d'une carte : « Prévenir si le prix baisse » ──────────────────────────────────── */
 await toInput(p); await p.fill('#deckText', '1 Sol Ring'); await p.waitForTimeout(300); await toInput(p); await p.click('#btnRun'); await done(p);
-await p.evaluate(() => openCardSheet('sol ring')); await p.waitForSelector('.watchbtn');
+await p.evaluate(() => openOfferSheet('sol ring')); await p.waitForSelector('.watchbtn');
 assert.match(await txt(p, '.watchbtn'), /Prévenir si le prix baisse/); await p.click('.watchbtn');
 await p.waitForFunction(() => AC.watch['sol ring'], null, { timeout: 5000 }); assert.match(await txt(p, '.watchbtn'), /Ne plus surveiller/); assert.match(await txt(p, '#toast'), /tu seras prévenu/);
 await p.click('.watchbtn'); await p.waitForFunction(() => !AC.watch['sol ring']); assert.match(await txt(p, '.watchbtn'), /Prévenir si le prix baisse/);

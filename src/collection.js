@@ -433,6 +433,7 @@ function collChanged(o = {}) {
   if (o.push !== false) { const t = Date.now(); COLL.chg = COLL.chg.filter(x => t - x < COLL_PUSH.win); COLL.chg.push(t); collPushSoon(); }
   if (o.paint !== false) collPaint(); else collPaintHead();
   paintCollSection(); refreshDeck(); alSoon(); trSoon(); edSoon();
+  if (typeof csSoon === 'function') csSoon();      // fiche d'une carte ouverte (cardsheet.js) : ses exemplaires suivent
   if (S.run && S.view === 'results') scheduleRecompute(true);
 }
 /** Après un changement : prix des éditions jamais lues (import, scan, choix d'une illustration), en un lot, un peu plus tard. */
@@ -1338,8 +1339,11 @@ function openCollection(tab) {
     if (th && th.querySelector('img.ok')) {
       const row = th.closest('.crow'); if (!row) return;
       const rows = $$('.crow', row.parentNode), list = rows.map(r => collViewItem(r.dataset.k, rowG(r))).filter(Boolean);
-      const i = list.findIndex(x => x.lid === row.dataset.k + '|' + rowG(row)); if (i >= 0) openCardViewer(list, i);
+      const i = list.findIndex(x => x.lid === row.dataset.k + '|' + rowG(row)); if (i >= 0) { openCardViewer(list, i); return; }
     }
+    // le reste de la ligne (nom, étiquettes, prix) : la fiche de la carte (cardsheet.js) ; Échange : lignes du propriétaire (doublons, recherchées, gardées)
+    const crow = typeof openCardSheet === 'function' && e.target.closest('.crow[data-k]');
+    if (crow && !crow.classList.contains('dk') && !e.target.closest('a,input,select,label,details>summary')) openCardSheet(crow.dataset.k, COLL.tab === 'trade' ? { from: 'trade', l: crow.dataset.ln || '', n: zoomName(crow) || undefined } : { from: 'coll', l: rowG(crow) });
   });
   document.body.appendChild(wrap); holdApp(); collPaintHead(); collPaintBody(false);
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); const f = $('.dk-tab[aria-current], #collSeg [aria-checked="true"], .coll-tools .icon-btn, .dv-title', wrap); if (f) { if (!f.hasAttribute('tabindex') && f.classList.contains('dv-title')) f.tabIndex = -1; f.focus({ preventScroll: true }); } }));

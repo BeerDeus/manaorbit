@@ -491,8 +491,10 @@ function pushWhenDone(job) {
    cartes suivies à la main, avec ou sans prix cible). Toutes les 6 h le serveur relit le prix tendance Cardmarket (champ `eur` de
    Scryfall, lots de 75 noms) et pousse une notification quand une carte :
    · chute d'au moins `thr` % (30 par défaut) ET d'au moins 0,50 € sous sa valeur habituelle (médiane des relevés précédents) ;
-   · passe sous le prix cible fixé à la main.
-   Une carte déjà signalée n'est plus signalée pendant 5 jours, sauf nouvelle chute de 15 % ou plus. Un seul message par appareil et par
+   · passe sous le prix cible fixé à la main ;
+   · carte suivie depuis sa fiche (item u = 1 : « Suivre le prix », hausse ET baisse) : monte d'au moins `thr` % ET 0,50 € au-dessus de sa valeur habituelle.
+   Une carte déjà signalée n'est plus signalée pendant 5 jours, sauf nouvelle chute (ou nouvelle hausse) de 15 % ou plus. Une appli plus ancienne n'envoie jamais u :
+   rien ne change pour elle ; un serveur plus ancien ignore u (baisses seulement). Un seul message par appareil et par
    passage (plusieurs cartes = un résumé). Stocké dans .data/alerts.json (abonnements, listes, relevés), écriture atomique ; un
    abonnement refusé par le service de push (404 / 410, jeton FCM périmé) est retiré. Le serveur doit tourner en continu pour que les passages aient lieu.
    Route publique, donc bornée : enregistrements et contrôles à la demande comptés par IP, 10 appareils par IP, 64 Ko par liste, cartes au total plafonnées ;
@@ -579,6 +581,12 @@ function alEval(rec, now) {
     }
     if (!prev.length) continue;
     const base = alMedian(prev), drop = base - cur;
+    if (it.u && -drop >= AL_MIN_DROP && -drop / base >= thr) {                      // hausse (carte suivie depuis sa fiche) : mêmes seuils, son propre délai de 5 jours
+      if (it.ut && now - it.ut < AL_COOL && cur < (it.ua || 0) * 1.15) continue;     // déjà signalée : seulement si elle remonte encore d'au moins 15 %
+      it.ut = now; it.ua = cur;
+      hits.push({ k: it.k, n: it.n, why: 'rise', from: base, to: cur, pct: Math.round(-drop / base * 100), d: it.d || [], at: now });
+      continue;
+    }
     if (drop < AL_MIN_DROP || drop / base < thr) continue;
     if (it.nt && now - it.nt < AL_COOL && cur > (it.na || 0) * 0.85) continue;      // déjà signalée : seulement si elle rechute d'au moins 15 %
     it.nt = now; it.na = cur;
@@ -589,12 +597,12 @@ function alEval(rec, now) {
 // Textes des alertes dans la langue de l'interface envoyée par l'appli (« lang ») ; français pour une appli plus ancienne qui ne la donne pas, ou une langue inconnue.
 // Allemand, espagnol, italien : euros écrits comme en français (« 1,80 € ») ; portugais (du Brésil, celui des cartes Magic) : « € 1,80 ».
 const AL_TXT = {
-  fr: { eur: alEur, pct: p => `−${p} %`, at: (n, p) => `${n} à ${p}`, drop: (n, p) => `${n} : ${p}`, under: p => `Sous ton prix cible de ${p} (tendance Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendance Cardmarket).`, deck: d => ' · manque à ' + d, many: n => `${n} cartes en baisse`, more: n => ` et ${n} autre${n > 1 ? 's' : ''}` },
-  en: { eur: c => '€' + (c / 100).toFixed(2), pct: p => `−${p}%`, at: (n, p) => `${n} at ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Below your target price of ${p} (Cardmarket trend).`, trend: (a, b) => `${a} → ${b} (Cardmarket trend).`, deck: d => ' · missing from ' + d, many: n => `${n} cards down`, more: n => ` and ${n} more` },
-  de: { eur: alEur, pct: p => `−${p} %`, at: (n, p) => `${n} für ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Unter deinem Zielpreis von ${p} (Cardmarket-Trend).`, trend: (a, b) => `${a} → ${b} (Cardmarket-Trend).`, deck: d => ' · fehlt in ' + d, many: n => `${n} Karten günstiger`, more: n => ` und ${n} weitere` },
-  es: { eur: alEur, pct: p => `−${p} %`, at: (n, p) => `${n} a ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Por debajo de tu precio objetivo de ${p} (tendencia de Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendencia de Cardmarket).`, deck: d => ' · falta en ' + d, many: n => `${n} cartas bajan de precio`, more: n => ` y ${n} más` },
-  it: { eur: alEur, pct: p => `−${p}%`, at: (n, p) => `${n} a ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Sotto il tuo prezzo obiettivo di ${p} (tendenza Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendenza Cardmarket).`, deck: d => ' · manca in ' + d, many: n => `${n} carte in calo`, more: n => ` e altre ${n}` },
-  pt: { eur: c => '€ ' + (c / 100).toFixed(2).replace('.', ','), pct: p => `−${p}%`, at: (n, p) => `${n} por ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Abaixo do seu preço-alvo de ${p} (tendência do Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendência do Cardmarket).`, deck: d => ' · falta em ' + d, many: n => `${n} cartas em queda`, more: n => ` e mais ${n}` },
+  fr: { eur: alEur, pct: p => `−${p} %`, up: p => `+${p} %`, manyUp: n => `${n} cartes en hausse`, manyMix: n => `${n} cartes ont bougé`, at: (n, p) => `${n} à ${p}`, drop: (n, p) => `${n} : ${p}`, under: p => `Sous ton prix cible de ${p} (tendance Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendance Cardmarket).`, deck: d => ' · manque à ' + d, many: n => `${n} cartes en baisse`, more: n => ` et ${n} autre${n > 1 ? 's' : ''}` },
+  en: { eur: c => '€' + (c / 100).toFixed(2), pct: p => `−${p}%`, up: p => `+${p}%`, manyUp: n => `${n} cards up`, manyMix: n => `${n} cards moved`, at: (n, p) => `${n} at ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Below your target price of ${p} (Cardmarket trend).`, trend: (a, b) => `${a} → ${b} (Cardmarket trend).`, deck: d => ' · missing from ' + d, many: n => `${n} cards down`, more: n => ` and ${n} more` },
+  de: { eur: alEur, pct: p => `−${p} %`, up: p => `+${p} %`, manyUp: n => `${n} Karten teurer`, manyMix: n => `${n} Karten mit Preisänderung`, at: (n, p) => `${n} für ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Unter deinem Zielpreis von ${p} (Cardmarket-Trend).`, trend: (a, b) => `${a} → ${b} (Cardmarket-Trend).`, deck: d => ' · fehlt in ' + d, many: n => `${n} Karten günstiger`, more: n => ` und ${n} weitere` },
+  es: { eur: alEur, pct: p => `−${p} %`, up: p => `+${p} %`, manyUp: n => `${n} cartas suben de precio`, manyMix: n => `${n} cartas cambian de precio`, at: (n, p) => `${n} a ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Por debajo de tu precio objetivo de ${p} (tendencia de Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendencia de Cardmarket).`, deck: d => ' · falta en ' + d, many: n => `${n} cartas bajan de precio`, more: n => ` y ${n} más` },
+  it: { eur: alEur, pct: p => `−${p}%`, up: p => `+${p}%`, manyUp: n => `${n} carte in rialzo`, manyMix: n => `${n} carte con variazioni di prezzo`, at: (n, p) => `${n} a ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Sotto il tuo prezzo obiettivo di ${p} (tendenza Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendenza Cardmarket).`, deck: d => ' · manca in ' + d, many: n => `${n} carte in calo`, more: n => ` e altre ${n}` },
+  pt: { eur: c => '€ ' + (c / 100).toFixed(2).replace('.', ','), pct: p => `−${p}%`, up: p => `+${p}%`, manyUp: n => `${n} cartas em alta`, manyMix: n => `${n} cartas mudaram de preço`, at: (n, p) => `${n} por ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Abaixo do seu preço-alvo de ${p} (tendência do Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendência do Cardmarket).`, deck: d => ' · falta em ' + d, many: n => `${n} cartas em queda`, more: n => ` e mais ${n}` },
 };
 const alLang = l => (typeof l === 'string' && Object.prototype.hasOwnProperty.call(AL_TXT, l) ? l : 'fr');
 function alMessage(hits, lang) {
@@ -603,10 +611,10 @@ function alMessage(hits, lang) {
     const h = hits[0], deck = h.d && h.d.length ? L.deck(h.d[0]) : '';
     return h.why === 'target'
       ? { title: L.at(h.n, L.eur(h.to)), body: L.under(L.eur(h.t)) + deck }
-      : { title: L.drop(h.n, L.pct(h.pct)), body: L.trend(L.eur(h.from), L.eur(h.to)) + deck };
+      : { title: L.drop(h.n, h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct)), body: L.trend(L.eur(h.from), L.eur(h.to)) + deck };
   }
-  const part = h => h.why === 'target' ? `${h.n} ${L.eur(h.to)}` : `${h.n} ${L.pct(h.pct)}`;
-  return { title: L.many(hits.length), body: hits.slice(0, 3).map(part).join(', ') + (hits.length > 3 ? L.more(hits.length - 3) : '') };
+  const part = h => h.why === 'target' ? `${h.n} ${L.eur(h.to)}` : `${h.n} ${h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct)}`, ups = hits.filter(h => h.why === 'rise').length;
+  return { title: !ups ? L.many(hits.length) : ups === hits.length ? L.manyUp(hits.length) : L.manyMix(hits.length), body: hits.slice(0, 3).map(part).join(', ') + (hits.length > 3 ? L.more(hits.length - 3) : '') };
 }
 // Message privé Discord (dm 'both' / 'only') : mêmes phrases que la notification (AL_TXT), plus ces quelques mots ; carte : prix actuel (titre), habituel ou cible
 // (ligne), deck, lien Cardmarket (site de la langue, comme l'appli : core.js › cmUrl) ; lien vers les alertes de l'appli. Nom des cartes et des decks : Markdown neutralisé.
@@ -624,10 +632,10 @@ const alCm = (n, l) => `https://www.cardmarket.com/${['fr', 'de', 'es', 'it'].in
 function alDmMsg(hits, lang) {
   const l = alLang(lang), L = AL_TXT[l], X = AL_DM[l], m = alMessage(hits, l);
   const fields = hits.slice(0, AL_DM_MAX).map(h => ({
-    name: alMd(h.why === 'target' ? L.at(h.n, L.eur(h.to)) : L.drop(h.n, L.pct(h.pct))).slice(0, 250),
+    name: alMd(h.why === 'target' ? L.at(h.n, L.eur(h.to)) : L.drop(h.n, h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct))).slice(0, 250),
     value: alMd((h.why === 'target' ? L.under(L.eur(h.t)) : L.trend(L.eur(h.from), L.eur(h.to))) + (h.d && h.d.length ? L.deck(h.d[0]) : '')).slice(0, 900) + `\n[${X.cm}](${alCm(h.n, l)})`,
   }));
-  return { content: '📉 **' + alMd(m.title.slice(0, 200)) + '**', embeds: [{ title: X.title + ' · Mana Orbit', url: AL_APP, color: 0x8b5cf6,
+  return { content: (hits.every(h => h.why === 'rise') ? '📈' : '📉') + ' **' + alMd(m.title.slice(0, 200)) + '**', embeds: [{ title: X.title + ' · Mana Orbit', url: AL_APP, color: 0x8b5cf6,
     description: `[${X.open}](${AL_APP})` + (hits.length > AL_DM_MAX ? '\n…' + alMd(L.more(hits.length - AL_DM_MAX)) : ''), fields, footer: { text: X.why } }] };
 }
 
@@ -721,7 +729,8 @@ async function alertsApi(req, res, path, url) {
       if (items.size >= AL_MAX_ITEMS) break;
       const n = alStr(x && x.n, 150), nk = alKey(n); if (!nk || items.has(nk)) continue;
       const t = Number.isSafeInteger(x.t) && x.t > 0 && x.t <= 1e6 ? x.t : 0, d = (Array.isArray(x.d) ? x.d : []).map(y => alStr(y, 40)).filter(Boolean).slice(0, 3), prev = oldItems.get(nk) || {};
-      items.set(nk, { k: alStr(x.k, 150) || nk, n, nk, ...(t ? { t } : {}), ...(d.length ? { d } : {}), ...(prev.nt ? { nt: prev.nt, na: prev.na } : {}), ...(t && prev.t === t && prev.arm === false ? { arm: false } : {}) });
+      const up = x.u === 1 || x.u === true;      // hausse ET baisse (fiche d'une carte) ; absent : baisses seulement, comme avant
+      items.set(nk, { k: alStr(x.k, 150) || nk, n, nk, ...(t ? { t } : {}), ...(d.length ? { d } : {}), ...(up ? { u: 1 } : {}), ...(prev.nt ? { nt: prev.nt, na: prev.na } : {}), ...(up && prev.ut ? { ut: prev.ut, ua: prev.ua } : {}), ...(t && prev.t === t && prev.arm === false ? { arm: false } : {}) });
     }
     if (!items.size) { AL.subs.delete(rid); alSaveSoon(); return json(res, 200, { ok: true, id: rid, watching: 0 }); }
     const thr = Math.min(80, Math.max(10, Math.round(Number(b.thr)) || 30));

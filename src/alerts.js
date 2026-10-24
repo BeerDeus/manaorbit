@@ -2,7 +2,8 @@
    Le serveur (proxy.mjs, « Alertes de prix ») relit toutes les 6 h le prix tendance Cardmarket des cartes surveillées et pousse une
    notification quand l'une chute d'au moins N % (et 0,50 €) ou passe sous un prix cible. Cette page fournit la liste à surveiller :
    · automatiquement : cartes qu'il manque pour chaque deck enregistré (liste du deck − collection libre) ;
-   · à la main : n'importe quelle carte, avec ou sans prix cible (fiche d'une carte, ou saisie dans la feuille « Alertes de prix ») ;
+   · à la main : n'importe quelle carte, avec ou sans prix cible (fiche d'une carte, ou saisie dans la feuille « Alertes de prix ») ; depuis la fiche d'une carte
+     (cardsheet.js › « Suivre le prix »), en hausse ET en baisse (champ u, ignoré par un serveur plus ancien) ;
      depuis la feuille d'un deck EDHREC (« Surveiller leurs prix »), ses cartes manquantes, avec le nom du deck, jusqu'à ce qu'elles soient dans la collection.
    La liste part avec l'abonnement push de CET appareil (PUT /api/alerts) à chaque changement (différé de 3 s) et au plus toutes les 12 h ;
    dans l'appli Android, avec son jeton FCM ({ fcm }) à la place de l'abonnement (voir push.js).
@@ -49,15 +50,15 @@ const AL_BODY_MAX = 56000;                                                      
 /** Cartes à surveiller : suivies à la main (avec prix cible éventuel) puis manquantes des decks enregistrés ; [{ k, n, t?, d? }]. */
 function alItems() {
   const out = new Map();
-  const put = (k, n, t, deck) => {
+  const put = (k, n, t, deck, up) => {
     let x = out.get(k); if (!x) { x = { k, n, d: [], hand: false }; out.set(k, x); }
-    if (t) x.t = t; if (!deck) x.hand = true;
+    if (t) x.t = t; if (!deck) x.hand = true; if (up) x.u = 1;
     if (deck && x.d.length < 3 && !x.d.includes(deck)) x.d.push(deck);
     return x;
   };
   for (const [k, w] of Object.entries(AC.watch)) {
     if (w.d && collQty(k) > 0) continue;                                                       // manquante d'un deck EDHREC, désormais possédée : plus rien à surveiller
-    const x = put(k, w.n, w.t || 0, ''); if (w.d && !x.d.includes(w.d)) x.d.push(w.d);
+    const x = put(k, w.n, w.t || 0, '', w.u); if (w.d && !x.d.includes(w.d)) x.d.push(w.d);
   }
   if (AC.deck) {
     for (const d of allDecks()) {
@@ -69,7 +70,7 @@ function alItems() {
     }
   }
   // Tailles alignées sur le serveur (nom 150, deck 40, envoi ≤ 64 Ko) : trop de decks aux noms longs → un seul deck par carte, puis moins de cartes.
-  const items = [...out.values()].slice(0, 400).map(x => { const o = { k: x.k, n: String(x.n).slice(0, 150) }; if (x.t) o.t = x.t; if (x.d.length) o.d = x.d.map(d => String(d).slice(0, 40)); if (x.hand) o.h = 1; return o; });
+  const items = [...out.values()].slice(0, 400).map(x => { const o = { k: x.k, n: String(x.n).slice(0, 150) }; if (x.t) o.t = x.t; if (x.d.length) o.d = x.d.map(d => String(d).slice(0, 40)); if (x.u) o.u = 1; if (x.hand) o.h = 1; return o; });      // u : hausse ET baisse (proxy.mjs › alEval)
   const size = () => new TextEncoder().encode(JSON.stringify(items)).length;
   if (size() > AL_BODY_MAX) items.forEach(o => { if (o.d) o.d = o.d.slice(0, 1); });
   while (items.length && size() > AL_BODY_MAX) items.splice(-Math.max(1, items.length >> 4));
@@ -127,9 +128,11 @@ function alWhy(r) {
 }
 
 /* ── Suivi à la main ─────────────────────────────────────────────────────────────────────────── */
-function alWatch(name, target) {
+/** Suit une carte à la main : target = prix cible (centimes, 0 : aucun) ; up : prévenir aussi d'une forte hausse (fiche d'une carte, cardsheet.js ;
+ *  le serveur qui ne connaît pas encore « u » l'ignore et ne prévient que des baisses). */
+function alWatch(name, target, up) {
   const k = ownKey(name); if (!k) return;
-  AC.watch = { ...AC.watch, [k]: { n: String(name).trim().slice(0, 150), ...(target ? { t: target } : {}) } };
+  AC.watch = { ...AC.watch, [k]: { n: String(name).trim().slice(0, 150), ...(target ? { t: target } : {}), ...(up ? { u: 1 } : {}) } };
   const m = { ...AC.mute }; delete m[k]; AC.mute = m; alWrite(); alSoon();
 }
 function alUnwatch(k) { const w = { ...AC.watch }; delete w[k]; AC.watch = w; alWrite(); alSoon(); }
@@ -222,7 +225,7 @@ async function openAlertSheet() {
       const hits = (data && data.hits || []).slice(0, 5), muted = Object.keys(AC.mute).filter(k => !AC.watch[k]).length;
       const last = data && data.last && data.last.at ? T('Dernier contrôle {when}', { when: relTime(data.last.at) }) + (data.last.miss ? ' · ' + T('{n} sans prix', { n: nf0(data.last.miss) }) : '') : T('Premier contrôle dans quelques minutes.');
       const rowHtml = r => {
-        const tags = [...(r.d || []).map(d => T('Manque à {deck}', { deck: esc(d) })), r.h ? (r.t ? T('Cible {p}', { p: esc(fmt(r.t)) }) : (AC.watch[r.k] || {}).d ? '' : T('Suivie à la main')) : ''].filter(Boolean).join(' · ');
+        const tags = [...(r.d || []).map(d => T('Manque à {deck}', { deck: esc(d) })), r.h ? (r.t ? T('Cible {p}', { p: esc(fmt(r.t)) }) : (AC.watch[r.k] || {}).d ? '' : T('Suivie à la main')) : '', r.u ? T('hausse et baisse') : ''].filter(Boolean).join(' · ');
         return `<div class="al-row" data-k="${esc(r.k)}"><span class="al-n"><b>${esc(r.n)}</b><small>${tags}</small></span>
           <span class="al-px">${r.c ? `<b>${esc(fmt(r.c))}</b>${r.b && r.pct ? `<small class="${r.pct < 0 ? 'dn' : 'up'}">${r.pct > 0 ? '+' : '−'}${Math.abs(r.pct)} %</small>` : ''}` : `<small>${T('pas encore de prix')}</small>`}</span>
           <button class="ib-x" type="button" data-rm="${esc(r.k)}" aria-label="${T(r.h ? 'Ne plus suivre {name}' : 'Exclure de la surveillance {name}', { name: esc(r.n) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
@@ -231,7 +234,7 @@ async function openAlertSheet() {
       const dmErr = !dmWhy ? '' : dmWhy === 'closed' ? T('MP Discord refusés : vérifie tes réglages de confidentialité Discord.') : dmWhy === 'member' ? T('MP Discord impossibles : tu n\'es plus sur le serveur Mana Orbit.')
         : dmWhy === 'unlinked' ? T('MP Discord impossibles : ton compte Discord n\'est plus lié.') : T('Dernier MP Discord non envoyé (Discord injoignable) : nouvel essai à la prochaine alerte.');
       api.body.innerHTML = `
-        ${hits.length ? `<div class="sec-title">${T('Dernières alertes')}</div><div class="al-list hits">${hits.map(h => `<div class="al-row"><span class="al-n"><b>${esc(h.n)}</b><small>${esc(relTime(h.at))}${h.d && h.d.length ? ' · ' + T('manque à {deck}', { deck: esc(h.d[0]) }) : ''}</small></span><span class="al-px"><b>${esc(fmt(h.to))}</b><small class="dn">${h.why === 'target' ? T('sous ta cible') : '−' + h.pct + ' %'}</small></span></div>`).join('')}</div>` : ''}
+        ${hits.length ? `<div class="sec-title">${T('Dernières alertes')}</div><div class="al-list hits">${hits.map(h => `<div class="al-row"><span class="al-n"><b>${esc(h.n)}</b><small>${esc(relTime(h.at))}${h.d && h.d.length ? ' · ' + T('manque à {deck}', { deck: esc(h.d[0]) }) : ''}</small></span><span class="al-px"><b>${esc(fmt(h.to))}</b><small class="${h.why === 'rise' ? 'up' : 'dn'}">${h.why === 'target' ? T('sous ta cible') : (h.why === 'rise' ? '+' : '−') + h.pct + ' %'}</small></span></div>`).join('')}</div>` : ''}
         <div class="switch-row"><span class="t"><b>${T('Cartes manquantes de mes decks')}</b><span class="hint">${T('Toutes les cartes qu\'il te reste à acheter pour tes decks enregistrés.')}</span></span><label class="switch"><input type="checkbox" id="alDeck" ${AC.deck ? 'checked' : ''}><i></i></label></div>
         <div class="field-in"><span class="label">${T('Alerter à partir d\'une baisse de')}</span><div class="seg" id="alThr" role="radiogroup" aria-label="${T('Seuil de baisse')}"></div><span class="hint">${T('Et d\'au moins 0,50 €, comparé au prix des derniers jours.')}</span></div>
         ${alDscOk() ? `<div class="field-in" id="alDmBox"><span class="label">${T('Recevoir les alertes')}</span><div class="seg" id="alDm" role="radiogroup" aria-label="${T('Recevoir les alertes')}"></div><span class="hint">${T('Discord : accepte les messages privés des membres du serveur Mana Orbit (réglages de confidentialité du serveur, dans Discord).')}</span>${dmErr ? `<span class="hint al-dm-err" id="alDmErr" role="status">${esc(dmErr)}</span>` : ''}</div>` : ''}
