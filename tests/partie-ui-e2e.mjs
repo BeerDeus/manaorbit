@@ -14,7 +14,7 @@ const closeSheets = () => p.evaluate(() => { while (sheets.length) sheets[sheets
 /* ── Accueil ─────────────────────────────────────────────────────────────────────────────────── */
 await toHome(p); await p.waitForSelector('#hmPartie');
 assert.equal(await p.evaluate(() => { let e = document.querySelector('#hmTrade').nextElementSibling; if (e && e.id === 'hmDiscord') e = e.nextElementSibling; return e && e.id; }), 'hmPartie', 'sous l\'Échange (et l\'invitation au Discord, dsclink.js)');
-assert.equal(await p.evaluate(() => document.querySelector('#hmPartie').nextElementSibling.id), 'hmSets', 'au-dessus de Prochaines extensions');
+assert.equal(await p.evaluate(() => { let e = document.querySelector('#hmPartie').nextElementSibling; if (e && e.id === 'hmDiscord') e = e.nextElementSibling; return e && e.id; }), 'hmSets', 'au-dessus de Prochaines extensions (et de l\'invitation au Discord, selon sa place)');
 assert.match(await txt(p, '#hmPartie'), /^Compteur de vie Commander, Standard ou libre Nouvelle partie Mes parties/);
 await p.$eval('#hmPartie', e => e.scrollIntoView({ block: 'center' })); await p.waitForTimeout(300); await p.screenshot({ path: 'shots/partie-0-accueil.png' });
 ok('accueil : carte sous l\'Échange, au-dessus de « Prochaines extensions »');

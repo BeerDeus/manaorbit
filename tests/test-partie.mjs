@@ -508,6 +508,12 @@ test('partie suivie d\'un autre téléphone : état envoyé (partieLive, relu pa
   assert.equal(P.partieLiveClean({ ...L, places: L.places.map(p => ({ ...p, vie: 1e9, nom: 'x'.repeat(99) })) }, 'commander').places[0].vie, 9999, 'borné');
   assert.deepEqual(P.partieLiveClean(L, 'standard').places[1].blessures, {}, 'Standard : pas de blessures de commandant');
   assert.equal(P.partieLiveClean({ places: [] }, 'commander'), null); assert.equal(P.partieLiveClean({ places: Array(9).fill(L.places[0]) }, 'commander'), null);
+  // tirage de la table (dés, pièce, premier joueur : partie-jeu.js) joint à l'état : gardé s'il est lisible, sinon retiré sans refuser l'état
+  assert.deepEqual(P.partieLiveClean({ ...L, de: { id: 'ab12cd34', k: 'd20', v: 14, a: 3 } }, 'commander').de, { id: 'ab12cd34', k: 'd20', v: 14, a: 3 });
+  assert.deepEqual(P.partieLiveClean({ ...L, de: { id: 'ab12cd34', k: 'pf', v: 0 } }, 'commander').de, { id: 'ab12cd34', k: 'pf', v: 0, a: 0 });
+  for (const de of [{ id: 'ab12cd34', k: 'd6', v: 7 }, { id: 'AB<12>', k: 'd6', v: 2 }, { id: 'ab12cd34', k: 'd100', v: 2 }, { id: 'ab12cd34', k: 'j1', v: 9 }, 'd20'])
+    assert.equal(P.partieLiveClean({ ...L, de }, 'commander').de, undefined, 'tirage illisible retiré : ' + JSON.stringify(de));
+  assert.equal(P.partieLiveClean(L, 'commander').de, undefined, 'sans tirage : rien de plus (appli d\'avant)');
   const q = [{ s: 1, id: 'lea-a1', pos: 2, by: 2, k: 'v', n: -3 }, { s: 2, id: 'lea-a2', pos: 2, by: 2, k: 'b', src: 3, n: 2 }, { s: 3, id: 'bob-a1', pos: 3, by: 3, k: 'c', c: 'poison', n: 1 }, { s: 4, id: 'lea-co', pos: 4, by: 2, k: 't', n: 1 }];
   let x = P.partieRemote(s, q, { now: at(10) });
   assert.deepEqual([x.done.length, x.st.places[1].vie, x.st.places[1].blessures, x.st.places[2].compteurs.poison, x.st.actif, x.st.rq.s, x.st.rq.ids], [4, 30, { 1: 5, 3: 2 }, 3, 2, 4, ['2:lea-a1', '2:lea-a2', '3:bob-a1', '2:lea-co']]);
