@@ -1,5 +1,5 @@
 /* ── dsclink.js : invitation au Discord de l'accueil et liaison du compte Discord ─────────────────────────────────────────────────────────────
-   · Accueil : bloc « Rejoins le Discord de Mana Orbit » juste au-dessus du bloc des parties (#hmPartie, partie-ui.js ; à défaut sous l'Échange) :
+   · Accueil : bloc « Rejoins le Discord de Mana Orbit » juste après le bloc des parties (compteur de vie, #hmPartie, partie-ui.js ; à défaut sous l'Échange) :
      une ligne (bugs, idées, parties, Carte mystère), « Rejoindre » (DISCORD_URL de help.js, onglet à part ; dans l'appli Android, Android l'ouvre dans
      l'appli Discord ou le navigateur), et connecté, quand le serveur sait lier (/__ping discordLink → CTX.discordLink) : « J'y suis déjà : lier mon compte
      Discord ». Caché quand /api/discord/me dit lié et membre du serveur ; ✕ : caché 30 jours sur cet appareil.
@@ -106,14 +106,14 @@ function dlHomeInit() {
     if (b.dataset.dl === 'x') { haptic('tap'); try { localStorage.setItem(DL_X_KEY, String(Date.now() + DL_X_DAYS * 86400e3)); } catch (err) { /* caché pour cette fois */ } dlPaint(); toast(T('Invitation masquée pendant 30 jours. Le Discord reste dans Réglages › Aide et avis.')); }
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) dlCheck(DL.pending); });
-  setTimeout(dlPlace, 0);      // après la carte des parties (partie-ui.js › puHomeInit, juste après homeInit)
+  setTimeout(dlPlace, 0);      // une fois la carte des parties posée (partie-ui.js › puHomeInit, juste après homeInit)
   dlPaint();
 }
-/** Le bloc juste au-dessus de celui des parties (#hmPartie) ; sans lui, sous l'Échange. */
+/** Le bloc juste après celui des parties (#hmPartie : le compteur de vie passe devant l'invitation) ; sans lui, sous l'Échange. */
 function dlPlace() {
   const box = $('#hmDiscord'); if (!box) return;
   const pt = $('#hmPartie'), tr = $('#hmTrade');
-  if (pt && pt.parentNode) { if (box.nextElementSibling !== pt) pt.before(box); }
+  if (pt && pt.parentNode) { if (pt.nextElementSibling !== box) pt.after(box); }
   else if (tr && tr.parentNode && tr.nextElementSibling !== box) tr.after(box);
 }
 /** Bloc de l'accueil et fiche du compte repeints. */

@@ -841,8 +841,8 @@ function updateRecap() {
   host.hidden = false;
 }
 
-/* ── Fiche carte ──────────────────────────────────────────────────────────────────────────── */
-function openCardSheet(key) {
+/* ── Fiche des offres d'une carte (résultats d'une recherche ; la fiche d'une carte possédée : cardsheet.js › openCardSheet) ──────────────────────────────────────────────────────────────────────────── */
+function openOfferSheet(key) {
   const c = S.deck.cards.find(x => x.key === key); if (!c || !S.run) return;
   const st = S.run.cards[key]; if (!st || !st.fetched) return;
   const mode = S.opts.mode;
@@ -1342,7 +1342,7 @@ function init() {
   $('#list').addEventListener('click', e => {
     const x = e.target.closest('.rx'); if (x) return removeCard(x.dataset.key);
     const th = e.target.closest('.thumb'); if (th && th.querySelector('img.ok')) { const rw = th.closest('.rw'); if (rw) return openCardImage(rw.dataset.key); } // vignette → carte en grand
-    const r = e.target.closest('.row'); if (r) { haptic('tap'); openCardSheet(r.dataset.key); }
+    const r = e.target.closest('.row'); if (r) { haptic('tap'); openOfferSheet(r.dataset.key); }
   });
   $('#optSort').value = S.sort;
   $('#optSort').addEventListener('change', e => { S.sort = e.target.value; saveStore(); haptic('tap'); applyView(true); });

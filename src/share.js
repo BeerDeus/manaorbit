@@ -80,6 +80,28 @@ function trState() {
 function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, TR.kept, COLL.places).have; }
 /** Prix unitaire (centimes) des estimations d'échange, chez le propriétaire comme chez le visiteur : tendance Cardmarket du fichier de prix (impression la moins chère), sinon le prix Scryfall déjà connu de l'appareil. */
 const trPrice = k => { const t = PXT && PXT.map && PXT.map.get(k); return (t && t.e) || (dmOf(k) || {}).eu || null; };
+/** Prix d'un exemplaire d'une ligne de MA collection (clé 'fr|cmm|400*') : celui de son impression (COLL.ed, comme la valeur de la collection : collection.js › edEu), sinon trPrice ;
+ *  foil : le prix foil de son impression, sinon le prix foil Cardmarket de la carte ; null si aucun prix foil n'est connu (jamais le prix non foil présenté comme prix foil). */
+function trLinePx(k, g) {
+  const e = lineEd(g);
+  if (lineFoil(g)) { const x = e && COLL.ed[e], m = dmOf(k) || {}; return x && !x.none && x.ef > 0 ? x.ef : m.ef > 0 ? m.ef : null; }
+  return (e && edEu(e, false)) || trPrice(k);
+}
+/** Ligne de la liste chiffrée (tradeView › price(k, x)) : doublons (x.lines) → { u (à l'unité : exemplaires non foil, sinon foil ; moyenne s'ils ont plusieurs prix), v (chaque ligne à son prix ;
+ *  foil sans prix foil connu : compté au prix normal), fu (foil : prix à l'unité, null s'il manque ; absent sans foil) } ; recherchées : trPrice. */
+function trRowPx(k, x) {
+  if (!x || !x.lines) return trPrice(k);
+  let v = 0, any = false, nq = 0, nv = 0, fq = 0, fv = 0, fok = true;
+  for (const [g, q] of x.lines) {
+    const f = lineFoil(g), p = trLinePx(k, g), u = p > 0 ? p : f ? trLinePx(k, lineKey(lineLang(g), lineEd(g))) : null;
+    if (u > 0) { v += u * q; any = true; }
+    if (f) { fq += q; if (p > 0) fv += p * q; else fok = false; } else if (u > 0) { nq += q; nv += u * q; }
+  }
+  const fu = fq ? (fok ? Math.round(fv / fq) : null) : undefined;
+  return { u: nq ? Math.round(nv / nq) : fq === x.q ? fu : null, v: any ? v : null, ...(fq ? { fu } : {}) };
+}
+/** Carte d'un partage (visiteur) : prix à l'unité de ses exemplaires non foil (celui de leur impression publié par le propriétaire : p, sinon trPrice) et de ses foil (pf, null si inconnu). */
+const trShPx = it => ({ u: it.p > 0 ? it.p : trPrice(it.k), fu: it.fo > 0 ? (it.pf > 0 ? it.pf : null) : undefined });
 /** Carte d'un partage : nom, exemplaires, langue, édition (e : « cmm/400 »), nom français, image (édition : cette impression exacte, sinon la carte ; dans la langue de l'exemplaire si Scryfall l'a), coût, type, couleurs, symboles.
  *  Édition dont l'image n'est pas encore lue : sans image (le visiteur la lit par l'extension et le numéro), jamais celle d'une autre impression. */
 function trCard(k, n, q, l, e) {
@@ -93,9 +115,14 @@ function trCard(k, n, q, l, e) {
 }
 /** Contenu du partage de la liste d'échange (sans date : sert aussi d'empreinte). Trop gros : sans images ni symboles (le visiteur les lit sur Scryfall), puis tronqué.
  *  La limite tient compte du pseudo et de la photo que trPut ajoute (jusqu'à 40 000 caractères) : le document reste sous la règle des 900 000.
- *  Doublons : une carte par langue et par édition (e ; sans édition : une par langue, comme avant), fo = ses exemplaires foil (pochette foil du classeur du visiteur ; absent sans foil). */
+ *  Doublons : une carte par langue et par édition (e ; sans édition : une par langue, comme avant), fo = ses exemplaires foil (pochette foil du classeur du visiteur ; absent sans foil),
+ *  p / pf = prix à l'unité de cette impression / de ses foil (trLinePx ; absents s'ils sont inconnus : le visiteur prend le prix de la carte, comme avant ; une version d'avant les ignore). */
 function trPayload() {
-  const st = trState(), have = st.have.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => { const o = trCard(x.k, x.n, q, l, e); if (fo) o.fo = fo; return o; })), want = st.want.map(x => { const o = trCard(x.k, x.n, x.q, ''); if (x.p) { o.i = scrySmall(x.p.i); o.w = x.p.w || ''; if (x.p.l && x.p.l !== 'en') o.l = x.p.l; } return o; });      // souhait : l'illustration retenue
+  const st = trState(), have = st.have.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => {
+    const o = trCard(x.k, x.n, q, l, e), p = e && fo < q && edEu(e, false), pf = fo && trLinePx(x.k, lineKey(l, e, true)); if (fo) o.fo = fo;
+    if (p > 0) o.p = p; if (pf > 0) o.pf = pf;      // prix à l'unité de cette impression (p) et de ses foil (pf) : le visiteur n'a que le prix de la carte (impression la moins chère, non foil)
+    return o;
+  })), want = st.want.map(x => { const o = trCard(x.k, x.n, x.q, ''); if (x.p) { o.i = scrySmall(x.p.i); o.w = x.p.w || ''; if (x.p.l && x.p.l !== 'en') o.l = x.p.l; } return o; });      // souhait : l'illustration retenue
   const bd = bndPayload(st, have, want);      // classeur réglé (binder.js) : cartes dans son ordre (une liste tronquée garde les épinglées), réglages pour les visiteurs
   const max = TR_MAX - JSON.stringify(profShare()).length - (bd ? JSON.stringify(bd).length + 8 : 0);
   for (const o of [...have, ...want]) if (o.i) { const sh = imgShort(o.i); if (sh) o.i = sh; else delete o.i; }      // adresses d'images raccourcies (≈ 2 fois moins de place)
@@ -292,11 +319,12 @@ const trPxHtml = x => (x.u != null ? `<small class="tr-px" title="${esc(T('{v} p
 const trQxHtml = x => `<span class="tr-qx">${trPxHtml(x)}<b>× ${x.q}</b></span>`;
 /** « 5 € » sans centimes (filtre « ≥ 5 € »). */
 const trEur = c => new Intl.NumberFormat(LOC(), { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(c / 100);
-/** Pastille foil d'une ligne de la liste d'échange (propriétaire et visiteur) : « ✦ Foil », « ✦ Foil × 1 » quand une partie seulement l'est ; '' sans foil. */
-const trFoilTag = (fo, q) => (fo > 0 ? `<span class="tag foil">✦ ${T('Foil')}${fo < q ? ' × ' + fo : ''}</span>` : '');
+/** Pastille foil d'une ligne de la liste d'échange (propriétaire et visiteur) : « ✦ Foil », « ✦ Foil × 1 · 5,00 € » quand une partie seulement l'est (leur prix à l'unité : fu,
+ *  celui de la ligne étant celui des non foil) ; fu null : prix foil inconnu, dit au survol (comptées au prix normal) ; '' sans foil. */
+const trFoilTag = (fo, q, fu) => (fo > 0 ? `<span class="tag foil"${fu === null ? ` title="${esc(T('Prix foil inconnu : compté au prix normal'))}"` : ''}>✦ ${T('Foil')}${fo < q ? ' × ' + fo + (fu > 0 ? ' · ' + esc(fmt(fu, 'EUR')) : '') : ''}</span>` : '');
 function trHaveRow(x) {
   const ll = langLines(x.lines), it = trItem(x.k, x.n, x.q, ll[0] ? ll[0][0] : ''), nm = it.dn || it.n, th = bndThumb(x, it.l, it.im), img = th.src;      // par langue, éditions confondues ; vignette : l'impression de la 1re ligne (sa 1re pochette du classeur)
-  const langs = ll.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${ll.length > 1 ? ' × ' + q : ''}</span>`).join('') + trFoilTag((x.lines || []).reduce((a, [g, q]) => a + (lineFoil(g) ? q : 0), 0), x.q);
+  const langs = ll.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${ll.length > 1 ? ' × ' + q : ''}</span>`).join('') + trFoilTag((x.lines || []).reduce((a, [g, q]) => a + (lineFoil(g) ? q : 0), 0), x.q, x.fu);
   return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(it.l)}"${th.e ? ` data-e="${esc(th.e)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${langs}${it.dn ? `<span class="tag">${esc(x.n)}</span>` : ''}</span></span>
     <span class="tr-q">${trQxHtml(x)}<button class="link-btn" type="button" data-act="tkeep" aria-label="${T('Garder {name} (ne plus la proposer)', { name: esc(nm) })}">${T('Garder')}</button></span></div>`;
@@ -308,31 +336,33 @@ function trWantRow(x, mine) {
   return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(x.p && x.p.l || '')}"${x.p ? ` data-big="${esc(x.p.i)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${tags}</span></span>${ctl}</div>`;
 }
-/** Corps de l'onglet : lien, réserve, sous-onglets « À échanger » / « Je recherche », total estimé, tri et prix minimal, listes filtrées (barre de recherche et filtres de la collection). */
+/** Corps de l'onglet : barre du lien (densite.js ; réserve et rangements dans « Réglages de l'échange », roue à côté de Filtres), sous-onglets « À échanger » / « Je recherche » et total estimé sur une ligne, tri et prix minimal, listes filtrées (barre de recherche et filtres de la collection). */
 function trPanelHtml() {
   const st = TR.st = trState(), f = COLL.f, sub = TR.sub, want = sub === 'want', held = st.held, bv = bndView('o') === 'binder';      // bv : classeur (binder.js) à la place de la liste
   const all = want ? st.want : st.have, min = want || bv ? 0 : TR.min, act = filterActive(f) || min > 0;
   const fil = filterItems(all.map(x => Object.assign(trItem(x.k, x.n, x.q, x.lines && x.lines[0] ? lineLang(x.lines[0][0]) : ''), { src: x }, x.lines ? { eds: [...new Set(x.lines.map(([g]) => edSet(lineEd(g))))] } : {})), f).map(i => i.src);      // eds : filtre « Extension »
-  const { rows: list, sum } = tradeView(fil, { price: trPrice, sort: TR.sort, min }), shown = bv ? [] : list.slice(0, TR.shown);
+  const { rows: list, sum } = tradeView(fil, { price: trRowPx, sort: TR.sort, min }), shown = bv ? [] : list.slice(0, TR.shown);
   TR.bv = bv && list.length ? { list, want } : null;
-  return `${trShareBoxHtml(st)}
-    <div class="tr-keep"><span class="label">${T('Garder en plus de mes decks : 0–4 exemplaires')}</span><div class="seg" id="trKeep" role="radiogroup" aria-label="${T('Garder en plus de mes decks')}"></div><p class="hint">${T('Tu proposes seulement ce que tu as en trop.')}</p>${trPlcBtnHtml()}</div>
-    <div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>
+  return `${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
+    <div class="tr-top"><div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}</div>
     ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div>` : ''}
-    ${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}
+    ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
       : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
     ${!bv && list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="trmore">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TR_PAGE, list.length - shown.length)), left: nf0(list.length - shown.length) })}</button>` : ''}
     ${!want && held.length ? `<details class="tr-held"><summary>${T('Gardées à la main ({n})', { n: nf0(held.length) })}</summary><div class="coll-list">${held.map(x => `<div class="crow tr-row" data-k="${esc(x.k)}"><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta"><span class="tag">${T('{n} en trop', { n: x.q })}</span></span></span><span class="tr-q"><button class="link-btn" type="button" data-act="tunkeep">${T('Remettre')}</button></span></div>`).join('')}</div></details>` : ''}`;
 }
-/** En-tête de la liste : cartes et exemplaires (affichés / au total), valeur estimée et sa base (prix à l'unité, tendance Cardmarket, date du fichier), tri et « ≥ X € » (doublons). */
+/** En-tête de la liste : cartes et exemplaires (affichés / au total), valeur estimée et sa base (prix à l'unité, tendance Cardmarket, date du fichier) ; sur la ligne des sous-onglets (.tr-top). */
 function trSumHtml(list, all, sum, act, want, bv) {
   const at = PXT && Date.parse(PXT.at), priced = sum.n > sum.nv;
   const count = (act ? TN(list.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) }) : TN(list.length, '{n} carte', '{n} cartes')) + ' · ' + TN(sum.q, '{n} exemplaire', '{n} exemplaires');
   const basis = priced ? (at ? T('Prix à l\'unité : tendance Cardmarket ({when})', { when: relTime(at) }) : T('Prix à l\'unité : tendance Cardmarket')) + (sum.nv ? ' · ' + TN(sum.nv, '{n} carte sans prix', '{n} cartes sans prix') : '') : '';
+  return `<div class="tr-sum"><b>${esc(count)}</b> ${priced ? `<em title="${T('Valeur estimée')}">≈ ${esc(fmt(sum.v, 'EUR'))}</em>` : ''} ${basis ? `<span title="${esc(basis)}">${esc(basis)}</span>` : ''}</div>`;
+}
+/** Tri et « ≥ X € » (doublons), interrupteur Liste | Classeur. */
+function trToolsHtml(want, bv) {
   const opt = (v, l, cur) => `<option value="${v}"${cur === v ? ' selected' : ''}>${esc(l)}</option>`;
-  return `<div class="tr-sum"><b>${esc(count)}</b>${priced ? `<em title="${T('Valeur estimée')}">≈ ${esc(fmt(sum.v, 'EUR'))}</em>` : ''}${basis ? `<span>${esc(basis)}</span>` : ''}</div>
-    <div class="tr-tools">${bv ? bndToolsHtml() : `<label class="sortsel"><span>${T('Trier')}</span><select id="trSort" aria-label="${T('Trier la liste')}">${opt('name', T('Nom'), TR.sort)}${opt('price', T('Prix'), TR.sort)}</select></label>
+  return `<div class="tr-tools">${bv ? bndToolsHtml() : `<label class="sortsel"><span>${T('Trier')}</span><select id="trSort" aria-label="${T('Trier la liste')}">${opt('name', T('Nom'), TR.sort)}${opt('price', T('Prix'), TR.sort)}</select></label>
       ${want ? '' : `<label class="sortsel tr-min${TR.min ? ' on' : ''}"><select id="trMin" aria-label="${T('Prix minimal à l\'unité')}">${TR_MINS.map(v => opt(v, v ? '≥ ' + trEur(v) : T('Tous les prix'), TR.min)).join('')}</select></label>`}`}${bndSwitchHtml('trView')}</div>`;
 }
 /** Fichier de prix (celui de « Pour toi » et de la recherche Cardmarket) : lu une fois (cache de l'appareil, puis le serveur quand il répond), puis l'onglet se repeint avec les valeurs. */
@@ -343,7 +373,7 @@ function trPx() {
 /** Après chaque peinture de l'onglet : les deux sélecteurs. */
 function trMount(host) {
   const st = TR.st || trState();
-  mountSeg($('#trKeep', host), TR_KEEPS.map(v => ({ v: String(v), label: String(v) })), String(TR.keep), v => { TR.keep = Number(v); trChanged(); });
+  const kp = $('#trKeep', host); if (kp) mountSeg(kp, TR_KEEPS.map(v => ({ v: String(v), label: String(v) })), String(TR.keep), v => { TR.keep = Number(v); trChanged(); });      // réserve : dans « Réglages de l'échange » (densite.js), sinon ici
   mountSeg($('#trSub', host), [{ v: 'have', label: T('À échanger'), sub: nf0(st.have.length) }, { v: 'want', label: T('Je recherche'), sub: nf0(st.want.length) }], TR.sub, v => { TR.sub = v; TR.shown = TR_PAGE; collPaintBody(true); });
   const inp = $('.tr-link input', host); if (inp) inp.onfocus = e => e.target.select();
   const so = $('#trSort', host); if (so) so.onchange = e => { TR.sort = e.target.value === 'price' ? 'price' : 'name'; TR.shown = TR_PAGE; haptic('tap'); collPaintBody(true); };
@@ -561,8 +591,10 @@ function openPublicTrade(sh, preview, id, fr) {
 /* ── « Pour toi » : ce que le visiteur et le propriétaire du lien peuvent échanger ───────────────── */
 /** Ce que le visiteur a en trop (tradeLists : ses decks et sa réserve gardent leurs cartes) et ce qu'il cherche, comparés au partage. */
 function pubMine(P) {
-  const st = trState();
-  return { st, spare: new Map(st.have.map(x => [x.k, x])), want: new Map(st.want.map(x => [x.k, x])), m: tradeMatch(P.sh, st.want, st.have, trPrice) };
+  const st = trState(), low = new Map();
+  for (const it of P.sh.have || []) { const p = trShPx(it), u = it.fo >= it.q ? p.fu : p.u; if (u > 0 && !(low.get(it.k) <= u)) low.set(it.k, u); }      // ses exemplaires : le moins cher (impression et finition)
+  const price = (k, x) => (x.s ? trRowPx(k, x.s).u : low.get(k)) || trPrice(k);      // mes doublons : le prix de leurs lignes (non foil d'abord)
+  return { st, spare: new Map(st.have.map(x => [x.k, x])), want: new Map(st.want.map(x => [x.k, x])), m: tradeMatch(P.sh, st.want, st.have, price) };
 }
 /** Ce qui change les correspondances : compte, synchro, collection, decks, réglages d'échange, fichier de prix. */
 const pubKey = () => [D.uid || '', D.authReady ? 1 : 0, COLL.live ? 1 : 0, COLL.cloud, COLL.u, collCount(), allDecks().length, TR.u, CTX.proxy ? 1 : 0, PXT ? PXT.t : 0].join('|');
@@ -605,10 +637,10 @@ function pubMatchHtml(P) {
   };
   return `${top}${block('get')}${block('give')}${m.sum.get.v || m.sum.give.v ? pubNote() : ''}`;
 }
-/** Base des valeurs affichées chez le visiteur (calculées sur son appareil, jamais écrites dans le partage). */
+/** Base des valeurs affichées chez le visiteur (calculées sur son appareil ; une impression précise ou des foil : leur prix publié par le propriétaire, p et pf). */
 function pubNote() {
   const at = PXT && Date.parse(PXT.at);
-  return `<p class="hint pm-note">${at ? T('≈ valeur indicative : tendance Cardmarket ({when}), sans l\'état ni l\'édition des cartes.', { when: esc(relTime(at)) }) : T('≈ valeur indicative : tendance Cardmarket, sans l\'état ni l\'édition des cartes.')}</p>`;
+  return `<p class="hint pm-note">${at ? T('≈ valeur indicative : tendance Cardmarket ({when}), sans l\'état des cartes.', { when: esc(relTime(at)) }) : T('≈ valeur indicative : tendance Cardmarket, sans l\'état des cartes.')}</p>`;
 }
 /** Ligne d'un bloc : sa carte (image, nom français), ce qui la rend intéressante, exemplaires échangeables et valeur. */
 function pubMatchRow(x, side) {
@@ -638,15 +670,15 @@ function pubItem(x) {
   return it;
 }
 function pubRow(it) {
-  const nm = it.dn || it.n, img = it.im || '', sub = it.dn && it.dn !== it.n ? `<span class="tag">${esc(it.n)}</span>` : it.fn ? `<span class="tag">${esc(it.fn)}</span>` : '';
+  const px = trShPx(it), nm = it.dn || it.n, img = it.im || '', sub = it.dn && it.dn !== it.n ? `<span class="tag">${esc(it.n)}</span>` : it.fn ? `<span class="tag">${esc(it.fn)}</span>` : '';
   const pw = it.pw ? `<span class="tag accent" title="${T('Illustration recherchée')}">${esc(it.pw)}</span>` : '';
   const mine = TR.pub && TR.pub.sub === 'want'      // ce qu'il cherche : échangeable seulement si j'en ai en trop
     ? (it.spare ? `<span class="tag good">${T('tu peux l\'échanger × {n}', { n: it.spare })}</span>` : it.own ? `<span class="tag">${T(it.used ? 'tu l\'as · dans tes decks' : 'tu l\'as · gardée')}</span>` : '')
     : (it.wq ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.wq })}</span>` : it.own ? `<span class="tag good">${T('déjà à toi × {n}', { n: it.own })}</span>` : '');
   const x = TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '') + (it.fo > 0 ? ' · ' + T('Foil') + ' ✦' : '') + (it.pw ? ' · ' + T('illustration {name}', { name: it.pw }) : '');
   return `<div class="crow pub-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}"${it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
-    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${pw}${it.e ? `<span class="tag">${esc(edLabel(it.e))}</span>` : ''}${trFoilTag(it.fo, it.q)}${it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : ''}${sub}${mine}</span></span>
-    <span class="tr-q">${trQxHtml({ q: it.q, u: trPrice(it.k) })}</span></div>`;      // prix à l'unité de l'appareil du visiteur, comme sur l'onglet du propriétaire
+    <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${pw}${it.e ? `<span class="tag">${esc(edLabel(it.e))}</span>` : ''}${trFoilTag(it.fo, it.q, px.fu)}${it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : ''}${sub}${mine}</span></span>
+    <span class="tr-q">${trQxHtml({ q: it.q, u: it.fo >= it.q ? px.fu : px.u })}</span></div>`;      // prix à l'unité de l'appareil du visiteur (celui de l'impression s'il est publié : p, pf), comme sur l'onglet du propriétaire ; toutes foil : le prix foil
 }
 
 function trInit() {

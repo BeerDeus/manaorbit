@@ -52,8 +52,17 @@ const timed = (p, src) => p.evaluate(async s => { const t = performance.now(); a
   assert.ok(open < 1200, `ouverture de la collection : ${open} ms (budget 1 200)`);
   assert.ok(Math.max(...more) < 400, `« Afficher plus » : ${more.join(', ')} ms (budget 400)`);
   assert.ok(more1200 < 500, `« Afficher plus » à 1 200 lignes : ${more1200} ms (budget 500)`);
+  // recherche avancée (search.js) : lignes préparées une fois, puis chaque frappe ne refait que le filtre et le tri
+  await p.evaluate(() => { COLL.shown = COLL_PAGE; collPaintBody(true); }); await p.waitForTimeout(400);
+  const adv = await timed(p, '() => { COLL.f.lang.add("fr"); COLL.f.px = "1-5"; COLL.f.dup = true; COLL.fb.fire(); }'); await p.waitForTimeout(200);
+  const typed = []; for (const q of ['e', 'el', 'ela']) { typed.push(await timed(p, `() => { COLL.f.q = "${q}"; COLL.fb.fire(); }`)); await p.waitForTimeout(100); }
+  const advRows = await p.$$eval('.coll-list .crow', r => r.length);
+  console.log(JSON.stringify({ adv, typed, advRows }));
+  assert.ok(advRows > 0, 'filtres avancés : des cartes restent');
+  assert.ok(adv < 1200, `filtres avancés, 1re fois : ${adv} ms (budget 1 200)`);
+  assert.ok(Math.max(...typed) < 600, `frappe avec filtres avancés : ${typed.join(', ')} ms (budget 600)`);
   assert.deepEqual(errs, []); await ctx.close();
-  ok('5 000 cartes : ouverture et « Afficher plus » dans le budget');
+  ok('5 000 cartes : ouverture, « Afficher plus » et recherche avancée dans le budget');
 }
 
 /* ── 2) première lecture des infos Scryfall, liste ouverte ─────────────────────────────────────── */

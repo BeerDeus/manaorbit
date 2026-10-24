@@ -54,8 +54,9 @@ function bndArrange(list, s, pins, cmp) {
   }[s] || byNm;
   return (list || []).map((e, i) => [e, i, pi.has(e.k) ? pi.get(e.k) : NO]).sort((a, b) => a[2] - b[2] || (a[2] < NO ? 0 : by(a[0], b[0])) || a[1] - b[1]).map(x => x[0]);
 }
-/** Exemplaires foil dans leur propre pochette, juste après les autres de la même langue (fo : combien sont foil) ; sans foil, l'entrée telle quelle. */
-const bndFoil = list => (list || []).flatMap(({ fo, ...x }) => { const f = Math.min(x.q, fo > 0 ? fo : 0); return !f ? [x] : f >= x.q ? [{ ...x, foil: true }] : [{ ...x, q: x.q - f }, { ...x, q: f, foil: true }]; });
+/** Exemplaires foil dans leur propre pochette, juste après les autres de la même langue (fo : combien sont foil) ; sans foil, l'entrée telle quelle.
+ *  fu : prix à l'unité des foil (pochette foil), u celui des autres ; fu absent (null) : pochette foil sans prix (jamais le prix non foil présenté comme le sien). */
+const bndFoil = list => (list || []).flatMap(({ fo, fu, ...x }) => { const f = Math.min(x.q, fo > 0 ? fo : 0), xf = 'u' in x || fu !== undefined ? { ...x, u: fu > 0 ? fu : null } : x; return !f ? [x] : f >= x.q ? [{ ...xf, foil: true }] : [{ ...x, q: x.q - f }, { ...xf, q: f, foil: true }]; });
 /** Réglages lus (appareil ou partage) : couverture, tri, épingles (18), date ; valeurs inconnues → par défaut. */
 const bndClean = j => ({ who: j && typeof j.who === 'string' ? j.who : '', c: BND_COVERS.some(x => x[0] === (j && j.c)) ? j.c : 'nuit', s: BND_SORTS.some(x => x[0] === (j && j.s)) ? j.s : 'name',
   k: j && Array.isArray(j.k) ? [...new Set(j.k.filter(x => typeof x === 'string' && x && x.length <= 160))].slice(0, BND_PINS) : [], u: Math.max(0, Number(j && j.u) || 0) });
@@ -327,14 +328,14 @@ function bndKey(k, n, l, lines, u, p, ed) {
   } else if (p && p.w) { const r = /^(.*?)\s*·\s*([A-Za-z0-9]{2,6})\s+(\S+)$/.exec(p.w); if (r) { sk = r[1] || r[2].toUpperCase(); num = r[3]; } }      // « Extension · CODE 123 »
   return { k, n, nm: (l && frName(k, l)) || n, u, cl: m.cl, tl: m.tl, cm: m.cm, sk, num };
 }
-/** Lignes de l'onglet (tradeView : u = prix à l'unité) → pochettes dans l'ordre du classeur ; une pochette par langue et par édition pour les doublons, comme le lien (ses foil à part, juste après). */
+/** Lignes de l'onglet (tradeView) → pochettes dans l'ordre du classeur ; une pochette par langue et par édition pour les doublons, comme le lien (ses foil à part, juste après), chacune au prix de son impression et de sa finition (share.js › trLinePx). */
 function bndOwnItems(rows, want) {
   const c = bndCfg(), NC = typeof NAME_CMP === 'function' ? NAME_CMP : null;
   if (want) {
     const es = rows.map(x => { const it = trItem(x.k, x.n, x.q, ''), sm = x.p ? scrySmall(x.p.i) : it.im || ''; return { ...bndKey(x.k, x.n, '', null, x.u, x.p), nm: it.n, q: x.q, l: x.p && x.p.l || '', sm, im: bndBig(sm), ...(x.p ? { big: x.p.i, fix: true } : {}) }; });
     return bndArrange(es, c.s, [], NC);
   }
-  const es = rows.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => { const it = trItem(x.k, x.n, q, l), sm = bndImg(x.k, l, e, it.im); return { ...bndKey(x.k, x.n, l, x.lines, x.u, null, e), q, fo, l, e, sm, im: bndBig(sm), pin: c.k.includes(x.k) }; }));
+  const es = rows.flatMap(x => langEdLines(x.lines).map(([l, e, q, fo]) => { const it = trItem(x.k, x.n, q, l), sm = bndImg(x.k, l, e, it.im); return { ...bndKey(x.k, x.n, l, x.lines, trLinePx(x.k, lineKey(l, e)), null, e), q, fo, ...(fo ? { fu: trLinePx(x.k, lineKey(l, e, true)) } : {}), l, e, sm, im: bndBig(sm), pin: c.k.includes(x.k) }; }));
   return bndFoil(bndArrange(es, c.s, c.k, NC));      // rangées par langue et édition (l'ordre du lien), les foil séparées ensuite : le même classeur chez le visiteur
 }
 /**
@@ -345,7 +346,7 @@ function bndPayload(st, have, want) {
   const c = bndCfg(); if (!c.u) return null;
   const NC = typeof NAME_CMP === 'function' ? NAME_CMP : null;
   const put = (arr, keys, pins) => { if (keys.length !== arr.length) return; const was = arr.slice(); bndArrange(keys.map((e, i) => ({ ...e, i })), c.s, pins, NC).forEach((e, j) => { arr[j] = was[e.i]; }); };
-  put(have, st.have.flatMap(x => langEdLines(x.lines).map(([l, e]) => bndKey(x.k, x.n, l, x.lines, trPrice(x.k), null, e))), c.k);
+  put(have, st.have.flatMap(x => langEdLines(x.lines).map(([l, e]) => bndKey(x.k, x.n, l, x.lines, trLinePx(x.k, lineKey(l, e)), null, e))), c.k);
   put(want, st.want.map(x => bndKey(x.k, x.n, '', null, trPrice(x.k), x.p)), []);
   return { c: c.c, s: c.s, k: c.k, u: c.u };
 }
@@ -380,7 +381,7 @@ function bndOpenSettings() {
     const thumb = c => `<span class="thumb" style="--h:${hash32(c.k) % 360}">${esc((c.nm.trim()[0] || '?').toUpperCase())}${c.sm ? `<img alt="" loading="lazy" decoding="async" src="${esc(c.sm)}">` : ''}</span>`;
     const paint = () => {
       const c = bndCfg();
-      mini.set(bndOwnItems(tradeView(st.have, { price: trPrice }).rows, false), c.c);
+      mini.set(bndOwnItems(tradeView(st.have, { price: trRowPx }).rows, false), c.c);
       for (const b of $$('.bnd-cv', api.body)) b.setAttribute('aria-checked', String(b.dataset.c === c.c));
       $('.bnd-cvn', api.body).textContent = T((BND_COVERS.find(x => x[0] === c.c) || BND_COVERS[0])[1]);
       $('.bnd-pin-h', api.body).textContent = T('Cartes épinglées en tête') + ' · ' + c.k.length + '/' + BND_PINS;
@@ -452,7 +453,7 @@ function bndPub(P, wrap, all, list) {
   $('.bnd-cnt', bar).textContent = (filterActive(P.f) ? TN(n, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(pubN(all)) }) : TN(n, '{n} carte', '{n} cartes')) + ' · ' + TN(q, '{n} exemplaire', '{n} exemplaires');
   if (bndView('p', P.sh.bd && P.sh.bd.u ? 'binder' : 'list') !== 'binder' || !list.length) return false;
   const want = P.sub === 'want', items = bndFoil(filterItems(P.sh.bo[want ? 'want' : 'have'].map(pubItem), P.f).map(it => ({      // mêmes filtres que la liste, dans l'ordre du classeur ; foil à part
-    k: it.k, n: it.n, nm: it.dn || it.n, l: it.l || '', e: want ? '' : it.e || '', q: it.q, fo: want ? 0 : it.fo, u: trPrice(it.k), sm: it.im || '', im: bndBig(it.im), pin: !want && P.sh.bpin.has(it.k), fix: !!it.pw, pw: it.pw || '' })))
+    k: it.k, n: it.n, nm: it.dn || it.n, l: it.l || '', e: want ? '' : it.e || '', q: it.q, fo: want ? 0 : it.fo, ...(want ? { u: trPrice(it.k) } : trShPx(it)), sm: it.im || '', im: bndBig(it.im), pin: !want && P.sh.bpin.has(it.k), fix: !!it.pw, pw: it.pw || '' })))
     .map(it => ({ ...it, x: TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '') + (it.foil ? ' · ' + T('Foil') + ' ✦' : '') + (it.pw ? ' · ' + T('illustration {name}', { name: it.pw }) : '') }));
   const b = P.bnd || (P.bnd = bndMake({ open: bndOpen })), main = $('.pub-main', wrap);
   if (b.el.parentElement !== main) { main.textContent = ''; main.appendChild(b.el); } else for (const n of [...main.children]) if (n !== b.el) n.remove();

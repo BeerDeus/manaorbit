@@ -83,15 +83,22 @@ function openBuilder(o) {
     if (BD.fmt === 'commander') BD.side.clear();      // pas de réserve en Commander
   } else BD.fmt = o.fmt === 'commander' ? 'commander' : 'standard';
   collFrLoad();
-  const wrap = document.createElement('div'); wrap.className = 'dv bd'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Créateur de deck'));
+  BD.split = bdSplit();      // ordinateur (≥ 1 100 px, souris) : recherche à gauche, liste du deck à droite, toujours visible (zz-desktop.css) ; décidé à l'ouverture
+  const wrap = document.createElement('div'); wrap.className = 'dv bd' + (BD.split ? ' split' : ''); wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Créateur de deck'));
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button>
       <div class="dv-title"><b id="bdTitle"></b><span id="bdSub"></span></div>
       <button class="btn small bd-save" type="button" data-act="save" id="bdSave">${T('Enregistrer')}</button></header>
-    <div class="dv-scroll"><div class="dv-body bd-body">
+    <div class="dv-scroll">${BD.split ? `<div class="dv-body bd-body bd-split">
+      <div class="bd-l"><div class="seg" id="bdSeg" role="tablist" aria-label="${T('Contenu')}"></div>
+        <div class="bd-ctl" id="bdCtl"></div>
+        <div class="bd-list" id="bdList"></div></div>
+      <div class="bd-r" role="region" aria-label="${T('Deck')}"><div class="bd-sum" id="bdSum"></div>
+        <div class="bd-ctl" id="bdDeckCtl">${bdNameCtl()}</div>
+        <div class="bd-list bd-deck" id="bdDeck"></div></div></div>` : `<div class="dv-body bd-body">
       <div class="bd-sum" id="bdSum"></div>
       <div class="seg" id="bdSeg" role="tablist" aria-label="${T('Contenu')}"></div>
       <div class="bd-ctl" id="bdCtl"></div>
-      <div class="bd-list" id="bdList"></div></div></div>`;
+      <div class="bd-list" id="bdList"></div></div>`}</div>`;
   BD.el = wrap; const prevFocus = document.activeElement;
   const onKey = e => { if (e.key === 'Escape' && !sheets.length && !imgView) { e.stopPropagation(); bdClose(); } };
   wrap.__close = () => {
@@ -102,7 +109,7 @@ function openBuilder(o) {
   document.addEventListener('keydown', onKey, true);
   wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
   wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
-  mountSeg($('#bdSeg', wrap), [{ v: 'deck', label: T('Deck') }, { v: 'coll', label: T('Collection') }, { v: 'find', label: T('Chercher') }], 'deck', bdTab);
+  mountSeg($('#bdSeg', wrap), [...(BD.split ? [] : [{ v: 'deck', label: T('Deck') }]), { v: 'coll', label: T('Collection') }, { v: 'find', label: T('Chercher') }], BD.split ? 'coll' : 'deck', bdTab);
   wrap.addEventListener('click', bdClick);
   wrap.addEventListener('input', e => {
     if (e.target.id === 'bdName') { BD.name = e.target.value; BD.dirty = true; bdHead(); }
@@ -110,7 +117,7 @@ function openBuilder(o) {
   });
   wrap.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'bdName') { e.preventDefault(); e.target.blur(); } });
   document.body.appendChild(wrap); holdApp();
-  bdTab('deck'); bdPaint(); bdMetaSoon();
+  bdTab(BD.split ? 'coll' : 'deck'); bdPaint(); bdMetaSoon();
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
   haptic('tap');
 }
@@ -170,9 +177,9 @@ function bdChange(tgt, k, name, d, batch) {
    langue, édition et foil lus au scan), « Seulement celles qui manquent » (ce que la collection n'a pas encore). Choix proposé d'après ce que la collection a déjà.
    À l'enregistrement, le deck est monté et ses cartes possédées rangées dans l'emplacement « Deck : <nom> » (créé au besoin ; places.js › plcMount), les exemplaires
    scannés d'abord (même langue, édition et finition : BD.scanPref) ; chacune garde son emplacement d'origine, où elle retourne au démontage. */
-function bdScan() {
+function bdScan(tgt) {
   if (!BD.el) return;
-  BD.scanTgt = BD.tab === 'deck' ? 'main' : BD.tgt; haptic('tap');
+  BD.scanTgt = tgt || (BD.tab === 'deck' ? 'main' : BD.tgt); haptic('tap');      // tgt : bouton sous le nom du deck (ordinateur : toujours affiché) → dans le deck
   openScan({ deck: true });
 }
 /** Exemplaires à ajouter à la collection : tous (all), sinon pour chaque carte ce que le scan a de plus qu'elle (lignes du scan dans leur ordre, non foil puis foil). */
@@ -327,7 +334,12 @@ function bdFindHtml() {
 function bdList() {
   const el = BD.el; if (!el) return;
   $('#bdList', el).innerHTML = BD.tab === 'deck' ? bdDeckHtml() : BD.tab === 'coll' ? bdCollHtml() : bdFindHtml();
+  if (BD.split) $('#bdDeck', el).innerHTML = bdDeckHtml();      // ordinateur : la liste du deck reste affichée à droite
 }
+/** Ordinateur : écran large et souris (même requête que zz-desktop.css et la barre latérale, nav.js). */
+const bdSplit = () => { try { return matchMedia('(min-width:1100px) and (hover:hover) and (pointer:fine)').matches; } catch (e) { return false; } };
+/** Nom du deck et « Scanner des cartes » (onglet Deck ; sur ordinateur, au-dessus de la liste du deck, et le scan va alors dans le deck). */
+const bdNameCtl = () => `<div class="field-in"><label class="label" for="bdName">${T('Nom du deck')}</label><input type="text" id="bdName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" value="${esc(BD.name)}"></div><button class="btn ghost block bd-scan" type="button" data-act="scan"${BD.split ? ' data-tgt="main"' : ''} aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg><span>${T('Scanner des cartes')}</span></button>`;
 function bdPaint() {
   const el = BD.el; if (!el) return;
   bdHead(); $('#bdSum', el).innerHTML = bdSumHtml(); bdList();
@@ -338,7 +350,7 @@ function bdTab(v) {
   BD.tab = v; BD.q = ''; BD.shown = BD_PAGE;
   const ctl = $('#bdCtl', el); $('#bdSeg', el).setValue(v);
   const scanB = (cls, label) => `<button class="${label ? 'btn ghost' : 'icon-btn'} ${cls}" type="button" data-act="scan" aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${label ? `<span>${label}</span>` : ''}</button>`;      // scan en mode deck (bdScan)
-  if (v === 'deck') ctl.innerHTML = `<div class="field-in"><label class="label" for="bdName">${T('Nom du deck')}</label><input type="text" id="bdName" maxlength="120" autocomplete="off" placeholder="${T('Mon deck')}" value="${esc(BD.name)}"></div>${scanB('block bd-scan', T('Scanner des cartes'))}`;
+  if (v === 'deck') ctl.innerHTML = bdNameCtl();
   else {
     const opts = BD.fmt === 'commander' ? [{ v: 'main', label: T('Deck') }, { v: 'cmdr', label: T('Commandant') }] : [{ v: 'main', label: T('Deck') }, { v: 'side', label: T('Réserve') }];
     if (!opts.some(o => o.v === BD.tgt)) BD.tgt = 'main';
@@ -349,7 +361,7 @@ function bdTab(v) {
     if (v === 'coll') { BD.idx = null; if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); }
   }
   bdList();
-  const sc = $('.dv-scroll', el); if (sc) sc.scrollTop = 0;
+  const sc = $(BD.split ? '.bd-l' : '.dv-scroll', el); if (sc) sc.scrollTop = 0;
 }
 
 /** Carte d'une rangée de l'éditeur pour la visionneuse (appui sur sa vignette) : image dans la langue possédée si Scryfall l'a donnée, sinon anglaise. */
@@ -375,7 +387,7 @@ function bdClick(e) {
   else if (act === 'save') bdSave();
   else if (act === 'issues') { BD.issuesOpen = !BD.issuesOpen; bdPaint(); }
   else if (act === 'more') { BD.shown += BD_PAGE; bdList(); }
-  else if (act === 'scan') bdScan();
+  else if (act === 'scan') bdScan(b.dataset.tgt);
   else if (act === 'pick-cmdr') { BD.tgt = 'cmdr'; $('#bdSeg', BD.el).setValue('coll'); bdTab('coll'); haptic('tap'); }
 }
 

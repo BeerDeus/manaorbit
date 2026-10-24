@@ -6,11 +6,15 @@
 // Lancé chaque jour par .github/workflows/prices.yml, publié sur la branche « data » (un seul commit, réécrit : aucun historique qui gonfle le dépôt).
 // Le serveur (proxy.mjs) le relit toutes les 6 h et le sert sur /prices.tsv.
 // Format : 1re ligne « #MOPX1 <date ISO> <nombre> », puis « nom \t centimes € \t centimes $ » (vide si aucun prix).
-import { writeFileSync, renameSync } from 'node:fs';
+//   node gen-prices.mjs <prices.tsv.gz> <prices-hist.bin.gz> [<historique de la veille>]
+// fabrique aussi l'historique des 30 derniers jours (prices-hist.mjs : celui de la veille + le relevé du jour). Historique de la veille illisible : repart du
+// jour ; panne de l'historique : celui de la veille est recopié tel quel (jamais perdu), le relevé du jour est publié quand même.
+import { writeFileSync, renameSync, readFileSync, existsSync, copyFileSync } from 'node:fs';
 import { gzipSync, createGunzip } from 'node:zlib';
 import { Readable } from 'node:stream';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { histRoll, histPack, histUnpack, histIso } from './prices-hist.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const UA = 'ManaOrbit-prices/1.0 (+https://github.com/BeerDeus/mtgcardshop)';
@@ -95,5 +99,21 @@ async function main() {
   const gz = gzipSync(Buffer.from(txt), { level: 9 });
   writeFileSync(out + '.tmp', gz); renameSync(out + '.tmp', out);
   console.log(`  ${out} : ${(gz.length / 1024).toFixed(0)} Ko`);
+  if (process.argv[3]) histWrite(map, String(meta.updated_at || new Date().toISOString()), process.argv[3], process.argv[4]);
+}
+/** Historique des 30 jours : celui de la veille (prev, s'il existe et se lit) + le relevé du jour → out. Erreur : la veille recopiée telle quelle. */
+export function histWrite(map, at, out, prev) {
+  let old = null;
+  if (prev && existsSync(prev)) { try { old = histUnpack(readFileSync(prev)); } catch (e) { console.warn(`  historique de la veille illisible (${e.message}) : il repart d'aujourd'hui`); } }
+  try {
+    const h = histRoll(old, map, at), gz = histPack(h);
+    writeFileSync(out + '.tmp', gz); renameSync(out + '.tmp', out);
+    console.log(`  ${out} : ${h.days} jours (${histIso(h.d0)} → ${histIso(h.d0 + h.days - 1)}), ${h.names.length} cartes, ${(gz.length / 1024).toFixed(0)} Ko`);
+    return h;
+  } catch (e) {
+    console.warn(`  historique non mis à jour (${e.message})` + (old ? ' : celui de la veille est gardé' : ''));
+    if (old && prev !== out) copyFileSync(prev, out);
+    return old;
+  }
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main().catch(e => { console.error(e.message || e); process.exit(1); });

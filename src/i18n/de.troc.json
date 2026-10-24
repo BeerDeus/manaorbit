@@ -136,7 +136,6 @@
   "Demander la carte": "Karte anfragen",
   "Demander les {n} cartes": "Die {n} Karten anfragen",
   "Échange appliqué : {give}, {get}": "Tausch übernommen: {give}, {get}",
-  "Échange annulé sur cet appareil : ta collection est revenue comme avant": "Tausch auf diesem Gerät rückgängig gemacht: Deine Sammlung ist wie vorher",
   "Mes échanges": "Meine Tausche",
   "Gardés sur cet appareil": "Auf diesem Gerät gespeichert",
   "annulé sur cet appareil": "auf diesem Gerät rückgängig gemacht",
@@ -153,5 +152,19 @@
   "échange en direct · {when}": "Live-Tausch · {when}",
   "Proposer un échange en direct": "Live-Tausch vorschlagen",
   "Comment échanger en face à face ?": "Wie tausche ich von Angesicht zu Angesicht?",
-  "Dans <b>Échange</b>, touche <b>Échange en direct</b> : montre le QR code à l'autre joueur (ou donne-lui le code) ; depuis la page d'un ami, tu peux aussi l'inviter à distance. Chacun choisit ce qu'il donne, demande des cartes de la liste de l'autre et voit la valeur des deux côtés. Prêts tous les deux, vous validez : vos deux collections sont mises à jour. Tes échanges restent dans « Mes échanges ».": "Tippe in <b>Tausch</b> auf <b>Live-Tausch</b>: Zeig dem anderen Spieler den QR-Code (oder gib ihm den Code); auf der Seite eines Freundes kannst du ihn auch aus der Ferne einladen. Jeder wählt, was er gibt, fragt Karten aus der Liste des anderen an und sieht den Wert beider Seiten. Seid ihr beide bereit, bestätigt ihr: Beide Sammlungen werden aktualisiert. Deine Tausche bleiben unter „Meine Tausche“."
+  "Dans <b>Échange</b>, touche <b>Échange en direct</b> : montre le QR code à l'autre joueur (ou donne-lui le code) ; depuis la page d'un ami, tu peux aussi l'inviter à distance. Chacun choisit ce qu'il donne, demande des cartes de la liste de l'autre et voit la valeur des deux côtés. Prêts tous les deux, vous validez : vos deux collections sont mises à jour. Tes échanges restent dans « Mes échanges ».": "Tippe in <b>Tausch</b> auf <b>Live-Tausch</b>: Zeig dem anderen Spieler den QR-Code (oder gib ihm den Code); auf der Seite eines Freundes kannst du ihn auch aus der Ferne einladen. Jeder wählt, was er gibt, fragt Karten aus der Liste des anderen an und sieht den Wert beider Seiten. Seid ihr beide bereit, bestätigt ihr: Beide Sammlungen werden aktualisiert. Deine Tausche bleiben unter „Meine Tausche“.",
+  "Trop tard : cet échange ne peut plus être annulé.": "Zu spät: Dieser Tausch kann nicht mehr rückgängig gemacht werden.",
+  "{name} propose d'annuler l'échange": "{name} schlägt vor, den Tausch rückgängig zu machen",
+  "{name} préfère garder l'échange": "{name} möchte den Tausch lieber behalten",
+  "Échange annulé des deux côtés : ta collection est revenue comme avant": "Tausch auf beiden Seiten rückgängig gemacht: Deine Sammlung ist wie vorher",
+  "Annuler l'échange ?": "Tausch rückgängig machen?",
+  "{name} doit accepter : vos deux collections reviendront alors comme avant. Sans sa réponse, rien ne change.": "{name} muss zustimmen: Dann sind eure beiden Sammlungen wieder wie vorher. Ohne Antwort ändert sich nichts.",
+  "Garder l'échange": "Tausch behalten",
+  "Proposer l'annulation": "Rückgängig machen vorschlagen",
+  "Échange annulé des deux côtés": "Tausch auf beiden Seiten rückgängig gemacht",
+  "Vos deux collections sont revenues comme avant.": "Eure beiden Sammlungen sind wieder wie vorher.",
+  "Annulation proposée à {name} : en attente de sa réponse…": "Rückgängig machen an {name} vorgeschlagen: Warte auf Antwort…",
+  "Retirer ma demande": "Meine Anfrage zurückziehen",
+  "{name} propose d'annuler l'échange : vos deux collections reviendraient comme avant.": "{name} schlägt vor, den Tausch rückgängig zu machen: Eure beiden Sammlungen wären wieder wie vorher.",
+  "annulé des deux côtés": "auf beiden Seiten rückgängig gemacht"
 }

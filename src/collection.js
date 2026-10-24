@@ -433,6 +433,7 @@ function collChanged(o = {}) {
   if (o.push !== false) { const t = Date.now(); COLL.chg = COLL.chg.filter(x => t - x < COLL_PUSH.win); COLL.chg.push(t); collPushSoon(); }
   if (o.paint !== false) collPaint(); else collPaintHead();
   paintCollSection(); refreshDeck(); alSoon(); trSoon(); edSoon();
+  if (typeof csSoon === 'function') csSoon();      // fiche d'une carte ouverte (cardsheet.js) : ses exemplaires suivent
   if (S.run && S.view === 'results') scheduleRecompute(true);
 }
 /** Après un changement : prix des éditions jamais lues (import, scan, choix d'une illustration), en un lot, un peu plus tard. */
@@ -933,8 +934,8 @@ function collAll() {
 }
 /** …filtrées puis triées, gardées pour un même tri, une même source de prix et un même filtre. */
 function collListOf(v) {
-  const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr, f.set, COLL.place, SETIC.m ? 1 : 0, collWhenOn() ? COLL.when.dir + COLL.when.t : ''].join('\u0001');      // SETIC.m : dates des extensions arrivées (tri par édition)
-  if (v.sk !== sk) { v.filtered = filterItems(v.all, f); if (collWhenOn()) { const w = COLL.when; v.filtered = v.filtered.filter(it => it.d > 0 && (w.dir === 'before' ? it.d < w.t : it.d >= w.t)); } if (COLL.place) v.filtered = v.filtered.filter(it => collLines(COLL.map[it.k]).some(([g]) => plcIn(g))); v.sorted = collSorted(v.filtered); v.sk = sk; }      // emplacement affiché (Rangement) : les cartes qui y ont au moins un exemplaire
+  const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr, f.set, COLL.place, SETIC.m ? 1 : 0, collWhenOn() ? COLL.when.dir + COLL.when.t : '', typeof srchKey === 'function' ? srchKey(f) : ''].join('\u0001');      // SETIC.m : dates des extensions arrivées (tri par édition) ; srchKey : filtres avancés (search.js)
+  if (v.sk !== sk) { if (typeof srchPrep === 'function') srchPrep(v, f); v.filtered = filterItems(v.all, f); if (collWhenOn()) { const w = COLL.when; v.filtered = v.filtered.filter(it => it.d > 0 && (w.dir === 'before' ? it.d < w.t : it.d >= w.t)); } if (COLL.place) v.filtered = v.filtered.filter(it => collLines(COLL.map[it.k]).some(([g]) => plcIn(g))); v.sorted = collSorted(v.filtered); v.sk = sk; }      // emplacement affiché (Rangement) : les cartes qui y ont au moins un exemplaire
   return v;
 }
 function collItems() {
@@ -952,6 +953,7 @@ const collSetIn = g => { const s = COLL.f.set; return !s || (s === '-' ? !lineEd
  *  Affichées : emplacement ouvert (Rangement : seulement ses lignes, ses extensions et leur nombre de cartes ici), recherche et autres filtres compris (pas l'extension elle-même). */
 function collSetList() {
   const by = new Map(); let none = 0;
+  if (typeof srchPrep === 'function') srchPrep(collAll(), COLL.f);      // filtres avancés (search.js) : cartes préparées
   for (const it of filterItems(collAll().all, { ...COLL.f, set: '' })) {
     const ls = COLL.place ? collLines(COLL.map[it.k]).filter(([g]) => plcIn(g)) : null;
     for (const e of ls ? new Set(ls.map(([g]) => edSet(lineEd(g)))) : it.eds) { if (e) by.set(e, (by.get(e) || 0) + 1); else none++; }
@@ -962,8 +964,8 @@ function collSetList() {
 /** Lignes d'affichage d'une carte : une par langue et édition possédées (fr, fr CMM 400, en…), chacune avec sa quantité, son nom imprimé, son image et son prix (celui de l'édition s'il est connu).
  *  Les infos de la carte (type, coût, étiquettes) ne sont montrées que sur la première ; l'offre CardTrader seulement sur la ligne de la langue lue (la plus fournie). */
 function collRowItems(it) {
-  const ls = collLines(COLL.map[it.k]).filter(([g]) => plcIn(g) && collSetIn(g));      // emplacement affiché, extension filtrée : leurs lignes seules
-  if (ls.length < 2) { const g = ls[0] ? ls[0][0] : it.l, e = lineEd(g), f = lineFoil(g); return [{ ...it, g, e, f, nl: 1, li: 0, ...((COLL.place || COLL.f.set) && ls[0] ? { q: ls[0][1] } : {}), ...(e || f ? { eu: collLineEu(it.k, g) ?? undefined } : {}) }]; }      // emplacement affiché : les exemplaires qui y sont
+  const ls = collLines(COLL.map[it.k]).filter(([g]) => plcIn(g) && collSetIn(g) && (typeof srchLineIn !== 'function' || srchLineIn(it.k, g)));      // emplacement affiché, extension, langue, finition, rareté, prix filtrés : leurs lignes seules
+  if (ls.length < 2) { const g = ls[0] ? ls[0][0] : it.l, e = lineEd(g), f = lineFoil(g); return [{ ...it, g, e, f, nl: 1, li: 0, ...((COLL.place || COLL.f.set || fltLineOn(COLL.f)) && ls[0] ? { q: ls[0][1] } : {}), ...(e || f ? { eu: collLineEu(it.k, g) ?? undefined } : {}) }]; }      // emplacement affiché : les exemplaires qui y sont
   const dom = collDomLang(ls);
   return ls.map(([g, q], i) => {
     const l = lineLang(g), r = { ...it, g, l, e: lineEd(g), f: lineFoil(g), q, nl: ls.length, li: i, eu: collLineEu(it.k, g) ?? undefined }; const dn = frName(it.k, l); if (dn) r.dn = dn; else delete r.dn;
@@ -998,7 +1000,7 @@ function collRowsHtml(sorted, from, to) {
   for (let i = from; i < Math.min(to, sorted.length); i++) {
     const it = sorted[i];
     if (se && (i === 0 || se.get(sorted[i - 1]) !== se.get(it))) { const c = se.get(it), y = setDate(c).slice(0, 4); out.push(`<h3 class="coll-sethd">${c ? setIcHtml(c) : ''}<b>${esc(c ? setName(c) || c.toUpperCase() : T('Sans édition'))}</b>${c ? `<small>${esc(c.toUpperCase())}${y ? ' · ' + y : ''}</small>` : ''}</h3>`); }
-    out.push(collRowItems(it).map(crowHtml).join(''));
+    out.push(collRowItems(it).map(typeof cvwRow === 'function' ? cvwRow : crowHtml).join(''));      // vue compacte, détaillée ou grille (densite.js)
   }
   return out.join('');
 }
@@ -1074,13 +1076,13 @@ function collExport() {
 }
 function collHeadText() {
   const n = collCount(), c = collCopies();
-  const sync = D.user ? (COLL.cloud === 'ok' ? T('synchronisée') : COLL.cloud === 'sync' ? T('synchronisation…') : COLL.cloud === 'offline' ? T('hors ligne') : COLL.cloud === 'error' ? COLL.err : '') : T('sur cet appareil');
-  return n ? TN(n, '{n} carte', '{n} cartes') + ' · ' + TN(c, '{n} exemplaire', '{n} exemplaires') + (sync ? ' · ' + sync : '') : T('Vide pour le moment');
+  const v = n && typeof homeValue === 'function' ? homeValue() : 0;      // l'état de la sauvegarde est dans le point à côté du titre (et son libellé lu)
+  return n ? TN(n, '{n} carte', '{n} cartes') + ' · ' + TN(c, '{n} ex.', '{n} ex.') + (v ? ' · ' + hmEur(v) : '') : T('Vide pour le moment');
 }
-/** Carte de valeur en haut de « Ma collection » : valeur (tendance Cardmarket), cartes et exemplaires, variation sur 7 jours, courbe des 30 derniers relevés ; toucher → Stats. */
+/** Carte de valeur de « Ma collection », en tête de l'onglet Stats (ailleurs, la valeur est dans le sous-titre) : valeur (tendance Cardmarket), cartes et exemplaires, variation sur 7 jours, courbe des 30 derniers relevés. */
 function collValPaint() {
   const box = COLL.el && $('.coll-val', COLL.el); if (!box) return;
-  const n = collCount(); if (!n || typeof homeValue !== 'function') { box.hidden = true; return; }
+  const n = collCount(); if (!n || typeof homeValue !== 'function' || COLL.tab !== 'stats') { box.hidden = true; return; }
   const v = homeValue(), h = histDelta(VAL.hist, 7), pts = VAL.hist.slice(-30).map(x => x.v);
   let spark = '';
   if (pts.length >= 2) {
@@ -1101,7 +1103,7 @@ function collPaintHead() {
   $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul
   const sy = $('.coll-sync', el), si = collSyncInfo(), dot = $('.coll-dot', el);
   if (dot) { dot.hidden = !si; if (si) { dot.dataset.k = si.k; dot.setAttribute('aria-label', si.t); dot.title = si.t; } }
-  if (!si || si.k === 'ok') sy.hidden = true;      // tout va bien : le point vert suffit
+  if (!si || si.k === 'ok' || !(si.k === 'bad' && D.user)) sy.hidden = true;      // le point suffit (touché : la feuille qui dit pourquoi) ; bandeau seulement quand la sauvegarde du compte échoue
   else { sy.hidden = false; sy.dataset.k = si.k; sy.innerHTML = `<span class="sy-d" aria-hidden="true"></span><span class="sy-t">${esc(si.t)}</span>${si.acts.map(([a, l]) => `<button class="link-btn" type="button" data-act="${a}">${esc(l)}</button>`).join('')}`; }
   if (GLANCE.api) paintGlance();
   const stt = $('.coll-status', el), e = COLL.enrich;
@@ -1156,10 +1158,11 @@ function collStatsHtml(items) {
   const byLot = COLL.topBy !== 'one', list = byLot ? st.top : st.topUnit, shown = list.slice(0, COLL.topN), cur = i => (i.rl ? i.rc || 'EUR' : 'EUR');
   const top = list.length ? `<h3 class="cs-h">${T('Les plus chères')} <span class="cs-sw" role="group" aria-label="${T('Classer par')}"><button type="button" data-act="topby" data-v="lot" aria-pressed="${byLot}" class="${byLot ? 'on' : ''}">${T('Par lot')}</button><button type="button" data-act="topby" data-v="one" aria-pressed="${!byLot}" class="${byLot ? '' : 'on'}">${T('Par carte')}</button></span></h3><p class="hint cs-topnote">${byLot ? T('Classées par valeur du lot : prix × exemplaires.') : T('Classées par prix d\'un exemplaire.')}</p><div class="cs-top">${shown.map(i => `<div class="crow ro" data-k="${esc(i.k)}"><span class="thumb" style="--h:${hash32(i.k) % 360}"${zoomAt('coll', i.dn || i.n)}>${esc((i.n.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn || i.n)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}${i.rl ? '<span class="tag real">' + T('prix réel') + '</span>' : ''}</span></span><span class="row-price"><b>${esc(fmt(byLot ? i.lot : i.up, cur(i)))}</b>${i.q > 1 ? `<small>${byLot ? `${esc(fmt(i.up, cur(i)))} × ${nf0(i.q)}` : `× ${nf0(i.q)} = ${esc(fmt(i.lot, cur(i)))}`}</small>` : ''}</span></div>`).join('')}</div>${list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="topmore">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(10, list.length - shown.length)), b: nf0(list.length - shown.length) })}</button>` : ''}` : '';
   const share = st.unique ? `<div class="simg-coll"><button class="link-btn" type="button" data-act="simgcoll"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Partager en image')}</button></div>` : '';      // image de la collection (simg.js)
-  return `${nums}${share}${note}${valStatsHtml()}
+  // .cs-col : sans effet sur le téléphone (display:contents, css/stats.css) ; deux colonnes sur ordinateur (zz-desktop.css) : valeur et variations | le reste
+  return `${nums}${share}${note}<div class="cs-cols"><div class="cs-col">${valStatsHtml()}</div><div class="cs-col">
     <h3 class="cs-h">${T('Courbe de mana')} <small>${T('{n} sorts', { n: nf0(st.spells) })}</small></h3>${curveBars(st.curve, false)}
     <h3 class="cs-h">${T('Couleurs')} <small>${T('sorts')}</small></h3>${barsHtml(colorRows)}
-    <h3 class="cs-h">${T('Familles')} <small>${T('exemplaires')}</small></h3>${barsHtml(typeRows)}${top}`;
+    <h3 class="cs-h">${T('Familles')} <small>${T('exemplaires')}</small></h3>${barsHtml(typeRows)}${top}</div></div>`;
 }
 /** Onglet « Cartes » sans aucune carte : le scan d'abord (le plus rapide pour débuter), import et saisie à côté. */
 function collEmptyHtml() {
@@ -1176,6 +1179,7 @@ function collPaintBody(keep) {
   const el = COLL.el; if (!el) return;
   clearTimeout(COLL.paintT); COLL.paintT = 0; COLL.paintAt = Date.now(); COLL.painted = null;
   if (!keep) COLL.seq++;      // affichage neuf (onglet, tri) : liste relue, jamais celle gardée
+  if (COLL.fb && COLL.mode === 'coll') COLL.fb.paint();      // pastille « Filtres », filtres actifs, recherches enregistrées (search.js) : un emplacement choisi ou retiré ailleurs (Rangement, bandeau)
   const sc = $('.dv-scroll', el), pos = keep && sc ? sc.scrollTop : 0, host = $('.coll-main', el);
   if (keep && document.activeElement && document.activeElement.matches && document.activeElement.matches('.lchip select') && host.contains(document.activeElement)) { COLL.dirty = true; return; }      // un choix de langue est ouvert : on ne le ferme pas
   if (typeof opnCollBody === 'function' && opnCollBody(el, host)) { if (sc) sc.scrollTop = pos; return; }      // mode streamer (opening.js) : la session seule, jamais la collection
@@ -1183,11 +1187,12 @@ function collPaintBody(keep) {
   // collection vide : les onglets restent (Decks et Échange marchent sans carte) ; recherche, filtres, tri et prix réels n'auraient rien à montrer
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
   $('.coll-px', el).hidden = none; $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
-  $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); collWhenPaint(el, none); valPaintAlert();      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
+  $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); if (typeof cvwPaint === 'function') cvwPaint(el, none); collWhenPaint(el, none); valPaintAlert();      // cvwPaint : tri, vue, réglages de l'échange (densite.js)
+  if (!keep && typeof cvwHead === 'function') cvwHead();      // carte de valeur : onglet Stats seulement      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
   if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
   else if (none && COLL.tab === 'stats') host.innerHTML = collStatsEmptyHtml();
   else if (COLL.tab === 'decks' && edhGate() !== 'ok') { host.innerHTML = edhGateHtml(); vfTick(); }      // decks EDHREC réservés aux comptes (edh.js) ; vfTick : « Renvoyer » grisé pendant la minute qui suit un envoi
-  else if (COLL.tab === 'stats') { host.innerHTML = collStatsHtml(all); }
+  else if (COLL.tab === 'stats') { host.innerHTML = collStatsHtml(all); if (typeof valFit === 'function') valFit(host); }      // courbe de valeur à la taille de sa case sur ordinateur (value.js)
   else if (COLL.tab === 'places') { host.innerHTML = plcTabHtml(); }      // Rangement (places.js) : emplacements et proxys
   else if (COLL.tab === 'trade') { host.innerHTML = trPanelHtml(); trMount(host); }
   else if (COLL.tab === 'decks') { const res = keep && EDH.data && document.activeElement && document.activeElement.id === 'dkQ' ? $('.dk-res', host) : null; if (res) { res.innerHTML = edhResHtml(); edhThemesSync(); } else { host.innerHTML = edhPanelHtml(); edhEnsure(); } }      // en pleine frappe : seuls les résultats se repeignent, le champ garde le focus
@@ -1198,7 +1203,7 @@ function collPaintBody(keep) {
     const known = all.filter(i => i.tl != null || i.cm != null).length, hid = (COLL.f.colors.size || COLL.f.type || COLL.f.cmc !== '' || COLL.f.cmdr) && known < all.length;
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
     host.innerHTML = `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
-      ${shown.length ? `<div class="coll-list">${collRowsHtml(sorted, 0, shown.length)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
+      ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collRowsHtml(sorted, 0, shown.length)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
       ${sorted.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, sorted.length - shown.length)), b: nf0(sorted.length - shown.length) })}</button>` : ''}`;
     COLL.painted = sorted;
   }
@@ -1260,9 +1265,10 @@ function openCollection(tab) {
   if (md === 'coll') mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'places', label: T('Rangement') }, { v: 'stats', label: T('Stats') }], COLL.tab, v => { const ord = ['list', 'places', 'stats'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = COLL.ctab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
   COLL.fb = mountFilters($('#collF', wrap), COLL.f, () => {
     COLL.cmdrSeen = COLL.f.cmdr; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(true);
-  }, { placeholder: T('Rechercher une carte'), commander: true, sets: collSetList, setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
+  }, { placeholder: T('Rechercher'), commander: true, sets: collSetList, ...(md === 'coll' && typeof srchExt === 'function' ? { ext: srchExt() } : {}), setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
     : filterActive({ ...COLL.f, set: '' }) ? TN(n, '{n} extension parmi les cartes affichées', '{n} extensions parmi les cartes affichées') : TN(n, '{n} extension dans ta collection', '{n} extensions dans ta collection')) });
   COLL.cmdrSeen = COLL.f.cmdr;
+  if (typeof cvwMount === 'function') cvwMount(wrap, md);      // tri, masterset, vue : boutons-icônes dans la rangée de la recherche ; titre resserré au défilement (densite.js)
   $('#collSort', wrap).value = COLL.sort;
   $('#collSort', wrap).onchange = e => { COLL.sort = e.target.value; COLL.shown = COLL_PAGE; if (!isDateSort()) COLL.when.dir = ''; haptic('tap'); collPaintBody(false); };
   wrap.addEventListener('input', edhInput);
@@ -1285,6 +1291,7 @@ function openCollection(tab) {
   wrap.addEventListener('click', e => {
     if (typeof opnCollClick === 'function' && opnCollClick(e)) return;      // session d'ouverture (opening.js) : sa note, sa liste en mode streamer
     if (typeof msClick === 'function' && msClick(e)) return;      // masterset (masterset.js) : interrupteur, édition, filtres, cartes
+    if (typeof dnsClick === 'function' && dnsClick(e)) return;      // vues de la liste, réglages et lien de l'échange (densite.js)
     if (e.target.closest('.lchip')) return;
     if (e.target.closest('.cs-val[data-act="pxsrc"]')) { collToggleSrc(); return; }
     if (edhClick(e) || valClick(e) || trClick(e) || plcClick(e)) return;
@@ -1306,7 +1313,7 @@ function openCollection(tab) {
       else if (act === 'prices') openCollPrices();
       else if (act === 'login') openAccount();
       else if (act === 'export') collExport();
-      else if (act === 'syncinfo') { const si = collSyncInfo(); if (si) toast(si.t); }
+      else if (act === 'syncinfo') { const si = collSyncInfo(); if (si && si.k !== 'ok' && typeof collSyncSheet === 'function') collSyncSheet(si); else if (si) toast(si.t); }      // à surveiller : la feuille (texte, Se connecter, Réessayer)
       else if (act === 'resync') collSyncNow();
       else if (act === 'pxstop') { if (COLL.pxRun) COLL.pxRun.ctrl.abort(); }
       else if (act === 'pxok') { COLL.pxMsg = null; collPaintHead(); }
@@ -1337,8 +1344,11 @@ function openCollection(tab) {
     if (th && th.querySelector('img.ok')) {
       const row = th.closest('.crow'); if (!row) return;
       const rows = $$('.crow', row.parentNode), list = rows.map(r => collViewItem(r.dataset.k, rowG(r))).filter(Boolean);
-      const i = list.findIndex(x => x.lid === row.dataset.k + '|' + rowG(row)); if (i >= 0) openCardViewer(list, i);
+      const i = list.findIndex(x => x.lid === row.dataset.k + '|' + rowG(row)); if (i >= 0) { openCardViewer(list, i); return; }
     }
+    // le reste de la ligne (nom, étiquettes, prix) : la fiche de la carte (cardsheet.js) ; Échange : lignes du propriétaire (doublons, recherchées, gardées)
+    const crow = typeof openCardSheet === 'function' && e.target.closest('.crow[data-k]');
+    if (crow && !crow.classList.contains('dk') && !e.target.closest('a,input,select,label,details>summary')) openCardSheet(crow.dataset.k, COLL.tab === 'trade' ? { from: 'trade', l: crow.dataset.ln || '', n: zoomName(crow) || undefined } : { from: 'coll', l: rowG(crow) });
   });
   document.body.appendChild(wrap); holdApp(); collPaintHead(); collPaintBody(false);
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); const f = $('.dk-tab[aria-current], #collSeg [aria-checked="true"], .coll-tools .icon-btn, .dv-title', wrap); if (f) { if (!f.hasAttribute('tabindex') && f.classList.contains('dv-title')) f.tabIndex = -1; f.focus({ preventScroll: true }); } }));

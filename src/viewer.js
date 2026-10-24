@@ -477,17 +477,18 @@ function dvFrame(snap) {
   const cardsTxt = TN(copies, '{n} carte', '{n} cartes');
   $('.dv-title span', el).textContent = DV.pub ? `${cardsTxt}${sbTxt} · ${DV.by ? T('partagé par {name}', { name: DV.by }) : T('partagé, lecture seule')}` : ref ? `${cardsTxt} · ${todo ? T('{n} à trouver', { n: todo }) : T('toutes possédées')}${none ? ' · ' + T('{n} sans prix', { n: none }) : ''}${sbTxt}`
     : `${cardsTxt}${own ? ' · ' + TN(own, '{n} possédée', '{n} possédées') : ''}${miss ? ' · ' + TN(miss, '{n} introuvable', '{n} introuvables') : ''}${none ? ' · ' + T('{n} sans offre', { n: none }) : ''}${sbTxt}`;
-  $('.dv-body', el).innerHTML = `<section class="dv-sum">
+  $('.dv-body', el).innerHTML = `<div class="dv-side"><section class="dv-sum">
       <div class="dv-total"><span class="dv-eur">${ref ? '≈ ' : ''}<span class="dv-amt">${esc(fmt(total))}</span>${ref && none ? '+' : ''}</span><span class="dv-crit">${ref ? '' : T('Articles') + ' · '}${esc(crit)}</span></div>
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
-      <div class="tr-acts dv-acts">${!DV.pub && DV.deckId && typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('À aller chercher')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Modifier les cartes')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}</div>
-    </section>
-    <div id="dvCmd"></div>
+      <div class="tr-acts dv-acts">${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Modifier les cartes')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}</div>
+    </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
+    <div class="dv-main"><div id="dvCmd"></div>
     <div class="seg dv-seg" id="dvSeg"></div>
     <div id="dvF"></div>
-    <div class="dv-groups"></div>${DV.pub && DV.sid ? `<p class="pub-report"><a href="${esc(trReportHref(DV.sid))}" rel="noopener">${T('Signaler ce partage')}</a></p>` : ''}`;      // deck reçu par un lien : contenu choisi par quelqu'un d'autre (règles Google Play)
+    <div class="dv-groups"></div>${DV.pub && DV.sid ? `<p class="pub-report"><a href="${esc(trReportHref(DV.sid))}" rel="noopener">${T('Signaler ce partage')}</a></p>` : ''}</div>`;      // deck reçu par un lien : contenu choisi par quelqu'un d'autre (règles Google Play) ; dv-side / dv-main : deux colonnes sur ordinateur (zz-desktop.css), l'une sous l'autre ailleurs
+  if (typeof dfMount === 'function') dfMount();      // « De ta collection pour ce deck » (deckfind.js) : calculé à l'ouverture de la section
   mountSeg($('#dvSeg', el), [{ v: 'mana', label: T('Mana') }, { v: 'price', label: T('Prix') }, { v: 'type', label: T('Type') }], DV.sort, v => {
     DV.sort = v; try { localStorage.setItem(DV_SORT_KEY, v); } catch (e) { /* ignore */ } haptic('tap'); DV.anim = true; dvGroups();
     const g = $('.dv-groups', DV.el), sc = $('.dv-scroll', DV.el); if (g && sc) sc.scrollTop = Math.min(sc.scrollTop, g.offsetTop - 8);
@@ -564,7 +565,7 @@ function dvOpenCopy() {
   if (findDeck(d.id)) openDeckViewer({ id: d.id }); else { closeDeckViewer(); openDecks(); }
 }
 /** Mes decks a changé (synchro, suppression, compte) : le pied du viewer suit. */
-function dvDecksChanged() { if (DV.el && DV.adhoc) dvSavePaint(); }
+function dvDecksChanged() { if (DV.el && DV.adhoc) { dvSavePaint(); if (typeof dfPaint === 'function') dfPaint(); } }      // dfPaint : « + au deck » vise la copie enregistrée (deckfind.js)
 /** Noms affichés des cartes de la liste (nom tapé en français, « Foudre ») : clé anglaise → nom affiché. Les relevés ne gardent que l'anglais ; relu de la liste, une fois par texte et par index des noms. */
 function dvShown(it) {
   if (DV.dnOf !== DV.text || DV.dnIx !== FRX.ix) {
@@ -591,6 +592,11 @@ function dvOpenCard(i) {
   if (at.has(i)) openCardViewer(list, at.get(i));
 }
 function closeDeckViewer() { if (DV.el) DV.el.__close(); }
+/** Deck de Mes decks derrière le viewer (« Où trouver mes cartes » : monter, démonter) : le deck ouvert, sinon la copie déjà enregistrée d'un deck venu d'ailleurs ; null s'il n'est pas enregistré. */
+function dvFetchId() {
+  if (DV.deckId && !DV.pub) return DV.deckId;
+  const c = DV.adhoc ? dvCopy() : null; return c && findDeck(c.id) ? c.id : null;
+}
 /** Ouvre le viewer d'un deck enregistré ({ id }), de la recherche en cours ({ live: true }) ou d'une liste quelconque ({ text, name } : deck EDHREC ;
  *  pub : deck reçu par un lien public, en lecture seule, sans rien de la collection de cet appareil ; saveAs : nom de la copie enregistrée, si autre que name). */
 function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
@@ -604,7 +610,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
   DV.text = adhoc ? text : live ? S.run.text : d ? d.text : ''; DV.loading = false;
   if (!DV.snap || snapNothingToBuy(DV.snap)) DV.snap = refSnapOf(DV.text, DV.deckId, DV.pub);
   dvRebuild();
-  const wrap = document.createElement('div'); wrap.className = 'dv'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Deck viewer · {name}', { name: DV.name }));
+  const wrap = document.createElement('div'); wrap.className = 'dv dvw'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Deck viewer · {name}', { name: DV.name }));
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer le viewer')}"><svg class="i"><use href="#i-back"/></svg></button>
       <div class="dv-title"><b>${esc(DV.name)}</b><span></span></div>${DV.pub ? '' : '<button class="icon-btn" type="button" data-act="share" aria-label="' + T('Partager ce deck (lien en lecture seule)') + '" title="' + T('Partager') + '"><svg class="i"><use href="#i-share"/></svg></button>'}</header>
     <div class="dv-scroll"><div class="dv-body"></div></div>
@@ -633,7 +639,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
     else if (act === 'hand') openHand();
     else if (act === 'builder' && deck) { wrap.__close(); setTimeout(() => openBuilder({ id: deck }), 200); }      // éditeur du deck (builder.js), déplacé ici depuis la fiche du deck
     else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
-    else if (act === 'fetch' && deck) plcFetchSheet({ id: deck, name: DV.name, text: DV.text });
+    else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks
     else if (act === 'cm') cmCopy(dvMissing());
     else if (act === 'share') shareDeck(DV.deckId && !DV.live ? { id: DV.deckId } : { text: DV.text, name: DV.name });
     else if (act === 'edit' && deck) { wrap.__close(); loadDeck(deck); }
@@ -647,6 +653,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
   if (dvPubOk() && cloudOn()) pdMine().then(() => { if (DV.el === wrap) dvPubPaint(); }, () => {});      // « ✓ Publié » si le deck l'est déjà
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
   if (!DV.pub) haptic('tap');      // ouvert par un lien au chargement : pas de geste, le navigateur refuserait la vibration
+  if (typeof tipSoon === 'function') tipSoon(1200);      // astuce (tour.js) : « Où trouver mes cartes »
 }
 /** « Actualiser » : recharge le deck, relit les prix (cache serveur ignoré) puis propose de revenir au viewer. */
 async function refreshDeckPrices(id) {

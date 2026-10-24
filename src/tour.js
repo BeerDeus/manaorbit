@@ -67,7 +67,7 @@ const TOUR_STEPS = [
     t: () => T('Session d\'ouverture'),
     x: () => T('Tu ouvres des boosters ou une boîte, en stream ou non ? Lance une session ici (Scan › Réglages) : prix payé, mode streamer qui cache ta collection.'),
     x2: () => T('À la fin : le bilan (gain ou perte, meilleures cartes), une image à partager, et l\'historique dans « Mes ouvertures ».') },
-  { id: 'trade', at: 'home', el: () => $('#hmTrade .hm-tr-acts'),
+  { id: 'trade', at: 'home', el: () => $('#hmTrade .hm-tr-acts:not([hidden])') || $('#hmTrade'),      // collection vide : la carte entière (QR code et Partager pas encore là)
     t: () => T('Ta liste d\'échange'),
     x: () => (D.user ? T('Ton lien public et son QR code, à montrer à un autre joueur : il voit tes doublons et les cartes que tu cherches, toujours à jour.')
       : T('Avec un compte, crée ton lien public et son QR code : un autre joueur voit tes doublons et les cartes que tu cherches.')) },
@@ -415,6 +415,7 @@ const TIP_DEFS = {
   ed: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode === 'coll' && COLL.tab === 'list' && !(typeof msActive === 'function' && msActive()), top => $('.crow .row-ed', top), () => T('Touche ce rond : l\'édition exacte de ta carte, et foil ✦ ou non.')],
   auto: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote, top => $('.sc-auto:not([hidden])', top), () => T('Auto : pose tes cartes l\'une après l\'autre, le scan les lit tout seul.')],
   pnm: [top => typeof PU !== 'undefined' && top === PU.el && PU.mode === 'game', top => $('.pu-t .pu-nm', top), () => T('Touche le nom d\'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…')],      // compteur de vie (partie-ui.js › puGamePaint)
+  dvfind: [top => typeof DV !== 'undefined' && top === DV.el, top => $('.dv-fetch', top), () => T('Où trouver mes cartes : les cartes de ce deck que tu as, classeur par classeur, et celles qui manquent.')],      // viewer d'un deck (viewer.js), tout deck
 };
 const tipOff = () => !!tourRead().tipsOff;
 /** Ligne « Astuces » de Compte et réglages › Préférences (me.js). */

@@ -1390,12 +1390,46 @@ const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'];
 const itemColors = i => (i.s === 'basic' ? BASIC_COLOR[String(i.k).replace(/^snow covered /, '')] || '' : i.cl || '');
 const itemType = i => (i.s === 'basic' ? 'Terrains' : typeBucket(i.tl));
 const hasMeta = i => i.s === 'basic' || i.tl != null || i.cm != null;
-/** f : { q:texte, colors:Set('W','U',… ,'C'), type:'Créatures'…, cmc:0..7 (7 = 7 et plus), set: code d'extension ou '-' (sans édition) } — champ absent ou vide = pas de filtre. */
+/* Filtres avancés de la collection (search.js) : ils ne valent que pour les cartes préparées par srchPrep (i.sl : une entrée par ligne
+   { l: langue, f: 1 foil, u: prix d'un exemplaire en centimes ou null, r: rareté, p: emplacement ('' non rangé), s: extension ('' sans édition) } ;
+   i.sk : 1 dans un deck ; i.st : 1 à l'échange ; i.q, i.d : exemplaires, date d'ajout en secondes). Ailleurs (deck, échange, masterset) : ignorés. */
+const FLT_ADV = ['lang', 'foil', 'rar', 'px', 'place', 'dup', 'dk', 'tr', 'add'];
+/** Tranches de prix à l'unité (centimes ; borne basse comprise, haute non comprise). */
+const FLT_PX = { lt1: [0, 100], '1-5': [100, 500], '5-20': [500, 2000], gt20: [2000, Infinity] };
+const fltOn = v => (v instanceof Set ? v.size > 0 : !!v);
+/** Nombre de filtres avancés actifs (une langue ou plusieurs : 1). */
+const fltAdvCount = f => (f ? FLT_ADV.reduce((a, k) => a + (fltOn(f[k]) ? 1 : 0), 0) : 0);
+/** Un filtre de ligne (langue, finition, rareté, prix) est-il actif ? L'emplacement et l'extension se jugent alors sur la même ligne. */
+const fltLineOn = f => !!f && (fltOn(f.lang) || !!f.foil || fltOn(f.rar) || !!f.px);
+/** Rareté telle que filtrée (« special », « bonus » : avec les mythiques, comme le masterset). */
+const rarNorm = r => (r === 'special' || r === 'bonus' ? 'mythic' : r || '');
+/** La ligne x (entrée de i.sl) passe-t-elle les filtres de ligne de f ? Emplacement ('-' : non rangées) et extension ('-' : sans édition) compris. */
+function fltLineOk(x, f) {
+  if (fltOn(f.lang) && !f.lang.has(x.l || '')) return false;
+  if (f.foil && (f.foil === 'f') !== !!x.f) return false;
+  if (fltOn(f.rar) && !f.rar.has(rarNorm(x.r))) return false;
+  if (f.px) { const b = FLT_PX[f.px]; if (b && !(x.u != null && x.u >= b[0] && x.u < b[1])) return false; }      // prix inconnu : écartée
+  if (f.place && (f.place === '-' ? !!x.p : x.p !== f.place)) return false;
+  if (f.set && (f.set === '-' ? !!x.s : x.s !== f.set)) return false;
+  return true;
+}
+/** Filtres avancés d'une carte préparée : doublons (2 exemplaires ou plus), decks, échange, ajout, puis au moins une ligne qui passe tous les filtres de ligne à la fois. now : secondes. */
+function fltAdvOk(i, f, now) {
+  if (f.dup && !(i.q >= 2)) return false;
+  if (f.dk && (f.dk === 'in') !== !!i.sk) return false;
+  if (f.tr && !i.st) return false;
+  if (f.add) { const days = Number(f.add) || 0; if (!(i.d > 0 && i.d >= now - days * 86400)) return false; }
+  if (fltLineOn(f) || f.place) return i.sl.some(x => fltLineOk(x, f));
+  return true;
+}
+/** f : { q:texte, colors:Set('W','U',… ,'C'), type:'Créatures'…, cmc:0..7 (7 = 7 et plus), set: code d'extension ou '-' (sans édition) } — champ absent ou vide = pas de filtre.
+ *  Filtres avancés (FLT_ADV) : cartes préparées seulement (i.sl, voir plus haut) ; f.now : heure en secondes (tests). */
 function filterItems(items, f) {
   if (!f) return items;
   const q = normPart(f.q || ''), colors = f.colors && f.colors.size ? f.colors : null, type = f.type || '', cmc = f.cmc === '' || f.cmc == null ? null : Number(f.cmc), cmdr = f.cmdr === 'can' || f.cmdr === 'played' ? f.cmdr : '';
   const set = f.set === '-' ? '' : f.set || null;      // '' : lignes sans édition ; null : toutes
-  if (!q && !colors && !type && cmc == null && !cmdr && set == null) return items;
+  const adv = fltAdvCount(f) > 0, now = Number(f.now) || Math.floor(Date.now() / 1000);
+  if (!q && !colors && !type && cmc == null && !cmdr && set == null && !adv) return items;
   return items.filter(i => {
     if (set != null && i.eds && !i.eds.includes(set)) return false;      // eds : extensions des lignes de la carte (collection, échange), '' pour une ligne sans édition ; sans eds (deck) : pas de filtre
     if (q && !normPart(i.n).includes(q) && !(i.dn && normPart(i.dn).includes(q)) && !(i.fn && normPart(i.fn).includes(q))) return false;      // nom anglais, nom affiché (FR) ou nom français de la carte même si l'exemplaire est anglais
@@ -1406,10 +1440,11 @@ function filterItems(items, f) {
       if (type && itemType(i) !== type) return false;
       if (cmc != null && Math.min(i.cm ?? 0, 7) !== cmc) return false;
     }
+    if (adv && i.sl && !fltAdvOk(i, f, now)) return false;
     return true;
   });
 }
-const filterActive = f => !!f && !!((f.q || '').trim() || (f.colors && f.colors.size) || f.type || (f.cmc !== '' && f.cmc != null) || f.cmdr || f.set);
+const filterActive = f => !!f && !!((f.q || '').trim() || (f.colors && f.colors.size) || f.type || (f.cmc !== '' && f.cmc != null) || f.cmdr || f.set || fltAdvCount(f));
 
 /* ── Valeur de la collection dans le temps : relevés quotidiens, variations de prix carte par carte ─────────────── */
 const VAL_MAX = 400;
@@ -2272,8 +2307,13 @@ function tradeMatch(sh, want, spare, price) {
   give.forEach(x => tradePriced(x, price)); give.sort(by);
   return { get, give, sum: { get: tradeSum(get), give: tradeSum(give) }, n: get.length + give.length };
 }
-/** Pose sur x (modifié) u : prix unitaire en centimes (null sans prix), et v = u × x.q. price(k) : centimes, ou null. */
-function tradePriced(x, price) { const c = price ? Number(price(x.k)) : 0, u = c > 0 ? Math.round(c) : null; return Object.assign(x, { u, v: u == null ? null : u * x.q }); }
+/** Pose sur x (modifié) u : prix unitaire en centimes (null sans prix), et v = u × x.q. price(k, x) : centimes, ou null ; ou { u, v, … } quand les exemplaires
+ *  n'ont pas tous le même prix (lignes foil, éditions : share.js › trRowPx) : posé tel quel (v : la valeur de la ligne). */
+function tradePriced(x, price) {
+  const r = price ? price(x.k, x) : 0;
+  if (r && typeof r === 'object') { const u = r.u > 0 ? Math.round(r.u) : null; return Object.assign(x, r, { u, v: r.v > 0 ? Math.round(r.v) : u == null ? null : u * x.q }); }
+  const c = Number(r), u = c > 0 ? Math.round(c) : null; return Object.assign(x, { u, v: u == null ? null : u * x.q });
+}
 /** Total d'une liste chiffrée (tradePriced) : { n cartes, q exemplaires, v centimes (cartes chiffrées), nv cartes sans prix }. */
 const tradeSum = list => (list || []).reduce((t, x) => { t.n++; t.q += x.q; if (x.v == null) t.nv++; else t.v += x.v; return t; }, { n: 0, q: 0, v: 0, nv: 0 });
 /**
@@ -2330,7 +2370,7 @@ const shNum = (v, lo, hi) => { const x = Number(v); return Number.isFinite(x) ? 
 const edShare = e => (e ? edSet(e) + '/' + edNum(e) : '');
 /** « cmm/400 » relu d'un partage (contenu d'un autre compte) → 'cmm|400' ; '' si absent ou illisible (code de 2 à 6 lettres et chiffres, numéro de 12 signes au plus, lettres, chiffres, ★ † Φ • -). */
 const edUnshare = v => { if (typeof v !== 'string' || v.length > 19) return ''; const i = v.indexOf('/'), n = v.slice(i + 1); return i > 0 && /^[\p{L}\p{N}★†Φ•-]{1,12}$/u.test(n) ? edKey(v.slice(0, i), n) : ''; };
-/** Une carte d'un partage : { n, q, l?, e? (édition « cmm/400 »), fo? (exemplaires foil parmi q), f? (nom français), i? (image), c? (coût), t? (type), o? (couleurs), m? (symboles) } → item d'affichage, null si illisible. */
+/** Une carte d'un partage : { n, q, l?, e? (édition « cmm/400 »), fo? (exemplaires foil parmi q), p? / pf? (prix à l'unité de l'impression, de ses foil), f? (nom français), i? (image), c? (coût), t? (type), o? (couleurs), m? (symboles) } → item d'affichage, null si illisible. */
 function shareCard(x) {
   if (!x || typeof x !== 'object') return null;
   const n = shStr(x.n, 160).trim(), q = shNum(x.q, 1, 9999); if (!n || q == null) return null;
@@ -2339,6 +2379,7 @@ function shareCard(x) {
   if (SHARE_LANGS.includes(x.l)) it.l = x.l;
   const e = edUnshare(x.e); if (e) it.e = e;      // impression exacte de ces exemplaires (classeur, liste : son image) ; absente d'un partage d'avant ou sans édition
   const fo = shNum(x.fo, 0, q); if (fo) it.fo = fo;      // foil (classeur : pochette à part) ; absent d'un partage d'avant
+  const p = shNum(x.p, 0, 1e7), pf = fo ? shNum(x.pf, 0, 1e7) : 0; if (p) it.p = p; if (pf) it.pf = pf;      // prix à l'unité (centimes) de cette impression et de ses foil, publiés par le propriétaire ; absents : prix de la carte
   const f = shStr(x.f, 160).trim(); if (f) { it.fn = f; if (it.l === (SHARE_LANGS.includes(x.fl) ? x.fl : 'fr')) it.dn = f; }      // fl : langue de f (partage d'un appareil en allemand…), français sans elle
   { const iv = shStr(x.i, 300), full = !iv || /^https:/.test(iv) ? iv : SCRY_IMG + iv; if (SHARE_IMG_RE.test(full)) it.im = full; }      // adresse complète ou raccourcie (imgShort)
   const pw = shStr(x.w, 90).trim(); if (pw) it.pw = pw;      // illustration recherchée : « Extension · CODE 123 »
@@ -2423,3 +2464,5 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { lnLeft, lnOffers, lnQueries, lnNeedsEn, lnOwn, lnJoin, shareStock });
 // Impression exacte des cartes partagées (classeur : une pochette par langue et édition) : exportés à part
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { langEdLines, edShare, edUnshare });
+// Filtres avancés de la collection (search.js) : exportés à part
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FLT_ADV, FLT_PX, fltAdvCount, fltLineOn, fltLineOk, fltAdvOk, rarNorm });

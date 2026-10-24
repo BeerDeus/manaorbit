@@ -1,10 +1,13 @@
 /* ── home.js : page d'accueil (section Accueil de la barre du bas, nav.js) ─────────────────────────────────────────────────────────────────
    · Orbe « Ma collection » : valeur (prix tendance Cardmarket), cartes, variation sur 7 jours ; les 5 terrains de base tournent autour
      (illustration de ceux de la collection s'ils y sont, sinon la fiche Scryfall, lue une fois), sur une orbite en pointillés.
-   · Carte « Échange » : doublons, cartes recherchées, lien en direct ; QR code et Partager (le lien est créé au besoin) ;
+   · Collection vide (hors mode streamer) : carte « Pour commencer » sous l'orbe (Scanner, Importer, « Je viens de ManaBox » : guide de switch.js) à la place
+     de la ligne #collSub ; sur ordinateur, elle prend la case de la courbe de valeur (rien à tracer).
+   · Carte « Échange » : doublons, cartes recherchées, lien en direct ; QR code et Partager (le lien est créé au besoin), remplacés par une phrase tant que
+     la collection est vide (ni carte recherchée, ni lien déjà créé) ;
      « Pour toi » : tes amis qui ont le plus de cartes pour toi (friends.js, toujours à jour), puis les listes ouvertes récemment par un lien,
      avec ce qu'elles ont pour toi (relevé à la dernière ouverture, homeSeen).
-   · « Rejoins le Discord de Mana Orbit » (dsclink.js) juste au-dessus du bloc des parties (partie-ui.js), caché pour un compte lié et membre du serveur.
+   · « Rejoins le Discord de Mana Orbit » (dsclink.js) juste après le bloc des parties (compteur de vie, partie-ui.js), caché pour un compte lié et membre du serveur.
    · « Prochaines extensions » (sets.js, cachée tant qu'elle n'a rien à montrer) et « Comment ça marche ? » (aide, help.js) en bas.
    Mes decks, decks à monter et prix d'une liste sont dans la section Decks ; le scan (et son prix rapide) au milieu de la barre.
    Tout est repeint en différé (homeSoon) quand la collection, les decks, les prix ou la liste d'échange changent.
@@ -57,6 +60,8 @@ function homePaint() {
     const h = sv ? null : histDelta(VAL.hist, 7);
     if (h && Math.abs(h.d) >= 100) { dl.hidden = false; dl.className = h.d < 0 ? 'down' : ''; dl.textContent = T('{d} · 7 j', { d: (h.d < 0 ? '▼ −' : '▲ +') + hmEur(Math.abs(h.d)) }); } else dl.hidden = true;
   } else { HM.v = null; val.textContent = T('Commencer'); cnt.textContent = T('Ajoute tes cartes'); dl.hidden = true; }
+  const start = !n && !sv;                                                               // collection vide : « Pour commencer » à la place de la ligne sous l'orbe (et de la courbe sur ordinateur)
+  $('#hmStart').hidden = !start; $('#collSub').hidden = start; $('.hm-dk-val', home).hidden = start;
   orb.setAttribute('aria-label', n ? T('Ma collection : {v}, {n} cartes', { v: val.textContent, n: nf0(n) }) : T('Ma collection : ajoute tes cartes'));
   widgetSoon();                                                                          // widget Android : mêmes chiffres (widget.js)
   homeLands();
@@ -65,9 +70,11 @@ function homePaint() {
     const st = trState(), ts = $('#hmTradeSub');
     ts.textContent = n || st.want.length ? TN(st.have.length, '{n} doublon', '{n} doublons') + ' · ' + TN(st.want.length, '{n} recherchée', '{n} recherchées') : T('Doublons et cartes recherchées');
     $('#hmLive').hidden = !TR.share;
+    const bare = start && !st.want.length && !TR.share;                                   // rien à partager encore : une phrase à la place de QR code / Partager
+    $('#hmTrade .hm-tr-acts').hidden = bare; $('#hmTradeNote').hidden = !bare;
   } catch (e) { /* liste d'échange pas encore prête */ }
   homeForYou();
-  if (typeof dlPlace === 'function') dlPlace();                                           // bloc Discord toujours juste au-dessus du bloc des parties
+  if (typeof dlPlace === 'function') dlPlace();                                           // bloc Discord toujours juste après le bloc des parties
   if (typeof setsSoon === 'function') setsSoon();                                        // prochaines extensions (sets.js)
   if (typeof rateTick === 'function') rateTick();                                        // demande de note : decks devenus complets (help.js)
   homeDeskPaint();
@@ -120,9 +127,9 @@ async function homeTradeAct(qr) {
 }
 
 /* ── Ordinateur : tableau de bord ────────────────────────────────────────────────────────────────────────────────────────────────────────
-   Salutation sur toute la largeur, puis trois colonnes créées ici (le téléphone garde son DOM tel quel) : orbe et chiffres, courbe de valeur · raccourcis, échange, partie,
-   « Mana Orbit sur ton téléphone » · installation, prochaines extensions (8 au lieu de 4, la liste défile seule), aide. Défaites si la fenêtre redevient étroite (ordre d'origine rendu). */
-const HM_COLS = [['hm-c1', ['.hm-hero', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmDiscord', '#hmPartie', '#hmStores']], ['hm-c3', ['#installWrap', '#buyBar', '#hmSets', '#btnHelp']]];
+   Salutation sur toute la largeur, puis trois colonnes créées ici (le téléphone garde son DOM tel quel) : orbe et chiffres, courbe de valeur (collection vide :
+   « Pour commencer » à sa place) · raccourcis, échange, partie, Discord, « Mana Orbit sur ton téléphone » · installation, prochaines extensions (8 au lieu de 4, la liste défile seule), aide. Défaites si la fenêtre redevient étroite (ordre d'origine rendu). */
+const HM_COLS = [['hm-c1', ['.hm-hero', '#hmStart', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmPartie', '#hmDiscord', '#hmStores']], ['hm-c3', ['#installWrap', '#buyBar', '#hmSets', '#btnHelp']]];
 const homeDeskOn = () => !!(typeof NAV_DESK !== 'undefined' && NAV_DESK && NAV_DESK.matches);
 function homeDesk() {
   const home = $('#viewHome'); if (!home) return;
@@ -187,6 +194,7 @@ function homeInit() {
     const a = b.dataset.hm; if (a === 'scan') { navGo('scan'); return; }
     haptic('tap');
     if (a === 'import') openCollImport();
+    else if (a === 'swg') swgOpen({ from: 'home' });      // « Je viens de ManaBox » (switch.js)
     else if (a === 'stats') navOpen(() => openCollection('stats'));
     else if (a === 'price' || a === 'build') dkTabGo(a);
   });

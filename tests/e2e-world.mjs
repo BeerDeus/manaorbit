@@ -90,7 +90,7 @@ export async function newPage(browser, world, opts = {}) {
     const req = route.request(), u = new URL(req.url()); world.scry.push(req.method() + ' ' + u.pathname + u.search); const h = { 'access-control-allow-origin': '*' };
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { ...h, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,OPTIONS' } });
     const json = (o, status = 200) => route.fulfill({ status, headers: h, json: o });
-    if (u.pathname === '/cards/search' && /\((?:set|cn):/.test(u.searchParams.get('q') || '')) {      // impressions cherchées par code d'extension ou numéro (data.js › scryPrintsFind) : world.hidden[nom] = [[set, n°, langue Scryfall facultative : impression de cette seule langue]] absentes de la liste complète
+    if (u.pathname === '/cards/search' && /\((?:set|cn):/.test(u.searchParams.get('q') || '') && namesIn(u.searchParams.get('q')).length) {      // (avec un nom : les images d'éditions du classeur, sans nom, sont plus bas) impressions cherchées par code d'extension ou numéro (data.js › scryPrintsFind) : world.hidden[nom] = [[set, n°, langue Scryfall facultative : impression de cette seule langue]] absentes de la liste complète
       const q = u.searchParams.get('q'), l = (/lang:([a-z]+)/.exec(q) || [])[1] || 'en', nm = namesIn(q)[0], sets = [...q.matchAll(/set:([a-z0-9]+)/g)].map(m => m[1]), nums = [...q.matchAll(/cn:([^\s)]+)/g)].map(m => m[1]);
       world.findQ = [...(world.findQ || []), q];
       const data = (world.hidden[nm] || []).filter(([s, n, hl]) => (!sets.length || sets.includes(s)) && (!nums.length || nums.includes(n)) && (!hl || hl === l || l === 'any')).map(([s, n, hl]) => ({ name: nm, lang: hl || (l === 'any' ? 'en' : l), set: s, set_name: s.toUpperCase() + ' Set', collector_number: n, released_at: '2022-02-18', full_art: true, border_color: 'black', frame_effects: [], promo: false, rarity: 'common', prices: { eur: l === 'en' ? '2.00' : null, eur_foil: null }, image_uris: { small: `https://cards.scryfall.io/small/front/${l}/${s}-${n}.jpg`, normal: `https://cards.scryfall.io/normal/front/${l}/${s}-${n}.jpg` } }));
@@ -185,6 +185,8 @@ export async function newPage(browser, world, opts = {}) {
       window.openScan = o => { if (SC.el) SC.el.__close('done'); try { Object.keys(localStorage).filter(k => k.startsWith('deckdeal:scansess:')).forEach(k => localStorage.removeItem(k)); } catch (e) { /* ignore */ } return o0(o); };
     });
   });
+  // vue de la liste de la collection (densite.js) : la vue détaillée (− / +, édition, pastilles) que vérifient les tests ; densite-e2e.mjs : cview false (vue par défaut, compacte) ou une autre vue
+  if (opts.cview !== false) await p.addInitScript(v => { try { if (!localStorage.getItem('deckdeal:coll:view')) localStorage.setItem('deckdeal:coll:view', v); } catch (e) { /* stockage indisponible */ } }, opts.cview || 'detail');
   if (opts.init) await p.addInitScript(opts.init);
   if (opts.goto !== false) { await p.goto(world.url + (opts.path || '')); await p.waitForTimeout(700); await p.evaluate(() => { BACKOFF.scry = [60, 60, 60]; BACKOFF.cool429 = 100; }); }
   return { ctx, p, errs };
