@@ -26,11 +26,14 @@ function evLs() { if (!EV.ls) { try { const o = JSON.parse(localStorage.getItem(
 function evLsSet(patch) { Object.assign(evLs(), patch); try { localStorage.setItem(EV_KEY, JSON.stringify(EV.ls)); } catch (e) { /* stockage plein : gardé pour la session */ } }
 const evDeco = () => evLs().deco !== false;
 /** Progression gardée d'une édition (appareil). */
-const evMine = id => ((evLs().p || {})[id]) || { jours: {}, sig: {}, n: 0 };
-function evMineSet(id, x) { const p = { ...(evLs().p || {}) }; p[id] = { jours: x.jours || {}, sig: x.sig || {}, n: Math.max(0, x.n || 0) }; evLsSet({ p }); }
+const evMine = id => ((evLs().p || {})[id]) || { jours: {}, sig: {}, n: 0, rs: 0 };
+function evMineSet(id, x) { const p = { ...(evLs().p || {}) }; p[id] = { jours: x.jours || {}, sig: x.sig || {}, n: Math.max(0, x.n || 0), rs: x.rs || 0 }; evLsSet({ p }); }
+/** Remise à zéro du serveur (panneau /admin) connue pour cette édition : les copies plus anciennes (appareil, compte) ne comptent plus. */
+const evRs = id => (EV.st && EV.st.ev && EV.st.ev.id === id && EV.st.me ? EV.st.me.rs || 0 : 0);
+const evFresh = (id, x) => !!x && (x.rs || 0) >= evRs(id);
 /** Nombre trouvé d'une édition : le plus grand connu (serveur, appareil, compte). */
 function evCount(id) {
-  const a = evMine(id).n || 0, d = EV.doc && EV.doc[id] ? Number(EV.doc[id].n) || 0 : 0, s = EV.st && EV.st.ev && EV.st.ev.id === id && EV.st.me ? EV.st.me.n : 0;
+  const m = evMine(id), dd = EV.doc && EV.doc[id], a = evFresh(id, m) ? m.n || 0 : 0, d = evFresh(id, dd) ? Number(dd.n) || 0 : 0, s = EV.st && EV.st.ev && EV.st.ev.id === id && EV.st.me ? EV.st.me.n : 0;
   return Math.max(a, d, s);
 }
 
@@ -260,9 +263,9 @@ async function evStatus(force) {
 }
 /** Progression du serveur gardée sur l'appareil, et dans le compte si elle y manque (le plus grand gagne). */
 function evKeep(id, me) {
-  const was = evMine(id), jours = { ...was.jours }, sig = { ...was.sig };
+  const was0 = evMine(id), was = (me.rs || 0) > (was0.rs || 0) ? { jours: {}, sig: {}, n: 0 } : was0, jours = { ...was.jours }, sig = { ...was.sig };      // remise à zéro par le panneau : l'ancienne copie part
   for (const [d, l] of Object.entries(me.jours || {})) if (!jours[d] || l.length >= jours[d].length) { jours[d] = l; if (me.sig && me.sig[d]) sig[d] = me.sig[d]; }
-  evMineSet(id, { jours, sig, n: Math.max(was.n || 0, me.n || 0) });
+  evMineSet(id, { jours, sig, n: Math.max(was.n || 0, me.n || 0), rs: Math.max(was0.rs || 0, me.rs || 0) });
   evDocPushSoon();
 }
 /** Relecture à minuit (nouvelles cachettes) et toutes les 10 min (autre appareil du compte). */
@@ -274,12 +277,12 @@ function evArm() {
 /** Le compte a plus que le serveur (serveur reparti sans sa copie) : reçus envoyés, il les vérifie. */
 async function evSyncUp() {
   const st = EV.st; if (!st || !st.acct || EV.pend) return;
-  const id = st.ev.id, loc = evMine(id), doc = EV.doc && EV.doc[id], src = [loc, doc].filter(Boolean);
+  const id = st.ev.id, loc = evMine(id), doc = EV.doc && EV.doc[id], src = [loc, doc].filter(x => evFresh(id, x));
   const jours = {}, sig = {};
   for (const x of src) for (const [d, l] of Object.entries(x.jours || {})) if (Array.isArray(l) && (!st.me.jours[d] || l.length > st.me.jours[d].length) && x.sig && x.sig[d]) { jours[d] = l; sig[d] = x.sig[d]; }
   if (!Object.keys(jours).length) return;
   EV.pend = true;
-  try { const j = await evCall('/sync', { method: 'POST', body: { ev: id, jours, sig, c: evCaps(), n: evNick() } }); if (j.me) { st.me = j.me; evKeep(id, j.me); evHomePaint(); } } catch (e) { /* plus tard */ }
+  try { const j = await evCall('/sync', { method: 'POST', body: { ev: id, jours, sig, rs: st.me.rs || 0, c: evCaps(), n: evNick() } }); if (j.me) { st.me = j.me; evKeep(id, j.me); evHomePaint(); } } catch (e) { /* plus tard */ }
   finally { EV.pend = false; }
 }
 const evNick = () => (typeof PROF !== 'undefined' && PROF.name) || '';
@@ -304,7 +307,7 @@ async function evMerge() {
   const id = EV.cal && EV.cal.id, u = typeof D !== 'undefined' ? D.user : null; if (!id || !u || !EV.dev) return;
   const ls = evLs(), anon = (ls.anon || {})[id]; if (!anon || !anon.n || EV.merged === id + u.uid) return;
   EV.merged = id + u.uid;
-  try { await evCall('/merge', { method: 'POST', body: { ev: id, jours: anon.jours, sig: anon.sig, c: evCaps(), n: evNick() } }); const a = { ...(ls.anon || {}) }; delete a[id]; evLsSet({ anon: a }); } catch (e) { /* refusé ou hors ligne : laissé tel quel */ }
+  try { await evCall('/merge', { method: 'POST', body: { ev: id, jours: anon.jours, sig: anon.sig, rs: anon.rs || 0, c: evCaps(), n: evNick() } }); const a = { ...(ls.anon || {}) }; delete a[id]; evLsSet({ anon: a }); } catch (e) { /* refusé ou hors ligne : laissé tel quel */ }
 }
 let evDocT = 0;
 function evDocPushSoon() { clearTimeout(evDocT); evDocT = setTimeout(evDocPush, 3000); }
@@ -312,8 +315,9 @@ async function evDocPush() {
   const u = typeof D !== 'undefined' ? D.user : null, st = EV.st;
   if (!u || !st || !st.acct || !D.cloud || !D.cloud.saveMeta || EV.doc === null || (typeof cloudOn === 'function' && !cloudOn())) return;
   const id = st.ev.id, loc = evMine(id), cur = EV.doc[id] || {};
-  if ((cur.n || 0) >= (loc.n || 0) && Object.keys(cur.jours || {}).length >= Object.keys(loc.jours || {}).length) return;
-  const e = { ...EV.doc, [id]: { n: Math.max(loc.n || 0, cur.n || 0), jours: loc.jours, sig: loc.sig } };
+  const old = (cur.rs || 0) < (loc.rs || 0);      // copie du compte d'avant une remise à zéro : remplacée, pas fusionnée
+  if (!old && (cur.n || 0) >= (loc.n || 0) && Object.keys(cur.jours || {}).length >= Object.keys(loc.jours || {}).length) return;
+  const e = { ...EV.doc, [id]: { n: old ? loc.n || 0 : Math.max(loc.n || 0, cur.n || 0), jours: loc.jours, sig: loc.sig, rs: loc.rs || 0 } };
   for (const k of Object.keys(e).slice(0, Math.max(0, Object.keys(e).length - 20))) delete e[k];      // 20 éditions gardées au plus (règles : 24)
   try { await D.cloud.saveMeta(u.uid, 'events', { e, updatedAt: Date.now() }); EV.doc = e; } catch (err) { /* hors ligne, règles : renvoyé au prochain objet */ }
 }
@@ -494,8 +498,8 @@ function evSheetOpen() {
 }
 
 /* ── Message d'arrivée : une fois par fête et par appareil ───────────────────────────────────────────────────────── */
-const EV_FORCE_UI = typeof location !== 'undefined' && /[?&]event\b/.test(location.search);
-const EV_EXT = (() => { try { return [...new URLSearchParams(location.search).keys()].some(k => !['event', 'lang', 'tour', 'onboarding', 'splash'].includes(k)); } catch (e) { return false; } })();
+const EV_FORCE_UI = typeof location !== 'undefined' && /[?&]event\b/.test(location.search), EV_RESET = typeof location !== 'undefined' && /[?&]evreset\b/.test(location.search);
+const EV_EXT = (() => { try { return [...new URLSearchParams(location.search).keys()].some(k => !['event', 'evreset', 'lang', 'tour', 'onboarding', 'splash'].includes(k)); } catch (e) { return false; } })();
 function evIntroSoon() {
   const st = EV.st; if (!st || !evOn() || (evLs().seen || {})[st.ev.id] || EV_EXT) return;
   if (!EV_FORCE_UI && typeof navigator !== 'undefined' && navigator.webdriver) return;      // navigateurs pilotés par les tests : seulement avec ?event
@@ -561,6 +565,11 @@ function evPing(j) {
 function evStop() { clearTimeout(EV.armT); EV.st = null; evLoopSync(); evHomePaint(); }
 /** Au chargement : dernière fête connue de l'appareil, encore dans ses dates → décor posé tout de suite (le serveur confirme ensuite). */
 function evBoot() {
+  if (EV_RESET) {      // ?evreset (débogage, lien du panneau /admin) : cet appareil oublie ses événements : message d'arrivée revu, progression locale, logo gardé, astuce
+    evLsSet({ seen: {}, p: {}, anon: {} }); try { localStorage.removeItem(EV_KEY + ':logo'); if (typeof tourRead === 'function' && tourRead().tips) { const tips = { ...tourRead().tips }; delete tips.evpk; tourSet({ tips }); } } catch (e) { /* stockage refusé */ }
+    try { const u = new URL(location.href); u.searchParams.delete('evreset'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch (e) { /* ignore */ }
+    setTimeout(() => { if (typeof toast === 'function') toast(T('Événements : cet appareil est remis à zéro')); }, 1500);
+  }
   const c = evLs().cal; if (!c || typeof c.id !== 'string' || typeof evDay !== 'function') return;
   const d = evDay(Date.now()); if (d < c.from || d > c.to) { evLsSet({ cal: null }); return; }
   EV.cal = c; evApply();

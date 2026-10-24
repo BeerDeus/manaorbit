@@ -3629,7 +3629,8 @@ try {
   const { eventMake } = await import('./event-srv.mjs');
   EVS = eventMake({ dir: process.env.EVENT_DIR || join(EDH_DIR, 'events'), on: process.env.EVENT !== '0', force: process.env.EVENT_FORCE || '', secret: String(process.env.EVENT_SECRET || '').trim(),
     verify: tok => verifyIdToken(tok, true), bad: v => !!(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(v)), json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey,
-    adminHeaders: ADM_HD, adminBody: (req, res) => admBody(req, res), adminLog: r => admLog(r), adminMail: m => admMail(m) });
+    adminHeaders: ADM_HD, adminBody: (req, res) => admBody(req, res), adminLog: r => admLog(r), adminMail: m => admMail(m),
+    adminNames: tags => { const s = ADM.snap, out = new Map(); if (!s) return out; const byId = new Map(s.rows.map(r => [r.id, r])); for (const t of tags) { const r = byId.get(s.byTag.get(t)); if (r) out.set(t, { name: r.name, mail: r.mail }); } return out; } });      // noms réduits de la liste des comptes (déjà calculée), jamais l'UID
 } catch (e) { console.warn('Événements : module illisible (' + (e && e.message || e) + '), coupés'); EVS = null; }
 if (EVS && DSC && DSC.events) {
   const evDsc = () => DSC.events.tick({ now: Date.now(), stats: id => EVS.stats(id), off: () => EVS.off() }).catch(e => console.warn('Discord : annonce d\'événement pas encore partie (' + (e && (e.code || e.message) || e) + ')'));

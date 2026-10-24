@@ -129,7 +129,7 @@ export function eventMake(o = {}) {
     for (const [d, l] of Object.entries(pl.d || {})) if (Array.isArray(l) && l.length) sig[d] = daySig(e.id, k, d, l);
     const full = n >= e.total, sp = full ? [] : spotsOf(e, k, day, caps);
     for (const s of found) if (!sp.includes(s)) sp.push(s);      // capacités changées depuis : celles déjà trouvées restent marquées
-    return { n, day, found, left: full ? 0 : Math.max(0, Math.min(e.per - found.length, e.total - n)), spots: sp.map(s => ({ s, t: spotTok(e.id, k, day, s), f: found.includes(s) ? 1 : 0 })), jours: pl.d || {}, sig };
+    return { n, day, found, left: full ? 0 : Math.max(0, Math.min(e.per - found.length, e.total - n)), spots: sp.map(s => ({ s, t: spotTok(e.id, k, day, s), f: found.includes(s) ? 1 : 0 })), jours: pl.d || {}, sig, rs: pl.rs || 0 };      // rs : remise à zéro par le panneau (les copies plus anciennes ne comptent plus)
   }
   const edOut = e => ({ id: e.id, pack: e.pack, from: e.from, to: e.to, day: e.day, days: e.days, dayNo: EVP.evDiff(e.from, e.day) + 1, left: EVP.evDiff(e.day, e.to), total: e.total, per: e.per, ...(e.forced ? { forced: true } : {}) });
   async function body(req, res, max = 4096) {
@@ -197,7 +197,7 @@ export function eventMake(o = {}) {
     if (sub === 'sync') {      // { ev, jours, sig } (compte) : progression relue depuis la copie de l'appli (Firestore), reçus vérifiés
       if (!u) return json(res, 401, { error: 'auth_required', message: 'Connecte-toi.' });
       const k = 'u' + u.tag, pl = player(r, k); pl.a = 1; { const nm = evName(b.n, o.bad); if (nm) pl.nm = nm; }
-      if (absorb(e, pl, verified(e, k, b.jours, b.sig))) saveSoon(r);
+      if ((Number(b.rs) || 0) >= (pl.rs || 0) && absorb(e, pl, verified(e, k, b.jours, b.sig))) saveSoon(r);      // copie d'avant une remise à zéro : ignorée
       return json(res, 200, { ok: true, me: me(e, r, k, Math.floor(Number(b.c) || 0) | EVP.EV_CAPS.acct) });
     }
     if (sub === 'merge') {      // { ev, jours?, sig? } (compte + appareil) : la progression sans compte de cet appareil rejoint le compte, une seule fois
@@ -205,7 +205,7 @@ export function eventMake(o = {}) {
       if (!dev) return json(res, 400, { error: 'device', message: 'Appareil inconnu.', ...devOut });
       const dk = 'd' + dev, dp = r.p[dk], k = 'u' + u.tag;
       if (dp && dp.own && dp.own !== u.tag) return json(res, 409, { error: 'owned', message: 'Cette progression a déjà rejoint un autre compte.' });
-      const days = { ...verified(e, dk, b.jours, b.sig) };
+      const days = (Number(b.rs) || 0) >= ((r.p[k] && r.p[k].rs) || 0) ? { ...verified(e, dk, b.jours, b.sig) } : {};
       if (dp) for (const [d, l] of Object.entries(dp.d || {})) days[d] = [...new Set([...(days[d] || []), ...l])];
       const pl = player(r, k); pl.a = 1; { const nm = evName(b.n, o.bad); if (nm) pl.nm = nm; }
       const ch = absorb(e, pl, days); const dpl = player(r, dk); dpl.own = u.tag; saveSoon(r);
@@ -235,6 +235,13 @@ export function eventMake(o = {}) {
   }
 
   /* ── Panneau /admin › Événements ── */
+  const admPid = k => createHmac('sha256', G.secret).update('evadm|' + k).digest('base64url').slice(0, 12);      // identifiant opaque d'un joueur pour le panneau (jamais l'empreinte)
+  /** Chasseurs d'une édition pour le panneau : nom du compte réduit (comme la liste des comptes, si elle est calculée), pseudo public, trouvées, aujourd'hui, jours joués. */
+  async function players(ed, mine) {
+    const r = await rec(ed.id), day = EVP.evDay(now()), hs = hunters(ed, r), names = o.adminNames ? o.adminNames(hs.filter(([k]) => k[0] === 'u').map(([k]) => k.slice(1))) : new Map();
+    return hs.map(([k, p]) => { const nm = names.get(k.slice(1)) || {}; return { id: admPid(k), acct: k[0] === 'u', name: nm.name || '', mail: nm.mail || '', n: p.nm || '', c: total(ed, p), today: ((p.d || {})[day] || []).length, days: Object.values(p.d || {}).filter(l => l && l.length).length, last: p.at || 0, ...(k === mine ? { me: true } : {}) }; })
+      .sort((a, b) => b.c - a.c || a.last - b.last).slice(0, 3000);
+  }
   async function admin(req, res, sub, url, u) {
     const t = now(), day = EVP.evDay(t), y = +day.slice(0, 4);
     const list = async () => {
@@ -250,7 +257,8 @@ export function eventMake(o = {}) {
     };
     if (req.method === 'GET' && sub === 'events') {
       const l = await list(), st = {};
-      for (const x of l) if (x.state !== 'soon') st[x.id] = await stats(x.id);
+      const mine = u && u.uid ? 'u' + evTag(u.uid) : '';
+      for (const x of l) if (x.state !== 'soon') { st[x.id] = await stats(x.id); st[x.id].players = await players(EVP.evById(x.id), mine); }
       const c = ON ? EVP.evActive(t, { force: FORCE }) : null;
       return json(res, 200, { on: ON, force: FORCE, day, cur: c ? c.id : null, list: l, stats: st }, HD);
     }
@@ -263,6 +271,18 @@ export function eventMake(o = {}) {
       log.log('Événements : ' + id + (b.on ? ' rallumé' : ' coupé') + ' depuis le panneau.');
       if (o.adminLog) await o.adminLog({ t, a: 'event', n: '', m: '', d: id + (b.on ? ' : rallumé' : ' : coupé'), by: o.adminMail && u ? o.adminMail(u.email) : '', ok: true });
       return json(res, 200, { ok: true, off: G.off }, HD);
+    }
+    if (req.method === 'POST' && sub === 'events/reset') {      // { id, p : identifiant du joueur ou 'me' } : sa progression de cette édition remise à zéro (débogage, triche) ; ses copies d'avant ne reviennent pas
+      const b = o.adminBody ? await o.adminBody(req, res) : await body(req, res); if (!b) return;
+      const id = String(b.id || ''), ed = ID_RE.test(id) ? EVP.evById(id) : null; if (!ed) return json(res, 404, { error: 'not_found', message: 'Événement inconnu.' }, HD);
+      const r = await rec(id), want = String(b.p || ''), k = want === 'me' ? (u && u.uid ? 'u' + evTag(u.uid) : '') : Object.keys(r.p).find(x => admPid(x) === want);
+      if (!k) return json(res, 404, { error: 'not_found', message: 'Joueur introuvable.' }, HD);
+      const pl = r.p[k] || (r.p[k] = {}); pl.d = {}; pl.n = 0; pl.at = 0; pl.rs = t;
+      for (const [dk, dp] of Object.entries(r.p)) if (dk[0] === 'd' && dp && dp.own === k.slice(1)) { dp.d = {}; dp.n = 0; dp.rs = t; }      // appareils rattachés à ce compte : remis à zéro aussi (sinon rattachés de nouveau)
+      await saveSoon(r, true);
+      log.log('Événements : progression d\'un joueur remise à zéro (' + id + ') depuis le panneau.');
+      if (o.adminLog) await o.adminLog({ t, a: 'event', n: '', m: '', d: id + ' : progression remise à zéro' + (want === 'me' ? ' (la sienne)' : ''), by: o.adminMail && u ? o.adminMail(u.email) : '', ok: true });
+      return json(res, 200, { ok: true, stats: { ...(await stats(id)), players: await players(ed, u && u.uid ? 'u' + evTag(u.uid) : '') } }, HD);
     }
     return json(res, 404, { error: 'not_found' }, HD);
   }
