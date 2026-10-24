@@ -23,7 +23,8 @@ const evAround = (key, before = 7, after = 7) => ({ from: evAdd(key, -before), t
 
 /* Pack : { id, ready, name (français, clé de T), when (année → { from, to } inclus), total, perDay, obj (objet à trouver : one / many, emoji, fem, art (evart.js)),
    pal (couleurs : a principale, b secondaire, c accent ; css/ev-<id>.css les reprend), badge ({ t : nom de la série, tiers : seuils, names : nom de chaque palier }),
-   font (police des chiffres de l'année : tools/gen-event-badges.mjs), txt (textes de l'appli, français : clés de T), dsc (messages Discord FR et EN) }.
+   font (police des chiffres de l'année : tools/gen-event-badges.mjs), txt (textes de l'appli, français : clés de T), dsc (messages Discord FR et EN),
+   push (notifications push : étape → langue → [titre, texte] ; sans lui, ou incomplet, aucune annonce push pour ce pack : event-push.mjs › evPushReady) }.
    Textes : {n} nombre, {obj} / {objs} nom de l'objet, {y} année, {d} jours. */
 const EV_PACKS = [
   { id: 'halloween', ready: true, name: 'Halloween', when: y => ({ from: `${y}-10-25`, to: `${y}-11-08` }), total: 30, perDay: 5,
@@ -44,6 +45,42 @@ const EV_PACKS = [
       mid: ['🕸️ **Mi-parcours de la chasse aux citrouilles** : il reste {d} jours. {h} chasseurs en piste, {full} déjà à {total}/{total}.', '🕸️ **Pumpkin hunt halfway point**: {d} days left. {h} hunters so far, {full} already at {total}/{total}.'],
       last: ['🦇 **Dernier jour de la chasse aux citrouilles !** Les dernières citrouilles disparaissent à minuit.', '🦇 **Last day of the pumpkin hunt!** The last pumpkins vanish at midnight.'],
       end: ['🎃 **La chasse aux citrouilles est terminée.** {h} chasseurs, {full} au grade ultime ({total}/{total}). Merci à tous, rendez-vous à la prochaine fête !', '🎃 **The pumpkin hunt is over.** {h} hunters, {full} reached the ultimate rank ({total}/{total}). Thanks everyone, see you at the next celebration!'],
+    },
+    // Notifications push (event-push.mjs) : [titre, texte] par langue de l'appareil ; rien de personnel. {from}, {to} : dates dans la langue (« 25 octobre »,
+    // « October 25 »…), {total}, {per}, {y}, {d} (jours restants, aujourd'hui compris : toujours 2 ou plus à mi-parcours).
+    push: {
+      soon: {
+        fr: ['🎃 La chasse aux citrouilles arrive', 'Du {from} au {to}, {total} citrouilles se cachent dans l\'appli : des badges d\'Halloween {y} à gagner.'],
+        en: ['🎃 The pumpkin hunt is coming', 'From {from} to {to}, {total} pumpkins hide in the app: Halloween {y} badges to win.'],
+        de: ['🎃 Die Kürbisjagd kommt', 'Vom {from} bis {to} verstecken sich {total} Kürbisse in der App: Halloween-Abzeichen {y} zu gewinnen.'],
+        es: ['🎃 Llega la caza de calabazas', 'Del {from} al {to}, {total} calabazas se esconden en la app: insignias de Halloween {y} para ganar.'],
+        it: ['🎃 Arriva la caccia alle zucche', '{from} – {to}: {total} zucche si nascondono nell\'app, con i badge di Halloween {y} in palio.'],
+        pt: ['🎃 A caça às abóboras está chegando', 'De {from} a {to}, {total} abóboras se escondem no app: emblemas de Halloween {y} para ganhar.'],
+      },
+      open: {
+        fr: ['🎃 La chasse aux citrouilles est ouverte !', '{total} citrouilles se cachent dans l\'appli jusqu\'au {to}, {per} par jour. À toi de jouer !'],
+        en: ['🎃 The pumpkin hunt is on!', '{total} pumpkins are hiding in the app until {to}, {per} a day. Your turn!'],
+        de: ['🎃 Die Kürbisjagd hat begonnen!', '{total} Kürbisse verstecken sich bis zum {to} in der App, {per} pro Tag. Du bist dran!'],
+        es: ['🎃 ¡Empieza la caza de calabazas!', '{total} calabazas se esconden en la app hasta el {to}, {per} al día. ¡Te toca!'],
+        it: ['🎃 La caccia alle zucche è aperta!', '{total} zucche si nascondono nell\'app, {per} al giorno. Tocca a te!'],
+        pt: ['🎃 A caça às abóboras começou!', '{total} abóboras estão escondidas no app até {to}, {per} por dia. Sua vez!'],
+      },
+      mid: {
+        fr: ['🕸️ Plus que {d} jours de chasse', 'Mi-parcours de la chasse aux citrouilles : {per} nouvelles cachettes t\'attendent chaque jour.'],
+        en: ['🕸️ {d} days of hunting left', 'Pumpkin hunt halfway point: {per} new hiding spots await you every day.'],
+        de: ['🕸️ Noch {d} Tage Kürbisjagd', 'Halbzeit der Kürbisjagd: Jeden Tag warten {per} neue Verstecke auf dich.'],
+        es: ['🕸️ Quedan {d} días de caza', 'Mitad de la caza de calabazas: {per} escondites nuevos te esperan cada día.'],
+        it: ['🕸️ Mancano {d} giorni di caccia', 'Metà della caccia alle zucche: ogni giorno ti aspettano {per} nuovi nascondigli.'],
+        pt: ['🕸️ Faltam {d} dias de caça', 'Metade da caça às abóboras: {per} novos esconderijos te esperam todo dia.'],
+      },
+      last: {
+        fr: ['🦇 Dernier jour de la chasse !', 'Les dernières citrouilles disparaissent à minuit. C\'est maintenant ou jamais.'],
+        en: ['🦇 Last day of the hunt!', 'The last pumpkins vanish at midnight. It\'s now or never.'],
+        de: ['🦇 Letzter Tag der Jagd!', 'Die letzten Kürbisse verschwinden um Mitternacht. Jetzt oder nie.'],
+        es: ['🦇 ¡Último día de caza!', 'Las últimas calabazas desaparecen a medianoche. Ahora o nunca.'],
+        it: ['🦇 Ultimo giorno di caccia!', 'Le ultime zucche spariscono a mezzanotte. Ora o mai più.'],
+        pt: ['🦇 Último dia de caça!', 'As últimas abóboras somem à meia-noite. É agora ou nunca.'],
+      },
     } },
   { id: 'noel', ready: false, name: 'Noël', when: y => ({ from: `${y}-12-12`, to: `${y}-12-26` }), total: 30, perDay: 5,
     obj: { one: 'cadeau', many: 'cadeaux', emoji: '🎁', fem: false, art: 'gift' },
@@ -139,4 +176,4 @@ function evCheck(y = 2026) {
   return bad;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck };
+if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evParts, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck };

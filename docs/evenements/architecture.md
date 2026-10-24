@@ -13,6 +13,8 @@ Moteur générique + un « pack » par fête. Premier pack : **Halloween 2026** 
 | `src/css/event.css` | Styles du moteur (objets, envol, compteur, messages, carte, arrivée, bordure du grade ultime). |
 | `event-srv.mjs` | Moteur côté serveur (chargé par `proxy.mjs`) : calendrier, `/api/event…`, cachettes du jour signées, quota, progression, statistiques et interrupteur de `/admin`. |
 | `discord-events.mjs` | Annonces Discord (`#annonces`) : J-3, J0, mi-parcours, J-1, fin. |
+| `event-push.mjs` | Notifications push (créé par `event-srv.mjs` avec `o.push`) : appareils avec ou sans compte (`push.json`), annonces automatiques (étapes de `evDscWindows`, une par jour, 10 h – 21 h), envois manuels et historique du panneau. |
+| `src/evpush.js` | Côté appli : enregistrement de l'appareil, interrupteur « Annonces des fêtes », étape « Ne rate aucune fête » du premier lancement (`onboard.js`), toucher `./?fete=1` (`evPushOpen`). |
 | `tools/gen-event-badges.mjs` | Générateur des badges d'une édition (fond fixe par fête + année en tracés SVG), lancé par `.github/workflows/event-badges.yml`. |
 | `tools/make-event-logos.mjs` | Logos d'appli par fête (SVG + PNG). |
 
@@ -39,6 +41,9 @@ Moteur générique + un « pack » par fête. Premier pack : **Halloween 2026** 
 - `POST /api/event/merge { ev }` (compte + appareil) : la progression sans compte de cet appareil rejoint le compte (une seule fois, jamais vers un 2e compte).
 - `GET /api/event/board?ev=` : chasseurs, à 30/30, top des pseudos publics.
 - `GET /api/admin/events` · `POST /api/admin/events/switch { id, on }` : statistiques et interrupteur à chaud.
+- `POST /api/event/push { sub, l } | { off }` (jeton d'appareil et/ou jeton Firebase) → `{ ok, k }` ; `/__ping` › `evpush`.
+- `GET /api/admin/events/push` · `POST /api/admin/events/push { title, body, target, at? }` · `POST /api/admin/events/push/cancel { id }` : notifications (état, envoi manuel, annulation).
+- Pack : `push: { soon|open|mid|last: { fr|en|de|es|it|pt: [titre, texte] } }` (sans lui : pas de notification pour ce pack, `evPushReady`).
 
 ### Discord (`discord-events.mjs`)
 - `evDscMake(h)` (helpers de `discordMake`, comme `dscDailyMake`) → `{ tick({ now, stats, off }) }` : appelé chaque minute par `proxy.mjs` ;

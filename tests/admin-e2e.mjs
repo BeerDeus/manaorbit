@@ -5,7 +5,9 @@
 // journal ; déjà connecté dans l'appli : tableau de bord d'emblée ; sombre. Onglets (clic, #adresse, retour, rechargement, lien direct, clavier, pastilles,
 // onglets masqués quand une partie est coupée), Carte mystère (/api/admin/daily simulé : en-tête, bloc repliable gardé au rechargement, actions), Événements
 // (/api/admin/events et …/switch simulés : cartes, tuiles, trouvées par jour, répartition, top 20, interrupteur confirmé, refus 403, EVENT=0, EVENT_FORCE,
-// onglet masqué sur 404 ou 405, journal, 360 px sombre ; chasseurs : liste, recherche, pages, réinitialiser une ligne ou son avancée, encart « Débogage »), Discord
+// onglet masqué sur 404 ou 405, journal, 360 px sombre ; chasseurs : liste, recherche, pages, réinitialiser une ligne ou son avancée, encart « Débogage » ;
+// notifications (/api/admin/events/push simulé) : annonces automatiques, cibles, formulaire FR + EN, aperçu, envoi confirmé, un par heure, programmé, annulé,
+// historique, 404 ; captures dans shots/push/), Discord
 // (/api/admin/discord simulé par des routes : onglet caché sur 404, bot non configuré, salons groupés, raccourcis, modèles, pings, publier, envoi confirmé,
 // historique, suppression, erreur, 360 px), Fils des forums (/api/admin/discord/threads… simulés : filtres, fil, étiquettes, fermer, verrouiller, renommer,
 // répondre, supprimer, téléphone), QR codes fixes (vrai serveur : cartes, scans, destination confirmée, création, renommer, Tester, SVG, PNG ≥ 2 048 px,
@@ -365,11 +367,33 @@ const EV_PLAYERS = () => Array.from({ length: 120 }, (_, i) => {
 });
 const evSeedP = () => { const x = evSeed(); x.stats['halloween-2026'].players = EV_PLAYERS(); x.stats['magic-2026'].players = [30, 12, 4].map((c, i) => ({ id: 'm' + i, acct: true, name: '', mail: '', n: i ? '' : 'Zoé', c, today: 0, days: 2 + i, last: Date.UTC(2026, 7, 9 - i, 18, 5) })); return x; };
 let EVS = evSeed();
+// Notifications des événements (/api/admin/events/push, …/push/cancel ; contrat de event-push.mjs) : 1 234 appareils « Annonces des fêtes », 1 890 en tout,
+// mi-parcours prévu le 1er novembre ; historique : ouverture et J-3 automatiques, un envoi manuel au titre piégé (écrit en texte)
+const EVPN = { mode: 'on', posts: [], gets: 0, fail: null };
+const evpSeed = () => ({ on: true, auto: true, counts: { ev: 1234, all: 1890 }, next: { day: '2026-11-01', step: 'mid', ev: 'halloween-2026', title: '🕸️ Plus que 8 jours de chasse' },
+  wait: 0, gapMs: 3600e3, max: { title: 65, body: 180 }, hour: 10, until: 21, now: Date.now(),
+  hist: [
+    { id: 'h-open', kind: 'auto', step: 'open', ev: 'halloween-2026', target: 'ev', title: '🎃 La chasse aux citrouilles est ouverte !', body: '30 citrouilles se cachent dans l\'appli jusqu\'au 8 novembre, 5 par jour. À toi de jouer !', langs: ['fr', 'en', 'de', 'es', 'it', 'pt'], at: EV_AT(25, 9, 0), when: 0, end: EV_AT(25, 9, 1), by: '', st: 'done', n: 1200, ok: 1180, fail: 12, gone: 8 },
+    { id: 'h-x', kind: 'manual', target: 'all', title: '<img src=x onerror="window.__xss=2">', body: 'Texte <b>gras</b> ?', langs: ['fr', 'en'], at: EV_AT(23, 16, 30), when: 0, end: EV_AT(23, 16, 31), by: 'ad•••@e•••.org', st: 'done', n: 1700, ok: 1690, fail: 0, gone: 10 },
+    { id: 'h-soon', kind: 'auto', step: 'soon', ev: 'halloween-2026', target: 'ev', title: '🎃 La chasse aux citrouilles arrive', body: 'Du 25 octobre au 8 novembre, 30 citrouilles se cachent dans l\'appli : des badges d\'Halloween 2026 à gagner.', langs: ['fr', 'en', 'de', 'es', 'it', 'pt'], at: EV_AT(22, 8, 0), when: 0, end: EV_AT(22, 8, 1), by: '', st: 'done', n: 1100, ok: 1100, fail: 0, gone: 0, cut: false },
+  ] });
+let EVP = evpSeed();
 async function routeEvents(ctx) {
-  await ctx.route(u => /^\/api\/admin\/events(\/switch|\/reset)?$/.test(u.pathname), async r => {
+  await ctx.route(u => /^\/api\/admin\/events(\/switch|\/reset|\/push|\/push\/cancel)?$/.test(u.pathname), async r => {
     const q = r.request(), u = new URL(q.url()), j = (status, body) => json(r, status, body);
     if (EVT.mode === '404') return j(404, { error: 'not_found' });
     if (EVT.mode === '405') return j(405, { error: 'method_not_allowed' });      // serveur sans le module : /api/admin/<inconnu>
+    if (u.pathname.startsWith('/api/admin/events/push')) {      // notifications : état ; envoi { title, body, target, at? } → { ok, entry, push } ; annulation { id }
+      if (EVPN.mode === '404') return j(404, { error: 'push_disabled', message: 'Notifications des événements indisponibles : pas de compte de service FCM, ou EVENT_PUSH=0.' });
+      if (q.method() === 'GET') { EVPN.gets++; EVP.now = Date.now(); return j(200, EVP); }
+      const b = JSON.parse(q.postData() || '{}'); EVPN.posts.push({ path: u.pathname, body: b, tok: q.headers()['x-firebase-token'] || '', type: q.headers()['content-type'] });
+      if (EVPN.fail) return j(EVPN.fail[0], EVPN.fail[1]);
+      if (u.pathname.endsWith('/cancel')) { const x = EVP.hist.find(y => y.id === b.id && y.st === 'scheduled'); if (!x) return j(404, { error: 'not_found', message: 'Envoi programmé introuvable (déjà parti ?).' }); x.st = 'cancelled'; return j(200, { ok: true, push: EVP }); }
+      const n = b.target === 'all' ? EVP.counts.all : EVP.counts.ev, at = Number(b.at) || 0;
+      const entry = { id: 'm' + EVPN.posts.length, kind: 'manual', target: b.target, title: b.title.fr, body: b.body.fr, langs: Object.keys(b.title), at: at ? 0 : Date.now(), when: at, end: at ? 0 : Date.now(), by: 'ad•••@e•••.org', st: at ? 'scheduled' : 'done', n: at ? null : n, ok: at ? 0 : n - 4, fail: at ? 0 : 4, gone: 0 };
+      EVP.hist.unshift(entry); if (!at) EVP.wait = 3600e3; EVP.now = Date.now();
+      return j(200, { ok: true, entry, push: EVP });
+    }
     if (u.pathname === '/api/admin/events' && q.method() === 'GET') { EVT.gets++; return j(200, EVS); }
     const b = JSON.parse(q.postData() || '{}'); EVT.posts.push({ path: u.pathname, body: b, tok: q.headers()['x-firebase-token'] || '', type: q.headers()['content-type'] });
     if (EVT.fail) return j(EVT.fail[0], EVT.fail[1]);
@@ -693,6 +717,104 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
   assert.ok(await p.$eval('#events .evch[data-k="days"] svg', s => s.getBoundingClientRect().right <= 360 - 16), 'graphique dans la carte');
   assert.deepEqual(errs, []); await ctx.close();
   ok('Événements à 360 px sombre : sans défilement de côté ni texte parasite, interrupteur ≥ 44 px');
+}
+
+/* ── Événements › Notifications (/api/admin/events/push simulé) : annonces automatiques, cibles, formulaire FR + EN (autres langues repliées), aperçu, envoi
+   confirmé, un par heure, programmé puis annulé, refus du serveur, historique en texte ; 393 px clair et sombre, 1280 px ; 404 : la raison, sans formulaire ──── */
+{
+  EVT.mode = 'on'; EVS = evSeed(); EVP = evpSeed(); EVPN.posts = []; EVPN.mode = 'on'; EVPN.fail = null;
+  const { ctx, p, errs } = await open({ user: ADM, before: routeEvents, phone: { width: 393, height: 852 }, hash: '#evenements' });
+  await dash(p); await p.waitForSelector('#evNotif .evnf');
+  const C = '#evNotif', tx = sel => p.$eval(sel, e => e.innerText.replace(/\s+/g, ' ').trim()), why = () => tx('#evnWhy'), goOff = () => p.$eval('#evnGo', b => b.disabled);
+  assert.deepEqual(await p.$$eval('#events > section, #events > article', l => l.map(x => x.id || x.className.split(' ').slice(0, 2).join('.'))), ['card.evhead', 'card.evc', 'card.evc', 'card.evc', 'evNotif', 'evDbg'], 'sous les éditions, avant « Débogage »');
+  assert.equal(await tx(C + ' .chead'), 'Notifications actives');
+  assert.match(await tx(C + ' .evna'), /^Annonces automatiques vers 10 h \(heure de Paris\) : 3 jours avant, premier jour, mi-parcours et dernier jour ; une par jour au plus, aux appareils qui ont gardé « Annonces des fêtes »\. Prochaine : 🕸️ Plus que 8 jours de chasse le 1 nov\. \(mi-parcours\)\.$/);
+  assert.deepEqual(await p.$$eval(C + ' .evnk .dcs', l => l.map(x => x.textContent.replace(/\s+/g, ' ').trim())), ['Annonces des fêtes1 234 appareils', 'Tous les abonnés1 890 appareils']);
+  assert.deepEqual(await p.$$eval(C + ' .evnto', l => l.map(x => [x.dataset.v, x.querySelector('input').checked, x.textContent.replace(/\s+/g, ' ').trim()])),
+    [['ev', true, 'Annonces des fêtes1 234 appareils · les appareils qui les ont gardées'], ['all', false, 'Tous les appareils abonnés1 890 appareils · avec ceux de la Carte mystère']]);
+  // historique : en texte (titre piégé jamais interprété), date de Paris, origine, cible, appareils touchés, échecs, périmés
+  assert.deepEqual(await p.$$eval('#evnHist .evnr', l => l.map(x => x.dataset.id)), ['h-open', 'h-x', 'h-soon']);
+  assert.equal(await tx('#evnHist .evnr[data-id="h-open"] .evnrm'), '25 oct., 10:00 · Automatique · premier jour · annonces des fêtes · 1 180 / 1 200 appareils touchés · 12 échecs · 8 périmés retirés');
+  assert.equal(await tx('#evnHist .evnr[data-id="h-x"] .evnrh b'), '<img src=x onerror="window.__xss=2">'); assert.equal(await p.evaluate(() => window.__xss), undefined, 'titre écrit en texte');
+  assert.equal(await tx('#evnHist .evnr[data-id="h-x"] .evnrm'), '23 oct., 18:30 · Manuel · tous les abonnés · 1 690 / 1 700 appareils touchés · 10 périmés retirés · par ad•••@e•••.org');
+  assert.equal(await tx('#evnHist .evnr[data-id="h-soon"] .tag'), 'envoyé');
+  assert.equal(await p.$$eval('#events img', e => e.length), 0, 'aucune image (icône de l\'aperçu en CSS)');
+  ok('Notifications : sous les éditions ; annonces automatiques (vers 10 h, prochaine : mi-parcours le 1er nov.), appareils par cible, historique en texte (Paris, origine, touchés, échecs, périmés)');
+
+  // formulaire : FR + EN exigés, autres langues : titre et texte ensemble, compteurs, aperçu en direct
+  assert.equal(await goOff(), true); assert.equal(await why(), 'Titre et texte en français attendus.');
+  await p.fill('#evntfr', '🎃 Les badges d\'Halloween sont là'); await p.fill('#evnbfr', 'Ouvre l\'appli pour voir ceux que tu as gagnés.');
+  assert.equal(await goOff(), true); assert.equal(await why(), 'Titre et texte en anglais attendus.');
+  assert.equal(await tx('label[for="evntfr"] .evnn'), '33 / 65'); assert.equal(await p.$eval('#evntfr', i => i.maxLength), 65); assert.equal(await p.$eval('#evnbfr', i => i.maxLength), 180);
+  await p.fill('#evnten', '🎃 Halloween badges are here'); await p.fill('#evnben', 'Open the app to see the ones you earned.');
+  assert.equal(await goOff(), false); assert.equal(await why(), 'Prêt : 1 234 appareils. Un envoi par heure au plus.');
+  assert.deepEqual(await p.$$eval(C + ' .evnpv .evnv', l => l.map(x => [x.dataset.l, x.querySelector('b').textContent, x.querySelector('.evnvt > span').textContent])),
+    [['fr', '🎃 Les badges d\'Halloween sont là', 'Ouvre l\'appli pour voir ceux que tu as gagnés.'], ['en', '🎃 Halloween badges are here', 'Open the app to see the ones you earned.']], 'aperçu en direct');
+  assert.equal(await p.$eval('#evnMore', d => d.open), false, 'autres langues repliées');
+  await p.click('#evnMore > summary'); await p.fill('#evntde', 'Halloween-Abzeichen sind da');
+  assert.equal(await goOff(), true); assert.equal(await why(), 'Allemand : titre et texte attendus ensemble (ou rien, pour le français).');
+  await p.fill('#evnbde', 'Öffne die App, um deine zu sehen.'); assert.equal(await goOff(), false);
+  await p.click('.evnto[data-v="all"]'); assert.equal(await why(), 'Prêt : 1 890 appareils. Un envoi par heure au plus.');
+  await noOverflow(p, 393, 'Notifications 393 px'); await noJunk(p, 'Notifications');
+  mkdirSync('shots/push', { recursive: true }); await p.$eval('.chrome', e => e.style.setProperty('position', 'static', 'important')); await p.$eval(C, e => e.scrollIntoView()); await p.locator(C).screenshot({ path: 'shots/push/admin-notifications-393-clair.png' });
+  ok('formulaire : FR et EN exigés (« Titre et texte en français attendus. »), autres langues repliées (titre et texte ensemble), compteurs 33 / 65 (emoji : 2), longueurs bornées, aperçu en direct, cible « tous » (1 890)');
+
+  // envoi : fenêtre de confirmation (Annuler : rien), corps exact avec le jeton, toast, brouillon vidé, un envoi par heure
+  await p.click('#evnGo'); await p.waitForSelector('#dlg[open]');
+  assert.equal(await tx('#dlg h2'), 'Envoyer cette notification ?'); assert.equal(await tx('#dlg .dlgw'), 'Tous les appareils abonnés · 1 890 appareils · tout de suite');
+  assert.deepEqual(await p.$$eval('#dlg .evnv b', l => l.map(x => x.textContent)), ['🎃 Les badges d\'Halloween sont là', '🎃 Halloween badges are here']);
+  assert.match(await tx('#dlg .hint'), /^Aussi en allemand\. Les autres langues reçoivent le français\. Une fois partie, une notification ne se reprend pas\.$/);
+  await p.screenshot({ path: 'shots/push/admin-notifications-confirmer.png' });
+  await p.click('#dlg [data-v=""]'); await p.waitForTimeout(100); assert.equal(EVPN.posts.length, 0, 'Annuler : rien envoyé');
+  await p.click('#evnGo'); await p.click('#dlg [data-v="ok"]'); await toastIs(p, /^Notification envoyée : 1\s886 appareils touchés, 4 échecs\.$/);
+  assert.equal(EVPN.posts.length, 1); assert.equal(EVPN.posts[0].path, '/api/admin/events/push');
+  assert.deepEqual(EVPN.posts[0].body, { title: { fr: '🎃 Les badges d\'Halloween sont là', en: '🎃 Halloween badges are here', de: 'Halloween-Abzeichen sind da' }, body: { fr: 'Ouvre l\'appli pour voir ceux que tu as gagnés.', en: 'Open the app to see the ones you earned.', de: 'Öffne die App, um deine zu sehen.' }, target: 'all' }, 'corps exact');
+  assert.ok(EVPN.posts[0].tok, 'avec le jeton'); assert.match(EVPN.posts[0].type, /application\/json/);
+  assert.deepEqual(await p.$$eval('#evntfr, #evnbfr, #evnten, #evnben', l => l.map(x => x.value)), ['', '', '', ''], 'brouillon vidé');
+  assert.equal(await p.$eval('.evnto[data-v="all"] input', i => i.checked), true, 'cible gardée');
+  assert.equal(await tx('#evnHist .evnr:first-child .evnrm').then(t => t.replace(/^\d+ \S+ \d\d:\d\d · /, '')), 'Manuel · tous les abonnés · 1 886 / 1 890 appareils touchés · 4 échecs · par ad•••@e•••.org');
+  await p.fill('#evntfr', 'Encore'); await p.fill('#evnbfr', 'Un autre'); await p.fill('#evnten', 'Again'); await p.fill('#evnben', 'Another');
+  assert.equal(await goOff(), true); assert.match(await why(), /^Un envoi par heure au plus : prochain possible à \d\d:\d\d\.$/);
+  ok('envoi : fenêtre (cible, 1 890 appareils, aperçu FR / EN, « Aussi en allemand »), Annuler : rien ; POST exact en JSON avec le jeton ; toast « 1 886 appareils touchés, 4 échecs » ; brouillon vidé ; ensuite grisé « prochain possible à … »');
+
+  // programmé : date et heure, fenêtre, POST { at }, ligne « programmé » annulable ; refus du serveur (429) : son message
+  await p.click('label[for="evnSch"]'); assert.equal(await p.$eval('#evnAt', i => !i.hidden && /^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(i.value)), true, 'heure proposée');
+  const when = Date.now() + 26 * 3600e3, loc = await p.evaluate(t => { const d = new Date(t), q = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + q(d.getMonth() + 1) + '-' + q(d.getDate()) + 'T' + q(d.getHours()) + ':' + q(d.getMinutes()); }, when);
+  await p.fill('#evnAt', loc); assert.equal(await goOff(), false, 'programmé : permis malgré l\'heure d\'attente (le serveur vérifie l\'écart)'); assert.equal(await tx('#evnGo'), 'Programmer…');
+  await p.click('#evnGo'); await p.waitForSelector('#dlg[open]'); assert.equal(await tx('#dlg h2'), 'Programmer cette notification ?'); assert.match(await tx('#dlg .dlgw'), /^Tous les appareils abonnés · 1 890 appareils \(comptés au moment de l'envoi\) · le \d+ \S+ \d\d:\d\d$/);
+  await p.click('#dlg [data-v="ok"]'); await toastIs(p, /^Notification programmée pour le /);
+  assert.equal(Math.abs(EVPN.posts[1].body.at - Math.floor(when / 60e3) * 60e3) < 60e3, true, 'heure de cet ordinateur → instant');
+  const R1 = '#evnHist .evnr:first-child'; assert.equal(await tx(R1 + ' .tag'), 'programmé'); assert.match(await tx(R1 + ' .evnrm'), /^prévu le \d+ \S+ \d\d:\d\d · Programmé · tous les abonnés · par /);
+  await p.click(R1 + ' [data-act="cancel"]'); await p.waitForSelector('#dlg[open]'); assert.equal(await tx('#dlg h2'), 'Annuler cet envoi programmé ?');
+  await p.click('#dlg [data-v="ok"]'); await toastIs(p, /^Envoi programmé annulé\.$/);
+  assert.deepEqual(EVPN.posts[2], { path: '/api/admin/events/push/cancel', body: { id: EVPN.posts[1] && EVP.hist[0].id }, tok: EVPN.posts[2].tok, type: EVPN.posts[2].type }); assert.equal(await tx(R1 + ' .tag'), 'annulé'); assert.equal(await p.$(R1 + ' [data-act="cancel"]'), null);
+  EVPN.fail = [429, { error: 'too_soon', message: 'Un envoi par heure au plus : prochain possible dans 42 min.', retry: 2520 }];
+  await p.click('label[for="evnSch"]'); await p.fill('#evnAt', loc); await p.fill('#evntfr', 'Encore'); await p.fill('#evnbfr', 'Un autre'); await p.fill('#evnten', 'Again'); await p.fill('#evnben', 'Another');
+  await p.click('#evnGo'); await p.click('#dlg [data-v="ok"]'); await toastIs(p, /^Un envoi par heure au plus : prochain possible dans 42 min\.$/);
+  assert.equal(await p.$eval('#evntfr', i => i.value), 'Encore', 'refusé : brouillon gardé'); EVPN.fail = null;
+  await noJunk(p, 'Notifications'); assert.deepEqual(errs, []); await ctx.close();
+  ok('programmé : date et heure de cet ordinateur, « Programmer… », fenêtre, POST { at } ; ligne « programmé » → Annuler (fenêtre, POST { id }) → « annulé » ; refus du serveur (429) : son message, brouillon gardé ; aucune erreur');
+}
+{
+  // 393 px sombre, 1280 px clair (captures) ; 404 : la raison du serveur, sans formulaire
+  EVT.mode = 'on'; EVS = evSeed(); EVP = evpSeed();
+  for (const [vp, dark, name] of [[{ width: 393, height: 852 }, true, '393-sombre'], [{ width: 1280, height: 900 }, false, '1280-clair']]) {
+    const { ctx, p, errs } = await open({ user: ADM, before: routeEvents, ...(vp.width > 900 ? { vp } : { phone: vp }), dark, hash: '#evenements' });
+    await dash(p); await p.waitForSelector('#evNotif .evnf');
+    await p.fill('#evntfr', '🎃 Les badges d\'Halloween sont là'); await p.fill('#evnbfr', 'Ouvre l\'appli pour voir ceux que tu as gagnés.'); await p.fill('#evnten', '🎃 Halloween badges are here'); await p.fill('#evnben', 'Open the app to see the ones you earned.');
+    await noOverflow(p, vp.width, 'Notifications ' + name);
+    if (vp.width > 900) assert.ok(await p.$eval('#evNotif .evnpv', e => e.getBoundingClientRect().left > e.parentElement.getBoundingClientRect().left + 200), 'ordinateur : l\'aperçu à côté du formulaire');
+    await p.$eval('.chrome', e => e.style.setProperty('position', 'static', 'important')); await p.$eval('#evNotif', e => e.scrollIntoView()); await p.locator('#evNotif').screenshot({ path: 'shots/push/admin-notifications-' + name + '.png' });
+    assert.deepEqual(errs, []); await ctx.close();
+  }
+  EVPN.mode = '404';
+  const { ctx, p, errs } = await open({ user: ADM, before: routeEvents, hash: '#evenements' });
+  await dash(p); await p.waitForSelector('#evNotif');
+  assert.equal(await p.$eval('#evNotif .chead', e => e.innerText.replace(/\s+/g, ' ').trim()), 'Notifications indisponibles');
+  assert.equal(await p.$eval('#evNotif [data-k="why"]', e => e.textContent), 'Notifications des événements indisponibles : pas de compte de service FCM, ou EVENT_PUSH=0.');
+  assert.equal(await p.$('#evNotif .evnf'), null, 'sans formulaire'); assert.equal(await p.$eval('#t-evenements', t => t.hidden), false, 'l\'onglet reste');
+  assert.deepEqual(errs, []); await ctx.close(); EVPN.mode = 'on'; EVP = evpSeed();
+  ok('Notifications : 393 px sombre et 1280 px (aperçu à côté) sans défilement de côté ; 404 (pas de compte de service, EVENT_PUSH=0) : la raison, sans formulaire, onglet gardé');
 }
 
 /* ── Discord : bot non configuré ; onglet dédié (salons, raccourcis, modèles, pings, aperçu, envoi, historique) ─────────────────────── */

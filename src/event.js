@@ -300,7 +300,7 @@ function evUser(user) {
       evHomePaint();
     }, () => { /* règles pas encore publiées : progression gardée sur l'appareil et le serveur */ });
   }
-  if (prev !== EV.uid) { EV.st = null; if (evOn()) evMerge().finally(() => evStatus(true)); }
+  if (prev !== EV.uid) { EV.st = null; if (evOn()) evMerge().finally(() => evStatus(true)); if (typeof evpDevSoon === 'function' && CTX.evpush) evpDevSoon(3000); }      // notifications des événements : le compte suit (evpush.js)
 }
 /** Connexion : la progression sans compte de cet appareil rejoint le compte (une fois ; jamais vers un 2e compte : le serveur refuse). */
 async function evMerge() {

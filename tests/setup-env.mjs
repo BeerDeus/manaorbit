@@ -23,6 +23,8 @@ if (process.env.DAILY === undefined) process.env.DAILY = '0';
 if (process.env.DISCORD_SETS === undefined) process.env.DISCORD_SETS = '0';
 // Annonces des événements dans #annonces (discord-events.mjs) : coupées par défaut (un faux Discord avec #annonces recevrait sinon l'annonce du jour) ; test-discord-events.mjs les allume
 if (process.env.DISCORD_EVENTS === undefined) process.env.DISCORD_EVENTS = '0';
+// Notifications push des événements (event-push.mjs) : coupées par défaut (un proxy avec faux compte de service enverrait sinon l'annonce du jour) ; test-event-push.mjs et evpush-e2e.mjs les allument
+if (process.env.EVENT_PUSH === undefined) process.env.EVENT_PUSH = '0';
 if (!process.env.DAILY_DIR) {
   const d = mkdtempSync(join(tmpdir(), 'deckdeal-daily-')); process.env.DAILY_DIR = join(d, 'daily');
   if (!process.env.LEVELS_FILE) process.env.LEVELS_FILE = join(d, 'levels.json');      // classement des niveaux : jamais le vrai .data/levels.json

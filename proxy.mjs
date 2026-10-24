@@ -3646,15 +3646,23 @@ if (DLY_ON) {
    Chasse aux citrouilles d'Halloween, puis les autres fêtes : édition en cours (/__ping › event), cachettes du jour signées, quota par jour, progression
    (README › « Événements »). EVENT=0 coupe tout ; EVENT_FORCE=<édition ou pack> ouvre une édition quel que soit le jour (essais, /test) ; EVENT_SECRET : secret des
    jetons et des reçus (sinon tiré une fois et gardé dans EVENT_DIR/.secret) ; EVENT_DIR : dossier (défaut .data/events). Interrupteur à chaud : /admin › Événements.
-   Bot Discord : annonces dans #annonces (discord-events.mjs, DSC.events), un tour chaque minute avec les statistiques d'ici. */
+   Bot Discord : annonces dans #annonces (discord-events.mjs, DSC.events), un tour chaque minute avec les statistiques d'ici.
+   Notifications push (event-push.mjs) : sendPush et parseTarget ci-dessus, seulement avec le compte de service (FCM_SERVICE_ACCOUNT, comme la Carte mystère),
+   EVENT_PUSH=0 les coupe ; annonces automatiques vers 10 h (heure de Paris), un tour chaque minute (EVENT_PUSH_TICK_MS, premier après EVENT_PUSH_FIRST_MS) ;
+   cible « tous » des envois manuels : avec les appareils de la notification « nouvelle Carte mystère » (DLY.pushList). */
 let EVS = null;
 try {
   const { eventMake } = await import('./event-srv.mjs');
   EVS = eventMake({ dir: process.env.EVENT_DIR || join(EDH_DIR, 'events'), on: process.env.EVENT !== '0', force: process.env.EVENT_FORCE || '', secret: String(process.env.EVENT_SECRET || '').trim(),
     verify: tok => verifyIdToken(tok, true), bad: v => !!(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(v)), json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey,
-    adminHeaders: ADM_HD, adminBody: (req, res) => admBody(req, res), adminLog: r => admLog(r), adminMail: m => admMail(m),
+    adminHeaders: ADM_HD, adminBody: (req, res, max) => admBody(req, res, max), adminLog: r => admLog(r), adminMail: m => admMail(m),
+    push: FCM_ON && process.env.EVENT_PUSH !== '0' ? { send: sendPush, target: parseTarget } : null, pushExtra: DLY && DLY.pushOn ? () => DLY.pushList() : null,      // notifications des événements (rien sans compte de service)
     adminNames: tags => { const s = ADM.snap, out = new Map(); if (!s) return out; const byId = new Map(s.rows.map(r => [r.id, r])); for (const t of tags) { const r = byId.get(s.byTag.get(t)); if (r) out.set(t, { name: r.name, mail: r.mail }); } return out; } });      // noms réduits de la liste des comptes (déjà calculée), jamais l'UID
 } catch (e) { console.warn('Événements : module illisible (' + (e && e.message || e) + '), coupés'); EVS = null; }
+if (EVS && EVS.pushOn) {
+  const evPush = () => EVS.pushTick().catch(e => console.warn('Événements : notification pas encore partie (' + (e && (e.code || e.message) || e) + ')'));
+  setTimeout(() => { evPush(); setInterval(evPush, Number(process.env.EVENT_PUSH_TICK_MS) > 0 ? Number(process.env.EVENT_PUSH_TICK_MS) : 60e3).unref(); }, Number(process.env.EVENT_PUSH_FIRST_MS) >= 0 && process.env.EVENT_PUSH_FIRST_MS !== undefined && process.env.EVENT_PUSH_FIRST_MS !== '' ? Number(process.env.EVENT_PUSH_FIRST_MS) : 30e3).unref();
+}
 if (EVS && DSC && DSC.events) {
   const evDsc = () => DSC.events.tick({ now: Date.now(), stats: id => EVS.stats(id), off: () => EVS.off() }).catch(e => console.warn('Discord : annonce d\'événement pas encore partie (' + (e && (e.code || e.message) || e) + ')'));
   setTimeout(() => { evDsc(); setInterval(evDsc, Number(process.env.DISCORD_EVENTS_TICK_MS) > 0 ? Number(process.env.DISCORD_EVENTS_TICK_MS) : 60e3).unref(); }, Number(process.env.DISCORD_EVENTS_FIRST_MS) >= 0 && process.env.DISCORD_EVENTS_FIRST_MS !== undefined ? Number(process.env.DISCORD_EVENTS_FIRST_MS) : 20e3).unref();
@@ -3869,7 +3877,7 @@ const server = http.createServer(async (req, res) => {
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST, hist: { source: PH_SRC ? 'GitHub' : '', ...PH_ST } });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte

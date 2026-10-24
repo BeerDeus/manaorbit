@@ -22,11 +22,13 @@ function pnTokSet(t) { PN.tok = t || ''; try { if (t) localStorage.setItem(PN_KE
 function pnDone(r) { for (const f of PN.wait.splice(0)) f(r); }
 /** Destination d'une notification touchée : les mêmes liens que Web Push (./?resume=1 : la recherche, ./?alerts=1 : les alertes,
     ./?amis=1 : la feuille Amis, ./?ami=<id> : la page d'un ami — friends.js › amPushOpen ; ./?troc=<code> : invitation à un échange en direct — troc.js ;
-    ./?mystere=1 : nouvelle Carte mystère — daily.js › dlyLaunch ; ./?avis=<fil>&g=<serveur> : du nouveau sur un avis — help.js › fbAvisOpen). */
+    ./?mystere=1 : nouvelle Carte mystère — daily.js › dlyLaunch ; ./?avis=<fil>&g=<serveur> : du nouveau sur un avis — help.js › fbAvisOpen ;
+    ./?fete=1 : annonce d'un événement — evpush.js › evPushOpen). */
 function pushOpen(url) {
   const u = String(url || '');
   if (typeof trocPushOpen === 'function' && trocPushOpen(u)) return;
   if (/[?&]mystere\b/.test(u) && typeof dlyLaunch === 'function') { dlyLaunch(); return; }      // « La Carte mystère du jour est là » : le jeu
+  if (/[?&]fete\b/.test(u) && typeof evPushOpen === 'function') { evPushOpen(); return; }      // annonce d'un événement : l'accueil et la feuille de la fête
   if (/[?&]parties\b/.test(u) && typeof puHist === 'function') { setTimeout(puHist, 500); return; }      // « Partie enregistrée » (partie-ui.js) : Mes parties
   if (/[?&]avis=/.test(u) && typeof fbAvisOpen === 'function' && fbAvisOpen(u)) return;      // « Du nouveau sur ton avis » (help.js) : le fil sur Discord
   if (amPushOpen(u)) return;
@@ -45,6 +47,7 @@ async function pnListen(P) {
       if (was && was !== v && AC.on) { AC.sig = ''; alSoon(); }                 // jeton renouvelé : la liste des alertes repart avec le nouveau
       if (was !== v) amDevSoon();                                              // et l'appareil se réenregistre pour les notifications des amis
       if (was !== v && typeof dlyDevSoon === 'function') dlyDevSoon();          // et pour la nouvelle Carte mystère (daily.js)
+      if (was !== v && typeof evpDevSoon === 'function') evpDevSoon();          // et pour les événements (evpush.js)
     }),
     on('registrationError', e => pnDone({ error: String((e && e.error) || '') })),
     on('pushNotificationReceived', n => {                                       // app au premier plan : Android affiche aussi la notification
@@ -53,7 +56,7 @@ async function pnListen(P) {
       if (/[?&]troc=/.test(String(url || ''))) { if (typeof trocPushed === 'function') trocPushed({ title: n.title, body: n.body, url }); return; }      // invitation à un échange en direct : toast « Rejoindre »
       if (/[?&]ami/.test(String(url || ''))) { amPushed({ title: n.title, body: n.body, url }); return; }      // ami : liste relue, toast (sauf mode streamer)
       if (/[?&]mystere\b/.test(String(url || ''))) { if (typeof dlyPushed === 'function') dlyPushed({ title: n.title, body: n.body }); return; }      // nouvelle Carte mystère : bouton relu, toast « Jouer »
-      if (msg) toast(msg, /[?&](alerts|resume|avis)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);      // avis : le fil sur Discord
+      if (msg) toast(msg, /[?&](alerts|resume|avis|fete)\b/.test(String(url || '')) ? { label: T('Voir'), fn: () => pushOpen(url) } : undefined);      // avis : le fil sur Discord ; fête : sa feuille
     }),
     on('pushNotificationActionPerformed', a => pushOpen(a && a.notification && a.notification.data && a.notification.data.url)),
   ]);
@@ -108,6 +111,7 @@ async function pushEnable() {
   try { const reg = await pushReg(); await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(CTX.vapid) }); }
   catch (e) { return { ok: false, why: 'error', msg: (e && e.message) || '' }; }
   if (typeof dlyDevSoon === 'function') dlyDevSoon(2000);      // notification « nouvelle Carte mystère » : activée d'office là où les notifications le sont (appli : à la réception du jeton)
+  if (typeof evpDevSoon === 'function') evpDevSoon(2000);      // et les événements (evpush.js)
   return { ok: true };
 }
 async function pushDisable() {
@@ -136,7 +140,7 @@ async function pushPayload(label) {
 function pushInit() {
   try { navigator.serviceWorker.addEventListener('message', e => { const d = e.data || {}; if (d.type === 'resume') resumeRun(); else if (d.type === 'alerts') alertsOpen(); else if (d.type === 'open') pushOpen(d.url); else if (d.type === 'pushed' && /[?&]troc=/.test(String(d.url || ''))) { if (typeof trocPushed === 'function') trocPushed({ url: d.url }); } else if (d.type === 'pushed' && /[?&]ami/.test(String(d.url || ''))) amPushed(null); else if (d.type === 'pushed' && /[?&]mystere\b/.test(String(d.url || '')) && typeof dlyPushed === 'function') dlyPushed(null); }); } catch (e) { /* pas de service worker */ }      // open : notification touchée (amis…) ; pushed : reçue appli ouverte (le système l'affiche, la liste des amis est relue)
   const P = pushNat(); if (P) pnListen(P);                                      // touchers et notifications reçues, même sans notifications activées ici
-  if (S.push || AC.on || amHoldsPush() || (typeof dlyHoldsPush === 'function' && dlyHoldsPush())) pushState().then(st => {
+  if (S.push || AC.on || amHoldsPush() || (typeof dlyHoldsPush === 'function' && dlyHoldsPush()) || (typeof evpHolds === 'function' && evpHolds())) pushState().then(st => {
     if (st === 'denied') { S.push = false; saveStore(); if (AC.on) { AC.on = false; alWrite(); } }
     else if (P && st === 'on') pnRegister(P);                                   // jeton à jour à chaque lancement (Firebase peut le renouveler)
   });
@@ -155,7 +159,7 @@ async function paintPushBox(box) {
         cb.disabled = true; const r = await pushEnable(); cb.disabled = false;
         if (r.ok) { S.push = true; saveStore(); haptic('ok'); toast(T('Notifications activées')); }
         else { cb.checked = false; S.push = false; saveStore(); msg.hidden = false; msg.textContent = r.why === 'denied' ? pushDeniedMsg() : r.why === 'dismissed' ? T('Autorisation non accordée.') : r.msg ? T('Activation impossible : {msg}.', { msg: r.msg }) : T('Activation impossible.'); }
-      } else { S.push = false; saveStore(); if (!(typeof AC !== 'undefined' && AC.on) && !amHoldsPush() && !(typeof dlyHoldsPush === 'function' && dlyHoldsPush())) await pushDisable(); }   // l'abonnement reste tant que les alertes de prix, les amis ou la Carte mystère s'en servent
+      } else { S.push = false; saveStore(); if (!(typeof AC !== 'undefined' && AC.on) && !amHoldsPush() && !(typeof dlyHoldsPush === 'function' && dlyHoldsPush()) && !(typeof evpHolds === 'function' && evpHolds())) await pushDisable(); }   // l'abonnement reste tant que les alertes de prix, les amis, la Carte mystère ou les événements s'en servent
     };
     return;
   }

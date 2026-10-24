@@ -115,7 +115,7 @@ async function alDisable() {
   AC.on = false; clearTimeout(AC.t);
   try { if (AC.id && CTX.proxy) await ct('alerts', { method: 'DELETE', params: { id: AC.id } }); } catch (e) { /* le serveur nettoiera l'abonnement à son prochain refus */ }
   AC.id = ''; AC.sig = ''; AC.err = ''; AC.info = null; AC.nosub = false; alWrite();
-  if (!S.push && !amHoldsPush() && !(typeof dlyHoldsPush === 'function' && dlyHoldsPush())) await pushDisable();      // les notifications des amis (friends.js) et de la Carte mystère (daily.js) gardent l'abonnement
+  if (!S.push && !amHoldsPush() && !(typeof dlyHoldsPush === 'function' && dlyHoldsPush()) && !(typeof evpHolds === 'function' && evpHolds())) await pushDisable();      // les notifications des amis (friends.js), de la Carte mystère (daily.js) et des événements (evpush.js) gardent l'abonnement
 }
 /** Texte d'un refus d'activation (permission, appareil…). */
 function alWhy(r) {

@@ -10,15 +10,18 @@
 //     l'appli garde avec sa progression (appareil, Firestore users/{uid}/meta/events) : un serveur qui a perdu son dossier relit la progression d'un compte
 //     depuis ces reçus (POST /api/event/sync) ; la progression sans compte d'un appareil rejoint le compte une seule fois (POST /api/event/merge).
 //   · Statistiques (panneau /admin › Événements, annonces Discord) : chasseurs, trouvés par jour, à total/total, top des pseudos publics.
+//   · Notifications push (o.push, event-push.mjs) : appareils enregistrés avec ou sans compte (POST /api/event/push), annonces automatiques (tick de proxy.mjs),
+//     envois manuels du panneau (GET/POST /api/admin/events/push, …/push/cancel).
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { createRequire } from 'node:module';
+import { evPushMake } from './event-push.mjs';
 
 const EVP = createRequire(import.meta.url)('./src/evpacks.js');
 const ID_RE = /^[a-z]+-\d{4}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DEV_RE = /^([\w-]{22})\.([\w-]{16})$/, TOK_RE = /^[\w-]{16}$/, SIG_RE = /^[\w-]{22}$/;
-const ROUTES = ['', 'claim', 'sync', 'merge', 'board'];
+const ROUTES = ['', 'claim', 'sync', 'merge', 'board', 'push'];
 const SPOT_IDS = new Set(EVP.EV_SPOTS.map(s => s.id));
 const evJson = (res, status, obj, extra = {}) => { const b = JSON.stringify(obj); res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...extra }); res.end(b); };
 const evBody = (req, max) => new Promise((ok, ko) => { const c = []; let n = 0; req.on('data', d => { n += d.length; if (n > max) { req.pause(); ko(Object.assign(new Error('too large'), { status: 413 })); } else c.push(d); }); req.on('end', () => ok(Buffer.concat(c))); req.on('error', ko); });
@@ -31,7 +34,8 @@ function rng(hex) { let a = parseInt(String(hex).slice(0, 8), 16) >>> 0; return 
 const eq = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && timingSafeEqual(x, y); };
 
 /** Crée le moteur. o : { dir, on (EVENT ≠ '0'), force (EVENT_FORCE), secret, now, verify (jeton → { uid, emailVerified, provider }), bad (filtre de mots),
- *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, log, adminHeaders, adminBody (garde-fous des actions du panneau), adminLog, adminMail }. */
+ *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, log, adminHeaders, adminBody (garde-fous des actions du panneau), adminLog, adminMail,
+ *  push ({ send, target } : notifications ; null : aucune), pushExtra (→ appareils de la Carte mystère, cible « tous »), pushOpts (réglages de event-push.mjs : tests) }. */
 export function eventMake(o = {}) {
   const now = o.now || Date.now, log = o.log || console, dir = o.dir || join(process.cwd(), '.data', 'events');
   const json = o.json || evJson, readBody = o.readBody || evBody, rateWait = o.rateWait || (() => 0), isLocked = o.isLocked || (() => false);
@@ -40,6 +44,8 @@ export function eventMake(o = {}) {
   const badKey = o.badKey || ((req, res) => json(res, 401, { error: 'bad_token', message: 'Jeton de connexion invalide.' }));
   const ON = o.on !== false, FORCE = String(o.force || '').trim().toLowerCase(), HD = o.adminHeaders || {};
   const G = { secret: String(o.secret || ''), off: [], recs: new Map(), saving: new Map(), boot: null };
+  /** Notifications push (event-push.mjs) : null sans o.push ou avec EVENT=0. */
+  const EP = ON ? evPushMake({ dir, now, push: o.push, on: ON, off: () => G.off, extra: o.pushExtra, log, adminLog: o.adminLog, ...(o.pushOpts || {}) }) : null;
 
   /* ── Disque ── */
   async function put(f, s) { await mkdir(dirname(f), { recursive: true }); await writeFile(f + '.tmp', s); await rename(f + '.tmp', f); }
@@ -165,6 +171,16 @@ export function eventMake(o = {}) {
     const w = rateWait(req, 'event', 240, 600e3); if (w) return tooMany(res, w);
     await secret();
     const e = cur(), dev = devOf(req), devOut = dev ? {} : { dev: devNew() }, t = now();
+    if (sub === 'push') {      // { sub, l } : cet appareil prévenu des événements (avec ou sans compte) ; { off: clé } : retiré
+      if (!EP) return json(res, 404, { error: 'push_disabled', message: 'Notifications indisponibles sur ce serveur.' });
+      if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' });
+      const w2 = rateWait(req, 'evpush', 30, 3600e3); if (w2) return tooMany(res, w2);
+      const b = await body(req, res, 4096); if (!b) return;
+      const u = await who(req, res); if (u === false) return;
+      if (!u && !dev) return json(res, 400, { error: 'device', message: 'Réessaie dans un instant.', ...devOut });      // jeton d'appareil donné : l'appli réessaie avec lui
+      const [st, out] = await EP.reg(u, dev, b);
+      return json(res, st, { ...out, ...devOut });
+    }
     if (req.method === 'GET' && !sub) {
       const up = ON ? EVP.evUpcoming(EVP.evDay(t), 14) : null;
       if (!e) return json(res, 200, { on: false, now: t, next: EVP.evNextMidnight(t), ...(up && !G.off.includes(up.id) ? { soon: { id: up.id, pack: up.pack, from: up.from, in: up.in } } : {}), ...devOut });
@@ -272,6 +288,15 @@ export function eventMake(o = {}) {
       if (o.adminLog) await o.adminLog({ t, a: 'event', n: '', m: '', d: id + (b.on ? ' : rallumé' : ' : coupé'), by: o.adminMail && u ? o.adminMail(u.email) : '', ok: true });
       return json(res, 200, { ok: true, off: G.off }, HD);
     }
+    if (sub === 'events/push' || sub === 'events/push/cancel') {      // notifications : état, historique ; envoi manuel { title, body, target, at? } ; annulation { id }
+      if (!EP) return json(res, 404, { error: 'push_disabled', message: ON ? 'Notifications des événements indisponibles : pas de compte de service FCM, ou EVENT_PUSH=0.' : 'Événements coupés (EVENT=0).' }, HD);
+      if (req.method === 'GET' && sub === 'events/push') return json(res, 200, await EP.view(), HD);
+      if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' }, HD);
+      const b = o.adminBody ? await o.adminBody(req, res, 8192) : await body(req, res, 8192); if (!b) return;
+      const by = o.adminMail && u ? o.adminMail(u.email) : '';
+      const [st, out] = sub === 'events/push' ? await EP.send(b, by) : await EP.cancel(String(b.id || ''), by);
+      return json(res, st, out, st === 429 && out.retry ? { ...HD, 'Retry-After': String(out.retry) } : HD);
+    }
     if (req.method === 'POST' && sub === 'events/reset') {      // { id, p : identifiant du joueur ou 'me' } : sa progression de cette édition remise à zéro (débogage, triche) ; ses copies d'avant ne reviennent pas
       const b = o.adminBody ? await o.adminBody(req, res) : await body(req, res); if (!b) return;
       const id = String(b.id || ''), ed = ID_RE.test(id) ? EVP.evById(id) : null; if (!ed) return json(res, 404, { error: 'not_found', message: 'Événement inconnu.' }, HD);
@@ -287,5 +312,6 @@ export function eventMake(o = {}) {
     return json(res, 404, { error: 'not_found' }, HD);
   }
 
-  return { api, admin, ping, cur, stats, board, flush, off: () => G.off.slice(), devSig: async id => { await secret(); return devSig(id); } };
+  return { api, admin, ping, cur, stats, board, flush: async () => { await flush(); if (EP) await EP.flush(); }, off: () => G.off.slice(), devSig: async id => { await secret(); return devSig(id); },
+    pushOn: !!EP, pushTick: () => (EP ? EP.tick() : Promise.resolve()), _push: EP };
 }

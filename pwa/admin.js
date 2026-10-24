@@ -1188,9 +1188,10 @@
      répartition des chasseurs par total trouvé (histogramme, total / total en vert), top 20 des pseudos publics (textContent, date à l'heure de Paris).
      Relu à chaque affichage de l'onglet et par « Actualiser » ; route absente (404, ou 405 d'un serveur sans le module) : onglet masqué. Pastille : un point
      quand une édition en cours est coupée (interrupteur ou EVENT=0). Sous les statistiques : les chasseurs (recherche, pages, remise à zéro d'un joueur ou de
-     sa propre avancée) ; en bas, l'encart « Débogage » (/?evreset=1 : l'appareil oublie ses événements). */
+     sa propre avancée) ; puis la carte « Notifications » (evnCard : annonces automatiques, envoi manuel, historique) ; en bas, l'encart « Débogage »
+     (/?evreset=1 : l'appareil oublie ses événements). */
   const ev = { gen: 0, d: null, busy: false, sw: '', rs: false, q: {}, pg: {} };      // q, pg : recherche et page de la liste des chasseurs, par édition
-  const evReset = () => { ev.gen++; Object.assign(ev, { d: null, busy: false, sw: '', rs: false, q: {}, pg: {} }); };
+  const evReset = () => { ev.gen++; Object.assign(ev, { d: null, busy: false, sw: '', rs: false, q: {}, pg: {} }); if (typeof evn !== 'undefined') Object.assign(evn, { d: null, why: '', busy: false, draft: { target: 'ev', sched: false, when: '', t: {}, b: {} } }); };      // evn : notifications (plus bas)
   const D_DAYY = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   const D_PARIS = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
   const NF1 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
@@ -1219,7 +1220,7 @@
     const g = ++ev.gen, box = $('#events'); ev.busy = true;
     if (!box.firstChild) fill(box, h('section', { class: 'card' }, chead('Événements'), loading('Lecture du calendrier…')));
     if ($('#evGo')) $('#evGo').disabled = true;
-    let r; try { r = await call('/events'); } catch (e) { r = null; }
+    let r; try { r = (await Promise.all([call('/events'), evnLoad().catch(() => {})]))[0]; } catch (e) { r = null; }      // notifications (carte « Notifications ») lues en même temps
     if (g !== ev.gen) return;
     ev.busy = false; if ($('#evGo')) $('#evGo').disabled = false;
     if (r && (r.status === 404 || r.status === 405)) { ev.d = null; box.replaceChildren(); tabOf('evenements').hidden = true; if (tb.cur === 'evenements') tabShow('apercu'); badges(); return; }      // serveur sans le module
@@ -1244,7 +1245,7 @@
       d.on === false ? h('p', { class: 'note', 'data-k': 'off' }, h('b', null, 'EVENT=0 sur le serveur : tout est coupé.'), ' Ni chasse ni décorations dans l\'appli, quels que soient les interrupteurs ci-dessous.') : null,
       d.force ? h('p', { class: 'note', 'data-k': 'force' }, h('b', null, 'Forcé par EVENT_FORCE : ' + (forced ? evName(forced) : String(d.force)) + '.'), ' Réservé aux essais : l\'édition est servie même hors de ses dates.') : null,
       h('p', { class: 'hint' }, 'Éditions en cours, à venir (60 jours) et terminées avec des données. « Événement actif » coupe une édition à chaud, sans redémarrer le serveur : plus de chasse ni de décorations dans l\'appli ; les progressions sont gardées et reviennent quand tu la rallumes.'));
-    fill(box, head, list.length ? list.map(e => evCard(e, stats[e.id], d)) : h('section', { class: 'card' }, empty('Aucun événement en cours, à venir dans les 60 jours ou terminé avec des données.')), evDebug());
+    fill(box, head, list.length ? list.map(e => evCard(e, stats[e.id], d)) : h('section', { class: 'card' }, empty('Aucun événement en cours, à venir dans les 60 jours ou terminé avec des données.')), evnCard(), evDebug());
     evCharts();
   }
   function evCard(e, st, d) {
@@ -1376,6 +1377,146 @@
     h('p', { class: 'hint' }, 'L\'appli oublie alors ses événements sur cet appareil : message d\'arrivée revu, progression locale effacée.'),
     h('a', { class: 'btn ghost small', id: 'evReset', href: '/?evreset=1', target: '_blank', rel: 'noopener noreferrer' }, 'Remettre cet appareil à zéro ↗'),
     h('p', { class: 'hint evdbgh' }, 'Sur l\'appli Android : ouvre manaorbit.app/?evreset=1 sur le téléphone (le lien s\'ouvre dans l\'appli). Fais d\'abord « Réinitialiser mon avancée », puis remets l\'appareil à zéro.'));
+  /* Notifications des événements (proxy.mjs › event-srv.mjs › event-push.mjs : GET /api/admin/events/push, POST …/push { title, body, target, at? },
+     POST …/push/cancel { id }) : carte « Notifications » sous les éditions. État (actives ; route absente : la raison, sans formulaire), annonces automatiques
+     (vers 10 h, la prochaine prévue), appareils de chaque cible ; formulaire : cible (« Annonces des fêtes » acceptées, ou tous les appareils abonnés, Carte mystère
+     comprise), titre et texte en français et en anglais (exigés), autres langues repliées (sinon le français), compteurs de caractères, envoi programmé (date et
+     heure de cet ordinateur) ; aperçu en direct (FR, EN) ; « Envoyer… » confirmé dans la fenêtre (cible, nombre d'appareils, aperçu) ; un envoi par heure au plus
+     (bouton grisé, heure du prochain) ; historique (date, cible, appareils touchés, échecs, périmés retirés, programmés annulables). Brouillon gardé tant que la
+     page est ouverte (relectures comprises). Tout en textContent (titres et textes écrits par l'éditeur, jamais interprétés). */
+  const EVN_L = [['fr', 'Français'], ['en', 'Anglais'], ['de', 'Allemand'], ['es', 'Espagnol'], ['it', 'Italien'], ['pt', 'Portugais']];
+  const EVN_STEP = { soon: '3 jours avant', open: 'premier jour', mid: 'mi-parcours', last: 'dernier jour' };
+  const evn = { d: null, why: '', busy: false, at: 0, draft: { target: 'ev', sched: false, when: '', t: {}, b: {} } };
+  const D_HMP = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+  const evnPl = (n, w) => nf(n) + ' ' + w + (Number(n) > 1 ? 's' : '');
+  /** GET /api/admin/events/push → evn.d (ou la raison de son absence dans evn.why). */
+  async function evnLoad() {
+    let r; try { r = await call('/events/push'); } catch (e) { r = null; }
+    if (r && r.status === 200 && r.body && typeof r.body === 'object') { evn.d = r.body; evn.why = ''; evn.at = Date.now(); return; }
+    evn.d = null; evn.why = (r && r.body && r.body.message) || (r && r.status === 404 ? 'Notifications indisponibles sur ce serveur.' : 'Le serveur ne répond pas.');
+  }
+  /** « 2026-10-26T18:00 » (heure de cet ordinateur) → instant, ou NaN. */
+  const evnWhen = v => (/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(String(v || '')) ? new Date(v).getTime() : NaN);
+  const evnLocal = t => { const d = new Date(t), p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+  /** Textes du brouillon : { title: { fr, en, … }, body: { … } } (langues remplies seulement) et le premier problème ('' : prêt). */
+  function evnText() {
+    const M = (evn.d && evn.d.max) || { title: 65, body: 180 }, dr = evn.draft, title = {}, body = {}; let why = '';
+    for (const [l, name] of EVN_L) {
+      const t = String(dr.t[l] || '').trim(), b = String(dr.b[l] || '').trim();
+      if (!t && !b) { if ((l === 'fr' || l === 'en') && !why) why = 'Titre et texte en ' + name.toLowerCase() + ' attendus.'; continue; }
+      if ((!t || !b) && !why) why = name + ' : titre et texte attendus ensemble (ou rien, pour le français).';
+      if ((t.length > M.title || b.length > M.body) && !why) why = name + ' : trop long.';
+      if (t && b) { title[l] = t; body[l] = b; }
+    }
+    if (dr.sched && !why) { const w = evnWhen(dr.when); if (!Number.isFinite(w) || w < Date.now() + 60e3) why = 'Choisis une date et une heure à venir.'; }
+    return { title, body, why };
+  }
+  /** Attente avant le prochain envoi manuel (ms), d'après la dernière lecture. */
+  const evnWait = () => Math.max(0, (Number(evn.d && evn.d.wait) || 0) - (Date.now() - evn.at));
+  /** Aperçu d'une notification (comme sur un téléphone). */
+  const evnPrev = (l, t, b, w) => h('div', { class: 'evnv', 'data-l': l }, h('span', { class: 'evnvi', 'aria-hidden': 'true' }),
+    h('span', { class: 'evnvt' }, h('small', null, 'Mana Orbit · ' + (w || 'maintenant'), h('i', null, l.toUpperCase())), h('b', null, t || 'Titre de la notification'), h('span', null, b || 'Le texte apparaît ici.')));
+  function evnCard() {
+    const d = evn.d;
+    if (!d) return h('section', { class: 'card evpc', id: 'evNotif' }, chead('Notifications', h('span', { class: 'tag', 'data-k': 'state' }, 'indisponibles')),
+      h('p', { class: 'hint', 'data-k': 'why' }, evn.why || 'Notifications indisponibles.'),
+      h('p', { class: 'hint' }, 'Elles demandent le compte de service Firebase (FCM_SERVICE_ACCOUNT) et EVENT_PUSH différent de 0 (voir README › Événements saisonniers).'));
+    const c = d.counts || {}, nx = d.next, M = d.max || { title: 65, body: 180 }, dr = evn.draft;
+    const auto = h('p', { class: 'hint evna', 'data-k': 'auto' }, d.auto === false ? 'Annonces automatiques coupées (EVENT=0).'
+      : ['Annonces automatiques vers ' + (d.hour ?? 10) + ' h (heure de Paris) : 3 jours avant, premier jour, mi-parcours et dernier jour ; une par jour au plus, aux appareils qui ont gardé « Annonces des fêtes ».',
+        nx ? h('span', { class: 'evnx' }, ' Prochaine : ', h('b', null, String(nx.title || '')), ' le ' + evDay(nx.day) + (EVN_STEP[nx.step] ? ' (' + EVN_STEP[nx.step] + ').' : '.')) : ' Aucune de prévue dans les 60 jours.',
+        d.warm ? h('span', { class: 'evnx', 'data-k': 'warm' }, ' Mise en route : pas d\'annonce automatique avant ' + D_HMP.format(d.warm) + ' (les appareils s\'enregistrent en ouvrant la nouvelle version).') : null]);
+    const stats = h('div', { class: 'evnk' }, h('div', { class: 'dcs', 'data-k': 'ev' }, h('span', null, 'Annonces des fêtes'), h('b', null, evnPl(c.ev || 0, 'appareil'))),
+      h('div', { class: 'dcs', 'data-k': 'all' }, h('span', null, 'Tous les abonnés'), h('b', null, evnPl(c.all || 0, 'appareil'))));
+    // cible
+    const tgt = h('fieldset', { class: 'evnt' }, h('legend', null, 'Cible'), [['ev', 'Annonces des fêtes', c.ev, 'les appareils qui les ont gardées'], ['all', 'Tous les appareils abonnés', c.all, 'avec ceux de la Carte mystère']].map(([v, t, n, s]) => {
+      const i = h('input', { type: 'radio', name: 'evnT', value: v }); i.checked = dr.target === v;
+      i.addEventListener('change', () => { if (i.checked) { dr.target = v; sync(); } });
+      return h('label', { class: 'evnto', 'data-v': v }, i, h('span', null, h('b', null, t), h('small', null, evnPl(n || 0, 'appareil') + ' · ' + s)));
+    }));
+    // titre et texte par langue (compteurs)
+    const field = (l, k, max) => {
+      const id = 'evn' + k + l, v = String(dr[k][l] || ''), n = h('span', { class: 'evnn', 'aria-live': 'polite' }, nf(v.length) + ' / ' + nf(max));
+      const inp = k === 'b' ? h('textarea', { id, rows: '3', maxlength: String(max), 'data-l': l, 'data-k': k }) : h('input', { id, type: 'text', maxlength: String(max), autocomplete: 'off', 'data-l': l, 'data-k': k });
+      inp.value = v; inp.placeholder = k === 't' ? (l === 'fr' ? 'Ex. : 🎃 Les badges d\'Halloween sont là' : l === 'en' ? 'E.g.: 🎃 Halloween badges are here' : '') : '';
+      inp.addEventListener('input', () => { dr[k][l] = inp.value; n.textContent = nf(inp.value.length) + ' / ' + nf(max); n.classList.toggle('near', inp.value.length > max - 10); sync(); });
+      return h('label', { class: 'evnl', for: id }, h('span', { class: 'evnlh' }, k === 't' ? 'Titre' : 'Texte', n), inp);
+    };
+    const pair = (l, name) => h('fieldset', { class: 'evnp', 'data-l': l }, h('legend', null, name, l === 'fr' || l === 'en' ? h('small', null, ' · obligatoire') : h('small', null, ' · sinon le français')), field(l, 't', M.title), field(l, 'b', M.body));
+    const more = h('details', { class: 'evnm', id: 'evnMore' }, h('summary', null, 'Autres langues ', h('small', null, 'allemand, espagnol, italien, portugais (sinon le français)')), h('div', { class: 'evnms' }, EVN_L.slice(2).map(([l, n]) => pair(l, n))));
+    if (EVN_L.slice(2).some(([l]) => dr.t[l] || dr.b[l])) more.open = true;
+    // programmer
+    const sch = h('input', { type: 'checkbox', id: 'evnSch' }); sch.checked = !!dr.sched;
+    const at = h('input', { type: 'datetime-local', id: 'evnAt', min: evnLocal(Date.now() + 120e3), step: '60' }); at.value = dr.when || ''; at.hidden = !dr.sched;
+    sch.addEventListener('change', () => { dr.sched = sch.checked; at.hidden = !sch.checked; if (sch.checked && !at.value) { at.value = dr.when = evnLocal(Math.ceil((Date.now() + 3600e3) / 900e3) * 900e3); } sync(); if (sch.checked) at.focus(); });
+    at.addEventListener('input', () => { dr.when = at.value; sync(); });
+    const schRow = h('div', { class: 'evns' }, h('label', { class: 'dcchk', for: 'evnSch' }, sch, 'Programmer l\'envoi'), at, h('small', { class: 'evnsh', hidden: !dr.sched }, 'Heure de cet ordinateur. Un envoi programmé part à son heure, même la nuit : choisis-la bien.'));
+    // aperçu, bouton, note
+    const pv = h('div', { class: 'evnpv', 'aria-live': 'polite' }), go = h('button', { class: 'btn main', type: 'button', id: 'evnGo' }, 'Envoyer…'), msg = h('p', { class: 'evnw', id: 'evnWhy' });
+    function sync() {
+      const x = evnText(), w = evnWait(), when = dr.sched ? evnWhen(dr.when) : NaN;
+      fill(pv, h('h4', null, 'Aperçu'), evnPrev('fr', x.title.fr, x.body.fr, dr.sched && Number.isFinite(when) ? D_HMP.format(when) : ''), evnPrev('en', x.title.en, x.body.en, dr.sched && Number.isFinite(when) ? D_HMP.format(when) : ''));
+      go.textContent = dr.sched ? 'Programmer…' : 'Envoyer…';
+      const n = dr.target === 'all' ? c.all : c.ev;
+      const why = evn.busy ? 'Envoi en cours…' : w && !dr.sched ? 'Un envoi par heure au plus : prochain possible à ' + D_HMP.format(Date.now() + w) + '.' : x.why ? x.why : !n ? 'Aucun appareil dans cette cible pour l\'instant.' : '';
+      go.disabled = !!why; msg.textContent = why || (dr.sched ? 'Prêt : programmé pour ' + evnPl(n, 'appareil') + ' (au moment de l\'envoi).' : 'Prêt : ' + evnPl(n, 'appareil') + '. Un envoi par heure au plus.');
+      msg.classList.toggle('ok', !why);
+      $$('#evNotif .evnsh').forEach(e => { e.hidden = !dr.sched; });
+    }
+    go.addEventListener('click', () => evnSend(go));
+    const form = h('div', { class: 'evnf' }, tgt, pair('fr', 'Français'), pair('en', 'Anglais'), more, schRow);
+    const hist = Array.isArray(d.hist) ? d.hist.filter(x => x && x.id) : [];
+    const card = h('section', { class: 'card evpc', id: 'evNotif' }, chead('Notifications', h('span', { class: 'tag ok', 'data-k': 'state' }, 'actives')), auto, stats,
+      h('h3', { class: 'evnh3' }, 'Envoyer une notification'), h('div', { class: 'evnwr' }, form, pv, h('div', { class: 'evnb' }, msg, go)),      // téléphone : l'aperçu avant le bouton ; ordinateur : aperçu à droite, bouton sous le formulaire
+      h('h3', { class: 'evnh3' }, 'Historique', hist.length ? h('small', null, ' · ' + evnPl(hist.length, 'envoi')) : null),
+      hist.length ? h('ol', { class: 'evnhl', id: 'evnHist' }, hist.map(evnRow)) : empty('Aucune notification envoyée pour l\'instant.'));
+    sync();
+    return card;
+  }
+  /** Une ligne de l'historique : titre, état, texte, date, origine (automatique : l'étape), cible, appareils touchés, échecs ; programmé : « Annuler ». */
+  function evnRow(x) {
+    const st = x.st === 'sending' ? h('span', { class: 'tag warn' }, 'envoi en cours') : x.st === 'scheduled' ? h('span', { class: 'tag' }, 'programmé') : x.st === 'cancelled' ? h('span', { class: 'tag off' }, 'annulé')
+      : x.cut ? h('span', { class: 'tag bad' }, 'interrompu') : h('span', { class: 'tag ok' }, 'envoyé');
+    const kind = x.kind === 'auto' ? 'Automatique' + (EVN_STEP[x.step] ? ' · ' + EVN_STEP[x.step] : '') : x.when ? 'Programmé' : 'Manuel';
+    const when = x.st === 'scheduled' || (x.when && !x.at) ? 'prévu le ' + D_PARIS.format(x.when) : x.at ? D_PARIS.format(x.at) : '';
+    const res = x.st === 'done' || x.st === 'sending' ? [x.n != null ? nf(x.ok) + ' / ' + evnPl(x.n, 'appareil') + ' touché' + (x.ok > 1 ? 's' : '') : evnPl(x.ok, 'appareil') + ' touché' + (x.ok > 1 ? 's' : ''), x.fail ? evnPl(x.fail, 'échec') : '', x.gone ? evnPl(x.gone, 'périmé') + ' retiré' + (x.gone > 1 ? 's' : '') : ''] : [];
+    const cancel = x.st === 'scheduled' ? h('button', { class: 'btn ghost small', type: 'button', 'data-act': 'cancel' }, 'Annuler') : null;
+    if (cancel) cancel.addEventListener('click', () => evnCancel(x, cancel));
+    return h('li', { class: 'evnr', 'data-id': x.id, 'data-st': x.st, 'data-kind': x.kind },
+      h('div', { class: 'evnrh' }, h('b', null, String(x.title || '')), st), x.body ? h('p', { class: 'evnrb' }, String(x.body)) : null,
+      h('small', { class: 'evnrm' }, [when, kind, x.target === 'all' ? 'tous les abonnés' : 'annonces des fêtes', ...res, x.by ? 'par ' + x.by : ''].filter(Boolean).join(' · ')), cancel);
+  }
+  /** « Envoyer… » / « Programmer… » : confirmé dans la fenêtre (cible, nombre d'appareils, aperçu), puis POST ; brouillon vidé une fois parti. */
+  async function evnSend(b) {
+    const d = evn.d, dr = evn.draft, x = evnText(); if (!d || x.why || evn.busy) return;
+    const c = d.counts || {}, n = dr.target === 'all' ? c.all : c.ev, when = dr.sched ? evnWhen(dr.when) : 0, others = EVN_L.slice(2).filter(([l]) => x.title[l]).map(([, nm]) => nm.toLowerCase());
+    const v = await dlg(when ? 'Programmer cette notification ?' : 'Envoyer cette notification ?', [
+      h('p', { class: 'dlgw' }, [dr.target === 'all' ? 'Tous les appareils abonnés' : 'Annonces des fêtes', evnPl(n || 0, 'appareil') + (when ? ' (comptés au moment de l\'envoi)' : ''), when ? 'le ' + D_PARIS.format(when) : 'tout de suite'].join(' · ')),
+      h('div', { class: 'evnpv dlgpv' }, evnPrev('fr', x.title.fr, x.body.fr), evnPrev('en', x.title.en, x.body.en)),
+      h('p', { class: 'hint' }, (others.length ? 'Aussi en ' + others.join(', ') + '. ' : '') + 'Les autres langues reçoivent le français. ' + (when ? 'Tu pourras l\'annuler dans l\'historique jusqu\'à son heure.' : 'Une fois partie, une notification ne se reprend pas.'))],
+      [['Annuler', ''], [when ? 'Programmer' : 'Envoyer', 'ok', 'main']]);
+    if (v !== 'ok' || evn.busy) return;
+    evn.busy = true; b.disabled = true; b.textContent = when ? 'Programmation…' : 'Envoi…';
+    let r; try { r = await call('/events/push', 'POST', { title: x.title, body: x.body, target: dr.target, ...(when ? { at: when } : {}) }); } catch (e) { r = null; }
+    evn.busy = false;
+    if (r && r.body && r.body.push && typeof r.body.push === 'object') { evn.d = r.body.push; evn.at = Date.now(); }
+    if (!r || r.status !== 200 || !r.body || !r.body.ok) { evnPaint(); if (r && r.status === 429) return toast((r.body && r.body.message) || 'Un envoi par heure au plus.'); return oops(r, 'Envoi impossible : le serveur ne répond pas.'); }
+    const e = r.body.entry || {};
+    evn.draft = { target: dr.target, sched: false, when: '', t: {}, b: {} }; evnPaint();
+    if (e.st === 'scheduled') toast('Notification programmée pour le ' + D_PARIS.format(e.when) + '.');
+    else if (e.st === 'sending') { toast('Envoi en cours : ' + evnPl(e.n || 0, 'appareil') + '…'); setTimeout(() => evnLoad().then(evnPaint), 5000); }
+    else toast('Notification envoyée : ' + evnPl(e.ok || 0, 'appareil') + ' touché' + ((e.ok || 0) > 1 ? 's' : '') + (e.fail ? ', ' + evnPl(e.fail, 'échec') : '') + '.');
+  }
+  async function evnCancel(x, b) {
+    const v = await dlg('Annuler cet envoi programmé ?', [h('p', { class: 'dlgw' }, String(x.title || '') + ' · prévu le ' + D_PARIS.format(x.when)), h('p', null, 'La notification ne partira pas.')], [['Garder', ''], ['Annuler l\'envoi', 'ok', 'main danger']]);
+    if (v !== 'ok') return;
+    b.disabled = true; let r; try { r = await call('/events/push/cancel', 'POST', { id: x.id }); } catch (e) { r = null; }
+    if (r && r.body && r.body.push && typeof r.body.push === 'object') { evn.d = r.body.push; evn.at = Date.now(); }
+    if (!r || r.status !== 200 || !r.body || !r.body.ok) { b.disabled = false; evnPaint(); return oops(r, 'Annulation impossible : le serveur ne répond pas.'); }
+    evnPaint(); toast('Envoi programmé annulé.');
+  }
+  /** Repeint la carte seule (le reste de l'onglet ne bouge pas). */
+  function evnPaint() { const old = $('#evNotif'); if (old) old.replaceWith(evnCard()); }
   /** Graphiques des éditions, à la largeur de leur boîte (redessinés à l'affichage de l'onglet et quand la fenêtre change). */
   function evCharts() {
     const d = ev.d; if (!d) return;

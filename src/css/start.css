@@ -45,3 +45,28 @@
 .ob-save-off,.ob-save-ok{align-self:stretch;margin:0;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:15px;line-height:1.5;color:#dfe4f3!important}
 .ob .btn.ghost{background:rgba(255,255,255,.06);color:#fff;border-color:rgba(255,255,255,.18)}
 .ob-acts .ob-ct{font-size:13px;font-weight:500;color:#9aa3b8!important;padding:8px}
+
+/* premier lancement, étape 4 : « Notifications » (evpush.js › evpStepHtml) : deux notifications d'exemple, verre dépoli sur le fond sombre fixe, qui
+   descendent à l'arrivée sur l'étape (rien ne bouge avec « réduire les animations ») */
+.ob-np{position:relative;display:flex;flex-direction:column;gap:10px;margin:10px 0 6px;isolation:isolate}
+.ob-np::before{content:'';position:absolute;inset:-8% 6% -14%;z-index:-1;border-radius:50%;background:radial-gradient(closest-side,rgba(199,155,255,.32),rgba(127,176,255,.14) 55%,transparent);filter:blur(18px);pointer-events:none}
+html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-side,rgba(255,122,26,.34),rgba(123,63,228,.18) 55%,transparent)}
+.ob-nc{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:start;padding:13px 14px;border-radius:22px;text-align:left;
+  background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.07));border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 16px 36px rgba(3,6,20,.45),inset 0 1px 0 rgba(255,255,255,.12);-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2)}
+.ob-nc.b{margin:0 14px;padding:11px 13px;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);box-shadow:0 10px 26px rgba(3,6,20,.35)}
+.ob-nc-ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:radial-gradient(circle at 30% 25%,#2a3470,#0b0f1c 72%);box-shadow:0 0 0 1px rgba(255,255,255,.1)}
+.ob-nc.b .ob-nc-ic{width:34px;height:34px;border-radius:10px}
+.ob-nc-ic .logo{width:32px;height:32px;color:#9aa3b8;filter:none}
+.ob-nc.b .ob-nc-ic .logo{width:27px;height:27px}
+.ob-nc-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ob-nc-t small{font-size:12px;line-height:1.3;color:#98a1bb;letter-spacing:.01em}
+.ob-nc-t b{font-size:15px;line-height:1.3;font-weight:700;color:#fff;text-wrap:balance}
+.ob-nc-t span{font-size:13.5px;line-height:1.4;color:#c9cfe2;text-wrap:pretty}
+.ob-nc.b .ob-nc-t b{font-size:14px}.ob-nc.b .ob-nc-t span{font-size:12.5px;color:#aeb5cc}
+.ob-push[aria-hidden="false"] .ob-nc{animation:obNcIn .7s cubic-bezier(.22,.8,.25,1) both}
+.ob-push[aria-hidden="false"] .ob-nc.b{animation-delay:.16s}
+@keyframes obNcIn{from{opacity:0;transform:translateY(-16px) scale(.96)}to{opacity:1;transform:none}}
+.ob-push .ob-acts{gap:10px}
+.ob .ob-np-h{margin:4px 0 0;font-size:13px;line-height:1.45;text-align:center;color:#8f98b3;text-wrap:balance}
+@media (prefers-reduced-motion:reduce){.ob-push .ob-nc{animation:none!important}}

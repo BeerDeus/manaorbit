@@ -4,6 +4,9 @@
    (même connexion que la feuille Compte, cloud.js), « Autres options (e-mail) » ouvre cette feuille, « Plus tard » ; hors ligne ou service de compte
    injoignable : un mot et « Plus tard » seulement ; déjà connecté : « C'est parti ». Le token CardTrader n'est plus demandé ici (Compte et réglages › Prix,
    lien discret « Tu as un token CardTrader ? »).
+   4. Notifications (evpush.js), seulement si elles ont un sens ici (serveur qui les propose, fenêtre d'autorisation possible : evpAskable) : à quoi elles servent,
+   « Activer les notifications » ouvre la fenêtre native (Android, navigateur ; iPhone : app installée seulement), « Plus tard » ; jamais redemandé ensuite
+   (Compte et réglages › Notifications pour changer d'avis). Ajoutée dès que le serveur a répondu (obPushCheck), atteinte depuis l'étape 3.
    Passé, terminé ou abandonné : on ne le revoit plus (deckdeal:onboard). Les navigateurs pilotés par les tests ne le voient pas, sauf avec ?onboarding. */
 const OB_KEY = 'deckdeal:onboard';
 const OB_FORCE = typeof location !== 'undefined' && /[?&]onboarding\b/.test(location.search);
@@ -54,7 +57,7 @@ function obOpen() {
   holdApp();      // dialogue modal : l'appli dessous (inerte) ne prend ni le focus ni le lecteur d'écran (viewer.js)
   OB.key = e => { if (e.key === 'Escape' && OB.el && !sheets.length) { e.stopPropagation(); obClose(); } };      // Échap = « Passer »
   document.addEventListener('keydown', OB.key);
-  OB.i = 0; obGo(0);
+  OB.i = 0; obGo(0); obPushCheck();
   el.addEventListener('click', e => {
     const b = e.target.closest('[data-ob]'); if (!b) return;
     const a = b.dataset.ob; haptic('tap');
@@ -64,7 +67,8 @@ function obOpen() {
     else if (a === 'import') obClose(() => openCollImport());
     else if (a === 'swg') obClose(() => swgOpen({ from: 'onboard' }));      // guide « Passer de ManaBox » (switch.js)
     else if (a === 'scan') obClose(() => openScan());
-    else if (a === 'done') obClose();
+    else if (a === 'done') { if (OB.i === 2 && obPushStep()) obGo(3); else { if (OB.i === 3 && typeof evpAskLater === 'function') evpAskLater(); obClose(); } }      // étape 3 → notifications (s'il y en a une) ; étape 4 « Plus tard » : jamais redemandé
+    else if (a === 'push') obPush(b);
     else if (a === 'google') obGoogle(b);
     else if (a === 'account') obClose(() => openAccount());
     else if (a === 'ct') obClose(() => openSettings('prix'));      // token CardTrader : Compte et réglages › Prix
@@ -80,11 +84,32 @@ function obOpen() {
 }
 function obGo(i) {
   const el = OB.el; if (!el) return;
-  OB.i = Math.max(0, Math.min(2, i));
+  OB.i = Math.max(0, Math.min($$('.ob-s', el).length - 1, i));
   $('.ob-track', el).style.transform = `translateX(${-OB.i * 100}%)`;
   $$('.ob-dots i', el).forEach((d, k) => d.classList.toggle('on', k === OB.i));
   $$('.ob-s', el).forEach((s, k) => { s.inert = k !== OB.i; s.setAttribute('aria-hidden', String(k !== OB.i)); });
-  $('.ob-skip', el).hidden = OB.i === 2;
+  $('.ob-skip', el).hidden = OB.i >= 2;
+  if (OB.i === 3) setTimeout(() => { const f = OB.el && $('.ob-push [data-ob="push"]', OB.el); if (f && OB.i === 3) f.focus({ preventScroll: true }); }, 60);      // étape des notifications : son bouton prend le focus (clavier, lecteur d'écran)
+}
+/** Étape « Notifications » présente ? */
+const obPushStep = () => !!(OB.el && $('.ob-push', OB.el));
+/** Ajoute l'étape « Notifications » quand elle a un sens ici (evpush.js › evpAskable), dès que le serveur a répondu (8 s au plus). */
+async function obPushCheck() {
+  const el = OB.el; if (typeof evpAskable !== 'function') return;
+  for (let t = 0; t < 8000 && OB.el === el && !CTX.proxy; t += 300) await sleep(300);
+  if (OB.el !== el || obPushStep() || !(await evpAskable()) || OB.el !== el) return;
+  $('.ob-track', el).insertAdjacentHTML('beforeend', evpStepHtml());
+  $('.ob-dots', el).insertAdjacentHTML('beforeend', '<i></i>');
+  obGo(OB.i);
+}
+/** « Activer les notifications » : la fenêtre native ; acceptée → « Notifications activées » ; refusée ou fermée : un mot, l'appli (rien d'autre n'est demandé). */
+async function obPush(b) {
+  if (b.disabled) return; b.disabled = true; b.setAttribute('aria-busy', 'true');
+  let r; try { r = await evpAskNow(); } catch (e) { r = { ok: false }; }
+  obClose();
+  if (r.ok) { haptic('ok'); toast(T('Notifications activées')); }
+  else if (r.why === 'denied' || r.why === 'dismissed') toast(T('Pas de souci : tu pourras les activer dans Compte et réglages › Notifications.'));
+  else toast(alWhy(r));
 }
 /** Retour du téléphone : écran précédent, ou fermeture depuis le premier. */
 function obBack() { if (OB.i > 0) obGo(OB.i - 1); else obClose(); }
@@ -110,7 +135,7 @@ async function obGoogle(b) {
   if (!D.cloud || D.state !== 'ready' || b.disabled) return;
   const m = OB.el && $('#obMsg', OB.el); if (m) m.hidden = true;
   b.disabled = true;
-  try { await D.cloud.google(); obClose(); toast(T('Connecté')); }
+  try { await D.cloud.google(); toast(T('Connecté')); if (obPushStep()) obGo(3); else obClose(); }      // connecté : l'étape des notifications s'il y en a une, sinon l'appli
   catch (e) {
     b.disabled = false; const t = authMessage(e), mm = OB.el && $('#obMsg', OB.el);
     if (t && mm) { mm.textContent = t; mm.hidden = false; }      // fenêtre fermée par l'utilisateur : rien à dire

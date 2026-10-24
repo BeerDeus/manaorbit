@@ -636,7 +636,7 @@ async function dlyPushBox(box) {
   cb.onchange = async () => {
     cb.disabled = true;
     if (cb.checked) { if (!(await dlyPushOn())) cb.checked = false; }
-    else { dlyPushSet({ ...dlyPushLs(), push: false }); try { await dlyDev(); } catch (e) { /* hors ligne : retirée à la prochaine relecture */ } if (!S.push && !(typeof AC !== 'undefined' && AC.on) && !amHoldsPush()) await pushDisable(); }      // l'abonnement reste tant qu'une autre notification s'en sert
+    else { dlyPushSet({ ...dlyPushLs(), push: false }); try { await dlyDev(); } catch (e) { /* hors ligne : retirée à la prochaine relecture */ } if (!S.push && !(typeof AC !== 'undefined' && AC.on) && !amHoldsPush() && !(typeof evpHolds === 'function' && evpHolds())) await pushDisable(); }      // l'abonnement reste tant qu'une autre notification s'en sert
     cb.disabled = false;
   };
 }

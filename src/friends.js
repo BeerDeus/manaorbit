@@ -324,7 +324,7 @@ async function amPushBox(box) {
   cb.onchange = async () => {
     cb.disabled = true;
     if (cb.checked) { if (!(await amPushOn())) cb.checked = false; }
-    else { AM.push = false; amStore(); try { await amDev(); } catch (e) { /* hors ligne : retiré à la prochaine relecture */ } if (!S.push && !(typeof AC !== 'undefined' && AC.on) && !(typeof dlyHoldsPush === 'function' && dlyHoldsPush())) await pushDisable(); }
+    else { AM.push = false; amStore(); try { await amDev(); } catch (e) { /* hors ligne : retiré à la prochaine relecture */ } if (!S.push && !(typeof AC !== 'undefined' && AC.on) && !(typeof dlyHoldsPush === 'function' && dlyHoldsPush()) && !(typeof evpHolds === 'function' && evpHolds())) await pushDisable(); }
     cb.disabled = false;
   };
 }

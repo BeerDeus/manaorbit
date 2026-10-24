@@ -120,7 +120,8 @@ test('progression : relue depuis Firestore (reçus), rattachée au compte, une s
   assert.equal((await S.call('event/sync', { body: { ev: 'halloween-2026', ...saved } })).status, 401);
   // sans compte sur un appareil, puis connexion : rattaché au compte
   const dev = (await S.call('event')).j.dev; let dm = (await S.call('event', { dev })).j.me;
-  for (const x of dm.spots.slice(0, 2)) await S.call('event/claim', { dev, body: { ev: 'halloween-2026', day: dm.day, s: x.s, t: x.t } });
+  for (const x of dm.spots.filter(y => !saved.jours[me.day].includes(y.s)).slice(0, 2)) await S.call('event/claim', { dev,      // cachettes tirées au hasard pour l'appareil : celles du compte exclues (l'union en compterait moins)
+    body: { ev: 'halloween-2026', day: dm.day, s: x.s, t: x.t } });
   const mg = await S.call('event/merge', { tok: 'tok-zoe', dev, body: { ev: 'halloween-2026', n: 'Zoé' } }); assert.equal(mg.status, 200, JSON.stringify(mg.j)); assert.equal(mg.j.me.n, 5, '3 + 2');
   assert.equal(mg.j.me.found.length, 5); assert.equal((await S.call('event/merge', { tok: 'tok-zoe', dev, body: { ev: 'halloween-2026' } })).j.merged, false, 'une seule fois');
   assert.equal((await S.call('event/merge', { tok: 'tok-max', dev, body: { ev: 'halloween-2026' } })).status, 409, 'jamais vers un 2e compte');

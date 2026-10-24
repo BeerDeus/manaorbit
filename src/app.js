@@ -1080,8 +1080,9 @@ function syncCTX() { CTX.token = S.token; CTX.appKey = S.appKey; }
 function openNotifSettings() {
   openSheet(T('Notifications'), T('Fin de recherche et alertes de prix'), api => {
     api.body.innerHTML = `<div class="sec-title">${T('Fin de recherche')}</div><div id="pushBox" class="installbox"></div>
-      <div class="sec-title">${T('Alertes de prix')}</div><div id="alertBox" class="installbox"></div>${amOn() ? `<div class="sec-title">${T('Amis')}</div><div id="amisBox" class="installbox"></div>` : ''}${typeof dlyPushShow === 'function' && dlyPushShow() ? `<div class="sec-title">${T('Carte mystère')}</div><div id="dlyPushBox" class="installbox"></div>` : ''}`;
+      <div class="sec-title">${T('Alertes de prix')}</div><div id="alertBox" class="installbox"></div>${amOn() ? `<div class="sec-title">${T('Amis')}</div><div id="amisBox" class="installbox"></div>` : ''}${typeof dlyPushShow === 'function' && dlyPushShow() ? `<div class="sec-title">${T('Carte mystère')}</div><div id="dlyPushBox" class="installbox"></div>` : ''}${typeof evpOn === 'function' && evpOn() ? `<div class="sec-title">${T('Événements')}</div><div id="evpBox" class="installbox"></div>` : ''}`;
     paintPushBox($('#pushBox', api.body)); alPaintBox($('#alertBox', api.body)); amPushBox($('#amisBox', api.body)); if (typeof dlyPushBox === 'function') dlyPushBox($('#dlyPushBox', api.body));      // Carte mystère (daily.js) : « Nouvelle Carte mystère »
+    if (typeof evpBox === 'function') evpBox($('#evpBox', api.body));      // événements (evpush.js) : début, mi-parcours, dernier jour
   });
 }
 /* ── Réglages : les rubriques de la fiche « Compte et réglages » (me.js), chacune dans sa propre fiche (fermée en la tirant vers le bas) ─────── */
@@ -1265,7 +1266,7 @@ async function detectProxy(ms = 5000) {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
     const r = await fetch('__ping', { cache: 'no-store', signal: ctrl.signal }); clearTimeout(t);      // jamais en cache : la version du serveur décide de la mise à jour (pwa.js)
     if (!r.ok) return; const j = await r.json();
-    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
+    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.evpush = j.evpush === true; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
     if (j && j.ok && typeof j.ptk === 'string' && typeof partiePkKeep === 'function') partiePkKeep(j.ptk);      // compteur de vie : clé publique des cartes joueur (vérifiées sans réseau, partie.js)
   } catch (e) { /* pas de proxy */ }
   modeLabel();
@@ -1367,7 +1368,7 @@ function init() {
   });
   initInstall();
   if (typeof dlyInit === 'function') dlyInit();      // Carte mystère (daily.js) : rien avant le serveur, et seulement sur le lien d'essai
-  detectProxy().then(() => { pushInit(); if (typeof dlyPing === 'function') dlyPing(); if (typeof evPing === 'function') evPing(CTX.event); handleLaunch(); alSoon(); amSoon(2500); if (typeof dlCheck === 'function') dlCheck(true); });      // amis : liste relue une fois le serveur connu (amUser l'a peut-être demandée trop tôt)
+  detectProxy().then(() => { pushInit(); if (typeof dlyPing === 'function') dlyPing(); if (typeof evPing === 'function') evPing(CTX.event); if (typeof evpDevSoon === 'function' && CTX.evpush) evpDevSoon(4000); handleLaunch(); alSoon(); amSoon(2500); if (typeof dlCheck === 'function') dlCheck(true); });      // amis : liste relue une fois le serveur connu (amUser l'a peut-être demandée trop tôt)
   // serveur injoignable au lancement : nouvel essai au retour du réseau ou de l'appli au premier plan (au plus toutes les 30 s)
   let pingAt = 0; const pingAgain = () => { if (CTX.proxy || document.hidden || Date.now() - pingAt < 30000) return; pingAt = Date.now(); detectProxy().then(() => { if (CTX.proxy) { alSoon(); if (typeof dlCheck === 'function') dlCheck(true); if (CTX.partie && typeof partieWake === 'function') partieWake(); } }); };      // compteur de vie : résultats et réclamations gardés sans réseau (l'appli lancée hors ligne n'avait pas encore le serveur), carte joueur
   window.addEventListener('online', pingAgain); document.addEventListener('visibilitychange', pingAgain);
@@ -1404,6 +1405,7 @@ function handleLaunch() {
   else if ((q.has('table') || q.has('partie')) && typeof puLaunch === 'function') puLaunch('?' + q.toString());
   else if (q.has('invite') && typeof puInvite === 'function') setTimeout(puInvite, 700);      // lien « Fais découvrir Mana Orbit » de la fin de partie (partie-ui.js)
   else if (q.has('pd') && typeof pdLaunch === 'function') { const v = q.get('pd'); setTimeout(() => pdLaunch(v), 600); }      // deck public partagé sur Discord (« Voir le deck » : pubdecks.js)
+  else if (q.has('fete') && typeof evPushOpen === 'function') evPushOpen();      // annonce d'un événement touchée (nouvelle fenêtre) : l'accueil et la feuille de la fête (evpush.js)
   else if (q.has('mystere') && typeof dlyLaunch === 'function') dlyLaunch();      // Carte mystère (résultat partagé) : seulement sur le lien d'essai (daily.js › dlyOn)
   else if (q.has('compteur') && typeof puGo === 'function') { const j = q.get('compteur'); setTimeout(() => puGo(j), 600); }      // compteur de vie (?compteur=commander | standard | libre | 1 : bouton des annonces /partie du bot Discord)
   else if (q.has('avis') && typeof fbAvisOpen === 'function') fbAvisOpen('?' + q.toString());      // notification « Du nouveau sur ton avis » (nouvelle fenêtre) : le fil sur Discord
