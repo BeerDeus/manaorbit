@@ -1450,7 +1450,8 @@ function collNoLangHtml(v) {
 }
 
 /* ── Ajouter à la main ────────────────────────────────────────────────────────────────────────── */
-function openCollAdd() {
+/** o.pick(c) : la carte choisie ({ k, n, l, p }) est rendue à l'appelant et la feuille se ferme, rien n'est ajouté ici (scan › « Saisir » : la carte rejoint le scan). */
+function openCollAdd(o) {
   frLoad();
   openSheet(T('Ajouter une carte'), nmT('Tape son nom en anglais ou en français', 'Tape son nom en anglais ou en {lang}', 'Tape son nom en anglais'), api => {
     api.body.innerHTML = `<div class="field-in"><label class="label" for="caName">${T('Nom de la carte')}</label><input type="text" id="caName" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(nmExample())}" enterkeyhint="search"></div>
@@ -1470,6 +1471,7 @@ function openCollAdd() {
     list.onclick = e => {
       const b = e.target.closest('.ca-opt'); if (!b) return;
       const n = b.dataset.n, p = b.dataset.p || '', k = ownKey(n), l = lang.value || b.dataset.l || (p ? FRX.l : '');      // nom français (allemand, italien…) choisi : exemplaire dans cette langue (sauf langue choisie au-dessus)
+      if (o && o.pick) { haptic('ok'); api.close(); o.pick({ k, n, l, p }); return; }
       if (typeof opnTake === 'function' && opnTake([{ k, n, q: 1, l }])) { haptic('ok'); b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); say(opnSay(p || n), true); return; }      // session d'ouverture (opening.js) : dans la session
       collBump(k, n, 1, l ? { lang: l } : undefined); const q = collQty(k); haptic('ok');
       const i = $('i', b); i.textContent = '× ' + q; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');

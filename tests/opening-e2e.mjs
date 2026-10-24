@@ -77,6 +77,13 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   assert.equal(await p.evaluate(() => [collQty('arcane signet'), OPN.cur.rows.find(r => r.k === 'arcane signet').eu].join()), '3,40', 'prix rapide : dans la session (prix lu gardé), la collection inchangée');
   await p.evaluate(() => { if (SC.el) SC.el.__close('done'); opnDec(OPN.cur.rows.find(r => r.k === 'arcane signet').id); }); await p.waitForFunction(() => !OPN.cur.rows.some(r => r.k === 'arcane signet'));
   await p.waitForTimeout(300);
+  // exemplaire foil : le prix gardé avec la ligne (hors ligne, édition plus en cache, « Mes ouvertures ») est le prix foil, à défaut le normal (avant : toujours le normal)
+  assert.deepEqual(await p.evaluate(() => {
+    const pk = { set: 'dsk', num: '200', eu: 100, ef: 900, sn: 'DSK Set', th: '' };
+    opnTake([{ k: 'llanowar elves', n: 'Llanowar Elves', q: 1, l: lineKey('en', 'dsk|200', true), p: pk }, { k: 'llanowar elves', n: 'Llanowar Elves', q: 1, l: lineKey('en', 'dsk|200'), p: pk }, { k: 'llanowar elves', n: 'Llanowar Elves', q: 1, l: lineKey('en', 'dsk|201', true), p: { ...pk, num: '201', ef: null } }]);
+    const eu = OPN.cur.rows.filter(r => r.k === 'llanowar elves' && /dsk/.test(r.g)).map(r => [r.g, r.eu]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+    OPN.cur.rows = OPN.cur.rows.filter(r => !(r.k === 'llanowar elves' && /dsk/.test(r.g))); opnSave(); opnPaint(); return eu;
+  }), [['en|dsk|200', 100], ['en|dsk|200*', 900], ['en|dsk|201*', 100]], 'foil : prix foil ; sans prix foil : le prix normal');
   assert.deepEqual(await realColl(p), before);
   ok('« Ajouter des cartes », « Saisir », prix rapide › + : dans la session, jamais dans la collection ni dans le lot');
 

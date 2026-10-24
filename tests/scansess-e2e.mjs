@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { chromium, startWorld, newPage, txt, ok, toHome, rcGo } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 19520 });
-Object.assign(world.psets, { 'Sol Ring': ['cmm', 'blb'], 'Arcane Signet': ['cmm'], 'Llanowar Elves': ['dsk'] });
+Object.assign(world.psets, { 'Sol Ring': ['cmm', 'blb'], 'Arcane Signet': ['cmm'], 'Llanowar Elves': ['dsk'], 'Command Tower': ['cmm', 'blb'] });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const { p, errs } = await newPage(browser, world, { scanSess: true });
 const KEY = 'deckdeal:scansess:coll';
@@ -115,6 +115,14 @@ assert.deepEqual(await dest(), [false, box, true]); await p.waitForFunction(id =
 await p.click('.scan [data-act="close"]'); await p.waitForSelector('.sss-sheet'); await p.click('.sss-sheet [data-ss="quit"]'); await shut();
 await p.evaluate(() => scdReset(null));      // rangement changé ailleurs entre-temps
 await open(); assert.deepEqual(await dest(), [false, box, true], 'séance reprise : son rangement');
+// prix rapide › « + » : rangée comme les cartes du scan, avec l'édition lue sur la ligne du bas (avant : dans la collection, sans emplacement ni édition)
+await p.evaluate(() => { scanPriceMode(true); SC.pq = [{ key: 'command tower', name: 'Command Tower', l: 'en', n: 2, cm: 25, ct: 'off', ft: ['0201 C', 'BLB • EN'] }, { key: 'edgar markov', name: 'Edgar Markov', l: 'fr', n: 1, cm: 40, ct: 'off' }]; scanPaintList(); });
+await p.click('.sc-item.pr[data-k="command tower"] [data-a="padd"]'); await p.waitForFunction(() => collQty('command tower') === 2, null, { timeout: 8000 });
+assert.deepEqual(await p.evaluate(() => collLines(COLL.map['command tower']).map(([g, q]) => [lineEd(g), plcOf(g) ? plcName(plcOf(g)) : '', q])), [['blb|201', 'Boîte rouge', 2]], 'prix rapide › + : dans la boîte, édition lue en bas (BLB 201)');
+assert.match(await txt(p, '#toast'), /^2 × Command Tower ajoutées à ta collection · Boîte rouge/);
+await p.click('.sc-item.pr[data-k="edgar markov"] [data-a="padd"]'); await p.waitForFunction(() => collQty('edgar markov') === 1, null, { timeout: 4000 });
+assert.deepEqual(await p.evaluate(() => collLines(COLL.map['edgar markov']).map(([g, q]) => [lineLang(g), lineEd(g), plcOf(g) ? plcName(plcOf(g)) : '', q])), [['fr', '', 'Boîte rouge', 1]], 'sans ligne du bas : sans édition, avec sa langue, dans la boîte aussi');
+await p.evaluate(() => { SC.pq = []; scanPriceMode(false); });
 await p.click('.sc-head [data-act="done"]'); await p.waitForSelector('.rc-sheet'); await rcGo(p); await shut();
 assert.deepEqual(await placed('sol ring'), [['', 2], ['Boîte rouge', 1]], 'ajoutée dans la boîte (les 2 d\'avant : sans emplacement)');
 await open(); assert.deepEqual(await dest(), [false, '', false], 'séance suivante : rangement remis à vide');

@@ -159,6 +159,15 @@ function scanAdd(m, d, maybe, shot) {
   scanPaintList();
   if (artq) scanArtRun();
 }
+/** « Saisir » sur une ligne non reconnue : la carte choisie (c : { k, n, l } de collection.js › openCollAdd) remplace la ligne et rejoint le scan comme une carte lue
+ *  (édition, foil, « Ranger dans », deck, lot, scan mobile, récap) ; en prix rapide, la liste des prix. Rien n'est ajouté à la collection ici. */
+function scanTyped(id, c) {
+  if (!SC.el || !c) return;
+  const mi = SC.miss.find(m => String(m.id) === String(id)); SC.miss = SC.miss.filter(m => m !== mi);
+  const m = { key: c.k, name: c.n, card: c.l || '', score: 1, raw: (mi && mi.raw) || '' };
+  if (c.l && c.l !== 'en') langImgFor(c.k, c.n, c.l);      // image de la carte dans sa langue, l'anglaise en attendant
+  if (SC.pm) scanPriceAdd(m); else scanAdd(m, 1, false);
+}
 /** Nom imprimé de plusieurs cartes : un bouton par autre carte possible (« Plutôt Way of the Pyromancer »). */
 function scanAltsHtml(e) {
   const o = Array.isArray(e.alts) ? e.alts.filter(n => ownKey(n) !== e.key) : [];
@@ -224,7 +233,7 @@ function scanPaintList() {
   const go = $('.sc-head [data-act="done"]', el);
   go.disabled = !t.n; go.textContent = SC.deck ? T('Au deck') : T('Ajouter');      // mode deck (builder.js › bdScan) : les cartes vont dans le deck
   const td = scanEdTodo(), nTodo = td.n - td.load;
-  let val = 0; for (const x of SC.items.values()) { if (x.maybe) continue; const eu = pkEu(x.pk) || ((COLL.meta[x.key] || {}).eu > 0 ? COLL.meta[x.key].eu : 0); val += eu * x.q; }
+  let val = 0; for (const x of SC.items.values()) { if (x.maybe) continue; const fq = Math.min(x.fq || 0, x.q); val += scanEu(x.key, x.pk, false) * (x.q - fq) + scanEu(x.key, x.pk, true) * fq; }      // foil : au prix foil
   head(TN(t.n, '{n} carte', '{n} cartes'), SC.items.size ? [val > 0 ? '≈ ' + fmt(val, 'EUR') : '', t.maybe ? T('{n} à vérifier', { n: t.maybe }) : '', nTodo ? TN(nTodo, '{n} édition à choisir', '{n} éditions à choisir') : ''].filter(Boolean).join(' · ') || TN(t.n, '{n} reconnue', '{n} reconnues') : scanFull() ? T('Carte entière dans le cadre') : T('Nom de la carte dans la bande'));
   if (SC.remote) { go.disabled = false; go.textContent = T('Terminer'); mobSync(); scanPaintRemote(); }      // scan mobile : chaque carte (et chaque correction) part vers le PC
   const prog = $('.sc-prog', el); prog.hidden = !SC.pend.length; prog.textContent = TN(SC.pend.length, '{n} en lecture', '{n} en lecture');
@@ -261,11 +270,11 @@ function scanRecap() {
     const items = live(); if (!items.length) { api.close(); return; }
     const n = items.reduce((a, x) => a + x.q, 0);
     let val = 0, priced = 0, nopx = 0, wait = 0; const rows = [];
-    for (const x of items) {
-      const pe = pkEu(x.p); if (pe > 0) { val += pe * x.q; priced += x.q; rows.push({ x, eu: pe }); continue; }      // prix de l'édition posée
-      const m = info(x.k);
+    for (const x of items.flatMap(byFoil)) {      // non foil et foil à part : chacun à son prix
+      const pe = pkEu(x.p, x.f); if (pe > 0) { val += pe * x.q; priced += x.q; rows.push({ x, eu: pe }); continue; }      // prix de l'édition posée
+      const m = info(x.k), eu = m ? scanEu(x.k, null, x.f, m) : 0;
       if (m === undefined) { if (!err) wait += x.q; else nopx += x.q; }
-      else if (m && m.eu > 0) { val += m.eu * x.q; priced += x.q; rows.push({ x, eu: m.eu }); }
+      else if (eu > 0) { val += eu * x.q; priced += x.q; rows.push({ x, eu }); }
       else nopx += x.q;
     }
     const uniq = new Set(items.map(x => x.k)), haveK = new Set([...uniq].filter(k => collQty(k) > 0)), have = items.filter(x => haveK.has(x.k)), haveN = have.reduce((a, x) => a + x.q, 0), langs = new Map();
@@ -277,7 +286,7 @@ function scanRecap() {
     const note = wait ? T('Lecture des prix…') : !nopx ? '' : err ? T(priced ? 'Valeur partielle : {err}.' : 'Prix indisponibles : {err}.', { err }) : TN(nopx, '{n} exemplaire sans prix Cardmarket, non comptés.', '{n} exemplaires sans prix Cardmarket, non comptés.');
     api.body.innerHTML = `<div class="rc">${typeof opnRcNote === 'function' ? opnRcNote() : ''}${SC.lot || (typeof opnOn === 'function' && opnOn()) ? '' : scdRowHtml()}${sure ? `<p class="rc-ask" role="alert"><b>${esc(TN(td.n, '{n} carte n\'a pas d\'édition.', '{n} cartes n\'ont pas d\'édition.'))}</b> ${esc(td.load ? T('Lecture des éditions…') : T('Ajoutées sans édition : tu pourras la choisir plus tard dans ta collection.'))}</p>` : ''}${noPl ? `<p class="rc-ask" role="alert"><b>${T('Aucun rangement choisi.')}</b> ${T('Ajouter les cartes à ta collection sans emplacement ?')}${scdHasPlaces() ? '' : ' ' + T('Classeur, boîte, à vendre… : un emplacement t\'aide à retrouver tes cartes.')}</p>${scdHasPlaces() ? '' : `<label class="rc-quiet"><input type="checkbox" data-rcq${quiet ? ' checked' : ''}><span>${T('Ne plus me demander (tant que je n\'ai pas d\'emplacement)')}</span></label>`}` : ''}<div class="cs-tiles"><div><b>${nf0(uniq.size)}</b><span>${TN(uniq.size, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(n)}</b><span>${TN(n, 'exemplaire', 'exemplaires')}</span></div><div class="rc-val"><b>${wait || (!priced && err) ? (wait ? '…' : '—') : priced ? esc(fmt(val, 'EUR')) : '—'}</b><span>${T('valeur estimée · tendance Cardmarket')}</span></div></div>
       ${note ? `<p class="hint rc-note">${esc(note)}</p>` : ''}
-      ${rows.length && !wait ? `<h3 class="cs-h">${T('Les plus chères')}</h3><div class="cs-top">${rows.slice(0, 3).map(({ x, eu }) => `<div class="crow ro" data-k="${esc(x.k)}" data-n="${esc(x.n)}" data-q="${x.q}" data-ln="${esc(x.l)}"><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('rc', x.n)}>${esc((x.n.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(scanThumb({ key: x.k, name: x.n, l: x.l, pk: x.p }))}"></span><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta">${x.e ? `<span class="tag ed">${setIcHtml(edSet(x.e))}${esc(edLabel(x.e))}</span>` : ''}${x.q > 1 ? `<span class="tag accent">× ${nf0(x.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(eu, 'EUR'))}</b>${x.q > 1 ? `<small>${T('{p} le lot', { p: esc(fmt(eu * x.q, 'EUR')) })}</small>` : ''}</span></div>`).join('')}</div>` : ''}
+      ${rows.length && !wait ? `<h3 class="cs-h">${T('Les plus chères')}</h3><div class="cs-top">${rows.slice(0, 3).map(({ x, eu }) => `<div class="crow ro" data-k="${esc(x.k)}" data-n="${esc(x.n)}" data-q="${x.q}" data-ln="${esc(x.l)}"><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('rc', x.n)}>${esc((x.n.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(scanThumb({ key: x.k, name: x.n, l: x.l, pk: x.p }))}"></span><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta">${x.e ? `<span class="tag ed">${setIcHtml(edSet(x.e))}${esc(edLabel(x.e))}</span>` : ''}${x.f ? `<span class="tag foil">✦ ${T('Foil')}</span>` : ''}${x.q > 1 ? `<span class="tag accent">× ${nf0(x.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(eu, 'EUR'))}</b>${x.q > 1 ? `<small>${T('{p} le lot', { p: esc(fmt(eu * x.q, 'EUR')) })}</small>` : ''}</span></div>`).join('')}</div>` : ''}
       <dl class="rc-facts"><div><dt>${T('Nouvelles dans ta collection')}</dt><dd>${TN(uniq.size - haveK.size, '{n} carte', '{n} cartes')}</dd></div>
         <div><dt>${T('Déjà possédées')}</dt><dd>${haveK.size ? TN(haveK.size, '{n} carte', '{n} cartes') + ' · ' + T('+{n} ex.', { n: nf0(haveN) }) : T('aucune')}</dd></div>
         <div><dt>${T('Éditions')}</dt><dd>${SCS.ed === 'none' && !edN ? T('sans (réglage du scan)') : td.n ? esc(TN(td.n, '{n} sans édition', '{n} sans édition')) + (edN ? ' · ' + esc(TN(edN, '{n} posée', '{n} posées')) : '') : T('toutes posées')}</dd></div>
@@ -308,23 +317,23 @@ function scanRecap() {
     else if (!plOk && scdAsk()) { noPl = true; sure = false; haptic('tap'); paint(); return; }      // aucun rangement choisi (alors qu'il en existe) : on demande aussi
     const items = live(); if (!items.length) return;
     if (typeof prgScan === 'function') prgScan([...SC.items.values()].filter(x => !x.maybe));      // niveau et badges (progress.js) : cartes, langues, éditions lues…
-    const before = COLL.map, n = items.reduce((a, x) => a + x.q, 0);
-    if (typeof opnTake === 'function' && opnTake(items.flatMap(byFoil).map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e, !!x.f), p: x.e ? x.p : null })), { toast: true })) {      // session d'ouverture (opening.js) : les cartes vont dans la session, ajoutées à la collection à la fin
-      api.close(); SC.recap = null; if (SC.el) SC.el.__close('done'); haptic('ok'); return;
-    }
-    if (SC.lot && LOT.el) {      // depuis le lot : chaque carte y rejoint aussi la liste, avec l'extension collante si elle y existe
-      api.close(); SC.recap = null; if (SC.el) SC.el.__close('done'); haptic('ok');
-      lotFromScan(items.flatMap(byFoil)).then(() => toast(TN(n, '{n} carte ajoutée au lot', '{n} cartes ajoutées au lot', { n })));
-      return;
-    }
-    for (const x of items) if (x.e && x.p) edRemember(x.k, x.l, x.e, edInfoOf(x.p, x.l));      // infos de l'édition (prix, extension, image) gardées tout de suite
-    const add = items.flatMap(byFoil).map(x => ({ k: x.k, n: x.n, q: x.q, l: scdLine(x.l, x.e, x.f) })), px0 = COLL.prox, where = scdPlace() ? ' · ' + plcName(scdPlace()) : '';      // « Ranger dans » : emplacement, ou proxys (places.js)
-    if (SCD.x) proxAdd(add); else collAdd(add, 'add');
-    api.close(); SC.recap = null; if (SC.el) SC.el.__close('done'); haptic('ok');
-    toast((SCD.x ? TN(n, '{n} proxy ajouté', '{n} proxys ajoutés', { n }) : TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection')) + where, { label: T('Annuler'), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
-    collEnrich();
+    api.close(); SC.recap = null; scanKeep(items.flatMap(byFoil)); if (SC.el) SC.el.__close('done'); haptic('ok');
   });
   SC.recap = hook; hook();
+}
+/** Arrivée des cartes gardées (récap › « Ajouter », prix rapide › +) : la session d'ouverture (opening.js), sinon le lot (scan ouvert depuis le lot : avec
+ *  l'extension collante si elle y existe), sinon la collection, rangées selon « Ranger dans » (emplacement, ou proxys : places.js).
+ *  rows : une ligne par finition { k, n, q, f (foil), l, e, p (impression de l'édition), eu?, im? } ; name : carte seule (prix rapide), nommée dans le message. */
+function scanKeep(rows, name) {
+  const n = rows.reduce((a, x) => a + x.q, 0); if (!n) return;
+  if (typeof opnTake === 'function' && opnTake(rows.map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e, !!x.f), p: x.e ? x.p : null, eu: x.eu, im: x.im })), { toast: true })) return;      // session d'ouverture : les cartes vont dans la session, ajoutées à la collection à la fin
+  if (SC.lot && LOT.el) { lotFromScan(rows).then(() => toast(TN(n, '{n} carte ajoutée au lot', '{n} cartes ajoutées au lot', { n }))); return; }
+  for (const x of rows) if (x.e && x.p) edRemember(x.k, x.l, x.e, edInfoOf(x.p, x.l));      // infos de l'édition (prix, extension, image) gardées tout de suite
+  const add = rows.map(x => ({ k: x.k, n: x.n, q: x.q, l: scdLine(x.l, x.e, x.f) })), before = COLL.map, px0 = COLL.prox, where = scdPlace() ? ' · ' + plcName(scdPlace()) : '';
+  if (SCD.x) proxAdd(add); else collAdd(add, 'add');
+  const msg = SCD.x ? TN(n, '{n} proxy ajouté', '{n} proxys ajoutés', { n }) : name ? (n > 1 ? T('{n} × {name} ajoutées à ta collection', { n, name }) : T('{name} ajoutée à ta collection', { name })) : TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection');
+  toast(msg + where, { label: T('Annuler'), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
+  collEnrich();
 }
 /* ── Prix rapide : lire une carte sans l'ajouter (bourse, échange, vide-grenier) ───────────────────────────────────────────
    Même lecture que l'ajout, mais la carte va dans une liste de prix : tendance Cardmarket (Scryfall) tout de suite, offre CardTrader la moins chère
@@ -357,10 +366,17 @@ function scanPriceAdd(m) {
   if (typeof prgAdd === 'function') prgAdd('pq');      // prix rapides (progress.js)
   m = scanLangOf(m);
   const l = m.card || 'en'; let e = SC.pq.find(x => x.key === m.key);
-  if (e) { SC.pq = [e, ...SC.pq.filter(x => x !== e)]; e.n = (e.n || 1) + 1; e.maybe = m.score < 0.84; e.raw = m.raw; e.l = l; if (e.cm === 'err') e.cm = undefined; }
-  else { e = { key: m.key, name: m.name, l, maybe: m.score < 0.84, raw: m.raw, cm: undefined, ct: undefined, t: Date.now() }; SC.pq.unshift(e); if (SC.pq.length > 40) SC.pq.length = 40; }
+  if (e) { SC.pq = [e, ...SC.pq.filter(x => x !== e)]; e.n = (e.n || 1) + 1; e.maybe = m.score < 0.84; e.raw = m.raw; e.l = l; if (m.ft) e.ft = m.ft; if (e.cm === 'err') e.cm = undefined; }
+  else { e = { key: m.key, name: m.name, l, maybe: m.score < 0.84, raw: m.raw, cm: undefined, ct: undefined, t: Date.now(), ...(m.ft ? { ft: m.ft } : {}) }; SC.pq.unshift(e); if (SC.pq.length > 40) SC.pq.length = 40; }      // ft : ligne du bas lue (édition gardée par « + »)
   if (m.img && l !== 'en') { COLL.li[liKey(l, m.key)] = m.img; collMetaSave(); } else if (m.via && l !== 'en') langImgFor(m.key, m.name, l);
   scanPaintList(); scanPriceFetch(e);
+}
+/** Prix rapide › « + » : la carte gardée part comme celles du scan (scanKeep : session d'ouverture, lot, « Ranger dans »), avec l'édition lue sur la ligne du bas s'il y en a une
+ *  (cadrage « carte entière », sauf réglage « Sans édition ») ; sinon sans édition (dans le lot : son extension collante). */
+async function scanPriceKeep(e) {
+  const q = e.n || 1, l = e.l || '', p = e.ft && SCS.ed !== 'none' && typeof footMatch === 'function' ? await scryArtPrints(e.name, l || 'en', undefined, false).then(pr => (footMatch(e.ft, pr) || {}).p || null, () => null) : null;
+  scanKeep([{ k: e.key, n: e.name, q, f: 0, l, e: p ? edKey(p.set, p.num) : undefined, p, eu: Number.isFinite(e.cm) ? e.cm : null, im: e.im || '' }], e.name);
+  if (SC.el) scanPaintList();
 }
 async function scanPriceFetch(e) {
   if (e.cm === undefined) {
@@ -1243,7 +1259,7 @@ function openScan(o) {
       const a = e.target.closest('[data-a]'), k = a.closest('.sc-item').dataset.k, it = SC.pq.find(x => x.key === k); if (!it) return;
       haptic('tap');
       if (a.dataset.a === 'pdec') { it.n = Math.max(1, (it.n || 1) - 1); scanPaintList(); }
-      else if (a.dataset.a === 'padd') { const nn = it.n || 1, lang = it.l || ''; if (typeof opnTake === 'function' && opnTake([{ k, n: it.name, q: nn, l: lang, eu: Number.isFinite(it.cm) ? it.cm : null, im: it.im || '' }], { toast: true })) { scanPaintList(); return; } collBump(k, it.name, nn, { lang }); collEnrich(); toast(nn > 1 ? T('{n} × {name} ajoutées à ta collection', { n: nn, name: it.name }) : T('{name} ajoutée à ta collection', { name: it.name }), { label: T('Annuler'), fn: () => collBump(k, it.name, -nn, { lang }) }); scanPaintList(); }
+      else if (a.dataset.a === 'padd') scanPriceKeep(it);      // comme « Ajouter » du scan : session d'ouverture, lot, « Ranger dans », édition lue
       else { SC.pq = SC.pq.filter(x => x !== it); scanPaintList(); }
       return;
     }
@@ -1260,7 +1276,7 @@ function openScan(o) {
     const row = a.closest('.sc-item'); if (!row) return;
     if (row.dataset.m) {
       haptic('tap');
-      if (a.dataset.a === 'type') openCollAdd();
+      if (a.dataset.a === 'type') { const id = row.dataset.m; openCollAdd({ pick: c => scanTyped(id, c) }); }
       else { SC.miss = SC.miss.filter(m => String(m.id) !== row.dataset.m); scanPaintList(); }
       return;
     }

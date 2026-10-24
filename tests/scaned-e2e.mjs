@@ -211,6 +211,18 @@ assert.deepEqual(await lines(), { 'wrath of god m21|200': 'man ×1', 'wrath of g
 assert.deepEqual(await p.$$eval('.sc-item[data-k="wrath of god"]', r => r.length), 2, 'deux lignes dans la liste');
 ok('même carte lue deux fois (une ligne ×2) : « Exemplaires concernés » → 1 en M21, 1 en LEA');
 
+/* ── « Saisir » sur une ligne non reconnue : la carte choisie remplace la ligne et rejoint le scan comme une carte lue (édition, récap) ; rien dans la collection ── */
+await p.evaluate(() => { SC.items = new Map(); SC.miss = [{ id: 901, label: 'Photo 3', thumb: '', shot: '', raw: 'Wr4th 0f G0d' }]; scanPaintList(); });
+const wq0 = await p.evaluate(() => collQty('wrath of god'));
+await p.click('.sc-item.miss [data-a="type"]'); await p.waitForSelector('.sheet-wrap.open #caName');
+await p.fill('.sheet-wrap.open #caName', 'wrath'); await p.click('.sheet-wrap.open .ca-opt[data-n="Wrath of God"]');
+await p.waitForFunction(() => !document.querySelector('.sheet-wrap')); await settle();
+assert.deepEqual(await p.evaluate(() => [SC.miss.length, document.querySelectorAll('.sc-item.miss').length]), [0, 0], 'la ligne non reconnue est remplacée');
+assert.deepEqual(await p.evaluate(() => [...SC.items.values()].map(x => [x.name, x.q, x.maybe, x.l, x.es !== 'load'])), [['Wrath of God', 1, false, 'en', true]], 'dans la liste du scan, sûre, son édition décidée comme une carte lue');
+assert.ok(await p.$('.sc-item[data-k="wrath of god"] .sc-ed'), 'symbole d\'édition sur la ligne (feuille d\'édition, foil)'); assert.match(await txt(p, '.sc-count'), /^1 carte$/);
+assert.equal(await p.evaluate(() => collQty('wrath of god')), wq0, 'rien dans la collection avant « Ajouter »');
+ok('« Saisir » : la carte choisie remplace la ligne non reconnue et rejoint le scan (édition, foil, récap), rien dans la collection');
+
 /* ── foil au scan : « Foil ✦ − n + » dans la feuille d'édition (2 foil sur 3), ajoutés foil à la collection ; carte relue : remonte en haut ─────────────── */
 await p.evaluate(() => { SC.items = new Map(); scanPaintList(); });
 await add('Wrath of God'); await settle(); await add('Wrath of God'); await add('Wrath of God'); await settle();
@@ -230,7 +242,13 @@ await p.evaluate(() => { const it = [...SC.items.values()].find(x => x.key === '
 assert.deepEqual((await top())[0], ['wrath of god', true], 'doublon relu : en haut, surligné'); assert.deepEqual(await wr(), [4, 2, (await wr())[2]], '4 exemplaires, dont 2 foil');
 const foilQ = () => p.evaluate(() => collLines(COLL.map['wrath of god']).filter(([g]) => lineFoil(g)).reduce((a, [, q]) => a + q, 0)), allQ = () => p.evaluate(() => (COLL.map['wrath of god'] || { q: 0 }).q);
 const f0 = await foilQ(), q0 = await allQ(), ed = (await wr())[2];
-await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]'); await p.click('.rc-sheet [data-rc="go"]');
+// valeur : les foil au prix foil de leur édition (avant : au prix normal), en-tête du scan et récap (« Les plus chères » : ✦ Foil)
+await p.evaluate(() => { for (const x of [...SC.items.values()]) { if (x.key === 'wrath of god') x.pk = { ...x.pk, eu: 100, ef: 500 }; else SC.items.delete(x.id); } scanPaintList(); });
+assert.match(await txt(p, '.sc-sub'), /^≈ 12,00\s€/, '2 × 1 € + 2 foil × 5 €');
+await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]');
+assert.match(await txt(p, '.rc-sheet .rc-val b'), /^12,00\s€$/, 'récap : même valeur');
+assert.deepEqual(await p.$$eval('.rc-sheet .cs-top .crow', r => r.map(x => [x.dataset.k, !!x.querySelector('.tag.foil'), x.querySelector('.row-price b').textContent.replace(/\s/g, ' ')])), [['wrath of god', true, '5,00 €'], ['wrath of god', false, '1,00 €']], 'les plus chères : la foil à part, à son prix');
+await p.click('.rc-sheet [data-rc="go"]');
 await p.waitForFunction(() => !document.querySelector('.scan') || document.querySelector('.rc-sheet [data-rc="force"]'), null, { timeout: 4000 });
 if (await p.$('.rc-sheet [data-rc="force"]')) { await p.click('.rc-sheet [data-rc="force"]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 4000 }); }
 assert.deepEqual([await allQ() - q0, await foilQ() - f0], [4, 2], 'collection : 4 Wrath of God dont 2 foil');
