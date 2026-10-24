@@ -370,14 +370,26 @@ function evFly(from, n, total, rot = 0) {
     }, () => { done(); resolve(); });
   });
 }
-/** Étincelles et braises autour de l'objet au milieu de l'écran (transform / opacity seulement, 14 au plus). */
+/** Explosion autour de l'objet au milieu de l'écran : les petits dessins du pack (têtes de mort, fantômes, lunes, bonbons, étoiles… : EV_FX) jaillissent en
+ *  tournoyant puis retombent un peu en s'effaçant, avec quelques étincelles ; transform / opacity seulement, 18 éléments au plus, retirés à la fin. */
 function evSparks(lay, cx, cy, big) {
-  for (let i = 0; i < 14; i++) {
-    const s = document.createElement('i'); s.className = 'ev-spk' + (i % 3 ? '' : ' b'); lay.appendChild(s);
-    const a = (i / 14) * Math.PI * 2 + (i % 2 ? .2 : -.1), d = big * (.55 + (i % 4) * .14);
+  const p = evPackOf(), fx = p && typeof EV_FX !== 'undefined' && EV_FX[p.id] ? EV_FX[p.id]() : [], N = fx.length ? 10 : 0, out = [];
+  const ring = document.createElement('i'); ring.className = 'ev-ring'; ring.style.left = cx + 'px'; ring.style.top = cy + 'px'; ring.style.width = ring.style.height = big * 1.5 + 'px'; lay.insertBefore(ring, lay.firstChild); out.push(ring);      // onde lumineuse derrière l'objet
+  ring.animate([{ transform: 'translate(-50%,-50%) scale(.35)', opacity: .9 }, { transform: 'translate(-50%,-50%) scale(1.35)', opacity: 0 }], { duration: 700, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+  for (let i = 0; i < N + 8; i++) {
+    const glyph = i < N, s = document.createElement('i'); s.className = glyph ? 'ev-fxp' : 'ev-spk' + (i % 3 ? '' : ' b');
+    if (glyph) { s.innerHTML = fx[i % fx.length]; const k = 20 + (i * 7) % 9; s.style.width = s.style.height = k + 'px'; }
+    lay.appendChild(s); out.push(s);
+    const a = (i / (glyph ? N : 8)) * Math.PI * 2 + (glyph ? .3 : 0) + ((i * 37) % 11) / 30, d = big * (glyph ? .78 + (i % 3) * .16 : .5 + (i % 4) * .12);
+    const dx = Math.cos(a) * d, dy = Math.sin(a) * d, spin = (i % 2 ? 1 : -1) * (120 + (i * 53) % 160);
     s.style.left = cx + 'px'; s.style.top = cy + 'px';
-    s.animate([{ transform: 'translate(-50%,-50%) scale(.4)', opacity: 0 }, { transform: `translate(calc(-50% + ${Math.cos(a) * d * .5}px), calc(-50% + ${Math.sin(a) * d * .5}px)) scale(1)`, opacity: 1, offset: .3 }, { transform: `translate(calc(-50% + ${Math.cos(a) * d}px), calc(-50% + ${Math.sin(a) * d + 12}px)) scale(.3)`, opacity: 0 }], { duration: 760 + (i % 3) * 120, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+    s.animate([
+      { transform: 'translate(-50%,-50%) scale(.2) rotate(0deg)', opacity: 0 },
+      { transform: `translate(calc(-50% + ${dx * .62}px), calc(-50% + ${dy * .62}px)) scale(1.08) rotate(${spin * .45}deg)`, opacity: 1, offset: .32 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy + big * .22}px)) scale(.7) rotate(${spin}deg)`, opacity: 0 },
+    ], { duration: glyph ? 1050 + (i % 3) * 110 : 760 + (i % 3) * 120, delay: glyph ? (i % 4) * 22 : 0, easing: 'cubic-bezier(.16,.84,.3,1)', fill: 'forwards' });
   }
+  setTimeout(() => out.forEach(x => x.remove()), 1500);
 }
 /** Compteur global « 🎃 12 / 30 », en haut de l'écran le temps de la trouvaille ; set(n), bump() : petit rebond. */
 function evCounterEl(n, total) {

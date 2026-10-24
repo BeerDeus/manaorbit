@@ -2,7 +2,7 @@
    Classes posées par le moteur (event.js) sur <html> : data-event="halloween" (fête en cours, toujours : animation des citrouilles),
    .ev-deco (décorations allumées : ambiance, palette sur la roue de mana, touches dans l'appli), .ev-quiet (scan, échange en direct,
    compteur de vie : toute l'ambiance cachée), .ev-pause (appli en arrière-plan ou ambiance hors écran : animations en pause).
-   Ambiance : <div class="ev-amb" aria-hidden="true"> enfant de <body> posé APRÈS #app (sélecteur « #app[data-view="home"] ~ .ev-amb ») :
+   Ambiance : <div class="ev-amb" aria-hidden="true"> enfant de body posé APRÈS #app (sélecteur « #app[data-view="home"] ~ .ev-amb ») :
    complète sur l'accueil (brume, lune, toiles, chauves-souris, lueurs), une seule lueur ailleurs ; en-têtes : un filet de lueur, pas plus.
    Coût : transform et opacity seulement, aucun filtre animé ; 12 éléments animés dans l'ambiance (2 lueurs, 2 brumes, 4 vols, 4 battements),
    1 par citrouille (la bougie). « Réduire les animations » : décor fixe, citrouille fixe et visible. Rien ne capte les touchers. */

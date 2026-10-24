@@ -21,6 +21,9 @@
 .ev-flyo{position:absolute;will-change:transform}
 .ev-flyo .evo{display:block;width:100%;height:100%;filter:drop-shadow(0 0 18px var(--ev-glow)) drop-shadow(0 10px 18px rgba(30,5,0,.35))}
 .ev-spk{position:absolute;width:9px;height:9px;border-radius:50%;background:radial-gradient(circle,#fff6c8,#ffb347 45%,rgba(255,122,26,0) 70%);will-change:transform,opacity}
+.ev-ring{position:absolute;border-radius:50%;background:radial-gradient(circle,transparent 46%,rgba(255,170,70,.75) 58%,rgba(160,90,255,.45) 66%,transparent 74%);will-change:transform,opacity}
+.ev-fxp{position:absolute;display:block;will-change:transform,opacity;filter:drop-shadow(0 0 6px rgba(255,150,60,.45))}
+.ev-fxp .evo{display:block;width:100%;height:100%}
 .ev-spk.b{width:6px;height:6px;background:radial-gradient(circle,#efe0ff,#b07cff 50%,rgba(123,63,228,0) 72%)}
 
 /* ── Compteur « 🎃 12 / 30 » ── */

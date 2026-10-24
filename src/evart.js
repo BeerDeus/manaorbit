@@ -119,6 +119,19 @@ const EV_AMB = {
     + [1, 2, 3, 4].map(i => `<span class="eva-bat eva-b${i}">${EV_ART.bat()}</span>`).join(''),
 };
 
+/* Particules de la trouvaille (envol au centre, event.js › evSparks) : petits dessins qui jaillissent de l'objet en tournoyant. Un tableau de SVG par pack. */
+const EVO_FXS = (path, fill, extra = '') => `<svg class="evo evo-fx" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${path}" fill="${fill}" stroke="rgba(30,10,40,.55)" stroke-width=".8" stroke-linejoin="round"/>${extra}</svg>`;
+const EV_FX = {
+  halloween: () => [
+    EVO_FXS('M12 2.5c4.6 0 8 3.2 8 7.6 0 2.6-1.2 4.4-3 5.5V19c0 1.1-.9 2-2 2H9c-1.1 0-2-.9-2-2v-3.4c-1.8-1.1-3-2.9-3-5.5 0-4.4 3.4-7.6 8-7.6z', '#f4efe6', '<ellipse cx="8.9" cy="10.6" rx="2.1" ry="2.4" fill="#2a1840"/><ellipse cx="15.1" cy="10.6" rx="2.1" ry="2.4" fill="#2a1840"/><path d="M12 13.4l-1.2 2.2h2.4z" fill="#2a1840"/><path d="M10 18.6v2M12 18.6v2M14 18.6v2" stroke="#2a1840" stroke-width=".9"/>'),      // tête de mort
+    EVO_FXS('M12 2.6c4 0 6.6 3 6.6 7v10.2l-2.2-1.6-2.2 1.8-2.2-1.8-2.2 1.8-2.2-1.8-2.2 1.6V9.6c0-4 2.6-7 6.6-7z', '#efe9ff', '<ellipse cx="9.6" cy="10" rx="1.3" ry="1.8" fill="#2a1840"/><ellipse cx="14.4" cy="10" rx="1.3" ry="1.8" fill="#2a1840"/><ellipse cx="12" cy="14" rx="1.4" ry="1.1" fill="#2a1840"/>'),      // fantôme
+    EVO_FXS('M15.5 2.8A9.4 9.4 0 1 0 21 17.6 7.6 7.6 0 0 1 15.5 2.8z', '#ffd86b', '<circle cx="9" cy="10" r="1.2" fill="#e8b93f"/><circle cx="11.5" cy="16" r="1.6" fill="#e8b93f"/>'),      // lune
+    EVO_FXS('M12 2.4l8.6 17.2H3.4z', '#ff9a2e', '<path d="M6.6 13.2h10.8l2.4 4.8H4.2z" fill="#ffd166"/><path d="M8.8 8.8h6.4l1.2 2.4H7.6z" fill="#fff4e0"/>'),      // bonbon de maïs
+    EVO_FXS('M12 2l2.6 6.4 6.9.5-5.3 4.5 1.7 6.7L12 16.4l-5.9 3.7 1.7-6.7-5.3-4.5 6.9-.5z', '#b58cff'),      // étoile
+    EVO_FXS('M2 10.5c2.2-.6 3.8.4 4.6 2 .7-2.6 2.4-4 5.4-4s4.7 1.4 5.4 4c.8-1.6 2.4-2.6 4.6-2-1.8.9-2.5 2.4-2.6 4.4-1.2-.9-2.6-1-3.6-.2-.7-1.4-2.1-2-3.8-2s-3.1.6-3.8 2c-1-.8-2.4-.7-3.6.2-.1-2-.8-3.5-2.6-4.4z', '#3b2160'),      // chauve-souris
+  ],
+};
+
 /* Feuilles d'automne (pluie de feuilles de l'accueil, EV_AMB_TOP) : érable, chêne, bouleau ; nervures claires, dégradé du pétiole vers la pointe. */
 const EVO_LEAF = {
   maple: 'M12 1.5l1.6 3.9 2.6-1.4-.6 4.3 3.7-2.3-.9 3.2 3.4.6-2.6 2.8 1.4 1.6-4.4.9.6 2.3-3.9-1.5-.5 4.6h-1.8l-.5-4.6-3.9 1.5.6-2.3-4.4-.9 1.4-1.6-2.6-2.8 3.4-.6-.9-3.2 3.7 2.3-.6-4.3 2.6 1.4z',
@@ -138,4 +151,4 @@ const EV_AMB_TOP = {
     .map(([k, c], i) => `<span class="eva-lf eva-l${i + 1}"><span class="eva-lf-s">${evoLeaf(k, c)}</span></span>`).join(''),
 };
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { EV_ART, EV_AMB, EV_AMB_TOP };
+if (typeof module !== 'undefined' && module.exports) module.exports = { EV_ART, EV_AMB, EV_AMB_TOP, EV_FX };
