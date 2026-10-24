@@ -1,7 +1,8 @@
 // E2E fiche d'une carte (src/cardsheet.js) : ouverture depuis la collection (ligne, pas la vignette), l'Échange (propriétaire) et le scan ; exemplaires par
 // langue × édition × foil (− / + et « Annuler », emplacement, édition, langue, « Ajouter un exemplaire ») ; prix Cardmarket normal et foil de l'édition, valeur,
 // offre CardTrader (« Voir les offres ») ; decks qui l'utilisent (monté, ouvrir le deck), « Ajouter à un deck » (Annuler, singleton Commander) ; Échange (« Garder »,
-// « Je recherche ») ; « Suivre le prix » (hausse et baisse : u envoyé au serveur) ; texte Oracle FR + EN et légalités (faux Scryfall de ce test) ; hors ligne.
+// « Je recherche ») ; « Suivre le prix » (hausse et baisse : u envoyé au serveur) ; texte Oracle FR + EN et légalités (faux Scryfall de ce test) ; évolution du prix
+// sur 30 jours (faux /api/hist : courbe, 7 et 30 jours, plus bas et plus haut ; sans historique, un seul relevé ou hors ligne : la variation connue) ; hors ligne.
 // Captures : 393 clair et sombre, 360 clair, 1280 clair (fenêtre), hors ligne → $SHOTS (défaut shots/cardsheet).
 import './setup-env.mjs';
 import http from 'node:http';
@@ -110,6 +111,41 @@ assert.match(ortxt, /Texte imprimé Anneau solaire Artefact \{T\} : Ajoutez \{C\
 assert.deepEqual(await p.$$eval('.cs-sheet .cs-lgi', l => l.map(x => x.className.split(' ')[1] + ':' + x.querySelector('b').textContent)), ['not_legal:Standard', 'not_legal:Pioneer', 'not_legal:Modern', 'banned:Legacy', 'restricted:Vintage', 'not_legal:Pauper', 'legal:Commander', 'banned:Oathbreaker', 'not_legal:Brawl', 'not_legal:Historic']);
 assert.ok(orHits.some(h => /^fr .*Sol Ring/.test(h)), 'texte imprimé lu en français');
 ok('decks qui l\'utilisent (monté, format) ; texte imprimé FR, Oracle EN, légalités par format');
+
+/* ── Évolution du prix sur 30 jours (/api/hist) ──────────────────────────────────────────────── */
+// serveur de ce test sans historique (503) : la variation connue reste, rien de gardé
+await p.waitForFunction(() => CS.h === null, null, { timeout: 6000 });
+assert.equal(await p.$('.cs-sheet .cs-hist'), null); assert.match(await txt(p, '.cs-sheet'), /Variation du prix : connue après une semaine de relevés\./, 'sans historique : la variation connue');
+// faux historique : 30 jours jusqu'à aujourd'hui, de 1,20 € à 1,50 €, un jour sans prix, plus bas 1,10 € (jour 20)
+const D0 = new Date(Date.now() - 29 * 86400e3).toISOString().slice(0, 10), HE = Array.from({ length: 30 }, (_, i) => (i === 10 ? null : i === 20 ? 110 : i === 29 ? 150 : 120 + i));
+const histHits = [];
+await ctx.route('**/api/hist?**', r => { histHits.push(new URL(r.request().url()).searchParams.getAll('n')); return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'cache-control': 'public, max-age=3600' }, body: JSON.stringify({ d: D0, e: HE, u: [] }) }); });
+await csClose(); await p.evaluate(() => openCardSheet('sol ring', { l: 'fr' })); await sheetOpen();
+await p.waitForSelector('.cs-sheet .cs-hist .vl-svg', { timeout: 6000 });
+assert.deepEqual(histHits, [['Sol Ring']], 'une lecture, nom anglais de la carte');
+const hs = await p.$eval('.cs-sheet .cs-hist', el => ({ t: el.innerText.replace(/\s+/g, ' ').trim(), tiles: [...el.querySelectorAll('.vl-d')].map(d => d.innerText.replace(/\s+/g, ' ').trim()), vb: el.querySelector('.vl-svg').getAttribute('viewBox'), w: Math.round(el.querySelector('.vl-svg').getBoundingClientRect().width), lbl: el.querySelector('.vl-svg').getAttribute('aria-label').replace(/\s+/g, ' '), up: el.querySelector('.vl-d b').className }));
+assert.match(hs.tiles[0], /^7 jours \+0,08 € \+6 % · depuis le /, '7 jours : 1,42 € → 1,50 €'); assert.equal(hs.up, 'vu');
+assert.match(hs.tiles[1], /^30 jours \+0,30 € \+25 % · depuis le /, '30 jours : 1,20 € → 1,50 €');
+assert.match(hs.t, /Plus bas 1,10 € le .* Plus haut 1,50 € le /); assert.match(hs.t, /Prix « à partir de » : l'impression la moins chère de la carte, non foil\./, 'pas le prix d\'une ligne foil ou d\'une édition');
+assert.match(hs.lbl, /^Prix « à partir de » du .* au .* : de 1,20 € à 1,50 €$/);
+assert.equal(Number(hs.vb.split(' ')[2]), hs.w, 'courbe à la largeur réelle de la fiche');
+assert.doesNotMatch(await txt(p, '.cs-sheet'), /Variation du prix : connue après/, 'la courbe remplace la variation connue');
+await csClose(); await p.evaluate(() => openCardSheet('sol ring', { l: 'fr' })); await sheetOpen(); await p.waitForSelector('.cs-sheet .cs-hist .vl-svg', { timeout: 4000 });
+assert.equal(histHits.length, 1, 'gardé 6 h : pas de nouvelle lecture');
+// moins de 2 relevés (carte toute nouvelle) : la variation connue
+await p.evaluate(() => Cache.set('ph1:arcane signet', { d: Date.now(), e: [null, 95] }));
+await csClose(); await p.evaluate(() => openCardSheet('arcane signet')); await sheetOpen(); await p.waitForFunction(() => CS.h && CS.h.e, null, { timeout: 4000 });
+assert.equal(await p.$('.cs-sheet .cs-hist'), null, 'un seul relevé : pas de courbe'); assert.match(await txt(p, '.cs-sheet'), /Variation du prix : connue après/);
+await csClose(); await p.evaluate(() => openCardSheet('sol ring', { l: 'fr' })); await sheetOpen(); await p.waitForSelector('.cs-sheet .cs-hist .vl-svg', { timeout: 4000 });
+// captures : la courbe, 393 clair et sombre, 1280 clair
+const histShot = async name => { await p.evaluate(() => { const el = document.querySelector('.cs-sheet .cs-hist'); CS.api.body.scrollTop = el.offsetTop - 120; }); await shot(name); };
+await p.setViewportSize({ width: 393, height: 852 }); await csClose(); await p.evaluate(() => openCardSheet('sol ring', { l: 'fr' })); await sheetOpen(); await p.waitForSelector('.cs-sheet .cs-hist .vl-svg');
+assert.equal(await p.evaluate(() => { const b = document.querySelector('.cs-sheet .sheet-body'); return b.scrollWidth <= b.clientWidth + 1; }), true, '393 : aucun débordement');
+await histShot('cs-hist-393-light'); await p.emulateMedia({ colorScheme: 'dark' }); await histShot('cs-hist-393-dark'); await p.emulateMedia({ colorScheme: 'light' });
+await p.setViewportSize({ width: 1280, height: 860 }); await csClose(); await p.evaluate(() => openCardSheet('sol ring', { l: 'fr' })); await sheetOpen(); await p.waitForSelector('.cs-sheet .cs-hist .vl-svg');
+const hw = await p.$eval('.cs-sheet .cs-hist .vl-svg', s => [Number(s.getAttribute('viewBox').split(' ')[2]), Math.round(s.getBoundingClientRect().width)]); assert.equal(hw[0], hw[1], '1280 : redessinée à sa largeur');
+await histShot('cs-hist-1280-light');
+ok('évolution du prix : sans historique la variation connue ; courbe 30 jours, 7 et 30 jours, plus bas et plus haut, mention « à partir de » ; gardée 6 h ; un seul relevé : variation connue');
 
 /* ── Captures : 393 clair / sombre, la carte la plus complète ─────────────────────────────────── */
 await p.setViewportSize({ width: 393, height: 852 });
@@ -246,14 +282,18 @@ await csClose();
 
 /* ── Hors ligne : carte jamais lue → pas de section texte ; carte lue → texte gardé ────────────── */
 await p.setViewportSize({ width: 393, height: 852 });
+const hitsOnline = histHits.length;
 await ctx.setOffline(true); await p.evaluate(() => window.dispatchEvent(new Event('offline')));
 await p.evaluate(() => openCardSheet('craterhoof behemoth')); await sheetOpen(); await p.waitForTimeout(600);
-assert.equal(await p.$('.cs-sheet .cs-or'), null, 'hors ligne : texte et légalités masqués'); assert.equal(await p.$('.cs-sheet [data-cs="ct"]'), null, 'hors ligne : pas de « Voir les offres »'); assert.match(await txt(p, '.cs-sheet .cs-hd'), /1 exemplaire/);
+assert.equal(await p.$('.cs-sheet .cs-or'), null, 'hors ligne : texte et légalités masqués');
+assert.equal(await p.$('.cs-sheet .cs-hist'), null, 'hors ligne, historique jamais lu : pas de courbe'); assert.match(await txt(p, '.cs-sheet'), /Variation du prix : connue après/, 'la variation connue reste');
+assert.equal(histHits.length, hitsOnline, 'hors ligne : aucune lecture de /api/hist'); assert.equal(await p.$('.cs-sheet [data-cs="ct"]'), null, 'hors ligne : pas de « Voir les offres »'); assert.match(await txt(p, '.cs-sheet .cs-hd'), /1 exemplaire/);
 await shot('cs-393-horsligne');
 await csClose();
 await p.evaluate(() => openCardSheet('sol ring')); await sheetOpen(); await p.waitForSelector('.cs-sheet .cs-or .cs-lg', { timeout: 4000 });
+await p.waitForSelector('.cs-sheet .cs-hist .vl-svg', { timeout: 4000 });      // historique lu il y a moins de 6 h : gardé sur l'appareil
 await csClose(); await ctx.setOffline(false);
-ok('hors ligne : section texte absente pour une carte jamais lue, gardée pour une carte déjà lue');
+ok('hors ligne : section texte absente pour une carte jamais lue, gardée pour une carte déjà lue ; historique : variation connue sans copie, courbe gardée sinon');
 
 assert.deepEqual(errs, [], errs.join('\n'));
 await browser.close(); world.stop(); upScry.close(); upPush.close();
