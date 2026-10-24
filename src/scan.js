@@ -766,9 +766,10 @@ const FOOT_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/. ';      // sans « * 
 /** Lit la ligne du bas (box) une fois par capture (gardée sur src) : { ft (footParse), raw (texte lu, pour le diagnostic) }. */
 async function footRead(src, box) {
   if (src.__foot) return src.__foot;
+  const at = src.__ftc && src.__ftc.width ? src.__ftc : src; if (at !== src) box = { x: 0, y: 0, w: at.width, h: at.height };      // capture de l'appareil photo : la ligne du bas prise jusque sous le cadre (capFoot)
   let ft = null, raw = '';
   for (let pass = 0; pass < 2 && !ft && SC.el; pass++) {      // polarité automatique, puis inversée (Tesseract ; ML Kit lit les deux d'un coup)
-    const c = prepCanvas(src, box, 1400, pass ? (box.inv ? 0 : 1) : undefined); if (!pass) box.inv = c.inv;
+    const c = prepCanvas(at, box, 1400, pass ? (box.inv ? 0 : 1) : undefined); if (!pass) box.inv = c.inv;
     try { const lines = await ocrLines(c, 'eng', '6', FOOT_CHARS); raw = lines.map(l => l.text).join(' / ').slice(0, 80) || raw; ft = footParse(lines); }
     catch (e) { break; }      // lecture refusée : la carte garde son nom, l'édition se décide comme avant
     finally { c.width = c.height = 0; }
@@ -936,7 +937,17 @@ function shotOf(src, box) {
 }
 /** Libère la mémoire d'une photo lue (canvas vidé, image détachée) : rien n'est gardé. */
 function scanFree(src) {
-  try { if (!src) return; if (src.getContext) src.width = src.height = 0; else if (src.removeAttribute) src.removeAttribute('src'); } catch (e) { /* ignore */ }
+  try { if (!src) return; if (src.__ftc) { scanFree(src.__ftc); src.__ftc = null; } if (src.getContext) src.width = src.height = 0; else if (src.removeAttribute) src.removeAttribute('src'); } catch (e) { /* ignore */ }
+}
+/** Cadrage « carte entière » : la ligne du bas prise aussi un peu SOUS le cadre (carte tenue un peu bas ou un peu grande : « M20 • FR », la dernière ligne, tombait
+ *  juste dehors) ; gardée sur la capture c (c.__ftc), lue à la place de cardFootBox (footRead). src : l'image entière, box : le cadre dedans (px de src). */
+function capFoot(c, src, box) {
+  if (!scanFull() || !c) return c;
+  const W = src.naturalWidth || src.videoWidth || src.width, H = src.naturalHeight || src.videoHeight || src.height;
+  const y = Math.round(box.y + box.h * 0.86), h = Math.min(H, Math.round(box.y + box.h * 1.08)) - y, w = Math.round(box.w * 0.64), x = Math.max(0, box.x);
+  if (h < 8 || w < 8 || y >= H) return c;
+  try { const f = document.createElement('canvas'); f.width = w; f.height = h; f.getContext('2d').drawImage(src, x, y, Math.min(w, W - x), h, 0, 0, Math.min(w, W - x), h); c.__ftc = f; } catch (e) { /* ignore */ }
+  return c;
 }
 /** job : { label, src | file, thumb } (src : canvas déjà prêt ; file : image à décoder au moment de la lire, pour ne pas garder 20 photos en mémoire). */
 function scanEnqueue(job) {
@@ -988,7 +999,7 @@ function scanCapture() {
   if (SC.rbusy) { toast(T('La caméra redémarre, une seconde…')); return; }
   if (SC.queue.length >= 12) { toast(T('Patiente un instant : 12 cartes sont déjà en attente de lecture')); return; }
   const c = document.createElement('canvas'); c.width = box.w; c.height = box.h;
-  c.getContext('2d').drawImage($('.sc-video', SC.el), box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+  c.getContext('2d').drawImage($('.sc-video', SC.el), box.x, box.y, box.w, box.h, 0, 0, box.w, box.h); capFoot(c, $('.sc-video', SC.el), box);
   haptic('tap'); scanFlash(); scanHint('', '');
   const full = scanFull();
   scanEnqueue({ label: T('Carte {n}', { n: ++SC.cap }), src: c, strip: !full, card: full, thumb: thumbOf(c, full ? cardNameBox(c.width, c.height) : null) });
@@ -1144,7 +1155,7 @@ async function natCapture(q = 90) {
   }
   const box = coverMap(s.width, s.height, W, H, { x: g.left - s.left, y: g.top - s.top, w: g.width, h: g.height });
   const c = document.createElement('canvas'); c.width = box.w; c.height = box.h;
-  c.getContext('2d').drawImage(src, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+  c.getContext('2d').drawImage(src, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h); capFoot(c, src, box);
   scanFree(src); return c;
 }
 /** ML Kit : toutes les lignes lues, en une passe (l'alphabet latin couvre le français et l'anglais). script : écriture (NAT_SCRIPT) ; chinois, japonais, coréen : plugin ManaOrbit. */
