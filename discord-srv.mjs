@@ -27,6 +27,8 @@ import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { dscDailyMake } from './discord-daily.mjs';
+import { evDscMake } from './discord-events.mjs';
+import { createRequire } from 'node:module';
 import { dscCmdMake } from './discord-cmd.mjs';
 import { rolesMake } from './discord-roles.mjs';
 
@@ -929,10 +931,18 @@ export function discordMake(o = {}) {
   function stop() { FX.stop(); GW.stop = true; gwClear(); clearTimeout(GW.wait); GW.wait = null; const ws = GW.ws; GW.ws = null; if (ws) { try { ws.close(1000); } catch (e) { /* déjà fermée */ } } }
 
   const DD = dscDailyMake({ on: ON, find, post, log, dErr, TX, NEWS, P_MENTION, game: DSC_GAME });      // Carte mystère du jour annoncée, classement de la semaine (discord-daily.mjs)
+  // Annonces des événements saisonniers dans #annonces (discord-events.mjs : J-3, J0, mi-parcours, dernier jour, fin ; tick appelé chaque minute par proxy.mjs) :
+  // dès que le bot est actif, DISCORD_EVENTS=0 les coupe ; DISCORD_EVENTS_CHANNEL : autre salon (nom utile) ; visuels sur SITE_URL ; état dans ADMIN_DIR/discord-events.json.
+  // src/evpacks.js illisible : seules les annonces sont coupées, le reste du bot continue.
+  let EVD = null;
+  if (ON && process.env.DISCORD_EVENTS !== '0') {
+    try { EVD = evDscMake({ on: ON, find, post, log, dErr, TX, NEWS, P_MENTION }, { dir: o.dir, packs: createRequire(import.meta.url)('./src/evpacks.js'), site: o.site || process.env.SITE_URL, channel: process.env.DISCORD_EVENTS_CHANNEL }); }
+    catch (e) { log.warn('Discord : src/evpacks.js illisible (' + (e && e.message || e) + '), annonces des événements coupées'); }
+  }
   /* ── Commandes slash /moi et /partie (discord-cmd.mjs : POST /api/discord/interactions, o.cmd : clé publique et fonctions de proxy.mjs) ── */
   const CMD = dscCmdMake({ ...(o.cmd || {}), on: ON, clientId: CID, call, guild, load, links, line, md, fold, json, readBody, rateWait, now, sleep, log });
 
-  return { on: ON, linkOn: LINK_ON, rolesOn: !!RL, rolesDay: RL ? tags => RL.day(tags) : null, rolesIdle: () => (RL ? RL.idle() : Promise.resolve()), feedback, members, admin, link, reveal, dm: LINK_ON ? dm : null, announce: DD.announce, weekly: DD.weekly, start: () => { CMD.start(); start(); }, stop, fbForget: tag => FX.forget(tag), _fx: FX, interactions: CMD.interactions, cmdOn: CMD.on, cmdStart: CMD.start, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW,
+  return { on: ON, linkOn: LINK_ON, rolesOn: !!RL, rolesDay: RL ? tags => RL.day(tags) : null, rolesIdle: () => (RL ? RL.idle() : Promise.resolve()), feedback, members, admin, link, reveal, dm: LINK_ON ? dm : null, announce: DD.announce, weekly: DD.weekly, events: EVD || undefined, start: () => { CMD.start(); start(); }, stop, fbForget: tag => FX.forget(tag), _fx: FX, interactions: CMD.interactions, cmdOn: CMD.on, cmdStart: CMD.start, gwOn: ON && typeof WS === 'function' && o.presence !== false, _g: G, _gw: GW,
     helpers: { find, post, chanTypes: [TX, NEWS] },      // pour les modules du bot (discord-sets.mjs : sorties dans #spoilers) : salon par nom utile, envoi avec limite de débit
     kit: { find, post, links, acctOf } };      // helpers prêtés aux modules du bot (discord-deck.mjs : partage d'un deck public)
 
