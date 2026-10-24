@@ -44,6 +44,10 @@ function evApply() {
   if (deco && typeof EV_AMB !== 'undefined' && EV_AMB[p.id]) {
     if (!amb || amb.dataset.p !== p.id) { if (amb) amb.remove(); amb = document.createElement('div'); amb.className = 'ev-amb'; amb.dataset.p = p.id; amb.setAttribute('aria-hidden', 'true'); amb.innerHTML = EV_AMB[p.id](); document.body.appendChild(amb); }
   } else if (amb) amb.remove();
+  let top = document.querySelector('body > .ev-amb-top');      // couche du dessus (pluie de feuilles…), si le pack en a une
+  if (deco && typeof EV_AMB_TOP !== 'undefined' && EV_AMB_TOP[p.id]) {
+    if (!top || top.dataset.p !== p.id) { if (top) top.remove(); top = document.createElement('div'); top.className = 'ev-amb-top'; top.dataset.p = p.id; top.setAttribute('aria-hidden', 'true'); top.innerHTML = EV_AMB_TOP[p.id](); document.body.appendChild(top); }
+  } else if (top) top.remove();
   evLogo(deco ? p.id : '');
   evQuietSync();
 }
@@ -217,7 +221,7 @@ function evScan() {
   for (const x of EV.pks.values()) if (!x.ok && !x.dead && x.el.isConnected) evFind(x);
 }
 function evLoopSync() {
-  const run = evOn() && !document.hidden && EV.st && EV.st.me && EV.st.me.left > 0;
+  const run = evOn() && !document.hidden;      // tour léger toute la fête (classes de l'ambiance) ; les cachettes seulement s'il reste des objets du jour
   if (run && !EV.loop) { EV.loop = setInterval(evScan, EV_POLL); evScan(); }
   if (!run && EV.loop) { clearInterval(EV.loop); EV.loop = 0; for (const s of [...EV.pks.keys()]) evUnmount(s); }
   evQuietSync();

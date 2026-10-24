@@ -119,4 +119,23 @@ const EV_AMB = {
     + [1, 2, 3, 4].map(i => `<span class="eva-bat eva-b${i}">${EV_ART.bat()}</span>`).join(''),
 };
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { EV_ART, EV_AMB };
+/* Feuilles d'automne (pluie de feuilles de l'accueil, EV_AMB_TOP) : érable, chêne, bouleau ; nervures claires, dégradé du pétiole vers la pointe. */
+const EVO_LEAF = {
+  maple: 'M12 1.5l1.6 3.9 2.6-1.4-.6 4.3 3.7-2.3-.9 3.2 3.4.6-2.6 2.8 1.4 1.6-4.4.9.6 2.3-3.9-1.5-.5 4.6h-1.8l-.5-4.6-3.9 1.5.6-2.3-4.4-.9 1.4-1.6-2.6-2.8 3.4-.6-.9-3.2 3.7 2.3-.6-4.3 2.6 1.4z',
+  oak: 'M12 1.8c1.3 1 1.2 2.3.6 3.2 1.5-.6 2.8.2 2.4 1.6 1.4-.3 2.4.8 1.7 2-.9.5 1.6 1.3.9 2.6-.5.9-1.6.8-2 .7.9.9.6 2.4-.8 2.5.4 1.2-.6 2.3-2 1.9l-.2 4.2h-1.2l-.2-4.2c-1.4.4-2.4-.7-2-1.9-1.4-.1-1.7-1.6-.8-2.5-.4.1-1.5.2-2-.7-.7-1.3 1.8-2.1.9-2.6-.7-1.2.3-2.3 1.7-2-.4-1.4.9-2.2 2.4-1.6-.6-.9-.7-2.2.6-3.2z',
+  birch: 'M12 2.2c4.2 2.6 6 6.4 5.3 10.2-.6 3.2-2.8 5.2-4.7 5.9l-.2 4.2h-.8l-.2-4.2c-1.9-.7-4.1-2.7-4.7-5.9C6 8.6 7.8 4.8 12 2.2z',
+};
+let EVO_LF = 0;
+/** Une feuille (kind : maple | oak | birch ; c : [couleur claire, couleur foncée]). */
+function evoLeaf(kind, c) {
+  const id = 'evl' + (++EVO_LF).toString(36);
+  return `<svg class="evo evo-leaf" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><defs><linearGradient id="${id}" x1="0" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient></defs>`
+    + `<path d="${EVO_LEAF[kind]}" fill="url(#${id})" stroke="${c[1]}" stroke-width=".5" stroke-linejoin="round"/><path d="M12 21V6M12 12l-3.5-3M12 12l3.5-3M12 15.5l-2.6-1.8M12 15.5l2.6-1.8" fill="none" stroke="#fff3d6" stroke-width=".6" stroke-linecap="round" opacity=".55"/></svg>`;
+}
+/** Couche du dessus (devant l'accueil, jamais sous une feuille ni un écran plein) : pluie de feuilles d'automne ; 7 feuilles, chacune deux éléments animés (chute, balancement). */
+const EV_AMB_TOP = {
+  halloween: () => [['maple', ['#ffb347', '#d9480f']], ['oak', ['#e8a33a', '#8a4b12']], ['maple', ['#ff7a45', '#a8261b']], ['birch', ['#ffd166', '#c27c0e']], ['maple', ['#f4a259', '#9b3d12']], ['oak', ['#d97b29', '#6e3409']], ['birch', ['#ffbf69', '#b5560b']]]
+    .map(([k, c], i) => `<span class="eva-lf eva-l${i + 1}"><span class="eva-lf-s">${evoLeaf(k, c)}</span></span>`).join(''),
+};
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { EV_ART, EV_AMB, EV_AMB_TOP };

@@ -513,7 +513,7 @@ function makeCloud(m) {
       const pubs = await m.fs.getDocsFromServer(m.fs.query(m.fs.collection(db, 'pubdecks'), m.fs.where('o', '==', tag))).catch(e => { failed++; console.warn('Decks publics illisibles :', e && e.code); return { docs: [] }; });
       for (const d of pubs.docs) { try { await m.fs.deleteDoc(d.ref); } catch (e) { failed++; console.warn('Deck public non retiré :', d.id, e && e.code); } }
       // sommaire d'abord : les autres appareils repassent aussitôt aux écoutes d'avant et voient les documents disparaître (compte supprimé ailleurs, decks.js)
-      const refs = [ref('meta', SUM_ID), ...decks.docs.map(d => d.ref), ...['collection', 'engaged', 'history', 'trade', 'profile', 'scan', 'prefs', 'masterset', 'progress', 'prices'].map(id => ref('meta', id)), ref('binder', 'lands')];
+      const refs = [ref('meta', SUM_ID), ...decks.docs.map(d => d.ref), ...['collection', 'engaged', 'history', 'trade', 'profile', 'scan', 'prefs', 'masterset', 'progress', 'prices', 'events'].map(id => ref('meta', id)), ref('binder', 'lands')];
       for (let i = 0; i < refs.length; i += 400) { const b = m.fs.writeBatch(db); refs.slice(i, i + 400).forEach(r => b.delete(r)); await b.commit(); }
       return { decks: decks.docs.length, shares: shares.length, pub: pubs.docs.length, failed };
     },

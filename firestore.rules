@@ -65,6 +65,8 @@ service cloud.firestore {
     //  · prefs      : réglages du compte ({ scan: { ed, auto, delay, same, lang, vib, snd } }) : réglages du scan, les mêmes sur tous les appareils
     //  · masterset  : options du masterset ({ o: { foil, basic, vars, need, lang } }) : ce que le joueur compte dans un masterset (src/masterset.js)
     //  · progress   : niveau et badges ({ c: { compteur: nombre } ≤ 140 }) : cartes scannées, langues lues, victoires à 5 PV ou moins… (src/progress.js)
+    //  · events     : événements saisonniers ({ e: { 'halloween-2026': { n, jours: { 'AAAA-MM-JJ': [cachettes] }, sig: { jour: reçu du serveur } } } ≤ 24 éditions) :
+    //                 copie de la progression validée par le serveur (event-srv.mjs), compteurs qui ne baissent jamais (src/event.js)
     //  · prices     : prix du jour partagés entre les appareils ({ at, p: { carte: [eu, ef] }, e: { 'set|num': [eu, ef] } }, centimes) : la même valeur partout (src/value.js)
     match /users/{uid}/meta/{docId} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
@@ -106,6 +108,11 @@ service cloud.firestore {
             && request.resource.data.keys().hasOnly(['c', 'updatedAt'])
             && request.resource.data.c is map
             && request.resource.data.c.size() <= 140)
+          || (docId == 'events'
+            && request.resource.data.keys().hasOnly(['e', 'updatedAt'])
+            && request.resource.data.keys().hasAll(['e', 'updatedAt'])
+            && request.resource.data.e is map
+            && request.resource.data.e.size() <= 24)
           || (docId == 'prefs'
             && request.resource.data.keys().hasOnly(['scan', 'updatedAt'])
             && request.resource.data.scan is map

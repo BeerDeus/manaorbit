@@ -172,7 +172,7 @@ self.addEventListener('fetch', e => {
   const r = rel(u); if (r === null) return;
   if (r.startsWith('api/') || r === '__ping') return;        // jamais : données vivantes et clés
   if (req.mode === 'navigate') { if (r === '' || r === 'index.html') e.respondWith(page(e)); return; }     // /privacy, /admin et le reste : jamais la copie de l'app
-  if (ASSETS.includes(r)) e.respondWith(asset(e, r));
+  if (ASSETS.includes(r) || /^icons\/events\/[a-z0-9-]+\/[a-z0-9-]+\.(svg|png)$/.test(r)) e.respondWith(asset(e, r));      // événements (event.js) : badges, logo et icône de la fête, copie locale d'abord
 });
 
 /* ── Push « recherche terminée » ──────────────────────────────────────────────────────────────── */

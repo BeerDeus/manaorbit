@@ -125,6 +125,15 @@ await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/progress'), { c: { sc: 1200
 await T.assertFails(setDoc(doc(u2, 'users/u1/meta/progress'), { c: { sc: 1 }, updatedAt: Date.now() }));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/progress'), { c: { sc: 1 }, extra: 1, updatedAt: Date.now() }));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/progress'), { c: Object.fromEntries(Array.from({ length: 141 }, (_, i) => ['k' + i, 1])), updatedAt: Date.now() }));
+const EVD = { e: { 'halloween-2026': { n: 7, jours: { '2026-10-25': ['home-orb', 'set-data', 'coll-more', 'help-faq', 'me-level'], '2026-10-26': ['trade-set', 'set-scan'] }, sig: { '2026-10-25': 'A'.repeat(22), '2026-10-26': 'B'.repeat(22) } } }, updatedAt: Date.now() };
+await T.assertSucceeds(setDoc(doc(u1, 'users/u1/meta/events'), EVD));      // événements saisonniers (event.js) : progression et reçus du serveur
+await T.assertSucceeds(getDoc(doc(u1, 'users/u1/meta/events')));
+await T.assertFails(getDoc(doc(u2, 'users/u1/meta/events')));
+await T.assertFails(setDoc(doc(u2, 'users/u1/meta/events'), EVD));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/events'), { ...EVD, extra: 1 }));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/events'), { e: EVD.e }));      // sans updatedAt
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/events'), { e: 'x', updatedAt: Date.now() }));
+await T.assertFails(setDoc(doc(u1, 'users/u1/meta/events'), { e: Object.fromEntries(Array.from({ length: 25 }, (_, i) => ['ev-' + (2000 + i), { n: 1 }])), updatedAt: Date.now() }));      // 24 éditions au plus
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs({ evil: 1 })));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs({ scan: 'x' })));
 await T.assertFails(setDoc(doc(u1, 'users/u1/meta/prefs'), prefs({ scan: Object.fromEntries(Array.from({ length: 13 }, (_, i) => ['k' + i, 1])) })));
