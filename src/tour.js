@@ -415,6 +415,7 @@ const TIP_DEFS = {
   ed: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode === 'coll' && COLL.tab === 'list' && !(typeof msActive === 'function' && msActive()), top => $('.crow .row-ed', top), () => T('Touche ce rond : l\'édition exacte de ta carte, et foil ✦ ou non.')],
   auto: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote, top => $('.sc-auto:not([hidden])', top), () => T('Auto : pose tes cartes l\'une après l\'autre, le scan les lit tout seul.')],
   pnm: [top => typeof PU !== 'undefined' && top === PU.el && PU.mode === 'game', top => $('.pu-t .pu-nm', top), () => T('Touche le nom d\'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…')],      // compteur de vie (partie-ui.js › puGamePaint)
+  dvfind: [top => typeof DV !== 'undefined' && top === DV.el, top => $('.dv-fetch', top), () => T('Où trouver mes cartes : les cartes de ce deck que tu as, classeur par classeur, et celles qui manquent.')],      // viewer d'un deck (viewer.js), tout deck
 };
 const tipOff = () => !!tourRead().tipsOff;
 /** Ligne « Astuces » de Compte et réglages › Préférences (me.js). */
