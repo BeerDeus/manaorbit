@@ -2,7 +2,7 @@
    Cartes imprimées depuis 2014 (M15) : « 123/269 R » puis « M15 • EN » ; format récent : « 0123 R » puis « MKM • FR » (★ au lieu de • : foil).
    La lecture n'a pas à être parfaite : seules les impressions de la carte déjà reconnue par son nom sont candidates (scaned.js, une à quelques
    centaines pour un terrain de base), et un code d'extension ou un numéro lus de travers se comparent en tenant compte des confusions de l'OCR (0/O, 1/I, 5/S…).
-   Avant 2014 : pas de code d'extension sur la carte, rien de sûr (null). */
+   Avant 2014 : pas de code d'extension sur la carte ; le total « 123/249 » (2003-2022) départage deux impressions au même numéro (footTotOk). */
 
 /** Code de langue imprimé → langue des cartes de l'appli. */
 const FOOT_LANG = { EN: 'en', FR: 'fr', DE: 'de', ES: 'es', IT: 'it', PT: 'pt', JA: 'jp', JP: 'jp', KO: 'kr', KR: 'kr', RU: 'ru', CS: 'zh-CN', ZHS: 'zh-CN', CT: 'zh-TW', ZHT: 'zh-TW' };
@@ -44,10 +44,13 @@ const footCode = t => /^[A-Z0-9]{2,5}$/.test(t) && /[A-Z]/.test(t);
 function footParse(lines) {
   const arr = (Array.isArray(lines) ? lines.map(l => (l && l.text != null ? l.text : l)) : [lines]).flatMap(t => String(t == null ? '' : t).toUpperCase().split('\n'));
   if (!arr.join('').trim()) return null;
-  const nums = [], codes = [], strong = [], langs = [];
+  const nums = [], codes = [], strong = [], langs = [], tots = [];
   let foil = false;
   arr.forEach((ln, li) => {
-    for (const m of ln.matchAll(/([0-9OQDIL|!ZSBGT]{1,4})\s*[/\\]\s*([0-9OQDIL|!ZSBGT]{2,4})/g)) { const n = footNum(m[1]); if (n && !nums.includes(n)) nums.push(n); }      // « 123/269 » : le numéro, pas le total
+    for (const m of ln.matchAll(/([0-9OQDIL|!ZSBGT]{1,4})\s*[/\\]\s*([0-9OQDIL|!ZSBGT]{2,4})/g)) {      // « 123/269 » : le numéro ; le total à part (tots : taille imprimée de l'extension, footTotOk)
+      const n = footNum(m[1]), t = footNum(m[2]); if (n && !nums.includes(n)) nums.push(n);
+      if (n && /^\d+$/.test(t) && /^\d+/.test(n) && parseInt(t, 10) >= parseInt(n, 10) && !tots.includes(t)) tots.push(t);
+    }
     const norm = ln.replace(/[/\\]\s*[0-9OQDIL|!ZSBGT]{2,4}/g, ' ').replace(/([A-Z0-9])\s*[.·•]\s*(?=[A-Z]{2,3}\b)/g, '$1 • ');      // « DSK.FR », « DSK · FR » : la puce
     const toks = norm.split(/[^A-Z0-9|!★*✶☆•·]+/).flatMap(t => t.split(/(?=[★*✶☆•·])|(?<=[★*✶☆•·])/)).filter(Boolean);
     for (let i = 0; i < toks.length; i++) {
@@ -66,7 +69,19 @@ function footParse(lines) {
   if (best && !strong.includes(best.code)) strong.push(best.code);
   if (strong.length) codes.splice(0, codes.length, ...strong.filter(c => c === (best && best.code)).concat(strong.filter(c => c !== (best && best.code))));      // code suivi de la langue : le nom de l'artiste, le texte d'ambiance ne sont pas des codes
   if (!nums.length && !strong.length) return null;      // ni numéro, ni « CODE • FR » : pas une ligne du bas (un nom de carte lu, « Llanowar Elves »)
-  return { nums, codes, lang: best ? best.lang : '', lsep: !!(best && best.sep), langs, foil };      // lsep : langue lue avec sa puce (« DSK • FR »), la plus sûre
+  return { nums, codes, lang: best ? best.lang : '', lsep: !!(best && best.sep), langs, foil, tots };      // lsep : langue lue avec sa puce (« DSK • FR »), la plus sûre
+}
+/** Impression compatible avec le total lu en bas (« 123/249 » : 249 cartes imprimées dans l'extension, sets.js › SETIC, printed_size) ? Oui si rien n'est lu
+ *  ou si la taille de l'extension est inconnue. Ne fait que départager des impressions au même numéro (rééditions : M12 et M13 ont chacune leur n° 123). */
+function footTotOk(f, p) {
+  if (!f || !f.tots || !f.tots.length || !p) return true;
+  const m = typeof SETIC !== 'undefined' && SETIC && SETIC.m, x = m && m[String(p.set || '').toLowerCase()];
+  return !x || !x[3] || f.tots.includes(String(x[3]));
+}
+/** Impressions au numéro lu, celles dont l'extension a le total lu d'abord (aucune : total lu de travers, toutes gardées). */
+function footByNum(f, prints, pn) {
+  const all = (prints || []).filter(p => f && f.nums.includes(pn(p))), fit = all.filter(p => footTotOk(f, p));
+  return fit.length ? fit : all;
 }
 /** Édition d'après la ligne du bas, parmi les impressions de la carte reconnue (prints : [{ set, num, l, fx }]) :
  *  { p (impression), how: 'both' (extension et numéro : sûre) | 'set' (extension seule, une seule impression dedans) | 'num' (numéro seul, unique), lang, foil }
@@ -96,9 +111,9 @@ function footMatch(lines, prints) {
     return { set: sets[0], ...extra };
   }
   if (sets.length > 1) return null;      // deux extensions possibles (code lu de travers) : rien de sûr
-  const byNum = prints.filter(numOk), nums = new Set(byNum.map(p => p.set + '/' + pn(p)));
+  const byNum = footByNum(f, prints, pn), nums = new Set(byNum.map(p => p.set + '/' + pn(p)));
   if (nums.size === 1) { const p = pick(byNum); if (p) return { p, how: 'num', ...extra }; }
   return null;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { footParse, footMatch, footSame, footNum, footKnown, FOOT_LANG };
+if (typeof module !== 'undefined' && module.exports) module.exports = { footParse, footMatch, footSame, footNum, footKnown, footTotOk, footByNum, FOOT_LANG };

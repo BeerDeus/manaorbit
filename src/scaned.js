@@ -135,7 +135,7 @@ async function scanArtTry(it) {
     scanEdPass(); scanPaintList(); return;
   }
   if (it.ft && typeof footMatch === 'function') { const f = footMatch(it.ft, pr); if (f && f.set) cands = pr.filter(p => p.set === f.set); }      // extension lue sur la ligne du bas : ses impressions seulement
-  const pn = p => String(p.num || '').toLowerCase().replace(/^0+(?=\d)/, ''), nums = (it.ft && it.ft.nums) || [], byNum = nums.length ? cands.filter(p => nums.includes(pn(p))) : [];
+  const pn = p => String(p.num || '').toLowerCase().replace(/^0+(?=\d)/, ''), nums = (it.ft && it.ft.nums) || [], byNum = nums.length ? (typeof footByNum === 'function' ? footByNum(it.ft, cands, pn) : cands.filter(p => nums.includes(pn(p)))) : [];      // total lu (« /249 ») : les extensions de cette taille d'abord
   let r = null;
   try {
     if (byNum.length && byNum.length < cands.length) { r = await artPick(it.sig, byNum.length > 1 ? byNum : [...byNum, ...cands.filter(p => !byNum.includes(p)).slice(0, 1)]); if (r && !r.p) r = null; }      // numéro lu (« 234/249 », cartes 2003-2014) : ses impressions d'abord ; plusieurs pareilles parmi elles seules (numéro mal lu, rééditions) : groupe incomplet, toutes comparées
