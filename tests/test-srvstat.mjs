@@ -79,7 +79,7 @@ const start = env => new Promise((resolve, reject) => {
 });
 const ADM = () => F.jwt('uid-admin-00', 3600, { email: ADMIN, email_verified: true });
 const get = async (q = '', tok = ADM()) => { const r = await fetch(BASE + '/api/admin/server' + q, { headers: tok ? { 'x-firebase-token': tok } : {} }); const t = await r.text(); let o; try { o = JSON.parse(t); } catch { o = t; } return { s: r.status, o, t, h: r.headers }; };
-const stop = async P => { const done = new Promise(r => P.once('exit', r)); P.kill(); await done; };
+const stop = async (P, sig) => { const done = new Promise(r => P.once('exit', r)); P.kill(sig); await done; };      // SIGTERM (défaut) : arrêt propre ; SIGKILL : plantage
 
 // un vieux fichier dans le dossier des données (gardé d'un déploiement à l'autre)
 const OLD = Date.UTC(2026, 8, 15); writeFileSync(join(DATA, 'alerts.json'), '{}'); utimesSync(join(DATA, 'alerts.json'), new Date(OLD), new Date(OLD));
@@ -133,9 +133,18 @@ const OLD = Date.UTC(2026, 8, 15); writeFileSync(join(DATA, 'alerts.json'), '{}'
   for (let t = 0; t < 40 && boot().boots < 2; t++) await sleep(50);      // écrit juste après le démarrage
   const b = boot(); assert.equal(b.boots, 2); assert.equal(b.recent.length, 2); assert.ok(b.first > 0 && b.last >= b.first);
   const o2 = (await get()).o;
-  assert.equal(o2.boot.restarts24, 1, 'même version : un redémarrage'); assert.equal(o2.boot.deploys24, 0); assert.equal(o2.boot.known, 2); assert.equal(o2.lv.restarts, 'ok');
+  assert.equal(o2.boot.restarts24, 0, 'même code, arrêt propre (SIGTERM : relance hPanel, mise en veille) : pas imprévu'); assert.equal(o2.boot.stops24, 1); assert.equal(o2.boot.deploys24, 0); assert.equal(o2.boot.known, 2); assert.equal(o2.lv.restarts, 'ok');
+  assert.ok(b.recent[0].s > 0 && /^[gh][0-9a-f]{12}$/.test(b.recent[0].v), 'arrêt propre noté, empreinte du code gardée'); assert.equal(o2.boot.recent[0].k, 'stop');
   assert.equal(o2.disk.boots, 2); assert.equal(o2.disk.fresh, false); assert.equal(o2.lv.disk, 'ok'); assert.ok(o2.disk.bytes > o.disk.bytes, 'relu au démarrage suivant');
   assert.equal(o2.lv.rss, 'ok'); assert.ok(!o2.vps.bad.includes('rss'));
+  // processus tué sans arrêt propre (plantage, mémoire) : imprévu ; code changé : déploiement
+  await stop(P, 'SIGKILL'); P = await start({ SERVER_MEM_MB: '100000' });
+  for (let t = 0; t < 40 && boot().boots < 3; t++) await sleep(50);
+  const o3 = (await get()).o; assert.equal(o3.boot.restarts24, 1, 'tué sans arrêt propre : imprévu'); assert.equal(o3.boot.recent[0].k, 'crash');
+  await stop(P); { const j = boot(); j.recent.forEach(x => { x.v = 'h000000000000'; }); writeFileSync(join(DATA, 'boot.json'), JSON.stringify(j)); }      // tous les démarrages d'avant : l'ancien code
+  P = await start({ SERVER_MEM_MB: '100000' }); for (let t = 0; t < 40 && boot().boots < 4; t++) await sleep(50);
+  const o4 = (await get()).o; assert.equal(o4.boot.deploys24, 1, 'code changé : déploiement'); assert.equal(o4.boot.recent[0].k, 'deploy'); assert.equal(o4.boot.restarts24, 1);
+  ok('démarrages classés : relance propre (SIGTERM) ≠ imprévu (SIGKILL) ≠ déploiement (code changé)');
   // version d'avant (boot.json sans « recent ») : relu sans erreur
   await stop(P); writeFileSync(join(DATA, 'boot.json'), JSON.stringify({ first: OLD, boots: 7, last: OLD }));
   P = await start({ ADMIN: '0' }); assert.equal((await get()).s, 404, 'ADMIN=0 : coupé');

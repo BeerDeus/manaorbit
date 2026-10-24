@@ -12,7 +12,7 @@ import { readFile, writeFile, mkdir, rename, stat, readdir, unlink } from 'node:
 import { createRequire } from 'node:module';
 import { gunzipSync, gzipSync, gzip, gunzip, brotliCompress, constants as zc } from 'node:zlib';
 import { promisify } from 'node:util';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { reqMeter, reqFam, loadMeter, dirStat, memLimit, memNow, level as lvOf } from './srv-stat.mjs';      // santé du serveur (/admin › Serveur)
@@ -2830,19 +2830,41 @@ function admRefresh() {
 /** État du serveur, relu à chaque appel (mémoire seulement : rien à lire ailleurs). */
 /** Dossier des données (EDH_DATA_DIR) gardé d'un démarrage à l'autre ? Repère .data/boot.json : date de sa création et nombre de démarrages. Un dossier
  *  recréé à chaque déploiement (parties, classements, testeurs, signalements perdus) se voit au panneau : « créé à ce démarrage » après un redéploiement. */
-/*  recent : les 30 derniers démarrages { t, b : version de la page servie } (champ ajouté le 24 octobre 2026, ignoré par la version d'avant) : un démarrage avec la
- *  même version que le précédent est un redémarrage (plantage, mémoire, mise en veille par l'hébergeur), pas un déploiement. */
+/*  recent : les 30 derniers démarrages { t, b : version de la page servie, v : empreinte du code (page + modules du serveur, ou commit git), s : heure de l'arrêt
+ *  propre (SIGTERM, SIGINT, SIGHUP) } (champs ajoutés le 24 octobre 2026, ignorés par la version d'avant). Démarrage après le précédent : code changé = déploiement ;
+ *  même code et arrêt propre noté = relance (manuelle depuis hPanel, mise en veille ou relance par l'hébergeur, push sans changement de code) ; même code sans arrêt
+ *  propre = imprévu (plantage, mémoire, processus tué) : seul ce dernier compte comme signe de saturation. Démarrage sans v (version d'avant) : non classé. */
 const DATA_BOOT = { first: 0, boots: 0, err: '', recent: [] };
 (async () => {
   const f = join(EDH_DIR, 'boot.json'), now = Date.now();
   try {
     const j = JSON.parse(await readFile(f, 'utf8')); DATA_BOOT.first = Number(j.first) || 0; DATA_BOOT.boots = Number(j.boots) || 0;
-    if (Array.isArray(j.recent)) DATA_BOOT.recent = j.recent.filter(x => x && Number.isFinite(x.t)).map(x => ({ t: x.t, b: String(x.b || '').slice(0, 40) })).slice(-29);
+    if (Array.isArray(j.recent)) DATA_BOOT.recent = j.recent.filter(x => x && Number.isFinite(x.t)).map(x => ({ t: x.t, b: String(x.b || '').slice(0, 40), ...(x.v ? { v: String(x.v).slice(0, 40) } : {}), ...(Number.isFinite(x.s) ? { s: x.s } : {}) })).slice(-29);
   } catch (e) { /* premier démarrage avec ce dossier */ }
   let b = ''; try { b = PAGE ? (/const DD_BUILD = '([\w-]+)'/.exec(await readFile(PAGE, 'utf8')) || ['', ''])[1] : ''; } catch (e) { /* page absente */ }
-  if (!DATA_BOOT.first) DATA_BOOT.first = now; DATA_BOOT.boots++; DATA_BOOT.recent.push({ t: now, b });
+  if (!DATA_BOOT.first) DATA_BOOT.first = now; DATA_BOOT.boots++; DATA_BOOT.recent.push({ t: now, b, v: await codeId() });
   try { await mkdir(EDH_DIR, { recursive: true }); await writeFile(f, JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: now, recent: DATA_BOOT.recent })); } catch (e) { DATA_BOOT.err = String(e && e.code || e); }
 })();
+/** Empreinte du code servi : commit git s'il est lisible (déploiement par import Git), sinon empreinte de la page et des modules du serveur (*.mjs, *.cjs). */
+async function codeId() {
+  try {
+    const head = (await readFile(join(here, '.git', 'HEAD'), 'utf8')).trim(), ref = /^ref: (.+)$/.exec(head);
+    const id = ref ? (await readFile(join(here, '.git', ref[1]), 'utf8').catch(() => '')).trim() : head;
+    if (/^[0-9a-f]{40}$/.test(id)) return 'g' + id.slice(0, 12);
+  } catch (e) { /* pas de dépôt git sur le serveur */ }
+  try {
+    const h = createHash('sha1'), files = (await readdir(here)).filter(f => /\.(mjs|cjs)$/.test(f)).sort();
+    for (const f of [...files, ...(PAGE ? [PAGE] : [])]) h.update(f).update(await readFile(f === PAGE ? f : join(here, f)));
+    return 'h' + h.digest('hex').slice(0, 12);
+  } catch (e) { return ''; }
+}
+/** Arrêt propre (relance depuis hPanel, mise en veille ou redéploiement par l'hébergeur) : noté dans boot.json pour que le démarrage suivant ne compte pas comme imprévu. */
+function bootStop(sig) {
+  const r = DATA_BOOT.recent[DATA_BOOT.recent.length - 1];
+  if (r && !r.s) { r.s = Date.now(); try { writeFileSync(join(EDH_DIR, 'boot.json'), JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: r.t, recent: DATA_BOOT.recent })); } catch (e) { /* disque indisponible */ } }
+  process.exit(sig === 'SIGINT' ? 130 : 0);
+}
+for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => bootStop(sig));
 async function admServer() {
   const troc = { wait: 0, live: 0, done: 0, all: TROC.s.size }; for (const s of TROC.s.values()) if (s.st in troc) troc[s.st]++;
   const partie = { wait: 0, live: 0, done: 0, all: PT.s.size }; for (const r of PT.s.values()) if (r.st in partie) partie[r.st]++;
@@ -2870,8 +2892,9 @@ async function admHealth(force) {
   const now = Date.now(), m = memNow(), lim = memLimit(), start = Math.round(now - process.uptime() * 1000);
   await diskScan(force);
   // Démarrages : redémarrage = même version que le démarrage précédent (plantage, mémoire, mise en veille par l'hébergeur) ; sinon un déploiement
-  const rec = DATA_BOOT.recent; let restarts24 = 0, deploys24 = 0, boots7 = 0;
-  rec.forEach((x, i) => { if (x.t > now - 7 * 864e5) boots7++; if (!i || x.t <= now - 864e5) return; if (x.b && x.b === rec[i - 1].b) restarts24++; else deploys24++; });
+  const rec = DATA_BOOT.recent; let restarts24 = 0, deploys24 = 0, stops24 = 0, boots7 = 0;      // restarts24 : démarrages imprévus seulement (voir DATA_BOOT)
+  const kind = i => { const x = rec[i], p = rec[i - 1]; if (!p || !x.v || !p.v) return ''; return x.v !== p.v ? 'deploy' : p.s ? 'stop' : 'crash'; };
+  rec.forEach((x, i) => { if (x.t > now - 7 * 864e5) boots7++; if (x.t <= now - 864e5) return; const k = kind(i); if (k === 'crash') restarts24++; else if (k === 'deploy') deploys24++; else if (k === 'stop') stops24++; });
   // En direct
   const troc = { open: 0, two: 0, max: TROC_MAX }; for (const x of TROC.s.values()) if (x.st === 'wait' || x.st === 'live') { troc.open++; if (x.st === 'live') troc.two++; }
   const partie = { open: 0, live: 0, phones: 0, max: PT_MAX, on: PT_ON }; let ptLive = 0;
@@ -2901,7 +2924,7 @@ async function admHealth(force) {
   return {
     at: now, lv, vps: { lv: bad.length ? 'bad' : warn.length ? 'warn' : 'ok', bad, warn },
     mem: { ...m, limit: lim.bytes, from: lim.from }, caches,
-    boot: { start, up: Math.round(process.uptime()), build: await pageBuild(), node: process.version, boots7, restarts24, deploys24, recent: rec.slice(-8).reverse(), known: rec.length },
+    boot: { start, up: Math.round(process.uptime()), build: await pageBuild(), node: process.version, boots7, restarts24, deploys24, stops24, recent: rec.map((x, i) => ({ t: x.t, b: x.b, k: kind(i) })).slice(-8).reverse(), known: rec.length },
     load, req: REQ ? REQ.snap() : null,
     live: { troc, partie, jobs: { run, max: JOB_MAX_RUNNING, kept: jobs.size, busy, busyAt: JOB_BUSY.length ? JOB_BUSY[JOB_BUSY.length - 1] : 0, on: JOBS_ON }, up: { active: upActive, conc: UP_CONC, queue: upQueue.length }, alerts: { subs: AL.subs.size, max: AL_MAX_SUBS, on: ALERTS_ON } },
     disk: { dir: EDH_DIR, env: !!process.env.EDH_DATA_DIR, ...d, scan: DISK.at, first: DATA_BOOT.first, boots: DATA_BOOT.boots, err: DATA_BOOT.err, fresh },

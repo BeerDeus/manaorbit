@@ -796,7 +796,7 @@ const hidden = (p, on) => p.evaluate(on => { Object.defineProperty(document, 'vi
   assert.match(await txt(p, '#health .hvd'), /^Serveur (en forme|à surveiller) Actualiser Relu à \d\d:\d\d · de nouveau toutes les 1 s tant que cet onglet est affiché /);
   assert.match(await txt(p, '#health .hvd'), /Plafond de mémoire de l'offre inconnu : indique-le dans SERVER_MEM_MB/);
   assert.equal(await p.$eval('#health .hfold', d => d.open), false, '« Quand envisager un VPS ? » replié d\'office');
-  await p.click('#health .hfold > summary'); assert.match(await txt(p, '#health .hvps'), /70 % du plafond .*Redémarrages sans nouvelle version .*JOB_MAX_RUNNING.*EDH_DATA_DIR/);
+  await p.click('#health .hfold > summary'); assert.match(await txt(p, '#health .hvps'), /70 % du plafond .*Redémarrages imprévus .*JOB_MAX_RUNNING.*EDH_DATA_DIR/);
   const mem = await txt(p, '#hcMem');
   assert.match(mem, /^Mémoire plafond inconnu Mémoire du processus \(rss\) [\d,]+ Mo /); assert.match(mem, /Mémoire de Node \(tas\) [\d,]+ Mo \/ [\d,]+ Mo utilisé \/ réservé · limite de Node/);
   for (const [l, v] of [['Catalogues CardTrader', 'CACHE_MAX_MB'], ['Offres CardTrader', 'OFFERS_CACHE_MB'], ['Résultats des recherches', 'JOB_RESULTS_MB'], ['Listes des échanges en direct', 'TROC_MB'], ['Parties en cours (au plus)', 'PARTIE_LIVE_KB'], ['Historiques des parties', 'PARTIE_CACHE_MB'], ['Amis', 'FRIENDS_CACHE_MB']]) assert.ok(mem.includes(l) && mem.includes(v), 'cache ' + l);
