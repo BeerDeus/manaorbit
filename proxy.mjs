@@ -12,7 +12,7 @@ import { readFile, writeFile, mkdir, rename, stat, readdir, unlink } from 'node:
 import { createRequire } from 'node:module';
 import { gunzipSync, gzipSync, gzip, gunzip, brotliCompress, constants as zc } from 'node:zlib';
 import { promisify } from 'node:util';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { reqMeter, reqFam, loadMeter, dirStat, memLimit, memNow, level as lvOf } from './srv-stat.mjs';      // santé du serveur (/admin › Serveur)
@@ -89,6 +89,13 @@ const STATIC = new Map([
 // /names-fr.tsv = fr-names.tsv. 'lazy' : compressés à la première demande seulement (≈ 5 Mo de mémoire par langue servie), pas au démarrage.
 const NAME_LANGS = ['fr', 'de', 'es', 'it', 'pt', 'ja', 'zhs', 'zht', 'ko', 'ru'];
 for (const l of NAME_LANGS) STATIC.set('/names-' + l + '.tsv', [l === 'fr' ? 'fr-names.tsv' : 'names-' + l + '.tsv', 'text/tab-separated-values; charset=utf-8', 'public, max-age=86400', l === 'fr' ? true : 'lazy']);
+// Événements saisonniers (event-srv.mjs) : badges et logos des fêtes, pwa/icons/events/<pack | badges>/<fichier>.svg|png, relevés au démarrage
+// (liste fermée elle aussi : seuls les fichiers présents sont servis, aucun chemin pris dans l'URL). Un jour en cache : un badge régénéré arrive le lendemain.
+try {
+  const EVD = join(PWA, 'icons', 'events');
+  for (const d of readdirSync(EVD, { withFileTypes: true })) if (d.isDirectory() && /^[a-z0-9-]+$/.test(d.name))
+    for (const f of readdirSync(join(EVD, d.name))) { const m = /^[a-z0-9-]+\.(svg|png)$/.exec(f); if (m) STATIC.set(`/icons/events/${d.name}/${f}`, [`icons/events/${d.name}/${f}`, m[1] === 'svg' ? 'image/svg+xml' : 'image/png', 'public, max-age=86400', m[1] === 'svg' ? 'lazy' : false]); }
+} catch (e) { /* aucun fichier d'événement */ }
 
 // ── Données EDHREC (edh.bin.gz) : le serveur récupère tout seul la dernière version générée par GitHub Actions (lundi et jeudi), sans redéploiement ──
 // Au démarrage puis toutes les 6 h : lecture conditionnelle (ETag) du fichier du dépôt ; il n'est gardé que s'il est lisible (gzip + EDH2), assez fourni et plus récent
@@ -3080,6 +3087,7 @@ async function adminApi(req, res, path, url) {
   const sub = path.replace(/^admin\/?/, '');
   if (sub === 'scans' || sub.startsWith('scans/')) return srAdmin(req, res, sub, url);      // scans signalés depuis l'appli
   if (sub === 'daily' || sub.startsWith('daily/')) return DLY ? DLY.admin(req, res, sub, url) : json(res, 404, { error: 'not_found' }, ADM_HD);      // Carte mystère : joueurs des 7 derniers jours, pseudo masqué
+  if (sub === 'events' || sub.startsWith('events/')) return EVS ? EVS.admin(req, res, sub, url, u) : json(res, 404, { error: 'not_found' }, ADM_HD);      // événements : statistiques et interrupteur à chaud
   if (sub === 'discord' || sub.startsWith('discord/')) return DSC ? DSC.admin(req, res, sub, url) : json(res, 404, { error: 'not_found', message: 'Bot Discord indisponible.' }, ADM_HD);      // messages du bot dans les salons (mêmes garde-fous que admAct)
   if (sub === 'qr' || sub.startsWith('qr/')) return qrAdmin(req, res, sub, u);      // QR codes fixes (flyers, affiches) : liste, création, destination ; jamais de suppression
   if (req.method === 'GET' && sub === 'server') return json(res, 200, await admHealth(url.searchParams.get('disk') === '1'), ADM_HD);      // santé du serveur : mémoire, requêtes, en direct, disque (onglet « Serveur »)
@@ -3611,6 +3619,23 @@ if (DLY_ON) {
   } catch (e) { console.warn('Carte mystère : module illisible (' + (e && e.message || e) + '), jeu coupé'); DLY = null; }
 }
 
+/* ── Événements saisonniers (event-srv.mjs, packs dans src/evpacks.js) ────────────────────────────────────────────────────────────────
+   Chasse aux citrouilles d'Halloween, puis les autres fêtes : édition en cours (/__ping › event), cachettes du jour signées, quota par jour, progression
+   (README › « Événements »). EVENT=0 coupe tout ; EVENT_FORCE=<édition ou pack> ouvre une édition quel que soit le jour (essais, /test) ; EVENT_SECRET : secret des
+   jetons et des reçus (sinon tiré une fois et gardé dans EVENT_DIR/.secret) ; EVENT_DIR : dossier (défaut .data/events). Interrupteur à chaud : /admin › Événements.
+   Bot Discord : annonces dans #annonces (discord-events.mjs, DSC.events), un tour chaque minute avec les statistiques d'ici. */
+let EVS = null;
+try {
+  const { eventMake } = await import('./event-srv.mjs');
+  EVS = eventMake({ dir: process.env.EVENT_DIR || join(EDH_DIR, 'events'), on: process.env.EVENT !== '0', force: process.env.EVENT_FORCE || '', secret: String(process.env.EVENT_SECRET || '').trim(),
+    verify: tok => verifyIdToken(tok, true), bad: v => !!(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(v)), json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey,
+    adminHeaders: ADM_HD, adminBody: (req, res) => admBody(req, res), adminLog: r => admLog(r), adminMail: m => admMail(m) });
+} catch (e) { console.warn('Événements : module illisible (' + (e && e.message || e) + '), coupés'); EVS = null; }
+if (EVS && DSC && DSC.events) {
+  const evDsc = () => DSC.events.tick({ now: Date.now(), stats: id => EVS.stats(id), off: () => EVS.off() }).catch(e => console.warn('Discord : annonce d\'événement pas encore partie (' + (e && (e.code || e.message) || e) + ')'));
+  setTimeout(() => { evDsc(); setInterval(evDsc, Number(process.env.DISCORD_EVENTS_TICK_MS) > 0 ? Number(process.env.DISCORD_EVENTS_TICK_MS) : 60e3).unref(); }, Number(process.env.DISCORD_EVENTS_FIRST_MS) >= 0 && process.env.DISCORD_EVENTS_FIRST_MS !== undefined ? Number(process.env.DISCORD_EVENTS_FIRST_MS) : 20e3).unref();
+}
+
 async function api(req, res, url) {
   const path = url.pathname.replace(/^\/api\//, '').replace(/\/+$/, '');
   // Serveur local sans compte : un POST d'une autre page (formulaire, text/plain : pas de pré-vérification CORS) ne doit rien déclencher.
@@ -3633,6 +3658,7 @@ async function api(req, res, url) {
   if (path === 'partie' || path.startsWith('partie/')) return partieApi(req, res, path, url);      // compteur de vie (Commander, Standard, libre) : salle d'attente (jeton Firebase, ou invité sans compte), résultats des comptes
   if (path === 'admin' || path.startsWith('admin/')) return adminApi(req, res, path, url);      // panneau d'administration : compte de l'éditeur seulement
   if (path === 'daily' || path.startsWith('daily/')) return DLY ? DLY.api(req, res, path, url) : json(res, 404, { error: 'not_found' });
+  if (path === 'event' || path.startsWith('event/')) return EVS ? EVS.api(req, res, path, url) : json(res, 404, { error: 'not_found' });      // événements saisonniers : cachettes du jour, objets trouvés (compte facultatif, jeton d'appareil)
   if (path === 'level' || path.startsWith('level/')) return DLY ? DLY.level(req, res, path, url) : json(res, 404, { error: 'not_found' });      // classement des niveaux de compte : XP envoyée par l'appli, plafonnée par jour      // Carte mystère : jeton Firebase (classé) ou sans compte (pour le plaisir), clé de partie ensuite
   // CardTrader : avec le token de l'utilisateur (X-CT-Token), ou celui du serveur pour les comptes autorisés (ALLOWED_UIDS / APP_KEY).
   const ut = userTok(req);
@@ -3819,7 +3845,7 @@ const server = http.createServer(async (req, res) => {
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST, hist: { source: PH_SRC ? 'GitHub' : '', ...PH_ST } });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte

@@ -21,9 +21,18 @@ if (!process.env.SCAN_REPORTS_DIR) {      // scans signalés (proxy.mjs) : dossi
 if (process.env.DAILY === undefined) process.env.DAILY = '0';
 // Sorties d'extensions dans #spoilers (discord-sets.mjs) : coupées par défaut (le proxy d'un test avec bot lirait sinon le vrai Scryfall /sets) ; test-discord-sets.mjs les allume
 if (process.env.DISCORD_SETS === undefined) process.env.DISCORD_SETS = '0';
+// Annonces des événements dans #annonces (discord-events.mjs) : coupées par défaut (un faux Discord avec #annonces recevrait sinon l'annonce du jour) ; test-discord-events.mjs les allume
+if (process.env.DISCORD_EVENTS === undefined) process.env.DISCORD_EVENTS = '0';
 if (!process.env.DAILY_DIR) {
   const d = mkdtempSync(join(tmpdir(), 'deckdeal-daily-')); process.env.DAILY_DIR = join(d, 'daily');
   if (!process.env.LEVELS_FILE) process.env.LEVELS_FILE = join(d, 'levels.json');      // classement des niveaux : jamais le vrai .data/levels.json
+  process.on('exit', () => { try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
+}
+// Événements saisonniers (event-srv.mjs) : coupés par défaut sous les tests (sinon la chasse d'Halloween s'ouvre selon la date du jour), dossier temporaire ;
+// test-event.mjs et event-e2e.mjs les allument (EVENT_FORCE=halloween-2026).
+if (process.env.EVENT === undefined && process.env.EVENT_FORCE === undefined) process.env.EVENT = '0';
+if (!process.env.EVENT_DIR) {
+  const d = mkdtempSync(join(tmpdir(), 'deckdeal-event-')); process.env.EVENT_DIR = join(d, 'events');
   process.on('exit', () => { try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
 }
 if (!process.env.ADMIN_DIR) {      // panneau d'administration (journal des actions, comptes actifs par jour) : dossier temporaire, jamais le vrai .data/admin
