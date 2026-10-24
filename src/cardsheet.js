@@ -5,10 +5,11 @@
    Tout passe par les fonctions de la liste : collBump (− / +, ici avec « Annuler » plutôt qu'une confirmation à chaque −), collEdPick (rond d'édition),
    cexSheet (emplacement et état), collSetLang (langue), trChanged (« Garder »), alWatch (suivre le prix), putDeck (ajouter à un deck).
    Prix : tendance Cardmarket (Scryfall) normal et foil de l'édition de chaque ligne (COLL.ed), sinon de la carte (COLL.meta) ; offre CardTrader : COLL.px
-   (lue à la demande, une carte, comme le prix rapide du scan). Historique par carte : aucun relevé quotidien n'est gardé carte par carte (seulement la valeur
-   totale par jour, value.js), donc pas de courbe : la variation connue (prix de référence de la semaine d'avant, VAL.base) et le relevé du serveur des alertes.
+   (lue à la demande, une carte, comme le prix rapide du scan). Historique : prix « à partir de » des 30 derniers jours (serveur, GET /api/hist : relevé quotidien
+   gardé par la GitHub Action des prix, prices-hist.mjs), lu à l'ouverture et gardé 6 h : courbe, variation sur 7 et 30 jours, plus bas et plus haut ; sans
+   serveur, hors ligne sans copie ou moins de 2 relevés : la variation connue (prix de référence de la semaine d'avant, VAL.base). Relevé du serveur des alertes en plus.
    Texte Oracle et légalités : Scryfall /cards/named (+ texte imprimé dans la langue de la carte), lus à l'ouverture, gardés 7 jours ; hors ligne sans copie : section absente. */
-const CS = { api: null, k: '', o: {}, n: '', g: '', m: null, or: undefined, srv: null, srvAt: 0, ct: '', ctErr: '', t: 0 };
+const CS = { api: null, k: '', o: {}, n: '', g: '', m: null, or: undefined, h: undefined, hw: 0, srv: null, srvAt: 0, ct: '', ctErr: '', t: 0 };
 const CS_FMT = [['standard', 'Standard'], ['pioneer', 'Pioneer'], ['modern', 'Modern'], ['legacy', 'Legacy'], ['vintage', 'Vintage'], ['pauper', 'Pauper'], ['commander', 'Commander'], ['oathbreaker', 'Oathbreaker'], ['brawl', 'Brawl'], ['historic', 'Historic']];      // noms des formats : tels quels dans toutes les langues
 const CS_LEGAL = { legal: T('Légale'), not_legal: T('Non légale'), banned: T('Interdite'), restricted: T('Restreinte') };
 const CS_RAR = { common: T('Commune'), uncommon: T('Peu commune'), rare: T('Rare'), mythic: T('Mythique'), special: T('Spéciale') };
@@ -31,7 +32,7 @@ function openCardSheet(k, opts) {
   const o = opts || {}; k = String(k || ''); if (!k) return null;
   if (csOpen()) CS.api.close();
   const x = COLL.map[k], n = (x && x.n) || o.n || (TR.wish[k] || {}).n || k;
-  Object.assign(CS, { k, o, n, g: csLine(k, o.l), m: null, or: undefined, srv: null, srvAt: 0, ct: '', ctErr: '' });
+  Object.assign(CS, { k, o, n, g: csLine(k, o.l), m: null, or: undefined, h: undefined, srv: null, srvAt: 0, ct: '', ctErr: '' });
   const l = CS.g ? lineLang(CS.g) : (o.l && !String(o.l).includes('|') ? o.l : ''), dn = frName(k, l) || n, other = dn !== n ? n : frOf(k) || '';
   haptic('tap');
   CS.api = openSheet(dn, other !== dn ? other : '', api => {
@@ -49,13 +50,14 @@ function openCardSheet(k, opts) {
 }
 
 /** Lectures de la fiche, en parallèle, chacune repeint à son arrivée : infos de la carte (carte pas encore dans la collection), prix des éditions,
- *  prix de référence de la semaine d'avant (variation), relevé du serveur des alertes (carte suivie), texte et légalités. */
+ *  prix de référence de la semaine d'avant (variation), historique des 30 jours, relevé du serveur des alertes (carte suivie), texte et légalités. */
 function csLoad(k) {
   const mine = () => csOpen() && CS.k === k, x = COLL.map[k];
   if (!csMeta(k) && !collOffline() && scryLeft() <= 0) scryCollection([CS.n], undefined, undefined, true).then(r => { if (mine()) { CS.m = r.get(k) || null; csPaint(); } }, () => {});
   if (x && collLines(x).some(([g]) => lineEd(g) && !COLL.ed[lineEd(g)])) Promise.resolve(edRefresh()).then(() => { if (mine()) csPaint(); }, () => {});
   if (typeof valLoad === 'function' && !VAL.base) valLoad().then(() => { if (mine()) csPaint(); });
   csSrvLoad(k);
+  csHist(k, CS.n).then(h => { if (mine()) { CS.h = h; csPaint(); } }, () => { if (mine()) { CS.h = null; csPaint(); } });
   const g = CS.g, l = g ? lineLang(g) : (CS.o.l && !String(CS.o.l).includes('|') ? CS.o.l : '');
   csOracle(k, CS.n, l, g ? lineEd(g) : '').then(r => { if (mine()) { CS.or = r; csPaint(); } }, () => { if (mine()) { CS.or = null; csPaint(); } });
 }
@@ -131,6 +133,61 @@ function csMove(k) {
   const ref = baseRef(VAL.base), m = COLL.meta[k]; if (!ref || !ref.p || !m || VAL.at - ref.t < VAL_EVERY) return null;
   const u0 = ref.p[k], u1 = m.eu; return u0 > 0 && u1 > 0 ? { u0, u1, t: ref.t, d: u1 - u0, pct: (u1 - u0) / u0 * 100 } : null;
 }
+/* ── Historique des prix « à partir de » (30 jours) ────────────────────────────────────────────── */
+const CS_H_TTL = 6 * 3600e3;      // le serveur relit l'historique toutes les 6 h (un relevé par jour)
+/** Relevés quotidiens de la carte : { d: premier jour (ms, UTC), e: [centimes | null] } ; null sans serveur, hors ligne sans copie, ou panne (503 : pas encore
+ *  d'historique). Gardés 6 h (mémoire et appareil : Cache), carte inconnue du relevé comprise (e vide). */
+async function csHist(k, n) {
+  const key = 'ph1:' + k, hit = await Cache.get(key, CS_H_TTL); if (hit) return hit;
+  if (!CTX.proxy || collOffline()) return null;
+  const r = await fetch('api/hist?' + new URLSearchParams({ n: String(n || k).slice(0, 150) }), { headers: { Accept: 'application/json' } });
+  if (!r.ok) return null;
+  const j = await r.json(), d = Date.parse(String(j && j.d) + 'T00:00:00Z'); if (!Number.isFinite(d) || !Array.isArray(j.e)) return null;
+  const out = { d, e: j.e.slice(0, 400).map(v => (Number(v) > 0 ? Math.round(Number(v)) : null)) };
+  await Cache.set(key, out); return out;
+}
+/** Jours qui ont un prix : [{ t, v }] ; null sous 2 relevés (la variation connue reste alors). */
+function csHistPts(h) {
+  if (!h || !Array.isArray(h.e)) return null;
+  const pts = []; h.e.forEach((v, i) => { if (v > 0) pts.push({ t: h.d + i * DAY, v }); });
+  return pts.length >= 2 ? pts : null;
+}
+/** Courbe (même dessin que la valeur de la collection, value.js : SVG à l'échelle, min / max réels, temps proportionnel), à la largeur réelle de la fiche (W). */
+function csHistSvg(pts, W) {
+  W = Math.max(240, Math.round(W || 320)); const H = Math.round(Math.max(112, Math.min(150, W * 0.34)));
+  const pl = 8, pr = 8, pt = 16, pb = 20, vs = pts.map(x => x.v), min = Math.min(...vs), max = Math.max(...vs), t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+  const pad = (max - min) * 0.14 || max * 0.03 || 1, lo = min - pad, hi = max + pad, f = n => n.toFixed(1);
+  const X = t => pl + (W - pl - pr) * (t1 > t0 ? (t - t0) / (t1 - t0) : 1), Y = v => pt + (H - pt - pb) * (1 - (v - lo) / (hi - lo));
+  const xy = pts.map(x => f(X(x.t)) + ',' + f(Y(x.v))), last = pts[pts.length - 1], grid = max === min ? [max] : [max, min];
+  return `<svg class="vl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(T('Prix « à partir de » du {d0} au {d1} : de {v0} à {v1}', { d0: valDate(t0), d1: valDate(t1), v0: fmt(pts[0].v, 'EUR'), v1: fmt(last.v, 'EUR') }))}">
+    ${grid.map((v, i) => `<line x1="${pl}" x2="${W - pr}" y1="${f(Y(v))}" y2="${f(Y(v))}" class="vl-grid"/><text x="${pl}" y="${f(Y(v) + (i ? 11 : -4))}" class="vl-txt">${esc(fmt(v, 'EUR'))}</text>`).join('')}
+    <path d="M${f(X(t0))},${f(H - pb)} L${xy.join(' L')} L${f(X(t1))},${f(H - pb)} Z" class="vl-area"/><polyline points="${xy.join(' ')}" class="vl-line" fill="none"/>
+    <circle cx="${f(X(last.t))}" cy="${f(Y(last.v))}" r="3.4" class="vl-dot"/>
+    <text x="${pl}" y="${H - 5}" class="vl-txt">${esc(valDate(t0))}</text><text x="${W - pr}" y="${H - 5}" class="vl-txt" text-anchor="end">${esc(valDate(t1))}</text></svg>`;
+}
+/** Variation sur 7 jours (relevé d'au moins 7 jours avant le dernier ; sinon pas encore de recul) et sur toute la période (30 jours au plus), plus bas, plus haut. */
+function csHistStats(pts) {
+  const last = pts[pts.length - 1], d = from => (from && from.t < last.t ? { d: last.v - from.v, pct: from.v > 0 ? (last.v - from.v) / from.v * 100 : null, from } : null);
+  let w7 = null; for (const x of pts) if (x.t <= last.t - 7 * DAY) w7 = x;
+  let lo = pts[0], hi = pts[0]; for (const x of pts) { if (x.v < lo.v) lo = x; if (x.v > hi.v) hi = x; }
+  return { d7: d(w7), dAll: d(pts[0]), days: Math.round((last.t - pts[0].t) / DAY), lo, hi };
+}
+/** Section de la courbe ; '' sous 2 relevés (la variation connue s'affiche à la place). */
+function csHistHtml() {
+  const pts = csHistPts(CS.h); if (!pts || typeof valDeltaHtml !== 'function') return '';
+  const s = csHistStats(pts), allLab = s.days >= 28 ? TN(30, '{n} jour', '{n} jours') : TN(s.days, '{n} jour', '{n} jours');
+  return `<div class="cs-hist"><div class="cs-hh"><b>${esc(T('Évolution du prix'))}</b><small>${esc(T('Tendance Cardmarket'))}</small></div>
+    <div class="cs-hc">${csHistSvg(pts, CS.hw)}</div>
+    <div class="vl-ds">${valDeltaHtml(esc(TN(7, '{n} jour', '{n} jours')), s.d7)}${valDeltaHtml(esc(allLab), s.dAll)}</div>
+    <p class="cs-hmm"><span>${esc(T('Plus bas {p} le {d}', { p: fmt(s.lo.v, 'EUR'), d: valDate(s.lo.t) }))}</span><span>${esc(T('Plus haut {p} le {d}', { p: fmt(s.hi.v, 'EUR'), d: valDate(s.hi.t) }))}</span></p>
+    <p class="hint">${esc(T('Prix « à partir de » : l\'impression la moins chère de la carte, non foil. Une édition précise ou un foil peut valoir bien plus.'))}</p></div>`;
+}
+/** Courbe redessinée à la largeur réelle de la fiche (un pixel du dessin = un pixel de l'écran : textes à leur taille sur téléphone comme sur ordinateur). */
+function csHistFit() {
+  const s = CS.api && $('.cs-hc .vl-svg', CS.api.body); if (!s) return;
+  const w = Math.round(s.getBoundingClientRect().width); if (!w || Math.abs(w - CS.hw) < 2) return;
+  CS.hw = w; const pts = csHistPts(CS.h); if (pts) s.outerHTML = csHistSvg(pts, w);
+}
 function csPxHtml(k, x, m) {
   const eds = x ? [...new Set(collLines(x).map(([g]) => lineEd(g)))] : [''], cell = (v, wait, cls) => `<span class="px cm${cls ? ' ' + cls : ''}${wait || !(v > 0) ? ' none' : ''}"><b>${wait ? '…' : v > 0 ? esc(fmt(v, 'EUR')) : '—'}</b></span>`;
   const rows = eds.map(e => {
@@ -144,8 +201,8 @@ function csPxHtml(k, x, m) {
     : px && px.p === null && px.t ? `<span class="cs-ctv"><b>${esc(T('aucune offre'))}</b><small>${esc(pxAgo(px.t))}</small></span>` : '';
   const ctBtn = canCt && CS.ct !== 'run' && (!px || Date.now() - px.t > PX_TTL || !ctv) ? `<button type="button" class="btn ghost small" data-cs="ct">${esc(T('Voir les offres'))}</button>` : '';
   const ct = canCt || ctv ? `<div class="cs-ct"><span class="px ct"><i>CT</i></span><span class="cs-ctl"><b>CardTrader</b><small>${esc(T('offre la moins chère · {lang}', { lang: langCode(pxLangOf(x || {})) }))}</small></span>${ctv}${ctBtn}</div>${CS.ct === 'err' && CS.ctErr ? `<p class="hint warn">${esc(CS.ctErr)}</p>` : ''}` : '';
-  const v = x ? collCardVal(k) : 0, mv = csMove(k);
-  const move = mv ? `<p class="cs-mv ${mv.d > 0 ? 'vu' : 'vd'}">${esc(T('Depuis le {d} : {a} → {b}', { d: valDate(mv.t), a: fmt(mv.u0, 'EUR'), b: fmt(mv.u1, 'EUR') }))} <b>${mv.d > 0 ? '▲' : '▼'} ${esc(valPct(mv.pct))}</b></p>`
+  const v = x ? collCardVal(k) : 0, mv = csMove(k), hist = csHistHtml();
+  const move = hist ? hist : mv ? `<p class="cs-mv ${mv.d > 0 ? 'vu' : 'vd'}">${esc(T('Depuis le {d} : {a} → {b}', { d: valDate(mv.t), a: fmt(mv.u0, 'EUR'), b: fmt(mv.u1, 'EUR') }))} <b>${mv.d > 0 ? '▲' : '▼'} ${esc(valPct(mv.pct))}</b></p>`
     : x ? `<p class="hint">${esc(T('Variation du prix : connue après une semaine de relevés.'))}</p>` : '';
   const srv = CS.srv ? `<p class="hint">${esc(T('Relevé des alertes {when} : {c}', { when: CS.srvAt ? relTime(CS.srvAt) : '', c: fmt(CS.srv.c, 'EUR') }))}${CS.srv.b > 0 ? ' · ' + esc(T('habituel {b}', { b: fmt(CS.srv.b, 'EUR') })) : ''}</p>` : '';
   return `<section class="cs-sec"><h3 class="cs-h">${T('Prix')}</h3>
@@ -206,6 +263,7 @@ function csPaint() {
   const ae = document.activeElement, ar = ae && body.contains(ae) ? ae.closest('[data-g]') : null, top = body.scrollTop;
   const focus = ae && body.contains(ae) ? { g: ar ? ar.dataset.g : null, cs: ae.dataset.cs || '', act: ae.dataset.act || '', id: ae.dataset.id || '' } : null;
   body.innerHTML = csHeadHtml(k, x, m) + csLinesHtml(k, x) + csPxHtml(k, x, m) + csDecksHtml(k) + csTradeHtml(k, x) + csActsHtml(k, x) + csOracleHtml();
+  csHistFit();
   body.scrollTop = top;
   if (focus) {      // focus clavier rendu à son équivalent après le repeint (le bouton touché, dans la même ligne)
     const row = focus.g != null ? $$('[data-g]', body).find(r => r.dataset.g === focus.g) : null, scope = row || body;
