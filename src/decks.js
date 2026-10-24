@@ -428,6 +428,7 @@ function openAccount(view) {
 }
 function accountOpen() { return D.account && sheets.indexOf(D.account.api) >= 0; }
 function paintAccount() {
+  if (typeof obSavePaint === 'function') obSavePaint();      // premier lancement, étape « Sauvegarde ta collection » (onboard.js) : suit le même état
   if (!accountOpen()) return;
   const { api } = D.account, b = api.body;
   // écran de suppression déjà affiché pour ce compte : pas de nouveau rendu (une synchro qui reprend effacerait le message d'erreur, le mot de passe saisi ou l'état « Suppression… »)
@@ -446,20 +447,28 @@ function paintAccount() {
 }
 function paintAuthForm(api) {
   const b = api.body, st = D.account, up = st.mode === 'up';
+  // Google d'abord (une touche, ni mot de passe ni lien de vérification), puis l'e-mail ; l'œil affiche le mot de passe tapé
   b.innerHTML = `<div class="auth">${st.del ? '<div class="status" data-ok="0"><span class="dot"></span><span>' + T('Connecte-toi au compte à supprimer.') + '</span></div>' : ''}
+    ${googleBtnHtml('id="acGoogle"')}
+    <div class="divider"><span>${T('ou avec ton e-mail')}</span></div>
     <div class="seg" id="acSeg" role="radiogroup" aria-label="${T('Connexion ou création de compte')}"></div>
     <form id="acForm" novalidate>
       <div class="field-in"><label class="label" for="acEmail">${T('E-mail')}</label><input type="email" id="acEmail" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" value="${esc(st.email || '')}"></div>
-      <div class="field-in"><label class="label" for="acPw">${T('Mot de passe')}</label><input type="password" id="acPw" autocomplete="${up ? 'new-password' : 'current-password'}" ${up ? 'minlength="6"' : ''}>${up ? '<span class="hint">' + T('6 caractères minimum.') + '</span>' : ''}</div>
+      <div class="field-in"><label class="label" for="acPw">${T('Mot de passe')}</label><div class="pw-in"><input type="password" id="acPw" autocomplete="${up ? 'new-password' : 'current-password'}" ${up ? 'minlength="6"' : ''}><button class="pw-eye" type="button" id="acPwEye" aria-controls="acPw" aria-pressed="false" aria-label="${T('Afficher le mot de passe')}" title="${T('Afficher le mot de passe')}"><svg class="i" aria-hidden="true"><use href="#i-eye"/></svg></button></div>${up ? '<span class="hint">' + T('6 caractères minimum.') + '</span>' : ''}</div>
       <div class="auth-msg" id="acMsg" role="alert" hidden></div>
       <button class="btn block" type="submit" id="acGo">${up ? T('Créer mon compte') : T('Me connecter')}</button>
       ${up ? '' : '<button class="link-btn link-inline" type="button" id="acForgot">' + T('Mot de passe oublié ?') + '</button>'}
     </form>
-    <div class="divider"><span>${T('ou')}</span></div>
-    <button class="btn ghost block" type="button" id="acGoogle">${T('Continuer avec Google')}</button>
     <p class="hint">${T('Ta collection, tes decks, l\'historique de valeur et ta liste d\'échange sont sauvegardés sur ton compte. Ton token CardTrader reste sur cet appareil.')}</p></div>`;
   mountSeg($('#acSeg', b), [{ v: 'in', label: T('Connexion') }, { v: 'up', label: T('Créer un compte') }], st.mode, v => { st.email = $('#acEmail', b).value; st.mode = v; paintAccount(); });
   const msg = (t, ok) => { const m = $('#acMsg', b); m.hidden = !t; m.textContent = t || ''; m.classList.toggle('ok', !!ok); };
+  const eye = $('#acPwEye', b), pw = $('#acPw', b);
+  eye.onclick = () => {      // le mot de passe en clair, ou de nouveau masqué ; le curseur reste dans le champ
+    const show = pw.type === 'password', lab = show ? T('Masquer le mot de passe') : T('Afficher le mot de passe');
+    pw.type = show ? 'text' : 'password'; eye.setAttribute('aria-pressed', String(show)); eye.setAttribute('aria-label', lab); eye.title = lab;
+    $('use', eye).setAttribute('href', show ? '#i-eye-off' : '#i-eye'); pw.focus();
+  };
+  eye.onpointerdown = e => e.preventDefault();      // garde le focus (et le clavier du téléphone) dans le champ
   const busy = (on, label) => { $('#acGo', b).disabled = on; $('#acGoogle', b).disabled = on; if (label) $('#acGo', b).textContent = on ? label : (up ? T('Créer mon compte') : T('Me connecter')); };
   // lien « supprimer mon compte » (?delete-account) : la feuille reste ouverte et passe à l'écran de suppression (onUser la repeint s'il n'est pas encore passé)
   const done = (t = T('Connecté')) => { if (!st.del) { api.close(); toast(t); return; } toast(t); if (D.user) paintAccount(); };

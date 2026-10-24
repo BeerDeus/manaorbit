@@ -1,5 +1,5 @@
 // E2E invitation au Discord et liaison du compte Discord (src/dsclink.js ; serveur : tests/test-discord-srv.mjs) : bloc « Rejoins le Discord de Mana Orbit »
-// de l'accueil (juste au-dessus du bloc des parties, aussi sur ordinateur ; « Rejoindre » : invitation exacte, onglet à part ; ✕ : caché 30 jours sur l'appareil,
+// de l'accueil (juste après le bloc des parties, le compteur de vie, aussi sur ordinateur ; « Rejoindre » : invitation exacte, onglet à part ; ✕ : caché 30 jours sur l'appareil,
 // revenu après ; sans compte : ni liaison ni appel au serveur) ; connecté : « J'y suis déjà : lier mon compte Discord » (POST api/discord/link avec le jeton,
 // onglet dirigé vers l'adresse de Discord), retour sur l'appli (visibilitychange) : lié et membre → caché, lié pas membre → affiché sans le bouton de liaison ;
 // cache de l'appareil (pas de clignotement le temps de la réponse) ; serveur sans liaison (/__ping discordLink absent) : Rejoindre seul, aucun appel ;
@@ -38,13 +38,13 @@ const shown = p => p.$eval('#hmDiscord', e => !e.hidden && getComputedStyle(e).d
 const signIn = async p => { await p.evaluate(() => { window.__idTok = 'jeton-firebase-test'; }); await signInFake(p, { uid: 'u-dsc-1' }); };
 const backToApp = p => p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));      // retour sur l'appli (document.hidden reste false sous Playwright)
 
-/* ── 1) Sans compte : bloc au-dessus des parties, Rejoindre, ✕ pour 30 jours ───────────────────────────────────────────── */
+/* ── 1) Sans compte : bloc après les parties, Rejoindre, ✕ pour 30 jours ───────────────────────────────────────────── */
 {
   const { p, ctx, dl } = await page();
   await toHome(p);
   assert.equal(await shown(p), true, 'bloc affiché sans compte');
-  assert.equal(await p.$eval('#hmDiscord', e => e.nextElementSibling && e.nextElementSibling.id), 'hmPartie', 'juste au-dessus du bloc des parties');
-  assert.equal(await p.$eval('#hmDiscord', e => e.previousElementSibling && e.previousElementSibling.id), 'hmTrade', 'sous l\'Échange');
+  assert.equal(await p.$eval('#hmDiscord', e => e.previousElementSibling && e.previousElementSibling.id), 'hmPartie', 'juste après le bloc des parties (compteur de vie)');
+  assert.equal(await p.$eval('#hmPartie', e => e.previousElementSibling && e.previousElementSibling.id), 'hmTrade', 'les parties sous l\'Échange');
   assert.equal(await txt(p, '#hmDscT'), 'Rejoins le Discord de Mana Orbit');
   assert.equal(await txt(p, '#hmDiscord .hm-dsc-sub'), 'Bugs, idées, parties, Carte mystère : on en parle là-bas.');
   assert.deepEqual(await p.$eval('#hmDiscord a[data-dl="join"]', a => [a.href, a.target, a.rel, a.textContent.trim()]), [INVITE, '_blank', 'noopener', 'Rejoindre']);
@@ -67,7 +67,7 @@ const backToApp = p => p.evaluate(() => document.dispatchEvent(new Event('visibi
   assert.equal(await shown(p), true, '30 jours passés : revenu');
   await ctx.close();
 }
-ok('sans compte : bloc « Rejoins le Discord de Mana Orbit » entre l\'Échange et le bloc des parties, Rejoindre (invitation exacte, onglet à part), pas de liaison ni d\'appel au serveur ; ✕ : caché 30 jours (rechargement compris), revenu ensuite ; 360 et 390 px sans débordement');
+ok('sans compte : bloc « Rejoins le Discord de Mana Orbit » juste après le bloc des parties (compteur de vie), Rejoindre (invitation exacte, onglet à part), pas de liaison ni d\'appel au serveur ; ✕ : caché 30 jours (rechargement compris), revenu ensuite ; 360 et 390 px sans débordement');
 
 /* ── 2) Connecté : lier, retour sur l'appli, membre → caché ; pas membre → affiché ───────────────────────────────────────── */
 {
@@ -167,13 +167,13 @@ ok('Compte et réglages : ligne « Discord » dans Mon compte (Lier, pseudo éch
 {
   const { p, ctx } = await page({ ctx: { viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1 } });
   await toHome(p); await p.waitForSelector('.hm-cols .hm-c2 #hmDiscord');
-  assert.deepEqual(await p.$$eval('.hm-c2 > *', l => l.map(e => e.id || e.className.split(' ')[0])).then(l => l.filter(x => ['hmTrade', 'hmDiscord', 'hmPartie'].includes(x))), ['hmTrade', 'hmDiscord', 'hmPartie'], 'ordinateur : dans la colonne du milieu, au-dessus des parties');
+  assert.deepEqual(await p.$$eval('.hm-c2 > *', l => l.map(e => e.id || e.className.split(' ')[0])).then(l => l.filter(x => ['hmTrade', 'hmDiscord', 'hmPartie'].includes(x))), ['hmTrade', 'hmPartie', 'hmDiscord'], 'ordinateur : dans la colonne du milieu, après les parties');
   assert.equal(await shown(p), true);
   await p.setViewportSize({ width: 800, height: 900 }); await p.waitForFunction(() => !document.querySelector('.hm-cols'));
-  assert.equal(await p.$eval('#hmDiscord', e => e.nextElementSibling && e.nextElementSibling.id), 'hmPartie', 'fenêtre rétrécie : toujours au-dessus des parties');
+  assert.equal(await p.$eval('#hmDiscord', e => e.previousElementSibling && e.previousElementSibling.id), 'hmPartie', 'fenêtre rétrécie : toujours après les parties');
   await ctx.close();
 }
-ok('anglais (titre, ligne, Join, liaison, Link) ; ordinateur : colonne du milieu entre l\'Échange et les parties, ordre gardé quand la fenêtre rétrécit');
+ok('anglais (titre, ligne, Join, liaison, Link) ; ordinateur : colonne du milieu après les parties, ordre gardé quand la fenêtre rétrécit');
 
 const errs = errsAll.flat().filter(e => !/Firebase|firestore|gstatic|googleapis|ERR_|net::/i.test(e));
 assert.deepEqual(errs, [], 'aucune erreur de page');

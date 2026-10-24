@@ -1,10 +1,13 @@
 /* ── onboard.js : premier lancement ───────────────────────────────────────────────────────────────
    Trois écrans, une seule fois, seulement sur un appareil vierge (ni collection, ni deck, ni token) :
-   1. Bienvenue · 2. Ta collection (importer un fichier, scanner, plus tard) · 3. Les prix (Cardmarket par défaut, token CardTrader facultatif, compte).
+   1. Bienvenue · 2. Ta collection (importer un fichier, scanner, plus tard) · 3. Sauvegarde ta collection : « Continuer avec Google » en une touche
+   (même connexion que la feuille Compte, cloud.js), « Autres options (e-mail) » ouvre cette feuille, « Plus tard » ; hors ligne ou service de compte
+   injoignable : un mot et « Plus tard » seulement ; déjà connecté : « C'est parti ». Le token CardTrader n'est plus demandé ici (Compte et réglages › Prix,
+   lien discret « Tu as un token CardTrader ? »).
    Passé, terminé ou abandonné : on ne le revoit plus (deckdeal:onboard). Les navigateurs pilotés par les tests ne le voient pas, sauf avec ?onboarding. */
 const OB_KEY = 'deckdeal:onboard';
 const OB_FORCE = typeof location !== 'undefined' && /[?&]onboarding\b/.test(location.search);
-const OB = { el: null, i: 0, key: null };
+const OB = { el: null, i: 0, key: null, net: null };
 
 function obSeen() { try { return !!localStorage.getItem(OB_KEY); } catch (e) { return true; } }
 function obMark() { try { localStorage.setItem(OB_KEY, String(Date.now())); } catch (e) { /* ignore */ } }
@@ -39,13 +42,11 @@ function obOpen() {
         </div>
         <button class="btn ghost block" type="button" data-ob="next">${T('Plus tard')}</button>
       </section>
-      <section class="ob-s" aria-label="${T('Les prix')}">
-        <h2>${T('Les prix')}</h2>
-        <p>${T('Par défaut, Mana Orbit donne le <b>prix tendance Cardmarket</b> de chaque carte, mis à jour chaque jour.')}</p>
-        <div class="field-in"><label class="label" for="obToken">${T('Tu achètes sur CardTrader ? (facultatif)')}</label><input type="password" id="obToken" autocomplete="off" spellcheck="false" placeholder="${T('Ton token API CardTrader')}">
-          <span class="hint">${T('Avec ton token : offres réelles des vendeurs, port optimisé, panier rempli pour toi. Modifiable plus tard dans les réglages.')} <a href="${ctApiUrl()}" target="_blank" rel="noopener">${T('Obtenir mon token')}</a></span></div>
-        <div class="ob-acts"><button class="btn block" type="button" data-ob="done">${T('C\'est parti')}</button>
-          <button class="link-btn link-inline" type="button" data-ob="account">${T('Créer un compte pour sauvegarder ma collection')}</button></div>
+      <section class="ob-s ob-save" aria-label="${T('Sauvegarde ta collection')}">
+        <span class="ob-save-ic" aria-hidden="true"><svg class="i"><use href="#i-cloud"/></svg></span>
+        <h2>${T('Sauvegarde ta collection')}</h2>
+        <p>${T('Un compte gratuit garde ta collection, tes decks et ta liste d\'échange, et les retrouve sur tous tes appareils.')}</p>
+        <div class="ob-acts" id="obSave"></div>
       </section>
     </div>
     <div class="ob-dots" aria-hidden="true"><i></i><i></i><i></i></div>`;
@@ -64,10 +65,13 @@ function obOpen() {
     else if (a === 'swg') obClose(() => swgOpen({ from: 'onboard' }));      // guide « Passer de ManaBox » (switch.js)
     else if (a === 'scan') obClose(() => openScan());
     else if (a === 'done') obClose();
+    else if (a === 'google') obGoogle(b);
     else if (a === 'account') obClose(() => openAccount());
+    else if (a === 'ct') obClose(() => openSettings('prix'));      // token CardTrader : Compte et réglages › Prix
   });
-  const tok = $('#obToken', el);
-  tok.oninput = () => { S.token = tok.value.trim(); if (S.token) S.src = 'auto'; syncCTX(); saveStore(); modeLabel(); };
+  OB.net = () => obSavePaint();
+  window.addEventListener('online', OB.net); window.addEventListener('offline', OB.net);
+  obSavePaint();
   // glisser d'un écran à l'autre
   let x0 = null;
   el.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
@@ -84,9 +88,38 @@ function obGo(i) {
 }
 /** Retour du téléphone : écran précédent, ou fermeture depuis le premier. */
 function obBack() { if (OB.i > 0) obGo(OB.i - 1); else obClose(); }
+/** Étape 3 : ce que l'état du compte permet (repeinte à chaque changement : chargement du SDK, connexion, réseau ; paintAccount de decks.js l'appelle). */
+function obSavePaint() {
+  const box = OB.el && $('#obSave', OB.el); if (!box) return;
+  const off = (typeof navigator !== 'undefined' && navigator.onLine === false) || D.state === 'unavailable';
+  const k = D.user ? 'in' : off ? 'off' : D.state === 'ready' && D.cloud ? 'ok' : 'wait';
+  if (box.dataset.k === k) return;      // même état : les boutons gardent le focus et le message
+  const had = box.contains(document.activeElement); box.dataset.k = k;
+  const later = `<button class="btn ghost block" type="button" data-ob="done">${T('Plus tard')}</button>`;
+  if (k === 'in') box.innerHTML = `<p class="ob-save-ok">${T('Tu es connecté : ta collection est sauvegardée sur ton compte.')}</p><button class="btn block" type="button" data-ob="done">${T('C\'est parti')}</button>`;
+  else if (k === 'off') box.innerHTML = `<p class="ob-save-off" role="status">${T('Pas de connexion pour l\'instant. Ta collection reste sur cet appareil : tu pourras la sauvegarder plus tard dans Compte et réglages.')}</p>${later}`;
+  else box.innerHTML = `${googleBtnHtml(`data-ob="google"${k === 'wait' ? ' disabled aria-busy="true"' : ''}`, true)}
+    <button class="link-btn" type="button" data-ob="account">${T('Autres options (e-mail)')}</button>
+    <div class="auth-msg" id="obMsg" role="alert" hidden></div>
+    ${later}
+    <button class="link-btn ob-ct" type="button" data-ob="ct">${T('Tu as un token CardTrader ?')}</button>`;
+  if (had && OB.i === 2) { const f = $('button:not([disabled])', box); if (f) f.focus(); }
+}
+/** « Continuer avec Google » : la fenêtre de Google (ou le compte du téléphone dans l'appli), comme la feuille Compte ; connecté → l'appli. */
+async function obGoogle(b) {
+  if (!D.cloud || D.state !== 'ready' || b.disabled) return;
+  const m = OB.el && $('#obMsg', OB.el); if (m) m.hidden = true;
+  b.disabled = true;
+  try { await D.cloud.google(); obClose(); toast(T('Connecté')); }
+  catch (e) {
+    b.disabled = false; const t = authMessage(e), mm = OB.el && $('#obMsg', OB.el);
+    if (t && mm) { mm.textContent = t; mm.hidden = false; }      // fenêtre fermée par l'utilisateur : rien à dire
+  }
+}
 function obClose(then) {
   const el = OB.el; if (!el) return; OB.el = null; obMark();
   document.removeEventListener('keydown', OB.key); releaseApp();
+  if (OB.net) { window.removeEventListener('online', OB.net); window.removeEventListener('offline', OB.net); OB.net = null; }
   el.classList.remove('on'); setTimeout(() => el.remove(), reduceMotion() ? 0 : 380);
   homeSoon(0);
   if (then) setTimeout(then, reduceMotion() ? 0 : 260);
