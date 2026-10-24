@@ -801,7 +801,7 @@ const hidden = (p, on) => p.evaluate(on => { Object.defineProperty(document, 'vi
   assert.match(mem, /^Mémoire plafond inconnu Mémoire du processus \(rss\) [\d,]+ Mo /); assert.match(mem, /Mémoire de Node \(tas\) [\d,]+ Mo \/ [\d,]+ Mo utilisé \/ réservé · limite de Node/);
   for (const [l, v] of [['Catalogues CardTrader', 'CACHE_MAX_MB'], ['Offres CardTrader', 'OFFERS_CACHE_MB'], ['Résultats des recherches', 'JOB_RESULTS_MB'], ['Listes des échanges en direct', 'TROC_MB'], ['Parties en cours (au plus)', 'PARTIE_LIVE_KB'], ['Historiques des parties', 'PARTIE_CACHE_MB'], ['Amis', 'FRIENDS_CACHE_MB']]) assert.ok(mem.includes(l) && mem.includes(v), 'cache ' + l);
   assert.match(mem, /Catalogues CardTrader 0 o \/ 48 Mo/); assert.equal(await p.$eval('#hcMem [data-k="c-ct"] .hbar i', i => i.style.width), '0%');
-  const boot = await txt(p, '#hcBoot'); assert.ok(boot.includes('Version servie ' + ping.build), 'version de /__ping'); assert.match(boot, /Node v\d+/); assert.match(boot, /Dernier démarrage \d+ \S+ \d\d:\d\d en marche depuis \d+ min/); assert.match(boot, /Redémarrages \(24 h\) 0 /);
+  const boot = await txt(p, '#hcBoot'); assert.ok(boot.includes('Version servie ' + ping.build), 'version de /__ping'); assert.match(boot, /Node v\d+/); assert.match(boot, /Dernier démarrage \d+ \S+ \d\d:\d\d en marche depuis \d+ min/); assert.match(boot, /Redémarrages imprévus \(24 h\) 0 /);
   assert.equal(await p.$$eval('#hcReq .hf', e => e.length), 9, '9 familles de routes');
   assert.match(await txt(p, '#hcReq'), /Page et fichiers \d+ Prix et recherches CardTrader \d+ Alertes de prix \d+ Échange en direct \d+ Parties \(compteur de vie\) \d+ Carte mystère \d+ Discord et avis \d+ Administration [1-9]\d* Autres/);
   assert.match(await txt(p, '#hcReq'), /pic de l'heure : \d+ \/ min/);
@@ -821,17 +821,17 @@ const hidden = (p, on) => p.evaluate(on => { Object.defineProperty(document, 'vi
 {
   // serveur saturé (réponse retouchée) : avis rouge, indicateurs rouges comptés dans la pastille de l'onglet, couleurs claires et sombres
   const sat = b => ({ ...b, mem: { ...b.mem, limit: Math.round(b.mem.rss / 0.9), from: 'env' }, lv: { ...b.lv, rss: 'bad', restarts: 'bad', jobs: 'warn' }, vps: { lv: 'bad', bad: ['rss', 'restarts'], warn: ['jobs'] },
-    boot: { ...b.boot, restarts24: 6, deploys24: 1, known: 3, recent: [{ t: Date.now() - 600e3, b: 'abc' }, { t: Date.now() - 3600e3, b: 'abc' }, { t: Date.now() - 7200e3, b: 'old' }] },
+    boot: { ...b.boot, restarts24: 6, deploys24: 1, known: 3, recent: [{ t: Date.now() - 600e3, b: 'abc', k: 'crash' }, { t: Date.now() - 3600e3, b: 'abc', k: 'deploy' }, { t: Date.now() - 7200e3, b: 'old', k: '' }] },
     live: { ...b.live, jobs: { ...b.live.jobs, busy: 3, busyAt: Date.now() - 120e3 } } });
   for (const dark of [false, true]) {
     const { ctx, p, errs } = await open({ user: ADM, phone: { width: 360, height: 780 }, hash: '#serveur', dark, before: routeHealth(sat) });
     await dash(p); await p.waitForSelector('#health .hvd[data-v="bad"]');
-    assert.match(await txt(p, '#health .hvd'), /^Serveur saturé .*Signes de saturation : mémoire proche du plafond de l'offre, redémarrages sans nouvelle version\. Si ça se répète plusieurs jours, un VPS/);
+    assert.match(await txt(p, '#health .hvd'), /^Serveur saturé .*Signes de saturation : mémoire proche du plafond de l'offre, redémarrages imprévus \(plantages\)\. Si ça se répète plusieurs jours, un VPS/);
     assert.doesNotMatch(await txt(p, '#health .hvd'), /Plafond de mémoire de l'offre inconnu/);
     assert.match(await txt(p, '#hcMem [data-k="rss"]'), /\(à traiter\) [\d,]+ Mo · 90 %/); assert.equal(await p.$eval('#hcMem [data-k="rss"] .hbar i', i => i.style.width), '90%');
-    assert.match(await txt(p, '#hcBoot [data-k="restarts"]'), /Redémarrages \(24 h\) \(à traiter\) 6 1 déploiement en 24 h/);
+    assert.match(await txt(p, '#hcBoot [data-k="restarts"]'), /Redémarrages imprévus \(24 h\) \(à traiter\) 6 plantage, mémoire, processus tué · en 24 h aussi : 1 déploiement/);
     assert.match(await txt(p, '#hcLive [data-k="jobs"]'), /3 refusées \(serveur complet\) en 1 h, la dernière il y a 2 min/);
-    await p.click('#hcBoot .hboots > summary'); assert.match(await txt(p, '#hcBoot .hboots'), /abc · redémarrage .*abc · nouvelle version .*old$/);
+    await p.click('#hcBoot .hboots > summary'); assert.match(await txt(p, '#hcBoot .hboots'), /abc · imprévu .*abc · nouvelle version .*old$/);
     const col = await p.evaluate(() => {
       const v = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), c = s => getComputedStyle(document.querySelector(s)).backgroundColor, t = document.createElement('i'); document.body.append(t);
       const rgb = x => { t.style.color = x; return getComputedStyle(t).color; };
