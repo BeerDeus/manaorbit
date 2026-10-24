@@ -8,8 +8,7 @@ Moteur générique + un « pack » par fête. Premier pack : **Halloween 2026** 
 |---|---|
 | `src/evpacks.js` | Packs (données pures) : dates (Pâques compris), objets, quota, palette, textes, badges, messages Discord ; catalogue des cachettes (`EV_SPOTS`) ; calendrier (`evActive`, `evDay`, `evUpcoming`…). Lu tel quel par le serveur (`createRequire`). |
 | `src/event.js` | Moteur côté appli : calendrier reçu du serveur, chasse (cachettes, envol, compteur, messages), carte de l'accueil, message d'arrivée, interrupteur « Décorations de fête », badges (`progress.js`), progression (appareil + `users/{uid}/meta/events`). |
-| `src/evart.js` | Dessins des objets à trouver (citrouille…) et du compteur. |
-| `src/evamb.js` + `src/css/ev-<pack>.css` | Ambiance d'un pack (fond, brume, chauves-souris, toiles…) : `EV_AMB[pack]()` → balisage, styles sous `html[data-event="<pack>"]`. |
+| `src/evart.js` + `src/css/ev-<pack>.css` | Dessins (`EV_ART` : citrouille, chauve-souris, lune, compteur) et ambiance d'un pack : `EV_AMB[pack]()` (derrière l'appli : brume, chauves-souris, toiles, lueurs), `EV_AMB_TOP[pack]()` (devant l'accueil : pluie de feuilles), styles sous `html[data-event="<pack>"]`. |
 | `src/evlogo.js` | Logo de l'appli aux couleurs de chaque fête (symbole SVG, même `viewBox` que `#i-logo`). |
 | `src/css/event.css` | Styles du moteur (objets, envol, compteur, messages, carte, arrivée, bordure du grade ultime). |
 | `event-srv.mjs` | Moteur côté serveur (chargé par `proxy.mjs`) : calendrier, `/api/event…`, cachettes du jour signées, quota, progression, statistiques et interrupteur de `/admin`. |
@@ -19,7 +18,7 @@ Moteur générique + un « pack » par fête. Premier pack : **Halloween 2026** 
 
 ## Contrats
 
-### Ambiance (`EV_AMB`)
+### Ambiance (`EV_AMB`, `EV_AMB_TOP`)
 - `EV_AMB[pack]()` → chaîne HTML posée une fois dans `<div class="ev-amb" aria-hidden="true">` (enfant de `<body>`, derrière l'appli : `z-index` 0, `pointer-events: none`).
 - Classes posées par le moteur sur `<html>` : `data-event="<pack>"` (fête en cours, toujours, même décorations coupées : palette des objets),
   `.ev-deco` (décorations allumées : ambiance et palette de l'appli), `.ev-quiet` (écran où rien ne doit bouger ni s'afficher : scan, échange en direct,
