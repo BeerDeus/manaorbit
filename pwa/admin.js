@@ -1254,7 +1254,7 @@
       hi('Processeur', loadOk ? nf(ld.cpu) + ' %' : '—', { lv: lv.cpu, part: loadOk ? Math.min(1, ld.cpu / 100) : null, k: 'cpu', sub: ld.n ? 'dernière minute · pire minute de l\'heure : ' + nf(ld.cpuMax) + ' %' : 'depuis le démarrage (relevé chaque minute)' }),
       hi('Temps de réaction', loadOk ? nf(ld.lag) + ' ms' : '—', { lv: lv.lag, k: 'lag', sub: 'retard de la boucle d\'événements (99 % du temps) · pire de l\'heure : ' + nf(ld.lagHour) + ' ms' }),
       bt.recent && bt.recent.length > 1 ? h('details', { class: 'hboots' }, h('summary', null, 'Derniers démarrages'), h('ol', null, bt.recent.map((x, i) => h('li', null, h('span', null, D_TIME.format(x.t)),
-        h('small', null, (x.b || '—') + ({ deploy: ' · nouvelle version', stop: ' · relance propre', crash: ' · imprévu' }[x.k] || ''))))))) : null);
+        h('small', null, (x.b || '—') + ({ deploy: ' · nouvelle version', stop: ' · relance propre', crash: ' · imprévu' }[x.k] || '')))))) : null);
     // Requêtes par minute
     const fams = rq ? Object.entries(rq.fams) : [], top = Math.max(1, ...fams.map(f => f[1]));
     const reqs = h('section', { class: 'card hcard', id: 'hcReq' }, chead('Requêtes par minute', rq ? (rq.win < 60 ? 'sur les ' + rq.win + ' dernières secondes' : 'les 60 dernières secondes') : ''),
