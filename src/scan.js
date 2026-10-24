@@ -904,7 +904,7 @@ async function scanFrameApply() {
   const cap = $('.sc-cap', el); if (cap && !el.classList.contains('auto')) cap.textContent = full ? T('Carte entière') : T('Nom de la carte');
   if (was === full) return;
   scanPaintList();
-  if (NAT.on || NAT.p) { natStop(); if (await natStart()) { if (SC.el === el) scanHint(camHint(), ''); } }      // l'aperçu natif ne suit pas la page : arrêté puis reposé sur la nouvelle zone
+  if (NAT.on || NAT.p) { natStop(); if (await natStart() && SC.el === el) { auLampProbe(); auSync(); scanHint(auOn() ? auHint() : camHint(), ''); } }      // l'aperçu natif ne suit pas la page : arrêté puis reposé sur la nouvelle zone ; l'auto (coupé caméra arrêtée) et la lampe reviennent avec elle
   else if (SC.stream) scanHint(camHint(), '');
 }
 
@@ -962,11 +962,13 @@ async function scanWork() {
 }
 
 /* — Appareil photo : aperçu simple, le cercle prend la photo — */
+/** Zone de la page où tombe l'image de la caméra : celle de la vidéo (cadrage « nom » en portrait : plus haute que l'aperçu, coupée dessous, scan.css), sinon l'aperçu. */
+function camRect() { const el = SC.el, v = el && $('.sc-video', el), r = v && v.getBoundingClientRect(); return r && r.height ? r : $('.sc-stage', el).getBoundingClientRect(); }
 /** Bande « nom + mana » (le guide à l'écran) en pixels de la vidéo. */
 function scanGuideBox() {
-  const v = $('.sc-video', SC.el), stage = $('.sc-stage', SC.el), g = $('.sc-guide', SC.el);
+  const v = $('.sc-video', SC.el), g = $('.sc-guide', SC.el);
   if (!v || !v.videoWidth) return null;
-  const s = stage.getBoundingClientRect(), r = g.getBoundingClientRect();
+  const s = camRect(), r = g.getBoundingClientRect();
   return coverMap(s.width, s.height, v.videoWidth, v.videoHeight, { x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height });
 }
 function scanCapture() {
@@ -1094,7 +1096,7 @@ async function natStart() {
   for (let i = 0; i < 20 && SC.el === el && (!el.classList.contains('on') || document.documentElement.classList.contains('ad-on')); i++) await new Promise(r => setTimeout(r, 50));
   await new Promise(r => setTimeout(r, reduceMotion() ? 0 : 320));
   if (SC.el !== el) return true;
-  const r = stage.getBoundingClientRect();
+  const r = camRect();
   document.documentElement.classList.add('nat-cam');      // page transparente au-dessus de l'aperçu natif
   try {
     NAT.p = cam.start({ position: 'rear', toBack: true, x: Math.round(r.left), y: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height), disableAudio: true, enableZoom: true, lockAndroidOrientation: true });
@@ -1128,7 +1130,7 @@ function natStop() {
 async function natCapture(q = 90) {
   const res = await natCam().captureSample({ quality: q });      // q : 60 pour le scan automatique (comparer deux instants), 90 pour lire
   const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error('Image illisible')); i.src = 'data:image/jpeg;base64,' + res.value; });
-  const stage = $('.sc-stage', SC.el), s = stage.getBoundingClientRect(), g = $('.sc-guide', SC.el).getBoundingClientRect();
+  const s = camRect(), g = $('.sc-guide', SC.el).getBoundingClientRect();
   let src = img, W = img.naturalWidth, H = img.naturalHeight;
   // Le plugin rend l'image déjà tournée comme l'écran (portrait en portrait). Seulement si elle arrivait encore couchée par rapport à l'ÉCRAN (ni à la bande, toujours plus large que haute, ni à la fenêtre, plus large que haute en écran partagé haut/bas), on la redresse.
   const so = screen.orientation && screen.orientation.type, land = so ? so.startsWith('landscape') : screen.width > screen.height;
