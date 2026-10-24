@@ -178,6 +178,63 @@ async function pxSync() {
   finally { pxBusy = false; }
 }
 
+// ── Historique des prix « à partir de » sur 30 jours (prices-hist.bin.gz, prices-hist.mjs) : fabriqué chaque jour par la même GitHub Action à partir de celui
+// de la veille (branche data : le disque de l'hébergeur n'est pas sûr de survivre à un redéploiement, l'historique vit donc sur GitHub), relu ici à chaque
+// passage des prix, copie dans .data/ pour redémarrer sans réseau. Servi carte par carte sur GET /api/hist (fiche d'une carte). Mémoire : ≈ 8 Mo (33 000 cartes).
+// PRICES_HIST_SOURCE_URL : défaut, le fichier voisin de PRICES_SOURCE_URL (vide = désactivé, comme quand les prix le sont).
+const PH_SRC = (process.env.PRICES_HIST_SOURCE_URL === undefined ? (PX_SRC ? PX_SRC.replace(/[^/]*$/, 'prices-hist.bin.gz') : '') : process.env.PRICES_HIST_SOURCE_URL).trim();
+const PH_COPY = join(EDH_DIR, 'prices-hist.bin.gz'), PH_RATE = Number(process.env.HIST_RATE_PER_MIN ?? 120), PH_NAMES = 20, PH_LEN = 150;
+let PH = null, PHM = null, phEtag = '', phBusy = false;      // PH : historique lu (prices-hist.mjs › histUnpack) + ix : clé de carte → indices ; PHM : le module
+const PH_ST = { from: '', d0: '', d1: '', days: 0, cards: 0, bytes: 0, check: '', err: '' };
+SYNC_RT.ph = { n: 0, t: null };
+/** Fichier → historique prêt à servir (indices par clé de carte, comme l'appli : ownKey ; deux noms de la même clé : le plus bas de chaque jour). */
+async function phRead(buf) {
+  if (!PHM) PHM = await import('./prices-hist.mjs');
+  const h = PHM.histUnpack(await gunzipA(buf)); if (h.names.length < 1000) throw new Error(`seulement ${h.names.length} cartes : ignoré`);
+  const ix = new Map(); h.names.forEach((n, i) => { const k = trocKey(n), a = ix.get(k); if (a) a.push(i); else ix.set(k, [i]); });
+  h.ix = ix; h.at = PHM.histIso(h.d0 + h.days - 1); return h;
+}
+function phUse(h, buf, from) {
+  PH = h; Object.assign(PH_ST, { from, d0: PHM.histIso(h.d0), d1: h.at, days: h.days, cards: h.names.length, bytes: buf.length });
+}
+async function phBoot() { try { const buf = await readFile(PH_COPY); phUse(await phRead(buf), buf, 'copie'); } catch (e) { /* pas encore de copie */ } }
+async function phSync() {
+  if (!PH_SRC || phBusy) return; phBusy = true; PH_ST.check = new Date().toISOString();
+  let got = false;
+  try {
+    const r = await fetch(PH_SRC, { headers: { 'User-Agent': 'manaorbit-proxy', ...(phEtag ? { 'If-None-Match': phEtag } : {}) }, signal: AbortSignal.timeout(90000) });
+    if (r.status === 304) { PH_ST.err = ''; syncOk('ph'); return; }
+    if (r.status === 404) { PH_ST.err = 'pas encore d\'historique sur GitHub'; syncOk('ph'); return; }      // avant le premier passage de l'Action : rien à réessayer tout de suite
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    got = true; syncOk('ph');
+    const buf = Buffer.from(await r.arrayBuffer()); if (buf.length > 20e6) throw new Error('fichier trop gros');
+    const h = await phRead(buf);
+    phEtag = r.headers.get('etag') || ''; PH_ST.err = '';
+    if (PH && h.at < PH.at) return;                                         // plus ancien que celui servi (copie de GitHub en retard) : gardé tel quel
+    phUse(h, buf, 'GitHub');
+    console.log(`Historique des prix : ${h.days} jours jusqu'au ${h.at} (${h.names.length} cartes, ${(buf.length / 1024).toFixed(0)} Ko)`);
+    try { await mkdir(EDH_DIR, { recursive: true }); await writeFile(PH_COPY + '.tmp', buf); await rename(PH_COPY + '.tmp', PH_COPY); } catch (e) { /* lecture seule : la copie en mémoire suffit */ }
+  } catch (e) { PH_ST.err = String(e && e.message || e); console.warn('Historique des prix : mise à jour impossible (' + PH_ST.err + ')'); if (!got) syncRetry('ph', phSync); }
+  finally { phBusy = false; }
+}
+/** GET /api/hist?n=<nom anglais>[&n=…] (20 au plus) : relevés quotidiens d'une carte, { d: premier jour 'AAAA-MM-JJ', e: [centimes € | null] × jours, u: [centimes $ | null] }
+ *  (carte inconnue : e et u vides) ; plusieurs noms : { d, cards: { <nom demandé>: { e, u } } }. Public (les mêmes prix que /prices.tsv, rien de personnel),
+ *  lecture seule, HIST_RATE_PER_MIN par IP (120) ; cache HTTP d'une heure, ETag = dernier jour (304). Pas encore d'historique : 503. */
+function histApi(req, res, url) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'method_not_allowed' });
+  if (!PH) return json(res, 503, { error: 'unavailable', message: 'Historique des prix pas encore disponible sur ce serveur.' });
+  const ns = url.searchParams.getAll('n').map(s => s.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim());
+  if (!ns.length || ns.length > PH_NAMES || ns.some(s => !s || s.length > PH_LEN)) return json(res, 400, { error: 'bad_request', message: `De 1 à ${PH_NAMES} noms de cartes (n), ${PH_LEN} caractères au plus.` });
+  const wait = rateWait(req, 'hist', PH_RATE, 60e3); if (wait) return tooMany(res, wait);
+  const h = PH, tag = `"h${h.d0}-${h.days}-${h.names.length}"`, hd = { 'Cache-Control': 'public, max-age=3600', ETag: tag };
+  if (String(req.headers['if-none-match'] || '') === tag) { res.writeHead(304, { ...SEC, ...hd }); return res.end(); }
+  const one = n => { const idx = h.ix.get(trocKey(n)); return idx ? PHM.histRow(h, idx) : { e: [], u: [] }; };
+  const d = PHM.histIso(h.d0);
+  if (ns.length === 1) { const r = one(ns[0]); return json(res, 200, { d, e: r.e, u: r.u || [] }, hd); }
+  const cards = Object.create(null); for (const n of ns) { const r = one(n); cards[n] = { e: r.e, u: r.u || [] }; }
+  return json(res, 200, { d, cards }, hd);
+}
+
 // Accès par compte Firebase : le navigateur envoie son jeton d'identité (X-Firebase-Token), le proxy en vérifie la signature Google
 // puis compare l'UID (ou l'email vérifié) à la liste autorisée. Rien à retaper, rien à partager.
 const csv = v => String(v || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
@@ -3498,6 +3555,7 @@ async function api(req, res, url) {
   // Ouvert à tous : import d'une liste depuis un lien, alertes de prix (Scryfall + push). Ni l'un ni l'autre n'utilise de token CardTrader.
   if (path === 'import') return importApi(req, res, url);
   if (path === 'names/find') return namesApi(req, res, url);      // scan : noms imprimés des autres langues (catalogues publics)
+  if (path === 'hist') return histApi(req, res, url);      // fiche d'une carte : ses prix « à partir de » des 30 derniers jours (relevés publics, rien de personnel)
   if (path === 'pubdecks') return pubApi(req, res, url);      // decks publics (« Communauté ») : liste ouverte à tous, sans token
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
   if (path === 'testeurs') return testersApi(req, res);      // inscription au test fermé (page /testeurs), ouverte à tous, bornée
@@ -3696,7 +3754,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/.well-known/assetlinks.json') return assetLinks(req, res);      // App Links de l'appli Android
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
-    if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST });
+    if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST, hist: { source: PH_SRC ? 'GitHub' : '', ...PH_ST } });
     if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
@@ -3783,5 +3841,7 @@ server.listen(PORT, HOST, () => {
   }
   if (PX_SRC) pxBoot().then(() => { setTimeout(pxSync, EDH_FIRST + 2000).unref(); setInterval(pxSync, EDH_EVERY).unref(); });
   else pxBoot();
+  if (PH_SRC) phBoot().then(() => { setTimeout(phSync, EDH_FIRST + 4000).unref(); setInterval(phSync, EDH_EVERY).unref(); });      // historique des 30 jours : même rythme que les prix
+  else phBoot();
   if (EDH_SRC) edhBoot().catch(() => {}).then(() => { setTimeout(edhSync, EDH_FIRST).unref(); setInterval(edhSync, EDH_EVERY).unref(); });
 });
