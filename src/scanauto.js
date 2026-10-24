@@ -76,7 +76,7 @@ async function auTick(g) {
       const t0 = performance.now(), f = await auGrab(); if (g !== AU.gen || !SC.el) { if (f) scanFree(f.src); return; }
       AU.tm = { cap: performance.now() - t0, read: 0, more: 0, at: t0 };      // durées de la dernière lecture (écran de diagnostic, scan.js › scanDiag)
       if (f) await auFeed(f, g);
-      if (AU.tm && AU.tm.at === t0) AU.tm.all = performance.now() - t0;
+      if (AU.tm && AU.tm.at === t0) { AU.tm.all = performance.now() - t0; AU.tmLast = AU.tm; }      // diagnostic : la dernière lecture finie (pas celle en cours)
       if (AU.cand) wait = Math.max(NAT.on ? 0 : 60, SCS.delay - (Date.now() - AU.at));      // 1re lecture d'une carte : la lecture qui la confirme tout de suite (ou dès le délai entre deux cartes passé)
     } catch (e) { wait = 900; }      // aperçu pas prêt, capture ou lecture refusée : on réessaie un peu plus tard
   } else { AU.cand = null; auRing(0); }
