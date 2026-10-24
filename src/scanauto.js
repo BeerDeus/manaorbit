@@ -65,7 +65,7 @@ async function auGrab() {
   const sig = c => auSig(c, scanFull() ? cardNameBox(c.width, c.height) : null).dev;      // carte entière : le contraste de la zone du nom
   if (NAT.on) { const c = await natCapture(85); return { src: c, dev: sig(c) }; }
   const v = $('.sc-video', SC.el), b = scanGuideBox(); if (!b || !v) return null;
-  const c = document.createElement('canvas'); c.width = b.w; c.height = b.h; c.getContext('2d').drawImage(v, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h); capFoot(c, v, b);
+  const c = document.createElement('canvas'); c.width = b.w; c.height = b.h; c.getContext('2d').drawImage(v, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h); capPad(c, v, b);
   return { src: c, dev: sig(c) };
 }
 async function auTick(g) {
@@ -89,10 +89,10 @@ async function auFeed(f, g) {
   async function auRead() {
     if (f.dev >= AU_INK) {
       const cat = await collCatalog(), W = f.src.width, H = f.src.height; AU.reads++;
-      const box = scanFull() ? cardNameBox(W, H) : { x: 0, y: 0, w: W, h: H };
+      const { at, box } = nameAt(f.src, scanFull() ? cardNameBox(W, H) : { x: 0, y: 0, w: W, h: H });      // un peu plus large que le cadre (scan.js › capPad)
       const t1 = performance.now();
-      m = await readNameAuto(f.src, box, 1400, '6', cat, false, null);      // sans recherche dans les autres langues (serveur) : seulement les noms sûrs
-      if ((!m || m.score < 0.84) && SC.el) m = await readMore(f.src, box, 1400, '6', cat, m, null);      // autres écritures attendues (un moteur Tesseract au plus ; APK 1.0.6 : ML Kit chinois, japonais, coréen à tour de rôle)
+      m = await readNameAuto(at, box, 1400, '6', cat, false, null);      // sans recherche dans les autres langues (serveur) : seulement les noms sûrs
+      if ((!m || m.score < 0.84) && SC.el) m = await readMore(at, box, 1400, '6', cat, m, null);      // autres écritures attendues (un moteur Tesseract au plus ; APK 1.0.6 : ML Kit chinois, japonais, coréen à tour de rôle)
       if (m && m.score < 0.84) m = null;
       if (AU.tm) AU.tm.read = performance.now() - t1;
     }

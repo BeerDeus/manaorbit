@@ -721,9 +721,10 @@ async function readCard(src, cat, strip, card) {
   const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height, st = { n: 0 }; SC.raw = '';      // st : requêtes « autres langues » de cette carte (2 au plus)
   if (card) {      // cadrage « carte entière » : la capture EST la carte (cadre de l'écran) : le nom en haut, puis la ligne du bas
     let m = null;      // bande serrée en une ligne (Tesseract se perd dans les grandes zones sombres du bord et de l'illustration), puis la zone large, puis le tiers haut en texte épars
-    for (const [b, psm, retry] of [[cardBandBox(W, H), '7', true], [cardNameBox(W, H), '6', false], [{ x: 0, y: 0, w: W, h: Math.round(H * 0.3) }, '11', false]]) {
+    const nm = nameAt(src, cardNameBox(W, H)), wide = natOcr() && nm.at !== src;      // ML Kit : la zone du nom élargie autour du cadre (capPad), lue d'un coup
+    for (const [b, psm, retry, at] of wide ? [[nm.box, '6', false, nm.at]] : [[cardBandBox(W, H), '7', true], [cardNameBox(W, H), '6', false], [{ x: 0, y: 0, w: W, h: Math.round(H * 0.3) }, '11', false]]) {
       if ((m && m.score >= 0.84) || !SC.el) break;
-      const t = await readNameAuto(src, b, 1400, psm, cat, retry, st); if (t && (!m || t.score > m.score)) m = t;
+      const t = await readNameAuto(at || src, b, 1400, psm, cat, retry, st); if (t && (!m || t.score > m.score)) m = t;
       if (natOcr()) break;      // ML Kit lit toute la zone d'un coup : une passe suffit
     }
     const band = cardBandBox(W, H);
@@ -733,11 +734,11 @@ async function readCard(src, cat, strip, card) {
     return artAttach(await footAttach(m, src, cardFootBox(W, H)), src);
   }
   if (strip) {
-    const all = { x: 0, y: 0, w: W, h: H };
-    let m = await readNameAuto(src, all, 1400, '6', cat, true, st);
-    if ((!m || m.score < 0.84) && SC.el) { const t = await readNameAuto(src, all, 1600, '11', cat, false, st); if (t && (!m || t.score > m.score)) m = t; }
-    m = await readMore(src, all, 1400, '6', cat, m, st);
-    return natOcr() ? readMore(src, all, 1400, '6', cat, m, st, true) : m;
+    const { at, box: all } = nameAt(src, { x: 0, y: 0, w: W, h: H });      // la bande un peu plus large que le cadre (capPad)
+    let m = await readNameAuto(at, all, 1400, '6', cat, true, st);
+    if ((!m || m.score < 0.84) && SC.el) { const t = await readNameAuto(at, all, 1600, '11', cat, false, st); if (t && (!m || t.score > m.score)) m = t; }
+    m = await readMore(at, all, 1400, '6', cat, m, st);
+    return natOcr() ? readMore(at, all, 1400, '6', cat, m, st, true) : m;
   }
   const title = { x: Math.round(W * 0.04), y: Math.round(H * 0.01), w: Math.round(W * 0.92), h: Math.round(H * 0.17) };
   let m = await readNameAuto(src, title, 1100, '6', cat, true, st);
@@ -766,7 +767,7 @@ const FOOT_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/. ';      // sans « * 
 /** Lit la ligne du bas (box) une fois par capture (gardée sur src) : { ft (footParse), raw (texte lu, pour le diagnostic) }. */
 async function footRead(src, box) {
   if (src.__foot) return src.__foot;
-  const at = src.__ftc && src.__ftc.width ? src.__ftc : src; if (at !== src) box = { x: 0, y: 0, w: at.width, h: at.height };      // capture de l'appareil photo : la ligne du bas prise jusque sous le cadre (capFoot)
+  const fa = footAt(src, box), at = fa.at; box = fa.box;      // capture de l'appareil photo : la ligne du bas prise jusque sous le cadre (capPad)
   let ft = null, raw = '';
   for (let pass = 0; pass < 2 && !ft && SC.el; pass++) {      // polarité automatique, puis inversée (Tesseract ; ML Kit lit les deux d'un coup)
     const c = prepCanvas(at, box, 1400, pass ? (box.inv ? 0 : 1) : undefined); if (!pass) box.inv = c.inv;
@@ -937,17 +938,34 @@ function shotOf(src, box) {
 }
 /** Libère la mémoire d'une photo lue (canvas vidé, image détachée) : rien n'est gardé. */
 function scanFree(src) {
-  try { if (!src) return; if (src.__ftc) { scanFree(src.__ftc); src.__ftc = null; } if (src.getContext) src.width = src.height = 0; else if (src.removeAttribute) src.removeAttribute('src'); } catch (e) { /* ignore */ }
+  try { if (!src) return; if (src.__pad) { scanFree(src.__pad); src.__pad = null; } if (src.getContext) src.width = src.height = 0; else if (src.removeAttribute) src.removeAttribute('src'); } catch (e) { /* ignore */ }
 }
-/** Cadrage « carte entière » : la ligne du bas prise aussi un peu SOUS le cadre (carte tenue un peu bas ou un peu grande : « M20 • FR », la dernière ligne, tombait
- *  juste dehors) ; gardée sur la capture c (c.__ftc), lue à la place de cardFootBox (footRead). src : l'image entière, box : le cadre dedans (px de src). */
-function capFoot(c, src, box) {
-  if (!scanFull() || !c) return c;
-  const W = src.naturalWidth || src.videoWidth || src.width, H = src.naturalHeight || src.videoHeight || src.height;
-  const y = Math.round(box.y + box.h * 0.86), h = Math.min(H, Math.round(box.y + box.h * 1.08)) - y, w = Math.round(box.w * 0.64), x = Math.max(0, box.x);
-  if (h < 8 || w < 8 || y >= H) return c;
-  try { const f = document.createElement('canvas'); f.width = w; f.height = h; f.getContext('2d').drawImage(src, x, y, Math.min(w, W - x), h, 0, 0, Math.min(w, W - x), h); c.__ftc = f; } catch (e) { /* ignore */ }
+/** Capture de l'appareil photo : la même zone un peu plus large que le cadre (c.__pad), le cadre n'étant qu'indicatif : carte tenue un peu haut, bas ou de côté,
+ *  son nom et sa ligne du bas (« M20 • FR », la dernière ligne, tombait juste dessous) restent lus. Carte entière : 4 % de chaque côté, 5 % au-dessus, 8 % dessous ;
+ *  bande du nom : 3 % de côté, 15 % de sa hauteur dessus et dessous. Seulement pour lire le texte (nameAt, footAt) : illustration et symbole se comparent sur le cadre exact.
+ *  src : l'image entière, box : le cadre dedans (px de src). */
+function capPad(c, src, box) {
+  if (!c) return c;
+  const W = src.naturalWidth || src.videoWidth || src.width, H = src.naturalHeight || src.videoHeight || src.height, full = scanFull();
+  const px = Math.round(box.w * (full ? 0.04 : 0.03)), pt = Math.round(box.h * (full ? 0.05 : 0.15)), pb = Math.round(box.h * (full ? 0.08 : 0.15));
+  const x0 = Math.max(0, box.x - px), y0 = Math.max(0, box.y - pt), x1 = Math.min(W, box.x + box.w + px), y1 = Math.min(H, box.y + box.h + pb);
+  if (x1 - x0 < 8 || y1 - y0 < 8) return c;
+  try {
+    const p = document.createElement('canvas'); p.width = x1 - x0; p.height = y1 - y0; p.getContext('2d').drawImage(src, x0, y0, p.width, p.height, 0, 0, p.width, p.height);
+    Object.assign(p, { ox: box.x - x0, oy: box.y - y0, cw: box.w, ch: box.h }); c.__pad = p;      // le cadre dans la zone élargie
+  } catch (e) { /* ignore */ }
   return c;
+}
+/** Zone du nom à lire dans une capture : la zone élargie (capPad) — carte entière : de son haut jusqu'au bas de la zone du nom ; bande : toute — sinon box dans src. */
+function nameAt(src, box) {
+  const p = src && src.__pad; if (!p || !p.width) return { at: src, box };
+  return { at: p, box: scanFull() ? { x: 0, y: 0, w: p.width, h: Math.min(p.height, p.oy + Math.round(p.ch * 0.15)) } : { x: 0, y: 0, w: p.width, h: p.height } };
+}
+/** Zone de la ligne du bas : coin bas gauche de la zone élargie (jusque sous le cadre), sinon box dans src. */
+function footAt(src, box) {
+  const p = src && src.__pad; if (!p || !p.width) return { at: src, box };
+  const y = p.oy + Math.round(p.ch * 0.86), h = p.height - y, w = Math.min(p.width, p.ox + Math.round(p.cw * 0.64));
+  return h >= 8 && w >= 8 ? { at: p, box: { x: 0, y, w, h } } : { at: src, box };
 }
 /** job : { label, src | file, thumb } (src : canvas déjà prêt ; file : image à décoder au moment de la lire, pour ne pas garder 20 photos en mémoire). */
 function scanEnqueue(job) {
@@ -999,7 +1017,7 @@ function scanCapture() {
   if (SC.rbusy) { toast(T('La caméra redémarre, une seconde…')); return; }
   if (SC.queue.length >= 12) { toast(T('Patiente un instant : 12 cartes sont déjà en attente de lecture')); return; }
   const c = document.createElement('canvas'); c.width = box.w; c.height = box.h;
-  c.getContext('2d').drawImage($('.sc-video', SC.el), box.x, box.y, box.w, box.h, 0, 0, box.w, box.h); capFoot(c, $('.sc-video', SC.el), box);
+  c.getContext('2d').drawImage($('.sc-video', SC.el), box.x, box.y, box.w, box.h, 0, 0, box.w, box.h); capPad(c, $('.sc-video', SC.el), box);
   haptic('tap'); scanFlash(); scanHint('', '');
   const full = scanFull();
   scanEnqueue({ label: T('Carte {n}', { n: ++SC.cap }), src: c, strip: !full, card: full, thumb: thumbOf(c, full ? cardNameBox(c.width, c.height) : null) });
@@ -1155,7 +1173,7 @@ async function natCapture(q = 90) {
   }
   const box = coverMap(s.width, s.height, W, H, { x: g.left - s.left, y: g.top - s.top, w: g.width, h: g.height });
   const c = document.createElement('canvas'); c.width = box.w; c.height = box.h;
-  c.getContext('2d').drawImage(src, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h); capFoot(c, src, box);
+  c.getContext('2d').drawImage(src, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h); capPad(c, src, box);
   scanFree(src); return c;
 }
 /** ML Kit : toutes les lignes lues, en une passe (l'alphabet latin couvre le français et l'anglais). script : écriture (NAT_SCRIPT) ; chinois, japonais, coréen : plugin ManaOrbit. */
