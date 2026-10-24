@@ -604,15 +604,17 @@ select option,select optgroup{background-color:var(--surface);color:var(--ink)} 
 .home{gap:14px;padding-top:2px}
 #app[data-view="home"] .wrap{position:relative;z-index:1}
 #app[data-view="home"] .dock{display:none}
-.hm-aura{display:none;position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:var(--aura-o,.55)}
+.hm-aura{display:none;position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:var(--aura-o,.85)}      /* clair : taches de mana bien visibles (sombre : 1) */
 #app[data-view="home"] .hm-aura{display:block}
 .hm-aura i{position:absolute;width:340px;height:340px;border-radius:50%;filter:blur(26px);animation:hmDrift1 15s ease-in-out infinite}
-.hm-aura i:nth-child(1){left:-140px;top:-80px;background:radial-gradient(circle,rgba(63,143,224,.55),transparent 65%)}
-.hm-aura i:nth-child(2){right:-140px;top:110px;background:radial-gradient(circle,rgba(224,83,61,.42),transparent 65%);animation-name:hmDrift2;animation-duration:18s}
-.hm-aura i:nth-child(3){left:-90px;top:380px;background:radial-gradient(circle,rgba(58,154,94,.36),transparent 65%);animation-name:hmDrift3;animation-duration:13s}
-.hm-aura i:nth-child(4){right:-80px;top:560px;background:radial-gradient(circle,rgba(199,155,255,.36),transparent 65%);animation-delay:-6s}
+/* taches des cinq couleurs de mana, dans l'ordre de la roue : blanc en haut, bleu, noir à droite, rouge, vert à gauche */
+.hm-aura i:nth-of-type(1){left:calc(50% - 170px);top:-170px;background:radial-gradient(circle,rgba(var(--mana-w),.5),transparent 65%);animation-name:hmDrift3;animation-duration:16s}
+.hm-aura i:nth-of-type(2){right:-150px;top:90px;background:radial-gradient(circle,rgba(var(--mana-u),.55),transparent 65%)}
+.hm-aura i:nth-of-type(3){right:-130px;top:470px;background:radial-gradient(circle,rgba(var(--mana-b),.5),transparent 65%);animation-name:hmDrift2;animation-duration:19s;animation-delay:-4s}
+.hm-aura i:nth-of-type(4){left:-140px;top:560px;background:radial-gradient(circle,rgba(var(--mana-r),.42),transparent 65%);animation-name:hmDrift2;animation-duration:18s}
+.hm-aura i:nth-of-type(5){left:-150px;top:170px;background:radial-gradient(circle,rgba(var(--mana-g),.4),transparent 65%);animation-name:hmDrift3;animation-duration:13s;animation-delay:-6s}
 .hm-aura b{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;animation:hmTwinkle 3s ease-in-out infinite;opacity:.2}
-.hm-aura b:nth-child(5){left:14%;top:150px}.hm-aura b:nth-child(6){left:84%;top:96px;animation-delay:-1s}.hm-aura b:nth-child(7){left:78%;top:320px;animation-delay:-2s}
+.hm-aura b:nth-of-type(1){left:14%;top:150px}.hm-aura b:nth-of-type(2){left:84%;top:96px;animation-delay:-1s}.hm-aura b:nth-of-type(3){left:78%;top:320px;animation-delay:-2s}
 @keyframes hmDrift1{0%,100%{transform:translate(0,0)}50%{transform:translate(50px,36px)}}
 @keyframes hmDrift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-44px,50px)}}
 @keyframes hmDrift3{0%,100%{transform:translate(0,0)}50%{transform:translate(36px,-40px)}}
@@ -1469,20 +1471,22 @@ button,.btn,select,summary{touch-action:manipulation}
 
 /* ── Identité « Arcane » (celle de l'accueil) sur toute l'appli : aurore de mana en fond, surfaces en verre, foil ─────────────
    Couche finale : n'ajoute que fonds, bordures et ombres ; aucune mise en page ne change. */
-:root{--aura-a:.5;--glass:color-mix(in srgb,var(--surface) 80%,transparent);--glass-2:color-mix(in srgb,var(--surface-2) 72%,transparent);
+:root{--mana-w:236,190,80;--mana-u:63,143,224;--mana-b:110,78,165;--mana-wa:.55;--mana-ua:.42;--mana-ba:.40;--mana-ra:.36;--mana-ga:.40;--mana-r:224,83,61;--mana-g:58,154,94;--aura-a:.5;--glass:color-mix(in srgb,var(--surface) 80%,transparent);--glass-2:color-mix(in srgb,var(--surface-2) 72%,transparent);
   --foil-ring:conic-gradient(from 0deg,#ff8fc3,#ffd479,#7be8c8,#7fb0ff,#c79bff,#ff8fc3);
   --foil-ink:linear-gradient(110deg,#d9418a,#c98a12,#13906a,#2f6fd0,#7d4fe0,#d9418a)}
-:root[data-theme="dark"]{--aura-a:1;--foil-ink:linear-gradient(110deg,#ff8fc3,#ffd479,#7be8c8,#7fb0ff,#c79bff,#ff8fc3)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--aura-a:1;--foil-ink:linear-gradient(110deg,#ff8fc3,#ffd479,#7be8c8,#7fb0ff,#c79bff,#ff8fc3)}}
+:root[data-theme="dark"]{--mana-w:246,222,150;--mana-b:150,104,210;--mana-wa:.30;--mana-ua:.36;--mana-ba:.38;--mana-ra:.30;--mana-ga:.30;--aura-a:1;--foil-ink:linear-gradient(110deg,#ff8fc3,#ffd479,#7be8c8,#7fb0ff,#c79bff,#ff8fc3)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--mana-w:246,222,150;--mana-b:150,104,210;--mana-wa:.30;--mana-ua:.36;--mana-ba:.38;--mana-ra:.30;--mana-ga:.30;--aura-a:1;--foil-ink:linear-gradient(110deg,#ff8fc3,#ffd479,#7be8c8,#7fb0ff,#c79bff,#ff8fc3)}}
 /* aurore : pleine sur l'accueil, atténuée sur la saisie et les résultats, en dégradés fixes sur les écrans plein format */
 .hm-aura{display:block}
-#app:not([data-view="home"]) .hm-aura{opacity:calc(var(--aura-o,.55) * .5)}
+#app:not([data-view="home"]) .hm-aura{opacity:calc(var(--aura-o,.85) * .5)}
 #app .wrap{position:relative;z-index:1;overflow-x:clip}      /* entrée d'une vue (translateX 22px) : les onglets pleine largeur de « Prix d'une liste » dépassaient, la page se dézoomait */
+/* les cinq couleurs de mana dans l'ordre de la roue (blanc en haut, puis bleu, noir, rouge, vert dans le sens des aiguilles d'une montre) : --mana-w … --mana-g */
 .dv{background:
-  radial-gradient(70% 38% at 0% 0%,rgba(63,143,224,calc(.30 * var(--aura-a))),transparent 70%),
-  radial-gradient(60% 36% at 100% 24%,rgba(224,83,61,calc(.20 * var(--aura-a))),transparent 70%),
-  radial-gradient(70% 40% at 0% 78%,rgba(58,154,94,calc(.20 * var(--aura-a))),transparent 70%),
-  radial-gradient(60% 40% at 100% 100%,rgba(199,155,255,calc(.26 * var(--aura-a))),transparent 70%),
+  radial-gradient(60% 30% at 50% -6%,rgba(var(--mana-w),var(--mana-wa)),transparent 70%),
+  radial-gradient(58% 34% at 106% 26%,rgba(var(--mana-u),var(--mana-ua)),transparent 70%),
+  radial-gradient(58% 36% at 104% 90%,rgba(var(--mana-b),var(--mana-ba)),transparent 70%),
+  radial-gradient(58% 36% at -6% 96%,rgba(var(--mana-r),var(--mana-ra)),transparent 70%),
+  radial-gradient(58% 34% at -6% 34%,rgba(var(--mana-g),var(--mana-ga)),transparent 70%),
   var(--bg)}
 /* verre */
 #list.list,.coll-list,.panel,.cs-bars,.vl-box,.cs-tiles>div,textarea#deckText,.crow:not(.coll-list>.crow),.tr-box,.dk-own,.recap{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}

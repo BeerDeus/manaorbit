@@ -134,6 +134,7 @@ ok('premier lancement à 1280, 1890 (sans animation), 820, 844 × 390 et 360 px 
   // « Autres options (e-mail) » → feuille Compte ; « Tu as un token CardTrader ? » → Compte et réglages › Prix
   await q.click('#obSave [data-ob="account"]'); await q.waitForSelector('.sheet-wrap.open #acEmail'); await closeSheets(q);
   await step3('ready'); await q.click('#obSave [data-ob="ct"]'); await q.waitForSelector('.sheet-wrap.open #setToken', { timeout: 5000 });
+  await q.waitForFunction(() => !document.querySelector('.ob'), null, { timeout: 3000 }).catch(() => {});      // le premier lancement s'efface en 380 ms, la feuille s'ouvre à 260 ms
   assert.equal(await q.evaluate(() => !!document.querySelector('.ob')), false, 'lien CardTrader : Compte et réglages › Prix (champ du token)'); await closeSheets(q);
   // hors ligne (réseau coupé, ou service de compte injoignable) : message humain, « Plus tard » seul ; retour du réseau : Google revient
   await step3('ready'); await S4.ctx.setOffline(true); await q.waitForSelector('#obSave .ob-save-off');
