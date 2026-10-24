@@ -187,7 +187,7 @@ function plcShow(id) {
 /** Exemplaires affichés dans la liste (emplacement affiché, recherche et filtres compris ; extension filtrée : ses lignes seules) : [[carte, ligne, exemplaires]]. */
 function plcShownLines() {
   const out = [];
-  for (const it of collListOf(collAll()).filtered) for (const [g, q] of collLines(COLL.map[it.k])) if (plcIn(g) && collSetIn(g)) out.push([it.k, g, q]);
+  for (const it of collListOf(collAll()).filtered) for (const [g, q] of collLines(COLL.map[it.k])) if (plcIn(g) && collSetIn(g) && (typeof srchLineIn !== 'function' || srchLineIn(it.k, g))) out.push([it.k, g, q]);      // langue, finition, rareté, prix filtrés (search.js) : leurs lignes seules
   return out;
 }
 /** « Ranger… » (bandeau d'un emplacement, « Non rangé » compris) : tous les exemplaires affichés vont dans l'emplacement choisi, ou redeviennent non rangés

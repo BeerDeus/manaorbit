@@ -933,8 +933,8 @@ function collAll() {
 }
 /** …filtrées puis triées, gardées pour un même tri, une même source de prix et un même filtre. */
 function collListOf(v) {
-  const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr, f.set, COLL.place, SETIC.m ? 1 : 0, collWhenOn() ? COLL.when.dir + COLL.when.t : ''].join('\u0001');      // SETIC.m : dates des extensions arrivées (tri par édition)
-  if (v.sk !== sk) { v.filtered = filterItems(v.all, f); if (collWhenOn()) { const w = COLL.when; v.filtered = v.filtered.filter(it => it.d > 0 && (w.dir === 'before' ? it.d < w.t : it.d >= w.t)); } if (COLL.place) v.filtered = v.filtered.filter(it => collLines(COLL.map[it.k]).some(([g]) => plcIn(g))); v.sorted = collSorted(v.filtered); v.sk = sk; }      // emplacement affiché (Rangement) : les cartes qui y ont au moins un exemplaire
+  const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr, f.set, COLL.place, SETIC.m ? 1 : 0, collWhenOn() ? COLL.when.dir + COLL.when.t : '', typeof srchKey === 'function' ? srchKey(f) : ''].join('\u0001');      // SETIC.m : dates des extensions arrivées (tri par édition) ; srchKey : filtres avancés (search.js)
+  if (v.sk !== sk) { if (typeof srchPrep === 'function') srchPrep(v, f); v.filtered = filterItems(v.all, f); if (collWhenOn()) { const w = COLL.when; v.filtered = v.filtered.filter(it => it.d > 0 && (w.dir === 'before' ? it.d < w.t : it.d >= w.t)); } if (COLL.place) v.filtered = v.filtered.filter(it => collLines(COLL.map[it.k]).some(([g]) => plcIn(g))); v.sorted = collSorted(v.filtered); v.sk = sk; }      // emplacement affiché (Rangement) : les cartes qui y ont au moins un exemplaire
   return v;
 }
 function collItems() {
@@ -952,6 +952,7 @@ const collSetIn = g => { const s = COLL.f.set; return !s || (s === '-' ? !lineEd
  *  Affichées : emplacement ouvert (Rangement : seulement ses lignes, ses extensions et leur nombre de cartes ici), recherche et autres filtres compris (pas l'extension elle-même). */
 function collSetList() {
   const by = new Map(); let none = 0;
+  if (typeof srchPrep === 'function') srchPrep(collAll(), COLL.f);      // filtres avancés (search.js) : cartes préparées
   for (const it of filterItems(collAll().all, { ...COLL.f, set: '' })) {
     const ls = COLL.place ? collLines(COLL.map[it.k]).filter(([g]) => plcIn(g)) : null;
     for (const e of ls ? new Set(ls.map(([g]) => edSet(lineEd(g)))) : it.eds) { if (e) by.set(e, (by.get(e) || 0) + 1); else none++; }
@@ -962,8 +963,8 @@ function collSetList() {
 /** Lignes d'affichage d'une carte : une par langue et édition possédées (fr, fr CMM 400, en…), chacune avec sa quantité, son nom imprimé, son image et son prix (celui de l'édition s'il est connu).
  *  Les infos de la carte (type, coût, étiquettes) ne sont montrées que sur la première ; l'offre CardTrader seulement sur la ligne de la langue lue (la plus fournie). */
 function collRowItems(it) {
-  const ls = collLines(COLL.map[it.k]).filter(([g]) => plcIn(g) && collSetIn(g));      // emplacement affiché, extension filtrée : leurs lignes seules
-  if (ls.length < 2) { const g = ls[0] ? ls[0][0] : it.l, e = lineEd(g), f = lineFoil(g); return [{ ...it, g, e, f, nl: 1, li: 0, ...((COLL.place || COLL.f.set) && ls[0] ? { q: ls[0][1] } : {}), ...(e || f ? { eu: collLineEu(it.k, g) ?? undefined } : {}) }]; }      // emplacement affiché : les exemplaires qui y sont
+  const ls = collLines(COLL.map[it.k]).filter(([g]) => plcIn(g) && collSetIn(g) && (typeof srchLineIn !== 'function' || srchLineIn(it.k, g)));      // emplacement affiché, extension, langue, finition, rareté, prix filtrés : leurs lignes seules
+  if (ls.length < 2) { const g = ls[0] ? ls[0][0] : it.l, e = lineEd(g), f = lineFoil(g); return [{ ...it, g, e, f, nl: 1, li: 0, ...((COLL.place || COLL.f.set || fltLineOn(COLL.f)) && ls[0] ? { q: ls[0][1] } : {}), ...(e || f ? { eu: collLineEu(it.k, g) ?? undefined } : {}) }]; }      // emplacement affiché : les exemplaires qui y sont
   const dom = collDomLang(ls);
   return ls.map(([g, q], i) => {
     const l = lineLang(g), r = { ...it, g, l, e: lineEd(g), f: lineFoil(g), q, nl: ls.length, li: i, eu: collLineEu(it.k, g) ?? undefined }; const dn = frName(it.k, l); if (dn) r.dn = dn; else delete r.dn;
@@ -1176,6 +1177,7 @@ function collPaintBody(keep) {
   const el = COLL.el; if (!el) return;
   clearTimeout(COLL.paintT); COLL.paintT = 0; COLL.paintAt = Date.now(); COLL.painted = null;
   if (!keep) COLL.seq++;      // affichage neuf (onglet, tri) : liste relue, jamais celle gardée
+  if (COLL.fb && COLL.mode === 'coll') COLL.fb.paint();      // pastille « Filtres », filtres actifs, recherches enregistrées (search.js) : un emplacement choisi ou retiré ailleurs (Rangement, bandeau)
   const sc = $('.dv-scroll', el), pos = keep && sc ? sc.scrollTop : 0, host = $('.coll-main', el);
   if (keep && document.activeElement && document.activeElement.matches && document.activeElement.matches('.lchip select') && host.contains(document.activeElement)) { COLL.dirty = true; return; }      // un choix de langue est ouvert : on ne le ferme pas
   if (typeof opnCollBody === 'function' && opnCollBody(el, host)) { if (sc) sc.scrollTop = pos; return; }      // mode streamer (opening.js) : la session seule, jamais la collection
@@ -1260,7 +1262,7 @@ function openCollection(tab) {
   if (md === 'coll') mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'places', label: T('Rangement') }, { v: 'stats', label: T('Stats') }], COLL.tab, v => { const ord = ['list', 'places', 'stats'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = COLL.ctab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
   COLL.fb = mountFilters($('#collF', wrap), COLL.f, () => {
     COLL.cmdrSeen = COLL.f.cmdr; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(true);
-  }, { placeholder: T('Rechercher une carte'), commander: true, sets: collSetList, setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
+  }, { placeholder: T('Rechercher une carte'), commander: true, sets: collSetList, ...(md === 'coll' && typeof srchExt === 'function' ? { ext: srchExt() } : {}), setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
     : filterActive({ ...COLL.f, set: '' }) ? TN(n, '{n} extension parmi les cartes affichées', '{n} extensions parmi les cartes affichées') : TN(n, '{n} extension dans ta collection', '{n} extensions dans ta collection')) });
   COLL.cmdrSeen = COLL.f.cmdr;
   $('#collSort', wrap).value = COLL.sort;

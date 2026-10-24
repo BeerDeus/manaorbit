@@ -1,7 +1,15 @@
 /* ── filters.js : recherche + filtres couleur / famille / coût (deck viewer et collection) ───────────────────── */
 const COLOR_DEF = [['W', T('Blanc')], ['U', T('Bleu')], ['B', T('Noir')], ['R', T('Rouge')], ['G', T('Vert')], ['C', T('Incolore')]];      // noms traduits (affichage seulement : la lettre sert de valeur)
-const newFilter = () => ({ q: '', colors: new Set(), type: '', cmc: '', cmdr: '', set: '' });      // set : code d'extension, '-' : lignes sans édition
-const filterCount = f => (f.colors.size ? 1 : 0) + (f.type ? 1 : 0) + (f.cmc !== '' && f.cmc != null ? 1 : 0) + (f.cmdr ? 1 : 0) + (f.set ? 1 : 0);
+/* set : code d'extension, '-' : lignes sans édition. Filtres avancés de la collection (search.js, core.js › FLT_ADV) : lang (langues), foil ('f' | 'n'), rar (raretés),
+   px (tranche de prix à l'unité), place (emplacement, '-' : non rangées), dup (doublons), dk ('in' | 'out' : dans un deck ou non), tr (à l'échange), add ('7' | '30' : ajoutées depuis n jours). */
+const newFilter = () => ({ q: '', colors: new Set(), type: '', cmc: '', cmdr: '', set: '', lang: new Set(), foil: '', rar: new Set(), px: '', place: '', dup: false, dk: '', tr: false, add: '' });
+const filterCount = f => (f.colors.size ? 1 : 0) + (f.type ? 1 : 0) + (f.cmc !== '' && f.cmc != null ? 1 : 0) + (f.cmdr ? 1 : 0) + (f.set ? 1 : 0) + fltAdvCount(f);
+/** Remet tous les filtres à zéro, sur place (la recherche texte reste : son champ a son propre ✕). keepPlace : l'emplacement ouvert reste (« Effacer les filtres » :
+ *  on reste dans le classeur ouvert depuis Rangement, son bandeau a son propre ✕). */
+function fltClear(f, keepPlace) {
+  f.colors.clear(); f.type = ''; f.cmc = ''; f.cmdr = ''; f.set = '';
+  for (const k of FLT_ADV) { if (keepPlace && k === 'place') continue; if (f[k] instanceof Set) f[k].clear(); else if (k in f) f[k] = typeof f[k] === 'boolean' ? false : ''; }
+}
 
 /** Symboles de mana « {2}{W}{U} » → pastilles colorées (hybride : première couleur, Phyrexian et X : lettre). */
 function manaHtml(mc) {
@@ -19,6 +27,7 @@ function manaHtml(mc) {
  * Retourne { paint, reset }.
  */
 function mountFilters(root, f, onChange, opts = {}) {
+  const ext = opts.ext || null;      // collection (search.js › srchExt) : « Plus de filtres » (groupes avancés), pastilles des filtres actifs et recherches enregistrées sous la barre
   root.className = 'fbar';
   root.innerHTML = `<div class="fbar-row">
       <label class="fsearch"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(opts.placeholder || T('Rechercher une carte'))}" aria-label="${T('Rechercher une carte')}"><button type="button" class="fclear" aria-label="${T('Effacer la recherche')}" hidden><svg class="i"><use href="#i-close"/></svg></button></label>
@@ -29,8 +38,13 @@ function mountFilters(root, f, onChange, opts = {}) {
       <div class="fgrp"><span class="fgl">${T('Famille')}</span><div class="fopts" role="group" aria-label="${T('Familles')}">${TYPE_ORDER.map(t => `<button type="button" class="fopt" data-t="${esc(t)}" aria-pressed="false">${esc(T(t))}</button>`).join('')}</div></div>
       <div class="fgrp"><span class="fgl">${T('Coût de mana')}</span><div class="fopts cmcs" role="group" aria-label="${T('Coût converti')}">${[0, 1, 2, 3, 4, 5, 6, 7].map(m => `<button type="button" class="fopt" data-m="${m}" aria-pressed="false">${m === 7 ? '7+' : m}</button>`).join('')}</div></div>
       ${opts.sets ? `<div class="fgrp"><span class="fgl">${T('Extension')}</span><button type="button" class="sortsel fset" aria-haspopup="dialog"><span class="fset-ic"></span><b></b></button></div>` : ''}
-      <button class="link-btn link-inline freset" type="button">${T('Effacer les filtres')}</button></div>`;
+      ${ext ? `<button type="button" class="fmore" aria-expanded="false" aria-controls="${ext.id}"><span>${T('Plus de filtres')}</span><b hidden></b><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button><div class="fmore-box" id="${ext.id}" hidden></div>` : ''}
+      <button class="link-btn link-inline freset" type="button">${T('Effacer les filtres')}</button></div>${ext ? '<div class="fext"></div>' : ''}`;
   const inp = root.querySelector('input'), clr = root.querySelector('.fclear'), btn = root.querySelector('.fbtn'), panel = root.querySelector('.fpanel'), badge = btn.querySelector('b'), sel = root.querySelector('.fset');
+  const more = root.querySelector('.fmore'), mbox = root.querySelector('.fmore-box'), xbox = root.querySelector('.fext');
+  let msig = null;
+  const moreFill = () => { if (!ext || mbox.hidden) return; const s = ext.sig(); if (s === msig) return; msig = s; mbox.innerHTML = ext.groups(f); };      // groupes avancés (langues présentes, emplacements…) : repeints quand ils changent
+  const moreSet = open => { if (!ext) return; mbox.hidden = !open; more.setAttribute('aria-expanded', String(open)); if (open) moreFill(); if (ext.open) ext.open(open); };
   const setOpts = () => {      // bouton « Extension » : celle choisie (symbole, nom) ; la fiche des extensions s'ouvre au toucher (fsetSheet)
     if (!sel) return; const c = f.set || '';
     $('.fset-ic', sel).innerHTML = c && c !== '-' && typeof setIcHtml === 'function' ? setIcHtml(c) : '';
@@ -46,14 +60,24 @@ function mountFilters(root, f, onChange, opts = {}) {
     for (const b of root.querySelectorAll('[data-t]')) b.setAttribute('aria-pressed', String(f.type === b.dataset.t));
     for (const b of root.querySelectorAll('[data-x]')) b.setAttribute('aria-pressed', String(f.cmdr === b.dataset.x));
     for (const b of root.querySelectorAll('[data-m]')) b.setAttribute('aria-pressed', String(f.cmc !== '' && f.cmc != null && Number(b.dataset.m) === f.cmc));
-    root.querySelector('.freset').hidden = !n;
+    root.querySelector('.freset').hidden = !(n - (f.place ? 1 : 0));      // l'emplacement seul : son bandeau a son ✕
     setOpts();
+    if (ext) {
+      if (inp.value !== (f.q || '') && document.activeElement !== inp) { inp.value = f.q || ''; clr.hidden = !inp.value; }      // recherche enregistrée appliquée : son texte dans le champ
+      moreFill();
+      for (const b of mbox.querySelectorAll('[data-fk]')) { const v = f[b.dataset.fk]; b.setAttribute('aria-pressed', String(v instanceof Set ? v.has(b.dataset.fv) : typeof v === 'boolean' ? v : v === b.dataset.fv)); }
+      const na = fltAdvCount(f), mb = more.querySelector('b'); mb.hidden = !na; mb.textContent = na;
+      ext.paint(xbox, f, api);
+    }
   };
   const fire = () => { paint(); onChange(); };
   inp.addEventListener('input', () => { f.q = inp.value; clr.hidden = !inp.value; clearTimeout(t); t = setTimeout(onChange, 120); });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
   clr.onclick = () => { inp.value = ''; f.q = ''; fire(); inp.focus(); };
-  btn.onclick = () => { const open = panel.hidden; if (open) setOpts(); panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); haptic('tap'); if (open && sel && typeof tipSoon === 'function') tipSoon(400); };      // astuce (tour.js) : le filtre Extension
+  btn.onclick = () => {
+    const open = panel.hidden; if (open) { setOpts(); if (ext && fltAdvCount(f) && mbox.hidden) moreSet(true); }      // un filtre avancé actif : ses groupes s'ouvrent avec le panneau
+    panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); haptic('tap'); if (open && sel && typeof tipSoon === 'function') tipSoon(400);      // astuce (tour.js) : le filtre Extension
+  };
   if (sel) sel.addEventListener('click', () => { haptic('tap'); fsetSheet(opts.sets() || [], f.set || '', c => { f.set = c; fire(); }, opts.setsSub); });
   panel.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -61,13 +85,20 @@ function mountFilters(root, f, onChange, opts = {}) {
     else if (b.dataset.t) f.type = f.type === b.dataset.t ? '' : b.dataset.t;
     else if (b.dataset.m) { const m = Number(b.dataset.m); f.cmc = f.cmc === m ? '' : m; }
     else if (b.dataset.x) f.cmdr = f.cmdr === b.dataset.x ? '' : b.dataset.x;
-    else if (b.classList.contains('freset')) { f.colors.clear(); f.type = ''; f.cmc = ''; f.cmdr = ''; f.set = ''; }
+    else if (b.dataset.fk && b.dataset.fk in f) {      // groupes avancés : Set → plusieurs valeurs (ou) ; booléen → bascule ; texte → une valeur, re-toucher l'enlève
+      const k = b.dataset.fk, v = b.dataset.fv, cur = f[k];
+      if (cur instanceof Set) { if (cur.has(v)) cur.delete(v); else cur.add(v); } else if (typeof cur === 'boolean') f[k] = !cur; else f[k] = cur === v ? '' : v;
+    }
+    else if (b === more) { moreSet(mbox.hidden); haptic('tap'); return; }
+    else if (b.classList.contains('freset')) fltClear(f, true);
     else return;
     haptic('tap'); fire();
   });
   inp.value = f.q || '';      // écran rouvert : la recherche en cours reste écrite (elle filtre toujours la liste)
+  if (ext && ext.moreOpen && ext.moreOpen()) moreSet(true);      // « Plus de filtres » ouvert la dernière fois : il le reste
+  const api = { paint, fire, reset() { f.q = ''; fltClear(f); inp.value = ''; paint(); } };
   paint();
-  return { paint, reset() { f.q = ''; f.colors.clear(); f.type = ''; f.cmc = ''; f.cmdr = ''; f.set = ''; inp.value = ''; paint(); } };
+  return api;
 }
 /** Fiche « Extension » (filtre) : recherche en haut (nom, code, année), « Toutes », « Sans édition », puis chaque extension avec son symbole, son code, son année
  *  et son nombre de cartes, de la plus récente à la plus ancienne. list : [[code, nom, cartes]] (« - » : sans édition) ; onPick(code) ('' : toutes) ; sub(n) : sous-titre. */

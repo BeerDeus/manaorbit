@@ -556,6 +556,33 @@ test('filterItems : texte, couleurs (ou), famille, coût ; sans infos = exclu d�
   assert.equal(C.itemColors({ s: 'basic', k: 'snow covered island' }), 'U'); assert.equal(C.itemType({ s: 'basic' }), 'Terrains');
 });
 
+test('filterItems : filtres avancés de la collection (search.js) — ligne par ligne, cartes préparées seulement', () => {
+  const NOW = 1_800_000_000, DAY = 86400, L = (l, f, u, r, p, s) => ({ l, f, u, r, p, s });
+  const items = [
+    { k: 'sol', n: 'Sol Ring', q: 3, d: NOW - 2 * DAY, sk: 0, st: 1, eds: ['cmm', ''], sl: [L('fr', 0, 200, 'rare', '', 'cmm'), L('en', 0, 150, 'uncommon', 'b1', '')] },
+    { k: 'hoof', n: 'Craterhoof Behemoth', q: 1, d: NOW - 60 * DAY, sk: 1, st: 0, eds: [''], sl: [L('en', 1, 900, 'mythic', '', '')] },
+    { k: 'elf', n: 'Llanowar Elves', q: 3, d: NOW - 20 * DAY, sk: 1, st: 1, eds: [''], sl: [L('de', 0, 20, 'common', 'b1', '')] },
+    { k: 'edgar', n: 'Edgar Markov', q: 1, d: 0, sk: 0, st: 0, eds: [''], sl: [L('fr', 0, null, 'special', '', '')] },
+    { k: 'deck', n: 'Deck card', q: 2 },      // sans sl (deck, échange, masterset) : filtres avancés ignorés
+  ];
+  const ks = f => C.filterItems(items, { now: NOW, ...f }).map(i => i.k);
+  assert.deepEqual(ks({ lang: new Set(['fr']) }), ['sol', 'edgar', 'deck']); assert.deepEqual(ks({ lang: new Set(['de', 'en']) }), ['sol', 'hoof', 'elf', 'deck'], 'plusieurs langues : ou');
+  assert.deepEqual(ks({ foil: 'f' }), ['hoof', 'deck']); assert.deepEqual(ks({ foil: 'n' }), ['sol', 'elf', 'edgar', 'deck']);
+  assert.deepEqual(ks({ rar: new Set(['mythic']) }), ['hoof', 'edgar', 'deck'], '« special » compte avec les mythiques'); assert.equal(C.rarNorm('bonus'), 'mythic');
+  assert.deepEqual(ks({ px: 'lt1' }), ['elf', 'deck']); assert.deepEqual(ks({ px: '1-5' }), ['sol', 'deck']); assert.deepEqual(ks({ px: '5-20' }), ['hoof', 'deck']); assert.deepEqual(ks({ px: 'gt20' }), ['deck'], 'prix inconnu : écartée');
+  assert.deepEqual(ks({ place: '-' }), ['sol', 'hoof', 'edgar', 'deck']); assert.deepEqual(ks({ place: 'b1' }), ['sol', 'elf', 'deck']);
+  assert.deepEqual(ks({ dup: true }), ['sol', 'elf', 'deck']); assert.deepEqual(ks({ dk: 'in' }), ['hoof', 'elf', 'deck']); assert.deepEqual(ks({ dk: 'out' }), ['sol', 'edgar', 'deck']);
+  assert.deepEqual(ks({ tr: true }), ['sol', 'elf', 'deck']); assert.deepEqual(ks({ add: '7' }), ['sol', 'deck']); assert.deepEqual(ks({ add: '30' }), ['sol', 'elf', 'deck'], 'sans date : jamais « récente »');
+  // une seule ligne doit tout passer à la fois
+  assert.deepEqual(ks({ lang: new Set(['fr']), rar: new Set(['uncommon']) }), ['deck'], 'Sol Ring : la ligne FR est rare, la peu commune est anglaise');
+  assert.deepEqual(ks({ lang: new Set(['en']), place: 'b1' }), ['sol', 'deck']); assert.deepEqual(ks({ lang: new Set(['fr']), place: 'b1' }), ['deck'], 'emplacement et langue sur la même ligne');
+  assert.deepEqual(ks({ lang: new Set(['fr']), set: '-' }), ['edgar', 'deck'], 'Sol Ring FR est CMM : « sans édition » jugé sur la même ligne');
+  assert.deepEqual(ks({ rar: new Set(['rare']), dup: true, tr: true }), ['sol', 'deck'], 'filtres cumulés');
+  assert.equal(C.fltAdvCount({ lang: new Set(['fr', 'en']), foil: 'f', dup: false, place: '-' }), 3); assert.equal(C.fltAdvCount(null), 0);
+  assert.ok(C.filterActive({ q: '', colors: new Set(), tr: true })); assert.ok(!C.filterActive({ q: '', colors: new Set(), lang: new Set(), rar: new Set(), dup: false, dk: '', place: '' }));
+  assert.ok(C.fltLineOn({ px: '1-5' })); assert.ok(!C.fltLineOn({ place: '-', dup: true }));
+});
+
 test('collStats : exemplaires, courbe, couleurs, familles, valeur, plus chères ; cartes sans infos comptées à part', () => {
   const items = [
     { k: 'a', n: 'A', q: 2, cm: 1, tl: 'Artifact', cl: '', eu: 150 }, { k: 'b', n: 'B', q: 1, cm: 4, tl: 'Creature — Elf', cl: 'G', eu: 25 }, { k: 'c', n: 'C', q: 3, cm: 9, tl: 'Legendary Creature — X', cl: 'WU', eu: 1000 },
