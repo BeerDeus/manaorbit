@@ -16,6 +16,10 @@ function puCarteTag(p) { return p && p.sorte === 'compte' && partieCarteRead(p.u
 function puOffHtml() { return `<p class="pu-off" role="status"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span>${T('Hors ligne : les autres téléphones ne suivent pas la partie (ni table en direct ni co-hôte).')}</span></p>`; }
 /** Préparation ouverte : lecteur de secours mis de côté pendant qu'il y a du réseau, ma carte joueur renouvelée au besoin (une fois par ouverture). */
 function puQrSetup() { if (PU.qrw === PU.st.id) return; PU.qrw = PU.st.id; if (typeof qrScanWarm === 'function') qrScanWarm(); if (D.user && puOnline()) partieCarteSoon({ n: puMe() }).catch(() => {}); }
+/** Carte joueur tenue à jour en tâche de fond, quel que soit l'écran : compte connu, retour du réseau, retour sur l'appli. partie.js › partieCarteSoon la renouvelle
+ *  dès qu'elle a plus de 5 jours (moins de 25 jours de validité restants ; une demande au plus par 10 min) : quiconque ouvre l'appli dans la semaine avec du réseau
+ *  arrive à une soirée sans réseau avec une carte de 25 à 30 jours (avant : renouvelée seulement à l'écran du compteur de vie ou de « Mon QR joueur »). */
+function puCarteKeep() { if (typeof partieCarteSoon === 'function' && D.user && puOnline() && CTX.partie !== false) partieCarteSoon({ n: puMe() }).catch(() => {}); }
 /** Réseau perdu ou revenu, écran de la partie ouvert : préparation et fin repeintes (options de la table, état de l'envoi) ; compteur : illustrations ratées rechargées. */
 function puNetPaint() {
   if (!PU.el || !PU.st) return;
@@ -23,6 +27,8 @@ function puNetPaint() {
 }
 if (typeof window !== 'undefined') {
   window.addEventListener('online', puNetPaint); window.addEventListener('offline', puNetPaint);
+  window.addEventListener('online', () => setTimeout(puCarteKeep, 3000));      // carte joueur renouvelée au retour du réseau
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') puCarteKeep(); });      // retour sur l'appli
   window.addEventListener('partie-sent', e => {      // la file est partie (partie.js › partieFlush)
     if (PU.el && PU.mode === 'end') puPaint();
     else if (e.detail && e.detail.late) toast(TN(e.detail.sent, 'Partie envoyée à ton compte', '{n} parties envoyées à ton compte'));
@@ -58,7 +64,8 @@ function puMyQr() {
       const deck = d ? partieDeckOf(d, img) : partieDeck({ commandant: cmd }), name = ok ? card.n : partieStr(nm, PRT_LEN.nom);
       $('.pu-myqr-n', api.body).hidden = ok;
       const text = name ? partieJoueurText({ t: ok ? card.t : '', n: name, deck }) : ''; let q = null; try { q = text ? qrSvgLogo(text) : null; } catch (e) { q = null; }
-      const st = ok ? T('Carte joueur liée à ton compte, valable jusqu\'au {d} : la partie ira dans ton historique, même sans réseau à la table.', { d: new Date(card.x).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }) })
+      const soon = ok && card.x - Date.now() < 3 * 864e5 && !puOnline();      // expire dans moins de 3 jours, sans réseau pour la renouveler
+      const st = ok ? T(soon ? 'Carte joueur liée à ton compte, mais elle expire le {d} : ouvre l\'appli avec du réseau avant pour la renouveler.' : 'Carte joueur liée à ton compte, valable jusqu\'au {d} : la partie ira dans ton historique, même sans réseau à la table.', { d: new Date(card.x).toLocaleDateString(LOC(), { day: 'numeric', month: 'long' }) })
         : D.user ? (card ? T('Carte joueur expirée : elle se renouvelle seule dès que le réseau revient. En attendant, l\'hôte t\'ajoute en invité.') : wait ? T('Préparation de ta carte joueur…') : T('Ta carte joueur arrive à la prochaine ouverture de l\'appli avec du réseau. En attendant, l\'hôte t\'ajoute en invité.'))
         : T('Sans compte : l\'hôte t\'ajoute en invité. Connecte-toi pour garder tes parties dans ton historique.');
       show.innerHTML = `<div class="qr-card"><div class="qr-who"><b>${esc(name || T('Ton prénom'))}</b>${ok ? `<span class="pu-ctag"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Compte')}</span>` : ''}</div>

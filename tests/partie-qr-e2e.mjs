@@ -53,6 +53,12 @@ assert.equal(await B.p.$eval('.pu-myqr-n', e => e.hidden), true, 'compte : pas d
 assert.equal(await B.p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:partie:join')).d), 'dk-bob', 'deck gardé pour la fois suivante');
 await B.p.waitForTimeout(300); await shot(B, 'mon-qr-joueur-390'); await at360(B, 'mon-qr-joueur');
 ok('Bob : carte joueur reçue (signée), « Mon QR joueur » de l\'accueil avec son deck (' + qrB.length + ' caractères)');
+// renouvelée en tâche de fond, quel que soit l'écran, dès qu'elle a plus de 5 jours (retour sur l'appli) : une soirée sans réseau trouve une carte de 25 à 30 jours
+await B.p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); const c = JSON.parse(localStorage.getItem('deckdeal:partie:carte')); c.x = Date.now() + 20 * 864e5; localStorage.setItem('deckdeal:partie:carte', JSON.stringify(c)); PRT.cartT = 0; document.dispatchEvent(new Event('visibilitychange')); });
+await B.p.waitForFunction(() => JSON.parse(localStorage.getItem('deckdeal:partie:carte')).x > Date.now() + 29 * 864e5, null, { timeout: 8000 });
+await B.p.evaluate(() => { PRT.cartT = 0; puCarteKeep(); }); await B.p.waitForTimeout(400);
+const qrB2 = await B.p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:partie:carte')).t);
+ok('carte joueur renouvelée en tâche de fond (retour sur l\'appli) quand elle a plus de 5 jours : de nouveau 30 jours');
 
 /* ── Réseau coupé chez les deux : la carte de Bob reste là ───────────────────────────────────────────────────────── */
 const A = await page();
@@ -62,9 +68,15 @@ await A.p.waitForFunction(() => CTX.partie === true && partiePk(), null, { timeo
 await A.ctx.setOffline(true); await B.ctx.setOffline(true);
 await B.p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await B.p.waitForTimeout(500);
 await B.p.click('#hmPartie .hm-pu-qr'); await B.p.waitForSelector('.pu-myqr .qr-img svg');
-assert.match(await txt(B.p, '.pu-myqr-st'), /Carte joueur liée à ton compte, valable jusqu'au/); assert.equal(await B.p.$eval('.pu-myqr .qr-img', e => e.dataset.qr), qrB, 'même QR code sans réseau');
+assert.match(await txt(B.p, '.pu-myqr-st'), /Carte joueur liée à ton compte, valable jusqu'au/); assert.ok((await B.p.$eval('.pu-myqr .qr-img', e => e.dataset.qr)).includes(qrB2), 'QR code de la carte renouvelée, sans réseau');
 await shot(B, 'mon-qr-joueur-hors-ligne-390');
 ok('hors ligne : la carte de Bob s\'affiche toujours (gardée sur son téléphone)');
+// sans réseau, carte qui expire dans moins de 3 jours : prévenu (ouvrir l'appli avec du réseau avant la soirée)
+await B.p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); const c = JSON.parse(localStorage.getItem('deckdeal:partie:carte')); localStorage.setItem('deckdeal:partie:carte.bak', JSON.stringify(c)); c.x = Date.now() + 2 * 864e5; localStorage.setItem('deckdeal:partie:carte', JSON.stringify(c)); });
+await B.p.click('#hmPartie .hm-pu-qr'); await B.p.waitForSelector('.pu-myqr .qr-img svg');
+assert.match(await txt(B.p, '.pu-myqr-st'), /mais elle expire le .* ouvre l'appli avec du réseau avant pour la renouveler/);
+await B.p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); localStorage.setItem('deckdeal:partie:carte', localStorage.getItem('deckdeal:partie:carte.bak')); localStorage.removeItem('deckdeal:partie:carte.bak'); });
+ok('hors ligne, carte qui expire dans moins de 3 jours : « ouvre l\'appli avec du réseau avant »');
 
 /* ── Alice, hors ligne : préparation sans table ni co-hôte ; Bob ajouté par son QR code ──────────────────────────── */
 await toHome(A.p); await A.p.click('#hmPartie .hm-tr-acts [data-pu="go"]'); await A.p.waitForSelector('.pu.on .pu-setup'); await A.p.waitForTimeout(400);

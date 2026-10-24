@@ -40,5 +40,6 @@
 "Accès à l'appareil photo refusé : autorise-le dans les réglages du téléphone.": "Accesso alla fotocamera negato: consentilo nelle impostazioni del telefono.",
 "Lecteur de QR code pas encore chargé : ouvre cet écran une fois avec du réseau.": "Lettore di codici QR non ancora caricato: apri questa schermata una volta con la rete.",
 "Hors ligne : ajoute les joueurs par leur QR joueur ou en invités ; le résultat partira au retour du réseau.": "Offline: aggiungi i giocatori con il loro QR giocatore o come ospiti; il risultato partirà quando torna la rete.",
-"Hors ligne : ajoutée à « Mes parties » tout de suite, envoyée à ton compte au retour du réseau.": "Offline: aggiunta subito a «Le mie partite», inviata al tuo account quando torna la rete."
+"Hors ligne : ajoutée à « Mes parties » tout de suite, envoyée à ton compte au retour du réseau.": "Offline: aggiunta subito a «Le mie partite», inviata al tuo account quando torna la rete.",
+  "Carte joueur liée à ton compte, mais elle expire le {d} : ouvre l'appli avec du réseau avant pour la renouveler.": "Tessera giocatore collegata al tuo account, ma scade il {d}: apri l'app con la rete prima di allora per rinnovarla."
 }

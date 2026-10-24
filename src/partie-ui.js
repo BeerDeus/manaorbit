@@ -770,7 +770,7 @@ const PU_JOIN_KEY = 'deckdeal:partie:join';
 const puJoinPref = () => { try { const o = JSON.parse(localStorage.getItem(PU_JOIN_KEY) || 'null'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } };
 const puJoinPrefSet = o => { try { localStorage.setItem(PU_JOIN_KEY, JSON.stringify({ ...puJoinPref(), ...o })); } catch (e) { /* choix pour cette fois */ } };
 /** Connexion ou changement de compte (decks.js › onUser) : l'écran « Rejoindre la partie » se met à jour (il attendait peut-être le compte). */
-function puUser(user) { if (PU.joinEl && PU.joinEl.__user) PU.joinEl.__user(user); }
+function puUser(user) { if (PU.joinEl && PU.joinEl.__user) PU.joinEl.__user(user); if (user && typeof puCarteKeep === 'function') setTimeout(puCarteKeep, 5000); }      // compte connu : carte joueur renouvelée en tâche de fond (partie-qr.js)
 const PU_HUES = [265, 200, 150, 28, 340, 52, 180, 300];      // couleur de chaque place, comme les tuiles du compteur
 const puDqId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-5);
 /** Raison de la fin d'une table (salle st 'end', retiré, disparue) → [titre, message] pour le téléphone d'une place. */

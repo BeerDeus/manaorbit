@@ -40,5 +40,6 @@
 "Accès à l'appareil photo refusé : autorise-le dans les réglages du téléphone.": "Camera access denied: allow it in your phone's settings.",
 "Lecteur de QR code pas encore chargé : ouvre cet écran une fois avec du réseau.": "QR code reader not loaded yet: open this screen once with a network.",
 "Hors ligne : ajoute les joueurs par leur QR joueur ou en invités ; le résultat partira au retour du réseau.": "Offline: add players with their player QR or as guests; the result will be sent when the network is back.",
-"Hors ligne : ajoutée à « Mes parties » tout de suite, envoyée à ton compte au retour du réseau.": "Offline: added to “My games” right away, sent to your account when the network is back."
+"Hors ligne : ajoutée à « Mes parties » tout de suite, envoyée à ton compte au retour du réseau.": "Offline: added to “My games” right away, sent to your account when the network is back.",
+  "Carte joueur liée à ton compte, mais elle expire le {d} : ouvre l'appli avec du réseau avant pour la renouveler.": "Player card linked to your account, but it expires on {d}: open the app with a connection before then to renew it."
 }
