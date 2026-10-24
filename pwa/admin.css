@@ -467,3 +467,57 @@ main{max-width:1240px;margin:0 auto;padding:14px 16px 48px}
 .dlg .note{margin:4px 0 0}
 @media (max-width:420px){ .qcimg{width:104px;height:104px} .qc{gap:12px} }
 @media (min-width:980px){ .qcl{grid-template-columns:repeat(2,minmax(0,1fr))} .qcacts .btn{flex:0 1 auto} }
+
+/* Serveur › santé (#health) : avis « VPS » (bord coloré), indicateurs (pastille, valeur, barre d'un plafond, petit texte), requêtes par famille.
+   Couleurs des niveaux décidés par le serveur : vert (ok), orange (warn), rouge (bad, compté dans la pastille de l'onglet), gris (sans seuil). */
+.hvd{border-left:4px solid var(--good)}
+.hvd[data-v="warn"]{border-left-color:var(--warn)}
+.hvd[data-v="bad"]{border-left-color:var(--bad)}
+.hvd .chead{align-items:center}
+.hvd .chead{margin-bottom:2px}
+.hat{margin:0 0 10px;font-size:13px;color:var(--ink-3)}
+.hverd{margin:0 0 8px;font-size:15px;font-weight:560;line-height:1.45}
+.hverd.small{margin:10px 0 0;font-size:14px;font-weight:500;color:var(--ink-2)}
+.card .hvd .hint,.hvd .hint{margin:0 0 6px}
+.hfold{border-top:1px solid var(--line);margin-top:10px;padding-top:6px}
+.hvps{margin:0;padding-left:20px;display:grid;gap:6px;font-size:14px;color:var(--ink-2)}
+.hvps .hn{list-style:none;margin-left:-20px;color:var(--ink-3);font-size:13px}
+.hgrid{display:grid;gap:0 14px}
+.hcol{min-width:0}
+.hi{display:grid;grid-template-columns:10px minmax(0,1fr) auto;align-items:baseline;gap:2px 10px;padding:9px 0;border-top:1px solid var(--line);min-width:0}
+.chead+.hi,.hsub+.hcl>.hi:first-child{border-top:0;padding-top:2px}
+.hdot{width:10px;height:10px;border-radius:50%;background:var(--line);align-self:center}
+.hi[data-lv="ok"] .hdot{background:var(--good)}
+.hi[data-lv="warn"] .hdot{background:var(--warn)}
+.hi[data-lv="bad"] .hdot{background:var(--bad);box-shadow:0 0 0 3px var(--bad-soft)}
+.hl{font-size:14px;color:var(--ink-2);min-width:0}
+.hv{font-size:14.5px;font-weight:650;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.hi[data-lv="warn"] .hv{color:var(--warn)}
+.hi[data-lv="bad"] .hv{color:var(--bad)}
+.hbar{grid-column:2/-1;display:block;height:6px;margin-top:5px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.hbar i{display:block;height:100%;width:0;border-radius:inherit;background:var(--accent);transition:width .3s ease-out}
+.hi[data-lv="ok"] .hbar i{background:var(--good)}
+.hi[data-lv="warn"] .hbar i{background:var(--warn)}
+.hi[data-lv="bad"] .hbar i{background:var(--bad)}
+.hs{grid-column:2/-1;font-size:12.5px;line-height:1.35;color:var(--ink-3);overflow-wrap:anywhere}
+.card h3.hsub{margin:14px 0 2px;font-size:14.5px}
+.card .hint.hfoot{margin:10px 0 0}
+.hbig{display:flex;align-items:baseline;gap:12px;margin:2px 0 12px}
+.hbig b{font:700 36px/1 var(--font-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.hbig>span{display:flex;flex-direction:column;gap:2px;font-size:14px;color:var(--ink-2)}
+.hbig small{font-size:12.5px;color:var(--ink-3)}
+.hfam{display:grid;gap:9px}
+.hf{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;font-size:13.5px}
+.hf>span:first-child{color:var(--ink-2);min-width:0}
+.hf b{font-variant-numeric:tabular-nums}
+.hf .hbar{grid-column:1/-1;margin:0}
+.hboots{margin-top:4px;border-top:1px solid var(--line);font-size:13.5px}
+.hboots summary{display:flex;align-items:center;min-height:44px;cursor:pointer;color:var(--ink-2);font-weight:600}
+.hboots summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hboots ol{margin:0 0 4px;padding:0;list-style:none;display:grid;gap:5px}
+.hboots li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-variant-numeric:tabular-nums}
+.hboots small{color:var(--ink-3)}
+/* Téléphone : une seule colonne, dans l'ordre de lecture (mémoire, démarrage, en direct, requêtes, disque, prix) ; grand écran : deux colonnes */
+@media (max-width:979px){ .hcol{display:contents} #hcMem{order:1} #hcBoot{order:2} #hcLive{order:3} #hcReq{order:4} #hcDisk{order:5} #hcHist{order:6} }
+@media (min-width:980px){ .hgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start} }
+@media (prefers-reduced-motion:reduce){ .hbar i{transition:none} }
