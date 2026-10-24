@@ -23,7 +23,7 @@
   .pu-t.act:not(.rv) .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64,(100cqh - 33px) / .75) * var(--k)),200px);translate:0 calc(-1 * max(0px,.37em - 50cqh + 35px))}
 }
 /* tuile large (vue par son joueur : 330 px et plus) : « Fin du tour » en haut, à côté du nom (du côté libre du bouton rond), les PV gardent toute leur place */
-@container pucell (min-width:330px){
+@container pucell (min-width:330px) and (min-height:171px){
   .pu-t.act:not(.rv) .pu-turn{top:8px;bottom:auto;left:auto;right:10px;transform:none}
   .pu-t.act:not(.rv) .pu-top{--nr:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px)}
   .pu-t.act.mid-r:not(.rv) .pu-turn{right:auto;left:10px}

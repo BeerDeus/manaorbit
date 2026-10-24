@@ -178,7 +178,7 @@ function puSheetOnTile(api, t, root) {
     sh.style.setProperty('--x', Math.round(Math.max(m + bw / 2, Math.min(W - m - bw / 2, b.left + b.width / 2))) + 'px');
     sh.style.setProperty('--y', Math.round(Math.max(m + bh / 2, Math.min(H - m - bh / 2, b.top + b.height / 2))) + 'px');
   };
-  api.__place = place; place();
+  sh.style.transition = 'none'; api.__place = place; place(); void sh.offsetWidth; sh.style.transition = '';      // posée et tournée d'emblée : seul le zoom d'ouverture s'anime
 }
 /** − / + maintenus dans une feuille (fiche du joueur, de l'écran 2) : après 0,45 s, le bouton est répété (toutes les 0,14 s, puis 0,07 s) ; le relâché ne compte pas
  *  une fois de plus. Le bouton est retrouvé par ses données après chaque repeint de la feuille. */
