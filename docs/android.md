@@ -214,6 +214,37 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.0.11 (versionCode 12) : mise au point du scan qui ne saute plus (24 octobre 2026)
+
+**Retour du propriétaire** : pendant le scan, toucher un bouton sous l'aperçu (+ / −, déclencheur, liste) refaisait la mise au point de la caméra, au mauvais endroit, alors qu'elle était faite sur la carte. Cause : le plugin `@capacitor-community/camera-preview` (`toBack`, `enableZoom`) envoie **tous** les touchers du WebView à la caméra (mise au point au point touché, puis plus de mise au point continue), quel que soit l'élément touché.
+
+**Correctif** : méthode `camTouch({ l, t, r, b, k })` du plugin local `ManaOrbit` : elle remplace l'écouteur du plugin et ne rend à la caméra que les gestes qui commencent dans la zone donnée (coordonnées ramenées à l'aperçu : la mise au point tombe aussi pile sous le doigt). Le site la demande au démarrage de la caméra native et quand « Encore X ? » apparaît ou disparaît : zone = l'aperçu entre la barre du haut et les boutons du bas (`scan.js › natTouch`). Toucher la carte fait toujours la mise au point, pincer zoome toujours. APK 1.0.10 et moins : comme avant. Tests : `scan-e2e.mjs`, `test-android-xml.mjs`.
+
+1. `git pull`, `npm run setup` dans `android-app`, Android Studio › **Sync Project with Gradle Files**, `.aab` signé (§ 4.1).
+2. **Test interne** : « APK : 1.0.11 (12) » en bas des Réglages ; scan ouvert, toucher la carte (mise au point dessus), puis toucher + / − d'une ligne, le déclencheur, la liste : la carte reste nette. Pincer sur l'aperçu : zoom. Puis la liste habituelle (scan d'une carte, connexion Google, notification, widget, lien, pub).
+3. Notes de version :
+```
+<fr-FR>
+Scan : toucher les boutons sous la caméra ne dérègle plus la mise au point faite sur la carte. Merci pour vos retours !
+</fr-FR>
+<en-US>
+Scanning: tapping the buttons below the camera no longer resets the focus set on the card. Thanks for your feedback!
+</en-US>
+<de-DE>
+Scannen: Das Antippen der Tasten unter der Kamera verstellt nicht mehr den auf die Karte gesetzten Fokus. Danke für euer Feedback!
+</de-DE>
+<es-ES>
+Escaneo: tocar los botones bajo la cámara ya no cambia el enfoque hecho sobre la carta. ¡Gracias por vuestros comentarios!
+</es-ES>
+<it-IT>
+Scansione: toccare i pulsanti sotto la fotocamera non cambia più la messa a fuoco fatta sulla carta. Grazie per i vostri feedback!
+</it-IT>
+<pt-BR>
+Escaneamento: tocar nos botões abaixo da câmera não muda mais o foco feito na carta. Obrigado pelo feedback!
+</pt-BR>
+```
+4. `APK_LATEST` à **12** une fois la 1.0.11 en ligne.
+
 ### APK 1.0.10 (versionCode 11) : écran allumé pendant le scan (22 octobre 2026)
 
 **Retour d'un testeur** : pendant le scan, le téléphone se verrouillait tout seul (mise en veille automatique au bout de quelques secondes sans toucher l'écran). Le cadrage d'une carte ne touche pas l'écran, et le WebView d'Android n'a pas `navigator.wakeLock` : rien ne l'empêchait.

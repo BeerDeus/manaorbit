@@ -56,16 +56,19 @@ function artPrintSig(p) {
 }
 /** Réseau mobile ou économiseur de données. */
 const artMetered = () => { try { const c = navigator.connection; return !!c && (c.saveData === true || c.type === 'cellular'); } catch (e) { return false; } };
-/** Empreinte de la photo → { p (impression la plus proche, sûre), group (impressions de même illustration, à départager), d1, d2, n } ou null.
+/** Empreinte de la photo → { p (impression la plus proche, sûre), group (impressions de même illustration, à départager), d1, d2, n, miss (impressions dont l'image n'est pas venue) } ou null.
  *  prints : les candidates (une seule langue d'image suffit : l'illustration est la même). Lots de 6 images à la fois. */
 async function artPick(sig, prints) {
   if (!sig || !Array.isArray(prints) || prints.length < 2) return null;
   const seen = new Set(), list = prints.filter(p => { const k = p && p.th && p.set + '/' + p.num; return k && !seen.has(k) && seen.add(k); }).slice(0, ART_CAND);      // une image par édition (celle de la langue de la carte : elle vient d'abord)
   if (list.length < 2 || (list.length > ART_MOBILE && artMetered())) return null;
   const sigs = []; for (let i = 0; i < list.length; i += 6) sigs.push(...await Promise.all(list.slice(i, i + 6).map(artPrintSig)));
+  const again = list.map((p, i) => i).filter(i => !sigs[i]);      // images pas venues (délai, réseau) : un second essai, quand il en manque peu
+  if (again.length && again.length <= 6) (await Promise.all(again.map(i => artPrintSig(list[i])))).forEach((s, j) => { sigs[again[j]] = s; });
   const scored = list.map((p, i) => ({ p, d: artDist(sig, sigs[i]) })).filter(x => Number.isFinite(x.d)).sort((a, b) => a.d - b.d);
   if (!scored.length) return null;
-  const d1 = scored[0].d, d2 = scored[1] ? scored[1].d : Infinity, out = { d1, d2, n: scored.length };
+  const miss = list.filter((p, i) => !sigs[i]);      // toujours sans image : ni comparées ni écartées pour de bon (scaned.js › scanArtTry : l'extension du scan peut être l'une d'elles)
+  const d1 = scored[0].d, d2 = scored[1] ? scored[1].d : Infinity, out = { d1, d2, n: scored.length, ...(miss.length ? { miss } : {}) };
   if (d1 > ART_MAX) return out;      // rien de proche (photo floue, autre cadrage)
   if (d2 >= d1 * ART_RATIO) return { ...out, p: scored[0].p };
   return { ...out, group: scored.filter(x => x.d < d1 * ART_RATIO).map(x => x.p) };      // même illustration (réédition) : départagée par les extensions du scan

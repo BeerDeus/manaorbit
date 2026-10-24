@@ -383,11 +383,11 @@ await camN.close();
   // (le WebView n'a pas navigator.wakeLock) ; page rechargée scan ouvert → rendu à la veille ; APK plus ancienne ou navigateur → Wake Lock, repris au retour sur la page
   const nw = await newPage(bN, world, { goto: false }), wp = nw.p; await bandOnly(nw.ctx);
   await nw.ctx.addInitScript(() => {
-    window.__aw = []; window.__wl = 0;
+    window.__aw = []; window.__wl = 0; window.__ct = [];
     window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: () => true, Plugins: {
       CameraPreview: { start: async () => ({}), stop: async () => ({}), captureSample: async () => ({ value: '' }) },
       CapacitorPluginMlKitTextRecognition: { detectText: async () => ({ text: '', blocks: [] }) },
-      ManaOrbit: { info: async () => ({ version: '1.0.10', build: 11 }), addListener: async () => ({ remove() {} }), setWidget: async () => ({}), setTradeWidget: async () => ({}), keepAwake: async o => { window.__aw.push(o.on); return { on: o.on }; } } } };
+      ManaOrbit: { info: async () => ({ version: '1.0.10', build: 11 }), addListener: async () => ({ remove() {} }), setWidget: async () => ({}), setTradeWidget: async () => ({}), keepAwake: async o => { window.__aw.push(o.on); return { on: o.on }; }, camTouch: async o => { window.__ct.push(o); return { ok: true }; } } } };
     Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => { window.__wl++; return { release: async () => {}, addEventListener() {} }; } } });
   });
   await wp.goto(world.url); await wp.waitForTimeout(700);
@@ -395,6 +395,16 @@ await camN.close();
   assert.deepEqual(await wp.evaluate(() => window.__aw), [], 'écran laissé à la veille hors du scan');
   await wp.click('#nav [data-nav="scan"]'); await wp.waitForSelector('.scan.on'); await wp.waitForFunction(() => window.__aw.length === 1);
   assert.deepEqual(await wp.evaluate(() => [window.__aw, sessionStorage.getItem('deckdeal:awake'), window.__wl]), [[true], '1', 0], 'scan ouvert : écran gardé allumé par la coque, sans Wake Lock');
+  // APK 1.0.11 : touchers rendus à la caméra (mise au point, zoom) seulement sur l'aperçu, entre la barre du haut et les boutons du bas (pas sur + / −, le cercle, la liste)
+  await wp.waitForFunction(() => window.__ct.length === 1, null, { timeout: 5000 });
+  const zt = await wp.evaluate(() => { const z = window.__ct[0], r = q => document.querySelector('.scan.on ' + q).getBoundingClientRect(); return { z, st: r('.sc-stage'), tools: r('.sc-tools'), modes: r('.sc-modes'), guide: r('.sc-guide'), bar: r('.sc-bar'), dpr: devicePixelRatio }; });
+  assert.ok(zt.z.t >= zt.tools.bottom - 0.5 && zt.z.b <= zt.modes.top + 0.5 && zt.z.b <= zt.bar.top && zt.z.l === zt.st.left && zt.z.r === zt.st.right && zt.z.k === zt.dpr, 'zone : l\'aperçu sans ses boutons ' + JSON.stringify(zt));
+  assert.ok(zt.z.t <= zt.guide.top && zt.z.b >= zt.guide.top + 20, 'zone : la carte (cadre) dedans ' + JSON.stringify(zt));
+  await wp.evaluate(() => auAsk({ key: 'lightning bolt', name: 'Lightning Bolt', score: 0.99, card: 'en' })); await wp.waitForFunction(() => window.__ct.length === 2);
+  const za = await wp.evaluate(() => [window.__ct[1].b, document.querySelector('.scan.on .sc-same').getBoundingClientRect().top]);
+  assert.ok(za[0] <= za[1] + 0.5, '« Encore X ? » posé : ses boutons hors de la zone ' + za);
+  await wp.evaluate(() => auHideAsk()); await wp.waitForFunction(() => window.__ct.length === 3);
+  assert.equal(await wp.evaluate(() => window.__ct[2].b), zt.z.b, '« Encore X ? » retiré : la zone d\'avant');
   await scanClose(wp); await wp.waitForFunction(() => window.__aw.length === 2);
   assert.deepEqual(await wp.evaluate(() => [window.__aw, sessionStorage.getItem('deckdeal:awake')]), [[true, false], null], 'scan fermé : veille rendue');
   await wp.click('#nav [data-nav="scan"]'); await wp.waitForSelector('.scan.on'); await wp.waitForFunction(() => window.__aw.length === 3);

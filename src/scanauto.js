@@ -72,8 +72,10 @@ async function auTick(g) {
   if (g !== AU.gen || !SC.el) return;
   let wait = NAT.on ? 150 : 250;
   if (auLive()) {
-    try { const f = await auGrab(); if (g !== AU.gen || !SC.el) { if (f) scanFree(f.src); return; } if (f) await auFeed(f, g); }
-    catch (e) { wait = 900; }      // aperçu pas prêt, capture ou lecture refusée : on réessaie un peu plus tard
+    try {
+      const f = await auGrab(); if (g !== AU.gen || !SC.el) { if (f) scanFree(f.src); return; } if (f) await auFeed(f, g);
+      if (AU.cand) wait = Math.max(NAT.on ? 0 : 60, SCS.delay - (Date.now() - AU.at));      // 1re lecture d'une carte : la lecture qui la confirme tout de suite (ou dès le délai entre deux cartes passé)
+    } catch (e) { wait = 900; }      // aperçu pas prêt, capture ou lecture refusée : on réessaie un peu plus tard
   } else { AU.cand = null; auRing(0); }
   if (g === AU.gen && SC.el) AU.t = setTimeout(() => auTick(g), wait);
 }
@@ -136,9 +138,9 @@ function auAsk(m) {
   box.setAttribute('aria-label', T('Même carte à la suite'));
   box.innerHTML = `<span><b>${T('Encore <em>{name}</em> ?', { name: esc(scanShown({ key: m.key, name: m.name, l: scanLangOf(m).card || 'en' })) })}</b><small>${T('Même carte qu\'à l\'instant')}</small></span>
     <button class="btn small" type="button" data-act="au1">+1</button><button class="btn ghost small" type="button" data-act="au0">${T('Non')}</button>`;
-  scanHint('', '');
+  scanHint('', ''); if (typeof natTouch === 'function') natTouch();      // ses boutons, sur l'aperçu : hors de la zone de mise au point
 }
-function auHideAsk() { AU.ask = null; const b = SC.el && $('.sc-same', SC.el); if (b) b.remove(); }
+function auHideAsk() { AU.ask = null; const b = SC.el && $('.sc-same', SC.el); if (b) { b.remove(); if (typeof natTouch === 'function') natTouch(); } }
 /** Boutons de l'auto : interrupteur, +1 / Non, lampe. */
 function auAct(act) {
   if (act === 'auto') { haptic('tap'); scsSet({ auto: !SCS.auto }); if (SCS.auto) scanHint(auHint(), ''); else scanHint(camHint(), ''); return; }

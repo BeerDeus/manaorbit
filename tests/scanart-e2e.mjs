@@ -59,6 +59,15 @@ await p.evaluate(async b64 => {
 await settle(); L = await lines();
 assert.equal(L['wrath of god en m21|265'], 'art ×2', 'numéro unique parmi ses éditions : la même édition, rangée avec le 1er exemplaire ' + JSON.stringify(L));
 ok('terrain de base (66 éditions) : l\'ancienne trouvée à l\'illustration ; numéro de 2003-2014 lu : édition posée');
+
+// image de l'édition d'une extension du scan pas venue (réseau) : elle reste possible ; sans ça, une autre édition « sûre » (ou « à choisir ») alors que la carte existe dans l'extension du scan
+await p.evaluate(() => { window.__ap = window.artPick; window.artPick = async (sig, ps) => ({ p: ps.find(x => x.set === 'cmm'), d1: 0.3, d2: 0.9, n: ps.length - 1, miss: ps.filter(x => x.set === 'm21') }); });
+await shoot('photo-m21.jpg', 'Swords to Plowshares', 'en'); await settle();
+await p.evaluate(() => { window.artPick = window.__ap; });
+L = await lines(); console.log('  ', JSON.stringify(L));
+assert.equal(L['swords to plowshares en m21|203'], 'art ×2', 'image M21 manquante, M21 dans le scan : M21, pas CMM ' + JSON.stringify(L));
+assert.ok(!Object.keys(L).some(k => k.includes('cmm')), 'pas de CMM');
+ok('image d\'une édition du scan pas venue : l\'extension du scan reste possible (rien demandé)');
 await scanClose(p);
 
 assert.deepEqual(errs, [], 'erreurs page');

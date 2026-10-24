@@ -99,3 +99,14 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 11, 'code natif changé : versionCode 11 et plus (1.0.10)');
   console.log('✓ APK 1.0.10 : keepAwake (FLAG_KEEP_SCREEN_ON) déclarée et demandée par le site, versionCode ≥ 11');
 }
+
+// APK 1.0.11 : touchers rendus à la caméra native seulement dans la zone de l'aperçu (le plugin CameraPreview les lui envoie tous : mise au point sur chaque bouton touché).
+{
+  const plug = readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8'), gradle = readFileSync('android-app/android/app/build.gradle', 'utf8');
+  assert.match(plug, /@PluginMethod\s+public void camTouch\(PluginCall call\)/, 'méthode camTouch'); assert.match(plug, / \* - camTouch\(/, 'camTouch décrite dans l\'en-tête du plugin');
+  assert.match(plug, /getIdentifier\("frame_container", "id"/, 'aperçu du plugin retrouvé par son id'); assert.match(plug, /zone\.contains\(e\.getX\(\), e\.getY\(\)\)/, 'geste filtré à son début');
+  assert.match(plug, /return false;\s+\/\/ la page reçoit toujours le toucher/, 'la page garde tous ses touchers');
+  assert.match(readFileSync('src/scan.js', 'utf8'), /typeof mo\.camTouch !== 'function'/, 'site : camTouch seulement si la coque l\'a (APK 1.0.11)');
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 12, 'code natif changé : versionCode 12 et plus (1.0.11)');
+  console.log('✓ APK 1.0.11 : camTouch (touchers de la caméra limités à l\'aperçu) déclarée et demandée par le site, versionCode ≥ 12');
+}
