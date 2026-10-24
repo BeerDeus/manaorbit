@@ -130,6 +130,28 @@
   .vl-box .vl-svg{width:100%;height:auto}
   .vl-box .vl-txt{font-size:11px}
 
+  /* ── viewer d'un deck : deux colonnes (viewer.js › dvFrame) ; à gauche, collé en haut, le résumé (total, courbe, actions, parties, « Où trouver mes cartes »)
+     et « De ta collection pour ce deck » (deckfind.js), qui défilent à part s'ils dépassent ; à droite, le commandant et les groupes de cartes, en grille plus serrée ── */
+  .dvw .dv-body{max-width:1760px;display:grid;grid-template-columns:minmax(340px,400px) minmax(0,1fr);align-items:start;column-gap:28px;padding:20px 28px 32px}
+  .dvw .dv-side{position:sticky;top:20px;z-index:4;max-height:calc(100dvh - var(--top-in,0px) - 196px);overflow-y:auto;overscroll-behavior:contain;padding:2px 6px 8px;margin:-2px -6px -8px}
+  .dvw .dv-grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:14px}
+  .dvw .dv-cmds{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px}
+  .dv.dvw:not(.scan)>.dv-foot{justify-content:flex-end;padding-inline:28px}
+  .dv.dvw:not(.scan)>.dv-foot .btn{flex:0 1 auto;min-width:180px;padding:0 24px}
+  .df-row:hover{background:color-mix(in srgb,var(--surface-2) 55%,transparent)}
+
+  /* ── éditeur de deck : recherche et collection à gauche, liste du deck toujours affichée à droite, sur plusieurs colonnes (builder.js › BD.split) ;
+     chaque colonne défile seule ── */
+  .bd.split .dv-scroll{overflow:hidden;display:flex}
+  .bd.split .bd-split{flex:1;min-height:0;width:100%;max-width:1760px;margin:0 auto;padding:0 28px;display:grid;grid-template-columns:minmax(360px,440px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0 28px}
+  .bd-split>.bd-l,.bd-split>.bd-r{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 4px 32px}
+  .bd-split>.bd-l{padding-right:24px;border-right:1px solid var(--line)}
+  .bd-split #bdDeckCtl{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}
+  .bd-split #bdDeckCtl .bd-scan{margin-top:0;height:46px;padding:0 18px}
+  .bd-split #bdDeck{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:8px 12px;align-content:start}
+  .bd-split #bdDeck>:not(.crow){grid-column:1 / -1}
+  .bd-split #bdDeck>.btn{justify-self:start}
+
   /* ── feuilles du bas → fenêtres centrées ── */
   .sheet{top:50%;bottom:auto;max-width:600px;max-height:min(86vh,860px);border-radius:22px;box-shadow:0 30px 80px -20px rgba(0,0,0,.6),0 0 0 1px var(--line);transform:translate(-50%,-47%) scale(.97);opacity:0;transition:transform .26s cubic-bezier(.2,.85,.25,1),opacity .2s;padding-bottom:0}
   .sheet-wrap.open .sheet{transform:translate(-50%,-50%);opacity:1}

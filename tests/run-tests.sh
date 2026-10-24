@@ -46,6 +46,7 @@ BROWSER=(
   discord-deck-e2e.mjs
   avis-e2e.mjs
   alerts-dm-e2e.mjs
+  deckfind-e2e.mjs
 )
 T=("$@")
 if [ ${#T[@]} -eq 0 ]; then T=("${NODE[@]}" "${BROWSER[@]}"); elif [ "$1" = --node ]; then T=("${NODE[@]}"); fi

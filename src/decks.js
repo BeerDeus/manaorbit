@@ -338,6 +338,7 @@ function openDeckSheet(id) {
     api.body.innerHTML = `<div class="field-in"><label class="label" for="dkName">${T('Nom')}</label><input type="text" id="dkName" maxlength="120" autocomplete="off" value="${esc(d.name)}"></div>
       <button class="coll-open dk-cover" type="button" id="dkCover"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Image du deck')}</b><span id="dkCoverSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
+      ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
       <div class="dk-val" id="dkVal"></div>
       <div class="sec-title">${T('Historique des prix')}</div>
       ${series.length >= 2 ? chartSvg(series, Math.max(220, (api.body.clientWidth || 376) - 36)) + `<div class="chart-cap"><span>${esc(dateShort(same[0].at))}</span><span>${T('{n} relevés · de {min} à {max}', { n: series.length, min: esc(fmt(Math.min(...series))), max: esc(fmt(Math.max(...series))) })}</span><span>${esc(dateShort(lastE.at))}</span></div>` : ''}
@@ -352,6 +353,7 @@ function openDeckSheet(id) {
     };
     name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } };
     $('#dkOpen', api.foot).onclick = () => { api.close(); loadDeck(id); };
+    const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
     const paintCover = () => {      // carte de présentation : celle choisie, sinon le commandant, sinon la plus chère
       const cur = findDeck(id) || d, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/');
       $('.cover-th', api.body).innerHTML = im ? `<img alt="" src="${esc(im)}">` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`;

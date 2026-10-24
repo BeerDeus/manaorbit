@@ -334,16 +334,17 @@ function plcMount(id, name, text, pref) {
 /** Démonte : les cartes rangées dans l'emplacement du deck retournent d'où elles venaient, l'emplacement disparaît. */
 function plcUnmount(id) { const pid = plcDeckOf(id); if (pid) plcDelete(pid); }
 
-/** « Cartes à aller chercher » d'un deck : ce que j'ai, emplacement par emplacement (cases à cocher, sur cet écran seulement), proxys en option ; monter / démonter. */
+/** « Où trouver mes cartes » d'un deck : ce que j'ai, emplacement par emplacement (cases à cocher, sur cet écran seulement), proxys en option, ce qui manque ; monter / démonter.
+ *  d : { id, name, text } ; id null (deck EDHREC, de la communauté, reçu par un lien, liste non enregistrée) : la même feuille, sans « Monter le deck » (il faut un deck de Mes decks). */
 function plcFetchSheet(d) {
   const want = new Map();
   for (const c of [...parseDeck(d.text).cards, ...parseDeck(d.text).basics, ...dkSideCards(d.text)]) { const k = ownKey(c.key || c.name); if (k) want.set(k, { n: c.name, q: ((want.get(k) || {}).q || 0) + c.qty }); }
   let withProx = (() => { try { return localStorage.getItem('deckdeal:fetchprox') === '1'; } catch (e) { return false; } })();
   const done = new Set();
-  openSheet(T('Cartes à aller chercher'), d.name || '', api => {
+  openSheet(T('Où trouver mes cartes'), d.name || '', api => {
     api.wrap.classList.add('fetch-sheet');
     const plan = () => {
-      const groups = new Map(); let have = 0, px = 0, miss = 0, tot = 0; const pid = plcDeckOf(d.id);
+      const groups = new Map(), lack = []; let have = 0, px = 0, miss = 0, tot = 0; const pid = plcDeckOf(d.id);
       for (const [k, w] of want) {
         tot += w.q; let left = w.q;
         const take = (map, prox) => {
@@ -356,18 +357,21 @@ function plcFetchSheet(d) {
           }
         };
         take(COLL.map, false); if (withProx) take(COLL.prox, true);
-        miss += left;
+        miss += left; if (left > 0) lack.push({ n: w.n, q: left });
       }
-      return { groups: [...groups.values()].sort((a, b) => (a.prox ? 1 : 0) - (b.prox ? 1 : 0) || (a.p ? 0 : 1) - (b.p ? 0 : 1) || NAME_CMP(plcName(a.p), plcName(b.p))), have, px, miss, tot };
+      return { groups: [...groups.values()].sort((a, b) => (a.prox ? 1 : 0) - (b.prox ? 1 : 0) || (a.p ? 0 : 1) - (b.p ? 0 : 1) || NAME_CMP(plcName(a.p), plcName(b.p))), have, px, miss, tot, lack: lack.sort((a, b) => NAME_CMP(a.n, b.n)) };
     };
     const paint = () => {
       const P = plan(), pid = plcDeckOf(d.id);
       api.body.innerHTML = `<p class="hint fetch-sum">${[T('{a} / {b} possédées', { a: nf0(P.have), b: nf0(P.tot) }), P.px ? TN(P.px, '{n} proxy', '{n} proxys', { n: nf0(P.px) }) : '', P.miss ? TN(P.miss, '{n} manquante', '{n} manquantes', { n: nf0(P.miss) }) : ''].filter(Boolean).join(' · ')}</p>
         <label class="fetch-px"><input type="checkbox"${withProx ? ' checked' : ''}><span>${T('Compter mes proxys')}</span></label>
         ${P.groups.map(gr => { const nd = gr.cards.filter(c => done.has(c.id)).length; return `<section class="fetch-g"><div class="fetch-gh"><i style="--c:${gr.prox ? '#c79bff' : plcColor(gr.p)}"></i><b>${esc(gr.prox ? T('Mes proxys · {place}', { place: plcName(gr.p) }) : plcName(gr.p))}</b><small>${T('{a} sur {b}', { a: nf0(nd), b: nf0(gr.cards.length) })}</small></div>
-          ${gr.cards.map(c => `<label class="fetch-c${done.has(c.id) ? ' on' : ''}"><input type="checkbox" data-c="${esc(c.id)}"${done.has(c.id) ? ' checked' : ''}><span>${c.t > 1 ? c.t + ' × ' : ''}${esc(c.n)}</span><small>${esc(c.tag)}</small></label>`).join('')}</section>`; }).join('') || `<p class="hint">${T('Aucune carte de ce deck dans ta collection.')}</p>`}`;
-      api.setFoot(pid ? `<button class="btn ghost" type="button" data-un>${T('Démonter')}</button><button class="btn" type="button" data-close>${T('Fermer')}</button>`
-        : `<button class="btn block" type="button" data-mount>${T('Monter le deck · range dans « {place} »', { place: T('Deck : {name}', { name: placeName(d.name) || T('Deck') }) })}</button>`);
+          ${gr.cards.map(c => `<label class="fetch-c${done.has(c.id) ? ' on' : ''}"><input type="checkbox" data-c="${esc(c.id)}"${done.has(c.id) ? ' checked' : ''}><span>${c.t > 1 ? c.t + ' × ' : ''}${esc(c.n)}</span><small>${esc(c.tag)}</small></label>`).join('')}</section>`; }).join('') || `<p class="hint">${T('Aucune carte de ce deck dans ta collection.')}</p>`}
+        ${P.lack.length ? `<details class="fetch-miss"${P.have || P.px ? '' : ' open'}><summary>${T('Manquantes ({n})', { n: nf0(P.miss) })}</summary><ul>${P.lack.map(c => `<li>${c.q > 1 ? c.q + ' × ' : ''}${esc(c.n)}</li>`).join('')}</ul></details>` : ''}
+        ${d.id ? '' : `<p class="hint fetch-save">${T('Pour monter ce deck (cartes réservées et rangées dans « Deck : … »), enregistre-le d\'abord dans Mes decks.')}</p>`}`;
+      api.setFoot(!d.id ? `<button class="btn block" type="button" data-close>${T('Fermer')}</button>`
+        : pid ? `<button class="btn ghost" type="button" data-un>${T('Démonter')}</button><button class="btn" type="button" data-close>${T('Fermer')}</button>`
+        : `<button class="btn block" type="button" data-mount>${T('Monter le deck · range dans « {place} »', { place: T('Deck : {name}', { name: placeName(d.name) || T('Deck') }) })}</button>`);      // deck pas encore dans Mes decks : rien à monter
     };
     paint();
     api.body.addEventListener('change', e => {
@@ -376,6 +380,7 @@ function plcFetchSheet(d) {
       if (e.target.closest('.fetch-px')) { withProx = e.target.checked; try { localStorage.setItem('deckdeal:fetchprox', withProx ? '1' : '0'); } catch (er) { /* réglage pour cette fois */ } paint(); }
     });
     api.foot.addEventListener('click', e => {
+      if (!d.id) return;
       if (e.target.closest('[data-mount]')) { if (!engIsOn(d.id)) engSet(d.id, d.name, d.text); plcMount(d.id, d.name, d.text); haptic('ok'); toast(T('Deck monté : cartes rangées dans « {place} »', { place: plcName(plcDeckOf(d.id)) })); paint(); }
       else if (e.target.closest('[data-un]')) { engClear(d.id); plcUnmount(d.id); haptic('tap'); toast(T('Deck démonté : les cartes retournent à leur place')); paint(); }
     });
