@@ -1,0 +1,55 @@
+/* ── search.css : recherche avancée de la collection (search.js) : « Plus de filtres », filtres actifs en pastilles, recherches enregistrées ── */
+.fmore{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;margin:-4px 0;padding:0 2px;border:0;border-top:1px solid var(--line);background:none;font-size:13.5px;font-weight:650;color:var(--ink-2);text-align:left;cursor:pointer}
+.fmore>span{flex:1}
+.fmore b{min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font-size:11px;display:grid;place-items:center;font-family:var(--font-mono)}
+.fmore b[hidden]{display:none}
+.fmore .i{width:16px;height:16px;transform:rotate(90deg);transition:transform .2s;color:var(--ink-3)}
+.fmore[aria-expanded="true"] .i{transform:rotate(-90deg)}
+.fmore:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.fmore-box{display:flex;flex-direction:column;gap:12px}
+.fmore-box[hidden]{display:none}
+.fmore-box .fopt{display:inline-flex;align-items:center;gap:6px}
+.fmore-box .fopt .flag{width:17px;height:12px;vertical-align:0}
+.fmore-box .fopt .setv-r{width:10px;height:10px}
+.srch-dot{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.srch-foil{font-size:12px;line-height:1}
+.srch-rh{margin:0;font-size:12.5px}
+
+/* Rangées sous la barre de recherche (au-dessus de la liste) */
+.fext{display:flex;flex-direction:column;gap:8px;min-width:0}
+.fext[hidden]{display:none}
+.srch-saved{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-inline:-16px;padding:2px 16px;scroll-padding-inline:16px;-webkit-overflow-scrolling:touch}
+.srch-saved::-webkit-scrollbar{display:none}
+.srch-pw{flex:none;display:inline-flex;align-items:stretch;border-radius:99px;border:1px solid var(--line);background:var(--surface);transition:background .2s,border-color .2s}
+.srch-pw.on{background:var(--accent);border-color:var(--accent)}
+.srch-pill{display:inline-flex;align-items:center;gap:6px;height:38px;max-width:240px;padding:0 14px 0 12px;border:0;background:none;border-radius:99px;font-size:13px;font-weight:650;color:var(--ink-2);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.srch-pill span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.srch-pill .i{width:15px;height:15px;flex:none;color:var(--accent)}
+.srch-pw.on .srch-pill{color:var(--accent-ink);padding-right:4px}
+.srch-pw.on .srch-pill .i{color:inherit}
+.srch-pmore{display:grid;place-items:center;width:38px;height:38px;border:0;background:none;border-radius:99px;color:var(--accent-ink)}
+.srch-pmore .i{width:18px;height:18px}
+.srch-pill:focus-visible,.srch-pmore:focus-visible,.srch-chip:focus-visible,.srch-save:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.srch-act{display:flex;flex-wrap:wrap;gap:6px}
+.srch-chip,.srch-save{position:relative;display:inline-flex;align-items:center;gap:6px;height:34px;max-width:100%;padding:0 9px 0 12px;border-radius:99px;font-size:13px;font-weight:600;white-space:nowrap}
+.srch-chip::before,.srch-save::before{content:"";position:absolute;inset:-5px 0}      /* zone de toucher de 44 px de haut */
+.srch-chip{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)}
+.srch-chip .i{width:14px;height:14px;flex:none;opacity:.8}
+.srch-chip .mc{margin:0;width:16px;height:16px}
+.srch-chip .flag{width:17px;height:12px;vertical-align:0}
+.srch-chip .set-ic,.srch-chip svg:not(.i):not(.flag){max-width:16px;max-height:16px}
+.srch-chip .setv-r{width:10px;height:10px}
+.srch-save{border:1px dashed var(--accent);background:none;color:var(--accent);padding:0 12px 0 10px}
+.srch-save .i{width:15px;height:15px}
+.srch-chip:active,.srch-save:active,.srch-pill:active{transform:scale(.96)}
+.srch-sheet .field-in{margin-top:4px}
+@media (prefers-reduced-motion:reduce){.fmore .i{transition:none}.srch-chip:active,.srch-save:active,.srch-pill:active{transform:none}}
+@media (min-width:1100px) and (hover:hover){
+  .fmore-box{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px}
+  .fmore-box[hidden]{display:none}
+  .srch-saved{flex-wrap:wrap;overflow:visible;margin-inline:0;padding-inline:0}
+  .srch-pmore{cursor:pointer}
+  .srch-pill,.srch-chip,.srch-save,.fmore{cursor:pointer}
+  .srch-chip:hover{background:var(--accent);color:var(--accent-ink)}
+  .srch-pw:not(.on):hover{border-color:var(--accent)}
+}
