@@ -1,0 +1,3 @@
+/* ── stats.css : onglet Stats de la collection. Les deux colonnes de l'ordinateur (collection.js › collStatsHtml : valeur et variations | courbe de mana,
+   couleurs, familles, les plus chères) n'existent que dans zz-desktop.css ; ailleurs leurs boîtes s'effacent : même pile qu'avant, mêmes écarts. ── */
+.cs-cols,.cs-col{display:contents}

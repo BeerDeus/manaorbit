@@ -1,5 +1,5 @@
 /* ── switch.js : « Passer de ManaBox en 2 minutes » (venir d'une autre appli) ──────────────────────────────────────────────────────
-   Feuille-guide, ouverte depuis : Collection › Importer (« Tu viens de ManaBox ? »), la collection vide (onglet Cartes), le 2e écran du premier
+   Feuille-guide, ouverte depuis : Collection › Importer (« Tu viens de ManaBox ? »), la collection vide (onglet Cartes), l'accueil vide (« Pour commencer », home.js), le 2e écran du premier
    lancement (onboard.js), l'aide (help.js : « Je viens de ManaBox… »). Trois étapes pour ManaBox (menu de l'appli → CSV → Importer › Choisir un fichier),
    ce qui suit et ce qui ne suit pas (d'après parseCollection, core.js : quantités, éditions, langues ; ni foil, ni état, ni classeurs ; les listes
    ManaBox laissées de côté), puis les autres applis (Moxfield, Archidekt, Deckbox, Dragon Shield, Delver Lens) et les decks, repliés.

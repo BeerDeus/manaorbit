@@ -5,7 +5,7 @@
    L'historique de valeur est synchronisé avec le compte (extras.js, document meta/history) ; les prix carte par carte restent locaux. Lecture au lancement, au retour sur l'appli et à l'ouverture de la collection (pas en arrière-plan, appli fermée). */
 const VAL_HIST_KEY = 'deckdeal:coll:hist', VAL_RESET_KEY = 'deckdeal:coll:histreset', VAL_AT_KEY = 'deckdeal:coll:pxat', VAL_THR_KEY = 'deckdeal:coll:alert', VAL_SEEN_KEY = 'deckdeal:coll:alertseen', VAL_BASE_KEY = 'coll:base';
 const VAL_EVERY = 20 * 3600e3, VAL_THRS = [10, 25, 50];
-const VAL = { hist: [], reset: 0, base: null, at: 0, thr: 25, seen: -1, run: null, err: '', loaded: null, memo: null, topN: 8 };
+const VAL = { hist: [], reset: 0, base: null, at: 0, thr: 25, seen: -1, run: null, err: '', loaded: null, memo: null, topN: 8, ro: null };      // ro : suit la largeur de la courbe des Stats (valFit)
 
 function valRead() {
   try {
@@ -144,6 +144,26 @@ function valChartHtml(h, W = 320, H = 132) {
     <path d="${area}" class="vl-area"/><polyline points="${pts.join(' ')}" class="vl-line" fill="none"/>
     <circle cx="${f(X(last.t))}" cy="${f(Y(last.v))}" r="3.4" class="vl-dot"/>
     <text x="${pl}" y="${H - 5}" class="vl-txt">${esc(valDate(t0))}</text><text x="${W - pr}" y="${H - 5}" class="vl-txt" text-anchor="end">${esc(valDate(t1))}</text></svg>`;
+}
+/** Courbe de l'onglet Stats à la taille de sa case. Téléphone : le dessin de 320 × 132 mis à la largeur de l'écran, comme toujours. Ordinateur : redessinée
+ *  à sa largeur réelle (un pixel du dessin = un pixel de l'écran : textes à leur taille, trait fin), hauteur proportionnelle bornée à 150–230 px ; elle n'est
+ *  plus étirée sur 1 000 px de large et plus d'un écran de haut. Suit la largeur de sa case (fenêtre redimensionnée, passage téléphone ↔ ordinateur). */
+function valFit(host) {
+  if (VAL.ro) { VAL.ro.disconnect(); VAL.ro = null; }
+  const box = host && $('.vl-box', host);
+  if (!box || !$('.vl-svg', box) || typeof ResizeObserver !== 'function') return;
+  const draw = () => {
+    const s = $('.vl-svg', box); if (!s || !box.isConnected || VAL.hist.length < 2) return;
+    const desk = typeof NAV_DESK !== 'undefined' && !!NAV_DESK && NAV_DESK.matches, cw = Math.round(s.getBoundingClientRect().width);
+    if (!cw) return;      // collection cachée
+    const W = desk ? cw : 320, H = desk ? Math.max(150, Math.min(230, Math.round(W * 0.36))) : 132, vb = (s.getAttribute('viewBox') || '').split(' ');
+    if (Math.abs(Number(vb[2]) - W) < 2 && Number(vb[3]) === H) return;
+    s.outerHTML = valChartHtml(VAL.hist, W, H);
+  };
+  draw();      // tout de suite : jamais une image de la courbe étirée
+  let raf = 0;
+  VAL.ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); });
+  VAL.ro.observe(box);
 }
 const valDeltaHtml = (lab, d) => `<div class="vl-d"><span>${lab}</span>${d ? `<b class="${valCls(d.d)}">${valEur(d.d)}</b><small>${(d.pct == null ? '' : valPct(d.pct) + ' · ') + T('depuis le {d}', { d: esc(valDate(d.from.t)) })}</small>` : '<b>—</b><small>' + T('pas encore de recul') + '</small>'}</div>`;
 

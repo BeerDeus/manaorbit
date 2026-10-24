@@ -2,7 +2,7 @@
 // reflet du total, fondu des onglets de la collection, illustration de collection vide.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
-import { chromium, startWorld, newPage, txt, ok, done, toInput, toHome } from './e2e-world.mjs';
+import { chromium, startWorld, newPage, txt, ok, done, toInput, toHome, closeSheets } from './e2e-world.mjs';
 
 const world = await startWorld({ port: 18940 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -108,6 +108,63 @@ for (const [w, h, rm] of [[1280, 800], [1890, 1000, 'reduce'], [820, 1180], [844
   assert.deepEqual(S3.errs, []); await S3.ctx.close();
 }
 ok('premier lancement à 1280, 1890 (sans animation), 820, 844 × 390 et 360 px : chaque étape entière et centrée ; appli inerte, Échap = Passer');
+
+// premier lancement, étape 3 « Sauvegarde ta collection » : Google en une touche (même connexion que la feuille Compte), e-mail en lien, Plus tard ;
+// plus de token CardTrader demandé (lien discret vers Compte et réglages › Prix) ; hors ligne : un mot humain et « Plus tard » seulement
+{ const S4 = await newPage(browser, world, { ctx: { viewport: { width: 393, height: 852 } } }), q = S4.p;
+  const step3 = async st => { await q.evaluate(st => { window.__gg = 0; window.__ggErr = null; D.state = st; D.cloud = { google: async () => { window.__gg++; if (window.__ggErr) throw window.__ggErr; } }; obOpen(); obGo(2); }, st); await q.waitForSelector('.ob.on'); await q.waitForTimeout(500); };
+  const acts = () => q.$$eval('#obSave button:not([hidden])', l => l.map(b => b.textContent.trim()));
+  await step3('ready');
+  assert.equal(await q.$eval('.ob-s:nth-child(3) h2', h => h.textContent), 'Sauvegarde ta collection');
+  assert.equal(await q.$('#obToken'), null, 'plus de champ de token CardTrader');
+  assert.deepEqual(await acts(), ['Continuer avec Google', 'Autres options (e-mail)', 'Plus tard', 'Tu as un token CardTrader ?']);
+  assert.deepEqual(await q.$$eval('#obSave .btn-g .g-logo path', l => l.map(x => x.getAttribute('fill'))), ['#EA4335', '#4285F4', '#FBBC05', '#34A853'], 'logo Google aux couleurs de la charte');
+  assert.equal(await q.$eval('#obSave .btn-g', b => getComputedStyle(b).backgroundColor), 'rgb(255, 255, 255)', 'bouton Google blanc sur le fond sombre');
+  assert.equal(await q.$eval('.ob-skip', b => b.hidden), true, 'dernière étape : pas de « Passer » (« Plus tard » à la place)');
+  // Google refusé : message ; fenêtre fermée : rien ; accepté : premier lancement fermé, appli rendue active
+  await q.evaluate(() => { window.__ggErr = Object.assign(new Error('x'), { code: 'auth/popup-blocked' }); }); await q.click('#obSave [data-ob="google"]'); await q.waitForSelector('#obMsg:not([hidden])');
+  assert.match(await txt(q, '#obMsg'), /Fenêtre bloquée/); assert.equal(await q.$eval('#obSave [data-ob="google"]', b => b.disabled), false);
+  await q.evaluate(() => { window.__ggErr = Object.assign(new Error('x'), { code: 'auth/popup-closed-by-user' }); }); await q.click('#obSave [data-ob="google"]'); await q.waitForTimeout(200);
+  assert.equal(await q.$eval('#obMsg', m => m.hidden), true, 'fenêtre fermée par l\'utilisateur : aucun message');
+  await q.evaluate(() => { window.__ggErr = null; }); await q.click('#obSave [data-ob="google"]'); await q.waitForFunction(() => !document.querySelector('.ob'), null, { timeout: 3000 });
+  assert.equal(await q.evaluate(() => window.__gg), 3, 'D.cloud.google appelé à chaque touche'); assert.equal(await q.$eval('#app', a => a.inert), false); assert.match(await q.textContent('#toast'), /Connecté/);
+  // SDK encore en chargement : Google grisé, puis prêt dès que l'état change (paintAccount → obSavePaint)
+  await step3('loading'); assert.equal(await q.$eval('#obSave [data-ob="google"]', b => b.disabled), true, 'chargement : Google grisé');
+  await q.evaluate(() => { D.state = 'ready'; paintAccount(); }); assert.equal(await q.$eval('#obSave [data-ob="google"]', b => b.disabled), false, 'prêt : Google actif');
+  // « Autres options (e-mail) » → feuille Compte ; « Tu as un token CardTrader ? » → Compte et réglages › Prix
+  await q.click('#obSave [data-ob="account"]'); await q.waitForSelector('.sheet-wrap.open #acEmail'); await closeSheets(q);
+  await step3('ready'); await q.click('#obSave [data-ob="ct"]'); await q.waitForSelector('.sheet-wrap.open #setToken', { timeout: 5000 });
+  assert.equal(await q.evaluate(() => !!document.querySelector('.ob')), false, 'lien CardTrader : Compte et réglages › Prix (champ du token)'); await closeSheets(q);
+  // hors ligne (réseau coupé, ou service de compte injoignable) : message humain, « Plus tard » seul ; retour du réseau : Google revient
+  await step3('ready'); await S4.ctx.setOffline(true); await q.waitForSelector('#obSave .ob-save-off');
+  assert.deepEqual(await acts(), ['Plus tard']); const off = await txt(q, '#obSave .ob-save-off');
+  assert.match(off, /^Pas de connexion pour l'instant\. Ta collection reste sur cet appareil/); assert.doesNotMatch(off, /Firebase|SDK/);
+  await S4.ctx.setOffline(false); await q.waitForSelector('#obSave [data-ob="google"]');
+  await q.click('#obSave [data-ob="done"]'); await q.waitForFunction(() => !document.querySelector('.ob'));
+  await step3('unavailable'); assert.deepEqual(await acts(), ['Plus tard'], 'Firebase indisponible : « Plus tard » seulement'); assert.doesNotMatch(await txt(q, '#obSave'), /Firebase|SDK/);
+  await q.keyboard.press('Escape'); await q.waitForFunction(() => !document.querySelector('.ob'));
+  assert.deepEqual(S4.errs, []); await S4.ctx.close(); }
+ok('premier lancement, étape 3 : « Sauvegarde ta collection » (Google avec son logo, refus et fenêtre fermée, chargement, e-mail, token CardTrader en lien), hors ligne : « Plus tard » seul');
+
+// feuille Compte : « Continuer avec Google » en premier, avec son logo ; l'e-mail ensuite ; œil du mot de passe
+{ const S5 = await newPage(browser, world, { ctx: { viewport: { width: 393, height: 852 } } }), q = S5.p;
+  await q.evaluate(() => { window.__gg = 0; D.state = 'ready'; D.cloud = { google: async () => { window.__gg++; throw Object.assign(new Error('x'), { code: 'auth/popup-closed-by-user' }); } }; openAccount(); });
+  await q.waitForSelector('.sheet-wrap.open #acEmail');
+  assert.deepEqual(await q.$$eval('.sheet-wrap.open .auth > *', l => l.map(e => e.id || e.className.split(' ').slice(0, 2).join('.'))), ['acGoogle', 'divider', 'acSeg', 'acForm', 'hint'], 'Google d\'abord, puis Connexion / Créer un compte et le formulaire');
+  assert.equal(await txt(q, '#acGoogle'), 'Continuer avec Google'); assert.equal(await q.$$eval('#acGoogle .g-logo path', l => l.length), 4, 'logo Google');
+  assert.equal(await txt(q, '.sheet-wrap.open .divider'), 'ou avec ton e-mail');
+  await q.click('#acGoogle'); await q.waitForTimeout(200); assert.equal(await q.evaluate(() => window.__gg), 1);
+  await q.fill('#acPw', 'secret12'); assert.equal(await q.$eval('#acPw', i => i.type), 'password');
+  assert.equal(await q.$eval('#acPwEye', b => [b.getAttribute('aria-label'), b.getAttribute('aria-pressed')].join('|')), 'Afficher le mot de passe|false');
+  await q.click('#acPwEye');
+  assert.deepEqual(await q.evaluate(() => [acPw.type, acPwEye.getAttribute('aria-pressed'), acPwEye.getAttribute('aria-label'), document.activeElement.id, acPw.value]), ['text', 'true', 'Masquer le mot de passe', 'acPw', 'secret12'], 'œil : mot de passe en clair, focus gardé dans le champ');
+  const r = await q.$eval('#acPwEye', b => { const x = b.getBoundingClientRect(); return [x.width, x.height]; }); assert.ok(r[0] >= 44 && r[1] >= 44, 'œil : cible de 44 px : ' + r);
+  await q.click('#acPwEye'); assert.equal(await q.$eval('#acPw', i => i.type), 'password', 'deuxième touche : masqué');
+  await q.click('#acSeg [data-v="up"]'); await q.waitForSelector('#acGo'); assert.equal(await txt(q, '#acGo'), 'Créer mon compte'); assert.ok(await q.$('#acPwEye'), 'création de compte : œil aussi');
+  await q.emulateMedia({ colorScheme: 'dark' }); await q.waitForTimeout(100);
+  assert.equal(await q.$eval('#acGoogle', b => getComputedStyle(b).backgroundColor), 'rgb(19, 19, 20)', 'thème sombre : bouton Google #131314 (charte)');
+  assert.deepEqual(S5.errs, []); await S5.ctx.close(); }
+ok('connexion : « Continuer avec Google » en premier avec son logo, e-mail ensuite ; œil du mot de passe (clair / masqué, focus gardé, 44 px) ; bouton sombre en thème sombre');
 
 /* Réglages : chaque contrôle a un nom accessible (arbre d'accessibilité, comme TalkBack) ; texte secondaire (--ink-3) ≥ 4,5:1 sur les fonds, en clair et en sombre */
 await p.evaluate(() => openSettings()); await p.waitForSelector('.sheet-wrap.open #setHaptic');

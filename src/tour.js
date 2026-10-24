@@ -67,7 +67,7 @@ const TOUR_STEPS = [
     t: () => T('Session d\'ouverture'),
     x: () => T('Tu ouvres des boosters ou une boîte, en stream ou non ? Lance une session ici (Scan › Réglages) : prix payé, mode streamer qui cache ta collection.'),
     x2: () => T('À la fin : le bilan (gain ou perte, meilleures cartes), une image à partager, et l\'historique dans « Mes ouvertures ».') },
-  { id: 'trade', at: 'home', el: () => $('#hmTrade .hm-tr-acts'),
+  { id: 'trade', at: 'home', el: () => $('#hmTrade .hm-tr-acts:not([hidden])') || $('#hmTrade'),      // collection vide : la carte entière (QR code et Partager pas encore là)
     t: () => T('Ta liste d\'échange'),
     x: () => (D.user ? T('Ton lien public et son QR code, à montrer à un autre joueur : il voit tes doublons et les cartes que tu cherches, toujours à jour.')
       : T('Avec un compte, crée ton lien public et son QR code : un autre joueur voit tes doublons et les cartes que tu cherches.')) },
