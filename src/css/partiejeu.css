@@ -1,0 +1,145 @@
+/* ── Compteur de vie : paysage, fiche sur la tuile, dés et pièce, chrono, attaque, ordre des places (partie-ui.js, partie-jeu.js) ────────────────── */
+/* Paysage : encoches sur les côtés ; moitié de table (deux téléphones) avec pastilles : la grille descend sous elles (pas d'écart de noms à calculer) */
+.pu-g{padding-left:calc(env(safe-area-inset-left) + 6px);padding-right:calc(env(safe-area-inset-right) + 6px)}
+.pu-a.pills{margin-top:38px}
+.pu-a.pills .pu-pills{top:-36px}
+.pu-c.land{row-gap:12px}      /* deux rangées autour de la table : l'écart dit la table */
+/* Signes − et + plus visibles sur une illustration claire */
+.pu-hit{color:rgba(255,255,255,.86);font-weight:400;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+/* Nom : plus grand sur tablette (cqmin d'une tuile de téléphone ≤ 210 px : toujours 13 px) */
+.pu-nm{font-size:clamp(13px,6.4cqmin,22px)}
+/* 4 chiffres (jusqu'à 9999) */
+.pu-life.l4{--k:.5}
+/* « Fin du tour » posé en bas de la tuile (plus dans le flux : la tuile qui joue garde des PV de la même taille), cible de 44 px ; ses PV remontent juste ce qu'il
+   faut (dans le blanc du haut de leur ligne), et ne rapetissent que si la tuile est très basse (chiffres d'Instrument Sans : de .12 à .87 de la hauteur de
+   leur ligne ; « Fin du tour » occupe les 30 px du bas de la place des PV) */
+.pu-turn{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);z-index:3;min-height:34px;max-width:calc(100% - 92px);margin:0;font-size:clamp(12px,5cqmin,18px);box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.pu-turn::after{content:'';position:absolute;inset:-5px -4px}
+.pu-t.act.rv .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64,(100cqh - 33px) / .75) * var(--k)),200px);translate:0 calc(-1 * max(0px,.37em - 50cqh + 35px))}
+@container pucell (min-height:171px){
+  .pu-t.act:not(.rv) .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64,(100cqh - 33px) / .75) * var(--k)),200px);translate:0 calc(-1 * max(0px,.37em - 50cqh + 35px))}
+}
+@container pucell (min-height:151px) and (max-aspect-ratio:3/2){
+  .pu-t.act:not(.rv) .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64,(100cqh - 33px) / .75) * var(--k)),200px);translate:0 calc(-1 * max(0px,.37em - 50cqh + 35px))}
+}
+/* tuile large (vue par son joueur : 330 px et plus) : « Fin du tour » en haut, à côté du nom (du côté libre du bouton rond), les PV gardent toute leur place ;
+   pas sous les pastilles du haut d'une moitié de table (pk-*) : en bas */
+@container pucell (min-width:330px) and (min-height:171px){
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c):not(.rv) .pu-turn{top:8px;bottom:auto;left:auto;right:10px;transform:none}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c):not(.rv) .pu-top{--nr:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px)}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).mid-r:not(.rv) .pu-turn{right:auto;left:10px}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).mid-r:not(.rv) .pu-top{--nl:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px);--nr:40px}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c):not(.rv) .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64) * var(--k)),200px);translate:none}
+}
+@container pucell (min-height:330px){
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).rv .pu-turn{top:8px;bottom:auto;left:auto;right:10px;transform:none}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).rv .pu-top{--nr:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px)}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).mid-r.rv .pu-turn{right:auto;left:10px}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).mid-r.rv .pu-top{--nl:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px);--nr:40px}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).rv .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64) * var(--k)),200px);translate:none}
+}
+/* Proposition d'élimination dans la tuile du joueur, tournée vers lui (Éliminer / Pas encore) */
+.pu-pin{position:absolute;left:6px;right:6px;bottom:6px;z-index:5;display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:14px;background:rgba(16,21,38,.95);border:1px solid #7682c0;box-shadow:0 8px 24px rgba(0,0,0,.55);color:#fff}
+.pu-pin>span{font-size:clamp(12.5px,5.5cqmin,16px);font-weight:700;line-height:1.25;text-align:center}
+.pu-pin-b{display:flex;gap:6px}
+.pu-pin .btn{flex:1 1 0;min-width:0;height:44px;padding:0 8px;font-size:14px}
+@container pucell (max-height:124px){
+  .pu-t:not(.rv) .pu-pin{top:4px;bottom:4px;left:4px;right:4px;flex-direction:row;align-items:center;padding:4px 6px}
+  .pu-t:not(.rv) .pu-pin>span{flex:1 1 0;min-width:0;text-align:left;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12.5px}
+  .pu-t:not(.rv) .pu-pin-b{flex:0 0 auto}
+  .pu-t:not(.rv) .pu-pin .btn{flex:0 0 auto}
+}
+.pu-prop .btn{height:44px}
+/* Mode « attaque » : l'attaquant encadré (Fin de l'attaque), chaque défenseur avec les blessures reçues de lui, − / + = blessures */
+.pu-t.atk-a{box-shadow:inset 0 0 0 3px #ffb35c,0 0 24px rgba(255,160,70,.5)}
+.pu-atk-box{position:absolute;left:8px;right:8px;bottom:8px;z-index:5;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 10px;border-radius:14px;background:rgba(42,24,6,.93);border:1px solid #ffb35c;color:#fff;text-align:center}
+.pu-atk-box b{display:inline-flex;align-items:center;gap:6px;font-size:clamp(13px,6cqmin,18px)}
+.pu-atk-box b .i{width:1.1em;height:1.1em}
+.pu-atk-box small,.pu-atk-box span{font-size:12.5px;line-height:1.25;opacity:.88}
+.pu-atk-box .btn{height:44px;margin-top:3px}
+.pu-atk-n{position:relative;z-index:2;flex:none;align-self:center;display:inline-flex;align-items:center;gap:6px;max-width:calc(100% - 20px);margin:0 10px 2px;padding:3px 10px;border-radius:99px;background:rgba(255,179,92,.24);border:1px solid rgba(255,179,92,.75);color:#fff;font-size:clamp(12px,5.5cqmin,17px);font-weight:750;pointer-events:none;white-space:nowrap}
+.pu-atk-n span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pu-atk-n b{font-size:1.3em;font-variant-numeric:tabular-nums}
+.pu-atk-n .i{flex:none;width:1.1em;height:1.1em}
+.pu-t.atk-d .pu-hit{color:#ffd09c}
+.pu-t.atk-x{opacity:.3}
+/* Dés, pièce, premier joueur : le résultat dans chaque tuile, tourné vers son joueur (toucher : fermé) */
+.pu-roll{position:absolute;inset:8px;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;padding:6px;border:2px solid rgba(255,255,255,.85);border-radius:16px;background:rgba(6,9,20,.95);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#fff;font-family:inherit;overflow:hidden;touch-action:manipulation}
+.pu-roll small{display:inline-flex;align-items:center;gap:6px;max-width:100%;font-size:clamp(12px,5.5cqmin,18px);font-weight:700;opacity:.86;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pu-roll small .i{flex:none;width:1.2em;height:1.2em}
+.pu-roll b{max-width:100%;font-size:clamp(30px,24cqmin,120px);font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pu-roll.j1 b{font-size:clamp(18px,10cqmin,44px);white-space:normal;text-align:center;overflow-wrap:anywhere}
+.pu-roll.j1.me{border-color:#ffd36b;background:rgba(58,40,4,.92)}
+.pu-roll.pop b{animation:puRollPop .32s cubic-bezier(.2,1.4,.4,1)}
+@keyframes puRollPop{from{transform:scale(.6);opacity:.3}}
+.pu-t.spin{box-shadow:inset 0 0 0 4px #ffd36b,0 0 28px rgba(255,211,107,.8)}
+.pu-t.spin .pu-in::after{content:'';position:absolute;inset:0;background:rgba(255,211,107,.16);pointer-events:none}
+/* Chrono : au centre du bouton rond (sous « Tour N »), dans la barre du haut */
+.pu-mid .pu-clk{font-size:9.5px;font-weight:650;line-height:1.15;opacity:.78;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pu-mid:has(.pu-clk + .pu-clk){width:64px;height:64px}
+.pu-mid:has(.pu-clk + .pu-clk) .i{width:18px;height:18px}
+.pu-bar .pu-clk{font-variant-numeric:tabular-nums;opacity:.85}
+/* Fiche d'un joueur (et feuilles qui en partent) posée sur sa tuile, tournée vers lui (partie-jeu.js › puSheetOnTile) */
+.sheet-wrap.pu-tsheet .sheet{left:var(--x);top:var(--y);bottom:auto;width:var(--w);max-width:none;max-height:var(--h);border-radius:22px;padding-bottom:0;transform:translate(-50%,-50%) rotate(var(--r)) scale(.94);opacity:0;transition:transform .26s cubic-bezier(.2,.85,.25,1),opacity .2s}
+.sheet-wrap.pu-tsheet.open .sheet{transform:translate(-50%,-50%) rotate(var(--r));opacity:1}
+.sheet-wrap.pu-tsheet .grab{display:none}
+/* Fiche : − / + de 44 px, ±5 pour les blessures de commandant (maintenus : répétés), compteurs sur deux colonnes quand la fiche est large */
+.pu-fiche .sheet-body{container-type:inline-size}
+.pu-fiche .pu-row{min-height:52px}
+.pu-fiche .pu-rl{flex:1 1 auto;min-width:0;line-height:1.25;overflow-wrap:break-word;hyphens:auto}
+.pu-fiche .qstep{flex:none}
+.pu-fiche .qstep button{width:44px;height:44px;font-size:21px;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.pu-fiche .qstep .q5{width:46px;font-family:inherit;font-size:14px;font-weight:750;color:var(--ink)}
+.pu-fiche .qstep b{min-width:34px;font-size:16px}
+.pu-fiche .pu-lifebig button{height:48px;min-width:52px;-webkit-touch-callout:none;user-select:none;touch-action:manipulation}
+.pu-cnts{display:grid;grid-template-columns:minmax(0,1fr)}
+@container (min-width:440px){.pu-cnts{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px}}
+.pu-fiche .pu-acts .btn{flex:1 1 auto;min-height:48px}
+.pu-atk-go .i{width:17px;height:17px}
+/* Cibles d'au moins 44 px : pastilles (premier joueur, monarque, initiative, causes), × Retirer */
+.pu-chips button{height:44px}
+.pu-x{width:44px;height:44px}
+/* Menu « … » : dés et pièce, chrono */
+.pu-dice{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.pu-dice button{min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 4px;border:1px solid var(--line);border-radius:14px;background:var(--surface-3);color:var(--ink);font-family:inherit;font-size:14.5px;font-weight:750}
+.pu-dice button:active{transform:scale(.97);background:var(--accent-soft)}
+.pu-dice .pu-coin{grid-column:span 2}
+.pu-dice .i{width:22px;height:22px;opacity:.8}
+.pu-clkm{margin-top:6px}
+/* Table en direct (téléphones des places) : le tirage de la table */
+.pu-lv-de{margin:0;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));font-size:14px;font-weight:650}
+.pu-lv-de .i{flex:none;width:20px;height:20px}
+.pu-lv-de b{margin-left:auto;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;text-align:right}
+/* Préparation : plan de la table (ordre du tour, côté de chacun), « Changer l'ordre » (poignée à glisser, ↑ / ↓) */
+.pu-h-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pu-h-row .pu-h{margin:0}
+.pu-ord-b{min-height:44px;padding:0 6px;font-size:14px;font-weight:700}
+.pu-plan{display:flex;flex-direction:column;align-items:center;gap:6px}
+.pu-plan-g{width:100%;max-width:340px;display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-auto-rows:minmax(40px,auto);gap:6px;padding:9px;border-radius:20px;border:2px solid var(--line);background:var(--surface-2)}
+.pu-pl{--bd:hsl(var(--h) 62% 50%);min-width:0;display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:700}
+.pu-pl b{flex:none;width:21px;height:21px;border-radius:7px;display:grid;place-items:center;background:var(--bd);color:#fff;font-size:11.5px}
+.pu-pl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-pl small{flex:none;margin-left:auto;padding:0 5px;border-radius:6px;background:var(--accent);color:var(--accent-ink,#fff);font-size:10.5px;font-weight:800}
+.pu-pl.r0{box-shadow:inset 0 -4px 0 var(--bd)}
+.pu-pl.r180{box-shadow:inset 0 4px 0 var(--bd)}
+.pu-pl.r90{box-shadow:inset 4px 0 0 var(--bd)}
+.pu-pl.r270{box-shadow:inset -4px 0 0 var(--bd)}
+.pu-pl.first{border-color:var(--accent)}
+.pu-plan-t{margin:0;font-size:12.5px;text-align:center}
+.pu-seat{transition:transform .16s}
+.pu-seat.drag{position:relative;z-index:2;transition:none;background:var(--surface);border-radius:12px;box-shadow:0 10px 26px -6px rgba(0,0,0,.35)}
+.pu-grip{flex:none;width:46px;height:44px;display:flex;align-items:center;justify-content:center;gap:1px;padding:0;border:1px dashed var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-family:inherit;touch-action:none;cursor:grab}
+.pu-grip b{font-size:13.5px;font-weight:800}
+.pu-grip .i{width:16px;height:16px;opacity:.6}
+.pu-seat.drag .pu-grip{cursor:grabbing}
+.pu-ud{flex:none;display:flex;gap:4px}
+.pu-ud .icon-btn{width:44px;height:44px}
+.pu-ud .icon-btn:disabled{opacity:.3}
+.pu-ud .up{transform:rotate(-90deg)}
+.pu-ud .dn{transform:rotate(90deg)}
+.pu-ren .i{width:17px;height:17px}
+@media (prefers-reduced-motion: reduce){.sheet-wrap.pu-tsheet .sheet{transition:none}.pu-roll.pop b{animation:none}.pu-seat{transition:none}}
+/* tuile basse et large assez haute (C en paysage, 5 et 6 joueurs) : le nom a plus de place, les PV (centrés plus bas) ne le touchent pas */
+@container pucell (max-height:170px) and (min-height:136px) and (min-aspect-ratio:3/2){
+  .pu-c.land .pu-t:not(.rv) .pu-top{max-width:62%}
+}

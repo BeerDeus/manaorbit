@@ -14,7 +14,7 @@ const closeSheets = () => p.evaluate(() => { while (sheets.length) sheets[sheets
 /* ── Accueil ─────────────────────────────────────────────────────────────────────────────────── */
 await toHome(p); await p.waitForSelector('#hmPartie');
 assert.equal(await p.evaluate(() => { let e = document.querySelector('#hmTrade').nextElementSibling; if (e && e.id === 'hmDiscord') e = e.nextElementSibling; return e && e.id; }), 'hmPartie', 'sous l\'Échange (et l\'invitation au Discord, dsclink.js)');
-assert.equal(await p.evaluate(() => document.querySelector('#hmPartie').nextElementSibling.id), 'hmSets', 'au-dessus de Prochaines extensions');
+assert.equal(await p.evaluate(() => { let e = document.querySelector('#hmPartie').nextElementSibling; if (e && e.id === 'hmDiscord') e = e.nextElementSibling; return e && e.id; }), 'hmSets', 'au-dessus de Prochaines extensions (et de l\'invitation au Discord, selon sa place)');
 assert.match(await txt(p, '#hmPartie'), /^Compteur de vie Commander, Standard ou libre Nouvelle partie Mes parties/);
 await p.$eval('#hmPartie', e => e.scrollIntoView({ block: 'center' })); await p.waitForTimeout(300); await p.screenshot({ path: 'shots/partie-0-accueil.png' });
 ok('accueil : carte sous l\'Échange, au-dessus de « Prochaines extensions »');
@@ -88,7 +88,7 @@ ok('compteur A : plusieurs doigts en même temps (un appui suivi par doigt) : ch
 
 /* ── Fiche d'un joueur : blessures de commandant, poison, monarque ───────────────────────────── */
 await p.click('.pu-t[data-pos="1"] .pu-nm'); await p.waitForSelector('.pu-sheet .pu-lifebig');
-assert.equal(await sheetTop(), 'Moi');
+assert.equal(await sheetTop(), 'Hôte', 'créateur sans pseudo : « Hôte » (avant : « Moi », gardé dans l\'historique des autres)');
 for (let i = 0; i < 3; i++) await p.click('.pu-sheet [data-k="b"][data-s="2"][data-n="1"]');
 await p.click('.pu-sheet [data-k="c"][data-c="poison"][data-n="1"]'); await p.click('.pu-sheet [data-mk="monarque"]');
 s = await st(); assert.equal(s.places[0].blessures['2'], 3); assert.equal(s.places[0].vie, 17, 'blessures de commandant : autant de vie en moins'); assert.equal(s.places[0].compteurs.poison, 1); assert.equal(s.monarque, 1);
@@ -99,9 +99,13 @@ ok('fiche : blessures de commandant (et la vie), poison, monarque');
 
 /* ── Proposition d'élimination, élimination ─────────────────────────────────────────────────── */
 await p.evaluate(() => puSet(partieLife(PU.st, 4, -30)));
-await p.waitForSelector('.pu-prop'); assert.match(await txt(p, '.pu-prop'), /Zoé n'a plus de points de vie/);
-await p.click('.pu-prop [data-pu="elim"]'); await p.waitForSelector('.sheet [data-ok]'); await p.click('.sheet [data-ok]');
-await p.waitForFunction(() => PU.st.places[3].elimine && !document.querySelector('.pu-prop'));
+await p.waitForSelector('.pu-t[data-pos="4"] .pu-pin'); assert.match(await txt(p, '.pu-t[data-pos="4"] .pu-pin'), /Zoé n'a plus de points de vie/);
+assert.equal(await p.$('.pu-prop'), null, 'proposition dans la tuile de Zoé, plus en bas de l\'écran (elle cachait « Fin du tour »)');
+assert.equal(await p.$eval('.pu-t[data-pos="4"] .pu-pin', e => getComputedStyle(e.closest('.pu-in')).transform !== 'none'), true, 'tournée vers Zoé, comme sa tuile');
+await p.click('.pu-pin [data-pu="elim"]'); await p.waitForSelector('.sheet [data-ok]');
+assert.equal(await p.evaluate(() => sheets[sheets.length - 1].wrap.classList.contains('pu-tsheet')), true, '« Éliminer Zoé ? » posée sur sa tuile');
+await p.click('.sheet [data-ok]');
+await p.waitForFunction(() => PU.st.places[3].elimine && !document.querySelector('.pu-pin'));
 assert.equal(await p.$eval('.pu-t[data-pos="4"]', t => t.classList.contains('dead')), true);
 ok('élimination proposée (jamais d\'office), puis faite');
 
@@ -130,7 +134,7 @@ ok('pause : reprise depuis l\'accueil');
 await p.click('.pu-mid'); await p.waitForSelector('[data-m="end"]'); await p.click('[data-m="end"]');
 await p.waitForSelector('.pu-wins'); await p.click('.pu-wins [data-w="2"]'); await p.click('.sheet [data-ok]');
 await p.waitForSelector('.pu-rank');
-assert.deepEqual(await p.$$eval('.pu-rank li b', b => b.map(x => x.textContent)), ['Léa', 'Moi', 'Paul', 'Zoé']);
+assert.deepEqual(await p.$$eval('.pu-rank li b', b => b.map(x => x.textContent)), ['Léa', 'Hôte', 'Paul', 'Zoé']);
 
 assert.ok(await p.$('.pu-qr-img svg'), 'QR code du résultat');
 await p.screenshot({ path: 'shots/partie-6-fin.png' });
@@ -138,7 +142,7 @@ assert.equal(await p.evaluate(() => partieLoad()), null, 'partie en cours effac�
 const hist = await p.evaluate(() => partieHist()); assert.equal(hist.length, 1); assert.equal(hist[0].moi, 1);
 await p.click('.pu-foot [data-pu="close"]'); await p.waitForFunction(() => !document.querySelector('.pu'));
 await p.click('#hmPartie [data-pu="hist"]'); await p.waitForSelector('.pu-hist li');
-assert.match(await txt(p, '.pu-hist'), /Moi, Léa, Paul, Zoé.*vainqueur : Léa.*1 tour/);
+assert.match(await txt(p, '.pu-hist'), /Hôte, Léa, Paul, Zoé.*vainqueur : Léa.*1 tour/);
 await closeSheets();
 ok('fin : classement, QR code du résultat, Mes parties');
 
@@ -201,13 +205,13 @@ assert.equal(await p.$('.pu-sheet [data-mk]'), null, 'ni monarque ni initiative'
 assert.deepEqual(await p.$$eval('.pu-sheet [data-k="c"][data-n="1"]', b => b.map(x => x.dataset.c)), ['poison', 'energie', 'experience']);
 assert.deepEqual(await noOverflow(), [], '360 px : fiche du joueur');
 for (let i = 0; i < 10; i++) await p.click('.pu-sheet [data-k="c"][data-c="poison"][data-n="1"]');
-await closeSheets(); await p.waitForSelector('.pu-prop'); assert.match(await txt(p, '.pu-prop'), /Moi a 10 marqueurs poison/);
+await closeSheets(); await p.waitForSelector('.pu-pin'); assert.match(await txt(p, '.pu-t[data-pos="1"] .pu-pin'), /Hôte a 10 marqueurs poison/);
 await p.screenshot({ path: 'shots/partie-9-standard-360.png' });
-await p.click('.pu-prop [data-pu="elim"]'); await p.waitForSelector('.sheet [data-c]');
+await p.click('.pu-pin [data-pu="elim"]'); await p.waitForSelector('.sheet [data-c]');
 assert.deepEqual(await p.$$eval('.sheet [data-c]', b => b.map(x => x.dataset.c)), ['vie', 'poison', 'abandon', 'autre'], 'causes : pas de blessures de commandant');
 await p.click('.sheet [data-c="poison"]'); await p.click('.sheet [data-ok]'); await p.waitForFunction(() => PU.st.places[0].elimine);
 await p.evaluate(() => puEndSheet()); await p.waitForSelector('.pu-wins [data-w="2"][aria-pressed="true"]'); await p.click('.sheet [data-ok]'); await p.waitForSelector('.pu-rank');
-assert.match(await txt(p, '.pu .dv-title span'), /^Standard · 1 tour/); assert.deepEqual(await p.$$eval('.pu-rank li b', b => b.map(x => x.textContent)), ['Bob', 'Moi']);
+assert.match(await txt(p, '.pu .dv-title span'), /^Standard · 1 tour/); assert.deepEqual(await p.$$eval('.pu-rank li b', b => b.map(x => x.textContent)), ['Bob', 'Hôte']);
 const h2 = await p.evaluate(() => partieHist()); assert.deepEqual([h2.length, h2[0].jeu, h2[0].format, h2[1].jeu], [2, 'standard', 20, undefined], 'historique : partie Standard marquée');
 assert.deepEqual(await noOverflow(), [], '360 px : fin de partie');
 await p.click('.pu-foot [data-pu="close"]'); await p.waitForFunction(() => !document.querySelector('.pu'));
@@ -315,11 +319,186 @@ assert.equal(await p.evaluate(() => puDeckImgLoad(D.localList.find(d => d.id ===
 await p.click('.pu-foot [data-pu="drop"]'); await p.waitForSelector('.sheet [data-ok]'); await p.click('.sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.pu') && !sheets.length);
 ok('illustration du commandant en fond (art_crop, dégradé, A B C), gardée d\'un appui à l\'autre ; invité : retrouvée par son nom ; mon deck : fiche lue à l\'instant, l\'image suit ; deck sans commandant : son image de présentation');
 
+/* ── Paysage : téléphone posé à plat qui bascule, tablette, ordinateur ─────────────────────────────────────────────────────────────────────────────
+   A : la table du portrait tournée d'un quart de tour (rangées à 0° et 180°, le joueur seul à un bout), chaque tuile vue par son joueur à la même taille qu'en portrait ;
+   B : plusieurs colonnes ; C : deux rangées autour de la table. Sens d'après l'écran (angle 270 : dans l'autre sens) ; repeint quand l'écran tourne ; orientation gardée. */
+const tilesPv = () => p.$$eval('.pu-t', t => t.map(x => {
+  const r = ((parseFloat(getComputedStyle(x).getPropertyValue('--r')) || 0) % 360 + 360) % 360, rv = r === 90 || r === 270, h = x.querySelector('.pu-hit'), hb = h && h.getBoundingClientRect(), b = x.querySelector('.pu-nm-w b');
+  return { pos: +x.dataset.pos, r, pv: Math.round(parseFloat(getComputedStyle(x.querySelector('.pu-life')).fontSize)), hit: hb ? Math.round(rv ? hb.height : hb.width) : 0, cut: b.scrollWidth > b.clientWidth + 1 };
+}));
+for (const [W, H] of [[393, 852], [360, 780], [430, 932]]) for (let n = 2; n <= 8; n++) {
+  await p.setViewportSize({ width: W, height: H }); await game(n, 'A'); const por = await tilesPv();
+  await p.setViewportSize({ width: H, height: W }); await p.waitForFunction(() => document.querySelector('.pu-a.land'), null, { timeout: 3000 }); await p.waitForTimeout(150);
+  const lan = await tilesPv();
+  assert.deepEqual(await layout(), [], `${H}×${W} (paysage), ${n} joueurs, A`);
+  assert.ok(Math.min(...lan.map(x => x.pv)) >= Math.min(...por.map(x => x.pv)) - 1, `${n} joueurs : PV en paysage (${lan.map(x => x.pv)}) au moins ceux du portrait (${por.map(x => x.pv)})`);
+  assert.ok(Math.min(...lan.map(x => x.hit)) >= 44, `${n} joueurs : moitiés − / + d'au moins 44 px vues par le joueur (${lan.map(x => x.hit)})`);
+  assert.ok(lan.filter(x => x.cut).length <= por.filter(x => x.cut).length, `${n} joueurs : pas plus de noms coupés qu'en portrait`);
+  for (const aff of ['B', 'C']) {
+    await game(n, aff); assert.deepEqual(await layout(), [], `${H}×${W} (paysage), ${n} joueurs, ${aff}`);
+    const pv = Math.min(...(await tilesPv()).map(x => x.pv)), hit = Math.min(...(await p.$$eval('.pu-t .pu-hit', h => h.map(x => Math.round(Math.min(x.getBoundingClientRect().height, x.getBoundingClientRect().width))))));
+    assert.ok(pv >= (n <= 4 ? 80 : 54), `${H}×${W}, ${n} joueurs, ${aff} : PV lisibles en paysage (${pv})`); assert.ok(hit >= 44, `${n} joueurs, ${aff} : cibles de 44 px (${hit})`);
+  }
+}
+await p.setViewportSize({ width: 852, height: 393 }); await game(4, 'A');
+const cellsOf = () => p.$$eval('.pu-cell', c => c.map(x => { const t = x.querySelector('.pu-t'); return [+t.dataset.pos, t.style.getPropertyValue('--r'), x.style.gridRow.split(' ')[0], x.style.gridColumn.split(' ')[0]].join(' '); }).sort());
+assert.deepEqual(await cellsOf(), ['1 0deg 2 2', '2 0deg 2 1', '3 180deg 1 1', '4 180deg 1 2'], 'paysage : colonne de gauche du portrait en bas (0°), la droite en haut (180°), dans le même ordre autour de la table');
+await p.evaluate(() => { Object.defineProperty(screen.orientation, 'angle', { configurable: true, get: () => 270 }); puPaint(); });
+assert.deepEqual(await cellsOf(), ['1 180deg 1 1', '2 180deg 1 2', '3 0deg 2 2', '4 0deg 2 1'], 'écran tourné dans l\'autre sens (270°) : la table aussi (chaque tuile reste sur le même bord du téléphone)');
+await p.evaluate(() => { delete screen.orientation.angle; });
+await game(5, 'A'); assert.equal(await p.$eval('.pu-t[data-pos="1"]', t => t.style.getPropertyValue('--r')), '270deg', '5 joueurs : le joueur seul à un bout, tourné vers lui');
+await p.setViewportSize({ width: 393, height: 852 }); await p.waitForFunction(() => !document.querySelector('.pu-a.land'), null, { timeout: 3000 });
+assert.equal(await p.$eval('.pu-t[data-pos="1"]', t => t.style.getPropertyValue('--r')), '0deg', 'l\'écran tourne : remis en page sans rouvrir la partie');
+await p.screenshot({ path: 'shots/partie-13-paysage-retour.png' });
+// orientation gardée pendant la partie (navigateur : screen.orientation.lock sur l'orientation du moment), rendue à la fermeture
+await p.evaluate(() => { puClose(); window.__ol = []; screen.orientation.lock = t => { window.__ol.push(t); return Promise.resolve(); }; screen.orientation.unlock = () => window.__ol.push('unlock'); });
+await p.waitForTimeout(300); await p.evaluate(() => puGo()); await p.waitForSelector('.pu.on .pu-t');
+assert.deepEqual(await p.evaluate(() => window.__ol), ['portrait-primary'], 'compteur : orientation gardée');
+await p.evaluate(() => puClose()); assert.deepEqual(await p.evaluate(() => window.__ol), ['portrait-primary', 'unlock'], 'fermé : rendue');
+ok('paysage : A tourné d\'un quart de tour (PV, noms, cibles ≥ portrait), B en colonnes, C en deux rangées, 2 à 8 joueurs, 360 à 430 px ; sens de l\'écran, remis en page quand il tourne ; orientation gardée pendant la partie');
+
+/* ── Tuile qui joue : « Fin du tour » posé en bas (44 px au doigt), ses PV aussi grands que ceux des autres ; 4 chiffres ; clavier ─────── */
+for (const [W, H, n] of [[360, 780, 4], [393, 852, 3], [393, 852, 6], [820, 1180, 4]]) {
+  await p.setViewportSize({ width: W, height: H }); await game(n, 'A');
+  const pv = await tilesPv(), act = await p.evaluate(() => PU.st.actif), me = pv.find(x => x.pos === act), peers = pv.filter(x => x.pos !== act && x.r === me.r);
+  if (peers.length) assert.ok(me.pv >= Math.min(...peers.map(x => x.pv)) - 1, `${W}×${H}, ${n} joueurs : PV de la tuile qui joue aussi grands que ceux des autres (${pv.map(x => x.pos + ':' + x.pv)})`);
+  assert.deepEqual(await layout(), [], 'PV jamais sous « Fin du tour »');
+  const hitOk = await p.$eval('.pu-t.act .pu-turn', b => { const r = b.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, rv = r.width < r.height, d = 4; const pts = rv ? [[r.left - d, cy], [r.right + d, cy]] : [[cx, r.top - d], [cx, r.bottom + d]]; return pts.every(([x, y]) => document.elementFromPoint(x, y) === b) && Math.min(r.width, r.height) >= 34; });
+  assert.ok(hitOk, '« Fin du tour » : 44 px au doigt');
+}
+await p.setViewportSize({ width: 393, height: 852 }); await game(4, 'A');
+await p.evaluate(() => puSet(partieLife(PU.st, 3, 1000 - PU.st.places[2].vie)));
+assert.equal(await p.$eval('.pu-t[data-pos="3"] .pu-life', e => e.classList.contains('l4')), true, '4 chiffres : plus petits');
+assert.equal(await p.$eval('.pu-t[data-pos="3"]', t => { const l = t.querySelector('.pu-life').getBoundingClientRect(), s = [...t.querySelectorAll('.pu-hit > span')].map(x => x.getBoundingClientRect()); return s.every(x => x.bottom < l.top || x.top > l.bottom || x.right < l.left || x.left > l.right); }), true, '« 1000 » ne passe pas sur le − ni le +');
+await p.focus('.pu-t[data-pos="2"] .pu-hit.m'); await p.keyboard.press('Enter'); await p.keyboard.press(' ');
+assert.equal(await p.evaluate(() => PU.st.places[1].vie), 38, 'clavier : Entrée puis Espace, deux fois −1');
+assert.equal(await p.evaluate(() => document.activeElement.matches('.pu-t[data-pos="2"] .pu-hit.m')), true, 'le focus reste sur « − » après le repeint de la tuile');
+ok('tuile qui joue : « Fin du tour » posé en bas (44 px), PV de même taille que les autres ; 4 chiffres plus petits ; clavier : le focus reste après ±1');
+
+/* ── Fiche sur la tuile du joueur, tournée vers lui (A, C) ; B : feuille du bas. ±5 et − / + maintenus pour les blessures de commandant ────────── */
+await game(4, 'A');
+for (const pos of [1, 2, 3, 4]) {
+  await p.click(`.pu-t[data-pos="${pos}"] .pu-nm`); await p.waitForSelector('.pu-tsheet.open .pu-lifebig');
+  await p.waitForTimeout(350);      // fin du zoom d'ouverture
+  const f = await p.evaluate(pos => { const s = document.querySelector('.pu-tsheet .sheet'), t = document.querySelector(`.pu-t[data-pos="${pos}"]`), b = s.getBoundingClientRect(), tb = t.getBoundingClientRect(), x = (b.left + b.right) / 2, y = (b.top + b.bottom) / 2;
+    return { r: s.style.getPropertyValue('--r'), tr: t.style.getPropertyValue('--r'), in: b.left >= 0 && b.top >= 0 && b.right <= innerWidth && b.bottom <= innerHeight, over: !(tb.right < b.left || tb.left > b.right || tb.bottom < b.top || tb.top > b.bottom),
+      btn: Math.min(...[...s.querySelectorAll('.qstep button, .pu-lifebig button, .pu-marks button')].map(e => { const r = e.getBoundingClientRect(); return Math.min(r.width, r.height); })) }; }, pos);
+  assert.equal(f.r, f.tr, `fiche de ${pos} tournée comme sa tuile`); assert.ok(f.in && f.over, `fiche de ${pos} sur sa tuile, dans l'écran ${JSON.stringify(f)}`); assert.ok(f.btn >= 44, `fiche : boutons de 44 px (${f.btn})`);
+  if (pos === 2) await p.screenshot({ path: 'shots/partie-14-fiche-tuile.png' });
+  await closeSheets(); await p.waitForTimeout(250);
+}
+const bl = () => p.evaluate(() => [PU.st.places[1].blessures['1'] || 0, PU.st.places[1].vie]);
+await p.click('.pu-t[data-pos="2"] .pu-nm'); await p.waitForSelector('.pu-tsheet.open [data-k="b"][data-s="1"][data-n="5"]');
+const vb0 = (await bl())[1];
+await p.click('.pu-tsheet [data-k="b"][data-s="1"][data-n="5"]'); assert.deepEqual(await bl(), [5, vb0 - 5], '+5 blessures du commandant de Martin (les PV suivent)');
+const hb = await (await p.$('.pu-tsheet [data-k="b"][data-s="1"][data-n="1"]')).boundingBox();
+await p.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2); await p.mouse.down(); await p.waitForTimeout(1100); await p.mouse.up(); await p.waitForTimeout(200);
+const held = (await bl())[0]; assert.ok(held >= 8 && held <= 14, '+ maintenu : répété (' + held + ')');
+await p.click('.pu-tsheet [data-k="b"][data-s="1"][data-n="-5"]'); assert.equal((await bl())[0], held - 5, '−5');
+await closeSheets(); await p.waitForTimeout(250);
+await p.evaluate(() => { localStorage.setItem('deckdeal:partie:aff', 'B'); puPaint(); }); await p.click('.pu-t[data-pos="2"] .pu-nm'); await p.waitForSelector('.pu-sheet.open .pu-lifebig');
+assert.equal(await p.evaluate(() => sheets[sheets.length - 1].wrap.classList.contains('pu-tsheet')), false, 'B (liste) : la feuille du bas, comme avant'); await closeSheets(); await p.waitForTimeout(250);
+await p.evaluate(() => { localStorage.setItem('deckdeal:partie:aff', 'C'); puPaint(); }); await p.click('.pu-t[data-pos="3"] .pu-nm'); await p.waitForSelector('.pu-tsheet.open .pu-lifebig');
+await closeSheets(); await p.waitForTimeout(250);
+ok('fiche du joueur sur sa tuile, tournée vers lui (A, C ; 4 joueurs, chaque côté), dans l\'écran, boutons de 44 px ; blessures de commandant ±5 et + maintenu ; B : feuille du bas');
+
+/* ── Mode « attaque » : l'attaquant (fiche › Attaquer), − / + sur chaque défenseur touché ; Fin de l'attaque, Retour, tour suivant ──────── */
+await game(4, 'A');
+await p.click('.pu-t[data-pos="1"] .pu-nm'); await p.waitForSelector('.pu-tsheet [data-x="atk"]'); await p.click('.pu-tsheet [data-x="atk"]');
+await p.waitForSelector('.pu-t.atk-a[data-pos="1"] [data-pu="atk-end"]');
+assert.deepEqual((await p.$$eval('.pu-t.atk-d', t => t.map(x => [x.dataset.pos, x.querySelector('.pu-atk-n').textContent.replace(/\s+/g, ' ').trim()]))).sort(), [['2', 'de Martin0'], ['3', 'de Martin0'], ['4', 'de Martin0']], 'chaque défenseur : ses blessures reçues de l\'attaquant');
+const lv = () => p.evaluate(() => PU.st.places.map(x => [x.vie, x.blessures['1'] || 0]));
+const l0 = await lv();
+await p.click('.pu-t[data-pos="2"] .pu-hit.p'); await p.click('.pu-t[data-pos="2"] .pu-hit.p'); await p.click('.pu-t[data-pos="4"] .pu-hit.p');
+const l1 = await lv(); assert.deepEqual([l1[1], l1[3]], [[l0[1][0] - 2, 2], [l0[3][0] - 1, 1]], '+ sur un défenseur : une blessure de plus, un point de vie de moins');
+assert.match(await txt(p, '.pu-t[data-pos="2"] .pu-atk-n'), /de Martin ?2/); assert.equal(await p.$('.pu-t[data-pos="1"] .pu-hit'), null, 'l\'attaquant ne se touche pas');
+const hp = await (await p.$('.pu-t[data-pos="3"] .pu-hit.p')).boundingBox();
+await p.mouse.move(hp.x + hp.width / 2, hp.y + hp.height / 2); await p.mouse.down(); await p.waitForTimeout(1000); await p.mouse.up();
+const h3 = (await lv())[2][1]; assert.ok(h3 >= 2 && h3 <= 4, '+ maintenu : +1 répété (' + h3 + ')');
+await p.screenshot({ path: 'shots/partie-15-attaque.png' });
+assert.equal(await p.evaluate(() => backClose()), true); assert.equal((await p.evaluate(() => [!!PU.atk, !!PU.el])).join(), 'false,true', 'Retour : fin de l\'attaque, la partie reste ouverte');
+await p.click('.pu-t[data-pos="1"] .pu-nm'); await p.click('.pu-tsheet [data-x="atk"]'); await p.waitForSelector('.pu-t.atk-a');
+await p.evaluate(() => puSet(partieNextTurn(PU.st))); assert.equal(await p.evaluate(() => PU.atk), null, 'tour suivant : fin de l\'attaque');
+await p.click('.pu-t[data-pos="1"] .pu-nm'); await p.click('.pu-tsheet [data-x="atk"]'); await p.click('[data-pu="atk-end"]'); assert.equal(await p.$('.pu-t.atk-a'), null, '« Fin de l\'attaque »');
+assert.equal(await p.evaluate(() => PU.st.journal.filter(e => e.a === 'b').length > 0), true, 'dans le journal (annuler)');
+ok('mode « attaque » : attaquant choisi par sa fiche, − / + sur chaque défenseur (blessures et PV), maintenu répété ; fin par le bouton, Retour ou le tour suivant');
+
+/* ── Dés et pièce (crypto.getRandomValues), résultat dans chaque tuile tourné vers son joueur ; premier joueur tiré au lancement, animé ─────── */
+await game(4, 'A');
+await p.evaluate(() => { window.__cr = 0; const g = crypto.getRandomValues.bind(crypto); crypto.getRandomValues = a => { window.__cr++; return g(a); }; });
+await p.click('.pu-mid'); await p.waitForSelector('.pu-dice [data-roll="d20"]');
+assert.deepEqual(await p.$$eval('.pu-dice button', b => b.map(x => x.dataset.roll)), ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'pf']);
+assert.ok(Math.min(...await p.$$eval('.pu-dice button', b => b.map(x => x.getBoundingClientRect().height))) >= 44, 'dés : 44 px');
+await p.click('[data-roll="d20"]'); await p.waitForTimeout(900);
+const roll = await p.evaluate(() => ({ v: PU.roll.v, shown: [...document.querySelectorAll('.pu-t .pu-roll b')].map(b => b.textContent), r: [...document.querySelectorAll('.pu-t')].map(t => t.querySelector('.pu-roll') ? t.style.getPropertyValue('--r') : '') }));
+assert.ok(roll.v >= 1 && roll.v <= 20, 'd20 : ' + roll.v); assert.deepEqual(roll.shown, Array(4).fill(String(roll.v)), 'le même résultat dans chaque tuile'); assert.ok(roll.r.every(Boolean), 'dans chaque tuile, tourné avec elle');
+assert.ok(await p.evaluate(() => window.__cr) > 0, 'hasard : crypto.getRandomValues');
+await p.screenshot({ path: 'shots/partie-16-de.png' });
+await p.click('.pu-t[data-pos="3"] .pu-roll'); assert.equal(await p.$('.pu-roll'), null, 'toucher : fermé partout');
+const freq = await p.evaluate(() => { const c = Array(6).fill(0); for (let i = 0; i < 6000; i++) c[puRandInt(6)]++; return c; }); assert.ok(freq.every(x => x > 850 && x < 1150), 'd6 uniforme : ' + freq);
+await p.emulateMedia({ reducedMotion: 'reduce' });
+await p.click('.pu-mid'); await p.click('[data-roll="pf"]');
+assert.match(await p.$eval('.pu-roll b', b => b.textContent), /^(Pile|Face)$/, 'pile ou face, sans animation (prefers-reduced-motion) : tout de suite');
+assert.equal(await p.evaluate(() => backClose()), true, 'Retour : le résultat se ferme'); assert.equal(await p.$('.pu-roll'), null);
+await p.emulateMedia({ reducedMotion: 'no-preference' });
+// premier joueur tiré au lancement (« Au hasard ») : les tuiles s'allument tour à tour, puis « Léa commence » partout (« Tu commences ! » chez elle)
+await p.evaluate(async () => { puClose(); await new Promise(r => setTimeout(r, 300)); let g = partieNew({ moi: { nom: 'Martin' } }); for (const n of ['Léa', 'Paul', 'Zoé']) g = partieAddPlace(g, { nom: n }); partieSave(g); localStorage.setItem('deckdeal:partie:aff', 'A'); puGo(); });
+await p.waitForSelector('.pu-setup [data-pu="first"][data-pos="0"][aria-pressed="true"]'); await p.click('[data-pu="start"]');
+await p.waitForFunction(() => document.querySelector('.pu-t.spin'), null, { timeout: 3000 });
+await p.waitForSelector('.pu-roll.j1', { timeout: 6000 });
+const dr = await p.evaluate(() => ({ prem: PU.st.premier, actif: PU.st.actif, v: PU.roll.v, me: document.querySelector('.pu-roll.j1.me').closest('.pu-t').dataset.pos, txt: [...document.querySelectorAll('.pu-roll.j1 b')].map(b => b.textContent) }));
+assert.equal(dr.v, dr.prem); assert.equal(dr.actif, dr.prem); assert.equal(Number(dr.me), dr.prem, 'sa tuile : « Tu commences ! »');
+assert.equal(dr.txt.filter(t => t === 'Tu commences !').length, 1); assert.equal(dr.txt.filter(t => / commence$/.test(t)).length, 3);
+await p.screenshot({ path: 'shots/partie-17-premier-joueur.png' });
+await p.click('.pu-roll'); await p.click('.pu-mid'); await p.click('[data-m="first"]'); await p.waitForSelector('.pu-roll.j1', { timeout: 6000 });
+assert.equal(await p.evaluate(() => PU.roll.v === PU.st.premier && PU.st.journal.some(e => e.a === 'f')), true, 'tirage du menu : premier joueur noté (annulable)'); await p.click('.pu-roll');
+ok('dés (d4 à d20) et pile ou face : crypto.getRandomValues, uniforme, résultat dans chaque tuile tournée, animation coupée par prefers-reduced-motion, Retour ; premier joueur tiré au lancement (tuiles allumées tour à tour, « Tu commences ! ») et au menu');
+
+/* ── Chrono : durée au centre du bouton rond, temps du tour en option (menu, gardé) ; B et C : dans la barre ──────────────────────────────── */
+const ago42 = () => p.evaluate(() => { PU.st.debut = Date.now() - 42 * 60e3; puPaint(); });
+await game(4, 'A'); await ago42();
+assert.equal(await txt(p, '.pu-mid .pu-clk'), '42 min', 'durée de la partie au centre du bouton rond');
+await p.click('.pu-mid'); await p.waitForSelector('#puMClkT'); await p.click('label[for="puMClkT"]'); await closeSheets();
+assert.match(await p.$$eval('.pu-mid .pu-clk', c => c.map(x => x.textContent).join(' | ')), /^42 min \| \d+:\d\d$/, 'et le temps du tour');
+await p.evaluate(() => puSet(partieNextTurn(PU.st))); assert.match(await txt(p, '.pu-mid .pu-clk[data-c="t"]'), /^0:0\d$/, 'nouveau tour : remis à zéro');
+await p.waitForTimeout(2100); assert.match(await txt(p, '.pu-mid .pu-clk[data-c="t"]'), /^0:0[1-9]$/, 'il avance');
+await p.screenshot({ path: 'shots/partie-18-chrono.png' });
+await p.click('.pu-mid'); await p.click('label[for="puMClkD"]'); await p.click('label[for="puMClkT"]'); await closeSheets();
+assert.equal(await p.$('.pu-clk'), null, 'masqué'); assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:partie:clk')), '{"d":0,"t":0}', 'gardé sur l\'appareil');
+await p.evaluate(() => localStorage.removeItem('deckdeal:partie:clk')); await game(3, 'B'); await ago42(); assert.equal(await txt(p, '.pu-bar .pu-clk'), '42 min', 'B : dans la barre du haut');
+ok('chrono : durée de la partie au centre du bouton rond (B, C : barre du haut), temps du tour en option (remis à zéro, avance), masqué au menu, gardé');
+
+/* ── Préparation : plan de la table, « Changer l'ordre » (↑ / ↓, glisser, clavier), le premier joueur suit ; mon prénom (« Hôte ») ─────────── */
+await p.evaluate(async () => { puClose(); await new Promise(r => setTimeout(r, 300)); partieClear(); puGo(); }); await p.waitForSelector('.pu.on .pu-setup');
+for (const n of ['Léa', 'Paul', 'Zoé']) await p.evaluate(nom => puSet(partieAddPlace(PU.st, { sorte: 'invite', nom })), n);
+await p.click('[data-pu="first"][data-pos="3"]');
+const names = () => p.evaluate(() => PU.st.places.map(x => x.nom));
+assert.deepEqual(await p.$$eval('.pu-plan .pu-pl', l => l.map(x => x.textContent.trim())), ['2Léa', '3Paul1er', '1Hôte', '4Zoé'], 'plan : la table de l\'affichage A, l\'ordre du tour, le premier joueur');
+assert.match(await txt(p, '.pu-plan-t'), /Paul commence, puis le tour passe à sa gauche/);
+await p.click('[data-pu="ord"]'); await p.waitForSelector('.pu-seat.ord .pu-grip');
+assert.ok(Math.min(...await p.$$eval('.pu-seat.ord .pu-grip, .pu-seat.ord .pu-ud button', b => b.map(x => Math.min(x.getBoundingClientRect().width, x.getBoundingClientRect().height)))) >= 44, 'poignées et flèches : 44 px');
+await p.click('.pu-seat:nth-child(3) [data-pu="seat-up"]'); assert.deepEqual(await names(), ['Hôte', 'Paul', 'Léa', 'Zoé'], '↑ : Paul monte');
+assert.equal(await p.evaluate(() => PU.st.premier), 2, 'le premier joueur le suit');
+assert.equal(await p.evaluate(() => document.activeElement.dataset.pu + ' ' + [...document.querySelectorAll('.pu-seat')].indexOf(document.activeElement.closest('.pu-seat'))), 'seat-up 1', 'le focus suit la place');
+await p.keyboard.press('Enter'); assert.deepEqual(await names(), ['Paul', 'Hôte', 'Léa', 'Zoé'], 'Entrée : encore');
+await p.focus('.pu-seat:nth-child(2) .pu-grip'); await p.keyboard.press('ArrowDown'); assert.deepEqual(await names(), ['Paul', 'Léa', 'Hôte', 'Zoé'], 'poignée : flèche bas');
+const g4 = await (await p.$('.pu-seat:nth-child(4) .pu-grip')).boundingBox(), r1 = await (await p.$('.pu-seat:nth-child(1)')).boundingBox();
+await p.mouse.move(g4.x + 20, g4.y + 20); await p.mouse.down(); await p.mouse.move(g4.x + 20, g4.y, { steps: 3 }); await p.mouse.move(g4.x + 20, r1.y + 8, { steps: 10 });
+await p.screenshot({ path: 'shots/partie-19-ordre-glisser.png' }); await p.mouse.up();
+assert.deepEqual(await names(), ['Zoé', 'Paul', 'Léa', 'Hôte'], 'glisser-déposer : Zoé en premier, les autres gardent leur ordre');
+assert.deepEqual(await p.evaluate(() => PU.st.places.map(x => x.pos)), [1, 2, 3, 4]);
+await p.click('[data-pu="ord"]'); assert.equal(await p.$('.pu-grip'), null, 'Terminé');
+await p.screenshot({ path: 'shots/partie-20-ordre-plan.png' });
+await p.click('.pu-seat [data-pu="ren"]'); await p.waitForSelector('#puRn'); assert.equal(await p.$eval('#puRn', e => e.value), 'Hôte');
+await p.fill('#puRn', 'Martin'); await p.click('.sheet [data-ok]'); assert.equal((await names())[3], 'Martin', 'le créateur se donne un prénom');
+await p.click('.pu-foot [data-pu="drop"]'); await p.waitForSelector('.sheet [data-ok]'); await p.click('.sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.pu') && !sheets.length);
+ok('préparation : plan de la table (ordre du tour, premier joueur), « Changer l\'ordre » : ↑ / ↓, flèches du clavier sur la poignée, glisser-déposer ; le premier joueur suit ; crayon : le prénom du créateur');
+
 /* ── Appli Android (WebView sans navigator.wakeLock, ManaOrbit.keepAwake de l'APK 1.0.10) : écran gardé allumé par la coque ── */
 const w = await newPage(browser, world, { goto: false });
 await w.p.addInitScript(() => {
   try { Object.defineProperty(Navigator.prototype, 'wakeLock', { get: () => undefined, configurable: true }); } catch (e) { /* déjà absent */ }
-  window.__aw = []; const P = { ManaOrbit: { keepAwake: async o => { window.__aw.push(o.on); return o; }, brightness: async o => o } };
+  window.__aw = []; window.__or = []; const P = { ManaOrbit: { keepAwake: async o => { window.__aw.push(o.on); return o; }, brightness: async o => o, orientation: async o => { window.__or.push(o.lock); return o; } } };      // orientation : méthode attendue d'une APK à venir
   window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => !!P[n], Plugins: P, getPlatform: () => 'android' };
 });
 await w.p.goto(world.url); await toHome(w.p);
@@ -330,6 +509,7 @@ await w.p.waitForFunction(() => window.__aw.length === 1); assert.deepEqual(awai
 await w.p.evaluate(() => puMyQr()); await w.p.waitForSelector('.pu-myqr'); await w.p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
 await w.p.waitForTimeout(200); assert.deepEqual(await aw(), [[true], '1'], 'QR joueur ouvert puis fermé par-dessus le compteur : l\'écran reste allumé');
 await w.p.evaluate(() => puClose()); await w.p.waitForFunction(() => window.__aw.length === 2); assert.deepEqual(await aw(), [[true, false], null], 'compteur fermé : veille rendue');
+assert.deepEqual(await w.p.evaluate(() => window.__or), [true, false], 'APK avec ManaOrbit.orientation : orientation gardée pendant la partie, rendue à la fermeture');
 await w.p.evaluate(() => { TR.share = 'abc123'; trQrOpen(); }); await w.p.waitForSelector('.sheet-wrap.open .qr-img svg');
 await w.p.waitForFunction(() => window.__aw.length === 3 && !document.querySelector('.qr-lock').hidden);
 await w.p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await w.p.waitForFunction(() => window.__aw.length === 4);
