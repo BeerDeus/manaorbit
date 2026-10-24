@@ -22,20 +22,21 @@
 @container pucell (min-height:151px) and (max-aspect-ratio:3/2){
   .pu-t.act:not(.rv) .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64,(100cqh - 33px) / .75) * var(--k)),200px);translate:0 calc(-1 * max(0px,.37em - 50cqh + 35px))}
 }
-/* tuile large (vue par son joueur : 330 px et plus) : « Fin du tour » en haut, à côté du nom (du côté libre du bouton rond), les PV gardent toute leur place */
+/* tuile large (vue par son joueur : 330 px et plus) : « Fin du tour » en haut, à côté du nom (du côté libre du bouton rond), les PV gardent toute leur place ;
+   pas sous les pastilles du haut d'une moitié de table (pk-*) : en bas */
 @container pucell (min-width:330px) and (min-height:171px){
-  .pu-t.act:not(.rv) .pu-turn{top:8px;bottom:auto;left:auto;right:10px;transform:none}
-  .pu-t.act:not(.rv) .pu-top{--nr:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px)}
-  .pu-t.act.mid-r:not(.rv) .pu-turn{right:auto;left:10px}
-  .pu-t.act.mid-r:not(.rv) .pu-top{--nl:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px);--nr:40px}
-  .pu-t.act:not(.rv) .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64) * var(--k)),200px);translate:none}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c):not(.rv) .pu-turn{top:8px;bottom:auto;left:auto;right:10px;transform:none}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c):not(.rv) .pu-top{--nr:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px)}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).mid-r:not(.rv) .pu-turn{right:auto;left:10px}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).mid-r:not(.rv) .pu-top{--nl:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px);--nr:40px}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c):not(.rv) .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64) * var(--k)),200px);translate:none}
 }
 @container pucell (min-height:330px){
-  .pu-t.act.rv .pu-turn{top:8px;bottom:auto;left:auto;right:10px;transform:none}
-  .pu-t.act.rv .pu-top{--nr:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px)}
-  .pu-t.act.mid-r.rv .pu-turn{right:auto;left:10px}
-  .pu-t.act.mid-r.rv .pu-top{--nl:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px);--nr:40px}
-  .pu-t.act.rv .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64) * var(--k)),200px);translate:none}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).rv .pu-turn{top:8px;bottom:auto;left:auto;right:10px;transform:none}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).rv .pu-top{--nr:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px)}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).mid-r.rv .pu-turn{right:auto;left:10px}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).mid-r.rv .pu-top{--nl:calc(clamp(12px,5cqmin,18px) * 6.3 + 46px);--nr:40px}
+  .pu-t.act:not(.pk-l):not(.pk-r):not(.pk-c).rv .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64) * var(--k)),200px);translate:none}
 }
 /* Proposition d'élimination dans la tuile du joueur, tournée vers lui (Éliminer / Pas encore) */
 .pu-pin{position:absolute;left:6px;right:6px;bottom:6px;z-index:5;display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:14px;background:rgba(16,21,38,.95);border:1px solid #7682c0;box-shadow:0 8px 24px rgba(0,0,0,.55);color:#fff}

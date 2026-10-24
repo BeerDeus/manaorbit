@@ -90,6 +90,13 @@ for (const w of [390, 360]) {
   for (const X of [A, E]) { await X.p.setViewportSize({ width: w, height: w === 360 ? 740 : 844 }); await X.p.waitForTimeout(250); await midFree(X, `${X === A ? 'hôte' : 'écran 2'} ${w} px`); }
 }
 await A.p.screenshot({ path: 'shots/partie-duo-1-hote.png' }); await E.p.screenshot({ path: 'shots/partie-duo-2-ecran2.png' });
+// paysage : chaque moitié tournée d'un quart de tour, sur chaque écran (bouton rond toujours sur une jointure)
+for (const X of [A, E]) {
+  await X.p.setViewportSize({ width: 844, height: 390 }); await X.p.waitForFunction(() => document.querySelector('.pu-a.pu-h2.land'), null, { timeout: 5000 }); await midFree(X, (X === A ? 'hôte' : 'écran 2') + ' en paysage');
+  const pv = await X.p.$$eval('.pu-t .pu-life', b => Math.min(...b.map(x => parseFloat(getComputedStyle(x).fontSize)))); assert.ok(pv >= 60, 'paysage : PV lisibles (' + pv + ')');
+}
+await E.p.screenshot({ path: 'shots/partie-duo-2b-ecran2-paysage.png' });
+for (const X of [A, E]) { await X.p.setViewportSize({ width: 390, height: 844 }); await X.p.waitForFunction(() => !document.querySelector('.pu-a.land'), null, { timeout: 5000 }); }
 ok('partie lancée : l\'hôte et l\'écran 2 montrent chacun leur moitié, tuiles tournées, plein écran sombre sans pub, bouton rond sur une jointure (390 et 360 px)');
 
 /* ── Saisie depuis l'écran 2 vue par l'hôte, et l'inverse ; maintenu −10 ; fiche ─────────────────────────────────────────────────── */
@@ -103,6 +110,7 @@ const hb = await (await E.p.$('.pu-t[data-pos="4"] .pu-hit.m')).boundingBox();
 await E.p.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2); await E.p.mouse.down(); await E.p.waitForTimeout(700); await E.p.mouse.up();
 await A.p.waitForFunction(() => PU.st.places.find(p => p.pos === 4).vie === 30, null, { timeout: 15000 });
 await E.p.click('.pu-t[data-pos="3"] .pu-nm'); await E.p.waitForSelector('.pu-lvsheet [data-k="b"][data-s="1"][data-n="1"]');
+assert.equal(await E.p.evaluate(() => { const w = sheets[sheets.length - 1].wrap; return w.classList.contains('pu-tsheet') && w.querySelector('.sheet').style.getPropertyValue('--r'); }), '90deg', 'écran 2 : fiche sur la tuile du joueur, tournée vers lui');
 await E.p.click('.pu-lvsheet [data-k="b"][data-s="1"][data-n="1"]'); await closeSheets(E.p);
 await A.p.waitForFunction(() => { const p = PU.st.places.find(x => x.pos === 3); return p.blessures['1'] === 1 && p.vie === 37; }, null, { timeout: 15000 });
 // deux joueurs qui touchent l'écran 2 presque ensemble : un appui suivi par doigt, chacun son ±1 au bon joueur (relâchés dans un ordre ou dans l'autre)
@@ -142,6 +150,11 @@ await E.p.waitForTimeout(2500); await E.p.click('.pu-t[data-pos="2"] .pu-hit.p')
 await A.p.waitForFunction(() => PU.st.places.find(p => p.pos === 2).vie === 40, null, { timeout: 15000 });
 await A.p.evaluate(() => puSet(partieRemoteOff(PU.st, false)));
 ok('saisie coupée par l\'hôte : Bob en lecture, l\'écran 2 compte toujours');
+// dé lancé chez l'hôte : dans chaque tuile de l'écran 2 aussi
+await A.p.evaluate(() => puRoll('d6')); const d6 = await A.p.evaluate(() => String(PU.roll.v));
+await E.p.waitForFunction(v => { const b = [...document.querySelectorAll('.pu-t .pu-roll b')]; return b.length && b.every(x => x.textContent === v); }, d6, { timeout: 15000 });
+await E.p.click('.pu-roll'); await E.p.waitForFunction(() => !document.querySelector('.pu-roll')); await A.p.evaluate(() => { PU.roll = null; puPaint(); });
+ok('dé lancé chez l\'hôte : le résultat dans chaque tuile de l\'écran 2, fermé d\'un toucher');
 
 /* ── Table en direct de Bob : illustration du commandant en fond (deck de l'hôte, invité qui a tapé « Edgar Markov ») ────────────── */
 await B.p.waitForFunction(() => document.querySelectorAll('.pu-lv.art img.pu-art').length >= 2, null, { timeout: 15000 });
