@@ -1187,9 +1187,10 @@
      aujourd'hui ou meilleur jour), trouvées par jour (barres, toute la durée de l'édition : jours à venir en gris) et chasseurs par jour (courbe, même échelle),
      répartition des chasseurs par total trouvé (histogramme, total / total en vert), top 20 des pseudos publics (textContent, date à l'heure de Paris).
      Relu à chaque affichage de l'onglet et par « Actualiser » ; route absente (404, ou 405 d'un serveur sans le module) : onglet masqué. Pastille : un point
-     quand une édition en cours est coupée (interrupteur ou EVENT=0). */
-  const ev = { gen: 0, d: null, busy: false, sw: '' };
-  const evReset = () => { ev.gen++; Object.assign(ev, { d: null, busy: false, sw: '' }); };
+     quand une édition en cours est coupée (interrupteur ou EVENT=0). Sous les statistiques : les chasseurs (recherche, pages, remise à zéro d'un joueur ou de
+     sa propre avancée) ; en bas, l'encart « Débogage » (/?evreset=1 : l'appareil oublie ses événements). */
+  const ev = { gen: 0, d: null, busy: false, sw: '', rs: false, q: {}, pg: {} };      // q, pg : recherche et page de la liste des chasseurs, par édition
+  const evReset = () => { ev.gen++; Object.assign(ev, { d: null, busy: false, sw: '', rs: false, q: {}, pg: {} }); };
   const D_DAYY = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   const D_PARIS = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
   const NF1 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
@@ -1243,7 +1244,7 @@
       d.on === false ? h('p', { class: 'note', 'data-k': 'off' }, h('b', null, 'EVENT=0 sur le serveur : tout est coupé.'), ' Ni chasse ni décorations dans l\'appli, quels que soient les interrupteurs ci-dessous.') : null,
       d.force ? h('p', { class: 'note', 'data-k': 'force' }, h('b', null, 'Forcé par EVENT_FORCE : ' + (forced ? evName(forced) : String(d.force)) + '.'), ' Réservé aux essais : l\'édition est servie même hors de ses dates.') : null,
       h('p', { class: 'hint' }, 'Éditions en cours, à venir (60 jours) et terminées avec des données. « Événement actif » coupe une édition à chaud, sans redémarrer le serveur : plus de chasse ni de décorations dans l\'appli ; les progressions sont gardées et reviennent quand tu la rallumes.'));
-    fill(box, head, list.length ? list.map(e => evCard(e, stats[e.id], d)) : h('section', { class: 'card' }, empty('Aucun événement en cours, à venir dans les 60 jours ou terminé avec des données.')));
+    fill(box, head, list.length ? list.map(e => evCard(e, stats[e.id], d)) : h('section', { class: 'card' }, empty('Aucun événement en cours, à venir dans les 60 jours ou terminé avec des données.')), evDebug());
     evCharts();
   }
   function evCard(e, st, d) {
@@ -1304,8 +1305,77 @@
       h('small', null, r.at > 0 ? D_PARIS.format(r.at) : '—')); })) : empty('Aucun chasseur classé pour l\'instant.');
     const top = fold('ev-top-' + e.id, h('h3', null, 'Top 20 des chasseurs'), [h('p', { class: 'hint' }, 'Pseudos publics de la Carte mystère (jamais le nom Google) ; date de la dernière trouvaille, heure de Paris ; à égalité, le premier arrivé devant.'), list],
       { meta: plural(rows.length, 'pseudo'), cls: 'evs evtop20', shut: e.state === 'past' });      // édition terminée : replié d'office
-    return [tiles, h('div', { class: 'evg' }, chart, hist), top];
+    return [tiles, h('div', { class: 'evg' }, chart, hist), top, Array.isArray(st.players) ? evHunt(e, st) : null];
   }
+  /* Chasseurs d'une édition (stats[id].players : 3 000 au plus, du plus avancé au moins avancé) : recherche (nom réduit, pseudo, e-mail masqué), 50 par page,
+     ligne de l'éditeur mise en avant (« toi ») ; « Réinitialiser » une ligne ou « Réinitialiser mon avancée » (p: 'me') : confirmé, POST /api/admin/events/reset
+     { id, p }, la réponse remplace les statistiques et la liste. Recherche et page gardées au repeint (par édition). */
+  const EV_PAGE = 50;
+  function evHunt(e, st) {
+    const id = e.id, obj = evObj(e), total = Number(e.total) || 0, per = Number(e.per) || 0, all = st.players.filter(x => x && typeof x === 'object');
+    const q = h('input', { type: 'search', class: 'evq', placeholder: 'Nom, pseudo ou e-mail…', 'aria-label': 'Chercher un chasseur', autocomplete: 'off', spellcheck: 'false' });
+    q.value = ev.q[id] || '';
+    const cnt = h('small', { class: 'dyn evhn', 'aria-live': 'polite' }), body = h('div', { class: 'evpl' }), pager = h('nav', { class: 'pager', 'aria-label': 'Pages des chasseurs' });
+    const mine = h('button', { class: 'btn ghost small', type: 'button', 'data-act': 'reset-me', title: 'Ta progression de cette édition repart de zéro (avec tes appareils rattachés)' }, 'Réinitialiser mon avancée');
+    mine.disabled = !!ev.rs; mine.addEventListener('click', () => evResetAsk(e, 'me', null, mine));
+    const td = (l, cls, ...kids) => h('td', { 'data-l': l, class: cls }, ...kids);
+    const row = p => {
+      const c = Math.max(0, Number(p.c) || 0), b = h('i'); b.style.width = (total ? Math.min(100, Math.round(c / total * 100)) : 0) + '%';      // propriété style (permise par la CSP), pas d'attribut
+      const rs = h('button', { class: 'btn ghost tiny', type: 'button', 'data-act': 'reset' }, 'Réinitialiser'); rs.disabled = !!ev.rs; rs.addEventListener('click', () => evResetAsk(e, String(p.id || ''), p, rs));
+      return h('tr', { 'data-id': p.id, class: (p.me ? 'me' : '') + (p.acct ? '' : ' dev') || null },
+        h('td', { class: 'who' }, h('span', { class: 'id' }, h('b', { class: 'nm' }, evWho(p)), p.mail ? h('small', { class: 'ml' }, String(p.mail)) : null,
+          h('span', { class: 'tags' }, p.me ? h('span', { class: 'tag team' }, 'toi') : null, p.acct ? null : h('span', { class: 'tag' }, 'appareil')))),
+        td('Pseudo', 'ps', h('span', { class: 'v' }, p.n ? String(p.n) : '—')),
+        td('Trouvées', 'num' + (total && c >= total ? ' done' : ''), h('span', { class: 'v' }, nf(c) + (total ? ' / ' + total : '')), h('span', { class: 'evbar', 'aria-hidden': 'true' }, b)),
+        td('Aujourd\'hui', 'num', h('span', { class: 'v' }, nf(p.today) + (per ? ' / ' + per : ''))),
+        td('Jours', 'num', h('span', { class: 'v' }, nf(p.days))),
+        td('Dernière', 'dt', h('span', { class: 'v' }, p.last > 0 ? D_PARIS.format(p.last) : '—')),
+        h('td', { class: 'act' }, rs));
+    };
+    const draw = () => {
+      const t = unacc(ev.q[id] || ''), l = t ? all.filter(p => [p.name, p.n, p.mail].some(v => v && unacc(v).includes(t))) : all;
+      const pages = Math.max(1, Math.ceil(l.length / EV_PAGE)), pg = Math.min(pages, Math.max(1, ev.pg[id] || 1)); ev.pg[id] = pg;
+      cnt.textContent = t ? nf(l.length) + ' sur ' + nf(all.length) : '';
+      const head = h('thead', null, h('tr', null, ['Compte', 'Pseudo', 'Trouvées', 'Aujourd\'hui', 'Jours', 'Dernière trouvaille'].map((x, i) => h('th', { scope: 'col', class: i >= 2 && i <= 4 ? 'r' : null }, x)), h('th', { scope: 'col', class: 'r' }, h('span', { class: 'sr' }, 'Action'))));
+      fill(body, l.length ? h('table', { class: 'ut evpt' }, head, h('tbody', null, l.slice((pg - 1) * EV_PAGE, pg * EV_PAGE).map(row)))
+        : empty(t ? 'Aucun chasseur ne correspond.' : 'Personne n\'a encore trouvé de ' + evOne(obj) + '.'));
+      const nav = (label, p, dis) => { const b = h('button', { class: 'btn ghost small', type: 'button', disabled: dis, 'data-page': p }, label); b.addEventListener('click', () => { ev.pg[id] = p; draw(); body.closest('.evhunt').scrollIntoView({ block: 'start' }); }); return b; };
+      fill(pager, pages > 1 ? [nav('‹ Précédente', pg - 1, pg <= 1), h('span', { class: 'pg' }, 'Page ' + pg + ' / ' + pages), nav('Suivante ›', pg + 1, pg >= pages)] : []);
+    };
+    q.addEventListener('input', () => { ev.q[id] = q.value.trim(); ev.pg[id] = 1; draw(); });
+    draw();
+    const noNames = all.some(p => p.acct) && !all.some(p => p.acct && p.name);
+    return fold('ev-hunt-' + id, h('h3', null, 'Chasseurs'), [
+      h('div', { class: 'evhq' }, q, cnt, mine),
+      noNames ? h('p', { class: 'hint', 'data-k': 'nonames' }, 'Noms des comptes : ouvre la Vue d\'ensemble une fois (liste calculée).') : null,
+      body, pager], { meta: plural(all.length, 'chasseur'), cls: 'evs evhunt', shut: e.state === 'past' });
+  }
+  /** Nom d'un chasseur : nom réduit du compte, sinon son pseudo, sinon « Compte sans nom » / « Sans compte ». */
+  const evWho = p => (p.acct ? String(p.name || '') || 'Compte sans nom' : 'Sans compte');
+  /** « Réinitialiser » (une ligne) ou « Réinitialiser mon avancée » (p === 'me') : confirmé ; la réponse remplace stats et liste de l'édition. */
+  async function evResetAsk(e, p, row, b) {
+    if (ev.rs || !p) return;
+    const me = p === 'me', obj = evObj(e), name = evName(e);
+    const who = row ? (row.acct && row.name ? String(row.name) : row.n ? String(row.n) : row.acct ? 'ce compte' : 'cet appareil sans compte') : '';
+    const v = await dlg(me ? 'Réinitialiser ton avancée ?' : 'Réinitialiser ' + who + ' ?', [
+      row ? h('p', { class: 'dlgw' }, [evWho(row), row.n ? 'pseudo ' + row.n : '', row.mail, nf(row.c) + ' / ' + (Number(e.total) || 0)].filter(Boolean).join(' · ')) : null,
+      h('p', null, me ? 'Remettre à zéro ta progression pour ' + name + ' ? Tes ' + obj + ' et tes badges de cette édition repartent de zéro (tes appareils rattachés aussi).'
+        : 'Remettre à zéro la progression de ' + who + ' pour ' + name + ' ? Ses ' + obj + ' et ses badges de cette édition repartent de zéro.'),
+      h('p', { class: 'hint' }, 'Ses anciennes copies (appareil, Firestore) ne reviennent pas. Irréversible.')], [['Annuler', ''], ['Réinitialiser', 'ok', 'main danger']]);
+    if (v !== 'ok' || ev.rs) return;
+    ev.rs = true; for (const x of $$('#events [data-act^="reset"]')) x.disabled = true;
+    let x; try { x = await call('/events/reset', 'POST', { id: e.id, p }); } catch (er) { x = null; }
+    ev.rs = false;
+    if (x && x.body && Array.isArray(x.body.log)) journal(x.body.log);
+    if (!x || x.status !== 200 || !x.body || !x.body.ok) { for (const y of $$('#events [data-act^="reset"]')) y.disabled = false; return oops(x, 'Remise à zéro impossible : le serveur ne répond pas.'); }
+    if (ev.d && x.body.stats && typeof x.body.stats === 'object') { if (!ev.d.stats || typeof ev.d.stats !== 'object') ev.d.stats = {}; ev.d.stats[e.id] = x.body.stats; }
+    evPaint(); toast('Progression remise à zéro' + (me ? ' (la tienne).' : '.'));
+  }
+  /** Encart « Débogage » : remettre cet appareil à zéro (/?evreset=1 dans un nouvel onglet ; sur Android, le lien ouvert sur le téléphone). */
+  const evDebug = () => h('section', { class: 'card evdbg', id: 'evDbg' }, chead('Débogage'),
+    h('p', { class: 'hint' }, 'L\'appli oublie alors ses événements sur cet appareil : message d\'arrivée revu, progression locale effacée.'),
+    h('a', { class: 'btn ghost small', id: 'evReset', href: '/?evreset=1', target: '_blank', rel: 'noopener noreferrer' }, 'Remettre cet appareil à zéro ↗'),
+    h('p', { class: 'hint evdbgh' }, 'Sur l\'appli Android : ouvre manaorbit.app/?evreset=1 sur le téléphone (le lien s\'ouvre dans l\'appli). Fais d\'abord « Réinitialiser mon avancée », puis remets l\'appareil à zéro.'));
   /** Graphiques des éditions, à la largeur de leur boîte (redessinés à l'affichage de l'onglet et quand la fenêtre change). */
   function evCharts() {
     const d = ev.d; if (!d) return;

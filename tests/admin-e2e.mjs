@@ -5,7 +5,7 @@
 // journal ; déjà connecté dans l'appli : tableau de bord d'emblée ; sombre. Onglets (clic, #adresse, retour, rechargement, lien direct, clavier, pastilles,
 // onglets masqués quand une partie est coupée), Carte mystère (/api/admin/daily simulé : en-tête, bloc repliable gardé au rechargement, actions), Événements
 // (/api/admin/events et …/switch simulés : cartes, tuiles, trouvées par jour, répartition, top 20, interrupteur confirmé, refus 403, EVENT=0, EVENT_FORCE,
-// onglet masqué sur 404 ou 405, journal, 360 px sombre), Discord
+// onglet masqué sur 404 ou 405, journal, 360 px sombre ; chasseurs : liste, recherche, pages, réinitialiser une ligne ou son avancée, encart « Débogage »), Discord
 // (/api/admin/discord simulé par des routes : onglet caché sur 404, bot non configuré, salons groupés, raccourcis, modèles, pings, publier, envoi confirmé,
 // historique, suppression, erreur, 360 px), Fils des forums (/api/admin/discord/threads… simulés : filtres, fil, étiquettes, fermer, verrouiller, renommer,
 // répondre, supprimer, téléphone), QR codes fixes (vrai serveur : cartes, scans, destination confirmée, création, renommer, Tester, SVG, PNG ≥ 2 048 px,
@@ -357,9 +357,16 @@ const evSeed = () => ({
       dist: [2, 3, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 6], top: [{ n: 'Zoé', c: 30, at: Date.UTC(2026, 7, 9, 18, 5) }] },
   },
 });
+// Chasseurs (stats[id].players) : 120 pour Halloween (un sur 7 sans compte, l'éditeur en 6e), 3 comptes sans nom (liste des comptes pas encore calculée) pour Magic
+const EV_PLAYERS = () => Array.from({ length: 120 }, (_, i) => {
+  const acct = i % 7 !== 3, c = Math.max(0, 30 - Math.floor(i / 4)), me = i === 5;
+  return { id: 'p' + i, acct, name: me ? 'Jeanne D.' : acct ? 'Joueur' + i + ' ' + 'ABCDEFGH'[i % 8] + '.' : '', mail: me ? 'je•••@gmail.com' : acct ? String.fromCharCode(97 + i % 26, 97 + Math.floor(i / 26)) + '•••@' + (i % 2 ? 'gmail.com' : 'orange.fr') : '',
+    n: i % 5 === 4 ? '' : 'Pseudo' + i, c, today: Math.min(5, c % 6), days: Math.min(3, Math.ceil(c / 5)), last: c ? EV_AT(27 - (i % 3), 12, i % 60) : 0, ...(me ? { me: true } : {}) };
+});
+const evSeedP = () => { const x = evSeed(); x.stats['halloween-2026'].players = EV_PLAYERS(); x.stats['magic-2026'].players = [30, 12, 4].map((c, i) => ({ id: 'm' + i, acct: true, name: '', mail: '', n: i ? '' : 'Zoé', c, today: 0, days: 2 + i, last: Date.UTC(2026, 7, 9 - i, 18, 5) })); return x; };
 let EVS = evSeed();
 async function routeEvents(ctx) {
-  await ctx.route(u => /^\/api\/admin\/events(\/switch)?$/.test(u.pathname), async r => {
+  await ctx.route(u => /^\/api\/admin\/events(\/switch|\/reset)?$/.test(u.pathname), async r => {
     const q = r.request(), u = new URL(q.url()), j = (status, body) => json(r, status, body);
     if (EVT.mode === '404') return j(404, { error: 'not_found' });
     if (EVT.mode === '405') return j(405, { error: 'method_not_allowed' });      // serveur sans le module : /api/admin/<inconnu>
@@ -367,6 +374,12 @@ async function routeEvents(ctx) {
     const b = JSON.parse(q.postData() || '{}'); EVT.posts.push({ path: u.pathname, body: b, tok: q.headers()['x-firebase-token'] || '', type: q.headers()['content-type'] });
     if (EVT.fail) return j(EVT.fail[0], EVT.fail[1]);
     const e = EVS.list.find(x => x.id === b.id); if (!e) return j(404, { error: 'not_found', message: 'Événement inconnu.' });
+    if (u.pathname === '/api/admin/events/reset') {      // { id, p : id d'un joueur ou 'me' } → { ok, stats } (avec players)
+      const st = EVS.stats[b.id], pl = st && Array.isArray(st.players) ? st.players.find(x => (b.p === 'me' ? x.me : x.id === b.p)) : null;
+      if (!pl) return j(404, { error: 'not_found', message: 'Joueur introuvable.' });
+      st.finds -= pl.c; st.dist[pl.c]--; st.dist[0]++; Object.assign(pl, { c: 0, today: 0, days: 0, last: 0 }); st.players.sort((a, x) => x.c - a.c || a.last - x.last);
+      return j(200, { ok: true, stats: st });
+    }
     e.off = !b.on;
     return j(200, { ok: true, off: EVS.list.filter(x => x.off).map(x => x.id), ...(EVT.log ? { log: EVT.log } : {}) });      // log : facultatif (ne pas en dépendre)
   });
@@ -593,6 +606,81 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
   assert.equal(await curTab(p), 'apercu', '405 : masqué aussi'); assert.ok(!(await tabsShown(p)).includes('evenements'));
   assert.deepEqual(errs, []); await ctx.close(); EVT.mode = 'on';
   ok('Événements : 404 ou 405 (serveur sans le module) → onglet masqué, #evenements ramené à la vue d\'ensemble');
+}
+{
+  // Chasseurs : liste (50 par page), recherche, ligne de l'éditeur, « Réinitialiser » une ligne et « Réinitialiser mon avancée » (confirmés, corps exacts,
+  // liste remplacée par la réponse), refus ; comptes sans nom : la note ; encart « Débogage » (/?evreset=1)
+  EVT.mode = 'on'; EVT.posts = []; EVT.fail = null; EVS = evSeedP();
+  const { ctx, p, errs } = await open({ user: ADM, before: routeEvents, vp: { width: 1280, height: 900 }, hash: '#evenements' });
+  await dash(p); await p.waitForSelector('#events .evhunt');
+  const H1 = '#events .evc[data-id="halloween-2026"]', HU = H1 + ' .evhunt', M1 = '#events .evc[data-id="magic-2026"]';
+  assert.equal(await p.$eval(HU, d => d.open), true, 'en cours : ouvert d\'office');
+  assert.match(await txt(p, HU + ' > summary'), /^Chasseurs 120 chasseurs$/);
+  const rows = () => p.$$eval(HU + ' tbody tr', e => e.map(x => x.dataset.id));
+  assert.equal((await rows()).length, 50); assert.equal(await txt(p, HU + ' .pager .pg'), 'Page 1 / 3');
+  assert.deepEqual(await p.$$eval(HU + ' thead th', e => e.map(x => x.textContent)), ['Compte', 'Pseudo', 'Trouvées', 'Aujourd\'hui', 'Jours', 'Dernière trouvaille', 'Action']);
+  assert.match(await txt(p, HU + ' tbody tr:first-child'), /^Joueur0 A\. aa•••@orange\.fr Pseudo0 30 \/ 30 0 \/ 5 3 27 oct\.,? (à )?13:00 Réinitialiser$/);
+  assert.equal(await p.$eval(HU + ' tbody tr:first-child td.done .evbar i', i => i.style.width), '100%', 'petite barre : 30 / 30');
+  assert.match(await txt(p, HU + ' tr.me'), /^Jeanne D\. je•••@gmail\.com toi Pseudo5 29 \/ 30 5 \/ 5 3 .* Réinitialiser$/, 'ligne de l\'éditeur : « toi »');
+  assert.notEqual(await p.$eval(HU + ' tr.me', r => getComputedStyle(r).backgroundColor), await p.$eval(HU + ' tbody tr:first-child', r => getComputedStyle(r).backgroundColor), 'mise en avant');
+  assert.match(await txt(p, HU + ' tr[data-id="p3"]'), /^Sans compte appareil Pseudo3 30 \/ 30 .* Réinitialiser$/);
+  assert.equal(await p.$(HU + ' [data-k="nonames"]'), null, 'noms connus : pas de note');
+  await p.click(HU + ' .pager [data-page="2"]'); assert.equal(await txt(p, HU + ' .pager .pg'), 'Page 2 / 3'); assert.equal((await rows())[0], 'p50');
+  await p.click(HU + ' .pager [data-page="3"]'); assert.equal((await rows()).length, 20); assert.equal(await p.$eval(HU + ' .pager [data-page="4"]', b => b.disabled), true);
+  await p.fill(HU + ' .evq', 'jeanne'); assert.deepEqual(await rows(), ['p5'], 'recherche par nom (page remise à 1)'); assert.equal(await txt(p, HU + ' .evhn'), '1 sur 120'); assert.equal(await txt(p, HU + ' .pager'), '');
+  await p.fill(HU + ' .evq', 'PSEUDO7'); assert.deepEqual(await rows(), ['p7', 'p70', 'p71', 'p72', 'p73', 'p75', 'p76', 'p77', 'p78'], 'recherche par pseudo (sans casse)');
+  await p.fill(HU + ' .evq', 'aa•••@orange'); assert.deepEqual(await rows(), ['p0'], 'recherche par e-mail masqué');
+  await p.fill(HU + ' .evq', 'personne'); assert.match(await txt(p, HU), /Aucun chasseur ne correspond\./);
+  await p.fill(HU + ' .evq', 'pseudo7');
+  ok('Chasseurs : 120 en 3 pages de 50 (tableau sur ordinateur), compte (nom réduit, e-mail masqué) ou « Sans compte », pseudo, trouvées « 30 / 30 » et petite barre, aujourd\'hui « / 5 », jours, dernière trouvaille (Paris), ligne « toi » mise en avant ; recherche par nom, pseudo, e-mail masqué');
+
+  // Réinitialiser une ligne : fenêtre (Annuler : rien), POST { id, p }, liste et tuiles remplacées par la réponse, recherche gardée
+  await p.click(HU + ' tr[data-id="p7"] [data-act="reset"]'); await p.waitForSelector('#dlg[open]');
+  assert.match(await txt(p, '#dlg'), /^Réinitialiser Joueur7 H\. \? Joueur7 H\. · pseudo Pseudo7 · ha•••@gmail\.com · 29 \/ 30 Remettre à zéro la progression de Joueur7 H\. pour Halloween 2026 \? Ses citrouilles et ses badges de cette édition repartent de zéro\. Ses anciennes copies .* Annuler Réinitialiser$/);
+  assert.equal(await p.evaluate(() => document.activeElement.textContent), 'Annuler');
+  await p.click('#dlg [data-v=""]'); await p.waitForTimeout(100); assert.equal(EVT.posts.length, 0, 'Annuler : rien envoyé');
+  await p.click(HU + ' tr[data-id="p7"] [data-act="reset"]'); await p.click('#dlg [data-v="ok"]'); await toastIs(p, /^Progression remise à zéro\.$/);
+  assert.equal(EVT.posts.length, 1); assert.equal(EVT.posts[0].path, '/api/admin/events/reset'); assert.deepEqual(EVT.posts[0].body, { id: 'halloween-2026', p: 'p7' }, 'corps exact');
+  assert.ok(EVT.posts[0].tok, 'avec le jeton'); assert.match(EVT.posts[0].type, /application\/json/);
+  assert.equal(await p.$eval(HU + ' .evq', i => i.value), 'pseudo7', 'recherche gardée au repeint'); assert.equal((await rows()).at(-1), 'p7', 'remis à zéro : en bas de la liste');
+  assert.match(await txt(p, HU + ' tr[data-id="p7"]'), /Pseudo7 0 \/ 30 0 \/ 5 0 — Réinitialiser$/);
+  assert.match(await txt(p, H1 + ' .kpi[data-k="finds"]'), /^Citrouilles trouvées 3 091 /i, 'tuiles : statistiques de la réponse');
+  // Réinitialiser mon avancée (p: 'me')
+  await p.click(HU + ' [data-act="reset-me"]'); await p.waitForSelector('#dlg[open]');
+  assert.match(await txt(p, '#dlg'), /^Réinitialiser ton avancée \? Remettre à zéro ta progression pour Halloween 2026 \? Tes citrouilles et tes badges de cette édition repartent de zéro/);
+  await p.click('#dlg [data-v="ok"]'); await toastIs(p, /Progression remise à zéro \(la tienne\)\./);
+  assert.deepEqual(EVT.posts[1].body, { id: 'halloween-2026', p: 'me' });
+  await p.fill(HU + ' .evq', 'jeanne'); assert.match(await txt(p, HU + ' tr.me'), /^Jeanne D\. .*toi Pseudo5 0 \/ 30 0 \/ 5 0 — Réinitialiser$/);
+  // refus : message dans la fenêtre, rien ne change
+  EVT.fail = [404, { error: 'not_found', message: 'Joueur introuvable.' }];
+  await p.click(HU + ' tr.me [data-act="reset"]'); await p.click('#dlg [data-v="ok"]');
+  await p.waitForFunction(() => document.querySelector('#dlg').open && /Action impossible/.test(document.querySelector('#dlg').innerText), null, { timeout: 5000 });
+  assert.equal(await txt(p, '#dlg'), 'Action impossible Joueur introuvable. OK'); await p.click('#dlg [data-v="ok"]'); EVT.fail = null;
+  assert.equal(await p.$eval(HU + ' tr.me [data-act="reset"]', b => b.disabled), false, 'refusé : boutons rendus');
+  ok('Chasseurs : « Réinitialiser » (fenêtre « Remettre à zéro la progression de … pour Halloween 2026 ? », Annuler : rien ; POST { id, p } en JSON avec le jeton ; liste et tuiles remplacées, recherche gardée), « Réinitialiser mon avancée » (p: \'me\'), refus dans la fenêtre');
+
+  // édition terminée : chasseurs repliés d'office ; comptes sans nom : la note
+  assert.equal(await p.$eval(M1 + ' .evhunt', d => d.open), false); await p.click(M1 + ' .evhunt > summary');
+  assert.equal(await txt(p, M1 + ' .evhunt [data-k="nonames"]'), 'Noms des comptes : ouvre la Vue d\'ensemble une fois (liste calculée).');
+  assert.match(await txt(p, M1 + ' .evhunt tbody tr:first-child'), /^Compte sans nom Zoé 30 \/ 30 0 \/ 5 2 9 août,? (à )?20:05 Réinitialiser$/);
+  // Débogage : /?evreset=1 dans un nouvel onglet, explication Android
+  assert.deepEqual(await p.$eval('#evReset', a => [a.getAttribute('href'), a.target, a.rel, a.textContent]), ['/?evreset=1', '_blank', 'noopener noreferrer', 'Remettre cet appareil à zéro ↗']);
+  assert.match(await txt(p, '#evDbg'), /^Débogage L'appli oublie alors ses événements sur cet appareil : message d'arrivée revu, progression locale effacée\. .*Sur l'appli Android : ouvre manaorbit\.app\/\?evreset=1 sur le téléphone \(le lien s'ouvre dans l'appli\)\. Fais d'abord « Réinitialiser mon avancée », puis remets l'appareil à zéro\.$/);
+  // bloc replié : gardé au rechargement
+  await p.click(HU + ' > summary'); await p.waitForFunction(() => /"ev-hunt-halloween-2026":false/.test(localStorage.getItem('manaorbit:admin:fold') || ''), null, { timeout: 3000 });
+  await p.reload(); await dash(p); await p.waitForSelector('#events .evhunt'); assert.equal(await p.$eval(HU, d => d.open), false, 'replié : gardé au rechargement');
+  await noJunk(p, 'Chasseurs'); assert.deepEqual(errs, []); await ctx.close(); EVS = evSeed();
+  ok('Chasseurs : édition terminée repliée d\'office, note « Noms des comptes : ouvre la Vue d\'ensemble une fois » ; encart « Débogage » (/?evreset=1, nouvel onglet, explication Android) ; bloc replié gardé au rechargement ; aucune erreur');
+}
+{
+  // Chasseurs à 360 px sombre : fiches, sans défilement de côté
+  EVT.mode = 'on'; EVS = evSeedP();
+  const { ctx, p, errs } = await open({ user: ADM, before: routeEvents, phone: { width: 360, height: 740 }, dark: true, hash: '#evenements' });
+  await dash(p); await p.waitForSelector('#events .evhunt tbody tr');
+  assert.equal(await p.$eval('#events .evhunt thead', e => getComputedStyle(e).display), 'none', 'téléphone : des fiches');
+  await noOverflow(p, 360, 'Chasseurs 360 px sombre'); await noJunk(p, 'Chasseurs 360 px');
+  assert.deepEqual(errs, []); await ctx.close(); EVS = evSeed();
+  ok('Chasseurs à 360 px sombre : fiches, sans défilement de côté ni texte parasite');
 }
 {
   // 360 px sombre : cartes, graphiques et top sans défilement de côté
@@ -1026,7 +1114,7 @@ if (process.env.ADMIN_SRV_SHOTS || process.env.ADMIN_SHOTS) {
 
 /* ── 360 px, clair et sombre : chaque onglet sans défilement de côté, cibles des onglets ≥ 44 px, ni « null » ni « undefined » ───────── */
 for (const dark of [false, true]) {
-  DC.mode = 'on'; DC.sent = dcOld(); TH.mode = 'on'; TH.list = thSeed(); DY.mode = 'on'; DYS = dySeed(); EVT.mode = 'on'; EVS = evSeed();
+  DC.mode = 'on'; DC.sent = dcOld(); TH.mode = 'on'; TH.list = thSeed(); DY.mode = 'on'; DYS = dySeed(); EVT.mode = 'on'; EVS = evSeedP();
   const { ctx, p, errs } = await open({ user: ADM, before: ALL, phone: { width: 360, height: 740 }, dark });
   await dash(p); await p.waitForSelector('#kpis [data-k="pseudos"]'); await p.waitForSelector('#dcCh', { state: 'attached' }); await p.waitForSelector('#thList', { state: 'attached' });
   assert.ok(await p.$$eval('#tabl .tab', e => e.every(x => x.getBoundingClientRect().height >= 44)), 'onglets : 44 px de haut au moins');
@@ -1044,7 +1132,7 @@ for (const dark of [false, true]) {
 if (process.env.ADMIN_SHOTS) {
   const dir = process.env.ADMIN_SHOTS; mkdirSync(dir, { recursive: true });
   for (const [name, vp] of [['1280', { width: 1280, height: 900 }], ['390', null]]) for (const dark of [false, true]) {
-    DC.sent = dcOld(); TH.list = thSeed(); TH.msgs = {}; DYS = dySeed(); EVT.mode = 'on'; EVS = evSeed();
+    DC.sent = dcOld(); TH.list = thSeed(); TH.msgs = {}; DYS = dySeed(); EVT.mode = 'on'; EVS = evSeedP();
     const { ctx, p } = await open({ user: ADM, before: ALL, vp: vp || undefined, phone: vp ? undefined : { width: 390, height: 844 }, dark, dpr: 1 });
     await dash(p); await p.waitForSelector('#kpis [data-k="pseudos"]'); await p.waitForSelector('#dcCh', { state: 'attached' }); await p.waitForSelector('#thList .thi', { state: 'attached' });
     for (const k of TAB_ORDER) {
