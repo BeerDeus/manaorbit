@@ -97,6 +97,8 @@
   "i/s libre": "fps livre",
   "redémarrages {n}": "reinícios {n}",
   "dernière lecture {n} ms": "última leitura {n} ms",
+  "Afficher plus ({n} autre)": "Mostrar mais ({n} outra)",
+  "Afficher plus ({n} autres)": "Mostrar mais ({n} outras)",
   "auto : image {a} ms · nom {b} ms · bas et illustration {c} ms · total {d} ms": "auto: imagem {a} ms · nome {b} ms · linha de baixo e ilustração {c} ms · total {d} ms",
   "tâches longues {n}/10 s": "tarefas longas {n}/10 s",
   "mode lent (toucher ici : retour au mode normal)": "modo lento (toque aqui: voltar ao modo normal)",

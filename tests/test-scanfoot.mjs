@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { footParse: footParseAll, footMatch, footSame, footNum } = require('../src/scanfoot.js');
-const footParse = x => { const f = footParseAll(x); if (!f) return f; const { langs, lsep, ...o } = f; return o; };      // couples « CODE LANGUE » et puce à part (tests suivants)
+const footParse = x => { const f = footParseAll(x); if (!f) return f; const { langs, lsep, tots, ...o } = f; return o; };      // couples « CODE LANGUE » et puce à part (tests suivants)
 
 const pr = (set, num, l = 'fr', fx = []) => ({ set, num, l, fx });
 // Forêt : plusieurs extensions, plusieurs numéros dans la même extension (illustrations différentes), une impression seulement en anglais
@@ -68,4 +68,20 @@ test('footParse : texte d\'ambiance au-dessus de la ligne du bas (« de », « e
   assert.equal(m.lang, 'fr'); assert.equal(m.p.l, 'fr', 'édition dans la langue lue');
   assert.equal(footParseAll(['0202 U', 'DSK • FR']).lsep, true, 'puce lue : langue la plus sûre (vote pour la langue du lot)');
   assert.equal(footParseAll(['0202 U', 'DSK FR']).lsep, false);
+});
+
+test('total imprimé (« 123/249 ») : départage deux impressions au même numéro', () => {
+  const { footTotOk, footByNum } = require('../src/scanfoot.js');
+  assert.deepEqual(footParseAll(['123/249 R', 'Illus. Jo']).tots, ['249'], 'total gardé à part');
+  assert.deepEqual(footParseAll(['0280 C', 'FDN • FR']).tots, [], 'format récent : pas de total');
+  const ps = [{ set: 'm13', num: '123', l: 'en' }, { set: 'zen', num: '123', l: 'en' }], pn = p => p.num;
+  assert.equal(footMatch(footParseAll(['123/249 R']), ps), null, 'liste des extensions pas chargée : deux numéros pareils, rien de sûr');
+  globalThis.SETIC = { m: { m13: ['', 'Magic 2013', '2012-07-13', 249, 249, 0, 'core'], zen: ['', 'Zendikar', '2009-10-02', 249, 269, 0, 'expansion'] } };
+  assert.equal(footMatch(footParseAll(['123/249 R']), ps), null, 'même taille : toujours rien de sûr');
+  globalThis.SETIC.m.zen[3] = 269;
+  assert.equal(footMatch(footParseAll(['123/249 R']), ps).p.set, 'm13', 'total 249 : M13 (Zendikar en a 269)');
+  assert.equal(footMatch(footParseAll(['123/250 R']), ps), null, 'total lu de travers (aucune extension de cette taille) : toutes gardées, rien de sûr');
+  assert.deepEqual(footByNum(footParseAll(['123/250 R']), ps, pn).map(p => p.set), ['m13', 'zen']);
+  assert.equal(footTotOk(footParseAll(['123/249 R']), { set: 'xxx', num: '1' }), true, 'extension inconnue : gardée');
+  delete globalThis.SETIC;
 });
