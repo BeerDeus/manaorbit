@@ -182,6 +182,23 @@ ok('deck créé : chargé dans la saisie comme un deck importé');
   ok('scanner dans le deck : « Au deck », les ajouter à la collection (Annuler), les prendre dans la collection (règle des 4 exemplaires), réserve depuis Chercher ; à l\'enregistrement, rangées dans « Deck : Scan » (l\'exemplaire scanné d\'abord)');
 }
 
+/* ── F) Cartes en nombre quelconque (« A deck can have any number of cards named … ») : Relentless Rats au-delà de 4 (et du singleton), Seven Dwarves 7 au plus ── */
+await newDeck(p, 'Rats', 'standard');
+await p.evaluate(() => { bdChange('main', 'relentless rats', 'Relentless Rats', 1); bdChange('main', 'seven dwarves', 'Seven Dwarves', 1); });      // comme un ajout depuis « Chercher »
+await tab(p, 'deck');
+for (let i = 0; i < 9; i++) await step(p, 'relentless rats', 'main', 1);
+assert.equal(await qty(p, 'relentless rats', 'main'), 10, 'Relentless Rats : 10 exemplaires permis en Standard');
+for (let i = 0; i < 7; i++) await step(p, 'seven dwarves', 'main', 1);
+assert.equal(await qty(p, 'seven dwarves', 'main'), 7, 'Seven Dwarves : 7 au plus'); assert.match(await txt(p, '#toast'), /7 exemplaires au maximum/);
+assert.ok(!/exemplaires \(/.test(await tc(p, '#bdSum')), 'aucune alerte d\'exemplaires dans le résumé');
+await p.click('.bd [data-act="close"]'); await p.waitForSelector('#bdLeave'); await p.click('#bdLeave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
+await newDeck(p, 'Rats EDH', 'commander');
+await p.evaluate(() => bdChange('main', 'relentless rats', 'Relentless Rats', 1)); await tab(p, 'deck');
+for (let i = 0; i < 4; i++) await step(p, 'relentless rats', 'main', 1);
+assert.equal(await qty(p, 'relentless rats', 'main'), 5, 'Commander : Relentless Rats échappe au singleton'); assert.ok(!/exemplaires \(/.test(await tc(p, '#bdSum')));
+await p.click('.bd [data-act="close"]'); await p.waitForSelector('#bdLeave'); await p.click('#bdLeave'); await p.waitForFunction(() => !document.querySelector('.bd'), null, { timeout: 4000 });
+ok('cartes en nombre quelconque : Relentless Rats au-delà de 4 (Standard) et du singleton (Commander), Seven Dwarves 7 au plus');
+
 for (const e of errsOf) assert.deepEqual(e, [], 'erreurs page : ' + e.join(' | '));
 await browser.close(); world.stop();
 console.log('BUILDER E2E OK');

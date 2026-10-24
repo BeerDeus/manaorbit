@@ -154,7 +154,8 @@ function bdChange(tgt, k, name, d, batch) {
     if (q + d < 0) return false;
     if (d > 0) {
       if (BD.cmdr.some(c => c.key === k)) return no('copies', T('Cette carte est déjà ton commandant'));
-      if (!BASIC_NAMES.has(k) && bdTot(k) + 1 > f.copies) return no('copies', f.copies === 1 ? T('Commander : un seul exemplaire de chaque carte') : T('{n} exemplaires au maximum (deck et réserve)', { n: f.copies }));
+      const max = dkMaxCopies(BD.fmt, k);      // terrains de base, Relentless Rats… : sans limite ; Seven Dwarves 7, Nazgûl 9
+      if (bdTot(k) + 1 > max) return no('copies', max === 1 ? T('Commander : un seul exemplaire de chaque carte') : T('{n} exemplaires au maximum (deck et réserve)', { n: max }));
       if (tgt === 'side' && bdCount(BD.side) + 1 > f.side) return no('side', T('Réserve : {n} cartes au maximum', { n: f.side }));
     }
     if (q + d === 0) m.delete(k); else m.set(k, { key: k, name: cur ? cur.name : name, qty: q + d });

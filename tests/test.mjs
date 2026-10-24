@@ -1302,6 +1302,19 @@ test('créateur de deck : lit une liste venue d\'ailleurs (sections, Sideboard, 
   assert.deepEqual(p.side.map(c => c.key), ['negate']); assert.equal(p.fmt, '');
   assert.deepEqual(C.dkParse('4 Bolt\n4 Bolt\nSB: 1 Bolt\n').main.map(c => c.qty), [8], 'doublons additionnés');
 });
+test('créateur de deck : cartes en nombre quelconque (« A deck can have any number of cards named … ») ; Seven Dwarves 7, Nazgûl 9', () => {
+  const c = (name, qty) => ({ key: C.ownKey(name), name, qty }), cmdr = [{ key: 'karumonix the rat king', name: 'Karumonix, the Rat King' }];
+  for (const n of ['Relentless Rats', 'Shadowborn Apostle', 'Persistent Petitioners', 'Rat Colony', 'Dragon\'s Approach', 'Sphinx\'s Approach', 'Slime Against Humanity', 'Hare Apparent', 'Templar Knight', 'Tempest Hawk', 'Cid, Timeless Artificer']) {
+    assert.deepEqual(C.dkCheck('standard', { main: [c(n, 20), c('Swamp', 40)], side: [c(n, 3)], cmdr: [] }).issues, [], n + ' : 23 exemplaires en Standard');
+    assert.deepEqual(C.dkCheck('commander', { main: [c(n, 40), c('Swamp', 59)], side: [], cmdr }).issues, [], n + ' : 40 exemplaires en Commander');
+    assert.equal(C.dkMaxCopies('commander', C.ownKey(n)), Infinity);
+  }
+  assert.deepEqual(C.dkCheck('standard', { main: [c('Seven Dwarves', 7), c('Mountain', 53)], side: [], cmdr: [] }).issues, [], 'Seven Dwarves : 7 permis');
+  assert.deepEqual(C.dkCheck('standard', { main: [c('Seven Dwarves', 7), c('Mountain', 53)], side: [c('Seven Dwarves', 1)], cmdr: [] }).issues.map(i => i.t), ['Seven Dwarves : 8 exemplaires (7 au maximum).']);
+  assert.deepEqual(C.dkCheck('commander', { main: [c('Nazgûl', 9), c('Swamp', 90)], side: [], cmdr }).issues, [], 'Nazgûl : 9 permis, même en Commander');
+  assert.deepEqual(C.dkCheck('commander', { main: [c('Nazgûl', 10), c('Swamp', 89)], side: [], cmdr }).issues.map(i => i.t), ['Nazgûl : 10 exemplaires (9 au maximum).']);
+  assert.deepEqual([C.dkMaxCopies('standard', 'lightning bolt'), C.dkMaxCopies('commander', 'sol ring'), C.dkMaxCopies('commander', 'forest'), C.dkMaxCopies('standard', 'constructor')], [4, 1, Infinity, 4], 'les autres cartes : règle du format');
+});
 test('créateur de deck : règles Standard (60 · 4 exemplaires · réserve 15) et Commander (100 · singleton · commandant)', () => {
   const c = (name, qty) => ({ key: C.ownKey(name), name, qty }), lv = r => r.issues.map(i => i.lv + ':' + i.t.split(' ')[0]);
   // Standard
