@@ -266,7 +266,7 @@ await scanClose(p);
 
 /* ── longue session : les 10 dernières cartes montrées, « Afficher plus » ajoute les autres (la liste se repeint à chaque carte) ── */
 await p.evaluate(() => { scsSet({ frame: 'name' }); openScan(); }); await p.waitForFunction(() => SC.el && SC.el.classList.contains('on'));
-await p.evaluate(() => { for (let i = 0; i < 25; i++) SC.items.set('c' + i, { id: 'c' + i, key: 'c' + i, name: 'Carte ' + i, q: 1, score: 1, l: 'en', e: edKey('m21', String(i + 1)), es: 'man', maybe: false }); SC.lastIt = SC.items.get('c3'); scanPaintList(); });
+await p.waitForTimeout(500); await p.evaluate(() => { SC.items = new Map(); SC.resume = null; for (let i = 0; i < 25; i++) SC.items.set('c' + i, { id: 'c' + i, key: 'c' + i, name: 'Carte ' + i, q: 1, score: 1, l: 'en', e: edKey('m21', String(i + 1)), es: 'man', maybe: false }); SC.lastIt = SC.items.get('c3'); scanPaintList(); });
 const shownIds = () => p.$$eval('.scan .sc-list .sc-item[data-id]', r => r.map(x => x.dataset.id));
 let ids = await shownIds();
 assert.deepEqual(ids, ['c24', 'c23', 'c22', 'c21', 'c20', 'c19', 'c18', 'c17', 'c16', 'c15', 'c3'], 'les 10 dernières, plus la dernière touchée (+1 sur une carte plus ancienne)');
