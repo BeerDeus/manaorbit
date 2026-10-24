@@ -15,6 +15,7 @@ import { promisify } from 'node:util';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { reqMeter, reqFam, loadMeter, dirStat, memLimit, memNow, level as lvOf } from './srv-stat.mjs';      // santé du serveur (/admin › Serveur)
 import { timingSafeEqual, createPublicKey, createPrivateKey, verify as rsaVerify, sign as dsaSign, randomBytes, createHash, createHmac, createECDH, createCipheriv, createDecipheriv, hkdfSync } from 'node:crypto';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -827,6 +828,7 @@ async function alertsApi(req, res, path, url) {
   return json(res, 405, { error: 'method_not_allowed' });
 }
 
+const JOB_BUSY = [];      // dates des recherches refusées parce que JOB_MAX_RUNNING sont déjà en cours (500 dernières)
 const jobs = new Map(); let jobBytes = 0;                            // jobBytes : résultats gardés par toutes les tâches (plafond JOB_RES_MAX)
 /** gs : [{ lang, foil, bps }] : les blueprints à lire dans cette langue et ce foil ; le premier groupe est celui de la recherche, les suivants (more) les lignes de la
  *  liste qui ont leur propre foil ou leur langue (« *F* », « *FR* ») : une seule tâche, une seule cadence. */
@@ -837,7 +839,7 @@ function newJob({ gs, fresh, tok = TOKEN, th = '' }) {
   for (const j of jobs.values()) if (j.sig === sig && (j.status === 'running' || (j.status === 'done' && !fresh && now - j.end < OFFER_TTL)) && (!same || j.t0 > same.t0)) same = j;
   if (same) return { job: same, attached: true };
   const running = [...jobs.values()].filter(j => j.status === 'running');
-  if (running.length >= JOB_MAX_RUNNING) return { busy: true };
+  if (running.length >= JOB_MAX_RUNNING) { JOB_BUSY.push(now); if (JOB_BUSY.length > 500) JOB_BUSY.shift(); return { busy: true }; }      // refus « serveur complet » : relevé pour le panneau (/admin › Serveur)
   if (th && running.filter(j => j.th === th).length >= JOB_PER_TOKEN) return { busy: true, mine: true };
   // th : empreinte du token de l'utilisateur ('' : token du serveur) ; tok n'est gardé que le temps de la recherche (effacé dès la fin, l'échec ou l'annulation).
   const queue = gs.flatMap((g, i) => g.bps.map(bp => ({ bp, g: i })));
@@ -2828,12 +2830,18 @@ function admRefresh() {
 /** État du serveur, relu à chaque appel (mémoire seulement : rien à lire ailleurs). */
 /** Dossier des données (EDH_DATA_DIR) gardé d'un démarrage à l'autre ? Repère .data/boot.json : date de sa création et nombre de démarrages. Un dossier
  *  recréé à chaque déploiement (parties, classements, testeurs, signalements perdus) se voit au panneau : « créé à ce démarrage » après un redéploiement. */
-const DATA_BOOT = { first: 0, boots: 0, err: '' };
+/*  recent : les 30 derniers démarrages { t, b : version de la page servie } (champ ajouté le 24 octobre 2026, ignoré par la version d'avant) : un démarrage avec la
+ *  même version que le précédent est un redémarrage (plantage, mémoire, mise en veille par l'hébergeur), pas un déploiement. */
+const DATA_BOOT = { first: 0, boots: 0, err: '', recent: [] };
 (async () => {
-  const f = join(EDH_DIR, 'boot.json');
-  try { const j = JSON.parse(await readFile(f, 'utf8')); DATA_BOOT.first = Number(j.first) || 0; DATA_BOOT.boots = Number(j.boots) || 0; } catch (e) { /* premier démarrage avec ce dossier */ }
-  if (!DATA_BOOT.first) DATA_BOOT.first = Date.now(); DATA_BOOT.boots++;
-  try { await mkdir(EDH_DIR, { recursive: true }); await writeFile(f, JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: Date.now() })); } catch (e) { DATA_BOOT.err = String(e && e.code || e); }
+  const f = join(EDH_DIR, 'boot.json'), now = Date.now();
+  try {
+    const j = JSON.parse(await readFile(f, 'utf8')); DATA_BOOT.first = Number(j.first) || 0; DATA_BOOT.boots = Number(j.boots) || 0;
+    if (Array.isArray(j.recent)) DATA_BOOT.recent = j.recent.filter(x => x && Number.isFinite(x.t)).map(x => ({ t: x.t, b: String(x.b || '').slice(0, 40) })).slice(-29);
+  } catch (e) { /* premier démarrage avec ce dossier */ }
+  let b = ''; try { b = PAGE ? (/const DD_BUILD = '([\w-]+)'/.exec(await readFile(PAGE, 'utf8')) || ['', ''])[1] : ''; } catch (e) { /* page absente */ }
+  if (!DATA_BOOT.first) DATA_BOOT.first = now; DATA_BOOT.boots++; DATA_BOOT.recent.push({ t: now, b });
+  try { await mkdir(EDH_DIR, { recursive: true }); await writeFile(f, JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: now, recent: DATA_BOOT.recent })); } catch (e) { DATA_BOOT.err = String(e && e.code || e); }
 })();
 async function admServer() {
   const troc = { wait: 0, live: 0, done: 0, all: TROC.s.size }; for (const s of TROC.s.values()) if (s.st in troc) troc[s.st]++;
@@ -2845,6 +2853,60 @@ async function admServer() {
     troc, partie, jobs: { run, all: jobs.size }, alerts: { devices: AL.subs.size, last: Number(AL.last.at) || 0, hits: Number(AL.last.hits) || 0 },
     pub: { n: PUB.n, hid: PUB.hid, at: PUB.at, err: PUB.err ? 'erreur' : '' }, amis: { cache: AMI.cache.size, due: AMI.due.size },
     data: { dir: EDH_DIR, env: !!process.env.EDH_DATA_DIR, first: DATA_BOOT.first, boots: DATA_BOOT.boots, err: DATA_BOOT.err } };
+}
+/* Santé du serveur (onglet « Serveur » du panneau, GET /api/admin/server ; ?disk=1 : dossier des données relu s'il date de plus d'une minute) : de quoi
+   décider quand quitter l'hébergement mutualisé pour un VPS. Rien de personnel (ni IP, ni compte, ni chemin demandé) : des nombres. Coût négligeable :
+   compteurs déjà tenus (caches, sessions, recherches), requêtes comptées en O(1) (srv-stat.mjs › reqMeter), processeur et boucle relevés une fois par
+   minute, dossier des données parcouru au plus toutes les 10 min (et seulement quand le panneau le demande). Seuils (niveau ok / warn / bad) : ici seulement. */
+const REQ = ADMIN_ON ? reqMeter() : null, LOAD = ADMIN_ON ? loadMeter() : null;
+const DISK = { v: null, at: 0, run: null }, DISK_TTL = 10 * 60e3;
+/** Dossier des données parcouru si la dernière lecture date de plus de 10 min (force : d'une minute) ; la première fois (ou forcé) : attendu. */
+function diskScan(force) {
+  const age = Date.now() - DISK.at;
+  if (!DISK.run && (!DISK.v || age > DISK_TTL || (force && age > 60e3))) DISK.run = dirStat(EDH_DIR).then(v => { DISK.v = v; DISK.at = Date.now(); }, () => {}).finally(() => { DISK.run = null; });
+  return (!DISK.v || force) && DISK.run ? DISK.run : null;
+}
+async function admHealth(force) {
+  const now = Date.now(), m = memNow(), lim = memLimit(), start = Math.round(now - process.uptime() * 1000);
+  await diskScan(force);
+  // Démarrages : redémarrage = même version que le démarrage précédent (plantage, mémoire, mise en veille par l'hébergeur) ; sinon un déploiement
+  const rec = DATA_BOOT.recent; let restarts24 = 0, deploys24 = 0, boots7 = 0;
+  rec.forEach((x, i) => { if (x.t > now - 7 * 864e5) boots7++; if (!i || x.t <= now - 864e5) return; if (x.b && x.b === rec[i - 1].b) restarts24++; else deploys24++; });
+  // En direct
+  const troc = { open: 0, two: 0, max: TROC_MAX }; for (const x of TROC.s.values()) if (x.st === 'wait' || x.st === 'live') { troc.open++; if (x.st === 'live') troc.two++; }
+  const partie = { open: 0, live: 0, phones: 0, max: PT_MAX, on: PT_ON }; let ptLive = 0;
+  for (const r of PT.s.values()) { if (r.g) ptLive++; if (!ptOpen(r)) continue; partie.open++; if (r.st === 'live') partie.live++; partie.phones += ptOn(r).length; }
+  let run = 0; for (const j of jobs.values()) if (j.status === 'running') run++;
+  const busy = JOB_BUSY.filter(t => t > now - 3600e3).length;
+  let files = 0; for (const e of FILES.values()) files += (e.raw ? e.raw.length : 0) + (e.gz ? e.gz.length : 0) + (e.br ? e.br.length : 0);
+  const caches = [
+    { k: 'ct', used: cacheBytes, max: CACHE_MAX, n: cache.size }, { k: 'offers', used: offersBytes, max: OFFERS_MAX, n: offers.size }, { k: 'jobs', used: jobBytes, max: JOB_RES_MAX, n: jobs.size },
+    { k: 'troc', used: TROC.bytes, max: TROC_MB, n: TROC.s.size }, { k: 'ptlive', used: ptLive * PT_LIVE_B, max: PT_MAX * PT_LIVE_B, n: ptLive, bound: true }, { k: 'pthist', used: PT.hb, max: PT_CACHE_B, n: PT.hist.size },
+    { k: 'amis', used: AMI.bytes, max: AM_CACHE_MB, n: AMI.cache.size }, { k: 'files', used: files, max: 0, n: FILES.size },
+    { k: 'data', used: (PX_LIVE && PX_LIVE.buf ? PX_LIVE.buf.length : 0) + (EDH_LIVE && EDH_LIVE.buf ? EDH_LIVE.buf.length : 0), max: 0, n: (PX_LIVE ? 1 : 0) + (EDH_LIVE ? 1 : 0) },
+  ].map(c => ({ ...c, lv: c.max ? lvOf(c.used / c.max, 0.9, Infinity) : '' }));
+  const load = LOAD ? LOAD.snap() : { cpu: 0, lag: 0, lagMax: 0, cpuMax: 0, lagHour: 0, n: 0, every: 60e3 };
+  const d = DISK.v || { exists: false, files: 0, bytes: 0, oldest: 0, newest: 0, cut: false };
+  const fresh = DATA_BOOT.boots <= 1 || (d.oldest > 0 && d.oldest >= start - 120e3);      // rien de plus ancien que ce démarrage : tout premier, ou dossier vidé
+  const h1 = PH_ST.d1 ? Date.parse(PH_ST.d1 + 'T23:59:59Z') : 0;
+  const lv = {
+    rss: lim.bytes ? lvOf(m.rss / lim.bytes, 0.7, 0.85) : '', heap: m.heapMax ? lvOf(m.heapUsed / m.heapMax, 0.7, 0.85) : '',
+    cpu: load.n || process.uptime() > 30 ? lvOf(load.cpu, 70, 90) : '', lag: load.n || process.uptime() > 30 ? lvOf(load.lag, 100, 250) : '',
+    restarts: lvOf(restarts24, 2, 5), jobs: lvOf(busy, 1, 10), up: lvOf(upQueue.length, 20, 100),
+    troc: lvOf(troc.open / TROC_MAX, 0.8, 0.95), partie: PT_ON ? lvOf(partie.open / PT_MAX, 0.8, 0.95) : '', alerts: ALERTS_ON ? lvOf(AL.subs.size / AL_MAX_SUBS, 0.8, 0.95) : '',
+    disk: DATA_BOOT.err || !d.exists ? 'bad' : fresh ? 'warn' : 'ok',
+    hist: !PH_SRC ? '' : PH_ST.err || !h1 || now - h1 > 3 * 864e5 ? 'warn' : 'ok',
+  };
+  const VPS = ['rss', 'heap', 'cpu', 'lag', 'restarts', 'jobs', 'up'], bad = VPS.filter(k => lv[k] === 'bad'), warn = VPS.filter(k => lv[k] === 'warn');
+  return {
+    at: now, lv, vps: { lv: bad.length ? 'bad' : warn.length ? 'warn' : 'ok', bad, warn },
+    mem: { ...m, limit: lim.bytes, from: lim.from }, caches,
+    boot: { start, up: Math.round(process.uptime()), build: await pageBuild(), node: process.version, boots7, restarts24, deploys24, recent: rec.slice(-8).reverse(), known: rec.length },
+    load, req: REQ ? REQ.snap() : null,
+    live: { troc, partie, jobs: { run, max: JOB_MAX_RUNNING, kept: jobs.size, busy, busyAt: JOB_BUSY.length ? JOB_BUSY[JOB_BUSY.length - 1] : 0, on: JOBS_ON }, up: { active: upActive, conc: UP_CONC, queue: upQueue.length }, alerts: { subs: AL.subs.size, max: AL_MAX_SUBS, on: ALERTS_ON } },
+    disk: { dir: EDH_DIR, env: !!process.env.EDH_DATA_DIR, ...d, scan: DISK.at, first: DATA_BOOT.first, boots: DATA_BOOT.boots, err: DATA_BOOT.err, fresh },
+    hist: { on: !!PH_SRC, from: PH_ST.from, d0: PH_ST.d0, d1: PH_ST.d1, days: PH_ST.days, cards: PH_ST.cards, bytes: PH_ST.bytes, check: PH_ST.check, err: PH_ST.err ? String(PH_ST.err).slice(0, 160) : '' },
+  };
 }
 const admFold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 /** Comptes de l'instantané comme la liste affichée : recherche (nom réduit, e-mail masqué), tri et sens de ?q, sort, dir. */
@@ -3020,6 +3082,7 @@ async function adminApi(req, res, path, url) {
   if (sub === 'daily' || sub.startsWith('daily/')) return DLY ? DLY.admin(req, res, sub, url) : json(res, 404, { error: 'not_found' }, ADM_HD);      // Carte mystère : joueurs des 7 derniers jours, pseudo masqué
   if (sub === 'discord' || sub.startsWith('discord/')) return DSC ? DSC.admin(req, res, sub, url) : json(res, 404, { error: 'not_found', message: 'Bot Discord indisponible.' }, ADM_HD);      // messages du bot dans les salons (mêmes garde-fous que admAct)
   if (sub === 'qr' || sub.startsWith('qr/')) return qrAdmin(req, res, sub, u);      // QR codes fixes (flyers, affiches) : liste, création, destination ; jamais de suppression
+  if (req.method === 'GET' && sub === 'server') return json(res, 200, await admHealth(url.searchParams.get('disk') === '1'), ADM_HD);      // santé du serveur : mémoire, requêtes, en direct, disque (onglet « Serveur »)
   if (req.method === 'GET' && !sub) {
     if (!ADM.snap || Date.now() - ADM.snap.at > ADM_TTL) await admRefresh();      // trop ancien : recalculé (la page attend : c'est l'éditeur qui l'a demandé)
     return admSend(res, url);
@@ -3748,6 +3811,7 @@ const server = http.createServer(async (req, res) => {
     // Servi en https par le reverse proxy de l'hébergeur : le navigateur s'en souvient 180 jours (jamais en http, où l'en-tête n'aurait pas de sens).
     if (String(req.headers['x-forwarded-proto'] || '').split(',').pop().trim().toLowerCase() === 'https') res.setHeader('Strict-Transport-Security', 'max-age=15552000');
     const url = new URL(String(req.url).replace(/^\/+/, '/'), 'http://x'); // « // » ou « //hôte/chemin » ne doivent pas être lus comme une URL absolue
+    if (REQ) REQ.hit(reqFam(url.pathname));      // requêtes par minute et par famille (/admin › Serveur) : un compteur, rien d'autre de la requête
     if (OLD_HOSTS.length && OLD_HOSTS.includes(String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase()) && oldHost(req, res, url)) return;
     if (url.pathname === '/flyer' || url.pathname === '/q' || url.pathname.startsWith('/q/')) return await qrGo(req, res, url);      // QR imprimés (flyers, affiches, Discord) : lien fixe, destination réglée dans /admin › QR codes
     if (url.pathname === '/app-ads.txt') return ADMOB_PUB ? txt(res, 'google.com, ' + ADMOB_PUB + ', DIRECT, f08c47fec0942fa0\n') : json(res, 404, { error: 'not_found' });

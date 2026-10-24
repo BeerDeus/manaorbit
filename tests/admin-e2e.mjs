@@ -109,7 +109,7 @@ const TAB_ORDER = ['apercu', 'comptes', 'mystere', 'discord', 'fils', 'qr', 'sig
   await p.waitForSelector('#scans:not([hidden]) .empty'); assert.match(await txt(p, '#scans'), /Scans signalés .*Aucun scan signalé pour l'instant/);      // fiches, photo et suppression : scanreport-e2e.mjs
   assert.match(await txt(p, '#pubrep'), /Decks publics signalés 1 deck .*Atraxa, Praetors' Voice par Jeanne · Jeanne D\. \(je•••@gmail\.com\).*1 signalement Retirer/);
   await tab(p, 'journal'); assert.match(await txt(p, '#journal'), /Aucune action pour l'instant/);
-  await tab(p, 'serveur'); assert.match(await txt(p, '#srv'), /Serveur/); assert.match(await txt(p, '#srv'), /Échanges en direct/);
+  await tab(p, 'serveur'); await p.waitForSelector('#health .hvd'); assert.match(await txt(p, '#srv'), /^Services/); assert.match(await txt(p, '#health'), /Échanges en direct ouverts 0 \/ 300/);
   await tab(p, 'comptes');
   assert.equal(await p.$$eval('#ulist tr[data-id]', e => e.length), 50); assert.equal(await txt(p, '#pager .pg'), 'Page 1 / 3'); assert.equal(await txt(p, '#uCount'), '(124)');
   const body = await p.evaluate(() => document.body.textContent);
@@ -351,7 +351,7 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
   assert.equal(await p.evaluate(() => location.hash), '', 'adresse sans onglet : vue d\'ensemble');
   // pastilles : Signalements = 2 pseudos + 0 deck (retiré plus haut) + 0 scan ; Carte mystère = 1 à vérifier + 1 soupçon ; Fils = fils ouverts sans étiquette d'équipe (700, 702)
   assert.equal(await badgeOf(p, 'signalements'), '2'); assert.equal(await badgeOf(p, 'mystere'), '2'); assert.equal(await badgeOf(p, 'fils'), '2');
-  const nBad = await p.$$eval('#srv dd.bad', e => e.length); assert.equal(await badgeOf(p, 'serveur'), nBad ? String(nBad) : '', 'Serveur : une pastille par point en rouge');
+  await p.waitForSelector('#health .hvd', { state: 'attached' }); const nBad = await p.$$eval('#srv dd.bad, #health .hi[data-lv="bad"]', e => e.length); assert.equal(await badgeOf(p, 'serveur'), nBad ? String(nBad) : '', 'Serveur : une pastille par point en rouge');
   assert.match(await p.$eval('#t-signalements', e => e.textContent), /Signalements2 : 2 pseudos à traiter/, 'pastille lue par un lecteur d\'écran');
   assert.equal(await p.$$eval('#kpis .kpi', e => e.length), 10, '8 chiffres + scans + pseudos signalés');
   ok('onglets : tablist / tab, un seul tabulable ; pastilles Signalements (2), Carte mystère (2), Fils (2), Serveur (points en rouge)');
@@ -781,6 +781,87 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
     await o.ctx.close();
   }
   ok('QR codes à 390 px : sans défilement de côté ni texte parasite ; aucune erreur');
+}
+
+/* ── Serveur : santé (vrai /api/admin/server) : mémoire et caches, démarrage, requêtes par minute, en direct, disque, historique des prix, avis « VPS » ;
+   relu toutes les __hcEvery ms seulement sur l'onglet et page visible, « Actualiser » (?disk=1) ; serveur saturé simulé (route) : couleurs, pastille, avis ── */
+const routeHealth = patch => async ctx => ctx.route(u => u.pathname === '/api/admin/server', async r => { const res = await r.fetch(); const b = await res.json(); return r.fulfill({ response: res, body: JSON.stringify(patch ? patch(b) : b) }); });
+const healthCalls = api => api.filter(a => a.startsWith('GET /api/admin/server')).length;
+const hidden = (p, on) => p.evaluate(on => { Object.defineProperty(document, 'visibilityState', { value: on ? 'hidden' : 'visible', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }, on);
+{
+  const { ctx, p, errs, api } = await open({ user: ADM, phone: { width: 393, height: 852 }, hash: '#serveur', before: async c => { await c.addInitScript(() => { window.__hcEvery = 700; }); } });
+  await dash(p); await p.waitForSelector('#health .hvd');
+  assert.equal(await curTab(p), 'serveur');
+  const ping = await (await fetch(`http://127.0.0.1:${PORT}/__ping`)).json();
+  assert.match(await txt(p, '#health .hvd'), /^Serveur (en forme|à surveiller) Actualiser Relu à \d\d:\d\d · de nouveau toutes les 1 s tant que cet onglet est affiché /);
+  assert.match(await txt(p, '#health .hvd'), /Plafond de mémoire de l'offre inconnu : indique-le dans SERVER_MEM_MB/);
+  assert.equal(await p.$eval('#health .hfold', d => d.open), false, '« Quand envisager un VPS ? » replié d\'office');
+  await p.click('#health .hfold > summary'); assert.match(await txt(p, '#health .hvps'), /70 % du plafond .*Redémarrages sans nouvelle version .*JOB_MAX_RUNNING.*EDH_DATA_DIR/);
+  const mem = await txt(p, '#hcMem');
+  assert.match(mem, /^Mémoire plafond inconnu Mémoire du processus \(rss\) [\d,]+ Mo /); assert.match(mem, /Mémoire de Node \(tas\) [\d,]+ Mo \/ [\d,]+ Mo utilisé \/ réservé · limite de Node/);
+  for (const [l, v] of [['Catalogues CardTrader', 'CACHE_MAX_MB'], ['Offres CardTrader', 'OFFERS_CACHE_MB'], ['Résultats des recherches', 'JOB_RESULTS_MB'], ['Listes des échanges en direct', 'TROC_MB'], ['Parties en cours (au plus)', 'PARTIE_LIVE_KB'], ['Historiques des parties', 'PARTIE_CACHE_MB'], ['Amis', 'FRIENDS_CACHE_MB']]) assert.ok(mem.includes(l) && mem.includes(v), 'cache ' + l);
+  assert.match(mem, /Catalogues CardTrader 0 o \/ 48 Mo/); assert.equal(await p.$eval('#hcMem [data-k="c-ct"] .hbar i', i => i.style.width), '0%');
+  const boot = await txt(p, '#hcBoot'); assert.ok(boot.includes('Version servie ' + ping.build), 'version de /__ping'); assert.match(boot, /Node v\d+/); assert.match(boot, /Dernier démarrage \d+ \S+ \d\d:\d\d en marche depuis \d+ min/); assert.match(boot, /Redémarrages \(24 h\) 0 /);
+  assert.equal(await p.$$eval('#hcReq .hf', e => e.length), 9, '9 familles de routes');
+  assert.match(await txt(p, '#hcReq'), /Page et fichiers \d+ Prix et recherches CardTrader \d+ Alertes de prix \d+ Échange en direct \d+ Parties \(compteur de vie\) \d+ Carte mystère \d+ Discord et avis \d+ Administration [1-9]\d* Autres/);
+  assert.match(await txt(p, '#hcReq'), /pic de l'heure : \d+ \/ min/);
+  assert.match(await txt(p, '#hcLive'), /Échanges en direct ouverts 0 \/ 300 0 à deux .*Recherches CardTrader en cours 0 \/ 8 aucune refusée en 1 h .*Requêtes vers CardTrader 0 \/ 12 0 en file d'attente/);
+  assert.match(await txt(p, '#hcDisk'), /Dossier des données (\(à surveiller\) )?\d+ fichiers? · .*Plus ancien fichier .*Si cette date se remet à aujourd'hui après chaque déploiement, le disque est vidé/);
+  assert.match(await txt(p, '#hcHist'), /^Historique des prix coupé/);
+  // relu tout seul sur l'onglet, plus ailleurs ni page cachée ; « Actualiser » : dossier relu (?disk=1)
+  const n0 = healthCalls(api); await sleep(1700); const n1 = healthCalls(api); assert.ok(n1 >= n0 + 2, 'relu sur l\'onglet (' + n0 + ' → ' + n1 + ')');
+  await tab(p, 'journal'); await sleep(300); const n2 = healthCalls(api); await sleep(1500); assert.equal(healthCalls(api), n2, 'autre onglet : plus relu');
+  await hidden(p, true); await tab(p, 'serveur'); await sleep(300); const n3 = healthCalls(api); await sleep(1500); assert.equal(healthCalls(api), n3, 'page cachée : plus relu');
+  await hidden(p, false); await sleep(1600); assert.ok(healthCalls(api) >= n3 + 1, 'page revenue : relu');
+  await p.click('#hcGo'); await sleep(400); assert.ok(api.includes('GET /api/admin/server?disk=1'), '« Actualiser » : dossier relu');
+  await noOverflow(p, 393, 'Serveur 393 px'); await noJunk(p, 'Serveur');
+  assert.deepEqual(errs, []); await ctx.close();
+  ok('Serveur : avis, mémoire (rss, tas, plafond inconnu), 7 caches et leurs plafonds, démarrage et version (= /__ping), 9 familles de requêtes et pic, en direct, disque (phrase sur les déploiements), historique coupé ; relu sur l\'onglet seulement et page visible, « Actualiser » (?disk=1) ; 393 px');
+}
+{
+  // serveur saturé (réponse retouchée) : avis rouge, indicateurs rouges comptés dans la pastille de l'onglet, couleurs claires et sombres
+  const sat = b => ({ ...b, mem: { ...b.mem, limit: Math.round(b.mem.rss / 0.9), from: 'env' }, lv: { ...b.lv, rss: 'bad', restarts: 'bad', jobs: 'warn' }, vps: { lv: 'bad', bad: ['rss', 'restarts'], warn: ['jobs'] },
+    boot: { ...b.boot, restarts24: 6, deploys24: 1, known: 3, recent: [{ t: Date.now() - 600e3, b: 'abc' }, { t: Date.now() - 3600e3, b: 'abc' }, { t: Date.now() - 7200e3, b: 'old' }] },
+    live: { ...b.live, jobs: { ...b.live.jobs, busy: 3, busyAt: Date.now() - 120e3 } } });
+  for (const dark of [false, true]) {
+    const { ctx, p, errs } = await open({ user: ADM, phone: { width: 360, height: 780 }, hash: '#serveur', dark, before: routeHealth(sat) });
+    await dash(p); await p.waitForSelector('#health .hvd[data-v="bad"]');
+    assert.match(await txt(p, '#health .hvd'), /^Serveur saturé .*Signes de saturation : mémoire proche du plafond de l'offre, redémarrages sans nouvelle version\. Si ça se répète plusieurs jours, un VPS/);
+    assert.doesNotMatch(await txt(p, '#health .hvd'), /Plafond de mémoire de l'offre inconnu/);
+    assert.match(await txt(p, '#hcMem [data-k="rss"]'), /\(à traiter\) [\d,]+ Mo · 90 %/); assert.equal(await p.$eval('#hcMem [data-k="rss"] .hbar i', i => i.style.width), '90%');
+    assert.match(await txt(p, '#hcBoot [data-k="restarts"]'), /Redémarrages \(24 h\) \(à traiter\) 6 1 déploiement en 24 h/);
+    assert.match(await txt(p, '#hcLive [data-k="jobs"]'), /3 refusées \(serveur complet\) en 1 h, la dernière il y a 2 min/);
+    await p.click('#hcBoot .hboots > summary'); assert.match(await txt(p, '#hcBoot .hboots'), /abc · redémarrage .*abc · nouvelle version .*old$/);
+    const col = await p.evaluate(() => {
+      const v = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), c = s => getComputedStyle(document.querySelector(s)).backgroundColor, t = document.createElement('i'); document.body.append(t);
+      const rgb = x => { t.style.color = x; return getComputedStyle(t).color; };
+      const out = { bad: c('#hcMem [data-k="rss"] .hdot') === rgb(v('--bad')), warn: c('#hcLive [data-k="jobs"] .hdot') === rgb(v('--warn')), ok: c('#hcLive [data-k="troc"] .hdot') === rgb(v('--good')) }; t.remove(); return out;
+    });
+    assert.deepEqual(col, { bad: true, warn: true, ok: true }, 'couleurs des niveaux');
+    const nBad = await p.$$eval('#srv dd.bad, #health .hi[data-lv="bad"]', e => e.length); assert.ok(nBad >= 2); assert.equal(await badgeOf(p, 'serveur'), String(nBad), 'pastille : points en rouge');
+    assert.match(await p.$eval('#t-serveur', e => e.textContent), /points à regarder/);
+    await noOverflow(p, 360, 'Serveur saturé 360 px'); await noJunk(p, 'Serveur saturé');
+    assert.deepEqual(errs, []); await ctx.close();
+  }
+  ok('serveur saturé (simulé) : « Serveur saturé », avis VPS avec les signaux, rss 90 % en rouge, redémarrages, recherches refusées en orange, derniers démarrages (redémarrage / nouvelle version), couleurs ok / warn / bad, pastille de l\'onglet ; 360 px clair et sombre');
+}
+/* Captures de l'onglet Serveur (393 et 1280 px, clair et sombre ; saturé à 393 px clair), chiffres d'un serveur occupé simulés : ADMIN_SRV_SHOTS=<dossier> (ou ADMIN_SHOTS) */
+if (process.env.ADMIN_SRV_SHOTS || process.env.ADMIN_SHOTS) {
+  const dir = process.env.ADMIN_SRV_SHOTS || process.env.ADMIN_SHOTS; mkdirSync(dir, { recursive: true });
+  const PART = { ct: 0.62, offers: 0.93, jobs: 0.21, troc: 0.04, ptlive: 0.03, pthist: 0.12, amis: 0.35 };
+  const busy = b => ({ ...b, mem: { ...b.mem, limit: Math.round(b.mem.rss / 0.74), from: 'env' }, lv: { ...b.lv, rss: 'warn', hist: 'ok' }, vps: { lv: 'warn', bad: [], warn: ['rss'] },
+    req: { ...b.req, total: 412, win: 60, peak: { n: 655, at: Date.now() - 1500e3 }, all: 182455, fams: { page: 120, prix: 96, alertes: 14, troc: 22, partie: 61, mystere: 47, discord: 3, admin: 9, autres: 40 } },
+    caches: b.caches.map(c => ({ ...c, used: c.max ? Math.round(c.max * PART[c.k]) : c.k === 'files' ? 4.2e6 : 3.1e6, n: c.max ? 40 : 6, lv: c.k === 'offers' ? 'warn' : c.lv })),
+    live: { ...b.live, troc: { open: 7, two: 4, max: 300 }, partie: { ...b.live.partie, open: 12, live: 9, phones: 31 }, jobs: { ...b.live.jobs, run: 3 }, up: { active: 2, conc: 12, queue: 0 } },
+    hist: { on: true, from: 'GitHub', d0: '2026-09-25', d1: '2026-10-24', days: 30, cards: 31250, bytes: 2.4e6, check: new Date(Date.now() - 2400e3).toISOString(), err: '' } });
+  const sature = b => { const x = busy(b); return { ...x, lv: { ...x.lv, rss: 'bad', restarts: 'bad', lag: 'warn' }, vps: { lv: 'bad', bad: ['rss', 'restarts'], warn: ['lag'] }, mem: { ...x.mem, limit: Math.round(x.mem.rss / 0.91) }, boot: { ...x.boot, restarts24: 5 } }; };
+  for (const [name, vp] of [['393', null], ['1280', { width: 1280, height: 900 }]]) for (const dark of [false, true]) for (const [kind, patch] of [['', busy], ...(name === '393' && !dark ? [['-sature', sature]] : [])]) {
+    const { ctx, p } = await open({ user: ADM, vp: vp || undefined, phone: vp ? undefined : { width: 393, height: 852 }, dark, dpr: 1, hash: '#serveur', before: routeHealth(patch) });
+    await dash(p); await p.waitForSelector('#health .hvd'); await p.evaluate(() => { document.querySelector('#health .hfold').open = true; document.activeElement.blur(); scrollTo(0, 0); }); await p.waitForTimeout(400);
+    await p.screenshot({ path: join(dir, `serveur-${name}-${dark ? 'sombre' : 'clair'}${kind}.png`), fullPage: true });
+    await ctx.close();
+  }
+  ok('captures de l\'onglet Serveur dans ' + dir);
 }
 
 /* ── 360 px, clair et sombre : chaque onglet sans défilement de côté, cibles des onglets ≥ 44 px, ni « null » ni « undefined » ───────── */

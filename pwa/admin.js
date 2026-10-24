@@ -64,7 +64,7 @@
     $('#acts').hidden = v !== 'vMain'; $('#tabs').hidden = v !== 'vMain';
     if (v === 'vErr') $('#errTxt').textContent = msg || 'Le serveur ne répond pas.';
     if (v !== 'vMain') {      // rien ne reste affiché d'une session admin précédente
-      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#notes', '#meta', '#scans', '#daily', '#discord', '#dyRepCard', '#threads', '#qrcodes']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; $('#dyRepCard').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dy.d = null; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false; thReset(); qcReset();
+      data = null; for (const id of ['#kpis', '#chart', '#achart', '#mix', '#ulist', '#pager', '#pubrep', '#journal', '#srv', '#health', '#notes', '#meta', '#scans', '#daily', '#discord', '#dyRepCard', '#threads', '#qrcodes']) $(id).replaceChildren(); $('#scans').hidden = true; $('#daily').hidden = true; $('#discord').hidden = true; $('#dyRepCard').hidden = true; sc.seen = -1; sc.gen++; dy.gen++; dy.d = null; dc.gen++; dc.d = null; dc.draft = ''; dc.roles = []; dc.every = false; thReset(); qcReset(); hcReset();
       $('#uCount').textContent = ''; tb.cur = ''; tb.y = {}; for (const k of TABS) { tabOf(k).hidden = false; badge(k, 0); }      // onglets rendus : la prochaine session redit ce qui est coupé
       const d = $('#dlg'); if (d.open) d.close(); d.replaceChildren();
     }
@@ -88,6 +88,7 @@
     if (location.hash && hashParts()[0] !== k) history.replaceState(null, '', '#' + k);      // onglet inconnu ou masqué : l'adresse dit ce qui est affiché
     if (prev !== k) { scrollTo(0, tb.y[k] || 0); tabReveal(tabOf(k)); if (k === 'apercu') charts(); }
     if (k === 'fils') thRoute(hashParts()[0] === 'fils' ? hashParts()[1] : '');
+    hcSoon();      // Serveur : relu toutes les 20 s tant qu'il est affiché
   }
   /** Onglet demandé (clic, flèches, tuile) : nouvelle entrée de l'historique (retour : hashchange, l'onglet d'avant), sauf replace. */
   function go(k, replace) {
@@ -114,7 +115,7 @@
     const chk = dy.d ? (dy.d.chk || []).length + (dy.d.sus || []).length : 0;
     badge('mystere', chk, plural(chk, 'partie ou compte', 'parties ou comptes') + ' à vérifier');
     const todo = th.state === 'on' ? thTodoAll() : 0; badge('fils', todo, plural(todo, 'fil') + ' à trier');
-    const bad = $$('#srv dd.bad').length; badge('serveur', bad, plural(bad, 'point', 'points') + ' à regarder');
+    const bad = $$('#srv dd.bad, #health .hi[data-lv="bad"]').length; badge('serveur', bad, plural(bad, 'point', 'points') + ' à regarder');
   }
   function tabsBoot() {
     const l = $('#tabl');
@@ -127,6 +128,7 @@
     });
     l.addEventListener('scroll', tabEdge, { passive: true });
     addEventListener('hashchange', () => { if (data) tabShow(hashTab()); });
+    document.addEventListener('visibilitychange', hcSoon);      // page cachée : plus de relecture de la santé du serveur ; revenue : relue
   }
   /* Blocs repliables (<details>) : ouverts d'office, état de chacun gardé sur cet appareil (rendu à chaque repeint et au rechargement). */
   const FOLD_KEY = 'manaorbit:admin:fold';
@@ -224,6 +226,7 @@
     pubrep(d.reported || []);
     journal(d.log);
     server(d.srv);
+    if (!hc.at && !hc.busy) health();      // santé du serveur : lue une fois (pastille de l'onglet), puis toutes les 20 s sur l'onglet
     if (first) tabShow(hashTab()); else if (tb.cur === 'apercu') charts();
     if (first && tb.cur !== 'apercu') charts();      // dessinés une fois (onglet caché : largeur par défaut, redessinés à l'affichage)
     daily();
@@ -1173,23 +1176,133 @@
       save(blob, 'qr-mana-orbit-' + q.id + '.png'); toast('PNG ' + nf(px) + ' × ' + nf(px) + ' px téléchargé.');
     } catch (e) { toast('PNG impossible dans ce navigateur : prends le SVG.'); } finally { b.disabled = false; }
   }
+  /* Santé du serveur (onglet « Serveur », proxy.mjs › GET /api/admin/server) : mémoire et caches, démarrages, processeur, requêtes par minute, en direct,
+     disque, historique des prix, et l'avis « quand envisager un VPS » tiré de ces signaux (niveaux ok / warn / bad décidés par le serveur). Lu au premier
+     affichage du panneau (pastille de l'onglet), puis toutes les HC_EVERY ms tant que l'onglet est affiché et la page visible ; « Actualiser » : tout de suite
+     (et le dossier des données relu, au plus une fois par minute côté serveur). */
+  const HC_EVERY = Number(window.__hcEvery) > 0 ? Number(window.__hcEvery) : 20e3;      // 20 s (__hcEvery : tests/admin-e2e.mjs seulement)
+  const hc = { gen: 0, d: null, at: 0, busy: false, t: 0 };
+  const hcReset = () => { hc.gen++; clearTimeout(hc.t); Object.assign(hc, { d: null, at: 0, busy: false, t: 0 }); };
+  const MO = n => { const v = Number(n) || 0; return v >= 1073741824 ? (v / 1073741824).toFixed(1).replace('.', ',') + ' Go' : v >= 10485760 ? nf(Math.round(v / 1048576)) + ' Mo' : v >= 1048576 ? (v / 1048576).toFixed(1).replace('.', ',') + ' Mo' : v >= 1024 ? nf(Math.round(v / 1024)) + ' Ko' : nf(v) + ' o'; };
+  const PCT = x => (x > 0 && x < 0.01 ? '< 1' : nf(Math.round(x * 100))) + ' %';
+  const D_HM = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const LV_TXT = { ok: 'normal', warn: 'à surveiller', bad: 'à traiter' };
+  const FAM = { page: 'Page et fichiers', prix: 'Prix et recherches CardTrader', alertes: 'Alertes de prix', troc: 'Échange en direct', partie: 'Parties (compteur de vie)', mystere: 'Carte mystère', discord: 'Discord et avis', admin: 'Administration', autres: 'Autres (amis, decks publics, imports…)' };
+  const CACHE = { ct: ['Catalogues CardTrader', 'CACHE_MAX_MB'], offers: ['Offres CardTrader', 'OFFERS_CACHE_MB'], jobs: ['Résultats des recherches', 'JOB_RESULTS_MB'], troc: ['Listes des échanges en direct', 'TROC_MB'],
+    ptlive: ['Parties en cours (au plus)', 'PARTIE_LIVE_KB × PARTIE_MAX'], pthist: ['Historiques des parties', 'PARTIE_CACHE_MB'], amis: ['Amis', 'FRIENDS_CACHE_MB'], files: ['Page et catalogues compressés', ''], data: ['Copies des prix et d\'EDHREC', ''] };
+  const SIG = { rss: 'mémoire proche du plafond de l\'offre', heap: 'mémoire de Node proche de sa limite', cpu: 'processeur chargé', lag: 'serveur lent à répondre', restarts: 'redémarrages sans nouvelle version', jobs: 'recherches CardTrader refusées (serveur complet)', up: 'file d\'attente vers CardTrader' };
+  /** Indicateur : pastille de couleur (niveau), libellé, valeur, barre facultative (part d'un plafond), petit texte dessous. data-lv="bad" : compté dans la pastille de l'onglet. */
+  function hi(label, val, o = {}) {
+    const lv = o.lv || '', bar = o.part != null && Number.isFinite(o.part) ? h('span', { class: 'hbar', 'aria-hidden': 'true' }, h('i', { 'data-w': String(Math.max(0, Math.min(100, Math.round(o.part * 100)))) })) : null;
+    return h('div', { class: 'hi', 'data-lv': lv || null, 'data-k': o.k },
+      h('span', { class: 'hdot', 'aria-hidden': 'true' }),
+      h('span', { class: 'hl' }, label, lv && lv !== 'ok' ? h('span', { class: 'sr' }, ' (' + LV_TXT[lv] + ')') : null),
+      h('b', { class: 'hv' }, val), bar, o.sub ? h('small', { class: 'hs' }, o.sub) : null);
+  }
+  /** Largeur des barres : posée par el.style (la CSP n'autorise pas un attribut style écrit dans le HTML, mais bien la propriété). */
+  const hbars = box => { for (const i of box.querySelectorAll('.hbar i[data-w]')) i.style.width = i.dataset.w + '%'; };
+  async function health(force) {
+    if (hc.busy || !user) return;
+    hc.busy = true; const g = hc.gen; if ($('#hcGo')) $('#hcGo').disabled = true;
+    let r; try { r = await call('/server' + (force ? '?disk=1' : '')); } catch (e) { r = null; }
+    if (g !== hc.gen) return;
+    hc.busy = false; if ($('#hcGo')) $('#hcGo').disabled = false;
+    if (!r || r.status !== 200 || !r.body) { if (force) toast(r && r.status === 429 ? (r.body && r.body.message) || 'Trop de requêtes.' : 'Santé du serveur indisponible.'); return hcPlan(); }
+    hc.d = r.body; hc.at = Date.now(); hcDraw(); badges(); hcPlan();
+  }
+  /** Prochaine lecture : seulement l'onglet « Serveur » affiché et la page visible (sinon rien : relu dès le retour). */
+  function hcPlan() { clearTimeout(hc.t); if (data && tb.cur === 'serveur' && document.visibilityState === 'visible') hc.t = setTimeout(() => health(), HC_EVERY); }
+  /** Onglet affiché ou page revenue au premier plan : relu si la dernière lecture date de plus de HC_EVERY. */
+  function hcSoon() { if (!data || tb.cur !== 'serveur' || document.visibilityState !== 'visible') return clearTimeout(hc.t); if (Date.now() - hc.at >= HC_EVERY) health(); else hcPlan(); }
+  function hcDraw() {
+    const v = hc.d, box = $('#health'); if (!v) return box.replaceChildren();
+    const lv = v.lv || {}, m = v.mem, bt = v.boot, ld = v.load, rq = v.req, lv2 = v.live, dk = v.disk, hs = v.hist;
+    // Avis : quand envisager un VPS
+    const vl = v.vps.lv, list = (vl === 'bad' ? v.vps.bad : v.vps.warn).map(k => SIG[k] || k);
+    const verdict = vl === 'bad' ? 'Signes de saturation : ' + list.join(', ') + '. Si ça se répète plusieurs jours, un VPS (mémoire et processeur réservés) devient nécessaire.'
+      : vl === 'warn' ? 'À surveiller : ' + list.join(', ') + '. Si ça revient plusieurs jours de suite, prépare le passage à un VPS.'
+      : 'Rien n\'indique qu\'il faut un VPS : l\'hébergement mutualisé suffit pour l\'instant.';
+    const extra = [!m.limit ? 'Plafond de mémoire de l\'offre inconnu : indique-le dans SERVER_MEM_MB (hPanel › Ressources) pour colorer la mémoire.' : '',
+      lv.disk === 'bad' ? 'Dossier des données inaccessible : parties, classements et journaux ne sont pas gardés.' : lv.disk === 'warn' && dk.boots > 1 ? 'Dossier des données vidé depuis le dernier démarrage : voir « Disque ».' : ''].filter(Boolean);
+    const head = h('section', { class: 'card hvd', 'data-v': vl },
+      h('div', { class: 'chead' }, h('h2', null, vl === 'bad' ? 'Serveur saturé' : vl === 'warn' ? 'Serveur à surveiller' : 'Serveur en forme'),
+        h('button', { class: 'btn ghost small', id: 'hcGo', type: 'button', title: 'Relire maintenant (et le dossier des données)' }, 'Actualiser')),
+      h('p', { class: 'hat', id: 'hcAt' }, 'Relu à ' + D_HM.format(v.at) + ' · de nouveau toutes les ' + Math.round(HC_EVERY / 1000) + ' s tant que cet onglet est affiché'),
+      h('p', { class: 'hverd' }, verdict), extra.map(t => h('p', { class: 'hint' }, t)),
+      fold('srv-vps', h('span', null, 'Quand envisager un VPS ?'), h('ul', { class: 'hvps' },
+        h('li', null, 'Mémoire (rss) au-dessus de 70 % du plafond de l\'offre plusieurs jours de suite, ou mémoire de Node près de sa limite : l\'hébergeur arrête le processus.'),
+        h('li', null, 'Redémarrages sans nouvelle version plusieurs fois par jour (plantage, mémoire, mise en veille par l\'hébergeur).'),
+        h('li', null, 'Processeur au-dessus de 70 % ou serveur lent à répondre (plus de 100 ms) aux heures d\'affluence.'),
+        h('li', null, 'Recherches CardTrader refusées « serveur complet » (JOB_MAX_RUNNING) ou file d\'attente vers CardTrader qui s\'allonge.'),
+        h('li', null, 'Dossier des données vidé à chaque déploiement, sans moyen de le placer hors de l\'appli (EDH_DATA_DIR).'),
+        h('li', { class: 'hn' }, 'Un pic isolé ne suffit pas : regarde ces signaux plusieurs jours, le soir et aux sorties d\'extensions. Couleurs : orange à 70 %, rouge à 85 % d\'un plafond.')), { shut: true, cls: 'hfold' }));
+    // Mémoire et caches
+    const counted = v.caches.reduce((t, c) => t + (c.used || 0), 0);
+    const mem = h('section', { class: 'card hcard', id: 'hcMem' }, chead('Mémoire', m.limit ? 'plafond ' + MO(m.limit) + (m.from === 'cgroup' ? ' (hébergeur)' : ' (SERVER_MEM_MB)') : 'plafond inconnu'),
+      hi('Mémoire du processus (rss)', MO(m.rss) + (m.limit ? ' · ' + PCT(m.rss / m.limit) : ''), { lv: lv.rss, part: m.limit ? m.rss / m.limit : null, k: 'rss', sub: m.limit ? '' : 'Plafond de l\'offre inconnu : SERVER_MEM_MB le donne.' }),
+      hi('Mémoire de Node (tas)', MO(m.heapUsed) + ' / ' + MO(m.heapTotal), { lv: lv.heap, part: m.heapMax ? m.heapUsed / m.heapMax : null, k: 'heap', sub: 'utilisé / réservé · limite de Node : ' + MO(m.heapMax) + ' · hors tas (tampons) : ' + MO(m.external) }),
+      h('h3', { class: 'hsub' }, 'Caches et leurs plafonds'),
+      h('div', { class: 'hcl' }, v.caches.map(c => hi(CACHE[c.k] ? CACHE[c.k][0] : c.k, MO(c.used) + (c.max ? ' / ' + MO(c.max) : ''), { lv: c.lv === 'warn' ? 'warn' : c.max ? 'ok' : '', part: c.max ? c.used / c.max : null, k: 'c-' + c.k,
+        sub: [c.n ? nf(c.n) + (c.k === 'ptlive' ? ' partie' + (c.n > 1 ? 's' : '') : c.k === 'files' || c.k === 'data' ? ' fichier' + (c.n > 1 ? 's' : '') : ' élément' + (c.n > 1 ? 's' : '')) : '', CACHE[c.k] && CACHE[c.k][1]].filter(Boolean).join(' · ') }))),
+      h('p', { class: 'hint hfoot' }, 'Comptés ici : ' + MO(counted) + ' ; le reste (' + MO(Math.max(0, m.rss - counted)) + ') : Node, le code et les autres fonctions. Un cache plein n\'est pas une panne : ses plus anciens éléments partent.'));
+    // Démarrage, processeur
+    const loadOk = ld.n > 0 || bt.up > 30;
+    const up = h('section', { class: 'card hcard', id: 'hcBoot' }, chead('Démarrage et charge', 'Node ' + bt.node),
+      hi('Dernier démarrage', D_TIME.format(bt.start), { sub: 'en marche depuis ' + dur(bt.up), k: 'start' }),
+      hi('Version servie', bt.build || '—', { k: 'build', sub: 'celle que /__ping donne à l\'appli' }),
+      hi('Redémarrages (24 h)', nf(bt.restarts24), { lv: lv.restarts, k: 'restarts', sub: nf(bt.deploys24) + ' déploiement' + (bt.deploys24 > 1 ? 's' : '') + ' en 24 h · ' + nf(bt.boots7) + ' démarrage' + (bt.boots7 > 1 ? 's' : '') + ' en 7 jours' + (bt.known < 2 ? ' · relevés depuis ce démarrage' : '') }),
+      hi('Processeur', loadOk ? nf(ld.cpu) + ' %' : '—', { lv: lv.cpu, part: loadOk ? Math.min(1, ld.cpu / 100) : null, k: 'cpu', sub: ld.n ? 'dernière minute · pire minute de l\'heure : ' + nf(ld.cpuMax) + ' %' : 'depuis le démarrage (relevé chaque minute)' }),
+      hi('Temps de réaction', loadOk ? nf(ld.lag) + ' ms' : '—', { lv: lv.lag, k: 'lag', sub: 'retard de la boucle d\'événements (99 % du temps) · pire de l\'heure : ' + nf(ld.lagHour) + ' ms' }),
+      bt.recent && bt.recent.length > 1 ? h('details', { class: 'hboots' }, h('summary', null, 'Derniers démarrages'), h('ol', null, bt.recent.map((x, i) => h('li', null, h('span', null, D_TIME.format(x.t)),
+        h('small', null, (x.b || '—') + (i < bt.recent.length - 1 ? (x.b && x.b === bt.recent[i + 1].b ? ' · redémarrage' : ' · nouvelle version') : '')))))) : null);
+    // Requêtes par minute
+    const fams = rq ? Object.entries(rq.fams) : [], top = Math.max(1, ...fams.map(f => f[1]));
+    const reqs = h('section', { class: 'card hcard', id: 'hcReq' }, chead('Requêtes par minute', rq ? (rq.win < 60 ? 'sur les ' + rq.win + ' dernières secondes' : 'les 60 dernières secondes') : ''),
+      rq ? [h('div', { class: 'hbig' }, h('b', null, nf(rq.total)), h('span', null, 'requêtes', h('small', null, 'pic de l\'heure : ' + nf(rq.peak.n) + ' / min' + (rq.peak.n ? ' (' + D_HM.format(rq.peak.at) + ')' : '') + ' · ' + nf(rq.all) + ' depuis le démarrage'))),
+        h('div', { class: 'hfam' }, fams.map(([k, n]) => h('div', { class: 'hf', 'data-f': k }, h('span', null, FAM[k] || k), h('b', null, nf(n)), h('span', { class: 'hbar', 'aria-hidden': 'true' }, h('i', { 'data-w': String(Math.round(n / top * 100)) })))))]
+        : empty('Compteur coupé.'),
+      h('p', { class: 'hint hfoot' }, 'Comptées par famille de routes, sans adresse ni compte. Les appels de ce panneau comptent dans « Administration ».'));
+    // En direct
+    const t = lv2.troc, pt = lv2.partie, jb = lv2.jobs, upq = lv2.up, al = lv2.alerts, s = n => (n > 1 ? 's' : '');
+    const live = h('section', { class: 'card hcard', id: 'hcLive' }, chead('En direct'),
+      hi('Échanges en direct ouverts', nf(t.open) + ' / ' + nf(t.max), { lv: lv.troc, part: t.open / t.max, k: 'troc', sub: nf(t.two) + ' à deux' }),
+      pt.on ? hi('Tables de partie ouvertes', nf(pt.open) + ' / ' + nf(pt.max), { lv: lv.partie, part: pt.open / pt.max, k: 'partie', sub: nf(pt.live) + ' en cours · ' + nf(pt.phones) + ' téléphone' + s(pt.phones) + ' connecté' + s(pt.phones) }) : hi('Tables de partie', 'coupées', { k: 'partie' }),
+      jb.on ? hi('Recherches CardTrader en cours', nf(jb.run) + ' / ' + nf(jb.max), { lv: lv.jobs, part: jb.run / jb.max, k: 'jobs', sub: (jb.busy ? nf(jb.busy) + ' refusée' + s(jb.busy) + ' (serveur complet) en 1 h, la dernière ' + ago(jb.busyAt) : 'aucune refusée en 1 h') + ' · ' + nf(jb.kept) + ' gardée' + s(jb.kept) + ' · plafond : JOB_MAX_RUNNING' }) : hi('Recherches CardTrader', 'coupées', { k: 'jobs' }),
+      hi('Requêtes vers CardTrader', nf(upq.active) + ' / ' + nf(upq.conc), { lv: lv.up, part: upq.active / upq.conc, k: 'up', sub: nf(upq.queue) + ' en file d\'attente (UP_CONC)' }),
+      al.on ? hi('Abonnés aux alertes de prix', nf(al.subs) + ' / ' + nf(al.max), { lv: lv.alerts, part: al.subs / al.max, k: 'alerts', sub: 'appareils (ALERT_MAX_SUBS)' }) : hi('Alertes de prix', 'coupées', { k: 'alerts' }));
+    // Disque
+    const dsub = !dk.exists ? 'Dossier absent : rien n\'est gardé (parties, classements, journal, copies des prix).' : dk.err ? 'Écriture impossible (' + dk.err + ').'
+      : dk.fresh ? (dk.boots <= 1 ? 'Créé à ce démarrage : si ce n\'est pas le tout premier, le disque est vidé à chaque déploiement.' : 'Rien de plus ancien que ce démarrage : le dossier a été vidé.')
+      : 'Gardé d\'un démarrage à l\'autre (' + nf(dk.boots) + ' démarrages depuis le ' + D_SHORT.format(dk.first) + ').';
+    const disk = h('section', { class: 'card hcard', id: 'hcDisk' }, chead('Disque', dk.scan ? 'relu ' + ago(dk.scan) : ''),
+      hi('Dossier des données', dk.exists ? nf(dk.files) + ' fichier' + s(dk.files) + ' · ' + MO(dk.bytes) + (dk.cut ? ' (au moins)' : '') : 'absent', { lv: lv.disk, k: 'disk', sub: dk.dir + (dk.env ? ' (EDH_DATA_DIR)' : '') }),
+      hi('Plus ancien fichier', dk.oldest ? D_TIME.format(dk.oldest) : '—', { k: 'oldest', sub: dk.oldest ? ago(dk.oldest) : '' }),
+      h('p', { class: 'hverd small' }, dsub),
+      h('p', { class: 'hint hfoot' }, 'Si cette date se remet à aujourd\'hui après chaque déploiement, le disque est vidé : place EDH_DATA_DIR dans un dossier hors de l\'appli, ou passe sur un VPS. Relu au plus toutes les 10 min (« Actualiser » : tout de suite).'));
+    // Historique des prix
+    const hist = h('section', { class: 'card hcard', id: 'hcHist' }, chead('Historique des prix', hs.on ? hs.from || '' : 'coupé'),
+      hs.on ? [hi('Jours gardés', hs.days ? nf(hs.days) + ' jours' : '—', { lv: lv.hist, k: 'hist', sub: hs.d0 ? 'du ' + D_DAY.format(Date.parse(hs.d0 + 'T12:00:00Z')) + ' au ' + D_DAY.format(Date.parse(hs.d1 + 'T12:00:00Z')) : 'pas encore lu' }),
+        hi('Cartes', nf(hs.cards), { k: 'hcards', sub: hs.bytes ? MO(hs.bytes) + ' (compressé)' : '' }),
+        hi('Dernière vérification', hs.check ? ago(Date.parse(hs.check)) : '—', { k: 'hcheck', sub: hs.err ? 'Erreur : ' + hs.err : '' })]
+        : empty('PRICES_HIST_SOURCE_URL (ou PRICES_SOURCE_URL) vide : pas de courbe de prix dans la fiche d\'une carte.'));
+    fill(box, head, h('div', { class: 'hgrid' }, h('div', { class: 'hcol' }, mem, reqs), h('div', { class: 'hcol' }, up, live, disk, hist)));
+    hbars(box);
+    $('#hcGo').addEventListener('click', () => health(true));
+  }
   function server(v) {
     if (!v) return $('#srv').replaceChildren();
     const on = (k, label) => h('span', { class: 'tag ' + (v.flags[k] ? 'ok' : 'off') }, label);
-    const px = v.prices, edh = v.edh, t = v.troc;
-    $('#srv').replaceChildren(h('h2', null, 'Serveur'),
+    const px = v.prices, edh = v.edh, t = v.troc;      // version, mémoire, démarrages, dossier des données, en direct : carte « santé » au-dessus (hcDraw)
+    $('#srv').replaceChildren(h('h2', null, 'Services'),
       h('div', { class: 'flags' }, on('token', 'Token CardTrader'), on('jobs', 'Recherches'), on('alerts', 'Alertes'), on('push', 'Web Push'), on('fcm', 'FCM'), on('pub', 'Decks publics'), on('amis', 'Amis'), on('troc', 'Échange en direct'), on('names', 'Noms'), on('scans', 'Scans signalés'), on('ads', 'Pub AdMob'),
         ...(v.off || []).map(x => h('span', { class: 'tag bad' }, x + ' coupé'))),
       h('dl', { class: 'kv' },
-        kv('Version de la page', v.build || '—'), kv('En marche depuis', dur(v.up)), kv('Mémoire', nf(v.rss) + ' Mo · Node ' + v.node),
-        ...(v.data ? [kv('Données', v.data.dir + ' · ' + (v.data.err ? 'écriture impossible (' + v.data.err + ')' : v.data.boots <= 1 ? 'créées à ce démarrage : si ce n\'est pas le tout premier, le dossier est effacé à chaque déploiement (EDH_DATA_DIR vers un dossier hors de l\'appli)' : 'gardées depuis le ' + D_TIME.format(v.data.first) + ' · ' + nf(v.data.boots) + ' démarrages'), v.data.err || v.data.boots <= 1 ? 'bad' : null)] : []),
-        kv('Prix', px.at ? 'relevé du ' + D_TIME.format(Date.parse(px.at)) + ' (' + ago(Date.parse(px.at)) + ') · ' + nf(px.cards) + ' cartes' : px.on ? 'pas encore relevés' : 'coupés', px.err ? 'bad' : null),
+        kv('Prix',px.at ? 'relevé du ' + D_TIME.format(Date.parse(px.at)) + ' (' + ago(Date.parse(px.at)) + ') · ' + nf(px.cards) + ' cartes' : px.on ? 'pas encore relevés' : 'coupés', px.err ? 'bad' : null),
         ...(px.err ? kv('Prix : dernière erreur', px.err, 'bad') : []),
         kv('EDHREC', edh.at ? 'données du ' + String(edh.at).slice(0, 10) + ' · ' + nf(edh.decks) + ' decks · ' + nf(edh.cmds) + ' commandants (' + edh.from + ')' : '—', edh.err ? 'bad' : null),
         ...(edh.err ? kv('EDHREC : dernière erreur', edh.err, 'bad') : []),
-        kv('Échanges en direct', nf(t.wait + t.live) + ' ouverts (' + nf(t.live) + ' à deux) · ' + nf(t.done) + ' conclus gardés'),
-        kv('Recherches CardTrader', nf(v.jobs.run) + ' en cours · ' + nf(v.jobs.all) + ' gardées'),
-        kv('Alertes de prix', nf(v.alerts.devices) + ' appareils · dernier passage ' + ago(v.alerts.last)),
+        kv('Échanges conclus gardés', nf(t.done)),
+        kv('Alertes de prix', 'dernier passage ' + ago(v.alerts.last) + ' · ' + nf(v.alerts.hits) + ' baisse' + (v.alerts.hits > 1 ? 's' : '') + ' signalée' + (v.alerts.hits > 1 ? 's' : '')),
         kv('Decks publics servis', nf(v.pub.n) + ' · ' + nf(v.pub.hid) + ' masqués · lus ' + ago(v.pub.at), v.pub.err ? 'bad' : null),
         kv('Amis (mémoire)', nf(v.amis.cache) + ' comptes en cache · ' + nf(v.amis.due) + ' résumés programmés')));
   }
