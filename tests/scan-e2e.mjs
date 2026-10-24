@@ -404,7 +404,7 @@ await camN.close();
   const za = await wp.evaluate(() => [window.__ct[1].b, document.querySelector('.scan.on .sc-same').getBoundingClientRect().top]);
   assert.ok(za[0] <= za[1] + 0.5, '« Encore X ? » posé : ses boutons hors de la zone ' + za);
   await wp.evaluate(() => auHideAsk()); await wp.waitForFunction(() => window.__ct.length === 3);
-  assert.equal(await wp.evaluate(() => window.__ct[2].b), zt.z.b, '« Encore X ? » retiré : la zone d\'avant');
+  assert.ok(Math.abs(await wp.evaluate(() => window.__ct[2].b) - zt.z.b) < 1, '« Encore X ? » retiré : la zone d\'avant');      // au pixel près (fin de l'animation d'ouverture)
   await scanClose(wp); await wp.waitForFunction(() => window.__aw.length === 2);
   assert.deepEqual(await wp.evaluate(() => [window.__aw, sessionStorage.getItem('deckdeal:awake')]), [[true, false], null], 'scan fermé : veille rendue');
   await wp.click('#nav [data-nav="scan"]'); await wp.waitForSelector('.scan.on'); await wp.waitForFunction(() => window.__aw.length === 3);

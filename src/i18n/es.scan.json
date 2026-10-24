@@ -97,6 +97,7 @@
   "i/s libre": "fps libres",
   "redémarrages {n}": "reinicios {n}",
   "dernière lecture {n} ms": "última lectura {n} ms",
+  "auto : image {a} ms · nom {b} ms · bas et illustration {c} ms · total {d} ms": "auto: imagen {a} ms · nombre {b} ms · línea inferior e ilustración {c} ms · total {d} ms",
   "tâches longues {n}/10 s": "tareas largas {n}/10 s",
   "mode lent (toucher ici : retour au mode normal)": "modo lento (toca aquí: volver al modo normal)",
   "Cadre le haut de la carte : le nom et le mana dans la bande, puis appuie sur le cercle. Tu peux enchaîner": "Encuadra la parte superior de la carta: el nombre y el maná en la franja, luego toca el círculo. Puedes seguir sin parar",

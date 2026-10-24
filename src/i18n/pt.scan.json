@@ -97,6 +97,7 @@
   "i/s libre": "fps livre",
   "redémarrages {n}": "reinícios {n}",
   "dernière lecture {n} ms": "última leitura {n} ms",
+  "auto : image {a} ms · nom {b} ms · bas et illustration {c} ms · total {d} ms": "auto: imagem {a} ms · nome {b} ms · linha de baixo e ilustração {c} ms · total {d} ms",
   "tâches longues {n}/10 s": "tarefas longas {n}/10 s",
   "mode lent (toucher ici : retour au mode normal)": "modo lento (toque aqui: voltar ao modo normal)",
   "Cadre le haut de la carte : le nom et le mana dans la bande, puis appuie sur le cercle. Tu peux enchaîner": "Enquadre o topo do card: nome e mana na faixa, depois toque no círculo. Você pode continuar em seguida",

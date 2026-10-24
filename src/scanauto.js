@@ -3,14 +3,14 @@
    natif ; navigateur : Tesseract sur la vidéo), une lecture après l'autre. Bande sans contraste (table, fond uni) : rien n'est lu. Une carte est ajoutée quand
    deux lectures de suite donnent le même nom, sûr (≥ 84 %) : le nom est net et la carte tenue (une image floue ou une carte qui passe ne donne pas deux fois
    la même chose). Ensuite cette carte est « tenue » : relue, elle n'est pas rajoutée ; elle est partie quand deux lectures de suite ne la voient plus
-   (bande vide, autre carte). Écart minimal entre deux cartes : le réglage (0,5 à 1,5 s). Rien n'est lu pendant une feuille ouverte, l'écran
+   (bande vide, autre carte). Écart minimal entre deux cartes : le réglage (0,25 à 1 s ; 0,5 par défaut). Rien n'est lu pendant une feuille ouverte, l'écran
    « Éditions à choisir » ou la lecture de photos.
    (Première version : déclenchée par deux images presque identiques ; sur un vrai téléphone, le bruit du capteur et le moindre tremblement ne la laissaient
    jamais partir : remplacée le 12 octobre par cette confirmation sur le nom lu.)
    Même carte qu'à l'instant : « Encore X ? » (+1 / Non), ou +1 d'office (réglage) ; en prix rapide, ignorée. Le cercle devient pause / reprise ; son anneau se
    remplit à moitié à la première lecture, en entier à la confirmation. Les images lues ne sont jamais gardées.
    Lampe : torche de l'aperçu natif (plugin camera-preview) ou de la caméra du navigateur (si elle en a une), sinon le bouton reste caché. Éteinte à chaque scan. */
-const AU = { gen: 0, t: 0, paused: false, cand: null, hold: '', miss: 0, at: 0, last: '', ask: null, torch: '', lamp: false, cv: null, reads: 0 };
+const AU = { gen: 0, t: 0, tm: null, paused: false, cand: null, hold: '', miss: 0, at: 0, last: '', ask: null, torch: '', lamp: false, cv: null, reads: 0 };
 const AU_W = 96, AU_H = 16, AU_INK = 10, AU_FREE = 2;      // bande sans contraste (écart type < 10 : table, fond uni) : rien à lire ; 2 lectures sans la carte tenue : elle est partie
 const auCam = () => !!(SC.el && (NAT.on || SC.stream));
 /** Auto en service sur cet écran : réglé, et une caméra qui tourne (sans caméra, « Photos » et le cercle restent comme avant). */
@@ -73,7 +73,10 @@ async function auTick(g) {
   let wait = NAT.on ? 150 : 250;
   if (auLive()) {
     try {
-      const f = await auGrab(); if (g !== AU.gen || !SC.el) { if (f) scanFree(f.src); return; } if (f) await auFeed(f, g);
+      const t0 = performance.now(), f = await auGrab(); if (g !== AU.gen || !SC.el) { if (f) scanFree(f.src); return; }
+      AU.tm = { cap: performance.now() - t0, read: 0, more: 0, at: t0 };      // durées de la dernière lecture (écran de diagnostic, scan.js › scanDiag)
+      if (f) await auFeed(f, g);
+      if (AU.tm && AU.tm.at === t0) AU.tm.all = performance.now() - t0;
       if (AU.cand) wait = Math.max(NAT.on ? 0 : 60, SCS.delay - (Date.now() - AU.at));      // 1re lecture d'une carte : la lecture qui la confirme tout de suite (ou dès le délai entre deux cartes passé)
     } catch (e) { wait = 900; }      // aperçu pas prêt, capture ou lecture refusée : on réessaie un peu plus tard
   } else { AU.cand = null; auRing(0); }
@@ -87,12 +90,16 @@ async function auFeed(f, g) {
     if (f.dev >= AU_INK) {
       const cat = await collCatalog(), W = f.src.width, H = f.src.height; AU.reads++;
       const box = scanFull() ? cardNameBox(W, H) : { x: 0, y: 0, w: W, h: H };
+      const t1 = performance.now();
       m = await readNameAuto(f.src, box, 1400, '6', cat, false, null);      // sans recherche dans les autres langues (serveur) : seulement les noms sûrs
       if ((!m || m.score < 0.84) && SC.el) m = await readMore(f.src, box, 1400, '6', cat, m, null);      // autres écritures attendues (un moteur Tesseract au plus ; APK 1.0.6 : ML Kit chinois, japonais, coréen à tour de rôle)
       if (m && m.score < 0.84) m = null;
+      if (AU.tm) AU.tm.read = performance.now() - t1;
     }
     m0 = m;
-    if (m && scanFull() && auWillAdd(m)) m = artAttach(await footAttach(m, f.src, cardFootBox(f.src.width, f.src.height)), f.src);      // cette lecture ajoute la carte : sa ligne du bas et son illustration aussi, sur la même image
+    if (m && scanFull() && auWillAdd(m)) {      // cette lecture ajoute la carte : sa ligne du bas et son illustration aussi, sur la même image
+      const t2 = performance.now(); m = artAttach(await footAttach(m, f.src, cardFootBox(f.src.width, f.src.height)), f.src); if (AU.tm) AU.tm.more = performance.now() - t2;
+    }
     if (m0 && typeof srKeep === 'function' && auWillAdd(m0)) srKeep({ id: ++SC.mid, src: f.src, auto: true, card: scanFull(), strip: !scanFull() }, m, 0);      // capture gardée pour « Signaler un problème de scan » (scanreport.js)
   }
   if (g !== AU.gen || !SC.el || !auLive()) return;
