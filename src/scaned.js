@@ -14,8 +14,12 @@
    Réglage du scan (scanset.js › SCS.ed) : 'scan' ci-dessus ; 'card' (deck, classeur) : extension unique et même carte seulement, rien de demandé pendant le scan, les éditions se
    choisissent à la fin (écran « Éditions à choisir ») ; 'none' : aucune édition (es 'off'), aucune impression lue. */
 const scanPk = (k, l) => k + '|' + (l || 'en');
-/** Prix d'un exemplaire d'une impression (centimes), sinon null. */
-const pkEu = p => (p ? (p.eu > 0 ? p.eu : p.ef > 0 ? p.ef : null) : null);
+/** Prix d'un exemplaire d'une impression (centimes), sinon null : non foil, à défaut foil (impression qui n'existe qu'en foil) ; f : exemplaire foil → le prix foil,
+ *  à défaut le non foil (comme collection.js › edEu). */
+const pkEu = (p, f) => { if (!p) return null; const a = f ? p.ef : p.eu, b = f ? p.eu : p.ef; return a > 0 ? a : b > 0 ? b : null; };
+/** Prix d'un exemplaire du scan (centimes) : celui de son impression, sinon le prix de référence de la carte ; foil : le prix foil, à défaut le normal
+ *  (comme collection.js › collLineEu) ; 0 sans prix. m : infos de la carte (COLL.meta par défaut). */
+const scanEu = (k, p, f, m = COLL.meta[k]) => { const u = pkEu(p, f); if (u > 0) return u; return !m ? 0 : f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : 0; };
 /** Exemplaires du scan (sûrs) par extension posée. */
 function scanSetCounts() {
   const by = new Map();

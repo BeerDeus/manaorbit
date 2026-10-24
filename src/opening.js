@@ -61,7 +61,7 @@ function opnTake(items, o = {}) {
     if (!it || !it.k || !it.n) continue;
     const g = it.l || '', l = lineLang(g), e = lineEd(g), q = Math.max(1, Math.min(999, Math.round(it.q) || 1)), p = e ? it.p : null;
     if (p) edRemember(it.k, l, e, edInfoOf(p, l));      // prix, extension et image de l'édition : gardés comme pour un ajout à la collection
-    const m = COLL.meta[it.k], eu = (p && pkEu(p)) || (it.eu > 0 ? Math.round(it.eu) : null) || (m && m.eu > 0 ? m.eu : null), im = (p && p.th) || it.im || '';      // prix du moment gardé avec la ligne (hors ligne, rechargement)
+    const m = COLL.meta[it.k], f = lineFoil(g), eu = (p && pkEu(p, f)) || (it.eu > 0 ? Math.round(it.eu) : null) || (m && (f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : null)), im = (p && p.th) || it.im || '';      // prix du moment gardé avec la ligne (hors ligne, rechargement) ; foil : au prix foil
     let r = c.rows.find(x => x.k === it.k && x.g === g);
     if (r) { r.q = Math.min(9999, r.q + q); r.t = now; if (im) r.im = im; if (eu) r.eu = eu; c.rows = [r, ...c.rows.filter(x => x !== r)]; }      // même carte, même ligne : un exemplaire de plus, remontée en haut
     else { r = { id: 'r' + now.toString(36) + (++OPN.seq), k: it.k, n: it.n, g, q, t: now, eu, im }; c.rows.unshift(r); }
@@ -83,7 +83,7 @@ function opnMeta() {
   OPN.meta = scryCollection(need.map(r => r.n), undefined, null, true)
     .then(got => {
       for (const r of need) { const g = got.get(r.k); if (g) COLL.meta[r.k] = g; else if (!(r.k in COLL.meta)) COLL.meta[r.k] = null; }
-      for (const r of c.rows) { const g = COLL.meta[r.k]; if (!(r.eu > 0) && g && g.eu > 0) r.eu = g.eu; }      // prix lu : gardé avec la ligne
+      for (const r of c.rows) { const g = COLL.meta[r.k], u = g && (lineFoil(r.g) && g.ef > 0 ? g.ef : g.eu); if (!(r.eu > 0) && u > 0) r.eu = u; }      // prix lu (foil : le prix foil) : gardé avec la ligne
       collMetaSave(); if (OPN.cur === c) opnSave(); return true;
     })
     .catch(() => { OPN.metaFail = Date.now(); return false; })
