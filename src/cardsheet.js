@@ -123,7 +123,7 @@ function csLinesHtml(k, x) {
       <span class="qstep"><button type="button" data-cs="dec" aria-label="${esc(T('Retirer un exemplaire de {name}', { name: nm }))}">−</button><b>${q}</b><button type="button" data-cs="inc" aria-label="${esc(T('Ajouter un exemplaire de {name}', { name: nm }))}">+</button></span></div>`;
   }).join('');
   return `<section class="cs-sec"><h3 class="cs-h">${T('Mes exemplaires')}</h3>${rows || `<p class="hint">${esc(T('Aucun exemplaire dans ta collection.'))}</p>`}
-    <button type="button" class="btn ghost block cs-add" data-cs="add"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>${T('Ajouter un exemplaire')}</button></section>`;
+    ${CS.o.from === 'scan' ? '' : `<button type="button" class="btn ghost block cs-add" data-cs="add"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>${T('Ajouter un exemplaire')}</button>`}</section>`;      // depuis le scan : les cartes lues arrivent par « Ajouter » du scan (édition, « Ranger dans », deck, lot), pas d'ici
 }
 /** Variation connue du prix de référence Cardmarket : celui de la période précédente (value.js, 7 à 14 jours) face à celui d'aujourd'hui ; null sans point de comparaison. */
 function csMove(k) {

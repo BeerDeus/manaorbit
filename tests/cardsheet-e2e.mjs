@@ -228,6 +228,7 @@ await p.waitForSelector('.sc-item[data-k="llanowar elves"] .qstep');
 await p.click('.sc-item[data-k="llanowar elves"] [data-a="inc"]'); assert.equal(await p.$('.cs-sheet'), null, '+ du scan : pas de fiche');
 await p.click('.sc-item[data-k="llanowar elves"] .sc-n b'); await sheetOpen();
 assert.equal(await p.evaluate(() => CS.o.from), 'scan'); assert.match(await txt(p, '.cs-sheet .cs-hd'), /Pas dans ta collection/);
+assert.equal(await p.$('.cs-sheet [data-cs="add"]'), null, 'depuis le scan : pas d\'« Ajouter un exemplaire » (les cartes passent par « Ajouter » du scan)');
 await p.waitForFunction(() => document.querySelector('.cs-sheet .cs-pr:not(.cs-ph)') && !/…/.test(document.querySelector('.cs-sheet .cs-pr:not(.cs-ph)').innerText), null, { timeout: 6000 });
 assert.match(await txt(p, '.cs-sheet .cs-pr:not(.cs-ph)'), /0,20 €/, 'prix lu pour une carte pas encore possédée');
 await csClose(); assert.ok(await p.$('.scan.on'), 'Échap : la fiche seule, le scan reste');
