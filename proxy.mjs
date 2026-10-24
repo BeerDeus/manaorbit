@@ -2862,7 +2862,7 @@ async function codeId() {
 function bootStop(sig) {
   const r = DATA_BOOT.recent[DATA_BOOT.recent.length - 1];
   if (r && !r.s) { r.s = Date.now(); try { writeFileSync(join(EDH_DIR, 'boot.json'), JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: r.t, recent: DATA_BOOT.recent })); } catch (e) { /* disque indisponible */ } }
-  process.exit(sig === 'SIGINT' ? 130 : 0);
+  process.removeAllListeners(sig); process.kill(process.pid, sig);      // arrêt immédiat comme sans écouteur (process.exit attendrait la compression en cours, plusieurs secondes)
 }
 for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => bootStop(sig));
 async function admServer() {
