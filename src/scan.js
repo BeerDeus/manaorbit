@@ -1101,12 +1101,21 @@ async function natStart() {
     let late;
     await Promise.race([NAT.p, new Promise((ok, ko) => { late = setTimeout(() => ko(Object.assign(new Error('caméra native muette'), { slow: true })), window.__natWait || NAT_WAIT); })]).finally(() => clearTimeout(late));
     if (SC.el !== el) { await natHalt(); return true; }      // scan fermé pendant le démarrage : la caméra ne doit pas rester allumée
-    NAT.on = true; stage.dataset.cam = 'on'; stage.dataset.native = '1'; return true;
+    NAT.on = true; stage.dataset.cam = 'on'; stage.dataset.native = '1'; natTouch(); return true;
   } catch (e) {      // démarrage raté : aperçu, page transparente et orientation verrouillée défaits, sinon le repli web et le prochain start (« caméra déjà démarrée ») échouent
     if (e && e.slow) { NAT.bad = true; try { sessionStorage.setItem('deckdeal:natcam-ko', '1'); } catch (x) { /* stockage bloqué : NAT.bad suffit */ } }
     await natHalt(); return false;
   }
   finally { NAT.p = null; }
+}
+/** Touchers rendus à la caméra native (mise au point, pincer pour zoomer) : seulement entre la barre du haut et les boutons du bas de l'aperçu (ManaOrbit.camTouch,
+    APK 1.0.11 et plus) ; le plugin les lui envoie sinon tous, et chaque bouton touché (+ / −, déclencheur, liste) refaisait la mise au point à cet endroit.
+    À redemander quand la zone change (démarrage de la caméra, « Encore X ? » posé ou retiré). APK plus ancienne : comme le plugin. */
+function natTouch() {
+  const mo = natPlugin('ManaOrbit'), el = SC.el, st = el && $('.sc-stage', el); if (!NAT.on || !st || !mo || typeof mo.camTouch !== 'function') return;
+  const s = st.getBoundingClientRect(), edge = (q, k) => { const x = $(q, st); if (!x || x.hidden) return null; const r = x.getBoundingClientRect(); return r.height ? r[k] : null; };
+  const t = Math.max(s.top, edge('.sc-tools', 'bottom') || s.top), b = Math.min(s.bottom, ...['.sc-modes', '.sc-same'].map(q => edge(q, 'top') || s.bottom));
+  Promise.resolve().then(() => mo.camTouch({ l: s.left, t, r: s.right, b: Math.max(t, b), k: window.devicePixelRatio || 1 })).catch(() => {});
 }
 /** Arrêt de la caméra native, que l'aperçu soit déjà affiché ou encore en train de démarrer. */
 async function natHalt() { NAT.on = false; document.documentElement.classList.remove('nat-cam'); try { await natCam().stop(); } catch (e) { /* déjà arrêtée */ } }

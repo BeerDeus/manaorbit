@@ -12,12 +12,14 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.view.DisplayCutout;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
@@ -81,6 +83,9 @@ import org.json.JSONObject;
  *   (le site lit avec Tesseract en attendant). APK 1.0.6 et plus ; plus ancienne : pas de méthode, chinois, japonais, coréen par Tesseract.
  * - keepAwake({ on }) → { on } : écran gardé allumé pendant le scan (FLAG_KEEP_SCREEN_ON de la fenêtre), sans quoi la mise en veille automatique du téléphone
  *   l'éteint en plein cadrage ; le WebView n'a pas navigator.wakeLock. APK 1.0.10 et plus ; plus ancienne : pas de méthode, l'écran s'éteint comme d'habitude.
+ * - camTouch({ l, t, r, b, k }) → { ok } : zone de l'aperçu du scan (px CSS, k = devicePixelRatio) où un toucher va à la caméra native (mise au point, pincer
+ *   pour zoomer) ; ailleurs (boutons, liste, déclencheur) il reste à la page. Le plugin CameraPreview envoie sinon TOUS les touchers du WebView à la caméra :
+ *   chaque bouton touché refaisait la mise au point à cet endroit. ok false : caméra pas démarrée. APK 1.0.11 et plus ; plus ancienne : comme le plugin.
  * - requestReview() → { ok: true } : demande de note Google Play dans l'appli (In-App Review), voir requestReview. APK 1.0.6 et plus ; plus ancienne : le site
  *   montre sa propre demande, qui ouvre la fiche Play Store.
  * - événement « open », gardé jusqu'à ce que la page l'écoute (lancement à froid) : { view: 'collection' | 'scan' | 'quick' } le widget ou son bouton a été
@@ -459,6 +464,44 @@ public class ManaOrbitPlugin extends Plugin {
             else getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             JSObject ret = new JSObject();
             ret.put("on", on);
+            call.resolve(ret);
+        });
+    }
+
+    /**
+     * Touchers du WebView rendus à la caméra native (CameraPreview, toBack) seulement s'ils commencent dans la zone donnée : remplace l'écouteur que le plugin pose
+     * au démarrage (tout envoyer), qui faisait la mise au point sur chaque bouton touché. Les coordonnées sont ramenées à l'aperçu (le plugin les laissait relatives
+     * au WebView : mise au point décalée de la hauteur au-dessus de l'aperçu). Le plugin retire l'écouteur à l'arrêt de la caméra ; à redemander après chaque démarrage.
+     */
+    @PluginMethod
+    public void camTouch(PluginCall call) {
+        double k = call.getDouble("k", 1.0);
+        final RectF zone = new RectF((float) (call.getDouble("l", 0.0) * k), (float) (call.getDouble("t", 0.0) * k), (float) (call.getDouble("r", 0.0) * k), (float) (call.getDouble("b", 0.0) * k));
+        getActivity().runOnUiThread(() -> {
+            final View wv = getBridge().getWebView();
+            final int fid = getActivity().getResources().getIdentifier("frame_container", "id", getActivity().getPackageName());
+            boolean on = fid != 0 && getActivity().findViewById(fid) != null;
+            if (on) {
+                wv.setOnTouchListener(new View.OnTouchListener() {
+                    private boolean cam;      // geste commencé dans la zone : tous ses événements (2e doigt du pincement compris) vont à la caméra
+                    @Override
+                    public boolean onTouch(View v, MotionEvent e) {
+                        if (e.getActionMasked() == MotionEvent.ACTION_DOWN) cam = zone.contains(e.getX(), e.getY());
+                        View f = cam ? getActivity().findViewById(fid) : null;
+                        if (f != null) {
+                            int[] a = new int[2], b = new int[2];
+                            v.getLocationOnScreen(a); f.getLocationOnScreen(b);
+                            MotionEvent c = MotionEvent.obtain(e);
+                            c.offsetLocation(a[0] - b[0], a[1] - b[1]);
+                            f.dispatchTouchEvent(c);
+                            c.recycle();
+                        }
+                        return false;      // la page reçoit toujours le toucher
+                    }
+                });
+            }
+            JSObject ret = new JSObject();
+            ret.put("ok", on);
             call.resolve(ret);
         });
     }

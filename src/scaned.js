@@ -138,9 +138,11 @@ async function scanArtTry(it) {
   const pn = p => String(p.num || '').toLowerCase().replace(/^0+(?=\d)/, ''), nums = (it.ft && it.ft.nums) || [], byNum = nums.length ? cands.filter(p => nums.includes(pn(p))) : [];
   let r = null;
   try {
-    if (byNum.length && byNum.length < cands.length) { r = await artPick(it.sig, byNum.length > 1 ? byNum : [...byNum, ...cands.filter(p => !byNum.includes(p)).slice(0, 1)]); if (r && !r.p && !r.group) r = null; }      // numéro lu (« 234/249 », cartes 2003-2014) : ses impressions d'abord
+    if (byNum.length && byNum.length < cands.length) { r = await artPick(it.sig, byNum.length > 1 ? byNum : [...byNum, ...cands.filter(p => !byNum.includes(p)).slice(0, 1)]); if (r && !r.p) r = null; }      // numéro lu (« 234/249 », cartes 2003-2014) : ses impressions d'abord ; plusieurs pareilles parmi elles seules (numéro mal lu, rééditions) : groupe incomplet, toutes comparées
     if (!r || (!r.p && !r.group)) r = await artPick(it.sig, cands);
   } catch (e) { /* images indisponibles */ }
+  const lost = r && r.miss ? r.miss.filter(p => SC.sets.has(p.set)) : [], scanIn = ps => ps.some(p => SC.sets.has(p.set));
+  if (r && lost.length && (r.p ? !SC.sets.has(r.p.set) : r.group && !scanIn(r.group))) r = { ...r, p: undefined, group: [...(r.p ? [r.p] : r.group), ...lost] };      // image d'une édition d'une extension du scan pas venue (réseau) : elle reste possible, sinon la carte serait demandée alors qu'elle y existe
   SC.art = { name: scanShown(it), res: !r ? '∅' : `${r.p ? r.p.set.toUpperCase() + ' ' + r.p.num : r.group ? T('{n} pareilles', { n: r.group.length }) : '?'} · d ${r.d1.toFixed(2)} / ${Number.isFinite(r.d2) ? r.d2.toFixed(2) : '–'} · ${r.n}` };
   if (typeof symNarrow === 'function') r = await symNarrow(it, cands, r);      // symbole d'extension (scansym.js) : départage les éditions que l'illustration laisse (rééditions, illustration non reconnue) ; r.sym
   it.artq = false; it.sig = null;
