@@ -130,7 +130,7 @@ function prgMetrics() {
 
 /* ── Badges ─────────────────────────────────────────────────────────────────────────────────────────────────── */
 /* { id, cat, ic, t (nom), d ([singulier, pluriel] de « {n} … » ; money : seuil en centimes), tiers (bronze → diamant ; [1] : unique), v (mesure) }. */
-const PRG_CATS = [['scan', 'Scan'], ['coll', 'Collection'], ['deck', 'Decks'], ['game', 'Parties'], ['social', 'Échanges et amis'], ['open', 'Ouvertures'], ['daily', 'Carte mystère'], ['fid', 'Fidélité'], ['fun', 'Secrets']];
+const PRG_CATS = [['event', 'Événements'], ['scan', 'Scan'], ['coll', 'Collection'], ['deck', 'Decks'], ['game', 'Parties'], ['social', 'Échanges et amis'], ['open', 'Ouvertures'], ['daily', 'Carte mystère'], ['fid', 'Fidélité'], ['fun', 'Secrets']];
 const PRG_CITY = [['de', 'Berlin', '🇩🇪'], ['es', 'Madrid', '🇪🇸'], ['it', 'Rome', '🇮🇹'], ['pt', 'Lisbonne', '🇵🇹'], ['ru', 'Moscou', '🇷🇺'], ['jp', 'Tokyo', '🇯🇵'], ['kr', 'Séoul', '🇰🇷'], ['zhcn', 'Pékin', '🏮'], ['zhtw', 'Taipei', '🏯']];
 const PRG_BADGES = [
   { id: 'sc_cards', cat: 'scan', ic: '🔍', t: 'Scanner', d: ['{n} carte scannée', '{n} cartes scannées'], tiers: [100, 1000, 10000, 100000], v: m => m.sc },
@@ -269,9 +269,11 @@ const PRG_NAMES = {
   op_stream: ['Animateur', 'Vedette', 'Star du direct'],
 };
 /** Nom d'un badge à son palier (pas encore obtenu : le nom du bronze). */
-const prgName = (b, t) => T(t >= 1 && PRG_NAMES[b.id] ? PRG_NAMES[b.id][t - 1] : b.t);
+const prgName = (b, t) => (b.ev ? (t >= 0 && b.names[t] ? T(b.names[t]) : b.t) : T(t >= 1 && PRG_NAMES[b.id] ? PRG_NAMES[b.id][t - 1] : b.t));      // badge d'événement (event.js › evBadges) : un nom par palier, la série avec l'année avant le premier
 /** Icône d'un badge à son palier : dessin SVG (badgeart.js) s'il existe, sinon l'emoji. */
-const prgIc = (b, t) => (typeof badgeSvg === 'function' ? badgeSvg(b.id, t) : esc(b.ic));
+const prgIc = (b, t) => (b.ev && typeof evBadgeHtml === 'function' ? evBadgeHtml(b.ev, Math.max(0, t), t >= 0) : typeof badgeSvg === 'function' ? badgeSvg(b.id, t) : esc(b.ic));      // événement : badge généré de l'édition (palier 3 : bordure du grade ultime)
+/** Nom du palier : bronze, argent, or, diamant ; le 4e d'un badge d'événement est son grade ultime. */
+const prgTierOf = (b, t) => (b.ev && t === 3 ? T('grade ultime') : prgTierName(t));
 /** Palier atteint d'un badge : -1 (aucun), 0 (bronze) … 3 (diamant) ; unique : 0. */
 const prgTier = (b, v) => { let t = -1; b.tiers.forEach((x, i) => { if (v >= x) t = i; }); return t; };
 /** Texte d'un palier (« 1 000 cartes scannées », « Une carte scannée à 50 € ou plus »). */
@@ -285,7 +287,7 @@ const prgTierXp = (b, t) => (t < 0 ? 0 : b.tiers.length === 1 ? 500 : [100, 500,
 /** Badges du moment : [{ b, v, t (palier atteint), next (prochain seuil ou null) }] ; Carte mystère seulement si le jeu existe. */
 function prgBadges(m = prgMetrics()) {
   const daily = typeof dailyBadges === 'function';
-  return PRG_BADGES.filter(b => b.cat !== 'daily' || daily).map(b => { const v = Math.max(0, Number(b.v(m)) || 0), t = prgTier(b, v); return { b, v, t, next: b.tiers[t + 1] ?? null }; });
+  return [...(typeof evBadges === 'function' ? evBadges() : []), ...PRG_BADGES].filter(b => b.cat !== 'daily' || daily).map(b => { const v = Math.max(0, Number(b.v(m)) || 0), t = prgTier(b, v); return { b, v, t, next: b.tiers[t + 1] ?? null }; });
 }
 
 /* ── XP et niveau ─────────────────────────────────────────────────────────────────────────────────────────── */
@@ -341,7 +343,7 @@ function prgPop(x, more) {
   const old = document.querySelector('.prg-pop'); if (old) old.remove();
   const b = x.b, uniq = b.tiers.length === 1, el = document.createElement('button');
   el.type = 'button'; el.className = 'prg-pop ' + (uniq ? 'tu' : 't' + x.t); el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
-  const head = uniq || x.t === 0 ? T('Nouveau badge') : T('Palier {tier} atteint', { tier: prgTierName(x.t) });
+  const head = uniq || x.t === 0 ? T('Nouveau badge') : b.ev && x.t === 3 ? T('Grade ultime atteint') : T('Palier {tier} atteint', { tier: prgTierName(x.t) });
   el.innerHTML = `<span class="prg-pop-ic" aria-hidden="true">${prgIc(b, x.t)}</span><span class="prg-pop-t"><small>${esc(head)}</small><b>${esc(prgName(b, x.t))}</b><span>${esc(prgLabel(b, b.tiers[x.t]))}${more > 0 ? ' · ' + esc(TN(more, '+{n} autre', '+{n} autres')) : ''}</span></span>`;
   document.body.appendChild(el);
   let t = 0, y0 = null; const hide = () => { clearTimeout(t); el.classList.remove('on'); setTimeout(() => el.remove(), reduceMotion() ? 0 : 320); };
@@ -419,9 +421,9 @@ function prgSheet(focus) {
         const b = x.b, uniq = b.tiers.length === 1, cls = x.t < 0 ? 'off' : uniq ? 'tu' : 't' + x.t, nxt = x.next, prev = x.t >= 0 ? b.tiers[x.t] : 0;
         const p = nxt == null ? 100 : Math.max(0, Math.min(100, ((x.v - (x.t >= 0 ? prev : 0)) / (nxt - (x.t >= 0 ? prev : 0))) * 100));
         const val = v => (b.money ? fmt(v, 'EUR').replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
-        const nm = prgName(b, x.t), pin = x.t >= 0 ? `<button type="button" class="prg-pin" data-pin="${b.id}" aria-pressed="${show.includes(b.id)}" aria-label="${esc(T('Montrer {name} sur ma liste d\'échange', { name: nm }))}">${show.includes(b.id) ? '📌' : '＋'}</button>` : '';
+        const nm = prgName(b, x.t), pin = x.t >= 0 && !b.ev ? `<button type="button" class="prg-pin" data-pin="${b.id}" aria-pressed="${show.includes(b.id)}" aria-label="${esc(T('Montrer {name} sur ma liste d\'échange', { name: nm }))}">${show.includes(b.id) ? '📌' : '＋'}</button>` : '';
         return `<div class="prg-b ${cls}" data-b="${b.id}" title="${esc(nm)}">${pin}<span class="prg-ic" aria-hidden="true">${prgIc(b, x.t)}</span><b>${esc(nm)}</b>
-          <small>${esc(x.t >= 0 ? prgLabel(b, b.tiers[x.t]) + (uniq ? '' : ' · ' + prgTierName(x.t)) : prgLabel(b, b.tiers[0]))}</small>
+          <small>${esc(x.t >= 0 ? prgLabel(b, b.tiers[x.t]) + (uniq ? '' : ' · ' + prgTierOf(b, x.t)) : prgLabel(b, b.tiers[0]))}</small>
           ${nxt != null && !uniq ? `<span class="prg-mini" aria-hidden="true"><i style="width:${p.toFixed(1)}%"></i></span><small class="prg-nx">${esc(val(x.v))} / ${esc(val(nxt))}</small>${x.t >= 0 ? `<small class="prg-nn">${esc(T('Prochain : {name}', { name: prgName(b, x.t + 1) }))}</small>` : ''}` : ''}</div>`;
       };
       api.body.innerHTML = `<div class="prg-head"><div class="prg-lv"><small>${T('Niveau')}</small><b>${L.lv}</b></div><div class="prg-xp"><span class="prg-bar" aria-hidden="true"><i style="width:${pct.toFixed(1)}%"></i></span>

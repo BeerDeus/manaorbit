@@ -57,6 +57,7 @@ test('packs : dates, Pâques, quotas, calendrier à l\'heure de Paris', () => {
   assert.equal(E.evUpcoming('2026-10-22').id, 'halloween-2026'); assert.equal(E.evUpcoming('2026-10-22').in, 3);
   assert.equal(new Set(E.EV_SPOTS.map(s => s.id)).size, E.EV_SPOTS.length, 'cachettes uniques'); assert.ok(E.EV_SPOTS.length >= 40, 'une quarantaine de cachettes');
   assert.ok(E.EV_SPOTS.filter(s => !s.need).length >= 15, 'assez de cachettes pour tout le monde (sans compte, collection vide)');
+  assert.ok(E.EV_SPOTS.filter(s => !s.need && s.lvl === 2).length >= 12, 'assez de sous-menus pour tout le monde');
   assert.equal(evName('  Zoé  la <b> ', null), 'Zoé la b'); assert.equal(evName('merde', s => /merde/.test(s)), '');
 });
 
@@ -65,7 +66,8 @@ test('cachettes du jour : déterministes, par joueur, selon les capacités, jeto
   const a = await S.call('event'); assert.equal(a.status, 200); assert.equal(a.j.on, true); assert.equal(a.j.ev.id, 'halloween-2026'); assert.equal(a.j.ev.dayNo, 1); assert.equal(a.j.ev.left, 14);
   assert.ok(/^[\w-]{22}\.[\w-]{16}$/.test(a.j.dev), 'jeton d\'appareil donné'); assert.equal(a.j.me, null, 'sans appareil ni compte : rien');
   const dev = a.j.dev, b = await S.call('event?c=0', { dev }), sp = b.j.me.spots;
-  assert.equal(sp.length, 5); assert.equal(new Set(sp.map(x => x.s)).size, 5); assert.ok(sp.every(x => E.EV_SPOTS.find(s => s.id === x.s).need === 0), 'capacités 0 : cachettes visibles par tous');
+  assert.equal(sp.length, 5); assert.equal(new Set(sp.map(x => x.s)).size, 5);
+  const lv = sp.map(x => E.EV_SPOTS.find(s => s.id === x.s).lvl); assert.ok(lv.filter(l => l === 0).length <= 1 && lv.filter(l => l === 1).length <= 2, 'au plus 1 en vue et 2 à un geste : le reste caché dans les sous-menus'); assert.ok(sp.every(x => E.EV_SPOTS.find(s => s.id === x.s).need === 0), 'capacités 0 : cachettes visibles par tous');
   assert.deepEqual((await S.call('event?c=0', { dev })).j.me.spots, sp, 'mêmes cachettes à chaque lecture');
   const zoe = (await S.call('event?c=7', { tok: 'tok-zoe' })).j.me.spots, max = (await S.call('event?c=7', { tok: 'tok-max' })).j.me.spots;
   assert.notDeepEqual(zoe.map(x => x.s), max.map(x => x.s), 'chacun les siennes');

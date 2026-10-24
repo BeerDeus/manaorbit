@@ -129,7 +129,7 @@ async function homeTradeAct(qr) {
 /* ── Ordinateur : tableau de bord ────────────────────────────────────────────────────────────────────────────────────────────────────────
    Salutation sur toute la largeur, puis trois colonnes créées ici (le téléphone garde son DOM tel quel) : orbe et chiffres, courbe de valeur (collection vide :
    « Pour commencer » à sa place) · raccourcis, échange, partie, Discord, « Mana Orbit sur ton téléphone » · installation, prochaines extensions (8 au lieu de 4, la liste défile seule), aide. Défaites si la fenêtre redevient étroite (ordre d'origine rendu). */
-const HM_COLS = [['hm-c1', ['.hm-hero', '#hmStart', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmPartie', '#hmDiscord', '#hmStores']], ['hm-c3', ['#installWrap', '#buyBar', '#hmSets', '#btnHelp']]];
+const HM_COLS = [['hm-c1', ['.hm-hero', '#hmStart', '.hm-dk-val']], ['hm-c2', ['.hm-dk-acts', '#hmTrade', '#hmPartie', '#hmEvent', '#hmDiscord', '#hmStores']], ['hm-c3', ['#installWrap', '#buyBar', '#hmSets', '#btnHelp']]];
 const homeDeskOn = () => !!(typeof NAV_DESK !== 'undefined' && NAV_DESK && NAV_DESK.matches);
 function homeDesk() {
   const home = $('#viewHome'); if (!home) return;

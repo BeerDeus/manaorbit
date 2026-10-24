@@ -106,15 +106,22 @@ export function eventMake(o = {}) {
   /** Jeton d'une cachette (joueur, jour) ; reçu d'un jour (liste triée de ce qui y a été trouvé). */
   const spotTok = (id, k, day, s) => createHmac('sha256', G.secret).update(`evt|${id}|${k}|${day}|${s}`).digest('base64url').slice(0, 16);
   const daySig = (id, k, day, list) => createHmac('sha256', G.secret).update(`evd|${id}|${k}|${day}|${[...list].sort().join(',')}`).digest('base64url').slice(0, 22);
-  /** Cachettes du jour d'un joueur : tirées parmi celles que son appli peut montrer (caps), de façon reproductible ; celles d'hier évitées s'il en reste assez. */
+  /** Cachettes du jour d'un joueur : tirées parmi celles que son appli peut montrer (caps), de façon reproductible ; au plus EV_LVL_MAX[0] en vue sur l'accueil et
+   *  EV_LVL_MAX[1] à un geste, le reste dans les sous-menus ; celles d'hier évitées s'il en reste assez. */
   function spotsOf(e, k, day, caps) {
-    const ok = EVP.EV_SPOTS.filter(s => (s.need & caps) === s.need).map(s => s.id), pick = (d, from) => {
+    const ok = EVP.EV_SPOTS.filter(s => (s.need & caps) === s.need), shuffle = (d, from) => {
       const r = rng(createHmac('sha256', G.secret).update(`evpl|${e.id}|${k}|${d}`).digest('hex')), a = from.slice();
       for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
       return a;
     };
-    const y = new Set(pick(EVP.evAdd(day, -1), ok).slice(0, e.per)), fresh = ok.filter(s => !y.has(s)), base = fresh.length >= e.per * 3 ? fresh : ok;
-    return pick(day, base).slice(0, e.per);
+    const pick = (d, from) => {
+      const out = [], n = [0, 0, 0], max = [...EVP.EV_LVL_MAX, e.per], a = shuffle(d, from);
+      for (const s of a) { if (out.length >= e.per) break; if (n[s.lvl] < max[s.lvl]) { out.push(s); n[s.lvl]++; } }
+      for (const s of a) { if (out.length >= e.per) break; if (!out.includes(s)) out.push(s); }      // pas assez de sous-menus (capacités) : complété
+      return out;
+    };
+    const y = new Set(pick(EVP.evAdd(day, -1), ok).map(s => s.id)), fresh = ok.filter(s => !y.has(s.id)), base = fresh.length >= e.per * 3 ? fresh : ok;
+    return pick(day, base).map(s => s.id);
   }
   /** Ce que voit le joueur : total, trouvées du jour, cachettes du jour et leurs jetons, jours joués et leurs reçus. */
   function me(e, r, k, caps) {

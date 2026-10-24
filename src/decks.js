@@ -717,7 +717,8 @@ function onUser(user) {
   amUser(user); if (typeof trocUser === 'function') trocUser(user);      // échange en direct : reprend après la connexion, ou quitte (autre compte)
   if (typeof partieUser === 'function') partieUser(user);      // parties (compteur de vie) en attente d'envoi pour ce compte
   if (typeof puUser === 'function') puUser(user);      // « Rejoindre la partie » ouvert par un lien avant que le compte soit connu : passe au choix de la place
-  if (typeof dlyUser === 'function') dlyUser(user);      // Carte mystère : partie et badges du nouveau compte
+  if (typeof dlyUser === 'function') dlyUser(user);
+  if (typeof evUser === 'function') evUser(user);      // événements : progression du compte (users/{uid}/meta/events), celle de l'appareil le rejoint      // Carte mystère : partie et badges du nouveau compte
   if (typeof dlUser === 'function') dlUser(user);      // compte Discord lié : l'invitation de l'accueil se cache pour un membre du serveur
   if (prev !== D.uid && typeof checkServer === 'function') { CTX.serverOk = null; checkServer(); }      // autre compte : a-t-il droit au token du serveur ?
   if (!user && prev) updateHeroDelta();

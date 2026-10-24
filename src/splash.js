@@ -99,7 +99,17 @@ function splashAfter(fn) { if (SPL.el && !SPL.short) document.addEventListener('
   if (typeof document === 'undefined') return;
   const de = document.documentElement;
   try { const t = JSON.parse(localStorage.getItem('deckdeal:v1') || '{}').theme; if (t === 'light' || t === 'dark') de.setAttribute('data-theme', t); } catch (e) { /* stockage absent */ }      // thème dès la 1re image
-  const el = document.getElementById('splash'); if (!el) return;
+  const el = document.getElementById('splash');
+  try {      // fête en cours (event.js : dernière connue de l'appareil, encore dans ses dates) : décor et logo de la fête dès la 1re image, sans attendre le serveur
+    const ev = JSON.parse(localStorage.getItem('deckdeal:ev') || '{}'), c = ev && ev.cal, t = Date.now();
+    if (c && /^\d{4}-\d\d-\d\d$/.test(c.from) && /^\d{4}-\d\d-\d\d$/.test(c.to) && /^[a-z]+$/.test(c.pack) && t >= Date.parse(c.from + 'T00:00:00+02:00') && t < Date.parse(c.to + 'T00:00:00+01:00') + 864e5) {
+      de.dataset.event = c.pack;
+      const lg = ev.deco !== false && JSON.parse(localStorage.getItem('deckdeal:ev:logo') || 'null');
+      if (ev.deco !== false) de.classList.add('ev-deco');
+      if (el && lg && lg.id === c.pack && typeof lg.mk === 'string' && lg.mk.length < 60000) { document.body.insertAdjacentHTML('beforeend', `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-logo-ev" viewBox="6 8 88 88">${lg.mk}</symbol></svg>`); el.querySelectorAll('use').forEach(u => { if (u.getAttribute('href') === '#i-logo') u.setAttribute('href', '#i-logo-ev'); }); }
+    }
+  } catch (e) { /* stockage absent */ }
+  if (!el) return;
   let m = 'none'; try { m = splashMode(splashEnv()); } catch (e) { /* ignore */ }
   if (m === 'none') { el.remove(); return; }
   SPL.el = el; SPL.short = m === 'short'; try { SPL.rm = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* ignore */ }

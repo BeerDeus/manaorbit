@@ -68,20 +68,22 @@ const EV_PACKS = [
 ];
 
 /* ── Cachettes : une quarantaine d'endroits de l'appli (event.js › EV_HIDE dit où les poser). Le serveur tire celles du jour de chaque joueur parmi celles qu'il peut voir.
-   need : ce qu'il faut pour que l'endroit existe (bits de EV_CAPS : envoyés par l'appli, ?c=) ; jamais sur le scan, l'échange en direct, le compteur de vie, une saisie de
-   paiement ou de token, le premier lancement, la visite guidée ou le mode streamer. Identifiants stables (gardés dans les progressions) : ne jamais en renommer un. */
+   [id, need, lvl] : need : ce qu'il faut pour que l'endroit existe (bits de EV_CAPS : envoyés par l'appli, ?c=) ; lvl : 0 en vue tout de suite (accueil), 1 à un geste
+   (onglet, fiche), 2 caché dans un sous-menu (réglages, filtres avancés, feuilles des réglages…). Chaque jour : au plus EV_LVL_MAX[0] cachette de niveau 0 et
+   EV_LVL_MAX[1] de niveau 1, le reste dans les sous-menus. Jamais sur le scan, l'échange en direct, le compteur de vie, une saisie de paiement ou de token, le premier
+   lancement, la visite guidée ou le mode streamer. Identifiants stables (gardés dans les progressions) : ne jamais en renommer un. */
 const EV_CAPS = { acct: 1, cards: 2, decks: 4, desk: 8, daily: 16, trade: 32, sets: 64, nat: 128 };
+const EV_LVL_MAX = [1, 2];
 const EV_SPOTS = [
-  ['home-orb', 0], ['home-trade', 0], ['home-life', 0], ['home-sets', 64], ['home-how', 0], ['home-start', 0], ['home-foryou', 0], ['home-stores', 8],
-  ['coll-head', 0], ['coll-list', 2], ['coll-stats', 2], ['coll-value', 2], ['coll-places', 2], ['coll-filters', 2],
-  ['trade-head', 0], ['trade-list', 32], ['trade-binder', 32],
-  ['decks-mine', 0], ['decks-card', 4], ['decks-edh', 0], ['decks-price', 0],
-  ['viewer-head', 4], ['viewer-stats', 4], ['viewer-find', 4], ['builder', 4],
-  ['card-sheet', 2], ['card-text', 2], ['set-page', 64],
-  ['me-head', 0], ['me-prefs', 0], ['me-more', 0], ['me-account', 1], ['me-level', 0],
-  ['help-top', 0], ['help-faq', 0], ['set-help', 0], ['set-data', 0], ['set-conf', 0], ['set-notif', 0],
-  ['daily-board', 16], ['friends', 1], ['masterset', 2],
-].map(([id, need]) => ({ id, need }));
+  ['home-orb', 0, 0], ['home-trade', 0, 0], ['home-life', 0, 0], ['home-sets', 64, 0], ['home-stores', 8, 0],
+  ['coll-list', 2, 1], ['coll-stats', 2, 1], ['trade-list', 32, 1], ['decks-mine', 0, 1], ['decks-edh', 0, 1], ['me-head', 0, 1], ['me-level', 0, 1],
+  ['help-top', 0, 1], ['daily-board', 16, 1], ['card-sheet', 2, 1], ['viewer-head', 4, 1],
+  ['coll-filters', 2, 2], ['coll-more', 2, 2], ['coll-view', 2, 2], ['coll-backup', 0, 2], ['coll-export', 2, 2], ['coll-proxy', 2, 2], ['coll-ms', 2, 2],
+  ['trade-set', 32, 2], ['trade-binder', 32, 2], ['trade-filters', 32, 2], ['decks-filters', 0, 2], ['decks-themes', 0, 2], ['decks-pub', 1, 2],
+  ['me-account', 1, 2], ['me-profile', 1, 2], ['set-notif', 0, 2], ['set-scan', 0, 2], ['set-data', 0, 2], ['set-conf', 0, 2], ['set-mentions', 0, 2],
+  ['set-help', 0, 2], ['set-widget', 128, 2], ['set-alerts', 0, 2], ['help-faq', 0, 2], ['friends', 1, 2], ['partie-hist', 0, 2], ['open-hist', 0, 2],
+  ['card-text', 2, 2], ['viewer-find', 4, 2], ['set-page', 64, 2],
+].map(([id, need, lvl]) => ({ id, need, lvl }));
 
 /* ── Calendrier ─────────────────────────────────────────────────────────────────────────────────────────────────── */
 let EV_FMT = null;
@@ -137,4 +139,4 @@ function evCheck(y = 2026) {
   return bad;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck };
+if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck };
