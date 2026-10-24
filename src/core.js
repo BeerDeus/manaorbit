@@ -1202,7 +1202,12 @@ function parseCollection(text, o) {
       if (fq) add(name, fq, l, 0, e, true, a);
     }
   } else {
+    let sec = 'main';      // decklist collée (Moxfield, Archidekt, MTGA) : Maybeboard, Considering, Tokens et About ne sont pas des cartes possédées ; réserve, commandant, compagnon : gardés
     for (let raw of lines) {
+      const h = headerSec(raw.trim());
+      if (h) { sec = h; continue; }
+      if (!raw.trim() && sec === 'about') sec = 'main';
+      if (sec === 'skip' || sec === 'about') continue;
       let d = 0;
       let e = '', a = '';
       if (o && o.dates) raw = raw.replace(DATE_MARK_RE, (_, t) => { d = parseInt(t, 36) || 0; return ''; });

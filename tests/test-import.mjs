@@ -121,3 +121,10 @@ test('decklist MTGO / MTGA sans en-tête : 60 cartes, ligne vide, puis la réser
   assert.equal(C.parseDeck(main + '\n\n2 Negate\n\n1 Duress').cards.length, 12, 'trois blocs : rien n\'est pris pour une réserve');
   assert.equal(C.parseDeck(main + '\n\n16 Negate').cards.length, 11, 'plus de 15 cartes : pas une réserve');
 });
+test('collection : decklist collée (Moxfield MTGA) — Maybeboard, Considering, Tokens et About pas importés ; réserve, commandant et compagnon gardés', () => {
+  const t = 'About\nName Atraxa Superfriends\n\nCommander\n1 Atraxa, Praetors\' Voice\n\nCompanion\n1 Lurrus of the Dream-Den\n\nDeck\n1 Sol Ring\n2 Forest\n\nSideboard\n1 Negate\n\nMaybeboard\n1 Mana Crypt\n\nConsidering (1)\n1 Mana Vault\n\nTokens\n1 Treasure';
+  const r = C.parseCollection(t, { lang: 'fr' });
+  assert.deepEqual(r.items.map(i => [i.n, i.q]), [['Atraxa, Praetors\' Voice', 1], ['Lurrus of the Dream-Den', 1], ['Sol Ring', 1], ['Forest', 2], ['Negate', 1]]);
+  assert.equal(C.parseCollection('Deck\n1 Sol Ring\n\nMaybeboard\n1 Mana Crypt\n\nSideboard\n1 Negate').items.length, 2, 'en-tête suivant : fin du maybeboard');
+  assert.deepEqual(C.parseCollection('1 Sol Ring\n\n1 Arcane Signet').items.map(i => i.n), ['Sol Ring', 'Arcane Signet'], 'texte de collection sans en-tête : tout gardé');
+});
