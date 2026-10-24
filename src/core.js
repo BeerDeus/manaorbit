@@ -169,16 +169,50 @@ function parseLine(raw, o) {
   return out;
 }
 
-/** Lit une decklist (EDHREC, Moxfield, Archidekt, MTGO). Terrains de base séparés. */
+/** Section d'un en-tête de decklist (« Sideboard », « // Maybeboard », « Commander (1) »…), null si la ligne n'en est pas un. */
+const headerSec = line => {
+  const h = line.replace(/^(\/\/|#)\s*/, '');
+  if (/^(commanders?|commandants?)\s*(\(\d+\))?\s*:?\s*$/i.test(h)) return 'cmdr';
+  if (!HEADER_RE.test(h)) return null;
+  return /^sideboard/i.test(h) ? 'side' : /^companion/i.test(h) ? 'comp' : /^(maybeboard|considering|tokens?)/i.test(h) ? 'skip' : /^about/i.test(h) ? 'about' : 'main';
+};
+/** Lignes d'une decklist avec leur section : [[ligne, section]]. Sections des exports Moxfield, Archidekt, MTGA, MTGO (en-tête jusqu'au suivant) :
+ *  'cmdr' (Commander, jusqu'à la ligne vide) · 'comp' (Companion : dans le deck) · 'side' (Sideboard : la réserve, comme les lignes « SB: ») ·
+ *  'skip' (Maybeboard, Considering, Tokens : hors du deck ; « About » / « Name … » de MTGA, jusqu'à la ligne vide) · 'main' (le reste : Deck, Creatures, Lands…).
+ *  Liste sans aucun en-tête (ni « SB: ») faite de deux blocs (MTGO .txt, ancien export MTGA) : 60 à 80 cartes, une ligne vide, puis 15 cartes au plus sans terrain de base → ce bloc est la réserve. */
+function deckSecs(text) {
+  const out = []; let sec = 'main', hdr = false;
+  for (const raw of String(text || '').split(/\r?\n/)) {
+    const line = raw.trim(), h = line && headerSec(line);
+    if (!line) { if (sec === 'cmdr' || sec === 'about') sec = 'main'; }
+    else if (h) { sec = h; hdr = true; }
+    else if (/^SB:/i.test(line)) hdr = true;
+    out.push([raw, h || sec === 'about' ? 'skip' : sec]);      // l'en-tête lui-même : jamais une carte (« Commanders »)
+  }
+  if (!hdr) {
+    const blocks = []; let cur = null;
+    out.forEach(([raw], i) => {
+      const p = parseLine(raw); if (p === undefined) { cur = null; return; } if (p.ignored) return;
+      if (!cur) blocks.push(cur = { at: i, n: 0, basic: false });
+      cur.n += p.qty; if (BASIC_NAMES.has(p.key)) cur.basic = true;
+    });
+    const [a, b] = blocks;
+    if (blocks.length === 2 && a.n >= 60 && a.n <= 80 && b.n <= 15 && !b.basic) for (let i = b.at; i < out.length; i++) out[i][1] = 'side';
+  }
+  return out;
+}
+
+/** Lit une decklist (EDHREC, Moxfield, Archidekt, MTGA, MTGO). Terrains de base séparés. Réserve (« SB: », section Sideboard), maybeboard et tokens : ni comptés ni cherchés (voir deckSecs). */
 function parseDeck(text) {
   const cards = new Map();
   const basics = new Map();
   let lines = 0, ignored = 0;
-  for (const raw of String(text || '').split(/\r?\n/)) {
+  for (const [raw, sec] of deckSecs(text)) {
     const p = parseLine(raw);
     if (!p) continue;
     lines++;
     if (p.ignored) { if (!p.quiet) ignored++; continue; }
+    if (sec === 'side' || sec === 'skip') continue;      // réserve, maybeboard : volontaire, pas signalé
     const bucket = BASIC_NAMES.has(p.key) ? basics : cards;
     const cur = bucket.get(p.key);
     if (cur) cur.qty += p.qty; else bucket.set(p.key, { key: p.key, name: p.name, qty: p.qty, ...(p.dn ? { dn: p.dn } : {}), ...(p.amb ? { amb: p.amb } : {}) });      // dn : nom français à afficher (name reste l'anglais : prix, collection, liens)
@@ -824,6 +858,17 @@ const DK_FORMATS = {
   standard: { label: T('Standard'), size: 60, copies: 4, side: 15, hint: T('60 cartes, 4 exemplaires d\'une même carte au maximum (terrains de base exclus), réserve de 15 facultative.') },
   commander: { label: 'Commander', size: 100, copies: 1, side: 0, hint: T('100 cartes dont ton commandant, un seul exemplaire de chaque carte (terrains de base exclus).') },
 };
+/** Cartes dont le texte Oracle lève la limite d'exemplaires : clé (ownKey) → maximum dans un deck, quel que soit le format. « A deck can have any number of cards named … » : sans limite ;
+ *  « up to seven / nine » : Seven Dwarves, Nazgûl. Liste en dur (le texte Oracle n'est pas gardé dans les infos des cartes) : recherche Scryfall o:"deck can have" du 24 octobre 2026,
+ *  cartes légales seulement (Once More with Feeling : interdite). À compléter quand une nouvelle carte de ce genre sort. */
+const DK_ANY = new Map([
+  ['relentless rats', Infinity], ['shadowborn apostle', Infinity], ['persistent petitioners', Infinity], ['rat colony', Infinity],
+  ['dragons approach', Infinity], ['sphinxs approach', Infinity], ['slime against humanity', Infinity], ['hare apparent', Infinity],
+  ['templar knight', Infinity], ['tempest hawk', Infinity], ['cid timeless artificer', Infinity],
+  ['seven dwarves', 7], ['nazgul', 9],
+]);
+/** Exemplaires d'une même carte permis dans un deck (deck et réserve) : terrains de base sans limite, cartes de DK_ANY à leur maximum, sinon la règle du format (4 · Commander : 1). */
+const dkMaxCopies = (fmt, k) => (BASIC_NAMES.has(k) ? Infinity : DK_ANY.get(k) || (DK_FORMATS[fmt] || DK_FORMATS.standard).copies);
 /** Format noté en tête d'une liste par le créateur (« // Deck Deal : commander »), '' sinon. */
 function dkFormat(text) { const m = String(text || '').match(/^\/\/\s*Deck Deal\s*:\s*(standard|commander)\b/im); return m ? m[1].toLowerCase() : ''; }
 /** Format d'un deck : celui noté par le créateur, sinon « commander » si la liste a un en-tête Commander, sinon ''. */
@@ -835,12 +880,12 @@ function dkMatch(text, f) {
   if (colors) { const have = dkColors(text); for (const c of colors) if (!have.includes(c)) return false; }
   return true;
 }
-/** Lignes « SB: 2 Negate » d'une liste : [{ key, name, qty }] (réserve, additionnée par carte). Le reste de la liste ne les voit pas (parseLine les ignore). */
+/** Réserve d'une liste : lignes « SB: 2 Negate » et section « Sideboard » d'un export (deckSecs) : [{ key, name, qty }] (additionnée par carte). parseDeck ne les voit pas. */
 function dkSideCards(text) {
   const out = new Map();
-  for (const raw of String(text || '').split(/\r?\n/)) {
-    const m = raw.trim().match(/^SB:\s*(.+)$/i); if (!m) continue;
-    const p = parseLine(m[1]); if (!p || p.ignored) continue;
+  for (const [raw, sec] of deckSecs(text)) {
+    const m = raw.trim().match(/^SB:\s*(.+)$/i); if (!m && sec !== 'side') continue;
+    const p = parseLine(m ? m[1] : raw); if (!p || p.ignored) continue;
     const k = ownKey(p.name), cur = out.get(k); if (cur) cur.qty += p.qty; else out.set(k, { key: k, name: p.name, qty: p.qty });
   }
   return [...out.values()];
@@ -882,24 +927,18 @@ function dkBuildText({ fmt, main, side, cmdr, cover }) {
   return out.join('\n');
 }
 /** Texte → { fmt ('' si inconnu), main, side, cmdr } : cartes dans l'ordre de la liste, doublons additionnés, clé = clé de collection (face avant).
- *  Lit aussi les listes venues d'ailleurs : en-têtes « Commander » / « Sideboard », lignes « SB: », sections (Creatures, Lands…) ; « Maybeboard » est laissé de côté. */
+ *  Lit aussi les listes venues d'ailleurs (sections de deckSecs) : « Commander », « Sideboard » et « Companion » (réserve), lignes « SB: », Creatures, Lands… ; Maybeboard, Tokens, About : laissés de côté. */
 function dkParse(text) {
   const main = new Map(), side = new Map(), cmdr = [];
-  let sec = 'main';
   const add = (m, p) => { const k = ownKey(p.name), cur = m.get(k); if (cur) cur.qty += p.qty; else m.set(k, { key: k, name: p.name, qty: p.qty }); };
-  for (const raw of String(text || '').split(/\r?\n/)) {
+  for (const [raw, sec] of deckSecs(text)) {
     const line = raw.trim();
-    if (!line) { if (sec === 'cmdr') sec = 'main'; continue; }
-    if (/^(\/\/|#)/.test(line)) continue;
+    if (!line || /^(\/\/|#)/.test(line)) continue;
     const sb = line.match(/^SB:\s*(.+)$/i);
     if (sb) { const p = parseLine(sb[1]); if (p && !p.ignored) add(side, p); continue; }
-    if (HEADER_RE.test(line)) {
-      sec = /^(commanders?|commandants?)\b/i.test(line) ? 'cmdr' : /^(sideboard|companion)\b/i.test(line) ? 'side' : /^(maybeboard|considering)\b/i.test(line) ? 'skip' : 'main';
-      continue;
-    }
     const p = parseLine(line); if (!p || p.ignored || sec === 'skip') continue;
     if (sec === 'cmdr') { const k = ownKey(p.name); if (!cmdr.some(c => c.key === k)) cmdr.push({ key: k, name: p.name }); }
-    else add(sec === 'side' ? side : main, p);
+    else add(sec === 'side' || sec === 'comp' ? side : main, p);
   }
   return { fmt: dkFormat(text), main: [...main.values()], side: [...side.values()], cmdr, cover: dkCover(text) };
 }
@@ -936,7 +975,8 @@ function dkCheck(fmt, d, metaOf) {
     else if (n > f.size) issues.push({ lv: 'bad', t: TN(n - f.size, '{n} carte en trop ({size} exactement).', '{n} cartes en trop ({size} exactement).', { n: n - f.size, size: f.size }) });
     for (const c of main) {
       if (BASIC_NAMES.has(c.key)) continue;
-      if (c.qty > 1) issues.push({ lv: 'bad', t: T('{name} : {n} exemplaires (un seul en Commander).', { name: c.name, n: c.qty }) });
+      const max = dkMaxCopies(fmt, c.key);
+      if (c.qty > max) issues.push({ lv: 'bad', t: max === 1 ? T('{name} : {n} exemplaires (un seul en Commander).', { name: c.name, n: c.qty }) : T('{name} : {n} exemplaires ({max} au maximum).', { name: c.name, n: c.qty, max }) });
       if (cmdr.some(x => x.key === c.key)) issues.push({ lv: 'bad', t: T('{name} est déjà ton commandant.', { name: c.name }) });
     }
     for (const c of cmdr) { const m = metaOf && metaOf(c.key); if (m && m.cd === 0) issues.push({ lv: 'warn', t: T('{name} ne peut normalement pas être commandant.', { name: c.name }) }); }      // cd : 0 = carte lue sur Scryfall et non éligible (absent = pas encore lue)
@@ -948,7 +988,7 @@ function dkCheck(fmt, d, metaOf) {
     if (ns > f.side) issues.push({ lv: 'bad', t: T('Réserve de {n} cartes ({max} au maximum).', { n: ns, max: f.side }) });
     const tot = new Map(), nm = new Map();
     for (const c of [...main, ...side]) { if (BASIC_NAMES.has(c.key)) continue; tot.set(c.key, (tot.get(c.key) || 0) + c.qty); nm.set(c.key, c.name); }
-    for (const [k, q] of tot) if (q > f.copies) issues.push({ lv: 'bad', t: T('{name} : {n} exemplaires ({max} au maximum).', { name: nm.get(k), n: q, max: f.copies }) });
+    for (const [k, q] of tot) { const max = dkMaxCopies(fmt, k); if (q > max) issues.push({ lv: 'bad', t: T('{name} : {n} exemplaires ({max} au maximum).', { name: nm.get(k), n: q, max }) }); }
   }
   return { n, side: ns, size: f.size, issues };
 }
@@ -2359,7 +2399,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
-    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkCount, dkCountText,
+    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }

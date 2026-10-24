@@ -85,3 +85,39 @@ test('valeurs de colonnes : code d\'extension en majuscules ou minuscules, nom e
   assert.equal(C.parseCollection('Count,Name,Set ID,Collector Number\n1,Sol Ring,Mirage,410').items[0].x['|mirage|410'], 1, 'colonne de code : prise telle quelle');
   assert.equal(C.cardLang('Portuguese (Brazil)'), 'pt'); assert.equal(C.cardLang('zh-Hans'), 'zh-CN'); assert.equal(C.cardLang('Korean'), 'kr'); assert.equal(C.cardLang('Phyrexian'), '');
 });
+
+/* ── Decklists exportées (texte collé dans la recherche de prix, Mes decks, l'éditeur) : sections des exports Moxfield, Archidekt, MTGA, MTGO ──
+   Maybeboard / Considering / Tokens : hors du deck (ni cherchés, ni chiffrés, ni comptés) ; Sideboard : la réserve, comme les lignes « SB: » (dkSideCards) ;
+   Commander et Companion : dans le deck ; « About » / « Name … » (MTGA) : ignoré. */
+const deckSum = t => { const d = C.parseDeck(t); return { cards: d.cards.map(c => c.qty + ' ' + c.name), basics: d.basicCopies, side: C.dkSideCards(t).map(c => c.qty + ' ' + c.name), ignored: d.ignored }; };
+test('decklist Moxfield (export MTGA) : About / Name ignorés, Commander gardé, Sideboard = réserve, Maybeboard et Tokens hors du deck', () => {
+  const t = 'About\nName Atraxa Superfriends\n\nCommander\n1 Atraxa, Praetors\' Voice (2X2) 190\n\nDeck\n1 Sol Ring (CMM) 400\n1 Arcane Signet (CMM) 297\n30 Forest (CMM) 449\n\nSideboard\n1 Negate (M20) 69\n\nMaybeboard\n1 Mana Crypt (2XM) 270\n\nTokens\n1 Treasure (TCMM) 21';
+  assert.deepEqual(deckSum(t), { cards: ['1 Atraxa, Praetors\' Voice', '1 Sol Ring', '1 Arcane Signet'], basics: 30, side: ['1 Negate'], ignored: 0 });
+  assert.deepEqual(C.dkCount(t), { n: 33, size: 100 }, 'Mes decks : 33 cartes, ni réserve ni maybeboard');
+  const v = C.dkValue(t, k => ({ eu: k === 'mana crypt' ? 15000 : 100 })); assert.deepEqual([v.cents, v.total], [300, 3], 'valeur : Mana Crypt (maybeboard) non chiffrée');
+  assert.deepEqual(C.dkParse(t).main.map(c => c.name), ['Sol Ring', 'Arcane Signet', 'Forest'], 'éditeur : Tokens et Name laissés de côté'); assert.deepEqual(C.dkParse(t).side.map(c => c.name), ['Negate']);
+});
+test('decklist Moxfield (texte) et Archidekt : en-têtes en capitales avec « : », comptes « (n) », « 1x », commentaires « // Sideboard »', () => {
+  assert.deepEqual(deckSum('1 Sol Ring\n1 Arcane Signet\n\nSIDEBOARD:\n1 Negate\n\nMAYBEBOARD:\n1 Mana Crypt'), { cards: ['1 Sol Ring', '1 Arcane Signet'], basics: 0, side: ['1 Negate'], ignored: 0 });
+  assert.deepEqual(deckSum('Commander (1)\n1x Edgar Markov\n\nCreature (1)\n1x Bloodline Keeper\n\nConsidering (2)\n1x Mana Crypt\n1x Mana Vault\n\nLand (1)\n10x Swamp'),
+    { cards: ['1 Edgar Markov', '1 Bloodline Keeper'], basics: 10, side: [], ignored: 0 }, 'Considering : jusqu\'à l\'en-tête suivant (Land), les lignes vides n\'y mettent pas fin ; Swamp après « Land » dans le deck');
+  assert.deepEqual(deckSum('4 Lightning Bolt\n// Sideboard\n2 Negate\n// Maybeboard\n1 Duress'), { cards: ['4 Lightning Bolt'], basics: 0, side: ['2 Negate'], ignored: 0 }, '« // Sideboard » (deckstats, Cockatrice) : un en-tête aussi');
+  assert.deepEqual(deckSum('Commanders\n1 Edgar Markov\n\nDeck\n1 Sol Ring'), { cards: ['1 Edgar Markov', '1 Sol Ring'], basics: 0, side: [], ignored: 0 }, '« Commanders » : un en-tête, pas une carte');
+  assert.deepEqual(deckSum('Deck\n1 Sol Ring\n\nMaybeboard\n1 Arcane Signet'), { cards: ['1 Sol Ring'], basics: 0, side: [], ignored: 0 }, 'repro de l\'audit : 1 carte à chercher, pas 2');
+});
+test('decklist MTGA (Arena) : Companion gardé, Sideboard = réserve (comme « SB: »), même chiffre qu\'un deck de l\'éditeur', () => {
+  const t = 'Companion\n1 Lurrus of the Dream-Den (IKO) 226\n\nDeck\n4 Lightning Bolt (STA) 42\n20 Mountain (ZNR) 279\n\nSideboard\n1 Lurrus of the Dream-Den (IKO) 226\n2 Negate (M20) 69';
+  assert.deepEqual(deckSum(t), { cards: ['1 Lurrus of the Dream-Den', '4 Lightning Bolt'], basics: 20, side: ['1 Lurrus of the Dream-Den', '2 Negate'], ignored: 0 });
+  const sb = '4 Lightning Bolt\n20 Mountain\nSB: 2 Negate';
+  assert.deepEqual([C.parseDeck(sb).copies, C.dkSideCards(sb).length], [C.parseDeck('Deck\n4 Lightning Bolt\n20 Mountain\n\nSideboard\n2 Negate').copies, C.dkSideCards('Deck\n4 Lightning Bolt\n\nSideboard\n2 Negate').length], 'Sideboard et SB: : même traitement');
+  assert.deepEqual(C.engSnapshot('Deck\n4 Lightning Bolt\n\nSideboard\n2 Negate', () => 9), { 'lightning bolt': 4, negate: 2 }, 'deck monté : la réserve d\'un export est mise de côté comme « SB: »');
+});
+test('decklist MTGO / MTGA sans en-tête : 60 cartes, ligne vide, puis la réserve (15 au plus, sans terrain de base) ; sinon tout reste dans le deck', () => {
+  const main = '4 Lightning Bolt\n4 Monastery Swiftspear\n4 Goblin Guide\n4 Lava Spike\n4 Rift Bolt\n4 Skewer the Critics\n4 Searing Blaze\n4 Eidolon of the Great Revel\n4 Light Up the Stage\n4 Boros Charm\n20 Mountain';
+  assert.deepEqual(deckSum(main + '\n\n2 Negate\n3 Smash to Smithereens'), { cards: main.split('\n').slice(0, 10).map(l => l), basics: 20, side: ['2 Negate', '3 Smash to Smithereens'], ignored: 0 });
+  assert.equal(C.parseDeck(main + '\n\n2 Negate\n3 Smash to Smithereens').copies, 60, 'MTGO : 60 cartes, la réserve à part');
+  assert.equal(C.parseDeck('4 Lightning Bolt\n\n2 Negate').cards.length, 2, 'liste courte : la ligne vide ne sépare rien');
+  assert.equal(C.parseDeck(main.replace('20 Mountain', '10 Goblin Bushwhacker') + '\n\n10 Mountain').basicCopies, 10, 'bloc de terrains de base après une ligne vide : dans le deck');
+  assert.equal(C.parseDeck(main + '\n\n2 Negate\n\n1 Duress').cards.length, 12, 'trois blocs : rien n\'est pris pour une réserve');
+  assert.equal(C.parseDeck(main + '\n\n16 Negate').cards.length, 11, 'plus de 15 cartes : pas une réserve');
+});
