@@ -65,7 +65,7 @@ async function auGrab() {
   const sig = c => auSig(c, scanFull() ? cardNameBox(c.width, c.height) : null).dev;      // carte entière : le contraste de la zone du nom
   if (NAT.on) { const c = await natCapture(85); return { src: c, dev: sig(c) }; }
   const v = $('.sc-video', SC.el), b = scanGuideBox(); if (!b || !v) return null;
-  const c = document.createElement('canvas'); c.width = b.w; c.height = b.h; c.getContext('2d').drawImage(v, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+  const c = document.createElement('canvas'); c.width = b.w; c.height = b.h; c.getContext('2d').drawImage(v, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h); capFoot(c, v, b);
   return { src: c, dev: sig(c) };
 }
 async function auTick(g) {
