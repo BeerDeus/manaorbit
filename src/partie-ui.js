@@ -15,7 +15,7 @@
    · Grande table sur deux téléphones (5 à 8 joueurs) : « Répartir sur 2 téléphones », un 2e téléphone devient l'écran 2 (?table=CODE › « Devenir l'écran 2 ») ; chacun
      sa moitié de la table en affichage A (puLayoutHalf), bascule « Ma moitié · L'autre moitié · Toute la table ». Table en direct : illustration du commandant en fond.
    Aucune publicité pendant la partie (écran plein, au-dessus de tout). Écran gardé allumé (Wake Lock) pendant le compteur. */
-const PU = { el: null, st: null, mode: '', room: null, view: null, on: [], net: true, stopW: null, wl: null, gone: new Set(), deltas: {}, hold: null, joinEl: null, roomTry: false };
+const PU = { el: null, st: null, mode: '', room: null, view: null, on: [], net: true, stopW: null, gone: new Set(), deltas: {}, hold: new Map(), joinEl: null, roomTry: false };
 const PU_AFF_KEY = 'deckdeal:partie:aff', PU_AFFS = ['A', 'B', 'C'];
 const PU_CNT = [['poison', 'Poison'], ['impot', 'Impôt de commandant'], ['energie', 'Énergie'], ['experience', 'Expérience']];
 const PU_HEART = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.4 7.6 3.6 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.4 0 5.6 3.1 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
@@ -82,21 +82,13 @@ function puOpen(st) {
   wrap.addEventListener('contextmenu', e => { if (e.target.closest('.pu-hit')) e.preventDefault(); });
   document.body.appendChild(wrap); holdApp(); puPaint();
   requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('on')));
-  document.addEventListener('visibilitychange', puVis);
   const rm = partieRoom(); PU.lvJ = ''; PU.lvOff = '';
   if (rm && rm.host && rm.id === st.id && !st.fin && !PU.stopW) { puWatch(); if (st.debut) { partieRoomPace(true); puLiveSoon(); } }      // partie reprise : la table suit de nouveau (saisies des autres téléphones, état envoyé)
 }
 function puClose() {
   const w = PU.el; if (!w) return; PU.el = null;
-  puWatchStop(); puWake(false); document.removeEventListener('visibilitychange', puVis);
+  puWatchStop(); natAwake(false, 'partie'); for (const h of PU.hold.values()) clearTimeout(h.t); PU.hold.clear();
   w.classList.remove('on'); setTimeout(() => w.remove(), reduceMotion() ? 0 : 240); releaseApp(); puHomePaint();
-}
-function puVis() { if (!document.hidden && PU.el && PU.mode === 'game') puWake(true); }
-/** Écran allumé pendant le compteur (Wake Lock, si le navigateur l'a). */
-async function puWake(on) {
-  if (!on) { if (PU.wl) { try { PU.wl.release(); } catch (e) { /* déjà relâché */ } PU.wl = null; } return; }
-  if (PU.wl || !navigator.wakeLock || document.visibilityState !== 'visible') return;
-  try { PU.wl = await navigator.wakeLock.request('screen'); PU.wl.addEventListener('release', () => { PU.wl = null; }); } catch (e) { PU.wl = null; }
 }
 /** Nouvel état (action du moteur) : gardé sur l'appareil, repeint. Même objet : action refusée, rien ne bouge. */
 function puSet(next, o = {}) {
@@ -113,8 +105,9 @@ function puPaint() {
   PU.mode = st.fin ? 'end' : st.debut ? 'game' : 'setup';
   el.classList.toggle('pu-game', PU.mode === 'game');
   if (PU.mode === 'setup') puSetupPaint();
-  else if (PU.mode === 'game') { puGamePaint(); puWake(true); }
+  else if (PU.mode === 'game') puGamePaint();
   else puEndPaint();
+  natAwake(PU.mode === 'game', 'partie');      // écran gardé allumé pendant le compteur (appli Android : la coque ; navigateur : Wake Lock, native.js)
   if (PU.mode !== 'end') puDuoSync();
 }
 
@@ -393,17 +386,19 @@ function puPaintTile(pos) {
   const n = tmp.firstElementChild; puKeepArt($$('img.pu-art', t), n); t.replaceWith(n);
   return n;
 }
-/* Appui maintenu sur une moitié de tuile : ±10 tout de suite, puis toutes les 0,5 s ; appui court : ±1 (au relâché). */
+/* Appui maintenu sur une moitié de tuile : ±10 tout de suite, puis toutes les 0,5 s ; appui court : ±1 (au relâché). Un appui par doigt (pointerId) :
+   plusieurs joueurs qui touchent en même temps comptent chacun le leur, sans s'annuler. */
 function puDown(e) {
   const h = e.target.closest('.pu-hit'); if (!h || PU.mode !== 'game') return;
-  const t = h.closest('.pu-t'), pos = Number(t.dataset.pos), d = Number(h.dataset.d);
-  puCancel(); PU.hold = { pos, d, long: false, t: setTimeout(function rep() { if (!PU.hold) return; PU.hold.long = true; puLife(pos, d * 10); PU.hold.t = setTimeout(rep, 500); }, 450) };
+  const t = h.closest('.pu-t'), pos = Number(t.dataset.pos), d = Number(h.dataset.d), id = e.pointerId;
+  puCancel(e); const H = { pos, d, long: false, t: setTimeout(function rep() { if (PU.hold.get(id) !== H) return; H.long = true; puLife(pos, d * 10); H.t = setTimeout(rep, 500); }, 450) };
+  PU.hold.set(id, H);
 }
 function puUp(e) {
-  const h = PU.hold; if (!h) return; clearTimeout(h.t); PU.hold = null;
+  const h = PU.hold.get(e.pointerId); if (!h) return; clearTimeout(h.t); PU.hold.delete(e.pointerId);
   if (!h.long && e.target.closest && e.target.closest('.pu-hit')) puLife(h.pos, h.d);
 }
-function puCancel() { if (PU.hold) { clearTimeout(PU.hold.t); PU.hold = null; } }
+function puCancel(e) { const h = PU.hold.get(e.pointerId); if (h) { clearTimeout(h.t); PU.hold.delete(e.pointerId); } }
 
 /** Fiche d'un joueur : vie, blessures de commandant (par adversaire, 2e commandant pour les partenaires), compteurs, monarque, initiative, élimination, nom. */
 function puPlayerSheet(pos) {
@@ -681,7 +676,7 @@ function puEndSheet() {
     api.setFoot(`<button class="btn ghost" type="button" data-nw>${T('Aucun vainqueur')}</button><button class="btn" type="button" data-ok>${T('Terminer')}</button>`);
     api.foot.addEventListener('click', e => {
       const none = e.target.closest('[data-nw]'), ok = e.target.closest('[data-ok]'); if (!none && !ok) return;
-      api.close(); const fin = partieEnd(PU.st, none ? [] : [...win]); PU.res = partieDone(fin); PU.st = fin; haptic('ok'); puWake(false); puPaint(); puHomePaint();
+      api.close(); const fin = partieEnd(PU.st, none ? [] : [...win]); PU.res = partieDone(fin); PU.st = fin; haptic('ok'); puPaint(); puHomePaint();
       const me = fin.places.find(p => p.sorte === 'moi'); if (me && win.has(me.pos) && !none && typeof rateMoment === 'function') rateMoment('partie');
       if (me && typeof prgGame === 'function') prgGame(fin, me, Math.min(PU.low ?? Infinity, me.vie));      // « Revenant », « Bourreau »… (progress.js)      // victoire : un bon moment pour demander une note (help.js, appli Android)
     });
@@ -793,23 +788,17 @@ function puJoin(code) {
   const wrap = document.createElement('div'); wrap.className = 'dv pu pu-join'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Rejoindre la partie'));
   const pref = puJoinPref();
   const J = { code, peek: null, err: '', end: '', endName: '', guest: false, pos: 0, deck: pref.d || '', name: pref.n || '', cmd: pref.c || '', joined: partieRoom() && partieRoom().c === code ? partieRoom() : null, view: null, stop: null,
-    t0: Date.now(), acct: null, live: !!pref.live, lv: null, net: true, on: [], buf: [], pend: [], bt: 0, sending: false, hold: null, shown: {}, dl: {}, prev: null, wl: null, sheet: null,
+    t0: Date.now(), acct: null, live: !!pref.live, lv: null, net: true, on: [], buf: [], pend: [], bt: 0, sending: false, hold: new Map(), shown: {}, dl: {}, prev: null, sheet: null,
     ecran: false, see: 'me', artTried: new Set(), artRun: false };      // ecran : ce téléphone est l'écran 2 de la table (deux téléphones) ; see : sa vue (ma moitié, l'autre, toute la table)
   J.ecran = !!(J.joined && J.joined.ecran);
   PU.joinEl = wrap;
-  wrap.__close = () => { if (J.stop) J.stop(); partieRoomPace(false); lock(false); clearTimeout(J.bt); document.removeEventListener('visibilitychange', vis); PU.joinEl = null; wrap.classList.remove('on'); setTimeout(() => wrap.remove(), 240); releaseApp(); };
+  wrap.__close = () => { if (J.stop) J.stop(); partieRoomPace(false); lock(false); clearTimeout(J.bt); for (const h of J.hold.values()) clearTimeout(h.t); J.hold.clear(); PU.joinEl = null; wrap.classList.remove('on'); setTimeout(() => wrap.remove(), 240); releaseApp(); };
   const decks = () => (D.user && typeof allDecks === 'function' ? allDecks().filter(d => d && d.name) : []);
   const authWait = () => !D.authReady && !!D.hint && Date.now() - J.t0 < 8000;      // compte connu de cet appareil, session pas encore revenue : on l'attend (jamais l'écran de connexion pour rien)
   const hostName = () => { const h = ((J.view || {}).places || []).find(x => x.h); return (h && h.n) || (J.peek && J.peek.host) || ''; };
   const liveOn = () => !!(J.joined && J.view && ((J.view.st === 'live' && J.live) || (J.ecran && (J.view.st === 'live' || J.view.st === 'wait'))));      // l'écran 2 : allumé dès qu'il est posé
-  /* Écran gardé allumé pendant que la partie se suit en direct (Wake Lock, comme le compteur). */
-  async function lock(on) {
-    if (!on) { if (J.wl) { try { J.wl.release(); } catch (e) { /* déjà relâché */ } J.wl = null; } return; }
-    if (J.wl || !navigator.wakeLock || document.visibilityState !== 'visible') return;
-    try { J.wl = await navigator.wakeLock.request('screen'); J.wl.addEventListener('release', () => { J.wl = null; }); } catch (e) { J.wl = null; }
-  }
-  const vis = () => { if (!document.hidden && liveOn()) lock(true); };
-  document.addEventListener('visibilitychange', vis);
+  /* Écran gardé allumé pendant que la partie se suit en direct (comme le compteur : la coque dans l'appli Android, Wake Lock sinon ; native.js). */
+  const lock = on => natAwake(on, 'table');
 
   /* ── Saisie depuis ce téléphone : deltas regroupés (300 ms), envoyés avec un identifiant (refaits sans doublon après une coupure), affichés tout de suite ── */
   const unacked = () => { const a = (J.lv && J.lv.ack) || 0; return J.pend.filter(x => !x.s || x.s > a); };
@@ -1046,15 +1035,18 @@ function puJoin(code) {
   };
   wrap.addEventListener('input', e => { if (e.target.id === 'puJn') J.name = e.target.value; else if (e.target.id === 'puJc') J.cmd = e.target.value; });      // gardés quand l'écran se repeint (choix de la place)
   wrap.addEventListener('change', e => { if (e.target.closest('[data-j="deck"]')) J.deck = e.target.value; });
-  /* ±1 d'un appui, ±10 maintenu (puis toutes les 0,5 s), comme le compteur ; le repeint pendant l'appui ne l'interrompt pas (suivi au niveau de l'écran). */
+  /* ±1 d'un appui, ±10 maintenu (puis toutes les 0,5 s), comme le compteur ; le repeint pendant l'appui ne l'interrompt pas (suivi au niveau de l'écran).
+     Un appui par doigt (pointerId) : deux joueurs qui touchent l'écran 2 en même temps comptent chacun le leur. */
   /* Écran 2 : les moitiés − / + des tuiles (comme le compteur du créateur) ; la moitié touchée s'allume un instant. */
   const hitOf = b => { const t = b.closest('[data-lp], .pu-t'); return { pos: Number(t.dataset.lp || t.dataset.pos), d: Number(b.dataset.lv || b.dataset.d) }; };
   const life = (pos, n) => { add({ pos, k: 'v', n }); const h = J.ecran && $(`.pu-t[data-pos="${pos}"] .pu-hit.${n < 0 ? 'm' : 'p'}`, wrap); if (h) h.classList.add('fl'); };
   wrap.addEventListener('pointerdown', e => {
     const b = e.target.closest('.pu-lv-b, .pu-hit'); if (!b) return; const { pos, d } = hitOf(b);
-    clearTimeout(J.hold && J.hold.t); J.hold = { pos, d, long: false, t: setTimeout(function rep() { if (!J.hold) return; J.hold.long = true; life(pos, d * 10); J.hold.t = setTimeout(rep, 500); }, 450) };
+    const id = e.pointerId, o = J.hold.get(id); if (o) clearTimeout(o.t);
+    const H = { pos, d, long: false, t: setTimeout(function rep() { if (J.hold.get(id) !== H) return; H.long = true; life(pos, d * 10); H.t = setTimeout(rep, 500); }, 450) };
+    J.hold.set(id, H);
   });
-  const up = e => { const h = J.hold; if (!h) return; clearTimeout(h.t); J.hold = null; J.ptr = Date.now(); if (!h.long && e.type === 'pointerup') life(h.pos, h.d); };
+  const up = e => { const h = J.hold.get(e.pointerId); if (!h) return; clearTimeout(h.t); J.hold.delete(e.pointerId); J.ptr = Date.now(); if (!h.long && e.type === 'pointerup') life(h.pos, h.d); };
   wrap.addEventListener('pointerup', up); wrap.addEventListener('pointercancel', up);
   wrap.addEventListener('contextmenu', e => { if (e.target.closest('.pu-lv-b, .pu-hit')) e.preventDefault(); });
   wrap.addEventListener('click', async e => {

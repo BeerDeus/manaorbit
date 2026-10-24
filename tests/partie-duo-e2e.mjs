@@ -105,7 +105,14 @@ await A.p.waitForFunction(() => PU.st.places.find(p => p.pos === 4).vie === 30, 
 await E.p.click('.pu-t[data-pos="3"] .pu-nm'); await E.p.waitForSelector('.pu-lvsheet [data-k="b"][data-s="1"][data-n="1"]');
 await E.p.click('.pu-lvsheet [data-k="b"][data-s="1"][data-n="1"]'); await closeSheets(E.p);
 await A.p.waitForFunction(() => { const p = PU.st.places.find(x => x.pos === 3); return p.blessures['1'] === 1 && p.vie === 37; }, null, { timeout: 15000 });
-ok('saisie depuis l\'écran 2 (−1 ×2 : affiché tout de suite, écart « −2 » ; maintenu −10 ; fiche : blessures de commandant) appliquée par l\'hôte ; −1 de l\'hôte vu par l\'écran 2');
+// deux joueurs qui touchent l'écran 2 presque ensemble : un appui suivi par doigt, chacun son ±1 au bon joueur (relâchés dans un ordre ou dans l'autre)
+const touch = (ty, pos, d, id) => E.p.evaluate(([ty, pos, d, id]) => { document.querySelector(`.pu-t[data-pos="${pos}"] .pu-hit.${d < 0 ? 'm' : 'p'}`).dispatchEvent(new PointerEvent(ty, { bubbles: true, pointerId: id, pointerType: 'touch', isPrimary: id === 11 })); }, [ty, pos, d, id]);
+await touch('pointerdown', 2, -1, 11); await touch('pointerdown', 4, -1, 12); await touch('pointerup', 2, -1, 11); await touch('pointerup', 4, -1, 12);
+assert.deepEqual([await scrLife(2), await scrLife(4)], ['38', '29'], 'deux doigts : −1 chacun');
+await A.p.waitForFunction(() => PU.st.places.find(p => p.pos === 2).vie === 38 && PU.st.places.find(p => p.pos === 4).vie === 29, null, { timeout: 15000 });
+await touch('pointerdown', 2, 1, 11); await touch('pointerdown', 4, 1, 12); await touch('pointerup', 4, 1, 12); await touch('pointerup', 2, 1, 11);
+await A.p.waitForFunction(() => PU.st.places.find(p => p.pos === 2).vie === 39 && PU.st.places.find(p => p.pos === 4).vie === 30, null, { timeout: 15000 });
+ok('saisie depuis l\'écran 2 (−1 ×2 : affiché tout de suite, écart « −2 » ; maintenu −10 ; fiche : blessures de commandant ; deux doigts en même temps : chacun le sien) appliquée par l\'hôte ; −1 de l\'hôte vu par l\'écran 2');
 
 /* ── Tour suivant depuis l'écran 2 (menu du bouton rond, puis « Fin du tour » sur la tuile active) ────────────────────────────────── */
 await E.p.click('.pu-mid'); await E.p.waitForSelector('.sheet [data-sm="next"]'); await E.p.click('.sheet [data-sm="next"]');

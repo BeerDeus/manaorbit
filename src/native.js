@@ -18,28 +18,40 @@ function natBright(full) {
 }
 if (typeof document !== 'undefined') setTimeout(() => { try { if (sessionStorage.getItem('deckdeal:bright')) natBright(false); } catch (e) { /* stockage bloqué */ } }, 0);
 
-/** Écran gardé allumé (scan ouvert : sans ça, la mise en veille automatique du téléphone l'éteint en plein cadrage) ou rendu à la veille habituelle.
+/** Écran gardé allumé (scan ouvert : sans ça, la mise en veille automatique du téléphone l'éteint en plein cadrage ; aussi compteur de vie, table en
+    direct, QR codes affichés, échange en vrai) ou rendu à la veille habituelle. Chaque écran demande sous son nom (who) : l'écran reste allumé tant
+    qu'un écran encore ouvert le demande (le QR joueur refermé par-dessus le compteur ne rend pas la veille).
     APK 1.0.10 et plus : ManaOrbit.keepAwake (le WebView n'a pas navigator.wakeLock). Navigateur, PWA ou APK plus ancienne : Wake Lock du navigateur s'il
-    l'a (il tombe quand on quitte la page : repris au retour). Page rechargée scan ouvert : écran rendu à la veille au lancement. */
-const AWAKE = { on: false, wl: null };
-function natAwake(on) {
-  AWAKE.on = !!on;
+    l'a (il tombe quand on quitte la page : repris au retour). Page rechargée écran allumé : rendu à la veille au lancement.
+    → promesse : l'écran est-il gardé allumé (false : navigateur sans Wake Lock, ou verrou refusé). */
+const AWAKE = { on: false, wl: null, req: null, by: new Set() };
+function natAwake(on, who = 'scan') {
+  const was = AWAKE.on;
+  if (on) AWAKE.by.add(who); else AWAKE.by.delete(who);
+  AWAKE.on = AWAKE.by.size > 0;
   const mo = natPlugin('ManaOrbit');
   if (mo && typeof mo.keepAwake === 'function') {
-    try { if (on) sessionStorage.setItem('deckdeal:awake', '1'); else sessionStorage.removeItem('deckdeal:awake'); } catch (e) { /* stockage bloqué */ }
-    Promise.resolve().then(() => mo.keepAwake({ on: !!on })).catch(() => {});
-    return;
+    if (AWAKE.on !== was) awakeNat(mo, AWAKE.on);      // seulement quand le premier écran le demande, ou que le dernier le rend
+    return Promise.resolve(AWAKE.on);
   }
-  if (on) { awakeLock(); return; }
+  if (AWAKE.on) return awakeLock().then(() => !!AWAKE.wl);
   try { if (AWAKE.wl) AWAKE.wl.release(); } catch (e) { /* déjà relâché */ } AWAKE.wl = null;
+  return Promise.resolve(false);
 }
-async function awakeLock() {
-  if (!AWAKE.on || AWAKE.wl || typeof navigator === 'undefined' || !navigator.wakeLock || document.visibilityState !== 'visible') return;
-  try { const l = await navigator.wakeLock.request('screen'); if (!AWAKE.on) { l.release(); return; } AWAKE.wl = l; if (l.addEventListener) l.addEventListener('release', () => { if (AWAKE.wl === l) AWAKE.wl = null; }); } catch (e) { AWAKE.wl = null; }      // refusé (économie d'énergie) : l'écran s'éteindra comme d'habitude
+function awakeNat(mo, on) {
+  try { if (on) sessionStorage.setItem('deckdeal:awake', '1'); else sessionStorage.removeItem('deckdeal:awake'); } catch (e) { /* stockage bloqué */ }
+  Promise.resolve().then(() => mo.keepAwake({ on: !!on })).catch(() => {});
+}
+function awakeLock() {
+  if (!AWAKE.on || AWAKE.wl || typeof navigator === 'undefined' || !navigator.wakeLock || document.visibilityState !== 'visible') return Promise.resolve();
+  return AWAKE.req || (AWAKE.req = (async () => {      // demande déjà en route (deux écrans à la suite) : la même, attendue par les deux
+    try { const l = await navigator.wakeLock.request('screen'); if (!AWAKE.on) { l.release(); return; } AWAKE.wl = l; if (l.addEventListener) l.addEventListener('release', () => { if (AWAKE.wl === l) AWAKE.wl = null; }); } catch (e) { AWAKE.wl = null; }      // refusé (économie d'énergie) : l'écran s'éteindra comme d'habitude
+    finally { AWAKE.req = null; }
+  })());
 }
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') awakeLock(); });
-  setTimeout(() => { try { if (sessionStorage.getItem('deckdeal:awake')) natAwake(false); } catch (e) { /* stockage bloqué */ } }, 0);
+  setTimeout(() => { try { const mo = natPlugin('ManaOrbit'); if (sessionStorage.getItem('deckdeal:awake') && !AWAKE.on && mo && typeof mo.keepAwake === 'function') awakeNat(mo, false); } catch (e) { /* stockage bloqué */ } }, 0);
 }
 
 /* ── Plein écran (appli Android) : barre d'état cachée, barre de gestes gardée ───────────────────────────────────────────────────────────────
