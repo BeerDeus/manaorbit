@@ -773,10 +773,19 @@ function partieLiveClean(o, jeu) {
   const j = PRT_JEUX.includes(jeu) ? jeu : 'commander';
   const st = partieStateClean({ v: PRT_V, id: 'partielive', jeu: j, format: PRT_JEU[j].def, tour: o.tour, actif: o.actif, monarque: o.monarque, initiative: o.initiative, debut: 1, rq: { s: o.ack, ids: [], off: o.lock },
     places: o.places.map(p => (p && typeof p === 'object' ? { pos: p.pos, sorte: 'invite', nom: p.nom, deck: p.deck, vie: p.vie, blessures: p.blessures, compteurs: p.compteurs, elimine: p.elimine ? { ...p.elimine, tour: 0, n: 0 } : null } : null)) });
-  return st ? partieLive(st) : null;
+  const r = st ? partieLive(st) : null, de = r && partieDeClean(o.de); if (de) r.de = de;
+  return r;
 }
-/** Le créateur envoie l'état du compteur à la salle (op live { g }). → { ok, v }. */
-const partieRoomLive = (st, o = {}) => partieRoomOp('live', { g: partieLive(st) }, o);
+/** Dernier tirage de la table joint à l'état en direct (dés, pièce, premier joueur : partie-jeu.js) : { id, k ('d4' … 'd20' | 'pf' pile ou face | 'j1' premier joueur),
+ *  v (valeur ; pile 0, face 1 ; place du premier joueur), a (âge en secondes) } ; null s'il est illisible. Une appli d'avant l'ignore (champ en plus). */
+const PRT_DE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'pf', 'j1'];
+function partieDeClean(d) {
+  if (!d || typeof d !== 'object' || typeof d.id !== 'string' || !/^[a-z0-9]{4,16}$/.test(d.id) || !PRT_DE.includes(d.k)) return null;
+  const lo = d.k === 'pf' ? 0 : 1, hi = d.k === 'pf' ? 1 : d.k === 'j1' ? PRT_POS_MAX : Number(d.k.slice(1)), v = partieInt(d.v, lo, hi), a = partieInt(d.a, 0, 3600);
+  return v == null ? null : { id: d.id, k: d.k, v, a: a == null ? 0 : a };
+}
+/** Le créateur envoie l'état du compteur à la salle (op live { g }) ; x : à joindre (tirage : { de }). → { ok, v }. */
+const partieRoomLive = (st, o = {}, x = null) => partieRoomOp('live', { g: { ...partieLive(st), ...(x || {}) } }, o);
 /** Places de la partie d'après la salle (créateur, avant le début) : sa place « moi », les comptes (uid : jeton du serveur, donné au lancement), les invités. */
 function partieFromRoom(st, view) {
   if (!view || !Array.isArray(view.places) || !partieSetup(st)) return st;
@@ -960,7 +969,7 @@ if (typeof module !== 'undefined' && module.exports) {
     partieLife, partieCmdDamage, partieCounter, partieMark, partieMonarch, partieInitiative, partieEliminate, partieRevive, partieStart, partieFirst, partieNextTurn, partieEnd, partieSetRanks, partieUndo,
     partieProposals, partieRanks, partieResult, partieResClean, partieHistClean, partieStats, partieCk, encodeResult, decodeResult, partieResultLink, partieTableLink, partieParseUrl,
     partieStateClean, partieSave, partieLoad, partieClear, partieStale, partieSavedAt, PRT_AT, PRT_IDLE_SETUP, PRT_IDLE_GAME, partieHist, partieHistAdd, partieHistDrop, partieQueue, partieEnqueue, partieDone, partieClaim, partieFlush, partieKick, partieWipe, partieHistFetch, partieHistDelete,
-    partieRoom, partieRoomCreate, partiePeek, partieRoomJoin, partieRoomOp, partieRoomLeave, partieRoomEnd, partieRoomEndFlush, partieLive, partieLiveClean, partieRoomLive, partieRoomPace, PRT_ROOM_END, partieRemote, partieRemoteOff, PRT_DQ_ID_RE, PRT_DQ_N,
+    partieRoom, partieRoomCreate, partiePeek, partieRoomJoin, partieRoomOp, partieRoomLeave, partieRoomEnd, partieRoomEndFlush, partieLive, partieLiveClean, partieDeClean, PRT_DE, partieRoomLive, partieRoomPace, PRT_ROOM_END, partieRemote, partieRemoteOff, PRT_DQ_ID_RE, PRT_DQ_N,
     partieFromRoom, partieRoomResult, partieRoomWatch, partieRoomStop, partieInit, partieUser, partieWake,
     PRT_CARTE, PRT_PK, PRT_JOUEUR_MAX, partieCarteRead, partieCarteCheck, partiePk, partiePkKeep, partieImgPack, partieImgUnpack, partieJoueurText, partieJoueurParse, partieCarte, partieCarteGet, partieCarteSoon };
 }

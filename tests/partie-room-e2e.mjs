@@ -66,6 +66,20 @@ await A.p.click('[data-pu="guest"]'); await A.p.waitForSelector('#puGn'); await 
 await A.p.waitForFunction(() => PU.st.places.length === 4 && PU.view && PU.view.places.length === 4, null, { timeout: 10000 });
 await A.p.waitForFunction(() => document.querySelectorAll('.pu-dev.on').length >= 3, null, { timeout: 10000 });
 await A.p.screenshot({ path: 'shots/partie-room-3-salle.png' });
+// ordre des places : Alice fait monter Bob (↑) ; la salle suit, Bob et Carol voient leur nouvelle place ; puis le glisse à sa place d'avant
+await A.p.click('[data-pu="ord"]'); await A.p.waitForSelector('.pu-seat.ord');
+await A.p.click('.pu-seat:nth-child(3) [data-pu="seat-up"]');
+await A.p.waitForFunction(() => PU.view.places.find(x => x.pos === 2).n === 'Bob' && PU.view.places.find(x => x.pos === 3).n === 'Carol', null, { timeout: 10000 });
+assert.deepEqual(await A.p.evaluate(() => PU.st.places.map(p => [p.pos, p.nom])), [[1, 'Alice'], [2, 'Bob'], [3, 'Carol'], [4, 'Dan']], 'chez Alice');
+await B.p.waitForFunction(() => /Tu es à la place 2/.test(document.querySelector('.pu-wait').textContent), null, { timeout: 15000 });
+await C.p.waitForFunction(() => /Tu es à la place 3/.test(document.querySelector('.pu-wait').textContent), null, { timeout: 15000 });
+await A.p.screenshot({ path: 'shots/partie-room-3b-ordre.png' });
+const gb = await (await A.p.$('.pu-seat:nth-child(2) .pu-grip')).boundingBox(), r3 = await (await A.p.$('.pu-seat:nth-child(3)')).boundingBox();
+await A.p.mouse.move(gb.x + 20, gb.y + 20); await A.p.mouse.down(); await A.p.mouse.move(gb.x + 20, gb.y + 30, { steps: 3 }); await A.p.mouse.move(gb.x + 20, r3.y + r3.height - 6, { steps: 8 }); await A.p.mouse.up();
+await A.p.waitForFunction(() => PU.view.places.find(x => x.pos === 2).n === 'Carol' && PU.view.places.find(x => x.pos === 3).n === 'Bob', null, { timeout: 10000 });
+await B.p.waitForFunction(() => /Tu es à la place 3/.test(document.querySelector('.pu-wait').textContent), null, { timeout: 15000 });
+await A.p.click('[data-pu="ord"]');
+ok('ordre des places : ↑ puis glisser-déposer chez Alice, la salle suit (op move), Bob et Carol voient leur place changer');
 await A.p.click('[data-pu="start"]'); await A.p.waitForSelector('.pu.pu-game', { timeout: 10000 });
 assert.ok(await A.p.evaluate(() => /^[\w-]{20,}$/.test(PU.st.places.find(p => p.pos === 2).uid || '')), 'Carol : jeton du serveur');
 await B.p.waitForFunction(() => /Partie en cours/.test(document.querySelector('.pu-wait').textContent), null, { timeout: 20000 });

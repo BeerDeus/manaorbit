@@ -1387,7 +1387,7 @@
   const FAM = { page: 'Page et fichiers', prix: 'Prix et recherches CardTrader', alertes: 'Alertes de prix', troc: 'Échange en direct', partie: 'Parties (compteur de vie)', mystere: 'Carte mystère', discord: 'Discord et avis', admin: 'Administration', autres: 'Autres (amis, decks publics, imports…)' };
   const CACHE = { ct: ['Catalogues CardTrader', 'CACHE_MAX_MB'], offers: ['Offres CardTrader', 'OFFERS_CACHE_MB'], jobs: ['Résultats des recherches', 'JOB_RESULTS_MB'], troc: ['Listes des échanges en direct', 'TROC_MB'],
     ptlive: ['Parties en cours (au plus)', 'PARTIE_LIVE_KB × PARTIE_MAX'], pthist: ['Historiques des parties', 'PARTIE_CACHE_MB'], amis: ['Amis', 'FRIENDS_CACHE_MB'], files: ['Page et catalogues compressés', ''], data: ['Copies des prix et d\'EDHREC', ''] };
-  const SIG = { rss: 'mémoire proche du plafond de l\'offre', heap: 'mémoire de Node proche de sa limite', cpu: 'processeur chargé', lag: 'serveur lent à répondre', restarts: 'redémarrages sans nouvelle version', jobs: 'recherches CardTrader refusées (serveur complet)', up: 'file d\'attente vers CardTrader' };
+  const SIG = { rss: 'mémoire proche du plafond de l\'offre', heap: 'mémoire de Node proche de sa limite', cpu: 'processeur chargé', lag: 'serveur lent à répondre', restarts: 'redémarrages imprévus (plantages)', jobs: 'recherches CardTrader refusées (serveur complet)', up: 'file d\'attente vers CardTrader' };
   /** Indicateur : pastille de couleur (niveau), libellé, valeur, barre facultative (part d'un plafond), petit texte dessous. data-lv="bad" : compté dans la pastille de l'onglet. */
   function hi(label, val, o = {}) {
     const lv = o.lv || '', bar = o.part != null && Number.isFinite(o.part) ? h('span', { class: 'hbar', 'aria-hidden': 'true' }, h('i', { 'data-w': String(Math.max(0, Math.min(100, Math.round(o.part * 100)))) })) : null;
@@ -1428,7 +1428,7 @@
       h('p', { class: 'hverd' }, verdict), extra.map(t => h('p', { class: 'hint' }, t)),
       fold('srv-vps', h('span', null, 'Quand envisager un VPS ?'), h('ul', { class: 'hvps' },
         h('li', null, 'Mémoire (rss) au-dessus de 70 % du plafond de l\'offre plusieurs jours de suite, ou mémoire de Node près de sa limite : l\'hébergeur arrête le processus.'),
-        h('li', null, 'Redémarrages sans nouvelle version plusieurs fois par jour (plantage, mémoire, mise en veille par l\'hébergeur).'),
+        h('li', null, 'Redémarrages imprévus plusieurs fois par jour (plantage, mémoire, processus tué) ; les relances depuis hPanel, les mises en veille de l\'hébergeur et les déploiements ne comptent pas.'),
         h('li', null, 'Processeur au-dessus de 70 % ou serveur lent à répondre (plus de 100 ms) aux heures d\'affluence.'),
         h('li', null, 'Recherches CardTrader refusées « serveur complet » (JOB_MAX_RUNNING) ou file d\'attente vers CardTrader qui s\'allonge.'),
         h('li', null, 'Dossier des données vidé à chaque déploiement, sans moyen de le placer hors de l\'appli (EDH_DATA_DIR).'),
@@ -1447,11 +1447,11 @@
     const up = h('section', { class: 'card hcard', id: 'hcBoot' }, chead('Démarrage et charge', 'Node ' + bt.node),
       hi('Dernier démarrage', D_TIME.format(bt.start), { sub: 'en marche depuis ' + dur(bt.up), k: 'start' }),
       hi('Version servie', bt.build || '—', { k: 'build', sub: 'celle que /__ping donne à l\'appli' }),
-      hi('Redémarrages (24 h)', nf(bt.restarts24), { lv: lv.restarts, k: 'restarts', sub: nf(bt.deploys24) + ' déploiement' + (bt.deploys24 > 1 ? 's' : '') + ' en 24 h · ' + nf(bt.boots7) + ' démarrage' + (bt.boots7 > 1 ? 's' : '') + ' en 7 jours' + (bt.known < 2 ? ' · relevés depuis ce démarrage' : '') }),
+      hi('Redémarrages imprévus (24 h)', nf(bt.restarts24), { lv: lv.restarts, k: 'restarts', sub: 'plantage, mémoire, processus tué · en 24 h aussi : ' + nf(bt.deploys24) + ' déploiement' + (bt.deploys24 > 1 ? 's' : '') + ', ' + nf(bt.stops24 || 0) + ' relance' + ((bt.stops24 || 0) > 1 ? 's' : '') + ' propre' + ((bt.stops24 || 0) > 1 ? 's' : '') + ' (hPanel, mise en veille par l\'hébergeur) · ' + nf(bt.boots7) + ' démarrage' + (bt.boots7 > 1 ? 's' : '') + ' en 7 jours' + (bt.known < 2 ? ' · relevés depuis ce démarrage' : '') }),
       hi('Processeur', loadOk ? nf(ld.cpu) + ' %' : '—', { lv: lv.cpu, part: loadOk ? Math.min(1, ld.cpu / 100) : null, k: 'cpu', sub: ld.n ? 'dernière minute · pire minute de l\'heure : ' + nf(ld.cpuMax) + ' %' : 'depuis le démarrage (relevé chaque minute)' }),
       hi('Temps de réaction', loadOk ? nf(ld.lag) + ' ms' : '—', { lv: lv.lag, k: 'lag', sub: 'retard de la boucle d\'événements (99 % du temps) · pire de l\'heure : ' + nf(ld.lagHour) + ' ms' }),
       bt.recent && bt.recent.length > 1 ? h('details', { class: 'hboots' }, h('summary', null, 'Derniers démarrages'), h('ol', null, bt.recent.map((x, i) => h('li', null, h('span', null, D_TIME.format(x.t)),
-        h('small', null, (x.b || '—') + (i < bt.recent.length - 1 ? (x.b && x.b === bt.recent[i + 1].b ? ' · redémarrage' : ' · nouvelle version') : '')))))) : null);
+        h('small', null, (x.b || '—') + ({ deploy: ' · nouvelle version', stop: ' · relance propre', crash: ' · imprévu' }[x.k] || '')))))) : null);
     // Requêtes par minute
     const fams = rq ? Object.entries(rq.fams) : [], top = Math.max(1, ...fams.map(f => f[1]));
     const reqs = h('section', { class: 'card hcard', id: 'hcReq' }, chead('Requêtes par minute', rq ? (rq.win < 60 ? 'sur les ' + rq.win + ' dernières secondes' : 'les 60 dernières secondes') : ''),

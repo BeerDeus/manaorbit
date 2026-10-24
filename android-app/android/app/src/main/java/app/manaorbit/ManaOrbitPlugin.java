@@ -7,6 +7,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -86,6 +87,8 @@ import org.json.JSONObject;
  * - camTouch({ l, t, r, b, k }) → { ok } : zone de l'aperçu du scan (px CSS, k = devicePixelRatio) où un toucher va à la caméra native (mise au point, pincer
  *   pour zoomer) ; ailleurs (boutons, liste, déclencheur) il reste à la page. Le plugin CameraPreview envoie sinon TOUS les touchers du WebView à la caméra :
  *   chaque bouton touché refaisait la mise au point à cet endroit. ok false : caméra pas démarrée. APK 1.0.11 et plus ; plus ancienne : comme le plugin.
+ * - orientation({ lock }) → { lock } : orientation gardée pendant une partie du compteur de vie (vrai : celle du moment, faux : rendue au capteur).
+ *   APK 1.0.12 et plus ; plus ancienne : le site garde ses mises en page paysage.
  * - requestReview() → { ok: true } : demande de note Google Play dans l'appli (In-App Review), voir requestReview. APK 1.0.6 et plus ; plus ancienne : le site
  *   montre sa propre demande, qui ouvre la fiche Play Store.
  * - événement « open », gardé jusqu'à ce que la page l'écoute (lancement à froid) : { view: 'collection' | 'scan' | 'quick' } le widget ou son bouton a été
@@ -464,6 +467,19 @@ public class ManaOrbitPlugin extends Plugin {
             else getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             JSObject ret = new JSObject();
             ret.put("on", on);
+            call.resolve(ret);
+        });
+    }
+
+    /** Orientation gardée pendant une partie du compteur de vie (partie-jeu.js › puOrient) : lock = vrai, l'écran reste dans son orientation du moment
+     *  (SCREEN_ORIENTATION_LOCKED, même téléphone posé à plat qui bascule) ; faux, rendue au capteur (l'activité n'impose aucune orientation). Aucune autorisation. */
+    @PluginMethod
+    public void orientation(PluginCall call) {
+        boolean lock = Boolean.TRUE.equals(call.getBoolean("lock", false));
+        getActivity().runOnUiThread(() -> {
+            getActivity().setRequestedOrientation(lock ? ActivityInfo.SCREEN_ORIENTATION_LOCKED : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+            JSObject ret = new JSObject();
+            ret.put("lock", lock);
             call.resolve(ret);
         });
     }

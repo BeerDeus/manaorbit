@@ -241,7 +241,7 @@ p.kill();
   const pe = await start({ CARDTRADER_TOKEN: 'tok123', PWA_DIR: dir }, 18780);
   r = await j('http://127.0.0.1:18780/privacy'); assert.equal(r.s, 500); assert.deepEqual(r.o, { error: 'proxy_error', message: 'Erreur interne du serveur.' });
   await new Promise(x => setTimeout(x, 100)); assert.match(pe.log(), /EISDIR/, 'détail dans le journal');
-  pe.kill(); rmSync(dir, { recursive: true, force: true });
+  await new Promise(r => { pe.once('exit', r); pe.kill(); }); rmSync(dir, { recursive: true, force: true });      // arrêt propre : boot.json écrit avant la sortie
   console.log('✓ erreur 500 : message générique, détail seulement dans le journal');
 }
 { // scan : noms imprimés des autres langues (GET /api/names/find) — public même avec APP_KEY, catalogues de la liste fermée, tailles bornées, budget par IP, mémoire rendue
@@ -498,7 +498,7 @@ await assert.rejects(start({ CARDTRADER_TOKEN: 'x', HOST: '0.0.0.0' }, 18790), /
   px = await start(env, 18796); B = 'http://127.0.0.1:18796';
   await waitFor(async () => (await st()).from === 'copie', 'copie reprise'); o = await st(); assert.equal(o.at, '2026-10-12T04:00:00Z'); x = await raw({ 'Accept-Encoding': 'gzip' }); assert.ok(x.b.equals(Bf), 'copie de .data servie après redémarrage');
   console.log('✓ redémarrage pendant une panne : la copie gardée dans .data est servie');
-  px.kill(); gh.close(); rmSync(dir, { recursive: true, force: true });
+  await new Promise(r => { px.once('exit', r); px.kill(); }); gh.close(); rmSync(dir, { recursive: true, force: true });      // arrêt propre : boot.json écrit avant la sortie
   // désactivé : aucun appel, 404 propre
   const pd = await start({ CARDTRADER_TOKEN: 'x' }, 18797); B = 'http://127.0.0.1:18797'; await new Promise(r => setTimeout(r, 300)); o = await st(); assert.equal(o.source, ''); assert.equal(o.from, 'none'); assert.equal((await j(B + '/edh.bin.gz')).s, 404); pd.kill();
   console.log('✓ EDH_SOURCE_URL vide : récupération désactivée');
@@ -519,7 +519,7 @@ await assert.rejects(start({ CARDTRADER_TOKEN: 'x', HOST: '0.0.0.0' }, 18790), /
   assert.ok(existsSync(join(dir, 'prices.tsv.gz')), 'copie gardée dans .data');
   file = Buffer.from('pas du gzip'); await new Promise(r => setTimeout(r, 900)); r = await j(B + '/__prices'); assert.equal(r.o.cards, 16000); assert.match(r.o.err, /.+/);
   file = mk('2026-10-09T09:00:00Z', 120); await new Promise(r => setTimeout(r, 900)); r = await j(B + '/__prices'); assert.equal(r.o.cards, 16000, 'fichier trop maigre ignoré');
-  px.kill(); gh.close(); rmSync(dir, { recursive: true, force: true });
+  await new Promise(r => { px.once('exit', r); px.kill(); }); gh.close(); rmSync(dir, { recursive: true, force: true });      // arrêt propre : boot.json écrit avant la sortie
   console.log('✓ prix des cartes : relus depuis la branche data, servis sur /prices.tsv, copie gardée ; fichier illisible ou maigre ignoré');
 }
 
@@ -534,7 +534,7 @@ await assert.rejects(start({ CARDTRADER_TOKEN: 'x', HOST: '0.0.0.0' }, 18790), /
   for (let i = 0; i < 80 && !(r.o && r.o.cards); i++) { await new Promise(res => setTimeout(res, 100)); r = await j(B + '/__prices'); if (r.o.err) seen = r.o.err; }
   try { assert.match(seen, /.+/, 'échec noté (connexion coupée)'); } catch (e) { px.kill(); gh.close(); throw e; }
   assert.equal(r.o.cards, 16000, 'relu après deux échecs, sans attendre le passage suivant (1 h ici)'); assert.equal(r.o.err, ''); assert.equal(hits, 3);
-  px.kill(); gh.close(); rmSync(dir, { recursive: true, force: true });
+  await new Promise(r => { px.once('exit', r); px.kill(); }); gh.close(); rmSync(dir, { recursive: true, force: true });      // arrêt propre : boot.json écrit avant la sortie
   console.log('✓ prix : GitHub injoignable au démarrage → nouvel essai 200, 400 ms (en vrai 1, 2, 4… min), pas 6 h plus tard');
 }
 

@@ -112,7 +112,22 @@ await B.p.click('.pu-lv.me [data-lvs]'); await B.p.waitForSelector('.pu-lvsheet 
 for (let i = 0; i < 2; i++) await B.p.click('.pu-lvsheet [data-k="b"][data-s="1"][data-n="1"]');
 await B.p.click('.pu-lvsheet [data-k="c"][data-c="poison"][data-n="1"]'); await closeSheets(B.p);
 await A.p.waitForFunction(() => { const p = PU.st.places.find(x => x.pos === 2); return p.blessures['1'] === 2 && p.vie === 34 && p.compteurs.poison === 1; }, null, { timeout: 15000 });
-ok('Bob −3 sur sa place : affiché tout de suite (« Envoi… »), Alice voit 37 (une fois, journal) ; Alice −1 : Bob et Carol voient 36 ; sa fiche : blessures reçues, poison');
+// blessures de commandant plus rapides : +5 (et − / + maintenus) dans sa fiche aussi
+await B.p.click('.pu-lv.me [data-lvs]'); await B.p.waitForSelector('.pu-lvsheet [data-k="b"][data-s="1"][data-n="5"]'); await B.p.click('.pu-lvsheet [data-k="b"][data-s="1"][data-n="5"]'); await closeSheets(B.p);
+await A.p.waitForFunction(() => { const p = PU.st.places.find(x => x.pos === 2); return p.blessures['1'] === 7 && p.vie === 29; }, null, { timeout: 15000 });
+ok('Bob −3 sur sa place : affiché tout de suite (« Envoi… »), Alice voit 37 (une fois, journal) ; Alice −1 : Bob et Carol voient 36 ; sa fiche : blessures reçues (+5), poison');
+
+/* ── Dés : Alice lance un d20 et tire pile ou face ; Bob et Carol voient le résultat sur la table en direct ──────────────────────── */
+await A.p.evaluate(() => puRoll('d20')); const d20 = await A.p.evaluate(() => PU.roll.v);
+for (const X of [B, C]) {
+  await X.p.waitForSelector('.pu-lv-de', { timeout: 15000 });
+  assert.equal(await txt(X.p, '.pu-lv-de'), 'Dé à 20 faces' + d20, 'le même résultat chez ' + (X === B ? 'Bob' : 'Carol'));
+}
+await B.p.screenshot({ path: 'shots/partie-live-8-de-bob.png' });
+await A.p.evaluate(() => { PU.roll = null; puRoll('pf'); }); const pf = await A.p.evaluate(() => (PU.roll.v ? 'Face' : 'Pile'));
+await B.p.waitForFunction(t => /Pile ou face/.test(document.querySelector('.pu-lv-de').textContent) && document.querySelector('.pu-lv-de b').textContent === t, pf, { timeout: 15000 });
+await A.p.evaluate(() => { PU.roll = null; puPaint(); });
+ok('dés et pièce : le résultat d\'Alice arrive sur la table en direct de Bob et Carol (état en direct, champ de)');
 
 /* ── Co-hôte : Carol demande, Alice accepte ; Carol change les points d'Alice, passe au tour suivant ; rôle retiré ─────────────────── */
 await C.p.click('[data-j="ask"]'); await C.p.waitForSelector('.pu-co-wait');
