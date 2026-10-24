@@ -1,0 +1,165 @@
+/* ── ev-halloween.css : pack Halloween (dessins : evart.js) ─────────────────────────────────────────────────────────────────────────────────
+   Classes posées par le moteur (event.js) sur <html> : data-event="halloween" (fête en cours, toujours : animation des citrouilles),
+   .ev-deco (décorations allumées : ambiance, palette sur la roue de mana, touches dans l'appli), .ev-quiet (scan, échange en direct,
+   compteur de vie : toute l'ambiance cachée), .ev-pause (appli en arrière-plan ou ambiance hors écran : animations en pause).
+   Ambiance : <div class="ev-amb" aria-hidden="true"> enfant de <body> posé APRÈS #app (sélecteur « #app[data-view="home"] ~ .ev-amb ») :
+   complète sur l'accueil (brume, lune, toiles, chauves-souris, lueurs), une seule lueur ailleurs ; en-têtes : un filet de lueur, pas plus.
+   Coût : transform et opacity seulement, aucun filtre animé ; 12 éléments animés dans l'ambiance (2 lueurs, 2 brumes, 4 vols, 4 battements),
+   1 par citrouille (la bougie). « Réduire les animations » : décor fixe, citrouille fixe et visible. Rien ne capte les touchers. */
+
+/* ── Couleurs par thème (clair par défaut ; sombre : prefers-color-scheme et data-theme, comme style.css) ── */
+html.ev-deco[data-event="halloween"]{
+  --bg:#f5f1f6; --bar-bg:rgba(245,241,246,.84);
+  --evh-mw:255,146,48; --evh-mu:150,96,232; --evh-mb:96,46,160; --evh-mr:255,112,34; --evh-mg:118,206,72; --evh-ao:.8;
+  --evh-sky:rgba(123,63,228,.09); --evh-sky2:rgba(255,122,26,.08);
+  --evh-o:rgba(255,122,26,.3); --evh-v:rgba(123,63,228,.2); --evh-g:rgba(110,205,66,.17);
+  --evh-fog:150,124,200; --evh-foga:.16;
+  --evh-web:rgba(64,40,104,.26); --evh-bat:#24123c; --evh-batrim:none; --evh-moon:.8;
+  --evh-line:.7; --evh-tab:rgba(255,122,26,.15); --evh-tab-ink:#bf4a0a;
+}
+html.ev-deco[data-event="halloween"][data-theme="dark"]{
+  --bg:#0c0a18; --bar-bg:rgba(12,10,24,.82);
+  --evh-mw:255,150,58; --evh-mu:146,86,244; --evh-mb:112,52,196; --evh-mr:255,118,40; --evh-mg:122,220,74; --evh-ao:1;
+  --evh-sky:rgba(123,63,228,.16); --evh-sky2:rgba(255,122,26,.07);
+  --evh-o:rgba(255,128,32,.26); --evh-v:rgba(140,80,240,.26); --evh-g:rgba(120,220,70,.15);
+  --evh-fog:132,112,186; --evh-foga:.2;
+  --evh-web:rgba(214,200,255,.2); --evh-bat:#140b22; --evh-batrim:rgba(200,166,255,.6); --evh-moon:1;
+  --evh-line:.85; --evh-tab:rgba(255,138,40,.17); --evh-tab-ink:#ffa24d;
+}
+@media (prefers-color-scheme:dark){
+  html.ev-deco[data-event="halloween"]:not([data-theme="light"]){
+    --bg:#0c0a18; --bar-bg:rgba(12,10,24,.82);
+    --evh-mw:255,150,58; --evh-mu:146,86,244; --evh-mb:112,52,196; --evh-mr:255,118,40; --evh-mg:122,220,74; --evh-ao:1;
+    --evh-sky:rgba(123,63,228,.16); --evh-sky2:rgba(255,122,26,.07);
+    --evh-o:rgba(255,128,32,.26); --evh-v:rgba(140,80,240,.26); --evh-g:rgba(120,220,70,.15);
+    --evh-fog:132,112,186; --evh-foga:.2;
+    --evh-web:rgba(214,200,255,.2); --evh-bat:#140b22; --evh-batrim:rgba(200,166,255,.6); --evh-moon:1;
+    --evh-line:.85; --evh-tab:rgba(255,138,40,.17); --evh-tab-ink:#ffa24d;
+  }
+}
+
+/* ── Citrouille (EV_ART.pumpkin) : la bougie vacille (opacity) ; version allumée : rayons qui tournent. Le flottement est au moteur. ── */
+html[data-event="halloween"] .evo{display:block;overflow:visible;pointer-events:none}
+html[data-event="halloween"] .evo-pumpkin .evo-flame{animation:evhFlicker 3.1s linear infinite}
+html[data-event="halloween"] .evo-pumpkin.evo-lit .evo-flame{animation-name:evhFlickerLit;animation-duration:1.9s}
+html[data-event="halloween"] .evo-pumpkin .evo-rays{transform-origin:32px 40px;animation:evhSpin 16s linear infinite}
+@keyframes evhFlicker{0%{opacity:.82}7%{opacity:.5}11%{opacity:.94}19%{opacity:.66}30%{opacity:1}37%{opacity:.58}46%{opacity:.9}54%{opacity:.72}62%{opacity:1}70%{opacity:.54}79%{opacity:.88}89%{opacity:.64}100%{opacity:.82}}
+@keyframes evhFlickerLit{0%,100%{opacity:1}18%{opacity:.78}33%{opacity:1}52%{opacity:.84}70%{opacity:1}84%{opacity:.8}}
+@keyframes evhSpin{to{transform:rotate(360deg)}}
+/* chauve-souris (EV_ART.bat : messages et ambiance) : violet nuit (clair), lilas (sombre, sur les surfaces) ; battement d'ailes, les ailes passent sous le corps */
+html[data-event="halloween"]{--evh-ink-bat:#2a1745}
+html[data-event="halloween"][data-theme="dark"]{--evh-ink-bat:#b39cf0}
+@media (prefers-color-scheme:dark){html[data-event="halloween"]:not([data-theme="light"]){--evh-ink-bat:#b39cf0}}
+html[data-event="halloween"] .evo-bat{color:var(--evh-ink-bat)}
+html[data-event="halloween"] .ev-amb .evo-bat{color:inherit}
+html[data-event="halloween"] .evo-bat .evo-wings{transform-origin:24px 11.6px;animation:evhFlap .32s ease-in-out infinite alternate}
+@keyframes evhFlap{from{transform:scaleY(1)}to{transform:scaleY(-.42)}}
+
+/* ── Ambiance : cachée sans décorations et sur les écrans calmes ── */
+html[data-event="halloween"] .ev-amb{display:none}
+html.ev-deco[data-event="halloween"]:not(.ev-quiet) .ev-amb{display:block;position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;contain:strict;
+  background:radial-gradient(130% 55% at 50% -8%,var(--evh-sky),transparent 62%),linear-gradient(to top,var(--evh-sky2),transparent 42%)}
+html[data-event="halloween"] .ev-amb *{pointer-events:none}
+html[data-event="halloween"] .ev-amb i,html[data-event="halloween"] .ev-amb span{position:absolute;display:block}
+html[data-event="halloween"] .ev-amb svg{display:block;width:100%;height:100%}
+/* ailleurs que l'accueil : la seule lueur violette du haut, rien d'autre (et rien d'animé) */
+html[data-event="halloween"] .ev-amb :is(.eva-g1,.eva-g2,.eva-moon,.eva-fog,.eva-web,.eva-bat){display:none}
+html[data-event="halloween"] #app[data-view="home"] ~ .ev-amb :is(.eva-g1,.eva-g2,.eva-moon,.eva-fog,.eva-web,.eva-bat){display:block}
+
+/* palette d'Halloween par-dessus la roue de mana (.hm-aura) : orange en haut, violet nuit à droite, vert poison à gauche */
+html.ev-deco[data-event="halloween"] .hm-aura{--mana-w:var(--evh-mw);--mana-u:var(--evh-mu);--mana-b:var(--evh-mb);--mana-r:var(--evh-mr);--mana-g:var(--evh-mg);--aura-o:var(--evh-ao)}
+
+/* lueurs (dégradés, aucun flou) : orange en bas à gauche et vert poison à droite respirent ; violet en haut, fixe */
+html[data-event="halloween"] .ev-amb .eva-glow{border-radius:50%}
+html[data-event="halloween"] .ev-amb .eva-g1{width:560px;height:560px;left:-230px;bottom:-200px;background:radial-gradient(closest-side,var(--evh-o),transparent);animation:evhBreath 9s ease-in-out infinite alternate}
+html[data-event="halloween"] .ev-amb .eva-g2{width:460px;height:460px;right:-250px;top:44%;background:radial-gradient(closest-side,var(--evh-g),transparent);animation:evhBreath 12s ease-in-out -5s infinite alternate}
+html[data-event="halloween"] .ev-amb .eva-g3{width:720px;height:420px;left:50%;top:-230px;margin-left:-360px;background:radial-gradient(closest-side,var(--evh-v),transparent)}
+@keyframes evhBreath{from{opacity:.55}to{opacity:1}}
+
+/* pleine lune : en haut à droite, sous l'en-tête, derrière le contenu */
+html[data-event="halloween"] .ev-amb .eva-moon{width:84px;height:84px;right:6px;top:calc(var(--top-in,0px) + 56px);opacity:var(--evh-moon)}
+
+/* brume : deux nappes en bas de l'écran, motif répété deux fois (largeur 200 %) qui glisse d'une moitié : boucle sans couture */
+html[data-event="halloween"] .ev-amb .eva-fog{left:0;bottom:0;width:200%;height:44vh;background-repeat:repeat-x;background-size:50% 100%}
+html[data-event="halloween"] .ev-amb .eva-f1{
+  background-image:radial-gradient(22% 30% at 24% 74%,rgba(var(--evh-fog),var(--evh-foga)),transparent),radial-gradient(24% 26% at 70% 84%,rgba(var(--evh-fog),var(--evh-foga)),transparent),
+    linear-gradient(to top,rgba(var(--evh-fog),var(--evh-foga)),transparent 70%);
+  animation:evhFogL 80s linear infinite}
+html[data-event="halloween"] .ev-amb .eva-f2{height:30vh;opacity:.8;
+  background-image:radial-gradient(20% 34% at 40% 70%,rgba(var(--evh-fog),var(--evh-foga)),transparent),radial-gradient(18% 30% at 86% 60%,rgba(var(--evh-fog),var(--evh-foga)),transparent);
+  animation:evhFogR 110s linear infinite}
+@keyframes evhFogL{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes evhFogR{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+
+/* toiles d'araignée : en haut à gauche sous l'en-tête, en bas à droite au-dessus de la barre du bas */
+html[data-event="halloween"] .ev-amb .eva-web{width:118px;height:118px;color:var(--evh-web)}
+html[data-event="halloween"] .ev-amb .eva-w1{left:0;top:calc(var(--top-in,0px) + 55px)}
+html[data-event="halloween"] .ev-amb .eva-w2{right:0;bottom:0;width:96px;height:96px;transform:scale(-1,-1)}
+html[data-event="halloween"] body.nav-on > .ev-amb .eva-w1{left:var(--side-w,0px)}      /* ordinateur : à droite de la barre latérale */
+html[data-event="halloween"] body.nav-on > .ev-amb .eva-w2{bottom:calc(var(--nav-h,72px) + env(safe-area-inset-bottom,0px))}
+html[data-event="halloween"] .ev-amb .eva-w2 .eva-spider{display:none}
+
+/* chauves-souris : une traversée de 4 à 8 s, puis plus rien pendant 20 à 35 s (cycles différents : jamais la même figure) */
+html[data-event="halloween"] .ev-amb .eva-bat{left:0;top:0;width:40px;height:20px;color:var(--evh-bat);opacity:0;will-change:transform}
+html[data-event="halloween"] .ev-amb .eva-bat svg{stroke:var(--evh-batrim);stroke-width:1.3;stroke-linejoin:round;paint-order:stroke}      /* sombre : liseré clair (lune) au lieu d'un filtre */
+html[data-event="halloween"] .ev-amb .eva-bat .evo-eyes{stroke:none}
+html[data-event="halloween"] .ev-amb .eva-b1{animation:evhB1 27s 1.5s infinite}
+html[data-event="halloween"] .ev-amb .eva-b2{width:32px;height:16px;animation:evhB2 33s 9s infinite}
+html[data-event="halloween"] .ev-amb .eva-b3{width:48px;height:24px;animation:evhB3 41s 17s infinite}
+html[data-event="halloween"] .ev-amb .eva-b4{width:28px;height:14px;animation:evhB4 37s 5s infinite}
+html[data-event="halloween"] .ev-amb .eva-b2 .evo-wings{animation-duration:.27s}
+html[data-event="halloween"] .ev-amb .eva-b3 .evo-wings{animation-duration:.38s}
+html[data-event="halloween"] .ev-amb .eva-b4 .evo-wings{animation-duration:.24s}
+@keyframes evhB1{
+  0%{opacity:0;transform:translate(-12vw,30vh) rotate(-6deg) scale(.9);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  1%{opacity:1}
+  4%{transform:translate(16vw,22vh) rotate(8deg) scale(.95);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  8%{transform:translate(44vw,12vh) rotate(-4deg) scale(1);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  12%{transform:translate(74vw,20vh) rotate(10deg) scale(1.02);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  15.9%{opacity:1;transform:translate(108vw,12vh) rotate(-8deg) scale(1)}
+  16%,100%{opacity:0;transform:translate(108vw,12vh) rotate(-8deg) scale(1)}}
+@keyframes evhB2{
+  0%{opacity:0;transform:translate(106vw,26vh) rotate(6deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  1%{opacity:.9}
+  4%{transform:translate(80vw,36vh) rotate(-10deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  7%{transform:translate(58vw,40vh) rotate(4deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  10%{transform:translate(30vw,33vh) rotate(12deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  13.4%{opacity:.9;transform:translate(-10vw,24vh) rotate(4deg)}
+  13.5%,100%{opacity:0;transform:translate(-10vw,24vh) rotate(4deg)}}
+@keyframes evhB3{
+  0%{opacity:0;transform:translate(-14vw,60vh) rotate(-16deg) scale(1.1);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  1%{opacity:1}
+  3.6%{transform:translate(14vw,44vh) rotate(-6deg) scale(1.05);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  6.4%{transform:translate(40vw,34vh) rotate(-18deg) scale(1);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  8.6%{transform:translate(70vw,18vh) rotate(-10deg) scale(.95);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  10.4%{opacity:1;transform:translate(110vw,6vh) rotate(-14deg) scale(.9)}
+  10.5%,100%{opacity:0;transform:translate(110vw,6vh) rotate(-14deg) scale(.9)}}
+@keyframes evhB4{
+  0%{opacity:0;transform:translate(-6vw,14vh) scale(.85);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  1.5%{opacity:.55}
+  6%{transform:translate(24vw,9vh) scale(.9);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  11%{transform:translate(52vw,15vh) scale(.85);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  16%{transform:translate(80vw,8vh) scale(.9);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
+  20.9%{opacity:.55;transform:translate(106vw,13vh) scale(.85)}
+  21%,100%{opacity:0;transform:translate(106vw,13vh) scale(.85)}}
+
+/* ── Touches dans l'appli (décorations allumées) : filet de lueur sous les en-têtes, onglet actif de la barre du bas.
+   Jamais les couleurs qui ont un sens (rouge = erreur, vert = gain…), jamais sur les écrans calmes. ── */
+html.ev-deco[data-event="halloween"]:not(.ev-quiet) .bar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1.5px;pointer-events:none;opacity:var(--evh-line);
+  background:linear-gradient(90deg,transparent,#ff7a1a 20%,#ffb347 38%,#7b3fe4 62%,#7ddc4a 84%,transparent)}
+html.ev-deco[data-event="halloween"]:not(.ev-quiet) .dv-head{
+  background-image:linear-gradient(90deg,transparent,rgba(255,122,26,.75) 20%,rgba(123,63,228,.7) 62%,rgba(125,220,74,.6) 84%,transparent),radial-gradient(150px 64px at 100% 0,rgba(255,122,26,.14),transparent);
+  background-size:100% 1.5px,100% 100%;background-position:0 100%,0 0;background-repeat:no-repeat}
+html.ev-deco[data-event="halloween"] .nav-b[aria-current="page"] .nav-i{background:var(--evh-tab);color:var(--evh-tab-ink)}
+@media (min-width:1100px) and (hover:hover) and (pointer:fine){      /* ordinateur (zz-desktop.css) : la ligne entière de la barre latérale */
+  html.ev-deco[data-event="halloween"] .nav-b[aria-current="page"]{background:var(--evh-tab)}
+  html.ev-deco[data-event="halloween"] .nav-b[aria-current="page"] .nav-i{background:none}
+}
+
+/* ── Pause (appli en arrière-plan, ambiance hors écran) et mouvement réduit ── */
+html.ev-pause[data-event="halloween"] :is(.ev-amb,.evo),html.ev-pause[data-event="halloween"] :is(.ev-amb,.evo) *{animation-play-state:paused!important}
+@media (prefers-reduced-motion:reduce){
+  html[data-event="halloween"] :is(.ev-amb,.evo),html[data-event="halloween"] :is(.ev-amb,.evo) *{animation:none!important}
+  html[data-event="halloween"] .ev-amb .eva-bat{display:none!important}      /* immobiles en plein écran, elles gêneraient : seulement le décor fixe */
+  html[data-event="halloween"] .evo-pumpkin .evo-flame{opacity:.9}
+}
