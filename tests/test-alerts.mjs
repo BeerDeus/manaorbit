@@ -146,6 +146,28 @@ ps = pushesFor(A); m = decrypt(ps[ps.length - 1].body, A); assert.equal(m.title,
   ok('appli en allemand, espagnol, italien, portugais : notifications dans sa langue (baisse, prix cible, résumé ; « 18,00 € », « € 39,90 » au Brésil)');
 }
 
+// 4 ter) hausse : carte suivie depuis sa fiche (u = 1) ; sans u, une hausse ne prévient jamais (applis d'avant) ; résumé mélangé ; délai de 5 jours
+{
+  const U = browser('devUp');
+  set({ 'Dockside Extortionist': '20.00', 'Rhystic Study': '30.00', 'Smothering Tithe': '10.00' });
+  r = await J(B, '/api/alerts', { method: 'PUT', body: JSON.stringify({ sub: U.sub, thr: 30, items: [{ k: 'dockside extortionist', n: 'Dockside Extortionist', u: 1 }, { k: 'rhystic study', n: 'Rhystic Study' }, { k: 'smothering tithe', n: 'Smothering Tithe', u: 1 }] }) });
+  assert.equal(r.s, 200); const IDU = r.o.id; await sleep(500);
+  set({ 'Dockside Extortionist': '28.00', 'Rhystic Study': '45.00' }); await check(B, IDU);
+  ps = pushesFor(U); assert.equal(ps.length, 1, 'Rhystic Study (+50 %) sans u : rien ; Dockside +40 % avec u : alerte'); m = decrypt(ps[0].body, U);
+  assert.equal(m.title, 'Dockside Extortionist : +40 %'); assert.equal(m.body, '20,00 € → 28,00 € (tendance Cardmarket).');
+  r = await J(B, '/api/alerts?id=' + IDU); assert.equal(r.o.hits[0].why, 'rise'); assert.equal(r.o.hits[0].pct, 40);
+  await check(B, IDU); assert.equal(pushesFor(U).length, 1, 'même prix : pas de deuxième alerte (délai)');
+  set({ 'Dockside Extortionist': '29.00' }); await check(B, IDU); assert.equal(pushesFor(U).length, 1, '+4 % de plus seulement : toujours en délai');
+  r = await J(B, '/api/alerts', { method: 'PUT', body: JSON.stringify({ sub: U.sub, thr: 30, items: [{ k: 'dockside extortionist', n: 'Dockside Extortionist', u: 1 }, { k: 'smothering tithe', n: 'Smothering Tithe', u: 1 }, { k: 'rhystic study', n: 'Rhystic Study' }] }) });
+  await sleep(300); await check(B, IDU); assert.equal(pushesFor(U).length, 1, 'réenregistré : le délai de la hausse est gardé');
+  set({ 'Dockside Extortionist': '40.00', 'Smothering Tithe': '5.00' }); await check(B, IDU);
+  ps = pushesFor(U); assert.equal(ps.length, 2); m = decrypt(ps[1].body, U); assert.equal(m.title, '2 cartes ont bougé'); assert.match(m.body, /Dockside Extortionist \+\d+ %/); assert.match(m.body, /Smothering Tithe −50 %/);
+  r = await J(B, '/api/alerts', { method: 'PUT', body: JSON.stringify({ sub: U.sub, thr: 30, lang: 'en', items: [{ k: 'sol ring', n: 'Sol Ring', u: 1 }, { k: 'mana crypt', n: 'Mana Crypt', u: 1 }] }) }); await sleep(500);
+  set({ 'Sol Ring': '9.00', 'Mana Crypt': '200.00' }); await check(B, IDU);
+  ps = pushesFor(U); m = decrypt(ps[ps.length - 1].body, U); assert.equal(m.title, '2 cards up', JSON.stringify(m));
+  ok('hausse : alerte pour une carte suivie depuis sa fiche (u), jamais sans u ; délai de 5 jours gardé ; résumé « ont bougé » / « cards up »');
+}
+
 // 5) abonnement expiré
 const Bx = browser('devGone');
 r = await J(B, '/api/alerts', { method: 'PUT', body: JSON.stringify({ sub: Bx.sub, thr: 30, items: [{ k: 'sol ring', n: 'Sol Ring' }, { k: 'mana crypt', n: 'Mana Crypt' }] }) }); const IDX = r.o.id; assert.notEqual(IDX, ID);

@@ -26,6 +26,7 @@ BROWSER=(
   admin-e2e.mjs
   lectures-e2e.mjs
   places-e2e.mjs
+  cardsheet-e2e.mjs
   partie-ui-e2e.mjs
   partie-room-e2e.mjs
   partie-live-e2e.mjs
