@@ -1,0 +1,58 @@
+# Badges des événements saisonniers (tools/gen-event-badges.mjs, packs de src/evpacks.js) : chaque jour, génère les 4 SVG (un par palier) des éditions
+# en cours ou qui commencent dans les 7 jours (packs « ready ») s'ils manquent dans pwa/icons/events/badges/, puis les committe sur la branche par défaut.
+# Rien de nouveau : aucun commit. Lancement manuel : onglet Actions › « Badges des événements » › Run workflow (année, pack, « force » : réécrit les fichiers présents).
+name: Badges des événements
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'Année (vide : éditions en cours ou dans les 7 jours)'
+        default: ''
+      pack:
+        description: 'Pack (halloween, noel, nouvelan, paques, magic ; vide : tous les packs prêts)'
+        default: ''
+      force:
+        description: 'Réécrire les badges déjà présents'
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: event-badges
+  cancel-in-progress: false
+jobs:
+  event-badges:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Générer les badges
+        env:
+          YEAR: ${{ inputs.year }}
+          PACK: ${{ inputs.pack }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          args=()
+          if [ -n "$YEAR" ]; then args+=(--year "$YEAR"); fi
+          if [ -n "$PACK" ]; then args+=(--pack "$PACK"); fi
+          if [ "$FORCE" = true ]; then args+=(--force); fi
+          node tools/gen-event-badges.mjs "${args[@]}"
+      - name: Commit et push s'il y a de nouveaux badges
+        env:
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pwa/icons/events/badges
+          if git diff --cached --quiet; then echo "Aucun nouveau badge."; exit 0; fi
+          eds=$(git diff --cached --name-only | sed 's#.*/##; s#-[0-3]\.svg$##' | sort -u | paste -sd ' ' -)
+          git commit -m "Badges des événements : génération automatique ($eds)"
+          # la branche a pu avancer pendant le job : on se remet dessus avant d'envoyer (seuls des SVG neufs sont ajoutés ici, pas de conflit)
+          for i in 1 2 3; do git pull --rebase origin "$BRANCH" && git push origin "HEAD:$BRANCH" && exit 0; sleep $((i * 10)); done; exit 1
