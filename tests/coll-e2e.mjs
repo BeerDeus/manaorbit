@@ -28,7 +28,7 @@ await p.fill('#ciText', CSV); await p.waitForTimeout(150);
 assert.match(await txt(p, '#ciSum'), /3 cartes différentes · 8 exemplaires Fichier CSV/); assert.equal(await p.$eval('#ciGo', b => b.disabled), false); assert.match(await txt(p, '#ciGo'), /Importer 3 cartes/);
 await p.screenshot({ path: 'shots/coll-1-import.png' });
 await p.click('#ciGo'); await p.waitForFunction(() => document.querySelectorAll('.crow').length === 3);
-assert.match(await txt(p, '.coll .dv-title span'), /^3 cartes · 8 ex\.( · \d+ €)?$/, 'sous-titre : cartes, exemplaires, valeur (l\'état de la sauvegarde est dans le point)'); ok('import CSV : éditions additionnées (3 cartes, 8 exemplaires)');
+assert.match(await txt(p, '.coll .dv-title span'), /^3 cartes · 8 ex\.( · \d+\s€)?$/, 'sous-titre : cartes, exemplaires, valeur (l\'état de la sauvegarde est dans le point)'); ok('import CSV : éditions additionnées (3 cartes, 8 exemplaires)');
 // infos Scryfall lues par lot (une seule requête POST pour 3 cartes)
 await p.waitForFunction(() => document.querySelectorAll('.crow .px.cm').length === 3, null, { timeout: 8000 });
 assert.equal(cardPosts(), 1);

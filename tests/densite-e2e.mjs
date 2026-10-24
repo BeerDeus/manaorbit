@@ -42,10 +42,10 @@ const ROWS = '.coll.on .coll-list > .crow';
   assert.equal(await p.$$eval('.coll.on .coll-list .qstep, .coll.on .coll-list .row-ed', l => l.length), 0, 'ni − / + ni édition sur la ligne');
   assert.equal(await p.$$eval('.coll.on .coll-list .tag', l => l.length), 0, 'ni Famille ni Coût');
   const sol = await p.$eval('.crow.cvw-c[data-k="sol ring"]', r => [r.querySelector('.row-name').textContent, !!r.querySelector('.row-top .flag'), r.querySelector('.cvw-plc').textContent, r.querySelector('.cvw-q').textContent, r.querySelector('.cvw-hit').getAttribute('aria-label')]);
-  assert.deepEqual(sol.slice(0, 4), ['Sol Ring', true, 'Classeur rouge', '×4'], 'nom, drapeau, emplacement, quantité'); assert.match(sol[4], /^Afficher le détail de Sol Ring · × 4/, 'ligne entière : un bouton nommé');
+  assert.deepEqual(sol.slice(0, 4), ['Sol Ring', true, 'Classeur rouge', '×4'], 'nom, drapeau, emplacement, quantité'); assert.match(sol[4], /^Ouvrir la fiche de Sol Ring · × 4/, 'ligne entière : un bouton nommé');
   await p.waitForFunction(() => /1,50/.test((document.querySelector('.crow.cvw-c[data-k="sol ring"] .cvw-p') || {}).textContent || ''), null, { timeout: 8000 });
   // en-tête : valeur dans le sous-titre, carte de valeur seulement dans Stats, point de sauvegarde (texte complet lu), pas de bandeau hors compte
-  await p.waitForFunction(() => /^8 cartes · 17 ex\. · \d+ €$/.test(document.querySelector('.coll .dv-title span').textContent), null, { timeout: 8000 });
+  await p.waitForFunction(() => /^8 cartes · 17 ex\. · \d+\s€$/.test(document.querySelector('.coll .dv-title span').textContent), null, { timeout: 8000 });
   assert.equal(await p.$eval('.coll-val', e => e.hidden), true, 'pas de grande carte de valeur dans Cartes');
   await p.waitForFunction(() => { const d = document.querySelector('.coll-dot'); return d && !d.hidden && d.dataset.k !== 'ok'; });
   assert.equal(await p.$eval('.coll-sync', e => e.hidden), true, 'hors compte : pas de bandeau');
@@ -61,7 +61,7 @@ const ROWS = '.coll.on .coll-list > .crow';
   assert.deepEqual(tools.inRow, [true, true, true, true], 'Trier, Masterset, Affichage et Filtres sur la ligne de la recherche'); assert.equal(tools.srow, true, 'plus de rangée « Trier · Masterset »');
   assert.deepEqual(tools.labels, ['Trier la collection', 'Masterset', 'Affichage : Compacte']); assert.deepEqual(tools.titles, ['Trier : Nom', 'Affichage : Compacte']);
   assert.ok(tools.size.every(n => n >= 40), 'cibles ≥ 40 px : ' + tools.size);
-  assert.equal(await p.$eval('.coll .fbtn', b => b.textContent.trim()), 'Filtres', '« Filtres » en icône, son nom reste lu');
+  assert.deepEqual(await p.$eval('.coll .fbtn > span', b => [b.textContent, getComputedStyle(b).position]), ['Filtres', 'absolute'], '« Filtres » en icône, son nom reste lu');
   // positions à 393 × 852
   const m = await measure(p, ROWS);
   console.log('  393×852 compacte :', JSON.stringify(m));
@@ -89,23 +89,24 @@ const ROWS = '.coll.on .coll-list > .crow';
   await p.click('.coll-ibar .coll-ms'); await p.waitForSelector('.crow.cvw-c'); assert.equal(await p.$eval('.coll-srow', e => e.hidden), true);
   ok('tri (bouton marqué), tri par édition et ses intertitres, recherche, Rangement, masterset : dans la vue compacte');
 
-  // toucher : sans fiche de carte, la ligne se déplie sur place (vue détaillée, − / +), « Replier » ; avec la fiche : openCardSheet(k, { l })
+  // toucher : la ligne ouvre la fiche de la carte (cardsheet.js), par le même branchement que la vue détaillée (collection.js) ; la vignette garde l'agrandissement
+  await p.click('.crow.cvw-c[data-k="craterhoof behemoth"] .cvw-hit'); await p.waitForSelector('.sheet-wrap.open.cs-sheet');
+  assert.equal(await p.evaluate(() => [CS.k, CS.o.from, CS.o.l].join()), 'craterhoof behemoth,coll,en#pef56', 'fiche de la carte : clé, ligne touchée');
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
+  await p.waitForFunction(() => !!document.querySelector('.crow.cvw-c[data-k="wrath of god"] .thumb img.ok'), null, { timeout: 8000 });
+  await p.click('.crow.cvw-c[data-k="wrath of god"] .thumb'); await p.waitForSelector('.imgv.on'); assert.equal(await p.$('.sheet-wrap.open.cs-sheet'), null, 'la vignette ne va pas à la fiche');
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv.on'));
+  // sans fiche de carte (appli sans cardsheet.js) : la ligne se déplie sur place en vue détaillée (− / +), « Replier »
+  await p.evaluate(() => { window.__ocs = openCardSheet; window.openCardSheet = undefined; collPaintBody(true); });
+  assert.match(await p.$eval('.crow.cvw-c[data-k="sol ring"] .cvw-hit', b => b.getAttribute('aria-label')), /^Afficher le détail de Sol Ring/);
   await p.click('.crow.cvw-c[data-k="sol ring"] .cvw-hit'); await p.waitForSelector('.cvw-x .crow[data-k="sol ring"] .qstep');
   assert.equal(await p.evaluate(() => document.activeElement.classList.contains('cvw-fold')), true, 'focus sur « Replier »');
   await p.click('.cvw-x .crow[data-k="sol ring"] .qstep [data-d="1"]'); await p.waitForFunction(() => COLL.map['sol ring'].q === 5);
   assert.equal(await txt(p, '.cvw-x .qstep b'), '5');
   await p.click('.cvw-x .cvw-fold'); await p.waitForSelector('.crow.cvw-c[data-k="sol ring"]'); assert.equal(await p.$('.cvw-x'), null);
   assert.equal(await txt(p, '.crow.cvw-c[data-k="sol ring"] .cvw-q'), '×5');
-  await p.evaluate(() => { window.__ocs = []; window.openCardSheet = (k, o) => window.__ocs.push([k, o]); collPaintBody(true); });
-  await p.click('.crow.cvw-c[data-k="craterhoof behemoth"] .cvw-hit');
-  assert.deepEqual(await p.evaluate(() => window.__ocs), [['craterhoof behemoth', { l: 'en', g: 'en#pef56' }]], 'fiche de la carte : clé, langue, ligne');
-  assert.equal(await p.$('.cvw-x'), null, 'avec la fiche, rien ne se déplie');
-  assert.match(await p.$eval('.crow.cvw-c[data-k="craterhoof behemoth"] .cvw-hit', b => b.getAttribute('aria-label')), /^Ouvrir la fiche de Craterhoof Behemoth/);
-  // la vignette garde l'agrandissement
-  await p.waitForFunction(() => !!document.querySelector('.crow.cvw-c[data-k="wrath of god"] .thumb img.ok'), null, { timeout: 8000 });
-  await p.click('.crow.cvw-c[data-k="wrath of god"] .thumb'); await p.waitForSelector('.imgv.on'); assert.equal(await p.evaluate(() => window.__ocs.length), 1, 'la vignette ne va pas à la fiche');
-  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv.on'));
-  ok('toucher d\'une ligne : déplie sur place (− / +, Replier) sans fiche, openCardSheet(k, { l }) avec ; la vignette s\'agrandit');
+  await p.evaluate(() => { window.openCardSheet = window.__ocs; collPaintBody(true); });
+  ok('toucher d\'une ligne : la fiche de la carte (même branchement que la vue détaillée), la vignette s\'agrandit ; sans fiche, la ligne se déplie (− / +, Replier)');
 
   // choix de la vue : feuille « Affichage de la liste », grille 3 par ligne, gardé au rechargement
   await p.click('.cvw-btn'); await p.waitForSelector('.sheet-wrap.open .cvw-opts');
@@ -115,13 +116,15 @@ const ROWS = '.coll.on .coll-list > .crow';
   const g = await p.$$eval('.coll-list.cvw-grid > .crow.cvw-g', t => t.slice(0, 4).map(x => Math.round(x.getBoundingClientRect().top)));
   assert.ok(g[0] === g[1] && g[1] === g[2] && g[3] > g[0], 'trois par ligne : ' + g);
   assert.match(await txt(p, '.crow.cvw-g[data-k="sol ring"] .cvw-ov'), /Sol Ring ×5 1,50\s€/, 'nom, ×n et prix en surimpression');
-  await p.click('.crow.cvw-g[data-k="arcane signet"] .cvw-hit'); assert.deepEqual((await p.evaluate(() => window.__ocs))[1][0], 'arcane signet', 'grille : même toucher que la compacte');
+  await p.click('.crow.cvw-g[data-k="arcane signet"] .cvw-hit'); await p.waitForSelector('.sheet-wrap.open.cs-sheet'); assert.equal(await p.evaluate(() => CS.k), 'arcane signet', 'grille : même toucher que la compacte');
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
   await p.selectOption('#collSort', 'set'); await p.waitForSelector('.coll-list.cvw-grid > .coll-sethd');
   assert.ok(await p.$eval('.coll-list.cvw-grid > .coll-sethd', h => h.getBoundingClientRect().width > innerWidth * .8), 'intertitre sur toute la largeur'); await p.selectOption('#collSort', 'name');
   console.log('  393×852 grille :', JSON.stringify(await measure(p, ROWS)));
   await p.reload(); await p.waitForFunction(() => typeof openCollection === 'function'); await toColl(p);
   assert.ok(await p.$('.coll-list.cvw-grid > .crow.cvw-g'), 'vue gardée après rechargement'); assert.equal(await p.$eval('.cvw-btn', b => b.getAttribute('aria-label')), 'Affichage : Grille');
-  await p.click('.crow.cvw-g[data-k="sol ring"] .cvw-hit'); await p.waitForSelector('.cvw-grid > .cvw-x .qstep');      // sans fiche : dépliée sur toute la largeur
+  await p.evaluate(() => { window.openCardSheet = undefined; collPaintBody(true); });      // sans fiche : dépliée sur toute la largeur
+  await p.click('.crow.cvw-g[data-k="sol ring"] .cvw-hit'); await p.waitForSelector('.cvw-grid > .cvw-x .qstep');
   assert.ok(await p.$eval('.cvw-grid > .cvw-x', x => x.getBoundingClientRect().width > innerWidth * .8));
   await p.click('.cvw-btn'); await p.waitForSelector('.sheet-wrap.open .cvw-opts'); await p.click('.cvw-opt[data-v="detail"]');
   await p.waitForFunction(() => document.querySelectorAll('.coll-list.cvw-detail > .crow .qstep').length === 8 && !document.querySelector('.cvw-x'));

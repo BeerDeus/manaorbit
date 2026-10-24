@@ -1,7 +1,7 @@
 /* ── densite.js : densité sur téléphone (crochets de collection.js et share.js) ───────────────────────────────────────────────────
    · Collection, onglet Cartes : trois vues de la liste, choix gardé sur l'appareil (CVW_KEY) — Compacte (par défaut : une ligne de 64 px par carte,
      vignette, nom et drapeau, édition et emplacement en petit, prix, « ×3 » ; ni pastilles Famille / Coût ni − / + : un toucher ouvre la fiche de la carte,
-     openCardSheet quand elle existe, sinon la ligne se déplie sur place en vue détaillée), Détaillée (la ligne de toujours : collection.js › crowHtml),
+     la fiche de la carte (cardsheet.js › openCardSheet, par le toucher de la ligne de collection.js), sinon la ligne se déplie sur place en vue détaillée), Détaillée (la ligne de toujours : collection.js › crowHtml),
      Grille (images, 3 par ligne sur téléphone ; nom, ×n et prix en surimpression ; toucher = même chose que la vue compacte).
    · En-tête : la valeur passe dans le sous-titre (« 8 cartes · 17 ex. · 28 € »), la grande carte de valeur reste dans Stats ; onglets et recherche
      collés en haut au défilement (CSS), titre resserré une fois la liste défilée. Tri et Masterset deviennent deux boutons-icônes dans la rangée de la
@@ -34,7 +34,7 @@ function cvwSet(v) {
 /** Classe de la liste de l'onglet Cartes. */
 const cvwCls = () => ' cvw-' + cvwView();
 
-/** Fiche de la carte (autre module) si elle existe ; sinon la ligne se déplie sur place. */
+/** Fiche de la carte (cardsheet.js) : la ligne entière l'ouvre (collection.js, toucher de la ligne) ; sans elle, la ligne se déplie sur place. */
 const cvwSheetOk = () => typeof openCardSheet === 'function';
 /** Prix affiché d'une ligne : Cardmarket (estimation), sinon l'offre CardTrader lue. */
 function cvwPrice(it) {
@@ -49,7 +49,7 @@ function cvwRow(it) {
   if (CVW.open.has(id)) return `<div class="cvw-x">${crowHtml(it)}<button type="button" class="link-btn cvw-fold" data-act="cvwfold" aria-expanded="true">${T('Replier')}</button></div>`;
   const nm = it.dn || it.n, img = collLineImage(it.k, g, it.im).src, letter = esc((nm.trim()[0] || '?').toUpperCase()), hue = hash32(it.k) % 360, px = cvwPrice(it), sub = it.li > 0;
   const lab = esc(T(cvwSheetOk() ? 'Ouvrir la fiche de {name}' : 'Afficher le détail de {name}', { name: nm }) + ' · × ' + it.q + (px ? ' · ' + px : ''));
-  const hit = `<button type="button" class="cvw-hit" data-act="cvwopen" aria-label="${lab}"${cvwSheetOk() ? ' aria-haspopup="dialog"' : ' aria-expanded="false"'}></button>`;
+  const hit = `<button type="button" class="cvw-hit" aria-label="${lab}"${cvwSheetOk() ? ' aria-haspopup="dialog"' : ' aria-expanded="false"'}></button>`;
   const data = `data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}`;
   if (v === 'grid') {
     return `<div class="crow cvw-g${it.f ? ' foil' : ''}" ${data} style="--h:${hue}"><span class="cvw-art">${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
@@ -61,24 +61,24 @@ function cvwRow(it) {
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span>${meta ? `<span class="cvw-sub">${meta}</span>` : ''}</span>
     <span class="cvw-r">${px ? `<b class="cvw-p">${esc(px)}</b>` : ''}<b class="cvw-q">×${it.q}</b></span>${hit}</div>`;
 }
-/** Item d'une rangée affichée (liste peinte) : pour la déplier sur place. */
+/** Item d'une rangée affichée : pour la déplier ou la replier sur place. */
 function cvwItemOf(row) {
-  const k = row.dataset.k, g = rowG(row), it = (COLL.painted || []).find(x => x.k === k);
+  const k = row.dataset.k, g = rowG(row), it = collAll().all.find(x => x.k === k);      // lue à l'instant (− / + de la ligne dépliée : sans repeint de la liste)
   return it ? collRowItems(it).find(r => (r.g ?? r.l) === g) || null : null;
 }
 /** Clics de densite.js dans l'écran de la collection ; true : clic traité. */
 function dnsClick(e) {
-  const b = e.target.closest('button[data-act]'); if (!b || !COLL.el || !COLL.el.contains(b)) return false;
-  const act = b.dataset.act;
-  if (act === 'cvwopen') {
-    const row = b.closest('.crow'); if (!row) return true;
-    if (cvwSheetOk()) { haptic('tap'); openCardSheet(row.dataset.k, { l: row.dataset.ln || '', g: rowG(row) }); return true; }      // fiche de la carte (autre module) : − / + et le reste
+  const hb = e.target.closest('.cvw-hit');
+  if (hb && !cvwSheetOk()) {      // avec la fiche : rien ici, le toucher de la ligne l'ouvre (collection.js) comme dans la vue détaillée
+    const row = hb.closest('.crow'); if (!row) return true;
     const it = cvwItemOf(row); if (!it) return true;
     CVW.open.add(it.k + '|' + (it.g ?? it.l)); haptic('tap');
     const tmp = document.createElement('div'); tmp.innerHTML = cvwRow(it); const x = tmp.firstElementChild; row.replaceWith(x);
     const f = $('.cvw-fold', x); if (f) f.focus({ preventScroll: true });
     return true;
   }
+  const b = e.target.closest('button[data-act]'); if (!b || !COLL.el || !COLL.el.contains(b)) return false;
+  const act = b.dataset.act;
   if (act === 'cvwfold') {
     const x = b.closest('.cvw-x'), row = x && $('.crow', x); if (!row) return true;
     const it = cvwItemOf(row); CVW.open.delete(row.dataset.k + '|' + rowG(row)); haptic('tap');

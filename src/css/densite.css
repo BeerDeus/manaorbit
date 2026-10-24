@@ -4,9 +4,9 @@
 .coll .coll-controls{position:sticky;top:0;z-index:6;margin:-6px -16px 0;padding:6px 16px 8px;background:var(--bar-bg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);transition:box-shadow .2s}
 .coll.scrolled .coll-controls{box-shadow:0 1px 0 var(--line),0 10px 18px -16px rgba(16,21,43,.45)}
 .coll .coll-controls .fpanel{max-height:min(58vh,520px);overflow-y:auto;overscroll-behavior:contain}      /* filtres ouverts dans la barre collée : ils défilent seuls */
-.coll .dv-head{transition:padding .2s}
+.coll .dv-head{transition:padding .2s,min-height .2s}
 .coll .dv-title b{transition:font-size .2s}
-.coll.scrolled .dv-head{padding-top:calc(var(--top-in) + 5px);padding-bottom:5px}
+.coll.scrolled .dv-head{min-height:calc(var(--top-in) + 50px);padding-top:calc(var(--top-in) + 4px);padding-bottom:4px}
 .coll.scrolled .dv-title b{font-size:16px}
 
 /* Rangée de la recherche : Filtres, Trier, Masterset, Affichage (icônes ; libellés lus) */
