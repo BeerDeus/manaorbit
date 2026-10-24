@@ -441,7 +441,7 @@ function evHomePaint() {
   const st = EV.st, p = evPackOf();
   if (!evOn() || !st || !p || (typeof streamOn === 'function' && streamOn())) { if (box) box.remove(); return; }
   if (!box) {
-    const at = document.getElementById('hmPartie') || document.getElementById('hmTrade'); if (!at) return;
+    const at = document.getElementById('hmTrade'); if (!at) return;      // juste après l'Échange, avant le compteur de vie et le Discord
     at.insertAdjacentHTML('afterend', '<section class="hm-trade hm-ev" id="hmEvent" aria-labelledby="hmEvT"></section>'); box = document.getElementById('hmEvent');
     box.addEventListener('click', e => { if (e.target.closest('.ev-pk')) return; const b = e.target.closest('[data-ev]'); if (!b) return; haptic('tap'); evSheetOpen(); });
   }

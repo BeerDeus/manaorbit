@@ -143,11 +143,11 @@ un(); unsub();
   assert.equal(c.provider(), 'password');
   await assert.rejects(c.reauth('mauvais'), e => e.code === 'auth/invalid-credential');
   await c.reauth('ok');
-  // liens connus de l'appareil seulement (S3), déjà retiré (PARTI : pas de suppression tentée), doublon (S1), refusé (REFUS : compté, on continue)
+  // lot : sommaire, decks, 11 documents annexes (dont events, événements saisonniers), classeur ; liens connus de l'appareil seulement (S3), déjà retiré (PARTI : pas de suppression tentée), doublon (S1), refusé (REFUS : compté, on continue)
   const r = await c.wipe('u1', ['S3', 'S1', 'PARTI', 'REFUS', '']); await c.deleteUser();
   assert.deepEqual(r, { decks: 2, shares: 5, pub: 2, failed: 1 });
   assert.deepEqual([...store.keys()], ['shares/REFUS', 'shares/AUTRE', `pubdecks/${T2}_0`], 'tout le compte effacé (sauf le lien refusé), rien d\'autre');
-  assert.deepEqual(log, ['reauth:mauvais', 'reauth:ok', 'del:shares/S1', 'del:shares/S2', 'del:shares/S3', 'del:shares/REFUS', `del:pubdecks/${T1}_0`, `del:pubdecks/${T1}_4`, 'batch:14', 'deleteUser:a@b.c']);
+  assert.deepEqual(log, ['reauth:mauvais', 'reauth:ok', 'del:shares/S1', 'del:shares/S2', 'del:shares/S3', 'del:shares/REFUS', `del:pubdecks/${T1}_0`, `del:pubdecks/${T1}_4`, 'batch:15', 'deleteUser:a@b.c']);
   user.providerData = [{ providerId: 'google.com' }]; assert.equal(c.provider(), 'google'); await c.reauth(null); assert.equal(log.at(-1), 'popup');
   console.log('✓ suppression du compte : reconnexion, liens publics (compte + appareil, absents ignorés, échecs comptés), decks publics du compte, decks et documents annexes effacés, puis le compte');
 

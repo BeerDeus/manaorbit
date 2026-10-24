@@ -128,7 +128,7 @@ async function findAndTap(p, s, forced) {
 
   /* ── 6) Interrupteur « Décorations de fête » : décor coupé, la chasse reste ── */
   await closeAll(p); await p.evaluate(() => openSettings()); await p.waitForSelector('#setEvDeco');
-  await shot(p, 'preferences-393-clair');
+  await p.$eval('#setEvDeco', i => i.closest('.me-row').scrollIntoView({ block: 'center' })); await p.waitForTimeout(300); await shot(p, 'preferences-393-clair');
   await p.$eval('#setEvDeco', i => { i.checked = false; i.dispatchEvent(new Event('change', { bubbles: true })); });
   assert.equal(await p.evaluate(() => [document.documentElement.classList.contains('ev-deco'), !!document.querySelector('body > .ev-amb'), document.documentElement.dataset.event].join()), 'false,false,halloween');
   assert.equal(await p.evaluate(() => document.getElementById('i-logo').innerHTML.includes('evl-halloween')), false, 'logo d\'origine');
