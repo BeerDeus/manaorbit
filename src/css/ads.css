@@ -15,6 +15,10 @@ html.ad-on::after{content:'';position:fixed;left:0;right:0;top:calc(var(--top-in
 html.ad-on .wrap{padding-top:calc(20px + var(--ad-sp))}
 /* écrans plein écran : la place du bandeau sous leur en-tête */
 html.ad-on .dv:not(.scan):not(.bd)>.dv-head{margin-bottom:var(--ad-sp)}
+/* collection et Échange : la place du bandeau prend le fond de l'en-tête et des onglets collés dessous (densite.css) : un seul bloc, le bandeau garde ses écarts */
+html.ad-on .coll>.dv-head{position:relative}
+html.ad-on .coll>.dv-head::after{content:'';position:absolute;left:0;right:0;top:100%;height:var(--ad-sp);background:var(--bar-bg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);pointer-events:none}
+html.ad-on .coll.scrolled>.dv-head{border-bottom-color:transparent;box-shadow:none}
 html.ad-on .tasks,html.ad-on .tasks.over{top:calc(var(--ad-bot) + 8px)}
 /* annonce d'un nouveau badge (progress.js › prgPop) : d'ordinaire en haut par-dessus l'en-tête, elle (76 px) descendait sous le bandeau qui la
    coupait à moitié (nom du palier et ce qu'il récompense cachés) ; avec le bandeau, elle se pose juste dessous, sur le contenu */
