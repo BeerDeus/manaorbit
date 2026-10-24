@@ -85,7 +85,7 @@ ok('création : code, clé de siège, attente d\'un joueur, prix du serveur dat�
 
 // liste d'Alice avec les prix de la session
 r = await call('GET', `/list?c=${A.c}&w=me`, { key: A.key });
-assert.deepEqual(r.o.list.map(x => [x.n, x.q, x.g, x.u]), [['Sol Ring', 3, 'fr', 120], ['Llanowar Elves', 2, 'en|m21|180', 25], ['Vrombl Unknown', 1, '', 777], ['Bad Lang', 1, '', undefined]], 'prix du serveur (le moins cher), sinon celui de l\'appareil ; ligne illisible : sans langue ni édition');
+assert.deepEqual(r.o.list.map(x => [x.n, x.q, x.g, x.u]), [['Sol Ring', 3, 'fr', 120], ['Llanowar Elves', 2, 'en|m21|180', 30], ['Vrombl Unknown', 1, '', 777], ['Bad Lang', 1, '', undefined]], 'prix du serveur (le moins cher), sinon celui de l\'appareil ; édition précise : celui de l\'appareil (prix de cette impression) ; ligne illisible : sans langue ni édition');
 assert.equal(r.o.list[0].i, 'small/front/a/b/sol-ring.jpg', 'image en forme courte'); assert.equal(r.o.list[0].f, 'Anneau solaire');
 ok('liste : prix du fichier du serveur (impression la moins chère), prix de l\'appareil pour une carte absente du fichier, images raccourcies');
 
@@ -113,7 +113,7 @@ r = await op(A, { op: 'give', card: { n: 'Sol Ring', q: 1, g: 'fr', u: 999 } });
 assert.equal(r.s, 200); assert.deepEqual(r.o.me.give.map(x => [x.n, x.q, x.u, !!x.r]), [['Sol Ring', 1, 120, false]], 'prix du serveur, pas celui de l\'appareil');
 r = await op(B, { op: 'ask', card: { n: 'Llanowar Elves', q: 5, g: 'en|m21|180' } });
 assert.equal(r.s, 200); const ask = r.o.ot.give.find(x => x.n === 'Llanowar Elves');
-assert.deepEqual([ask.q, ask.r, ask.a, ask.u], [2, 1, 1, 25], 'demande plafonnée à ce qu\'Alice propose, en attente');
+assert.deepEqual([ask.q, ask.r, ask.a, ask.u], [2, 1, 1, 30], 'demande plafonnée à ce qu\'Alice propose, en attente (prix de sa liste : cette impression)');
 r = await op(B, { op: 'ask', card: { n: 'Llanowar Elves', q: 1, g: 'en|m21|180' } }); assert.equal(r.s, 409); assert.equal(r.o.error, 'max');
 r = await op(B, { op: 'ask', card: { n: 'Llanowar Elves', q: 1, g: 'fr' } }); assert.equal(r.s, 404); assert.equal(r.o.error, 'not_listed', 'autre langue : pas dans sa liste');
 r = await op(B, { op: 'ask', card: { n: 'Black Lotus', q: 1 } }); assert.equal(r.o.error, 'not_listed');
@@ -190,6 +190,43 @@ ok('rythme d\'un siège borné');
   const fl2 = await fetch(BASE + '/api/friends', { headers: { 'x-firebase-token': F.jwt(U.b) } }).then(x => x.json()); assert.deepEqual(fl2.tr, [], 'rejointe : plus d\'invitation');
   r = await poll(AI); assert.equal(r.o.inv, 'Bob'); noIds(r.o, 'invitation');
   ok('invitation d\'un ami : amitié vérifiée, notification FCM dans sa langue (./?troc=), visible dans sa liste d\'amis tant qu\'elle l\'attend');
+}
+
+// foil : la clé de ligne garde langue, édition et foil (avant : 'en*' perdait langue et foil, 'fr|cmm|400*' son édition) ; prix d'un foil : celui de l'appareil (le fichier n'en a pas)
+{
+  const LIST_F = [{ n: 'Llanowar Elves', q: 2, g: 'en*', u: 300 }, { n: 'Sol Ring', q: 1, g: 'fr|cmm|400*#pk3x9a-cnm', u: 900 }, { n: 'Arcane Signet', q: 1, g: '*' }, { n: 'Sol Ring', q: 1, g: 'zz*' }];
+  r = await create('a', { list: LIST_F }); const AF = { c: r.o.s.c, key: r.o.key };
+  r = await join_('b', AF.c); const BF = { c: AF.c, key: r.o.key };
+  r = await call('GET', `/list?c=${AF.c}&w=ot`, { key: BF.key });
+  assert.deepEqual(r.o.list.map(x => [x.n, x.g, x.u]), [['Llanowar Elves', 'en*', 300], ['Sol Ring', 'fr|cmm|400*', 900], ['Arcane Signet', '*', 60], ['Sol Ring', '*', 120]],
+    'foil : langue, édition et foil gardés (emplacement retiré, langue inconnue seule perdue) ; prix de l\'appareil (foil), sinon celui du fichier');
+  r = await op(BF, { op: 'ask', card: { n: 'Llanowar Elves', q: 1, g: 'en*' } }); assert.equal(r.s, 200, JSON.stringify(r.o));
+  assert.deepEqual(r.o.ot.give.map(x => [x.n, x.g, x.u]), [['Llanowar Elves', 'en*', 300]], 'demande d\'un foil : la ligne foil de sa liste, à son prix');
+  r = await op(BF, { op: 'ask', card: { n: 'Llanowar Elves', q: 1, g: 'en' } }); assert.equal(r.o.error, 'not_listed', 'non foil : pas la même ligne');
+  r = await op(AF, { op: 'accept', all: true });
+  r = await op(AF, { op: 'give', card: { n: 'Sol Ring', q: 1, g: 'fr|cmm|400*', u: 900 } }); assert.deepEqual(r.o.me.give.map(x => [x.g, x.u]), [['en*', 300], ['fr|cmm|400*', 900]]);
+  r = await op(BF, { op: 'give', card: { n: 'Arcane Signet', q: 1, g: 'en', u: 999 } }); assert.equal(r.o.me.give[0].u, 60, 'ligne sans foil ni édition : prix du serveur, pas celui de l\'appareil');
+  let cv = r.o.cv;
+  for (const S of [AF, BF]) { r = await op(S, { op: 'ready', on: true, cv }); assert.equal(r.o.me.ready, true); }
+  r = await op(AF, { op: 'undo', on: true }); assert.equal(r.o.error, 'closed', 'pas encore fait : rien à annuler');
+  for (const S of [AF, BF]) r = await op(S, { op: 'confirm', cv });
+  assert.equal(r.o.st, 'done'); assert.deepEqual(r.o.ot.give.map(x => [x.n, x.g]), [['Llanowar Elves', 'en*'], ['Sol Ring', 'fr|cmm|400*']], 'fait : foil et édition arrivent tels quels');
+  assert.ok(r.o.ut > 0, 'temps restant pour l\'annuler');
+  ok('foil : clé de ligne (langue, édition, foil) gardée de bout en bout, prix foil de l\'appareil ; demande et don d\'un foil');
+
+  // annuler l'échange fait : des deux côtés ou pas du tout
+  r = await op(AF, { op: 'undo', on: true }); assert.equal(r.o.error, 'closed', 'pas encore appliqué chez Alice : rien à défaire');
+  for (const S of [AF, BF]) { r = await op(S, { op: 'got' }); assert.equal(r.o.me.got, true); }
+  r = await op(AF, { op: 'undo', on: true }); assert.equal(r.s, 200); assert.equal(r.o.me.un, 1); assert.equal(r.o.ud, undefined, 'proposé seulement');
+  r = await poll(BF); assert.deepEqual([r.o.ot.un, r.o.me.un, r.o.ud], [1, undefined, undefined], 'Bob voit la proposition');
+  r = await op(BF, { op: 'undo', on: false }); assert.deepEqual([r.o.me.un, r.o.ot.un, r.o.ud], [undefined, undefined, undefined], 'Bob refuse : la demande tombe');
+  r = await poll(AF); assert.equal(r.o.me.un, undefined, 'Alice le voit');
+  r = await op(BF, { op: 'undo', on: true }); r = await op(AF, { op: 'undo', on: true });
+  assert.equal(r.o.ud, 1, 'proposé par Bob, accepté par Alice : annulé des deux côtés');
+  r = await poll(BF); assert.equal(r.o.ud, 1, 'Bob le voit (chaque appli défait sa collection)');
+  r = await op(BF, { op: 'undo', on: false }); assert.equal(r.o.error, 'closed', 'annulé : figé');
+  noIds(r.o, 'annulation');
+  ok('annuler un échange fait : proposé par l\'un (après l\'avoir appliqué), refusé ou accepté par l\'autre ; accepté : ud chez les deux, figé');
 }
 
 // taille, action inconnue

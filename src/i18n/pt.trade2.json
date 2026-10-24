@@ -30,8 +30,8 @@
   "Tu ne cherches aucune carte pour l'instant : tes decks sont complets et ta liste de souhaits est vide.": "Você ainda não procura nenhum card: seus decks estão completos e sua lista de desejos está vazia.",
   "Il ne cherche aucun de tes doublons.": "Essa pessoa não procura nenhum dos seus repetidos.",
   "Aucune carte en trop dans ta collection pour l'instant (tes decks et ta réserve gardent les leurs).": "Nenhum card sobrando na sua coleção por enquanto (seus decks e sua reserva têm prioridade).",
-  "≈ valeur indicative : tendance Cardmarket ({when}), sans l'état ni l'édition des cartes.": "≈ valor indicativo: tendência da Cardmarket ({when}), sem considerar a condição nem a edição dos cards.",
-  "≈ valeur indicative : tendance Cardmarket, sans l'état ni l'édition des cartes.": "≈ valor indicativo: tendência da Cardmarket, sem considerar a condição nem a edição dos cards.",
+  "≈ valeur indicative : tendance Cardmarket ({when}), sans l'état des cartes.": "≈ valor indicativo: tendência da Cardmarket ({when}), sem considerar a condição dos cards.",
+  "≈ valeur indicative : tendance Cardmarket, sans l'état des cartes.": "≈ valor indicativo: tendência da Cardmarket, sem considerar a condição dos cards.",
   "tu la cherches × {n}": "você procura × {n}",
   "illustration souhaitée : {name}": "arte desejada: {name}",
   "tu peux l'échanger × {n}": "você pode trocar × {n}",
@@ -57,5 +57,6 @@
   "{n} cartes sans prix": "{n} cards sem preço",
   "Valeur estimée": "Valor estimado",
   "Prix minimal à l'unité": "Preço unitário mínimo",
-  "Tous les prix": "Todos os preços"
+  "Tous les prix": "Todos os preços",
+  "Prix foil inconnu : compté au prix normal": "Preço foil desconhecido: contado pelo preço normal"
 }

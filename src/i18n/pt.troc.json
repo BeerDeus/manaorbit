@@ -136,7 +136,6 @@
   "Demander la carte": "Pedir a carta",
   "Demander les {n} cartes": "Pedir as {n} cartas",
   "Échange appliqué : {give}, {get}": "Troca aplicada: {give}, {get}",
-  "Échange annulé sur cet appareil : ta collection est revenue comme avant": "Troca desfeita neste aparelho: sua coleção voltou a ser como antes",
   "Mes échanges": "Minhas trocas",
   "Gardés sur cet appareil": "Salvas neste aparelho",
   "annulé sur cet appareil": "desfeita neste aparelho",
@@ -153,5 +152,19 @@
   "échange en direct · {when}": "troca ao vivo · {when}",
   "Proposer un échange en direct": "Propor uma troca ao vivo",
   "Comment échanger en face à face ?": "Como troco cara a cara?",
-  "Dans <b>Échange</b>, touche <b>Échange en direct</b> : montre le QR code à l'autre joueur (ou donne-lui le code) ; depuis la page d'un ami, tu peux aussi l'inviter à distance. Chacun choisit ce qu'il donne, demande des cartes de la liste de l'autre et voit la valeur des deux côtés. Prêts tous les deux, vous validez : vos deux collections sont mises à jour. Tes échanges restent dans « Mes échanges ».": "Em <b>Trocas</b>, toque em <b>Troca ao vivo</b>: mostre o QR code para o outro jogador (ou passe o código); na página de um amigo você também pode convidá-lo a distância. Cada um escolhe o que dá, pede cartas da lista do outro e vê o valor dos dois lados. Quando os dois estiverem prontos, vocês confirmam: as duas coleções são atualizadas. Suas trocas ficam em “Minhas trocas”."
+  "Dans <b>Échange</b>, touche <b>Échange en direct</b> : montre le QR code à l'autre joueur (ou donne-lui le code) ; depuis la page d'un ami, tu peux aussi l'inviter à distance. Chacun choisit ce qu'il donne, demande des cartes de la liste de l'autre et voit la valeur des deux côtés. Prêts tous les deux, vous validez : vos deux collections sont mises à jour. Tes échanges restent dans « Mes échanges ».": "Em <b>Trocas</b>, toque em <b>Troca ao vivo</b>: mostre o QR code para o outro jogador (ou passe o código); na página de um amigo você também pode convidá-lo a distância. Cada um escolhe o que dá, pede cartas da lista do outro e vê o valor dos dois lados. Quando os dois estiverem prontos, vocês confirmam: as duas coleções são atualizadas. Suas trocas ficam em “Minhas trocas”.",
+  "Trop tard : cet échange ne peut plus être annulé.": "Tarde demais: esta troca não pode mais ser desfeita.",
+  "{name} propose d'annuler l'échange": "{name} propõe desfazer a troca",
+  "{name} préfère garder l'échange": "{name} prefere manter a troca",
+  "Échange annulé des deux côtés : ta collection est revenue comme avant": "Troca desfeita dos dois lados: sua coleção voltou a ser como antes",
+  "Annuler l'échange ?": "Desfazer a troca?",
+  "{name} doit accepter : vos deux collections reviendront alors comme avant. Sans sa réponse, rien ne change.": "{name} precisa aceitar: as duas coleções voltarão a ser como antes. Sem resposta, nada muda.",
+  "Garder l'échange": "Manter a troca",
+  "Proposer l'annulation": "Propor desfazer",
+  "Échange annulé des deux côtés": "Troca desfeita dos dois lados",
+  "Vos deux collections sont revenues comme avant.": "As duas coleções voltaram a ser como antes.",
+  "Annulation proposée à {name} : en attente de sa réponse…": "Desfazer proposto a {name}: aguardando a resposta…",
+  "Retirer ma demande": "Retirar meu pedido",
+  "{name} propose d'annuler l'échange : vos deux collections reviendraient comme avant.": "{name} propõe desfazer a troca: as duas coleções voltariam a ser como antes.",
+  "annulé des deux côtés": "desfeita dos dois lados"
 }

@@ -1649,22 +1649,25 @@ async function friendsApi(req, res, path, url) {
    qui sert ensuite à tout : relevé (GET /api/troc/s), listes (GET /api/troc/list), actions (POST /api/troc/op). Aucun UID ni empreinte n'est renvoyé :
    chacun voit « moi » et « l'autre » (pseudo, miniature du profil).
    Sessions EN MÉMOIRE seulement (un seul processus) : un redémarrage les termine (l'appli dit « Session terminée »), rien n'est écrit nulle part.
-   · Chaque joueur envoie sa liste d'échange (doublons, une entrée par ligne langue|édition) ; l'autre y demande des cartes (op ask : elles arrivent dans
+   · Chaque joueur envoie sa liste d'échange (doublons, une entrée par ligne langue|édition, '*' foil) ; l'autre y demande des cartes (op ask : elles arrivent dans
      « Tu donnes » de celui qui les a, marquées demandées, à accepter ou retirer). Chacun choisit ce qu'il donne (op give : sa liste ou toute sa collection).
    · Prix : ceux du fichier de prix du serveur (tendance Cardmarket, celui que lit l'appli), posés sur chaque carte à son arrivée dans la session ; carte
-     absente du fichier (ou serveur sans fichier) : le prix de l'appareil qui l'ajoute. Les deux joueurs voient donc exactement les mêmes valeurs.
+     absente du fichier (ou serveur sans fichier), exemplaire foil ou d'une édition précise : le prix de l'appareil qui l'ajoute (trocUnit). Les deux joueurs voient donc exactement les mêmes valeurs.
    · Version v (tout changement : un relevé sans nouveauté répond « same ») et version du contenu cv : « Prêt » et « Valider » portent la cv que le joueur
      a vue (refusés si le contenu a bougé entre-temps : 409 stale). Tout changement du contenu retire « Prêt » aux deux (règle des RPG).
    · Les deux « Prêt » → confirmation ; les deux « Valider » → done : la session est figée et chaque appli applique SA collection (retire ce qu'elle donne,
      ajoute ce qu'elle reçoit). done n'arrive qu'une fois les deux validés : un joueur parti avant, et rien ne change. Session done gardée 24 h
      (TROC_KEEP_MS) : une appli tuée juste après applique à son retour.
+   · Annuler un échange fait : des DEUX côtés ou pas du tout (avant : « Annuler » défaisait seulement l'appareil qui le touchait, et les deux collections divergeaient).
+     Pendant TROC_UNDO_MS (15 min) après done, un joueur qui a appliqué (got) le propose (op undo { on: true } : un) ; l'autre accepte (undo on à son tour : ud,
+     chaque appli défait alors SA collection) ou refuse (undo { on: false } : la demande tombe ; aussi pour retirer la sienne). Vue : un (par côté), ud, ut (ms restantes).
    · Bornes : TROC_MAX sessions ouvertes (300), une à la fois par compte, TROC_NEW_PER_H créations par compte et par heure (20), TROC_BAD_PER_H codes faux
      par compte et par heure (20 ; le double par réseau), 30 min sans requête (TROC_IDLE_MS) ou 3 h en tout : terminée ; listes de 3 000 entrées,
      24 Mo pour toutes les sessions (TROC_MB : au-delà, les listes sont tronquées) ; 100 cartes par côté ; 12 requêtes d'avance par siège (6 par seconde).
    Rien au démarrage : minuterie et prix chargés à la première session, libérés quand il n'y en a plus. TROC=0 : coupé (/__ping troc: false). */
 const TROC_ON = process.env.TROC !== '0';
 const TROC_MAX = Math.max(1, Number(process.env.TROC_MAX) || 300), TROC_IDLE = Number(process.env.TROC_IDLE_MS ?? 30 * 60e3), TROC_LIFE = Number(process.env.TROC_LIFE_MS ?? 3 * 3600e3);
-const TROC_KEEP = Number(process.env.TROC_KEEP_MS ?? 86400e3), TROC_AWAY = Number(process.env.TROC_AWAY_MS ?? 15e3), TROC_TICK = Number(process.env.TROC_TICK_MS ?? 15e3);
+const TROC_KEEP = Number(process.env.TROC_KEEP_MS ?? 86400e3), TROC_UNDO = Number(process.env.TROC_UNDO_MS ?? 15 * 60e3), TROC_AWAY = Number(process.env.TROC_AWAY_MS ?? 15e3), TROC_TICK = Number(process.env.TROC_TICK_MS ?? 15e3);
 const TROC_NEW_H = Number(process.env.TROC_NEW_PER_H ?? 20), TROC_BAD_H = Number(process.env.TROC_BAD_PER_H ?? 20), TROC_MB = (Number(process.env.TROC_MB) || 24) * 1024 * 1024;
 const TROC_LIST = 3000, TROC_ITEMS = 100, TROC_BODY = 700 * 1024, TROC_ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', TROC_CODE = /^[A-HJKMNP-Z2-9]{6}$/, TROC_KEY = /^[\w-]{24}$/;
 const TROC_LANGS = new Set(['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'kr', 'ru', 'zh-TW']), TROC_IMG = 'https://cards.scryfall.io/';
@@ -1680,10 +1683,13 @@ const TROC_TXT = {
 };
 const trocStr = (v, n) => (typeof v === 'string' ? v.replace(/[\p{Cc}\p{Cf}<>]/gu, '').replace(/\s+/g, ' ').trim().slice(0, n) : '');
 const trocKey = n => (NM_CORE && NM_CORE.ownKey ? NM_CORE.ownKey(String(n)) : String(n).toLowerCase().trim());
-/** Ligne d'un exemplaire (langue|édition, comme core.js › lineKey) ; '' si rien de lisible. */
+/** Ligne d'un exemplaire (langue|édition, '*' foil : 'fr', 'fr|cmm|400*', '*', comme core.js › lineKey) ; emplacement et détails (« #… ») retirés ; '' si rien de lisible.
+    Langue, édition et foil sont lus chacun de leur côté : une partie illisible tombe seule (avant : 'en*' perdait sa langue et son foil, 'fr|cmm|400*' son édition). */
 function trocG(g) {
-  const s = typeof g === 'string' ? g.slice(0, 40) : '', i = s.indexOf('|'), l = i < 0 ? s : s.slice(0, i), e = i < 0 ? '' : s.slice(i + 1);
-  return (TROC_LANGS.has(l) ? l : '') + (/^[a-z0-9]{2,6}\|[^\s()|*,;"]{1,12}$/.test(e) ? '|' + e : '');
+  let s = typeof g === 'string' ? g.slice(0, 40) : ''; const h = s.indexOf('#'); if (h >= 0) s = s.slice(0, h);
+  const f = s.endsWith('*'); if (f) s = s.slice(0, -1);
+  const i = s.indexOf('|'), l = i < 0 ? s : s.slice(0, i), e = i < 0 ? '' : s.slice(i + 1);
+  return (TROC_LANGS.has(l) ? l : '') + (/^[a-z0-9]{2,6}\|[^\s()|*,;"#]{1,12}$/.test(e) ? '|' + e : '') + (f ? '*' : '');
 }
 /** Image Scryfall (adresse complète ou courte, comme les partages) → forme courte « small/front/… » ; '' sinon. */
 function trocImg(v) {
@@ -1721,6 +1727,10 @@ async function trocPxLoad() {
   return TROC.pxP;
 }
 const trocPrice = n => { const e = TROC.px && TROC.px.map.get(trocKey(n)); return e > 0 ? e : null; };
+/** Prix à l'unité d'une carte de la session : celui du fichier du serveur (impression la moins chère, non foil), sinon celui de l'appareil ; ligne foil ou d'une édition
+    précise : celui de l'appareil qui l'ajoute s'il en donne un (prix de cette impression et de sa finition, comme la valeur de sa collection : le fichier n'a ni prix
+    foil ni prix par édition, et le lire pour chaque impression serait disproportionné), sinon celui du fichier. Les deux joueurs voient le même. */
+const trocUnit = c => (/\*$|\|/.test(c.g) && c.u > 0 ? c.u : trocPrice(c.n) || c.u || null);
 /** Seau de jetons par compte ou par réseau (créations, codes faux) : 0 si permis (un jeton pris si take), sinon secondes à attendre. */
 function trocLim(name, who, cap, per, take = true) {
   if (!who || !(cap > 0)) return 0;
@@ -1746,7 +1756,7 @@ function trocSetList(p, raw) {
   for (const x of a.slice(0, TROC_LIST + 1)) {
     if (p.list.length >= TROC_LIST) { p.cut = true; break; }
     const c = trocCard(x, 9999); if (!c) continue;
-    const pu = trocPrice(c.n); if (pu) c.u = pu;
+    const pu = trocUnit(c); if (pu) c.u = pu;
     const sz = JSON.stringify(c).length + 1; if (sz > room) { p.cut = true; break; }
     room -= sz; p.lb += sz; p.list.push(c);
   }
@@ -1763,7 +1773,7 @@ function trocTick() {
   const now = Date.now(), old = [];
   for (const [c, s] of TROC.s) {
     if (trocOpen(s) && (now - s.act > TROC_IDLE || now - s.at > TROC_LIFE)) trocEnd(s, 'idle');
-    if ((s.st === 'end' && now - s.endAt > 10 * 60e3) || (s.st === 'done' && (now - s.endAt > TROC_KEEP || (s.p.every(p => p.got) && now - s.endAt > 60e3)))) TROC.s.delete(c);
+    if ((s.st === 'end' && now - s.endAt > 10 * 60e3) || (s.st === 'done' && (now - s.endAt > TROC_KEEP || (s.p.every(p => p.got) && now - s.endAt > Math.max(60e3, TROC_UNDO + 60e3))))) TROC.s.delete(c);      // appliquée des deux côtés : gardée le temps de l'annuler
     else if (!trocOpen(s)) old.push(c);
   }
   for (const c of old.slice(0, Math.max(0, old.length - TROC_MAX * 8))) TROC.s.delete(c);      // terminées en surnombre : les plus anciennes partent
@@ -1773,9 +1783,10 @@ function trocWake() { if (!TROC.t) { TROC.t = setInterval(trocTick, TROC_TICK); 
 /** La session vue du siège i : « me » et « ot » (l'autre, null tant que personne n'a rejoint ; on : il a donné signe de vie il y a moins de 15 s). */
 function trocView(s, i) {
   const me = s.p[i], ot = s.p[1 - i];
-  const side = p => ({ n: p.n, ...(p.p ? { p: p.p } : {}), ready: p.ready, ok: p.ok, got: p.got, give: p.give, lv: p.lv, nl: p.list.length, ...(p.cut ? { cut: true } : {}) });
+  const side = p => ({ n: p.n, ...(p.p ? { p: p.p } : {}), ready: p.ready, ok: p.ok, got: p.got, give: p.give, lv: p.lv, nl: p.list.length, ...(p.cut ? { cut: true } : {}), ...(p.un ? { un: 1 } : {}) });
   return { c: s.code, v: s.v, cv: s.cv, st: s.st, why: s.why, by: s.by < 0 ? '' : s.by === i ? 'me' : 'ot', host: i === 0, px: s.px,
-    me: side(me), ot: ot ? { ...side(ot), on: Date.now() - ot.seen < TROC_AWAY } : null, ...(i === 0 && s.inv ? { inv: s.invN || '' } : {}) };
+    me: side(me), ot: ot ? { ...side(ot), on: Date.now() - ot.seen < TROC_AWAY } : null, ...(i === 0 && s.inv ? { inv: s.invN || '' } : {}),
+    ...(s.st === 'done' ? { ut: Math.max(0, TROC_UNDO - (Date.now() - s.endAt)), ...(s.ud ? { ud: 1 } : {}) } : {}) };      // échange fait : temps restant pour l'annuler, annulé des deux côtés
 }
 /** Invitations en attente pour ce compte (GET /api/friends › tr) : sessions qui l'attendent encore. */
 function trocInvFor(tag) {
@@ -1855,7 +1866,7 @@ async function trocListGet(req, res, url) {
   return amSend(req, res, { lv: p ? p.lv : 0, list: p ? p.list : [], ...(p && p.cut ? { cut: true } : {}) });
 }
 /** POST /api/troc/op { c, op, … } : give { card } · ask { card } (dans sa liste) · set { id, q } · accept { id | all } · unask { id } · ready { on, cv } ·
-    confirm { cv } · list { list } · leave · got (appliqué chez moi). Répond la session vue de ce siège (erreur : { error, message, s }). */
+    confirm { cv } · list { list } · leave · got (appliqué chez moi) · undo { on } (échange fait : annuler des deux côtés). Répond la session vue de ce siège (erreur : { error, message, s }). */
 async function trocOp(req, res) {
   const b = await amBody(req, res, TROC_BODY); if (!b) return;
   const x = trocSeatOf(req, res, String(b.c || '')); if (!x) return;
@@ -1864,6 +1875,14 @@ async function trocOp(req, res) {
   const touch = () => { s.cv++; s.v++; for (const q of s.p) if (q) { q.ready = false; q.ok = false; } return done(); };      // contenu changé : plus personne n'est prêt
   if (op === 'leave') { trocEnd(s, 'left', i); return done(); }
   if (op === 'got') { if (s.st === 'done' && !p.got) { p.got = true; s.v++; } return done(); }
+  if (op === 'undo') {      // annuler l'échange fait : proposé par l'un, accepté par l'autre (les deux un → ud) ; off : demande refusée ou retirée (celles des deux tombent)
+    if (s.st !== 'done' || s.ud) return fail(409, 'closed', 'Échange terminé.');
+    if (Date.now() - s.endAt > TROC_UNDO) return fail(409, 'late', 'Trop tard pour annuler cet échange.');
+    if (!b.on) { if (s.p.some(q => q && q.un)) { for (const q of s.p) if (q) q.un = false; s.v++; } return done(); }
+    if (!p.got) return fail(409, 'closed', 'Échange pas encore appliqué.');      // rien à défaire chez lui
+    if (!p.un) { p.un = true; if (ot && ot.un) s.ud = 1; s.v++; }
+    return done();
+  }
   if (!trocOpen(s)) return fail(409, 'closed', 'Échange terminé.');
   if (op === 'list') { trocSetList(p, b.list); s.v++; return done(); }
   if (op === 'give' || op === 'ask') {
@@ -1880,7 +1899,7 @@ async function trocOp(req, res) {
     if (cur) { const q = Math.min(cap, cur.q + c.q); if (q <= cur.q) return fail(409, 'max', 'Pas plus d\'exemplaires.'); cur.q = q; if (asked) cur.r = 1; return touch(); }
     if (side.give.length >= TROC_ITEMS) return fail(409, 'items', 'Trop de cartes de ce côté.');
     const q = Math.min(cap, c.q); if (q < 1) return fail(409, 'max', 'Pas plus d\'exemplaires.');
-    side.give.push({ id: (++s.n).toString(36), ...c, q, u: trocPrice(c.n) || c.u || null, ...(asked ? { a: 1, r: 1 } : {}) });
+    side.give.push({ id: (++s.n).toString(36), ...c, q, u: trocUnit(c), ...(asked ? { a: 1, r: 1 } : {}) });
     return touch();
   }
   if (op === 'set' || op === 'unask') {      // set : mes cartes (0 : retirée ; une carte demandée ne monte pas au-delà) · unask : ma demande chez l'autre, retirée

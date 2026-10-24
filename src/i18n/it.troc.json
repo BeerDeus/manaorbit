@@ -136,7 +136,6 @@
   "Demander la carte": "Chiedi la carta",
   "Demander les {n} cartes": "Chiedi le {n} carte",
   "Échange appliqué : {give}, {get}": "Scambio applicato: {give}, {get}",
-  "Échange annulé sur cet appareil : ta collection est revenue comme avant": "Scambio annullato su questo dispositivo: la tua collezione è tornata come prima",
   "Mes échanges": "I miei scambi",
   "Gardés sur cet appareil": "Salvati su questo dispositivo",
   "annulé sur cet appareil": "annullato su questo dispositivo",
@@ -153,5 +152,19 @@
   "échange en direct · {when}": "scambio dal vivo · {when}",
   "Proposer un échange en direct": "Proponi uno scambio dal vivo",
   "Comment échanger en face à face ?": "Come scambio faccia a faccia?",
-  "Dans <b>Échange</b>, touche <b>Échange en direct</b> : montre le QR code à l'autre joueur (ou donne-lui le code) ; depuis la page d'un ami, tu peux aussi l'inviter à distance. Chacun choisit ce qu'il donne, demande des cartes de la liste de l'autre et voit la valeur des deux côtés. Prêts tous les deux, vous validez : vos deux collections sont mises à jour. Tes échanges restent dans « Mes échanges ».": "In <b>Scambi</b>, tocca <b>Scambio dal vivo</b>: mostra il codice QR all'altro giocatore (o dagli il codice); dalla pagina di un amico puoi anche invitarlo a distanza. Ognuno sceglie cosa dà, chiede carte della lista dell'altro e vede il valore dei due lati. Quando siete pronti tutti e due, confermate: le vostre due collezioni vengono aggiornate. I tuoi scambi restano in «I miei scambi»."
+  "Dans <b>Échange</b>, touche <b>Échange en direct</b> : montre le QR code à l'autre joueur (ou donne-lui le code) ; depuis la page d'un ami, tu peux aussi l'inviter à distance. Chacun choisit ce qu'il donne, demande des cartes de la liste de l'autre et voit la valeur des deux côtés. Prêts tous les deux, vous validez : vos deux collections sont mises à jour. Tes échanges restent dans « Mes échanges ».": "In <b>Scambi</b>, tocca <b>Scambio dal vivo</b>: mostra il codice QR all'altro giocatore (o dagli il codice); dalla pagina di un amico puoi anche invitarlo a distanza. Ognuno sceglie cosa dà, chiede carte della lista dell'altro e vede il valore dei due lati. Quando siete pronti tutti e due, confermate: le vostre due collezioni vengono aggiornate. I tuoi scambi restano in «I miei scambi».",
+  "Trop tard : cet échange ne peut plus être annulé.": "Troppo tardi: questo scambio non può più essere annullato.",
+  "{name} propose d'annuler l'échange": "{name} propone di annullare lo scambio",
+  "{name} préfère garder l'échange": "{name} preferisce mantenere lo scambio",
+  "Échange annulé des deux côtés : ta collection est revenue comme avant": "Scambio annullato da entrambe le parti: la tua collezione è tornata com'era",
+  "Annuler l'échange ?": "Annullare lo scambio?",
+  "{name} doit accepter : vos deux collections reviendront alors comme avant. Sans sa réponse, rien ne change.": "{name} deve accettare: le vostre due collezioni torneranno allora com'erano. Senza la sua risposta, non cambia nulla.",
+  "Garder l'échange": "Mantieni lo scambio",
+  "Proposer l'annulation": "Proponi di annullare",
+  "Échange annulé des deux côtés": "Scambio annullato da entrambe le parti",
+  "Vos deux collections sont revenues comme avant.": "Le vostre due collezioni sono tornate com'erano.",
+  "Annulation proposée à {name} : en attente de sa réponse…": "Annullamento proposto a {name}: in attesa della risposta…",
+  "Retirer ma demande": "Ritira la mia richiesta",
+  "{name} propose d'annuler l'échange : vos deux collections reviendraient comme avant.": "{name} propone di annullare lo scambio: le vostre due collezioni tornerebbero com'erano.",
+  "annulé des deux côtés": "annullato da entrambe le parti"
 }
