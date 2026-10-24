@@ -255,7 +255,7 @@ for (const [vp, dark, fs] of [[{ width: 390, height: 844 }, false], [{ width: 36
   assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), ids, 'sans amis, échange en direct ni Carte mystère : 10 étapes');
   const texts = {};
   for (let i = 0; i < ids.length; i++) { const g = await checkStep(p, 'déconnecté'); texts[g.id] = g; if (i < ids.length - 1) { await next(p); await shown(p); } }
-  assert.match(texts.trade.text, /^Avec un compte, crée ton lien public/);
+  assert.match(texts.trade.text, /^Avec un compte, crée ton lien public/); assert.match(texts.trade.el[0], /^hmTrade$/, 'collection vide : la carte Échange entière (QR code et Partager cachés)');
   assert.match(texts.binder.text, /^Dès que ta liste a des cartes/); assert.match(texts.binder.el[0], /seg|trSub/, 'liste vide : les onglets de la liste à la place de l\'interrupteur');
   assert.match(texts.partie.text, /l'historique de tes parties\.$/); assert.doesNotMatch(texts.partie.text, /QR code/, 'déconnecté : pas de salle d\'attente');
   assert.match(texts.places.el[0], /seg-opt/, 'collection vide : l\'onglet Rangement reste');

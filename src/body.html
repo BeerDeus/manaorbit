@@ -26,6 +26,9 @@
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.2-4.2"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c.8-3.6 3.6-5.6 7-5.6s6.2 2 7 5.6"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M4 4l16 16"/><path d="M10.4 5.7c.5-.1 1-.2 1.6-.2 6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.9 3.7M6.7 6.9C4 8.7 2.5 12 2.5 12S6 18.5 12 18.5c1.6 0 3-.4 4.2-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.5 9.6 4.5 4.5 0 0 0 7 18.5z"/><path d="M9.5 13.5l2 2 3.5-3.8"/></symbol>
     <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></symbol>
@@ -122,6 +125,15 @@
         <div class="hm-dk hm-dk-kpi" id="hmDkKpi"></div>
       </div>
 
+      <section class="hm-start" id="hmStart" aria-labelledby="hmStartT" hidden>
+        <div class="hm-go-h"><b id="hmStartT">Pour commencer</b><span>Ajoute tes cartes : Mana Orbit suit leur valeur et trouve les decks que tu peux monter.</span></div>
+        <div class="hm-go-l">
+          <button type="button" class="hm-go-a" data-hm="scan"><i aria-hidden="true"><svg class="i"><use href="#i-camera"/></svg></i><span><b>Scanner</b><small>Vise le nom de la carte : elle rejoint ta collection.</small></span><svg class="i hm-go-c" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="hm-go-a" data-hm="import"><i aria-hidden="true"><svg class="i"><use href="#i-download"/></svg></i><span><b>Importer</b><small>Fichier CSV de ManaBox, Moxfield… ou liste de cartes.</small></span><svg class="i hm-go-c" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="hm-go-a" data-hm="swg"><i aria-hidden="true"><svg class="i"><use href="#i-swap"/></svg></i><span><b>Je viens de ManaBox</b><small>Exporte ta collection et retrouve-la ici en 2 minutes.</small></span><svg class="i hm-go-c" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        </div>
+      </section>
+
       <section class="hm-dk hm-dk-val" aria-labelledby="hmDkValT">
         <div class="hm-dk-vh"><b id="hmDkValT">Valeur de la collection</b><button class="link-btn" type="button" data-hm="stats">Statistiques</button></div>
         <div class="hm-dk-chart" id="hmDkChart"></div>
@@ -144,6 +156,7 @@
           <button class="btn ghost" type="button" id="btnTradeQr"><svg class="i" aria-hidden="true"><use href="#i-qr"/></svg><span>QR code</span></button>
           <button class="btn ghost" type="button" id="btnTradeShare"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg><span>Partager</span></button>
         </div>
+        <p class="hm-tr-note" id="hmTradeNote" hidden>Ajoute tes cartes : un lien à partager et son QR code te seront proposés dès que tu auras des doublons.</p>
         <div class="hm-fy" id="hmForYou" hidden>
           <p class="hm-fy-h"><b>Pour toi</b> · listes d'amis ouvertes</p>
           <ul class="hm-fy-l" id="hmFyList"></ul>

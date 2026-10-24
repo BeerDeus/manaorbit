@@ -1,0 +1,47 @@
+/* ── start.css : premiers pas. Accueil vide (« Pour commencer », phrase de la carte Échange), premier lancement étape 3 (« Sauvegarde ta collection »),
+   bouton « Continuer avec Google » aux couleurs de la charte de Google, œil du mot de passe (feuille Compte). Ordinateur : zz-desktop.css. ── */
+
+/* accueil : « Pour commencer » (home.js, collection vide) */
+.hm-start{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:var(--r-lg);border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow)}
+.hm-go-h{display:flex;flex-direction:column;gap:3px}
+.hm-go-h b{font-family:var(--font-display);font-size:19px;font-weight:700;letter-spacing:-.01em}
+.hm-go-h span{font-size:13px;line-height:1.4;color:var(--ink-3);text-wrap:pretty}
+.hm-go-l{display:flex;flex-direction:column;gap:8px}
+.hm-go-a{display:flex;align-items:center;gap:12px;min-height:60px;width:100%;padding:9px 12px;border-radius:16px;border:1px solid var(--line);background:var(--surface-3);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:transform .2s var(--spring,ease),border-color .15s}
+.hm-go-a:active{transform:scale(.98)}
+.hm-go-a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hm-go-a>i{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--t) 18%,transparent);color:color-mix(in srgb,var(--t) 72%,var(--ink))}
+.hm-go-a>i .i{width:21px;height:21px}
+.hm-go-a>span{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.hm-go-a b{font-size:15px;font-weight:700}
+.hm-go-a small{font-size:12.5px;line-height:1.35;color:var(--ink-3)}
+.hm-go-a .hm-go-c{color:var(--ink-3)}
+.hm-go-a:nth-child(1){--t:#7fb0ff}.hm-go-a:nth-child(2){--t:#4fd1a1}.hm-go-a:nth-child(3){--t:#c79bff}
+.hm-go-a:nth-child(1){border-color:color-mix(in srgb,var(--t) 45%,var(--line))}      /* le scan d'abord : le plus rapide pour débuter */
+
+/* carte Échange, collection vide : la phrase à la place de QR code / Partager */
+.hm-tr-note{margin:0;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-size:13px;line-height:1.45;color:var(--ink-2);text-wrap:pretty}
+
+/* « Continuer avec Google » : blanc, bordure #747775, texte #1F1F1F ; sombre : #131314, bordure #8E918F, texte #E3E3E3 (charte de Google) */
+.btn.btn-g{background:#fff;color:#1f1f1f;border:1px solid #747775;box-shadow:none;font-weight:600;gap:12px}
+.btn-g .g-logo{width:20px;height:20px;flex:none}
+@media (hover:hover){.btn.btn-g:hover{background:#f6f8fb}}
+:root[data-theme="dark"] .btn.btn-g:not(.light){background:#131314;color:#e3e3e3;border-color:#8e918f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.btn-g:not(.light){background:#131314;color:#e3e3e3;border-color:#8e918f}}
+@media (hover:hover){:root[data-theme="dark"] .btn.btn-g:not(.light):hover{background:#1c1c1e}}
+
+/* feuille Compte : œil du mot de passe */
+.pw-in{position:relative;display:flex}
+.field-in .pw-in input{padding-right:50px}
+.pw-eye{position:absolute;top:0;right:0;width:46px;height:44px;display:grid;place-items:center;border:0;border-radius:0 12px 12px 0;background:transparent;color:var(--ink-3);cursor:pointer}
+.pw-eye .i{width:20px;height:20px}
+.pw-eye[aria-pressed="true"]{color:var(--accent)}
+.pw-eye:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+
+/* premier lancement, étape 3 : « Sauvegarde ta collection » (fond sombre fixe, onboard.js) */
+.ob-save-ic{display:grid;place-items:center;width:64px;height:64px;border-radius:20px;background:rgba(127,176,255,.14);color:#7fb0ff;box-shadow:inset 0 0 0 1px rgba(127,176,255,.25);margin-top:8px}
+.ob-save-ic .i{width:32px;height:32px;stroke-width:1.6}
+.ob-acts .auth-msg{align-self:stretch}
+.ob-save-off,.ob-save-ok{align-self:stretch;margin:0;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:15px;line-height:1.5;color:#dfe4f3!important}
+.ob .btn.ghost{background:rgba(255,255,255,.06);color:#fff;border-color:rgba(255,255,255,.18)}
+.ob-acts .ob-ct{font-size:13px;font-weight:500;color:#9aa3b8!important;padding:8px}

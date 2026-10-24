@@ -433,6 +433,7 @@ function collChanged(o = {}) {
   if (o.push !== false) { const t = Date.now(); COLL.chg = COLL.chg.filter(x => t - x < COLL_PUSH.win); COLL.chg.push(t); collPushSoon(); }
   if (o.paint !== false) collPaint(); else collPaintHead();
   paintCollSection(); refreshDeck(); alSoon(); trSoon(); edSoon();
+  if (typeof csSoon === 'function') csSoon();      // fiche d'une carte ouverte (cardsheet.js) : ses exemplaires suivent
   if (S.run && S.view === 'results') scheduleRecompute(true);
 }
 /** Après un changement : prix des éditions jamais lues (import, scan, choix d'une illustration), en un lot, un peu plus tard. */
@@ -1156,10 +1157,11 @@ function collStatsHtml(items) {
   const byLot = COLL.topBy !== 'one', list = byLot ? st.top : st.topUnit, shown = list.slice(0, COLL.topN), cur = i => (i.rl ? i.rc || 'EUR' : 'EUR');
   const top = list.length ? `<h3 class="cs-h">${T('Les plus chères')} <span class="cs-sw" role="group" aria-label="${T('Classer par')}"><button type="button" data-act="topby" data-v="lot" aria-pressed="${byLot}" class="${byLot ? 'on' : ''}">${T('Par lot')}</button><button type="button" data-act="topby" data-v="one" aria-pressed="${!byLot}" class="${byLot ? '' : 'on'}">${T('Par carte')}</button></span></h3><p class="hint cs-topnote">${byLot ? T('Classées par valeur du lot : prix × exemplaires.') : T('Classées par prix d\'un exemplaire.')}</p><div class="cs-top">${shown.map(i => `<div class="crow ro" data-k="${esc(i.k)}"><span class="thumb" style="--h:${hash32(i.k) % 360}"${zoomAt('coll', i.dn || i.n)}>${esc((i.n.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn || i.n)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}${i.rl ? '<span class="tag real">' + T('prix réel') + '</span>' : ''}</span></span><span class="row-price"><b>${esc(fmt(byLot ? i.lot : i.up, cur(i)))}</b>${i.q > 1 ? `<small>${byLot ? `${esc(fmt(i.up, cur(i)))} × ${nf0(i.q)}` : `× ${nf0(i.q)} = ${esc(fmt(i.lot, cur(i)))}`}</small>` : ''}</span></div>`).join('')}</div>${list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="topmore">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(10, list.length - shown.length)), b: nf0(list.length - shown.length) })}</button>` : ''}` : '';
   const share = st.unique ? `<div class="simg-coll"><button class="link-btn" type="button" data-act="simgcoll"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Partager en image')}</button></div>` : '';      // image de la collection (simg.js)
-  return `${nums}${share}${note}${valStatsHtml()}
+  // .cs-col : sans effet sur le téléphone (display:contents, css/stats.css) ; deux colonnes sur ordinateur (zz-desktop.css) : valeur et variations | le reste
+  return `${nums}${share}${note}<div class="cs-cols"><div class="cs-col">${valStatsHtml()}</div><div class="cs-col">
     <h3 class="cs-h">${T('Courbe de mana')} <small>${T('{n} sorts', { n: nf0(st.spells) })}</small></h3>${curveBars(st.curve, false)}
     <h3 class="cs-h">${T('Couleurs')} <small>${T('sorts')}</small></h3>${barsHtml(colorRows)}
-    <h3 class="cs-h">${T('Familles')} <small>${T('exemplaires')}</small></h3>${barsHtml(typeRows)}${top}`;
+    <h3 class="cs-h">${T('Familles')} <small>${T('exemplaires')}</small></h3>${barsHtml(typeRows)}${top}</div></div>`;
 }
 /** Onglet « Cartes » sans aucune carte : le scan d'abord (le plus rapide pour débuter), import et saisie à côté. */
 function collEmptyHtml() {
@@ -1188,7 +1190,7 @@ function collPaintBody(keep) {
   if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
   else if (none && COLL.tab === 'stats') host.innerHTML = collStatsEmptyHtml();
   else if (COLL.tab === 'decks' && edhGate() !== 'ok') { host.innerHTML = edhGateHtml(); vfTick(); }      // decks EDHREC réservés aux comptes (edh.js) ; vfTick : « Renvoyer » grisé pendant la minute qui suit un envoi
-  else if (COLL.tab === 'stats') { host.innerHTML = collStatsHtml(all); }
+  else if (COLL.tab === 'stats') { host.innerHTML = collStatsHtml(all); if (typeof valFit === 'function') valFit(host); }      // courbe de valeur à la taille de sa case sur ordinateur (value.js)
   else if (COLL.tab === 'places') { host.innerHTML = plcTabHtml(); }      // Rangement (places.js) : emplacements et proxys
   else if (COLL.tab === 'trade') { host.innerHTML = trPanelHtml(); trMount(host); }
   else if (COLL.tab === 'decks') { const res = keep && EDH.data && document.activeElement && document.activeElement.id === 'dkQ' ? $('.dk-res', host) : null; if (res) { res.innerHTML = edhResHtml(); edhThemesSync(); } else { host.innerHTML = edhPanelHtml(); edhEnsure(); } }      // en pleine frappe : seuls les résultats se repeignent, le champ garde le focus
@@ -1340,8 +1342,11 @@ function openCollection(tab) {
     if (th && th.querySelector('img.ok')) {
       const row = th.closest('.crow'); if (!row) return;
       const rows = $$('.crow', row.parentNode), list = rows.map(r => collViewItem(r.dataset.k, rowG(r))).filter(Boolean);
-      const i = list.findIndex(x => x.lid === row.dataset.k + '|' + rowG(row)); if (i >= 0) openCardViewer(list, i);
+      const i = list.findIndex(x => x.lid === row.dataset.k + '|' + rowG(row)); if (i >= 0) { openCardViewer(list, i); return; }
     }
+    // le reste de la ligne (nom, étiquettes, prix) : la fiche de la carte (cardsheet.js) ; Échange : lignes du propriétaire (doublons, recherchées, gardées)
+    const crow = typeof openCardSheet === 'function' && e.target.closest('.crow[data-k]');
+    if (crow && !crow.classList.contains('dk') && !e.target.closest('a,input,select,label,details>summary')) openCardSheet(crow.dataset.k, COLL.tab === 'trade' ? { from: 'trade', l: crow.dataset.ln || '', n: zoomName(crow) || undefined } : { from: 'coll', l: rowG(crow) });
   });
   document.body.appendChild(wrap); holdApp(); collPaintHead(); collPaintBody(false);
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); const f = $('.dk-tab[aria-current], #collSeg [aria-checked="true"], .coll-tools .icon-btn, .dv-title', wrap); if (f) { if (!f.hasAttribute('tabindex') && f.classList.contains('dv-title')) f.tabIndex = -1; f.focus({ preventScroll: true }); } }));

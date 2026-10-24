@@ -30,8 +30,8 @@
   "Tu ne cherches aucune carte pour l'instant : tes decks sont complets et ta liste de souhaits est vide.": "Du suchst gerade keine Karten: Deine Decks sind komplett und deine Wunschliste ist leer.",
   "Il ne cherche aucun de tes doublons.": "Dein Gegenüber sucht keine deiner Doppelten.",
   "Aucune carte en trop dans ta collection pour l'instant (tes decks et ta réserve gardent les leurs).": "Noch keine überzähligen Karten in deiner Sammlung (deine Decks und deine Reserve behalten ihre).",
-  "≈ valeur indicative : tendance Cardmarket ({when}), sans l'état ni l'édition des cartes.": "≈ Richtwert: Cardmarket-Trend ({when}), ohne Zustand und Edition der Karten.",
-  "≈ valeur indicative : tendance Cardmarket, sans l'état ni l'édition des cartes.": "≈ Richtwert: Cardmarket-Trend, ohne Zustand und Edition der Karten.",
+  "≈ valeur indicative : tendance Cardmarket ({when}), sans l'état des cartes.": "≈ Richtwert: Cardmarket-Trend ({when}), ohne Zustand der Karten.",
+  "≈ valeur indicative : tendance Cardmarket, sans l'état des cartes.": "≈ Richtwert: Cardmarket-Trend, ohne Zustand der Karten.",
   "tu la cherches × {n}": "du suchst sie × {n}",
   "illustration souhaitée : {name}": "gewünschte Illustration: {name}",
   "tu peux l'échanger × {n}": "du kannst sie tauschen × {n}",
@@ -57,5 +57,6 @@
   "{n} cartes sans prix": "{n} Karten ohne Preis",
   "Valeur estimée": "Geschätzter Wert",
   "Prix minimal à l'unité": "Mindeststückpreis",
-  "Tous les prix": "Alle Preise"
+  "Tous les prix": "Alle Preise",
+  "Prix foil inconnu : compté au prix normal": "Foil-Preis unbekannt: zum normalen Preis gerechnet"
 }

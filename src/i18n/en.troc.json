@@ -136,7 +136,6 @@
   "Demander la carte": "Ask for the card",
   "Demander les {n} cartes": "Ask for the {n} cards",
   "Échange appliqué : {give}, {get}": "Trade applied: {give}, {get}",
-  "Échange annulé sur cet appareil : ta collection est revenue comme avant": "Trade undone on this device: your collection is back as it was",
   "Mes échanges": "My trades",
   "Gardés sur cet appareil": "Kept on this device",
   "annulé sur cet appareil": "undone on this device",
@@ -153,5 +152,19 @@
   "échange en direct · {when}": "live trade · {when}",
   "Proposer un échange en direct": "Suggest a live trade",
   "Comment échanger en face à face ?": "How do I trade face to face?",
-  "Dans <b>Échange</b>, touche <b>Échange en direct</b> : montre le QR code à l'autre joueur (ou donne-lui le code) ; depuis la page d'un ami, tu peux aussi l'inviter à distance. Chacun choisit ce qu'il donne, demande des cartes de la liste de l'autre et voit la valeur des deux côtés. Prêts tous les deux, vous validez : vos deux collections sont mises à jour. Tes échanges restent dans « Mes échanges ».": "In <b>Trade</b>, tap <b>Live trade</b>: show the QR code to the other player (or give them the code); from a friend's page you can also invite them remotely. Each player picks what they give, asks for cards from the other's list and sees the value of both sides. Once you're both ready, you confirm: both collections are updated. Your trades stay in “My trades”."
+  "Dans <b>Échange</b>, touche <b>Échange en direct</b> : montre le QR code à l'autre joueur (ou donne-lui le code) ; depuis la page d'un ami, tu peux aussi l'inviter à distance. Chacun choisit ce qu'il donne, demande des cartes de la liste de l'autre et voit la valeur des deux côtés. Prêts tous les deux, vous validez : vos deux collections sont mises à jour. Tes échanges restent dans « Mes échanges ».": "In <b>Trade</b>, tap <b>Live trade</b>: show the QR code to the other player (or give them the code); from a friend's page you can also invite them remotely. Each player picks what they give, asks for cards from the other's list and sees the value of both sides. Once you're both ready, you confirm: both collections are updated. Your trades stay in “My trades”.",
+  "Trop tard : cet échange ne peut plus être annulé.": "Too late: this trade can no longer be undone.",
+  "{name} propose d'annuler l'échange": "{name} suggests undoing the trade",
+  "{name} préfère garder l'échange": "{name} prefers to keep the trade",
+  "Échange annulé des deux côtés : ta collection est revenue comme avant": "Trade undone on both sides: your collection is back as it was",
+  "Annuler l'échange ?": "Undo the trade?",
+  "{name} doit accepter : vos deux collections reviendront alors comme avant. Sans sa réponse, rien ne change.": "{name} has to accept: both your collections will then go back to how they were. Without an answer, nothing changes.",
+  "Garder l'échange": "Keep the trade",
+  "Proposer l'annulation": "Suggest undoing",
+  "Échange annulé des deux côtés": "Trade undone on both sides",
+  "Vos deux collections sont revenues comme avant.": "Both your collections are back as they were.",
+  "Annulation proposée à {name} : en attente de sa réponse…": "Undo suggested to {name}: waiting for their answer…",
+  "Retirer ma demande": "Withdraw my request",
+  "{name} propose d'annuler l'échange : vos deux collections reviendraient comme avant.": "{name} suggests undoing the trade: both your collections would go back to how they were.",
+  "annulé des deux côtés": "undone on both sides"
 }

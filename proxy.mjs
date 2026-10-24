@@ -491,8 +491,10 @@ function pushWhenDone(job) {
    cartes suivies à la main, avec ou sans prix cible). Toutes les 6 h le serveur relit le prix tendance Cardmarket (champ `eur` de
    Scryfall, lots de 75 noms) et pousse une notification quand une carte :
    · chute d'au moins `thr` % (30 par défaut) ET d'au moins 0,50 € sous sa valeur habituelle (médiane des relevés précédents) ;
-   · passe sous le prix cible fixé à la main.
-   Une carte déjà signalée n'est plus signalée pendant 5 jours, sauf nouvelle chute de 15 % ou plus. Un seul message par appareil et par
+   · passe sous le prix cible fixé à la main ;
+   · carte suivie depuis sa fiche (item u = 1 : « Suivre le prix », hausse ET baisse) : monte d'au moins `thr` % ET 0,50 € au-dessus de sa valeur habituelle.
+   Une carte déjà signalée n'est plus signalée pendant 5 jours, sauf nouvelle chute (ou nouvelle hausse) de 15 % ou plus. Une appli plus ancienne n'envoie jamais u :
+   rien ne change pour elle ; un serveur plus ancien ignore u (baisses seulement). Un seul message par appareil et par
    passage (plusieurs cartes = un résumé). Stocké dans .data/alerts.json (abonnements, listes, relevés), écriture atomique ; un
    abonnement refusé par le service de push (404 / 410, jeton FCM périmé) est retiré. Le serveur doit tourner en continu pour que les passages aient lieu.
    Route publique, donc bornée : enregistrements et contrôles à la demande comptés par IP, 10 appareils par IP, 64 Ko par liste, cartes au total plafonnées ;
@@ -579,6 +581,12 @@ function alEval(rec, now) {
     }
     if (!prev.length) continue;
     const base = alMedian(prev), drop = base - cur;
+    if (it.u && -drop >= AL_MIN_DROP && -drop / base >= thr) {                      // hausse (carte suivie depuis sa fiche) : mêmes seuils, son propre délai de 5 jours
+      if (it.ut && now - it.ut < AL_COOL && cur < (it.ua || 0) * 1.15) continue;     // déjà signalée : seulement si elle remonte encore d'au moins 15 %
+      it.ut = now; it.ua = cur;
+      hits.push({ k: it.k, n: it.n, why: 'rise', from: base, to: cur, pct: Math.round(-drop / base * 100), d: it.d || [], at: now });
+      continue;
+    }
     if (drop < AL_MIN_DROP || drop / base < thr) continue;
     if (it.nt && now - it.nt < AL_COOL && cur > (it.na || 0) * 0.85) continue;      // déjà signalée : seulement si elle rechute d'au moins 15 %
     it.nt = now; it.na = cur;
@@ -589,12 +597,12 @@ function alEval(rec, now) {
 // Textes des alertes dans la langue de l'interface envoyée par l'appli (« lang ») ; français pour une appli plus ancienne qui ne la donne pas, ou une langue inconnue.
 // Allemand, espagnol, italien : euros écrits comme en français (« 1,80 € ») ; portugais (du Brésil, celui des cartes Magic) : « € 1,80 ».
 const AL_TXT = {
-  fr: { eur: alEur, pct: p => `−${p} %`, at: (n, p) => `${n} à ${p}`, drop: (n, p) => `${n} : ${p}`, under: p => `Sous ton prix cible de ${p} (tendance Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendance Cardmarket).`, deck: d => ' · manque à ' + d, many: n => `${n} cartes en baisse`, more: n => ` et ${n} autre${n > 1 ? 's' : ''}` },
-  en: { eur: c => '€' + (c / 100).toFixed(2), pct: p => `−${p}%`, at: (n, p) => `${n} at ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Below your target price of ${p} (Cardmarket trend).`, trend: (a, b) => `${a} → ${b} (Cardmarket trend).`, deck: d => ' · missing from ' + d, many: n => `${n} cards down`, more: n => ` and ${n} more` },
-  de: { eur: alEur, pct: p => `−${p} %`, at: (n, p) => `${n} für ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Unter deinem Zielpreis von ${p} (Cardmarket-Trend).`, trend: (a, b) => `${a} → ${b} (Cardmarket-Trend).`, deck: d => ' · fehlt in ' + d, many: n => `${n} Karten günstiger`, more: n => ` und ${n} weitere` },
-  es: { eur: alEur, pct: p => `−${p} %`, at: (n, p) => `${n} a ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Por debajo de tu precio objetivo de ${p} (tendencia de Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendencia de Cardmarket).`, deck: d => ' · falta en ' + d, many: n => `${n} cartas bajan de precio`, more: n => ` y ${n} más` },
-  it: { eur: alEur, pct: p => `−${p}%`, at: (n, p) => `${n} a ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Sotto il tuo prezzo obiettivo di ${p} (tendenza Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendenza Cardmarket).`, deck: d => ' · manca in ' + d, many: n => `${n} carte in calo`, more: n => ` e altre ${n}` },
-  pt: { eur: c => '€ ' + (c / 100).toFixed(2).replace('.', ','), pct: p => `−${p}%`, at: (n, p) => `${n} por ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Abaixo do seu preço-alvo de ${p} (tendência do Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendência do Cardmarket).`, deck: d => ' · falta em ' + d, many: n => `${n} cartas em queda`, more: n => ` e mais ${n}` },
+  fr: { eur: alEur, pct: p => `−${p} %`, up: p => `+${p} %`, manyUp: n => `${n} cartes en hausse`, manyMix: n => `${n} cartes ont bougé`, at: (n, p) => `${n} à ${p}`, drop: (n, p) => `${n} : ${p}`, under: p => `Sous ton prix cible de ${p} (tendance Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendance Cardmarket).`, deck: d => ' · manque à ' + d, many: n => `${n} cartes en baisse`, more: n => ` et ${n} autre${n > 1 ? 's' : ''}` },
+  en: { eur: c => '€' + (c / 100).toFixed(2), pct: p => `−${p}%`, up: p => `+${p}%`, manyUp: n => `${n} cards up`, manyMix: n => `${n} cards moved`, at: (n, p) => `${n} at ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Below your target price of ${p} (Cardmarket trend).`, trend: (a, b) => `${a} → ${b} (Cardmarket trend).`, deck: d => ' · missing from ' + d, many: n => `${n} cards down`, more: n => ` and ${n} more` },
+  de: { eur: alEur, pct: p => `−${p} %`, up: p => `+${p} %`, manyUp: n => `${n} Karten teurer`, manyMix: n => `${n} Karten mit Preisänderung`, at: (n, p) => `${n} für ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Unter deinem Zielpreis von ${p} (Cardmarket-Trend).`, trend: (a, b) => `${a} → ${b} (Cardmarket-Trend).`, deck: d => ' · fehlt in ' + d, many: n => `${n} Karten günstiger`, more: n => ` und ${n} weitere` },
+  es: { eur: alEur, pct: p => `−${p} %`, up: p => `+${p} %`, manyUp: n => `${n} cartas suben de precio`, manyMix: n => `${n} cartas cambian de precio`, at: (n, p) => `${n} a ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Por debajo de tu precio objetivo de ${p} (tendencia de Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendencia de Cardmarket).`, deck: d => ' · falta en ' + d, many: n => `${n} cartas bajan de precio`, more: n => ` y ${n} más` },
+  it: { eur: alEur, pct: p => `−${p}%`, up: p => `+${p}%`, manyUp: n => `${n} carte in rialzo`, manyMix: n => `${n} carte con variazioni di prezzo`, at: (n, p) => `${n} a ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Sotto il tuo prezzo obiettivo di ${p} (tendenza Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendenza Cardmarket).`, deck: d => ' · manca in ' + d, many: n => `${n} carte in calo`, more: n => ` e altre ${n}` },
+  pt: { eur: c => '€ ' + (c / 100).toFixed(2).replace('.', ','), pct: p => `−${p}%`, up: p => `+${p}%`, manyUp: n => `${n} cartas em alta`, manyMix: n => `${n} cartas mudaram de preço`, at: (n, p) => `${n} por ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Abaixo do seu preço-alvo de ${p} (tendência do Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendência do Cardmarket).`, deck: d => ' · falta em ' + d, many: n => `${n} cartas em queda`, more: n => ` e mais ${n}` },
 };
 const alLang = l => (typeof l === 'string' && Object.prototype.hasOwnProperty.call(AL_TXT, l) ? l : 'fr');
 function alMessage(hits, lang) {
@@ -603,10 +611,10 @@ function alMessage(hits, lang) {
     const h = hits[0], deck = h.d && h.d.length ? L.deck(h.d[0]) : '';
     return h.why === 'target'
       ? { title: L.at(h.n, L.eur(h.to)), body: L.under(L.eur(h.t)) + deck }
-      : { title: L.drop(h.n, L.pct(h.pct)), body: L.trend(L.eur(h.from), L.eur(h.to)) + deck };
+      : { title: L.drop(h.n, h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct)), body: L.trend(L.eur(h.from), L.eur(h.to)) + deck };
   }
-  const part = h => h.why === 'target' ? `${h.n} ${L.eur(h.to)}` : `${h.n} ${L.pct(h.pct)}`;
-  return { title: L.many(hits.length), body: hits.slice(0, 3).map(part).join(', ') + (hits.length > 3 ? L.more(hits.length - 3) : '') };
+  const part = h => h.why === 'target' ? `${h.n} ${L.eur(h.to)}` : `${h.n} ${h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct)}`, ups = hits.filter(h => h.why === 'rise').length;
+  return { title: !ups ? L.many(hits.length) : ups === hits.length ? L.manyUp(hits.length) : L.manyMix(hits.length), body: hits.slice(0, 3).map(part).join(', ') + (hits.length > 3 ? L.more(hits.length - 3) : '') };
 }
 // Message privé Discord (dm 'both' / 'only') : mêmes phrases que la notification (AL_TXT), plus ces quelques mots ; carte : prix actuel (titre), habituel ou cible
 // (ligne), deck, lien Cardmarket (site de la langue, comme l'appli : core.js › cmUrl) ; lien vers les alertes de l'appli. Nom des cartes et des decks : Markdown neutralisé.
@@ -624,10 +632,10 @@ const alCm = (n, l) => `https://www.cardmarket.com/${['fr', 'de', 'es', 'it'].in
 function alDmMsg(hits, lang) {
   const l = alLang(lang), L = AL_TXT[l], X = AL_DM[l], m = alMessage(hits, l);
   const fields = hits.slice(0, AL_DM_MAX).map(h => ({
-    name: alMd(h.why === 'target' ? L.at(h.n, L.eur(h.to)) : L.drop(h.n, L.pct(h.pct))).slice(0, 250),
+    name: alMd(h.why === 'target' ? L.at(h.n, L.eur(h.to)) : L.drop(h.n, h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct))).slice(0, 250),
     value: alMd((h.why === 'target' ? L.under(L.eur(h.t)) : L.trend(L.eur(h.from), L.eur(h.to))) + (h.d && h.d.length ? L.deck(h.d[0]) : '')).slice(0, 900) + `\n[${X.cm}](${alCm(h.n, l)})`,
   }));
-  return { content: '📉 **' + alMd(m.title.slice(0, 200)) + '**', embeds: [{ title: X.title + ' · Mana Orbit', url: AL_APP, color: 0x8b5cf6,
+  return { content: (hits.every(h => h.why === 'rise') ? '📈' : '📉') + ' **' + alMd(m.title.slice(0, 200)) + '**', embeds: [{ title: X.title + ' · Mana Orbit', url: AL_APP, color: 0x8b5cf6,
     description: `[${X.open}](${AL_APP})` + (hits.length > AL_DM_MAX ? '\n…' + alMd(L.more(hits.length - AL_DM_MAX)) : ''), fields, footer: { text: X.why } }] };
 }
 
@@ -721,7 +729,8 @@ async function alertsApi(req, res, path, url) {
       if (items.size >= AL_MAX_ITEMS) break;
       const n = alStr(x && x.n, 150), nk = alKey(n); if (!nk || items.has(nk)) continue;
       const t = Number.isSafeInteger(x.t) && x.t > 0 && x.t <= 1e6 ? x.t : 0, d = (Array.isArray(x.d) ? x.d : []).map(y => alStr(y, 40)).filter(Boolean).slice(0, 3), prev = oldItems.get(nk) || {};
-      items.set(nk, { k: alStr(x.k, 150) || nk, n, nk, ...(t ? { t } : {}), ...(d.length ? { d } : {}), ...(prev.nt ? { nt: prev.nt, na: prev.na } : {}), ...(t && prev.t === t && prev.arm === false ? { arm: false } : {}) });
+      const up = x.u === 1 || x.u === true;      // hausse ET baisse (fiche d'une carte) ; absent : baisses seulement, comme avant
+      items.set(nk, { k: alStr(x.k, 150) || nk, n, nk, ...(t ? { t } : {}), ...(d.length ? { d } : {}), ...(up ? { u: 1 } : {}), ...(prev.nt ? { nt: prev.nt, na: prev.na } : {}), ...(up && prev.ut ? { ut: prev.ut, ua: prev.ua } : {}), ...(t && prev.t === t && prev.arm === false ? { arm: false } : {}) });
     }
     if (!items.size) { AL.subs.delete(rid); alSaveSoon(); return json(res, 200, { ok: true, id: rid, watching: 0 }); }
     const thr = Math.min(80, Math.max(10, Math.round(Number(b.thr)) || 30));
@@ -1649,22 +1658,25 @@ async function friendsApi(req, res, path, url) {
    qui sert ensuite à tout : relevé (GET /api/troc/s), listes (GET /api/troc/list), actions (POST /api/troc/op). Aucun UID ni empreinte n'est renvoyé :
    chacun voit « moi » et « l'autre » (pseudo, miniature du profil).
    Sessions EN MÉMOIRE seulement (un seul processus) : un redémarrage les termine (l'appli dit « Session terminée »), rien n'est écrit nulle part.
-   · Chaque joueur envoie sa liste d'échange (doublons, une entrée par ligne langue|édition) ; l'autre y demande des cartes (op ask : elles arrivent dans
+   · Chaque joueur envoie sa liste d'échange (doublons, une entrée par ligne langue|édition, '*' foil) ; l'autre y demande des cartes (op ask : elles arrivent dans
      « Tu donnes » de celui qui les a, marquées demandées, à accepter ou retirer). Chacun choisit ce qu'il donne (op give : sa liste ou toute sa collection).
    · Prix : ceux du fichier de prix du serveur (tendance Cardmarket, celui que lit l'appli), posés sur chaque carte à son arrivée dans la session ; carte
-     absente du fichier (ou serveur sans fichier) : le prix de l'appareil qui l'ajoute. Les deux joueurs voient donc exactement les mêmes valeurs.
+     absente du fichier (ou serveur sans fichier), exemplaire foil ou d'une édition précise : le prix de l'appareil qui l'ajoute (trocUnit). Les deux joueurs voient donc exactement les mêmes valeurs.
    · Version v (tout changement : un relevé sans nouveauté répond « same ») et version du contenu cv : « Prêt » et « Valider » portent la cv que le joueur
      a vue (refusés si le contenu a bougé entre-temps : 409 stale). Tout changement du contenu retire « Prêt » aux deux (règle des RPG).
    · Les deux « Prêt » → confirmation ; les deux « Valider » → done : la session est figée et chaque appli applique SA collection (retire ce qu'elle donne,
      ajoute ce qu'elle reçoit). done n'arrive qu'une fois les deux validés : un joueur parti avant, et rien ne change. Session done gardée 24 h
      (TROC_KEEP_MS) : une appli tuée juste après applique à son retour.
+   · Annuler un échange fait : des DEUX côtés ou pas du tout (avant : « Annuler » défaisait seulement l'appareil qui le touchait, et les deux collections divergeaient).
+     Pendant TROC_UNDO_MS (15 min) après done, un joueur qui a appliqué (got) le propose (op undo { on: true } : un) ; l'autre accepte (undo on à son tour : ud,
+     chaque appli défait alors SA collection) ou refuse (undo { on: false } : la demande tombe ; aussi pour retirer la sienne). Vue : un (par côté), ud, ut (ms restantes).
    · Bornes : TROC_MAX sessions ouvertes (300), une à la fois par compte, TROC_NEW_PER_H créations par compte et par heure (20), TROC_BAD_PER_H codes faux
      par compte et par heure (20 ; le double par réseau), 30 min sans requête (TROC_IDLE_MS) ou 3 h en tout : terminée ; listes de 3 000 entrées,
      24 Mo pour toutes les sessions (TROC_MB : au-delà, les listes sont tronquées) ; 100 cartes par côté ; 12 requêtes d'avance par siège (6 par seconde).
    Rien au démarrage : minuterie et prix chargés à la première session, libérés quand il n'y en a plus. TROC=0 : coupé (/__ping troc: false). */
 const TROC_ON = process.env.TROC !== '0';
 const TROC_MAX = Math.max(1, Number(process.env.TROC_MAX) || 300), TROC_IDLE = Number(process.env.TROC_IDLE_MS ?? 30 * 60e3), TROC_LIFE = Number(process.env.TROC_LIFE_MS ?? 3 * 3600e3);
-const TROC_KEEP = Number(process.env.TROC_KEEP_MS ?? 86400e3), TROC_AWAY = Number(process.env.TROC_AWAY_MS ?? 15e3), TROC_TICK = Number(process.env.TROC_TICK_MS ?? 15e3);
+const TROC_KEEP = Number(process.env.TROC_KEEP_MS ?? 86400e3), TROC_UNDO = Number(process.env.TROC_UNDO_MS ?? 15 * 60e3), TROC_AWAY = Number(process.env.TROC_AWAY_MS ?? 15e3), TROC_TICK = Number(process.env.TROC_TICK_MS ?? 15e3);
 const TROC_NEW_H = Number(process.env.TROC_NEW_PER_H ?? 20), TROC_BAD_H = Number(process.env.TROC_BAD_PER_H ?? 20), TROC_MB = (Number(process.env.TROC_MB) || 24) * 1024 * 1024;
 const TROC_LIST = 3000, TROC_ITEMS = 100, TROC_BODY = 700 * 1024, TROC_ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', TROC_CODE = /^[A-HJKMNP-Z2-9]{6}$/, TROC_KEY = /^[\w-]{24}$/;
 const TROC_LANGS = new Set(['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'kr', 'ru', 'zh-TW']), TROC_IMG = 'https://cards.scryfall.io/';
@@ -1680,10 +1692,13 @@ const TROC_TXT = {
 };
 const trocStr = (v, n) => (typeof v === 'string' ? v.replace(/[\p{Cc}\p{Cf}<>]/gu, '').replace(/\s+/g, ' ').trim().slice(0, n) : '');
 const trocKey = n => (NM_CORE && NM_CORE.ownKey ? NM_CORE.ownKey(String(n)) : String(n).toLowerCase().trim());
-/** Ligne d'un exemplaire (langue|édition, comme core.js › lineKey) ; '' si rien de lisible. */
+/** Ligne d'un exemplaire (langue|édition, '*' foil : 'fr', 'fr|cmm|400*', '*', comme core.js › lineKey) ; emplacement et détails (« #… ») retirés ; '' si rien de lisible.
+    Langue, édition et foil sont lus chacun de leur côté : une partie illisible tombe seule (avant : 'en*' perdait sa langue et son foil, 'fr|cmm|400*' son édition). */
 function trocG(g) {
-  const s = typeof g === 'string' ? g.slice(0, 40) : '', i = s.indexOf('|'), l = i < 0 ? s : s.slice(0, i), e = i < 0 ? '' : s.slice(i + 1);
-  return (TROC_LANGS.has(l) ? l : '') + (/^[a-z0-9]{2,6}\|[^\s()|*,;"]{1,12}$/.test(e) ? '|' + e : '');
+  let s = typeof g === 'string' ? g.slice(0, 40) : ''; const h = s.indexOf('#'); if (h >= 0) s = s.slice(0, h);
+  const f = s.endsWith('*'); if (f) s = s.slice(0, -1);
+  const i = s.indexOf('|'), l = i < 0 ? s : s.slice(0, i), e = i < 0 ? '' : s.slice(i + 1);
+  return (TROC_LANGS.has(l) ? l : '') + (/^[a-z0-9]{2,6}\|[^\s()|*,;"#]{1,12}$/.test(e) ? '|' + e : '') + (f ? '*' : '');
 }
 /** Image Scryfall (adresse complète ou courte, comme les partages) → forme courte « small/front/… » ; '' sinon. */
 function trocImg(v) {
@@ -1721,6 +1736,10 @@ async function trocPxLoad() {
   return TROC.pxP;
 }
 const trocPrice = n => { const e = TROC.px && TROC.px.map.get(trocKey(n)); return e > 0 ? e : null; };
+/** Prix à l'unité d'une carte de la session : celui du fichier du serveur (impression la moins chère, non foil), sinon celui de l'appareil ; ligne foil ou d'une édition
+    précise : celui de l'appareil qui l'ajoute s'il en donne un (prix de cette impression et de sa finition, comme la valeur de sa collection : le fichier n'a ni prix
+    foil ni prix par édition, et le lire pour chaque impression serait disproportionné), sinon celui du fichier. Les deux joueurs voient le même. */
+const trocUnit = c => (/\*$|\|/.test(c.g) && c.u > 0 ? c.u : trocPrice(c.n) || c.u || null);
 /** Seau de jetons par compte ou par réseau (créations, codes faux) : 0 si permis (un jeton pris si take), sinon secondes à attendre. */
 function trocLim(name, who, cap, per, take = true) {
   if (!who || !(cap > 0)) return 0;
@@ -1746,7 +1765,7 @@ function trocSetList(p, raw) {
   for (const x of a.slice(0, TROC_LIST + 1)) {
     if (p.list.length >= TROC_LIST) { p.cut = true; break; }
     const c = trocCard(x, 9999); if (!c) continue;
-    const pu = trocPrice(c.n); if (pu) c.u = pu;
+    const pu = trocUnit(c); if (pu) c.u = pu;
     const sz = JSON.stringify(c).length + 1; if (sz > room) { p.cut = true; break; }
     room -= sz; p.lb += sz; p.list.push(c);
   }
@@ -1763,7 +1782,7 @@ function trocTick() {
   const now = Date.now(), old = [];
   for (const [c, s] of TROC.s) {
     if (trocOpen(s) && (now - s.act > TROC_IDLE || now - s.at > TROC_LIFE)) trocEnd(s, 'idle');
-    if ((s.st === 'end' && now - s.endAt > 10 * 60e3) || (s.st === 'done' && (now - s.endAt > TROC_KEEP || (s.p.every(p => p.got) && now - s.endAt > 60e3)))) TROC.s.delete(c);
+    if ((s.st === 'end' && now - s.endAt > 10 * 60e3) || (s.st === 'done' && (now - s.endAt > TROC_KEEP || (s.p.every(p => p.got) && now - s.endAt > Math.max(60e3, TROC_UNDO + 60e3))))) TROC.s.delete(c);      // appliquée des deux côtés : gardée le temps de l'annuler
     else if (!trocOpen(s)) old.push(c);
   }
   for (const c of old.slice(0, Math.max(0, old.length - TROC_MAX * 8))) TROC.s.delete(c);      // terminées en surnombre : les plus anciennes partent
@@ -1773,9 +1792,10 @@ function trocWake() { if (!TROC.t) { TROC.t = setInterval(trocTick, TROC_TICK); 
 /** La session vue du siège i : « me » et « ot » (l'autre, null tant que personne n'a rejoint ; on : il a donné signe de vie il y a moins de 15 s). */
 function trocView(s, i) {
   const me = s.p[i], ot = s.p[1 - i];
-  const side = p => ({ n: p.n, ...(p.p ? { p: p.p } : {}), ready: p.ready, ok: p.ok, got: p.got, give: p.give, lv: p.lv, nl: p.list.length, ...(p.cut ? { cut: true } : {}) });
+  const side = p => ({ n: p.n, ...(p.p ? { p: p.p } : {}), ready: p.ready, ok: p.ok, got: p.got, give: p.give, lv: p.lv, nl: p.list.length, ...(p.cut ? { cut: true } : {}), ...(p.un ? { un: 1 } : {}) });
   return { c: s.code, v: s.v, cv: s.cv, st: s.st, why: s.why, by: s.by < 0 ? '' : s.by === i ? 'me' : 'ot', host: i === 0, px: s.px,
-    me: side(me), ot: ot ? { ...side(ot), on: Date.now() - ot.seen < TROC_AWAY } : null, ...(i === 0 && s.inv ? { inv: s.invN || '' } : {}) };
+    me: side(me), ot: ot ? { ...side(ot), on: Date.now() - ot.seen < TROC_AWAY } : null, ...(i === 0 && s.inv ? { inv: s.invN || '' } : {}),
+    ...(s.st === 'done' ? { ut: Math.max(0, TROC_UNDO - (Date.now() - s.endAt)), ...(s.ud ? { ud: 1 } : {}) } : {}) };      // échange fait : temps restant pour l'annuler, annulé des deux côtés
 }
 /** Invitations en attente pour ce compte (GET /api/friends › tr) : sessions qui l'attendent encore. */
 function trocInvFor(tag) {
@@ -1855,7 +1875,7 @@ async function trocListGet(req, res, url) {
   return amSend(req, res, { lv: p ? p.lv : 0, list: p ? p.list : [], ...(p && p.cut ? { cut: true } : {}) });
 }
 /** POST /api/troc/op { c, op, … } : give { card } · ask { card } (dans sa liste) · set { id, q } · accept { id | all } · unask { id } · ready { on, cv } ·
-    confirm { cv } · list { list } · leave · got (appliqué chez moi). Répond la session vue de ce siège (erreur : { error, message, s }). */
+    confirm { cv } · list { list } · leave · got (appliqué chez moi) · undo { on } (échange fait : annuler des deux côtés). Répond la session vue de ce siège (erreur : { error, message, s }). */
 async function trocOp(req, res) {
   const b = await amBody(req, res, TROC_BODY); if (!b) return;
   const x = trocSeatOf(req, res, String(b.c || '')); if (!x) return;
@@ -1864,6 +1884,14 @@ async function trocOp(req, res) {
   const touch = () => { s.cv++; s.v++; for (const q of s.p) if (q) { q.ready = false; q.ok = false; } return done(); };      // contenu changé : plus personne n'est prêt
   if (op === 'leave') { trocEnd(s, 'left', i); return done(); }
   if (op === 'got') { if (s.st === 'done' && !p.got) { p.got = true; s.v++; } return done(); }
+  if (op === 'undo') {      // annuler l'échange fait : proposé par l'un, accepté par l'autre (les deux un → ud) ; off : demande refusée ou retirée (celles des deux tombent)
+    if (s.st !== 'done' || s.ud) return fail(409, 'closed', 'Échange terminé.');
+    if (Date.now() - s.endAt > TROC_UNDO) return fail(409, 'late', 'Trop tard pour annuler cet échange.');
+    if (!b.on) { if (s.p.some(q => q && q.un)) { for (const q of s.p) if (q) q.un = false; s.v++; } return done(); }
+    if (!p.got) return fail(409, 'closed', 'Échange pas encore appliqué.');      // rien à défaire chez lui
+    if (!p.un) { p.un = true; if (ot && ot.un) s.ud = 1; s.v++; }
+    return done();
+  }
   if (!trocOpen(s)) return fail(409, 'closed', 'Échange terminé.');
   if (op === 'list') { trocSetList(p, b.list); s.v++; return done(); }
   if (op === 'give' || op === 'ask') {
@@ -1880,7 +1908,7 @@ async function trocOp(req, res) {
     if (cur) { const q = Math.min(cap, cur.q + c.q); if (q <= cur.q) return fail(409, 'max', 'Pas plus d\'exemplaires.'); cur.q = q; if (asked) cur.r = 1; return touch(); }
     if (side.give.length >= TROC_ITEMS) return fail(409, 'items', 'Trop de cartes de ce côté.');
     const q = Math.min(cap, c.q); if (q < 1) return fail(409, 'max', 'Pas plus d\'exemplaires.');
-    side.give.push({ id: (++s.n).toString(36), ...c, q, u: trocPrice(c.n) || c.u || null, ...(asked ? { a: 1, r: 1 } : {}) });
+    side.give.push({ id: (++s.n).toString(36), ...c, q, u: trocUnit(c), ...(asked ? { a: 1, r: 1 } : {}) });
     return touch();
   }
   if (op === 'set' || op === 'unask') {      // set : mes cartes (0 : retirée ; une carte demandée ne monte pas au-delà) · unask : ma demande chez l'autre, retirée

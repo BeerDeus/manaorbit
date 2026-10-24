@@ -136,7 +136,6 @@
   "Demander la carte": "Pedir la carta",
   "Demander les {n} cartes": "Pedir las {n} cartas",
   "Échange appliqué : {give}, {get}": "Intercambio aplicado: {give}, {get}",
-  "Échange annulé sur cet appareil : ta collection est revenue comme avant": "Intercambio deshecho en este dispositivo: tu colección vuelve a estar como antes",
   "Mes échanges": "Mis intercambios",
   "Gardés sur cet appareil": "Guardados en este dispositivo",
   "annulé sur cet appareil": "deshecho en este dispositivo",
@@ -153,5 +152,19 @@
   "échange en direct · {when}": "intercambio en directo · {when}",
   "Proposer un échange en direct": "Proponer un intercambio en directo",
   "Comment échanger en face à face ?": "¿Cómo intercambio cara a cara?",
-  "Dans <b>Échange</b>, touche <b>Échange en direct</b> : montre le QR code à l'autre joueur (ou donne-lui le code) ; depuis la page d'un ami, tu peux aussi l'inviter à distance. Chacun choisit ce qu'il donne, demande des cartes de la liste de l'autre et voit la valeur des deux côtés. Prêts tous les deux, vous validez : vos deux collections sont mises à jour. Tes échanges restent dans « Mes échanges ».": "En <b>Cambios</b>, toca <b>Intercambio en directo</b>: muestra el código QR al otro jugador (o dale el código); desde la página de un amigo también puedes invitarlo a distancia. Cada uno elige lo que da, pide cartas de la lista del otro y ve el valor de los dos lados. Cuando estéis listos los dos, confirmáis: vuestras dos colecciones se actualizan. Tus intercambios se quedan en «Mis intercambios»."
+  "Dans <b>Échange</b>, touche <b>Échange en direct</b> : montre le QR code à l'autre joueur (ou donne-lui le code) ; depuis la page d'un ami, tu peux aussi l'inviter à distance. Chacun choisit ce qu'il donne, demande des cartes de la liste de l'autre et voit la valeur des deux côtés. Prêts tous les deux, vous validez : vos deux collections sont mises à jour. Tes échanges restent dans « Mes échanges ».": "En <b>Cambios</b>, toca <b>Intercambio en directo</b>: muestra el código QR al otro jugador (o dale el código); desde la página de un amigo también puedes invitarlo a distancia. Cada uno elige lo que da, pide cartas de la lista del otro y ve el valor de los dos lados. Cuando estéis listos los dos, confirmáis: vuestras dos colecciones se actualizan. Tus intercambios se quedan en «Mis intercambios».",
+  "Trop tard : cet échange ne peut plus être annulé.": "Demasiado tarde: este intercambio ya no se puede deshacer.",
+  "{name} propose d'annuler l'échange": "{name} propone deshacer el intercambio",
+  "{name} préfère garder l'échange": "{name} prefiere mantener el intercambio",
+  "Échange annulé des deux côtés : ta collection est revenue comme avant": "Intercambio deshecho por ambas partes: tu colección vuelve a estar como antes",
+  "Annuler l'échange ?": "¿Deshacer el intercambio?",
+  "{name} doit accepter : vos deux collections reviendront alors comme avant. Sans sa réponse, rien ne change.": "{name} tiene que aceptar: entonces vuestras dos colecciones volverán a estar como antes. Sin su respuesta, no cambia nada.",
+  "Garder l'échange": "Mantener el intercambio",
+  "Proposer l'annulation": "Proponer deshacerlo",
+  "Échange annulé des deux côtés": "Intercambio deshecho por ambas partes",
+  "Vos deux collections sont revenues comme avant.": "Vuestras dos colecciones vuelven a estar como antes.",
+  "Annulation proposée à {name} : en attente de sa réponse…": "Has propuesto a {name} deshacerlo: esperando su respuesta…",
+  "Retirer ma demande": "Retirar mi petición",
+  "{name} propose d'annuler l'échange : vos deux collections reviendraient comme avant.": "{name} propone deshacer el intercambio: vuestras dos colecciones volverían a estar como antes.",
+  "annulé des deux côtés": "deshecho por ambas partes"
 }
