@@ -97,6 +97,7 @@
   "i/s libre": "free fps",
   "redémarrages {n}": "restarts {n}",
   "dernière lecture {n} ms": "last read {n} ms",
+  "auto : image {a} ms · nom {b} ms · bas et illustration {c} ms · total {d} ms": "auto: image {a} ms · name {b} ms · bottom line and art {c} ms · total {d} ms",
   "tâches longues {n}/10 s": "long tasks {n}/10 s",
   "mode lent (toucher ici : retour au mode normal)": "slow mode (tap here: back to normal mode)",
   "Cadre le haut de la carte : le nom et le mana dans la bande, puis appuie sur le cercle. Tu peux enchaîner": "Frame the top of the card with the name and mana in the strip, then tap the circle. You can keep going",
