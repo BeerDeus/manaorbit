@@ -30,7 +30,7 @@ Tu construis **le système d'événements saisonniers** de Mana Orbit et son **p
   - tests e2e dans le style existant, avec un **port libre** ;
   - compatibilité avec la version précédente de l'appli et de l'API (README « À chaque déploiement ») ;
   - tutoiement dans l'appli ;
-  - pas de nouvelle règle Firestore si possible (sinon, dis-le : le propriétaire doit republier `firestore.rules`).
+  - nouvelle règle Firestore autorisée pour la progression des événements (voir § 2) ; le propriétaire republie `firestore.rules`.
 - Commits fréquents (la session peut s'interrompre). Messages de commit en français.
 
 ## Ce qu'on construit
@@ -66,7 +66,11 @@ Tu construis **le système d'événements saisonniers** de Mana Orbit et son **p
 - **Progression et anti-triche** : comme la Carte mystère (`daily-srv.mjs`).
   - Le serveur fournit les 5 cachettes du jour signées (HMAC).
   - L'appli réclame une citrouille avec son jeton ; le serveur refuse au-delà de 5 par jour, ou avec un jeton invalide ou d'un autre jour.
-  - **Avec un compte** : compté côté serveur (classement possible).
+  - **Avec un compte** : la progression est **sauvegardée dans Firebase (Firestore)**, synchronisée entre appareils, et validée par le serveur (classement possible).
+    - Document `users/{uid}/meta/events`, ou un champ dédié du document de progression : `{ <id événement>: { n, jours: { 'AAAA-MM-JJ': [cachettes trouvées] }, badges } }`.
+    - Compteurs qui ne baissent jamais, fusion « le plus grand gagne », comme `progress.js`.
+    - Le propriétaire accepte de **modifier `firestore.rules`** : ajoute la règle avec un schéma strict (champs et tailles bornés), son test dans `tests/rules-test.mjs`, et dis-lui de republier les règles **avant** la mise en production.
+    - Pense au sommaire du compte (`cloud.js` › `makeSum`, README « Synchro et quota Firestore »), pour ne pas multiplier les lectures facturées.
   - **Sans compte** : progression sur l'appareil, et l'invitation « crée un compte pour garder tes citrouilles » ; la progression se rattache au compte à la connexion, si c'est sûr.
 - **Petit classement des chasseurs** (pseudo public de la Carte mystère, jamais le nom Google) : facultatif. Si le temps manque, garde seulement le nombre de chasseurs à 30/30.
 
