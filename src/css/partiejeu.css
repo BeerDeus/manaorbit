@@ -86,14 +86,14 @@
 /* Fiche : − / + de 44 px, ±5 pour les blessures de commandant (maintenus : répétés), compteurs sur deux colonnes quand la fiche est large */
 .pu-fiche .sheet-body{container-type:inline-size}
 .pu-fiche .pu-row{min-height:52px}
-.pu-fiche .pu-rl{flex:1 1 auto;min-width:0;line-height:1.25;overflow-wrap:anywhere}
+.pu-fiche .pu-rl{flex:1 1 auto;min-width:0;line-height:1.25;overflow-wrap:break-word;hyphens:auto}
 .pu-fiche .qstep{flex:none}
 .pu-fiche .qstep button{width:44px;height:44px;font-size:21px;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 .pu-fiche .qstep .q5{width:46px;font-family:inherit;font-size:14px;font-weight:750;color:var(--ink)}
 .pu-fiche .qstep b{min-width:34px;font-size:16px}
 .pu-fiche .pu-lifebig button{height:48px;min-width:52px;-webkit-touch-callout:none;user-select:none;touch-action:manipulation}
 .pu-cnts{display:grid;grid-template-columns:minmax(0,1fr)}
-@container (min-width:420px){.pu-cnts{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px}}
+@container (min-width:440px){.pu-cnts{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px}}
 .pu-fiche .pu-acts .btn{flex:1 1 auto;min-height:48px}
 .pu-atk-go .i{width:17px;height:17px}
 /* Cibles d'au moins 44 px : pastilles (premier joueur, monarque, initiative, causes), × Retirer */
@@ -139,3 +139,7 @@
 .pu-ud .dn{transform:rotate(90deg)}
 .pu-ren .i{width:17px;height:17px}
 @media (prefers-reduced-motion: reduce){.sheet-wrap.pu-tsheet .sheet{transition:none}.pu-roll.pop b{animation:none}.pu-seat{transition:none}}
+/* tuile basse et large assez haute (C en paysage, 5 et 6 joueurs) : le nom a plus de place, les PV (centrés plus bas) ne le touchent pas */
+@container pucell (max-height:170px) and (min-height:136px) and (min-aspect-ratio:3/2){
+  .pu-c.land .pu-t:not(.rv) .pu-top{max-width:62%}
+}
