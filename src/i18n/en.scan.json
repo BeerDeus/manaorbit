@@ -97,6 +97,8 @@
   "i/s libre": "free fps",
   "redémarrages {n}": "restarts {n}",
   "dernière lecture {n} ms": "last read {n} ms",
+  "Afficher plus ({n} autre)": "Show more ({n} other)",
+  "Afficher plus ({n} autres)": "Show more ({n} others)",
   "auto : image {a} ms · nom {b} ms · bas et illustration {c} ms · total {d} ms": "auto: image {a} ms · name {b} ms · bottom line and art {c} ms · total {d} ms",
   "tâches longues {n}/10 s": "long tasks {n}/10 s",
   "mode lent (toucher ici : retour au mode normal)": "slow mode (tap here: back to normal mode)",

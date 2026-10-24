@@ -33,6 +33,7 @@
 .scan .sc-head .sc-total{flex:none}
 .scan .sc-note{padding-top:8px}
 .scan .sc-list{padding-top:4px}
+.sc-more{margin:6px 0 14px}      /* « Afficher plus » sous les dernières cartes du scan */
 .sc-item.last{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .sc-h.warn{color:var(--warn)}
 /* bandeau : édition de la 1re carte / nouvelle extension */

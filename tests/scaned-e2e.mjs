@@ -264,6 +264,19 @@ await p.evaluate(() => { SCD.p = ''; scanPaintTools(); }); assert.equal(await p.
 ok('cadre « carte entière » ≈ 48 % (carte vers 15 cm), textes hors du cadre ; symbole de l\'édition trouvée : du bas du cadre à sa ligne, qui s\'éclaire (pastille blanche dans l\'appli en thème sombre) ; « Ranger dans » : roue des réglages');
 await scanClose(p);
 
+/* ── longue session : les 10 dernières cartes montrées, « Afficher plus » ajoute les autres (la liste se repeint à chaque carte) ── */
+await p.evaluate(() => { scsSet({ frame: 'name' }); openScan(); }); await p.waitForFunction(() => SC.el && SC.el.classList.contains('on'));
+await p.evaluate(() => { for (let i = 0; i < 25; i++) SC.items.set('c' + i, { id: 'c' + i, key: 'c' + i, name: 'Carte ' + i, q: 1, score: 1, l: 'en', e: edKey('m21', String(i + 1)), es: 'man', maybe: false }); SC.lastIt = SC.items.get('c3'); scanPaintList(); });
+const shownIds = () => p.$$eval('.scan .sc-list .sc-item[data-id]', r => r.map(x => x.dataset.id));
+let ids = await shownIds();
+assert.deepEqual(ids, ['c24', 'c23', 'c22', 'c21', 'c20', 'c19', 'c18', 'c17', 'c16', 'c15', 'c3'], 'les 10 dernières, plus la dernière touchée (+1 sur une carte plus ancienne)');
+assert.match(await txt(p, '.scan .sc-more'), /Afficher plus \(14 autres\)/);
+assert.match(await txt(p, '.scan .sc-count'), /25 cartes/, 'le total compte toutes les cartes');
+await p.click('.scan .sc-more'); ids = await shownIds();
+assert.equal(ids.length, 25, 'puis 20 de plus : toutes ici (25)'); assert.equal(await p.$('.scan .sc-more'), null);
+ok('longue session : 10 cartes montrées, « Afficher plus (14 autres) » ajoute la suite, total sur toutes');
+await scanClose(p);
+
 assert.deepEqual(errs, [], 'erreurs page');
 await browser.close(); world.stop();
 console.log('\nSCANED E2E OK');
