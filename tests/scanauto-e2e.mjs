@@ -58,6 +58,15 @@ assert.match(await txt(p, '.sc-same'), /Encore Sol Ring \?.*Même carte qu'à l'
 assert.deepEqual(await qty(), { 'sol ring': 1 }, 'rien d\'ajouté avant la réponse');
 await p.click('.sc-same [data-act="au1"]'); await p.waitForSelector('.sc-same', { state: 'detached' });
 assert.deepEqual(await qty(), { 'sol ring': 2 }, '+1');
+// cadrage changé (carte entière ↔ nom seul) : la caméra native redémarre sur la nouvelle zone, l'auto et la lampe reviennent avec elle
+await show('blank');
+for (const fr of ['card', 'name']) {
+  await p.evaluate(fr => scsSet({ frame: fr }), fr);
+  await p.waitForFunction(fr => document.querySelector('.scan').classList.contains('full') === (fr === 'card') && NAT.on && AU.t && !document.querySelector('.sc-auto').hidden && document.querySelector('.scan').classList.contains('auto') && !document.querySelector('.sc-lamp').hidden, fr, { timeout: 6000 });
+  const c0 = await p.evaluate(() => window.__nat.caps.length); await p.waitForTimeout(800);
+  assert.ok(await p.evaluate(() => window.__nat.caps.length) > c0, 'cadrage ' + fr + ' : l\'auto regarde de nouveau l\'aperçu');
+}
+ok('cadrage changé pendant l\'auto : caméra reposée, auto et lampe toujours là');
 await show('blank'); await p.waitForTimeout(900); await show('a', 'Sol Ring');
 await p.waitForSelector('.sc-same', { timeout: 6000 }); await p.click('.sc-same [data-act="au0"]'); await p.waitForSelector('.sc-same', { state: 'detached' });
 assert.deepEqual(await qty(), { 'sol ring': 2 }, 'Non : rien d\'ajouté');

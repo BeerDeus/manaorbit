@@ -177,7 +177,7 @@ await ctx.close(); await browser.close();
 const probe = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
 const pp = await newPage(probe, world, { goto: false, perms: ['camera'] }); await bandOnly(pp.ctx); await routeCdn(pp.ctx); await pp.p.goto(world.url); await pp.p.waitForTimeout(600);
 await toHome(pp.p); await pp.p.click('#btnColl'); await pp.p.waitForSelector('.coll.on'); await pp.p.click('#nav [data-nav="scan"]'); await pp.p.waitForSelector('.scan.on'); await pp.p.waitForFunction(() => document.querySelector('.sc-stage').dataset.cam === 'on', null, { timeout: 8000 }); await pp.p.waitForTimeout(500);
-const geo = await pp.p.evaluate(() => { const s = document.querySelector('.sc-stage').getBoundingClientRect(), g = document.querySelector('.sc-guide').getBoundingClientRect(); return { cw: s.width, ch: s.height, g: { x: g.left - s.left, y: g.top - s.top, w: g.width, h: g.height } }; });
+const geo = await pp.p.evaluate(() => { const s = document.querySelector('.sc-video').getBoundingClientRect(), g = document.querySelector('.sc-guide').getBoundingClientRect(); return { cw: s.width, ch: s.height, g: { x: g.left - s.left, y: g.top - s.top, w: g.width, h: g.height } }; });
 await pp.p.waitForFunction(() => !SC.warm && !!OCR.workers.fra, null, { timeout: 15000 });
 assert.equal(await pp.p.evaluate(() => performance.getEntriesByType('resource').some(r => /tesseract/.test(r.name))), true, 'moteur OCR préparé pendant que tu cadres : le premier appui n\'attend pas son démarrage');
 assert.equal(await pp.p.evaluate(() => !!COLL.names), true, 'catalogue des noms chargé d\'avance');

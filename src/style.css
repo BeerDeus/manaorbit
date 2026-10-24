@@ -1569,5 +1569,5 @@ html.nat-cam,html.nat-cam body,html.nat-cam .dv.scan,html.nat-cam .sc-stage{back
 html.nat-cam body>:not(.scan):not(.toast):not(.sheet-root):not(.sheet-wrap):not(.imgv){visibility:hidden}      /* accueil, collection ouverte dessous, aurore… : rien d'opaque entre l'aperçu et le scan (la carte en grand, au-dessus, reste visible) */
 html.nat-cam .imgv{background:rgba(6,8,18,.96)}                                   /* le flou ne s'applique pas à l'aperçu natif (sous la page) : fond presque opaque */
 html.nat-cam .dv.scan>:not(.sc-stage){background:var(--bg)}
-html.nat-cam .sc-video{display:none}
+html.nat-cam .sc-video{visibility:hidden}      /* gardée en place : sa zone est celle de l'aperçu natif (scan.js › camRect) */
 html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
