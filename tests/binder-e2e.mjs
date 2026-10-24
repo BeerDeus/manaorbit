@@ -158,7 +158,8 @@ for (let i = 0; i < 40 && !shares.has('ShareBinder00001'); i++) await sleep(150)
   assert.deepEqual(d.have.filter(x => 'fo' in x).map(x => [x.n, x.q, x.fo]), [['Edgar Markov', 2, 2]], 'exemplaires foil publiés (fo), seulement pour la carte foil');
 }
 // aperçu du propriétaire : le classeur d'abord (il est réglé)
-await p.click('.tr-box.on [data-act="trview"]'); await p.waitForSelector('.pubv.on .bnd .bnd-card');
+await p.click('.tr-box.on [data-act="trlink"]'); await p.waitForSelector('.sheet-wrap.open .trl-sheet [data-act="trview"]'); await p.waitForTimeout(450);      // Aperçu : feuille du lien (densite.js)
+await p.click('.sheet-wrap.open [data-act="trview"]'); await p.waitForSelector('.pubv.on .bnd .bnd-card');
 assert.deepEqual(await keysOf(p, '.pubv'), ORDER); assert.equal(await p.$eval('.pubv .bnd', e => e.dataset.cover), 'foret');
 await p.click('.pubv .dv-back'); await p.waitForTimeout(400);
 // une carte souhaitée de plus : l'onglet « Recherchées » du visiteur aussi en classeur

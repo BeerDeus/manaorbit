@@ -336,31 +336,33 @@ function trWantRow(x, mine) {
   return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(x.p && x.p.l || '')}"${x.p ? ` data-big="${esc(x.p.i)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${tags}</span></span>${ctl}</div>`;
 }
-/** Corps de l'onglet : lien, réserve, sous-onglets « À échanger » / « Je recherche », total estimé, tri et prix minimal, listes filtrées (barre de recherche et filtres de la collection). */
+/** Corps de l'onglet : barre du lien (densite.js ; réserve et rangements dans « Réglages de l'échange », roue à côté de Filtres), sous-onglets « À échanger » / « Je recherche » et total estimé sur une ligne, tri et prix minimal, listes filtrées (barre de recherche et filtres de la collection). */
 function trPanelHtml() {
   const st = TR.st = trState(), f = COLL.f, sub = TR.sub, want = sub === 'want', held = st.held, bv = bndView('o') === 'binder';      // bv : classeur (binder.js) à la place de la liste
   const all = want ? st.want : st.have, min = want || bv ? 0 : TR.min, act = filterActive(f) || min > 0;
   const fil = filterItems(all.map(x => Object.assign(trItem(x.k, x.n, x.q, x.lines && x.lines[0] ? lineLang(x.lines[0][0]) : ''), { src: x }, x.lines ? { eds: [...new Set(x.lines.map(([g]) => edSet(lineEd(g))))] } : {})), f).map(i => i.src);      // eds : filtre « Extension »
   const { rows: list, sum } = tradeView(fil, { price: trRowPx, sort: TR.sort, min }), shown = bv ? [] : list.slice(0, TR.shown);
   TR.bv = bv && list.length ? { list, want } : null;
-  return `${trShareBoxHtml(st)}
-    <div class="tr-keep"><span class="label">${T('Garder en plus de mes decks : 0–4 exemplaires')}</span><div class="seg" id="trKeep" role="radiogroup" aria-label="${T('Garder en plus de mes decks')}"></div><p class="hint">${T('Tu proposes seulement ce que tu as en trop.')}</p>${trPlcBtnHtml()}</div>
-    <div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>
+  return `${typeof trBarHtml === 'function' ? trBarHtml(st) : trShareBoxHtml(st)}
+    <div class="tr-top"><div class="seg tr-sub" id="trSub" role="radiogroup" aria-label="${T('Liste')}"></div>${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}</div>
     ${want ? `<div class="tr-acts tr-wacts"><button class="btn ghost tr-addw" type="button" data-act="wadd"><svg class="i"><use href="#i-plus"/></svg>${T('Ajouter une carte')}</button>${st.want.length ? '<button class="btn ghost" type="button" data-act="wcm" title="' + T('Une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket (Shopping Wizard)') + '"><svg class="i"><use href="#i-copy"/></svg>' + T('Copier pour Cardmarket') + '</button>' : ''}</div>` : ''}
-    ${all.length ? trSumHtml(list, all, sum, act, want, bv) : ''}
+    ${all.length ? trToolsHtml(want, bv) : ''}
     ${TR.bv ? '<div id="trBnd"></div>' : shown.length ? `<div class="coll-list tr-list">${shown.map(x => (want ? trWantRow(x, true) : trHaveRow(x))).join('')}</div>`
       : `<p class="hint listempty">${T(act ? 'Aucune carte ne correspond.' : want ? 'Rien à chercher : tes decks sont complets. Ajoute des cartes à ta liste de souhaits.' : 'Aucun doublon pour l\'instant.')}</p>`}
     ${!bv && list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="trmore">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TR_PAGE, list.length - shown.length)), left: nf0(list.length - shown.length) })}</button>` : ''}
     ${!want && held.length ? `<details class="tr-held"><summary>${T('Gardées à la main ({n})', { n: nf0(held.length) })}</summary><div class="coll-list">${held.map(x => `<div class="crow tr-row" data-k="${esc(x.k)}"><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta"><span class="tag">${T('{n} en trop', { n: x.q })}</span></span></span><span class="tr-q"><button class="link-btn" type="button" data-act="tunkeep">${T('Remettre')}</button></span></div>`).join('')}</div></details>` : ''}`;
 }
-/** En-tête de la liste : cartes et exemplaires (affichés / au total), valeur estimée et sa base (prix à l'unité, tendance Cardmarket, date du fichier), tri et « ≥ X € » (doublons). */
+/** En-tête de la liste : cartes et exemplaires (affichés / au total), valeur estimée et sa base (prix à l'unité, tendance Cardmarket, date du fichier) ; sur la ligne des sous-onglets (.tr-top). */
 function trSumHtml(list, all, sum, act, want, bv) {
   const at = PXT && Date.parse(PXT.at), priced = sum.n > sum.nv;
   const count = (act ? TN(list.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) }) : TN(list.length, '{n} carte', '{n} cartes')) + ' · ' + TN(sum.q, '{n} exemplaire', '{n} exemplaires');
   const basis = priced ? (at ? T('Prix à l\'unité : tendance Cardmarket ({when})', { when: relTime(at) }) : T('Prix à l\'unité : tendance Cardmarket')) + (sum.nv ? ' · ' + TN(sum.nv, '{n} carte sans prix', '{n} cartes sans prix') : '') : '';
+  return `<div class="tr-sum"><b>${esc(count)}</b> ${priced ? `<em title="${T('Valeur estimée')}">≈ ${esc(fmt(sum.v, 'EUR'))}</em>` : ''} ${basis ? `<span title="${esc(basis)}">${esc(basis)}</span>` : ''}</div>`;
+}
+/** Tri et « ≥ X € » (doublons), interrupteur Liste | Classeur. */
+function trToolsHtml(want, bv) {
   const opt = (v, l, cur) => `<option value="${v}"${cur === v ? ' selected' : ''}>${esc(l)}</option>`;
-  return `<div class="tr-sum"><b>${esc(count)}</b>${priced ? `<em title="${T('Valeur estimée')}">≈ ${esc(fmt(sum.v, 'EUR'))}</em>` : ''}${basis ? `<span>${esc(basis)}</span>` : ''}</div>
-    <div class="tr-tools">${bv ? bndToolsHtml() : `<label class="sortsel"><span>${T('Trier')}</span><select id="trSort" aria-label="${T('Trier la liste')}">${opt('name', T('Nom'), TR.sort)}${opt('price', T('Prix'), TR.sort)}</select></label>
+  return `<div class="tr-tools">${bv ? bndToolsHtml() : `<label class="sortsel"><span>${T('Trier')}</span><select id="trSort" aria-label="${T('Trier la liste')}">${opt('name', T('Nom'), TR.sort)}${opt('price', T('Prix'), TR.sort)}</select></label>
       ${want ? '' : `<label class="sortsel tr-min${TR.min ? ' on' : ''}"><select id="trMin" aria-label="${T('Prix minimal à l\'unité')}">${TR_MINS.map(v => opt(v, v ? '≥ ' + trEur(v) : T('Tous les prix'), TR.min)).join('')}</select></label>`}`}${bndSwitchHtml('trView')}</div>`;
 }
 /** Fichier de prix (celui de « Pour toi » et de la recherche Cardmarket) : lu une fois (cache de l'appareil, puis le serveur quand il répond), puis l'onglet se repeint avec les valeurs. */
@@ -371,7 +373,7 @@ function trPx() {
 /** Après chaque peinture de l'onglet : les deux sélecteurs. */
 function trMount(host) {
   const st = TR.st || trState();
-  mountSeg($('#trKeep', host), TR_KEEPS.map(v => ({ v: String(v), label: String(v) })), String(TR.keep), v => { TR.keep = Number(v); trChanged(); });
+  const kp = $('#trKeep', host); if (kp) mountSeg(kp, TR_KEEPS.map(v => ({ v: String(v), label: String(v) })), String(TR.keep), v => { TR.keep = Number(v); trChanged(); });      // réserve : dans « Réglages de l'échange » (densite.js), sinon ici
   mountSeg($('#trSub', host), [{ v: 'have', label: T('À échanger'), sub: nf0(st.have.length) }, { v: 'want', label: T('Je recherche'), sub: nf0(st.want.length) }], TR.sub, v => { TR.sub = v; TR.shown = TR_PAGE; collPaintBody(true); });
   const inp = $('.tr-link input', host); if (inp) inp.onfocus = e => e.target.select();
   const so = $('#trSort', host); if (so) so.onchange = e => { TR.sort = e.target.value === 'price' ? 'price' : 'name'; TR.shown = TR_PAGE; haptic('tap'); collPaintBody(true); };

@@ -1000,7 +1000,7 @@ function collRowsHtml(sorted, from, to) {
   for (let i = from; i < Math.min(to, sorted.length); i++) {
     const it = sorted[i];
     if (se && (i === 0 || se.get(sorted[i - 1]) !== se.get(it))) { const c = se.get(it), y = setDate(c).slice(0, 4); out.push(`<h3 class="coll-sethd">${c ? setIcHtml(c) : ''}<b>${esc(c ? setName(c) || c.toUpperCase() : T('Sans édition'))}</b>${c ? `<small>${esc(c.toUpperCase())}${y ? ' · ' + y : ''}</small>` : ''}</h3>`); }
-    out.push(collRowItems(it).map(crowHtml).join(''));
+    out.push(collRowItems(it).map(typeof cvwRow === 'function' ? cvwRow : crowHtml).join(''));      // vue compacte, détaillée ou grille (densite.js)
   }
   return out.join('');
 }
@@ -1076,13 +1076,13 @@ function collExport() {
 }
 function collHeadText() {
   const n = collCount(), c = collCopies();
-  const sync = D.user ? (COLL.cloud === 'ok' ? T('synchronisée') : COLL.cloud === 'sync' ? T('synchronisation…') : COLL.cloud === 'offline' ? T('hors ligne') : COLL.cloud === 'error' ? COLL.err : '') : T('sur cet appareil');
-  return n ? TN(n, '{n} carte', '{n} cartes') + ' · ' + TN(c, '{n} exemplaire', '{n} exemplaires') + (sync ? ' · ' + sync : '') : T('Vide pour le moment');
+  const v = n && typeof homeValue === 'function' ? homeValue() : 0;      // l'état de la sauvegarde est dans le point à côté du titre (et son libellé lu)
+  return n ? TN(n, '{n} carte', '{n} cartes') + ' · ' + TN(c, '{n} ex.', '{n} ex.') + (v ? ' · ' + hmEur(v) : '') : T('Vide pour le moment');
 }
-/** Carte de valeur en haut de « Ma collection » : valeur (tendance Cardmarket), cartes et exemplaires, variation sur 7 jours, courbe des 30 derniers relevés ; toucher → Stats. */
+/** Carte de valeur de « Ma collection », en tête de l'onglet Stats (ailleurs, la valeur est dans le sous-titre) : valeur (tendance Cardmarket), cartes et exemplaires, variation sur 7 jours, courbe des 30 derniers relevés. */
 function collValPaint() {
   const box = COLL.el && $('.coll-val', COLL.el); if (!box) return;
-  const n = collCount(); if (!n || typeof homeValue !== 'function') { box.hidden = true; return; }
+  const n = collCount(); if (!n || typeof homeValue !== 'function' || COLL.tab !== 'stats') { box.hidden = true; return; }
   const v = homeValue(), h = histDelta(VAL.hist, 7), pts = VAL.hist.slice(-30).map(x => x.v);
   let spark = '';
   if (pts.length >= 2) {
@@ -1103,7 +1103,7 @@ function collPaintHead() {
   $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul
   const sy = $('.coll-sync', el), si = collSyncInfo(), dot = $('.coll-dot', el);
   if (dot) { dot.hidden = !si; if (si) { dot.dataset.k = si.k; dot.setAttribute('aria-label', si.t); dot.title = si.t; } }
-  if (!si || si.k === 'ok') sy.hidden = true;      // tout va bien : le point vert suffit
+  if (!si || si.k === 'ok' || !(si.k === 'bad' && D.user)) sy.hidden = true;      // le point suffit (touché : la feuille qui dit pourquoi) ; bandeau seulement quand la sauvegarde du compte échoue
   else { sy.hidden = false; sy.dataset.k = si.k; sy.innerHTML = `<span class="sy-d" aria-hidden="true"></span><span class="sy-t">${esc(si.t)}</span>${si.acts.map(([a, l]) => `<button class="link-btn" type="button" data-act="${a}">${esc(l)}</button>`).join('')}`; }
   if (GLANCE.api) paintGlance();
   const stt = $('.coll-status', el), e = COLL.enrich;
@@ -1187,7 +1187,8 @@ function collPaintBody(keep) {
   // collection vide : les onglets restent (Decks et Échange marchent sans carte) ; recherche, filtres, tri et prix réels n'auraient rien à montrer
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
   $('.coll-px', el).hidden = none; $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
-  $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); collWhenPaint(el, none); valPaintAlert();      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
+  $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); if (typeof cvwPaint === 'function') cvwPaint(el, none); collWhenPaint(el, none); valPaintAlert();      // cvwPaint : tri, vue, réglages de l'échange (densite.js)
+  if (!keep && typeof cvwHead === 'function') cvwHead();      // carte de valeur : onglet Stats seulement      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
   if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
   else if (none && COLL.tab === 'stats') host.innerHTML = collStatsEmptyHtml();
   else if (COLL.tab === 'decks' && edhGate() !== 'ok') { host.innerHTML = edhGateHtml(); vfTick(); }      // decks EDHREC réservés aux comptes (edh.js) ; vfTick : « Renvoyer » grisé pendant la minute qui suit un envoi
@@ -1202,7 +1203,7 @@ function collPaintBody(keep) {
     const known = all.filter(i => i.tl != null || i.cm != null).length, hid = (COLL.f.colors.size || COLL.f.type || COLL.f.cmc !== '' || COLL.f.cmdr) && known < all.length;
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
     host.innerHTML = `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
-      ${shown.length ? `<div class="coll-list">${collRowsHtml(sorted, 0, shown.length)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
+      ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collRowsHtml(sorted, 0, shown.length)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
       ${sorted.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, sorted.length - shown.length)), b: nf0(sorted.length - shown.length) })}</button>` : ''}`;
     COLL.painted = sorted;
   }
@@ -1264,9 +1265,10 @@ function openCollection(tab) {
   if (md === 'coll') mountSeg($('#collSeg', wrap), [{ v: 'list', label: T('Cartes') }, { v: 'places', label: T('Rangement') }, { v: 'stats', label: T('Stats') }], COLL.tab, v => { const ord = ['list', 'places', 'stats'], dir = ord.indexOf(v) > ord.indexOf(COLL.tab) ? 'l' : 'r'; { const h = $('.coll-main', wrap); if (h) h.dataset.dir = dir; } COLL.tab = COLL.ctab = v; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(false); const sc = $('.dv-scroll', wrap); if (sc) sc.scrollTop = 0; const h = $('.coll-main', wrap); if (h) { h.classList.remove('tabin'); void h.offsetWidth; h.classList.add('tabin'); } });
   COLL.fb = mountFilters($('#collF', wrap), COLL.f, () => {
     COLL.cmdrSeen = COLL.f.cmdr; COLL.shown = COLL_PAGE; TR.shown = TR_PAGE; collPaintBody(true);
-  }, { placeholder: T('Rechercher une carte'), commander: true, sets: collSetList, ...(md === 'coll' && typeof srchExt === 'function' ? { ext: srchExt() } : {}), setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
+  }, { placeholder: T('Rechercher'), commander: true, sets: collSetList, ...(md === 'coll' && typeof srchExt === 'function' ? { ext: srchExt() } : {}), setsSub: n => (COLL.place ? TN(n, '{n} extension dans « {place} »', '{n} extensions dans « {place} »', { place: plcName(COLL.place === '-' ? '' : COLL.place) })
     : filterActive({ ...COLL.f, set: '' }) ? TN(n, '{n} extension parmi les cartes affichées', '{n} extensions parmi les cartes affichées') : TN(n, '{n} extension dans ta collection', '{n} extensions dans ta collection')) });
   COLL.cmdrSeen = COLL.f.cmdr;
+  if (typeof cvwMount === 'function') cvwMount(wrap, md);      // tri, masterset, vue : boutons-icônes dans la rangée de la recherche ; titre resserré au défilement (densite.js)
   $('#collSort', wrap).value = COLL.sort;
   $('#collSort', wrap).onchange = e => { COLL.sort = e.target.value; COLL.shown = COLL_PAGE; if (!isDateSort()) COLL.when.dir = ''; haptic('tap'); collPaintBody(false); };
   wrap.addEventListener('input', edhInput);
@@ -1289,6 +1291,7 @@ function openCollection(tab) {
   wrap.addEventListener('click', e => {
     if (typeof opnCollClick === 'function' && opnCollClick(e)) return;      // session d'ouverture (opening.js) : sa note, sa liste en mode streamer
     if (typeof msClick === 'function' && msClick(e)) return;      // masterset (masterset.js) : interrupteur, édition, filtres, cartes
+    if (typeof dnsClick === 'function' && dnsClick(e)) return;      // vues de la liste, réglages et lien de l'échange (densite.js)
     if (e.target.closest('.lchip')) return;
     if (e.target.closest('.cs-val[data-act="pxsrc"]')) { collToggleSrc(); return; }
     if (edhClick(e) || valClick(e) || trClick(e) || plcClick(e)) return;
@@ -1310,7 +1313,7 @@ function openCollection(tab) {
       else if (act === 'prices') openCollPrices();
       else if (act === 'login') openAccount();
       else if (act === 'export') collExport();
-      else if (act === 'syncinfo') { const si = collSyncInfo(); if (si) toast(si.t); }
+      else if (act === 'syncinfo') { const si = collSyncInfo(); if (si && si.k !== 'ok' && typeof collSyncSheet === 'function') collSyncSheet(si); else if (si) toast(si.t); }      // à surveiller : la feuille (texte, Se connecter, Réessayer)
       else if (act === 'resync') collSyncNow();
       else if (act === 'pxstop') { if (COLL.pxRun) COLL.pxRun.ctrl.abort(); }
       else if (act === 'pxok') { COLL.pxMsg = null; collPaintHead(); }

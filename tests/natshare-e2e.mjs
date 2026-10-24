@@ -55,7 +55,9 @@ async function deckSheet(p) {
   assert.deepEqual(await p.evaluate(() => window.__mo.share[0]), want, 'toast « Partager » → ManaOrbit.share (titre, message, lien, titre du menu)');
   await p.click('.tr-box.on [data-act="trsend"]'); await p.waitForFunction(() => window.__mo.share.length === 2);
   assert.deepEqual(await p.evaluate(() => window.__mo.share[1]), want, 'bouton « Partager » du lien');
-  await p.click('.tr-box.on [data-act="trcopy"]'); await p.waitForFunction(() => window.__clip.length === 1);
+  await p.click('.tr-box.on [data-act="trlink"]'); await p.waitForSelector('.sheet-wrap.open .trl-sheet .tr-link input'); await p.waitForTimeout(450);      // Copier, Nouveau lien, Aperçu : feuille du lien (densite.js)
+  await p.click('.sheet-wrap.open [data-act="trcopy"]'); await p.waitForFunction(() => window.__clip.length === 1);
+  await p.click('.sheet-wrap.open [data-close].icon-btn'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
   assert.deepEqual(await clip(p), [url], '« Copier » copie toujours (le lien seul)'); assert.equal(await p.evaluate(() => window.__mo.share.length), 2);
   ok('APK : « Lien créé · Partager » et « Partager » → ManaOrbit.share({ title, text, url, chooser }), rien de copié ; « Copier » copie');
 
@@ -77,7 +79,8 @@ async function deckSheet(p) {
   await p.evaluate(() => { delete window.Capacitor.Plugins.ManaOrbit.share; window.__clip = []; }); await toastOff(p);
   await p.click('.tr-box.on [data-act="trsend"]'); await p.waitForFunction(() => window.__clip.length === 1);
   assert.deepEqual(await clip(p), [url]); assert.equal(await txt(p, '#toast'), 'Copié');
-  await toastOff(p); await p.click('.tr-box.on [data-act="trnew"]'); await p.waitForFunction(() => /Lien créé/.test(document.querySelector('#toast').textContent), null, { timeout: 15000 });
+  await p.click('.tr-box.on [data-act="trlink"]'); await p.waitForSelector('.sheet-wrap.open .trl-sheet .tr-link input'); await p.waitForTimeout(450);      // Copier, Nouveau lien, Aperçu : feuille du lien (densite.js)
+  await toastOff(p); await p.click('.sheet-wrap.open [data-act="trnew"]'); await p.waitForFunction(() => /Lien créé/.test(document.querySelector('#toast').textContent), null, { timeout: 15000 });
   assert.equal(await txt(p, '#toast'), 'Lien créé Copier', 'sans menu de partage : le toast garde « Copier »');
   await p.click('#toast .toast-act'); await p.waitForFunction(() => window.__clip.length === 2);
   assert.equal((await clip(p))[1], world.url + '?p=' + (await p.evaluate(() => TR.share)), 'nouveau lien copié');
