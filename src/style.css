@@ -1529,7 +1529,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .ob-aura i:nth-child(4){right:-90px;bottom:-60px;background:radial-gradient(circle,rgba(199,155,255,.36),transparent 65%)}
 .ob-skip{position:absolute;top:calc(14px + var(--top-in));right:16px;z-index:2;color:#b6bdd4}
 .ob-track{flex:1;min-height:0;display:flex;transition:transform .45s cubic-bezier(.22,.8,.25,1);position:relative;z-index:1}
-.ob-s{flex:0 0 100%;box-sizing:border-box;padding:72px 24px 24px;display:flex;flex-direction:column;gap:16px;max-width:520px;margin:0 auto;overflow-y:auto}
+.ob-s{flex:0 0 100%;box-sizing:border-box;padding:72px max(24px,calc(50% - 236px)) 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto}      /* chaque écran fait toute la largeur (le défilement de -100 % tombe juste) ; colonne de 520 px au plus, centrée par les marges intérieures */
 .ob-s>*{flex-shrink:0}      /* page plus haute que l'écran : on défile, rien n'est écrasé (le bouton tombait à 0 px) */
 .ob-s h1{font:800 32px/1.1 var(--font-display,inherit);letter-spacing:-.03em;margin:4px 0 0}
 .ob-s h2{font:800 28px/1.15 var(--font-display,inherit);letter-spacing:-.02em;margin:0}
