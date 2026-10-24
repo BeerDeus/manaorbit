@@ -134,7 +134,6 @@
   .bd.split .bd-split{flex:1;min-height:0;width:100%;max-width:1760px;margin:0 auto;padding:0 28px;display:grid;grid-template-columns:minmax(360px,440px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0 28px}
   .bd-split>.bd-l,.bd-split>.bd-r{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 4px 32px}
   .bd-split>.bd-l{padding-right:24px;border-right:1px solid var(--line)}
-  .bd-split>.bd-l>#bdSeg{flex:none;position:sticky;top:0;z-index:2;background:var(--surface-2);box-shadow:0 -18px 0 var(--bg)}
   .bd-split #bdDeckCtl{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}
   .bd-split #bdDeckCtl .bd-scan{margin-top:0;height:46px;padding:0 18px}
   .bd-split #bdDeck{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:8px 12px;align-content:start}
