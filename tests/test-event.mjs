@@ -147,6 +147,28 @@ test('interrupteur du panneau, EVENT=0, fichier illisible', async () => {
   await S.ev.flush(); assert.equal(readFileSync(join(d2, 'halloween-2026.json'), 'utf8'), '{abîmé', 'fichier illisible jamais écrasé'); S.stop();
 });
 
+test('panneau : liste des chasseurs, remise à zéro d\'un joueur et de sa propre avancée, anciennes copies ignorées', async () => {
+  const S = await up();
+  const users = { 'tok-zoe': 1 };
+  let me = (await S.call('event?c=7', { tok: 'tok-zoe' })).j.me;
+  for (const x of me.spots.slice(0, 3)) await S.call('event/claim', { tok: 'tok-zoe', body: { ev: 'halloween-2026', day: me.day, s: x.s, t: x.t, n: 'Zoé' } });
+  const dev = (await S.call('event')).j.dev, dm = (await S.call('event', { dev })).j.me;
+  await S.call('event/claim', { dev, body: { ev: 'halloween-2026', day: dm.day, s: dm.spots[0].s, t: dm.spots[0].t } });
+  me = (await S.call('event?c=7', { tok: 'tok-zoe' })).j.me; const copy = { jours: me.jours, sig: me.sig, rs: me.rs };      // copie Firestore d'avant la remise à zéro
+  let a = (await S.call('admin/events')).j.stats['halloween-2026'];
+  assert.equal(a.players.length, 2); assert.equal(a.players[0].n, 'Zoé'); assert.equal(a.players[0].c, 3); assert.equal(a.players[0].today, 3); assert.equal(a.players[0].days, 1); assert.equal(a.players[1].acct, false);
+  assert.ok(a.players.every(x => /^[\w-]{12}$/.test(x.id)) && !JSON.stringify(a.players).includes(evTag('uid-zoe')), 'identifiants opaques, jamais l\'empreinte');
+  const r = await S.call('admin/events/reset', { body: { id: 'halloween-2026', p: a.players[1].id } }); assert.equal(r.status, 200); assert.equal(r.j.stats.players.length, 1, 'appareil remis à zéro');
+  assert.equal((await S.call('admin/events/reset', { body: { id: 'halloween-2026', p: 'zzz' } })).status, 404);
+  // « me » : le compte de l'éditeur (ici, le faux panneau passe { email } sans uid → introuvable)
+  assert.equal((await S.call('admin/events/reset', { body: { id: 'halloween-2026', p: 'me' } })).status, 404);
+  await S.call('admin/events/reset', { body: { id: 'halloween-2026', p: a.players[0].id } });
+  me = (await S.call('event?c=7', { tok: 'tok-zoe' })).j.me; assert.equal(me.n, 0); assert.ok(me.rs > 0, 'remise à zéro annoncée à l\'appli (rs)');
+  assert.equal((await S.call('event/sync', { tok: 'tok-zoe', body: { ev: 'halloween-2026', ...copy } })).j.me.n, 0, 'copie d\'avant la remise à zéro : ignorée');
+  const x = me.spots.find(q => !q.f); assert.equal((await S.call('event/claim', { tok: 'tok-zoe', body: { ev: 'halloween-2026', day: me.day, s: x.s, t: x.t } })).j.n, 1, 'la chasse repart de zéro');
+  assert.equal(users['tok-zoe'], 1); S.stop();
+});
+
 async function proxyUp(port, env) {
   const p = spawn('node', ['proxy.mjs'], { env: { ...process.env, PORT: String(port), EDH_SOURCE_URL: '', PRICES_SOURCE_URL: '', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; p.stdout.on('data', d => { out += d; }); p.stderr.on('data', d => { out += d; });
