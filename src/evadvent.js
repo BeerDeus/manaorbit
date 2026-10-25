@@ -38,14 +38,20 @@ const advNow = () => (EV.st && EV.st.ev && evPackOf() && evPackOf().advent ? adv
 const advToday = a => { const k = evDiff(a.e.from, EV.st.me ? EV.st.me.day : EV.st.ev.day) + 1; return k <= a.p.advent.doors ? k : 0; };
 
 /* ── Récompenses ─────────────────────────────────────────────────────────────────────────────────────────────── */
-/** Récompenses acquises (toutes les éditions de calendrier connues) : { xp, covers: Set, orbs: [années] }. Mises en cache tant que rien ne change. */
+/** Récompenses acquises (toutes les éditions de calendrier et de ciel connues) : { xp, covers: Set, orbs: [années] }. Mises en cache tant que rien ne change. */
 function advRewards() {
   const ids = new Set([...Object.keys(evLs().p || {}), ...Object.keys(EV.doc || {})]); if (EV.st && EV.st.ev) ids.add(EV.st.ev.id);
-  const list = [...ids].filter(id => { const p = evPack(id); return p && p.advent; }).sort();
-  const sig = list.map(id => id + ':' + Object.values(advJours(id)).reduce((s, l) => s + (Array.isArray(l) ? l.length : 0), 0) + ':' + Object.keys((advOf(id) || {}).dr || {}).join('.')).join(',');
+  const list = [...ids].filter(id => { const p = evPack(id); return p && (p.advent || p.sky); }).sort();
+  const sig = list.map(id => id + ':' + Object.values(advJours(id)).reduce((s, l) => s + (Array.isArray(l) ? l.length : 0), 0) + ':' + evCount(id) + ':' + Object.keys((advOf(id) || (typeof skyOf === 'function' && skyOf(id)) || {}).dr || {}).join('.')).join(',');
   if (ADV.rw && ADV.rwSig === sig) return ADV.rw;
   const rw = { xp: 0, covers: new Set(), orbs: [] };
   for (const id of list) {
+    const s = typeof skyOf === 'function' ? skyOf(id) : null;
+    if (s) {      // ciel du Nouvel an (evsky.js) : couleurs rares tirées, couverture unique pour les 30 étoiles
+      for (const c of Object.values(s.dr)) rw.covers.add(c);
+      if (s.n >= s.e.total && s.p.sky.done) rw.covers.add(s.p.sky.done.cover);
+      continue;
+    }
     const a = advOf(id); if (!a) continue;
     for (const c of Object.values(a.dr)) rw.covers.add(c);      // couleurs rares (tirage du serveur)
     for (const d of a.doors) {

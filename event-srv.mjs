@@ -33,7 +33,7 @@ export function evName(v, bad) { const s = typeof v === 'string' ? v.replace(/\s
 function rng(hex) { let a = parseInt(String(hex).slice(0, 8), 16) >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const eq = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && timingSafeEqual(x, y); };
 
-/** Tirage d'une couleur rare (calendrier de l'Avent) : rr.p de chance, couleur parmi rr.covers ; '' : rien. Exporté pour les tests (taux). */
+/** Tirage d'une couleur rare (calendrier de l'Avent, ciel du Nouvel an) : rr.p de chance, couleur parmi rr.covers ; '' : rien. Exporté pour les tests (taux). */
 export function evRare(secret, id, k, i, rr) {
   const h = createHmac('sha256', secret).update(`evr|${id}|${k}|${i}`).digest();
   return h.readUInt32BE(0) / 0x100000000 < rr.p ? rr.covers[h.readUInt32BE(4) % rr.covers.length] : '';
@@ -134,11 +134,16 @@ export function eventMake(o = {}) {
     const y = new Set(pick(EVP.evAdd(day, -1), ok).map(s => s.id)), fresh = ok.filter(s => !y.has(s.id)), base = fresh.length >= want * 3 ? fresh : ok;
     return pick(day, base).map(s => s.id);
   }
-  /** Couleurs rares d'un calendrier (pack.advent.rare) gagnées par un joueur : { porte: couleur } pour ses portes ouvertes, sauf la dernière (récompense sûre).
-   *  Tirage reproductible (secret, édition, joueur, porte) : le même à chaque lecture, invisible et impossible à forcer depuis l'appli. */
+  /** Couleurs rares gagnées par un joueur : calendrier (pack.advent.rare) : { porte: couleur } pour ses portes ouvertes, sauf la dernière (récompense sûre) ;
+   *  ciel (pack.sky.rare) : { n° du jour (1…) : couleur } pour chaque jour où il a trouvé au moins un objet.
+   *  Tirage reproductible (secret, édition, joueur, porte ou jour) : le même à chaque lecture, invisible et impossible à forcer depuis l'appli. */
   function rares(e, k, pl) {
-    const p = EVP.evPack(e.pack), rr = p && p.advent && p.advent.rare, out = {}; if (!rr || !k) return out;
-    for (const d of EVP.evDoors(e, pl.d || {})) if (d.open && d.i < p.advent.doors) { const c = evRare(G.secret, e.id, k, d.i, rr); if (c) out[d.i] = c; }
+    const p = EVP.evPack(e.pack), out = {}; if (!p || !k) return out;
+    if (p.advent && p.advent.rare) for (const d of EVP.evDoors(e, pl.d || {})) if (d.open && d.i < p.advent.doors) { const c = evRare(G.secret, e.id, k, d.i, p.advent.rare); if (c) out[d.i] = c; }
+    if (p.sky && p.sky.rare) for (const [d, l] of Object.entries(pl.d || {})) {
+      const i = EVP.evDiff(e.from, d) + 1; if (!Array.isArray(l) || !l.length || i < 1 || i > e.days) continue;
+      const c = evRare(G.secret, e.id, k, i, p.sky.rare); if (c) out[i] = c;
+    }
     return out;
   }
   /** Ce que voit le joueur : total, trouvées du jour, cachettes du jour et leurs jetons, jours joués et leurs reçus. */

@@ -355,7 +355,7 @@ async function evTap(s) {
   const sp = st.me.spots.find(q => q.s === s); if (!sp || sp.f) return;
   haptic('ok'); EV.fly = 1;
   const from = x.el.getBoundingClientRect(), rot = x.rot || 0, v = x.v; evUnmount(s); sp.f = 1;
-  const me = st.me, n0 = me.n, found = [...me.found, s], j0 = { ...(me.jours || {}) };
+  const me = st.me, n0 = me.n, found = [...me.found, s], j0 = { ...(me.jours || {}) }, dr0 = { ...(me.dr || {}) };
   me.found = found; me.n = Math.min(st.ev.total, n0 + 1); me.left = Math.max(0, Math.min((me.q || st.ev.per) - found.length, st.ev.total - me.n));      // tout de suite à l'écran ; le serveur confirme
   const anim = evFly(from, me.n, st.ev.total, rot, v);
   let res = null, err = null;
@@ -370,7 +370,7 @@ async function evTap(s) {
     toast(err.code === 'day_quota' ? evTx('dayDone') : err.code === 'wrong_day' ? T('Nouveau jour : de nouvelles cachettes t\'attendent.') : T('Cet objet n\'a pas pu être compté.'));
     evStatus(true);
   } else toast(T('Hors ligne : ta trouvaille sera comptée au retour du réseau.'));
-  const door = !!res && typeof advAfterFind === 'function' && advAfterFind(j0, me);      // calendrier de l'Avent : une porte vient de s'ouvrir → son ouverture (puis la célébration)
+  const door = !!res && ((typeof advAfterFind === 'function' && advAfterFind(j0, me)) || (typeof skyAfterFind === 'function' && skyAfterFind(n0, dr0, me)));      // calendrier de l'Avent : une porte vient de s'ouvrir → son ouverture ; ciel : constellation complète, couleur rare (puis la célébration)
   if (!door) evMsg(me);
   EV.fly = 0; evHomePaint(); evLoopSync();
   if (me.n >= st.ev.total && res && !door) setTimeout(evParty, reduceMotion() ? 200 : 900);
@@ -500,6 +500,14 @@ function evHomePaint() {
     return;
   }
   box.classList.remove('hm-adv');
+  const sky = p.sky && typeof skyNow === 'function' ? skyNow() : null;
+  if (sky) {      // nuit des étoiles filantes (evsky.js) : le ciel et ses 5 constellations, compte à rebours jusqu'à minuit
+    const sig = ['sky', sky.n, me.left, (me.found || []).length, me.day, I18N.lang, Date.now() >= skyMidnight(sky.e)].join('|');
+    if (box.dataset.sig !== sig) { box.dataset.sig = sig; box.innerHTML = skyCardHtml(sky, me); box.classList.add('hm-sky'); skyMount(sky); }
+    if (!box.dataset.sky) { box.dataset.sky = '1'; box.addEventListener('click', e => { if (box.classList.contains('hm-sky')) skyTap(e); }); }
+    return;
+  }
+  box.classList.remove('hm-sky');
   const left = ev.left, tiers = p.badge.tiers, nx = tiers.find(t => t > n);
   const today = me.left > 0 ? TN(me.left, 'Encore {n} à trouver aujourd\'hui', 'Encore {n} à trouver aujourd\'hui') : n >= ev.total ? T('Tout est trouvé : bravo !') : T('Tout est trouvé pour aujourd\'hui : reviens demain');
   const sig = [n, me.left, left, I18N.lang, (me.found || []).length].join('|'); if (box.dataset.sig === sig) return; box.dataset.sig = sig;
@@ -517,13 +525,14 @@ function evSheetOpen() {
   openSheet(evTx('short') + ' ' + st.ev.id.slice(-4), null, api => {
     api.wrap.classList.add('ev-sheet');
     const paint = (bd) => {
-      const me = st.me || { n: 0, spots: [], left: 0 }, ev = st.ev, adv = p.advent && typeof advNow === 'function' ? advNow() : null, n = adv ? adv.open : Math.max(me.n, evCount(st.ev.id)), tot = adv ? p.advent.doors : ev.total, to = new Date(ev.to + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
-      const unitN = t => (adv && p.badge.unit ? TN(t, p.badge.unit[0], p.badge.unit[1]) : evObjN(t));
+      const me = st.me || { n: 0, spots: [], left: 0 }, ev = st.ev, adv = p.advent && typeof advNow === 'function' ? advNow() : null, sky = p.sky && typeof skyNow === 'function' ? skyNow() : null, n = adv ? adv.open : Math.max(me.n, evCount(st.ev.id)), tot = adv ? p.advent.doors : ev.total, to = new Date(ev.to + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
+      const unitN = t => ((adv || sky) && p.badge.unit ? TN(t, p.badge.unit[0], p.badge.unit[1]) : evObjN(t)), bn = sky ? sky.done : n;      // ciel : les badges comptent les constellations
       const rules = (p.txt.rules || []).map(r => `<li>${esc(T(r, { total: ev.total, per: ev.per, to, y: ev.id.slice(-4) }))}</li>`).join('');
       const hints = (me.spots || []).map(x => `<li class="${x.f ? 'ok' : ''}"><span aria-hidden="true">${x.f ? '✓' : '·'}</span>${esc(evHint(x.s))}${x.f ? `<span class="sr">${T('trouvée')}</span>` : ''}</li>`).join('');
-      const bdg = p.badge.tiers.map((t, i) => `<div class="ev-sb ${n >= t ? 'ok' : ''}">${evBadgeHtml(ev.id, i, n >= t)}<b>${esc(T(p.badge.names[i]))}</b><small>${esc(unitN(t))}</small></div>`).join('');
+      const bdg = p.badge.tiers.map((t, i) => `<div class="ev-sb ${bn >= t ? 'ok' : ''}">${evBadgeHtml(ev.id, i, bn >= t)}<b>${esc(T(p.badge.names[i]))}</b><small>${esc(unitN(t))}</small></div>`).join('');
       const rows = bd && Array.isArray(bd.rows) && bd.rows.length ? `<p class="prg-h">${T('Chasseurs')}</p><p class="hint">${esc(TN(bd.hunters, '{n} chasseur', '{n} chasseurs'))} · ${esc(T('{n} au complet', { n: bd.full }))}</p><ol class="ev-board">${bd.rows.map(r => `<li class="${r.me ? 'me' : ''}"><span>${r.r}</span><b>${esc(r.n)}</b><span>${nf0(r.c)} / ${nf0(ev.total)}</span></li>`).join('')}</ol>` : '';
-      api.body.innerHTML = `<div class="ev-sh-top"><span class="ev-sh-ic" aria-hidden="true">${EV_ART[p.obj.art]({ cls: 'evo-still' })}</span><div><b>${nf0(n)} / ${nf0(tot)}</b><span>${esc(adv ? TN(n, '{n} booster ouvert', '{n} boosters ouverts') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }))}</span></div></div>
+      api.body.innerHTML = `<div class="ev-sh-top"><span class="ev-sh-ic" aria-hidden="true">${EV_ART[p.obj.art]({ cls: 'evo-still' })}</span><div><b>${nf0(n)} / ${nf0(tot)}</b><span>${esc(adv ? TN(n, '{n} booster ouvert', '{n} boosters ouverts') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : sky ? TN(sky.done, '{n} constellation complète', '{n} constellations complètes') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }))}</span></div></div>
+        ${sky ? `<div class="sky-cons sky-sh" aria-hidden="true">${sky.cons.map(c => `<figure class="sky-c${c.done ? ' done' : ''}" data-k="${c.k}">${skyArt(c.k, { lit: c.lit, done: c.done })}</figure>`).join('')}</div>` : ''}
         <ul class="ev-rules">${rules}</ul>
         ${me.spots && me.spots.length ? `<p class="prg-h">${T('Indices du jour')}</p><ul class="ev-hints">${hints}</ul>` : ''}
         <p class="prg-h">${T('Badges à gagner')}</p><div class="ev-sbs">${bdg}</div>
@@ -582,8 +591,8 @@ function evBadges() {
   for (const id of ids) {
     const e = evById(id), p = e && evPack(e.pack); if (!p || !p.badge) continue;
     const names = p.badge.names || [];
-    const adv = !!p.advent;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js)
-    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: adv && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), v: () => (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : evCount(id)), ev: id, names });
+    const adv = !!p.advent, sky = !!p.sky;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js) ; ciel : les constellations complètes (evsky.js)
+    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), v: () => (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : evCount(id)), ev: id, names });
   }
   return out;
 }

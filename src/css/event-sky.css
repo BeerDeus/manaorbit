@@ -1,0 +1,61 @@
+/* ── event-sky.css : nuit des étoiles filantes (evsky.js) : carte du ciel de l'accueil, constellation complète, feu d'artifice, « Ton année Magic » ──────────
+   Mise en page seulement ; couleurs de la fête, fond de nuit de la carte, ambiance : css/ev-nouvelan.css. Dessins : evart.js. */
+.hm-sky{position:relative;overflow:hidden}
+.sky-cons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:4px 0 2px}
+.sky-c{margin:0;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.sky-c > svg{width:100%;max-width:74px;height:auto;aspect-ratio:1;display:block}
+.sky-c figcaption{font-size:11.5px;font-weight:700;line-height:1.15;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.sky-c figcaption small{display:block;font-size:10.5px;font-weight:600;opacity:.7;font-variant-numeric:tabular-nums}
+.sky-cd{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.sky-cd > span{display:flex;flex-direction:column;align-items:center;padding:7px 4px 6px;border-radius:12px}
+.sky-cd b{font-size:22px;line-height:1.05;font-weight:800;font-variant-numeric:tabular-nums}
+.sky-cd small{font-size:11px;font-weight:600;opacity:.75}
+.sky-cd-l{margin:6px 0 0;text-align:center;font-size:12.5px}
+.sky-cd-l .link-btn{font-size:12.5px}
+.sky-ny{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:10px;text-align:center}
+.sky-ny b{font-size:21px;line-height:1.15;font-family:var(--font-display,inherit)}
+.sky-ny .btn{min-width:200px}
+.sky-sh{margin:2px 0 12px;padding:10px 8px;border-radius:14px}
+.sky-sh .sky-c > svg{max-width:56px}
+
+/* ── Constellation complète, couleur rare (mise en page de l'ouverture d'un booster : event-advent.css) ── */
+.sky-open .adv-bg{background:radial-gradient(90% 60% at 50% 32%,#1d2266 0%,#0d1033 55%,#05060f 100%)}
+.sky-big{width:min(56vw,210px);aspect-ratio:1;margin-top:8px;opacity:0;transform:scale(.6);transition:opacity .6s,transform .9s cubic-bezier(.2,.9,.25,1.1)}
+.sky-big.rare{width:min(40vw,150px)}
+.sky-open.on .sky-big{opacity:1;transform:none}
+.sky-big svg{width:100%;height:100%;display:block}
+.sky-open .adv-tx{transition-delay:.55s}
+
+/* ── Feu d'artifice de minuit ── */
+.sky-fw{position:fixed;inset:0;z-index:110;display:grid;place-items:center;padding:20px;opacity:0;transition:opacity .45s;overflow:hidden}
+.sky-fw.on{opacity:1}
+.sky-fw-bg{position:absolute;inset:0;background:radial-gradient(100% 70% at 50% 20%,#1b1f5e 0%,#0b0d24 55%,#03040b 100%)}
+.sky-fw-art{position:absolute;inset:0;pointer-events:none}
+.sky-fw-in{position:relative;z-index:1;width:min(100%,380px);margin-top:28vh;padding:22px 20px 18px;border-radius:22px;text-align:center;color:#fff;background:rgba(12,14,40,.55);border:1px solid rgba(255,255,255,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transform:translateY(16px);transition:transform .6s var(--spring,cubic-bezier(.2,.9,.25,1.1)) .2s}
+.sky-fw.on .sky-fw-in{transform:none}
+.sky-fw-in small{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#f2c230}
+.sky-fw-in h2{margin:6px 0 6px;font-size:28px;line-height:1.1;font-family:var(--font-display,inherit)}
+.sky-fw-in p{margin:0;font-size:14px;color:#d6d8ee}
+.sky-fw-acts{display:flex;gap:10px;margin-top:16px}
+.sky-fw-acts .btn{flex:1}
+.sky-fw-acts .btn.ghost{color:#fff;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.06)}
+
+/* ── « Ton année Magic » (feuille) ── */
+.sky-yh{display:flex;align-items:center;gap:14px;margin:2px 0 14px}
+.sky-yh small{display:block;font-size:12.5px;color:var(--ink-3)}
+.sky-yh b{font-size:22px;font-family:var(--font-display,inherit)}
+.sky-orb{flex:none;width:58px;height:58px}
+.sky-orb svg{width:100%;height:100%;display:block}
+.sky-ts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sky-t{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:14px;background:var(--surface-2);min-width:0}
+.sky-t.big{grid-column:1 / -1}
+.sky-t b{font-size:24px;line-height:1.1;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--font-display,inherit)}
+.sky-t small{font-size:12.5px;color:var(--ink-3)}
+.sky-best{display:flex;align-items:center;gap:14px;margin-top:12px;padding:10px;border-radius:14px;background:var(--surface-2)}
+.sky-best img{flex:none;width:76px;aspect-ratio:63/88;border-radius:5px;object-fit:cover;box-shadow:0 6px 16px -6px rgba(0,0,0,.5)}
+.sky-best small{display:block;font-size:12.5px;color:var(--ink-3)}
+.sky-best b{display:block;font-size:16px;line-height:1.2}
+.sky-best span{display:block;margin-top:2px;font-weight:800;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){
+  .sky-big,.sky-fw,.sky-fw-in{transition:none}
+}

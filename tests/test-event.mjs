@@ -142,6 +142,20 @@ test('calendrier de l\'Avent (Noël) : 24 portes, 2 cadeaux par jour, rattrapage
   assert.equal(E.evPack('halloween').advent, undefined);
   S.stop();
 });
+test('ciel du Nouvel an : 5 constellations de 6 étoiles, 5 par jour, couleur rare 1 % par jour joué', async () => {
+  const n = E.evById('nouvelan-2026'); assert.deepEqual([n.from, n.to, n.total, n.per], ['2026-12-27', '2027-01-10', 30, 5]);
+  const sk = E.evPack('nouvelan').sky; assert.equal(sk.cons.length * sk.per, 30); assert.equal(sk.done.cover, 'constellation');
+  assert.equal(E.evActive(Date.parse('2027-01-03T12:00:00Z')).id, 'nouvelan-2026', 'à cheval sur deux années');
+  const S = await up({ t: Date.parse('2026-12-28T09:00:00Z') }), dev = (await S.call('event')).j.dev;
+  let me = (await S.call('event?c=255', { dev })).j.me; assert.equal(me.q, 5); assert.equal(me.spots.length, 5); assert.equal(me.seed, undefined, 'pas de graine (pas un calendrier)');
+  for (const x of me.spots.slice(0, 2)) assert.equal((await S.call('event/claim', { dev, body: { ev: 'nouvelan-2026', day: me.day, s: x.s, t: x.t } })).status, 200);
+  me = (await S.call('event?c=255', { dev })).j.me; assert.equal(me.n, 2);
+  assert.ok(Object.keys(me.dr || {}).every(i => i === '2'), 'seulement le jour joué (2e jour)');
+  let hit = 0, all = 0;
+  for (let k = 0; k < 4000; k++) for (let i = 1; i <= n.days; i++) { all++; const c = evRare('sekret', 'nouvelan-2026', 'u' + k, i, sk.rare); if (c) { hit++; assert.ok(sk.rare.covers.includes(c)); } }
+  assert.ok(hit / all > 0.007 && hit / all < 0.013, 'environ 1 % : ' + (hit / all * 100).toFixed(2) + ' %');
+  S.stop();
+});
 test('progression : relue depuis Firestore (reçus), rattachée au compte, une seule fois', async () => {
   const dir = newDir(); let S = await up({ dir });
   let me = (await S.call('event?c=7', { tok: 'tok-zoe' })).j.me;

@@ -199,11 +199,63 @@ const EV_PACKS = [
         pt: ['🔔 Último dia de recuperação!', 'Os boosters perdidos do calendário do Advento fecham à meia-noite.'],
       },
     } },
-  { id: 'nouvelan', ready: false, name: 'Nouvel an', when: y => ({ from: `${y}-12-27`, to: evAdd(`${y}-12-27`, 14) }), total: 30, perDay: 5,
-    obj: { one: 'étoile filante', many: 'étoiles filantes', emoji: '🎆', fem: true, art: 'star' },
+  { id: 'nouvelan', ready: true, name: 'Nouvel an', when: y => ({ from: `${y}-12-27`, to: evAdd(`${y}-12-27`, 14) }), total: 30, perDay: 5,
+    // Nuit des étoiles filantes (evsky.js) : chaque étoile trouvée allume, dans l'ordre, une étoile des 5 constellations de mana (cons, per étoiles chacune) ;
+    // compte à rebours jusqu'au 1er janvier, feu d'artifice à minuit, « Ton année Magic » ensuite. rare : couleur de classeur rare, rare.p de chance par jour
+    // joué (tirage du serveur : event-srv.mjs › evRare) ; done : récompense sûre des 5 constellations complètes (couleur unique). Le badge compte les constellations.
+    sky: { cons: ['W', 'U', 'B', 'R', 'G'], per: 6, rare: { p: 0.01, covers: ['aurore', 'comete', 'eclipse'] }, done: { cover: 'constellation' } },
+    obj: { one: 'étoile filante', many: 'étoiles filantes', emoji: '🌠', fem: true, art: 'shootingStar', counter: 'starCounter', msg: 'comet' },
     pal: { a: '#f2c230', b: '#3b3fd8', c: '#ff5fa2', ink: '#0b0d24' }, font: 'gala',
-    badge: { t: 'Nouvel an {y}', tiers: [1, 10, 20, 30], names: ['Fêtard', 'Noctambule', 'Maître des feux', 'Étoile de l\'année'] },
-    txt: { title: 'La chasse aux étoiles filantes est ouverte', short: 'Étoiles filantes' } },
+    badge: { t: 'Nouvel an {y}', tiers: [1, 2, 4, 5], unit: ['{n} constellation complète', '{n} constellations complètes'], names: ['Fêtard', 'Noctambule', 'Maître des feux', 'Étoile de l\'année'] },
+    txt: {
+      title: 'La nuit des étoiles filantes est ouverte', short: 'Nuit des étoiles filantes',
+      rules: ['{total} étoiles filantes traversent l\'appli jusqu\'au {to}, {per} par jour au plus.', 'Chacune allume une étoile des 5 constellations de mana.', 'Complète-les pour gagner les badges du Nouvel an {y}, et une couleur de classeur unique.'],
+      found: 'Une étoile filante !', left: ['Encore <b>{n} étoile filante</b> à trouver aujourd\'hui', 'Encore <b>{n} étoiles filantes</b> à trouver aujourd\'hui'],
+      dayDone: 'Toutes les étoiles du jour sont trouvées, reviens demain', allDone: 'Les 5 constellations brillent', allSub: 'Tu es Étoile de l\'année {y} : le ciel complet, et une couleur de classeur unique.',
+      label: 'Une étoile filante cachée : touche-la pour la récolter', tip: 'Une étoile filante ! Touche-la pour la récolter : {per} traversent l\'appli chaque jour.',
+      join: 'Crée un compte pour garder tes constellations sur tous tes appareils.', deco: 'Décorations du Nouvel an',
+    },
+    dsc: {
+      soon: ['🌠 **La nuit des étoiles filantes arrive dans 3 jours !** Du {from} au {to}, {total} étoiles filantes traversent Mana Orbit : {per} par jour, 5 constellations de mana à allumer et des badges du Nouvel an {y}.', '🌠 **The shooting star night starts in 3 days!** From {fromEn} to {toEn}, {total} shooting stars cross Mana Orbit: {per} a day, 5 mana constellations to light up and New Year {y} badges.'],
+      open: ['🌠 **La nuit des étoiles filantes est ouverte !** {total} étoiles filantes traversent l\'appli jusqu\'au {to}, {per} par jour. Qui allumera les 5 constellations ?', '🌠 **The shooting star night is on!** {total} shooting stars cross the app until {toEn}, {per} a day. Who will light up all 5 constellations?'],
+      mid: ['✨ **Mi-parcours de la nuit des étoiles filantes** : il reste {d} jours. {h} joueurs ont levé les yeux au ciel, {full} ont déjà tout allumé.', '✨ **Shooting star night halfway point**: {d} days left. {h} players looked up to the sky, {full} have lit everything already.'],
+      last: ['🎆 **Dernier jour de la nuit des étoiles filantes !** Les dernières étoiles s\'éteignent à minuit.', '🎆 **Last day of the shooting star night!** The last stars fade at midnight.'],
+      end: ['🌠 **La nuit des étoiles filantes est terminée.** {h} joueurs, {full} ont allumé les 5 constellations. Bonne année à tous !', '🌠 **The shooting star night is over.** {h} players, {full} lit all 5 constellations. Happy New Year, everyone!'],
+    },
+    push: {
+      soon: {
+        fr: ['🌠 La nuit des étoiles filantes arrive', 'Du {from} au {to}, {total} étoiles filantes traversent l\'appli : 5 constellations de mana à allumer.'],
+        en: ['🌠 The shooting star night is coming', 'From {from} to {to}, {total} shooting stars cross the app: 5 mana constellations to light up.'],
+        de: ['🌠 Die Nacht der Sternschnuppen kommt', 'Vom {from} bis {to} ziehen {total} Sternschnuppen durch die App: 5 Mana-Sternbilder zum Erleuchten.'],
+        es: ['🌠 Llega la noche de las estrellas fugaces', 'Del {from} al {to}, {total} estrellas fugaces cruzan la app: 5 constelaciones de maná que iluminar.'],
+        it: ['🌠 Arriva la notte delle stelle cadenti', '{from} – {to}: {total} stelle cadenti attraversano l\'app, con 5 costellazioni di mana da illuminare.'],
+        pt: ['🌠 A noite das estrelas cadentes está chegando', 'De {from} a {to}, {total} estrelas cadentes cruzam o app: 5 constelações de mana para acender.'],
+      },
+      open: {
+        fr: ['🌠 La nuit des étoiles filantes est ouverte !', '{per} étoiles filantes traversent l\'appli chaque jour jusqu\'au {to}. Lève les yeux !'],
+        en: ['🌠 The shooting star night is on!', '{per} shooting stars cross the app every day until {to}. Look up!'],
+        de: ['🌠 Die Nacht der Sternschnuppen hat begonnen!', 'Bis zum {to} ziehen jeden Tag {per} Sternschnuppen durch die App. Schau nach oben!'],
+        es: ['🌠 ¡Empieza la noche de las estrellas fugaces!', '{per} estrellas fugaces cruzan la app cada día hasta el {to}. ¡Mira al cielo!'],
+        it: ['🌠 La notte delle stelle cadenti è iniziata!', '{per} stelle cadenti attraversano l\'app ogni giorno fino al {to}. Guarda in alto!'],
+        pt: ['🌠 A noite das estrelas cadentes começou!', '{per} estrelas cadentes cruzam o app todo dia até {to}. Olhe para cima!'],
+      },
+      mid: {
+        fr: ['✨ Plus que {d} jours d\'étoiles filantes', 'Tes constellations de mana t\'attendent : {per} nouvelles étoiles chaque jour.'],
+        en: ['✨ {d} days of shooting stars left', 'Your mana constellations are waiting: {per} new stars every day.'],
+        de: ['✨ Noch {d} Tage Sternschnuppen', 'Deine Mana-Sternbilder warten: jeden Tag {per} neue Sterne.'],
+        es: ['✨ Quedan {d} días de estrellas fugaces', 'Tus constelaciones de maná te esperan: {per} estrellas nuevas cada día.'],
+        it: ['✨ Mancano {d} giorni di stelle cadenti', 'Le tue costellazioni di mana ti aspettano: {per} nuove stelle ogni giorno.'],
+        pt: ['✨ Faltam {d} dias de estrelas cadentes', 'Suas constelações de mana te esperam: {per} novas estrelas todo dia.'],
+      },
+      last: {
+        fr: ['🎆 Dernier jour des étoiles filantes !', 'Les dernières étoiles s\'éteignent à minuit. C\'est maintenant ou jamais.'],
+        en: ['🎆 Last day of shooting stars!', 'The last stars fade at midnight. It\'s now or never.'],
+        de: ['🎆 Letzter Tag der Sternschnuppen!', 'Die letzten Sterne erlöschen um Mitternacht. Jetzt oder nie.'],
+        es: ['🎆 ¡Último día de estrellas fugaces!', 'Las últimas estrellas se apagan a medianoche. Ahora o nunca.'],
+        it: ['🎆 Ultimo giorno di stelle cadenti!', 'Le ultime stelle si spengono a mezzanotte. Ora o mai più.'],
+        pt: ['🎆 Último dia de estrelas cadentes!', 'As últimas estrelas se apagam à meia-noite. É agora ou nunca.'],
+      },
+    } },
   { id: 'paques', ready: false, name: 'Pâques', when: y => evAround(evEaster(y)), total: 30, perDay: 5,
     obj: { one: 'œuf', many: 'œufs', emoji: '🥚', fem: false, art: 'egg' },
     pal: { a: '#ffb3d1', b: '#8fd6a8', c: '#ffd36b', ink: '#2a1d2e' }, font: 'bloom',
@@ -311,6 +363,7 @@ function evCheck(y = 2026) {
   const bad = [];
   for (const p of EV_PACKS) {
     const e = evEdition(p, y), need = Math.ceil(p.total / e.per);
+    if (p.sky && p.sky.cons.length * p.sky.per !== p.total) bad.push(p.id + ' : constellations ≠ total');
     if (p.advent) {      // calendrier : une porte par jour, puis au moins un jour de rattrapage ; tout le total tient dans les portes
       if (p.advent.doors * e.per !== p.total) bad.push(p.id + ' : ' + p.advent.doors + ' portes × ' + e.per + ' ≠ ' + p.total);
       if (e.days <= p.advent.doors || e.days > p.advent.doors + 3) bad.push(p.id + ' : ' + e.days + ' jours pour ' + p.advent.doors + ' portes');

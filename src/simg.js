@@ -8,6 +8,7 @@
    · 'opening' CONTRAT avec la session d'ouverture (une autre fonction l'appelle depuis son bilan) :
                simgShare({ kind: 'opening', name, date (ms), n (cartes), value (€), paid (€ ou null), best: [{ name, img (image Scryfall « normal »), eur }] (5 au plus) })
                → nom de la session, valeur, payé et gain ou perte (si payé), meilleures cartes avec leurs images.
+   · 'year'    { y, since, sc, days, games, wins, trades, opens, copies, cards, value (€), dv (€ ou null), lv, badges, color ('W'…), best: { name, img, eur } }   Bilan (evsky.js › skyYear)
    Images des cartes : seulement Scryfall (SHARE_IMG_RE). cards.scryfall.io répond en CORS (Access-Control-Allow-Origin: *, le service worker les lit déjà ainsi) :
    lues par fetch (CORS, sans cookie) puis décodées par createImageBitmap, hors du fil principal ; le canvas n'est jamais « teinté » et l'export PNG marche.
    Image injoignable ou refusée (6 s au plus) : un dos de carte aux couleurs de l'appli, avec le nom de la carte.
@@ -180,7 +181,7 @@ function simgPips(x, colors, a, y) {
   return w;
 }
 
-/* ── Les quatre images ──────────────────────────────────────────────────────────────────────────── */
+/* ── Les cinq images ──────────────────────────────────────────────────────────────────────────── */
 /** Images Scryfall de la liste, lues en parallèle : [{ name, eur, im }]. */
 const simgLoad = list => Promise.all((list || []).map(async c => ({ name: String(c && c.name || ''), eur: Number(c && c.eur) || 0, im: await simgImg(c && c.img) })));
 
@@ -271,7 +272,38 @@ async function simgDrawOpening(x, s) {
   }
   simgFoot(x);
 }
-const SIMG_DRAW = { coll: simgDrawColl, deck: simgDrawDeck, trade: simgDrawTrade, opening: simgDrawOpening };
+/** Bilan de l'année (evsky.js › skyYear) : l'année en grand, couleur préférée, 6 tuiles, la plus belle carte. */
+async function simgDrawYear(x, s) {
+  const [best] = await simgLoad(s.best ? [s.best] : []);
+  simgHead(x, T('Bonne année {y}', { y: (Number(s.y) || 0) + 1 })); simgFont(x, 650, 27, SIMG_FB); simgKicker(x, T('Mon année Magic'), 232);
+  simgFont(x, 800, 150, SIMG_FD); simgAmount(x, String(s.y || ''), 372, 150);
+  x.fillStyle = 'rgba(234,238,251,.78)'; simgFont(x, 500, 34, SIMG_FB);
+  const pw = s.color ? simgPips(x, s.color, SIMG_M, 438) : 0;
+  const sub = [s.color ? T('Ma couleur : {c}', { c: T(SKY_MANA[s.color] || '') }) : '', T('Niveau {n}', { n: s.lv || 0 }), TN(s.badges || 0, '{n} badge', '{n} badges')].filter(Boolean).join(' · ');
+  x.fillText(simgClip(x, sub, SIMG_W - 2 * SIMG_M - pw - 12), SIMG_M + pw + (pw ? 12 : 0), 438);
+  const nf = v => (Number(v) || 0).toLocaleString(LOC());
+  const tiles = [[nf(s.sc), s.since ? T('cartes scannées, depuis le début') : T('cartes scannées'), null], [nf(s.copies), T('exemplaires'), null],
+    [s.value > 0 ? simgEur(s.value, true) : '—', T('de valeur'), s.dv != null && Math.abs(s.dv) >= 1 ? [(s.dv < 0 ? '−' : '+') + simgEur(Math.abs(s.dv), true), s.dv < 0 ? SIMG_BAD : SIMG_GOOD] : null],
+    [nf(s.games), T('parties'), s.wins ? [TN(s.wins, '{n} victoire', '{n} victoires'), SIMG_GOOD] : null], [nf(s.trades), T('échanges'), null], [nf(s.opens), T('ouvertures'), null]];
+  const gap = 16, tw = (SIMG_W - 2 * SIMG_M - gap * 2) / 3, th = 172, ty = 492;
+  tiles.forEach(([v, lab, ex], i) => {
+    const a = SIMG_M + (i % 3) * (tw + gap), b = ty + Math.floor(i / 3) * (th + gap);
+    simgRR(x, a, b, tw, th, 24); x.fillStyle = 'rgba(255,255,255,.07)'; x.fill(); x.strokeStyle = 'rgba(255,255,255,.12)'; x.lineWidth = 2; x.stroke();
+    const t = simgFit(x, v, 800, 56, 30, SIMG_FD, tw - 44); x.fillStyle = i === 2 ? simgFoil(x, a + 22, a + 22 + x.measureText(t).width) : SIMG_INK; x.fillText(t, a + 22, b + 72);
+    x.fillStyle = SIMG_MUTE; simgFont(x, 500, 25, SIMG_FB); simgWrap(x, lab, tw - 44, ex ? 1 : 2).forEach((l, j) => x.fillText(l, a + 22, b + 112 + j * 30));
+    if (ex) { x.fillStyle = ex[1]; simgFont(x, 700, 25, SIMG_FB); x.fillText(simgClip(x, ex[0], tw - 44), a + 22, b + 144); }
+  });
+  if (best) {
+    const top = ty + 2 * th + gap + 56, cw = 300, ch = cw * SIMG_RATIO, by = Math.min(top + ch / 2, SIMG_H - 110 - ch / 2);
+    simgCard(x, best.im, SIMG_M + cw / 2 + 8, by, cw, -4, best.name);
+    const tx = SIMG_M + cw + 64, tw2 = SIMG_W - SIMG_M - tx;
+    x.fillStyle = SIMG_MUTE; simgFont(x, 500, 28, SIMG_FB); x.fillText(T('Ma plus belle carte'), tx, by - 64);
+    x.fillStyle = SIMG_INK; simgFont(x, 700, 44, SIMG_FD); const ls = simgWrap(x, best.name, tw2, 2); ls.forEach((l, i) => x.fillText(l, tx, by - 8 + i * 52));
+    simgFont(x, 800, 60, SIMG_FD); const p = best.eur > 0 ? simgEur(best.eur) : ''; if (p) { const py = by + 46 + (ls.length - 1) * 52 + 20; x.fillStyle = simgFoil(x, tx, tx + x.measureText(p).width); x.fillText(p, tx, py); }
+  }
+  simgFoot(x);
+}
+const SIMG_DRAW = { coll: simgDrawColl, deck: simgDrawDeck, trade: simgDrawTrade, opening: simgDrawOpening, year: simgDrawYear };
 
 /** Polices de la page, prêtes avant de dessiner (1,5 s au plus). */
 async function simgFonts() {
@@ -295,12 +327,13 @@ async function simgRender(spec) {
 }
 
 /* ── Feuille d'aperçu, partage, enregistrement ───────────────────────────────────────────────────── */
-const SIMG_TITLES = { coll: 'Ma collection', deck: 'Mon deck', trade: 'Ma liste d\'échange', opening: 'Session d\'ouverture' };
+const SIMG_TITLES = { coll: 'Ma collection', deck: 'Mon deck', trade: 'Ma liste d\'échange', opening: 'Session d\'ouverture', year: 'Mon année Magic' };
 const simgFile = kind => 'mana-orbit-' + kind + '-' + new Date().toISOString().slice(0, 10) + '.png';
 /** Message joint au partage (le lien, s'il y en a un, va dans url). */
 function simgText(s) {
   if (s.kind === 'deck') return T('{name} · deck Magic', { name: s.name || 'Deck' });
   if (s.kind === 'trade') return T('Ma liste d\'échange Magic');
+  if (s.kind === 'year') return T('Mon année Magic {y}', { y: s.y || '' }) + ' · ' + SIMG_SITE;
   if (s.kind === 'opening') return T('{name} · session d\'ouverture Magic', { name: s.name || '' }) + ' · ' + SIMG_SITE;
   return T('Ma collection Magic sur Mana Orbit') + ' · ' + SIMG_SITE;
 }
