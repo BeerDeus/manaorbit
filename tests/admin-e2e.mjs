@@ -660,7 +660,7 @@ const asked = (api, path) => (async () => { for (let i = 0; i < 100 && !api.some
 
   // Réinitialiser une ligne : fenêtre (Annuler : rien), POST { id, p }, liste et tuiles remplacées par la réponse, recherche gardée
   await p.click(HU + ' tr[data-id="p7"] [data-act="reset"]'); await p.waitForSelector('#dlg[open]');
-  assert.match(await txt(p, '#dlg'), /^Réinitialiser Joueur7 H\. \? Joueur7 H\. · pseudo Pseudo7 · ha•••@gmail\.com · 29 \/ 30 Remettre à zéro la progression de Joueur7 H\. pour Halloween 2026 \? Ses citrouilles et ses badges de cette édition repartent de zéro\. Ses anciennes copies .* Annuler Réinitialiser$/);
+  assert.match(await txt(p, '#dlg'), /^Réinitialiser Joueur7 H\. \? Joueur7 H\. · pseudo Pseudo7 · ha•••@gmail\.com · 29 \/ 30 Remettre à zéro la progression de Joueur7 H\. pour Halloween 2026 \? Ses citrouilles et ses badges de cette édition repartent de zéro\. Le message « La chasse est ouverte » s.afficher.*Ses anciennes copies .* Annuler Réinitialiser$/);
   assert.equal(await p.evaluate(() => document.activeElement.textContent), 'Annuler');
   await p.click('#dlg [data-v=""]'); await p.waitForTimeout(100); assert.equal(EVT.posts.length, 0, 'Annuler : rien envoyé');
   await p.click(HU + ' tr[data-id="p7"] [data-act="reset"]'); await p.click('#dlg [data-v="ok"]'); await toastIs(p, /^Progression remise à zéro\.$/);
