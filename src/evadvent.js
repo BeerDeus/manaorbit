@@ -121,7 +121,7 @@ function advRing(a) {
 
 /* ── Ouverture d'un booster ──────────────────────────────────────────────────────────────────────────────────── */
 /** Nom affiché d'une carte : français si connu (catalogue des noms), sinon anglais. */
-const advName = c => { const k = String(c || '').toLowerCase(); return (typeof frName === 'function' && frName(k, I18N.lang === 'fr' ? 'fr' : '')) || c; };
+const advName = c => { const k = String(c || '').toLowerCase(), fr = typeof frName === 'function' && frName(k, I18N.lang === 'fr' ? 'fr' : ''); return fr || (c.length > 24 && c.includes(' // ') ? c.split(' // ')[0] : c); };      // carte double au nom trop long : sa première face
 /** Après une trouvaille (event.js › evTap) : une porte vient de s'ouvrir → son ouverture ; vrai si elle est montrée. j0 : jours avant la trouvaille. */
 function advAfterFind(j0, me) {
   const a = advNow(); if (!a) return false;

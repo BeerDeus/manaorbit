@@ -120,7 +120,7 @@ const EV_PACKS = [
         { c: 'Decorated Knight // Present Arms', s: 'hho', n: '19', fact: 'Carte de vœux 2019 : une carte aventure dont le sort s\'appelle « Present Arms », un jeu de mots entre « présentez armes » et « cadeau ».' },
         { c: 'Cheer', s: 'hho', n: '25', fact: 'Carte de vœux 2025 : pour la jouer, célèbre un adversaire en lui offrant un cadeau, en lui portant un toast ou en lui disant que tu es content de jouer avec lui.' },
         { c: 'Topdeck the Halls', s: 'hho', n: '20', fact: 'Carte de vœux 2020 : si tu contrôles douze permanents décorés (promo, foil, illustration alternative…), tu gagnes la partie.' },
-        { c: 'Brain Freeze', s: 'soa', n: '13', fact: 'À Strixhaven : « C\'était tellement gênant. Le doyen Veyran m\'a interrogé et je me suis figé. Trou noir. »' },
+        { c: 'Brain Freeze', s: 'soa', n: '13', fact: 'À Strixhaven : « C\'était tellement gênant. La doyenne Veyran m\'a interrogé et je me suis figé. Trou noir. »' },
         { c: 'Twice Upon a Time // Unlikely Meeting', s: 'who', n: '61', fact: '« Twice Upon a Time » est le titre de l\'épisode de Noël 2017 de Doctor Who, qui réunit deux Docteurs.' },
         { c: 'Great Intelligence\'s Plan', s: 'who', n: '133', fact: 'La Grande Intelligence est le méchant de « The Snowmen », l\'épisode de Noël 2012 de Doctor Who, avec ses bonshommes de neige.' },
         { c: 'Nardole, Resourceful Cyborg', s: 'who', n: '655', fact: 'Nardole apparaît pour la première fois dans l\'épisode de Noël 2015 de Doctor Who.' },

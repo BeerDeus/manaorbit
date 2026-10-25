@@ -25,4 +25,5 @@ Ouverture automatique le **25 octobre 2026 à minuit (heure de Paris)**, fin le 
 
 ## Livré plus tard
 
-- Packs Noël, Nouvel an, Pâques, anniversaire de Magic : dates, quotas, textes de base, badges et logos prêts ; il reste leurs objets à trouver (`EV_ART`), leur ambiance (`css/ev-<pack>.css`), leurs textes complets et messages Discord, puis `ready: true`.
+- Noël (calendrier de l'Avent, du 1er au 26 décembre) : **prêt** (`ready: true`), s'ouvre tout seul ; badges `noel-2026-*` déjà dans le dépôt ; rien à faire (le rôle Discord 🎃 Événements sert pour toutes les fêtes).
+- Packs Nouvel an, Pâques, anniversaire de Magic : dates, quotas, textes de base, badges et logos prêts ; il reste leurs objets à trouver (`EV_ART`), leur ambiance (`css/ev-<pack>.css`), leurs textes complets et messages Discord, puis `ready: true`.
