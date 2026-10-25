@@ -569,6 +569,15 @@ function evBadges() {
   }
   return out;
 }
+/** Comment obtenir un badge d'événement (fenêtre du badge, progress.js › prgBadgeSheet) : règles du pack ; fête en cours : où sont les indices ; finie : plus obtenable. */
+function evBadgeHow(id) {
+  const e = typeof evById === 'function' ? evById(id) : null, p = e && evPack(e.pack); if (!p) return [];
+  const to = new Date(e.to + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
+  const out = (p.txt.rules || []).map(r => T(r, { total: e.total, per: e.per, to, y: e.year }));
+  if (evOn() && EV.cal.id === id) out.push(T('Les indices du jour sont sur la carte de la fête, à l\'accueil (« Indices »).'));
+  else if (evDay(Date.now()) > e.to) out.push(T('Cet événement est terminé : ce badge n\'est plus obtenable. Tu gardes le palier atteint.'));
+  return out;
+}
 /** Icône d'un badge d'événement (fichier généré par tools/gen-event-badges.mjs ; palier 3 : bordure animée du grade ultime). */
 function evBadgeHtml(id, tier, got) {
   const t = Math.max(0, Math.min(3, tier)), p = evPack(id);

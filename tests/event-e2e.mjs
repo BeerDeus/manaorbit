@@ -141,7 +141,13 @@ async function findAndTap(p, s, forced) {
   await p.waitForFunction(() => { const i = document.querySelector('.prg-b[data-b="ev_halloween-2026"] .evb img'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 8000 });
   assert.match(await p.textContent('.prg-sheet .prg-h'), /Événements/);
   await shot(p, 'badges-393-clair');
-  ok('badges : catégorie « Événements », palier 1 « Apprenti chasseur », badge généré servi');
+  await p.click('.prg-sheet .prg-b[data-b="ev_halloween-2026"] .prg-ic'); await p.waitForSelector('.prg-bs.open .prg-bs-tiers');
+  const bs = await p.textContent('.prg-bs .sheet-body');
+  assert.match(bs, /Comment l'obtenir\s*30 citrouilles se cachent dans l'appli jusqu'au 8 novembre\..*Les indices du jour sont sur la carte de la fête/s, 'fenêtre du badge : règles de la fête, où sont les indices');
+  assert.deepEqual(await p.$$eval('.prg-bs-tiers li b', l => l.map(x => x.textContent)), ['Apprenti chasseur', 'Traqueur de citrouilles', 'Maître des citrouilles', 'Seigneur d\'Halloween']);
+  assert.match(bs, /grade ultime/, '4e palier : grade ultime'); assert.equal(await p.$eval('.prg-bs .sheet-foot', f => f.hidden), true, 'badge d\'événement : pas de vitrine');
+  await shot(p, 'badge-fenetre-393-clair'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.prg-bs'));
+  ok('badges : catégorie « Événements », palier 1 « Apprenti chasseur », badge généré servi ; sa fenêtre (règles, indices, 4 paliers)');
 
   /* ── 6) Interrupteur « Décorations de fête » : décor coupé, la chasse reste ── */
   await closeAll(p); await p.evaluate(() => openSettings()); await p.waitForSelector('#setEvDeco');

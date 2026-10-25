@@ -204,6 +204,85 @@ const PRG_BADGES = [
   { id: 'fx_install', cat: 'fun', ic: '📲', t: 'Installé', one: 'Mana Orbit installée sur ton téléphone', tiers: [1], v: m => m.inst },
   { id: 'fx_test', cat: 'fun', ic: '🧭', t: 'Pionnier', one: 'Venu essayer les nouveautés avant tout le monde', tiers: [1], v: m => m.tst },
 ];
+/** Comment obtenir chaque badge, en détail (fenêtre du badge : prgBadgeSheet) ; badges des villes : prgHow, d'événement : event.js › evBadgeHow. */
+const PRG_HOW = {
+  sc_cards: 'Scanne tes cartes avec l\'appareil photo (le rond au milieu de la barre du bas). Chaque exemplaire ajouté depuis le scan compte, même sur plusieurs jours.',
+  sc_langs: 'Scanne des cartes imprimées dans des langues différentes (anglais, français, japonais…). Une seule carte suffit pour qu\'une langue compte.',
+  sc_read: 'Quand le scan lit l\'édition directement sur la carte (le petit code imprimé en bas à gauche), elle compte. Cadre bien le bas de la carte, dans une bonne lumière.',
+  sc_art: 'Quand le scan reconnaît l\'édition grâce à l\'illustration ou au symbole d\'extension, sans pouvoir lire le code du bas, elle compte.',
+  sc_session: 'Ajoute beaucoup de cartes en une seule fois depuis le scan : c\'est ta plus grosse fournée qui compte (toutes les cartes de la liste ajoutées d\'un coup).',
+  sc_old: 'Scanne des cartes imprimées avant 2003, avec l\'ancien cadre. Chaque exemplaire compte.',
+  sc_price: 'Scanne une carte qui vaut au moins ce montant (prix de référence au moment du scan). C\'est ta carte scannée la plus chère qui compte.',
+  sc_homonym: 'Plusieurs cartes portent parfois le même nom (versions, éditions spéciales). Quand le scan lève le doute grâce au bas de la carte ou à l\'illustration, ou que tu choisis toi-même la bonne, un homonyme est démasqué.',
+  sc_new: 'Scanne au moins 30 cartes d\'une même extension dans les 7 jours qui suivent sa sortie. Chaque extension ne compte qu\'une fois.',
+  co_copies: 'Tous les exemplaires de ta collection comptent, quelle que soit la façon de les ajouter : scan, recherche ou import.',
+  co_distinct: 'Chaque carte différente de ta collection compte une fois, quel que soit son nombre d\'exemplaires.',
+  co_value: 'La valeur totale de ta collection (prix de référence, mis à jour régulièrement) doit atteindre ce montant. Elle peut baisser si les prix baissent.',
+  co_foil: 'Chaque exemplaire foil de ta collection compte. Indique le foil au scan ou sur la ligne de la carte.',
+  co_langs: 'Possède des cartes dans des langues différentes. La langue de chaque exemplaire se choisit au scan ou sur la ligne de la carte.',
+  co_sets: 'Possède des cartes d\'extensions différentes : chaque extension compte dès qu\'un exemplaire en vient. Renseigne l\'édition au scan ou sur la ligne de la carte.',
+  co_proxy: 'Ajoute des proxys (des impressions pour jouer, gardées à part de la vraie collection). Chaque exemplaire compte.',
+  co_places: 'Crée des emplacements de rangement (classeurs, boîtes, decks…) dans l\'onglet Rangement de ta collection.',
+  co_placed: 'Range tes cartes dans tes emplacements (« Ranger ces cartes… », ou « Ranger dans » pendant le scan). Chaque exemplaire rangé compte.',
+  co_import: 'Importe ta collection depuis une autre appli avec un fichier CSV (ManaBox, Moxfield…).',
+  co_wish: 'Ajoute des cartes à tes cartes recherchées (section Échange). Chaque carte différente compte.',
+  dk_count: 'Crée ou importe des decks. Chaque deck enregistré compte, monté ou non.',
+  dk_eng: 'Allume « Deck monté » sur un deck : ses cartes sont réservées dans ta collection. Chaque deck monté compte.',
+  dk_pub: 'Publie tes decks pour la communauté (connexion à un compte nécessaire). Chaque deck publié compte.',
+  dk_cmd: 'Joue des parties du compteur de vie avec des commandants différents : chaque commandant renseigné sur ta place compte une fois.',
+  gm_played: 'Joue des parties avec le compteur de vie (carte de l\'accueil). Chaque partie terminée où tu as une place compte.',
+  gm_wins: 'Gagne des parties du compteur de vie : le vainqueur est désigné à la fin de la partie.',
+  gm_revenant: 'Gagne une partie après être tombé à 5 points de vie ou moins pendant celle-ci. Compté sur le téléphone qui a lancé la partie.',
+  gm_killer: 'Élimine des adversaires aux blessures de commandant (21 blessures d\'un même commandant). Compté sur le téléphone qui a lancé la partie.',
+  gm_loyal: 'Gagne plusieurs parties avec le même deck : c\'est ton deck le plus victorieux qui compte.',
+  gm_streak: 'Enchaîne les victoires sans perdre entre deux : c\'est ta meilleure série qui compte.',
+  gm_fast: 'Gagne une partie en 6 tours ou moins (le compteur de tours de la partie fait foi).',
+  gm_long: 'Termine une partie qui a duré plus de 2 heures.',
+  gm_table: 'Joue une partie à 6 joueurs ou plus.',
+  gm_opps: 'Affronte des adversaires différents : chaque nouveau nom rencontré dans tes parties compte une fois.',
+  gm_host: 'Lance des parties du compteur de vie sur ton téléphone (c\'est toi qui crées la table).',
+  so_trade: 'Fais des échanges en direct avec d\'autres joueurs (Échange en direct) et valide-les jusqu\'au bout.',
+  so_friends: 'Ajoute des amis dans Mana Orbit (connexion à un compte nécessaire). Chaque ami compte.',
+  so_share: 'Crée le lien de ta liste d\'échange (carte Échange de l\'accueil) pour la partager.',
+  op_sessions: 'Fais des sessions d\'ouverture de boosters (depuis les réglages du scan) et termine-les.',
+  op_profit: 'Termine une ouverture dont la valeur des cartes dépasse le prix que tu as indiqué avoir payé.',
+  op_jackpot: 'Ouvre une carte qui vaut au moins ce montant pendant une session d\'ouverture. C\'est ta meilleure carte ouverte qui compte.',
+  dy_played: 'Joue la Carte mystère du jour (ses icônes dans l\'en-tête). Chaque jour joué compte, vérifié par le serveur.',
+  dy_streak: 'Joue la Carte mystère plusieurs jours de suite, sans en sauter un : c\'est ta meilleure série qui compte.',
+  dy_top: 'Finis dans les 100 premiers du classement du jour de la Carte mystère (en mode chronométré).',
+  dy_win: 'Finis premier du classement du jour de la Carte mystère (en mode chronométré).',
+  dy_eye: 'Trouve la Carte mystère dès le premier indice, avant que le deuxième se dévoile.',
+  fi_days: 'Ouvre Mana Orbit : chaque jour où tu l\'utilises compte une fois, même s\'ils ne se suivent pas.',
+  fi_age: 'Le temps passé depuis ta toute première visite : il suffit de rester parmi nous.',
+  fi_streak: 'Ouvre Mana Orbit plusieurs jours d\'affilée, sans en sauter un : c\'est ta meilleure série qui compte.',
+  sc_auto: 'Allume le scan automatique (réglages du scan) : chaque carte ajoutée pendant qu\'il est allumé compte.',
+  sc_night: 'Scanne des cartes entre minuit et 5 h du matin (heure de ton téléphone).',
+  sc_morning: 'Scanne des cartes entre 5 h et 7 h du matin (heure de ton téléphone).',
+  sc_quick: 'Utilise Prix rapide (dans le scan, ou l\'appui long sur l\'icône) pour estimer une carte sans l\'ajouter. Chaque estimation compte.',
+  sc_report: 'Signale un scan qui s\'est trompé (« Signaler ce scan » sur sa ligne) : ça aide à améliorer la reconnaissance.',
+  co_playset: 'Possède des cartes en 4 exemplaires ou plus (toutes éditions confondues). Chaque carte concernée compte une fois.',
+  co_jp: 'Possède des cartes en japonais. Chaque exemplaire compte.',
+  dk_hand: 'Tire des mains de départ depuis un deck (bouton « Main de départ » dans l\'aperçu du deck).',
+  dk_share: 'Partage un de tes decks par un lien. Chaque deck partagé compte une fois.',
+  gm_monarch: 'Termine une partie en étant le monarque. Compté sur le téléphone qui a lancé la partie.',
+  gm_flawless: 'Gagne une partie sans perdre un seul point de vie. Compté sur le téléphone qui a lancé la partie.',
+  gm_guests: 'Joue des parties avec des invités, des joueurs ajoutés sans compte Mana Orbit.',
+  gm_night: 'Termine une partie entre minuit et 5 h du matin.',
+  op_cards: 'Toutes les cartes ajoutées pendant tes sessions d\'ouverture de boosters comptent.',
+  op_stream: 'Termine une session d\'ouverture avec le mode streamer allumé (réglages de l\'ouverture).',
+  fx_tour: 'Va jusqu\'au bout de la visite guidée (Compte et réglages › Aide et avis › Visite guidée).',
+  fx_dark: 'Choisis le thème « Sombre » dans Compte et réglages.',
+  fx_feedback: 'Envoie un avis à l\'équipe (Aide et avis) : bug, idée ou simple merci.',
+  fx_install: 'Installe Mana Orbit sur ton téléphone : l\'appli Android du Play Store, ou l\'installation depuis le navigateur.',
+  fx_test: 'Réservé à ceux qui viennent essayer les nouveautés en avant-première sur la version de test.',
+};
+const PRG_LANGN = { de: 'allemand', es: 'espagnol', it: 'italien', pt: 'portugais', ru: 'russe', jp: 'japonais', kr: 'coréen', zhcn: 'chinois simplifié', zhtw: 'chinois traditionnel' };
+/** Paragraphes d'explication d'un badge (traduits). */
+function prgHow(b) {
+  if (b.ev) return typeof evBadgeHow === 'function' ? evBadgeHow(b.ev) : [];
+  if (b.id.startsWith('sc_city_')) { const l = b.id.slice(8); return [T('Scanne une carte imprimée en {lang}. Une seule suffit.', { lang: T(PRG_LANGN[l] || l) })]; }
+  return PRG_HOW[b.id] ? [T(PRG_HOW[b.id])] : [];
+}
 /** Noms des paliers argent, or et diamant (bronze : le titre du badge) : le badge change de nom en montant. */
 const PRG_NAMES = {
   sc_cards: ['Scanner chevronné', 'Maître du scan', 'Oracle du scan'],
@@ -422,7 +501,7 @@ function prgSheet(focus) {
         const p = nxt == null ? 100 : Math.max(0, Math.min(100, ((x.v - (x.t >= 0 ? prev : 0)) / (nxt - (x.t >= 0 ? prev : 0))) * 100));
         const val = v => (b.money ? fmt(v, 'EUR').replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
         const nm = prgName(b, x.t), pin = x.t >= 0 && !b.ev ? `<button type="button" class="prg-pin" data-pin="${b.id}" aria-pressed="${show.includes(b.id)}" aria-label="${esc(T('Montrer {name} sur ma liste d\'échange', { name: nm }))}">${show.includes(b.id) ? '📌' : '＋'}</button>` : '';
-        return `<div class="prg-b ${cls}" data-b="${b.id}" title="${esc(nm)}">${pin}<span class="prg-ic" aria-hidden="true">${prgIc(b, x.t)}</span><b>${esc(nm)}</b>
+        return `<div class="prg-b ${cls}" data-b="${b.id}" role="button" tabindex="0" aria-label="${esc(T('Détails du badge {name}', { name: nm }))}">${pin}<span class="prg-ic" aria-hidden="true">${prgIc(b, x.t)}</span><b>${esc(nm)}</b>
           <small>${esc(x.t >= 0 ? prgLabel(b, b.tiers[x.t]) + (uniq ? '' : ' · ' + prgTierOf(b, x.t)) : prgLabel(b, b.tiers[0]))}</small>
           ${nxt != null && !uniq ? `<span class="prg-mini" aria-hidden="true"><i style="width:${p.toFixed(1)}%"></i></span><small class="prg-nx">${esc(val(x.v))} / ${esc(val(nxt))}</small>${x.t >= 0 ? `<small class="prg-nn">${esc(T('Prochain : {name}', { name: prgName(b, x.t + 1) }))}</small>` : ''}` : ''}</div>`;
       };
@@ -432,11 +511,38 @@ function prgSheet(focus) {
         ${PRG_CATS.map(([c, h]) => { const xs = L.bs.filter(x => x.b.cat === c); return xs.length ? `<p class="prg-h">${esc(T(h))}</p><div class="prg-grid">${xs.map(tile).join('')}</div>` : ''; }).join('')}
         <details class="prg-how"><summary>${T('Comment gagner de l\'XP ?')}</summary><p class="hint">${T('Tout compte : scanner, ajouter des cartes, monter et publier des decks, jouer et gagner des parties, échanger, ouvrir des boosters, revenir chaque jour, et chaque palier de badge (bronze, argent, or, diamant). Le niveau 999 est fait pour ne jamais être atteint.')}</p></details>`;
     };
-    api.body.addEventListener('click', e => { const b = e.target.closest('[data-pin]'); if (!b) return; if (!prgShowToggle(b.dataset.pin)) { toast(T('3 badges au plus sur ta liste d\'échange')); return; } haptic('tap'); paint(); });
+    const pinIt = id => { if (!prgShowToggle(id)) { toast(T('3 badges au plus sur ta liste d\'échange')); return false; } haptic('tap'); paint(); return true; };
+    const open = el => { const x = prgNow().bs.find(y => y.b.id === el.dataset.b); if (x) { haptic('tap'); prgBadgeSheet(x, pinIt); } };
+    api.body.addEventListener('click', e => { const b = e.target.closest('[data-pin]'); if (b) { pinIt(b.dataset.pin); return; } const t = e.target.closest('.prg-b[data-b]'); if (t) open(t); });
+    api.body.addEventListener('keydown', e => { const t = (e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.prg-b[data-b]') ? e.target : null; if (t) { e.preventDefault(); open(t); } });
     const spot = () => { const el = focus && api.body.querySelector(`.prg-b[data-b="${focus}"]`); if (!el) return; el.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' }); el.classList.add('hl'); setTimeout(() => el.classList.remove('hl'), 2600); };
     paint(); if (focus) setTimeout(spot, 380);      // après l'ouverture de la fiche
     if (typeof dlyOn === 'function' && dlyOn()) { api.setFoot(`<button class="btn ghost block" type="button" data-prg-rank>${esc(T('Classement'))}</button>`); api.foot.querySelector('[data-prg-rank]').onclick = () => { api.close(); dlyRanks('level'); }; }      // classement des niveaux (daily.js)
     prgDaily().then(() => { if (sheets.includes(api)) paint(); });
+  });
+}
+
+/** Fenêtre d'un badge (appui sur sa tuile) : icône, comment l'obtenir en détail, progression, chaque palier (nom, seuil, XP, obtenu ou non), vitrine.
+    pin(id) : ajoute ou retire de la liste d'échange (fiche « Niveau et badges ») ; false : vitrine pleine. */
+function prgBadgeSheet(x, pin) {
+  const b = x.b, uniq = b.tiers.length === 1, nm = prgName(b, x.t), cat = (PRG_CATS.find(c => c[0] === b.cat) || [])[1];
+  const val = v => (b.money ? fmt(v, 'EUR').replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
+  openSheet(nm, cat ? T(cat) : '', api => {
+    api.wrap.classList.add('prg-bs');
+    const paint = () => {
+      const show = prgShowIds(), nxt = x.next, cls = x.t < 0 ? 'off' : uniq ? 'tu' : 't' + x.t;
+      const p = nxt == null ? 100 : Math.max(0, Math.min(100, (x.v / nxt) * 100));
+      const st = x.t < 0 ? T('Pas encore obtenu') : nxt == null ? (uniq ? T('Badge obtenu') : T('Tous les paliers sont obtenus')) : T('Encore {n} avant le palier {tier}', { n: val(nxt - x.v), tier: prgTierOf(b, x.t + 1) });
+      const tiers = b.tiers.map((v, i) => `<li class="${x.t >= i ? 'ok' : ''}"><span class="prg-bs-ic ${x.t >= i ? (uniq ? 'tu' : 't' + i) : 'off'}" aria-hidden="true">${prgIc(b, x.t >= i ? i : -1)}</span>
+          <span class="prg-bs-t"><b>${esc(prgName(b, i))}</b><small>${esc(prgLabel(b, v))}${uniq ? '' : ' · ' + esc(prgTierOf(b, i))}</small></span>
+          <span class="prg-bs-x"><small>${esc(T('+{n} XP', { n: nf0(prgTierXp(b, i) - prgTierXp(b, i - 1)) }))}</small><em>${x.t >= i ? '✓ ' + esc(T('Obtenu')) : esc(T('À venir'))}</em></span></li>`).join('');
+      api.body.innerHTML = `<div class="prg-bs-head"><span class="prg-b ${cls}"><span class="prg-ic" aria-hidden="true">${prgIc(b, x.t)}</span></span><p class="prg-bs-st">${esc(st)}</p></div>
+        <p class="prg-h">${esc(T('Comment l\'obtenir'))}</p>${prgHow(b).map(t => `<p class="prg-bs-how">${esc(t)}</p>`).join('') || `<p class="prg-bs-how">${esc(prgLabel(b, b.tiers[0]))}</p>`}
+        ${uniq ? `<p class="hint">${esc(T('Badge unique : un seul palier'))}</p>` : `<p class="prg-h">${esc(T('Ta progression'))}</p><span class="prg-bar" aria-hidden="true"><i style="width:${p.toFixed(1)}%"></i></span><p class="hint">${esc(val(x.v))}${nxt != null ? ' / ' + esc(val(nxt)) : ''}</p>`}
+        <p class="prg-h">${esc(T('Paliers'))}</p><ol class="prg-bs-tiers">${tiers}</ol>`;
+      if (x.t >= 0 && !b.ev && pin) { const on = show.includes(b.id); api.setFoot(`<button class="btn ghost block" type="button" data-bs-pin>${on ? '📌 ' : ''}${esc(on ? T('Retirer de ma liste d\'échange') : T('Montrer sur ma liste d\'échange'))}</button>`); api.foot.querySelector('[data-bs-pin]').onclick = () => { if (pin(b.id)) paint(); }; }
+    };
+    paint();
   });
 }
 

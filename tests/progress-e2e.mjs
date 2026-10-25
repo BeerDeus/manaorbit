@@ -28,7 +28,7 @@ await p.evaluate(() => { prgCheck(); prgScan(Array.from({ length: 150 }, (_, i) 
 await p.evaluate(() => openSettings()); await p.waitForSelector('.me-sheet .prg-pill');
 const lv = await p.$eval('.prg-pill', b => b.textContent); assert.match(lv, /^Niv\. \d+$/);
 await p.click('.prg-pill'); await p.waitForSelector('.prg-sheet .prg-grid');
-const tile = id => p.evaluate(id => { const b = document.querySelector(`.prg-sheet [data-pin="${id}"]`); const t = b ? b.closest('.prg-b') : [...document.querySelectorAll('.prg-sheet .prg-b')].find(x => x.title === id); return t ? [t.className.replace('prg-b ', ''), t.querySelector('small').textContent] : null; }, id);
+const tile = id => p.evaluate(id => { const b = document.querySelector(`.prg-sheet [data-pin="${id}"]`); const t = b ? b.closest('.prg-b') : document.querySelector(`.prg-sheet .prg-b[data-b="${id}"]`); return t ? [t.className.replace('prg-b ', ''), t.querySelector('small').textContent] : null; }, id);
 assert.deepEqual(await tile('sc_cards'), ['t0', '100 cartes scannées · bronze'], '150 cartes scannées : bronze');
 assert.deepEqual(await tile('sc_city_jp'), ['tu', 'Une carte scannée dans cette langue'], 'Tokyo : badge unique');
 assert.deepEqual(await tile('gm_wins'), ['t0', '1 victoire · bronze'], 'parties de l\'historique : 3 victoires → bronze');
@@ -50,6 +50,28 @@ assert.deepEqual(back, [['sc_cards', 0], ['sc_city_jp', 0], ['gm_streak', 1]], '
 assert.deepEqual(await p.evaluate(() => readShare('trade', JSON.stringify({ have: [], want: [], bg: [['x<y', 0], ['sc_cards', 9], ['sc_cards', 1], ['a', 1], ['b', 1], ['c', 1]] })).bg), [['sc_cards', 1]], 'badges abîmés écartés, 3 au plus');
 assert.match(await p.evaluate(b => { const d = document.createElement('div'); d.innerHTML = prgShowHtml(b); return d.textContent; }, back), /Scanner.*Tokyo.*Inarrêtable/, 'nom du palier : Invincible en argent devient « Inarrêtable »');
 ok('vitrine : 3 badges au plus choisis dans la fiche (📌), envoyés avec la liste d\'échange, relus et montrés chez le visiteur');
+
+/* ── Fenêtre d'un badge : appui sur sa tuile ────────────────────────────────────────────────────────────────────── */
+await p.click('.prg-sheet .prg-b[data-b="sc_cards"] .prg-ic'); await p.waitForSelector('.prg-bs.open .prg-bs-tiers');
+assert.match(await txt(p, '.prg-bs .sheet-head'), /^Scanner\s*Scan/, 'titre : nom du badge, rubrique');
+assert.match(await txt(p, '.prg-bs .sheet-body'), /Encore 850 avant le palier argent\s*Comment l'obtenir\s*Scanne tes cartes avec l'appareil photo.*Ta progression\s*150 \/ 1 000\s*Paliers/s);
+const top = await p.evaluate(() => T(PRG_NAMES.sc_cards[2]));
+assert.deepEqual(await p.$$eval('.prg-bs-tiers li', l => l.map(x => [x.className, x.querySelector('b').textContent, [...x.querySelectorAll('.prg-bs-x > *')].map(e => e.textContent.replace(/[\u202f\u00a0]/g, ' ')).join(' ')])),
+  [['ok', 'Scanner', '+100 XP ✓ Obtenu'], ['', 'Scanner chevronné', '+500 XP À venir'], ['', 'Maître du scan', '+2 500 XP À venir'], ['', top, '+12 500 XP À venir']], 'paliers : nom, XP, obtenu ou à venir');
+await p.screenshot({ path: 'shots/progress-badge-sheet.png' });
+await p.click('.prg-bs [data-bs-pin]'); await p.waitForFunction(() => /Montrer sur ma liste/.test(document.querySelector('.prg-bs [data-bs-pin]').textContent));
+assert.equal(await p.$eval('.prg-sheet [data-pin="sc_cards"]', b => b.getAttribute('aria-pressed')), 'false', 'retiré de la vitrine depuis la fenêtre, la fiche suit');
+await p.click('.prg-bs [data-bs-pin]'); await p.waitForFunction(() => /Retirer de ma liste/.test(document.querySelector('.prg-bs [data-bs-pin]').textContent));
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.prg-bs'));
+await p.focus('.prg-sheet .prg-b[data-b="co_value"]'); await p.keyboard.press('Enter'); await p.waitForSelector('.prg-bs.open');
+assert.match(await txt(p, '.prg-bs .sheet-body'), /Pas encore obtenu\s*Comment l'obtenir\s*La valeur totale de ta collection/);
+assert.equal(await p.$eval('.prg-bs .sheet-foot', f => f.hidden), true, 'pas obtenu : pas de vitrine');
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.prg-bs'));
+await p.click('.prg-sheet .prg-b[data-b="sc_city_jp"]'); await p.waitForSelector('.prg-bs.open');
+assert.match(await txt(p, '.prg-bs .sheet-body'), /Badge obtenu\s*Comment l'obtenir\s*Scanne une carte imprimée en japonais\. Une seule suffit\..*Badge unique : un seul palier/s);
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.prg-bs'));
+assert.equal(await p.evaluate(() => PRG_BADGES.filter(b => !prgHow(b).length).map(b => b.id).join(',')), '', 'chaque badge a son explication');
+ok('fenêtre d\'un badge (appui ou clavier) : comment l\'obtenir, progression, paliers (nom, XP, obtenu), vitrine ; badge pas obtenu, badge unique');
 
 /* ── Nouveau palier : bannière cliquable qui s'efface seule ─────────────────────────────────────────────────────── */
 await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); prgCheck(); document.querySelectorAll('.prg-pop').forEach(e => e.remove()); const gh = Date.prototype.getHours; Date.prototype.getHours = () => 12; for (let i = 0; i < 6; i++) prgScan(Array.from({ length: 150 }, () => ({ key: 'sol ring', q: 1, l: 'fr', es: 'auto', pk: null }))); Date.prototype.getHours = gh; });      // 6 scans de 150 : 1 050 cartes, à midi (la nuit, « Oiseau de nuit » passerait devant)
