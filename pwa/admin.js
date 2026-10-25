@@ -1362,7 +1362,7 @@
       row ? h('p', { class: 'dlgw' }, [evWho(row), row.n ? 'pseudo ' + row.n : '', row.mail, nf(row.c) + ' / ' + (Number(e.total) || 0)].filter(Boolean).join(' · ')) : null,
       h('p', null, me ? 'Remettre à zéro ta progression pour ' + name + ' ? Tes ' + obj + ' et tes badges de cette édition repartent de zéro (tes appareils rattachés aussi).'
         : 'Remettre à zéro la progression de ' + who + ' pour ' + name + ' ? Ses ' + obj + ' et ses badges de cette édition repartent de zéro.'),
-      h('p', { class: 'hint' }, 'Ses anciennes copies (appareil, Firestore) ne reviennent pas. Irréversible.')], [['Annuler', ''], ['Réinitialiser', 'ok', 'main danger']]);
+      h('p', { class: 'hint' }, 'Le message « La chasse est ouverte » s\'affichera de nouveau à la prochaine ouverture de l\'appli. Ses anciennes copies (appareil, Firestore) ne reviennent pas. Irréversible.')], [['Annuler', ''], ['Réinitialiser', 'ok', 'main danger']]);
     if (v !== 'ok' || ev.rs) return;
     ev.rs = true; for (const x of $$('#events [data-act^="reset"]')) x.disabled = true;
     let x; try { x = await call('/events/reset', 'POST', { id: e.id, p }); } catch (er) { x = null; }

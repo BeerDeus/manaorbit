@@ -18,7 +18,7 @@ Ouverture automatique le **25 octobre 2026 à minuit (heure de Paris)**, fin le 
 
 ## Débogage
 
-- `/admin` › **Événements** : interrupteur à chaud, statistiques, liste des chasseurs, « Réinitialiser » (un joueur, ou sa propre avancée).
+- `/admin` › **Événements** : interrupteur à chaud, statistiques, liste des chasseurs, « Réinitialiser » (un joueur, ou sa propre avancée) : progression à zéro et message « La chasse est ouverte » revu sur ses appareils à la prochaine ouverture de l'appli (ou relecture, toutes les 10 min).
 - `https://manaorbit.app/?evreset=1` : l'appareil oublie ses événements (message d'arrivée revu, progression locale effacée) ; sur le téléphone, le lien s'ouvre dans l'appli. Faire d'abord « Réinitialiser mon avancée » dans `/admin`.
 - Essai d'une autre fête : `EVENT_FORCE=noel` (sur un serveur d'essai).
 - Notifications : `/admin` › Événements › **Notifications** (prochaine annonce, appareils, historique avec appareils touchés et échecs) ; journal du serveur : « Événements : notification « … » : N appareils prévenus ». Essai sur son téléphone : un envoi manuel (un par heure).

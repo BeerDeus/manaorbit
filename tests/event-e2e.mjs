@@ -72,6 +72,12 @@ async function findAndTap(p, s, forced) {
   assert.equal(await p.$('.ev-intro'), null, 'message d\'arrivée : une seule fois');
   assert.equal(await p.evaluate(() => document.documentElement.dataset.event), 'halloween', 'décor gardé au rechargement');
   ok('message d\'arrivée vu une seule fois');
+  const rsSeen = () => p.evaluate(() => !!(evLs().seen || {})[EV.st.ev.id]);
+  await p.evaluate(() => { EV.st.me = { ...EV.st.me, rs: Date.now() }; evKeep(EV.st.ev.id, EV.st.me); });      // « Réinitialiser » du panneau : rs plus récent reçu du serveur
+  assert.equal(await rsSeen(), false, 'remise à zéro : message d\'arrivée à revoir');
+  await p.evaluate(() => evIntroTry()); await p.waitForSelector('.ev-intro.on', { timeout: 8000 }); await p.click('.ev-in-go'); await p.waitForFunction(() => !document.querySelector('.ev-intro'));
+  await p.evaluate(() => evKeep(EV.st.ev.id, EV.st.me)); assert.equal(await rsSeen(), true, 'remise à zéro : message d\'arrivée revu une seule fois');
+  ok('remise à zéro par le panneau : message d\'arrivée revu');
 
   /* ── 2) Cachettes du jour : 5, au plus 1 en vue et 2 à un geste ; chacune trouvée pour de vrai ── */
   await p.evaluate(() => collAdd([{ k: 'sol ring', n: 'Sol Ring', q: 2 }, { k: 'arcane signet', n: 'Arcane Signet', q: 1 }]));

@@ -266,7 +266,13 @@ function evKeep(id, me) {
   const was0 = evMine(id), was = (me.rs || 0) > (was0.rs || 0) ? { jours: {}, sig: {}, n: 0 } : was0, jours = { ...was.jours }, sig = { ...was.sig };      // remise à zéro par le panneau : l'ancienne copie part
   for (const [d, l] of Object.entries(me.jours || {})) if (!jours[d] || l.length >= jours[d].length) { jours[d] = l; if (me.sig && me.sig[d]) sig[d] = me.sig[d]; }
   evMineSet(id, { jours, sig, n: Math.max(was.n || 0, me.n || 0), rs: Math.max(was0.rs || 0, me.rs || 0) });
+  if (was !== was0) evForget(id);
   evDocPushSoon();
+}
+/** Remise à zéro par le panneau (une fois par appareil) : message d'arrivée et astuce de la première trouvaille reviennent. */
+function evForget(id) {
+  const seen = { ...(evLs().seen || {}) }; delete seen[id]; evLsSet({ seen });
+  try { if (typeof tourRead === 'function' && (tourRead().tips || {}).evpk) { const tips = { ...tourRead().tips }; delete tips.evpk; tourSet({ tips }); } } catch (e) { /* stockage refusé */ }
 }
 /** Relecture à minuit (nouvelles cachettes) et toutes les 10 min (autre appareil du compte). */
 function evArm() {
@@ -566,7 +572,7 @@ function evStop() { clearTimeout(EV.armT); EV.st = null; evLoopSync(); evHomePai
 /** Au chargement : dernière fête connue de l'appareil, encore dans ses dates → décor posé tout de suite (le serveur confirme ensuite). */
 function evBoot() {
   if (EV_RESET) {      // ?evreset (débogage, lien du panneau /admin) : cet appareil oublie ses événements : message d'arrivée revu, progression locale, logo gardé, astuce
-    evLsSet({ seen: {}, p: {}, anon: {} }); try { localStorage.removeItem(EV_KEY + ':logo'); if (typeof tourRead === 'function' && tourRead().tips) { const tips = { ...tourRead().tips }; delete tips.evpk; tourSet({ tips }); } } catch (e) { /* stockage refusé */ }
+    evLsSet({ seen: {}, p: {}, anon: {} }); evForget(''); try { localStorage.removeItem(EV_KEY + ':logo'); } catch (e) { /* stockage refusé */ }
     try { const u = new URL(location.href); u.searchParams.delete('evreset'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch (e) { /* ignore */ }
     setTimeout(() => { if (typeof toast === 'function') toast(T('Événements : cet appareil est remis à zéro')); }, 1500);
   }
