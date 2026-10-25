@@ -42,8 +42,9 @@ for (const [k, x] of me.spots.entries()) {
 await p.waitForSelector('.adv-open.on', { timeout: 10000 });
 await p.waitForTimeout(2400); await shot(p, 'ouverture');
 const rv = await p.textContent('.adv-open');
-assert.match(rv, /Jour 1 · booster ouvert/); assert.match(rv, /Le saviez-vous \?.*Ère glaciaire/s, 'porte 1 : anecdote');
-assert.match(await p.$eval('.adv-front img', i => i.getAttribute('src')), /api\.scryfall\.com\/cards\/named\?exact=Snow-Covered%20Plains/);
+assert.match(rv, /Jour 1 · booster ouvert/); const c1 = await p.evaluate(() => advNow().cards[0]); assert.ok(rv.includes('Le saviez-vous ?') && rv.includes(c1.fact), 'porte 1 : l\'anecdote de sa carte');
+assert.equal(await p.$eval('.adv-front img', i => i.getAttribute('src')), `https://api.scryfall.com/cards/${c1.s}/${encodeURIComponent(c1.n)}?format=image&version=normal`, 'l\'illustration de Noël choisie (impression précise)');
+assert.equal(await p.evaluate(() => EV.st.me.seed > 0 && evMine('noel-2026').seed === EV.st.me.seed), true, 'graine du serveur gardée sur l\'appareil');
 assert.equal(await p.$('.ev-msg.on'), null, 'pas de message par-dessus l\'ouverture');
 await p.click('.adv-open [data-adv-close]'); await p.waitForFunction(() => !document.querySelector('.adv-open'));
 await p.waitForFunction(() => /1\s*\/\s*24/.test(document.querySelector('#hmEvent .hm-ev-n').textContent));
@@ -60,7 +61,7 @@ const before = await p.evaluate(() => [evXp(), evCoverOk('noel'), advOrb(), prgX
 assert.deepEqual(before.slice(0, 3), [0, false, false], 'porte 1 : ni XP, ni couleur, ni orbe');
 await p.evaluate(() => { const j = {}; for (let i = 1; i <= 24; i++) j[evAdd('2026-12-01', i - 1)] = ['a', 'b']; EV.st.me.jours = j; ADV.rw = null; });
 const after = await p.evaluate(() => [evXp(), evCoverOk('noel'), advOrb(true), evCoverOk('sapin'), prgXp()]);
-assert.equal(after[0], await p.evaluate(() => evPack('noel').advent.list.reduce((s, d) => s + (d.r.xp || 0), 0)), 'XP de toutes les portes');
+assert.equal(after[0], await p.evaluate(() => evPack('noel').advent.rw.reduce((s, r) => s + (r.xp || 0), 0)), 'XP de toutes les portes');
 assert.deepEqual(after.slice(1, 4), [true, true, false], 'couleur animée et orbe gagnés au 24 ; couleur rare : seulement par tirage');
 assert.ok(after[4] > before[3], 'XP comptée dans le niveau');
 await p.evaluate(() => advOrbApply()); assert.equal(await p.evaluate(() => document.documentElement.classList.contains('ev-orb-noel')), true, 'orbe de Noël sur l\'accueil');

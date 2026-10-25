@@ -17,7 +17,13 @@ function advOf(id, jours) {
   const e = typeof evById === 'function' ? evById(id) : null, p = e && evPack(e.pack); if (!p || !p.advent) return null;
   const doors = evDoors(e, jours || advJours(id)), st = EV.st;
   const dr = evDrops(evMine(id).dr, EV.doc && EV.doc[id] && EV.doc[id].dr, st && st.ev && st.ev.id === id && st.me ? st.me.dr : null);
-  return { e, p, doors, open: doors.filter(d => d.open).length, dr };
+  return { e, p, doors, open: doors.filter(d => d.open).length, dr, cards: evAdvCards(e, advSeed(id)) };
+}
+/** Graine du tirage des cartes du jour : la première connue (appareil, compte, puis serveur) est gardée pour toujours, pour que les cartes déjà vues ne changent
+ *  pas (connexion à un compte après coup, autre appareil). */
+function advSeed(id) {
+  const m = evMine(id), d = EV.doc && EV.doc[id], st = EV.st, srv = st && st.ev && st.ev.id === id && st.me ? st.me.seed : 0;
+  return (m.seed >>> 0) || ((d && d.seed) >>> 0) || (srv >>> 0) || 0;
 }
 /** Jours joués d'une édition : ceux du serveur (édition en cours), sinon les plus complets de l'appareil et du compte. */
 function advJours(id) {
@@ -43,7 +49,7 @@ function advRewards() {
     const a = advOf(id); if (!a) continue;
     for (const c of Object.values(a.dr)) rw.covers.add(c);      // couleurs rares (tirage du serveur)
     for (const d of a.doors) {
-      const r = d.open && a.p.advent.list[d.i - 1] && a.p.advent.list[d.i - 1].r; if (!r) continue;
+      const r = d.open && a.p.advent.rw[d.i - 1]; if (!r) continue;
       if (r.xp) rw.xp += r.xp; if (r.cover) rw.covers.add(r.cover); if (r.orb) rw.orbs.push(a.e.year);
     }
   }
@@ -66,8 +72,8 @@ const advOrbRow = () => (advOrb() ? `<label class="me-row switch-row" for="setEv
 function advOrbPref(on) { try { localStorage.setItem(ADV_ORB_KEY, on ? '1' : '0'); } catch (e) { /* stockage refusé */ } advOrbApply(); haptic('ok'); }
 
 /* ── Accueil : le calendrier et les lumières autour de l'orbe ─────────────────────────────────────────────────────── */
-/** Image d'une carte par son nom (Scryfall) ; petite (vignette d'une porte) ou normale (ouverture). */
-const advImg = (c, big) => 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(c) + '&format=image&version=' + (big ? 'normal' : 'small');
+/** Image de la carte d'une porte (Scryfall) : l'impression choisie (édition, numéro) si elle est donnée, sinon par son nom ; petite (vignette) ou normale (ouverture). */
+const advImg = (it, big) => (it.s && it.n ? `https://api.scryfall.com/cards/${encodeURIComponent(it.s)}/${encodeURIComponent(it.n)}?format=image&version=` : 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(it.c) + '&format=image&version=') + (big ? 'normal' : 'small');
 /** Variante de couleur de mana d'une porte (blanc, bleu, noir, rouge, vert, puis on recommence). */
 const advV = i => (i - 1) % 5;
 const ADV_MANA = ['#e9dcae', '#3d8ad6', '#7a5a9e', '#d7263d', '#1f8a4c'];
@@ -77,8 +83,8 @@ function advCardHtml(a, me) {
   const sub = k ? (a.doors[k - 1].open ? T('Booster du jour ouvert : reviens demain') : TN(Math.max(1, me.left), 'Encore {n} cadeau pour ouvrir le booster du jour', 'Encore {n} cadeaux pour ouvrir le booster du jour'))
     : a.open >= a.p.advent.doors ? T('Les 24 boosters sont ouverts : bravo !') : me.left > 0 ? TN(catchN, 'Rattrapage : {n} booster à rattraper', 'Rattrapage : {n} boosters à rattraper') : T('Rattrapage terminé pour aujourd\'hui');
   const doors = a.doors.map(d => {
-    const v = advV(d.i), it = a.p.advent.list[d.i - 1] || {}, dt = new Date(d.day + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
-    if (d.open) return `<button type="button" class="adv-d open" data-adv="${d.i}" aria-label="${esc(T('Jour {n} : ouvert', { n: d.i }) + ' · ' + advName(it.c))}"><span class="adv-cb" aria-hidden="true">${typeof EV_ART !== 'undefined' && EV_ART.rwCard ? EV_ART.rwCard() : ''}</span><img alt="" loading="lazy" decoding="async" src="${esc(advImg(it.c))}" onerror="this.remove()"><span class="adv-ok" aria-hidden="true"></span></button>`;
+    const v = advV(d.i), it = a.cards[d.i - 1] || {}, dt = new Date(d.day + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
+    if (d.open) return `<button type="button" class="adv-d open" data-adv="${d.i}" aria-label="${esc(T('Jour {n} : ouvert', { n: d.i }) + ' · ' + advName(it.c))}"><span class="adv-cb" aria-hidden="true">${typeof EV_ART !== 'undefined' && EV_ART.rwCard ? EV_ART.rwCard() : ''}</span><img alt="" loading="lazy" decoding="async" src="${esc(advImg(it))}" onerror="this.remove()"><span class="adv-ok" aria-hidden="true"></span></button>`;
     const state = d.i === k ? 'today' : d.day < me.day ? 'miss' : 'lock';
     const lab = state === 'today' ? T('Jour {n} : le booster du jour', { n: d.i }) : state === 'miss' ? T('Jour {n} : manqué', { n: d.i }) : T('Jour {n} : s\'ouvre le {d}', { n: d.i, d: dt });
     return `<button type="button" class="adv-d ${state}" data-adv="${d.i}" aria-label="${esc(lab)}">${typeof EV_ART !== 'undefined' && EV_ART.booster ? EV_ART.booster({ v, frost: state === 'lock', today: state === 'today' }) : ''}<b>${d.i}</b></button>`;
@@ -127,7 +133,7 @@ function advAfterFind(j0, me) {
 /** Plein écran : booster qui se déchire, carte du jour retournée, récompense. o.again : revue depuis l'accueil ; o.late : rattrapée ; o.then : à la fermeture. */
 function advReveal(a, i, o = {}) {
   if (document.querySelector('.adv-open')) return;
-  const it = a.p.advent.list[i - 1] || {}, r = it.r || {}, k = String(it.c || '').toLowerCase(), nm = advName(it.c), have = typeof collQty === 'function' ? collQty(k) : 0;
+  const it = a.cards[i - 1] || {}, r = a.p.advent.rw[i - 1] || {}, k = String(it.c || '').toLowerCase(), nm = advName(it.c), have = typeof collQty === 'function' ? collQty(k) : 0;
   const rw = [], rare = a.dr[i], covName = id => { const c = typeof BND_COVERS !== 'undefined' ? BND_COVERS.find(x => x[0] === id) : null; return T(c ? c[1] : id); };
   if (rare) rw.push(['rwCover', T('Couleur rare : « {c} »', { c: covName(rare) }), T('1 chance sur 100 par booster. Dans les réglages de ton classeur, section Échange.'), 'rare']);
   if (r.cover) { const c = typeof BND_COVERS !== 'undefined' ? BND_COVERS.find(x => x[0] === r.cover) : null; rw.push(['rwCover', T('Décoration de classeur « {c} »', { c: T(c ? c[1] : r.cover) }), T('Une guirlande qui s\'allume sur ton classeur. Dans ses réglages, section Échange.'), 'anim']); }
@@ -139,13 +145,13 @@ function advReveal(a, i, o = {}) {
   el.innerHTML = `<div class="adv-bg" aria-hidden="true"></div>
     <div class="adv-in">
       <div class="adv-pack" aria-hidden="true"><span class="adv-pk-top">${typeof EV_ART !== 'undefined' && EV_ART.booster ? EV_ART.booster({ v: advV(i) }) : ''}</span><span class="adv-pk-bot">${typeof EV_ART !== 'undefined' && EV_ART.booster ? EV_ART.booster({ v: advV(i) }) : ''}</span></div>
-      <button class="adv-card" type="button" data-adv-card aria-label="${esc(T('Voir la carte {c}', { c: nm }))}"><span class="adv-flip"><span class="adv-back">${icon('rwCard')}</span><span class="adv-front"><img alt="" src="${esc(advImg(it.c, true))}" onerror="this.parentNode.classList.add('noimg')"><span class="adv-foil" aria-hidden="true"></span><em>${esc(nm)}</em></span></span></button>
+      <button class="adv-card" type="button" data-adv-card aria-label="${esc(T('Voir la carte {c}', { c: nm }))}"><span class="adv-flip"><span class="adv-back">${icon('rwCard')}</span><span class="adv-front"><img alt="" src="${esc(advImg(it, true))}" onerror="this.parentNode.classList.add('noimg')"><span class="adv-foil" aria-hidden="true"></span><em>${esc(nm)}</em></span></span></button>
       <div class="adv-tx">
         <small>${esc(head)}</small>
         <h2 id="advT">${esc(nm)}</h2>
         <p class="adv-have">${have ? esc(TN(have, 'Tu l\'as déjà en {n} exemplaire.', 'Tu l\'as déjà en {n} exemplaires.')) : esc(T('Pas encore dans ta collection.'))}</p>
         ${rw.length ? `<ul class="adv-rw">${rw.map(([ic, t, s, cl]) => `<li${cl ? ` class="${cl}"` : ''}><span class="adv-rw-ic" aria-hidden="true">${icon(ic)}</span><span><b>${esc(t)}</b><small>${esc(s)}</small></span></li>`).join('')}</ul>` : ''}
-        ${r.fact ? `<div class="adv-fact"><span class="adv-rw-ic" aria-hidden="true">${icon('rwFact')}</span><span><b>${esc(T('Le saviez-vous ?'))}</b><span>${esc(T(r.fact))}</span></span></div>` : ''}
+        ${it.fact ? `<div class="adv-fact"><span class="adv-rw-ic" aria-hidden="true">${icon('rwFact')}</span><span><b>${esc(T('Le saviez-vous ?'))}</b><span>${esc(T(it.fact))}</span></span></div>` : ''}
         <div class="adv-acts"><button class="btn ghost" type="button" data-adv-card>${T('Voir la carte')}</button><button class="btn" type="button" data-adv-close>${o.again ? T('Fermer') : T('Super !')}</button></div>
       </div>
     </div>`;

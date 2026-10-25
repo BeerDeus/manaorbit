@@ -90,33 +90,60 @@ const EV_PACKS = [
       // Couleurs de classeur rares (binder.js › BND_COVERS) : chaque porte, sauf la dernière, a rare.p de chance d'en donner une (tirage du serveur, propre à chaque
       // joueur et à chaque porte : event-srv.mjs › evRare) ; elles restent acquises pour de bon. Jamais toutes en un seul Noël.
       rare: { p: 0.01, covers: ['sapin', 'neige', 'houx', 'nuitdoree'] },
-      // Contenu de chaque porte : c = carte du jour (nom anglais exact, Scryfall), r = récompense : xp (points), cover (couleur de classeur, sûre : la dernière
-      // porte, la couleur animée de Noël), orb (orbe de Noël sur l'accueil, jusqu'au 6 janvier), fact (anecdote, clé de T).
-      list: [
-        { c: 'Snow-Covered Plains', r: { fact: 'Les terrains de base enneigés sont apparus en 1995 avec Ère glaciaire, la première extension à mettre la neige au cœur du jeu.' } },
-        { c: 'Gift of Paradise', r: { xp: 100 } },
-        { c: 'Icy Manipulator', r: { fact: 'Icy Manipulator était déjà là en 1993, dans Alpha, la toute première édition de Magic.' } },
-        { c: 'Snow-Covered Island', r: { xp: 100 } },
-        { c: 'Boreal Druid', r: { fact: 'Coldsnap (2006) a complété le bloc Ère glaciaire… onze ans après sa sortie.' } },
-        { c: 'Gift of Estates', r: { xp: 100 } },
-        { c: 'Snow-Covered Swamp', r: { fact: 'Kaldheim (2021) a ramené la neige : des terrains enneigés dans chaque booster.' } },
-        { c: 'Frozen Solid', r: { xp: 150 } },
-        { c: 'Icehide Troll', r: { fact: 'Alpha est sortie en août 1993 et s\'est vendue en quelques semaines.' } },
-        { c: 'Snow-Covered Mountain', r: { xp: 150 } },
-        { c: 'Into the North', r: { fact: 'Magic a été inventé par Richard Garfield, un mathématicien.' } },
-        { c: 'Glacial Fortress', r: { xp: 150 } },
-        { c: 'Snow-Covered Forest', r: { fact: 'Le Commander est né d\'une variante de juges appelée « Elder Dragon Highlander » (EDH).' } },
-        { c: 'Arcum\'s Astrolabe', r: { xp: 200 } },
-        { c: 'Rimescale Dragon', r: { fact: 'Les cartes foil sont arrivées dans les boosters en 1999, avec L\'Héritage d\'Urza.' } },
-        { c: 'Snow Day', r: { xp: 200 } },
-        { c: 'Ice-Fang Coatl', r: { fact: 'Le mana a cinq couleurs, toujours dans le même ordre sur le cercle : blanc, bleu, noir, rouge, vert.' } },
-        { c: 'Gift of the Gargantuan', r: { xp: 200 } },
-        { c: 'Winter Orb', r: { fact: 'Le Black Lotus d\'Alpha est la carte la plus célèbre du jeu : ses meilleurs exemplaires se vendent des centaines de milliers d\'euros.' } },
-        { c: 'Gifts Ungiven', r: { xp: 300 } },
-        { c: 'Frost Titan', r: { fact: 'Depuis 2024, les boosters de jeu remplacent les boosters de draft et d\'extension.' } },
-        { c: 'Star of Extinction', r: { xp: 300 } },
-        { c: 'Glacial Chasm', r: { fact: 'Il existe plus de 25 000 cartes Magic différentes.' } },
-        { c: 'Mishra\'s Bauble', r: { cover: 'noel', orb: 1, xp: 500 } },
+      // Récompenses de chaque porte (fixes, quelle que soit la carte) : xp (points), cover (sûre : la dernière, la décoration animée de Noël), orb (orbe de Noël,
+      // jusqu'au 6 janvier). La carte du jour, elle, est tirée pour chaque joueur et chaque année parmi cards (evAdvCards) : tout le monde n'a pas les mêmes.
+      rw: [{}, { xp: 100 }, {}, { xp: 100 }, {}, { xp: 150 }, {}, { xp: 150 }, {}, { xp: 150 }, {}, { xp: 150 }, {}, { xp: 200 }, {}, { xp: 200 }, {}, { xp: 200 }, {}, { xp: 300 }, {}, { xp: 300 }, {}, { cover: 'noel', orb: 1, xp: 500 }],
+      // Cartes du jour possibles (au moins doors) : c = nom anglais exact, s / n = l'impression choisie pour son illustration de Noël (édition, numéro Scryfall ;
+      // « hho » : les cartes de vœux que Wizards crée chaque Noël depuis 2006), fact = anecdote sur la carte (clé de T).
+      cards: [
+        { c: 'Goblin Snowman', s: 'sld', n: '61', fact: 'Goblin Snowman vient d\'Ère glaciaire (1995) ; cette illustration a été redessinée pour un Secret Lair en 2020.' },
+        { c: 'Rimefur Reindeer', s: 'woe', n: '27', fact: 'D\'après son texte d\'ambiance, des rennes se sont installés près du palais de glace de Hylda, attirés par le calme de son royaume.' },
+        { c: 'Fruitcake Elemental', s: 'hho', n: '6', fact: 'La toute première carte de vœux de Wizards of the Coast (2006). Depuis, une nouvelle chaque Noël, jamais vendue en booster.' },
+        { c: 'Gingerbrute', s: 'eld', n: '219', fact: 'Son texte d\'ambiance : « La fiole sans étiquette n\'était pas de l\'extrait de vanille, finalement. »' },
+        { c: 'Gifts Given', s: 'hho', n: '7', fact: 'La carte de vœux 2007 répond à Gifts Ungiven : « Merci ! Fallait pas. »' },
+        { c: 'Mishra\'s Factory', s: 'atq', n: '80d', fact: 'Antiquities (1994) a imprimé Mishra\'s Factory avec quatre illustrations des Foglio, une par saison : voici l\'hiver.' },
+        { c: 'Evil Presents', s: 'hho', n: '8', fact: 'Carte de vœux 2008 : « Mieux vaut donner que recevoir. »' },
+        { c: 'Arcum\'s Sleigh', s: 'ice', n: '309', fact: 'Un traîneau d\'Ère glaciaire (1995) : « Avec le bon équipement et de la prudence, on peut aller partout. »' },
+        { c: 'Season\'s Beatings', s: 'hho', n: '9', fact: 'Carte de vœux 2009 : « De retour chez lui, il regretta soudain les champs de bataille ensanglantés laissés derrière lui. »' },
+        { c: 'Snow Day', s: 'stx', n: '53', fact: 'À Strixhaven : « Les cours de manifestations élémentaires avancées sont annulés jusqu\'à ce que tous les élèves aient dégelé. »' },
+        { c: 'Snow Mercy', s: 'hho', n: '10', fact: 'Carte de vœux 2010, une boule à neige : « Secouer doucement. Peut provoquer étouffement, hypothermie et/ou invasion planaire. »' },
+        { c: 'Stocking Tiger', s: 'hho', n: '13', fact: 'Carte de vœux 2013 : on glisse un vrai booster scellé sous la carte, et on l\'ouvre quand le tigre inflige des blessures.' },
+        { c: 'Gingerbread Cabin', s: 'eld', n: '245', fact: 'Throne of Eldraine (2019) s\'inspire des contes : la maison en pain d\'épice vient d\'Hansel et Gretel.' },
+        { c: 'Goblin Sleigh Ride', s: 'hho', n: '15', fact: 'Carte de vœux 2015 : son texte d\'ambiance parodie « Jingle Bells ».' },
+        { c: 'Wayfarer\'s Bauble', s: 'sld', n: '2656', fact: '« Un souvenir de l\'aventure du jour, et un jouet brillant » : une boule de sapin toute trouvée.' },
+        { c: 'Swords to Plowshares', s: 'who', n: '212', fact: 'Cette illustration évoque la trêve de Noël de 1914, au cœur de l\'épisode de Noël 2017 de Doctor Who.' },
+        { c: 'Yule Ooze', s: 'hho', n: '11', fact: 'Carte de vœux 2011 : « Il adore recevoir la famille… à dîner. »' },
+        { c: 'Some Disassembly Required', s: 'hho', n: '17', fact: 'Carte de vœux 2017 : en décembre, elle te fait gagner des points de vie.' },
+        { c: 'Rites of Flourishing', s: 'sld', n: '2805', fact: 'Illustrée par ConcernedApe, le créateur du jeu Stardew Valley.' },
+        { c: 'Bog Humbugs', s: 'hho', n: '18', fact: 'Carte de vœux 2018 : il fredonne un chant de fête, et les notes sont imprimées sur la carte.' },
+        { c: 'Seasonal Sequels', s: 'hho', n: '23', fact: 'Carte de vœux 2023 : l\'affiche du cinéma détourne Die Hard en « Die Hardened Scales ».' },
+        { c: 'Decorated Knight // Present Arms', s: 'hho', n: '19', fact: 'Carte de vœux 2019 : une carte aventure dont le sort s\'appelle « Present Arms », un jeu de mots entre « présentez armes » et « cadeau ».' },
+        { c: 'Cheer', s: 'hho', n: '25', fact: 'Carte de vœux 2025 : pour la jouer, célèbre un adversaire en lui offrant un cadeau, en lui portant un toast ou en lui disant que tu es content de jouer avec lui.' },
+        { c: 'Topdeck the Halls', s: 'hho', n: '20', fact: 'Carte de vœux 2020 : si tu contrôles douze permanents décorés (promo, foil, illustration alternative…), tu gagnes la partie.' },
+        { c: 'Brain Freeze', s: 'soa', n: '13', fact: 'À Strixhaven : « C\'était tellement gênant. Le doyen Veyran m\'a interrogé et je me suis figé. Trou noir. »' },
+        { c: 'Twice Upon a Time // Unlikely Meeting', s: 'who', n: '61', fact: '« Twice Upon a Time » est le titre de l\'épisode de Noël 2017 de Doctor Who, qui réunit deux Docteurs.' },
+        { c: 'Great Intelligence\'s Plan', s: 'who', n: '133', fact: 'La Grande Intelligence est le méchant de « The Snowmen », l\'épisode de Noël 2012 de Doctor Who, avec ses bonshommes de neige.' },
+        { c: 'Nardole, Resourceful Cyborg', s: 'who', n: '655', fact: 'Nardole apparaît pour la première fois dans l\'épisode de Noël 2015 de Doctor Who.' },
+        { c: 'Scrying Sheets', s: 'sld', n: '1606', fact: 'Un bonhomme de neige sur un Secret Lair : « La météo prévoit un blizzard de ballades. »' },
+        { c: 'Invigorating Hot Spring', s: 'neo', n: '223', fact: 'Kamigawa s\'inspire du Japon : une source chaude sous la neige, comme celles où se baignent les singes des neiges.' },
+        { c: 'Caribou Range', s: 'ice', n: '11', fact: 'Dans Ère glaciaire (1995), cette carte crée des jetons Caribou : presque des rennes.' },
+        { c: 'Rowdy Snowballers', s: 'tla', n: '68', fact: 'Bataille de boules de neige chez Avatar : « L\'entraînement de Sokka n\'était pas très efficace, mais les enfants de Wolf Cove n\'ont pas eu l\'air de s\'en plaindre. »' },
+        { c: 'Zombie Musher', s: 'csp', n: '75', fact: 'Un « musher » conduit un traîneau à chiens… ici, des zombies, dans Coldsnap (2006).' },
+        { c: 'Tough Cookie', s: 'woe', n: '193', fact: 'Un biscuit en pain d\'épice qui se défend : Wilds of Eldraine (2023) regorge de créatures en sucreries.' },
+        { c: 'Jolly Gerbils', s: 'blb', n: '19', fact: 'Bloomburrow (2024) a fait des cadeaux un mot-clé : ces gerbilles piochent une carte chaque fois que tu en offres un.' },
+        { c: 'Generous Stray', s: 'grn', n: '129', fact: 'Son texte d\'ambiance : « Les chats déposent leurs cadeaux avec soin, là où un pied nu marchera dessus en pleine nuit. »' },
+        { c: 'Shiny Impetus', s: 'sld', n: '7165', fact: 'Garfield, en pleine frénésie de cadeaux, sur un Secret Lair.' },
+        { c: 'Tataru Taru', s: 'fic', n: '30', fact: 'Tataru, la secrétaire des Héritiers dans Final Fantasy XIV, avec un cadeau à la main.' },
+        { c: 'Frostpeak Yeti', s: 'khm', n: '57', fact: '« Certains héros doublent leur manteau de fourrure de yéti. Plus de yétis encore doublent leur ventre de héros. »' },
+        { c: 'Last-Minute Chopping', s: 'hho', n: '21', fact: 'Carte de vœux 2021 : elle demande à ton adversaire s\'il a pensé à t\'acheter un cadeau.' },
+        { c: 'Chaos Wrap', s: 'hho', n: '22', fact: 'Carte de vœux 2022 : on « emballe » vraiment une carte, en la glissant dans une pochette pour en faire un cadeau.' },
+        { c: 'Thopter Pie Network', s: 'hho', n: '16', fact: 'Carte de vœux 2016 : elle ne fonctionne que si tu es en train de manger.' },
+        { c: 'Eggnogger\'s \'Stache', s: 'hho', n: '24', fact: 'Carte de vœux 2024 : « Si tu n\'as pas de tasse, va en chercher une ! C\'est les fêtes ! »' },
+        { c: 'Mishra\'s Toy Workshop', s: 'hho', n: '14', fact: 'Carte de vœux 2014 : ses jetons se représentent avec de vrais jouets.' },
+        { c: 'Naughty // Nice', s: 'hho', n: '12', fact: 'Carte de vœux 2012 : une carte double, une moitié sage, l\'autre pas.' },
+        { c: 'Night of the Sweets\' Revenge', s: 'woe', n: '178', fact: 'Wilds of Eldraine (2023) s\'inspire des contes : ici, la revanche des friandises.' },
+        { c: 'Mishra\'s Bauble', s: '2xm', n: '274', fact: 'Une babiole phyrexiane de Double Masters, qui ferait une parfaite boule de sapin.' },
+        { c: 'Generous Visitor', s: 'neo', n: '185', fact: 'Son texte d\'ambiance : par modestie, on refuse trois fois un cadeau avant de l\'accepter.' },
       ],
     },
     obj: { one: 'cadeau', many: 'cadeaux', emoji: '🎁', fem: false, art: 'gift', counter: 'giftCounter', msg: 'bell' },
@@ -251,6 +278,15 @@ function evUpcoming(day, within = 60) {
   return best;
 }
 /* ── Calendrier de l'Avent (pack.advent) : une porte par jour, ouverte avec les {per} objets du jour ; jours de rattrapage ensuite ── */
+/** Cartes du jour d'un calendrier pour un joueur : doors cartes tirées parmi advent.cards, dans un ordre propre à la graine (donnée par le serveur pour chaque joueur
+ *  et chaque édition) ; sans graine, celle de l'édition. Même graine → mêmes cartes, sur tous les appareils. */
+function evAdvCards(e, seed) {
+  const p = evPack(e.pack); if (!p || !p.advent) return [];
+  let h = seed >>> 0; if (!h) for (const ch of e.id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) + 2166136261 >>> 0;
+  const r = () => { h = h + 0x6D2B79F5 >>> 0; let t = h; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };      // mulberry32
+  const a = p.advent.cards.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a.slice(0, p.advent.doors);
+}
 /** Jour (« AAAA-MM-JJ ») de la porte i (1…doors) d'une édition. */
 const evDoorDay = (e, i) => evAdd(e.from, i - 1);
 /** Jour de rattrapage (après la dernière porte) ? */
@@ -278,7 +314,8 @@ function evCheck(y = 2026) {
     if (p.advent) {      // calendrier : une porte par jour, puis au moins un jour de rattrapage ; tout le total tient dans les portes
       if (p.advent.doors * e.per !== p.total) bad.push(p.id + ' : ' + p.advent.doors + ' portes × ' + e.per + ' ≠ ' + p.total);
       if (e.days <= p.advent.doors || e.days > p.advent.doors + 3) bad.push(p.id + ' : ' + e.days + ' jours pour ' + p.advent.doors + ' portes');
-      if (!Array.isArray(p.advent.list) || p.advent.list.length !== p.advent.doors) bad.push(p.id + ' : contenu des portes');
+      if (!Array.isArray(p.advent.rw) || p.advent.rw.length !== p.advent.doors) bad.push(p.id + ' : récompenses des portes');
+      if (!Array.isArray(p.advent.cards) || p.advent.cards.length < p.advent.doors || new Set(p.advent.cards.map(c => c.s + '/' + c.n)).size !== p.advent.cards.length) bad.push(p.id + ' : cartes du jour');
       continue;
     }
     if (need < EV_MIN_DAYS) bad.push(p.id + ' : tout trouvable en ' + need + ' jours');
@@ -287,4 +324,4 @@ function evCheck(y = 2026) {
   return bad;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evParts, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck, evDoorDay, evCatchup, evQuota, evDoors };
+if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evParts, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck, evDoorDay, evCatchup, evQuota, evDoors, evAdvCards };

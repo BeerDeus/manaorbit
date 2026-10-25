@@ -29,7 +29,7 @@ const evDeco = () => evLs().deco !== false;
 const evMine = id => ((evLs().p || {})[id]) || { jours: {}, sig: {}, n: 0, rs: 0 };
 /** Couleurs rares gagnées (calendrier de l'Avent : { porte: couleur }), réunies sans jamais en perdre ; valeurs vérifiées. */
 const evDrops = (...l) => { const o = {}; for (const x of l) for (const [k, v] of Object.entries((x && typeof x === 'object' && x) || {})) if (/^\d{1,2}$/.test(k) && typeof v === 'string' && /^[a-z]{2,16}$/.test(v)) o[k] = v; return o; };
-function evMineSet(id, x) { const p = { ...(evLs().p || {}) }; p[id] = { jours: x.jours || {}, sig: x.sig || {}, n: Math.max(0, x.n || 0), rs: x.rs || 0, ...(x.dr && Object.keys(x.dr).length ? { dr: x.dr } : {}) }; evLsSet({ p }); }
+function evMineSet(id, x) { const p = { ...(evLs().p || {}) }; p[id] = { jours: x.jours || {}, sig: x.sig || {}, n: Math.max(0, x.n || 0), rs: x.rs || 0, ...(x.dr && Object.keys(x.dr).length ? { dr: x.dr } : {}), ...(x.seed ? { seed: x.seed >>> 0 } : {}) }; evLsSet({ p }); }
 /** Remise à zéro du serveur (panneau /admin) connue pour cette édition : les copies plus anciennes (appareil, compte) ne comptent plus. */
 const evRs = id => (EV.st && EV.st.ev && EV.st.ev.id === id && EV.st.me ? EV.st.me.rs || 0 : 0);
 const evFresh = (id, x) => !!x && (x.rs || 0) >= evRs(id);
@@ -283,7 +283,8 @@ async function evStatus(force) {
 function evKeep(id, me) {
   const was0 = evMine(id), was = (me.rs || 0) > (was0.rs || 0) ? { jours: {}, sig: {}, n: 0 } : was0, jours = { ...was.jours }, sig = { ...was.sig };      // remise à zéro par le panneau : l'ancienne copie part
   for (const [d, l] of Object.entries(me.jours || {})) if (!jours[d] || l.length >= jours[d].length) { jours[d] = l; if (me.sig && me.sig[d]) sig[d] = me.sig[d]; }
-  evMineSet(id, { jours, sig, n: Math.max(was.n || 0, me.n || 0), rs: Math.max(was0.rs || 0, me.rs || 0), dr: evDrops(was.dr, me.dr) });
+  const d = EV.doc && EV.doc[id];      // graine des cartes du jour (calendrier de l'Avent) : la première connue reste
+  evMineSet(id, { jours, sig, n: Math.max(was.n || 0, me.n || 0), rs: Math.max(was0.rs || 0, me.rs || 0), dr: evDrops(was.dr, me.dr), seed: (was0.seed >>> 0) || ((d && d.seed) >>> 0) || (me.seed >>> 0) || 0 });
   if (was !== was0) evForget(id);
   evDocPushSoon();
 }
@@ -341,8 +342,9 @@ async function evDocPush() {
   const id = st.ev.id, loc = evMine(id), cur = EV.doc[id] || {};
   const old = (cur.rs || 0) < (loc.rs || 0);      // copie du compte d'avant une remise à zéro : remplacée, pas fusionnée
   const dr = old ? evDrops(loc.dr) : evDrops(cur.dr, loc.dr);      // couleurs rares : réunies, jamais perdues (sauf remise à zéro)
-  if (!old && (cur.n || 0) >= (loc.n || 0) && Object.keys(cur.jours || {}).length >= Object.keys(loc.jours || {}).length && Object.keys(dr).length <= Object.keys(evDrops(cur.dr)).length) return;
-  const e = { ...EV.doc, [id]: { n: old ? loc.n || 0 : Math.max(loc.n || 0, cur.n || 0), jours: loc.jours, sig: loc.sig, rs: loc.rs || 0, ...(Object.keys(dr).length ? { dr } : {}) } };
+  if (!old && (cur.n || 0) >= (loc.n || 0) && Object.keys(cur.jours || {}).length >= Object.keys(loc.jours || {}).length && Object.keys(dr).length <= Object.keys(evDrops(cur.dr)).length && (cur.seed || !loc.seed)) return;
+  const seed = (cur.seed >>> 0) || (loc.seed >>> 0);
+  const e = { ...EV.doc, [id]: { n: old ? loc.n || 0 : Math.max(loc.n || 0, cur.n || 0), jours: loc.jours, sig: loc.sig, rs: loc.rs || 0, ...(Object.keys(dr).length ? { dr } : {}), ...(seed ? { seed } : {}) } };
   for (const k of Object.keys(e).slice(0, Math.max(0, Object.keys(e).length - 20))) delete e[k];      // 20 éditions gardées au plus (règles : 24)
   try { await D.cloud.saveMeta(u.uid, 'events', { e, updatedAt: Date.now() }); EV.doc = e; } catch (err) { /* hors ligne, règles : renvoyé au prochain objet */ }
 }

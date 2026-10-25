@@ -130,7 +130,16 @@ test('calendrier de l\'Avent (Noël) : 24 portes, 2 cadeaux par jour, rattrapage
   assert.ok(hit / all > 0.007 && hit / all < 0.013, 'environ 1 % : ' + (hit / all * 100).toFixed(2) + ' %');
   assert.equal(evRare('sekret', 'noel-2026', 'u1', 3, rr), evRare('sekret', 'noel-2026', 'u1', 3, rr), 'reproductible');
   assert.ok(Object.keys(me.dr || {}).every(i => E.evDoors(n, me.jours)[i - 1].open && +i < 24), 'seulement des portes ouvertes');
-  assert.equal(E.evPack('noel').advent.list[23].r.cover, 'noel', '24e booster : la couleur animée, à coup sûr');
+  assert.equal(E.evPack('noel').advent.rw[23].cover, 'noel', '24e booster : la décoration animée, à coup sûr');
+  // cartes du jour : 24 tirées parmi la réserve, propres à chaque joueur (graine du serveur, stable)
+  assert.ok(E.evPack('noel').advent.cards.length >= 48, 'au moins 48 cartes possibles');
+  assert.ok(me.seed > 0); assert.equal((await S.call('event', { dev })).j.me.seed, me.seed, 'graine stable');
+  const other = (await S.call('event')).j.dev, s2 = (await S.call('event', { dev: other })).j.me.seed; assert.notEqual(s2, me.seed, 'un autre joueur : une autre graine');
+  const c1 = E.evAdvCards(n, me.seed), c2 = E.evAdvCards(n, s2);
+  assert.equal(c1.length, 24); assert.equal(new Set(c1.map(c => c.c)).size, 24, 'jamais deux fois la même'); assert.notDeepEqual(c1.map(c => c.c), c2.map(c => c.c), 'pas les mêmes cartes');
+  assert.deepEqual(E.evAdvCards(n, me.seed), c1, 'même graine : mêmes cartes');
+  assert.notDeepEqual(E.evAdvCards(E.evById('noel-2027'), 0).map(c => c.c), E.evAdvCards(n, 0).map(c => c.c), 'sans graine : change chaque année');
+  assert.equal(E.evPack('halloween').advent, undefined);
   S.stop();
 });
 test('progression : relue depuis Firestore (reçus), rattachée au compte, une seule fois', async () => {
