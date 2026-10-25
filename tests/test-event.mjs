@@ -76,6 +76,12 @@ test('cachettes du jour : déterministes, par joueur, selon les capacités, jeto
   assert.notDeepEqual(zoe2.map(x => x.s), zoe.map(x => x.s), 'nouvelles cachettes le lendemain');
   assert.equal(zoe2.filter(x => zoe.some(y => y.s === x.s)).length, 0, 'pas les mêmes que la veille');
   assert.equal((await S.call('event', { tok: 'expired' })).status, 401); assert.equal((await S.call('event', { tok: 'faux' })).status, 401);
+  // capacités changées en cours de journée : jamais plus d'indices que le quota, celles trouvées gardées
+  let m = (await S.call('event?c=255', { tok: 'tok-zoe' })).j.me; const hid = m.spots.filter(x => E.EV_SPOTS.find(y => y.id === x.s).need);
+  assert.ok(hid.length, 'au moins une cachette réservée à certaines capacités'); for (const x of [...hid, ...m.spots.filter(y => !hid.includes(y))].slice(0, 2)) assert.equal((await S.call('event/claim', { tok: 'tok-zoe', body: { ev: 'halloween-2026', day: m.day, s: x.s, t: x.t } })).status, 200);
+  m = (await S.call('event?c=0', { tok: 'tok-zoe' })).j.me; assert.equal(m.spots.length, 5, '5 indices, pas plus'); assert.equal(m.spots.filter(x => x.f).length, 2);
+  for (const x of m.spots.filter(y => !y.f)) assert.equal((await S.call('event/claim', { tok: 'tok-zoe', body: { ev: 'halloween-2026', day: m.day, s: x.s, t: x.t } })).status, 200);
+  for (const c of [0, 7, 255]) { m = (await S.call('event?c=' + c, { tok: 'tok-zoe' })).j.me; assert.equal(m.spots.length, 5, 'c=' + c + ' : 5 indices'); assert.equal(m.spots.every(x => x.f), true, 'les 5 trouvés : aucun indice en trop'); }
   S.stop();
 });
 

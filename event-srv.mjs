@@ -151,7 +151,9 @@ export function eventMake(o = {}) {
     const pl = r.p[k] || { d: {}, n: 0 }, day = e.day, found = (pl.d && pl.d[day]) || [], n = total(e, pl), sig = {};
     for (const [d, l] of Object.entries(pl.d || {})) if (Array.isArray(l) && l.length) sig[d] = daySig(e.id, k, d, l);
     const q = EVP.evQuota(e, day), full = n >= e.total, sp = full ? [] : spotsOf(e, k, day, caps, Math.min(q, e.total - n + found.length));      // rattrapage : pas plus de cachettes que d'objets manquants
-    for (const s of found) if (!sp.includes(s)) sp.push(s);      // capacités changées depuis : celles déjà trouvées restent marquées
+    for (const s of found) if (!sp.includes(s)) {      // capacités changées depuis (autre appareil, connexion…) : celles déjà trouvées restent marquées, à la place d'une
+      const i = sp.findLastIndex(x => !found.includes(x)); if (i >= 0) sp[i] = s; else sp.push(s);      // pas trouvée : jamais plus d'indices que le quota du jour
+    }
     const dr = rares(e, k, pl), ad = EVP.evPack(e.pack), seed = ad && ad.advent && k ? createHmac('sha256', G.secret).update(`evs|${e.id}|${k}`).digest().readUInt32BE(0) || 1 : 0;      // graine des cartes du jour (calendrier)
     return { n, day, found, q, ...(Object.keys(dr).length ? { dr } : {}), ...(seed ? { seed } : {}), left: full ? 0 : Math.max(0, Math.min(q - found.length, e.total - n)), spots: sp.map(s => ({ s, t: spotTok(e.id, k, day, s), f: found.includes(s) ? 1 : 0 })), jours: pl.d || {}, sig, rs: pl.rs || 0 };      // rs : remise à zéro par le panneau (les copies plus anciennes ne comptent plus)
   }
