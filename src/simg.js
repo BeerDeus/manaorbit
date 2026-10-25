@@ -282,9 +282,9 @@ async function simgDrawYear(x, s) {
   const sub = [s.color ? T('Ma couleur : {c}', { c: T(SKY_MANA[s.color] || '') }) : '', T('Niveau {n}', { n: s.lv || 0 }), TN(s.badges || 0, '{n} badge', '{n} badges')].filter(Boolean).join(' · ');
   x.fillText(simgClip(x, sub, SIMG_W - 2 * SIMG_M - pw - 12), SIMG_M + pw + (pw ? 12 : 0), 438);
   const nf = v => (Number(v) || 0).toLocaleString(LOC());
-  const tiles = [[nf(s.sc), s.since ? T('cartes scannées, depuis le début') : T('cartes scannées'), null], [nf(s.copies), T('exemplaires'), null],
+  const tiles = [[nf(s.sc), s.since ? T('cartes scannées, depuis le début') : TN(s.sc || 0, 'carte scannée', 'cartes scannées'), null], [nf(s.copies), TN(s.copies || 0, 'exemplaire', 'exemplaires'), null],
     [s.value > 0 ? simgEur(s.value, true) : '—', T('de valeur'), s.dv != null && Math.abs(s.dv) >= 1 ? [(s.dv < 0 ? '−' : '+') + simgEur(Math.abs(s.dv), true), s.dv < 0 ? SIMG_BAD : SIMG_GOOD] : null],
-    [nf(s.games), T('parties'), s.wins ? [TN(s.wins, '{n} victoire', '{n} victoires'), SIMG_GOOD] : null], [nf(s.trades), T('échanges'), null], [nf(s.opens), T('ouvertures'), null]];
+    [nf(s.games), TN(s.games || 0, 'partie', 'parties'), s.wins ? [TN(s.wins, '{n} victoire', '{n} victoires'), SIMG_GOOD] : null], [nf(s.trades), TN(s.trades || 0, 'échange', 'échanges'), null], [nf(s.opens), TN(s.opens || 0, 'ouverture', 'ouvertures'), null]];
   const gap = 16, tw = (SIMG_W - 2 * SIMG_M - gap * 2) / 3, th = 172, ty = 492;
   tiles.forEach(([v, lab, ex], i) => {
     const a = SIMG_M + (i % 3) * (tw + gap), b = ty + Math.floor(i / 3) * (th + gap);
@@ -294,7 +294,7 @@ async function simgDrawYear(x, s) {
     if (ex) { x.fillStyle = ex[1]; simgFont(x, 700, 25, SIMG_FB); x.fillText(simgClip(x, ex[0], tw - 44), a + 22, b + 144); }
   });
   if (best) {
-    const top = ty + 2 * th + gap + 56, cw = 300, ch = cw * SIMG_RATIO, by = Math.min(top + ch / 2, SIMG_H - 110 - ch / 2);
+    const top = ty + 2 * th + gap + 44, cw = 250, ch = cw * SIMG_RATIO, by = Math.min(top + ch / 2, SIMG_H - 110 - ch / 2);
     simgCard(x, best.im, SIMG_M + cw / 2 + 8, by, cw, -4, best.name);
     const tx = SIMG_M + cw + 64, tw2 = SIMG_W - SIMG_M - tx;
     x.fillStyle = SIMG_MUTE; simgFont(x, 500, 28, SIMG_FB); x.fillText(T('Ma plus belle carte'), tx, by - 64);

@@ -9,7 +9,8 @@
    · moon() : pleine lune d'automne (cratères, halo). · counter() : icône du compteur « 12 / 30 », dessinée pour 16–24 px (aplats, sans dégradé).
    EV_AMB[pack]() : balisage de l'ambiance, posé une fois par le moteur dans <div class="ev-amb" aria-hidden="true"> (enfant de <body>, après #app) ;
    styles et animations dans css/ev-<pack>.css (transform / opacity seulement, 12 éléments animés au plus). Données pures : aucun accès au DOM ici.
-   Noël (cadeau, booster du calendrier, boule, étoile, flocon, houx, clochette, icônes de récompense, guirlande evGarland) : section « Noël » en fin de fichier. */
+   Noël (cadeau, booster du calendrier, boule, étoile, flocon, houx, clochette, icônes de récompense, guirlande evGarland) : section « Noël ».
+   Nouvel an (étoile filante, constellations du mana EV_CONS, orbe de mana, feu d'artifice de minuit, icônes de récompense) : section « Nouvel an » en fin de fichier. */
 let EVO_N = 0;
 const evoF = n => Math.round(n * 100) / 100;
 /** Côte de citrouille : goutte arrondie, un peu plus large sous le milieu (cx centre, w demi-largeur, top / bot : haut et bas). */
@@ -484,4 +485,259 @@ function evGarland() {
     + out.join('') + `</div>`;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { EV_ART, EV_AMB, EV_AMB_TOP, EV_FX, evGarland };
+/* ── Nouvel an ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Nuit des étoiles filantes (moteur : evsky.js). Tout est dessiné ici (SVG en couleur, jamais d'emoji ni d'image externe) ; animations :
+   css/ev-nouvelan.css (transform / opacity seulement). Teintes « v » : les cinq couleurs du mana dans l'ordre du cercle (0 blanc ivoire et or, 1 bleu,
+   2 noir violet de la nuit, 3 rouge, 4 vert) ; v absent : blanc. Lettres « k » : 'W', 'U', 'B', 'R', 'G' (même ordre).
+   · shootingStar(o) : étoile filante, l'objet caché (viewBox 64 × 64) : tête à cinq branches à facettes (cœur blanc, halo), traînée effilée qui scintille.
+     Parties animées : .evo-glow (halo qui respire), .evo-trail (la traînée miroite), .evo-twinkle (paillettes de la traînée), .evo-rays (version allumée :
+     rayons qui tournent). o.v teinte ; o.lit : célébration (halo plus vif, rayons, étincelles) ; o.cls : classes en plus. Lisible à 22–32 px.
+   · starCounter(o) : compteur « 12 / 30 » (24 × 24, aplats pour 16–24 px) · comet(o) : comète des messages (24 × 24).
+   · constellation(o) : une des 5 constellations du mana (viewBox 60 × 60), six étoiles (positions et ordre d'allumage : EV_CONS) ; o.k lettre, o.lit
+     étoiles allumées (0–6), o.done (toutes : traits pleins et lumineux ; implicite à 6). Classes : .evo-cons, .evo-done, .evo-next (prochaine étoile),
+     .evo-twinkle (étoiles de la constellation complète), .evo-glow (halo de la constellation complète). Dessinée pour une carte de nuit, vers 56 px.
+   · manaOrb(o) : planète de mana brillante, symbole gravé, anneau d'or (64 × 64, « ta couleur de l'année ») ; o.c lettre.
+   · fireworks() : feu d'artifice de minuit (balisage HTML, classes .nyf-*), voir sa note.
+   · rwSky, rwStar : icônes plates des récompenses (24 × 24, 20–28 px), classe « evo evo-rw ».
+   EV_AMB.nouvelan, EV_AMB_TOP.nouvelan, EV_FX.nouvelan : ambiance de nuit, paillettes d'or de l'accueil, particules. */
+const EVY_K = ['W', 'U', 'B', 'R', 'G'];
+const evyV = v => (Number(v) >= 0 && Number(v) <= 4 ? Math.floor(Number(v)) : 0);
+/* Teintes du mana : [cœur, clair, moyen, foncé, contour, lueur] */
+const EVY_MANA = [
+  ['#fffef4', '#fff1b8', '#f2c230', '#c18a14', '#6e4a05', '#ffe38a'],      // blanc : ivoire et or
+  ['#f2faff', '#bfe2ff', '#4ea2f2', '#1f5fc2', '#0b2a66', '#7cc4ff'],      // bleu
+  ['#f6efff', '#d6bfff', '#8a5ad6', '#3b2070', '#140828', '#b98aff'],      // noir : violet de la nuit, contour presque noir
+  ['#fff4ee', '#ffc4ae', '#ff6a45', '#c8301c', '#5a0e06', '#ff8a66'],      // rouge
+  ['#f0fff4', '#bff5cf', '#3fcf7a', '#18904a', '#06401f', '#6ff0a0'],      // vert
+];
+/** Soleil du blanc (60 × 60) : disque, cinq longs rayons (vers les étoiles de la constellation) et cinq courts. */
+function evySunD(cx = 30, cy = 30, rd = 8.4) {
+  const f = evoF; let d = `M${f(cx - rd)} ${cy}A${rd} ${rd} 0 1 0 ${f(cx + rd)} ${cy}A${rd} ${rd} 0 1 0 ${f(cx - rd)} ${cy}Z`;
+  for (let i = 0; i < 10; i++) {
+    const a = (-90 + i * 36) * Math.PI / 180, r0 = rd + 2.4, r1 = i % 2 ? rd + 7.4 : rd + 12.2, w = i % 2 ? .2 : .17, P = (b, r) => f(cx + Math.cos(b) * r) + ' ' + f(cy + Math.sin(b) * r);
+    d += `M${P(a - w, r0)}L${P(a, r1)}L${P(a + w, r0)}Z`;
+  }
+  return d;
+}
+/* Symboles du mana (60 × 60, règle evenodd) : silhouettes des constellations, gravures des orbes */
+const EVY_FIG = {
+  W: evySunD(),
+  U: 'M30 7C34 15 45 26 45 38C45 46.5 38.5 52.5 30 52.5C21.5 52.5 15 46.5 15 38C15 26 26 15 30 7Z',
+  B: 'M30 10.6C40.6 10.6 47.2 17.4 47.2 26.6C47.2 32 44.8 35.6 41.2 37.8V43.6C41.2 45.2 40 46.4 38.4 46.4H21.6C20 46.4 18.8 45.2 18.8 43.6V37.8C15.2 35.6 12.8 32 12.8 26.6C12.8 17.4 19.4 10.6 30 10.6Z'
+    + 'M19.4 28A4.6 5 0 1 0 28.6 28A4.6 5 0 1 0 19.4 28ZM31.4 28A4.6 5 0 1 0 40.6 28A4.6 5 0 1 0 31.4 28ZM30 33L27.8 37.4H32.2Z'
+    + 'M24.6 40.8H25.8V46.4H24.6ZM29.4 40.8H30.6V46.4H29.4ZM34.2 40.8H35.4V46.4H34.2Z',
+  R: 'M33 6C35 14 44 18 44.6 29.5C45.2 40 39.2 51.6 30 51.6C20.8 51.6 15.6 44.2 15.6 37C15.6 30.4 19 26.4 20.4 21C22.6 24.6 24.6 26.4 26.2 27.2C25.4 19.6 28.6 12.4 33 6Z'
+    + 'M30 47.6C26 47.6 23.6 44.6 23.6 41.2C23.6 37.6 26 35.6 27.4 32.6C28.8 35.4 31 36.4 32.2 38.6C33.6 37.6 34.4 36 34.6 34.4C36.2 36.6 36.6 39 36.6 41.2C36.6 44.8 34 47.6 30 47.6Z',
+  G: 'M30 9C35.4 9 38.6 11.4 40 14.4C44.8 14.4 48.6 17.8 48.6 22.6C48.6 24.6 47.8 26.4 46.6 27.8C48 29.4 48.4 31.6 47.6 33.6C46.4 36.6 43 38 39.8 37C38 39.4 34.8 40 32.2 38.8V47.2C32.2 49.6 34 51.2 37.6 52.4H22.4C26 51.2 27.8 49.6 27.8 47.2V38.8C25.2 40 22 39.4 20.2 37C17 38 13.6 36.6 12.4 33.6C11.6 31.6 12 29.4 13.4 27.8C12.2 26.4 11.4 24.6 11.4 22.6C11.4 17.8 15.2 14.4 20 14.4C21.4 11.4 24.6 9 30 9Z',
+};
+/* Constellations (viewBox 60 × 60) : six étoiles chacune, dans l'ordre d'allumage (l'étoile i s'allume quand i étoiles de cette constellation sont trouvées).
+   Soleil : le cœur, puis les cinq rayons ; goutte, crâne, flamme : le contour depuis le haut, dans le sens des aiguilles d'une montre ; arbre : du pied du tronc
+   jusqu'au houppier. */
+const EV_CONS = {
+  W: [[30, 30], [30, 8], [50.9, 23.2], [42.9, 47.8], [17.1, 47.8], [9.1, 23.2]],
+  U: [[30, 5], [41, 22], [46.4, 38], [30, 54.4], [13.6, 38], [19, 22]],
+  B: [[19, 10], [41, 10], [49.4, 27], [40.4, 46.6], [19.6, 46.6], [10.6, 27]],
+  R: [[33.6, 4.4], [46.4, 21], [45.6, 42], [30, 54.4], [14.4, 41], [19.4, 18.4]],
+  G: [[30, 54.4], [30, 38.6], [12.4, 29.6], [19.4, 11.6], [40.6, 11.6], [47.6, 29.6]],
+};
+/* Traits : [étoile a, étoile b, courbure (vers l'extérieur du contour quand il tourne dans le sens des aiguilles d'une montre ; négative : creusée)] */
+const EVY_EDGE = {
+  W: [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0]],
+  U: [[0, 1, .8], [1, 2, 1.6], [2, 3, 4.6], [3, 4, 4.6], [4, 5, 1.6], [5, 0, .8]],
+  B: [[0, 1, 4.4], [1, 2, 2.6], [2, 3, .6], [3, 4, 0], [4, 5, .6], [5, 0, 2.6]],
+  R: [[0, 1, -2.6], [1, 2, 3], [2, 3, 4], [3, 4, 4], [4, 5, 1.6], [5, 0, -3.4]],
+  G: [[0, 1, 0], [1, 2, 1.4], [1, 5, -1.4], [1, 3, 0], [1, 4, 0], [2, 3, 4.6], [3, 4, 5.4], [4, 5, 4.6]],
+};
+/** Trait entre deux étoiles, un peu en retrait de chacune (cartes du ciel) ; courbure bu en unités. */
+function evySeg(P, [a, b, bu]) {
+  const f = evoF, [ax, ay] = P[a], [bx, by] = P[b], dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy), g = 3.6;
+  const qx = (ax + bx) / 2 + bu * dy / L, qy = (ay + by) / 2 - bu * dx / L;
+  const to = (x, y) => { const l = Math.hypot(qx - x, qy - y); return [x + (qx - x) * g / l, y + (qy - y) * g / l]; };
+  const [sx, sy] = to(ax, ay), [ex, ey] = to(bx, by);
+  return bu ? `M${f(sx)} ${f(sy)}Q${f(qx)} ${f(qy)} ${f(ex)} ${f(ey)}` : `M${f(sx)} ${f(sy)}L${f(ex)} ${f(ey)}`;
+}
+/* Orbes de mana : [reflet, clair, moyen, foncé, ombre] */
+const EVY_ORB = [['#ffffff', '#fff3c6', '#e9c766', '#a87c22', '#4a3408'], ['#ffffff', '#bfe2ff', '#3f8fe0', '#16469c', '#071a45'], ['#f4ecff', '#b597e6', '#5a3796', '#24113f', '#0a0416'],
+  ['#ffffff', '#ffc0ac', '#ee4b2e', '#9c1a0c', '#3e0703'], ['#ffffff', '#bff2cf', '#33b866', '#136b37', '#042812']];
+
+Object.assign(EV_ART, {
+  /** Étoile filante (viewBox 64 × 64), teinte o.v (0–4 : blanc, bleu, noir, rouge, vert ; sinon blanc) ; o.lit : célébration. */
+  shootingStar: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, lit = !!o.lit, c = EVY_MANA[evyV(o.v)], f = evoF, hx = 39.6, hy = 24.4, R = 16;
+    const T = (x, y) => [hx + .7071 * (x + y), hy + .7071 * (y - x)];      // repère de la traînée (x vers la queue, négatif) → page
+    const P = i => { const a = (-90 + 8 + i * 36) * Math.PI / 180, l = i % 2 ? R * .49 : R; return f(hx + Math.cos(a) * l) + ' ' + f(hy + Math.sin(a) * l); };
+    let lt = '', dk = '', rg = '';
+    for (let k = 0; k < 5; k++) { lt += `M${hx} ${hy}L${P(2 * k)}L${P((2 * k + 9) % 10)}Z`; dk += `M${hx} ${hy}L${P(2 * k)}L${P(2 * k + 1)}Z`; rg += `M${hx} ${hy}L${P(2 * k)}`; }
+    const spk = (x, y, r) => { const [a, b] = T(x, y); return `<path d="${evnSpark(a, b, r)}"/>`; };
+    const dot = (x, y, r) => { const [a, b] = T(x, y); return `<circle cx="${f(a)}" cy="${f(b)}" r="${r}"/>`; };
+    return `<svg class="evo evo-shoot${lit ? ' evo-lit' : ''}${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('g')}" cx="${hx}" cy="${hy}" r="24" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="${lit ? .95 : .8}"/><stop offset=".3" stop-color="${c[5]}" stop-opacity="${lit ? .7 : .5}"/><stop offset="1" stop-color="${c[5]}" stop-opacity="0"/></radialGradient>`
+      + (lit ? `<linearGradient id="${id('y')}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="${c[5]}" stop-opacity="0"/></linearGradient>` : '')
+      + `<linearGradient id="${id('t')}" x1="0" y1="0" x2="-54" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${c[5]}" stop-opacity=".7"/><stop offset="1" stop-color="${c[5]}" stop-opacity="0"/></linearGradient>`
+      + `<linearGradient id="${id('m')}" x1="0" y1="0" x2="-48" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${c[1]}"/><stop offset=".3" stop-color="${c[2]}" stop-opacity=".9"/><stop offset="1" stop-color="${c[3]}" stop-opacity="0"/></linearGradient>`
+      + `<linearGradient id="${id('k')}" x1="0" y1="0" x2="-36" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>`
+      + `<linearGradient id="${id('a')}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c[0]}"/><stop offset=".55" stop-color="${c[1]}"/><stop offset="1" stop-color="${c[2]}"/></linearGradient>`
+      + `<linearGradient id="${id('b')}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c[2]}"/><stop offset=".6" stop-color="${c[3]}"/><stop offset="1" stop-color="${c[4]}"/></linearGradient>`
+      + `<radialGradient id="${id('c')}"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>`
+      + `<circle class="evo-glow" cx="${hx}" cy="${hy}" r="24" fill="url(#${id('g')})"/>` + (lit ? evnRays(id('y'), hx, hy, 29) : '')
+      + `<g class="evo-trail"><g transform="translate(${hx} ${hy}) rotate(-45)">`
+      + `<path d="M2-11C-12-9.8-28-5-50 0C-28 5-12 9.8 2 11Z" fill="url(#${id('t')})"/>`
+      + `<path d="M1-7.6C-12-6.6-26-3.2-45 0C-26 3.2-12 6.6 1 7.6Z" fill="url(#${id('m')})"/>`
+      + `<path d="M0-3C-10-2.6-22-1.2-34 0C-22 1.2-10 2.6 0 3Z" fill="url(#${id('k')})"/>`
+      + `<path d="M-8-7.6Q-22-7.2-40-9.4M-9 7.4Q-23 7.2-34 9.6" fill="none" stroke="url(#${id('m')})" stroke-width=".9" stroke-linecap="round"/></g>`
+      + `<g fill="#fff" opacity=".85">${dot(-26, -1.6, .8)}${dot(-34, 2.8, .65)}${dot(-43, -1, .55)}${dot(-19, 4.4, .65)}${dot(-48, 3.4, .45)}</g></g>`
+      + `<g class="evo-twinkle" fill="#fff">${spk(-21, -8.6, 2.8)}${spk(-31, 7.4, 2.1)}${spk(-41, -5, 1.6)}</g>`
+      + `<path d="${lt}" fill="url(#${id('a')})"/><path d="${dk}" fill="url(#${id('b')})"/>`
+      + `<path d="M${P(0)}L${Array.from({ length: 9 }, (_, i) => P(i + 1)).join('L')}Z" fill="none" stroke="${c[4]}" stroke-width=".9" stroke-linejoin="round"/>`
+      + `<path d="${rg}" stroke="#fff" stroke-width=".5" opacity=".65"/>`
+      + `<circle cx="${hx}" cy="${hy}" r="5.4" fill="url(#${id('c')})"/><path d="${evnSpark(hx - 5, hy - 8, 2.4)}" fill="#fff" opacity=".95"/>`
+      + (lit ? `<g class="evo-spk evo-twinkle" fill="#fff8d6">${[[59, 6, 2.8], [61, 38, 2.2], [20, 5, 2.4], [7, 38, 1.8], [30, 59, 1.6]].map(([x, y, r]) => `<path d="${evnSpark(x, y, r)}"/>`).join('')}</g>` : '')
+      + `</svg>`;
+  },
+  /** Icône du compteur « 12 / 30 » (viewBox 24 × 24) : étoile d'or et sa traînée, aplats nets à 16–24 px. */
+  starCounter: (o = {}) => `<svg class="evo evo-counter${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
+    + `<path d="M11.4 11.2L14 13.8L3.6 22.2Q2 23 2.6 21.4Z" fill="#ff7cb6" stroke="#8a1d52" stroke-width=".5" stroke-linejoin="round"/>`
+    + `<path d="M9.4 9.4L2.4 15.2M16.6 15.6L11.6 21.4" stroke="#6f78ff" stroke-width="1.5" stroke-linecap="round"/>`
+    + `<path d="${evnStar5(14.6, 9.4, 8.4, .46)}" fill="#f2c230" stroke="#7a5205" stroke-width=".8" stroke-linejoin="round"/>`
+    + `<path d="${evnStar5(13.9, 8.6, 3.6, .5)}" fill="#fff3b0"/><circle cx="4.2" cy="11.4" r="1" fill="#f2c230"/></svg>`,
+  /** Comète des messages (viewBox 24 × 24) : tête d'or blanc, chevelure dorée et rose. */
+  comet: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`;
+    return `<svg class="evo evo-comet${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><defs>`
+      + `<linearGradient id="${id('t')}" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe17a"/><stop offset=".5" stop-color="#ff8cc0" stop-opacity=".8"/><stop offset="1" stop-color="#ff5fa2" stop-opacity="0"/></linearGradient>`
+      + `<radialGradient id="${id('h')}"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#fff3b0"/><stop offset=".75" stop-color="#f2c230" stop-opacity=".7"/><stop offset="1" stop-color="#f2c230" stop-opacity="0"/></radialGradient></defs>`
+      + `<path d="M14.6 6C9 9.4 5 14.6 1.6 22.4C6.4 17 11.6 13.4 18 9.6Z" fill="url(#${id('t')})"/>`
+      + `<path d="M13.6 4.6Q8 7.6 3.2 13.4M19.4 10.6Q14 14 10 19.4" fill="none" stroke="url(#${id('t')})" stroke-width="1.1" stroke-linecap="round"/>`
+      + `<circle cx="17.2" cy="6.8" r="6.4" fill="url(#${id('h')})"/><circle cx="17.2" cy="6.8" r="2.6" fill="#fff" stroke="#f2c230" stroke-width=".7"/>`
+      + `<path d="${evnSpark(6.6, 4.6, 1.8)}${evnSpark(21.6, 17.2, 1.4)}" fill="#fff3b0"/></svg>`;
+  },
+  /** Constellation du mana (viewBox 60 × 60) : o.k lettre, o.lit étoiles allumées (0–6), o.done (complète). */
+  constellation: (o = {}) => {
+    const k = EVY_K.includes(o.k) ? o.k : 'W', c = EVY_MANA[EVY_K.indexOf(k)], P = EV_CONS[k], n = ++EVO_N, id = s => `evo${n}${s}`, f = evoF;
+    const lit = Math.max(0, Math.min(6, Math.floor(Number(o.lit) || 0))), done = !!o.done || lit >= 6;
+    const segs = EVY_EDGE[k], on = e => e[0] < lit && e[1] < lit;
+    const lines = done ? `<g fill="none" stroke-linecap="round"><path d="${segs.map(e => evySeg(P, e)).join('')}" stroke="${c[5]}" stroke-width="3.4" opacity=".28"/>`
+        + `<path d="${segs.map(e => evySeg(P, e)).join('')}" stroke="${c[1]}" stroke-width="1.1"/></g>`
+      : `<g fill="none" stroke-linecap="round"><path d="${segs.filter(e => !on(e)).map(e => evySeg(P, e)).join('')}" stroke="#c9ccff" stroke-width=".85" stroke-dasharray="1.3 2.3" opacity=".48"/>`
+        + `<path d="${segs.filter(on).map(e => evySeg(P, e)).join('')}" stroke="${c[1]}" stroke-width=".95" stroke-dasharray="2.6 1.8" opacity=".8"/></g>`;
+    const L = P.slice(0, lit), U = P.slice(lit);
+    return `<svg class="evo evo-cons evo-cons-${k}${done ? ' evo-done' : ''}${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 60 60" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('h')}"><stop offset="0" stop-color="${c[5]}" stop-opacity=".85"/><stop offset=".45" stop-color="${c[5]}" stop-opacity=".3"/><stop offset="1" stop-color="${c[5]}" stop-opacity="0"/></radialGradient>`
+      + (done ? `<radialGradient id="${id('g')}" cx="30" cy="30" r="31" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${c[5]}" stop-opacity=".34"/><stop offset="1" stop-color="${c[5]}" stop-opacity="0"/></radialGradient>` : '') + `</defs>`
+      + (done ? `<circle class="evo-glow" cx="30" cy="30" r="31" fill="url(#${id('g')})"/>` : '')
+      + `<path class="evo-fig" d="${EVY_FIG[k]}" fill="${c[5]}" fill-rule="evenodd" opacity="${done ? .2 : evoF(.07 + lit * .012)}"/>` + lines
+      + `<g fill="rgba(190,196,255,.1)" stroke="#c9ccff" stroke-width=".7" stroke-opacity=".55">${U.map(([x, y], i) => `<circle${i ? '' : ' class="evo-next"'} cx="${x}" cy="${y}" r="1.9"/>`).join('')}</g>`
+      + `<g fill="url(#${id('h')})">${L.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${done ? 7.2 : 6.2}"/>`).join('')}</g>`
+      + `<g${done ? ' class="evo-twinkle"' : ''} fill="#fff" opacity=".92">${L.map(([x, y], i) => `<path d="${evnSpark(x, y, done ? (i % 2 ? 4.4 : 5.4) : 4.2)}"/>`).join('')}</g>`
+      + L.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.2" fill="${c[1]}"/><circle cx="${x}" cy="${y}" r="1.25" fill="#fff"/>`).join('')
+      + `</svg>`;
+  },
+  /** Planète de mana (viewBox 64 × 64) : sphère brillante de la couleur o.c ('W'…'G'), symbole gravé, anneau d'or incliné. */
+  manaOrb: (o = {}) => {
+    const k = EVY_K.includes(o.c) ? o.c : 'W', c = EVY_ORB[EVY_K.indexOf(k)], g = EVY_MANA[EVY_K.indexOf(k)], n = ++EVO_N, id = s => `evo${n}${s}`, s = .64, tx = evoF(32 - 30 * s), ty = evoF(33 - 30 * s);
+    const ring = (sweep, w, op) => `<path d="M8.6 33A23.4 6.6 0 0 ${sweep} 55.4 33" transform="rotate(-16 32 33)" fill="none" stroke="url(#${id('r')})" stroke-width="${w}" opacity="${op}"/>`;
+    return `<svg class="evo evo-orb${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('g')}" cx="32" cy="33" r="31" gradientUnits="userSpaceOnUse"><stop offset=".55" stop-color="${g[5]}" stop-opacity=".45"/><stop offset="1" stop-color="${g[5]}" stop-opacity="0"/></radialGradient>`
+      + `<radialGradient id="${id('s')}" cx=".36" cy=".3" r=".78" fx=".3" fy=".24"><stop offset="0" stop-color="${c[0]}"/><stop offset=".18" stop-color="${c[1]}"/><stop offset=".55" stop-color="${c[2]}"/><stop offset=".86" stop-color="${c[3]}"/><stop offset="1" stop-color="${c[4]}"/></radialGradient>`
+      + `<radialGradient id="${id('d')}" cx=".7" cy=".78" r=".7"><stop offset="0" stop-color="#000" stop-opacity=".38"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>`
+      + `<radialGradient id="${id('h')}"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>`
+      + `<linearGradient id="${id('r')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a5e0c"/><stop offset=".3" stop-color="#ffe9a0"/><stop offset=".55" stop-color="#f2c230"/><stop offset="1" stop-color="#7a5205"/></linearGradient>`
+      + `<clipPath id="${id('c')}"><circle cx="32" cy="33" r="21.4"/></clipPath></defs>`
+      + `<circle class="evo-glow" cx="32" cy="33" r="31" fill="url(#${id('g')})"/>` + ring(1, 1.8, .9)
+      + `<circle cx="32" cy="33" r="21.4" fill="url(#${id('s')})"/>`
+      + `<g clip-path="url(#${id('c')})"><path d="M8 40Q32 47 56 38" fill="none" stroke="#fff" stroke-width="2.2" opacity=".1"/><path d="M8 26Q30 31 56 24" fill="none" stroke="#000" stroke-width="1.6" opacity=".08"/>`
+      + `<g transform="translate(${tx} ${ty}) scale(${s})" fill-rule="evenodd"><path d="${EVY_FIG[k]}" transform="translate(0 1.2)" fill="#fff" opacity=".32"/><path d="${EVY_FIG[k]}" fill="${c[4]}" opacity=".42"/></g>`
+      + `<circle cx="32" cy="33" r="21.4" fill="url(#${id('d')})"/></g>`
+      + `<circle cx="32" cy="33" r="21" fill="none" stroke="${c[1]}" stroke-width=".9" opacity=".55"/><circle cx="32" cy="33" r="21.4" fill="none" stroke="${c[4]}" stroke-width=".6" opacity=".7"/>`
+      + `<ellipse cx="24.4" cy="22.6" rx="7.4" ry="4.4" transform="rotate(-34 24.4 22.6)" fill="url(#${id('h')})" opacity=".85"/><circle cx="19.6" cy="30.6" r="1.1" fill="#fff" opacity=".6"/>`
+      + ring(0, 2, 1) + `<path d="M12.2 37.6A23.4 6.6 0 0 0 30 42.4" transform="rotate(-16 32 33)" fill="none" stroke="#fff6cf" stroke-width=".6" opacity=".7"/>`
+      + `<circle cx="53.6" cy="27.2" r="2.1" fill="${c[1]}" stroke="${c[3]}" stroke-width=".5"/><path d="${evnSpark(13, 13, 2.6)}${evnSpark(52, 52, 1.8)}" fill="#fff6cc"/></svg>`;
+  },
+
+  /* Récompenses de la nuit des étoiles filantes (viewBox 24 × 24, aplats, 20–28 px) */
+  /** Constellation : cinq étoiles d'or reliées. */
+  rwSky: (o = {}) => `<svg class="evo evo-rw evo-rw-sky${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
+    + `<path d="M3.6 16.4L8.4 10.8L13.4 12.8L18.6 6.4M13.4 12.8L19.6 18.2" fill="none" stroke="#6f78ff" stroke-width="1.1" stroke-linecap="round" stroke-dasharray="1.6 1.4"/>`
+    + `<g fill="#f2c230" stroke="#7a5205" stroke-width=".45" stroke-linejoin="round"><path d="${evnSpark(3.6, 16.4, 2.6)}"/><path d="${evnSpark(8.4, 10.8, 2.9)}"/><path d="${evnSpark(13.4, 12.8, 2.6)}"/><path d="${evnSpark(19.6, 18.2, 2.5)}"/>`
+    + `<path d="${evnStar5(18.6, 6.4, 5, .46)}"/></g><path d="${evnStar5(18.2, 5.9, 2, .5)}" fill="#fff3b0"/><circle cx="8.4" cy="10.8" r=".8" fill="#fff6cc"/></svg>`,
+  /** Étoile d'or : grande étoile, petite étoile rose, étincelle. */
+  rwStar: (o = {}) => `<svg class="evo evo-rw evo-rw-star${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
+    + `<path d="${evnStar5(10.6, 13.4, 9.6, .47)}" fill="#f2c230" stroke="#7a5205" stroke-width=".7" stroke-linejoin="round"/><path d="${evnStar5(9.8, 12.4, 4.2, .5)}" fill="#fff3b0"/>`
+    + `<path d="${evnStar5(19.6, 5, 3.4, .46)}" fill="#ff5fa2" stroke="#8a1d52" stroke-width=".5" stroke-linejoin="round"/>`
+    + `<path d="${evnSpark(20.4, 18.6, 2.4)}" fill="#bfe2ff" stroke="#3b3fd8" stroke-width=".45" stroke-linejoin="round"/></svg>`,
+});
+
+/* ── Nouvel an : feu d'artifice de minuit (EV_ART.fireworks) ────────────────────────────────────────────────────────────────────────────────
+   Balisage HTML posé par le moteur dans <div class="sky-fw-art" aria-hidden="true"> : un bouquet par couleur du mana, qui éclatent l'un après l'autre
+   (cycle de 7 s), chacun avec sa fusée qui monte (.nyf-r), son éclair (.nyf-f) et sa gerbe (.nyf-x, SVG : rayons en larmes, perles au bout, couronne
+   intérieure) ; huit paillettes d'or qui tombent (.nyf-s). Placement en % de la zone (--s : taille relative, --d : décalage) ; styles et animations :
+   css/ev-nouvelan.css (transform / opacity seulement, 23 éléments animés). « Réduire les animations » : les cinq gerbes posées, immobiles. */
+/* gerbes : [teinte, gauche %, haut %, taille, décalage s] */
+const EVY_FWB = [[0, 50, 21, 1.08, .2], [1, 21, 34, .78, 1.4], [3, 79, 30, .86, 2.4], [4, 26, 63, .66, 3.6], [2, 75, 59, .72, 4.8]];
+function evyBurst(c, k = 0) {
+  const n = ++EVO_N, f = evoF, J = i => ((i * 37 + k * 11) % 9) / 9;      // petit écart régulier d'un rayon à l'autre (jamais deux gerbes pareilles)
+  let rays = '', tips = '', halo = '', inner = '', dust = '';
+  for (let i = 0; i < 18; i++) {
+    const a = (i * 20 + 4 + k * 7 + J(i) * 6) * Math.PI / 180, r1 = (i % 2 ? 31 : 40) + J(i + 3) * 5, cs = Math.cos(a), sn = Math.sin(a), Q = (r, w) => f(cs * r - sn * w) + ' ' + f(sn * r + cs * w);
+    rays += `M${Q(7, 0)}Q${Q(r1 * .72, 1.6)} ${Q(r1, 0)}Q${Q(r1 * .72, -1.6)} ${Q(7, 0)}Z`;
+    const tx = f(cs * (r1 + 2.4)), ty = f(sn * (r1 + 2.4)), r = i % 2 ? 1.25 : 1.7;
+    tips += `<circle cx="${tx}" cy="${ty}" r="${r}"/>`; halo += `<circle cx="${tx}" cy="${ty}" r="${f(r * 2.1)}"/>`;
+  }
+  for (let i = 0; i < 10; i++) { const a = (i * 36 + 14 + k * 5) * Math.PI / 180; inner += `M${f(Math.cos(a) * 11)} ${f(Math.sin(a) * 11)}L${f(Math.cos(a) * 18)} ${f(Math.sin(a) * 18)}`; }
+  for (let i = 0; i < 16; i++) { const a = (i * 47 + k * 23) * Math.PI / 180, r = 15 + ((i * 53 + k * 7) % 25); dust += `<circle cx="${f(Math.cos(a) * r)}" cy="${f(Math.sin(a) * r)}" r="${f(.55 + (i % 3) * .25)}"/>`; }
+  return `<svg viewBox="-50 -50 100 100" aria-hidden="true" focusable="false"><defs><radialGradient id="nyf${n}" cx="0" cy="0" r="44" gradientUnits="userSpaceOnUse">`
+    + `<stop offset=".12" stop-color="#fff"/><stop offset=".4" stop-color="${c[1]}"/><stop offset=".8" stop-color="${c[2]}"/><stop offset="1" stop-color="${c[5]}"/></radialGradient>`
+    + `<radialGradient id="nyf${n}h"><stop offset="0" stop-color="${c[5]}" stop-opacity=".5"/><stop offset="1" stop-color="${c[5]}" stop-opacity="0"/></radialGradient></defs>`
+    + `<circle r="48" fill="url(#nyf${n}h)" opacity=".5"/><path d="${rays}" fill="url(#nyf${n})"/>`
+    + `<g fill="${c[5]}" opacity=".28">${halo}</g><g fill="${c[0]}">${tips}</g><g fill="${c[1]}" opacity=".85">${dust}</g>`
+    + `<path d="${inner}" stroke="#fff6cc" stroke-width="1.4" stroke-linecap="round" opacity=".85"/><circle r="9" fill="url(#nyf${n}h)"/><circle r="3.6" fill="#fff"/></svg>`;
+}
+EV_ART.fireworks = () => {
+  const S = [[8, 0, 6.5, .9, 58], [19, 3.1, 8.2, .7, 80], [33, 1.2, 7, 1, 46], [47, 4.4, 9, .8, 86], [60, 2.2, 6.8, .9, 40], [71, 5.3, 8.6, .7, 78], [84, .6, 7.6, 1, 50], [93, 3.8, 9.4, .8, 88]];      // [gauche %, décalage s, durée s, taille, haut % (immobile)]
+  return `<div class="nyf" aria-hidden="true">`
+    + EVY_FWB.map(([v, x, y, s, d], i) => `<div class="nyf-b nyf-b${i + 1}" style="left:${x}%;top:${y}%;--s:${s};--d:${d}s"><i class="nyf-r" style="--c:${EVY_MANA[v][5]}"></i><i class="nyf-f" style="--c:${EVY_MANA[v][5]}"></i><span class="nyf-x">${evyBurst(EVY_MANA[v], i)}</span></div>`).join('')
+    + S.map(([x, d, t, k, y], i) => `<span class="nyf-s" style="left:${x}%;--d:${d}s;--t:${t}s;--k:${k};--y:${y}%"><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="${evnSpark(6, 6, 5.6)}" fill="${i % 3 === 1 ? '#ffd0e6' : '#ffe9a0'}"/><path d="${evnSpark(6, 6, 2.2)}" fill="#fff"/></svg></span>`).join('')
+    + `</div>`;
+};
+
+/* ── Nouvel an : ambiance (accueil) ────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Ciel de nuit : champ d'étoiles fixe (css), lueurs bleu nuit, rose et or, une nébuleuse pâle qui ondule tout en haut, six étoiles qui scintillent, trois
+   étoiles filantes qui traversent de loin en loin. Éléments animés : 2 lueurs + 1 nébuleuse + 6 étoiles + 3 étoiles filantes = 12. */
+/** Étoile filante de l'ambiance (viewBox 160 × 16, tête à droite) : traînée et halo de la couleur du texte (currentColor), cœur blanc. */
+function evySS() {
+  const n = ++EVO_N;
+  return `<svg viewBox="0 0 160 16" aria-hidden="true" focusable="false"><defs><linearGradient id="evy${n}s" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="currentColor" stop-opacity="0"/><stop offset=".8" stop-color="currentColor" stop-opacity=".7"/><stop offset="1" stop-color="#fff"/></linearGradient>`
+    + `<radialGradient id="evy${n}h"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="currentColor" stop-opacity=".6"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></radialGradient></defs>`
+    + `<path d="M0 8L148 6.2Q151.6 8 148 9.8Z" fill="url(#evy${n}s)"/><circle cx="150" cy="8" r="8" fill="url(#evy${n}h)"/><path d="${evnSpark(150, 8, 5)}" fill="#fff"/></svg>`;
+}
+EV_AMB.nouvelan = () => '<i class="evy-sky"></i><i class="evy-glow evy-g1"></i><i class="evy-glow evy-g2"></i><i class="evy-glow evy-g3"></i><i class="evy-neb"></i>'
+  + ['#f2c230', '#ffffff', '#ff7cb6', '#9fb0ff', '#ffe48a', '#ffffff'].map((c, i) => `<span class="evy-tw evy-t${i + 1}">${evnTwinkle(c)}</span>`).join('')
+  + [1, 2, 3].map(i => `<span class="evy-ss evy-s${i}">${evySS()}</span>`).join('');
+
+/* Particules de la trouvaille : étoile d'or, étincelle, ruban de confetti, petit bouquet, bulles de champagne, comète */
+EV_FX.nouvelan = () => {
+  const f = evoF; let fw = '', tip = '';
+  for (let i = 0; i < 8; i++) { const a = (i * 45 + 22.5) * Math.PI / 180, c = ['#f2c230', '#ff5fa2', '#7cc4ff', '#fff6cc'][i % 4]; fw += `<path d="M${f(12 + Math.cos(a) * 3.6)} ${f(12 + Math.sin(a) * 3.6)}L${f(12 + Math.cos(a) * 9)} ${f(12 + Math.sin(a) * 9)}" stroke="${c}" stroke-width="1.6" stroke-linecap="round"/>`; tip += `M${f(12 + Math.cos(a) * 3.6)} ${f(12 + Math.sin(a) * 3.6)}L${f(12 + Math.cos(a) * 9)} ${f(12 + Math.sin(a) * 9)}`; }
+  const bub = ([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff4cc" stroke="rgba(30,10,40,.55)" stroke-width=".7"/><path d="M${f(x - r * .55)} ${f(y - r * .1)}A${f(r * .6)} ${f(r * .6)} 0 0 1 ${f(x - r * .05)} ${f(y - r * .6)}" fill="none" stroke="#fff" stroke-width=".8" stroke-linecap="round"/>`;
+  return [
+    EVO_FXS(evnStar5(12, 12.6, 10.4), '#f2c230', `<path d="${evnStar5(11.2, 11.6, 4.6)}" fill="#fff3b0"/>`),      // étoile d'or
+    EVO_FXS(evnSpark(12, 12, 10.4), '#fff6cc', `<path d="${evnSpark(12, 12, 4.4)}" fill="#f2c230"/>`),      // étincelle
+    EVO_FXS('M3.4 8.6C6 5.4 8.4 10.4 11.4 7.4C14.4 4.4 16.6 9.6 20.2 6.2L21 9.6C17.4 13 15 8 12.2 10.8C9.2 13.8 6.6 8.6 4.2 11.8Z', '#ff5fa2', '<path d="M5.4 15.6l4.4 1.4-1.2 4-4.4-1.4z" fill="#7cc4ff" stroke="rgba(30,10,40,.55)" stroke-width=".7" stroke-linejoin="round"/><path d="M15.4 14.4l3.8 2.6-2.4 3.4-3.8-2.6z" fill="#f2c230" stroke="rgba(30,10,40,.55)" stroke-width=".7" stroke-linejoin="round"/>'),      // confettis
+    EVO_FXS('M12 9.8A2.2 2.2 0 1 0 12.01 9.8Z', '#fff', `<path d="${tip}" stroke="rgba(30,10,40,.5)" stroke-width="3.2" stroke-linecap="round"/>${fw}<circle cx="12" cy="12" r="2.2" fill="#fff"/>`),      // petit bouquet
+    EVO_FXS('M9.2 9.4A5.2 5.2 0 1 0 9.21 9.4Z', '#fff4cc', [[16.6, 7.4, 3.2], [16.8, 17.2, 2.4], [5.4, 5.2, 1.9], [7.6, 19.6, 1.5]].map(bub).join('') + '<path d="M6.2 12.6A3.2 3.2 0 0 1 9.2 9.6" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round"/>'),      // bulles de champagne
+    EVO_FXS('M13.6 6.6C8.4 9.6 5 14 2.2 21.4C6.6 16.4 11.2 13.2 17.4 10.2Z', '#ff8cc0', '<circle cx="16.6" cy="7.4" r="4.4" fill="#fff3b0" stroke="rgba(30,10,40,.55)" stroke-width=".8"/><circle cx="16.6" cy="7.4" r="1.8" fill="#fff"/><path d="M12.4 5.4Q7.4 8.4 3.4 13.6" fill="none" stroke="#7cc4ff" stroke-width="1.3" stroke-linecap="round"/>'),      // comète
+  ];
+};
+
+/** Paillettes d'or sur l'accueil (couche du dessus) : 7 éléments, chacun deux animés (descente lente, tournoiement) ; étincelles et étoiles d'or, confettis
+ *  rose et bleu, bordés d'un trait foncé : visibles sur fond clair comme sur fond sombre. */
+EV_AMB_TOP.nouvelan = () => {
+  const sv = b => `<svg class="evo evo-cf" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${b}</svg>`;
+  const spark = sv(`<path d="${evnSpark(8, 8, 7.4)}" fill="#f2c230" stroke="#8a5a05" stroke-width=".6" stroke-linejoin="round"/><path d="${evnSpark(8, 8, 3)}" fill="#fff6cc"/>`);
+  const star = sv(`<path d="${evnStar5(8, 8.6, 7.2)}" fill="#f2c230" stroke="#8a5a05" stroke-width=".6" stroke-linejoin="round"/><path d="${evnStar5(7.6, 8, 3)}" fill="#fff3b0"/>`);
+  const rib = c => sv(`<path d="M2.6 6.4C4.6 4 6.4 7.6 8.4 5.4S12 3.6 13.6 5.8L14 8.4C12.2 6.4 10.6 9.6 8.6 8.2S5 7.6 3.2 9.2Z" fill="${c[0]}" stroke="${c[1]}" stroke-width=".55" stroke-linejoin="round"/>`);
+  return [spark, rib(['#ff5fa2', '#8a1d52']), star, rib(['#7c8cff', '#262a9c']), spark, rib(['#ff9ccb', '#8a1d52']), star]
+    .map((s, i) => `<span class="evy-cf evy-c${i + 1}"><span class="evy-cf-s">${s}</span></span>`).join('');
+};
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { EV_ART, EV_AMB, EV_AMB_TOP, EV_FX, EV_CONS, evGarland };

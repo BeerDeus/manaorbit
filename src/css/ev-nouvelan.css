@@ -1,0 +1,249 @@
+/* ── ev-nouvelan.css : pack Nouvel an, nuit des étoiles filantes (dessins : evart.js ; moteur : evsky.js, mise en page : event-sky.css) ─────────────
+   Classes posées par le moteur (event.js) sur <html>, comme pour Halloween et Noël : data-event="nouvelan" (fête en cours : animation des étoiles filantes),
+   .ev-deco (décorations allumées : ambiance, palette sur la roue de mana, touches dans l'appli), .ev-quiet (scan, échange en direct, compteur de vie : ambiance
+   cachée), .ev-pause (appli en arrière-plan ou ambiance hors écran : animations en pause).
+   Ambiance : <div class="ev-amb" aria-hidden="true"> après #app : complète sur l'accueil (ciel étoilé, lueurs, nébuleuse, étoiles qui scintillent, étoiles
+   filantes de loin en loin), une seule lueur dorée ailleurs ; paillettes d'or et confettis sur l'accueil (.ev-amb-top) ; carte de nuit de la fête
+   (#hmEvent.hm-sky : constellations, compte à rebours) ; feu d'artifice de minuit (.nyf, EV_ART.fireworks) ; petite constellation dans le coin des en-têtes
+   d'écran, étoile filante sur le coin des feuilles.
+   Coût : transform et opacity seulement, aucun filtre animé ; 12 éléments animés dans l'ambiance (2 lueurs, 1 nébuleuse, 6 étoiles, 3 étoiles filantes),
+   3 par étoile filante cachée (halo, traînée, paillettes). « Réduire les animations » : décor fixe et visible, rien ne traverse ni ne tombe. Rien ne capte
+   les touchers. */
+
+/* ── Couleurs de la fête (moteur : event.css) et palette par thème (clair par défaut ; sombre : prefers-color-scheme et data-theme, comme style.css) ── */
+html[data-event="nouvelan"]{--ev-a:#f2c230;--ev-b:#3b3fd8;--ev-c:#ff5fa2;--ev-ink:#0b0d24;--ev-glow:rgba(242,194,48,.6)}
+html.ev-deco[data-event="nouvelan"]{
+  --bg:#f3f3fb; --bar-bg:rgba(243,243,251,.84);
+  --evy-mw:242,186,40; --evy-mu:70,96,236; --evy-mb:96,66,196; --evy-mr:255,95,162; --evy-mg:64,196,170; --evy-ao:.8;
+  --evy-sky:rgba(59,63,216,.1); --evy-sky2:rgba(255,95,162,.06);
+  --evy-b:rgba(59,63,216,.17); --evy-p:rgba(255,95,162,.15); --evy-o:rgba(242,194,48,.22);
+  --evy-stars:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20220%20220%22%3E%3Ccircle%20cx%3D%220.02%22%20cy%3D%2298.32%22%20r%3D%220.38%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%22189.3%22%20cy%3D%2289.88%22%20r%3D%220.5%22%20fill%3D%22%23d9a21c%22%20opacity%3D%220.44%22%2F%3E%3Ccircle%20cx%3D%22103.9%22%20cy%3D%2261.96%22%20r%3D%220.36%22%20fill%3D%22%237a5cd6%22%20opacity%3D%220.34%22%2F%3E%3Ccircle%20cx%3D%2230.94%22%20cy%3D%2283.66%22%20r%3D%220.57%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.32%22%2F%3E%3Ccircle%20cx%3D%2284.18%22%20cy%3D%2218.63%22%20r%3D%220.36%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.39%22%2F%3E%3Ccircle%20cx%3D%22130.32%22%20cy%3D%22121.99%22%20r%3D%220.47%22%20fill%3D%22%23d9a21c%22%20opacity%3D%220.37%22%2F%3E%3Ccircle%20cx%3D%2267.72%22%20cy%3D%22175.17%22%20r%3D%220.35%22%20fill%3D%22%237a5cd6%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%22126.72%22%20cy%3D%22156.88%22%20r%3D%220.35%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%22195.14%22%20cy%3D%22114.86%22%20r%3D%220.35%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%22210.99%22%20cy%3D%2270.51%22%20r%3D%221.16%22%20fill%3D%22%23d9a21c%22%20opacity%3D%220.31%22%2F%3E%3Ccircle%20cx%3D%22157.83%22%20cy%3D%22177.77%22%20r%3D%221.29%22%20fill%3D%22%237a5cd6%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%2236.67%22%20cy%3D%22175.9%22%20r%3D%221.29%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.3%22%2F%3E%3Ccircle%20cx%3D%22219.96%22%20cy%3D%22176.12%22%20r%3D%220.44%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.28%22%2F%3E%3Ccircle%20cx%3D%22135.41%22%20cy%3D%225.27%22%20r%3D%221.3%22%20fill%3D%22%23d9a21c%22%20opacity%3D%220.55%22%2F%3E%3Ccircle%20cx%3D%2277.37%22%20cy%3D%22192.33%22%20r%3D%220.35%22%20fill%3D%22%237a5cd6%22%20opacity%3D%220.33%22%2F%3E%3Ccircle%20cx%3D%22209.26%22%20cy%3D%22120.95%22%20r%3D%220.69%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%22187.67%22%20cy%3D%2295.42%22%20r%3D%221.23%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.45%22%2F%3E%3Ccircle%20cx%3D%2293.59%22%20cy%3D%22178.47%22%20r%3D%220.49%22%20fill%3D%22%23d9a21c%22%20opacity%3D%220.37%22%2F%3E%3Ccircle%20cx%3D%2210.54%22%20cy%3D%2211.44%22%20r%3D%220.97%22%20fill%3D%22%237a5cd6%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%2277.17%22%20cy%3D%22121.2%22%20r%3D%220.41%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%2223.32%22%20cy%3D%2283.38%22%20r%3D%220.36%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.35%22%2F%3E%3Ccircle%20cx%3D%22121.16%22%20cy%3D%22203.5%22%20r%3D%220.35%22%20fill%3D%22%23d9a21c%22%20opacity%3D%220.59%22%2F%3E%3Ccircle%20cx%3D%22218.69%22%20cy%3D%22170.34%22%20r%3D%220.55%22%20fill%3D%22%237a5cd6%22%20opacity%3D%220.27%22%2F%3E%3Ccircle%20cx%3D%22189.46%22%20cy%3D%22142.12%22%20r%3D%220.49%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%22117.24%22%20cy%3D%2256.46%22%20r%3D%221.33%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.35%22%2F%3E%3Ccircle%20cx%3D%22200.28%22%20cy%3D%2232.36%22%20r%3D%220.35%22%20fill%3D%22%23d9a21c%22%20opacity%3D%220.59%22%2F%3E%3Ccircle%20cx%3D%22152%22%20cy%3D%2263.4%22%20r%3D%220.97%22%20fill%3D%22%237a5cd6%22%20opacity%3D%220.27%22%2F%3E%3Ccircle%20cx%3D%22193.37%22%20cy%3D%22106.32%22%20r%3D%220.5%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%2222.09%22%20cy%3D%22175.58%22%20r%3D%221.08%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.28%22%2F%3E%3Ccircle%20cx%3D%22166.64%22%20cy%3D%2274.86%22%20r%3D%221.05%22%20fill%3D%22%23d9a21c%22%20opacity%3D%220.43%22%2F%3E%3Cpath%20d%3D%22M14.17%2015.68Q14.67%2017.43%2016.42%2017.93Q14.67%2018.43%2014.17%2020.18Q13.68%2018.43%2011.92%2017.93Q13.68%2017.43%2014.17%2015.68Z%22%20fill%3D%22%233b3fd8%22%20opacity%3D%220.45%22%2F%3E%3C%2Fsvg%3E"); --evy-starso:.8; --evy-neb:.5; --evy-tw:.85; --evy-ss:#4a50e6; --evy-sso:.9; --evy-cfo:.95;
+  --evy-line:.75; --evy-tab:rgba(59,63,216,.12); --evy-tab-ink:#3b3fd8;
+}
+html.ev-deco[data-event="nouvelan"][data-theme="dark"]{
+  --bg:#080a1c; --bar-bg:rgba(8,10,28,.82);
+  --evy-mw:255,206,72; --evy-mu:96,140,255; --evy-mb:150,100,255; --evy-mr:255,104,170; --evy-mg:72,220,180; --evy-ao:1;
+  --evy-sky:rgba(80,86,255,.16); --evy-sky2:rgba(255,95,162,.07);
+  --evy-b:rgba(80,86,255,.22); --evy-p:rgba(255,95,162,.15); --evy-o:rgba(242,194,48,.14);
+  --evy-stars:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20220%20220%22%3E%3Ccircle%20cx%3D%220.02%22%20cy%3D%2298.32%22%20r%3D%220.38%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.47%22%2F%3E%3Ccircle%20cx%3D%22189.3%22%20cy%3D%2289.88%22%20r%3D%220.5%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.62%22%2F%3E%3Ccircle%20cx%3D%22103.9%22%20cy%3D%2261.96%22%20r%3D%220.36%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.69%22%2F%3E%3Ccircle%20cx%3D%2230.94%22%20cy%3D%2283.66%22%20r%3D%220.57%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.64%22%2F%3E%3Ccircle%20cx%3D%2284.18%22%20cy%3D%2218.63%22%20r%3D%220.36%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.78%22%2F%3E%3Ccircle%20cx%3D%22130.32%22%20cy%3D%22121.99%22%20r%3D%220.47%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.52%22%2F%3E%3Ccircle%20cx%3D%2267.72%22%20cy%3D%22175.17%22%20r%3D%220.35%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.48%22%2F%3E%3Ccircle%20cx%3D%22126.72%22%20cy%3D%22156.88%22%20r%3D%220.35%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.48%22%2F%3E%3Ccircle%20cx%3D%22195.14%22%20cy%3D%22114.86%22%20r%3D%220.35%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.72%22%2F%3E%3Ccircle%20cx%3D%22210.99%22%20cy%3D%2270.51%22%20r%3D%221.16%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.43%22%2F%3E%3Ccircle%20cx%3D%22157.83%22%20cy%3D%22177.77%22%20r%3D%221.29%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.51%22%2F%3E%3Ccircle%20cx%3D%2236.67%22%20cy%3D%22175.9%22%20r%3D%221.29%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.61%22%2F%3E%3Ccircle%20cx%3D%22219.96%22%20cy%3D%22176.12%22%20r%3D%220.44%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.56%22%2F%3E%3Ccircle%20cx%3D%22135.41%22%20cy%3D%225.27%22%20r%3D%221.3%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.78%22%2F%3E%3Ccircle%20cx%3D%2277.37%22%20cy%3D%22192.33%22%20r%3D%220.35%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.67%22%2F%3E%3Ccircle%20cx%3D%22209.26%22%20cy%3D%22120.95%22%20r%3D%220.69%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.53%22%2F%3E%3Ccircle%20cx%3D%22187.67%22%20cy%3D%2295.42%22%20r%3D%221.23%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.9%22%2F%3E%3Ccircle%20cx%3D%2293.59%22%20cy%3D%22178.47%22%20r%3D%220.49%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.52%22%2F%3E%3Ccircle%20cx%3D%2210.54%22%20cy%3D%2211.44%22%20r%3D%220.97%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.44%22%2F%3E%3Ccircle%20cx%3D%2277.17%22%20cy%3D%22121.2%22%20r%3D%220.41%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.52%22%2F%3E%3Ccircle%20cx%3D%2223.32%22%20cy%3D%2283.38%22%20r%3D%220.36%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.71%22%2F%3E%3Ccircle%20cx%3D%22121.16%22%20cy%3D%22203.5%22%20r%3D%220.35%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.84%22%2F%3E%3Ccircle%20cx%3D%22218.69%22%20cy%3D%22170.34%22%20r%3D%220.55%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.55%22%2F%3E%3Ccircle%20cx%3D%22189.46%22%20cy%3D%22142.12%22%20r%3D%220.49%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.46%22%2F%3E%3Ccircle%20cx%3D%22117.24%22%20cy%3D%2256.46%22%20r%3D%221.33%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.71%22%2F%3E%3Ccircle%20cx%3D%22200.28%22%20cy%3D%2232.36%22%20r%3D%220.35%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.83%22%2F%3E%3Ccircle%20cx%3D%22152%22%20cy%3D%2263.4%22%20r%3D%220.97%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.55%22%2F%3E%3Ccircle%20cx%3D%22193.37%22%20cy%3D%22106.32%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.43%22%2F%3E%3Ccircle%20cx%3D%2222.09%22%20cy%3D%22175.58%22%20r%3D%221.08%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.57%22%2F%3E%3Ccircle%20cx%3D%22166.64%22%20cy%3D%2274.86%22%20r%3D%221.05%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.61%22%2F%3E%3Cpath%20d%3D%22M14.17%2015.68Q14.67%2017.43%2016.42%2017.93Q14.67%2018.43%2014.17%2020.18Q13.68%2018.43%2011.92%2017.93Q13.68%2017.43%2014.17%2015.68Z%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.9%22%2F%3E%3C%2Fsvg%3E"); --evy-starso:.75; --evy-neb:.75; --evy-tw:1; --evy-ss:#ffe6a0; --evy-sso:1; --evy-cfo:.85;
+  --evy-line:.85; --evy-tab:rgba(120,126,255,.18); --evy-tab-ink:#aab0ff;
+}
+@media (prefers-color-scheme:dark){
+  html.ev-deco[data-event="nouvelan"]:not([data-theme="light"]){
+    --bg:#080a1c; --bar-bg:rgba(8,10,28,.82);
+    --evy-mw:255,206,72; --evy-mu:96,140,255; --evy-mb:150,100,255; --evy-mr:255,104,170; --evy-mg:72,220,180; --evy-ao:1;
+    --evy-sky:rgba(80,86,255,.16); --evy-sky2:rgba(255,95,162,.07);
+    --evy-b:rgba(80,86,255,.22); --evy-p:rgba(255,95,162,.15); --evy-o:rgba(242,194,48,.14);
+    --evy-stars:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20220%20220%22%3E%3Ccircle%20cx%3D%220.02%22%20cy%3D%2298.32%22%20r%3D%220.38%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.47%22%2F%3E%3Ccircle%20cx%3D%22189.3%22%20cy%3D%2289.88%22%20r%3D%220.5%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.62%22%2F%3E%3Ccircle%20cx%3D%22103.9%22%20cy%3D%2261.96%22%20r%3D%220.36%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.69%22%2F%3E%3Ccircle%20cx%3D%2230.94%22%20cy%3D%2283.66%22%20r%3D%220.57%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.64%22%2F%3E%3Ccircle%20cx%3D%2284.18%22%20cy%3D%2218.63%22%20r%3D%220.36%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.78%22%2F%3E%3Ccircle%20cx%3D%22130.32%22%20cy%3D%22121.99%22%20r%3D%220.47%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.52%22%2F%3E%3Ccircle%20cx%3D%2267.72%22%20cy%3D%22175.17%22%20r%3D%220.35%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.48%22%2F%3E%3Ccircle%20cx%3D%22126.72%22%20cy%3D%22156.88%22%20r%3D%220.35%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.48%22%2F%3E%3Ccircle%20cx%3D%22195.14%22%20cy%3D%22114.86%22%20r%3D%220.35%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.72%22%2F%3E%3Ccircle%20cx%3D%22210.99%22%20cy%3D%2270.51%22%20r%3D%221.16%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.43%22%2F%3E%3Ccircle%20cx%3D%22157.83%22%20cy%3D%22177.77%22%20r%3D%221.29%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.51%22%2F%3E%3Ccircle%20cx%3D%2236.67%22%20cy%3D%22175.9%22%20r%3D%221.29%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.61%22%2F%3E%3Ccircle%20cx%3D%22219.96%22%20cy%3D%22176.12%22%20r%3D%220.44%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.56%22%2F%3E%3Ccircle%20cx%3D%22135.41%22%20cy%3D%225.27%22%20r%3D%221.3%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.78%22%2F%3E%3Ccircle%20cx%3D%2277.37%22%20cy%3D%22192.33%22%20r%3D%220.35%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.67%22%2F%3E%3Ccircle%20cx%3D%22209.26%22%20cy%3D%22120.95%22%20r%3D%220.69%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.53%22%2F%3E%3Ccircle%20cx%3D%22187.67%22%20cy%3D%2295.42%22%20r%3D%221.23%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.9%22%2F%3E%3Ccircle%20cx%3D%2293.59%22%20cy%3D%22178.47%22%20r%3D%220.49%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.52%22%2F%3E%3Ccircle%20cx%3D%2210.54%22%20cy%3D%2211.44%22%20r%3D%220.97%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.44%22%2F%3E%3Ccircle%20cx%3D%2277.17%22%20cy%3D%22121.2%22%20r%3D%220.41%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.52%22%2F%3E%3Ccircle%20cx%3D%2223.32%22%20cy%3D%2283.38%22%20r%3D%220.36%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.71%22%2F%3E%3Ccircle%20cx%3D%22121.16%22%20cy%3D%22203.5%22%20r%3D%220.35%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.84%22%2F%3E%3Ccircle%20cx%3D%22218.69%22%20cy%3D%22170.34%22%20r%3D%220.55%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.55%22%2F%3E%3Ccircle%20cx%3D%22189.46%22%20cy%3D%22142.12%22%20r%3D%220.49%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.46%22%2F%3E%3Ccircle%20cx%3D%22117.24%22%20cy%3D%2256.46%22%20r%3D%221.33%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.71%22%2F%3E%3Ccircle%20cx%3D%22200.28%22%20cy%3D%2232.36%22%20r%3D%220.35%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.83%22%2F%3E%3Ccircle%20cx%3D%22152%22%20cy%3D%2263.4%22%20r%3D%220.97%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.55%22%2F%3E%3Ccircle%20cx%3D%22193.37%22%20cy%3D%22106.32%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.43%22%2F%3E%3Ccircle%20cx%3D%2222.09%22%20cy%3D%22175.58%22%20r%3D%221.08%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.57%22%2F%3E%3Ccircle%20cx%3D%22166.64%22%20cy%3D%2274.86%22%20r%3D%221.05%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.61%22%2F%3E%3Cpath%20d%3D%22M14.17%2015.68Q14.67%2017.43%2016.42%2017.93Q14.67%2018.43%2014.17%2020.18Q13.68%2018.43%2011.92%2017.93Q13.68%2017.43%2014.17%2015.68Z%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.9%22%2F%3E%3C%2Fsvg%3E"); --evy-starso:.75; --evy-neb:.75; --evy-tw:1; --evy-ss:#ffe6a0; --evy-sso:1; --evy-cfo:.85;
+    --evy-line:.85; --evy-tab:rgba(120,126,255,.18); --evy-tab-ink:#aab0ff;
+  }
+}
+
+/* ── Dessins (EV_ART) : le halo de l'étoile filante respire, sa traînée miroite et ses paillettes scintillent ; version allumée : rayons qui tournent.
+   Le flottement de l'objet caché est au moteur (.ev-pk). ── */
+html[data-event="nouvelan"] .evo{display:block;overflow:visible;pointer-events:none}
+html[data-event="nouvelan"] .evo-shoot .evo-glow{animation:evyBreath 2.6s ease-in-out infinite alternate}
+html[data-event="nouvelan"] .evo-shoot .evo-trail{animation:evyShimmer 1.9s ease-in-out infinite alternate}
+html[data-event="nouvelan"] .evo-shoot .evo-twinkle{animation:evyTwinkle 1.5s ease-in-out infinite alternate}
+html[data-event="nouvelan"] .evo-shoot .evo-twinkle path,html[data-event="nouvelan"] .evo-spk path{stroke:rgba(80,70,160,.35);stroke-width:.35}
+html[data-event="nouvelan"] .evo-shoot .evo-rays{transform-origin:39.6px 24.4px;animation:evySpin 18s linear infinite}
+html[data-event="nouvelan"] .evo-shoot.evo-lit .evo-trail{animation-duration:1.1s}
+html[data-event="nouvelan"] .evo-still :is(.evo-trail,.evo-twinkle,.evo-glow){animation:none}      /* carte de l'accueil, feuille de la fête : immobile */
+/* constellations (carte de nuit) : la prochaine étoile à allumer palpite doucement ; complète : son halo respire, ses étoiles scintillent */
+html[data-event="nouvelan"] .evo-cons .evo-next{animation:evyNext 2.6s ease-in-out infinite}
+html[data-event="nouvelan"] .evo-cons.evo-done .evo-glow{animation:evyBreath 3.4s ease-in-out infinite alternate}
+html[data-event="nouvelan"] .evo-cons.evo-done .evo-twinkle{animation:evyTwinkleO 2.2s ease-in-out infinite alternate}
+html[data-event="nouvelan"] .evo-orb .evo-glow{animation:evyBreath 3s ease-in-out infinite alternate}
+@keyframes evyBreath{from{opacity:.55}to{opacity:1}}
+@keyframes evyShimmer{from{opacity:.72;transform:translate(.9px,-.9px)}to{opacity:1;transform:translate(-.5px,.5px)}}
+@keyframes evyTwinkle{from{opacity:.2;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@keyframes evyTwinkleO{from{opacity:.55}to{opacity:1}}
+@keyframes evyNext{0%,100%{opacity:.45}50%{opacity:1}}
+@keyframes evySpin{to{transform:rotate(360deg)}}
+html[data-event="nouvelan"] .evo-twinkle{transform-box:fill-box;transform-origin:center}
+
+/* ── Habillage des éléments du moteur (event.css : couleurs d'Halloween par défaut) : envol, compteur, message, célébration, message d'arrivée, badge ultime ── */
+html[data-event="nouvelan"] .ev-fx::before{background:radial-gradient(circle at 50% 42%,rgba(255,232,150,.42),rgba(40,44,150,.34) 38%,transparent 70%)}
+html[data-event="nouvelan"] .ev-spk{background:radial-gradient(circle,#fffbe8,#f2c230 45%,rgba(242,194,48,0) 70%)}
+html[data-event="nouvelan"] .ev-spk.b{background:radial-gradient(circle,#fff,#ffb3d6 50%,rgba(255,95,162,0) 72%)}
+html[data-event="nouvelan"] .ev-fx .ev-ring{background:radial-gradient(circle,transparent 46%,rgba(255,226,120,.78) 58%,rgba(255,95,162,.4) 65%,rgba(90,96,255,.3) 70%,transparent 74%)}
+html[data-event="nouvelan"] .ev-fxp{filter:drop-shadow(0 0 6px rgba(255,232,150,.6))}
+html[data-event="nouvelan"] .ev-cnt{background:linear-gradient(135deg,#2a2d8f,#0b0d24);color:#fff8e0;border-color:rgba(242,194,48,.55);box-shadow:0 10px 30px -10px rgba(6,8,30,.75),0 0 0 4px rgba(255,95,162,.1)}
+html[data-event="nouvelan"] .ev-msg{background:linear-gradient(140deg,rgba(38,41,138,.97),rgba(11,13,36,.97));color:#f2f2ff;border-color:rgba(242,194,48,.34);box-shadow:0 16px 40px -14px rgba(5,6,26,.8)}
+html[data-event="nouvelan"] .ev-msg-ic{width:30px;height:30px}
+html[data-event="nouvelan"] .ev-msg-t b{color:#ffd76a}
+html[data-event="nouvelan"] .ev-msg-t small{color:#c9cbf2}
+html[data-event="nouvelan"] .ev-party{background:radial-gradient(120% 90% at 50% 30%,#262a8c,#05061a 70%)}
+html[data-event="nouvelan"] .ev-party-bg i{top:-20px;bottom:auto;background:radial-gradient(circle,#fff8d6,#f2c230 50%,transparent 72%);animation-name:evySparkDown;animation-duration:6.5s}
+html[data-event="nouvelan"] .ev-party-bg i:nth-child(3n){background:radial-gradient(circle,#ffe0ef,#ff5fa2 50%,transparent 72%)}
+html[data-event="nouvelan"] .ev-party-bg i:nth-child(4n){background:radial-gradient(circle,#e8ecff,#7c8cff 50%,transparent 72%)}
+@keyframes evySparkDown{0%{transform:translateY(0) scale(var(--s));opacity:0}12%{opacity:1}100%{transform:translate(14px,105vh) scale(calc(var(--s) * .5));opacity:0}}
+html[data-event="nouvelan"] .ev-party-obj .evo{filter:drop-shadow(0 0 30px rgba(242,194,48,.6))}
+html[data-event="nouvelan"] :is(.ev-party-k,.ev-in-k){color:#ffd76a}
+html[data-event="nouvelan"] :is(.ev-party h2,.ev-in-card h2){background-image:linear-gradient(100deg,#fff3c0,#f2c230 45%,#ff7cb6)}
+html[data-event="nouvelan"] .ev-party p{color:#d6d8ff}
+html[data-event="nouvelan"] .ev-in-bg{background:radial-gradient(110% 80% at 50% 20%,rgba(38,42,140,.93),rgba(4,5,20,.96) 70%)}
+html[data-event="nouvelan"] .ev-in-card{background:linear-gradient(160deg,rgba(36,40,130,.96),rgba(10,12,38,.98));color:#f2f2ff;border-color:rgba(242,194,48,.4);box-shadow:0 30px 60px -20px rgba(0,0,0,.6),0 0 0 6px rgba(255,95,162,.07)}
+html[data-event="nouvelan"] .ev-in-rules li::before{background:linear-gradient(135deg,#ffd84a,#f2a530);color:#1a1205}
+html[data-event="nouvelan"] .ev-intro .btn.ev-in-go{background:linear-gradient(135deg,#f2c230,#ff6fae);color:#0b0d24}
+html[data-event="nouvelan"] .evb.ult::before{background:conic-gradient(from 0deg,#f2c230,#fff3c0,#ff5fa2,#3b3fd8,#7fd0ff,#ff5fa2,#f2c230)}
+html[data-event="nouvelan"] .evb.ult::after{background:radial-gradient(circle,rgba(242,194,48,.45),rgba(90,96,255,.28) 45%,transparent 68%)}
+html[data-event="nouvelan"] .evb.ult{--embers:radial-gradient(circle at 20% 80%,#fff 0 1.4px,transparent 2px),radial-gradient(circle at 78% 70%,#ffb3d6 0 1.2px,transparent 2px),radial-gradient(circle at 55% 92%,#ffe08a 0 1.5px,transparent 2.2px)}
+html[data-event="nouvelan"] .evb.ult img{filter:drop-shadow(0 0 6px rgba(242,194,48,.55))}
+
+/* ── Ambiance : cachée sans décorations et sur les écrans calmes ── */
+html[data-event="nouvelan"] .ev-amb{display:none}
+html.ev-deco[data-event="nouvelan"]:not(.ev-quiet) .ev-amb{display:block;position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;contain:strict;
+  background:radial-gradient(130% 55% at 50% -8%,var(--evy-sky),transparent 62%),linear-gradient(to top,var(--evy-sky2),transparent 40%)}
+html[data-event="nouvelan"] .ev-amb *{pointer-events:none}
+html[data-event="nouvelan"] .ev-amb i,html[data-event="nouvelan"] .ev-amb span{position:absolute;display:block}
+html[data-event="nouvelan"] .ev-amb svg{display:block;width:100%;height:100%}
+/* ailleurs que l'accueil : la seule lueur dorée du haut, rien d'animé */
+html[data-event="nouvelan"] .ev-amb :is(.evy-sky,.evy-g1,.evy-g2,.evy-neb,.evy-tw,.evy-ss){display:none}
+html[data-event="nouvelan"] #app[data-view="home"] ~ .ev-amb :is(.evy-sky,.evy-g1,.evy-g2,.evy-neb,.evy-tw,.evy-ss){display:block}
+
+/* palette de la nuit par-dessus la roue de mana (.hm-aura) : or en haut, bleu nuit à droite, violet et rose en bas, turquoise à gauche */
+html.ev-deco[data-event="nouvelan"] .hm-aura{--mana-w:var(--evy-mw);--mana-u:var(--evy-mu);--mana-b:var(--evy-mb);--mana-r:var(--evy-mr);--mana-g:var(--evy-mg);--aura-o:var(--evy-ao)}
+
+/* champ d'étoiles fixe (tuile dessinée, deux versions : indigo et or sur fond clair, blanc et or sur fond sombre ; posée deux fois, à deux tailles et décalée,
+   pour que la répétition ne se voie pas), surtout dans le haut de l'écran */
+html[data-event="nouvelan"] .ev-amb .evy-sky{inset:0;background:var(--evy-stars) 0 0/220px 220px,var(--evy-stars) 97px 61px/340px 340px;opacity:var(--evy-starso);
+  -webkit-mask:linear-gradient(to bottom,#000,#000 38%,rgba(0,0,0,.35) 70%,transparent);mask:linear-gradient(to bottom,#000,#000 38%,rgba(0,0,0,.35) 70%,transparent)}
+/* lueurs (dégradés, aucun flou) : bleu nuit en bas à gauche et rose à droite respirent ; or en haut, fixe */
+html[data-event="nouvelan"] .ev-amb .evy-glow{border-radius:50%}
+html[data-event="nouvelan"] .ev-amb .evy-g1{width:580px;height:580px;left:-240px;bottom:-210px;background:radial-gradient(closest-side,var(--evy-b),transparent);animation:evyBreath 11s ease-in-out infinite alternate}
+html[data-event="nouvelan"] .ev-amb .evy-g2{width:460px;height:460px;right:-250px;top:42%;background:radial-gradient(closest-side,var(--evy-p),transparent);animation:evyBreath 14s ease-in-out -6s infinite alternate}
+html[data-event="nouvelan"] .ev-amb .evy-g3{width:720px;height:420px;left:50%;top:-230px;margin-left:-360px;background:radial-gradient(closest-side,var(--evy-o),transparent)}
+/* nébuleuse : bande pâle tout en haut (bleu nuit, violet, rose, un peu d'or), qui ondule lentement ; masquée en fondu en haut et en bas */
+html[data-event="nouvelan"] .ev-amb .evy-neb{left:-30%;width:160%;top:calc(var(--top-in,0px) + 30px);height:220px;opacity:var(--evy-neb);border-radius:50%;
+  background:linear-gradient(100deg,transparent 6%,rgba(96,100,255,.26) 24%,rgba(160,110,255,.24) 42%,rgba(255,110,180,.2) 60%,rgba(255,214,120,.14) 74%,transparent 92%);
+  -webkit-mask:linear-gradient(to bottom,transparent,#000 40%,#000 56%,transparent);mask:linear-gradient(to bottom,transparent,#000 40%,#000 56%,transparent);
+  transform:rotate(8deg);animation:evyNeb 30s ease-in-out infinite alternate}
+@keyframes evyNeb{0%{transform:translateX(5%) rotate(8deg) scaleY(.9);opacity:calc(var(--evy-neb) * .6)}50%{opacity:var(--evy-neb)}100%{transform:translateX(-6%) rotate(5deg) scaleY(1.12);opacity:calc(var(--evy-neb) * .8)}}
+/* six étoiles qui scintillent (or, blanc, rose, bleu), sur les bords plus qu'au milieu */
+html[data-event="nouvelan"] .ev-amb .evy-tw{width:15px;height:15px;opacity:0;animation:evyTw 3.6s ease-in-out infinite}
+html[data-event="nouvelan"] .ev-amb .evy-t1{left:8%;top:calc(var(--top-in,0px) + 118px);width:17px;height:17px}
+html[data-event="nouvelan"] .ev-amb .evy-t2{right:9%;top:calc(var(--top-in,0px) + 168px);width:12px;height:12px;animation-duration:4.2s;animation-delay:-1.3s}
+html[data-event="nouvelan"] .ev-amb .evy-t3{left:4%;top:47%;animation-duration:3.9s;animation-delay:-2.4s}
+html[data-event="nouvelan"] .ev-amb .evy-t4{right:5%;top:60%;width:14px;height:14px;animation-duration:3.1s;animation-delay:-.7s}
+html[data-event="nouvelan"] .ev-amb .evy-t5{left:10%;top:76%;width:13px;height:13px;animation-duration:4.6s;animation-delay:-3.1s}
+html[data-event="nouvelan"] .ev-amb .evy-t6{left:56%;top:calc(var(--top-in,0px) + 64px);width:11px;height:11px;animation-duration:4.9s;animation-delay:-2.2s}
+@keyframes evyTw{0%,100%{opacity:calc(var(--evy-tw) * .15);transform:scale(.6)}45%{opacity:var(--evy-tw);transform:scale(1)}60%{opacity:calc(var(--evy-tw) * .8);transform:scale(.9) rotate(20deg)}}
+/* étoiles filantes : une traversée d'une seconde environ, puis plus rien pendant 20 à 40 s (cycles différents : jamais la même figure) */
+html[data-event="nouvelan"] .ev-amb .evy-ss{left:0;top:0;width:150px;height:15px;margin-top:-7.5px;color:var(--evy-ss);opacity:0;transform-origin:0 50%;will-change:transform,opacity}
+html[data-event="nouvelan"] .ev-amb .evy-s1{animation:evyS1 23s linear 3s infinite}
+html[data-event="nouvelan"] .ev-amb .evy-s2{width:110px;height:11px;margin-top:-5.5px;animation:evyS2 31s linear 12s infinite}
+html[data-event="nouvelan"] .ev-amb .evy-s3{width:180px;height:18px;margin-top:-9px;animation:evyS3 41s linear 22s infinite}
+@keyframes evyS1{0%{opacity:0;transform:translate(4vw,calc(var(--top-in,0px) + 110px)) rotate(17deg) translateX(0)}.6%{opacity:var(--evy-sso)}
+  4.2%{opacity:var(--evy-sso)}5.2%,100%{opacity:0;transform:translate(4vw,calc(var(--top-in,0px) + 110px)) rotate(17deg) translateX(68vw)}}
+@keyframes evyS2{0%{opacity:0;transform:translate(42vw,calc(var(--top-in,0px) + 70px)) rotate(26deg) translateX(0)}.5%{opacity:calc(var(--evy-sso) * .8)}
+  2.8%{opacity:calc(var(--evy-sso) * .8)}3.6%,100%{opacity:0;transform:translate(42vw,calc(var(--top-in,0px) + 70px)) rotate(26deg) translateX(48vw)}}
+@keyframes evyS3{0%{opacity:0;transform:translate(-6vw,44vh) rotate(11deg) translateX(0)}.4%{opacity:var(--evy-sso)}
+  2.6%{opacity:var(--evy-sso)}3.2%,100%{opacity:0;transform:translate(-6vw,44vh) rotate(11deg) translateX(84vw)}}
+
+/* ── Paillettes d'or et confettis sur l'accueil (EV_AMB_TOP, couche du dessus) : seulement l'accueil à l'écran, rien sous une feuille ni un écran plein ── */
+html[data-event="nouvelan"] .ev-amb-top{display:none}
+html.ev-deco[data-event="nouvelan"]:not(.ev-quiet):not(.ev-pause) #app[data-view="home"] ~ .ev-amb-top{display:block;position:fixed;inset:0;z-index:30;pointer-events:none;overflow:hidden;contain:strict}
+html[data-event="nouvelan"] .ev-amb-top *{pointer-events:none}
+html[data-event="nouvelan"] .evy-cf{position:absolute;top:-30px;left:var(--x);width:var(--w);height:var(--w);opacity:0;animation:evyFall var(--d) linear var(--dl) infinite;will-change:transform,opacity}
+html[data-event="nouvelan"] .evy-cf-s{display:block;width:100%;height:100%;animation:evyFlutter var(--sw) ease-in-out infinite alternate}
+html[data-event="nouvelan"] .evy-cf svg{display:block;width:100%;height:100%}
+html[data-event="nouvelan"] .evy-c1{--x:8%;--w:13px;--d:24s;--dl:-4s;--sw:2.6s}
+html[data-event="nouvelan"] .evy-c2{--x:24%;--w:14px;--d:28s;--dl:-15s;--sw:1.4s}
+html[data-event="nouvelan"] .evy-c3{--x:41%;--w:12px;--d:26s;--dl:-9s;--sw:3.1s}
+html[data-event="nouvelan"] .evy-c4{--x:57%;--w:13px;--d:31s;--dl:-21s;--sw:1.6s}
+html[data-event="nouvelan"] .evy-c5{--x:72%;--w:10px;--d:25s;--dl:-12s;--sw:2.8s}
+html[data-event="nouvelan"] .evy-c6{--x:86%;--w:13px;--d:29s;--dl:-25s;--sw:1.5s}
+html[data-event="nouvelan"] .evy-c7{--x:94%;--w:11px;--d:27s;--dl:-6s;--sw:3.3s}
+@keyframes evyFall{0%{transform:translate3d(0,0,0);opacity:0}6%{opacity:var(--evy-cfo,1)}88%{opacity:var(--evy-cfo,1)}100%{transform:translate3d(-20px,calc(100vh + 60px),0);opacity:0}}
+@keyframes evyFlutter{0%{transform:translateX(-9px) rotate(-24deg) scaleX(1)}100%{transform:translateX(9px) rotate(32deg) scaleX(.45)}}
+
+/* ── Touches dans l'appli (décorations allumées) : filet bleu nuit, or et rose sous les en-têtes, onglet actif de la barre du bas.
+   Jamais les couleurs qui ont un sens à elles seules sur du texte, jamais sur les écrans calmes. ── */
+html.ev-deco[data-event="nouvelan"]:not(.ev-quiet) .bar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1.5px;pointer-events:none;opacity:var(--evy-line);
+  background:linear-gradient(90deg,transparent,#3b3fd8 18%,#f2c230 40%,#fff3c0 50%,#f2c230 60%,#ff5fa2 82%,transparent)}
+html.ev-deco[data-event="nouvelan"] .nav-b[aria-current="page"] .nav-i{background:var(--evy-tab);color:var(--evy-tab-ink)}
+@media (min-width:1100px) and (hover:hover) and (pointer:fine){      /* ordinateur (zz-desktop.css) : la ligne entière de la barre latérale */
+  html.ev-deco[data-event="nouvelan"] .nav-b[aria-current="page"]{background:var(--evy-tab)}
+  html.ev-deco[data-event="nouvelan"] .nav-b[aria-current="page"] .nav-i{background:none}
+}
+/* en-têtes d'écran : petite constellation d'or en bas à droite ; derrière les boutons (z-index 0), jamais sur le texte */
+html[data-event="nouvelan"]{--evy-headi:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20116%2026%22%3E%3Cpath%20d%3D%22M42%2019.4L56%2013L68%2015.6L82%208.4L98%2011.6M68%2015.6L74%2022.4%22%20fill%3D%22none%22%20stroke%3D%22%237f86e8%22%20stroke-width%3D%22.8%22%20stroke-linecap%3D%22round%22%20stroke-dasharray%3D%221.6%201.6%22%20opacity%3D%22.75%22%2F%3E%3Cpath%20d%3D%22M42%2017Q42.53%2018.87%2044.4%2019.4Q42.53%2019.93%2042%2021.8Q41.47%2019.93%2039.6%2019.4Q41.47%2018.87%2042%2017Z%22%20fill%3D%22%23f2c230%22%20stroke%3D%22%238a5a05%22%20stroke-width%3D%22.45%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M56%2010.2Q56.62%2012.38%2058.8%2013Q56.62%2013.62%2056%2015.8Q55.38%2013.62%2053.2%2013Q55.38%2012.38%2056%2010.2Z%22%20fill%3D%22%23f2c230%22%20stroke%3D%22%238a5a05%22%20stroke-width%3D%22.45%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M68%2013.2Q68.53%2015.07%2070.4%2015.6Q68.53%2016.13%2068%2018Q67.47%2016.13%2065.6%2015.6Q67.47%2015.07%2068%2013.2Z%22%20fill%3D%22%23f2c230%22%20stroke%3D%22%238a5a05%22%20stroke-width%3D%22.45%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M74%2020.4Q74.44%2021.96%2076%2022.4Q74.44%2022.84%2074%2024.4Q73.56%2022.84%2072%2022.4Q73.56%2021.96%2074%2020.4Z%22%20fill%3D%22%23f2c230%22%20stroke%3D%22%238a5a05%22%20stroke-width%3D%22.45%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M82%205.8Q82.57%207.83%2084.6%208.4Q82.57%208.97%2082%2011Q81.43%208.97%2079.4%208.4Q81.43%207.83%2082%205.8Z%22%20fill%3D%22%23f2c230%22%20stroke%3D%22%238a5a05%22%20stroke-width%3D%22.45%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M98%206.4L99.41%209.66L102.95%209.99L100.27%2012.34L101.06%2015.81L98%2013.99L94.94%2015.81L95.73%2012.34L93.05%209.99L96.59%209.66Z%22%20fill%3D%22%23f2c230%22%20stroke%3D%22%238a5a05%22%20stroke-width%3D%22.55%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M97.6%209L98.22%2010.25L99.6%2010.45L98.6%2011.42L98.83%2012.8L97.6%2012.15L96.37%2012.8L96.6%2011.42L95.6%2010.45L96.98%2010.25Z%22%20fill%3D%22%23fff3b0%22%2F%3E%3Cg%20fill%3D%22%23ff5fa2%22%20opacity%3D%22.8%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2216%22%20r%3D%22.9%22%2F%3E%3Ccircle%20cx%3D%22110%22%20cy%3D%2220%22%20r%3D%22.8%22%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%2290%22%20cy%3D%2220%22%20r%3D%22.8%22%20fill%3D%22%237f86e8%22%2F%3E%3C%2Fsvg%3E");--evy-sheeti:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20120%2040%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22t%22%20x1%3D%221%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%220%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ff5fa2%22%20stop-opacity%3D%220%22%2F%3E%3Cstop%20offset%3D%22.55%22%20stop-color%3D%22%23ff8cc0%22%20stop-opacity%3D%22.6%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ffe17a%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22a%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23fffbe0%22%2F%3E%3Cstop%20offset%3D%22.55%22%20stop-color%3D%22%23ffd84a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e0a313%22%2F%3E%3C%2FlinearGradient%3E%3CradialGradient%20id%3D%22g%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23ffe9a0%22%20stop-opacity%3D%22.8%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ffe9a0%22%20stop-opacity%3D%220%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M24%2015.6Q60%2015%20104%2019.4Q60%2019.6%2024%2022.6Z%22%20fill%3D%22url(%23t)%22%2F%3E%3Cpath%20d%3D%22M30%2017.6Q62%2016.8%2092%2018.6%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%22.7%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.7%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2219%22%20r%3D%2213%22%20fill%3D%22url(%23g)%22%2F%3E%3Cpath%20d%3D%22M22%209.4L24.76%2015.6L31.51%2016.31L26.47%2020.85L27.88%2027.49L22%2024.1L16.12%2027.49L17.53%2020.85L12.49%2016.31L19.24%2015.6Z%22%20fill%3D%22url(%23a)%22%20stroke%3D%22%237a5205%22%20stroke-width%3D%22.8%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M21.2%2014.4L22.38%2016.78L25%2017.16L23.1%2019.02L23.55%2021.64L21.2%2020.4L18.85%2021.64L19.3%2019.02L17.4%2017.16L20.02%2016.78Z%22%20fill%3D%22%23fffbe6%22%2F%3E%3Cg%20fill%3D%22%23fff6cc%22%20stroke%3D%22%23b98a10%22%20stroke-width%3D%22.35%22%3E%3Cpath%20d%3D%22M46%205.4Q46.57%207.43%2048.6%208Q46.57%208.57%2046%2010.6Q45.43%208.57%2043.4%208Q45.43%207.43%2046%205.4Z%22%2F%3E%3Cpath%20d%3D%22M64%209.2Q64.4%2010.6%2065.8%2011Q64.4%2011.4%2064%2012.8Q63.6%2011.4%2062.2%2011Q63.6%2010.6%2064%209.2Z%22%2F%3E%3Cpath%20d%3D%22M8%204.2Q8.4%205.6%209.8%206Q8.4%206.4%208%207.8Q7.6%206.4%206.2%206Q7.6%205.6%208%204.2Z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+html.ev-deco[data-event="nouvelan"]:not(.ev-quiet) body > .dv:not(.scan):not(.pu):not(.trc):not(.sc-ef):not(.dly-play) > .dv-head{position:relative}
+html.ev-deco[data-event="nouvelan"]:not(.ev-quiet) body > .dv:not(.scan):not(.pu):not(.trc):not(.sc-ef):not(.dly-play) > .dv-head::before{content:"";position:absolute;right:0;bottom:0;width:116px;height:26px;
+  background:var(--evy-headi) no-repeat right bottom/100% 100%;pointer-events:none;z-index:0}
+html.ev-deco[data-event="nouvelan"]:not(.ev-quiet) body > .dv:not(.scan):not(.pu):not(.trc):not(.sc-ef):not(.dly-play) > .dv-head > *{position:relative;z-index:1}
+/* feuilles : étoile filante d'or posée sur le coin arrondi du haut à gauche (loin de la poignée et du titre) */
+html.ev-deco[data-event="nouvelan"]:not(.ev-quiet) .sheet::before{content:"";position:absolute;left:0;top:-20px;width:120px;height:40px;background:var(--evy-sheeti) no-repeat left top/100% 100%;pointer-events:none;z-index:2}
+html.ev-deco[data-event="nouvelan"]:not(.ev-quiet) .dv-head{background-image:radial-gradient(150px 64px at 100% 0,rgba(242,194,48,.12),transparent)}
+html.ev-deco[data-event="nouvelan"]:not(.ev-quiet) body > .dv:not(.scan):not(.pu):not(.trc):not(.sc-ef):not(.dly-play){
+  background-image:radial-gradient(520px 340px at 0 100%,var(--evy-b),transparent 70%),radial-gradient(460px 320px at 100% 35%,var(--evy-p),transparent 70%);background-attachment:fixed}
+
+/* ── Carte de la fête sur l'accueil : carte de nuit (#hmEvent.hm-sky, balisage d'evsky.js), la même dans les deux thèmes : ciel bleu nuit étoilé, texte clair,
+   cinq constellations en rangée (.sky-cons > .sky-c[data-k], la complète : .done), compte à rebours en verre (.sky-cd). Mise en page de base : event-sky.css. ── */
+html[data-event="nouvelan"] #hmEvent.hm-sky{--sky-ink:#f4f4ff;--sky-ink2:#c3c6f2;position:relative;overflow:hidden;color:var(--sky-ink);border-color:rgba(150,160,255,.26);
+  background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20220%20220%22%3E%3Ccircle%20cx%3D%220.02%22%20cy%3D%2298.32%22%20r%3D%220.31%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.39%22%2F%3E%3Ccircle%20cx%3D%22189.3%22%20cy%3D%2289.88%22%20r%3D%220.4%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.51%22%2F%3E%3Ccircle%20cx%3D%22103.9%22%20cy%3D%2261.96%22%20r%3D%220.29%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.56%22%2F%3E%3Ccircle%20cx%3D%2230.94%22%20cy%3D%2283.66%22%20r%3D%220.46%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22%2F%3E%3Ccircle%20cx%3D%2284.18%22%20cy%3D%2218.63%22%20r%3D%220.29%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.65%22%2F%3E%3Ccircle%20cx%3D%22130.32%22%20cy%3D%22121.99%22%20r%3D%220.38%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.43%22%2F%3E%3Ccircle%20cx%3D%2267.72%22%20cy%3D%22175.17%22%20r%3D%220.28%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.39%22%2F%3E%3Ccircle%20cx%3D%22126.72%22%20cy%3D%22156.88%22%20r%3D%220.28%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.38%22%2F%3E%3Ccircle%20cx%3D%22195.14%22%20cy%3D%22114.86%22%20r%3D%220.28%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.6%22%2F%3E%3Ccircle%20cx%3D%22210.99%22%20cy%3D%2270.51%22%20r%3D%220.92%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%22157.83%22%20cy%3D%22177.77%22%20r%3D%221.03%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.42%22%2F%3E%3Ccircle%20cx%3D%2236.67%22%20cy%3D%22175.9%22%20r%3D%221.03%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.48%22%2F%3E%3Ccircle%20cx%3D%22219.96%22%20cy%3D%22176.12%22%20r%3D%220.35%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.47%22%2F%3E%3Ccircle%20cx%3D%22135.41%22%20cy%3D%225.27%22%20r%3D%221.04%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.64%22%2F%3E%3Ccircle%20cx%3D%2277.37%22%20cy%3D%22192.33%22%20r%3D%220.28%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.54%22%2F%3E%3Ccircle%20cx%3D%22209.26%22%20cy%3D%22120.95%22%20r%3D%220.56%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.42%22%2F%3E%3Ccircle%20cx%3D%22187.67%22%20cy%3D%2295.42%22%20r%3D%220.98%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.75%22%2F%3E%3Ccircle%20cx%3D%2293.59%22%20cy%3D%22178.47%22%20r%3D%220.4%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.43%22%2F%3E%3Ccircle%20cx%3D%2210.54%22%20cy%3D%2211.44%22%20r%3D%220.78%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%2277.17%22%20cy%3D%22121.2%22%20r%3D%220.33%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22%2F%3E%3Ccircle%20cx%3D%2223.32%22%20cy%3D%2283.38%22%20r%3D%220.28%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.59%22%2F%3E%3Ccircle%20cx%3D%22121.16%22%20cy%3D%22203.5%22%20r%3D%220.28%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.69%22%2F%3E%3Ccircle%20cx%3D%22218.69%22%20cy%3D%22170.34%22%20r%3D%220.44%22%20fill%3D%22%23c9ccff%22%20opacity%3D%220.45%22%2F%3E%3Ccircle%20cx%3D%22189.46%22%20cy%3D%22142.12%22%20r%3D%220.39%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%22117.24%22%20cy%3D%2256.46%22%20r%3D%221.06%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.59%22%2F%3E%3Ccircle%20cx%3D%22200.28%22%20cy%3D%2232.36%22%20r%3D%220.28%22%20fill%3D%22%23ffe9a0%22%20opacity%3D%220.69%22%2F%3E%3C%2Fsvg%3E") 0 0/220px 220px,radial-gradient(120% 80% at 88% -12%,rgba(108,100,255,.55),transparent 60%),radial-gradient(90% 70% at -6% 112%,rgba(255,95,162,.24),transparent 62%),
+    linear-gradient(165deg,#1f2378 0%,#12144f 46%,#0b0d24 100%);
+  box-shadow:0 18px 40px -22px rgba(11,13,60,.7),inset 0 1px 0 rgba(255,255,255,.14)}
+html[data-event="nouvelan"][data-theme="dark"] #hmEvent.hm-sky{border-color:rgba(150,160,255,.2);box-shadow:0 0 0 1px rgba(242,194,48,.08),0 18px 44px -20px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.1)}
+@media (prefers-color-scheme:dark){html[data-event="nouvelan"]:not([data-theme="light"]) #hmEvent.hm-sky{border-color:rgba(150,160,255,.2);box-shadow:0 0 0 1px rgba(242,194,48,.08),0 18px 44px -20px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.1)}}
+html[data-event="nouvelan"] #hmEvent.hm-sky > *{position:relative}
+html[data-event="nouvelan"] #hmEvent.hm-sky .hm-ev-h{color:var(--sky-ink)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .hm-tr-t b{color:#fff}
+html[data-event="nouvelan"] #hmEvent.hm-sky .hm-tr-t span{color:var(--sky-ink2)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .hm-ev-n b{color:#ffd24a;text-shadow:0 0 14px rgba(242,194,48,.45)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .hm-ev-n small,html[data-event="nouvelan"] #hmEvent.hm-sky .hm-ev-d{color:var(--sky-ink2)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .hm-ev-bar{background:rgba(255,255,255,.12)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .hm-ev-bar i{background:linear-gradient(90deg,#5a60ff,#f2c230 70%,#ff7cb6)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .hm-ev-bar span{background:#14164f;border-color:rgba(200,204,255,.5)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .hm-ev-bar span.ok{background:#f2c230;border-color:#fff}
+html[data-event="nouvelan"] #hmEvent.hm-sky .link-btn{color:#ffd76a}
+/* constellations : cinq colonnes ; la complète a un halo de sa couleur (--k : rgb de la lueur) et sa légende prend sa couleur */
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-cons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:0}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-c{--k:255,227,138;margin:0;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;padding:6px 0 5px;border-radius:14px}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-c[data-k="U"]{--k:124,196,255}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-c[data-k="B"]{--k:185,138,255}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-c[data-k="R"]{--k:255,138,102}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-c[data-k="G"]{--k:111,240,160}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-c .evo{width:100%;max-width:60px;height:auto;aspect-ratio:1}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-c figcaption{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:650;line-height:1.2;letter-spacing:.01em;color:var(--sky-ink2)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-c.done{background:radial-gradient(closest-side,rgba(var(--k),.2),rgba(var(--k),.05) 70%,transparent);box-shadow:inset 0 0 0 1px rgba(var(--k),.18)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-c.done figcaption{color:rgb(var(--k))}
+/* compte à rebours : quatre cases en verre (chiffre, unité) */
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-cd{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-cd > span{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;padding:9px 2px 8px;border-radius:13px;
+  background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 6px 14px -10px rgba(0,0,0,.6)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-cd b{font:800 22px/1 var(--font-display);color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-cd small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:700;line-height:1;letter-spacing:.1em;text-transform:uppercase;color:var(--sky-ink2)}
+html[data-event="nouvelan"] #hmEvent.hm-sky .sky-cd > span:last-child b{color:#ffd24a}
+
+/* ── Feu d'artifice de minuit (EV_ART.fireworks, dans .sky-fw-art) : cinq gerbes aux couleurs du mana qui éclatent l'une après l'autre (cycle de 7 s : fusée,
+   éclair, gerbe qui s'ouvre puis retombe en s'éteignant), huit paillettes d'or qui tombent. Transform et opacity seulement, 23 éléments animés. ── */
+.nyf{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.nyf *{pointer-events:none}
+.nyf-b{position:absolute;width:calc(var(--s,1) * min(62vw,44vh,340px));aspect-ratio:1;transform:translate(-50%,-50%)}
+.nyf-x,.nyf-f{position:absolute;inset:0;display:block;opacity:0}
+.nyf-x svg{display:block;width:100%;height:100%;overflow:visible}
+.nyf-x{animation:nyfBoom 7s cubic-bezier(.2,.8,.3,1) var(--d,0s) infinite both}
+.nyf-f{border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.55),color-mix(in srgb,var(--c,#ffe38a) 45%,transparent) 30%,transparent);animation:nyfFlash 7s ease-out var(--d,0s) infinite both}
+.nyf-r{position:absolute;left:50%;top:50%;width:3px;height:22%;margin-left:-1.5px;border-radius:2px;background:linear-gradient(to bottom,#fff,var(--c,#ffe38a) 30%,transparent);opacity:0;
+  animation:nyfRise 7s cubic-bezier(.3,.6,.4,1) var(--d,0s) infinite both}
+@keyframes nyfRise{0%{transform:translateY(70vh);opacity:0}1%{opacity:1}9%{opacity:1}10%,100%{transform:translateY(0);opacity:0}}
+@keyframes nyfFlash{0%,9.5%{transform:scale(.3);opacity:0}11%{transform:scale(.9);opacity:1}22%,100%{transform:scale(1.3);opacity:0}}
+@keyframes nyfBoom{0%,9.5%{transform:scale(.12);opacity:0}11%{transform:scale(.3);opacity:1}26%{transform:scale(1);opacity:1}
+  44%{transform:translateY(5%) scale(1.06);opacity:0}100%{transform:translateY(5%) scale(1.06);opacity:0}}
+.nyf-s{position:absolute;top:-4%;width:calc(var(--k,1) * 12px);height:calc(var(--k,1) * 12px);opacity:0;animation:nyfFall var(--t,7s) linear var(--d,0s) infinite both}
+.nyf-s svg{display:block;width:100%;height:100%}
+@keyframes nyfFall{0%{transform:translateY(0) rotate(0deg);opacity:0}10%{opacity:1}80%{opacity:.8}100%{transform:translateY(80vh) rotate(160deg);opacity:0}}
+
+/* ── Pause (appli en arrière-plan, ambiance hors écran) et mouvement réduit (décor fixe, toujours visible) ── */
+html.ev-pause[data-event="nouvelan"] :is(.ev-amb,.evo,.nyf),html.ev-pause[data-event="nouvelan"] :is(.ev-amb,.evo,.nyf) *{animation-play-state:paused!important}
+@media (prefers-reduced-motion:reduce){
+  html[data-event="nouvelan"] :is(.ev-amb,.evo),html[data-event="nouvelan"] :is(.ev-amb,.evo) *,.nyf *{animation:none!important}
+  html[data-event="nouvelan"] .ev-amb-top{display:none!important}
+  html[data-event="nouvelan"] .ev-amb .evy-tw{opacity:calc(var(--evy-tw) * .7)}
+  html[data-event="nouvelan"] .ev-amb .evy-ss{display:none!important}      /* une étoile filante immobile ne voudrait rien dire */
+  .nyf-r,.nyf-f{display:none}
+  .nyf-x{opacity:1;transform:scale(.84)}
+  .nyf-s{opacity:.75;top:var(--y,50%)}
+}
