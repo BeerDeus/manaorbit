@@ -118,8 +118,9 @@ export function eventMake(o = {}) {
   const spotTok = (id, k, day, s) => createHmac('sha256', G.secret).update(`evt|${id}|${k}|${day}|${s}`).digest('base64url').slice(0, 16);
   const daySig = (id, k, day, list) => createHmac('sha256', G.secret).update(`evd|${id}|${k}|${day}|${[...list].sort().join(',')}`).digest('base64url').slice(0, 22);
   /** Cachettes du jour d'un joueur : tirées parmi celles que son appli peut montrer (caps), de façon reproductible ; au plus EV_LVL_MAX[0] en vue sur l'accueil et
-   *  EV_LVL_MAX[1] à un geste, le reste dans les sous-menus ; celles d'hier évitées s'il en reste assez. */
-  function spotsOf(e, k, day, caps, want = EVP.evQuota(e, day)) {      // want : nombre de cachettes (quota du jour ; rattrapage d'un calendrier : ce qui manque)
+   *  EV_LVL_MAX[1] à un geste, le reste dans les sous-menus. Une cachette déjà trouvée pendant l'édition (jours : { jour: [cachettes] }) ne revient jamais, sauf
+   *  s'il n'en reste plus assez pour le jour (peu de capacités) : les plus anciennes d'abord. Celles tirées hier sans être trouvées : évitées s'il en reste 2 × want. */
+  function spotsOf(e, k, day, caps, want = EVP.evQuota(e, day), jours = {}) {      // want : nombre de cachettes (quota du jour ; rattrapage d'un calendrier : ce qui manque)
     const ok = EVP.EV_SPOTS.filter(s => (s.need & caps) === s.need), shuffle = (d, from) => {
       const r = rng(createHmac('sha256', G.secret).update(`evpl|${e.id}|${k}|${d}`).digest('hex')), a = from.slice();
       for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -131,8 +132,12 @@ export function eventMake(o = {}) {
       for (const s of a) { if (out.length >= want) break; if (!out.includes(s)) out.push(s); }      // pas assez de sous-menus (capacités) : complété
       return out;
     };
-    const y = new Set(pick(EVP.evAdd(day, -1), ok).map(s => s.id)), fresh = ok.filter(s => !y.has(s.id)), base = fresh.length >= want * 3 ? fresh : ok;
-    return pick(day, base).map(s => s.id);
+    const avoid = new Set(), left = () => ok.filter(s => !avoid.has(s.id)).length, past = Object.keys(jours).filter(x => x < day).sort();
+    for (const d of past) for (const id of Array.isArray(jours[d]) ? jours[d] : []) avoid.add(id);      // déjà trouvées pendant l'édition : jamais deux fois…
+    for (const d of past) { if (left() >= want) break; for (const id of Array.isArray(jours[d]) ? jours[d] : []) avoid.delete(id); }      // … sauf s'il n'en reste plus assez : les plus anciennes reviennent
+    const y = pick(EVP.evAdd(day, -1), ok).map(s => s.id).filter(id => !avoid.has(id)); y.forEach(id => avoid.add(id));      // tirées hier sans être trouvées : évitées aussi, s'il en reste de quoi varier
+    if (left() < want * 2) y.forEach(id => avoid.delete(id));
+    return pick(day, ok.filter(s => !avoid.has(s.id))).map(s => s.id);
   }
   /** Couleurs rares gagnées par un joueur : calendrier (pack.advent.rare) : { porte: couleur } pour ses portes ouvertes, sauf la dernière (récompense sûre) ;
    *  ciel (pack.sky.rare) : { n° du jour (1…) : couleur } pour chaque jour où il a trouvé au moins un objet.
@@ -150,7 +155,7 @@ export function eventMake(o = {}) {
   function me(e, r, k, caps) {
     const pl = r.p[k] || { d: {}, n: 0 }, day = e.day, found = (pl.d && pl.d[day]) || [], n = total(e, pl), sig = {};
     for (const [d, l] of Object.entries(pl.d || {})) if (Array.isArray(l) && l.length) sig[d] = daySig(e.id, k, d, l);
-    const q = EVP.evQuota(e, day), full = n >= e.total, sp = full ? [] : spotsOf(e, k, day, caps, Math.min(q, e.total - n + found.length));      // rattrapage : pas plus de cachettes que d'objets manquants
+    const q = EVP.evQuota(e, day), full = n >= e.total, sp = full ? [] : spotsOf(e, k, day, caps, Math.min(q, e.total - n + found.length), pl.d || {});      // rattrapage : pas plus de cachettes que d'objets manquants
     for (const s of found) if (!sp.includes(s)) {      // capacités changées depuis (autre appareil, connexion…) : celles déjà trouvées restent marquées, à la place d'une
       const i = sp.findLastIndex(x => !found.includes(x)); if (i >= 0) sp[i] = s; else sp.push(s);      // pas trouvée : jamais plus d'indices que le quota du jour
     }

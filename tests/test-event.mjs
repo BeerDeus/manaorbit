@@ -85,6 +85,19 @@ test('cachettes du jour : déterministes, par joueur, selon les capacités, jeto
   S.stop();
 });
 
+test('cachettes déjà trouvées : jamais deux fois pendant l\'édition (tant qu\'il en reste)', async () => {
+  for (const [c, days] of [[255, 6], [0, Math.floor(E.EV_SPOTS.filter(x => !x.need).length / 5)]]) {      // toutes les capacités : les 30 toutes différentes ; aucune : sans redite tant qu'il y en a
+    const S = await up(), dev = (await S.call('event')).j.dev, seen = [];
+    for (let d = 0; d < days; d++) {
+      const m = (await S.call('event?c=' + c, { dev })).j.me; assert.equal(m.spots.length, 5);
+      for (const x of m.spots) { seen.push(x.s); assert.equal((await S.call('event/claim', { dev, body: { ev: 'halloween-2026', day: m.day, s: x.s, t: x.t } })).status, 200); }
+      S.clock.t += 864e5;
+    }
+    assert.equal(new Set(seen).size, seen.length, 'c=' + c + ' : aucune cachette deux fois (' + seen.length + ')');
+    if (c === 0) { const m = (await S.call('event?c=0', { dev })).j.me; assert.equal(m.spots.length, 5, 'plus assez de neuves : la chasse continue quand même'); }
+    S.stop();
+  }
+});
 test('chasse : quota de 5 par jour, jetons refusés, total, reçus, statistiques', async () => {
   const S = await up(), dev = (await S.call('event')).j.dev;
   let me = (await S.call('event', { dev })).j.me; const day = me.day;
