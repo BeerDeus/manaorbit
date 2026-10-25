@@ -32,5 +32,9 @@
 "{n} recherches enregistrées au plus : supprimes-en une d'abord (appui long sur son nom)": "Höchstens {n} gespeicherte Suchen: Lösche zuerst eine (lange auf ihren Namen drücken)",
 "Recherche « {name} » enregistrée": "Suche „{name}“ gespeichert",
 "Recherche enregistrée": "Gespeicherte Suche",
-"Recherche « {name} » supprimée": "Suche „{name}“ gelöscht"
+"Recherche « {name} » supprimée": "Suche „{name}“ gelöscht",
+"Lecture des formats… {a} / {b}": "Formate werden gelesen … {a} / {b}",
+"Hors ligne : formats à lire au retour du réseau.": "Offline: Formate werden gelesen, sobald du wieder online bist.",
+"Scryfall injoignable : formats non lus.": "Scryfall nicht erreichbar: Formate nicht gelesen.",
+"Légal en {f}": "Legal in {f}"
 }

@@ -32,5 +32,9 @@
 "{n} recherches enregistrées au plus : supprimes-en une d'abord (appui long sur son nom)": "{n} saved searches at most: delete one first (long-press its name)",
 "Recherche « {name} » enregistrée": "Search “{name}” saved",
 "Recherche enregistrée": "Saved search",
-"Recherche « {name} » supprimée": "Search “{name}” deleted"
+"Recherche « {name} » supprimée": "Search “{name}” deleted",
+"Lecture des formats… {a} / {b}": "Reading formats… {a} / {b}",
+"Hors ligne : formats à lire au retour du réseau.": "Offline: formats will be read when you're back online.",
+"Scryfall injoignable : formats non lus.": "Scryfall unreachable: formats not read.",
+"Légal en {f}": "Legal in {f}"
 }

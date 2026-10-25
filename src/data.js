@@ -326,7 +326,7 @@ async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0
   return out;
 }
 
-/** Infos Scryfall d'une liste de cartes par leur nom (75 par requête) : Map(clé de collection → { cm, mc, tl, cl, ci, cd, im, eu, ar, rr } | null si inconnue). ar : artiste de l'illustration (crédit des orbes de l'accueil) ;
+/** Infos Scryfall d'une liste de cartes par leur nom (75 par requête) : Map(clé de collection → { cm, mc, tl, cl, ci, cd, im, eu, ar, rr, lg, la } | null si inconnue). ar : artiste de l'illustration (crédit des orbes de l'accueil) ;
  *  rr : rareté de l'impression que Scryfall renvoie pour ce nom (filtre « Rareté » des cartes sans édition, search.js). */
 async function scryCollection(names, signal, onProgress, prio = false) {
   const out = new Map(), uniq = [...new Map(names.map(n => [ownKey(n), n])).entries()];
@@ -334,7 +334,7 @@ async function scryCollection(names, signal, onProgress, prio = false) {
     const chunk = uniq.slice(i, i + 75);
     const body = JSON.stringify({ identifiers: chunk.map(([, n]) => ({ name: String(n).split('//')[0].trim() })) });
     const j = await httpJson(limScry, 'https://api.scryfall.com/cards/collection', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body }, signal, 4, prio);
-    for (const c of j.data || []) { const m = metaOf(c); out.set(ownKey(c.name), { cm: m.cmc, mc: m.mc, tl: m.tl, cl: m.cl, ci: (c.color_identity || []).join(''), cd: canBeCommander(c), im: imgOf(c) || '', eu: eurCents(c.prices && c.prices.eur), ef: eurCents(c.prices && c.prices.eur_foil), ar: c.artist || '', rr: String(c.rarity || '').slice(0, 12) }); }      // ef : prix foil (exemplaires foil sans édition)
+    for (const c of j.data || []) { const m = metaOf(c); out.set(ownKey(c.name), { cm: m.cmc, mc: m.mc, tl: m.tl, cl: m.cl, ci: (c.color_identity || []).join(''), cd: canBeCommander(c), im: imgOf(c) || '', eu: eurCents(c.prices && c.prices.eur), ef: eurCents(c.prices && c.prices.eur_foil), ar: c.artist || '', rr: String(c.rarity || '').slice(0, 12), lg: lgOf(c.legalities), la: Math.floor(Date.now() / 864e5) }); }      // ef : prix foil (exemplaires foil sans édition) ; lg, la : formats où elle est légale, jour de la lecture (filtre « Format »)
     for (const [k] of chunk) if (!out.has(k)) out.set(k, null);
     if (onProgress) onProgress(Math.min(uniq.length, i + 75), uniq.length);
   }

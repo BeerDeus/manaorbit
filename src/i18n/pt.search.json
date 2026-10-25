@@ -32,5 +32,9 @@
 "{n} recherches enregistrées au plus : supprimes-en une d'abord (appui long sur son nom)": "No máximo {n} pesquisas guardadas: elimina uma primeiro (toque longo no nome)",
 "Recherche « {name} » enregistrée": "Pesquisa «{name}» guardada",
 "Recherche enregistrée": "Pesquisa guardada",
-"Recherche « {name} » supprimée": "Pesquisa «{name}» eliminada"
+"Recherche « {name} » supprimée": "Pesquisa «{name}» eliminada",
+"Lecture des formats… {a} / {b}": "Lendo formatos… {a} / {b}",
+"Hors ligne : formats à lire au retour du réseau.": "Offline: os formatos serão lidos quando a rede voltar.",
+"Scryfall injoignable : formats non lus.": "Scryfall indisponível: formatos não lidos.",
+"Légal en {f}": "Legal em {f}"
 }

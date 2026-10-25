@@ -53,3 +53,11 @@
   .srch-chip:hover{background:var(--accent);color:var(--accent-ink)}
   .srch-pw:not(.on):hover{border-color:var(--accent)}
 }
+/* Groupe repliable (Emplacement) : titre touchable avec le nombre de choix et un chevron ; replié, seule la valeur choisie reste */
+.fgl-fold{display:flex;align-items:center;gap:6px;width:100%;padding:2px 0;border:0;background:none;font:inherit;font-size:12.5px;font-weight:650;color:var(--ink-3);cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}
+.fgl-fold small{font-weight:600;font-size:11.5px;padding:1px 7px;border-radius:99px;background:var(--surface-2)}
+.fgl-fold .i{width:16px;height:16px;margin-left:auto;transform:rotate(90deg);transition:transform .2s}
+.fgrp-fold.shut .fgl-fold .i{transform:none}
+.fgrp-fold.shut .fopt:not([aria-pressed="true"]){display:none}
+.fgrp-fold.shut .fopts:not(:has([aria-pressed="true"])){display:none}
+@media (prefers-reduced-motion:reduce){.fgl-fold .i{transition:none}}

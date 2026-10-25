@@ -32,5 +32,9 @@
 "{n} recherches enregistrées au plus : supprimes-en une d'abord (appui long sur son nom)": "Al massimo {n} ricerche salvate: eliminane prima una (tieni premuto il suo nome)",
 "Recherche « {name} » enregistrée": "Ricerca «{name}» salvata",
 "Recherche enregistrée": "Ricerca salvata",
-"Recherche « {name} » supprimée": "Ricerca «{name}» eliminata"
+"Recherche « {name} » supprimée": "Ricerca «{name}» eliminata",
+"Lecture des formats… {a} / {b}": "Lettura dei formati… {a} / {b}",
+"Hors ligne : formats à lire au retour du réseau.": "Offline: i formati saranno letti al ritorno della rete.",
+"Scryfall injoignable : formats non lus.": "Scryfall non raggiungibile: formati non letti.",
+"Légal en {f}": "Legale in {f}"
 }

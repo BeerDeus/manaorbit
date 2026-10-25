@@ -11,6 +11,9 @@ const SHOTS = process.env.SRCH_SHOTS || ''; if (SHOTS) mkdirSync(SHOTS, { recurs
 const world = await startWorld({ port: 19820 });
 const RAR = { 'Sol Ring': 'uncommon', 'Craterhoof Behemoth': 'mythic', 'Llanowar Elves': 'common', 'Edgar Markov': 'mythic', 'Wrath of God': 'rare' };
 for (const [n, r] of Object.entries(RAR)) world.prints[n][0].rarity = r;      // rareté de l'impression que Scryfall renvoie pour le nom
+const LG = { 'Sol Ring': { commander: 'legal', vintage: 'restricted', legacy: 'banned', modern: 'not_legal' }, 'Craterhoof Behemoth': { commander: 'legal', legacy: 'legal', vintage: 'legal', modern: 'legal' },
+  'Llanowar Elves': { commander: 'legal', legacy: 'legal', vintage: 'legal', modern: 'legal', pauper: 'legal', standard: 'legal' }, 'Edgar Markov': { commander: 'legal', legacy: 'legal', vintage: 'legal' }, 'Wrath of God': { commander: 'legal', legacy: 'legal', vintage: 'legal', modern: 'legal' } };
+for (const [n, l] of Object.entries(LG)) world.prints[n][0].legalities = l;      // formats (filtre « Format »)
 world.eds['cmm|400'] = { n: 'Sol Ring', langs: ['fr'] };      // Sol Ring CMM 400 : rare, 2,00 € (faux Scryfall)
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const cardSvg = u => { const h = [...u].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % 360;
@@ -52,7 +55,7 @@ assert.deepEqual(await cardKeys(), ['craterhoof behemoth', 'edgar markov', 'llan
 await p.click('.coll .fbtn'); await p.waitForSelector('.coll .fpanel:not([hidden]) .fmore');
 assert.equal(await p.$eval('.coll .fmore', b => b.getAttribute('aria-expanded')), 'false'); assert.ok(await p.$eval('.coll .fmore-box', b => b.hidden), 'groupes avancés repliés par défaut');
 await p.click('.coll .fmore'); await p.waitForSelector('.coll .fmore-box:not([hidden]) [data-fk]');
-assert.deepEqual(await p.$$eval('.coll .fmore-box .fgl', l => l.map(x => x.textContent)), ['Rareté', 'Langue', 'Finition', 'Prix à l\'unité', 'Exemplaires', 'Ajout'], 'pas d\'emplacement tant qu\'aucun n\'existe');
+assert.deepEqual(await p.$$eval('.coll .fmore-box .fgl', l => l.map(x => x.textContent)), ['Rareté', 'Format', 'Langue', 'Finition', 'Prix à l\'unité', 'Exemplaires', 'Ajout'], 'pas d\'emplacement tant qu\'aucun n\'existe');
 assert.deepEqual(await p.$$eval('.coll .fmore-box [data-fk="lang"]', b => b.map(x => x.dataset.fv)), ['fr', 'en', 'de', 'it'], 'langues présentes, dans l\'ordre de la puce langue');
 assert.equal(world.scry.length, scry0, 'aucune lecture Scryfall à l\'ouverture du panneau');
 ok('« Plus de filtres » : groupes repliés, langues présentes');
@@ -105,6 +108,22 @@ assert.deepEqual(await rows(), ['sol ring fr|cmm|400 ×2', 'sol ring en ×1', 'w
 await opt('rar', 'uncommon'); await opt('rar', 'rare'); await settle();
 ok('Rareté : lue une fois à la demande, rareté de l\'édition pour une ligne qui en a une');
 
+/* ── Format : légalités de Scryfall (restreinte : légale), lues à la demande si elles manquent ou datent de plus de 30 jours ─── */
+await p.evaluate(() => { for (const k of Object.keys(COLL.map)) if (COLL.meta[k]) { const { lg, la, ...m } = COLL.meta[k]; COLL.meta[k] = m; } });      // infos lues par une version d'avant : sans formats
+const scry2 = world.scry.length;
+await opt('fmt', 'm'); await p.waitForFunction(() => !SRCH.lg && document.querySelectorAll('.coll .coll-list .crow').length === 3, null, { timeout: 10000 });
+assert.ok(world.scry.slice(scry2).some(x => x.startsWith('POST /cards/collection')), 'formats manquants lus sur Scryfall');
+assert.deepEqual(await cardKeys(), ['craterhoof behemoth', 'llanowar elves', 'wrath of god'], 'Modern'); assert.deepEqual(await chips(), ['Légal en Modern']);
+await opt('fmt', 'v'); await settle(); assert.ok((await cardKeys()).includes('sol ring'), 'Vintage : Sol Ring restreinte, donc jouable');
+await opt('fmt', 'a'); await settle(); assert.deepEqual(await cardKeys(), ['llanowar elves'], 'Pauper');
+await opt('fmt', 'l'); await settle(); assert.ok(!(await cardKeys()).includes('sol ring'), 'Legacy : Sol Ring bannie');
+const scry3 = world.scry.length; await opt('fmt', 'c'); await settle(); assert.equal(world.scry.length, scry3, 'formats lus : aucune nouvelle lecture'); assert.equal((await cardKeys()).length, 5, 'Commander : toutes');
+await p.evaluate(() => { const k = 'sol ring'; COLL.meta[k] = { ...COLL.meta[k], la: Math.floor(Date.now() / 864e5) - 31 }; SRCH.lgTried.clear(); });
+await opt('fmt', 'c'); await opt('fmt', 's'); await p.waitForFunction(n => !SRCH.lg && window.__n !== n, scry3); await settle();
+assert.ok(world.scry.length > scry3, 'plus de 30 jours : relue (bannissements)'); assert.deepEqual(await cardKeys(), ['llanowar elves'], 'Standard');
+await opt('fmt', 's'); await settle();
+ok('Format : légal en Standard, Modern, Legacy, Vintage (restreinte comprise), Commander, Pauper ; lu à la demande, relu après 30 jours');
+
 /* ── Emplacement : le même filtre que Rangement ──────────────────────────────────────────────────────────────── */
 const blue = await p.evaluate(() => { const id = plcCreate('binder', 'Classeur bleu'); COLL.map = linesMove(COLL.map, 'edgar markov', 'fr', 1, lineKey('fr', '', false, { p: id })); collChanged(); return id; });
 await settle();
@@ -121,6 +140,15 @@ await p.click('.coll .freset'); await settle();
 assert.ok(await p.$('.coll .plc-bar'), '« Effacer les filtres » : on reste dans l\'emplacement ouvert'); assert.equal(await badge(), '1'); assert.ok(await p.$eval('.coll .freset', b => b.hidden), 'l\'emplacement seul : pas d\'« Effacer les filtres »');
 await opt('rar', 'mythic'); await opt('place', blue); await settle();
 ok('Emplacement : panneau et Rangement unifiés (bandeau, ✕, « Ranger ces cartes… »)');
+const shown = () => p.$$eval('.coll .fgrp-fold [data-fk="place"]', b => b.filter(x => x.offsetParent).map(x => x.textContent));
+if (await p.evaluate(() => COLL.place)) await p.click('.plc-bar [data-act="plcclear"]');
+await p.click('.coll [data-fold="place"]'); await settle();
+assert.equal(await p.$eval('.coll .fgrp-fold', g => g.classList.contains('shut')), true, 'Emplacement replié'); assert.deepEqual(await shown(), [], 'replié sans choix : rien');
+assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:srch:fold')).place), 1, 'gardé sur l\'appareil');
+await p.click('.coll [data-fold="place"]'); await settle(); assert.deepEqual(await shown(), ['Non rangées', 'Classeur bleu'], 'déplié');
+await opt('place', blue); await p.click('.coll [data-fold="place"]'); await settle(); assert.deepEqual(await shown(), ['Classeur bleu'], 'replié : seul l\'emplacement choisi reste');
+await opt('place', blue); await p.click('.coll [data-fold="place"]'); await settle();
+ok('Emplacement repliable : seul le choix reste, gardé sur l\'appareil');
 await shot('panneau-393');
 if (SHOTS) { await p.evaluate(() => { document.querySelector('.coll .fbar').scrollIntoView(); }); }
 

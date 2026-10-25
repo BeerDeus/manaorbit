@@ -1392,8 +1392,12 @@ const itemType = i => (i.s === 'basic' ? 'Terrains' : typeBucket(i.tl));
 const hasMeta = i => i.s === 'basic' || i.tl != null || i.cm != null;
 /* Filtres avancés de la collection (search.js) : ils ne valent que pour les cartes préparées par srchPrep (i.sl : une entrée par ligne
    { l: langue, f: 1 foil, u: prix d'un exemplaire en centimes ou null, r: rareté, p: emplacement ('' non rangé), s: extension ('' sans édition) } ;
-   i.sk : 1 dans un deck ; i.st : 1 à l'échange ; i.q, i.d : exemplaires, date d'ajout en secondes). Ailleurs (deck, échange, masterset) : ignorés. */
-const FLT_ADV = ['lang', 'foil', 'rar', 'px', 'place', 'dup', 'dk', 'tr', 'add'];
+   i.sk : 1 dans un deck ; i.st : 1 à l'échange ; i.q, i.d : exemplaires, date d'ajout en secondes ; i.lg : formats où elle est légale, LG_FMT). Ailleurs (deck, échange, masterset) : ignorés. */
+const FLT_ADV = ['lang', 'foil', 'rar', 'px', 'place', 'dup', 'dk', 'tr', 'add', 'fmt'];
+/** Formats du filtre « Format » : [lettre gardée dans COLL.meta[k].lg, clé Scryfall (legalities), nom]. Restreinte (Vintage) : jouable, donc légale. */
+const LG_FMT = [['s', 'standard', 'Standard'], ['p', 'pioneer', 'Pioneer'], ['m', 'modern', 'Modern'], ['l', 'legacy', 'Legacy'], ['v', 'vintage', 'Vintage'], ['c', 'commander', 'Commander'], ['a', 'pauper', 'Pauper']];
+/** Formats où une carte est jouable (legalities de Scryfall) : « smlvc ». */
+const lgOf = L => (L && typeof L === 'object' ? LG_FMT.filter(([, k]) => L[k] === 'legal' || L[k] === 'restricted').map(x => x[0]).join('') : '');
 /** Tranches de prix à l'unité (centimes ; borne basse comprise, haute non comprise). */
 const FLT_PX = { lt1: [0, 100], '1-5': [100, 500], '5-20': [500, 2000], gt20: [2000, Infinity] };
 const fltOn = v => (v instanceof Set ? v.size > 0 : !!v);
@@ -1419,6 +1423,7 @@ function fltAdvOk(i, f, now) {
   if (f.dk && (f.dk === 'in') !== !!i.sk) return false;
   if (f.tr && !i.st) return false;
   if (f.add) { const days = Number(f.add) || 0; if (!(i.d > 0 && i.d >= now - days * 86400)) return false; }
+  if (f.fmt && !String(i.lg || '').includes(f.fmt)) return false;      // légalité inconnue (pas encore lue) : écartée
   if (fltLineOn(f) || f.place) return i.sl.some(x => fltLineOk(x, f));
   return true;
 }
@@ -2465,4 +2470,4 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 // Impression exacte des cartes partagées (classeur : une pochette par langue et édition) : exportés à part
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { langEdLines, edShare, edUnshare });
 // Filtres avancés de la collection (search.js) : exportés à part
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FLT_ADV, FLT_PX, fltAdvCount, fltLineOn, fltLineOk, fltAdvOk, rarNorm });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FLT_ADV, FLT_PX, LG_FMT, lgOf, fltAdvCount, fltLineOn, fltLineOk, fltAdvOk, rarNorm });
