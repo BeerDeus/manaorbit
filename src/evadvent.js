@@ -78,10 +78,10 @@ function advCardHtml(a, me) {
     : a.open >= a.p.advent.doors ? T('Les 24 boosters sont ouverts : bravo !') : me.left > 0 ? TN(catchN, 'Rattrapage : {n} booster à rattraper', 'Rattrapage : {n} boosters à rattraper') : T('Rattrapage terminé pour aujourd\'hui');
   const doors = a.doors.map(d => {
     const v = advV(d.i), it = a.p.advent.list[d.i - 1] || {}, dt = new Date(d.day + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
-    if (d.open) return `<button type="button" class="adv-d open" data-adv="${d.i}" aria-label="${esc(T('Jour {n} : ouvert', { n: d.i }) + ' · ' + advName(it.c))}"><img alt="" loading="lazy" decoding="async" src="${esc(advImg(it.c))}" onerror="this.remove()"><span class="adv-ok" aria-hidden="true"></span></button>`;
+    if (d.open) return `<button type="button" class="adv-d open" data-adv="${d.i}" aria-label="${esc(T('Jour {n} : ouvert', { n: d.i }) + ' · ' + advName(it.c))}"><span class="adv-cb" aria-hidden="true">${typeof EV_ART !== 'undefined' && EV_ART.rwCard ? EV_ART.rwCard() : ''}</span><img alt="" loading="lazy" decoding="async" src="${esc(advImg(it.c))}" onerror="this.remove()"><span class="adv-ok" aria-hidden="true"></span></button>`;
     const state = d.i === k ? 'today' : d.day < me.day ? 'miss' : 'lock';
     const lab = state === 'today' ? T('Jour {n} : le booster du jour', { n: d.i }) : state === 'miss' ? T('Jour {n} : manqué', { n: d.i }) : T('Jour {n} : s\'ouvre le {d}', { n: d.i, d: dt });
-    return `<button type="button" class="adv-d ${state}" data-adv="${d.i}" aria-label="${esc(lab)}">${typeof EV_ART !== 'undefined' && EV_ART.booster ? EV_ART.booster({ v, frost: state !== 'today', today: state === 'today' }) : ''}<b>${d.i}</b></button>`;
+    return `<button type="button" class="adv-d ${state}" data-adv="${d.i}" aria-label="${esc(lab)}">${typeof EV_ART !== 'undefined' && EV_ART.booster ? EV_ART.booster({ v, frost: state === 'lock', today: state === 'today' }) : ''}<b>${d.i}</b></button>`;
   }).join('');
   const tiers = a.p.badge.tiers, nx = tiers.find(t => t > a.open);
   return `<button class="hm-tr-h hm-ev-h" type="button" data-ev="open"><span class="hm-ev-ic" aria-hidden="true">${EV_ART[a.p.obj.art]({ cls: 'evo-still', v: 3 })}</span>

@@ -154,7 +154,7 @@ function bndCardHtml(x, i, mini) {
  */
 function bndMake(o) {
   const el = document.createElement('div'); el.className = 'bnd' + (o.mini ? ' mini' : '');
-  el.innerHTML = `<div class="bnd-cover"><div class="bnd-view"${o.mini ? ' aria-hidden="true"' : ` tabindex="0" role="group" aria-roledescription="${T('classeur')}" aria-label="${T('Classeur')}"`}><div class="bnd-track">${[-1, 0, 1].map(p => `<div class="bnd-sheet" data-pos="${p}"></div>`).join('')}</div></div></div>
+  el.innerHTML = `<div class="bnd-cover"><div class="bnd-view"${o.mini ? ' aria-hidden="true"' : ` tabindex="0" role="group" aria-roledescription="${T('classeur')}" aria-label="${T('Classeur')}"`}><div class="bnd-track">${[-1, 0, 1].map(p => `<div class="bnd-sheet" data-pos="${p}"></div>`).join('')}</div></div><span class="bnd-deco" aria-hidden="true"></span></div>
     ${o.mini ? '' : `<div class="bnd-nav"><button type="button" class="icon-btn bnd-go" data-d="-1" aria-label="${T('Page précédente')}"><svg class="i"><use href="#i-back"/></svg></button><button type="button" class="bnd-ind" aria-haspopup="dialog" title="${T('Aller à une page')}"><span></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button><button type="button" class="icon-btn bnd-go nx" data-d="1" aria-label="${T('Page suivante')}"><svg class="i"><use href="#i-back"/></svg></button><span class="bnd-sr" aria-live="polite"></span></div>`}`;
   const view = $('.bnd-view', el), track = $('.bnd-track', el), ind = $('.bnd-ind', el), sr = $('.bnd-sr', el);
   let sh = $$('.bnd-sheet', el), items = [], per = 1, v = 0, busy = null, drag = null, moved = false, warmT = 0, ctx = o.ctx || '';

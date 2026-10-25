@@ -8,13 +8,15 @@
 .adv-d:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .adv-d > svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .adv-d > b{position:absolute;left:0;right:0;bottom:16%;text-align:center;font-size:13px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.55);font-variant-numeric:tabular-nums}
-.adv-d.lock > b{color:var(--ink-2);text-shadow:0 1px 0 rgba(255,255,255,.5)}
+.adv-d.lock > b{color:#26303c;text-shadow:0 1px 0 rgba(255,255,255,.7)}      /* booster givré (clair dans les deux thèmes) */
 .adv-d.lock{opacity:.78}
 .adv-d.miss{opacity:.42;filter:grayscale(.85)}
 .adv-d.today{animation:advToday 1.8s ease-in-out infinite}
 .adv-d.today > b{font-size:15px}
 .adv-d.open{overflow:hidden;background:#15151c;box-shadow:0 1px 3px rgba(0,0,0,.25);border-radius:7px}
 .adv-d.open img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px}
+.adv-d.open > .adv-cb{position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(circle at 50% 40%,#5a3b22,#2a1a10)}      /* dos de carte, sous l'image (visible si elle ne se charge pas) */
+.adv-d.open > .adv-cb svg{width:70%;height:auto}
 .adv-ok{position:absolute;right:3px;top:3px;width:15px;height:15px;border-radius:50%;background:#1f8a4c;box-shadow:0 0 0 1.5px #fff}
 .adv-ok::after{content:"";position:absolute;left:5px;top:3px;width:4px;height:7px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
 @keyframes advToday{50%{transform:translateY(-2px) scale(1.04)}}
@@ -52,7 +54,7 @@
 .adv-tx{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;opacity:0;transform:translateY(10px);transition:opacity .45s 1.35s,transform .45s 1.35s}
 .adv-open.on .adv-tx{opacity:1;transform:none}
 .adv-open:not(.tear) .adv-tx{transition-delay:0s}
-.adv-tx small{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#f4c542}
+.adv-tx > small{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#f4c542}
 .adv-tx h2{margin:0;font-size:23px;line-height:1.15}
 .adv-have{margin:0;font-size:13.5px;color:#cfd0dc}
 .adv-rw{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;width:100%}

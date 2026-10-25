@@ -8,7 +8,8 @@
    · bat() : chauve-souris (messages, ambiance) ; ailes dans .evo-wings (battement : scaleY autour du corps). Couleur : currentColor.
    · moon() : pleine lune d'automne (cratères, halo). · counter() : icône du compteur « 12 / 30 », dessinée pour 16–24 px (aplats, sans dégradé).
    EV_AMB[pack]() : balisage de l'ambiance, posé une fois par le moteur dans <div class="ev-amb" aria-hidden="true"> (enfant de <body>, après #app) ;
-   styles et animations dans css/ev-<pack>.css (transform / opacity seulement, 12 éléments animés au plus). Données pures : aucun accès au DOM ici. */
+   styles et animations dans css/ev-<pack>.css (transform / opacity seulement, 12 éléments animés au plus). Données pures : aucun accès au DOM ici.
+   Noël (cadeau, booster du calendrier, boule, étoile, flocon, houx, clochette, icônes de récompense, guirlande evGarland) : section « Noël » en fin de fichier. */
 let EVO_N = 0;
 const evoF = n => Math.round(n * 100) / 100;
 /** Côte de citrouille : goutte arrondie, un peu plus large sous le milieu (cx centre, w demi-largeur, top / bot : haut et bas). */
@@ -264,7 +265,7 @@ Object.assign(EV_ART, {
       + `<g stroke="${R[3]}" stroke-width=".5" stroke-linejoin="round"><path d="${B.rf}" fill="url(#${id('r')})"/><path d="${B.rt}" fill="${R[0]}"/></g>`
       + `<path d="M28.5 24V56.4" stroke="${R[0]}" stroke-width=".7" opacity=".75"/>`
       + `<rect x="9" y="31.6" width="44" height="3" fill="url(#${id('u')})"/>`
-      + `<path class="evo-glint" d="M1 58H7.4L18.6 19H12.2Z" fill="url(#${id('k')})"/></g>`
+      + `<path class="evo-glint" d="M1 58H7.4L18.6 19H12.2Z" fill="url(#${id('k')})" opacity="0"/></g>`
       + `<path d="M11.4 24.6H25.4M35 24.6H45" stroke="#fff" stroke-width=".9" stroke-linecap="round" opacity=".5"/><rect x="13.5" y="35.6" width="2.3" height="18.4" rx="1.15" fill="url(#${id('h')})"/>`
       + `<g class="evo-tag"><path d="M34.6 22.4Q40.2 22.6 43.2 25.8" fill="none" stroke="#8a6a3e" stroke-width=".55"/><path d="M42.4 25.4L44.4 24.4L49.8 26.3L48.4 30.4L43 28.5L42 26.8Z" fill="#fff8e6" stroke="#a3834f" stroke-width=".45" stroke-linejoin="round"/>`
       + `<circle cx="43.5" cy="26.2" r=".5" fill="#8a6a3e"/><path d="M45 27.6L47.9 28.6" stroke="${G.r === 'rouge' ? '#c0392b' : '#c9962a'}" stroke-width=".55" stroke-linecap="round"/></g>`
@@ -295,7 +296,7 @@ Object.assign(EV_ART, {
       + `<path d="M2.4 3.3H27.6M2.4 36.7H27.6" stroke="#fff" stroke-opacity=".38" stroke-width="3" stroke-dasharray=".42 .8"/>`
       + `<path d="M2 5.4H28M2 34.6H28" stroke="${c[3]}" stroke-width=".5" opacity=".5"/><path d="M2 5.95H28M2 35.15H28" stroke="#fff" stroke-width=".4" opacity=".35"/>`
       + `<rect x="2" y="5.4" width="1.4" height="29.2" fill="#000" opacity=".16"/><rect x="26.6" y="5.4" width="1.4" height="29.2" fill="#000" opacity=".26"/><path d="M3.9 6.2V33.8" stroke="#fff" stroke-width=".4" opacity=".3"/>`
-      + (td ? `<rect x="2" y="20.3" width="26" height="3.1" fill="url(#${id('r')})"/><path d="M2 20.3H28M2 23.4H28" stroke="#8a5a05" stroke-width=".35" opacity=".7"/>` : '')
+      + (td ? `<path d="M21.8 0H24.4V40H21.8ZM2 20.2H28V22.8H2Z" fill="url(#${id('r')})"/><path d="M21.8 0V40M24.4 0V40M2 20.2H28M2 22.8H28" stroke="#8a5a05" stroke-width=".35" opacity=".7"/><path d="M22.6 6V19.6M22.6 23.4V34" stroke="#fff6cf" stroke-width=".4" opacity=".8"/>` : '')
       + `</g>`
       + `<path d="M5.42 14.5A9.6 3 0 0 1 24.58 14.5" transform="rotate(-18 15 14.5)" fill="none" stroke="${ring}" stroke-width=".9" opacity=".7"/>`
       + `<circle cx="15" cy="14.5" r="6" fill="url(#${id('o')})" stroke="${c[3]}" stroke-width=".45"/>`
@@ -306,8 +307,8 @@ Object.assign(EV_ART, {
       + (fr ? `<g fill="none" stroke="#fff" stroke-width=".42" stroke-linecap="round" opacity=".85"><path d="${evnFern(2.6, 37.4, -62, 8.4, 2.4)}${evnFern(2.6, 37.4, -22, 6.6, 2.4)}${evnFern(27.4, 37.4, -118, 8.4, 2.4)}${evnFern(27.4, 37.4, -158, 6.6, 2.4)}"/></g>`
         + `<path d="M1.2 6.2C.5 4.4 1.6 2.5 3.4 2.4C4 .8 6 .1 7.4 1.1C8.6-.3 11-.3 12 .9C13.4-.5 16-.3 16.8 1.1C18.2.1 20.4.3 21.2 1.7C22.6.9 24.8 1.3 25.4 2.9C27.4 2.7 29.1 4.5 28.7 6.5C28.5 7.6 27.7 8 26.9 7.6C26.5 9.7 25.2 10.5 24.6 9C24 7.6 22.4 7.8 21.4 8.4C20 9.2 18.6 8.6 17.8 7.8C16.6 8.8 14.4 9 13.2 8C12 9.4 10 9.4 9.2 8.2C8.2 9 6.6 9.2 5.8 8.2C5.2 10.7 3.8 11.1 3.4 9.5C3 8 2.2 7.6 1.2 6.2Z" fill="url(#${id('n')})" stroke="#9fb8d2" stroke-width=".45" stroke-linejoin="round"/>`
         + `<path d="M3.6 4.2Q6 2.4 9 3M15 2.6Q18 1.8 20.6 3" fill="none" stroke="#fff" stroke-width=".6" stroke-linecap="round"/>` : '')
-      + (td ? `<g class="evo-bow" stroke="#8a5a05" stroke-width=".4" stroke-linejoin="round"><path d="M22.4 22.2L20.6 25.8L21.6 25.3L22.1 26.3L23.2 22.5ZM22.8 22.2L24.6 25.8L23.6 25.3L23.1 26.3L22 22.5Z" fill="#e0a92a"/>`
-        + `<path d="M22.6 21.9C20.3 22.6 17.6 21.4 17.8 19.3C18 17.4 20.6 17.6 22.6 21.9ZM22.6 21.9C24.9 22.6 27.6 21.4 27.4 19.3C27.2 17.4 24.6 17.6 22.6 21.9Z" fill="#f4c542"/><circle cx="22.6" cy="21.8" r="1.2" fill="#ffd84a"/></g>` : '')
+      + (td ? `<g class="evo-bow" stroke="#8a5a05" stroke-width=".4" stroke-linejoin="round"><path d="M23.1 21.4C20.6 22 17.8 20.6 18.1 18.4C18.4 16.5 21.1 16.9 23.1 21.4ZM23.1 21.4C25.6 22 28.4 20.6 28.1 18.4C27.8 16.5 25.1 16.9 23.1 21.4Z" fill="#f4c542"/>`
+        + `<path d="M22.4 20.4C21 20 19.6 19 19.7 18.4M23.8 20.4C25.2 20 26.6 19 26.5 18.4" fill="none" stroke="#a87410" stroke-width=".4" opacity=".8"/><circle cx="23.1" cy="21.4" r="1.3" fill="#ffd84a"/></g>` : '')
       + `</svg>`;
   },
   /** Boule de Noël (viewBox 48 × 48), teinte o.v ; o.lit : halo. */
@@ -407,7 +408,7 @@ Object.assign(EV_ART, {
   rwFact: (o = {}) => `<svg class="evo evo-rw evo-rw-fact${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
     + `<path d="M12 .9V2.1M4.2 3.9L5.1 4.8M19.8 3.9L18.9 4.8M2.2 10.2H3.4M21.8 10.2H20.6" stroke="#e0a92a" stroke-width="1" stroke-linecap="round"/>`
     + `<path d="M12 3.4C8.3 3.4 5.9 6.2 5.9 9.5C5.9 12 7.4 13.4 8.6 14.8C9.2 15.6 9.4 16.4 9.4 17.2H14.6C14.6 16.4 14.8 15.6 15.4 14.8C16.6 13.4 18.1 12 18.1 9.5C18.1 6.2 15.7 3.4 12 3.4Z" fill="#ffe27a" stroke="#8a6a12" stroke-width=".7" stroke-linejoin="round"/>`
-    + `<path d="M10.2 14.6L11 11.4L12 13L13 11.4L13.8 14.6" fill="none" stroke="#c4760a" stroke-width=".6" stroke-linejoin="round"/><path d="M8.4 8.4Q9 6.1 11.2 5.5" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round"/>`
+    + `<path d="M10.6 14.8V12.4C10.6 10.6 13.4 10.6 13.4 12.4V14.8" fill="none" stroke="#c4760a" stroke-width=".6" stroke-linecap="round"/><path d="M11.2 11.2Q12 10.4 12.8 11.2" fill="none" stroke="#fff6c8" stroke-width=".7" stroke-linecap="round"/><path d="M8.4 8.4Q9 6.1 11.2 5.5" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round"/>`
     + `<rect x="9.2" y="17.2" width="5.6" height="2.1" rx=".5" fill="#aab4c4" stroke="#4c566a" stroke-width=".5"/><rect x="9.9" y="19.3" width="4.2" height="1.7" rx=".85" fill="#8b95a8" stroke="#4c566a" stroke-width=".5"/></svg>`,
   /** Dos de carte (silhouette, sans logo) : cadre brun, ovale bleu nuit, petite étoile d'or. */
   rwCard: (o = {}) => `<svg class="evo evo-rw evo-rw-card${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
@@ -421,9 +422,9 @@ Object.assign(EV_ART, {
    scintillent (or, blanc, rouge, vert). Éléments animés : 2 lueurs + 1 aurore + 7 lumières = 10. */
 /** Givre dans un coin (viewBox 100 × 100, coin en haut à gauche) : voile blanc, fougères de glace, petits cristaux. */
 function evnFrost() {
-  const n = ++EVO_N, B = [[3, 92], [18, 60], [34, 74], [50, 50], [66, 66], [84, 90]];
+  const n = ++EVO_N, B = [[4, 86], [24, 58], [45, 70], [66, 54], [86, 84]];
   return `<svg class="evn-frost-s" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><defs><radialGradient id="evn${n}h" cx="0" cy="0" r="1"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".55" stop-color="#eef6ff" stop-opacity=".22"/><stop offset="1" stop-color="#eef6ff" stop-opacity="0"/></radialGradient></defs>`
-    + `<rect width="100" height="100" fill="url(#evn${n}h)"/><path d="${B.map(([a, l]) => evnFern(0, 0, a, l, 8)).join('')}" fill="none" stroke="currentColor" stroke-width=".8" stroke-linecap="round"/>`
+    + `<rect width="100" height="100" fill="url(#evn${n}h)"/><path d="${B.map(([a, l]) => evnFern(0, 0, a, l, 9)).join('')}" fill="none" stroke="currentColor" stroke-width=".8" stroke-linecap="round"/>`
     + `<g fill="currentColor">${[[30, 10, 2.4], [12, 34, 2], [44, 30, 1.6], [26, 48, 1.3], [60, 16, 1.5]].map(([x, y, r]) => `<path d="${evnSpark(x, y, r)}"/>`).join('')}</g></svg>`;
 }
 /** Petite lumière de guirlande (viewBox 20 × 20) : halo et étincelle de couleur c. */
