@@ -119,7 +119,9 @@ await opt('fmt', 'a'); await settle(); assert.deepEqual(await cardKeys(), ['llan
 await opt('fmt', 'l'); await settle(); assert.ok(!(await cardKeys()).includes('sol ring'), 'Legacy : Sol Ring bannie');
 const scry3 = world.scry.length; await opt('fmt', 'c'); await settle(); assert.equal(world.scry.length, scry3, 'formats lus : aucune nouvelle lecture'); assert.equal((await cardKeys()).length, 5, 'Commander : toutes');
 await p.evaluate(() => { const k = 'sol ring'; COLL.meta[k] = { ...COLL.meta[k], la: Math.floor(Date.now() / 864e5) - 31 }; SRCH.lgTried.clear(); });
-await opt('fmt', 'c'); await opt('fmt', 's'); await p.waitForFunction(n => !SRCH.lg && window.__n !== n, scry3); await settle();
+await opt('fmt', 'c'); await opt('fmt', 's');
+for (let i = 0; i < 50 && world.scry.length === scry3; i++) await p.waitForTimeout(100);      // lecture lancée après 250 ms
+await p.waitForFunction(() => !SRCH.lg); await settle();
 assert.ok(world.scry.length > scry3, 'plus de 30 jours : relue (bannissements)'); assert.deepEqual(await cardKeys(), ['llanowar elves'], 'Standard');
 await opt('fmt', 's'); await settle();
 ok('Format : légal en Standard, Modern, Legacy, Vintage (restreinte comprise), Commander, Pauper ; lu à la demande, relu après 30 jours');
