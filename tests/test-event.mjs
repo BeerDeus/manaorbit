@@ -12,7 +12,7 @@ import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { eventMake, evTag, evName } from '../event-srv.mjs';
+import { eventMake, evTag, evName, evRare } from '../event-srv.mjs';
 import { startFakes } from './amis-fakes.mjs';
 const require = createRequire(import.meta.url);
 const E = require('../src/evpacks.js');
@@ -44,13 +44,14 @@ test('packs : dates, Pâques, quotas, calendrier à l\'heure de Paris', () => {
   assert.equal(E.evEaster(2026), '2026-04-05'); assert.equal(E.evEaster(2027), '2027-03-28'); assert.equal(E.evEaster(2025), '2025-04-20'); assert.equal(E.evEaster(2038), '2038-04-25');
   const h = E.evById('halloween-2026'); assert.equal(h.from, '2026-10-25'); assert.equal(h.to, '2026-11-08'); assert.equal(h.days, 15); assert.equal(h.total, 30); assert.equal(h.per, 5);
   assert.ok(Math.ceil(h.total / h.per) >= E.EV_MIN_DAYS, 'au moins 6 jours de jeu pour tout trouver');
-  for (const p of E.EV_PACKS) { const e = E.evEdition(p, 2026); assert.ok(e.days >= 12 && e.days <= 18, p.id + ' : environ deux semaines'); assert.ok(e.total / e.per >= E.EV_MIN_DAYS, p.id + ' : 6 jours au moins'); }
+  for (const p of E.EV_PACKS) { const e = E.evEdition(p, 2026); assert.ok(p.advent ? e.days > p.advent.doors : e.days >= 12 && e.days <= 18, p.id + ' : environ deux semaines (calendrier : une porte par jour, puis le rattrapage)'); assert.ok(e.total / e.per >= E.EV_MIN_DAYS, p.id + ' : 6 jours au moins'); }
   assert.equal(E.evDay(Date.parse('2026-10-24T21:59:59Z')), '2026-10-24'); assert.equal(E.evDay(Date.parse('2026-10-24T22:00:00Z')), '2026-10-25', 'minuit à Paris (UTC+2)');
   assert.equal(E.evDay(Date.parse('2026-10-25T23:00:00Z')), '2026-10-26', 'après le changement d\'heure : UTC+1');
   assert.equal(new Date(E.evNextMidnight(Date.parse('2026-10-25T08:00:00Z'))).toISOString(), '2026-10-25T23:00:00.000Z', 'nuit du changement d\'heure (25 h)');
   assert.equal(E.evActive(Date.parse('2026-10-24T21:00:00Z')), null); assert.equal(E.evActive(Date.parse('2026-10-24T22:00:00Z')).id, 'halloween-2026');
   assert.equal(E.evActive(Date.parse('2026-11-08T22:30:00Z')).day, '2026-11-08'); assert.equal(E.evActive(Date.parse('2026-11-08T23:00:00Z')), null, 'fin le 8 novembre à minuit');
-  assert.equal(E.evActive(Date.parse('2026-12-15T12:00:00Z')), null, 'Noël pas encore prêt : jamais ouvert tout seul');
+  assert.equal(E.evActive(Date.parse('2026-12-15T12:00:00Z')).id, 'noel-2026', 'Noël : calendrier de l\'Avent ouvert tout seul');
+  assert.equal(E.evActive(Date.parse('2027-03-28T12:00:00Z')), null, 'Pâques pas encore prêt : jamais ouvert tout seul');
   assert.equal(E.evActive(Date.parse('2026-06-01T12:00:00Z'), { force: 'halloween-2026' }).day, '2026-10-25', 'forcé avant la date : 1er jour');
   assert.equal(E.evActive(Date.parse('2026-12-15T12:00:00Z'), { force: 'noel' }).id, 'noel-2026', 'pack pas prêt : seulement forcé');
   assert.equal(E.evActive(Date.parse('2026-10-26T12:00:00Z'), { off: ['halloween-2026'] }), null, 'coupée');
@@ -104,6 +105,34 @@ test('chasse : quota de 5 par jour, jetons refusés, total, reçus, statistiques
   await S.ev.flush(); S.stop();
 });
 
+test('calendrier de l\'Avent (Noël) : 24 portes, 2 cadeaux par jour, rattrapage les 25 et 26', async () => {
+  const n = E.evById('noel-2026'); assert.deepEqual([n.from, n.to, n.days, n.total, n.per], ['2026-12-01', '2026-12-26', 26, 48, 2]);
+  assert.equal(E.evQuota(n, '2026-12-24'), 2); assert.equal(E.evQuota(n, '2026-12-25'), 8); assert.equal(E.evCatchup(n, '2026-12-26'), true); assert.equal(E.evDoorDay(n, 24), '2026-12-24');
+  const d = E.evDoors(n, { '2026-12-01': ['a', 'b'], '2026-12-02': ['a'], '2026-12-25': ['x', 'y', 'z'] });
+  assert.equal(d.length, 24); assert.deepEqual(d.slice(0, 4).map(x => [x.open, x.late]), [[true, false], [true, true], [true, true], [false, false]], 'le rattrapage ouvre les portes manquées dans l\'ordre, 2 cadeaux par porte');
+  assert.deepEqual(E.evDoors(E.evById('halloween-2026'), {}), [], 'pas un calendrier');
+  // serveur : le 3 décembre, 2 cachettes, 2 trouvées au plus
+  const S = await up({ t: Date.parse('2026-12-03T09:00:00Z') }), dev = (await S.call('event')).j.dev;
+  let me = (await S.call('event', { dev })).j.me; assert.equal((await S.call('event', { dev })).j.ev.id, 'noel-2026');
+  assert.equal(me.spots.length, 2); assert.equal(me.left, 2); assert.equal(me.q, 2);
+  const claim = x => S.call('event/claim', { dev, body: { ev: 'noel-2026', day: me.day, s: x.s, t: x.t } });
+  for (const x of me.spots) assert.equal((await claim(x)).status, 200);
+  const more = (await S.call('event?c=255', { dev })).j.me.spots.find(x => !x.f); if (more) assert.equal((await claim(more)).status, 409, '3e du jour : refusé');
+  // le 25 : rattrapage, autant de cachettes que de cadeaux manquants (8 au plus)
+  S.clock.t = Date.parse('2026-12-25T09:00:00Z'); me = (await S.call('event', { dev })).j.me;
+  assert.equal(me.q, 8); assert.equal(me.spots.length, 8); assert.equal(me.left, 8);
+  for (const x of me.spots) assert.equal((await claim(x)).status, 200);
+  me = (await S.call('event', { dev })).j.me; assert.equal(me.n, 10); assert.equal(me.left, 0);
+  assert.equal(E.evDoors(n, me.jours).filter(x => x.open).length, 5, 'porte du 3 + 4 rattrapées');
+  // couleurs rares : 1 % par porte (sauf la 24e, sûre), reproductible, jamais pour une porte fermée
+  const rr = E.evPack('noel').advent.rare; let hit = 0, all = 0;
+  for (let k = 0; k < 4000; k++) for (let i = 1; i < 24; i++) { all++; const c = evRare('sekret', 'noel-2026', 'u' + k, i, rr); if (c) { hit++; assert.ok(rr.covers.includes(c)); } }
+  assert.ok(hit / all > 0.007 && hit / all < 0.013, 'environ 1 % : ' + (hit / all * 100).toFixed(2) + ' %');
+  assert.equal(evRare('sekret', 'noel-2026', 'u1', 3, rr), evRare('sekret', 'noel-2026', 'u1', 3, rr), 'reproductible');
+  assert.ok(Object.keys(me.dr || {}).every(i => E.evDoors(n, me.jours)[i - 1].open && +i < 24), 'seulement des portes ouvertes');
+  assert.equal(E.evPack('noel').advent.list[23].r.cover, 'noel', '24e booster : la couleur animée, à coup sûr');
+  S.stop();
+});
 test('progression : relue depuis Firestore (reçus), rattachée au compte, une seule fois', async () => {
   const dir = newDir(); let S = await up({ dir });
   let me = (await S.call('event?c=7', { tok: 'tok-zoe' })).j.me;
@@ -133,7 +162,7 @@ test('progression : relue depuis Firestore (reçus), rattachée au compte, une s
 
 test('interrupteur du panneau, EVENT=0, fichier illisible', async () => {
   const dir = newDir(); let S = await up({ dir });
-  let a = await S.call('admin/events'); assert.equal(a.status, 200); assert.equal(a.j.cur, 'halloween-2026'); assert.equal(a.j.list[0].state, 'live'); assert.equal(a.j.list[0].off, false);
+  let a = await S.call('admin/events'); assert.equal(a.status, 200); assert.equal(a.j.cur, 'halloween-2026'); { const h = a.j.list.find(x => x.id === 'halloween-2026'); assert.equal(h.state, 'live'); assert.equal(h.off, false); }
   const sw = await S.call('admin/events/switch', { body: { id: 'halloween-2026', on: false } }); assert.equal(sw.status, 200); assert.deepEqual(sw.j.off, ['halloween-2026']);
   assert.equal(S.ev.ping(), null, '/__ping : plus rien'); assert.equal((await S.call('event')).j.on, false);
   assert.equal((await S.call('admin/events/switch', { body: { id: 'zzz-2026', on: false } })).status, 404);

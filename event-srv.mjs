@@ -33,6 +33,11 @@ export function evName(v, bad) { const s = typeof v === 'string' ? v.replace(/\s
 function rng(hex) { let a = parseInt(String(hex).slice(0, 8), 16) >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const eq = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && timingSafeEqual(x, y); };
 
+/** Tirage d'une couleur rare (calendrier de l'Avent) : rr.p de chance, couleur parmi rr.covers ; '' : rien. Exporté pour les tests (taux). */
+export function evRare(secret, id, k, i, rr) {
+  const h = createHmac('sha256', secret).update(`evr|${id}|${k}|${i}`).digest();
+  return h.readUInt32BE(0) / 0x100000000 < rr.p ? rr.covers[h.readUInt32BE(4) % rr.covers.length] : '';
+}
 /** Crée le moteur. o : { dir, on (EVENT ≠ '0'), force (EVENT_FORCE), secret, now, verify (jeton → { uid, emailVerified, provider }), bad (filtre de mots),
  *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, log, adminHeaders, adminBody (garde-fous des actions du panneau), adminLog, adminMail,
  *  push ({ send, target } : notifications ; null : aucune), pushExtra (→ appareils de la Carte mystère, cible « tous »), pushOpts (réglages de event-push.mjs : tests) }. */
@@ -114,28 +119,36 @@ export function eventMake(o = {}) {
   const daySig = (id, k, day, list) => createHmac('sha256', G.secret).update(`evd|${id}|${k}|${day}|${[...list].sort().join(',')}`).digest('base64url').slice(0, 22);
   /** Cachettes du jour d'un joueur : tirées parmi celles que son appli peut montrer (caps), de façon reproductible ; au plus EV_LVL_MAX[0] en vue sur l'accueil et
    *  EV_LVL_MAX[1] à un geste, le reste dans les sous-menus ; celles d'hier évitées s'il en reste assez. */
-  function spotsOf(e, k, day, caps) {
+  function spotsOf(e, k, day, caps, want = EVP.evQuota(e, day)) {      // want : nombre de cachettes (quota du jour ; rattrapage d'un calendrier : ce qui manque)
     const ok = EVP.EV_SPOTS.filter(s => (s.need & caps) === s.need), shuffle = (d, from) => {
       const r = rng(createHmac('sha256', G.secret).update(`evpl|${e.id}|${k}|${d}`).digest('hex')), a = from.slice();
       for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
       return a;
     };
     const pick = (d, from) => {
-      const out = [], n = [0, 0, 0], max = [...EVP.EV_LVL_MAX, e.per], a = shuffle(d, from);
-      for (const s of a) { if (out.length >= e.per) break; if (n[s.lvl] < max[s.lvl]) { out.push(s); n[s.lvl]++; } }
-      for (const s of a) { if (out.length >= e.per) break; if (!out.includes(s)) out.push(s); }      // pas assez de sous-menus (capacités) : complété
+      const out = [], n = [0, 0, 0], max = [...EVP.EV_LVL_MAX, want], a = shuffle(d, from);
+      for (const s of a) { if (out.length >= want) break; if (n[s.lvl] < max[s.lvl]) { out.push(s); n[s.lvl]++; } }
+      for (const s of a) { if (out.length >= want) break; if (!out.includes(s)) out.push(s); }      // pas assez de sous-menus (capacités) : complété
       return out;
     };
-    const y = new Set(pick(EVP.evAdd(day, -1), ok).map(s => s.id)), fresh = ok.filter(s => !y.has(s.id)), base = fresh.length >= e.per * 3 ? fresh : ok;
+    const y = new Set(pick(EVP.evAdd(day, -1), ok).map(s => s.id)), fresh = ok.filter(s => !y.has(s.id)), base = fresh.length >= want * 3 ? fresh : ok;
     return pick(day, base).map(s => s.id);
+  }
+  /** Couleurs rares d'un calendrier (pack.advent.rare) gagnées par un joueur : { porte: couleur } pour ses portes ouvertes, sauf la dernière (récompense sûre).
+   *  Tirage reproductible (secret, édition, joueur, porte) : le même à chaque lecture, invisible et impossible à forcer depuis l'appli. */
+  function rares(e, k, pl) {
+    const p = EVP.evPack(e.pack), rr = p && p.advent && p.advent.rare, out = {}; if (!rr || !k) return out;
+    for (const d of EVP.evDoors(e, pl.d || {})) if (d.open && d.i < p.advent.doors) { const c = evRare(G.secret, e.id, k, d.i, rr); if (c) out[d.i] = c; }
+    return out;
   }
   /** Ce que voit le joueur : total, trouvées du jour, cachettes du jour et leurs jetons, jours joués et leurs reçus. */
   function me(e, r, k, caps) {
     const pl = r.p[k] || { d: {}, n: 0 }, day = e.day, found = (pl.d && pl.d[day]) || [], n = total(e, pl), sig = {};
     for (const [d, l] of Object.entries(pl.d || {})) if (Array.isArray(l) && l.length) sig[d] = daySig(e.id, k, d, l);
-    const full = n >= e.total, sp = full ? [] : spotsOf(e, k, day, caps);
+    const q = EVP.evQuota(e, day), full = n >= e.total, sp = full ? [] : spotsOf(e, k, day, caps, Math.min(q, e.total - n + found.length));      // rattrapage : pas plus de cachettes que d'objets manquants
     for (const s of found) if (!sp.includes(s)) sp.push(s);      // capacités changées depuis : celles déjà trouvées restent marquées
-    return { n, day, found, left: full ? 0 : Math.max(0, Math.min(e.per - found.length, e.total - n)), spots: sp.map(s => ({ s, t: spotTok(e.id, k, day, s), f: found.includes(s) ? 1 : 0 })), jours: pl.d || {}, sig, rs: pl.rs || 0 };      // rs : remise à zéro par le panneau (les copies plus anciennes ne comptent plus)
+    const dr = rares(e, k, pl);
+    return { n, day, found, q, ...(Object.keys(dr).length ? { dr } : {}), left: full ? 0 : Math.max(0, Math.min(q - found.length, e.total - n)), spots: sp.map(s => ({ s, t: spotTok(e.id, k, day, s), f: found.includes(s) ? 1 : 0 })), jours: pl.d || {}, sig, rs: pl.rs || 0 };      // rs : remise à zéro par le panneau (les copies plus anciennes ne comptent plus)
   }
   const edOut = e => ({ id: e.id, pack: e.pack, from: e.from, to: e.to, day: e.day, days: e.days, dayNo: EVP.evDiff(e.from, e.day) + 1, left: EVP.evDiff(e.day, e.to), total: e.total, per: e.per, ...(e.forced ? { forced: true } : {}) });
   async function body(req, res, max = 4096) {
@@ -147,7 +160,7 @@ export function eventMake(o = {}) {
   function verified(e, k, jours, sig) {
     const out = {}; if (!jours || typeof jours !== 'object' || !sig || typeof sig !== 'object') return out;
     for (const [d, l] of Object.entries(jours).slice(0, 40)) {
-      if (!DAY_RE.test(d) || d < e.from || d > e.day || !Array.isArray(l) || !l.length || l.length > e.per) continue;
+      if (!DAY_RE.test(d) || d < e.from || d > e.day || !Array.isArray(l) || !l.length || l.length > EVP.evQuota(e, d)) continue;
       const list = [...new Set(l.filter(s => typeof s === 'string' && SPOT_IDS.has(s)))]; if (list.length !== l.length) continue;
       if (typeof sig[d] === 'string' && SIG_RE.test(sig[d]) && eq(daySig(e.id, k, d, list), sig[d])) out[d] = list;
     }
@@ -158,7 +171,7 @@ export function eventMake(o = {}) {
     let ch = false;
     for (const [d, l] of Object.entries(days)) {
       const cur0 = pl.d[d] || [];
-      for (const s of l) { if (cur0.length >= e.per || total(e, pl) >= e.total) break; if (!cur0.includes(s)) { cur0.push(s); pl.d[d] = cur0; ch = true; } }
+      for (const s of l) { if (cur0.length >= EVP.evQuota(e, d) || total(e, pl) >= e.total) break; if (!cur0.includes(s)) { cur0.push(s); pl.d[d] = cur0; ch = true; } }
     }
     if (ch) { pl.n = total(e, pl); pl.at = Math.max(pl.at || 0, now()); }
     return ch;
@@ -202,13 +215,14 @@ export function eventMake(o = {}) {
       const k = keyOf(u, dev); if (!k) return json(res, 400, { error: 'device', message: 'Réessaie dans un instant.', ...devOut });
       if (b.day !== e.day) return json(res, 410, { error: 'wrong_day', message: 'Ces cachettes étaient celles d\'un autre jour.', day: e.day });
       const s = String(b.s || ''); if (!SPOT_IDS.has(s) || !TOK_RE.test(String(b.t || '')) || !eq(spotTok(e.id, k, e.day, s), b.t)) return json(res, 403, { error: 'bad_token', message: 'Cachette inconnue.' });
-      const pl = player(r, k), list = pl.d[e.day] || [];
+      const pl = player(r, k), list = pl.d[e.day] || [], q = EVP.evQuota(e, e.day);
       if (u) { pl.a = 1; const nm = evName(b.n, o.bad); if (nm) pl.nm = nm; }
-      if (list.includes(s)) return json(res, 200, { ok: true, dup: true, n: total(e, pl), found: list, left: Math.max(0, Math.min(e.per - list.length, e.total - total(e, pl))), sig: daySig(e.id, k, e.day, list) });
+      if (list.includes(s)) return json(res, 200, { ok: true, dup: true, n: total(e, pl), found: list, left: Math.max(0, Math.min(q - list.length, e.total - total(e, pl))), sig: daySig(e.id, k, e.day, list) });
       if (total(e, pl) >= e.total) return json(res, 409, { error: 'done', message: 'Tu as déjà tout trouvé.', n: total(e, pl) });
-      if (list.length >= e.per) return json(res, 409, { error: 'day_quota', message: 'Plus rien à trouver aujourd\'hui : reviens demain.', n: total(e, pl), found: list });
+      if (list.length >= q) return json(res, 409, { error: 'day_quota', message: 'Plus rien à trouver aujourd\'hui : reviens demain.', n: total(e, pl), found: list });
       list.push(s); pl.d[e.day] = list; pl.n = total(e, pl); pl.at = t; saveSoon(r);
-      return json(res, 200, { ok: true, n: pl.n, found: list, left: Math.max(0, Math.min(e.per - list.length, e.total - pl.n)), sig: daySig(e.id, k, e.day, list) });
+      const dr = rares(e, k, pl);
+      return json(res, 200, { ok: true, n: pl.n, found: list, left: Math.max(0, Math.min(q - list.length, e.total - pl.n)), sig: daySig(e.id, k, e.day, list), ...(Object.keys(dr).length ? { dr } : {}) });
     }
     if (sub === 'sync') {      // { ev, jours, sig } (compte) : progression relue depuis la copie de l'appli (Firestore), reçus vérifiés
       if (!u) return json(res, 401, { error: 'auth_required', message: 'Connecte-toi.' });

@@ -85,8 +85,9 @@ test('message : FR puis EN aux dates en toutes lettres, nombres, embed aux coule
   assert.equal(m.embeds[0].image.url, 'https://exemple.test/icons/events/halloween/social-1200x630.png'); assert.ok(m.content.endsWith('<https://exemple.test/>'));
   assert.equal(evDscMsg('open', ED, HW, null, '', 'javascript:alert(1)').embeds[0].url, 'https://manaorbit.app/', 'adresse douteuse : manaorbit.app');
   assert.equal(evDscMsg('bof', ED, HW, null, '', ''), null);
-  const noel = P.EV_PACKS.find(p => p.id === 'noel');
-  assert.equal(evDscReady(noel), false); assert.equal(evDscMsg('open', P.evEdition(noel, 2026), noel, null, '', ''), null, 'pack sans dsc : rien');
+  const paq = P.EV_PACKS.find(p => p.id === 'paques');
+  assert.equal(evDscReady(paq), false); assert.equal(evDscMsg('open', P.evEdition(paq, 2027), paq, null, '', ''), null, 'pack sans dsc : rien');
+  assert.equal(evDscReady(P.EV_PACKS.find(p => p.id === 'noel')), true, 'Noël (calendrier de l\'Avent) : messages prêts');
   assert.equal(evDscReady({ ...HW, dsc: { ...HW.dsc, end: ['seulement le français'] } }), false, 'dsc incomplet : rien');
   assert.equal(evDscReady({ ...HW, ready: false }), false, 'pack pas prêt : rien');
   for (const k of EV_DSC_STEPS) { const x = evDscMsg(k, ED, HW, { hunters: 5, full: 2, top: [{ n: 'A', c: 3 }] }, '', ''); assert.ok(x.content.length <= 2000 && !/\{\w+\}/.test(x.content), k + ' : tout remplacé'); }
@@ -207,7 +208,7 @@ test('rattrapage après un arrêt du serveur : J-3 jusqu\'à la veille, J0 le jo
   ({ bot } = mkBot(dir)); await bot.events.tick({ now: noon('2026-11-11'), stats: S.fn }); assert.equal(DS.posts.length, 3);
   // fin trop tard (4e jour) : rien ; mi-parcours trop tard : rien
   reset(); const d2 = newDir(); ({ bot } = mkBot(d2));
-  for (const d of ['2026-11-04', '2026-11-12', '2026-11-30']) await bot.events.tick({ now: noon(d), stats: S.fn });
+  for (const d of ['2026-11-04', '2026-11-12', '2026-11-20']) await bot.events.tick({ now: noon(d), stats: S.fn });
   assert.equal(DS.posts.length, 0, 'hors des fenêtres : rien');
 });
 
@@ -260,9 +261,9 @@ test('édition coupée par l\'admin, pack pas prêt ou sans messages, DISCORD_EV
   await B1.bot.events.tick({ now: noon('2026-10-25'), off: () => ['halloween-2026'] }); assert.equal(DS.posts.length, 0, 'édition coupée : rien');
   await B1.bot.events.tick({ now: noon('2026-10-25'), off: () => ['halloween'] }); assert.equal(DS.posts.length, 0, 'pack coupé : rien');
   await B1.bot.events.tick({ now: noon('2026-10-25'), off: () => { throw new Error('x'); } }); assert.deepEqual(kinds(), ['open'], 'interrupteur illisible : rien de coupé');
-  // Noël (pas prêt, sans messages) : rien pendant sa période
-  reset(); for (const d of ['2026-12-09', '2026-12-12', '2026-12-19', '2026-12-26', '2026-12-27']) await B1.bot.events.tick({ now: noon(d) });
-  assert.equal(DS.posts.length, 0, 'Noël pas prêt : rien');
+  // Pâques (pas prêt, sans messages) : rien pendant sa période
+  reset(); for (const d of ['2027-03-18', '2027-03-21', '2027-03-28', '2027-04-04', '2027-04-06']) await B1.bot.events.tick({ now: noon(d) });
+  assert.equal(DS.posts.length, 0, 'Pâques pas prêt : rien');
   // packs passés à evDscMake directement (contrat : helpers de discordMake) : Halloween pas prêt, ou sans un message
   const h = { on: true, find: B1.bot.helpers.find, post: B1.bot.helpers.post, log: { log() {}, warn() {} }, TX: 0, NEWS: 5 };
   for (const pk of [{ ...HW, ready: false }, { ...HW, dsc: { ...HW.dsc, mid: undefined } }]) {

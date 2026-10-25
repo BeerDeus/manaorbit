@@ -27,7 +27,9 @@ function evLsSet(patch) { Object.assign(evLs(), patch); try { localStorage.setIt
 const evDeco = () => evLs().deco !== false;
 /** Progression gardée d'une édition (appareil). */
 const evMine = id => ((evLs().p || {})[id]) || { jours: {}, sig: {}, n: 0, rs: 0 };
-function evMineSet(id, x) { const p = { ...(evLs().p || {}) }; p[id] = { jours: x.jours || {}, sig: x.sig || {}, n: Math.max(0, x.n || 0), rs: x.rs || 0 }; evLsSet({ p }); }
+/** Couleurs rares gagnées (calendrier de l'Avent : { porte: couleur }), réunies sans jamais en perdre ; valeurs vérifiées. */
+const evDrops = (...l) => { const o = {}; for (const x of l) for (const [k, v] of Object.entries((x && typeof x === 'object' && x) || {})) if (/^\d{1,2}$/.test(k) && typeof v === 'string' && /^[a-z]{2,16}$/.test(v)) o[k] = v; return o; };
+function evMineSet(id, x) { const p = { ...(evLs().p || {}) }; p[id] = { jours: x.jours || {}, sig: x.sig || {}, n: Math.max(0, x.n || 0), rs: x.rs || 0, ...(x.dr && Object.keys(x.dr).length ? { dr: x.dr } : {}) }; evLsSet({ p }); }
 /** Remise à zéro du serveur (panneau /admin) connue pour cette édition : les copies plus anciennes (appareil, compte) ne comptent plus. */
 const evRs = id => (EV.st && EV.st.ev && EV.st.ev.id === id && EV.st.me ? EV.st.me.rs || 0 : 0);
 const evFresh = (id, x) => !!x && (x.rs || 0) >= evRs(id);
@@ -159,10 +161,10 @@ function evSeed(s) { let h = 2166136261; for (const c of s + '|' + (EV.st && EV.
 function evMount(s, root) {
   const p = evPackOf(); if (!p || typeof EV_ART === 'undefined' || !EV_ART[p.obj.art]) return;
   const b = document.createElement('button'); b.type = 'button'; b.className = 'ev-pk ev-wait'; b.dataset.s = s;
-  b.setAttribute('aria-label', evTx('label') || T('Un objet caché : touche-le pour le récolter')); b.innerHTML = EV_ART[p.obj.art]();
-  const g = evSeed(s + '#'), rot = (g % 81) - 40, size = [22, 24, 26, 28, 28, 30, 30, 32][(g >>> 8) % 8];      // de travers et de taille variable selon la cachette et le jour : moins monotone
+  const g = evSeed(s + '#'), rot = (g % 81) - 40, size = [22, 24, 26, 28, 28, 30, 30, 32][(g >>> 8) % 8], v = (g >>> 16) % 5;      // de travers, de taille et de couleur (cadeaux : couleurs de mana) variables selon la cachette et le jour : moins monotone
+  b.setAttribute('aria-label', evTx('label') || T('Un objet caché : touche-le pour le récolter')); b.innerHTML = EV_ART[p.obj.art]({ v });
   b.style.setProperty('--r', rot + 'deg'); b.style.setProperty('--k', size + 'px');
-  const x = { s, el: b, root, zones: evZones(root), k: -1, host: null, io: null, ok: false, dead: false, tries: 0, rot, size };
+  const x = { s, el: b, root, zones: evZones(root), k: -1, host: null, io: null, ok: false, dead: false, tries: 0, rot, size, v };
   EV.pks.set(s, x); evZone(x, 0);
   b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); evTap(s); });
 }
@@ -281,7 +283,7 @@ async function evStatus(force) {
 function evKeep(id, me) {
   const was0 = evMine(id), was = (me.rs || 0) > (was0.rs || 0) ? { jours: {}, sig: {}, n: 0 } : was0, jours = { ...was.jours }, sig = { ...was.sig };      // remise à zéro par le panneau : l'ancienne copie part
   for (const [d, l] of Object.entries(me.jours || {})) if (!jours[d] || l.length >= jours[d].length) { jours[d] = l; if (me.sig && me.sig[d]) sig[d] = me.sig[d]; }
-  evMineSet(id, { jours, sig, n: Math.max(was.n || 0, me.n || 0), rs: Math.max(was0.rs || 0, me.rs || 0) });
+  evMineSet(id, { jours, sig, n: Math.max(was.n || 0, me.n || 0), rs: Math.max(was0.rs || 0, me.rs || 0), dr: evDrops(was.dr, me.dr) });
   if (was !== was0) evForget(id);
   evDocPushSoon();
 }
@@ -338,8 +340,9 @@ async function evDocPush() {
   if (!u || !st || !st.acct || !D.cloud || !D.cloud.saveMeta || EV.doc === null || (typeof cloudOn === 'function' && !cloudOn())) return;
   const id = st.ev.id, loc = evMine(id), cur = EV.doc[id] || {};
   const old = (cur.rs || 0) < (loc.rs || 0);      // copie du compte d'avant une remise à zéro : remplacée, pas fusionnée
-  if (!old && (cur.n || 0) >= (loc.n || 0) && Object.keys(cur.jours || {}).length >= Object.keys(loc.jours || {}).length) return;
-  const e = { ...EV.doc, [id]: { n: old ? loc.n || 0 : Math.max(loc.n || 0, cur.n || 0), jours: loc.jours, sig: loc.sig, rs: loc.rs || 0 } };
+  const dr = old ? evDrops(loc.dr) : evDrops(cur.dr, loc.dr);      // couleurs rares : réunies, jamais perdues (sauf remise à zéro)
+  if (!old && (cur.n || 0) >= (loc.n || 0) && Object.keys(cur.jours || {}).length >= Object.keys(loc.jours || {}).length && Object.keys(dr).length <= Object.keys(evDrops(cur.dr)).length) return;
+  const e = { ...EV.doc, [id]: { n: old ? loc.n || 0 : Math.max(loc.n || 0, cur.n || 0), jours: loc.jours, sig: loc.sig, rs: loc.rs || 0, ...(Object.keys(dr).length ? { dr } : {}) } };
   for (const k of Object.keys(e).slice(0, Math.max(0, Object.keys(e).length - 20))) delete e[k];      // 20 éditions gardées au plus (règles : 24)
   try { await D.cloud.saveMeta(u.uid, 'events', { e, updatedAt: Date.now() }); EV.doc = e; } catch (err) { /* hors ligne, règles : renvoyé au prochain objet */ }
 }
@@ -349,31 +352,32 @@ async function evTap(s) {
   const x = EV.pks.get(s), st = EV.st; if (!x || !st || !st.me || EV.fly) return;
   const sp = st.me.spots.find(q => q.s === s); if (!sp || sp.f) return;
   haptic('ok'); EV.fly = 1;
-  const from = x.el.getBoundingClientRect(), rot = x.rot || 0; evUnmount(s); sp.f = 1;
-  const me = st.me, n0 = me.n, found = [...me.found, s];
-  me.found = found; me.n = Math.min(st.ev.total, n0 + 1); me.left = Math.max(0, Math.min(st.ev.per - found.length, st.ev.total - me.n));      // tout de suite à l'écran ; le serveur confirme
-  const anim = evFly(from, me.n, st.ev.total, rot);
+  const from = x.el.getBoundingClientRect(), rot = x.rot || 0, v = x.v; evUnmount(s); sp.f = 1;
+  const me = st.me, n0 = me.n, found = [...me.found, s], j0 = { ...(me.jours || {}) };
+  me.found = found; me.n = Math.min(st.ev.total, n0 + 1); me.left = Math.max(0, Math.min((me.q || st.ev.per) - found.length, st.ev.total - me.n));      // tout de suite à l'écran ; le serveur confirme
+  const anim = evFly(from, me.n, st.ev.total, rot, v);
   let res = null, err = null;
   try { res = await evCall('/claim', { method: 'POST', body: { ev: st.ev.id, day: me.day, s, t: sp.t, n: evNick() } }); } catch (e) { err = e; }
   await anim;
   if (res) {
-    me.n = res.n; me.found = res.found; me.left = res.left; me.jours = { ...me.jours, [me.day]: res.found }; me.sig = { ...me.sig, [me.day]: res.sig };
+    me.n = res.n; me.found = res.found; me.left = res.left; me.jours = { ...me.jours, [me.day]: res.found }; me.sig = { ...me.sig, [me.day]: res.sig }; if (res.dr) me.dr = res.dr;
     evKeep(st.ev.id, me); if (!st.acct) { const a = { ...(evLs().anon || {}) }; a[st.ev.id] = evMine(st.ev.id); evLsSet({ anon: a }); }
     if (typeof prgSoon === 'function') prgSoon('event');
   } else if (err && err.code !== 'net') {
-    me.n = n0; me.found = found.filter(q => q !== s); me.left = Math.max(0, st.ev.per - me.found.length);
+    me.n = n0; me.found = found.filter(q => q !== s); me.left = Math.max(0, (me.q || st.ev.per) - me.found.length);
     toast(err.code === 'day_quota' ? evTx('dayDone') : err.code === 'wrong_day' ? T('Nouveau jour : de nouvelles cachettes t\'attendent.') : T('Cet objet n\'a pas pu être compté.'));
     evStatus(true);
   } else toast(T('Hors ligne : ta trouvaille sera comptée au retour du réseau.'));
-  evMsg(me);
+  const door = !!res && typeof advAfterFind === 'function' && advAfterFind(j0, me);      // calendrier de l'Avent : une porte vient de s'ouvrir → son ouverture (puis la célébration)
+  if (!door) evMsg(me);
   EV.fly = 0; evHomePaint(); evLoopSync();
-  if (me.n >= st.ev.total && res) setTimeout(evParty, reduceMotion() ? 200 : 900);
+  if (me.n >= st.ev.total && res && !door) setTimeout(evParty, reduceMotion() ? 200 : 900);
 }
 /** Envol : l'objet part de sa cachette, grandit au milieu de l'écran (lueur, étincelles), puis rejoint le compteur qui rebondit. Promesse : fin de l'envol. */
-function evFly(from, n, total, rot = 0) {
+function evFly(from, n, total, rot = 0, v) {
   const p = evPackOf(), lay = document.createElement('div'); lay.className = 'ev-fx'; lay.setAttribute('aria-hidden', 'true');
   const cnt = evCounterEl(n - 1, total);
-  const obj = document.createElement('div'); obj.className = 'ev-flyo'; obj.innerHTML = EV_ART[p.obj.art]({ lit: true }); lay.appendChild(obj); document.body.appendChild(lay);
+  const obj = document.createElement('div'); obj.className = 'ev-flyo'; obj.innerHTML = EV_ART[p.obj.art]({ lit: true, v }); lay.appendChild(obj); document.body.appendChild(lay);
   const vw = innerWidth, vh = innerHeight, big = Math.min(150, vw * .38), cx = vw / 2, cy = vh * .42;
   obj.style.width = obj.style.height = big + 'px'; obj.style.left = cx - big / 2 + 'px'; obj.style.top = cy - big / 2 + 'px';
   const k0 = from.width / big, dx0 = from.left + from.width / 2 - cx, dy0 = from.top + from.height / 2 - cy;
@@ -420,7 +424,7 @@ function evSparks(lay, cx, cy, big) {
 /** Compteur global « 🎃 12 / 30 », en haut de l'écran le temps de la trouvaille ; set(n), bump() : petit rebond. */
 function evCounterEl(n, total) {
   const p = evPackOf(); let el = document.querySelector('.ev-cnt');
-  if (!el) { el = document.createElement('div'); el.className = 'ev-cnt'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); el.innerHTML = `<span class="ev-cnt-ic">${typeof EV_ART !== 'undefined' && EV_ART.counter ? EV_ART.counter() : esc(p.obj.emoji)}</span><b></b>`; document.body.appendChild(el); }
+  if (!el) { el = document.createElement('div'); el.className = 'ev-cnt'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); el.innerHTML = `<span class="ev-cnt-ic">${typeof EV_ART !== 'undefined' && EV_ART[p.obj.counter || 'counter'] ? EV_ART[p.obj.counter || 'counter']() : ''}</span><b></b>`; document.body.appendChild(el); }
   clearTimeout(el._t); el.classList.add('on');
   const b = el.querySelector('b'), set = v => { b.textContent = `${nf0(v)} / ${nf0(total)}`; el.setAttribute('aria-label', TN(v, '{n} ' + p.obj.one + ' sur {t}', '{n} ' + p.obj.many + ' sur {t}', { t: total })); };
   set(Math.max(0, n));
@@ -433,9 +437,9 @@ function evMsg(me) {
   document.querySelectorAll('.ev-msg').forEach(x => x.remove());
   if (me.n >= st.ev.total) return;      // dernière : la célébration
   const el = document.createElement('div'); el.className = 'ev-msg'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
-  const day = me.left <= 0, l = p.txt.left;
+  const day = me.left <= 0, l = (typeof evCatchup === 'function' && evCatchup(st.ev, me.day) && p.txt.leftCatch) || p.txt.left;
   const line = day ? esc(evTx('dayDone')) : (l ? TN(me.left, l[0], l[1]) : esc(evObjN(me.left)));
-  el.innerHTML = `<span class="ev-msg-ic" aria-hidden="true">${EV_ART.bat ? EV_ART.bat() : ''}</span><span class="ev-msg-t"><b>${esc(day ? T('Bravo !') : evTx('found') || T('Bien vu !'))}</b><span>${line}</span>${!st.acct && me.n === 1 ? `<small>${esc(evTx('join'))}</small>` : ''}</span>`;
+  el.innerHTML = `<span class="ev-msg-ic" aria-hidden="true">${EV_ART[p.obj.msg || 'bat'] ? EV_ART[p.obj.msg || 'bat']() : ''}</span><span class="ev-msg-t"><b>${esc(day ? T('Bravo !') : evTx('found') || T('Bien vu !'))}</b><span>${line}</span>${!st.acct && me.n === 1 ? `<small>${esc(evTx('join'))}</small>` : ''}</span>`;
   document.body.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
   const t = setTimeout(() => { el.classList.remove('on'); setTimeout(() => el.remove(), 400); }, day ? 5200 : 3800);
@@ -483,7 +487,17 @@ function evHomePaint() {
     at.insertAdjacentHTML('afterend', '<section class="hm-trade hm-ev" id="hmEvent" aria-labelledby="hmEvT"></section>'); box = document.getElementById('hmEvent');
     box.addEventListener('click', e => { if (e.target.closest('.ev-pk')) return; const b = e.target.closest('[data-ev]'); if (!b) return; haptic('tap'); evSheetOpen(); });
   }
-  const me = st.me || { n: evCount(st.ev.id), left: st.ev.per, found: [] }, n = Math.max(me.n, evCount(st.ev.id)), ev = st.ev, y = ev.id.slice(-4);
+  const me = st.me || { n: evCount(st.ev.id), left: st.ev.per, found: [], day: st.ev.day }, n = Math.max(me.n, evCount(st.ev.id)), ev = st.ev, y = ev.id.slice(-4);
+  if (typeof advOrbApply === 'function') advOrbApply();
+  const adv = p.advent && typeof advNow === 'function' ? advNow() : null;
+  if (typeof advRing === 'function') advRing(adv);
+  if (adv) {      // calendrier de l'Avent (evadvent.js) : les 24 boosters à la place de la barre
+    const deco = evDeco() && typeof evGarland === 'function', sig = ['adv', adv.open, me.left, (me.found || []).length, me.day, I18N.lang, deco].join('|'); if (box.dataset.sig === sig) return; box.dataset.sig = sig;
+    box.innerHTML = (deco ? evGarland() : '') + advCardHtml(adv, me); box.classList.add('hm-adv');
+    if (!box.dataset.adv) { box.dataset.adv = '1'; box.addEventListener('click', e => { const d = e.target.closest('[data-adv]'); if (d) { haptic('tap'); advDoorTap(Number(d.dataset.adv)); } }); }
+    return;
+  }
+  box.classList.remove('hm-adv');
   const left = ev.left, tiers = p.badge.tiers, nx = tiers.find(t => t > n);
   const today = me.left > 0 ? TN(me.left, 'Encore {n} à trouver aujourd\'hui', 'Encore {n} à trouver aujourd\'hui') : n >= ev.total ? T('Tout est trouvé : bravo !') : T('Tout est trouvé pour aujourd\'hui : reviens demain');
   const sig = [n, me.left, left, I18N.lang, (me.found || []).length].join('|'); if (box.dataset.sig === sig) return; box.dataset.sig = sig;
@@ -501,12 +515,13 @@ function evSheetOpen() {
   openSheet(evTx('short') + ' ' + st.ev.id.slice(-4), null, api => {
     api.wrap.classList.add('ev-sheet');
     const paint = (bd) => {
-      const me = st.me || { n: 0, spots: [], left: 0 }, n = Math.max(me.n, evCount(st.ev.id)), ev = st.ev, to = new Date(ev.to + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
+      const me = st.me || { n: 0, spots: [], left: 0 }, ev = st.ev, adv = p.advent && typeof advNow === 'function' ? advNow() : null, n = adv ? adv.open : Math.max(me.n, evCount(st.ev.id)), tot = adv ? p.advent.doors : ev.total, to = new Date(ev.to + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
+      const unitN = t => (adv && p.badge.unit ? TN(t, p.badge.unit[0], p.badge.unit[1]) : evObjN(t));
       const rules = (p.txt.rules || []).map(r => `<li>${esc(T(r, { total: ev.total, per: ev.per, to, y: ev.id.slice(-4) }))}</li>`).join('');
       const hints = (me.spots || []).map(x => `<li class="${x.f ? 'ok' : ''}"><span aria-hidden="true">${x.f ? '✓' : '·'}</span>${esc(evHint(x.s))}${x.f ? `<span class="sr">${T('trouvée')}</span>` : ''}</li>`).join('');
-      const bdg = p.badge.tiers.map((t, i) => `<div class="ev-sb ${n >= t ? 'ok' : ''}">${evBadgeHtml(ev.id, i, n >= t)}<b>${esc(T(p.badge.names[i]))}</b><small>${esc(evObjN(t))}</small></div>`).join('');
+      const bdg = p.badge.tiers.map((t, i) => `<div class="ev-sb ${n >= t ? 'ok' : ''}">${evBadgeHtml(ev.id, i, n >= t)}<b>${esc(T(p.badge.names[i]))}</b><small>${esc(unitN(t))}</small></div>`).join('');
       const rows = bd && Array.isArray(bd.rows) && bd.rows.length ? `<p class="prg-h">${T('Chasseurs')}</p><p class="hint">${esc(TN(bd.hunters, '{n} chasseur', '{n} chasseurs'))} · ${esc(T('{n} au complet', { n: bd.full }))}</p><ol class="ev-board">${bd.rows.map(r => `<li class="${r.me ? 'me' : ''}"><span>${r.r}</span><b>${esc(r.n)}</b><span>${nf0(r.c)} / ${nf0(ev.total)}</span></li>`).join('')}</ol>` : '';
-      api.body.innerHTML = `<div class="ev-sh-top"><span class="ev-sh-ic" aria-hidden="true">${EV_ART[p.obj.art]({ cls: 'evo-still' })}</span><div><b>${nf0(n)} / ${nf0(ev.total)}</b><span>${esc(T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }))}</span></div></div>
+      api.body.innerHTML = `<div class="ev-sh-top"><span class="ev-sh-ic" aria-hidden="true">${EV_ART[p.obj.art]({ cls: 'evo-still' })}</span><div><b>${nf0(n)} / ${nf0(tot)}</b><span>${esc(adv ? TN(n, '{n} booster ouvert', '{n} boosters ouverts') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }))}</span></div></div>
         <ul class="ev-rules">${rules}</ul>
         ${me.spots && me.spots.length ? `<p class="prg-h">${T('Indices du jour')}</p><ul class="ev-hints">${hints}</ul>` : ''}
         <p class="prg-h">${T('Badges à gagner')}</p><div class="ev-sbs">${bdg}</div>
@@ -538,7 +553,7 @@ function evIntro() {
   const to = new Date(st.ev.to + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
   const el = document.createElement('div'); el.className = 'ev-intro'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'evInT');
   el.innerHTML = `<div class="ev-in-bg" aria-hidden="true"></div><div class="ev-in-card">
-    <div class="ev-in-row" aria-hidden="true">${[0, 1, 2, 3, 4].map(i => `<span style="--i:${i}">${EV_ART[p.obj.art]({ lit: i === 2 })}</span>`).join('')}</div>
+    <div class="ev-in-row" aria-hidden="true">${[0, 1, 2, 3, 4].map(i => `<span style="--i:${i}">${EV_ART[p.obj.art]({ lit: i === 2, v: i })}</span>`).join('')}</div>
     <p class="ev-in-k">${esc(p.obj.emoji)} ${esc(T(p.name))} ${esc(st.ev.id.slice(-4))}</p>
     <h2 id="evInT">${esc(evTx('title'))}</h2>
     <ol class="ev-in-rules">${(p.txt.rules || []).map((r, i) => `<li style="--i:${i}">${esc(T(r, { total: st.ev.total, per: st.ev.per, to, y: st.ev.id.slice(-4) }))}</li>`).join('')}</ol>
@@ -552,7 +567,7 @@ function evIntro() {
 }
 
 /* ── Préférences : « Décorations de fête » (Compte et réglages › Préférences, pendant une fête) ────────────────────────────── */
-const evPrefRow = () => (evOn() ? `<label class="me-row switch-row" for="setEvDeco"><span class="me-t">${T('Décorations de fête')}<small>${esc(evTx('deco') || T(evPackOf().name))}${esc(' · ' + T('la chasse reste ouverte'))}</small></span><span class="switch"><input type="checkbox" id="setEvDeco" ${evDeco() ? 'checked' : ''}><i></i></span></label>` : '');
+const evPrefRow = () => (typeof advOrbRow === 'function' ? advOrbRow() : '') + (evOn() ? `<label class="me-row switch-row" for="setEvDeco"><span class="me-t">${T('Décorations de fête')}<small>${esc(evTx('deco') || T(evPackOf().name))}${esc(' · ' + T('la chasse reste ouverte'))}</small></span><span class="switch"><input type="checkbox" id="setEvDeco" ${evDeco() ? 'checked' : ''}><i></i></span></label>` : '');
 function evPref(on) { evLsSet({ deco: !!on }); evApply(); haptic('ok'); }
 
 /* ── Badges « Événements » (progress.js) : un badge par édition, paliers du pack ; obtenables pendant la fête, gardés ensuite avec l'année ── */
@@ -565,7 +580,8 @@ function evBadges() {
   for (const id of ids) {
     const e = evById(id), p = e && evPack(e.pack); if (!p || !p.badge) continue;
     const names = p.badge.names || [];
-    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), v: () => evCount(id), ev: id, names });
+    const adv = !!p.advent;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js)
+    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: adv && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), v: () => (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : evCount(id)), ev: id, names });
   }
   return out;
 }

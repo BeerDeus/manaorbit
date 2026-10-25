@@ -375,7 +375,7 @@ const PRG_W = { sc: 3, sr: 1, copies: 1, distinct: 2, decks: 25, eng: 150, pub: 
 function prgXp(m = prgMetrics(), bs = prgBadges(m)) {
   let xp = 0; for (const [k, w] of Object.entries(PRG_W)) xp += (Number(m[k]) || 0) * w;
   for (const x of bs) xp += prgTierXp(x.b, x.t);
-  return Math.round(xp + m.dy('played') * 50 + m.dy('points') / 10);
+  return Math.round(xp + m.dy('played') * 50 + m.dy('points') / 10 + (typeof evXp === 'function' ? evXp() : 0));      // + récompenses du calendrier de l'Avent (evadvent.js)
 }
 /** XP pour atteindre le niveau L (1 : 0 ; 999 : ≈ 224 millions). */
 const prgXpFor = L => Math.round(40 * Math.pow(Math.max(0, L - 1), 2.25));

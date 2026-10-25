@@ -21,6 +21,11 @@
 const BND_KEY = 'deckdeal:binder:v1', BND_VKEY = 'deckdeal:bndview:v1', BND_PER = 9, BND_PINS = 18, BND_GAP = 28, BND_SPREAD = 760, BND_PKMAX = 40;      // BND_GAP : écart entre deux feuilles qui glissent (px) ; BND_SPREAD : largeur dès laquelle deux pages se font face ; BND_PKMAX : tuiles d'« Aller à la page » (au-delà : curseur)
 const BND_SORTS = [['value', 'Valeur'], ['color', 'Couleur'], ['set', 'Extension'], ['name', 'Nom']];
 const BND_COVERS = [['nuit', 'Nuit'], ['cuir', 'Cuir'], ['bordeaux', 'Bordeaux'], ['foret', 'Forêt'], ['ocean', 'Océan'], ['amethyste', 'Améthyste'], ['ardoise', 'Ardoise'], ['sable', 'Sable']];
+/** Couleurs de fête : récompenses du calendrier de l'Avent (evadvent.js › evCoverOk : l'animée au 24e booster, les autres à 1 chance sur 100 par booster) ;
+    proposées une fois gagnées, toujours lues (liste d'un autre joueur). */
+BND_COVERS.push(['noel', 'Nuit de Noël'], ['sapin', 'Sapin'], ['neige', 'Neige'], ['houx', 'Houx'], ['nuitdoree', 'Nuit dorée']);      // noel : animée (24e booster) ; les autres : rares
+const BND_FEST = new Set(['noel', 'sapin', 'neige', 'houx', 'nuitdoree']);
+const bndCovOk = (id, cur) => !BND_FEST.has(id) || id === cur || (typeof evCoverOk === 'function' && evCoverOk(id));
 const BND = { cfg: null, view: null, chk: '', pg: {}, own: null, live: new Set(), rt: 0, ed: null, edAt: 0, noIm: new Set() };      // pg : vue affichée par classeur (section, onglet) le temps de la session ; own : classeur de la section (gardé entre deux peintures) ; ed, edAt, noIm : lecture des images d'éditions (bndEdLoad)
 const BND_IC = {
   list: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6.5h10M9.5 12h10M9.5 17.5h10"/><path d="M4.6 6.5h.01M4.6 12h.01M4.6 17.5h.01" stroke-width="2.8"/></svg>',
@@ -370,7 +375,7 @@ function bndOpenSettings() {
   openSheet(T('Mon classeur'), T('Ce que voient les visiteurs de ton lien en mode classeur'), api => {
     api.wrap.classList.add('bnd-sheet-w');
     api.body.innerHTML = `<div class="bnd-set-top"><div class="bnd-mini-host"></div>
-        <div class="bnd-set-cov"><span class="label">${T('Couleur du classeur')}</span><div class="bnd-covers" role="radiogroup" aria-label="${T('Couleur du classeur')}">${BND_COVERS.map(([id, nm]) => `<button type="button" class="bnd-cv" data-c="${id}" role="radio" aria-checked="false" aria-label="${esc(T(nm))}" title="${esc(T(nm))}"></button>`).join('')}</div><b class="bnd-cvn"></b></div></div>
+        <div class="bnd-set-cov"><span class="label">${T('Couleur du classeur')}</span><div class="bnd-covers" role="radiogroup" aria-label="${T('Couleur du classeur')}">${BND_COVERS.filter(([id]) => bndCovOk(id, bndCfg().c)).map(([id, nm]) => `<button type="button" class="bnd-cv" data-c="${id}" role="radio" aria-checked="false" aria-label="${esc(T(nm))}" title="${esc(T(nm))}"></button>`).join('')}</div><b class="bnd-cvn"></b></div></div>
       <div class="bnd-set-sec"><span class="label">${T('Trier les autres cartes')}</span><div class="seg bnd-sorts" id="bndSort" role="radiogroup" aria-label="${T('Trier les autres cartes')}"></div></div>
       <div class="bnd-set-sec"><span class="label bnd-pin-h"></span><div class="bnd-pins"></div>
         <label class="fsearch bnd-find"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="bndQ" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="${T('Épingler une carte de ta liste')}" aria-label="${T('Épingler une carte de ta liste')}"></label>

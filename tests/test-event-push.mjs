@@ -132,11 +132,11 @@ test('annonces automatiques : chaque étape une fois, une par jour, entre 10 h e
   await S.at('2026-11-09 12:00'); await S.at('2026-11-10 12:00'); assert.equal(S.F.sent.length, 9, 'dernier jour manqué (seulement le jour même) ; pas de récapitulatif');
   for (const t of ['tokFR-xxxxx', 'tokEN-xxxxx', 'tokDE-xxxxx']) assert.equal(new Set(S.F.to(t).map(x => x.title)).size, S.F.to(t).length, t + ' : jamais deux fois la même');
   const v = (await S.call('admin/events/push')).j; assert.deepEqual(v.hist.map(x => [x.kind, x.step, x.n, x.ok]), [['auto', 'mid', 3, 3], ['auto', 'open', 3, 3], ['auto', 'soon', 3, 3]], 'historique du panneau');
-  assert.equal(v.hist[0].title, '🕸️ Plus que 8 jours de chasse'); assert.equal(v.next, null, 'plus rien à venir dans les 60 jours');
+  assert.equal(v.hist[0].title, '🕸️ Plus que 8 jours de chasse'); assert.deepEqual(v.next, { day: '2026-11-28', step: 'soon', ev: 'noel-2026', title: '🎄 Le calendrier de l\'Avent arrive' }, 'suivante : le calendrier de l\'Avent');
   S.stop();
   // dernier jour, à 10 h
   const L = await up(); await L.reg('tokFR-xxxxx', 'fr'); await L.at('2026-11-08 10:05'); assert.deepEqual(L.F.sent.map(x => x.title), ['🦇 Dernier jour de la chasse !']);
-  const nx = (await L.call('admin/events/push')).j.next; assert.equal(nx, null); L.stop();
+  const nx = (await L.call('admin/events/push')).j.next; assert.deepEqual(nx, { day: '2026-11-28', step: 'soon', ev: 'noel-2026', title: '🎄 Le calendrier de l\'Avent arrive' }); L.stop();
   const N = await up({ t: paris('2026-10-20 12:00') }); assert.deepEqual((await N.call('admin/events/push')).j.next, { day: '2026-10-22', step: 'soon', ev: 'halloween-2026', title: '🎃 La chasse aux citrouilles arrive' }, 'prochaine annonce affichée au panneau'); N.stop();
 });
 
@@ -157,7 +157,7 @@ test('rattrapage, une par jour avec deux éditions, édition coupée, cibles ref
   const C = await up(); await C.reg('tokFR-xxxxx', 'fr');
   assert.equal((await C.call('admin/events/switch', { body: { id: 'halloween-2026', on: false } })).status, 200);
   await C.at('2026-10-22 10:00'); await C.at('2026-10-25 10:00'); assert.equal(C.F.sent.length, 0, 'coupée : aucune annonce');
-  assert.equal((await C.call('admin/events/push')).j.next, null);
+  assert.deepEqual((await C.call('admin/events/push')).j.next, { day: '2026-11-28', step: 'soon', ev: 'noel-2026', title: '🎄 Le calendrier de l\'Avent arrive' }, 'Halloween coupé : la suivante est Noël');
   await C.call('admin/events/switch', { body: { id: 'halloween-2026', on: true } }); await C.at('2026-11-01 10:00'); assert.equal(C.F.sent.length, 1, 'rallumée : la suivante part'); C.stop();
   // cibles refusées (404, 410) : retirées ; échec passager (500) : gardée
   const R = await up(); for (const t of ['GONE1-xxxxx', 'OLD1-xxxxxx', 'FAIL1-xxxxx', 'tokOK-xxxxx']) await R.reg(t, 'fr');

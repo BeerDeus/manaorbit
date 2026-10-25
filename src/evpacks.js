@@ -82,11 +82,96 @@ const EV_PACKS = [
         pt: ['🦇 Último dia de caça!', 'As últimas abóboras somem à meia-noite. É agora ou nunca.'],
       },
     } },
-  { id: 'noel', ready: false, name: 'Noël', when: y => ({ from: `${y}-12-12`, to: `${y}-12-26` }), total: 30, perDay: 5,
-    obj: { one: 'cadeau', many: 'cadeaux', emoji: '🎁', fem: false, art: 'gift' },
+  { id: 'noel', ready: true, name: 'Noël', when: y => ({ from: `${y}-12-01`, to: `${y}-12-26` }), total: 48, perDay: 2,
+    // Calendrier de l'Avent (evadvent.js) : une porte (un booster) par jour du 1er au 24, ouverte quand les {per} cadeaux du jour sont trouvés ; le 25 et le 26,
+    // rattrapage : jusqu'à catchup cadeaux par jour, qui ouvrent les portes manquées dans l'ordre. Le badge compte les portes ouvertes.
+    advent: {
+      doors: 24, catchup: 8,
+      // Couleurs de classeur rares (binder.js › BND_COVERS) : chaque porte, sauf la dernière, a rare.p de chance d'en donner une (tirage du serveur, propre à chaque
+      // joueur et à chaque porte : event-srv.mjs › evRare) ; elles restent acquises pour de bon. Jamais toutes en un seul Noël.
+      rare: { p: 0.01, covers: ['sapin', 'neige', 'houx', 'nuitdoree'] },
+      // Contenu de chaque porte : c = carte du jour (nom anglais exact, Scryfall), r = récompense : xp (points), cover (couleur de classeur, sûre : la dernière
+      // porte, la couleur animée de Noël), orb (orbe de Noël sur l'accueil, jusqu'au 6 janvier), fact (anecdote, clé de T).
+      list: [
+        { c: 'Snow-Covered Plains', r: { fact: 'Les terrains de base enneigés sont apparus en 1995 avec Ère glaciaire, la première extension à mettre la neige au cœur du jeu.' } },
+        { c: 'Gift of Paradise', r: { xp: 100 } },
+        { c: 'Icy Manipulator', r: { fact: 'Icy Manipulator était déjà là en 1993, dans Alpha, la toute première édition de Magic.' } },
+        { c: 'Snow-Covered Island', r: { xp: 100 } },
+        { c: 'Boreal Druid', r: { fact: 'Coldsnap (2006) a complété le bloc Ère glaciaire… onze ans après sa sortie.' } },
+        { c: 'Gift of Estates', r: { xp: 100 } },
+        { c: 'Snow-Covered Swamp', r: { fact: 'Kaldheim (2021) a ramené la neige : des terrains enneigés dans chaque booster.' } },
+        { c: 'Frozen Solid', r: { xp: 150 } },
+        { c: 'Icehide Troll', r: { fact: 'Alpha est sortie en août 1993 et s\'est vendue en quelques semaines.' } },
+        { c: 'Snow-Covered Mountain', r: { xp: 150 } },
+        { c: 'Into the North', r: { fact: 'Magic a été inventé par Richard Garfield, un mathématicien.' } },
+        { c: 'Glacial Fortress', r: { xp: 150 } },
+        { c: 'Snow-Covered Forest', r: { fact: 'Le Commander est né d\'une variante de juges appelée « Elder Dragon Highlander » (EDH).' } },
+        { c: 'Arcum\'s Astrolabe', r: { xp: 200 } },
+        { c: 'Rimescale Dragon', r: { fact: 'Les cartes foil sont arrivées dans les boosters en 1999, avec L\'Héritage d\'Urza.' } },
+        { c: 'Snow Day', r: { xp: 200 } },
+        { c: 'Ice-Fang Coatl', r: { fact: 'Le mana a cinq couleurs, toujours dans le même ordre sur le cercle : blanc, bleu, noir, rouge, vert.' } },
+        { c: 'Gift of the Gargantuan', r: { xp: 200 } },
+        { c: 'Winter Orb', r: { fact: 'Le Black Lotus d\'Alpha est la carte la plus célèbre du jeu : ses meilleurs exemplaires se vendent des centaines de milliers d\'euros.' } },
+        { c: 'Gifts Ungiven', r: { xp: 300 } },
+        { c: 'Frost Titan', r: { fact: 'Depuis 2024, les boosters de jeu remplacent les boosters de draft et d\'extension.' } },
+        { c: 'Star of Extinction', r: { xp: 300 } },
+        { c: 'Glacial Chasm', r: { fact: 'Il existe plus de 25 000 cartes Magic différentes.' } },
+        { c: 'Mishra\'s Bauble', r: { cover: 'noel', orb: 1, xp: 500 } },
+      ],
+    },
+    obj: { one: 'cadeau', many: 'cadeaux', emoji: '🎁', fem: false, art: 'gift', counter: 'giftCounter', msg: 'bell' },
     pal: { a: '#e23b3b', b: '#1f8a4c', c: '#f4c542', ink: '#0d1f17' }, font: 'frost',
-    badge: { t: 'Cadeaux de Noël {y}', tiers: [1, 10, 20, 30], names: ['Lutin', 'Renne', 'Elfe en chef', 'Esprit de Noël'] },
-    txt: { title: 'La chasse aux cadeaux est ouverte', short: 'Chasse aux cadeaux' } },
+    badge: { t: 'Calendrier de l\'Avent {y}', tiers: [1, 8, 16, 24], unit: ['{n} booster ouvert', '{n} boosters ouverts'], names: ['Lutin', 'Renne', 'Elfe en chef', 'Esprit de Noël'] },
+    txt: {
+      title: 'Le calendrier de l\'Avent est ouvert', short: 'Calendrier de l\'Avent',
+      rules: ['Chaque jour jusqu\'au 24 décembre, {per} cadeaux se cachent dans l\'appli.', 'Trouve-les pour ouvrir le booster du jour : une carte, et parfois une récompense.', 'Un jour manqué ? Le 25 et le 26, rattrape tes boosters.'],
+      found: 'Un cadeau !', left: ['Encore <b>{n} cadeau</b> pour ouvrir le booster du jour', 'Encore <b>{n} cadeaux</b> pour ouvrir le booster du jour'],
+      leftCatch: ['Encore <b>{n} cadeau</b> pour rattraper un booster', 'Encore <b>{n} cadeaux</b> pour rattraper un booster'],
+      dayDone: 'Booster du jour ouvert, reviens demain', allDone: 'Les 24 boosters sont ouverts', allSub: 'Tu es Esprit de Noël {y} : le calendrier complet, un badge que peu de joueurs auront.',
+      label: 'Un cadeau caché : touche-le pour le récolter', tip: 'Un cadeau ! Touche-le pour le récolter : {per} se cachent dans l\'appli chaque jour.',
+      join: 'Crée un compte pour garder ton calendrier sur tous tes appareils.', deco: 'Décorations de Noël',
+    },
+    dsc: {
+      soon: ['🎄 **Le calendrier de l\'Avent arrive dans 3 jours !** Du {from} au 24 décembre, {per} cadeaux se cachent chaque jour dans Mana Orbit : un booster à ouvrir par jour, des cartes, des récompenses et des badges de Noël {y}.', '🎄 **The Advent calendar starts in 3 days!** From {fromEn} to December 24, {per} gifts hide in Mana Orbit every day: one booster to open each day, cards, rewards and Christmas {y} badges.'],
+      open: ['🎁 **Le calendrier de l\'Avent est ouvert !** Chaque jour, trouve les {per} cadeaux cachés dans l\'appli pour ouvrir le booster du jour. Qui ouvrira les 24 ?', '🎁 **The Advent calendar is open!** Every day, find the {per} gifts hidden in the app to open the day\'s booster. Who will open all 24?'],
+      mid: ['❄️ **Mi-parcours du calendrier de l\'Avent** : {h} joueurs ont déjà ouvert des boosters, {full} ont un calendrier complet pour l\'instant.', '❄️ **Advent calendar halfway point**: {h} players have opened boosters so far, {full} have a complete calendar for now.'],
+      last: ['🔔 **Dernier jour de rattrapage du calendrier de l\'Avent !** Les boosters manqués se ferment à minuit.', '🔔 **Last catch-up day of the Advent calendar!** Missed boosters close at midnight.'],
+      end: ['🎄 **Le calendrier de l\'Avent est terminé.** {h} joueurs, {full} ont ouvert les 24 boosters. Joyeuses fêtes, et rendez-vous au Nouvel an !', '🎄 **The Advent calendar is over.** {h} players, {full} opened all 24 boosters. Happy holidays, see you at New Year!'],
+    },
+    push: {
+      soon: {
+        fr: ['🎄 Le calendrier de l\'Avent arrive', 'Dès le {from}, un booster à ouvrir chaque jour dans l\'appli : des cartes, des récompenses et des badges de Noël {y}.'],
+        en: ['🎄 The Advent calendar is coming', 'From {from}, one booster to open every day in the app: cards, rewards and Christmas {y} badges.'],
+        de: ['🎄 Der Adventskalender kommt', 'Ab dem {from} jeden Tag ein Booster zum Öffnen in der App: Karten, Belohnungen und Weihnachts-Abzeichen {y}.'],
+        es: ['🎄 Llega el calendario de Adviento', 'Desde el {from}, un sobre que abrir cada día en la app: cartas, recompensas e insignias de Navidad {y}.'],
+        it: ['🎄 Arriva il calendario dell\'Avvento', 'Dal {from}, una busta da aprire ogni giorno nell\'app: carte, ricompense e badge di Natale {y}.'],
+        pt: ['🎄 O calendário do Advento está chegando', 'A partir de {from}, um booster para abrir todo dia no app: cards, recompensas e emblemas de Natal {y}.'],
+      },
+      open: {
+        fr: ['🎁 Le calendrier de l\'Avent est ouvert !', 'Trouve les {per} cadeaux cachés dans l\'appli pour ouvrir le booster du jour.'],
+        en: ['🎁 The Advent calendar is open!', 'Find the {per} gifts hidden in the app to open today\'s booster.'],
+        de: ['🎁 Der Adventskalender ist offen!', 'Finde die {per} versteckten Geschenke in der App, um den Booster des Tages zu öffnen.'],
+        es: ['🎁 ¡El calendario de Adviento está abierto!', 'Encuentra los {per} regalos escondidos en la app para abrir el sobre del día.'],
+        it: ['🎁 Il calendario dell\'Avvento è aperto!', 'Trova i {per} regali nascosti nell\'app per aprire la busta del giorno.'],
+        pt: ['🎁 O calendário do Advento está aberto!', 'Encontre os {per} presentes escondidos no app para abrir o booster do dia.'],
+      },
+      mid: {
+        fr: ['❄️ Ton booster du jour t\'attend', 'Mi-parcours du calendrier de l\'Avent : {per} cadeaux cachés chaque jour, et le rattrapage les 25 et 26.'],
+        en: ['❄️ Today\'s booster is waiting', 'Advent calendar halfway point: {per} gifts hidden every day, and catch-up on the 25th and 26th.'],
+        de: ['❄️ Dein Booster des Tages wartet', 'Halbzeit beim Adventskalender: jeden Tag {per} versteckte Geschenke, Nachholen am 25. und 26.'],
+        es: ['❄️ Tu sobre del día te espera', 'Mitad del calendario de Adviento: {per} regalos escondidos cada día, y recuperación el 25 y el 26.'],
+        it: ['❄️ La busta del giorno ti aspetta', 'Metà del calendario dell\'Avvento: {per} regali nascosti ogni giorno, e recupero il 25 e il 26.'],
+        pt: ['❄️ Seu booster do dia te espera', 'Metade do calendário do Advento: {per} presentes escondidos todo dia, e recuperação nos dias 25 e 26.'],
+      },
+      last: {
+        fr: ['🔔 Dernier jour de rattrapage !', 'Les boosters manqués du calendrier de l\'Avent se ferment à minuit.'],
+        en: ['🔔 Last catch-up day!', 'Missed Advent calendar boosters close at midnight.'],
+        de: ['🔔 Letzter Tag zum Nachholen!', 'Verpasste Booster des Adventskalenders schließen um Mitternacht.'],
+        es: ['🔔 ¡Último día de recuperación!', 'Los sobres perdidos del calendario de Adviento se cierran a medianoche.'],
+        it: ['🔔 Ultimo giorno di recupero!', 'Le buste perse del calendario dell\'Avvento si chiudono a mezzanotte.'],
+        pt: ['🔔 Último dia de recuperação!', 'Os boosters perdidos do calendário do Advento fecham à meia-noite.'],
+      },
+    } },
   { id: 'nouvelan', ready: false, name: 'Nouvel an', when: y => ({ from: `${y}-12-27`, to: evAdd(`${y}-12-27`, 14) }), total: 30, perDay: 5,
     obj: { one: 'étoile filante', many: 'étoiles filantes', emoji: '🎆', fem: true, art: 'star' },
     pal: { a: '#f2c230', b: '#3b3fd8', c: '#ff5fa2', ink: '#0b0d24' }, font: 'gala',
@@ -165,15 +250,41 @@ function evUpcoming(day, within = 60) {
   for (const p of EV_PACKS) if (p.ready) for (const yy of [y, y + 1]) { const e = evEdition(p, yy), d = evDiff(day, e.from); if (d > 0 && d <= within && (!best || d < best.in)) best = { ...e, in: d }; }
   return best;
 }
+/* ── Calendrier de l'Avent (pack.advent) : une porte par jour, ouverte avec les {per} objets du jour ; jours de rattrapage ensuite ── */
+/** Jour (« AAAA-MM-JJ ») de la porte i (1…doors) d'une édition. */
+const evDoorDay = (e, i) => evAdd(e.from, i - 1);
+/** Jour de rattrapage (après la dernière porte) ? */
+const evCatchup = (e, day) => { const p = evPack(e.pack); return !!(p && p.advent && evDiff(e.from, day) >= p.advent.doors); };
+/** Quota d'un jour : celui de l'édition ; jours de rattrapage d'un calendrier : advent.catchup (le total borne de toute façon : seulement les portes manquées). */
+const evQuota = (e, day) => (evCatchup(e, day) ? evPack(e.pack).advent.catchup : e.per);
+/** Portes d'un calendrier d'après les jours joués ({ jour: [cachettes] }) : [{ i, day, n (objets de son jour), open, late (ouverte au rattrapage) }].
+ *  Les objets des jours de rattrapage ouvrent les portes manquées dans l'ordre, {per} par porte. [] : pas un calendrier. */
+function evDoors(e, jours) {
+  const p = evPack(e.pack); if (!p || !p.advent) return [];
+  const j = jours || {}, len = d => (Array.isArray(j[d]) ? j[d].length : 0), out = [];
+  let spare = 0; for (let k = p.advent.doors; k < e.days; k++) spare += len(evAdd(e.from, k));
+  for (let i = 1; i <= p.advent.doors; i++) {
+    const day = evDoorDay(e, i), n = len(day), need = Math.max(0, e.per - n), late = need > 0 && spare >= need;
+    if (late) spare -= need;
+    out.push({ i, day, n, open: n >= e.per || late, late });
+  }
+  return out;
+}
 /** Contrôle des packs (tests) : quota tenable, période d'environ deux semaines. Liste des problèmes (vide : tout va bien). */
 function evCheck(y = 2026) {
   const bad = [];
   for (const p of EV_PACKS) {
     const e = evEdition(p, y), need = Math.ceil(p.total / e.per);
+    if (p.advent) {      // calendrier : une porte par jour, puis au moins un jour de rattrapage ; tout le total tient dans les portes
+      if (p.advent.doors * e.per !== p.total) bad.push(p.id + ' : ' + p.advent.doors + ' portes × ' + e.per + ' ≠ ' + p.total);
+      if (e.days <= p.advent.doors || e.days > p.advent.doors + 3) bad.push(p.id + ' : ' + e.days + ' jours pour ' + p.advent.doors + ' portes');
+      if (!Array.isArray(p.advent.list) || p.advent.list.length !== p.advent.doors) bad.push(p.id + ' : contenu des portes');
+      continue;
+    }
     if (need < EV_MIN_DAYS) bad.push(p.id + ' : tout trouvable en ' + need + ' jours');
     if (e.days < need || e.days < 12 || e.days > 18) bad.push(p.id + ' : ' + e.days + ' jours');
   }
   return bad;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evParts, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck };
+if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evParts, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck, evDoorDay, evCatchup, evQuota, evDoors };

@@ -1,0 +1,79 @@
+/* ── event-advent.css : calendrier de l'Avent (evadvent.js) : carte de l'accueil, ouverture d'un booster ───────────────────────────────────────
+   Mise en page seulement ; couleurs de la fête, ambiance, lumières autour de l'orbe (.adv-orbit) et orbe de Noël : css/ev-noel.css. Dessins : evart.js. */
+.hm-adv{position:relative;overflow:hidden}
+.hm-adv > .evn-garland{z-index:2}
+.adv-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px}
+.adv-d{position:relative;aspect-ratio:3/4;padding:0;border:0;border-radius:9px;background:transparent;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent;transition:transform .15s}
+.adv-d:active{transform:scale(.94)}
+.adv-d:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.adv-d > svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.adv-d > b{position:absolute;left:0;right:0;bottom:16%;text-align:center;font-size:13px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.55);font-variant-numeric:tabular-nums}
+.adv-d.lock > b{color:var(--ink-2);text-shadow:0 1px 0 rgba(255,255,255,.5)}
+.adv-d.lock{opacity:.78}
+.adv-d.miss{opacity:.42;filter:grayscale(.85)}
+.adv-d.today{animation:advToday 1.8s ease-in-out infinite}
+.adv-d.today > b{font-size:15px}
+.adv-d.open{overflow:hidden;background:#15151c;box-shadow:0 1px 3px rgba(0,0,0,.25);border-radius:7px}
+.adv-d.open img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px}
+.adv-ok{position:absolute;right:3px;top:3px;width:15px;height:15px;border-radius:50%;background:#1f8a4c;box-shadow:0 0 0 1.5px #fff}
+.adv-ok::after{content:"";position:absolute;left:5px;top:3px;width:4px;height:7px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+@keyframes advToday{50%{transform:translateY(-2px) scale(1.04)}}
+@media (min-width:700px){.adv-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
+
+/* ── Ouverture d'un booster : plein écran ── */
+.adv-open{position:fixed;inset:0;z-index:98;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .35s;overflow:hidden}
+.adv-open.on{opacity:1}
+.adv-bg{position:absolute;inset:0;background:radial-gradient(90% 60% at 50% 32%,#3a0f1c 0%,#14101f 55%,#07080f 100%)}
+.adv-in{position:relative;width:min(100%,420px);max-height:100%;overflow:auto;padding:calc(18px + env(safe-area-inset-top,0px)) 18px calc(22px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:14px;color:#fff;text-align:center}
+.adv-pack{position:relative;width:92px;height:122px;margin-bottom:-110px;z-index:3;pointer-events:none}
+.adv-pack > span{position:absolute;inset:0}
+.adv-pack svg{width:100%;height:100%;display:block}
+.adv-pk-top{clip-path:inset(0 0 78% 0)}
+.adv-pk-bot{clip-path:inset(22% 0 0 0)}
+.adv-open.tear .adv-pk-top{animation:advTear .7s .15s cubic-bezier(.3,.6,.4,1) forwards}
+.adv-open.tear .adv-pk-bot{animation:advDrop .8s .55s cubic-bezier(.5,0,.7,.4) forwards}
+.adv-open:not(.tear) .adv-pack{display:none}
+@keyframes advTear{to{transform:translate(70px,-80px) rotate(38deg);opacity:0}}
+@keyframes advDrop{to{transform:translateY(160px) scale(.9);opacity:0}}
+.adv-card{position:relative;width:min(62vw,236px);aspect-ratio:63/88;padding:0;border:0;background:none;cursor:pointer;perspective:900px;margin-top:6px}
+.adv-flip{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .9s cubic-bezier(.2,.8,.2,1) .75s}
+.adv-open.on .adv-flip{transform:rotateY(180deg)}
+.adv-open:not(.tear) .adv-flip{transition:none;transform:rotateY(180deg)}
+.adv-back,.adv-front{position:absolute;inset:0;border-radius:4.6%/3.3%;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;box-shadow:0 26px 50px -18px rgba(0,0,0,.85),0 0 46px -8px rgba(244,197,66,.5)}
+.adv-back{display:grid;place-items:center;background:radial-gradient(circle at 50% 40%,#5a3b22,#2a1a10)}
+.adv-back svg{width:62%;height:auto}
+.adv-front{transform:rotateY(180deg);background:#16161c}
+.adv-front img{width:100%;height:100%;object-fit:cover;display:block}
+.adv-front em{display:none}
+.adv-front.noimg{display:grid;place-items:center;padding:16px;background:linear-gradient(160deg,#2b3d55,#13151d)}
+.adv-front.noimg em{display:block;font:600 18px/1.25 var(--font-d,inherit);color:#fff}
+.adv-foil{position:absolute;inset:0;background:linear-gradient(115deg,transparent 25%,rgba(255,120,200,.32) 38%,rgba(120,220,255,.32) 48%,rgba(255,236,140,.3) 58%,transparent 72%);mix-blend-mode:screen;background-size:250% 100%;animation:advFoil 3.2s ease-in-out 1.6s infinite;pointer-events:none}
+@keyframes advFoil{0%,100%{background-position:100% 0}50%{background-position:0 0}}
+.adv-tx{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;opacity:0;transform:translateY(10px);transition:opacity .45s 1.35s,transform .45s 1.35s}
+.adv-open.on .adv-tx{opacity:1;transform:none}
+.adv-open:not(.tear) .adv-tx{transition-delay:0s}
+.adv-tx small{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#f4c542}
+.adv-tx h2{margin:0;font-size:23px;line-height:1.15}
+.adv-have{margin:0;font-size:13.5px;color:#cfd0dc}
+.adv-rw{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;width:100%}
+.adv-rw li,.adv-fact{display:flex;align-items:center;gap:12px;text-align:left;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14)}
+.adv-rw li b,.adv-fact b{display:block;font-size:14.5px}
+.adv-rw li small{display:block;font-size:12.5px;color:#c9cad6;margin-top:1px}
+.adv-fact{margin-top:2px;align-items:flex-start}
+.adv-fact span span{display:block;font-size:13.5px;line-height:1.45;color:#e2e3ec;margin-top:2px}
+.adv-rw-ic{flex:none;width:30px;height:30px;display:grid;place-items:center}
+.adv-rw-ic svg{width:28px;height:28px}
+.adv-acts{display:flex;gap:10px;margin-top:12px;width:100%;justify-content:center}
+.adv-acts .btn{flex:1;max-width:180px}
+.adv-acts .btn.ghost{color:#fff;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.06)}
+@media (prefers-reduced-motion:reduce){
+  .adv-d.today,.adv-foil{animation:none}
+  .adv-open,.adv-flip,.adv-tx{transition:none}
+  .adv-open.tear .adv-pk-top,.adv-open.tear .adv-pk-bot{animation:none;opacity:0}
+}
+/* Récompenses rares (1 chance sur 100) et couleur animée du 24 : liseré doré qui brille */
+.adv-rw li.rare,.adv-rw li.anim{position:relative;overflow:hidden;border-color:rgba(244,197,66,.75);background:linear-gradient(135deg,rgba(244,197,66,.22),rgba(255,255,255,.06))}
+.adv-rw li.rare::after,.adv-rw li.anim::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,240,180,.35) 48%,transparent 66%);transform:translateX(-100%);animation:advShine 2.6s ease-in-out 1.8s infinite;pointer-events:none}
+.adv-rw li.rare b{color:#ffd86b}
+@keyframes advShine{60%,100%{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.adv-rw li.rare::after,.adv-rw li.anim::after{animation:none;opacity:0}}

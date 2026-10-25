@@ -40,5 +40,10 @@
   "Ardoise": "Slate",
   "Sable": "Sand",
   "Comment montrer mes cartes comme dans un classeur ?": "How do I show my cards like in a binder?",
-  "Dans <b>Échange</b>, l'interrupteur au-dessus de la liste (icônes liste et grille) passe en <b>classeur</b> : des pages de 9 cartes à feuilleter. <b>Personnaliser</b> choisit sa couleur, les cartes épinglées en tête et le tri des autres (valeur, couleur, extension, nom). Tes amis voient le même classeur sur ton lien public, et peuvent repasser en liste.": "In <b>Trade</b>, the switch above the list (list and grid icons) turns it into a <b>binder</b>: pages of 9 cards to flip through. <b>Customize</b> picks its color, the cards pinned first and how the others are sorted (value, color, set, name). Your friends see the same binder on your public link, and can switch back to the list."
+  "Dans <b>Échange</b>, l'interrupteur au-dessus de la liste (icônes liste et grille) passe en <b>classeur</b> : des pages de 9 cartes à feuilleter. <b>Personnaliser</b> choisit sa couleur, les cartes épinglées en tête et le tri des autres (valeur, couleur, extension, nom). Tes amis voient le même classeur sur ton lien public, et peuvent repasser en liste.": "In <b>Trade</b>, the switch above the list (list and grid icons) turns it into a <b>binder</b>: pages of 9 cards to flip through. <b>Customize</b> picks its color, the cards pinned first and how the others are sorted (value, color, set, name). Your friends see the same binder on your public link, and can switch back to the list.",
+  "Sapin": "Fir tree",
+  "Neige": "Snow",
+  "Houx": "Holly",
+  "Nuit dorée": "Golden night",
+  "Nuit de Noël": "Christmas Night"
 }

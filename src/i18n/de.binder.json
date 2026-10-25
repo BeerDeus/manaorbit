@@ -40,5 +40,10 @@
   "Ardoise": "Schiefer",
   "Sable": "Sand",
   "Comment montrer mes cartes comme dans un classeur ?": "Wie zeige ich meine Karten wie in einem Sammelordner?",
-  "Dans <b>Échange</b>, l'interrupteur au-dessus de la liste (icônes liste et grille) passe en <b>classeur</b> : des pages de 9 cartes à feuilleter. <b>Personnaliser</b> choisit sa couleur, les cartes épinglées en tête et le tri des autres (valeur, couleur, extension, nom). Tes amis voient le même classeur sur ton lien public, et peuvent repasser en liste.": "In <b>Tausch</b> macht der Schalter über der Liste (Listen- und Raster-Symbol) daraus einen <b>Ordner</b>: Seiten mit 9 Karten zum Blättern. <b>Anpassen</b> wählt seine Farbe, die oben angehefteten Karten und die Sortierung der übrigen (Wert, Farbe, Edition, Name). Deine Freunde sehen denselben Ordner über deinen öffentlichen Link und können zur Liste zurückwechseln."
+  "Dans <b>Échange</b>, l'interrupteur au-dessus de la liste (icônes liste et grille) passe en <b>classeur</b> : des pages de 9 cartes à feuilleter. <b>Personnaliser</b> choisit sa couleur, les cartes épinglées en tête et le tri des autres (valeur, couleur, extension, nom). Tes amis voient le même classeur sur ton lien public, et peuvent repasser en liste.": "In <b>Tausch</b> macht der Schalter über der Liste (Listen- und Raster-Symbol) daraus einen <b>Ordner</b>: Seiten mit 9 Karten zum Blättern. <b>Anpassen</b> wählt seine Farbe, die oben angehefteten Karten und die Sortierung der übrigen (Wert, Farbe, Edition, Name). Deine Freunde sehen denselben Ordner über deinen öffentlichen Link und können zur Liste zurückwechseln.",
+  "Sapin": "Tanne",
+  "Neige": "Schnee",
+  "Houx": "Stechpalme",
+  "Nuit dorée": "Goldene Nacht",
+  "Nuit de Noël": "Weihnachtsnacht"
 }
