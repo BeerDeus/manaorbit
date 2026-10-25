@@ -89,6 +89,11 @@ import org.json.JSONObject;
  *   chaque bouton touché refaisait la mise au point à cet endroit. ok false : caméra pas démarrée. APK 1.0.11 et plus ; plus ancienne : comme le plugin.
  * - orientation({ lock }) → { lock } : orientation gardée pendant une partie du compteur de vie (vrai : celle du moment, faux : rendue au capteur).
  *   APK 1.0.12 et plus ; plus ancienne : le site garde ses mises en page paysage.
+ * - setIcon({ pack, until, now }) → { want, current, applied } : icône de l'appli aux couleurs d'une fête (activity-alias, IconSwitch.java) ;
+ *   pack : halloween | noel | nouvelan | paques | magic, null ou absent : icône normale ; until (ms) : retour automatique à l'icône normale (IconRevertJob) ;
+ *   appliquée quand l'appli passe en arrière-plan (now : tout de suite, essais). Fête inconnue de cette APK : refusé. APK 1.0.13 et plus ; plus ancienne : pas
+ *   de méthode, l'icône reste normale (src/event.js › evNatIcon).
+ * - iconState() → { want, current, packs } : icône voulue, icône montrée, fêtes connues de cette APK.
  * - requestReview() → { ok: true } : demande de note Google Play dans l'appli (In-App Review), voir requestReview. APK 1.0.6 et plus ; plus ancienne : le site
  *   montre sa propre demande, qui ouvre la fiche Play Store.
  * - événement « open », gardé jusqu'à ce que la page l'écoute (lancement à froid) : { view: 'collection' | 'scan' | 'quick' } le widget ou son bouton a été
@@ -482,6 +487,60 @@ public class ManaOrbitPlugin extends Plugin {
             ret.put("lock", lock);
             call.resolve(ret);
         });
+    }
+
+    /** Icône d'une fête demandée par le site (src/event.js › evNatIcon) : gardée, appliquée au prochain passage en arrière-plan (handleOnStop). */
+    @PluginMethod
+    public void setIcon(PluginCall call) {
+        String pack = call.getString("pack", null);
+        if (pack != null && pack.isEmpty()) pack = null;
+        if (!IconSwitch.known(pack)) {
+            call.reject("setIcon : fête inconnue de cette APK");
+            return;
+        }
+        Double until = call.getDouble("until", 0.0);
+        Context ctx = getContext();
+        IconSwitch.request(ctx, pack, until == null ? 0 : until.longValue());
+        boolean applied = Boolean.TRUE.equals(call.getBoolean("now", false)) && IconSwitch.apply(ctx);
+        JSObject ret = new JSObject();
+        String want = IconSwitch.wanted(ctx), cur = IconSwitch.current(ctx);
+        ret.put("want", want == null ? JSONObject.NULL : want);
+        ret.put("current", cur == null ? JSONObject.NULL : cur);
+        ret.put("applied", applied);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void iconState(PluginCall call) {
+        Context ctx = getContext();
+        JSObject ret = new JSObject();
+        String want = IconSwitch.wanted(ctx), cur = IconSwitch.current(ctx);
+        ret.put("want", want == null ? JSONObject.NULL : want);
+        ret.put("current", cur == null ? JSONObject.NULL : cur);
+        JSArray packs = new JSArray();
+        for (String p : IconSwitch.PACKS) packs.put(p);
+        ret.put("packs", packs);
+        call.resolve(ret);
+    }
+
+    /** Au lancement : retour automatique à l'icône normale reprogrammé (les tâches ne survivent pas à un redémarrage du téléphone). */
+    @Override
+    public void load() {
+        super.load();
+        Context ctx = getContext();
+        long until = IconSwitch.until(ctx);
+        if (IconSwitch.wanted(ctx) != null && until > 0) IconRevertJob.schedule(ctx, until);
+    }
+
+    /** L'appli passe en arrière-plan : c'est là qu'on bascule l'icône (le lanceur se met à jour sans fermer l'appli à l'écran). */
+    @Override
+    protected void handleOnStop() {
+        super.handleOnStop();
+        try {
+            IconSwitch.apply(getContext());
+        } catch (RuntimeException e) {
+            // réessayé au prochain passage en arrière-plan
+        }
     }
 
     /**

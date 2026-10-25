@@ -1,8 +1,8 @@
 # Icône de l'appli Android aux couleurs des fêtes
 
-> **À livrer dans une prochaine APK, pas maintenant.** Changer l'icône de l'appli installée demande du code natif (un `<activity-alias>` par icône et une méthode du plugin `ManaOrbit`) : il faut une nouvelle APK publiée sur le Play Store. Pour Halloween 2026, seuls le logo de l'en-tête, l'écran de lancement et le favicon du site changent (`src/evlogo.js`, `pwa/icons/events/<pack>/`).
+> **En place depuis l'APK 1.0.13 (versionCode 14).** Une fois cette version installée, l'icône change toute seule à chaque fête et revient à la normale après, sans rien faire. APK plus ancienne, navigateur, PWA : l'icône ne change pas (seuls le logo de l'en-tête, l'écran de lancement et le favicon du site changent : `src/evlogo.js`, `pwa/icons/events/<pack>/`). Publication et tests : `docs/android.md` › APK 1.0.13.
 >
-> Conseil : publie la structure (alias + méthode) **bien avant la première fête** qui doit en profiter, dans une APK ordinaire. La 1re mise à jour qui déplace l'entrée du lanceur peut replacer l'icône de l'écran d'accueil sur certains lanceurs (voir « Pièges ») : mieux vaut que ça arrive un jour sans fête.
+> Les étapes ci-dessous décrivent ce qui a été fait (et servent de référence pour une nouvelle fête : son pack dans `src/evpacks.js`, ses mipmaps, son alias, son nom dans `IconSwitch.PACKS` ; `tests/test-android-xml.mjs` vérifie que les trois listes concordent).
 
 ## Ce qui est déjà prêt
 
@@ -12,7 +12,7 @@
 - Packs : `halloween`, `noel`, `nouvelan`, `paques`, `magic` (identifiants de `src/evpacks.js`).
 - Les noms sont tous préfixés `ic_launcher_<pack>` : ils ne remplacent jamais l'icône normale (`ic_launcher`).
 
-## Marche à suivre
+## Ce qui a été fait (APK 1.0.13)
 
 ### 1. Copier les mipmaps
 
@@ -304,7 +304,7 @@ Dans `ManaOrbitPlugin.java` : ajoute la ligne de description dans le commentaire
 ```java
  * - setIcon({ pack, until, now }) → { want, current, applied } : icône de l'appli aux couleurs d'une fête (activity-alias, IconSwitch.java) ;
  *   pack : halloween | noel | nouvelan | paques | magic, null ou absent : icône normale ; until (ms) : retour automatique à l'icône normale ;
- *   appliquée quand l'appli passe en arrière-plan (now : tout de suite, essais). APK 1.0.12 et plus ; plus ancienne : pas de méthode.
+ *   appliquée quand l'appli passe en arrière-plan (now : tout de suite, essais). APK 1.0.13 et plus ; plus ancienne : pas de méthode.
  * - iconState() → { want, current, packs } : icône voulue, icône montrée, fêtes connues de cette APK.
 ```
 
@@ -367,10 +367,10 @@ Dans `ManaOrbitPlugin.java` : ajoute la ligne de description dans le commentaire
 
 ### 4. Côté site
 
-Dans le moteur d'événements (`src/event.js`), après avoir reçu le calendrier du serveur (et quand l'interrupteur « Décorations de fête » change) :
+Dans le moteur d'événements (`src/event.js`), appelé par `evApply` (calendrier reçu du serveur, interrupteur « Décorations de fête ») ; le code en place diffère un peu de cet extrait (fête forcée par `EVENT_FORCE` : icône normale ; clé `deckdeal:ev:icon`) :
 
 ```js
-/** Icône de l'appli Android aux couleurs de la fête (APK 1.0.12 et plus : ManaOrbit.setIcon). Navigateur, PWA, APK plus ancienne : rien.
+/** Icône de l'appli Android aux couleurs de la fête (APK 1.0.13 et plus : ManaOrbit.setIcon). Navigateur, PWA, APK plus ancienne : rien.
     Décorations coupées ou pas de fête : icône normale. until : minuit (Paris) après le dernier jour, retour automatique même appli fermée. */
 function evNatIcon(ev, deco) {
   const mo = natPlugin('ManaOrbit'); if (!mo || typeof mo.setIcon !== 'function') return;

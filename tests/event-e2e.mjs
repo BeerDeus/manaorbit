@@ -78,6 +78,17 @@ async function findAndTap(p, s, forced) {
   await p.evaluate(() => evIntroTry()); await p.waitForSelector('.ev-intro.on', { timeout: 8000 }); await p.click('.ev-in-go'); await p.waitForFunction(() => !document.querySelector('.ev-intro'));
   await p.evaluate(() => evKeep(EV.st.ev.id, EV.st.me)); assert.equal(await rsSeen(), true, 'remise à zéro : message d\'arrivée revu une seule fois');
   ok('remise à zéro par le panneau : message d\'arrivée revu');
+  const ic = await p.evaluate(async () => {      // appli Android (APK 1.0.13) : icône de la fête demandée à ManaOrbit.setIcon, une fois par changement
+    const calls = [], C0 = window.Capacitor; window.Capacitor = { isNativePlatform: () => true, isPluginAvailable: n => n === 'ManaOrbit', Plugins: { ManaOrbit: { setIcon: a => { calls.push(a); return Promise.resolve({}); } } } };
+    const tick = () => new Promise(r => setTimeout(r, 30)), ev = { ...EV.cal, forced: false };
+    try {
+      evApply(); await tick();      // fête forcée (EVENT_FORCE) : icône normale
+      evNatIcon(ev); await tick(); evNatIcon(ev); await tick(); evNatIcon(null); await tick();
+      return { calls, to: EV.cal.to };
+    } finally { window.Capacitor = C0; localStorage.removeItem('deckdeal:ev:icon'); }
+  });
+  assert.deepEqual(ic.calls, [{ pack: null, until: 0 }, { pack: 'halloween', until: Date.parse(ic.to + 'T23:00:00Z') }, { pack: null, until: 0 }], 'setIcon : ' + JSON.stringify(ic.calls));
+  ok('appli Android : icône de la fête demandée (retour à minuit après le dernier jour), une fois ; fête forcée ou finie : icône normale');
 
   /* ── 2) Cachettes du jour : 5, au plus 1 en vue et 2 à un geste ; chacune trouvée pour de vrai ── */
   await p.evaluate(() => collAdd([{ k: 'sol ring', n: 'Sol Ring', q: 2 }, { k: 'arcane signet', n: 'Arcane Signet', q: 1 }]));

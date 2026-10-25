@@ -304,7 +304,7 @@ public class ValueWidget extends AppWidgetProvider {
         return context.createConfigurationContext(conf).getResources();
     }
 
-    /** Ouvre l'appli (ou la ramène devant) sur une vue du site (aussi pour TradeWidget : « trade »). Même action et catégorie que l'icône du lanceur : l'intent correspond au filtre de MainActivity. */
+    /** Ouvre l'appli (ou la ramène devant) sur une vue du site (aussi pour TradeWidget : « trade »). Même action et catégorie que l'icône du lanceur : l'intent correspond au filtre de l'entrée du lanceur (activity-alias de MainActivity, APK 1.0.13 : intent explicite, marche quelle que soit l'icône). */
     static PendingIntent open(Context context, String view, int code) {
         Intent i = new Intent(context, MainActivity.class)
             .setAction(Intent.ACTION_MAIN)

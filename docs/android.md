@@ -214,6 +214,41 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.0.13 (versionCode 14) : icône de l'appli aux couleurs des fêtes (25 octobre 2026)
+
+**Pourquoi** : pendant une fête (Halloween, Noël, Nouvel an, Pâques, anniversaire de Magic), l'icône de l'appli sur le téléphone prend ses couleurs, puis revient toute seule à la normale. Une fois cette APK installée, plus rien à faire à chaque fête : le site décide.
+
+**Comment** : l'entrée du lanceur n'est plus `MainActivity` mais 6 `activity-alias` (`.LauncherDefault`, `.LauncherHalloween`, `.LauncherNoel`, `.LauncherNouvelan`, `.LauncherPaques`, `.LauncherMagic`), une seule activée ; `MainActivity` garde le partage et les App Links. Méthodes `setIcon({ pack, until })` et `iconState()` du plugin local `ManaOrbit` (`IconSwitch.java`) : l'icône voulue est gardée puis appliquée quand l'appli passe en arrière-plan ; `IconRevertJob.java` remet l'icône normale à minuit après le dernier jour, même appli fermée. Le site la demande au début de la fête (`src/event.js` › `evNatIcon`) ; « Décorations de fête » coupé : icône normale. APK plus ancienne : la méthode manque, l'icône reste normale. Détails et pièges : `docs/evenements/icones-android.md`.
+
+1. `git pull`, `npm run setup` dans `android-app`, Android Studio › **Sync Project with Gradle Files**, `.aab` signé (§ 4.1). Les icônes des fêtes sont déjà dans `res/mipmap-*` (`ic_launcher_<fête>`).
+2. **Test interne** : « APK : 1.0.13 (14) » en bas des Réglages.
+   - Pendant Halloween (jusqu'au 8 novembre) : ouvrir l'appli, attendre l'accueil, revenir à l'écran d'accueil du téléphone : l'icône citrouille arrive (de quelques secondes à un redémarrage du lanceur sur certains téléphones). L'appli peut se fermer à ce moment-là sur quelques téléphones : normal, une fois par fête.
+   - Réglages › « Décorations de fête » coupé, ressortir de l'appli : icône normale ; remis : icône d'Halloween.
+   - Puis : appui long sur l'icône (raccourcis Scanner, Prix rapide…), widgets, lien `https://manaorbit.app/?p=…` touché dans une messagerie, partage d'une liste vers l'appli, toucher d'une notification. Puis la liste habituelle (scan d'une carte, connexion Google).
+   - Essai sans attendre (`chrome://inspect` sur l'appli) : `Capacitor.Plugins.ManaOrbit.setIcon({ pack: 'noel', until: Date.now() + 300000, now: true })` : icône de Noël tout de suite, normale 5 min plus tard (la tâche de retour peut prendre quelques minutes de plus). `Capacitor.Plugins.ManaOrbit.iconState()` : icône voulue et montrée.
+3. Notes de version :
+```
+<fr-FR>
+L'icône de l'appli se met aux couleurs des fêtes (Halloween, Noël…), puis revient toute seule. Pour la garder normale : Réglages › Décorations de fête. Si un raccourci posé sur l'écran d'accueil devient gris, reposez-le depuis l'appui long sur l'icône.
+</fr-FR>
+<en-US>
+The app icon now dresses up for the holidays (Halloween, Christmas…) and switches back on its own. To keep the usual icon: Settings › Holiday decorations. If a shortcut pinned to your home screen turns grey, pin it again from a long press on the icon.
+</en-US>
+<de-DE>
+Das App-Symbol passt sich jetzt den Feiertagen an (Halloween, Weihnachten…) und wechselt danach von selbst zurück. Für das normale Symbol: Einstellungen › Festdekoration. Wird eine Verknüpfung auf dem Startbildschirm grau, lege sie per langem Druck auf das Symbol neu an.
+</de-DE>
+<es-ES>
+El icono de la app se viste para las fiestas (Halloween, Navidad…) y vuelve solo a la normalidad. Para mantener el icono habitual: Ajustes › Decoración de fiesta. Si un acceso directo de la pantalla de inicio se queda gris, vuelve a ponerlo con una pulsación larga en el icono.
+</es-ES>
+<it-IT>
+L'icona dell'app si veste per le feste (Halloween, Natale…) e poi torna normale da sola. Per tenere l'icona solita: Impostazioni › Decorazioni di festa. Se una scorciatoia sulla schermata Home diventa grigia, riaggiungila con una pressione lunga sull'icona.
+</it-IT>
+<pt-BR>
+O ícone do app agora entra no clima das festas (Halloween, Natal…) e volta ao normal sozinho. Para manter o ícone de sempre: Configurações › Decoração festiva. Se um atalho da tela inicial ficar cinza, adicione-o de novo com um toque longo no ícone.
+</pt-BR>
+```
+4. `APK_LATEST` à **14** une fois la 1.0.13 en ligne (facultatif : la mise à jour n'apporte que l'icône).
+
 ### APK 1.0.12 (versionCode 13) : orientation gardée pendant une partie (24 octobre 2026)
 
 **Pourquoi** : un téléphone posé à plat au milieu de la table bascule tout seul entre portrait et paysage pendant une partie du compteur de vie. Le site sait mettre la table en page en paysage, mais le WebView ne peut pas verrouiller l'orientation (`screen.orientation.lock` y est refusé).

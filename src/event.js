@@ -52,7 +52,18 @@ function evApply() {
     if (!top || top.dataset.p !== p.id) { if (top) top.remove(); top = document.createElement('div'); top.className = 'ev-amb-top'; top.dataset.p = p.id; top.setAttribute('aria-hidden', 'true'); top.innerHTML = EV_AMB_TOP[p.id](); document.body.appendChild(top); }
   } else if (top) top.remove();
   evLogo(deco ? p.id : '');
+  evNatIcon(deco && EV.cal && !EV.cal.forced ? EV.cal : null);
   evQuietSync();
+}
+/** Icône de l'appli Android aux couleurs de la fête (APK 1.0.13 et plus : ManaOrbit.setIcon, appliquée au prochain passage en arrière-plan). Navigateur,
+    PWA, APK plus ancienne : rien. Pas de fête, décorations coupées ou fête forcée (EVENT_FORCE, essais) : icône normale. until : minuit (Paris) après le
+    dernier jour, retour automatique même appli fermée. Demandé une fois par changement (deckdeal:ev:icon). */
+function evNatIcon(ev) {
+  const mo = typeof natPlugin === 'function' ? natPlugin('ManaOrbit') : null; if (!mo || typeof mo.setIcon !== 'function') return;
+  const pack = ev && typeof EV_LOGO !== 'undefined' && EV_LOGO[ev.pack] ? ev.pack : null, until = pack ? evNextMidnight(Date.parse(ev.to + 'T12:00:00Z')) : 0, key = (pack || '') + '|' + until;
+  let last = null; try { last = localStorage.getItem(EV_KEY + ':icon'); } catch (e) { /* stockage refusé */ }
+  if (last === key) return;
+  Promise.resolve().then(() => mo.setIcon({ pack, until })).then(() => { try { localStorage.setItem(EV_KEY + ':icon', key); } catch (e) { /* stockage refusé */ } }).catch(() => {});      // fête inconnue de cette APK : refusé, icône normale
 }
 /** Logo de la fête dans #i-logo (en-tête, lancement, installation) et icône de l'onglet ; '' : le logo d'origine. Gardé pour l'écran de lancement suivant. */
 function evLogo(id) {

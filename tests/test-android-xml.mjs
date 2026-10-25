@@ -4,6 +4,7 @@ import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 
 const root = 'android-app/android/app/src/main', files = [join(root, 'AndroidManifest.xml')];
 (function walk(d) { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (p.endsWith('.xml')) files.push(p); } })(join(root, 'res'));
@@ -119,4 +120,42 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.match(readFileSync('src/partie-jeu.js', 'utf8'), /typeof mo\.orientation === 'function'/, 'site : orientation seulement si la coque l\'a (APK 1.0.12)');
   assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 13, 'code natif changé : versionCode 13 et plus (1.0.12)');
   console.log('✓ APK 1.0.12 : orientation (compteur de vie) déclarée et demandée par le site, versionCode ≥ 13');
+}
+
+// APK 1.0.13 : icône de l'appli aux couleurs des fêtes. Entrée du lanceur sur des activity-alias de MainActivity (une seule activée : l'icône normale),
+// MainActivity garde le partage et les App Links sans filtre LAUNCHER ; une fête par pack de src/evpacks.js, ses mipmaps, la même liste dans IconSwitch.java.
+{
+  const man = readFileSync(join(root, 'AndroidManifest.xml'), 'utf8'), gradle = readFileSync('android-app/android/app/build.gradle', 'utf8'), dir = 'android-app/android/app/src/main/java/app/manaorbit/';
+  const plug = readFileSync(dir + 'ManaOrbitPlugin.java', 'utf8'), sw = readFileSync(dir + 'IconSwitch.java', 'utf8'), job = readFileSync(dir + 'IconRevertJob.java', 'utf8');
+  const act = (/<activity\b[^>]*android:name="\.MainActivity"[\s\S]*?<\/activity>/.exec(man) || [''])[0], code = s => s.replace(/<!--[\s\S]*?-->/g, '');
+  assert.doesNotMatch(code(act), /android\.intent\.category\.LAUNCHER|android\.app\.shortcuts/, 'MainActivity : plus d\'entrée du lanceur (sur les alias)');
+  assert.match(code(act), /"android\.intent\.action\.SEND"/, 'partage toujours sur MainActivity'); assert.match(code(act), /android:autoVerify="true"/, 'App Links toujours sur MainActivity');
+  const packs = createRequire(import.meta.url)('../src/evpacks.js').EV_PACKS.map(p => p.id);
+  assert.deepEqual(packs.sort(), ['halloween', 'magic', 'noel', 'nouvelan', 'paques'], 'packs de evpacks.js : ' + packs);
+  const sp = ((/static final String\[\] PACKS = \{([^}]*)\}/.exec(sw) || [])[1] || '').match(/"\w+"/g).map(x => x.slice(1, -1));
+  assert.deepEqual([...sp].sort(), packs, 'IconSwitch.PACKS = packs du site');
+  const al = [...code(man).matchAll(/<activity-alias\b([^>]*)>([\s\S]*?)<\/activity-alias>/g)], attr = (a, n) => (new RegExp(`android:${n}="([^"]*)"`).exec(a) || [])[1];
+  const want = ['Default', ...sp.map(p => p[0].toUpperCase() + p.slice(1))];
+  assert.deepEqual(al.map(m => attr(m[1], 'name')), want.map(c => '.Launcher' + c), 'un alias par icône (noms lus par IconSwitch.alias)');
+  assert.deepEqual(al.filter(m => attr(m[1], 'enabled') === 'true').map(m => attr(m[1], 'name')), ['.LauncherDefault'], 'une seule entrée activée : l\'icône normale');
+  for (const [, a, body] of al) {
+    const n = attr(a, 'name'), p = n === '.LauncherDefault' ? '' : '_' + n.slice(9).toLowerCase();
+    assert.equal(attr(a, 'targetActivity'), '.MainActivity', n); assert.equal(attr(a, 'exported'), 'true', n + ' : exported (intent-filter, Android 12)');
+    assert.equal(attr(a, 'icon'), '@mipmap/ic_launcher' + p, n); assert.equal(attr(a, 'roundIcon'), '@mipmap/ic_launcher' + p + '_round', n);
+    assert.ok(body.includes('"android.intent.action.MAIN"') && body.includes('"android.intent.category.LAUNCHER"'), n + ' : MAIN / LAUNCHER');
+    assert.match(body, /android:name="android\.app\.shortcuts" android:resource="@xml\/shortcuts"/, n + ' : raccourcis de l\'icône');
+    assert.doesNotMatch(body, /autoVerify|action\.SEND|action\.VIEW/, n + ' : ni App Links ni partage sur un alias (coupés quand il est désactivé)');
+    if (!p) continue;
+    for (const d of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) for (const f of ['', '_round', '_foreground', '_background']) assert.ok(statSync(join(root, `res/mipmap-${d}/ic_launcher${p}${f}.png`)).size > 0, `mipmap-${d}/ic_launcher${p}${f}.png`);
+    for (const f of ['', '_round']) assert.match(readFileSync(join(root, `res/mipmap-anydpi-v26/ic_launcher${p}${f}.xml`), 'utf8'), new RegExp(`@mipmap/ic_launcher${p}_foreground`), `icône adaptative ic_launcher${p}${f}`);
+  }
+  assert.match(code(man), /<service\s+android:name="\.IconRevertJob"\s+android:exported="false"\s+android:permission="android\.permission\.BIND_JOB_SERVICE"/, 'IconRevertJob : service JobScheduler non exporté');
+  assert.match(sw, /"app\.manaorbit\.Launcher" \+ cls/, 'alias résolus par le namespace'); assert.match(sw, /DONT_KILL_APP/);
+  assert.notEqual((/JOB_ID = (0x\w+)/.exec(job) || [])[1], (/JOB_ID = (0x\w+)/.exec(readFileSync(dir + 'ValueRefreshJob.java', 'utf8')) || [])[1], 'JOB_ID différent de ValueRefreshJob');
+  for (const m of ['setIcon', 'iconState']) { assert.match(plug, new RegExp(`@PluginMethod\\s+public void ${m}\\(PluginCall call\\)`), `méthode ${m}`); assert.match(plug, new RegExp(` \\* - ${m}\\(`), `${m} décrite dans l'en-tête du plugin`); }
+  assert.match(plug, /protected void handleOnStop\(\) \{\s*super\.handleOnStop\(\);[\s\S]{0,60}IconSwitch\.apply\(getContext\(\)\)/, 'bascule au passage en arrière-plan');
+  assert.match(plug, /public void load\(\) \{\s*super\.load\(\);[\s\S]{0,200}IconRevertJob\.schedule/, 'retour automatique reprogrammé au lancement');
+  assert.match(readFileSync('src/event.js', 'utf8'), /typeof mo\.setIcon !== 'function'/, 'site : setIcon seulement si la coque l\'a (APK 1.0.13)');
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 14, 'code natif changé : versionCode 14 et plus (1.0.13)');
+  console.log(`✓ APK 1.0.13 : icônes des fêtes (${sp.join(', ')}) sur des activity-alias, une seule activée, mipmaps présents, partage et App Links restés sur MainActivity, setIcon / iconState, versionCode ≥ 14`);
 }
