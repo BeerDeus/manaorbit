@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import { chromium, startWorld, newPage, signInFake, ok } from './e2e-world.mjs';
 import { startFakes } from './amis-fakes.mjs';
+import { OPEN } from './event-open.mjs';
 
 const F = await startFakes();
 const world = await startWorld({ port: 19878, env: { EVENT: '1', EVENT_FORCE: 'halloween-2026', EVENT_SECRET: 'e2e', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL } });
@@ -18,17 +19,6 @@ const shot = (p, n) => (SHOTS ? p.screenshot({ path: `${SHOTS}/${n}.png` }) : nu
 const api = (p, path, body, h = {}) => p.evaluate(async ([path, body, h]) => { const r = await fetch('api/event' + path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', ...(EV.dev ? { 'x-event-device': EV.dev } : {}), ...h }, body: body ? JSON.stringify(body) : undefined }); return { status: r.status, j: await r.json() }; }, [path, body, h]);
 const ready = p => p.waitForFunction(() => typeof EV !== 'undefined' && EV.st && EV.st.me, null, { timeout: 15000 });
 const closeAll = p => p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); for (const d of document.querySelectorAll('body > .dv.on')) if (d.__close) d.__close(); if (typeof navGo === 'function') navGo('home'); window.scrollTo(0, 0); });
-/** Ouvre l'écran d'une cachette (ce que ferait le joueur) ; '' : l'accueil ; null : pas d'ouverture simple ici (posée sur l'accueil pour le test du toucher). */
-const OPEN = {
-  'home-orb': '', 'home-trade': '', 'home-life': '', 'coll-list': "openCollection('list')", 'coll-stats': "openCollection('stats')", 'trade-list': "openCollection('trade')", 'decks-mine': 'openDecks()',
-  'decks-edh': "openCollection('decks')", 'me-head': 'openSettings()', 'me-level': 'prgSheet()', 'help-top': 'openHelp()', 'card-sheet': "openCardSheet('sol ring')", 'viewer-head': "openDeckViewer({ text: '1 Sol Ring\\n1 Arcane Signet', name: 'Test' })",
-  'coll-filters': "openCollection('list'); await new Promise(r => setTimeout(r, 500)); document.querySelector('.coll .fbtn').click()",
-  'coll-more': "openCollection('list'); await new Promise(r => setTimeout(r, 500)); document.querySelector('.coll .fbtn').click(); await new Promise(r => setTimeout(r, 300)); document.querySelector('.coll .fmore').click()",
-  'coll-view': 'cvwSheet()', 'coll-export': 'collExport()', 'coll-proxy': 'openProxies()', 'coll-ms': 'msOptSheet()', 'trade-set': "openCollection('trade'); await new Promise(r => setTimeout(r, 500)); trSetSheet()", 'trade-binder': 'bndOpenSettings()',
-  'trade-filters': "openCollection('trade'); await new Promise(r => setTimeout(r, 500)); document.querySelector('.coll .fbtn').click()", 'me-account': 'openAccount()', 'me-profile': 'openProfile()',
-  'set-notif': 'openNotifSettings()', 'set-scan': 'scsSheet()', 'set-data': 'setDataSheet()', 'set-conf': 'setConfSheet()', 'set-mentions': 'openAbout()', 'set-help': 'setHelpSheet()', 'help-faq': 'openHelp()',
-  'partie-hist': 'puHist()', 'card-text': "openCardSheet('sol ring')",
-};
 /** Trouve l'objet d'une cachette à l'écran (posé, visible), le vérifie (libellé, pas sur un bouton), puis le touche ; true si trouvé. */
 async function findAndTap(p, s, forced) {
   const r = await p.evaluate(async ([s, forced]) => {

@@ -268,7 +268,7 @@ const EV_PACKS = [
     txt: { title: 'La chasse aux bougies est ouverte', short: 'Chasse aux bougies' } },
 ];
 
-/* ── Cachettes : une quarantaine d'endroits de l'appli (event.js › EV_HIDE dit où les poser). Le serveur tire celles du jour de chaque joueur parmi celles qu'il peut voir.
+/* ── Cachettes : près de soixante-dix endroits de l'appli (event.js › EV_HIDE dit où les poser). Le serveur tire celles du jour de chaque joueur parmi celles qu'il peut voir.
    [id, need, lvl] : need : ce qu'il faut pour que l'endroit existe (bits de EV_CAPS : envoyés par l'appli, ?c=) ; lvl : 0 en vue tout de suite (accueil), 1 à un geste
    (onglet, fiche), 2 caché dans un sous-menu (réglages, filtres avancés, feuilles des réglages…). Chaque jour : au plus EV_LVL_MAX[0] cachette de niveau 0 et
    EV_LVL_MAX[1] de niveau 1, le reste dans les sous-menus. Jamais sur le scan, l'échange en direct, le compteur de vie, une saisie de paiement ou de token, le premier
@@ -284,6 +284,9 @@ const EV_SPOTS = [
   ['me-account', 1, 2], ['me-profile', 1, 2], ['set-notif', 0, 2], ['set-scan', 0, 2], ['set-data', 0, 2], ['set-conf', 0, 2], ['set-mentions', 0, 2],
   ['set-help', 0, 2], ['set-widget', 128, 2], ['set-alerts', 0, 2], ['help-faq', 0, 2], ['friends', 1, 2], ['partie-hist', 0, 2], ['open-hist', 0, 2],
   ['card-text', 2, 2], ['viewer-find', 4, 2], ['set-page', 64, 2],
+  ['home-value', 8, 0], ['coll-places', 2, 1], ['coll-value', 2, 1], ['price-list', 0, 1], ['viewer-sum', 4, 1],
+  ['badge-sheet', 0, 2], ['deck-sheet', 4, 2], ['deck-cover', 4, 2], ['viewer-hand', 4, 2], ['deck-share', 4, 2], ['deck-build', 4, 2], ['coll-import', 0, 2], ['help-switch', 0, 2],
+  ['card-add', 2, 2], ['card-deck', 6, 2], ['card-ed', 2, 2], ['card-copy', 2, 2], ['filt-set', 2, 2], ['coll-image', 2, 2], ['coll-prices', 2, 2],
 ].map(([id, need, lvl]) => ({ id, need, lvl }));
 
 /* ── Calendrier ─────────────────────────────────────────────────────────────────────────────────────────────────── */

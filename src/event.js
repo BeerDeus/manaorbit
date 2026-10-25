@@ -100,6 +100,10 @@ const evSheet = (title, sel) => { const s = evSheetTop(); return s && s.wrap.cla
 const evSheetCls = (cls, sel) => { const s = evSheetTop(); return s && s.wrap.classList.contains('open') && s.wrap.classList.contains(cls) ? s.wrap.querySelector(sel) : null; };
 /** Accueil à l'écran (rien par-dessus). */
 const evHome = sel => (!evSheetTop() && !navTopDv() && typeof S !== 'undefined' && S.view === 'home' ? document.querySelector('#viewHome ' + sel) : null);
+/** Vue de la page (S.view : 'input' = « Prix d'une liste »…) à l'écran, rien par-dessus. */
+const evView = (v, sel) => (!evSheetTop() && !navTopDv() && typeof S !== 'undefined' && S.view === v ? document.querySelector('#view' + v[0].toUpperCase() + v.slice(1) + ' ' + sel) : null);
+/** Feuille du dessus (ouverte) dont le corps contient sel (feuille au titre variable : nom du deck…) : son corps. */
+const evSheetHas = sel => { const s = evSheetTop(); return s && s.wrap.classList.contains('open') && s.body.querySelector(sel) ? s.body : null; };
 /** Écran plein du dessus (classe), sans feuille par-dessus. */
 const evDv = (cls, sel, ok) => { const t = !evSheetTop() && navTopDv(); return t && t.classList.contains(cls) && (!ok || ok(t)) ? (sel ? t.querySelector(sel) : t) : null; };
 const evColl = (mode, tab, sel) => evDv('coll', sel, t => typeof COLL !== 'undefined' && t === COLL.el && COLL.mode === mode && (!tab || COLL.tab === tab) && !t.classList.contains('pubv'));
@@ -120,6 +124,12 @@ const EV_HIDE = {
   'set-widget': () => evSheet('Widget'), 'set-alerts': () => evSheet('Alertes de prix'), 'help-faq': () => { const s = evSheetCls('hp-sheet', '.sheet-foot'); return vis(s) || evSheetCls('hp-sheet', '.sheet-body'); },
   friends: () => evSheetCls('am-sheet', '.sheet-body') || evSheet('Amis'), 'partie-hist': () => evSheet('Mes parties'), 'open-hist': () => evSheet('Mes ouvertures'),
   'card-text': () => evSheetCls('cs-sheet', '.cs-sec:last-of-type'), 'viewer-find': () => evSheetCls('fetch-sheet', '.sheet-body') || evSheet('Où trouver mes cartes'), 'set-page': () => evDv('setv', '.dv-body') || evDv('setv', '.dv-head'),
+  'home-value': () => vis(evHome('.hm-dk-val')), 'coll-places': () => evColl('coll', 'places', '.coll-main'), 'coll-value': () => vis(evColl('coll', 'stats', '.vl-box')),
+  'price-list': () => vis(evView('input', '.panel')), 'viewer-sum': () => vis(evDv('dvw', '.dv-sum')), 'badge-sheet': () => evSheetCls('prg-bs', '.sheet-body'), 'deck-sheet': () => evSheetHas('#dkCover'),
+  'deck-cover': () => evSheet('Image du deck'), 'viewer-hand': () => evSheet('Main de départ'), 'deck-share': () => evSheet('Partager le deck'), 'deck-build': () => evDv('bd', '.bd-sum') || evDv('bd', '.dv-head'),
+  'coll-import': () => evSheet('Importer ma collection'), 'help-switch': () => evSheetCls('swg-sheet', '.sheet-body'), 'card-add': () => evSheetCls('cs-addw', '.sheet-body'), 'card-deck': () => evSheetCls('cs-pickw', '.sheet-body'),
+  'card-ed': () => evSheetCls('ced-sheet', '.sheet-body'), 'card-copy': () => evSheetCls('cex', '.sheet-body'), 'filt-set': () => evSheetCls('fset-sheet', '.sheet-body'), 'coll-image': () => evSheetCls('simg-sheet', '.sheet-body'),
+  'coll-prices': () => evSheet('Prix réels'),
 };
 /** Indice de chaque cachette (feuille de la fête : « Indices du jour ») : une devinette sur le coin de l'appli, jamais le nom de l'écran. */
 const EV_HINT = {
@@ -138,6 +148,12 @@ const EV_HINT = {
   'set-alerts': 'Là où l\'on guette les prix', 'help-faq': 'Là où l\'on répond aux questions', friends: 'Auprès de ceux que tu connais',
   'partie-hist': 'Dans les souvenirs de tes batailles', 'open-hist': 'Dans les souvenirs de tes boosters', 'card-text': 'Dans les petites lignes d\'une carte',
   'viewer-find': 'Là où l\'on cherche ce qui manque à un grimoire', 'set-page': 'Là où une extension se dévoile',
+  'home-value': 'Au pied d\'une montagne de chiffres', 'coll-places': 'Là où chaque carte a sa maison', 'coll-value': 'Là où l\'on remonte le temps',
+  'price-list': 'Là où une liste devient une addition', 'viewer-sum': 'Au sommaire d\'un grimoire', 'badge-sheet': 'Au revers d\'une médaille', 'deck-sheet': 'Dans le carnet secret d\'un grimoire',
+  'deck-cover': 'Là où un grimoire choisit son portrait', 'viewer-hand': 'Parmi sept cartes tirées au hasard', 'deck-share': 'Là où un grimoire part en voyage', 'deck-build': 'Sur l\'établi d\'un forgeron de grimoires',
+  'coll-import': 'Là où de nouvelles cartes frappent à la porte', 'help-switch': 'Pour ceux qui viennent d\'ailleurs', 'card-add': 'Là où une carte trouve sa jumelle', 'card-deck': 'Là où une carte s\'enrôle dans une armée',
+  'card-ed': 'Parmi les costumes d\'une même carte', 'card-copy': 'Sur l\'étiquette d\'un seul exemplaire', 'filt-set': 'Là où l\'on choisit un seul blason', 'coll-image': 'Là où ta collection prend la pose',
+  'coll-prices': 'Là où l\'on demande leur prix aux marchands',
 };
 const evHint = s => T(EV_HINT[s] || 'Quelque part dans l\'appli');
 /** Ce que l'appli peut montrer (bits de EV_CAPS) : le serveur ne tire que des cachettes atteignables. */
@@ -203,7 +219,7 @@ function evFree(host, r) {
 function evFind(x) {
   if (x.ok || x.dead || !x.el.isConnected || !evHuntOk()) return;
   const z = x.zones[x.k], h = x.host, hr = h.getBoundingClientRect(), ar = z.a ? z.a.getBoundingClientRect() : hr, pad = z.pad || 0;
-  const top = Math.max(hr.top, ar.top - pad, tourTopInEv()), bot = Math.min(hr.bottom, ar.bottom + pad, innerHeight - (document.body.classList.contains('nav-on') ? 96 : 8));
+  const top = Math.max(hr.top, ar.top - pad, tourTopInEv()), bot = Math.min(hr.bottom, ar.bottom + pad, innerHeight - (document.body.classList.contains('nav-on') && !evSheetTop() ? 96 : 8));      // barre du bas : sous les feuilles (z-index), elle ne cache rien d'une feuille ouverte
   const left = Math.max(hr.left, ar.left - pad, 0), right = Math.min(hr.right, ar.right + pad, innerWidth), S = (x.size || EV_PK) + 6;
   const ok = bot - top >= S && right - left >= S && !(ar.bottom < 0 || ar.top > innerHeight);
   let hit = null;
