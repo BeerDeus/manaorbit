@@ -516,7 +516,7 @@ function prgSheet(focus) {
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-pin]'); if (b) { pinIt(b.dataset.pin); return; } const t = e.target.closest('.prg-b[data-b]'); if (t) open(t); });
     api.body.addEventListener('keydown', e => { const t = (e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.prg-b[data-b]') ? e.target : null; if (t) { e.preventDefault(); open(t); } });
     const spot = () => { const el = focus && api.body.querySelector(`.prg-b[data-b="${focus}"]`); if (!el) return; el.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' }); el.classList.add('hl'); setTimeout(() => el.classList.remove('hl'), 2600); };
-    paint(); if (focus) setTimeout(spot, 380);      // après l'ouverture de la fiche
+    paint(); if (focus) setTimeout(spot, 380); else if (typeof tipSoon === 'function') tipSoon(900);      // après l'ouverture de la fiche ; astuce « Touche un badge » (tour.js)
     if (typeof dlyOn === 'function' && dlyOn()) { api.setFoot(`<button class="btn ghost block" type="button" data-prg-rank>${esc(T('Classement'))}</button>`); api.foot.querySelector('[data-prg-rank]').onclick = () => { api.close(); dlyRanks('level'); }; }      // classement des niveaux (daily.js)
     prgDaily().then(() => { if (sheets.includes(api)) paint(); });
   });

@@ -148,5 +148,5 @@ function obClose(then) {
   el.classList.remove('on'); setTimeout(() => el.remove(), reduceMotion() ? 0 : 380);
   homeSoon(0);
   if (then) setTimeout(then, reduceMotion() ? 0 : 260);
-  if (typeof tourOffer === 'function') tourOffer();      // « Une visite de 1 min… ? » (tour.js), dès que l'accueil est au calme
+  if (typeof tourOffer === 'function') tourOffer();      // « Une petite visite… ? » (tour.js), dès que l'accueil est au calme
 }

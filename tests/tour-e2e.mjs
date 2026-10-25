@@ -23,8 +23,9 @@ const errsAll = [];
 const COLL3 = () => collAdd([{ k: 'sol ring', n: 'Sol Ring', q: 3 }, { k: 'craterhoof behemoth', n: 'Craterhoof Behemoth', q: 2 }, { k: 'arcane signet', n: 'Arcane Signet', q: 1 }], 'add');
 const SEEN = () => { try { localStorage.setItem('deckdeal:onboard', '1'); } catch (e) { /* ignore */ } };      // premier lancement déjà passé (utilisateur existant)
 const st = p => p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:tour') || '{}'));
-const SEEN2 = () => { localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1, ver: 2 })); };      // visite de cette version déjà vue : aucune offre
-const NEW = ['mystery', 'partie', 'places', 'masterset'];      // étapes de la version 2 (téléphone)
+const SEEN2 = () => { localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1, ver: 3 })); };      // visite de cette version déjà vue : aucune offre
+const NEW = ['partie', 'mystery', 'account', 'import', 'masterset', 'places'];      // étapes des versions 2 et 3 (téléphone, 3 cartes : Importer depuis la collection)
+const BASIC = ['scan', 'import', 'trade', 'partie', 'build', 'price'];      // visite courte d'un nouvel utilisateur (collection vide)
 const SHOT = (p, n) => (process.env.TOUR_SHOTS ? p.screenshot({ path: `${process.env.TOUR_SHOTS}/${n}.png` }).catch(() => {}) : null);
 /** Page : opts.path (?tour…), opts.init (script avant le chargement), opts.ping (drapeaux du serveur ; daily : Carte mystère, état du jour simulé), opts.vp,
  *  opts.dark, opts.desk (ordinateur : souris, pas d'écran tactile). */
@@ -78,7 +79,7 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   assert.equal(await p.$('.tour-pill'), null, 'rien pendant le premier lancement');
   await p.click('.ob [data-ob="skip"]');
   await pillOn(p, '.tour-pill.new.on');
-  assert.match(await p.textContent('.tour-pill'), /Une visite de 2 min pour trouver l'essentiel \?/);
+  assert.match(await p.textContent('.tour-pill'), /Une petite visite pour trouver l'essentiel.\?/);
   assert.deepEqual(Object.keys(await st(p)).sort(), ['offer', 'shownAt', 'ver'], 'offre « new » montrée');
   // une feuille passe devant : la pastille se cache, puis revient
   await p.click('#btnAccount'); await p.waitForSelector('.me-sheet.open');
@@ -86,11 +87,32 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   await closeSheets(p); await pillOn(p, '.tour-pill.new.on');
   await p.click('.tour-pill [data-tp="go"]'); await shown(p);
   assert.equal((await geo(p)).id, 'scan', 'Visiter : la visite démarre au Scanner');
+  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), BASIC, 'collection vide : l\'essentiel seulement (6 étapes)');
   assert.equal((await st(p)).how, 'go');
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !TOUR.on && !document.querySelector('.tour'));
-  const s1 = await st(p); assert.ok(s1.done && s1.skip && s1.step === 1, 'passée à la 1re étape : ' + JSON.stringify(s1));
-  await relaunch(p); await noPill(p, 5500, 'jamais deux fois');
-  ok('nouvel utilisateur : « Une visite de 2 min… ? » après le premier lancement (caché sous une feuille), Visiter → visite, Échap, plus jamais ensuite');
+  const s1 = await st(p); assert.ok(s1.done && s1.skip && s1.step === 1 && s1.basic && !s1.adv, 'passée à la 1re étape, visite courte : ' + JSON.stringify(s1));
+  await relaunch(p); await noPill(p, 5500, 'jamais deux fois (et « la suite » pas avant 30 cartes ou 5 jours)');
+  ok('nouvel utilisateur : « Une petite visite… ? » après le premier lancement (caché sous une feuille), Visiter → l\'essentiel (6 étapes), Échap, plus jamais ensuite');
+  // l'essentiel jusqu'au bout : Importer sur la carte « Pour commencer », toast de fin
+  await p.evaluate(() => tourStart({ mode: 'basic' })); await shown(p);
+  for (let i = 0; i < BASIC.length; i++) {
+    const g = await checkStep(p, 'essentiel'); assert.equal(g.id, BASIC[i]);
+    if (g.id === 'import') { assert.match(g.text, /ManaBox, Moxfield.*CSV/); assert.equal(await p.evaluate(() => TOUR.steps[TOUR.i].el()[0].dataset.hm), 'import', 'carte « Pour commencer » : Importer'); }
+    await next(p); if (i < BASIC.length - 1) await shown(p);
+  }
+  await p.waitForFunction(() => !TOUR.on && /C'est l'essentiel/.test(document.querySelector('#toast').textContent), null, { timeout: 5000 });
+  // 30 cartes : « Prêt pour la suite ? » au lancement suivant, une fois ; Visiter → les autres étapes seulement
+  await p.evaluate(() => collAdd(Array.from({ length: 30 }, (_, i) => ({ k: 'carte ' + i, n: 'Carte ' + i, q: 1 })), 'add')); await p.waitForTimeout(400);
+  await relaunch(p); await pillOn(p);
+  assert.match(await p.textContent('.tour-pill'), /Prêt pour la suite.\? 1.min pour le reste de l'appli/);
+  assert.equal((await st(p)).more, 1);
+  await p.click('.tour-pill [data-tp="go"]'); await shown(p);
+  const adv = await p.evaluate(() => TOUR.steps.map(s => s.id));
+  assert.ok(adv.length >= 5 && !adv.some(id => BASIC.includes(id)), 'la suite : jamais les étapes déjà vues ' + adv);
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !TOUR.on);
+  const s3 = await st(p); assert.ok(s3.more === 2 && s3.moreHow === 'go' && s3.adv, 'la suite vue : ' + JSON.stringify(s3));
+  await relaunch(p); await noPill(p, 5500, 'la suite : une seule fois');
+  ok('après l\'essentiel : toast de fin, puis « Prêt pour la suite ? » une fois dès 30 cartes ; Visiter → les autres étapes seulement');
   await p.context().close();
 }
 {
@@ -104,6 +126,17 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   await p.context().close();
 }
 
+{ // 5 jours après la visite courte, même avec peu de cartes : « la suite » ; laissée sans réponse, expirée au lancement suivant
+  const OLD = () => { if (!localStorage.getItem('deckdeal:tour')) localStorage.setItem('deckdeal:tour', JSON.stringify({ offer: 'new', done: 1, ver: 3, basic: Date.now() - 6 * 864e5 })); };
+  const { p } = await page({ path: '?tour', init: [SEEN, OLD] });
+  await pillOn(p); assert.match(await p.textContent('.tour-pill'), /Prêt pour la suite/);
+  await p.evaluate(() => { const o = JSON.parse(localStorage.getItem('deckdeal:tour')); o.moreAt = Date.now() - 864e5; localStorage.setItem('deckdeal:tour', JSON.stringify(o)); });
+  await relaunch(p); await noPill(p, 5500, 'la suite laissée sans réponse : expirée');
+  assert.equal((await st(p)).moreHow, 'exp');
+  ok('visite courte il y a 5 jours : « Prêt pour la suite ? » même avec peu de cartes ; laissée sans réponse : expirée');
+  await p.context().close();
+}
+
 /* ── 2) Utilisateur existant : pastille « Découvre les nouveautés » ─────────────────────────────────────────────── */
 {
   const { p } = await page({ path: '?tour', init: SEEN });
@@ -111,7 +144,7 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   await pillOn(p);
   assert.match(await p.textContent('.tour-pill'), /Découvre les nouveautés/);
   assert.equal(await p.$('.tour-pill.new'), null);
-  const s = await st(p); assert.equal(s.offer, 'news'); assert.ok(s.shownAt); assert.equal(s.ver, 2); assert.equal(s.since, undefined, 'jamais vue : la visite complète');
+  const s = await st(p); assert.equal(s.offer, 'news'); assert.ok(s.shownAt); assert.equal(s.ver, 3); assert.equal(s.since, undefined, 'jamais vue : la visite complète');
   // pastille posée par-dessus : la page ne bouge pas, au-dessus de la barre du bas
   const pr = await p.evaluate(() => { const a = document.querySelector('.tour-pill').getBoundingClientRect(), n = document.querySelector('#nav').getBoundingClientRect(); return { bottom: a.bottom, nav: n.top, pos: getComputedStyle(document.querySelector('.tour-pill')).position }; });
   assert.equal(pr.pos, 'fixed'); assert.ok(pr.bottom <= pr.nav, 'au-dessus de la barre du bas');
@@ -124,7 +157,7 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   await relaunch(p); await noPill(p, 5500, '✕ : plus jamais');
   ok('utilisateur existant : pastille « Découvre les nouveautés » au-dessus de la barre (cachée sous un écran, revenue), ✕ définitif');
   // montrée à un lancement précédent sans réponse : expirée
-  await p.evaluate(() => localStorage.setItem('deckdeal:tour', JSON.stringify({ offer: 'news', shownAt: Date.now() - 86400e3, ver: 2 })));
+  await p.evaluate(() => localStorage.setItem('deckdeal:tour', JSON.stringify({ offer: 'news', shownAt: Date.now() - 86400e3, ver: 3 })));
   await relaunch(p); await p.waitForTimeout(4200);
   assert.equal(await p.$('.tour-pill'), null); assert.equal((await st(p)).how, 'exp', 'déjà montrée : expirée, pas d\'insistance');
   ok('pastille vue à un lancement précédent sans réponse : plus montrée');
@@ -155,30 +188,42 @@ const next = p => p.click('.tour-b [data-tour="next"]');
   await p.evaluate(COLL3);
   await pillOn(p);
   assert.match(await p.textContent('.tour-pill'), /Découvre les nouveautés/);
-  const s0 = await st(p); assert.deepEqual([s0.offer, s0.since, s0.ver, s0.done, s0.tips], ['news', 1, 2, undefined, { bnd: 1 }], 'nouvelle offre pour la version 2, astuces vues gardées : ' + JSON.stringify(s0));
+  const s0 = await st(p); assert.deepEqual([s0.offer, s0.since, s0.ver, s0.done, s0.tips], ['news', 1, 3, undefined, { bnd: 1 }], 'nouvelle offre pour la version 3, astuces vues gardées : ' + JSON.stringify(s0));
   await SHOT(p, 'news-pill');
   await p.click('.tour-pill [data-tp="go"]'); await shown(p);
   assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), NEW, 'seulement les nouvelles étapes, jamais les anciennes');
   assert.equal(await p.$$eval('.tour-dots i', d => d.length), NEW.length);
   for (let i = 0; i < NEW.length; i++) { const g = await checkStep(p, 'nouveautés'); assert.equal(g.id, NEW[i]); if (i < NEW.length - 1) { await next(p); await shown(p); } }
   await next(p); await p.waitForFunction(() => !TOUR.on && !document.querySelector('.tour'), null, { timeout: 5000 });
-  const s1 = await st(p); assert.ok(s1.fin && s1.done && s1.ver === 2 && s1.how === 'go', 'nouveautés vues : ' + JSON.stringify(s1));
-  await relaunch(p); await noPill(p, 5500, 'version 2 vue : plus de pastille');
-  ok('visite de la version 1 déjà vue : pastille « Découvre les nouveautés » une fois, Visiter → les 4 nouvelles étapes seulement (Carte mystère, partie, rangement, masterset), puis plus rien');
+  const s1 = await st(p); assert.ok(s1.fin && s1.done && s1.ver === 3 && s1.how === 'go', 'nouveautés vues : ' + JSON.stringify(s1));
+  await relaunch(p); await noPill(p, 5500, 'version 3 vue : plus de pastille');
+  ok('visite de la version 1 déjà vue : pastille « Découvre les nouveautés » une fois, Visiter → les nouvelles étapes seulement (Importer, partie, Carte mystère, niveau et badges, masterset, rangement), puis plus rien');
   // pastille de la version 1 laissée sans réponse (montrée à un lancement précédent) : expirée, puis offerte une fois pour les nouveautés
   await p.evaluate(() => localStorage.setItem('deckdeal:tour', JSON.stringify({ offer: 'news', shownAt: Date.now() - 864e5 })));
   await relaunch(p); await pillOn(p);
-  const s2 = await st(p); assert.deepEqual([s2.offer, s2.since, s2.ver], ['news', 1, 2]);
+  const s2 = await st(p); assert.deepEqual([s2.offer, s2.since, s2.ver], ['news', 1, 3]);
   await p.click('.tour-pill [data-tp="x"]'); await p.waitForFunction(() => !document.querySelector('.tour-pill'));
   await relaunch(p); await noPill(p, 5500, '✕ : plus jamais');
   ok('pastille de la version 1 laissée sans réponse : offerte une fois pour les nouveautés, ✕ définitif');
   await p.context().close();
 }
 
-/* ── 3) Les 13 étapes, 390 × 844 clair, 360 × 640 sombre, 360 × 640 avec la bande du haut de l'appli ─────────────────── */
-const ALL = ['scan', 'opening', 'trade', 'binder', 'live', 'friends', 'mystery', 'partie', 'places', 'masterset', 'build', 'price', 'more'];
-const TARGET = { scan: /nav-foil/, opening: /opn-scs/, trade: /hm-tr-acts/, binder: /^trView$/, live: /trc-entry/, friends: /^btnAccount$/, mystery: /^dlyHbs$/, partie: /^hmPartie$/,
-  places: /seg-opt/, masterset: /coll-ms/, build: /dk-tab/, price: /field-head/, more: /link-btn/ };
+{ // visite de la version 2 déjà vue : la pastille ne montre que les étapes de la version 3 (Importer : peu de cartes ; niveau et badges)
+  const V2 = () => { if (!localStorage.getItem('deckdeal:tour')) localStorage.setItem('deckdeal:tour', JSON.stringify({ offer: 'news', shownAt: Date.now() - 864e5, done: Date.now() - 864e5, how: 'go', fin: Date.now() - 864e5, ver: 2 })); };
+  const { p } = await page({ path: '?tour', init: [SEEN, V2] });
+  await p.evaluate(COLL3); await pillOn(p);
+  assert.deepEqual([(await st(p)).since, (await st(p)).ver], [2, 3]);
+  await p.click('.tour-pill [data-tp="go"]'); await shown(p);
+  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), ['account', 'import'], 'version 2 vue : niveau et badges, Importer');
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !TOUR.on);
+  ok('visite de la version 2 déjà vue : nouveautés de la version 3 seulement (niveau et badges, Importer)');
+  await p.context().close();
+}
+
+/* ── 3) Les 14 étapes, 390 × 844 clair, 360 × 640 sombre, 360 × 640 avec la bande du haut de l'appli ─────────────────── */
+const ALL = ['scan', 'opening', 'trade', 'partie', 'mystery', 'account', 'binder', 'live', 'import', 'masterset', 'places', 'more', 'build', 'price'];      // regroupées par écran : accueil, Échange, Collection, Decks
+const TARGET = { scan: /nav-foil/, opening: /opn-scs/, trade: /hm-tr-acts/, binder: /^trView$/, live: /trc-entry/, account: /^btnAccount$/, mystery: /^dlyHbs$/, partie: /^hmPartie$/,
+  import: /icon-btn/, places: /seg-opt/, masterset: /coll-ms/, build: /dk-tab/, price: /field-head/, more: /link-btn/ };
 const FLAGS = { amis: true, troc: true, pub: true, daily: true, partie: true };
 for (const [vp, dark, fs] of [[{ width: 390, height: 844 }, false], [{ width: 360, height: 640 }, true], [{ width: 360, height: 640 }, false, true]]) {
   const tag = `${vp.width}×${vp.height}${dark ? ' sombre' : ''}${fs ? ' bande du haut' : ''}`;
@@ -190,7 +235,7 @@ for (const [vp, dark, fs] of [[{ width: 390, height: 844 }, false], [{ width: 36
   await p.evaluate(() => window.scrollTo({ top: 120, behavior: 'instant' })); await p.waitForTimeout(100);      // sans le défilement doux de la page : y0 mesuré une fois arrivé (sinon en route, selon la charge)
   const y0 = await p.evaluate(() => window.scrollY);
   await p.evaluate(() => tourStart({ from: 'test' })); await shown(p);
-  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), ALL, tag + ' : 13 étapes');
+  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), ALL, tag + ' : 14 étapes');
   const seen = [];
   for (let i = 0; i < ALL.length; i++) {
     const g = await checkStep(p, tag);
@@ -198,25 +243,27 @@ for (const [vp, dark, fs] of [[{ width: 390, height: 844 }, false], [{ width: 36
     assert.equal(g.act, 'next', `${tag} ${g.id} : focus sur « Suivant »`);
     if (g.id === 'opening') assert.equal(await p.evaluate(() => !!document.querySelector('.scs-sheet.open')), true, 'réglages du scan ouverts en feuille');
     if (g.id === 'binder') assert.match(g.text, /Personnaliser/);
-    if (g.id === 'live') assert.match(g.text, /6 caractères/);
-    if (g.id === 'friends') assert.match(g.text, /Ajouter en ami/);
-    if (g.id === 'mystery') { assert.match(g.text, /^Une carte par jour.*Le podium ouvre les classements\..*niveau.*badges.*Niv\./); assert.equal(g.R.y >= g.top, true, 'icônes sous la bande du haut'); }
-    if (g.id === 'partie') assert.match(g.text, /jusqu'à 8 joueurs.*QR code.*chez chacun/, 'connecté, serveur qui l\'annonce : le QR code de la table');
+    if (g.id === 'live') assert.match(g.text, /face à face/);
+    if (g.id === 'account') { assert.match(g.title, /^Amis, niveau et badges$/); assert.match(g.text, /Niv\..*Touche un badge.*Ajouter en ami/); }
+    if (g.id === 'mystery') { assert.match(g.text, /^Une carte par jour.*Le podium ouvre les classements\.$/); assert.equal(g.R.y >= g.top, true, 'icônes sous la bande du haut'); }
+    if (g.id === 'partie') assert.match(g.text, /jusqu'à 8 joueurs.*QR code.*son téléphone/, 'connecté, serveur qui l\'annonce : le QR code de la table');
+    if (g.id === 'import') { assert.match(g.text, /CSV/); assert.equal(await p.evaluate(() => COLL.tab), 'list', '3 cartes : le bouton Importer de la collection'); }
     if (g.id === 'places') { assert.match(g.text, /Ranger ces cartes….*proxys/); assert.equal(await p.evaluate(() => COLL.tab), 'places', 'onglet Rangement ouvert'); }
-    if (g.id === 'masterset') { assert.match(g.text, /^Une extension à la fois.*roue crantée.*Filtres.›.Extension/); assert.equal(await p.evaluate(() => COLL.tab), 'list'); }
+    if (g.id === 'masterset') { assert.match(g.text, /^Une extension à la fois.*roue crantée/); assert.equal(await p.evaluate(() => COLL.tab), 'list'); }
+    assert.ok(g.text.length <= 260, `${g.id} : bulle courte (${g.text.length} caractères)`);
     if (g.id === 'build') assert.match(g.text, /Communauté/);
     if (NEW.includes(g.id)) await SHOT(p, `etape-${g.id}-${vp.width}${dark ? '-sombre' : ''}${fs ? '-bande' : ''}`);
-    if (g.id === 'more') { assert.match(g.text, /Installe aussi l'appli/, 'web : installer l\'appli'); assert.equal(await p.textContent('.tour-b [data-tour="next"]'), 'Terminer'); }
+    if (g.id === 'price') { assert.match(g.text, /Installe aussi l'appli/, 'dernière étape, web : installer l\'appli'); assert.equal(await p.textContent('.tour-b [data-tour="next"]'), 'Terminer'); }
     if (i === 0) assert.equal(await p.isHidden('.tour-b [data-tour="prev"]'), true, '1re étape : pas de « Précédent »');
     assert.equal(await p.evaluate(() => adsBusy()), true, 'pub masquée pendant la visite');
     seen.push(g.id);
     if (i < ALL.length - 1) { await next(p); await shown(p); }
   }
   // clavier : ← revient, → avance, Tab reste dans la bulle
-  await p.keyboard.press('ArrowLeft'); await shown(p); assert.equal((await geo(p)).id, 'price');
+  await p.keyboard.press('ArrowLeft'); await shown(p); assert.equal((await geo(p)).id, 'build');
   for (let k = 0; k < 4; k++) await p.keyboard.press('Tab');
   assert.equal(await p.evaluate(() => document.querySelector('.tour-b').contains(document.activeElement)), true, 'Tab : le focus reste dans la bulle');
-  await p.keyboard.press('ArrowRight'); await shown(p); assert.equal((await geo(p)).id, 'more');
+  await p.keyboard.press('ArrowRight'); await shown(p); assert.equal((await geo(p)).id, 'price');
   await next(p);      // Terminer
   await p.waitForFunction(() => !TOUR.on && !document.querySelector('.tour'), null, { timeout: 5000 }); await p.waitForTimeout(500);
   await p.waitForFunction(y => Math.abs(window.scrollY - y) <= 2, y0, { timeout: 3000 }).catch(() => {});      // défilement doux encore en cours (CI lente) : mesuré une fois posé
@@ -224,8 +271,8 @@ for (const [vp, dark, fs] of [[{ width: 390, height: 844 }, false], [{ width: 36
   assert.deepEqual([end.view, end.coll, end.sheets, end.ctab, end.sc, end.gum], ['home', false, 0, 'list', false, 0], tag + ' : accueil remis, aucune feuille, onglet de la collection inchangé, caméra jamais ouverte ' + JSON.stringify(end));
   assert.ok(Math.abs(end.y - y0) <= 2, `défilement remis (${end.y} / ${y0})`);
   assert.match(end.toast, /Visite terminée/);
-  const s = await st(p); assert.ok(s.fin && s.step === 13 && s.ver === 2, 'terminée, étape 13 atteinte, version 2 vue : ' + JSON.stringify(s));
-  ok(`${tag} : 13 étapes (Scanner, Session d'ouverture en feuille, lien et QR, classeur, échange en direct, amis, Carte mystère, partie, rangement, masterset, À monter, prix d'une liste, partager) ; halo sur la bonne cible, bulle dans l'écran sans la couvrir ; flèches, Tab ; accueil et défilement remis ; caméra jamais ouverte`);
+  const s = await st(p); assert.ok(s.fin && s.step === 14 && s.ver === 3 && s.adv, 'terminée, étape 14 atteinte, version 3 vue : ' + JSON.stringify(s));
+  ok(`${tag} : 14 étapes regroupées par écran (Scanner, Session d'ouverture en feuille, lien et QR, partie, Carte mystère, niveau et badges, classeur, échange en direct, Importer, masterset, rangement, partager, À monter, prix d'une liste) ; halo sur la bonne cible, bulle dans l'écran sans la couvrir ; flèches, Tab ; accueil et défilement remis ; caméra jamais ouverte`);
   if (!dark && !fs) {
     // depuis la collection (onglet Cartes, défilée) par l'aide : la collection revient telle quelle ; l'aide reste fermée
     await p.click('#nav [data-nav="coll"]'); await p.waitForSelector('.coll.on');
@@ -251,19 +298,20 @@ for (const [vp, dark, fs] of [[{ width: 390, height: 844 }, false], [{ width: 36
 { // déconnecté, serveur sans amis, échange en direct ni Carte mystère, collection vide, web
   const { p } = await page({ ping: { amis: false, troc: false, pub: false }, init: () => { localStorage.setItem('deckdeal:tour', JSON.stringify({ done: 1 })); } });
   await p.evaluate(() => tourStart()); await shown(p);
-  const ids = ['scan', 'opening', 'trade', 'binder', 'partie', 'places', 'masterset', 'build', 'price', 'more'];
-  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), ids, 'sans amis, échange en direct ni Carte mystère : 10 étapes');
+  const ids = ['scan', 'opening', 'import', 'trade', 'partie', 'account', 'binder', 'masterset', 'places', 'more', 'build', 'price'];
+  assert.deepEqual(await p.evaluate(() => TOUR.steps.map(s => s.id)), ids, 'sans amis, échange en direct ni Carte mystère : 12 étapes');
   const texts = {};
   for (let i = 0; i < ids.length; i++) { const g = await checkStep(p, 'déconnecté'); texts[g.id] = g; if (i < ids.length - 1) { await next(p); await shown(p); } }
-  assert.match(texts.trade.text, /^Avec un compte, crée ton lien public/); assert.match(texts.trade.el[0], /^hmTrade$/, 'collection vide : la carte Échange entière (QR code et Partager cachés)');
+  assert.match(texts.trade.text, /^Avec un compte, ton lien public/);
+  assert.match(texts.import.el[0], /hm/, 'collection vide : la carte « Pour commencer »'); assert.equal(texts.account.title, 'Niveau et badges', 'sans amis : niveau et badges seulement'); assert.doesNotMatch(texts.account.text, /ami/); assert.match(texts.trade.el[0], /^hmTrade$/, 'collection vide : la carte Échange entière (QR code et Partager cachés)');
   assert.match(texts.binder.text, /^Dès que ta liste a des cartes/); assert.match(texts.binder.el[0], /seg|trSub/, 'liste vide : les onglets de la liste à la place de l\'interrupteur');
   assert.match(texts.partie.text, /l'historique de tes parties\.$/); assert.doesNotMatch(texts.partie.text, /QR code/, 'déconnecté : pas de salle d\'attente');
   assert.match(texts.places.el[0], /seg-opt/, 'collection vide : l\'onglet Rangement reste');
-  assert.match(texts.masterset.text, /^Dès que tu as des cartes, l'onglet Cartes a un interrupteur Masterset/); assert.match(texts.masterset.el[0], /seg-opt/, 'collection vide : l\'onglet Cartes à la place de l\'interrupteur');
+  assert.match(texts.masterset.text, /^Dès que tu as des cartes, l'onglet Cartes peut passer en masterset/); assert.match(texts.masterset.el[0], /seg-opt/, 'collection vide : l\'onglet Cartes à la place de l\'interrupteur');
   assert.match(texts.build.text, /Il faut un compte\./); assert.doesNotMatch(texts.build.text, /Communauté/, 'sans decks publics : pas de Communauté');
   assert.match(texts.more.text, /^Collection › Stats/); assert.match(texts.more.el[0], /nav-i/, 'collection vide : le bouton Collection de la barre');
   await next(p); await p.waitForFunction(() => !TOUR.on);
-  ok('déconnecté, serveur sans amis, échange en direct ni Carte mystère, collection vide : 10 étapes, textes « Avec un compte », interrupteurs absents → onglets, Stats → bouton Collection');
+  ok('déconnecté, serveur sans amis, échange en direct ni Carte mystère, collection vide : 12 étapes, Importer sur « Pour commencer », textes « Avec un compte », interrupteurs absents → onglets, Stats → bouton Collection');
   // mode streamer : refusée
   await p.evaluate(() => { OPN.cur = { id: 'o', name: 'S', at: Date.now(), st: true, rows: [] }; });
   assert.equal(await p.evaluate(() => tourStart()), false);
@@ -277,7 +325,7 @@ for (const [vp, dark, fs] of [[{ width: 390, height: 844 }, false], [{ width: 36
   await p.evaluate(COLL3);
   await p.evaluate(() => tourStart()); await shown(p);
   const ids = await p.evaluate(() => TOUR.steps.map(s => s.id));
-  assert.equal(ids.length, 11, 'ordinateur, déconnecté, sans amis, échange en direct ni Carte mystère : 11 étapes ' + ids); assert.equal(ids[ids.indexOf('masterset') + 1], 'mobile', 'scan mobile après le masterset (même écran)');
+  assert.equal(ids.length, 13, 'ordinateur, déconnecté, sans amis, échange en direct ni Carte mystère : 13 étapes ' + ids); assert.equal(ids[ids.indexOf('masterset') + 1], 'mobile', 'scan mobile après le masterset (même écran)');
   await p.evaluate(n => { TOUR.busy = false; tourGo(n); }, ids.indexOf('mobile')); await shown(p);
   const g = await checkStep(p, 'ordinateur');
   assert.equal(g.id, 'mobile'); assert.equal(await p.evaluate(() => TOUR.steps[TOUR.i].el().dataset.act), 'add', 'halo sur « + » (Ajouter des cartes)');
@@ -302,7 +350,7 @@ for (const mo of [true, false]) {
   const n = await p.evaluate(() => TOUR.steps.length);
   await p.evaluate(n => { TOUR.busy = false; tourGo(n - 1); }, n); await shown(p);
   const g = await checkStep(p, 'Android');
-  assert.equal(g.id, 'more');
+  assert.equal(g.id, 'price', 'dernière étape');
   if (mo) assert.match(g.text, /Sur Android : les widgets Mana Orbit .*appui long sur l'icône/);
   else { assert.match(g.text, /Sur Android : un appui long sur l'icône de l'appli ouvre ses raccourcis/); assert.doesNotMatch(g.text, /widgets/); }
   assert.doesNotMatch(g.text, /Installe aussi/, 'Android : pas d\'installation web');
@@ -326,8 +374,7 @@ const tipCheckGeo = (g, tag) => {
   await p.evaluate(COLL3); await p.waitForTimeout(300);
   // pendant la visite : aucune astuce (l'Échange s'ouvre pour l'étape du classeur)
   await p.evaluate(() => tourStart()); await shown(p);
-  for (let i = 0; i < 3; i++) { await next(p); await shown(p); }
-  assert.equal((await geo(p)).id, 'binder'); await p.waitForTimeout(2000);
+  while ((await geo(p)).id !== 'binder') { await next(p); await shown(p); } await p.waitForTimeout(2000);
   assert.equal(await p.$('.tip'), null, 'pas d\'astuce pendant la visite'); assert.equal(((await st(p)).tips || {}).bnd, undefined);
   await p.keyboard.press('Escape'); await p.waitForFunction(() => !TOUR.on); await p.waitForTimeout(500);
   // Échange : interrupteur liste / classeur (la page ne bouge pas)
@@ -338,11 +385,20 @@ const tipCheckGeo = (g, tag) => {
     pa.removeChild(t); pa.removeChild(g); const b = r(); pa.append(g, t); return a === b; }), true, 'astuce par-dessus : rien ne bouge sans elle');
   assert.equal(await p.evaluate(() => document.querySelector('.tip').getAttribute('role')), 'status');
   await p.screenshot({ path: process.env.TOUR_SHOTS ? process.env.TOUR_SHOTS + '/tip-classeur.png' : '/dev/null' }).catch(() => {});
-  await p.mouse.click(30, 300); await tipGone(p);      // un toucher ailleurs l'efface
-  assert.ok((await st(p)).tips.bnd);
+  await p.mouse.click(30, 300); await tipGone(p);      // un toucher ailleurs l'efface ; trop tôt pour l'avoir lue : elle reviendra
+  assert.deepEqual([((await st(p)).tips || {}).bnd, (await st(p)).tipN.bnd], [undefined, 1], 'fermée avant 2 s : pas vue pour de bon');
+  await p.click('#nav [data-nav="home"]'); await p.waitForTimeout(400); await p.click('#nav [data-nav="trade"]');
+  await tipOn(p, /Passe en mode classeur ici/); assert.ok((await st(p)).tips.bnd, '2e fois : vue quoi qu\'il arrive');
+  await p.mouse.click(30, 300); await tipGone(p);
+  // la suivante du même écran : les cartes recherchées
+  await p.click('#nav [data-nav="home"]'); await p.waitForTimeout(400); await p.click('#nav [data-nav="trade"]');
+  await tipOn(p, /Tes cartes recherchées sont ici/); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'recherchées');
+  assert.equal(await p.evaluate(() => TIP.tgt.dataset.v), 'want');
+  await p.waitForTimeout(2000); await p.mouse.click(30, 300); await tipGone(p);
+  assert.ok((await st(p)).tips.want, 'restée 2 s : vue');
   await p.click('#nav [data-nav="home"]'); await p.waitForTimeout(400); await p.click('#nav [data-nav="trade"]'); await p.waitForTimeout(2500);
-  assert.equal(await p.$('.tip'), null, 'jamais deux fois');
-  ok('astuce Échange : « Passe en mode classeur ici » sur l\'interrupteur, par-dessus (rien ne bouge, touchers qui passent), effacée au toucher, une seule fois ; jamais pendant la visite');
+  assert.equal(await p.$('.tip'), null, 'plus rien sur cet écran');
+  ok('astuce Échange : « Passe en mode classeur ici » sur l\'interrupteur, par-dessus (rien ne bouge, touchers qui passent), fermée trop tôt → revient une 2e fois, puis plus ; puis « Tes cartes recherchées » ; jamais pendant la visite');
   // Stats : « Partage ta collection en image »
   await p.click('#nav [data-nav="coll"]'); await p.waitForSelector('#collSeg'); await p.click('#collSeg [data-v="stats"]');
   await tipOn(p, /Partage ta collection en image/); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'stats');
@@ -354,16 +410,16 @@ const tipCheckGeo = (g, tag) => {
   await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
   await tipOn(p, /Tu ouvres des boosters \? Lance une session d'ouverture ici\./, 8000); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'scan');
   assert.match(await p.evaluate(() => TIP.tgt.className), /sc-set/);
-  await p.keyboard.press('Escape'); await tipGone(p);      // une touche l'efface (et Échap ferme le scan)
+  await p.waitForTimeout(1800); await p.keyboard.press('Escape'); await tipGone(p);      // une touche l'efface (et Échap ferme le scan)
   await p.evaluate(() => { if (SC.el) SC.el.__close('done'); }); await p.waitForTimeout(400);
   ok('astuce scan : « Tu ouvres des boosters ? » sur les réglages du scan');
   // liste d'échange d'un autre joueur : « Ajoute-le en ami » (déconnecté : le bouton invite à se connecter)
   await p.evaluate(() => openPublicTrade(readShare('trade', { have: [trCard('sol ring', 'Sol Ring', 1, '')], want: [], by: 'Léa', at: Date.now() }), false, 'AbcDef123456'));
   await p.waitForSelector('.pubv.on [data-am="add"]', { timeout: 8000 });
   await tipOn(p, /Ajoute-le en ami/); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'ami');
-  await p.evaluate(() => TR.pub.el.__close()); await tipGone(p);      // l'écran se ferme : l'astuce aussi
+  await p.waitForTimeout(1800); await p.evaluate(() => TR.pub.el.__close()); await tipGone(p);      // l'écran se ferme : l'astuce aussi
   ok('astuce liste d\'un autre joueur : « Ajoute-le en ami » sur le bouton, fermée avec l\'écran');
-  assert.deepEqual(Object.keys((await st(p)).tips).sort(), ['ami', 'bnd', 'opn', 'simg']);
+  assert.deepEqual(Object.keys((await st(p)).tips).sort(), ['ami', 'bnd', 'opn', 'simg', 'want']);
   // jamais deux fois : mêmes écrans rouverts
   await p.evaluate(() => openPublicTrade(readShare('trade', { have: [trCard('sol ring', 'Sol Ring', 1, '')], want: [], by: 'Léa', at: Date.now() }), false, 'AbcDef123456'));
   await p.waitForSelector('.pubv.on [data-am="add"]'); await p.waitForTimeout(2500); assert.equal(await p.$('.tip'), null, 'Ajouter en ami : une seule fois');
@@ -377,25 +433,25 @@ const tipCheckGeo = (g, tag) => {
   await tipOn(p, /Touche ce rond.: l'édition exacte de ta carte, et foil ✦ ou non\./); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'édition');
   assert.match(await p.evaluate(() => TIP.tgt.className), /row-ed/);
   await SHOT(p, 'astuce-edition');
-  await p.keyboard.press('Shift'); await tipGone(p);      // une touche l'efface
+  await p.waitForTimeout(1800); await p.keyboard.press('Shift'); await tipGone(p);      // une touche l'efface
   // panneau des filtres ouvert : le filtre Extension, en bas du panneau (sous la barre du bas : l'astuce attend qu'on y descende)
   await p.click('#collF .fbtn'); await p.waitForTimeout(600);
   await p.evaluate(() => document.querySelector('#collF .fset').scrollIntoView({ block: 'center' }));
   await tipOn(p, /Une seule extension à la fois.: cherche-la/); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'extension');
   assert.match(await p.evaluate(() => TIP.tgt.className), /fset/);
-  await p.keyboard.press('Shift'); await tipGone(p); await p.click('#collF .fbtn');
+  await p.waitForTimeout(1800); await p.keyboard.press('Shift'); await tipGone(p); await p.click('#collF .fbtn');
   // masterset allumé : ses options (roue crantée)
   await p.click('.coll-ms');
   await tipOn(p, /Les options du masterset.: version foil/); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'masterset');
   assert.match(await p.evaluate(() => TIP.tgt.className), /ms-opt/);
   await SHOT(p, 'astuce-masterset');
-  await p.keyboard.press('Shift'); await tipGone(p); await p.click('.coll-ms'); await p.waitForTimeout(300);
+  await p.waitForTimeout(1800); await p.keyboard.press('Shift'); await tipGone(p); await p.click('.coll-ms'); await p.waitForTimeout(300);
   // emplacement ouvert : « Ranger ces cartes… »
   await p.evaluate(() => plcShow(plcCreate('box', 'Boîte bleue')));
   await tipOn(p, /Range d'un coup toutes les cartes affichées ici/); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'ranger');
   assert.match(await p.evaluate(() => TIP.tgt.className), /plc-mv/);
   await SHOT(p, 'astuce-ranger');
-  await p.keyboard.press('Shift'); await tipGone(p);
+  await p.waitForTimeout(1800); await p.keyboard.press('Shift'); await tipGone(p);
   await p.evaluate(() => COLL.el.__close()); await p.waitForTimeout(300);
   // scan : le mode Auto, après la session d'ouverture (pas de caméra dans ce test : l'interrupteur est montré à la main)
   await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on'); await p.waitForTimeout(1800);
@@ -403,10 +459,24 @@ const tipCheckGeo = (g, tag) => {
   await p.evaluate(() => { SC.el.querySelector('.sc-auto').hidden = false; tipSoon(0); });
   await tipOn(p, /Auto.: pose tes cartes l'une après l'autre, le scan les lit tout seul\./); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'auto');
   assert.match(await p.evaluate(() => TIP.tgt.className), /sc-auto/);
-  await p.keyboard.press('Shift'); await tipGone(p);
+  await p.waitForTimeout(1800); await p.keyboard.press('Shift'); await tipGone(p);
   await p.evaluate(() => SC.el.__close('done')); await p.waitForTimeout(400);
-  assert.deepEqual(Object.keys((await st(p)).tips).sort(), ['ami', 'auto', 'bnd', 'ed', 'fset', 'msopt', 'opn', 'rng', 'simg']);
+  assert.deepEqual(Object.keys((await st(p)).tips).sort(), ['ami', 'auto', 'bnd', 'ed', 'fset', 'msopt', 'opn', 'rng', 'simg', 'want']);
   ok('astuces de la version 2 : rond de l\'édition (Cartes), filtre Extension (filtres ouverts), options du masterset, « Ranger ces cartes… » (emplacement ouvert), mode Auto du scan');
+  // fiche « Niveau et badges » (une feuille) : toucher un badge
+  await p.evaluate(() => { navGo('home'); prgSheet(); }); await p.waitForSelector('.prg-sheet.open .prg-grid');
+  await tipOn(p, /Touche un badge.: comment l'obtenir/, 8000); await p.waitForTimeout(350); tipCheckGeo(await tipGeo(p), 'badges');
+  assert.match(await p.evaluate(() => TIP.tgt.className), /prg-b/);
+  await SHOT(p, 'astuce-badges');
+  await p.waitForTimeout(1800); await closeSheets(p); await tipGone(p);      // la feuille se ferme : l'astuce aussi
+  assert.ok((await st(p)).tips.bdg);
+  // « Revoir les astuces » : toutes reviennent
+  await openMe(p);
+  assert.match(await p.textContent('#tipsAgain'), /Revoir les astuces.*11 déjà vues/);
+  await p.click('#tipsAgain'); await p.waitForFunction(() => /Les astuces reviendront/.test(document.querySelector('#toast').textContent));
+  assert.deepEqual([(await st(p)).tips, await p.$('#tipsAgain')], [{}, null]);
+  await closeSheets(p); await p.click('#nav [data-nav="trade"]'); await tipOn(p, /Passe en mode classeur ici/);
+  ok('astuce de la fiche « Niveau et badges » (feuille) : « Touche un badge » ; « Revoir les astuces » (Compte et réglages › Préférences) : elles reviennent');
   assert.deepEqual(errs, []);
   await p.context().close();
 }

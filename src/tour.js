@@ -1,39 +1,43 @@
-/* ── tour.js : « Visite guidée » (13 étapes, 14 sur ordinateur) et « Astuces » (bulles d'une fois) : où sont les fonctions importantes mais un peu cachées ──
-   Visite : l'écran s'assombrit sauf un halo arrondi autour du vrai bouton ; une bulle (titre, une ou deux phrases) se place à côté, jamais dessus
-   ni hors de l'écran ; « Suivant » / « Précédent », points de progression, « Passer » ; Échap, flèches, Retour du téléphone ; bulle = dialogue
+/* ── tour.js : « Visite guidée » et « Astuces » (bulles d'une fois) : où sont les fonctions importantes mais un peu cachées ──
+   Visite : l'écran s'assombrit sauf un halo arrondi autour du vrai bouton ; une bulle (titre, une ou deux phrases courtes) se place à côté, jamais
+   dessus ni hors de l'écran ; « Suivant » / « Précédent », points de progression, « Passer » ; Échap, flèches, Retour du téléphone ; bulle = dialogue
    nommé, focus gardé dedans, étape annoncée aux lecteurs d'écran ; animations coupées si l'appareil réduit les animations.
-   Étapes : Scanner (barre du bas) · Session d'ouverture (réglages du scan, ouverts en feuille : jamais la caméra) · lien et QR code (carte
-   Échange de l'accueil) · Classeur (interrupteur de l'onglet Échange) · Échange en direct · Amis (bouton du compte) · Carte mystère, niveau et
-   badges (icônes de l'en-tête) · Compteur de vie (carte de l'accueil) · Rangement (onglet de la collection : emplacements, « Ranger ces
-   cartes… », proxys) · Masterset (interrupteur de l'onglet Cartes ; édition et foil d'une ligne, filtre Extension) · Scan mobile (ordinateur
-   seulement : « + » de la collection) · Decks › À monter · Prix d'une liste · Partager en image (Stats), plus widgets et raccourcis (appli
-   Android) ou l'installation (web). Étape sans objet (fonction coupée par le serveur, déconnecté, collection vide, APK ancienne, web) : texte
-   adapté, ou étape sautée. À la fin, l'écran d'où l'on venait est remis (vue, section ouverte et son onglet, défilement) ; les feuilles
-   ouvertes au départ (Aide…) restent fermées.
-   Versions (TOUR_VER, v des étapes) : 1 = les 9 étapes du 13 octobre, 2 = celles du 19 octobre (Carte mystère, partie, rangement, masterset,
-   scan mobile). Qui a déjà vu, refusé ou laissé passer une version précédente reçoit une fois la pastille « Découvre les nouveautés », qui ne
-   montre que les étapes ajoutées depuis (jamais les anciennes) ; la visite complète reste dans l'aide.
-   Proposée : nouvel utilisateur, une fois à la fin du premier lancement (onboard.js › obClose → tourOffer) : « Une visite de 2 min… ? » ;
-   utilisateur existant, une fois après cette mise à jour : pastille « Découvre les nouveautés ». Seulement sur l'accueil au calme : ni scan,
-   ni échange en direct, ni feuille, ni mode streamer (streamOn), ni lien ouvert de l'extérieur (?p=…). Toujours relançable : Aide (en tête)
-   et Compte et réglages › Aide et avis.
-   Astuces : une petite bulle, une seule fois, la première fois qu'on arrive sur l'écran (classeur de l'Échange, réglages et mode Auto du scan,
+   Étapes, regroupées par écran (le moins d'allers-retours) : Accueil (Scanner, Session d'ouverture dans les réglages du scan ouverts en feuille,
+   Importer si la collection est vide, liste d'échange, compteur de vie, Carte mystère, Compte et réglages : niveau, badges et amis) · Échange
+   (classeur, échange en direct avec un compte) · Collection (Importer s'il y a peu de cartes, masterset, scan mobile sur ordinateur, rangement,
+   partager en image) · Decks (À monter, prix d'une liste). La dernière étape ajoute l'appli sur le téléphone (Android : widgets et raccourcis ;
+   web : l'installer). Étape sans objet (fonction coupée par le serveur, déconnecté, collection vide, APK ancienne, web) : texte adapté, ou sautée.
+   Deux temps (TOUR_FEW) : un nouvel utilisateur (moins de 30 cartes) qui accepte l'offre de la fin du premier lancement reçoit l'essentiel
+   (étapes base : Scanner, Importer, liste d'échange, compteur de vie, À monter, prix d'une liste) ; « la suite » (les autres étapes) lui est
+   proposée une fois par la pastille « Prêt pour la suite ? », dès 30 cartes ou 5 jours après. Depuis l'aide : toujours toute la visite.
+   À la fin, l'écran d'où l'on venait est remis (vue, section ouverte et son onglet, défilement) ; les feuilles ouvertes au départ restent fermées.
+   Versions (TOUR_VER, v des étapes) : 1 = 13 octobre, 2 = 19 octobre (Carte mystère, partie, rangement, masterset, scan mobile), 3 = 25 octobre
+   (Importer ; Compte et réglages : niveau, badges et amis). Qui a déjà vu, refusé ou laissé passer une version précédente reçoit une fois la pastille
+   « Découvre les nouveautés », qui ne montre que les étapes ajoutées depuis (jamais les anciennes) ; la visite complète reste dans l'aide.
+   Proposée : nouvel utilisateur, une fois à la fin du premier lancement (onboard.js › obClose → tourOffer) : « Une petite visite… ? » ;
+   utilisateur existant, une fois après une mise à jour : « Découvre les nouveautés ». Seulement sur l'accueil au calme : ni scan, ni échange en
+   direct, ni feuille, ni mode streamer (streamOn), ni lien ouvert de l'extérieur (?p=…). Toujours relançable : Aide (en tête) et Compte et
+   réglages › Aide et avis.
+   Astuces : une petite bulle la première fois qu'on arrive sur l'écran (classeur et cartes recherchées de l'Échange, réglages et mode Auto du scan,
    « Ajouter en ami » de la liste d'un autre, « Partager en image » des Stats, « Ranger ces cartes… » d'un emplacement, options du masterset,
-   filtre Extension, rond de l'édition d'une ligne, nom d'un joueur du compteur de vie : sa fiche) ; une seule à la fois, effacée au premier toucher ou après quelques secondes ; jamais pendant
-   la visite, le mode streamer ou le premier lancement ; interrupteur « Astuces » dans Compte et réglages › Préférences.
-   Collection vide : pas d'astuce « Tu viens de ManaBox ? », le lien de l'écran vide le dit déjà.
-   État sur l'appareil seulement (deckdeal:tour) : offre faite, vue, refusée, étape atteinte, version, astuces vues. Rien au démarrage hormis un
-   minuteur : tout se construit à la demande. Navigateurs pilotés par les tests : ni offre ni astuce, sauf avec ?tour (comme ?onboarding).
-   Retirer : ôter 'tour.js' de build.mjs (les crochets « typeof tour… / tip… » de onboard, help, me, back, ads, collection, filters, scan et
-   friends deviennent inertes), puis css/tour.css et i18n/*.tour.json. */
+   filtre Extension, rond de l'édition d'une ligne, nom d'un joueur du compteur de vie, « Où trouver mes cartes » d'un deck, badges de la fiche
+   « Niveau et badges », qui est une feuille) ; une seule à la fois, effacée au premier toucher ou après 7 s. Vue pour de bon si elle est restée
+   2 s à l'écran (TIP_READ), sinon elle revient la fois suivante (2 fois au plus, TIP_MAX). Jamais pendant la visite, le mode streamer ou le premier
+   lancement ; Compte et réglages › Préférences : interrupteur « Astuces » et « Revoir les astuces ».
+   Collection vide : pas d'astuce « Tu viens de ManaBox ? », l'écran vide le dit déjà (et l'étape Importer de la visite).
+   État sur l'appareil seulement (deckdeal:tour) : offre faite, vue, refusée, étape atteinte, version, visite courte / suite, astuces vues. Rien au
+   démarrage hormis un minuteur : tout se construit à la demande. Navigateurs pilotés par les tests : ni offre ni astuce, sauf avec ?tour.
+   Retirer : ôter 'tour.js' de build.mjs (les crochets « typeof tour… / tip… » de onboard, help, me, back, ads, collection, filters, scan,
+   friends, viewer, partie-ui, progress et event deviennent inertes), puis css/tour.css et i18n/*.tour.json. */
 const TOUR_KEY = 'deckdeal:tour';
-const TOUR_VER = 2;      // version de la visite : une étape ajoutée porte v: TOUR_VER (après l'avoir augmentée) et sera proposée seule aux anciens
+const TOUR_VER = 3;      // version de la visite : une étape ajoutée porte v: TOUR_VER (après l'avoir augmentée) et sera proposée seule aux anciens
+const TOUR_FEW = 30;      // moins de cartes : visite courte (étapes base) ; la suite est proposée à partir de ce nombre (ou 5 jours après)
 const TOUR_FORCE = typeof location !== 'undefined' && /[?&]tour\b/.test(location.search);
 /** Lancement par un lien, un raccourci, un partage (?p=, ?open=, ?troc=…) : pas de pastille pendant cette session. */
 const TOUR_EXT = (() => { try { return [...new URLSearchParams(location.search).keys()].some(k => !['tour', 'onboarding', 'lang'].includes(k)); } catch (e) { return false; } })();
 const TOUR = { on: false, el: null, b: null, hole: null, i: 0, steps: [], seq: 0, busy: false, raf: 0, key: '', back: null, sheet: null, st: null,
   boot: Date.now(), armT: 0, calm: 0, pill: null, pillK: '', from: '' };
-const TIP = { t: 0, el: null, ring: null, id: '', tgt: null, top: null, io: null, raf: 0, key: '', end: 0, tries: 0 };
+const TIP = { t: 0, el: null, ring: null, id: '', tgt: null, top: null, io: null, raf: 0, key: '', end: 0, tries: 0, sheet: false, at: 0 };
 
 /* ── État (appareil) ─────────────────────────────────────────────────────────────────────────────────────────────── */
 function tourRead() {
@@ -60,80 +64,85 @@ const tourTopIn = () => parseFloat(getComputedStyle(document.documentElement).pa
    les entoure toutes) ; ok : l'étape a un sens ici ; fixed : cible toujours à l'écran (barre du bas, en-tête), rien à faire défiler ; maxH : hauteur
    du halo au plus ; v : version de la visite qui l'a ajoutée (1 sans rien). */
 const TOUR_STEPS = [
-  { id: 'scan', at: 'home', fixed: true, r: 34, el: () => [$('#nav .nav-scan .nav-foil'), $('#nav .nav-scan .nav-l')],
+  { id: 'scan', base: true, at: 'home', fixed: true, r: 34, el: () => [$('#nav .nav-scan .nav-foil'), $('#nav .nav-scan .nav-l')],
     t: () => T('Scanner tes cartes'),
-    x: () => T('Touche ce rond et vise le nom de la carte : elle rejoint ta collection. En haut de l\'écran du scan : ses réglages (édition, mode Auto) et la lampe.') },
+    x: () => T('Touche ce rond et vise le nom de la carte : elle rejoint ta collection. Ses réglages (édition, mode Auto) sont en haut du scan.') },
   { id: 'opening', at: 'scs', ok: () => typeof scsSheet === 'function' && typeof opnScsRow === 'function', el: () => $('.scs-sheet.open .opn-scs'),
     t: () => T('Session d\'ouverture'),
-    x: () => T('Tu ouvres des boosters ou une boîte, en stream ou non ? Lance une session ici (Scan › Réglages) : prix payé, mode streamer qui cache ta collection.'),
-    x2: () => T('À la fin : le bilan (gain ou perte, meilleures cartes), une image à partager, et l\'historique dans « Mes ouvertures ».') },
-  { id: 'trade', at: 'home', el: () => $('#hmTrade .hm-tr-acts:not([hidden])') || $('#hmTrade'),      // collection vide : la carte entière (QR code et Partager pas encore là)
+    x: () => T('Tu ouvres des boosters ? Lance une session ici : prix payé, mode streamer, puis le bilan (gain ou perte, meilleures cartes) à partager.') },
+  { id: 'import', v: 3, base: true, at: 'home', ok: () => typeof openCollImport === 'function' && !collCount(), el: () => [$('#hmStart [data-hm="import"]'), $('#hmStart [data-hm="swg"]')],      // collection vide : la carte « Pour commencer »
+    t: () => T('Importer ta collection'), x: () => tourImportX() },
+  { id: 'trade', base: true, at: 'home', el: () => $('#hmTrade .hm-tr-acts:not([hidden])') || $('#hmTrade'),      // collection vide : la carte entière (QR code et Partager pas encore là)
     t: () => T('Ta liste d\'échange'),
-    x: () => (D.user ? T('Ton lien public et son QR code, à montrer à un autre joueur : il voit tes doublons et les cartes que tu cherches, toujours à jour.')
-      : T('Avec un compte, crée ton lien public et son QR code : un autre joueur voit tes doublons et les cartes que tu cherches.')) },
-  { id: 'binder', at: 'trade', el: () => tourIn('#trView') || tourIn('#trSub'),
-    t: () => T('Classeur'),
-    x: () => (tourIn('#trView') ? T('Liste ou classeur : ici, tes cartes deviennent des pages de 9 à feuilleter. En classeur, « Personnaliser » choisit sa couleur, les cartes épinglées et le tri.')
-      : T('Dès que ta liste a des cartes, un interrupteur au-dessus la passe en classeur : des pages de 9 à feuilleter, à personnaliser (couleur, cartes épinglées, tri).')) },
-  { id: 'live', at: 'trade', ok: () => typeof trocEntry === 'function' && !!(CTX.proxy && CTX.troc), el: () => tourIn('.trc-entry') || tourIn('.tr-box'),
-    t: () => T('Échange en direct'),
-    x: () => (D.user ? T('Face à face, chacun sur son téléphone : QR code ou code à 6 caractères. Chacun choisit ses cartes, vous validez tous les deux, et vos collections sont mises à jour.')
-      : T('Avec un compte : un échange face à face, chacun sur son téléphone (QR code ou code à 6 caractères). Vous validez tous les deux, vos collections sont mises à jour.')) },
-  { id: 'friends', at: 'home', fixed: true, ok: () => typeof amSheet === 'function' && !!(CTX.proxy && CTX.amis), el: () => $('#btnAccount'),
-    t: () => T('Amis'),
-    x: () => (D.user ? T('Sur la liste d\'échange d\'un autre joueur, touche « Ajouter en ami ». Tes demandes et tes amis sont ici : Compte et réglages › Amis.')
-      : T('Avec un compte : « Ajouter en ami » sur la liste d\'échange d\'un autre joueur, puis tes demandes et tes amis ici, dans Compte et réglages › Amis.')) },
+    x: () => (D.user ? T('Ton lien public et son QR code : un autre joueur voit tes doublons et les cartes que tu cherches, toujours à jour.')
+      : T('Avec un compte, ton lien public et son QR code montrent tes doublons et les cartes que tu cherches.')) },
+  { id: 'partie', v: 2, base: true, at: 'home', ok: () => typeof puGo === 'function', el: () => $('#hmPartie'),
+    t: () => T('Compteur de vie'),
+    x: () => (D.user && CTX.partie ? T('Le compteur de vie de la table : Commander jusqu\'à 8 joueurs, Standard ou libre. Avec le QR code, chacun suit la partie sur son téléphone.')
+      : T('Le compteur de vie de la table : Commander jusqu\'à 8 joueurs, Standard ou libre, et l\'historique de tes parties.')) },
   { id: 'mystery', v: 2, at: 'home', fixed: true, r: 16, ok: () => typeof dlyOn === 'function' && dlyOn(), el: () => $('#dlyHbs'),
     t: () => T('Carte mystère'),
-    x: () => (D.user ? T('Une carte par jour, la même pour tous : devine-la pendant qu\'elle se dévoile, le plus vite possible. Le podium ouvre les classements.')
-      : T('Avec un compte : une carte par jour, la même pour tous, à deviner pendant qu\'elle se dévoile. Le podium ouvre les classements.')),
-    x2: () => (typeof prgPill === 'function' ? T('Scans, decks, parties, échanges : tout fait monter ton niveau et gagner des badges. Ils sont dans Compte et réglages, pastille « Niv. ».') : '') },
-  { id: 'partie', v: 2, at: 'home', ok: () => typeof puGo === 'function', el: () => $('#hmPartie'),
-    t: () => T('Compteur de vie'),
-    x: () => (D.user && CTX.partie ? T('Le compteur de vie de la table : Commander jusqu\'à 8 joueurs (blessures de commandant, monarque), Standard en 1 contre 1 ou format libre. Les autres rejoignent avec le QR code, et la partie s\'enregistre chez chacun.')
-      : T('Le compteur de vie de la table : Commander jusqu\'à 8 joueurs (blessures de commandant, monarque), Standard en 1 contre 1 ou format libre, et l\'historique de tes parties.')) },
-  { id: 'places', v: 2, at: 'places', ok: () => typeof plcTabHtml === 'function', el: () => tourIn('#collSeg [data-v="places"]'),
-    t: () => T('Rangement'),
-    x: () => T('Classeurs, boîtes, pile à vendre : note où est chaque carte. Touche un emplacement pour voir ses cartes, et « Ranger ces cartes… » les déplace toutes d\'un coup.'),
-    x2: () => T('Au scan, « Ranger dans » les range tout de suite. Tes proxys ont leur liste à part, jamais dans la valeur ni l\'échange.') },
+    x: () => (D.user ? T('Une carte par jour, la même pour tous : devine-la le plus vite possible pendant qu\'elle se dévoile. Le podium ouvre les classements.')
+      : T('Avec un compte : une carte par jour, la même pour tous, à deviner le plus vite possible. Le podium ouvre les classements.')) },
+  { id: 'account', v: 3, at: 'home', fixed: true, ok: () => typeof prgPill === 'function' || tourAmis(), el: () => $('#btnAccount'),
+    t: () => (tourAmis() ? T('Amis, niveau et badges') : T('Niveau et badges')),
+    x: () => T('Dans Compte et réglages, la pastille « Niv. » ouvre tes badges. Touche un badge pour savoir comment l\'obtenir.'),
+    x2: () => (!tourAmis() ? '' : D.user ? T('Tes amis sont ici aussi. « Ajouter en ami » est sur la liste d\'échange d\'un autre joueur.')
+      : T('Avec un compte : « Ajouter en ami » sur la liste d\'échange d\'un autre joueur, puis tes amis ici.')) },
+  { id: 'binder', at: 'trade', el: () => tourIn('#trView') || tourIn('#trSub'),
+    t: () => T('Classeur'),
+    x: () => (tourIn('#trView') ? T('Liste ou classeur : tes cartes en pages de 9 à feuilleter. « Personnaliser » choisit la couleur, les cartes épinglées et le tri.')
+      : T('Dès que ta liste a des cartes, elle peut passer en classeur : des pages de 9 à feuilleter, à personnaliser.')) },
+  { id: 'live', at: 'trade', ok: () => typeof trocEntry === 'function' && !!(CTX.proxy && CTX.troc && D.user), el: () => tourIn('.trc-entry') || tourIn('.tr-box'),      // sans compte : sautée (rien à montrer, la ligne serait « Connecte-toi »)
+    t: () => T('Échange en direct'),
+    x: () => T('Cette icône lance un échange face à face, chacun sur son téléphone : vous choisissez vos cartes, validez, et vos collections suivent.') },
+  { id: 'import', v: 3, base: true, at: 'list', fixed: true, ok: () => typeof openCollImport === 'function' && collCount() > 0 && collCount() < TOUR_FEW, el: () => tourIn('.coll-tools [data-act="import"]'),      // quelques cartes : le bouton de la collection
+    t: () => T('Importer ta collection'), x: () => tourImportX() },
   { id: 'masterset', v: 2, at: 'list', ok: () => typeof msBarHtml === 'function', el: () => tourIn('.coll-ms:not([hidden])') || tourIn('#collSeg [data-v="list"]'),
     t: () => T('Masterset'),
-    x: () => (tourIn('.coll-ms:not([hidden])') ? T('Une extension à la fois, toutes ses cartes dans l\'ordre : en couleur celles que tu as, en noir et blanc celles qui manquent, avec leur prix. La roue crantée règle le foil, les variantes, le playset.')
-      : T('Dès que tu as des cartes, l\'onglet Cartes a un interrupteur Masterset : une extension à la fois, en couleur celles que tu as, en noir et blanc celles qui manquent.')),
-    x2: () => T('Le rond à gauche de la quantité choisit l\'édition exacte d\'une carte, et si elle est foil ✦. Filtres › Extension n\'en affiche qu\'une.') },
+    x: () => (tourIn('.coll-ms:not([hidden])') ? T('Une extension à la fois, dans l\'ordre : en couleur tes cartes, en noir et blanc celles qui manquent. La roue crantée règle foil et variantes.')
+      : T('Dès que tu as des cartes, l\'onglet Cartes peut passer en masterset : une extension à la fois, avec celles qui te manquent.')) },
   { id: 'mobile', v: 2, at: 'list', fixed: true, ok: () => typeof mobPcLike === 'function' && mobPcLike(), el: () => tourIn('.coll-tools [data-act="add"]'),      // ordinateur : le téléphone scanne pour lui (mobscan.js)
     t: () => T('Scan mobile'),
     x: () => T('« + » ouvre « Ajouter des cartes » : active le scan mobile, puis scanne avec ton téléphone connecté au même compte. Chaque carte arrive ici.') + (D.user ? '' : ' ' + T('Il faut un compte.')) },
-  { id: 'build', at: 'input', el: () => $('#inTabs .dk-tab[data-dtab="build"]'),
-    t: () => T('Decks › À monter'),
-    x: () => (CTX.pub ? T('Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.')
-      : T('Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix.')) + (D.user ? '' : ' ' + T('Il faut un compte.')) },
-  { id: 'price', at: 'input', maxH: 132, el: () => [$('#viewInput .field-head'), $('#deckText')],
-    t: () => T('Prix d\'une liste'),
-    x: () => T('Colle une decklist (EDHREC, Moxfield, Archidekt…) : le prix de chaque carte, sans celles que tu as déjà, ou le panier CardTrader le moins cher.') },
+  { id: 'places', v: 2, at: 'places', ok: () => typeof plcTabHtml === 'function', el: () => tourIn('#collSeg [data-v="places"]'),
+    t: () => T('Rangement'),
+    x: () => T('Classeurs, boîtes, pile à vendre : note où est chaque carte. « Ranger ces cartes… » déplace toute une sélection d\'un coup.'),
+    x2: () => T('Au scan, « Ranger dans » range tout de suite. Les proxys ont leur liste à part.') },
   { id: 'more', at: () => (collCount() ? 'stats' : 'home'), fixed: () => !collCount(), el: () => (collCount() ? tourIn('[data-act="simgcoll"]') : $('#nav [data-nav="coll"] .nav-i')),
     t: () => T('Partager en image'),
     x: () => T(collCount() ? 'Stats, deck, liste d\'échange, bilan d\'ouverture : « Partager en image » en fait une belle image à envoyer ou à publier.'
-      : 'Collection › Stats, deck, liste d\'échange, bilan d\'ouverture : « Partager en image » en fait une belle image à envoyer ou à publier.'),
-    x2: () => {
-      if (typeof isNativeApp === 'function' && isNativeApp()) return (typeof natPlugin === 'function' && natPlugin('ManaOrbit') ? T('Sur Android : les widgets Mana Orbit (valeur, QR code d\'échange) sur l\'écran d\'accueil, et un appui long sur l\'icône de l\'appli pour ses raccourcis.')
-        : T('Sur Android : un appui long sur l\'icône de l\'appli ouvre ses raccourcis (Scanner, Prix rapide, Échange).'));
-      const st = typeof PWA !== 'undefined' ? PWA.state() : '';
-      return ['ready', 'ios', 'manual'].includes(st) ? T('Installe aussi l\'appli : Compte et réglages › Application.') : '';
-    } },
+      : 'Collection › Stats, deck, liste d\'échange, bilan d\'ouverture : « Partager en image » en fait une belle image à envoyer ou à publier.') },
+  { id: 'build', base: true, at: 'input', el: () => $('#inTabs .dk-tab[data-dtab="build"]'),
+    t: () => T('Decks › À monter'),
+    x: () => (CTX.pub ? T('Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix. Et Communauté : les decks publiés par les joueurs.')
+      : T('Les decks Commander que ta collection monte presque, avec les cartes qui manquent et leur prix.')) + (D.user ? '' : ' ' + T('Il faut un compte.')) },
+  { id: 'price', base: true, at: 'input', maxH: 132, el: () => [$('#viewInput .field-head'), $('#deckText')],
+    t: () => T('Prix d\'une liste'),
+    x: () => T('Colle une decklist (EDHREC, Moxfield, Archidekt…) : le prix de chaque carte, sans celles que tu as déjà, ou le panier CardTrader le moins cher.') },
 ];
+const tourImportX = () => T('Ta collection est déjà ailleurs (ManaBox, Moxfield, un tableur) ? Importe son fichier CSV : tout arrive d\'un coup.');
+/** Amis actifs sur ce serveur. */
+const tourAmis = () => typeof amSheet === 'function' && !!(CTX.proxy && CTX.amis);
+/** Dernière étape : l'appli sur le téléphone (Android : widgets et raccourcis ; web : l'installer), si l'étape n'a pas déjà un 2e paragraphe. */
+function tourAppTip() {
+  if (typeof isNativeApp === 'function' && isNativeApp()) return (typeof natPlugin === 'function' && natPlugin('ManaOrbit') ? T('Sur Android : les widgets Mana Orbit (valeur, QR code d\'échange) sur l\'écran d\'accueil, et un appui long sur l\'icône de l\'appli pour ses raccourcis.')
+    : T('Sur Android : un appui long sur l\'icône de l\'appli ouvre ses raccourcis (Scanner, Prix rapide, Échange).'));
+  const st = typeof PWA !== 'undefined' ? PWA.state() : '';
+  return ['ready', 'ios', 'manual'].includes(st) ? T('Installe aussi l\'appli : Compte et réglages › Application.') : '';
+}
 /** Élément de la section ouverte (dessus de la pile) : jamais celui d'un écran en train de se fermer. */
 const tourIn = sel => { const top = typeof navTopDv === 'function' ? navTopDv() : null; return top ? $(sel, top) : null; };
 
 /* ── Lancer, aller d'une étape à l'autre, finir ─────────────────────────────────────────────────────────────────────── */
-/** Lance la visite. o.from : 'help', 'pill', 'new'… (statistique locale) ; o.since : version déjà vue (seulement les étapes ajoutées après).
- *  Faux si elle ne peut pas démarrer. */
+/** Lance la visite. o.from : 'help', 'pill', 'new'… (statistique locale) ; o.since : version déjà vue (seulement les étapes ajoutées après) ;
+ *  o.mode : 'basic' (l'essentiel, étapes base : nouvel utilisateur), 'adv' (la suite : les autres), rien (toute la visite). Faux si elle ne peut pas démarrer. */
 function tourStart(o = {}) {
   if (TOUR.on || (typeof OB !== 'undefined' && OB.el)) return false;
   if (tourStream()) { toast(T('Visite guidée indisponible en mode streamer')); return false; }
   const other = $$('body > .dv.on').filter(d => !d.classList.contains('sec'));
   if (other.length || (typeof SC !== 'undefined' && SC.el) || (typeof imgView !== 'undefined' && imgView)) { toast(T('Ferme cet écran pour lancer la visite')); return false; }
-  const steps = TOUR_STEPS.filter(s => { try { return (s.v || 1) > (o.since || 0) && (!s.ok || s.ok()); } catch (e) { return false; } });
+  const steps = TOUR_STEPS.filter(s => { try { return (o.mode === 'basic' ? s.base : o.mode === 'adv' ? !s.base : true) && (s.v || 1) > (o.since || 0) && (!s.ok || s.ok()); } catch (e) { return false; } });
   if (!steps.length) return false;      // nouveautés toutes coupées par le serveur : rien à montrer
   tourPillHide(); tipHide();
   // où l'on est : remis à la fin (la section ouverte, son onglet, le défilement)
@@ -141,7 +150,7 @@ function tourStart(o = {}) {
   TOUR.back = { view: S.view, y: window.scrollY, ctab: COLL.ctab, sy: sc ? sc.scrollTop : 0, focus: document.activeElement,
     sec: COLL.el && top === COLL.el ? { k: 'coll', tab: COLL.tab } : typeof DKS !== 'undefined' && DKS.el && top === DKS.el ? { k: 'dks' } : null };
   while (sheets.length) sheets[sheets.length - 1].close();
-  TOUR.steps = steps; TOUR.on = true; TOUR.from = o.from || ''; TOUR.key = ''; TOUR.busy = false;
+  TOUR.steps = steps; TOUR.on = true; TOUR.from = o.from || ''; TOUR.mode = o.mode || ''; TOUR.key = ''; TOUR.busy = false;
   tourSet({ runs: (tourRead().runs || 0) + 1, last: Date.now() });
   tourBuild();
   window.addEventListener('keydown', tourKey, true);
@@ -202,7 +211,7 @@ async function tourGo(i) {
 }
 /** Texte et boutons de l'étape. */
 function tourPaint(s) {
-  const n = TOUR.steps.length, i = TOUR.i, b = TOUR.b, x2 = s.x2 ? s.x2() : '';
+  const n = TOUR.steps.length, i = TOUR.i, b = TOUR.b, x2 = (s.x2 ? s.x2() : '') || (i === n - 1 ? tourAppTip() : '');
   $('.tour-t', b).textContent = s.t();
   $('.tour-x', b).innerHTML = `<p>${esc(tourNb(s.x()))}</p>${x2 ? `<p class="tour-x2">${esc(tourNb(x2))}</p>` : ''}`;
   $$('.tour-dots i', b).forEach((d, k) => d.classList.toggle('on', k === i));
@@ -240,9 +249,11 @@ function tourEnd(how) {
   if (el) { el.classList.remove('on'); setTimeout(() => el.remove(), typeof reduceMotion === 'function' && reduceMotion() ? 0 : 260); }
   if (TOUR.sheet) { const a = TOUR.sheet; TOUR.sheet = null; a.close(); }
   tourSet(how === 'done' ? { fin: Date.now(), done: tourRead().done || Date.now(), ver: TOUR_VER } : { skip: Date.now(), done: tourRead().done || Date.now(), ver: TOUR_VER });      // ver : cette version est vue, pas de pastille pour elle
+  if (TOUR.mode === 'basic') tourSet({ basic: tourRead().basic || Date.now() });      // l'essentiel vu : la suite sera proposée plus tard (tourMoreCheck)
+  else if (!tourRead().adv) tourSet({ adv: Date.now() });      // la suite (ou toute la visite) : plus rien à proposer
   tourRestore(); if (how === 'done' && typeof prgSoon === 'function') prgSoon('fun');      // badge « Guide »
   if (typeof adsRefresh === 'function') adsRefresh();
-  if (how === 'done') toast(T('Visite terminée. Tu la retrouves dans « Comment ça marche ? », en bas de l\'accueil.'));
+  if (how === 'done') toast(TOUR.mode === 'basic' ? T('C\'est l\'essentiel ! La suite te sera proposée plus tard ; toute la visite est dans « Comment ça marche ? ».') : T('Visite terminée. Tu la retrouves dans « Comment ça marche ? », en bas de l\'accueil.'));
 }
 /** Remet l'écran d'avant la visite : section et onglet, vue, défilement, focus. */
 function tourRestore() {
@@ -326,7 +337,7 @@ function tourPlace(R, s) {
 }
 
 /* ── Offre : nouvel utilisateur (fin du premier lancement), utilisateur existant (une fois après la mise à jour) ─────────── */
-/** Fin du premier lancement (onboard.js › obClose) : « Une visite de 2 min pour trouver l'essentiel ? », dès que l'accueil est au calme. */
+/** Fin du premier lancement (onboard.js › obClose) : « Une petite visite pour trouver l'essentiel ? », dès que l'accueil est au calme. */
 function tourOffer() {
   const st = tourRead(); if (st.offer || st.done) return;
   tourSet({ offer: 'new', ver: TOUR_VER });
@@ -338,8 +349,9 @@ function tourBoot() {
   if (!tourAuto() || TOUR_EXT) return;
   let st = tourRead();
   if (st.offer && !st.done && st.shownAt && st.shownAt < TOUR.boot) st = tourSet({ done: Date.now(), how: 'exp' });      // déjà montrée à un lancement précédent : on n'insiste pas
+  if (st.more === 1 && st.moreAt && st.moreAt < TOUR.boot) st = tourSet({ more: 2, moreHow: 'exp' });      // « la suite » laissée à un lancement précédent
   if (st.done && (st.ver || 1) < TOUR_VER) st = tourNews(st);
-  if (st.done) return;
+  if (st.done) { tourMoreCheck(); setTimeout(tourMoreCheck, 20000); return; }      // collection et compte lus un peu plus tard : revu une fois
   if (st.offer) { tourArm(); return; }
   if ((typeof OB !== 'undefined' && OB.el) || typeof obSeen !== 'function' || !obSeen()) return;      // premier lancement en cours (obClose proposera), ou appareil jamais ouvert
   tourSet({ offer: 'news', ver: TOUR_VER }); tourArm();
@@ -347,7 +359,7 @@ function tourBoot() {
 /** Nouvelle offre des nouveautés : since = version déjà proposée (ses étapes ne seront pas rejouées) ; astuces vues et interrupteur gardés. */
 function tourNews(st) {
   const o = { offer: 'news', since: st.ver || 1, ver: TOUR_VER };
-  for (const k of ['tips', 'tipsOff', 'runs']) if (st[k] != null) o[k] = st[k];
+  for (const k of ['tips', 'tipN', 'tipsOff', 'runs', 'basic', 'adv', 'more']) if (st[k] != null) o[k] = st[k];
   TOUR.st = {}; return tourSet(o);
 }
 /** L'accueil au calme : rien par-dessus (feuille, écran, scan, carte en grand, premier lancement), pas de mode streamer, appli au premier plan. */
@@ -356,33 +368,45 @@ function tourQuiet() {
   if (sheets.length || (typeof SC !== 'undefined' && SC.el) || (typeof imgView !== 'undefined' && imgView) || document.querySelector('body > .dv')) return false;
   return S.view === 'home';
 }
+/** Pastille à montrer : l'offre de la visite (nouvel utilisateur, nouveautés), sinon « la suite » après la visite courte ; '' : rien. */
+const tourPending = st => (!st.done && st.offer ? st.offer : st.more === 1 ? 'more' : '');
+/** Peu de cartes : visite courte (l'essentiel). */
+const tourFew = () => (typeof collCount === 'function' ? collCount() : 0) < TOUR_FEW;
+/** Visite courte faite, la suite pas encore : proposée une fois dès qu'il y a TOUR_FEW cartes, ou 5 jours après. */
+function tourMoreCheck() {
+  const st = tourRead(); if (!tourAuto() || TOUR_EXT || !st.basic || st.adv || st.more) return;
+  if (tourFew() && Date.now() - st.basic < 5 * 864e5) return;
+  tourSet({ more: 1 }); tourArm();
+}
 /** Offre en attente : la pastille paraît après 1,2 s d'accueil au calme, se cache dès qu'autre chose passe devant, revient ensuite (même session). */
 function tourArm() {
   if (TOUR.armT) return;
   const tick = () => {
-    const st = tourRead();
-    if (st.done || !st.offer) { tourPillHide(); clearInterval(TOUR.armT); TOUR.armT = 0; return; }
+    const k = tourPending(tourRead());
+    if (!k) { tourPillHide(); clearInterval(TOUR.armT); TOUR.armT = 0; return; }
     if (!tourQuiet()) { TOUR.calm = 0; tourPillHide(); return; }
     if (!TOUR.calm) TOUR.calm = Date.now();
-    if (Date.now() - TOUR.calm >= 1200 && !TOUR.pill) tourPillShow(st.offer);
+    if (Date.now() - TOUR.calm >= 1200 && !TOUR.pill) tourPillShow(k);
   };
   TOUR.armT = setInterval(tick, 400);
 }
 function tourPillShow(kind) {
-  if (!tourRead().shownAt) tourSet({ shownAt: Date.now(), ver: TOUR_VER });      // vue avec cette version : à son expiration, pas de nouvelle offre
+  if (kind === 'more') { if (!tourRead().moreAt) tourSet({ moreAt: Date.now() }); }      // la suite : laissée sans réponse, elle expire au lancement suivant
+  else if (!tourRead().shownAt) tourSet({ shownAt: Date.now(), ver: TOUR_VER });      // vue avec cette version : à son expiration, pas de nouvelle offre
   const el = TOUR.pill = document.createElement('aside'); TOUR.pillK = kind;
   el.className = 'tour-pill' + (kind === 'new' ? ' new' : ''); el.setAttribute('aria-label', T('Visite guidée'));
   el.innerHTML = kind === 'new'
-    ? `<span class="tour-pill-i" aria-hidden="true"><svg class="logo"><use href="#i-logo"/></svg></span><span class="tour-pill-t" role="status">${esc(tourNb(T('Une visite de 2 min pour trouver l\'essentiel ?')))}</span>
+    ? `<span class="tour-pill-i" aria-hidden="true"><svg class="logo"><use href="#i-logo"/></svg></span><span class="tour-pill-t" role="status">${esc(tourNb(T('Une petite visite pour trouver l\'essentiel ?')))}</span>
       <span class="tour-pill-a"><button class="link-btn" type="button" data-tp="later">${T('Plus tard')}</button><button class="btn small" type="button" data-tp="go">${T('Visiter')}</button></span>`
-    : `<span class="tour-pill-i" aria-hidden="true"><svg class="i"><use href="#i-star"/></svg></span><span class="tour-pill-t" role="status">${T('Découvre les nouveautés')}</span>
+    : `<span class="tour-pill-i" aria-hidden="true"><svg class="i"><use href="#i-star"/></svg></span><span class="tour-pill-t" role="status">${kind === 'more' ? esc(tourNb(T('Prêt pour la suite ? 1 min pour le reste de l\'appli'))) : T('Découvre les nouveautés')}</span>
       <button class="btn small" type="button" data-tp="go">${T('Visiter')}</button><button class="tour-pill-x" type="button" data-tp="x" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-close"/></svg></button>`;
   el.addEventListener('click', e => {
     const b = e.target.closest('[data-tp]'); if (!b) return;
     haptic('tap');
-    const a = b.dataset.tp, since = tourRead().since; tourSet({ done: Date.now(), how: a, ver: TOUR_VER });
+    const a = b.dataset.tp, since = tourRead().since;
+    if (TOUR.pillK === 'more') tourSet({ more: 2, moreHow: a }); else tourSet({ done: Date.now(), how: a, ver: TOUR_VER });
     tourPillHide(true);
-    if (a === 'go') tourStart({ from: TOUR.pillK, since: TOUR.pillK === 'news' ? since : 0 });      // nouveautés : seulement les étapes ajoutées depuis la version déjà vue
+    if (a === 'go') tourStart({ from: TOUR.pillK, since: TOUR.pillK === 'news' ? since : 0, mode: TOUR.pillK === 'more' ? 'adv' : TOUR.pillK === 'new' && tourFew() ? 'basic' : '' });      // nouveautés : seulement les étapes ajoutées depuis la version déjà vue ; nouvel utilisateur : l'essentiel
     else if (a === 'later') toast(T('La visite t\'attend dans « Comment ça marche ? », en bas de l\'accueil.'));
   });
   document.body.appendChild(el);
@@ -398,7 +422,7 @@ const tourHelpHtml = () => `<button class="tour-help" type="button" data-help="t
 const tourHelpBtn = () => `<button class="btn ghost small" type="button" data-help="tour">${T('Visite guidée')}</button>`;
 if (typeof HELP_QA !== 'undefined') {
   const i = HELP_QA.findIndex(q => q[0] === 'Faut-il un compte ?');
-  HELP_QA.splice(i < 0 ? HELP_QA.length : i, 0, ['Où sont les fonctions moins visibles ?', 'Touche <b>Visite guidée</b>, en haut de cette aide : en 2 minutes, elle montre le scan et la session d\'ouverture, ton lien d\'échange, le classeur, l\'échange en direct, les amis, la Carte mystère, le compteur de vie, le rangement, le masterset, les decks à monter, le prix d\'une liste et le partage en image. Les <b>astuces</b> (petites bulles, une fois par écran) se coupent dans Compte et réglages › Préférences.']);
+  HELP_QA.splice(i < 0 ? HELP_QA.length : i, 0, ['Où sont les fonctions moins visibles ?', 'Touche <b>Visite guidée</b>, en haut de cette aide : en 2 minutes, elle montre le scan et la session d\'ouverture, l\'import, ton lien d\'échange, le compteur de vie, la Carte mystère, ton niveau et tes badges, les amis, le classeur, l\'échange en direct, le rangement, le masterset, le partage en image, les decks à monter et le prix d\'une liste. Les <b>astuces</b> (petites bulles, une fois par écran) se coupent ou se revoient dans Compte et réglages › Préférences.']);
 }
 
 /* ── Astuces : une bulle, une fois, la première fois qu'on arrive sur l'écran ─────────────────────────────────────────── */
@@ -416,42 +440,62 @@ const TIP_DEFS = {
   auto: [top => typeof SC !== 'undefined' && top === SC.el && !SC.remote, top => $('.sc-auto:not([hidden])', top), () => T('Auto : pose tes cartes l\'une après l\'autre, le scan les lit tout seul.')],
   pnm: [top => typeof PU !== 'undefined' && top === PU.el && PU.mode === 'game', top => $('.pu-t .pu-nm', top), () => T('Touche le nom d\'un joueur : sa fiche, avec les blessures de commandant, le poison, le monarque…')],      // compteur de vie (partie-ui.js › puGamePaint)
   dvfind: [top => typeof DV !== 'undefined' && top === DV.el, top => $('.dv-fetch', top), () => T('Où trouver mes cartes : les cartes de ce deck que tu as, classeur par classeur, et celles qui manquent.')],      // viewer d'un deck (viewer.js), tout deck
+  // depuis la version 3 de la visite
+  want: [top => typeof COLL !== 'undefined' && top === COLL.el && COLL.mode === 'trade' && typeof TR !== 'undefined' && TR.sub !== 'want', top => $('#trSub [data-v="want"]', top), () => T('Tes cartes recherchées sont ici : elles s\'affichent sur ton lien d\'échange, pour qui peut te les céder.')],
+  bdg: [top => top.classList.contains('prg-sheet'), top => [...top.querySelectorAll('.prg-grid .prg-b[data-b]')].find(b => { const r = b.getBoundingClientRect(); return r.top > 80 && r.bottom < innerHeight - 40; }) || null,
+    () => T('Touche un badge : comment l\'obtenir, ses paliers et l\'XP qu\'il rapporte.'), { sheet: true }],      // fiche « Niveau et badges » (progress.js › prgSheet) : une feuille
 };
+/** Astuce vue pour de bon : restée TIP_READ ms à l'écran, ou montrée TIP_MAX fois (un toucher la ferme : trop tôt, elle revient la fois suivante). */
+const TIP_READ = 2000, TIP_MAX = 2;
 const tipOff = () => !!tourRead().tipsOff;
-/** Ligne « Astuces » de Compte et réglages › Préférences (me.js). */
-const tipPrefRow = () => `<label class="me-row switch-row" for="setTips"><span class="me-t">${T('Astuces')}<small>${T('Petites bulles d\'aide, une fois par écran')}</small></span><span class="switch"><input type="checkbox" id="setTips" ${tipOff() ? '' : 'checked'}><i></i></span></label>`;
-function tipPref(on) { tourSet({ tipsOff: !on }); if (!on) tipHide(); haptic('ok'); }
+/** Lignes « Astuces » de Compte et réglages › Préférences (me.js) : l'interrupteur, et « Revoir les astuces » quand certaines sont vues. */
+function tipPrefRow() {
+  const n = Object.keys(tourRead().tips || {}).length;
+  return `<label class="me-row switch-row" for="setTips"><span class="me-t">${T('Astuces')}<small>${T('Petites bulles d\'aide, une fois par écran')}</small></span><span class="switch"><input type="checkbox" id="setTips" ${tipOff() ? '' : 'checked'}><i></i></span></label>`
+    + (n && !tipOff() ? `<button type="button" class="me-row" id="tipsAgain"><span class="me-t">${T('Revoir les astuces')}<small>${esc(TN(n, '{n} déjà vue', '{n} déjà vues'))}</small></span></button>` : '');
+}
+function tipPref(on) { tourSet({ tipsOff: !on }); if (!on) tipHide(); haptic('ok'); const a = document.getElementById('tipsAgain'); if (a) a.hidden = !on; }
+/** « Revoir les astuces » : toutes reviennent, une fois chacune, sur leur écran. */
+function tipAgain(btn) { tourSet({ tips: {}, tipN: {} }); haptic('ok'); toast(T('Les astuces reviendront sur chaque écran.')); if (btn) btn.remove(); }
+if (typeof document !== 'undefined') document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('#tipsAgain'); if (b) tipAgain(b); });
 /** Un écran vient d'être peint (collection.js, scan.js, friends.js) : une astuce à montrer ? Sortie immédiate si toutes sont vues ou coupées. */
 function tipSoon(ms = 700) {
   if (!tourAuto() || tipOff()) return;
   const seen = tourRead().tips || {}; if (Object.keys(TIP_DEFS).every(k => seen[k])) return;
   clearTimeout(TIP.t); TIP.t = setTimeout(tipCheck, ms); TIP.tries = 0;
 }
-const tipQuiet = () => !document.hidden && !TOUR.on && !(typeof OB !== 'undefined' && OB.el) && !tourStream() && !sheets.length && !(typeof imgView !== 'undefined' && imgView)
-  && !(TOUR.pill && TOUR.pillK === 'new');      // l'offre de la visite d'abord
+const tipQuiet = sheet => !document.hidden && !TOUR.on && !(typeof OB !== 'undefined' && OB.el) && !tourStream() && (sheet ? sheets.length > 0 : !sheets.length) && !(typeof imgView !== 'undefined' && imgView)
+  && !(TOUR.pill && TOUR.pillK === 'new');      // l'offre de la visite d'abord ; sheet : astuce d'une feuille (elle doit être au-dessus)
+/** Écran où chercher une astuce : la feuille du dessus (astuces { sheet: true }), sinon la section ouverte. */
+const tipScope = () => (sheets.length ? sheets[sheets.length - 1].wrap : navTopDv());
+const tipSameScope = (top, sheet) => (sheet ? sheets.length > 0 && sheets[sheets.length - 1].wrap === top : navTopDv() === top);
 function tipCheck() {
   if (TIP.el || tipOff()) return;
-  const top = navTopDv(); if (!top) return;
-  const seen = tourRead().tips || {};
-  let id = '', tgt = null;
-  for (const [k, [scr, find]] of Object.entries(TIP_DEFS)) { if (seen[k]) continue; try { if (scr(top) && (tgt = find(top))) { id = k; break; } } catch (e) { /* écran pas prêt */ } }
+  const seen = tourRead().tips || {}, sc = tipScope(), dv = navTopDv();
+  let id = '', tgt = null, top = null, sheet = false, later = false;
+  for (const [k, [scr, find, , o]] of Object.entries(TIP_DEFS)) {
+    if (seen[k]) continue;
+    const sh = !!(o && o.sheet), t = sh ? (sheets.length ? sc : null) : dv; if (!t) continue;
+    try { if (scr(t) && (tgt = find(t))) { if (!sh && sheets.length) { later = true; continue; } id = k; top = t; sheet = sh; break; } } catch (e) { /* écran pas prêt */ }
+  }
   if (TIP.io) { TIP.io.disconnect(); TIP.io = null; }
-  if (!id) return;
-  if (!tipQuiet()) { if (TIP.tries++ < 6) TIP.t = setTimeout(tipCheck, 1500); return; }      // une feuille ouverte : on réessaie un peu plus tard
+  if (!id) { if (later && TIP.tries++ < 6) TIP.t = setTimeout(tipCheck, 1500); return; }      // une feuille ouverte par-dessus l'écran : on réessaie un peu plus tard
+  if (!tipQuiet(sheet)) { if (TIP.tries++ < 6) TIP.t = setTimeout(tipCheck, 1500); return; }
   // la cible doit être entièrement visible (ni sous l'en-tête, ni sous la barre du bas) : attendue en défilant si besoin
   TIP.io = new IntersectionObserver(es => {
     if (!es.some(x => x.isIntersecting && x.intersectionRatio > 0.98)) return;
     if (TIP.io) { TIP.io.disconnect(); TIP.io = null; }
-    setTimeout(() => { if (!TIP.el && tgt.isConnected && navTopDv() === top && tipQuiet() && TIP_DEFS[id][0](top)) tipShow(id, tgt, top); }, 350);      // l'écran finit d'arriver
-  }, { rootMargin: `0px 0px ${document.body.classList.contains('nav-on') ? -96 : 0}px 0px`, threshold: 1 });      // sous l'en-tête : coupée par la zone qui défile ; sous la barre du bas : marge
+    setTimeout(() => { if (!TIP.el && tgt.isConnected && tipSameScope(top, sheet) && tipQuiet(sheet) && TIP_DEFS[id][0](top)) tipShow(id, tgt, top, sheet); }, 350);      // l'écran finit d'arriver
+  }, { rootMargin: `0px 0px ${!sheet && document.body.classList.contains('nav-on') ? -96 : 0}px 0px`, threshold: 1 });      // sous l'en-tête : coupée par la zone qui défile ; sous la barre du bas : marge
   TIP.io.observe(tgt);
 }
-function tipShow(id, tgt, top) {
-  const tips = Object.assign({}, tourRead().tips, { [id]: Date.now() }); tourSet({ tips });      // vue : jamais deux fois
+function tipShow(id, tgt, top, sheet) {
+  const st = tourRead(), tipN = Object.assign({}, st.tipN, { [id]: ((st.tipN || {})[id] || 0) + 1 }); tourSet({ tipN });
+  if (tipN[id] >= TIP_MAX) tipSeen(id);      // dernière fois : vue quoi qu'il arrive (sinon : vue après TIP_READ ms à l'écran, tipHide)
   const el = TIP.el = document.createElement('div'); el.className = 'tip'; el.setAttribute('role', 'status');
   el.innerHTML = `<span class="tip-ar" aria-hidden="true"></span><b>${T('Astuce')}</b> ${esc(tourNb(TIP_DEFS[id][2]()))}`;
   const ring = TIP.ring = document.createElement('div'); ring.className = 'tip-ring'; ring.setAttribute('aria-hidden', 'true');
-  TIP.id = id; TIP.tgt = tgt; TIP.top = top; TIP.key = '';
+  TIP.id = id; TIP.tgt = tgt; TIP.top = top; TIP.key = ''; TIP.sheet = !!sheet; TIP.at = Date.now();
   document.body.append(ring, el);
   tipPlace();
   requestAnimationFrame(() => requestAnimationFrame(() => { if (TIP.el === el) { el.classList.add('on'); ring.classList.add('on'); } }));
@@ -462,7 +506,7 @@ function tipShow(id, tgt, top) {
   const tick = () => {
     if (TIP.el !== el) return;
     if (!TIP.tgt.isConnected) { const t2 = top.isConnected ? TIP_DEFS[id][1](top) : null; if (t2) { TIP.tgt = t2; TIP.key = ''; } }
-    if (Date.now() > TIP.end || !TIP.tgt.isConnected || navTopDv() !== top || !tipQuiet()) { tipHide(); return; }
+    if (Date.now() > TIP.end || !TIP.tgt.isConnected || !tipSameScope(top, sheet) || !tipQuiet(sheet)) { tipHide(); return; }
     tipPlace(); TIP.raf = requestAnimationFrame(tick);
   };
   TIP.raf = requestAnimationFrame(tick);
@@ -482,8 +526,11 @@ function tipPlace() {
   const br = parseFloat(getComputedStyle(tgt).borderTopLeftRadius);      // anneau arrondi comme la cible (bouton rond du scan, pastille « Ajouter en ami »)
   Object.assign(TIP.ring.style, { left: r.left - 4 + 'px', top: r.top - 4 + 'px', width: r.width + 8 + 'px', height: r.height + 8 + 'px', borderRadius: Math.min(Number.isFinite(br) ? br + 4 : 14, r.height / 2 + 4) + 'px' });
 }
+/** Astuce vue pour de bon : plus jamais montrée (sauf « Revoir les astuces »). */
+function tipSeen(id) { tourSet({ tips: Object.assign({}, tourRead().tips, { [id]: Date.now() }) }); }
 function tipHide() {
   clearTimeout(TIP.t); cancelAnimationFrame(TIP.raf); TIP.raf = 0;
+  if (TIP.el && TIP.id && Date.now() - TIP.at >= TIP_READ) tipSeen(TIP.id);      // lue (assez longtemps à l'écran) ; fermée trop tôt : elle reviendra
   if (TIP.io) { TIP.io.disconnect(); TIP.io = null; }
   document.removeEventListener('pointerdown', tipHide, true); document.removeEventListener('keydown', tipHide, true);
   const el = TIP.el, ring = TIP.ring; TIP.el = TIP.ring = TIP.tgt = TIP.top = null; TIP.id = '';
