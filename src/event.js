@@ -119,18 +119,23 @@ const EV_HIDE = {
   friends: () => evSheetCls('am-sheet', '.sheet-body') || evSheet('Amis'), 'partie-hist': () => evSheet('Mes parties'), 'open-hist': () => evSheet('Mes ouvertures'),
   'card-text': () => evSheetCls('cs-sheet', '.cs-sec:last-of-type'), 'viewer-find': () => evSheetCls('fetch-sheet', '.sheet-body') || evSheet('Où trouver mes cartes'), 'set-page': () => evDv('setv', '.dv-body') || evDv('setv', '.dv-head'),
 };
-/** Indice de chaque cachette (feuille de la fête : « Indices du jour ») : où chercher, sans dire exactement où. */
+/** Indice de chaque cachette (feuille de la fête : « Indices du jour ») : une devinette sur le coin de l'appli, jamais le nom de l'écran. */
 const EV_HINT = {
-  'home-orb': 'Sur l\'accueil', 'home-trade': 'Sur l\'accueil', 'home-life': 'Sur l\'accueil', 'home-sets': 'Sur l\'accueil', 'home-stores': 'Sur l\'accueil',
-  'coll-list': 'Dans ta collection', 'coll-stats': 'Dans les statistiques de ta collection', 'trade-list': 'Dans l\'onglet Échange', 'decks-mine': 'Dans tes decks', 'decks-edh': 'Parmi les decks à monter',
-  'me-head': 'Dans Compte et réglages', 'me-level': 'Dans ton niveau et tes badges', 'help-top': 'Dans « Comment ça marche ? »', 'daily-board': 'Dans les classements de la Carte mystère', 'card-sheet': 'Sur la fiche d\'une carte', 'viewer-head': 'En ouvrant un de tes decks',
-  'coll-filters': 'Dans les filtres de ta collection', 'coll-more': 'Tout au fond des filtres de ta collection', 'coll-view': 'Dans l\'affichage de ta collection', 'coll-backup': 'Du côté de la sauvegarde de ta collection',
-  'coll-export': 'Là où l\'on exporte sa collection', 'coll-proxy': 'Parmi tes proxys', 'coll-ms': 'Dans les options du masterset', 'trade-set': 'Dans les réglages de l\'échange', 'trade-binder': 'Dans les réglages de ton classeur',
-  'trade-filters': 'Dans les filtres de l\'échange', 'decks-filters': 'Dans les filtres des decks à monter', 'decks-themes': 'Parmi les thèmes des decks à monter', 'decks-pub': 'Parmi tes decks publiés',
-  'me-account': 'Dans la gestion de ton compte', 'me-profile': 'Dans ton profil', 'set-notif': 'Dans les réglages des notifications', 'set-scan': 'Dans les réglages du scan', 'set-data': 'Dans les données de l\'appareil',
-  'set-conf': 'Dans Confidentialité et mentions', 'set-mentions': 'Dans les mentions et sources', 'set-help': 'Dans Aide et avis', 'set-widget': 'Dans les réglages du widget', 'set-alerts': 'Dans les alertes de prix',
-  'help-faq': 'Tout en bas de « Comment ça marche ? »', friends: 'Du côté de tes amis', 'partie-hist': 'Dans l\'historique de tes parties', 'open-hist': 'Dans l\'historique de tes ouvertures',
-  'card-text': 'Au bas de la fiche d\'une carte', 'viewer-find': 'Dans « Où trouver mes cartes » d\'un deck', 'set-page': 'Sur la page d\'une extension',
+  'home-orb': 'Là où tout commence', 'home-trade': 'Là où tout commence', 'home-life': 'Là où tout commence', 'home-sets': 'Là où tout commence',
+  'home-stores': 'Là où tout commence', 'coll-list': 'Au milieu de tes trésors', 'coll-stats': 'Là où l\'on compte et l\'on mesure', 'trade-list': 'Là où l\'on troque',
+  'decks-mine': 'Parmi tes grimoires', 'decks-edh': 'Parmi des grimoires qui ne sont pas encore les tiens', 'me-head': 'Là où l\'on parle de toi',
+  'me-level': 'Là où brillent tes exploits', 'help-top': 'Là où l\'on t\'explique tout', 'daily-board': 'Là où l\'on se mesure aux autres',
+  'card-sheet': 'Derrière le visage d\'une carte', 'viewer-head': 'Quand un grimoire s\'ouvre', 'coll-filters': 'Là où l\'on sépare le bon grain de l\'ivraie',
+  'coll-more': 'Tout au fond d\'un tamis', 'coll-view': 'Là où l\'on change de regard', 'coll-backup': 'Là où l\'on met ses trésors à l\'abri',
+  'coll-export': 'Là où tes cartes prennent la porte', 'coll-proxy': 'Parmi des doubles un peu louches', 'coll-ms': 'Là où l\'on rêve de tout avoir',
+  'trade-set': 'Dans les coulisses du troc', 'trade-binder': 'Entre les pages d\'un livre que tu montres', 'trade-filters': 'Là où l\'on choisit ce qu\'on cède',
+  'decks-filters': 'Là où l\'on trie des grimoires inconnus', 'decks-themes': 'Là où les grimoires ont une âme', 'decks-pub': 'Parmi ce que tu montres au monde',
+  'me-account': 'Derrière ta porte d\'entrée', 'me-profile': 'Là où tu choisis ton visage', 'set-notif': 'Là où l\'on règle les petites cloches',
+  'set-scan': 'Là où l\'on règle l\'œil de l\'appli', 'set-data': 'Au cœur de la mémoire de ton appareil', 'set-conf': 'Là où l\'on garde les secrets',
+  'set-mentions': 'Là où l\'on remercie ceux qui aident', 'set-help': 'Là où l\'on te prête main-forte', 'set-widget': 'Là où l\'on règle un petit tableau hors de l\'appli',
+  'set-alerts': 'Là où l\'on guette les prix', 'help-faq': 'Là où l\'on répond aux questions', friends: 'Auprès de ceux que tu connais',
+  'partie-hist': 'Dans les souvenirs de tes batailles', 'open-hist': 'Dans les souvenirs de tes boosters', 'card-text': 'Dans les petites lignes d\'une carte',
+  'viewer-find': 'Là où l\'on cherche ce qui manque à un grimoire', 'set-page': 'Là où une extension se dévoile',
 };
 const evHint = s => T(EV_HINT[s] || 'Quelque part dans l\'appli');
 /** Ce que l'appli peut montrer (bits de EV_CAPS) : le serveur ne tire que des cachettes atteignables. */
