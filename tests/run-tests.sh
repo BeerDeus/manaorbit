@@ -13,6 +13,7 @@ BROWSER=(
   sharedeck-e2e.mjs de-e2e.mjs event-e2e.mjs spots-e2e.mjs
   natshare-e2e.mjs
   scanpa-e2e.mjs
+  scannames-e2e.mjs
   gate-e2e.mjs
   splash-e2e.mjs
   scanlang-e2e.mjs

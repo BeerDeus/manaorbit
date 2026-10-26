@@ -582,10 +582,18 @@ async function frenchName(text, signal, quick) {
 }
 /** Texte lu → carte reconnue. Deux catalogues locaux comparés sur les mêmes lignes : noms français imprimés (catalogue Scryfall téléchargé) et noms anglais ;
  *  la lecture la plus sûre gagne, à égalité (nom identique dans les deux langues) le français. Catalogue français absent ou rien de sûr : repli sur la recherche Scryfall des noms imprimés. */
+/** Nom lu exactement (≥ 0,95 avant le plafond), mais imprimé pareil pour plusieurs cartes (« Rats voraces » : Ravenous Rats et Muck Rats) : la bonne carte est l'une d'elles
+ *  (illustration, ligne du bas ou choix), jamais une carte d'une autre langue trouvée de justesse (« Ratas voraces », es, Razortooth Rats). */
+const scanShared = m => !!(m && m.amb && m.pre >= 0.95);
+/** a remplace-t-il b ? Meilleur score, sauf devant un nom partagé lu exactement (seulement l'une de ses cartes, lue autrement). */
+const scanBetter = (a, b) => !!a && (!b || (a.score > b.score && (!scanShared(b) || (b.alts || [b.name]).some(n => ownKey(n) === a.key))));
+/** Noms alternatifs (core.js › fvCatalog), chargés à l'ouverture du scan (scanWarm). */
+const FVX = { cat: null, p: null };
+function fvWarm() { if (!FVX.p) FVX.p = flavorRows().then(rows => { FVX.cat = rows ? fvCatalog(rows) : null; }).catch(() => {}).finally(() => { if (!FVX.cat) FVX.p = null; }); return FVX.p; }
 async function scanMatch(lines, cat, lang) {
   if (TESS_ASIA[lang]) return asiaMatch(lines, TESS_ASIA[lang]);      // japonais, coréen, chinois : noms imprimés de cette langue seulement
   const en = bestMatch(lines, cat.idx); if (en) en.card = 'en';
-  let m = bestOf(matchFr(lines, FRC.cat), en);
+  let m = bestOf(bestOf(matchFr(lines, FRC.cat), en), FVX.cat ? fvMatch(lines, FVX.cat) : null);      // nom alternatif (« Thrum of the Vestige ») : seulement s'il colle mieux qu'un vrai nom
   if (lang !== 'eng' && lang === TESS_OF[FRX.l] && (!m || m.score < 0.84) && (!FRC.cat || !m)) {      // moteur de la langue des noms (fra, deu…) : repli sur la recherche Scryfall des noms imprimés
     for (const l of lines.slice(0, FRC.cat ? 2 : 3)) {
       const fm = await frenchName(l.text, undefined, !!FRC.cat);
@@ -609,7 +617,7 @@ function looksForeign(raw, ref) {
   return (acc.test(r) && !acc.test(f)) || (/(^|[\s-])(l|d|dell|all|nell|dall|sull|un)['’]\s*\p{L}/iu.test(r) && !/['’]/.test(f)) || normPart(r).split(' ').some(w => !known.has(w) && (LINK_WORDS.has(w) || (w.length >= 4 && /[aeio]$/.test(w))));
 }
 /** Lecture douteuse : reconnue de justesse (< 0,92) dans la langue des noms ou en anglais, sur un texte qui n'a pas l'air de cette langue : les autres langues d'abord (gardée si elles ne font pas mieux). */
-const scanDoubt = m => !!m && m.score < 0.92 && looksForeign(m.raw, m.card === 'en' ? m.name : frName(m.key, m.card) || m.name);
+const scanDoubt = m => !!m && !m.flavor && m.score < 0.92 && looksForeign(m.raw, m.card === 'en' ? m.name : frName(m.key, m.card) || m.name);      // nom alternatif (« Thrum of dhe Vestigo ») : liste fermée, pas une autre langue
 /* ── Autres langues sur l'appareil, comme l'anglais : names-all.tsv (data.js › namesAllFetch), téléchargé en arrière-plan à l'ouverture du scan, en Wi-Fi seulement
    (réseau mobile : rien de nouveau n'est demandé, le serveur cherche à la place), mis à jour tous les 14 jours. Index d'une langue (≈ 3 à 5 Mo) construit par tranches
    à la première carte qui en a besoin, libéré à la fermeture du scan. Mêmes catalogues, même comparaison, même arbitrage entre langues que le serveur (core.js › nmMatch, nmPick). */
@@ -729,20 +737,20 @@ async function readNameAuto(src, box, outW, psm, cat, retry, st) {
         const lines = await ocrLines(cv, lang, psm); read.push(...lines);
         if (!SC.raw) { const l = lines.find(x => String(x.text || '').replace(/[^\p{L}]/gu, '').length >= 3); if (l) SC.raw = String(l.text).trim().slice(0, 60); }      // premier texte lu de la carte : montré si le nom n'est pas reconnu
         const m = await scanMatch(lines, cat, lang);
-        if (m && (!best || m.score > best.score)) { best = m; best.lang = lang; }
-        if (best && best.score >= 0.84 && !scanDoubt(best)) return best;
+        if (scanBetter(m, best)) { best = m; best.lang = lang; }
+        if (best && ((best.score >= 0.84 && !scanDoubt(best)) || scanShared(best))) return best;
       }
       if (st && SC.el) {
         let o = await scanOther(read, st);
         if (o && o.card !== FRX.l && FRX.l !== 'en' && o.score < 0.9 && !collOffline()) {      // trouvée de justesse dans une autre langue : le nom dans la langue de l'appli manque peut-être au catalogue (extension de la semaine) → recherche Scryfall des noms imprimés
           for (const l of read.filter(x => String(x.text || '').trim().length >= 3).slice(0, 3)) { const fm = await frenchName(l.text, undefined, true).catch(() => null); if (fm && fm.score >= Math.max(0.8, o.score - 0.02)) { o = fm; break; } if (!SC.el) break; }
         }
-        if (o && (!best || o.score > best.score)) { o.lang = langs[langs.length - 1]; best = o; }
+        if (scanBetter(o, best)) { o.lang = langs[langs.length - 1]; best = o; }
       }
-      if (best && best.score >= 0.84) return best;
+      if (best && best.score >= 0.84 && !scanDoubt(best)) return best;
     } finally { c.width = c.height = 0; if (ca) ca.width = ca.height = 0; }
   }
-  return best;
+  return scanDoubt(best) && best.score >= 0.84 ? { ...best, score: 0.83, doubt: true } : best;      // nom trouvé de justesse dans une langue où le texte lu n'a pas l'air écrit (« ur de secrets » → Trade Secrets) : à vérifier, jamais sûr
 }
 /** Ligne lue par le moteur d'une écriture d'Asie qui en a l'air : 2 signes d'Asie ou plus, 60 % des signes au moins (un nom latin relu par chi_sim donne surtout des lettres latines). */
 const asiaLine = x => { const t = String(x.text || '').replace(/\s+/g, ''), n = (t.match(CJK_G) || []).length; return n >= 2 && n >= t.length * 0.6; };
@@ -752,9 +760,9 @@ const CJK_G = new RegExp(CJK_RE.source, 'g');
  *  l'appareil, sinon le serveur ; scan automatique : l'appareil seulement). */
 async function altMatch(lines, cat, lang, st) {
   if (TESS_ASIA[lang]) return asiaMatch(lines.filter(asiaLine), TESS_ASIA[lang]);
-  const m = await scanMatch(lines, cat, lang); if ((m && m.score >= 0.84) || !SC.el) return m;
+  const m = await scanMatch(lines, cat, lang); if ((m && m.score >= 0.84) || scanShared(m) || !SC.el) return m;
   const o = await scanOther(lines, st || { n: 2 });
-  return o && (!m || o.score > m.score) ? o : m;
+  return scanBetter(o, m) ? o : m;
 }
 /**
  * Rien de sûr avec les moteurs habituels (ocrLangs) : ceux des autres écritures (ocrMore), un après l'autre sur la même zone (box : bande du nom), jusqu'à un nom sûr.
@@ -764,7 +772,7 @@ async function altMatch(lines, cat, lang, st) {
  * au plus, et avec ML Kit une écriture d'Asie de plus à chaque lecture, à tour de rôle ; la lecture suivante la confirme (scanAltHit la fait passer devant).
  */
 async function readMore(src, box, outW, psm, cat, best, st, blind) {
-  if ((best && best.score >= 0.84) || !SC.el || (blind && best && Object.values(OCR_ALT).includes(best.lang))) return best;      // déjà « à vérifier » dans une autre écriture : c'est la sienne
+  if ((best && best.score >= 0.84) || scanShared(best) || !SC.el || (blind && best && Object.values(OCR_ALT).includes(best.lang))) return best;      // déjà « à vérifier » dans une autre écriture : c'est la sienne
   const hint = ocrMore(false);
   let more = blind ? ocrMore(true).filter(l => !hint.includes(l)) : hint, tess = 0;
   if (!st && !blind) { const bl = ocrMore(true).filter(l => natHas(l) && !hint.includes(l)); if (bl.length) more = more.concat(bl[(SC.rot = (SC.rot || 0) + 1) % bl.length]); }
@@ -781,7 +789,7 @@ async function readMore(src, box, outW, psm, cat, best, st, blind) {
       try { lines = await (nat ? ocrLines(cv, lang, psm) : Promise.race([ocrLines(cv, lang, psm), new Promise((ok, ko) => setTimeout(() => ko(Object.assign(new Error('délai'), { code: 'wait' })), OCR.wait))])); }
       catch (e) { if (!nat && e && e.code === 'wait') ocrDrop(lang); continue; }      // moteur indisponible (modèle introuvable, hors ligne, trop lent) : le suivant
       try { m = await altMatch(lines, cat, lang, st); } catch (e) { continue; }
-      if (m && m.score >= (blind ? 0.84 : 0.72) && (!best || m.score > best.score)) { best = { ...m, lang }; if (m.score >= 0.84) { scanAltHit(lang); break; } }
+      if (m && m.score >= (blind ? 0.84 : 0.72) && scanBetter(m, best)) { best = { ...m, lang }; if (m.score >= 0.84) { scanAltHit(lang); break; } }
     }
   } finally { if (c) c.width = c.height = 0; if (ca) ca.width = ca.height = 0; }
   return best;
@@ -797,7 +805,7 @@ async function readCard(src, cat, strip, card) {
     const nm = nameAt(src, cardNameBox(W, H)), wide = natOcr() && nm.at !== src;      // ML Kit : la zone du nom élargie autour du cadre (capPad), lue d'un coup
     for (const [b, psm, retry, at] of wide ? [[nm.box, '6', false, nm.at]] : [[cardBandBox(W, H), '7', true], [cardNameBox(W, H), '6', false], [{ x: 0, y: 0, w: W, h: Math.round(H * 0.3) }, '11', false]]) {
       if ((m && m.score >= 0.84) || !SC.el) break;
-      const t = await readNameAuto(at || src, b, 1400, psm, cat, retry, st); if (t && (!m || t.score > m.score)) m = t;
+      const t = await readNameAuto(at || src, b, 1400, psm, cat, retry, st); if (scanBetter(t, m)) m = t;
       if (natOcr()) break;      // ML Kit lit toute la zone d'un coup : une passe suffit
     }
     const band = cardBandBox(W, H);
@@ -809,7 +817,7 @@ async function readCard(src, cat, strip, card) {
   if (strip) {
     const { at, box: all } = nameAt(src, { x: 0, y: 0, w: W, h: H });      // la bande un peu plus large que le cadre (capPad)
     let m = await readNameAuto(at, all, 1400, '6', cat, true, st);
-    if ((!m || m.score < 0.84) && SC.el) { const t = await readNameAuto(at, all, 1600, '11', cat, false, st); if (t && (!m || t.score > m.score)) m = t; }
+    if ((!m || m.score < 0.84) && SC.el) { const t = await readNameAuto(at, all, 1600, '11', cat, false, st); if (scanBetter(t, m)) m = t; }
     m = await readMore(at, all, 1400, '6', cat, m, st);
     return natOcr() ? readMore(at, all, 1400, '6', cat, m, st, true) : m;
   }
@@ -817,7 +825,7 @@ async function readCard(src, cat, strip, card) {
   let m = await readNameAuto(src, title, 1100, '6', cat, true, st);
   for (const [psm, retry] of [['6', true], ['11', false]]) {      // tiers haut : un bloc de texte d'abord, texte épars en dernier recours
     if ((m && m.score >= 0.84) || !SC.el) break;
-    const t = await readNameAuto(src, thirdBox(src), 1600, psm, cat, retry, st); if (t && (!m || t.score > m.score)) m = t;
+    const t = await readNameAuto(src, thirdBox(src), 1600, psm, cat, retry, st); if (scanBetter(t, m)) m = t;
   }
   m = await readMore(src, title, 1100, '6', cat, m, st);
   m = await footIdentify(m, src, cardFootBox(W, H));
@@ -852,7 +860,7 @@ async function footRead(src, box) {
   return (src.__foot = { ft, raw });
 }
 async function footAttach(m, src, box) {
-  if (!m || m.score < 0.72 || SC.pm || SCS.ed === 'none' || !SC.el || typeof footParse !== 'function') return m;
+  if (!m || m.score < 0.72 || SC.pm || SCS.ed === 'none' || !SC.el || typeof footParse !== 'function' || (m.flavor && m.ft)) return m;      // nom alternatif : son impression est déjà connue
   const { ft, raw } = await footRead(src, box);
   SC.foot = { raw, ft, name: m.name, card: m.card || 'en', keep: '', via: m.via === 'foot' ? 'foot' : '' };
   if (!ft) return m;
@@ -1174,7 +1182,7 @@ async function scanWarm() {
     if (natHas(l0)) { new Set([l0, ...ocrMore(false)].map(l => natHas(l) && NAT_SCRIPT[l]).filter(x => x && x !== 'latin')).forEach(natWarm); return; }      // appli Android : ML Kit, pas de moteur à télécharger (écritures d'Asie imposée ou attendues : leur modèle est demandé aux services Google Play dès maintenant)
     await ocrWorker(l0);      // français d'abord : l'anglais ne se charge que si le français ne trouve rien
   } catch (e) { /* hors ligne ou CDN bloqué : le premier appui retentera et dira pourquoi */ }
-  finally { SC.warm = false; SC.workEnd = performance.now(); if (SC.el && SC.session === s) othWarm(); }      // autres langues : téléchargées après le moteur OCR (la 1re lecture d'abord)
+  finally { SC.warm = false; SC.workEnd = performance.now(); if (SC.el && SC.session === s) { othWarm(); fvWarm(); } }      // autres langues : téléchargées après le moteur OCR (la 1re lecture d'abord)
 }
 const CAM_HINT = T('Nom de la carte dans la bande, puis appuie sur le cercle');
 /* — Appli Android (Capacitor) : appareil photo natif, comme les applis photo (aperçu Camera1 du plugin camera-preview placé derrière la page, sous la bande du guide),

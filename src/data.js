@@ -418,7 +418,7 @@ const nmKey = l => (!l || l === 'fr' ? FR_KEY : 'sc:nm:' + l), nmPart = l => (!l
 /** Une carte Scryfall imprimée en français (sl : autre langue Scryfall) → « nom imprimé \t nom anglais \t image » (image : chemin après /small/, sans paramètre), ou '' sans nom imprimé. */
 function frRow(c, sl = 'fr') {
   if (!c || (c.lang && c.lang !== sl)) return '';
-  const f = c.card_faces || [], p = c.printed_name || (f.length > 1 ? f.map(x => x.printed_name || x.name).join(' // ') : '');
+  const f = c.card_faces || [], p = c.printed_name || (f.length > 1 && f.every(x => x.printed_name) ? f.map(x => x.printed_name).join(' // ') : '');      // carte double sans nom traduit chez Scryfall : ignorée (l'anglais n'est pas une traduction)
   if (!p || !c.name) return '';
   const u = imgOf(c) || '', m = /\/small\/([^?]+)/.exec(u);
   return p + '\t' + c.name + '\t' + (m ? m[1] : '');
@@ -483,6 +483,20 @@ const NA_KEY = 'sc:nm:all', NA_AT = 'sc:nm:all:at', NA_FILE = 'names-all.tsv';
 /** Date du fichier gardé sur l'appareil (ms), 0 s'il n'y en a pas. */
 async function namesAllAt() { const c = await Cache.get(NA_AT, 3650 * DAY); return c && c.at > 0 ? c.at : 0; }
 /** Texte gardé sur l'appareil, ou null. */
+/* ── Noms alternatifs (names-flavor.tsv, gen-flavor-names.mjs ; ≈ 40 Ko) : gardés sur l'appareil 14 jours, relus à l'ouverture du scan ── */
+const FV_KEY = 'sc:fv', FV_FILE = 'names-flavor.tsv';
+/** Lignes du fichier (appareil d'abord, sinon le site ; vieux de 14 jours : relu) ou null. */
+async function flavorRows(signal) {
+  const c = await Cache.get(FV_KEY, 3650 * DAY);
+  if (c && Array.isArray(c.rows) && Date.now() - c.at < 14 * DAY) return c.rows;
+  if (typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) {
+    try {
+      const r = await fetch(new URL(FV_FILE, location.href).href, { signal, cache: 'no-cache' });
+      if (r.ok) { const rows = (await r.text()).split('\n').filter(l => l && l.split('\t').length >= 3); if (rows.length >= 100) { await Cache.set(FV_KEY, { rows, at: Date.now() }); return rows; } }
+    } catch (e) { if (e.name === 'AbortError') throw e; }
+  }
+  return c && Array.isArray(c.rows) ? c.rows : null;      // hors ligne : l'ancienne copie
+}
 async function namesAllText() { const t = await Cache.get(NA_KEY, 3650 * DAY, true); return typeof t === 'string' && t.length > 1000 ? t : null; }
 /** Télécharge le fichier du site et le garde : date (ms), ou 0 (absent, illisible, trop court, hors ligne, appareil plein). */
 async function namesAllFetch(signal) {

@@ -2060,18 +2060,19 @@ function bestMatch(lines, idx) { return ocrMatches(lines, idx, false).sort((a, b
 const FR_IMG = 'https://cards.scryfall.io/small/';
 /** Face avant d'un nom imprimé (« A // B » → « A ») : la collection ne garde que la face avant. */
 const frFront = p => String(p).split(/\s+\/\/\s+/)[0].trim();
-/** Nom anglais normalisé (ownKey) → nom imprimé français, sans l'index de recherche floue (léger) : sert à afficher les cartes FR de la collection. */
+/** Nom anglais normalisé (ownKey) → nom imprimé français, sans l'index de recherche floue (léger) : sert à afficher les cartes FR de la collection.
+ *  Ligne « … \t a » (4e colonne, gen-fr-names.mjs) : autre traduction, d'une impression plus ancienne : reconnue au scan, affichée seulement à défaut de la traduction actuelle. */
 function frNames(rows) {
-  const m = new Map();
-  for (const r of rows || []) { const [p, en] = String(r).split('\t'); if (!p || !en) continue; const ek = frontName(en); if (ek && !m.has(ek)) m.set(ek, frFront(p)); }
+  const m = new Map(), al = new Set();
+  for (const r of rows || []) { const t = String(r).split('\t'), p = t[0], en = t[1]; if (!p || !en) continue; const ek = frontName(en), a = t[3] === 'a'; if (ek && (!m.has(ek) || (!a && al.has(ek)))) { m.set(ek, frFront(p)); if (a) al.add(ek); else al.delete(ek); } }
   return m;
 }
 /** Catalogue français : lignes « nom imprimé \t nom anglais \t chemin de l'image » → { n, idx (recherche floue sur les noms imprimés), by (nom imprimé normalisé → { en, img }) }. */
 function frCatalog(rows, l = 'fr') {
-  const by = new Map(), amb = new Set(), names = [], fr = new Map(), ambEn = new Map();
+  const by = new Map(), amb = new Set(), names = [], fr = new Map(), ambEn = new Map(), al = new Set();
   for (const r of rows || []) {
-    const [p, en, img] = String(r).split('\t'); if (!p || !en) continue;
-    const ek = frontName(en); if (ek && !fr.has(ek)) fr.set(ek, frFront(p));      // nom anglais → nom imprimé français (affichage des cartes FR de la collection)
+    const [p, en, img, alias] = String(r).split('\t'); if (!p || !en) continue;
+    const ek = frontName(en), a = alias === 'a'; if (ek && (!fr.has(ek) || (!a && al.has(ek)))) { fr.set(ek, frFront(p)); if (a) al.add(ek); else al.delete(ek); }      // nom anglais → nom imprimé français (affichage des cartes FR de la collection) ; ancienne traduction (a) : à défaut
     const k = frontName(p); if (k.length < 2) continue;
     if (by.has(k)) { if (frontName(by.get(k).en) !== ek) { amb.add(k); const a = ambEn.get(k) || [by.get(k).en]; if (!a.some(x => frontName(x) === ek)) a.push(en); ambEn.set(k, a); } continue; }      // même nom français pour deux cartes différentes (≈ 0,1 %, « Voie de la pyromancienne ») : la 1re gardée, toutes notées
     by.set(k, { en, img: img || '' }); names.push(p);
@@ -2083,7 +2084,7 @@ function matchFr(lines, fc) {
   const m = bestMatch(lines, fc.idx); if (!m) return null;
   const e = fc.by.get(frontName(m.name)); if (!e) return null;
   const dup = !!(fc.amb && fc.amb.has(frontName(m.name)));      // nom français partagé par plusieurs cartes : jamais « sûr », la photo permet de trancher
-  return { name: e.en, key: ownKey(e.en), score: dup ? Math.min(m.score, 0.83) : m.score, raw: m.raw, card: fc.l || 'fr', img: e.img ? (/^https?:/.test(e.img) ? e.img : FR_IMG + e.img) : '', ...(dup ? { amb: true, ...(fc.ambEn && fc.ambEn.get(frontName(m.name)) ? { alts: fc.ambEn.get(frontName(m.name)) } : {}) } : {}) };
+  return { name: e.en, key: ownKey(e.en), score: dup ? Math.min(m.score, 0.83) : m.score, ...(dup ? { pre: m.score } : {}), raw: m.raw, card: fc.l || 'fr', img: e.img ? (/^https?:/.test(e.img) ? e.img : FR_IMG + e.img) : '', ...(dup ? { amb: true, ...(fc.ambEn && fc.ambEn.get(frontName(m.name)) ? { alts: fc.ambEn.get(frontName(m.name)) } : {}) } : {}) };
 }
 /* ── Noms imprimés des autres langues (scan : carte italienne lue avec l'appli en français) : un catalogue par langue, mêmes règles que frCatalog / matchFr.
    Partagé par le serveur (proxy.mjs › /api/names/find, fichiers names-*.tsv) et l'appli (pwa/names-all.tsv, scan.js › scanOther) : même résultat des deux côtés. */
@@ -2108,7 +2109,7 @@ const nmDone = c => { c.first = null; return c.n >= 500 ? c : null; };
 function nmMatch(c, lines) {
   const m = c && bestMatch(lines, c.idx); if (!m) return null;
   const [printed, name, img] = m.name.split('\t'), dup = c.amb.has(frontName(printed)), alts = dup && c.ambEn ? c.ambEn.get(frontName(printed)) : null;
-  return { name, printed, score: dup ? Math.min(m.score, 0.83) : m.score, raw: m.raw, img: img || '', ...(dup ? { amb: true, ...(alts && alts.length > 1 ? { alts } : {}) } : {}) };
+  return { name, printed, score: dup ? Math.min(m.score, 0.83) : m.score, ...(dup ? { pre: m.score } : {}), raw: m.raw, img: img || '', ...(dup ? { amb: true, ...(alts && alts.length > 1 ? { alts } : {}) } : {}) };
 }
 /** Lettres lues, accents gardés : « relámpago » (es) ≠ « relâmpago » (pt). */
 const nmAcc = s => String(s || '').toLowerCase().normalize('NFC').replace(/[^\p{L}]+/gu, '');
@@ -2150,14 +2151,14 @@ async function namesAllCats(text, ls, tick) {
  *  list : [{ k (normPart), n (imprimé), en }] pour la saisie assistée et les suggestions.
  *  ix : index à compléter (construction par tranches, sans bloquer l'écran : ≈ 31 000 lignes). */
 function frIndex(rows, ix) {
-  ix = ix || { by: new Map(), en: new Set(), fr: new Map(), img: new Map(), list: [], n: 0 };
+  ix = ix || { by: new Map(), en: new Set(), fr: new Map(), img: new Map(), list: [], n: 0, al: new Set() };
   const { by, en, fr, img, list } = ix, fk = s => normPart(s.split('//')[0]) || frontName(s);
   for (const r of rows || []) {
     const t = String(r).split('\t'), p = t[0], e = t[1]; if (!p || !e) continue;
     const ek = fk(e); if (!ek) continue;
     en.add(ek.replace(/ /g, '')); if (e.includes('//')) en.add(frKey(e));
     const pf = frFront(p), pn = normPart(pf);
-    if (!fr.has(ek)) { fr.set(ek, pf); if (t[2]) img.set(ek, t[2]); }
+    const a = t[3] === 'a'; if (!fr.has(ek) || (!a && ix.al && ix.al.has(ek))) { fr.set(ek, pf); if (t[2]) img.set(ek, t[2]); if (ix.al) { if (a) ix.al.add(ek); else ix.al.delete(ek); } }      // ancienne traduction (a) : affichée à défaut de l'actuelle
     for (let i = 0; i < (pf === p ? 1 : 2); i++) {
       const k = i ? frKey(p) : pn.replace(/ /g, ''); if (k.length < 2) continue;
       const cur = by.get(k), pp = i ? p : pf;      // nom entier tapé (« Feu // Glace ») : affiché entier ; face avant seule (« Feu ») : affichée seule
@@ -2206,6 +2207,28 @@ function nameSuggest(raw, idx, n = 3, minScore = 0.6) {
 }
 /** Départage une lecture française et une lecture anglaise du même texte : la plus sûre ; à égalité (nom identique dans les deux langues) le français, langue de la plupart des cartes. */
 const bestOf = (fr, en) => (fr && (!en || fr.score >= en.score) ? fr : en || null);
+/* ── Noms alternatifs (pwa/names-flavor.tsv, gen-flavor-names.mjs) : « Thrum of the Vestige » imprimé en gros au-dessus de « Lightning Bolt » (Secret Lair, Final Fantasy…).
+   Lignes « nom alternatif \t nom anglais \t extension|numéro \t langue Scryfall ». */
+const FV_LANG = { en: 'en', fr: 'fr', de: 'de', es: 'es', it: 'it', pt: 'pt', ja: 'jp', ko: 'kr', ru: 'ru', zhs: 'zh-CN', zht: 'zh-TW' };
+/** Lignes → { idx (recherche floue), by (nom alternatif normalisé → impressions [{ en, e, l }]), n } ou null. */
+function fvCatalog(rows) {
+  const by = new Map(), names = [];
+  for (const r of rows || []) {
+    const [f, en, e, l] = String(r).split('\t'); if (!f || !en) continue;
+    const k = frontName(f); if (k.length < 3) continue;
+    if (!by.has(k)) { by.set(k, []); names.push(f); }
+    by.get(k).push({ en, e: e || '', l: l || 'en' });
+  }
+  return names.length ? { idx: nameIndex(names), by, n: names.length } : null;
+}
+/** Lignes lues → carte au nom alternatif : { name (anglais), key, score, raw, flavor, card (langue de l'appli), img: '', ft (extension et numéro, comme la ligne du bas) } ou null. */
+function fvMatch(lines, c) {
+  const m = c && bestMatch(lines, c.idx); if (!m) return null;
+  const hs = c.by.get(frontName(m.name)) || [], ens = [...new Set(hs.map(h => h.en))]; if (ens.length !== 1) return null;      // même nom alternatif pour deux cartes : rien de sûr
+  const eds = hs.map(h => h.e).filter(e => /^[a-z0-9]+\|./i.test(e)), ls = [...new Set(hs.map(h => h.l))];
+  const ft = eds.length ? { nums: [...new Set(eds.map(e => e.split('|')[1].toLowerCase().replace(/^0+(?=\d)/, '')))], codes: [...new Set(eds.map(e => e.split('|')[0].toUpperCase()))], lang: '', lsep: false, langs: [], foil: false, tots: [] } : null;
+  return { name: ens[0], key: ownKey(ens[0]), score: m.score, raw: m.raw, flavor: m.name, card: ls.length === 1 ? FV_LANG[ls[0]] || 'en' : 'en', img: '', ...(ft ? { ft } : {}) };
+}
 /** Rectangle d'écran (x, y, w, h) dans un conteneur cw×ch qui affiche une vidéo vw×vh en « object-fit: cover » → rectangle en pixels de la vidéo. */
 function coverMap(cw, ch, vw, vh, r) {
   const s = Math.max(cw / vw, ch / vh), ox = (cw - vw * s) / 2, oy = (ch - vh * s) / 2;
@@ -2455,7 +2478,7 @@ if (typeof module !== 'undefined' && module.exports) {
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
     eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
-    lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
+    lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
 
 // Tri des noms (test.mjs) : exporté à part, hors de la grande liste que d'autres modifient

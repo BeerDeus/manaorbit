@@ -3,19 +3,29 @@
 // (cadrage « carte entière », langue automatique, lot mélangé comme un vrai paquet) : nom, langue et édition comparés à la carte tirée.
 // Réseau requis (api.scryfall.com, cards.scryfall.io, cdn.jsdelivr.net) : GitHub Actions (onglet Actions › « Banc d'essai du scan ») ou un poste ouvert.
 // Rien n'est enregistré dans le dépôt : rapport dans le dossier de sortie (report.md, report.json, photos des cartes ratées).
-//   node tools/bench-real.mjs [--n 4] [--langs fr,en,de,es,it,pt,ru,ja,ko,zhs,zht] [--cond net,photo] [--out bench-out]
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+//   node tools/bench-real.mjs [--n 4] [--langs fr,en,de,es,it,pt,ru,ja,ko,zhs,zht] [--cond net,photo,phone] [--out bench-out] [--ids fichier.json]
+// Cartes tirées gardées dans <out>/ids.json (« set/numéro/langue ») : --ids rejoue exactement les mêmes (comparaison avant / après un changement).
+// Conditions : net (image officielle) · photo (léger biais, flou, lumière, reflet, bruit, JPEG) · phone (comme une capture du téléphone : ≈ 700 px de haut, biais
+// et perspective plus marqués, flou, reflet fort, JPEG 0,6).
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } from 'node:fs';
 import { chromium, startWorld } from '../tests/e2e-world.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
-const N = Number(arg('n', 4)), LANGS = arg('langs', 'fr,en,de,es,it,pt,ru,ja,ko,zhs,zht').split(','), CONDS = arg('cond', 'net,photo').split(','), OUT = arg('out', 'bench-out');
+const N = Number(arg('n', 4)), LANGS = arg('langs', 'fr,en,de,es,it,pt,ru,ja,ko,zhs,zht').split(','), CONDS = arg('cond', 'net,photo').split(','), OUT = arg('out', 'bench-out'), IDS = arg('ids', '');
 const APP_LANG = { en: 'en', fr: 'fr', de: 'de', es: 'es', it: 'it', pt: 'pt', ru: 'ru', ja: 'jp', ko: 'kr', zhs: 'zh-CN', zht: 'zh-TW' };
 mkdirSync(OUT + '/fails', { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const UA = { 'User-Agent': 'ManaOrbit-bench/1.0 (+https://manaorbit.app)', Accept: 'application/json' };
+const UA = { 'User-Agent': 'ManaOrbit-bench/1.0 (+https://manaorbit.app)', Accept: 'application/json' }, UA_IMG = { 'User-Agent': UA['User-Agent'], Accept: 'image/*' };      // Scryfall refuse les images sans ces en-têtes (400)
 async function scry(url) {
   for (let i = 0; i < 5; i++) { const r = await fetch(url, { headers: UA }); if (r.ok) return r.json(); if (r.status === 404) return null; await sleep(1500 * (i + 1)); }
   return null;
+}
+/** Une impression précise (« set/numéro/langue », ids.json), avec son image ; null si Scryfall ne la donne plus. */
+async function byId(id) {
+  const c = await scry('https://api.scryfall.com/cards/' + id.split('/').map(encodeURIComponent).join('/')); await sleep(120);
+  const im = c && (c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris)), u = im && im.large; if (!u) return null;
+  const r = await fetch(u, { headers: UA_IMG }); if (!r.ok) return null;
+  return { id, name: c.name, printed: c.printed_name || (c.card_faces && c.card_faces[0].printed_name) || '', lang: c.lang, set: c.set, num: c.collector_number, year: Number(String(c.released_at).slice(0, 4)), img: Buffer.from(await r.arrayBuffer()).toString('base64') };
 }
 /** Une carte au hasard d'une langue et d'une époque, avec son image : { name, printed, lang, set, num, year, img (base64) } ou null. */
 async function draw(l, recent) {
@@ -25,13 +35,14 @@ async function draw(l, recent) {
     if (!c) return null;
     const im = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris), u = im && im.large;
     if (!u || c.lang !== l || (c.layout || '').includes('split') || c.layout === 'flip') continue;      // cartes coupées, retournées : cadrage à part
-    const r = await fetch(u); if (!r.ok) continue;
-    return { name: c.name, printed: c.printed_name || (c.card_faces && c.card_faces[0].printed_name) || '', lang: l, set: c.set, num: c.collector_number, year: Number(String(c.released_at).slice(0, 4)), img: Buffer.from(await r.arrayBuffer()).toString('base64') };
+    const r = await fetch(u, { headers: UA_IMG }); if (!r.ok) continue;
+    return { id: `${c.set}/${c.collector_number}/${c.lang}`, name: c.name, printed: c.printed_name || (c.card_faces && c.card_faces[0].printed_name) || '', lang: l, set: c.set, num: c.collector_number, year: Number(String(c.released_at).slice(0, 4)), img: Buffer.from(await r.arrayBuffer()).toString('base64') };
   }
   return null;
 }
 
 const TESS_DIR = new URL('../tests/node_modules', import.meta.url).pathname;
+for (const f of readdirSync(new URL('../pwa/', import.meta.url))) if (/^(fr-names|names-[a-z-]+)\.tsv$/.test(f)) copyFileSync(new URL('../pwa/' + f, import.meta.url), process.env.PWA_DIR + '/' + f);      // vrais catalogues des noms (le dossier pwa/ des tests n'en a aucun)
 const world = await startWorld({ port: 19490 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'fr-FR', serviceWorkers: 'block' });
@@ -50,36 +61,43 @@ await p.evaluate(() => { scsSet({ frame: 'card', lang: '' }); openScan(); }); aw
 const shoot = (b64, cond, seed) => p.evaluate(async ([b64, cond, seed]) => {
   let s = seed; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
   const i = new Image(); i.src = 'data:image/jpeg;base64,' + b64; await i.decode();
-  const H = cond === 'photo' ? 1100 : i.naturalHeight, k = H / i.naturalHeight, W = Math.round(i.naturalWidth * k), pad = Math.round(W * 0.02);
+  const ph = cond === 'phone', H = ph ? 700 : cond === 'photo' ? 1100 : i.naturalHeight, k = H / i.naturalHeight, W = Math.round(i.naturalWidth * k), pad = Math.round(W * (ph ? 0.05 : 0.02));
   const c = document.createElement('canvas'); c.width = W + 2 * pad; c.height = H + 2 * pad; const x = c.getContext('2d');
   x.fillStyle = cond === 'photo' ? '#5b5045' : '#202020'; x.fillRect(0, 0, c.width, c.height);
   x.save(); x.translate(c.width / 2, c.height / 2);
   if (cond === 'photo') { x.rotate((rnd() - 0.5) * 5 * Math.PI / 180); x.filter = `blur(${(0.5 + rnd() * 0.8).toFixed(2)}px) brightness(${(0.8 + rnd() * 0.35).toFixed(2)}) sepia(${(rnd() * 0.25).toFixed(2)})`; }
-  x.drawImage(i, -W / 2, -H / 2, W, H); x.restore();
-  if (cond === 'photo') {
-    const gx = rnd() * c.width, gy = rnd() * c.height, g = x.createRadialGradient(gx, gy, 0, gx, gy, c.width * 0.45);
-    g.addColorStop(0, 'rgba(255,255,255,0.28)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, c.width, c.height);
-    const d = x.getImageData(0, 0, c.width, c.height), a = d.data; for (let j = 0; j < a.length; j += 4) { const n = (rnd() - 0.5) * 22; a[j] += n; a[j + 1] += n; a[j + 2] += n; } x.putImageData(d, 0, 0);
+  if (ph) {      // téléphone tenu à la main : rotation jusqu'à 7°, perspective (cisaillement et écrasement d'un côté), mise au point moyenne, lumière chaude
+    x.rotate((rnd() - 0.5) * 14 * Math.PI / 180); x.transform(1, (rnd() - 0.5) * 0.06, (rnd() - 0.5) * 0.08, 0.95 + rnd() * 0.05, 0, 0);
+    x.filter = `blur(${(0.7 + rnd() * 0.8).toFixed(2)}px) brightness(${(0.75 + rnd() * 0.4).toFixed(2)}) contrast(${(0.85 + rnd() * 0.2).toFixed(2)}) sepia(${(rnd() * 0.3).toFixed(2)})`;
   }
-  const jpg = c.toDataURL('image/jpeg', cond === 'photo' ? 0.72 : 0.9), j = new Image(); j.src = jpg; await j.decode();
+  x.drawImage(i, -W / 2, -H / 2, W, H); x.restore();
+  if (cond === 'photo' || ph) {
+    const gx = rnd() * c.width, gy = rnd() * c.height, g = x.createRadialGradient(gx, gy, 0, gx, gy, c.width * 0.45);
+    g.addColorStop(0, `rgba(255,255,255,${ph ? 0.42 : 0.28})`); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, c.width, c.height);
+    const d = x.getImageData(0, 0, c.width, c.height), a = d.data; for (let j = 0; j < a.length; j += 4) { const n = (rnd() - 0.5) * (ph ? 30 : 22); a[j] += n; a[j + 1] += n; a[j + 2] += n; } x.putImageData(d, 0, 0);
+  }
+  const jpg = c.toDataURL('image/jpeg', ph ? 0.6 : cond === 'photo' ? 0.72 : 0.9), j = new Image(); j.src = jpg; await j.decode();
   const o = document.createElement('canvas'); o.width = j.naturalWidth; o.height = j.naturalHeight; o.getContext('2d').drawImage(j, 0, 0);
   window.__shot = jpg; scanEnqueue({ label: 'Carte', src: o, strip: false, card: true, thumb: '' });
 }, [b64, cond, seed]);
-let seen = 0;
-const idle = async () => {
-  seen++;
-  await p.waitForFunction(n => [...SC.items.values()].reduce((a, x) => a + x.q, 0) + SC.miss.length >= n, seen, { timeout: 120000 });
+/** Lecture terminée : une carte de plus dans la liste (ou une non reconnue) depuis n0, puis plus rien en cours. false : rien en 2 min (carte bloquée, notée comme telle). */
+const total = () => p.evaluate(() => [...SC.items.values()].reduce((a, x) => a + x.q, 0) + SC.miss.length);
+const idle = async n0 => {
+  const okk = await p.waitForFunction(n => [...SC.items.values()].reduce((a, x) => a + x.q, 0) + SC.miss.length > n, n0, { timeout: Number(process.env.BENCH_WAIT) || 120000 }).then(() => true, () => false);
   await p.waitForFunction(() => !SC.working && !SC.queue.length && !SC.pend.length && ![...SC.items.values()].some(x => x.es === 'load' || x.artq), null, { timeout: 120000 }).catch(() => {});
+  return okk;
 };
 
-const rows = [];
-for (const l of LANGS) {
-  for (let n = 0; n < N; n++) {
-    const card = await draw(l, n % 2 === 0); if (!card) { console.log(`  ${l} : pas de carte tirée`); continue; }
+const rows = [], ids = [];
+const plan = IDS ? JSON.parse(readFileSync(IDS, 'utf8')).map(id => ({ id, l: id.split('/')[2] })) : LANGS.flatMap(l => Array.from({ length: N }, (_, n) => ({ l, n })));
+for (const it of plan) {
+  const l = it.l; {
+    const card = it.id ? await byId(it.id) : await draw(l, it.n % 2 === 0); if (!card) { console.log(`  ${it.id || l} : pas de carte tirée`); continue; }
+    ids.push(card.id); writeFileSync(OUT + '/ids.json', JSON.stringify(ids, null, 1));
     for (const cond of CONDS) {
       const before = await p.evaluate(() => ({ ids: [...SC.items.keys()], miss: SC.miss.length, q: Object.fromEntries([...SC.items.values()].map(x => [x.id, x.q])) })), t0 = Date.now();
-      await shoot(card.img, cond, 1 + rows.length * 7919); await idle();
-      const got = await p.evaluate(b => {
+      const n0 = await total(); await shoot(card.img, cond, 1 + rows.length * 7919); const done = await idle(n0);
+      const got = !done ? { miss: true, raw: '(bloquée : rien en 2 min)' } : await p.evaluate(b => {
         if (SC.miss.length > b.miss) { const m = SC.miss[SC.miss.length - 1]; return { miss: true, raw: m.raw || '', foot: SC.foot && SC.foot.raw || '' }; }
         const x = SC.lastIt || [...SC.items.values()].find(y => !b.ids.includes(y.id) || y.q !== b.q[y.id]);
         return x ? { key: x.key, l: x.l || 'en', e: x.e || '', es: x.es, maybe: x.maybe, via: x.via || '', raw: x.raw || '', foot: SC.foot && SC.foot.raw || '' } : { miss: true };

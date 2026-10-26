@@ -84,6 +84,7 @@ const STATIC = new Map([
   ['/prices.tsv', ['prices.tsv.gz', 'text/tab-separated-values; charset=utf-8', 'public, max-age=3600', 'pre', 'px']],          // prix « à partir de » (gen-prices.mjs, relu depuis GitHub) : servi seulement une fois récupéré
   ['/fr-names.tsv', ['fr-names.tsv', 'text/tab-separated-values; charset=utf-8', 'public, max-age=86400', true]],      // catalogue des noms de cartes en français (généré par gen-fr-names.mjs) ; 4e valeur : compressé en gzip si le client l'accepte
   ['/names-all.tsv', ['names-all.tsv', 'text/tab-separated-values; charset=utf-8', 'public, max-age=86400', true]],    // noms imprimés de toutes les langues, sans images (gen-names-all.mjs) : scan des autres langues sur l'appareil ; demandé par chaque scan en Wi-Fi (tous les 14 jours), donc compressé dès le démarrage
+  ['/names-flavor.tsv', ['names-flavor.tsv', 'text/tab-separated-values; charset=utf-8', 'public, max-age=86400', true]],    // noms alternatifs (« Thrum of the Vestige » = Lightning Bolt FCA 40 ; gen-flavor-names.mjs) : scan
 ]);
 // Catalogues des noms imprimés des autres langues (gen-fr-names.mjs --lang xx) : /names-<code Scryfall>.tsv, liste fermée (rien n'est construit depuis l'URL) ;
 // /names-fr.tsv = fr-names.tsv. 'lazy' : compressés à la première demande seulement (≈ 5 Mo de mémoire par langue servie), pas au démarrage.

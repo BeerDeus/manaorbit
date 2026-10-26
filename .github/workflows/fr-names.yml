@@ -28,6 +28,9 @@ jobs:
       # Assemblé depuis les fichiers du dépôt : une langue en échec y garde son ancien catalogue. Nouveau fichier trop court : l'existant est gardé, les autres sont tout de même envoyés (le job échoue à la fin).
       - name: Assembler le catalogue de toutes les langues
         run: if node gen-names-all.mjs 2>&1 | tee -a gen.log; then :; else echo "FAIL=$FAIL all" >> "$GITHUB_ENV"; fi
+      # Noms alternatifs (Secret Lair, Final Fantasy… : « Thrum of the Vestige » = Lightning Bolt) : pwa/names-flavor.tsv, envoyé avec les autres (names-*.tsv)
+      - name: Noms alternatifs
+        run: if node gen-flavor-names.mjs 2>&1 | tee -a gen.log; then :; else echo "FAIL=$FAIL flavor" >> "$GITHUB_ENV"; fi
       - name: Commit si un fichier a changé
         run: |
           git config user.name "deck-deal-bot"

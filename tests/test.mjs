@@ -892,6 +892,29 @@ test('frCatalog : un nom français partagé par deux cartes n\'est jamais « sû
   assert.deepEqual(C.matchFr([{ text: 'Voie de la pyromancienne' }], C.frCatalog(['Voie de la pyromancienne\tPath of the Pyromancer\t', 'Voie de la pyromancienne\tWay of the Pyromancer\t', 'Voie de la pyromancienne\tPath of the Pyromancer\t'])).alts, ['Path of the Pyromancer', 'Way of the Pyromancer'], 'chaque carte une fois');
   const s = C.matchFr([{ text: 'Anneau solaire' }], fc); assert.equal(s.amb, undefined); assert.equal(s.score, 1);
 });
+test('frCatalog / nmMatch : nom partagé lu exactement → score brut gardé (pre), pour qu\'une autre langue de justesse ne passe pas devant (scan.js › scanShared)', () => {
+  const fc = C.frCatalog(['Rats voraces\tRavenous Rats\t', 'Rats voraces\tMuck Rats\t', 'Anneau solaire\tSol Ring\t']);
+  const a = C.matchFr([{ text: 'Rats voraces' }], fc); assert.equal(a.amb, true); assert.ok(a.score <= 0.83); assert.equal(a.pre, 1, 'lu exactement');
+  assert.equal(C.matchFr([{ text: 'Anneau solaire' }], fc).pre, undefined, 'nom propre à une carte : pas de pre');
+});
+test('frNames / frCatalog / frIndex : ancienne traduction (4e colonne « a ») reconnue, affichée seulement à défaut de l\'actuelle', () => {
+  const rows = ['Bout de chou\tTiny Tot\tx/old.jpg\ta', 'Petit bout\tTiny Tot\tx/new.jpg', 'Vieux nom\tOld Only\t\ta'];
+  assert.equal(C.frNames(rows).get(C.ownKey('Tiny Tot')), 'Petit bout', 'traduction actuelle, même placée après');
+  assert.equal(C.frNames(rows).get(C.ownKey('Old Only')), 'Vieux nom', 'seule traduction connue : affichée');
+  const fc = C.frCatalog(rows); assert.equal(fc.fr.get(C.ownKey('Tiny Tot')), 'Petit bout');
+  assert.equal(C.matchFr([{ text: 'Bout de chou' }], fc).name, 'Tiny Tot', 'ancienne traduction : reconnue au scan');
+  const ix = C.frIndex(rows); assert.equal(ix.fr.get(C.frKey ? 'tinytot' : 'tinytot') || ix.fr.get([...ix.fr.keys()].find(k => /tiny/.test(k))), 'Petit bout');
+});
+test('fvCatalog / fvMatch : nom alternatif (« Thrum of the Vestige » = Lightning Bolt FCA 40) → carte anglaise, impression posée comme par la ligne du bas', () => {
+  const c = C.fvCatalog(['Thrum of the Vestige\tLightning Bolt\tfca|40\ten', 'Krobus\tAcademy Manufactor\tsld|7188\ten', 'Godzilla, Doom Inevitable\tYidaro, Wandering Monster\tiko|366\ten', 'Godzilla, Doom Inevitable\tYidaro, Wandering Monster\tsld|999\tja', 'Twin\tCard A\tsld|1\ten', 'Twin\tCard B\tsld|2\ten']);
+  const m = C.fvMatch([{ text: 'Thrum of dhe Vestigo' }], c);
+  assert.equal(m.name, 'Lightning Bolt'); assert.equal(m.card, 'en'); assert.ok(m.score >= 0.84, 'lu de travers (ML Kit, foil) : reconnu ' + m.score); assert.equal(m.flavor, 'Thrum of the Vestige');
+  assert.deepEqual([m.ft.codes, m.ft.nums], [['FCA'], ['40']], 'impression : extension et numéro');
+  const g = C.fvMatch([{ text: 'Godzilla, Doom Inevitable' }], c); assert.equal(g.name, 'Yidaro, Wandering Monster'); assert.deepEqual(g.ft.codes, ['IKO', 'SLD']); assert.equal(g.card, 'en', 'deux langues : anglais');
+  assert.equal(C.fvMatch([{ text: 'Twin' }], c), null, 'même nom alternatif pour deux cartes : rien');
+  assert.equal(C.fvMatch([{ text: 'Lightning Bolt' }], c), null, 'vrai nom : pas un nom alternatif');
+  assert.equal(C.fvCatalog([]), null);
+});
 test('frNames / frCatalog.fr : nom anglais (clé de collection) → nom imprimé français, face avant seulement', () => {
   const rows = FR_ROWS.concat(['Collision // Colosse\tCollision // Colossus\t', 'pas de tabulation', '\tsans nom', 'Éclair bis\tLightning Bolt\t']);
   const m = C.frNames(rows), fc = C.frCatalog(rows);
@@ -938,11 +961,12 @@ test('gen-fr-names.mjs : la ligne générée est identique à frRow() de l\'app 
   const cards = [
     { lang: 'fr', name: 'Sol Ring', printed_name: 'Anneau solaire', image_uris: { small: 'https://cards.scryfall.io/small/front/a/b/ab.jpg?1700' } },
     { lang: 'fr', name: 'Delver of Secrets // Insectile Aberration', card_faces: [{ name: 'Delver of Secrets', printed_name: 'Explorateur de secrets', image_uris: { small: 'https://cards.scryfall.io/small/front/c/d/cd.jpg?1' } }, { name: 'Insectile Aberration', printed_name: 'Aberration insectoïde' }] },
+    { lang: 'fr', name: 'Delver of Secrets // Insectile Aberration', card_faces: [{ name: 'Delver of Secrets' }, { name: 'Insectile Aberration' }] },      // carte double sans nom traduit chez Scryfall (MID 47 fr) : ignorée
     { lang: 'fr', name: 'Edgar Markov', printed_name: 'Edgar Markov' }, { lang: 'en', name: 'Sol Ring', printed_name: 'Sol Ring' }, { lang: 'fr', name: 'Sans nom imprimé' }, { name: 'Sol Ring', printed_name: 'Anneau solaire', image_uris: { small: 'https://x/small/p.jpg' } }, null,
   ];
   for (const c of cards) assert.equal(frRow(c), appRow(c), JSON.stringify(c));
   for (const c of [...cards, { lang: 'de', name: 'Lightning Bolt', printed_name: 'Blitzschlag', image_uris: { small: 'https://cards.scryfall.io/small/front/e/f/ef.jpg?2' } }]) assert.equal(namesRow(c, 'de'), appRow(c, 'de'), 'allemand : ' + JSON.stringify(c));      // même ligne pour les autres langues (names-de.tsv)
-  assert.equal(frRow(cards[0]), 'Anneau solaire\tSol Ring\tfront/a/b/ab.jpg'); assert.equal(frRow(cards[1]), 'Explorateur de secrets // Aberration insectoïde\tDelver of Secrets // Insectile Aberration\tfront/c/d/cd.jpg'); assert.equal(frRow(cards[3]), ''); assert.equal(frRow(null), '');
+  assert.equal(frRow(cards[0]), 'Anneau solaire\tSol Ring\tfront/a/b/ab.jpg'); assert.equal(frRow(cards[1]), 'Explorateur de secrets // Aberration insectoïde\tDelver of Secrets // Insectile Aberration\tfront/c/d/cd.jpg'); assert.equal(frRow(cards[2]), '', 'carte double sans nom traduit : ignorée (jamais le nom anglais à la place)'); assert.equal(frRow(cards[4]), ''); assert.equal(frRow(null), '');
 });
 
 /* Noms imprimés des autres langues : names-all.tsv (appli) et names-*.tsv (serveur) donnent la même carte, la même langue, le même score */
@@ -1570,4 +1594,10 @@ test('écritures d\'Asie : noms japonais, coréens, chinois reconnus (espaces gl
   assert.deepEqual(m('태양반지', kr), ['Sol Ring', 1, 'kr']); assert.deepEqual(m('번개 화 살', kr), ['Lightning Bolt', 1, 'kr']);
   assert.equal(C.normPart('Anneau solaire'), 'anneau solaire'); assert.equal(C.normPart('Молния'), 'молния'); assert.equal(C.normPart('が'), 'が', 'signe recomposé');
   assert.ok(C.CJK_RE.test('太陽') && !C.CJK_RE.test('Sol Ring')); assert.deepEqual(C.ASIA_LANGS, ['jp', 'kr', 'zh-CN', 'zh-TW']);
+});
+test('gen-flavor-names.mjs : impression Scryfall → « nom alternatif \t anglais \t extension|numéro \t langue »', async () => {
+  const { flavorRow } = await import('../gen-flavor-names.mjs');
+  assert.equal(flavorRow({ name: 'Lightning Bolt', flavor_name: 'Thrum of the Vestige', set: 'fca', collector_number: '40', lang: 'en' }), 'Thrum of the Vestige\tLightning Bolt\tfca|40\ten');
+  assert.equal(flavorRow({ name: 'Yidaro', card_faces: [{ flavor_name: 'Godzilla' }], set: 'iko', collector_number: '366', lang: 'en' }), 'Godzilla\tYidaro\tiko|366\ten', 'face avant');
+  for (const c of [null, { name: 'Sol Ring', set: 'c21', collector_number: '1', lang: 'en' }, { name: 'X', flavor_name: 'X', set: 'a', collector_number: '1', lang: 'en' }, { name: 'X', flavor_name: 'Y\tZ', set: 'a', collector_number: '1', lang: 'en' }]) assert.equal(flavorRow(c), '');
 });

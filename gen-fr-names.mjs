@@ -3,6 +3,8 @@
 // à la place de ≈ 180 pages de l'API Scryfall téléchargées depuis chaque téléphone. Une ligne par carte : « nom imprimé \t nom anglais \t image » (image : chemin après /small/).
 //   node gen-fr-names.mjs [fichier de sortie]                → pwa/fr-names.tsv (français, nom de fichier historique gardé : l'app le lit déjà)
 //   node gen-fr-names.mjs --lang de [fichier de sortie]      → pwa/names-de.tsv (code de langue Scryfall : de es it pt ja zhs zht ko ru)
+// Toutes les impressions de la langue (une ligne par nom imprimé différent d'une carte) : la traduction de l'impression la plus récente est l'actuelle, les autres
+// (anciennes traductions, reconnues au scan) portent une 4e colonne « a ». Impression sans nom traduit chez Scryfall (même une face d'une carte double) : ignorée.
 // (Node ≥ 18, aucune dépendance, ≈ 1 à 2 minutes par langue). Lancé chaque semaine par .github/workflows/fr-names.yml.
 // Le fichier existant n'est remplacé que si le nouveau est plausible (≥ 5 000 lignes, 1 000 pour les langues peu imprimées ; ≈ 31 000 en français).
 import { writeFileSync, renameSync, mkdirSync } from 'node:fs';
@@ -19,7 +21,7 @@ const imgOf = c => (c.image_uris && c.image_uris.small) || (c.card_faces && c.ca
 /** Une carte Scryfall imprimée dans `lang` → « nom imprimé \t nom anglais \t image », ou '' (autre langue, pas de nom imprimé). */
 export function namesRow(c, lang) {
   if (!c || (c.lang && c.lang !== lang)) return '';
-  const f = c.card_faces || [], p = c.printed_name || (f.length > 1 ? f.map(x => x.printed_name || x.name).join(' // ') : '');
+  const f = c.card_faces || [], p = c.printed_name || (f.length > 1 && f.every(x => x.printed_name) ? f.map(x => x.printed_name).join(' // ') : '');      // carte double sans nom traduit chez Scryfall : ignorée (l'anglais n'est pas une traduction)
   if (!p || !c.name) return '';
   const u = imgOf(c) || '', m = /\/small\/([^?]+)/.exec(u);
   return p + '\t' + c.name + '\t' + (m ? m[1] : '');
@@ -47,17 +49,17 @@ export function parseArgs(argv) {
 }
 async function main() {
   const { lang, out } = parseArgs(process.argv.slice(2)), [loc, min] = NAME_LANGS[lang];
-  let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('lang:' + lang) + '&unique=cards&order=name', pages = 0;
-  const by = new Map();
+  let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('lang:' + lang) + '&unique=prints&order=released&dir=asc', pages = 0;      // toutes les impressions, de la plus ancienne à la plus récente
+  const by = new Map(), cur = new Map();      // by : « imprimé \t anglais » → ligne (image de l'impression la plus récente) ; cur : anglais → traduction actuelle (impression la plus récente)
   while (url) {
     const j = await getJson(url); if (!j) break;
-    if (!pages) console.log(`  ${lang} : total annoncé ${j.total_cards} cartes`);
-    for (const c of j.data || []) { const r = namesRow(c, lang); if (r) by.set(r.split('\t').slice(0, 2).join('\t'), r); }
+    if (!pages) console.log(`  ${lang} : total annoncé ${j.total_cards} impressions`);
+    for (const c of j.data || []) { const r = namesRow(c, lang); if (r) { const [p, en] = r.split('\t'); by.set(p + '\t' + en, r); if (p !== en || !cur.has(en)) cur.set(en, p); } }      // nom anglais recopié (impression récente mal renseignée) : jamais à la place d'une vraie traduction
     url = j.has_more && typeof j.next_page === 'string' && /^https:\/\/api\.scryfall\.com\//.test(j.next_page) ? j.next_page : '';
     if (++pages % 10 === 0) console.log(`  page ${pages} · ${by.size} cartes`);
     await sleep(250);                                       // Scryfall demande 50–100 ms au minimum entre deux requêtes ; on reste large
   }
-  const rows = [...by.values()].sort((a, b) => a.localeCompare(b, loc));
+  const rows = [...by.values()].map(r => { const [p, en] = r.split('\t'); return cur.get(en) === p ? r : r + '\ta'; }).sort((a, b) => a.localeCompare(b, loc));      // anciennes traductions : 4e colonne « a » (core.js › frNames : affichées à défaut)
   if (rows.length < min) { console.error(`${lang} : seulement ${rows.length} lignes : fichier existant conservé.`); process.exit(1); }
   mkdirSync(dirname(out), { recursive: true });
   const tmp = out + '.tmp'; writeFileSync(tmp, rows.join('\n') + '\n'); renameSync(tmp, out);
