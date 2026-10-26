@@ -1,4 +1,4 @@
-# Mails de demande d'accord (EDHREC, Archidekt)
+# Mails aux partenaires (EDHREC, Archidekt, CardTrader)
 
 À envoyer avant toute publication sur un store. En anglais : les deux équipes sont anglophones.
 Remplace `[Ton prénom]` et vérifie le lien de l'appli. Contacts : EDHREC (formulaire de contact du site ou leur Discord), Archidekt (Discord ou e-mail du support indiqué sur le site).
@@ -99,3 +99,29 @@ Mana Orbit · https://manaorbit.app
 ## Relance du 15 octobre 2026 (envoyée par Martin)
 
 Relance avancée au 15 octobre, au lancement du test fermé (fin prévue vers le 29 octobre). **Date limite annoncée : 19 novembre 2026** : sans réponse, publication sur Google Play après cette date ; un message suffit pour couper la fonction (`EDHREC_OFF` / `ARCHIDEKT_OFF`), avant ou après. Archidekt prévenu que les titres des decks ne sont plus affichés (commandant + type, lien vers le deck). Instagram du test mentionné par transparence.
+
+---
+
+## CardTrader : relance du 26 octobre 2026 (envoyée par Martin)
+
+Première demande le 16 octobre (mail à staff@cardtrader.com depuis manaorbitpro@gmail.com, puis le formulaire « Partenariats et collaborations » le même jour). Relance par le formulaire (1 000 caractères au plus). Programme de parrainage rejoint le même jour (code `manaorbit`). Sans réponse vers le 5 novembre : ne plus relancer.
+
+```
+Hi CardTrader team,
+
+Following up on my partnership request for Mana Orbit (https://manaorbit.app), sent on Oct 16 to staff@cardtrader.com and through this form.
+
+Mana Orbit is a free Magic app: collection, card scan, prices, cheapest way to finish a deck. CardTrader is already built in: with their own API token, players see real offers and fill their cart. I've also joined your referral program (code: manaorbit).
+
+I'd like to go further:
+- an official "Connect with CardTrader" sign-in (no token to copy);
+- partner API access with a higher rate limit;
+- an affiliate program for apps, if you have one;
+- later, listing spare cards on CardTrader from the app.
+
+The app is in closed test on Google Play (25 players), public release soon. Who would be the right person to talk to?
+
+Thanks,
+Martin
+manaorbitpro@gmail.com
+```
