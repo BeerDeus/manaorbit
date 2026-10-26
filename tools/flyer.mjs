@@ -20,6 +20,7 @@ const require = createRequire(import.meta.url);
 const { qrSvgLogo } = require('../src/qr.js');
 const { chromium } = createRequire(new URL('../tests/', import.meta.url))('playwright-core');      // celui des tests (tests/node_modules)
 export const FLYER_URL = 'https://manaorbit.app/flyer';      // imprimé : ne change jamais
+export const CARD_URL = 'https://manaorbit.app/q/carte-de-visite';      // QR de la carte de visite (/admin › QR codes) : imprimé, ne change jamais non plus
 const OUT = 'docs/print/', SHOTS = 'shots/store/fr-', ARGS = process.argv.slice(2);
 const FMT = ARGS.includes('a4') ? 'a4' : 'a5', which = ARGS.find(a => a !== 'a4' && a !== 'a5') || 'all';
 // Page avec 3 mm de fond perdu, à la taille exacte du format (A5 : 154 × 216 mm) ; mise en page tracée en A4 (mm), réduite d'un seul facteur (210 → 297 sur la hauteur :
@@ -231,9 +232,10 @@ function page(v) {
   </div></div></body></html>`;
 }
 
-/* ── Carte de visite (85 × 55 mm, fond perdu CB) : à donner de la main à la main, même QR fixe que les flyers ─────────────────────────────
+/* ── Carte de visite (85 × 55 mm, fond perdu CB) : à donner de la main à la main, son propre QR fixe (CARD_URL : scans comptés à part des flyers) ─────────────────────────────
    Recto : nom, accroche, Lightning Bolt (vraie illustration si déposée) dans l'orbite des cinq symboles de mana. Verso : QR, plateformes, mentions. */
 const CW = 85, CH = 55, CB = 3;
+const QR_CARD = qrSvgLogo(CARD_URL, { minV: 5 }).svg;
 const cardSvg = body => `<svg class="art" viewBox="0 0 ${CW} ${CH}" aria-hidden="true">${DEFS}${body}</svg>`;
 const CARD_FINE = 'Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Policy, ni approuvé ni soutenu par Wizards of the Coast. Magic: The Gathering est une marque de Wizards of the Coast LLC.';
 function cardPage(side) {
@@ -252,7 +254,7 @@ function cardPage(side) {
       <p class="url">manaorbit.app <small>Gratuit</small></p>`;
   } else {
     body = cardSvg(`<ellipse cx="18" cy="22" rx="26" ry="22" fill="url(#halo)"/>${['W', 'U', 'B', 'R', 'G'].map((m, i) => manaSym(39.5 + i * 5.6, 41.2, 2, m)).join('')}`)
-      + `<div class="qrb">${QR}</div>
+      + `<div class="qrb">${QR_CARD}</div>
       <div class="cx"><b>Scanne pour l'installer</b><small>Gratuit, sans abonnement</small>
       <span><strong>Android</strong> : Google Play<br><strong>iPhone</strong> : App Store <em class="soon">à venir</em><br><strong>Ordinateur et iPhone</strong> : manaorbit.app</span></div>
       <p class="cfine">${CARD_FINE}${art ? ' Illustration de Lightning Bolt : Christopher Moeller.' : ''}</p>`;
