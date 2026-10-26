@@ -74,6 +74,15 @@ await p.click('.sc-item.miss [data-a="type"]'); await p.waitForSelector('#caName
 await p.click('.sc-item.miss [data-a="rm"]'); assert.equal((await misses(p)).length, 0);
 // validation : quantité, retrait, puis ajout
 await p.click('.sc-item[data-k="wrath of god"] [data-a="inc"]');
+{      // prix de la carte sous sa quantité : « 2,40 € », « 2,40 € ×2 » ; rien sans prix connu
+  await p.evaluate(() => { const k = 'wrath of god'; window.__wm = COLL.meta[k]; COLL.meta[k] = { ...(COLL.meta[k] || {}), eu: 240 }; scanPaintList(); });      // prix connu (fiche lue, en centimes) pour Wrath of God seulement
+  const px = await p.$$eval('.sc-item.ed', rs => rs.map(r => { const e = SC.items.get(r.dataset.id), u = scanEu(e.key, e.pk, false), s = r.querySelector('.sc-qp .sc-px'); return [e.name, s ? s.textContent : '', u > 0 && !e.fq ? fmt(u, 'EUR') + (e.q > 1 ? ' ×' + e.q : '') : '']; }));
+  assert.ok(px.some(x => x[2]), 'au moins une carte avec un prix : ' + JSON.stringify(px));
+  for (const [n, shown, want] of px) assert.equal(shown, want, 'prix sous la quantité : ' + n);
+  await p.evaluate(() => { const e = [...SC.items.values()].find(x => !x.maybe && scanEu(x.key, x.pk, false) > 0); e.q = 3; scanPaintList(); });
+  assert.match(await p.$eval('.sc-item.ed .sc-px', s => s.textContent), /^2,40\s?€ ×3$/, 'trois exemplaires : « 2,40 € ×3 »');
+  await p.evaluate(() => { const e = [...SC.items.values()].find(x => !x.maybe && x.q === 3); e.q = 2; if (window.__wm) COLL.meta['wrath of god'] = window.__wm; else delete COLL.meta['wrath of god']; scanPaintList(); });      // prix d'origine rendu (valeur estimée vérifiée plus bas)
+}
 // « − » du scan : confirmation d'abord (Annuler ne change rien)
 await p.click('.sc-item[data-k="wrath of god"] [data-a="dec"]'); await p.waitForSelector('.sheet [data-ok]'); assert.match(await txt(p, '.sheet .cf-msg'), /Wrath of God\s*Il en restera 1 sur 2/);
 await p.click('.sheet .sheet-foot .btn.ghost'); await p.waitForFunction(() => !document.querySelector('.sheet')); assert.equal((await items(p)).find(x => x.name === 'Wrath of God').q, 2, 'Annuler : quantité inchangée');

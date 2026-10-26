@@ -199,6 +199,13 @@ function scanReadNote(e, raw, h = x => x) {
 }
 /** Miniature d'une carte du scan : dans sa langue si Scryfall l'a donnée, sinon l'image anglaise. */
 function scanThumb(e) { if (e.pk && e.pk.th) return e.pk.th; const u = e.l && e.l !== 'en' ? COLL.li[liKey(e.l, e.key)] : ''; return u || scImg(e.name); }      // édition posée : l'image de cette impression
+/** Prix sous la quantité d'une ligne du scan : « 2,40 € » ou « 2,40 € ×3 » (prix de l'édition posée, sinon de la carte ; foil au prix foil ; foil et non foil mêlés : le total). */
+function scanRowPx(e) {
+  const fq = Math.min(e.fq || 0, e.q), u = scanEu(e.key, e.pk, false), uf = fq ? scanEu(e.key, e.pk, true) : 0;
+  if (fq && fq < e.q) { const tot = u * (e.q - fq) + uf * fq; return tot > 0 ? `<small class="sc-px">${esc(fmt(tot, 'EUR'))}</small>` : ''; }
+  const one = fq ? uf : u; if (!(one > 0)) return '';
+  return `<small class="sc-px">${esc(fmt(one, 'EUR'))}${e.q > 1 ? ' ×' + e.q : ''}</small>`;
+}
 /** Lignes « Dans le scan » montrées d'abord (la liste entière est repeinte à chaque carte : une longue session ralentissait l'écran) ; « Afficher plus » en ajoute 20. */
 const SC_SHOW = 10;
 function scanPaintList() {
@@ -221,7 +228,7 @@ function scanPaintList() {
   $('.sc-head [data-act="done"]', el).hidden = false; $('.sc-total', el).hidden = true;
   const ae = document.activeElement, keep = ae && ae !== list && list.contains(ae) ? { row: ae.closest('.sc-item'), a: ae.dataset.a, cls: ae.classList[0] } : null;      // focus clavier dans la liste : rendu à son équivalent après le repeint (éditions qui arrivent…)
   const row = e => `<div class="sc-item${e.maybe ? ' maybe' : ' ed'}${e === SC.lastIt ? ' last' : ''}" data-k="${esc(e.key)}" data-id="${esc(e.id)}">${e.maybe ? pic(e.shot) : ''}<img class="sc-th" alt="" loading="lazy" decoding="async" src="${esc(scanThumb(e))}"${zoomAt('scan', scanShown(e))}><span class="sc-n"><span class="sc-top"><b>${esc(scanShown(e))}</b>${langChip(e.key, e.l || '', e.name)}${!e.maybe && e.fq > 0 ? `<span class="tag foil sc-foil" title="${esc(TN(Math.min(e.fq, e.q), '{n} exemplaire foil', '{n} exemplaires foil'))}">✦ ${e.fq >= e.q ? T('Foil') : nf0(e.fq)}</span>` : ''}</span>${e.maybe ? `<small>${T(e.shot ? 'À vérifier : ta photo ci-dessus est-elle bien celle-ci ?' : 'À vérifier : ta carte est-elle bien celle-ci ?')} · ${scanReadNote(e, true, esc)}</small>` : (n => (n ? `<small>${n}</small>` : ''))(scanReadNote(e, !!(e.score < 0.97 && e.raw), esc))}${scanAltsHtml(e)}</span>
-      ${e.maybe ? `<button type="button" class="sc-ok" data-a="ok" aria-label="${T('Confirmer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-check"/></svg></button>` : `${scanEdBtn(e)}<span class="qstep"><button type="button" data-a="dec" aria-label="${T('Retirer un exemplaire')}">−</button><b>${e.q}</b><button type="button" data-a="inc" aria-label="${T('Ajouter un exemplaire')}">+</button></span>`}
+      ${e.maybe ? `<button type="button" class="sc-ok" data-a="ok" aria-label="${T('Confirmer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-check"/></svg></button>` : `${scanEdBtn(e)}<span class="sc-qp"><span class="qstep"><button type="button" data-a="dec" aria-label="${T('Retirer un exemplaire')}">−</button><b>${e.q}</b><button type="button" data-a="inc" aria-label="${T('Ajouter un exemplaire')}">+</button></span>${scanRowPx(e)}</span>`}
       <button type="button" class="sc-x" data-a="del" aria-label="${T('Retirer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
   const maybe = arr.filter(x => x.maybe), todo = arr.filter(scanEdIsTodo), rest = arr.filter(x => !x.maybe && !scanEdIsTodo(x)), many = (maybe.length ? 1 : 0) + (todo.length ? 1 : 0) + (rest.length ? 1 : 0) > 1;      // à vérifier, puis éditions à choisir, puis le reste (dernière lue en haut)
   const sec = (h, cls, rows) => (rows.length ? (many ? `<p class="sc-h${cls}">${esc(h)}</p>` : '') + rows.map(row).join('') : '');
