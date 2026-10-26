@@ -4,17 +4,19 @@
         · 'none' (sans édition : carte et langue seulement) ;
    auto : scan automatique (scan.js › scanAuto) · delay : écart minimal entre deux cartes en automatique (ms) · same : même carte à la suite en automatique, 'ask' (demander) ou 'add' (+1) ;
    lang : langue des cartes imposée ('' : lue sur chaque carte) · vib, snd : vibration et son à chaque carte reconnue ;
-   frame : cadrage — 'card' (carte entière : nom + ligne du bas, l'édition lue sur la carte, scanfoot.js) · 'name' (caméra compacte, nom seulement). */
+   frame : cadrage — 'card' (carte entière : nom + ligne du bas, l'édition lue sur la carte, scanfoot.js) · 'name' (caméra compacte, nom seulement) ;
+   pa : alerte de prix (centimes, montant libre ; 0 : coupée) · pp : dernier emplacement choisi par « Mettre à part », proposé d'office (scan.js › scanPaCheck). */
 const SCS_KEY = 'deckdeal:scanset', SCS_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'ru', 'jp', 'kr', 'zh-CN', 'zh-TW'], SCS_DELAYS = [250, 500, 1000];
 /** Cadrage par défaut : carte entière dans l'appli Android (ML Kit lit le nom et la ligne du bas sur toute la carte), nom seulement dans le navigateur (Tesseract est plus sûr sur la bande). */
 function scsFrameDef() { try { return typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() ? 'card' : 'name'; } catch (e) { return 'name'; } }      // native.js est chargé après ce fichier
-const SCS_DEF = { ed: 'scan', auto: false, delay: 500, same: 'ask', lang: '', vib: true, snd: false, frame: '' };
+const SCS_DEF = { ed: 'scan', auto: false, delay: 500, same: 'ask', lang: '', vib: true, snd: false, frame: '', pa: 0, pp: '' };
 const SCS = { ...SCS_DEF, frame: scsFrameDef(), u: 0, who: '', doc: { uid: '', unsub: null, pushT: 0 } };
 /** Réglages lus (appareil, compte) → valeurs sûres ; tout le reste prend la valeur par défaut. */
 function scsClean(o) {
   const x = o && typeof o === 'object' ? o : {};
   return { ed: ['scan', 'card', 'none'].includes(x.ed) ? x.ed : SCS_DEF.ed, auto: x.auto === true, delay: SCS_DELAYS.includes(x.delay) ? x.delay : SCS_DEF.delay,
-    same: x.same === 'add' ? 'add' : 'ask', lang: SCS_LANGS.includes(x.lang) ? x.lang : '', vib: x.vib !== false, snd: x.snd === true, frame: x.frame === 'name' || x.frame === 'card' ? x.frame : scsFrameDef() };
+    same: x.same === 'add' ? 'add' : 'ask', lang: SCS_LANGS.includes(x.lang) ? x.lang : '', vib: x.vib !== false, snd: x.snd === true, frame: x.frame === 'name' || x.frame === 'card' ? x.frame : scsFrameDef(),
+    pa: Number.isInteger(x.pa) && x.pa > 0 && x.pa <= 1e7 ? x.pa : 0, pp: typeof x.pp === 'string' && x.pp.length < 80 ? x.pp : '' };
 }
 function scsLoad() {
   try { const j = JSON.parse(localStorage.getItem(SCS_KEY) || 'null'); if (j) { Object.assign(SCS, scsClean(j.s)); SCS.u = Number(j.u) || 0; SCS.who = typeof j.who === 'string' ? j.who : ''; } } catch (e) { /* illisible : réglages par défaut */ }
@@ -70,6 +72,20 @@ const SCS_EDS = [
   ['card', 'Carte par carte', 'Deck, classeur : choisies à la fin du scan, en voyant les illustrations.'],
   ['none', 'Sans édition', 'Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.'],
 ];
+/** Alerte de prix : seuil lisible (« 5 € ») et emplacement des cartes au-dessus, s'il existe encore. */
+const scsPaLabel = () => fmt(SCS.pa, 'EUR').replace(/[,.]00(?=\D)/, '');
+const scsPaPlace = () => (SCS.pp && typeof COLL !== 'undefined' && COLL.places && COLL.places[SCS.pp] ? SCS.pp : '');
+/** Montant de l'alerte dans le champ (« 1,5 » → « 1,50 ») ; montant tapé → centimes (0 : vide ou illisible). */
+const scsPaInput = () => (SCS.pa / 100).toLocaleString(LOC(), { minimumFractionDigits: SCS.pa % 100 ? 2 : 0, maximumFractionDigits: 2 });
+const scsPaParse = v => { const n = Number(String(v || '').replace(/[\s€]/g, '').replace(',', '.')); return Number.isFinite(n) && n > 0 ? Math.min(1e7, Math.round(n * 100)) : 0; };
+/** Cadrage ou éditions : la liste des choix, avec leur explication. */
+function scsChoose(k, done) {
+  const [title, list] = k === 'frame' ? [T('Cadrage'), SCS_FRAMES] : [T('Éditions'), SCS_EDS];
+  openSheet(title, '', api => {
+    api.body.innerHTML = `<div class="scs-eds" role="radiogroup" aria-label="${esc(title)}">${list.map(([v, t, d]) => `<button type="button" class="scs-ed" role="radio" data-v="${v}" aria-checked="${SCS[k] === v}"><span><b>${esc(T(t))}</b><small>${esc(T(d))}</small></span><i aria-hidden="true"></i></button>`).join('')}</div>`;
+    api.body.addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic('tap'); scsSet({ [k]: b.dataset.v }); api.close(); if (done) done(); });
+  });
+}
 /** Libellé court du réglage des éditions (pastille de l'écran de scan). */
 const scsEdLabel = () => (SCS.ed === 'card' ? T('Éditions : à la fin') : SCS.ed === 'none' ? T('Sans édition') : T('Éditions : comme la 1re'));
 const scsLangName = l => { const n = LANGS[l] || l; return n.charAt(0).toUpperCase() + n.slice(1); };
@@ -80,14 +96,14 @@ function scsHtml() {
   const sec = s => (Number(s) / 1000).toLocaleString(LOC()) + ' s';
   return `<div class="scs">${typeof opnScsRow === 'function' ? opnScsRow() : ''}
     ${typeof scdRowHtml === 'function' ? scdRowHtml() : ''}
-    <p class="scs-h">${T('Cadrage')}</p>
-    <div class="scs-eds" role="radiogroup" aria-label="${esc(T('Cadrage'))}">${SCS_FRAMES.map(([v, t, d]) => `<button type="button" class="scs-ed" role="radio" data-s="frame" data-v="${v}" aria-checked="${SCS.frame === v}"><span><b>${esc(T(t))}</b><small>${esc(T(d))}</small></span><i aria-hidden="true"></i></button>`).join('')}</div>
-    <p class="scs-h">${T('Éditions')}</p>
-    <div class="scs-eds" role="radiogroup" aria-label="${esc(T('Éditions'))}">${SCS_EDS.map(([v, t, d]) => `<button type="button" class="scs-ed" role="radio" data-s="ed" data-v="${v}" aria-checked="${SCS.ed === v}"><span><b>${esc(T(t))}</b><small>${esc(T(d))}</small></span><i aria-hidden="true"></i></button>`).join('')}</div>
+    <div class="scs-picks">${[['frame', T('Cadrage'), SCS_FRAMES], ['ed', T('Éditions'), SCS_EDS]].map(([k, h, l]) => `<button type="button" class="scs-pick" data-pick="${k}" aria-haspopup="dialog"><small>${esc(h)}</small><b>${esc(T((l.find(o => o[0] === SCS[k]) || l[0])[1]))}</b><svg class="i" aria-hidden="true"><use href="#i-back"/></svg></button>`).join('')}</div>
     <p class="scs-h">${T('Prise de la carte')}</p>
     ${sw('scsAuto', 'auto', T('Scan automatique'), T('La carte s\'ajoute dès que son nom est net et immobile, sans appuyer sur le cercle.'), SCS.auto)}
     ${SCS.auto ? `<div class="scs-row"><span>${T('Délai entre deux cartes')}</span><span class="scs-chips">${SCS_DELAYS.map(v => chip('delay', v, sec(v), SCS.delay === v)).join('')}</span></div>
       <div class="scs-row"><span>${T('Même carte à la suite')}</span><span class="scs-chips">${chip('same', 'ask', T('Demander'), SCS.same === 'ask')}${chip('same', 'add', T('Ajouter +1'), SCS.same === 'add')}</span></div>` : ''}
+    <p class="scs-h">${T('Alerte de prix')}</p>
+    <label class="scs-pa"><span>${T('Cartes à partir de')}</span><input type="text" inputmode="decimal" autocomplete="off" data-s="pa" value="${SCS.pa ? esc(scsPaInput()) : ''}" placeholder="${esc(T('Aucune'))}" aria-label="${esc(T('Alerte de prix : montant en euros'))}"><b aria-hidden="true">€</b></label>
+    <p class="hint scs-note">${SCS.pa ? esc(T('Une carte à {px} ou plus s\'annonce pendant le scan : « Mettre à part » la range dans l\'emplacement de ton choix.', { px: scsPaLabel() })) : esc(T('Un montant : les cartes qui valent autant ou plus s\'annoncent pendant le scan, pour les ranger à part. Vide : pas d\'alerte.'))}</p>
     <p class="scs-h">${T('Langue des cartes')}</p>
     <div class="scs-chips">${chip('lang', '', T('Auto'), !SCS.lang)}${chip('lang', 'fr', scsLangName('fr'), SCS.lang === 'fr')}${chip('lang', 'en', scsLangName('en'), SCS.lang === 'en')}<label class="fopt scs-oth"${othOn ? ' data-on="1"' : ''}><select data-s="lang" aria-label="${esc(T('Autre langue'))}"><option value=""${othOn ? '' : ' selected'}>${esc(othOn ? '—' : T('Autre…'))}</option>${oth.map(l => `<option value="${l}"${SCS.lang === l ? ' selected' : ''}>${esc(scsLangName(l))}</option>`).join('')}</select></label></div>
     <p class="hint scs-note">${T('Auto : la langue est lue sur chaque carte.')}<br>${T('Une seule langue dans le paquet : choisis-la, c\'est plus rapide.')}</p>
@@ -103,13 +119,14 @@ function scsSheet() {
     api.body.addEventListener('click', e => {
       if (e.target.closest('.opn-scs') && typeof opnEntry === 'function') { api.close(); opnEntry(); return; }      // session d'ouverture (opening.js)
       if (e.target.closest('[data-rcd]')) { scdPick(() => { paint(); if (typeof scanPaintTools === 'function') scanPaintTools(); }); return; }      // « Ranger dans » (places.js) : cet appareil seulement
+      const pk = e.target.closest('[data-pick]'); if (pk) { haptic('tap'); scsChoose(pk.dataset.pick, paint); return; }      // cadrage, éditions : la liste des choix
       const b = e.target.closest('button[data-s]'); if (!b) return;
       const k = b.dataset.s, v = b.dataset.v; haptic('tap');
       scsSet({ [k]: k === 'delay' ? Number(v) : v }); paint();
     });
     api.body.addEventListener('change', e => {
       const x = e.target.closest('[data-s]'); if (!x) return;
-      const k = x.dataset.s; scsSet({ [k]: x.type === 'checkbox' ? x.checked : x.value }); paint();
+      const k = x.dataset.s; scsSet({ [k]: x.type === 'checkbox' ? x.checked : k === 'pa' ? scsPaParse(x.value) : x.value }); paint();
     });
   });
 }

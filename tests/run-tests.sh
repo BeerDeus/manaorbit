@@ -12,6 +12,7 @@ BROWSER=(
   frnames-e2e.mjs prix-e2e.mjs pwa-e2e.mjs sw-e2e.mjs push-client-e2e.mjs push-native-e2e.mjs sync-e2e.mjs e2e-account.mjs scan-e2e.mjs ads-e2e.mjs live-e2e.mjs trade-e2e.mjs densite-e2e.mjs motion-e2e.mjs widget-e2e.mjs content-e2e.mjs perf-e2e.mjs intl-e2e.mjs names-de-e2e.mjs rules-test.mjs
   sharedeck-e2e.mjs de-e2e.mjs event-e2e.mjs spots-e2e.mjs
   natshare-e2e.mjs
+  scanpa-e2e.mjs
   gate-e2e.mjs
   splash-e2e.mjs
   scanlang-e2e.mjs

@@ -19,7 +19,11 @@ const scanPk = (k, l) => k + '|' + (l || 'en');
 const pkEu = (p, f) => { if (!p) return null; const a = f ? p.ef : p.eu, b = f ? p.eu : p.ef; return a > 0 ? a : b > 0 ? b : null; };
 /** Prix d'un exemplaire du scan (centimes) : celui de son impression, sinon le prix de référence de la carte ; foil : le prix foil, à défaut le normal
  *  (comme collection.js › collLineEu) ; 0 sans prix. m : infos de la carte (COLL.meta par défaut). */
-const scanEu = (k, p, f, m = COLL.meta[k]) => { const u = pkEu(p, f); if (u > 0) return u; return !m ? 0 : f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : 0; };
+const scanEu = (k, p, f, m = COLL.meta[k]) => {
+  const u = pkEu(p, f); if (u > 0) return u;
+  const v = !m ? 0 : f && m.ef > 0 ? m.ef : m.eu > 0 ? m.eu : 0; if (v > 0) return v;
+  const t = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; return (t && t.e) || 0;      // carte encore jamais lue : prix « à partir de » du fichier du jour (data.js › pxTable)
+};
 /** Exemplaires du scan (sûrs) par extension posée. */
 function scanSetCounts() {
   const by = new Map();
@@ -75,6 +79,7 @@ function scanRekey(it, nid) {
     other.q = Math.min(999, other.q + it.q); other.fq = Math.min(other.q, (other.fq || 0) + (it.fq || 0)); if (!it.maybe) { other.maybe = false; other.shot = ''; }
     if (it.fly) other.fly = Math.max(other.fly || 0, it.fly);      // symbole qui doit encore descendre dans la liste (scan.js › scanFlyCheck)
     if (it.es === 'man') other.es = 'man';
+    if (it.dp && !other.dp) other.dp = it.dp; if (it.pa && (!other.pa || other.pa === 'ask')) other.pa = it.pa;      // mise à part (alerte de prix) : la ligne gardée la suit
     // la ligne gardée prend la place la plus récente des deux : une carte relue (ligne à part le temps de lire son édition) remonte en haut avec ses doublons
     const ids = [...SC.items.keys()];
     if (ids.indexOf(it.id) > ids.indexOf(nid)) SC.items = new Map([...SC.items].filter(([i]) => i !== nid).map(([i, v]) => (i === it.id ? [nid, other] : [i, v])));

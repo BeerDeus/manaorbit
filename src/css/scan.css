@@ -185,3 +185,23 @@
 .sss-sheet .sss-del:active{background:var(--bad-soft)}
 .rc-quiet{display:flex;align-items:center;gap:8px;margin:-2px 2px 12px;font-size:13.5px;color:var(--ink-2)}
 .rc-quiet input{flex:none;width:18px;height:18px;accent-color:var(--accent)}
+/* Réglages du scan : cadrage et éditions côte à côte (scanset.js › scsChoose ouvre la liste des choix) ; alerte de prix */
+.scs-picks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.scs-pick{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:60px;padding:10px 30px 10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--surface-3);color:var(--ink);font:inherit;text-align:left}
+.scs-pick small{font-size:11.5px;font-weight:650;color:var(--ink-3)}
+.scs-pick b{font-size:14px;line-height:1.25}
+.scs-pick .i{position:absolute;right:10px;top:50%;width:16px;height:16px;margin-top:-8px;transform:scaleX(-1);color:var(--ink-3)}
+.scs .scs-pp{margin-top:2px}
+/* Alerte de prix pendant le scan (scan.js › scanPaShow) : bandeau doré, cartes mises à part dans la liste, pastille de leur emplacement */
+.sc-pa{border-color:rgba(255,212,121,.75)}
+.sc-pa em{color:#ffd479}
+.sc-pa{flex-wrap:wrap;padding:10px 10px 10px 14px;row-gap:8px}
+.sc-pa>span{flex-basis:100%}
+.sc-pa small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-pa .btn{flex:1}
+.sc-h.apart{color:#e8b45e}
+.sc-item:has(.sc-dp){border-color:color-mix(in srgb,#e8b45e 45%,var(--line))}
+.sc-dp{flex:none;align-self:flex-start;margin:3px 0 1px;display:inline-flex;align-items:center;gap:5px;max-width:9em;height:24px;padding:0 9px 0 7px;border:1px solid color-mix(in srgb,var(--c,#8a93ad) 60%,var(--line));border-radius:99px;background:color-mix(in srgb,var(--c,#8a93ad) 14%,transparent);color:var(--ink);font:inherit;font-size:11.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-dp i{flex:none;width:9px;height:9px;border-radius:3px;background:var(--c,#8a93ad)}
+.rc-apart{display:flex;align-items:center;gap:8px;margin:2px 2px 6px}
+.rc-apart i{flex:none;width:10px;height:10px;border-radius:3px;background:var(--c)}

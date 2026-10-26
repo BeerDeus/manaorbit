@@ -206,6 +206,48 @@ function scanRowPx(e) {
   const one = fq ? uf : u; if (!(one > 0)) return '';
   return `<small class="sc-px">${esc(fmt(one, 'EUR'))}${e.q > 1 ? ' ×' + e.q : ''}</small>`;
 }
+/* ── Alerte de prix (Réglages du scan › Alerte de prix, scanset.js) : une carte qui vaut le seuil ou plus s'annonce sur l'aperçu (comme « Encore X ? ») ;
+   « Ranger dans » la met à part (it.dp : son emplacement, section « À ranger dans … » de la liste), elle y va à l'ajout (scanKeep). Une décision par ligne (it.pa). */
+/** Emplacement à part d'une ligne, s'il existe encore. */
+const scanDp = it => (it.dp && COLL.places && COLL.places[it.dp] ? it.dp : '');
+/** Alerte active pour ce scan : collection seulement (ni prix rapide, ni deck, lot, session d'ouverture, scan mobile, proxys). */
+const scanPaOn = () => SCS.pa > 0 && !!SC.el && !SC.pm && !SC.deck && !SC.lot && !SC.remote && !(typeof SCD !== 'undefined' && SCD.x) && !(typeof opnOn === 'function' && opnOn());
+/** Prix d'une ligne pour l'alerte (centimes, à l'unité ; foil au prix foil) ; 0 : inconnu, ou édition encore en lecture (le prix de l'impression arrive). */
+function scanPaEu(it) { if (it.maybe || (it.es === 'load' || it.es === 'pend')) return 0; return scanEu(it.key, it.pk, (it.fq || 0) >= it.q); }
+/** Lignes qui passent le seuil : annoncées une à une (repeint de la liste : prix et éditions qui arrivent). */
+function scanPaCheck() {
+  if (!scanPaOn()) return;
+  SC.paq = (SC.paq || []).filter(x => [...SC.items.values()].includes(x) && x.pa === 'ask');
+  for (const it of SC.items.values()) if ((it.pa === undefined || (it.pa === 'ask' && !SC.paq.includes(it))) && !scanDp(it)) { const eu = scanPaEu(it); if (eu >= SCS.pa) { it.pa = 'ask'; SC.paq.push(it); } }
+  scanPaShow();
+}
+/** Bandeau de la première carte en attente (pas pendant « Encore X ? »). */
+function scanPaShow() {
+  const st = SC.el && $('.sc-stage', SC.el); if (!st) return;
+  let box = $('.sc-pa', st); const it = (SC.paq || [])[0];
+  if (!it || !scanPaOn()) { if (box) { box.remove(); if (typeof natTouch === 'function') natTouch(); } return; }
+  if ($('.sc-same:not(.sc-pa)', st)) return;
+  const more = SC.paq.length - 1, isNew = !box || box.dataset.id !== it.id;
+  if (!box) { box = document.createElement('div'); box.className = 'sc-same sc-pa'; box.setAttribute('role', 'alertdialog'); st.appendChild(box); }
+  box.dataset.id = it.id; box.setAttribute('aria-label', T('Alerte de prix'));
+  box.innerHTML = `<span><b><em>${esc(scanShown(it))}</em> · ${esc(fmt(scanPaEu(it), 'EUR'))}</b><small>${esc(T('Alerte de prix : {px} ou plus', { px: scsPaLabel() }) + (more > 0 ? ' · ' + TN(more, '{n} autre en attente', '{n} autres en attente') : ''))}</small></span>
+    <button class="btn small" type="button" data-act="pa1">${T('Mettre à part')}</button><button class="btn ghost small" type="button" data-act="pa0">${T('Laisser')}</button>`;
+  if (isNew) { haptic('warn'); if (typeof natTouch === 'function') natTouch(); }      // ses boutons, sur l'aperçu : hors de la zone de mise au point
+}
+/** Ranger dans (pa1) ou Laisser (pa0) la carte annoncée. */
+function scanPaAct(act) {
+  const it = (SC.paq || []).shift(); if (!it) { scanPaShow(); return; }
+  if (act === 'pa1') {      // « Mettre à part » : la liste des emplacements (le dernier choisi coché d'office) ; fermée sans choix, le bandeau revient
+    SC.paq.unshift(it); haptic('tap');
+    plcPick({ title: T('Mettre à part'), sub: scanShown(it) + ' · ' + fmt(scanPaEu(it), 'EUR'), cur: scsPaPlace(), onPick: id => {
+      SC.paq = SC.paq.filter(x => x !== it);
+      if (id) { it.pa = 'done'; it.dp = id; haptic('ok'); if (id !== SCS.pp) scsSet({ pp: id }); } else it.pa = 'no';      // « Non rangé » : laissée avec les autres
+      scanPaintList();
+    } });
+    return;
+  }
+  it.pa = 'no'; haptic('tap'); scanPaintList();
+}
 /** Lignes « Dans le scan » montrées d'abord (la liste entière est repeinte à chaque carte : une longue session ralentissait l'écran) ; « Afficher plus » en ajoute 20. */
 const SC_SHOW = 10;
 function scanPaintList() {
@@ -227,14 +269,15 @@ function scanPaintList() {
   }
   $('.sc-head [data-act="done"]', el).hidden = false; $('.sc-total', el).hidden = true;
   const ae = document.activeElement, keep = ae && ae !== list && list.contains(ae) ? { row: ae.closest('.sc-item'), a: ae.dataset.a, cls: ae.classList[0] } : null;      // focus clavier dans la liste : rendu à son équivalent après le repeint (éditions qui arrivent…)
-  const row = e => `<div class="sc-item${e.maybe ? ' maybe' : ' ed'}${e === SC.lastIt ? ' last' : ''}" data-k="${esc(e.key)}" data-id="${esc(e.id)}">${e.maybe ? pic(e.shot) : ''}<img class="sc-th" alt="" loading="lazy" decoding="async" src="${esc(scanThumb(e))}"${zoomAt('scan', scanShown(e))}><span class="sc-n"><span class="sc-top"><b>${esc(scanShown(e))}</b>${langChip(e.key, e.l || '', e.name)}${!e.maybe && e.fq > 0 ? `<span class="tag foil sc-foil" title="${esc(TN(Math.min(e.fq, e.q), '{n} exemplaire foil', '{n} exemplaires foil'))}">✦ ${e.fq >= e.q ? T('Foil') : nf0(e.fq)}</span>` : ''}</span>${e.maybe ? `<small>${T(e.shot ? 'À vérifier : ta photo ci-dessus est-elle bien celle-ci ?' : 'À vérifier : ta carte est-elle bien celle-ci ?')} · ${scanReadNote(e, true, esc)}</small>` : (n => (n ? `<small>${n}</small>` : ''))(scanReadNote(e, !!(e.score < 0.97 && e.raw), esc))}${scanAltsHtml(e)}</span>
+  const row = e => `<div class="sc-item${e.maybe ? ' maybe' : ' ed'}${e === SC.lastIt ? ' last' : ''}" data-k="${esc(e.key)}" data-id="${esc(e.id)}">${e.maybe ? pic(e.shot) : ''}<img class="sc-th" alt="" loading="lazy" decoding="async" src="${esc(scanThumb(e))}"${zoomAt('scan', scanShown(e))}><span class="sc-n"><span class="sc-top"><b>${esc(scanShown(e))}</b>${langChip(e.key, e.l || '', e.name)}${!e.maybe && e.fq > 0 ? `<span class="tag foil sc-foil" title="${esc(TN(Math.min(e.fq, e.q), '{n} exemplaire foil', '{n} exemplaires foil'))}">✦ ${e.fq >= e.q ? T('Foil') : nf0(e.fq)}</span>` : ''}</span>${scanDp(e) ? `<button type="button" class="sc-dp" data-a="dp" style="--c:${plcColor(scanDp(e))}" aria-label="${esc(T('{name} : rangée dans « {place} », changer', { name: e.name, place: plcName(scanDp(e)) }))}"><i></i>${esc(plcName(scanDp(e)))}</button>` : ''}${e.maybe ? `<small>${T(e.shot ? 'À vérifier : ta photo ci-dessus est-elle bien celle-ci ?' : 'À vérifier : ta carte est-elle bien celle-ci ?')} · ${scanReadNote(e, true, esc)}</small>` : (n => (n ? `<small>${n}</small>` : ''))(scanReadNote(e, !!(e.score < 0.97 && e.raw), esc))}${scanAltsHtml(e)}</span>
       ${e.maybe ? `<button type="button" class="sc-ok" data-a="ok" aria-label="${T('Confirmer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-check"/></svg></button>` : `${scanEdBtn(e)}<span class="sc-qp"><span class="qstep"><button type="button" data-a="dec" aria-label="${T('Retirer un exemplaire')}">−</button><b>${e.q}</b><button type="button" data-a="inc" aria-label="${T('Ajouter un exemplaire')}">+</button></span>${scanRowPx(e)}</span>`}
       <button type="button" class="sc-x" data-a="del" aria-label="${T('Retirer {name}', { name: esc(e.name) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`;
-  const maybe = arr.filter(x => x.maybe), todo = arr.filter(scanEdIsTodo), rest = arr.filter(x => !x.maybe && !scanEdIsTodo(x)), many = (maybe.length ? 1 : 0) + (todo.length ? 1 : 0) + (rest.length ? 1 : 0) > 1;      // à vérifier, puis éditions à choisir, puis le reste (dernière lue en haut)
-  const sec = (h, cls, rows) => (rows.length ? (many ? `<p class="sc-h${cls}">${esc(h)}</p>` : '') + rows.map(row).join('') : '');
+  const maybe = arr.filter(x => x.maybe), todo = arr.filter(scanEdIsTodo), apart = arr.filter(x => !x.maybe && !scanEdIsTodo(x) && scanDp(x)), rest = arr.filter(x => !x.maybe && !scanEdIsTodo(x) && !scanDp(x));      // à vérifier, éditions à choisir, mises à part (alerte de prix), puis le reste (dernière lue en haut)
+  const dps = [...new Set(apart.map(scanDp))], many = (maybe.length ? 1 : 0) + (todo.length ? 1 : 0) + dps.length + (rest.length ? 1 : 0) > 1;
+  const sec = (h, cls, rows) => (rows.length ? (many || cls === ' apart' ? `<p class="sc-h${cls}">${esc(h)}</p>` : '') + rows.map(row).join('') : '');      // mises à part : toujours leur titre (où elles iront)
   const shown = rest.filter((x, i) => i < SC.show || x === SC.lastIt), more = rest.length - shown.length;      // longue session : les SC.show dernières (et la dernière touchée) ; le reste sur demande, la liste se repeint vite
   const ask = scanEdAsk();
-  list.innerHTML = sssBandHtml() + (ask ? scanEdAskHtml(ask) : '') + pend + miss + (arr.length ? sec(T('À vérifier'), ' warn', maybe) + sec(TN(todo.reduce((a, x) => a + x.q, 0), '{n} édition à choisir', '{n} éditions à choisir'), ' todo', todo) + sec(T('Dans le scan'), '', shown)
+  list.innerHTML = sssBandHtml() + (ask ? scanEdAskHtml(ask) : '') + pend + miss + (arr.length ? sec(T('À vérifier'), ' warn', maybe) + sec(TN(todo.reduce((a, x) => a + x.q, 0), '{n} édition à choisir', '{n} éditions à choisir'), ' todo', todo) + dps.map(p => sec(T('À ranger dans « {place} »', { place: plcName(p) }), ' apart', apart.filter(x => scanDp(x) === p))).join('') + sec(T('Dans le scan'), '', shown)
       + (more > 0 ? `<button type="button" class="btn ghost block sc-more" data-a="more">${esc(TN(more, 'Afficher plus ({n} autre)', 'Afficher plus ({n} autres)'))}</button>` : '')
     : pend || miss ? '' : '<p class="hint sc-empty">' + T('Les cartes reconnues apparaîtront ici avec leur miniature Scryfall. Tu peux corriger les quantités avant d\'ajouter.') + '</p>');
   if (keep && keep.row) {
@@ -251,6 +294,7 @@ function scanPaintList() {
   if (SC.recap) SC.recap();
   if (SC.ef) SC.ef();      // écran « Éditions à choisir » : les éditions arrivent
   scanFlyCheck(); sssSoon();      // scan gardé sur l'appareil (scansess.js)
+  scanPaCheck();      // alerte de prix : cartes qui passent le seuil (prix et éditions arrivés)
 }
 /** Boutons de l'écran de scan qui suivent les réglages (scanset.js) : pastille des éditions. */
 /** Mode deck (builder.js › bdScan) : « Deck : <nom> », l'emplacement où les cartes sont rangées à l'enregistrement du deck ('' hors mode deck). */
@@ -267,7 +311,12 @@ function scanPaintTools() {
 }
 /** Fiche récap au tap sur « Ajouter » : exemplaires, valeur estimée Cardmarket, les plus chères, nouvelles / déjà possédées, langues. Suit la liste du scan en direct ; « Ajouter » dans la fiche fait l'ajout. Les prix des cartes pas encore lues par Scryfall sont lus ici (un lot). */
 /** Cartes lues du scan (pas celles « à vérifier ») : { k, n, q, f (exemplaires foil), l, e, p (édition posée et son impression, scaned.js) }. */
-const scanLive = () => [...SC.items.values()].filter(x => !x.maybe).map(x => ({ k: x.key, n: x.name, q: x.q, f: Math.min(x.fq || 0, x.q), l: x.l || '', e: x.e || '', p: x.e ? x.pk : null }));
+const scanLive = () => [...SC.items.values()].filter(x => !x.maybe).map(x => ({ k: x.key, n: x.name, q: x.q, f: Math.min(x.fq || 0, x.q), l: x.l || '', e: x.e || '', p: x.e ? x.pk : null, dp: scanDp(x) }));      // dp : mise à part (alerte de prix)
+/** Récap : cartes mises à part par l'alerte de prix, et où elles iront. */
+function scanApartNote(items) {
+  const by = new Map(); for (const x of items) if (x.dp) by.set(x.dp, (by.get(x.dp) || 0) + x.q);
+  return [...by].map(([p, n]) => `<p class="hint rc-apart"><i style="--c:${plcColor(p)}"></i>${esc(TN(n, '{n} carte mise à part ira dans « {place} »', '{n} cartes mises à part iront dans « {place} »', { place: plcName(p) }))}</p>`).join('');
+}
 function scanRecap() {
   const live = scanLive;
   /** Une ligne du scan en lignes de la collection : les non foil, puis les foil (même langue, même édition). */
@@ -295,7 +344,7 @@ function scanRecap() {
     $('h2', api.wrap).textContent = TN(n, 'Ajouter {n} carte', 'Ajouter {n} cartes'); let sub = $('.sheet-head p', api.wrap);
     if (!sub) { sub = document.createElement('p'); $('.sheet-head > div', api.wrap).appendChild(sub); } sub.textContent = TN(uniq.size, '{n} carte différente', '{n} cartes différentes');
     const note = wait ? T('Lecture des prix…') : !nopx ? '' : err ? T(priced ? 'Valeur partielle : {err}.' : 'Prix indisponibles : {err}.', { err }) : TN(nopx, '{n} exemplaire sans prix Cardmarket, non comptés.', '{n} exemplaires sans prix Cardmarket, non comptés.');
-    api.body.innerHTML = `<div class="rc">${typeof opnRcNote === 'function' ? opnRcNote() : ''}${SC.lot || (typeof opnOn === 'function' && opnOn()) ? '' : scdRowHtml()}${sure ? `<p class="rc-ask" role="alert"><b>${esc(TN(td.n, '{n} carte n\'a pas d\'édition.', '{n} cartes n\'ont pas d\'édition.'))}</b> ${esc(td.load ? T('Lecture des éditions…') : T('Ajoutées sans édition : tu pourras la choisir plus tard dans ta collection.'))}</p>` : ''}${noPl ? `<p class="rc-ask" role="alert"><b>${T('Aucun rangement choisi.')}</b> ${T('Ajouter les cartes à ta collection sans emplacement ?')}${scdHasPlaces() ? '' : ' ' + T('Classeur, boîte, à vendre… : un emplacement t\'aide à retrouver tes cartes.')}</p>${scdHasPlaces() ? '' : `<label class="rc-quiet"><input type="checkbox" data-rcq${quiet ? ' checked' : ''}><span>${T('Ne plus me demander (tant que je n\'ai pas d\'emplacement)')}</span></label>`}` : ''}<div class="cs-tiles"><div><b>${nf0(uniq.size)}</b><span>${TN(uniq.size, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(n)}</b><span>${TN(n, 'exemplaire', 'exemplaires')}</span></div><div class="rc-val"><b>${wait || (!priced && err) ? (wait ? '…' : '—') : priced ? esc(fmt(val, 'EUR')) : '—'}</b><span>${T('valeur estimée · tendance Cardmarket')}</span></div></div>
+    api.body.innerHTML = `<div class="rc">${typeof opnRcNote === 'function' ? opnRcNote() : ''}${SC.lot || (typeof opnOn === 'function' && opnOn()) ? '' : scdRowHtml() + scanApartNote(items)}${sure ? `<p class="rc-ask" role="alert"><b>${esc(TN(td.n, '{n} carte n\'a pas d\'édition.', '{n} cartes n\'ont pas d\'édition.'))}</b> ${esc(td.load ? T('Lecture des éditions…') : T('Ajoutées sans édition : tu pourras la choisir plus tard dans ta collection.'))}</p>` : ''}${noPl ? `<p class="rc-ask" role="alert"><b>${T('Aucun rangement choisi.')}</b> ${T('Ajouter les cartes à ta collection sans emplacement ?')}${scdHasPlaces() ? '' : ' ' + T('Classeur, boîte, à vendre… : un emplacement t\'aide à retrouver tes cartes.')}</p>${scdHasPlaces() ? '' : `<label class="rc-quiet"><input type="checkbox" data-rcq${quiet ? ' checked' : ''}><span>${T('Ne plus me demander (tant que je n\'ai pas d\'emplacement)')}</span></label>`}` : ''}<div class="cs-tiles"><div><b>${nf0(uniq.size)}</b><span>${TN(uniq.size, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(n)}</b><span>${TN(n, 'exemplaire', 'exemplaires')}</span></div><div class="rc-val"><b>${wait || (!priced && err) ? (wait ? '…' : '—') : priced ? esc(fmt(val, 'EUR')) : '—'}</b><span>${T('valeur estimée · tendance Cardmarket')}</span></div></div>
       ${note ? `<p class="hint rc-note">${esc(note)}</p>` : ''}
       ${rows.length && !wait ? `<h3 class="cs-h">${T('Les plus chères')}</h3><div class="cs-top">${rows.slice(0, 3).map(({ x, eu }) => `<div class="crow ro" data-k="${esc(x.k)}" data-n="${esc(x.n)}" data-q="${x.q}" data-ln="${esc(x.l)}"><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('rc', x.n)}>${esc((x.n.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(scanThumb({ key: x.k, name: x.n, l: x.l, pk: x.p }))}"></span><span class="row-main"><span class="row-name">${esc(x.n)}</span><span class="row-meta">${x.e ? `<span class="tag ed">${setIcHtml(edSet(x.e))}${esc(edLabel(x.e))}</span>` : ''}${x.f ? `<span class="tag foil">✦ ${T('Foil')}</span>` : ''}${x.q > 1 ? `<span class="tag accent">× ${nf0(x.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(eu, 'EUR'))}</b>${x.q > 1 ? `<small>${T('{p} le lot', { p: esc(fmt(eu * x.q, 'EUR')) })}</small>` : ''}</span></div>`).join('')}</div>` : ''}
       <dl class="rc-facts"><div><dt>${T('Nouvelles dans ta collection')}</dt><dd>${TN(uniq.size - haveK.size, '{n} carte', '{n} cartes')}</dd></div>
@@ -340,7 +389,8 @@ function scanKeep(rows, name) {
   if (typeof opnTake === 'function' && opnTake(rows.map(x => ({ k: x.k, n: x.n, q: x.q, l: lineKey(x.l, x.e, !!x.f), p: x.e ? x.p : null, eu: x.eu, im: x.im })), { toast: true })) return;      // session d'ouverture : les cartes vont dans la session, ajoutées à la collection à la fin
   if (SC.lot && LOT.el) { lotFromScan(rows).then(() => toast(TN(n, '{n} carte ajoutée au lot', '{n} cartes ajoutées au lot', { n }))); return; }
   for (const x of rows) if (x.e && x.p) edRemember(x.k, x.l, x.e, edInfoOf(x.p, x.l));      // infos de l'édition (prix, extension, image) gardées tout de suite
-  const add = rows.map(x => ({ k: x.k, n: x.n, q: x.q, l: scdLine(x.l, x.e, x.f) })), before = COLL.map, px0 = COLL.prox, where = scdPlace() ? ' · ' + plcName(scdPlace()) : '';
+  const add = rows.map(x => ({ k: x.k, n: x.n, q: x.q, l: x.dp ? lineKey(x.l, x.e, !!x.f, { p: x.dp }) : scdLine(x.l, x.e, x.f) })), before = COLL.map, px0 = COLL.prox;      // mises à part (alerte de prix) : dans leur emplacement
+  const apart = rows.filter(x => x.dp), nAp = apart.reduce((a, x) => a + x.q, 0), where = (scdPlace() ? ' · ' + plcName(scdPlace()) : '') + (nAp ? ' · ' + T('{n} dans « {place} »', { n: nAp, place: plcName(apart[0].dp) }) : '');
   if (SCD.x) proxAdd(add); else collAdd(add, 'add');
   const msg = SCD.x ? TN(n, '{n} proxy ajouté', '{n} proxys ajoutés', { n }) : name ? (n > 1 ? T('{n} × {name} ajoutées à ta collection', { n, name }) : T('{name} ajoutée à ta collection', { name })) : TN(n, '{n} carte ajoutée à ta collection', '{n} cartes ajoutées à ta collection');
   toast(msg + where, { label: T('Annuler'), fn: () => { COLL.map = before; COLL.prox = px0; collChanged(); } });
@@ -1266,6 +1316,7 @@ function openScan(o) {
   if (scanFull()) { wrap.classList.add('full'); $('.sc-cap', wrap).textContent = T('Carte entière'); }      // cadrage « carte entière » (réglage par défaut) : cadre de carte, ligne du bas lue aussi
   SC.lot = !!(o && o.lot); SC.deck = !!(o && o.deck); SC.remote = !!(o && o.remote); if (SC.remote) { MOB.sent = new Map(); wrap.classList.add('remote'); } SC.recap = null; SC.el = wrap; SC.pm = false; SC.pq = []; SC.items = new Map(); SC.pr = new Map(); SC.prq = new Map(); SC.lv = []; SC.alt = []; SC.calt = null; SC.lotLast = null; SC.stick = SC.lot && LOT.set ? LOT.set : ''; SC.sets = new Map(SC.stick ? [[SC.stick, 1]] : []); SC.setN = 1; SC.lastIt = null; SC.show = SC_SHOW; SC.miss = []; SC.pend = []; SC.queue = []; SC.cap = 0; SC.session++; SC.slowN = 0; SC.restarts = 0; SC.rf = { n: 0, at: 0 }; SC.alive = true; SC.warm = false; try { localStorage.removeItem('deckdeal:scpref'); localStorage.removeItem('deckdeal:scnote'); } catch (e) { /* ignore */ } const prevFocus = document.activeElement;
   sssResume();      // session gardée de ce contexte : reprise (scansess.js)
+  SC.paq = []; if (SCS.pa && typeof pxTable === 'function') pxTable().then(() => { if (SC.el === wrap) scanPaintList(); }, () => {});      // alerte de prix : prix « à partir de » de chaque carte (fichier du jour), sans attendre Scryfall
   auReset();
   const stop = () => { auReset(); SC.alive = false; SC.warm = false; clearInterval(SC.diagT); clearTimeout(SC.hintT); SC.queue.forEach(j => scanFree(j.src)); SC.queue = []; SC.pend = []; if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; } natStop(); };
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); if (SC.ef) $('.sc-ef [data-ef="close"]').click(); else wrap.__close(); } };      // écran « Éditions à choisir » ouvert : Échap le ferme seul
@@ -1297,6 +1348,7 @@ function openScan(o) {
       if (act === 'close') wrap.__close();
       else if (act === 'shot') { if (auOn()) auPause(); else scanCapture(); }      // auto : le cercle met en pause / reprend
       else if (act === 'auto' || act === 'lamp' || act === 'au1' || act === 'au0') auAct(act);
+      else if (act === 'pa1' || act === 'pa0') scanPaAct(act);
       else if (act === 'frc') frcStart(true);
       else if (act === 'note') scNoteShow($('.sc-note', wrap).hidden);
       else if (act === 'ssnew') sssNew();      // bandeau « Scan repris » (scansess.js)
@@ -1340,6 +1392,7 @@ function openScan(o) {
     }
     const it = SC.items.get(row.dataset.id); if (!it) return;
     if (a.dataset.a === 'ed') { scanEdPick(it); return; }
+    if (a.dataset.a === 'dp') { haptic('tap'); plcPick({ title: T('Ranger dans'), sub: it.name, cur: scanDp(it), onPick: id => { it.dp = id; it.pa = 'done'; scanPaintList(); } }); return; }      // carte mise à part : autre emplacement, ou « Non rangé » (retour avec les autres)
     haptic('tap');
     if (a.dataset.a === 'inc') it.q = Math.min(999, it.q + 1);
     else if (a.dataset.a === 'dec') {                       // « − » : confirmation d'abord

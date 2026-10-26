@@ -1,0 +1,18 @@
+{
+"Alerte de prix": "Alerta de preço",
+"À ranger dans « {place} »": "Para guardar em “{place}”",
+"{name} : rangée dans « {place} », changer": "{name}: guardada em “{place}”, alterar",
+"{n} autre en attente": "{n} outra esperando",
+"{n} autres en attente": "{n} outras esperando",
+"Mettre à part": "Separar",
+"Laisser": "Deixar",
+"{n} carte mise à part ira dans « {place} »": "{n} carta separada irá para “{place}”",
+"{n} cartes mises à part iront dans « {place} »": "{n} cartas separadas irão para “{place}”",
+"{n} dans « {place} »": "{n} em “{place}”",
+"Alerte de prix : {px} ou plus": "Alerta de preço: {px} ou mais",
+"Cartes à partir de": "Cartas a partir de",
+"Aucune": "Nenhum",
+"Alerte de prix : montant en euros": "Alerta de preço: valor em euros",
+"Une carte à {px} ou plus s'annonce pendant le scan : « Mettre à part » la range dans l'emplacement de ton choix.": "Uma carta de {px} ou mais é sinalizada durante o escaneamento: “Separar” a guarda no lugar que você escolher.",
+"Un montant : les cartes qui valent autant ou plus s'annoncent pendant le scan, pour les ranger à part. Vide : pas d'alerte.": "Um valor: as cartas que valem isso ou mais são sinalizadas durante o escaneamento, para guardá-las à parte. Vazio: sem alerta."
+}

@@ -1,0 +1,18 @@
+{
+"Alerte de prix": "Price alert",
+"À ranger dans « {place} »": "To store in “{place}”",
+"{name} : rangée dans « {place} », changer": "{name}: stored in “{place}”, change",
+"{n} autre en attente": "{n} more waiting",
+"{n} autres en attente": "{n} more waiting",
+"Mettre à part": "Set aside",
+"Laisser": "Leave",
+"{n} carte mise à part ira dans « {place} »": "{n} card set aside will go to “{place}”",
+"{n} cartes mises à part iront dans « {place} »": "{n} cards set aside will go to “{place}”",
+"{n} dans « {place} »": "{n} in “{place}”",
+"Alerte de prix : {px} ou plus": "Price alert: {px} or more",
+"Cartes à partir de": "Cards from",
+"Aucune": "None",
+"Alerte de prix : montant en euros": "Price alert: amount in euros",
+"Une carte à {px} ou plus s'annonce pendant le scan : « Mettre à part » la range dans l'emplacement de ton choix.": "A card worth {px} or more is flagged while scanning: “Set aside” stores it in the place of your choice.",
+"Un montant : les cartes qui valent autant ou plus s'annoncent pendant le scan, pour les ranger à part. Vide : pas d'alerte.": "An amount: cards worth that much or more are flagged while scanning, so you can store them apart. Empty: no alert."
+}

@@ -83,9 +83,11 @@ ok('photos : ligne du bas lue (formats récent et 2014-2022, langue imprimée), 
 /* ── écran de scan : cadre de carte, puis « Nom seulement » ─────────────────────────────────────────────── */
 await p.click('.scan [data-act="note"]'); assert.match(await p.textContent('.sc-note'), /petite ligne en bas à gauche/, 'aide : la ligne du bas');
 await p.click('.scan [data-act="scset"]'); await p.waitForSelector('.scs-sheet');
-assert.equal(await p.getAttribute('.scs-ed[data-s="frame"][data-v="card"]', 'aria-checked'), 'true');
-await p.click('.scs-ed[data-s="frame"][data-v="name"]');
-assert.equal(await p.getAttribute('.scs-ed[data-s="frame"][data-v="name"]', 'aria-checked'), 'true');
+assert.match(await p.textContent('.scs-pick[data-pick="frame"] b'), /Carte entière/);
+await p.click('.scs-pick[data-pick="frame"]'); await p.waitForSelector('.sheet .scs-ed[data-v="name"]');      // tuile « Cadrage » : la liste des choix
+assert.equal(await p.getAttribute('.sheet .scs-ed[data-v="card"]', 'aria-checked'), 'true');
+await p.click('.sheet .scs-ed[data-v="name"]');
+await p.waitForFunction(() => /Nom seulement/.test(document.querySelector('.scs-pick[data-pick="frame"] b').textContent), null, { timeout: 3000 });
 assert.equal(await p.$eval('.scan.on', s => s.classList.contains('full')), false, '« Nom seulement » : caméra compacte');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));
 assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:scanset')).s.frame), 'name', 'réglage gardé');

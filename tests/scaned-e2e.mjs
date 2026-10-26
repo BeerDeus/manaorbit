@@ -112,10 +112,10 @@ ok('« Ajouter quand même » ; « Sans édition » choisi à la main ne redeman
 /* ── 5) réglages du scan : carte par carte (rien demandé, écran « Éditions à choisir » à la fin), sans édition, langue imposée, compte ───────────── */
 await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
 assert.match(await txt(p, '.sc-edm'), /Éditions : comme la 1re/);
-await p.click('.sc-edm'); await p.waitForSelector('.scs-sheet .scs-ed');
-await p.click('.scs-ed[data-s="ed"][data-v="card"]');
+await p.click('.sc-edm'); await p.waitForSelector('.scs-sheet .scs-pick[data-pick="ed"]');
+await p.click('.scs-pick[data-pick="ed"]'); await p.waitForSelector('.sheet .scs-ed[data-v="card"]'); await p.click('.sheet .scs-ed[data-v="card"]');      // tuile « Éditions » : la liste des choix
 assert.equal(await p.evaluate(() => SCS.ed), 'card'); assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:scanset')).s.ed), 'card', 'gardé sur l\'appareil');
-assert.equal(await p.$eval('.scs-ed[data-s="ed"][data-v="card"]', b => b.getAttribute('aria-checked')), 'true');
+await p.waitForFunction(() => /Carte par carte/.test(document.querySelector('.scs-pick[data-pick="ed"] b').textContent), null, { timeout: 3000 });
 await p.click('label[for="scsAuto"] .switch'); assert.equal(await p.evaluate(() => SCS.auto), true); assert.ok(await p.$('.scs-sheet [data-s="delay"]'), 'automatique : délai et même carte proposés');
 await p.click('label[for="scsAuto"] .switch'); assert.equal(await p.evaluate(() => SCS.auto), false);
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'));

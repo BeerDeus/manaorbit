@@ -271,7 +271,7 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on'); await add(p, 'Wrath of God');
   await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.rc-sheet [data-rc="go"]'); assert.equal(!!(await p.$('.rc-sheet .opn-rc')), false); await rcGo(p);
   await p.waitForFunction(() => collQty('wrath of god') === 1, null, { timeout: 5000 });
-  await p.evaluate(() => scsSheet()); await p.waitForSelector('.scs-sheet.open .scs-ed'); assert.equal(!!(await p.$('.opn-scs')), false); await closeAll(p);
+  await p.evaluate(() => scsSheet()); await p.waitForSelector('.scs-sheet.open .scs-pick'); assert.equal(!!(await p.$('.opn-scs')), false); await closeAll(p);
   await p.evaluate(() => openCollection('list')); await p.waitForSelector('.coll.on .coll-list'); assert.equal(!!(await p.$('.opn-cnote')), false);
   await p.evaluate(() => closeCollection()); await p.waitForTimeout(300); await toHome(p);
   await p.click('#btnAccount'); await p.waitForSelector('.me-sheet.open'); await closeAll(p);

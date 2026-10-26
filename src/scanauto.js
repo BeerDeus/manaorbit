@@ -140,14 +140,14 @@ function auResult(m) {
 function auAsk(m) {
   const st = SC.el && $('.sc-stage', SC.el); if (!st) return;
   AU.ask = m; haptic('warn');
-  let box = $('.sc-same', st);
+  let box = $('.sc-same:not(.sc-pa)', st); const pa = $('.sc-pa', st); if (pa) pa.remove();      // alerte de prix en attente : reprise après la réponse (auHideAsk)
   if (!box) { box = document.createElement('div'); box.className = 'sc-same'; box.setAttribute('role', 'alertdialog'); st.appendChild(box); }
   box.setAttribute('aria-label', T('Même carte à la suite'));
   box.innerHTML = `<span><b>${T('Encore <em>{name}</em> ?', { name: esc(scanShown({ key: m.key, name: m.name, l: scanLangOf(m).card || 'en' })) })}</b><small>${T('Même carte qu\'à l\'instant')}</small></span>
     <button class="btn small" type="button" data-act="au1">+1</button><button class="btn ghost small" type="button" data-act="au0">${T('Non')}</button>`;
   scanHint('', ''); if (typeof natTouch === 'function') natTouch();      // ses boutons, sur l'aperçu : hors de la zone de mise au point
 }
-function auHideAsk() { AU.ask = null; const b = SC.el && $('.sc-same', SC.el); if (b) { b.remove(); if (typeof natTouch === 'function') natTouch(); } }
+function auHideAsk() { AU.ask = null; const b = SC.el && $('.sc-same:not(.sc-pa)', SC.el); if (b) { b.remove(); if (typeof natTouch === 'function') natTouch(); if (typeof scanPaShow === 'function') scanPaShow(); } }
 /** Boutons de l'auto : interrupteur, +1 / Non, lampe. */
 function auAct(act) {
   if (act === 'auto') { haptic('tap'); scsSet({ auto: !SCS.auto }); if (SCS.auto) scanHint(auHint(), ''); else scanHint(camHint(), ''); return; }

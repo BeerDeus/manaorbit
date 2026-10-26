@@ -10,7 +10,7 @@
 const SSS_KEY = 'deckdeal:scansess:', SSS_TTL = 7 * 864e5;
 const SSS = { t: 0 };
 /** Champs d'une ligne du scan gardés (scan.js › scanAdd, scaned.js) ; photo (shot), empreinte d'illustration (sig, sym) : jamais. */
-const SSS_IT = ['id', 'key', 'name', 'q', 'fq', 'score', 'raw', 'maybe', 'l', 'via', 'e', 'es', 'pk', 'nx', 'later', 'ft', 'lot', 'ambBy', 'alts', 'artg'];
+const SSS_IT = ['id', 'key', 'name', 'q', 'fq', 'score', 'raw', 'maybe', 'l', 'via', 'e', 'es', 'pk', 'nx', 'later', 'ft', 'lot', 'ambBy', 'alts', 'artg', 'dp', 'pa'];      // dp, pa : mise à part par l'alerte de prix (scan.js)
 /** Contexte du scan (où iront ses cartes) ; '' : rien à garder (scan mobile). */
 function sssCtx() {
   if (SC.remote) return '';

@@ -1,0 +1,18 @@
+{
+"Alerte de prix": "Preisalarm",
+"À ranger dans « {place} »": "Ablegen in „{place}“",
+"{name} : rangée dans « {place} », changer": "{name}: abgelegt in „{place}“, ändern",
+"{n} autre en attente": "{n} weitere wartet",
+"{n} autres en attente": "{n} weitere warten",
+"Mettre à part": "Beiseitelegen",
+"Laisser": "Lassen",
+"{n} carte mise à part ira dans « {place} »": "{n} beiseitegelegte Karte kommt nach „{place}“",
+"{n} cartes mises à part iront dans « {place} »": "{n} beiseitegelegte Karten kommen nach „{place}“",
+"{n} dans « {place} »": "{n} in „{place}“",
+"Alerte de prix : {px} ou plus": "Preisalarm: ab {px}",
+"Cartes à partir de": "Karten ab",
+"Aucune": "Keiner",
+"Alerte de prix : montant en euros": "Preisalarm: Betrag in Euro",
+"Une carte à {px} ou plus s'annonce pendant le scan : « Mettre à part » la range dans l'emplacement de ton choix.": "Eine Karte ab {px} wird beim Scannen gemeldet: „Beiseitelegen“ legt sie an den Ort deiner Wahl.",
+"Un montant : les cartes qui valent autant ou plus s'annoncent pendant le scan, pour les ranger à part. Vide : pas d'alerte.": "Ein Betrag: Karten ab diesem Wert werden beim Scannen gemeldet, damit du sie getrennt ablegst. Leer: kein Alarm."
+}
