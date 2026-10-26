@@ -66,7 +66,7 @@ test('gen-fr-names.mjs : catalogue de n\'importe quelle langue imprimée, franç
   assert.match(G.parseArgs(['--lang', 'zhs']).out, /pwa\/names-zhs\.tsv$/); assert.deepEqual(G.parseArgs(['x.tsv', '--lang', 'de']), { lang: 'de', out: 'x.tsv' });
   for (const bad of [['--lang', 'en'], ['--lang', '../x'], ['--lang', 'DE'], ['--lang'], ['--lang', '__proto__']]) assert.throws(() => G.parseArgs(bad), /Langue inconnue/, bad.join(' '));
   // les mêmes langues des deux côtés : générateur et routes du serveur ; et toutes les langues de cartes de l'appli (sauf l'anglais) y ont un catalogue
-  const proxy = readFileSync(new URL('../proxy.mjs', import.meta.url), 'utf8'), served = JSON.parse(/const NAME_LANGS = (\[[^\]]*\])/.exec(proxy)[1].replace(/'/g, '"'));
+  const proxy = readFileSync(new URL('../server/proxy.mjs', import.meta.url), 'utf8'), served = JSON.parse(/const NAME_LANGS = (\[[^\]]*\])/.exec(proxy)[1].replace(/'/g, '"'));
   assert.deepEqual(served.slice().sort(), Object.keys(G.NAME_LANGS).sort());
   const data = readFileSync(new URL('../src/data.js', import.meta.url), 'utf8'), scry = new Function('return ' + /const SCRY_LANG = (\{[^}]*\})/.exec(data)[1])();
   for (const l of ['fr', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru']) assert.ok(served.includes(scry[l]), l + ' → ' + scry[l]);

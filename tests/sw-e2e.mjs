@@ -29,7 +29,7 @@ await new Promise(r => img.listen(18803, '127.0.0.1', r));
 
 const up = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"id":1,"name":"t"}'); });
 await new Promise(r => up.listen(0, '127.0.0.1', r));
-const proxy = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18802', CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
+const proxy = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18802', CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
 process.on('exit', () => { try { proxy.kill(); } catch {} });
 await new Promise(r => setTimeout(r, 700));
 const URL0 = 'http://127.0.0.1:18802/';

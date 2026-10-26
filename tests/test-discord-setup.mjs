@@ -7,7 +7,7 @@ import './setup-env.mjs';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { DSC_ROLE_DEFS } from '../discord-roles.mjs';
+import { DSC_ROLE_DEFS } from '../server/discord-roles.mjs';
 
 const ok = m => console.log('✓ ' + m);
 const TOKEN = 'secret-jeton-de-test-123';

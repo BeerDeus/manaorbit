@@ -936,7 +936,7 @@ export function discordMake(o = {}) {
   // src/evpacks.js illisible : seules les annonces sont coupées, le reste du bot continue.
   let EVD = null;
   if (ON && process.env.DISCORD_EVENTS !== '0') {
-    try { EVD = evDscMake({ on: ON, find, post, log, dErr, TX, NEWS, P_MENTION }, { dir: o.dir, packs: createRequire(import.meta.url)('./src/evpacks.js'), site: o.site || process.env.SITE_URL, channel: process.env.DISCORD_EVENTS_CHANNEL }); }
+    try { EVD = evDscMake({ on: ON, find, post, log, dErr, TX, NEWS, P_MENTION }, { dir: o.dir, packs: createRequire(import.meta.url)('../src/evpacks.js'), site: o.site || process.env.SITE_URL, channel: process.env.DISCORD_EVENTS_CHANNEL }); }
     catch (e) { log.warn('Discord : src/evpacks.js illisible (' + (e && e.message || e) + '), annonces des événements coupées'); }
   }
   /* ── Commandes slash /moi et /partie (discord-cmd.mjs : POST /api/discord/interactions, o.cmd : clé publique et fonctions de proxy.mjs) ── */

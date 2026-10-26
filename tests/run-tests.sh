@@ -1,7 +1,7 @@
 #!/bin/bash
 # Lance les tests UN PAR UN (ports fixes : jamais en parallèle). Usage : bash run-tests.sh [fichier.mjs …]  (sans argument : tout ; --node : sans navigateur)
 # Résumé dans tests/run-tests.out, log de chaque test dans tests/logs/<test>.txt. Code retour 1 si un test échoue.
-# Lancé depuis la racine du dépôt (les tests lancent « node proxy.mjs » et lisent deck-deal.html). Un nouveau test s'ajoute ici : la CI lance ces listes.
+# Lancé depuis la racine du dépôt (les tests lancent « node server/proxy.mjs » et lisent deck-deal.html). Un nouveau test s'ajoute ici : la CI lance ces listes.
 cd "$(dirname "$0")/.." || exit 1
 mkdir -p tests/logs; : > tests/run-tests.out
 NODE=(test.mjs test-i18n-langs.mjs test-prices.mjs test-hist.mjs test-trade.mjs test-cloud.mjs test-jobs.mjs test-proxy.mjs test-push.mjs test-alerts.mjs test-fcm.mjs test-edh-gen.mjs test-intl.mjs test-android-xml.mjs test-pubdecks.mjs test-amis.mjs test-troc.mjs test-partie.mjs test-partie-srv.mjs test-event.mjs test-event-push.mjs test-event-badges.mjs smoke.mjs

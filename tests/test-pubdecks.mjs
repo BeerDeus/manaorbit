@@ -105,7 +105,7 @@ const port = s => s.address().port;
 
 const procs = [];
 const start = (env, p) => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CARDTRADER_TOKEN: 'tok', ALERTS: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CARDTRADER_TOKEN: 'tok', ALERTS: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.log = () => out;
   c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

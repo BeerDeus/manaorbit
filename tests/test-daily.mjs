@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-import * as M from '../daily-srv.mjs';
+import * as M from '../server/daily-srv.mjs';
 import { startDailyScry, fakeCardImg, SERRA, RED, BLUE, MAGENTA, LANGS } from './daily-fakes.mjs';
 import { startFakes } from './amis-fakes.mjs';
 
@@ -492,7 +492,7 @@ test('carte de la veille révélée : une seule fois, quand la nouvelle carte es
 
 /* ── Le vrai serveur ───────────────────────────────────────────────────────────────────────────────────────────────── */
 async function proxyUp(port, env) {
-  const p = spawn('node', ['proxy.mjs'], { env: { ...process.env, PORT: String(port), EDH_SOURCE_URL: '', PRICES_SOURCE_URL: '', DAILY: '1', DAILY_FIRST_MS: '0', DAILY_GAP_MS: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const p = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, PORT: String(port), EDH_SOURCE_URL: '', PRICES_SOURCE_URL: '', DAILY: '1', DAILY_FIRST_MS: '0', DAILY_GAP_MS: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; p.stdout.on('data', d => { out += d; }); p.stderr.on('data', d => { out += d; });
   process.on('exit', () => { try { p.kill(); } catch { /* ignore */ } });
   for (let i = 0; i < 100; i++) { try { if ((await fetch(`http://127.0.0.1:${port}/__ping`)).ok) break; } catch { /* pas encore */ } await new Promise(r => setTimeout(r, 100)); }

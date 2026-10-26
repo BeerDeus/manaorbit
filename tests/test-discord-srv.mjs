@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { startFakes } from './amis-fakes.mjs';
-import { discordMake, dscRevealMsg, dscName, DSC_PERMS } from '../discord-srv.mjs';
+import { discordMake, dscRevealMsg, dscName, DSC_PERMS } from '../server/discord-srv.mjs';
 
 const ok = m => console.log('✓ ' + m);
 const TOKEN = 'jeton-du-bot-SECRET-0123456789';
@@ -195,7 +195,7 @@ const F = await startFakes();
 
 const procs = [];
 const start = (env, port) => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ADMIN_EMAILS: ADMIN, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ADMIN_EMAILS: ADMIN, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.log = () => out; c.url = `http://127.0.0.1:${port}`;
   c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

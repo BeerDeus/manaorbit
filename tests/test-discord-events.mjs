@@ -13,8 +13,8 @@ import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { discordMake } from '../discord-srv.mjs';
-import { evDscMake, evDscMsg, evDscDue, evDscWindows, evDscNonce, evDscReady, EV_DSC_STEPS } from '../discord-events.mjs';
+import { discordMake } from '../server/discord-srv.mjs';
+import { evDscMake, evDscMsg, evDscDue, evDscWindows, evDscNonce, evDscReady, EV_DSC_STEPS } from '../server/discord-events.mjs';
 
 process.env.DISCORD_EVENTS = '1'; delete process.env.DISCORD_EVENTS_CHANNEL; delete process.env.SITE_URL;
 const P = createRequire(import.meta.url)('../src/evpacks.js');

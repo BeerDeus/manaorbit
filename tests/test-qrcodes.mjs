@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { startFakes } from './amis-fakes.mjs';
-import { DSC_INVITE } from '../discord-srv.mjs';
+import { DSC_INVITE } from '../server/discord-srv.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ok = m => console.log('✓ ' + m);
@@ -19,7 +19,7 @@ const F = await startFakes();
 const ADMIN = 'admin@example.org';
 const procs = [];
 const start = (env, p) => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CARDTRADER_TOKEN: 'tok', ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', APP_STORE_URL: '', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ADMIN_EMAILS: ADMIN, QR_SAVE_MS: '150', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CARDTRADER_TOKEN: 'tok', ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', APP_STORE_URL: '', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ADMIN_EMAILS: ADMIN, QR_SAVE_MS: '150', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.log = () => out;
   c.stdout.on('data', d => { out += d; if (/QR codes fixes :/.test(out) && /Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

@@ -9,7 +9,7 @@
 //   Bot présent sur plusieurs serveurs : node tools/discord-setup.mjs <identifiant du serveur>
 // DISCORD_API : autre adresse de l'API (tests/test-discord-setup.mjs, faux Discord). Node 18 ou plus (fetch).
 import { readFileSync, existsSync } from 'node:fs';
-import { DSC_ROLE_DEFS } from '../discord-roles.mjs';      // rôles des comptes liés (Compte lié, paliers des badges) : mêmes noms et couleurs que le bot permanent
+import { DSC_ROLE_DEFS } from '../server/discord-roles.mjs';      // rôles des comptes liés (Compte lié, paliers des badges) : mêmes noms et couleurs que le bot permanent
 
 const API = (process.env.DISCORD_API || 'https://discord.com/api/v10').replace(/\/$/, '');
 const TOKEN = String(process.env.DISCORD_TOKEN || '').trim();

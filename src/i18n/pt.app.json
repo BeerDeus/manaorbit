@@ -73,7 +73,7 @@
   "Le proxy ne répond plus ({host}). Relance : les cartes déjà traitées sont en cache.": "O proxy parou de responder ({host}). Tente de novo: os cards já processados estão em cache.",
   "Impossible de joindre {host}. Vérifie ta connexion puis relance : les cartes déjà traitées sont en cache.": "Não foi possível acessar {host}. Verifique sua conexão e tente de novo: os cards já processados estão em cache.",
   "CardTrader ou Scryfall": "CardTrader ou Scryfall",
-  "Impossible de joindre CardTrader depuis le navigateur. Lance le proxy local (node proxy.mjs) et ouvre l'app depuis http://localhost:8787.": "Não foi possível acessar a CardTrader pelo navegador. Inicie o proxy local (node proxy.mjs) e abra o app em http://localhost:8787.",
+  "Impossible de joindre CardTrader depuis le navigateur. Lance le proxy local (node server/proxy.mjs) et ouvre l'app depuis http://localhost:8787.": "Não foi possível acessar a CardTrader pelo navegador. Inicie o proxy local (node server/proxy.mjs) e abra o app em http://localhost:8787.",
   "{svc} limite les requêtes. Réessaie dans une minute.": "{svc} está limitando as solicitações. Tente de novo em um minuto.",
   "La recherche a échoué : {msg}.": "A busca falhou: {msg}.",
   "erreur inconnue": "erro desconhecido",

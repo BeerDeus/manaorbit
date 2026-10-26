@@ -116,7 +116,7 @@ export function evDscMsg(kind, edition, pack, stats, roleId, site) {
  *  salon, « annonces »), file }. → { tick({ now, stats, off }) → Promise<[clés envoyées]> } : jamais d'erreur levée (proxy.mjs l'appelle chaque minute). */
 export function evDscMake(h, o = {}) {
   const { find, post, log = console, TX = 0, NEWS = 5, P_MENTION = 1n << 17n } = h;
-  const P = o.packs || createRequire(import.meta.url)('./src/evpacks.js'), SITE = siteOf(o.site), CHAN = line(o.channel || 'annonces').replace(/^#/, '') || 'annonces';
+  const P = o.packs || createRequire(import.meta.url)('../src/evpacks.js'), SITE = siteOf(o.site), CHAN = line(o.channel || 'annonces').replace(/^#/, '') || 'annonces';
   const FILE = o.file || join(o.dir || join(process.cwd(), '.data', 'admin'), 'discord-events.json');
   const G = { st: undefined, chain: Promise.resolve(), busy: false, warn: new Map() }, W = { noRole: false, noPing: false };
   /** Une ligne de journal par sujet et par valeur (pas à chaque tour). */

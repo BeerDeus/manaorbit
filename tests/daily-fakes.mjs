@@ -3,7 +3,7 @@
 // bande du titre rouge pur (le nom), illustration (dégradé teinté selon la langue), ligne de type bleu pur, zone de texte claire rayée, ligne du bas magenta pur
 // (numéro, extension, artiste). Les tests vérifient qu'aucune image servie ne contient de rouge ni de magenta : ni le nom, ni la ligne du bas.
 import http from 'node:http';
-import { pngEncode } from '../daily-srv.mjs';
+import { pngEncode } from '../server/daily-srv.mjs';
 
 export const RED = [255, 0, 0], BLUE = [0, 0, 255], MAGENTA = [255, 0, 255];
 const TINT = { en: [40, 160, 90], fr: [60, 90, 200], de: [200, 170, 40], es: [190, 80, 60], it: [90, 190, 190], pt: [150, 90, 190] };

@@ -1,6 +1,6 @@
 # Mana Orbit
 
-Page (`deck-deal.html`) + proxy CardTrader (`proxy.mjs`, zéro dépendance, Node ≥ 18) lancé via `start.cjs`.
+Page (`deck-deal.html`) + serveur (`server/proxy.mjs`, zéro dépendance, Node ≥ 18) lancé via `server/start.cjs`. Tout le code du serveur est dans `server/`.
 
 ## Variables d'environnement (jamais dans le dépôt)
 
@@ -116,11 +116,11 @@ Sans jeton valide : 401 (`auth_required`, `bad_token`, `token_expired`) ; compte
 
 ## Lancer en local
 
-    CARDTRADER_TOKEN=xxx node proxy.mjs   # http://localhost:8787
+    CARDTRADER_TOKEN=xxx node server/proxy.mjs   # http://localhost:8787
 
 ## Hostinger (Business / Cloud)
 
-Node.js Web App › Import Git repository › framework « Other » › entry file `start.cjs`.
+Node.js Web App › Import Git repository › framework « Other » › entry file `server/start.cjs` (l'ancien `start.cjs` de la racine renvoie vers lui, à supprimer une fois Hostinger passé à `server/start.cjs`).
 Ajouter le domaine dans Firebase › Authentication › Paramètres › Domaines autorisés.
 Passer à un VPS ? `/admin` › Serveur le dit (mémoire, redémarrages, processeur, requêtes par minute, disque vidé ou non aux déploiements) ; renseigner `SERVER_MEM_MB` (plafond de mémoire de l'offre) pour colorer la mémoire.
 

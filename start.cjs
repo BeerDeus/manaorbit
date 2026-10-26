@@ -1,6 +1,3 @@
-// Point d'entrée CommonJS : certains hébergeurs chargent l'entry file avec require(),
-// ce qui échoue (ERR_REQUIRE_ESM) sur un .mjs. import() fonctionne partout, Node ≥ 18.
-import('./proxy.mjs').catch(err => {
-  console.error('Mana Orbit : démarrage impossible\n', err);
-  process.exit(1);
-});
+// Ancien point d'entrée, gardé tant que Hostinger lance « start.cjs » : le serveur est dans server/ (server/start.cjs).
+// À supprimer une fois le Fichier d'entrée de Hostinger passé à server/start.cjs.
+require('./server/start.cjs');

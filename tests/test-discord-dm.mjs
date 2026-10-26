@@ -80,7 +80,7 @@ const JWT = k => F.jwt(UID[k]);
 
 const procs = [];
 const start = (env, p) => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CARDTRADER_TOKEN: 'tok', PUBDECKS: '0', DAILY: '0', BAD_KEY_DELAY_MS: '20', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CARDTRADER_TOKEN: 'tok', PUBDECKS: '0', DAILY: '0', BAD_KEY_DELAY_MS: '20', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });
   c.log = () => out; c.url = `http://127.0.0.1:${p}`; procs.push(c);

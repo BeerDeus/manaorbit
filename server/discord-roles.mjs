@@ -17,7 +17,7 @@ export const DSC_TIER_COLORS = [0xcd7f32, 0xc0c6cf, 0xf2c230, 0x6fd6f2];      //
 export const DSC_ROLE_LINKED = '✅ Compte lié';
 /** Badges suivis : id de PRG_BADGES, source de la valeur (daily : badges de la Carte mystère, id du serveur ; progress : compteur du compte), emoji. */
 export const DSC_ROLE_BADGES = [{ id: 'dy_streak', src: 'daily', key: 'streak', ic: '📅' }, { id: 'dy_top', src: 'daily', key: 'top100', ic: '🥇' }, { id: 'sc_cards', src: 'progress', key: 'sc', ic: '🔍' }];
-let PG = null; try { PG = createRequire(import.meta.url)('./src/progress.js'); } catch (e) { /* appli absente : seul « Compte lié » */ }
+let PG = null; try { PG = createRequire(import.meta.url)('../src/progress.js'); } catch (e) { /* appli absente : seul « Compte lié » */ }
 /** Badges suivis avec leurs seuils et les noms français des 4 paliers (bronze : le nom du badge), lus dans src/progress.js. */
 export const DSC_BADGES = DSC_ROLE_BADGES.map(x => {
   const b = PG && Array.isArray(PG.PRG_BADGES) ? PG.PRG_BADGES.find(y => y.id === x.id) : null, n = PG && PG.PRG_NAMES ? PG.PRG_NAMES[x.id] : null;

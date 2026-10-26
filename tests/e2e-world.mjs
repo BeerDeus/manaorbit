@@ -64,7 +64,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0, daily
   await new Promise(r => imp.listen(0, '127.0.0.1', r));
   const dly = daily ? await startDailyScry(daily === true ? {} : daily) : null;
   const dlyEnv = dly ? { DAILY: '1', SCRYFALL_UPSTREAM: dly.url, DAILY_FIRST_MS: '0', DAILY_GAP_MS: '0' } : {};
-  const proxy = spawn('node', ['proxy.mjs'], { env: { ...process.env, ...dlyEnv, EDH_SOURCE_URL: '', PORT: String(port), CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2`, IMPORT_UPSTREAM: `http://127.0.0.1:${imp.address().port}`, APK_LATEST: '0', ...env }, stdio: 'ignore' });
+  const proxy = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, ...dlyEnv, EDH_SOURCE_URL: '', PORT: String(port), CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2`, IMPORT_UPSTREAM: `http://127.0.0.1:${imp.address().port}`, APK_LATEST: '0', ...env }, stdio: 'ignore' });
   process.on('exit', () => { try { proxy.kill(); } catch {} });
   await new Promise(r => setTimeout(r, 800));
   world.url = `http://127.0.0.1:${port}/`;

@@ -13,9 +13,9 @@ import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
-import { discordMake } from '../discord-srv.mjs';
-import { dssMake, dssMsg, dssStage, dssDate } from '../discord-sets.mjs';
-import { dlyClock, dlyAdd } from '../daily-srv.mjs';
+import { discordMake } from '../server/discord-srv.mjs';
+import { dssMake, dssMsg, dssStage, dssDate } from '../server/discord-sets.mjs';
+import { dlyClock, dlyAdd } from '../server/daily-srv.mjs';
 
 const require = createRequire(import.meta.url);
 const { cmUrl } = require('../src/core.js');
@@ -245,7 +245,7 @@ let A = mk(dirA, DF, SC);
   await new Promise(r => scry.listen(0, '127.0.0.1', r)); await new Promise(r => dsc.listen(0, '127.0.0.1', r));
   const procs = [];
   const start = (env, port) => new Promise((resolve, reject) => {
-    const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), ALERTS: '0', PUBDECKS: '0', DISCORD_BOT_TOKEN: TOKEN, DISCORD_API: `http://127.0.0.1:${dsc.address().port}/api/v10`,
+    const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), ALERTS: '0', PUBDECKS: '0', DISCORD_BOT_TOKEN: TOKEN, DISCORD_API: `http://127.0.0.1:${dsc.address().port}/api/v10`,
       DISCORD_PRESENCE: '0', SCRYFALL_UPSTREAM: `http://127.0.0.1:${scry.address().port}`, ADMIN_DIR: tmp(), DISCORD_SETS_FIRST_MS: '50', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; c.log = () => out;
     c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });

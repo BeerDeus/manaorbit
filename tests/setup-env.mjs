@@ -1,6 +1,6 @@
 // Importé en premier par chaque test : le proxy lancé par les tests lit un dossier pwa/ temporaire (manifeste, sw.js, icônes)
 // SANS les fichiers générés par GitHub Actions (fr-names.tsv, edh.bin.gz) : les tests les créent eux-mêmes et ne touchent jamais au vrai pwa/.
-// Le dossier courant devient la racine du dépôt (les tests lancent « node proxy.mjs » et lisent deck-deal.html).
+// Le dossier courant devient la racine du dépôt (les tests lancent « node server/proxy.mjs » et lisent deck-deal.html).
 import { cpSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,7 +8,7 @@ import { join } from 'node:path';
 const root = new URL('../', import.meta.url).pathname;
 process.chdir(root);
 if (process.env.PRICES_SOURCE_URL === undefined) process.env.PRICES_SOURCE_URL = '';      // le proxy des tests ne va jamais chercher les prix sur GitHub
-if (!process.env.EDH_DATA_DIR) {      // copies du serveur (prices.tsv.gz, edh.bin.gz, boot.json) : dossier temporaire ; un .data/ laissé par un « node proxy.mjs » lancé à la main changeait les prix des tests
+if (!process.env.EDH_DATA_DIR) {      // copies du serveur (prices.tsv.gz, edh.bin.gz, boot.json) : dossier temporaire ; un .data/ laissé par un « node server/proxy.mjs » lancé à la main changeait les prix des tests
   const d = mkdtempSync(join(tmpdir(), 'deckdeal-data-')); process.env.EDH_DATA_DIR = d;
   process.on('exit', () => { try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
 }

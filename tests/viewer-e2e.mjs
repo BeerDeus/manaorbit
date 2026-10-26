@@ -35,7 +35,7 @@ const up = http.createServer((req, res) => {
   send({ error: 'nope' }, 404);
 });
 await new Promise(r => up.listen(0, '127.0.0.1', r));
-const proxy = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18810', CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
+const proxy = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18810', CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
 process.on('exit', () => { try { proxy.kill(); } catch {} });
 await new Promise(r => setTimeout(r, 700));
 const prodReqs = () => log.filter(l => l.path === 'marketplace/products').length;

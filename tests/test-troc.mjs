@@ -23,7 +23,7 @@ writeFileSync(join(DATA, 'prices.tsv.gz'), gzipSync('#MOPX1 2026-10-12T09:00:00Z
 
 const procs = [];
 const start = (env, p) => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CARDTRADER_TOKEN: 'tok', ALERTS: '0', PUBDECKS: '0', EDH_DATA_DIR: DATA, BAD_KEY_DELAY_MS: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CARDTRADER_TOKEN: 'tok', ALERTS: '0', PUBDECKS: '0', EDH_DATA_DIR: DATA, BAD_KEY_DELAY_MS: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.log = () => out;
   c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

@@ -65,7 +65,7 @@ const TOKEN_URL = `http://127.0.0.1:${port(upAuth)}/token`, FCM_URL = `http://12
 
 const procs = [];
 const start = (env, p) => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CT_UPSTREAM: `http://127.0.0.1:${port(upCT)}/api/v2`, CARDTRADER_TOKEN: 'tok', JOB_MAX_RUNNING: '40', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CT_UPSTREAM: `http://127.0.0.1:${port(upCT)}/api/v2`, CARDTRADER_TOKEN: 'tok', JOB_MAX_RUNNING: '40', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.log = () => out;
   c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

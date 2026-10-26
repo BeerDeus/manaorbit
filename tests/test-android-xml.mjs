@@ -52,7 +52,7 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.equal((/applicationId "([^"]+)"/.exec(gradle) || [])[1], 'app.manaorbit');
   assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 6, 'versionCode 6 et plus (APK 1.0.5 : première avec les App Links)');
   assert.match(readFileSync('src/applink.js', 'utf8'), /APL_HOST = 'manaorbit\.app', APL_PKG = 'app\.manaorbit'/, 'site : même hôte, même paquet');
-  assert.match(readFileSync('proxy.mjs', 'utf8'), /package_name: 'app\.manaorbit'/, 'assetlinks.json : même paquet');
+  assert.match(readFileSync('server/proxy.mjs', 'utf8'), /package_name: 'app\.manaorbit'/, 'assetlinks.json : même paquet');
   const java = readFileSync('android-app/android/app/src/main/java/app/manaorbit/MainActivity.java', 'utf8'), plug = readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8');
   assert.match(java, /FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY[\s\S]{0,40}ManaOrbitPlugin\.forget\(/, 'rouverte depuis les applis récentes : le lien n\'est pas rejoué');
   assert.match(plug, /ACTION_VIEW\.equals\(intent\.getAction\(\)\)\) \{\s*intent\.setAction\(Intent\.ACTION_MAIN\);[^\n]*\n\s*intent\.setData\(null\);/, 'forget : lien oublié');

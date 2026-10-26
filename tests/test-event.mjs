@@ -12,7 +12,7 @@ import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { eventMake, evTag, evName, evRare } from '../event-srv.mjs';
+import { eventMake, evTag, evName, evRare } from '../server/event-srv.mjs';
 import { startFakes } from './amis-fakes.mjs';
 const require = createRequire(import.meta.url);
 const E = require('../src/evpacks.js');
@@ -242,7 +242,7 @@ test('panneau : liste des chasseurs, remise à zéro d\'un joueur et de sa propr
 });
 
 async function proxyUp(port, env) {
-  const p = spawn('node', ['proxy.mjs'], { env: { ...process.env, PORT: String(port), EDH_SOURCE_URL: '', PRICES_SOURCE_URL: '', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const p = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, PORT: String(port), EDH_SOURCE_URL: '', PRICES_SOURCE_URL: '', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; p.stdout.on('data', d => { out += d; }); p.stderr.on('data', d => { out += d; });
   process.on('exit', () => { try { p.kill(); } catch { /* ignore */ } });
   for (let i = 0; i < 100; i++) { try { if ((await fetch(`http://127.0.0.1:${port}/__ping`)).ok) break; } catch { /* pas encore */ } await sleep(100); }

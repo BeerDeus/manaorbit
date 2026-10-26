@@ -20,7 +20,7 @@ await new Promise(r => up.listen(0, '127.0.0.1', r));
 const upPort = up.address().port;
 
 const start = (env, port) => new Promise((resolve, reject) => {
-  const p = spawn('node', ['proxy.mjs'], { env: { ...process.env, PORT: String(port), CT_UPSTREAM: `http://127.0.0.1:${upPort}/api/v2`, EDH_SOURCE_URL: '', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const p = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, PORT: String(port), CT_UPSTREAM: `http://127.0.0.1:${upPort}/api/v2`, EDH_SOURCE_URL: '', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '';
   p.log = () => out;
   p.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(p); });

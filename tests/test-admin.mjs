@@ -21,7 +21,7 @@ const NOW = Date.now(), FX = A.seed(NOW, 120);
   const cfg = f => { const s = readFileSync(f, 'utf8'), m = /const FIREBASE_CONFIG = (\{[\s\S]*?\});/.exec(s), b = /const FB_BASE = '([^']+)'/.exec(s); return { c: new Function('FB_AUTH_SELF', 'return ' + m[1])(false), base: b[1] }; };      // hors manaorbit.app : domaine d'auth Firebase (la page admin reste en fenêtre)
   const app = cfg('src/cloud.js'), adm = cfg('pwa/admin.js');
   assert.deepEqual(adm.c, app.c, 'configuration Firebase de la page admin = celle de l\'appli'); assert.equal(adm.base, app.base, 'même version du SDK');
-  const src = readFileSync('proxy.mjs', 'utf8'), def = /const ADMIN_DEFAULT = \['([0-9a-f]+)'\];/.exec(src);
+  const src = readFileSync('server/proxy.mjs', 'utf8'), def = /const ADMIN_DEFAULT = \['([0-9a-f]+)'\];/.exec(src);
   assert.ok(def && def[1].length === 64, 'liste par défaut : une empreinte SHA-256');
   for (const f of ['pwa/admin.html', 'pwa/admin.js', 'pwa/admin.css']) assert.doesNotMatch(readFileSync(f, 'utf8'), /[\w.+-]+@(gmail|googlemail|hotmail|outlook|yahoo|icloud)\.[a-z]+/i, f + ' : aucune adresse');
   assert.doesNotMatch(readFileSync('pwa/admin.html', 'utf8'), /<script>|<style>| style=| on[a-z]+=/i, 'page admin : rien en ligne (CSP stricte)');
@@ -30,7 +30,7 @@ const NOW = Date.now(), FX = A.seed(NOW, 120);
 
 const procs = [];
 const start = (env, p) => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CARDTRADER_TOKEN: 'tok', ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(p), CARDTRADER_TOKEN: 'tok', ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.log = () => out;
   c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

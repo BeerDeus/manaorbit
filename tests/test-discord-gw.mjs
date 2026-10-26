@@ -5,7 +5,7 @@
 import './setup-env.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { discordMake, dscPresence, DSC_PRESENCE } from '../discord-srv.mjs';
+import { discordMake, dscPresence, DSC_PRESENCE } from '../server/discord-srv.mjs';
 
 const TOKEN = 'jeton-secret-du-bot-xyz';
 const sleep = ms => new Promise(r => setTimeout(r, ms));

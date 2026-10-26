@@ -23,7 +23,7 @@ const up = http.createServer((req, res) => {
 });
 await new Promise(r => up.listen(0, '127.0.0.1', r));
 const start = (env, port, args = []) => new Promise((resolve, reject) => {
-  const p = spawn('node', [...args, 'proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2`, CARDTRADER_TOKEN: 'tok', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const p = spawn('node', [...args, 'server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2`, CARDTRADER_TOKEN: 'tok', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; p.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(p); }); p.stderr.on('data', d => { out += d; });
   p.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });
 });

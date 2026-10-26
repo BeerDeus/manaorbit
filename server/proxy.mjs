@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { reqMeter, reqFam, loadMeter, dirStat, memLimit, memNow, level as lvOf } from './srv-stat.mjs';      // santé du serveur (/admin › Serveur)
 import { timingSafeEqual, createPublicKey, createPrivateKey, verify as rsaVerify, sign as dsaSign, randomBytes, createHash, createHmac, createECDH, createCipheriv, createDecipheriv, hkdfSync } from 'node:crypto';
 
-const here = dirname(fileURLToPath(import.meta.url));
+const SRV = dirname(fileURLToPath(import.meta.url)), here = dirname(SRV);      // server/ et la racine du dépôt (page, pwa/, src/, .data/)
 const gzipA = promisify(gzip), gunzipA = promisify(gunzip), brotliA = promisify(brotliCompress);
 const PORT = Number(process.env.PORT) || 8787;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -103,7 +103,7 @@ try {
 const EDH_SRC = (process.env.EDH_SOURCE_URL === undefined ? 'https://raw.githubusercontent.com/BeerDeus/mtgcardshop/main/pwa/edh.bin.gz' : process.env.EDH_SOURCE_URL).trim();      // '' : désactivé
 const EDH_EVERY = Number(process.env.EDH_SYNC_MS) || 6 * 3600000, EDH_FIRST = process.env.EDH_SYNC_FIRST_MS === undefined ? 5000 : Number(process.env.EDH_SYNC_FIRST_MS);
 const EDH_DIR = process.env.EDH_DATA_DIR || join(here, '.data'), EDH_COPY = join(EDH_DIR, 'edh.bin.gz'), EDH_REPO = join(PWA, 'edh.bin.gz');
-let EDHB = null; try { EDHB = createRequire(import.meta.url)('./edhbin.cjs'); } catch (e) { /* sans lecteur : contrôle minimal (gzip + EDH2) */ }
+let EDHB = null; try { EDHB = createRequire(import.meta.url)('../edhbin.cjs'); } catch (e) { /* sans lecteur : contrôle minimal (gzip + EDH2) */ }
 let EDH_LIVE = null;                         // { buf, at, decks, cmds } : copie plus récente que celle du dépôt, servie à la place
 const EDH_ST = { from: 'none', at: '', decks: 0, cmds: 0, bytes: 0, check: '', err: '' };
 let edhEtag = '', edhBusy = false;
@@ -2064,7 +2064,7 @@ async function trocApi(req, res, path, url) {
    par heure (30), PARTIE_RES_PER_H résultats et réclamations par compte et par heure (30) ; salle en attente : 30 min sans activité ou 3 h en tout
    (PARTIE_IDLE_MS, PARTIE_LIFE_MS) ; commencée ou finie : gardée PARTIE_KEEP_MS (12 h) pour remettre le résultat ; 12 requêtes d'avance par place
    (6 par seconde) ; corps de 32 Ko. PARTIE=0, ou sans compte de service : coupé (/__ping partie: false). */
-let PT_CORE = null; try { PT_CORE = createRequire(import.meta.url)('./src/partie.js'); } catch (e) { /* sources absentes : partie coupée */ }
+let PT_CORE = null; try { PT_CORE = createRequire(import.meta.url)('../src/partie.js'); } catch (e) { /* sources absentes : partie coupée */ }
 const PT_ON = process.env.PARTIE !== '0' && FCM_ON && !!(PT_CORE && PT_CORE.partieResClean);
 const PT_MAX = Math.max(1, Number(process.env.PARTIE_MAX) || 500), PT_LIFE = Number(process.env.PARTIE_LIFE_MS ?? 3 * 3600e3), PT_IDLE = Number(process.env.PARTIE_IDLE_MS ?? 30 * 60e3);
 const PT_KEEP = Number(process.env.PARTIE_KEEP_MS ?? 12 * 3600e3), PT_AWAY = Number(process.env.PARTIE_AWAY_MS ?? 15e3), PT_TICK = Number(process.env.PARTIE_TICK_MS ?? 30e3);
@@ -2563,7 +2563,7 @@ async function partieApi(req, res, path, url) {
 const NM_FILES = { fr: 'fr-names.tsv', de: 'names-de.tsv', es: 'names-es.tsv', it: 'names-it.tsv', pt: 'names-pt.tsv', ru: 'names-ru.tsv',
   jp: 'names-ja.tsv', kr: 'names-ko.tsv', 'zh-CN': 'names-zhs.tsv', 'zh-TW': 'names-zht.tsv' };      // liste fermée : aucun chemin construit depuis la requête ; clés : codes de l'appli
 const NM_ASIA = new Set(['jp', 'kr', 'zh-CN', 'zh-TW']);      // cherchées seulement pour une ligne en écriture d'Asie (et les autres jamais pour elle) : pas de catalogue chargé pour rien
-let NM_CORE = null; try { NM_CORE = createRequire(import.meta.url)('./src/core.js'); } catch (e) { /* sources absentes : recherche coupée (503), l'appli fait sans */ }
+let NM_CORE = null; try { NM_CORE = createRequire(import.meta.url)('../src/core.js'); } catch (e) { /* sources absentes : recherche coupée (503), l'appli fait sans */ }
 const NM_ON = process.env.NAMES_FIND !== '0' && !!(NM_CORE && NM_CORE.nmCat && NM_CORE.nmPick);
 const PUB_ON = process.env.PUBDECKS !== '0' && FCM_ON && !!(NM_CORE && NM_CORE.pubClean);      // decks publics : compte de service et lecteur (core.js) présents
 const NM_RATE = Number(process.env.NAMES_RATE_PER_MIN ?? 60), NM_IDLE = (Number(process.env.NAMES_IDLE_MIN) || 30) * 60e3, NM_Q = 4, NM_LEN = 100, NM_BUSY = 4;
@@ -2860,8 +2860,8 @@ async function codeId() {
     if (/^[0-9a-f]{40}$/.test(id)) return 'g' + id.slice(0, 12);
   } catch (e) { /* pas de dépôt git sur le serveur */ }
   try {
-    const h = createHash('sha1'), files = (await readdir(here)).filter(f => /\.(mjs|cjs)$/.test(f)).sort();
-    for (const f of [...files, ...(PAGE ? [PAGE] : [])]) h.update(f).update(await readFile(f === PAGE ? f : join(here, f)));
+    const h = createHash('sha1'), files = (await readdir(SRV)).filter(f => /\.(mjs|cjs)$/.test(f)).sort();
+    for (const f of [...files, ...(PAGE ? [PAGE] : [])]) h.update(f).update(await readFile(f === PAGE ? f : join(SRV, f)));
     return 'h' + h.digest('hex').slice(0, 12);
   } catch (e) { return ''; }
 }
@@ -3162,7 +3162,7 @@ const QR_RESERVED = new Set(['q', 'qr', 'admin', 'api', 'app', 'flyer', 'flyers'
 // Robots qui lisent le lien pour en faire un aperçu (messageries, réseaux, moteurs) : redirigés pareil, jamais comptés. « bot » seul ne suffit pas (téléphones Cubot).
 const QR_BOT = /Discordbot|facebookexternalhit|Facebot|meta-externalagent|Slackbot|Slack-ImgProxy|Twitterbot|TelegramBot|WhatsApp|LinkedInBot|redditbot|Pinterest|SkypeUriPreview|Embedly|Iframely|vkShare|Mastodon|Bluesky|Applebot|Googlebot|Google-InspectionTool|bingbot|DuckDuckBot|YandexBot|Baiduspider|HeadlessChrome|python-requests|curl\/|Wget\/|Go-http-client|(?:bot|crawler|spider)\/\d|\b(?:bot|crawler|spider|preview)\b/i;
 let QR_DISCORD = ''; try { ({ DSC_INVITE: QR_DISCORD } = await import('./discord-srv.mjs')); } catch (e) { /* module absent : pas de QR Discord créé d'office */ }
-let QR_LIB = null; try { QR_LIB = createRequire(import.meta.url)('./src/qr.js'); } catch (e) { /* sources absentes : liste sans aperçu ni téléchargement */ }
+let QR_LIB = null; try { QR_LIB = createRequire(import.meta.url)('../src/qr.js'); } catch (e) { /* sources absentes : liste sans aperçu ni téléchargement */ }
 const QR = { list: null, load: null, bad: false, timer: null, svg: new Map(), chain: Promise.resolve() };
 const qrPath = id => (id === 'flyer' ? '/flyer' : '/q/' + id);
 const qrPlat = ua => (/\bAndroid\b/i.test(ua) ? 'a' : /\b(iPhone|iPad|iPod)\b/.test(ua) ? 'i' : 'o');
@@ -3625,7 +3625,7 @@ async function dlyAccount(uid) {
 if (DLY_ON) {
   try {
     const { dailyMake } = await import('./daily-srv.mjs');
-    let PG = null; try { PG = createRequire(import.meta.url)('./src/progress.js'); } catch (e) { /* courbe de daily-srv.mjs */ }
+    let PG = null; try { PG = createRequire(import.meta.url)('../src/progress.js'); } catch (e) { /* courbe de daily-srv.mjs */ }
     const scryHost = SCRY_UP === 'https://api.scryfall.com' ? [] : [new URL(SCRY_UP).origin + '/'];      // tests : images du faux Scryfall
     DLY = dailyMake({ dir: process.env.DAILY_DIR || join(EDH_DIR, 'daily'), scry: SCRY_UP, imgHosts: ['https://cards.scryfall.io/', ...scryHost],
       hour: Math.max(0, Math.min(23, Math.floor(Number(process.env.DAILY_HOUR ?? 18)))) || (Number.isFinite(Number(process.env.DAILY_HOUR)) ? 0 : 18), tz: String(process.env.DAILY_TZ || 'Europe/Paris').trim(), secret: String(process.env.DAILY_SECRET || '').trim(),

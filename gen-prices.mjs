@@ -14,7 +14,7 @@ import { gzipSync, createGunzip } from 'node:zlib';
 import { Readable } from 'node:stream';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { histRoll, histPack, histUnpack, histIso } from './prices-hist.mjs';
+import { histRoll, histPack, histUnpack, histIso } from './server/prices-hist.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const UA = 'ManaOrbit-prices/1.0 (+https://github.com/BeerDeus/mtgcardshop)';

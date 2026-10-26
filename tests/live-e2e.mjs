@@ -55,7 +55,7 @@ const up = http.createServer((req, res) => {
   });
 });
 await new Promise(r => up.listen(0, '127.0.0.1', r));
-const proxy = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18800', CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
+const proxy = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18800', CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
 process.on('exit', () => { try { proxy.kill(); } catch {} });
 await new Promise(r => setTimeout(r, 700));
 
@@ -605,7 +605,7 @@ const sheetText = pg => pg.evaluate(() => document.querySelector('#sheetRoot').t
 
   // J2) serveur sans tâches (JOBS=0) : repli complet depuis l'appareil, même résultat
   {
-    const p2 = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18801', JOBS: '0', CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
+    const p2 = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18801', JOBS: '0', CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
     process.on('exit', () => { try { p2.kill(); } catch {} }); await new Promise(r => setTimeout(r, 700));
     const { c, pg, errs2 } = await mkPage(18801); const w = watch(pg); await hintSpy(pg);
     assert.equal(await pg.evaluate(() => CTX.jobs), false); await runDeck(pg, DECK);

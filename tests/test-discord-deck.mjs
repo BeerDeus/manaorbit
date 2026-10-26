@@ -14,7 +14,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { startFakes, tag } from './amis-fakes.mjs';
-import { dscDeckMsg, dscDeckColor, dscEuros, DSC_DECK_COLORS } from '../discord-deck.mjs';
+import { dscDeckMsg, dscDeckColor, dscEuros, DSC_DECK_COLORS } from '../server/discord-deck.mjs';
 
 const ok = m => console.log('✓ ' + m);
 const TOKEN = 'jeton-du-bot-SECRET-0123456789', G = '910000000000000001', BOT = '910000000000000002', DECKS = '930000000000000020', GEN = '930000000000000005';
@@ -102,7 +102,7 @@ writeFileSync(join(process.env.ADMIN_DIR, 'discord-links.json'), JSON.stringify(
 
 const procs = [];
 const start = (env, port) => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), ALERTS: '0', BAD_KEY_DELAY_MS: '20', ...F.env, FIRESTORE_BASE_URL: `http://127.0.0.1:${upFs.address().port}/`, SCRYFALL_UPSTREAM: `http://127.0.0.1:${upScry.address().port}`, PUBDECKS_SOON_MS: '0', DISCORD_PRESENCE: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), ALERTS: '0', BAD_KEY_DELAY_MS: '20', ...F.env, FIRESTORE_BASE_URL: `http://127.0.0.1:${upFs.address().port}/`, SCRYFALL_UPSTREAM: `http://127.0.0.1:${upScry.address().port}`, PUBDECKS_SOON_MS: '0', DISCORD_PRESENCE: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.log = () => out; c.url = `http://127.0.0.1:${port}`;
   c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

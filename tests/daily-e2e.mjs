@@ -15,7 +15,7 @@ import { createRequire } from 'node:module';
 import { chromium, startWorld, newPage, ok, signInFake } from './e2e-world.mjs';
 import { startFakes } from './amis-fakes.mjs';
 import { SERRA } from './daily-fakes.mjs';
-import { dlyMask, dlyScore } from '../daily-srv.mjs';
+import { dlyMask, dlyScore } from '../server/daily-srv.mjs';
 const require = createRequire(import.meta.url);
 const { prgLevel } = require('../src/progress.js');
 

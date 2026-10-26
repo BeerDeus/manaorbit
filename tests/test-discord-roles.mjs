@@ -15,9 +15,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { startFakes } from './amis-fakes.mjs';
-import { discordMake, DSC_PERMS } from '../discord-srv.mjs';
-import { DSC_ROLE_DEFS, DSC_BADGES, dscTier, dscRoleName } from '../discord-roles.mjs';
-import { dailyMake } from '../daily-srv.mjs';
+import { discordMake, DSC_PERMS } from '../server/discord-srv.mjs';
+import { DSC_ROLE_DEFS, DSC_BADGES, dscTier, dscRoleName } from '../server/discord-roles.mjs';
+import { dailyMake } from '../server/daily-srv.mjs';
 import { createRequire } from 'node:module';
 
 const ok = m => console.log('✓ ' + m);
@@ -228,7 +228,7 @@ const J = 'uid-jeanne-01', P = 'uid-paul-02', Z = 'uid-zoe-03';
 {
   world(); const F = await startFakes(), adm = mkdtempSync(join(tmpdir(), 'dscroles-adm-'));
   const start = env => new Promise((resolve, reject) => {
-    const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '19847', ALERTS: '0', PUBDECKS: '0', DAILY: '0', BAD_KEY_DELAY_MS: '20', ...F.env, ADMIN_DIR: adm,
+    const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '19847', ALERTS: '0', PUBDECKS: '0', DAILY: '0', BAD_KEY_DELAY_MS: '20', ...F.env, ADMIN_DIR: adm,
       DISCORD_BOT_TOKEN: TOKEN, DISCORD_API: DAPI, DISCORD_CLIENT_ID: OA.cid, DISCORD_CLIENT_SECRET: OA.secret, DISCORD_PRESENCE: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; c.log = () => out; c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
     c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

@@ -10,7 +10,7 @@ import { mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { histPack, histUnpack, histRoll, histRow, histDay, histIso, HIST_DAYS } from '../prices-hist.mjs';
+import { histPack, histUnpack, histRoll, histRow, histDay, histIso, HIST_DAYS } from '../server/prices-hist.mjs';
 import { histWrite } from '../gen-prices.mjs';
 
 const ok = m => console.log('✓ ' + m);
@@ -83,7 +83,7 @@ await new Promise(r => gh.listen(0, '127.0.0.1', r));
 const procs = [];
 process.on('exit', () => { for (const c of procs) try { c.kill(); } catch { /* ignore */ } });
 const start = env => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PRICES_SOURCE_URL: '', PORT: '19860', ALERTS: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PRICES_SOURCE_URL: '', PORT: '19860', ALERTS: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });
   c.log = () => out; procs.push(c);

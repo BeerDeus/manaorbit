@@ -18,10 +18,11 @@
 - Compteur de vie : « Fin du tour » retrouve sa zone au doigt ; résultat des dés gardé jusqu'à un toucher sur tous les téléphones.
 - **CardTrader** : relance envoyée par « Partenariats et collaborations » (texte dans `docs/mails-partenaires.md`) ; **programme de parrainage rejoint** (code `manaorbit`, 1 % des cartes achetées dans les 48 h après le clic), code ajouté à tous les liens CardTrader de l'appli et signalé (Mentions et sources, `/legal`).
 - Carte de visite : son propre QR `https://manaorbit.app/q/carte-de-visite` (`docs/print/carte-visite-*`).
-- Dépôt rangé : `docs/passation.md` et `docs/prochaine-session.md` (état du 12 octobre, tout fait) retirés, règles reprises ci-dessus ; `docs/evenements/prompt-halloween.md` et `tools/shots.mjs` (cassé) retirés.
+- Dépôt rangé : `docs/passation.md` et `docs/prochaine-session.md` (état du 12 octobre, tout fait) retirés, règles reprises ci-dessus ; `docs/evenements/prompt-halloween.md` et `tools/shots.mjs` (cassé) retirés ; code du serveur rangé dans `server/` (`proxy.mjs`, `start.cjs`, Carte mystère, événements, bot Discord, historique des prix).
 
 **Reste (propriétaire)**
 - [ ] `.aab` 1.0.14 (versionCode 15) depuis `main`, puis `APK_LATEST=15` une fois en ligne (facultatif).
+- [ ] **Hostinger** : code du serveur rangé dans `server/` ; une fois le site vérifié après le déploiement, passer le Fichier d'entrée à `server/start.cjs` (Paramètres de compilation et de sortie), redéployer, vérifier, puis supprimer le `start.cjs` de la racine (simple renvoi).
 - [ ] Sans réponse de CardTrader vers le 5 novembre : ne plus relancer, l'intégration par token marche sans eux.
 
 ## Point du 23 octobre (à lire en premier)

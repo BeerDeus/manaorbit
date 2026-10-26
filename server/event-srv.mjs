@@ -19,7 +19,7 @@ import { join, dirname } from 'node:path';
 import { createRequire } from 'node:module';
 import { evPushMake } from './event-push.mjs';
 
-const EVP = createRequire(import.meta.url)('./src/evpacks.js');
+const EVP = createRequire(import.meta.url)('../src/evpacks.js');
 const ID_RE = /^[a-z]+-\d{4}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DEV_RE = /^([\w-]{22})\.([\w-]{16})$/, TOK_RE = /^[\w-]{16}$/, SIG_RE = /^[\w-]{22}$/;
 const ROUTES = ['', 'claim', 'sync', 'merge', 'board', 'push'];
 const SPOT_IDS = new Set(EVP.EV_SPOTS.map(s => s.id));

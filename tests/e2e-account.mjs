@@ -33,10 +33,10 @@ const up = http.createServer((req, res) => { req.resume(); req.on('end', () => {
   if (path === 'marketplace/products') { const bp = u.searchParams.get('blueprint_id'); return send({ [bp]: PRODUCTS()[bp + '|' + u.searchParams.get('language')] || [] }); }
   send({}); }); });
 await new Promise(r => up.listen(0, '127.0.0.1', r));
-const proxy = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18800', CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
+const proxy = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18800', CARDTRADER_TOKEN: 'tok', CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
 const jwks = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'application/json' }); r.end(JSON.stringify({ keys: [{ ...KP.publicKey.export({ format: 'jwk' }), kid: 'k1', alg: 'RS256', use: 'sig' }] })); });
 await new Promise(r => jwks.listen(0, '127.0.0.1', r));
-const proxyG = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18820', CARDTRADER_TOKEN: 'tok', ALLOWED_UIDS: 'uid-allowed', FIREBASE_JWKS_URL: `http://127.0.0.1:${jwks.address().port}/jwks`, CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
+const proxyG = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: '18820', CARDTRADER_TOKEN: 'tok', ALLOWED_UIDS: 'uid-allowed', FIREBASE_JWKS_URL: `http://127.0.0.1:${jwks.address().port}/jwks`, CT_UPSTREAM: `http://127.0.0.1:${up.address().port}/api/v2` }, stdio: 'ignore' });
 process.on('exit', () => { try { proxyG.kill(); } catch {} });
 const html = readFileSync('deck-deal.html');
 const stat = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); r.end(html); }).listen(18810, '127.0.0.1');

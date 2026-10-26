@@ -26,7 +26,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { evDscWindows } from './discord-events.mjs';
 
-const EVP = createRequire(import.meta.url)('./src/evpacks.js');
+const EVP = createRequire(import.meta.url)('../src/evpacks.js');
 export const EVP_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt'];
 export const EVP_STEPS = ['soon', 'open', 'mid', 'last'];
 export const EVP_URL = './?fete=1', EVP_TAG = 'mo-event';

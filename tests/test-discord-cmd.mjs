@@ -15,8 +15,8 @@ import { join, dirname } from 'node:path';
 import { createRequire } from 'node:module';
 import { generateKeyPairSync, sign as edSign } from 'node:crypto';
 import { startFakes, tag } from './amis-fakes.mjs';
-import { DSC_CMDS, dscCmdMake, dscEdKey } from '../discord-cmd.mjs';
-import { dlyClock, dlyAdd } from '../daily-srv.mjs';
+import { DSC_CMDS, dscCmdMake, dscEdKey } from '../server/discord-cmd.mjs';
+import { dlyClock, dlyAdd } from '../server/daily-srv.mjs';
 
 const require = createRequire(import.meta.url);
 const PG = require('../src/progress.js');
@@ -72,7 +72,7 @@ const LV = PG.prgLevel(5000).lv;
 
 const procs = [];
 const start = (env, port) => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '0', DISCORD_PRESENCE: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '0', DISCORD_PRESENCE: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.log = () => out; c.url = `http://127.0.0.1:${port}`;
   c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

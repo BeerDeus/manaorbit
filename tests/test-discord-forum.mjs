@@ -13,7 +13,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { startFakes, tag } from './amis-fakes.mjs';
-import { forumMake, fbfPrep, fbfSim, fbfNote } from '../discord-forum.mjs';
+import { forumMake, fbfPrep, fbfSim, fbfNote } from '../server/discord-forum.mjs';
 
 const ok = m => console.log('✓ ' + m);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -113,7 +113,7 @@ const F = await startFakes();
 
 const procs = [];
 const start = (env, port) => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', ADMIN_EMAILS: ADMIN, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(port), ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', ADMIN_EMAILS: ADMIN, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.log = () => out; c.url = `http://127.0.0.1:${port}`;
   c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

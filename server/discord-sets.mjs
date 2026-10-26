@@ -72,7 +72,7 @@ export function dssMsg(r, stage, { n = {}, prev = '', cm = {}, app = DSS_APP } =
  *  ua (User-Agent), fetch (Scryfall), now, log, hour (10), tz (Europe/Paris), tickMs (10 min), firstMs (30 s), fetchMs (6 h), failMs (1 h), timeoutMs (20 s),
  *  sets (src/sets.js), cmUrl (src/core.js), app (page de l'appli), channel ('spoilers') }. on false : rien (bot coupé, sets.js absent). */
 export function dssMake(o = {}) {
-  const S = o.sets || need('./src/sets.js'), cmUrl = o.cmUrl || (need('./src/core.js') || {}).cmUrl, log = o.log || console, now = o.now || Date.now, fetchFn = o.fetch || globalThis.fetch;
+  const S = o.sets || need('../src/sets.js'), cmUrl = o.cmUrl || (need('../src/core.js') || {}).cmUrl, log = o.log || console, now = o.now || Date.now, fetchFn = o.fetch || globalThis.fetch;
   const ON = !o.off && typeof o.find === 'function' && typeof o.post === 'function' && !!(S && S.setsKeep && S.setsPick);
   const h0 = Math.floor(Number(o.hour ?? 10)), HOUR = Number.isFinite(h0) ? Math.max(0, Math.min(23, h0)) : 10, TZ = o.tz || 'Europe/Paris', C0 = dlyClock(0, TZ), CH = dlyClock(HOUR, TZ);
   const SCRY = String(o.scry || 'https://api.scryfall.com').replace(/\/+$/, ''), UA = o.ua || 'ManaOrbit/1.0 (https://manaorbit.app)', TYPES = o.types || [0, 5], NAME = o.channel || 'spoilers';

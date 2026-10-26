@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, utimesSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { reqMeter, reqFam, REQ_FAMS, dirStat, memLimit, memNow, level, loadMeter } from '../srv-stat.mjs';
+import { reqMeter, reqFam, REQ_FAMS, dirStat, memLimit, memNow, level, loadMeter } from '../server/srv-stat.mjs';
 import { startFakes } from './amis-fakes.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -71,7 +71,7 @@ const DATA = mkdtempSync(join(tmpdir(), 'srvstat-data-'));
 const procs = [];
 process.on('exit', () => { for (const p of procs) try { p.kill(); } catch {} F.stop(); });
 const start = env => new Promise((resolve, reject) => {
-  const c = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(PORT), ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ADMIN_EMAILS: ADMIN, EDH_DATA_DIR: DATA, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const c = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(PORT), ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ADMIN_EMAILS: ADMIN, EDH_DATA_DIR: DATA, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = ''; c.log = () => out;
   c.stdout.on('data', d => { out += d; if (/Mana Orbit →/.test(out)) resolve(c); }); c.stderr.on('data', d => { out += d; });
   c.on('exit', code => { if (code) reject(new Error('exit ' + code + ': ' + out)); });

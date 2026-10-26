@@ -27,7 +27,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ok = m => console.log('✓ ' + m);
 const F = await startFakes(), A = await startAdminFakes(); A.seed(Date.now(), 120);
 const PORT = 19410, URL0 = `http://127.0.0.1:${PORT}/admin`;
-const proxy = spawn('node', ['proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(PORT), CARDTRADER_TOKEN: 'tok', ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', ...F.env, ...A.env, ADMIN_EMAILS: ADMIN, ADMIN_REFRESH_GAP_MS: '1500' }, stdio: 'ignore' });
+const proxy = spawn('node', ['server/proxy.mjs'], { env: { ...process.env, EDH_SOURCE_URL: '', PORT: String(PORT), CARDTRADER_TOKEN: 'tok', ALERTS: '0', PUBDECKS: '0', BAD_KEY_DELAY_MS: '20', ...F.env, ...A.env, ADMIN_EMAILS: ADMIN, ADMIN_REFRESH_GAP_MS: '1500' }, stdio: 'ignore' });
 process.on('exit', () => { try { proxy.kill(); } catch {} A.stop(); F.stop(); });
 for (let t = 0; t < 60; t++) { try { if ((await fetch(`http://127.0.0.1:${PORT}/__ping`)).ok) break; } catch { /* démarrage */ } await sleep(100); }
 
