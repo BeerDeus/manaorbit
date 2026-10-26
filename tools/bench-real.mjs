@@ -97,6 +97,7 @@ for (const it of plan) {
     for (const cond of CONDS) {
       const before = await p.evaluate(() => ({ ids: [...SC.items.keys()], miss: SC.miss.length, q: Object.fromEntries([...SC.items.values()].map(x => [x.id, x.q])) })), t0 = Date.now();
       const n0 = await total(); await shoot(card.img, cond, 1 + rows.length * 7919); const done = await idle(n0);
+      if (!done && process.env.BENCH_DEBUG) console.log('  bloquée :', await p.evaluate(() => JSON.stringify({ working: SC.working, queue: SC.queue.length, pend: SC.pend.map(x => x.label), cap: SC.cap, warm: SC.warm, ocr: typeof OCR !== 'undefined' ? { busy: OCR.busy, workers: Object.keys(OCR.workers || {}), bad: OCR.bad, q: OCR.q && OCR.q.length } : null, oth: typeof OTHX !== 'undefined' ? { at: OTHX.at, cats: Object.keys(OTHX.cats), p: !!OTHX.p } : null, stage: SC.stage || '', diag: SC.diag || '' })));
       const got = !done ? { miss: true, raw: '(bloquée : rien en 2 min)' } : await p.evaluate(b => {
         if (SC.miss.length > b.miss) { const m = SC.miss[SC.miss.length - 1]; return { miss: true, raw: m.raw || '', foot: SC.foot && SC.foot.raw || '' }; }
         const x = SC.lastIt || [...SC.items.values()].find(y => !b.ids.includes(y.id) || y.q !== b.q[y.id]);

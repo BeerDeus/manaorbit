@@ -56,5 +56,21 @@ assert.ok(!ts || ts.maybe, 'lecture partielle : jamais Trade Secrets sûre : ' +
 ok('« ur de secrets » (lecture partielle) : pas de carte sûre au hasard');
 
 assert.deepEqual(nat.errs, []);
+
+/* ── navigateur (Tesseract) : moteur de la langue du lot sans modèle (hors ligne : Tesseract.js reste pendu) → abandonné à temps, la file du scan ne se fige plus ── */
+{
+  const web = await newPage(browser, world, { ctx: { colorScheme: 'dark' } }), wp = web.p;
+  const r = await wp.evaluate(async () => {
+    OCR.wait = 400; window.ocrWorker = () => new Promise(() => {});      // modèle « spa » jamais téléchargé
+    const c = document.createElement('canvas'); c.width = c.height = 20; const t0 = performance.now();
+    const lines = await ocrLinesWait(c, 'spa', '6');
+    SC.lot = false; const langs = (() => { const keep = window.scanLotTop; window.scanLotTop = () => 'es'; try { return ocrLangs(); } finally { window.scanLotTop = keep; } })();
+    return { lines, ms: Math.round(performance.now() - t0), bad: OCR.bad.spa > Date.now(), langs, again: await ocrLinesWait(c, 'spa', '6') };
+  });
+  assert.equal(r.lines, null, 'lecture abandonnée'); assert.ok(r.ms < 2000, 'après OCR.wait : ' + r.ms + ' ms'); assert.equal(r.bad, true, 'moteur oublié 10 min');
+  assert.ok(!r.langs.includes('spa') && r.langs.includes('eng'), 'langue du lot espagnole : moteur absent sauté, l\'anglais reste : ' + r.langs); assert.equal(r.again, null, 'pas de 2e attente');
+  await web.ctx.close();
+  ok('navigateur : moteur de la langue du lot sans modèle (hors ligne) abandonné après le délai, plus redemandé, le scan continue');
+}
 await browser.close(); world.stop();
 console.log('\nSCANNAMES E2E OK'); process.exit(0);

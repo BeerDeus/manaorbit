@@ -26,7 +26,7 @@ const NAT_SCRIPT = { eng: 'latin', fra: 'latin', deu: 'latin', spa: 'latin', ita
 const ocrLangs = () => {
   if (SCS.lang === 'en') return ['eng'];
   const n = TESS_OF[namesLang()], t = TESS_OF[SCS.lang] || TESS_OF[scanLotTop()] || n;
-  return [...new Set([t, !SCS.lang ? n : '', 'eng'].filter(Boolean))];
+  return [...new Set([t, !SCS.lang ? n : '', 'eng'].filter(Boolean))].filter(l => l === 'eng' || l === n || !(OCR.bad[l] > Date.now()));      // moteur de la langue du lot qui n'a pas pu démarrer (ocrDrop) : pas redemandé pendant 10 min
 };
 /** Langue des cartes d'une écriture que les moteurs latins (et ML Kit latin) ne lisent pas → son moteur : russe, japonais, coréen, chinois. */
 const OCR_ALT = { ru: 'rus', jp: 'jpn', kr: 'kor', 'zh-CN': 'chi_sim', 'zh-TW': 'chi_tra' };
@@ -92,6 +92,14 @@ async function ocrLines(canvas, lang, psm, wl) {      // wl : caractères admis 
   const r = await w.recognize(canvas, {}, { text: true }), d = (r && r.data) || {};
   if ((w.__cnt = (w.__cnt || 0) + 1) >= 300 && OCR.workers[lang]) { delete OCR.workers[lang]; Promise.resolve(w.terminate()).catch(() => {}); }   // moteur recréé de temps en temps : la mémoire de WebAssembly ne fait que grossir
   return String(d.text || '').split(/\r?\n/).map(t => ({ text: t.trim() })).filter(l => l.text);
+}
+/** Lecture par un moteur qui n'est ni l'anglais ni celui de la langue des noms (langue du lot ou imposée : spa, ita…) : son modèle peut devoir être téléchargé, et
+ *  sans réseau Tesseract.js reste pendu sans fin (la file du scan se figeait après quelques cartes espagnoles hors ligne). Abandonnée après OCR.wait, moteur oublié 10 min (ocrDrop) : null. */
+async function ocrLinesWait(cv, lang, psm) {
+  if (natHas(lang) || lang === 'eng' || lang === TESS_OF[namesLang()]) return ocrLines(cv, lang, psm);
+  if (OCR.bad[lang] > Date.now()) return null;      // déjà abandonné (pas de modèle) : pas une 2e attente dans la même lecture
+  try { return await Promise.race([ocrLines(cv, lang, psm), new Promise((ok, ko) => setTimeout(() => ko(Object.assign(new Error('délai'), { code: 'wait' })), OCR.wait))]); }
+  catch (e) { if (e && e.code === 'wait') { ocrDrop(lang); return null; } throw e; }
 }
 /** Moteur d'une autre écriture qui n'a pas lu à temps (OCR.wait, 20 s) : modèle introuvable ou pas téléchargé (Tesseract.js reste alors pendu, sans fin), réseau trop lent.
  *  Oublié (arrêté s'il finit par démarrer) et pas redemandé pendant 10 minutes : la file du scan ne reste jamais bloquée derrière lui. */
@@ -734,7 +742,7 @@ async function readNameAuto(src, box, outW, psm, cat, retry, st) {
       for (const lang of langs) {
         if (!SC.el) return best;
         const cv = TESS_ASIA[lang] && !natHas(lang) ? ca || (ca = prepCanvas(src, box, Math.round(outW * ASIA_W), c.inv ? 1 : 0)) : c;
-        const lines = await ocrLines(cv, lang, psm); read.push(...lines);
+        const lines = await ocrLinesWait(cv, lang, psm); if (!lines) continue; read.push(...lines);
         if (!SC.raw) { const l = lines.find(x => String(x.text || '').replace(/[^\p{L}]/gu, '').length >= 3); if (l) SC.raw = String(l.text).trim().slice(0, 60); }      // premier texte lu de la carte : montré si le nom n'est pas reconnu
         const m = await scanMatch(lines, cat, lang);
         if (scanBetter(m, best)) { best = m; best.lang = lang; }
@@ -907,7 +915,7 @@ async function footIdentify(m, src, box) {
   const fl = TESS_OF[l];
   if (sim < 0.6 && r.printed && fl && NAT_SCRIPT[fl] !== 'latin' && src && SC.el) {      // nom russe, japonais, coréen, chinois : illisible pour le moteur latin, relu avec celui de la langue lue en bas (le russe restait « à vérifier »)
     const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height, c = prepCanvas(src, cardBandBox(W, H), TESS_ASIA[fl] && !natHas(fl) ? Math.round(1400 * ASIA_W) : 1400);
-    try { for (const x of await ocrLines(c, fl, '7')) { const v = nameSimilar(x.text, r.printed); if (v > sim) { sim = v; araw = String(x.text).trim().slice(0, 60); } } } catch (e) { /* moteur indisponible : à vérifier */ } finally { c.width = c.height = 0; }
+    try { for (const x of (await ocrLinesWait(c, fl, '7')) || []) { const v = nameSimilar(x.text, r.printed); if (v > sim) { sim = v; araw = String(x.text).trim().slice(0, 60); } } } catch (e) { /* moteur indisponible : à vérifier */ } finally { c.width = c.height = 0; }
   }
   SC.foot = { raw: fraw, ft, name: r.name, card: l, keep: '', via: 'foot' };
   const hit = { name: r.name, key: ownKey(r.name), score: sim >= 0.6 ? 0.93 : 0.8, raw: araw || raw || r.printed || r.name, card: l, img: r.img || '', via: 'foot', ft };
