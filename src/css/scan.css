@@ -205,3 +205,9 @@
 .sc-dp i{flex:none;width:9px;height:9px;border-radius:3px;background:var(--c,#8a93ad)}
 .rc-apart{display:flex;align-items:center;gap:8px;margin:2px 2px 6px}
 .rc-apart i{flex:none;width:10px;height:10px;border-radius:3px;background:var(--c)}
+.scs-pa{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2)}
+.scs-pa>span{flex:1}
+.scs-pa input{width:104px;height:42px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);color:var(--ink);font:inherit;font-size:16px;font-weight:650;text-align:right;font-variant-numeric:tabular-nums}
+.scs-pa input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.scs-pa input::placeholder{color:var(--ink-3);font-weight:500}
+.scs-pa b{font-size:15px;color:var(--ink-2)}
