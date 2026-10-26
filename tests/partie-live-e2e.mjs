@@ -126,8 +126,10 @@ for (const X of [B, C]) {
 await B.p.screenshot({ path: 'shots/partie-live-8-de-bob.png' });
 await A.p.evaluate(() => { PU.roll = null; puRoll('pf'); }); const pf = await A.p.evaluate(() => (PU.roll.v ? 'Face' : 'Pile'));
 await B.p.waitForFunction(t => /Pile ou face/.test(document.querySelector('.pu-lv-de').textContent) && document.querySelector('.pu-lv-de b').textContent === t, pf, { timeout: 15000 });
+await B.p.click('.pu-lv-de'); await B.p.waitForFunction(() => !document.querySelector('.pu-lv-de'));      // jusqu'à un toucher, comme chez Alice
+assert.ok(await C.p.$('.pu-lv-de'), 'fermé chez Bob seulement');
 await A.p.evaluate(() => { PU.roll = null; puPaint(); });
-ok('dés et pièce : le résultat d\'Alice arrive sur la table en direct de Bob et Carol (état en direct, champ de)');
+ok('dés et pièce : le résultat d\'Alice arrive sur la table en direct de Bob et Carol (état en direct, champ de), affiché jusqu\'à un toucher');
 
 /* ── Co-hôte : Carol demande, Alice accepte ; Carol change les points d'Alice, passe au tour suivant ; rôle retiré ─────────────────── */
 await C.p.click('[data-j="ask"]'); await C.p.waitForSelector('.pu-co-wait');

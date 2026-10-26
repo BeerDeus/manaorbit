@@ -23,7 +23,7 @@ function puRandInt(n) {
 const puRid = () => { let s = ''; for (let i = 0; i < 8; i++) s += '0123456789abcdefghijklmnopqrstuvwxyz'[puRandInt(36)]; return s; };
 
 /* ── Dés, pièce, premier joueur ───────────────────────────────────────────────────────────────── */
-const PU_DICE = [4, 6, 8, 10, 12, 20], PU_ROLL_MS = 10000;
+const PU_DICE = [4, 6, 8, 10, 12, 20];
 const PU_DIE = '<svg class="i pu-die" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="9" r="1.4" fill="currentColor"/><circle cx="15" cy="15" r="1.4" fill="currentColor"/><circle cx="15" cy="9" r="1.4" fill="currentColor"/><circle cx="9" cy="15" r="1.4" fill="currentColor"/></svg>';
 /** Tirage en clair : { lbl (« Dé à 20 faces »…), val (« 14 », « Pile », « Léa ») } ; places : pour le nom du premier joueur. */
 function puRollTxt(R, places) {

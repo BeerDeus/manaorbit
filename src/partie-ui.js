@@ -1028,7 +1028,7 @@ function puJoin(code) {
     const state = pending ? `<span class="pu-lv-st">${J.net ? T('Envoi…') : T('Hors ligne : envoi au retour du réseau')}</span>` : !J.net ? `<span class="pu-lv-st">${T('Connexion perdue · nouvel essai…')}</span>` : `<span class="pu-lv-st on">${T('En direct')}</span>`;
     const msg = why && why !== 'off' ? lvWhy(why) : coWhy && coWhy !== 'off' ? lvWhy(coWhy) : '';
     return `<section class="pu-card pu-live"><div class="pu-lv-bar"><span><b>${T('Tour {t}', { t: L.tour })}</b> · ${esc(T('{name} joue', { name: (L.places.find(p => p.pos === L.actif) || {}).nom || T('Joueur {n}', { n: L.actif }) }))}</span>${state}</div>
-        ${msg ? `<p class="hint pu-lv-why">${esc(msg)}</p>` : ''}${dt ? `<p class="pu-lv-de" role="status">${de.k === 'j1' ? '' : PU_DIE}<span>${esc(dt.lbl)}</span><b>${esc(de.k === 'j1' ? (de.v === me ? T('Tu commences !') : T('{name} commence', { name: dt.val })) : dt.val)}</b></p>` : ''}
+        ${msg ? `<p class="hint pu-lv-why">${esc(msg)}</p>` : ''}${dt ? (dv => `<button type="button" class="pu-lv-de" data-j="de-x" aria-label="${esc(dt.lbl + ' : ' + dv + ' · ' + T('Fermer'))}">${de.k === 'j1' ? '' : PU_DIE}<span>${esc(dt.lbl)}</span><b>${esc(dv)}</b></button>`)(de.k === 'j1' ? (de.v === me ? T('Tu commences !') : T('{name} commence', { name: dt.val })) : dt.val) : ''}
         <div class="pu-lv-g">${cards}</div>
         ${v.co && !coWhy ? `<button class="btn ghost block" type="button" data-j="turn">${T('Tour suivant')}</button>` : ''}
         <p class="hint">${v.co ? esc(T('Co-hôte : tu comptes pour toute la table. Le téléphone de {name} garde la partie.', { name: host })) : esc(T('Tu changes tes points d\'ici ; les autres places sont comptées sur le téléphone de {name}.', { name: host }))}</p></section>`;
@@ -1040,8 +1040,8 @@ function puJoin(code) {
     if (v.ask) return `<p class="hint pu-co-wait">${esc(T('Demande envoyée : {name} doit l\'accepter sur son téléphone.', { name: hostName() || T('le créateur') }))} <button class="link-btn" type="button" data-j="unask">${T('Annuler la demande')}</button></p>`;
     return `<button class="btn ghost block" type="button" data-j="ask">${T('Demander à être co-hôte')}</button>`;
   }
-  /** Tirage de la table (dés, pièce, premier joueur ; état en direct, champ de) montré 10 s après son arrivée (déjà vieux de plus de 20 s : pas montré). */
-  const deOn = () => (J.de && Date.now() - J.de.at < PU_ROLL_MS ? J.de.d : null);
+  /** Tirage de la table (dés, pièce, premier joueur ; état en direct, champ de) montré jusqu'à un toucher, comme chez le créateur (déjà vieux de plus de 20 s à l'arrivée : pas montré). */
+  const deOn = () => (J.de ? J.de.d : null);
   /** Écran 2 (grande table sur deux téléphones) : plein écran sombre, SA moitié de la table en affichage A comme le téléphone du créateur (puHalfHtml : places de la vue
       duo.b ; « L'autre moitié », « Toute la table » au choix dans le menu du bouton rond), mêmes gestes (−1 / +1, maintenu ±10, nom → fiche, « Fin du tour ») en deltas. */
   function scrHtml() {
@@ -1159,7 +1159,7 @@ function puJoin(code) {
         if (v.st === 'end') { J.view = v; J.endName = hostName(); J.joined = null; J.end = v.why || 'host'; haptic('tap'); paint(); return; }      // annulée, abandonnée par le créateur… : place oubliée (partieRoomWatch)
         J.view = v; coNote(v);
         if (v.live) { J.lv = v.live; const a = v.live.ack || 0; J.pend = J.pend.filter(y => !y.s || y.s > a); }
-        const de = v.live && v.live.de; if (de && de.id !== J.deId) { J.deId = de.id; if (de.a <= 20) { J.de = { d: de, at: Date.now() }; haptic('tap'); setTimeout(() => { if (wrap.isConnected) paint(); }, PU_ROLL_MS + 50); } }
+        const de = v.live && v.live.de; if (de && de.id !== J.deId) { J.deId = de.id; if (de.a <= 20) { J.de = { d: de, at: Date.now() }; haptic('tap'); } }
       }
       deltas(); paint();
     });
@@ -1191,6 +1191,7 @@ function puJoin(code) {
     const b = e.target.closest('[data-j]'); if (!b || b.tagName === 'SELECT') return;
     const a = b.dataset.j;
     if (a === 'close') wrap.__close();
+    else if (a === 'de-x') { J.de = null; haptic('tap'); paint(); }      // résultat des dés fermé d'un toucher (table en direct)
     else if (a === 'login') { openAccount(); J.acct = D.account && D.account.api; }      // connecté : la feuille du compte se ferme et l'écran passe au choix de la place (puUser)
     else if (a === 'guest') { J.guest = true; paint(); setTimeout(() => { const n = $('#puJn', wrap); if (n && !n.value) n.focus(); }, 60); }
     else if (a === 'leave') { await partieRoomLeave(); J.joined = null; J.view = null; if (J.stop) J.stop(); wrap.__close(); }

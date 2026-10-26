@@ -108,7 +108,7 @@
 .pu-dice .i{width:22px;height:22px;opacity:.8}
 .pu-clkm{margin-top:6px}
 /* Table en direct (téléphones des places) : le tirage de la table */
-.pu-lv-de{margin:0;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));font-size:14px;font-weight:650}
+.pu-lv-de{margin:0;width:100%;color:inherit;font-family:inherit;text-align:left;cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));font-size:14px;font-weight:650}
 .pu-lv-de .i{flex:none;width:20px;height:20px}
 .pu-lv-de b{margin-left:auto;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;text-align:right}
 /* Préparation : plan de la table (ordre du tour, côté de chacun), « Changer l'ordre » (poignée à glisser, ↑ / ↓) */
