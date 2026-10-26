@@ -45,7 +45,7 @@ const run = async p => { await toInput(p); await p.fill('#deckText', DECK); awai
   await p.click('#segSrcRun [data-v="ct"]'); await p.waitForSelector('#ctGet:not([hidden])');
   assert.equal(await p.evaluate(() => [S.src, priceSrc(), JSON.parse(localStorage.getItem('deckdeal:v1')).src].join()), 'ct,cm,ct', 'CardTrader choisi (retenu), prix Cardmarket en attendant le token');
   assert.match(await txt(p, '#ctGet'), /il faut ton token CardTrader.*Obtenir mon token.*ne le partage avec personne/);
-  assert.deepEqual(await p.$eval('#ctGet a', a => [a.href, a.target]), ['https://www.cardtrader.com/fr-FR/full_api_app', '_blank']);
+  assert.deepEqual(await p.$eval('#ctGet a', a => [a.href, a.target]), ['https://www.cardtrader.com/fr-FR/full_api_app?share_code=manaorbit', '_blank']);
   assert.equal(await p.$eval('#optCond', e => e.offsetParent), null, 'critères CardTrader cachés sans token'); assert.equal(await p.$eval('#srcHint', e => e.hidden), true);
   await p.click('#segSrcRun [data-v="cm"]'); await p.waitForSelector('#ctGet', { state: 'hidden' }); assert.equal(await p.evaluate(() => S.src), 'cm');
   await p.reload(); await p.waitForTimeout(600); await toInput(p); await p.click('#segSrcRun [data-v="ct"]'); await p.waitForSelector('#ctGet:not([hidden])');

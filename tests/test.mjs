@@ -315,7 +315,8 @@ test('sortCards : prix décroissant / croissant, sans prix en fin, A→Z, ordre 
   assert.deepEqual(it.map(x => x.i), [0, 1, 2, 3, 4], 'entrée non modifiée');
 });
 
-test('ctCardUrl', () => { assert.equal(C.ctCardUrl(123), 'https://www.cardtrader.com/cards/123'); });
+test('ctCardUrl', () => { assert.equal(C.ctCardUrl(123), 'https://www.cardtrader.com/cards/123?share_code=manaorbit'); });
+test('ctShare', () => { assert.equal(C.ctShare('https://www.cardtrader.com/en/magic'), 'https://www.cardtrader.com/en/magic?share_code=manaorbit'); assert.equal(C.ctShare('https://www.cardtrader.com/en/p?foo=bar'), 'https://www.cardtrader.com/en/p?foo=bar&share_code=manaorbit'); });
 
 /* ── Prix gardés par deck + regroupements du viewer ── */
 const SN = [

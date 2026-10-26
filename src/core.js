@@ -253,10 +253,13 @@ function sortCards(items, mode) {
   return arr;
 }
 
+/** Code de parrainage CardTrader : ajouté à chaque lien ouvert vers cardtrader.com (CardTrader reverse 1 % du prix des cartes achetées dans les 48 h après le clic, rien ne change pour l'acheteur). */
+const CT_SHARE = 'manaorbit';
+const ctShare = u => u + (u.includes('?') ? '&' : '?') + 'share_code=' + CT_SHARE;
 /** Page d'une carte sur CardTrader (par identifiant de blueprint). */
-const ctCardUrl = bpId => 'https://www.cardtrader.com/cards/' + encodeURIComponent(bpId);
+const ctCardUrl = bpId => ctShare('https://www.cardtrader.com/cards/' + encodeURIComponent(bpId));
 /** Panier CardTrader : page française pour l'interface en français ; sinon sans langue dans l'adresse (CardTrader prend celle du compte ou du navigateur, comme pour ctCardUrl). */
-const ctCartUrl = () => 'https://www.cardtrader.com/' + (I18N.lang === 'fr' ? 'fr-FR/' : '') + 'cart/edit';
+const ctCartUrl = () => ctShare('https://www.cardtrader.com/' + (I18N.lang === 'fr' ? 'fr-FR/' : '') + 'cart/edit');
 
 /** Une offre passe-t-elle les critères (état, foil, hors vendeurs en vacances, etc.) ? */
 function passes(o, f) {
@@ -2446,7 +2449,7 @@ function handLandOdds(N, L, n = 7) {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { T, TN, LOC, I18N, I18N_LANGS, i18nPick, i18nHas, i18nLangs,collToCsv, cmOffer, cmUrl, cmText, cmParts, CM_MAX, deckMissing, deckUse, tradeLists, tradeWant, tradeMatch, tradeView, shareCard, shareBd, readShare, SHARE_IMG_RE, scrySmall, imgShort, isLandType, libraryOf, drawHand, handLandOdds,
-    parseLine, dropCard, restoreLines, sortCards, ctCardUrl, replaceParts, preferLang, forMode, needsEnglish, recapOf, CONDITIONS, COND_SHORT, normPart, normName, frontName, parseDeck, passes, normalizeProduct, optimize, allocate,
+    parseLine, dropCard, restoreLines, sortCards, ctCardUrl, ctShare, replaceParts, preferLang, forMode, needsEnglish, recapOf, CONDITIONS, COND_SHORT, normPart, normName, frontName, parseDeck, passes, normalizeProduct, optimize, allocate,
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,

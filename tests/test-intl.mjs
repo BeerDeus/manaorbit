@@ -48,8 +48,8 @@ test('Cardmarket : site dans la langue la plus proche (fr de es it, sinon en)', 
 test('CardTrader : panier en français pour l\'interface française, sans langue imposée sinon', () => {
   const { ctCartUrl, I18N } = C, was = I18N.lang;
   try {
-    I18N.lang = 'fr'; assert.equal(ctCartUrl(), 'https://www.cardtrader.com/fr-FR/cart/edit', 'français : adresse inchangée');
-    I18N.lang = 'en'; assert.equal(ctCartUrl(), 'https://www.cardtrader.com/cart/edit');
+    I18N.lang = 'fr'; assert.equal(ctCartUrl(), 'https://www.cardtrader.com/fr-FR/cart/edit?share_code=manaorbit', 'français : adresse inchangée');
+    I18N.lang = 'en'; assert.equal(ctCartUrl(), 'https://www.cardtrader.com/cart/edit?share_code=manaorbit');
   } finally { I18N.lang = was; }
 });
 

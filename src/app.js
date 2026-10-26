@@ -1039,7 +1039,7 @@ function modeLabel() {
   if (typeof refreshDeck === 'function' && $('#deckText')) refreshDeck();
 }
 /* ── CardTrader sans token : « Obtenir mon token » (page API de CardTrader), le coller, « Tester » (Nouveau panier, tuile valeur des Stats, Réglages) ── */
-const ctApiUrl = () => I18N.lang === 'fr' ? 'https://www.cardtrader.com/fr-FR/full_api_app' : 'https://www.cardtrader.com/en/full_api_app';
+const ctApiUrl = () => ctShare(I18N.lang === 'fr' ? 'https://www.cardtrader.com/fr-FR/full_api_app' : 'https://www.cardtrader.com/en/full_api_app');
 const CT_TOKEN_WARN = 'Ce token donne accès à ton compte CardTrader : ne le partage avec personne. Mana Orbit le garde sur ton appareil et ne l\'envoie qu\'avec tes recherches CardTrader.';
 function ctGetHtml(pre) {
   return `<p class="ct-get-t">${T('Pour voir les vrais prix CardTrader et remplir ton panier, il faut ton token CardTrader.')}</p>
@@ -1228,7 +1228,7 @@ function openAbout() {
   const src = [
     ['Scryfall', 'https://scryfall.com', T('images et données des cartes, prix tendance Cardmarket')],
     ['Cardmarket', 'https://www.cardmarket.com', T('prix tendance (via Scryfall)')],
-    ['CardTrader', 'https://www.cardtrader.com', T('offres des vendeurs et panier (avec ton token)')],
+    ['CardTrader', ctShare('https://www.cardtrader.com'), T('offres des vendeurs et panier (avec ton token) ; liens avec notre code de parrainage (1 % des achats reversé par CardTrader, rien ne change pour toi)')],
     ['EDHREC', 'https://edhrec.com', T('classement des commandants et decks moyens')],
     ['Archidekt', 'https://archidekt.com', T('decks Budget, Premium et cEDH')],
     ['EDHTop16', 'https://edhtop16.com', T('commandants joués en tournoi cEDH (données TopDeck.gg)')],

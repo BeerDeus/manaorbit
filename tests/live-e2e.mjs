@@ -131,7 +131,7 @@ console.log('cart/add :', JSON.stringify(adds));
 assert.deepEqual(adds.map(a => a.product_id).sort(), [9002, 9004, 9005]);
 assert.ok(adds.every(a => a.via_cardtrader_zero === true && a.quantity === 1));
 assert.ok(/Frais CardTrader Zero/.test(sheet) && /0,25/.test(sheet), 'totaux réels lus via GET /cart');
-assert.ok(await p.$('#sheetRoot a[href="https://www.cardtrader.com/fr-FR/cart/edit"]'), 'lien vers le panier CardTrader fr-FR/cart/edit');
+assert.ok(await p.$('#sheetRoot a[href="https://www.cardtrader.com/fr-FR/cart/edit?share_code=manaorbit"]'), 'lien vers le panier CardTrader fr-FR/cart/edit');
 assert.ok(!log.some(l => /purchase/.test(l.path)), 'jamais d\'achat');
 assert.deepEqual(errs, [], 'aucune erreur page');
 // coupure persistante : message qui nomme Scryfall (nouveau contexte = cache vide)
@@ -452,7 +452,7 @@ const sheetText = pg => pg.evaluate(() => document.querySelector('#sheetRoot').t
   await pg.click('#list .row >> nth=0'); await pg.waitForSelector('.offer-row');
   const ext = await pg.$$eval('.offer-row .o-ext', a => a.map(x => [x.getAttribute('href'), x.getAttribute('target'), x.getAttribute('rel')]));
   console.log('liens CardTrader :', JSON.stringify(ext));
-  assert.ok(ext.length >= 1 && ext.every(e => /^https:\/\/www\.cardtrader\.com\/cards\/\d+$/.test(e[0]) && e[1] === '_blank' && /noopener/.test(e[2])));
+  assert.ok(ext.length >= 1 && ext.every(e => /^https:\/\/www\.cardtrader\.com\/cards\/\d+\?share_code=manaorbit$/.test(e[0]) && e[1] === '_blank' && /noopener/.test(e[2])));
   assert.equal(await pg.$$eval('.offer-row .offer', x => x.length), ext.length);
   await pg.waitForTimeout(700); await pg.screenshot({ path: 'shots/live-8-fiche-lien.png' });
   await pg.click('.sheet-wrap.open [data-close].icon-btn'); await pg.waitForTimeout(500);

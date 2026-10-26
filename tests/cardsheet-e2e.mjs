@@ -100,7 +100,7 @@ assert.match(await txt(p, '.cs-ln[data-g="en|cmm|400*"] .cs-lt small'), /6,00 �
 assert.equal(await p.$('.cs-sheet a[href^="https://www.cardtrader.com/cards/"]'), null);
 await p.click('.cs-sheet [data-cs="ct"]'); await p.waitForFunction(() => COLL.px['sol ring'] && COLL.px['sol ring'].t && !document.querySelector('.cs-ct .cs-spin'), null, { timeout: 15000 });
 assert.match(await txt(p, '.cs-sheet .cs-ct'), /CardTrader offre la moins chère · FR 1,50 €/);
-assert.equal(await p.$eval('.cs-sheet a[href^="https://www.cardtrader.com/cards/"]', a => a.getAttribute('href')), 'https://www.cardtrader.com/cards/100');
+assert.equal(await p.$eval('.cs-sheet a[href^="https://www.cardtrader.com/cards/"]', a => a.getAttribute('href')), 'https://www.cardtrader.com/cards/100?share_code=manaorbit');
 assert.match(await p.$eval('.cs-sheet a[href*="cardmarket.com"]', a => a.href), /cardmarket\.com\/fr\/Magic\/Products\/Search\?searchString=Sol%20Ring/);
 ok('prix : tendance Cardmarket normal et foil de l\'édition, référence sans édition, valeur ; offre CardTrader lue pour cette carte, lien CardTrader et Cardmarket');
 
