@@ -298,7 +298,7 @@ ok('extensions : cachées en erreur (500, 404) et hors ligne, lues seulement qua
   await ctx.route(u => String(u).startsWith(PLAY), route => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Play</title>' }));
   await p.$eval('#helpBox', e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
   const [pop] = await Promise.all([ctx.waitForEvent('page'), p.click('#helpBox a[data-help="rate"]')]);
-  await pop.waitForLoadState('domcontentloaded'); assert.equal(pop.url(), PLAY, 'onglet ouvert sur la fiche Google Play'); await pop.close();
+  await pop.waitForURL(PLAY, { timeout: 10000 }); assert.equal(pop.url(), PLAY, 'onglet ouvert sur la fiche Google Play'); await pop.close();      // waitForURL : un onglet ouvert en noopener peut finir de charger sa page vide avant d'aller sur la fiche
   assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:rate') || '{}').done), 1, 'clic : rateDone (plus de demande de note)');
   assert.equal(await p.evaluate(() => prgC().fb || 0), 0, 'une note n\'est pas un avis : pas de badge');
   assert.equal(await p.$$eval('.sheet-wrap.open', s => s.length), 2, 'la fiche reste ouverte');
