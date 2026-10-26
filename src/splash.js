@@ -5,7 +5,7 @@
      .sp-out (sortie) + .sp-morph (passage à l'accueil) ; --sp-out : durée de la sortie. <html>.sp-on : appli inerte, ses animations en pause.
    · [data-sp-to="sélecteur"] : vole sur cet élément de #app au passage (échelle fixe permise) ; [data-sp-sync="sélecteur"] : les boucles CSS de cet élément
      reprennent l'horloge du splash (même nom d'animation : aucun saut). · window.splashHandoffX(el, morph, done) : sortie propre à un autre concept (true = prise en charge). */
-const SPLASH_T = { min: 1600, cap: 2500, max: 8000, short: 600, rm: 1000, out: 600, outShort: 240, fast: 220, fade: 300 };
+const SPLASH_T = { min: 1600, cap: 2500, max: 8000, short: 600, rm: 1000, out: 600, outShort: 240, fast: 220, fade: 300, wait: 2500, cont: 1500 };
 const SPLASH_KEEP = /^(splash|lang|onboarding|source|ref|utm_\w+)$/;      // paramètres qui n'ouvrent aucun écran : ouverture normale
 /** 'full' : ouverture à froid · 'short' : lien profond (?p=, ?open=, partage, ?delete-account…), rechargement (« Recharger », langue), retour arrière sans bfcache
  *  · 'none' : navigateur piloté par les tests (sauf ?splash=1 ou ?splash=short), page ouverte cachée, ?splash=0. o : { search, webdriver, hidden, nav }. */
@@ -14,7 +14,8 @@ function splashMode(o) {
   if (f === '0' || o.hidden || (o.webdriver && !f)) return 'none';
   return f === 'short' || o.nav === 'reload' || o.nav === 'back_forward' || [...q.keys()].some(k => !SPLASH_KEEP.test(k)) ? 'short' : 'full';
 }
-const SPL = { el: null, short: false, rm: false, ready: false, min: false, near: false, skip: false, end: false, prep: undefined, held: [], mo: null, tm: [] };
+const SPL = { el: null, short: false, rm: false, cont: false, ready: false, min: false, near: false, skip: false, end: false, prep: undefined, held: [], mo: null, tm: [], wait: 0, keep: false };
+const SPLASH_CONT = 'dd-sp-cont';      // sessionStorage : rechargement de mise à jour fait sous l'écran de lancement, la page suivante le reprend là où il en était
 function splashEnv() {
   let nav = ''; try { nav = performance.getEntriesByType('navigation')[0].type; } catch (e) { /* navigateur ancien */ }
   return { search: location.search, webdriver: navigator.webdriver === true, hidden: document.visibilityState === 'hidden', nav };
@@ -77,12 +78,28 @@ function splashHandoff(fast) {
   el.classList.add('sp-out'); if (pairs) { el.classList.add('sp-morph'); splashMorph(pairs, D); } else splashRelease();
   SPL.tm = [setTimeout(() => { splashRelease(); splashPlay(); }, pairs ? D * 0.3 : 0), setTimeout(splashRemove, D + 40)];      // vol : l'appli (inerte, en pause) n'est recalculée qu'une fois l'orbe partie du centre
 }
-function splashCheck() { if (SPL.ready && (SPL.min || SPL.skip)) splashHandoff(SPL.skip); else if (SPL.ready && SPL.near) splashPrep(); }
+function splashCheck() {
+  if (SPL.wait && !SPL.skip) { if (SPL.ready && SPL.near) splashPrep(); return; }      // version du serveur attendue : pas de sortie (un rechargement de mise à jour se ferait sous l'accueil)
+  if (SPL.ready && (SPL.min || SPL.skip)) splashHandoff(SPL.skip); else if (SPL.ready && SPL.near) splashPrep();
+}
+/** Le démarrage demande la version du serveur (app.js › detectProxy, pwa.js › updCheck) : la sortie attend la réponse (SPLASH_T.wait au plus, compteur on / off),
+ *  pour qu'un rechargement de mise à jour se fasse sous l'écran de lancement et jamais juste après, sur l'accueil (flash de l'interface). */
+function splashWait(on) {
+  if (!SPL.el || SPL.end) return;
+  if (on) { if (!SPL.wait++) SPL.tm.push(setTimeout(() => { SPL.wait = 0; splashCheck(); }, SPLASH_T.wait)); return; }
+  if (SPL.wait && !--SPL.wait) splashCheck();
+}
+/** Rechargement (mise à jour) pendant l'écran de lancement : il reste affiché jusqu'au départ de la page (pas retiré à pagehide) et la suivante le reprend. */
+function splashReload() {
+  if (SPL.el) { SPL.keep = true; try { sessionStorage.setItem(SPLASH_CONT, '1'); } catch (e) { /* ignore */ } }
+  location.reload();
+}
 /** Départ synchrone, sans attendre une image : .sp-in est déjà dans le balisage, les animations CSS partent au premier rendu et tournent sur le compositeur. */
 function splashStart() {
   const el = SPL.el; splashMark('in');
-  if (SPL.short && !SPL.rm) for (const a of el.getAnimations({ subtree: true })) if (a.effect.target !== el) { a.currentTime = 340; a.playbackRate = 2.2; }      // version courte : allumage immédiat
-  const T = SPLASH_T, min = SPL.rm ? T.rm : SPL.short ? T.short : T.min;
+  if (SPL.cont && !SPL.rm) for (const a of el.getAnimations({ subtree: true })) { if (a.effect.target !== el) a.currentTime = SPLASH_T.cont; }      // reprise après le rechargement de mise à jour : déjà allumé, comme la page d'avant
+  else if (SPL.short && !SPL.rm) for (const a of el.getAnimations({ subtree: true })) if (a.effect.target !== el) { a.currentTime = 340; a.playbackRate = 2.2; }      // version courte : allumage immédiat
+  const T = SPLASH_T, min = SPL.rm ? T.rm : SPL.short || SPL.cont ? T.short : T.min;
   SPL.tm.push(setTimeout(() => { SPL.min = true; splashCheck(); }, min),
     setTimeout(() => { SPL.near = true; splashCheck(); }, min - 350),      // vol mesuré d'avance
     setTimeout(() => { if (!SPL.end) el.classList.add('sp-idle'); }, SPL.short || SPL.rm ? min : T.cap),
@@ -113,10 +130,11 @@ function splashAfter(fn) { if (SPL.el && !SPL.short) document.addEventListener('
   let m = 'none'; try { m = splashMode(splashEnv()); } catch (e) { /* ignore */ }
   if (m === 'none') { el.remove(); return; }
   SPL.el = el; SPL.short = m === 'short'; try { SPL.rm = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* ignore */ }
+  try { if (sessionStorage.getItem(SPLASH_CONT)) { sessionStorage.removeItem(SPLASH_CONT); if (m === 'short' && /^(|\?splash=\w+)$/.test(location.search)) { SPL.cont = true; SPL.short = false; } } } catch (e) { /* ignore */ }      // rechargement de mise à jour : l'écran complet continue (nom compris)
   if (SPL.short) el.classList.add('sp-short'); if (SPL.rm) el.classList.add('sp-rm');
   de.classList.add('sp-on');
   try { SPL.mo = new MutationObserver(ms => ms.forEach(r => r.addedNodes.forEach(splashHold))); SPL.mo.observe(document.body, { childList: true }); } catch (e) { /* ignore */ }
-  const skip = () => { if (SPL.el && !SPL.end) { SPL.skip = true; splashCheck(); } }, kill = () => { if (SPL.el) splashRemove(); };
+  const skip = () => { if (SPL.el && !SPL.end) { SPL.skip = true; splashCheck(); } }, kill = () => { if (SPL.el && !SPL.keep) splashRemove(); };
   el.addEventListener('pointerdown', skip); addEventListener('keydown', e => { if (SPL.el && !SPL.end) { e.preventDefault(); skip(); } }, true);      // sans agir dessous
   el.addEventListener('wheel', e => e.preventDefault(), { passive: false });
   document.addEventListener('visibilitychange', () => { if (document.hidden) kill(); });      // arrière-plan, bfcache
@@ -124,4 +142,4 @@ function splashAfter(fn) { if (SPL.el && !SPL.short) document.addEventListener('
   splashStart();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', splashReady); else splashReady();
 })();
-if (typeof module !== 'undefined' && module.exports) module.exports = { splashMode, SPLASH_T, SPLASH_KEEP };
+if (typeof module !== 'undefined' && module.exports) module.exports = { splashMode, SPLASH_T, SPLASH_KEEP, SPLASH_CONT };

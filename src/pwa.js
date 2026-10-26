@@ -86,15 +86,16 @@ function updShell() {
 /** build : version annoncée (serveur, ou copie du service worker si fresh). Différente de celle qui tourne → rechargement (auto) ou « Recharger ». */
 async function updCheck(build, fresh, auto = true) {
   if (!build || typeof DD_BUILD !== 'string' || build === DD_BUILD || UPD.busy) return;
-  UPD.busy = true; UPD.want = build;
+  UPD.busy = true; UPD.want = build; let reload = false;
+  if (typeof splashWait === 'function') splashWait(true);      // écran de lancement encore là : il attend la décision (rechargement dessous plutôt que sur l'accueil)
   try {
     const sh = fresh ? Promise.resolve(build) : updShell(), kept = await Promise.race([sh, new Promise(r => setTimeout(() => r(undefined), 3000))]);      // copie relue en 3 s au plus : au-delà, la carte s'affiche (la relecture continue)
     let tried = ''; try { tried = sessionStorage.getItem(UPD_KEY) || ''; } catch (e) { /* stockage indisponible */ }
-    if (auto && (kept === '' || kept === build) && tried !== build && updSafe()) { try { sessionStorage.setItem(UPD_KEY, build); } catch (e) { /* ignore */ } location.reload(); return; }
+    if (auto && (kept === '' || kept === build) && tried !== build && updSafe()) { try { sessionStorage.setItem(UPD_KEY, build); } catch (e) { /* ignore */ } reload = true; if (typeof splashReload === 'function') splashReload(); else location.reload(); return; }
     if (UPD.told === build) return; UPD.told = build;
     if (!document.hidden) updPop();
     else document.addEventListener('visibilitychange', function vis() { if (!document.hidden) { document.removeEventListener('visibilitychange', vis); if (UPD.want !== DD_BUILD) updPop(); } });
-  } finally { UPD.busy = false; }
+  } finally { UPD.busy = false; if (!reload && typeof splashWait === 'function') splashWait(false); }
 }
 /** Carte « Nouvelle version disponible · Mettre à jour » : reste à l'écran (sans bloquer l'appli) jusqu'au toucher ou ✕. Mettre à jour : copie du service worker relue, puis rechargement. */
 function updPop() {

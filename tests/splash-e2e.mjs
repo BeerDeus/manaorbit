@@ -28,7 +28,10 @@ const ok = m => console.log('✓', m);
 const HTML = readFileSync('deck-deal.html', 'utf8'), CUT = HTML.indexOf('</script>', HTML.indexOf('id="splash"')) + 9;
 assert.ok(CUT > 9 && CUT < 40000 + HTML.indexOf('<body>'), 'script du splash en haut du <body>');
 const srv = http.createServer((req, res) => {
-  const m = /^\/(?:slow(\d+)\/)?$/.exec(new URL(req.url, 'http://x').pathname); if (!m) { res.writeHead(404); return res.end(); }
+  const pn = new URL(req.url, 'http://x').pathname, pg = /^\/(upd|updslow)\/__ping$/.exec(pn);
+  if (pg) return setTimeout(() => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, app: 'deckdeal', build: 'zz-new' })); }, pg[1] === 'updslow' ? 1200 : 0);      // serveur qui sert une autre version (mise à jour)
+  if (/^\/(upd|updslow)\/$/.test(pn)) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(HTML); }
+  const m = /^\/(?:slow(\d+)\/)?$/.exec(pn); if (!m) { res.writeHead(404); return res.end(); }
   const slow = Number(m[1]) || 0;      // /slow900/?splash=1 : le reste de la page 900 ms plus tard (dans le chemin : un paramètre serait un lien profond)
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   if (!slow) return res.end(HTML);
@@ -40,9 +43,10 @@ const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM ||
 const SEED = (theme = 'auto', fresh = false) => `try { ${fresh ? '' : `localStorage.setItem('deckdeal:coll:v1', JSON.stringify({ t: '4 Sol Ring\\n2 Arcane Signet', u: 1, s: '', b: null })); localStorage.setItem('deckdeal:onboard', '1');`}
   localStorage.setItem('deckdeal:v1', JSON.stringify({ theme: '${theme}' })); } catch (e) {}`;
 const errs = [];
-async function open(q, { theme = 'auto', scheme = 'dark', rm = false, fresh = false, wait = 'commit' } = {}) {
+async function open(q, { theme = 'auto', scheme = 'dark', rm = false, fresh = false, wait = 'commit', user = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme, reducedMotion: rm ? 'reduce' : 'no-preference' });
   const p = await ctx.newPage(); await routeFonts(p); await p.addInitScript(SEED(theme, fresh));
+  if (user) await p.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }); document.addEventListener('DOMContentLoaded', () => addEventListener('pagehide', () => { const s = document.getElementById('splash'); sessionStorage.setItem('t-ph', s ? s.className : 'aucun'); })); });      // comme un vrai téléphone (l'appli retire ?splash=1 de l'adresse) ; état du splash quand la page part
   p.on('pageerror', e => errs.push(q + ' pageerror: ' + e.message));
   await p.addInitScript(() => document.addEventListener('DOMContentLoaded', () => { const $ = id => document.getElementById(id), h = document.elementFromPoint(195, 560);      // état sous le splash, une fois la page lue
     window.__dcl = { splash: !!$('splash'), app: $('app').inert, root: $('sheetRoot').inert, hit: !!(h && h.closest('#splash')), sw: document.documentElement.scrollWidth <= innerWidth }; }));
@@ -98,7 +102,7 @@ const bg = (p, sel) => p.$eval(sel, e => getComputedStyle(e).backgroundColor);
   await p.waitForTimeout(700); assert.ok(await p.$('#splash'));
   await p.mouse.click(195, 560);      // sous le splash : la tuile « Deck à monter »
   await gone(p);
-  const m = await marks(p); assert.ok(m.end - m.in < 1400 && m.end - m.out < SPLASH_T.fast + 300, 'toucher : sortie rapide : ' + JSON.stringify(m));
+  const m = await marks(p); assert.ok(m.out - m.in < SPLASH_T.min && m.end - m.out < SPLASH_T.fast + 300, 'toucher : sortie avant le temps minimal (dès que l\'appli est prête), fondu rapide : ' + JSON.stringify(m));
   assert.ok(!(await p.evaluate(() => window.__sp)).join(' ').includes('sp-morph'), 'toucher : simple fondu');
   await p.waitForTimeout(400);
   assert.equal(await p.evaluate(() => S.view + (document.querySelector('.dv.on, .sheet-wrap.open') ? ' +écran' : '')), 'home', 'le toucher n\'a rien ouvert dessous');
@@ -164,6 +168,19 @@ ok('lien profond (?open=, ?p=) : version courte de 0,6 s, puis l\'écran demand�
   await p.evaluate(() => { Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
   assert.deepEqual(await p.evaluate(() => [!!document.getElementById('splash'), document.getElementById('app').inert, document.documentElement.classList.contains('sp-on')]), [false, false, false], 'arrière-plan : retiré sans animation');
   ok('arrière-plan pendant le splash : retiré, jamais rejoué au retour');
+  await ctx.close();
+}
+// ── Nouvelle version au lancement : le splash attend la réponse du serveur, la page se recharge dessous (jamais sur l'accueil) et la suivante le reprend ──
+for (const dir of ['upd', 'updslow']) {
+  const { ctx, p } = await open(dir + '/', { wait: 'commit', user: true });
+  await p.waitForFunction(() => performance.getEntriesByType('navigation')[0].type === 'reload' && document.readyState !== 'loading', null, { timeout: 12000 });
+  const ph = await p.evaluate(() => sessionStorage.getItem('t-ph'));
+  assert.ok(ph && /sp-in/.test(ph) && !/sp-out/.test(ph), dir + ' : page quittée avec l\'écran de lancement encore plein (pas de flash de l\'accueil) : ' + ph);
+  await gone(p);
+  const cls = (await p.evaluate(() => window.__sp)).join(' ');
+  assert.ok(!/sp-short/.test(cls), dir + ' : la page rechargée reprend l\'écran complet (pas la version courte) : ' + cls);
+  assert.equal(await p.evaluate(() => [performance.getEntriesByType('navigation')[0].type, sessionStorage.getItem('dd-sp-cont')].join()), 'reload,', 'un seul rechargement, reprise consommée');
+  ok(dir + ' : nouvelle version au lancement, rechargement sous l\'écran de lancement, reprise sans flash');
   await ctx.close();
 }
 // ── Navigateur piloté sans ?splash=1 : aucun splash (les autres e2e restent inchangés) ──

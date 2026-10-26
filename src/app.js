@@ -1262,6 +1262,7 @@ function initInstall() {
 /** Serveur Mana Orbit présent ? Délai large (démarrage à froid, réseau mobile lent) : sinon la session passait en démo, avec de faux prix. */
 async function detectProxy(ms = 5000) {
   if (typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) return;
+  if (typeof splashWait === 'function') splashWait(true);      // l'écran de lancement attend la version du serveur (mise à jour : rechargement dessous, splash.js)
   try {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
     const r = await fetch('__ping', { cache: 'no-store', signal: ctrl.signal }); clearTimeout(t);      // jamais en cache : la version du serveur décide de la mise à jour (pwa.js)
@@ -1269,6 +1270,7 @@ async function detectProxy(ms = 5000) {
     if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.evpush = j.evpush === true; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
     if (j && j.ok && typeof j.ptk === 'string' && typeof partiePkKeep === 'function') partiePkKeep(j.ptk);      // compteur de vie : clé publique des cartes joueur (vérifiées sans réseau, partie.js)
   } catch (e) { /* pas de proxy */ }
+  finally { if (typeof splashWait === 'function') splashWait(false); }
   modeLabel();
 }
 
@@ -1397,7 +1399,7 @@ function handleLaunch() {
   wgtLaunched();                                                                          // appli Android : liens partagés à froid, en attente du serveur (widget.js)
   let q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
   if (![...q.keys()].length) return;
-  UPD.launchAt = Date.now();                                                              // lien, raccourci, partage : pas de rechargement automatique qui perdrait la cible (pwa.js)
+  if ([...q.keys()].some(k => !(typeof SPLASH_KEEP !== 'undefined' && SPLASH_KEEP.test(k)))) UPD.launchAt = Date.now();      // lien, raccourci, partage : pas de rechargement automatique qui perdrait la cible (pwa.js) ; ?lang=, ?utm_… n'ouvrent rien
   const resume = q.has('resume'), alerts = q.has('alerts'), amis = q.has('amis') || q.has('ami'), shared = q.has('text') || q.has('url') || q.has('title'), del = q.has('delete-account');
   try { history.replaceState(null, '', location.pathname); } catch (e) { /* ignore */ }
   if (del) setTimeout(() => openAccount('delete'), 600);                                  // lien « supprimer mon compte » de la politique de confidentialité
