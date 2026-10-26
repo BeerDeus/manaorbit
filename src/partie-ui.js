@@ -395,7 +395,7 @@ function puTile(st, p, r, m = '', o = {}) {
       <div class="pu-top"><button type="button" class="pu-nm" data-pu="pl" data-pos="${p.pos}" title="${T('Fiche du joueur : blessures de commandant, compteurs')}"><span class="pu-nm-h"><svg class="i pu-nm-i" aria-hidden="true"><use href="#i-sliders"/></svg><span class="pu-nm-w"><b>${nm}</b>${puCmd(p) ? `<small>${esc(puCmd(p))}</small>` : ''}</span></span>${tags.length ? `<span class="pu-tags">${tags.join('')}</span>` : ''}</button></div>
       ${atk && atk.top ? atk.top : ''}
       <span class="pu-lb"><b class="pu-life${big}" aria-live="polite">${dead ? '<svg class="i pu-dead" aria-hidden="true"><use href="#i-skull"/></svg>' : p.vie}${d && d.n ? `<span class="pu-dl">${d.n > 0 ? '+' : ''}${d.n}</span>` : ''}</b></span>
-      ${act && !ro && !atk ? `<button type="button" class="pu-turn" data-pu="next">${T('Fin du tour')}</button>` : ''}
+      ${act && !ro && !atk ? `<button type="button" class="pu-turn" data-pu="next"><span>${T('Fin du tour')}</span></button>` : ''}
       ${atk && atk.html ? atk.html : ''}${pin ? `<div class="pu-pin" role="alert"><span>${esc(puPropTxt(st, pin))}</span><div class="pu-pin-b">${puPropBtns(pin)}</div></div>` : ''}${roll}
     </div></div>`;
 }

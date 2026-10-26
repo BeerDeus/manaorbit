@@ -13,7 +13,8 @@
 /* « Fin du tour » posé en bas de la tuile (plus dans le flux : la tuile qui joue garde des PV de la même taille), cible de 44 px ; ses PV remontent juste ce qu'il
    faut (dans le blanc du haut de leur ligne), et ne rapetissent que si la tuile est très basse (chiffres d'Instrument Sans : de .12 à .87 de la hauteur de
    leur ligne ; « Fin du tour » occupe les 30 px du bas de la place des PV) */
-.pu-turn{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);z-index:3;min-height:34px;max-width:calc(100% - 92px);margin:0;padding-inline:10px;overflow:hidden;text-overflow:ellipsis;font-size:clamp(12px,5cqmin,18px);box-shadow:0 4px 14px rgba(0,0,0,.4)}      /* « Fin du tour » tient entre les deux moitiés −/+ (sinon « … », jamais coupé net) */
+.pu-turn{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);z-index:3;min-height:34px;max-width:calc(100% - 92px);margin:0;padding-inline:10px;font-size:clamp(12px,5cqmin,18px);box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.pu-turn>span{display:block;overflow:hidden;text-overflow:ellipsis}      /* « Fin du tour » tient entre les deux moitiés −/+ (sinon « … », jamais coupé net) ; coupé sur le texte, pas sur le bouton : sa zone au doigt (::after) reste entière */
 .pu-turn::after{content:'';position:absolute;inset:-5px -4px}
 .pu-t.act.rv .pu-life{font-size:clamp(26px,calc(min(100cqh * 1.12,(100cqw - 64px) * .64,(100cqh - 33px) / .75) * var(--k)),200px);translate:0 calc(-1 * max(0px,.37em - 50cqh + 35px))}
 @container pucell (min-height:171px){

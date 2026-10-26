@@ -197,6 +197,7 @@ await p.waitForFunction(() => PU.st.places.length === 2);
 assert.deepEqual(await p.evaluate(() => PU.st.places[1].deck), { nom: 'Mono-vert' }); assert.match(await txt(p, '.pu-seats'), /Bob Mono-vert/);
 await p.click('[data-pu="start"]'); await p.waitForSelector('.pu.pu-game .pu-a');
 assert.deepEqual(await p.$$eval('.pu-t', t => t.map(x => [x.dataset.pos, x.style.getPropertyValue('--r')])), [['2', '180deg'], ['1', '0deg']], 'à deux : face à face');
+await p.waitForSelector('.pu-roll.j1', { timeout: 6000 }); await p.click('.pu-roll'); assert.equal(await p.$('.pu-roll'), null, 'premier joueur tiré au lancement : affiché jusqu\'à un toucher');
 assert.deepEqual(await p.$$eval('.pu-t .pu-life', b => b.map(x => x.textContent)), ['20', '20']);
 await p.click('.pu-t[data-pos="2"] .pu-hit.m'); assert.equal((await st()).places[1].vie, 19);
 await p.click('.pu-t[data-pos="1"] .pu-nm'); await p.waitForSelector('.pu-sheet .pu-lifebig');
