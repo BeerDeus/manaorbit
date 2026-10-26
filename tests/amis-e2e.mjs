@@ -141,6 +141,18 @@ await pb.evaluate(() => { if (TR.pub && TR.pub.el) TR.pub.el.__close(); showView
 await pb.waitForSelector('#hmForYou:not([hidden]) [data-fa="' + TA + '"]');
 assert.equal(await tc(pb, '#hmForYou .hm-fy-h'), 'Pour toi · tes amis'); assert.equal(await tc(pb, '#hmForYou .hm-fy-t'), 'Alice · 2 cartes pour toi');
 await shot(pb, '09-accueil-pour-toi');
+{      // « Je recherche » modifiée : envoi 10 s après le dernier changement (20 s pour le reste), puis « X cartes pour toi » relu sans attendre les 4 min
+  const delays = () => pb.evaluate(() => { const ms = [], st = window.setTimeout; window.setTimeout = (f, d, ...x) => { if (d >= 1e4) ms.push(d); return st(f, d, ...x); }; try { amDataSoon(); } finally { window.setTimeout = st; } return ms; });
+  assert.deepEqual(await delays(), [20000], 'souhaits inchangés : délai habituel');
+  await pb.evaluate(() => { TR.wish['llanowar elves'] = { n: 'Llanowar Elves', q: 1 }; trChanged(); });
+  assert.deepEqual(await delays(), [10000], 'souhait ajouté : 10 s');
+  const g0 = F.fs.ops.length; await pb.evaluate(() => amData());
+  await pb.waitForFunction(() => /3 cartes pour toi/.test((document.querySelector('#hmForYou .hm-fy-t') || {}).textContent || ''));
+  assert.ok(F.fs.ops.length > g0);
+  await pb.evaluate(() => { delete TR.wish['llanowar elves']; trChanged(); return amData(); });
+  await pb.waitForFunction(() => /2 cartes pour toi/.test((document.querySelector('#hmForYou .hm-fy-t') || {}).textContent || ''));
+  assert.deepEqual(await delays(), [20000], 'envoyés : plus de délai court');
+}
 await pb.click('#hmForYou [data-fa="' + TA + '"]'); await pb.waitForSelector('.pubv.on .am-chips');
 {      // son propre lien ouvert (lien actuel, ou ancien partage du compte : empreinte o) : jamais dans « Pour toi » ; clé à part de celle des documents vus (decks.js › acctSeen)
   await pa.evaluate(id => openPublicLink(id), SID); await pa.waitForSelector('.pubv.on'); await pa.waitForTimeout(300);

@@ -1288,7 +1288,10 @@ function recapText() {
 }
 
 /* ── Branchements ─────────────────────────────────────────────────────────────────────────── */
+/** Interface fixe, comme une appli : Safari (iOS) ignore user-scalable=no du viewport (build.mjs), le pincement y est refusé ici ; ailleurs le viewport et touch-action suffisent (APK : MainActivity aussi). */
+function noZoom() { for (const t of ['gesturestart', 'gesturechange']) document.addEventListener(t, e => e.preventDefault(), { passive: false }); }
 function init() {
+  noZoom();
   i18nDom(document.body);                                        // textes fixes de la page dans la langue choisie
   const saved = loadStore();
   if (saved.opts) Object.assign(S.opts, saved.opts);

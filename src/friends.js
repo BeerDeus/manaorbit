@@ -16,8 +16,8 @@
      voir push.js › pushOpen et app.js › handleLaunch.
    Tout passe par le serveur (proxy.mjs › /api/friends, jeton Firebase) : aucune règle Firestore à publier. Serveur sans amis (/__ping amis: false),
    hors ligne, déconnecté : rien n'apparaît, ou un message court. Rien au démarrage : la liste est lue quelques secondes après la connexion. */
-const AM_KEY = 'deckdeal:amis:v1', AM_TTL = 4 * 60e3, AM_DEV_TTL = 7 * 86400e3, AM_PART = 990000, AM_SYNC = 20000, AM_PAGE = 120;
-const AM = { uid: '', l: null, at: 0, run: null, t: 0, dt: 0, vt: 0, busy: false, again: false, sig: {}, dev: '', devSig: '', devAt: 0, push: true, pic: null, sheet: null, parts: new Map(), pubCheck: null, err: '', loaded: false };
+const AM_KEY = 'deckdeal:amis:v1', AM_TTL = 4 * 60e3, AM_DEV_TTL = 7 * 86400e3, AM_PART = 990000, AM_SYNC = 20000, AM_WISH = 10000, AM_PAGE = 120;
+const AM = { uid: '', l: null, at: 0, run: null, t: 0, dt: 0, vt: 0, busy: false, again: false, sig: {}, ws: '', wn: '', dev: '', devSig: '', devAt: 0, push: true, pic: null, sheet: null, parts: new Map(), pubCheck: null, err: '', loaded: false };
 const AM_TAG_RE = /^[0-9a-f]{64}$/;
 const AM_ADD_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="8" r="3.6"/><path d="M3.5 19.5c.8-3.4 3.4-5.3 6.5-5.3 1.6 0 3 .5 4.1 1.4M18.5 13.5v6M15.5 16.5h6"/></svg>';
 
@@ -48,10 +48,10 @@ function amLs() {
 function amLoad() {
   const o = amLs(), same = !!AM.uid && o.uid === AM.uid;
   AM.l = same ? amTidy(o.l) : null; AM.at = 0; AM.err = ''; if (AM.l) AM.l.tr = [];      // invitations à un échange : seulement celles du serveur, jamais une copie ancienne
-  AM.sig = same && o.sig && typeof o.sig === 'object' ? o.sig : {}; AM.dev = same && typeof o.dev === 'string' ? o.dev : '';
+  AM.sig = same && o.sig && typeof o.sig === 'object' ? o.sig : {}; AM.wn = same && typeof o.wn === 'string' ? o.wn : ''; AM.ws = ''; AM.dev = same && typeof o.dev === 'string' ? o.dev : '';
   AM.devSig = same ? String(o.devSig || '') : ''; AM.devAt = same ? amNum(o.devAt) : 0; AM.push = o.push !== false; AM.parts.clear(); AM.loaded = true;
 }
-function amStore() { try { localStorage.setItem(AM_KEY, JSON.stringify({ uid: AM.uid, l: AM.l, sig: AM.sig, dev: AM.dev, devSig: AM.devSig, devAt: AM.devAt, push: AM.push })); } catch (e) { /* stockage plein */ } }
+function amStore() { try { localStorage.setItem(AM_KEY, JSON.stringify({ uid: AM.uid, l: AM.l, sig: AM.sig, wn: AM.wn, dev: AM.dev, devSig: AM.devSig, devAt: AM.devAt, push: AM.push })); } catch (e) { /* stockage plein */ } }
 /** Cet appareil est enregistré pour les notifications des amis : son abonnement push ne doit pas être coupé avec la fin de recherche ou les alertes (push.js, alerts.js). */
 function amHoldsPush() { const o = AM.loaded ? AM : amLs(); return !!(o.dev && o.push !== false); }
 const amFriend = id => (AM.l ? AM.l.friends.find(f => f.id === id) : null) || null;
@@ -196,7 +196,7 @@ async function amWipe() {
 const amBytes = s => new TextEncoder().encode(s).length;
 /** Contenu d'une partie : t liste d'échange (celle du lien public), d decks enregistrés, c collection [[nom, exemplaires, langue ?]]. k : nombre affiché chez les amis. */
 function amPartOf(p) {
-  if (p === 't') { const b = trPayload(); return { j: JSON.stringify(b), k: new Set(b.have.map(x => x.n + '|' + (x.l || ''))).size }; }      // k : cartes par langue (une carte en deux éditions compte une fois)
+  if (p === 't') { const b = trPayload(); return { j: JSON.stringify(b), k: new Set(b.have.map(x => x.n + '|' + (x.l || ''))).size, wn: String(hash32([...new Set(b.want.map(x => x.n))].sort().join('\n'))) }; }      // k : cartes par langue (une carte en deux éditions compte une fois) ; wn : cartes cherchées
   if (p === 'd') {
     const out = []; let size = 2;
     for (const d of allDecks()) { const o = { n: String(d.name || 'Deck').slice(0, 120), t: String(d.text || '').slice(0, 60000) }, s = JSON.stringify(o).length + 1; if (size + s > AM_PART || out.length >= 150) break; out.push(o); size += s; }
@@ -207,25 +207,31 @@ function amPartOf(p) {
   while (j.length > AM_PART && rows.length > 100) { rows.length = Math.floor(rows.length * 0.9); j = JSON.stringify(rows); }
   return { j, k: rows.length };
 }
-function amDataSoon(ms = AM_SYNC) { if (!AM.uid || !AM.l || !AM.l.need) return; clearTimeout(AM.dt); AM.dt = setTimeout(() => amData(), ms); }
+/** « Je recherche » modifiée (souhaits ajoutés ou retirés) : envoi 10 s après le dernier changement au lieu de 20 s, puis « X cartes pour toi » relu (amData). */
+const amWishSig = () => (typeof TR !== 'undefined' && TR.wish ? Object.keys(TR.wish).sort().join('\n') : '');
+function amDataSoon(ms = AM_SYNC) { if (!AM.uid || !AM.l || !AM.l.need) return; if (ms === AM_SYNC && amWishSig() !== AM.ws) ms = AM_WISH; clearTimeout(AM.dt); AM.dt = setTimeout(() => amData(), ms); }
 /** Envoie ce qui a changé (liste d'échange, decks, collection si partagée). Pas avant que la collection du compte soit lue : une liste vide puis pleine
     passerait pour « vient d'ajouter » toutes ses cartes chez les amis. */
 async function amData() {
   if (!amOn() || !AM.l || !AM.l.need || amOffline() || (typeof acctHeld === 'function' && acctHeld(D.uid))) return;
   if (!COLL.live) { clearTimeout(AM.dt); AM.dt = setTimeout(() => amData(), 8000); return; }
   if (AM.busy) { AM.again = true; return; }
-  AM.busy = true; AM.again = false; const uid = D.uid;
+  AM.busy = true; AM.again = false; const uid = D.uid; let wish = false;
+  AM.ws = amWishSig();
   try {
     await amMe();
     for (const p of ['t', 'd', 'c']) {
       if (p === 'c' && !AM.l.me.c) continue;
-      const { j, k } = amPartOf(p), sig = hash32(j) + ':' + j.length;
-      if (AM.sig[p] === sig && AM.l.me.has[p]) continue;
+      const { j, k, wn } = amPartOf(p), sig = hash32(j) + ':' + j.length;
+      if (AM.sig[p] === sig && AM.l.me.has[p]) { if (wn) AM.wn = wn; continue; }
       if (amBytes(j) > 1e6) { AM.sig[p] = sig; continue; }      // trop gros même réduit (cas extrême) : gardée sur l'appareil
       await amCall('/me', { method: 'PUT', body: { part: p, j, k } });
       if (D.uid !== uid) return;
-      AM.sig[p] = sig; AM.l.me.has[p] = Date.now(); amStore();
+      AM.sig[p] = sig; AM.l.me.has[p] = Date.now();
+      if (wn && wn !== AM.wn) { wish = true; AM.wn = wn; }      // cartes cherchées changées : « X cartes pour toi » relu juste après
+      amStore();
     }
+    if (wish) amRefresh(true);
   } catch (e) { if (e.code === 'net' || e.status >= 500 || e.status === 429) { clearTimeout(AM.dt); AM.dt = setTimeout(() => amData(), 60000); } }      // hors ligne, serveur occupé : nouvel essai dans une minute
   finally { AM.busy = false; if (AM.again) amDataSoon(2000); }
 }

@@ -42,8 +42,12 @@
 
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
-html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;touch-action:pan-x pan-y}      /* interface fixe, comme une appli : ni pincer ni toucher deux fois pour zoomer (iOS : app.js › noZoom) */
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;min-height:100%}
+/* texte non sélectionnable, comme dans une appli (un appui long ne surligne plus les boutons, titres, listes) ; restent sélectionnables : champs de saisie
+   et ce qui sert à être copié, marqué user-select:all (identifiant du compte, adresse mail, lien du QR code, code d'échange en direct) */
+body{-webkit-user-select:none;user-select:none}
+input,textarea,[contenteditable]:not([contenteditable="false"]){-webkit-user-select:text;user-select:text}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 h1,h2,h3,p{margin:0}
@@ -423,7 +427,7 @@ button.sync:active{background:var(--surface-2)}
 .ib-x .i{width:17px;height:17px}
 .installbox{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
 .uid-row{display:flex;align-items:center;gap:10px}
-.uid-row code{flex:1;min-width:0;overflow-wrap:anywhere;font-family:var(--font-code);font-size:12.5px;padding:10px 12px;border-radius:12px;background:var(--surface-2);color:var(--ink-2);user-select:all}
+.uid-row code{flex:1;min-width:0;overflow-wrap:anywhere;font-family:var(--font-code);font-size:12.5px;padding:10px 12px;border-radius:12px;background:var(--surface-2);color:var(--ink-2);-webkit-user-select:all;user-select:all}
 .swap{font-size:13.5px;color:var(--ink-2);display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:var(--accent-soft)}
 .swap b{color:var(--ink)}
 

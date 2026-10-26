@@ -214,6 +214,37 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.0.14 (versionCode 15) : interface fixe, plus de zoom en pinçant (26 octobre 2026)
+
+**Pourquoi** : pincer (ou toucher deux fois) zoomait toute l'interface, comme sur un site : l'appli doit rester fixe.
+
+**Comment** : `MainActivity` coupe le zoom du WebView (`setSupportZoom(false)`, `setBuiltInZoomControls(false)`). Le site le coupe aussi de son côté (viewport `maximum-scale=1, user-scalable=no`, `touch-action: pan-x pan-y` sur `html`, `gesturestart` refusé pour Safari) : **les APK déjà installées en profitent dès que le site est à jour**, cette APK n'est qu'une ceinture de plus. Le pincement de l'aperçu du scan (zoom de la caméra, `camTouch`) ne passe pas par le WebView : inchangé. Même mise à jour du site : texte non sélectionnable (sauf champs de saisie, identifiant du compte, codes et liens à copier).
+
+1. `git pull`, `npm run setup` dans `android-app`, Android Studio › **Sync Project with Gradle Files**, `.aab` signé (§ 4.1).
+2. **Test interne** : « APK : 1.0.14 (15) » en bas des Réglages. Pincer et toucher deux fois sur l'accueil, la collection, une carte en grand : rien ne zoome. Scan : pincer sur l'aperçu zoome toujours la caméra. Appui long sur un texte : pas de sélection ; dans un champ de recherche : sélection et coller possibles. Puis la liste habituelle (scan d'une carte, connexion Google, lien `https://manaorbit.app/?p=…`).
+3. Notes de version :
+```
+<fr-FR>
+L'interface reste fixe : plus de zoom involontaire en pinçant l'écran, plus de texte surligné par un appui long. Le zoom de la caméra pendant le scan ne change pas.
+</fr-FR>
+<en-US>
+The interface now stays put: no more accidental zoom when pinching the screen, no more text highlighted by a long press. Camera zoom while scanning is unchanged.
+</en-US>
+<de-DE>
+Die Oberfläche bleibt jetzt fest: kein versehentliches Zoomen mehr beim Auseinanderziehen, kein markierter Text mehr nach langem Drücken. Der Kamerazoom beim Scannen bleibt gleich.
+</de-DE>
+<es-ES>
+La interfaz ya no se mueve: se acabó el zoom involuntario al pellizcar la pantalla y el texto resaltado con una pulsación larga. El zoom de la cámara al escanear no cambia.
+</es-ES>
+<it-IT>
+L'interfaccia ora resta ferma: niente più zoom involontario con il pizzico, niente più testo evidenziato con una pressione lunga. Lo zoom della fotocamera durante la scansione non cambia.
+</it-IT>
+<pt-BR>
+A interface agora fica fixa: chega de zoom sem querer ao fazer pinça na tela e de texto selecionado com um toque longo. O zoom da câmera ao escanear continua igual.
+</pt-BR>
+```
+4. `APK_LATEST` à **15** une fois la 1.0.14 en ligne : facultatif (le site corrige déjà le zoom des APK plus anciennes).
+
 ### APK 1.0.13 (versionCode 14) : icône de l'appli aux couleurs des fêtes (25 octobre 2026)
 
 **Pourquoi** : pendant une fête (Halloween, Noël, Nouvel an, Pâques, anniversaire de Magic), l'icône de l'appli sur le téléphone prend ses couleurs, puis revient toute seule à la normale. Une fois cette APK installée, plus rien à faire à chaque fête : le site décide.

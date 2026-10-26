@@ -159,3 +159,13 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 14, 'code natif changé : versionCode 14 et plus (1.0.13)');
   console.log(`✓ APK 1.0.13 : icônes des fêtes (${sp.join(', ')}) sur des activity-alias, une seule activée, mipmaps présents, partage et App Links restés sur MainActivity, setIcon / iconState, versionCode ≥ 14`);
 }
+
+// APK 1.0.14 : interface fixe. Zoom du WebView coupé par MainActivity ; le site le coupe aussi (viewport, touch-action, gesturestart) pour les APK plus anciennes.
+{
+  const gradle = readFileSync('android-app/android/app/build.gradle', 'utf8'), main = readFileSync('android-app/android/app/src/main/java/app/manaorbit/MainActivity.java', 'utf8');
+  assert.match(main, /super\.onCreate\(savedInstanceState\);[\s\S]*setSupportZoom\(false\);[\s\S]*setBuiltInZoomControls\(false\)/, 'zoom du WebView coupé après la création du pont');
+  assert.match(readFileSync('build.mjs', 'utf8'), /name="viewport" content="[^"]*maximum-scale=1, user-scalable=no/, 'site : viewport sans zoom');
+  assert.match(readFileSync('src/style.css', 'utf8'), /html\{[^}]*touch-action:pan-x pan-y/, 'site : ni pincer ni double toucher');
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 15, 'code natif changé : versionCode 15 et plus (1.0.14)');
+  console.log('✓ APK 1.0.14 : zoom du WebView coupé (MainActivity) et par le site (viewport, touch-action), versionCode ≥ 15');
+}

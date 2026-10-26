@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowManager;
+import android.webkit.WebSettings;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
@@ -20,6 +21,12 @@ public class MainActivity extends BridgeActivity {
         Intent launch = getIntent();
         if (savedInstanceState != null || (launch != null && (launch.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0)) ManaOrbitPlugin.forget(launch);
         super.onCreate(savedInstanceState);
+        // Interface fixe, comme une appli : ni pincer ni toucher deux fois pour zoomer dans le WebView (le site le coupe aussi par son viewport,
+        // ce qui suffit aux APK plus anciennes une fois le site à jour).
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            WebSettings ws = getBridge().getWebView().getSettings();
+            ws.setSupportZoom(false); ws.setBuiltInZoomControls(false); ws.setDisplayZoomControls(false);
+        }
         // Plein écran (barre d'état cachée par le site, SystemBars) : la page dessine aussi sur la ligne de la caméra frontale, sans bande noire
         // (Android 9 à 14 ; Android 15 et plus le font déjà pour une appli bord à bord). Le site lit la découpe (ManaOrbit.cutout) pour l'éviter.
         if (Build.VERSION.SDK_INT >= 28) {
