@@ -257,18 +257,21 @@ const EV_PACKS = [
       },
     } },
   { id: 'paques', ready: false, name: 'Pâques', when: y => evAround(evEaster(y)), total: 30, perDay: 5,
-    // Dessins (evart.js, section « Pâques ») : œuf décoré (5 teintes et décors peints selon la cachette), compteur, poussin des messages ; ambiance et
-    // couleurs : css/ev-paques.css. Pas encore ouvert (ready: false) : ni messages Discord ni notifications push tant que la fête n'est pas validée.
+    // Nid de Pâques (evnest.js) : chaque œuf trouvé rejoint la couvée en cours (nest.per œufs, un par couleur du mana, dans l'ordre de nest.mana) ; au dernier,
+    // elle éclot : un poussin (total / per poussins en tout). Le badge compte les poussins éclos (unit), pas les œufs.
+    // Dessins (evart.js, section « Pâques ») : œuf décoré (5 teintes et décors peints selon la cachette), œufs du mana, éclosion, compteur, poussin des messages ;
+    // ambiance et couleurs : css/ev-paques.css, mise en page du nid : css/event-nest.css. Pas encore ouvert (ready: false) : ni messages Discord ni notifications.
+    nest: { per: 5, mana: ['W', 'U', 'B', 'R', 'G'] },
     obj: { one: 'œuf', many: 'œufs', emoji: '🥚', fem: false, art: 'egg', counter: 'eggCounter', msg: 'chick' },
     pal: { a: '#ffb3d1', b: '#8fd6a8', c: '#ffd36b', ink: '#2a1d2e' }, font: 'bloom',
-    badge: { t: 'Œufs de Pâques {y}', tiers: [1, 10, 20, 30], names: ['Cueilleur', 'Dénicheur', 'Gardien du nid', 'Lapin d\'or'] },
+    badge: { t: 'Nid de Pâques {y}', tiers: [1, 2, 4, 6], unit: ['{n} poussin éclos', '{n} poussins éclos'], names: ['Premier poussin', 'Couveur', 'Gardien du nid', 'Lapin d\'or'] },
     txt: {
-      title: 'La chasse aux œufs est ouverte', short: 'Chasse aux œufs',
-      rules: ['{total} œufs décorés se cachent dans l\'appli jusqu\'au {to}.', '{per} par jour au plus, dans de nouvelles cachettes chaque matin.', 'Touche-les pour les ramasser et gagner les badges de Pâques {y}.'],
+      title: 'Le nid de Pâques t\'attend', short: 'Nid de Pâques',
+      rules: ['{total} œufs se cachent dans l\'appli jusqu\'au {to}, {per} par jour au plus, dans de nouvelles cachettes chaque matin.', 'Chaque œuf trouvé rejoint ton nid : 5 œufs, un par couleur du mana, et la couvée éclot.', 'Fais éclore les 6 poussins pour gagner les badges du nid de Pâques {y}.'],
       found: 'Un œuf !', left: ['Encore <b>{n} œuf</b> à dénicher aujourd\'hui', 'Encore <b>{n} œufs</b> à dénicher aujourd\'hui'],
-      dayDone: 'Ton panier du jour est plein, reviens demain', allDone: 'Les {total} œufs sont dans ton panier', allSub: 'Tu es Lapin d\'or {y} : le grade ultime de la chasse aux œufs.',
-      label: 'Un œuf caché : touche-le pour le ramasser', tip: 'Un œuf de Pâques ! Touche-le pour le ramasser : {per} se cachent dans l\'appli chaque jour.',
-      join: 'Crée un compte pour garder tes œufs sur tous tes appareils.', deco: 'Décorations de Pâques',
+      dayDone: 'Tous les œufs du jour sont au nid, reviens demain', allDone: 'Les {total} poussins sont nés', allSub: 'Tu es Lapin d\'or {y} : le grade ultime du nid de Pâques.',
+      label: 'Un œuf caché : touche-le pour le mettre au nid', tip: 'Un œuf de Pâques ! Touche-le pour le mettre au nid : {per} se cachent dans l\'appli chaque jour.',
+      join: 'Crée un compte pour garder ton nid sur tous tes appareils.', deco: 'Décorations de Pâques',
     } },
   { id: 'magic', ready: false, name: 'Anniversaire de Magic', when: y => evAround(`${y}-08-05`), total: 30, perDay: 5,
     obj: { one: 'bougie', many: 'bougies', emoji: '🕯️', fem: true, art: 'candle' },
@@ -376,6 +379,7 @@ function evCheck(y = 2026) {
   for (const p of EV_PACKS) {
     const e = evEdition(p, y), need = Math.ceil(p.total / e.per);
     if (p.sky && p.sky.cons.length * p.sky.per !== p.total) bad.push(p.id + ' : constellations ≠ total');
+    if (p.nest && (p.total % p.nest.per || p.nest.mana.length !== p.nest.per || p.badge.tiers[p.badge.tiers.length - 1] !== p.total / p.nest.per)) bad.push(p.id + ' : couvées ≠ total ou badges');
     if (p.advent) {      // calendrier : une porte par jour, puis au moins un jour de rattrapage ; tout le total tient dans les portes
       if (p.advent.doors * e.per !== p.total) bad.push(p.id + ' : ' + p.advent.doors + ' portes × ' + e.per + ' ≠ ' + p.total);
       if (e.days <= p.advent.doors || e.days > p.advent.doors + 3) bad.push(p.id + ' : ' + e.days + ' jours pour ' + p.advent.doors + ' portes');

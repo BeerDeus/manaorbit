@@ -1048,18 +1048,19 @@ const evqStemDefs = id => `<linearGradient id="${id('st')}" x1="0" y1="0" x2="1"
   + `<linearGradient id="${id('lf')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6e57f"/><stop offset=".6" stop-color="#55a845"/><stop offset="1" stop-color="#2f7a3a"/></linearGradient>`;
 
 Object.assign(EV_ART, {
-  /** Lapin blanc assis de trois quarts (viewBox 64 × 64), tête un peu penchée, une oreille pliée ; il tient un œuf peint entre ses pattes avant (o.egg : false
+  /** Lapin blanc assis de trois quarts (viewBox 64 × 64), tête un peu penchée, une oreille inclinée à la pointe repliée ; il tient un œuf peint entre ses pattes avant (o.egg : false
    *  pour ses pattes seules ; o.v : teinte de l'œuf, rose par défaut). Pelage en dégradés doux et mèches, joues et poitrail en touffes, queue en pompon,
-   *  intérieur des oreilles rose veiné, yeux à double reflet. Parties animées : .evo-ears (frémissent), .evo-nose (remue). */
+   *  oreilles nées du crâne (l'une debout, l'autre inclinée, la pointe repliée), intérieur rose veiné, yeux à double reflet. Parties animées : .evo-ears (frémissent), .evo-nose (remue). */
   bunny: (o = {}) => {
     const n = ++EVO_N, id = s => `evo${n}${s}`, f = evoF, egg = o.egg !== false, ev = o.v === undefined ? 0 : evqV(o.v), ln = '#7d6a8c';
     const fur = (d, w = .45, c = '#b8a6c8', op = .8) => `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" opacity="${op}"/>`;
     const tail = evqFluff(50.4, 47.2, 4.4, 11, 1.9), tail2 = evqFluff(49.8, 46.6, 2.8, 9, 1.3), HT = 'rotate(-8 24.4 26) translate(1 2.4)';
     const head = 'M13.2 25.6C12.8 19.2 17.8 14.6 24.6 14.6C31.4 14.6 35.8 19.2 35.4 25C35.1 29.2 33 32 29.8 33.6L30.4 35.2L28.2 34.6L27.6 36.4L25.8 35.2L24.6 36.8L23.2 35.4L21.4 36.4L20.8 34.6L18.8 35C16.6 33.4 15.6 31.8 15 30.4C13.8 29.2 13.3 27.6 13.2 25.6Z';
     const body = 'M22.6 57.8C17.8 56.8 16.6 51.4 17.8 46.4C19.2 41 22.6 37.4 27.4 35.8C32 34.2 38.2 34.2 42.8 36.4C48 38.8 51.4 43.6 51.2 49.4C51 54 48.4 57.2 44 57.8Z';
-    const ear = 'M28.4 17.2C27.6 10.6 29.6 4.2 33.6 1.8C36.4.2 38.6 2 38.2 5.6C37.6 11 34.8 16.2 32 19.4Z', earIn = 'M30.2 16.4C29.8 11.2 31.4 6.4 34 4.4C35.6 3.4 36.6 4.6 36.2 7C35.6 10.6 33.8 14.4 31.8 17.2Z';
-    const ear2 = 'M18.6 17.4C16.8 13.2 16.4 9.4 17.6 6.6C18.6 4.4 21.8 4.2 23.2 6.6C24.4 8.8 24.4 13 23.6 17Z', ear2In = 'M19.8 15.8C18.6 12.8 18.4 9.8 19.2 7.8C19.8 6.6 21.4 6.4 22 7.8C22.8 9.6 22.8 12.6 22.4 15.6Z';
-    const flap = 'M17.8 6.8C15.4 6.4 12.6 8.2 11 11.2C10.2 12.6 10.8 14 12.2 13.4C14.4 12.2 16.8 11 19 10.6C19.6 9.2 19.2 7.4 17.8 6.8Z';
+    /* oreilles (repère de la tête, derrière le crâne : leur base est cachée par la tête) : A debout, B inclinée vers l'arrière, la pointe qui retombe */
+    const earA = 'M18.2 19C16.4 13.4 16.2 7.2 17.8 3.4C19 .6 22.4.6 23.6 3.4C25 6.8 24.8 13 23.6 18.6Z', earAIn = 'M19.4 16.6C18.2 12.2 18.2 7.6 19.2 4.8C19.8 3.2 21.4 3.2 22 4.8C22.8 7.6 22.8 12.2 22.2 16.2Z';
+    const earB = 'M26.4 19C26.4 12.6 28.6 7 32.6 4.2C34.4 3 36.6 3.2 37.4 4.8C38.2 6.6 37 10.6 35 13.8C33.6 16.2 32 18.2 30.8 19.6Z', earBIn = 'M28.2 17.4C28.4 12.4 30.2 8.2 32.8 6.2C34 5.4 35.2 5.6 35.2 6.8C35 9.4 33.6 12.6 31.6 15.6Z';
+    const tipB = 'M33 4C35.2 2.6 38.4 2.8 39.8 5.2C40.8 7 40.8 9.8 40 11.6C39.4 12.6 38.2 12.4 38 11.2C37.6 9 37 7 35.8 5.8C35 5 34 4.4 33 4Z';
     const GE = { cx: 25, cy: 48.8, a: 5.2, b: 6.9, k: .15, s: .5 };
     return `<svg class="evo evo-bunny${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs>`
       + `<radialGradient id="${id('f')}" cx=".34" cy=".26" r=".86"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#f8f3f8"/><stop offset=".82" stop-color="#e2d6e8"/><stop offset="1" stop-color="#c9b8d4"/></radialGradient>`
@@ -1072,10 +1073,14 @@ Object.assign(EV_ART, {
       + `<radialGradient id="${id('o')}"><stop offset="0" stop-color="#2a1d3a" stop-opacity=".34"/><stop offset=".6" stop-color="#2a1d3a" stop-opacity=".12"/><stop offset="1" stop-color="#2a1d3a" stop-opacity="0"/></radialGradient>`
       + (egg ? evqMiniDefs(id, [ev]) : '') + `</defs>`
       + `<ellipse cx="35" cy="59.4" rx="24" ry="3.2" fill="url(#${id('o')})"/>`
-      /* oreille du fond, debout (derrière la tête) */
-      + `<g transform="${HT}"><g class="evo-ear-b"><path d="${ear}" fill="url(#${id('k')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/><path d="${earIn}" fill="url(#${id('e')})"/>`
-      + fur('M33.2 15.4C32.8 11.6 33.4 8.4 34.8 6.2M32 13.4L33.4 12.2M32.4 10.4L33.8 9.6', .35, '#e46a9a', .7)
-      + `<path d="M29.6 15C29 10.6 30.4 6.4 32.6 4.4" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round" opacity=".85"/></g></g>`
+      /* oreilles derrière le crâne (base cachée par la tête) : A debout, B inclinée vers l'arrière, sa pointe repliée qui retombe */
+      + `<g transform="${HT}"><g class="evo-ears"><path d="${earB}" fill="url(#${id('k')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/><path d="${earBIn}" fill="url(#${id('e')})"/>`
+      + fur('M30.2 15.8C30.4 12.4 31.4 9.6 33.2 7.6M29.6 13.6L30.8 13M30.4 11L31.6 10.6', .32, '#e46a9a', .7)
+      + `<path d="${tipB}" fill="url(#${id('k')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/><path d="M33.2 4.2C34.8 4.4 36.4 5 37.4 6" fill="none" stroke="${ln}" stroke-width=".45" stroke-linecap="round" opacity=".7"/>`
+      + `<path d="M35.4 3.4Q37.8 3.2 39 5" fill="none" stroke="#fff" stroke-width=".6" stroke-linecap="round" opacity=".9"/><path d="M38.4 9.4Q38.8 10.4 39.4 10.6" fill="none" stroke="#b8a6c8" stroke-width=".4" stroke-linecap="round"/>`
+      + `<path d="${earA}" fill="url(#${id('k')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/><path d="${earAIn}" fill="url(#${id('e')})"/>`
+      + fur('M20.8 15.6C20.4 12.4 20.4 9.4 20.8 6.8M20.2 13L21 12M20.3 10.2L21.1 9.4', .32, '#e46a9a', .7)
+      + `<path d="M18.2 11.6Q17.8 7 19 4" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round" opacity=".9"/></g></g>`
       /* queue en pompon, corps, cuisse, grosse patte arrière */
       + `<path d="${tail}" fill="url(#${id('h')})" stroke="${ln}" stroke-width=".5" stroke-linejoin="round"/><path d="${tail2}" fill="#fff"/>`
       + `<path d="${body}" fill="url(#${id('f')})" stroke="${ln}" stroke-width=".6" stroke-linejoin="round"/>`
@@ -1097,7 +1102,7 @@ Object.assign(EV_ART, {
         + fur('M19.2 50.6L20.4 51.2M19.6 49.2L20.8 49.8M30.8 50L29.6 50.6M30.6 48.6L29.4 49.2', .35, ln, .6)
         + `<path d="M19.4 48.2Q20.4 47.2 21.6 47.6M28.8 47.2Q30 46.8 30.8 47.8" fill="none" stroke="#fff" stroke-width=".6" stroke-linecap="round"/>` : '')
       + fur('M21.4 57.4V58.4M22.8 57.6V58.6M26.4 57.6V58.6M27.8 57.4V58.4', .35, ln, .6)
-      /* tête penchée : joues en touffes, museau, œil, nez, moustaches ; oreille pliée devant */
+      /* tête penchée : joues en touffes, museau, œil, nez, moustaches */
       + `<g transform="${HT}"><path d="${head}" fill="url(#${id('h')})" stroke="${ln}" stroke-width=".6" stroke-linejoin="round"/>`
       + `<path d="M17.6 18.6Q20.6 15.8 25.4 16" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>`
       + fur('M30.6 21Q32.4 22.6 32.8 24.8M31.4 27.4Q32.2 28.8 31.8 30.4M27.6 31.6Q28.6 32.6 28.6 34', .4)
@@ -1110,10 +1115,8 @@ Object.assign(EV_ART, {
       + `<path d="M14.6 28.1V29.1Q15.2 30.2 16.4 29.8M14.6 29.1Q14 30 13.2 29.8" fill="none" stroke="#9a6a86" stroke-width=".4" stroke-linecap="round"/></g>`
       + `<g fill="#c9b6d4"><circle cx="16.4" cy="28.6" r=".28"/><circle cx="17.4" cy="29.4" r=".28"/><circle cx="16.2" cy="29.8" r=".28"/></g>`
       + `<path d="M16 28.4C12 26.8 8.6 26.4 5.6 26.6M16.2 29.2C12.4 28.6 9 29 6 30M16.4 30C13.2 30.6 10.4 31.8 8 33.4" fill="none" stroke="#9a88aa" stroke-width=".28" stroke-linecap="round" opacity=".8"/>`
-      + `<g class="evo-ears"><path d="${ear2}" fill="url(#${id('k')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/><path d="${ear2In}" fill="url(#${id('e')})"/>`
-      + fur('M20.8 15.2C20.4 12.6 20.4 10.2 20.8 8.4M20.2 12.6L21 11.6M20.4 10L21.2 9.4', .32, '#e46a9a', .7)
-      + `<path d="${flap}" fill="url(#${id('k')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/><path d="M12.2 12.2C13.8 10.6 15.8 9.4 17.8 9" fill="none" stroke="#ffb3d1" stroke-width=".9" stroke-linecap="round" opacity=".8"/>`
-      + `<path d="M17.6 7.2Q18.8 8.6 19 10.4" fill="none" stroke="${ln}" stroke-width=".4" opacity=".6"/><path d="M11.6 10.4Q13.4 8 16.2 7.4" fill="none" stroke="#fff" stroke-width=".6" stroke-linecap="round"/></g></g>`
+      /* là où les oreilles sortent du crâne : touffes de pelage */
+      + fur('M18.4 17.2Q19.4 16 20.4 16.6M22.2 16.4Q23.2 15.8 24 16.8M27 17Q28 16 29.2 16.4M30 17.2Q31 16.6 31.8 17.6', .45, '#b8a6c8', .85) + `</g>`
       + `</svg>`;
   },
   /** Panier d'osier garni (viewBox 64 × 64) : anse tressée, herbe, o.eggs œufs (0–7, 3 par défaut : le panier qui se remplit), nœud de ruban, marguerite. */
@@ -1297,7 +1300,7 @@ function evqMeadow() {
   const n = ++EVO_N, id = s => `evq${n}${s}`, Q = (k, o) => EV_ART[k](o).replace('<svg ', `<svg id="${id(k + (o.v === undefined ? '' : o.v))}" `);
   const F = [['tulip', 0], ['daisy'], ['tulip', 2], ['daffodil'], ['tulip', 3], ['daisy'], ['tulip', 0], ['daffodil'], ['tulip', 3], ['daisy']];
   const at = (k, v, x, h) => `<use href="#${id(k + (v === undefined ? '' : v))}" x="${evoF(x - h / 4)}" y="${84 - h}" width="${evoF(h / 2)}" height="${h}"/>`;
-  const fl = (x0, x1, seed) => { let o = '', s = seed * 977; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280; for (let x = x0 + r() * 14; x < x1; x += 16 + r() * 44) { const [k, v] = F[Math.floor(r() * F.length)]; o += at(k, v, x, 34 + r() * 30); } return o; };
+  const fl = (x0, x1, seed) => { let o = '', s = seed * 977; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280; for (let x = x0 + r() * 14; x < x1; x += 16 + r() * 44) { const [k, v] = F[Math.floor(r() * F.length)]; o += at(k, v, x, x > 680 && x < 1130 ? 26 + r() * 12 : 34 + r() * 30); } return o; };      // là où s'assoit le lapin (selon la largeur de l'écran) : fleurs basses, jamais devant son museau
   const eggs = [[0, 236, 70], [4, 472, 71], [1, 700, 69], [3, 930, 70], [2, 1080, 71]].map(([v, x, y], i) => evqMini({ cx: x, cy: y, a: 5.2, b: 7, k: .15, s: .6 }, v, id, `rotate(${[-14, 10, -6, 12, -10][i]} ${x} ${y})`)).join('');
   return (`<svg viewBox="0 0 1200 84" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false"><defs>`
     + `<linearGradient id="${id('h')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bdeca0" stop-opacity="0"/><stop offset=".55" stop-color="#a6e08a" stop-opacity=".55"/><stop offset="1" stop-color="#7cc96a" stop-opacity=".8"/></linearGradient>`

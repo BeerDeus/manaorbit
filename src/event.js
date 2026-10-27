@@ -397,7 +397,7 @@ async function evTap(s) {
     toast(err.code === 'day_quota' ? evTx('dayDone') : err.code === 'wrong_day' ? T('Nouveau jour : de nouvelles cachettes t\'attendent.') : T('Cet objet n\'a pas pu être compté.'));
     evStatus(true);
   } else toast(T('Hors ligne : ta trouvaille sera comptée au retour du réseau.'));
-  const door = !!res && ((typeof advAfterFind === 'function' && advAfterFind(j0, me)) || (typeof skyAfterFind === 'function' && skyAfterFind(n0, dr0, me)));      // calendrier de l'Avent : une porte vient de s'ouvrir → son ouverture ; ciel : constellation complète, couleur rare (puis la célébration)
+  const door = !!res && ((typeof advAfterFind === 'function' && advAfterFind(j0, me)) || (typeof skyAfterFind === 'function' && skyAfterFind(n0, dr0, me)) || (typeof nestAfterFind === 'function' && nestAfterFind(n0, me)));      // calendrier de l'Avent : une porte vient de s'ouvrir → son ouverture ; ciel : constellation complète, couleur rare (puis la célébration)
   if (!door) evMsg(me);
   EV.fly = 0; evHomePaint(); evLoopSync();
   if (me.n >= st.ev.total && res && !door) setTimeout(evParty, reduceMotion() ? 200 : 900);
@@ -477,12 +477,13 @@ function evMsg(me) {
 /** Dernier objet : célébration plein écran (objet allumé, badge du grade ultime avec sa bordure, braises). */
 function evParty() {
   const st = EV.st, p = evPackOf(); if (!st || !p || document.querySelector('.ev-party')) return;
-  const el = document.createElement('div'); el.className = 'ev-party'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', evTx('allDone', { total: st.ev.total }));
+  const all = p.nest ? Math.round(st.ev.total / p.nest.per) : st.ev.total;      // nid de Pâques : les poussins, pas les œufs
+  const el = document.createElement('div'); el.className = 'ev-party'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', evTx('allDone', { total: all }));
   const embers = Array.from({ length: 18 }, (_, i) => `<i style="--x:${(i * 53) % 100}%;--d:${(i % 6) * .45}s;--s:${.6 + (i % 4) * .2}"></i>`).join('');
   el.innerHTML = `<div class="ev-party-bg" aria-hidden="true">${embers}</div><div class="ev-party-in">
-    <div class="ev-party-obj" aria-hidden="true">${EV_ART[p.obj.art]({ lit: true })}</div>
-    <p class="ev-party-k">${esc(T('{n} sur {t}', { n: st.ev.total, t: st.ev.total }))}</p>
-    <h2>${esc(evTx('allDone', { total: st.ev.total }))}</h2>
+    <div class="ev-party-obj" aria-hidden="true">${p.nest && EV_ART.hatch ? EV_ART.hatch({ stage: 3, lit: true }) : EV_ART[p.obj.art]({ lit: true })}</div>
+    <p class="ev-party-k">${esc(T('{n} sur {t}', { n: all, t: all }))}</p>
+    <h2>${esc(evTx('allDone', { total: all }))}</h2>
     <p>${esc(evTx('allSub', { y: st.ev.id.slice(-4) }))}</p>
     <div class="ev-party-badge">${evBadgeHtml(st.ev.id, 3, true)}<b>${esc(T(p.badge.names[3]))}</b></div>
     <div class="ev-party-acts"><button class="btn" type="button" data-ev="badge">${T('Voir mes badges')}</button><button class="btn ghost" type="button" data-ev="close">${T('Fermer')}</button></div></div>`;
@@ -535,6 +536,13 @@ function evHomePaint() {
     return;
   }
   box.classList.remove('hm-sky');
+  const nest = p.nest && typeof nestNow === 'function' ? nestNow() : null;
+  if (nest) {      // nid de Pâques (evnest.js) : les couvées et leurs poussins, la couvée en cours et ses œufs du mana
+    const sig = ['nest', nest.n, me.left, (me.found || []).length, me.day, ev.left, I18N.lang].join('|');
+    if (box.dataset.sig !== sig) { box.dataset.sig = sig; box.innerHTML = nestCardHtml(nest, me); box.classList.add('hm-nest'); }
+    return;
+  }
+  box.classList.remove('hm-nest');
   const left = ev.left, tiers = p.badge.tiers, nx = tiers.find(t => t > n);
   const today = me.left > 0 ? TN(me.left, 'Encore {n} à trouver aujourd\'hui', 'Encore {n} à trouver aujourd\'hui') : n >= ev.total ? T('Tout est trouvé : bravo !') : T('Tout est trouvé pour aujourd\'hui : reviens demain');
   const sig = [n, me.left, left, I18N.lang, (me.found || []).length].join('|'); if (box.dataset.sig === sig) return; box.dataset.sig = sig;
@@ -552,13 +560,13 @@ function evSheetOpen() {
   openSheet(evTx('short') + ' ' + st.ev.id.slice(-4), null, api => {
     api.wrap.classList.add('ev-sheet');
     const paint = (bd) => {
-      const me = st.me || { n: 0, spots: [], left: 0 }, ev = st.ev, adv = p.advent && typeof advNow === 'function' ? advNow() : null, sky = p.sky && typeof skyNow === 'function' ? skyNow() : null, n = adv ? adv.open : Math.max(me.n, evCount(st.ev.id)), tot = adv ? p.advent.doors : ev.total, to = new Date(ev.to + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
-      const unitN = t => ((adv || sky) && p.badge.unit ? TN(t, p.badge.unit[0], p.badge.unit[1]) : evObjN(t)), bn = sky ? sky.done : n;      // ciel : les badges comptent les constellations
+      const me = st.me || { n: 0, spots: [], left: 0 }, ev = st.ev, adv = p.advent && typeof advNow === 'function' ? advNow() : null, sky = p.sky && typeof skyNow === 'function' ? skyNow() : null, nest = p.nest && typeof nestNow === 'function' ? nestNow() : null, n = adv ? adv.open : Math.max(me.n, evCount(st.ev.id)), tot = adv ? p.advent.doors : ev.total, to = new Date(ev.to + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
+      const unitN = t => ((adv || sky || nest) && p.badge.unit ? TN(t, p.badge.unit[0], p.badge.unit[1]) : evObjN(t)), bn = sky ? sky.done : nest ? nest.hatched : n;      // ciel : les badges comptent les constellations ; nid : les poussins éclos
       const rules = (p.txt.rules || []).map(r => `<li>${esc(T(r, { total: ev.total, per: ev.per, to, y: ev.id.slice(-4) }))}</li>`).join('');
       const hints = (me.spots || []).map(x => `<li class="${x.f ? 'ok' : ''}"><span aria-hidden="true">${x.f ? '✓' : '·'}</span>${esc(evHint(x.s))}${x.f ? `<span class="sr">${T('trouvée')}</span>` : ''}</li>`).join('');
       const bdg = p.badge.tiers.map((t, i) => `<div class="ev-sb ${bn >= t ? 'ok' : ''}">${evBadgeHtml(ev.id, i, bn >= t)}<b>${esc(T(p.badge.names[i]))}</b><small>${esc(unitN(t))}</small></div>`).join('');
       const rows = bd && Array.isArray(bd.rows) && bd.rows.length ? `<p class="prg-h">${T('Chasseurs')}</p><p class="hint">${esc(TN(bd.hunters, '{n} chasseur', '{n} chasseurs'))} · ${esc(T('{n} au complet', { n: bd.full }))}</p><ol class="ev-board">${bd.rows.map(r => `<li class="${r.me ? 'me' : ''}"><span>${r.r}</span><b>${esc(r.n)}</b><span>${nf0(r.c)} / ${nf0(ev.total)}</span></li>`).join('')}</ol>` : '';
-      api.body.innerHTML = `<div class="ev-sh-top"><span class="ev-sh-ic" aria-hidden="true">${EV_ART[p.obj.art]({ cls: 'evo-still' })}</span><div><b>${nf0(n)} / ${nf0(tot)}</b><span>${esc(adv ? TN(n, '{n} booster ouvert', '{n} boosters ouverts') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : sky ? TN(sky.done, '{n} constellation complète', '{n} constellations complètes') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }))}</span></div></div>
+      api.body.innerHTML = `<div class="ev-sh-top"><span class="ev-sh-ic" aria-hidden="true">${EV_ART[p.obj.art]({ cls: 'evo-still' })}</span><div><b>${nf0(n)} / ${nf0(tot)}</b><span>${esc(adv ? TN(n, '{n} booster ouvert', '{n} boosters ouverts') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : sky ? TN(sky.done, '{n} constellation complète', '{n} constellations complètes') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : nest ? TN(nest.hatched, '{n} poussin éclos', '{n} poussins éclos') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }))}</span></div></div>
         ${sky ? `<div class="sky-cons sky-sh" aria-hidden="true">${sky.cons.map(c => `<figure class="sky-c${c.done ? ' done' : ''}" data-k="${c.k}">${skyArt(c.k, { lit: c.lit, done: c.done })}</figure>`).join('')}</div>` : ''}
         <ul class="ev-rules">${rules}</ul>
         ${me.spots && me.spots.length ? `<p class="prg-h">${T('Indices du jour')}</p><ul class="ev-hints">${hints}</ul>` : ''}
@@ -668,8 +676,8 @@ function evBadges() {
   for (const id of ids) {
     const e = evById(id), p = e && evPack(e.pack); if (!p || !p.badge) continue;
     const names = p.badge.names || [];
-    const adv = !!p.advent, sky = !!p.sky;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js) ; ciel : les constellations complètes (evsky.js)
-    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), ...(EV.pv && EV.cal && EV.cal.id === id ? { pv: true } : {}), v: () => (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : evCount(id)), ev: id, names });
+    const adv = !!p.advent, sky = !!p.sky, nest = !!p.nest;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js) ; ciel : les constellations complètes (evsky.js) ; nid : les poussins éclos (evnest.js)
+    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky || nest) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), ...(EV.pv && EV.cal && EV.cal.id === id ? { pv: true } : {}), v: () => (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : nest ? Math.floor(Math.min(e.total, evCount(id)) / p.nest.per) : evCount(id)), ev: id, names });
   }
   return out;
 }
