@@ -39,6 +39,9 @@ assert.match(await p.textContent('#hmEvent .hm-ev-h'), /Musée de Magic 2027.*En
 assert.match(await p.textContent('#hmEvent .mus-cur'), /Salle 1 sur 5 · Les origines.*1993 – 1994/s);
 assert.equal(await p.$$eval('#hmEvent svg', l => l.length > 6), true, 'dessins SVG');
 await shot(p, 'musee-0');
+const painting = await p.evaluate(() => [...new Set(document.getAnimations().filter(a => a.playState === 'running').flatMap(a => (a.effect.getKeyframes ? a.effect.getKeyframes() : []).flatMap(f => Object.keys(f)).filter(x => !['offset', 'easing', 'composite', 'computedOffset', 'transform', 'opacity', 'filter', 'translate', 'rotate', 'scale'].includes(x)).map(x => (a.animationName || '?') + ':' + x)))]);
+assert.deepEqual(painting, [], 'ambiance et dessins du musée : composition seule (transform, opacity), jamais de repeinte en continu');
+assert.ok(await p.evaluate(() => document.getAnimations().filter(a => a.playState === 'running').length) > 0, 'l\'ambiance bouge');
 ok('accueil : le musée, 5 salles, la frise de la salle 1 (6 places, leurs années), 0 / 30 reliques');
 
 /* ── 2) Les 5 reliques du jour : cartel de chacune, dans l'ordre de l'histoire ── */

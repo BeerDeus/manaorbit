@@ -128,7 +128,7 @@ html[data-event="magic"] .ev-in-card{background:linear-gradient(160deg,rgba(44,4
 html[data-event="magic"] .ev-in-rules li::before{background:linear-gradient(135deg,#ffe58a,#c48a1a);color:#2a1d06}
 html[data-event="magic"] .ev-intro .btn.ev-in-go{background:linear-gradient(135deg,#ffe58a,#f2c230);color:#2a1d06}
 .evb.ult[data-pack="magic"]::before{background:conic-gradient(from 0deg,#f2c230,#fff3c4,#7fb0ff,#b98aff,#ff7a5c,#6ff0a0,#f2c230)}
-.evb.ult[data-pack="magic"]::after{background:radial-gradient(circle,rgba(242,194,48,.5),rgba(127,176,255,.3) 45%,transparent 68%)}
+.evb.ult[data-pack="magic"]::after{background:var(--embers),radial-gradient(circle,rgba(242,194,48,.5),rgba(127,176,255,.3) 45%,transparent 68%)}
 .evb.ult[data-pack="magic"]{--embers:radial-gradient(circle at 20% 80%,#fff 0 1.4px,transparent 2px),radial-gradient(circle at 78% 70%,#f2c230 0 1.2px,transparent 2px),radial-gradient(circle at 55% 92%,#7fb0ff 0 1.5px,transparent 2.2px)}
 .evb.ult[data-pack="magic"] img{filter:drop-shadow(0 0 6px rgba(242,194,48,.6))}
 
