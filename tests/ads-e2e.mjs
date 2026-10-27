@@ -101,8 +101,11 @@ async function natPage(o = {}) {
   await p.evaluate(() => bdClose(true)); await shown(p); assert.equal(await n(p, 'resumeBanner'), 6, 'retour sur Mes decks : rétabli');
   await p.evaluate(() => openLot()); await p.waitForSelector('.lot.on'); await gone(p); assert.equal(await n(p, 'hideBanner'), 7, '« Ajouter des cartes » (recherche par nom, clavier) : masqué');
   await p.evaluate(() => closeLot()); await shown(p); assert.equal(await n(p, 'resumeBanner'), 7, 'retour sur Mes decks : rétabli');
+  await p.evaluate(() => { const d = document.createElement('div'); d.className = 'dv trc on'; d.id = 'adTrc'; document.body.appendChild(d); });      // échange en direct (troc.js) : écran plein .dv.trc
+  await gone(p); assert.equal(await n(p, 'hideBanner'), 8, 'échange en direct : masqué');
+  await p.evaluate(() => document.getElementById('adTrc').remove()); await shown(p); assert.equal(await n(p, 'resumeBanner'), 8, 'échange en direct fermé : rétabli');
   await p.evaluate(() => closeDecks()); await p.waitForTimeout(400); assert.equal(await n(p, 'showBanner'), 2, 'jamais recréé : masqué puis rétabli');
-  ok('écrans de consultation seulement : masqué en saisie, résultats, éditeur de deck, ajout de cartes ; rétabli sur l\'accueil, la collection, Mes decks');
+  ok('écrans de consultation seulement : masqué en saisie, résultats, éditeur de deck, ajout de cartes, échange en direct ; rétabli sur l\'accueil, la collection, Mes decks');
 
   await p.setViewportSize({ width: 390, height: 520 });
   await openMe(p, 'conf'); await p.waitForSelector('#privBox[data-ads]');
@@ -111,7 +114,7 @@ async function natPage(o = {}) {
   assert.ok(await p.$eval('.sheet', (e, h) => e.getBoundingClientRect().top >= h, H), 'feuille haute : elle s\'arrête sous le bandeau');
   await p.click('#btnAdChoices'); await p.waitForFunction(() => window.__ad.calls.includes('showPrivacyOptionsForm'));
   await p.keyboard.press('Escape'); await p.waitForTimeout(450); await p.setViewportSize({ width: 390, height: 844 });
-  assert.equal(await n(p, 'hideBanner'), 7, 'feuille : le bandeau reste');
+  assert.equal(await n(p, 'hideBanner'), 8, 'feuille : le bandeau reste');
   ok('réglages : mention de la pub, « Choix publicitaires » (formulaire Google), feuille sous le bandeau');
 
   await p.evaluate(() => { CTX.serverOk = true; adsRefresh(); }); await gone(p);

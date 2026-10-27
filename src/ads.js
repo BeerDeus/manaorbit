@@ -7,7 +7,7 @@
    · seulement sur les écrans de consultation (emplacement choisi le 9 octobre : en haut, « par moments ») : accueil, collection, decks (liste et viewer),
      liste d'échange d'un autre joueur, et leurs feuilles ; il y reste en place : un bandeau qui clignote ferait sauter la page sous le doigt
      et provoquerait des clics accidentels (règles AdMob) ;
-   · masqué pendant les plein écrans des fêtes (arrivée, booster, éclosion, cloches, feu d'artifice, célébration : AD_FULL), la saisie d'une liste, la recherche et ses résultats, l'ajout de cartes une par une (lot.js), l'éditeur de deck, une Carte mystère en cours, l'accueil du premier lancement, le scan (surtout
+   · masqué pendant les plein écrans des fêtes (arrivée, booster, éclosion, cloches, feu d'artifice, célébration : AD_FULL), l'échange en direct, la saisie d'une liste, la recherche et ses résultats, l'ajout de cartes une par une (lot.js), l'éditeur de deck, une Carte mystère en cours, l'accueil du premier lancement, le scan (surtout
      l'aperçu natif, html.nat-cam) et la carte en grand ; il revient AD.back après, jamais pendant un toucher (AD.idle) ;
    · l'annonce se renouvelle au rythme réglé dans la console AdMob ; aucune annonce reçue : nouvel essai AD.retry plus tard ;
    · pas tout le temps (13 octobre) : aucun bandeau les AD.grace premières minutes d'utilisation sur ce téléphone (temps appli ouverte, compté
@@ -78,7 +78,7 @@ function adsBusy() {
   if (OB.el || SC.el || imgView || document.documentElement.classList.contains('nat-cam') || (typeof tourOn === 'function' && tourOn())) return true;      // visite guidée (tour.js) : sa bulle peut se poser sous l'en-tête
   if (document.querySelector(AD_FULL)) return true;      // plein écran des fêtes (arrivée, booster, éclosion, cloches, feu d'artifice, célébration) : le bandeau le couperait
   const dvs = document.querySelectorAll('body > .dv'), top = dvs[dvs.length - 1];
-  return top ? top.classList.contains('bd') || top.classList.contains('scan') || top.classList.contains('pu') || top.classList.contains('dly-play') || top.classList.contains('lot') : S.view !== 'home';      // pu : compteur de vie (partie-ui.js), jamais de pub pendant le jeu ; lot : « Ajouter des cartes » (lot.js : recherche par nom, clavier) ; dly-play : Carte mystère en cours (recherche, clavier : clics accidentels), le bandeau revient sur le résultat et les classements
+  return top ? top.classList.contains('bd') || top.classList.contains('scan') || top.classList.contains('pu') || top.classList.contains('dly-play') || top.classList.contains('lot') || top.classList.contains('trc') : S.view !== 'home';      // pu : compteur de vie (partie-ui.js), jamais de pub pendant le jeu ; trc : échange en direct (troc.js : QR, choix des cartes, « Prêt ») ; lot : « Ajouter des cartes » (lot.js : recherche par nom, clavier) ; dly-play : Carte mystère en cours (recherche, clavier : clics accidentels), le bandeau revient sur le résultat et les classements
 }
 
 /** Réglages du serveur (/__ping) : bloc d'annonces (ADMOB_BANNER_ID, vide = test) et comptes autorisés à attendre. null : injoignable. */
