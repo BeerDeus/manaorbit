@@ -1086,9 +1086,9 @@ Object.assign(EV_ART, {
       + `<path d="M28.4 59C27.8 56.4 30.4 54.8 34.4 54.8L44.6 55C48.4 55.2 50.4 56.6 49.8 58.2C49.4 59.2 47.2 59.4 44.6 59.4H32C30 59.4 28.6 59.6 28.4 59Z" fill="url(#${id('h')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/>`
       + `<path d="M31.4 56.4V58.6M33.4 56V58.6M35.4 56V58.4" fill="none" stroke="${ln}" stroke-width=".4" stroke-linecap="round" opacity=".6"/><path d="M37.4 56Q42.6 55.4 47.6 56.4" fill="none" stroke="#fff" stroke-width=".8" stroke-linecap="round"/>`
       /* poitrail en touffe */
-      + `<path d="M20.4 42C21 38.6 23.8 36.6 27.4 36.6C30.4 36.6 32.2 38.6 32 41.6Q31.6 43 30.6 43.2Q31 44.8 29.6 45.2Q29.6 46.8 28 46.8Q27.4 48.2 25.8 47.8Q24.6 49 23.4 48Q21.8 48.4 21.6 46.8Q20 46.4 20.4 44.8Q19.4 43.6 20.4 42Z" fill="url(#${id('c')})"/>`
-      + fur('M23.4 41.2Q24 42.6 23.8 44M27 40.4Q27.8 42 27.6 43.6M25.4 44.6Q25.8 45.8 25.6 46.8M29.6 42.4Q30 43.2 29.8 44', .4, '#cdbfdb', .9)
-      + `<ellipse cx="26.4" cy="38.8" rx="7.4" ry="2.4" fill="#7d6a8c" opacity=".16"/>`
+      + `<g transform="translate(.4 2.2)"><path d="M20.4 42C21 38.6 23.8 36.6 27.4 36.6C30.4 36.6 32.2 38.6 32 41.6Q31.6 43 30.6 43.2Q31 44.8 29.6 45.2Q29.6 46.8 28 46.8Q27.4 48.2 25.8 47.8Q24.6 49 23.4 48Q21.8 48.4 21.6 46.8Q20 46.4 20.4 44.8Q19.4 43.6 20.4 42Z" fill="url(#${id('c')})" stroke="#d9cce4" stroke-width=".35"/>`
+      + fur('M23.4 41.2Q24 42.6 23.8 44M27 40.4Q27.8 42 27.6 43.6M25.4 44.6Q25.8 45.8 25.6 46.8M29.6 42.4Q30 43.2 29.8 44', .4, '#cdbfdb', .9) + `</g>`
+
       /* pattes avant (l'œuf entre elles) */
       + `<path d="M18.6 48C18 52 18.6 55.6 20.2 57.8C21.4 58.8 23.6 58.6 24.6 57.6C24.4 55 23.8 52 22.8 49.4Z" fill="url(#${id('h')})" stroke="${ln}" stroke-width=".5" stroke-linejoin="round"/>`
       + (egg ? evqMini(GE, ev, id, `rotate(-12 ${GE.cx} ${GE.cy})`) : '')
@@ -1272,7 +1272,7 @@ Object.assign(EV_ART, {
 
 /* ── Pâques : ambiance (accueil) ───────────────────────────────────────────────────────────────────────────────────────────────────────────
    Matin de printemps : lueurs rose, menthe et soleil, soleil dont les rayons tournent lentement, deux nuages, pré fleuri en bas de l'écran (herbe, tulipes,
-   jonquilles, marguerites, œufs cachés ; deux bouquets qui ondulent au vent), lapin assis dans l'herbe (oreilles qui frémissent), deux cloches ailées qui
+   jonquilles, marguerites, œufs cachés ; deux bouquets qui ondulent au vent), lapin assis devant, un œuf entre les pattes, sa touffe d'herbe aux pieds (oreilles qui frémissent), deux cloches ailées qui
    passent de loin en loin (elles reviennent de Rome). Éléments animés : 2 lueurs + 1 soleil + 2 bouquets + 1 lapin + 2 vols + 2 battements d'ailes = 10. */
 /** Soleil de printemps (viewBox 100 × 100) : halo, seize rayons (.evq-sun-r tourne), disque doré, reflet. */
 function evqSun() {
@@ -1311,7 +1311,8 @@ function evqMeadow() {
 EV_AMB.paques = () => '<i class="evq-glow evq-g1"></i><i class="evq-glow evq-g2"></i><i class="evq-glow evq-g3"></i>'
   + `<span class="evq-sun">${evqSun()}</span><span class="evq-cloud evq-cl1">${evqCloud()}</span><span class="evq-cloud evq-cl2">${evqCloud()}</span>`
   + `<span class="evq-bell evq-b1">${EV_ART.wingedBell({ v: 0 })}</span><span class="evq-bell evq-b2">${EV_ART.wingedBell({ v: 4 })}</span>`
-  + `<span class="evq-bunny">${EV_ART.bunny({ v: 2 })}</span><span class="evq-meadow">${evqMeadow()}</span>`;
+  + `<span class="evq-meadow">${evqMeadow()}</span><span class="evq-bunny">${EV_ART.bunny({ v: 2 })}`
+  + `<svg class="evq-tuft" viewBox="0 0 64 14" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="${evqBlades(0, 64, 14.4, 4, 11, 22, 6, 2.4)}" fill="#5fae4c"/><path d="${evqBlades(2, 62, 14.6, 3, 8, 20, 12, 2.2)}" fill="#8fd47a" stroke="#3a8a3e" stroke-width=".3"/></svg></span>`;
 
 /* Particules de la récolte : œuf, marguerite, tulipe, poussin, papillon, tête de lapin */
 EV_FX.paques = () => {
