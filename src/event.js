@@ -12,9 +12,14 @@
    · Progression : serveur d'abord (quota, jetons) ; copie sur l'appareil (deckdeal:ev) et, avec un compte, dans users/{uid}/meta/events (le plus grand gagne ; reçus
      signés relus par le serveur s'il a perdu la sienne). Sans compte : invitation à en créer un ; à la connexion, la progression de l'appareil rejoint le compte.
    · Accueil : carte de la fête (compteur, objets du jour, jours restants, badges, indices) ; message d'arrivée la première fois ; badges « Événements » (progress.js).
+   · Aperçu (comptes de l'éditeur : Compte et réglages › Préférences › « Aperçu d'une fête ») : n'importe quel pack, même en préparation, à la place de la fête
+     du moment, pour ce compte seulement (le serveur vérifie : x-event-preview, event-srv.mjs). Progression d'essai à part, jamais gardée : copie de travail du
+     stockage (rien n'est réécrit sur l'appareil), ni compte, ni badge annoncé. Choix gardé sur l'appareil (deckdeal:ev:pv) ; déconnexion : aperçu fini.
    Rien au démarrage hors fête : une lecture du stockage local. */
-const EV_KEY = 'deckdeal:ev', EV_DEV = 'deckdeal:ev:dev', EV_PK = 30, EV_POLL = 1200;
-const EV = { cal: null, st: null, at: 0, busy: false, loop: 0, mt: 0, pks: new Map(), fly: 0, dev: '', ls: null, doc: null, unsub: null, uid: '', pend: false, tipT: 0, introT: 0, armT: 0, logo0: null, ico0: null, merged: '' };
+const EV_KEY = 'deckdeal:ev', EV_DEV = 'deckdeal:ev:dev', EV_PVK = 'deckdeal:ev:pv', EV_PK = 30, EV_POLL = 1200;
+// Empreinte SHA-256 de l'adresse de l'éditeur (la même que proxy.mjs › ADMIN_DEFAULT) : montre seulement le choix de l'aperçu, le serveur décide.
+const EV_ADM = '6cad6e34ef574c9753e50865ff00a51d139de86223ae96dc9cb07856c4210a05';
+const EV = { pv: '', doc0: null, ping0: undefined, adm: '', cal: null, st: null, at: 0, busy: false, loop: 0, mt: 0, pks: new Map(), fly: 0, dev: '', ls: null, doc: null, unsub: null, uid: '', pend: false, tipT: 0, introT: 0, armT: 0, logo0: null, ico0: null, merged: '' };
 const evPackOf = () => (EV.cal && typeof evPack === 'function' ? evPack(EV.cal.pack) : null);
 const evOn = () => !!(EV.cal && evPackOf());
 /** Textes du pack (français : clés de T). */
@@ -23,7 +28,7 @@ const evObjN = (n, v) => { const p = evPackOf(); return p ? TN(n, '{n} ' + p.obj
 
 /* ── Stockage de l'appareil : { cal, deco, seen: { édition: 1 }, o (compte), p: { édition: { jours, sig, n } } } ─────────────────────────── */
 function evLs() { if (!EV.ls) { try { const o = JSON.parse(localStorage.getItem(EV_KEY) || '{}'); EV.ls = o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch (e) { EV.ls = {}; } } return EV.ls; }
-function evLsSet(patch) { Object.assign(evLs(), patch); try { localStorage.setItem(EV_KEY, JSON.stringify(EV.ls)); } catch (e) { /* stockage plein : gardé pour la session */ } }
+function evLsSet(patch) { Object.assign(evLs(), patch); if (EV.pv) return; try { localStorage.setItem(EV_KEY, JSON.stringify(EV.ls)); } catch (e) { /* stockage plein : gardé pour la session */ } }      // aperçu : copie de travail seulement
 const evDeco = () => evLs().deco !== false;
 /** Progression gardée d'une édition (appareil). */
 const evMine = id => ((evLs().p || {})[id]) || { jours: {}, sig: {}, n: 0, rs: 0 };
@@ -268,7 +273,7 @@ function evLoopSync() {
 async function evCall(path, { method = 'GET', body } = {}) {
   const u = typeof D !== 'undefined' ? D.user : null;
   const go = async force => {
-    const h = { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(EV.dev ? { 'x-event-device': EV.dev } : {}) };
+    const h = { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(EV.dev ? { 'x-event-device': EV.dev } : {}), ...(EV.pv ? { 'x-event-preview': EV.pv } : {}) };
     if (u) { try { h['x-firebase-token'] = await u.getIdToken(force); } catch (e) { throw Object.assign(new Error('jeton'), { code: 'net' }); } }
     let r; try { r = await fetch('api/event' + path, { method, cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined }); } catch (e) { throw Object.assign(new Error('réseau'), { code: 'net' }); }
     const j = await r.json().catch(() => null);
@@ -282,10 +287,12 @@ async function evCall(path, { method = 'GET', body } = {}) {
 async function evStatus(force) {
   if (!evOn()) return null;
   if (!force && EV.st && Date.now() - EV.at < 60e3) return EV.st;
+  if (EV.pv && !(typeof D !== 'undefined' && D.user)) return null;      // aperçu : seulement avec le compte (connexion en cours au démarrage : evUser relance)
   if (EV.busy) return EV.st; EV.busy = true;
   try {
     if (!EV.dev) { try { const t = localStorage.getItem(EV_DEV) || ''; if (/^[\w-]{22}\.[\w-]{16}$/.test(t)) EV.dev = t; } catch (e) { /* refusé */ } }
     let j = await evCall('?c=' + evCaps()); if (!j.me && j.dev) j = await evCall('?c=' + evCaps());      // premier passage : jeton d'appareil reçu, l'état suit
+    if (EV.pv && !(j.ev && j.ev.preview)) { setTimeout(() => { evPvSet('', true); if (typeof toast === 'function') toast(T('Aperçu refusé par le serveur')); }); return null; }      // pas un compte de l'éditeur
     if (!j.on) { EV.cal = null; evApply(); evStop(); return null; }
     EV.st = j; EV.at = Date.now(); EV.cal = { ...EV.cal, ...j.ev }; evLsSet({ cal: { id: j.ev.id, pack: j.ev.pack, from: j.ev.from, to: j.ev.to } });
     if (j.me) evKeep(j.ev.id, j.me);
@@ -317,7 +324,7 @@ function evArm() {
 }
 /** Le compte a plus que le serveur (serveur reparti sans sa copie) : reçus envoyés, il les vérifie. */
 async function evSyncUp() {
-  const st = EV.st; if (!st || !st.acct || EV.pend) return;
+  const st = EV.st; if (!st || !st.acct || EV.pend || EV.pv) return;
   const id = st.ev.id, loc = evMine(id), doc = EV.doc && EV.doc[id], src = [loc, doc].filter(x => evFresh(id, x));
   const jours = {}, sig = {};
   for (const x of src) for (const [d, l] of Object.entries(x.jours || {})) if (Array.isArray(l) && (!st.me.jours[d] || l.length > st.me.jours[d].length) && x.sig && x.sig[d]) { jours[d] = l; sig[d] = x.sig[d]; }
@@ -331,11 +338,13 @@ const evNick = () => (typeof PROF !== 'undefined' && PROF.name) || '';
 /* ── Compte : users/{uid}/meta/events = { e: { édition: { n, jours, sig } }, updatedAt } (sommaire du compte : cloud.js › makeSum) ─────────────── */
 function evUser(user) {
   if (EV.unsub) { try { EV.unsub(); } catch (e) { /* ignore */ } EV.unsub = null; }
-  EV.doc = null; const prev = EV.uid; EV.uid = user ? user.uid : '';
+  EV.doc = EV.doc0 = null; const prev = EV.uid; EV.uid = user ? user.uid : '';
+  if (!user && prev && EV.pv) evPvSet('', true);      // déconnexion : fin de l'aperçu
+  evAdmChk(user);
   if (user && typeof D !== 'undefined' && D.cloud && D.cloud.watchMeta) {
     EV.unsub = D.cloud.watchMeta(user.uid, 'events', (data, pending, fromCache) => {
       if (pending || D.uid !== user.uid) return;
-      EV.doc = data && data.e && typeof data.e === 'object' ? data.e : {};
+      evDocIn(data && data.e && typeof data.e === 'object' ? data.e : {});
       if (!fromCache) { evSyncUp(); evDocPushSoon(); }
       if (typeof prgAbsorbSoon === 'function') prgAbsorbSoon();
       evHomePaint();
@@ -345,7 +354,7 @@ function evUser(user) {
 }
 /** Connexion : la progression sans compte de cet appareil rejoint le compte (une fois ; jamais vers un 2e compte : le serveur refuse). */
 async function evMerge() {
-  const id = EV.cal && EV.cal.id, u = typeof D !== 'undefined' ? D.user : null; if (!id || !u || !EV.dev) return;
+  const id = EV.cal && EV.cal.id, u = typeof D !== 'undefined' ? D.user : null; if (!id || !u || !EV.dev || EV.pv) return;
   const ls = evLs(), anon = (ls.anon || {})[id]; if (!anon || !anon.n || EV.merged === id + u.uid) return;
   EV.merged = id + u.uid;
   try { await evCall('/merge', { method: 'POST', body: { ev: id, jours: anon.jours, sig: anon.sig, rs: anon.rs || 0, c: evCaps(), n: evNick() } }); const a = { ...(ls.anon || {}) }; delete a[id]; evLsSet({ anon: a }); } catch (e) { /* refusé ou hors ligne : laissé tel quel */ }
@@ -354,7 +363,7 @@ let evDocT = 0;
 function evDocPushSoon() { clearTimeout(evDocT); evDocT = setTimeout(evDocPush, 3000); }
 async function evDocPush() {
   const u = typeof D !== 'undefined' ? D.user : null, st = EV.st;
-  if (!u || !st || !st.acct || !D.cloud || !D.cloud.saveMeta || EV.doc === null || (typeof cloudOn === 'function' && !cloudOn())) return;
+  if (!u || !st || !st.acct || !D.cloud || !D.cloud.saveMeta || EV.doc === null || EV.pv || (typeof cloudOn === 'function' && !cloudOn())) return;
   const id = st.ev.id, loc = evMine(id), cur = EV.doc[id] || {};
   const old = (cur.rs || 0) < (loc.rs || 0);      // copie du compte d'avant une remise à zéro : remplacée, pas fusionnée
   const dr = old ? evDrops(loc.dr) : evDrops(cur.dr, loc.dr);      // couleurs rares : réunies, jamais perdues (sauf remise à zéro)
@@ -594,8 +603,58 @@ function evIntro() {
 }
 
 /* ── Préférences : « Décorations de fête » (Compte et réglages › Préférences, pendant une fête) ────────────────────────────── */
-const evPrefRow = () => (typeof advOrbRow === 'function' ? advOrbRow() : '') + (evOn() ? `<label class="me-row switch-row" for="setEvDeco"><span class="me-t">${T('Décorations de fête')}<small>${esc(evTx('deco') || T(evPackOf().name))}${esc(' · ' + T('la chasse reste ouverte'))}</small></span><span class="switch"><input type="checkbox" id="setEvDeco" ${evDeco() ? 'checked' : ''}><i></i></span></label>` : '');
-function evPref(on) { evLsSet({ deco: !!on }); evApply(); haptic('ok'); }
+const evPrefRow = () => evPvRow() + (typeof advOrbRow === 'function' ? advOrbRow() : '') + (evOn() ? `<label class="me-row switch-row" for="setEvDeco"><span class="me-t">${T('Décorations de fête')}<small>${esc(evTx('deco') || T(evPackOf().name))}${esc(' · ' + T('la chasse reste ouverte'))}</small></span><span class="switch"><input type="checkbox" id="setEvDeco" ${evDeco() ? 'checked' : ''}><i></i></span></label>` : '');
+function evPref(on) {
+  evLsSet({ deco: !!on });
+  if (EV.pv) { try { const o = JSON.parse(localStorage.getItem(EV_KEY) || '{}') || {}; o.deco = !!on; localStorage.setItem(EV_KEY, JSON.stringify(o)); } catch (e) { /* stockage refusé */ } }      // aperçu : le choix reste
+  evApply(); haptic('ok');
+}
+
+/* ── Aperçu d'une fête (comptes de l'éditeur) ────────────────────────────────────────────────────────────────────────── */
+/** Compte de l'éditeur ? (adresse vérifiée, empreinte EV_ADM) : EV.adm = son UID ; montre le choix dans les préférences. Le serveur revérifie à chaque appel. */
+async function evAdmChk(user) {
+  EV.adm = '';
+  const m = user && user.emailVerified && typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+  if (!m || typeof crypto === 'undefined' || !crypto.subtle) return;
+  try {
+    const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(m)))].map(b => b.toString(16).padStart(2, '0')).join('');
+    if (h !== EV_ADM || EV.uid !== user.uid) return;
+    EV.adm = user.uid; if (typeof meOpen === 'function' && meOpen() && typeof mePaint === 'function') mePaint();
+  } catch (e) { /* pas de WebCrypto : pas d'aperçu */ }
+}
+const evAdmOn = () => !!EV.adm && EV.adm === EV.uid;
+/** Ligne « Aperçu d'une fête » : chaque pack (même en préparation) ; vide : la fête du moment. */
+const evPvRow = () => (evAdmOn() && typeof EV_PACKS !== 'undefined' ? `<label class="me-row" for="setEvPv"><span class="me-t">${T('Aperçu d\'une fête')}<small>${T('Admin · ton compte seulement, progression d\'essai')}</small></span><span class="sel me-sel"><select id="setEvPv"><option value="">${T('Aucun (fête du moment)')}</option>${EV_PACKS.map(p => `<option value="${esc(p.id)}" ${EV.pv === p.id ? 'selected' : ''}>${esc(p.obj.emoji + ' ' + T(p.name) + (p.ready ? '' : ' · ' + T('en préparation')))}</option>`).join('')}</select></span></label>` : '');
+/** Document du compte reçu : gardé tel quel (EV.doc0) ; en aperçu, sans l'édition essayée (sa progression d'essai ne se mélange pas à la vraie). */
+function evDocIn(e) { EV.doc0 = e; EV.doc = EV.pv && EV.cal ? evWithout(e, EV.cal.id) : e; }
+const evWithout = (o, id) => { const x = { ...(o || {}) }; delete x[id]; return x; };
+/** Choix de l'aperçu (pack ou '') : gardé sur l'appareil, appliqué tout de suite. quiet : sans message. */
+function evPvSet(pack, quiet) {
+  const want = pack && typeof evPack === 'function' && evPack(pack) ? pack : '';
+  try { if (want) localStorage.setItem(EV_PVK, want); else localStorage.removeItem(EV_PVK); } catch (e) { /* stockage refusé : pour la session */ }
+  if (EV.pv) evPvLeave();
+  if (want && !evPvEnter(want)) return;
+  if (!quiet && typeof toast === 'function') toast(want ? T('Aperçu : {n}', { n: T(evPack(want).name) }) : T('Aperçu terminé'));
+  if (typeof meOpen === 'function' && meOpen() && typeof mePaint === 'function') mePaint();
+}
+/** Entre dans l'aperçu : édition du pack cette année (premier jour si hors dates), copie de travail du stockage sans elle (intro revue, compteur à zéro). */
+function evPvEnter(pack) {
+  const f = typeof evActive === 'function' ? evActive(Date.now(), { force: pack }) : null; if (!f || !evPack(f.pack)) return false;
+  const ls = evLs(); evStop();
+  EV.pv = pack; EV.ls = { ...ls, p: evWithout(ls.p, f.id), anon: evWithout(ls.anon, f.id), seen: evWithout(ls.seen, f.id), fw: evWithout(ls.fw, f.id) };
+  EV.cal = { id: f.id, pack: f.pack, from: f.from, to: f.to, day: f.day, total: f.total, per: f.per, forced: true, preview: true };
+  if (EV.doc0 || EV.doc) evDocIn(EV.doc0 || EV.doc);
+  evApply(); evStatus(true); evLoopSync();
+  return true;
+}
+/** Sort de l'aperçu : le vrai stockage relu, la fête du moment (dernier /__ping, sinon celle gardée sur l'appareil). */
+function evPvLeave() {
+  EV.pv = ''; EV.ls = null; if (EV.doc0) EV.doc = EV.doc0; EV.cal = null; evStop();
+  if (EV.ping0 !== undefined) { evPing(EV.ping0); return; }
+  const c = evLs().cal, d = typeof evDay === 'function' ? evDay(Date.now()) : '';
+  if (c && typeof c.id === 'string' && d >= c.from && d <= c.to) { EV.cal = c; evStatus(true); }
+  evApply();
+}
 
 /* ── Badges « Événements » (progress.js) : un badge par édition, paliers du pack ; obtenables pendant la fête, gardés ensuite avec l'année ── */
 /** Badges à montrer : l'édition en cours (même sans palier), et chaque édition passée où un objet a été trouvé. */
@@ -608,7 +667,7 @@ function evBadges() {
     const e = evById(id), p = e && evPack(e.pack); if (!p || !p.badge) continue;
     const names = p.badge.names || [];
     const adv = !!p.advent, sky = !!p.sky;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js) ; ciel : les constellations complètes (evsky.js)
-    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), v: () => (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : evCount(id)), ev: id, names });
+    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), ...(EV.pv && EV.cal && EV.cal.id === id ? { pv: true } : {}), v: () => (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : evCount(id)), ev: id, names });
   }
   return out;
 }
@@ -630,6 +689,7 @@ function evBadgeHtml(id, tier, got) {
 /* ── Démarrage, serveur, compte ─────────────────────────────────────────────────────────────────────────────────── */
 /** /__ping › event (detectProxy) : fête en cours ou rien. */
 function evPing(j) {
+  EV.ping0 = j === undefined ? null : j; if (EV.pv) return;      // aperçu : la vraie fête attend sa fin
   const was = EV.cal && EV.cal.id; EV.cal = j && typeof j.id === 'string' && typeof j.pack === 'string' ? j : null;
   if (EV.cal && !evPackOf()) EV.cal = null;
   if (!EV.cal) { evLsSet({ cal: null }); evApply(); evStop(); return; }
@@ -644,15 +704,16 @@ function evBoot() {
     try { const u = new URL(location.href); u.searchParams.delete('evreset'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch (e) { /* ignore */ }
     setTimeout(() => { if (typeof toast === 'function') toast(T('Événements : cet appareil est remis à zéro')); }, 1500);
   }
+  document.addEventListener('visibilitychange', () => { evQuietSync(); if (!document.hidden && evOn()) evStatus(); evLoopSync(); });
+  let pv = ''; try { pv = localStorage.getItem(EV_PVK) || ''; } catch (e) { /* stockage refusé */ }
+  if (pv && typeof evPack === 'function' && evPack(pv) && evPvEnter(pv)) return;      // aperçu choisi sur cet appareil : le serveur confirme une fois le compte connu
   const c = evLs().cal; if (!c || typeof c.id !== 'string' || typeof evDay !== 'function') return;
   const d = evDay(Date.now()); if (d < c.from || d > c.to) { evLsSet({ cal: null }); return; }
   EV.cal = c; evApply();
-  document.addEventListener('visibilitychange', () => { evQuietSync(); if (!document.hidden && evOn()) evStatus(); evLoopSync(); });
 }
 if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   evBoot();
-  document.addEventListener('change', e => { if (e.target && e.target.id === 'setEvDeco') evPref(e.target.checked); });
-  if (!evLs().cal) document.addEventListener('visibilitychange', () => { evQuietSync(); if (!document.hidden && evOn()) evStatus(); evLoopSync(); }, { once: false });
+  document.addEventListener('change', e => { if (e.target && e.target.id === 'setEvDeco') evPref(e.target.checked); if (e.target && e.target.id === 'setEvPv') evPvSet(e.target.value); });
 }
 
 if (typeof module !== 'undefined' && module.exports) module.exports = { EV_HIDE, evHint };

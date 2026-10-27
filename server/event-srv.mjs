@@ -12,6 +12,9 @@
 //   · Statistiques (panneau /admin › Événements, annonces Discord) : chasseurs, trouvés par jour, à total/total, top des pseudos publics.
 //   · Notifications push (o.push, event-push.mjs) : appareils enregistrés avec ou sans compte (POST /api/event/push), annonces automatiques (tick de proxy.mjs),
 //     envois manuels du panneau (GET/POST /api/admin/events/push, …/push/cancel).
+//   · Aperçu (o.canPreview : comptes de l'éditeur, liste ADMIN_SET de proxy.mjs) : en-tête x-event-preview: <pack> ou <pack>-<année> → cette fête-là, pour ce
+//     compte seulement, même pas prête (ready: false) ni dans ses dates (premier jour). Progression à part : en mémoire (jamais sur le disque, jamais dans les
+//     statistiques), clé 'v' + empreinte (ses reçus ne valent rien pour la vraie fête). Tout autre compte : en-tête ignoré.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
@@ -20,7 +23,7 @@ import { createRequire } from 'node:module';
 import { evPushMake } from './event-push.mjs';
 
 const EVP = createRequire(import.meta.url)('../src/evpacks.js');
-const ID_RE = /^[a-z]+-\d{4}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DEV_RE = /^([\w-]{22})\.([\w-]{16})$/, TOK_RE = /^[\w-]{16}$/, SIG_RE = /^[\w-]{22}$/;
+const ID_RE = /^[a-z]+-\d{4}$/, PV_RE = /^[a-z]{2,16}(-\d{4})?$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DEV_RE = /^([\w-]{22})\.([\w-]{16})$/, TOK_RE = /^[\w-]{16}$/, SIG_RE = /^[\w-]{22}$/;
 const ROUTES = ['', 'claim', 'sync', 'merge', 'board', 'push'];
 const SPOT_IDS = new Set(EVP.EV_SPOTS.map(s => s.id));
 const evJson = (res, status, obj, extra = {}) => { const b = JSON.stringify(obj); res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...extra }); res.end(b); };
@@ -38,7 +41,7 @@ export function evRare(secret, id, k, i, rr) {
   const h = createHmac('sha256', secret).update(`evr|${id}|${k}|${i}`).digest();
   return h.readUInt32BE(0) / 0x100000000 < rr.p ? rr.covers[h.readUInt32BE(4) % rr.covers.length] : '';
 }
-/** Crée le moteur. o : { dir, on (EVENT ≠ '0'), force (EVENT_FORCE), secret, now, verify (jeton → { uid, emailVerified, provider }), bad (filtre de mots),
+/** Crée le moteur. o : { dir, on (EVENT ≠ '0'), force (EVENT_FORCE), secret, now, verify (jeton → { uid, email, emailVerified, provider }), canPreview (compte vérifié → aperçu permis), bad (filtre de mots),
  *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, log, adminHeaders, adminBody (garde-fous des actions du panneau), adminLog, adminMail,
  *  push ({ send, target } : notifications ; null : aucune), pushExtra (→ appareils de la Carte mystère, cible « tous »), pushOpts (réglages de event-push.mjs : tests) }. */
 export function eventMake(o = {}) {
@@ -48,7 +51,7 @@ export function eventMake(o = {}) {
   const tooLarge = o.tooLarge || (res => json(res, 413, { error: 'too_large' }));
   const badKey = o.badKey || ((req, res) => json(res, 401, { error: 'bad_token', message: 'Jeton de connexion invalide.' }));
   const ON = o.on !== false, FORCE = String(o.force || '').trim().toLowerCase(), HD = o.adminHeaders || {};
-  const G = { secret: String(o.secret || ''), off: [], recs: new Map(), saving: new Map(), boot: null };
+  const G = { secret: String(o.secret || ''), off: [], recs: new Map(), saving: new Map(), boot: null, pv: new Map() };
   /** Notifications push (event-push.mjs) : null sans o.push ou avec EVENT=0. */
   const EP = ON ? evPushMake({ dir, now, push: o.push, on: ON, off: () => G.off, extra: o.pushExtra, log, adminLog: o.adminLog, ...(o.pushOpts || {}) }) : null;
 
@@ -73,9 +76,11 @@ export function eventMake(o = {}) {
     if (!G.recs.has(id)) G.recs.set(id, r);
     return G.recs.get(id);
   }
+  /** Progression des aperçus (en-tête x-event-preview) : en mémoire seulement. */
+  const pvRec = id => G.pv.get(id) || (G.pv.set(id, { v: 1, id, p: {}, pv: true }), G.pv.get(id));
   /** Écriture groupée (1,5 s) ; flush : tout de suite. */
   function saveSoon(r, flush) {
-    if (r.bad) return Promise.resolve();
+    if (r.bad || r.pv) return Promise.resolve();
     const w = G.saving.get(r.id) || {}; G.saving.set(r.id, w);
     const go = () => { clearTimeout(w.t); w.t = null; G.saving.delete(r.id); return put(join(dir, r.id + '.json'), JSON.stringify(r)).catch(e => log.warn('Événements : enregistrement impossible (' + (e && e.code || e) + ')')); };
     if (flush) return go();
@@ -97,6 +102,10 @@ export function eventMake(o = {}) {
   const devNew = () => { const id = randomBytes(16).toString('base64url'); return id + '.' + devSig(id); };
   /** Compte (jeton Firebase) : { tag, uid } ; pas de jeton : null ; jeton refusé : réponse envoyée, false. */
   async function who(req, res) {
+    if (req.evWho !== undefined) return req.evWho;      // déjà vérifié pour cette requête (aperçu)
+    return (req.evWho = await who0(req, res));
+  }
+  async function who0(req, res) {
     const tok = String(req.headers['x-firebase-token'] || ''); if (!tok) return null;
     if (isLocked(req)) { json(res, 429, { error: 'too_many_attempts', message: 'Trop d\'essais invalides : réessaie dans quelques minutes.' }, { 'Retry-After': '300' }); return false; }
     if (!o.verify) { json(res, 503, { error: 'auth_unavailable', message: 'Comptes indisponibles sur ce serveur.' }); return false; }
@@ -108,10 +117,16 @@ export function eventMake(o = {}) {
       else await badKey(req, res, 'bad_token', 401);
       return false;
     }
-    return { tag: evTag(u.uid), uid: u.uid };
+    return { tag: evTag(u.uid), uid: u.uid, pv: !!(o.canPreview && u.emailVerified && o.canPreview(u)) };
+  }
+  /** Aperçu demandé (x-event-preview) par un compte qui y a droit : l'édition à montrer (forcée, marquée preview) ; sinon null (en-tête ignoré). */
+  async function preview(req, res) {
+    const want = String(req.headers['x-event-preview'] || '').trim().toLowerCase(); if (!ON || !want || !PV_RE.test(want)) return null;
+    const u = await who(req, res); if (!u || !u.pv) return u === false ? false : null;
+    const f = EVP.evActive(now(), { force: want }); return f ? { ...f, preview: true } : null;
   }
   /** Clé du joueur : 'u' + empreinte du compte, sinon 'd' + appareil. */
-  const keyOf = (u, dev) => (u ? 'u' + u.tag : dev ? 'd' + dev : '');
+  const keyOf = (u, dev, pv) => (pv ? (u ? 'v' + u.tag : '') : u ? 'u' + u.tag : dev ? 'd' + dev : '');      // aperçu : compte seulement, clé à part
   const player = (r, k) => r.p[k] || (r.p[k] = { d: {}, n: 0, at: 0 });
   const total = (e, pl) => Math.min(e.total, Object.values(pl.d || {}).reduce((a, l) => a + (Array.isArray(l) ? l.length : 0), 0));
   /** Jeton d'une cachette (joueur, jour) ; reçu d'un jour (liste triée de ce qui y a été trouvé). */
@@ -162,7 +177,7 @@ export function eventMake(o = {}) {
     const dr = rares(e, k, pl), ad = EVP.evPack(e.pack), seed = ad && ad.advent && k ? createHmac('sha256', G.secret).update(`evs|${e.id}|${k}`).digest().readUInt32BE(0) || 1 : 0;      // graine des cartes du jour (calendrier)
     return { n, day, found, q, ...(Object.keys(dr).length ? { dr } : {}), ...(seed ? { seed } : {}), left: full ? 0 : Math.max(0, Math.min(q - found.length, e.total - n)), spots: sp.map(s => ({ s, t: spotTok(e.id, k, day, s), f: found.includes(s) ? 1 : 0 })), jours: pl.d || {}, sig, rs: pl.rs || 0 };      // rs : remise à zéro par le panneau (les copies plus anciennes ne comptent plus)
   }
-  const edOut = e => ({ id: e.id, pack: e.pack, from: e.from, to: e.to, day: e.day, days: e.days, dayNo: EVP.evDiff(e.from, e.day) + 1, left: EVP.evDiff(e.day, e.to), total: e.total, per: e.per, ...(e.forced ? { forced: true } : {}) });
+  const edOut = e => ({ id: e.id, pack: e.pack, from: e.from, to: e.to, day: e.day, days: e.days, dayNo: EVP.evDiff(e.from, e.day) + 1, left: EVP.evDiff(e.day, e.to), total: e.total, per: e.per, ...(e.forced ? { forced: true } : {}), ...(e.preview ? { preview: true } : {}) });
   async function body(req, res, max = 4096) {
     let b; try { b = JSON.parse((await readBody(req, max)).toString('utf8') || '{}'); } catch (e) { if (e.status === 413) tooLarge(res); else json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); return null; }
     if (!b || typeof b !== 'object' || Array.isArray(b)) { json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); return null; }
@@ -195,7 +210,8 @@ export function eventMake(o = {}) {
     if (!ROUTES.includes(sub)) return json(res, 404, { error: 'not_found' });
     const w = rateWait(req, 'event', 240, 600e3); if (w) return tooMany(res, w);
     await secret();
-    const e = cur(), dev = devOf(req), devOut = dev ? {} : { dev: devNew() }, t = now();
+    const pv = sub === 'push' || sub === 'board' ? null : await preview(req, res); if (pv === false) return;
+    const e = pv || cur(), dev = devOf(req), devOut = dev ? {} : { dev: devNew() }, t = now(), R = id => (pv ? Promise.resolve(pvRec(id)) : rec(id));
     if (sub === 'push') {      // { sub, l } : cet appareil prévenu des événements (avec ou sans compte) ; { off: clé } : retiré
       if (!EP) return json(res, 404, { error: 'push_disabled', message: 'Notifications indisponibles sur ce serveur.' });
       if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' });
@@ -210,7 +226,7 @@ export function eventMake(o = {}) {
       const up = ON ? EVP.evUpcoming(EVP.evDay(t), 14) : null;
       if (!e) return json(res, 200, { on: false, now: t, next: EVP.evNextMidnight(t), ...(up && !G.off.includes(up.id) ? { soon: { id: up.id, pack: up.pack, from: up.from, in: up.in } } : {}), ...devOut });
       const u = await who(req, res); if (u === false) return;
-      const caps = Math.max(0, Math.min(255, Math.floor(Number(url.searchParams.get('c')) || 0))) | (u ? EVP.EV_CAPS.acct : 0), k = keyOf(u, dev), r = await rec(e.id);
+      const caps = Math.max(0, Math.min(255, Math.floor(Number(url.searchParams.get('c')) || 0))) | (u ? EVP.EV_CAPS.acct : 0), k = keyOf(u, dev, !!pv), r = await R(e.id);
       return json(res, 200, { on: true, ev: edOut(e), now: t, next: EVP.evNextMidnight(t), acct: !!u, me: k ? me(e, r, k, caps) : null, ...devOut });
     }
     if (req.method === 'GET' && sub === 'board') {
@@ -222,9 +238,9 @@ export function eventMake(o = {}) {
     const b = await body(req, res, sub === 'claim' ? 1024 : 8192); if (!b) return;
     if (!e || b.ev !== e.id) return json(res, 404, { error: 'no_event', message: 'Aucun événement en cours.' });
     const u = await who(req, res); if (u === false) return;
-    const r = await rec(e.id);
+    const r = await R(e.id);
     if (sub === 'claim') {      // { ev, day, s, t, n? } : une cachette trouvée
-      const k = keyOf(u, dev); if (!k) return json(res, 400, { error: 'device', message: 'Réessaie dans un instant.', ...devOut });
+      const k = keyOf(u, dev, !!pv); if (!k) return json(res, 400, { error: 'device', message: 'Réessaie dans un instant.', ...devOut });
       if (b.day !== e.day) return json(res, 410, { error: 'wrong_day', message: 'Ces cachettes étaient celles d\'un autre jour.', day: e.day });
       const s = String(b.s || ''); if (!SPOT_IDS.has(s) || !TOK_RE.test(String(b.t || '')) || !eq(spotTok(e.id, k, e.day, s), b.t)) return json(res, 403, { error: 'bad_token', message: 'Cachette inconnue.' });
       const pl = player(r, k), list = pl.d[e.day] || [], q = EVP.evQuota(e, e.day);
@@ -236,6 +252,7 @@ export function eventMake(o = {}) {
       const dr = rares(e, k, pl);
       return json(res, 200, { ok: true, n: pl.n, found: list, left: Math.max(0, Math.min(q - list.length, e.total - pl.n)), sig: daySig(e.id, k, e.day, list), ...(Object.keys(dr).length ? { dr } : {}) });
     }
+    if (pv && sub !== 'claim') return json(res, 409, { error: 'preview', message: 'Aperçu : rien à synchroniser.' });
     if (sub === 'sync') {      // { ev, jours, sig } (compte) : progression relue depuis la copie de l'appli (Firestore), reçus vérifiés
       if (!u) return json(res, 401, { error: 'auth_required', message: 'Connecte-toi.' });
       const k = 'u' + u.tag, pl = player(r, k); pl.a = 1; { const nm = evName(b.n, o.bad); if (nm) pl.nm = nm; }

@@ -12,7 +12,7 @@ import { startFakes } from './amis-fakes.mjs';
 import { OPEN } from './event-open.mjs';
 
 const F = await startFakes();
-const world = await startWorld({ port: 19878, env: { EVENT: '1', EVENT_FORCE: 'halloween-2026', EVENT_SECRET: 'e2e', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL } });
+const world = await startWorld({ port: 19878, env: { EVENT: '1', EVENT_FORCE: 'halloween-2026', EVENT_SECRET: 'e2e', FIREBASE_JWKS_URL: F.env.FIREBASE_JWKS_URL, ADMIN_EMAILS: 'uid-e2e-zoe@test.dev' } });      // ce compte : aperçu des fêtes permis
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const SHOTS = process.env.EV_SHOTS || ''; if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const shot = (p, n) => (SHOTS ? p.screenshot({ path: `${SHOTS}/${n}.png` }) : null);
@@ -148,6 +148,33 @@ async function findAndTap(p, s, forced) {
   await p.$eval('#setEvDeco', i => { i.checked = true; i.dispatchEvent(new Event('change', { bubbles: true })); });
   assert.equal(await p.evaluate(() => document.documentElement.classList.contains('ev-deco')), true);
   ok('« Décorations de fête » : décor, ambiance et logo coupés puis remis, la fête reste');
+
+  /* ── 6 bis) Aperçu d'une fête (compte de l'éditeur) : Noël à la place d'Halloween, progression d'essai jamais gardée, puis retour ── */
+  const ls0 = await p.evaluate(() => localStorage.getItem('deckdeal:ev'));
+  assert.equal(await p.$('#setEvPv'), null, 'choix caché : pas l\'adresse de l\'éditeur côté appli');
+  await p.evaluate(() => { EV.adm = EV.uid; mePaint(); }); await p.waitForSelector('#setEvPv');      // empreinte de l'éditeur (EV_ADM) simulée ; le serveur, lui, vérifie ADMIN_EMAILS
+  assert.ok((await p.$$eval('#setEvPv option', o => o.map(x => x.value))).includes('paques'), 'packs en préparation compris');
+  await p.selectOption('#setEvPv', 'noel');
+  await p.waitForFunction(() => EV.st && EV.st.ev.id === 'noel-2026' && EV.st.ev.preview && EV.st.me, null, { timeout: 15000 });
+  assert.equal(await p.evaluate(() => [document.documentElement.dataset.event, localStorage.getItem('deckdeal:ev:pv'), EV.st.me.n, EV.st.me.spots.length].join()), 'noel,noel,0,2');
+  const pvs = await p.evaluate(() => EV.st.me.spots[0].s); await closeAll(p);
+  await p.evaluate(s => { EV_HIDE[s] = () => document.querySelector('#viewHome .hm-hero'); evScan(); }, pvs); await p.waitForFunction(s => EV.pks.get(s) && EV.pks.get(s).ok, pvs, { timeout: 8000 });
+  await p.evaluate(s => EV.pks.get(s).el.click(), pvs); await p.waitForFunction(() => EV.st.me.n === 1 && !EV.fly, null, { timeout: 8000 }); await p.waitForTimeout(3200);
+  assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:ev')), ls0, 'rien de réécrit sur l\'appareil');
+  assert.equal(await p.evaluate(() => !!(window.__evDoc && window.__evDoc.e['noel-2026'])), false, 'rien dans le compte');
+  assert.equal(await p.evaluate(() => evBadges().find(b => b.ev === 'noel-2026').pv), true, 'badge d\'essai : jamais gardé ni annoncé');
+  await p.evaluate(() => { document.querySelectorAll('.ev-msg, .adv-open, .adv-x').forEach(e => e.remove()); while (sheets.length) sheets[sheets.length - 1].close(); openSettings(); }); await p.waitForSelector('#setEvPv');
+  await p.selectOption('#setEvPv', '');
+  await p.waitForFunction(() => EV.st && EV.st.ev.id === 'halloween-2026' && !EV.st.ev.preview && EV.st.me && EV.st.me.n === 5, null, { timeout: 15000 });
+  assert.equal(await p.evaluate(() => [document.documentElement.dataset.event, localStorage.getItem('deckdeal:ev:pv'), evCount('halloween-2026')].join()), 'halloween,,5');
+  ok('aperçu (éditeur) : Noël à la place d\'Halloween, cadeau d\'essai jamais gardé (appareil, compte, badges), retour à la vraie fête');
+  // un autre compte : le serveur refuse, l'aperçu s'arrête
+  await p.evaluate(tok => { window.__idTok = tok; }, F.jwt('uid-e2e-max'));
+  await p.selectOption('#setEvPv', 'nouvelan');
+  await p.waitForFunction(() => !EV.pv && localStorage.getItem('deckdeal:ev:pv') === null && document.documentElement.dataset.event === 'halloween', null, { timeout: 15000 });
+  await p.evaluate(tok => { window.__idTok = tok; }, F.jwt('uid-e2e-zoe')); await p.evaluate(() => evStatus(true)); await p.waitForFunction(() => EV.st && EV.st.me && EV.st.me.n === 5, null, { timeout: 15000 });
+  await p.evaluate(() => { EV.adm = ''; while (sheets.length) sheets[sheets.length - 1].close(); });
+  ok('aperçu refusé par le serveur pour un autre compte : fin de l\'aperçu, la vraie fête revient');
   assert.deepEqual(errs, []);
   await ctx.close();
 }

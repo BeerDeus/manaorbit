@@ -3656,6 +3656,7 @@ try {
   const { eventMake } = await import('./event-srv.mjs');
   EVS = eventMake({ dir: process.env.EVENT_DIR || join(EDH_DIR, 'events'), on: process.env.EVENT !== '0', force: process.env.EVENT_FORCE || '', secret: String(process.env.EVENT_SECRET || '').trim(),
     verify: tok => verifyIdToken(tok, true), bad: v => !!(NM_CORE && NM_CORE.pubBad && NM_CORE.pubBad(v)), json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey,
+    canPreview: u => ADMIN_ON && !!u.email && ADMIN_SET.has(admHash(u.email)),      // aperçu d'une fête (x-event-preview) : comptes de l'éditeur seulement
     adminHeaders: ADM_HD, adminBody: (req, res, max) => admBody(req, res, max), adminLog: r => admLog(r), adminMail: m => admMail(m),
     push: FCM_ON && process.env.EVENT_PUSH !== '0' ? { send: sendPush, target: parseTarget } : null, pushExtra: DLY && DLY.pushOn ? () => DLY.pushList() : null,      // notifications des événements (rien sans compte de service)
     adminNames: tags => { const s = ADM.snap, out = new Map(); if (!s) return out; const byId = new Map(s.rows.map(r => [r.id, r])); for (const t of tags) { const r = byId.get(s.byTag.get(t)); if (r) out.set(t, { name: r.name, mail: r.mail }); } return out; } });      // noms réduits de la liste des comptes (déjà calculée), jamais l'UID

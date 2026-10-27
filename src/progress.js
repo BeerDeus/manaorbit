@@ -403,7 +403,7 @@ function prgCheck(quiet) {
   if (!quiet) { clearTimeout(PRG.t); PRG.pend = new Set(); }
   const keep = { ...was }, fresh = [];
   for (const x of bs) {
-    if (!(x.t >= 0) || (was[x.b.id] != null && was[x.b.id] >= x.t)) continue;
+    if (!(x.t >= 0) || x.b.pv || (was[x.b.id] != null && was[x.b.id] >= x.t)) continue;      // aperçu d'une fête (event.js) : rien de gardé ni annoncé
     if (quiet && PRG.pend.has(x.b.cat)) continue;      // rubrique touchée ici : son calcul (prgSoon) l'annoncera
     keep[x.b.id] = x.t; if (!first && pend.has(x.b.cat)) fresh.push(x);
   }

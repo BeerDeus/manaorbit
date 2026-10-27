@@ -26,12 +26,12 @@ const T0 = Date.parse('2026-10-25T08:00:00Z');      // 25 octobre 2026, 10 h à 
 async function up(o = {}) {
   const clock = { t: o.t || T0 }, users = { 'tok-zoe': 'uid-zoe', 'tok-max': 'uid-max' };
   const verify = async tok => { if (tok === 'expired') throw Object.assign(new Error('x'), { authCode: 'expired' }); const uid = users[tok]; if (!uid) throw Object.assign(new Error('x'), { authCode: 'invalid' }); return { uid, emailVerified: true, provider: 'google.com' }; };
-  const ev = eventMake({ dir: o.dir || newDir(), secret: o.secret ?? 'sekret', now: () => clock.t, verify, bad: s => /merde/i.test(s), on: o.on, force: o.force, log: { log() {}, warn() {} } });
+  const ev = eventMake({ dir: o.dir || newDir(), secret: o.secret ?? 'sekret', now: () => clock.t, verify, bad: s => /merde/i.test(s), on: o.on, force: o.force, canPreview: o.canPreview, log: { log() {}, warn() {} } });
   const srv = http.createServer((req, res) => { const u = new URL(req.url, 'http://x'); const p = u.pathname.replace(/^\/api\//, ''); (p.startsWith('admin/') ? ev.admin(req, res, p.slice(6), u, { email: 'ed@x' }) : ev.api(req, res, p, u)).catch(e => { console.error(e); res.writeHead(500); res.end('{}'); }); });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}/api/`;
-  const call = async (path, { tok, dev, body, method } = {}) => {
-    const h = { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(tok ? { 'x-firebase-token': tok } : {}), ...(dev ? { 'x-event-device': dev } : {}) };
+  const call = async (path, { tok, dev, body, method, pv } = {}) => {
+    const h = { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(tok ? { 'x-firebase-token': tok } : {}), ...(dev ? { 'x-event-device': dev } : {}), ...(pv ? { 'x-event-preview': pv } : {}) };
     const r = await fetch(base + path, { method: method || (body ? 'POST' : 'GET'), headers: h, body: body ? JSON.stringify(body) : undefined });
     return { status: r.status, j: await r.json() };
   };
@@ -175,6 +175,25 @@ test('ciel du Nouvel an : 5 constellations de 6 étoiles, 5 par jour, couleur ra
   assert.ok(hit / all > 0.007 && hit / all < 0.013, 'environ 1 % : ' + (hit / all * 100).toFixed(2) + ' %');
   S.stop();
 });
+test('aperçu (x-event-preview) : compte de l\'éditeur seulement, pack pas prêt compris, progression à part jamais écrite', async () => {
+  const S = await up({ canPreview: u => u.uid === 'uid-zoe' }), dev = (await S.call('event')).j.dev;
+  for (const o of [{ dev }, { tok: 'tok-max' }]) { const r = await S.call('event', { ...o, pv: 'paques' }); assert.equal(r.j.ev.id, 'halloween-2026', 'autre compte, sans compte : en-tête ignoré'); assert.equal(r.j.ev.preview, undefined); }
+  assert.equal((await S.call('event', { tok: 'tok-zoe', pv: '../x' })).j.ev.id, 'halloween-2026', 'valeur invalide : ignorée');
+  const r = await S.call('event', { tok: 'tok-zoe', pv: 'paques' }); assert.equal(r.status, 200);
+  assert.equal(r.j.ev.id, 'paques-2026'); assert.equal(r.j.ev.preview, true); assert.equal(r.j.ev.forced, true); assert.equal(r.j.ev.day, r.j.ev.from, 'hors dates : premier jour'); assert.equal(r.j.me.spots.length, 5);
+  const x = r.j.me.spots[0], c = await S.call('event/claim', { tok: 'tok-zoe', pv: 'paques', body: { ev: 'paques-2026', day: r.j.me.day, s: x.s, t: x.t } });
+  assert.equal(c.status, 200, JSON.stringify(c.j)); assert.equal(c.j.n, 1);
+  assert.equal((await S.call('event/claim', { tok: 'tok-zoe', body: { ev: 'paques-2026', day: r.j.me.day, s: x.s, t: x.t } })).status, 404, 'sans l\'en-tête : pas d\'aperçu');
+  assert.equal((await S.call('event/sync', { tok: 'tok-zoe', pv: 'paques', body: { ev: 'paques-2026', jours: {}, sig: {} } })).status, 409, 'rien à synchroniser');
+  // aperçu de la fête en cours : progression à part de la vraie
+  const h = await S.call('event', { tok: 'tok-zoe', pv: 'halloween' }); assert.equal(h.j.ev.preview, true);
+  const hx = h.j.me.spots[0]; assert.equal((await S.call('event/claim', { tok: 'tok-zoe', pv: 'halloween', body: { ev: 'halloween-2026', day: h.j.me.day, s: hx.s, t: hx.t } })).j.n, 1);
+  assert.equal((await S.call('event', { tok: 'tok-zoe' })).j.me.n, 0, 'vraie progression intacte');
+  assert.equal((await S.ev.stats('halloween-2026')).hunters, 0, 'jamais dans les statistiques'); await S.ev.flush();
+  assert.equal((await S.call('event', { tok: 'tok-zoe', pv: 'paques' })).j.me.n, 1, 'gardée en mémoire le temps du serveur');
+  S.stop();
+});
+
 test('progression : relue depuis Firestore (reçus), rattachée au compte, une seule fois', async () => {
   const dir = newDir(); let S = await up({ dir });
   let me = (await S.call('event?c=7', { tok: 'tok-zoe' })).j.me;
