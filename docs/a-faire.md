@@ -12,6 +12,11 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Point du 27 octobre : anniversaire de Magic (musée de Magic), prêt
+- **Fait** (README › « Musée de Magic ») : mode « musée » (`src/evmuseum.js`) : 30 reliques de l'histoire de Magic (1993 → aujourd'hui, cartel de chacune, 6 langues) en 5 salles à inaugurer, badges en salles (1, 2, 4, 5), jour J le 5 août (gâteau, 5 reliques de plus), lotus d'or rare (couleur de classeur « Lotus d'or ») ; dessins SVG faits main validés par le propriétaire (reliques, ambiance de galerie, confettis, badges) ; annonces Discord et notifications ; `ready: true` (29 juillet → 12 août 2027).
+- Logo de la fête inchangé (déjà fait) ; **pas d'icône Google Play** pour cette fête (choix du propriétaire).
+- Plus aucun pack « pas prêt » : les tests qui s'en servaient vérifient un pack forcé ou retiré de ses messages.
+
 ## Point du 26 octobre
 **Fait** (tout sur `main`) :
 - Interface fixe : plus de zoom au pincement ni de sélection de texte (site + **APK 1.0.14, versionCode 15**, notes de version dans `docs/android.md`) ; « X cartes pour toi » à jour 10 s après un changement de « Je recherche ».
