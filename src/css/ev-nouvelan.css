@@ -86,10 +86,10 @@ html[data-event="nouvelan"] .ev-in-bg{background:radial-gradient(110% 80% at 50%
 html[data-event="nouvelan"] .ev-in-card{background:linear-gradient(160deg,rgba(36,40,130,.96),rgba(10,12,38,.98));color:#f2f2ff;border-color:rgba(242,194,48,.4);box-shadow:0 30px 60px -20px rgba(0,0,0,.6),0 0 0 6px rgba(255,95,162,.07)}
 html[data-event="nouvelan"] .ev-in-rules li::before{background:linear-gradient(135deg,#ffd84a,#f2a530);color:#1a1205}
 html[data-event="nouvelan"] .ev-intro .btn.ev-in-go{background:linear-gradient(135deg,#f2c230,#ff6fae);color:#0b0d24}
-html[data-event="nouvelan"] .evb.ult::before{background:conic-gradient(from 0deg,#f2c230,#fff3c0,#ff5fa2,#3b3fd8,#7fd0ff,#ff5fa2,#f2c230)}
-html[data-event="nouvelan"] .evb.ult::after{background:radial-gradient(circle,rgba(242,194,48,.45),rgba(90,96,255,.28) 45%,transparent 68%)}
-html[data-event="nouvelan"] .evb.ult{--embers:radial-gradient(circle at 20% 80%,#fff 0 1.4px,transparent 2px),radial-gradient(circle at 78% 70%,#ffb3d6 0 1.2px,transparent 2px),radial-gradient(circle at 55% 92%,#ffe08a 0 1.5px,transparent 2.2px)}
-html[data-event="nouvelan"] .evb.ult img{filter:drop-shadow(0 0 6px rgba(242,194,48,.55))}
+.evb.ult[data-pack="nouvelan"]::before{background:conic-gradient(from 0deg,#f2c230,#fff3c0,#ff5fa2,#3b3fd8,#7fd0ff,#ff5fa2,#f2c230)}
+.evb.ult[data-pack="nouvelan"]::after{background:radial-gradient(circle,rgba(242,194,48,.45),rgba(90,96,255,.28) 45%,transparent 68%)}
+.evb.ult[data-pack="nouvelan"]{--embers:radial-gradient(circle at 20% 80%,#fff 0 1.4px,transparent 2px),radial-gradient(circle at 78% 70%,#ffb3d6 0 1.2px,transparent 2px),radial-gradient(circle at 55% 92%,#ffe08a 0 1.5px,transparent 2.2px)}
+.evb.ult[data-pack="nouvelan"] img{filter:drop-shadow(0 0 6px rgba(242,194,48,.55))}
 
 /* ── Ambiance : cachée sans décorations et sur les écrans calmes ── */
 html[data-event="nouvelan"] .ev-amb{display:none}
