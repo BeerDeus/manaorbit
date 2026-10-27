@@ -65,6 +65,8 @@
 .adv-fact span span{display:block;font-size:13.5px;line-height:1.45;color:#e2e3ec;margin-top:2px}
 .adv-rw-ic{flex:none;width:30px;height:30px;display:grid;place-items:center}
 .adv-rw-ic svg{width:28px;height:28px}
+.adv-rw-ic:has(.evb){width:40px;height:40px}
+.adv-rw-ic .evb{width:40px;height:40px}      /* badge gagné (éclosion du nid) : à la taille de sa case, sans déborder sur le texte */
 .adv-acts{display:flex;gap:10px;margin-top:12px;width:100%;justify-content:center}
 .adv-acts .btn{flex:1;max-width:180px}
 .adv-acts .btn.ghost{color:#fff;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.06)}

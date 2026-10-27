@@ -7,7 +7,7 @@
    · seulement sur les écrans de consultation (emplacement choisi le 9 octobre : en haut, « par moments ») : accueil, collection, decks (liste et viewer),
      liste d'échange d'un autre joueur, et leurs feuilles ; il y reste en place : un bandeau qui clignote ferait sauter la page sous le doigt
      et provoquerait des clics accidentels (règles AdMob) ;
-   · masqué pendant la saisie d'une liste, la recherche et ses résultats, l'éditeur de deck, une Carte mystère en cours, l'accueil du premier lancement, le scan (surtout
+   · masqué pendant les plein écrans des fêtes (arrivée, booster, éclosion, cloches, feu d'artifice, célébration : AD_FULL), la saisie d'une liste, la recherche et ses résultats, l'éditeur de deck, une Carte mystère en cours, l'accueil du premier lancement, le scan (surtout
      l'aperçu natif, html.nat-cam) et la carte en grand ; il revient AD.back après, jamais pendant un toucher (AD.idle) ;
    · l'annonce se renouvelle au rythme réglé dans la console AdMob ; aucune annonce reçue : nouvel essai AD.retry plus tard ;
    · pas tout le temps (13 octobre) : aucun bandeau les AD.grace premières minutes d'utilisation sur ce téléphone (temps appli ouverte, compté
@@ -23,6 +23,8 @@ const AD_TEST = 'ca-app-pub-3940256099942544/6300978111';      // bandeau de TES
 const AD = { on: false, st: 'off', m: null, ok: false, no: false, srv: null, priv: '', calm: 0, touch: 0, next: 0, timer: 0, pend: false, q: Promise.resolve(),
   delay: 6000, back: 800, idle: 2500, retry: 180000, grace: 10 * 60e3, onMs: 2 * 60e3, offMs: 3 * 60e3, use: 0, useT: 0, useS: 0 };
 const AD_USE_KEY = 'deckdeal:aduse';
+/** Plein écrans posés à la racine de la page (event.js, evadvent.js, evsky.js, evnest.js) : pas de bandeau par-dessus. */
+const AD_FULL = 'body > .ev-intro, body > .ev-party, body > .adv-open, body > .sky-fw, body > .nest-bells';
 /** Temps d'utilisation (appli au premier plan, ms), cumulé sur ce téléphone ; enregistré toutes les 15 s au plus et quand l'appli passe en arrière-plan. */
 function adsUse() {
   const now = Date.now();
@@ -74,6 +76,7 @@ function adsBot() { return document.documentElement.classList.contains('ad-on') 
  *  (retirée après son animation : réévalué à ce moment-là), sinon la vue de l'appli (#app[data-view]). */
 function adsBusy() {
   if (OB.el || SC.el || imgView || document.documentElement.classList.contains('nat-cam') || (typeof tourOn === 'function' && tourOn())) return true;      // visite guidée (tour.js) : sa bulle peut se poser sous l'en-tête
+  if (document.querySelector(AD_FULL)) return true;      // plein écran des fêtes (arrivée, booster, éclosion, cloches, feu d'artifice, célébration) : le bandeau le couperait
   const dvs = document.querySelectorAll('body > .dv'), top = dvs[dvs.length - 1];
   return top ? top.classList.contains('bd') || top.classList.contains('scan') || top.classList.contains('pu') || top.classList.contains('dly-play') : S.view !== 'home';      // pu : compteur de vie (partie-ui.js), jamais de pub pendant le jeu ; dly-play : Carte mystère en cours (recherche, clavier : clics accidentels), le bandeau revient sur le résultat et les classements
 }
