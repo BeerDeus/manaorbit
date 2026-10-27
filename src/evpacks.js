@@ -336,7 +336,7 @@ const EV_PACKS = [
         { k: 'd20', y: 1993, t: 'Le dé des 20 points de vie', d: 'Depuis la première partie, chaque joueur commence à 20 points de vie.' },
         { k: 'lamp', y: 1993, t: 'La lampe d\'Arabian Nights', d: 'En décembre 1993, Arabian Nights devient la toute première extension de Magic.' },
         { k: 'gears', y: 1994, t: 'Les engrenages d\'Antiquities', d: 'Antiquities raconte la guerre des frères Urza et Mishra, à coups d\'artefacts.' },
-        { k: 'seal', y: 1994, t: 'Le sceau de Legends', d: 'Legends apporte les premières créatures légendaires et les premières cartes de plusieurs couleurs, à la bordure dorée.' },
+        { k: 'seal', y: 1994, t: 'Le sceau de Legends', d: 'Legends apporte les premières créatures légendaires et les premières cartes de plusieurs couleurs, au cadre doré.' },
         { k: 'snow', y: 1995, t: 'Le cristal d\'Ice Age', d: 'Ice Age fait tomber la neige sur Magic : ses terrains de base enneigés sont restés célèbres.' },
         { k: 'trophy', y: 1996, t: 'Le trophée du premier Pro Tour', d: 'En février 1996, le premier Pro Tour se joue à New York : Magic devient un sport de compétition.' },
         { k: 'ship', y: 1997, t: 'La maquette de l\'Aquilon', d: 'Avec Weatherlight, Magic raconte une longue saga d\'extension en extension, à bord d\'un vaisseau volant.' },
