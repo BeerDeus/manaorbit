@@ -234,10 +234,10 @@ function evFind(x) {
   const z = x.zones[x.k], h = x.host, hr = h.getBoundingClientRect(), ar = z.a ? z.a.getBoundingClientRect() : hr, pad = z.pad || 0;
   const top = Math.max(hr.top, ar.top - pad, tourTopInEv()), bot = Math.min(hr.bottom, ar.bottom + pad, innerHeight - (document.body.classList.contains('nav-on') && !evSheetTop() ? 96 : 8));      // barre du bas : sous les feuilles (z-index), elle ne cache rien d'une feuille ouverte
   const left = Math.max(hr.left, ar.left - pad, 0), right = Math.min(hr.right, ar.right + pad, innerWidth), S = (x.size || EV_PK) + 6;
-  const ok = bot - top >= S && right - left >= S && !(ar.bottom < 0 || ar.top > innerHeight);
+  const ok = bot - top >= S && right - left >= S && !(ar.bottom < 0 || ar.top > innerHeight), band = evAdBand();
   let hit = null;
   if (ok) {
-    const pts = []; for (let y = top + 3; y + S <= bot - 3; y += 11) for (let xx = left + 3; xx + S <= right - 3; xx += 11) pts.push([xx, y]);
+    const pts = []; for (let y = top + 3; y + S <= bot - 3; y += 11) if (!band || y + S <= band[0] || y >= band[1]) for (let xx = left + 3; xx + S <= right - 3; xx += 11) pts.push([xx, y]);
     let g = evSeed(x.s); for (let i = pts.length - 1; i > 0; i--) { g = (Math.imul(g, 1103515245) + 12345) >>> 0; const j = g % (i + 1); [pts[i], pts[j]] = [pts[j], pts[i]]; }
     x.el.style.visibility = 'hidden'; x.el.style.pointerEvents = 'none';
     for (const [px, py] of pts.slice(0, 160)) { const r = { left: px, top: py, right: px + S, bottom: py + S, width: S, height: S }; if (evFree(h, r)) { hit = [px + 3, py + 3]; break; } }
@@ -250,6 +250,9 @@ function evFind(x) {
   x.ok = true; x.el.classList.remove('ev-wait'); evTipSoon(x.el);
 }
 const tourTopInEv = () => parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0;
+/** Bande du bandeau de pub (ads.js, appli Android) : du bas de l'en-tête à --ad-bot, sous la vue native (et la bande opaque de l'accueil) qui couvre la page :
+ *  un objet posé là serait caché (le contenu qui défile y passe, pas d'y être posé). [haut, bas] en px, ou null sans bandeau. */
+function evAdBand() { const b = typeof adsBot === 'function' ? adsBot() : 0; return b ? [adsPx('calc(var(--top-in) + var(--hd-h))'), b] : null; }
 function evUnmount(s) { const x = EV.pks.get(s); if (!x) return; if (x.io) x.io.disconnect(); if (x.el.isConnected) x.el.remove(); EV.pks.delete(s); }
 /** Tour de garde (EV_POLL, seulement pendant la fête, appli visible, objets du jour restants) : chaque cachette du jour encore pleine reçoit son objet si son bloc est à l'écran. */
 /** Zones où chercher un creux pour une cachette : son bloc, puis des replis (feuille : son corps puis son en-tête ; carte de l'accueil : l'espace autour d'elle ;

@@ -37,6 +37,9 @@
 .ev-cnt.bump .ev-cnt-ic{animation:evBump .5s var(--spring) .05s}
 @keyframes evBump{0%{transform:scale(1)}35%{transform:scale(1.35)}100%{transform:scale(1)}}
 html.ad-on .ev-cnt{top:calc(var(--ad-bot,0px) + 12px)}
+/* ambiance de la fête (.ev-amb des packs : lune, toiles, givre, soleil, nuages… posés sous l'en-tête) : bandeau de pub affiché (css/ads.css), elle descend
+   d'autant, sinon la bande du bandeau les cachait */
+html.ad-on.ev-deco[data-event]:not(.ev-quiet) .ev-amb{top:var(--ad-sp)}
 
 /* ── Message après une trouvaille ── */
 .ev-msg{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom,0px));z-index:98;display:flex;align-items:center;gap:12px;width:min(92vw,400px);padding:12px 16px 12px 12px;border-radius:18px;
