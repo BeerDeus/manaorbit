@@ -1,0 +1,65 @@
+/* ── ev-magic.css : pack « magic », anniversaire de Magic : le musée de Magic (dessins : evart.js › section « Anniversaire de Magic ») ──────────────────
+   Classes posées par le moteur (event.js) sur <html>, comme pour les autres fêtes : data-event="magic" (fête en cours : animation des reliques), .ev-deco
+   (décorations allumées : ambiance, palette, touches dans l'appli), .ev-quiet (scan, échange en direct, compteur de vie : ambiance cachée), .ev-pause
+   (appli en arrière-plan ou ambiance hors écran : animations en pause).
+   Étape 1 : couleurs des éléments du moteur et animations des dessins (relique sous cloche, compteur, conservateur, reliques du musée, salle, ruban coupé,
+   gâteau du jour J). Ambiance de l'accueil (galerie de musée la nuit), couche du dessus (confettis, serpentins) et touches dans l'appli : étape 2.
+   Coût : transform et opacity seulement, aucun filtre animé ; 2 éléments animés par relique cachée (étiquette, reflet). « Réduire les animations » : tout est
+   fixe et visible. Rien ne capte les touchers.
+   Palette du pack (evpacks.js › pal : or #f2c230, bleu #7fb0ff, corail #ff7a5c, encre #12142a). */
+
+/* ── Couleurs de la fête (moteur : event.css) ── */
+html[data-event="magic"]{--ev-a:#f2c230;--ev-b:#7fb0ff;--ev-c:#ff7a5c;--ev-ink:#12142a;--ev-glow:rgba(242,194,48,.7)}
+
+/* ── Dessins (EV_ART) : l'étiquette d'inventaire se balance au bout de son fil, un reflet passe sur la cloche de verre ; version allumée : halo qui respire,
+   rayons qui tournent, étincelles. Le flottement de l'objet caché est au moteur (.ev-pk). ── */
+html[data-event="magic"] .evo{display:block;overflow:visible;pointer-events:none}
+html[data-event="magic"] .evo-relic .evo-tag{transform-origin:49.2px 17.2px;animation:evmSwing 4.6s ease-in-out infinite}
+html[data-event="magic"] .evo-relic .evo-glint{animation:evmGlint 6.4s ease-in-out 1.2s infinite backwards}
+html[data-event="magic"] .evo-relic.evo-lit .evo-tag{animation-duration:2.2s}
+html[data-event="magic"] :is(.evo-relic,.evo-relic-art,.evo-cake,.evo-hall).evo-lit .evo-glow{animation:evmBreath 2.4s ease-in-out infinite alternate}
+html[data-event="magic"] .evo-relic .evo-rays{transform-origin:32px 33px;animation:evmSpin 18s linear infinite}
+html[data-event="magic"] .evo-relic-art .evo-rays{transform-origin:32px 30px;animation:evmSpin 18s linear infinite}
+html[data-event="magic"] .evo-cake .evo-rays{transform-origin:48px 44px;animation:evmSpin 24s linear infinite}
+html[data-event="magic"] .evo-hall .evo-rays{transform-origin:48px 30px;animation:evmSpin 24s linear infinite}
+html[data-event="magic"] .evo-spk{transform-box:fill-box;transform-origin:center;animation:evmTwinkle 1.6s ease-in-out infinite alternate}
+html[data-event="magic"] .evo-relic-gold .evo-glint{animation-duration:3.4s}
+html[data-event="magic"] .evo-still :is(.evo-tag,.evo-glint,.evo-glow,.evo-flame,.evo-smoke,.evo-pearl,[class^="evo-gear-"],.evo-flags,.evo-blade-a,.evo-blade-b,.evo-rib-l,.evo-rib-r){animation:none}      /* carte de l'accueil, feuille de la fête : immobile */
+/* conservateur des messages : l'aile salue */
+html[data-event="magic"] .evo-curator .evo-wing{transform-origin:17.8px 12.6px;animation:evmWave .9s ease-in-out infinite alternate}
+/* reliques du musée : engrenages en prise (vitesses dans le rapport des dents : 14, 8, 6), flamme et fumée de la lampe, reflets du booster et de la loupe,
+   perle du lotus d'or */
+html[data-event="magic"] .evo-ra-gears .evo-gear-a{animation:evmSpin 28s linear infinite}
+html[data-event="magic"] .evo-ra-gears .evo-gear-b{animation:evmSpinR 16s linear infinite}
+html[data-event="magic"] .evo-ra-gears .evo-gear-c{animation:evmSpinR 12s linear infinite}
+html[data-event="magic"] :is(.evo-ra-lamp,.evo-cake) .evo-flame{transform-box:fill-box;transform-origin:50% 88%;animation:evmFlicker 1.2s ease-in-out var(--d,0s) infinite alternate}
+html[data-event="magic"] .evo-ra-lamp .evo-smoke{transform-box:fill-box;transform-origin:50% 100%;animation:evmSmoke 5s ease-in-out infinite}
+html[data-event="magic"] .evo-relic-art .evo-glint{animation:evmGlint 7s ease-in-out 1.6s infinite backwards}
+html[data-event="magic"] .evo-ra-lotus .evo-pearl{transform-box:fill-box;transform-origin:center;animation:evmBreath 2.2s ease-in-out infinite alternate}
+/* salle inaugurée : les fanions ondulent ; ruban d'inauguration : les lames claquent, les bouts de ruban retombent en se balançant */
+html[data-event="magic"] .evo-hall .evo-flags{transform-origin:48px 22px;animation:evmFlags 2.6s ease-in-out infinite alternate}
+html[data-event="magic"] .evo-ribbon-cut .evo-blade-a{transform-origin:32.6px 15.4px;animation:evmSnipA 1.4s ease-in-out infinite}
+html[data-event="magic"] .evo-ribbon-cut .evo-blade-b{transform-origin:32.6px 15.4px;animation:evmSnipB 1.4s ease-in-out infinite}
+html[data-event="magic"] .evo-ribbon-cut .evo-rib-l{transform-origin:3.6px 10.8px;animation:evmRibL 3.2s ease-in-out infinite alternate}
+html[data-event="magic"] .evo-ribbon-cut .evo-rib-r{transform-origin:60.4px 10.8px;animation:evmRibR 3.6s ease-in-out infinite alternate}
+@keyframes evmSwing{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(6deg)}}
+@keyframes evmGlint{0%{transform:translateX(0);opacity:0}6%{opacity:1}30%{transform:translateX(34px);opacity:0}100%{transform:translateX(34px);opacity:0}}
+@keyframes evmSpin{to{transform:rotate(360deg)}}
+@keyframes evmSpinR{to{transform:rotate(-360deg)}}
+@keyframes evmTwinkle{from{opacity:.25;transform:scale(.75)}to{opacity:1;transform:scale(1)}}
+@keyframes evmBreath{from{opacity:.6}to{opacity:1}}
+@keyframes evmWave{from{transform:rotate(8deg)}to{transform:rotate(-22deg)}}
+@keyframes evmFlicker{0%{transform:scale(1,1) rotate(-2deg)}35%{transform:scale(.92,1.08) rotate(2deg)}70%{transform:scale(1.06,.94) rotate(-1deg)}100%{transform:scale(.96,1.05) rotate(3deg)}}
+@keyframes evmSmoke{0%{transform:translateY(1px) scaleX(1);opacity:.2}40%{opacity:.85}100%{transform:translateY(-3px) scaleX(1.25);opacity:0}}
+@keyframes evmFlags{from{transform:rotate(-1.2deg) translateY(0)}to{transform:rotate(1.2deg) translateY(.6px)}}
+@keyframes evmSnipA{0%,60%,100%{transform:none}75%{transform:rotate(11deg)}}
+@keyframes evmSnipB{0%,60%,100%{transform:none}75%{transform:rotate(-11deg)}}
+@keyframes evmRibL{from{transform:rotate(-2deg)}to{transform:rotate(3deg)}}
+@keyframes evmRibR{from{transform:rotate(2deg)}to{transform:rotate(-3deg)}}
+
+/* ── Pause (appli en arrière-plan, ambiance hors écran) et mouvement réduit (décor fixe, toujours visible) ── */
+html.ev-pause[data-event="magic"] :is(.ev-amb,.evo),html.ev-pause[data-event="magic"] :is(.ev-amb,.evo) *{animation-play-state:paused!important}
+@media (prefers-reduced-motion:reduce){
+  html[data-event="magic"] :is(.ev-amb,.evo),html[data-event="magic"] :is(.ev-amb,.evo) *{animation:none!important}
+  html[data-event="magic"] .ev-amb-top{display:none!important}
+}

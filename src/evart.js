@@ -1388,4 +1388,734 @@ Object.assign(EV_ART, {
   },
 });
 
+/* ── Anniversaire de Magic ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Musée de Magic (Magic fête ses 33 ans le 5 août 2026) : des reliques de l'histoire du jeu se cachent dans l'appli et rejoignent, une à une, les vitrines
+   d'un musée la nuit. Tout est dessiné ici (SVG en couleur, jamais d'emoji, d'image externe ni de <text> : chiffres et numéros en tracés, evmDigits) ;
+   aucune reproduction d'art ou de logo propriétaire (ni dos de carte, ni symbole d'extension, ni illustration de carte) : des évocations originales.
+   Animations : css/ev-magic.css (transform / opacity seulement). Teintes « v » : les cinq couleurs du mana dans l'ordre du cercle (0 blanc, 1 bleu, 2 noir,
+   3 rouge, 4 vert ; teintes EVY_MANA du Nouvel an) ; v absent : bleu. Lumière en haut à gauche, comme les autres fêtes.
+   · relic(o) : l'objet caché (viewBox 64 × 64) : vieille carte d'archive sous une cloche de verre, sur un socle de noyer cerclé d'or, une étiquette
+     d'inventaire dorée (numéro « 33 » gravé) au bout d'un fil rouge noué au bouton de la cloche. o.v : teinte du cadre de la carte ; o.lit : célébration
+     (halo plus vif, rayons .evo-rays, étincelles .evo-spk) ; o.gold : le lotus d'or sous la cloche (relique rare, toujours allumée) ; o.cls : classes en plus.
+     Parties animées : .evo-tag (l'étiquette se balance), .evo-glint (reflet qui passe sur le verre), .evo-glow (halo, version allumée).
+   · relicCounter(o) : compteur « 12 / 30 » (24 × 24, aplats pour 16–24 px) : la cloche, sa carte, l'étiquette d'or.
+   · curator(o) : le conservateur du musée, dessin des messages (24 × 24) : vieux hibou archiviste à lunettes d'or, sourcils blancs et nœud papillon, perché
+     sur deux livres reliés ; .evo-wing (l'aile droite) salue.
+   · relicArt({ k, lit, cls }) : les reliques du musée (64 × 64), une par clé k de evpacks.js › museum.relics, posées sur un socle d'encre à liseré d'or
+     et cartel, dans le faisceau d'un projecteur (.evo-beam) ; o.lit : halo, rayons, étincelles. Clé inconnue : carte ancienne sur un chevalet.
+     Faites : notebook (carnet à spirale griffonné de formules, croquis de cartes, pentagone des couleurs), alpha (booster scellé rétro, sans logo ;
+     .evo-glint), corners (loupe de laiton sur le coin très arrondi d'une carte ancienne, rayon mesuré en pointillés d'or ; .evo-glint sur la lentille),
+     d20 (dé icosaèdre bleu sur un coussin de velours, « 20 », « 8 », « 14 », « 2 » en tracés), lamp (lampe à huile orientale en laiton gravé, flamme
+     .evo-flame qui vacille, fumée .evo-smoke), gears (trois engrenages laiton, cuivre et acier sur leur chevalet de fer ; .evo-gear-a/-b/-c tournent,
+     dents en prise), lotus (lotus d'or légendaire sur sa feuille de nénuphar dorée : toujours allumé, perle .evo-pearl qui respire).
+   · museumHall({ k, n, lit }) : façade d'une salle du musée (96 × 64) : temple classique (ailes à balustres, portique de quatre colonnes ioniques, fronton
+     au motif de la salle k : 0 livre ouvert, 1 couronne de laurier et étoile, 2 planète en orbite, 3 écu et épées croisées, 4 étincelle ; numéro de salle
+     en chiffres romains sur la frise). n (0–6) : fenêtres qui s'allument une à une (aile gauche puis aile droite), une relique en ombre dans chacune.
+     o.lit : salle inaugurée (6 fenêtres, portes ouvertes, lumière sur les marches, ruban rouge coupé aux colonnes, guirlande de fanions du mana,
+     halo .evo-glow, rayons .evo-rays, étincelles .evo-spk, fanions .evo-flags qui ondulent).
+   · ribbonCut(o) : ruban d'inauguration coupé (64 × 32) : deux poteaux dorés, ruban de satin rouge tranché en V, grands ciseaux d'or ; .evo-blade-a / -b
+     (les lames claquent), .evo-rib-l / -r (les bouts de ruban retombent en se balançant), .evo-spk (étincelles de la coupe).
+   · cake(o) : gâteau d'anniversaire du jour J (96 × 96) : présentoir d'or, trois étages (bleu, corail, menthe) au glaçage qui coule, perles des cinq
+     couleurs du mana à la base de chaque étage, guirlandes d'or, cinq bougies torsadées W U B R G (flammes .evo-flame qui vacillent), confettis.
+     Plaque d'or vide sur l'étage du bas pour le nombre posé en HTML par-dessus : centre (48, 70) du viewBox (50 % ; 72,9 %), fond crème x 34,6–61,4,
+     y 65–75 (left 36 %, top 67,7 %, width 27,9 %, height 10,4 % du dessin). o.lit : halo .evo-glow, rayons .evo-rays, étincelles .evo-spk.
+   · rwLotus, rwHall : icônes plates des récompenses (24 × 24, 20–28 px), classe « evo evo-rw » : lotus d'or, salle inaugurée. */
+const EVM_AU = ['#fffbe6', '#ffe58a', '#f2c230', '#b9800f', '#6e4705'];      // or : reflet, clair, moyen, foncé, contour
+const EVM_CU = ['#fff1e6', '#ffc9a6', '#e88b55', '#a24f22', '#4f210a'];      // cuivre
+const EVM_FE = ['#ffffff', '#e8edf4', '#aab6c6', '#66748a', '#2e3646'];      // acier
+const EVM_INK = '#12142a';
+const evmV = v => (Number(v) >= 0 && Number(v) <= 4 ? Math.floor(Number(v)) : 1);
+/** Dégradé métallique en coordonnées du dessin, de (x1, y1) à (x2, y2) : bandes sombres et claires d'un métal poli ; C : teintes (or par défaut). */
+const evmMetal = (gid, x1, y1, x2, y2, C = EVM_AU) => `<linearGradient id="${gid}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" gradientUnits="userSpaceOnUse">`
+  + `<stop offset="0" stop-color="${C[3]}"/><stop offset=".24" stop-color="${C[1]}"/><stop offset=".4" stop-color="${C[0]}"/><stop offset=".58" stop-color="${C[2]}"/><stop offset=".84" stop-color="${C[3]}"/><stop offset="1" stop-color="${C[2]}"/></linearGradient>`;
+/** Dégradé « sphère » (reflet en haut à gauche), C : [reflet, clair, moyen, foncé]. */
+const evmBall = (gid, C) => `<radialGradient id="${gid}" cx=".4" cy=".36" r=".72" fx=".32" fy=".26"><stop offset="0" stop-color="${C[0]}"/><stop offset=".3" stop-color="${C[1]}"/><stop offset=".72" stop-color="${C[2]}"/><stop offset="1" stop-color="${C[3]}"/></radialGradient>`;
+/* Chiffres en tracés (police à traits arrondis, glyphes de 6 × 10, origine en haut à gauche) : numéros gravés, jamais de <text> */
+const EVM_DIG = {
+  0: 'M3 0C5 0 6 2.2 6 5S5 10 3 10S0 7.8 0 5S1 0 3 0Z', 1: 'M1 2.2L3.6 0V10M1.2 10H6', 2: 'M.3 2.4C.7.9 1.8 0 3.1 0C4.8 0 5.8 1.1 5.8 2.7C5.8 4.6 4.1 5.8.2 10H6',
+  3: 'M.4 1.2C1.1.4 2 0 3 0C4.6 0 5.6 1 5.6 2.4C5.6 3.9 4.4 4.8 2.6 4.8C4.6 4.8 6 5.8 6 7.4C6 9 4.7 10 3 10C1.9 10 .9 9.6.2 8.8', 4: 'M4.6 10V0L0 7H6',
+  5: 'M5.6 0H1L.6 4.4C1.3 4 2.1 3.8 3 3.8C4.8 3.8 6 5 6 6.8C6 8.7 4.7 10 2.9 10C1.8 10 .9 9.6.2 8.9',
+  6: 'M5.2.6C4.6.2 3.9 0 3.2 0C1.2 0 0 2.2 0 5.6C0 8.4 1.2 10 3 10C4.8 10 6 8.7 6 6.9C6 5.1 4.8 3.9 3.1 3.9C1.6 3.9.5 4.8 0 6', 7: 'M0 0H6L2.2 10',
+  8: 'M3 4.7C1.4 4.7.4 3.8.4 2.4C.4 1 1.5 0 3 0S5.6 1 5.6 2.4C5.6 3.8 4.6 4.7 3 4.7ZM3 4.7C4.8 4.7 6 5.8 6 7.4S4.8 10 3 10S0 9 0 7.4S1.2 4.7 3 4.7Z',
+  9: 'M6 4C5.5 5.2 4.4 6.1 2.9 6.1C1.2 6.1 0 4.9 0 3.1C0 1.3 1.2 0 3 0C4.8 0 6 1.6 6 4.4C6 7.8 4.8 10 2.8 10C2.1 10 1.4 9.8.8 9.4', '/': 'M5.6-.4L.4 10.4',
+  I: 'M3 0V10', V: 'M0 0L3 10L6 0',
+};
+/** Nombre en tracés centré en cx, cy, hauteur h ; a : attributs (couleur du trait…) ; w : épaisseur du trait (unités du dessin). */
+function evmDigits(s, cx, cy, h, a, w = 1) {
+  const k = h / 10, W = s.length * 8 - 2;
+  return `<g transform="translate(${evoF(cx - W * k / 2)} ${evoF(cy - h / 2)}) scale(${evoF(k)})" fill="none" stroke-width="${evoF(w / k)}" stroke-linecap="round" stroke-linejoin="round" ${a}>`
+    + [...String(s)].map((c, i) => `<path d="${EVM_DIG[c] || ''}"${i ? ` transform="translate(${i * 8} 0)"` : ''}/>`).join('') + `</g>`;
+}
+/** Bande de ruban le long d'une ligne médiane P (lissée), largeur w ; bout coupé en V (notch : profondeur de l'entaille) au dernier point. */
+function evmBand(P, w, notch = 0) {
+  const n = P.length, L = [], R = [];
+  for (let i = 0; i < n; i++) {
+    const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l * w / 2, ny = dx / l * w / 2;
+    L.push([P[i][0] + nx, P[i][1] + ny]); R.push([P[i][0] - nx, P[i][1] - ny]);
+  }
+  const e = P[n - 1], p = P[n - 2], dx = e[0] - p[0], dy = e[1] - p[1], l = Math.hypot(dx, dy) || 1;
+  return evqCurve(L) + `L${evoF(e[0] - dx / l * notch)} ${evoF(e[1] - dy / l * notch)}` + evqCurve(R.reverse(), false, true) + 'Z';
+}
+/** Pétale pointu : base bx, by ; longueur len, demi-largeur w, direction ang (degrés, −90 : vers le haut). */
+function evmPetal(bx, by, len, w, ang) {
+  const a = ang * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a), f = evoF, P = (u, v) => f(bx + dx * u - dy * v) + ' ' + f(by + dy * u + dx * v);
+  return `M${P(0, 0)}C${P(len * .12, w * .7)} ${P(len * .55, w * 1.05)} ${P(len, 0)}C${P(len * .55, -w * 1.05)} ${P(len * .12, -w * .7)} ${P(0, 0)}Z`;
+}
+/** Nervure d'un pétale (même repère qu'evmPetal). */
+function evmRib(bx, by, len, ang, k = .84) {
+  const a = ang * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a), f = evoF;
+  return `M${f(bx + dx * len * .14)} ${f(by + dy * len * .14)}L${f(bx + dx * len * k)} ${f(by + dy * len * k)}`;
+}
+/** Écriture manuscrite illisible (formules, notes du carnet) de x0 à x1 sur la ligne y : jambages, boucles, « = » et « + » ; graine fixe. */
+function evmScrawl(x0, x1, y, seed = 1, h = 1.1) {
+  let s = seed * 7919 + 13, x = x0, d = `M${evoF(x)} ${evoF(y)}`;
+  const r = () => (s = (s * 9301 + 49297) % 233280) / 233280, f = evoF;
+  while (x < x1 - 1.2) {
+    const t = r();
+    if (t < .12) { x += 1.4; d += `M${f(x)} ${f(y)}`; continue; }                                                     // espace
+    if (t < .2) { d += `M${f(x + .3)} ${f(y - .9)}h1.1M${f(x + .3)} ${f(y - .2)}h1.1`; x += 2; d += `M${f(x)} ${f(y)}`; continue; }      // =
+    if (t < .26) { d += `M${f(x + .2)} ${f(y - .6)}h1.2M${f(x + .8)} ${f(y - 1.2)}v1.2`; x += 1.9; d += `M${f(x)} ${f(y)}`; continue; }   // +
+    const w = .7 + r() * .5, up = t > .84 ? h * 2.1 : h * (.7 + r() * .4);
+    d += `Q${f(x + w * .1)} ${f(y - up * 1.15)} ${f(x + w * .5)} ${f(y - up)}Q${f(x + w * .85)} ${f(y - up * .8)} ${f(x + w)} ${f(y)}`; x += w;
+  }
+  return d;
+}
+/** Engrenage : centre cx, cy ; rayon primitif rp, n dents (hauteur th), phase ph (degrés : une dent centrée sur ph) ; spokes : bras entre les ajours
+ *  (0 : plein). Un tracé, règle evenodd (les ajours laissent voir le chevalet derrière). */
+function evmGear(cx, cy, rp, n, ph = 0, th = 2.2, spokes = 5) {
+  const f = evoF, ro = rp + th / 2, ri = rp - th / 2, T = 2 * Math.PI / n, P = (r, a) => f(cx + Math.cos(a) * r) + ' ' + f(cy + Math.sin(a) * r);
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const a = ph * Math.PI / 180 + i * T;
+    d += (i ? 'L' : 'M') + P(ri, a - T * .27) + 'L' + P(ro, a - T * .15) + 'A' + f(ro) + ' ' + f(ro) + ' 0 0 1 ' + P(ro, a + T * .15) + 'L' + P(ri, a + T * .27) + `A${f(ri)} ${f(ri)} 0 0 1 ${P(ri, a + T * .73)}`;
+  }
+  d += 'Z';
+  if (spokes) {
+    const rr = ri * .74, rh = ri * .32, w = Math.max(.75, ri * .1);
+    for (let j = 0; j < spokes; j++) {
+      const b = (ph + 90) * Math.PI / 180 + j * 2 * Math.PI / spokes, e = b + 2 * Math.PI / spokes, dO = Math.asin(w / rr), dI = Math.asin(Math.min(.95, w / rh));
+      d += `M${P(rr, b + dO)}A${f(rr)} ${f(rr)} 0 0 1 ${P(rr, e - dO)}L${P(rh, e - dI)}A${f(rh)} ${f(rh)} 0 0 0 ${P(rh, b + dI)}Z`;
+    }
+  }
+  return d;
+}
+/** Étincelles d'une célébration : [x, y, rayon]. */
+const evmSpk = (P, edge = '#b9800f') => `<g class="evo-spk" fill="#fffbe6" stroke="${edge}" stroke-width=".35" stroke-opacity=".6" stroke-linejoin="round">${P.map(([x, y, r]) => `<path d="${evnSpark(x, y, r)}"/>`).join('')}</g>`;
+
+/** Lotus d'or (fleur stylisée originale) posé sur une feuille de nénuphar dorée ; base des pétales en bx, by (dessin d'environ 44 × 36). */
+function evmLotus(id, bx = 32, by = 45) {
+  const ln = 'stroke="#6e4705" stroke-width=".5" stroke-opacity=".75" stroke-linejoin="round"', f = evoF;
+  const row = (L, g, rib = '#fff3c4') => `<g fill="url(#${id(g)})" ${ln}>${L.map(([l, w, a]) => `<path d="${evmPetal(bx, by, l, w, a)}"/>`).join('')}</g>`
+    + `<path d="${L.map(([l, , a]) => evmRib(bx, by, l, a)).join('')}" fill="none" stroke="${rib}" stroke-width=".55" stroke-linecap="round" opacity=".75"/>`;
+  const pad = (() => { const E = t => f(bx + 19.4 * Math.cos(t * Math.PI / 180)) + ' ' + f(by + 2.4 + 4.2 * Math.sin(t * Math.PI / 180)); return `M${f(bx)} ${f(by + 2.6)}L${E(58)}A19.4 4.2 0 1 0 ${E(76)}Z`; })();
+  const veins = [16, 36, 104, 124, 146, 166].map(t => `M${f(bx)} ${f(by + 2.6)}L${f(bx + 18 * Math.cos(t * Math.PI / 180))} ${f(by + 2.4 + 3.9 * Math.sin(t * Math.PI / 180))}`).join('');
+  return `<path d="${pad}" fill="url(#${id('lp')})" stroke="#6e4705" stroke-width=".55" stroke-linejoin="round"/>`
+    + `<path d="${veins}" fill="none" stroke="#8a5a0c" stroke-width=".4" opacity=".55"/><path d="M${f(bx - 16)} ${f(by + 4.4)}Q${f(bx)} ${f(by + 7.8)} ${f(bx + 16)} ${f(by + 4.4)}" fill="none" stroke="#fff3c4" stroke-width=".6" stroke-linecap="round" opacity=".6"/>`
+    + row([[30, 6.4, -90], [26.5, 6.2, -63], [26.5, 6.2, -117], [21, 5.8, -37], [21, 5.8, -143]], 'lb', '#ffe58a')
+    + row([[24, 5.4, -74], [24, 5.4, -106]], 'lm')
+    + `<g class="evo-pearl"><circle cx="${bx}" cy="${f(by - 17)}" r="4.6" fill="url(#${id('lo')})" stroke="#b9800f" stroke-width=".4"/><circle cx="${f(bx - 1.5)}" cy="${f(by - 18.6)}" r="1.3" fill="#fff" opacity=".9"/></g>`
+    + row([[15.5, 7, -90], [19, 5.6, -47], [19, 5.6, -133], [16.5, 4.4, -13], [16.5, 4.4, -167]], 'lf')
+    + `<g fill="#fff"><circle cx="${f(bx + 11.4)}" cy="${f(by + 4.6)}" r=".75"/><circle cx="${f(bx - 13)}" cy="${f(by + 4.2)}" r=".55"/></g>`;
+}
+/** Dégradés du lotus d'or (rangées de pétales du fond, du milieu, de devant ; feuille ; perle) ; base des pétales en bx, by. */
+const evmLotusDefs = (id, bx = 32, by = 45) => `<radialGradient id="${id('lb')}" cx="${bx}" cy="${by}" r="30" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7a4f06"/><stop offset=".4" stop-color="#c48a1a"/><stop offset=".8" stop-color="#f2c230"/><stop offset="1" stop-color="#ffe58a"/></radialGradient>`
+  + `<radialGradient id="${id('lm')}" cx="${bx}" cy="${by}" r="25" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#9a6a10"/><stop offset=".45" stop-color="#e3aa2a"/><stop offset=".85" stop-color="#ffe17a"/><stop offset="1" stop-color="#fff6cc"/></radialGradient>`
+  + `<radialGradient id="${id('lf')}" cx="${bx}" cy="${by}" r="20" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#b9800f"/><stop offset=".4" stop-color="#f2c230"/><stop offset=".8" stop-color="#ffe9a0"/><stop offset="1" stop-color="#fffbe6"/></radialGradient>`
+  + evmMetal(id('lp'), bx - 20, 0, bx + 20, 0)
+  + `<radialGradient id="${id('lo')}" cx=".38" cy=".34" r=".7"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#fff3c4"/><stop offset="1" stop-color="#f2b830"/></radialGradient>`;
+
+Object.assign(EV_ART, {
+  /** Relique cachée (viewBox 64 × 64) : vieille carte d'archive sous une cloche de verre, étiquette d'inventaire dorée ; o.v teinte du cadre (0–4),
+   *  o.lit célébration, o.gold : le lotus d'or sous la cloche (toujours allumé). */
+  relic: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, gold = !!o.gold, lit = !!o.lit || gold, v = evmV(o.v), m = EVY_MANA[v];
+    const D = 'M15.6 52.6V29.4C15.6 18.4 22.8 11.2 32 11.2S48.4 18.4 48.4 29.4V52.6Z';
+    const card = gold ? `<g transform="translate(32 51.4) scale(.6) translate(-32 -51.6)">${evmLotus(id)}</g>`
+      : `<rect x="28" y="49.2" width="8" height="2.4" rx=".5" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".35"/>`
+      + `<g transform="rotate(-5 32 49)"><rect x="23.7" y="24.7" width="18" height="25" rx="1.8" fill="#000" opacity=".2"/>`
+      + `<rect x="23" y="24" width="18" height="25" rx="1.8" fill="#1d1a24" stroke="#000" stroke-width=".3"/><rect x="24.3" y="25.3" width="15.4" height="22.4" rx=".8" fill="url(#${id('cf')})"/>`
+      + `<rect x="25.3" y="26.3" width="13.4" height="2.3" rx=".5" fill="${m[0]}" stroke="${m[4]}" stroke-width=".25"/><path d="M26.2 27.45H32.6" stroke="${m[4]}" stroke-width=".55" stroke-linecap="round" opacity=".55"/>`
+      + `<circle cx="37.3" cy="27.45" r=".75" fill="${m[2]}" stroke="${m[4]}" stroke-width=".25"/>`
+      + `<rect x="25.3" y="29.3" width="13.4" height="9.2" fill="url(#${id('ca')})" stroke="${m[4]}" stroke-width=".3"/><circle cx="35.2" cy="31.8" r="1.6" fill="#fff6c8"/>`
+      + `<path d="M25.3 36.2Q28.8 33 32.4 35.3Q35.6 33.3 38.7 35.1V38.5H25.3Z" fill="${m[3]}" opacity=".8"/><path d="M25.3 38.5V37Q30 35.5 34 37.4Q36.6 36.5 38.7 37.5V38.5Z" fill="${m[4]}" opacity=".55"/>`
+      + `<rect x="25.3" y="39.2" width="13.4" height="1.6" rx=".4" fill="${m[0]}" stroke="${m[4]}" stroke-width=".25"/><circle cx="37.5" cy="40" r=".45" fill="#f2c230"/>`
+      + `<rect x="25.3" y="41.4" width="13.4" height="5.5" fill="#f7f0dc" stroke="${m[4]}" stroke-width=".25"/><path d="M26.3 42.8H37.6M26.3 44.2H36.4M26.3 45.6H33" stroke="#8a7d66" stroke-width=".4" stroke-linecap="round"/>`
+      + `<path d="M24.6 31C27 28.4 30 26.8 33.4 26" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round" opacity=".35"/></g>`;
+    return `<svg class="evo evo-relic${gold ? ' evo-relic-gold' : ' evo-relic-' + v}${lit ? ' evo-lit' : ''}${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('g')}" cx="32" cy="33" r="31" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff6d0" stop-opacity="${lit ? .95 : .55}"/><stop offset=".45" stop-color="${gold ? '#f2c230' : m[5]}" stop-opacity="${lit ? .45 : .2}"/><stop offset="1" stop-color="${gold ? '#f2c230' : m[5]}" stop-opacity="0"/></radialGradient>`
+      + (lit ? `<linearGradient id="${id('y')}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fffbe0" stop-opacity=".95"/><stop offset="1" stop-color="#f2c230" stop-opacity="0"/></linearGradient>` : '')
+      + `<linearGradient id="${id('gl')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#cfe6ff" stop-opacity=".55"/><stop offset=".22" stop-color="#eaf5ff" stop-opacity=".16"/><stop offset=".55" stop-color="#ffffff" stop-opacity=".06"/><stop offset=".86" stop-color="#d6e9ff" stop-opacity=".2"/><stop offset="1" stop-color="#a9cbee" stop-opacity=".6"/></linearGradient>`
+      + `<linearGradient id="${id('w')}" x1="14" y1="0" x2="50" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3a1f0c"/><stop offset=".28" stop-color="#a8693a"/><stop offset=".45" stop-color="#c98a52"/><stop offset=".75" stop-color="#7a4522"/><stop offset="1" stop-color="#2e1808"/></linearGradient>`
+      + `<radialGradient id="${id('wt')}" cx=".42" cy=".3" r=".75"><stop offset="0" stop-color="#e2a874"/><stop offset=".6" stop-color="#a5683a"/><stop offset="1" stop-color="#6e3e1c"/></radialGradient>`
+      + evmMetal(id('au'), 14, 0, 50, 0) + evmMetal(id('tg'), 45, 17, 53, 31) + evmBall(id('kb'), ['#fffbe6', '#ffe58a', '#e0a82a', '#7a4f06'])
+      + `<linearGradient id="${id('cf')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${m[1]}"/><stop offset=".5" stop-color="${m[2]}"/><stop offset="1" stop-color="${m[3]}"/></linearGradient>`
+      + `<linearGradient id="${id('ca')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${m[1]}"/><stop offset="1" stop-color="${m[0]}"/></linearGradient>`
+      + `<linearGradient id="${id('k')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>`
+      + `<radialGradient id="${id('o')}"><stop offset="0" stop-color="#1a1030" stop-opacity=".4"/><stop offset="1" stop-color="#1a1030" stop-opacity="0"/></radialGradient>`
+      + (gold ? evmLotusDefs(id) : '') + `<clipPath id="${id('c')}"><path d="${D}"/></clipPath></defs>`
+      + `<circle class="evo-glow" cx="32" cy="33" r="31" fill="url(#${id('g')})"/>` + (lit ? evnRays(id('y'), 32, 33, 32) : '')
+      + `<ellipse class="evo-shadow" cx="32" cy="59.8" rx="20" ry="2.6" fill="url(#${id('o')})"/>`
+      /* socle de noyer cerclé d'or */
+      + `<path d="M14.4 52.6V56C14.4 58 22.2 59.4 32 59.4S49.6 58 49.6 56V52.6Z" fill="url(#${id('w')})" stroke="#2a1405" stroke-width=".5" stroke-linejoin="round"/>`
+      + `<path d="M14.4 54.6C14.4 56.4 22.2 57.6 32 57.6S49.6 56.4 49.6 54.6" fill="none" stroke="url(#${id('au')})" stroke-width="1"/>`
+      + `<path d="M18 57.6Q24 58.6 30 58.6M38 58.4Q43 58 46.4 57.2" fill="none" stroke="#2a1405" stroke-width=".35" opacity=".5"/>`
+      + `<ellipse cx="32" cy="52.6" rx="17.6" ry="3.2" fill="url(#${id('wt')})" stroke="#2a1405" stroke-width=".45"/><ellipse cx="32" cy="52.6" rx="16.4" ry="2.5" fill="#3a1f0c" opacity=".35"/>`
+      /* la carte (ou le lotus d'or) sous la cloche */
+      + card
+      /* cloche de verre : teinte, reflets, bord, reflet qui passe */
+      + `<path d="${D}" fill="url(#${id('gl')})"/>`
+      + `<g clip-path="url(#${id('c')})"><path class="evo-glint" d="M8 60H13L27 6H22Z" fill="url(#${id('k')})" opacity="0"/></g>`
+      + `<path d="M15.6 52.6V29.4C15.6 18.4 22.8 11.2 32 11.2S48.4 18.4 48.4 29.4V52.6" fill="none" stroke="#7fa6cc" stroke-width=".7"/>`
+      + `<path d="M47.4 30C47.4 20 41.6 12.6 33.4 12.2" fill="none" stroke="#5d84ad" stroke-width=".5" opacity=".55"/>`
+      + `<path d="M19.4 47C18.8 38 19 27.4 22.6 19.4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".62"/><path d="M21.6 47.4V41.4" fill="none" stroke="#fff" stroke-width=".8" stroke-linecap="round" opacity=".45"/>`
+      + `<path d="M26.8 13.8Q30.4 12.4 34 12.8" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".8"/><path d="M45.2 24.4C46 30.4 46 40 45.6 47" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round" opacity=".35"/>`
+      + `<path d="M15.6 52.6A16.4 2.6 0 0 0 48.4 52.6" fill="none" stroke="#fff" stroke-width=".7" opacity=".7"/><path d="M15.6 52.6A16.4 2.6 0 0 0 48.4 52.6" fill="none" stroke="#5d84ad" stroke-width=".4" opacity=".6" transform="translate(0 .6)"/>`
+      /* bouton de la cloche, fil rouge, étiquette d'inventaire « 33 » */
+      + `<rect x="30.5" y="9" width="3" height="2.6" rx=".6" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".35"/><circle cx="32" cy="7.1" r="2.7" fill="url(#${id('kb')})" stroke="#6e4705" stroke-width=".45"/><circle cx="31.1" cy="6.2" r=".7" fill="#fff" opacity=".85"/>`
+      + `<path d="M30.4 10.2Q32 11.2 33.6 10.2" fill="none" stroke="#b3202c" stroke-width=".7" stroke-linecap="round"/><path d="M33.4 10.4C38.4 9.4 45 10.8 49.2 17.4" fill="none" stroke="#b3202c" stroke-width=".7" stroke-linecap="round"/>`
+      + `<g class="evo-tag"><path d="M45.4 20.4L49.2 17.2L53 20.4V30.4Q53 31.4 52 31.4H46.4Q45.4 31.4 45.4 30.4Z" fill="url(#${id('tg')})" stroke="#6e4705" stroke-width=".55" stroke-linejoin="round"/>`
+      + `<path d="M46.4 21V30.4H52" fill="none" stroke="#fff6cc" stroke-width=".4" opacity=".7"/><circle cx="49.2" cy="19.9" r="1.15" fill="#2a1d0c" stroke="#7a4f06" stroke-width=".5"/>`
+      + `<path d="M47 23.2H51.4" stroke="#7a4f06" stroke-width=".45" stroke-linecap="round"/>${evmDigits('33', 49.2, 27.2, 3.2, 'stroke="#6e4705"', .5)}</g>`
+      + (lit ? evmSpk([[8, 14, 3], [57, 10, 2.4], [6, 42, 2.2], [58, 40, 2.8], [21, 4.6, 1.8]]) : '') + `</svg>`;
+  },
+  /** Icône du compteur « 12 / 30 » (viewBox 24 × 24) : cloche de verre, carte, étiquette d'or ; aplats nets à 16–24 px. */
+  relicCounter: (o = {}) => `<svg class="evo evo-counter${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
+    + `<path d="M3.8 19.4H20.2V21.2Q20.2 22.4 19 22.4H5Q3.8 22.4 3.8 21.2Z" fill="#8a5428" stroke="#3a1f0c" stroke-width=".7" stroke-linejoin="round"/><path d="M4.4 20.6H19.6" stroke="#f2c230" stroke-width=".9"/>`
+    + `<path d="M5.2 19.4V10.4C5.2 5.8 8.2 3 12 3S18.8 5.8 18.8 10.4V19.4Z" fill="#e3f1ff" stroke="#2f5a8a" stroke-width=".85" stroke-linejoin="round"/>`
+    + `<rect x="8.4" y="8.6" width="7.2" height="9.6" rx=".9" fill="#24202c" transform="rotate(-5 12 18)"/><rect x="9.3" y="9.5" width="5.4" height="7.8" rx=".4" fill="#4ea2f2" transform="rotate(-5 12 18)"/>`
+    + `<rect x="9.9" y="11" width="4.2" height="2.8" fill="#bfe2ff" transform="rotate(-5 12 18)"/><rect x="9.9" y="14.4" width="4.2" height="2.2" fill="#f7f0dc" transform="rotate(-5 12 18)"/>`
+    + `<path d="M7 17.8C6.6 14.2 6.8 9.8 8.4 6.8" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>`
+    + `<circle cx="12" cy="2.6" r="1.5" fill="#f2c230" stroke="#6e4705" stroke-width=".6"/><path d="M13.2 3.4Q16.6 3.4 18.4 6.2" fill="none" stroke="#c42a36" stroke-width=".7"/>`
+    + `<path d="M16.6 7.6L18.4 6L20.2 7.6V12.4Q20.2 12.9 19.7 12.9H17.1Q16.6 12.9 16.6 12.4Z" fill="#f2c230" stroke="#6e4705" stroke-width=".65" stroke-linejoin="round"/><circle cx="18.4" cy="7.6" r=".5" fill="#6e4705"/></svg>`,
+  /** Le conservateur du musée (viewBox 24 × 24), dessin des messages : vieux hibou archiviste à lunettes d'or et nœud papillon, sur deux livres ; .evo-wing salue. */
+  curator: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, ln = '#3e2410';
+    return `<svg class="evo evo-curator${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('b')}" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#c99a68"/><stop offset=".55" stop-color="#8f5f36"/><stop offset="1" stop-color="#5a3818"/></radialGradient>`
+      + `<radialGradient id="${id('f')}" cx=".5" cy=".42" r=".6"><stop offset=".5" stop-color="#fbf1dc"/><stop offset="1" stop-color="#e2c99c"/></radialGradient>`
+      + `<radialGradient id="${id('i')}" cx=".42" cy=".4" r=".6"><stop offset="0" stop-color="#ffd36b"/><stop offset=".7" stop-color="#f29a1e"/><stop offset="1" stop-color="#b85e0a"/></radialGradient>`
+      + `<linearGradient id="${id('w')}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a8754a"/><stop offset="1" stop-color="#5e3a1a"/></linearGradient></defs>`
+      + `<ellipse cx="12" cy="23.2" rx="9.6" ry=".9" fill="#1a1030" opacity=".2"/>`
+      /* deux livres reliés */
+      + `<path d="M3.2 20.6H20.8V22.6Q20.8 23.2 20.2 23.2H3.8Q3.2 23.2 3.2 22.6Z" fill="#8f2436" stroke="#3e0e18" stroke-width=".45" stroke-linejoin="round"/><path d="M18.8 21H20.4V22.8H18.8Z" fill="#f3e6c8"/><path d="M5.2 20.6V23.2M6.2 20.6V23.2" stroke="#f2c230" stroke-width=".4"/>`
+      + `<path d="M5 18.8H19.2V20.6H5Z" fill="#2f5aa8" stroke="#0e1f44" stroke-width=".45" stroke-linejoin="round"/><path d="M5.4 19.2H6.6V20.2H5.4Z" fill="#f3e6c8"/><path d="M17.4 18.8V20.6" stroke="#f2c230" stroke-width=".4"/>`
+      /* aigrettes, corps, ventre plumeté */
+      + `<path d="M6.8 6.6L5.4 2.2L9.4 4.6ZM17.2 6.6L18.6 2.2L14.6 4.6Z" fill="#6e4626" stroke="${ln}" stroke-width=".45" stroke-linejoin="round"/>`
+      + `<path d="M12 3.6C16.2 3.6 18.6 6.6 18.6 10.6C18.6 15.6 16.4 19.2 12 19.2C7.6 19.2 5.4 15.6 5.4 10.6C5.4 6.6 7.8 3.6 12 3.6Z" fill="url(#${id('b')})" stroke="${ln}" stroke-width=".55"/>`
+      + `<ellipse cx="12" cy="15.6" rx="4.1" ry="3.5" fill="#ead7b0"/><path d="M9.6 14.6Q10.2 15.2 10.8 14.6M11.4 14.6Q12 15.2 12.6 14.6M13.2 14.6Q13.8 15.2 14.4 14.6M10.4 16.4Q11 17 11.6 16.4M12.4 16.4Q13 17 13.6 16.4M11.4 18.1Q12 18.6 12.6 18.1" fill="none" stroke="#a87c4a" stroke-width=".35" stroke-linecap="round"/>`
+      + `<path d="M6 10.8C4.6 12.8 4.8 16.4 7.2 18.6C7.6 16 7.6 13.4 6 10.8Z" fill="url(#${id('w')})" stroke="${ln}" stroke-width=".45" stroke-linejoin="round"/><path d="M6.2 13.4L7 14.6M6.4 15.6L7.2 16.8" stroke="${ln}" stroke-width=".3" opacity=".6"/>`
+      /* disque facial, sourcils blancs, yeux d'ambre mi-clos, lunettes d'or, bec */
+      + `<circle cx="9.3" cy="9.7" r="3.5" fill="url(#${id('f')})" stroke="#b08a5a" stroke-width=".35"/><circle cx="14.7" cy="9.7" r="3.5" fill="url(#${id('f')})" stroke="#b08a5a" stroke-width=".35"/>`
+      + `<path d="M12 6.4L10.9 8.6L12 10.4L13.1 8.6Z" fill="#8f5f36"/>`
+      + `<circle cx="9.3" cy="9.9" r="1.95" fill="url(#${id('i')})"/><circle cx="14.7" cy="9.9" r="1.95" fill="url(#${id('i')})"/><circle cx="9.4" cy="10.1" r="1.1" fill="#1a120c"/><circle cx="14.6" cy="10.1" r="1.1" fill="#1a120c"/>`
+      + `<path d="M7.3 9.5A2 2 0 0 1 11.3 9.5Q9.3 8.9 7.3 9.5ZM12.7 9.5A2 2 0 0 1 16.7 9.5Q14.7 8.9 12.7 9.5Z" fill="#c9a676" stroke="#8a6a3e" stroke-width=".25"/>`
+      + `<circle cx="9.9" cy="10.5" r=".4" fill="#fff"/><circle cx="15.1" cy="10.5" r=".4" fill="#fff"/>`
+      + `<g fill="none" stroke="#e0a82a" stroke-width=".6"><circle cx="9.3" cy="9.9" r="2.55"/><circle cx="14.7" cy="9.9" r="2.55"/><path d="M11.6 9.3Q12 8.7 12.4 9.3M6.8 9.4L5.5 8.7M17.2 9.4L18.5 8.7"/></g>`
+      + `<g fill="#fff" opacity=".2"><circle cx="9.3" cy="9.9" r="2.3"/><circle cx="14.7" cy="9.9" r="2.3"/></g><path d="M7.7 8.7Q8.2 8 9 7.8M13.1 8.7Q13.6 8 14.4 7.8" fill="none" stroke="#fff" stroke-width=".45" stroke-linecap="round" opacity=".9"/>`
+      + `<path d="M6.2 6.8Q8.4 5.2 11.2 6.6M17.8 6.8Q15.6 5.2 12.8 6.6M6.6 6Q7.4 5 8.6 4.9M17.4 6Q16.6 5 15.4 4.9" fill="none" stroke="#f8f4ea" stroke-width=".8" stroke-linecap="round"/>`
+      + `<path d="M12 10.9L11 11.7Q11.8 13.9 12 13.9Q12.2 13.9 13 11.7Z" fill="#f2c230" stroke="#8a5a0c" stroke-width=".35" stroke-linejoin="round"/>`
+      /* nœud papillon corail */
+      + `<path d="M12 13.9L9.5 12.7V15.3ZM12 13.9L14.5 12.7V15.3Z" fill="#ff7a5c" stroke="#7a1f12" stroke-width=".35" stroke-linejoin="round"/><circle cx="12" cy="13.9" r=".65" fill="#e2553e" stroke="#7a1f12" stroke-width=".3"/>`
+      + `<path d="M10 13.4L10.6 13.7M13.4 13.7L14 13.4" stroke="#ffd0c2" stroke-width=".3" stroke-linecap="round"/>`
+      /* serres sur le livre */
+      + `<path d="M9.4 18.6L9 19.6M10.2 18.8V19.8M11 18.6L11.4 19.6M13 18.6L12.6 19.6M13.8 18.8V19.8M14.6 18.6L15 19.6" stroke="#e08a1a" stroke-width=".6" stroke-linecap="round"/>`
+      /* aile droite levée : elle salue */
+      + `<g class="evo-wing"><path d="M17.6 11.6C19.2 9.2 21.4 6.8 23 6.4C23.3 7.6 22.8 8.6 22 9.2C22.8 9.4 22.6 10.6 21.6 11C22 11.8 21.2 12.8 20 12.8C19.2 13.6 18 13.6 17.4 13.2Z" fill="url(#${id('w')})" stroke="${ln}" stroke-width=".45" stroke-linejoin="round"/>`
+      + `<path d="M18.6 11.8L21.4 9.4M18.8 12.6L21 11M18.4 10.6L21.8 7.6" fill="none" stroke="#3e2410" stroke-width=".28" opacity=".55"/></g></svg>`;
+  },
+});
+
+/* ── Anniversaire de Magic : les reliques du musée (relicArt) ──────────────────────────────────────────────────────────────────────────────── */
+/** Vitrine d'une relique (viewBox 64 × 64) : halo, faisceau du projecteur, socle d'encre à liseré d'or et cartel, l'objet (draw(id) → [defs, dessin]) ;
+ *  o.lit : halo plus vif, rayons, étincelles (toujours pour le lotus d'or). */
+function evmStage(o, k, draw) {
+  const n = ++EVO_N, id = s => `evo${n}${s}`, lit = !!o.lit || k === 'lotus', [defs, body] = draw(id);
+  return `<svg class="evo evo-relic-art evo-ra-${k}${lit ? ' evo-lit' : ''}${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs>`
+    + `<radialGradient id="${id('g')}" cx="32" cy="30" r="31" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff3c4" stop-opacity="${lit ? .9 : .42}"/><stop offset=".5" stop-color="#f2c230" stop-opacity="${lit ? .34 : .1}"/><stop offset="1" stop-color="#f2c230" stop-opacity="0"/></radialGradient>`
+    + (lit ? `<linearGradient id="${id('y')}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fffbe0" stop-opacity=".95"/><stop offset="1" stop-color="#f2c230" stop-opacity="0"/></linearGradient>` : '')
+    + `<linearGradient id="${id('bm')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6d8" stop-opacity=".5"/><stop offset=".7" stop-color="#ffe7a8" stop-opacity=".13"/><stop offset="1" stop-color="#ffe7a8" stop-opacity="0"/></linearGradient>`
+    + `<linearGradient id="${id('pf')}" x1="12" y1="0" x2="52" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1c1838"/><stop offset=".28" stop-color="#433b7c"/><stop offset=".6" stop-color="#2a2452"/><stop offset="1" stop-color="#120e26"/></linearGradient>`
+    + `<linearGradient id="${id('pt')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a5196"/><stop offset="1" stop-color="#8379c4"/></linearGradient>`
+    + evmMetal(id('pg'), 11, 0, 53, 0)
+    + `<radialGradient id="${id('pl')}"><stop offset="0" stop-color="#fffbe6" stop-opacity=".9"/><stop offset="1" stop-color="#fff3c4" stop-opacity="0"/></radialGradient>`
+    + `<radialGradient id="${id('o')}"><stop offset="0" stop-color="#0a0818" stop-opacity=".42"/><stop offset="1" stop-color="#0a0818" stop-opacity="0"/></radialGradient>`
+    + defs + `</defs>`
+    + `<circle class="evo-glow" cx="32" cy="30" r="31" fill="url(#${id('g')})"/>` + (lit ? evnRays(id('y'), 32, 30, 31) : '')
+    + `<path class="evo-beam" d="M26.6-1H37.4L53 51H11Z" fill="url(#${id('bm')})"/>`
+    + `<ellipse cx="32" cy="61.9" rx="23" ry="1.9" fill="url(#${id('o')})"/>`
+    /* socle : dessus éclairé, moulure d'or, face d'encre, cartel gravé, plinthe */
+    + `<path d="M13.4 50.4H50.6L52.4 53H11.6Z" fill="url(#${id('pt')})" stroke="${EVM_INK}" stroke-width=".4" stroke-linejoin="round"/>`
+    + `<ellipse cx="32" cy="51.7" rx="16" ry="1.2" fill="url(#${id('pl')})"/>`
+    + `<rect x="11.6" y="53" width="40.8" height="1.5" fill="url(#${id('pg')})" stroke="#6e4705" stroke-width=".35"/>`
+    + `<rect x="12.8" y="54.5" width="38.4" height="5.2" fill="url(#${id('pf')})" stroke="${EVM_INK}" stroke-width=".4"/><path d="M13.6 55V59.2" stroke="#8d84c8" stroke-width=".4" opacity=".6"/>`
+    + `<rect x="26.6" y="55.6" width="10.8" height="2.9" rx=".5" fill="url(#${id('pg')})" stroke="#6e4705" stroke-width=".3"/><path d="M28.2 56.6H35.8M29.4 57.5H34.6" stroke="#7a4f06" stroke-width=".35" stroke-linecap="round"/>`
+    + `<rect x="11.8" y="59.7" width="40.4" height="1.7" rx=".5" fill="#1a1634" stroke="${EVM_INK}" stroke-width=".4"/><path d="M12.4 59.9H51.6" stroke="#e0a82a" stroke-width=".4" opacity=".8"/>`
+    + `<g class="evo-ra-b">${body}</g>`
+    + (lit ? evmSpk([[7, 12, 2.8], [57, 10, 2.4], [5, 36, 2], [59, 33, 2.6], [32, 2.6, 1.8]]) : '') + `</svg>`;
+}
+/** Carte ancienne (bordure noire, cadre ocre, coins très arrondis ; dessin original), 27 × 37,6 à partir de (15, 11) ; dégradés of, oa. */
+const evmOldCard = id => `<rect x="15" y="11" width="27" height="37.6" rx="3.4" fill="#17151f" stroke="#000" stroke-width=".35"/>`
+  + `<rect x="16.9" y="12.9" width="23.2" height="33.8" rx="1.1" fill="url(#${id('of')})"/>`
+  + `<rect x="18.1" y="14.1" width="20.8" height="2.8" rx=".6" fill="#f1e6c8" stroke="#6b4a22" stroke-width=".3"/><path d="M19.3 15.5H28.4" stroke="#6b4a22" stroke-width=".6" stroke-linecap="round" opacity=".55"/>`
+  + `<circle cx="37.3" cy="15.5" r=".8" fill="#d0452e" stroke="#5a1a0c" stroke-width=".25"/><circle cx="35.4" cy="15.5" r=".8" fill="#3fcf7a" stroke="#06401f" stroke-width=".25"/>`
+  + `<rect x="18.1" y="17.7" width="20.8" height="13.6" fill="url(#${id('oa')})" stroke="#6b4a22" stroke-width=".35"/><circle cx="34.6" cy="20.6" r="1.5" fill="#fff6c8"/>`
+  + `<path d="M18.1 27.4L22.4 22.6L25.2 25.4L29.4 20.4L34 25.6L36.4 23.4L38.9 26V31.3H18.1Z" fill="#6f7fa8" opacity=".9"/><path d="M28.3 21.7L29.4 20.4L30.6 21.8L29.8 21.5Z" fill="#fff"/>`
+  + `<path d="M18.1 31.3V28.8Q24 26.6 29.4 28.6Q34.4 27 38.9 28.4V31.3Z" fill="#3f5a3a"/><path d="M22.6 28.4V25.6H23.4V24.8H24.6V25.6H25.4V28" fill="#2e2a3e"/>`
+  + `<rect x="18.1" y="32.1" width="20.8" height="2.2" rx=".5" fill="#f1e6c8" stroke="#6b4a22" stroke-width=".3"/><path d="M19.3 33.2H25.6" stroke="#6b4a22" stroke-width=".5" stroke-linecap="round" opacity=".5"/>`
+  + `<rect x="18.1" y="35" width="20.8" height="10.4" fill="#f1e6c8" stroke="#6b4a22" stroke-width=".3"/>`
+  + `<path d="M19.4 37H37.6M19.4 38.8H37M19.4 40.6H34.4" stroke="#8a7d66" stroke-width=".45" stroke-linecap="round"/><path d="M21 43.2H33" stroke="#8a7d66" stroke-width=".4" stroke-linecap="round" stroke-dasharray="1.6 .6" opacity=".8"/>`
+  + `<path d="M15.9 15.6V44.4" stroke="#fff" stroke-width=".5" opacity=".22"/>`;
+const evmOldCardDefs = id => `<linearGradient id="${id('of')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8c47c"/><stop offset=".55" stop-color="#b9823a"/><stop offset="1" stop-color="#7a4f1e"/></linearGradient>`
+  + `<linearGradient id="${id('oa')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fb8e8"/><stop offset="1" stop-color="#ffe3b0"/></linearGradient>`;
+/** Petit chevalet de laiton (pieds, tablette en y). */
+const evmEasel = (x0 = 13.6, x1 = 45.4) => `<path d="M${evoF((x0 + x1) / 2 - 5)} 20L${evoF(x0 + 2.4)} 51.2M${evoF((x0 + x1) / 2 + 5)} 20L${evoF(x1 - 2.4)} 51.2" stroke="#8a5a0c" stroke-width="1.2" stroke-linecap="round"/>`;
+/** Tablette du chevalet (devant la carte). */
+const evmLedge = id => `<rect x="13.6" y="48.6" width="31.8" height="1.8" rx=".5" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".35"/><path d="M14 49H45" stroke="#fff6cc" stroke-width=".35"/>`;
+
+/* Reliques : k → id ⇒ [dégradés, dessin] (dans la vitrine evmStage ; l'objet repose sur le socle, y ≈ 51). */
+const EVM_RELIC = {
+  /* clé inconnue : carte ancienne sur son chevalet */
+  _: id => [evmOldCardDefs(id) + evmMetal(id('au'), 12, 0, 46, 0), evmEasel() + `<g transform="translate(2 0)">${evmOldCard(id)}</g>` + evmLedge(id)],
+  /* 1993 · le carnet du prototype : carnet à spirale sur un chevalet, griffonné de formules, de croquis de cartes et du pentagone des cinq couleurs ;
+     tache de café, « 20 » entouré ; crayon posé devant */
+  notebook: id => {
+    const ink = 'stroke="#27407a" stroke-width=".42" stroke-linecap="round" stroke-linejoin="round" fill="none"', pen = '#5a5f70', f = evoF;
+    let lines = ''; for (let y = 17.6; y < 48.6; y += 2.6) lines += `M19 ${f(y)}H44.8`;
+    const coil = Array.from({ length: 10 }, (_, i) => 20.2 + i * 2.55);
+    const pent = Array.from({ length: 5 }, (_, i) => { const a = (-90 + i * 72) * Math.PI / 180; return [41 + Math.cos(a) * 3.4, 24.6 + Math.sin(a) * 3.4]; });
+    const sketch = (x, y, r) => `<g transform="rotate(${r} ${x + 2.6} ${y + 3.6})"><rect x="${x}" y="${y}" width="5.2" height="7.2" rx=".5" fill="#fff" fill-opacity=".55" stroke="${pen}" stroke-width=".4"/>`
+      + `<path d="M${f(x + .7)} ${f(y + 1.3)}H${f(x + 4.5)}V${f(y + 3.8)}H${f(x + .7)}Z" fill="none" stroke="${pen}" stroke-width=".3"/><path d="M${f(x + .9)} ${f(y + 3.4)}L${f(x + 2.2)} ${f(y + 2.2)}L${f(x + 3.1)} ${f(y + 3)}L${f(x + 4.2)} ${f(y + 1.8)}" fill="none" stroke="${pen}" stroke-width=".25"/>`
+      + `<path d="M${f(x + .8)} ${f(y + 4.8)}H${f(x + 4.4)}M${f(x + .8)} ${f(y + 5.7)}H${f(x + 3.6)}M${f(x + .8)} ${f(y + .6)}H${f(x + 2.6)}" stroke="${pen}" stroke-width=".25" stroke-linecap="round"/><circle cx="${f(x + 4.2)}" cy="${f(y + .65)}" r=".35" fill="none" stroke="${pen}" stroke-width=".22"/></g>`;
+    return [`<linearGradient id="${id('pp')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffdf6"/><stop offset="1" stop-color="#f0e5c6"/></linearGradient>`
+      + `<linearGradient id="${id('cv')}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a82e0"/><stop offset="1" stop-color="#1d3a78"/></linearGradient>`
+      + evmMetal(id('wr'), 0, 9.8, 0, 14, EVM_FE) + evmMetal(id('au'), 14, 0, 50, 0)
+      + `<linearGradient id="${id('pc')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe58a"/><stop offset=".5" stop-color="#f2c230"/><stop offset="1" stop-color="#b9800f"/></linearGradient>`,
+      `<g transform="rotate(-6 32 50)"><path d="M38.4 18L44.6 50.4" stroke="#8a5a0c" stroke-width="1.3" stroke-linecap="round"/>`
+      + `<rect x="17" y="11.4" width="29.8" height="38.6" rx="1.4" fill="url(#${id('cv')})" stroke="#0e1f44" stroke-width=".5"/>`
+      + `<rect x="18" y="12" width="27.6" height="37.4" rx="1" fill="url(#${id('pp')})" stroke="#b9ad8e" stroke-width=".4"/>`
+      + `<path d="${lines}" stroke="#a9c8ec" stroke-width=".35"/><path d="M22.4 13.4V49.2" stroke="#ff8a8a" stroke-width=".45" opacity=".8"/>`
+      + `<g fill="#8a7d66" opacity=".6">${coil.map(x => `<circle cx="${f(x + 1.3)}" cy="13.5" r=".5"/>`).join('')}</g>`
+      /* tache de café, croquis de cartes et flèche, pentagone des couleurs, formules, « 20 » entouré de rouge, étoile griffonnée */
+      + `<circle cx="27" cy="44.4" r="3.2" fill="none" stroke="#a8743c" stroke-width=".7" opacity=".3"/><path d="M24.4 46.4A3.2 3.2 0 0 0 30 45.4" fill="none" stroke="#a8743c" stroke-width=".35" opacity=".3"/>`
+      + `<path d="${evmScrawl(23.6, 41.4, 17.2, 3)}" ${ink}/><path d="M24 18.4Q32 19.4 40.6 18" ${ink} opacity=".7"/>`
+      + sketch(24.4, 20.4, -4) + sketch(31.4, 20.8, 3) + `<path d="M27 28.8Q30.6 30.6 34 29M33.1 28.4L34 29L33.3 29.9" ${ink}/>`
+      + `<path d="M${pent.map(p => f(p[0]) + ' ' + f(p[1])).join('L')}Z" fill="none" stroke="${pen}" stroke-width=".35"/><path d="M${[0, 2, 4, 1, 3].map(i => f(pent[i][0]) + ' ' + f(pent[i][1])).join('L')}Z" fill="none" stroke="${pen}" stroke-width=".2" opacity=".5"/>`
+      + pent.map((p, i) => `<circle cx="${f(p[0])}" cy="${f(p[1])}" r=".8" fill="${EVY_MANA[i][2]}" stroke="${EVY_MANA[i][4]}" stroke-width=".2"/>`).join('')
+      + `<path d="${evmScrawl(23.6, 43, 33.2, 7)}" ${ink}/><path d="${evmScrawl(23.6, 38.6, 35.8, 11)}" ${ink}/><path d="${evmScrawl(23.6, 41, 38.4, 5)}" ${ink}/>`
+      + `<path d="${evmScrawl(23.6, 31, 43.4, 19)}" ${ink}/>${evmDigits('20', 35.4, 42.5, 2.6, 'stroke="#27407a"', .42)}<ellipse cx="35.4" cy="42.5" rx="3" ry="2.1" fill="none" stroke="#e2553e" stroke-width=".4" transform="rotate(-8 35.4 42.5)"/>`
+      + `<path d="${evnStar5(42.6, 46.4, 1.3)}" fill="none" stroke="${pen}" stroke-width=".3"/>`
+      + `<path d="M45.6 46.2L42.6 49.4H44.6Q45.6 49.4 45.6 48.4Z" fill="#e6d9b8" stroke="#b9ad8e" stroke-width=".3"/>`
+      + `<g fill="none" stroke-linecap="round">${coil.map(x => `<path d="M${f(x)} 13.7C${f(x - .3)} 10.7 ${f(x + 1.9)} 10.1 ${f(x + 2.1)} 11.9" stroke="#2e3646" stroke-width="1.3"/><path d="M${f(x)} 13.7C${f(x - .3)} 10.7 ${f(x + 1.9)} 10.1 ${f(x + 2.1)} 11.9" stroke="url(#${id('wr')})" stroke-width=".75"/>`).join('')}</g>`
+      + `<rect x="15.4" y="49" width="32.6" height="1.9" rx=".6" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".35"/><path d="M15.9 49.4H47.5" stroke="#fff6cc" stroke-width=".35"/></g>`
+      + `<g transform="rotate(-5 30 51)"><rect x="14.4" y="50" width="21" height="1.9" fill="url(#${id('pc')})" stroke="#8a5a0c" stroke-width=".3"/><path d="M14.4 50.95H35.4" stroke="#c48a1a" stroke-width=".3" opacity=".7"/>`
+      + `<rect x="35.4" y="49.9" width="1.8" height="2.1" fill="#c8d0dc" stroke="#66748a" stroke-width=".3"/><rect x="37.2" y="50" width="2.2" height="1.9" rx=".6" fill="#ff8fa8" stroke="#b04a64" stroke-width=".3"/>`
+      + `<path d="M14.4 50L11 50.95L14.4 51.9Z" fill="#ecc99a" stroke="#8a5a0c" stroke-width=".3" stroke-linejoin="round"/><path d="M12.4 50.56L11 50.95L12.4 51.34Z" fill="#3a3a44"/></g>`];
+  },
+  /* 1993 · le booster d'Alpha : booster scellé rétro (aucun logo) : bords sertis argentés, bandeau d'or, médaillon d'un couchant où se lève une planète
+     à anneau, cinq gemmes du mana, « 1993 » en tracés ; reflet qui passe */
+  alpha: id => {
+    const f = evoF, zig = (y0, y1) => Array.from({ length: 21 }, (_, i) => `${f(19.6 + i * 1.24)} ${i % 2 ? y1 : y0}`).join('L');
+    let crimp = ''; for (let x = 20.4; x < 44; x += 1.24) crimp += `M${f(x)} 6.2V9.2M${f(x)} 46.4V49.6`;
+    const gx = [24.6, 28.3, 32, 35.7, 39.4], gy = [38, 38.9, 39.2, 38.9, 38];
+    return [`<linearGradient id="${id('bw')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0e0a24"/><stop offset=".16" stop-color="#2e2266"/><stop offset=".4" stop-color="#4a3a9a"/><stop offset=".64" stop-color="#33287a"/><stop offset=".88" stop-color="#1c1548"/><stop offset="1" stop-color="#0c0820"/></linearGradient>`
+      + evmMetal(id('cr'), 19.6, 0, 44.4, 0, EVM_FE) + evmMetal(id('au'), 21, 0, 43, 0)
+      + `<linearGradient id="${id('sk')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1f5e"/><stop offset=".5" stop-color="#ff8a5c"/><stop offset=".8" stop-color="#ffd27a"/><stop offset="1" stop-color="#fff3c4"/></linearGradient>`
+      + evmBall(id('pn'), ['#ffffff', '#bfe2ff', '#4ea2f2', '#1f3f8a']) + EVY_MANA.map((m, i) => evmBall(id('m' + i), [m[0], m[1], m[2], m[3]])).join('')
+      + `<linearGradient id="${id('k')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>`
+      + `<clipPath id="${id('c')}"><rect x="19.6" y="5" width="24.8" height="46"/></clipPath><clipPath id="${id('ov')}"><ellipse cx="32" cy="26.2" rx="8.2" ry="9.4"/></clipPath>`,
+      `<g transform="rotate(3 32 51)"><path d="M19.6 9.6V5.6L${zig(5.6, 4.6)}V9.6Z" fill="url(#${id('cr')})" stroke="#3a4458" stroke-width=".4" stroke-linejoin="round"/>`
+      + `<path d="M19.6 45.8V50.2L${zig(50.2, 51.2)}V45.8Z" fill="url(#${id('cr')})" stroke="#3a4458" stroke-width=".4" stroke-linejoin="round"/>`
+      + `<path d="${crimp}" stroke="#66748a" stroke-width=".3" opacity=".7"/><path d="M44.4 6.6L43 7.3L44.4 8" fill="none" stroke="#2e3646" stroke-width=".45"/>`
+      + `<rect x="19.6" y="9.4" width="24.8" height="36.6" fill="url(#${id('bw')})" stroke="#0a0820" stroke-width=".4"/>`
+      + `<g fill="#fff">${[[23, 18, .35], [41, 17.4, .3], [22.4, 34, .3], [41.6, 35.4, .35], [24.4, 13.4, .25], [39.8, 31, .25]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" opacity=".7"/>`).join('')}</g>`
+      + `<path d="M21.2 11.6H42.8L41.6 13.2L42.8 14.8H21.2L22.4 13.2Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".35" stroke-linejoin="round"/><path d="M24.6 13.2H28.6M30.2 13.2H33.6M35.2 13.2H39.4" stroke="#4a2c06" stroke-width=".9" stroke-linecap="round" opacity=".75"/>`
+      + `<ellipse cx="32" cy="26.2" rx="8.2" ry="9.4" fill="url(#${id('sk')})"/>`
+      + `<g clip-path="url(#${id('ov')})"><g transform="rotate(-14 32 21.4)"><path d="M26 21.4A6 1.4 0 0 1 38 21.4" fill="none" stroke="#ffe58a" stroke-width=".6"/></g><circle cx="32" cy="21.4" r="3.5" fill="url(#${id('pn')})"/>`
+      + `<g transform="rotate(-14 32 21.4)"><path d="M26 21.4A6 1.4 0 0 0 38 21.4" fill="none" stroke="#ffe58a" stroke-width=".7"/></g>`
+      + `<path d="M23 31L26.4 27L28.6 29L31.8 24.6L35.4 28.8L37.4 27.2L41 31V36H23Z" fill="#3b2470"/><path d="M31 25.6L31.8 24.6L32.7 25.8L31.8 25.4Z" fill="#ffd8c8"/><path d="M23 33Q28 30.6 32 32.4Q36.4 30.8 41 32.6V36H23Z" fill="#1d1240"/>`
+      + `<path d="${evnSpark(27, 19.2, .9)}${evnSpark(37.4, 18.4, .7)}" fill="#fff"/></g>`
+      + `<ellipse cx="32" cy="26.2" rx="8.2" ry="9.4" fill="none" stroke="url(#${id('au')})" stroke-width="1.3"/><ellipse cx="32" cy="26.2" rx="9" ry="10.2" fill="none" stroke="#6e4705" stroke-width=".3" opacity=".8"/>`
+      + gx.map((x, i) => `<circle cx="${x}" cy="${gy[i]}" r="1.45" fill="url(#${id('m' + i)})" stroke="#0a0820" stroke-width=".35"/><circle cx="${f(x - .5)}" cy="${f(gy[i] - .5)}" r=".38" fill="#fff" opacity=".85"/>`).join('')
+      + `<rect x="23.4" y="41.1" width="17.2" height="3.3" rx=".7" fill="#0c0820" fill-opacity=".55" stroke="url(#${id('au')})" stroke-width=".5"/>${evmDigits('1993', 32, 42.75, 1.9, 'stroke="#ffe58a"', .38)}`
+      + `<g fill="#f2c230">${[[21.3, 16.4], [42.7, 16.4], [21.3, 44.6], [42.7, 44.6]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".5"/>`).join('')}</g>`
+      + `<path d="M21 16.4L22.2 18.8M42.2 33L43.2 35.6M20.4 40L21.4 41.6" stroke="#fff" stroke-width=".4" opacity=".25"/><path d="M41.8 14.4L42.8 16.4M22 30L21.2 32" stroke="#000" stroke-width=".4" opacity=".3"/>`
+      + `<path d="M19.6 30L44.4 14V18.4L19.6 34.4Z" fill="#fff" opacity=".06"/>`
+      + `<g clip-path="url(#${id('c')})"><path class="evo-glint" d="M8 52H12.4L22 4H17.6Z" fill="url(#${id('k')})" opacity="0"/></g></g>`];
+  },
+  /* 1993 · les coins d'Alpha : carte ancienne sur son chevalet, loupe de laiton posée sur son coin très arrondi (grossi deux fois dans la lentille,
+     rayon mesuré en pointillés d'or) ; reflet qui passe sur la lentille */
+  corners: id => {
+    const cx = 17.6, cy = 11.6, ax = cx + 2.8 * 2.1, ay = cy + 2.8 * 2.1, rr = 8.6, a0 = Math.PI, a1 = 1.5 * Math.PI, f = evoF;      // lentille ; ax, ay : centre de l'arrondi du coin, grossi
+    const P = a => f(ax + Math.cos(a) * rr) + ' ' + f(ay + Math.sin(a) * rr), tk = a => `M${f(ax + Math.cos(a) * (rr - .9))} ${f(ay + Math.sin(a) * (rr - .9))}L${f(ax + Math.cos(a) * (rr + .9))} ${f(ay + Math.sin(a) * (rr + .9))}`;
+    return [evmOldCardDefs(id) + evmMetal(id('au'), 12, 0, 46, 0) + evmMetal(id('rim'), 10, 4, 31, 25)
+      + `<radialGradient id="${id('lg')}" cx=".4" cy=".36" r=".7"><stop offset="0" stop-color="#ffffff" stop-opacity=".22"/><stop offset=".75" stop-color="#d8ecff" stop-opacity=".2"/><stop offset="1" stop-color="#9cc2e4" stop-opacity=".5"/></radialGradient>`
+      + `<linearGradient id="${id('hw')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c98a52"/><stop offset=".35" stop-color="#e8b07a"/><stop offset=".7" stop-color="#7a4522"/><stop offset="1" stop-color="#3a1f0c"/></linearGradient>`
+      + `<linearGradient id="${id('hb')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9800f"/><stop offset=".35" stop-color="#fffbe6"/><stop offset=".6" stop-color="#f2c230"/><stop offset="1" stop-color="#6e4705"/></linearGradient>`
+      + `<linearGradient id="${id('k')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".7"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>`
+      + `<g id="${id('cd')}">${evmOldCard(id)}</g><clipPath id="${id('lc')}"><circle cx="${cx}" cy="${cy}" r="9.3"/></clipPath>`,
+      evmEasel() + `<g transform="translate(2 0)"><use href="#${id('cd')}"/></g>` + evmLedge(id)
+      /* manche de la loupe (repère tourné de 52°) : virole, bague, manche de noyer, embout */
+      + `<g transform="rotate(52 ${cx} ${cy})"><rect x="${cx + 10.1}" y="${cy - 1.8}" width="4.6" height="3.6" rx=".6" fill="url(#${id('hb')})" stroke="#6e4705" stroke-width=".35"/>`
+      + `<rect x="${f(cx + 14.6)}" y="${f(cy - 2.15)}" width="1.3" height="4.3" rx=".4" fill="url(#${id('hb')})" stroke="#6e4705" stroke-width=".35"/>`
+      + `<rect x="${f(cx + 15.8)}" y="${f(cy - 2.4)}" width="22.4" height="4.8" rx="2.4" fill="url(#${id('hw')})" stroke="#2a1405" stroke-width=".4"/>`
+      + `<path d="M${f(cx + 17)} ${f(cy - 1.3)}H${f(cx + 36.6)}" stroke="#fff" stroke-width=".6" stroke-linecap="round" opacity=".45"/><rect x="${f(cx + 37.6)}" y="${f(cy - 2)}" width="1.6" height="4" rx=".6" fill="url(#${id('hb')})" stroke="#6e4705" stroke-width=".3"/></g>`
+      /* lentille : le coin grossi, la mesure de son rayon, le verre, la monture */
+      + `<g clip-path="url(#${id('lc')})"><circle cx="${cx}" cy="${cy}" r="9.4" fill="#f3ecdc"/><g transform="translate(${cx} ${cy}) scale(2.1) translate(${-cx} ${-cy})"><use href="#${id('cd')}" transform="translate(2 0)"/></g>`
+      + `<path d="M${P(a0)}A${rr} ${rr} 0 0 1 ${P(a1)}" fill="none" stroke="#c48a1a" stroke-width=".7" stroke-dasharray="1 .7"/><path d="${tk(a0)}${tk(a1)}" stroke="#c48a1a" stroke-width=".6" stroke-linecap="round"/>`
+      + `<path d="M${f(ax + Math.cos(1.25 * Math.PI) * 7.3)} ${f(ay + Math.sin(1.25 * Math.PI) * 7.3)}L${P(1.25 * Math.PI)}" stroke="#c48a1a" stroke-width=".55" stroke-linecap="round"/>`
+      + `<circle cx="${cx}" cy="${cy}" r="9.4" fill="url(#${id('lg')})"/><path class="evo-glint" d="M2 28H6L16 1H12Z" fill="url(#${id('k')})" opacity="0"/></g>`
+      + `<path d="M${f(cx - 6.4)} ${f(cy - 2.6)}A7 7 0 0 1 ${f(cx - 1.8)} ${f(cy - 6.8)}" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity=".8"/>`
+      + `<circle cx="${cx}" cy="${cy}" r="10.25" fill="none" stroke="#6e4705" stroke-width="2.9"/><circle cx="${cx}" cy="${cy}" r="10.25" fill="none" stroke="url(#${id('rim')})" stroke-width="2.1"/>`
+      + `<path d="M${f(cx - 8.2)} ${f(cy - 5)}A9.6 9.6 0 0 1 ${f(cx - 3.4)} ${f(cy - 9)}" fill="none" stroke="#fffbe6" stroke-width=".5" stroke-linecap="round"/>`];
+  },
+  /* 1993 · le dé des 20 points de vie : icosaèdre bleu translucide aux chiffres d'or (« 20 » face au visiteur, « 8 », « 14 », « 2 » autour), sur un coussin
+     de velours cramoisi à passepoil d'or et glands */
+  d20: id => {
+    const f = evoF, H = [[32, 9.4], [46.9, 18], [46.9, 35.2], [32, 43.8], [17.1, 35.2], [17.1, 18]], T = [[32, 17.6], [41, 33.2], [23, 33.2]];
+    const F = [[T[0], T[1], T[2], '#5b93ea'], [T[0], T[1], H[1], '#4a7fd8'], [T[1], T[2], H[3], '#2d5bb3'], [T[2], T[0], H[5], '#8ab9ff'], [T[0], H[5], H[0], '#b5d5ff'],
+      [T[0], H[0], H[1], '#74a6f2'], [T[1], H[1], H[2], '#3667c0'], [T[1], H[2], H[3], '#1f4593'], [T[2], H[3], H[4], '#27509f'], [T[2], H[4], H[5], '#5f94e6']];
+    const poly = P => 'M' + P.map(p => f(p[0]) + ' ' + f(p[1])).join('L') + 'Z', hex = poly(H);
+    const num = (s, x, y, r) => `<g transform="translate(${x} ${y}) rotate(${r}) scale(1 .8)">${evmDigits(s, 0, 0, 3.3, 'stroke="#ffe58a" opacity=".92"', .62)}</g>`;
+    const tassel = x => `<circle cx="${x}" cy="47.4" r="1" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".3"/><path d="M${f(x - .9)} 48.2L${f(x - 1.6)} 52H${f(x + 1.6)}L${f(x + .9)} 48.2Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".3" stroke-linejoin="round"/><path d="M${f(x - .6)} 49V51.8M${x} 49V51.8M${f(x + .6)} 49V51.8" stroke="#8a5a0c" stroke-width=".25"/>`;
+    return [`<radialGradient id="${id('cu')}" cx=".45" cy=".25" r=".85"><stop offset="0" stop-color="#f07a8e"/><stop offset=".5" stop-color="#b8243e"/><stop offset="1" stop-color="#5e0a1e"/></radialGradient>`
+      + evmMetal(id('au'), 10, 0, 54, 0)
+      + `<radialGradient id="${id('sh')}" cx="17" cy="9" r="34" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".55" stop-color="#fff" stop-opacity=".05"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></radialGradient>`,
+      `<path d="M11.6 47.4C11 44 13.2 42.2 16 42.4C24 41.2 40 41.2 48 42.4C50.8 42.2 53 44 52.4 47.4C53 50.8 51 52.6 48 52.2C40 53.2 24 53.2 16 52.2C13 52.6 11 50.8 11.6 47.4Z" fill="url(#${id('cu')})" stroke="url(#${id('au')})" stroke-width=".8"/>`
+      + `<path d="M16.4 43.4Q20 46 18 50.6M47.6 43.4Q44 46 46 50.6M24 51.8Q32 50.6 40 51.8" fill="none" stroke="#4a0616" stroke-width=".45" opacity=".5"/><path d="M17 43.2Q32 41.8 47 43.2" fill="none" stroke="#ffb0bc" stroke-width=".6" stroke-linecap="round" opacity=".6"/>`
+      + tassel(11.4) + tassel(52.6) + `<ellipse cx="32" cy="44" rx="11.6" ry="1.7" fill="#3a0612" opacity=".5"/>`
+      + F.map(([a, b, c, col]) => `<path d="${poly([a, b, c])}" fill="${col}"/>`).join('')
+      + `<path d="${hex}" fill="url(#${id('sh')})"/>`
+      + `<path d="${F.map(([a, b, c]) => poly([a, b, c])).join('')}" fill="none" stroke="#d8ebff" stroke-width=".45" stroke-linejoin="round" opacity=".6"/>`
+      + `<path d="${hex}" fill="none" stroke="#0d1f4a" stroke-width=".8" stroke-linejoin="round"/>`
+      + evmDigits('20', 32, 29.2, 6.4, 'stroke="#0d1f4a" opacity=".6" transform="translate(.35 .45)"', 1.5) + evmDigits('20', 32, 29.2, 6.4, 'stroke="#ffd860"', 1.05)
+      + num('8', 39.97, 22.93, 54.6) + num('14', 24.03, 22.93, -54.6) + num('2', 32, 37.2, 180)
+      + `<path d="M19.2 19.4L30.6 12.2" stroke="#fff" stroke-width=".8" stroke-linecap="round" opacity=".55"/><path d="${evnSpark(32, 17.6, 1.7)}" fill="#fff"/><circle cx="17.1" cy="18" r=".6" fill="#fff" opacity=".8"/>`];
+  },
+  /* 1993 · la lampe d'Arabian Nights : lampe à huile orientale en laiton (couvercle à fleuron, anse en volute, bec effilé, pied), frise d'arabesques
+     gravée, cabochon corail ; petite flamme au bec (.evo-flame vacille), filet de fumée (.evo-smoke) */
+  lamp: id => {
+    const f = evoF, wave = evqCurve(Array.from({ length: 12 }, (_, i) => [16.8 + i * 2.05, 37.6 + (i % 2 ? -.9 : .9) * (1 - Math.abs(i - 5.5) / 9)]));
+    return [`<radialGradient id="${id('br')}" cx="23" cy="31" r="22" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fffbe6"/><stop offset=".22" stop-color="#ffe58a"/><stop offset=".48" stop-color="#f2c230"/><stop offset=".78" stop-color="#b9800f"/><stop offset="1" stop-color="#6e4705"/></radialGradient>`
+      + evmMetal(id('au'), 6, 0, 56, 0) + evmBall(id('kb'), ['#fffbe6', '#ffe58a', '#e0a82a', '#7a4f06']) + evmBall(id('gm'), ['#ffffff', '#ffc4ae', '#ff6a45', '#8a1a08'])
+      + `<radialGradient id="${id('fl')}" cx=".5" cy=".72" r=".7"><stop offset="0" stop-color="#ffffff"/><stop offset=".3" stop-color="#fff3b0"/><stop offset=".7" stop-color="#ffc23a"/><stop offset="1" stop-color="#ff7a1a"/></radialGradient>`
+      + `<radialGradient id="${id('fg')}"><stop offset="0" stop-color="#ffe58a" stop-opacity=".85"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>`
+      + `<linearGradient id="${id('sm')}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#b8b0c8" stop-opacity=".6"/><stop offset="1" stop-color="#b8b0c8" stop-opacity="0"/></linearGradient>`,
+      `<path d="M15.2 33.6C10.6 30.8 7 32 7.2 35.6C7.4 38.8 10.6 40.6 15.6 39.8M10 31.8C9.2 29.6 11.4 28.6 12.2 30.2" fill="none" stroke="#6e4705" stroke-width="3" stroke-linecap="round"/>`
+      + `<path d="M15.2 33.6C10.6 30.8 7 32 7.2 35.6C7.4 38.8 10.6 40.6 15.6 39.8M10 31.8C9.2 29.6 11.4 28.6 12.2 30.2" fill="none" stroke="url(#${id('au')})" stroke-width="2.1" stroke-linecap="round"/>`
+      + `<path d="M8.4 34.4Q8.6 32.6 10.4 32.4" fill="none" stroke="#fffbe6" stroke-width=".5" stroke-linecap="round" opacity=".8"/>`
+      + `<path d="M24.4 43.4L25.4 46.4H30.6L31.6 43.4Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".45" stroke-linejoin="round"/>`
+      + `<path d="M20.4 48.4V49.8C20.4 51 23.8 51.7 28 51.7S35.6 51 35.6 49.8V48.4Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".45"/><ellipse cx="28" cy="48.4" rx="7.6" ry="1.9" fill="#ffe58a" stroke="#6e4705" stroke-width=".4"/>`
+      + `<ellipse cx="28" cy="46.6" rx="3.4" ry="1" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".35"/><path d="M22 48Q28 46.8 34 48" fill="none" stroke="#fff" stroke-width=".45" opacity=".6"/>`
+      + `<path d="M13.6 35.6C14.4 40.8 20.4 44.2 28 44.2C34.4 44.2 38.6 42 42 38.8C45.4 35.6 49.6 31 53.8 28.8C54.8 28.2 55.4 27 54.6 26.4C53.8 25.8 52.8 26.2 52 26.8C48.4 29.4 44.6 32 41.4 32.6C37.4 30.8 32.8 30 28 30C21.6 30 14.6 31.8 13.6 35.6Z" fill="url(#${id('br')})" stroke="#6e4705" stroke-width=".6" stroke-linejoin="round"/>`
+      + `<ellipse cx="54" cy="27.3" rx=".95" ry=".5" transform="rotate(-34 54 27.3)" fill="#4a2c06"/>`
+      + `<path d="M16.2 35.4Q28 33.2 40.4 35M17.4 39.8Q28 41.8 39.8 39.4" fill="none" stroke="#8a5a0c" stroke-width=".4"/><path d="${wave}" fill="none" stroke="#8a5a0c" stroke-width=".45" opacity=".85"/>`
+      + `<g fill="#8a5a0c">${[18.8, 22.9, 33.1, 37.2].map(x => `<circle cx="${x}" cy="37.6" r=".35"/>`).join('')}</g>`
+      + `<circle cx="28" cy="37.5" r="2.3" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".4"/><circle cx="28" cy="37.5" r="1.45" fill="url(#${id('gm')})"/><circle cx="27.5" cy="37" r=".4" fill="#fff"/>`
+      + `<path d="M43 36.6Q47 33.6 51 30.4" fill="none" stroke="#8a5a0c" stroke-width=".35" opacity=".7"/>`
+      + `<path d="M17.8 34Q22 31.6 27 31.4" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".7"/><path d="M17 40.2Q22.4 43.6 30 43.5" fill="none" stroke="#fff3c4" stroke-width=".6" stroke-linecap="round" opacity=".6"/>`
+      + `<path d="M44.2 33.4Q48.6 30.6 52.2 27.8" fill="none" stroke="#fff" stroke-width=".6" stroke-linecap="round" opacity=".6"/>`
+      + `<ellipse cx="28" cy="30.4" rx="9" ry="1.9" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".45"/>`
+      + `<path d="M20.4 30.4C21 25.8 24.2 23.4 28 23.4C31.8 23.4 35 25.8 35.6 30.4Z" fill="url(#${id('br')})" stroke="#6e4705" stroke-width=".5" stroke-linejoin="round"/>`
+      + `<path d="M21.2 28.4Q28 26.6 34.8 28.4" fill="none" stroke="#8a5a0c" stroke-width=".4"/><g fill="#8a5a0c">${[23.4, 26.2, 29.8, 32.6].map(x => `<circle cx="${x}" cy="${x < 28 ? 26 + (x - 23.4) * -.1 : 25.8}" r=".3"/>`).join('')}</g>`
+      + `<path d="M22.8 28Q23.6 25 27 24.2" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round" opacity=".7"/>`
+      + `<ellipse cx="28" cy="23.3" rx="2.4" ry=".8" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".35"/><circle cx="28" cy="21.2" r="1.9" fill="url(#${id('kb')})" stroke="#6e4705" stroke-width=".4"/>`
+      + `<path d="M27.2 19.8Q28 17 28 15.8Q28 17 28.8 19.8Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".3"/><circle cx="28" cy="15.5" r=".65" fill="#ffe58a" stroke="#6e4705" stroke-width=".3"/>`
+      + `<path class="evo-smoke" d="M54.6 18.6C53 16.2 56.2 14 54.4 11.4C53 9.4 55.2 7.4 54.2 5.4" fill="none" stroke="url(#${id('sm')})" stroke-width="1.1" stroke-linecap="round"/>`
+      + `<g class="evo-flame"><circle cx="54.4" cy="24.2" r="4.6" fill="url(#${id('fg')})"/><path d="M54.4 19.4C55 21.4 56.6 22.6 56.6 24.4C56.6 25.8 55.6 26.6 54.4 26.6C53.2 26.6 52.2 25.8 52.2 24.4C52.2 23 53.6 21.8 54.4 19.4Z" fill="url(#${id('fl')})" stroke="#e0651a" stroke-width=".3"/>`
+      + `<ellipse cx="54.4" cy="25.2" rx=".7" ry="1" fill="#fff"/></g>`];
+  },
+  /* 1994 · les engrenages d'Antiquities : trois engrenages en prise (laiton, cuivre, acier) sur un chevalet de fer ; ils tournent (.evo-gear-a / -b / -c)
+     sans jamais se chevaucher : phases calculées pour que chaque dent tombe dans un creux */
+  gears: id => {
+    const G = [[25, 31, 15.4, 14, EVM_AU, 'a', 5], [44.7, 17.2, 8.6, 8, EVM_CU, 'b', 4], [41.4, 44.75, 6, 6, EVM_FE, 'c', 0]], f = evoF;
+    const T = G.map(g => 360 / g[3]), ph = [4, 0, 0];
+    for (const j of [1, 2]) {
+      const th = Math.atan2(G[j][1] - G[0][1], G[j][0] - G[0][0]) * 180 / Math.PI, fr = ((((th - ph[0]) % T[0]) + T[0]) % T[0]) / T[0];
+      ph[j] = th + 180 - (((.5 - fr) % 1 + 1) % 1) * T[j];
+    }
+    const gear = ([cx, cy, rp, nt, C, key, sp], j) => {
+      const ri = rp - 1.1, hole = r => `M${f(cx - r)} ${cy}A${r} ${r} 0 1 0 ${f(cx + r)} ${cy}A${r} ${r} 0 1 0 ${f(cx - r)} ${cy}Z`;
+      const holes = sp ? '' : [0, 1, 2, 3].map(i => { const a = (ph[j] + 45 + i * 90) * Math.PI / 180, x = cx + Math.cos(a) * 3, y = cy + Math.sin(a) * 3; return `M${f(x - .85)} ${f(y)}A.85 .85 0 1 0 ${f(x + .85)} ${f(y)}A.85 .85 0 1 0 ${f(x - .85)} ${f(y)}Z`; }).join('');
+      const riv = sp ? Array.from({ length: sp }, (_, i) => { const a = (ph[j] + 90 + (i + .5) * 360 / sp) * Math.PI / 180; return `<circle cx="${f(cx + Math.cos(a) * ri * .53)}" cy="${f(cy + Math.sin(a) * ri * .53)}" r="${f(Math.max(.35, rp * .045))}"/>`; }).join('') : '';
+      return `<g class="evo-gear-${key}" style="transform-origin:${cx}px ${cy}px"><path d="${evmGear(cx, cy, rp, nt, ph[j], 2.2, sp) + holes}" fill="url(#${id('g' + key)})" fill-rule="evenodd" stroke="${C[4]}" stroke-width=".55" stroke-linejoin="round"/>`
+        + `<circle cx="${cx}" cy="${cy}" r="${f(ri - .9)}" fill="none" stroke="${C[4]}" stroke-width=".35" opacity=".5"/><circle cx="${cx}" cy="${cy}" r="${f(ri - .5)}" fill="none" stroke="${C[0]}" stroke-width=".3" opacity=".55"/>`
+        + `<g fill="${C[1]}" stroke="${C[4]}" stroke-width=".25">${riv}</g>`
+        + `<circle cx="${cx}" cy="${cy}" r="${f(rp * .27)}" fill="url(#${id('g' + key)})" stroke="${C[4]}" stroke-width=".45"/><circle cx="${cx}" cy="${cy}" r="${f(rp * .13)}" fill="${C[3]}" stroke="${C[4]}" stroke-width=".3"/>`
+        + `<path d="M${f(cx - rp * .1)} ${f(cy - rp * .06)}L${f(cx + rp * .1)} ${f(cy + rp * .06)}" stroke="${C[4]}" stroke-width=".35"/>`
+        + `<path d="M${f(cx + Math.cos(3.6) * (ri - .5))} ${f(cy + Math.sin(3.6) * (ri - .5))}A${f(ri - .5)} ${f(ri - .5)} 0 0 1 ${f(cx + Math.cos(4.5) * (ri - .5))} ${f(cy + Math.sin(4.5) * (ri - .5))}" fill="none" stroke="#fff" stroke-width=".6" stroke-linecap="round" opacity=".55"/>`
+        + `</g>`;
+    };
+    return [G.map(([, , , , C, key]) => `<radialGradient id="${id('g' + key)}" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="${C[0]}"/><stop offset=".32" stop-color="${C[1]}"/><stop offset=".68" stop-color="${C[2]}"/><stop offset="1" stop-color="${C[3]}"/></radialGradient>`).join(''),
+      `<path d="M25 31L16 51.2M25 31L34 51.2" stroke="#2e2a3e" stroke-width="1.7" stroke-linecap="round"/><path d="M14.4 50.6H18M32.2 50.6H35.8" stroke="#2e2a3e" stroke-width="1.4" stroke-linecap="round"/>`
+      + `<path d="M25 31L44.7 17.2M25 31L41.4 44.75" stroke="#3a3450" stroke-width="1.5" stroke-linecap="round"/><path d="M25.2 30.4L44.4 16.8M25.6 30.6L41.6 44.2" stroke="#8a84a8" stroke-width=".35" opacity=".7"/>`
+      + G.map(gear).join('')];
+  },
+  /* légendaire · le lotus d'or : fleur stylisée originale (pas une carte) sur sa feuille de nénuphar dorée, perle de lumière au cœur (toujours allumé) */
+  lotus: id => [evmLotusDefs(id), evmLotus(id)],
+};
+
+Object.assign(EV_ART, {
+  /** Relique du musée (viewBox 64 × 64) : o.k clé de evpacks.js › museum.relics (ou 'lotus') ; o.lit : célébration ; o.cls : classes en plus. */
+  relicArt: (o = {}) => { const k = Object.prototype.hasOwnProperty.call(EVM_RELIC, o.k) && o.k !== '_' ? o.k : '_'; return evmStage(o, k === '_' ? 'card' : k, EVM_RELIC[k]); },
+});
+
+/* ── Anniversaire de Magic : le musée (salles, inauguration, gâteau du jour J, récompenses) ─────────────────────────────────────────────────── */
+/* Marbre du musée : [reflet, clair, moyen, ombre, ombre portée, trait] */
+const EVM_MB = ['#fffdf7', '#f4eee2', '#e3d8c4', '#c9bb9f', '#9c8c70', '#5e5040'];
+/* Motifs des frontons (repère centré en 0 0, environ 14 × 8, or en relief) : 0 livre ouvert (les origines), 1 couronne de laurier et étoile (l'âge d'or),
+   2 planète en orbite (le nouveau millénaire : Magic en ligne), 3 écu et épées croisées (l'ère du Commander), 4 étincelle (aujourd'hui). */
+const EVM_MOTIF = [
+  `<path d="M0-1.8C-1.8-3-4.4-3.2-6.6-2.4V2.8C-4.4 2-1.8 2.2 0 3.4C1.8 2.2 4.4 2 6.6 2.8V-2.4C4.4-3.2 1.8-3 0-1.8Z"/><path d="M0-1.8V3.4M-5.6-1.1Q-3.2-1.9-1-.8M-5.6.6Q-3.2-.2-1 .9M5.6-1.1Q3.2-1.9 1-.8M5.6.6Q3.2-.2 1 .9" fill="none" stroke-width=".3"/>`,
+  `<path d="M-.8 3.4C-4.6 2.8-6.6.2-6-3.4M.8 3.4C4.6 2.8 6.6.2 6-3.4" fill="none" stroke-width=".55"/>`
+    + [1, -1].map(s => [[-3.4, 2.7, -30], [-5.2, 1.3, -58], [-6.1, -.9, -82], [-6.1, -3, -100]].map(([x, y, r]) => `<ellipse cx="${x * s}" cy="${y}" rx="1.15" ry=".5" transform="rotate(${r * s} ${x * s} ${y})"/>`).join('')).join('')
+    + `<path d="${evnStar5(0, -.3, 2.6)}"/>`,
+  `<g transform="rotate(-12)"><path d="M-6.4 0A6.4 1.6 0 0 1 6.4 0" fill="none" stroke-width=".75"/></g><circle r="2.6" cy="-.1"/><path d="M-1.4-1.4A1.6 1.6 0 0 1 .4-2" fill="none" stroke="#fffbe6" stroke-width=".4"/>`
+    + `<g transform="rotate(-12)"><path d="M-6.4 0A6.4 1.6 0 0 0 6.4 0" fill="none" stroke-width=".75"/></g><circle cx="-5.6" cy="-2.8" r=".55"/><circle cx="5.4" cy="2.6" r=".45"/>`,
+  `<path d="M-5.4 3.2L6-3.4M5.4 3.2L-6-3.4" fill="none" stroke-width="1" stroke-linecap="round"/><path d="M-4.8 1.46L-3.6 3.54M4.8 1.46L3.6 3.54" fill="none" stroke-width=".7" stroke-linecap="round"/>`
+    + `<circle cx="-5.8" cy="3.5" r=".55"/><circle cx="5.8" cy="3.5" r=".55"/><circle r="3"/><circle r="2.1" fill="none" stroke-width=".3"/><circle r=".8"/>`,
+  `<path d="M-6.6 0H-5.2M5.2 0H6.6M-4.4-3L-3.6-2.4M4.4-3L3.6-2.4M-4.4 3L-3.6 2.4M4.4 3L3.6 2.4" fill="none" stroke-width=".5" stroke-linecap="round"/>`
+    + `<path d="${evnSpark(0, 0, 4.2)}"/><path d="${evnSpark(0, 0, 2.4)}" transform="rotate(45)"/><circle r=".7" fill="#fffbe6"/>`,
+];
+/* Reliques en ombre dans les fenêtres allumées (x : milieu de la fenêtre ; posées sur un petit socle en y 44,2) : vase, carte, orbe, couronne, buste, livre */
+const EVM_WIN_OBJ = [
+  x => `M${x - .9} 44.2C${x - 1.4} 42.6 ${x - 1} 41.2 ${x - .4} 40.8V40H${x + .4}V40.8C${x + 1} 41.2 ${x + 1.4} 42.6 ${x + .9} 44.2Z`,
+  x => `M${x - .9} 44.2L${x - .6} 40.4H${x + 1.1}L${x + .8} 44.2Z`,
+  x => `M${x - 1.1} 42.6A1.1 1.1 0 1 0 ${x + 1.1} 42.6A1.1 1.1 0 1 0 ${x - 1.1} 42.6ZM${x - .5} 44.2L${x - .3} 43.6H${x + .3}L${x + .5} 44.2Z`,
+  x => `M${x - 1.2} 44.2V41.6L${x - .6} 42.6L${x} 41L${x + .6} 42.6L${x + 1.2} 41.6V44.2Z`,
+  x => `M${x - 1.1} 44.2Q${x - 1.1} 42.6 ${x} 42.4Q${x + 1.1} 42.6 ${x + 1.1} 44.2ZM${x - .65} 41.4A.65 .65 0 1 0 ${x + .65} 41.4A.65 .65 0 1 0 ${x - .65} 41.4Z`,
+  x => `M${x - 1.3} 44.2V42.4L${x} 42.9L${x + 1.3} 42.4V44.2L${x} 44.6Z`,
+].map(g => x => g(x).replace(/(\d+\.\d{3,})/g, m => evoF(+m)));
+/** Ellipse en un tracé (anneaux de ciseaux…). */
+const evmEll = (cx, cy, rx, ry) => `M${evoF(cx - rx)} ${evoF(cy)}A${rx} ${ry} 0 1 0 ${evoF(cx + rx)} ${evoF(cy)}A${rx} ${ry} 0 1 0 ${evoF(cx - rx)} ${evoF(cy)}Z`;
+/** Glaçage d'un étage de gâteau : dessus elliptique (cx, y, rx, ry) et bord avant qui coule ; drips : [x, largeur, longueur] ; b : épaisseur du bord. */
+function evmIcing(cx, y, rx, ry, drips, b = 1.6) {
+  const f = evoF, yb = x => y + ry * Math.sqrt(Math.max(0, 1 - ((x - cx) / rx) ** 2)) + b;
+  let d = `M${f(cx - rx)} ${f(y)}A${f(rx)} ${f(ry)} 0 0 1 ${f(cx + rx)} ${f(y)}L${f(cx + rx)} ${f(y + b)}`, x = cx + rx;
+  for (const [xd, wd, L] of drips.slice().sort((a, c) => c[0] - a[0])) {
+    const xr = xd + wd / 2, xl = xd - wd / 2, yr = yb(xr), yl = yb(xl), yo = Math.max(yr, yl) + L - wd / 2;
+    for (let s = x - 1.4; s > xr + .8; s -= 1.4) d += `L${f(s)} ${f(yb(s))}`;
+    d += `L${f(xr + .8)} ${f(yb(xr + .8))}Q${f(xr)} ${f(yr)} ${f(xr)} ${f(yr + .9)}L${f(xr)} ${f(yo)}A${f(wd / 2)} ${f(wd / 2)} 0 0 1 ${f(xl)} ${f(yo)}L${f(xl)} ${f(yl + .9)}Q${f(xl)} ${f(yl)} ${f(xl - .8)} ${f(yb(xl - .8))}`;
+    x = xl - .8;
+  }
+  for (let s = x - 1.4; s > cx - rx; s -= 1.4) d += `L${f(s)} ${f(yb(s))}`;
+  return d + `L${f(cx - rx)} ${f(y + b)}Z`;
+}
+
+Object.assign(EV_ART, {
+  /** Façade d'une salle du musée (viewBox 96 × 64) : o.k motif du fronton (0–4), o.n fenêtres allumées (0–6), o.lit : salle inaugurée. */
+  museumHall: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, f = evoF, lit = !!o.lit, k = Math.max(0, Math.min(4, Math.floor(Number(o.k) || 0)));
+    const on = lit ? 6 : Math.max(0, Math.min(6, Math.floor(Number(o.n) || 0))), M = EVM_MB, ln = (w = .4) => `stroke="${M[5]}" stroke-width="${w}" stroke-linejoin="round"`;
+    const win = (x, i) => {
+      const lt = i < on, a = f(x - 1.9), b = f(x + 1.9);
+      return (lt ? `<ellipse cx="${x}" cy="39.4" rx="5.4" ry="8" fill="url(#${id('wh')})"/>` : '')
+        + `<path d="M${f(x - 2.7)} 45.6V34.4A2.7 2.7 0 0 1 ${f(x + 2.7)} 34.4V45.6Z" fill="${M[3]}" ${ln(.35)}/>`
+        + `<path d="M${a} 45.6V34.4A1.9 1.9 0 0 1 ${b} 34.4V45.6Z" fill="url(#${id(lt ? 'wl' : 'gl')})" stroke="${M[5]}" stroke-width=".3"/>`
+        + (lt ? `<path d="${EVM_WIN_OBJ[i](x)}" fill="#7a4a10" opacity=".55"/><rect x="${f(x - 1.1)}" y="44.2" width="2.2" height="1.4" fill="#7a4a10" opacity=".5"/>`
+          : `<path d="M${x} 32.8V45.6M${a} 39.6H${b}" stroke="#7d86ad" stroke-width=".3" opacity=".7"/><path d="M${f(x - 1.2)} 44L${f(x + .7)} 35.2" stroke="#fff" stroke-width=".45" opacity=".25"/>`)
+        + `<path d="M${f(x - .75)} 30.9H${f(x + .75)}L${f(x + .5)} 32.6H${f(x - .5)}Z" fill="${M[1]}" ${ln(.3)}/><rect x="${f(x - 3.1)}" y="45.6" width="6.2" height="1" fill="${M[1]}" ${ln(.3)}/>`;
+    };
+    const wing = (x0, w0) => {
+      let jn = `M${f(x0 - .6)} 54.4H${f(x0 + 20.6)}`, bal = '', den = '', crs = '';
+      for (const dx of [4, 10, 16]) jn += `M${f(x0 + dx)} 48.4V54.4`;
+      for (const dx of [1, 7, 13, 19]) jn += `M${f(x0 + dx)} 54.4V60.6`;
+      for (let bx = x0 + 2.8; bx < x0 + 18; bx += 1.6) bal += `<ellipse cx="${f(bx)}" cy="24.2" rx=".55" ry="1.3"/>`;
+      for (let dx = x0 + .4; dx < x0 + 19.8; dx += 1.4) den += `M${f(dx)} 28.1h.7v.7h-.7Z`;
+      for (const y of [32.4, 36.8, 41.2]) crs += `M${x0} ${y}H${f(x0 + 20)}`;
+      const urn = x => `<path d="M${f(x - .9)} 21.3C${f(x - 1.3)} 19.8 ${f(x - .6)} 19 ${f(x)} 18.7C${f(x + .6)} 19 ${f(x + 1.3)} 19.8 ${f(x + .9)} 21.3Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".3"/>`;
+      return `<rect x="${f(x0 - .6)}" y="48.4" width="21.2" height="12.2" fill="${M[2]}" ${ln()}/><path d="${jn}" stroke="${M[4]}" stroke-width=".3" opacity=".6"/>`
+        + `<rect x="${x0}" y="28" width="20" height="20.4" fill="url(#${id('wa')})" ${ln()}/><path d="${crs}" stroke="${M[3]}" stroke-width=".3" opacity=".55"/>`
+        + `<rect x="${x0}" y="28" width="20" height=".8" fill="${M[4]}" opacity=".35"/><path d="${den}" fill="${M[3]}"/>`
+        + `<rect x="${f(x0 - 1)}" y="25.8" width="22" height="2.2" fill="${M[1]}" ${ln()}/><path d="M${f(x0 - 1)} 26.3H${f(x0 + 21)}" stroke="${M[0]}" stroke-width=".4"/>`
+        + `<g fill="${M[2]}" stroke="${M[5]}" stroke-width=".25">${bal}</g><rect x="${x0}" y="21.6" width="20" height="1" fill="${M[1]}" ${ln(.35)}/>`
+        + `<rect x="${x0}" y="21.2" width="1.8" height="4.6" fill="${M[1]}" ${ln(.35)}/><rect x="${f(x0 + 18.2)}" y="21.2" width="1.8" height="4.6" fill="${M[1]}" ${ln(.35)}/>`
+        + urn(x0 + .9) + urn(x0 + 19.1) + [0, 1, 2].map(j => win(x0 + 4 + j * 6, w0 + j)).join('');
+    };
+    const col = c => `<path d="M${f(c - 2.1)} 51.2L${f(c - 1.8)} 26.4H${f(c + 1.8)}L${f(c + 2.1)} 51.2Z" fill="url(#${id('co')})" ${ln(.35)}/>`
+      + `<path d="M${f(c - .9)} 27V50.6M${c} 27V50.8M${f(c + .9)} 27V50.6" stroke="${M[4]}" stroke-width=".25" opacity=".55"/>`
+      + `<rect x="${f(c - 2.7)}" y="50.6" width="5.4" height=".9" fill="${M[1]}" ${ln(.3)}/><rect x="${f(c - 3)}" y="51.5" width="6" height=".9" fill="${M[2]}" ${ln(.3)}/>`
+      + `<rect x="${f(c - 2.2)}" y="25.5" width="4.4" height=".9" fill="${M[1]}" ${ln(.3)}/>`
+      + `<g fill="${M[1]}" ${ln(.3)}><circle cx="${f(c - 2.3)}" cy="25.6" r=".85"/><circle cx="${f(c + 2.3)}" cy="25.6" r=".85"/></g><g fill="${M[4]}"><circle cx="${f(c - 2.3)}" cy="25.6" r=".3"/><circle cx="${f(c + 2.3)}" cy="25.6" r=".3"/></g>`
+      + `<rect x="${f(c - 3)}" y="24.5" width="6" height=".8" fill="${M[0]}" ${ln(.3)}/>`;
+    let tri = '', den = '';
+    for (let x = 25.2; x < 71; x += 4.1) if (x < 42 || x > 53.6) tri += `<rect x="${f(x)}" y="19.5" width="1.4" height="2.1" fill="${M[3]}"/><path d="M${f(x + .47)} 19.6V21.5M${f(x + .93)} 19.6V21.5" stroke="${M[4]}" stroke-width=".2"/>`;
+    for (let x = 22.6; x < 73.2; x += 1.3) den += `M${f(x)} 19.2h.6v.6h-.6Z`;
+    /* fête : guirlande de fanions du mana le long de l'entablement, ruban coupé noué aux colonnes de la porte */
+    let flags = '';
+    if (lit) {
+      const P0 = [23.4, 22.6], C = [48, 31.6], P2 = [72.6, 22.6];
+      for (let i = 0, t = .055; t < .96; t += .081, i++) {
+        const u = 1 - t, x = u * u * P0[0] + 2 * t * u * C[0] + t * t * P2[0], y = u * u * P0[1] + 2 * t * u * C[1] + t * t * P2[1];
+        const dx = 2 * u * (C[0] - P0[0]) + 2 * t * (P2[0] - C[0]), dy = 2 * u * (C[1] - P0[1]) + 2 * t * (P2[1] - C[1]), l = Math.hypot(dx, dy), tx = dx / l, ty = dy / l, m = EVY_MANA[i % 5];
+        flags += `<path d="M${f(x - tx * 1.2)} ${f(y - ty * 1.2)}L${f(x + tx * 1.2)} ${f(y + ty * 1.2)}L${f(x - ty * 2.8)} ${f(y + tx * 2.8)}Z" fill="${m[2]}" stroke="${m[4]}" stroke-width=".3" stroke-linejoin="round"/>`;
+      }
+      flags = `<g class="evo-flags"><path d="M23.4 22.6Q48 31.6 72.6 22.6" fill="none" stroke="#6e4705" stroke-width=".35"/>${flags}</g>`;
+    }
+    const R = EVN_RIB.rouge, rib = lit ? `<rect x="37.2" y="39.6" width="4.4" height="1.5" fill="${R[1]}" stroke="${R[3]}" stroke-width=".3"/><rect x="54.4" y="39.6" width="4.4" height="1.5" fill="${R[1]}" stroke="${R[3]}" stroke-width=".3"/>`
+      + `<path d="${evmBand([[41.2, 40.4], [42.4, 41.8], [43, 44.2], [43, 47]], 1.7, .9)}${evmBand([[54.8, 40.4], [53.6, 41.8], [53, 44.2], [53, 47.2]], 1.7, .9)}" fill="url(#${id('rb')})" stroke="${R[3]}" stroke-width=".3" stroke-linejoin="round"/>`
+      + evqBow(41.4, 40.3, .12, R, id('rb')) + evqBow(54.6, 40.3, .12, R, id('rb')) : '';
+    return `<svg class="evo evo-hall evo-hall-${k}${lit ? ' evo-lit' : ''}${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 96 64" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('g')}" cx="48" cy="34" r="50" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff3c4" stop-opacity="${lit ? .85 : .3}"/><stop offset=".55" stop-color="#f2c230" stop-opacity="${lit ? .3 : .07}"/><stop offset="1" stop-color="#f2c230" stop-opacity="0"/></radialGradient>`
+      + (lit ? `<linearGradient id="${id('y')}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fffbe0" stop-opacity=".9"/><stop offset="1" stop-color="#f2c230" stop-opacity="0"/></linearGradient>`
+        + `<linearGradient id="${id('rb')}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${R[0]}"/><stop offset=".5" stop-color="${R[1]}"/><stop offset="1" stop-color="${R[2]}"/></linearGradient>` : '')
+      + `<linearGradient id="${id('wa')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${M[0]}"/><stop offset=".6" stop-color="${M[1]}"/><stop offset="1" stop-color="${M[2]}"/></linearGradient>`
+      + `<linearGradient id="${id('sh')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfc2a6"/><stop offset="1" stop-color="#ddd2bb"/></linearGradient>`
+      + `<linearGradient id="${id('co')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b9aa8c"/><stop offset=".26" stop-color="#fffdf7"/><stop offset=".5" stop-color="#efe8da"/><stop offset=".8" stop-color="#d2c5ab"/><stop offset="1" stop-color="#9f8f72"/></linearGradient>`
+      + `<linearGradient id="${id('ty')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9dfca"/><stop offset="1" stop-color="#cdbfa2"/></linearGradient>`
+      + `<linearGradient id="${id('gl')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3466"/><stop offset="1" stop-color="#141832"/></linearGradient>`
+      + `<radialGradient id="${id('wl')}" cx=".5" cy=".62" r=".72"><stop offset="0" stop-color="#fffbe6"/><stop offset=".45" stop-color="#ffe07a"/><stop offset=".85" stop-color="#e3a22a"/><stop offset="1" stop-color="#a8650f"/></radialGradient>`
+      + `<radialGradient id="${id('wh')}"><stop offset="0" stop-color="#ffd86a" stop-opacity=".6"/><stop offset="1" stop-color="#ffd86a" stop-opacity="0"/></radialGradient>`
+      + evmMetal(id('dr'), 43.8, 0, 52.2, 0, ['#e8c9a0', '#b58a58', '#8a5f34', '#5a3a1a', '#2e1c0a'])
+      + `<radialGradient id="${id('in')}" cx=".5" cy=".72" r=".8"><stop offset="0" stop-color="#fffbe6"/><stop offset=".4" stop-color="#ffd86a"/><stop offset=".78" stop-color="#e39a2a"/><stop offset="1" stop-color="#7a4310"/></radialGradient>`
+      + `<linearGradient id="${id('sp')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe58a" stop-opacity=".7"/><stop offset="1" stop-color="#ffe58a" stop-opacity="0"/></linearGradient>`
+      + `<linearGradient id="${id('mo')}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${EVM_AU[1]}"/><stop offset=".35" stop-color="${EVM_AU[0]}"/><stop offset=".6" stop-color="${EVM_AU[2]}"/><stop offset="1" stop-color="${EVM_AU[3]}"/></linearGradient>`
+      + evmMetal(id('au'), 40, 0, 56, 0)
+      + `<radialGradient id="${id('o')}"><stop offset="0" stop-color="#1a1030" stop-opacity=".35"/><stop offset="1" stop-color="#1a1030" stop-opacity="0"/></radialGradient></defs>`
+      + `<ellipse class="evo-glow" cx="48" cy="34" rx="50" ry="40" fill="url(#${id('g')})"/>` + (lit ? evnRays(id('y'), 48, 30, 32) : '')
+      + `<ellipse cx="48" cy="61.4" rx="47" ry="2.4" fill="url(#${id('o')})"/>`
+      + wing(4.6, 0) + wing(71.4, 3)
+      /* portique : mur du fond dans l'ombre, porte (bronze fermée, ou ouverte sur la salle éclairée), marches, colonnes */
+      + `<rect x="26.6" y="24.6" width="42.8" height="27.8" fill="url(#${id('sh')})" ${ln()}/><rect x="26.6" y="24.6" width="42.8" height="2.2" fill="#3a2a10" opacity=".14"/>`
+      + `<rect x="42.4" y="31.4" width="11.2" height="21" fill="${M[3]}" ${ln()}/><rect x="41.4" y="30.4" width="13.2" height="1.3" fill="${M[1]}" ${ln(.35)}/><circle cx="48" cy="28.4" r="1.2" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".3"/>`
+      + (lit ? `<rect x="43.8" y="33" width="8.4" height="19.4" fill="url(#${id('in')})"/><path d="M45.4 52.4V40.6A2.6 2.6 0 0 1 50.6 40.6V52.4Z" fill="#fff3c4" opacity=".45"/>`
+        + `<rect x="46.6" y="47.6" width="2.8" height="4.8" fill="#9a5a14" opacity=".55"/><path d="M46.9 47.6L47.3 44H48.9L49.1 47.6Z" fill="#9a5a14" opacity=".55"/>`
+        + `<path d="M43.8 33L45.6 34.6V51.2L43.8 52.4ZM52.2 33L50.4 34.6V51.2L52.2 52.4Z" fill="url(#${id('dr')})" stroke="#2e1c0a" stroke-width=".3" stroke-linejoin="round"/>`
+        : `<rect x="43.8" y="33" width="4.2" height="19.4" fill="url(#${id('dr')})" stroke="#2e1c0a" stroke-width=".35"/><rect x="48" y="33" width="4.2" height="19.4" fill="url(#${id('dr')})" stroke="#2e1c0a" stroke-width=".35"/>`
+        + `<path d="M44.6 34.4h2.6v6.6h-2.6ZM44.6 42.4h2.6v8.4h-2.6ZM48.8 34.4h2.6v6.6h-2.6ZM48.8 42.4h2.6v8.4h-2.6Z" fill="none" stroke="#2e1c0a" stroke-width=".3" opacity=".6"/>`
+        + `<path d="M44.8 34.6V40.8M44.8 42.6V50.6M49 34.6V40.8M49 42.6V50.6" stroke="#f0d4a8" stroke-width=".25" opacity=".6"/>`
+        + `<g fill="none" stroke="#f2c230" stroke-width=".35"><circle cx="47.2" cy="43.6" r=".6"/><circle cx="48.8" cy="43.6" r=".6"/></g>`)
+      + `<rect x="22.6" y="57.8" width="50.8" height="2.8" fill="${M[2]}" ${ln()}/><rect x="24.6" y="55.1" width="46.8" height="2.7" fill="${M[1]}" ${ln()}/><rect x="26.6" y="52.4" width="42.8" height="2.7" fill="${M[1]}" ${ln()}/>`
+      + `<path d="M23 58.2H73M25 55.5H71M27 52.8H69" stroke="${M[0]}" stroke-width=".45"/>`
+      + (lit ? `<path d="M43.8 52.4H52.2L57.4 60.6H38.6Z" fill="url(#${id('sp')})"/>` : '')
+      + [30.6, 39.4, 56.6, 65.4].map(col).join('') + rib
+      /* entablement : architrave, frise à triglyphes et cartel du numéro de salle (chiffres romains), corniche à denticules */
+      + `<rect x="23.4" y="21.8" width="49.2" height="2.8" fill="${M[1]}" ${ln()}/><path d="M23.4 23H72.6" stroke="${M[3]}" stroke-width=".3"/>`
+      + `<rect x="23.4" y="19.2" width="49.2" height="2.6" fill="${M[2]}" ${ln()}/>${tri}`
+      + `<rect x="42.6" y="19.4" width="10.8" height="2.2" rx=".4" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".3"/>` + evmDigits(['I', 'II', 'III', 'IV', 'V'][k], 48, 20.5, 1.5, 'stroke="#5a3a06"', .38)
+      + `<rect x="22" y="17.4" width="52" height="1.8" fill="${M[0]}" ${ln()}/><path d="${den}" fill="${M[3]}"/>`
+      /* fronton : corniche rampante, tympan, motif de la salle en or, acrotères */
+      + `<path d="M21.4 17.6L48 3.6L74.6 17.6Z" fill="${M[0]}" ${ln(.5)}/><path d="M26.2 16.8L48 6L69.8 16.8Z" fill="url(#${id('ty')})" ${ln(.35)}/><path d="M23.6 16.9L48 4.6L72.4 16.9" fill="none" stroke="${M[3]}" stroke-width=".3"/>`
+      + `<g transform="translate(48 12.7)" fill="url(#${id('mo')})" stroke="#6e4705" stroke-width=".35" stroke-linejoin="round">${EVM_MOTIF[k]}</g>`
+      + `<path d="M48 3.8C46.4 2.6 46.4 1 47.2.4C47.6 1.4 47.8 2.2 48 3C48.2 2.2 48.4 1.4 48.8.4C49.6 1 49.6 2.6 48 3.8Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".3"/>`
+      + `<g fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".3"><circle cx="21.6" cy="16.6" r="1"/><circle cx="74.4" cy="16.6" r="1"/></g>`
+      + flags + (lit ? evmSpk([[10, 12, 2.6], [86, 10, 2.4], [32, 6, 1.8], [64, 5, 2], [4, 32, 1.8], [92, 30, 2]]) : '') + `</svg>`;
+  },
+  /** Ruban d'inauguration coupé (viewBox 64 × 32) : poteaux dorés, ruban de satin rouge tranché en V, ciseaux d'or ; lames, bouts de ruban et étincelles animés. */
+  ribbonCut: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, R = EVN_RIB.rouge, f = evoF;
+    const L = [[3.8, 11], [9.4, 13], [15, 14.2], [19.6, 15.4], [22.8, 18.2], [24.4, 22.6], [24.8, 27.4]], Rt = L.map(([x, y], i) => [64 - x, y + i * .1]);
+    const side = (P, cls) => `<g class="${cls}"><path d="${evmBand(P, 5.4, 2.2)}" fill="url(#${id('rb')})" stroke="${R[3]}" stroke-width=".5" stroke-linejoin="round"/>`
+      + `<path d="${evqCurve(P.slice(0, -1).map(([x, y]) => [x, y - 1.3]))}" fill="none" stroke="#ffd6cf" stroke-width=".8" stroke-linecap="round" opacity=".75"/>`
+      + `<path d="${evqCurve(P.slice(0, -1).map(([x, y]) => [x, y + 1.6]))}" fill="none" stroke="${R[2]}" stroke-width=".55" stroke-linecap="round" opacity=".7"/></g>`;
+    const post = x => `<rect x="${f(x - 1.1)}" y="10.6" width="2.2" height="19.4" rx=".5" fill="url(#${id('pm')})" stroke="#6e4705" stroke-width=".4"/>`
+      + `<path d="M${f(x - 2.8)} 31.2Q${x} 28.6 ${f(x + 2.8)} 31.2Z" fill="url(#${id('pm')})" stroke="#6e4705" stroke-width=".4" stroke-linejoin="round"/>`
+      + `<circle cx="${x}" cy="9" r="2" fill="url(#${id('kb')})" stroke="#6e4705" stroke-width=".4"/><circle cx="${f(x - .6)}" cy="8.4" r=".5" fill="#fff" opacity=".85"/>`;
+    /* ciseaux : lame A (pointe en bas à gauche, anneau en haut à droite), lame B en miroir (x → 65,2 − x) */
+    const bladeA = `<path d="M33.6 15C33 19.6 31 25.4 27.4 29.8C28.4 27.2 30 22 31.4 15.6Z" fill="url(#${id('sg')})" stroke="#6e4705" stroke-width=".45" stroke-linejoin="round"/>`
+      + `<path d="M31.4 15.8L28 28.6" stroke="#fffbe6" stroke-width=".45" stroke-linecap="round"/>`
+      + `<path d="M33.4 15.8L37.2 9.2L38.8 10.2L34.8 16.4Z" fill="url(#${id('sg')})" stroke="#6e4705" stroke-width=".45" stroke-linejoin="round"/>`
+      + `<path d="${evmEll(39.9, 6.4, 3.5, 2.7)}${evmEll(39.9, 6.4, 2.2, 1.5)}" transform="rotate(-28 39.9 6.4)" fill="url(#${id('sg')})" fill-rule="evenodd" stroke="#6e4705" stroke-width=".45"/>`
+      + `<path d="M37.4 5.2Q38.6 3.8 40.6 3.8" transform="rotate(-28 39.9 6.4)" fill="none" stroke="#fffbe6" stroke-width=".5" stroke-linecap="round"/>`;
+    return `<svg class="evo evo-ribbon-cut${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 32" aria-hidden="true" focusable="false"><defs>`
+      + `<linearGradient id="${id('rb')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${R[0]}"/><stop offset=".45" stop-color="${R[1]}"/><stop offset="1" stop-color="${R[2]}"/></linearGradient>`
+      + `<linearGradient id="${id('pm')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b9800f"/><stop offset=".35" stop-color="#fffbe6"/><stop offset=".6" stop-color="#f2c230"/><stop offset="1" stop-color="#6e4705"/></linearGradient>`
+      + evmBall(id('kb'), ['#fffbe6', '#ffe58a', '#e0a82a', '#7a4f06']) + evmMetal(id('sg'), 24, 2, 42, 30) + `</defs>`
+      + `<g fill-opacity=".9">${[[9, 24, 0, 20], [52, 3.4, 1, -30], [56, 25, 3, 40], [17, 3.6, 4, 10], [45, 29.4, 2, -16], [5.6, 29, 1, 60]].map(([x, y, c, r]) => `<rect x="${x - 1.2}" y="${y - .6}" width="2.4" height="1.2" rx=".3" fill="${EVY_MANA[c][2]}" transform="rotate(${r} ${x} ${y})"/>`).join('')}</g>`
+      + post(2.4) + post(61.6) + side(L, 'evo-rib-l') + side(Rt, 'evo-rib-r')
+      + `<circle cx="3.8" cy="10.9" r="1.3" fill="${R[2]}" stroke="${R[3]}" stroke-width=".35"/><circle cx="60.2" cy="10.9" r="1.3" fill="${R[2]}" stroke="${R[3]}" stroke-width=".35"/>`
+      + `<g class="evo-blade-b"><g transform="matrix(-1 0 0 1 65.2 0)">${bladeA}</g></g><g class="evo-blade-a">${bladeA}</g>`
+      + `<circle cx="32.6" cy="15.4" r="1.4" fill="url(#${id('kb')})" stroke="#6e4705" stroke-width=".4"/><path d="M31.9 14.9L33.3 15.9" stroke="#6e4705" stroke-width=".35"/>`
+      + evmSpk([[32.6, 23, 2.2], [26.4, 4.2, 1.4], [44.6, 21.4, 1.5]]) + `</svg>`;
+  },
+  /** Gâteau d'anniversaire du jour J (viewBox 96 × 96) : trois étages, glaçage qui coule, perles du mana, cinq bougies allumées, plaque vide pour le nombre
+   *  (posé en HTML : centre 48, 70 du viewBox) ; o.lit : halo, rayons, étincelles. */
+  cake: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, f = evoF, lit = !!o.lit;
+    /* étages : [x gauche, x droit, haut, bas, ry, teintes [clair, moyen, foncé, contour], gouttes du glaçage [x, largeur, longueur]] */
+    const TI = [
+      [14, 82, 54, 76, 5, ['#d6e8ff', '#7fb0ff', '#3d6fc8', '#1d3a78'], [[17.4, 2.4, 6.6], [22.4, 2.8, 8.4], [27.6, 2.2, 5], [32.4, 2.6, 2.4], [38.4, 2.2, 2.2], [44, 2.6, 2], [50.4, 2.2, 2.2], [56, 2.6, 2.2], [61.4, 2.4, 2.4], [66.4, 2.4, 6], [71.2, 2.8, 8.6], [76.6, 2.2, 5.6]]],
+      [23, 73, 38, 54, 4, ['#ffd8cc', '#ff7a5c', '#d0452e', '#6a1a0e'], [[26.4, 2.4, 5.4], [31.2, 2.6, 7.4], [36.4, 2.2, 4.4], [41.8, 2.6, 6.8], [47.4, 2.4, 4], [52.6, 2.6, 7], [58, 2.2, 4.6], [63.2, 2.6, 7.6], [68.6, 2.2, 5]]],
+      [32, 64, 26, 38, 3, ['#e4fbec', '#8fe0aa', '#3fae6a', '#145a32'], [[35.2, 2.2, 4.4], [39.8, 2.4, 6.2], [44.8, 2, 3.6], [49.6, 2.4, 5.8], [54.4, 2, 3.8], [59, 2.4, 5.6]]],
+    ];
+    const by = (x, cx, rx, y, ry) => y + ry * Math.sqrt(Math.max(0, 1 - ((x - cx) / rx) ** 2));
+    const tier = ([x0, x1, y0, y1, ry, C, D], i) => {
+      const cx = (x0 + x1) / 2, rx = (x1 - x0) / 2, nP = [22, 16, 11][i];
+      let pearls = '';
+      for (let j = 0; j < nP; j++) { const x = x0 + (j + .5) * (x1 - x0) / nP, y = by(x, cx, rx, y1, ry) - .3, r = [1.45, 1.2, 1][i], m = EVY_MANA[j % 5];
+        pearls += `<circle cx="${f(x)}" cy="${f(y)}" r="${r}" fill="${m[2]}" stroke="${m[4]}" stroke-width=".3"/><circle cx="${f(x - r * .35)}" cy="${f(y - r * .35)}" r="${f(r * .32)}" fill="#fff" opacity=".85"/>`; }
+      return `<path d="M${x0} ${y0}V${y1}A${rx} ${ry} 0 0 0 ${x1} ${y1}V${y0}Z" fill="url(#${id('t' + i)})" stroke="${C[3]}" stroke-width=".55"/>`
+        + `<path d="M${f(x0 + 1.6)} ${y0 + 2}V${f(y1 - 1)}" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity=".35"/>`
+        + `<path d="${evmIcing(cx, y0, rx, ry, D)}" fill="url(#${id('ic')})" stroke="#c9b08a" stroke-width=".45" stroke-linejoin="round"/>`
+        + `<path d="M${f(cx - rx * .7)} ${f(y0 - ry * .45)}A${f(rx * .8)} ${f(ry * .7)} 0 0 1 ${f(cx + rx * .2)} ${f(y0 - ry * .75)}" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round" opacity=".9"/>`
+        + pearls;
+    };
+    /* guirlandes d'or et gemmes du mana sur l'étage du milieu ; rinceaux de crème de part et d'autre de la plaque ; étoiles d'or sur l'étage du haut */
+    let sw = '', gems = '';
+    const T2 = TI[1], c2 = 48, r2 = 25, xs = [24.6, 33.4, 42.2, 53.8, 62.6, 71.4];
+    for (let j = 0; j < xs.length - 1; j++) { const a = xs[j], b = xs[j + 1], ya = by(a, c2, r2, 46.6, 4), yb = by(b, c2, r2, 46.6, 4); sw += `M${f(a)} ${f(ya)}Q${f((a + b) / 2)} ${f((ya + yb) / 2 + 4.2)} ${f(b)} ${f(yb)}`; }
+    xs.forEach((x, j) => { const y = by(x, c2, r2, 46.6, 4), m = EVY_MANA[j % 5]; gems += `<circle cx="${f(x)}" cy="${f(y)}" r="1.5" fill="${m[2]}" stroke="#6e4705" stroke-width=".4"/><circle cx="${f(x - .5)}" cy="${f(y - .5)}" r=".45" fill="#fff"/>`; });
+    const scroll = s => `<path d="M${48 - s * 16.6} 66.6C${48 - s * 20.6} 64.6 ${48 - s * 24.6} 67 ${48 - s * 23.4} 70.4C${48 - s * 22.4} 73 ${48 - s * 19} 72.4 ${48 - s * 19.6} 70.2M${48 - s * 16.6} 73.6C${48 - s * 21} 75.6 ${48 - s * 26.4} 74.6 ${48 - s * 28.4} 71.4" fill="none" stroke="#fffaf0" stroke-width="1.1" stroke-linecap="round"/>`;
+    const CX = [38.4, 43.2, 48, 52.8, 57.6], CB = CX.map(x => by(x, 48, 10, 26, 1.6) + .4), CH = [10.6, 11.4, 12, 11.4, 10.6];
+    const candle = i => {
+      const x = CX[i], yb = CB[i], yt = yb - CH[i], m = EVY_MANA[i];
+      let st = ''; for (let y = yb - .6; y > yt + 1.2; y -= 2.4) st += `M${f(x - 1.3)} ${f(y)}L${f(x + 1.3)} ${f(y - 1.2)}V${f(y - .4)}L${f(x - 1.3)} ${f(y + .8)}Z`;
+      return `<rect x="${f(x - 1.3)}" y="${f(yt)}" width="2.6" height="${f(CH[i])}" rx=".4" fill="${i === 0 ? '#fffbe6' : m[1]}" stroke="${m[4]}" stroke-width=".35"/><path d="${st}" fill="${m[2]}"/>`
+        + `<path d="M${f(x - .7)} ${f(yt + .8)}V${f(yb - .8)}" stroke="#fff" stroke-width=".5" stroke-linecap="round" opacity=".7"/>`
+        + `<ellipse cx="${x}" cy="${f(yt)}" rx="1.3" ry=".45" fill="#fffbf0" stroke="${m[4]}" stroke-width=".25"/><path d="M${f(x + .6)} ${f(yt + .2)}V${f(yt + 1.6)}" stroke="#fffbf0" stroke-width=".7" stroke-linecap="round"/>`
+        + `<path d="M${x} ${f(yt)}V${f(yt - 1.3)}" stroke="#3a2a20" stroke-width=".5" stroke-linecap="round"/>`
+        + `<g class="evo-flame" style="--d:${(-i * .37).toFixed(2)}s"><circle cx="${x}" cy="${f(yt - 3.6)}" r="3.8" fill="url(#${id('fg')})"/>`
+        + `<path d="M${x} ${f(yt - 6.6)}C${f(x + .4)} ${f(yt - 4.8)} ${f(x + 1.5)} ${f(yt - 3.6)} ${f(x + 1.5)} ${f(yt - 2.4)}C${f(x + 1.5)} ${f(yt - 1.4)} ${f(x + .8)} ${f(yt - .9)} ${x} ${f(yt - .9)}C${f(x - .8)} ${f(yt - .9)} ${f(x - 1.5)} ${f(yt - 1.4)} ${f(x - 1.5)} ${f(yt - 2.4)}C${f(x - 1.5)} ${f(yt - 3.6)} ${f(x - .4)} ${f(yt - 4.8)} ${x} ${f(yt - 6.6)}Z" fill="url(#${id('fl')})" stroke="#e0651a" stroke-width=".25"/>`
+        + `<ellipse cx="${x}" cy="${f(yt - 1.9)}" rx=".55" ry=".85" fill="#fff"/></g>`;
+    };
+    const conf = [[8, 10, 0, 0, 25], [86, 8, 1, 1, -20], [5, 34, 2, 3, 50], [91, 30, 3, 0, -40], [12, 58, 4, 2, 0], [86, 54, 0, 3, 70], [20, 18, 3, 1, 10], [76, 18, 4, 0, -60], [4, 76, 1, 0, 30], [92, 74, 2, 1, -15], [26, 6, 2, 2, 0], [70, 4, 0, 2, 0]];
+    return `<svg class="evo evo-cake${lit ? ' evo-lit' : ''}${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 96 96" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('g')}" cx="48" cy="46" r="48" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff3c4" stop-opacity="${lit ? .9 : .4}"/><stop offset=".55" stop-color="#ffb3a0" stop-opacity="${lit ? .3 : .1}"/><stop offset="1" stop-color="#7fb0ff" stop-opacity="0"/></radialGradient>`
+      + (lit ? `<linearGradient id="${id('y')}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fffbe0" stop-opacity=".9"/><stop offset="1" stop-color="#f2c230" stop-opacity="0"/></linearGradient>` : '')
+      + TI.map(([x0, x1, , , , C], i) => `<linearGradient id="${id('t' + i)}" x1="${x0}" y1="0" x2="${x1}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C[2]}"/><stop offset=".3" stop-color="${C[0]}"/><stop offset=".58" stop-color="${C[1]}"/><stop offset="1" stop-color="${C[2]}"/></linearGradient>`).join('')
+      + `<linearGradient id="${id('ic')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#fff7ea"/><stop offset="1" stop-color="#efdfc4"/></linearGradient>`
+      + evmMetal(id('au'), 6, 0, 90, 0) + evmMetal(id('pq'), 33, 63, 63, 77)
+      + `<radialGradient id="${id('pc')}" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#fffdf6"/><stop offset="1" stop-color="#f3e8cc"/></radialGradient>`
+      + `<radialGradient id="${id('fl')}" cx=".5" cy=".75" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".3" stop-color="#fff3b0"/><stop offset=".7" stop-color="#ffc23a"/><stop offset="1" stop-color="#ff7a1a"/></radialGradient>`
+      + `<radialGradient id="${id('fg')}"><stop offset="0" stop-color="#ffe58a" stop-opacity=".8"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>`
+      + `<radialGradient id="${id('o')}"><stop offset="0" stop-color="#1a1030" stop-opacity=".35"/><stop offset="1" stop-color="#1a1030" stop-opacity="0"/></radialGradient></defs>`
+      + `<circle class="evo-glow" cx="48" cy="46" r="48" fill="url(#${id('g')})"/>` + (lit ? evnRays(id('y'), 48, 44, 46) : '')
+      + `<g class="evo-confetti">${conf.map(([x, y, c, s, r]) => { const m = EVY_MANA[c]; return s === 0 ? `<rect x="${x - 1.6}" y="${y - .8}" width="3.2" height="1.6" rx=".3" fill="${m[2]}" stroke="${m[4]}" stroke-width=".25" transform="rotate(${r} ${x} ${y})"/>`
+        : s === 1 ? `<circle cx="${x}" cy="${y}" r="1.1" fill="${m[2]}" stroke="${m[4]}" stroke-width=".25"/>` : s === 2 ? `<path d="M${x - 2.4} ${y}Q${x - 1.2} ${y - 1.6} ${x} ${y}T${x + 2.4} ${y}" fill="none" stroke="${m[2]}" stroke-width=".8" stroke-linecap="round" transform="rotate(${r} ${x} ${y})"/>`
+        : `<path d="${evnStar5(x, y, 1.5)}" fill="${m[2]}" stroke="${m[4]}" stroke-width=".25"/>`; }).join('')}</g>`
+      + `<ellipse cx="48" cy="94.2" rx="30" ry="1.8" fill="url(#${id('o')})"/>`
+      /* présentoir d'or : pied, colonne, plateau */
+      + `<path d="M37 92.6V93.4C37 94.4 42 95 48 95S59 94.4 59 93.4V92.6Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".45"/><ellipse cx="48" cy="92.6" rx="11" ry="1.6" fill="#ffe58a" stroke="#6e4705" stroke-width=".4"/>`
+      + `<path d="M41.4 86.4C43.4 88 44 90 43.8 92H52.2C52 90 52.6 88 54.6 86.4Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".45" stroke-linejoin="round"/>`
+      + `<path d="M7 80V81.8A41 6.4 0 0 0 89 81.8V80Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".45"/><ellipse cx="48" cy="80" rx="41" ry="6.4" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".45"/>`
+      + `<path d="M10 81.4A38 5.2 0 0 0 86 81.4" fill="none" stroke="#fffbe6" stroke-width=".5" opacity=".7"/>`
+      + [0, 1, 2].map(i => tier(TI[i], i)).join('')
+      /* étage du haut : ruban d'or et étoiles ; étage du milieu : guirlandes et gemmes ; étage du bas : plaque et rinceaux */
+      + `<path d="M32 37.4A16 3 0 0 0 64 37.4V35.6A16 3 0 0 1 32 35.6Z" fill="url(#${id('au')})" stroke="#6e4705" stroke-width=".35"/>`
+      + `<g fill="#f2c230" stroke="#8a6418" stroke-width=".25">${[[36.4, 33.2], [42.4, 34.4], [53.6, 34.4], [59.6, 33.2]].map(([x, y]) => `<path d="${evnStar5(x, y, 1.1)}"/>`).join('')}</g>`
+      + `<path d="${sw}" fill="none" stroke="#6e4705" stroke-width="1.3" stroke-linecap="round"/><path d="${sw}" fill="none" stroke="url(#${id('au')})" stroke-width=".8" stroke-linecap="round"/>` + gems
+      + scroll(1) + scroll(-1)
+      + `<rect x="33" y="63.4" width="30" height="13.2" rx="3" fill="url(#${id('pq')})" stroke="#6e4705" stroke-width=".55"/><rect x="34.6" y="65" width="26.8" height="10" rx="2" fill="url(#${id('pc')})" stroke="#b9800f" stroke-width=".4"/>`
+      + `<g fill="#f2c230" stroke="#6e4705" stroke-width=".3"><circle cx="33.4" cy="70" r="1"/><circle cx="62.6" cy="70" r="1"/></g><path d="M35.8 66.2Q40 65.4 45 65.8" fill="none" stroke="#fff" stroke-width=".6" stroke-linecap="round" opacity=".9"/>`
+      + [0, 4, 1, 3, 2].map(candle).join('')
+      + (lit ? evmSpk([[10, 22, 3], [86, 20, 2.6], [16, 44, 2], [82, 42, 2.4], [30, 10, 1.8], [68, 10, 2]]) : '') + `</svg>`;
+  },
+  /* Récompenses (viewBox 24 × 24, aplats, 20–28 px), classe « evo evo-rw » comme celles des autres fêtes */
+  /** Lotus d'or : pétales d'or sur leur feuille, perle au cœur, étincelle. */
+  rwLotus: (o = {}) => `<svg class="evo evo-rw evo-rw-lotus${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
+    + `<path d="M2.6 19.4Q12 23.6 21.4 19.4Q12 16.8 2.6 19.4Z" fill="#c48a1a" stroke="#6e4705" stroke-width=".6" stroke-linejoin="round"/>`
+    + `<g stroke="#6e4705" stroke-width=".65" stroke-linejoin="round"><path d="${evmPetal(12, 18.6, 9.4, 2.6, -26)}${evmPetal(12, 18.6, 9.4, 2.6, -154)}" fill="#d9a12b"/>`
+    + `<path d="${evmPetal(12, 18.6, 15, 3.4, -90)}${evmPetal(12, 18.6, 12.4, 3, -60)}${evmPetal(12, 18.6, 12.4, 3, -120)}" fill="#f2c230"/>`
+    + `<path d="${evmPetal(12, 18.6, 7.6, 3.8, -90)}${evmPetal(12, 18.6, 8.6, 2.8, -40)}${evmPetal(12, 18.6, 8.6, 2.8, -140)}" fill="#ffe17a"/></g>`
+    + `<circle cx="12" cy="9.8" r="1.5" fill="#fff8d6" stroke="#b9800f" stroke-width=".4"/><path d="M12 6.4V16.4" stroke="#fff6cc" stroke-width=".55" stroke-linecap="round" opacity=".8"/>`
+    + `<path d="${evnSpark(19.6, 5, 2.8)}" fill="#fff6cc" stroke="#8a5a05" stroke-width=".45" stroke-linejoin="round"/></svg>`,
+  /** Salle inaugurée : temple de marbre, porte d'or ouverte, ruban rouge, étoile au fronton. */
+  rwHall: (o = {}) => `<svg class="evo evo-rw evo-rw-hall${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
+    + `<g fill="#f4eee2" stroke="#4a3e30" stroke-width=".7" stroke-linejoin="round"><path d="M2.4 8.4L12 2.6L21.6 8.4Z"/><rect x="2.6" y="8.4" width="18.8" height="2.2"/>`
+    + `<rect x="4" y="10.6" width="2.2" height="7.4"/><rect x="8" y="10.6" width="2.2" height="7.4"/><rect x="13.8" y="10.6" width="2.2" height="7.4"/><rect x="17.8" y="10.6" width="2.2" height="7.4"/>`
+    + `<rect x="2.4" y="18" width="19.2" height="1.8"/><rect x="1.2" y="19.8" width="21.6" height="1.8"/></g>`
+    + `<rect x="10.6" y="12" width="2.8" height="6" fill="#f2c230" stroke="#6e4705" stroke-width=".5"/><path d="M12 12V18" stroke="#fff6cc" stroke-width=".5"/>`
+    + `<path d="${evnStar5(12, 6.4, 1.6)}" fill="#f2c230" stroke="#6e4705" stroke-width=".4"/>`
+    + `<path d="M7.6 14.2L10.6 15M16.4 14.2L13.4 15" stroke="#e23b3b" stroke-width="1.1" stroke-linecap="round"/><path d="M10.4 15.4L9.6 17.4M13.6 15.4L14.4 17.4" stroke="#a1162a" stroke-width=".8" stroke-linecap="round"/></svg>`,
+});
+
 if (typeof module !== 'undefined' && module.exports) module.exports = { EV_ART, EV_AMB, EV_AMB_TOP, EV_FX, EV_CONS, evGarland };
