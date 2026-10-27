@@ -1502,27 +1502,50 @@ function evmGear(cx, cy, rp, n, ph = 0, th = 2.2, spokes = 5) {
 /** Étincelles d'une célébration : [x, y, rayon]. */
 const evmSpk = (P, edge = '#b9800f') => `<g class="evo-spk" fill="#fffbe6" stroke="${edge}" stroke-width=".35" stroke-opacity=".6" stroke-linejoin="round">${P.map(([x, y, r]) => `<path d="${evnSpark(x, y, r)}"/>`).join('')}</g>`;
 
-/** Lotus d'or (fleur stylisée originale) posé sur une feuille de nénuphar dorée ; base des pétales en bx, by (dessin d'environ 44 × 36). */
-function evmLotus(id, bx = 32, by = 45) {
-  const ln = 'stroke="#6e4705" stroke-width=".5" stroke-opacity=".75" stroke-linejoin="round"', f = evoF;
-  const row = (L, g, rib = '#fff3c4') => `<g fill="url(#${id(g)})" ${ln}>${L.map(([l, w, a]) => `<path d="${evmPetal(bx, by, l, w, a)}"/>`).join('')}</g>`
-    + `<path d="${L.map(([l, , a]) => evmRib(bx, by, l, a)).join('')}" fill="none" stroke="${rib}" stroke-width=".55" stroke-linecap="round" opacity=".75"/>`;
-  const pad = (() => { const E = t => f(bx + 19.4 * Math.cos(t * Math.PI / 180)) + ' ' + f(by + 2.4 + 4.2 * Math.sin(t * Math.PI / 180)); return `M${f(bx)} ${f(by + 2.6)}L${E(58)}A19.4 4.2 0 1 0 ${E(76)}Z`; })();
-  const veins = [16, 36, 104, 124, 146, 166].map(t => `M${f(bx)} ${f(by + 2.6)}L${f(bx + 18 * Math.cos(t * Math.PI / 180))} ${f(by + 2.4 + 3.9 * Math.sin(t * Math.PI / 180))}`).join('');
-  return `<path d="${pad}" fill="url(#${id('lp')})" stroke="#6e4705" stroke-width=".55" stroke-linejoin="round"/>`
-    + `<path d="${veins}" fill="none" stroke="#8a5a0c" stroke-width=".4" opacity=".55"/><path d="M${f(bx - 16)} ${f(by + 4.4)}Q${f(bx)} ${f(by + 7.8)} ${f(bx + 16)} ${f(by + 4.4)}" fill="none" stroke="#fff3c4" stroke-width=".6" stroke-linecap="round" opacity=".6"/>`
-    + row([[30, 6.4, -90], [26.5, 6.2, -63], [26.5, 6.2, -117], [21, 5.8, -37], [21, 5.8, -143]], 'lb', '#ffe58a')
-    + row([[24, 5.4, -74], [24, 5.4, -106]], 'lm')
-    + `<g class="evo-pearl"><circle cx="${bx}" cy="${f(by - 17)}" r="4.6" fill="url(#${id('lo')})" stroke="#b9800f" stroke-width=".4"/><circle cx="${f(bx - 1.5)}" cy="${f(by - 18.6)}" r="1.3" fill="#fff" opacity=".9"/></g>`
-    + row([[15.5, 7, -90], [19, 5.6, -47], [19, 5.6, -133], [16.5, 4.4, -13], [16.5, 4.4, -167]], 'lf')
-    + `<g fill="#fff"><circle cx="${f(bx + 11.4)}" cy="${f(by + 4.6)}" r=".75"/><circle cx="${f(bx - 13)}" cy="${f(by + 4.2)}" r=".55"/></g>`;
+/** Pétale galbé vu de trois quarts : base bx, by ; longueur len, demi-largeur w, direction ang (degrés, −90 : vers le haut) ; up : la pointe se recourbe
+ *  vers le haut d'autant. Renvoie { lit, dark, rim, rimD, rib } : moitié éclairée (côté du haut, la lumière vient d'en haut à gauche), moitié dans l'ombre,
+ *  bord de chaque moitié (liserés) et nervure. */
+function evmPetal3(bx, by, len, w, ang, up = 0) {
+  const a = ang * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a), f = evoF;
+  const P = (u, v, k = 0) => f(bx + dx * u - dy * v) + ' ' + f(by + dy * u + dx * v - up * k);
+  const sl = Math.abs(dx) < .25 ? -1 : -Math.sign(dx), B = P(0, 0), T = P(len, 0, 1), M = P(len * .5, 0, .3);
+  const edge = s => `M${B}C${P(len * .18, w * s)} ${P(len * .64, w * s * .98, .45)} ${T}`;
+  const half = s => edge(s) + `Q${M} ${B}Z`;
+  return { lit: half(sl), dark: half(-sl), rim: edge(sl), rimD: edge(-sl), rib: `M${P(len * .1, 0)}Q${M} ${P(len * .86, 0, .8)}` };
 }
-/** Dégradés du lotus d'or (rangées de pétales du fond, du milieu, de devant ; feuille ; perle) ; base des pétales en bx, by. */
-const evmLotusDefs = (id, bx = 32, by = 45) => `<radialGradient id="${id('lb')}" cx="${bx}" cy="${by}" r="30" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7a4f06"/><stop offset=".4" stop-color="#c48a1a"/><stop offset=".8" stop-color="#f2c230"/><stop offset="1" stop-color="#ffe58a"/></radialGradient>`
-  + `<radialGradient id="${id('lm')}" cx="${bx}" cy="${by}" r="25" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#9a6a10"/><stop offset=".45" stop-color="#e3aa2a"/><stop offset=".85" stop-color="#ffe17a"/><stop offset="1" stop-color="#fff6cc"/></radialGradient>`
-  + `<radialGradient id="${id('lf')}" cx="${bx}" cy="${by}" r="20" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#b9800f"/><stop offset=".4" stop-color="#f2c230"/><stop offset=".8" stop-color="#ffe9a0"/><stop offset="1" stop-color="#fffbe6"/></radialGradient>`
-  + evmMetal(id('lp'), bx - 20, 0, bx + 20, 0)
-  + `<radialGradient id="${id('lo')}" cx=".38" cy=".34" r=".7"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#fff3c4"/><stop offset="1" stop-color="#f2b830"/></radialGradient>`;
+/** Lotus d'or du musée (dessin original qui évoque le lotus noir des origines) : fleur vue de trois quarts, longs pétales pointus en couches (ceux du fond
+ *  dressés, ceux du bas presque à l'horizontale, pointes recourbées), indigo presque noir au creux, liseré turquoise sur les bords et les nervures ;
+ *  réceptacle de graines cramoisi piqué de points sombres ; une tige qui descend dans un bougeoir d'or posé en y 51,6 (dessin d'environ 40 × 38). */
+function evmLotus(id) {
+  const rows = [
+    [30.4, [[17, 3.4, -99, 1], [17, 3.4, -81, 1], [15.5, 3.5, -123, 2], [15.5, 3.5, -57, 2]]],
+    [31.4, [[17.5, 4, -147, 3.2], [17.5, 4, -33, 3.2], [12.5, 4.4, -110, 1], [12.5, 4.4, -70, 1]]],
+    [32.6, [[19, 3.7, -175, 4.6], [19, 3.7, -5, 4.6], [14.5, 4.6, 162, 3.4], [14.5, 4.6, 18, 3.4], [9, 5.4, 90, 3]]],
+  ];
+  const row = ([by, L]) => L.map(([l, w, a, u]) => { const p = evmPetal3(32, by, l, w, a, u);
+    return `<path d="${p.dark}" fill="url(#${id('ld')})"/><path d="${p.lit}" fill="url(#${id('lk')})"/>`
+      + `<path d="${p.rimD}" fill="none" stroke="#2fb8c4" stroke-width=".4" opacity=".55"/><path d="${p.rib}" fill="none" stroke="#49e0d8" stroke-width=".35" opacity=".55"/>`
+      + `<path d="${p.rim}" fill="none" stroke="#5ff0e6" stroke-width=".7" stroke-linecap="round"/>`; }).join('');
+  const dots = [[29.6, 21.4], [31.2, 20.6], [33, 20.7], [34.5, 21.5], [30.6, 22.3], [32.4, 22.4], [34, 22.6], [29.4, 24], [31.6, 25.2], [33.8, 24.6]];
+  return `<path d="M32 37C31.2 40.4 32.8 43.2 32 46.4" fill="none" stroke="#0e2630" stroke-width="2"/><path d="M32 37C31.2 40.4 32.8 43.2 32 46.4" fill="none" stroke="#2c6a74" stroke-width="1.1"/>`
+    + `<path d="M31.5 38.4Q31.2 41 32 43.4" fill="none" stroke="#5ff0e6" stroke-width=".35" opacity=".7"/>`
+    /* bougeoir d'or */
+    + `<path d="M27.6 45.4H36.4L35 47.8H29Z" fill="url(#${id('lp')})" stroke="#6e4705" stroke-width=".45" stroke-linejoin="round"/><ellipse cx="32" cy="45.4" rx="4.4" ry="1" fill="#ffe58a" stroke="#6e4705" stroke-width=".35"/>`
+    + `<path d="M30.4 47.8H33.6L34 49.4H30Z" fill="url(#${id('lp')})" stroke="#6e4705" stroke-width=".4"/><path d="M25.6 49.8C25.6 49 28.4 48.6 32 48.6S38.4 49 38.4 49.8V50.6C38.4 51.3 35.6 51.7 32 51.7S25.6 51.3 25.6 50.6Z" fill="url(#${id('lp')})" stroke="#6e4705" stroke-width=".45"/>`
+    + `<path d="M27 50.2Q32 49.2 37 50.2" fill="none" stroke="#fffbe6" stroke-width=".4" opacity=".7"/>`
+    + row(rows[0])
+    /* réceptacle de graines */
+    + `<path d="M27.5 21.4C27.7 24.8 29.6 27.4 32 27.6C34.4 27.4 36.3 24.8 36.5 21.4Z" fill="url(#${id('lo')})" stroke="#3a0618" stroke-width=".4"/>`
+    + `<ellipse cx="32" cy="21.4" rx="4.5" ry="1.7" fill="url(#${id('lf')})" stroke="#3a0618" stroke-width=".4"/><g fill="#2a0410">${dots.map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".42"/>`).join('')}</g>`
+    + `<path d="M28.6 21Q30.4 20 32.6 20" fill="none" stroke="#ffd0e4" stroke-width=".45" stroke-linecap="round" opacity=".8"/>`
+    + row(rows[1]) + row(rows[2]);
+}
+/** Dégradés du lotus (moitiés éclairées et dans l'ombre des pétales, noires au creux ; réceptacle ; or du bougeoir). */
+const evmLotusDefs = id => `<radialGradient id="${id('lk')}" cx="32" cy="31.4" r="19" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#05040c"/><stop offset=".3" stop-color="#1c1648"/><stop offset=".72" stop-color="#3d2f8e"/><stop offset="1" stop-color="#5d4ec4"/></radialGradient>`
+  + `<radialGradient id="${id('ld')}" cx="32" cy="31.4" r="19" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#030208"/><stop offset=".5" stop-color="#120e30"/><stop offset="1" stop-color="#2c2470"/></radialGradient>`
+  + `<radialGradient id="${id('lf')}" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#ff8ab8"/><stop offset=".55" stop-color="#d42a68"/><stop offset="1" stop-color="#6e0a30"/></radialGradient>`
+  + `<linearGradient id="${id('lo')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4a0820"/><stop offset=".4" stop-color="#a8204e"/><stop offset="1" stop-color="#3a0618"/></linearGradient>`
+  + evmMetal(id('lp'), 25, 0, 39, 0);
 
 Object.assign(EV_ART, {
   /** Relique cachée (viewBox 64 × 64) : vieille carte d'archive sous une cloche de verre, étiquette d'inventaire dorée ; o.v teinte du cadre (0–4),
@@ -2100,14 +2123,16 @@ Object.assign(EV_ART, {
       + (lit ? evmSpk([[10, 22, 3], [86, 20, 2.6], [16, 44, 2], [82, 42, 2.4], [30, 10, 1.8], [68, 10, 2]]) : '') + `</svg>`;
   },
   /* Récompenses (viewBox 24 × 24, aplats, 20–28 px), classe « evo evo-rw » comme celles des autres fêtes */
-  /** Lotus d'or : pétales d'or sur leur feuille, perle au cœur, étincelle. */
-  rwLotus: (o = {}) => `<svg class="evo evo-rw evo-rw-lotus${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
-    + `<path d="M2.6 19.4Q12 23.6 21.4 19.4Q12 16.8 2.6 19.4Z" fill="#c48a1a" stroke="#6e4705" stroke-width=".6" stroke-linejoin="round"/>`
-    + `<g stroke="#6e4705" stroke-width=".65" stroke-linejoin="round"><path d="${evmPetal(12, 18.6, 9.4, 2.6, -26)}${evmPetal(12, 18.6, 9.4, 2.6, -154)}" fill="#d9a12b"/>`
-    + `<path d="${evmPetal(12, 18.6, 15, 3.4, -90)}${evmPetal(12, 18.6, 12.4, 3, -60)}${evmPetal(12, 18.6, 12.4, 3, -120)}" fill="#f2c230"/>`
-    + `<path d="${evmPetal(12, 18.6, 7.6, 3.8, -90)}${evmPetal(12, 18.6, 8.6, 2.8, -40)}${evmPetal(12, 18.6, 8.6, 2.8, -140)}" fill="#ffe17a"/></g>`
-    + `<circle cx="12" cy="9.8" r="1.5" fill="#fff8d6" stroke="#b9800f" stroke-width=".4"/><path d="M12 6.4V16.4" stroke="#fff6cc" stroke-width=".55" stroke-linecap="round" opacity=".8"/>`
-    + `<path d="${evnSpark(19.6, 5, 2.8)}" fill="#fff6cc" stroke="#8a5a05" stroke-width=".45" stroke-linejoin="round"/></svg>`,
+  /** Lotus d'or : fleur indigo à liseré turquoise (évocation du lotus noir), réceptacle cramoisi, tige, socle d'or, étincelle d'or. */
+  rwLotus: (o = {}) => {
+    const P = (by, L) => L.map(([l, w, a, u]) => { const q = evmPetal3(12, by, l, w, a, u); return `<path d="${q.dark}" fill="#1a1440"/><path d="${q.lit}" fill="#4a3aa8"/><path d="${q.rim}${q.rimD}" fill="none" stroke="#5ff0e6" stroke-width=".55" stroke-linejoin="round"/>`; }).join('');
+    return `<svg class="evo evo-rw evo-rw-lotus${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
+      + `<path d="M12 15.6V20" stroke="#0e2630" stroke-width="1.4"/><path d="M8 21.6Q8 20 12 20T16 21.6V22.2H8Z" fill="#f2c230" stroke="#6e4705" stroke-width=".6" stroke-linejoin="round"/>`
+      + P(12, [[7, 1.5, -100, .4], [7, 1.5, -80, .4], [6.4, 1.6, -130, .8], [6.4, 1.6, -50, .8]])
+      + `<path d="M9.8 7.4C9.9 9 10.8 10.2 12 10.3C13.2 10.2 14.1 9 14.2 7.4Z" fill="#a8204e"/><ellipse cx="12" cy="7.4" rx="2.2" ry=".85" fill="#e0336e" stroke="#3a0618" stroke-width=".35"/><g fill="#2a0410"><circle cx="11.2" cy="7.4" r=".3"/><circle cx="12.7" cy="7.3" r=".3"/><circle cx="12" cy="8.6" r=".3"/></g>`
+      + P(12.6, [[7.6, 1.8, -150, 1.2], [7.6, 1.8, -30, 1.2], [5.6, 2, -112, .4], [5.6, 2, -68, .4]]) + P(13.4, [[8.8, 1.6, -176, 1.8], [8.8, 1.6, -4, 1.8], [4.2, 2.4, 90, 1.2]])
+      + `<path d="${evnSpark(19.8, 4.4, 2.8)}" fill="#ffe17a" stroke="#8a5a05" stroke-width=".45" stroke-linejoin="round"/></svg>`;
+  },
   /** Salle inaugurée : temple de marbre, porte d'or ouverte, ruban rouge, étoile au fronton. */
   rwHall: (o = {}) => `<svg class="evo evo-rw evo-rw-hall${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
     + `<g fill="#f4eee2" stroke="#4a3e30" stroke-width=".7" stroke-linejoin="round"><path d="M2.4 8.4L12 2.6L21.6 8.4Z"/><rect x="2.6" y="8.4" width="18.8" height="2.2"/>`
