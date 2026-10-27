@@ -3,10 +3,10 @@
    (décorations allumées : ambiance, palette sur la roue de mana, touches dans l'appli), .ev-quiet (scan, échange en direct, compteur de vie : ambiance
    cachée), .ev-pause (appli en arrière-plan ou ambiance hors écran : animations en pause).
    Ambiance : <div class="ev-amb" aria-hidden="true"> après #app : complète sur l'accueil (matin de printemps : lueurs, soleil, nuages, pré fleuri en bas de
-   l'écran, lapin dans l'herbe, cloches ailées qui passent), une seule lueur de soleil ailleurs ; pétales de cerisier et papillons sur l'accueil (.ev-amb-top) ;
-   touffe d'herbe fleurie dans le coin des en-têtes d'écran, lapin qui regarde par-dessus le bord des feuilles.
-   Coût : transform et opacity seulement, aucun filtre animé ; 12 éléments animés dans l'ambiance (2 lueurs, 1 soleil, 2 bouquets, 1 lapin, 2 vols de cloches,
-   4 ailes), 2 par œuf caché (dandinement, reflet). « Réduire les animations » : décor fixe et visible, rien ne vole ni ne tombe. Rien ne capte les touchers.
+   l'écran, lapin dans l'herbe), une seule lueur de soleil ailleurs ; devant le contenu de l'accueil (.ev-amb-top) : pétales de cerisier, papillon, cloches
+   ailées qui passent dans le haut de l'écran ; touffe d'herbe fleurie dans le coin des en-têtes d'écran, lapin qui regarde par-dessus le bord des feuilles.
+   Coût : transform et opacity seulement, aucun filtre animé ; 6 éléments animés dans l'ambiance (2 lueurs, 1 soleil, 2 bouquets, 1 lapin), 12 dans la couche
+   du dessus (3 pétales × 2, papillon × 2, 2 cloches × 2), 2 par œuf caché (dandinement, reflet). « Réduire les animations » : décor fixe et visible, rien ne vole ni ne tombe. Rien ne capte les touchers.
    Palette du pack (evpacks.js › pal : rose #ffb3d1, menthe #8fd6a8, soleil #ffd36b) ; texte et chiffres : teintes plus soutenues de la même famille (contraste). */
 
 /* ── Couleurs de la fête (moteur : event.css) et palette par thème (clair par défaut ; sombre : prefers-color-scheme et data-theme, comme style.css) ── */
@@ -116,8 +116,8 @@ html[data-event="paques"] .ev-amb *{pointer-events:none}
 html[data-event="paques"] .ev-amb i,html[data-event="paques"] .ev-amb span{position:absolute;display:block}
 html[data-event="paques"] .ev-amb svg{display:block;width:100%;height:100%;overflow:visible}
 /* ailleurs que l'accueil : la seule lueur de soleil du haut, rien d'animé */
-html[data-event="paques"] .ev-amb :is(.evq-g1,.evq-g2,.evq-sun,.evq-cloud,.evq-bell,.evq-bunny,.evq-meadow){display:none}
-html[data-event="paques"] #app[data-view="home"] ~ .ev-amb :is(.evq-g1,.evq-g2,.evq-sun,.evq-cloud,.evq-bell,.evq-bunny,.evq-meadow){display:block}
+html[data-event="paques"] .ev-amb :is(.evq-g1,.evq-g2,.evq-sun,.evq-cloud,.evq-bunny,.evq-meadow){display:none}
+html[data-event="paques"] #app[data-view="home"] ~ .ev-amb :is(.evq-g1,.evq-g2,.evq-sun,.evq-cloud,.evq-bunny,.evq-meadow){display:block}
 
 /* palette du printemps par-dessus la roue de mana (.hm-aura) : soleil en haut, bleu ciel à droite, lilas et rose en bas, menthe à gauche */
 html.ev-deco[data-event="paques"] .hm-aura{--mana-w:var(--evq-mw);--mana-u:var(--evq-mu);--mana-b:var(--evq-mb);--mana-r:var(--evq-mr);--mana-g:var(--evq-mg);--aura-o:var(--evq-ao)}
@@ -147,30 +147,24 @@ html[data-event="paques"] .ev-amb .evq-bunny .evq-tuft{position:absolute;left:-1
 html[data-event="paques"] body.nav-on > .ev-amb :is(.evq-meadow){bottom:calc(var(--nav-h,72px) + env(safe-area-inset-bottom,0px))}
 html[data-event="paques"] body.nav-on > .ev-amb .evq-bunny{bottom:calc(var(--nav-h,72px) + env(safe-area-inset-bottom,0px) + 2px)}
 
-/* cloches de Pâques ailées : une traversée lente (8 à 11 s) en ondulant, puis plus rien pendant 25 à 40 s ; elles ne se balancent pas (ailes seulement) */
-html[data-event="paques"] .ev-amb .evq-bell{left:0;top:0;width:54px;height:54px;opacity:0;will-change:transform}
-html[data-event="paques"] .ev-amb .evq-bell .evo-bell-b{animation:none}
-html[data-event="paques"] .ev-amb .evq-b1{animation:evqBell1 34s 4s infinite}
-html[data-event="paques"] .ev-amb .evq-b2{width:42px;height:42px;animation:evqBell2 43s 19s infinite}
-html[data-event="paques"] .ev-amb .evq-b2 :is(.evo-wing-l,.evo-wing-r){animation-duration:.47s}
-@keyframes evqBell1{
-  0%{opacity:0;transform:translate(104vw,24vh) rotate(-8deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
-  1%{opacity:var(--evq-bell)}
-  7%{transform:translate(72vw,16vh) rotate(6deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
-  14%{transform:translate(44vw,22vh) rotate(-6deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
-  21%{transform:translate(16vw,14vh) rotate(7deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
-  27.9%{opacity:var(--evq-bell);transform:translate(-16vw,20vh) rotate(-5deg)}
-  28%,100%{opacity:0;transform:translate(-16vw,20vh) rotate(-5deg)}}
-@keyframes evqBell2{
-  0%{opacity:0;transform:translate(-14vw,38vh) rotate(6deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
-  1%{opacity:calc(var(--evq-bell) * .85)}
-  6%{transform:translate(20vw,30vh) rotate(-6deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
-  12%{transform:translate(52vw,36vh) rotate(5deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
-  18%{transform:translate(80vw,28vh) rotate(-7deg);animation-timing-function:cubic-bezier(.45,.05,.55,.95)}
-  22.9%{opacity:calc(var(--evq-bell) * .85);transform:translate(108vw,32vh) rotate(4deg)}
-  23%,100%{opacity:0;transform:translate(108vw,32vh) rotate(4deg)}}
+/* ── Retour des cloches (EV_ART.bellFlight, dans .nest-bells .nest-bells-art ; le moteur pose .on) : les trois cloches arrivent en arc depuis le haut à droite,
+   lâchent leurs œufs qui tombent dans l'herbe en rebondissant, puis les étincelles éclatent. Une seule fois (~2,5 s), transform et opacity seulement ;
+   sans .on, ou « réduire les animations » : la scène finale, fixe et lisible. Les ailes battent le temps du vol puis s'arrêtent. ── */
+.nest-bells-art .evq-flight{display:block;width:100%;height:auto;overflow:visible}
+.nest-bells .evq-flight :is(.evq-bf-bell,.evq-bf-egg,.evq-bf-spk){transform-box:fill-box;transform-origin:center}
+.nest-bells:not(.on) .evq-flight *,.nest-bells .evq-flight .evo-bell-b{animation:none}
+.nest-bells.on .evq-flight .evo-wbell :is(.evo-wing-l,.evo-wing-r){animation-iteration-count:4}
+.nest-bells.on .evq-bf-bell{animation:evqBfBell 1.25s cubic-bezier(.2,.75,.3,1) calc(var(--i,0) * .32s) both}
+.nest-bells.on .evq-bf-egg{animation:evqBfEgg .85s cubic-bezier(.45,0,.85,.5) calc(.8s + var(--i,0) * .12s) both}
+.nest-bells.on .evq-bf-spk{animation:evqBfSpk .6s ease-out calc(1.7s + var(--i,0) * .07s) both}
+@keyframes evqBfBell{0%{transform:translate(170px,-200px) rotate(24deg) scale(.55);opacity:0}20%{opacity:1}
+  65%{transform:translate(-10px,8px) rotate(-7deg) scale(1.04)}85%{transform:translate(3px,-2px) rotate(3deg)}100%{transform:none;opacity:1}}
+@keyframes evqBfEgg{0%{transform:translate(var(--dx,0),var(--dy,-220px)) rotate(var(--r,0deg)) scale(.6);opacity:0}12%{opacity:1}
+  78%{transform:translate(0,0) rotate(0deg) scale(1)}86%{transform:translateY(-7px) scale(1.04,.96)}93%{transform:translateY(0) scale(.98,1.03)}100%{transform:none;opacity:1}}
+@keyframes evqBfSpk{0%{transform:scale(.2) rotate(-30deg);opacity:0}55%{transform:scale(1.25) rotate(10deg);opacity:1}100%{transform:none;opacity:.95}}
+@media (prefers-reduced-motion:reduce){.nest-bells .evq-flight *{animation:none!important}}
 
-/* ── Pétales de cerisier et papillons sur l'accueil (EV_AMB_TOP, couche du dessus) : seulement l'accueil à l'écran, rien sous une feuille ni un écran plein ── */
+/* ── Pétales de cerisier, papillon et cloches sur l'accueil (EV_AMB_TOP, couche du dessus) : seulement l'accueil à l'écran, rien sous une feuille ni un écran plein ── */
 html[data-event="paques"] .ev-amb-top{display:none}
 html.ev-deco[data-event="paques"]:not(.ev-quiet):not(.ev-pause) #app[data-view="home"] ~ .ev-amb-top{display:block;position:fixed;inset:0;z-index:30;pointer-events:none;overflow:hidden;contain:strict}
 html[data-event="paques"] .ev-amb-top *{pointer-events:none}
@@ -178,23 +172,52 @@ html[data-event="paques"] .ev-amb-top svg{display:block;width:100%;height:100%;o
 html[data-event="paques"] .evq-pt{position:absolute;top:-30px;left:var(--x);width:var(--w);height:var(--w);opacity:0;animation:evqFall var(--d) linear var(--dl) infinite;will-change:transform,opacity}
 html[data-event="paques"] .evq-pt-s{display:block;width:100%;height:100%;animation:evqPetal var(--sw) ease-in-out infinite alternate}
 html[data-event="paques"] .evq-pt svg{filter:drop-shadow(0 1px 1.5px rgba(120,40,90,.2))}
-html[data-event="paques"] .evq-p1{--x:9%;--w:13px;--d:20s;--dl:-3s;--sw:2.4s}
-html[data-event="paques"] .evq-p2{--x:28%;--w:10px;--d:24s;--dl:-14s;--sw:2.9s}
-html[data-event="paques"] .evq-p3{--x:49%;--w:14px;--d:22s;--dl:-8s;--sw:2.2s}
-html[data-event="paques"] .evq-p4{--x:68%;--w:11px;--d:26s;--dl:-19s;--sw:3.1s}
-html[data-event="paques"] .evq-p5{--x:87%;--w:12px;--d:21s;--dl:-11s;--sw:2.6s}
+html[data-event="paques"] .evq-p1{--x:10%;--w:13px;--d:21s;--dl:-3s;--sw:2.4s}
+html[data-event="paques"] .evq-p2{--x:52%;--w:11px;--d:25s;--dl:-14s;--sw:2.9s}
+html[data-event="paques"] .evq-p3{--x:86%;--w:14px;--d:22s;--dl:-8s;--sw:2.2s}
 @keyframes evqFall{0%{transform:translate3d(0,0,0);opacity:0}6%{opacity:var(--evq-pto,1)}88%{opacity:var(--evq-pto,1)}100%{transform:translate3d(-36px,calc(100vh + 60px),0);opacity:0}}
 @keyframes evqPetal{0%{transform:translateX(-12px) rotate(-40deg) scaleX(1)}50%{transform:translateX(4px) rotate(10deg) scaleX(.55)}100%{transform:translateX(14px) rotate(70deg) scaleX(.9)}}
-/* papillons : traversée en zigzag de 9 à 12 s, puis une pause ; battement d'ailes (dessin : .evo-wings) */
+/* papillon : traversée en zigzag d'une dizaine de secondes, puis une pause ; battement d'ailes (dessin : .evo-wings) */
 html[data-event="paques"] .evq-bf{position:absolute;left:0;top:0;width:30px;height:23px;opacity:0;will-change:transform,opacity}
 html[data-event="paques"] .evq-bf-s{display:block;width:100%;height:100%}
 html[data-event="paques"] .evq-f1{animation:evqBf1 26s linear 2s infinite}
-html[data-event="paques"] .evq-f2{width:24px;height:18px;animation:evqBf2 31s linear 13s infinite}
-html[data-event="paques"] .evq-f2 .evo-wings{animation-duration:.22s}
 @keyframes evqBf1{0%{opacity:0;transform:translate(-8vw,62vh) rotate(20deg)}2%{opacity:var(--evq-pto,1)}10%{transform:translate(18vw,48vh) rotate(-10deg)}18%{transform:translate(38vw,56vh) rotate(25deg)}
   26%{transform:translate(62vw,40vh) rotate(-5deg)}34%{transform:translate(84vw,46vh) rotate(20deg)}39.9%{opacity:var(--evq-pto,1);transform:translate(106vw,34vh) rotate(5deg)}40%,100%{opacity:0;transform:translate(106vw,34vh)}}
-@keyframes evqBf2{0%{opacity:0;transform:translate(104vw,30vh) rotate(-20deg)}2%{opacity:var(--evq-pto,1)}9%{transform:translate(80vw,40vh) rotate(10deg)}17%{transform:translate(56vw,26vh) rotate(-25deg)}
-  25%{transform:translate(30vw,36vh) rotate(5deg)}32.9%{opacity:var(--evq-pto,1);transform:translate(-8vw,24vh) rotate(-10deg)}33%,100%{opacity:0;transform:translate(-8vw,24vh)}}
+
+/* cloches de Pâques ailées (couche du dessus, devant le contenu) : elles passent dans le haut de l'écran (zone de l'orbe, sous l'en-tête) sans jamais s'arrêter,
+   une traversée de 7 à 9 s puis plus rien pendant une vingtaine de secondes ; deux éléments animés chacune (le vol, les deux ailes ensemble). Leurs œufs
+   (.evo-drop) ne se montrent qu'une fois revenues de Rome. */
+html[data-event="paques"] .ev-amb-top .evq-bell{position:absolute;left:0;top:0;width:44px;height:44px;opacity:0;will-change:transform,opacity}
+html[data-event="paques"] .ev-amb-top .evq-bell svg{filter:drop-shadow(0 2px 3px rgba(90,60,10,.22))}
+html[data-event="paques"] .ev-amb-top .evq-bell :is(.evo-bell-b,.evo-wing-l,.evo-wing-r,.evo-drop){animation:none}
+html[data-event="paques"] .ev-amb-top .evq-bell .evo-wings{transform-origin:32px 27px;animation:evqWingsY .5s ease-in-out infinite alternate}
+html[data-event="paques"] .ev-amb-top .evq-bell .evo-drop{display:none}
+html[data-event="paques"] .ev-amb-top .evq-b1{animation:evqBell1 30s linear 4s infinite}
+html[data-event="paques"] .ev-amb-top .evq-b2{width:36px;height:36px;animation:evqBell2 37s linear 17s infinite}
+html[data-event="paques"] .ev-amb-top .evq-b2 .evo-wings{animation-duration:.42s}
+@keyframes evqWingsY{from{transform:scale(1,1)}to{transform:scale(.9,.55)}}
+@keyframes evqBell1{
+  0%{opacity:0;transform:translate(104vw,calc(var(--top-in,0px) + 84px)) rotate(-8deg)}
+  1.5%{opacity:var(--evq-bell)}
+  8%{transform:translate(70vw,calc(var(--top-in,0px) + 64px)) rotate(6deg)}
+  16%{transform:translate(36vw,calc(var(--top-in,0px) + 92px)) rotate(-6deg)}
+  23%{opacity:var(--evq-bell);transform:translate(4vw,calc(var(--top-in,0px) + 70px)) rotate(7deg)}
+  27%,100%{opacity:0;transform:translate(-14vw,calc(var(--top-in,0px) + 86px)) rotate(-5deg)}}
+@keyframes evqBell2{
+  0%{opacity:0;transform:translate(-12vw,calc(var(--top-in,0px) + 150px)) rotate(8deg)}
+  1.5%{opacity:calc(var(--evq-bell) * .9)}
+  7%{transform:translate(6vw,calc(var(--top-in,0px) + 112px)) rotate(-6deg)}
+  14%{transform:translate(40vw,calc(var(--top-in,0px) + 128px)) rotate(5deg)}
+  20%{opacity:calc(var(--evq-bell) * .9);transform:translate(78vw,calc(var(--top-in,0px) + 100px)) rotate(-7deg)}
+  24%,100%{opacity:0;transform:translate(108vw,calc(var(--top-in,0px) + 120px)) rotate(4deg)}}
+/* Semaine sainte (moteur : html[data-evphase]) : du Jeudi au Samedi saints, les cloches sont parties à Rome (« away » : plus aucune) ; dimanche et lundi de
+   Pâques, elles sont revenues (« bells ») : un peu plus grandes, nimbées d'or, plus souvent là, chacune avec ses deux œufs. Même nombre d'éléments animés. */
+html[data-evphase="away"][data-event="paques"] .ev-amb-top .evq-bell{display:none!important}
+html[data-evphase="bells"][data-event="paques"]{--evq-bell:1}
+html[data-evphase="bells"][data-event="paques"] .ev-amb-top .evq-bell .evo-drop{display:inline}
+html[data-evphase="bells"][data-event="paques"] .ev-amb-top .evq-bell .evo-glow{transform-box:fill-box;transform-origin:center;transform:scale(1.5);opacity:1}
+html[data-evphase="bells"][data-event="paques"] .ev-amb-top .evq-b1{width:52px;height:52px;animation-duration:17s;animation-delay:1.5s}
+html[data-evphase="bells"][data-event="paques"] .ev-amb-top .evq-b2{width:44px;height:44px;animation-duration:21s;animation-delay:7s}
 
 /* ── Touches dans l'appli (décorations allumées) : filet rose, soleil et menthe sous les en-têtes, onglet actif de la barre du bas.
    Jamais les couleurs qui ont un sens à elles seules (vert = gain…) sur du texte, jamais sur les écrans calmes. ── */
@@ -222,5 +245,4 @@ html.ev-pause[data-event="paques"] :is(.ev-amb,.evo),html.ev-pause[data-event="p
 @media (prefers-reduced-motion:reduce){
   html[data-event="paques"] :is(.ev-amb,.evo),html[data-event="paques"] :is(.ev-amb,.evo) *{animation:none!important}
   html[data-event="paques"] .ev-amb-top{display:none!important}
-  html[data-event="paques"] .ev-amb .evq-bell{display:none!important}      /* une cloche immobile en plein ciel ne voudrait rien dire */
 }

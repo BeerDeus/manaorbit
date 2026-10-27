@@ -140,11 +140,12 @@ function homeDesk() {
     const cols = document.createElement('div'); cols.className = 'hm-cols';
     const hd = $('.hm-dk-head', home); if (hd) cols.appendChild(hd);      // salutation sur toute la largeur : les trois colonnes commencent à la même hauteur
     for (const [c, sel] of HM_COLS) { const col = document.createElement('div'); col.className = 'hm-col ' + c; for (const q of sel) { const el = $(q, home); if (el) col.appendChild(el); } cols.appendChild(col); }
-    home.prepend(cols); homeDeskPaint(); if (typeof setsSoon === 'function') setsSoon(); return;
+    home.prepend(cols); homeDeskPaint(); if (typeof setsSoon === 'function') setsSoon(); if (typeof evSlot === 'function') evSlot(); return;
   }
   const kids = $$('.hm-cols > .hm-dk-head, .hm-col > *', box), ord = (HM.ord || []).filter(x => kids.includes(x) || x.parentNode === home);
   for (const k of kids) if (!ord.includes(k)) { const p = k.previousElementSibling, i = p ? ord.indexOf(p) : -1; ord.splice(i < 0 ? ord.length : i + 1, 0, k); }      // ajouté pendant (carte « Partie ») : après son voisin
   box.remove(); home.append(...ord); if (typeof setsSoon === 'function') setsSoon();      // 4 extensions de nouveau
+  const ev = $('#hmEvent', home), tr = $('#hmTrade', home); if (ev && tr && tr.nextElementSibling !== ev) tr.after(ev);      // téléphone : la fête juste après l'Échange
 }
 /** Salutation, chiffres de la collection et courbe de valeur (rien hors ordinateur). */
 function homeDeskPaint() {

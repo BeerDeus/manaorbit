@@ -49,6 +49,7 @@ function evCount(id) {
 function evApply() {
   const h = document.documentElement, p = evPackOf(), deco = !!p && evDeco();
   if (p) h.dataset.event = p.id; else delete h.dataset.event;
+  evPhase();
   h.classList.toggle('ev-deco', deco);
   let amb = document.querySelector('body > .ev-amb');
   if (deco && typeof EV_AMB !== 'undefined' && EV_AMB[p.id]) {
@@ -61,6 +62,11 @@ function evApply() {
   evLogo(deco ? p.id : '');
   evNatIcon(deco && EV.cal && !EV.cal.forced ? EV.cal : null);
   evQuietSync();
+}
+/** Moment de la fête sur <html data-evphase> (css/ev-paques.css) : cloches de Pâques parties à Rome (away) ou revenues (bells) ; rien sinon. */
+function evPhase() {
+  const h = document.documentElement, c = EV.cal, ph = c && evPackOf() && typeof evBells === 'function' ? evBells(c, c.day || (typeof evDay === 'function' ? evDay(Date.now()) : '')) : '';
+  if (ph) h.dataset.evphase = ph; else delete h.dataset.evphase;
 }
 /** Icône de l'appli Android aux couleurs de la fête (APK 1.0.13 et plus : ManaOrbit.setIcon, appliquée au prochain passage en arrière-plan). Navigateur,
     PWA, APK plus ancienne : rien. Pas de fête, décorations coupées ou fête forcée (EVENT_FORCE, essais) : icône normale. until : minuit (Paris) après le
@@ -183,9 +189,11 @@ function evMount(s, root) {
   const p = evPackOf(); if (!p || typeof EV_ART === 'undefined' || !EV_ART[p.obj.art]) return;
   const b = document.createElement('button'); b.type = 'button'; b.className = 'ev-pk ev-wait'; b.dataset.s = s;
   const g = evSeed(s + '#'), rot = (g % 81) - 40, size = [22, 24, 26, 28, 28, 30, 30, 32][(g >>> 8) % 8], v = (g >>> 16) % 5;      // de travers, de taille et de couleur (cadeaux : couleurs de mana) variables selon la cachette et le jour : moins monotone
-  b.setAttribute('aria-label', evTx('label') || T('Un objet caché : touche-le pour le récolter')); b.innerHTML = EV_ART[p.obj.art]({ v });
+  const sp = EV.st && EV.st.me ? (EV.st.me.spots || []).find(q => q.s === s) : null, gold = !!(sp && sp.g);      // œuf d'or de Pâques (tirage du serveur)
+  b.setAttribute('aria-label', (gold && evTx('labelGold')) || evTx('label') || T('Un objet caché : touche-le pour le récolter')); b.innerHTML = EV_ART[p.obj.art]({ v, gold });
+  if (gold) b.classList.add('ev-gold');
   b.style.setProperty('--r', rot + 'deg'); b.style.setProperty('--k', size + 'px');
-  const x = { s, el: b, root, zones: evZones(root), k: -1, host: null, io: null, ok: false, dead: false, tries: 0, rot, size, v };
+  const x = { s, el: b, root, zones: evZones(root), k: -1, host: null, io: null, ok: false, dead: false, tries: 0, rot, size, v, gold };
   EV.pks.set(s, x); evZone(x, 0);
   b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); evTap(s); });
 }
@@ -296,7 +304,7 @@ async function evStatus(force) {
     if (EV.pv !== pv0) { stale = true; return null; }
     if (EV.pv && !(j.ev && j.ev.preview)) { setTimeout(() => { evPvSet('', true); if (typeof toast === 'function') toast(T('Aperçu refusé par le serveur')); }); return null; }      // pas un compte de l'éditeur
     if (!j.on) { EV.cal = null; evApply(); evStop(); return null; }
-    EV.st = j; EV.at = Date.now(); EV.cal = { ...EV.cal, ...j.ev }; evLsSet({ cal: { id: j.ev.id, pack: j.ev.pack, from: j.ev.from, to: j.ev.to } });
+    EV.st = j; EV.at = Date.now(); EV.cal = { ...EV.cal, ...j.ev }; evPhase(); evLsSet({ cal: { id: j.ev.id, pack: j.ev.pack, from: j.ev.from, to: j.ev.to } });
     if (j.me) evKeep(j.ev.id, j.me);
     evSyncUp();
   } catch (e) { if (EV.pv !== pv0) stale = true; else if (e.status === 404) { EV.cal = null; evApply(); evStop(); } }
@@ -381,10 +389,10 @@ async function evTap(s) {
   const x = EV.pks.get(s), st = EV.st; if (!x || !st || !st.me || EV.fly) return;
   const sp = st.me.spots.find(q => q.s === s); if (!sp || sp.f) return;
   haptic('ok'); EV.fly = 1;
-  const from = x.el.getBoundingClientRect(), rot = x.rot || 0, v = x.v; evUnmount(s); sp.f = 1;
+  const from = x.el.getBoundingClientRect(), rot = x.rot || 0, v = x.v, gold = x.gold; evUnmount(s); sp.f = 1;
   const me = st.me, n0 = me.n, found = [...me.found, s], j0 = { ...(me.jours || {}) }, dr0 = { ...(me.dr || {}) };
   me.found = found; me.n = Math.min(st.ev.total, n0 + 1); me.left = Math.max(0, Math.min((me.q || st.ev.per) - found.length, st.ev.total - me.n));      // tout de suite à l'écran ; le serveur confirme
-  const anim = evFly(from, me.n, st.ev.total, rot, v);
+  const anim = evFly(from, me.n, st.ev.total, rot, v, gold);
   let res = null, err = null;
   try { res = await evCall('/claim', { method: 'POST', body: { ev: st.ev.id, day: me.day, s, t: sp.t, n: evNick() } }); } catch (e) { err = e; }
   await anim;
@@ -397,16 +405,16 @@ async function evTap(s) {
     toast(err.code === 'day_quota' ? evTx('dayDone') : err.code === 'wrong_day' ? T('Nouveau jour : de nouvelles cachettes t\'attendent.') : T('Cet objet n\'a pas pu être compté.'));
     evStatus(true);
   } else toast(T('Hors ligne : ta trouvaille sera comptée au retour du réseau.'));
-  const door = !!res && ((typeof advAfterFind === 'function' && advAfterFind(j0, me)) || (typeof skyAfterFind === 'function' && skyAfterFind(n0, dr0, me)) || (typeof nestAfterFind === 'function' && nestAfterFind(n0, me)));      // calendrier de l'Avent : une porte vient de s'ouvrir → son ouverture ; ciel : constellation complète, couleur rare (puis la célébration)
+  const door = !!res && ((typeof advAfterFind === 'function' && advAfterFind(j0, me)) || (typeof skyAfterFind === 'function' && skyAfterFind(n0, dr0, me)) || (typeof nestAfterFind === 'function' && nestAfterFind(n0, dr0, me)));      // calendrier de l'Avent : une porte vient de s'ouvrir → son ouverture ; ciel : constellation complète, couleur rare (puis la célébration)
   if (!door) evMsg(me);
   EV.fly = 0; evHomePaint(); evLoopSync();
   if (me.n >= st.ev.total && res && !door) setTimeout(evParty, reduceMotion() ? 200 : 900);
 }
 /** Envol : l'objet part de sa cachette, grandit au milieu de l'écran (lueur, étincelles), puis rejoint le compteur qui rebondit. Promesse : fin de l'envol. */
-function evFly(from, n, total, rot = 0, v) {
+function evFly(from, n, total, rot = 0, v, gold) {
   const p = evPackOf(), lay = document.createElement('div'); lay.className = 'ev-fx'; lay.setAttribute('aria-hidden', 'true');
   const cnt = evCounterEl(n - 1, total);
-  const obj = document.createElement('div'); obj.className = 'ev-flyo'; obj.innerHTML = EV_ART[p.obj.art]({ lit: true, v }); lay.appendChild(obj); document.body.appendChild(lay);
+  const obj = document.createElement('div'); obj.className = 'ev-flyo'; obj.innerHTML = EV_ART[p.obj.art]({ lit: true, v, gold }); lay.appendChild(obj); document.body.appendChild(lay);
   const vw = innerWidth, vh = innerHeight, big = Math.min(150, vw * .38), cx = vw / 2, cy = vh * .42;
   obj.style.width = obj.style.height = big + 'px'; obj.style.left = cx - big / 2 + 'px'; obj.style.top = cy - big / 2 + 'px';
   const k0 = from.width / big, dx0 = from.left + from.width / 2 - cx, dy0 = from.top + from.height / 2 - cy;
@@ -514,7 +522,7 @@ function evHomePaint() {
   if (!evOn() || !st || !p || (typeof streamOn === 'function' && streamOn())) { if (box) box.remove(); return; }
   if (!box) {
     const at = document.getElementById('hmTrade'); if (!at) return;      // juste après l'Échange, avant le compteur de vie et le Discord
-    at.insertAdjacentHTML('afterend', '<section class="hm-trade hm-ev" id="hmEvent" aria-labelledby="hmEvT"></section>'); box = document.getElementById('hmEvent');
+    at.insertAdjacentHTML('afterend', '<section class="hm-trade hm-ev" id="hmEvent" aria-labelledby="hmEvT"></section>'); box = document.getElementById('hmEvent'); evSlot();
     box.addEventListener('click', e => { if (e.target.closest('.ev-pk')) return; const b = e.target.closest('[data-ev]'); if (!b) return; haptic('tap'); evSheetOpen(); });
   }
   const me = st.me || { n: evCount(st.ev.id), left: st.ev.per, found: [], day: st.ev.day }, n = Math.max(me.n, evCount(st.ev.id)), ev = st.ev, y = ev.id.slice(-4);
@@ -540,6 +548,7 @@ function evHomePaint() {
   if (nest) {      // nid de Pâques (evnest.js) : les couvées et leurs poussins, la couvée en cours et ses œufs du mana
     const sig = ['nest', nest.n, me.left, (me.found || []).length, me.day, ev.left, I18N.lang].join('|');
     if (box.dataset.sig !== sig) { box.dataset.sig = sig; box.innerHTML = nestCardHtml(nest, me); box.classList.add('hm-nest'); }
+    nestBellsSoon(nest);
     return;
   }
   box.classList.remove('hm-nest');
@@ -554,6 +563,14 @@ function evHomePaint() {
       <span class="hm-ev-d">${left > 0 ? esc(TN(left, 'Encore {n} jour', 'Encore {n} jours')) : esc(T('Dernier jour'))}${nx ? ' · ' + esc(T('prochain badge à {n}', { n: nx })) : ''}</span>
       <button class="link-btn" type="button" data-ev="open">${T('Indices')}</button></div>`;
 }
+/** Place de la carte de la fête : après l'Échange (téléphone, ordinateur en deux colonnes) ; ordinateur en trois colonnes sans défilement (home.js › homeDesk,
+ *  zz-desktop.css) : en tête de la 3e, qui a la place (la liste des extensions s'y resserre) ; dans la 2e, elle serait écrasée. */
+const EV_DESK3 = typeof matchMedia === 'function' ? matchMedia('(min-width:1380px) and (min-height:640px)') : null;
+function evSlot() {
+  const box = document.getElementById('hmEvent'), tr = document.getElementById('hmTrade'), c3 = document.querySelector('#viewHome .hm-c3'); if (!box || !tr) return;
+  if (c3 && EV_DESK3 && EV_DESK3.matches) { if (c3.firstElementChild !== box) c3.prepend(box); } else if (tr.nextElementSibling !== box) tr.after(box);
+}
+if (EV_DESK3 && EV_DESK3.addEventListener) EV_DESK3.addEventListener('change', () => evSlot());
 /** Feuille de la fête : règles, indices du jour, badges à gagner, classement des chasseurs. */
 function evSheetOpen() {
   const st = EV.st, p = evPackOf(); if (!st || !p) return;
@@ -589,6 +606,7 @@ function evIntroSoon() {
   clearTimeout(EV.introT); EV.introT = setTimeout(evIntroTry, 2500);
 }
 function evIntroTry() {
+  if (!EV.st || (evLs().seen || {})[EV.st.ev.id]) return;      // vu entre-temps (autre écran, aperçu)
   const calm = !document.hidden && !evSheetTop() && !navTopDv() && S.view === 'home' && !document.getElementById('splash') && !(typeof OB !== 'undefined' && OB.el) && !(typeof TOUR !== 'undefined' && (TOUR.on || TOUR.pill)) && !(typeof streamOn === 'function' && streamOn()) && !EV.fly;
   if (!calm) { EV.introT = setTimeout(evIntroTry, 4000); return; }
   evIntro();
@@ -634,22 +652,45 @@ async function evAdmChk(user) {
 }
 const evAdmOn = () => !!EV.adm && EV.adm === EV.uid;
 /** Ligne « Aperçu d'une fête » : chaque pack (même en préparation) ; vide : la fête du moment. */
-const evPvRow = () => (evAdmOn() && typeof EV_PACKS !== 'undefined' ? `<label class="me-row" for="setEvPv"><span class="me-t">${T('Aperçu d\'une fête')}<small>${T('Admin · ton compte seulement, progression d\'essai')}</small></span><span class="sel me-sel"><select id="setEvPv"><option value="">${T('Aucun (fête du moment)')}</option>${EV_PACKS.map(p => `<option value="${esc(p.id)}" ${EV.pv === p.id ? 'selected' : ''}>${esc(p.obj.emoji + ' ' + T(p.name) + (p.ready ? '' : ' · ' + T('en préparation')))}</option>`).join('')}</select></span></label>` : '');
+const evPvPack = () => EV.pv.split('~')[0], evPvDay = () => Number(EV.pv.split('~')[1]) || 0;
+const evPvRow = () => (evAdmOn() && typeof EV_PACKS !== 'undefined' ? `<label class="me-row" for="setEvPv"><span class="me-t">${T('Aperçu d\'une fête')}<small>${T('Admin · ton compte seulement, progression d\'essai')}</small></span><span class="sel me-sel"><select id="setEvPv"><option value="">${T('Aucun (fête du moment)')}</option>${EV_PACKS.map(p => `<option value="${esc(p.id)}" ${evPvPack() === p.id ? 'selected' : ''}>${esc(p.obj.emoji + ' ' + T(p.name) + (p.ready ? '' : ' · ' + T('en préparation')))}</option>`).join('')}</select></span></label>` + evPvDayRow() : '');
+/** Jour de l'aperçu (1er jour par défaut) : cloches de Pâques, rattrapage du calendrier… */
+function evPvDayRow() {
+  const e = EV.pv && EV.cal && typeof evById === 'function' ? evById(EV.cal.id) : null; if (!e) return '';
+  const cur = evPvDay() || evDiff(e.from, EV.cal.day || e.from) + 1;
+  const opts = Array.from({ length: e.days }, (_, i) => { const d = evAdd(e.from, i), b = typeof evBells === 'function' ? evBells(e, d) : ''; return `<option value="${i + 1}" ${cur === i + 1 ? 'selected' : ''}>${esc(T('Jour {d}', { d: i + 1 }) + ' · ' + new Date(d + 'T12:00:00').toLocaleDateString(LOC(), { weekday: 'short', day: 'numeric', month: 'short' }) + (b === 'bells' ? ' · 🔔 ' + T('cloches revenues') : b === 'away' ? ' · ' + T('cloches à Rome') : ''))}</option>`; }).join('');
+  return `<label class="me-row" for="setEvPvD"><span class="me-t">${T('Jour de l\'aperçu')}</span><span class="sel me-sel"><select id="setEvPvD">${opts}</select></span></label>`
+    + (cur < e.days ? `<button type="button" class="me-row" data-evpv="next"><span class="me-t">${T('Passer au jour suivant')}<small>${esc(T('Jour {a} → jour {b} : nouvelles cachettes, la progression d\'essai continue', { a: cur, b: cur + 1 }))}</small></span><span class="me-v">›</span></button>` : '');
+}
+/** « Passer au jour suivant » (aperçu) : comme si minuit venait de passer. */
+function evPvNext() {
+  const e = EV.pv && EV.cal && typeof evById === 'function' ? evById(EV.cal.id) : null; if (!e) return;
+  const cur = evPvDay() || evDiff(e.from, EV.cal.day || e.from) + 1; if (cur >= e.days) return;
+  haptic('tap'); evPvSet(evPvPack() + '~' + (cur + 1), true); if (typeof toast === 'function') toast(T('Aperçu : jour {d}', { d: cur + 1 }));
+}
 /** Document du compte reçu : gardé tel quel (EV.doc0) ; en aperçu, sans l'édition essayée (sa progression d'essai ne se mélange pas à la vraie). */
 function evDocIn(e) { EV.doc0 = e; EV.doc = EV.pv && EV.cal ? evWithout(e, EV.cal.id) : e; }
 const evWithout = (o, id) => { const x = { ...(o || {}) }; delete x[id]; return x; };
 /** Choix de l'aperçu (pack ou '') : gardé sur l'appareil, appliqué tout de suite. quiet : sans message. */
 function evPvSet(pack, quiet) {
-  const want = pack && typeof evPack === 'function' && evPack(pack) ? pack : '';
+  const want = pack && typeof evPack === 'function' && /^[a-z]{2,16}(~\d{1,2})?$/.test(pack) && evPack(pack.split('~')[0]) ? pack : '';
   try { if (want) localStorage.setItem(EV_PVK, want); else localStorage.removeItem(EV_PVK); } catch (e) { /* stockage refusé : pour la session */ }
+  if (EV.pv && want && evPvPack() === want.split('~')[0] && EV.cal) {      // même fête, autre jour : la progression d'essai continue (le serveur la garde)
+    const e = evById(EV.cal.id), d = Number(want.split('~')[1]) || 1; EV.pv = want;
+    if (e) EV.cal = { ...EV.cal, day: evAdd(e.from, Math.min(e.days, d) - 1) };
+    evApply(); evStatus(true);
+    if (typeof meOpen === 'function' && meOpen() && typeof mePaint === 'function') mePaint();
+    return;
+  }
   if (EV.pv) evPvLeave();
   if (want && !evPvEnter(want)) return;
-  if (!quiet && typeof toast === 'function') toast(want ? T('Aperçu : {n}', { n: T(evPack(want).name) }) : T('Aperçu terminé'));
+  if (!quiet && typeof toast === 'function') toast(want ? T('Aperçu : {n}', { n: T(evPack(want.split('~')[0]).name) }) : T('Aperçu terminé'));
   if (typeof meOpen === 'function' && meOpen() && typeof mePaint === 'function') mePaint();
 }
 /** Entre dans l'aperçu : édition du pack cette année (premier jour si hors dates), copie de travail du stockage sans elle (intro revue, compteur à zéro). */
 function evPvEnter(pack) {
-  const f = typeof evActive === 'function' ? evActive(Date.now(), { force: pack }) : null; if (!f || !evPack(f.pack)) return false;
+  const [base, nd] = pack.split('~'), f = typeof evActive === 'function' ? evActive(Date.now(), { force: base }) : null; if (!f || !evPack(f.pack)) return false;
+  if (Number(nd) >= 1) f.day = evAdd(f.from, Math.min(f.days, Number(nd)) - 1);      // jour choisi (le serveur fait de même)
   const ls = evLs(); evStop();
   EV.pv = pack; EV.ls = { ...ls, p: evWithout(ls.p, f.id), anon: evWithout(ls.anon, f.id), seen: evWithout(ls.seen, f.id), fw: evWithout(ls.fw, f.id) };
   EV.cal = { id: f.id, pack: f.pack, from: f.from, to: f.to, day: f.day, total: f.total, per: f.per, forced: true, preview: true };
@@ -716,14 +757,15 @@ function evBoot() {
   }
   document.addEventListener('visibilitychange', () => { evQuietSync(); if (!document.hidden && evOn()) evStatus(); evLoopSync(); });
   let pv = ''; try { pv = localStorage.getItem(EV_PVK) || ''; } catch (e) { /* stockage refusé */ }
-  if (pv && typeof evPack === 'function' && evPack(pv) && evPvEnter(pv)) return;      // aperçu choisi sur cet appareil : le serveur confirme une fois le compte connu
+  if (pv && typeof evPack === 'function' && /^[a-z]{2,16}(~\d{1,2})?$/.test(pv) && evPack(pv.split('~')[0]) && evPvEnter(pv)) return;      // aperçu choisi sur cet appareil : le serveur confirme une fois le compte connu
   const c = evLs().cal; if (!c || typeof c.id !== 'string' || typeof evDay !== 'function') return;
   const d = evDay(Date.now()); if (d < c.from || d > c.to) { evLsSet({ cal: null }); return; }
   EV.cal = c; evApply();
 }
 if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   evBoot();
-  document.addEventListener('change', e => { if (e.target && e.target.id === 'setEvDeco') evPref(e.target.checked); if (e.target && e.target.id === 'setEvPv') evPvSet(e.target.value); });
+  document.addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('[data-evpv="next"]')) evPvNext(); });
+  document.addEventListener('change', e => { if (e.target && e.target.id === 'setEvDeco') evPref(e.target.checked); if (e.target && e.target.id === 'setEvPv') evPvSet(e.target.value); if (e.target && e.target.id === 'setEvPvD') evPvSet(evPvPack() + '~' + e.target.value, true); });
 }
 
 if (typeof module !== 'undefined' && module.exports) module.exports = { EV_HIDE, evHint };

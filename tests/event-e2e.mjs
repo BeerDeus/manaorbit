@@ -156,7 +156,7 @@ async function findAndTap(p, s, forced) {
   assert.ok((await p.$$eval('#setEvPv option', o => o.map(x => x.value))).includes('paques'), 'packs en préparation compris');
   await p.selectOption('#setEvPv', 'noel');
   await p.waitForFunction(() => EV.st && EV.st.ev.id === 'noel-2026' && EV.st.ev.preview && EV.st.me, null, { timeout: 15000 });
-  assert.equal(await p.evaluate(() => [document.documentElement.dataset.event, localStorage.getItem('deckdeal:ev:pv'), EV.st.me.n, EV.st.me.spots.length].join()), 'noel,noel,0,2');
+  assert.equal(await p.evaluate(() => [document.documentElement.dataset.event, localStorage.getItem('deckdeal:ev:pv'), EV.st.me.n, EV.st.me.spots.length].join()), 'noel,noel,0,3');      // 2 cadeaux + 1 de secours
   const pvs = await p.evaluate(() => { evLsSet({ seen: { ...evLs().seen, 'noel-2026': 1 } }); clearTimeout(EV.introT); document.querySelectorAll('.ev-intro').forEach(e => e.remove()); return EV.st.me.spots[0].s; }); await closeAll(p);      // message d'arrivée (revu en aperçu) : vu
   await p.evaluate(s => { EV_HIDE[s] = () => document.querySelector('#viewHome .hm-hero'); evScan(); }, pvs); await p.waitForFunction(s => EV.pks.get(s) && EV.pks.get(s).ok, pvs, { timeout: 8000 });
   await p.evaluate(s => EV.pks.get(s).el.click(), pvs); await p.waitForFunction(() => EV.st.me.n === 1 && !EV.fly, null, { timeout: 8000 }); await p.waitForTimeout(3200);

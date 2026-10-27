@@ -31,8 +31,8 @@ await shot(p, 'calendrier');
 ok('accueil : 24 boosters (celui du jour, à venir avec leur date), lumières autour de l\'orbe, « Encore 2 cadeaux »');
 
 /* ── 2) Les 2 cadeaux du jour → le booster s'ouvre ── */
-const me = await p.evaluate(() => EV.st.me); assert.equal(me.spots.length, 2); assert.equal(me.left, 2);
-for (const [k, x] of me.spots.entries()) {
+const me = await p.evaluate(() => EV.st.me); assert.equal(me.spots.length, 3, '2 cadeaux + 1 de secours'); assert.equal(me.left, 2);
+for (const [k, x] of me.spots.slice(0, 2).entries()) {
   await p.evaluate(s => { EV_HIDE[s] = () => document.querySelector('#viewHome .hm-hero'); window.scrollTo(0, 0); evScan(); }, x.s);
   await p.waitForFunction(s => { evScan(); const y = EV.pks.get(s); return y && y.ok; }, x.s, { timeout: 8000 });
   assert.match(await p.evaluate(s => EV.pks.get(s).el.innerHTML, x.s), /<svg/, 'cadeau en SVG');
@@ -47,6 +47,7 @@ assert.equal(await p.$eval('.adv-front img', i => i.getAttribute('src')), `https
 assert.equal(await p.evaluate(() => EV.st.me.seed > 0 && evMine('noel-2026').seed === EV.st.me.seed), true, 'graine du serveur gardée sur l\'appareil');
 assert.equal(await p.$('.ev-msg.on'), null, 'pas de message par-dessus l\'ouverture');
 await p.click('.adv-open [data-adv-close]'); await p.waitForFunction(() => !document.querySelector('.adv-open'));
+assert.equal(await p.evaluate(s => { evScan(); return EV.pks.has(s); }, me.spots[2].s), false, 'cadeau de secours retiré une fois les 2 du jour trouvés');
 await p.waitForFunction(() => /1\s*\/\s*24/.test(document.querySelector('#hmEvent .hm-ev-n').textContent));
 assert.equal(await p.$eval('#hmEvent .adv-d[data-adv="1"]', b => b.className), 'adv-d open');
 assert.equal(await p.$eval('.hm-stage .adv-orbit i', i => i.className), 'on');
@@ -54,7 +55,7 @@ const bd = await p.evaluate(() => { const x = prgBadges().find(y => y.b.id === '
 assert.deepEqual(bd, [1, 0, 'Lutin', '1 booster ouvert'], 'badge : boosters ouverts');
 await p.click('#hmEvent .adv-d[data-adv="1"]'); await p.waitForSelector('.adv-open.on'); assert.match(await p.textContent('.adv-open h2 ~ *, .adv-open small'), /Jour 1/);
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.adv-open'));
-ok('2 cadeaux du jour (SVG) → le booster s\'ouvre : carte du jour (image Scryfall), anecdote ; 1 / 24, lumière allumée, badge « Lutin » ; porte ouverte revue');
+ok('2 cadeaux du jour sur 3 cachés (SVG) → le booster s\'ouvre, le 3e disparaît : carte du jour (image Scryfall), anecdote ; 1 / 24, lumière allumée, badge « Lutin » ; porte ouverte revue');
 
 /* ── 3) Récompenses : calendrier complet (simulé côté appli) ── */
 const before = await p.evaluate(() => [evXp(), evCoverOk('noel'), advOrb(), prgXp()]);

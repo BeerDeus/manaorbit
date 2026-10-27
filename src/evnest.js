@@ -4,15 +4,22 @@
    poussins en tout). Les badges comptent les poussins éclos (pack.badge.tiers), pas les œufs.
    · Accueil : la carte de la fête devient le nid (une case par couvée : poussin éclos, couvée en cours et ses œufs du mana, couvées à venir).
    · Éclosion : plein écran (l'œuf se fend, le poussin sort, le badge gagné) ; la dernière : puis la célébration (event.js › evParty).
+   · Œuf d'or (pack.nest.gold) : 1 chance sur 100 qu'une cachette soit en or (tirage du serveur : spots › g) ; trouvé : plein écran et la couleur de classeur
+     rare « Œuf d'or » pour de bon (dr, comme le ciel du Nouvel an ; evadvent.js › advRewards). Il compte comme un œuf de la couvée.
+   · Cloches de Pâques (pack.nest.bells, evpacks.js › evBells) : du Jeudi saint au Samedi saint, elles se taisent et partent à Rome (mot sur la carte, plus de
+     cloches dans l'ambiance) ; le dimanche et le lundi de Pâques, elles reviennent et sèment des œufs en plus (quota du jour) : plein écran une fois par jour.
    Dessins : evart.js (œuf, œufs du mana, hatch : éclosion par étapes, poussin), css/event-nest.css (mise en page), css/ev-paques.css (couleurs). */
 const NEST_MANA = { W: 'blanc', U: 'bleu', B: 'noir', R: 'rouge', G: 'vert' };
+const NEST = { bellT: 0 };
 
-/** Nid d'une édition : { e, p, n (œufs), per, broods: [{ i, got (0…per), done }], hatched, cur (couvée en cours ou null) } ; null : pas un nid. */
+/** Nid d'une édition : { e, p, n (œufs), per, broods: [{ i, got (0…per), done }], hatched, cur (couvée en cours ou null), dr (couleurs rares : { jour: couverture }) } ;
+ *  null : pas un nid. */
 function nestOf(id) {
   const e = typeof evById === 'function' ? evById(id) : null, p = e && evPack(e.pack); if (!p || !p.nest) return null;
   const per = p.nest.per, n = Math.min(e.total, evCount(id));
   const broods = Array.from({ length: Math.round(e.total / per) }, (_, i) => { const got = Math.max(0, Math.min(per, n - i * per)); return { i, got, done: got >= per }; });
-  return { e, p, n, per, broods, hatched: broods.filter(b => b.done).length, cur: broods.find(b => !b.done) || null };
+  const st = EV.st, dr = evDrops(evMine(id).dr, EV.doc && EV.doc[id] && EV.doc[id].dr, st && st.ev && st.ev.id === id && st.me ? st.me.dr : null);
+  return { e, p, n, per, broods, hatched: broods.filter(b => b.done).length, cur: broods.find(b => !b.done) || null, dr };
 }
 const nestNow = () => (EV.st && EV.st.ev && evPackOf() && evPackOf().nest ? nestOf(EV.st.ev.id) : null);
 /** Étape d'éclosion d'une couvée (EV_ART.hatch) : 0 intact, 1 fêlé, 2 le poussin regarde, 3 éclos. */
@@ -32,34 +39,81 @@ function nestCardHtml(s, me) {
       <span class="hm-tr-t"><b id="hmEvT">${esc(evTx('short'))} ${esc(String(y))}</b><span>${esc(sub)}</span></span>
       <span class="hm-ev-n"><b>${nf0(s.hatched)}</b><small>/ ${nf0(s.broods.length)}</small></span></button>
     <div class="nest-row" role="img" aria-label="${esc(TN(s.hatched, '{n} poussin éclos sur {t}', '{n} poussins éclos sur {t}', { t: s.broods.length }))}">${slots}</div>
+    ${nestBellNote(s)}
     ${c ? `<div class="nest-cur"><span class="nest-cur-t">${esc(T('Couvée {i} sur {t}', { i: c.i + 1, t: s.broods.length }))}</span><span class="nest-eggs" aria-label="${esc(TN(c.got, '{n} œuf sur {t}', '{n} œufs sur {t}', { t: s.per }))}">${nestEggs(c, s)}</span></div>` : ''}
     <div class="hm-ev-ft"><span class="hm-ev-bdg" aria-hidden="true">${tiers.map((t, i) => `<span class="${s.hatched >= t ? 'ok' : ''}">${evBadgeHtml(e.id, i, s.hatched >= t)}</span>`).join('')}</span>
       <span class="hm-ev-d">${EV.st.ev.left > 0 ? esc(TN(EV.st.ev.left, 'Encore {n} jour', 'Encore {n} jours')) : esc(T('Dernier jour'))}${nx ? ' · ' + esc(TN(nx, 'prochain badge à {n} poussin', 'prochain badge à {n} poussins')) : ''}</span>
       <button class="link-btn" type="button" data-ev="open">${T('Indices')}</button></div>`;
 }
 
+/** Mot des cloches sur la carte (Jeudi saint → lundi de Pâques) ; œuf d'or trouvé. */
+function nestBellNote(s) {
+  const ph = typeof evBells === 'function' && EV.st ? evBells(s.e, EV.st.ev.day) : '', icon = n => (EV_ART[n] ? EV_ART[n]({ cls: 'evo-still' }) : '');
+  const gold = Object.values(s.dr).includes(s.p.nest.gold && s.p.nest.gold.cover);
+  const bell = ph === 'away' ? T('Depuis le Jeudi saint, les cloches se taisent : elles sont parties à Rome. Elles reviennent le matin de Pâques avec des œufs.')
+    : ph === 'bells' ? T('Les cloches sont revenues de Rome : elles sèment {n} œufs de plus aujourd\'hui.', { n: s.p.nest.bells.extra }) : '';
+  return (bell ? `<p class="nest-note nest-n-${ph}"><span aria-hidden="true">${icon('rwBell')}</span>${esc(bell)}</p>` : '')
+    + (gold ? `<p class="nest-note nest-n-gold"><span aria-hidden="true">${icon('rwGold')}</span>${esc(T('Tu as trouvé l\'œuf d\'or : la couleur « Œuf d\'or » est à toi.'))}</p>` : '');
+}
+
+/* ── Cloches de Pâques : leur retour, plein écran une fois par jour (dimanche et lundi de Pâques) ── */
+function nestBellsSoon(s) {
+  const st = EV.st; if (!st || (typeof evBells === 'function' ? evBells(s.e, st.ev.day) : '') !== 'bells' || (evLs().bl || {})[st.ev.day] || EV_EXT) return;
+  if (!EV_FORCE_UI && typeof navigator !== 'undefined' && navigator.webdriver) return;      // navigateurs pilotés par les tests : seulement avec ?event
+  clearTimeout(NEST.bellT); NEST.bellT = setTimeout(nestBellsTry, 2200);
+}
+function nestBellsTry() {
+  const st = EV.st; if (!st || !evOn()) return;
+  const calm = !document.hidden && !!(evLs().seen || {})[st.ev.id] && !evSheetTop() && !navTopDv() && S.view === 'home' && !document.getElementById('splash') && !document.querySelector('.ev-intro, .adv-open, .ev-party, .nest-bells') && !(typeof OB !== 'undefined' && OB.el) && !(typeof TOUR !== 'undefined' && (TOUR.on || TOUR.pill)) && !(typeof streamOn === 'function' && streamOn()) && !EV.fly;
+  if (!calm) { NEST.bellT = setTimeout(nestBellsTry, 4000); return; }
+  nestBells();
+}
+/** Les cloches reviennent de Rome et sèment des œufs (plein écran). */
+function nestBells() {
+  const st = EV.st, p = evPackOf(); if (!st || !p || !p.nest || document.querySelector('.nest-bells')) return;
+  evLsSet({ bl: { ...(evLs().bl || {}), [st.ev.day]: Date.now() } });
+  const el = document.createElement('div'); el.className = 'nest-bells'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'nestBT');
+  el.innerHTML = `<div class="nest-bells-bg" aria-hidden="true"></div><div class="nest-bells-art" aria-hidden="true">${EV_ART.bellFlight ? EV_ART.bellFlight() : ''}</div>
+    <div class="nest-bells-in"><small>${esc(T('Matin de Pâques'))}</small><h2 id="nestBT">${esc(T('Les cloches sont revenues de Rome !'))}</h2>
+      <p>${esc(T('Parties le Jeudi saint, elles ont sonné le retour de Pâques et semé {n} œufs de plus dans l\'appli aujourd\'hui.', { n: p.nest.bells.extra }))}</p>
+      <div class="nest-bells-acts"><button class="btn" type="button" data-nb="go">${T('À la chasse !')}</button></div></div>`;
+  document.body.appendChild(el); haptic('ok');
+  const close = () => { el.classList.remove('on'); setTimeout(() => el.remove(), reduceMotion() ? 0 : 420); document.removeEventListener('keydown', key, true); evScan(); };
+  const key = e => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); close(); } };
+  document.addEventListener('keydown', key, true);
+  el.querySelector('[data-nb="go"]').onclick = () => { haptic('ok'); close(); };
+  requestAnimationFrame(() => requestAnimationFrame(() => { el.classList.add('on'); el.querySelector('[data-nb="go"]').focus({ preventScroll: true }); }));
+}
+
 /* ── Éclosion : plein écran ─────────────────────────────────────────────────────────────────────────────────── */
-/** Après une trouvaille (event.js › evTap) : une couvée vient de se compléter → éclosion ; vrai si montrée. n0 : œufs avant la trouvaille. */
-function nestAfterFind(n0, me) {
+/** Après une trouvaille (event.js › evTap) : une couvée vient de se compléter → éclosion ; un œuf d'or → sa couleur rare ; vrai si montré.
+ *  n0 : œufs avant la trouvaille ; dr0 : couleurs rares d'avant. */
+function nestAfterFind(n0, dr0, me) {
   const s = nestNow(); if (!s) return false;
-  const per = s.per; if (Math.floor(me.n / per) <= Math.floor(n0 / per) || me.n % per) return false;
-  nestHatch(s, s.broods[me.n / per - 1], { then: !s.cur ? evParty : null });
+  const per = s.per, b = Math.floor(me.n / per) > Math.floor(n0 / per) && !(me.n % per) ? s.broods[me.n / per - 1] : null;
+  const gold = Object.keys(s.dr).some(i => !(dr0 && dr0[i]));
+  if (!b && !gold) return false;
+  nestHatch(s, b, { gold, then: !s.cur && b ? evParty : null });
   return true;
 }
-/** Plein écran : la couvée b éclot (l'œuf se fend, puis le poussin sort). o.then : à la fermeture. */
+/** Plein écran : la couvée b éclot (l'œuf se fend, puis le poussin sort), et/ou l'œuf d'or vient d'être trouvé (o.gold). o.then : à la fermeture. */
 function nestHatch(s, b, o = {}) {
-  if (!b || document.querySelector('.adv-open')) return;
-  const p = s.p, icon = n => (typeof EV_ART !== 'undefined' && EV_ART[n] ? EV_ART[n]() : ''), i = p.badge.tiers.indexOf(s.hatched);
-  const rw = i >= 0 ? `<ul class="adv-rw"><li><span class="adv-rw-ic" aria-hidden="true">${evBadgeHtml(s.e.id, i, true)}</span><span><b>${esc(T('Badge « {b} »', { b: T(p.badge.names[i]) }))}</b><small>${esc(TN(s.hatched, '{n} poussin éclos', '{n} poussins éclos'))}</small></span></li></ul>` : '';
-  const el = document.createElement('div'); el.className = 'adv-open nest-open'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'nestT');
+  if ((!b && !o.gold) || document.querySelector('.adv-open')) return;
+  const p = s.p, icon = n => (typeof EV_ART !== 'undefined' && EV_ART[n] ? EV_ART[n]() : ''), i = b ? p.badge.tiers.indexOf(s.hatched) : -1;
+  const li = [];
+  if (o.gold) li.push(`<li class="rare"><span class="adv-rw-ic" aria-hidden="true">${icon('rwGold')}</span><span><b>${esc(T('Couleur rare : « {c} »', { c: T('Œuf d\'or') }))}</b><small>${esc(T('1 chance sur 100 par œuf caché. Dans les réglages de ton classeur, section Échange.'))}</small></span></li>`);
+  if (i >= 0) li.push(`<li><span class="adv-rw-ic" aria-hidden="true">${evBadgeHtml(s.e.id, i, true)}</span><span><b>${esc(T('Badge « {b} »', { b: T(p.badge.names[i]) }))}</b><small>${esc(TN(s.hatched, '{n} poussin éclos', '{n} poussins éclos'))}</small></span></li>`);
+  const rw = li.length ? `<ul class="adv-rw">${li.join('')}</ul>` : '';
+  const el = document.createElement('div'); el.className = 'adv-open nest-open' + (o.gold ? ' nest-goldo' : ''); el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'nestT');
   const art = st => `<span class="nest-st nest-st${st}">${EV_ART.hatch({ stage: st, v: b.i % 5, lit: st === 3 })}</span>`;
+  const big = b ? (reduceMotion() ? art(3) : art(2) + art(3)) : `<span class="nest-st nest-gold-egg">${EV_ART.egg({ gold: true, lit: true })}</span>`;
   el.innerHTML = `<div class="adv-bg" aria-hidden="true"></div>
     <div class="adv-in">
-      <div class="nest-big" aria-hidden="true">${reduceMotion() ? art(3) : art(2) + art(3)}</div>
+      <div class="nest-big${b ? '' : ' gold'}" aria-hidden="true">${big}</div>
       <div class="adv-tx">
-        <small>${esc(T('Couvée {i} sur {t}', { i: b.i + 1, t: s.broods.length }))}</small>
-        <h2 id="nestT">${esc(T('Un poussin est né !'))}</h2>
-        <p class="adv-have">${esc(s.cur ? TN(s.hatched, '{n} poussin dans ton nid. Une nouvelle couvée commence.', '{n} poussins dans ton nid. Une nouvelle couvée commence.') : T('Les {n} poussins sont nés : ton nid est complet.', { n: s.broods.length }))}</p>
+        <small>${esc(b ? T('Couvée {i} sur {t}', { i: b.i + 1, t: s.broods.length }) : T('Couvée {i} sur {t}', { i: (s.cur || s.broods[s.broods.length - 1]).i + 1, t: s.broods.length }))}</small>
+        <h2 id="nestT">${esc(b ? (o.gold ? T('Un œuf d\'or, et un poussin est né !') : T('Un poussin est né !')) : T('Un œuf d\'or !'))}</h2>
+        <p class="adv-have">${esc(!b ? T('Un œuf pas comme les autres : il rejoint ta couvée, et ton classeur se pare d\'or.') : s.cur ? TN(s.hatched, '{n} poussin dans ton nid. Une nouvelle couvée commence.', '{n} poussins dans ton nid. Une nouvelle couvée commence.') : T('Les {n} poussins sont nés : ton nid est complet.', { n: s.broods.length }))}</p>
         ${rw}
         <div class="adv-acts"><button class="btn" type="button" data-adv-close>${T('Super !')}</button></div>
       </div>
@@ -72,8 +126,9 @@ function nestHatch(s, b, o = {}) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     el.classList.add('on');
     const big = el.querySelector('.nest-big'), bx = big.getBoundingClientRect();
-    if (!reduceMotion()) setTimeout(() => { if (!el.isConnected) return; big.classList.add('out'); haptic('ok'); if (typeof evSparks === 'function') evSparks(el, bx.left + bx.width / 2, bx.top + bx.height / 2, bx.width); }, 1100);
+    if (!reduceMotion() && b) setTimeout(() => { if (!el.isConnected) return; big.classList.add('out'); haptic('ok'); if (typeof evSparks === 'function') evSparks(el, bx.left + bx.width / 2, bx.top + bx.height / 2, bx.width); }, 1100);
     el.querySelector('[data-adv-close]').focus({ preventScroll: true });
   }));
+  if (typeof ADV !== 'undefined') ADV.rw = null;      // la couleur rare vient peut-être d'arriver
   if (typeof prgSoon === 'function') prgSoon('event');
 }

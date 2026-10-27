@@ -13,8 +13,11 @@
 //   · Notifications push (o.push, event-push.mjs) : appareils enregistrés avec ou sans compte (POST /api/event/push), annonces automatiques (tick de proxy.mjs),
 //     envois manuels du panneau (GET/POST /api/admin/events/push, …/push/cancel).
 //   · Aperçu (o.canPreview : comptes de l'éditeur, liste ADMIN_SET de proxy.mjs) : en-tête x-event-preview: <pack> ou <pack>-<année> → cette fête-là, pour ce
-//     compte seulement, même pas prête (ready: false) ni dans ses dates (premier jour). Progression à part : en mémoire (jamais sur le disque, jamais dans les
-//     statistiques), clé 'v' + empreinte (ses reçus ne valent rien pour la vraie fête). Tout autre compte : en-tête ignoré.
+//     compte seulement, même pas prête (ready: false) ni dans ses dates (premier jour ; « <pack>~<n> » : son n-ième jour). Progression à part : en mémoire
+//     (jamais sur le disque, jamais dans les statistiques), clé 'v' + empreinte (ses reçus ne valent rien pour la vraie fête) ; œuf d'or plus fréquent (1 sur 5)
+//     pour qu'on le voie. Tout autre compte : en-tête ignoré.
+//   · Œuf d'or (pack.nest.gold, Pâques) : chaque cachette du jour a gold.p de chance d'être un œuf d'or (evGold : secret, édition, joueur, jour, cachette ;
+//     o.goldP le remplace, tests seulement) ; me().spots › g: 1 ; trouvé : couleur rare dans dr ({ n° du jour : couverture }, comme le ciel du Nouvel an).
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
@@ -23,7 +26,7 @@ import { createRequire } from 'node:module';
 import { evPushMake } from './event-push.mjs';
 
 const EVP = createRequire(import.meta.url)('../src/evpacks.js');
-const ID_RE = /^[a-z]+-\d{4}$/, PV_RE = /^[a-z]{2,16}(-\d{4})?$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DEV_RE = /^([\w-]{22})\.([\w-]{16})$/, TOK_RE = /^[\w-]{16}$/, SIG_RE = /^[\w-]{22}$/;
+const ID_RE = /^[a-z]+-\d{4}$/, PV_RE = /^([a-z]{2,16}(?:-\d{4})?)(?:~(\d{1,2}))?$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DEV_RE = /^([\w-]{22})\.([\w-]{16})$/, TOK_RE = /^[\w-]{16}$/, SIG_RE = /^[\w-]{22}$/;
 const ROUTES = ['', 'claim', 'sync', 'merge', 'board', 'push'];
 const SPOT_IDS = new Set(EVP.EV_SPOTS.map(s => s.id));
 const evJson = (res, status, obj, extra = {}) => { const b = JSON.stringify(obj); res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...extra }); res.end(b); };
@@ -37,11 +40,13 @@ function rng(hex) { let a = parseInt(String(hex).slice(0, 8), 16) >>> 0; return 
 const eq = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && timingSafeEqual(x, y); };
 
 /** Tirage d'une couleur rare (calendrier de l'Avent, ciel du Nouvel an) : rr.p de chance, couleur parmi rr.covers ; '' : rien. Exporté pour les tests (taux). */
+/** Œuf d'or : la cachette s du jour day du joueur k est-elle en or (p de chance) ? Exporté pour les tests (taux). */
+export function evGold(secret, id, k, day, s, p) { return createHmac('sha256', secret).update(`evg|${id}|${k}|${day}|${s}`).digest().readUInt32BE(0) / 0x100000000 < p; }
 export function evRare(secret, id, k, i, rr) {
   const h = createHmac('sha256', secret).update(`evr|${id}|${k}|${i}`).digest();
   return h.readUInt32BE(0) / 0x100000000 < rr.p ? rr.covers[h.readUInt32BE(4) % rr.covers.length] : '';
 }
-/** Crée le moteur. o : { dir, on (EVENT ≠ '0'), force (EVENT_FORCE), secret, now, verify (jeton → { uid, email, emailVerified, provider }), canPreview (compte vérifié → aperçu permis), bad (filtre de mots),
+/** Crée le moteur. o : { dir, on (EVENT ≠ '0'), force (EVENT_FORCE), secret, now, verify (jeton → { uid, email, emailVerified, provider }), goldP (chance de l'œuf d'or : tests), canPreview (compte vérifié → aperçu permis), bad (filtre de mots),
  *  json, readBody, rateWait, tooMany, tooLarge, isLocked, badKey, log, adminHeaders, adminBody (garde-fous des actions du panneau), adminLog, adminMail,
  *  push ({ send, target } : notifications ; null : aucune), pushExtra (→ appareils de la Carte mystère, cible « tous »), pushOpts (réglages de event-push.mjs : tests) }. */
 export function eventMake(o = {}) {
@@ -121,9 +126,11 @@ export function eventMake(o = {}) {
   }
   /** Aperçu demandé (x-event-preview) par un compte qui y a droit : l'édition à montrer (forcée, marquée preview) ; sinon null (en-tête ignoré). */
   async function preview(req, res) {
-    const want = String(req.headers['x-event-preview'] || '').trim().toLowerCase(); if (!ON || !want || !PV_RE.test(want)) return null;
+    const m = PV_RE.exec(String(req.headers['x-event-preview'] || '').trim().toLowerCase()); if (!ON || !m) return null;
     const u = await who(req, res); if (!u || !u.pv) return u === false ? false : null;
-    const f = EVP.evActive(now(), { force: want }); return f ? { ...f, preview: true } : null;
+    const f = EVP.evActive(now(), { force: m[1] }); if (!f) return null;
+    const d = m[2] ? Math.max(1, Math.min(f.days, Number(m[2]))) : 0;      // jour choisi (1 … days) : cloches de Pâques, rattrapage du calendrier…
+    return { ...f, ...(d ? { day: EVP.evAdd(f.from, d - 1) } : {}), preview: true };
   }
   /** Clé du joueur : 'u' + empreinte du compte, sinon 'd' + appareil. */
   const keyOf = (u, dev, pv) => (pv ? (u ? 'v' + u.tag : '') : u ? 'u' + u.tag : dev ? 'd' + dev : '');      // aperçu : compte seulement, clé à part
@@ -157,8 +164,16 @@ export function eventMake(o = {}) {
   /** Couleurs rares gagnées par un joueur : calendrier (pack.advent.rare) : { porte: couleur } pour ses portes ouvertes, sauf la dernière (récompense sûre) ;
    *  ciel (pack.sky.rare) : { n° du jour (1…) : couleur } pour chaque jour où il a trouvé au moins un objet.
    *  Tirage reproductible (secret, édition, joueur, porte ou jour) : le même à chaque lecture, invisible et impossible à forcer depuis l'appli. */
+  /** Œuf d'or (pack.nest.gold) : cachette s du jour day du joueur k ; aperçu (clé 'v') : 1 sur 5. */
+  function gold(e, k, day, s) {
+    const p = EVP.evPack(e.pack), g = p && p.nest && p.nest.gold; if (!g || !k) return false;
+    return evGold(G.secret, e.id, k, day, s, o.goldP != null ? Number(o.goldP) : k[0] === 'v' ? Math.max(g.p, 0.2) : g.p);
+  }
   function rares(e, k, pl) {
     const p = EVP.evPack(e.pack), out = {}; if (!p || !k) return out;
+    if (p.nest && p.nest.gold) for (const [d, l] of Object.entries(pl.d || {})) {      // œuf d'or trouvé ce jour-là : la couleur rare
+      const i = EVP.evDiff(e.from, d) + 1; if (Array.isArray(l) && i >= 1 && i <= e.days && l.some(s => gold(e, k, d, s))) out[i] = p.nest.gold.cover;
+    }
     if (p.advent && p.advent.rare) for (const d of EVP.evDoors(e, pl.d || {})) if (d.open && d.i < p.advent.doors) { const c = evRare(G.secret, e.id, k, d.i, p.advent.rare); if (c) out[d.i] = c; }
     if (p.sky && p.sky.rare) for (const [d, l] of Object.entries(pl.d || {})) {
       const i = EVP.evDiff(e.from, d) + 1; if (!Array.isArray(l) || !l.length || i < 1 || i > e.days) continue;
@@ -170,12 +185,13 @@ export function eventMake(o = {}) {
   function me(e, r, k, caps) {
     const pl = r.p[k] || { d: {}, n: 0 }, day = e.day, found = (pl.d && pl.d[day]) || [], n = total(e, pl), sig = {};
     for (const [d, l] of Object.entries(pl.d || {})) if (Array.isArray(l) && l.length) sig[d] = daySig(e.id, k, d, l);
-    const q = EVP.evQuota(e, day), full = n >= e.total, sp = full ? [] : spotsOf(e, k, day, caps, Math.min(q, e.total - n + found.length), pl.d || {});      // rattrapage : pas plus de cachettes que d'objets manquants
+    const q = EVP.evQuota(e, day), pk = EVP.evPack(e.pack), spare = (pk && pk.spare) || 0;      // spare : cachettes de secours en plus (Noël : 3 cadeaux cachés pour 2 à trouver) ; le quota du jour ne change pas
+    const full = n >= e.total, sp = full ? [] : spotsOf(e, k, day, caps, Math.min(q, e.total - n + found.length) + spare, pl.d || {});      // rattrapage : pas plus de cachettes que d'objets manquants (+ le secours)
     for (const s of found) if (!sp.includes(s)) {      // capacités changées depuis (autre appareil, connexion…) : celles déjà trouvées restent marquées, à la place d'une
       const i = sp.findLastIndex(x => !found.includes(x)); if (i >= 0) sp[i] = s; else sp.push(s);      // pas trouvée : jamais plus d'indices que le quota du jour
     }
     const dr = rares(e, k, pl), ad = EVP.evPack(e.pack), seed = ad && ad.advent && k ? createHmac('sha256', G.secret).update(`evs|${e.id}|${k}`).digest().readUInt32BE(0) || 1 : 0;      // graine des cartes du jour (calendrier)
-    return { n, day, found, q, ...(Object.keys(dr).length ? { dr } : {}), ...(seed ? { seed } : {}), left: full ? 0 : Math.max(0, Math.min(q - found.length, e.total - n)), spots: sp.map(s => ({ s, t: spotTok(e.id, k, day, s), f: found.includes(s) ? 1 : 0 })), jours: pl.d || {}, sig, rs: pl.rs || 0 };      // rs : remise à zéro par le panneau (les copies plus anciennes ne comptent plus)
+    return { n, day, found, q, ...(Object.keys(dr).length ? { dr } : {}), ...(seed ? { seed } : {}), left: full ? 0 : Math.max(0, Math.min(q - found.length, e.total - n)), spots: sp.map(s => ({ s, t: spotTok(e.id, k, day, s), f: found.includes(s) ? 1 : 0, ...(gold(e, k, day, s) ? { g: 1 } : {}) })), jours: pl.d || {}, sig, rs: pl.rs || 0 };      // rs : remise à zéro par le panneau (les copies plus anciennes ne comptent plus)
   }
   const edOut = e => ({ id: e.id, pack: e.pack, from: e.from, to: e.to, day: e.day, days: e.days, dayNo: EVP.evDiff(e.from, e.day) + 1, left: EVP.evDiff(e.day, e.to), total: e.total, per: e.per, ...(e.forced ? { forced: true } : {}), ...(e.preview ? { preview: true } : {}) });
   async function body(req, res, max = 4096) {

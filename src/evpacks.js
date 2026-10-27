@@ -83,6 +83,9 @@ const EV_PACKS = [
       },
     } },
   { id: 'noel', ready: true, name: 'Noël', when: y => ({ from: `${y}-12-01`, to: `${y}-12-26` }), total: 48, perDay: 2,
+    // spare : un cadeau de secours caché en plus chaque jour (3 cachettes pour 2 cadeaux à trouver) : de la marge si l'un est introuvable ; le quota reste 2,
+    // le 3e disparaît dès les 2 trouvés et ne compte pas pour le lendemain.
+    spare: 1,
     // Calendrier de l'Avent (evadvent.js) : une porte (un booster) par jour du 1er au 24, ouverte quand les {per} cadeaux du jour sont trouvés ; le 25 et le 26,
     // rattrapage : jusqu'à catchup cadeaux par jour, qui ouvrent les portes manquées dans l'ordre. Le badge compte les portes ouvertes.
     advent: {
@@ -261,7 +264,10 @@ const EV_PACKS = [
     // elle éclot : un poussin (total / per poussins en tout). Le badge compte les poussins éclos (unit), pas les œufs.
     // Dessins (evart.js, section « Pâques ») : œuf décoré (5 teintes et décors peints selon la cachette), œufs du mana, éclosion, compteur, poussin des messages ;
     // ambiance et couleurs : css/ev-paques.css, mise en page du nid : css/event-nest.css. Pas encore ouvert (ready: false) : ni messages Discord ni notifications.
-    nest: { per: 5, mana: ['W', 'U', 'B', 'R', 'G'] },
+    // gold : œuf d'or rare (gold.p de chance pour chaque cachette, tirage du serveur propre au joueur, au jour et à la cachette : event-srv.mjs › evGold) ; le trouver
+    // donne la couleur de classeur rare gold.cover (binder.js), acquise pour de bon. bells : cloches de Pâques (evBells) : du Jeudi saint (away jours avant
+    // Pâques) au Samedi saint, parties à Rome ; le dimanche et le lundi (days jours dès back), revenues : extra œufs de plus par jour (quota, evQuota).
+    nest: { per: 5, mana: ['W', 'U', 'B', 'R', 'G'], gold: { p: 0.01, cover: 'oeufdor' }, bells: { away: -3, back: 0, days: 2, extra: 5 } },
     obj: { one: 'œuf', many: 'œufs', emoji: '🥚', fem: false, art: 'egg', counter: 'eggCounter', msg: 'chick' },
     pal: { a: '#ffb3d1', b: '#8fd6a8', c: '#ffd36b', ink: '#2a1d2e' }, font: 'bloom',
     badge: { t: 'Nid de Pâques {y}', tiers: [1, 2, 4, 6], unit: ['{n} poussin éclos', '{n} poussins éclos'], names: ['Premier poussin', 'Couveur', 'Gardien du nid', 'Lapin d\'or'] },
@@ -359,7 +365,14 @@ const evDoorDay = (e, i) => evAdd(e.from, i - 1);
 /** Jour de rattrapage (après la dernière porte) ? */
 const evCatchup = (e, day) => { const p = evPack(e.pack); return !!(p && p.advent && evDiff(e.from, day) >= p.advent.doors); };
 /** Quota d'un jour : celui de l'édition ; jours de rattrapage d'un calendrier : advent.catchup (le total borne de toute façon : seulement les portes manquées). */
-const evQuota = (e, day) => (evCatchup(e, day) ? evPack(e.pack).advent.catchup : e.per);
+/** Cloches de Pâques (pack.nest.bells) un jour de l'édition e : 'away' du Jeudi au Samedi saints (parties à Rome), 'bells' le dimanche et le lundi de Pâques
+ *  (revenues : œufs en plus), '' sinon (ou pas de cloches). */
+function evBells(e, day) {
+  const p = e && evPack(e.pack), b = p && p.nest && p.nest.bells; if (!b || !day) return '';
+  const d = evDiff(evEaster(+String(e.id).slice(-4)), day);
+  return d >= b.back && d < b.back + b.days ? 'bells' : d >= b.away && d < b.back ? 'away' : '';
+}
+const evQuota = (e, day) => (evCatchup(e, day) ? evPack(e.pack).advent.catchup : evBells(e, day) === 'bells' ? e.per + evPack(e.pack).nest.bells.extra : e.per);
 /** Portes d'un calendrier d'après les jours joués ({ jour: [cachettes] }) : [{ i, day, n (objets de son jour), open, late (ouverte au rattrapage) }].
  *  Les objets des jours de rattrapage ouvrent les portes manquées dans l'ordre, {per} par porte. [] : pas un calendrier. */
 function evDoors(e, jours) {
@@ -393,4 +406,4 @@ function evCheck(y = 2026) {
   return bad;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evParts, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck, evDoorDay, evCatchup, evQuota, evDoors, evAdvCards };
+if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evParts, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck, evDoorDay, evCatchup, evBells, evQuota, evDoors, evAdvCards };

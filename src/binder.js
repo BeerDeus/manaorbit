@@ -25,7 +25,8 @@ const BND_COVERS = [['nuit', 'Nuit'], ['cuir', 'Cuir'], ['bordeaux', 'Bordeaux']
     proposées une fois gagnées, toujours lues (liste d'un autre joueur). */
 BND_COVERS.push(['noel', 'Nuit de Noël'], ['sapin', 'Sapin'], ['neige', 'Neige'], ['houx', 'Houx'], ['nuitdoree', 'Nuit dorée']);      // noel : animée (24e booster) ; les autres : rares
 BND_COVERS.push(['constellation', 'Constellations'], ['aurore', 'Aurore boréale'], ['comete', 'Comète'], ['eclipse', 'Éclipse']);      // Nouvel an : constellation, animée (les 30 étoiles) ; les autres : rares
-const BND_FEST = new Set(['noel', 'sapin', 'neige', 'houx', 'nuitdoree', 'constellation', 'aurore', 'comete', 'eclipse']);
+BND_COVERS.push(['oeufdor', 'Œuf d\'or']);      // Pâques : l'œuf d'or (rare, evnest.js)
+const BND_FEST = new Set(['noel', 'sapin', 'neige', 'houx', 'nuitdoree', 'constellation', 'aurore', 'comete', 'eclipse', 'oeufdor']);
 const bndCovOk = (id, cur) => !BND_FEST.has(id) || id === cur || (typeof evCoverOk === 'function' && evCoverOk(id));
 const BND = { cfg: null, view: null, chk: '', pg: {}, own: null, live: new Set(), rt: 0, ed: null, edAt: 0, noIm: new Set() };      // pg : vue affichée par classeur (section, onglet) le temps de la session ; own : classeur de la section (gardé entre deux peintures) ; ed, edAt, noIm : lecture des images d'éditions (bndEdLoad)
 const BND_IC = {

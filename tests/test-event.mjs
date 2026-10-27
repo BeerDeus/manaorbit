@@ -12,7 +12,7 @@ import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { eventMake, evTag, evName, evRare } from '../server/event-srv.mjs';
+import { eventMake, evTag, evName, evRare, evGold } from '../server/event-srv.mjs';
 import { startFakes } from './amis-fakes.mjs';
 const require = createRequire(import.meta.url);
 const E = require('../src/evpacks.js');
@@ -26,7 +26,7 @@ const T0 = Date.parse('2026-10-25T08:00:00Z');      // 25 octobre 2026, 10 h à 
 async function up(o = {}) {
   const clock = { t: o.t || T0 }, users = { 'tok-zoe': 'uid-zoe', 'tok-max': 'uid-max' };
   const verify = async tok => { if (tok === 'expired') throw Object.assign(new Error('x'), { authCode: 'expired' }); const uid = users[tok]; if (!uid) throw Object.assign(new Error('x'), { authCode: 'invalid' }); return { uid, emailVerified: true, provider: 'google.com' }; };
-  const ev = eventMake({ dir: o.dir || newDir(), secret: o.secret ?? 'sekret', now: () => clock.t, verify, bad: s => /merde/i.test(s), on: o.on, force: o.force, canPreview: o.canPreview, log: { log() {}, warn() {} } });
+  const ev = eventMake({ dir: o.dir || newDir(), secret: o.secret ?? 'sekret', now: () => clock.t, verify, bad: s => /merde/i.test(s), on: o.on, force: o.force, canPreview: o.canPreview, goldP: o.goldP, log: { log() {}, warn() {} } });
   const srv = http.createServer((req, res) => { const u = new URL(req.url, 'http://x'); const p = u.pathname.replace(/^\/api\//, ''); (p.startsWith('admin/') ? ev.admin(req, res, p.slice(6), u, { email: 'ed@x' }) : ev.api(req, res, p, u)).catch(e => { console.error(e); res.writeHead(500); res.end('{}'); }); });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}/api/`;
@@ -130,17 +130,18 @@ test('calendrier de l\'Avent (Noël) : 24 portes, 2 cadeaux par jour, rattrapage
   const d = E.evDoors(n, { '2026-12-01': ['a', 'b'], '2026-12-02': ['a'], '2026-12-25': ['x', 'y', 'z'] });
   assert.equal(d.length, 24); assert.deepEqual(d.slice(0, 4).map(x => [x.open, x.late]), [[true, false], [true, true], [true, true], [false, false]], 'le rattrapage ouvre les portes manquées dans l\'ordre, 2 cadeaux par porte');
   assert.deepEqual(E.evDoors(E.evById('halloween-2026'), {}), [], 'pas un calendrier');
-  // serveur : le 3 décembre, 2 cachettes, 2 trouvées au plus
+  // serveur : le 3 décembre, 3 cachettes (dont 1 de secours), 2 trouvées au plus
   const S = await up({ t: Date.parse('2026-12-03T09:00:00Z') }), dev = (await S.call('event')).j.dev;
   let me = (await S.call('event', { dev })).j.me; assert.equal((await S.call('event', { dev })).j.ev.id, 'noel-2026');
-  assert.equal(me.spots.length, 2); assert.equal(me.left, 2); assert.equal(me.q, 2);
+  assert.equal(me.spots.length, 3, '2 cadeaux + 1 de secours'); assert.equal(me.left, 2); assert.equal(me.q, 2);
   const claim = x => S.call('event/claim', { dev, body: { ev: 'noel-2026', day: me.day, s: x.s, t: x.t } });
-  for (const x of me.spots) assert.equal((await claim(x)).status, 200);
-  const more = (await S.call('event?c=255', { dev })).j.me.spots.find(x => !x.f); if (more) assert.equal((await claim(more)).status, 409, '3e du jour : refusé');
+  assert.equal((await claim(me.spots[2])).status, 200, 'le secours compte comme les autres'); assert.equal((await claim(me.spots[0])).status, 200);
+  const r3 = await claim(me.spots[1]); assert.equal(r3.status, 409, '3e du jour : refusé'); assert.equal(r3.j.error, 'day_quota');
+  assert.equal((await S.call('event', { dev })).j.me.left, 0, 'les 2 du jour trouvés : plus rien à chercher');
   // le 25 : rattrapage, autant de cachettes que de cadeaux manquants (8 au plus)
   S.clock.t = Date.parse('2026-12-25T09:00:00Z'); me = (await S.call('event', { dev })).j.me;
-  assert.equal(me.q, 8); assert.equal(me.spots.length, 8); assert.equal(me.left, 8);
-  for (const x of me.spots) assert.equal((await claim(x)).status, 200);
+  assert.equal(me.q, 8); assert.equal(me.spots.length, 9, '8 + 1 de secours'); assert.equal(me.left, 8);
+  for (const x of me.spots.slice(0, 8)) assert.equal((await claim(x)).status, 200);
   me = (await S.call('event', { dev })).j.me; assert.equal(me.n, 10); assert.equal(me.left, 0);
   assert.equal(E.evDoors(n, me.jours).filter(x => x.open).length, 5, 'porte du 3 + 4 rattrapées');
   // couleurs rares : 1 % par porte (sauf la 24e, sûre), reproductible, jamais pour une porte fermée
@@ -192,6 +193,27 @@ test('aperçu (x-event-preview) : compte de l\'éditeur seulement, pack pas prê
   assert.equal((await S.ev.stats('halloween-2026')).hunters, 0, 'jamais dans les statistiques'); await S.ev.flush();
   assert.equal((await S.call('event', { tok: 'tok-zoe', pv: 'paques' })).j.me.n, 1, 'gardée en mémoire le temps du serveur');
   S.stop();
+});
+
+test('nid de Pâques : cloches (Jeudi saint → lundi de Pâques, œufs en plus), œuf d\'or 1 % (couleur rare), jour choisi de l\'aperçu', async () => {
+  const e = E.evById('paques-2027'), q = d => [E.evBells(e, d), E.evQuota(e, d)].join();
+  assert.equal(E.evEaster(2027), '2027-03-28');
+  assert.equal(q('2027-03-24'), ',5'); assert.equal(q('2027-03-25'), 'away,5', 'Jeudi saint : parties à Rome'); assert.equal(q('2027-03-27'), 'away,5');
+  assert.equal(q('2027-03-28'), 'bells,10', 'dimanche de Pâques : 5 œufs de plus'); assert.equal(q('2027-03-29'), 'bells,10', 'lundi de Pâques'); assert.equal(q('2027-03-30'), ',5');
+  assert.equal(E.evBells(E.evById('halloween-2026'), '2026-10-30'), '', 'pas de cloches ailleurs');
+  let g = 0; for (let i = 0; i < 40000; i++) if (evGold('sekret', 'paques-2027', 'u' + i, '2027-03-28', 'home-orb', 0.01)) g++;
+  assert.ok(g > 300 && g < 500, 'œuf d\'or : environ 1 % (' + g + ' sur 40 000)');
+  // aperçu au dimanche de Pâques 2026 (jour 8) : 10 cachettes ; œuf d'or forcé (goldP) : trouvé → couleur rare
+  const S = await up({ canPreview: () => true, goldP: 1 });
+  const r = (await S.call('event', { tok: 'tok-zoe', pv: 'paques~8' })).j; assert.equal(r.ev.day, '2026-04-05'); assert.equal(r.me.q, 10); assert.equal(r.me.spots.length, 10);
+  assert.ok(r.me.spots.every(x => x.g === 1), 'goldP 1 : toutes en or');
+  const c = await S.call('event/claim', { tok: 'tok-zoe', pv: 'paques~8', body: { ev: 'paques-2026', day: r.me.day, s: r.me.spots[0].s, t: r.me.spots[0].t } });
+  assert.equal(c.status, 200); assert.deepEqual(c.j.dr, { 8: 'oeufdor' });
+  assert.equal((await S.call('event', { tok: 'tok-zoe', pv: 'paques~99' })).j.ev.day, '2026-04-12', 'jour borné au dernier');
+  S.stop();
+  const S2 = await up({ canPreview: () => true });
+  const sp = (await S2.call('event', { tok: 'tok-max', pv: 'paques' })).j.me.spots; assert.equal(sp.length, 5); assert.ok(sp.filter(x => x.g).length <= 5);
+  S2.stop();
 });
 
 test('progression : relue depuis Firestore (reçus), rattachée au compte, une seule fois', async () => {

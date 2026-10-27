@@ -108,6 +108,31 @@
   .hm-soon-i .i{width:28px;height:28px}
   /* installation, prochaines extensions (la liste défile seule), aide */
   .hm-c3 .hm-sets{display:flex;flex-direction:column;flex:0 1 auto;min-height:150px}
+  .hm-col>#hmEvent{flex:none}      /* carte de la fête : jamais écrasée (la liste des extensions se resserre à sa place) */
+  /* Carte de la fête en tête de la 3e colonne (event.js › evSlot) : resserrée, pour laisser au moins 4 prochaines extensions sous elle */
+  .hm-c3>#hmEvent{gap:10px;padding:14px 16px}
+  .hm-c3>#hmEvent .hm-ev-ic{width:36px;height:36px}
+  .hm-c3>#hmEvent .hm-tr-t b{font-size:16px}
+  .hm-c3>#hmEvent .hm-tr-t span{font-size:12.5px}
+  .hm-c3>#hmEvent .hm-ev-n b{font-size:22px}
+  .hm-c3>#hmEvent .hm-ev-bdg .evb{width:24px;height:24px}
+  .hm-c3>#hmEvent .hm-ev-d{font-size:12px}
+  .hm-c3 .adv-grid{grid-template-columns:repeat(12,minmax(0,1fr));gap:4px}
+  .hm-c3 .adv-d > b{font-size:10.5px}
+  .hm-c3 .adv-d.today > b{font-size:12px}
+  .hm-c3 .adv-ok{width:11px;height:11px;right:2px;top:2px}
+  .hm-c3 .adv-ok::after{left:3.5px;top:2px;width:3px;height:5px;border-width:0 1.5px 1.5px 0}
+  .hm-c3 .sky-c > svg{max-width:48px}
+  .hm-c3 .sky-cd{margin-top:6px;gap:6px}
+  .hm-c3 .sky-cd > span{padding:4px 4px 3px}
+  .hm-c3 .sky-cd b{font-size:17px}
+  .hm-c3 .nest-row{padding:6px 6px 4px;margin:2px 0 0}
+  .hm-c3 .nest-b > svg{max-width:44px}
+  .hm-c3 .nest-cur{margin:4px 2px 0}
+  .hm-c3 .nest-egg{width:20px;height:20px}
+  .hm-c3 .nest-note{margin-top:4px;padding:6px 8px;font-size:12px}
+  .hm-c3:has(>#hmEvent){overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}      /* écran très bas : la colonne défile d'elle-même plutôt que de couper */
+  .hm-c3:has(>#hmEvent)::-webkit-scrollbar{display:none}
   .hm-c3 .hm-sets-l{flex:1 1 auto;min-height:0;overflow-y:auto}
   .hm-c3 .hm-help{margin-top:-6px}
   .hm-c3>#installWrap{margin-top:0}

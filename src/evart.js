@@ -760,7 +760,7 @@ EV_AMB_TOP.nouvelan = () => {
      battent) · wingedBell(o) : cloche de Pâques ailée, la tradition française (64 × 64 ; .evo-wing-l / -r battent, .evo-bell-b se balance ; o.drop : elle
      lâche deux œufs, .evo-drop) · ribbon(o) : nœud de
      ruban satiné (32 × 24, o.v).
-   EV_AMB.paques (soleil, nuages, pré fleuri, lapin, cloches qui passent), EV_AMB_TOP.paques (pétales et papillons), EV_FX.paques : ambiance, couche du
+   EV_AMB.paques (soleil, nuages, pré fleuri, lapin), EV_AMB_TOP.paques (pétales, papillon, cloches qui passent), EV_FX.paques : ambiance, couche du
    dessus, particules. */
 /** Courbe lisse passant par les points P (Catmull-Rom → Bézier) ; closed : contour fermé ; cont : continue un tracé (L au lieu de M). */
 function evqCurve(P, closed = false, cont = false) {
@@ -1275,8 +1275,8 @@ Object.assign(EV_ART, {
 
 /* ── Pâques : ambiance (accueil) ───────────────────────────────────────────────────────────────────────────────────────────────────────────
    Matin de printemps : lueurs rose, menthe et soleil, soleil dont les rayons tournent lentement, deux nuages, pré fleuri en bas de l'écran (herbe, tulipes,
-   jonquilles, marguerites, œufs cachés ; deux bouquets qui ondulent au vent), lapin assis devant, un œuf entre les pattes, sa touffe d'herbe aux pieds (oreilles qui frémissent), deux cloches ailées qui
-   passent de loin en loin (elles reviennent de Rome). Éléments animés : 2 lueurs + 1 soleil + 2 bouquets + 1 lapin + 2 vols + 2 battements d'ailes = 10. */
+   jonquilles, marguerites, œufs cachés ; deux bouquets qui ondulent au vent), lapin assis devant, un œuf entre les pattes, sa touffe d'herbe aux pieds (oreilles qui frémissent).
+   Les cloches ailées passent dans la couche du dessus (EV_AMB_TOP.paques), devant le contenu. Éléments animés : 2 lueurs + 1 soleil + 2 bouquets + 1 lapin = 6. */
 /** Soleil de printemps (viewBox 100 × 100) : halo, seize rayons (.evq-sun-r tourne), disque doré, reflet. */
 function evqSun() {
   const n = ++EVO_N, f = evoF; let r = '';
@@ -1313,7 +1313,6 @@ function evqMeadow() {
 }
 EV_AMB.paques = () => '<i class="evq-glow evq-g1"></i><i class="evq-glow evq-g2"></i><i class="evq-glow evq-g3"></i>'
   + `<span class="evq-sun">${evqSun()}</span><span class="evq-cloud evq-cl1">${evqCloud()}</span><span class="evq-cloud evq-cl2">${evqCloud()}</span>`
-  + `<span class="evq-bell evq-b1">${EV_ART.wingedBell({ v: 0 })}</span><span class="evq-bell evq-b2">${EV_ART.wingedBell({ v: 4 })}</span>`
   + `<span class="evq-meadow">${evqMeadow()}</span><span class="evq-bunny">${EV_ART.bunny({ v: 2 })}`
   + `<svg class="evq-tuft" viewBox="0 0 64 14" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="${evqBlades(0, 64, 14.4, 4, 11, 22, 6, 2.4)}" fill="#5fae4c"/><path d="${evqBlades(2, 62, 14.6, 3, 8, 20, 12, 2.2)}" fill="#8fd47a" stroke="#3a8a3e" stroke-width=".3"/></svg></span>`;
 
@@ -1333,15 +1332,60 @@ EV_FX.paques = () => {
   ];
 };
 
-/** Pétales et papillons sur l'accueil (couche du dessus) : 5 pétales de cerisier qui tombent en voletant (chute, tournoiement), 2 papillons qui traversent
- *  (vol, battement d'ailes) ; bordés d'un trait plus foncé : visibles sur fond clair comme sur fond sombre. */
+/** Couche du dessus de l'accueil (devant le contenu, ne capte aucun toucher) : 3 pétales de cerisier qui tombent en voletant (chute, tournoiement),
+ *  1 papillon qui traverse (vol, battement d'ailes), 2 cloches de Pâques ailées qui passent dans le haut de l'écran (vol, battement d'ailes ; chacune porte deux
+ *  œufs, montrés seulement quand elles sont revenues de Rome : html[data-evphase="bells"]) : 12 éléments animés. Bordés d'un trait plus foncé : visibles sur
+ *  fond clair comme sur fond sombre. */
 EV_AMB_TOP.paques = () => {
   const petal = (c, e) => { const n = ++EVO_N; return `<svg class="evo evo-petal" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><defs><linearGradient id="evq${n}p" x1="0" y1="1" x2=".6" y2="0"><stop offset="0" stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient></defs>`
     + `<path d="M8 15C4.2 12.4 2.2 9 2.6 5.6C3 2.8 5 1.4 6.6 2.2L8 3.8L9.4 2.2C11 1.4 13 2.8 13.4 5.6C13.8 9 11.8 12.4 8 15Z" fill="url(#evq${n}p)" stroke="${e}" stroke-width=".6" stroke-linejoin="round"/>`
     + `<path d="M8 13.4V6.4M8 10L5.8 7.6M8 10L10.2 7.6" fill="none" stroke="#fff" stroke-width=".5" stroke-linecap="round" opacity=".6"/></svg>`; };
-  const P = [petal(['#ff9cc6', '#ffe3ef'], '#c2457e'), petal(['#ffd6e8', '#ffffff'], '#d27aa4'), petal(['#ffb3d1', '#fff0f6'], '#c2457e'), petal(['#ffe1ee', '#ffffff'], '#d27aa4'), petal(['#ff8fbd', '#ffd6e8'], '#b03a70')];
+  const P = [petal(['#ff9cc6', '#ffe3ef'], '#c2457e'), petal(['#ffd6e8', '#ffffff'], '#d27aa4'), petal(['#ff8fbd', '#ffd6e8'], '#b03a70')];
   return P.map((s, i) => `<span class="evq-pt evq-p${i + 1}"><span class="evq-pt-s">${s}</span></span>`).join('')
-    + [0, 2].map((v, i) => `<span class="evq-bf evq-f${i + 1}"><span class="evq-bf-s">${EV_ART.butterfly({ v })}</span></span>`).join('');
+    + `<span class="evq-bf evq-f1"><span class="evq-bf-s">${EV_ART.butterfly({ v: 0 })}</span></span>`
+    + `<span class="evq-bell evq-b1">${EV_ART.wingedBell({ v: 0, drop: true })}</span><span class="evq-bell evq-b2">${EV_ART.wingedBell({ v: 4, drop: true })}</span>`;
 };
+
+/* ── Pâques : œuf d'or et retour des cloches (récompenses, scène du dimanche de Pâques) ───────────────────────────────────────────────────────── */
+Object.assign(EV_ART, {
+  /* Récompenses (viewBox 24 × 24, aplats, 20–28 px), classe « evo evo-rw » comme celles de Noël et du Nouvel an */
+  /** Œuf d'or : treillis gravé, cabochon rose, étincelle. */
+  rwGold: (o = {}) => {
+    const G = { cx: 11.4, cy: 13.2, a: 7.4, b: 9.8, k: .15, s: .7 }, d = evqEggD(G, 20), n = ++EVO_N;
+    return `<svg class="evo evo-rw evo-rw-gold${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><defs><clipPath id="evo${n}c"><path d="${d}"/></clipPath></defs>`
+      + `<path d="${d}" fill="#f2c230"/><g clip-path="url(#evo${n}c)"><path d="M2 12L12 2M2 20L20 2M6 24L22 8M2 6L18 22M2 -2L22 18M8 2L22 16" stroke="#b07a10" stroke-width=".8"/>`
+      + `<path d="${evqBand(G, 9.6, 11, 8)}${evqBand(G, 16.2, 17.6, 8)}" fill="#ffe680"/><path d="M15.4 4.4Q20 9 18.4 18.4" fill="none" stroke="#b07a10" stroke-width="2.4" opacity=".45"/></g>`
+      + `<path d="${d}" fill="none" stroke="#7a5205" stroke-width=".8"/><ellipse cx="11.4" cy="14" rx="1.7" ry="2.1" fill="#ff5f9e" stroke="#7a5205" stroke-width=".5"/>`
+      + `<path d="M7.6 6.6Q6 8.6 5.6 11.4" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round"/><path d="${evnSpark(19.6, 4.6, 3.2)}" fill="#fff6cc" stroke="#8a5a05" stroke-width=".45" stroke-linejoin="round"/></svg>`;
+  },
+  /** Cloche de Pâques : cloche d'or, ailes blanches, nœud rose. */
+  rwBell: (o = {}) => `<svg class="evo evo-rw evo-rw-bell${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
+    + `<g fill="#fff" stroke="#7d6aa8" stroke-width=".5">${[[6.4, 8.8, 4.8, 1.6, 34], [5.4, 11.4, 5, 1.5, 16], [6, 13.8, 4, 1.3, 2]].map(([x, y, a, b, r]) => `<ellipse cx="${x}" cy="${y}" rx="${a}" ry="${b}" transform="rotate(${r} ${x} ${y})"/><ellipse cx="${24 - x}" cy="${y}" rx="${a}" ry="${b}" transform="rotate(${-r} ${24 - x} ${y})"/>`).join('')}</g>`
+    + `<circle cx="12" cy="20.4" r="1.6" fill="#b07a10" stroke="#5e3f05" stroke-width=".5"/>`
+    + `<path d="M12 5.6C8.6 5.6 7.6 8.6 7.4 11.6C7.2 14.4 6.4 16 5 17.2Q12 19.6 19 17.2C17.6 16 16.8 14.4 16.6 11.6C16.4 8.6 15.4 5.6 12 5.6Z" fill="#f4c542" stroke="#6e4a05" stroke-width=".7" stroke-linejoin="round"/>`
+    + `<path d="M5 17.2Q12 19.6 19 17.2V18.4Q12 21 5 18.4Z" fill="#d9a42a" stroke="#6e4a05" stroke-width=".5" stroke-linejoin="round"/><path d="M9.6 8.6Q8.6 11 8.6 14" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round" opacity=".7"/>`
+    + `<path d="M12 5.4C10.2 3.4 7.8 3.4 8 4.8C8.2 6 10.4 6 12 5.4ZM12 5.4C13.8 3.4 16.2 3.4 16 4.8C15.8 6 13.6 6 12 5.4Z" fill="#ff8fbd" stroke="#7a1f4c" stroke-width=".5" stroke-linejoin="round"/><circle cx="12" cy="5.4" r=".95" fill="#ff6fae" stroke="#7a1f4c" stroke-width=".4"/></svg>`,
+  /** Retour des cloches (viewBox 360 × 320, pleine largeur) : trois cloches ailées arrivent en arc depuis le haut (elles reviennent de Rome) et lâchent des
+   *  œufs peints qui tombent dans l'herbe, étincelles. Classes : .evq-bf-bell, .evq-bf-egg, .evq-bf-spk (--i : rang, décale l'animation) ; animée une fois
+   *  dans .nest-bells.on (css/ev-paques.css) ; sans .on, ou « réduire les animations » : la scène finale, fixe. */
+  bellFlight: () => {
+    const n = ++EVO_N, id = s => `evq${n}${s}`;
+    const B = [[14, 52, 114, 0, 1], [122, 16, 126, 4, 0], [234, 58, 112, 2, 2]];      // [x, y, taille, teinte du ruban, rang]
+    const E = [[44, 280, 0, -14, -10, -190], [98, 290, 3, 10, 22, -210], [154, 282, 1, -8, 6, -230], [208, 292, 4, 12, 2, -230], [262, 282, 2, -12, -6, -200], [316, 290, 0, 9, 4, -190]];
+    const spk = [[70, 250, 7], [128, 244, 6], [182, 252, 8], [238, 246, 6], [292, 250, 7], [344, 262, 5], [16, 40, 6], [346, 30, 7]];
+    return `<svg class="evq-flight" viewBox="0 0 360 320" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('s')}" cx="180" cy="90" r="190" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff4c4" stop-opacity=".75"/><stop offset=".6" stop-color="#ffd6e8" stop-opacity=".2"/><stop offset="1" stop-color="#ffd6e8" stop-opacity="0"/></radialGradient>`
+      + `<linearGradient id="${id('g')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8f08e"/><stop offset="1" stop-color="#3f9a4e"/></linearGradient>`
+      + `<linearGradient id="${id('h')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6e08a" stop-opacity="0"/><stop offset=".5" stop-color="#a6e08a" stop-opacity=".7"/><stop offset="1" stop-color="#6fbf5c"/></linearGradient>`
+      + evqMiniDefs(id, [0, 1, 2, 3, 4]) + `</defs>`
+      + `<circle cx="180" cy="90" r="190" fill="url(#${id('s')})"/>`
+      + `<path d="M0 320V284C60 272 120 280 180 278C240 276 300 270 360 280V320Z" fill="url(#${id('h')})"/><path d="${evqBlades(0, 360, 320, 14, 34, 60, 4, 5)}" fill="#8fd47a" opacity=".8"/>`
+      + B.map(([x, y, w, v, i]) => `<g class="evq-bf-bell" style="--i:${i / 2}">${EV_ART.wingedBell({ v }).replace('<svg ', `<svg x="${x}" y="${y}" width="${w}" height="${w}" `)}</g>`).join('')
+      + E.map(([x, y, v, r, dx, dy], i) => `<g class="evq-bf-egg" style="--i:${i};--dx:${dx}px;--dy:${dy}px;--r:${-r * 3}deg">${evqMini({ cx: x, cy: y, a: 13, b: 17.6, k: .15, s: 1.4 }, v, id, `rotate(${r} ${x} ${y})`)}</g>`).join('')
+      + `<path d="${evqBlades(0, 360, 321, 8, 22, 80, 9, 4.6)}" fill="url(#${id('g')})" stroke="#3a8a3e" stroke-width=".5"/>`
+      + spk.map(([x, y, r], i) => `<path class="evq-bf-spk" style="--i:${i}" d="${evnSpark(x, y, r)}" fill="#fffbe0" stroke="#e0a01c" stroke-width=".6"/>`).join('')
+      + `</svg>`;
+  },
+});
 
 if (typeof module !== 'undefined' && module.exports) module.exports = { EV_ART, EV_AMB, EV_AMB_TOP, EV_FX, EV_CONS, evGarland };

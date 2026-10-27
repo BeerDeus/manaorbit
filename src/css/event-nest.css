@@ -32,3 +32,31 @@
 .nest-open .adv-tx{transition-delay:1.5s}
 @keyframes nestShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}75%{transform:rotate(7deg)}}
 @media (prefers-reduced-motion:reduce){.nest-big,.nest-st{transition:none}.nest-big .nest-st2{animation:none}.nest-open .adv-tx{transition-delay:0s}}
+
+/* ── Œuf d'or : cachette (lueur), plein écran ── */
+.ev-pk.ev-gold{filter:drop-shadow(0 0 5px rgba(255,205,80,.85))}
+.nest-big.gold .nest-st{opacity:1;transform:none}
+.nest-goldo .adv-bg{background:radial-gradient(90% 60% at 50% 34%,#fffbe2 0%,#ffe48a 40%,#f2b84a 75%,#c98a1c 100%)}
+.nest-open .adv-rw li.rare b{color:#9a6a06}
+
+/* ── Mots de la carte : cloches de Pâques, œuf d'or trouvé ── */
+.nest-note{display:flex;align-items:center;gap:8px;margin:8px 2px 0;padding:8px 10px;border-radius:12px;font-size:12.5px;line-height:1.35;background:rgba(255,211,107,.16)}
+.nest-note > span{flex:none;width:24px;height:24px}
+.nest-note svg{width:100%;height:100%;display:block}
+.nest-note.nest-n-away{background:rgba(143,150,190,.14)}
+.nest-note.nest-n-gold{background:linear-gradient(90deg,rgba(255,214,102,.32),rgba(255,214,102,.1))}
+
+/* ── Retour des cloches (dimanche et lundi de Pâques) : plein écran ; dessin et son envol : EV_ART.bellFlight, css/ev-paques.css ── */
+.nest-bells{position:fixed;inset:0;z-index:105;display:grid;place-items:center;padding:20px;opacity:0;transition:opacity .4s;overflow:hidden}
+.nest-bells.on{opacity:1}
+.nest-bells-bg{position:absolute;inset:0;background:radial-gradient(100% 70% at 50% 18%,#fff6d8 0%,#ffe0ee 45%,#c4ecd2 100%)}
+.nest-bells-art{position:absolute;left:50%;top:4%;width:min(100%,520px);transform:translateX(-50%);pointer-events:none}
+.nest-bells-art svg{width:100%;height:auto;display:block}
+.nest-bells-in{position:relative;z-index:1;width:min(100%,380px);margin-top:34vh;padding:20px 20px 18px;border-radius:22px;text-align:center;color:#2a1d2e;background:rgba(255,255,255,.78);border:1px solid rgba(226,85,154,.18);box-shadow:0 18px 40px -18px rgba(90,40,70,.35);transform:translateY(14px);transition:transform .5s .3s}
+.nest-bells.on .nest-bells-in{transform:none}
+.nest-bells-in small{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#b23a78}
+.nest-bells-in h2{margin:6px 0;font-size:25px;line-height:1.15;font-family:var(--font-display,inherit)}
+.nest-bells-in p{margin:0;font-size:14px;color:#4a3a52}
+.nest-bells-acts{display:flex;margin-top:16px}
+.nest-bells-acts .btn{flex:1}
+@media (prefers-reduced-motion:reduce){.nest-bells,.nest-bells-in{transition:none}}
