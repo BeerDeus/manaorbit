@@ -656,6 +656,14 @@ async function evAdmChk(user) {
 const evAdmOn = () => !!EV.adm && EV.adm === EV.uid;
 /** Ligne « Aperçu d'une fête » : chaque pack (même en préparation) ; vide : la fête du moment. */
 const evPvPack = () => EV.pv.split('~')[0], evPvDay = () => Number(EV.pv.split('~')[1]) || 0;
+const EV_PVB = 'deckdeal:ev:pvb';
+/** « Badges débloqués » de l'aperçu (éditeur) : tous les paliers de la fête essayée montrés comme gagnés (en couleur, l'ultime animé) ; affichage seulement : rien de gardé ni annoncé (progress.js › pv). */
+const evPvBadges = () => { if (!EV.pv) return false; try { return localStorage.getItem(EV_PVB) === '1'; } catch (e) { return false; } };
+function evPvBadgesSet(on) {
+  try { if (on) localStorage.setItem(EV_PVB, '1'); else localStorage.removeItem(EV_PVB); } catch (e) { /* stockage refusé */ }
+  haptic('ok'); const box = document.getElementById('hmEvent'); if (box) box.dataset.sig = ''; evHomePaint();
+  if (typeof meOpen === 'function' && meOpen() && typeof mePaint === 'function') mePaint();
+}
 const evPvRow = () => (evAdmOn() && typeof EV_PACKS !== 'undefined' ? `<label class="me-row" for="setEvPv"><span class="me-t">${T('Aperçu d\'une fête')}<small>${T('Admin · ton compte seulement, progression d\'essai')}</small></span><span class="sel me-sel"><select id="setEvPv"><option value="">${T('Aucun (fête du moment)')}</option>${EV_PACKS.map(p => `<option value="${esc(p.id)}" ${evPvPack() === p.id ? 'selected' : ''}>${esc(p.obj.emoji + ' ' + T(p.name) + (p.ready ? '' : ' · ' + T('en préparation')))}</option>`).join('')}</select></span></label>` + evPvDayRow() : '');
 /** Jour de l'aperçu (1er jour par défaut) : cloches de Pâques, rattrapage du calendrier… */
 function evPvDayRow() {
@@ -663,6 +671,7 @@ function evPvDayRow() {
   const cur = evPvDay() || evDiff(e.from, EV.cal.day || e.from) + 1;
   const opts = Array.from({ length: e.days }, (_, i) => { const d = evAdd(e.from, i), b = typeof evBells === 'function' ? evBells(e, d) : ''; return `<option value="${i + 1}" ${cur === i + 1 ? 'selected' : ''}>${esc(T('Jour {d}', { d: i + 1 }) + ' · ' + new Date(d + 'T12:00:00').toLocaleDateString(LOC(), { weekday: 'short', day: 'numeric', month: 'short' }) + (b === 'bells' ? ' · 🔔 ' + T('cloches revenues') : b === 'away' ? ' · ' + T('cloches à Rome') : ''))}</option>`; }).join('');
   return `<label class="me-row" for="setEvPvD"><span class="me-t">${T('Jour de l\'aperçu')}</span><span class="sel me-sel"><select id="setEvPvD">${opts}</select></span></label>`
+    + `<label class="me-row switch-row" for="setEvPvB"><span class="me-t">${T('Badges débloqués')}<small>${T('Aperçu : tous les paliers en couleur, l\'ultime animé ; rien n\'est gagné pour de vrai')}</small></span><span class="switch"><input type="checkbox" id="setEvPvB" ${evPvBadges() ? 'checked' : ''}><i></i></span></label>`
     + (cur < e.days ? `<button type="button" class="me-row" data-evpv="next"><span class="me-t">${T('Passer au jour suivant')}<small>${esc(T('Jour {a} → jour {b} : nouvelles cachettes, la progression d\'essai continue', { a: cur, b: cur + 1 }))}</small></span><span class="me-v">›</span></button>` : '');
 }
 /** « Passer au jour suivant » (aperçu) : comme si minuit venait de passer. */
@@ -721,7 +730,7 @@ function evBadges() {
     const e = evById(id), p = e && evPack(e.pack); if (!p || !p.badge) continue;
     const names = p.badge.names || [];
     const adv = !!p.advent, sky = !!p.sky, nest = !!p.nest;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js) ; ciel : les constellations complètes (evsky.js) ; nid : les poussins éclos (evnest.js)
-    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky || nest) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), ...(EV.pv && EV.cal && EV.cal.id === id ? { pv: true } : {}), v: () => (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : nest ? Math.floor(Math.min(e.total, evCount(id)) / p.nest.per) : evCount(id)), ev: id, names });
+    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky || nest) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), ...(EV.pv && EV.cal && EV.cal.id === id ? { pv: true } : {}), v: () => evPvBadges() && EV.cal && EV.cal.id === id ? p.badge.tiers[p.badge.tiers.length - 1] : (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : nest ? Math.floor(Math.min(e.total, evCount(id)) / p.nest.per) : evCount(id)), ev: id, names });
   }
   return out;
 }
@@ -736,6 +745,7 @@ function evBadgeHow(id) {
 }
 /** Icône d'un badge d'événement (fichier généré par tools/gen-event-badges.mjs ; palier 3 : bordure animée du grade ultime). */
 function evBadgeHtml(id, tier, got) {
+  if (evPvBadges() && EV.cal && EV.cal.id === id) got = true;      // aperçu (éditeur) : « Badges débloqués » : chaque palier en couleur, l'ultime animé
   const t = Math.max(0, Math.min(3, tier)), p = evPack(id);
   return `<span class="evb t${t}${got ? ' got' : ' off'}${t === 3 && got ? ' ult' : ''}" data-pack="${esc(p ? p.id : '')}"><img src="icons/events/badges/${esc(id)}-${t}.svg" alt="" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement('i'),{textContent:'${p ? p.obj.emoji : '★'}'}))"></span>`;
 }
@@ -768,7 +778,7 @@ function evBoot() {
 if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   evBoot();
   document.addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('[data-evpv="next"]')) evPvNext(); });
-  document.addEventListener('change', e => { if (e.target && e.target.id === 'setEvDeco') evPref(e.target.checked); if (e.target && e.target.id === 'setEvPv') evPvSet(e.target.value); if (e.target && e.target.id === 'setEvPvD') evPvSet(evPvPack() + '~' + e.target.value, true); });
+  document.addEventListener('change', e => { if (e.target && e.target.id === 'setEvDeco') evPref(e.target.checked); if (e.target && e.target.id === 'setEvPv') evPvSet(e.target.value); if (e.target && e.target.id === 'setEvPvD') evPvSet(evPvPack() + '~' + e.target.value, true); if (e.target && e.target.id === 'setEvPvB') evPvBadgesSet(e.target.checked); });
 }
 
 if (typeof module !== 'undefined' && module.exports) module.exports = { EV_HIDE, evHint };

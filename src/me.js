@@ -30,7 +30,7 @@ function meSigNow() {
   const u = D.user;
   return [u ? u.uid : '', u ? meName(u) + '|' + (u.email || '') + '|' + acctVerified(u) : D.state + (D.hint && !D.authReady ? 'h' : ''), PROF.photo ? PROF.photo.length : 0, D.pending, D.listErr, allDecks().length, collCount(), Math.round(homeValue() / 100),
     PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, amSig(), S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang,
-    typeof opnSv === 'function' ? JSON.stringify(opnSv()) : '', typeof dlSig === 'function' ? dlSig() : '', typeof EV !== 'undefined' ? EV.adm + '|' + EV.pv : ''].join('§');      // mode streamer (opening.js) : la fiche ne montre que la session
+    typeof opnSv === 'function' ? JSON.stringify(opnSv()) : '', typeof dlSig === 'function' ? dlSig() : '', typeof EV !== 'undefined' ? EV.adm + '|' + EV.pv + '|' + evPvBadges() : ''].join('§');      // mode streamer (opening.js) : la fiche ne montre que la session
 }
 function mePaint() {
   if (!meOpen()) return;

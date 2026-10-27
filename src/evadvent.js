@@ -58,7 +58,7 @@ function advRewards() {
     for (const c of Object.values(a.dr)) rw.covers.add(c);      // couleurs rares (tirage du serveur)
     for (const d of a.doors) {
       const r = d.open && a.p.advent.rw[d.i - 1]; if (!r) continue;
-      if (r.xp) rw.xp += r.xp; if (r.cover) rw.covers.add(r.cover); if (r.orb) rw.orbs.push(a.e.year);
+      if (r.xp && !(EV.pv && EV.cal && EV.cal.id === id)) rw.xp += r.xp; if (r.cover) rw.covers.add(r.cover); if (r.orb) rw.orbs.push(a.e.year);      // aperçu d'une fête (event.js) : l'XP des portes d'essai ne compte pas
     }
   }
   ADV.rw = rw; ADV.rwSig = sig; return rw;

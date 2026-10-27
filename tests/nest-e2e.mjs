@@ -94,6 +94,22 @@ const w2 = await startWorld({ port: 19888, env: { EVENT: '1', EVENT_SECRET: 'e2e
   await p.waitForFunction(() => EV.st && EV.st.ev.day === '2026-04-03' && EV.pv === 'paques~6', null, { timeout: 15000 });
   await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
   ok('« Passer au jour suivant » (aperçu) : jeudi → vendredi saint');
+  // « Badges débloqués » (aperçu) : les 4 paliers en couleur, l'ultime animé ; rien de gardé
+  await p.evaluate(() => openSettings()); await p.waitForSelector('#setEvPvB');
+  const xp0 = await p.evaluate(() => prgNow().xp);
+  await p.$eval('#setEvPvB', i => { i.checked = true; i.dispatchEvent(new Event('change', { bubbles: true })); });
+  await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); evHomePaint(); });
+  assert.equal(await p.$$eval('#hmEvent .hm-ev-bdg .evb.got', l => l.length), 4); assert.equal(await p.$$eval('#hmEvent .hm-ev-bdg .evb.ult', l => l.length), 1, 'l\'ultime : couronne animée');
+  assert.equal(await p.evaluate(() => evBadges().find(b => b.ev === 'paques-2026').v()), 6);
+  assert.equal(await p.evaluate(() => prgNow().xp), xp0, 'paliers d\'essai : aucune XP');
+  await p.evaluate(() => prgSheet('ev_paques-2026')); await p.waitForSelector('.prg-sheet.open .prg-b[data-b="ev_paques-2026"] .evb.ult');
+  await shot(p, 'badges-debloques');
+  assert.equal(await p.evaluate(() => (JSON.parse(localStorage.getItem('deckdeal:prg:got') || '{}') || {})['ev_paques-2026']), undefined, 'rien de gardé dans les badges acquis');
+  await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); openSettings(); }); await p.waitForSelector('#setEvPvB');
+  await p.$eval('#setEvPvB', i => { i.checked = false; i.dispatchEvent(new Event('change', { bubbles: true })); });
+  await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); evHomePaint(); });
+  assert.equal(await p.$$eval('#hmEvent .hm-ev-bdg .evb.got', l => l.length), 0, 'coupé : les vrais paliers (aucun)');
+  ok('« Badges débloqués » (aperçu) : 4 paliers en couleur, l\'ultime animé (accueil, fiche des badges), rien de gardé');
   await p.evaluate(() => evPvSet('paques~8', true));      // dimanche de Pâques
   await p.waitForFunction(() => EV.st && EV.st.ev.day === '2026-04-05' && EV.st.me && EV.st.me.spots.length === 10, null, { timeout: 15000 });
   await p.evaluate(() => { evLsSet({ seen: { ...evLs().seen, 'paques-2026': 1 } }); while (sheets.length) sheets[sheets.length - 1].close(); evHomePaint(); });
