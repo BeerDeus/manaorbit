@@ -9,7 +9,7 @@
 .coll .coll-controls .fpanel{max-height:min(58vh,520px);overflow-y:auto;overscroll-behavior:contain}      /* filtres ouverts dans la barre collée : ils défilent seuls */
 .coll .dv-head{transition:padding .2s,min-height .2s}
 .coll .dv-title b{transition:font-size .2s}
-.coll.scrolled .dv-head{min-height:calc(var(--top-in) + 50px);padding-top:calc(var(--top-in) + 4px);padding-bottom:4px}
+html:not(.ad-on) .coll.scrolled .dv-head{min-height:calc(var(--top-in) + 50px);padding-top:calc(var(--top-in) + 4px);padding-bottom:4px}      /* bandeau de pub affiché (ads.css) : l'en-tête garde sa hauteur, sinon le bandeau natif (posé une fois sous lui) se retrouve collé aux onglets */
 .coll.scrolled .dv-title b{font-size:16px}
 
 /* Rangée de la recherche : Filtres, Trier, Masterset, Affichage (icônes ; libellés lus) */

@@ -153,15 +153,15 @@ body.nav-on .ev-msg{bottom:calc(112px + env(safe-area-inset-bottom,0px))}
 .evb.ult::before{content:'';position:absolute;inset:-14%;z-index:0;border-radius:50%;
   background:conic-gradient(from 0deg,#ff7a1a,#ffcf5a,#ff5a1f,#a24bff,#6a2bd9,#ff3fa4,#ff7a1a);
   -webkit-mask:radial-gradient(closest-side,transparent 72%,#000 74%,#000 86%,transparent 100%);mask:radial-gradient(closest-side,transparent 72%,#000 74%,#000 86%,transparent 100%);
-  filter:blur(.6px);animation:evSpin 3.6s linear infinite}
-.evb.ult::after{content:'';position:absolute;inset:-22%;z-index:-1;border-radius:50%;background:radial-gradient(circle,rgba(255,140,40,.45),rgba(162,75,255,.28) 45%,transparent 68%);animation:evPulse 2.4s ease-in-out infinite}
+  filter:blur(.6px);animation:evSpin 3.6s linear infinite;will-change:transform}
+.evb.ult::after{content:'';position:absolute;inset:-22%;z-index:-1;border-radius:50%;background:var(--embers),radial-gradient(circle,rgba(255,140,40,.45),rgba(162,75,255,.28) 45%,transparent 68%);animation:evPulse 2.4s ease-in-out infinite;will-change:transform,opacity}
+/* Tout ce qui bouge ici reste sur sa propre couche (transform, opacity : composition seule). Animer un fond (background-position) ou laisser la couronne
+   floutée sans couche à elle faisait repeindre toute la feuille autour à chaque image : clignotement de l'écran (WebView Android). */
 .evb.ult{--embers:radial-gradient(circle at 20% 80%,#ffd27a 0 1.4px,transparent 2px),radial-gradient(circle at 78% 70%,#c48bff 0 1.2px,transparent 2px),radial-gradient(circle at 55% 92%,#ff8a2a 0 1.5px,transparent 2.2px)}
 .evb.ult img{filter:drop-shadow(0 0 6px rgba(255,140,40,.55))}
 @keyframes evSpin{to{transform:rotate(1turn)}}
 @keyframes evPulse{0%,100%{opacity:.6;transform:scale(.94)}50%{opacity:1;transform:scale(1.06)}}
-.evb.ult{background:var(--embers);background-size:100% 100%}
-.prg-b .evb.ult,.ev-sb .evb.ult,.hm-ev-bdg .evb.ult{animation:evEmberUp 2.8s ease-in infinite}
-@keyframes evEmberUp{0%,100%{background-position:0 0}50%{background-position:0 -6px}}
+
 
 /* ── Accessibilité : réduire les animations ── */
 @media (prefers-reduced-motion:reduce){

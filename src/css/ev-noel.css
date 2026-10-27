@@ -81,10 +81,10 @@ html[data-event="noel"] .ev-in-bg{background:radial-gradient(110% 80% at 50% 20%
 html[data-event="noel"] .ev-in-card{background:linear-gradient(160deg,rgba(28,78,52,.96),rgba(10,28,19,.98));color:#f3fbf5;border-color:rgba(244,197,66,.38);box-shadow:0 30px 60px -20px rgba(0,0,0,.6),0 0 0 6px rgba(226,59,59,.07)}
 html[data-event="noel"] .ev-in-rules li::before{background:linear-gradient(135deg,#ff6a5c,#c42a2a);color:#fff}
 html[data-event="noel"] .ev-intro .btn.ev-in-go{background:linear-gradient(135deg,#ff5a4e,#c42a2a);color:#fff}
-html[data-event="noel"] .evb.ult::before{background:conic-gradient(from 0deg,#f4c542,#fff3c0,#e23b3b,#1f8a4c,#7fd0ff,#e23b3b,#f4c542)}
-html[data-event="noel"] .evb.ult::after{background:radial-gradient(circle,rgba(244,197,66,.45),rgba(226,59,59,.25) 45%,transparent 68%)}
-html[data-event="noel"] .evb.ult{--embers:radial-gradient(circle at 20% 80%,#fff 0 1.4px,transparent 2px),radial-gradient(circle at 78% 70%,#ffe08a 0 1.2px,transparent 2px),radial-gradient(circle at 55% 92%,#fff 0 1.5px,transparent 2.2px)}
-html[data-event="noel"] .evb.ult img{filter:drop-shadow(0 0 6px rgba(244,197,66,.55))}
+.evb.ult[data-pack="noel"]::before{background:conic-gradient(from 0deg,#f4c542,#fff3c0,#e23b3b,#1f8a4c,#7fd0ff,#e23b3b,#f4c542)}
+.evb.ult[data-pack="noel"]::after{background:var(--embers),radial-gradient(circle,rgba(244,197,66,.45),rgba(226,59,59,.25) 45%,transparent 68%)}
+.evb.ult[data-pack="noel"]{--embers:radial-gradient(circle at 20% 80%,#fff 0 1.4px,transparent 2px),radial-gradient(circle at 78% 70%,#ffe08a 0 1.2px,transparent 2px),radial-gradient(circle at 55% 92%,#fff 0 1.5px,transparent 2.2px)}
+.evb.ult[data-pack="noel"] img{filter:drop-shadow(0 0 6px rgba(244,197,66,.55))}
 
 /* ── Ambiance : cachée sans décorations et sur les écrans calmes ── */
 html[data-event="noel"] .ev-amb{display:none}
