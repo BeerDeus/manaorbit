@@ -412,24 +412,46 @@ const SCENES = {
     return { defs, body };
   },
   magic(P, t) {
-    // 0 : une bougie · 1 : flamme qui rayonne, orbite et deux orbes de mana · 2 : les cinq orbes · 3 : gloire dorée derrière la bougie, orbes nimbés, étincelles
-    const defs = grad(P + 'bg', 'radial', 'cx=".5" cy=".3" r=".85"', [[0, '#5258c4'], ['.5', '#23286a'], [1, '#0a0b20']])
-      + grad(P + 'fl', 'radial', 'cx=".5" cy=".7" r=".6"', [[0, '#ffffff'], ['.4', '#fff2a8'], [1, '#ff9d3a']])
-      + ifT(t >= 1, grad(P + 'gw', 'radial', '', [[0, '#ffe08a', '.7'], [1, '#f2c230', 0]]))
-      + grad(P + 'cd', 'linear', 'x1="0" y1="0" x2="1" y2="0"', [[0, '#fff6e6'], ['.6', '#ffd9c2'], [1, '#e8a78a']]);
-    const hl = [], orb = (a, col) => { const x = 48 + 24 * Math.cos(a * D2R), y = 34 + 8 * Math.sin(a * D2R); hl.push([x - 0.8, y - 0.9, 0.8]); return ifT(t === 3, `<circle cx="${n1(x)}" cy="${n1(y)}" r="4.4" fill="${col}" opacity=".3"/>`) + `<circle cx="${n1(x)}" cy="${n1(y)}" r="2.7" fill="${col}" stroke="#0a0b20" stroke-width=".5"/>`; };      // reflets : un seul chemin de points (hl)
-    const back = [[200, '#2a1f33'], [250, '#f6efd0'], [300, '#3f9cff']].filter((o, k) => t >= 2 || k === 2), front = [[20, '#e8473a'], [120, '#2fae64']].filter((o, k) => t >= 2 || k === 0);
-    let glory = ''; if (t === 3) for (let k = 0; k < 16; k++) { const a = k * 22.5 + 11; glory += `M${nums(pol(8, a, 48, 22))}L${nums(pol(k % 2 ? 17 : 22, a, 48, 22))}`; }
+    // Musée de Magic (dessins : evart.js › « Anniversaire de Magic ») · 0 : la relique sous sa cloche de verre, dans le faisceau d'un projecteur ·
+    // 1 : la façade du musée (fronton, colonnes, marches), porte qui s'allume, un projecteur · 2 : les deux ailes et leurs fenêtres allumées, guirlande de
+    // fanions des cinq couleurs, deux projecteurs · 3 : le lotus d'or en gloire (halo, rayons) devant le temple illuminé, étincelles
+    const MB = '#5e5040', mana = ['#f2c230', '#4ea2f2', '#8a5ad6', '#ff6a45', '#3fcf7a'];
+    const defs = grad(P + 'bg', 'radial', 'cx=".5" cy=".3" r=".85"', [[0, '#3a3478'], ['.55', '#171533'], [1, '#08081a']])
+      + grad(P + 'bm', 'linear', 'x1="0" y1="0" x2="0" y2="1"', [[0, '#fff3c4', '.42'], [1, '#fff3c4', 0]])
+      + grad(P + 'au', 'linear', 'x1="0" y1="0" x2="1" y2="1"', [[0, '#fff3c4'], ['.45', '#f2c230'], [1, '#9a6410']])
+      + ifT(t >= 1, grad(P + 'co', 'linear', 'x1="0" y1="0" x2="1" y2="0"', [[0, '#b9aa8c'], ['.35', '#fffdf7'], [1, '#a8987a']]))
+      + ifT(t === 3, grad(P + 'gw', 'radial', '', [[0, '#ffe58a', '.85'], [1, '#f2c230', 0]]));
+    const beam = (x, a) => `<path d="M${x - 2} 12h4l${n1(9 + a)} 46H${n1(x - 11 + a)}Z" fill="url(#${P}bm)"/>`;
+    const win = (x, y) => `M${n1(x - 1.6)} ${y + 6}v-4.4a1.6 1.6 0 0 1 3.2 0V${y + 6}Z`;      // fenêtres cintrées : un seul tracé
+    const temple = `<rect x="30" y="29" width="36" height="17" fill="#c9bb9f"/>`
+      + `<rect x="44" y="33" width="8" height="13" fill="#ffcf5a" stroke="${MB}" stroke-width=".5"/>`
+      + `<path d="M31 46.6V29.6h3.4v17M38 46.6V29.6h3.4v17M54.6 46.6V29.6H58v17M61.6 46.6V29.6H65v17" fill="url(#${P}co)" stroke="${MB}" stroke-width=".45"/>`
+      + `<path d="M27 29.6h42v-3H27ZM26 26.6L48 15.6 70 26.6Z" fill="#f4eee2" stroke="${MB}" stroke-width=".6"/><path d="M31 25.4L48 17.4 65 25.4Z" fill="#ddd2bb"/>`
+      + `<path d="M48 15.6l-1.4-2.4h2.8ZM48 21a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 1 0 0-3.2ZM45.4 31.2h5.2v1.2h-5.2Z" fill="url(#${P}au)" stroke="#6e4705" stroke-width=".4"/>`      // acrotère, médaillon du fronton, cartel de la porte
+      + ifT(t < 3, `<ellipse cx="48" cy="44" rx="7" ry="3" fill="#ffd86a" opacity=".35"/>`)
+      + `<path d="M26 46.4h44v2.4H26ZM23.6 48.8h48.8v2.6H23.6Z" fill="#efe8da" stroke="${MB}" stroke-width=".5"/>`;
+    const wings = `<path d="M13 32h14v15H13ZM69 32h14v15H69Z" fill="#efe8da" stroke="${MB}" stroke-width=".5"/><path d="M12.4 30.4h15.2v1.8H12.4ZM68.4 30.4h15.2v1.8H68.4Z" fill="#f4eee2" stroke="${MB}" stroke-width=".4"/>`
+      + `<path d="${win(16.6, 36) + win(23.4, 36) + win(72.6, 36) + win(79.4, 36)}" fill="#ffcf5a" stroke="${MB}" stroke-width=".4"/>`;
+    const fl = ['', '', '', '', ''];      // fanions le long de la guirlande, un tracé par couleur
+    for (let k = 0; k < 9; k++) { const s = 0.1 + k * 0.1, u = 1 - s, x = u * u * 25 + 2 * s * u * 48 + s * s * 71, y = u * u * 28 + 2 * s * u * 34 + s * s * 28; fl[k % 5] += `M${nums([x - 1.4, y])}h2.8l-1.4 3Z`; }
+    const flags = fl.map((d, k) => `<path d="${d}" fill="${mana[k]}"/>`).join('');
+    const petal = (l, w, a) => { const r = a * D2R, ux = Math.cos(r), uy = Math.sin(r), Q = (x, y) => [48 + y * ux - x * uy, 44 + y * uy + x * ux]; return 'M' + nums(Q(0, 0)) + 'C' + nums([...Q(-w, l * 0.3), ...Q(-w * 0.8, l * 0.75), ...Q(0, l)]) + 'C' + nums([...Q(w * 0.8, l * 0.75), ...Q(w, l * 0.3), ...Q(0, 0)]) + 'Z'; };
+    let glory = ''; for (let k = 0; k < 8; k++) { const a = k * 45 + 22.5; glory += `M${nums(pol(9, a, 48, 34))}L${nums(pol(k % 2 ? 19 : 25, a, 48, 34))}`; }
+    const lotus = `<circle cx="48" cy="36" r="19" fill="url(#${P}gw)"/><path d="${glory}" stroke="#f2c230" stroke-width="1.2" opacity=".6"/>`
+      + `<path d="M48 44v7" stroke="#9a6410" stroke-width="1.4"/><path d="M42.4 52.6q5.6-3 11.2 0Z" fill="url(#${P}au)" stroke="#6e4705" stroke-width=".5"/>`
+      + `<path d="${petal(17.5, 4.3, -90) + petal(16, 4.3, -128) + petal(16, 4.3, -52)}" fill="#e0a82a" stroke="#6e4705" stroke-width=".55"/>`
+      + `<ellipse cx="48" cy="30.6" rx="3.2" ry="1.2" fill="#d47a30" stroke="#4a1e06" stroke-width=".4"/>`
+      + `<path d="${petal(16, 3.4, -176) + petal(16, 3.4, -4) + petal(10.4, 4.6, -104) + petal(10.4, 4.6, -76)}" fill="url(#${P}au)" stroke="#6e4705" stroke-width=".55"/>`;
+    const cloche = `<path d="M37 45.6h22l-1.4 3.2H38.4Z" fill="#8a5428" stroke="#3a1f0c" stroke-width=".5"/><path d="M37.4 46.6h21.2" stroke="#f2c230" stroke-width=".7"/>`
+      + `<rect x="43" y="28.4" width="10" height="14" rx="1" fill="#1d1a24" transform="rotate(-5 48 42)"/><path d="M44.2 29.6h7.6v11.6h-7.6ZM45 31v4.4h6V31Z" fill="#4ea2f2" fill-rule="evenodd" transform="rotate(-5 48 42)"/>`
+      + `<path d="M38.6 45.6V31.4C38.6 24.6 42.6 20.4 48 20.4S57.4 24.6 57.4 31.4V45.6" fill="#dceeff" fill-opacity=".22" stroke="#9cc2e4" stroke-width=".8"/><path d="M41 43.6C40.4 37 40.8 30 43.2 25.4" fill="none" stroke="#fff" stroke-width="1.2" opacity=".7"/>`
+      + `<path d="M49.4 19.4Q55 19.6 57.6 23.6" fill="none" stroke="#c42a36" stroke-width=".6"/><path d="M55.6 25.4l2-1.8 2 1.8v5.4h-4ZM46.3 18.8a1.7 1.7 0 1 0 3.4 0 1.7 1.7 0 1 0-3.4 0Z" fill="url(#${P}au)" stroke="#6e4705" stroke-width=".45"/>`;      // étiquette d'or et bouton de la cloche
     const body = `<rect x="12" y="12" width="72" height="72" fill="url(#${P}bg)"/>`
-      + dots([[22, 44, 0.5], [75, 47, 0.5], [30, 20, 0.45], [66, 18, 0.5], [80, 32, 0.4], [16, 32, 0.4], [58, 49, 0.4]].slice(0, 3 + t), '#fff', '.85')
-      + ifT(t >= 2, `<path d="${spark(24, 28, 2.6)}${spark(73, 23, 2.2)}${t === 3 ? spark(71, 46, 1.4) + spark(29, 45, 1.2) : ''}" fill="#cfe0ff"/>`)
-      + ifT(t === 3, `<path d="${glory}" stroke="#f2c230" stroke-width="1.2" opacity=".55"/>`)
-      + ifT(t >= 1, `<path d="M24 34a24 8 0 0 1 48 0" fill="none" stroke="#f2c230" stroke-width=".8" opacity=".75"/>` + back.map(o => orb(...o)).join('') + dots(hl.splice(0), '#fff', '.8') + `<circle cx="48" cy="19" r="${t === 3 ? 13 : 11}" fill="url(#${P}gw)"/>`)
-      + `<rect x="44.2" y="24" width="7.6" height="20" rx="1.2" fill="url(#${P}cd)" stroke="#5a2f2a" stroke-width=".6"/>`
-      + `<path d="M44.4 27.5l7.2-2.4v2.4l-7.2 2.4zM44.4 33l7.2-2.4V33l-7.2 2.4zM44.4 38.5l7.2-2.4v2.4l-7.2 2.4z" fill="#ff7a5c" opacity=".85"/>`
-      + `<path d="M48 24v-2.6" stroke="#3a2a28" stroke-width=".7"/><path d="M48 12.6c2.6 3 3.8 5 3.8 6.6a3.8 3.8 0 0 1-7.6 0c0-1.6 1.2-3.6 3.8-6.6z" fill="url(#${P}fl)" stroke="#d9771e" stroke-width=".4"/>`
-      + ifT(t >= 1, `<path d="M24 34a24 8 0 0 0 48 0" fill="none" stroke="#f2c230" stroke-width=".9"/>` + front.map(o => orb(...o)).join('') + dots(hl, '#fff', '.8'))
-      + `<path d="M12 74Q30 68 48 72T84 70V84H12Z" fill="#141640"/>`;
+      + dots([[22, 26, 0.6], [74, 22, 0.55], [30, 17, 0.45], [66, 46, 0.5], [18, 44, 0.45], [80, 40, 0.5], [36, 44, 0.4], [60, 16, 0.45]].slice(0, 2 + 2 * t), '#ffe58a', '.85')
+      + beam(48, 0) + ifT(t >= 2, beam(22, 6) + beam(74, -6))
+      + `<path d="M12 72Q48 64 84 72V84H12Z" fill="#1c1a3a"/><path d="M12 72Q48 64 84 72" fill="none" stroke="#f2c230" stroke-width=".6" opacity=".5"/>`
+      + (t ? ifT(t >= 2, wings) + temple + ifT(t === 2, `<path d="M25 28Q48 40 71 28" fill="none" stroke="#6e4705" stroke-width=".4"/>${flags}`) : cloche)
+      + ifT(t === 3, lotus + `<path d="${spark(22, 20, 2.6)}${spark(74, 18, 2.2)}" fill="#fff6cc"/>`);
     return { defs, body };
   },
 };
@@ -453,7 +475,7 @@ const ULT = {
   noel: { c: ['#3d070d', '#e23b3b', '#f4c542', '#fff7d6'], shape: 'burst' },
   nouvelan: { c: ['#120e45', '#ff5fa2', '#f2c230', '#fff6cc'], shape: 'burst' },
   paques: { c: ['#3a1d40', '#ff8cc0', '#ffd36b', '#ffffff'], shape: 'petal' },
-  magic: { c: ['#0b1240', '#4f8cff', '#f2c230', '#fff2c0'], shape: 'flame' },
+  magic: { c: ['#1b1940', '#d9a12b', '#f2c230', '#fff3c4'], shape: 'burst' },      // gloire dorée du lotus d'or
 };
 const metalStops = M => [[0, M.l], ['.28', M.m], ['.46', M.w], ['.6', M.m], [1, M.d]];
 function frameTier(P, t, pack) {
