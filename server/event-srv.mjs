@@ -16,7 +16,7 @@
 //     compte seulement, même pas prête (ready: false) ni dans ses dates (premier jour ; « <pack>~<n> » : son n-ième jour). Progression à part : en mémoire
 //     (jamais sur le disque, jamais dans les statistiques), clé 'v' + empreinte (ses reçus ne valent rien pour la vraie fête) ; œuf d'or plus fréquent (1 sur 5)
 //     pour qu'on le voie. Tout autre compte : en-tête ignoré.
-//   · Œuf d'or (pack.nest.gold, Pâques) : chaque cachette du jour a gold.p de chance d'être un œuf d'or (evGold : secret, édition, joueur, jour, cachette ;
+//   · Œuf d'or (pack.nest.gold, Pâques ; lotus d'or : pack.museum.gold, anniversaire de Magic) : chaque cachette du jour a gold.p de chance d'être un œuf d'or (evGold : secret, édition, joueur, jour, cachette ;
 //     o.goldP le remplace, tests seulement) ; me().spots › g: 1 ; trouvé : couleur rare dans dr ({ n° du jour : couverture }, comme le ciel du Nouvel an).
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
@@ -164,15 +164,16 @@ export function eventMake(o = {}) {
   /** Couleurs rares gagnées par un joueur : calendrier (pack.advent.rare) : { porte: couleur } pour ses portes ouvertes, sauf la dernière (récompense sûre) ;
    *  ciel (pack.sky.rare) : { n° du jour (1…) : couleur } pour chaque jour où il a trouvé au moins un objet.
    *  Tirage reproductible (secret, édition, joueur, porte ou jour) : le même à chaque lecture, invisible et impossible à forcer depuis l'appli. */
-  /** Œuf d'or (pack.nest.gold) : cachette s du jour day du joueur k ; aperçu (clé 'v') : 1 sur 5. */
+  /** Objet rare (œuf d'or du nid : pack.nest.gold ; lotus d'or du musée : pack.museum.gold ; evGoldOf) : cachette s du jour day du joueur k ; aperçu (clé 'v') : 1 sur 5. */
   function gold(e, k, day, s) {
-    const p = EVP.evPack(e.pack), g = p && p.nest && p.nest.gold; if (!g || !k) return false;
+    const g = EVP.evGoldOf(EVP.evPack(e.pack)); if (!g || !k) return false;
     return evGold(G.secret, e.id, k, day, s, o.goldP != null ? Number(o.goldP) : k[0] === 'v' ? Math.max(g.p, 0.2) : g.p);
   }
   function rares(e, k, pl) {
     const p = EVP.evPack(e.pack), out = {}; if (!p || !k) return out;
-    if (p.nest && p.nest.gold) for (const [d, l] of Object.entries(pl.d || {})) {      // œuf d'or trouvé ce jour-là : la couleur rare
-      const i = EVP.evDiff(e.from, d) + 1; if (Array.isArray(l) && i >= 1 && i <= e.days && l.some(s => gold(e, k, d, s))) out[i] = p.nest.gold.cover;
+    const gd = EVP.evGoldOf(p);
+    if (gd) for (const [d, l] of Object.entries(pl.d || {})) {      // œuf d'or (lotus d'or) trouvé ce jour-là : la couleur rare
+      const i = EVP.evDiff(e.from, d) + 1; if (Array.isArray(l) && i >= 1 && i <= e.days && l.some(s => gold(e, k, d, s))) out[i] = gd.cover;
     }
     if (p.advent && p.advent.rare) for (const d of EVP.evDoors(e, pl.d || {})) if (d.open && d.i < p.advent.doors) { const c = evRare(G.secret, e.id, k, d.i, p.advent.rare); if (c) out[d.i] = c; }
     if (p.sky && p.sky.rare) for (const [d, l] of Object.entries(pl.d || {})) {

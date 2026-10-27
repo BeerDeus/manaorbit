@@ -63,9 +63,9 @@ function evApply() {
   evNatIcon(deco && EV.cal && !EV.cal.forced ? EV.cal : null);
   evQuietSync();
 }
-/** Moment de la fête sur <html data-evphase> (css/ev-paques.css) : cloches de Pâques parties à Rome (away) ou revenues (bells) ; rien sinon. */
+/** Moment de la fête sur <html data-evphase> (css/ev-paques.css, css/ev-magic.css) : cloches de Pâques parties à Rome (away) ou revenues (bells), jour J du musée de Magic (bday) ; rien sinon. */
 function evPhase() {
-  const h = document.documentElement, c = EV.cal, ph = c && evPackOf() && typeof evBells === 'function' ? evBells(c, c.day || (typeof evDay === 'function' ? evDay(Date.now()) : '')) : '';
+  const h = document.documentElement, c = EV.cal, ph = c && evPackOf() && typeof evPhaseOf === 'function' ? evPhaseOf(c, c.day || (typeof evDay === 'function' ? evDay(Date.now()) : '')) : '';
   if (ph) h.dataset.evphase = ph; else delete h.dataset.evphase;
 }
 /** Icône de l'appli Android aux couleurs de la fête (APK 1.0.13 et plus : ManaOrbit.setIcon, appliquée au prochain passage en arrière-plan). Navigateur,
@@ -408,7 +408,7 @@ async function evTap(s) {
     toast(err.code === 'day_quota' ? evTx('dayDone') : err.code === 'wrong_day' ? T('Nouveau jour : de nouvelles cachettes t\'attendent.') : T('Cet objet n\'a pas pu être compté.'));
     evStatus(true);
   } else toast(T('Hors ligne : ta trouvaille sera comptée au retour du réseau.'));
-  const door = !!res && ((typeof advAfterFind === 'function' && advAfterFind(j0, me)) || (typeof skyAfterFind === 'function' && skyAfterFind(n0, dr0, me)) || (typeof nestAfterFind === 'function' && nestAfterFind(n0, dr0, me)));      // calendrier de l'Avent : une porte vient de s'ouvrir → son ouverture ; ciel : constellation complète, couleur rare (puis la célébration)
+  const door = !!res && ((typeof advAfterFind === 'function' && advAfterFind(j0, me)) || (typeof skyAfterFind === 'function' && skyAfterFind(n0, dr0, me)) || (typeof nestAfterFind === 'function' && nestAfterFind(n0, dr0, me)) || (typeof musAfterFind === 'function' && musAfterFind(n0, dr0, me)));      // calendrier de l'Avent : une porte vient de s'ouvrir → son ouverture ; ciel : constellation complète, couleur rare (puis la célébration) ; musée : salle inaugurée, sinon le cartel de la relique
   if (!door) evMsg(me);
   EV.fly = 0; evHomePaint(); evLoopSync();
   if (me.n >= st.ev.total && res && !door) setTimeout(evParty, reduceMotion() ? 200 : 900);
@@ -488,11 +488,11 @@ function evMsg(me) {
 /** Dernier objet : célébration plein écran (objet allumé, badge du grade ultime avec sa bordure, braises). */
 function evParty() {
   const st = EV.st, p = evPackOf(); if (!st || !p || document.querySelector('.ev-party')) return;
-  const all = p.nest ? Math.round(st.ev.total / p.nest.per) : st.ev.total;      // nid de Pâques : les poussins, pas les œufs
+  const all = p.nest ? Math.round(st.ev.total / p.nest.per) : p.museum ? p.museum.halls.length : st.ev.total;      // nid de Pâques : les poussins, pas les œufs ; musée : les salles
   const el = document.createElement('div'); el.className = 'ev-party'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', evTx('allDone', { total: all }));
   const embers = Array.from({ length: 18 }, (_, i) => `<i style="--x:${(i * 53) % 100}%;--d:${(i % 6) * .45}s;--s:${.6 + (i % 4) * .2}"></i>`).join('');
   el.innerHTML = `<div class="ev-party-bg" aria-hidden="true">${embers}</div><div class="ev-party-in">
-    <div class="ev-party-obj" aria-hidden="true">${p.nest && EV_ART.hatch ? EV_ART.hatch({ stage: 3, lit: true }) : EV_ART[p.obj.art]({ lit: true })}</div>
+    <div class="ev-party-obj" aria-hidden="true">${p.nest && EV_ART.hatch ? EV_ART.hatch({ stage: 3, lit: true }) : p.museum && EV_ART.museumHall ? EV_ART.museumHall({ k: p.museum.halls.length - 1, n: p.museum.per, lit: true }) : EV_ART[p.obj.art]({ lit: true })}</div>
     <p class="ev-party-k">${esc(T('{n} sur {t}', { n: all, t: all }))}</p>
     <h2>${esc(evTx('allDone', { total: all }))}</h2>
     <p>${esc(evTx('allSub', { y: st.ev.id.slice(-4) }))}</p>
@@ -555,6 +555,15 @@ function evHomePaint() {
     return;
   }
   box.classList.remove('hm-nest');
+  const mus = p.museum && typeof musNow === 'function' ? musNow() : null;
+  if (mus) {      // musée de Magic (evmuseum.js) : les 5 salles, la frise de la salle en cours ; une relique exposée touchée : sa fiche
+    const sig = ['mus', mus.n, me.left, (me.found || []).length, me.day, ev.left, I18N.lang, Object.keys(mus.dr).join('.')].join('|');
+    if (box.dataset.sig !== sig) { box.dataset.sig = sig; box.innerHTML = musCardHtml(mus, me); box.classList.add('hm-mus'); }
+    if (!box.dataset.mus) { box.dataset.mus = '1'; box.addEventListener('click', e => { if (box.classList.contains('hm-mus')) musTap(e); }); }
+    musBdaySoon(mus);
+    return;
+  }
+  box.classList.remove('hm-mus');
   const left = ev.left, tiers = p.badge.tiers, nx = tiers.find(t => t > n);
   const today = me.left > 0 ? TN(me.left, 'Encore {n} à trouver aujourd\'hui', 'Encore {n} à trouver aujourd\'hui') : n >= ev.total ? T('Tout est trouvé : bravo !') : T('Tout est trouvé pour aujourd\'hui : reviens demain');
   const sig = [n, me.left, left, I18N.lang, (me.found || []).length].join('|'); if (box.dataset.sig === sig) return; box.dataset.sig = sig;
@@ -580,21 +589,22 @@ function evSheetOpen() {
   openSheet(evTx('short') + ' ' + st.ev.id.slice(-4), null, api => {
     api.wrap.classList.add('ev-sheet');
     const paint = (bd) => {
-      const me = st.me || { n: 0, spots: [], left: 0 }, ev = st.ev, adv = p.advent && typeof advNow === 'function' ? advNow() : null, sky = p.sky && typeof skyNow === 'function' ? skyNow() : null, nest = p.nest && typeof nestNow === 'function' ? nestNow() : null, n = adv ? adv.open : Math.max(me.n, evCount(st.ev.id)), tot = adv ? p.advent.doors : ev.total, to = new Date(ev.to + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
-      const unitN = t => ((adv || sky || nest) && p.badge.unit ? TN(t, p.badge.unit[0], p.badge.unit[1]) : evObjN(t)), bn = sky ? sky.done : nest ? nest.hatched : n;      // ciel : les badges comptent les constellations ; nid : les poussins éclos
+      const me = st.me || { n: 0, spots: [], left: 0 }, ev = st.ev, adv = p.advent && typeof advNow === 'function' ? advNow() : null, sky = p.sky && typeof skyNow === 'function' ? skyNow() : null, nest = p.nest && typeof nestNow === 'function' ? nestNow() : null, mus = p.museum && typeof musNow === 'function' ? musNow() : null, n = adv ? adv.open : Math.max(me.n, evCount(st.ev.id)), tot = adv ? p.advent.doors : ev.total, to = new Date(ev.to + 'T12:00:00').toLocaleDateString(LOC(), { day: 'numeric', month: 'long' });
+      const unitN = t => ((adv || sky || nest || mus) && p.badge.unit ? TN(t, p.badge.unit[0], p.badge.unit[1]) : evObjN(t)), bn = sky ? sky.done : nest ? nest.hatched : mus ? mus.open : n;      // ciel : les badges comptent les constellations ; nid : les poussins éclos ; musée : les salles inaugurées
       const rules = (p.txt.rules || []).map(r => `<li>${esc(T(r, { total: ev.total, per: ev.per, to, y: ev.id.slice(-4) }))}</li>`).join('');
       const hints = (me.spots || []).map(x => `<li class="${x.f ? 'ok' : ''}"><span aria-hidden="true">${x.f ? '✓' : '·'}</span>${esc(evHint(x.s))}${x.f ? `<span class="sr">${T('trouvée')}</span>` : ''}</li>`).join('');
       const bdg = p.badge.tiers.map((t, i) => `<div class="ev-sb ${bn >= t ? 'ok' : ''}">${evBadgeHtml(ev.id, i, bn >= t)}<b>${esc(T(p.badge.names[i]))}</b><small>${esc(unitN(t))}</small></div>`).join('');
       const rows = bd && Array.isArray(bd.rows) && bd.rows.length ? `<p class="prg-h">${T('Chasseurs')}</p><p class="hint">${esc(TN(bd.hunters, '{n} chasseur', '{n} chasseurs'))} · ${esc(T('{n} au complet', { n: bd.full }))}</p><ol class="ev-board">${bd.rows.map(r => `<li class="${r.me ? 'me' : ''}"><span>${r.r}</span><b>${esc(r.n)}</b><span>${nf0(r.c)} / ${nf0(ev.total)}</span></li>`).join('')}</ol>` : '';
-      api.body.innerHTML = `<div class="ev-sh-top"><span class="ev-sh-ic" aria-hidden="true">${EV_ART[p.obj.art]({ cls: 'evo-still' })}</span><div><b>${nf0(n)} / ${nf0(tot)}</b><span>${esc(adv ? TN(n, '{n} booster ouvert', '{n} boosters ouverts') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : sky ? TN(sky.done, '{n} constellation complète', '{n} constellations complètes') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : nest ? TN(nest.hatched, '{n} poussin éclos', '{n} poussins éclos') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }))}</span></div></div>
+      api.body.innerHTML = `<div class="ev-sh-top"><span class="ev-sh-ic" aria-hidden="true">${EV_ART[p.obj.art]({ cls: 'evo-still' })}</span><div><b>${nf0(n)} / ${nf0(tot)}</b><span>${esc(adv ? TN(n, '{n} booster ouvert', '{n} boosters ouverts') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : sky ? TN(sky.done, '{n} constellation complète', '{n} constellations complètes') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : nest ? TN(nest.hatched, '{n} poussin éclos', '{n} poussins éclos') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : mus ? TN(mus.open, '{n} salle inaugurée', '{n} salles inaugurées') + ' · ' + T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }) : T('Jour {d} sur {t}', { d: ev.dayNo, t: ev.days }))}</span></div></div>
         ${sky ? `<div class="sky-cons sky-sh" aria-hidden="true">${sky.cons.map(c => `<figure class="sky-c${c.done ? ' done' : ''}" data-k="${c.k}">${skyArt(c.k, { lit: c.lit, done: c.done })}</figure>`).join('')}</div>` : ''}
         <ul class="ev-rules">${rules}</ul>
         ${me.spots && me.spots.length ? `<p class="prg-h">${T('Indices du jour')}</p><ul class="ev-hints">${hints}</ul>` : ''}
+        ${mus && typeof musSheetHtml === 'function' ? musSheetHtml(mus) : ''}
         <p class="prg-h">${T('Badges à gagner')}</p><div class="ev-sbs">${bdg}</div>
         ${!st.acct ? `<p class="hint ev-join">${esc(evTx('join'))} <button class="link-btn" type="button" data-ev="acct">${T('Se connecter')}</button></p>` : ''}
         ${rows}`;
     };
-    api.body.addEventListener('click', e => { if (e.target.closest('[data-ev="acct"]') && typeof openAccount === 'function') { api.close(); openAccount(); } });
+    api.body.addEventListener('click', e => { if (e.target.closest('[data-ev="acct"]') && typeof openAccount === 'function') { api.close(); openAccount(); } else if (typeof musTap === 'function') musTap(e); });
     paint(null);
     evCall('/board?ev=' + encodeURIComponent(st.ev.id)).then(bd => { if (sheets.includes(api)) paint(bd); }, () => {});
   });
@@ -657,11 +667,11 @@ const evAdmOn = () => !!EV.adm && EV.adm === EV.uid;
 /** Ligne « Aperçu d'une fête » : chaque pack (même en préparation) ; vide : la fête du moment. */
 const evPvPack = () => EV.pv.split('~')[0], evPvDay = () => Number(EV.pv.split('~')[1]) || 0;
 const evPvRow = () => (evAdmOn() && typeof EV_PACKS !== 'undefined' ? `<label class="me-row" for="setEvPv"><span class="me-t">${T('Aperçu d\'une fête')}<small>${T('Admin · ton compte seulement, progression d\'essai')}</small></span><span class="sel me-sel"><select id="setEvPv"><option value="">${T('Aucun (fête du moment)')}</option>${EV_PACKS.map(p => `<option value="${esc(p.id)}" ${evPvPack() === p.id ? 'selected' : ''}>${esc(p.obj.emoji + ' ' + T(p.name) + (p.ready ? '' : ' · ' + T('en préparation')))}</option>`).join('')}</select></span></label>` + evPvDayRow() : '');
-/** Jour de l'aperçu (1er jour par défaut) : cloches de Pâques, rattrapage du calendrier… */
+/** Jour de l'aperçu (1er jour par défaut) : cloches de Pâques, jour J du musée, rattrapage du calendrier… */
 function evPvDayRow() {
   const e = EV.pv && EV.cal && typeof evById === 'function' ? evById(EV.cal.id) : null; if (!e) return '';
   const cur = evPvDay() || evDiff(e.from, EV.cal.day || e.from) + 1;
-  const opts = Array.from({ length: e.days }, (_, i) => { const d = evAdd(e.from, i), b = typeof evBells === 'function' ? evBells(e, d) : ''; return `<option value="${i + 1}" ${cur === i + 1 ? 'selected' : ''}>${esc(T('Jour {d}', { d: i + 1 }) + ' · ' + new Date(d + 'T12:00:00').toLocaleDateString(LOC(), { weekday: 'short', day: 'numeric', month: 'short' }) + (b === 'bells' ? ' · 🔔 ' + T('cloches revenues') : b === 'away' ? ' · ' + T('cloches à Rome') : ''))}</option>`; }).join('');
+  const opts = Array.from({ length: e.days }, (_, i) => { const d = evAdd(e.from, i), b = typeof evPhaseOf === 'function' ? evPhaseOf(e, d) : ''; return `<option value="${i + 1}" ${cur === i + 1 ? 'selected' : ''}>${esc(T('Jour {d}', { d: i + 1 }) + ' · ' + new Date(d + 'T12:00:00').toLocaleDateString(LOC(), { weekday: 'short', day: 'numeric', month: 'short' }) + (b === 'bells' ? ' · 🔔 ' + T('cloches revenues') : b === 'away' ? ' · ' + T('cloches à Rome') : b === 'bday' ? ' · 🎂 ' + T('anniversaire de Magic') : ''))}</option>`; }).join('');
   return `<label class="me-row" for="setEvPvD"><span class="me-t">${T('Jour de l\'aperçu')}</span><span class="sel me-sel"><select id="setEvPvD">${opts}</select></span></label>`
     + (cur < e.days ? `<button type="button" class="me-row" data-evpv="next"><span class="me-t">${T('Passer au jour suivant')}<small>${esc(T('Jour {a} → jour {b} : nouvelles cachettes, la progression d\'essai continue', { a: cur, b: cur + 1 }))}</small></span><span class="me-v">›</span></button>` : '');
 }
@@ -720,8 +730,8 @@ function evBadges() {
   for (const id of ids) {
     const e = evById(id), p = e && evPack(e.pack); if (!p || !p.badge) continue;
     const names = p.badge.names || [];
-    const adv = !!p.advent, sky = !!p.sky, nest = !!p.nest;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js) ; ciel : les constellations complètes (evsky.js) ; nid : les poussins éclos (evnest.js)
-    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky || nest) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), ...(EV.pv && EV.cal && EV.cal.id === id ? { pv: true } : {}), v: () => (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : nest ? Math.floor(Math.min(e.total, evCount(id)) / p.nest.per) : evCount(id)), ev: id, names });
+    const adv = !!p.advent, sky = !!p.sky, nest = !!p.nest, mus = !!p.museum;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js) ; ciel : les constellations complètes (evsky.js) ; nid : les poussins éclos (evnest.js) ; musée : les salles inaugurées (evmuseum.js)
+    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky || nest || mus) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), ...(EV.pv && EV.cal && EV.cal.id === id ? { pv: true } : {}), v: () => (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : nest ? Math.floor(Math.min(e.total, evCount(id)) / p.nest.per) : mus ? Math.floor(Math.min(e.total, evCount(id)) / p.museum.per) : evCount(id)), ev: id, names });
   }
   return out;
 }

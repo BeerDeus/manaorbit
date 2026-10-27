@@ -41,13 +41,15 @@ const advToday = a => { const k = evDiff(a.e.from, EV.st.me ? EV.st.me.day : EV.
 /** Récompenses acquises (toutes les éditions de calendrier et de ciel connues) : { xp, covers: Set, orbs: [années] }. Mises en cache tant que rien ne change. */
 function advRewards() {
   const ids = new Set([...Object.keys(evLs().p || {}), ...Object.keys(EV.doc || {})]); if (EV.st && EV.st.ev) ids.add(EV.st.ev.id);
-  const list = [...ids].filter(id => { const p = evPack(id); return p && (p.advent || p.sky || p.nest); }).sort();
-  const sig = list.map(id => id + ':' + Object.values(advJours(id)).reduce((s, l) => s + (Array.isArray(l) ? l.length : 0), 0) + ':' + evCount(id) + ':' + Object.keys((advOf(id) || (typeof skyOf === 'function' && skyOf(id)) || (typeof nestOf === 'function' && nestOf(id)) || {}).dr || {}).join('.')).join(',');
+  const list = [...ids].filter(id => { const p = evPack(id); return p && (p.advent || p.sky || p.nest || p.museum); }).sort();
+  const sig = list.map(id => id + ':' + Object.values(advJours(id)).reduce((s, l) => s + (Array.isArray(l) ? l.length : 0), 0) + ':' + evCount(id) + ':' + Object.keys((advOf(id) || (typeof skyOf === 'function' && skyOf(id)) || (typeof nestOf === 'function' && nestOf(id)) || (typeof musOf === 'function' && musOf(id)) || {}).dr || {}).join('.')).join(',');
   if (ADV.rw && ADV.rwSig === sig) return ADV.rw;
   const rw = { xp: 0, covers: new Set(), orbs: [] };
   for (const id of list) {
     const ns = typeof nestOf === 'function' ? nestOf(id) : null;
     if (ns) { for (const c of Object.values(ns.dr)) rw.covers.add(c); continue; }      // nid de Pâques (evnest.js) : l'œuf d'or
+    const ms = typeof musOf === 'function' ? musOf(id) : null;
+    if (ms) { for (const c of Object.values(ms.dr)) rw.covers.add(c); continue; }      // musée de Magic (evmuseum.js) : le lotus d'or
     const s = typeof skyOf === 'function' ? skyOf(id) : null;
     if (s) {      // ciel du Nouvel an (evsky.js) : couleurs rares tirées, couverture unique pour les 30 étoiles
       for (const c of Object.values(s.dr)) rw.covers.add(c);

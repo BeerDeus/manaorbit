@@ -117,8 +117,9 @@ test('éditions dues : J-8 rien, J-7 oui, en cours oui, après rien ; fichiers p
   assert.deepEqual(ids('2026-11-23', { dir }), []);                       // Noël (calendrier de l'Avent, début le 1er décembre) : J-8 rien
   assert.deepEqual(ids('2026-11-24', { dir }), ['noel-2026']);            // J-7
   assert.deepEqual(ids('2027-03-28', { dir }), ['paques-2027']);         // nid de Pâques (prêt) : dimanche de Pâques
-  assert.deepEqual(ids('2027-08-05', { dir }), []);                       // anniversaire de Magic pas prêt…
-  assert.deepEqual(ids('2027-08-05', { dir, all: true }), ['magic-2027']);  // … sauf --all
+  assert.deepEqual(ids('2027-08-05', { dir }), ['magic-2027']);          // musée de Magic (prêt) : jour J
+  assert.deepEqual(ids('2027-07-21', { dir }), []);                       // J-8 (début le 29 juillet)
+  assert.deepEqual(ids('2027-07-21', { dir, all: true }), []);            // --all : packs pas prêts compris (il n'y en a plus)
   assert.deepEqual(ids('2027-01-05', { dir, all: true }), ['nouvelan-2026']);      // Nouvel an à cheval sur deux années
   // fichiers déjà là : rien ; un seul manquant : l'édition revient ; force : toujours
   const w = writeEditions(dueEditions('2026-10-18', { dir }), { dir });
@@ -129,10 +130,10 @@ test('éditions dues : J-8 rien, J-7 oui, en cours oui, après rien ; fichiers p
   assert.deepEqual(ids('2026-10-30', { dir }), ['halloween-2026']);
   assert.deepEqual(writeEditions(dueEditions('2026-10-30', { dir }), { dir }).map(f => f.slice(dir.length + 1)), ['halloween-2026-2.svg']);
   // choix à la main (--year, --pack)
-  assert.deepEqual(pickEditions({ dir: newDir(), year: 2027 }).map(e => e.id), ['halloween-2027', 'noel-2027', 'nouvelan-2027', 'paques-2027']);      // packs prêts
+  assert.deepEqual(pickEditions({ dir: newDir(), year: 2027 }).map(e => e.id), ['halloween-2027', 'noel-2027', 'nouvelan-2027', 'paques-2027', 'magic-2027']);      // packs prêts (tous)
   assert.deepEqual(pickEditions({ dir: newDir(), year: 2027, all: true }).map(e => e.id), EV_PACKS.map(p => p.id + '-2027'));
   assert.deepEqual(pickEditions({ dir: newDir(), pack: 'paques', today: '2028-01-01' }).map(e => e.id), ['paques-2028']);
-  assert.deepEqual(pickEditions({ dir, year: 2026 }).map(e => e.id), ['noel-2026', 'nouvelan-2026', 'paques-2026']);      // Halloween déjà écrit ; Noël, Nouvel an et Pâques pas encore
+  assert.deepEqual(pickEditions({ dir, year: 2026 }).map(e => e.id), ['noel-2026', 'nouvelan-2026', 'paques-2026', 'magic-2026']);      // Halloween déjà écrit ; Noël, Nouvel an, Pâques et Magic pas encore
 });
 
 test('ligne de commande : écrit ce qui manque, l\'affiche, puis plus rien ; --force, --pack, option inconnue', () => {

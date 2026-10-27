@@ -52,7 +52,9 @@ test('packs : dates, Pâques, quotas, calendrier à l\'heure de Paris', () => {
   assert.equal(E.evActive(Date.parse('2026-11-08T22:30:00Z')).day, '2026-11-08'); assert.equal(E.evActive(Date.parse('2026-11-08T23:00:00Z')), null, 'fin le 8 novembre à minuit');
   assert.equal(E.evActive(Date.parse('2026-12-15T12:00:00Z')).id, 'noel-2026', 'Noël : calendrier de l\'Avent ouvert tout seul');
   assert.equal(E.evActive(Date.parse('2027-03-28T12:00:00Z')).id, 'paques-2027', 'nid de Pâques : ouvert tout seul (dimanche de Pâques 2027)');
-  assert.equal(E.evActive(Date.parse('2027-08-05T12:00:00Z')), null, 'anniversaire de Magic pas encore prêt : jamais ouvert tout seul');
+  assert.equal(E.evActive(Date.parse('2027-08-05T12:00:00Z')).id, 'magic-2027', 'musée de Magic : ouvert tout seul (5 août 2027)');
+  assert.equal(E.evActive(Date.parse('2027-07-28T12:00:00Z')), null, 'veille du musée de Magic : rien');
+  assert.equal(E.evActive(Date.parse('2027-08-05T12:00:00Z'), { force: 'paques' }).id, 'paques-2027', 'pack prêt forcé hors de ses dates (essais) : ouvert au 1er jour');
   assert.equal(E.evActive(Date.parse('2026-06-01T12:00:00Z'), { force: 'halloween-2026' }).day, '2026-10-25', 'forcé avant la date : 1er jour');
   assert.equal(E.evActive(Date.parse('2026-12-15T12:00:00Z'), { force: 'noel' }).id, 'noel-2026', 'pack pas prêt : seulement forcé');
   assert.equal(E.evActive(Date.parse('2026-10-26T12:00:00Z'), { off: ['halloween-2026'] }), null, 'coupée');
@@ -215,6 +217,25 @@ test('nid de Pâques : cloches (Jeudi saint → lundi de Pâques, œufs en plus)
   const S2 = await up({ canPreview: () => true });
   const sp = (await S2.call('event', { tok: 'tok-max', pv: 'paques' })).j.me.spots; assert.equal(sp.length, 5); assert.ok(sp.filter(x => x.g).length <= 5);
   S2.stop();
+});
+
+test('musée de Magic : frise de 30 reliques en 5 salles, jour J (5 août, reliques en plus), lotus d\'or 1 % (couleur rare)', async () => {
+  const p = E.evPack('magic'), m = p.museum, e = E.evById('magic-2026'), q = d => [E.evPhaseOf(e, d), E.evQuota(e, d)].join();
+  assert.equal(e.from, '2026-07-29'); assert.equal(e.to, '2026-08-12'); assert.equal(e.days, 15);
+  assert.equal(m.halls.length * m.per, p.total); assert.equal(m.relics.length, p.total); assert.deepEqual(p.badge.tiers, [1, 2, 4, 5], 'badges : salles inaugurées');
+  assert.ok(m.relics.every((r, i) => !i || (r.y || 9999) >= (m.relics[i - 1].y || 9999)), 'frise dans l\'ordre de l\'histoire');
+  assert.equal(q('2026-08-04'), ',5'); assert.equal(q('2026-08-05'), 'bday,10', 'jour J : 5 reliques de plus'); assert.equal(q('2026-08-06'), ',5');
+  assert.equal(E.evBday(E.evById('magic-2027'), '2027-08-05'), true); assert.equal(E.evBday(E.evById('paques-2027'), '2027-08-05'), false, 'pas de jour J ailleurs');
+  assert.equal(E.evPhaseOf(E.evById('paques-2027'), '2027-03-28'), 'bells', 'cloches de Pâques inchangées');
+  assert.deepEqual(E.evGoldOf(p), { p: 0.01, cover: 'lotus' }); assert.equal(E.evGoldOf(E.evPack('halloween')), null);
+  assert.deepEqual(E.evCheck(2026), []); assert.deepEqual(E.evCheck(2030), []);
+  // aperçu au jour J 2026 (jour 8) : 10 cachettes ; lotus d'or forcé (goldP) : trouvé → couleur rare
+  const S = await up({ canPreview: () => true, goldP: 1 });
+  const r = (await S.call('event', { tok: 'tok-zoe', pv: 'magic~8' })).j; assert.equal(r.ev.id, 'magic-2026'); assert.equal(r.ev.day, '2026-08-05'); assert.equal(r.me.q, 10); assert.equal(r.me.spots.length, 10);
+  assert.ok(r.me.spots.every(x => x.g === 1), 'goldP 1 : toutes en or');
+  const c = await S.call('event/claim', { tok: 'tok-zoe', pv: 'magic~8', body: { ev: 'magic-2026', day: r.me.day, s: r.me.spots[0].s, t: r.me.spots[0].t } });
+  assert.equal(c.status, 200); assert.deepEqual(c.j.dr, { 8: 'lotus' });
+  S.stop();
 });
 
 test('progression : relue depuis Firestore (reçus), rattachée au compte, une seule fois', async () => {

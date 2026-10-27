@@ -131,6 +131,13 @@
   .hm-c3 .nest-cur{margin:4px 2px 0}
   .hm-c3 .nest-egg{width:20px;height:20px}
   .hm-c3 .nest-note{margin-top:4px;padding:6px 8px;font-size:12px}
+  .hm-c3 .mus-halls{padding:6px 6px 4px;margin:2px 0 0}
+  .hm-c3 .mus-h > svg{max-width:46px}
+  .hm-c3 .mus-cur{margin:4px 2px 0;font-size:12.5px}
+  .hm-c3 .mus-frise{margin:2px 0 0}
+  .hm-c3 .mus-r > svg{max-width:34px}
+  .hm-c3 .mus-frise::before{bottom:17px}
+  .hm-c3 .mus-note{margin-top:4px;padding:6px 8px;font-size:12px}
   .hm-c3:has(>#hmEvent){overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}      /* écran très bas : la colonne défile d'elle-même plutôt que de couper */
   .hm-c3:has(>#hmEvent)::-webkit-scrollbar{display:none}
   .hm-c3 .hm-sets-l{flex:1 1 auto;min-height:0;overflow-y:auto}

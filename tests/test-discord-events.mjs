@@ -85,8 +85,10 @@ test('message : FR puis EN aux dates en toutes lettres, nombres, embed aux coule
   assert.equal(m.embeds[0].image.url, 'https://exemple.test/icons/events/halloween/social-1200x630.png'); assert.ok(m.content.endsWith('<https://exemple.test/>'));
   assert.equal(evDscMsg('open', ED, HW, null, '', 'javascript:alert(1)').embeds[0].url, 'https://manaorbit.app/', 'adresse douteuse : manaorbit.app');
   assert.equal(evDscMsg('bof', ED, HW, null, '', ''), null);
-  const mg = P.EV_PACKS.find(p => p.id === 'magic');
-  assert.equal(evDscReady(mg), false); assert.equal(evDscMsg('open', P.evEdition(mg, 2027), mg, null, '', ''), null, 'pack sans dsc : rien');
+  const mg = P.EV_PACKS.find(p => p.id === 'magic'), mm = evDscMsg('mid', P.evEdition(mg, 2027), mg, { hunters: 12, full: 3, days: [] }, '', '');
+  assert.equal(evDscReady(mg), true, 'musée de Magic : messages prêts'); assert.match(mm.content, /Joyeux anniversaire, Magic.*34 ans aujourd'hui.*12 visiteurs.*3 l'ont déjà complété.*34 years old today/s, 'jour J : l\'âge fêté ({age})');
+  assert.match(evDscMsg('soon', P.evEdition(mg, 2026), mg, null, '', '').content, /pour les 33 ans de Magic.*celebrate 33 years of Magic/s);
+  assert.equal(evDscMsg('open', P.evEdition(mg, 2027), { ...mg, dsc: undefined }, null, '', ''), null, 'pack sans dsc : rien');
   const paq = P.EV_PACKS.find(p => p.id === 'paques'), pm = evDscMsg('mid', P.evEdition(paq, 2027), paq, { hunters: 12, full: 3, days: [] }, '', '');
   assert.equal(evDscReady(paq), true, 'nid de Pâques : messages prêts'); assert.match(pm.content, /cloches sont revenues de Rome.*12 joueurs.*3 ont fait éclore les 6 poussins/s);
   assert.equal(evDscReady(P.EV_PACKS.find(p => p.id === 'noel')), true, 'Noël (calendrier de l\'Avent) : messages prêts');
@@ -263,12 +265,13 @@ test('édition coupée par l\'admin, pack pas prêt ou sans messages, DISCORD_EV
   await B1.bot.events.tick({ now: noon('2026-10-25'), off: () => ['halloween-2026'] }); assert.equal(DS.posts.length, 0, 'édition coupée : rien');
   await B1.bot.events.tick({ now: noon('2026-10-25'), off: () => ['halloween'] }); assert.equal(DS.posts.length, 0, 'pack coupé : rien');
   await B1.bot.events.tick({ now: noon('2026-10-25'), off: () => { throw new Error('x'); } }); assert.deepEqual(kinds(), ['open'], 'interrupteur illisible : rien de coupé');
-  // anniversaire de Magic (pas prêt, sans messages) : rien pendant sa période ; Pâques (prêt) : le mi-parcours tombe le dimanche de Pâques
-  reset(); for (const d of ['2027-08-01', '2027-08-05', '2027-08-12']) await B1.bot.events.tick({ now: noon(d) });
-  assert.equal(DS.posts.length, 0, 'anniversaire de Magic pas prêt : rien');
+  // musée de Magic (prêt) : le mi-parcours tombe le jour J (5 août) ; Pâques (prêt) : le mi-parcours tombe le dimanche de Pâques
+  reset(); for (const d of ['2027-07-26', '2027-07-29', '2027-08-05', '2027-08-12', '2027-08-13']) await B1.bot.events.tick({ now: noon(d), stats: async () => ({ hunters: 0, full: 0, days: [] }) });
+  assert.deepEqual(kinds().map(k => k.replace('mo-ev-magic-2027-', '')), ['soon', 'open', 'mid', 'last', 'end'], 'musée de Magic 2027 : J-3, ouverture, jour J, dernier jour, fin');
   reset(); for (const d of ['2027-03-18', '2027-03-21', '2027-03-28', '2027-04-04', '2027-04-05']) await B1.bot.events.tick({ now: noon(d), stats: async () => ({ hunters: 0, full: 0, days: [] }) });
   assert.deepEqual(kinds().map(k => k.replace('mo-ev-paques-2027-', '')), ['soon', 'open', 'mid', 'last', 'end'], 'nid de Pâques 2027 : J-3, ouverture, dimanche de Pâques, dernier jour, fin');
   // packs passés à evDscMake directement (contrat : helpers de discordMake) : Halloween pas prêt, ou sans un message
+  reset();
   const h = { on: true, find: B1.bot.helpers.find, post: B1.bot.helpers.post, log: { log() {}, warn() {} }, TX: 0, NEWS: 5 };
   for (const pk of [{ ...HW, ready: false }, { ...HW, dsc: { ...HW.dsc, mid: undefined } }]) {
     const E = evDscMake(h, { dir: newDir(), packs: { ...P, EV_PACKS: [pk], evPack: () => pk } });

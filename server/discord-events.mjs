@@ -4,7 +4,7 @@
 //   · Quoi : pour chaque édition d'un pack prêt (src/evpacks.js › EV_PACKS, ready: true) dont les messages Discord (pack.dsc) sont complets, cinq annonces :
 //     soon (J-3, « La chasse … arrive »), open (le jour du début), mid (jour du milieu : from + floor((jours − 1) / 2), « il reste X jours »), last (le jour de
 //     fin, dernier jour de jeu), end (le lendemain de la fin : récapitulatif, chasseurs, nombre à total/total, top des pseudos publics s'il y en a).
-//     Texte : pack.dsc[étape] (FR puis EN ; {from}, {to} « 25 octobre », {fromEn}, {toEn} « October 25 », {total}, {per}, {y}, {d}, {h}, {full}) ; embed aux couleurs
+//     Texte : pack.dsc[étape] (FR puis EN ; {from}, {to} « 25 octobre », {fromEn}, {toEn} « October 25 », {total}, {per}, {y}, {d}, {h}, {full} ; musée de Magic : {age}) ; embed aux couleurs
 //     du pack (pal.a), visuel <site>/icons/events/<pack>/social-1200x630.png, vignette …/discord-512.png, lien vers l'appli.
 //   · Ping du rôle « Événements » (« Events » aussi ; emoji, accents, casse ignorés) seulement s'il existe et peut être pingé (comme le rôle de la Carte mystère,
 //     discord-daily.mjs) : allowed_mentions { parse: [], roles: [ce rôle] }, sinon { parse: [] } (une ligne de journal).
@@ -81,7 +81,7 @@ export function evDscMsg(kind, edition, pack, stats, roleId, site) {
   const win = evDscWindows(edition).find(x => x.kind === kind), day = DAY_RE.test(String(edition.day || '')) ? edition.day : (win ? win.a : edition.from);
   const left = Math.max(1, diff(day, edition.to) + 1), r = /^\d{5,25}$/.test(String(roleId || '')) ? String(roleId) : '';
   const fill = (t, loc) => {
-    const num = v => v.toLocaleString(loc), vals = { from: dateFr(edition.from), to: dateFr(edition.to), fromEn: dateEn(edition.from), toEn: dateEn(edition.to), total: num(total), per: num(per), y: String(edition.year), d: num(left), h: num(h), full: num(full) };
+    const num = v => v.toLocaleString(loc), vals = { from: dateFr(edition.from), to: dateFr(edition.to), fromEn: dateEn(edition.from), toEn: dateEn(edition.to), total: num(total), per: num(per), y: String(edition.year), d: num(left), h: num(h), full: num(full), ...(pack.museum ? { age: num(edition.year - pack.museum.born) } : {}) };      // age : anniversaire de Magic
     const one = { d: left === 1, h: h === 1 };
     return line(String(t))      // nettoyé avant : les espaces insécables des nombres (« 1 234 ») restent
       .replace(/\{(d|h)\}(\s+)(\p{L}+?)s(?!\p{L})/gu, (all, k, sp, w) => (one[k] ? `${vals[k]}${sp}${w}` : all))      // « 1 jour », « 1 hunter » (pas « 1 jours »)

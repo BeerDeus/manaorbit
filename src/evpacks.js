@@ -321,11 +321,100 @@ const EV_PACKS = [
         pt: ['🐣 Último dia do ninho de Páscoa!', 'Os últimos ovos somem à meia-noite. É agora ou nunca.'],
       },
     } },
-  { id: 'magic', ready: false, name: 'Anniversaire de Magic', when: y => evAround(`${y}-08-05`), total: 30, perDay: 5,
-    obj: { one: 'bougie', many: 'bougies', emoji: '🕯️', fem: true, art: 'candle' },
+  { id: 'magic', ready: true, name: 'Anniversaire de Magic', when: y => evAround(`${y}-08-05`), total: 30, perDay: 5,
+    // Musée de Magic (evmuseum.js) : chaque relique trouvée prend sa place, dans l'ordre de l'histoire, sur la frise 1993 → aujourd'hui (la n-ième trouvée est
+    // museum.relics[n − 1]) : 5 salles (halls) de per reliques chacune ; la dernière relique d'une salle l'inaugure (plein écran, badge). Les badges comptent
+    // les salles inaugurées (unit). born : année de la sortie d'Alpha (l'âge fêté : année − born) ; day : jour J (5 août) : gâteau en plein écran une fois et
+    // extra reliques de plus ce jour-là (quota, evQuota) ; gold : lotus d'or rare (gold.p de chance pour chaque cachette, tirage du serveur comme l'œuf d'or :
+    // event-srv.mjs › evGold) : couleur de classeur rare gold.cover. Reliques : k dessin (evart.js › relicArt), y année (0 : celle de l'édition), t nom, d cartel.
+    museum: { per: 6, born: 1993, day: '08-05', extra: 5, gold: { p: 0.01, cover: 'lotus' },
+      halls: ['Les origines', 'L\'âge d\'or', 'Le nouveau millénaire', 'L\'ère du Commander', 'Aujourd\'hui'],
+      relics: [
+        { k: 'notebook', y: 1993, t: 'Le carnet du prototype', d: 'Richard Garfield, docteur en mathématiques, imagine le premier jeu de cartes à collectionner. Wizards of the Coast le publie.' },
+        { k: 'alpha', y: 1993, t: 'Le booster d\'Alpha', d: 'Le 5 août 1993 sort Alpha, la toute première édition de Magic : 295 cartes.' },
+        { k: 'corners', y: 1993, t: 'Les coins d\'Alpha', d: 'Les cartes d\'Alpha ont des coins plus arrondis que toutes celles qui ont suivi : on les reconnaît à la loupe.' },
+        { k: 'd20', y: 1993, t: 'Le dé des 20 points de vie', d: 'Depuis la première partie, chaque joueur commence à 20 points de vie.' },
+        { k: 'lamp', y: 1993, t: 'La lampe d\'Arabian Nights', d: 'En décembre 1993, Arabian Nights devient la toute première extension de Magic.' },
+        { k: 'gears', y: 1994, t: 'Les engrenages d\'Antiquities', d: 'Antiquities raconte la guerre des frères Urza et Mishra, à coups d\'artefacts.' },
+        { k: 'seal', y: 1994, t: 'Le sceau de Legends', d: 'Legends apporte les premières créatures légendaires et les premières cartes de plusieurs couleurs, à la bordure dorée.' },
+        { k: 'snow', y: 1995, t: 'Le cristal d\'Ice Age', d: 'Ice Age fait tomber la neige sur Magic : ses terrains de base enneigés sont restés célèbres.' },
+        { k: 'trophy', y: 1996, t: 'Le trophée du premier Pro Tour', d: 'En février 1996, le premier Pro Tour se joue à New York : Magic devient un sport de compétition.' },
+        { k: 'ship', y: 1997, t: 'La maquette de l\'Aquilon', d: 'Avec Weatherlight, Magic raconte une longue saga d\'extension en extension, à bord d\'un vaisseau volant.' },
+        { k: 'chicken', y: 1998, t: 'Le poulet d\'Unglued', d: 'Unglued, la première extension pour rire, à bordure argentée : des poulets, des dés lancés sur la table et beaucoup de bêtises.' },
+        { k: 'foil', y: 1999, t: 'La première carte brillante', d: 'Urza\'s Legacy glisse les premières cartes brillantes (foil) dans les boosters.' },
+        { k: 'crt', y: 2002, t: 'L\'écran de Magic Online', d: 'En 2002, Magic Online permet de jouer contre le monde entier depuis son ordinateur.' },
+        { k: 'frame', y: 2003, t: 'Le cadre moderne', d: 'La 8e édition change le cadre des cartes pour la première fois depuis 1993 : titre plus lisible, texte plus grand.' },
+        { k: 'guild', y: 2005, t: 'Les blasons des guildes', d: 'Le bloc de Ravnica réunit dix guildes, une pour chaque paire de couleurs.' },
+        { k: 'spark', y: 2007, t: 'L\'étincelle des planeswalkers', d: 'Lorwyn imprime les premières cartes de planeswalker : les joueurs ont enfin leurs héros sur la table.' },
+        { k: 'mythic', y: 2008, t: 'La gemme mythique', d: 'Shards of Alara crée la rareté mythique, au symbole orangé : plus rare encore que les cartes rares.' },
+        { k: 'hedron', y: 2009, t: 'La pierre-lien de Zendikar', d: 'Zendikar et ses terrains de base illustrés sur toute la carte, au milieu des pierres-liens qui flottent.' },
+        { k: 'dragon', y: 2011, t: 'Le dragon du Commander', d: 'Né en Alaska sous le nom d\'Elder Dragon Highlander, le format Commander reçoit ses premiers decks officiels en 2011.' },
+        { k: 'banner', y: 2014, t: 'L\'étendard des clans', d: 'Khans of Tarkir met en scène cinq clans de trois couleurs chacun.' },
+        { k: 'crown', y: 2016, t: 'La couronne du monarque', d: 'Conspiracy: Take the Crown invente le monarque : celui qui porte la couronne pioche une carte de plus à chaque tour.' },
+        { k: 'invention', y: 2016, t: 'L\'invention de Kaladesh', d: 'Kaladesh cache dans ses boosters des « Inventions », des artefacts célèbres réimprimés en filigrane doré.' },
+        { k: 'saga', y: 2018, t: 'Le parchemin de Dominaria', d: 'Pour les 25 ans de Magic, Dominaria revient sur le plan des origines et invente les cartes Saga.' },
+        { k: 'arena', y: 2018, t: 'La tablette d\'Arena', d: 'En 2018, MTG Arena ouvre ses portes : Magic se joue partout, en quelques touchers.' },
+        { k: 'shield', y: 2019, t: 'L\'écu de la Guerre de l\'Étincelle', d: 'War of the Spark réunit 36 planeswalkers dans une seule extension, un par booster.' },
+        { k: 'jumpstart', y: 2020, t: 'Les demi-decks de Jumpstart', d: 'Jumpstart : deux demi-decks de 20 cartes mélangés ensemble, et la partie commence.' },
+        { k: 'ring', y: 2023, t: 'L\'Anneau unique', d: 'The Lord of the Rings glisse dans un booster une seule carte numérotée 1/1 : l\'Anneau unique, cherché par le monde entier.' },
+        { k: 'acorn', y: 2024, t: 'Le gland de Bloomburrow', d: 'Bloomburrow : un plan entier peuplé de petits animaux, souris, lapins et grenouilles en armure.' },
+        { k: 'crystal', y: 2025, t: 'Le cristal de Final Fantasy', d: 'En 2025, l\'univers de Final Fantasy rejoint Magic, cristaux et chocobos compris.' },
+        { k: 'binder', y: 0, t: 'Ton classeur', d: 'La dernière vitrine est la tienne : chaque carte que tu ranges continue l\'histoire de Magic.' },
+      ] },
+    obj: { one: 'relique', many: 'reliques', emoji: '🏛️', fem: true, art: 'relic', counter: 'relicCounter', msg: 'curator' },
     pal: { a: '#f2c230', b: '#7fb0ff', c: '#ff7a5c', ink: '#12142a' }, font: 'arcane',
-    badge: { t: 'Anniversaire de Magic {y}', tiers: [1, 10, 20, 30], names: ['Invité', 'Fidèle', 'Archiviste', 'Arpenteur légendaire'] },
-    txt: { title: 'La chasse aux bougies est ouverte', short: 'Chasse aux bougies' } },
+    badge: { t: 'Musée de Magic {y}', tiers: [1, 2, 4, 5], unit: ['{n} salle inaugurée', '{n} salles inaugurées'], names: ['Visiteur', 'Guide du musée', 'Archiviste', 'Conservateur légendaire'] },
+    txt: {
+      title: 'Le musée de Magic ouvre ses portes', short: 'Musée de Magic',
+      rules: ['{total} reliques de l\'histoire de Magic se cachent dans l\'appli jusqu\'au {to}, {per} par jour au plus, dans de nouvelles cachettes chaque matin.', 'Chacune prend sa place sur la frise, de 1993 à aujourd\'hui : 6 reliques inaugurent une salle du musée.', 'Inaugure les 5 salles pour gagner les badges du musée de Magic {y}.'],
+      found: 'Une relique !', left: ['Encore <b>{n} relique</b> à dénicher aujourd\'hui', 'Encore <b>{n} reliques</b> à dénicher aujourd\'hui'],
+      dayDone: 'Toutes les reliques du jour sont au musée, reviens demain', allDone: 'Les 5 salles du musée sont ouvertes', allSub: 'Tu es Conservateur légendaire {y} : toute l\'histoire de Magic, relique après relique.',
+      label: 'Une relique cachée : touche-la pour l\'exposer au musée', tip: 'Une relique ! Touche-la pour l\'exposer au musée : {per} se cachent dans l\'appli chaque jour.',
+      join: 'Crée un compte pour garder ton musée sur tous tes appareils.', deco: 'Décorations de l\'anniversaire de Magic',
+      labelGold: 'Le lotus d\'or, la relique légendaire : touche-le pour l\'exposer au musée',
+    },
+    // Annonces : le mi-parcours tombe le jour J (5 août, 8e des 15 jours) : « Joyeux anniversaire, Magic ! ». {age} : âge fêté (discord-events.mjs, event-push.mjs).
+    dsc: {
+      soon: ['🏛️ **Le musée de Magic ouvre dans 3 jours !** Du {from} au {to}, pour les {age} ans de Magic, {total} reliques de son histoire se cachent dans Mana Orbit : {per} par jour, 5 salles à inaugurer et des badges du musée {y}.', '🏛️ **The Magic museum opens in 3 days!** From {fromEn} to {toEn}, to celebrate {age} years of Magic, {total} relics of its history hide in Mana Orbit: {per} a day, 5 halls to open and museum {y} badges.'],
+      open: ['🏛️ **Le musée de Magic ouvre ses portes !** {total} reliques, d\'Alpha à aujourd\'hui, se cachent dans l\'appli jusqu\'au {to}, {per} par jour. Qui inaugurera les 5 salles ?', '🏛️ **The Magic museum is open!** {total} relics, from Alpha to today, hide in the app until {toEn}, {per} a day. Who will open all 5 halls?'],
+      mid: ['🎂 **Joyeux anniversaire, Magic !** Alpha sortait le 5 août 1993 : {age} ans aujourd\'hui, et 5 reliques de plus dans l\'appli. {h} visiteurs au musée, {full} l\'ont déjà complété.', '🎂 **Happy birthday, Magic!** Alpha came out on August 5, 1993: {age} years old today, and 5 extra relics in the app. {h} museum visitors, {full} have completed it already.'],
+      last: ['🕯️ **Dernier jour du musée de Magic !** Les vitrines ferment à minuit.', '🕯️ **Last day of the Magic museum!** The display cases close at midnight.'],
+      end: ['🏛️ **Le musée de Magic ferme ses portes.** {h} visiteurs, {full} ont inauguré les 5 salles. Merci à tous, et joyeux anniversaire, Magic !', '🏛️ **The Magic museum is closed.** {h} visitors, {full} opened all 5 halls. Thanks everyone, and happy birthday, Magic!'],
+    },
+    push: {
+      soon: {
+        fr: ['🏛️ Le musée de Magic ouvre bientôt', 'Du {from} au {to}, {total} reliques de l\'histoire de Magic se cachent dans l\'appli : 5 salles à inaugurer.'],
+        en: ['🏛️ The Magic museum opens soon', 'From {from} to {to}, {total} relics of Magic\'s history hide in the app: 5 halls to open.'],
+        de: ['🏛️ Das Magic-Museum öffnet bald', 'Vom {from} bis {to} verstecken sich {total} Relikte aus der Geschichte von Magic in der App: 5 Säle zu eröffnen.'],
+        es: ['🏛️ El museo de Magic abre pronto', 'Del {from} al {to}, {total} reliquias de la historia de Magic se esconden en la app: 5 salas que inaugurar.'],
+        it: ['🏛️ Il museo di Magic apre presto', '{from} – {to}: {total} reliquie della storia di Magic si nascondono nell\'app, con 5 sale da inaugurare.'],
+        pt: ['🏛️ O museu de Magic abre em breve', 'De {from} a {to}, {total} relíquias da história de Magic se escondem no app: 5 salas para inaugurar.'],
+      },
+      open: {
+        fr: ['🏛️ Le musée de Magic est ouvert !', '{per} reliques se cachent dans l\'appli chaque jour jusqu\'au {to}. D\'Alpha à aujourd\'hui, à toi de les exposer.'],
+        en: ['🏛️ The Magic museum is open!', '{per} relics hide in the app every day until {to}. From Alpha to today, it\'s up to you to display them.'],
+        de: ['🏛️ Das Magic-Museum ist geöffnet!', 'Bis zum {to} verstecken sich jeden Tag {per} Relikte in der App. Von Alpha bis heute: stell sie aus.'],
+        es: ['🏛️ ¡El museo de Magic está abierto!', '{per} reliquias se esconden en la app cada día hasta el {to}. De Alpha a hoy, te toca exponerlas.'],
+        it: ['🏛️ Il museo di Magic è aperto!', '{per} reliquie si nascondono nell\'app ogni giorno fino al {to}. Da Alpha a oggi, tocca a te esporle.'],
+        pt: ['🏛️ O museu de Magic está aberto!', '{per} relíquias se escondem no app todo dia até {to}. De Alpha até hoje, cabe a você expô-las.'],
+      },
+      mid: {
+        fr: ['🎂 Joyeux anniversaire, Magic !', 'Alpha sortait le 5 août 1993. Pour fêter ça, 5 reliques de plus se cachent dans l\'appli aujourd\'hui.'],
+        en: ['🎂 Happy birthday, Magic!', 'Alpha came out on August 5, 1993. To celebrate, 5 extra relics hide in the app today.'],
+        de: ['🎂 Alles Gute zum Geburtstag, Magic!', 'Alpha erschien am 5. August 1993. Zur Feier verstecken sich heute 5 Relikte mehr in der App.'],
+        es: ['🎂 ¡Feliz cumpleaños, Magic!', 'Alpha salió el 5 de agosto de 1993. Para celebrarlo, hoy se esconden 5 reliquias más en la app.'],
+        it: ['🎂 Buon compleanno, Magic!', 'Alpha usciva il 5 agosto 1993. Per festeggiare, oggi si nascondono 5 reliquie in più nell\'app.'],
+        pt: ['🎂 Feliz aniversário, Magic!', 'Alpha saiu em 5 de agosto de 1993. Para comemorar, hoje 5 relíquias a mais se escondem no app.'],
+      },
+      last: {
+        fr: ['🕯️ Dernier jour du musée de Magic !', 'Les vitrines ferment à minuit. C\'est le moment d\'inaugurer tes dernières salles.'],
+        en: ['🕯️ Last day of the Magic museum!', 'The display cases close at midnight. Time to open your last halls.'],
+        de: ['🕯️ Letzter Tag im Magic-Museum!', 'Die Vitrinen schließen um Mitternacht. Zeit, deine letzten Säle zu eröffnen.'],
+        es: ['🕯️ ¡Último día del museo de Magic!', 'Las vitrinas cierran a medianoche. Es hora de inaugurar tus últimas salas.'],
+        it: ['🕯️ Ultimo giorno del museo di Magic!', 'Le vetrine chiudono a mezzanotte. È il momento di inaugurare le tue ultime sale.'],
+        pt: ['🕯️ Último dia do museu de Magic!', 'As vitrines fecham à meia-noite. Hora de inaugurar suas últimas salas.'],
+      },
+    } },
 ];
 
 /* ── Cachettes : près de soixante-dix endroits de l'appli (event.js › EV_HIDE dit où les poser). Le serveur tire celles du jour de chaque joueur parmi celles qu'il peut voir.
@@ -414,7 +503,13 @@ function evBells(e, day) {
   const d = evDiff(evEaster(+String(e.id).slice(-4)), day);
   return d >= b.back && d < b.back + b.days ? 'bells' : d >= b.away && d < b.back ? 'away' : '';
 }
-const evQuota = (e, day) => (evCatchup(e, day) ? evPack(e.pack).advent.catchup : evBells(e, day) === 'bells' ? e.per + evPack(e.pack).nest.bells.extra : e.per);
+/** Jour J du musée de Magic (pack.museum.day, « MM-JJ ») : vrai le jour de l'anniversaire de l'édition e. */
+function evBday(e, day) { const p = e && evPack(e.pack), m = p && p.museum; return !!(m && m.day && day === String(e.id).slice(-4) + '-' + m.day); }
+/** Moment d'un jour de l'édition e (html[data-evphase], aperçu) : cloches de Pâques ('away', 'bells'), jour J du musée ('bday') ; '' sinon. */
+const evPhaseOf = (e, day) => evBells(e, day) || (evBday(e, day) ? 'bday' : '');
+/** Objet rare d'un pack (œuf d'or du nid, lotus d'or du musée) : { p, cover } ou null. */
+const evGoldOf = p => (p && ((p.nest && p.nest.gold) || (p.museum && p.museum.gold))) || null;
+const evQuota = (e, day) => (evCatchup(e, day) ? evPack(e.pack).advent.catchup : evBells(e, day) === 'bells' ? e.per + evPack(e.pack).nest.bells.extra : evBday(e, day) ? e.per + evPack(e.pack).museum.extra : e.per);
 /** Portes d'un calendrier d'après les jours joués ({ jour: [cachettes] }) : [{ i, day, n (objets de son jour), open, late (ouverte au rattrapage) }].
  *  Les objets des jours de rattrapage ouvrent les portes manquées dans l'ordre, {per} par porte. [] : pas un calendrier. */
 function evDoors(e, jours) {
@@ -435,6 +530,12 @@ function evCheck(y = 2026) {
     const e = evEdition(p, y), need = Math.ceil(p.total / e.per);
     if (p.sky && p.sky.cons.length * p.sky.per !== p.total) bad.push(p.id + ' : constellations ≠ total');
     if (p.nest && (p.total % p.nest.per || p.nest.mana.length !== p.nest.per || p.badge.tiers[p.badge.tiers.length - 1] !== p.total / p.nest.per)) bad.push(p.id + ' : couvées ≠ total ou badges');
+    if (p.museum) {      // musée : salles × reliques = total, une relique par place de la frise, dernier palier = nombre de salles, jour J dans la période
+      const m = p.museum;
+      if (m.halls.length * m.per !== p.total || m.relics.length !== p.total || p.badge.tiers[p.badge.tiers.length - 1] !== m.halls.length) bad.push(p.id + ' : salles ≠ total ou badges');
+      if (new Set(m.relics.map(r => r.k)).size !== m.relics.length || m.relics.some(r => !r.t || !r.d || !(r.y === 0 || r.y >= m.born))) bad.push(p.id + ' : reliques');
+      const bd = y + '-' + m.day; if (bd < e.from || bd > e.to) bad.push(p.id + ' : jour J hors de la période');
+    }
     if (p.advent) {      // calendrier : une porte par jour, puis au moins un jour de rattrapage ; tout le total tient dans les portes
       if (p.advent.doors * e.per !== p.total) bad.push(p.id + ' : ' + p.advent.doors + ' portes × ' + e.per + ' ≠ ' + p.total);
       if (e.days <= p.advent.doors || e.days > p.advent.doors + 3) bad.push(p.id + ' : ' + e.days + ' jours pour ' + p.advent.doors + ' portes');
@@ -448,4 +549,4 @@ function evCheck(y = 2026) {
   return bad;
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evParts, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck, evDoorDay, evCatchup, evBells, evQuota, evDoors, evAdvCards };
+if (typeof module !== 'undefined' && module.exports) module.exports = { EV_PACKS, EV_SPOTS, EV_CAPS, EV_LVL_MAX, EV_MIN_DAYS, EV_TZ, evAdd, evDiff, evEaster, evAround, evParts, evDay, evNextMidnight, evPerDay, evPack, evEdition, evById, evAt, evActive, evUpcoming, evCheck, evDoorDay, evCatchup, evBells, evBday, evPhaseOf, evGoldOf, evQuota, evDoors, evAdvCards };

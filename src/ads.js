@@ -23,8 +23,8 @@ const AD_TEST = 'ca-app-pub-3940256099942544/6300978111';      // bandeau de TES
 const AD = { on: false, st: 'off', m: null, ok: false, no: false, srv: null, priv: '', calm: 0, touch: 0, next: 0, timer: 0, pend: false, q: Promise.resolve(),
   delay: 6000, back: 800, idle: 2500, retry: 180000, grace: 10 * 60e3, onMs: 2 * 60e3, offMs: 3 * 60e3, use: 0, useT: 0, useS: 0 };
 const AD_USE_KEY = 'deckdeal:aduse';
-/** Plein écrans posés à la racine de la page (event.js, evadvent.js, evsky.js, evnest.js) : pas de bandeau par-dessus. */
-const AD_FULL = 'body > .ev-intro, body > .ev-party, body > .adv-open, body > .sky-fw, body > .nest-bells';
+/** Plein écrans posés à la racine de la page (event.js, evadvent.js, evsky.js, evnest.js, evmuseum.js) : pas de bandeau par-dessus. */
+const AD_FULL = 'body > .ev-intro, body > .ev-party, body > .adv-open, body > .sky-fw, body > .nest-bells, body > .mus-bday';
 /** Temps d'utilisation (appli au premier plan, ms), cumulé sur ce téléphone ; enregistré toutes les 15 s au plus et quand l'appli passe en arrière-plan. */
 function adsUse() {
   const now = Date.now();

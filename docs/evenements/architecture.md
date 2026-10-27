@@ -14,6 +14,7 @@ Moteur générique + un « pack » par fête. Premier pack : **Halloween 2026** 
 | `event-srv.mjs` | Moteur côté serveur (chargé par `proxy.mjs`) : calendrier, `/api/event…`, cachettes du jour signées, quota, progression, statistiques et interrupteur de `/admin`. |
 | `discord-events.mjs` | Annonces Discord (`#annonces`) : J-3, J0, mi-parcours, J-1, fin. |
 | `event-push.mjs` | Notifications push (créé par `event-srv.mjs` avec `o.push`) : appareils avec ou sans compte (`push.json`), annonces automatiques (étapes de `evDscWindows`, une par jour, 10 h – 21 h), envois manuels et historique du panneau. |
+| `src/evmuseum.js` + `src/css/event-museum.css` | Mode « musée » (pack.museum, anniversaire de Magic) : frise des reliques, salles à inaugurer, fiche d'une relique, jour J (gâteau), lotus d'or ; même contrat que `evnest.js` (`musOf`, `musCardHtml`, `musAfterFind`). |
 | `src/evpush.js` | Côté appli : enregistrement de l'appareil, interrupteur « Annonces des fêtes », étape « Ne rate aucune fête » du premier lancement (`onboard.js`), toucher `./?fete=1` (`evPushOpen`). |
 | `tools/gen-event-badges.mjs` | Générateur des badges d'une édition (fond fixe par fête + année en tracés SVG), lancé par `.github/workflows/event-badges.yml`. |
 | `tools/make-event-logos.mjs` | Logos d'appli par fête (SVG + PNG). |
