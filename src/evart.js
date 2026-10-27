@@ -10,7 +10,9 @@
    EV_AMB[pack]() : balisage de l'ambiance, posé une fois par le moteur dans <div class="ev-amb" aria-hidden="true"> (enfant de <body>, après #app) ;
    styles et animations dans css/ev-<pack>.css (transform / opacity seulement, 12 éléments animés au plus). Données pures : aucun accès au DOM ici.
    Noël (cadeau, booster du calendrier, boule, étoile, flocon, houx, clochette, icônes de récompense, guirlande evGarland) : section « Noël ».
-   Nouvel an (étoile filante, constellations du mana EV_CONS, orbe de mana, feu d'artifice de minuit, icônes de récompense) : section « Nouvel an » en fin de fichier. */
+   Nouvel an (étoile filante, constellations du mana EV_CONS, orbe de mana, feu d'artifice de minuit, icônes de récompense) : section « Nouvel an ».
+   Pâques (œuf décoré en 5 teintes à décor peint, œuf d'or rare, œufs du mana, éclosion, compteur, poussin, lapin, panier qui se remplit, tulipe, jonquille,
+   marguerite, papillon, cloche ailée, ruban ; pré fleuri de l'ambiance, pétales et papillons) : section « Pâques » en fin de fichier. */
 let EVO_N = 0;
 const evoF = n => Math.round(n * 100) / 100;
 /** Côte de citrouille : goutte arrondie, un peu plus large sous le milieu (cx centre, w demi-largeur, top / bot : haut et bas). */
@@ -738,6 +740,604 @@ EV_AMB_TOP.nouvelan = () => {
   const rib = c => sv(`<path d="M2.6 6.4C4.6 4 6.4 7.6 8.4 5.4S12 3.6 13.6 5.8L14 8.4C12.2 6.4 10.6 9.6 8.6 8.2S5 7.6 3.2 9.2Z" fill="${c[0]}" stroke="${c[1]}" stroke-width=".55" stroke-linejoin="round"/>`);
   return [spark, rib(['#ff5fa2', '#8a1d52']), star, rib(['#7c8cff', '#262a9c']), spark, rib(['#ff9ccb', '#8a1d52']), star]
     .map((s, i) => `<span class="evy-cf evy-c${i + 1}"><span class="evy-cf-s">${s}</span></span>`).join('');
+};
+
+/* ── Pâques ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Chasse aux œufs dans un pré de printemps. Tout est dessiné ici (SVG en couleur, jamais d'emoji ni d'image externe) ; animations : css/ev-paques.css
+   (transform / opacity seulement). Teintes « v » des œufs (0–4), chacune avec son décor peint : 0 rose framboise (frise en zigzag, pois), 1 bleu ciel
+   (pois, vague), 2 vert menthe (frise de marguerites peintes), 3 jaune beurre (frises : dents, vagues, rubans), 4 lilas doré (treillis d'or, perles,
+   cabochon : l'œuf « de prestige ») ; v absent : lilas doré. Le décor suit le galbe de l'œuf (latitudes en perspective, motifs resserrés sur les bords).
+   · egg(o) : œuf décoré, l'objet caché (viewBox 64 × 64), posé dans une touffe d'herbe. Parties animées : .evo-egg-b (l'œuf se dandine de loin en loin,
+     comme prêt à éclore), .evo-glint (reflet qui passe), .evo-glow (halo), .evo-rays et .evo-spk (version allumée : rayons qui tournent, étincelles).
+     o.v teinte ; o.lit : célébration (halo plus vif, rayons, étincelles) ; o.cls : classes en plus. Lisible à 26–30 px (silhouette, bande contrastée),
+     détaillé à 160 px (décor peint, ombre propre, lumière réfléchie, reflet, herbe). Variantes pour des mécaniques à venir (le moteur ne les demande pas
+     encore) : o.gold (œuf d'or rare : treillis gravé, diamants, cabochon ; toujours allumé), o.mana ('W'…'G' : teinte du mana, symbole dans un médaillon
+     d'or), o.crack (1 fêlé, 2 le poussin regarde par un trou). · hatch(o) : éclosion au fil des jours, o.stage 0–3 (3 : poussin sorti, dans l'herbe).
+   · eggCounter(o) : compteur « 12 / 30 » (24 × 24, aplats pour 16–24 px) · chick(o) : poussin qui sort de sa coquille, dessin des messages (24 × 24 ;
+     .evo-wing salue). · bunny(o) : lapin assis (64 × 64 ; .evo-ears frémissent) · basket(o) : panier d'osier garni (64 × 64 ; o.eggs : 0–7 œufs, le panier
+     qui se remplit) · tulip(o), daffodil(o),
+     daisy(o) : tulipe, jonquille, marguerite avec leur tige (24 × 48 ; o.v teinte de la tulipe) · butterfly(o) : papillon (32 × 24, o.v ; .evo-wings
+     battent) · wingedBell(o) : cloche de Pâques ailée, la tradition française (64 × 64 ; .evo-wing-l / -r battent, .evo-bell-b se balance ; o.drop : elle
+     lâche deux œufs, .evo-drop) · ribbon(o) : nœud de
+     ruban satiné (32 × 24, o.v).
+   EV_AMB.paques (soleil, nuages, pré fleuri, lapin, cloches qui passent), EV_AMB_TOP.paques (pétales et papillons), EV_FX.paques : ambiance, couche du
+   dessus, particules. */
+/** Courbe lisse passant par les points P (Catmull-Rom → Bézier) ; closed : contour fermé ; cont : continue un tracé (L au lieu de M). */
+function evqCurve(P, closed = false, cont = false) {
+  const f = evoF, n = P.length, g = i => P[closed ? (i + n) % n : Math.max(0, Math.min(n - 1, i))];
+  let d = `${cont ? 'L' : 'M'}${f(P[0][0])} ${f(P[0][1])}`;
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const p0 = g(i - 1), p1 = g(i), p2 = g(i + 1), p3 = g(i + 2);
+    d += `C${f(p1[0] + (p2[0] - p0[0]) / 6)} ${f(p1[1] + (p2[1] - p0[1]) / 6)} ${f(p2[0] - (p3[0] - p1[0]) / 6)} ${f(p2[1] - (p3[1] - p1[1]) / 6)} ${f(p2[0])} ${f(p2[1])}`;
+  }
+  return d + (closed ? 'Z' : '');
+}
+/* Géométrie d'un œuf : centre cx, cy ; demi-largeur a, demi-hauteur b ; k : pointe du haut (plus étroit en haut, ventru en bas) ; s : perspective du décor
+   (vu d'un peu au-dessus, une ligne peinte autour de l'œuf descend de s sur le devant). */
+const EVQ_G = { cx: 32, cy: 34.2, a: 16.4, b: 23.4, k: .15, s: 2.3 };
+/** Contour de l'œuf G (24 points lissés). */
+const evqEggD = (G, N = 24) => evqCurve(Array.from({ length: N }, (_, i) => { const t = i / N * 2 * Math.PI; return [G.cx + G.a * Math.sin(t) * (1 - G.k * Math.cos(t)), G.cy - G.b * Math.cos(t)]; }), true);
+/** Demi-largeur de l'œuf G à la hauteur y. */
+const evqHW = (G, y) => { const c = (G.cy - y) / G.b; return Math.abs(c) >= 1 ? 0 : G.a * Math.sqrt(1 - c * c) * (1 - G.k * c); };
+/** Point du décor peint : latitude y0, angle th (−π/2 bord gauche, 0 face, π/2 bord droit), dy écart vertical ; un peu au-delà du bord (la découpe tranche). */
+const evqP = (G, y0, th, dy = 0) => { const y = y0 + G.s * Math.cos(th) + dy; return [G.cx + (evqHW(G, y) + .7) * Math.sin(th), y]; };
+const evqTh = (i, n) => -Math.PI / 2 + i * Math.PI / n;
+/** Ligne peinte autour de l'œuf (latitude y0) : droite, en vagues (waves périodes, amp), ou en zigzag (zig : hauteur des dents, n dents). */
+function evqLine(G, y0, { n = 20, waves = 0, amp = 0, zig = 0 } = {}) {
+  const pts = Array.from({ length: n + 1 }, (_, i) => { const th = evqTh(i, n); return evqP(G, y0, th, zig ? (i % 2 ? -zig : zig) : amp * Math.sin(th * waves * 2)); });
+  return zig ? 'M' + pts.map(p => evoF(p[0]) + ' ' + evoF(p[1])).join('L') : evqCurve(pts);
+}
+/** Bande peinte entre deux latitudes (y0 en haut, y1 en bas). */
+function evqBand(G, y0, y1, n = 16) {
+  const a = Array.from({ length: n + 1 }, (_, i) => evqP(G, y0, evqTh(i, n))), b = Array.from({ length: n + 1 }, (_, i) => evqP(G, y1, evqTh(n - i, n)));
+  return evqCurve(a) + evqCurve(b, false, true) + 'Z';
+}
+/** Dents peintes : triangles qui pendent de la latitude y0 (h > 0) ou montent de y0 (h < 0), n dents. */
+function evqTeeth(G, y0, h, n) {
+  const z = Array.from({ length: 2 * n + 1 }, (_, i) => evqP(G, y0, evqTh(i, 2 * n), i % 2 ? h : 0)), e = Array.from({ length: 9 }, (_, i) => evqP(G, y0 - Math.sign(h) * .3, evqTh(8 - i, 8)));
+  return 'M' + z.map(p => evoF(p[0]) + ' ' + evoF(p[1])).join('L') + evqCurve(e, false, true) + 'Z';
+}
+/** Pois sur une latitude : n pois de rayon r (aplatis sur les bords), décalés de off (fraction d'un pas) ; seulement ceux de la face visible. */
+function evqDots(G, y0, n, r, off = .5) {
+  let s = '';
+  for (let i = 0; i < n; i++) {
+    const th = evqTh(i + off, n), c = Math.cos(th); if (c < .18) continue;
+    const [x, y] = evqP(G, y0, th, 0); s += `<ellipse cx="${evoF(x - .7 * Math.sin(th))}" cy="${evoF(y)}" rx="${evoF(r * Math.max(.32, c))}" ry="${evoF(r)}"/>`;
+  }
+  return s;
+}
+/** Motifs posés sur une latitude (fleurs, perles…) : <use> de l'élément ref, aplati sur les bords ; cls(i) : attributs en plus (couleur). */
+function evqUses(G, y0, n, ref, k = 1, off = .5, at = () => '') {
+  let s = '';
+  for (let i = 0; i < n; i++) {
+    const th = evqTh(i + off, n), c = Math.cos(th); if (c < .22) continue;
+    const [x, y] = evqP(G, y0, th, 0); s += `<use href="#${ref}" transform="translate(${evoF(x - .7 * Math.sin(th))} ${evoF(y)}) scale(${evoF(k * Math.max(.3, c))} ${evoF(k)})"${at(i)}/>`;
+  }
+  return s;
+}
+/** Treillis peint entre deux latitudes (deux familles de diagonales qui s'enroulent autour de l'œuf) et ses nœuds ([x, y, aplatissement]). */
+function evqLattice(G, y0, y1, n = 7) {
+  const m = Math.PI / n / (y1 - y0) * 2, lines = [], knots = [];
+  for (let j = -n; j <= n; j++) for (const sg of [1, -1]) {
+    const th0 = j * Math.PI / n, pts = [];
+    for (let y = y0; y <= y1 + .01; y += (y1 - y0) / 10) { const th = th0 + sg * (y - y0) * m; if (Math.abs(th) <= Math.PI / 2) pts.push(evqP(G, y, th)); }
+    if (pts.length > 1) lines.push('M' + pts.map(p => evoF(p[0]) + ' ' + evoF(p[1])).join('L'));
+  }
+  for (let r = 0; r <= 2; r++) for (let j = -n; j <= n; j++) {
+    const th = (j + (r % 2 ? .5 : 0)) * Math.PI / n, c = Math.cos(th); if (c < .25) continue;
+    const [x, y] = evqP(G, y0 + r * (y1 - y0) / 2, th); knots.push([x, y, c]);
+  }
+  return { d: lines.join(''), knots };
+}
+/** Herbe : n brins entre x0 et x1, pied à yb, hauteur hmin–hmax ; graine fixe (toujours le même dessin). */
+function evqBlades(x0, x1, yb, hmin, hmax, n, seed = 1, w = 1.6) {
+  let s = seed * 9301 + 49297, d = '';
+  const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280, f = evoF;
+  for (let i = 0; i < n; i++) {
+    const x = x0 + (x1 - x0) * (i + rnd() * .8) / n, h = hmin + (hmax - hmin) * rnd(), l = (rnd() - .5) * h * .7, ww = w * (.7 + rnd() * .6);
+    d += `M${f(x - ww / 2)} ${f(yb)}Q${f(x + l * .2 - ww * .1)} ${f(yb - h * .55)} ${f(x + l)} ${f(yb - h)}Q${f(x + l * .25 + ww * .35)} ${f(yb - h * .5)} ${f(x + ww / 2)} ${f(yb)}Z`;
+  }
+  return d;
+}
+/** Petite fleur à cinq pétales ronds (centre 0 0, rayon 1) : un tracé, pour les <use> des décors. */
+const EVQ_FLOWER = (() => { let d = ''; for (let k = 0; k < 5; k++) { const a = (-90 + k * 72) * Math.PI / 180, x = Math.cos(a) * .62, y = Math.sin(a) * .62; d += `M${evoF(x - .45)} ${evoF(y)}A.45 .45 0 1 0 ${evoF(x + .45)} ${evoF(y)}A.45 .45 0 1 0 ${evoF(x - .45)} ${evoF(y)}Z`; } return d; })();
+/** Marguerite (centre x, y ; rayon r ; n pétales) : pétales en gouttes et cœur. */
+function evqDaisyD(x, y, r, n = 12) {
+  let d = ''; const f = evoF;
+  for (let k = 0; k < n; k++) {
+    const a = k * 2 * Math.PI / n, c = Math.cos(a), s = Math.sin(a), P = (u, v) => f(x + c * u - s * v) + ' ' + f(y + s * u + c * v);
+    d += `M${P(r * .28, 0)}Q${P(r * .6, r * .2)} ${P(r, 0)}Q${P(r * .6, -r * .2)} ${P(r * .28, 0)}Z`;
+  }
+  return d;
+}
+
+/** Fêlures de l'éclosion (dans la découpe de l'œuf) : 1 une fêlure en zigzag, 2 un trou dans la coquille, le poussin qui regarde (œil, bec). */
+function evqCrack(k, id) {
+  if (!k) return '';
+  const z = 'M18.4 23.6L21.6 21.4L23.4 24.2L26.8 20.6L28.6 23.8L31.8 19.8L34 23.2L37.2 20.2L39.2 23L42.6 20.8L45.6 22.6';
+  if (k < 2) return `<path d="${z}" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" opacity=".7" transform="translate(.3 .6)"/><path d="${z}" fill="none" stroke="#3a2a30" stroke-width=".9" stroke-linejoin="round"/>`
+    + `<path d="M31.8 19.8L31 16.6M37.2 20.2L39.4 17.4M23.4 24.2L22.6 27.6" fill="none" stroke="#3a2a30" stroke-width=".6" stroke-linecap="round"/>`;
+  const h = 'M21.4 24.6L24.2 18.6L27 21.4L29.6 15.6L32.6 19.4L35.6 14.8L38 19.6L41.4 17.2L42.8 23.4L39.6 22.4L37.4 26.6L34.4 24.2L31.4 27.8L28.6 24.8L25.4 27.4Z';
+  return `<path d="${h}" fill="#f6ecd8" transform="translate(.5 .8)"/><path d="${h}" fill="#3a2418"/><clipPath id="${id('hc')}"><path d="${h}"/></clipPath>`
+    + `<g clip-path="url(#${id('hc')})"><circle cx="32" cy="27" r="10" fill="#ffd84a"/><circle cx="32" cy="27" r="10" fill="#7a4a10" opacity=".25"/><ellipse cx="28.6" cy="21.6" rx="1.3" ry="1.6" fill="#2a1d14"/><circle cx="29" cy="21" r=".5" fill="#fff"/>`
+    + `<ellipse cx="36.2" cy="21.8" rx="1.3" ry="1.6" fill="#2a1d14"/><circle cx="36.6" cy="21.2" r=".5" fill="#fff"/><path d="M30.6 23.4L32.4 22.4L34.2 23.4L32.4 25.8Z" fill="#ff9a2e" stroke="#c4600a" stroke-width=".35" stroke-linejoin="round"/></g>`
+    + `<path d="${h}" fill="none" stroke="#5a3a20" stroke-width=".6" stroke-linejoin="round"/><path d="M42.8 23.4L45.6 25.2M21.4 24.6L18.6 26.8M29.6 15.6L28.8 12.8" fill="none" stroke="#3a2a30" stroke-width=".6" stroke-linecap="round"/>`;
+}
+/* Œufs : couleurs [clair, moyen, foncé, contour] et décor (k). */
+const EVQ_EGGS = [
+  { c: ['#fff0f6', '#ffacd0', '#e1659e', '#8a2a5b'], k: 'zig' },        // rose framboise : frise en zigzag, pois
+  { c: ['#eef8ff', '#a6d5ff', '#5a9be2', '#22508c'], k: 'dots' },       // bleu ciel : pois, vague
+  { c: ['#effff5', '#a8ebc5', '#52b685', '#1c6a44'], k: 'flowers' },    // vert menthe : marguerites peintes
+  { c: ['#fffbe6', '#ffe48c', '#efb23a', '#86560a'], k: 'frieze' },     // jaune beurre : frises peintes
+  { c: ['#f7f1ff', '#cdb5ff', '#8d6ad9', '#41267d'], k: 'gold' },       // lilas doré : treillis d'or, perles, cabochon
+];
+const evqV = v => (Number(v) >= 0 && Number(v) <= 4 ? Math.floor(Number(v)) : 4);
+/** Œuf rare en or (o.gold) et œufs du mana (o.mana : 'W', 'U', 'B', 'R', 'G' ; teintes EVY_MANA du Nouvel an, symbole gravé dans un médaillon d'or). */
+const EVQ_GOLD = { c: ['#fffbe2', '#ffe07a', '#d69a22', '#6e4705'], k: 'goldrare' };
+const evqManaEgg = k => { const m = EVY_MANA[EVY_K.indexOf(k)]; return { c: [m[0], m[1], m[2], m[4]], k: 'mana', m, f: EVY_FIG[k] }; };
+/** Décor peint d'un œuf (dessiné dans sa découpe) ; id : préfixe des identifiants (dégradé d'or, fleur). */
+function evqDeco(G, k, id, E = {}) {
+  const B = (y0, y1, c, x = '') => `<path d="${evqBand(G, y0, y1)}" fill="${c}"${x}/>`;
+  const L = (y0, c, w, o = {}, x = '') => `<path d="${evqLine(G, y0, o)}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${x}/>`;
+  const D = (y0, n, r, c, off) => `<g fill="${c}">${evqDots(G, y0, n, r, off)}</g>`;
+  if (k === 'zig') return B(30.4, 39.6, '#c93a78') + B(30.4, 31.6, '#a82a62', ' opacity=".6"')
+    + L(35, '#fff3d6', 1.4, { zig: 2.7, n: 16 }) + `<g fill="#ffd36b">${evqDots(G, 32.6, 8, .62, 1)}</g><g fill="#ffd36b">${evqDots(G, 37.4, 8, .62, .5)}</g>`
+    + L(30.4, '#ffd36b', .9) + L(39.6, '#ffd36b', .9) + D(23.6, 7, 1.35, '#ffffff') + D(17.4, 5, .95, '#ffe680', 0) + D(46.6, 8, 1.3, '#fff6dc', 0)
+    + L(51.8, '#c93a78', 1.1) + L(53.6, '#ffd36b', .6) + D(12.8, 3, .7, '#ffffff', .5);
+  if (k === 'dots') return D(15.6, 4, 1.1, '#ffffff', .5) + D(20.8, 6, 1.5, '#fff27a', 0) + D(26, 7, 1.55, '#ffffff', .5)
+    + B(30.4, 38.8, '#ffffff', ' opacity=".92"') + L(34.6, '#ff7f96', 1.3, { waves: 3, amp: 1.5, n: 30 }) + `<g fill="#5a9be2">${evqDots(G, 34.6, 6, .7, .5)}</g>`
+    + L(30.4, '#ff7f96', .8) + L(38.8, '#ff7f96', .8) + D(43.6, 7, 1.55, '#ffffff', 0) + D(48.8, 6, 1.5, '#ffacd0', .5) + D(53.8, 5, 1.2, '#fff27a', 0);
+  if (k === 'flowers') return L(14.6, '#ffffff', .8, { zig: .9, n: 14 }) + D(19.4, 5, .9, '#ff8fbd', 0) + L(23.4, '#ffffff', 1, { zig: 1.2, n: 18 })
+    + B(28.6, 41.4, '#fffaf0') + L(28.6, '#ff8fbd', 1.1) + L(41.4, '#ff8fbd', 1.1) + L(29.9, '#3f9a66', .5) + L(40.1, '#3f9a66', .5)
+    + `<g fill="#3f9a66">${evqUses(G, 35, 5, id('lf'), 1.9, 0)}</g>`
+    + evqUses(G, 35, 5, id('fl'), 3.5, .5, i => ` fill="${i % 2 ? '#ffc93f' : '#ff7fb4'}" stroke="${i % 2 ? '#c98a0c' : '#c2457e'}" stroke-width=".12"`) + `<g fill="#fffaf0">${evqDots(G, 35, 5, .9, .5)}</g><g fill="#e8a320">${evqDots(G, 35, 5, .36, .5)}</g>`
+    + D(46.4, 8, 1, '#ffffff', 0) + L(50.4, '#ff8fbd', 1.2, { waves: 4, amp: .9, n: 28 }) + D(54.4, 5, .9, '#ffffff', .5);
+  if (k === 'frieze') return B(17.8, 22.6, '#ff8a7a') + `<g fill="#fff">${evqDots(G, 20.2, 8, .55, .5)}</g>` + L(26.4, '#42b883', 1.3, { waves: 4, amp: 1.2, n: 28 })
+    + B(30.2, 40.4, '#a98ef0') + `<path d="${evqTeeth(G, 30.2, 3.4, 9)}" fill="#fff6e2"/><path d="${evqTeeth(G, 40.4, -3.4, 9)}" fill="#ffd36b"/>`
+    + `<g fill="#fff6e2">${evqDots(G, 35.3, 9, .7, 0)}</g>` + L(30.2, '#7f60d6', .7) + L(40.4, '#7f60d6', .7)
+    + L(44.6, '#ff8a7a', 1.3, { zig: 1.3, n: 18 }) + B(48.4, 52, '#42b883') + `<g fill="#fff">${evqDots(G, 50.2, 9, .5, .5)}</g>` + D(13.4, 3, .8, '#ff8a7a', .5);
+  if (k === 'mana') { const m = E.m;
+    return D(15.6, 4, .9, m[1], .5) + L(20.4, m[3], 1, { zig: 1.1, n: 16 }) + D(24.6, 7, 1.15, '#ffffff', 0) + B(28.4, 41.6, m[3]) + B(28.4, 30, m[4], ' opacity=".35"')
+      + L(28.4, `url(#${id('gd')})`, 1.4) + L(41.6, `url(#${id('gd')})`, 1.4) + `<g fill="${m[5]}">${evqDots(G, 35, 10, .62, .5)}</g>` + D(45.8, 8, 1.15, '#ffffff', .5)
+      + L(50.2, m[3], 1, { waves: 4, amp: .9, n: 28 }) + D(54.2, 5, .9, m[1], 0)
+      + `<g transform="translate(32 ${evoF(35 + G.s)})"><circle r="6.6" fill="url(#${id('gd')})" stroke="${m[4]}" stroke-width=".4"/><circle r="5.3" fill="${m[2]}"/><circle r="5.3" fill="url(#${id('md')})"/>`
+      + `<path d="${E.f}" transform="scale(.15) translate(-30 -30.4)" fill="#fff" fill-rule="evenodd" opacity=".95"/><path d="M-3.4-2.6A4.4 4.4 0 0 1 .4-4.4" fill="none" stroke="#fff" stroke-width=".6" stroke-linecap="round" opacity=".7"/></g>`; }
+  if (k === 'goldrare') { const T = evqLattice(G, 24.4, 44.6, 6), sp = T.knots.map(([x, y, c]) => `<path d="${evnSpark(x, y, 1.3 * Math.max(.45, c))}"/>`).join('');
+    return `<path d="${T.d}" fill="none" stroke="#a46c0c" stroke-width="1.1" stroke-linecap="round"/><path d="${T.d}" fill="none" stroke="#fff3c4" stroke-width=".35" stroke-linecap="round" transform="translate(-.25 -.3)"/>`
+      + `<g fill="#ffffff" stroke="#b07a10" stroke-width=".2">${sp}</g>` + L(24.4, '#a46c0c', 2.2) + L(44.6, '#a46c0c', 2.2) + L(24.4, '#fff6d0', .6) + L(44.6, '#fff6d0', .6)
+      + `<g fill="#fff">${evqDots(G, 24.4, 12, .45, .5)}${evqDots(G, 44.6, 12, .45, 0)}</g>` + L(18.6, '#b07a10', .9, { waves: 4, amp: 1, n: 28 }) + L(50, '#b07a10', .9, { waves: 5, amp: 1, n: 30 })
+      + `<g fill="#b07a10">${evqDots(G, 14.4, 3, .7, .5)}${evqDots(G, 54, 6, .8, .5)}</g>`
+      + `<g transform="translate(32 ${evoF(34.5 + G.s)})"><ellipse rx="3.4" ry="4.1" fill="#a46c0c"/><ellipse rx="2.6" ry="3.2" fill="url(#${id('cb')})"/><ellipse cx="-.8" cy="-1.2" rx=".9" ry="1.2" fill="#fff" opacity=".85"/></g>`; }
+  /* lilas doré : ceinture en treillis d'or et perles, bandes d'or perlées, cabochon rose sur le devant, couronne et festons d'or */
+  const T = evqLattice(G, 26.4, 42.6, 6), gd = `url(#${id('gd')})`;
+  return B(26.4, 42.6, '#7b55c9', ' opacity=".28"') + `<path d="${T.d}" fill="none" stroke="${gd}" stroke-width=".85" stroke-linecap="round"/>`
+    + `<g fill="#fffaf0" stroke="#8d6ad9" stroke-width=".25">${T.knots.map(([x, y, c]) => `<ellipse cx="${evoF(x)}" cy="${evoF(y)}" rx="${evoF(.82 * Math.max(.4, c))}" ry=".82"/>`).join('')}</g>`
+    + L(26.4, gd, 2.3) + L(42.6, gd, 2.3) + L(26.4, '#fff3c4', .5, {}, ' opacity=".8"') + L(42.6, '#fff3c4', .5, {}, ' opacity=".8"')
+    + `<g fill="#fffaf0">${evqDots(G, 26.4, 12, .5, .5)}${evqDots(G, 42.6, 12, .5, 0)}</g>`
+    + L(20.6, gd, 1.1, { waves: 4, amp: 1, n: 28 }) + `<g fill="${gd}">${evqUses(G, 16.4, 4, id('st'), 1.4, .5)}</g>`
+    + L(47.6, gd, 1.1, { waves: 5, amp: 1.1, n: 30 }) + `<g fill="#f4c542">${evqDots(G, 52.4, 7, .8, .5)}</g>` + D(12.6, 2, .6, '#f4c542', .5)
+    + `<g transform="translate(32 ${evoF(34.5 + G.s)})"><ellipse rx="3.3" ry="4" fill="${gd}"/><ellipse rx="2.5" ry="3.15" fill="url(#${id('cb')})"/>`
+    + `<ellipse cx="-.8" cy="-1.2" rx=".9" ry="1.2" fill="#fff" opacity=".85"/></g>`;
+}
+
+Object.assign(EV_ART, {
+  /** Œuf de Pâques décoré, posé dans l'herbe (viewBox 64 × 64) ; o.v teinte et décor (0–4 ; sinon lilas doré) ; o.lit : célébration. */
+  egg: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, lit = !!o.lit || !!o.gold, v = evqV(o.v), mana = EVY_K.includes(o.mana) ? o.mana : '';
+    const E = o.gold ? EVQ_GOLD : mana ? evqManaEgg(mana) : EVQ_EGGS[v], c = E.c, G = EVQ_G, egg = evqEggD(G), cls = o.gold ? 'gold' : mana ? 'mana-' + mana : v;
+    const spk = lit ? `<g class="evo-spk" fill="#fffbe6" stroke="${c[3]}" stroke-width=".35" stroke-opacity=".5">${[[8, 14, 3], [56, 12, 2.6], [6, 42, 2.2], [58, 40, 2.8], [32, 3.4, 2]].map(([x, y, r]) => `<path d="${evnSpark(x, y, r)}"/>`).join('')}</g>` : '';
+    return `<svg class="evo evo-egg evo-egg-${cls}${lit ? ' evo-lit' : ''}${o.crack ? ' evo-crack' : ''}${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('g')}" cx="32" cy="35" r="31" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff8d6" stop-opacity="${lit ? .95 : .55}"/><stop offset=".45" stop-color="${c[1]}" stop-opacity="${lit ? .5 : .22}"/><stop offset="1" stop-color="${c[1]}" stop-opacity="0"/></radialGradient>`
+      + (lit ? `<linearGradient id="${id('y')}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fffbe0" stop-opacity=".95"/><stop offset="1" stop-color="${c[1]}" stop-opacity="0"/></linearGradient>` : '')
+      + `<radialGradient id="${id('b')}" cx=".38" cy=".3" r=".8" fx=".32" fy=".22"><stop offset="0" stop-color="#ffffff"/><stop offset=".22" stop-color="${c[0]}"/><stop offset=".62" stop-color="${c[1]}"/><stop offset="1" stop-color="${c[2]}"/></radialGradient>`
+      + `<radialGradient id="${id('d')}" cx=".34" cy=".28" r=".86"><stop offset=".48" stop-color="${c[3]}" stop-opacity="0"/><stop offset=".86" stop-color="${c[3]}" stop-opacity=".26"/><stop offset="1" stop-color="${c[3]}" stop-opacity=".5"/></radialGradient>`
+      + `<radialGradient id="${id('h')}"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".5" stop-color="#fff" stop-opacity=".4"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>`
+      + `<linearGradient id="${id('k')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".7"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>`
+      + `<linearGradient id="${id('gd')}" x1="15" y1="0" x2="49" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#9a6a10"/><stop offset=".3" stop-color="#ffe9a0"/><stop offset=".5" stop-color="#e8b53e"/><stop offset=".7" stop-color="#fff4c8"/><stop offset="1" stop-color="#8a5a0c"/></linearGradient>`
+      + (E.k === 'mana' ? `<radialGradient id="${id('md')}" cx=".34" cy=".28" r=".86"><stop offset=".4" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient>` : '')
+      + (E.k === 'gold' || E.k === 'goldrare' ? `<radialGradient id="${id('cb')}" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#ffe0ee"/><stop offset=".45" stop-color="#ff6fae"/><stop offset="1" stop-color="#a3175c"/></radialGradient>`
+        + `<path id="${id('st')}" d="${evnSpark(0, 0, 1)}"/>` : '')
+      + (E.k === 'flowers' ? `<path id="${id('fl')}" d="${EVQ_FLOWER}"/><path id="${id('lf')}" d="M-1.3 0Q-.65-.55 0 0Q-.65.55-1.3 0ZM1.3 0Q.65-.55 0 0Q.65.55 1.3 0Z"/>` : '')
+      + `<radialGradient id="${id('o')}"><stop offset="0" stop-color="#2a3a1c" stop-opacity=".38"/><stop offset="1" stop-color="#2a3a1c" stop-opacity="0"/></radialGradient>`
+      + `<linearGradient id="${id('gr')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9be27a"/><stop offset="1" stop-color="#3f9a4e"/></linearGradient>`
+      + `<path id="${id('x')}" d="${egg}"/><clipPath id="${id('c')}"><use href="#${id('x')}"/></clipPath></defs>`
+      + `<circle class="evo-glow" cx="32" cy="35" r="31" fill="url(#${id('g')})"/>` + (lit ? evnRays(id('y'), 32, 35, 32) : '')
+      + `<ellipse class="evo-shadow" cx="32" cy="58.6" rx="19" ry="3.2" fill="url(#${id('o')})"/>`
+      + `<path d="${evqBlades(15, 49, 59.4, 3, 7.5, 13, v + 3, 2)}" fill="#3f8f45"/>`
+      + `<g class="evo-egg-b"><use href="#${id('x')}" fill="url(#${id('b')})"/>`
+      + `<g clip-path="url(#${id('c')})">${evqDeco(G, E.k, id, E)}` + evqCrack(o.crack, id)
+      + `<use href="#${id('x')}" fill="url(#${id('d')})"/>`
+      + `<use href="#${id('x')}" transform="translate(-1 -1.3)" fill="none" stroke="#fff" stroke-width="2.6" opacity=".34"/>`
+      + `<path class="evo-glint" d="M6 60H11.6L24 8H18.4Z" fill="url(#${id('k')})" opacity="0"/></g>`
+      + `<use href="#${id('x')}" fill="none" stroke="${c[3]}" stroke-width=".75" stroke-opacity=".85"/>`
+      + `<ellipse cx="25.4" cy="20.6" rx="3.6" ry="6.4" transform="rotate(24 25.4 20.6)" fill="url(#${id('h')})"/><circle cx="21.6" cy="29.4" r="1" fill="#fff" opacity=".6"/>`
+      + `<path d="M40.4 50.6Q45.4 46.6 46.6 40" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round" opacity=".3"/></g>`
+      + `<g class="evo-grass"><path d="${evqBlades(14, 50, 61, 3.4, 9, 15, v + 7, 2.1)}" fill="url(#${id('gr')})" stroke="#2f7a3a" stroke-width=".35" stroke-linejoin="round"/>`
+      + `<path d="${evqDaisyD(v % 2 ? 47 : 17.4, 55.4, 2.3, 9)}" fill="#ffffff" stroke="#c9b8e0" stroke-width=".25"/><circle cx="${v % 2 ? 47 : 17.4}" cy="55.4" r=".85" fill="#ffd36b" stroke="#d99a1c" stroke-width=".25"/></g>`
+      + spk + `</svg>`;
+  },
+  /** Icône du compteur « 12 / 30 » (viewBox 24 × 24) : œuf rose à bande zigzag, aplats nets à 16–24 px. */
+  eggCounter: (o = {}) => {
+    const G = { cx: 12, cy: 12.8, a: 7.4, b: 10, k: .15, s: .8 }, n = ++EVO_N, egg = evqEggD(G, 20);
+    return `<svg class="evo evo-counter${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><defs><clipPath id="evo${n}c"><path d="${egg}"/></clipPath></defs>`
+      + `<path d="${egg}" fill="#ff9cc6"/><g clip-path="url(#evo${n}c)"><path d="${evqBand(G, 10.6, 15.4, 10)}" fill="#c93a78"/>`
+      + `<path d="${evqLine(G, 13, { zig: 1.35, n: 8 })}" fill="none" stroke="#fff3d6" stroke-width="1" stroke-linejoin="round"/>`
+      + `<g fill="#ffffff">${evqDots(G, 7.2, 3, .9, .5)}</g><g fill="#ffe680">${evqDots(G, 18.6, 4, .85, .5)}</g><path d="M17.4 6Q20.6 11 18.2 19.6" fill="none" stroke="#c93a78" stroke-width="2.2" opacity=".35"/></g>`
+      + `<path d="${egg}" fill="none" stroke="#7a1f4f" stroke-width=".8"/><path d="M8.2 5.8Q6.6 7.8 6.2 10.4" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".85"/></svg>`;
+  },
+  /** Poussin qui sort de sa coquille (viewBox 24 × 24), dessin des messages ; l'aile .evo-wing salue, le chapeau de coquille est posé de travers. */
+  chick: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`;
+    let zig = 'M3.4 14.6'; for (let i = 1; i <= 10; i++) zig += `L${evoF(3.4 + i * 1.72)} ${i % 2 ? 12.6 : 14.8}`;
+    return `<svg class="evo evo-chick${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('b')}" cx=".4" cy=".32" r=".75"><stop offset="0" stop-color="#fffbd0"/><stop offset=".5" stop-color="#ffe066"/><stop offset="1" stop-color="#f4b21f"/></radialGradient>`
+      + `<linearGradient id="${id('s')}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#f6efe2"/><stop offset="1" stop-color="#d8c8ad"/></linearGradient></defs>`
+      + `<ellipse cx="12" cy="22.6" rx="7.6" ry="1.1" fill="#3a2a10" opacity=".18"/>`
+      + `<circle cx="12" cy="11" r="6.6" fill="url(#${id('b')})" stroke="#c98a0c" stroke-width=".6"/>`
+      + `<path d="M8.4 6.2Q9.4 3.6 11.4 4.6Q11.2 2.8 13 3.2" fill="none" stroke="#e6a417" stroke-width=".8" stroke-linecap="round"/>`
+      + `<g class="evo-wing"><path d="M17.6 11.4C19.8 9.6 21.8 9.8 22.4 10.8C21.4 11.4 21.2 12.6 20.2 13.2C19.4 13.8 18.2 13.6 17.4 13.2Z" fill="#ffd23f" stroke="#c98a0c" stroke-width=".55" stroke-linejoin="round"/></g>`
+      + `<ellipse cx="9.6" cy="10" rx="1" ry="1.25" fill="#2a1d14"/><ellipse cx="14.4" cy="10" rx="1" ry="1.25" fill="#2a1d14"/><circle cx="9.9" cy="9.5" r=".38" fill="#fff"/><circle cx="14.7" cy="9.5" r=".38" fill="#fff"/>`
+      + `<ellipse cx="7.8" cy="12.4" rx="1.3" ry=".8" fill="#ff8fb0" opacity=".6"/><ellipse cx="16.2" cy="12.4" rx="1.3" ry=".8" fill="#ff8fb0" opacity=".6"/>`
+      + `<path d="M10.6 11.6L12 10.9L13.4 11.6L12 13.4Z" fill="#ff9a2e" stroke="#c4600a" stroke-width=".45" stroke-linejoin="round"/><path d="M10.6 11.6L13.4 11.6" stroke="#c4600a" stroke-width=".35"/>`
+      + `<path d="${zig}L20.6 14.6C20.6 19.8 17.2 22.4 12 22.4C6.8 22.4 3.4 19.8 3.4 14.6Z" fill="url(#${id('s')})" stroke="#a8916a" stroke-width=".6" stroke-linejoin="round"/>`
+      + `<path d="M5.6 17.6Q6.4 20.2 9 21.2" fill="none" stroke="#fff" stroke-width=".8" stroke-linecap="round" opacity=".9"/><g fill="#ffacd0"><circle cx="9.6" cy="18.4" r=".7"/><circle cx="14.6" cy="19.6" r=".6"/><circle cx="17.4" cy="17.2" r=".55"/></g>`
+      + `<g transform="rotate(-16 12 5)"><path d="M6.8 6.4C6.8 2.6 9.2.6 12 .6C14.8.6 17.2 2.6 17.2 6.4L16 5.2L14.8 6.6L13.6 5L12.4 6.6L11.2 5L10 6.6L8.8 5.2L7.8 6.6Z" fill="url(#${id('s')})" stroke="#a8916a" stroke-width=".5" stroke-linejoin="round"/>`
+      + `<path d="M8.6 3.8Q9.6 1.9 11.6 1.6" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round"/><circle cx="14.6" cy="3.4" r=".55" fill="#ffacd0"/></g></svg>`;
+  },
+});
+
+/* ── Pâques : décor (lapin, panier, fleurs, papillon, cloche ailée, ruban) ─────────────────────────────────────────────────────────────────── */
+/* Rubans satinés : [clair, moyen, foncé, contour] : rose, bleu ciel, menthe, jaune, lilas (même ordre que les œufs). */
+const EVQ_RIB = [['#ffe6f1', '#ff8fbd', '#d9467f', '#7a1f4c'], ['#e6f4ff', '#7fbcff', '#3a78cf', '#173d77'], ['#e6fff0', '#7fdcaa', '#2f9e66', '#0f5233'],
+  ['#fff8d6', '#ffd75e', '#e0a01c', '#7a5205'], ['#f3ebff', '#b99aff', '#7a52d0', '#33186e']];
+/** Nœud de ruban (formes du nœud de Noël, EVN_BOW) centré en x, y, échelle s ; R : couleurs ; gid : dégradé des boucles (déjà défini) ou couleur. */
+const evqBow = (x, y, s, R, gid) => `<g transform="translate(${x} ${y}) scale(${s}) translate(-32 -21.6)" stroke="${R[3]}" stroke-width="${evoF(.55 / s)}" stroke-linejoin="round">`
+  + `<path d="${EVN_BOW.t}" fill="${R[2]}"/><path d="${EVN_BOW.l}${EVN_BOW.r}" fill="${gid ? `url(#${gid})` : R[1]}"/><path d="${EVN_BOW.li}${EVN_BOW.ri}" fill="${R[2]}" opacity=".55" stroke="none"/>`
+  + `<path d="M19.6 14Q20.6 10.8 24.4 11.2M44.4 14Q43.4 10.8 39.6 11.2" fill="none" stroke="#fff" stroke-width="${evoF(.9 / Math.sqrt(s))}" stroke-linecap="round" opacity=".7"/>`
+  + `<rect x="29.3" y="18.4" width="5.4" height="5.6" rx="2" fill="${R[1]}"/><path d="M30.6 19.8Q31.4 19.2 32.4 19.4" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round" opacity=".8" stroke-opacity="1"/></g>`;
+/** Touffe de fourrure ou de nuage : cercle bosselé (n bosses de rayon r autour de cx, cy, R). */
+function evqFluff(cx, cy, R, n = 9, r = R * .42) {
+  const f = evoF, P = Array.from({ length: n }, (_, i) => { const a = i * 2 * Math.PI / n - Math.PI / 2; return [cx + Math.cos(a) * R, cy + Math.sin(a) * R]; });
+  let d = `M${f(P[0][0])} ${f(P[0][1])}`;
+  for (let i = 0; i < n; i++) { const q = P[(i + 1) % n]; d += `A${f(r)} ${f(r)} 0 0 1 ${f(q[0])} ${f(q[1])}`; }
+  return d + 'Z';
+}
+/** Petit œuf simplifié (paniers, ambiance) : G géométrie, v teinte, id préfixe ; une bande, des pois, le reflet. */
+function evqMini(G, v, id, tr = '') {
+  const c = EVQ_EGGS[v].c, d = evqEggD(G, 20), k = ++EVO_N, band = ['#c93a78', '#ffffff', '#fffaf0', '#a98ef0', '#e8b53e'][v], dot = ['#ffffff', '#fff27a', '#ff8fbd', '#fff6e2', '#fffaf0'][v];
+  const x = id('e' + k), hx = evoF(G.cx - G.a * .42), hy = evoF(G.cy - G.b * .45);
+  return `<g${tr ? ` transform="${tr}"` : ''}><defs><path id="${x}" d="${d}"/></defs><use href="#${x}" fill="url(#${id('m' + v)})"/><clipPath id="${id('c' + k)}"><path d="${d}"/></clipPath><g clip-path="url(#${id('c' + k)})">`
+    + `<path d="${evqBand(G, G.cy - G.b * .14, G.cy + G.b * .2, 10)}" fill="${band}"/>`
+    + (v === 0 ? `<path d="${evqLine(G, G.cy + G.b * .03, { zig: G.b * .1, n: 12 })}" fill="none" stroke="#fff3d6" stroke-width="${evoF(G.b * .06)}"/>` : `<g fill="${v === 1 ? '#ff7f96' : v === 2 ? '#ff8fbd' : v === 3 ? '#fff' : '#fff3c4'}">${evqDots(G, G.cy + G.b * .03, 6, G.b * .07)}</g>`)
+    + `<g fill="${dot}">${evqDots(G, G.cy - G.b * .5, 4, G.b * .075, 0)}${evqDots(G, G.cy + G.b * .55, 5, G.b * .075)}</g>`
+    + `<use href="#${x}" fill="url(#${id('md')})"/></g><use href="#${x}" fill="none" stroke="${c[3]}" stroke-width=".6" stroke-opacity=".85"/>`
+    + `<ellipse cx="${hx}" cy="${hy}" rx="${evoF(G.a * .2)}" ry="${evoF(G.b * .26)}" transform="rotate(24 ${hx} ${hy})" fill="#fff" opacity=".7"/></g>`;
+}
+/** Dégradés des petits œufs (un par teinte utilisée) et leur ombre propre. */
+const evqMiniDefs = (id, vs) => vs.map(v => { const c = EVQ_EGGS[v].c; return `<radialGradient id="${id('m' + v)}" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".25" stop-color="${c[0]}"/><stop offset=".65" stop-color="${c[1]}"/><stop offset="1" stop-color="${c[2]}"/></radialGradient>`; }).join('')
+  + `<radialGradient id="${id('md')}" cx=".34" cy=".28" r=".86"><stop offset=".5" stop-color="#2a1d40" stop-opacity="0"/><stop offset="1" stop-color="#2a1d40" stop-opacity=".32"/></radialGradient>`;
+/** Plume (pied px, py ; direction ang en degrés ; longueur l, largeur w) : goutte allongée à bout arrondi. */
+function evqFeather(px, py, ang, l, w) {
+  const a = ang * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), f = evoF, P = (u, v) => f(px + c * u - s * v) + ' ' + f(py + s * u + c * v);
+  return `M${P(0, -w * .3)}C${P(l * .35, -w * .62)} ${P(l * .78, -w * .58)} ${P(l * .96, -w * .3)}Q${P(l * 1.04, 0)} ${P(l * .96, w * .32)}C${P(l * .78, w * .6)} ${P(l * .35, w * .62)} ${P(0, w * .3)}Z`;
+}
+/** Aile de plumes (gauche, épaule vers 22, 28) : rémiges en éventail, couvertures plus courtes, bras arrondi ; gid : dégradé des plumes. */
+function evqWing(gid) {
+  let pr = '', cv = '', vn = '';
+  for (let i = 0; i < 7; i++) { const a = 168 + i * 11, l = 19.5 - i * 1.2; pr += evqFeather(22, 28.6, a, l, 4.4); const r = a * Math.PI / 180; vn += `M${evoF(22 + Math.cos(r) * 3)} ${evoF(28.6 + Math.sin(r) * 3)}L${evoF(22 + Math.cos(r) * l * .86)} ${evoF(28.6 + Math.sin(r) * l * .86)}`; }
+  for (let i = 0; i < 6; i++) cv += evqFeather(22, 27.6, 176 + i * 10.5, 10.6 - i * .5, 3.6);
+  return `<g stroke="#8a7aa8" stroke-width=".5" stroke-linejoin="round"><path d="${pr}" fill="url(#${gid})"/><path d="${vn}" fill="none" stroke="#c3b6dc" stroke-width=".4"/>`
+    + `<path d="${cv}" fill="#ffffff"/><path d="M23.4 30.6C18.6 31 14.4 28.4 12.8 24.4C15.6 21.6 20.2 21.6 23.6 24.6Z" fill="#ffffff"/></g>`
+    + `<path d="M21.6 24.6C18.6 22.8 15.6 22.8 13.6 24.2" fill="none" stroke="#e9e2f4" stroke-width=".8" stroke-linecap="round"/>`;
+}
+/* Tulipes : [clair, moyen, foncé, contour] : rose, corail, jaune, lilas, blanc rosé */
+const EVQ_TULIP = [['#ffd6e8', '#ff7fb4', '#d63c7e', '#7a1a48'], ['#ffd2c8', '#ff7262', '#d2352c', '#6e1210'], ['#fff6c4', '#ffd84a', '#eba417', '#7a5205'],
+  ['#efe4ff', '#b796ff', '#7a50d6', '#3a1c78'], ['#fffafc', '#ffe0ee', '#f2a6c8', '#a0507a']];
+/* Papillons : [clair, moyen, foncé, contour] : bleu ciel, rose, citron, lilas, menthe */
+const EVQ_BFLY = [['#e8f6ff', '#8fcaff', '#3d7fd6', '#173b74'], ['#fff0f7', '#ffa6cf', '#e05596', '#74173f'], ['#fffbe0', '#ffe36e', '#f2a92a', '#744708'],
+  ['#f6f0ff', '#c9adff', '#8358d6', '#371f72'], ['#effff6', '#9fe8c3', '#3fb07a', '#14573a']];
+/** Tige et feuilles longues (fleurs du pré) : tige du pied (x0, 47.6) vers la fleur (x1, y1), deux feuilles en lame. */
+function evqStem(id, x0, x1, y1, lean = 0) {
+  return `<path d="M${x0} 47.6C${evoF(x0 + lean)} 38 ${evoF(x1 - lean * .4)} 28 ${x1} ${y1}" fill="none" stroke="#2f7a3a" stroke-width="2.1" stroke-linecap="round"/>`
+    + `<path d="M${x0} 47.6C${evoF(x0 + lean)} 38 ${evoF(x1 - lean * .4)} 28 ${x1} ${y1}" fill="none" stroke="url(#${id('st')})" stroke-width="1.3" stroke-linecap="round"/>`
+    + `<g stroke="#2a6a33" stroke-width=".45" stroke-linejoin="round"><path d="M${evoF(x0 - .4)} 47.6C${evoF(x0 - 6)} 42 ${evoF(x0 - 8.6)} 35 ${evoF(x0 - 7.8)} 27.6C${evoF(x0 - 5.6)} 33 ${evoF(x0 - 2.4)} 39 ${evoF(x0 + .6)} 46Z" fill="url(#${id('lf')})"/>`
+    + `<path d="M${evoF(x0 + .4)} 47.6C${evoF(x0 + 5.4)} 43.4 ${evoF(x0 + 7.4)} 38.4 ${evoF(x0 + 7.6)} 31.4C${evoF(x0 + 5)} 36 ${evoF(x0 + 2.6)} 40.6 ${evoF(x0 - .4)} 45.6Z" fill="url(#${id('lf')})"/></g>`
+    + `<path d="M${evoF(x0 - .6)} 46C${evoF(x0 - 4.6)} 41 ${evoF(x0 - 6.6)} 35.6 ${evoF(x0 - 7.2)} 30M${evoF(x0 + .6)} 46C${evoF(x0 + 4)} 42.4 ${evoF(x0 + 6)} 38 ${evoF(x0 + 6.8)} 33.4" fill="none" stroke="#c9f0a8" stroke-width=".45" stroke-linecap="round" opacity=".7"/>`;
+}
+const evqStemDefs = id => `<linearGradient id="${id('st')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5fb04a"/><stop offset=".5" stop-color="#9be27a"/><stop offset="1" stop-color="#4c9a3c"/></linearGradient>`
+  + `<linearGradient id="${id('lf')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6e57f"/><stop offset=".6" stop-color="#55a845"/><stop offset="1" stop-color="#2f7a3a"/></linearGradient>`;
+
+Object.assign(EV_ART, {
+  /** Lapin blanc assis de trois quarts (viewBox 64 × 64), tête un peu penchée, une oreille pliée ; il tient un œuf peint entre ses pattes avant (o.egg : false
+   *  pour ses pattes seules ; o.v : teinte de l'œuf, rose par défaut). Pelage en dégradés doux et mèches, joues et poitrail en touffes, queue en pompon,
+   *  intérieur des oreilles rose veiné, yeux à double reflet. Parties animées : .evo-ears (frémissent), .evo-nose (remue). */
+  bunny: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, f = evoF, egg = o.egg !== false, ev = o.v === undefined ? 0 : evqV(o.v), ln = '#7d6a8c';
+    const fur = (d, w = .45, c = '#b8a6c8', op = .8) => `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" opacity="${op}"/>`;
+    const tail = evqFluff(50.4, 47.2, 4.4, 11, 1.9), tail2 = evqFluff(49.8, 46.6, 2.8, 9, 1.3), HT = 'rotate(-8 24.4 26) translate(1 2.4)';
+    const head = 'M13.2 25.6C12.8 19.2 17.8 14.6 24.6 14.6C31.4 14.6 35.8 19.2 35.4 25C35.1 29.2 33 32 29.8 33.6L30.4 35.2L28.2 34.6L27.6 36.4L25.8 35.2L24.6 36.8L23.2 35.4L21.4 36.4L20.8 34.6L18.8 35C16.6 33.4 15.6 31.8 15 30.4C13.8 29.2 13.3 27.6 13.2 25.6Z';
+    const body = 'M22.6 57.8C17.8 56.8 16.6 51.4 17.8 46.4C19.2 41 22.6 37.4 27.4 35.8C32 34.2 38.2 34.2 42.8 36.4C48 38.8 51.4 43.6 51.2 49.4C51 54 48.4 57.2 44 57.8Z';
+    const ear = 'M28.4 17.2C27.6 10.6 29.6 4.2 33.6 1.8C36.4.2 38.6 2 38.2 5.6C37.6 11 34.8 16.2 32 19.4Z', earIn = 'M30.2 16.4C29.8 11.2 31.4 6.4 34 4.4C35.6 3.4 36.6 4.6 36.2 7C35.6 10.6 33.8 14.4 31.8 17.2Z';
+    const ear2 = 'M18.6 17.4C16.8 13.2 16.4 9.4 17.6 6.6C18.6 4.4 21.8 4.2 23.2 6.6C24.4 8.8 24.4 13 23.6 17Z', ear2In = 'M19.8 15.8C18.6 12.8 18.4 9.8 19.2 7.8C19.8 6.6 21.4 6.4 22 7.8C22.8 9.6 22.8 12.6 22.4 15.6Z';
+    const flap = 'M17.8 6.8C15.4 6.4 12.6 8.2 11 11.2C10.2 12.6 10.8 14 12.2 13.4C14.4 12.2 16.8 11 19 10.6C19.6 9.2 19.2 7.4 17.8 6.8Z';
+    const GE = { cx: 25, cy: 48.8, a: 5.2, b: 6.9, k: .15, s: .5 };
+    return `<svg class="evo evo-bunny${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('f')}" cx=".34" cy=".26" r=".86"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#f8f3f8"/><stop offset=".82" stop-color="#e2d6e8"/><stop offset="1" stop-color="#c9b8d4"/></radialGradient>`
+      + `<radialGradient id="${id('h')}" cx=".38" cy=".3" r=".78"><stop offset="0" stop-color="#ffffff"/><stop offset=".62" stop-color="#faf6fa"/><stop offset="1" stop-color="#ddd0e4"/></radialGradient>`
+      + `<linearGradient id="${id('k')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e6dbec"/><stop offset=".5" stop-color="#fbf8fb"/><stop offset="1" stop-color="#d9cbe2"/></linearGradient>`
+      + `<linearGradient id="${id('e')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc4dc"/><stop offset=".55" stop-color="#ff9cc3"/><stop offset="1" stop-color="#f07aa8"/></linearGradient>`
+      + `<radialGradient id="${id('i')}" cx=".42" cy=".4" r=".6"><stop offset="0" stop-color="#6b4560"/><stop offset=".6" stop-color="#34202e"/><stop offset="1" stop-color="#160c14"/></radialGradient>`
+      + `<radialGradient id="${id('c')}" cx=".5" cy=".35" r=".7"><stop offset=".4" stop-color="#ffffff"/><stop offset="1" stop-color="#efe7f3"/></radialGradient>`
+      + `<radialGradient id="${id('b')}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff9fc4" stop-opacity=".75"/><stop offset="1" stop-color="#ff9fc4" stop-opacity="0"/></radialGradient>`
+      + `<radialGradient id="${id('o')}"><stop offset="0" stop-color="#2a1d3a" stop-opacity=".34"/><stop offset=".6" stop-color="#2a1d3a" stop-opacity=".12"/><stop offset="1" stop-color="#2a1d3a" stop-opacity="0"/></radialGradient>`
+      + (egg ? evqMiniDefs(id, [ev]) : '') + `</defs>`
+      + `<ellipse cx="35" cy="59.4" rx="24" ry="3.2" fill="url(#${id('o')})"/>`
+      /* oreille du fond, debout (derrière la tête) */
+      + `<g transform="${HT}"><g class="evo-ear-b"><path d="${ear}" fill="url(#${id('k')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/><path d="${earIn}" fill="url(#${id('e')})"/>`
+      + fur('M33.2 15.4C32.8 11.6 33.4 8.4 34.8 6.2M32 13.4L33.4 12.2M32.4 10.4L33.8 9.6', .35, '#e46a9a', .7)
+      + `<path d="M29.6 15C29 10.6 30.4 6.4 32.6 4.4" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round" opacity=".85"/></g></g>`
+      /* queue en pompon, corps, cuisse, grosse patte arrière */
+      + `<path d="${tail}" fill="url(#${id('h')})" stroke="${ln}" stroke-width=".5" stroke-linejoin="round"/><path d="${tail2}" fill="#fff"/>`
+      + `<path d="${body}" fill="url(#${id('f')})" stroke="${ln}" stroke-width=".6" stroke-linejoin="round"/>`
+      + fur('M43.4 37.6Q45.2 38.4 46.2 39.8M47.4 40.8Q48.8 42.2 49.4 43.8M50.2 45.6Q50.8 47.2 50.6 48.8M37.6 36Q39.2 36.2 40.4 36.8', .45)
+      + `<path d="M32.6 52.6C32.2 46.4 36 41.8 41.2 41.8C46 41.8 49.2 45.6 48.6 50.4" fill="none" stroke="${ln}" stroke-width=".5" opacity=".55"/>`
+      + `<path d="M35 48.2C35.8 45.2 38.2 43.6 41.2 43.6" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity=".9"/>`
+      + fur('M43.8 45.6Q45.4 46.6 46 48.2M43 48.4Q44.4 49.4 44.8 50.8M38.6 46.6Q39.6 47.2 40 48.2', .4)
+      + `<path d="M28.4 59C27.8 56.4 30.4 54.8 34.4 54.8L44.6 55C48.4 55.2 50.4 56.6 49.8 58.2C49.4 59.2 47.2 59.4 44.6 59.4H32C30 59.4 28.6 59.6 28.4 59Z" fill="url(#${id('h')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/>`
+      + `<path d="M31.4 56.4V58.6M33.4 56V58.6M35.4 56V58.4" fill="none" stroke="${ln}" stroke-width=".4" stroke-linecap="round" opacity=".6"/><path d="M37.4 56Q42.6 55.4 47.6 56.4" fill="none" stroke="#fff" stroke-width=".8" stroke-linecap="round"/>`
+      /* poitrail en touffe */
+      + `<path d="M20.4 42C21 38.6 23.8 36.6 27.4 36.6C30.4 36.6 32.2 38.6 32 41.6Q31.6 43 30.6 43.2Q31 44.8 29.6 45.2Q29.6 46.8 28 46.8Q27.4 48.2 25.8 47.8Q24.6 49 23.4 48Q21.8 48.4 21.6 46.8Q20 46.4 20.4 44.8Q19.4 43.6 20.4 42Z" fill="url(#${id('c')})"/>`
+      + fur('M23.4 41.2Q24 42.6 23.8 44M27 40.4Q27.8 42 27.6 43.6M25.4 44.6Q25.8 45.8 25.6 46.8M29.6 42.4Q30 43.2 29.8 44', .4, '#cdbfdb', .9)
+      + `<ellipse cx="26.4" cy="38.8" rx="7.4" ry="2.4" fill="#7d6a8c" opacity=".16"/>`
+      /* pattes avant (l'œuf entre elles) */
+      + `<path d="M18.6 48C18 52 18.6 55.6 20.2 57.8C21.4 58.8 23.6 58.6 24.6 57.6C24.4 55 23.8 52 22.8 49.4Z" fill="url(#${id('h')})" stroke="${ln}" stroke-width=".5" stroke-linejoin="round"/>`
+      + (egg ? evqMini(GE, ev, id, `rotate(-12 ${GE.cx} ${GE.cy})`) : '')
+      + `<path d="M29.6 48.6C30.6 51.6 30.8 55 30 57.8C29 58.8 27 58.8 26 58C25.8 55.4 26 52.4 26.8 49.6Z" fill="url(#${id('h')})" stroke="${ln}" stroke-width=".5" stroke-linejoin="round"/>`
+      + (egg ? `<g fill="url(#${id('h')})" stroke="${ln}" stroke-width=".45"><ellipse cx="20.4" cy="49.8" rx="2.5" ry="2.9" transform="rotate(-24 20.4 49.8)"/><ellipse cx="29.8" cy="49.2" rx="2.3" ry="2.8" transform="rotate(22 29.8 49.2)"/></g>`
+        + fur('M19.2 50.6L20.4 51.2M19.6 49.2L20.8 49.8M30.8 50L29.6 50.6M30.6 48.6L29.4 49.2', .35, ln, .6)
+        + `<path d="M19.4 48.2Q20.4 47.2 21.6 47.6M28.8 47.2Q30 46.8 30.8 47.8" fill="none" stroke="#fff" stroke-width=".6" stroke-linecap="round"/>` : '')
+      + fur('M21.4 57.4V58.4M22.8 57.6V58.6M26.4 57.6V58.6M27.8 57.4V58.4', .35, ln, .6)
+      /* tête penchée : joues en touffes, museau, œil, nez, moustaches ; oreille pliée devant */
+      + `<g transform="${HT}"><path d="${head}" fill="url(#${id('h')})" stroke="${ln}" stroke-width=".6" stroke-linejoin="round"/>`
+      + `<path d="M17.6 18.6Q20.6 15.8 25.4 16" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>`
+      + fur('M30.6 21Q32.4 22.6 32.8 24.8M31.4 27.4Q32.2 28.8 31.8 30.4M27.6 31.6Q28.6 32.6 28.6 34', .4)
+      + `<ellipse cx="17.6" cy="28.4" rx="4.6" ry="3.4" fill="#fff"/><path d="M13.6 28.2C14.4 30.6 16.8 31.8 19.4 31.4" fill="none" stroke="${ln}" stroke-width=".4" opacity=".5"/>`
+      + `<ellipse cx="21.2" cy="29.8" rx="3.2" ry="2" fill="url(#${id('b')})"/>`
+      + `<ellipse cx="21.8" cy="23.6" rx="2.3" ry="2.8" fill="url(#${id('i')})"/><path d="M19.4 22.4Q21.6 20.2 24.2 21.8" fill="none" stroke="${ln}" stroke-width=".55" stroke-linecap="round"/>`
+      + `<path d="M23.6 21.4L24.8 20.4M24.2 22.4L25.6 21.8" fill="none" stroke="${ln}" stroke-width=".4" stroke-linecap="round"/>`
+      + `<ellipse cx="21" cy="22.6" rx=".95" ry="1.1" fill="#fff"/><circle cx="22.6" cy="24.9" r=".45" fill="#fff" opacity=".9"/><path d="M20.2 25.2Q21.6 26.4 23.4 25.4" fill="none" stroke="#a88aa8" stroke-width=".35" opacity=".7"/>`
+      + `<g class="evo-nose"><path d="M13.3 26.4Q14.6 25.6 15.9 26.4Q15.4 27.8 14.6 28.1Q13.8 27.8 13.3 26.4Z" fill="#ff7aa8" stroke="#c2457e" stroke-width=".3"/><ellipse cx="14.2" cy="26.4" rx=".45" ry=".25" fill="#fff" opacity=".8"/>`
+      + `<path d="M14.6 28.1V29.1Q15.2 30.2 16.4 29.8M14.6 29.1Q14 30 13.2 29.8" fill="none" stroke="#9a6a86" stroke-width=".4" stroke-linecap="round"/></g>`
+      + `<g fill="#c9b6d4"><circle cx="16.4" cy="28.6" r=".28"/><circle cx="17.4" cy="29.4" r=".28"/><circle cx="16.2" cy="29.8" r=".28"/></g>`
+      + `<path d="M16 28.4C12 26.8 8.6 26.4 5.6 26.6M16.2 29.2C12.4 28.6 9 29 6 30M16.4 30C13.2 30.6 10.4 31.8 8 33.4" fill="none" stroke="#9a88aa" stroke-width=".28" stroke-linecap="round" opacity=".8"/>`
+      + `<g class="evo-ears"><path d="${ear2}" fill="url(#${id('k')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/><path d="${ear2In}" fill="url(#${id('e')})"/>`
+      + fur('M20.8 15.2C20.4 12.6 20.4 10.2 20.8 8.4M20.2 12.6L21 11.6M20.4 10L21.2 9.4', .32, '#e46a9a', .7)
+      + `<path d="${flap}" fill="url(#${id('k')})" stroke="${ln}" stroke-width=".55" stroke-linejoin="round"/><path d="M12.2 12.2C13.8 10.6 15.8 9.4 17.8 9" fill="none" stroke="#ffb3d1" stroke-width=".9" stroke-linecap="round" opacity=".8"/>`
+      + `<path d="M17.6 7.2Q18.8 8.6 19 10.4" fill="none" stroke="${ln}" stroke-width=".4" opacity=".6"/><path d="M11.6 10.4Q13.4 8 16.2 7.4" fill="none" stroke="#fff" stroke-width=".6" stroke-linecap="round"/></g></g>`
+      + `</svg>`;
+  },
+  /** Panier d'osier garni (viewBox 64 × 64) : anse tressée, herbe, o.eggs œufs (0–7, 3 par défaut : le panier qui se remplit), nœud de ruban, marguerite. */
+  basket: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, f = evoF, R = EVQ_RIB[evqV(o.v === undefined ? 0 : o.v)];
+    const hw = y => 23.6 - 8.6 * Math.pow(Math.max(0, (y - 35) / 23.4), 1.6), X = (y, th) => 32 + hw(y) * Math.sin(th), Y = (y, th) => y + 1.4 * Math.cos(th);
+    const stakes = [-1.25, -.9, -.6, -.3, 0, .3, .6, .9, 1.25];
+    let st = '', wv = ['', ''];
+    for (const th of stakes) st += `M${f(X(35.6, th))} ${f(Y(35.6, th))}L${f(X(57.4, th))} ${f(Y(57.4, th))}`;
+    for (let r = 0; r < 7; r++) {
+      const y = 38 + r * 3;
+      for (let j = -1; j < stakes.length; j++) {
+        const a = j < 0 ? -1.62 : stakes[j], b = j + 1 < stakes.length ? stakes[j + 1] : 1.62, m = (a + b) / 2, k = (j + r) % 2;
+        wv[k] += `M${f(X(y, a + .04))} ${f(Y(y, a))}Q${f(X(y, m))} ${f(Y(y, m) + (k ? .5 : -.5))} ${f(X(y, b - .04))} ${f(Y(y, b))}`;
+      }
+    }
+    let rope = ''; for (let i = 0; i <= 26; i++) { const th = -1.62 + i * 3.24 / 26; rope += `<ellipse cx="${f(X(35, th))}" cy="${f(Y(34.6, th))}" rx="${f(1.9 * Math.max(.5, Math.cos(th)))}" ry="1.6" transform="rotate(-38 ${f(X(35, th))} ${f(Y(34.6, th))})"/>`; }
+    const body = `M8.2 34.4C9 44 11.6 51.6 17 56C19.6 58 24 58.8 32 58.8C40 58.8 44.4 58 47 56C52.4 51.6 55 44 55.8 34.4Q32 38.4 8.2 34.4Z`;
+    /* œufs dans l'ordre où le panier se remplit (o.eggs : 0–7, 3 par défaut) : [cx, cy, demi-largeur, teinte, inclinaison] ; dessinés du fond vers l'avant */
+    const ne = Math.max(0, Math.min(7, o.eggs === undefined ? 3 : Math.floor(Number(o.eggs) || 0)));
+    const EG = [[33, 25.6, 7.2, 0, 0], [22, 28.6, 6.4, 3, -16], [43, 28.8, 6.2, 1, 14], [27.4, 21.4, 5.8, 2, -8], [38.6, 21.8, 5.8, 4, 10], [15.4, 31.4, 5.2, 0, -26], [49, 31.6, 5.2, 2, 24]].slice(0, ne)
+      .sort((p, q) => p[1] - q[1] || Math.abs(q[0] - 32) - Math.abs(p[0] - 32));
+    const eggs = EG.map(([x, y, a, v, r]) => evqMini({ cx: x, cy: y, a, b: a * 1.35, k: .15, s: .8 }, v, id, r ? `rotate(${r} ${x} ${y})` : '')).join('');
+    return `<svg class="evo evo-basket${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs>`
+      + `<linearGradient id="${id('w')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2ad62"/><stop offset=".6" stop-color="#c38440"/><stop offset="1" stop-color="#8f5a26"/></linearGradient>`
+      + `<radialGradient id="${id('s')}" cx=".5" cy=".1" r=".95"><stop offset=".45" stop-color="#3a1f08" stop-opacity="0"/><stop offset="1" stop-color="#3a1f08" stop-opacity=".5"/></radialGradient>`
+      + `<linearGradient id="${id('g')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8f08e"/><stop offset="1" stop-color="#4fa046"/></linearGradient>`
+      + `<radialGradient id="${id('o')}"><stop offset="0" stop-color="#3a2a10" stop-opacity=".36"/><stop offset="1" stop-color="#3a2a10" stop-opacity="0"/></radialGradient>`
+      + `<radialGradient id="${id('r')}" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="${R[0]}"/><stop offset=".5" stop-color="${R[1]}"/><stop offset="1" stop-color="${R[2]}"/></radialGradient>`
+      + evqMiniDefs(id, [0, 1, 2, 3, 4]) + `<clipPath id="${id('c')}"><path d="${body}"/></clipPath></defs>`
+      + `<ellipse cx="32" cy="59.6" rx="25" ry="3" fill="url(#${id('o')})"/>`
+      + `<path d="M11.4 35.6C10.4 18 20 6.6 32 6.6C44 6.6 53.6 18 52.6 35.6" fill="none" stroke="#6e4216" stroke-width="4.4" stroke-linecap="round"/>`
+      + `<path d="M11.4 35.6C10.4 18 20 6.6 32 6.6C44 6.6 53.6 18 52.6 35.6" fill="none" stroke="#c98a44" stroke-width="3"/>`
+      + `<path d="M11.4 35.6C10.4 18 20 6.6 32 6.6C44 6.6 53.6 18 52.6 35.6" fill="none" stroke="#f2cf8e" stroke-width="3" stroke-dasharray="1.3 1.5" opacity=".75"/>`
+      + `<path d="${evqBlades(9, 55, 36.4, 4, 8.6, 18, 5, 2.2)}" fill="#5fae4c"/>`
+      + eggs
+      + `<path d="${evqBlades(10, 54, 35.8, 2.8, 6.4, 22, 9, 2)}" fill="url(#${id('g')})" stroke="#3a8a3e" stroke-width=".3"/>`
+      + `<path d="${body}" fill="url(#${id('w')})"/><g clip-path="url(#${id('c')})">`
+      + `<path d="${st}" stroke="#7a4a1c" stroke-width="2.2" stroke-linecap="round"/><path d="${st}" stroke="#a86f34" stroke-width="1.2" stroke-linecap="round"/>`
+      + `<path d="${wv[1]}" fill="none" stroke="#7a4a1c" stroke-width="2.6" stroke-linecap="round"/><path d="${wv[1]}" fill="none" stroke="#b97c3c" stroke-width="1.7" stroke-linecap="round"/>`
+      + `<path d="${wv[0]}" fill="none" stroke="#6e4216" stroke-width="2.8" stroke-linecap="round"/><path d="${wv[0]}" fill="none" stroke="#e6b46c" stroke-width="1.9" stroke-linecap="round"/>`
+      + `<path d="${wv[0]}" fill="none" stroke="#fff1cf" stroke-width=".5" stroke-linecap="round" transform="translate(-.3 -.45)" opacity=".55"/>`
+      + `<path d="${body}" fill="url(#${id('s')})"/></g><path d="${body}" fill="none" stroke="#5a3410" stroke-width=".7"/>`
+      + `<g fill="#d99a52" stroke="#6e4216" stroke-width=".45">${rope}</g><path d="M10 34.2Q32 38 54 34.2" fill="none" stroke="#fff1cf" stroke-width=".5" opacity=".6"/>`
+      + `<path d="${evqDaisyD(50.6, 32.4, 3.4, 12)}" fill="#fff" stroke="#c9b8e0" stroke-width=".3"/><circle cx="50.6" cy="32.4" r="1.25" fill="#ffd36b" stroke="#d99a1c" stroke-width=".3"/>`
+      + evqBow(12.4, 35.4, .4, R, id('r')) + `</svg>`;
+  },
+  /** Tulipe (viewBox 24 × 48), teinte o.v (0–4 : rose, corail, jaune, lilas, blanc rosé ; sinon rose). */
+  tulip: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, c = EVQ_TULIP[Number(o.v) >= 0 && Number(o.v) <= 4 ? Math.floor(o.v) : 0];
+    return `<svg class="evo evo-flower evo-tulip${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 48" aria-hidden="true" focusable="false"><defs>${evqStemDefs(id)}`
+      + `<linearGradient id="${id('p')}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c[0]}"/><stop offset=".45" stop-color="${c[1]}"/><stop offset="1" stop-color="${c[2]}"/></linearGradient>`
+      + `<linearGradient id="${id('q')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c[1]}"/><stop offset="1" stop-color="${c[2]}"/></linearGradient></defs>`
+      + evqStem(id, 12, 12.4, 20, -1.6)
+      + `<g class="evo-head" stroke="${c[3]}" stroke-width=".45" stroke-linejoin="round"><path d="M12.4 3.6C15 6.2 16.6 9.2 16.6 13.4C16.6 18.4 14.8 21.4 12.4 21.6C10 21.4 8.2 18.4 8.2 13.4C8.2 9.2 9.8 6.2 12.4 3.6Z" fill="url(#${id('q')})"/>`
+      + `<path d="M12.4 22C8.8 22 6.4 18.6 6.4 14.4C6.4 11 7.4 8.4 8.8 6.6C10 8.8 11.2 11.6 12.6 14.6C13.4 17.4 13.4 20 12.4 22Z" fill="url(#${id('p')})"/>`
+      + `<path d="M12.4 22C16 22 18.4 18.6 18.4 14.4C18.4 11 17.4 8.4 16 6.6C14.8 8.8 13.6 11.6 12.2 14.6C11.4 17.4 11.4 20 12.4 22Z" fill="url(#${id('p')})"/>`
+      + `<path d="M8.4 10.4Q7.8 14.6 9.4 18.4M16.4 10.6Q17 14 15.8 17.6" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round" opacity=".6"/>`
+      + `<path d="M12.4 21.4Q11.8 17 12.4 14.4" fill="none" stroke="${c[3]}" stroke-width=".35" opacity=".5"/></g></svg>`;
+  },
+  /** Jonquille (viewBox 24 × 48) : six pétales jaune pâle, trompette orangée à bord frisé, tige penchée et sa spathe. */
+  daffodil: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, f = evoF, cx = 12.4, cy = 13.6;
+    let pet = ''; for (let k = 0; k < 6; k++) { const a = (k * 60 - 90 + 12) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a) * .86, P = (u, w) => f(cx + ca * u - sa * w) + ' ' + f(cy + sa * u + ca * w * .86); pet += `M${P(1, 0)}C${P(3.4, 3.4)} ${P(8.4, 2.4)} ${P(9.4, 0)}C${P(8.4, -2.4)} ${P(3.4, -3.4)} ${P(1, 0)}Z`; }
+    let rim = ''; for (let i = 0; i <= 16; i++) { const a = i / 16 * 2 * Math.PI, r = 3.9 + (i % 2 ? .45 : 0); rim += `${i ? 'L' : 'M'}${f(cx - 1 + Math.cos(a) * r)} ${f(cy + 1.4 + Math.sin(a) * r * .82)}`; }
+    return `<svg class="evo evo-flower evo-daffodil${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 48" aria-hidden="true" focusable="false"><defs>${evqStemDefs(id)}`
+      + `<radialGradient id="${id('p')}" cx=".5" cy=".5" r=".5"><stop offset=".15" stop-color="#ffe05a"/><stop offset=".55" stop-color="#fff2a0"/><stop offset="1" stop-color="#fffbe0"/></radialGradient>`
+      + `<radialGradient id="${id('t')}" cx=".42" cy=".38" r=".7"><stop offset="0" stop-color="#ffd36b"/><stop offset=".6" stop-color="#ffab24"/><stop offset="1" stop-color="#e57a0c"/></radialGradient></defs>`
+      + evqStem(id, 12.6, 13.6, 18, 1.6)
+      + `<path d="M13.8 19.6C15.6 18.4 16.6 17.2 16.4 15.4C15 16.8 14 17.6 13.2 18.4Z" fill="#d9c08a" stroke="#9a7a3a" stroke-width=".35"/>`
+      + `<g class="evo-head"><path d="${pet}" fill="url(#${id('p')})" stroke="#d9a21c" stroke-width=".45" stroke-linejoin="round"/>`
+      + `<path d="${rim}Z" fill="url(#${id('t')})" stroke="#c4600a" stroke-width=".45" stroke-linejoin="round"/>`
+      + `<ellipse cx="${f(cx - 1)}" cy="${f(cy + 1.4)}" rx="2.4" ry="1.9" fill="#d9640a"/><ellipse cx="${f(cx - 1.2)}" cy="${f(cy + 1.1)}" rx="1.3" ry="1" fill="#a84a06"/>`
+      + `<path d="M${f(cx - 3.4)} ${f(cy - .2)}Q${f(cx - 2)} ${f(cy - 1.8)} ${f(cx)} ${f(cy - 1.6)}" fill="none" stroke="#fff6cf" stroke-width=".6" stroke-linecap="round"/>`
+      + `<g fill="#ffe9a0"><circle cx="${f(cx - 1.6)}" cy="${f(cy + 1.6)}" r=".35"/><circle cx="${f(cx - .4)}" cy="${f(cy + 1.8)}" r=".35"/><circle cx="${f(cx - 1)}" cy="${f(cy + .8)}" r=".35"/></g></g></svg>`;
+  },
+  /** Marguerite (viewBox 24 × 48) : seize pétales blancs teintés de lilas, cœur jaune grenu, tige et feuilles. */
+  daisy: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, f = evoF;
+    let dots = ''; for (let i = 0; i < 9; i++) { const a = i * 2.4, r = Math.sqrt(i + .5) * .78; dots += `<circle cx="${f(12 + Math.cos(a) * r)}" cy="${f(12.6 + Math.sin(a) * r * .86)}" r=".34"/>`; }
+    return `<svg class="evo evo-flower evo-daisy${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 24 48" aria-hidden="true" focusable="false"><defs>${evqStemDefs(id)}`
+      + `<radialGradient id="${id('p')}" cx="12" cy="12.6" r="9" gradientUnits="userSpaceOnUse"><stop offset=".3" stop-color="#efe6ff"/><stop offset=".55" stop-color="#ffffff"/><stop offset="1" stop-color="#f7f2ff"/></radialGradient>`
+      + `<radialGradient id="${id('c')}" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff2a0"/><stop offset=".6" stop-color="#ffc93f"/><stop offset="1" stop-color="#e08f12"/></radialGradient></defs>`
+      + evqStem(id, 12, 12, 20, -1)
+      + `<g class="evo-head"><g transform="translate(0 1.8) scale(1 .86)"><path d="${evqDaisyD(12, 12.6, 9, 16)}" fill="url(#${id('p')})" stroke="#b6a3d6" stroke-width=".4" stroke-linejoin="round"/>`
+      + `<path d="${evqDaisyD(12, 12.6, 6.6, 16).replace(/M/g, 'M').slice(0)}" fill="none" stroke="#d8ccef" stroke-width=".3" opacity=".7" transform="rotate(11.25 12 12.6)"/></g>`
+      + `<ellipse cx="12" cy="12.6" rx="2.9" ry="2.5" fill="url(#${id('c')})" stroke="#c47a0a" stroke-width=".4"/><g fill="#c47a0a" opacity=".55">${dots}</g>`
+      + `<path d="M10.4 11.6Q11.2 10.8 12.4 10.8" fill="none" stroke="#fffbe0" stroke-width=".5" stroke-linecap="round"/></g></svg>`;
+  },
+  /** Papillon vu de dessus (viewBox 32 × 24), teinte o.v (0–4 : bleu ciel, rose, citron, lilas, menthe) ; ailes dans .evo-wings (battement). */
+  butterfly: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, c = EVQ_BFLY[Number(o.v) >= 0 && Number(o.v) <= 4 ? Math.floor(o.v) : 0];
+    const up = 'M16.4 10.2C18.6 4.6 25.4 1.2 29.4 2.8C31.6 3.8 31 8.2 28.8 10.6C26.6 13 21.2 13.2 16.6 12Z', lo = 'M16.6 12.4C21.2 12.2 25.8 14.2 26 17.8C26.2 20.8 23.4 22.6 20.8 21.6C18.6 20.8 17.2 17 16.4 13.4Z';
+    const side = `<path d="${up}" fill="url(#${id('u')})"/><path d="${lo}" fill="url(#${id('l')})"/>`;
+    const deco = `<path d="${up}${lo}" fill="none" stroke="${c[2]}" stroke-width="2.6"/>`
+      + `<g fill="#fff"><circle cx="28.8" cy="4.6" r=".8"/><circle cx="30" cy="7.2" r=".6"/><circle cx="26.6" cy="2.9" r=".55"/><circle cx="23.6" cy="20.6" r=".6"/><circle cx="25.4" cy="18.4" r=".5"/></g>`
+      + `<path d="M17 11C20 8.4 23.6 6 27.4 4.6M17 11.4C20.6 10.4 24.4 10 28.2 9.2M17.2 12.8C19.6 14.6 21.6 16.6 23 19.4" fill="none" stroke="${c[3]}" stroke-width=".35" opacity=".45"/>`
+      + `<ellipse cx="23.4" cy="7.6" rx="2.2" ry="1.6" transform="rotate(-24 23.4 7.6)" fill="${c[0]}" opacity=".85"/><circle cx="23.4" cy="7.6" r=".8" fill="${c[2]}"/>`;
+    return `<svg class="evo evo-bfly${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 32 24" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('u')}" cx="16" cy="12" r="15" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${c[0]}"/><stop offset=".5" stop-color="${c[1]}"/><stop offset="1" stop-color="${c[2]}"/></radialGradient>`
+      + `<radialGradient id="${id('l')}" cx="16" cy="12" r="11" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${c[0]}"/><stop offset=".6" stop-color="${c[1]}"/><stop offset="1" stop-color="${c[2]}"/></radialGradient>`
+      + `<clipPath id="${id('c')}"><path d="${up}${lo}"/></clipPath></defs>`
+      + `<g class="evo-wings" stroke-linejoin="round"><g>${side}<g clip-path="url(#${id('c')})">${deco}</g><path d="${up}${lo}" fill="none" stroke="${c[3]}" stroke-width=".5"/></g>`
+      + `<g transform="matrix(-1 0 0 1 32 0)">${side}<g clip-path="url(#${id('c')})">${deco}</g><path d="${up}${lo}" fill="none" stroke="${c[3]}" stroke-width=".5"/></g></g>`
+      + `<path d="M15.4 7.2Q13.6 3 11.6 2.2M16.6 7.2Q18.4 3 20.4 2.2" fill="none" stroke="#3a2a40" stroke-width=".5" stroke-linecap="round"/><circle cx="11.6" cy="2.2" r=".7" fill="#3a2a40"/><circle cx="20.4" cy="2.2" r=".7" fill="#3a2a40"/>`
+      + `<ellipse cx="16" cy="16.2" rx="1.05" ry="4.6" fill="#4a3650"/><ellipse cx="16" cy="10.6" rx="1.4" ry="2.4" fill="#5a4462"/><circle cx="16" cy="7.6" r="1.25" fill="#4a3650"/>`
+      + `<path d="M15.3 13.6H16.7M15.3 15.4H16.7M15.4 17.2H16.6" stroke="#8a7590" stroke-width=".35"/><path d="M15.5 9.4Q15.4 10.6 15.6 11.8" fill="none" stroke="#fff" stroke-width=".4" stroke-linecap="round" opacity=".5"/></svg>`;
+  },
+  /** Cloche de Pâques ailée (viewBox 64 × 64) : bronze doré gravé, ailes de plumes blanches (.evo-wing-l, .evo-wing-r battent), nœud de ruban ; .evo-bell-b se balance ;
+   *  o.drop : elle lâche deux œufs (.evo-drop). */
+  wingedBell: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, R = EVQ_RIB[evqV(o.v === undefined ? 0 : o.v)];
+    const W = evqWing(id('w'));
+    return `<svg class="evo evo-wbell${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('b')}" cx=".36" cy=".3" r=".85"><stop offset="0" stop-color="#fff6c8"/><stop offset=".35" stop-color="#f4cf5a"/><stop offset=".75" stop-color="#d49a26"/><stop offset="1" stop-color="#8f5e0c"/></radialGradient>`
+      + `<linearGradient id="${id('l')}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9a6a10"/><stop offset=".3" stop-color="#ffe9a0"/><stop offset=".6" stop-color="#e3ad35"/><stop offset="1" stop-color="#7a5205"/></linearGradient>`
+      + `<linearGradient id="${id('w')}" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#f4eefb"/><stop offset="1" stop-color="#d6cbe8"/></linearGradient>`
+      + `<radialGradient id="${id('r')}" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="${R[0]}"/><stop offset=".5" stop-color="${R[1]}"/><stop offset="1" stop-color="${R[2]}"/></radialGradient>`
+      + `<radialGradient id="${id('g')}" cx="32" cy="32" r="30" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff2b8" stop-opacity=".5"/><stop offset="1" stop-color="#fff2b8" stop-opacity="0"/></radialGradient>${o.drop ? evqMiniDefs(id, [2, 3]) : ''}</defs>`
+      + `<circle class="evo-glow" cx="32" cy="32" r="30" fill="url(#${id('g')})"/>`
+      + `<g class="evo-bell-b"><g class="evo-wings"><g class="evo-wing-l">${W}</g><g class="evo-wing-r"><g transform="matrix(-1 0 0 1 64 0)">${W}</g></g></g>`
+      + `<circle cx="32" cy="49" r="2.7" fill="url(#${id('b')})" stroke="#6e4a05" stroke-width=".55"/>`
+      + `<path d="M32 14C24.6 14 22 20 21.4 27C20.8 34 19.6 39 15.6 42.6Q32 47.8 48.4 42.6C44.4 39 43.2 34 42.6 27C42 20 39.4 14 32 14Z" fill="url(#${id('b')})" stroke="#6e4a05" stroke-width=".7" stroke-linejoin="round"/>`
+      + `<path d="M15.6 42.6Q32 47.8 48.4 42.6L48.8 45.2Q32 50.8 15.2 45.2Z" fill="url(#${id('l')})" stroke="#6e4a05" stroke-width=".6" stroke-linejoin="round"/>`
+      + `<path d="M22.6 21.4Q32 23.8 41.4 21.4M22 23.4Q32 25.8 42 23.4M19.4 38.4Q32 42 44.6 38.4" fill="none" stroke="#8f5e0c" stroke-width=".55" opacity=".7"/>`
+      + `<path d="M22.6 22Q32 24.4 41.4 22M19.6 39Q32 42.6 44.4 39" fill="none" stroke="#fff3c4" stroke-width=".4" opacity=".7"/>`
+      + `<g transform="translate(32 31.6)"><path d="${EVQ_FLOWER}" transform="scale(3)" fill="#fff3c4" stroke="#b07a10" stroke-width=".18"/><circle r="1.1" fill="#d49a26"/></g>`
+      + `<path d="M25.8 18.6C24.2 22 23.6 28 23.4 33" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".55"/>`
+      + `<path d="M28.6 14.6Q32 10.4 35.4 14.6" fill="none" stroke="#8f5e0c" stroke-width="1.6"/>`
+      + evqBow(32, 12.8, .5, R, id('r')) + `</g>`
+      + (o.drop ? `<g class="evo-drop"><path d="M17.4 46.6V50.4M20.6 47.6V50.6M44.2 49.6V53.4M47.4 50.6V53.6" stroke="#b9acd2" stroke-width=".8" stroke-linecap="round"/>`
+        + evqMini({ cx: 19, cy: 56.6, a: 3.8, b: 5.1, k: .15, s: .5 }, 2, id, 'rotate(-18 19 56.6)') + evqMini({ cx: 45.8, cy: 59.2, a: 3.4, b: 4.6, k: .15, s: .5 }, 3, id, 'rotate(16 45.8 59.2)') + `</g>` : '')
+      + `</svg>`;
+  },
+  /** Éclosion (viewBox 64 × 64), o.stage : 0 œuf intact, 1 fêlé, 2 le poussin regarde par un trou, 3 éclos (poussin dans sa coquille, dans l'herbe) ; o.v teinte. */
+  hatch: (o = {}) => {
+    const st = Math.max(0, Math.min(3, Math.floor(Number(o.stage) || 0)));
+    if (st < 3) return EV_ART.egg({ ...o, crack: st, cls: ((o.cls || '') + ' evo-hatch evo-hatch-' + st).trim() });
+    const n = ++EVO_N, id = s => `evo${n}${s}`;
+    return `<svg class="evo evo-hatch evo-hatch-3${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('g')}" cx="32" cy="36" r="30" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff6c4" stop-opacity=".9"/><stop offset=".5" stop-color="#ffe07a" stop-opacity=".3"/><stop offset="1" stop-color="#ffe07a" stop-opacity="0"/></radialGradient>`
+      + `<linearGradient id="${id('gr')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9be27a"/><stop offset="1" stop-color="#3f9a4e"/></linearGradient></defs>`
+      + `<circle class="evo-glow" cx="32" cy="36" r="30" fill="url(#${id('g')})"/><path d="${evqBlades(12, 52, 59.4, 3, 7, 13, 5, 2)}" fill="#3f8f45"/>`
+      + EV_ART.chick().replace('<svg ', '<svg x="6" y="6" width="52" height="52" ')
+      + `<path d="${evqBlades(10, 54, 61, 3.4, 8, 16, 11, 2.1)}" fill="url(#${id('gr')})" stroke="#2f7a3a" stroke-width=".35"/>`
+      + `<g fill="#fffbe6" stroke="#d9a21c" stroke-width=".3">${[[9, 14, 2.6], [55, 12, 2.2], [52, 34, 1.6]].map(([x, y, r]) => `<path d="${evnSpark(x, y, r)}"/>`).join('')}</g></svg>`;
+  },
+  /** Nœud de ruban satiné (viewBox 32 × 24), teinte o.v (0–4, comme les œufs ; sinon rose). */
+  ribbon: (o = {}) => {
+    const n = ++EVO_N, id = s => `evo${n}${s}`, R = EVQ_RIB[evqV(o.v === undefined ? 0 : o.v)];
+    return `<svg class="evo evo-ribbon${o.cls ? ' ' + o.cls : ''}" viewBox="0 0 32 24" aria-hidden="true" focusable="false"><defs>`
+      + `<radialGradient id="${id('r')}" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="${R[0]}"/><stop offset=".5" stop-color="${R[1]}"/><stop offset="1" stop-color="${R[2]}"/></radialGradient></defs>`
+      + evqBow(16, 9.6, .96, R, id('r')) + `</svg>`;
+  },
+});
+
+/* ── Pâques : ambiance (accueil) ───────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Matin de printemps : lueurs rose, menthe et soleil, soleil dont les rayons tournent lentement, deux nuages, pré fleuri en bas de l'écran (herbe, tulipes,
+   jonquilles, marguerites, œufs cachés ; deux bouquets qui ondulent au vent), lapin assis dans l'herbe (oreilles qui frémissent), deux cloches ailées qui
+   passent de loin en loin (elles reviennent de Rome). Éléments animés : 2 lueurs + 1 soleil + 2 bouquets + 1 lapin + 2 vols + 2 battements d'ailes = 10. */
+/** Soleil de printemps (viewBox 100 × 100) : halo, seize rayons (.evq-sun-r tourne), disque doré, reflet. */
+function evqSun() {
+  const n = ++EVO_N, f = evoF; let r = '';
+  for (let i = 0; i < 16; i++) { const a = i * 22.5 * Math.PI / 180, l = i % 2 ? 40 : 47, w = i % 2 ? .07 : .09, P = (b, d) => f(50 + Math.cos(b) * d) + ' ' + f(50 + Math.sin(b) * d); r += `M${P(a - w, 24)}L${P(a, l)}L${P(a + w, 24)}Z`; }
+  return `<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><defs><radialGradient id="evq${n}h"><stop offset=".2" stop-color="#fff2b0" stop-opacity=".9"/><stop offset=".55" stop-color="#ffe07a" stop-opacity=".3"/><stop offset="1" stop-color="#ffd36b" stop-opacity="0"/></radialGradient>`
+    + `<radialGradient id="evq${n}d" cx=".4" cy=".36" r=".7"><stop offset="0" stop-color="#fffdf0"/><stop offset=".5" stop-color="#ffe680"/><stop offset="1" stop-color="#ffbf3a"/></radialGradient>`
+    + `<linearGradient id="evq${n}r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe68a"/><stop offset="1" stop-color="#ffc24a"/></linearGradient></defs>`
+    + `<circle cx="50" cy="50" r="50" fill="url(#evq${n}h)"/><g class="evq-sun-r"><path d="${r}" fill="url(#evq${n}r)" opacity=".85"/></g>`
+    + `<circle cx="50" cy="50" r="20" fill="url(#evq${n}d)" stroke="#f2a92a" stroke-width=".8"/><path d="M38 44A13 13 0 0 1 48 34.6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/></svg>`;
+}
+/** Nuage (viewBox 120 × 56) : bosses blanches, ventre lilas, liseré clair. */
+function evqCloud() {
+  const n = ++EVO_N, B = [[28, 38, 15], [48, 26, 19], [72, 24, 16], [90, 36, 14], [60, 40, 16], [38, 44, 12], [82, 44, 11]];
+  return `<svg viewBox="0 0 120 56" aria-hidden="true" focusable="false"><defs><linearGradient id="evq${n}c" x1="0" y1="0" x2="0" y2="1"><stop offset=".3" stop-color="#ffffff"/><stop offset="1" stop-color="#e4dcf4"/></linearGradient></defs>`
+    + `<g fill="#cfc2e6" opacity=".55" transform="translate(1.6 2.2)">${B.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>`
+    + `<g fill="url(#evq${n}c)">${B.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>`
+    + `<path d="M36 22A16 16 0 0 1 58 12M68 14A12 12 0 0 1 82 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+}
+/** Pré fleuri du bas de l'écran (viewBox 1200 × 84, rogné au milieu sur un téléphone) : herbe de fond, fleurs (deux bouquets .evq-sway ondulent), œufs cachés, herbe de devant. */
+function evqMeadow() {
+  const n = ++EVO_N, id = s => `evq${n}${s}`, Q = (k, o) => EV_ART[k](o).replace('<svg ', `<svg id="${id(k + (o.v === undefined ? '' : o.v))}" `);
+  const F = [['tulip', 0], ['daisy'], ['tulip', 2], ['daffodil'], ['tulip', 3], ['daisy'], ['tulip', 0], ['daffodil'], ['tulip', 3], ['daisy']];
+  const at = (k, v, x, h) => `<use href="#${id(k + (v === undefined ? '' : v))}" x="${evoF(x - h / 4)}" y="${84 - h}" width="${evoF(h / 2)}" height="${h}"/>`;
+  const fl = (x0, x1, seed) => { let o = '', s = seed * 977; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280; for (let x = x0 + r() * 14; x < x1; x += 16 + r() * 44) { const [k, v] = F[Math.floor(r() * F.length)]; o += at(k, v, x, 34 + r() * 30); } return o; };
+  const eggs = [[0, 236, 70], [4, 472, 71], [1, 700, 69], [3, 930, 70], [2, 1080, 71]].map(([v, x, y], i) => evqMini({ cx: x, cy: y, a: 5.2, b: 7, k: .15, s: .6 }, v, id, `rotate(${[-14, 10, -6, 12, -10][i]} ${x} ${y})`)).join('');
+  return (`<svg viewBox="0 0 1200 84" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false"><defs>`
+    + `<linearGradient id="${id('h')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bdeca0" stop-opacity="0"/><stop offset=".55" stop-color="#a6e08a" stop-opacity=".55"/><stop offset="1" stop-color="#7cc96a" stop-opacity=".8"/></linearGradient>`
+    + `<linearGradient id="${id('g')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9be27a"/><stop offset="1" stop-color="#3f9a4e"/></linearGradient>`
+    + evqMiniDefs(id, [0, 1, 2, 3, 4]) + Q('tulip', { v: 0 }) + Q('tulip', { v: 2 }) + Q('tulip', { v: 3 }) + Q('daisy', {}) + Q('daffodil', {}) + `</defs>`
+    + `<path d="M0 84V58C120 44 220 52 330 56C460 60 540 42 680 46C820 50 900 60 1010 52C1100 46 1160 50 1200 54V84Z" fill="url(#${id('h')})"/>`
+    + `<path d="${evqBlades(0, 1200, 84, 12, 30, 90, 3, 6)}" fill="#8fd47a" opacity=".75"/>`
+    + fl(10, 380, 5) + `<g class="evq-sway evq-sw1">${fl(390, 600, 11)}</g>` + fl(610, 820, 2) + `<g class="evq-sway evq-sw2">${fl(830, 1000, 7)}</g>` + fl(1010, 1200, 13)
+    + eggs + `<path d="${evqBlades(0, 1200, 85, 6, 18, 130, 8, 5)}" fill="url(#${id('g')})" stroke="#3a8a3e" stroke-width=".4"/></svg>`).replace(/(\d\.\d)\d/g, '$1');
+}
+EV_AMB.paques = () => '<i class="evq-glow evq-g1"></i><i class="evq-glow evq-g2"></i><i class="evq-glow evq-g3"></i>'
+  + `<span class="evq-sun">${evqSun()}</span><span class="evq-cloud evq-cl1">${evqCloud()}</span><span class="evq-cloud evq-cl2">${evqCloud()}</span>`
+  + `<span class="evq-bell evq-b1">${EV_ART.wingedBell({ v: 0 })}</span><span class="evq-bell evq-b2">${EV_ART.wingedBell({ v: 4 })}</span>`
+  + `<span class="evq-bunny">${EV_ART.bunny({ v: 2 })}</span><span class="evq-meadow">${evqMeadow()}</span>`;
+
+/* Particules de la récolte : œuf, marguerite, tulipe, poussin, papillon, tête de lapin */
+EV_FX.paques = () => {
+  const G = { cx: 12, cy: 12.8, a: 7.2, b: 9.8, k: .15, s: .7 }, egg = evqEggD(G, 20), z = evqLine(G, 12.8, { zig: 1.4, n: 8 }), n = ++EVO_N;
+  return [
+    EVO_FXS(egg, '#ff9cc6', `<clipPath id="evq${n}x"><path d="${egg}"/></clipPath><g clip-path="url(#evq${n}x)"><path d="${evqBand(G, 10.6, 15.2, 10)}" fill="#c93a78"/><path d="${z}" fill="none" stroke="#fff3d6" stroke-width="1"/></g><path d="${egg}" fill="none" stroke="rgba(30,10,40,.55)" stroke-width=".8"/><path d="M8.4 6Q6.8 8 6.4 10.6" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round"/>`),      // œuf
+    EVO_FXS(evqDaisyD(12, 12, 10.6, 14), '#ffffff', '<circle cx="12" cy="12" r="3.4" fill="#ffc93f" stroke="rgba(30,10,40,.55)" stroke-width=".7"/><circle cx="11" cy="11" r="1" fill="#fff6c4"/>'),      // marguerite
+    EVO_FXS('M12 21.4C7.4 21.4 4.6 17.6 4.6 12.6C4.6 8.6 6 5.4 7.8 3.4C9.4 5.8 10.8 8.4 12 11.4C13.2 8.4 14.6 5.8 16.2 3.4C18 5.4 19.4 8.6 19.4 12.6C19.4 17.6 16.6 21.4 12 21.4Z', '#ff7fb4',
+      '<path d="M12 21.4C10.2 18.6 9.8 15 12 11.4C14.2 15 13.8 18.6 12 21.4Z" fill="#d63c7e"/><path d="M7 9.8Q6.4 13.6 7.8 17" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".7"/>'),      // tulipe
+    EVO_FXS('M12 3.6A8.4 8.4 0 1 1 11.99 3.6Z', '#ffd84a', '<ellipse cx="9" cy="10.6" rx="1.2" ry="1.5" fill="#2a1d14"/><ellipse cx="15" cy="10.6" rx="1.2" ry="1.5" fill="#2a1d14"/><circle cx="9.4" cy="10" r=".45" fill="#fff"/><circle cx="15.4" cy="10" r=".45" fill="#fff"/><path d="M10.2 13.2L12 12.2L13.8 13.2L12 15.6Z" fill="#ff9a2e" stroke="rgba(30,10,40,.55)" stroke-width=".6" stroke-linejoin="round"/><ellipse cx="6.8" cy="14" rx="1.5" ry=".9" fill="#ff8fb0" opacity=".7"/><ellipse cx="17.2" cy="14" rx="1.5" ry=".9" fill="#ff8fb0" opacity=".7"/><path d="M10.4 3.8Q11 1.4 13 2.2" fill="none" stroke="#e6a417" stroke-width="1" stroke-linecap="round"/>'),      // poussin
+    EVO_FXS('M11.4 11.2C9.6 6 4.4 2.6 2 4.2C.6 5.4 1.6 9.6 4.4 11.4C2.4 12.6 2.2 16.6 4.6 18C7 19.4 10.2 16.6 11.4 13.2ZM12.6 11.2C14.4 6 19.6 2.6 22 4.2C23.4 5.4 22.4 9.6 19.6 11.4C21.6 12.6 21.8 16.6 19.4 18C17 19.4 13.8 16.6 12.6 13.2Z', '#8fcaff',
+      '<g fill="#fff"><circle cx="4.4" cy="6" r=".9"/><circle cx="19.6" cy="6" r=".9"/></g><g fill="#3d7fd6"><circle cx="7.4" cy="8.2" r="1.3"/><circle cx="16.6" cy="8.2" r="1.3"/></g><ellipse cx="12" cy="13" rx="1.1" ry="5" fill="#4a3650"/><path d="M11.4 8.4Q10.4 5.4 8.6 4.6M12.6 8.4Q13.6 5.4 15.4 4.6" fill="none" stroke="#4a3650" stroke-width=".7" stroke-linecap="round"/>'),      // papillon
+    EVO_FXS('M7.6 12.2C6.8 8 6.2 3.2 7.8 1.6C9.4 0 10.6 2.4 10.8 6.6L11.2 9.6H12.8L13.2 6.6C13.4 2.4 14.6 0 16.2 1.6C17.8 3.2 17.2 8 16.4 12.2C18.4 13.6 19.2 15.6 18.8 17.8C18.2 21 15.4 22.6 12 22.6C8.6 22.6 5.8 21 5.2 17.8C4.8 15.6 5.6 13.6 7.6 12.2Z', '#ffffff',
+      '<path d="M8.4 9.8C8 7 7.8 4.2 8.4 3.2C9 2.6 9.4 4 9.6 6.6L9.8 9.6ZM15.6 9.8C16 7 16.2 4.2 15.6 3.2C15 2.6 14.6 4 14.4 6.6L14.2 9.6Z" fill="#ffa6c8"/><ellipse cx="9.4" cy="15.6" rx="1.1" ry="1.4" fill="#2b1d33"/><ellipse cx="14.6" cy="15.6" rx="1.1" ry="1.4" fill="#2b1d33"/><path d="M11 18.2Q12 17.6 13 18.2Q12.6 19.2 12 19.4Q11.4 19.2 11 18.2Z" fill="#ff7aa8"/><ellipse cx="7.6" cy="18.4" rx="1.4" ry=".8" fill="#ffa6c8" opacity=".7"/><ellipse cx="16.4" cy="18.4" rx="1.4" ry=".8" fill="#ffa6c8" opacity=".7"/>'),      // lapin
+  ];
+};
+
+/** Pétales et papillons sur l'accueil (couche du dessus) : 5 pétales de cerisier qui tombent en voletant (chute, tournoiement), 2 papillons qui traversent
+ *  (vol, battement d'ailes) ; bordés d'un trait plus foncé : visibles sur fond clair comme sur fond sombre. */
+EV_AMB_TOP.paques = () => {
+  const petal = (c, e) => { const n = ++EVO_N; return `<svg class="evo evo-petal" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><defs><linearGradient id="evq${n}p" x1="0" y1="1" x2=".6" y2="0"><stop offset="0" stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient></defs>`
+    + `<path d="M8 15C4.2 12.4 2.2 9 2.6 5.6C3 2.8 5 1.4 6.6 2.2L8 3.8L9.4 2.2C11 1.4 13 2.8 13.4 5.6C13.8 9 11.8 12.4 8 15Z" fill="url(#evq${n}p)" stroke="${e}" stroke-width=".6" stroke-linejoin="round"/>`
+    + `<path d="M8 13.4V6.4M8 10L5.8 7.6M8 10L10.2 7.6" fill="none" stroke="#fff" stroke-width=".5" stroke-linecap="round" opacity=".6"/></svg>`; };
+  const P = [petal(['#ff9cc6', '#ffe3ef'], '#c2457e'), petal(['#ffd6e8', '#ffffff'], '#d27aa4'), petal(['#ffb3d1', '#fff0f6'], '#c2457e'), petal(['#ffe1ee', '#ffffff'], '#d27aa4'), petal(['#ff8fbd', '#ffd6e8'], '#b03a70')];
+  return P.map((s, i) => `<span class="evq-pt evq-p${i + 1}"><span class="evq-pt-s">${s}</span></span>`).join('')
+    + [0, 2].map((v, i) => `<span class="evq-bf evq-f${i + 1}"><span class="evq-bf-s">${EV_ART.butterfly({ v })}</span></span>`).join('');
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = { EV_ART, EV_AMB, EV_AMB_TOP, EV_FX, EV_CONS, evGarland };

@@ -46,6 +46,7 @@ const EVL_EGG_DECO = {
   1: c => `<path d="M-5 .9l1.25-1.7 1.25 1.7 1.25-1.7 1.25 1.7 1.25-1.7 1.25 1.7 1.25-1.7 1.25 1.7" fill="none" stroke="${c}" stroke-width="1.1" stroke-linejoin="round"/><path d="M-5-2.4h10M-5 3.4h10" stroke="${c}" stroke-width=".6"/>`,
   2: c => `<path d="M-5-1.6q1.25-1.3 2.5 0t2.5 0 2.5 0 2.5 0M-5 2.2q1.25-1.3 2.5 0t2.5 0 2.5 0 2.5 0" fill="none" stroke="${c}" stroke-width="1"/>`,
   3: c => `<g fill="${c}"><circle cx="-2.1" cy="-2" r=".8"/><circle cx="1.5" cy="-3" r=".7"/><circle cx="2.4" cy=".4" r=".85"/><circle cx="-.8" cy="1" r=".75"/><circle cx="-2.7" cy="3.1" r=".7"/><circle cx="1.2" cy="3.7" r=".8"/></g>`,
+  4: c => `<path d="M-5-2.6h10M-5 3.6h10" stroke="${c}" stroke-width=".9"/><path d="M-6 3.6l3-6.2 3 6.2 3-6.2 3 6.2M-6-2.6l3 6.2 3-6.2 3 6.2 3-6.2" fill="none" stroke="${c}" stroke-width=".45"/><ellipse cx="0" cy=".5" rx="1.1" ry="1.35" fill="#ff5fa2" stroke="${c}" stroke-width=".4"/>`,
 };
 /** Œuf de Pâques à la place d'une bille (redressé dans le repère de l'orbite) : s échelle, c couleur, c2 décor. */
 const evlEgg = (x, y, s, c, c2, deco) => `<g transform="rotate(20 ${x} ${y}) translate(${x} ${y}) scale(${s})"><path d="${EVL_EGG}" fill="${c}" stroke="currentColor" stroke-opacity=".3" stroke-width="${evlN(.8 / s)}"/><g clip-path="url(#evl-paques-ec)">${EVL_EGG_DECO[deco](c2)}</g><path d="${EVL_EGG}" fill="url(#evl-paques-eg)"/></g>`;
@@ -137,20 +138,40 @@ const EV_LOGO = {
     ${evlCard('nouvelan', { frame: '#ffe17a', fo: '.85', face: `<g class="evl-fine" fill="none" stroke="#fff" stroke-linecap="round"><circle cx="51" cy="47.5" r="7.2" stroke-opacity=".6" stroke-width=".9"/><path d="M51 41.4v1.3M57.1 47.5h-1.3M51 53.6v-1.3M44.9 47.5h1.3" stroke-opacity=".7" stroke-width=".8"/><path d="M51 47.5L51 41.9M51 47.5L49.9 43.9" stroke-opacity=".95" stroke-width=".95"/><circle cx="51" cy="47.5" r=".7" fill="#fff" stroke="none"/></g>` })}
     <g transform="rotate(-20 50 52)">${evlArc(true, 'stroke="url(#evl-nouvelan-gold)"')}${evlB('nouvelan', 86.1, 56, 4.6, '#7fb0ff')}${evlB('nouvelan', 50, 65, 4.6, '#f8f6d8')}${evlB('nouvelan', 13.9, 56, 4.6, '#b5a3c8')}</g>`,
 
-  /* Pâques : carte foil pastel, oreilles de lapin derrière la carte, billes en œufs décorés, petites fleurs. */
+  /* Pâques : carte foil pastel, oreilles de lapin derrière la carte et nœud rose, orbite arc-en-ciel pastel, billes en œufs décorés (celui de devant en or,
+     lumineux, comme la citrouille d'Halloween), cloche de Pâques ailée dans son halo (comme la lune), papillon, petites fleurs. */
   paques: `<defs>
     <linearGradient id="evl-paques-foil" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffa8cf"/><stop offset=".28" stop-color="#ffd98a"/><stop offset=".52" stop-color="#9ce8bd"/><stop offset=".76" stop-color="#93c6ff"/><stop offset="1" stop-color="#c9aaff"/></linearGradient>
     <linearGradient id="evl-paques-ear" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#efe6f6"/></linearGradient>
+    <linearGradient id="evl-paques-in" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd2e4"/><stop offset="1" stop-color="#ff8fb8"/></linearGradient>
     <radialGradient id="evl-paques-eg" cx=".36" cy=".3" r=".85"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#5a3d6e" stop-opacity=".22"/></radialGradient>
-    <radialGradient id="evl-paques-aura"><stop offset="0" stop-color="#ffb3d1" stop-opacity=".38"/><stop offset="1" stop-color="#ffb3d1" stop-opacity="0"/></radialGradient>
+    <radialGradient id="evl-paques-aura"><stop offset="0" stop-color="#ffb3d1" stop-opacity=".4"/><stop offset=".6" stop-color="#c9aaff" stop-opacity=".12"/><stop offset="1" stop-color="#ffb3d1" stop-opacity="0"/></radialGradient>
+    <linearGradient id="evl-paques-ring" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff9cc6"/><stop offset=".3" stop-color="#ffd36b"/><stop offset=".55" stop-color="#8fe0b0"/><stop offset=".8" stop-color="#8fc4ff"/><stop offset="1" stop-color="#c3a6ff"/></linearGradient>
+    <radialGradient id="evl-paques-gold" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#fffbe2"/><stop offset=".45" stop-color="#ffd84a"/><stop offset="1" stop-color="#c98a14"/></radialGradient>
+    <radialGradient id="evl-paques-gglow"><stop offset=".25" stop-color="#ffe07a" stop-opacity=".75"/><stop offset="1" stop-color="#ffd36b" stop-opacity="0"/></radialGradient>
+    <radialGradient id="evl-paques-bglow"><stop offset=".35" stop-color="#fff2b8" stop-opacity=".6"/><stop offset="1" stop-color="#ffd36b" stop-opacity="0"/></radialGradient>
+    <radialGradient id="evl-paques-bell" cx=".36" cy=".3" r=".85"><stop offset="0" stop-color="#fff6c8"/><stop offset=".4" stop-color="#f4cf5a"/><stop offset="1" stop-color="#a8700e"/></radialGradient>
     <clipPath id="evl-paques-ec"><path d="${EVL_EGG}"/></clipPath></defs>
     <circle class="evl-glow" cx="51" cy="50" r="36" fill="url(#evl-paques-aura)"/>
-    <g class="evl-fine">${evlFlower(17, 29, 2.6, '#ffb3d1')}${evlFlower(87, 26, 2.2, '#ffd36b')}${evlFlower(86, 80, 1.8, '#b3d8ff')}</g>
-    <g transform="rotate(-20 50 52)">${evlArc(false, 'stroke="#c9b3e6"')}${evlEgg(27.7, 41.5, .74, '#ff8f80', '#ffe1dc', 1)}${evlEgg(72.3, 41.5, .74, '#6fd796', '#e3fbe9', 2)}</g>
+    <circle class="evl-glow" cx="80.4" cy="22.6" r="13" fill="url(#evl-paques-bglow)"/>
+    <g class="evl-fine"><g fill="#fff" stroke="#9b8cc4" stroke-width=".4"><ellipse cx="73.2" cy="18.8" rx="4.6" ry="1.5" transform="rotate(-24 73.2 18.8)"/><ellipse cx="72.6" cy="21.6" rx="4.8" ry="1.4" transform="rotate(-6 72.6 21.6)"/><ellipse cx="73.4" cy="24" rx="3.6" ry="1.2" transform="rotate(12 73.4 24)"/>
+      <ellipse cx="87.6" cy="18.8" rx="4.6" ry="1.5" transform="rotate(24 87.6 18.8)"/><ellipse cx="88.2" cy="21.6" rx="4.8" ry="1.4" transform="rotate(6 88.2 21.6)"/><ellipse cx="87.4" cy="24" rx="3.6" ry="1.2" transform="rotate(-12 87.4 24)"/></g>
+      <circle cx="80.4" cy="28.2" r="1.1" fill="#c98a14"/>
+      <path d="M80.4 15.6C77.8 15.6 76.8 17.8 76.6 20.4C76.4 23 76 24.8 74.6 26Q80.4 27.8 86.2 26C84.8 24.8 84.4 23 84.2 20.4C84 17.8 83 15.6 80.4 15.6Z" fill="url(#evl-paques-bell)" stroke="#8a5a05" stroke-width=".45" stroke-linejoin="round"/>
+      <path d="M74.6 26Q80.4 27.8 86.2 26" fill="none" stroke="#fff1b0" stroke-width=".6"/><path d="M78 18.2Q77.4 20.6 77.4 23" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round" opacity=".7"/>
+      <path d="M80.4 15.4C78.6 13.4 76.6 13.6 77 15C77.3 16 79.2 15.9 80.4 15.4ZM80.4 15.4C82.2 13.4 84.2 13.6 83.8 15C83.5 16 81.6 15.9 80.4 15.4Z" fill="#ff8fbd" stroke="#c2457e" stroke-width=".35"/><circle cx="80.4" cy="15.4" r=".65" fill="#ff6fae"/></g>
+    <g class="evl-fine"><g transform="rotate(-18 20.6 21.4)" stroke="#2f5fa8" stroke-width=".35"><ellipse cx="18" cy="19.6" rx="2.6" ry="1.9" fill="#8fc4ff"/><ellipse cx="23.2" cy="19.6" rx="2.6" ry="1.9" fill="#8fc4ff"/><ellipse cx="18.8" cy="22.6" rx="1.7" ry="1.3" fill="#c3a6ff"/><ellipse cx="22.4" cy="22.6" rx="1.7" ry="1.3" fill="#c3a6ff"/>
+      <ellipse cx="20.6" cy="21" rx=".55" ry="2.4" fill="#4a3650" stroke="none"/><path d="M20.3 18.8Q19.4 17 18.4 16.6M20.9 18.8Q21.8 17 22.8 16.6" fill="none" stroke="#4a3650"/></g>
+      ${evlFlower(13.6, 38, 2.4, '#ffb3d1')}${evlFlower(31, 85, 2, '#ffd36b')}${evlFlower(86, 80, 1.8, '#b3d8ff')}${evlFlower(68, 90, 1.5, '#c9adff')}</g>
+    <g transform="rotate(-20 50 52)">${evlArc(false, 'stroke="url(#evl-paques-ring)" stroke-opacity=".75"')}${evlEgg(27.7, 41.5, .74, '#ff8f80', '#ffe1dc', 1)}${evlEgg(72.3, 41.5, .74, '#6fd796', '#e3fbe9', 2)}</g>
     ${evlCard('paques', { fo: '.75', face: `<g class="evl-fine"><g fill="#fff" fill-opacity=".55">${[0, 45, 90, 135, 180, 225, 270, 315].map(a => `<ellipse cx="51" cy="43.4" rx="1.5" ry="3.2" transform="rotate(${a} 51 47.6)"/>`).join('')}</g><circle cx="51" cy="47.6" r="1.9" fill="#ffd36b"/></g>`, under: `
       <g stroke="currentColor" stroke-opacity=".16" stroke-width=".6"><ellipse cx="44.6" cy="17.5" rx="3.9" ry="10.5" transform="rotate(-14 44.6 17.5)" fill="url(#evl-paques-ear)"/><ellipse cx="57.6" cy="17" rx="3.9" ry="10.5" transform="rotate(16 57.6 17)" fill="url(#evl-paques-ear)"/></g>
-      <ellipse cx="44.6" cy="18.2" rx="1.8" ry="7.6" transform="rotate(-14 44.6 18.2)" fill="#ffb3d1"/><ellipse cx="57.6" cy="17.7" rx="1.8" ry="7.6" transform="rotate(16 57.6 17.7)" fill="#ffb3d1"/>` })}
-    <g transform="rotate(-20 50 52)">${evlArc(true, 'stroke="#c9b3e6"')}${evlEgg(86.1, 56, .96, '#78b4ff', '#e4f0ff', 3)}${evlEgg(50, 65, .96, '#ffd75e', '#fff8dc', 1)}${evlEgg(13.9, 56, .96, '#a98ef0', '#efe8ff', 2)}</g>`,
+      <ellipse cx="44.6" cy="18.2" rx="1.8" ry="7.6" transform="rotate(-14 44.6 18.2)" fill="url(#evl-paques-in)"/><ellipse cx="57.6" cy="17.7" rx="1.8" ry="7.6" transform="rotate(16 57.6 17.7)" fill="url(#evl-paques-in)"/>
+      <path class="evl-fine" d="M42.6 11.6Q42.8 9 44 7.6" fill="none" stroke="#fff" stroke-width=".8" stroke-linecap="round"/>`, over: `
+      <g class="evl-fine"><path d="M51 28.4C48.6 25.6 45.6 25.6 45.8 27.6C46 29.2 49 29.2 51 28.4ZM51 28.4C53.4 25.6 56.4 25.6 56.2 27.6C56 29.2 53 29.2 51 28.4Z" fill="#ff8fbd" stroke="#c2457e" stroke-width=".4" stroke-linejoin="round"/>
+      <path d="M50.4 28.8L48.8 32L50 31.6L50.6 32.6L51.4 29ZM51.6 28.8L53.2 32L52 31.6L51.4 32.6L50.6 29Z" fill="#e2559a"/><circle cx="51" cy="28.4" r="1" fill="#ff6fae" stroke="#c2457e" stroke-width=".35"/></g>` })}
+    <g transform="rotate(-20 50 52)">${evlArc(true, 'stroke="url(#evl-paques-ring)"')}${evlEgg(86.1, 56, .96, '#78b4ff', '#e4f0ff', 3)}${evlEgg(13.9, 56, .96, '#a98ef0', '#efe8ff', 2)}
+      <circle class="evl-glow" cx="50" cy="65" r="11" fill="url(#evl-paques-gglow)"/>${evlEgg(50, 65, 1.04, 'url(#evl-paques-gold)', '#a8700e', 4)}</g>`,
 
   /* Anniversaire de Magic (5 août) : carte foil dorée, bougie aux rayures des cinq couleurs, orbite dorée, confettis aux cinq couleurs. */
   magic: `<defs>${evlGl('magic')}

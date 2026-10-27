@@ -257,10 +257,19 @@ const EV_PACKS = [
       },
     } },
   { id: 'paques', ready: false, name: 'Pâques', when: y => evAround(evEaster(y)), total: 30, perDay: 5,
-    obj: { one: 'œuf', many: 'œufs', emoji: '🥚', fem: false, art: 'egg' },
+    // Dessins (evart.js, section « Pâques ») : œuf décoré (5 teintes et décors peints selon la cachette), compteur, poussin des messages ; ambiance et
+    // couleurs : css/ev-paques.css. Pas encore ouvert (ready: false) : ni messages Discord ni notifications push tant que la fête n'est pas validée.
+    obj: { one: 'œuf', many: 'œufs', emoji: '🥚', fem: false, art: 'egg', counter: 'eggCounter', msg: 'chick' },
     pal: { a: '#ffb3d1', b: '#8fd6a8', c: '#ffd36b', ink: '#2a1d2e' }, font: 'bloom',
     badge: { t: 'Œufs de Pâques {y}', tiers: [1, 10, 20, 30], names: ['Cueilleur', 'Dénicheur', 'Gardien du nid', 'Lapin d\'or'] },
-    txt: { title: 'La chasse aux œufs est ouverte', short: 'Chasse aux œufs' } },
+    txt: {
+      title: 'La chasse aux œufs est ouverte', short: 'Chasse aux œufs',
+      rules: ['{total} œufs décorés se cachent dans l\'appli jusqu\'au {to}.', '{per} par jour au plus, dans de nouvelles cachettes chaque matin.', 'Touche-les pour les ramasser et gagner les badges de Pâques {y}.'],
+      found: 'Un œuf !', left: ['Encore <b>{n} œuf</b> à dénicher aujourd\'hui', 'Encore <b>{n} œufs</b> à dénicher aujourd\'hui'],
+      dayDone: 'Ton panier du jour est plein, reviens demain', allDone: 'Les {total} œufs sont dans ton panier', allSub: 'Tu es Lapin d\'or {y} : le grade ultime de la chasse aux œufs.',
+      label: 'Un œuf caché : touche-le pour le ramasser', tip: 'Un œuf de Pâques ! Touche-le pour le ramasser : {per} se cachent dans l\'appli chaque jour.',
+      join: 'Crée un compte pour garder tes œufs sur tous tes appareils.', deco: 'Décorations de Pâques',
+    } },
   { id: 'magic', ready: false, name: 'Anniversaire de Magic', when: y => evAround(`${y}-08-05`), total: 30, perDay: 5,
     obj: { one: 'bougie', many: 'bougies', emoji: '🕯️', fem: true, art: 'candle' },
     pal: { a: '#f2c230', b: '#7fb0ff', c: '#ff7a5c', ink: '#12142a' }, font: 'arcane',
