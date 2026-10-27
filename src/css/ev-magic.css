@@ -1,15 +1,47 @@
 /* ── ev-magic.css : pack « magic », anniversaire de Magic : le musée de Magic (dessins : evart.js › section « Anniversaire de Magic ») ──────────────────
    Classes posées par le moteur (event.js) sur <html>, comme pour les autres fêtes : data-event="magic" (fête en cours : animation des reliques), .ev-deco
    (décorations allumées : ambiance, palette, touches dans l'appli), .ev-quiet (scan, échange en direct, compteur de vie : ambiance cachée), .ev-pause
-   (appli en arrière-plan ou ambiance hors écran : animations en pause).
-   Étape 1 : couleurs des éléments du moteur et animations des dessins (relique sous cloche, compteur, conservateur, reliques du musée, salle, ruban coupé,
-   gâteau du jour J). Ambiance de l'accueil (galerie de musée la nuit), couche du dessus (confettis, serpentins) et touches dans l'appli : étape 2.
-   Coût : transform et opacity seulement, aucun filtre animé ; 2 éléments animés par relique cachée (étiquette, reflet). « Réduire les animations » : tout est
-   fixe et visible. Rien ne capte les touchers.
-   Palette du pack (evpacks.js › pal : or #f2c230, bleu #7fb0ff, corail #ff7a5c, encre #12142a). */
+   (appli en arrière-plan ou ambiance hors écran : animations en pause), data-evphase="bday" (jour J, le 5 août : guirlande et ballons en plus).
+   Ambiance : <div class="ev-amb" aria-hidden="true"> après #app : complète sur l'accueil (galerie du musée la nuit : lueurs dorée et bleue, deux faisceaux
+   de projecteurs qui balaient, poussière d'or qui monte dans la lumière, deux cadres dorés vides au mur, deux fûts de colonnes estompés dans les coins du bas),
+   une seule lueur dorée ailleurs ; devant le contenu de l'accueil (.ev-amb-top) : confettis, serpentin et petites cartes qui virevoltent ; cordon de musée
+   (poteaux dorés, velours rouge) dans le coin des en-têtes d'écran, étiquette d'inventaire « 33 » accrochée au bord des feuilles.
+   Bandeau de pub (html.ad-on, css/ads.css) : l'ambiance (event.css) et la couche du dessus descendent de --ad-sp ; rien n'est posé dans la bande du bandeau.
+   Coût : transform et opacity seulement, aucun filtre animé ; 10 éléments animés dans l'ambiance (2 lueurs, 2 faisceaux, 6 grains de poussière ; 12 le jour J
+   avec les 2 ballons), 12 dans la couche du dessus (3 confettis × 2, serpentin × 2, 2 cartes × 2), 2 par relique cachée (étiquette, reflet).
+   « Réduire les animations » : décor fixe et visible, rien ne tombe ni ne vole. Rien ne capte les touchers.
+   Palette du pack (evpacks.js › pal : or #f2c230, bleu #7fb0ff, corail #ff7a5c, encre #12142a) ; texte et chiffres : or plus soutenu en clair (contraste). */
 
-/* ── Couleurs de la fête (moteur : event.css) ── */
-html[data-event="magic"]{--ev-a:#f2c230;--ev-b:#7fb0ff;--ev-c:#ff7a5c;--ev-ink:#12142a;--ev-glow:rgba(242,194,48,.7)}
+/* ── Couleurs de la fête (moteur : event.css) et palette par thème (clair par défaut ; sombre : prefers-color-scheme et data-theme, comme style.css) ── */
+html[data-event="magic"]{--ev-a:#b9800f;--ev-b:#3f7fe0;--ev-c:#e2553e;--ev-ink:#12142a;--ev-glow:rgba(242,194,48,.7)}
+html[data-event="magic"][data-theme="dark"]{--ev-a:#f2c230;--ev-b:#7fb0ff;--ev-c:#ff7a5c}
+@media (prefers-color-scheme:dark){html[data-event="magic"]:not([data-theme="light"]){--ev-a:#f2c230;--ev-b:#7fb0ff;--ev-c:#ff7a5c}}
+html.ev-deco[data-event="magic"]{
+  --bg:#f7f4ee; --bar-bg:rgba(247,244,238,.84);
+  --evm-mw:242,186,40; --evm-mu:84,136,236; --evm-mb:116,88,196; --evm-mr:255,112,84; --evm-mg:64,184,124; --evm-ao:.75;
+  --evm-sky:rgba(242,194,48,.13); --evm-sky2:rgba(127,176,255,.11);
+  --evm-g:rgba(242,194,48,.24); --evm-b:rgba(127,176,255,.2); --evm-o:rgba(242,194,48,.2);
+  --evm-beam:rgba(242,186,40,.2); --evm-frame:.55; --evm-col:.38; --evm-dust:.75; --evm-dustc:#d99a14; --evm-bal:.95;
+  --evm-line:.8; --evm-tab:rgba(242,194,48,.2); --evm-tab-ink:#9a6a0c; --evm-pto:.95; --evm-head:.9;
+}
+html.ev-deco[data-event="magic"][data-theme="dark"]{
+  --bg:#0e0e1c; --bar-bg:rgba(14,14,28,.82);
+  --evm-mw:255,206,72; --evm-mu:110,150,255; --evm-mb:150,110,255; --evm-mr:255,122,92; --evm-mg:80,210,150; --evm-ao:1;
+  --evm-sky:rgba(242,194,48,.1); --evm-sky2:rgba(70,80,190,.16);
+  --evm-g:rgba(242,194,48,.17); --evm-b:rgba(90,120,255,.17); --evm-o:rgba(242,194,48,.13);
+  --evm-beam:rgba(255,236,180,.13); --evm-frame:.6; --evm-col:.2; --evm-dust:.95; --evm-dustc:#ffe58a; --evm-bal:.9;
+  --evm-line:.85; --evm-tab:rgba(242,194,48,.17); --evm-tab-ink:#ffd86a; --evm-pto:.85; --evm-head:.85;
+}
+@media (prefers-color-scheme:dark){
+  html.ev-deco[data-event="magic"]:not([data-theme="light"]){
+    --bg:#0e0e1c; --bar-bg:rgba(14,14,28,.82);
+    --evm-mw:255,206,72; --evm-mu:110,150,255; --evm-mb:150,110,255; --evm-mr:255,122,92; --evm-mg:80,210,150; --evm-ao:1;
+    --evm-sky:rgba(242,194,48,.1); --evm-sky2:rgba(70,80,190,.16);
+    --evm-g:rgba(242,194,48,.17); --evm-b:rgba(90,120,255,.17); --evm-o:rgba(242,194,48,.13);
+    --evm-beam:rgba(255,236,180,.13); --evm-frame:.6; --evm-col:.2; --evm-dust:.95; --evm-dustc:#ffe58a; --evm-bal:.9;
+    --evm-line:.85; --evm-tab:rgba(242,194,48,.17); --evm-tab-ink:#ffd86a; --evm-pto:.85; --evm-head:.85;
+  }
+}
 
 /* ── Dessins (EV_ART) : l'étiquette d'inventaire se balance au bout de son fil, un reflet passe sur la cloche de verre ; version allumée : halo qui respire,
    rayons qui tournent, étincelles. Le flottement de l'objet caché est au moteur (.ev-pk). ── */
@@ -56,10 +88,152 @@ html[data-event="magic"] .evo-ribbon-cut .evo-rib-r{transform-origin:60.4px 10.8
 @keyframes evmSnipB{0%,60%,100%{transform:none}75%{transform:rotate(-11deg)}}
 @keyframes evmRibL{from{transform:rotate(-2deg)}to{transform:rotate(3deg)}}
 @keyframes evmRibR{from{transform:rotate(2deg)}to{transform:rotate(-3deg)}}
+/* reliques des salles 2 à 5 : étincelle qui tourbillonne dans sa fiole, pierre-lien et cristal qui flottent, filigrane qui tourne, étendard qui ondule,
+   écran cathodique qui palpite, pochette du classeur qui attend la prochaine carte */
+html[data-event="magic"] .evo-ra-spark .evo-spark-in{transform-origin:32px 35.2px;animation:evmSpin 9s linear infinite}
+html[data-event="magic"] .evo-relic-art .evo-float{animation:evmFloat 3.6s ease-in-out infinite alternate}
+html[data-event="magic"] .evo-ra-invention .evo-spin{animation:evmSpin 40s linear infinite}
+html[data-event="magic"] .evo-ra-banner .evo-cloth{transform-origin:34px 10px;animation:evmCloth 3s ease-in-out infinite alternate}
+html[data-event="magic"] .evo-ra-crt .evo-screen{animation:evmBreath 1.8s ease-in-out infinite alternate}
+html[data-event="magic"] .evo-ra-binder .evo-next{animation:evmBreath 1.4s ease-in-out infinite alternate}
+html[data-event="magic"] .evo-still :is(.evo-spark-in,.evo-float,.evo-spin,.evo-cloth,.evo-screen,.evo-next){animation:none}
+@keyframes evmFloat{from{transform:translateY(1.2px)}to{transform:translateY(-1.6px)}}
+@keyframes evmCloth{from{transform:skewY(-1.5deg) scaleX(1)}to{transform:skewY(1.5deg) scaleX(.97)}}
+
+/* ── Habillage des éléments du moteur (event.css : couleurs d'Halloween par défaut) : envol, compteur, message, célébration, message d'arrivée, badge ultime.
+   Compteur et message : ivoire de musée et or (texte encre, lisible dans les deux thèmes) ; célébration et arrivée : salle du musée la nuit, confettis d'or. ── */
+html[data-event="magic"] .ev-fx::before{background:radial-gradient(circle at 50% 42%,rgba(255,243,196,.5),rgba(242,194,48,.3) 38%,transparent 70%)}
+html[data-event="magic"] .ev-spk{background:radial-gradient(circle,#fffbe6,#f2c230 45%,rgba(242,194,48,0) 70%)}
+html[data-event="magic"] .ev-spk.b{background:radial-gradient(circle,#fff,#7fb0ff 50%,rgba(127,176,255,0) 72%)}
+html[data-event="magic"] .ev-fx .ev-ring{background:radial-gradient(circle,transparent 46%,rgba(242,194,48,.8) 58%,rgba(127,176,255,.45) 65%,rgba(255,122,92,.3) 70%,transparent 74%)}
+html[data-event="magic"] .ev-fxp{filter:drop-shadow(0 0 6px rgba(255,229,138,.7))}
+html[data-event="magic"] .ev-cnt{background:linear-gradient(135deg,#fffdf6,#f6ebcf);color:#2a1d06;border-color:rgba(185,128,15,.45);box-shadow:0 10px 30px -10px rgba(60,40,10,.45),0 0 0 4px rgba(242,194,48,.18)}
+html[data-event="magic"] .ev-msg{background:linear-gradient(140deg,rgba(255,253,246,.98),rgba(246,235,207,.98));color:#22180a;border-color:rgba(185,128,15,.4);box-shadow:0 16px 40px -14px rgba(40,30,10,.5)}
+html[data-event="magic"] .ev-msg-ic{width:32px;height:32px}
+html[data-event="magic"] .ev-msg-t b{color:#9a6a0c}
+html[data-event="magic"] .ev-msg-t span b{color:#12142a}
+html[data-event="magic"] .ev-msg-t small{color:#6e5a34}
+html[data-event="magic"] .ev-party{background:radial-gradient(120% 90% at 50% 30%,#3a3478,#0c0b1c 72%)}
+html[data-event="magic"] .ev-party-bg i{top:-20px;bottom:auto;width:8px;height:5px;border-radius:1px;background:#f2c230;animation-name:evmConfDown;animation-duration:5.8s}
+html[data-event="magic"] .ev-party-bg i:nth-child(3n){background:#7fb0ff}
+html[data-event="magic"] .ev-party-bg i:nth-child(4n){background:#ff7a5c}
+html[data-event="magic"] .ev-party-bg i:nth-child(5n){background:radial-gradient(circle,#fffbe6,#f2c230 50%,transparent 72%);width:9px;height:9px}
+@keyframes evmConfDown{0%{transform:translateY(0) rotate(0deg) scale(var(--s));opacity:0}12%{opacity:1}100%{transform:translate(18px,105vh) rotate(540deg) scale(var(--s));opacity:0}}
+html[data-event="magic"] .ev-party-obj .evo{filter:drop-shadow(0 0 30px rgba(242,194,48,.55))}
+html[data-event="magic"] :is(.ev-party-k,.ev-in-k){color:#ffd86a}
+html[data-event="magic"] :is(.ev-party h2,.ev-in-card h2){background-image:linear-gradient(100deg,#fff3c4,#f2c230 42%,#ffb3a0 70%,#bfe2ff)}
+html[data-event="magic"] .ev-party p{color:#ece8ff}
+html[data-event="magic"] .ev-in-bg{background:radial-gradient(110% 80% at 50% 20%,rgba(58,52,120,.94),rgba(10,10,24,.97) 70%)}
+html[data-event="magic"] .ev-in-card{background:linear-gradient(160deg,rgba(44,42,90,.97),rgba(14,14,28,.98));color:#f6f2ff;border-color:rgba(242,194,48,.45);box-shadow:0 30px 60px -20px rgba(0,0,0,.6),0 0 0 6px rgba(242,194,48,.08)}
+html[data-event="magic"] .ev-in-rules li::before{background:linear-gradient(135deg,#ffe58a,#c48a1a);color:#2a1d06}
+html[data-event="magic"] .ev-intro .btn.ev-in-go{background:linear-gradient(135deg,#ffe58a,#f2c230);color:#2a1d06}
+html[data-event="magic"] .evb.ult::before{background:conic-gradient(from 0deg,#f2c230,#fff3c4,#7fb0ff,#b98aff,#ff7a5c,#6ff0a0,#f2c230)}
+html[data-event="magic"] .evb.ult::after{background:radial-gradient(circle,rgba(242,194,48,.5),rgba(127,176,255,.3) 45%,transparent 68%)}
+html[data-event="magic"] .evb.ult{--embers:radial-gradient(circle at 20% 80%,#fff 0 1.4px,transparent 2px),radial-gradient(circle at 78% 70%,#f2c230 0 1.2px,transparent 2px),radial-gradient(circle at 55% 92%,#7fb0ff 0 1.5px,transparent 2.2px)}
+html[data-event="magic"] .evb.ult img{filter:drop-shadow(0 0 6px rgba(242,194,48,.6))}
+
+/* ── Ambiance : cachée sans décorations et sur les écrans calmes ── */
+html[data-event="magic"] .ev-amb{display:none}
+html.ev-deco[data-event="magic"]:not(.ev-quiet) .ev-amb{display:block;position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;contain:strict;
+  background:radial-gradient(130% 55% at 50% -8%,var(--evm-sky),transparent 62%),linear-gradient(to top,var(--evm-sky2),transparent 42%)}
+html[data-event="magic"] .ev-amb *{pointer-events:none}
+html[data-event="magic"] .ev-amb i,html[data-event="magic"] .ev-amb span{position:absolute;display:block}
+html[data-event="magic"] .ev-amb svg{display:block;width:100%;height:100%;overflow:visible}
+/* ailleurs que l'accueil : la seule lueur dorée du haut, rien d'animé ; jour J seulement : guirlande et ballons */
+html[data-event="magic"] .ev-amb :is(.evm-g1,.evm-g2,.evm-beam,.evm-frame,.evm-col,.evm-dust,.evm-bunt,.evm-bal){display:none}
+html[data-event="magic"] #app[data-view="home"] ~ .ev-amb :is(.evm-g1,.evm-g2,.evm-beam,.evm-frame,.evm-col,.evm-dust){display:block}
+html[data-evphase="bday"][data-event="magic"] #app[data-view="home"] ~ .ev-amb :is(.evm-bunt,.evm-bal){display:block}
+
+/* palette du musée par-dessus la roue de mana (.hm-aura) : or en haut, bleu à droite, violet et corail en bas, vert à gauche */
+html.ev-deco[data-event="magic"] .hm-aura{--mana-w:var(--evm-mw);--mana-u:var(--evm-mu);--mana-b:var(--evm-mb);--mana-r:var(--evm-mr);--mana-g:var(--evm-mg);--aura-o:var(--evm-ao)}
+
+/* lueurs (dégradés, aucun flou) : or en bas à gauche et bleu à droite respirent ; or du haut, fixe (la seule ailleurs que l'accueil) */
+html[data-event="magic"] .ev-amb .evm-glow{border-radius:50%}
+html[data-event="magic"] .ev-amb .evm-g1{width:560px;height:560px;left:-230px;bottom:-200px;background:radial-gradient(closest-side,var(--evm-g),transparent);animation:evmBreath 10s ease-in-out infinite alternate}
+html[data-event="magic"] .ev-amb .evm-g2{width:460px;height:460px;right:-250px;top:40%;background:radial-gradient(closest-side,var(--evm-b),transparent);animation:evmBreath 13s ease-in-out -5s infinite alternate}
+html[data-event="magic"] .ev-amb .evm-g3{width:720px;height:420px;left:50%;top:-230px;margin-left:-360px;background:radial-gradient(closest-side,var(--evm-o),transparent)}
+/* faisceaux des projecteurs : du plafond (sous l'en-tête), en cône, ils balaient lentement la galerie */
+html[data-event="magic"] .ev-amb .evm-beam{top:calc(var(--top-in,0px) + var(--hd-h,63px));width:150px;height:72vh;margin-left:-75px;transform-origin:50% 0;
+  background:linear-gradient(to bottom,var(--evm-beam),transparent 92%);clip-path:polygon(44% 0,56% 0,100% 100%,0 100%)}
+html[data-event="magic"] .ev-amb .evm-bm1{left:22%;animation:evmSweep1 17s ease-in-out infinite alternate}
+html[data-event="magic"] .ev-amb .evm-bm2{left:80%;width:120px;margin-left:-60px;height:60vh;animation:evmSweep2 21s ease-in-out -7s infinite alternate}
+@keyframes evmSweep1{from{transform:rotate(-12deg)}to{transform:rotate(9deg)}}
+@keyframes evmSweep2{from{transform:rotate(11deg)}to{transform:rotate(-8deg)}}
+/* cadres dorés vides au mur (fixes) ; fûts de colonnes estompés dans les coins du bas (fixes) */
+html[data-event="magic"] .ev-amb .evm-frame{opacity:var(--evm-frame)}
+html[data-event="magic"] .ev-amb .evm-fr1{left:3%;top:calc(var(--top-in,0px) + var(--hd-h,63px) + 74px);width:44px;height:57px;transform:rotate(-3deg)}
+html[data-event="magic"] .ev-amb .evm-fr2{right:4%;top:56%;width:38px;height:49px;transform:rotate(2deg)}
+html[data-event="magic"] .ev-amb .evm-col{bottom:calc(var(--nav-h,64px) + env(safe-area-inset-bottom,0px));width:44px;height:176px;opacity:var(--evm-col)}
+html[data-event="magic"] .ev-amb .evm-cl1{left:-14px}
+html[data-event="magic"] .ev-amb .evm-cl2{right:-14px}
+html[data-event="magic"] body.nav-on > .ev-amb .evm-fr1{left:calc(var(--side-w,0px) + 3%)}      /* ordinateur : à droite de la barre latérale */
+html[data-event="magic"] body.nav-on > .ev-amb .evm-cl1{left:calc(var(--side-w,0px) - 14px)}
+/* poussière d'or : six grains qui montent dans la lumière, s'allument puis s'éteignent */
+html[data-event="magic"] .ev-amb .evm-dust{width:5px;height:5px;border-radius:50%;background:radial-gradient(circle,#fff 0 18%,var(--evm-dustc) 40%,transparent 72%);opacity:0;animation:evmDust var(--d,11s) ease-in-out var(--dl,0s) infinite}
+html[data-event="magic"] .ev-amb .evm-d1{left:18%;bottom:34%;--d:12s;--dl:-2s}
+html[data-event="magic"] .ev-amb .evm-d2{left:27%;bottom:52%;width:4px;height:4px;--d:10s;--dl:-6s}
+html[data-event="magic"] .ev-amb .evm-d3{left:74%;bottom:42%;width:6px;height:6px;--d:13s;--dl:-1s}
+html[data-event="magic"] .ev-amb .evm-d4{left:84%;bottom:24%;--d:11s;--dl:-8s}
+html[data-event="magic"] .ev-amb .evm-d5{left:12%;bottom:14%;width:4px;height:4px;--d:14s;--dl:-4s}
+html[data-event="magic"] .ev-amb .evm-d6{left:63%;bottom:64%;width:4px;height:4px;--d:9s;--dl:-3s}
+@keyframes evmDust{0%{transform:translate(0,0) scale(.6);opacity:0}25%{opacity:var(--evm-dust)}60%{transform:translate(8px,-70px) scale(1);opacity:calc(var(--evm-dust) * .8)}100%{transform:translate(-6px,-150px) scale(.7);opacity:0}}
+/* jour J : guirlande de fanions du mana sous l'en-tête (fixe), deux ballons qui flottent sur les côtés */
+html[data-event="magic"] .ev-amb .evm-bunt{left:0;right:0;top:calc(var(--top-in,0px) + var(--hd-h,63px));height:24px;opacity:.9}
+html[data-event="magic"] .ev-amb .evm-bal{width:30px;height:70px;opacity:var(--evm-bal);transform-origin:50% 100%;animation:evmBalloon 6s ease-in-out infinite alternate}
+html[data-event="magic"] .ev-amb .evm-bl1{left:3%;top:34%}
+html[data-event="magic"] .ev-amb .evm-bl2{right:2%;top:calc(var(--top-in,0px) + var(--hd-h,63px) + 236px);width:26px;height:61px;animation-duration:7.4s;animation-delay:-3s}
+@keyframes evmBalloon{from{transform:translateY(6px) rotate(-4deg)}to{transform:translateY(-8px) rotate(4deg)}}
+
+/* ── Confettis, serpentin et cartes sur l'accueil (EV_AMB_TOP, couche du dessus) : seulement l'accueil à l'écran, rien sous une feuille ni un écran plein ── */
+html[data-event="magic"] .ev-amb-top{display:none}
+html.ev-deco[data-event="magic"]:not(.ev-quiet):not(.ev-pause) #app[data-view="home"] ~ .ev-amb-top{display:block;position:fixed;inset:0;z-index:30;pointer-events:none;overflow:hidden;contain:strict}
+html.ad-on.ev-deco[data-event="magic"]:not(.ev-quiet):not(.ev-pause) #app[data-view="home"] ~ .ev-amb-top{top:var(--ad-sp)}      /* bandeau de pub : la couche descend sous sa bande (rien n'y tombe) */
+html[data-event="magic"] .ev-amb-top *{pointer-events:none}
+html[data-event="magic"] .ev-amb-top svg{display:block;width:100%;height:100%;overflow:visible}
+html[data-event="magic"] :is(.evm-cf,.evm-ser,.evm-card){position:absolute;top:calc(var(--top-in,0px) + var(--hd-h,63px));left:var(--x);width:var(--w);height:var(--h,var(--w));opacity:0;
+  animation:evmFall var(--d) linear var(--dl) infinite;will-change:transform,opacity}
+html[data-event="magic"] :is(.evm-cf-s,.evm-ser-s,.evm-card-s){display:block;width:100%;height:100%}
+html[data-event="magic"] .evm-cf-s{animation:evmFlutter var(--sw) ease-in-out infinite alternate}
+html[data-event="magic"] .evm-c1{--x:12%;--w:12px;--d:19s;--dl:-3s;--sw:1.4s}
+html[data-event="magic"] .evm-c2{--x:48%;--w:10px;--d:23s;--dl:-13s;--sw:1.8s}
+html[data-event="magic"] .evm-c3{--x:88%;--w:12px;--d:21s;--dl:-8s;--sw:1.2s}
+html[data-event="magic"] .evm-ser{--x:66%;--w:9px;--h:27px;--d:27s;--dl:-18s}
+html[data-event="magic"] .evm-ser-s{transform-origin:50% 0;animation:evmSerp 2.4s ease-in-out infinite alternate}
+html[data-event="magic"] .evm-card{--x:30%;--w:16px;--h:22px;--d:31s;--dl:-6s}
+html[data-event="magic"] .evm-k2{--x:76%;--w:14px;--h:19px;--d:37s;--dl:-22s}
+html[data-event="magic"] .evm-card-s{animation:evmTwirl 3.2s linear infinite}
+html[data-event="magic"] .evm-k2 .evm-card-s{animation-duration:4.1s;animation-direction:reverse}
+html[data-event="magic"] .ev-amb-top .evo{filter:drop-shadow(0 1px 1.5px rgba(40,30,10,.22))}
+@keyframes evmFall{0%{transform:translate3d(0,0,0);opacity:0}6%{opacity:var(--evm-pto,1)}88%{opacity:var(--evm-pto,1)}100%{transform:translate3d(-30px,calc(100vh + 60px),0);opacity:0}}
+@keyframes evmFlutter{0%{transform:translateX(-10px) rotate(-50deg) scaleX(1)}50%{transform:translateX(4px) rotate(20deg) scaleX(.35)}100%{transform:translateX(12px) rotate(80deg) scaleX(.9)}}
+@keyframes evmSerp{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+@keyframes evmTwirl{0%{transform:rotate(0deg) scaleX(1)}25%{transform:rotate(60deg) scaleX(.2)}50%{transform:rotate(120deg) scaleX(-1)}75%{transform:rotate(200deg) scaleX(.2)}100%{transform:rotate(360deg) scaleX(1)}}
+
+/* ── Touches dans l'appli (décorations allumées) : filet d'or, de bleu et de corail sous les en-têtes, onglet actif de la barre du bas.
+   Jamais les couleurs qui ont un sens à elles seules (vert = gain…) sur du texte, jamais sur les écrans calmes. ── */
+html.ev-deco[data-event="magic"]:not(.ev-quiet) .bar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1.5px;pointer-events:none;opacity:var(--evm-line);
+  background:linear-gradient(90deg,transparent,#7fb0ff 16%,#f2c230 38%,#fff3c4 50%,#f2c230 62%,#ff7a5c 84%,transparent)}
+html.ev-deco[data-event="magic"] .nav-b[aria-current="page"] .nav-i{background:var(--evm-tab);color:var(--evm-tab-ink)}
+@media (min-width:1100px) and (hover:hover) and (pointer:fine){      /* ordinateur (zz-desktop.css) : la ligne entière de la barre latérale */
+  html.ev-deco[data-event="magic"] .nav-b[aria-current="page"]{background:var(--evm-tab)}
+  html.ev-deco[data-event="magic"] .nav-b[aria-current="page"] .nav-i{background:none}
+}
+/* en-têtes d'écran : cordon de musée (trois poteaux dorés, velours rouge) en bas à droite ; derrière les boutons (z-index 0), jamais sur le texte.
+   Feuilles : étiquette d'inventaire « 33 » accrochée en haut à gauche (loin de la poignée et du titre). */
+html[data-event="magic"]{--evm-headi:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20116%2026%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22a%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%220%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23b9800f%22%2F%3E%3Cstop%20offset%3D%22.4%22%20stop-color%3D%22%23fffbe6%22%2F%3E%3Cstop%20offset%3D%22.65%22%20stop-color%3D%22%23f2c230%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%236e4705%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M33%209Q52%2019%2071%209%22%20fill%3D%22none%22%20stroke%3D%22%235e0b14%22%20stroke-width%3D%222.6%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M33%209Q52%2019%2071%209%22%20fill%3D%22none%22%20stroke%3D%22%23d0303c%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M36%2011Q52%2017.4%2068%2011%22%20fill%3D%22none%22%20stroke%3D%22%23ff9d92%22%20stroke-width%3D%22.5%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.8%22%2F%3E%3Cpath%20d%3D%22M73%209Q91%2019%20109%209%22%20fill%3D%22none%22%20stroke%3D%22%235e0b14%22%20stroke-width%3D%222.6%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M73%209Q91%2019%20109%209%22%20fill%3D%22none%22%20stroke%3D%22%23d0303c%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M76%2011Q91%2017.4%20106%2011%22%20fill%3D%22none%22%20stroke%3D%22%23ff9d92%22%20stroke-width%3D%22.5%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.8%22%2F%3E%3Crect%20x%3D%2231%22%20y%3D%227%22%20width%3D%222%22%20height%3D%2216%22%20rx%3D%22.5%22%20fill%3D%22url(%23a)%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.4%22%2F%3E%3Cpath%20d%3D%22M28%2025.6Q32%2022%2036%2025.6Z%22%20fill%3D%22url(%23a)%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.4%22%2F%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%226%22%20r%3D%222.2%22%20fill%3D%22url(%23a)%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.4%22%2F%3E%3Ccircle%20cx%3D%2231.3%22%20cy%3D%225.3%22%20r%3D%22.6%22%20fill%3D%22%23fff%22%2F%3E%3Crect%20x%3D%2271%22%20y%3D%227%22%20width%3D%222%22%20height%3D%2216%22%20rx%3D%22.5%22%20fill%3D%22url(%23a)%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.4%22%2F%3E%3Cpath%20d%3D%22M68%2025.6Q72%2022%2076%2025.6Z%22%20fill%3D%22url(%23a)%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.4%22%2F%3E%3Ccircle%20cx%3D%2272%22%20cy%3D%226%22%20r%3D%222.2%22%20fill%3D%22url(%23a)%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.4%22%2F%3E%3Ccircle%20cx%3D%2271.3%22%20cy%3D%225.3%22%20r%3D%22.6%22%20fill%3D%22%23fff%22%2F%3E%3Crect%20x%3D%22109%22%20y%3D%227%22%20width%3D%222%22%20height%3D%2216%22%20rx%3D%22.5%22%20fill%3D%22url(%23a)%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.4%22%2F%3E%3Cpath%20d%3D%22M106%2025.6Q110%2022%20114%2025.6Z%22%20fill%3D%22url(%23a)%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.4%22%2F%3E%3Ccircle%20cx%3D%22110%22%20cy%3D%226%22%20r%3D%222.2%22%20fill%3D%22url(%23a)%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.4%22%2F%3E%3Ccircle%20cx%3D%22109.3%22%20cy%3D%225.3%22%20r%3D%22.6%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E");--evm-sheeti:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2044%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22t%22%20x1%3D%226%22%20y1%3D%2214%22%20x2%3D%2226%22%20y2%3D%2242%22%20gradientUnits%3D%22userSpaceOnUse%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23b9800f%22%2F%3E%3Cstop%20offset%3D%22.24%22%20stop-color%3D%22%23ffe58a%22%2F%3E%3Cstop%20offset%3D%22.4%22%20stop-color%3D%22%23fffbe6%22%2F%3E%3Cstop%20offset%3D%22.58%22%20stop-color%3D%22%23f2c230%22%2F%3E%3Cstop%20offset%3D%22.84%22%20stop-color%3D%22%23b9800f%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f2c230%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M16%201C12%201%2011%206%2016%2013%22%20fill%3D%22none%22%20stroke%3D%22%23b3202c%22%20stroke-width%3D%221%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%221.6%22%20r%3D%221.4%22%20fill%3D%22%23f2c230%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.4%22%2F%3E%3Cg%20transform%3D%22rotate(-8%2016%2014)%22%3E%3Cpath%20d%3D%22M8.4%2018L16%2012L23.6%2018V39.6Q23.6%2041.4%2021.8%2041.4H10.2Q8.4%2041.4%208.4%2039.6Z%22%20fill%3D%22url(%23t)%22%20stroke%3D%22%236e4705%22%20stroke-width%3D%22.9%22%20stroke-linejoin%3D%22round%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2217.6%22%20r%3D%221.9%22%20fill%3D%22%233a2410%22%20stroke%3D%22%237a4f06%22%20stroke-width%3D%22.8%22%2F%3E%3Cpath%20d%3D%22M11.4%2023H20.6%22%20stroke%3D%22%237a4f06%22%20stroke-width%3D%22.8%22%20stroke-linecap%3D%22round%22%2F%3E%3Cg%20transform%3D%22translate(11.52%2028.2)%20scale(0.64)%22%20fill%3D%22none%22%20stroke-width%3D%221.72%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke%3D%22%236e4705%22%3E%3Cpath%20d%3D%22M.4%201.2C1.1.4%202%200%203%200C4.6%200%205.6%201%205.6%202.4C5.6%203.9%204.4%204.8%202.6%204.8C4.6%204.8%206%205.8%206%207.4C6%209%204.7%2010%203%2010C1.9%2010%20.9%209.6.2%208.8%22%2F%3E%3Cpath%20d%3D%22M.4%201.2C1.1.4%202%200%203%200C4.6%200%205.6%201%205.6%202.4C5.6%203.9%204.4%204.8%202.6%204.8C4.6%204.8%206%205.8%206%207.4C6%209%204.7%2010%203%2010C1.9%2010%20.9%209.6.2%208.8%22%20transform%3D%22translate(8%200)%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+html.ev-deco[data-event="magic"]:not(.ev-quiet) body > .dv:not(.scan):not(.pu):not(.trc):not(.sc-ef):not(.dly-play) > .dv-head{position:relative}
+html.ev-deco[data-event="magic"]:not(.ev-quiet) body > .dv:not(.scan):not(.pu):not(.trc):not(.sc-ef):not(.dly-play) > .dv-head::before{content:"";position:absolute;right:4px;bottom:0;width:104px;height:23px;
+  background:var(--evm-headi) no-repeat right bottom/100% 100%;opacity:var(--evm-head);pointer-events:none;z-index:0}
+html.ev-deco[data-event="magic"]:not(.ev-quiet) body > .dv:not(.scan):not(.pu):not(.trc):not(.sc-ef):not(.dly-play) > .dv-head > *{position:relative;z-index:1}
+html.ev-deco[data-event="magic"]:not(.ev-quiet) .sheet::before{content:"";position:absolute;left:18px;top:-12px;width:24px;height:33px;background:var(--evm-sheeti) no-repeat left top/100% 100%;pointer-events:none;z-index:2}
+html.ev-deco[data-event="magic"]:not(.ev-quiet) .dv-head{background-image:radial-gradient(150px 64px at 100% 0,rgba(242,194,48,.12),transparent)}
+html.ev-deco[data-event="magic"]:not(.ev-quiet) body > .dv:not(.scan):not(.pu):not(.trc):not(.sc-ef):not(.dly-play){
+  background-image:radial-gradient(520px 340px at 0 100%,var(--evm-g),transparent 70%),radial-gradient(460px 320px at 100% 35%,var(--evm-b),transparent 70%);background-attachment:fixed}
 
 /* ── Pause (appli en arrière-plan, ambiance hors écran) et mouvement réduit (décor fixe, toujours visible) ── */
 html.ev-pause[data-event="magic"] :is(.ev-amb,.evo),html.ev-pause[data-event="magic"] :is(.ev-amb,.evo) *{animation-play-state:paused!important}
 @media (prefers-reduced-motion:reduce){
   html[data-event="magic"] :is(.ev-amb,.evo),html[data-event="magic"] :is(.ev-amb,.evo) *{animation:none!important}
+  html[data-event="magic"] .ev-amb .evm-dust{opacity:calc(var(--evm-dust) * .6)}      /* grains d'or fixes, visibles */
   html[data-event="magic"] .ev-amb-top{display:none!important}
 }
