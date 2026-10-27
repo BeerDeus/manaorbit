@@ -157,17 +157,21 @@ async function findAndTap(p, s, forced) {
   await p.selectOption('#setEvPv', 'noel');
   await p.waitForFunction(() => EV.st && EV.st.ev.id === 'noel-2026' && EV.st.ev.preview && EV.st.me, null, { timeout: 15000 });
   assert.equal(await p.evaluate(() => [document.documentElement.dataset.event, localStorage.getItem('deckdeal:ev:pv'), EV.st.me.n, EV.st.me.spots.length].join()), 'noel,noel,0,2');
-  const pvs = await p.evaluate(() => EV.st.me.spots[0].s); await closeAll(p);
+  const pvs = await p.evaluate(() => { evLsSet({ seen: { ...evLs().seen, 'noel-2026': 1 } }); clearTimeout(EV.introT); document.querySelectorAll('.ev-intro').forEach(e => e.remove()); return EV.st.me.spots[0].s; }); await closeAll(p);      // message d'arrivée (revu en aperçu) : vu
   await p.evaluate(s => { EV_HIDE[s] = () => document.querySelector('#viewHome .hm-hero'); evScan(); }, pvs); await p.waitForFunction(s => EV.pks.get(s) && EV.pks.get(s).ok, pvs, { timeout: 8000 });
   await p.evaluate(s => EV.pks.get(s).el.click(), pvs); await p.waitForFunction(() => EV.st.me.n === 1 && !EV.fly, null, { timeout: 8000 }); await p.waitForTimeout(3200);
   assert.equal(await p.evaluate(() => localStorage.getItem('deckdeal:ev')), ls0, 'rien de réécrit sur l\'appareil');
   assert.equal(await p.evaluate(() => !!(window.__evDoc && window.__evDoc.e['noel-2026'])), false, 'rien dans le compte');
   assert.equal(await p.evaluate(() => evBadges().find(b => b.ev === 'noel-2026').pv), true, 'badge d\'essai : jamais gardé ni annoncé');
   await p.evaluate(() => { document.querySelectorAll('.ev-msg, .adv-open, .adv-x').forEach(e => e.remove()); while (sheets.length) sheets[sheets.length - 1].close(); openSettings(); }); await p.waitForSelector('#setEvPv');
+  await p.selectOption('#setEvPv', 'paques');      // pack en préparation (ready: false) : décor, ambiance, logo, cachettes
+  await p.waitForFunction(() => EV.st && EV.st.ev.id === 'paques-2026' && EV.st.ev.preview && EV.st.me && EV.st.me.spots.length === 5, null, { timeout: 15000 });
+  assert.equal(await p.evaluate(() => [document.documentElement.dataset.event, !!document.querySelector('body > .ev-amb[data-p="paques"]'), document.getElementById('i-logo').innerHTML.includes('evl-halloween')].join()), 'paques,true,false');
+  if (SHOTS) { await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await p.waitForTimeout(1200); await shot(p, 'apercu-paques-393-clair'); await p.evaluate(() => openSettings()); await p.waitForSelector('#setEvPv'); }
   await p.selectOption('#setEvPv', '');
   await p.waitForFunction(() => EV.st && EV.st.ev.id === 'halloween-2026' && !EV.st.ev.preview && EV.st.me && EV.st.me.n === 5, null, { timeout: 15000 });
   assert.equal(await p.evaluate(() => [document.documentElement.dataset.event, localStorage.getItem('deckdeal:ev:pv'), evCount('halloween-2026')].join()), 'halloween,,5');
-  ok('aperçu (éditeur) : Noël à la place d\'Halloween, cadeau d\'essai jamais gardé (appareil, compte, badges), retour à la vraie fête');
+  ok('aperçu (éditeur) : Noël à la place d\'Halloween, cadeau d\'essai jamais gardé (appareil, compte, badges), Pâques (en préparation), retour à la vraie fête');
   // un autre compte : le serveur refuse, l'aperçu s'arrête
   await p.evaluate(tok => { window.__idTok = tok; }, F.jwt('uid-e2e-max'));
   await p.selectOption('#setEvPv', 'nouvelan');

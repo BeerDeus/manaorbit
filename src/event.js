@@ -289,16 +289,18 @@ async function evStatus(force) {
   if (!force && EV.st && Date.now() - EV.at < 60e3) return EV.st;
   if (EV.pv && !(typeof D !== 'undefined' && D.user)) return null;      // aperçu : seulement avec le compte (connexion en cours au démarrage : evUser relance)
   if (EV.busy) return EV.st; EV.busy = true;
+  const pv0 = EV.pv; let stale = false;      // aperçu choisi ou quitté pendant l'appel : réponse d'avant ignorée, relu ensuite
   try {
     if (!EV.dev) { try { const t = localStorage.getItem(EV_DEV) || ''; if (/^[\w-]{22}\.[\w-]{16}$/.test(t)) EV.dev = t; } catch (e) { /* refusé */ } }
     let j = await evCall('?c=' + evCaps()); if (!j.me && j.dev) j = await evCall('?c=' + evCaps());      // premier passage : jeton d'appareil reçu, l'état suit
+    if (EV.pv !== pv0) { stale = true; return null; }
     if (EV.pv && !(j.ev && j.ev.preview)) { setTimeout(() => { evPvSet('', true); if (typeof toast === 'function') toast(T('Aperçu refusé par le serveur')); }); return null; }      // pas un compte de l'éditeur
     if (!j.on) { EV.cal = null; evApply(); evStop(); return null; }
     EV.st = j; EV.at = Date.now(); EV.cal = { ...EV.cal, ...j.ev }; evLsSet({ cal: { id: j.ev.id, pack: j.ev.pack, from: j.ev.from, to: j.ev.to } });
     if (j.me) evKeep(j.ev.id, j.me);
     evSyncUp();
-  } catch (e) { if (e.status === 404) { EV.cal = null; evApply(); evStop(); } }
-  finally { EV.busy = false; }
+  } catch (e) { if (EV.pv !== pv0) stale = true; else if (e.status === 404) { EV.cal = null; evApply(); evStop(); } }
+  finally { EV.busy = false; if (stale) setTimeout(() => evStatus(true)); }
   evArm(); evHomePaint(); evLoopSync(); evIntroSoon();
   return EV.st;
 }
