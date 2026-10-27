@@ -1,7 +1,7 @@
 // E2E pub (appli Android simulée : faux window.Capacitor + faux plugin AdMob) : bandeau SOUS L'EN-TÊTE après le démarrage (marge = bas de l'en-tête + écart),
 // contenu décalé de sa hauteur
 // (événement bannerAdSizeChanged), masqué pendant le scan natif, l'accueil et la carte en grand puis rétabli, seulement sur les écrans de consultation
-// (accueil, collection, decks ; ni saisie, ni résultats, ni éditeur de deck), jamais pour un compte autorisé
+// (accueil, collection, decks ; ni saisie, ni résultats, ni éditeur de deck, ni ajout de cartes ; en-tête de la collection défilée à sa hauteur), jamais pour un compte autorisé
 // (détruit quand checkServer le confirme), attente de la vérification du compte, consentement refusé, et rien du tout sur le web.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
@@ -66,6 +66,9 @@ async function natPage(o = {}) {
   await p.evaluate(() => openCollection()); await p.waitForSelector('.coll.on');
   assert.deepEqual(await p.$eval('.coll .dv-head', e => [getComputedStyle(e).paddingTop, getComputedStyle(e).marginBottom, Math.round(e.getBoundingClientRect().height)]), ['10px', (H + 20) + 'px', 63], 'écran plein (collection) : en-tête en haut, même hauteur, la place du bandeau dessous');
   assert.equal(await n(p, 'hideBanner'), 0, 'collection : le bandeau reste');
+  await p.evaluate(() => COLL.el.classList.add('scrolled')); await p.waitForTimeout(300);      // liste défilée : sans bandeau, l'en-tête se resserre (densite.css)
+  assert.deepEqual(await p.evaluate(() => [Math.round(document.querySelector('.coll .dv-head').getBoundingClientRect().height), Math.round(document.querySelector('.coll .coll-controls').getBoundingClientRect().top)]), [63, 63 + H + 20], 'liste défilée : l\'en-tête garde sa hauteur, onglets toujours 12 px sous le bandeau (jamais collés à lui)');
+  await p.evaluate(() => COLL.el.classList.remove('scrolled'));
   await p.evaluate(() => openScan()); await p.waitForSelector('.scan.on');
   await p.waitForFunction(() => document.documentElement.classList.contains('nat-cam'), null, { timeout: 5000 });
   await gone(p); assert.equal(await n(p, 'removeBanner'), 2, 'scan natif : bandeau détruit (la caméra native laisse la page au-dessus : un bandeau masqué reviendrait dessous)'); assert.equal(await n(p, 'hideBanner'), 0);
@@ -96,8 +99,10 @@ async function natPage(o = {}) {
   await p.evaluate(() => openDecks()); await p.waitForSelector('.dks.on'); await p.waitForTimeout(500); assert.equal(await n(p, 'hideBanner'), 5, 'Mes decks : le bandeau reste');
   await p.evaluate(() => openBuilder({})); await p.waitForSelector('.bd.on'); await gone(p); assert.equal(await n(p, 'hideBanner'), 6, 'éditeur de deck : masqué');
   await p.evaluate(() => bdClose(true)); await shown(p); assert.equal(await n(p, 'resumeBanner'), 6, 'retour sur Mes decks : rétabli');
+  await p.evaluate(() => openLot()); await p.waitForSelector('.lot.on'); await gone(p); assert.equal(await n(p, 'hideBanner'), 7, '« Ajouter des cartes » (recherche par nom, clavier) : masqué');
+  await p.evaluate(() => closeLot()); await shown(p); assert.equal(await n(p, 'resumeBanner'), 7, 'retour sur Mes decks : rétabli');
   await p.evaluate(() => closeDecks()); await p.waitForTimeout(400); assert.equal(await n(p, 'showBanner'), 2, 'jamais recréé : masqué puis rétabli');
-  ok('écrans de consultation seulement : masqué en saisie, résultats, éditeur de deck ; rétabli sur l\'accueil, la collection, Mes decks');
+  ok('écrans de consultation seulement : masqué en saisie, résultats, éditeur de deck, ajout de cartes ; rétabli sur l\'accueil, la collection, Mes decks');
 
   await p.setViewportSize({ width: 390, height: 520 });
   await openMe(p, 'conf'); await p.waitForSelector('#privBox[data-ads]');
@@ -106,7 +111,7 @@ async function natPage(o = {}) {
   assert.ok(await p.$eval('.sheet', (e, h) => e.getBoundingClientRect().top >= h, H), 'feuille haute : elle s\'arrête sous le bandeau');
   await p.click('#btnAdChoices'); await p.waitForFunction(() => window.__ad.calls.includes('showPrivacyOptionsForm'));
   await p.keyboard.press('Escape'); await p.waitForTimeout(450); await p.setViewportSize({ width: 390, height: 844 });
-  assert.equal(await n(p, 'hideBanner'), 6, 'feuille : le bandeau reste');
+  assert.equal(await n(p, 'hideBanner'), 7, 'feuille : le bandeau reste');
   ok('réglages : mention de la pub, « Choix publicitaires » (formulaire Google), feuille sous le bandeau');
 
   await p.evaluate(() => { CTX.serverOk = true; adsRefresh(); }); await gone(p);

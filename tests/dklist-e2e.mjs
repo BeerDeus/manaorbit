@@ -60,6 +60,7 @@ await p.click('.deck[data-id="d1"] .deck-more'); await p.waitForSelector('#dkCov
 assert.match(await txt(p, '#dkCoverSub'), /^Sol Ring · automatique$/); assert.match(await txt(p, '.sheet-head p'), /^26 cartes · modifié /, 'feuille : même nombre que la liste et le viewer');
 await p.click('#dkCover'); await p.waitForSelector('.cv-card'); await p.waitForFunction(() => document.querySelectorAll('.cv-card img.ok').length === 3, null, { timeout: 8000 });
 assert.deepEqual(await p.$$eval('.cv-card', c => c.map(x => x.dataset.n)), ['Swords to Plowshares', 'Sol Ring', 'Wrath of God'], 'cartes du deck et de la réserve, les plus chères d\'abord (égalité : ordre alphabétique)');
+assert.deepEqual(await p.$eval('#cvQ', e => [getComputedStyle(e).height, getComputedStyle(e).borderRadius]), ['44px', '12px'], 'recherche de la feuille : un champ de l\'appli (pas le champ brut du navigateur)');
 await p.fill('#cvQ', 'wrath'); assert.deepEqual(await p.$$eval('.cv-card', c => c.map(x => x.dataset.n)), ['Wrath of God']);
 await p.click('.cv-card'); await p.waitForFunction(() => !document.querySelector('#cvGrid'), null, { timeout: 3000 });
 assert.match(await txt(p, '#dkCoverSub'), /^Wrath of God · choisie$/);
