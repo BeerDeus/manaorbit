@@ -51,7 +51,8 @@ test('packs : dates, Pâques, quotas, calendrier à l\'heure de Paris', () => {
   assert.equal(E.evActive(Date.parse('2026-10-24T21:00:00Z')), null); assert.equal(E.evActive(Date.parse('2026-10-24T22:00:00Z')).id, 'halloween-2026');
   assert.equal(E.evActive(Date.parse('2026-11-08T22:30:00Z')).day, '2026-11-08'); assert.equal(E.evActive(Date.parse('2026-11-08T23:00:00Z')), null, 'fin le 8 novembre à minuit');
   assert.equal(E.evActive(Date.parse('2026-12-15T12:00:00Z')).id, 'noel-2026', 'Noël : calendrier de l\'Avent ouvert tout seul');
-  assert.equal(E.evActive(Date.parse('2027-03-28T12:00:00Z')), null, 'Pâques pas encore prêt : jamais ouvert tout seul');
+  assert.equal(E.evActive(Date.parse('2027-03-28T12:00:00Z')).id, 'paques-2027', 'nid de Pâques : ouvert tout seul (dimanche de Pâques 2027)');
+  assert.equal(E.evActive(Date.parse('2027-08-05T12:00:00Z')), null, 'anniversaire de Magic pas encore prêt : jamais ouvert tout seul');
   assert.equal(E.evActive(Date.parse('2026-06-01T12:00:00Z'), { force: 'halloween-2026' }).day, '2026-10-25', 'forcé avant la date : 1er jour');
   assert.equal(E.evActive(Date.parse('2026-12-15T12:00:00Z'), { force: 'noel' }).id, 'noel-2026', 'pack pas prêt : seulement forcé');
   assert.equal(E.evActive(Date.parse('2026-10-26T12:00:00Z'), { off: ['halloween-2026'] }), null, 'coupée');

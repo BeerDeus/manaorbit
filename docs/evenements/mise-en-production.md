@@ -27,4 +27,9 @@ Ouverture automatique le **25 octobre 2026 à minuit (heure de Paris)**, fin le 
 
 - Noël (calendrier de l'Avent, du 1er au 26 décembre) : **prêt** (`ready: true`), s'ouvre tout seul ; badges `noel-2026-*` déjà dans le dépôt ; rien à faire (le rôle Discord 🎃 Événements sert pour toutes les fêtes).
 - Nouvel an (nuit des étoiles filantes, du 27 décembre au 10 janvier) : **prêt** (`ready: true`), s'ouvre tout seul ; badges `nouvelan-2026-*` dans le dépôt ; icône Android déjà dans l'APK ; rien à faire.
-- Packs Pâques, anniversaire de Magic : dates, quotas, textes de base, badges et logos prêts ; il reste leurs objets à trouver (`EV_ART`), leur ambiance (`css/ev-<pack>.css`), leurs textes complets et messages Discord, puis `ready: true`.
+- Noël : **cadeau de secours** (3 cadeaux cachés par jour pour 2 à trouver) ; rien à faire.
+- Pâques (nid de Pâques, du 21 mars au 4 avril 2027) : **prêt** (`ready: true`), s'ouvre tout seul ; annonces Discord et notifications prêtes (le rôle 🎃 Événements sert aussi) ; badges `paques-2027-*` dans le dépôt ; couleur de classeur rare « Œuf d'or ». À faire :
+  - **APK** : le logo de Pâques a été redessiné ; les mipmaps `ic_launcher_paques*` sont à jour dans `android-app/` : les publier avec une APK avant mars 2027 (sinon l'appli installée garde l'ancien dessin de Pâques, rien ne casse).
+  - **Google Play** (facultatif) : icône de la fiche `docs/evenements/logos/paques/play/play-icon-512.png` pendant la fête.
+  - Essayer avant : « Aperçu d'une fête » (Compte et réglages › Préférences, compte de l'éditeur) : jour choisi, « Passer au jour suivant » (Jeudi saint : jour 5 ; dimanche de Pâques : jour 8).
+- Anniversaire de Magic : dates, quotas, textes de base, badges et logos prêts ; il reste son objet à trouver (`EV_ART`), son ambiance (`css/ev-magic.css`), ses textes complets et messages Discord, puis `ready: true`.

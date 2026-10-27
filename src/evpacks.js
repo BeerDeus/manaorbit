@@ -259,11 +259,11 @@ const EV_PACKS = [
         pt: ['🎆 Último dia de estrelas cadentes!', 'As últimas estrelas se apagam à meia-noite. É agora ou nunca.'],
       },
     } },
-  { id: 'paques', ready: false, name: 'Pâques', when: y => evAround(evEaster(y)), total: 30, perDay: 5,
+  { id: 'paques', ready: true, name: 'Pâques', when: y => evAround(evEaster(y)), total: 30, perDay: 5,
     // Nid de Pâques (evnest.js) : chaque œuf trouvé rejoint la couvée en cours (nest.per œufs, un par couleur du mana, dans l'ordre de nest.mana) ; au dernier,
     // elle éclot : un poussin (total / per poussins en tout). Le badge compte les poussins éclos (unit), pas les œufs.
     // Dessins (evart.js, section « Pâques ») : œuf décoré (5 teintes et décors peints selon la cachette), œufs du mana, éclosion, compteur, poussin des messages ;
-    // ambiance et couleurs : css/ev-paques.css, mise en page du nid : css/event-nest.css. Pas encore ouvert (ready: false) : ni messages Discord ni notifications.
+    // ambiance et couleurs : css/ev-paques.css, mise en page du nid : css/event-nest.css. Prêt : s'ouvre tout seul autour de Pâques (annonces Discord, notifications).
     // gold : œuf d'or rare (gold.p de chance pour chaque cachette, tirage du serveur propre au joueur, au jour et à la cachette : event-srv.mjs › evGold) ; le trouver
     // donne la couleur de classeur rare gold.cover (binder.js), acquise pour de bon. bells : cloches de Pâques (evBells) : du Jeudi saint (away jours avant
     // Pâques) au Samedi saint, parties à Rome ; le dimanche et le lundi (days jours dès back), revenues : extra œufs de plus par jour (quota, evQuota).
@@ -278,6 +278,48 @@ const EV_PACKS = [
       dayDone: 'Tous les œufs du jour sont au nid, reviens demain', allDone: 'Les {total} poussins sont nés', allSub: 'Tu es Lapin d\'or {y} : le grade ultime du nid de Pâques.',
       label: 'Un œuf caché : touche-le pour le mettre au nid', tip: 'Un œuf de Pâques ! Touche-le pour le mettre au nid : {per} se cachent dans l\'appli chaque jour.',
       join: 'Crée un compte pour garder ton nid sur tous tes appareils.', deco: 'Décorations de Pâques',
+    },
+    // Annonces : le mi-parcours tombe le dimanche de Pâques (8e jour sur 15) : le retour des cloches.
+    dsc: {
+      soon: ['🥚 **Le nid de Pâques arrive dans 3 jours !** Du {from} au {to}, {total} œufs se cachent dans Mana Orbit, {per} par jour : 6 couvées aux couleurs du mana à faire éclore, et un œuf d\'or très rare.', '🥚 **The Easter nest arrives in 3 days!** From {fromEn} to {toEn}, {total} eggs hide in Mana Orbit, {per} a day: 6 mana-colored broods to hatch, and a very rare golden egg.'],
+      open: ['🐣 **Le nid de Pâques est ouvert !** {total} œufs se cachent dans l\'appli jusqu\'au {to}, {per} par jour. 5 œufs, un par couleur du mana, et la couvée éclot : qui fera naître les 6 poussins ?', '🐣 **The Easter nest is open!** {total} eggs hide in the app until {toEn}, {per} a day. 5 eggs, one per mana color, and the brood hatches: who will hatch all 6 chicks?'],
+      mid: ['🔔 **Les cloches sont revenues de Rome !** Pour Pâques, elles sèment des œufs en plus aujourd\'hui et demain. Il reste {d} jours : {h} joueurs ont déjà un nid, {full} ont fait éclore les 6 poussins.', '🔔 **The bells are back from Rome!** For Easter, they drop extra eggs today and tomorrow. {d} days left: {h} players already have a nest, {full} have hatched all 6 chicks.'],
+      last: ['🐣 **Dernier jour du nid de Pâques !** Les derniers œufs disparaissent à minuit.', '🐣 **Last day of the Easter nest!** The last eggs vanish at midnight.'],
+      end: ['🥚 **Le nid de Pâques est terminé.** {h} joueurs, {full} ont fait éclore les 6 poussins. Merci à tous, et joyeuses Pâques !', '🥚 **The Easter nest is over.** {h} players, {full} hatched all 6 chicks. Thanks everyone, and happy Easter!'],
+    },
+    push: {
+      soon: {
+        fr: ['🥚 Le nid de Pâques arrive', 'Du {from} au {to}, {total} œufs se cachent dans l\'appli : 6 poussins à faire éclore et un œuf d\'or à dénicher.'],
+        en: ['🥚 The Easter nest is coming', 'From {from} to {to}, {total} eggs hide in the app: 6 chicks to hatch and a golden egg to find.'],
+        de: ['🥚 Das Osternest kommt', 'Vom {from} bis {to} verstecken sich {total} Eier in der App: 6 Küken zum Schlüpfen und ein goldenes Ei zu finden.'],
+        es: ['🥚 Llega el nido de Pascua', 'Del {from} al {to}, {total} huevos se esconden en la app: 6 pollitos por eclosionar y un huevo de oro por encontrar.'],
+        it: ['🥚 Arriva il nido di Pasqua', '{from} – {to}: {total} uova si nascondono nell\'app, 6 pulcini da far schiudere e un uovo d\'oro da trovare.'],
+        pt: ['🥚 O ninho de Páscoa está chegando', 'De {from} a {to}, {total} ovos se escondem no app: 6 pintinhos para chocar e um ovo de ouro para achar.'],
+      },
+      open: {
+        fr: ['🐣 Le nid de Pâques est ouvert !', '{total} œufs se cachent dans l\'appli jusqu\'au {to}, {per} par jour. Fais éclore ta première couvée !'],
+        en: ['🐣 The Easter nest is open!', '{total} eggs are hiding in the app until {to}, {per} a day. Hatch your first brood!'],
+        de: ['🐣 Das Osternest ist offen!', '{total} Eier verstecken sich bis zum {to} in der App, {per} pro Tag. Lass deine erste Brut schlüpfen!'],
+        es: ['🐣 ¡El nido de Pascua está abierto!', '{total} huevos se esconden en la app hasta el {to}, {per} al día. ¡Haz eclosionar tu primera nidada!'],
+        it: ['🐣 Il nido di Pasqua è aperto!', '{total} uova si nascondono nell\'app, {per} al giorno. Fai schiudere la tua prima covata!'],
+        pt: ['🐣 O ninho de Páscoa está aberto!', '{total} ovos estão escondidos no app até {to}, {per} por dia. Choque sua primeira ninhada!'],
+      },
+      mid: {
+        fr: ['🔔 Les cloches sont revenues de Rome !', 'Pour Pâques, elles sèment des œufs en plus aujourd\'hui et demain. Plus que {d} jours pour ton nid.'],
+        en: ['🔔 The bells are back from Rome!', 'For Easter, they drop extra eggs today and tomorrow. {d} days left for your nest.'],
+        de: ['🔔 Die Glocken sind aus Rom zurück!', 'Zu Ostern verstreuen sie heute und morgen zusätzliche Eier. Noch {d} Tage für dein Nest.'],
+        es: ['🔔 ¡Las campanas han vuelto de Roma!', 'Por Pascua, hoy y mañana dejan caer huevos de más. Quedan {d} días para tu nido.'],
+        it: ['🔔 Le campane sono tornate da Roma!', 'Per Pasqua lasciano cadere uova in più oggi e domani. Mancano {d} giorni per il tuo nido.'],
+        pt: ['🔔 Os sinos voltaram de Roma!', 'Na Páscoa, eles soltam ovos a mais hoje e amanhã. Faltam {d} dias para o seu ninho.'],
+      },
+      last: {
+        fr: ['🐣 Dernier jour du nid de Pâques !', 'Les derniers œufs disparaissent à minuit. C\'est maintenant ou jamais.'],
+        en: ['🐣 Last day of the Easter nest!', 'The last eggs vanish at midnight. It\'s now or never.'],
+        de: ['🐣 Letzter Tag des Osternests!', 'Die letzten Eier verschwinden um Mitternacht. Jetzt oder nie.'],
+        es: ['🐣 ¡Último día del nido de Pascua!', 'Los últimos huevos desaparecen a medianoche. Ahora o nunca.'],
+        it: ['🐣 Ultimo giorno del nido di Pasqua!', 'Le ultime uova spariscono a mezzanotte. Ora o mai più.'],
+        pt: ['🐣 Último dia do ninho de Páscoa!', 'Os últimos ovos somem à meia-noite. É agora ou nunca.'],
+      },
     } },
   { id: 'magic', ready: false, name: 'Anniversaire de Magic', when: y => evAround(`${y}-08-05`), total: 30, perDay: 5,
     obj: { one: 'bougie', many: 'bougies', emoji: '🕯️', fem: true, art: 'candle' },
