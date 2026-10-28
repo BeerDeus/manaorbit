@@ -146,9 +146,10 @@ const OPENING = { kind: 'opening', name: 'Boîte de Bloomburrow', date: Date.par
   // échange : lien actif → « Image avec QR »
   await p.route('https://www.gstatic.com/**', r => r.abort()); await signInFake(p);
   await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-box [data-act="tron"]'); await p.click('[data-act="tron"]'); await p.waitForSelector('.tr-box.on', { timeout: 15000 });
-  assert.match(await txt(p, '.tr-box.on .tr-qrs'), /QR code\s*Image avec QR/);
-  await p.waitForTimeout(400); await p.screenshot({ path: SHOTS + '/partage-6-echange.png' });
-  await p.click('.tr-box.on [data-act="trimg"]'); await imgReady(p);
+  await p.click('.tr-box.on [data-act="trlink"]'); await p.waitForSelector('.sheet-wrap.open .trl-sheet .tr-qrs'); await p.waitForTimeout(450);      // QR et « Image avec QR » : feuille du lien (densite.js)
+  assert.match(await txt(p, '.trl-sheet .tr-qrs'), /QR code\s*Image avec QR/);
+  await p.screenshot({ path: SHOTS + '/partage-6-echange.png' });
+  await p.click('.trl-sheet [data-act="trimg"]'); await imgReady(p);
   await p.click('.simg-sheet [data-simg="share"]'); await p.waitForFunction(() => window.__ws.length === 2);
   const tr = await p.evaluate(() => window.__ws[1]), id = await p.evaluate(() => TR.share);
   assert.equal(tr.text, 'Ma liste d\'échange Magic ' + world.url + '?p=' + id, 'le lien suit l\'image'); assert.match(tr.files[0].name, /^mana-orbit-trade-/);
@@ -192,7 +193,8 @@ const OPENING = { kind: 'opening', name: 'Boîte de Bloomburrow', date: Date.par
   await signInFake(p);
   await toHome(p); await p.click('#btnColl'); await p.waitForSelector('.coll.on'); await p.click('#nav [data-nav="trade"]'); await p.waitForSelector('.tr-box [data-act="tron"]');
   await p.click('[data-act="tron"]'); await p.waitForSelector('.tr-box.on', { timeout: 15000 });
-  await p.click('.tr-box.on [data-act="trimg"]'); await imgReady(p);
+  await p.click('.tr-box.on [data-act="trlink"]'); await p.waitForSelector('.sheet-wrap.open .trl-sheet [data-act="trimg"]'); await p.waitForTimeout(450);
+  await p.click('.trl-sheet [data-act="trimg"]'); await imgReady(p);
   await p.click('.simg-sheet [data-simg="share"]'); await p.waitForFunction(() => window.__mo.share.length === 1);
   assert.equal((await p.evaluate(() => window.__mo.share[0])).url, world.url + '?p=' + (await p.evaluate(() => TR.share)), 'le lien, par le partage habituel');
   ok('APK plus ancienne, liste d\'échange : le lien part par ManaOrbit.share');

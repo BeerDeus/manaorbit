@@ -160,6 +160,7 @@ const ROWS = '.coll.on .coll-list > .crow';
   assert.ok(await p.$('.tr-bar [data-act="login"]')); assert.ok(await p.$eval('.tr-bar', b => b.getBoundingClientRect().height <= 60), 'barre d\'une ligne');
   assert.equal(await p.$('.coll-main .tr-keep'), null, 'réserve : dans les réglages');
   assert.equal(await txt(p, '.tr-setb span'), 'Garde 1 ex.');
+await p.waitForSelector('.tr-top .tr-sum em', { timeout: 15000 });      // valeur : prix des cartes lus après l'ouverture de l'écran
   const top = await p.evaluate(() => { const s = document.querySelector('.tr-top .tr-sub').getBoundingClientRect(), e = document.querySelector('.tr-top .tr-sum em').getBoundingClientRect(); return Math.abs((s.top + s.bottom) / 2 - (e.top + e.bottom) / 2) < 4 && e.left > s.right; });
   assert.ok(top, 'sous-onglets et total sur la même ligne');
   const m = await measure(p, '.coll.m-trade .tr-list .tr-row'); console.log('  393×852 échange déconnecté :', JSON.stringify(m));
@@ -211,7 +212,7 @@ const ROWS = '.coll.on .coll-list > .crow';
 /* ── 5) 360 × 780 et ordinateur 1280 × 800 ───────────────────────────────────────────────────── */
 {
   const { p } = await open({ ctx: { viewport: { width: 360, height: 780 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } });
-  await toColl(p); await p.waitForSelector('.crow.cvw-c');
+  await toColl(p); await p.waitForSelector('.crow.cvw-c'); await p.waitForTimeout(600);      // en-tête posé (sinon mesuré pendant l'ouverture)
   const m = await measure(p, ROWS); console.log('  360×780 compacte :', JSON.stringify(m));
   assert.ok(m.first <= 0.30 * m.H && m.full >= 7, '360 px : ' + JSON.stringify(m)); assert.ok(await noHScroll(p));
   assert.ok(await p.$eval('.coll #collF .fsearch', s => s.getBoundingClientRect().width >= 130), 'la recherche garde sa place');

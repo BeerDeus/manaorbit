@@ -140,7 +140,7 @@ body.nav-on .ev-msg{bottom:calc(112px + env(safe-area-inset-bottom,0px))}
 .ev-board li.me{outline:2px solid var(--ev-a)}
 .ev-board li>span:first-child{font-weight:800;color:var(--ink-3);text-align:center}
 .ev-board li b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ev-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 /* ── Badges d'événement (fichiers générés) et bordure animée du grade ultime ── */
 .evb{position:relative;display:inline-grid;place-items:center;width:48px;height:48px;border-radius:50%;isolation:isolate}

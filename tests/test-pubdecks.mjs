@@ -37,7 +37,7 @@ const tag = uid => createHash('sha256').update(uid).digest('hex');
   const names = readFileSync(new URL('../pwa/names-all.tsv', import.meta.url), 'utf8').split('\n').filter(l => l && l[0] !== '#').map(l => l.split('\t')[0]);
   assert.ok(names.length > 25000); assert.deepEqual(names.filter(n => C.pubBad(n)), [], 'aucun des noms de cartes anglais refusé');
   for (const x of [{ by: 'Sal0pe' }, { cmd: ['Fuck Face'] }, { cards: ['1 Nigger Card', '98 Forest'] }]) assert.equal(C.pubClean({ ...bad, ...x }), null, JSON.stringify(x));
-  const known = new Set([...names, 'Edgar Markov'].map(C.ownKey));      // le fichier des traductions n'a pas les cartes imprimées seulement en anglais : le serveur lit le catalogue complet de Scryfall
+  const known = new Set([...names, 'Edgar Markov', 'Adventurous Eater'].map(C.ownKey));      // le fichier des traductions n'a pas les cartes imprimées seulement en anglais : le serveur lit le catalogue complet de Scryfall
   assert.ok(C.pubClean({ by: 'Max', cmd: ['Edgar Markov'], ci: 'WBR', cards: ['1 Sol Ring', '1 Adventurous Eater', '1 Adventurous Eater // Have a Bite', '96 Plains'] }, known), 'vraies cartes (face avant d\'une carte double comprise)');
   assert.equal(C.pubClean({ by: 'Max', cmd: ['Edgar Markov'], ci: 'WBR', cards: ['1 Achetez Mes Cartes Ici', '98 Plains'] }, known), null, 'nom inventé : écarté');
   assert.equal(C.pubClean({ by: 'Max', cmd: ['Mon Super Commandant'], ci: 'WBR', cards: ['99 Plains'] }, known), null, 'commandant inventé : écarté');

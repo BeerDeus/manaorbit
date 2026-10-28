@@ -104,7 +104,7 @@ const DATA = mkdtempSync(join(tmpdir(), 'hist-data-'));
   px = await start({ PRICES_HIST_SOURCE_URL: `http://127.0.0.1:${gh.address().port}/data/prices-hist.bin.gz`, EDH_SYNC_FIRST_MS: '0', EDH_DATA_DIR: DATA, HIST_RATE_PER_MIN: '6' });
   const st = await until(async () => { const o = (await J('/__prices')).o; return o.hist.days ? o.hist : null; });
   assert.deepEqual({ from: st.from, d0: st.d0, d1: st.d1, days: st.days, cards: st.cards }, { from: 'GitHub', d0: '2026-09-25', d1: '2026-10-24', days: 30, cards: 1203 });
-  assert.ok(existsSync(join(DATA, 'prices-hist.bin.gz')), 'copie dans .data/');
+  assert.ok(await until(() => existsSync(join(DATA, 'prices-hist.bin.gz')), 4000).catch(() => false), 'copie dans .data/');      // écrite juste après la mise en service (phSync)
   r = await J('/api/hist?n=Sol%20Ring');
   assert.equal(r.s, 200); assert.equal(r.o.d, '2026-09-25'); assert.equal(r.o.e.length, 30);
   assert.equal(r.o.e[0], 100); assert.equal(r.o.e[14], null, 'jour sans prix : null'); assert.equal(r.o.e[29], 158); assert.equal(r.o.u[0], 120);
