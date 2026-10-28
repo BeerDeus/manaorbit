@@ -194,7 +194,8 @@ await p.waitForSelector('.tr-top .tr-sum em', { timeout: 15000 });      // valeu
   assert.ok(await p.$eval('.tr-bar.on .tr-bar-main b', b => b.scrollWidth <= b.clientWidth + 1), '« Lien actif » lisible en entier');
   await p.evaluate(() => document.querySelector('#toast').classList.remove('on'));
   const m = await measure(p, '.coll.m-trade .tr-list .tr-row'); console.log('  393×852 échange avec lien :', JSON.stringify(m));
-  assert.ok(m.first <= 320, `liste d'échange à y = ${m.first} (≤ 320)`);
+  const boxes = m.first <= 320 ? '' : JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('.coll.on .dv-head, .coll.on .coll-controls, .coll.on .coll-main > *, .coll.on .tr-bar > *, .coll.on .tr-top > *, .coll.on .ev-pk')].map(e => [e.className.slice(0, 40), Math.round(e.getBoundingClientRect().top), Math.round(e.getBoundingClientRect().height)])));      // diagnostic : 374 sur la CI (Chromium 141), 309 en local
+  assert.ok(m.first <= 320, `liste d'échange à y = ${m.first} (≤ 320) ${boxes}`);
   await p.click('.tr-bar.on [data-act="trlink"]'); await p.waitForSelector('.sheet-wrap.open .trl-sheet .tr-link input');
   assert.equal(await p.$eval('.trl-sheet .tr-link input', i => i.value), world.url + '?p=ShareDensite0001');
   assert.deepEqual(await p.$$eval('.trl-sheet [data-act]', b => b.map(x => x.dataset.act).filter(a => a !== 'trlive')), ['trcopy', 'trsend', 'trview', 'trqr', 'trimg', 'trnew', 'troff'], 'toutes les actions du lien');
