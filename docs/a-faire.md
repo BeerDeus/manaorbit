@@ -12,6 +12,32 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Point du 28 octobre : audit avant la production (à lire en premier)
+**Calendrier** : test fermé à 13 jours le 28 octobre (12 testeurs) → 14 jours le 29 → demande d'accès à la production le 29 ou le 30 (réponses : `docs/store/production.md`) → réponse de Google sous 7 jours (31 octobre → 6 novembre) ; flyers et cartes de visite livrés le **4 novembre** ; Halloween ouvert jusqu'au 8 novembre.
+
+**CI rouge sur `main`** (run du 27 octobre, 6 échecs ; rejoués en local le 28) :
+- `test-pubdecks.mjs` : test périmé. « Adventurous Eater » n'est plus dans `pwa/names-all.tsv` depuis `be124d5` (cartes sans traduction retirées, voulu) ; le serveur lit le catalogue complet, rien en production. Ajouter le nom au `known` du test, comme Edgar Markov.
+- `test-hist.mjs` : course dans le test. `phSync` (`server/proxy.mjs`) publie `days` avant d'écrire la copie `.data/prices-hist.bin.gz` ; attendre le fichier dans le test (ou écrire la copie avant `phUse`).
+- `densite-e2e.mjs` (l. 163, `.tr-top .tr-sub` absent), `partage-e2e.mjs` (l. 149, `.tr-box.on .tr-qrs` absent après « tron ») : échange connecté, à comprendre (test ou vraie régression de l'écran Échange).
+- `scanreport-e2e.mjs` (l. 88) : « Ce que l'appli a lu » jamais stable (élément qui bouge 30 s) : animation de fête (Halloween ouvert) ou de la feuille ? **Vérifier sur le téléphone** que la feuille « Signaler un problème de scan » ne tremble pas.
+- `partie-room-e2e.mjs` : passe en local (instable sur la CI).
+
+**Audit du 24 octobre (`docs/audit/README.md`)** : P0 vérifiés corrigés : foil de l'échange en direct (`trocG`), écran allumé dans l'APK (`natAwake` partout), Maybeboard / Tokens ignorés, Relentless Rats & co (`dkMaxCopies`). Le reste (P1, UX) : après la production.
+
+**Avant l'accord de Google (Claude)**
+- [ ] CI verte (ci-dessus).
+- [ ] `/privacy` (6 langues) et feuille Discord de l'appli : l'identifiant Discord sert aussi à `/moi`, aux rôles, aux MP d'alerte de prix et à la mention d'un deck partagé (texte actuel : « seulement savoir si on est membre »).
+- [ ] `docs/store/production.md` : version à promouvoir = la dernière du test fermé (1.0.14, versionCode 15, si elle y est), plus 1.0.9 ; `APK_LATEST` en conséquence.
+- [ ] Bouton Google Play de l'accueil sur ordinateur découplé de `RATE_ASK` (`src/home.js` › `homeStore`, `tests/homedesk-e2e.mjs`).
+
+**Propriétaire**
+- [ ] Garder les 12 testeurs inscrits jusqu'à l'accord (personne ne quitte le test).
+- [ ] `.aab` 1.0.14 (versionCode 15) sur le test fermé s'il n'y est pas, pour promouvoir la même version.
+- [ ] Demande de production le 29 ou le 30 : chiffres entre crochets (testeurs, actifs par jour dans `/admin`, Android vitals, rapport de pré-lancement), version citée = celle du test fermé ; ajouter Discord (forums aide / bugs) aux canaux de retours.
+- [ ] **QR des flyers** : tant que la fiche n'est pas publique, `/admin` › QR codes › « Flyers » et « carte-de-visite » → le site pour tous (la fiche Play d'une appli en test est introuvable pour un non-testeur) ; « selon le téléphone » le jour de la production. Scanner un flyer reçu avec un Android et un iPhone.
+- [ ] Le jour de l'accord : déploiement à **100 %** dès le départ (une 1re version en déploiement progressif à 20 % n'est installable que par 20 % des gens : 4 flyers sur 5 mèneraient à « appli non disponible »), puis `docs/store/production.md` › « Le jour de la production ».
+- [ ] Hostinger : Fichier d'entrée `server/start.cjs` (voir 26 octobre).
+
 ## Point du 27 octobre : anniversaire de Magic (musée de Magic), prêt
 - **Fait** (README › « Musée de Magic ») : mode « musée » (`src/evmuseum.js`) : 30 reliques de l'histoire de Magic (1993 → aujourd'hui, cartel de chacune, 6 langues) en 5 salles à inaugurer, badges en salles (1, 2, 4, 5), jour J le 5 août (gâteau, 5 reliques de plus), lotus d'or rare (couleur de classeur « Lotus d'or ») ; dessins SVG faits main validés par le propriétaire (reliques, ambiance de galerie, confettis, badges) ; annonces Discord et notifications ; `ready: true` (29 juillet → 12 août 2027).
 - Logo de la fête inchangé (déjà fait) ; **pas d'icône Google Play** pour cette fête (choix du propriétaire).
