@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { edhPack, edhUnpack } = createRequire(import.meta.url)(existsSync(join(here, 'edhbin.cjs')) ? './edhbin.cjs' : './src/edhbin.js');      // format binaire partagé avec l'appli
-const UA = 'DeckDeal-edhrec/1.0 (+https://github.com/BeerDeus/mtgcardshop)';
+const UA = 'DeckDeal-edhrec/1.0 (+https://github.com/BeerDeus/manaorbit)';
 const TOP = Math.max(1, Number(process.env.EDH_TOP) || 2000), ARCH = process.env.EDH_ARCH === undefined ? 2 : Math.max(0, Number(process.env.EDH_ARCH) || 0), ARCH_TOP = Number(process.env.EDH_ARCH_TOP) || 2000, ARCH_ROT = Math.max(1, Number(process.env.EDH_ARCH_ROT) || 8), ARCH_MS = (Number(process.env.EDH_ARCH_MIN) || 130) * 60000;
 const DEBUG = process.env.EDH_DEBUG || '';
 const LIST_MAX = Number(process.env.EDH_LIST) || 3000, MIN_DECKS_LISTED = 10, BUDGET_MS = (Number(process.env.EDH_BUDGET) || 210) * 60000, T0 = Date.now();      // commandants gardés dans la liste (3 000 max, ≥ 10 decks) ; durée maximale de la génération

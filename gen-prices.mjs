@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { histRoll, histPack, histUnpack, histIso } from './server/prices-hist.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const UA = 'ManaOrbit-prices/1.0 (+https://github.com/BeerDeus/mtgcardshop)';
+const UA = 'ManaOrbit-prices/1.0 (+https://github.com/BeerDeus/manaorbit)';
 const SKIP_SETS = new Set(['memorabilia', 'token', 'minigame', 'alchemy']);                 // bordures dorées, jetons, cartes numériques : pas des cartes qu'on achète pour jouer
 const SKIP_LAYOUTS = new Set(['art_series', 'token', 'double_faced_token', 'emblem', 'vanguard', 'scheme', 'planar']);
 const cents = v => { const n = Math.round(parseFloat(v) * 100); return Number.isFinite(n) && n > 0 ? n : 0; };

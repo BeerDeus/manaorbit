@@ -117,7 +117,7 @@ ok('connecté : « J\'y suis déjà : lier mon compte Discord » (POST api/disco
   await openMe(p);
   assert.deepEqual(await p.$eval('#meDsc', r => [r.querySelector('.me-t').textContent, r.querySelector('.me-v').textContent, r.closest('.me-g').previousElementSibling.textContent]), ['Discord', 'Lier', 'Mon compte']);
   await p.click('#meDsc'); await p.waitForSelector('.dl-sheet.open');
-  assert.match(await txt(p, '.dl-sheet .sheet-body'), /Compte Discord non lié/); assert.match(await txt(p, '.dl-sheet .sheet-body'), /Seuls ton identifiant et ton pseudo Discord sont gardés/);
+  assert.match(await txt(p, '.dl-sheet .sheet-body'), /Compte Discord non lié/); assert.match(await txt(p, '.dl-sheet .sheet-body'), /Le serveur de Mana Orbit garde seulement ton identifiant et ton pseudo Discord/);
   assert.deepEqual(await p.$$eval('.dl-sheet .sheet-foot .btn', l => l.map(b => b.textContent.trim())), ['Rejoindre', 'Lier mon compte Discord']);
   const [pop] = await Promise.all([p.waitForEvent('popup'), p.click('.dl-sheet [data-dls="link"]')]);
   await pop.waitForURL(u => u.href.startsWith('https://discord.com/'), { timeout: 5000 }); await pop.close();

@@ -169,10 +169,10 @@ function homeDeskChart() {
   if (h.length < 2 || W < 120 || H < 60) { el.innerHTML = `<p class="hint">${collCount() ? T('La courbe se dessine jour après jour : un relevé des prix par jour.') : T('Ajoute tes cartes : leur valeur sera suivie chaque jour.')}</p>`; return; }
   el.innerHTML = valChartHtml(h, W, H);
 }
-/** Google Play / App Store : « Bientôt » tant que l'appli n'est pas publiée ; Google Play mène à la fiche dès que RATE_ASK passe à true (help.js). */
+/** Google Play / App Store : « Bientôt » tant que l'appli n'est pas publiée ; Google Play mène à la fiche dès que le serveur dit la fiche publique (PLAY_PUBLIC=1 → /__ping play, CTX.play) ou que RATE_ASK passe à true (help.js). */
 function homeStore(k) {
   haptic('tap');
-  if (k === 'play' && RATE_ASK) { window.open(PLAY_URL, '_blank', 'noopener'); return; }
+  if (k === 'play' && (RATE_ASK || CTX.play)) { window.open(PLAY_URL, '_blank', 'noopener'); return; }
   const api = openSheet(T('Bientôt'), k === 'play' ? T('Appli Android · Google Play') : T('Appli iPhone · App Store'), a => {
     a.body.innerHTML = `<div class="hm-soon"><span class="hm-soon-i" aria-hidden="true"><svg class="i"><use href="#${k === 'play' ? 'i-play' : 'i-phone'}"/></svg></span>`
       + `<p><b>${k === 'play' ? T('L\'appli Android arrive très bientôt sur Google Play.') : T('L\'appli iPhone est en préparation.')}</b></p>`

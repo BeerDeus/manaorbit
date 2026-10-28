@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const UA = 'DeckDeal-fr-names/1.0 (+https://github.com/BeerDeus/mtgcardshop)';
+const UA = 'DeckDeal-fr-names/1.0 (+https://github.com/BeerDeus/manaorbit)';
 /** Langues imprimées de Scryfall acceptées (liste fermée, comme les routes /names-<langue>.tsv du serveur) → locale du tri et minimum de lignes. */
 export const NAME_LANGS = { fr: ['fr', 5000], de: ['de', 5000], es: ['es', 5000], it: ['it', 5000], pt: ['pt', 5000], ja: ['ja', 5000], zhs: ['zh', 5000], zht: ['zh-Hant', 1000], ko: ['ko', 1000], ru: ['ru', 1000] };
 /** Fichier servi pour une langue : fr-names.tsv pour le français (nom historique), names-<langue>.tsv pour les autres. */

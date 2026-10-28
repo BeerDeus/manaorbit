@@ -51,7 +51,13 @@ for (const [k, t] of [['play', /Bientôt Appli Android · Google Play.*arrive tr
   assert.match(await txt(p, '.sheet'), t); await p.click('.sheet-foot [data-close]'); await p.waitForFunction(() => !sheets.length);
 }
 assert.deepEqual(await p.$$eval('#hmStores .hm-st-lg a', l => l.map(a => [a.getAttribute('href'), a.textContent])), [['privacy', 'Politique de confidentialité'], ['legal', 'Mentions légales']], 'accueil → confidentialité et mentions légales');
-ok('Google Play et App Store : fenêtre « Bientôt » ; liens Confidentialité et Mentions légales');
+await p.evaluate(() => { CTX.play = true; window.__open = []; window.open = (...a) => { window.__open.push(a); return null; }; });      // PLAY_PUBLIC=1 : fiche publique
+await p.click('[data-store="play"]'); await p.waitForTimeout(200);
+assert.deepEqual(await p.evaluate(() => [window.__open, sheets.length]), [[['https://play.google.com/store/apps/details?id=app.manaorbit', '_blank', 'noopener']], 0], 'fiche publique : Google Play ouvre la fiche');
+assert.equal(await p.evaluate(() => RATE.url), '', 'sans RATE_ASK : pas de demande de note');
+await p.click('[data-store="ios"]'); await p.waitForFunction(() => sheets.length === 1); assert.match(await txt(p, '.sheet'), /en préparation/); await p.click('.sheet-foot [data-close]'); await p.waitForFunction(() => !sheets.length);
+await p.evaluate(() => { CTX.play = false; });
+ok('Google Play et App Store : fenêtre « Bientôt » ; fiche publique (PLAY_PUBLIC=1) : Google Play mène à la fiche, App Store toujours « Bientôt », pas de demande de note ; liens Confidentialité et Mentions légales');
 
 await p.setViewportSize({ width: 900, height: 900 }); await p.waitForFunction(() => !document.querySelector('.hm-cols'));
 assert.deepEqual(await p.evaluate(() => [...document.querySelector('#viewHome').children].map(x => x.id || x.className.split(' ')[0])),

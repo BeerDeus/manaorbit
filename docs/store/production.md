@@ -1,13 +1,14 @@
 # Demande d'accès à la production : Mana Orbit
 
-Play Console › Tableau de bord › **Demander l'accès à la production** (possible dès que 12 testeurs sont inscrits sans interruption depuis 14 jours : vers le 29 octobre 2026). Google répond en 7 jours au plus.
+Play Console › Tableau de bord › **Demander l'accès à la production** (possible dès que 12 testeurs sont inscrits sans interruption depuis 14 jours : 29 octobre 2026). Google répond en 7 jours au plus.
 Réponses préparées le 20 octobre 2026 d'après `docs/a-faire.md` et le README. Remplace les `[crochets]` (chiffres que seul le propriétaire voit) ; le reste est prêt à coller. Le français si la Play Console est en français, l'anglais sinon (les deux disent la même chose).
 
 Où trouver les chiffres :
 - Testeurs inscrits : Play Console › Tests › Test fermé › Testeurs.
 - Comptes actifs par jour, scans signalés : `https://manaorbit.app/admin`.
-- Plantages et ANR : Play Console › Qualité › Android vitals ; rapport de pré-lancement : Tests › Rapport de pré-lancement (version 1.0.6).
-- Avis reçus : boîte `contact@manaorbit.app` (objet « Mana Orbit · avis »).
+- Plantages et ANR : Play Console › Qualité › Android vitals ; rapport de pré-lancement : Tests › Rapport de pré-lancement (version 1.0.14, versionCode 15).
+- Retours sur Discord : forums `#🆘・aide` et `#🐞・bugs`, `#🧪・bêta-feedback`.
+- Avis reçus : boîte `contact@manaorbit.app` (objet « Mana Orbit · avis ») et fils des avis sur Discord (« Aide et avis » de l'appli, depuis le 22 octobre).
 
 Règles : rien d'inventé (Google compare avec le test réel), des faits datés, aucune promesse de fonction absente.
 
@@ -42,11 +43,11 @@ Testers used the app as they would in production, with their real cards: ManaBox
 ### Résumez les retours et comment vous les avez recueillis
 
 ```
-Recueillis par le bouton « Envoyer un avis » de l'appli (e-mail prérempli avec la version et l'appareil), par « Signaler un problème de scan » (photo de la carte ratée et ce que l'appli a lu, consultés dans notre panneau d'administration), par messages et de vive voix avec le groupe de jeu. Points positifs : scan automatique fiable (sauf reflet de la lampe sur certaines cartes), scan téléphone vers ordinateur, import ManaBox, classeur, échange en direct. Problèmes signalés : cartes chinoises, japonaises et coréennes mal lues dans l'appli Android ; collection d'un ancien compte réapparue dans un compte neuf sur le même téléphone ; anciens badges annoncés comme nouveaux ; demande d'ami acceptée sans mise à jour immédiate de la liste.
+Recueillis par « Aide et avis » dans l'appli (avis publié dans un fil du forum de notre serveur Discord, ou e-mail prérempli avec la version et l'appareil), par les forums d'aide et de bugs du serveur Discord des testeurs, par « Signaler un problème de scan » (photo de la carte ratée et ce que l'appli a lu, consultés dans notre panneau d'administration), par messages et de vive voix avec le groupe de jeu. Points positifs : scan automatique fiable (sauf reflet de la lampe sur certaines cartes), scan téléphone vers ordinateur, import ManaBox, classeur, échange en direct. Problèmes signalés : cartes chinoises, japonaises et coréennes mal lues dans l'appli Android ; collection d'un ancien compte réapparue dans un compte neuf sur le même téléphone ; anciens badges annoncés comme nouveaux ; demande d'ami acceptée sans mise à jour immédiate de la liste.
 ```
 
 ```
-Collected through the in-app "Send feedback" button (pre-filled email with app version and device), "Report a scan problem" (photo of the failed card and what the app read, reviewed in our admin panel), direct messages and in person with the play group. Positive: reliable auto scan (except lamp glare on some cards), phone-to-computer scanning, ManaBox import, binder, live trades. Issues reported: Chinese, Japanese and Korean cards poorly read in the Android app; an old deleted account's collection reappearing in a new account on the same phone; old badges announced as new; accepting a friend request not refreshing the list right away.
+Collected through "Help and feedback" in the app (feedback posted as a thread in our Discord server's forum, or a pre-filled email with app version and device), through the help and bug forums of the testers' Discord server, "Report a scan problem" (photo of the failed card and what the app read, reviewed in our admin panel), direct messages and in person with the play group. Positive: reliable auto scan (except lamp glare on some cards), phone-to-computer scanning, ManaBox import, binder, live trades. Issues reported: Chinese, Japanese and Korean cards poorly read in the Android app; an old deleted account's collection reappearing in a new account on the same phone; old badges announced as new; accepting a friend request not refreshing the list right away.
 ```
 
 ## 2. À propos de l'appli
@@ -86,6 +87,9 @@ Mana Orbit brings together in one free app what usually takes several tools: sca
 - Amis : une demande acceptée met la liste à jour tout de suite.
 - Scan et rangement : cadre plus petit, rangement en masse, filtre par extension, classeur qui montre l'impression exacte de chaque carte.
 - Liens https://manaorbit.app vérifiés (App Links) : un lien d'échange ou un QR code ouvre directement l'appli.
+- Caméra du scan qui ne s'ouvrait plus sur certains téléphones (versions 1.0.7 et 1.0.8) : corrigée dans la 1.0.9, vérifiée sur de vrais téléphones.
+- Scans signalés par les testeurs (« Signaler un problème de scan ») : noms partagés par plusieurs cartes, anciennes traductions et noms alternatifs reconnus (26 octobre).
+- Écran qui clignotait dans l'appli Android pendant les animations : corrigé (27 octobre) ; interface qui ne zoome plus par erreur au pincement (1.0.14).
 ```
 
 ```
@@ -95,16 +99,19 @@ Mana Orbit brings together in one free app what usually takes several tools: sca
 - Friends: an accepted request refreshes the list right away.
 - Scan and storage: smaller scan frame, bulk storage, filter by set, binder showing the exact printing of each card.
 - Verified https://manaorbit.app links (App Links): a trade link or QR code opens the app directly.
+- Scan camera no longer opening on some phones (versions 1.0.7 and 1.0.8): fixed in 1.0.9, verified on real phones.
+- Scans reported by testers ("Report a scan problem"): names shared by several cards, older translations and alternate names now recognized (October 26).
+- Screen flickering in the Android app during animations: fixed (October 27); the interface no longer zooms by mistake on pinch (1.0.14).
 ```
 
 ### Comment avez-vous décidé que l'appli était prête ?
 
 ```
-Les 14 jours de test fermé avec 12 testeurs sont terminés et les problèmes signalés sont corrigés et vérifiés sur de vrais téléphones, avec la version 1.0.6 installée depuis Google Play. [Android vitals : N % de sessions sans plantage, N ANR.] [Rapport de pré-lancement : aucune erreur bloquante.] Chaque modification passe plus de 100 tests automatisés (navigateur, serveur, règles de la base de données) avant d'être publiée. Fiche, sécurité des données, politique de confidentialité, suppression du compte depuis l'appli et le web, classification du contenu [et message de consentement publicitaire pour l'Europe] sont en place. La sortie se fera en déploiement progressif.
+Les 14 jours de test fermé avec 12 testeurs sont terminés et les problèmes signalés sont corrigés et vérifiés sur de vrais téléphones, avec la version 1.0.14 installée depuis Google Play. [Android vitals : N % de sessions sans plantage, N ANR.] [Rapport de pré-lancement : aucune erreur bloquante.] Chaque modification passe plus de 100 tests automatisés (navigateur, serveur, règles de la base de données) avant d'être publiée. Fiche, sécurité des données, politique de confidentialité, suppression du compte depuis l'appli et le web, classification du contenu [et message de consentement publicitaire pour l'Europe] sont en place. La sortie sera suivie de près (Android vitals, avis, Discord), avec une version corrective prête à partir si besoin.
 ```
 
 ```
-The 14-day closed test with 12 testers is complete and the reported issues are fixed and verified on real phones, with version 1.0.6 installed from Google Play. [Android vitals: N% crash-free sessions, N ANRs.] [Pre-launch report: no blocking issues.] Every change goes through more than 100 automated tests (browser, server, database rules) before release. Store listing, data safety, privacy policy, account deletion from the app and the web, content rating [and the European ad consent message] are in place. The release will use a staged rollout.
+The 14-day closed test with 12 testers is complete and the reported issues are fixed and verified on real phones, with version 1.0.14 installed from Google Play. [Android vitals: N% crash-free sessions, N ANRs.] [Pre-launch report: no blocking issues.] Every change goes through more than 100 automated tests (browser, server, database rules) before release. Store listing, data safety, privacy policy, account deletion from the app and the web, content rating [and the European ad consent message] are in place. The release will be closely monitored (Android vitals, reviews, Discord), with a fix release ready to ship if needed.
 ```
 
 Le message de consentement AdMob (Europe) n'est cité que s'il est publié (AdMob › Confidentialité et messages) ; sinon retire le crochet.
@@ -117,7 +124,9 @@ Le message de consentement AdMob (Europe) n'est cité que s'il est publié (AdMo
 2. **Fiche** : langue par défaut en-US, textes et notes de version de `docs/store/fiche.md` (§ 0 à 4), nouveaux visuels (§ 9).
 3. **À l'accord de Google** :
    - `ADMOB_BANNER_ID` sur Hostinger (AdMob › Applis › Mana Orbit › Blocs d'annonces › « Bannière »), puis redémarrer l'app Node.
-   - `RATE_ASK = true` dans `src/help.js` : demande de note (carte de Google Play dans la 1.0.6) et bouton Google Play de l'accueil sur ordinateur vers la fiche.
-   - `APK_LATEST=10` sur Hostinger (déjà fait si la 1.0.9 est en ligne sur le test fermé).
-   - Production › Créer une version › promouvoir la **1.0.9 (versionCode 10)** du test fermé (code natif de la 1.0.6, caméra vérifiée), notes de version (§ 4 de la fiche), **déploiement progressif** 20 % → 50 % → 100 % (quelques jours à chaque palier, Android vitals entre deux).
+   - `PLAY_PUBLIC=1` sur Hostinger (avec `ADMOB_BANNER_ID`, un seul redémarrage) : bouton Google Play de l'accueil sur ordinateur vers la fiche.
+   - `RATE_ASK = true` dans `src/help.js` (Claude, push sur `main`) : demande de note (carte de Google Play, APK 1.0.6 et plus). Peut attendre quelques jours de vrais utilisateurs.
+   - `APK_LATEST=15` sur Hostinger (1.0.14 ; `proxy.mjs` l'a aussi par défaut depuis le 28 octobre).
+   - Production › Créer une version › promouvoir la **1.0.14 (versionCode 15)** du test fermé, notes de version (§ 4 de la fiche), **déploiement à 100 % dès le départ** : pour une première version, un déploiement progressif à 20 % ne laisse installer que 20 % des visiteurs de la fiche (les autres lisent « appli non disponible »), alors que les flyers sont en boutique ; personne n'a encore de version de production à protéger. Le déploiement progressif sert aux mises à jour suivantes.
+   - `/admin` › QR codes : « Flyers » et « carte-de-visite » sur « selon le téléphone » (Android → la fiche ; iPhone → le site tant que `APP_STORE_URL` est vide).
 4. **Après** : Google Search Console (`manaorbit.app`, page `/passer-de-manabox`), vidéos courtes, prévenir les testeurs (ils peuvent quitter le test), supprimer `.data/testeurs.json` sur le serveur (fin du test).

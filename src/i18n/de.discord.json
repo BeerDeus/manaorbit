@@ -19,7 +19,7 @@
   "Pas encore membre du serveur : rejoins-le, l'appli le verra d'elle-même (en quelques minutes).": "Noch kein Mitglied des Servers: Tritt bei, die App merkt es von selbst (in ein paar Minuten).",
   "Compte Discord non lié": "Discord-Konto nicht verknüpft",
   "Lie ton compte Discord : l'appli saura que tu es sur le serveur et ne t'invitera plus à le rejoindre.": "Verknüpfe dein Discord-Konto: Die App weiß dann, dass du auf dem Server bist, und lädt dich nicht mehr ein.",
-  "Seuls ton identifiant et ton pseudo Discord sont gardés par le serveur de Mana Orbit, pour savoir si tu es membre ; rien d'autre (ni e-mail, ni messages, ni serveurs). Délier les efface.": "Nur deine Discord-ID und dein Discord-Name werden vom Server von Mana Orbit gespeichert, um zu wissen, ob du Mitglied bist; sonst nichts (keine E-Mail, keine Nachrichten, keine Server). Das Trennen löscht sie.",
+  "Le serveur de Mana Orbit garde seulement ton identifiant et ton pseudo Discord : pour savoir si tu es membre, te donner les rôles de tes badges, répondre à /moi et, si tu le choisis, t'envoyer tes alertes de prix en MP. Ni e-mail, ni messages, ni serveurs. Délier les efface.": "Der Server von Mana Orbit speichert nur deine Discord-ID und deinen Discord-Namen: um zu wissen, ob du Mitglied bist, dir die Rollen deiner Abzeichen zu geben, auf /ich zu antworten und, wenn du willst, dir deine Preisalarme per DN zu schicken. Keine E-Mail, keine Nachrichten, keine Server. Das Trennen löscht sie.",
   "Délier": "Trennen",
   "Ouvrir le Discord": "Den Discord öffnen",
   "Compte Discord délié": "Discord-Konto getrennt",

@@ -44,7 +44,9 @@ const ADMOB_PUB = (/pub-\d{10,20}/.exec(String(process.env.ADMOB_PUB_ID || proce
 // Publiques par nature (servies telles quelles) ; ASSETLINKS_SHA256 les remplace si elle est définie, « 0 » coupe les App Links.
 // Dernière appli Android publiée sur le Play Store (versionCode) : une coque plus ancienne affiche « Mise à jour de l'appli » au lancement (pwa.js › apkCheck).
 // À monter quand la nouvelle version est en ligne (test fermé compris) ; APK_LATEST sur Hostinger la remplace sans redéployer le code. 0 : jamais.
-const APK_LATEST = Math.max(0, Math.min(1e6, Math.floor(Number(process.env.APK_LATEST ?? 9)) || 0));      // 9 = 1.0.8 (en ligne le 20 octobre)
+const APK_LATEST = Math.max(0, Math.min(1e6, Math.floor(Number(process.env.APK_LATEST ?? 15)) || 0));      // 15 = 1.0.14 (sur le test fermé, version promue en production)
+// Fiche Google Play publique (PLAY_PUBLIC=1, le jour de la production) : le bouton Google Play de l'accueil sur ordinateur mène à la fiche au lieu de « Bientôt », sans allumer la demande de note (RATE_ASK, help.js)
+const PLAY_PUBLIC = String(process.env.PLAY_PUBLIC || '').trim() === '1';
 // Fiche App Store de l'appli iPhone (vide tant qu'elle n'existe pas) : /flyer y envoie les iPhone et iPad ; vide ou pas https : le site
 const APP_STORE_URL = /^https:\/\/[^\s]+$/.test(String(process.env.APP_STORE_URL || '').trim()) ? String(process.env.APP_STORE_URL).trim() : '';
 const ASSETLINKS_DEF = '96:57:5F:6F:FD:89:38:E5:FE:46:BD:72:3B:E0:94:E6:27:5C:10:26:B9:14:01:57:D3:37:70:91:B7:A5:8A:33,B2:5B:42:63:AE:39:5B:E7:17:E9:3A:CF:9F:F7:88:13:A8:06:5B:83:2B:5D:41:91:3C:6D:E9:4B:25:24:0D:93';
@@ -101,7 +103,7 @@ try {
 // ── Données EDHREC (edh.bin.gz) : le serveur récupère tout seul la dernière version générée par GitHub Actions (lundi et jeudi), sans redéploiement ──
 // Au démarrage puis toutes les 6 h : lecture conditionnelle (ETag) du fichier du dépôt ; il n'est gardé que s'il est lisible (gzip + EDH2), assez fourni et plus récent
 // que celui servi. Copie gardée en mémoire et dans .data/ (non versionné : ne gêne jamais un « git pull » de déploiement). Panne ou fichier douteux : on garde l'ancien.
-const EDH_SRC = (process.env.EDH_SOURCE_URL === undefined ? 'https://raw.githubusercontent.com/BeerDeus/mtgcardshop/main/pwa/edh.bin.gz' : process.env.EDH_SOURCE_URL).trim();      // '' : désactivé
+const EDH_SRC = (process.env.EDH_SOURCE_URL === undefined ? 'https://raw.githubusercontent.com/BeerDeus/manaorbit/main/pwa/edh.bin.gz' : process.env.EDH_SOURCE_URL).trim();      // '' : désactivé
 const EDH_EVERY = Number(process.env.EDH_SYNC_MS) || 6 * 3600000, EDH_FIRST = process.env.EDH_SYNC_FIRST_MS === undefined ? 5000 : Number(process.env.EDH_SYNC_FIRST_MS);
 const EDH_DIR = process.env.EDH_DATA_DIR || join(here, '.data'), EDH_COPY = join(EDH_DIR, 'edh.bin.gz'), EDH_REPO = join(PWA, 'edh.bin.gz');
 let EDHB = null; try { EDHB = createRequire(import.meta.url)('../edhbin.cjs'); } catch (e) { /* sans lecteur : contrôle minimal (gzip + EDH2) */ }
@@ -156,7 +158,7 @@ async function edhSync() {
 
 // ── Prix « à partir de » de chaque carte (prices.tsv.gz, tendance Cardmarket / TCGplayer) : générés chaque jour par GitHub Actions (branche data),
 // relus ici toutes les 6 h comme les données EDHREC. L'app s'en sert quand l'utilisateur n'a pas de token CardTrader. Absent : l'app interroge Scryfall elle-même.
-const PX_SRC = (process.env.PRICES_SOURCE_URL === undefined ? 'https://raw.githubusercontent.com/BeerDeus/mtgcardshop/data/prices.tsv.gz' : process.env.PRICES_SOURCE_URL).trim();      // '' : désactivé
+const PX_SRC = (process.env.PRICES_SOURCE_URL === undefined ? 'https://raw.githubusercontent.com/BeerDeus/manaorbit/data/prices.tsv.gz' : process.env.PRICES_SOURCE_URL).trim();      // '' : désactivé
 const PX_COPY = join(EDH_DIR, 'prices.tsv.gz');
 let PX_LIVE = null, pxEtag = '', pxBusy = false;
 const PX_ST = { at: '', cards: 0, bytes: 0, check: '', err: '' };
@@ -3880,7 +3882,7 @@ const server = http.createServer(async (req, res) => {
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST, hist: { source: PH_SRC ? 'GitHub' : '', ...PH_ST } });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, play: PLAY_PUBLIC, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte

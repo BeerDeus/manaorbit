@@ -150,7 +150,7 @@ function dlSheet() {
       a.body.innerHTML = `<div class="dl-head"><span class="dl-ic" aria-hidden="true">${DL_ICON}</span><div>`
         + (linked ? `<b>${T('Lié à {name}', { name: `<span class="dl-name">${esc(s.n || 'Discord')}</span>` })}</b><span class="hint">${s.m ? T('Membre du serveur Mana Orbit : l\'invitation n\'est plus sur l\'accueil.') : T('Pas encore membre du serveur : rejoins-le, l\'appli le verra d\'elle-même (en quelques minutes).')}</span>`
           : `<b>${T('Compte Discord non lié')}</b><span class="hint">${T('Lie ton compte Discord : l\'appli saura que tu es sur le serveur et ne t\'invitera plus à le rejoindre.')}</span>`)
-        + `</div></div><p class="hint dl-why">${T('Seuls ton identifiant et ton pseudo Discord sont gardés par le serveur de Mana Orbit, pour savoir si tu es membre ; rien d\'autre (ni e-mail, ni messages, ni serveurs). Délier les efface.')}</p>`;
+        + `</div></div><p class="hint dl-why">${T('Le serveur de Mana Orbit garde seulement ton identifiant et ton pseudo Discord : pour savoir si tu es membre, te donner les rôles de tes badges, répondre à /moi et, si tu le choisis, t\'envoyer tes alertes de prix en MP. Ni e-mail, ni messages, ni serveurs. Délier les efface.')}</p>`;
       a.setFoot(linked
         ? `<button class="btn ghost-danger" type="button" data-dls="unlink">${T('Délier')}</button>${dlJoinA('btn', s.m ? T('Ouvrir le Discord') : T('Rejoindre'))}`
         : `${dlJoinA('btn ghost')}<button class="btn" type="button" data-dls="link">${T('Lier mon compte Discord')}</button>`);

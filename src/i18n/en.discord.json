@@ -19,7 +19,7 @@
   "Pas encore membre du serveur : rejoins-le, l'appli le verra d'elle-même (en quelques minutes).": "Not a server member yet: join it, the app will notice by itself (within a few minutes).",
   "Compte Discord non lié": "Discord account not linked",
   "Lie ton compte Discord : l'appli saura que tu es sur le serveur et ne t'invitera plus à le rejoindre.": "Link your Discord account: the app will know you're on the server and won't invite you to join it anymore.",
-  "Seuls ton identifiant et ton pseudo Discord sont gardés par le serveur de Mana Orbit, pour savoir si tu es membre ; rien d'autre (ni e-mail, ni messages, ni serveurs). Délier les efface.": "Only your Discord ID and username are kept by the Mana Orbit server, to know whether you're a member; nothing else (no email, messages or servers). Unlinking erases them.",
+  "Le serveur de Mana Orbit garde seulement ton identifiant et ton pseudo Discord : pour savoir si tu es membre, te donner les rôles de tes badges, répondre à /moi et, si tu le choisis, t'envoyer tes alertes de prix en MP. Ni e-mail, ni messages, ni serveurs. Délier les efface.": "The Mana Orbit server only keeps your Discord ID and username: to know whether you're a member, give you your badge roles, answer /me and, if you choose, send you your price alerts by DM. No email, messages or servers. Unlinking erases them.",
   "Délier": "Unlink",
   "Ouvrir le Discord": "Open the Discord",
   "Compte Discord délié": "Discord account unlinked",
