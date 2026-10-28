@@ -35,7 +35,10 @@ ok('accueil : le nid, 6 couvées, la couvée en cours et ses 5 œufs du mana, 0 
 const me = await p.evaluate(() => EV.st.me); assert.equal(me.spots.length, 5);
 for (const [i, x] of me.spots.entries()) {
   await p.evaluate(s => { EV_HIDE[s] = () => document.querySelector('#viewHome .hm-hero'); window.scrollTo(0, 0); evScan(); }, x.s);
-  await p.waitForFunction(s => { evScan(); const y = EV.pks.get(s); return y && y.ok; }, x.s, { timeout: 8000 });
+  await p.waitForFunction(s => { evScan(); const y = EV.pks.get(s); return y && y.ok; }, x.s, { timeout: 8000 }).catch(async e => {      // diagnostic (échec intermittent sur la CI, jamais en local)
+    const d = await p.evaluate(s => { const y = EV.pks.get(s); return { has: !!y, ok: !!(y && y.ok), dead: !!(y && y.dead), k: y ? y.k : null, tries: y ? y.tries : null, hunt: evHuntOk(), over: [...document.querySelectorAll('.ev-intro, .ev-party, .ev-msg, .sheet-wrap.open, #splash')].map(o => o.className || o.id) }; }, x.s);
+    throw new Error(`œuf ${i + 1} (${x.s}) jamais posé : ${JSON.stringify(d)} · ${e.message}`);
+  });
   await p.evaluate(s => EV.pks.get(s).el.click(), x.s);
   await p.waitForFunction(k => !EV.fly && EV.st.me.found.length === k + 1, i, { timeout: 8000 });
   if (i === 3) {
