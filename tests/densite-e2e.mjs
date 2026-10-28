@@ -193,8 +193,10 @@ await p.waitForSelector('.tr-top .tr-sum em', { timeout: 15000 });      // valeu
   assert.match(await txt(p, '.tr-bar.on .tr-bar-main'), /^Lien actif/); assert.ok(await p.$eval('.tr-bar.on', b => b.getBoundingClientRect().height <= 60), 'une ligne');
   assert.ok(await p.$eval('.tr-bar.on .tr-bar-main b', b => b.scrollWidth <= b.clientWidth + 1), '« Lien actif » lisible en entier');
   await p.evaluate(() => document.querySelector('#toast').classList.remove('on'));
+  const bands = '.coll.on .coll-sync, .coll.on .coll-status, .coll.on .coll-alert';      // bandeaux d'état (synchro, lecture, alerte) : sous la barre des filtres, au-dessus de la barre du lien ; passagers après la connexion (vus sur la CI : ≈ 65 px)
+  await p.waitForFunction(sel => [...document.querySelectorAll(sel)].every(e => e.hidden || !e.offsetHeight), bands, { timeout: 15000 }).catch(() => {});
   const m = await measure(p, '.coll.m-trade .tr-list .tr-row'); console.log('  393×852 échange avec lien :', JSON.stringify(m));
-  const boxes = m.first <= 320 ? '' : JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('.coll.on .dv-head, .coll.on .coll-controls, .coll.on .coll-main > *, .coll.on .tr-bar > *, .coll.on .tr-top > *, .coll.on .ev-pk')].map(e => [e.className.slice(0, 40), Math.round(e.getBoundingClientRect().top), Math.round(e.getBoundingClientRect().height)])));      // diagnostic : 374 sur la CI (Chromium 141), 309 en local
+  const boxes = m.first <= 320 ? '' : JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('.coll.on .dv-head, .coll.on .coll-controls, .coll.on .coll-sync, .coll.on .coll-status, .coll.on .coll-alert, .coll.on .coll-main > *, .coll.on .tr-bar > *, .coll.on .tr-top > *, .coll.on .ev-pk')].map(e => [e.className.slice(0, 40), Math.round(e.getBoundingClientRect().top), Math.round(e.getBoundingClientRect().height), e.hidden ? '' : e.textContent.trim().slice(0, 80)])));      // diagnostic : 374 sur la CI (Chromium 141), 309 en local
   assert.ok(m.first <= 320, `liste d'échange à y = ${m.first} (≤ 320) ${boxes}`);
   await p.click('.tr-bar.on [data-act="trlink"]'); await p.waitForSelector('.sheet-wrap.open .trl-sheet .tr-link input');
   assert.equal(await p.$eval('.trl-sheet .tr-link input', i => i.value), world.url + '?p=ShareDensite0001');
