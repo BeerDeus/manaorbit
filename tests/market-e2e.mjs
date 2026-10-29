@@ -8,6 +8,7 @@ const world = await startWorld({ port: 18945, env: { CARDTRADER_TOKEN: '' } });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
 const DECK = '1 Sol Ring\n2 Craterhoof Behemoth';
 const settle = p => p.waitForFunction(() => S.run && S.run.status !== 'running', null, { timeout: 30000 });
+const amt = (p, re) => p.waitForFunction(r => new RegExp(r).test(document.querySelector('#heroAmt').textContent), re.source, { timeout: 5000 });      // total animé : sa valeur finale
 const run = async p => { await toInput(p); await p.fill('#deckText', DECK); await p.waitForTimeout(250); await p.click('#btnRun'); await settle(p); await p.waitForTimeout(400); };
 
 {
@@ -20,8 +21,8 @@ const run = async p => { await toInput(p); await p.fill('#deckText', DECK); awai
   assert.match(await txt(p, '#viewInput .intro p'), /prix du marché TCGplayer de chaque carte\.$/);
   ok('marché TCGplayer : choix gardé, accueil et « Prix d\'une liste » sans CardTrader');
   await run(p);
-  assert.equal(await txt(p, '#heroLabel'), 'Prix du marché TCGplayer, à partir de');
-  assert.match(await txt(p, '#heroAmt'), /25,35\s*\$/, 'dollars : 1 × 1,95 + 2 × 11,70');
+  assert.equal(await txt(p, '#heroLabel'), 'Prix TCGplayer, à partir de');
+  await amt(p, /25,35\s*\$/);      // dollars : 1 × 1,95 + 2 × 11,70
   assert.match(await txt(p, '.row[data-key="craterhoof behemoth"]'), /TCGplayer.*Prix du marché · 2 × 11,70/);
   assert.equal(await txt(p, '#btnCartTxt'), 'Copier pour TCGplayer'); assert.equal(world.reqs(), 0, 'aucune requête CardTrader');
   ok('recherche : prix du marché TCGplayer en dollars, libellés TCGplayer');
@@ -36,12 +37,12 @@ const run = async p => { await toInput(p); await p.fill('#deckText', DECK); awai
   await openMe(p);
   assert.match(await txt(p, '[data-me="marche"]'), /Marché des prix TCGplayer · \$/); assert.equal(await p.$('[data-me="prix"]'), null, 'pas de ligne CardTrader');
   await p.click('[data-me="marche"]'); await p.waitForSelector('#segMkt');
-  assert.match(await txt(p, '.sheet-wrap.open:last-child'), /Automatique : Europe, Cardmarket en euros/);
+  assert.match(await p.$eval('#segMkt', e => e.closest('.sheet').innerText.replace(/\s+/g, ' ')), /Automatique : Europe, Cardmarket en euros/);
   assert.equal(await p.$eval('#segMkt', e => e._v), 'us');
   await Promise.all([p.waitForNavigation(), p.click('#segMkt [data-v="eu"]')]); await p.waitForTimeout(800);
   assert.deepEqual(await p.evaluate(() => [MK.id, mkCur(), localStorage.getItem('deckdeal:mkt')]), ['eu', 'EUR', 'eu'], 'Cardmarket choisi : l\'appli redémarre en euros');
   await run(p);
-  assert.equal(await txt(p, '#heroLabel'), 'Prix Cardmarket, à partir de'); assert.match(await txt(p, '#heroAmt'), /19,50\s*€/);
+  assert.equal(await txt(p, '#heroLabel'), 'Prix Cardmarket, à partir de'); await amt(p, /19,50\s*€/);
   ok('Marché des prix › Cardmarket : retour aux euros (19,50 €)');
   assert.deepEqual(errs, []); await p.context().close();
 }
@@ -50,7 +51,7 @@ const run = async p => { await toInput(p); await p.fill('#deckText', DECK); awai
   const { p, errs } = await newPage(browser, world);
   await p.goto(world.url + '?mkt=us&lang=en'); await p.waitForTimeout(800);
   await run(p);
-  assert.equal(await txt(p, '#heroLabel'), 'TCGplayer price, from'); assert.match(await txt(p, '#heroAmt'), /\$25\.35/);
+  assert.equal(await txt(p, '#heroLabel'), 'TCGplayer price, from'); await amt(p, /\$25\.35/);
   ok('anglais : « TCGplayer price, from », $25.35');
   assert.deepEqual(errs, []); await p.context().close();
 }
