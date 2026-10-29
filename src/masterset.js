@@ -190,14 +190,14 @@ function msCell(code, x, f, lab0) {
 function msTile(code, x, i, inBase, tot) {
   const name = x.dn || x.n, num = inBase && tot ? x.num + '/' + tot : '#' + x.num, lab0 = [name, num].join(' · ');
   if (!MS.o.foil) {
-    const c = msCell(code, x, '', lab0), u = msEu(x), px = u ? fmt(u, 'EUR') + (x.eu > 0 ? '' : ' ✦') : '';
+    const c = msCell(code, x, '', lab0), u = msEu(x), px = u ? fmt(u, mkCur()) + (x.eu > 0 ? '' : ' ✦') : '';
     return `<div class="ms-c ${c.st}" data-i="${i}">${c.html}<span class="ms-cap"><span class="ms-num">${esc(num)}</span>${px ? `<span class="ms-px">${esc(px)}</span>` : ''}</span></div>`;
   }
   // version foil aussi : normale et foil côte à côte ; une finition que l'impression n'a pas reste en creux
   const fins = msFins(x), cells = ['n', 'f'].map(f => (fins.includes(f) ? msCell(code, x, f, lab0) : null)), sts = cells.filter(Boolean).map(c => c.st);
   const st = sts.every(v => v === 'own') ? 'own' : sts.every(v => v === 'miss') ? 'miss' : 'part';
   const half = (c, j) => (c ? `<div class="ms-h ${c.st}${j ? ' fo' : ''}">${c.html}</div>` : `<div class="ms-h none${j ? ' fo' : ''}"><span class="ms-no">${esc(j ? T('Pas de foil') : T('Foil seulement'))}</span></div>`);
-  const px = (f, v) => (fins.includes(f) && v > 0 ? `<span class="ms-px${f === 'f' ? ' fo' : ''}">${esc((f === 'f' ? '✦ ' : '') + fmt(v, 'EUR'))}</span>` : '<span class="ms-px"></span>');
+  const px = (f, v) => (fins.includes(f) && v > 0 ? `<span class="ms-px${f === 'f' ? ' fo' : ''}">${esc((f === 'f' ? '✦ ' : '') + fmt(v, mkCur()))}</span>` : '<span class="ms-px"></span>');
   return `<div class="ms-c ms-pair ${st}" data-i="${i}"><div class="ms-two">${cells.map(half).join('')}</div>
     <span class="ms-cap"><span class="ms-num">${esc(num)}</span><span class="ms-pxs">${px('n', x.eu)}${px('f', x.ef)}</span></span></div>`;
 }
@@ -245,7 +245,7 @@ function msHtml() {
   }
   const pb = msProg(code, s.list), shown = msFilter(code, s.list), act = filterActive(COLL.f) || MS.rar.size || MS.show !== 'all';      // shown : cartes en vue (souhaiter, chercher, ⚠)
   MS.view = { code, shown };
-  const val = pb.miss ? T('Il te manque ≈ {a} · l\'édition complète ≈ {b}', { a: fmt(pb.miss, 'EUR'), b: fmt(pb.all, 'EUR') }) : pb.n && pb.own === pb.n ? (MS.o.vars && s.vars.length ? T('Masterset complet !') : T('Base complète !')) : '';
+  const val = pb.miss ? T('Il te manque ≈ {a} · l\'édition complète ≈ {b}', { a: fmt(pb.miss, mkCur()), b: fmt(pb.all, mkCur()) }) : pb.n && pb.own === pb.n ? (MS.o.vars && s.vars.length ? T('Masterset complet !') : T('Base complète !')) : '';
   const ign = COLL.f.cmdr || COLL.f.set ? `<p class="hint">${T('Les filtres Commander et Extension ne s\'appliquent pas au masterset.')}</p>` : '';
   const ctl = `<div class="setv-chips ms-ctl" role="group" aria-label="${esc(T('Affichage du masterset'))}">
       ${MS_SHOWS.map(([v, l]) => `<button type="button" class="fopt" data-act="msshow" data-v="${v}" aria-pressed="${MS.show === v}">${T(l)}</button>`).join('')}
@@ -274,7 +274,7 @@ function msViewItem(code, x, fin = '') {
   if (o && msQ(code, x, fin) > 0) { const it = typeof collViewItem === 'function' ? collViewItem(o.k, msLine(o, fin)) : null; if (it) return it; }
   const img = setvImg(x), name = x.dn || x.n, u = msUnit(x, fin), ed = code.toUpperCase() + ' ' + x.num, fo = fin === 'f';
   const it = { key: x.k, name, ln: x.n, small: scrySmall(img), big: img.replace('/normal/', '/large/'), lang: x.il || 'en', set: code, num: x.num, setName: msSetName(code), plain: !x.df, ...(fo ? { foil: true } : {}) };
-  const loose = msBasic(x) ? 0 : msLoose(x.k, fin), px = u ? T('prix Cardmarket {v}', { v: fmt(u, 'EUR') + (fo ? ' ✦' : '') }) : '';
+  const loose = msBasic(x) ? 0 : msLoose(x.k, fin), px = u ? T('prix Cardmarket {v}', { v: fmt(u, mkCur()) + (fo ? ' ✦' : '') }) : '';
   if (loose) {      // D : combien de ces exemplaires sans édition sont de celle-ci (compteur au-dessus du bouton, 1 par défaut)
     const one = loose < 2;
     it.extra = [fo ? TN(loose, 'Tu as {n} exemplaire foil de cette carte sans édition : est-ce celui-ci ?', 'Tu as {n} exemplaires foil de cette carte sans édition')
@@ -340,7 +340,7 @@ function msWishSheet() {
   if (!list.length) return;
   const eu = list.reduce((a, x) => a + msEu(x), 0), upd = list.filter(x => TR.wish[x.k]).length;
   openSheet(T('Souhaiter les cartes manquantes'), msSetName(code), api => {
-    api.body.innerHTML = `<p class="cf-msg">${TN(list.length, '<b>{n}</b> carte manquante entre dans ta liste de souhaits, avec l\'illustration de cette édition.', '<b>{n}</b> cartes manquantes entrent dans ta liste de souhaits, avec l\'illustration de cette édition.')}${eu ? ' ' + esc(T('Prix Cardmarket ≈ {v}', { v: fmt(eu, 'EUR') })) : ''}</p>
+    api.body.innerHTML = `<p class="cf-msg">${TN(list.length, '<b>{n}</b> carte manquante entre dans ta liste de souhaits, avec l\'illustration de cette édition.', '<b>{n}</b> cartes manquantes entrent dans ta liste de souhaits, avec l\'illustration de cette édition.')}${eu ? ' ' + esc(T('Prix Cardmarket ≈ {v}', { v: fmt(eu, mkCur()) })) : ''}</p>
       ${upd ? `<p class="hint">${TN(upd, '{n} carte y est déjà avec une autre illustration : elle prend celle-ci.', '{n} cartes y sont déjà avec une autre illustration : elles prennent celle-ci.')}</p>` : ''}
       <p class="hint">${T('Les amis et les visiteurs de ta liste d\'échange les voient dans « Je recherche ».')}</p>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ok>${T('Ajouter à ma liste de souhaits')}</button>`);

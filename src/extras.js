@@ -5,7 +5,7 @@
    · Engagés et historique de valeur passent par le compte (users/{uid}/meta/engaged et /history) ; sans les règles Firestore à jour,
      tout reste sur l'appareil et un message le dit une fois. */
 const BUY_KEY = 'deckdeal:buy:v1', ENG_KEY = 'deckdeal:eng:v1';
-const XS = { buy: null, eng: {}, warned: false, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
+const XS = { buy: null, eng: {}, warned: false, hOther: null, hReset: 0, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
 
 function xsRead() {
   try { XS.buy = buyClean(JSON.parse(localStorage.getItem(BUY_KEY) || 'null')); } catch (e) { XS.buy = null; }
@@ -136,6 +136,7 @@ function xsFail(id, err) {
 }
 function xsUser(user) {
   for (const id in XS.docs) { const d = XS.docs[id]; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.state = 'off'; d.uid = ''; }
+  XS.hOther = null; XS.hReset = 0;      // relevés de l'autre marché : inconnus tant que le compte n'a pas répondu (rien n'est envoyé avant, ils seraient perdus)
   if (!user || !D.cloud || !D.cloud.watchMeta) return;
   for (const id in XS.docs) {
     const d = XS.docs[id]; d.state = 'sync'; d.uid = user.uid;
@@ -151,16 +152,21 @@ function xsRemote(id, uid, data, pending, fromCache) {
     if (!engSame(merged, XS.eng)) { XS.eng = merged; engWrite(); engApplied(); }
     if (!engSame(merged, remote)) xsPushSoon('engaged');
   } else if (id === 'prices') {
+    if (mkUs()) return;                                                     // prix du jour partagés : Cardmarket seulement (le document n'a pas de devise)
     if (data && prcApply(data)) return;                                     // prix plus récents lus par un autre appareil : pris tels quels
     if (VAL.at > (Number(data && data.at) || 0) && COLL.freshAt) xsPushSoon('prices');      // prix d'ici plus récents (relus aujourd'hui) : envoyés
   } else {
-    // reset : « Recommencer la courbe » (value.js) fait ici ou sur un autre appareil ; le plus récent gagne, aucun relevé d'avant ne revient d'un côté ni de l'autre
-    const rr = Number(data && data.reset) || 0, newer = rr > VAL.reset;
+    // reset : « Recommencer la courbe » (value.js) fait ici ou sur un autre appareil ; le plus récent gagne, aucun relevé d'avant ne revient d'un côté ni de l'autre.
+    // Marchés : relevés TCGplayer marqués m: 'us' (dollars), les autres en euros ; chaque appareil ne lit que ceux de son marché et renvoie les autres tels quels.
+    // reset du document : celui de Cardmarket (les appareils d'avant le connaissent) ; TCGplayer garde le sien sur l'appareil (value.js › VAL.reset).
+    const us = mkUs(), rr = Number(data && data.reset) || 0, newer = !us && rr > VAL.reset;
     if (newer) { VAL.reset = rr; VAL.hist = VAL.hist.filter(h => h.t >= rr); }
-    const all = data && Array.isArray(data.pts) ? data.pts.map(p => (Array.isArray(p) ? { t: p[0], v: p[1], n: p[2], q: p[3] } : p && typeof p === 'object' ? { t: p.t, v: p.v, n: p.n, q: p.q } : null)).filter(Boolean) : [];
+    const pts = data && Array.isArray(data.pts) ? data.pts.map(p => (Array.isArray(p) ? { t: p[0], v: p[1], n: p[2], q: p[3] } : p && typeof p === 'object' ? { t: p.t, v: p.v, n: p.n, q: p.q, ...(p.m === 'us' ? { m: 'us' } : {}) } : null)).filter(Boolean) : [];
+    const all = pts.filter(h => (h.m === 'us') === us).map(({ m, ...h }) => h);
+    XS.hOther = pts.filter(h => (h.m === 'us') !== us); XS.hReset = rr;
     const remote = all.filter(h => !(h.t < VAL.reset)), merged = histMerge(VAL.hist, remote);
     if (newer || !histSame(merged, VAL.hist)) { VAL.hist = merged; VAL.memo = null; valSave(false); paintCollSection(); if (COLL.el) collPaintBody(true); }
-    if (!histSame(merged, all) || rr < VAL.reset) xsPushSoon('history');
+    if (!histSame(merged, all) || (!us && rr < VAL.reset)) xsPushSoon('history');
   }
 }
 function xsPushSoon(id) { const d = XS.docs[id]; if (!d || !d.uid) return; clearTimeout(d.pushT); d.pushT = setTimeout(() => xsPush(id), 900); }      // pushT remis à 0 à l'envoi : non nul = envoi en attente (syncFlush)
@@ -169,11 +175,20 @@ async function xsPush(id) {
   const d = XS.docs[id]; if (d) { clearTimeout(d.pushT); d.pushT = 0; }
   if (!d || !d.uid || acctHeld(d.uid) || !cloudOn() || !D.cloud.saveMeta) return;      // autre compte, ou compte en cours de suppression
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-  const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : id === 'prices' ? prcDoc() : { pts: VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0 })), ...(VAL.reset ? { reset: VAL.reset } : {}), updatedAt: Date.now() };      // reset : règles Firestore du 21 octobre
+  if (id === 'history' && !XS.hOther) return;      // relevés de l'autre marché pas encore lus : xsRemote renverra s'il le faut
+  if (id === 'prices' && mkUs()) return;
+  const doc = id === 'engaged' ? { decks: XS.eng, updatedAt: Date.now() } : id === 'prices' ? prcDoc() : histDoc();      // reset : règles Firestore du 21 octobre
   if (!doc) return;
   try { await D.cloud.saveMeta(d.uid, id, doc); d.state = 'ok'; acctSaw(id, d.uid); } catch (err) { xsFail(id, err); }
 }
 
+/** Document meta/history : relevés de ce marché (m: 'us' pour TCGplayer) + ceux de l'autre, tels que lus (les plus anciens de l'autre retirés au-delà de 420, la borne
+ *  des règles Firestore) ; reset : celui de Cardmarket. */
+function histDoc() {
+  const us = mkUs(), mine = VAL.hist.map(h => ({ t: h.t, v: h.v, n: h.n | 0, q: h.q | 0, ...(us ? { m: 'us' } : {}) })), other = (XS.hOther || []).slice(-Math.max(0, 420 - mine.length));
+  const reset = us ? XS.hReset : VAL.reset;
+  return { pts: [...other, ...mine].sort((a, b) => a.t - b.t), ...(reset ? { reset } : {}), updatedAt: Date.now() };
+}
 function xsInit() {
   xsRead(); buyPaint();
   const bar = $('#buyBar');

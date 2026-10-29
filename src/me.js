@@ -29,7 +29,7 @@ const meRow = (me, title, value, warn, id) => `<button type="button" class="me-r
 function meSigNow() {
   const u = D.user;
   return [u ? u.uid : '', u ? meName(u) + '|' + (u.email || '') + '|' + acctVerified(u) : D.state + (D.hint && !D.authReady ? 'h' : ''), PROF.photo ? PROF.photo.length : 0, D.pending, D.listErr, allDecks().length, collCount(), Math.round(homeValue() / 100),
-    PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, amSig(), S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang,
+    PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, amSig(), S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang, MK.id + MK.pick,
     typeof opnSv === 'function' ? JSON.stringify(opnSv()) : '', typeof dlSig === 'function' ? dlSig() : '', typeof EV !== 'undefined' ? EV.adm + '|' + EV.pv + '|' + evPvBadges() : ''].join('§');      // mode streamer (opening.js) : la fiche ne montre que la session
 }
 function mePaint() {
@@ -64,7 +64,8 @@ function mePaint() {
     meRow('scan', T('Scan'), typeof scsEdLabel === 'function' ? esc(scsEdLabel()) : ''),
     ...(nat ? [meRow('widget', T('Widget'), '')] : []),
   ]);
-  const price = meGroup(T('Prix'), [meRow('prix', 'CardTrader', S.token ? T('Ton token') : typeof ctReady === 'function' && ctReady() ? T('Compte du serveur') : T('Sans token'))]);
+  const price = meGroup(T('Prix'), [meRow('marche', T('Marché des prix'), esc(MKTS[MK.id].name + ' · ' + (MK.id === 'us' ? '$' : '€')) + (MK.pick ? '' : ' · ' + T('Auto'))),
+    ...(mkUs() ? [] : [meRow('prix', 'CardTrader', S.token ? T('Ton token') : typeof ctReady === 'function' && ctReady() ? T('Compte du serveur') : T('Sans token'))])]);      // marché TCGplayer : pas de CardTrader
   const more = meGroup(T('Plus'), [
     meRow('aide', T('Aide et avis'), ''),
     meRow('donnees', T('Données de l\'appareil'), ''),
@@ -103,6 +104,7 @@ function meSub(k) {
   else if (k === 'widget') setWidgetSheet();
   else if (k === 'notif') openNotifSettings();
   else if (k === 'prix') setPrixSheet();
+  else if (k === 'marche') mkSheet();
   else if (k === 'aide') setHelpSheet();
   else if (k === 'signaler') helpReport();      // la fenêtre d'avis (Discord), ou le mailto
   else if (k === 'donnees') setDataSheet();

@@ -13,7 +13,7 @@
    seulement (aucun document de compte : il faudrait une nouvelle règle Firestore).
    Bilan d'ouverture (prix payé, gain ou perte, meilleures cartes, partage en image) : opnbilan.js, retirable seul.
    Retirer toute la fonction : ôter 'opening.js' et 'opnbilan.js' de build.mjs (les crochets deviennent inertes), puis css/opening.css et i18n/*.opening.json. */
-const OPN_CUR_KEY = 'deckdeal:opn:cur', OPN_HIST_KEY = 'deckdeal:opn:hist', OPN_HIST_MAX = 40;
+const OPN_CUR_KEY = 'deckdeal:opn:cur' + mkSfx(), OPN_HIST_KEY = 'deckdeal:opn:hist' + mkSfx(), OPN_HIST_MAX = 40;      // marché TCGplayer : ses propres sessions (montants en dollars)
 const OPN = { cur: null, hist: null, seq: 0, raf: 0, sheet: null, on: new Set(), meta: null };      // on : repeints des feuilles ouvertes (chacun se retire à la fermeture de la sienne)
 /** Œil barré (mode streamer) : pas dans le sprite de l'appli. */
 const OPN_EYE = '<svg class="i opn-eye" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.2A10 10 0 0 1 12 5c5 0 8.6 4.3 9.6 6.5a1.3 1.3 0 0 1 0 1 12.8 12.8 0 0 1-2.5 3.4M6.6 6.6a13 13 0 0 0-4.2 4.9 1.3 1.3 0 0 0 0 1C3.4 14.7 7 19 12 19a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
@@ -114,7 +114,7 @@ function opnRefresh() {
 }
 /** Feuilles de la session ouvertes : chacune suit (cartes, prix lus, mode streamer). */
 function opnSheets() { for (const f of [...OPN.on]) f(); }
-const opnPillTxt = c => { const t = opnTotals(c.rows); return [TN(t.n, '{n} carte', '{n} cartes'), t.v ? fmt(t.v, 'EUR') : ''].filter(Boolean).join(' · '); };
+const opnPillTxt = c => { const t = opnTotals(c.rows); return [TN(t.n, '{n} carte', '{n} cartes'), t.v ? fmt(t.v, mkCur()) : ''].filter(Boolean).join(' · '); };
 const opnIc = c => (c.st ? OPN_EYE : '<i class="opn-dot" aria-hidden="true"></i>');
 /** Pastille de l'accueil (sous l'orbe, à la place du sous-titre) et bandeau du scan (au-dessus de la liste) : la session en cours, d'un appui. */
 function opnBands() {
@@ -178,7 +178,7 @@ function opnSheetUp(a, ...cls) {
 function opnFoot(api, html) { if (api.opnFoot !== html) { api.opnFoot = html; api.setFoot(html); } }
 const opnWhen = t => new Date(t).toLocaleString(LOC(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 function opnTilesHtml(t) {
-  return `<div class="cs-tiles opn-tiles"><div><b>${nf0(t.n)}</b><span>${TN(t.n, 'carte ouverte', 'cartes ouvertes')}</span></div><div class="opn-val"><b>${t.v ? esc(fmt(t.v, 'EUR')) : '—'}</b><span>${T('valeur · tendance Cardmarket')}</span></div></div>`;
+  return `<div class="cs-tiles opn-tiles"><div><b>${nf0(t.n)}</b><span>${TN(t.n, 'carte ouverte', 'cartes ouvertes')}</span></div><div class="opn-val"><b>${t.v ? esc(fmt(t.v, mkCur())) : '—'}</b><span>${T('valeur · tendance Cardmarket')}</span></div></div>`;
 }
 /** Une ligne de la session : miniature, nom (imprimé si FR…), drapeau, édition, quantité, prix du lot. act : 'dec' (− : un exemplaire de moins), 'pick' (écarter / garder), 'fix' (historique : prix du moment de l'ouverture). */
 function opnRowHtml(r, act, off) {
@@ -186,7 +186,7 @@ function opnRowHtml(r, act, off) {
   const inner = `<span class="thumb" style="--h:${hash32(r.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${l ? `<span class="lchip ro">${flag(l)}</span>` : ''}</span>
       <span class="row-meta">${e ? `<span class="tag ed">${setIcHtml(set)}${esc(sn ? sn + ' #' + edNum(e) : edLabel(e))}</span>` : ''}${r.q > 1 ? `<span class="tag accent">× ${nf0(r.q)}</span>` : ''}${off ? `<span class="tag warn">${T('écartée')}</span>` : ''}</span></span>
-    ${u > 0 ? `<span class="row-px"><span class="px cm"><b>${esc(fmt(u * r.q, 'EUR'))}</b></span></span>` : ''}`;
+    ${u > 0 ? `<span class="row-px"><span class="px cm"><b>${esc(fmt(u * r.q, mkCur()))}</b></span></span>` : ''}`;
   if (act === 'pick') return `<button type="button" class="crow opn-row opn-pick${u > 0 ? ' has-px' : ''}${off ? ' off' : ''}" data-id="${esc(r.id)}" role="checkbox" aria-checked="${!off}">${inner}<span class="opn-ck" aria-hidden="true"></span></button>`;
   return `<div class="crow opn-row${u > 0 ? ' has-px' : ''}" data-id="${esc(r.id)}">${inner}${act === 'dec' ? `<button type="button" class="opn-x" data-opn="dec" aria-label="${esc(T('Retirer un exemplaire de {name}', { name: nm }))}">−</button>` : ''}</div>`;
 }
@@ -299,7 +299,7 @@ function opnHistSheet() {
     opnSheetUp(api);
     const paint = () => {
       const list = opnHist();
-      api.body.innerHTML = list.length ? `<div class="opn-hl">${list.map(rec => `<button type="button" class="opn-h" data-id="${esc(rec.id)}"><span class="opn-ht"><b>${esc(rec.name)}</b><small>${esc(new Date(rec.at).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: 'numeric' }))} · ${TN(rec.n, '{n} carte', '{n} cartes')}</small></span><span class="opn-hv"><b>${rec.v ? esc(fmt(rec.v, 'EUR')) : '—'}</b>${typeof opnbHistTag === 'function' ? opnbHistTag(rec) : ''}</span>${OPN_CHEV}</button>`).join('')}</div>`
+      api.body.innerHTML = list.length ? `<div class="opn-hl">${list.map(rec => `<button type="button" class="opn-h" data-id="${esc(rec.id)}"><span class="opn-ht"><b>${esc(rec.name)}</b><small>${esc(new Date(rec.at).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: 'numeric' }))} · ${TN(rec.n, '{n} carte', '{n} cartes')}</small></span><span class="opn-hv"><b>${rec.v ? esc(fmt(rec.v, mkCur())) : '—'}</b>${typeof opnbHistTag === 'function' ? opnbHistTag(rec) : ''}</span>${OPN_CHEV}</button>`).join('')}</div>`
         : `<p class="hint">${T('Aucune ouverture terminée pour l\'instant.')}</p>`;
     };
     paint();
@@ -377,8 +377,8 @@ function opnStatsHtml(rows) {
   const st = collStats(items, 'cm');
   const colorRows = [['W', T('Blanc')], ['U', T('Bleu')], ['B', T('Noir')], ['R', T('Rouge')], ['G', T('Vert')]].map(([c, n]) => [`<i class="mc mc-${c.toLowerCase()}">${c}</i>${n}`, st.colors[c], 'k-' + c.toLowerCase()])
     .concat([['<i class="mc mc-m">M</i>' + T('Multicolore'), st.colors.M, 'k-m'], ['<i class="mc mc-n">C</i>' + T('Incolore'), st.colors.C, 'k-n']]);
-  const top = st.top.slice(0, 10).map(i => `<div class="crow ro"><span class="thumb" style="--h:${hash32(i.k) % 360}">${esc((i.dn.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(i.lot, 'EUR'))}</b>${i.q > 1 ? `<small>${esc(fmt(i.up, 'EUR'))} × ${nf0(i.q)}</small>` : ''}</span></div>`).join('');
-  return `<div class="opn-main"><div class="cs-tiles opn-st3"><div><b>${nf0(st.unique)}</b><span>${TN(st.unique, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(st.copies)}</b><span>${TN(st.copies, 'exemplaire', 'exemplaires')}</span></div><div><b>${st.valued ? esc(fmt(st.value, 'EUR')) : '—'}</b><span>${T('valeur · tendance Cardmarket')}</span></div></div>
+  const top = st.top.slice(0, 10).map(i => `<div class="crow ro"><span class="thumb" style="--h:${hash32(i.k) % 360}">${esc((i.dn.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}</span></span><span class="row-price"><b>${esc(fmt(i.lot, mkCur()))}</b>${i.q > 1 ? `<small>${esc(fmt(i.up, mkCur()))} × ${nf0(i.q)}</small>` : ''}</span></div>`).join('');
+  return `<div class="opn-main"><div class="cs-tiles opn-st3"><div><b>${nf0(st.unique)}</b><span>${TN(st.unique, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(st.copies)}</b><span>${TN(st.copies, 'exemplaire', 'exemplaires')}</span></div><div><b>${st.valued ? esc(fmt(st.value, mkCur())) : '—'}</b><span>${T('valeur · tendance Cardmarket')}</span></div></div>
     ${st.unknown ? `<p class="hint">${T('Stats sur {a} cartes lues ; {b} sans infos pour l\'instant.', { a: nf0(st.known), b: nf0(st.unknown) })}</p>` : ''}
     <h3 class="cs-h">${T('Courbe de mana')} <small>${T('{n} sorts', { n: nf0(st.spells) })}</small></h3>${curveBars(st.curve, false)}
     <h3 class="cs-h">${T('Couleurs')} <small>${T('sorts')}</small></h3>${barsHtml(colorRows)}

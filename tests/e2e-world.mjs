@@ -31,7 +31,7 @@ const front = n => String(n).split('//')[0].trim().toLowerCase();
 export async function startWorld({ port = 18900, env = {}, bigCatalog = 0, daily = null } = {}) {
   const prices = {}; CARDS.forEach(([, bp, , , , c]) => { if (c != null) prices[bp] = c; });
   const log = [];
-  const prints = {}; CARDS.forEach(([n, , cmc, tl, mc, , colors, eur], i) => { prints[n] = [{ id: 's-' + slug(n), set: 'cmm', set_name: 'Commander Masters', collector_number: String(400 + i), name: n, cmc, type_line: tl, mana_cost: mc, colors, prices: { eur }, color_identity: colors, legalities: { commander: 'legal' },
+  const prints = {}; CARDS.forEach(([n, , cmc, tl, mc, , colors, eur], i) => { prints[n] = [{ id: 's-' + slug(n), set: 'cmm', set_name: 'Commander Masters', collector_number: String(400 + i), name: n, cmc, type_line: tl, mana_cost: mc, colors, prices: { eur, usd: (Number(eur) * 1.3).toFixed(2) },      // usd : marché TCGplayer (market-e2e.mjs) color_identity: colors, legalities: { commander: 'legal' },
     image_uris: { small: `https://cards.scryfall.io/small/front/a/b/${slug(n)}.jpg` } }]; });
   const bps = CARDS.map(([n, bp]) => ({ id: bp, name: n, scryfall_id: 's-' + slug(n) }));
   // eds['cmm|400'] = { n: 'Sol Ring', langs: ['fr'] } : impression connue par son extension et son numéro (/cards/collection), avec ses langues (recherche « (set:cmm cn:400 or …) lang:fr ») ; edLangQ : ces recherches

@@ -114,7 +114,7 @@ const S = {
   demo: true, demoPref: null, src: 'auto', proxy: false, token: '', appKey: '', theme: 'auto', draft: null,
   opts: { lang: 'fr', langSet: false, cond: 'Slightly Played', foil: 'no', mode: 'zero', ship: 280, fallbackEn: true, exactEd: false },      // exactEd : seulement l'édition de chaque ligne (« (CMM) 400 »)
   deck: { cards: [], basics: [], lines: 0, ignored: 0, copies: 0, basicCopies: 0 },
-  view: 'home', tab: 'cards', run: null, res: null, fo: {}, fl: {}, overrides: {}, cur: 'EUR', isSample: false, deckId: null, runDelta: null,
+  view: 'home', tab: 'cards', run: null, res: null, fo: {}, fl: {}, overrides: {}, cur: '', isSample: false, deckId: null, runDelta: null,
   enBusy: null, enCtrl: null, gone: new Set(), haptic: true, sort: 'deck', filter: 'all', removed: [], useColl: true, push: false,
 };
 let runSeq = 0;
@@ -157,7 +157,7 @@ function haptic(kind = 'tap') {
 /* ── Utilitaires UI ───────────────────────────────────────────────────────────────────────── */
 const fmtCache = {};
 function fmt(c, cur) {
-  cur = cur || S.cur || 'EUR';
+  cur = cur || S.cur || mkCur();
   const f = fmtCache[cur] || (fmtCache[cur] = new Intl.NumberFormat(LOC(), { style: 'currency', currency: cur }));
   return f.format(c / 100);
 }
@@ -491,7 +491,7 @@ async function startRun(fresh) {
   saveStore();
   const run = { id: ++runSeq, src, status: 'running', ctrl: new AbortController(), cards: {}, error: null, t0: performance.now(), text: $('#deckText').value, live: src !== 'demo', sig: curSig(), crit: critSig() };
   for (const c of cards) run.cards[c.key] = { fetched: false, offers: [], notFound: false, fellBack: false, bps: [], img: null };
-  S.run = run; S.overrides = {}; S.gone = new Set(); S.cur = 'EUR'; S.fo = {}; S.fl = {}; S.tab = 'cards'; S.runDelta = null; S.removed = []; S.filter = 'all'; paintUndo();
+  S.run = run; S.overrides = {}; S.gone = new Set(); S.cur = mkCur(); S.fo = {}; S.fl = {}; S.tab = 'cards'; S.runDelta = null; S.removed = []; S.filter = 'all'; paintUndo();
   run.frac = 0; run.step = ''; run.cacheAge = 0;
   watchSeen($('#progressCard'));
   const title = src === 'demo' ? T('Recherche simulée') : src === 'cm' ? T('Prix Cardmarket') : T('Recherche des offres');
@@ -578,7 +578,7 @@ function lnDemand(c, st, demand, byZ, byD, subs, forced) {
     const list = l.need > 0 ? lnOffers(st.offers, l, S.opts, st.fellBack).filter(o => !S.gone.has(o.productId)) : []; fl[i] = list;
     if (!(l.need > 0)) return;
     for (const o of list) all.set(o.id, o);
-    if (list.length && (!S.cur || S.cur === 'EUR')) S.cur = list[0].cur || 'EUR';
+    if (list.length && (!S.cur || S.cur === mkCur())) S.cur = list[0].cur || mkCur();
     const k = c.key + '\u0001' + i, w = l.l || S.opts.lang, keep = pin != null && list.some(o => o.id === pin);
     if (keep) { forced[k] = pin; pin = null; }
     subs[k] = { key: c.key, i, w }; demand.push({ key: k, qty: l.need, grp: c.key });      // ligne sans offre gardée : son manque compte dans celui de la carte
@@ -595,7 +595,7 @@ function recompute() {
     if (lnOn(c)) { lnDemand(c, st, demand, byZ, byD, subs, forced); continue; }      // « *F* », « *N* », « *FR* » : les offres de chaque ligne
     const list = st.offers.filter(o => passes(o, S.opts) && !S.gone.has(o.productId)); S.fo[c.key] = list;
     if (!list.length) continue;
-    if (!S.cur || S.cur === 'EUR') S.cur = list[0].cur || 'EUR';
+    if (!S.cur || S.cur === mkCur()) S.cur = list[0].cur || mkCur();
     // Langue demandée prioritaire dans chaque mode : une offre anglaise ne masque jamais une offre française (sauf choix manuel).
     const keep = !!S.overrides[c.key];
     demand.push({ key: c.key, qty: c.need });
@@ -608,7 +608,7 @@ function recompute() {
 
 /* ── Source des prix ──────────────────────────────────────────────────────────────────────────
    demo : prix simulés · ct : offres réelles CardTrader (ton token, ou celui du serveur si ton compte y a droit) · cm : prix tendance Cardmarket, sans token. */
-function ctReady() { return !!S.token || (CTX.proxy && CTX.hasToken && ((!CTX.needsLogin && !CTX.needsKey) || CTX.serverOk === true || (CTX.needsKey && !!CTX.appKey))); }
+function ctReady() { return !mkUs() && (!!S.token || (CTX.proxy && CTX.hasToken && ((!CTX.needsLogin && !CTX.needsKey) || CTX.serverOk === true || (CTX.needsKey && !!CTX.appKey)))); }
 function priceSrc() { return S.demo ? 'demo' : S.src !== 'cm' && ctReady() ? 'ct' : 'cm'; }
 const isCm = () => !!S.run && S.run.src === 'cm';
 /** Ce compte peut-il chercher avec le token du serveur ? (réservé à ALLOWED_UIDS) Revérifié à chaque changement de compte. */
@@ -711,7 +711,7 @@ function updateRow(el, c, v, st) {
     el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${c.qty > 1 ? `<span class="tag accent">× ${c.qty}</span>` : ''}<span class="tag good">${T('Dans ta collection')}</span></span></span><span class="row-price"><span class="tag good">${T('Possédée')}</span></span>`;
   } else if (v.s === 'ok' && top.cm) {
     const n = pick.parts.reduce((a, p) => a + p.n, 0);
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}<span class="tag">Cardmarket</span>${top.set ? `<span class="tag">${esc(top.set.toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>` : ''}</span><span class="row-seller">${T('Tendance')}${n > 1 ? ' · ' + n + ' × ' + fmt(top.price) : ''}</span></span><span class="row-price"><b>${fmt(pick.cost)}</b></span>`;
+    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}<span class="tag">${mkName()}</span>${top.set ? `<span class="tag">${esc(top.set.toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>` : ''}</span><span class="row-seller">${T('Tendance')}${n > 1 ? ' · ' + n + ' × ' + fmt(top.price) : ''}</span></span><span class="row-price"><b>${fmt(pick.cost)}</b></span>`;
   } else if (v.s === 'ok') {
     const tags = [];
     tags.push(`<span class="tag">${esc((top.set || '').toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>`);
@@ -720,7 +720,7 @@ function updateRow(el, c, v, st) {
     if (top.foil) tags.push('<span class="tag accent">Foil</span>');
     if (pick.parts.length > 1) tags.push(`<span class="tag">${TN(pick.parts.length - 1, '+{n} offre', '+{n} offres')}</span>`);
     if (pick.short > 0) tags.push(`<span class="tag warn">${T('Il en manque {n}', { n: pick.short })}</span>`);
-    if (ri) tags.push(`<span class="tag ref ${ri.level}" title="${esc(T('Prix de référence Cardmarket par exemplaire (donné par Scryfall) : {ref}. Ton prix : {unit}.', { ref: fmt(ri.ref), unit: fmt(ri.unit) }))}">CM ${esc(fmt(ri.ref))}${ri.level === 'warn' ? ' · +' + T('{n} %', { n: ri.pct }) : ''}</span>`);
+    if (ri) tags.push(`<span class="tag ref ${ri.level}" title="${esc(T('Prix de référence Cardmarket par exemplaire (donné par Scryfall) : {ref}. Ton prix : {unit}.', { ref: fmt(ri.ref), unit: fmt(ri.unit) }))}">${mkAb()} ${esc(fmt(ri.ref))}${ri.level === 'warn' ? ' · +' + T('{n} %', { n: ri.pct }) : ''}</span>`);
     const n = pick.parts.reduce((a, p) => a + p.n, 0);
     const small = pick.parts.length === 1 && n > 1 ? `${n} × ${fmt(top.price, top.cur)}` : '';
     el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}${lnTag}${tags.join('')}</span><span class="row-seller">${esc(top.seller)}${top.country ? ' · ' + esc(top.country) : ''}</span></span><span class="row-price"><b${prevCost != null && prevCost !== pick.cost ? ' class="flash"' : ''}>${fmt(pick.cost, top.cur)}</b>${small ? `<small>${small}</small>` : ''}</span>`;
@@ -860,7 +860,7 @@ function openOfferSheet(key) {
     openSheet(c.dn || c.name, c.qty > 1 ? T('{n} exemplaires', { n: c.qty }) : null, api => {
       const o = (S.fo[key] || [])[0];
       api.body.innerHTML = `${o ? `<div class="cm-price"><b>${fmt(o.price)}</b><span>${T('Prix tendance Cardmarket de l\'impression la moins chère, par exemplaire.')}</span></div>` : `<p class="hint">${st.notFound ? T('Scryfall ne connaît pas ce nom. Corrige-le dans la liste.') : T('Aucun prix Cardmarket connu pour cette carte.')}</p>`}
-        <a class="btn ghost small" href="${esc(cmUrl(c.name, userLang()))}" target="_blank" rel="noopener noreferrer" style="align-self:flex-start">${T('Voir sur Cardmarket ↗')}</a>
+        <a class="btn ghost small" href="${esc(mkUrl(c.name, userLang()))}" target="_blank" rel="noopener noreferrer" style="align-self:flex-start">${T('Voir sur Cardmarket ↗')}</a>
         <p class="hint">${T('Les offres réelles des vendeurs, leur port et le remplissage du panier demandent ton token CardTrader (Réglages › Prix).')}</p>`;
       ownBtn(api); alWatchBtn(api, c.name);
     });
@@ -1026,7 +1026,7 @@ function modeLabel() {
   const src = priceSrc(), f = $('#srcField'), seg = $('#segSrcRun'), g = $('#ctGet'); if (!f) return;
   const ask = src !== 'demo' && S.src === 'ct' && (!ctReady() || (g && g.dataset.keep === '1')), want = src === 'ct' || ask;      // CardTrader choisi sans token : l'encart du token à la place des critères CardTrader
   $('#viewInput').dataset.src = src === 'ct' && !ask ? 'ct' : 'cm';
-  f.hidden = src === 'demo';
+  f.hidden = src === 'demo'; seg.hidden = mkUs();      // marché TCGplayer : pas de CardTrader (vendeurs européens, prix en euros), le prix du marché seul
   if (!seg._init) { seg._init = true; mountSeg(seg, [{ v: 'cm', label: 'Cardmarket' }, { v: 'ct', label: 'CardTrader' }], want ? 'ct' : 'cm', v => { S.src = v === 'cm' ? 'cm' : ctReady() ? 'auto' : 'ct'; saveStore(); modeLabel(); }); }
   else seg.setValue(want ? 'ct' : 'cm');
   if (g) {
@@ -1065,10 +1065,27 @@ function ctGetWire(root, o = {}) {
 }
 /** La même chose dans une feuille (tuile valeur des Stats, prix réels de la collection). done : appelé une fois le token validé. */
 function ctGetSheet(done) {
+  if (mkUs()) return;      // marché TCGplayer : CardTrader n'est pas proposé
   openSheet('CardTrader', T('Offres réelles des vendeurs et panier'), api => {
     api.wrap.classList.add('ct-get-sheet');
     api.body.innerHTML = `<div class="ct-get">${ctGetHtml('ctgs')}</div>`;
     ctGetWire($('.ct-get', api.body), { onOk: () => { api.close(); if (done) done(); } });
+  });
+}
+/** Réglages › Marché des prix : automatique (deviné au premier lancement, core.js › mkPick), Cardmarket (Europe, €) ou TCGplayer (États-Unis et autres pays, $).
+ *  Changer recharge la page : prix, valeur et courbe de chaque marché sont gardés à part (base de l'appareil, relevés marqués), rien n'est converti. */
+function mkSheet() {
+  openSheet(T('Marché des prix'), T('Où tu achètes et vends tes cartes', null, true), api => {
+    api.body.innerHTML = `<div class="seg mk-seg" id="segMkt" role="radiogroup" aria-label="${esc(T('Marché des prix'))}"></div>
+      <p class="hint">${esc(T('Automatique : {m}, d\'après le fuseau horaire et la langue du téléphone au premier lancement.', { m: mkLabel(MK.guess) }, true))}</p>
+      <p class="hint">${esc(T('Chaque marché garde ses propres prix, la valeur de ta collection et sa courbe : rien n\'est converti. CardTrader n\'est proposé qu\'avec Cardmarket (vendeurs européens).', null, true))}</p>`;
+    mountSeg($('#segMkt', api.body), [{ v: 'auto', label: T('Automatique') }, { v: 'eu', label: 'Cardmarket', sub: T('Europe, en euros', null, true) }, { v: 'us', label: 'TCGplayer', sub: T('États-Unis et autres pays, en dollars', null, true) }], MK.pick || 'auto', v => {
+      const next = v === 'auto' ? MK.guess : v;
+      try { if (v === 'auto') localStorage.removeItem(MK_SAVE); else localStorage.setItem(MK_SAVE, v); } catch (e) { /* stockage indisponible : le choix vaut pour cette page */ }
+      MK.pick = v === 'auto' ? '' : v; if (typeof meSoon === 'function') meSoon();
+      if (next === MK.id) return;
+      haptic('ok'); toast(T('Marché des prix changé : l\'appli redémarre…', null, true)); setTimeout(() => location.reload(), 600);
+    });
   });
 }
 function applyTheme() {
@@ -1227,8 +1244,9 @@ const FAN_CONTENT = T('Mana Orbit est un contenu de fan non officiel autorisé p
 function openAbout() {
   const src = [
     ['Scryfall', 'https://scryfall.com', T('images et données des cartes, prix tendance Cardmarket')],
-    ['Cardmarket', 'https://www.cardmarket.com', T('prix tendance (via Scryfall)')],
-    ['CardTrader', ctShare('https://www.cardtrader.com'), T('offres des vendeurs et panier (avec ton token) ; liens avec notre code de parrainage (1 % des achats reversé par CardTrader, rien ne change pour toi)')],
+    ['Cardmarket', 'https://www.cardmarket.com', T('prix tendance en Europe (via Scryfall)', null, true)],
+    ['TCGplayer', 'https://www.tcgplayer.com', T('prix du marché aux États-Unis (via Scryfall)', null, true)],
+    ...(mkUs() ? [] : [['CardTrader', ctShare('https://www.cardtrader.com'), T('offres des vendeurs et panier (avec ton token) ; liens avec notre code de parrainage (1 % des achats reversé par CardTrader, rien ne change pour toi)')]]),
     ['EDHREC', 'https://edhrec.com', T('classement des commandants et decks moyens')],
     ['Archidekt', 'https://archidekt.com', T('decks Budget, Premium et cEDH')],
     ['EDHTop16', 'https://edhtop16.com', T('commandants joués en tournoi cEDH (données TopDeck.gg)')],
@@ -1295,6 +1313,10 @@ function noZoom() { for (const t of ['gesturestart', 'gesturechange']) document.
 function init() {
   noZoom();
   i18nDom(document.body);                                        // textes fixes de la page dans la langue choisie
+  if (mkUs()) {      // marché TCGplayer : sans CardTrader (accueil, « Prix d'une liste »)
+    const hs = $('[data-hm="price"] small'); if (hs) hs.textContent = 'TCGplayer';
+    const ip = $('#viewInput .intro p'); if (ip) ip.textContent = T('Colle un export EDHREC, Moxfield ou Archidekt, une carte par ligne. Mana Orbit donne le prix du marché TCGplayer de chaque carte.', null, true);
+  }
   const saved = loadStore();
   if (saved.opts) Object.assign(S.opts, saved.opts);
   // Langue des cartes : choix fait dans « Langue » gardé ; sinon celle de l'utilisateur (interface, téléphone), recalculée à chaque démarrage (elle suit un changement de langue de l'interface).

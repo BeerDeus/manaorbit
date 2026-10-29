@@ -214,6 +214,37 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.1.0 (versionCode 16) : widget en dollars pour le marché TCGplayer (29 octobre 2026)
+
+**Pourquoi** : le site sait maintenant afficher les prix TCGplayer en dollars (README › « Marché des prix »). Le widget de valeur écrivait toujours « € » et son estimation appli fermée lisait la colonne en euros du fichier de prix.
+
+**Comment** : `ValueWidget` lit `cur` dans les chiffres du site (`"USD"` : « $1,234 » en anglais, « 1 234 $ » en français, allemand, espagnol, italien, « US$ 1.234 » en portugais ; absent ou `"EUR"` : comme avant) ; `ValueRefreshJob` passe la même devise à `WidgetPrices.read`, qui lit alors la colonne $ de `prices.tsv`. Rien d'autre ne change : côté Europe, l'APK se comporte exactement comme la 1.0.14. Une APK plus ancienne au marché TCGplayer affiche « € » devant des montants en dollars jusqu'à la mise à jour.
+
+1. `git pull`, `npm run setup` dans `android-app`, Android Studio › **Sync Project with Gradle Files**, `.aab` signé (§ 4.1).
+2. **Test interne** : « APK : 1.1.0 (16) » en bas des Réglages. Widget posé : valeur en euros comme avant. Puis Compte et réglages › Prix › **Marché des prix** › TCGplayer : l'appli redémarre, le widget passe en dollars au prochain envoi (retour sur l'accueil). Revenir à Cardmarket : euros. Puis la liste habituelle (scan d'une carte, connexion Google, lien `https://manaorbit.app/?p=…`).
+3. Notes de version :
+```
+<fr-FR>
+Prix TCGplayer en dollars pour les États-Unis et le reste du monde (Compte et réglages › Prix › Marché des prix), widget compris. En Europe, rien ne change : prix Cardmarket en euros.
+</fr-FR>
+<en-US>
+TCGplayer prices in dollars for the United States and the rest of the world (Account and settings › Prices › Price market), widget included. In Europe nothing changes: Cardmarket prices in euros.
+</en-US>
+<de-DE>
+TCGplayer-Preise in Dollar für die USA und den Rest der Welt (Konto und Einstellungen › Preise › Preismarkt), auch im Widget. In Europa ändert sich nichts: Cardmarket-Preise in Euro.
+</de-DE>
+<es-ES>
+Precios de TCGplayer en dólares para Estados Unidos y el resto del mundo (Cuenta y ajustes › Precios › Mercado de precios), widget incluido. En Europa no cambia nada: precios de Cardmarket en euros.
+</es-ES>
+<it-IT>
+Prezzi TCGplayer in dollari per gli Stati Uniti e il resto del mondo (Account e impostazioni › Prezzi › Mercato dei prezzi), widget compreso. In Europa non cambia nulla: prezzi Cardmarket in euro.
+</it-IT>
+<pt-BR>
+Preços da TCGplayer em dólares para os Estados Unidos e o resto do mundo (Conta e ajustes › Preços › Mercado de preços), widget incluído. Na Europa nada muda: preços da Cardmarket em euros.
+</pt-BR>
+```
+4. `APK_LATEST` à **16** sur Hostinger **seulement une fois la 1.1.0 en ligne** (avant : tout le monde verrait « Mise à jour de l'appli » sans mise à jour disponible).
+
 ### APK 1.0.14 (versionCode 15) : interface fixe, plus de zoom en pinçant (26 octobre 2026)
 
 **Pourquoi** : pincer (ou toucher deux fois) zoomait toute l'interface, comme sur un site : l'appli doit rester fixe.

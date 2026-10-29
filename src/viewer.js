@@ -76,7 +76,7 @@ function artDrop(l, n) { if (delete artAll()[artK(l, n)]) artSave(); }
 
 /** Tuile d'une impression (liste « Illustrations ») : vignette, symbole et « CMM 400 », extension, prix Cardmarket de l'édition (✦ : foil seulement), année et particularités. */
 function artTile(p, i, sel) {
-  const px = p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', code = String(p.set).toUpperCase() + ' ' + p.num;
+  const px = p.eu > 0 ? fmt(p.eu, mkCur()) : p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : '', code = String(p.set).toUpperCase() + ' ' + p.num;
   return `<button type="button" class="imgv-v" data-i="${i}" aria-pressed="${i === sel}" aria-label="${esc(p.sn)} ${esc(code)}${px ? ', ' + esc(px) : ''}${p.fx.length ? ', ' + esc(p.fx.join(', ')) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set, 'inv')}${esc(code)}</span>${p.sn ? `<em class="v-sn">${esc(p.sn)}</em>` : ''}${px ? `<b class="v-px">${esc(px)}</b>` : ''}<small>${esc(p.y)}${p.fx.length ? ' · ' + esc(p.fx.join(', ')) : ''}</small></button>`;
 }
 
@@ -309,12 +309,12 @@ function buildSnap() {
     items.push(it);
   }
   for (const b of S.deck.basics || []) items.push({ k: b.key, n: b.name, q: b.qty, s: 'basic' });
-  const snap = { at, mode: isCm() ? 'cm' : S.opts.mode, lang: S.opts.lang, sig: curSig(), items };
+  const snap = { at, mode: isCm() ? mkMode() : S.opts.mode, lang: S.opts.lang, sig: curSig(), items };
   // Évolution : les prix unitaires du relevé précédent de ce deck (jamais celui de la même recherche : un deuxième « Enregistrer » ne doit pas effacer l'écart).
   const prev = snapOf(findDeck(S.deckId));
   if (prev) {
     if (prev.at === at) { if (prev.pv) { snap.pv = prev.pv; snap.pa = prev.pa; } }
-    else if (prev.at < at && prev.lang === snap.lang && (prev.mode === 'cm') === (snap.mode === 'cm')) { const pv = pvOf(prev); if (pv) { snap.pv = pv; snap.pa = prev.at; } }
+    else if (prev.at < at && prev.lang === snap.lang && (SNAP_MODES.indexOf(prev.mode) > 1) === (SNAP_MODES.indexOf(snap.mode) > 1) && modeCur(prev.mode) === modeCur(snap.mode)) { const pv = pvOf(prev); if (pv) { snap.pv = pv; snap.pa = prev.at; } }
   }
   return sanitizeSnap(snap);
 }
@@ -340,6 +340,8 @@ function refSnapOf(text, id, pub) {
   if (snap) snap.ref = true;
   return snap;
 }
+/** Montant du relevé affiché : dans sa devise (relevé gardé : celle de son mode ; relevé de référence, calculé ici : celle du marché). */
+const dvFmt = c => fmt(c, DV.snap && !DV.snap.ref ? modeCur(DV.snap.mode) : mkCur());
 /** Rien à acheter ni à chiffrer dans ce relevé (tout est possédé) : seul le relevé de référence a quelque chose à montrer. */
 const snapNothingToBuy = snap => !snap.items.some(i => i.s !== 'own' && i.s !== 'basic');
 /** Réserve (Standard, lignes « SB: ») : cartes à part, jamais comptées dans le total ; prix = tendance Cardmarket (la recherche d'offres ne la chiffre pas). sb : 1 · k préfixé « sb: ». */
@@ -423,13 +425,13 @@ const dvMoved = d => !!d && (Math.abs(d.diff) >= 20 || Math.abs(d.diff) >= d.pre
 function dvTile(it, i, snap, dl) {
   const hue = hash32(it.k) % 360, art = dvImg(it), d = dl && dl.get(it.k), mv = dvMoved(d) ? `<em class="${d.diff < 0 ? 'dn' : 'up'}" aria-hidden="true">${d.diff < 0 ? '▼' : '▲'}</em>` : '';
   const ref = !!snap.ref || !!it.sb, full = ref && it.ow >= it.q;
-  const tag = it.s === 'ok' ? `<span class="dvc-p">${esc(fmt(it.c))}${mv}</span>`
+  const tag = it.s === 'ok' ? `<span class="dvc-p">${esc(dvFmt(it.c))}${mv}</span>`
     : it.s === 'own' ? '<span class="dvc-p own">' + T('Possédée') + '</span>'
     : it.s === 'nf' ? '<span class="dvc-p bad">' + T('Introuvable') + '</span>' : it.s === 'basic' ? '' : `<span class="dvc-p warn">${ref ? T('Prix inconnu') : T('Aucune offre')}</span>`;
   const en = ref ? (it.ow ? `<span class="dvc-l${full ? ' own' : ''}">${full ? '✓' : it.ow + '/' + it.q}</span>` : '')
     : it.s === 'ok' && it.l && snap.lang && it.l !== snap.lang ? `<span class="dvc-l">${esc(it.l.toUpperCase())}</span>` : '';
   const q = it.q > 1 ? `<span class="dvc-q">×${it.q}</span>` : '';
-  const label = `${it.n}${it.q > 1 ? ', ×' + it.q : ''}${it.s === 'ok' ? ', ' + fmt(it.c) : it.s === 'own' ? ', ' + T('dans ta collection') : it.s === 'nf' ? ', ' + T('introuvable') : it.s === 'basic' ? '' : ref ? ', ' + T('prix inconnu') : ', ' + T('aucune offre')}${it.sb ? ', ' + T('réserve') : ''}${ref && it.ow ? (full ? ', ' + T('possédée') : ', ' + TN(it.ow, '{n} possédée', '{n} possédées')) : ''}${d && dvMoved(d) ? (d.diff < 0 ? ', ' + T('en baisse') : ', ' + T('en hausse')) : ''}`;
+  const label = `${it.n}${it.q > 1 ? ', ×' + it.q : ''}${it.s === 'ok' ? ', ' + dvFmt(it.c) : it.s === 'own' ? ', ' + T('dans ta collection') : it.s === 'nf' ? ', ' + T('introuvable') : it.s === 'basic' ? '' : ref ? ', ' + T('prix inconnu') : ', ' + T('aucune offre')}${it.sb ? ', ' + T('réserve') : ''}${ref && it.ow ? (full ? ', ' + T('possédée') : ', ' + TN(it.ow, '{n} possédée', '{n} possédées')) : ''}${d && dvMoved(d) ? (d.diff < 0 ? ', ' + T('en baisse') : ', ' + T('en hausse')) : ''}`;
   return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span>${q}${en}${tag}</button>`;
 }
 /** Courbe de mana : c = exemplaires par coût (0 à 7+). interactive : barres cliquables (le viewer saute au groupe). */
@@ -442,7 +444,7 @@ const dvCurve = items => curveBars(curveOf(items), true);
 /** Commandant mis en avant : grande carte, coût de mana, prix. */
 function dvHero(it, idx, snap, dl) {
   const art = dvImg(it), hue = hash32(it.k) % 360, d = dl && dl.get(it.k);
-  const price = it.s === 'ok' ? `<b>${esc(fmt(it.c))}</b>${it.rf ? `<span class="cmd-ref">${T('Réf. Cardmarket {price}', { price: esc(fmt(it.rf)) })}</span>` : ''}${snap.ref && it.ow ? `<span class="cmd-ref">${it.ow >= it.q ? T('Dans ta collection') : T('Possédé en {n} ex.', { n: it.ow })}</span>` : ''}${d && dvMoved(d) ? `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${esc(fmt(Math.abs(d.tot)))}</span>` : ''}`
+  const price = it.s === 'ok' ? `<b>${esc(dvFmt(it.c))}</b>${it.rf ? `<span class="cmd-ref">${T('Réf. Cardmarket {price}', { price: esc(dvFmt(it.rf)) })}</span>` : ''}${snap.ref && it.ow ? `<span class="cmd-ref">${it.ow >= it.q ? T('Dans ta collection') : T('Possédé en {n} ex.', { n: it.ow })}</span>` : ''}${d && dvMoved(d) ? `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${esc(dvFmt(Math.abs(d.tot)))}</span>` : ''}`
     : it.s === 'own' ? '<b class="own">' + T('Dans ta collection') + '</b>' : it.s === 'nf' ? '<b class="bad">' + T('Introuvable') + '</b>' : `<b class="warn">${snap.ref ? T('Prix inconnu') : T('Aucune offre')}</b>`;
   return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span>
     <span class="cmd-t"><small>${/planeswalker/i.test(it.tl || '') ? T('Planeswalker commandant') : T('Commandant')}</small><strong>${esc(it.n)}</strong>${it.tl ? `<span class="cmd-tl">${esc(it.tl)}</span>` : ''}${it.mc ? `<span class="cmd-mc">${manaHtml(it.mc)}</span>` : ''}<span class="cmd-p">${price}</span></span></button>`;
@@ -453,15 +455,15 @@ function dvEvolution(snap, dl) {
   if (!snap.pv || !snap.pa || !dl.size) return '';
   let total = 0; for (const d of dl.values()) total += d.tot;
   const mv = topMovers(snap.items, dl, 3), same = new Date(snap.pa).toDateString() === new Date(snap.at).toDateString();
-  const row = (x, cls) => `<button type="button" class="mv ${cls}" data-k="${esc(x.item.k)}"><span>${esc(x.item.n)}</span><i>${esc(fmt(x.prev))} → ${esc(fmt(x.unit))}</i><b>${x.diff < 0 ? '−' : '+'}${esc(fmt(Math.abs(x.tot)))}</b></button>`;
-  return `<div class="dv-evo"><div class="dv-evo-h"><span>${same ? T('Depuis la recherche de {time}', { time: new Date(snap.pa).toLocaleTimeString(LOC(), { hour: '2-digit', minute: '2-digit' }) }) : T('Depuis le {date}', { date: esc(dateShort(snap.pa)) })}</span><b class="${total === 0 ? 'flat' : total < 0 ? 'down' : 'up'}">${total === 0 ? T('Inchangé') : (total < 0 ? '▼ −' : '▲ +') + esc(fmt(Math.abs(total)))}</b></div>
+  const row = (x, cls) => `<button type="button" class="mv ${cls}" data-k="${esc(x.item.k)}"><span>${esc(x.item.n)}</span><i>${esc(dvFmt(x.prev))} → ${esc(dvFmt(x.unit))}</i><b>${x.diff < 0 ? '−' : '+'}${esc(dvFmt(Math.abs(x.tot)))}</b></button>`;
+  return `<div class="dv-evo"><div class="dv-evo-h"><span>${same ? T('Depuis la recherche de {time}', { time: new Date(snap.pa).toLocaleTimeString(LOC(), { hour: '2-digit', minute: '2-digit' }) }) : T('Depuis le {date}', { date: esc(dateShort(snap.pa)) })}</span><b class="${total === 0 ? 'flat' : total < 0 ? 'down' : 'up'}">${total === 0 ? T('Inchangé') : (total < 0 ? '▼ −' : '▲ +') + esc(dvFmt(Math.abs(total)))}</b></div>
     ${mv.down.length || mv.up.length ? `<div class="dv-mv">${mv.down.map(x => row(x, 'down')).join('')}${mv.up.map(x => row(x, 'up')).join('')}</div>` : ''}</div>`;
 }
 /** Total payé face au prix de référence Cardmarket des mêmes cartes. */
 function dvRefLine(items) {
   const t = refTotals(items); if (t.cards < 3) return '';
   const lvl = t.pct <= 5 ? 'good' : t.pct >= 40 ? 'warn' : '';
-  return `<div class="dv-ref ${lvl}"><span>${T('Réf. Cardmarket pour les mêmes cartes : <b>{price}</b>', { price: esc(fmt(t.ref)) })}</span><b>${t.pct === 0 ? T('identique') : (t.pct < 0 ? '−' : '+') + Math.abs(t.pct) + ' %'}</b></div>`;
+  return `<div class="dv-ref ${lvl}"><span>${T('Réf. Cardmarket pour les mêmes cartes : <b>{price}</b>', { price: esc(dvFmt(t.ref)) })}</span><b>${t.pct === 0 ? T('identique') : (t.pct < 0 ? '−' : '+') + Math.abs(t.pct) + ' %'}</b></div>`;
 }
 
 /** Cadre du viewer : résumé, bascule de tri, filtres. Reconstruit seulement quand le relevé change (la saisie ne doit pas perdre le focus). */
@@ -478,7 +480,7 @@ function dvFrame(snap) {
   $('.dv-title span', el).textContent = DV.pub ? `${cardsTxt}${sbTxt} · ${DV.by ? T('partagé par {name}', { name: DV.by }) : T('partagé, lecture seule')}` : ref ? `${cardsTxt} · ${todo ? T('{n} à trouver', { n: todo }) : T('toutes possédées')}${none ? ' · ' + T('{n} sans prix', { n: none }) : ''}${sbTxt}`
     : `${cardsTxt}${own ? ' · ' + TN(own, '{n} possédée', '{n} possédées') : ''}${miss ? ' · ' + TN(miss, '{n} introuvable', '{n} introuvables') : ''}${none ? ' · ' + T('{n} sans offre', { n: none }) : ''}${sbTxt}`;
   $('.dv-body', el).innerHTML = `<div class="dv-side"><section class="dv-sum">
-      <div class="dv-total"><span class="dv-eur">${ref ? '≈ ' : ''}<span class="dv-amt">${esc(fmt(total))}</span>${ref && none ? '+' : ''}</span><span class="dv-crit">${ref ? '' : T('Articles') + ' · '}${esc(crit)}</span></div>
+      <div class="dv-total"><span class="dv-eur">${ref ? '≈ ' : ''}<span class="dv-amt">${esc(dvFmt(total))}</span>${ref && none ? '+' : ''}</span><span class="dv-crit">${ref ? '' : T('Articles') + ' · '}${esc(crit)}</span></div>
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
@@ -509,7 +511,7 @@ function dvGroups() {
   const groups = groupSnap(rest, DV.sort, !!snap.ref); let n = DV.flat.length;
   const hidden = (DV.f.colors.size || DV.f.type || DV.f.cmc !== '') ? all.filter(i => !hasMeta(i)).length : 0;
   $('.dv-groups', el).innerHTML = (act ? `<p class="hint dv-fcount">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: all.length })}${hidden ? ' · ' + (snap.ref ? T('{n} sans infos de type ou de coût (pas encore lues)', { n: hidden }) : T('{n} sans infos de type ou de coût (prix gardés avant cette version) : relance la recherche', { n: hidden })) : ''}</p>` : '')
-    + (groups.map(g => `<section class="dv-g" data-g="${esc(g.id)}"><h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(fmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix tendance') : ''}</small></h3><div class="dv-grid">${g.items.map(it => { flat(it); return dvTile(it, n++, snap, dl); }).join('')}</div></section>`).join('')
+    + (groups.map(g => `<section class="dv-g" data-g="${esc(g.id)}"><h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix tendance') : ''}</small></h3><div class="dv-grid">${g.items.map(it => { flat(it); return dvTile(it, n++, snap, dl); }).join('')}</div></section>`).join('')
       || (cmds.length ? '' : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'));
   if (sc) sc.scrollTop = keep;
   if (DV.anim) { DV.anim = false; stagger($$('.dv-grid', el), $('.dv-cmds', el)); }
@@ -576,11 +578,11 @@ function dvShown(it) {
 }
 function dvItemFor(it) {
   if (it.s === 'nf') return null;
-  const dl = DV.dl && DV.dl.get(it.k), mv = dl && dvMoved(dl) ? ' · ' + T('{delta} par exemplaire', { delta: (dl.diff < 0 ? '▼ −' : '▲ +') + fmt(Math.abs(dl.diff)) }) : '';
-  const ref = it.rf ? ' · ' + T('réf. Cardmarket {price}', { price: fmt(it.rf) }) : '';
+  const dl = DV.dl && DV.dl.get(it.k), mv = dl && dvMoved(dl) ? ' · ' + T('{delta} par exemplaire', { delta: (dl.diff < 0 ? '▼ −' : '▲ +') + dvFmt(Math.abs(dl.diff)) }) : '';
+  const ref = it.rf ? ' · ' + T('réf. Cardmarket {price}', { price: dvFmt(it.rf) }) : '';
   const own = it.ow ? (it.ow >= it.q ? T('dans ta collection') : TN(it.ow, '{n} possédée sur {total}', '{n} possédées sur {total}', { total: it.q })) : '';
   const rf2 = (DV.snap && DV.snap.ref) || it.sb;
-  const extra = it.s === 'basic' ? T('Terrain de base') : rf2 ? [it.sb ? T('Réserve') : '', it.s === 'ok' ? fmt(it.c) + (it.q > 1 ? ' ' + T('pour {n}', { n: it.q }) : '') + ' · ' + T('prix tendance Cardmarket') : T('Prix inconnu'), own].filter(Boolean).join(' · ') : it.s === 'ok' ? [fmt(it.c) + (it.q > 1 ? ' ' + T('pour {n}', { n: it.q - (it.ow || 0) }) : ''), it.d, it.sl].filter(Boolean).join(' · ') + (it.sh ? ' · ' + TN(it.sh, '{n} manquante', '{n} manquantes') : '') + (it.ow ? ' · ' + TN(it.ow, '{n} possédée', '{n} possédées') : '') + ref + mv
+  const extra = it.s === 'basic' ? T('Terrain de base') : rf2 ? [it.sb ? T('Réserve') : '', it.s === 'ok' ? dvFmt(it.c) + (it.q > 1 ? ' ' + T('pour {n}', { n: it.q }) : '') + ' · ' + T('prix tendance Cardmarket') : T('Prix inconnu'), own].filter(Boolean).join(' · ') : it.s === 'ok' ? [dvFmt(it.c) + (it.q > 1 ? ' ' + T('pour {n}', { n: it.q - (it.ow || 0) }) : ''), it.d, it.sl].filter(Boolean).join(' · ') + (it.sh ? ' · ' + TN(it.sh, '{n} manquante', '{n} manquantes') : '') + (it.ow ? ' · ' + TN(it.ow, '{n} possédée', '{n} possédées') : '') + ref + mv
     : it.s === 'own' ? T('Dans ta collection') : T('Aucune offre avec tes critères');
   const ol = !!it.ol;      // image de ta propre carte (sa langue) : pas la version de l'offre, donc ni extension ni numéro à relire sur Scryfall
   const nm = it.im ? null : zoomNamed(it.k, it.n, it.n, '');      // fiche pas encore lue (terrain de base, deck jamais cherché) : la carte par son nom

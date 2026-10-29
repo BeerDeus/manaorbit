@@ -73,7 +73,7 @@ const SCS_EDS = [
   ['none', 'Sans édition', 'Le plus rapide : carte et langue seulement, à préciser plus tard dans ta collection.'],
 ];
 /** Alerte de prix : seuil lisible (« 5 € ») et emplacement des cartes au-dessus, s'il existe encore. */
-const scsPaLabel = () => fmt(SCS.pa, 'EUR').replace(/[,.]00(?=\D)/, '');
+const scsPaLabel = () => fmt(SCS.pa, mkCur()).replace(/[,.]00(?=\D)/, '');
 const scsPaPlace = () => (SCS.pp && typeof COLL !== 'undefined' && COLL.places && COLL.places[SCS.pp] ? SCS.pp : '');
 /** Montant de l'alerte dans le champ (« 1,5 » → « 1,50 ») ; montant tapé → centimes (0 : vide ou illisible). */
 const scsPaInput = () => (SCS.pa / 100).toLocaleString(LOC(), { minimumFractionDigits: SCS.pa % 100 ? 2 : 0, maximumFractionDigits: 2 });

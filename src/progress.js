@@ -357,7 +357,7 @@ const prgTierOf = (b, t) => (b.ev && t === 3 ? T('grade ultime') : prgTierName(t
 const prgTier = (b, v) => { let t = -1; b.tiers.forEach((x, i) => { if (v >= x) t = i; }); return t; };
 /** Texte d'un palier (« 1 000 cartes scannées », « Une carte scannée à 50 € ou plus »). */
 function prgLabel(b, x) {
-  if (b.money) return T(b.money, { p: fmt(x, 'EUR').replace(/[,.]00(?=\s|$| )/, '') });
+  if (b.money) return T(b.money, { p: fmt(x, mkCur()).replace(/[,.]00(?=\s|$| )/, '') });
   if (b.one) return T(b.one);
   return TN(x, b.d[0], b.d[1], { n: nf0(x) });
 }
@@ -499,7 +499,7 @@ function prgSheet(focus) {
       const tile = x => {
         const b = x.b, uniq = b.tiers.length === 1, cls = x.t < 0 ? 'off' : uniq ? 'tu' : 't' + x.t, nxt = x.next, prev = x.t >= 0 ? b.tiers[x.t] : 0;
         const p = nxt == null ? 100 : Math.max(0, Math.min(100, ((x.v - (x.t >= 0 ? prev : 0)) / (nxt - (x.t >= 0 ? prev : 0))) * 100));
-        const val = v => (b.money ? fmt(v, 'EUR').replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
+        const val = v => (b.money ? fmt(v, mkCur()).replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
         const nm = prgName(b, x.t), pin = x.t >= 0 && !b.ev ? `<button type="button" class="prg-pin" data-pin="${b.id}" aria-pressed="${show.includes(b.id)}" aria-label="${esc(T('Montrer {name} sur ma liste d\'échange', { name: nm }))}">${show.includes(b.id) ? '📌' : '＋'}</button>` : '';
         return `<div class="prg-b ${cls}" data-b="${b.id}" role="button" tabindex="0" aria-label="${esc(T('Détails du badge {name}', { name: nm }))}">${pin}<span class="prg-ic" aria-hidden="true">${prgIc(b, x.t)}</span><b>${esc(nm)}</b>
           <small>${esc(x.t >= 0 ? prgLabel(b, b.tiers[x.t]) + (uniq ? '' : ' · ' + prgTierOf(b, x.t)) : prgLabel(b, b.tiers[0]))}</small>
@@ -526,7 +526,7 @@ function prgSheet(focus) {
     pin(id) : ajoute ou retire de la liste d'échange (fiche « Niveau et badges ») ; false : vitrine pleine. */
 function prgBadgeSheet(x, pin) {
   const b = x.b, uniq = b.tiers.length === 1, nm = prgName(b, x.t), cat = (PRG_CATS.find(c => c[0] === b.cat) || [])[1];
-  const val = v => (b.money ? fmt(v, 'EUR').replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
+  const val = v => (b.money ? fmt(v, mkCur()).replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
   openSheet(nm, cat ? T(cat) : '', api => {
     api.wrap.classList.add('prg-bs');
     const paint = () => {

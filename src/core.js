@@ -7,8 +7,83 @@
    Ajouter une langue = ses dictionnaires (src/i18n/<code>*.json) + une entrée dans I18N_LANGS (et LOC_DEF) ; sans dictionnaire, elle n'est proposée nulle part. */
 const I18N_LANGS = { fr: 'Français', en: 'English', de: 'Deutsch', es: 'Español', it: 'Italiano', pt: 'Português' };
 const I18N = { lang: 'fr', nav: 'fr-FR', navs: ['fr-FR'], dict: null };
-function T(s, v) {
+
+/* ── Marché des prix ─────────────────────────────────────────────────────────────────────────────
+   eu : Europe, prix Cardmarket en euros (ce que l'appli a toujours fait) · us : États-Unis et reste du monde, prix TCGplayer (« market price ») en dollars.
+   Les deux viennent de Scryfall (prices.eur / eur_foil, prices.usd / usd_foil / usd_etched) et du fichier de prix du jour (colonnes € et $) : aucune autre API.
+   Choix gardé (Réglages › Marché des prix), sinon deviné au premier lancement puis figé (fuseau horaire Europe/… → eu, sinon région de la langue du téléphone,
+   sinon eu) : un voyage ne fait pas changer de devise. Les champs de prix (eu, ef, prix des relevés…) gardent leur nom : ils portent le prix du marché choisi.
+   Le texte des écrans est écrit pour Cardmarket ; mkText le réécrit pour TCGplayer (nom, « tendance » → « prix du marché », €  → $) dans chaque langue. */
+const MKTS = { eu: { cur: 'EUR', name: 'Cardmarket', ab: 'CM' }, us: { cur: 'USD', name: 'TCGplayer', ab: 'TCG' } };
+const MK = { id: 'eu', pick: '', guess: 'eu' };      // pick : choix de l'utilisateur ('eu' | 'us' | '' = automatique) ; guess : marché deviné et figé
+const MK_SAVE = 'deckdeal:mkt', MK_GUESS = 'deckdeal:mkt:auto';
+/** Pays où Cardmarket vend et livre (Union européenne, EEE, Suisse, Royaume-Uni, micro-États, Balkans) : tout autre pays → TCGplayer. */
+const MK_EU = new Set('AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE IS LI NO CH GB UK AD MC SM VA GI FO AL BA ME MK RS XK RE GP MQ GF YT'.split(' '));
+const MK_EU_TZ = /^(Europe\/|Atlantic\/(Canary|Madeira|Azores|Reykjavik|Faroe)$|Indian\/Reunion$|America\/(Guadeloupe|Martinique|Cayenne)$|Indian\/Mayotte$)/;
+/** Marché deviné : fuseau horaire d'abord (où est le téléphone ; un Français avec un téléphone en anglais américain reste en Europe), sinon région de la
+ *  première langue du téléphone qui en donne une (« en-US » → us, « es-419 » → us, « fr-FR » → eu), sinon eu. o.tz, o.navs : pour les tests. */
+function mkGuess(o = {}) {
+  let tz = o.tz; if (tz === undefined) { try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { tz = ''; } }
+  tz = String(tz || '');
+  if (tz && !/^(UTC|GMT|Etc\/)/i.test(tz)) return MK_EU_TZ.test(tz) ? 'eu' : 'us';
+  for (const t of [].concat(o.navs || [])) {
+    const r = /^[a-z]{2,3}(?:[-_][A-Za-z]{4})?[-_]([A-Za-z]{2}|\d{3})(?:[-_]|$)/.exec(String(t)); if (!r) continue;
+    return MK_EU.has(r[1].toUpperCase()) ? 'eu' : 'us';
+  }
+  return 'eu';
+}
+/** Marché de l'appli : choix gardé (o.saved), sinon ?mkt=, sinon le marché deviné une fois (o.frozen) ou maintenant ; o.old : appareil qui avait déjà
+ *  des données avant le choix du marché (prix en euros) → eu. Navigateurs pilotés par les tests : eu, sauf choix explicite. */
+function mkPick(o = {}) {
+  const ok = v => v === 'eu' || v === 'us';
+  MK.pick = ok(o.saved) ? o.saved : ok(o.query) ? o.query : '';
+  MK.guess = ok(o.frozen) ? o.frozen : o.robot || o.old ? 'eu' : mkGuess(o);
+  MK.id = MK.pick || MK.guess;
+  return MK.id;
+}
+const mkUs = () => MK.id === 'us';
+const mkCur = () => MKTS[MK.id].cur;
+const mkName = () => MKTS[MK.id].name;
+const mkAb = () => MKTS[MK.id].ab;
+/** Suffixe des clés de stockage qui gardent des montants (courbe de valeur, sessions d'ouverture, échanges) : chaque marché a les siens. */
+const mkSfx = () => (mkUs() ? ':us' : '');
+/** Nom d'un marché pour le choisir (Réglages) : jamais réécrit par mkText (« Cardmarket » y reste Cardmarket). */
+const mkLabel = id => (id === 'us' ? T('États-Unis et autres pays, TCGplayer en dollars', null, true) : T('Europe, Cardmarket en euros', null, true));
+/** Prix Scryfall d'une impression ({ eur, eur_foil, usd, usd_foil, usd_etched }) → { eu, ef } en centimes du marché (null si absent). */
+function mkPx(p) {
+  p = p || {};
+  if (!mkUs()) return { eu: eurCents(p.eur), ef: eurCents(p.eur_foil) };
+  return { eu: eurCents(p.usd), ef: eurCents(p.usd_foil) || eurCents(p.usd_etched) };
+}
+/** Réécritures du texte pour TCGplayer, par langue : d'abord les tournures (« tendance Cardmarket » → « prix du marché TCGplayer », Wants list → Mass Entry),
+ *  puis le nom seul et le symbole de l'euro. */
+const MK_TXT = {
+  fr: [[/prix tendance Cardmarket/g, 'prix du marché TCGplayer'], [/Prix tendance Cardmarket/g, 'Prix du marché TCGplayer'], [/tendance Cardmarket/g, 'prix du marché TCGplayer'], [/Tendance Cardmarket/g, 'Prix du marché TCGplayer'],
+    [/Wants list Cardmarket/g, 'Mass Entry TCGplayer'], [/Wants lists?/g, 'Mass Entry'], [/prix tendance/g, 'prix du marché'], [/Prix tendance/g, 'Prix du marché'], [/ ?\(Shopping Wizard\)/g, '']],
+  en: [[/Cardmarket trend prices/g, 'TCGplayer market prices'], [/Cardmarket trend price/g, 'TCGplayer market price'], [/Cardmarket trend/g, 'TCGplayer market price'], [/Cardmarket Wants list/g, 'TCGplayer Mass Entry'],
+    [/Wants lists?/g, 'Mass Entry'], [/trend price/g, 'market price'], [/Trend price/g, 'Market price'], [/ ?\(Shopping Wizard\)/g, '']],
+  de: [[/Cardmarket-Trendpreise/g, 'TCGplayer-Marktpreise'], [/Cardmarket-Trendpreis/g, 'TCGplayer-Marktpreis'], [/Cardmarket-Trend/g, 'TCGplayer-Marktpreis'], [/Cardmarket-Wants-Liste/g, 'TCGplayer-Mass-Entry'],
+    [/Wants-Liste/g, 'Mass Entry'], [/Trendpreis/g, 'Marktpreis'], [/ ?\(Shopping Wizard\)/g, '']],
+  es: [[/precios? de tendencia de Cardmarket/g, m => (/precios/.test(m) ? 'precios' : 'precio') + ' de mercado de TCGplayer'], [/tendencia de Cardmarket/g, 'precio de mercado de TCGplayer'],
+    [/lista de deseos de Cardmarket/g, 'Mass Entry de TCGplayer'], [/precio de tendencia/g, 'precio de mercado'], [/precios de tendencia/g, 'precios de mercado'], [/ ?\(Shopping Wizard\)/g, '']],
+  it: [[/prezz([oi]) di tendenza Cardmarket/g, 'prezz$1 di mercato TCGplayer'], [/tendenza Cardmarket/g, 'prezzo di mercato TCGplayer'], [/lista dei desideri di Cardmarket/g, 'Mass Entry di TCGplayer'],
+    [/prezz([oi]) di tendenza/g, 'prezz$1 di mercato'], [/ ?\(Shopping Wizard\)/g, '']],
+  pt: [[/preç(os?) de tendência da Cardmarket/g, 'preç$1 de mercado da TCGplayer'], [/tendência da Cardmarket/g, 'preço de mercado da TCGplayer'], [/lista de desejos \(Wants\) da Cardmarket/g, 'Mass Entry da TCGplayer'],
+    [/preç(os?) de tendência/g, 'preç$1 de mercado'], [/ ?\(Shopping Wizard\)/g, '']],
+};
+/** Le mot « Tendance » seul (étiquette d'une ligne au prix du marché), par langue. */
+const MK_WORD = { Tendance: 'Prix du marché', Trend: 'Marktpreis', Tendencia: 'Precio de mercado', Tendenza: 'Prezzo di mercato', 'Tendência': 'Preço de mercado' };
+function mkText(s) {
+  if (!mkUs() || typeof s !== 'string') return s;
+  if (s === 'Trend' && I18N.lang === 'en') return 'Market price';
+  if (Object.prototype.hasOwnProperty.call(MK_WORD, s)) return MK_WORD[s];
+  if (!/Cardmarket|€|endan|endenc|endên|Trend|trend|Wants|\bCM\b/.test(s)) return s;
+  for (const [re, to] of MK_TXT[I18N.lang] || MK_TXT.en) s = s.replace(re, to);
+  return s.replace(/Cardmarket/g, 'TCGplayer').replace(/€/g, '$').replace(/\bCM\b/g, 'TCG');
+}
+function T(s, v, raw) {
   let out = I18N.dict && Object.prototype.hasOwnProperty.call(I18N.dict, s) ? I18N.dict[s] : s;
+  if (MK.id === 'us' && !raw) out = mkText(out);      // avant les valeurs : un nom de carte ou un prix passé en {valeur} n'est jamais réécrit
   if (v) out = out.replace(/\{(\w+)\}/g, (m, k) => v[k] != null ? v[k] : m);
   return out;
 }
@@ -70,11 +145,18 @@ if (typeof document !== 'undefined' && typeof location !== 'undefined') {
   try { saved = localStorage.getItem('deckdeal:lang') || ''; } catch (e) { /* ignore */ }
   i18nPick({ saved: q || saved });
   try { document.documentElement.lang = I18N.lang; } catch (e) { /* ignore */ }
+  // Marché des prix : ?mkt=eu|us gardé comme un choix (tests, liens d'aide) ; deviné une fois puis figé ; appareil déjà utilisé avant (collection, réglages) : eu
+  const mo = { robot: typeof navigator !== 'undefined' && (navigator.webdriver || /jsdom/i.test(navigator.userAgent || '')), navs: I18N.navs };
+  try { const mq = new URLSearchParams(location.search).get('mkt') || ''; if (mq === 'eu' || mq === 'us') localStorage.setItem(MK_SAVE, mq); } catch (e) { /* ignore */ }
+  try { mo.saved = localStorage.getItem(MK_SAVE) || ''; mo.frozen = localStorage.getItem(MK_GUESS) || ''; mo.old = !mo.frozen && !!(localStorage.getItem('deckdeal:coll:v1') || localStorage.getItem('deckdeal:v1')); } catch (e) { /* ignore */ }
+  mkPick(mo);
+  try { if (!mo.frozen && !mo.robot) localStorage.setItem(MK_GUESS, MK.guess); } catch (e) { /* ignore */ }
+  try { document.documentElement.dataset.mkt = MK.id; } catch (e) { /* ignore */ }
 }
 /** Textes fixes de la page (body.html) : nœuds texte et attributs lisibles traduits une fois au démarrage. */
 function i18nDom(root) {
-  if (!I18N.dict || !root) return;
-  const tr = s => { const k = s.trim(); return k && Object.prototype.hasOwnProperty.call(I18N.dict, k) ? s.replace(k, I18N.dict[k]) : s; };
+  if (!root || (!I18N.dict && !mkUs())) return;      // marché TCGplayer : textes fixes réécrits aussi en français (mkText)
+  const tr = s => { const k = s.trim(), d = I18N.dict; return mkText(k && d && Object.prototype.hasOwnProperty.call(d, k) ? s.replace(k, d[k]) : s); };
   const w = root.ownerDocument.createTreeWalker(root, 4 /* texte */), nodes = [];
   while (w.nextNode()) nodes.push(w.currentNode);
   for (const n of nodes) { if (n.parentNode && /^(SCRIPT|STYLE)$/.test(n.parentNode.nodeName)) continue; const v = tr(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; }
@@ -497,14 +579,20 @@ const DEMO_BASE = { 'sol ring': 1.6, 'swords to plowshares': 2.4, 'path to exile
 /** Offre « prix Cardmarket » (sans token CardTrader) : une seule par carte, au prix tendance, qui passe tous les filtres (langue, état, Zero). */
 function cmOffer(card, cents, opts) {
   const id = 'cm:' + card.key;
-  return { id, productId: id, bpId: null, sellerId: 'cm', seller: 'Cardmarket', country: '', hub: true, type: 'cm', cm: true,
-    price: cents, cur: 'EUR', qty: 999, cond: opts.cond === 'Mint' ? 'Mint' : 'Near Mint', foil: opts.foil === 'yes', lang: opts.lang,
+  return { id, productId: id, bpId: null, sellerId: 'cm', seller: mkName(), country: '', hub: true, type: 'cm', cm: true,
+    price: cents, cur: mkCur(), qty: 999, cond: opts.cond === 'Mint' ? 'Mint' : 'Near Mint', foil: opts.foil === 'yes', lang: opts.lang,
     signed: false, altered: false, graded: false, vac: false, bundle: 1, set: '', setName: '', num: '', img: null, ref: null };
 }
 /** Langue du site Cardmarket la plus proche : fr, de, es, it, sinon en (seules langues du site). */
 const cmSite = l => (['fr', 'de', 'es', 'it'].includes(l) ? l : 'en');
 /** Lien de recherche Cardmarket d'une carte (lang : langue de l'utilisateur, voir userLang). */
 const cmUrl = (name, lang) => `https://www.cardmarket.com/${cmSite(lang)}/Magic/Products/Search?searchString=${encodeURIComponent(String(name || '').split('//')[0].trim())}`;
+/** Lien de recherche TCGplayer d'une carte (site en anglais seulement). */
+const tcgUrl = name => `https://www.tcgplayer.com/search/magic/product?productLineName=magic&q=${encodeURIComponent(String(name || '').split('//')[0].trim())}&view=grid`;
+/** Lien de la carte sur le marché choisi : Cardmarket dans la langue de l'utilisateur, ou TCGplayer. */
+const mkUrl = (name, lang) => (mkUs() ? tcgUrl(name) : cmUrl(name, lang));
+/** Page où coller la liste « 2 Sol Ring » : Wants list de Cardmarket, ou Mass Entry de TCGplayer (panier rempli d'un coup, le moins cher choisi par TCGplayer). */
+const mkWantsUrl = lang => (mkUs() ? 'https://www.tcgplayer.com/massentry' : 'https://www.cardmarket.com/' + cmSite(lang) + '/Magic/Wants');
 function makeDemoOffers(card, lang) {
   const key = card.key;
   const r = mulberry32(hash32(key + '|' + lang));
@@ -536,6 +624,12 @@ const HISTORY_MAX = 40, NAME_MAX = 120, TEXT_MAX = 60000;
 const OPT_LANGS = ['fr', 'en', 'de', 'es', 'it', 'pt', 'jp', 'zh-CN', 'ru'];
 const OPT_FOIL = ['no', 'any', 'yes'];
 const OPT_MODE = ['zero', 'direct', 'cm'];
+/** Modes d'un relevé gardé (historique d'un deck, prix carte par carte) : ceux de la recherche, plus 'us' (prix du marché TCGplayer, en dollars). */
+const SNAP_MODES = [...OPT_MODE, 'us'];
+/** Devise des montants d'un relevé : dollars pour TCGplayer, euros sinon (Cardmarket, CardTrader). */
+const modeCur = m => (m === 'us' ? 'USD' : 'EUR');
+/** Mode d'une recherche au prix du marché (sans CardTrader) : 'cm' (Cardmarket) ou 'us' (TCGplayer). */
+const mkMode = () => (mkUs() ? 'us' : 'cm');
 
 /** Options de recherche : on ne garde que des valeurs connues (le document est lu depuis le cloud). */
 function sanitizeOpts(o) {
@@ -611,7 +705,7 @@ function sanitizeSnap(x) {
     items.push(o);
   }
   if (!items.length) return null;
-  const out = { at: x.at, mode: OPT_MODE.includes(x.mode) ? x.mode : 'zero', lang: str(x.lang, 8), sig: str(x.sig, 40), items };
+  const out = { at: x.at, mode: SNAP_MODES.includes(x.mode) ? x.mode : 'zero', lang: str(x.lang, 8), sig: str(x.sig, 40), items };
   if (x.pv && typeof x.pv === 'object' && !Array.isArray(x.pv) && Number.isFinite(x.pa)) {
     const pv = {}; let n = 0;
     for (const k of Object.keys(x.pv)) { if (n >= SNAP_MAX) break; const v = x.pv[k]; if (Number.isFinite(v) && v >= 0.5 && k && k.length <= 80) { pv[k] = Math.min(10000000, Math.round(v)); n++; } }
@@ -683,7 +777,7 @@ function deckDoc(x, now) {
   const name = String(x.name || '').trim().slice(0, NAME_MAX) || suggestName(text);
   const cards = parseDeck(text).cards.length;
   const history = (Array.isArray(x.history) ? x.history : []).filter(e => e && Number.isFinite(e.at) && Number.isFinite(e.total)).slice(-HISTORY_MAX)
-    .map(e => ({ at: e.at, total: Math.round(e.total), mode: OPT_MODE.includes(e.mode) ? e.mode : 'zero', found: Math.max(0, e.found | 0), count: Math.max(0, e.count | 0), sig: typeof e.sig === 'string' ? e.sig.slice(0, 40) : '' }));
+    .map(e => ({ at: e.at, total: Math.round(e.total), mode: SNAP_MODES.includes(e.mode) ? e.mode : 'zero', found: Math.max(0, e.found | 0), count: Math.max(0, e.count | 0), sig: typeof e.sig === 'string' ? e.sig.slice(0, 40) : '' }));
   const out = { name, text, opts: sanitizeOpts(x.opts), cards, history, createdAt: Number.isFinite(x.createdAt) ? x.createdAt : now, updatedAt: now };
   const snap = sanitizeSnap(x.snap); if (snap) out.snap = snap;          // prix gardés carte par carte (viewer) : absent tant qu'aucune recherche n'a été enregistrée
   return out;
@@ -2411,6 +2505,7 @@ function shareCard(x) {
   const e = edUnshare(x.e); if (e) it.e = e;      // impression exacte de ces exemplaires (classeur, liste : son image) ; absente d'un partage d'avant ou sans édition
   const fo = shNum(x.fo, 0, q); if (fo) it.fo = fo;      // foil (classeur : pochette à part) ; absent d'un partage d'avant
   const p = shNum(x.p, 0, 1e7), pf = fo ? shNum(x.pf, 0, 1e7) : 0; if (p) it.p = p; if (pf) it.pf = pf;      // prix à l'unité (centimes) de cette impression et de ses foil, publiés par le propriétaire ; absents : prix de la carte
+  const pu = shNum(x.pu, 0, 1e7), pfu = fo ? shNum(x.pfu, 0, 1e7) : 0; if (pu) it.pu = pu; if (pfu) it.pfu = pfu;      // les mêmes en dollars (propriétaire au marché TCGplayer) : lus par un visiteur du même marché seulement
   const f = shStr(x.f, 160).trim(); if (f) { it.fn = f; if (it.l === (SHARE_LANGS.includes(x.fl) ? x.fl : 'fr')) it.dn = f; }      // fl : langue de f (partage d'un appareil en allemand…), français sans elle
   { const iv = shStr(x.i, 300), full = !iv || /^https:/.test(iv) ? iv : SCRY_IMG + iv; if (SHARE_IMG_RE.test(full)) it.im = full; }      // adresse complète ou raccourcie (imgShort)
   const pw = shStr(x.w, 90).trim(); if (pw) it.pw = pw;      // illustration recherchée : « Extension · CODE 123 »
@@ -2488,6 +2583,7 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 // Noms français tapés ou importés (frnames) : exportés à part, hors de la grande liste que d'autres modifient
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FRX, frKey, frUse, frIndex, frLookup, frToEn, enToFr, nameSuggest });
 // Langue des cartes et liens selon la langue de l'utilisateur (test.mjs) : exportés à part, eux aussi
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { MK, MKTS, MK_EU, mkGuess, mkPick, mkUs, mkSfx, mkCur, modeCur, mkMode, SNAP_MODES, mkName, mkAb, mkLabel, mkPx, mkText, tcgUrl, mkUrl, mkWantsUrl });
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { defaultCardLang, cmSite, ctCartUrl, namesLangOf, NAMES_LANGS, ASIA_LANGS, NAMES_ALL_LANGS, CJK_RE });
 // Noms imprimés des autres langues (scan, proxy.mjs › /api/names/find) : exportés à part, eux aussi
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { nmFlat, nmCat, nmPut, nmDone, nmMatch, nmAcc, nmPick, namesAllCats });

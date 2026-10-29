@@ -1,0 +1,16 @@
+{
+  "Marché des prix": "Mercato dei prezzi",
+  "Où tu achètes et vends tes cartes": "Dove compri e vendi le tue carte",
+  "Automatique : {m}, d'après le fuseau horaire et la langue du téléphone au premier lancement.": "Automatico: {m}, in base al fuso orario e alla lingua del telefono al primo avvio.",
+  "Chaque marché garde ses propres prix, la valeur de ta collection et sa courbe : rien n'est converti. CardTrader n'est proposé qu'avec Cardmarket (vendeurs européens).": "Ogni mercato tiene i propri prezzi, il valore della tua collezione e il suo grafico: niente viene convertito. CardTrader è proposto solo con Cardmarket (venditori europei).",
+  "Europe, en euros": "Europa, in euro",
+  "États-Unis et autres pays, en dollars": "Stati Uniti e altri paesi, in dollari",
+  "États-Unis et autres pays, TCGplayer en dollars": "Stati Uniti e altri paesi, TCGplayer in dollari",
+  "Europe, Cardmarket en euros": "Europa, Cardmarket in euro",
+  "Marché des prix changé : l'appli redémarre…": "Mercato dei prezzi cambiato: l'app si riavvia…",
+  "prix tendance en Europe (via Scryfall)": "prezzi di tendenza in Europa (tramite Scryfall)",
+  "prix du marché aux États-Unis (via Scryfall)": "prezzi di mercato negli Stati Uniti (tramite Scryfall)",
+  "Colle un export EDHREC, Moxfield ou Archidekt, une carte par ligne. Mana Orbit donne le prix du marché TCGplayer de chaque carte.": "Incolla un export di EDHREC, Moxfield o Archidekt, una carta per riga. Mana Orbit mostra il prezzo di mercato TCGplayer di ogni carta.",
+  "Quels prix affiche Mana Orbit ?": "Quali prezzi mostra Mana Orbit?",
+  "Le <b>prix du marché TCGplayer</b>, en dollars, relevé chaque jour par Scryfall : gratuit et sans compte, idéal pour estimer ta collection et tes decks. Tu es en Europe ? Compte et réglages › <b>Marché des prix</b>.": "Il <b>prezzo di mercato TCGplayer</b>, in dollari, aggiornato ogni giorno da Scryfall: gratis e senza account, ideale per stimare la tua collezione e i tuoi deck. Sei in Europa? Account e impostazioni › <b>Mercato dei prezzi</b>."
+}

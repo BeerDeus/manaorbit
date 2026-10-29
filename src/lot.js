@@ -82,7 +82,7 @@ function lotPaintCard() {
     : `<span><b>${c.prints ? (c.prints.length ? T('Choisir l\'édition') : T('Aucune édition trouvée')) : c.err ? T('Éditions indisponibles') : T('Éditions…')}</b><small>${T('Édition non précisée')}</small></span>`;
   const own = collQty(c.k), edit = LOT.edit && LOT.list.find(x => x.id === LOT.edit);
   el.innerHTML = `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" src="${esc(lotImg(c))}"></button>
-      ${eu != null ? `<span class="lot-px">${set ? setIcHtml(set) : ''}<b>${esc(fmt(eu, 'EUR'))}</b></span>` : ''}</div>
+      ${eu != null ? `<span class="lot-px">${set ? setIcHtml(set) : ''}<b>${esc(fmt(eu, mkCur()))}</b></span>` : ''}</div>
     <div class="lot-f">
       <div class="lot-name"><b>${esc(dn)}</b>${dn !== c.n ? `<small>${esc(c.n)}</small>` : ''}${own ? `<em>${T('{n} dans ta collection', { n: nf0(own) })}</em>` : ''}</div>
       <button type="button" class="lot-ed${c.pick ? ' on' : ''}${c.auto ? ' auto' : ''}" data-act="ed"${c.prints && !c.prints.length ? ' disabled' : ''} aria-haspopup="dialog">${edBtn}<svg class="i lot-caret" aria-hidden="true"><use href="#i-chev"/></svg></button>
@@ -102,7 +102,7 @@ function lotEdSheet() {
     const more = edQFinder(() => c.prints, q => scryPrintsFind(c.n, lotLangOf(c), q), extra => { c.prints.push(...extra); paint(); });      // liste tronquée (terrains de base) : code ou numéro cherchés sur Scryfall
     const paint = () => {
       const keep = edQKeep(api.body); q = keep.q || q;
-      api.body.innerHTML = `${edQHtml(c.prints.length, q)}<div class="lot-eds">${c.prints.map((p, i) => { const px = p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', on = c.pick === p || (c.e && edKey(p.set, p.num) === c.e);
+      api.body.innerHTML = `${edQHtml(c.prints.length, q)}<div class="lot-eds">${c.prints.map((p, i) => { const px = p.eu > 0 ? fmt(p.eu, mkCur()) : p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : '', on = c.pick === p || (c.e && edKey(p.set, p.num) === c.e);
         return `<button type="button" class="lot-ev" data-i="${i}" aria-pressed="${!!on}" aria-label="${esc(p.sn)} ${esc(String(p.set).toUpperCase())} ${esc(p.num)}${px ? ', ' + esc(px) : ''}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span>${setIcHtml(p.set)}${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span><em>${esc(p.sn)}</em>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length || p.y ? `<small>${esc([p.y, ...p.fx].filter(Boolean).join(' · '))}</small>` : ''}</button>`; }).join('')}
         <button type="button" class="lot-ev none" data-i="-1" aria-pressed="${!c.pick}"><i>${T('Sans édition')}</i></button></div>`;
       edQApply($('.lot-eds', api.body), c.prints, q, '.lot-ev'); keep.restore();
@@ -156,7 +156,7 @@ function lotTotals() { let n = 0, v = 0; for (const x of LOT.list) { n += x.q; c
 function lotPaintHead() {
   const el = LOT.el; if (!el) return;
   const t = lotTotals();
-  $('.dv-title span', el).textContent = LOT.list.length ? TN(t.n, '{n} carte dans ce lot', '{n} cartes dans ce lot') + (t.v ? ' · ' + fmt(t.v, 'EUR') : '') : nmT('Tape son nom en anglais ou en français', 'Tape son nom en anglais ou en {lang}', 'Tape son nom en anglais');
+  $('.dv-title span', el).textContent = LOT.list.length ? TN(t.n, '{n} carte dans ce lot', '{n} cartes dans ce lot') + (t.v ? ' · ' + fmt(t.v, mkCur()) : '') : nmT('Tape son nom en anglais ou en français', 'Tape son nom en anglais ou en {lang}', 'Tape son nom en anglais');
   const sticky = $('.lot-sticky', el);
   sticky.hidden = !LOT.set; if (LOT.set) sticky.innerHTML = `<span class="ls-l">${T('Extension proposée')}</span><span class="ls-v">${setIcHtml(LOT.set)}<b>${esc(setName(LOT.set) || LOT.set.toUpperCase())}</b></span><button type="button" class="link-btn" data-act="unstick" aria-label="${T('Ne plus proposer cette extension')}">${T('Retirer')}</button>`;
 }
@@ -166,7 +166,7 @@ function lotRowHtml(x) {
   return `<div class="crow lot-it${u > 0 ? ' has-px' : ''}" data-id="${esc(x.id)}" data-k="${esc(x.k)}" data-ln="${esc(l)}"${x.g !== l ? ` data-g="${esc(x.g)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${l ? `<span class="lchip ro">${flag(l)}</span>` : ''}</span>
       <span class="row-meta">${e ? `<span class="tag ed">${setIcHtml(set)}${esc(sn ? sn + ' #' + edNum(e) : edLabel(e))}</span>` : `<span class="tag">${T('Édition non précisée')}</span>`}${x.q > 1 ? `<span class="tag accent">× ${nf0(x.q)}</span>` : ''}<span class="tag lot-when">${esc(when)}</span></span></span>
-    ${u > 0 ? `<span class="row-px"><span class="px cm"><b>${esc(fmt(u * x.q, 'EUR'))}</b></span></span>` : ''}
+    ${u > 0 ? `<span class="row-px"><span class="px cm"><b>${esc(fmt(u * x.q, mkCur()))}</b></span></span>` : ''}
     <span class="lot-acts"><button type="button" class="icon-btn" data-act="edit" aria-label="${T('Modifier {name}', { name: esc(nm) })}"><svg class="i"><use href="#i-edit"/></svg></button><button type="button" class="icon-btn" data-act="drop" aria-label="${T('Retirer {name}', { name: esc(nm) })}"><svg class="i"><use href="#i-trash"/></svg></button></span></div>`;
 }
 function lotPaintList() {

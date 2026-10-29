@@ -116,7 +116,7 @@ function dfRowHtml(e, x, cname, canAdd) {
   if (ds.length) tags.push(`<span class="tag warn df-eng" title="${esc(ds.map(d => d.n).join(' · '))}">${free > 0 ? TN(own - free, '{n} engagée ailleurs', '{n} engagées ailleurs') : ds.length > 1 ? T('Réservée par {n} decks montés', { n: ds.length }) : T('Réservée par « {name} »', { name: esc(ds[0].n) })}</span>`);
   return `<div class="crow df-row" data-k="${esc(x.k)}"><span class="thumb" style="--h:${hue}"${zoomAt('dfc', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="df-rate" title="${esc(T('{a} decks sur {b}', { a: nf0(x.n), b: nf0(Math.round(x.n / x.r)) }))}"><i style="width:${Math.max(3, Math.round(x.r * 100))}%"></i></span><span class="df-pct">${T('dans {p} des decks {name}', { p: pct, name: esc(cname) })}</span><span class="row-meta">${tags.join('')}</span></span>
-    <span class="df-end"><b class="df-px">${price ? esc(fmt(price, 'EUR')) : '—'}</b>${canAdd ? `<button class="btn ghost small df-add" type="button" data-df="add" aria-label="${esc(T('Ajouter {name} au deck', { name: nm }))}">${T('+ au deck')}</button>` : ''}</span></div>`;
+    <span class="df-end"><b class="df-px">${price ? esc(fmt(price, mkCur())) : '—'}</b>${canAdd ? `<button class="btn ghost small df-add" type="button" data-df="add" aria-label="${esc(T('Ajouter {name} au deck', { name: nm }))}">${T('+ au deck')}</button>` : ''}</span></div>`;
 }
 function dfClick(e) {
   const b = e.target.closest('[data-df]'); if (!b) return;

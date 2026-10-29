@@ -13,7 +13,7 @@ import { createECDH, randomBytes, hkdfSync, createDecipheriv, generateKeyPairSyn
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ok = m => console.log('✓ ' + m);
 // ── faux Scryfall : POST /cards/collection
-const price = new Map();                 // nom (minuscules) → « 3.00 » ; absent = inconnu
+const price = new Map(), usd = new Map();      // nom (minuscules) → « 3.00 » ; absent = inconnu ; usd : prix TCGplayer (marché américain)
 const scryReqs = []; let scryFail = 0;
 const upScry = http.createServer((req, res) => {
   const c = []; req.on('data', x => c.push(x)); req.on('end', () => {
@@ -22,7 +22,7 @@ const upScry = http.createServer((req, res) => {
     const data = [], nf = [];
     for (const i of b.identifiers || []) {
       const p = price.get(i.name.toLowerCase());
-      if (p === undefined) nf.push(i); else data.push({ name: i.name === 'Delver of Secrets' ? 'Delver of Secrets // Insectile Aberration' : i.name, prices: { eur: p } });
+      if (p === undefined) nf.push(i); else data.push({ name: i.name === 'Delver of Secrets' ? 'Delver of Secrets // Insectile Aberration' : i.name, prices: { eur: p, usd: usd.get(i.name.toLowerCase()) || null } });
     }
     res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ object: 'list', not_found: nf, data }));
   });
@@ -255,6 +255,27 @@ r = await J(B3, '/api/info'); assert.equal(r.s, 401, 'CardTrader reste protégé
   r = await check(BH, idH2); assert.equal(r.o.ok, true, 'un autre appareil a son propre délai');
   r = await J(BH, '/api/alerts?id=' + idH1); assert.deepEqual(r.o.prices['sol ring'], { c: 100, b: 0 }, 'un seul relevé dans l\'heure : remplacé par le prix du jour, pas de référence raccourcie');
   assert.equal(pushed.length, n0, 'pas d\'alerte sur des relevés de la même heure'); ok('un relevé par carte et par heure : les contrôles répétés le remplacent');
+}
+
+// 13) marché TCGplayer (mk: 'us') : relevés en dollars, à part de ceux en euros de la même carte ; message en dollars, « prix du marché TCGplayer »
+{
+  await start({ ...env, ALERT_FILE: join(dir, 'us.json') }, 18867); const BU = 'http://127.0.0.1:18867';
+  set({ 'Sol Ring': '3.00' }); usd.set('sol ring', '5.00');
+  const U = browser('usA'), Eu = browser('euA'), its = [{ k: 'sol ring', n: 'Sol Ring' }];
+  const idU = (await J(BU, '/api/alerts', { method: 'PUT', body: JSON.stringify({ sub: U.sub, mk: 'us', lang: 'en', items: its }) })).o.id;
+  const idE = (await J(BU, '/api/alerts', { method: 'PUT', body: JSON.stringify({ sub: Eu.sub, lang: 'en', items: its }) })).o.id;
+  await sleep(600); const n0 = scryReqs.length;
+  r = await check(BU, idU); assert.equal(r.o.ok, true);
+  r = await J(BU, '/api/alerts?id=' + idU); assert.equal(r.o.prices['sol ring'].c, 500, 'prix en dollars');
+  r = await J(BU, '/api/alerts?id=' + idE); assert.equal(r.o.prices['sol ring'].c, 300, 'même carte, autre appareil en Europe : euros');
+  usd.set('sol ring', '2.00'); r = await check(BU, idU); assert.equal(r.o.ok, true);
+  const ps = pushesFor(U); assert.equal(ps.length, 1, 'baisse de 60 % en dollars');
+  const m = decrypt(ps[0].body, U); assert.equal(m.title, 'Sol Ring: −60%'); assert.equal(m.body, '$5.00 → $2.00 (TCGplayer market price).');
+  assert.equal(pushesFor(Eu).length, 0, 'prix en euros inchangé : rien côté Europe');
+  r = await J(BU, '/api/alerts', { method: 'PUT', body: JSON.stringify({ sub: U.sub, lang: 'en', items: its }) }); assert.equal(r.o.id, idU);
+  r = await J(BU, '/api/alerts?id=' + idU); assert.equal(r.o.prices['sol ring'].c, 300, 'retour à Cardmarket : les relevés en euros'); assert.deepEqual(r.o.hits, [], 'alertes de l\'autre devise oubliées');
+  assert.ok(scryReqs.slice(n0).every(q => new Set(q.ids.map(i => i.name)).size === q.ids.length), 'une carte suivie aux deux marchés : demandée une fois');
+  ok('marché TCGplayer : relevés et alertes en dollars, à part des euros');
 }
 
 console.log('ALERTS OK'); process.exit(0);

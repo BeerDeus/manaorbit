@@ -3,7 +3,8 @@
    - un relevé de la valeur totale par jour (localStorage + compte si connecté, 400 jours au plus) → courbe et variations à 7 / 30 jours ;
    - sur CET appareil, les prix carte par carte de la semaine (IndexedDB) → cartes dont le prix a bougé de plus du seuil (10 / 25 / 50 %), bannière et pastilles ▲▼.
    L'historique de valeur est synchronisé avec le compte (extras.js, document meta/history) ; les prix carte par carte restent locaux. Lecture au lancement, au retour sur l'appli et à l'ouverture de la collection (pas en arrière-plan, appli fermée). */
-const VAL_HIST_KEY = 'deckdeal:coll:hist', VAL_RESET_KEY = 'deckdeal:coll:histreset', VAL_AT_KEY = 'deckdeal:coll:pxat', VAL_THR_KEY = 'deckdeal:coll:alert', VAL_SEEN_KEY = 'deckdeal:coll:alertseen', VAL_BASE_KEY = 'coll:base';
+const VAL_MK = mkSfx(), VAL_HIST_KEY = 'deckdeal:coll:hist' + VAL_MK, VAL_RESET_KEY = 'deckdeal:coll:histreset' + VAL_MK, VAL_AT_KEY = 'deckdeal:coll:pxat' + VAL_MK,      // marché TCGplayer : sa propre courbe (dollars)
+  VAL_THR_KEY = 'deckdeal:coll:alert', VAL_SEEN_KEY = 'deckdeal:coll:alertseen', VAL_BASE_KEY = 'coll:base';
 const VAL_EVERY = 20 * 3600e3, VAL_THRS = [10, 25, 50];
 const VAL = { hist: [], reset: 0, base: null, at: 0, thr: 25, seen: -1, run: null, err: '', loaded: null, memo: null, topN: 8, ro: null };      // ro : suit la largeur de la courbe des Stats (valFit)
 
@@ -126,10 +127,10 @@ const valMove = k => { const mv = valMovers(); return mv && mv.ready ? mv.by.get
 const valAlertN = () => { const mv = valMovers(); return mv && mv.ready && VAL.seen !== dayOf(VAL.at) ? mv.list.length : 0; };
 
 const valPct = p => (p > 0 ? '+' : p < 0 ? '−' : '') + T('{n} %', { n: nf0(Math.round(Math.abs(p))) });
-const valEur = c => (c > 0 ? '+' : c < 0 ? '−' : '') + fmt(Math.abs(c), 'EUR');
+const valEur = c => (c > 0 ? '+' : c < 0 ? '−' : '') + fmt(Math.abs(c), mkCur());
 const valCls = x => (x > 0 ? 'vu' : x < 0 ? 'vd' : '');
 const valDate = t => new Date(t).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' });
-const valTag = m => `<span class="tag vm ${valCls(m.d)}" title="${T('Cardmarket : {a} → {b}', { a: esc(fmt(m.u0, 'EUR')), b: esc(fmt(m.u1, 'EUR')) })}">${m.d > 0 ? '▲' : '▼'} ${valPct(m.pct)}</span>`;
+const valTag = m => `<span class="tag vm ${valCls(m.d)}" title="${T('Cardmarket : {a} → {b}', { a: esc(fmt(m.u0, mkCur())), b: esc(fmt(m.u1, mkCur())) })}">${m.d > 0 ? '▲' : '▼'} ${valPct(m.pct)}</span>`;
 
 /** Courbe de la valeur (SVG à l'échelle : axes min/max réels, temps proportionnel). W, H : taille du dessin (l'accueil sur ordinateur la prend de sa case). */
 function valChartHtml(h, W = 320, H = 132) {
@@ -139,8 +140,8 @@ function valChartHtml(h, W = 320, H = 132) {
   const pts = h.map(x => f(X(x.t)) + ',' + f(Y(x.v))), last = h[h.length - 1];
   const area = `M${f(X(t0))},${f(H - pb)} L${pts.join(' L')} L${f(X(t1))},${f(H - pb)} Z`;
   const grid = max === min ? [max] : [max, min];
-  return `<svg class="vl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${T('Valeur de la collection du {d0} au {d1} : de {v0} à {v1}', { d0: esc(valDate(t0)), d1: esc(valDate(t1)), v0: esc(fmt(h[0].v, 'EUR')), v1: esc(fmt(last.v, 'EUR')) })}">
-    ${grid.map((v, i) => `<line x1="${pl}" x2="${W - pr}" y1="${f(Y(v))}" y2="${f(Y(v))}" class="vl-grid"/><text x="${pl}" y="${f(Y(v) + (i ? 11 : -4))}" class="vl-txt">${esc(fmt(v, 'EUR'))}</text>`).join('')}
+  return `<svg class="vl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${T('Valeur de la collection du {d0} au {d1} : de {v0} à {v1}', { d0: esc(valDate(t0)), d1: esc(valDate(t1)), v0: esc(fmt(h[0].v, mkCur())), v1: esc(fmt(last.v, mkCur())) })}">
+    ${grid.map((v, i) => `<line x1="${pl}" x2="${W - pr}" y1="${f(Y(v))}" y2="${f(Y(v))}" class="vl-grid"/><text x="${pl}" y="${f(Y(v) + (i ? 11 : -4))}" class="vl-txt">${esc(fmt(v, mkCur()))}</text>`).join('')}
     <path d="${area}" class="vl-area"/><polyline points="${pts.join(' ')}" class="vl-line" fill="none"/>
     <circle cx="${f(X(last.t))}" cy="${f(Y(last.v))}" r="3.4" class="vl-dot"/>
     <text x="${pl}" y="${H - 5}" class="vl-txt">${esc(valDate(t0))}</text><text x="${W - pr}" y="${H - 5}" class="vl-txt" text-anchor="end">${esc(valDate(t1))}</text></svg>`;
@@ -172,7 +173,7 @@ function valMoveRow(m) {
   const meta = COLL.meta[m.k] || {}, im = collImage(m.k, (COLL.map[m.k] || {}).l, meta.im).src;
   return `<div class="crow ro" data-k="${esc(m.k)}"><span class="thumb" style="--h:${hash32(m.k) % 360}"${zoomAt('coll', m.n)}>${esc((m.n.trim()[0] || '?').toUpperCase())}${im ? `<img alt="" loading="lazy" decoding="async" src="${esc(im)}">` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(m.n)}</span><span class="row-meta">${m.q > 1 ? `<span class="tag accent">× ${nf0(m.q)}</span>` : ''}${valTag(m)}</span></span>
-    <span class="row-price vl-mp"><b class="${valCls(m.lot)}">${valEur(m.lot)}</b><small>${esc(fmt(m.u0, 'EUR'))} → ${esc(fmt(m.u1, 'EUR'))}${m.q > 1 ? ' × ' + nf0(m.q) : ''}</small></span></div>`;
+    <span class="row-price vl-mp"><b class="${valCls(m.lot)}">${valEur(m.lot)}</b><small>${esc(fmt(m.u0, mkCur()))} → ${esc(fmt(m.u1, mkCur()))}${m.q > 1 ? ' × ' + nf0(m.q) : ''}</small></span></div>`;
 }
 /** Sections « Valeur dans le temps » et « Variations des prix » de l'onglet Stats. */
 function valStatsHtml() {
@@ -181,7 +182,7 @@ function valStatsHtml() {
   const act = run ? '' : `<button class="link-btn" type="button" data-act="valnow">${T('Actualiser')}</button>`;
   let chart;
   if (h.length >= 2) chart = `${valChartHtml(h)}<div class="vl-ds">${valDeltaHtml(T('7 jours'), histDelta(h, 7))}${valDeltaHtml(T('30 jours'), histDelta(h, 30))}</div>`;
-  else if (h.length === 1) chart = `<p class="hint vl-first">${T('Premier relevé : <b>{v}</b>. La courbe apparaît dès demain.', { v: esc(fmt(h[0].v, 'EUR')) })}</p>`;
+  else if (h.length === 1) chart = `<p class="hint vl-first">${T('Premier relevé : <b>{v}</b>. La courbe apparaît dès demain.', { v: esc(fmt(h[0].v, mkCur())) })}</p>`;
   else chart = `<p class="hint vl-first">${VAL.err || run ? T('Relevé en cours…') : collMissing().length ? T('Le premier relevé aura lieu quand toutes les cartes auront leurs infos.') : T('Le premier relevé va être enregistré.')}</p>`;
   const val = `<h3 class="cs-h">${T('Valeur dans le temps')} <small>${T('tendance Cardmarket')}</small></h3><div class="vl-box">${chart}<div class="vl-foot"><span>${status}</span>${act}</div></div>
     <p class="hint">${T('Un relevé par jour, gardé sur cet appareil (et sur ton compte si tu es connecté). La valeur varie aussi quand tu ajoutes ou retires des cartes.')}${h.length ? ` <button class="link-btn" type="button" data-act="valreset">${T('Recommencer la courbe')}</button>` : ''}</p>`;

@@ -147,9 +147,9 @@ const bndCov = c => (BND_COVERS.some(x => x[0] === c) ? c : 'nuit');
 /** Pochette d'une carte : image (lettre et nom en attendant), pastilles ; foil : voile irisé sur l'image (binder.css) et pastille ✦ ; édition lue (« CMM 400 ») par les lecteurs d'écran. */
 function bndCardHtml(x, i, mini) {
   const hue = hash32(x.k) % 360, nm = x.nm || x.n || '', im = mini ? x.sm || x.im : x.im;
-  const lab = [nm, x.e ? edLabel(x.e) : '', x.foil ? T('Foil') : '', x.q > 1 ? '× ' + x.q : '', x.u > 0 ? fmt(x.u, 'EUR') : '', x.pin ? T('Épinglée') : ''].filter(Boolean).join(', ');
+  const lab = [nm, x.e ? edLabel(x.e) : '', x.foil ? T('Foil') : '', x.q > 1 ? '× ' + x.q : '', x.u > 0 ? fmt(x.u, mkCur()) : '', x.pin ? T('Épinglée') : ''].filter(Boolean).join(', ');
   return `<button type="button" class="bnd-card${x.foil ? ' foil' : ''}" data-i="${i}" data-k="${esc(x.k)}" aria-label="${esc(lab)}"${mini ? ' tabindex="-1"' : ''}><span class="bnd-art" style="--h:${hue}"><b>${esc((nm.trim()[0] || '?').toUpperCase())}</b><i>${esc(nm)}</i>${im ? `<img alt="" loading="lazy" decoding="async" draggable="false" src="${esc(im)}">` : ''}</span>`
-    + (mini ? '' : `${x.pin || x.foil || x.q > 1 ? `<span class="bnd-tags">${x.pin ? `<span class="bnd-pin" title="${T('Épinglée')}">${BND_IC.pin}</span>` : ''}${x.foil ? `<span class="bnd-fo" title="${T('Foil')}"></span>` : ''}${x.q > 1 ? `<span class="bnd-q">×${x.q}</span>` : ''}</span>` : ''}${x.u > 0 ? `<span class="bnd-p">${esc(fmt(x.u, 'EUR'))}</span>` : ''}`) + '</button>';      // en haut à droite (sur le coût de mana, jamais sur le nom)
+    + (mini ? '' : `${x.pin || x.foil || x.q > 1 ? `<span class="bnd-tags">${x.pin ? `<span class="bnd-pin" title="${T('Épinglée')}">${BND_IC.pin}</span>` : ''}${x.foil ? `<span class="bnd-fo" title="${T('Foil')}"></span>` : ''}${x.q > 1 ? `<span class="bnd-q">×${x.q}</span>` : ''}</span>` : ''}${x.u > 0 ? `<span class="bnd-p">${esc(fmt(x.u, mkCur()))}</span>` : ''}`) + '</button>';      // en haut à droite (sur le coût de mana, jamais sur le nom)
 }
 /**
  * Classeur dans un élément neuf, à placer dans la page. o : { open(i, items) : carte touchée, mini : aperçu des réglages (1re page, sans navigation) }.
@@ -394,7 +394,7 @@ function bndOpenSettings() {
       $('.bnd-cvn', api.body).textContent = T((BND_COVERS.find(x => x[0] === c.c) || BND_COVERS[0])[1]);
       $('.bnd-pin-h', api.body).textContent = T('Cartes épinglées en tête') + ' · ' + c.k.length + '/' + BND_PINS;
       $('.bnd-pins', api.body).innerHTML = c.k.map((k, i) => { const x = byK.get(k), nm = x ? x.nm : k;
-        return `<div class="crow bnd-pinr${x ? '' : ' gone'}" data-k="${esc(k)}">${thumb(x || { k, nm, sm: '' })}<span class="row-main"><span class="row-name">${esc(nm)}</span>${x ? (x.u > 0 ? `<span class="row-meta"><span class="tag">${esc(fmt(x.u, 'EUR'))}</span></span>` : '') : `<span class="row-meta"><span class="tag warn">${T('plus dans ta liste')}</span></span>`}</span>
+        return `<div class="crow bnd-pinr${x ? '' : ' gone'}" data-k="${esc(k)}">${thumb(x || { k, nm, sm: '' })}<span class="row-main"><span class="row-name">${esc(nm)}</span>${x ? (x.u > 0 ? `<span class="row-meta"><span class="tag">${esc(fmt(x.u, mkCur()))}</span></span>` : '') : `<span class="row-meta"><span class="tag warn">${T('plus dans ta liste')}</span></span>`}</span>
           <span class="bnd-pina"><button type="button" class="icon-btn" data-pa="up" aria-label="${esc(T('Monter {name}', { name: nm }))}"${i ? '' : ' disabled'}><svg class="i up"><use href="#i-chev"/></svg></button><button type="button" class="icon-btn" data-pa="down" aria-label="${esc(T('Descendre {name}', { name: nm }))}"${i < c.k.length - 1 ? '' : ' disabled'}><svg class="i dn"><use href="#i-chev"/></svg></button><button type="button" class="icon-btn" data-pa="del" aria-label="${esc(T('Désépingler {name}', { name: nm }))}"><svg class="i"><use href="#i-close"/></svg></button></span></div>`; }).join('');
       sug();
     };
@@ -407,7 +407,7 @@ function bndOpenSettings() {
       list = list.slice(0, 6);
       h.textContent = !cards.length ? T('Rien à épingler : aucune carte à échanger pour l\'instant.') : full ? T('{max} cartes épinglées au plus (deux pages).', { max: BND_PINS }) : qq ? (list.length ? '' : T('Aucune carte de ta liste ne correspond.')) : list.length ? T('Tes cartes les plus chères :') : '';
       h.hidden = !h.textContent; q.disabled = full || !cards.length;
-      box.innerHTML = full ? '' : list.map(x => `<button type="button" class="ca-opt bnd-opt" role="option" data-k="${esc(x.k)}" aria-label="${esc(T('Épingler {name}', { name: x.nm }))}">${thumb(x)}<span class="bnd-opt-n">${esc(x.nm)}${x.u > 0 ? `<small>${esc(fmt(x.u, 'EUR'))}</small>` : ''}</span><i>${BND_IC.pin}</i></button>`).join('');
+      box.innerHTML = full ? '' : list.map(x => `<button type="button" class="ca-opt bnd-opt" role="option" data-k="${esc(x.k)}" aria-label="${esc(T('Épingler {name}', { name: x.nm }))}">${thumb(x)}<span class="bnd-opt-n">${esc(x.nm)}${x.u > 0 ? `<small>${esc(fmt(x.u, mkCur()))}</small>` : ''}</span><i>${BND_IC.pin}</i></button>`).join('');
     };
     mountSeg($('#bndSort', api.body), BND_SORTS.map(([v, l]) => ({ v, label: T(l) })), bndCfg().s, v => { bndChanged({ s: v }); paint(); });
     q.addEventListener('input', sug);

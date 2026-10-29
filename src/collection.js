@@ -5,7 +5,7 @@ const COLL_KEY = 'deckdeal:coll:v1', COLL_SRC_KEY = 'deckdeal:coll:src', COLL_ME
 const COLL_RETRY = { off: 15000, err: 20000, live: 12000 };       // délais (ms) : nouvel essai hors ligne / en erreur, attente du serveur au démarrage
 const PX_KEY = 'deckdeal:px:v1', PX_TTL = 2 * DAY, PX_CHUNK = 40;
 const COLL = { when: { dir: '', t: 0 }, mode: 'coll', ctab: 'list', ed: {}, edRun: null, solo: {}, soloLoaded: false, px: {}, pxRun: null, pxMsg: null, map: {}, prox: {}, places: {}, place: '', meta: {}, li: {}, u: 0, s: '', base: null, ru: 0, live: false, pushing: 0, again: false, deferred: null, retryT: 0, liveT: 0, cloud: 'off', err: '', unsub: null, el: null, tab: 'list', src: 'cm', topN: 10, topBy: 'lot', f: newFilter(), sort: 'name', shown: COLL_PAGE, enrich: null, enrichErr: '', fb: null, cmdrSeen: '', freshAt: 0, names: null, namesP: null, pushT: 0, pushAt: 0, chg: [], runId: 0, seq: 0, view: null, painted: null, paintT: 0, paintAt: 0, resumeT: 0 };
-try { if (localStorage.getItem(COLL_SRC_KEY) === 'ct') COLL.src = 'ct'; } catch (e) { /* stockage indisponible */ }
+try { if (localStorage.getItem(COLL_SRC_KEY) === 'ct' && !mkUs()) COLL.src = 'ct'; } catch (e) { /* stockage indisponible */ }      // marché TCGplayer : jamais CardTrader
 const collCount = () => Object.keys(COLL.map).length;
 const collCopies = () => { let n = 0; for (const k in COLL.map) n += COLL.map[k].q; return n; };
 /** Exemplaires possédés d'une carte (k = ownKey du nom). */
@@ -223,7 +223,7 @@ function edSheet(o) {
     const cnt = () => (n ? `<div class="cex-n ced-cnt"><span>${T('Exemplaires concernés')}</span><span class="qstep"><button type="button" data-cn="-1" aria-label="${T('Moins')}">−</button><b>${n}</b><button type="button" data-cn="1" aria-label="${T('Plus')}">+</button></span><small>/ ${nf0(cmax())}</small></div>` : '')
       + (o.onSplit ? `<button type="button" class="link-btn ced-split" data-split>${T('Répartir entre plusieurs éditions')}</button>` : '');      // feuille « Répartir par édition » (edSplit)
     const tile = (p, i) => {
-      const e = edKey(p.set, p.num), px = foil ? (p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : p.eu > 0 ? fmt(p.eu, 'EUR') : '') : p.eu > 0 ? fmt(p.eu, 'EUR') : p.ef > 0 ? fmt(p.ef, 'EUR') + ' ✦' : '', ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition
+      const e = edKey(p.set, p.num), px = foil ? (p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : p.eu > 0 ? fmt(p.eu, mkCur()) : '') : p.eu > 0 ? fmt(p.eu, mkCur()) : p.ef > 0 ? fmt(p.ef, mkCur()) + ' ✦' : '', ic = setIcHtml(p.set);      // ligne foil : le prix foil Cardmarket de chaque édition
       return `<button type="button" class="ced-t" role="radio" data-i="${i}" aria-checked="${e === o.cur}" aria-label="${esc(p.sn)} ${esc(edLabel(e))}${px ? ', ' + esc(px) : ''}" title="${esc(p.sn)}">${ic || `<span class="ed-code">${esc(String(p.set).toUpperCase())}</span>`}<span class="ced-n">${esc(String(p.set).toUpperCase())} ${esc(p.num)}</span>${px ? `<b>${esc(px)}</b>` : ''}${p.fx.length ? `<small>${esc(p.fx.join(', '))}</small>` : ''}</button>`;
     };
     let q = '', wantQ = !!o.focusQ;      // focusQ : la feuille s'ouvre sur la recherche (bandeau du scan › « Chercher une extension »)
@@ -313,12 +313,12 @@ function edSplit(k, g) {
       let val = r0 * ref; for (const r of rows) val += r.q * (pxOf(r) || ref);
       api.body.innerHTML = rows.map((r, i) => {
         const set = edSet(r.e), sn = setName(set) || (r.info && r.info.sn) || (COLL.ed[r.e] || {}).sn || set.toUpperCase(), px = pxOf(r);
-        return `<div class="esp-r" data-e="${esc(r.e)}"><span class="esp-ic">${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}</span><span class="esp-t"><b>${esc(sn)}</b><small>${esc(edLabel(r.e))}${px ? ' · ' + esc(fmt(px, 'EUR')) : ''}</small></span>
+        return `<div class="esp-r" data-e="${esc(r.e)}"><span class="esp-ic">${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}</span><span class="esp-t"><b>${esc(sn)}</b><small>${esc(edLabel(r.e))}${px ? ' · ' + esc(fmt(px, mkCur())) : ''}</small></span>
           <span class="qstep"><button type="button" data-i="${i}" data-d="-1" aria-label="${esc(T('Moins'))}"${r.q ? '' : ' disabled'}>−</button><b>${r.q}</b><button type="button" data-i="${i}" data-d="1" aria-label="${esc(T('Plus'))}"${r0 ? '' : ' disabled'}>+</button></span></div>`;
       }).join('')
         + `<div class="esp-r esp-none"><span class="esp-ic" aria-hidden="true"></span><span class="esp-t"><b>${T('Sans édition')}</b><small>${T('le reste')}</small></span><em>${r0}</em></div>
         <button class="btn ghost block esp-add" type="button" data-add>${T('+ Ajouter une édition')}</button>
-        <div class="esp-tot"><span>${val ? esc(T('Valeur ≈ {v}', { v: fmt(val, 'EUR') })) : ''}</span><b class="${r0 ? '' : 'ok'}">${esc(T('{a} / {b} répartis', { a: nf0(total - r0), b: nf0(total) }))}${r0 ? '' : ' ✓'}</b></div>`;
+        <div class="esp-tot"><span>${val ? esc(T('Valeur ≈ {v}', { v: fmt(val, mkCur()) })) : ''}</span><b class="${r0 ? '' : 'ok'}">${esc(T('{a} / {b} répartis', { a: nf0(total - r0), b: nf0(total) }))}${r0 ? '' : ' ✓'}</b></div>`;
     };
     paint(); setIcLoad(() => { if (sheets.includes(api)) paint(); });      // symboles des extensions : repeint dès qu'ils arrivent
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-ok>${T('Enregistrer')}</button>`);
@@ -597,9 +597,10 @@ function collSleep() { if (typeof syncFlush === 'function') syncFlush(); else if
 
 /* ── Prix réels : l'offre CardTrader la moins chère de chaque carte, lue avec le moteur de la recherche ───────────
    Stockés à part (localStorage, sur cet appareil) : { clé: { p: centimes | null (aucune offre), t: date, s: critères, c: devise } }. */
-function pxRead() { try { const r = JSON.parse(localStorage.getItem(PX_KEY) || 'null'); if (r && typeof r === 'object' && !Array.isArray(r)) COLL.px = r; } catch (e) { /* illisible : on repart de zéro */ } }
+function pxRead() { if (mkUs()) return; try { const r = JSON.parse(localStorage.getItem(PX_KEY) || 'null'); if (r && typeof r === 'object' && !Array.isArray(r)) COLL.px = r; } catch (e) { /* illisible : on repart de zéro */ } }
 let pxT = 0;
 function pxSave() {
+  if (mkUs()) return;      // marché TCGplayer : les prix CardTrader d'ici (Cardmarket) restent tels quels
   clearTimeout(pxT);
   pxT = setTimeout(() => { try { const keep = {}; for (const k in COLL.px) if (COLL.map[k]) keep[k] = COLL.px[k]; COLL.px = keep; localStorage.setItem(PX_KEY, JSON.stringify(keep)); } catch (e) { /* stockage plein : les prix restent en mémoire */ } }, 600);
 }
@@ -1028,7 +1029,7 @@ function crowHtml(it) {
   if (!it.l) tags.push(langChip(it.k, '', it.n, '', g));
   const plc = plcRowTag(g); if (plc) tags.push(plc);      // emplacement et détails (places.js) : seulement si la ligne est rangée ou détaillée
   const px = [];      // prix : CM (tendance Cardmarket, estimation) au-dessus, CT (offre CardTrader la plus basse, lue à la demande) en dessous
-  if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${T('Cardmarket : prix tendance')}"><i>CM</i> <b>${esc(fmt(it.eu, 'EUR'))}</b></span>`);
+  if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${T('Cardmarket : prix tendance')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b></span>`);
   if (Number.isFinite(it.rp)) px.push(`<span class="px ct" title="${T('CardTrader : offre la plus basse')}"><i>CT</i> <b>${esc(fmt(it.rp, it.rc || 'EUR'))}</b></span>`);
   else if (it.rp === null && it.rt) px.push(`<span class="px ct none" title="${T('CardTrader : aucune offre')}"><i>CT</i> <b>${T('aucune offre')}</b></span>`);
   return `<div class="crow ced${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
@@ -1141,6 +1142,7 @@ function barsHtml(rows) {
 }
 /** Tuile de valeur (Stats) : bascule entre les prix réels CardTrader (CT) et l'estimation Cardmarket (CM). Choix retenu sur l'appareil. */
 function collToggleSrc() {
+  if (mkUs()) return;      // marché TCGplayer : une seule source
   if (COLL.el && $('.cs-val[data-ctno]', COLL.el)) { haptic('tap'); ctGetSheet(() => { COLL.src = 'ct'; try { localStorage.setItem(COLL_SRC_KEY, 'ct'); } catch (e) { /* ignore */ } collPaintBody(true); }); return; }      // CardTrader sans token : l'encart du token, la bascule viendra après
   COLL.src = COLL.src === 'cm' ? 'ct' : 'cm'; haptic('tap');
   try { localStorage.setItem(COLL_SRC_KEY, COLL.src); } catch (e) { /* stockage indisponible */ }
@@ -1148,12 +1150,12 @@ function collToggleSrc() {
   const t = $('.cs-val', COLL.el); if (t) t.focus({ preventScroll: true });
 }
 function collStatsHtml(items) {
-  const ctOff = !(typeof ctReady === 'function' && ctReady()) && !items.some(i => i.rp > 0);      // CardTrader indisponible et aucun prix lu : valeur Cardmarket ; toucher la tuile propose d'ajouter le token
+  const ctOff = mkUs() || (!(typeof ctReady === 'function' && ctReady()) && !items.some(i => i.rp > 0));      // marché TCGplayer, ou CardTrader indisponible et aucun prix lu : valeur Cardmarket ; toucher la tuile propose d'ajouter le token
   const st = collStats(items, ctOff ? 'cm' : COLL.src), miss = st.unknown, cm = st.src === 'cm';
   const colorRows = [['W', T('Blanc')], ['U', T('Bleu')], ['B', T('Noir')], ['R', T('Rouge')], ['G', T('Vert')]].map(([c, n]) => [`<i class="mc mc-${c.toLowerCase()}">${c}</i>${n}`, st.colors[c], 'k-' + c.toLowerCase()])
     .concat([['<i class="mc mc-m">M</i>' + T('Multicolore'), st.colors.M, 'k-m'], ['<i class="mc mc-n">C</i>' + T('Incolore'), st.colors.C, 'k-n']]);
   const typeRows = TYPE_ORDER.map(t => [esc(T(t)), st.types[t], 'k-t']);
-  const nums = `<div class="cs-tiles"><div><b>${nf0(st.unique)}</b><span>${TN(st.unique, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(st.copies)}</b><span>${TN(st.copies, 'exemplaire', 'exemplaires')}</span></div><div class="cs-val" role="button" tabindex="0" data-act="pxsrc"${ctOff ? ' data-ctno="1"' : ''} aria-label="${ctOff ? T('Valeur de la collection, source Cardmarket : touche pour ajouter ton token CardTrader') : T('Valeur de la collection, source {a} : touche pour passer à {b}', { a: cm ? 'Cardmarket' : 'CardTrader', b: cm ? 'CardTrader' : 'Cardmarket' })}"><b>${st.valued ? esc(fmt(st.value, 'EUR')) : '—'}</b><span>${cm ? T('valeur · tendance Cardmarket') + (st.valued < st.known ? ' ' + T('({n} cartes)', { n: nf0(st.valued) }) : '') : st.real ? (st.valued > st.real ? T('valeur · {n} au prix réel CardTrader, {m} estimées Cardmarket', { n: nf0(st.real), m: nf0(st.valued - st.real) }) : T('valeur · {n} au prix réel CardTrader', { n: nf0(st.real) })) : T('valeur ≈ tendance Cardmarket') + (st.valued && st.valued < st.known ? ' ' + T('({n} cartes)', { n: nf0(st.valued) }) : '')}</span>${`<div class="cs-src"><div class="cs-sw" aria-hidden="true"><i${cm ? '' : ' class="on"'}>CT</i><i${cm ? ' class="on"' : ''}>CM</i></div><small>${ctOff ? T('CT : prix réels avec ton token CardTrader') : cm && !items.some(i => i.rp > 0) ? T('CT : aucun prix lu · touche pour changer') : st.alt.valued ? T('{src} : {v} · touche pour changer', { src: cm ? 'CT' : 'CM', v: esc(fmt(st.alt.value, 'EUR')) }) : T('touche pour changer')}</small></div>`}</div></div>`;      // aucune offre CardTrader lue : le chiffre « CT » ne serait que l'estimation Cardmarket
+  const nums = `<div class="cs-tiles"><div><b>${nf0(st.unique)}</b><span>${TN(st.unique, 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(st.copies)}</b><span>${TN(st.copies, 'exemplaire', 'exemplaires')}</span></div><div class="cs-val" role="button" tabindex="0" data-act="pxsrc"${ctOff ? ' data-ctno="1"' : ''} aria-label="${ctOff ? T('Valeur de la collection, source Cardmarket : touche pour ajouter ton token CardTrader') : T('Valeur de la collection, source {a} : touche pour passer à {b}', { a: cm ? 'Cardmarket' : 'CardTrader', b: cm ? 'CardTrader' : 'Cardmarket' })}"><b>${st.valued ? esc(fmt(st.value, mkCur())) : '—'}</b><span>${cm ? T('valeur · tendance Cardmarket') + (st.valued < st.known ? ' ' + T('({n} cartes)', { n: nf0(st.valued) }) : '') : st.real ? (st.valued > st.real ? T('valeur · {n} au prix réel CardTrader, {m} estimées Cardmarket', { n: nf0(st.real), m: nf0(st.valued - st.real) }) : T('valeur · {n} au prix réel CardTrader', { n: nf0(st.real) })) : T('valeur ≈ tendance Cardmarket') + (st.valued && st.valued < st.known ? ' ' + T('({n} cartes)', { n: nf0(st.valued) }) : '')}</span>${`<div class="cs-src"><div class="cs-sw" aria-hidden="true"><i${cm ? '' : ' class="on"'}>CT</i><i${cm ? ' class="on"' : ''}>CM</i></div><small>${ctOff ? T('CT : prix réels avec ton token CardTrader') : cm && !items.some(i => i.rp > 0) ? T('CT : aucun prix lu · touche pour changer') : st.alt.valued ? T('{src} : {v} · touche pour changer', { src: cm ? 'CT' : 'CM', v: esc(fmt(st.alt.value, mkCur())) }) : T('touche pour changer')}</small></div>`}</div></div>`;      // aucune offre CardTrader lue : le chiffre « CT » ne serait que l'estimation Cardmarket
   const note = miss ? `<p class="hint">${T('Stats sur {a} cartes lues ; {b} sans infos pour l\'instant.', { a: nf0(st.known), b: nf0(miss) })}</p>` : '';
   const byLot = COLL.topBy !== 'one', list = byLot ? st.top : st.topUnit, shown = list.slice(0, COLL.topN), cur = i => (i.rl ? i.rc || 'EUR' : 'EUR');
   const top = list.length ? `<h3 class="cs-h">${T('Les plus chères')} <span class="cs-sw" role="group" aria-label="${T('Classer par')}"><button type="button" data-act="topby" data-v="lot" aria-pressed="${byLot}" class="${byLot ? 'on' : ''}">${T('Par lot')}</button><button type="button" data-act="topby" data-v="one" aria-pressed="${!byLot}" class="${byLot ? '' : 'on'}">${T('Par carte')}</button></span></h3><p class="hint cs-topnote">${byLot ? T('Classées par valeur du lot : prix × exemplaires.') : T('Classées par prix d\'un exemplaire.')}</p><div class="cs-top">${shown.map(i => `<div class="crow ro" data-k="${esc(i.k)}"><span class="thumb" style="--h:${hash32(i.k) % 360}"${zoomAt('coll', i.dn || i.n)}>${esc((i.n.trim()[0] || '?').toUpperCase())}${i.im ? `<img alt="" loading="lazy" decoding="async" src="${esc(i.im)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(i.dn || i.n)}</span><span class="row-meta">${i.q > 1 ? `<span class="tag accent">× ${nf0(i.q)}</span>` : ''}${i.rl ? '<span class="tag real">' + T('prix réel') + '</span>' : ''}</span></span><span class="row-price"><b>${esc(fmt(byLot ? i.lot : i.up, cur(i)))}</b>${i.q > 1 ? `<small>${byLot ? `${esc(fmt(i.up, cur(i)))} × ${nf0(i.q)}` : `× ${nf0(i.q)} = ${esc(fmt(i.lot, cur(i)))}`}</small>` : ''}</span></div>`).join('')}</div>${list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="topmore">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(10, list.length - shown.length)), b: nf0(list.length - shown.length) })}</button>` : ''}` : '';
@@ -1186,7 +1188,7 @@ function collPaintBody(keep) {
   const v = collAll(), all = v.all, none = !all.length;
   // collection vide : les onglets restent (Decks et Échange marchent sans carte) ; recherche, filtres, tri et prix réels n'auraient rien à montrer
   if (none && filterActive(COLL.f) && COLL.fb) COLL.fb.reset();      // un filtre resté actif, caché, viderait encore la liste « Je recherche »
-  $('.coll-px', el).hidden = none; $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
+  $('.coll-px', el).hidden = none || mkUs(); $('.coll-top', el).hidden = COLL.mode !== 'coll'; $('.coll-controls', el).hidden = COLL.mode === 'decks';      // Échange : recherche et filtres seulement ; Decks › À monter : ses propres réglages
   $('.coll-fwrap', el).hidden = none || (COLL.tab !== 'list' && COLL.tab !== 'trade'); $('#collSort', el).closest('.coll-sort').hidden = COLL.tab === 'trade'; if (typeof msBarPaint === 'function') msBarPaint(el, none); if (typeof cvwPaint === 'function') cvwPaint(el, none); collWhenPaint(el, none); valPaintAlert();      // cvwPaint : tri, vue, réglages de l'échange (densite.js)
   if (!keep && typeof cvwHead === 'function') cvwHead();      // carte de valeur : onglet Stats seulement      // masterset (masterset.js) : interrupteur, sélecteur d'édition à la place de « Trier »
   if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
@@ -1366,7 +1368,7 @@ function collViewItem(k, ln) {
   const ls = collLines(x), line = ls.find(e => e[0] === (ln || '')) || ls[0] || [x.l || '', x.q], g = line[0], l = lineLang(g), e = lineEd(g), n = line[1];
   const im = collLineImage(k, g, m.im), fr = l && l !== 'en' && im.lang === 'en' && !e ? ' · ' + T('image anglaise (pas d\'image {lang} sur Scryfall)', { lang: LANGS[l] ? T(LANGS[l]) : l }) : '';
   const own = ls.length > 1 ? TN(n, '{n} exemplaire {lang} · {total} au total', '{n} exemplaires {lang} · {total} au total', { n, lang: lineTag(g), total: x.q }) : TN(x.q, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: x.q });
-  const f = lineFoil(g), eu = e ? edEu(e, f) : f && m.ef > 0 ? m.ef : null, px = eu != null ? ' · ' + T(f ? 'prix foil Cardmarket {v}' : 'prix Cardmarket {v}', { v: fmt(eu, 'EUR') }) : Number.isFinite(m.eu) ? ' · ' + T('réf. Cardmarket {v}', { v: fmt(m.eu, 'EUR') }) : '';
+  const f = lineFoil(g), eu = e ? edEu(e, f) : f && m.ef > 0 ? m.ef : null, px = eu != null ? ' · ' + T(f ? 'prix foil Cardmarket {v}' : 'prix Cardmarket {v}', { v: fmt(eu, mkCur()) }) : Number.isFinite(m.eu) ? ' · ' + T('réf. Cardmarket {v}', { v: fmt(m.eu, mkCur()) }) : '';
   const sn = e ? setName(edSet(e)) || (COLL.ed[e] || {}).sn || '' : '';
   return { key: k, lid: k + '|' + g, name: frName(k, l) || x.n, ln: x.n, wl: l && l !== 'en' && !e ? l : '', small: im.src, lang: im.lang, plain: true, coll: { k, g }, ...(f ? { foil: true } : {}),
     ...(e ? { set: edSet(e), num: edNum(e), setName: sn } : {}),
@@ -1609,9 +1611,9 @@ function paintGlance() {
   const api = GLANCE.api; if (!api || !sheets.includes(api)) { GLANCE.api = null; return; }
   const items = collAll().all, st = collStats(items, 'cm'), e = COLL.enrich, top = st.topUnit[0];
   const reading = e && e.ph === 'info';
-  const val = st.valued ? `<b>${esc(fmt(st.value, 'EUR'))}</b><span>${T('valeur · tendance Cardmarket')}${st.valued < st.unique ? ' ' + T('({n} cartes)', { n: nf0(st.valued) }) : ''}</span>` : `<b>—</b><span>${reading ? T('lecture des prix…') : T('aucun prix connu')}</span>`;
+  const val = st.valued ? `<b>${esc(fmt(st.value, mkCur()))}</b><span>${T('valeur · tendance Cardmarket')}${st.valued < st.unique ? ' ' + T('({n} cartes)', { n: nf0(st.valued) }) : ''}</span>` : `<b>—</b><span>${reading ? T('lecture des prix…') : T('aucun prix connu')}</span>`;
   const prog = reading ? `<p class="hint gl-prog">${T('Lecture des cartes sur Scryfall · {a} / {b}', { a: nf0(e.done), b: nf0(e.total) })}</p>` : '';
-  const best = top ? `<h3 class="cs-h">${T('La plus chère')}</h3><div class="crow ro gl-top"><span class="thumb" style="--h:${hash32(top.k) % 360}">${esc(((top.dn || top.n).trim()[0] || '?').toUpperCase())}${top.im ? `<img alt="" decoding="async" src="${esc(collImage(top.k, top.l, top.im).src)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(top.dn || top.n)}</span>${top.q > 1 ? `<span class="row-meta"><span class="tag accent">× ${nf0(top.q)}</span></span>` : ''}</span><span class="row-price"><b>${esc(fmt(top.up, 'EUR'))}</b></span></div>` : '';
+  const best = top ? `<h3 class="cs-h">${T('La plus chère')}</h3><div class="crow ro gl-top"><span class="thumb" style="--h:${hash32(top.k) % 360}">${esc(((top.dn || top.n).trim()[0] || '?').toUpperCase())}${top.im ? `<img alt="" decoding="async" src="${esc(collImage(top.k, top.l, top.im).src)}">` : ''}</span><span class="row-main"><span class="row-name">${esc(top.dn || top.n)}</span>${top.q > 1 ? `<span class="row-meta"><span class="tag accent">× ${nf0(top.q)}</span></span>` : ''}</span><span class="row-price"><b>${esc(fmt(top.up, mkCur()))}</b></span></div>` : '';
   let dk = ''; const eg = edhGate();
   if (eg === 'off') { /* EDHREC coupé par le serveur : pas de ligne « Decks EDHREC » */ }
   else if (eg !== 'ok') dk = `<div class="gl-edh"><span>${T('<b>Decks EDHREC</b> à finir avec tes cartes : réservés aux comptes')}</span><button class="btn ghost small" type="button" data-g="decks">${T('Voir')}</button></div>`;
@@ -1619,7 +1621,7 @@ function paintGlance() {
     const sig = COLL.seq + '|' + EDH.at;
     if (!GLANCE.edh || GLANCE.edh.sig !== sig) GLANCE.edh = { sig, n: edhRank(EDH.data, collQty, { budget: GLANCE_BUDGET, sort: 'have' }).filter(r => r.have >= r.total * 0.3).length };      // au moins 30 % du deck déjà là : un vrai deck « à finir »
     const nd = GLANCE.edh.n;
-    if (nd) dk = `<div class="gl-edh"><span>${TN(nd, '<b>{n}</b> deck EDHREC à moins de {v} de finir', '<b>{n}</b> decks EDHREC à moins de {v} de finir', { v: esc(new Intl.NumberFormat(LOC(), { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(GLANCE_BUDGET / 100)) })}</span><button class="btn ghost small" type="button" data-g="decks">${T('Voir ces decks')}</button></div>`;
+    if (nd) dk = `<div class="gl-edh"><span>${TN(nd, '<b>{n}</b> deck EDHREC à moins de {v} de finir', '<b>{n}</b> decks EDHREC à moins de {v} de finir', { v: esc(new Intl.NumberFormat(LOC(), { style: 'currency', currency: mkCur(), minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(GLANCE_BUDGET / 100)) })}</span><button class="btn ghost small" type="button" data-g="decks">${T('Voir ces decks')}</button></div>`;
   } else if (EDH.p || reading) dk = `<p class="hint gl-edh-wait">${T('Decks EDHREC à finir : calcul après la lecture des prix…')}</p>`;
   const html = `<div class="cs-tiles gl-tiles"><div><b>${nf0(collCount())}</b><span>${TN(collCount(), 'carte différente', 'cartes différentes')}</span></div><div><b>${nf0(collCopies())}</b><span>${TN(collCopies(), 'exemplaire', 'exemplaires')}</span></div><div class="cs-val ro">${val}</div></div>${prog}${best}${dk}
     <button class="btn ghost block gl-stats" type="button" data-g="stats">${T('Voir les stats de ma collection')}</button>`;

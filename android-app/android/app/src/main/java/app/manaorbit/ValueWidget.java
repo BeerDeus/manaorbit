@@ -175,7 +175,7 @@ public class ValueWidget extends AppWidgetProvider {
             return v;
         }
         Locale loc = locale(s.lang);
-        String value = (s.est ? "\u2248\u00A0" : "") + eur(s.v, loc, s.lang);
+        String value = (s.est ? "\u2248\u00A0" : "") + money(s.v, loc, s.lang, s.usd);
         v.setViewVisibility(R.id.widget_empty, View.GONE);
         v.setTextViewText(R.id.widget_value, value);
         v.setViewVisibility(R.id.widget_value, View.VISIBLE);
@@ -185,7 +185,7 @@ public class ValueWidget extends AppWidgetProvider {
         int color = COLOR_FLAT;
         if (s.d != null) {
             boolean flat = Math.abs(s.d) < 100;
-            String amount = flat ? "\u00B1\u00A0" + eur(0, loc, s.lang) : (s.d < 0 ? "\u25BC \u2212" : "\u25B2 +") + eur(Math.abs(s.d), loc, s.lang);
+            String amount = flat ? "\u00B1\u00A0" + money(0, loc, s.lang, s.usd) : (s.d < 0 ? "\u25BC \u2212" : "\u25B2 +") + money(Math.abs(s.d), loc, s.lang, s.usd);
             delta = res.getString(R.string.widget_delta, amount, s.dd);
             color = flat ? COLOR_FLAT : s.d < 0 ? COLOR_DOWN : COLOR_UP;
         }
@@ -273,9 +273,17 @@ public class ValueWidget extends AppWidgetProvider {
         return v;
     }
 
-    /** Euros entiers comme l'appli : « 1 234 € » en français (allemand, espagnol, italien : euro après le nombre), « €1,234 » en anglais, « € 1.234 » en portugais du Brésil. */
-    private static String eur(long cents, Locale loc, String lang) {
+    /**
+     * Montant entier comme l'appli : euros « 1 234 € » en français (allemand, espagnol, italien : euro après le nombre), « €1,234 » en anglais, « € 1.234 » en
+     * portugais du Brésil ; dollars (marché TCGplayer, cur « USD ») : « $1,234 » en anglais, « US$ 1.234 » en portugais, « 1 234 $ » sinon.
+     */
+    static String money(long cents, Locale loc, String lang, boolean usd) {
         String n = NumberFormat.getIntegerInstance(loc).format(Math.round(cents / 100.0));
+        if (usd) {
+            if ("en".equals(lang)) return "$" + n;
+            if ("pt".equals(lang)) return "US$\u00A0" + n;
+            return n + "\u00A0$";
+        }
         if ("en".equals(lang)) return "\u20AC" + n;
         if ("pt".equals(lang)) return "\u20AC\u00A0" + n;
         return n + "\u00A0\u20AC";
@@ -372,6 +380,7 @@ public class ValueWidget extends AppWidgetProvider {
         int n;
         long at;
         String lang;
+        boolean usd;
         String btn = "scan";
         boolean est;
         long estAt;
@@ -391,6 +400,7 @@ public class ValueWidget extends AppWidgetProvider {
             try {
                 JSONObject o = new JSONObject(raw);
                 s.lang = langOf(o.optString("lang"));
+                s.usd = "USD".equals(o.optString("cur"));      // marché TCGplayer : dollars (site d'avant : pas de cur, euros)
                 s.v = o.optLong("v", 0);
                 s.d = o.isNull("d") ? null : o.optLong("d", 0);
                 s.dd = Math.max(1, Math.min(999, o.optInt("dd", 7)));

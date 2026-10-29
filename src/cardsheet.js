@@ -119,7 +119,7 @@ function csLinesHtml(k, x) {
     const tagline = [langCode(l) || T('sans langue'), e ? edLabel(e) : '', f ? T('Foil') : ''].filter(Boolean).join(' · ');
     return `<div class="cs-ln${g === CS.g ? ' on' : ''}" data-g="${esc(g)}" role="group" aria-label="${esc(tagline + ' · ' + TN(q, '{n} exemplaire', '{n} exemplaires'))}">
       ${langChip(k, l, x.n, 'cs-lc', g)}
-      <span class="cs-lt"><b><span>${esc(e ? sn || edLabel(e) : T('Sans édition'))}</span>${f ? `<span class="tag foil">✦ ${T('Foil')}</span>` : ''}</b><small>${esc([e && sn ? edLabel(e) : '', u > 0 ? T('{p} pièce', { p: fmt(u, 'EUR') }) : T('sans prix')].filter(Boolean).join(' · '))}</small></span>
+      <span class="cs-lt"><b><span>${esc(e ? sn || edLabel(e) : T('Sans édition'))}</span>${f ? `<span class="tag foil">✦ ${T('Foil')}</span>` : ''}</b><small>${esc([e && sn ? edLabel(e) : '', u > 0 ? T('{p} pièce', { p: fmt(u, mkCur()) }) : T('sans prix')].filter(Boolean).join(' · '))}</small></span>
       <span class="cs-lp">${plcRowTag(g) || `<button type="button" class="tag plc add" data-act="cex">${esc(T('Ranger, état…'))}</button>`}</span>
       ${edBtn({ e, f }, nm)}
       <span class="qstep"><button type="button" data-cs="dec" aria-label="${esc(T('Retirer un exemplaire de {name}', { name: nm }))}">−</button><b>${q}</b><button type="button" data-cs="inc" aria-label="${esc(T('Ajouter un exemplaire de {name}', { name: nm }))}">+</button></span></div>`;
@@ -142,8 +142,8 @@ async function csHist(k, n) {
   if (!CTX.proxy || collOffline()) return null;
   const r = await fetch('api/hist?' + new URLSearchParams({ n: String(n || k).slice(0, 150) }), { headers: { Accept: 'application/json' } });
   if (!r.ok) return null;
-  const j = await r.json(), d = Date.parse(String(j && j.d) + 'T00:00:00Z'); if (!Number.isFinite(d) || !Array.isArray(j.e)) return null;
-  const out = { d, e: j.e.slice(0, 400).map(v => (Number(v) > 0 ? Math.round(Number(v)) : null)) };
+  const j = await r.json(), d = Date.parse(String(j && j.d) + 'T00:00:00Z'), col = mkUs() ? j && j.u : j && j.e; if (!Number.isFinite(d) || !Array.isArray(col)) return null;      // marché TCGplayer : relevés en dollars (u)
+  const out = { d, e: col.slice(0, 400).map(v => (Number(v) > 0 ? Math.round(Number(v)) : null)) };
   await Cache.set(key, out); return out;
 }
 /** Jours qui ont un prix : [{ t, v }] ; null sous 2 relevés (la variation connue reste alors). */
@@ -159,8 +159,8 @@ function csHistSvg(pts, W) {
   const pad = (max - min) * 0.14 || max * 0.03 || 1, lo = min - pad, hi = max + pad, f = n => n.toFixed(1);
   const X = t => pl + (W - pl - pr) * (t1 > t0 ? (t - t0) / (t1 - t0) : 1), Y = v => pt + (H - pt - pb) * (1 - (v - lo) / (hi - lo));
   const xy = pts.map(x => f(X(x.t)) + ',' + f(Y(x.v))), last = pts[pts.length - 1], grid = max === min ? [max] : [max, min];
-  return `<svg class="vl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(T('Prix « à partir de » du {d0} au {d1} : de {v0} à {v1}', { d0: valDate(t0), d1: valDate(t1), v0: fmt(pts[0].v, 'EUR'), v1: fmt(last.v, 'EUR') }))}">
-    ${grid.map((v, i) => `<line x1="${pl}" x2="${W - pr}" y1="${f(Y(v))}" y2="${f(Y(v))}" class="vl-grid"/><text x="${pl}" y="${f(Y(v) + (i ? 11 : -4))}" class="vl-txt">${esc(fmt(v, 'EUR'))}</text>`).join('')}
+  return `<svg class="vl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(T('Prix « à partir de » du {d0} au {d1} : de {v0} à {v1}', { d0: valDate(t0), d1: valDate(t1), v0: fmt(pts[0].v, mkCur()), v1: fmt(last.v, mkCur()) }))}">
+    ${grid.map((v, i) => `<line x1="${pl}" x2="${W - pr}" y1="${f(Y(v))}" y2="${f(Y(v))}" class="vl-grid"/><text x="${pl}" y="${f(Y(v) + (i ? 11 : -4))}" class="vl-txt">${esc(fmt(v, mkCur()))}</text>`).join('')}
     <path d="M${f(X(t0))},${f(H - pb)} L${xy.join(' L')} L${f(X(t1))},${f(H - pb)} Z" class="vl-area"/><polyline points="${xy.join(' ')}" class="vl-line" fill="none"/>
     <circle cx="${f(X(last.t))}" cy="${f(Y(last.v))}" r="3.4" class="vl-dot"/>
     <text x="${pl}" y="${H - 5}" class="vl-txt">${esc(valDate(t0))}</text><text x="${W - pr}" y="${H - 5}" class="vl-txt" text-anchor="end">${esc(valDate(t1))}</text></svg>`;
@@ -179,7 +179,7 @@ function csHistHtml() {
   return `<div class="cs-hist"><div class="cs-hh"><b>${esc(T('Évolution du prix'))}</b><small>${esc(T('Tendance Cardmarket'))}</small></div>
     <div class="cs-hc">${csHistSvg(pts, CS.hw)}</div>
     <div class="vl-ds">${valDeltaHtml(esc(TN(7, '{n} jour', '{n} jours')), s.d7)}${valDeltaHtml(esc(allLab), s.dAll)}</div>
-    <p class="cs-hmm"><span>${esc(T('Plus bas {p} le {d}', { p: fmt(s.lo.v, 'EUR'), d: valDate(s.lo.t) }))}</span><span>${esc(T('Plus haut {p} le {d}', { p: fmt(s.hi.v, 'EUR'), d: valDate(s.hi.t) }))}</span></p>
+    <p class="cs-hmm"><span>${esc(T('Plus bas {p} le {d}', { p: fmt(s.lo.v, mkCur()), d: valDate(s.lo.t) }))}</span><span>${esc(T('Plus haut {p} le {d}', { p: fmt(s.hi.v, mkCur()), d: valDate(s.hi.t) }))}</span></p>
     <p class="hint">${esc(T('Prix « à partir de » : l\'impression la moins chère de la carte, non foil. Une édition précise ou un foil peut valoir bien plus.'))}</p></div>`;
 }
 /** Courbe redessinée à la largeur réelle de la fiche (un pixel du dessin = un pixel de l'écran : textes à leur taille sur téléphone comme sur ordinateur). */
@@ -189,25 +189,25 @@ function csHistFit() {
   CS.hw = w; const pts = csHistPts(CS.h); if (pts) s.outerHTML = csHistSvg(pts, w);
 }
 function csPxHtml(k, x, m) {
-  const eds = x ? [...new Set(collLines(x).map(([g]) => lineEd(g)))] : [''], cell = (v, wait, cls) => `<span class="px cm${cls ? ' ' + cls : ''}${wait || !(v > 0) ? ' none' : ''}"><b>${wait ? '…' : v > 0 ? esc(fmt(v, 'EUR')) : '—'}</b></span>`;
+  const eds = x ? [...new Set(collLines(x).map(([g]) => lineEd(g)))] : [''], cell = (v, wait, cls) => `<span class="px cm${cls ? ' ' + cls : ''}${wait || !(v > 0) ? ' none' : ''}"><b>${wait ? '…' : v > 0 ? esc(fmt(v, mkCur())) : '—'}</b></span>`;
   const rows = eds.map(e => {
     const d = e ? COLL.ed[e] : m, wait = e ? !d : !m, set = edSet(e), sn = e ? setName(set) || (d || {}).sn || '' : '';
     const lab = e ? `${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}<span>${esc(sn || edLabel(e))}${sn ? `<small>${esc(edLabel(e))}</small>` : ''}</span>` : `<span>${esc(eds.length > 1 ? T('Sans édition') : T('Carte'))}<small>${esc(T('impression la moins chère'))}</small></span>`;
     return `<div class="cs-pr" role="row"><span class="cs-pn" role="cell">${lab}</span>${cell(d && d.eu, wait)}${cell(d && d.ef, wait, 'foil')}</div>`;
   }).join('');
-  const px = COLL.px[k], canCt = !!x && !BASIC_NAMES.has(k) && !S.demo && (CTX.proxy || !!S.token) && !collOffline();      // hors ligne : seulement l'offre déjà lue
+  const px = COLL.px[k], canCt = !!x && !mkUs() && !BASIC_NAMES.has(k) && !S.demo && (CTX.proxy || !!S.token) && !collOffline();      // hors ligne : seulement l'offre déjà lue
   const ctv = CS.ct === 'run' ? `<span class="cs-ctv"><span class="cs-spin" aria-hidden="true"></span>${esc(T('Lecture…'))}</span>`
     : px && Number.isFinite(px.p) ? `<span class="cs-ctv"><b>${esc(fmt(px.p, px.c || 'EUR'))}</b><small>${esc(pxAgo(px.t))}</small></span>`
     : px && px.p === null && px.t ? `<span class="cs-ctv"><b>${esc(T('aucune offre'))}</b><small>${esc(pxAgo(px.t))}</small></span>` : '';
   const ctBtn = canCt && CS.ct !== 'run' && (!px || Date.now() - px.t > PX_TTL || !ctv) ? `<button type="button" class="btn ghost small" data-cs="ct">${esc(T('Voir les offres'))}</button>` : '';
   const ct = canCt || ctv ? `<div class="cs-ct"><span class="px ct"><i>CT</i></span><span class="cs-ctl"><b>CardTrader</b><small>${esc(T('offre la moins chère · {lang}', { lang: langCode(pxLangOf(x || {})) }))}</small></span>${ctv}${ctBtn}</div>${CS.ct === 'err' && CS.ctErr ? `<p class="hint warn">${esc(CS.ctErr)}</p>` : ''}` : '';
   const v = x ? collCardVal(k) : 0, mv = csMove(k), hist = csHistHtml();
-  const move = hist ? hist : mv ? `<p class="cs-mv ${mv.d > 0 ? 'vu' : 'vd'}">${esc(T('Depuis le {d} : {a} → {b}', { d: valDate(mv.t), a: fmt(mv.u0, 'EUR'), b: fmt(mv.u1, 'EUR') }))} <b>${mv.d > 0 ? '▲' : '▼'} ${esc(valPct(mv.pct))}</b></p>`
+  const move = hist ? hist : mv ? `<p class="cs-mv ${mv.d > 0 ? 'vu' : 'vd'}">${esc(T('Depuis le {d} : {a} → {b}', { d: valDate(mv.t), a: fmt(mv.u0, mkCur()), b: fmt(mv.u1, mkCur()) }))} <b>${mv.d > 0 ? '▲' : '▼'} ${esc(valPct(mv.pct))}</b></p>`
     : x ? `<p class="hint">${esc(T('Variation du prix : connue après une semaine de relevés.'))}</p>` : '';
-  const srv = CS.srv ? `<p class="hint">${esc(T('Relevé des alertes {when} : {c}', { when: CS.srvAt ? relTime(CS.srvAt) : '', c: fmt(CS.srv.c, 'EUR') }))}${CS.srv.b > 0 ? ' · ' + esc(T('habituel {b}', { b: fmt(CS.srv.b, 'EUR') })) : ''}</p>` : '';
+  const srv = CS.srv ? `<p class="hint">${esc(T('Relevé des alertes {when} : {c}', { when: CS.srvAt ? relTime(CS.srvAt) : '', c: fmt(CS.srv.c, mkCur()) }))}${CS.srv.b > 0 ? ' · ' + esc(T('habituel {b}', { b: fmt(CS.srv.b, mkCur()) })) : ''}</p>` : '';
   return `<section class="cs-sec"><h3 class="cs-h">${T('Prix')}</h3>
     <div class="cs-pt" role="table" aria-label="${esc(T('Tendance Cardmarket'))}"><div class="cs-pr cs-ph" role="row"><span role="columnheader">${T('Tendance Cardmarket')}</span><span role="columnheader">${T('Normal')}</span><span role="columnheader">${T('Foil')} ✦</span></div>${rows}</div>
-    ${ct}${v > 0 ? `<div class="cs-val"><span>${esc(TN(x.q, 'Valeur de ton exemplaire', 'Valeur de tes {n} exemplaires'))}</span><b>${esc(fmt(v, 'EUR'))}</b></div>` : ''}${move}${srv}</section>`;
+    ${ct}${v > 0 ? `<div class="cs-val"><span>${esc(TN(x.q, 'Valeur de ton exemplaire', 'Valeur de tes {n} exemplaires'))}</span><b>${esc(fmt(v, mkCur()))}</b></div>` : ''}${move}${srv}</section>`;
 }
 /** Decks de « Mes decks » qui contiennent la carte : [{ id, n, q (deck, commandant compris), sq (réserve), on (monté), held (exemplaires réservés), fk (format) }]. */
 function csDecks(k) {
@@ -251,7 +251,7 @@ function csActsHtml(k, x) {
   const px = COLL.px[k], bp = px && px.b > 0 ? px.b : 0;
   return `<section class="cs-sec"><h3 class="cs-h">${T('Actions')}</h3><div class="cs-acts">${watch}
     <button type="button" class="btn ghost small" data-cs="adddeck"><svg class="i" aria-hidden="true"><use href="#i-layers"/></svg>${T('Ajouter à un deck')}</button>
-    <a class="btn ghost small" href="${esc(cmUrl(CS.n, userLang()))}" target="_blank" rel="noopener noreferrer">Cardmarket ↗</a>
+    <a class="btn ghost small" href="${esc(mkUrl(CS.n, userLang()))}" target="_blank" rel="noopener noreferrer">${mkName()} ↗</a>
     ${bp ? `<a class="btn ghost small" href="${esc(ctCardUrl(bp))}" target="_blank" rel="noopener noreferrer">CardTrader ↗</a>` : ''}
     <button type="button" class="btn ghost small" data-cs="share"><svg class="i" aria-hidden="true"><use href="#i-share"/></svg>${T('Partager')}</button></div>
     ${!al ? `<p class="hint">${esc(S.demo ? T('Suivre le prix : indisponible en mode démo.') : T('Suivre le prix : il faut le serveur Mana Orbit et les notifications.'))}</p>` : ''}</section>`;

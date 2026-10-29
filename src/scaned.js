@@ -201,7 +201,7 @@ function scanEdAskHtml(a) {
   const it = a.it, nm = scanShown(it), first = !SC.sets.size, MAX = 12, list = a.prints.slice(0, MAX);
   const tile = (p, i) => {
     const px = pkEu(p), ic = setIcHtml(p.set);
-    return `<button type="button" class="sc-ask-t" role="radio" aria-checked="false" data-a="edp" data-i="${i}" aria-label="${esc([p.sn, edLabel(edKey(p.set, p.num)), p.y, px ? fmt(px, 'EUR') : ''].filter(Boolean).join(' · '))}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span class="sc-ask-c">${ic}<b>${esc(p.set.toUpperCase())}</b></span><small>${esc(p.y || '')}</small><em>${px ? esc(fmt(px, 'EUR')) : '—'}</em></button>`;
+    return `<button type="button" class="sc-ask-t" role="radio" aria-checked="false" data-a="edp" data-i="${i}" aria-label="${esc([p.sn, edLabel(edKey(p.set, p.num)), p.y, px ? fmt(px, mkCur()) : ''].filter(Boolean).join(' · '))}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span class="sc-ask-c">${ic}<b>${esc(p.set.toUpperCase())}</b></span><small>${esc(p.y || '')}</small><em>${px ? esc(fmt(px, mkCur())) : '—'}</em></button>`;
   };
   return `<section class="sc-ask" data-id="${esc(it.id)}" aria-label="${esc(first ? T('Édition de la 1re carte') : T('Nouvelle extension'))}">
     <div class="sc-ask-h"><b>${first ? T('Édition de la 1re carte') : T('Nouvelle extension')}</b><button type="button" class="link-btn" data-a="later">${T('Plus tard')}</button></div>
@@ -286,7 +286,7 @@ function scanEdFlow(done) {
     const pk = scanPk(it.key, it.l), pr = SC.pr.get(pk); if (pr === undefined || pr === 'err') { if (pr === 'err') SC.pr.delete(pk); it.es = 'load'; scanEdNeed(it); }
     const nm = scanShown(it), n = ids.length, prints = Array.isArray(pr) ? pr : null, keep = edQKeep(wrap);
     if (qi !== i) { qi = i; q = ''; } else q = keep.q;
-    const tile = (p, j) => { const px = pkEu(p), on = it.e === edKey(p.set, p.num); return `<button type="button" class="sc-ef-t" role="radio" aria-checked="${on}" data-ef="pick" data-i="${j}" aria-label="${esc([p.sn, edLabel(edKey(p.set, p.num)), p.y, px ? fmt(px, 'EUR') : ''].filter(Boolean).join(' · '))}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span class="sc-ask-c">${setIcHtml(p.set)}<b>${esc(p.set.toUpperCase())}</b> <small>${esc(p.y || '')}</small></span><em>${px ? esc(fmt(px, 'EUR')) : '—'}</em></button>`; };
+    const tile = (p, j) => { const px = pkEu(p), on = it.e === edKey(p.set, p.num); return `<button type="button" class="sc-ef-t" role="radio" aria-checked="${on}" data-ef="pick" data-i="${j}" aria-label="${esc([p.sn, edLabel(edKey(p.set, p.num)), p.y, px ? fmt(px, mkCur()) : ''].filter(Boolean).join(' · '))}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span class="sc-ask-c">${setIcHtml(p.set)}<b>${esc(p.set.toUpperCase())}</b> <small>${esc(p.y || '')}</small></span><em>${px ? esc(fmt(px, mkCur())) : '—'}</em></button>`; };
     wrap.innerHTML = `<header class="dv-head"><button class="icon-btn" type="button" data-ef="close" aria-label="${T('Retour au scan')}"><svg class="i"><use href="#i-back"/></svg></button>
         <button class="btn ghost small" type="button" data-ef="skipall">${T('Laisser les autres sans édition')}</button></header>
       <div class="sc-ef-top"><div class="sc-ef-tt"><h2>${T('Éditions à choisir')}</h2><span class="sc-ef-n">${esc(T('{i} sur {n}', { i: i + 1, n }))}</span></div>

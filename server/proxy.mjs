@@ -614,22 +614,26 @@ function alSaveSoon() {
   AL.saveT.unref();
 }
 
-/** Prix tendance (centimes) des noms demandés : Map clé → centimes, ou null si Scryfall ne connaît pas la carte / n'a pas de prix. */
+/** Marchés : relevés d'une carte au prix Cardmarket (clé de carte) ou TCGplayer (clé précédée de « $ », abonnement mk: 'us', prix en dollars). */
+const alHk = (rec, it) => (rec.mk === 'us' ? '$' : '') + it.nk;
+/** Prix (centimes) des relevés demandés ([clé de relevé, nom]) : Map clé → centimes, ou null si Scryfall ne connaît pas la carte / n'a pas de prix.
+ *  Une carte suivie aux deux marchés n'est demandée qu'une fois (prix eur et usd de la même réponse). */
 async function alFetch(list) {
-  const out = new Map();
-  for (let i = 0; i < list.length; i += 75) {
-    const chunk = list.slice(i, i + 75);
+  const out = new Map(), names = new Map();
+  for (const [k, n] of list) { const b = k[0] === '$' ? k.slice(1) : k; if (!names.has(b)) names.set(b, n); }
+  const uniq = [...names], got = new Map();
+  for (let i = 0; i < uniq.length; i += 75) {
+    const chunk = uniq.slice(i, i + 75);
     const r = await fetch(SCRY_UP + '/cards/collection', { method: 'POST', signal: AbortSignal.timeout(20000), redirect: 'manual',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': UA },
       body: JSON.stringify({ identifiers: chunk.map(([, n]) => ({ name: String(n).split('//')[0].trim() })) }) });
     if (r.status === 429) throw new Error('Scryfall : trop de requêtes (429)');
     if (!r.ok) throw new Error('Scryfall : HTTP ' + r.status);
     const j = await r.json();
-    const got = new Map();
-    for (const c of j.data || []) got.set(alKey(c.name), eurC(c.prices && c.prices.eur));
-    for (const [k] of chunk) out.set(k, got.has(k) ? got.get(k) : null);
-    if (i + 75 < list.length) await sleepMs(120);
+    for (const c of j.data || []) got.set(alKey(c.name), { e: eurC(c.prices && c.prices.eur), u: eurC(c.prices && c.prices.usd) });
+    if (i + 75 < uniq.length) await sleepMs(120);
   }
+  for (const [k] of list) { const g = got.get(k[0] === '$' ? k.slice(1) : k); out.set(k, g ? (k[0] === '$' ? g.u : g.e) : null); }
   return out;
 }
 const eurC = v => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null; };
@@ -638,7 +642,7 @@ const eurC = v => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 
 function alEval(rec, now) {
   const hits = [], thr = rec.thr / 100;
   for (const it of rec.items) {
-    const h = AL.px.get(it.nk); if (!h || !h.length) continue;
+    const h = AL.px.get(alHk(rec, it)); if (!h || !h.length) continue;
     const cur = h[h.length - 1][1], prev = h.slice(0, -1).slice(-AL_BASE_WIN).map(x => x[1]);
     if (it.t) {                                                                    // prix cible : une alerte, ré-armée quand le prix remonte
       if (cur > it.t) { it.arm = true; continue; }
@@ -673,8 +677,16 @@ const AL_TXT = {
   pt: { eur: c => '€ ' + (c / 100).toFixed(2).replace('.', ','), pct: p => `−${p}%`, up: p => `+${p}%`, manyUp: n => `${n} cartas em alta`, manyMix: n => `${n} cartas mudaram de preço`, at: (n, p) => `${n} por ${p}`, drop: (n, p) => `${n}: ${p}`, under: p => `Abaixo do seu preço-alvo de ${p} (tendência do Cardmarket).`, trend: (a, b) => `${a} → ${b} (tendência do Cardmarket).`, deck: d => ' · falta em ' + d, many: n => `${n} cartas em queda`, more: n => ` e mais ${n}` },
 };
 const alLang = l => (typeof l === 'string' && Object.prototype.hasOwnProperty.call(AL_TXT, l) ? l : 'fr');
-function alMessage(hits, lang) {
-  const L = AL_TXT[alLang(lang)];
+// Marché TCGplayer (abonnement mk: 'us') : dollars, et « prix du marché TCGplayer » à la place de la tendance Cardmarket entre parenthèses
+const alUsd = (c, l) => (l === 'en' ? '$' + (c / 100).toFixed(2) : l === 'pt' ? 'US$ ' + (c / 100).toFixed(2).replace('.', ',') : (c / 100).toFixed(2).replace('.', ',') + ' $');
+const AL_US = { fr: 'prix du marché TCGplayer', en: 'TCGplayer market price', de: 'TCGplayer-Marktpreis', es: 'precio de mercado de TCGplayer', it: 'prezzo di mercato TCGplayer', pt: 'preço de mercado da TCGplayer' };
+function alL(lang, mk) {
+  const l = alLang(lang), L = AL_TXT[l]; if (mk !== 'us') return L;
+  const re = /\([^()]*Cardmarket[^()]*\)/, w = '(' + AL_US[l] + ')';
+  return { ...L, eur: c => alUsd(c, l), under: p => L.under(p).replace(re, w), trend: (a, b) => L.trend(a, b).replace(re, w) };
+}
+function alMessage(hits, lang, mk) {
+  const L = alL(lang, mk);
   if (hits.length === 1) {
     const h = hits[0], deck = h.d && h.d.length ? L.deck(h.d[0]) : '';
     return h.why === 'target'
@@ -697,11 +709,12 @@ const AL_DM = {
 };
 const alMd = s => String(s).replace(/[\\`*_~|>[\]()<@#]/g, '\\$&');
 const alCm = (n, l) => `https://www.cardmarket.com/${['fr', 'de', 'es', 'it'].includes(l) ? l : 'en'}/Magic/Products/Search?searchString=${encodeURIComponent(String(n || '').split('//')[0].trim())}`;
-function alDmMsg(hits, lang) {
-  const l = alLang(lang), L = AL_TXT[l], X = AL_DM[l], m = alMessage(hits, l);
+const alTcg = n => `https://www.tcgplayer.com/search/magic/product?productLineName=magic&q=${encodeURIComponent(String(n || '').split('//')[0].trim())}&view=grid`;
+function alDmMsg(hits, lang, mk) {
+  const l = alLang(lang), L = alL(l, mk), us = mk === 'us', X = us ? { ...AL_DM[l], cm: AL_DM[l].cm.replace('Cardmarket', 'TCGplayer') } : AL_DM[l], m = alMessage(hits, l, mk);
   const fields = hits.slice(0, AL_DM_MAX).map(h => ({
     name: alMd(h.why === 'target' ? L.at(h.n, L.eur(h.to)) : L.drop(h.n, h.why === 'rise' ? L.up(h.pct) : L.pct(h.pct))).slice(0, 250),
-    value: alMd((h.why === 'target' ? L.under(L.eur(h.t)) : L.trend(L.eur(h.from), L.eur(h.to))) + (h.d && h.d.length ? L.deck(h.d[0]) : '')).slice(0, 900) + `\n[${X.cm}](${alCm(h.n, l)})`,
+    value: alMd((h.why === 'target' ? L.under(L.eur(h.t)) : L.trend(L.eur(h.from), L.eur(h.to))) + (h.d && h.d.length ? L.deck(h.d[0]) : '')).slice(0, 900) + `\n[${X.cm}](${us ? alTcg(h.n) : alCm(h.n, l)})`,
   }));
   return { content: (hits.every(h => h.why === 'rise') ? '📈' : '📉') + ' **' + alMd(m.title.slice(0, 200)) + '**', embeds: [{ title: X.title + ' · Mana Orbit', url: AL_APP, color: 0x8b5cf6,
     description: `[${X.open}](${AL_APP})` + (hits.length > AL_DM_MAX ? '\n…' + alMd(L.more(hits.length - AL_DM_MAX)) : ''), fields, footer: { text: X.why } }] };
@@ -719,7 +732,7 @@ async function alPass({ seed = false, rec = null }) {
   const now = Date.now(), recs = rec ? [rec] : [...AL.subs.values()], out = { at: now, ok: 0, miss: 0, hits: 0, err: '' };
   try {
     const want = new Map();
-    for (const r of recs) for (const it of r.items) if (!want.has(it.nk)) want.set(it.nk, it.n);
+    for (const r of recs) for (const it of r.items) { const hk = alHk(r, it); if (!want.has(hk)) want.set(hk, it.n); }
     const ask = [...want].filter(([k]) => !seed || !(AL.px.get(k) || []).length);
     if (!ask.length && seed) return AL.last;
     const got = ask.length ? await alFetch(ask) : new Map();
@@ -740,12 +753,12 @@ async function alPass({ seed = false, rec = null }) {
         const n = hits.length + ' carte' + (hits.length > 1 ? 's' : '');
         let viaDm = false;
         if (r.dm && r.tag) {      // MP Discord ; impossible : notification à la place (sub), raison gardée pour l'appli (dmErr)
-          try { if (!DSC || !DSC.dm) throw Object.assign(new Error('bot Discord ou liaison coupés'), { why: 'off' }); await DSC.dm(r.tag, alDmMsg(hits, r.lang)); viaDm = true; delete r.dmErr; }
+          try { if (!DSC || !DSC.dm) throw Object.assign(new Error('bot Discord ou liaison coupés'), { why: 'off' }); await DSC.dm(r.tag, alDmMsg(hits, r.lang, r.mk)); viaDm = true; delete r.dmErr; }
           catch (e) { r.dmErr = AL_DM_WHY.includes(e && e.why) ? e.why : 'down'; console.warn('alerte : MP Discord impossible (' + r.dmErr + (r.dmErr === 'down' ? ' : ' + String(e && e.message || e).slice(0, 120) : '') + ')' + (r.sub ? ', notification à la place' : ', rien d\'autre sur cet appareil')); }
         }
         if (viaDm && (r.dm === 'only' || !r.sub)) { out.hits++; r.pushed = now; console.log('alerte envoyée en MP Discord (' + n + ')'); continue; }
         if (!r.sub) continue;
-        const m = alMessage(hits, r.lang), st = await sendPush({ sub: r.sub, title: m.title.slice(0, 80), body: m.body.slice(0, 200), url: './?alerts=1', kind: 'alert', topic: 'deckdeal-alert', ttl: 43200, urgency: 'normal' });
+        const m = alMessage(hits, r.lang, r.mk), st = await sendPush({ sub: r.sub, title: m.title.slice(0, 80), body: m.body.slice(0, 200), url: './?alerts=1', kind: 'alert', topic: 'deckdeal-alert', ttl: 43200, urgency: 'normal' });
         if (viaDm || (st && st < 300)) { out.hits++; r.pushed = now; }
         if (st && st < 300) console.log('alerte envoyée (' + n + (viaDm ? ', et en MP Discord' : '') + ')');
         else if (st === 404 || st === 410) { AL.subs.delete(r.id); console.warn('alerte : ' + (r.sub.fcm ? 'jeton FCM périmé' : 'abonnement expiré') + ', retiré' + (viaDm ? ' (MP Discord envoyé)' : '')); }
@@ -774,7 +787,7 @@ const alStr = (v, n) => typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' 
 function alEvict(now, keep = '') {
   let pick = null;
   for (const r of AL.subs.values()) {
-    if (r.id === keep || r.pushed || !(now - r.at > AL_STALE || (now - r.at > 3600e3 && !r.items.some(it => (AL.px.get(it.nk) || []).length)))) continue;
+    if (r.id === keep || r.pushed || !(now - r.at > AL_STALE || (now - r.at > 3600e3 && !r.items.some(it => (AL.px.get(alHk(r, it)) || []).length)))) continue;
     if (!pick || r.at < pick.at) pick = r;
   }
   if (pick) { AL.subs.delete(pick.id); console.warn('Alertes : serveur plein, enregistrement inactif retiré'); }
@@ -810,6 +823,8 @@ async function alertsApi(req, res, path, url) {
     const cards = () => { let n = items.size; for (const r of AL.subs.values()) if (r.id !== rid) n += r.items.length; return n; };
     while (cards() > AL_MAX_CARDS) if (!alEvict(now, rid)) return json(res, 507, { error: 'alerts_full', message: 'Le serveur surveille déjà le maximum de cartes : réessaie plus tard.' }, { 'Retry-After': '3600' });
     const rec = { ...(old || {}), id: rid, sub: pu ? pu.sub : null, thr, lang: alLang(b.lang), at: now, items: [...items.values()], hits: (old && old.hits) || [] };
+    if (b.mk === 'us') rec.mk = 'us'; else delete rec.mk;      // marché TCGplayer : relevés en dollars (alHk)
+    if ((old && old.mk) !== rec.mk) { rec.hits = []; for (const it of rec.items) { delete it.nt; delete it.na; delete it.ut; delete it.ua; delete it.arm; } }      // marché changé : rien de l'autre devise
     const dmSet = acct && acct.tag ? { tag: acct.tag, dm: dmAsk } : acct && acct.keep && old && old.tag && old.dm === dmAsk ? { tag: old.tag, dm: dmAsk } : null;      // vérification du compte en panne : mode d'avant gardé
     if (!dmSet) { delete rec.tag; delete rec.dm; delete rec.dmErr; }
     else { if (rec.tag !== dmSet.tag || rec.dm !== dmSet.dm) delete rec.dmErr; Object.assign(rec, dmSet); }
@@ -822,7 +837,7 @@ async function alertsApi(req, res, path, url) {
   if (req.method === 'GET' && !sub) {
     if (!rec) return json(res, 404, { error: 'not_registered', message: 'Cet appareil n\'est pas (ou plus) enregistré pour les alertes.' });
     const prices = {};
-    for (const it of rec.items) { const h = AL.px.get(it.nk); if (h && h.length) prices[it.k] = { c: h[h.length - 1][1], b: h.length > 1 ? alMedian(h.slice(0, -1).slice(-AL_BASE_WIN).map(x => x[1])) : 0 }; }
+    for (const it of rec.items) { const h = AL.px.get(alHk(rec, it)); if (h && h.length) prices[it.k] = { c: h[h.length - 1][1], b: h.length > 1 ? alMedian(h.slice(0, -1).slice(-AL_BASE_WIN).map(x => x[1])) : 0 }; }
     const last = rec.last && rec.last.at > AL.last.at ? rec.last : AL.last;          // le plus récent : passage de toutes les 6 h ou contrôle de cet appareil
     return json(res, 200, { id: rec.id, thr: rec.thr, dm: rec.dm || '', ...(rec.dm && rec.dmErr ? { dmErr: rec.dmErr } : {}), push: !!rec.sub, watching: rec.items.length, priced: Object.keys(prices).length, last, next: AL.last.at ? AL.last.at + AL_EVERY : 0, every: AL_EVERY, prices, hits: rec.hits || [] });
   }
@@ -1791,24 +1806,27 @@ async function trocPxLoad() {
   if (!TROC.pxP) {
     const { buf, at } = PX_LIVE;
     TROC.pxP = (async () => {
-      const rows = (await gunzipA(buf)).toString('utf8').split('\n'), map = new Map();
+      const rows = (await gunzipA(buf)).toString('utf8').split('\n'), map = new Map(), usd = new Map();
+      const put = (m, k, v) => { if (!(v > 0)) return; const cur = m.get(k); if (!cur || v < cur) m.set(k, v); };
       for (let i = 1; i < rows.length; i += 4000) {
         for (let j = i, end = Math.min(rows.length, i + 4000); j < end; j++) {      // nom \t centimes € \t centimes $ : l'impression la moins chère de chaque nom (comme pxParse de l'appli)
-          const a = rows[j].split('\t'), e = Number(a[1]) || 0; if (!a[0] || !(e > 0)) continue;
-          const k = trocKey(a[0]), cur = map.get(k); if (!cur || e < cur) map.set(k, e);
+          const a = rows[j].split('\t'); if (!a[0]) continue;
+          const k = trocKey(a[0]); put(map, k, Number(a[1]) || 0); put(usd, k, Number(a[2]) || 0);
         }
         await new Promise(r => setImmediate(r));
       }
-      TROC.px = { buf, at, map }; return TROC.px;
+      TROC.px = { buf, at, map, usd }; return TROC.px;
     })().catch(e => { console.warn('Échange : prix illisibles (' + e.message + ')'); return null; }).finally(() => { TROC.pxP = null; });
   }
   return TROC.pxP;
 }
-const trocPrice = n => { const e = TROC.px && TROC.px.map.get(trocKey(n)); return e > 0 ? e : null; };
+/** Prix du fichier : Cardmarket (euros), ou TCGplayer (dollars) pour une session ouverte au marché américain (s.mk 'us'). */
+const trocPrice = (n, mk) => { const e = TROC.px && TROC.px[mk === 'us' ? 'usd' : 'map'].get(trocKey(n)); return e > 0 ? e : null; };
 /** Prix à l'unité d'une carte de la session : celui du fichier du serveur (impression la moins chère, non foil), sinon celui de l'appareil ; ligne foil ou d'une édition
     précise : celui de l'appareil qui l'ajoute s'il en donne un (prix de cette impression et de sa finition, comme la valeur de sa collection : le fichier n'a ni prix
-    foil ni prix par édition, et le lire pour chaque impression serait disproportionné), sinon celui du fichier. Les deux joueurs voient le même. */
-const trocUnit = c => (/\*$|\|/.test(c.g) && c.u > 0 ? c.u : trocPrice(c.n) || c.u || null);
+    foil ni prix par édition, et le lire pour chaque impression serait disproportionné), sinon celui du fichier. Les deux joueurs voient le même.
+    Marchés : la session a celui de qui l'ouvre (s.mk) ; le prix d'un appareil à l'autre marché (p.mk différent, autre devise) n'est jamais repris. */
+const trocUnit = (c, s, p) => { const dev = (p.mk || '') === (s.mk || '') && c.u > 0; return (/\*$|\|/.test(c.g) && dev ? c.u : trocPrice(c.n, s.mk) || (dev ? c.u : null) || null); };
 /** Seau de jetons par compte ou par réseau (créations, codes faux) : 0 si permis (un jeton pris si take), sinon secondes à attendre. */
 function trocLim(name, who, cap, per, take = true) {
   if (!who || !(cap > 0)) return 0;
@@ -1826,15 +1844,15 @@ function trocCode() {
     if (!TROC.s.has(c)) return c;
   }
 }
-const trocSeat = (me, b) => ({ tag: me.tag, key: randomBytes(18).toString('base64url'), n: amName(b.n), p: amPic(b.p), list: [], lb: 0, lv: 0, cut: false, give: [], ready: false, ok: false, seen: Date.now(), got: false, rn: 12, rt: Date.now() });
+const trocSeat = (me, b) => ({ tag: me.tag, mk: b.mk === 'us' ? 'us' : '', key: randomBytes(18).toString('base64url'), n: amName(b.n), p: amPic(b.p), list: [], lb: 0, lv: 0, cut: false, give: [], ready: false, ok: false, seen: Date.now(), got: false, rn: 12, rt: Date.now() });
 /** Liste d'échange d'un joueur (une entrée par ligne), prix du serveur posés ; bornée par TROC_LIST et par la mémoire de toutes les sessions (tronquée : cut). */
-function trocSetList(p, raw) {
+function trocSetList(s, p, raw) {
   TROC.bytes -= p.lb; p.list = []; p.lb = 0; p.cut = false; p.lv++;
   const a = Array.isArray(raw) ? raw : []; let room = Math.max(0, TROC_MB - TROC.bytes);
   for (const x of a.slice(0, TROC_LIST + 1)) {
     if (p.list.length >= TROC_LIST) { p.cut = true; break; }
     const c = trocCard(x, 9999); if (!c) continue;
-    const pu = trocUnit(c); if (pu) c.u = pu;
+    const pu = trocUnit(c, s, p); if (pu) c.u = pu; else delete c.u;
     const sz = JSON.stringify(c).length + 1; if (sz > room) { p.cut = true; break; }
     room -= sz; p.lb += sz; p.list.push(c);
   }
@@ -1862,7 +1880,7 @@ function trocWake() { if (!TROC.t) { TROC.t = setInterval(trocTick, TROC_TICK); 
 function trocView(s, i) {
   const me = s.p[i], ot = s.p[1 - i];
   const side = p => ({ n: p.n, ...(p.p ? { p: p.p } : {}), ready: p.ready, ok: p.ok, got: p.got, give: p.give, lv: p.lv, nl: p.list.length, ...(p.cut ? { cut: true } : {}), ...(p.un ? { un: 1 } : {}) });
-  return { c: s.code, v: s.v, cv: s.cv, st: s.st, why: s.why, by: s.by < 0 ? '' : s.by === i ? 'me' : 'ot', host: i === 0, px: s.px,
+  return { c: s.code, v: s.v, cv: s.cv, st: s.st, why: s.why, by: s.by < 0 ? '' : s.by === i ? 'me' : 'ot', host: i === 0, px: s.px, ...(s.mk ? { mk: s.mk } : {}),
     me: side(me), ot: ot ? { ...side(ot), on: Date.now() - ot.seen < TROC_AWAY } : null, ...(i === 0 && s.inv ? { inv: s.invN || '' } : {}),
     ...(s.st === 'done' ? { ut: Math.max(0, TROC_UNDO - (Date.now() - s.endAt)), ...(s.ud ? { ud: 1 } : {}) } : {}) };      // échange fait : temps restant pour l'annuler, annulé des deux côtés
 }
@@ -1897,8 +1915,8 @@ async function trocNew(req, res, me) {
   }
   await trocPxLoad();
   trocLeave(me.tag);
-  const now = Date.now(), s = { code: trocCode(), v: 1, cv: 1, at: now, act: now, st: 'wait', why: '', by: -1, inv, invN, n: 0, px: (TROC.px && TROC.px.at) || '', p: [trocSeat(me, b), null] };
-  trocSetList(s.p[0], b.list);
+  const now = Date.now(), s = { code: trocCode(), v: 1, cv: 1, at: now, act: now, st: 'wait', why: '', by: -1, inv, invN, n: 0, px: (TROC.px && TROC.px.at) || '', mk: b.mk === 'us' ? 'us' : '', p: [trocSeat(me, b), null] };      // mk : marché de qui ouvre, celui des prix de la session
+  trocSetList(s, s.p[0], b.list);
   TROC.s.set(s.code, s); TROC.u.set(me.tag, s.code); trocWake();
   let sent;
   if (inv) {
@@ -1915,8 +1933,8 @@ async function trocJoin(req, res, me) {
   const code = String(b.c || '').toUpperCase().replace(/[\s-]/g, ''), s = TROC_CODE.test(code) ? TROC.s.get(code) : null;
   const mine = s ? s.p.findIndex(p => p && p.tag === me.tag) : -1;
   if (mine >= 0) {
-    const p = s.p[mine]; p.seen = Date.now();
-    if (trocOpen(s) && Array.isArray(b.list)) { trocSetList(p, b.list); s.v++; }
+    const p = s.p[mine]; p.seen = Date.now(); p.mk = b.mk === 'us' ? 'us' : '';      // autre appareil du compte : son marché
+    if (trocOpen(s) && Array.isArray(b.list)) { trocSetList(s, p, b.list); s.v++; }
     return json(res, 200, { key: p.key, s: trocView(s, mine) });
   }
   if (!s || s.st !== 'wait') {      // code inconnu, session pleine ou finie : compté (deviner un code coûte vite un blocage)
@@ -1926,7 +1944,7 @@ async function trocJoin(req, res, me) {
   await trocPxLoad();
   if (s.st !== 'wait') return json(res, 409, { error: 'full', message: 'Cet échange a déjà deux joueurs.' });      // rejoint par un autre pendant la lecture des prix
   trocLeave(me.tag);
-  const p = s.p[1] = trocSeat(me, b); trocSetList(p, b.list);
+  const p = s.p[1] = trocSeat(me, b); trocSetList(s, p, b.list);
   s.st = 'live'; s.v++; s.act = Date.now(); TROC.u.set(me.tag, s.code);
   return json(res, 200, { key: p.key, s: trocView(s, 1) });
 }
@@ -1962,7 +1980,7 @@ async function trocOp(req, res) {
     return done();
   }
   if (!trocOpen(s)) return fail(409, 'closed', 'Échange terminé.');
-  if (op === 'list') { trocSetList(p, b.list); s.v++; return done(); }
+  if (op === 'list') { trocSetList(s, p, b.list); s.v++; return done(); }
   if (op === 'give' || op === 'ask') {
     const side = op === 'give' ? p : ot; if (!side) return fail(409, 'alone', 'Personne n\'a encore rejoint l\'échange.');
     const c = trocCard(b.card); if (!c) return fail(400, 'bad_request', 'Carte illisible.');
@@ -1977,7 +1995,7 @@ async function trocOp(req, res) {
     if (cur) { const q = Math.min(cap, cur.q + c.q); if (q <= cur.q) return fail(409, 'max', 'Pas plus d\'exemplaires.'); cur.q = q; if (asked) cur.r = 1; return touch(); }
     if (side.give.length >= TROC_ITEMS) return fail(409, 'items', 'Trop de cartes de ce côté.');
     const q = Math.min(cap, c.q); if (q < 1) return fail(409, 'max', 'Pas plus d\'exemplaires.');
-    side.give.push({ id: (++s.n).toString(36), ...c, q, u: trocUnit(c), ...(asked ? { a: 1, r: 1 } : {}) });
+    side.give.push({ id: (++s.n).toString(36), ...c, q, u: trocUnit(c, s, side), ...(asked ? { a: 1, r: 1 } : {}) });
     return touch();
   }
   if (op === 'set' || op === 'unask') {      // set : mes cartes (0 : retirée ; une carte demandée ne monte pas au-delà) · unask : ma demande chez l'autre, retirée

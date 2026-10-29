@@ -20,7 +20,7 @@ const HM_SEEN_KEY = 'deckdeal:hmseen:v1', HM_SEEN_MAX = 5;
 try { const old = JSON.parse(localStorage.getItem('deckdeal:seen:v1') || 'null'); if (Array.isArray(old)) { if (!localStorage.getItem(HM_SEEN_KEY)) localStorage.setItem(HM_SEEN_KEY, JSON.stringify(old)); localStorage.removeItem('deckdeal:seen:v1'); } } catch (e) { /* stockage indisponible */ }
 const HM_LANDS = [['W', 'plains', 'Plains'], ['U', 'island', 'Island'], ['B', 'swamp', 'Swamp'], ['R', 'mountain', 'Mountain'], ['G', 'forest', 'Forest']];
 const HM_NF = {};      // un Intl.NumberFormat par langue, créé une fois (le chiffre de l'orbe défile image par image)
-const hmEur = c => { const l = LOC(); return (HM_NF[l] || (HM_NF[l] = new Intl.NumberFormat(l, { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }))).format(Math.round(c / 100)); };      // euros entiers dans l'écriture de la langue : « 1 234 € », « €1,234 », « 1.234 € »
+const hmEur = c => { const l = LOC(); return (HM_NF[l] || (HM_NF[l] = new Intl.NumberFormat(l, { style: 'currency', currency: mkCur(), minimumFractionDigits: 0, maximumFractionDigits: 0 }))).format(Math.round(c / 100)); };      // euros entiers dans l'écriture de la langue : « 1 234 € », « €1,234 », « 1.234 € »
 /** Petite image Scryfall → recadrage de l'illustration (même chemin, autre taille). */
 const hmArt = u => String(u || '').replace('/small/', '/art_crop/').replace('/normal/', '/art_crop/');
 

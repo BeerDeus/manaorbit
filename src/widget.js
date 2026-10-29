@@ -41,7 +41,7 @@ function widgetData() {
   const n = collCount(), v = n ? Math.round(homeValue()) : 0;
   if (n && !(v > 0)) return null;
   const dl = n ? widgetDelta() : null;
-  return { v, d: dl ? dl.d : null, dd: dl ? dl.dd : 7, n, h: n ? widgetPoints() : [], b: widgetBtn(), lang: I18N.lang, cur: 'EUR' };
+  return { v, d: dl ? dl.d : null, dd: dl ? dl.dd : 7, n, h: n ? widgetPoints() : [], b: widgetBtn(), lang: I18N.lang, cur: mkCur() };
 }
 /** Cartes pour l'estimation appli fermée : [clé, exemplaires, prix du fichier de prix], les plus grosses valeurs d'abord, WGT_COLL_MAX au plus (≈ 50 Ko,
  *  le reste pèse peu dans le total). Prix du fichier, pas ceux de l'appli : la coque relira ce même fichier et n'en gardera que l'évolution.

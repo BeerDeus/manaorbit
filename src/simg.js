@@ -56,7 +56,7 @@ function simgWrap(x, s, max, lines) {
 /** Dégradé foil horizontal sur [a, b]. */
 function simgFoil(x, a, b) { const g = x.createLinearGradient(a, 0, b, 0); for (const [o, c] of SIMG_FOIL) g.addColorStop(o, c); return g; }
 /** Euros : « 1 234,56 € » ; whole : sans centimes (gros montants). */
-const simgEur = (v, whole) => new Intl.NumberFormat(LOC(), { style: 'currency', currency: 'EUR', minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2 }).format(Number(v) || 0);
+const simgEur = (v, whole) => new Intl.NumberFormat(LOC(), { style: 'currency', currency: mkCur(), minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2 }).format(Number(v) || 0);
 const simgDate = t => new Date(Number(t) || Date.now()).toLocaleDateString(LOC(), { day: 'numeric', month: 'long', year: 'numeric' });
 /** Espacement des lettres (titres en capitales) quand le navigateur le permet. */
 const simgTrack = (x, px) => { try { if ('letterSpacing' in x) x.letterSpacing = px + 'px'; } catch (e) { /* ancien navigateur : sans */ } };
@@ -418,7 +418,7 @@ function simgShare(spec) {
 /** Stats de la collection : valeur (source affichée : Cardmarket, ou CardTrader si choisi), cartes, exemplaires, les 3 plus chères (prix d'un exemplaire). */
 function simgColl() {
   const items = collAll().all; if (!items.length) { toast(T('Pas encore de cartes à montrer')); return null; }
-  const ctOff = !(typeof ctReady === 'function' && ctReady()) && !items.some(i => i.rp > 0), st = collStats(items, ctOff ? 'cm' : COLL.src);
+  const ctOff = mkUs() || (!(typeof ctReady === 'function' && ctReady()) && !items.some(i => i.rp > 0)), st = collStats(items, ctOff ? 'cm' : COLL.src);
   const top = st.topUnit.slice(0, 3).map(i => ({ name: i.dn || i.n, img: collImage(i.k, i.l, i.im).src, eur: i.up / 100 }));
   return simgShare({ kind: 'coll', value: st.valued ? st.value / 100 : 0, n: st.unique, copies: st.copies, top, date: Date.now() });
 }

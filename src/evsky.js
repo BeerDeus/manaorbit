@@ -185,7 +185,7 @@ function skyYearData(y) {
   try { const P = prgNow(); out.lv = P.lv; out.badges = P.bs.filter(b => b.t >= 0).length; } catch (e) { out.lv = 0; out.badges = 0; }
   return out;
 }
-const skyEur = c => new Intl.NumberFormat(LOC(), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format((Number(c) || 0) / 100);
+const skyEur = c => new Intl.NumberFormat(LOC(), { style: 'currency', currency: mkCur(), maximumFractionDigits: 0 }).format((Number(c) || 0) / 100);
 /** Feuille « Ton année Magic » : tuiles, partage en image. */
 function skyYear(y) {
   const st = EV.st; y = y || (st && st.ev ? Number(st.ev.id.slice(-4)) : new Date().getFullYear());

@@ -56,6 +56,8 @@ const HELP_QA = [
   ['Alertes et notifications ?', 'Compte et réglages (ton avatar, en haut) › <b>Notifications</b> : « Fin de recherche » te prévient quand une recherche CardTrader se termine après que tu as quitté l\'appli ; les <b>alertes de prix</b> signalent une forte baisse d\'une carte qui manque à tes decks ou d\'une carte suivie (le serveur vérifie toutes les 6 heures). Dans ta collection, les cartes dont le prix a beaucoup bougé sont aussi signalées.'],
   ['Comment effacer mes données ?', 'Compte et réglages › Données de l\'appareil › <b>Effacer les données de cet appareil</b> : collection, decks, réglages et caches. Avec un compte, Compte et réglages › Gérer le compte › <b>Supprimer mon compte</b> efface aussi tout ce qui est en ligne (decks, collection, historique, liste d\'échange, liens partagés). C\'est définitif.'],
 ];
+// Marché TCGplayer (core.js › MK) : la première question parle de Cardmarket et de CardTrader, remplacée par celle des prix du marché américain
+if (mkUs()) HELP_QA.splice(0, 1, ['Quels prix affiche Mana Orbit ?', 'Le <b>prix du marché TCGplayer</b>, en dollars, relevé chaque jour par Scryfall : gratuit et sans compte, idéal pour estimer ta collection et tes decks. Tu es en Europe ? Compte et réglages › <b>Marché des prix</b>.']);
 
 /** Typographie française à l'affichage : espace insécable avant « ; : ? ! » et dans les guillemets (jamais un « ; » seul en début de ligne). Sans effet en anglais. */
 const helpNb = s => String(s).replace(/ ([;:!?»])/g, '\u00a0$1').replace(/« /g, '«\u00a0');

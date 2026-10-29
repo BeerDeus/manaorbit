@@ -1,0 +1,16 @@
+{
+  "Marché des prix": "Price market",
+  "Où tu achètes et vends tes cartes": "Where you buy and sell your cards",
+  "Automatique : {m}, d'après le fuseau horaire et la langue du téléphone au premier lancement.": "Automatic: {m}, based on the phone's time zone and language at first launch.",
+  "Chaque marché garde ses propres prix, la valeur de ta collection et sa courbe : rien n'est converti. CardTrader n'est proposé qu'avec Cardmarket (vendeurs européens).": "Each market keeps its own prices, your collection's value and its chart: nothing is converted. CardTrader is only offered with Cardmarket (European sellers).",
+  "Europe, en euros": "Europe, in euros",
+  "États-Unis et autres pays, en dollars": "United States and other countries, in dollars",
+  "États-Unis et autres pays, TCGplayer en dollars": "United States and other countries, TCGplayer in dollars",
+  "Europe, Cardmarket en euros": "Europe, Cardmarket in euros",
+  "Marché des prix changé : l'appli redémarre…": "Price market changed: the app is restarting…",
+  "prix tendance en Europe (via Scryfall)": "trend prices in Europe (via Scryfall)",
+  "prix du marché aux États-Unis (via Scryfall)": "market prices in the United States (via Scryfall)",
+  "Colle un export EDHREC, Moxfield ou Archidekt, une carte par ligne. Mana Orbit donne le prix du marché TCGplayer de chaque carte.": "Paste an EDHREC, Moxfield or Archidekt export, one card per line. Mana Orbit shows the TCGplayer market price of each card.",
+  "Quels prix affiche Mana Orbit ?": "Which prices does Mana Orbit show?",
+  "Le <b>prix du marché TCGplayer</b>, en dollars, relevé chaque jour par Scryfall : gratuit et sans compte, idéal pour estimer ta collection et tes decks. Tu es en Europe ? Compte et réglages › <b>Marché des prix</b>.": "The <b>TCGplayer market price</b>, in dollars, updated daily by Scryfall: free and with no account, ideal to value your collection and decks. In Europe? Account and settings › <b>Price market</b>."
+}

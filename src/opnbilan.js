@@ -19,13 +19,13 @@ function opnbPaidRead(root) { const i = $('#opnPaid', root); return i ? opnbPars
 function opnbResHtml(v, paid) {
   if (paid == null) return `<p class="hint opnb-none">${T('Indique le prix payé pour voir ton gain ou ta perte.')}</p>`;
   const d = v - paid, k = d > 0 ? 'up' : d < 0 ? 'down' : 'eq', x = paid > 0 ? (v / paid).toLocaleString(LOC(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
-  return `<div class="opnb-r ${k}"><span class="opnb-rl">${d > 0 ? T('Gain') : d < 0 ? T('Perte') : T('À l\'équilibre')}</span><b>${d > 0 ? '+' : d < 0 ? '−' : ''}${esc(fmt(Math.abs(d), 'EUR'))}</b><small>${esc(T('{v} de cartes pour {p} payés', { v: fmt(v, 'EUR'), p: fmt(paid, 'EUR') }))}${x ? ' · × ' + esc(x) : ''}</small></div>`;
+  return `<div class="opnb-r ${k}"><span class="opnb-rl">${d > 0 ? T('Gain') : d < 0 ? T('Perte') : T('À l\'équilibre')}</span><b>${d > 0 ? '+' : d < 0 ? '−' : ''}${esc(fmt(Math.abs(d), mkCur()))}</b><small>${esc(T('{v} de cartes pour {p} payés', { v: fmt(v, mkCur()), p: fmt(paid, mkCur()) }))}${x ? ' · × ' + esc(x) : ''}</small></div>`;
 }
 /** Les 5 meilleures cartes (prix d'un exemplaire) : la première en grand, les autres à côté. */
 const opnbBest = rows => rows.map(r => ({ r, u: opnEu(r) || 0 })).filter(x => x.u > 0).sort((a, b) => b.u - a.u || b.r.t - a.r.t).slice(0, 5);
 function opnbTopHtml(rows) {
   const best = opnbBest(rows); if (!best.length) return '';
-  const card = ({ r, u }, i) => `<figure class="opnb-c${i ? '' : ' opnb-hero'}"><span class="opnb-im" style="--h:${hash32(r.k) % 360}"><img alt="" loading="lazy" decoding="async" src="${esc(opnBig(r))}"></span><figcaption><b>${esc(fmt(u, 'EUR'))}</b><span>${esc(opnName(r))}</span></figcaption></figure>`;
+  const card = ({ r, u }, i) => `<figure class="opnb-c${i ? '' : ' opnb-hero'}"><span class="opnb-im" style="--h:${hash32(r.k) % 360}"><img alt="" loading="lazy" decoding="async" src="${esc(opnBig(r))}"></span><figcaption><b>${esc(fmt(u, mkCur()))}</b><span>${esc(opnName(r))}</span></figcaption></figure>`;
   return `<h3 class="cs-h">${T('Meilleures cartes')}</h3><div class="opnb-top${best.length > 1 ? '' : ' one'}">${card(best[0], 0)}${best.length > 1 ? `<div class="opnb-rest">${best.slice(1).map(card).join('')}</div>` : ''}</div>`;
 }
 /** Bloc du bilan (feuille « Terminer » d'opening.js) : prix payé, gain ou perte, meilleures cartes. */
@@ -49,6 +49,6 @@ function opnbShare(c, rows) {
 function opnbHistTag(rec) {
   if (rec.paid == null) return '';
   const d = (rec.v || 0) - rec.paid;
-  return `<small class="opnb-d ${d > 0 ? 'up' : d < 0 ? 'down' : 'eq'}">${d > 0 ? '+' : d < 0 ? '−' : ''}${esc(fmt(Math.abs(d), 'EUR'))}</small>`;
+  return `<small class="opnb-d ${d > 0 ? 'up' : d < 0 ? 'down' : 'eq'}">${d > 0 ? '+' : d < 0 ? '−' : ''}${esc(fmt(Math.abs(d), mkCur()))}</small>`;
 }
 function opnbHistHtml(rec) { return rec.paid == null ? '' : `<div class="opnb">${opnbResHtml(rec.v || 0, rec.paid)}</div>`; }

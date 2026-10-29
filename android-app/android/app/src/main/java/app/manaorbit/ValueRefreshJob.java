@@ -156,7 +156,7 @@ public class ValueRefreshJob extends JobService {
             if (code != HttpURLConnection.HTTP_OK) return;
             String day;
             try (BufferedReader r = reader(c.getInputStream())) {
-                day = WidgetPrices.read(r, items, stopped);
+                day = WidgetPrices.read(r, items, stopped, "USD".equals(data.optString("cur")));      // marché TCGplayer : colonne en dollars
             }
             if (day == null) return;
             SharedPreferences.Editor e = bg.edit().putLong(KEY_CHECK, now);

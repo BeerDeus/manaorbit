@@ -71,7 +71,7 @@ function snapshotEntry() {
   if (S.demo || !S.run || S.run.status !== 'done' || !S.run.live || !S.res) return null;
   if (critSig() !== S.run.crit) return null;   // critères modifiés depuis la recherche : le prix ne correspondrait plus
   const r = curRes(), found = foundCount(r); if (!found) return null;
-  return { at: S.run.doneAt || Date.now(), total: totalOf(r), mode: isCm() ? 'cm' : S.opts.mode, found, count: S.deck.cards.length, sig: curSig() };
+  return { at: S.run.doneAt || Date.now(), total: totalOf(r), mode: isCm() ? mkMode() : S.opts.mode, found, count: S.deck.cards.length, sig: curSig() };
 }
 
 /** Enregistre la liste courante : met à jour le deck rattaché, ou en crée un. */
@@ -114,7 +114,7 @@ function updateHeroDelta() {
   const flat = dl.diff === 0, down = dl.diff < 0;
   el.className = 'delta-line ' + (flat ? 'flat' : down ? 'down' : 'up');
   const same = new Date(dl.prevAt).toDateString() === new Date(dl.at).toDateString();
-  const date = dateShort(dl.prevAt), amount = fmt(Math.abs(dl.diff)), arrow = down ? '▼' : '▲';
+  const date = dateShort(dl.prevAt), amount = fmt(Math.abs(dl.diff), modeCur(dl.mode)), arrow = down ? '▼' : '▲';
   el.textContent = flat ? (same ? T('Prix inchangé depuis la dernière recherche') : T('Prix inchangé depuis le {date}', { date }))
     : same ? T('{arrow} {amount} depuis la dernière recherche', { arrow, amount }) : T('{arrow} {amount} depuis le {date}', { arrow, amount, date });
 }
@@ -144,7 +144,7 @@ function detachDeck() { S.deckId = null; S.runDelta = null; refreshDeck(); updat
 /* ── Rendu : liste des decks ──────────────────────────────────────────────────────────────── */
 function deltaChip(h) {
   const d = deltaFor(h); if (!d || d.diff === 0) return '';
-  return `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${fmt(Math.abs(d.diff))}</span>`;
+  return `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${fmt(Math.abs(d.diff), modeCur(d.mode))}</span>`;
 }
 const COLOR_NAMES = { W: 'blanc', U: 'bleu', B: 'noir', R: 'rouge', G: 'vert' };
 /** Pastilles de couleur d'un deck (d'après ses terrains de base). */
@@ -333,7 +333,7 @@ function openDeckSheet(id) {
     const rows = d.history.slice().reverse().slice(0, 14).map((e, i, arr) => {
       const p = arr.slice(i + 1).find(x => sameKind(x, e)); const df = p ? e.total - p.total : null;
       const when = new Date(e.at).toLocaleString(LOC(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-      return `<span class="d">${esc(when)} · ${e.mode === 'cm' ? 'Cardmarket' : e.mode === 'zero' ? 'Zero' : 'Direct'}</span><span class="delta ${df == null || df === 0 ? 'flat' : df < 0 ? 'down' : 'up'}">${df == null || df === 0 ? '' : (df < 0 ? '−' : '+') + fmt(Math.abs(df))}</span><span class="t">${fmt(e.total)}</span>`;
+      return `<span class="d">${esc(when)} · ${e.mode === 'cm' ? 'Cardmarket' : e.mode === 'us' ? 'TCGplayer' : e.mode === 'zero' ? 'Zero' : 'Direct'}</span><span class="delta ${df == null || df === 0 ? 'flat' : df < 0 ? 'down' : 'up'}">${df == null || df === 0 ? '' : (df < 0 ? '−' : '+') + fmt(Math.abs(df), modeCur(e.mode))}</span><span class="t">${fmt(e.total, modeCur(e.mode))}</span>`;
     }).join('');
     api.body.innerHTML = `<div class="field-in"><label class="label" for="dkName">${T('Nom')}</label><input type="text" id="dkName" maxlength="120" autocomplete="off" value="${esc(d.name)}"></div>
       <button class="coll-open dk-cover" type="button" id="dkCover"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Image du deck')}</b><span id="dkCoverSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>

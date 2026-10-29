@@ -64,10 +64,14 @@ final class WidgetPrices {
     }
 
     /**
-     * Lit le fichier de prix et note, pour chaque carte de items, le plus bas prix en euros non nul (comme pxParse de data.js).
-     * Retourne la date de l'en-tête, ou null : pas un fichier de prix, fichier anormal, ou lecture interrompue (stop).
+     * Lit le fichier de prix et note, pour chaque carte de items, le plus bas prix non nul (comme pxParse de data.js) : en euros, ou en dollars (usd :
+     * marché TCGplayer, troisième colonne). Retourne la date de l'en-tête, ou null : pas un fichier de prix, fichier anormal, ou lecture interrompue (stop).
      */
     static String read(BufferedReader r, Map<String, long[]> items, AtomicBoolean stop) throws IOException {
+        return read(r, items, stop, false);
+    }
+
+    static String read(BufferedReader r, Map<String, long[]> items, AtomicBoolean stop, boolean usd) throws IOException {
         String head = r.readLine();
         if (head == null || !head.startsWith("#MOPX1 ")) return null;
         String[] h = head.split(" ");
@@ -84,7 +88,8 @@ final class WidgetPrices {
             if (t2 < 0) continue;                                  // « nom \t € \t $ » : trois colonnes au moins, comme pxParse
             long[] it = items.get(key(line.substring(0, t1)));
             if (it == null) continue;
-            long e = cents(line.substring(t1 + 1, t2));
+            int t3 = line.indexOf('\t', t2 + 1);
+            long e = usd ? cents(line.substring(t2 + 1, t3 < 0 ? line.length() : t3)) : cents(line.substring(t1 + 1, t2));
             if (e > 0 && (it[2] == 0 || e < it[2])) it[2] = e;
         }
         return h[1];

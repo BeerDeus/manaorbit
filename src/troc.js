@@ -14,7 +14,9 @@
    · Rien au démarrage, sauf : un lien ?troc= (handleLaunch) et une session en cours sur cet appareil (deckdeal:troc:cur, reprise : appli tuée pendant
      l'échange ; une session faite mais pas encore appliquée l'est au retour). Mode streamer (opening.js › streamOn) : pas d'échange en direct.
    Retirer la fonction : ôter 'troc.js' de build.mjs (crochets gardés par typeof dans share.js, friends.js, push.js, app.js, decks.js), css/troc.css, i18n/*.troc.json. */
-const TRC_CUR = 'deckdeal:troc:cur', TRC_HIST = 'deckdeal:troc:hist', TRC_HIST_MAX = 50, TRC_CODE_RE = /^[A-HJKMNP-Z2-9]{6}$/, TRC_PAGE = 60;
+/** Devise des montants de l'échange : celle de la session (marché de celui qui l'a ouverte, s.mk : 'us' = dollars), sinon celle de l'appareil. */
+const trcCur = () => (TRC.s ? (TRC.s.mk === 'us' ? 'USD' : 'EUR') : mkCur());
+const TRC_CUR = 'deckdeal:troc:cur', TRC_HIST = 'deckdeal:troc:hist' + mkSfx(), TRC_HIST_MAX = 50, TRC_CODE_RE = /^[A-HJKMNP-Z2-9]{6}$/, TRC_PAGE = 60;
 const TRC = { s: null, c: '', key: '', uid: '', el: null, t: 0, fail: 0, hid: 0, q: Promise.resolve(), ot: null, pick: null, flash: new Set(), myCv: 0, want: '', hist: null, inv: null, bright: false, wl: null, sent: null, applying: false, vis: null, undo: null, unBy: '' };      // undo : échange fait sur cet appareil, encore annulable (trocApply) ; unBy : « me » quand je retire ma demande d'annulation
 const TRC_SWAP = '<svg class="i" aria-hidden="true"><use href="#i-swap"/></svg>';
 const TRC_EQ = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M8 19h8M5 7h14M5 7l-2.6 6.2a2.6 2.6 0 0 0 5.2 0zM19 7l-2.6 6.2a2.6 2.6 0 0 0 5.2 0z"/></svg>';
@@ -214,7 +216,7 @@ async function trocHost(inv) {
   if (TRC.c) await trocQuit();
   const t = Tasks.start(T('Création de l\'échange…'));
   try {
-    const r = await trocCall('', { method: 'POST', auth: true, body: { ...(await trocProf()), list: trocMyList(), ...(inv ? { inv: inv.id } : {}) } });
+    const r = await trocCall('', { method: 'POST', auth: true, body: { ...(await trocProf()), list: trocMyList(), ...(mkUs() ? { mk: 'us' } : {}), ...(inv ? { inv: inv.id } : {}) } });
     t.remove(); trocStart(r, inv);
   } catch (e) { t.remove(); toast(trocErr(e.code)); }
 }
@@ -226,7 +228,7 @@ async function trocJoinCode(raw) {
   if (TRC.c && TRC.c !== code) await trocQuit();
   const t = Tasks.start(T('Entrée dans l\'échange…'));
   try {
-    const r = await trocCall('/join', { method: 'POST', auth: true, body: { c: code, ...(await trocProf()), list: trocMyList() } });
+    const r = await trocCall('/join', { method: 'POST', auth: true, body: { c: code, ...(await trocProf()), list: trocMyList(), ...(mkUs() ? { mk: 'us' } : {}) } });
     t.remove(); trocStart(r);
   } catch (e) { t.remove(); toast(trocErr(e.code)); }
 }
@@ -375,15 +377,15 @@ function trocOtState(s) {
 }
 function trocTile(x, side) {
   const k = ownKey(x.n), dn = trocName(x), l = lineLang(x.g), e = lineEd(x.g), fo = lineFoil(x.g);
-  const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, 'EUR') : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ');
+  const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, trcCur()) : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ');
   return `<button class="trc-card${TRC.flash.has(x.id) ? ' new' : ''}${x.r ? ' pend' : ''}${fo ? ' foil' : ''}" type="button" data-id="${esc(x.id)}" data-side="${side}" aria-label="${esc(lab)}">
     <span class="trc-art" style="--h:${hash32(k) % 360}"><b aria-hidden="true">${esc((dn.trim()[0] || '?').toUpperCase())}</b><img alt="" loading="lazy" decoding="async" src="${esc(trocSrc(x))}" data-n="${esc(x.n)}">
       ${x.q > 1 ? `<i class="trc-q">×${x.q}</i>` : ''}${l && l !== 'en' ? `<i class="trc-fl">${flag(l)}</i>` : ''}${trocFo(x.g)}${x.a ? `<i class="trc-badge${x.r ? '' : ' on'}">${x.r ? T('Demandée') : T('Acceptée')}</i>` : ''}</span>
-    <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? esc(fmt(x.u, 'EUR')) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
+    <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? esc(fmt(x.u, trcCur())) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
 }
 function trocZoneHtml(cls, title, list, side, add, empty, extra = '') {
   const sum = trocSum(list);
-  return `<section class="trc-zone ${cls}" aria-label="${esc(title)}"><header class="trc-zh"><b>${esc(title)}</b>${sum.n ? `<span>${TN(sum.q, '{n} carte', '{n} cartes')}${sum.v ? ` · <em>${esc(fmt(sum.v, 'EUR'))}</em>` : ''}</span>` : ''}</header>
+  return `<section class="trc-zone ${cls}" aria-label="${esc(title)}"><header class="trc-zh"><b>${esc(title)}</b>${sum.n ? `<span>${TN(sum.q, '{n} carte', '{n} cartes')}${sum.v ? ` · <em>${esc(fmt(sum.v, trcCur()))}</em>` : ''}</span>` : ''}</header>
     ${extra}${list.length ? `<div class="trc-grid">${list.map(x => trocTile(x, side)).join('')}</div>` : `<p class="trc-empty">${empty}</p>`}${add}</section>`;
 }
 function trocZonesHtml(s) {
@@ -412,7 +414,7 @@ function trocBal(get, give) {
 }
 function trocBalHtml(get, give, any) {
   const b = trocBal(get, give), x = b.base ? 50 + Math.max(-1, Math.min(1, b.d / b.base)) * 46 : 50;
-  const txt = !b.base ? (any ? T('Pas encore de prix pour comparer') : T('Ajoutez des cartes de chaque côté')) : b.even ? T('Équilibré') : b.d > 0 ? T('Tu reçois {v} de plus', { v: fmt(b.d, 'EUR') }) : T('Tu donnes {v} de plus', { v: fmt(-b.d, 'EUR') });
+  const txt = !b.base ? (any ? T('Pas encore de prix pour comparer') : T('Ajoutez des cartes de chaque côté')) : b.even ? T('Équilibré') : b.d > 0 ? T('Tu reçois {v} de plus', { v: fmt(b.d, trcCur()) }) : T('Tu donnes {v} de plus', { v: fmt(-b.d, trcCur()) });
   return `<div class="trc-bal" data-lv="${b.lv}" role="img" aria-label="${esc(txt + (b.base && !b.even ? ' (' + b.pct + ' %)' : ''))}">
     <div class="trc-meter" aria-hidden="true"><span>${T('tu donnes plus')}</span><i class="trc-track"><i class="trc-mark" style="--x:${x.toFixed(1)}%"></i></i><span>${T('tu reçois plus')}</span></div>
     <div class="trc-bt"><b>${esc(txt)}</b>${b.base && !b.even ? `<em>${b.pct} %</em>` : ''}</div></div>`;
@@ -422,13 +424,13 @@ function trocMiniList(list) {
   const by = new Map();
   for (const x of list) { if (x.r) continue; const k = ownKey(x.n) + '|' + (x.g || ''), e = by.get(k); if (e) e.q += x.q; else by.set(k, { ...x }); }
   const meta = g => [lineLang(g) ? flag(lineLang(g)) : '', lineEd(g) ? esc(edLabel(lineEd(g))) : '', lineFoil(g) ? '✦ ' + T('Foil') : ''].filter(Boolean).join(' ');
-  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" src="${esc(trocSrc(x))}" data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, 'EUR')) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
+  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" src="${esc(trocSrc(x))}" data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, trcCur())) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
 }
 function trocConfirmHtml(s) {
   const sg = trocSum(s.ot.give), sv = trocSum(s.me.give), name = esc(trocWho());
   return `<section class="trc-final"><div class="trc-fh">${TRC_OK}<span><b>${T('Vous êtes prêts tous les deux')}</b><small>${T('Vérifie une dernière fois, puis valide : ta collection sera mise à jour.')}</small></span></div>
-    <div class="trc-col get"><h3>${T('Tu reçois')}<span>${sg.v ? esc(fmt(sg.v, 'EUR')) : ''}</span></h3>${trocMiniList(s.ot.give)}</div>
-    <div class="trc-col give"><h3>${T('Tu donnes')}<span>${sv.v ? esc(fmt(sv.v, 'EUR')) : ''}</span></h3>${trocMiniList(s.me.give)}</div>
+    <div class="trc-col get"><h3>${T('Tu reçois')}<span>${sg.v ? esc(fmt(sg.v, trcCur())) : ''}</span></h3>${trocMiniList(s.ot.give)}</div>
+    <div class="trc-col give"><h3>${T('Tu donnes')}<span>${sv.v ? esc(fmt(sv.v, trcCur())) : ''}</span></h3>${trocMiniList(s.me.give)}</div>
     ${trocBalHtml(sg.v, sv.v, 1)}
     <p class="trc-fs" data-ok="${s.ot.ok ? 1 : 0}">${s.ot.ok ? TRC_OK + T('{name} a validé', { name }) : T('{name} n\'a pas encore validé', { name })}</p></section>`;
 }
@@ -438,8 +440,8 @@ function trocDoneHtml(s) {
   const un = !trocUndoable() ? '' : s.me.un ? `<div class="trc-undo" data-st="me"><span>${T('Annulation proposée à {name} : en attente de sa réponse…', { name })}</span><button class="btn small ghost" type="button" data-trc="unno">${T('Retirer ma demande')}</button></div>`
     : s.ot && s.ot.un ? `<div class="trc-undo" data-st="ot"><span>${T('{name} propose d\'annuler l\'échange : vos deux collections reviendraient comme avant.', { name })}</span><span class="trc-ua"><button class="btn small ghost" type="button" data-trc="unno">${T('Garder l\'échange')}</button><button class="btn small danger" type="button" data-trc="unyes">${T('Annuler l\'échange')}</button></span></div>` : '';
   return `<section class="trc-done"><span class="trc-tick">${TRC_OK}</span><b>${T('Échange terminé')}</b><p>${T('Ta collection est à jour : {give}, {get}.', { give: TN(sv.q, '{n} carte donnée', '{n} cartes données'), get: TN(sg.q, '{n} reçue', '{n} reçues') })}</p>${un}
-    <div class="trc-col get"><h3>${T('Tu as reçu')}<span>${sg.v ? esc(fmt(sg.v, 'EUR')) : ''}</span></h3>${trocMiniList(s.ot ? s.ot.give : [])}</div>
-    <div class="trc-col give"><h3>${T('Tu as donné')}<span>${sv.v ? esc(fmt(sv.v, 'EUR')) : ''}</span></h3>${trocMiniList(s.me.give)}</div>
+    <div class="trc-col get"><h3>${T('Tu as reçu')}<span>${sg.v ? esc(fmt(sg.v, trcCur())) : ''}</span></h3>${trocMiniList(s.ot ? s.ot.give : [])}</div>
+    <div class="trc-col give"><h3>${T('Tu as donné')}<span>${sv.v ? esc(fmt(sv.v, trcCur())) : ''}</span></h3>${trocMiniList(s.me.give)}</div>
     <p class="hint">${T('Retrouve-le dans Échange › Échange en direct › « Mes échanges ».')}</p></section>`;
 }
 function trocEndHtml(s) {
@@ -487,7 +489,7 @@ function trocTileSheet(id, side) {
   const list = side === 'me' ? s.me.give : s.ot ? s.ot.give : [], x = list.find(y => y.id === id); if (!x) return;
   if (side === 'ot' && !x.a || !trocOpenSt(s)) { trocZoom(list, x); return; }
   const name = esc(trocName(x)), l = lineLang(x.g), e = lineEd(x.g), who = esc(trocWho());
-  const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', lineFoil(x.g) ? T('Foil') + ' ✦' : '', x.u ? T('{v} pièce', { v: fmt(x.u, 'EUR') }) : ''].filter(Boolean).join(' · ');
+  const sub = [l ? (LANGS[l] || l) : '', e ? edLabel(e) : '', lineFoil(x.g) ? T('Foil') + ' ✦' : '', x.u ? T('{v} pièce', { v: fmt(x.u, trcCur()) }) : ''].filter(Boolean).join(' · ');
   openSheet(trocName(x), sub, api => {
     api.wrap.classList.add('trc-ts');
     const own = side === 'me' ? collLines(COLL.map[ownKey(x.n)]).reduce((t, y) => t + (lineHead(y[0]) === x.g ? y[1] : 0), 0) : 0;
@@ -519,7 +521,7 @@ function trocTileSheet(id, side) {
 }
 /** Carte en grand (visionneuse de l'appli), avec ses voisines du même côté. */
 function trocZoom(list, x) {
-  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: '', plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, 'EUR') : ''].filter(Boolean).join(' · ') }));
+  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: '', plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) : ''].filter(Boolean).join(' · ') }));
   haptic('tap'); openCardViewer(items, Math.max(0, list.indexOf(x)));
 }
 
@@ -530,10 +532,10 @@ function trocRowHtml(it, kind) {
   const tags = it.tags || '';
   const chips = it.lines.map(([g, q, u]) => {
     const l = lineLang(g), e = lineEd(g), fo = lineFoil(g), had = trocIn(kind === 'ask' ? (TRC.s.ot || {}).give : TRC.s.me.give, it.k, g), full = had >= q;
-    return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${esc(fmt(u, 'EUR'))}</small>` : ''}</button>`;
+    return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${esc(fmt(u, trcCur()))}</small>` : ''}</button>`;
   }).join('');
   return `<div class="crow trc-prow" data-k="${esc(it.k)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((dn.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
-    <span class="row-main"><span class="row-name">${esc(dn)}</span>${tags || dn !== it.n ? `<span class="row-meta">${tags}${dn !== it.n ? `<span class="tag">${esc(it.n)}</span>` : ''}</span>` : ''}<span class="trc-lns">${chips}</span></span>${it.u ? `<span class="trc-pp">${esc(fmt(it.u, 'EUR'))}</span>` : ''}</div>`;
+    <span class="row-main"><span class="row-name">${esc(dn)}</span>${tags || dn !== it.n ? `<span class="row-meta">${tags}${dn !== it.n ? `<span class="tag">${esc(it.n)}</span>` : ''}</span>` : ''}<span class="trc-lns">${chips}</span></span>${it.u ? `<span class="trc-pp">${esc(fmt(it.u, trcCur()))}</span>` : ''}</div>`;
 }
 /** Feuille de choix commune (give, ask) : onglets, recherche (nom français ou anglais), liste par pages ; tap sur une pastille → onTap(item, ligne). */
 function trocPicker({ title, sub, tabs, rows, onTap, kind }) {
@@ -635,9 +637,9 @@ async function trocBalance() {
   const { picks, rem } = trocFill(cands, Math.abs(d), tol);
   if (!picks.length) { toast(T('Rien d\'assez petit pour équilibrer')); return; }
   const sum = picks.reduce((t, x) => t + x.u * x.q, 0), mine = d > 0, name = esc(trocWho());
-  openSheet(mine ? T('Équilibrer de ton côté') : T('Équilibrer : demander à {name}', { name: trocWho() }), T('Écart actuel : {v}', { v: fmt(Math.abs(d), 'EUR') }), api => {
+  openSheet(mine ? T('Équilibrer de ton côté') : T('Équilibrer : demander à {name}', { name: trocWho() }), T('Écart actuel : {v}', { v: fmt(Math.abs(d), trcCur()) }), api => {
     api.body.innerHTML = `<p class="hint">${mine ? T('Tu reçois plus que tu ne donnes : ces cartes de ta liste d\'échange comblent l\'écart.') : T('Tu donnes plus que tu ne reçois : demande ces cartes de sa liste ({name} accepte ou non).', { name })}</p>
-      ${trocMiniList(picks.map(x => ({ ...x, id: '' })))}<p class="trc-eqs"><span>${T('Total proposé')}</span><b>${esc(fmt(sum, 'EUR'))}</b></p><p class="hint">${T('Écart restant : {v}', { v: fmt(Math.max(0, rem), 'EUR') })}</p>`;
+      ${trocMiniList(picks.map(x => ({ ...x, id: '' })))}<p class="trc-eqs"><span>${T('Total proposé')}</span><b>${esc(fmt(sum, trcCur()))}</b></p><p class="hint">${T('Écart restant : {v}', { v: fmt(Math.max(0, rem), trcCur()) })}</p>`;
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" data-trc="eqgo">${mine ? TN(picks.length, 'Ajouter la carte', 'Ajouter les {n} cartes') : TN(picks.length, 'Demander la carte', 'Demander les {n} cartes')}</button>`);
     api.wrap.addEventListener('click', async e => {
       const b = e.target.closest('[data-trc="eqgo"]'); if (!b || b.disabled) return;
@@ -673,7 +675,7 @@ function trocApply(s) {
   collChanged(); collEnrich(); if (wch) trChanged();
   if (typeof prgTrade === 'function') prgTrade();      // niveau et badges (progress.js)
   const sg = trocSum(getL), sv = trocSum(giveL), row = x => [x.n, x.g || '', x.q, x.u || 0, x.i || ''];
-  const rec = { id, c: s.c, at: Date.now(), who: (s.ot && s.ot.n) || '', give: giveL.slice(0, 100).map(row), get: getL.slice(0, 100).map(row), vg: sv.v, vr: sg.v, qg: sv.q, qr: sg.q, rv: { took, add, wd } };      // rv : de quoi le défaire (annulé des deux côtés, même après un redémarrage)
+  const rec = { id, c: s.c, at: Date.now(), who: (s.ot && s.ot.n) || '', give: giveL.slice(0, 100).map(row), get: getL.slice(0, 100).map(row), vg: sv.v, vr: sg.v, cur: trcCur(), qg: sv.q, qr: sg.q, rv: { took, add, wd } };      // rv : de quoi le défaire (annulé des deux côtés, même après un redémarrage)
   TRC.hist = [rec, ...trocHist().filter(h => h.id !== id)]; trocHistSave();
   TRC.undo = { c: s.c, id, until: Date.now() + (Number(s.ut) || 0) };      // annulable des deux côtés tant que le serveur le permet (ut) : la session reste relevée (trocPoll)
   trocSaveCur(); trocDo({ op: 'got' }); trocPollSoon();
@@ -733,7 +735,7 @@ function trocHistSheet() {
     const paint = () => {
       const list = trocHist();
       api.body.innerHTML = list.length ? `<div class="trc-hl">${list.map(r => `<button type="button" class="trc-h" data-id="${esc(r.id)}"><span class="trc-ht"><b>${esc(r.who || T('Joueur sans pseudo'))}</b><small>${esc(trocWhen(r.at))}${r.u ? ' · ' + trocUnLab(r) : ''}</small></span>
-          <span class="trc-hv"><span class="give">− ${nf0(r.qg)}${r.vg ? ' · ' + esc(fmt(r.vg, 'EUR')) : ''}</span><span class="get">+ ${nf0(r.qr)}${r.vr ? ' · ' + esc(fmt(r.vr, 'EUR')) : ''}</span></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`).join('')}</div>`
+          <span class="trc-hv"><span class="give">− ${nf0(r.qg)}${r.vg ? ' · ' + esc(fmt(r.vg, r.cur || mkCur())) : ''}</span><span class="get">+ ${nf0(r.qr)}${r.vr ? ' · ' + esc(fmt(r.vr, r.cur || mkCur())) : ''}</span></span><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>`).join('')}</div>`
         : `<p class="hint">${T('Aucun échange pour l\'instant.')}</p>`;
     };
     paint();
@@ -743,8 +745,8 @@ function trocHistSheet() {
 function trocHistOpen(r, after) {
   openSheet(T('Échange avec {name}', { name: r.who || T('Joueur sans pseudo') }), trocWhen(r.at) + (r.u ? ' · ' + trocUnLab(r) : ''), api => {
     api.wrap.classList.add('trc-hs');
-    api.body.innerHTML = `<div class="trc-col get"><h3>${T('Tu as reçu')}<span>${r.vr ? esc(fmt(r.vr, 'EUR')) : ''}</span></h3>${trocMiniList(trocRecRows(r.get))}</div>
-      <div class="trc-col give"><h3>${T('Tu as donné')}<span>${r.vg ? esc(fmt(r.vg, 'EUR')) : ''}</span></h3>${trocMiniList(trocRecRows(r.give))}</div>
+    api.body.innerHTML = `<div class="trc-col get"><h3>${T('Tu as reçu')}<span>${r.vr ? esc(fmt(r.vr, r.cur || mkCur())) : ''}</span></h3>${trocMiniList(trocRecRows(r.get))}</div>
+      <div class="trc-col give"><h3>${T('Tu as donné')}<span>${r.vg ? esc(fmt(r.vg, r.cur || mkCur())) : ''}</span></h3>${trocMiniList(trocRecRows(r.give))}</div>
       <p class="hint">${T('Valeurs au moment de l\'échange (tendance Cardmarket).')}</p><button class="link-btn link-inline trc-hdel" type="button" data-trc="hdel">${T('Supprimer de l\'historique')}</button>`;
     api.wrap.addEventListener('error', e => { const im = e.target; if (im.tagName === 'IMG') { if (im.dataset.n && !im.dataset.fb) { im.dataset.fb = '1'; im.src = scImg(im.dataset.n); } else im.remove(); } }, true);
     api.wrap.addEventListener('click', e => {

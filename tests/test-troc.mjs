@@ -238,6 +238,19 @@ r = await op(A5, { op: 'ready', on: true, cv: 1 }); assert.equal(r.o.error, 'alo
 r = await op(A5, { op: 'give', card: { n: 'Sol Ring', q: 1, g: 'fr' } }); assert.equal(r.s, 200, 'seul : on peut déjà préparer ce qu\'on donne');
 ok('corps trop gros (413), action inconnue, seul dans la session');
 
+// marché TCGplayer (mk: 'us') : la session prend le marché de qui l'ouvre (colonne $ du fichier) ; le prix d'un appareil de l'autre marché n'est jamais repris
+{
+  let r = await create('c', { mk: 'us' }); assert.equal(r.s, 200, JSON.stringify(r.o)); assert.equal(r.o.s.mk, 'us');
+  const C1 = { c: r.o.s.c, key: r.o.key };
+  r = await call('GET', `/list?c=${C1.c}&w=me`, { key: C1.key }); assert.deepEqual(r.o.list.map(x => [x.n, x.u]), [['Arcane Signet', 55], ['Craterhoof Behemoth', 900]], 'fichier en dollars, sinon le prix de l\'appareil (même marché)');
+  r = await join_('d', C1.c, { list: LIST_B }); assert.equal(r.s, 200, JSON.stringify(r.o)); assert.equal(r.o.s.mk, 'us', 'appareil en Europe : la session reste en dollars');
+  const D1 = { c: C1.c, key: r.o.key };
+  r = await call('GET', `/list?c=${C1.c}&w=ot`, { key: C1.key }); assert.deepEqual(r.o.list.map(x => [x.n, x.u]), [['Arcane Signet', 55], ['Craterhoof Behemoth', undefined]], 'prix en euros de l\'autre appareil : écarté');
+  r = await op(D1, { op: 'give', card: { n: 'Sol Ring', q: 1, g: 'en*', u: 999 } }); assert.equal(r.s, 200); assert.equal(r.o.me.give[0].u, 100, 'foil d\'un appareil en euros : prix du fichier en dollars');
+  r = await op(C1, { op: 'give', card: { n: 'Sol Ring', q: 1, g: 'en*', u: 450 } }); assert.equal(r.o.me.give[0].u, 450, 'foil du même marché : le prix de l\'appareil');
+  ok('marché TCGplayer : session en dollars, prix de l\'autre marché jamais repris');
+}
+
 // redémarrage : sessions perdues
 P1.kill(); await sleep(300);
 const P2 = await start({ ...F.env }, 19301);

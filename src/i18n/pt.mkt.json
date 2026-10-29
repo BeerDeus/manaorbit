@@ -1,0 +1,16 @@
+{
+  "Marché des prix": "Mercado de preços",
+  "Où tu achètes et vends tes cartes": "Onde você compra e vende suas cartas",
+  "Automatique : {m}, d'après le fuseau horaire et la langue du téléphone au premier lancement.": "Automático: {m}, pelo fuso horário e pelo idioma do telefone na primeira abertura.",
+  "Chaque marché garde ses propres prix, la valeur de ta collection et sa courbe : rien n'est converti. CardTrader n'est proposé qu'avec Cardmarket (vendeurs européens).": "Cada mercado guarda os próprios preços, o valor da sua coleção e o gráfico: nada é convertido. A CardTrader só é oferecida com a Cardmarket (vendedores europeus).",
+  "Europe, en euros": "Europa, em euros",
+  "États-Unis et autres pays, en dollars": "Estados Unidos e outros países, em dólares",
+  "États-Unis et autres pays, TCGplayer en dollars": "Estados Unidos e outros países, TCGplayer em dólares",
+  "Europe, Cardmarket en euros": "Europa, Cardmarket em euros",
+  "Marché des prix changé : l'appli redémarre…": "Mercado de preços alterado: o app está reiniciando…",
+  "prix tendance en Europe (via Scryfall)": "preços de tendência na Europa (via Scryfall)",
+  "prix du marché aux États-Unis (via Scryfall)": "preços de mercado nos Estados Unidos (via Scryfall)",
+  "Colle un export EDHREC, Moxfield ou Archidekt, une carte par ligne. Mana Orbit donne le prix du marché TCGplayer de chaque carte.": "Cole uma exportação do EDHREC, Moxfield ou Archidekt, uma carta por linha. O Mana Orbit mostra o preço de mercado da TCGplayer de cada carta.",
+  "Quels prix affiche Mana Orbit ?": "Quais preços o Mana Orbit mostra?",
+  "Le <b>prix du marché TCGplayer</b>, en dollars, relevé chaque jour par Scryfall : gratuit et sans compte, idéal pour estimer ta collection et tes decks. Tu es en Europe ? Compte et réglages › <b>Marché des prix</b>.": "O <b>preço de mercado da TCGplayer</b>, em dólares, atualizado todo dia pelo Scryfall: grátis e sem conta, ideal para avaliar sua coleção e seus decks. Está na Europa? Conta e ajustes › <b>Mercado de preços</b>."
+}

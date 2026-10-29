@@ -1,0 +1,16 @@
+{
+  "Marché des prix": "Mercado de precios",
+  "Où tu achètes et vends tes cartes": "Dónde compras y vendes tus cartas",
+  "Automatique : {m}, d'après le fuseau horaire et la langue du téléphone au premier lancement.": "Automático: {m}, según la zona horaria y el idioma del teléfono en el primer inicio.",
+  "Chaque marché garde ses propres prix, la valeur de ta collection et sa courbe : rien n'est converti. CardTrader n'est proposé qu'avec Cardmarket (vendeurs européens).": "Cada mercado guarda sus propios precios, el valor de tu colección y su gráfica: nada se convierte. CardTrader solo se ofrece con Cardmarket (vendedores europeos).",
+  "Europe, en euros": "Europa, en euros",
+  "États-Unis et autres pays, en dollars": "Estados Unidos y otros países, en dólares",
+  "États-Unis et autres pays, TCGplayer en dollars": "Estados Unidos y otros países, TCGplayer en dólares",
+  "Europe, Cardmarket en euros": "Europa, Cardmarket en euros",
+  "Marché des prix changé : l'appli redémarre…": "Mercado de precios cambiado: la app se reinicia…",
+  "prix tendance en Europe (via Scryfall)": "precios de tendencia en Europa (vía Scryfall)",
+  "prix du marché aux États-Unis (via Scryfall)": "precios de mercado en Estados Unidos (vía Scryfall)",
+  "Colle un export EDHREC, Moxfield ou Archidekt, une carte par ligne. Mana Orbit donne le prix du marché TCGplayer de chaque carte.": "Pega una exportación de EDHREC, Moxfield o Archidekt, una carta por línea. Mana Orbit da el precio de mercado de TCGplayer de cada carta.",
+  "Quels prix affiche Mana Orbit ?": "¿Qué precios muestra Mana Orbit?",
+  "Le <b>prix du marché TCGplayer</b>, en dollars, relevé chaque jour par Scryfall : gratuit et sans compte, idéal pour estimer ta collection et tes decks. Tu es en Europe ? Compte et réglages › <b>Marché des prix</b>.": "El <b>precio de mercado de TCGplayer</b>, en dólares, actualizado cada día por Scryfall: gratis y sin cuenta, ideal para valorar tu colección y tus decks. ¿Estás en Europa? Cuenta y ajustes › <b>Mercado de precios</b>."
+}

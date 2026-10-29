@@ -131,7 +131,7 @@ const Cache = (() => {
     dbp = new Promise(res => {
       try {
         if (typeof indexedDB === 'undefined') return res(null);
-        const r = indexedDB.open('deckdeal', 1);
+        const r = indexedDB.open(mkUs() ? 'deckdeal-us' : 'deckdeal', 1);      // marché TCGplayer : sa propre base (prix des cartes, valeur, relevés), jamais mêlée aux euros
         r.onupgradeneeded = () => r.result.createObjectStore('kv');
         r.onsuccess = () => res(r.result); r.onerror = () => res(null); r.onblocked = () => res(null);
       } catch (e) { res(null); }
@@ -170,7 +170,7 @@ const DAY = 86400000;
 const imgOf = c => (c.image_uris && c.image_uris.small) || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris && c.card_faces[0].image_uris.small) || null;
 
 /** Données de la carte (communes à toutes ses impressions) : coût converti, coût de mana, type, couleurs — pour le deck viewer. */
-const eurOf = c => ({ eu: eurCents(c.prices && c.prices.eur), ef: eurCents(c.prices && c.prices.eur_foil) });   // prix de référence Cardmarket (euros → centimes), null si Scryfall n'en a pas
+const eurOf = c => mkPx(c.prices);   // prix de référence du marché (Cardmarket en euros, TCGplayer en dollars → centimes), null si Scryfall n'en a pas
 const metaOf = c => { const f0 = (c.card_faces && c.card_faces[0]) || {}; return { cmc: Number.isFinite(c.cmc) ? c.cmc : 0, mc: String(c.mana_cost || f0.mana_cost || '').slice(0, 60), tl: String(c.type_line || '').slice(0, 120), cl: (c.colors || f0.colors || []).join('') }; };
 
 async function scryPrints(name, signal, exactDone = false) { // exactDone : la recherche exacte a déjà eu lieu dans un lot réussi → inutile de la refaire
@@ -334,7 +334,7 @@ async function scryCollection(names, signal, onProgress, prio = false) {
     const chunk = uniq.slice(i, i + 75);
     const body = JSON.stringify({ identifiers: chunk.map(([, n]) => ({ name: String(n).split('//')[0].trim() })) });
     const j = await httpJson(limScry, 'https://api.scryfall.com/cards/collection', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body }, signal, 4, prio);
-    for (const c of j.data || []) { const m = metaOf(c); out.set(ownKey(c.name), { cm: m.cmc, mc: m.mc, tl: m.tl, cl: m.cl, ci: (c.color_identity || []).join(''), cd: canBeCommander(c), im: imgOf(c) || '', eu: eurCents(c.prices && c.prices.eur), ef: eurCents(c.prices && c.prices.eur_foil), ar: c.artist || '', rr: String(c.rarity || '').slice(0, 12), lg: lgOf(c.legalities), la: Math.floor(Date.now() / 864e5) }); }      // ef : prix foil (exemplaires foil sans édition) ; lg, la : formats où elle est légale, jour de la lecture (filtre « Format »)
+    for (const c of j.data || []) { const m = metaOf(c); out.set(ownKey(c.name), { cm: m.cmc, mc: m.mc, tl: m.tl, cl: m.cl, ci: (c.color_identity || []).join(''), cd: canBeCommander(c), im: imgOf(c) || '', ...mkPx(c.prices), ar: c.artist || '', rr: String(c.rarity || '').slice(0, 12), lg: lgOf(c.legalities), la: Math.floor(Date.now() / 864e5) }); }      // ef : prix foil (exemplaires foil sans édition) ; lg, la : formats où elle est légale, jour de la lecture (filtre « Format »)
     for (const [k] of chunk) if (!out.has(k)) out.set(k, null);
     if (onProgress) onProgress(Math.min(uniq.length, i + 75), uniq.length);
   }
@@ -879,7 +879,7 @@ function pxParse(txt) {
   const map = new Map();
   for (let i = 1; i < lines.length; i++) {
     const l = lines[i]; if (!l) continue; const a = l.split('\t'); if (a.length < 3) continue;
-    const k = ownKey(a[0]), e = Number(a[1]) || 0, u = Number(a[2]) || 0, cur = map.get(k);
+    const k = ownKey(a[0]), e = Number(a[mkUs() ? 2 : 1]) || 0, u = Number(a[mkUs() ? 1 : 2]) || 0, cur = map.get(k);      // e : prix du marché choisi (colonne $ pour TCGplayer), u : l'autre
     if (!cur) map.set(k, { e, u }); else { if (e && (!cur.e || e < cur.e)) cur.e = e; if (u && (!cur.u || u < cur.u)) cur.u = u; }
   }
   return { at: m[1], map };

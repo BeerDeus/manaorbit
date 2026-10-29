@@ -67,6 +67,7 @@ function setsWhen(d) {
  *  Nom Scryfall tel quel : couper « Commander », « Remastered »… élargirait aux anciennes éditions. '' si l'adresse sort du format attendu. */
 const SETS_CM_RE = /^https:\/\/www\.cardmarket\.com\/(fr|de|es|it|en)\/Magic\/Products\/Search\?searchString=[\w%.!~*'()-]+$/;
 function setsCm(name) {
+  if (mkUs()) return 'https://www.tcgplayer.com/search/magic/product?productLineName=magic&productTypeName=Sealed%20Products&q=' + encodeURIComponent(String(name || '').trim());      // marché TCGplayer : ses produits scellés
   const u = cmUrl(name, userLang()); return SETS_CM_RE.test(u) ? u : '';
 }
 

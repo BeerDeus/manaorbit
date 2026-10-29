@@ -126,8 +126,8 @@ function obSavePaint() {
   else box.innerHTML = `${googleBtnHtml(`data-ob="google"${k === 'wait' ? ' disabled aria-busy="true"' : ''}`, true)}
     <button class="link-btn" type="button" data-ob="account">${T('Autres options (e-mail)')}</button>
     <div class="auth-msg" id="obMsg" role="alert" hidden></div>
-    ${later}
-    <button class="link-btn ob-ct" type="button" data-ob="ct">${T('Tu as un token CardTrader ?')}</button>`;
+    ${later}${mkUs() ? '' : `
+    <button class="link-btn ob-ct" type="button" data-ob="ct">${T('Tu as un token CardTrader ?')}</button>`}`;
   if (had && OB.i === 2) { const f = $('button:not([disabled])', box); if (f) f.focus(); }
 }
 /** « Continuer avec Google » : la fenêtre de Google (ou le compte du téléphone dans l'appli), comme la feuille Compte ; connecté → l'appli. */

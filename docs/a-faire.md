@@ -12,6 +12,14 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Point du 29 octobre : prix TCGplayer pour les États-Unis (à lire en premier)
+**Fait (Claude)** : marché des prix Cardmarket (Europe, €) ou TCGplayer (États-Unis et autres pays, $), deviné au premier lancement, réglable dans Compte et réglages › Prix › Marché des prix (README › « Marché des prix »). En Europe, rien ne change. Côté TCGplayer : prix Scryfall en dollars, textes réécrits dans les 6 langues, liens TCGplayer et Mass Entry, pas de CardTrader, alertes, échange en direct, partages et widget en dollars. Aucune règle Firestore ni variable Hostinger. APK **1.1.0 (versionCode 16)** pour le widget en dollars (`docs/android.md`).
+
+**Propriétaire**
+- [ ] Production : promouvoir la 1.0.14 marche aussi (le site fait tout, seul le widget écrit « € » devant des dollars côté TCGplayer) ; mieux : `.aab` de la **1.1.0**, test interne, puis production. `APK_LATEST=16` seulement une fois la 1.1.0 en ligne.
+- [ ] Pays/régions de la production : les États-Unis peuvent être cochés.
+- [ ] Facultatif : programme d'affiliation TCGplayer (lien à ajouter dans `tcgUrl`, `src/core.js`), comme le code de parrainage CardTrader.
+
 ## Point du 28 octobre : audit avant la production (à lire en premier)
 **Calendrier** : test fermé à 13 jours le 28 octobre (12 testeurs) → 14 jours le 29 → demande d'accès à la production le 29 ou le 30 (réponses : `docs/store/production.md`) → réponse de Google sous 7 jours (31 octobre → 6 novembre) ; flyers et cartes de visite livrés le **4 novembre** ; Halloween ouvert jusqu'au 8 novembre.
 

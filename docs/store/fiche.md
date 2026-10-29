@@ -139,10 +139,10 @@ Mana Orbit est un contenu de fan non officiel autorisé par la Fan Content Polic
 Mana Orbit n'est lié à aucun des sites et applis cités. Données et images des cartes : Scryfall.
 ```
 
-### Anglais (en-US, langue par défaut) (3513 caractères)
+### Anglais (en-US, langue par défaut) (3568 caractères)
 
 ```
-Scan your Magic cards in 11 languages, track your collection's value at Cardmarket prices, organize it, complete your master sets, trade your spares with a link or a QR code, play your Commander games and find the decks you can already build. Free, no account required.
+Scan your Magic cards in 11 languages, track your collection's value at TCGplayer prices (Cardmarket in Europe), organize it, complete your master sets, trade your spares with a link or a QR code, play your Commander games and find the decks you can already build. Free, no account required.
 
 THE CARD SCANNER
 • Frame the card and tap, or let auto scan add each card you place in front of the camera.
@@ -171,7 +171,7 @@ YOUR COMMANDER GAMES
 YOUR DECKS
 • The Commander decks your collection almost builds (EDHREC), with the missing cards and their price; filter by colors, budget, theme and bracket.
 • Build a deck or paste a decklist: images, mana curve, sample hand, value. Plus decks published by players.
-• Price a list: the Cardmarket total, minus the cards you own. With your CardTrader token: the cheapest cart, shipping included.
+• Price a list: the TCGplayer total (Cardmarket in Europe), minus the cards you own. In Europe, with your CardTrader token: the cheapest cart, shipping included.
 
 MYSTERY CARD AND BADGES
 • Every day, a card to guess as it reveals itself, with leaderboards.
@@ -420,7 +420,7 @@ Pour la première version publique (1.0.6 promue du test fermé, ou la suivante)
 Mana Orbit sort en version publique ! Scan des cartes en 11 langues (japonais, coréen et chinois lus sur le téléphone), cote de ta collection au prix Cardmarket, rangement et masterset, liste d'échange en un lien ou un QR code, échange en direct, parties de Commander, decks à monter, Carte mystère chaque jour, badges, alertes de prix et widgets. Merci aux testeurs pour leurs retours !
 </fr-FR>
 <en-US>
-Mana Orbit is now public! Card scanning in 11 languages (Japanese, Korean and Chinese read on your phone), your collection's value at Cardmarket prices, storage and master sets, a trade list by link or QR code, live trades, Commander games, decks to build, a daily Mystery card, badges, price alerts and widgets. Thanks to our testers for their feedback!
+Mana Orbit is now public! Card scanning in 11 languages (Japanese, Korean and Chinese read on your phone), your collection's value at TCGplayer or Cardmarket prices, storage and master sets, a trade list by link or QR code, live trades, Commander games, decks to build, a daily Mystery card, badges, price alerts and widgets. Thanks to our testers for their feedback!
 </en-US>
 <de-DE>
 Mana Orbit ist jetzt öffentlich! Kartenscan in 11 Sprachen (Japanisch, Koreanisch und Chinesisch direkt auf dem Handy gelesen), Wert deiner Sammlung zu Cardmarket-Preisen, Aufbewahrung und Master-Sets, Tauschliste per Link oder QR-Code, Live-Tausch, Commander-Partien, baubare Decks, jeden Tag eine Mysterykarte, Abzeichen, Preisalarme und Widgets. Danke an die Tester für ihr Feedback!

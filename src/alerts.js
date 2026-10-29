@@ -12,7 +12,8 @@
    le mode part avec le PUT (dm) et le jeton Firebase (x-firebase-token : le serveur garde l'empreinte du compte, jamais l'UID) ; MP impossible : le serveur notifie
    à la place et le dit (GET : dmErr), affiché dans la feuille. Notifications impossibles sur l'appareil (refusées, iPhone hors écran d'accueil) mais Discord lié :
    alertes en MP seulement, sans abonnement, avec une clé d'appareil tirée au sort (AC.dev). */
-const AL_KEY = 'deckdeal:alert:v1', AL_THRS = [20, 30, 40, 50], AL_RESYNC = 12 * 3600e3, AL_ROWS = 150;
+const AL_KEY = 'deckdeal:alert:v1' + mkSfx(),      // marché TCGplayer : ses propres cartes suivies et prix cibles (en dollars)
+  AL_THRS = [20, 30, 40, 50], AL_RESYNC = 12 * 3600e3, AL_ROWS = 150;
 const AC = { on: false, thr: 30, deck: true, watch: {}, mute: {}, id: '', at: 0, sig: '', t: 0, busy: false, err: '', info: null, dm: '', dev: '', nosub: false };
 
 function alRead() {
@@ -94,7 +95,7 @@ async function alSync(force) {
       AC.err = 'push'; return;
     }
     let hdr; if (dm) { try { const t = await D.user.getIdToken(); if (t) hdr = { 'x-firebase-token': t }; } catch (e) { /* sans jeton : le serveur ignore le mode */ } }
-    const j = await ct('alerts', { method: 'PUT', hdr, body: { ...(sub ? { sub } : { dev: alDev() }), thr: AC.thr, lang: I18N.lang, ...(dm ? { dm } : {}), items: items.map(({ h, ...x }) => x) } }), prev = AC.id;
+    const j = await ct('alerts', { method: 'PUT', hdr, body: { ...(sub ? { sub } : { dev: alDev() }), thr: AC.thr, lang: I18N.lang, ...(mkUs() ? { mk: 'us' } : {}), ...(dm ? { dm } : {}), items: items.map(({ h, ...x }) => x) } }), prev = AC.id;
     if (prev && j.id && j.id !== prev) ct('alerts', { method: 'DELETE', params: { id: prev } }).catch(() => {});   // nouvel abonnement ou jeton FCM renouvelé (ou passage MP ↔ notification) : l'ancien ne doit plus écrire
     AC.id = items.length ? (j.id || AC.id) : ''; AC.nosub = !sub; AC.sig = sig; AC.at = Date.now(); AC.err = ''; AC.info = { watching: j.watching | 0, dm: j.dm || '' }; alWrite();
   } catch (e) { AC.err = e && e.code === 'auth' ? 'auth' : !sub && e && e.status === 400 ? 'push' : 'net'; }
