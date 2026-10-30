@@ -22,8 +22,8 @@ if (typeof COLL !== 'undefined' && COLL.fs && COLL.fs.coll) {
 /** Ligne g de la carte k, telle que les filtres la voient (core.js › fltLineOk) : langue, foil, prix d'un exemplaire (édition et foil compris, comme la valeur), rareté
  *  (celle de l'édition de la ligne, sinon celle que Scryfall donne pour le nom), emplacement, extension. */
 function srchLine(k, g) {
-  const e = lineEd(g), x = e && COLL.ed[e], m = COLL.meta[k];
-  return { l: lineLang(g), f: lineFoil(g) ? 1 : 0, u: collLineEu(k, g), r: (x && x.r) || (m && m.rr) || '', p: plcOf(g), s: edSet(e) };
+  const e = lineEd(g), x = e && COLL.ed[e], m = COLL.meta[k], se = e || COLL.solo[k] || '', sx = se && COLL.ed[se];      // style : celui de l'édition, ou de l'unique impression de la carte (collSolo)
+  return { l: lineLang(g), f: lineFoil(g) ? 1 : 0, u: collLineEu(k, g), r: (x && x.r) || (m && m.rr) || '', y: sx && !sx.none ? sx.st : null, p: plcOf(g), s: edSet(e) };
 }
 /** Empreinte des decks (Mes decks et decks montés) : la liste « dans un deck » est refaite quand elle change. */
 const srchDeckSig = () => allDecks().map(d => d.id + ':' + (d.updatedAt || 0) + ':' + String(d.text || '').length).join() + '#' + (typeof engSig === 'function' ? engSig() : '');
@@ -35,7 +35,7 @@ function srchDeckKeys() {
 }
 const srchTradeSig = () => [TR.keep, TR.kept.size, TR.u, srchDeckSig()].join('|');
 /** Clé des filtres avancés pour le cache de la liste (collListOf) ; '' sans filtre avancé. Ajout récent : la minute courante (la liste suit l'heure). */
-const srchKey = f => (fltAdvCount(f) ? [[...f.lang].sort().join(), f.foil, [...f.rar].sort().join(), f.px, f.place, f.dup ? 1 : 0, f.dk, f.tr ? 1 : 0, f.add, f.dk ? srchDeckSig() : '', f.tr ? srchTradeSig() : '', f.add ? Math.floor(Date.now() / 60000) : '', f.fmt, f.fmt ? SRCH.lgV : ''].join('|') : '');      // lgV : formats lus depuis
+const srchKey = f => (fltAdvCount(f) ? [[...f.lang].sort().join(), f.foil, [...f.rar].sort().join(), [...f.sty].sort().join(), f.px, f.place, f.dup ? 1 : 0, f.dk, f.tr ? 1 : 0, f.add, f.dk ? srchDeckSig() : '', f.tr ? srchTradeSig() : '', f.add ? Math.floor(Date.now() / 60000) : '', f.fmt, f.fmt ? SRCH.lgV : ''].join('|') : '');      // lgV : formats lus depuis
 /** Prépare les cartes de la liste v pour les filtres avancés de f (rien sans filtre avancé) : lignes une fois par version, decks et échange quand ils changent. */
 function srchPrep(v, f) {
   if (!f || !fltAdvCount(f)) return;
@@ -43,12 +43,13 @@ function srchPrep(v, f) {
   if (f.dk) { const s = srchDeckSig(); if (v.srchD !== s) { const ks = srchDeckKeys(); for (const it of v.all) it.sk = ks.has(it.k) ? 1 : 0; v.srchD = s; } }
   if (f.tr) { const s = srchTradeSig(); if (v.srchT !== s) { const ks = new Set(trSpare(COLL.map).map(x => x.k)); for (const it of v.all) it.st = ks.has(it.k) ? 1 : 0; v.srchT = s; } }
   if (f.rar && f.rar.size) srchRarSoon();
+  if (f.sty && f.sty.size && typeof edRefresh === 'function') edRefresh();      // éditions lues avant le filtre « Style » (sans st) : relues
   if (f.fmt) { for (const it of v.all) it.lg = srchLgOf(it.k); srchLgSoon(); }
 }
 /** La ligne g de la carte k s'affiche-t-elle (filtres de ligne de la collection ; emplacement et extension : plcIn, collSetIn) ? */
 function srchLineIn(k, g) {
   const f = COLL.f; if (!fltLineOn(f)) return true;
-  return fltLineOk(srchLine(k, g), { lang: f.lang, foil: f.foil, rar: f.rar, px: f.px });
+  return fltLineOk(srchLine(k, g), { lang: f.lang, foil: f.foil, rar: f.rar, sty: f.sty, px: f.px });
 }
 
 /* ── Rareté : lue sur Scryfall seulement quand on filtre dessus ───────────────────────────────── */
@@ -122,7 +123,7 @@ function srchLangs() {
   const l = [...CARD_LANG_LIST.filter(x => s.has(x)), ...[...s].filter(x => x && !CARD_LANG_LIST.includes(x)).sort(), ...(s.has('') ? [''] : [])];
   SRCH.langs = { map: COLL.map, l }; return l;
 }
-const srchGroupsSig = () => [srchLangs().join(), plcList().map(x => x.id + ':' + x.n).join(), SRCH.rar ? SRCH.rar.done + '/' + SRCH.rar.total : '', SRCH.rarErr, SRCH.lg ? SRCH.lg.done + '/' + SRCH.lg.total : '', SRCH.lgErr, I18N.lang].join('|');
+const srchGroupsSig = () => [COLL.edRun ? 1 : 0, srchLangs().join(), plcList().map(x => x.id + ':' + x.n).join(), SRCH.rar ? SRCH.rar.done + '/' + SRCH.rar.total : '', SRCH.rarErr, SRCH.lg ? SRCH.lg.done + '/' + SRCH.lg.total : '', SRCH.lgErr, I18N.lang].join('|');
 const srchOpt = (k, v, html, label) => `<button type="button" class="fopt" data-fk="${k}" data-fv="${esc(v)}" aria-pressed="false"${label ? ` aria-label="${esc(label)}"` : ''}>${html}</button>`;
 const srchGrp = (label, body, extra) => `<div class="fgrp"><span class="fgl">${esc(label)}</span><div class="fopts" role="group" aria-label="${esc(label)}">${body}</div>${extra || ''}</div>`;
 /** Groupes repliés (deckdeal:srch:fold) : { id: 1 }. */
@@ -138,6 +139,7 @@ function srchGroupsHtml(f) {
   const lh = SRCH.lg ? `<p class="hint srch-rh" role="status">${esc(T('Lecture des formats… {a} / {b}', { a: nf0(SRCH.lg.done), b: nf0(SRCH.lg.total) }))}</p>`
     : SRCH.lgErr ? `<p class="hint srch-rh" role="status">${esc(SRCH.lgErr === 'off' ? T('Hors ligne : formats à lire au retour du réseau.') : T('Scryfall injoignable : formats non lus.'))} <button type="button" class="link-btn link-inline" data-srch="lg">${T('Réessayer')}</button></p>` : '';
   return srchGrp(T('Rareté'), SRCH_RAR.map(([r, l]) => srchOpt('rar', r, `<i class="setv-r ${r}" aria-hidden="true"></i>${esc(T(l))}`)).join(''), rh)
+    + srchGrp(T('Style'), STYLES.map(([v, l]) => srchOpt('sty', v, esc(T(l)))).join(''), f.sty && f.sty.size ? `<p class="hint srch-rh" role="status">${esc(COLL.edRun ? T('Lecture des éditions…') : T('Le style dépend de l\'impression : les cartes sans édition précisée ne sont pas comptées.'))}</p>` : '')
     + srchGrp(T('Format'), LG_FMT.map(([c, , n]) => srchOpt('fmt', c, esc(n), T('Légal en {f}', { f: n }))).join(''), lh)
     + srchGrp(T('Langue'), [...langs, ...keep].map(l => srchOpt('lang', l, l ? `${flag(l)}<span>${esc(l.toUpperCase())}</span>` : esc(T('Non précisée')), srchLangName(l))).join(''))
     + srchGrp(T('Finition'), srchOpt('foil', 'f', `<span class="srch-foil" aria-hidden="true">✦</span>${esc(T('Foil'))}`) + srchOpt('foil', 'n', esc(T('Non foil'))))
@@ -158,6 +160,7 @@ function srchChips(f, name) {
   if (f.cmdr) add('cmdr', '', f.cmdr === 'played' ? T('Joués en commandant') : T('Peuvent être commandant'));
   if (f.set) { const n = f.set === '-' ? T('Sans édition') : (typeof setName === 'function' && setName(f.set)) || f.set.toUpperCase(); add('set', '', n, `${f.set !== '-' && typeof setIcHtml === 'function' ? setIcHtml(f.set) : ''}${esc(n)}`); }
   for (const [r, l] of SRCH_RAR.slice().reverse()) if (f.rar.has(r)) add('rar', r, T(l), `<i class="setv-r ${r}" aria-hidden="true"></i>${esc(T(l))}`);
+  for (const [v, l] of STYLES) if (f.sty.has(v)) add('sty', v, T(l));
   if (f.fmt) add('fmt', '', T('Légal en {f}', { f: (LG_FMT.find(x => x[0] === f.fmt) || ['', '', f.fmt])[2] }));
   for (const l of f.lang) add('lang', l, l ? l.toUpperCase() : T('Langue non précisée'), l ? `${flag(l)}${esc(l.toUpperCase())}` : esc(T('Langue non précisée')));
   if (f.foil) add('foil', '', f.foil === 'f' ? T('Foil') : T('Non foil'));
@@ -193,6 +196,7 @@ function srchSer(f) {
   if (f.lang.size) o.la = arr(f.lang);
   if (f.foil) o.fo = f.foil;
   if (f.rar.size) o.ra = arr(f.rar);
+  if (f.sty.size) o.sy = arr(f.sty);
   if (f.px) o.px = f.px;
   if (f.place) o.p = f.place;
   if (f.dup) o.du = 1;
@@ -215,6 +219,7 @@ function srchLoad(f, o) {
   for (const l of Array.isArray(o.la) ? o.la.slice(0, 12) : []) if (typeof l === 'string' && /^[a-zA-Z-]{0,6}$/.test(l)) f.lang.add(l);
   if (o.fo === 'f' || o.fo === 'n') f.foil = o.fo;
   for (const r of Array.isArray(o.ra) ? o.ra : []) if (SRCH_RAR.some(x => x[0] === r)) f.rar.add(r);
+  for (const v of Array.isArray(o.sy) ? o.sy : []) if (STYLES.some(x => x[0] === v)) f.sty.add(v);
   if (FLT_PX[o.px]) f.px = o.px;
   if (o.p === '-' || (typeof o.p === 'string' && COLL.places[o.p])) f.place = o.p;
   if (o.du) f.dup = true;

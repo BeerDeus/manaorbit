@@ -1488,9 +1488,19 @@ const itemColors = i => (i.s === 'basic' ? BASIC_COLOR[String(i.k).replace(/^sno
 const itemType = i => (i.s === 'basic' ? 'Terrains' : typeBucket(i.tl));
 const hasMeta = i => i.s === 'basic' || i.tl != null || i.cm != null;
 /* Filtres avancés de la collection (search.js) : ils ne valent que pour les cartes préparées par srchPrep (i.sl : une entrée par ligne
-   { l: langue, f: 1 foil, u: prix d'un exemplaire en centimes ou null, r: rareté, p: emplacement ('' non rangé), s: extension ('' sans édition) } ;
+   { l: langue, f: 1 foil, u: prix d'un exemplaire en centimes ou null, r: rareté, y: styles de l'impression (styOf, null inconnus), p: emplacement ('' non rangé), s: extension ('' sans édition) } ;
    i.sk : 1 dans un deck ; i.st : 1 à l'échange ; i.q, i.d : exemplaires, date d'ajout en secondes ; i.lg : formats où elle est légale, LG_FMT). Ailleurs (deck, échange, masterset) : ignorés. */
-const FLT_ADV = ['lang', 'foil', 'rar', 'px', 'place', 'dup', 'dk', 'tr', 'add', 'fmt'];
+const FLT_ADV = ['lang', 'foil', 'rar', 'sty', 'px', 'place', 'dup', 'dk', 'tr', 'add', 'fmt'];
+/** Styles d'une impression (filtre « Style » de la collection et du masterset) : plein art, sans bordure, illustration étendue, vitrine, sans texte. */
+const STYLES = [['fa', 'Plein art'], ['bl', 'Sans bordure'], ['ex', 'Illustration étendue'], ['sc', 'Vitrine'], ['tl', 'Sans texte']];
+/** Carte Scryfall → ses styles, « fa,bl » ('' : cadre classique) : full_art, border_color « borderless », frame_effects « extendedart » / « showcase », textless. */
+function styOf(c) {
+  if (!c || typeof c !== 'object') return '';
+  const fe = Array.isArray(c.frame_effects) ? c.frame_effects : [];
+  return [c.full_art && 'fa', c.border_color === 'borderless' && 'bl', fe.includes('extendedart') && 'ex', fe.includes('showcase') && 'sc', c.textless && 'tl'].filter(Boolean).join(',');
+}
+/** Une impression de styles y (« fa,bl », '' classique) passe-t-elle le filtre sty (Set, un style au moins) ? Styles inconnus (null, undefined : édition pas encore lue ou absente) : non. */
+const styIn = (y, sty) => typeof y === 'string' && [...sty].some(s => y.split(',').includes(s));
 /** Formats du filtre « Format » : [lettre gardée dans COLL.meta[k].lg, clé Scryfall (legalities), nom]. Restreinte (Vintage) : jouable, donc légale. */
 const LG_FMT = [['s', 'standard', 'Standard'], ['p', 'pioneer', 'Pioneer'], ['m', 'modern', 'Modern'], ['l', 'legacy', 'Legacy'], ['v', 'vintage', 'Vintage'], ['c', 'commander', 'Commander'], ['a', 'pauper', 'Pauper']];
 /** Formats où une carte est jouable (legalities de Scryfall) : « smlvc ». */
@@ -1501,7 +1511,7 @@ const fltOn = v => (v instanceof Set ? v.size > 0 : !!v);
 /** Nombre de filtres avancés actifs (une langue ou plusieurs : 1). */
 const fltAdvCount = f => (f ? FLT_ADV.reduce((a, k) => a + (fltOn(f[k]) ? 1 : 0), 0) : 0);
 /** Un filtre de ligne (langue, finition, rareté, prix) est-il actif ? L'emplacement et l'extension se jugent alors sur la même ligne. */
-const fltLineOn = f => !!f && (fltOn(f.lang) || !!f.foil || fltOn(f.rar) || !!f.px);
+const fltLineOn = f => !!f && (fltOn(f.lang) || !!f.foil || fltOn(f.rar) || fltOn(f.sty) || !!f.px);
 /** Rareté telle que filtrée (« special », « bonus » : avec les mythiques, comme le masterset). */
 const rarNorm = r => (r === 'special' || r === 'bonus' ? 'mythic' : r || '');
 /** La ligne x (entrée de i.sl) passe-t-elle les filtres de ligne de f ? Emplacement ('-' : non rangées) et extension ('-' : sans édition) compris. */
@@ -1509,6 +1519,7 @@ function fltLineOk(x, f) {
   if (fltOn(f.lang) && !f.lang.has(x.l || '')) return false;
   if (f.foil && (f.foil === 'f') !== !!x.f) return false;
   if (fltOn(f.rar) && !f.rar.has(rarNorm(x.r))) return false;
+  if (fltOn(f.sty) && !styIn(x.y, f.sty)) return false;      // style de l'impression de la ligne (y) ; ligne sans édition connue : écartée
   if (f.px) { const b = FLT_PX[f.px]; if (b && !(x.u != null && x.u >= b[0] && x.u < b[1])) return false; }      // prix inconnu : écartée
   if (f.place && (f.place === '-' ? !!x.p : x.p !== f.place)) return false;
   if (f.set && (f.set === '-' ? !!x.s : x.s !== f.set)) return false;
@@ -2592,4 +2603,5 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 // Impression exacte des cartes partagées (classeur : une pochette par langue et édition) : exportés à part
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { langEdLines, edShare, edUnshare });
 // Filtres avancés de la collection (search.js) : exportés à part
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { STYLES, styOf, styIn });
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { FLT_ADV, FLT_PX, LG_FMT, lgOf, fltAdvCount, fltLineOn, fltLineOk, fltAdvOk, rarNorm });

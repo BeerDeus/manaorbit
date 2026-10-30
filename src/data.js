@@ -319,7 +319,7 @@ async function scryPrintsIn(n, sl, signal, prio = true, extra = '', maxPages = 0
       const urls = facesOf(c), im = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris) || {}, id = c.set + '/' + c.collector_number;
       if (!urls.length || seen.has(id)) continue; seen.add(id);
       const fe = c.frame_effects || [], fx = [c.full_art ? T('plein art') : '', c.border_color === 'borderless' ? T('sans bordure') : '', fe.includes('extendedart') ? T('étendue') : '', fe.includes('showcase') ? 'showcase' : '', c.promo ? 'promo' : ''].filter(Boolean);
-      out.push({ set: c.set, num: c.collector_number, sn: c.set_name || '', y: String(c.released_at || '').slice(0, 4), th: im.small || urls[0], urls, fx, l: sl === 'any' ? c.lang || 'en' : sl, ...eurOf(c), r: c.rarity || '' });
+      out.push({ set: c.set, num: c.collector_number, sn: c.set_name || '', y: String(c.released_at || '').slice(0, 4), th: im.small || urls[0], urls, fx, st: styOf(c), l: sl === 'any' ? c.lang || 'en' : sl, ...eurOf(c), r: c.rarity || '' });
     }
     url = j.has_more ? j.next_page : '';
   }
@@ -348,7 +348,7 @@ async function scryEditions(eds, signal, onProgress) {
     const chunk = uniq.slice(i, i + 75);
     const body = JSON.stringify({ identifiers: chunk.map(e => ({ set: edSet(e), collector_number: edNum(e) })) });
     const j = await httpJson(limScry, 'https://api.scryfall.com/cards/collection', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body }, signal);
-    for (const c of j.data || []) { const e = edKey(c.set, c.collector_number); if (e) out.set(e, { ...eurOf(c), im: imgOf(c) || '', sn: String(c.set_name || '').slice(0, 80), r: c.rarity || '' }); }
+    for (const c of j.data || []) { const e = edKey(c.set, c.collector_number); if (e) out.set(e, { ...eurOf(c), im: imgOf(c) || '', sn: String(c.set_name || '').slice(0, 80), r: c.rarity || '', st: styOf(c) }); }
     for (const e of chunk) if (!out.has(e)) out.set(e, null);
     if (onProgress) onProgress(Math.min(uniq.length, i + 75), uniq.length);
   }
@@ -384,7 +384,7 @@ async function scrySolo(names, signal) {
     let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q) + '&unique=prints&order=name';
     for (let pg = 0; url && pg < 3; pg++) {
       let j; try { j = await httpJson(limScry, url, SCRY_JSON, signal); } catch (e) { if (e.code === '404') break; throw e; }
-      for (const c of j.data || []) { const k = ownKey(c.name); cnt.set(k, (cnt.get(k) || 0) + 1); info.set(k, { set: c.set, num: c.collector_number, ...eurOf(c), im: imgOf(c) || '', sn: String(c.set_name || '').slice(0, 80), r: c.rarity || '' }); }
+      for (const c of j.data || []) { const k = ownKey(c.name); cnt.set(k, (cnt.get(k) || 0) + 1); info.set(k, { set: c.set, num: c.collector_number, ...eurOf(c), im: imgOf(c) || '', sn: String(c.set_name || '').slice(0, 80), r: c.rarity || '', st: styOf(c) }); }
       url = j.has_more ? j.next_page : '';
     }
     for (const [k] of ch) { seen.add(k); if (cnt.get(k) === 1 && edKey(info.get(k).set, info.get(k).num)) found.set(k, info.get(k)); }

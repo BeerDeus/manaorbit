@@ -146,7 +146,7 @@ export async function newPage(browser, world, opts = {}) {
       const ids = (JSON.parse(req.postData() || '{}').identifiers || []), data = [], nf = [];
       for (const i of ids) {
         const ex = i.set && world.eds[i.set + '|' + i.collector_number];
-        if (ex) { data.push({ name: ex.n, set: i.set, set_name: i.set.toUpperCase() + ' Set', collector_number: i.collector_number, rarity: 'rare', prices: { eur: '2.00', eur_foil: '6.00' }, image_uris: { small: `https://cards.scryfall.io/small/front/en/ed-${i.set}-${i.collector_number}.jpg` } }); continue; }      // world.eds
+        if (ex) { data.push({ name: ex.n, set: i.set, set_name: i.set.toUpperCase() + ' Set', collector_number: i.collector_number, rarity: 'rare', prices: { eur: '2.00', eur_foil: '6.00' }, image_uris: { small: `https://cards.scryfall.io/small/front/en/ed-${i.set}-${i.collector_number}.jpg` }, ...(ex.c || {}) }); continue; }      // world.eds (c : autres champs Scryfall, ex. full_art)
         if (i.set) {      // édition précise (code + numéro) : impressions des « Illustrations » (numéros 100, 101…), prix edEur, sinon inconnue
           const n = Number(i.collector_number) - 100, ok = n >= 0 && n < 5 && ED_SETS[n][0] === i.set;
           if (ok) data.push({ set: i.set, set_name: ED_SETS[n][1], collector_number: i.collector_number, rarity: 'rare', prices: { eur: world.edPrice[i.set + '|' + i.collector_number] ?? edEur(n), eur_foil: null }, image_uris: { small: `https://cards.scryfall.io/small/front/en/ed-${i.set}-${i.collector_number}.jpg` } }); else nf.push(i);

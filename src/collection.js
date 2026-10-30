@@ -103,18 +103,19 @@ function collCardVal(k) {
 function collValue() { let v = 0; for (const k in COLL.map) v += collCardVal(k); return v; }
 /** Éditions des lignes de la collection ; stale : seulement celles jamais lues ou lues depuis plus de 2 jours. */
 function collEds(stale) {
-  const out = new Set(), now = Date.now();
-  for (const x of Object.values(COLL.map)) if (x.x) for (const g of Object.keys(x.x)) { const e = lineEd(g); if (e && (!stale || !(now - ((COLL.ed[e] || {}).t || 0) < ED_TTL))) out.add(e); }
+  const out = new Set(), now = Date.now(), old = e => { const x = COLL.ed[e]; return !!x && !x.none && x.st === undefined; };      // lue avant le filtre « Style » : relue une fois, même fraîche
+  for (const x of Object.values(COLL.map)) if (x.x) for (const g of Object.keys(x.x)) { const e = lineEd(g); if (e && (!stale || old(e) || !(now - ((COLL.ed[e] || {}).t || 0) < ED_TTL))) out.add(e); }
+  for (const k in COLL.solo) { const e = COLL.solo[k]; if (e && COLL.map[k] && old(e)) out.add(e); }      // cartes imprimées une seule fois (collSolo) : leur style vaut pour les lignes sans édition
   return [...out];
 }
 /** Garde les infos d'éditions lues (scryEditions, ou une impression des illustrations : { eu, ef, im, sn, r }). */
-function edPut(e, x) { if (!e) return; COLL.ed[e] = x ? { eu: x.eu ?? null, ef: x.ef ?? null, im: x.im || '', sn: x.sn || '', r: x.r || '', t: Date.now() } : { t: Date.now(), none: 1 }; }
+function edPut(e, x) { if (!e) return; COLL.ed[e] = x ? { eu: x.eu ?? null, ef: x.ef ?? null, im: x.im || '', sn: x.sn || '', r: x.r || '', ...(typeof x.st === 'string' ? { st: x.st } : {}), t: Date.now() } : { t: Date.now(), none: 1 }; }      // st : styles de l'impression (core.js › styOf ; absent : lue avant le filtre « Style », relue par collEds)
 /** Lit les éditions à relire (jamais lues, ou de plus de 2 jours ; all : toutes) puis repeint. Silencieux en cas d'échec (le prix de référence reste affiché). */
 async function edRefresh(all, signal) {
   if (COLL.edRun) return COLL.edRun;
   const eds = collEds(!all); if (!eds.length || scryLeft() > 0 || collOffline()) return;
   COLL.edRun = (async () => {
-    try { const got = await scryEditions(eds, signal); for (const [e, x] of got) { edPut(e, x); if (!all && typeof prcOver === 'function') prcOver('', e); } collMetaSave(); collPaintSoon(); paintCollSection(); }      // relecture du jour (all) : les prix du moment, partagés ensuite
+    try { const got = await scryEditions(eds, signal); for (const [e, x] of got) { edPut(e, x); if (!all && typeof prcOver === 'function') prcOver('', e); } if (COLL.view) { COLL.view.srchL = 0; COLL.view.sk = null; } /* lignes des filtres avancés (rareté, style de l'édition) refaites */ collMetaSave(); collPaintSoon(); paintCollSection(); }      // relecture du jour (all) : les prix du moment, partagés ensuite
     catch (e) { /* hors ligne, pause Scryfall : nouvel essai à la prochaine ouverture */ }
     finally { COLL.edRun = null; }
   })();
@@ -152,7 +153,7 @@ function collSetEd(k, g, e, info) {
 /** Infos d'une impression choisie (« Illustrations », ajout par lot) pour son édition : prix, extension, rareté, petite image (anglaise : im ; dans la langue l de la ligne : li). */
 function edInfoOf(p, l) {
   const sl = SCRY_LANG[l] || l;
-  return { eu: p.eu ?? null, ef: p.ef ?? null, sn: p.sn || '', r: p.r || '', ...(!p.l || p.l === 'en' ? { im: p.th } : {}), ...(l && l !== 'en' && p.l === sl ? { li: p.th } : {}) };
+  return { eu: p.eu ?? null, ef: p.ef ?? null, sn: p.sn || '', r: p.r || '', ...(typeof p.st === 'string' ? { st: p.st } : {}), ...(!p.l || p.l === 'en' ? { im: p.th } : {}), ...(l && l !== 'en' && p.l === sl ? { li: p.th } : {}) };
 }
 /** Garde les infos de l'édition e choisie pour la carte k (exemplaires de langue l) : prix, extension, image dans la langue de la ligne. */
 function edRemember(k, l, e, info) {

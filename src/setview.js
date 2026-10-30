@@ -22,7 +22,7 @@ function setvCard(c) {
     im: SETV_IMG_RE.test(iu.normal || '') ? iu.normal : '', df: !c.image_uris && Array.isArray(c.card_faces) && c.card_faces.length > 1,
     sp: c.border_color === 'borderless' || fx.includes('showcase') || fx.includes('extendedart') || (!!c.full_art && !/basic land/i.test(tl)) || !!c.promo,
     s: /basic land/i.test(tl) ? 'basic' : '', cm: Number.isFinite(c.cmc) ? c.cmc : 0, tl: tl.slice(0, 120), mc: String(c.mana_cost || f0.mana_cost || '').slice(0, 60),
-    cl: (c.colors || f0.colors || []).join(''), ...eurOf(c), ...setvFin(c) };
+    cl: (c.colors || f0.colors || []).join(''), st: styOf(c), ...eurOf(c), ...setvFin(c) };      // st : styles (masterset › Style)
 }
 /** Finitions de l'impression (masterset : version foil à côté) : nf false = foil seulement, fo false = pas de foil (etched compte comme foil). */
 function setvFin(c) {
@@ -54,7 +54,7 @@ async function setvSearch(q, signal) {
 async function setvLoad(row, signal) {
   const sl = SCRY_LANG[userLang()] || 'en', key = SETV_KEY + row.code + ':' + sl, fresh = row.d >= 0 ? SETV_FRESH : SETV_OLD;
   const hit = await Cache.get(key, 30 * DAY).catch(() => null);
-  if (hit && Array.isArray(hit.cards) && hit.fin && Date.now() - hit.at < fresh) return hit.cards;      // fin : copie avec les finitions (setvFin) ; plus ancienne, relue (et gardée hors ligne)
+  if (hit && Array.isArray(hit.cards) && hit.fin && hit.sty && Date.now() - hit.at < fresh) return hit.cards;      // fin, sty : copie avec les finitions (setvFin) et les styles (styOf) ; plus ancienne, relue (et gardée hors ligne)
   try {
     if ((typeof navigator !== 'undefined' && navigator.onLine === false) || scryLeft() > 0) throw Object.assign(new Error('pause'), { code: navigator.onLine === false ? 'network' : 'rate' });
     const cards = (await setvSearch('e:' + row.code, signal)).map(setvCard);
@@ -62,7 +62,7 @@ async function setvLoad(row, signal) {
       const loc = setvLocal(await setvSearch('e:' + row.code + ' lang:' + sl, signal).catch(e => { if (e.name === 'AbortError') throw e; return []; }), sl);
       for (const x of cards) { const l = loc.get(x.num); if (l) { if (l.dn && l.dn !== x.n) x.dn = l.dn; if (l.iml) { x.iml = l.iml; x.il = l.il; } } }
     }
-    Cache.set(key, { at: Date.now(), cards, fin: 1 });
+    Cache.set(key, { at: Date.now(), cards, fin: 1, sty: 1 });
     return cards;
   } catch (e) {
     if (e.name === 'AbortError') throw e;

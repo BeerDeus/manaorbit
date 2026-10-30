@@ -55,7 +55,7 @@ assert.deepEqual(await cardKeys(), ['craterhoof behemoth', 'edgar markov', 'llan
 await p.click('.coll .fbtn'); await p.waitForSelector('.coll .fpanel:not([hidden]) .fmore');
 assert.equal(await p.$eval('.coll .fmore', b => b.getAttribute('aria-expanded')), 'false'); assert.ok(await p.$eval('.coll .fmore-box', b => b.hidden), 'groupes avancés repliés par défaut');
 await p.click('.coll .fmore'); await p.waitForSelector('.coll .fmore-box:not([hidden]) [data-fk]');
-assert.deepEqual(await p.$$eval('.coll .fmore-box .fgl', l => l.map(x => x.textContent)), ['Rareté', 'Format', 'Langue', 'Finition', 'Prix à l\'unité', 'Exemplaires', 'Ajout'], 'pas d\'emplacement tant qu\'aucun n\'existe');
+assert.deepEqual(await p.$$eval('.coll .fmore-box .fgl', l => l.map(x => x.textContent)), ['Rareté', 'Style', 'Format', 'Langue', 'Finition', 'Prix à l\'unité', 'Exemplaires', 'Ajout'], 'pas d\'emplacement tant qu\'aucun n\'existe');
 assert.deepEqual(await p.$$eval('.coll .fmore-box [data-fk="lang"]', b => b.map(x => x.dataset.fv)), ['fr', 'en', 'de', 'it'], 'langues présentes, dans l\'ordre de la puce langue');
 assert.equal(world.scry.length, scry0, 'aucune lecture Scryfall à l\'ouverture du panneau');
 ok('« Plus de filtres » : groupes repliés, langues présentes');

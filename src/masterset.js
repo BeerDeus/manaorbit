@@ -22,7 +22,7 @@
 const MS_KEY = 'deckdeal:ms:v1', MS_COLS = [3, 4, 5, 6, 8], MS_COLS_F = [1, 2, 3, 4], MS_SHOWS = [['all', 'Toutes'], ['own', 'Possédées'], ['miss', 'Manquantes']], MS_KEEP = 6;
 /** Options du masterset : foil (version foil aussi), basic (terrains de base), vars (variantes), need (exemplaires par carte : 1 ou 4), lang ('' : toutes les langues). */
 const MS_DEF = { foil: false, basic: true, vars: true, need: 1, lang: '' }, MS_NEEDS = [1, 4];
-const MS = { on: false, set: '', cols: 4, colsF: 2, show: 'all', rar: new Set(), data: {}, err: {}, load: '', ctrl: null, idx: null, view: null,
+const MS = { on: false, set: '', cols: 4, colsF: 2, show: 'all', rar: new Set(), sty: new Set(), data: {}, err: {}, load: '', ctrl: null, idx: null, view: null,
   o: { ...MS_DEF }, u: 0, who: '', doc: { uid: '', unsub: null, pushT: 0 } };      // colsF : paires par ligne (version foil aussi) ; u : date des options (la plus récente l'emporte)
 /** Options lues (appareil, compte) → valeurs sûres ; le reste prend la valeur par défaut. */
 function msClean(o) {
@@ -173,6 +173,7 @@ function msBarPaint(el, none) {
 function msFilter(code, list) {
   let l = filterItems(list, { ...COLL.f, cmdr: '', set: '' });
   if (MS.rar.size) l = l.filter(x => MS.rar.has(x.r === 'special' || x.r === 'bonus' ? 'mythic' : x.r));
+  if (MS.sty.size) l = l.filter(x => styIn(x.st, MS.sty));      // style de l'impression (plein art, sans bordure…)
   if (MS.show !== 'all') l = l.filter(x => !msDone(code, x) === (MS.show === 'miss'));
   return l;
 }
@@ -243,13 +244,14 @@ function msHtml() {
     return head + `<div class="dv-empty ms-onlyv"><b>${s.vars.length ? T('Cette extension n\'a que des variantes') : T('Aucune carte comptée dans cette extension')}</b><p>${s.vars.length ? T('Promos, versions spéciales… : allume « Variantes » dans les options du masterset pour les voir.') : T('Change les options du masterset, ou choisis une autre édition.')}</p>
       <button class="btn ghost" type="button" data-act="msopt">${T('Options du masterset')}</button></div>`;
   }
-  const pb = msProg(code, s.list), shown = msFilter(code, s.list), act = filterActive(COLL.f) || MS.rar.size || MS.show !== 'all';      // shown : cartes en vue (souhaiter, chercher, ⚠)
+  const pb = msProg(code, s.list), shown = msFilter(code, s.list), act = filterActive(COLL.f) || MS.rar.size || MS.sty.size || MS.show !== 'all';      // shown : cartes en vue (souhaiter, chercher, ⚠)
   MS.view = { code, shown };
   const val = pb.miss ? T('Il te manque ≈ {a} · l\'édition complète ≈ {b}', { a: fmt(pb.miss, mkCur()), b: fmt(pb.all, mkCur()) }) : pb.n && pb.own === pb.n ? (MS.o.vars && s.vars.length ? T('Masterset complet !') : T('Base complète !')) : '';
   const ign = COLL.f.cmdr || COLL.f.set ? `<p class="hint">${T('Les filtres Commander et Extension ne s\'appliquent pas au masterset.')}</p>` : '';
   const ctl = `<div class="setv-chips ms-ctl" role="group" aria-label="${esc(T('Affichage du masterset'))}">
       ${MS_SHOWS.map(([v, l]) => `<button type="button" class="fopt" data-act="msshow" data-v="${v}" aria-pressed="${MS.show === v}">${T(l)}</button>`).join('')}
-      ${SETV_RAR.map(([r, l]) => `<button type="button" class="fopt" data-act="msrar" data-r="${r}" aria-pressed="${MS.rar.has(r)}"><i class="setv-r ${r}" aria-hidden="true"></i>${T(l)}</button>`).join('')}</div>`;
+      ${SETV_RAR.map(([r, l]) => `<button type="button" class="fopt" data-act="msrar" data-r="${r}" aria-pressed="${MS.rar.has(r)}"><i class="setv-r ${r}" aria-hidden="true"></i>${T(l)}</button>`).join('')}
+      ${STYLES.filter(([v]) => MS.sty.has(v) || s.list.some(x => styIn(x.st, new Set([v])))).map(([v, l]) => `<button type="button" class="fopt" data-act="mssty" data-v="${v}" aria-pressed="${MS.sty.has(v)}">${T(l)}</button>`).join('')}</div>`;      // styles présents dans les cartes du masterset (variantes comprises si les options les gardent), ou déjà choisis
   const wish = new Set(shown.filter(x => msWishable(code, x)).map(x => x.k)).size;      // une illustration par carte (comme msWishSheet)
   const buy = msBuyList(code, shown).length, ct = typeof priceSrc === 'function' && priceSrc() === 'ct';
   const warnN = shown.reduce((a, x) => a + msFins(x).filter(f => msWarnOf(code, x, f)).length, 0);
@@ -486,6 +488,7 @@ function msClick(e) {
   if (act === 'msopt') { haptic('tap'); msOptSheet(); return true; }
   if (!b.closest('.coll-main') || !msActive()) return false;
   if (act === 'msshow') { MS.show = b.dataset.v; msSave(); haptic('tap'); collPaintBody(true); return true; }
+  if (act === 'mssty') { const v = b.dataset.v; if (MS.sty.has(v)) MS.sty.delete(v); else MS.sty.add(v); haptic('tap'); collPaintBody(true); return true; }
   if (act === 'msrar') { const r = b.dataset.r; if (MS.rar.has(r)) MS.rar.delete(r); else MS.rar.add(r); haptic('tap'); collPaintBody(true); return true; }
   if (act === 'msretry') { delete MS.err[msCur()]; collPaintBody(true); return true; }
   if (act === 'mswish') { haptic('tap'); msWishSheet(); return true; }
