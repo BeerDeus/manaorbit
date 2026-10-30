@@ -305,13 +305,40 @@ export function priceArchidekt(decks, pending, cmds, price) {
   const kinds = {}; for (const d of decks) if (d.src === 'archidekt') kinds[d.k || 'ancien'] = (kinds[d.k || 'ancien'] || 0) + 1;
   return `decks Archidekt (prix Scryfall) : ${Object.entries(kinds).map(([k, n]) => k + ' ' + n).join(', ')}${swapped ? ` · ${swapped} Budget / Premium inversés` : ''}`;
 }
-/** Commandants cEDH : les plus joués en tournoi sur 6 mois (EDHTop16, au moins CEDH_MIN participations), retrouvés dans la liste (paire comprise). [] si EDHTop16 ne répond pas. */
-async function cedhCommanders(all) {
+/** EDHTop16 n'accepte plus que des requêtes « persistées » depuis le 19 octobre 2026 (« Only persisted queries are allowed in production ») :
+ *  POST api/graphql { variables, extensions: { 'pastoria-id': <identifiant> } }, comme le fait leur site (Relay). Identifiant de TopCommandersQuery (classement,
+ *  pagination count / cursor) relu à chaque passage dans le JavaScript de la page d'accueil (page-*.js : il change quand leur requête change), sinon celui
+ *  relevé le 30 octobre 2026 (EDH_TOP16_QID pour le forcer). */
+const TOP16_QID = process.env.EDH_TOP16_QID || '86fac9d8c2353944c65306a21cd17574', TOP16_QRE = /id:`([0-9a-f]{32})`,metadata:\{\},name:`TopCommandersQuery`/;
+async function getText(url) {
+  const wait = lastReq + (GAP == null ? 500 : GAP) - Date.now(); if (wait > 0) await sleep(wait); lastReq = Date.now();
+  const r = await fetch(url, { headers: { 'User-Agent': UA } }); if (!r.ok) throw new Error('HTTP ' + r.status + ' · ' + url); return r.text();
+}
+async function top16Qid() {
+  if (process.env.EDH_TOP16_QID) return TOP16_QID;
+  try {
+    const html = await getText(TOP16), pages = [...new Set(html.match(/\/assets\/page-[\w-]+\.js/g) || [])];
+    for (const a of pages.slice(0, 4)) { const m = TOP16_QRE.exec(await getText(new URL(a, TOP16).href)); if (m) { log(`  EDHTop16 : requête TopCommandersQuery ${m[1]} (lue sur le site)`); return m[1]; } }
+    log('  EDHTop16 : identifiant de requête introuvable sur le site, celui connu');
+  } catch (e) { log('  EDHTop16 : site illisible (' + e.message + '), identifiant connu'); }
+  return TOP16_QID;
+}
+/** Commandants cEDH : les plus joués en tournoi sur 6 mois (EDHTop16, au moins CEDH_MIN participations), retrouvés dans la liste (paire comprise). [] si EDHTop16 ne répond pas.
+ *  Requête persistée d'abord ; refusée (identifiant périmé) ou sans réponse lisible : l'ancienne requête en texte (serveur qui l'accepterait encore). */
+export async function cedhCommanders(all) {
   if (!CEDH_TOP) return [];
   const by = new Map(); for (const c of all) { const k = c.names.map(normKey).sort().join('|'); if (!by.has(k)) by.set(k, c); }
   try {
-    const query = `{ commanders(first: ${CEDH_TOP}, sortBy: POPULARITY, timePeriod: SIX_MONTHS, minEntries: ${CEDH_MIN}) { edges { node { name } } } }`;
-    const j = await getJson(TOP16 + 'api/graphql', { gap: 500, tries: 2, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }); sample('edhtop16-cedh', j);
+    const post = body => getJson(TOP16 + 'api/graphql', { gap: 500, tries: 2, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const edges = j => j && j.data && j.data.commanders && j.data.commanders.edges;
+    const variables = { timePeriod: 'SIX_MONTHS', sortBy: 'POPULARITY', minEntries: CEDH_MIN, minSize: null, colorId: null, count: CEDH_TOP, cursor: null };
+    let j = await post({ variables, extensions: { 'pastoria-id': await top16Qid() } }).catch(e => ({ errors: [e.message] }));
+    if (!edges(j)) {
+      log('  EDHTop16 : requête persistée refusée (' + JSON.stringify(j && j.errors || j).slice(0, 160) + '), ancienne requête en texte');
+      j = await post({ query: `{ commanders(first: ${CEDH_TOP}, sortBy: POPULARITY, timePeriod: SIX_MONTHS, minEntries: ${CEDH_MIN}) { edges { node { name } } } }` });
+    }
+    sample('edhtop16-cedh', j);
+    if (!edges(j)) throw new Error(JSON.stringify(j && j.errors || 'réponse sans classement').slice(0, 200));
     const names = ((j && j.data && j.data.commanders && j.data.commanders.edges) || []).map(e => String((e && e.node && e.node.name) || '')).filter(Boolean), out = [];
     for (const n of names) { const c = by.get(n.split(/\s+\/\s+/).map(normKey).sort().join('|')); if (c && !out.includes(c)) out.push(c); }
     log(`  cEDH (EDHTop16, 6 derniers mois) : ${names.length} commandants, ${out.length} retrouvés dans la liste`); return out;
@@ -460,7 +487,7 @@ async function probe() {
     catch (e) { log(`  [${tag}] → ${e.message}`); return null; }
   };
   await gql('schema', '{ __schema { queryType { fields { name args { name type { name kind ofType { name kind } } } } } } }');
-  await gql('cmds', '{ commanders(first: 5, sortBy: POPULARITY, timePeriod: SIX_MONTHS) { edges { node { name colorId stats(filters: { timePeriod: SIX_MONTHS }) { count metaShare conversionRate } } } } }');
+  try { const j = await getJson('https://edhtop16.com/api/graphql', { gap: 1200, tries: 2, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ variables: { timePeriod: 'SIX_MONTHS', sortBy: 'POPULARITY', minEntries: 30, minSize: null, colorId: null, count: 5, cursor: null }, extensions: { 'pastoria-id': await top16Qid() } }) }); sample('edhtop16-cmds', j); log(`  [cmds, requête persistée] → ${JSON.stringify(j).slice(0, 700)}`); } catch (e) { log('  [cmds] → ' + e.message); }      // requêtes en texte refusées depuis le 19 octobre 2026 : schéma et énumérations ci-dessous pour mémoire
   await gql('enum', '{ a: __type(name: "TimePeriod") { enumValues { name } } b: __type(name: "CommandersSortBy") { enumValues { name } } c: __type(name: "Commander") { fields { name } } d: __type(name: "Entry") { fields { name } } }');
 }
 async function main() {
