@@ -2384,9 +2384,10 @@ function deckUse(texts) {
  * Cartes à échanger. coll : clé → { n, q, l?, x? } · use : deckUse(…) · keep : réserve gardée en plus des decks (0, 1, 2…) · kept : Set des clés que l'utilisateur garde
  * · places : emplacements (COLL.places) pour leur règle d'échange (placeTrade) : « skip » : ses exemplaires ne sont jamais proposés et remplissent la réserve (decks + keep) en premier ;
  *   « all » : ses exemplaires partent tous, même le dernier, même s'ils manquent à un deck ; sans règle (ou deck monté) : classique, la réserve se prend sur eux, dans l'ordre d'affichage.
- * Retourne { have: [{ k, n, q, lines: [[langue, exemplaires]] }], held: [{ k, n, q }] } (held : cartes gardées à la main qui auraient été proposées), triés par nom.
+ * Retourne { have: [{ k, n, q, lines: [[langue, exemplaires]] }], held: [{ k, n, q }] } (held : cartes gardées à la main qui auraient été proposées), triés par nom
+ * (unsorted : dans l'ordre de la collection, pour seulement les compter : share.js › trCounts).
  */
-function tradeLists(coll, use, keep, kept, places) {
+function tradeLists(coll, use, keep, kept, places, unsorted) {
   const have = [], held = [], kp = Math.max(0, Math.floor(Number(keep) || 0)), rule = places ? g => placeTrade(places, lineAttrs(g).p) : () => '';
   for (const [k, x] of Object.entries(coll || {})) {
     if (!x || !(x.q > 0) || BASIC_NAMES.has(k)) continue;
@@ -2403,6 +2404,7 @@ function tradeLists(coll, use, keep, kept, places) {
     }
     have.push({ k, n: x.n, q: spare, lines });
   }
+  if (unsorted) return { have, held };
   const byN = (a, b) => EN_CMP(a.n, b.n);
   return { have: have.sort(byN), held: held.sort(byN) };
 }

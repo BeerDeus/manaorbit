@@ -67,10 +67,10 @@ function homePaint() {
   homeLands();
   // Échange
   try {
-    const st = trState(), ts = $('#hmTradeSub');
-    ts.textContent = n || st.want.length ? TN(st.have.length, '{n} doublon', '{n} doublons') + ' · ' + TN(st.want.length, '{n} recherchée', '{n} recherchées') : T('Doublons et cartes recherchées');
+    const st = trCounts(), ts = $('#hmTradeSub');      // comptes seulement, gardés tant que rien ne change (share.js)
+    ts.textContent = n || st.want ? TN(st.have, '{n} doublon', '{n} doublons') + ' · ' + TN(st.want, '{n} recherchée', '{n} recherchées') : T('Doublons et cartes recherchées');
     $('#hmLive').hidden = !TR.share;
-    const bare = start && !st.want.length && !TR.share;                                   // rien à partager encore : une phrase à la place de QR code / Partager
+    const bare = start && !st.want && !TR.share;                                   // rien à partager encore : une phrase à la place de QR code / Partager
     $('#hmTrade .hm-tr-acts').hidden = bare; $('#hmTradeNote').hidden = !bare;
   } catch (e) { /* liste d'échange pas encore prête */ }
   homeForYou();

@@ -100,7 +100,7 @@ async function valRefresh(opts) {
   VAL.err = '';
   run.p = (async () => {
     try {
-      const got = await scryCollection(keys.map(k => COLL.map[k].n), run.ctrl.signal, n => { run.done = n; collPaintHead(); });
+      const got = await scryCollection(keys.map(k => COLL.map[k].n), run.ctrl.signal, n => { run.done = n; collPaintHead(true); });      // avancée seulement : l'accueil n'a rien de neuf avant la fin
       for (const k of keys) { const g = got.get(k), old = COLL.meta[k]; if (g && old && (g.eu > 0 || g.ef > 0)) COLL.meta[k] = { ...old, ...(g.eu > 0 ? { eu: g.eu } : {}), ...(g.ef > 0 ? { ef: g.ef } : {}) }; }      // prix foil aussi (avant : jamais relu)
       await edRefresh(true, run.ctrl.signal);      // prix des éditions des lignes, relus avec le reste
       COLL.freshAt = Date.now(); collMetaSave(); await valCommit(); prcPushSoon();      // prix du jour : partagés avec les autres appareils du compte

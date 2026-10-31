@@ -2,7 +2,8 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const reduceMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+let RM_MQ = null;      // une seule MediaQueryList (matches suit le réglage du téléphone) : reduceMotion est lu à chaque mouvement du doigt (motion.js › tiltMove)
+const reduceMotion = () => { try { return (RM_MQ || (RM_MQ = window.matchMedia('(prefers-reduced-motion: reduce)'))).matches; } catch (e) { return false; } };
 // Noms des langues de cartes, déjà traduits (« français » / « French ») : on les insère dans des phrases traduites (T('Offres en {lang}', …)).
 /** Lien de test (https://manaorbit.app/test : même page, window.MO_TEST posé par proxy.mjs) : de quoi cacher une nouveauté à essayer avant de l'ouvrir à tous (niveau, badges et Carte mystère : ouverts le 16 octobre). */
 const MO_TEST = typeof window !== 'undefined' && window.MO_TEST === true;

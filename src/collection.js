@@ -716,7 +716,7 @@ async function collEnrich() {
   if (scryLeft() > 0) { COLL.enrichErr = T('Scryfall demande une pause : réessaie dans {s} s', { s: Math.ceil(scryLeft() / 1000) }); collPaintHead(); return; }
   const full = miss.length > 0 && miss.length >= collCount();      // toute la collection relue : les prix Cardmarket sont à jour
   const st = COLL.enrich = { done: 0, total: miss.length + lmN, ctrl: new AbortController(), ph: miss.length ? 'info' : 'img', wait: '' };
-  st.tick = setInterval(() => { const w = collScryWait(); if (w !== st.wait) { st.wait = w; collPaintHead(); } }, 1000);      // pause de la file : décompte chaque seconde
+  st.tick = setInterval(() => { const w = collScryWait(); if (w !== st.wait) { st.wait = w; collPaintHead(true); } }, 1000);      // pause de la file : décompte chaque seconde
   COLL.enrichErr = '';
   st.p = (async () => {
     try {
@@ -729,7 +729,7 @@ async function collEnrich() {
       st.ph = 'img';
       for (const [l, keys] of Object.entries(lm)) {
         const base = st.done;
-        const got = await scryLangImages(keys.map(k => COLL.map[k] ? COLL.map[k].n : k), l, st.ctrl.signal, n => { st.done = base + n; collPaintHead(); });
+        const got = await scryLangImages(keys.map(k => COLL.map[k] ? COLL.map[k].n : k), l, st.ctrl.signal, n => { st.done = base + n; collPaintHead(true); });
         for (const k of keys) COLL.li[liKey(l, k)] = got.get(k) || '';
         st.done = base + keys.length; collMetaSave(); collPaintHead(); collPaintSoon(); scanPaintList();
       }
@@ -1096,13 +1096,16 @@ function collValPaint() {
   box.hidden = false;
   box.innerHTML = `<button type="button" class="cv" data-act="valtab" aria-label="${esc(T('Valeur de la collection : {v} · voir les stats', { v: v ? hmEur(v) : '—' }))}"><span class="cv-t"><b>${v ? esc(hmEur(v)) : '—'}</b><span>${TN(n, '{n} carte', '{n} cartes')} · ${TN(collCopies(), '{n} exemplaire', '{n} exemplaires')}</span></span><span class="cv-r">${dl}${spark}</span></button>`;
 }
-function collPaintHead() {
-  paintCollSection();
+/** tick : simple avancée d'une lecture (compteur, pause Scryfall), rien d'autre n'a changé : la ligne de l'accueil (#collSub) et son repeint (homeSoon), le titre
+ *  (cartes, exemplaires, valeur) et la carte de valeur des Stats sont sautés ; la barre de lecture suit.
+ *  Pendant le relevé des prix du jour (5 000 cartes : 67 lots) ou la lecture des images, chaque lot repeignait l'accueil (≈ 50 ms à CPU ×4, tests/perf-e2e.mjs). */
+function collPaintHead(tick) {
+  if (!tick) paintCollSection();
   if (typeof opnCollHead === 'function' && opnCollHead(COLL.el)) return;      // session d'ouverture (opening.js) : note ; mode streamer : en-tête de la session seule
-  collValPaint();
+  if (!tick) collValPaint();
   if (typeof BD !== 'undefined' && BD.el && BD.tab === 'coll') { BD.idx = null; bdList(); }      // l'éditeur de deck liste la collection : il suit la lecture des cartes (commandants possibles…)
   const el = COLL.el; if (!el) return;
-  $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul
+  if (!tick) $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul ; tick : cartes, exemplaires et valeur inchangés
   const sy = $('.coll-sync', el), si = collSyncInfo(), dot = $('.coll-dot', el);
   if (dot) { dot.hidden = !si; if (si) { dot.dataset.k = si.k; dot.setAttribute('aria-label', si.t); dot.title = si.t; } }
   if (!si || si.k === 'ok' || !(si.k === 'bad' && D.user)) sy.hidden = true;      // le point suffit (touché : la feuille qui dit pourquoi) ; bandeau seulement quand la sauvegarde du compte échoue
