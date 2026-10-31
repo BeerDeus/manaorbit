@@ -204,6 +204,7 @@ function mountSeg(root, options, value, onChange) {
     const i = Math.max(0, options.findIndex(o => o.v === v));
     root.style.setProperty('--idx', i);
     $$('.seg-opt', root).forEach((b, k) => b.setAttribute('aria-checked', String(k === i)));
+    segThumb(root);
     root._v = options[i].v;
     if (fire) haptic('tap');
     if (fire && onChange) onChange(options[i].v);
@@ -213,6 +214,15 @@ function mountSeg(root, options, value, onChange) {
   root.setLabel = (v, t) => { const n = $(`.seg-opt[data-v="${v}"] span`, root); if (n) n.textContent = t; };
   root.setSub = (v, t) => { const n = $(`.seg-opt[data-v="${v}"] small`, root); if (n) n.textContent = t; };
   set(value, false);
+  if (typeof ResizeObserver === 'function') { if (!root._ro) root._ro = new ResizeObserver(() => segThumb(root)); root._ro.disconnect(); root._ro.observe(root); $$('.seg-opt', root).forEach(o => root._ro.observe(o)); }      // colonnes qui changent sans que la rangée change (police chargée, libellé)
+}
+/** Curseur d'un choix segmenté sur l'option cochée : un libellé plus large que sa part (allemand, police agrandie) élargit sa colonne, le curseur la suit (sinon : calc de --idx, colonnes égales). */
+function segThumb(root) {
+  const b = $('.seg-opt[aria-checked="true"]', root), w = b && b.offsetWidth;
+  if (!w) return;
+  const all = $$('.seg-opt', root), eq = all.every(o => Math.abs(o.offsetWidth - w) < 1);
+  if (eq) { root.style.removeProperty('--tx'); root.style.removeProperty('--tw'); return; }
+  root.style.setProperty('--tx', (b.offsetLeft - 3) + 'px'); root.style.setProperty('--tw', w + 'px');
 }
 
 /* ── Sheets ───────────────────────────────────────────────────────────────────────────────── */

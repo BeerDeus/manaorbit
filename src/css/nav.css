@@ -8,7 +8,8 @@
 .nav-b[aria-current="page"]{color:var(--ink);font-weight:700}
 .nav-b[aria-current="page"] .nav-i{background:var(--accent-soft);color:var(--accent)}
 .nav-b:active .nav-i{transform:scale(.94)}
-.nav-l{white-space:nowrap}
+.nav-b{min-width:0}
+.nav-l{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}      /* police agrandie : « Samml… » plutôt que « SammlungScannen » collés */
 /* Scanner : rond foil parfait (flex:none, jamais écrasé) qui dépasse de la barre */
 .nav-scan{color:var(--ink-2)}
 .nav-foil{flex:none;display:grid;place-items:center;width:60px;height:60px;border-radius:50%;margin-bottom:1px;background:var(--foil);box-shadow:0 0 0 5px var(--bg),0 12px 28px -6px rgba(127,176,255,.6);transform:translateY(-6px);transition:transform .22s var(--spring)}
@@ -29,6 +30,7 @@ body.nav-on .toast{bottom:calc(var(--nav-h) + 22px + env(safe-area-inset-bottom,
 /* onglets de la section Decks : Mes decks · À monter · Prix d'une liste */
 .dk-tabs{flex:none;display:flex;gap:22px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--bar-bg);overflow-x:auto;scrollbar-width:none}
 .dk-tabs::-webkit-scrollbar{display:none}
+@media (max-width:440px){.dk-tabs{gap:16px;padding:0 14px}.dk-tab{font-size:14.5px}}      /* téléphone : les trois onglets tiennent dans la largeur (« Preço de uma lista » était coupé à 360 px) ; sinon la rangée défile vers l'onglet ouvert (nav.js › navSync) */
 .dk-tab{flex:none;position:relative;height:46px;padding:0;border:0;background:none;color:var(--ink-3);font:inherit;font-size:15px;font-weight:650;white-space:nowrap;cursor:pointer}
 .dk-tab em{font-style:normal;display:inline-grid;place-items:center;min-width:20px;height:20px;margin-left:4px;padding:0 6px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:800}
 .dk-tab[aria-current="page"]{color:var(--ink)}

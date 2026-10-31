@@ -31,6 +31,7 @@ function navSync() {
   const el = $('#nav'); if (!el) return;
   const cur = navCur(), on = !!cur, it = $('#inTabs');
   if (it) { const want = S.view === 'input'; if (want && !it.firstChild) it.innerHTML = dkTabsHtml('price'); if (it.hidden === want) it.hidden = !want; }      // « Prix d'une liste » : les onglets de la section Decks en haut
+  for (const n of $$('.dk-tabs:not([data-rv])')) { const t = $('[aria-current="page"]', n); if (!n.clientWidth || !t) continue; n.dataset.rv = '1'; if (t.offsetLeft + t.offsetWidth > n.scrollLeft + n.clientWidth) n.scrollLeft = t.offsetLeft + t.offsetWidth - n.clientWidth + 14; }      // onglets Decks plus larges que l'écran (police agrandie) : l'onglet ouvert en vue, une fois par rangée
   if (cur === NAV.cur) return; NAV.cur = cur;      // rien n'a changé : on ne touche pas au DOM (l'observateur ne se relance pas)
   if (cur === 'home' && typeof HM !== 'undefined' && HM.stale) homeSoon(0);      // accueil de retour : le repeint sauté pendant qu'il était caché (home.js)
   el.classList.toggle('off', !on); el.setAttribute('aria-hidden', String(!on)); el.inert = !on;

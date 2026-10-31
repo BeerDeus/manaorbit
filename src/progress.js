@@ -356,6 +356,8 @@ const prgTierOf = (b, t) => (b.ev && t === 3 ? T('grade ultime') : prgTierName(t
 /** Palier atteint d'un badge : -1 (aucun), 0 (bronze) … 3 (diamant) ; unique : 0. */
 const prgTier = (b, v) => { let t = -1; b.tiers.forEach((x, i) => { if (v >= x) t = i; }); return t; };
 /** Texte d'un palier (« 1 000 cartes scannées », « Une carte scannée à 50 € ou plus »). */
+/** Tuile étroite : le nombre du début et un mot très court à la fin restent avec leur voisin (« 1 commandant joué », « avant 7 h »), jamais seuls sur une ligne. */
+const prgNb = s => String(s).replace(/^([\d.,\u202f\u00a0]+) /, '$1\u00a0').replace(/ (\S{1,2})$/, '\u00a0$1');
 function prgLabel(b, x) {
   if (b.money) return T(b.money, { p: fmt(x, mkCur()).replace(/[,.]00(?=\s|$| )/, '') });
   if (b.one) return T(b.one);
@@ -502,7 +504,7 @@ function prgSheet(focus) {
         const val = v => (b.money ? fmt(v, mkCur()).replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
         const nm = prgName(b, x.t), pin = x.t >= 0 && !b.ev ? `<button type="button" class="prg-pin" data-pin="${b.id}" aria-pressed="${show.includes(b.id)}" aria-label="${esc(T('Montrer {name} sur ma liste d\'échange', { name: nm }))}">${show.includes(b.id) ? '📌' : '＋'}</button>` : '';
         return `<div class="prg-b ${cls}" data-b="${b.id}" role="button" tabindex="0" aria-label="${esc(T('Détails du badge {name}', { name: nm }))}">${pin}<span class="prg-ic" aria-hidden="true">${prgIc(b, x.t)}</span><b>${esc(nm)}</b>
-          <small>${esc(x.t >= 0 ? prgLabel(b, b.tiers[x.t]) + (uniq ? '' : ' · ' + prgTierOf(b, x.t)) : prgLabel(b, b.tiers[0]))}</small>
+          <small>${esc(prgNb(x.t >= 0 ? prgLabel(b, b.tiers[x.t]) + (uniq ? '' : ' · ' + prgTierOf(b, x.t)) : prgLabel(b, b.tiers[0])))}</small>
           ${nxt != null && !uniq ? `<span class="prg-mini" aria-hidden="true"><i style="width:${p.toFixed(1)}%"></i></span><small class="prg-nx">${esc(val(x.v))} / ${esc(val(nxt))}</small>${x.t >= 0 ? `<small class="prg-nn">${esc(T('Prochain : {name}', { name: prgName(b, x.t + 1) }))}</small>` : ''}` : ''}</div>`;
       };
       api.body.innerHTML = `<div class="prg-head"><div class="prg-lv"><small>${T('Niveau')}</small><b>${L.lv}</b></div><div class="prg-xp"><span class="prg-bar" aria-hidden="true"><i style="width:${pct.toFixed(1)}%"></i></span>

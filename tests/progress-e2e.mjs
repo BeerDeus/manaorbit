@@ -28,7 +28,7 @@ await p.evaluate(() => { prgCheck(); prgScan(Array.from({ length: 150 }, (_, i) 
 await p.evaluate(() => openSettings()); await p.waitForSelector('.me-sheet .prg-pill');
 const lv = await p.$eval('.prg-pill', b => b.textContent); assert.match(lv, /^Niv\. \d+$/);
 await p.click('.prg-pill'); await p.waitForSelector('.prg-sheet .prg-grid');
-const tile = id => p.evaluate(id => { const b = document.querySelector(`.prg-sheet [data-pin="${id}"]`); const t = b ? b.closest('.prg-b') : document.querySelector(`.prg-sheet .prg-b[data-b="${id}"]`); return t ? [t.className.replace('prg-b ', ''), t.querySelector('small').textContent] : null; }, id);
+const tile = id => p.evaluate(id => { const b = document.querySelector(`.prg-sheet [data-pin="${id}"]`); const t = b ? b.closest('.prg-b') : document.querySelector(`.prg-sheet .prg-b[data-b="${id}"]`); return t ? [t.className.replace('prg-b ', ''), t.querySelector('small').textContent.replace(/\u00a0/g, ' ')] : null; }, id);      // espaces insécables de la tuile (progress.js › prgNb)
 assert.deepEqual(await tile('sc_cards'), ['t0', '100 cartes scannées · bronze'], '150 cartes scannées : bronze');
 assert.deepEqual(await tile('sc_city_jp'), ['tu', 'Une carte scannée dans cette langue'], 'Tokyo : badge unique');
 assert.deepEqual(await tile('gm_wins'), ['t0', '1 victoire · bronze'], 'parties de l\'historique : 3 victoires → bronze');

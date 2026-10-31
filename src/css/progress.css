@@ -5,7 +5,7 @@
 .prg-lv small{font-size:11px;font-weight:600;opacity:.85;text-transform:uppercase;letter-spacing:.04em}
 .prg-lv b{font-size:28px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
 .prg-xp{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
-.prg-xp small{font-size:12.5px;color:var(--ink-3)}
+.prg-xp small{font-size:12.5px;color:var(--ink-3);text-wrap:pretty}      /* « … nivel 6 » : jamais « 6 » seul sur sa ligne */
 .prg-bar,.prg-mini{display:block;height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
 .prg-bar i,.prg-mini i{display:block;height:100%;border-radius:inherit;background:var(--accent)}
 .prg-mini{height:4px;margin-top:4px}
@@ -13,7 +13,7 @@
 .prg-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .prg-b{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px 10px;border-radius:16px;background:var(--surface);border:2px solid var(--line);text-align:center;min-width:0}
 .prg-b b{font-size:12.5px;line-height:1.2;max-width:100%;overflow-wrap:anywhere;hyphens:auto}
-.prg-b small{font-size:11.5px;line-height:1.25;color:var(--ink-3)}
+.prg-b small{max-width:100%;font-size:11.5px;line-height:1.25;color:var(--ink-3);text-wrap:pretty;overflow-wrap:anywhere;hyphens:auto}      /* « avant 7 h » : jamais « h » seul sur sa ligne ; « Erscheinungswoche » coupé dans la tuile */
 .prg-b .prg-mini{width:80%}
 .prg-ic{font-size:26px;line-height:1.1;margin-bottom:2px}
 .prg-b.off{opacity:.7}      /* icône déjà grise (badgeart.js) */
