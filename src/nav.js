@@ -30,8 +30,7 @@ function navSync() {
   NAV.raf = 0;
   const el = $('#nav'); if (!el) return;
   const cur = navCur(), on = !!cur, it = $('#inTabs');
-  if (it) { const want = S.view === 'input'; if (want && !it.firstChild) it.innerHTML = dkTabsHtml('price'); if (it.hidden === want) it.hidden = !want; }      // « Prix d'une liste » : les onglets de la section Decks en haut
-  for (const n of $$('.dk-tabs:not([data-rv])')) { const t = $('[aria-current="page"]', n); if (!n.clientWidth || !t) continue; n.dataset.rv = '1'; if (t.offsetLeft + t.offsetWidth > n.scrollLeft + n.clientWidth) n.scrollLeft = t.offsetLeft + t.offsetWidth - n.clientWidth + 14; }      // onglets Decks plus larges que l'écran (police agrandie) : l'onglet ouvert en vue, une fois par rangée
+  if (it) { const want = S.view === 'input'; if (want && !it.firstChild) it.innerHTML = dkTabsHtml('price'); if (it.hidden === want) { it.hidden = !want; if (want) requestAnimationFrame(() => dkTabsReveal(it)); } }      // « Prix d'une liste » : les onglets de la section Decks en haut
   if (cur === NAV.cur) return; NAV.cur = cur;      // rien n'a changé : on ne touche pas au DOM (l'observateur ne se relance pas)
   if (cur === 'home' && typeof HM !== 'undefined' && HM.stale) homeSoon(0);      // accueil de retour : le repeint sauté pendant qu'il était caché (home.js)
   el.classList.toggle('off', !on); el.setAttribute('aria-hidden', String(!on)); el.inert = !on;
@@ -81,6 +80,15 @@ function dkTabGo(v) {
   if (v === 'mine') { if (!DKS.el) navOpen(() => openDecks()); }
   else if (v === 'build') { if (!(COLL.el && COLL.mode === 'decks')) navOpen(() => openCollection('decks')); }
   else if (v === 'price') { navCloseSections(); if (S.view !== 'input') showView('input'); }
+}
+/** Onglet courant visible : en allemand, espagnol, italien ou portugais, les trois onglets dépassent un écran de 360 px (barre qui défile) et « Prix d'une liste »,
+ *  ouvert, restait coupé au bord droit. */
+function dkTabsReveal(root) {
+  for (const n of $$('.dk-tabs', root || document)) {
+    const a = $('.dk-tab[aria-current]', n); if (!a || n.scrollWidth <= n.clientWidth + 1) continue;
+    const r = a.getBoundingClientRect(), b = n.getBoundingClientRect();
+    if (r.right > b.right - 18) n.scrollLeft += r.right - b.right + 18; else if (r.left < b.left + 18) n.scrollLeft -= b.left + 18 - r.left;
+  }
 }
 /** Nombre de decks dans les onglets ouverts (un deck créé, supprimé, synchronisé). */
 function dkTabsCount() { const n = typeof allDecks === 'function' ? allDecks().length : 0; for (const t of $$('.dk-tab[data-dtab="mine"]')) t.innerHTML = esc(T('Mes decks')) + (n ? ` <em>${nf0(n)}</em>` : ''); }

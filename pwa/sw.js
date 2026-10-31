@@ -3,7 +3,7 @@
      si la version gardée diffère de celle qui tourne (DD_BUILD), la page l'apprend (message « dd-shell ») et propose « Recharger ».
      Réseau d'abord (copie locale si le réseau échoue ou traîne → l'app s'ouvre hors ligne) : adresse avec paramètres (partage ?p=,
      ?delete-account, notifications…), pas de copie, ou copie de plus de 7 jours (jamais bloqué sur une vieille version).
-     Seule une vraie page de l'app (DD_BUILD présent) est gardée. /privacy, /admin (panneau d'administration) et /api ne passent jamais par cette copie ni par aucun cache.
+     Seule une vraie page de l'app (DD_BUILD présent) est gardée. Page inchangée (même ETag) : seule la date de l'ouverture est notée (AT_KEY), la copie n'est ni relue ni réécrite. /privacy, /admin (panneau d'administration) et /api ne passent jamais par cette copie ni par aucun cache.
    • Icônes et manifeste : cache d'abord, rafraîchis en arrière-plan.
    • Images de cartes Scryfall (cards.scryfall.io) et symboles des extensions (svgs.scryfall.io) : cache d'abord → déjà vus (ou préchargés chaque semaine
      par l'appli, warm.js) : plus jamais retéléchargés ; 120 Mo et 6 000 fichiers au plus. Les petites images (aperçus, listes) passent avant :
@@ -24,6 +24,8 @@ const IMG_LIM = { bytes: 120 * 1024 * 1024, max: 6000, big: 40 * 1024 * 1024 };
 const isBig = u => /^https:\/\/cards\.scryfall\.io\/(large|normal|png|border_crop)\//.test(u);
 /** Copie de la page servie d'emblée tant qu'elle a moins de 7 jours (chaque ouverture réussie la rafraîchit) ; au-delà, réseau d'abord. */
 const SHELL_TTL = 7 * 864e5, BUILD_RE = /const DD_BUILD = '([\w-]+)'/;
+/** Date de la dernière ouverture réussie quand la page n'a pas changé (keepShell) : petite entrée à côté de la copie, jamais demandée au réseau. */
+const AT_KEY = new URL('__dd-shell-at', self.location).href;
 /** Ressources tierces immuables (adresse versionnée) ou presque (CSS Google Fonts) : 'imm' | 'swr' | null. */
 function cdnKind(u) {
   if (u.protocol !== 'https:') return null;
@@ -59,6 +61,17 @@ self.addEventListener('activate', e => {
  *  (la prochaine ouverture passe par le réseau au lieu de rester sur une vieille version). Consomme r ; échoue seulement si le corps n'arrive pas. */
 async function keepShell(cache, r) {
   if (!r || r.status !== 200 || r.type !== 'basic' || r.redirected) return;
+  // Même page que la copie (même ETag, version connue) : cas de presque chaque ouverture (le navigateur revalide, 304). Seule la date de l'ouverture
+  // réussie est notée (AT_KEY), sans relire ni réécrire les 6 Mo de la page (≈ 0,8 s de travail du service worker à CPU ×4, et 6 Mo écrits à chaque lancement).
+  const tag = r.headers.get('etag');
+  if (tag) {
+    const c = await cache.match(ROOT), b = c && c.headers.get('x-dd-build');
+    if (b && c.headers.get('etag') === tag && Number(c.headers.get('x-dd-at')) > 0) {
+      try { if (r.body) r.body.cancel().catch(() => {}); } catch (_) { /* déjà lu */ }
+      await cache.put(AT_KEY, new Response(JSON.stringify({ b, tag, t: Date.now() }), { headers: { 'content-type': 'application/json' } })).catch(() => {});      // stockage plein : la copie reste, avec sa date d'avant
+      return;
+    }
+  }
   const html = await r.text(), m = BUILD_RE.exec(html);
   if (!m) return;
   const h = new Headers(r.headers); for (const k of ['content-encoding', 'content-length', 'vary']) h.delete(k);      // corps déjà décodé
@@ -68,13 +81,19 @@ async function keepShell(cache, r) {
     try { await dropImages(); await put(); } catch (__) { await cache.delete(ROOT).catch(() => {}); }
   }
 }
+/** Date de la copie : x-dd-at (copie écrite), ou la dernière ouverture réussie notée sous AT_KEY pour cette même copie (même version, même ETag). NaN sans date. */
+async function shellAt(cache, c) {
+  const t = Number(c.headers.get('x-dd-at')); if (!(t > 0)) return NaN;
+  try { const m = await cache.match(AT_KEY), j = m && await m.json(); if (j && j.b === c.headers.get('x-dd-build') && j.tag === c.headers.get('etag') && j.t > t) return j.t; } catch (_) { /* illisible : date de la copie */ }
+  return t;
+}
 let shellCheck = Promise.resolve();                          // mise à jour en cours de la copie (attendue avant de répondre « dd-shell? »)
 async function page(e) {
   const cache = await caches.open(SHELL), cached = await cache.match(ROOT);
   const net = fetch(e.request).then(async r => { await keepShell(cache, r.clone()); return r; });     // résolue une fois la page reçue en entier (et gardée)
   shellCheck = net.catch(() => {});
   e.waitUntil(shellCheck);                                   // la mise à jour finit même si on a servi la copie
-  const u = new URL(e.request.url), age = cached ? Date.now() - Number(cached.headers.get('x-dd-at')) : NaN;
+  const u = new URL(e.request.url), age = cached ? Date.now() - (await shellAt(cache, cached)) : NaN;
   const plain = !u.search || /^\?open=[a-z]+$/.test(u.search);    // ouverture normale, ou raccourci de l'icône de la PWA (?open=scan…)
   if (plain && age >= 0 && age < SHELL_TTL) return cached;   // copie locale tout de suite (rien à attendre du réseau)
   const share = /[?&]p=/.test(u.search);                     // lien de partage : il faut la version à jour (une ancienne copie ne sait pas l'ouvrir)

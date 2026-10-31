@@ -43,8 +43,8 @@ html:not(.ad-on) .coll.scrolled .dv-head{min-height:calc(var(--top-in) + 50px);p
 .crow.cvw-c .row-top .flag{width:17px;height:12px}
 .cvw-sub{display:flex;align-items:center;gap:9px;min-width:0;overflow:hidden;white-space:nowrap;font-size:12px;line-height:1.2;color:var(--ink-3)}
 .cvw-sub>span{display:inline-flex;align-items:center;gap:5px;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.cvw-plc{flex:0 1 auto}
-.cvw-plc i{flex:none;width:7px;height:7px;border-radius:2px;background:var(--c)}
+.cvw-sub>.cvw-plc{display:block;flex:0 1 auto}      /* bloc, pas flex : le nom long finit par « … » au lieu d'être coupé net */
+.cvw-plc i{display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:2px;background:var(--c)}
 .cvw-ed{flex:none;font-family:var(--font-mono);font-size:11px;letter-spacing:.02em}
 .cvw-sub .cvw-fo{flex:none;color:#b48a2a}
 .cvw-nl{flex:none;color:var(--warn)}

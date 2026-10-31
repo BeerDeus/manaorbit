@@ -464,7 +464,9 @@ async function prgDaily() {
 }
 
 /* ── Vitrine : 3 badges au plus, choisis dans la fiche, montrés sur la liste d'échange publique (share.js › trPut, readShare) ─────────────── */
-function prgShowIds() { try { const a = JSON.parse(localStorage.getItem(PRG_SHOW) || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string' && PRG_BADGES.some(b => b.id === x)).slice(0, PRG_SHOW_MAX) : []; } catch (e) { return []; } }
+/** Définition d'un badge par son identifiant : catalogue, ou badge d'une fête (« ev_halloween-2026 », event.js › evBadgeDef) ; null si inconnu. */
+function prgDef(id) { return PRG_BADGES.find(b => b.id === id) || (/^ev_/.test(id) && typeof evBadgeDef === 'function' ? evBadgeDef(id.slice(3)) : null); }
+function prgShowIds() { try { const a = JSON.parse(localStorage.getItem(PRG_SHOW) || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string' && !!prgDef(x)).slice(0, PRG_SHOW_MAX) : []; } catch (e) { return []; } }
 /** Ajoute ou retire un badge de la vitrine ; la liste d'échange publique suit (si elle existe). false : vitrine pleine. */
 function prgShowToggle(id) {
   const a = prgShowIds(), i = a.indexOf(id);
@@ -473,16 +475,46 @@ function prgShowToggle(id) {
   if (typeof TR !== 'undefined' && TR.share && typeof trChanged === 'function') trChanged();      // lien d'échange : republié avec la vitrine
   return true;
 }
+/** Épingle ou retire un badge (fiche « Niveau et badges », fenêtre d'un badge) ; vitrine pleine : message, false. */
+function prgPinIt(id) { if (!prgShowToggle(id)) { toast(T('3 badges au plus sur ta liste d\'échange')); return false; } haptic('tap'); return true; }
+/** Paliers obtenus et paliers en tout (chaque palier compte pour un badge) : fiche « Niveau et badges », ligne « Badges » de Compte et réglages (me.js). */
+function prgCount(bs = prgBadges()) { return { got: bs.reduce((a, x) => a + (x.t + 1), 0), all: bs.reduce((a, x) => a + x.b.tiers.length, 0) }; }
 /** Champ du partage : { bg: [[id, palier]] } (badges obtenus seulement), ou rien. */
 function prgShare() {
   const ids = prgShowIds(); if (!ids.length) return {};
-  const bs = prgBadges(), bg = ids.map(id => bs.find(x => x.b.id === id)).filter(x => x && x.t >= 0).map(x => [x.b.id, x.t]);
+  const bs = prgBadges(), bg = ids.map(id => bs.find(x => x.b.id === id)).filter(x => x && x.t >= 0).map(x => [x.b.id, x.t, Math.min(1e9, Math.round(x.v))]);      // [id, palier, valeur] : la valeur sert à la comparaison chez le visiteur (prgVsSheet)
   return bg.length ? { bg } : {};
 }
-/** Vitrine sur une liste d'échange reçue (bg relu par core.js › readShare). */
+/** Vitrine sur une liste d'échange reçue (bg relu par core.js › readShare) : une ligne de 3 badges au plus ; chacun s'ouvre sur la comparaison (prgVsSheet). */
 function prgShowHtml(bg) {
-  const xs = (Array.isArray(bg) ? bg : []).map(([id, t]) => ({ b: PRG_BADGES.find(b => b.id === id), t })).filter(x => x.b && x.t < x.b.tiers.length);
-  return xs.length ? `<div class="prg-show" aria-label="${esc(T('Badges'))}">${xs.map(x => `<span class="prg-chip ${x.b.tiers.length === 1 ? 'tu' : 't' + x.t}" title="${esc(prgLabel(x.b, x.b.tiers[x.t]))}"><span class="prg-ic" aria-hidden="true">${prgIc(x.b, x.t)}</span>${esc(prgName(x.b, x.t))}</span>`).join('')}</div>` : '';
+  const xs = (Array.isArray(bg) ? bg : []).map(([id, t, v]) => ({ b: prgDef(id), t, v })).filter(x => x.b && x.t < x.b.tiers.length);
+  return xs.length ? `<div class="prg-show" role="list" aria-label="${esc(T('Badges'))}">${xs.map(x => { const nm = prgName(x.b, x.t);
+    return `<button type="button" class="prg-chip ${x.b.tiers.length === 1 ? 'tu' : 't' + x.t}" role="listitem" data-vs="${esc(x.b.id)}" data-t="${x.t}"${Number.isInteger(x.v) ? ` data-v="${x.v}"` : ''} aria-label="${esc(T('Comparer le badge {name}', { name: nm }))}"><span class="prg-ic" aria-hidden="true">${prgIc(x.b, x.t)}</span><b>${esc(nm)}</b></button>`; }).join('')}</div>` : '';
+}
+/** Badge d'une liste d'échange (touché dans la vitrine) : sa progression face à la mienne. id, t (son palier), v (sa valeur, absente d'un partage plus ancien), who (son pseudo). */
+function prgVsSheet(id, t, v, who) {
+  const b = prgDef(id); if (!b) return;
+  const uniq = b.tiers.length === 1, val = n => (b.money ? fmt(n, mkCur()).replace(/[,.]00(?=\s|$| )/, '') : nf0(n));
+  let mv = 0; try { mv = Math.max(0, Number(b.v(prgMetrics())) || 0); } catch (e) { /* données pas encore lues */ }
+  const mt = prgTier(b, mv), them = who || T('Cette personne'), cls = k => (k < 0 ? 'off' : uniq ? 'tu' : 't' + k);
+  const side = (nm, k, n, me) => {
+    const nxt = b.tiers[k + 1], lo = k >= 0 ? b.tiers[k] : 0, p = n == null ? (k >= 0 ? 100 : 0) : nxt == null ? 100 : Math.max(0, Math.min(100, ((n - lo) / (nxt - lo)) * 100));
+    return `<div class="prg-vs-c${me ? ' me' : ''}"><span class="prg-vs-ic prg-b ${cls(k)}" aria-hidden="true"><span class="prg-ic">${prgIc(b, k)}</span></span><b class="prg-vs-who">${esc(nm)}</b>
+      <span class="prg-vs-tier">${esc(k < 0 ? T('Pas encore obtenu') : uniq ? T('Badge obtenu') : prgName(b, k) + ' · ' + prgTierOf(b, k))}</span>
+      ${uniq ? '' : `<span class="prg-mini" aria-hidden="true"><i style="width:${p.toFixed(1)}%"></i></span><small>${n == null ? '' : esc(val(n)) + (nxt != null ? ' / ' + esc(val(nxt)) : '')}</small>`}</div>`;
+  };
+  const diff = v == null || uniq ? (mt === t ? T('Même palier') : mt > t ? T('Tu es devant') : T('{name} est devant', { name: them }))
+    : mv === v ? T('À égalité') : mv > v ? T('Tu es devant de {n}', { n: val(mv - v) }) : T('{name} est devant de {n}', { name: them, n: val(v - mv) });
+  openSheet(prgName(b, t), T('Toi face à {name}', { name: them }), api => {
+    api.wrap.classList.add('prg-bs', 'prg-vs');
+    const tiers = b.tiers.map((x, i) => `<li class="${t >= i || mt >= i ? 'ok' : ''}"><span class="prg-bs-ic ${t >= i || mt >= i ? cls(i) : 'off'}" aria-hidden="true">${prgIc(b, t >= i || mt >= i ? i : -1)}</span>
+        <span class="prg-bs-t"><b>${esc(prgName(b, i))}</b><small>${esc(prgLabel(b, x))}${uniq ? '' : ' · ' + esc(prgTierOf(b, i))}</small></span>
+        <span class="prg-vs-m"><em class="${t >= i ? 'ok' : ''}" title="${esc(them)}">${t >= i ? '✓' : '·'}</em><em class="${mt >= i ? 'ok' : ''}">${mt >= i ? '✓' : '·'}</em></span></li>`).join('');
+    api.body.innerHTML = `<div class="prg-vs-row">${side(them, t, v == null ? null : v, false)}<span class="prg-vs-x" aria-hidden="true">VS</span>${side(T('Toi'), mt, mv, true)}</div>
+      <p class="prg-vs-d">${esc(diff.replace(/\u202f/g, '\u00a0'))}</p>
+      <p class="prg-h">${esc(T('Paliers'))}</p><p class="prg-vs-leg" aria-hidden="true"><span>${esc(them)}</span><span>${esc(T('Toi'))}</span></p><ol class="prg-bs-tiers">${tiers}</ol>
+      <p class="prg-h">${esc(T('Comment l\'obtenir'))}</p>${prgHow(b).map(x => `<p class="prg-bs-how">${esc(x)}</p>`).join('') || `<p class="prg-bs-how">${esc(prgLabel(b, b.tiers[0]))}</p>`}`;
+  });
 }
 
 /* ── Affichage ────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -497,12 +529,12 @@ function prgSheet(focus) {
     api.wrap.classList.add('prg-sheet');
     const paint = () => {
       const show = prgShowIds(), L = prgNow(), pct = L.nxt ? Math.max(0, Math.min(100, ((L.xp - L.cur) / (L.nxt - L.cur)) * 100)) : 100;
-      const got = L.bs.reduce((a, x) => a + (x.t + 1), 0), all = L.bs.reduce((a, x) => a + x.b.tiers.length, 0);
+      const { got, all } = prgCount(L.bs);
       const tile = x => {
         const b = x.b, uniq = b.tiers.length === 1, cls = x.t < 0 ? 'off' : uniq ? 'tu' : 't' + x.t, nxt = x.next, prev = x.t >= 0 ? b.tiers[x.t] : 0;
         const p = nxt == null ? 100 : Math.max(0, Math.min(100, ((x.v - (x.t >= 0 ? prev : 0)) / (nxt - (x.t >= 0 ? prev : 0))) * 100));
         const val = v => (b.money ? fmt(v, mkCur()).replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
-        const nm = prgName(b, x.t), pin = x.t >= 0 && !b.ev ? `<button type="button" class="prg-pin" data-pin="${b.id}" aria-pressed="${show.includes(b.id)}" aria-label="${esc(T('Montrer {name} sur ma liste d\'échange', { name: nm }))}">${show.includes(b.id) ? '📌' : '＋'}</button>` : '';
+        const nm = prgName(b, x.t), pin = x.t >= 0 && !b.pv ? `<button type="button" class="prg-pin" data-pin="${b.id}" aria-pressed="${show.includes(b.id)}" aria-label="${esc(T('Montrer {name} sur ma liste d\'échange', { name: nm }))}">${show.includes(b.id) ? '📌' : '＋'}</button>` : '';
         return `<div class="prg-b ${cls}" data-b="${b.id}" role="button" tabindex="0" aria-label="${esc(T('Détails du badge {name}', { name: nm }))}">${pin}<span class="prg-ic" aria-hidden="true">${prgIc(b, x.t)}</span><b>${esc(nm)}</b>
           <small>${esc(prgNb(x.t >= 0 ? prgLabel(b, b.tiers[x.t]) + (uniq ? '' : ' · ' + prgTierOf(b, x.t)) : prgLabel(b, b.tiers[0])))}</small>
           ${nxt != null && !uniq ? `<span class="prg-mini" aria-hidden="true"><i style="width:${p.toFixed(1)}%"></i></span><small class="prg-nx">${esc(val(x.v))} / ${esc(val(nxt))}</small>${x.t >= 0 ? `<small class="prg-nn">${esc(T('Prochain : {name}', { name: prgName(b, x.t + 1) }))}</small>` : ''}` : ''}</div>`;
@@ -513,7 +545,7 @@ function prgSheet(focus) {
         ${PRG_CATS.map(([c, h]) => { const xs = L.bs.filter(x => x.b.cat === c); return xs.length ? `<p class="prg-h">${esc(T(h))}</p><div class="prg-grid">${xs.map(tile).join('')}</div>` : ''; }).join('')}
         <details class="prg-how"><summary>${T('Comment gagner de l\'XP ?')}</summary><p class="hint">${T('Tout compte : scanner, ajouter des cartes, monter et publier des decks, jouer et gagner des parties, échanger, ouvrir des boosters, revenir chaque jour, et chaque palier de badge (bronze, argent, or, diamant). Le niveau 999 est fait pour ne jamais être atteint.')}</p></details>`;
     };
-    const pinIt = id => { if (!prgShowToggle(id)) { toast(T('3 badges au plus sur ta liste d\'échange')); return false; } haptic('tap'); paint(); return true; };
+    const pinIt = id => { if (!prgPinIt(id)) return false; paint(); return true; };
     const open = el => { const x = prgNow().bs.find(y => y.b.id === el.dataset.b); if (x) { haptic('tap'); prgBadgeSheet(x, pinIt); } };
     api.body.addEventListener('click', e => { const b = e.target.closest('[data-pin]'); if (b) { pinIt(b.dataset.pin); return; } const t = e.target.closest('.prg-b[data-b]'); if (t) open(t); });
     api.body.addEventListener('keydown', e => { const t = (e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.prg-b[data-b]') ? e.target : null; if (t) { e.preventDefault(); open(t); } });
@@ -526,7 +558,7 @@ function prgSheet(focus) {
 
 /** Fenêtre d'un badge (appui sur sa tuile) : icône, comment l'obtenir en détail, progression, chaque palier (nom, seuil, XP, obtenu ou non), vitrine.
     pin(id) : ajoute ou retire de la liste d'échange (fiche « Niveau et badges ») ; false : vitrine pleine. */
-function prgBadgeSheet(x, pin) {
+function prgBadgeSheet(x, pin = prgPinIt) {
   const b = x.b, uniq = b.tiers.length === 1, nm = prgName(b, x.t), cat = (PRG_CATS.find(c => c[0] === b.cat) || [])[1];
   const val = v => (b.money ? fmt(v, mkCur()).replace(/[,.]00(?=\s|$| )/, '') : nf0(v));
   openSheet(nm, cat ? T(cat) : '', api => {
@@ -538,11 +570,13 @@ function prgBadgeSheet(x, pin) {
       const tiers = b.tiers.map((v, i) => `<li class="${x.t >= i ? 'ok' : ''}"><span class="prg-bs-ic ${x.t >= i ? (uniq ? 'tu' : 't' + i) : 'off'}" aria-hidden="true">${prgIc(b, x.t >= i ? i : -1)}</span>
           <span class="prg-bs-t"><b>${esc(prgName(b, i))}</b><small>${esc(prgLabel(b, v))}${uniq ? '' : ' · ' + esc(prgTierOf(b, i))}</small></span>
           <span class="prg-bs-x"><small>${esc(T('+{n} XP', { n: nf0(prgTierXp(b, i) - prgTierXp(b, i - 1)) }))}</small><em>${x.t >= i ? '✓ ' + esc(T('Obtenu')) : esc(T('À venir'))}</em></span></li>`).join('');
-      api.body.innerHTML = `<div class="prg-bs-head"><span class="prg-b ${cls}"><span class="prg-ic" aria-hidden="true">${prgIc(b, x.t)}</span></span><p class="prg-bs-st">${esc(st)}</p></div>
+      const can = x.t >= 0 && !b.pv, on = show.includes(b.id);      // obtenu : épinglable sur la liste d'échange (aperçu d'une fête : non)
+      api.body.innerHTML = `<div class="prg-bs-head"><span class="prg-b ${cls}"><span class="prg-ic" aria-hidden="true">${prgIc(b, x.t)}</span></span><p class="prg-bs-st">${esc(st)}</p>
+        ${can ? `<button type="button" class="prg-bs-pin" data-bs-pin aria-pressed="${on}"><span aria-hidden="true">📌</span>${esc(on ? T('Épinglé sur ma liste d\'échange') : T('Épingler sur ma liste d\'échange'))}</button>` : ''}</div>
         <p class="prg-h">${esc(T('Comment l\'obtenir'))}</p>${prgHow(b).map(t => `<p class="prg-bs-how">${esc(t)}</p>`).join('') || `<p class="prg-bs-how">${esc(prgLabel(b, b.tiers[0]))}</p>`}
         ${uniq ? `<p class="hint">${esc(T('Badge unique : un seul palier'))}</p>` : `<p class="prg-h">${esc(T('Ta progression'))}</p><span class="prg-bar" aria-hidden="true"><i style="width:${p.toFixed(1)}%"></i></span><p class="hint">${esc(val(x.v))}${nxt != null ? ' / ' + esc(val(nxt)) : ''}</p>`}
         <p class="prg-h">${esc(T('Paliers'))}</p><ol class="prg-bs-tiers">${tiers}</ol>`;
-      if (x.t >= 0 && !b.ev && pin) { const on = show.includes(b.id); api.setFoot(`<button class="btn ghost block" type="button" data-bs-pin>${on ? '📌 ' : ''}${esc(on ? T('Retirer de ma liste d\'échange') : T('Montrer sur ma liste d\'échange'))}</button>`); api.foot.querySelector('[data-bs-pin]').onclick = () => { if (pin(b.id)) paint(); }; }
+      const pb = api.body.querySelector('[data-bs-pin]'); if (pb) pb.onclick = () => { if (pin(b.id)) paint(); };
     };
     paint();
   });

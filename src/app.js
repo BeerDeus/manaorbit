@@ -2,7 +2,8 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const reduceMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+let RM_MQ = null;      // une seule MediaQueryList (matches suit le réglage du téléphone) : reduceMotion est lu à chaque mouvement du doigt (motion.js › tiltMove)
+const reduceMotion = () => { try { return (RM_MQ || (RM_MQ = window.matchMedia('(prefers-reduced-motion: reduce)'))).matches; } catch (e) { return false; } };
 // Noms des langues de cartes, déjà traduits (« français » / « French ») : on les insère dans des phrases traduites (T('Offres en {lang}', …)).
 /** Lien de test (https://manaorbit.app/test : même page, window.MO_TEST posé par proxy.mjs) : de quoi cacher une nouveauté à essayer avant de l'ouvrir à tous (niveau, badges et Carte mystère : ouverts le 16 octobre). */
 const MO_TEST = typeof window !== 'undefined' && window.MO_TEST === true;
@@ -200,29 +201,28 @@ function mountSeg(root, options, value, onChange) {
   root.style.setProperty('--n', options.length);
   root.innerHTML = '<span class="seg-thumb"></span>' + options.map(o =>
     `<button type="button" class="seg-opt" role="radio" aria-checked="false" data-v="${esc(o.v)}"><span>${esc(o.label)}</span>${o.sub != null ? `<small>${esc(o.sub)}</small>` : ''}</button>`).join('');
+  // pastille posée sur le bouton choisi : un libellé plus long que sa colonne (« Aufbewahrung », « Organização ») élargit la sienne, les colonnes ne sont
+  // alors plus égales et la pastille calculée en 1/n chevauchait le libellé voisin ; mesurée sur le bouton (sinon, écran caché : le calcul en 1/n du CSS)
+  const fit = () => {
+    const th = root.firstElementChild, b = $$('.seg-opt', root)[Math.max(0, options.findIndex(o => o.v === root._v))];
+    if (!th || !b) return;
+    if (!b.offsetWidth) { th.style.width = th.style.transform = ''; return; }
+    th.style.width = b.offsetWidth + 'px'; th.style.transform = `translateX(${b.offsetLeft - th.offsetLeft}px)`;
+  };
+  if (typeof ResizeObserver !== 'undefined') { if (root._ro) root._ro.disconnect(); root._ro = new ResizeObserver(fit); root._ro.observe(root); $$('.seg-opt', root).forEach(b => root._ro.observe(b)); }      // boutons aussi : police chargée, libellé changé
   const set = (v, fire) => {
     const i = Math.max(0, options.findIndex(o => o.v === v));
     root.style.setProperty('--idx', i);
     $$('.seg-opt', root).forEach((b, k) => b.setAttribute('aria-checked', String(k === i)));
-    segThumb(root);
-    root._v = options[i].v;
+    root._v = options[i].v; fit();
     if (fire) haptic('tap');
     if (fire && onChange) onChange(options[i].v);
   };
   root.onclick = e => { const b = e.target.closest('.seg-opt'); if (b) set(b.dataset.v, true); };
   root.setValue = v => set(v, false);
-  root.setLabel = (v, t) => { const n = $(`.seg-opt[data-v="${v}"] span`, root); if (n) n.textContent = t; };
-  root.setSub = (v, t) => { const n = $(`.seg-opt[data-v="${v}"] small`, root); if (n) n.textContent = t; };
+  root.setLabel = (v, t) => { const n = $(`.seg-opt[data-v="${v}"] span`, root); if (n) n.textContent = t; fit(); };
+  root.setSub = (v, t) => { const n = $(`.seg-opt[data-v="${v}"] small`, root); if (n) n.textContent = t; fit(); };
   set(value, false);
-  if (typeof ResizeObserver === 'function') { if (!root._ro) root._ro = new ResizeObserver(() => segThumb(root)); root._ro.disconnect(); root._ro.observe(root); $$('.seg-opt', root).forEach(o => root._ro.observe(o)); }      // colonnes qui changent sans que la rangée change (police chargée, libellé)
-}
-/** Curseur d'un choix segmenté sur l'option cochée : un libellé plus large que sa part (allemand, police agrandie) élargit sa colonne, le curseur la suit (sinon : calc de --idx, colonnes égales). */
-function segThumb(root) {
-  const b = $('.seg-opt[aria-checked="true"]', root), w = b && b.offsetWidth;
-  if (!w) return;
-  const all = $$('.seg-opt', root), eq = all.every(o => Math.abs(o.offsetWidth - w) < 1);
-  if (eq) { root.style.removeProperty('--tx'); root.style.removeProperty('--tw'); return; }
-  root.style.setProperty('--tx', (b.offsetLeft - 3) + 'px'); root.style.setProperty('--tw', w + 'px');
 }
 
 /* ── Sheets ───────────────────────────────────────────────────────────────────────────────── */

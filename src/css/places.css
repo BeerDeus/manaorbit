@@ -1,5 +1,6 @@
 /* ── Emplacements, détails d'un exemplaire, proxys (places.js) ──────────────────────────────────── */
 .tag.plc{gap:5px;border:0;font-family:inherit;cursor:pointer;max-width:100%}
+.tag.plc>.plc-n{min-width:0;overflow:hidden;text-overflow:ellipsis}      /* nom long : « … » (un texte nu dans un bloc flex est coupé net) */
 .tag.plc.add{border:1px dashed var(--line);background:transparent;color:var(--ink-3);font-weight:600}      /* ligne non rangée (un emplacement existe) : « Ranger », discret */
 .tag.plc i,.plc-opt i,.plc-cur>i,.plc-bar .plc-pill i,.fetch-gh i,.cex-dot,.sc-dest i{flex:none;width:8px;height:8px;border-radius:2px;background:var(--c,#4a4f66)}
 .tag.plc em{font-style:normal;font-weight:700;color:#a8811f}

@@ -478,8 +478,6 @@
 "Badge obtenu": "Badge unlocked",
 "Tous les paliers sont obtenus": "All tiers unlocked",
 "Encore {n} avant le palier {tier}": "{n} more to reach the {tier} tier",
-"Montrer sur ma liste d'échange": "Show on my trade list",
-"Retirer de ma liste d'échange": "Remove from my trade list",
 "Scanne une carte imprimée en {lang}. Une seule suffit.": "Scan a card printed in {lang}. A single one is enough.",
 "allemand": "German",
 "espagnol": "Spanish",
@@ -492,5 +490,18 @@
 "chinois traditionnel": "Traditional Chinese",
 "Les indices du jour sont sur la carte de la fête, à l'accueil (« Indices »).": "Today's clues are on the holiday card on the home screen (“Clues”).",
 "Cet événement est terminé : ce badge n'est plus obtenable. Tu gardes le palier atteint.": "This event is over: this badge can no longer be earned. You keep the tier you reached.",
-"Détails du badge {name}": "Badge details: {name}"
+"Détails du badge {name}": "Badge details: {name}",
+"Épingler sur ma liste d'échange": "Pin to my trade list",
+"Épinglé sur ma liste d'échange": "Pinned to my trade list",
+"{n} badges obtenus sur {t}": "{n} of {t} badges earned",
+"Comparer le badge {name}": "Compare the {name} badge",
+"Cette personne": "This person",
+"Même palier": "Same tier",
+"Tu es devant": "You're ahead",
+"{name} est devant": "{name} is ahead",
+"À égalité": "Tied",
+"Tu es devant de {n}": "You're ahead by {n}",
+"{name} est devant de {n}": "{name} is ahead by {n}",
+"Toi face à {name}": "You vs {name}",
+"Toi": "You"
 }

@@ -478,8 +478,6 @@
 "Badge obtenu": "Badge ottenuto",
 "Tous les paliers sont obtenus": "Tutti i livelli ottenuti",
 "Encore {n} avant le palier {tier}": "Ancora {n} per il livello {tier}",
-"Montrer sur ma liste d'échange": "Mostra nella mia lista scambi",
-"Retirer de ma liste d'échange": "Togli dalla mia lista scambi",
 "Scanne une carte imprimée en {lang}. Une seule suffit.": "Scansiona una carta stampata in {lang}. Ne basta una.",
 "allemand": "tedesco",
 "espagnol": "spagnolo",
@@ -492,5 +490,18 @@
 "chinois traditionnel": "cinese tradizionale",
 "Les indices du jour sont sur la carte de la fête, à l'accueil (« Indices »).": "Gli indizi del giorno sono sulla scheda della festa, nella Home («Indizi»).",
 "Cet événement est terminé : ce badge n'est plus obtenable. Tu gardes le palier atteint.": "Questo evento è terminato: il badge non si può più ottenere. Mantieni il livello raggiunto.",
-"Détails du badge {name}": "Dettagli del badge {name}"
+"Détails du badge {name}": "Dettagli del badge {name}",
+"Épingler sur ma liste d'échange": "Fissa nella mia lista scambi",
+"Épinglé sur ma liste d'échange": "Fissato nella mia lista scambi",
+"{n} badges obtenus sur {t}": "{n} badge ottenuti su {t}",
+"Comparer le badge {name}": "Confronta il badge {name}",
+"Cette personne": "Questa persona",
+"Même palier": "Stesso livello",
+"Tu es devant": "Sei in vantaggio",
+"{name} est devant": "{name} è in vantaggio",
+"À égalité": "Pari",
+"Tu es devant de {n}": "Sei avanti di {n}",
+"{name} est devant de {n}": "{name} è avanti di {n}",
+"Toi face à {name}": "Tu contro {name}",
+"Toi": "Tu"
 }

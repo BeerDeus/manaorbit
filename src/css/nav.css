@@ -17,8 +17,8 @@
 .nav-sc{width:40px;height:40px}
 /* place laissée à la barre */
 body.nav-on .wrap{padding-bottom:calc(128px + var(--nav-h))}
-body.nav-on .dock{bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));padding-bottom:22px}      /* le rond foil du Scanner dépasse de la barre : le bouton reste au-dessus */
-body.nav-on .toast{bottom:calc(var(--nav-h) + 22px + env(safe-area-inset-bottom,0px))}
+body.nav-on .dock{bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));padding-bottom:30px}      /* le rond foil du Scanner dépasse de la barre (20 px + son anneau de 5 px) : le bouton reste au-dessus, sans le toucher */
+body.nav-on .toast{bottom:calc(var(--nav-h) + 30px + env(safe-area-inset-bottom,0px))}      /* au-dessus du bouton Scanner qui dépasse de la barre (22 px : le toast le touchait) */
 .dv.sec .dv-scroll{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px))}
 /* sections : pas de bouton retour (la barre du bas et Retour du téléphone y suffisent), pas d'animation quand on passe de l'une à l'autre */
 .dv.sec .dv-back{display:none}
@@ -30,7 +30,7 @@ body.nav-on .toast{bottom:calc(var(--nav-h) + 22px + env(safe-area-inset-bottom,
 /* onglets de la section Decks : Mes decks · À monter · Prix d'une liste */
 .dk-tabs{flex:none;display:flex;gap:22px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--bar-bg);overflow-x:auto;scrollbar-width:none}
 .dk-tabs::-webkit-scrollbar{display:none}
-@media (max-width:440px){.dk-tabs{gap:16px;padding:0 14px}.dk-tab{font-size:14.5px}}      /* téléphone : les trois onglets tiennent dans la largeur (« Preço de uma lista » était coupé à 360 px) ; sinon la rangée défile vers l'onglet ouvert (nav.js › navSync) */
+@media (max-width:440px){.dk-tabs{gap:16px;padding:0 14px}.dk-tab{font-size:14.5px}}      /* téléphone : les trois onglets tiennent dans la largeur (« Preço de uma lista » était coupé à 360 px) ; sinon la rangée défile vers l'onglet ouvert (nav.js › dkTabsReveal) */
 .dk-tab{flex:none;position:relative;height:46px;padding:0;border:0;background:none;color:var(--ink-3);font:inherit;font-size:15px;font-weight:650;white-space:nowrap;cursor:pointer}
 .dk-tab em{font-style:normal;display:inline-grid;place-items:center;min-width:20px;height:20px;margin-left:4px;padding:0 6px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:800}
 .dk-tab[aria-current="page"]{color:var(--ink)}
@@ -50,7 +50,7 @@ body.nav-on .toast{bottom:calc(var(--nav-h) + 22px + env(safe-area-inset-bottom,
 .hm-tr-live{flex:none;display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:99px;background:var(--good-soft);color:var(--good);font-size:12px;font-weight:700}
 .hm-tr-live::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
 .hm-tr-acts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.hm-tr-acts .btn{height:44px;font-size:14.5px}
+.hm-tr-acts .btn{height:44px;padding:0 12px;gap:7px;font-size:14.5px}      /* deux boutons côte à côte : marges plus courtes, « Nouvelle partie », « QR code » (pt) sur une ligne à 360 px */
 .hm-fy{border-top:1px solid var(--line);padding-top:10px}
 .hm-fy-h{margin:0 0 6px;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
 .hm-fy-h b{font-weight:800}

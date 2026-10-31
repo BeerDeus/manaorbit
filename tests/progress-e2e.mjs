@@ -44,33 +44,44 @@ ok('lien de test : « ' + lv + ' » à côté du compte ; fiche : niveau, XP, br
 /* ── Vitrine : 3 badges au plus ─────────────────────────────────────────────────────────────────────────────── */
 for (const id of ['sc_cards', 'sc_city_jp', 'gm_streak']) { await p.click(`.prg-sheet [data-pin="${id}"]`); await p.waitForFunction(id => document.querySelector(`.prg-sheet [data-pin="${id}"]`).getAttribute('aria-pressed') === 'true', id); }
 await p.click('.prg-sheet [data-pin="gm_wins"]'); await p.waitForFunction(() => /3 badges au plus/.test(document.querySelector('#toast').textContent));
-assert.deepEqual(await p.evaluate(() => prgShare()), { bg: [['sc_cards', 0], ['sc_city_jp', 0], ['gm_streak', 1]] });
+assert.deepEqual(await p.evaluate(() => prgShare()), { bg: [['sc_cards', 0, 150], ['sc_city_jp', 0, 3], ['gm_streak', 1, 3]] });
 const back = await p.evaluate(() => readShare('trade', JSON.stringify({ have: [], want: [], by: 'Max', ...prgShare() })).bg);
-assert.deepEqual(back, [['sc_cards', 0], ['sc_city_jp', 0], ['gm_streak', 1]], 'relu par readShare');
+assert.deepEqual(back, [['sc_cards', 0, 150], ['sc_city_jp', 0, 3], ['gm_streak', 1, 3]], 'relu par readShare (valeur comprise)');
 assert.deepEqual(await p.evaluate(() => readShare('trade', JSON.stringify({ have: [], want: [], bg: [['x<y', 0], ['sc_cards', 9], ['sc_cards', 1], ['a', 1], ['b', 1], ['c', 1]] })).bg), [['sc_cards', 1]], 'badges abîmés écartés, 3 au plus');
 assert.match(await p.evaluate(b => { const d = document.createElement('div'); d.innerHTML = prgShowHtml(b); return d.textContent; }, back), /Scanner.*Tokyo.*Inarrêtable/, 'nom du palier : Invincible en argent devient « Inarrêtable »');
+{ // vitrine chez le visiteur : une ligne de boutons ; un appui compare sa progression à la mienne (prgVsSheet)
+  const r = await p.evaluate(() => { const d = document.createElement('div'); d.innerHTML = prgShowHtml(readShare('trade', JSON.stringify({ have: [], want: [], bg: [['sc_cards', 2, 12400], ['co_value', 0]] })).bg); return [...d.querySelectorAll('button.prg-chip[data-vs]')].map(b => [b.dataset.vs, b.dataset.t, b.dataset.v ?? null]); });
+  assert.deepEqual(r, [['sc_cards', '2', '12400'], ['co_value', '0', null]], 'valeur gardée si présente (partage plus ancien : palier seul)');
+  await p.evaluate(() => prgVsSheet('sc_cards', 2, 12400, 'Zoé')); await p.waitForSelector('.prg-vs.open .prg-vs-row');
+  const t = (await txt(p, '.prg-vs .sheet-body')).replace(/[\u202f\u00a0]/g, ' ');
+  assert.match(t, /Zoé\s*Maître du scan · or.*12 400 \/ 100 000\s*VS\s*Toi\s*Scanner · bronze.*Zoé est devant de/s, 'son palier et sa valeur face aux miens');
+  assert.equal(await p.$$eval('.prg-vs .prg-bs-tiers li', l => l.length), 4);
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.prg-vs'));
+}
 ok('vitrine : 3 badges au plus choisis dans la fiche (📌), envoyés avec la liste d\'échange, relus et montrés chez le visiteur');
 
 /* ── Fenêtre d'un badge : appui sur sa tuile ────────────────────────────────────────────────────────────────────── */
 await p.click('.prg-sheet .prg-b[data-b="sc_cards"] .prg-ic'); await p.waitForSelector('.prg-bs.open .prg-bs-tiers');
 assert.match(await txt(p, '.prg-bs .sheet-head'), /^Scanner\s*Scan/, 'titre : nom du badge, rubrique');
-assert.match(await txt(p, '.prg-bs .sheet-body'), /Encore 850 avant le palier argent\s*Comment l'obtenir\s*Scanne tes cartes avec l'appareil photo.*Ta progression\s*150 \/ 1 000\s*Paliers/s);
+assert.match(await txt(p, '.prg-bs .sheet-body'), /Encore 850 avant le palier argent\s*📌\s*Épingl(?:er|é) sur ma liste d'échange\s*Comment l'obtenir\s*Scanne tes cartes avec l'appareil photo.*Ta progression\s*150 \/ 1 000\s*Paliers/s);
 const top = await p.evaluate(() => T(PRG_NAMES.sc_cards[2]));
 assert.deepEqual(await p.$$eval('.prg-bs-tiers li', l => l.map(x => [x.className, x.querySelector('b').textContent, [...x.querySelectorAll('.prg-bs-x > *')].map(e => e.textContent.replace(/[\u202f\u00a0]/g, ' ')).join(' ')])),
   [['ok', 'Scanner', '+100 XP ✓ Obtenu'], ['', 'Scanner chevronné', '+500 XP À venir'], ['', 'Maître du scan', '+2 500 XP À venir'], ['', top, '+12 500 XP À venir']], 'paliers : nom, XP, obtenu ou à venir');
 await p.screenshot({ path: 'shots/progress-badge-sheet.png' });
-await p.click('.prg-bs [data-bs-pin]'); await p.waitForFunction(() => /Montrer sur ma liste/.test(document.querySelector('.prg-bs [data-bs-pin]').textContent));
+await p.click('.prg-bs [data-bs-pin]'); await p.waitForFunction(() => /Épingler sur ma liste/.test(document.querySelector('.prg-bs [data-bs-pin]').textContent) && document.querySelector('.prg-bs [data-bs-pin]').getAttribute('aria-pressed') === 'false');
 assert.equal(await p.$eval('.prg-sheet [data-pin="sc_cards"]', b => b.getAttribute('aria-pressed')), 'false', 'retiré de la vitrine depuis la fenêtre, la fiche suit');
-await p.click('.prg-bs [data-bs-pin]'); await p.waitForFunction(() => /Retirer de ma liste/.test(document.querySelector('.prg-bs [data-bs-pin]').textContent));
+await p.click('.prg-bs [data-bs-pin]'); await p.waitForFunction(() => /Épinglé sur ma liste/.test(document.querySelector('.prg-bs [data-bs-pin]').textContent) && document.querySelector('.prg-bs [data-bs-pin]').getAttribute('aria-pressed') === 'true');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.prg-bs'));
 await p.focus('.prg-sheet .prg-b[data-b="co_value"]'); await p.keyboard.press('Enter'); await p.waitForSelector('.prg-bs.open');
 assert.match(await txt(p, '.prg-bs .sheet-body'), /Pas encore obtenu\s*Comment l'obtenir\s*La valeur totale de ta collection/);
-assert.equal(await p.$eval('.prg-bs .sheet-foot', f => f.hidden), true, 'pas obtenu : pas de vitrine');
+assert.equal(await p.$('.prg-bs [data-bs-pin]'), null, 'pas obtenu : pas de bouton 📌');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.prg-bs'));
 await p.click('.prg-sheet .prg-b[data-b="sc_city_jp"]'); await p.waitForSelector('.prg-bs.open');
-assert.match(await txt(p, '.prg-bs .sheet-body'), /Badge obtenu\s*Comment l'obtenir\s*Scanne une carte imprimée en japonais\. Une seule suffit\..*Badge unique : un seul palier/s);
+assert.match(await txt(p, '.prg-bs .sheet-body'), /Badge obtenu\s*📌\s*Épinglé sur ma liste d'échange\s*Comment l'obtenir\s*Scanne une carte imprimée en japonais\. Une seule suffit\..*Badge unique : un seul palier/s);
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.prg-bs'));
 assert.equal(await p.evaluate(() => PRG_BADGES.filter(b => !prgHow(b).length).map(b => b.id).join(',')), '', 'chaque badge a son explication');
+{ const r = await p.evaluate(() => { const c = prgCount(), d = document.createElement('div'); d.innerHTML = meBadgesRow(); return { c, all: prgBadges().reduce((a, x) => a + x.b.tiers.length, 0), b: d.querySelector('.me-bdg b').textContent, t: d.textContent, me: d.firstElementChild.dataset.me }; });
+  assert.equal(r.c.all, r.all, 'chaque palier compte pour un badge'); assert.ok(r.c.got >= 4); assert.equal(r.b, String(r.c.got)); assert.match(r.t, new RegExp('Badges\\s*' + r.c.got + '\\s*/\\s*' + r.c.all)); assert.equal(r.me, 'niveau', 'ouvre « Niveau et badges »'); }
 ok('fenêtre d\'un badge (appui ou clavier) : comment l\'obtenir, progression, paliers (nom, XP, obtenu), vitrine ; badge pas obtenu, badge unique');
 
 /* ── Nouveau palier : bannière cliquable qui s'efface seule ─────────────────────────────────────────────────────── */

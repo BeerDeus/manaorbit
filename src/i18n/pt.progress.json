@@ -478,8 +478,6 @@
 "Badge obtenu": "Emblema conquistado",
 "Tous les paliers sont obtenus": "Todos os níveis conquistados",
 "Encore {n} avant le palier {tier}": "Faltam {n} para o nível {tier}",
-"Montrer sur ma liste d'échange": "Mostrar na minha lista de trocas",
-"Retirer de ma liste d'échange": "Tirar da minha lista de trocas",
 "Scanne une carte imprimée en {lang}. Une seule suffit.": "Escaneie uma carta impressa em {lang}. Uma só basta.",
 "allemand": "alemão",
 "espagnol": "espanhol",
@@ -492,5 +490,18 @@
 "chinois traditionnel": "chinês tradicional",
 "Les indices du jour sont sur la carte de la fête, à l'accueil (« Indices »).": "As dicas do dia estão no card da festa, na tela inicial (“Dicas”).",
 "Cet événement est terminé : ce badge n'est plus obtenable. Tu gardes le palier atteint.": "Este evento terminou: este emblema não pode mais ser conquistado. Você mantém o nível alcançado.",
-"Détails du badge {name}": "Detalhes do emblema {name}"
+"Détails du badge {name}": "Detalhes do emblema {name}",
+"Épingler sur ma liste d'échange": "Fixar na minha lista de trocas",
+"Épinglé sur ma liste d'échange": "Fixado na minha lista de trocas",
+"{n} badges obtenus sur {t}": "{n} de {t} distintivos obtidos",
+"Comparer le badge {name}": "Comparar o distintivo {name}",
+"Cette personne": "Esta pessoa",
+"Même palier": "Mesmo nível",
+"Tu es devant": "Você está na frente",
+"{name} est devant": "{name} está na frente",
+"À égalité": "Empate",
+"Tu es devant de {n}": "Você está {n} na frente",
+"{name} est devant de {n}": "{name} está {n} na frente",
+"Toi face à {name}": "Você contra {name}",
+"Toi": "Você"
 }

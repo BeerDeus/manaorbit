@@ -716,7 +716,7 @@ async function collEnrich() {
   if (scryLeft() > 0) { COLL.enrichErr = T('Scryfall demande une pause : réessaie dans {s} s', { s: Math.ceil(scryLeft() / 1000) }); collPaintHead(); return; }
   const full = miss.length > 0 && miss.length >= collCount();      // toute la collection relue : les prix Cardmarket sont à jour
   const st = COLL.enrich = { done: 0, total: miss.length + lmN, ctrl: new AbortController(), ph: miss.length ? 'info' : 'img', wait: '' };
-  st.tick = setInterval(() => { const w = collScryWait(); if (w !== st.wait) { st.wait = w; collPaintHead(); } }, 1000);      // pause de la file : décompte chaque seconde
+  st.tick = setInterval(() => { const w = collScryWait(); if (w !== st.wait) { st.wait = w; collPaintHead(true); } }, 1000);      // pause de la file : décompte chaque seconde
   COLL.enrichErr = '';
   st.p = (async () => {
     try {
@@ -729,7 +729,7 @@ async function collEnrich() {
       st.ph = 'img';
       for (const [l, keys] of Object.entries(lm)) {
         const base = st.done;
-        const got = await scryLangImages(keys.map(k => COLL.map[k] ? COLL.map[k].n : k), l, st.ctrl.signal, n => { st.done = base + n; collPaintHead(); });
+        const got = await scryLangImages(keys.map(k => COLL.map[k] ? COLL.map[k].n : k), l, st.ctrl.signal, n => { st.done = base + n; collPaintHead(true); });
         for (const k of keys) COLL.li[liKey(l, k)] = got.get(k) || '';
         st.done = base + keys.length; collMetaSave(); collPaintHead(); collPaintSoon(); scanPaintList();
       }
@@ -937,7 +937,7 @@ function collAll() {
 /** …filtrées puis triées, gardées pour un même tri, une même source de prix et un même filtre. */
 function collListOf(v) {
   const f = COLL.f, sk = [COLL.sort, COLL.src, f.q, [...f.colors].sort().join(''), f.type, f.cmc, f.cmdr, f.set, COLL.place, SETIC.m ? 1 : 0, collWhenOn() ? COLL.when.dir + COLL.when.t : '', typeof srchKey === 'function' ? srchKey(f) : ''].join('\u0001');      // SETIC.m : dates des extensions arrivées (tri par édition) ; srchKey : filtres avancés (search.js)
-  if (v.sk !== sk) { if (typeof srchPrep === 'function') srchPrep(v, f); v.filtered = filterItems(v.all, f); if (collWhenOn()) { const w = COLL.when; v.filtered = v.filtered.filter(it => it.d > 0 && (w.dir === 'before' ? it.d < w.t : it.d >= w.t)); } if (COLL.place) v.filtered = v.filtered.filter(it => collLines(COLL.map[it.k]).some(([g]) => plcIn(g))); v.sorted = collSorted(v.filtered); v.sk = sk; }      // emplacement affiché (Rangement) : les cartes qui y ont au moins un exemplaire
+  if (v.sk !== sk) { if (typeof srchPrep === 'function') srchPrep(v, f); v.filtered = filterItems(v.all, f); if (collWhenOn()) { const w = COLL.when; v.filtered = v.filtered.filter(it => it.d > 0 && (w.dir === 'before' ? it.d < w.t : it.d >= w.t)); } if (COLL.place) v.filtered = v.filtered.filter(it => collLines(COLL.map[it.k]).some(([g]) => plcIn(g))); v.sorted = collSortIn(v, v.filtered); v.sk = sk; }      // emplacement affiché (Rangement) : les cartes qui y ont au moins un exemplaire
   return v;
 }
 function collItems() {
@@ -975,8 +975,29 @@ function collRowItems(it) {
     return r;
   });
 }
+/** Tri en vigueur : « Joués en commandant » : les plus joués d'abord (sauf autre tri choisi). */
+const collSortMode = () => (COLL.sort === 'name' && COLL.f.cmdr === 'played' ? 'decks' : COLL.sort);
+/**
+ * items (une partie de v.all, dans son ordre) triées. Toute la vue est triée une fois par tri (v.pre, gardée avec la vue : COLL.seq, prix, noms…), puis chaque
+ * filtre ne fait que la parcourir : trier 5 000 cartes à chaque pastille coûtait ~65 ms sur un téléphone moyen (20 000 : ~0,3 s). Même ordre que trier items :
+ * le tri est stable et ne dépend que de chaque carte (tri « Édition » : de l'extension filtrée, dans la clé). Rien de gardé pour ce tri : items triées directement.
+ * items : cartes de v.all seulement (filterItems, filtres de collListOf).
+ */
+function collSortIn(v, items) {
+  const mode = collSortMode(), pk = [mode, COLL.src, mode === 'set' ? COLL.f.set : '', SETIC.m ? 1 : 0, I18N.lang].join('\u0001');      // I18N.lang : ordre des noms (NAME_CMP)
+  if (v.pk !== pk) { if (items.length !== v.all.length) return collSorted(items); v.pre = collSorted(v.all); v.rank = null; v.pk = pk; }      // gardée quand toute la vue est triée de toute façon (aucun filtre) : jamais plus de travail qu'avant
+  const pre = v.pre; let out;
+  if (items.length === pre.length) out = pre.slice();
+  else {      // rang de chaque carte dans la liste triée (fait au premier filtre)
+    const rank = v.rank || (v.rank = new Map(pre.map((it, i) => [it, i]))), on = new Uint8Array(pre.length);
+    for (const it of items) on[rank.get(it)] = 1;
+    out = pre.filter((it, i) => on[i] === 1);
+  }
+  if (pre.se) out.se = pre.se;      // tri « Édition » : extension de chaque carte (intertitres)
+  return out;
+}
 function collSorted(items) {
-  const mode = COLL.sort === 'name' && COLL.f.cmdr === 'played' ? 'decks' : COLL.sort;      // « Joués en commandant » : les plus joués d'abord (sauf autre tri choisi)
+  const mode = collSortMode();
   if (mode === 'set') return collBySet(items);
   const by = { name: byName, qty: (a, b) => (b.q - a.q) || byName(a, b), price: (a, b) => (((srcPrice(b, COLL.src) || {}).u || 0) - ((srcPrice(a, COLL.src) || {}).u || 0)) || byName(a, b), decks: (a, b) => ((b.ed || 0) - (a.ed || 0)) || ((b.cx || 0) - (a.cx || 0)) || byName(a, b), new: (a, b) => ((b.d || 0) - (a.d || 0)) || byName(a, b), old: (a, b) => ((a.d || 0) - (b.d || 0)) || byName(a, b) }[mode] || byName;
   return items.slice().sort(by);
@@ -1096,13 +1117,16 @@ function collValPaint() {
   box.hidden = false;
   box.innerHTML = `<button type="button" class="cv" data-act="valtab" aria-label="${esc(T('Valeur de la collection : {v} · voir les stats', { v: v ? hmEur(v) : '—' }))}"><span class="cv-t"><b>${v ? esc(hmEur(v)) : '—'}</b><span>${TN(n, '{n} carte', '{n} cartes')} · ${TN(collCopies(), '{n} exemplaire', '{n} exemplaires')}</span></span><span class="cv-r">${dl}${spark}</span></button>`;
 }
-function collPaintHead() {
-  paintCollSection();
+/** tick : simple avancée d'une lecture (compteur, pause Scryfall), rien d'autre n'a changé : la ligne de l'accueil (#collSub) et son repeint (homeSoon), le titre
+ *  (cartes, exemplaires, valeur) et la carte de valeur des Stats sont sautés ; la barre de lecture suit.
+ *  Pendant le relevé des prix du jour (5 000 cartes : 67 lots) ou la lecture des images, chaque lot repeignait l'accueil (≈ 50 ms à CPU ×4, tests/perf-e2e.mjs). */
+function collPaintHead(tick) {
+  if (!tick) paintCollSection();
   if (typeof opnCollHead === 'function' && opnCollHead(COLL.el)) return;      // session d'ouverture (opening.js) : note ; mode streamer : en-tête de la session seule
-  collValPaint();
+  if (!tick) collValPaint();
   if (typeof BD !== 'undefined' && BD.el && BD.tab === 'coll') { BD.idx = null; bdList(); }      // l'éditeur de deck liste la collection : il suit la lecture des cartes (commandants possibles…)
   const el = COLL.el; if (!el) return;
-  $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul
+  if (!tick) $('.dv-title span', el).textContent = COLL.mode === 'coll' ? collHeadText() : '';      // Échange, Decks › À monter : le titre seul ; tick : cartes, exemplaires et valeur inchangés
   const sy = $('.coll-sync', el), si = collSyncInfo(), dot = $('.coll-dot', el);
   if (dot) { dot.hidden = !si; if (si) { dot.dataset.k = si.k; dot.setAttribute('aria-label', si.t); dot.title = si.t; } }
   if (!si || si.k === 'ok' || !(si.k === 'bad' && D.user)) sy.hidden = true;      // le point suffit (touché : la feuille qui dit pourquoi) ; bandeau seulement quand la sauvegarde du compte échoue
@@ -1354,7 +1378,7 @@ function openCollection(tab) {
     if (crow && !crow.classList.contains('dk') && !e.target.closest('a,input,select,label,details>summary')) openCardSheet(crow.dataset.k, COLL.tab === 'trade' ? { from: 'trade', l: crow.dataset.ln || '', n: zoomName(crow) || undefined } : { from: 'coll', l: rowG(crow) });
   });
   document.body.appendChild(wrap); holdApp(); collPaintHead(); collPaintBody(false);
-  requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); const f = $('.dk-tab[aria-current], #collSeg [aria-checked="true"], .coll-tools .icon-btn, .dv-title', wrap); if (f) { if (!f.hasAttribute('tabindex') && f.classList.contains('dv-title')) f.tabIndex = -1; f.focus({ preventScroll: true }); } }));
+  requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); dkTabsReveal(wrap); const f = $('.dk-tab[aria-current], #collSeg [aria-checked="true"], .coll-tools .icon-btn, .dv-title', wrap); if (f) { if (!f.hasAttribute('tabindex') && f.classList.contains('dv-title')) f.tabIndex = -1; f.focus({ preventScroll: true }); } }));
   haptic('tap');
   if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); else { valMaybe(); edRefresh(); collSoloSoon(); }
   if (collEds().length) setIcLoad(() => { if (COLL.el) collPaintSoon(); });      // symboles des extensions (étiquettes d'édition) : seulement si des lignes en ont une

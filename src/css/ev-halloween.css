@@ -193,9 +193,9 @@ html.ev-deco[data-event="halloween"]:not(.ev-quiet) body > .dv:not(.scan):not(.p
 html.ev-deco[data-event="halloween"]:not(.ev-quiet) body > .dv:not(.scan):not(.pu):not(.trc):not(.sc-ef):not(.dly-play) > .dv-head::before{content:"";position:absolute;right:0;top:0;width:118px;height:118px;
   background:var(--evh-webi) no-repeat right top/100% 100%;transform:scaleX(-1);opacity:var(--evh-webo);pointer-events:none;z-index:0}
 html.ev-deco[data-event="halloween"]:not(.ev-quiet) body > .dv:not(.scan):not(.pu):not(.trc):not(.sc-ef):not(.dly-play) > .dv-head > *{position:relative;z-index:1}
-html.ev-deco[data-event="halloween"]:not(.ev-quiet) .sheet::before{content:"";position:absolute;left:0;top:0;width:78px;height:78px;border-top-left-radius:24px;
-  background:var(--evh-webi) no-repeat left top/100% 100%;opacity:var(--evh-webo);pointer-events:none;z-index:0}
-html.ev-deco[data-event="halloween"]:not(.ev-quiet) .sheet::after{content:"";position:absolute;right:74px;top:0;width:14px;height:30px;background:var(--evh-spi) no-repeat center top/100% 100%;
+html.ev-deco[data-event="halloween"]:not(.ev-quiet) .sheet::before{content:"";position:absolute;right:0;top:0;width:78px;height:78px;border-top-left-radius:24px;
+  background:var(--evh-webi) no-repeat left top/100% 100%;transform:scaleX(-1);opacity:var(--evh-webo);pointer-events:none;z-index:0}      /* coin haut droit, derrière ✕ : le titre garde sa marge sans toile dessus */
+html.ev-deco[data-event="halloween"]:not(.ev-quiet) .sheet::after{content:"";position:absolute;right:84px;top:0;width:14px;height:30px;background:var(--evh-spi) no-repeat center top/100% 100%;
   pointer-events:none;z-index:2;transform-origin:50% 0;animation:evhSpider 4.6s ease-in-out infinite alternate}
 html.ev-deco[data-event="halloween"]:not(.ev-quiet) .bar::before{content:"";position:absolute;left:68%;top:100%;width:12px;height:26px;background:var(--evh-spi) no-repeat center top/100% 100%;
   pointer-events:none;transform-origin:50% 0;animation:evhSpider 5.2s ease-in-out -2s infinite alternate}

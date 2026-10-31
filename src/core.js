@@ -717,9 +717,16 @@ function sanitizeSnap(x) {
 const newestSnap = (...a) => a.filter(Boolean).sort((p, q) => q.at - p.at)[0] || null;
 
 const TYPE_ORDER = ['Créatures', 'Planeswalkers', 'Batailles', 'Artefacts', 'Enchantements', 'Éphémères', 'Rituels', 'Terrains', 'Autres'];
-/** Famille d'une carte d'après sa ligne de type (Artifact Creature → Créatures ; Artifact Land → Terrains). */
+/** Famille d'une carte d'après sa ligne de type (Artifact Creature → Créatures ; Artifact Land → Terrains). Gardée par ligne de type (quelques milliers au plus) :
+ *  le filtre « Famille » la relit pour chaque carte à chaque pastille (20 000 cartes : ~40 ms de moins sur un téléphone moyen). */
+const TYPE_MEMO = new Map();
 function typeBucket(tl) {
-  const t = String(tl || '').toLowerCase();
+  const s = String(tl || ''); let b = TYPE_MEMO.get(s);
+  if (b === undefined) { b = typeBucketOf(s); if (TYPE_MEMO.size >= 5000) TYPE_MEMO.clear(); TYPE_MEMO.set(s, b); }
+  return b;
+}
+function typeBucketOf(tl) {
+  const t = tl.toLowerCase();
   if (t.includes('creature')) return 'Créatures';
   if (t.includes('planeswalker')) return 'Planeswalkers';
   if (t.includes('battle')) return 'Batailles';
@@ -2384,9 +2391,10 @@ function deckUse(texts) {
  * Cartes à échanger. coll : clé → { n, q, l?, x? } · use : deckUse(…) · keep : réserve gardée en plus des decks (0, 1, 2…) · kept : Set des clés que l'utilisateur garde
  * · places : emplacements (COLL.places) pour leur règle d'échange (placeTrade) : « skip » : ses exemplaires ne sont jamais proposés et remplissent la réserve (decks + keep) en premier ;
  *   « all » : ses exemplaires partent tous, même le dernier, même s'ils manquent à un deck ; sans règle (ou deck monté) : classique, la réserve se prend sur eux, dans l'ordre d'affichage.
- * Retourne { have: [{ k, n, q, lines: [[langue, exemplaires]] }], held: [{ k, n, q }] } (held : cartes gardées à la main qui auraient été proposées), triés par nom.
+ * Retourne { have: [{ k, n, q, lines: [[langue, exemplaires]] }], held: [{ k, n, q }] } (held : cartes gardées à la main qui auraient été proposées), triés par nom
+ * (unsorted : dans l'ordre de la collection, pour seulement les compter : share.js › trCounts).
  */
-function tradeLists(coll, use, keep, kept, places) {
+function tradeLists(coll, use, keep, kept, places, unsorted) {
   const have = [], held = [], kp = Math.max(0, Math.floor(Number(keep) || 0)), rule = places ? g => placeTrade(places, lineAttrs(g).p) : () => '';
   for (const [k, x] of Object.entries(coll || {})) {
     if (!x || !(x.q > 0) || BASIC_NAMES.has(k)) continue;
@@ -2403,6 +2411,7 @@ function tradeLists(coll, use, keep, kept, places) {
     }
     have.push({ k, n: x.n, q: spare, lines });
   }
+  if (unsorted) return { have, held };
   const byN = (a, b) => EN_CMP(a.n, b.n);
   return { have: have.sort(byN), held: held.sort(byN) };
 }
@@ -2539,7 +2548,7 @@ function readShare(kind, d) {
   const at = shNum(o.at, 0, 1e15) || 0;
   // pseudo et photo du propriétaire (facultatifs) : texte court sans balise, image seulement en data:image (aucune adresse externe)
   const by = shStr(o.by, 200).replace(/[\p{Cc}\p{Cf}<>]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 30).trim(), bp = typeof o.bp === 'string' && o.bp.length <= 40000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(o.bp) ? o.bp : '';
-  const bg = Array.isArray(o.bg) ? o.bg.slice(0, 3).filter(x => Array.isArray(x) && typeof x[0] === 'string' && /^[a-z0-9_]{2,24}$/.test(x[0]) && Number.isInteger(x[1]) && x[1] >= 0 && x[1] <= 3).map(x => [x[0], x[1]]) : [];      // badges choisis par le propriétaire (progress.js), 3 au plus
+  const bg = Array.isArray(o.bg) ? o.bg.slice(0, 3).filter(x => Array.isArray(x) && typeof x[0] === 'string' && /^[a-z0-9_-]{2,32}$/.test(x[0]) && Number.isInteger(x[1]) && x[1] >= 0 && x[1] <= 3).map(x => (Number.isInteger(x[2]) && x[2] >= 0 && x[2] <= 1e9 ? [x[0], x[1], x[2]] : [x[0], x[1]])) : [];      // badges choisis par le propriétaire (progress.js), 3 au plus
   const who = { ...(by ? { by } : {}), ...(bp ? { bp } : {}), ...(bg.length ? { bg } : {}) };
   if (kind === 'trade') {
     const list = a => (Array.isArray(a) ? a.slice(0, 20000).map(shareCard).filter(Boolean) : []);

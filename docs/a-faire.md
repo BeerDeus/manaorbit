@@ -12,6 +12,13 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Point du 31 octobre : R8 rallumé (APK 1.1.1, versionCode 17)
+**Fait (Claude)** : alerte Play Console « obscurcissement 1 % » (seuil 25 %, février 2027). R8 rallumé en mode prudent (sans optimisation, mode full coupé, pont Capacitor, chaque plugin et `app.manaorbit` gardés en entier) ; cause probable de la caméra muette des 1.0.7 / 1.0.8 : R8 optimisé en mode full sur la permission caméra lue dans l'annotation du plugin, pas `EdgeToEdge` (qui ne revient pas). Détails, liste à cocher et notes de version : `docs/android.md` › « APK 1.1.1 ».
+
+**Propriétaire**
+- [ ] `.aab` de la 1.1.1 depuis `main`, **test interne obligatoire** (liste à cocher : caméra en moins de 2 s d'abord), puis production seulement si tout est coché. Caméra muette : ne pas promouvoir, Logcat dans la conversation.
+- [ ] Quelques semaines après : Android vitals › l'alerte « Optimisation du code DEX » a disparu (obscurcissement au-dessus de 25 %). `APK_LATEST=17` une fois en production (facultatif).
+
 ## Point du 29 octobre : prix TCGplayer pour les États-Unis (à lire en premier)
 **Fait (Claude)** : marché des prix Cardmarket (Europe, €) ou TCGplayer (États-Unis et autres pays, $), deviné au premier lancement, réglable dans Compte et réglages › Prix › Marché des prix (README › « Marché des prix »). En Europe, rien ne change. Côté TCGplayer : prix Scryfall en dollars, textes réécrits dans les 6 langues, liens TCGplayer et Mass Entry, pas de CardTrader, alertes, échange en direct, partages et widget en dollars. Aucune règle Firestore ni variable Hostinger. APK **1.1.0 (versionCode 16)** pour le widget en dollars (`docs/android.md`).
 

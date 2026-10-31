@@ -76,6 +76,16 @@ function trState() {
   const use = deckUse(trDeckTexts()), { have, held } = tradeLists(COLL.map, use, TR.keep, TR.kept, COLL.places);
   return { use, have, held, want: tradeWant(COLL.map, use, TR.wish), decks: allDecks().length };
 }
+/** Nombre de doublons et de cartes recherchées (carte « Échange » de l'accueil), gardé tant que la collection (COLL.seq : chaque changement), les emplacements, les decks
+ *  et les réglages de l'échange (TR.u : chaque changement) restent les mêmes. L'accueil est repeint à chaque lot d'une lecture Scryfall (relevé des prix du jour, images
+ *  dans la langue des cartes) : la liste d'échange y était refaite et triée à chaque fois (≈ 75 ms par repeint à 5 000 cartes, CPU ×4 ; ≈ 1 s de tâches longues sur 6 s). */
+let TR_CNT = null;
+function trCounts() {
+  const texts = trDeckTexts(), dk = texts.join('\u0000'), c = TR_CNT;
+  if (c && c.map === COLL.map && c.seq === COLL.seq && c.pl === COLL.places && c.keep === TR.keep && c.kept === TR.kept && c.kn === TR.kept.size && c.wish === TR.wish && c.u === TR.u && c.dk === dk) return c;
+  const use = deckUse(texts), { have } = tradeLists(COLL.map, use, TR.keep, TR.kept, COLL.places, true);
+  return (TR_CNT = { map: COLL.map, seq: COLL.seq, pl: COLL.places, keep: TR.keep, kept: TR.kept, kn: TR.kept.size, wish: TR.wish, u: TR.u, dk, have: have.length, want: tradeWant(COLL.map, use, TR.wish).length });
+}
 /** Doublons à échanger d'une collection (decks et réglages de cet appareil) : colonne « Tradelist Count » de l'export CSV (collToCsv, core.js ; déclaration hoistée, jamais en zone morte). */
 function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, TR.kept, COLL.places).have; }
 /** Prix unitaire (centimes) des estimations d'échange, chez le propriétaire comme chez le visiteur : tendance Cardmarket du fichier de prix (impression la moins chère), sinon le prix Scryfall déjà connu de l'appareil. */
@@ -567,6 +577,8 @@ function openPublicTrade(sh, preview, id, fr) {
     if (b && b.dataset.act === 'more') { P.shown += TR_PAGE; paint(true); return; }
     if (b && b.dataset.act === 'login') { haptic('tap'); openAccount(); return; }      // feuille du compte par-dessus (z-index 85 > 80) ; les correspondances suivent la synchro
     if (b && b.dataset.act === 'import') { openCollImport(); return; }
+    const vs = e.target.closest('.prg-chip[data-vs]');      // badge de la vitrine : sa progression face à la mienne (progress.js) ; aperçu : la fenêtre de mon badge
+    if (vs) { haptic('tap'); const x = P.preview && prgBadges().find(y => y.b.id === vs.dataset.vs); if (x) prgBadgeSheet(x); else prgVsSheet(vs.dataset.vs, +vs.dataset.t, vs.dataset.v != null ? +vs.dataset.v : null, sh.by); return; }
     const row = e.target.closest('.pub-row'); if (!row) return;
     const rows = $$('.pub-row', wrap), list = [], at = { i: 0 };      // illustration recherchée (data-pw) : montrée telle quelle, sans version française
     for (const r of rows) {

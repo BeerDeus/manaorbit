@@ -100,7 +100,7 @@ async function valRefresh(opts) {
   VAL.err = '';
   run.p = (async () => {
     try {
-      const got = await scryCollection(keys.map(k => COLL.map[k].n), run.ctrl.signal, n => { run.done = n; collPaintHead(); });
+      const got = await scryCollection(keys.map(k => COLL.map[k].n), run.ctrl.signal, n => { run.done = n; collPaintHead(true); });      // avancée seulement : l'accueil n'a rien de neuf avant la fin
       for (const k of keys) { const g = got.get(k), old = COLL.meta[k]; if (g && old && (g.eu > 0 || g.ef > 0)) COLL.meta[k] = { ...old, ...(g.eu > 0 ? { eu: g.eu } : {}), ...(g.ef > 0 ? { ef: g.ef } : {}) }; }      // prix foil aussi (avant : jamais relu)
       await edRefresh(true, run.ctrl.signal);      // prix des éditions des lignes, relus avec le reste
       COLL.freshAt = Date.now(); collMetaSave(); await valCommit(); prcPushSoon();      // prix du jour : partagés avec les autres appareils du compte
@@ -141,7 +141,7 @@ function valChartHtml(h, W = 320, H = 132) {
   const area = `M${f(X(t0))},${f(H - pb)} L${pts.join(' L')} L${f(X(t1))},${f(H - pb)} Z`;
   const grid = max === min ? [max] : [max, min];
   return `<svg class="vl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${T('Valeur de la collection du {d0} au {d1} : de {v0} à {v1}', { d0: esc(valDate(t0)), d1: esc(valDate(t1)), v0: esc(fmt(h[0].v, mkCur())), v1: esc(fmt(last.v, mkCur())) })}">
-    ${grid.map((v, i) => `<line x1="${pl}" x2="${W - pr}" y1="${f(Y(v))}" y2="${f(Y(v))}" class="vl-grid"/><text x="${pl}" y="${f(Y(v) + (i ? 11 : -4))}" class="vl-txt">${esc(fmt(v, mkCur()))}</text>`).join('')}
+    ${grid.map((v, i) => `<line x1="${pl}" x2="${W - pr}" y1="${f(Y(v))}" y2="${f(Y(v))}" class="vl-grid"/><text x="${pl}" y="${f(Y(v) + (i ? 13 : -4))}" class="vl-txt">${esc(fmt(v, mkCur()))}</text>`).join('')}
     <path d="${area}" class="vl-area"/><polyline points="${pts.join(' ')}" class="vl-line" fill="none"/>
     <circle cx="${f(X(last.t))}" cy="${f(Y(last.v))}" r="3.4" class="vl-dot"/>
     <text x="${pl}" y="${H - 5}" class="vl-txt">${esc(valDate(t0))}</text><text x="${W - pr}" y="${H - 5}" class="vl-txt" text-anchor="end">${esc(valDate(t1))}</text></svg>`;

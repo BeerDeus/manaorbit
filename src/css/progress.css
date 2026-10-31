@@ -26,14 +26,37 @@
 .prg-pin[aria-pressed="true"]{background:var(--surface-2)}
 .prg-how{margin-top:16px}
 .prg-how summary{cursor:pointer;font-weight:600;font-size:13.5px}
-.prg-show{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
-.prg-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:99px;border:2px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink)}
+/* Vitrine sur une liste d'échange (prgShowHtml) : une ligne, 3 badges au plus de même largeur ; touché : comparaison (prgVsSheet) */
+.prg-show{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:2px 0 12px}
+.prg-chip{display:flex;align-items:center;gap:6px;min-width:0;min-height:48px;padding:4px 7px 4px 5px;border-radius:14px;border:2px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:transform .15s}
+.prg-chip:active{transform:scale(.97)}
+.prg-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.prg-chip b{min-width:0;font-size:11.5px;font-weight:750;line-height:1.12;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;overflow-wrap:break-word;hyphens:manual}
 @media (max-width:360px){.prg-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .prg-nn{margin-top:2px;font-style:italic}
 .prg-b.hl{animation:prgHl 2.4s ease-out}
 @keyframes prgHl{0%,30%{transform:scale(1.06);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 45%,transparent)}100%{transform:none}}
-.prg-chip .prg-ic{font-size:15px;margin:0;display:inline-flex}
-.prg-chip .prg-ic .bdg-svg{width:22px;height:22px}
+.prg-chip .prg-ic{flex:none;font-size:22px;margin:0;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px}
+.prg-chip .prg-ic .bdg-svg,.prg-chip .prg-ic .evb{width:30px;height:30px;margin:0}
+/* Comparaison d'un badge (prgVsSheet) : son palier face au mien */
+.prg-vs-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:stretch;gap:8px;margin:4px 0 2px}
+.prg-vs-c{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;padding:12px 8px;border-radius:18px;background:var(--surface);border:1px solid var(--line);text-align:center}
+.prg-vs-c.me{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.prg-vs-ic.prg-b{width:64px;height:64px;padding:0;justify-content:center;border-radius:18px}
+.prg-vs-ic .prg-ic{font-size:34px;margin:0}
+.prg-vs-ic .prg-ic .bdg-svg,.prg-vs-ic .prg-ic .evb{width:48px;height:48px;margin:0}
+.prg-vs-who{font-size:14px;font-weight:750;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prg-vs-tier{font-size:12px;line-height:1.3;color:var(--ink-2)}
+.prg-vs-c .prg-mini{width:85%}
+.prg-vs-c small{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;min-height:1em}
+.prg-vs-x{align-self:center;font-size:12px;font-weight:800;color:var(--ink-3);letter-spacing:.06em}
+.prg-vs-d{margin:10px 0 0;text-align:center;font-size:14px;font-weight:700;color:var(--ink)}
+.prg-vs-leg{display:flex;justify-content:flex-end;gap:0;margin:-4px 0 6px;padding-right:11px;font-size:11px;font-weight:700;color:var(--ink-3)}
+.prg-vs-leg span{width:48px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prg-vs-m{flex:none;display:flex}
+.prg-vs-m em{width:48px;text-align:center;font-style:normal;font-weight:800;color:var(--ink-3)}
+.prg-vs-m em.ok{color:var(--good)}
+@media (prefers-reduced-motion:reduce){.prg-chip{transition:none}}
 /* Bannière d'un nouveau palier (prgPop) : en haut, au-dessus de tout, s'efface seule ; bandeau de pub affiché : juste dessous (css/ads.css, --ad-bot) */
 .prg-pop{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));z-index:96;display:flex;align-items:center;gap:12px;width:min(92vw,400px);padding:10px 14px 10px 10px;border-radius:18px;border:2px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer;box-shadow:0 12px 32px -10px rgba(10,14,40,.45);transform:translate(-50%,-140%);opacity:0;transition:transform .45s var(--spring,cubic-bezier(.2,1.3,.4,1)),opacity .25s;touch-action:none}
 .prg-pop.on{transform:translate(-50%,0);opacity:1}
@@ -58,6 +81,12 @@
 .prg-bs-head .prg-ic{font-size:44px;margin:0}
 .prg-bs-head .prg-ic .bdg-svg,.prg-bs-head .prg-ic .evb{width:72px;height:72px;margin:0}
 .prg-bs-st{margin:0;font-size:13px;font-weight:600;color:var(--ink-2);text-align:center}
+/* Épingler sur la liste d'échange (fenêtre d'un badge obtenu) */
+.prg-bs-pin{display:inline-flex;align-items:center;gap:8px;min-height:40px;margin-top:4px;padding:0 16px;border-radius:99px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:13.5px;font-weight:650;cursor:pointer}
+.prg-bs-pin span{font-size:16px;filter:grayscale(1);opacity:.6}
+.prg-bs-pin[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--accent)}
+.prg-bs-pin[aria-pressed="true"] span{filter:none;opacity:1}
+.prg-bs-pin:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .prg-bs-how{margin:0 0 8px;font-size:14px;line-height:1.5;color:var(--ink)}
 .prg-bs .prg-bar{margin:4px 0 2px}
 .prg-bs-tiers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}

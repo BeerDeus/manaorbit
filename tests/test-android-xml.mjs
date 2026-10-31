@@ -76,19 +76,57 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
 }
 
 // APK 1.0.9 : code natif de la 1.0.6. R8 (1.0.7) et EdgeToEdge (1.0.7, déplacé en 1.0.8) retirés : dans la version du Play Store, la caméra du scan
-// ne s'ouvrait plus (version release jamais essayée sur le téléphone : Run ▶ installe la version debug, sans R8). À rallumer après un test interne.
+// ne s'ouvrait plus (version release jamais essayée sur le téléphone : Run ▶ installe la version debug, sans R8). R8 revient en 1.1.1 (plus bas), EdgeToEdge non.
 {
   const gradle = readFileSync('android-app/android/app/build.gradle', 'utf8');
   const rel = (/release \{([\s\S]*?)\n {8}\}/.exec(gradle) || [])[1] || '';
-  assert.match(rel, /minifyEnabled false/, 'release : R8 coupé (1.0.9), comme en 1.0.6');
-  assert.doesNotMatch(rel, /shrinkResources true/, 'ressources lues par leur nom (google_app_id) : jamais retirées');
+  assert.doesNotMatch(rel, /shrinkResources true/, 'ressources lues par leur nom (google_app_id, camera_activity, frame_container) : jamais retirées');
   const java = readFileSync('android-app/android/app/src/main/java/app/manaorbit/MainActivity.java', 'utf8');
   assert.doesNotMatch(java, /EdgeToEdge/, 'pas de bord à bord forcé (1.0.6) : Android 15 et plus l\'imposent déjà (cible SDK 36)');
   const iSuper = java.indexOf('super.onCreate(savedInstanceState);');
   assert.ok(iSuper > 0, 'super.onCreate appelé');
   assert.doesNotMatch(java.slice(0, iSuper), /getDecorView\(|getWindow\(\)/, 'rien ne touche la fenêtre avant super.onCreate (elle serait créée avec le thème de lancement : barre en haut, bug de la 1.0.7)');
   assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 10, 'code natif changé : versionCode 10 et plus (1.0.9)');
-  console.log('✓ APK 1.0.9 : code natif de la 1.0.6 (R8 coupé, sans EdgeToEdge), rien ne touche la fenêtre avant super.onCreate, versionCode ≥ 10');
+  console.log('✓ APK 1.0.9 : sans EdgeToEdge, rien ne touche la fenêtre avant super.onCreate, shrinkResources éteint, versionCode ≥ 10');
+}
+
+// APK 1.1.1 : R8 rallumé en mode prudent (alerte Play Console « obscurcissement » sous 25 %). Tout ce qui est lu par nom ou par réflexion est gardé en
+// entier : pont Capacitor, Cordova, CHAQUE plugin de capacitor.settings.gradle (un plugin ajouté sans sa règle fait échouer ce test), app.manaorbit.
+{
+  const gradle = readFileSync('android-app/android/app/build.gradle', 'utf8'), props = readFileSync('android-app/android/gradle.properties', 'utf8');
+  const pro = readFileSync('android-app/android/app/proguard-rules.pro', 'utf8').split('\n').filter(l => !/^\s*#/.test(l)).join('\n');
+  const rel = (/release \{([\s\S]*?)\n {8}\}/.exec(gradle) || [])[1] || '';
+  assert.match(rel, /^\s*minifyEnabled true$/m, 'release : R8 allumé (1.1.1)');
+  assert.match(rel, /^\s*proguardFiles getDefaultProguardFile\('proguard-android-optimize\.txt'\), 'proguard-rules\.pro'$/m, 'règles par défaut d\'Android + proguard-rules.pro');
+  assert.match(props, /^android\.enableR8\.fullMode=false$/m, 'mode full de R8 coupé (filet : comme ProGuard)');
+  assert.match(pro, /^-dontoptimize$/m, 'pas d\'optimisation (cause probable de la caméra muette en 1.0.7)');
+  const ka = ((/^-keepattributes (.+)$/m.exec(pro) || [])[1] || '').split(',');
+  for (const a of ['*Annotation*', 'Signature', 'InnerClasses', 'EnclosingMethod', 'SourceFile', 'LineNumberTable']) assert.ok(ka.includes(a), `-keepattributes ${a}`);
+  assert.match(pro, /^-renamesourcefileattribute SourceFile$/m, 'traces de plantage : nom de fichier source masqué');
+  const keeps = new Set([...pro.matchAll(/^-keep class ([\w.]+)\.\*\* \{ \*; \}$/gm)].map(m => m[1]));
+  // Paquet Java de chaque projet de capacitor.settings.gradle (@capacitor/android : le pont, com.getcapacitor ; Cordova vérifié à part).
+  const PKG = {
+    'capacitor-android': 'com.getcapacitor',
+    'capacitor-community-admob': 'com.getcapacitor.community',
+    'capacitor-community-camera-preview': 'com.ahm.capacitor.camera.preview',
+    'capacitor-firebase-authentication': 'io.capawesome.capacitorjs.plugins',
+    'capacitor-app': 'com.capacitorjs.plugins',
+    'capacitor-push-notifications': 'com.capacitorjs.plugins',
+    'pantrist-capacitor-plugin-ml-kit-text-recognition': 'com.pantrist.ml',
+  };
+  const projects = [...readFileSync('android-app/android/capacitor.settings.gradle', 'utf8').matchAll(/^include ':([\w-]+)'/gm)].map(m => m[1]);
+  assert.ok(projects.length >= 7, 'plugins lus dans capacitor.settings.gradle');
+  for (const p of projects) {
+    assert.ok(PKG[p], `plugin ${p} : paquet Java inconnu de ce test, ajouter sa règle -keep dans proguard-rules.pro puis ici`);
+    assert.ok(keeps.has(PKG[p]), `plugin ${p} gardé en entier (-keep class ${PKG[p]}.** { *; })`);
+  }
+  for (const k of ['org.apache.cordova', 'app.manaorbit']) assert.ok(keeps.has(k), `-keep class ${k}.** { *; }`);
+  assert.match(pro, /^-keepclassmembers class \* \{ @android\.webkit\.JavascriptInterface <methods>; \}$/m, 'pont JavaScript (@JavascriptInterface)');
+  assert.match(pro, /^-keep class com\.google\.firebase\.FirebaseApp \{ public static java\.util\.List getApps\(android\.content\.Context\); \}$/m, 'FirebaseApp.getApps (lu par réflexion)');
+  assert.match(readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8'), /Class\.forName\("com\.google\.firebase\.FirebaseApp"\)/, 'ManaOrbitPlugin.hasFirebase : réflexion gardée par la règle');
+  assert.match(pro, /^-dontwarn com\.facebook\.\*\*$/m, 'connexion Facebook du plugin compilée sans le SDK (sinon R8 s\'arrête)');
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 17, 'code natif changé : versionCode 17 et plus (1.1.1)');
+  console.log(`✓ APK 1.1.1 : R8 allumé en mode prudent (sans optimisation, mode full coupé), ${projects.length} projets Capacitor gardés en entier, Cordova, app.manaorbit, pont JavaScript, FirebaseApp.getApps, versionCode ≥ 17`);
 }
 
 // APK 1.0.10 : écran gardé allumé pendant le scan (mise en veille automatique du téléphone), le WebView n'ayant pas navigator.wakeLock.
