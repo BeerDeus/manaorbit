@@ -36,7 +36,7 @@
 .pu-who{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
 .pu-who b{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pu-who b small{font-weight:600;color:var(--ink-3)}
-.pu-who>small{font-size:12.5px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-who>small{font-size:12.5px;color:var(--ink-3);overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}      /* « Deck noch nicht gewählt » : deux lignes plutôt que « … » */
 .pu-dev{font-size:15px;opacity:.35}
 .pu-dev.on{opacity:1}
 .pu-x{width:34px;height:34px}
@@ -205,7 +205,7 @@
 }
 .pu-mid{position:absolute;left:50%;top:calc((100% - (var(--rows) - 1) * 6px) * var(--mj) / var(--rows) + (var(--mj) - .5) * 6px);transform:translate(-50%,-50%);z-index:5;width:58px;height:58px;border-radius:50%;border:2px solid rgba(255,255,255,.9);background:#0b0f1c;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;box-shadow:0 6px 24px rgba(0,0,0,.6);font-family:inherit}      /* sur une jointure de la grille (puLayoutA › mid) */
 .pu-mid .i{width:22px;height:22px}
-.pu-mid small{font-size:10px;font-weight:700;opacity:.8}
+.pu-mid small{font-size:10px;font-weight:700;opacity:.8;white-space:nowrap}      /* « Turno 1 » sur une ligne */
 .pu-bar{display:flex;align-items:center;gap:8px;padding:2px 4px;font-size:14px}
 .pu-bar>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pu-bar .icon-btn{color:#fff;border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.06)}
