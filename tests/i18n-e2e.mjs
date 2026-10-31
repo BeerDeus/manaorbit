@@ -29,9 +29,10 @@ assert.equal(await p.$eval('.pu.on', e => e.getAttribute('aria-label')), 'Life c
 const pu = await leftovers(p); console.log('  compteur de vie (préparation), encore en français :', pu.length ? pu : 'rien');
 await p.evaluate(() => { partieClear(); puClose(); }); await p.waitForFunction(() => !document.querySelector('.pu'));
 ok('?lang=en : langue gardée, accueil en anglais');
-// dictionnaire : bloc JSON inerte de la page (jamais compilé comme du code), analysé seulement pour l'anglais
-assert.equal(await p.evaluate(() => [typeof I18N_ALL, document.getElementById('i18n-en').type, T('Nouvelle version disponible'), T('Recharger')].join('|')), 'undefined|application/json|New version available|Reload');
-ok('dictionnaire anglais lu depuis son bloc JSON (toast de mise à jour traduit)');
+// dictionnaire : son propre fichier (i18n/en.<empreinte>.js), lu avant le code ; aucun dictionnaire dans la page, ni celui des autres langues
+assert.equal(await p.evaluate(() => [typeof I18N_ALL, !!document.getElementById('i18n-en'), /^i18n\/en\.[0-9a-f]{8}\.js$/.test(I18N_FILES.en), Object.keys(I18N.got).join(), T('Nouvelle version disponible'), T('Recharger')].join('|')), 'undefined|false|true|en|New version available|Reload');
+assert.equal(await p.evaluate(() => performance.getEntriesByType('resource').filter(r => /\/i18n\//.test(r.name)).map(r => r.name.split('/').pop().split('.')[0]).join()), 'en', 'seul le fichier de la langue choisie est lu');
+ok('dictionnaire anglais lu depuis son fichier, seul (toast de mise à jour traduit)');
 
 await toInput(p); await p.fill('#deckText', '1 Sol Ring\n2 Craterhoof Behemoth'); await p.waitForTimeout(250); await p.click('#btnRun');
 await p.waitForFunction(() => S.run && S.run.status === 'done', null, { timeout: 20000 }); await p.waitForTimeout(900);

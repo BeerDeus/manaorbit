@@ -64,6 +64,17 @@ r = await j(B + '/manifest.webmanifest'); assert.equal(r.s, 200); assert.match(r
   for (const i of m.icons) { const x = await fetch(B + '/' + i.src); assert.equal(x.status, 200, i.src); assert.equal(x.headers.get('content-type').split(';')[0], i.type, i.src); if (i.type === 'image/png') { const b = Buffer.from(await x.arrayBuffer()); assert.equal(b.subarray(1, 4).toString(), 'PNG'); const [w, h] = i.sizes.split('x').map(Number); assert.equal(b.readUInt32BE(16), w, i.src + ' largeur'); assert.equal(b.readUInt32BE(20), h, i.src + ' hauteur'); } }
   console.log('✓ icônes du manifeste : présentes, bon type, bonnes dimensions'); }
 r = await j(B + '/sw.js'); assert.equal(r.s, 200); assert.match(r.h.get('content-type'), /^text\/javascript/); assert.equal(r.h.get('cache-control'), 'no-cache'); assert.match(r.o, /addEventListener\('fetch'/); assert.equal(r.h.get('x-frame-options'), 'DENY'); console.log('✓ sw.js servi (text/javascript, no-cache, en-têtes de sécurité)');
+{ // dictionnaires des langues (build.mjs : i18n/<code>.<empreinte>.js, nommés par la page) : servis compressés, un an en cache, ETag ; nom libre ou traversée : 404 ; plus de /test
+  const { readFileSync } = await import('node:fs'), files = JSON.parse(/const I18N_FILES = (\{[^\n]*?\});/.exec(readFileSync('deck-deal.html', 'utf8'))[1]);
+  assert.deepEqual(Object.keys(files).sort(), ['de', 'en', 'es', 'it', 'pt']);
+  const u = B + '/' + files.de, x = await fetch(u, { headers: { 'accept-encoding': 'gzip' } }), body = await x.text();
+  assert.equal(x.status, 200); assert.match(x.headers.get('content-type'), /^text\/javascript/); assert.equal(x.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+  assert.equal(x.headers.get('content-encoding'), 'gzip'); assert.match(body, /^i18nLoaded\("de", JSON\.parse\(/); assert.equal(body, readFileSync(files.de, 'utf8'));
+  const y = await fetch(u, { headers: { 'accept-encoding': 'gzip', 'if-none-match': x.headers.get('etag') } }); assert.equal(y.status, 304);
+  for (const p of ['/i18n/de.js', '/i18n/de.00000000.js', '/i18n/../deck-deal.html', '/i18n/%2e%2e/deck-deal.html', '/i18n/de.4efa5ac8.json']) assert.equal((await fetch(B + p)).status, 404, p);
+  assert.equal((await fetch(B + '/test')).status, 404, 'lien de test retiré');
+  console.log('✓ dictionnaires : i18n/<langue>.<empreinte>.js en gzip, un an en cache, ETag (304), noms inconnus 404 ; /test retiré');
+}
 r = await j(B + '/icons/apple-touch-icon.png'); assert.equal(r.s, 200); assert.match(r.h.get('cache-control'), /max-age/); console.log('✓ icônes mises en cache navigateur');
 { // catalogue des noms français : absent → 404 propre ; présent → texte, gzip si accepté, mis en cache navigateur
   const { writeFileSync, rmSync, existsSync } = await import('node:fs'), f = join(process.env.PWA_DIR, 'fr-names.tsv'); assert.ok(!existsSync(f), 'pwa/fr-names.tsv est généré par GitHub Actions, pas versionné ici');

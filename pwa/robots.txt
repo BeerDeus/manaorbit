@@ -1,6 +1,5 @@
 User-agent: *
 Disallow: /admin
 Disallow: /api/
-Disallow: /test
 
 Sitemap: https://manaorbit.app/sitemap.xml

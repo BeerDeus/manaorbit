@@ -102,7 +102,7 @@ function meSub(k) {
   const leave = fn => { if (meOpen()) ME.api.close(); setTimeout(fn, reduceMotion() ? 0 : 200); };
   if (k === 'compte') openAccount();
   else if (k === 'profil') openProfile();
-  else if (k === 'niveau' && typeof prgSheet === 'function') prgSheet();      // niveau et badges (progress.js, lien de test)
+  else if (k === 'niveau' && typeof prgSheet === 'function') prgSheet();      // niveau et badges (progress.js)
   else if (k === 'pub') pdListSheet();
   else if (k === 'amis') amSheet();
   else if (k === 'discord' && typeof dlSheet === 'function') dlSheet();

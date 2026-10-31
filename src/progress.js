@@ -29,7 +29,7 @@ const PRG_KCAT = { gv: 'game', gk: 'game', gmo: 'game', gfu: 'game', tr: 'social
 function prgAdd(k, n = 1) { if (!(n > 0)) return; const c = prgC(); c[k] = (c[k] || 0) + n; prgChanged(PRG_KCAT[k]); }
 /** Garde le plus grand des deux (record). */
 function prgMax(k, v) { const c = prgC(); if (!(v > (c[k] || 0))) return; c[k] = Math.round(v); prgChanged(PRG_KCAT[k]); }
-function prgChanged(...cats) { PRG.u = Date.now(); prgWrite(); prgPushSoon(); prgSoon(...cats); if (typeof dlyLevelSoon === 'function') dlyLevelSoon(); }      // XP au classement des niveaux (daily.js, lien de test)
+function prgChanged(...cats) { PRG.u = Date.now(); prgWrite(); prgPushSoon(); prgSoon(...cats); if (typeof dlyLevelSoon === 'function') dlyLevelSoon(); }      // XP au classement des niveaux (daily.js)
 
 /* ── Événements (appelés par scan.js, partie-ui.js, troc.js, opening.js, app.js) ─────────────────────────────── */
 /** Cartes du scan ajoutées (lignes du scan : q, l, es, ambBy, pk) : cartes, langues, éditions lues, illustrations, homonymes, anciennes, plus chère, plus grosse session,
@@ -70,8 +70,8 @@ function prgOpen(v, paid, best, n, st) { prgAdd('op'); if (paid != null && v > p
 /** Lancement : un jour d'utilisation de plus (une fois par jour). */
 function prgDay() {
   const c = prgC(), d = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60e3) / 864e5);
-  if (MO_TEST) c.tst = 1;      // venu essayer le lien de test (badge « Pionnier ») ; installée : « Installé » — vus au lancement, acquis sans bannière
-  if ((typeof isNativeApp === 'function' && isNativeApp()) || (typeof PWA !== 'undefined' && PWA.standalone())) c.in = 1;
+  // badge « Pionnier » (c.tst) : venu essayer le lien de test, retiré le 31 octobre 2026 (tests en test interne Play Console) ; gardé par ceux qui l'ont
+  if ((typeof isNativeApp === 'function' && isNativeApp()) || (typeof PWA !== 'undefined' && PWA.standalone())) c.in = 1;      // installée : « Installé » — vu au lancement, acquis sans bannière
   if (c.dl === d) { prgWrite(); return; }
   c.ds = c.dl === d - 1 ? (c.ds || 0) + 1 : 1; if (c.ds > (c.dsb || 0)) c.dsb = c.ds;      // jours d'affilée
   c.dl = d; c.days = (c.days || 0) + 1; prgChanged('fid');

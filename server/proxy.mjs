@@ -27,6 +27,10 @@ const APP_KEY = (process.env.APP_KEY || '').trim();
 const UPSTREAM = (process.env.CT_UPSTREAM || 'https://api.cardtrader.com/api/v2').replace(/\/+$/, '') + '/'; // surchargeable pour les tests
 const PAGE = ['deck-deal.html', 'dist/deck-deal.html'].map(f => join(here, f)).find(existsSync);
 const PWA = process.env.PWA_DIR || join(here, 'pwa');                       // surchargeable pour les tests (dossier temporaire)
+// Dictionnaires des langues (build.mjs : i18n/<code>.<empreinte>.js, à côté de la page) : nom vérifié par l'expression, jamais un chemin construit librement ;
+// l'empreinte change avec le contenu → cache d'un an, immuable. Compressés à la première demande (pas au démarrage : brotli occuperait les fils de libuv, et donc les écritures disque).
+const I18N_DIR = PAGE ? join(dirname(PAGE), 'i18n') : join(here, 'i18n'), I18N_RE = /^\/i18n\/([a-z]{2}(?:-[A-Z]{2})?\.[0-9a-f]{8}\.js)$/;
+const I18N_HD = { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=31536000, immutable' };
 // Bloc d'annonces AdMob du bandeau de l'appli Android (ca-app-pub-…/…), donné à l'appli par /__ping ; vide : bandeau de test de Google.
 const ADMOB_RAW = (process.env.ADMOB_BANNER_ID || '').trim(), ADMOB_BANNER = /^ca-app-pub-\d+\/\d+$/.test(ADMOB_RAW) ? ADMOB_RAW : '';
 // Adresse du site (manaorbit.app depuis le 12 octobre 2026) et anciennes adresses (hôte tel qu'envoyé par le navigateur, port compris). Sur une ancienne adresse :
@@ -3829,16 +3833,6 @@ function oldPage(app) {      // app : aller-retour de l'appli Android (?mig=app)
   location.replace(to + (data ? '#mig=' + data : ''));
 })();</script></body></html>`;
 }
-/** Lien de test (/test) : deck-deal.html avec <base href="/"> (adresses relatives lues à la racine : api/, sw.js, catalogues) et window.MO_TEST (nouveautés à essayer :
- *  niveau et badges, Carte mystère) ; relu quand le fichier change. TEST_PAGE=0 : coupé (404). */
-const TEST_ON = process.env.TEST_PAGE !== '0', TESTP = { mt: 0, html: '' };
-async function testPage() {
-  let mt = 0; try { mt = (await stat(PAGE)).mtimeMs; } catch (e) { /* fichier absent : dernière version lue */ }
-  if (TESTP.html && TESTP.mt === mt) return TESTP.html;
-  const html = await readFile(PAGE, 'utf8');
-  TESTP.html = html.replace('<head>', '<head>\n<base href="/"><meta name="robots" content="noindex, nofollow"><script>window.MO_TEST = true;</script>'); TESTP.mt = mt;
-  return TESTP.html;
-}
 /** Requête reçue sur une ancienne adresse : true si elle a été servie ici (déménagement), false : traitement habituel. */
 function oldHost(req, res, url) {
   const get = req.method === 'GET' || req.method === 'HEAD', wv = isWebView(req);
@@ -3908,15 +3902,12 @@ const server = http.createServer(async (req, res) => {
       const [f, type] = ADM_FILES.get(url.pathname); if (!existsSync(join(PWA, f))) return json(res, 404, { error: 'asset_missing' });
       return await sendFile(req, res, join(PWA, f), { 'Content-Type': type, 'Cache-Control': 'no-store', 'Content-Security-Policy': ADM_CSP, ...ADM_HD, 'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()' }, false);
     }
-    if ((url.pathname === '/test' || url.pathname === '/test/') && TEST_ON) {      // lien de test : la même page, nouveautés visibles (window.MO_TEST), jamais indexée
-      if (!PAGE) return json(res, 404, { error: 'page_missing', message: 'Place deck-deal.html à côté de proxy.mjs.' });
-      if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'method_not_allowed' });
-      return txt(res, await testPage(), 'text/html; charset=utf-8', { 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
-    }
     if (url.pathname === '/' || url.pathname === '/index.html') {
       if (!PAGE) return json(res, 404, { error: 'page_missing', message: 'Place deck-deal.html à côté de proxy.mjs.' });
       return await sendFile(req, res, PAGE, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' }, true);
     }
+    { const m = (req.method === 'GET' || req.method === 'HEAD') && I18N_RE.exec(url.pathname);      // dictionnaire d'une langue
+      if (m) { const f = join(I18N_DIR, m[1]); if (!existsSync(f)) return json(res, 404, { error: 'not_found' }); return await sendFile(req, res, f, I18N_HD, true); } }
     const st = (req.method === 'GET' || req.method === 'HEAD') && STATIC.get(url.pathname);
     if (st && st[0].startsWith('edh.') && (OFF.includes('edhrec') || (OFF.includes('archidekt') && (st[0] !== 'edh.bin.gz' || !EDHB || !EDHB.edhFilter)))) return json(res, 410, { error: 'off', message: 'Données EDHREC coupées sur ce serveur.' });      // Archidekt coupé : seul le binaire filtré est servi
     if (st) {

@@ -1,6 +1,6 @@
 // Assemble src/* → deck-deal.html (document autonome, servi par proxy.mjs et versionné : l'hébergeur ne lance aucun build)
 //                + dist/deck-deal.artifact.html (fragment publiable, non versionné)
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,16 +24,30 @@ for (const f of (existsSync(I18N_DIR) ? readdirSync(I18N_DIR) : []).sort((a, b) 
   const m = /^([a-z]{2}(?:-[A-Z]{2})?)(?:\.[a-z0-9-]+)?\.json$/.exec(f); if (!m) continue;
   Object.assign(i18nAll[m[1]] = i18nAll[m[1]] || {}, JSON.parse(readFileSync(join(I18N_DIR, f), 'utf8')));
 }
-const js = ['migrate.js', 'core.js', 'edhbin.js', 'cloud.js', 'data.js', 'tasks.js', 'app.js', 'motion.js', 'evpacks.js', 'evart.js', 'evlogo.js', 'filters.js', 'decks.js', 'dklist.js', 'viewer.js', 'zoom.js', 'collection.js', 'places.js', 'search.js', 'edh.js', 'pubdecks.js', 'deckfind.js', 'value.js', 'extras.js', 'alerts.js', 'cardsheet.js', 'scan.js', 'scanfoot.js', 'scanart.js', 'scansym.js', 'scaned.js', 'scanreport.js', 'scanset.js', 'scanauto.js', 'scansess.js', 'builder.js', 'share.js', 'binder.js', 'home.js', 'friends.js', 'onboard.js', 'native.js', 'ads.js', 'widget.js', 'qr.js', 'qrscan.js', 'sets.js', 'setview.js', 'masterset.js', 'densite.js', 'lot.js', 'mobscan.js', 'warm.js', 'help.js', 'dsclink.js', 'switch.js', 'simg.js', 'nav.js', 'me.js', 'opening.js', 'opnbilan.js', 'troc.js', 'partie.js', 'partie-ui.js', 'partie-qr.js', 'partie-jeu.js', 'daily.js', 'badgeart.js', 'progress.js', 'event.js', 'evadvent.js', 'evsky.js', 'evnest.js', 'evmuseum.js', 'evpush.js', 'tour.js', 'back.js', 'pwa.js', 'push.js', 'applink.js', 'main.js'].map(rd).join('\n\n').replace(/<\/script/gi, '<\\/script').trim();
+// Deux blocs : migrate.js, edhbin.js et core.js d'abord (core.js choisit la langue et, hors français, demande son dictionnaire : script bloquant lu avant le second bloc), puis le reste.
+const JS_A = ['migrate.js', 'edhbin.js', 'core.js'];      // edhbin.js avant core.js : core.js lit edhPack dès son chargement
+const jsOf = l => l.map(rd).join('\n\n').replace(/<\/script/gi, '<\\/script').trim();
+const jsA = jsOf(JS_A);
+const js = ['cloud.js', 'data.js', 'tasks.js', 'app.js', 'motion.js', 'evpacks.js', 'evart.js', 'evlogo.js', 'filters.js', 'decks.js', 'dklist.js', 'viewer.js', 'zoom.js', 'collection.js', 'places.js', 'search.js', 'edh.js', 'pubdecks.js', 'deckfind.js', 'value.js', 'extras.js', 'alerts.js', 'cardsheet.js', 'scan.js', 'scanfoot.js', 'scanart.js', 'scansym.js', 'scaned.js', 'scanreport.js', 'scanset.js', 'scanauto.js', 'scansess.js', 'builder.js', 'share.js', 'binder.js', 'home.js', 'friends.js', 'onboard.js', 'native.js', 'ads.js', 'widget.js', 'qr.js', 'qrscan.js', 'sets.js', 'setview.js', 'masterset.js', 'densite.js', 'lot.js', 'mobscan.js', 'warm.js', 'help.js', 'dsclink.js', 'switch.js', 'simg.js', 'nav.js', 'me.js', 'opening.js', 'opnbilan.js', 'troc.js', 'partie.js', 'partie-ui.js', 'partie-qr.js', 'partie-jeu.js', 'daily.js', 'badgeart.js', 'progress.js', 'event.js', 'evadvent.js', 'evsky.js', 'evnest.js', 'evmuseum.js', 'evpush.js', 'tour.js', 'back.js', 'pwa.js', 'push.js', 'applink.js', 'main.js'].map(rd).join('\n\n').replace(/<\/script/gi, '<\\/script').trim();
+const jsAll = jsA + '\n\n' + js;
 
-// <script type="application/json" id="i18n-en"> : jamais compilé ; core.js n'analyse que celui de la langue choisie (le français n'en lit aucun).
-// « < » échappé (\u003c, relu tel quel par JSON.parse) : une traduction ne peut pas fermer la balise.
-{ const seen = new Map(), dup = []; for (const m of js.matchAll(/^(?:async )?function\*? ?([A-Za-z0-9_$]+)\s*\(/gm)) { if (seen.has(m[1])) dup.push(m[1]); seen.set(m[1], 1); } if (dup.length) { console.error('Fonctions déclarées deux fois (la 2e remplace la 1re) : ' + dup.join(', ')); process.exit(1); } }      // un même nom dans deux fichiers : bogue silencieux
+{ const seen = new Map(), dup = []; for (const m of jsAll.matchAll(/^(?:async )?function\*? ?([A-Za-z0-9_$]+)\s*\(/gm)) { if (seen.has(m[1])) dup.push(m[1]); seen.set(m[1], 1); } if (dup.length) { console.error('Fonctions déclarées deux fois (la 2e remplace la 1re) : ' + dup.join(', ')); process.exit(1); } }      // un même nom dans deux fichiers : bogue silencieux
+// Page (deck-deal.html) : un fichier par langue, i18n/<code>.<empreinte>.js (versionné, servi par proxy.mjs avec un cache d'un an : l'empreinte change avec le contenu),
+// lu seulement pour la langue choisie (le français n'en lit aucun) ; la page connaît leurs noms (I18N_FILES). Anciens fichiers retirés.
+// Fragment (dist/) : un bloc JSON inerte par langue (<script type="application/json" id="i18n-en">, jamais compilé) ; « < » échappé (\u003c, relu tel quel par JSON.parse).
+const I18N_OUT = join(root, 'i18n'), i18nFiles = {};
+mkdirSync(I18N_OUT, { recursive: true });
+for (const c of Object.keys(i18nAll).sort()) {
+  const code = `i18nLoaded(${JSON.stringify(c)}, JSON.parse(${JSON.stringify(JSON.stringify(i18nAll[c]))}));\n`;      // JSON.parse d'une chaîne : plus rapide qu'un littéral objet de 400 Ko
+  const name = `${c}.${createHash('sha1').update(code).digest('hex').slice(0, 8)}.js`;
+  writeFileSync(join(I18N_OUT, name), code); i18nFiles[c] = 'i18n/' + name;
+}
+for (const f of readdirSync(I18N_OUT)) if (!Object.values(i18nFiles).includes('i18n/' + f)) unlinkSync(join(I18N_OUT, f));
 const i18nTags = Object.keys(i18nAll).sort().map(c => `<script type="application/json" id="i18n-${c}">${JSON.stringify(i18nAll[c]).replace(/</g, '\\u003c')}</script>`).join('\n');
 
 // Version affichée dans Réglages (quel code le téléphone exécute) ; pwa/sw.js lit la ligne « const DD_BUILD = '…' » de la page
 // pour ne garder qu'une vraie page de l'app et proposer « Recharger » quand elle change : ne pas en modifier la forme.
-const BUILD = createHash('sha1').update(css + body + i18nTags + js).digest('hex').slice(0, 8);
+const BUILD = createHash('sha1').update(css + body + JSON.stringify(i18nFiles) + jsAll).digest('hex').slice(0, 8);
 const TITLE = 'Mana Orbit';
 const FONTS = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap';
 // Scryfall : connexions ouvertes pendant que la page se charge (API en fetch CORS, images relues en CORS anonyme par le service worker).
@@ -52,7 +66,8 @@ ${body}
 ${i18nTags}
 <script>
 const DD_BUILD = '${BUILD}';
-${js}
+const I18N_FILES = {};
+${jsAll}
 </script>
 `;
 
@@ -87,9 +102,12 @@ ${css}
 </head>
 <body>
 ${body}
-${i18nTags}
 <script>
 const DD_BUILD = '${BUILD}';
+const I18N_FILES = ${JSON.stringify(i18nFiles)};
+${jsA}
+</script>
+<script>
 ${js}
 </script>
 </body>
@@ -99,5 +117,5 @@ ${js}
 mkdirSync(join(root, 'dist'), { recursive: true });
 writeFileSync(join(root, 'deck-deal.html'), doc);
 writeFileSync(join(root, 'dist', 'deck-deal.artifact.html'), fragment);
-console.log('deck-deal.html', (doc.length / 1024).toFixed(1) + ' KB');
+console.log('deck-deal.html', (doc.length / 1024).toFixed(1) + ' KB', '· i18n/', Object.values(i18nFiles).map(f => f.slice(5)).join(' '));
 console.log('dist/deck-deal.artifact.html', (fragment.length / 1024).toFixed(1) + ' KB');
