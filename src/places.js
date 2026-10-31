@@ -32,7 +32,7 @@ const cexDet = a => [a.c ? a.c.toUpperCase() : '', a.s ? T('signée') : '', a.a 
 function plcRowTag(g) {
   const p = plcOf(g), det = cexDet(lineAttrs(g));
   if (!p && !det) return plcAny() ? `<button type="button" class="tag plc add" data-act="cex" aria-label="${esc(T('Ranger cet exemplaire'))}">${T('Ranger')}</button>` : '';
-  return `<button type="button" class="tag plc" data-act="cex" aria-label="${esc(T('Emplacement et détails : {v}', { v: [p ? plcName(p) : '', det].filter(Boolean).join(', ') }))}">${p ? `<i style="--c:${plcColor(p)}"></i>${esc(plcName(p))}` : ''}${det ? `<em>${esc(det)}</em>` : ''}</button>`;
+  return `<button type="button" class="tag plc" data-act="cex" aria-label="${esc(T('Emplacement et détails : {v}', { v: [p ? plcName(p) : '', det].filter(Boolean).join(', ') }))}">${p ? `<i style="--c:${plcColor(p)}"></i><span class="plc-n">${esc(plcName(p))}</span>` : ''}${det ? `<em>${esc(det)}</em>` : ''}</button>`;
 }
 
 /* ── Changer les données ───────────────────────────────────────────────────────────────────────── */

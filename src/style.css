@@ -923,7 +923,8 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .cs-topnote{margin:-2px 2px 0}
 .cs-tiles+.hint{margin-top:6px}
 .cs-src small{font-size:11px;color:var(--ink-3)}
-.cs-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:8px 2px 0;font-family:var(--font-display);font-size:16px;font-weight:650;letter-spacing:-.01em}
+.cs-h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;margin:8px 2px 0;font-family:var(--font-display);font-size:16px;font-weight:650;letter-spacing:-.01em}
+.cs-h>small{margin-left:auto}      /* titre et précision trop longs pour une ligne : la précision passe dessous, à droite, au lieu de couper les deux en deux */
 .cs-h small{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--ink-3)}
 .cs-bars{display:flex;flex-direction:column;gap:7px;padding:12px 14px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line)}
 .cs-b{display:grid;grid-template-columns:minmax(96px,34%) 1fr 44px;gap:10px;align-items:center;font-size:13.5px}

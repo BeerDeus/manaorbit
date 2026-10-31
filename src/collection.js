@@ -1354,7 +1354,7 @@ function openCollection(tab) {
     if (crow && !crow.classList.contains('dk') && !e.target.closest('a,input,select,label,details>summary')) openCardSheet(crow.dataset.k, COLL.tab === 'trade' ? { from: 'trade', l: crow.dataset.ln || '', n: zoomName(crow) || undefined } : { from: 'coll', l: rowG(crow) });
   });
   document.body.appendChild(wrap); holdApp(); collPaintHead(); collPaintBody(false);
-  requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); const f = $('.dk-tab[aria-current], #collSeg [aria-checked="true"], .coll-tools .icon-btn, .dv-title', wrap); if (f) { if (!f.hasAttribute('tabindex') && f.classList.contains('dv-title')) f.tabIndex = -1; f.focus({ preventScroll: true }); } }));
+  requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); dkTabsReveal(wrap); const f = $('.dk-tab[aria-current], #collSeg [aria-checked="true"], .coll-tools .icon-btn, .dv-title', wrap); if (f) { if (!f.hasAttribute('tabindex') && f.classList.contains('dv-title')) f.tabIndex = -1; f.focus({ preventScroll: true }); } }));
   haptic('tap');
   if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); else { valMaybe(); edRefresh(); collSoloSoon(); }
   if (collEds().length) setIcLoad(() => { if (COLL.el) collPaintSoon(); });      // symboles des extensions (étiquettes d'édition) : seulement si des lignes en ont une
