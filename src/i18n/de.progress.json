@@ -478,8 +478,6 @@
 "Badge obtenu": "Abzeichen erhalten",
 "Tous les paliers sont obtenus": "Alle Stufen erhalten",
 "Encore {n} avant le palier {tier}": "Noch {n} bis zur Stufe {tier}",
-"Montrer sur ma liste d'échange": "Auf meiner Tauschliste zeigen",
-"Retirer de ma liste d'échange": "Von meiner Tauschliste entfernen",
 "Scanne une carte imprimée en {lang}. Une seule suffit.": "Scanne eine auf {lang} gedruckte Karte. Eine einzige reicht.",
 "allemand": "Deutsch",
 "espagnol": "Spanisch",
@@ -492,5 +490,18 @@
 "chinois traditionnel": "Chinesisch (traditionell)",
 "Les indices du jour sont sur la carte de la fête, à l'accueil (« Indices »).": "Die Hinweise des Tages findest du auf der Feiertagskarte auf dem Startbildschirm („Hinweise“).",
 "Cet événement est terminé : ce badge n'est plus obtenable. Tu gardes le palier atteint.": "Dieses Event ist vorbei: Dieses Abzeichen kann nicht mehr erhalten werden. Die erreichte Stufe behältst du.",
-"Détails du badge {name}": "Details zum Abzeichen {name}"
+"Détails du badge {name}": "Details zum Abzeichen {name}",
+"Épingler sur ma liste d'échange": "An meine Tauschliste heften",
+"Épinglé sur ma liste d'échange": "An meine Tauschliste geheftet",
+"{n} badges obtenus sur {t}": "{n} von {t} Abzeichen erhalten",
+"Comparer le badge {name}": "Abzeichen {name} vergleichen",
+"Cette personne": "Diese Person",
+"Même palier": "Gleiche Stufe",
+"Tu es devant": "Du liegst vorn",
+"{name} est devant": "{name} liegt vorn",
+"À égalité": "Gleichstand",
+"Tu es devant de {n}": "Du liegst {n} vorn",
+"{name} est devant de {n}": "{name} liegt {n} vorn",
+"Toi face à {name}": "Du gegen {name}",
+"Toi": "Du"
 }

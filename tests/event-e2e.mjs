@@ -135,7 +135,12 @@ async function findAndTap(p, s, forced) {
   const bs = await p.textContent('.prg-bs .sheet-body');
   assert.match(bs, /Comment l'obtenir\s*30 citrouilles se cachent dans l'appli jusqu'au 8 novembre\..*Les indices du jour sont sur la carte de la fête/s, 'fenêtre du badge : règles de la fête, où sont les indices');
   assert.deepEqual(await p.$$eval('.prg-bs-tiers li b', l => l.map(x => x.textContent)), ['Apprenti chasseur', 'Traqueur de citrouilles', 'Maître des citrouilles', 'Seigneur d\'Halloween']);
-  assert.match(bs, /grade ultime/, '4e palier : grade ultime'); assert.equal(await p.$eval('.prg-bs .sheet-foot', f => f.hidden), true, 'badge d\'événement : pas de vitrine');
+  assert.match(bs, /grade ultime/, '4e palier : grade ultime'); assert.match(await p.textContent('.prg-bs [data-bs-pin]'), /Épingler sur ma liste d'échange/, 'badge d\'événement obtenu : épinglable (📌)');
+  await p.click('.prg-bs [data-bs-pin]'); await p.waitForFunction(() => document.querySelector('.prg-bs [data-bs-pin]').getAttribute('aria-pressed') === 'true');
+  const vit = await p.evaluate(() => { const sh = prgShare(), d = document.createElement('div'); d.innerHTML = prgShowHtml(readShare('trade', JSON.stringify({ have: [], want: [], ...sh })).bg); return { sh, t: d.textContent, img: !!d.querySelector('.prg-chip .evb') }; });
+  assert.deepEqual(vit.sh.bg.find(x => x[0] === 'ev_halloween-2026').slice(0, 2), ['ev_halloween-2026', 0], 'envoyé avec la liste d\'échange');
+  assert.match(vit.t, /Apprenti chasseur/, 'relu et montré chez le visiteur'); assert.equal(vit.img, true, 'avec son badge généré');
+  await p.click('.prg-bs [data-bs-pin]'); await p.waitForFunction(() => document.querySelector('.prg-bs [data-bs-pin]').getAttribute('aria-pressed') === 'false');
   await shot(p, 'badge-fenetre-393-clair'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.prg-bs'));
   ok('badges : catégorie « Événements », palier 1 « Apprenti chasseur », badge généré servi ; sa fenêtre (règles, indices, 4 paliers)');
 

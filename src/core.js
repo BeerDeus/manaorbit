@@ -2539,7 +2539,7 @@ function readShare(kind, d) {
   const at = shNum(o.at, 0, 1e15) || 0;
   // pseudo et photo du propriétaire (facultatifs) : texte court sans balise, image seulement en data:image (aucune adresse externe)
   const by = shStr(o.by, 200).replace(/[\p{Cc}\p{Cf}<>]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 30).trim(), bp = typeof o.bp === 'string' && o.bp.length <= 40000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(o.bp) ? o.bp : '';
-  const bg = Array.isArray(o.bg) ? o.bg.slice(0, 3).filter(x => Array.isArray(x) && typeof x[0] === 'string' && /^[a-z0-9_]{2,24}$/.test(x[0]) && Number.isInteger(x[1]) && x[1] >= 0 && x[1] <= 3).map(x => [x[0], x[1]]) : [];      // badges choisis par le propriétaire (progress.js), 3 au plus
+  const bg = Array.isArray(o.bg) ? o.bg.slice(0, 3).filter(x => Array.isArray(x) && typeof x[0] === 'string' && /^[a-z0-9_-]{2,32}$/.test(x[0]) && Number.isInteger(x[1]) && x[1] >= 0 && x[1] <= 3).map(x => (Number.isInteger(x[2]) && x[2] >= 0 && x[2] <= 1e9 ? [x[0], x[1], x[2]] : [x[0], x[1]])) : [];      // badges choisis par le propriétaire (progress.js), 3 au plus
   const who = { ...(by ? { by } : {}), ...(bp ? { bp } : {}), ...(bg.length ? { bg } : {}) };
   if (kind === 'trade') {
     const list = a => (Array.isArray(a) ? a.slice(0, 20000).map(shareCard).filter(Boolean) : []);

@@ -567,6 +567,8 @@ function openPublicTrade(sh, preview, id, fr) {
     if (b && b.dataset.act === 'more') { P.shown += TR_PAGE; paint(true); return; }
     if (b && b.dataset.act === 'login') { haptic('tap'); openAccount(); return; }      // feuille du compte par-dessus (z-index 85 > 80) ; les correspondances suivent la synchro
     if (b && b.dataset.act === 'import') { openCollImport(); return; }
+    const vs = e.target.closest('.prg-chip[data-vs]');      // badge de la vitrine : sa progression face à la mienne (progress.js) ; aperçu : la fenêtre de mon badge
+    if (vs) { haptic('tap'); const x = P.preview && prgBadges().find(y => y.b.id === vs.dataset.vs); if (x) prgBadgeSheet(x); else prgVsSheet(vs.dataset.vs, +vs.dataset.t, vs.dataset.v != null ? +vs.dataset.v : null, sh.by); return; }
     const row = e.target.closest('.pub-row'); if (!row) return;
     const rows = $$('.pub-row', wrap), list = [], at = { i: 0 };      // illustration recherchée (data-pw) : montrée telle quelle, sans version française
     for (const r of rows) {

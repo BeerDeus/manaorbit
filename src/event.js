@@ -736,13 +736,16 @@ function evBadges() {
   const ids = new Set(); if (evOn() && EV.cal.id) ids.add(EV.cal.id);
   for (const id of [...Object.keys(evLs().p || {}), ...Object.keys(EV.doc || {})]) if (evCount(id) > 0) ids.add(id);
   const out = [];
-  for (const id of ids) {
-    const e = evById(id), p = e && evPack(e.pack); if (!p || !p.badge) continue;
-    const names = p.badge.names || [];
-    const adv = !!p.advent, sky = !!p.sky, nest = !!p.nest, mus = !!p.museum;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js) ; ciel : les constellations complètes (evsky.js) ; nid : les poussins éclos (evnest.js) ; musée : les salles inaugurées (evmuseum.js)
-    out.push({ id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky || nest || mus) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), ...(EV.pv && EV.cal && EV.cal.id === id ? { pv: true } : {}), v: () => evPvBadges() && EV.cal && EV.cal.id === id ? p.badge.tiers[p.badge.tiers.length - 1] : (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : nest ? Math.floor(Math.min(e.total, evCount(id)) / p.nest.per) : mus ? Math.floor(Math.min(e.total, evCount(id)) / p.museum.per) : evCount(id)), ev: id, names });
-  }
+  for (const id of ids) { const d = evBadgeDef(id); if (d) out.push(d); }
   return out;
+}
+/** Badge d'une édition de fête (« halloween-2026 ») : définition commune, valeur lue sur cet appareil ; null si inconnue ou sans badge.
+    Sert aussi à la vitrine d'une liste d'échange reçue (progress.js › prgDef). */
+function evBadgeDef(id) {
+  const e = typeof evById === 'function' ? evById(id) : null, p = e && evPack(e.pack); if (!p || !p.badge) return null;
+  const names = p.badge.names || [];
+  const adv = !!p.advent, sky = !!p.sky, nest = !!p.nest, mus = !!p.museum;      // calendrier de l'Avent : le badge compte les boosters ouverts (evadvent.js) ; ciel : les constellations complètes (evsky.js) ; nid : les poussins éclos (evnest.js) ; musée : les salles inaugurées (evmuseum.js)
+  return { id: 'ev_' + id, cat: 'event', ic: p.obj.emoji, t: T(p.badge.t, { y: e.year }), d: (adv || sky || nest || mus) && p.badge.unit ? p.badge.unit.slice() : ['{n} ' + p.obj.one + ' trouvée', '{n} ' + p.obj.many + ' trouvées'].map(s => (p.obj.fem ? s : s.replace('trouvée', 'trouvé'))), tiers: p.badge.tiers.slice(), ...(EV.pv && EV.cal && EV.cal.id === id ? { pv: true } : {}), v: () => evPvBadges() && EV.cal && EV.cal.id === id ? p.badge.tiers[p.badge.tiers.length - 1] : (adv && typeof advOf === 'function' ? (advOf(id) || { open: 0 }).open : sky ? Math.floor(Math.min(e.total, evCount(id)) / p.sky.per) : nest ? Math.floor(Math.min(e.total, evCount(id)) / p.nest.per) : mus ? Math.floor(Math.min(e.total, evCount(id)) / p.museum.per) : evCount(id)), ev: id, names };
 }
 /** Comment obtenir un badge d'événement (fenêtre du badge, progress.js › prgBadgeSheet) : règles du pack ; fête en cours : où sont les indices ; finie : plus obtenable. */
 function evBadgeHow(id) {

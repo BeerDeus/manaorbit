@@ -25,12 +25,17 @@ const meChev = '<svg class="i me-chev" aria-hidden="true"><use href="#i-chev"/><
 /** Symbole « scarabée » à la manière d'un symbole de mana (pastille du noir {B}, ombre portée en bas à gauche) : carte « Signaler un bug ou une idée ». */
 const BUG_PIP = '<svg class="bug-pip" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14.6" cy="17.4" r="14" fill="#0b0b0c"/><circle cx="16" cy="16" r="14" fill="#cbc2bf"/><circle cx="16" cy="16" r="13.3" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width=".7"/><use href="#i-bug" color="#161414" transform="translate(16 16.3) scale(.74) translate(-16 -16)"/></svg>';
 const meRow = (me, title, value, warn, id) => `<button type="button" class="me-row"${id ? ` id="${id}"` : ''} data-me="${me}"><span class="me-t">${title}</span>${value ? `<span class="me-v${warn ? ' warn' : ''}">${value}</span>` : ''}${meChev}</button>`;
+/** « Badges » : paliers obtenus sur le total, en gros (chaque palier compte pour un badge). */
+function meBadgesRow() {
+  let c; try { c = prgCount(); } catch (e) { return ''; }
+  return `<button type="button" class="me-row me-bdg-row" data-me="niveau"><span class="me-t">${T('Badges')}</span><span class="me-v me-bdg" aria-label="${esc(T('{n} badges obtenus sur {t}', { n: nf0(c.got), t: nf0(c.all) }))}"><b>${nf0(c.got)}</b><span aria-hidden="true">/ ${nf0(c.all)}</span></span>${meChev}</button>`;
+}
 /** Ce qui change l'affichage de la fiche : elle n'est repeinte que si ceci change (une synchro ne doit pas fermer la liste des langues qu'on parcourt). */
 function meSigNow() {
   const u = D.user;
   return [u ? u.uid : '', u ? meName(u) + '|' + (u.email || '') + '|' + acctVerified(u) : D.state + (D.hint && !D.authReady ? 'h' : ''), PROF.photo ? PROF.photo.length : 0, D.pending, D.listErr, allDecks().length, collCount(), Math.round(homeValue() / 100),
     PD.mine && PD.mineUid === (u && u.uid) ? PD.mine.size : -1, TR.share ? 1 : 0, amSig(), S.token ? 1 : 0, typeof ctReady === 'function' && ctReady() ? 1 : 0, typeof scsEdLabel === 'function' ? scsEdLabel() : '', I18N.lang, MK.id + MK.pick,
-    typeof opnSv === 'function' ? JSON.stringify(opnSv()) : '', typeof dlSig === 'function' ? dlSig() : '', typeof EV !== 'undefined' ? EV.adm + '|' + EV.pv + '|' + evPvBadges() : ''].join('§');      // mode streamer (opening.js) : la fiche ne montre que la session
+    typeof opnSv === 'function' ? JSON.stringify(opnSv()) : '', typeof dlSig === 'function' ? dlSig() : '', typeof EV !== 'undefined' ? EV.adm + '|' + EV.pv + '|' + evPvBadges() : '', typeof PRG !== 'undefined' ? PRG.u : 0].join('§');      // mode streamer (opening.js) : la fiche ne montre que la session
 }
 function mePaint() {
   if (!meOpen()) return;
@@ -49,6 +54,7 @@ function mePaint() {
   const mine = PD.mine && u && PD.mineUid === u.uid ? PD.mine.size : -1;
   const acct = sv ? meGroup(T('Mode streamer'), [meRow('opn', T('Session d\'ouverture'), esc(opnPillTxt(OPN.cur)))]) : u ? meGroup(T('Mon compte'), [
     meRow('compte', T('Gérer le compte'), acctVerified(u) ? '' : T('Adresse à vérifier'), !acctVerified(u), 'meAcct'),
+    typeof prgCount === 'function' ? meBadgesRow() : '',      // badges : paliers obtenus / en tout (progress.js), ouvre « Niveau et badges »
     meRow('pub', T('Decks publiés'), mine >= 0 ? esc(`${nf0(mine)} / ${PUB_MAX}`) : ''),
     meRow('trade', T('Lien d\'échange'), TR.share ? T('Actif') : T('Aucun')),
     amMeRow(),      // amis (friends.js) : vide si le serveur ne les a pas
