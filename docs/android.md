@@ -214,6 +214,63 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.1.1 (versionCode 17) : R8 (31 octobre 2026)
+
+**Pourquoi** : la Play Console alerte « Optimisation du code DEX inférieure au seuil, obscurcissement 1 % » (seuil 25 %, échéance février 2027). Il faut R8 dans la version release. Premier essai en 1.0.7 (R8 et `EdgeToEdge` ensemble) : caméra du scan muette dans la version du Play Store, retour arrière en 1.0.9.
+
+**Cause probable de la caméra muette en 1.0.7 / 1.0.8 : R8, pas `EdgeToEdge`** (analyse du code, sans compilation possible ici ; confiance moyenne, environ 2 chances sur 3).
+- La 1.0.7 avait R8 en **mode full** (par défaut depuis AGP 8) **avec optimisation** (`proguard-android-optimize.txt`), et seules les règles de `capacitor-android` gardaient les plugins : aucun autre plugin (camera-preview, AdMob, connexion Google, ML Kit, App, notifications) n'en livre.
+- `CameraPreview.start()` lit la permission caméra **dans l'annotation** `@CapacitorPlugin(permissions = @Permission(alias = "camera", …))`, par réflexion (`Bridge.getPermissionStates`, `Plugin.getPermissionStringsForAliases`). Si R8 vide ou retire cette annotation imbriquée (le mode full optimisé raisonne sur les types « jamais instanciés » : aucune classe n'implémente `Permission`, seul Android en crée une à l'exécution), la permission n'est jamais « accordée », Capacitor redemande un alias qu'il ne trouve plus et **s'arrête sans répondre** : ni accord ni refus, l'aperçu reste noir. C'est exactement le symptôme vu (d'où le filet de 8 s de `scan.js › natStart`). Les autres plugins n'ont pas besoin d'une permission au moment où on les essaie, ce qui explique qu'ils semblaient marcher.
+- `EdgeToEdge` ne change que les marges et la transparence des barres : il ne peut pas empêcher la caméra de livrer sa première image. Son seul bug connu (barre en haut, 1.0.7) venait de l'ordre d'appel, corrigé en 1.0.8, qui avait encore la caméra muette. Il ne revient pas.
+- Écartés : `getIdentifier` (layout `camera_activity`, `frame_container`) marche tant que `shrinkResources` reste éteint ; le fragment `CameraActivity` est créé par `new`, pas par réflexion ; les méthodes `@PluginMethod` / `@PermissionCallback` étaient déjà gardées par les règles de Capacitor.
+
+**Comment (mode prudent, tout dans `android-app/android`)** :
+- `app/build.gradle` : `minifyEnabled true` en release, `proguard-android-optimize.txt` + `proguard-rules.pro` ; `shrinkResources` reste éteint.
+- `app/proguard-rules.pro` : `-dontoptimize` (R8 retire le code mort et raccourcit les noms, sans rien réécrire) ; `-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,Exceptions,SourceFile,LineNumberTable` et `-renamesourcefileattribute SourceFile` ; **gardés en entier** : `com.getcapacitor.**` (pont, annotations, plugins internes, AdMob), `org.apache.cordova.**`, `com.ahm.capacitor.camera.preview.**` (caméra), `io.capawesome.capacitorjs.plugins.**` (connexion Google), `com.capacitorjs.plugins.**` (App, notifications), `com.pantrist.ml.**` (ML Kit), `app.manaorbit.**` (plugin local, widgets, tâches, activités, alias du lanceur) ; méthodes `@JavascriptInterface` ; `org.chromium.support_lib_boundary.**` (androidx.webkit) ; `FirebaseApp.getApps` (réflexion de `hasFirebase`) ; Credential Manager et `googleid` (connexion Google) ; In-App Review ; `-dontwarn com.facebook.**` (comme en 1.0.7).
+- `gradle.properties` : `android.enableR8.fullMode=false` (mode compatible ProGuard, filet en plus des `-keep`).
+- Firebase, ML Kit, AdMob, services Google Play, androidx et Kotlin suivent leurs propres règles : ce sont eux (plusieurs milliers de classes, contre quelques centaines gardées) qui sont obscurcis et font le pourcentage.
+- `tests/test-android-xml.mjs` vérifie ces règles, et qu'**aucun plugin de `capacitor.settings.gradle` n'est sans sa règle** (un plugin ajouté plus tard fait échouer le test tant qu'il n'a pas son `-keep`).
+
+1. `git pull`, `npm run setup` dans `android-app`, Android Studio › **Sync Project with Gradle Files**, `.aab` signé (§ 4.1). Si la compilation s'arrête sur « Missing classes detected while running R8 » : copier le contenu de `app/build/outputs/mapping/release/missing_rules.txt` dans la conversation (ne rien deviner).
+2. **Test interne OBLIGATOIRE** (Play Console › Tester › Test interne › Créer une version avec cet `.aab`, installée depuis le lien du test interne sur le Xiaomi, puis sur un 2e téléphone si possible). **Run ▶ ne vérifie rien ici** (version debug, sans R8). À cocher, sur cette version :
+   - [ ] « APK : 1.1.1 (17) » en bas des Réglages, tous les plugins en ✓ à côté.
+   - [ ] **Caméra du scan** : l'image apparaît en **moins de 2 s** (plus de 2 s ou aperçu noir : arrêter là, voir plus bas). Toucher la carte fait la mise au point, pincer zoome, l'écran ne se met pas en veille.
+   - [ ] Scan d'une carte **française** et d'une carte **japonaise** : nom trouvé.
+   - [ ] **Connexion Google** (se déconnecter puis se reconnecter), synchro de la collection.
+   - [ ] Une **notification** (« Partie enregistrée » ou une alerte de prix) ; la toucher ouvre l'appli au bon endroit.
+   - [ ] **Widgets** « Valeur de la collection » et « QR code d'échange » posés et à jour.
+   - [ ] **Bandeau AdMob** affiché.
+   - [ ] **Raccourcis** de l'icône (appui long : Scanner, Prix rapide…).
+   - [ ] **Partage** d'une liste depuis une autre appli vers Mana Orbit.
+   - [ ] **Lien** `https://manaorbit.app/?p=…` touché dans une messagerie : ouvert dans l'appli.
+   - [ ] **Demande de note** (In-App Review) quand le site la propose.
+   - [ ] Pendant Halloween (jusqu'au 8 novembre) : icône de la fête toujours appliquée en sortant de l'appli.
+3. Caméra muette ou autre point raté : **ne pas promouvoir** (la 1.1.0 reste en production). Brancher le téléphone, Android Studio › **Logcat**, filtre `CameraActivity|AndroidRuntime`, ouvrir le scan, copier les lignes dans la conversation. Rien de `CameraActivity` (« preview session … begun ») : le blocage est avant la caméra (permission lue dans l'annotation), on garde alors davantage ; une erreur `AndroidRuntime` : elle nomme la classe à garder.
+4. Tout est coché : Test interne › la version › **Promouvoir** vers la production. Notes de version :
+```
+<fr-FR>
+Appli plus légère. Rien ne change à l'usage. Merci pour vos retours !
+</fr-FR>
+<en-US>
+A lighter app. Nothing changes in how you use it. Thanks for your feedback!
+</en-US>
+<de-DE>
+Eine schlankere App. An der Bedienung ändert sich nichts. Danke für euer Feedback!
+</de-DE>
+<es-ES>
+Una app más ligera. Nada cambia al usarla. ¡Gracias por vuestros comentarios!
+</es-ES>
+<it-IT>
+Un'app più leggera. Nell'uso non cambia nulla. Grazie per i vostri feedback!
+</it-IT>
+<pt-BR>
+Um app mais leve. Nada muda no uso. Obrigado pelo feedback!
+</pt-BR>
+```
+5. **Fichier de correspondance** (`mapping.txt`) : il part tout seul dans l'`.aab` ; vérifier dans Play Console › **Explorateur d'app bundle** › version 17 › Téléchargements : « Fichier de désobscurcissement » présent (sinon l'y envoyer depuis `app/build/outputs/mapping/release/mapping.txt`). Garder une copie de ce fichier hors du dépôt pour chaque version : sans lui, les traces de plantage sont illisibles.
+6. **Pourcentage** : Play Console › **Qualité** › **Android vitals** › Présentation (alerte « Optimisation du code DEX ») : l'obscurcissement doit passer bien au-dessus de 25 % une fois la 1.1.1 installée par la plupart des utilisateurs (quelques jours à quelques semaines). Toujours sous le seuil : garder la 1.1.1 et en parler dans la conversation (une 1.1.2 pourrait retirer `-dontoptimize`, un essai à la fois, test interne à chaque fois).
+7. `APK_LATEST` à **17** sur Hostinger une fois la 1.1.1 en production (facultatif : rien de visible ne change ; le site n'a pas besoin de savoir quelle version a R8, et son filet de 8 s sur la caméra native reste en place pour tous).
+
 ### APK 1.1.0 (versionCode 16) : widget en dollars pour le marché TCGplayer (29 octobre 2026)
 
 **Pourquoi** : le site sait maintenant afficher les prix TCGplayer en dollars (README › « Marché des prix »). Le widget de valeur écrivait toujours « € » et son estimation appli fermée lisait la colonne en euros du fichier de prix.

@@ -7,8 +7,8 @@ android {
         applicationId "app.manaorbit"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 16
-        versionName "1.1.0"
+        versionCode 17
+        versionName "1.1.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,10 +18,14 @@ android {
     }
     buildTypes {
         release {
-            // APK 1.0.9 : code natif de la 1.0.6 (R8 et EdgeToEdge des 1.0.7 / 1.0.8 retirés : la caméra du scan ne s'ouvrait plus dans la version du
-            // Play Store). R8 à rallumer seulement après une version release essayée sur le téléphone (test interne) ; échéance Play Console : février 2027.
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // R8 (APK 1.1.1, versionCode 17) : code réduit et obscurci, exigé par la Play Console (« optimisation du code DEX », obscurcissement ≥ 25 %,
+            // d'ici février 2027). Mode prudent : sans optimisation (-dontoptimize dans proguard-rules.pro), mode full coupé (gradle.properties), pont
+            // Capacitor, plugins et app.manaorbit gardés en entier. 1.0.7 (R8 en mode full, optimisé, plus EdgeToEdge) : caméra du scan muette, voir
+            // docs/android.md › « APK 1.1.1 ». Version release à vérifier par le test interne AVANT toute promotion (Run ▶ installe la version debug, sans R8).
+            // shrinkResources reste éteint : des ressources sont lues par leur nom (google_app_id, camera_activity, frame_container…).
+            // Le fichier de correspondance (mapping.txt, traces de plantage lisibles) part tout seul dans l'.aab.
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
