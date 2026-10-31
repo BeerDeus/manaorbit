@@ -7569,7 +7569,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '0516ec5d';
+const DD_BUILD = '5876b0b8';
 const I18N_FILES = {"de":"i18n/de.bbb16ee2.js","en":"i18n/en.b6af917b.js","es":"i18n/es.e7713f78.js","it":"i18n/it.9a25a7ee.js","pt":"i18n/pt.6e8ebcdb.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -38331,11 +38331,18 @@ function evFree(host, r) {
   }
   return true;
 }
+/** Haut du bouton fixe en bas de l'écran (.dock : « Chercher les offres »…) quand il est par-dessus la page ; sinon la hauteur de l'écran. Un bloc qui ne dépasse
+ *  qu'à peine au-dessus de ce bouton n'est pas encore « à l'écran » : pas d'essai perdu (2 essais ratés → zone suivante), l'objet attend le défilement. */
+function evDockTop() {
+  const d = !evSheetTop() && !navTopDv() ? document.querySelector('.dock') : null; if (!d) return innerHeight;
+  let t = innerHeight; for (const c of d.children) { const r = c.getBoundingClientRect(); if (r.height > 0 && r.width > 0 && r.top < t) t = r.top; }
+  return t;
+}
 /** Cherche un creux libre dans la partie visible du bloc (grille de points, ordre propre à la cachette) ; trouvé : l'objet s'y pose et apparaît. */
 function evFind(x) {
   if (x.ok || x.dead || !x.el.isConnected || !evHuntOk()) return;
   const z = x.zones[x.k], h = x.host, hr = h.getBoundingClientRect(), ar = z.a ? z.a.getBoundingClientRect() : hr, pad = z.pad || 0;
-  const top = Math.max(hr.top, ar.top - pad, tourTopInEv()), bot = Math.min(hr.bottom, ar.bottom + pad, innerHeight - (document.body.classList.contains('nav-on') && !evSheetTop() ? 96 : 8));      // barre du bas : sous les feuilles (z-index), elle ne cache rien d'une feuille ouverte
+  const top = Math.max(hr.top, ar.top - pad, tourTopInEv()), bot = Math.min(hr.bottom, ar.bottom + pad, innerHeight - (document.body.classList.contains('nav-on') && !evSheetTop() ? 96 : 8), evDockTop());      // barre du bas : sous les feuilles (z-index), elle ne cache rien d'une feuille ouverte ; bouton fixe du bas de l'écran (.dock) : au-dessus
   const left = Math.max(hr.left, ar.left - pad, 0), right = Math.min(hr.right, ar.right + pad, innerWidth), S = (x.size || EV_PK) + 6;
   const ok = bot - top >= S && right - left >= S && !(ar.bottom < 0 || ar.top > innerHeight), band = evAdBand();
   let hit = null;
