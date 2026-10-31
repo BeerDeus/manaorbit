@@ -273,7 +273,7 @@ function openProfile() {
       b.innerHTML = `<div class="prof-top"><span class="who-av prof-av" id="pfAv">${esc(((PROF.name || D.user.displayName || D.user.email || '?').trim()[0] || '?').toUpperCase())}</span>
           <div class="prof-acts"><button class="btn ghost small" type="button" id="pfPick">${T(photo ? 'Changer la photo' : 'Choisir une photo')}</button>${photo ? `<button class="link-btn" type="button" id="pfDel">${T(D.user.photoURL ? 'Revenir à la photo Google' : 'Retirer la photo')}</button>` : ''}
             <input type="file" id="pfFile" accept="image/*" hidden></div></div>
-        <div class="field-in"><label class="label" for="pfName">${T('Pseudo')}</label><input id="pfName" maxlength="${PROF_NAME_MAX}" autocomplete="nickname" spellcheck="false" value="${esc($('#pfName', b) ? $('#pfName', b).value : PROF.name)}" placeholder="${esc(T('Ton pseudo'))}">
+        <div class="field-in"><label class="label" for="pfName">${T('Pseudo')}</label><input id="pfName" type="text" maxlength="${PROF_NAME_MAX}" autocomplete="nickname" spellcheck="false" value="${esc($('#pfName', b) ? $('#pfName', b).value : PROF.name)}" placeholder="${esc(T('Ton pseudo'))}">
           <span class="hint">${T('Visible par les personnes qui ont un de tes liens : « Liste d\'échange de {name} ». Ton e-mail n\'y apparaît jamais.', { name: T('ton pseudo') })}</span></div>
         <p class="hint" id="pfMsg" role="status"></p>`;
       profImg($('#pfAv', b), av);

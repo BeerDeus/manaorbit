@@ -46,7 +46,7 @@ function openDecks() {
     if (act === 'open') openDeckViewer({ id }); else if (act === 'more') openDeckSheet(id);      // toucher le deck : son viewer ; ⋯ : la feuille (image, montage, historique…) ; « Ouvrir » charge la liste dans la saisie
   });
   document.body.appendChild(wrap); holdApp(); renderDecks();
-  requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dk-tab[aria-current]', wrap).focus({ preventScroll: true }); }));
+  requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); dkTabsReveal(wrap); $('.dk-tab[aria-current]', wrap).focus({ preventScroll: true }); }));
   haptic('tap');
 }
 

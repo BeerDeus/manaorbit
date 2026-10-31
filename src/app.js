@@ -200,18 +200,27 @@ function mountSeg(root, options, value, onChange) {
   root.style.setProperty('--n', options.length);
   root.innerHTML = '<span class="seg-thumb"></span>' + options.map(o =>
     `<button type="button" class="seg-opt" role="radio" aria-checked="false" data-v="${esc(o.v)}"><span>${esc(o.label)}</span>${o.sub != null ? `<small>${esc(o.sub)}</small>` : ''}</button>`).join('');
+  // pastille posée sur le bouton choisi : un libellé plus long que sa colonne (« Aufbewahrung », « Organização ») élargit la sienne, les colonnes ne sont
+  // alors plus égales et la pastille calculée en 1/n chevauchait le libellé voisin ; mesurée sur le bouton (sinon, écran caché : le calcul en 1/n du CSS)
+  const fit = () => {
+    const th = root.firstElementChild, b = $$('.seg-opt', root)[Math.max(0, options.findIndex(o => o.v === root._v))];
+    if (!th || !b) return;
+    if (!b.offsetWidth) { th.style.width = th.style.transform = ''; return; }
+    th.style.width = b.offsetWidth + 'px'; th.style.transform = `translateX(${b.offsetLeft - th.offsetLeft}px)`;
+  };
+  if (typeof ResizeObserver !== 'undefined') { if (root._ro) root._ro.disconnect(); root._ro = new ResizeObserver(fit); root._ro.observe(root); $$('.seg-opt', root).forEach(b => root._ro.observe(b)); }      // boutons aussi : police chargée, libellé changé
   const set = (v, fire) => {
     const i = Math.max(0, options.findIndex(o => o.v === v));
     root.style.setProperty('--idx', i);
     $$('.seg-opt', root).forEach((b, k) => b.setAttribute('aria-checked', String(k === i)));
-    root._v = options[i].v;
+    root._v = options[i].v; fit();
     if (fire) haptic('tap');
     if (fire && onChange) onChange(options[i].v);
   };
   root.onclick = e => { const b = e.target.closest('.seg-opt'); if (b) set(b.dataset.v, true); };
   root.setValue = v => set(v, false);
-  root.setLabel = (v, t) => { const n = $(`.seg-opt[data-v="${v}"] span`, root); if (n) n.textContent = t; };
-  root.setSub = (v, t) => { const n = $(`.seg-opt[data-v="${v}"] small`, root); if (n) n.textContent = t; };
+  root.setLabel = (v, t) => { const n = $(`.seg-opt[data-v="${v}"] span`, root); if (n) n.textContent = t; fit(); };
+  root.setSub = (v, t) => { const n = $(`.seg-opt[data-v="${v}"] small`, root); if (n) n.textContent = t; fit(); };
   set(value, false);
 }
 
