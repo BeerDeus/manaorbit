@@ -357,7 +357,7 @@ const prgTierOf = (b, t) => (b.ev && t === 3 ? T('grade ultime') : prgTierName(t
 const prgTier = (b, v) => { let t = -1; b.tiers.forEach((x, i) => { if (v >= x) t = i; }); return t; };
 /** Texte d'un palier (« 1 000 cartes scannées », « Une carte scannée à 50 € ou plus »). */
 /** Tuile étroite : le nombre du début et un mot très court à la fin restent avec leur voisin (« 1 commandant joué », « avant 7 h »), jamais seuls sur une ligne. */
-const prgNb = s => String(s).replace(/^([\d.,\u202f\u00a0]+) /, '$1\u00a0').replace(/ (\S{1,2})$/, '\u00a0$1');
+const prgNb = s => String(s).replace(/^(\d) /, '$1\u00a0').replace(/ (\S{1,2})$/, '\u00a0$1');      // un seul chiffre : « 100 exemplaires » garde sa ligne (collé, le mot suivant serait coupé)
 function prgLabel(b, x) {
   if (b.money) return T(b.money, { p: fmt(x, mkCur()).replace(/[,.]00(?=\s|$| )/, '') });
   if (b.one) return T(b.one);
