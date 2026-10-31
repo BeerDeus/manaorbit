@@ -2,11 +2,14 @@
 
 /* ── Langue de l'interface ─────────────────────────────────────────────────────────────────────
    Les textes sont écrits en français dans le code. T('Texte {n}', { n }) donne leur traduction dans la langue choisie
-   (dictionnaires src/i18n/<langue>.json, posés par build.mjs dans un bloc JSON inerte par langue, script « application/json » d'id i18n-en), sinon le texte tel quel.
+   (dictionnaires src/i18n/<langue>.json ; build.mjs en fait un fichier par langue, i18n/<code>.<empreinte>.js, lu seulement pour la langue choisie avant le reste du code ;
+   fragment de dist/ : un bloc JSON inerte par langue, script « application/json » d'id i18n-en), sinon le texte tel quel.
    TN(n, '{n} carte', '{n} cartes') choisit le pluriel selon la règle de la langue (Intl.PluralRules : français 0 et 1 au singulier, anglais et allemand 1 seul).
    Ajouter une langue = ses dictionnaires (src/i18n/<code>*.json) + une entrée dans I18N_LANGS (et LOC_DEF) ; sans dictionnaire, elle n'est proposée nulle part. */
 const I18N_LANGS = { fr: 'Français', en: 'English', de: 'Deutsch', es: 'Español', it: 'Italiano', pt: 'Português' };
-const I18N = { lang: 'fr', nav: 'fr-FR', navs: ['fr-FR'], dict: null };
+const I18N = { lang: 'fr', nav: 'fr-FR', navs: ['fr-FR'], dict: null, got: {} };      // got : dictionnaires arrivés par leur fichier (i18nLoaded)
+/** Fichiers des dictionnaires (build.mjs : { de: 'i18n/de.<empreinte>.js' }, adresses relatives à la page) ; vide sous Node et dans le fragment (blocs JSON). */
+const I18N_SRC = typeof I18N_FILES !== 'undefined' && I18N_FILES ? I18N_FILES : {};
 
 /* ── Marché des prix ─────────────────────────────────────────────────────────────────────────────
    eu : Europe, prix Cardmarket en euros (ce que l'appli a toujours fait) · us : États-Unis et reste du monde, prix TCGplayer (« market price ») en dollars.
@@ -111,13 +114,14 @@ const NAME_CMP = (a, b) => (NAME_COLL[I18N.lang] || (NAME_COLL[I18N.lang] = new 
 /** Ordre anglais (listes d'échange, export) : même résultat que localeCompare(…, 'en'), avec un seul Intl.Collator (localeCompare en recrée un à chaque comparaison). */
 let EN_COLL = null;
 const EN_CMP = (a, b) => (EN_COLL || (EN_COLL = new Intl.Collator('en').compare))(a, b);
-/** Langue livrée : le français (celle du code), sinon une langue de I18N_LANGS dont le dictionnaire est dans la page (bloc i18n-<code>),
+/** Langue livrée : le français (celle du code), sinon une langue de I18N_LANGS dont le dictionnaire est livré (fichier I18N_FILES, ou bloc i18n-<code> du fragment),
  *  ou dans all / I18N_ALL sous Node. Une langue sans dictionnaire n'est ni choisie ni proposée (jamais une interface à moitié traduite). */
 function i18nHas(code, all) {
   if (!code || !Object.prototype.hasOwnProperty.call(I18N_LANGS, code)) return false;
   if (code === 'fr') return true;
   const a = all || (typeof I18N_ALL !== 'undefined' ? I18N_ALL : null);
   if (a) return !!a[code];
+  if (I18N_SRC[code]) return true;
   try { return !!document.getElementById('i18n-' + code); } catch (e) { return false; }
 }
 /** Langues proposées (Réglages › Langue, accueil) : [code, nom dans sa langue], dans l'ordre de I18N_LANGS. */
@@ -133,9 +137,10 @@ function i18nPick(o = {}) {
   I18N.lang = code; I18N.nav = navs[0]; I18N.navs = navs; I18N.dict = code === 'fr' ? null : i18nDict(code, o.all);
   return code;
 }
-/** Dictionnaire d'une langue : o.all (tests sous Node), sinon le bloc JSON de la page, analysé seulement quand il sert (changer de langue recharge la page). */
+/** Dictionnaire d'une langue : o.all (tests sous Node), sinon celui arrivé par son fichier, sinon le bloc JSON du fragment, analysé seulement quand il sert (changer de langue recharge la page). */
 function i18nDict(code, all) {
   if (all) return all[code] || null;
+  if (I18N.got[code]) return I18N.got[code];
   try { const el = document.getElementById('i18n-' + code); return el ? JSON.parse(el.textContent) : null; } catch (e) { return null; }
 }
 // Dans la page : la langue est choisie avant tout le reste (les autres fichiers peuvent appeler T dès leur chargement).
@@ -144,6 +149,7 @@ if (typeof document !== 'undefined' && typeof location !== 'undefined') {
   try { q = new URLSearchParams(location.search).get('lang') || ''; if (q && i18nHas(q)) localStorage.setItem('deckdeal:lang', q); else q = ''; } catch (e) { /* ignore */ }
   try { saved = localStorage.getItem('deckdeal:lang') || ''; } catch (e) { /* ignore */ }
   i18nPick({ saved: q || saved });
+  if (I18N.lang !== 'fr' && !I18N.dict && I18N_SRC[I18N.lang]) i18nFetch(I18N.lang);
   try { document.documentElement.lang = I18N.lang; } catch (e) { /* ignore */ }
   // Marché des prix : ?mkt=eu|us gardé comme un choix (tests, liens d'aide) ; deviné une fois puis figé ; appareil déjà utilisé avant (collection, réglages) : eu
   const mo = { robot: typeof navigator !== 'undefined' && (navigator.webdriver || /jsdom/i.test(navigator.userAgent || '')), navs: I18N.navs };
@@ -152,6 +158,23 @@ if (typeof document !== 'undefined' && typeof location !== 'undefined') {
   mkPick(mo);
   try { if (!mo.frozen && !mo.robot) localStorage.setItem(MK_GUESS, MK.guess); } catch (e) { /* ignore */ }
   try { document.documentElement.dataset.mkt = MK.id; } catch (e) { /* ignore */ }
+}
+/** Dictionnaire de la langue choisie, dans son fichier : script bloquant écrit juste après le bloc de core.js (document.write), donc lu et exécuté AVANT le second
+ *  bloc de la page (tout le reste du code, qui appelle T dès son chargement). Il appelle i18nLoaded ; s'il manque (hors ligne sans copie, 404, page d'erreur) ou ne
+ *  contient pas le dictionnaire, i18nDone repasse en français : l'appli démarre toujours, et le redemande au lancement suivant. Service worker : copie gardée (pwa/sw.js). */
+function i18nFetch(code) {
+  const done = `i18nDone(${JSON.stringify(code)})`, src = String(I18N_SRC[code]).replace(/[^\w./-]/g, '');
+  try { document.write('<script src="' + src + '" onload=\'' + done + '\' onerror=\'' + done + '\'></' + 'script>'); } catch (e) { i18nDone(code); }
+}
+/** Appelé par le fichier d'une langue (i18n/<code>.<empreinte>.js). */
+function i18nLoaded(code, dict) {
+  if (!dict || typeof dict !== 'object') return;
+  I18N.got[code] = dict; if (I18N.lang === code && !I18N.dict) I18N.dict = dict;
+}
+/** Fin de la lecture du fichier (réussie ou non) : sans dictionnaire, l'interface reste en français (jamais une langue annoncée sans ses textes). */
+function i18nDone(code) {
+  if (I18N.lang !== code || I18N.dict) return;
+  I18N.lang = 'fr'; try { document.documentElement.lang = 'fr'; } catch (e) { /* ignore */ }
 }
 /** Textes fixes de la page (body.html) : nœuds texte et attributs lisibles traduits une fois au démarrage. */
 function i18nDom(root) {

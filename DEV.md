@@ -7,11 +7,12 @@ La doc produit est dans `README.md`. Ce fichier décrit le code, le build et les
 | Chemin | Rôle |
 |---|---|
 | `src/` | Sources de la PWA : modules JS concaténés **dans l'ordre de `build.mjs`**, `style.css`, `body.html` (corps de la page). `src/package.json` les marque CommonJS (les tests Node les chargent avec `require`). |
-| `build.mjs` | Assemble `src/*` → **`deck-deal.html`** (servi par le proxy, **versionné** : l'hébergeur ne lance aucun build) + `dist/deck-deal.artifact.html` (fragment, non versionné) ; recopie `src/edhbin.js` → `edhbin.cjs`. |
+| `build.mjs` | Assemble `src/*` → **`deck-deal.html`** (servi par le proxy, **versionné** : l'hébergeur ne lance aucun build) + `dist/deck-deal.artifact.html` (fragment, non versionné) ; recopie `src/edhbin.js` → `edhbin.cjs` ; écrit les dictionnaires dans **`i18n/`** (voir ci-dessous). |
 | `server/` : `proxy.mjs`, `start.cjs`, `daily-srv.mjs`, `event-srv.mjs`, `srv-stat.mjs` | Serveur de production (zéro dépendance) ; `daily-srv.mjs` : la Carte mystère (PNG, tirage, horloge et score du mode chronométré, classements, anti-triche) et le classement des niveaux (`/api/level`), chargée par `proxy.mjs` ; `srv-stat.mjs` : santé du serveur pour `/admin` › Serveur (requêtes par minute et par famille en O(1), processeur et boucle d'événements, dossier des données, plafond de mémoire). |
 | `server/event-srv.mjs`, `server/event-push.mjs` | Événements saisonniers côté serveur (état, cachettes, badges) et leurs notifications push, chargés par `proxy.mjs`. |
 | `server/discord-srv.mjs`, `server/discord-*.mjs` | Bot Discord (aucune dépendance) : `discord-srv` (le bot), `-cmd` (/moi, /partie), `-daily` (Carte mystère), `-deck` (deck partagé), `-events` (fêtes), `-forum` (fils « Aide et avis »), `-roles`, `-sets` (sorties d'extensions). |
 | `firestore.rules` | Règles Firestore (à republier dans la console Firebase quand elles changent ; testées par `tests/rules-test.mjs`). |
+| `i18n/` | Dictionnaires des langues, **générés et versionnés** par `build.mjs` depuis `src/i18n/*.json` : un fichier par langue, `i18n/<code>.<empreinte>.js` (`i18nLoaded("de", JSON.parse("…"))`), anciens fichiers retirés. La page n'en contient aucun : elle les nomme (`I18N_FILES`) et `core.js` lit celui de la langue choisie avant le reste du code (hors français ; échec → français). Servis par `proxy.mjs` (`/i18n/…`, brotli/gzip, ETag, un an en cache : l'empreinte change avec le contenu), gardés hors ligne par `pwa/sw.js` (langues utilisées, suivent chaque nouvelle version de la page). Le fragment `dist/` garde ses blocs JSON. |
 | `edhbin.cjs` | Copie de `src/edhbin.js` faite par `build.mjs`, pour `gen-edhrec.mjs` (ne pas modifier à la main). |
 | `android-app/` | Coque Android (Capacitor) : plugins natifs (`android/app/src/main/java/app/manaorbit/`), widgets ; procédure et notes de version : `docs/android.md`. |
 | `docs/` | Documentation du propriétaire : `a-faire.md` (état et suite, **à lire en premier**), `android.md`, `mails-partenaires.md`, `audit/` (audit du 24 octobre), `evenements/` (fêtes : architecture, icônes Android, logos sources), `store/` (fiche Play, test fermé, sortie, visuels), `print/` (flyers, carte de visite : `tools/flyer.mjs`), `videos/` (vidéos courtes : `tools/shorts/`). |
@@ -27,7 +28,7 @@ Le `package.json` de la racine est celui du déploiement : **aucune dépendance*
 
     node build.mjs        # → deck-deal.html (à committer avec les sources)
 
-Toujours committer `src/` **et** `deck-deal.html` ensemble.
+Toujours committer `src/` **et** `deck-deal.html` (avec `i18n/`) ensemble.
 
 ## Tests
 

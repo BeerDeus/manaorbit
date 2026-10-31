@@ -4,6 +4,7 @@
      Réseau d'abord (copie locale si le réseau échoue ou traîne → l'app s'ouvre hors ligne) : adresse avec paramètres (partage ?p=,
      ?delete-account, notifications…), pas de copie, ou copie de plus de 7 jours (jamais bloqué sur une vieille version).
      Seule une vraie page de l'app (DD_BUILD présent) est gardée. Page inchangée (même ETag) : seule la date de l'ouverture est notée (AT_KEY), la copie n'est ni relue ni réécrite. /privacy, /admin (panneau d'administration) et /api ne passent jamais par cette copie ni par aucun cache.
+   • Dictionnaires des langues (i18n/<code>.<empreinte>.js) : copie locale d'abord ; ceux des langues utilisées ici suivent chaque nouvelle copie de la page (même version).
    • Icônes et manifeste : cache d'abord, rafraîchis en arrière-plan.
    • Images de cartes Scryfall (cards.scryfall.io) et symboles des extensions (svgs.scryfall.io) : cache d'abord → déjà vus (ou préchargés chaque semaine
      par l'appli, warm.js) : plus jamais retéléchargés ; 120 Mo et 6 000 fichiers au plus. Les petites images (aperçus, listes) passent avant :
@@ -16,7 +17,7 @@
    • Jamais interceptés : /api/*, /__ping, tout autre domaine (CardTrader, Firebase, polices, API Scryfall),
      toute requête qui n'est pas un GET. Aucune donnée de recherche, token ou clé n'est mise en cache ici (jamais l'API Firestore ni l'authentification). */
 const V = 'deckdeal-v1';
-const SHELL = V + '-shell', STATIC = V + '-static', IMG = V + '-img', CDN = V + '-cdn';
+const SHELL = V + '-shell', STATIC = V + '-static', IMG = V + '-img', CDN = V + '-cdn', I18N = V + '-i18n';
 const IMG_HOSTS = ['cards.scryfall.io', 'svgs.scryfall.io'], CDN_MAX = 80;
 /** Images gardées : budget en octets (petites, normales, grandes et art_crop mélangées) ; le nombre borne aussi le coût de la mesure (≈ 0,1 s pour 1 200). */
 const IMG_LIM = { bytes: 120 * 1024 * 1024, max: 6000, big: 40 * 1024 * 1024 };
@@ -51,7 +52,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k.startsWith('deckdeal-') && k !== SHELL && k !== STATIC && k !== IMG && k !== CDN) await caches.delete(k);
+    for (const k of await caches.keys()) if (k.startsWith('deckdeal-') && k !== SHELL && k !== STATIC && k !== IMG && k !== CDN && k !== I18N) await caches.delete(k);
     await self.clients.claim();
   })());
 });
@@ -80,6 +81,34 @@ async function keepShell(cache, r) {
   try { await put(); } catch (_) {
     try { await dropImages(); await put(); } catch (__) { await cache.delete(ROOT).catch(() => {}); }
   }
+  await i18nSync(html).catch(() => {});      // dictionnaire de la langue utilisée : celui de CETTE version, gardé avant que la page ne s'y recharge
+}
+
+/* ── Dictionnaires des langues (i18n/<code>.<empreinte>.js, lus par la page avant son code hors français) ─────────────────────────────────────
+   Adresse versionnée (empreinte) : copie locale d'abord, réseau sinon (8 s au plus : la page attend ce fichier pour démarrer ; échec → elle démarre en français).
+   Seules les langues utilisées sur cet appareil sont gardées ; une nouvelle version de la page (keepShell) fait lire leur nouveau fichier et retirer l'ancien. */
+const I18N_PATH = /^i18n\/([a-z]{2}(?:-[A-Z]{2})?)\.[0-9a-f]{8}\.js$/;
+const i18nLang = url => { const r = rel(new URL(url)), m = r && I18N_PATH.exec(r); return m ? m[1] : ''; };
+async function i18nFile(e) {
+  const cache = await caches.open(I18N), hit = await cache.match(e.request.url);
+  if (hit) return hit;
+  let t = 0;
+  try {
+    const r = await Promise.race([fetch(e.request), new Promise((_, no) => { t = setTimeout(no, 8000); })]);
+    if (r.ok && r.status === 200) e.waitUntil(cache.put(e.request.url, r.clone()).catch(() => {}));
+    return r;
+  } catch (_) { return new Response('', { status: 504 }); } finally { clearTimeout(t); }
+}
+/** Page gardée (html) : pour chaque langue déjà utilisée ici, son dictionnaire de cette version (I18N_FILES de la page) ; l'ancien part une fois le nouveau gardé. */
+async function i18nSync(html) {
+  const m = /const I18N_FILES = (\{[^\n]*?\});/.exec(html); if (!m) return;
+  const files = JSON.parse(m[1]), cache = await caches.open(I18N), keys = await cache.keys();
+  const want = {}; for (const [c, f] of Object.entries(files)) want[c] = new URL(f, ROOT).href;
+  for (const c of new Set(keys.map(k => i18nLang(k.url)).filter(Boolean))) {
+    if (!want[c] || await cache.match(want[c])) continue;
+    try { const r = await fetch(want[c]); if (r.ok && r.status === 200) await cache.put(want[c], r); } catch (_) { /* hors ligne : l'ancien reste */ }
+  }
+  for (const k of keys) { const c = i18nLang(k.url); if (k.url !== want[c] && (!want[c] || await cache.match(want[c]))) await cache.delete(k); }
 }
 /** Date de la copie : x-dd-at (copie écrite), ou la dernière ouverture réussie notée sous AT_KEY pour cette même copie (même version, même ETag). NaN sans date. */
 async function shellAt(cache, c) {
@@ -191,6 +220,7 @@ self.addEventListener('fetch', e => {
   const r = rel(u); if (r === null) return;
   if (r.startsWith('api/') || r === '__ping') return;        // jamais : données vivantes et clés
   if (req.mode === 'navigate') { if (r === '' || r === 'index.html') e.respondWith(page(e)); return; }     // /privacy, /admin et le reste : jamais la copie de l'app
+  if (I18N_PATH.test(r)) { e.respondWith(i18nFile(e)); return; }
   if (ASSETS.includes(r) || /^icons\/events\/[a-z0-9-]+\/[a-z0-9-]+\.(svg|png)$/.test(r)) e.respondWith(asset(e, r));      // événements (event.js) : badges, logo et icône de la fête, copie locale d'abord
 });
 

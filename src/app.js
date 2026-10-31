@@ -5,8 +5,6 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 let RM_MQ = null;      // une seule MediaQueryList (matches suit le réglage du téléphone) : reduceMotion est lu à chaque mouvement du doigt (motion.js › tiltMove)
 const reduceMotion = () => { try { return (RM_MQ || (RM_MQ = window.matchMedia('(prefers-reduced-motion: reduce)'))).matches; } catch (e) { return false; } };
 // Noms des langues de cartes, déjà traduits (« français » / « French ») : on les insère dans des phrases traduites (T('Offres en {lang}', …)).
-/** Lien de test (https://manaorbit.app/test : même page, window.MO_TEST posé par proxy.mjs) : de quoi cacher une nouveauté à essayer avant de l'ouvrir à tous (niveau, badges et Carte mystère : ouverts le 16 octobre). */
-const MO_TEST = typeof window !== 'undefined' && window.MO_TEST === true;
 const LANGS = { fr: T('français'), en: T('anglais'), de: T('allemand'), es: T('espagnol'), it: T('italien'), pt: T('portugais'), jp: T('japonais'), 'zh-CN': T('chinois simplifié'), ru: T('russe'), kr: T('coréen'), 'zh-TW': T('chinois traditionnel') };      // kr, zh-TW : codes CardTrader (comme jp, zh-CN)
 const FLAGS = {
   fr: '<rect width="8" height="16" fill="#0055A4"/><rect x="8" width="8" height="16" fill="#fff"/><rect x="16" width="8" height="16" fill="#EF4135"/>',

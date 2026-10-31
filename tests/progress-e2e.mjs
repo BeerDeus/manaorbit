@@ -1,5 +1,5 @@
-// E2E niveau et badges (progress.js) sur le lien de test (https://manaorbit.app/test : même page, window.MO_TEST posé par le serveur) : pastille « Niv. N »
-// à côté du compte dans Compte et réglages (aussi sur l'adresse normale depuis le 16 octobre), fiche « Niveau et badges » (niveau, XP, paliers bronze → diamant, badges uniques),
+// E2E niveau et badges (progress.js) : pastille « Niv. N » à côté du compte dans Compte et réglages (ouvert à tous depuis le 16 octobre ; le lien de test /test
+// est retiré depuis le 31 octobre : 404), fiche « Niveau et badges » (niveau, XP, paliers bronze → diamant, badges uniques),
 // badges venus des vraies données (parties, collection) et des compteurs (scan), bannière d'un nouveau palier (cliquable, s'efface seule, jamais au premier calcul), noms des paliers, vitrine de 3 badges
 // au plus sur la liste d'échange publique (aller-retour par readShare).
 import './setup-env.mjs';
@@ -16,13 +16,13 @@ const seed = `try { localStorage.setItem('deckdeal:onboard', '${T0}'); localStor
 /* ── Adresse normale : ouvert à tous depuis le 16 octobre ─────────────────────────────────────────────────────────────────────────────────── */
 const n = await newPage(browser, world, { init: seed });
 await n.p.evaluate(() => openSettings()); await n.p.waitForSelector('.me-sheet .me-stats');
-assert.match(await n.p.$eval('.prg-pill', b => b.textContent), /^Niv\. \d+$/, 'adresse normale : niveau à côté du compte'); assert.equal(await n.p.evaluate(() => MO_TEST), false);
+assert.match(await n.p.$eval('.prg-pill', b => b.textContent), /^Niv\. \d+$/, 'adresse normale : niveau à côté du compte');
+assert.equal(await n.p.evaluate(async () => (await fetch('test')).status), 404, 'lien de test /test retiré');
 assert.deepEqual(n.errs, []); await n.ctx.close();
-ok('adresse normale : « Niv. N » à côté du compte (ouvert à tous)');
+ok('adresse normale : « Niv. N » à côté du compte (ouvert à tous) ; /test : 404');
 
-/* ── Lien de test ───────────────────────────────────────────────────────────────────────────────────────────── */
-const { p, errs, ctx } = await newPage(browser, world, { path: 'test', init: seed, pop: true });
-assert.equal(await p.evaluate(() => [MO_TEST, document.querySelector('base').getAttribute('href'), location.pathname]).then(x => x.join(' ')), 'true / /test');
+/* ── Fiche Niveau et badges ───────────────────────────────────────────────────────────────────────────────────────────── */
+const { p, errs, ctx } = await newPage(browser, world, { init: seed, pop: true });
 await p.waitForFunction(() => CTX.proxy, null, { timeout: 8000 });
 await p.evaluate(() => { prgCheck(); prgScan(Array.from({ length: 150 }, (_, i) => ({ key: 'sol ring', q: 1, l: i < 3 ? 'jp' : 'fr', es: i < 20 ? 'read' : 'auto', pk: null }))); });      // 150 cartes scannées, dont 3 japonaises, 20 éditions lues
 await p.evaluate(() => openSettings()); await p.waitForSelector('.me-sheet .prg-pill');
@@ -39,7 +39,7 @@ assert.match(await txt(p, '.prg-head'), new RegExp(`Niveau ${lv.replace('Niv. ',
 assert.ok(await p.$('.prg-sheet .prg-b.off'), 'badges pas encore obtenus : grisés');
 assert.equal(await p.$('.prg-sheet [data-pin="co_value"]'), null, 'badge pas obtenu : pas épinglable');
 await p.screenshot({ path: 'shots/progress-badges.png' });
-ok('lien de test : « ' + lv + ' » à côté du compte ; fiche : niveau, XP, bronze (150 scans), Tokyo (unique), victoires, grande tablée, série en argent');
+ok('« ' + lv + ' » à côté du compte ; fiche : niveau, XP, bronze (150 scans), Tokyo (unique), victoires, grande tablée, série en argent');
 
 /* ── Vitrine : 3 badges au plus ─────────────────────────────────────────────────────────────────────────────── */
 for (const id of ['sc_cards', 'sc_city_jp', 'gm_streak']) { await p.click(`.prg-sheet [data-pin="${id}"]`); await p.waitForFunction(id => document.querySelector(`.prg-sheet [data-pin="${id}"]`).getAttribute('aria-pressed') === 'true', id); }

@@ -45,7 +45,6 @@ console.log('✓ makeCloud avec le vrai SDK (repli getFirestore sans IndexedDB)'
   const dom = (hostname, win) => { const c = vm.createContext({ location: { hostname }, ...(win ? { window: win } : {}) }); vm.runInContext(src, c); return vm.runInContext('FIREBASE_CONFIG.authDomain', c); };
   assert.equal(require('../src/cloud.js').FIREBASE_CONFIG.authDomain, 'm2s-mtg.firebaseapp.com', 'Node : domaine de Firebase');
   assert.equal(dom('manaorbit.app', {}), 'manaorbit.app');
-  assert.equal(dom('manaorbit.app', { MO_TEST: true }), 'manaorbit.app', 'lien de test aussi');
   assert.equal(dom('127.0.0.1', {}), 'm2s-mtg.firebaseapp.com');
   assert.equal(dom('card.m2s-photo.fr', {}), 'm2s-mtg.firebaseapp.com', 'ancienne adresse : domaine de Firebase');
   assert.equal(dom('www.manaorbit.app', {}), 'm2s-mtg.firebaseapp.com');

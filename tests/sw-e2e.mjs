@@ -94,18 +94,21 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
    Relais devant le serveur (autre origine, donc son propre service worker) : délai, page réécrite (autre DD_BUILD), serveur coupé,
    sw.js modifié — sans toucher au dépôt. */
 {
-  const fw = { delay: 0, build: '', down: false, swTail: '', hits: 0 };
+  const fw = { delay: 0, build: '', down: false, swTail: '', hits: 0, i18nHits: 0, i18nDown: false, alias: {} };      // alias : { 'de.<empreinte>.js': 'de.0badc0de.js' } (nouvelle version d'un dictionnaire)
   const relay = http.createServer((q, r) => {
     const path = q.url.split('?')[0], pg = path === '/' || path === '/index.html', swjs = path === '/sw.js', ping = path === '/__ping';
     if (pg && q.method === 'GET') fw.hits++;
     if ((pg || ping) && fw.down) return q.socket.destroy();             // serveur injoignable (page et /__ping)
+    const i18n = path.startsWith('/i18n/'); if (i18n) { fw.i18nHits++; if (fw.i18nDown) return q.socket.destroy(); }
+    let upUrl = q.url; if (i18n) for (const [a, b] of Object.entries(fw.alias)) if (path === '/i18n/' + b) upUrl = '/i18n/' + a;      // nouveau nom → vrai fichier
     const h = { ...q.headers }; if (pg || swjs || ping) { delete h['accept-encoding']; delete h['if-none-match']; }   // corps lisible, jamais de 304
     const go = () => {
-      const u = http.request({ host: '127.0.0.1', port: 18802, path: q.url, method: q.method, headers: h }, x => {
+      const u = http.request({ host: '127.0.0.1', port: 18802, path: upUrl, method: q.method, headers: h }, x => {
         const edit = q.method === 'GET' && ((pg && fw.build) || (swjs && fw.swTail) || (ping && fw.build));
         if (!edit) { r.writeHead(x.statusCode, x.headers); return x.pipe(r); }
         const bufs = []; x.on('data', b => bufs.push(b)); x.on('end', () => {
           let body = Buffer.concat(bufs).toString('utf8');
+          if (pg) for (const [a, b] of Object.entries(fw.alias)) body = body.split('i18n/' + a).join('i18n/' + b);
           body = pg ? body.replace(/const DD_BUILD = '[\w-]+'/, `const DD_BUILD = '${fw.build}'`) : ping ? body.replace(/"build":"[\w-]*"/, `"build":"${fw.build}"`) : body + fw.swTail;      // /__ping : la version que sert le serveur
           const hd = { ...x.headers }; delete hd.etag; hd['content-length'] = Buffer.byteLength(body);
           r.writeHead(x.statusCode, hd); r.end(body);
@@ -222,6 +225,29 @@ ok('images Scryfall : mises en cache au premier affichage, ensuite servies sans 
   // /privacy n'est jamais la copie de l'app
   await q.goto(F + 'privacy'); assert.match(await q.textContent('body'), /Politique de confidentialité/); assert.equal(await build(), '');
   ok('/privacy : jamais servie par la copie de l\'app');
+
+  // dictionnaire d'une langue (allemand) : lu avant le code, gardé par le service worker (hors ligne : toujours allemand), suit une nouvelle version de la page
+  {
+    const i18nKeys = () => q.evaluate(async () => { const k = (await caches.keys()).find(n => /-i18n$/.test(n)); return k ? (await (await caches.open(k)).keys()).map(r => r.url.split('/').pop()) : []; });
+    const de = () => q.evaluate(() => [I18N.lang, T('Accueil'), Object.keys(I18N.got).join()].join('|'));
+    await q.evaluate(() => localStorage.setItem('deckdeal:lang', 'de')); await q.goto(F); await q.waitForFunction(() => !!navigator.serviceWorker.controller);
+    assert.equal(await until(async () => (await de()) === 'de|Start|de'), true, 'allemand : ' + await de());
+    const file = await q.evaluate(() => I18N_FILES.de.split('/').pop());
+    assert.equal(await until(async () => (await i18nKeys()).join() === file, 5000), true, 'dictionnaire allemand gardé : ' + (await i18nKeys()));
+    let h0 = fw.i18nHits; await q.reload(); assert.equal(await de(), 'de|Start|de'); assert.equal(fw.i18nHits - h0, 0, 'relu depuis la copie locale');
+    fw.i18nDown = true; fw.down = true; await q.reload(); assert.equal(await de(), 'de|Start|de', 'hors ligne : toujours en allemand'); fw.i18nDown = false; fw.down = false;
+    // nouvelle version : la page nomme un autre fichier ; il est lu et gardé avant le rechargement, l'ancien part
+    const nu = 'de.0badc0de.js'; fw.alias = { [file]: nu }; fw.build = 'b6e2e000'; await q.evaluate(() => sessionStorage.removeItem('dd-upd')); await q.reload();
+    assert.equal(await until(async () => (await build()) === 'b6e2e000' && (await de()) === 'de|Start|de' && await q.evaluate(() => document.readyState === 'complete')), true, 'nouvelle version chargée, en allemand : ' + await de());
+    assert.equal(await q.evaluate(() => I18N_FILES.de), 'i18n/' + nu);
+    assert.deepEqual(await i18nKeys(), [nu], 'dictionnaire de la nouvelle version gardé, l\'ancien retiré');
+    // fichier introuvable (aucune copie, serveur coupé) : l'appli démarre en français
+    await q.evaluate(async () => { const k = (await caches.keys()).find(n => /-i18n$/.test(n)); await caches.delete(k); }); fw.i18nDown = true; await q.reload();
+    assert.equal(await q.evaluate(() => [I18N.lang, document.documentElement.lang, T('Accueil')].join('|')), 'fr|fr|Accueil', 'sans dictionnaire : français'); fw.i18nDown = false;
+    fw.alias = {}; fw.build = 'b5e2e000'; await q.evaluate(() => { localStorage.removeItem('deckdeal:lang'); sessionStorage.removeItem('dd-upd'); }); await q.reload();      // retour à la version et à la langue d'avant ce bloc
+    assert.equal(await until(async () => (await build()) === 'b5e2e000' && (await shell()).build === 'b5e2e000' && await q.evaluate(() => I18N.lang === 'fr' && document.readyState === 'complete')), true, 'retour à la version b5e2e000, en français');
+  }
+  ok('allemand : dictionnaire lu avant le code et gardé (hors ligne : allemand), nouvelle version → nouveau dictionnaire gardé avant le rechargement ; sans dictionnaire : français');
 
   // images : budget en octets (ici 100 000 au lieu de 60 Mo) → les plus anciennes partent, jusqu'à 85 %
   await q.goto(F); await q.waitForFunction(() => !!navigator.serviceWorker.controller);

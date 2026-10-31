@@ -35,12 +35,12 @@ process.on('exit', done);
 for (let i = 0; i < 200; i++) { try { const j = await (await fetch(world.url + 'api/daily')).json(); if (j.st === 'ready') break; } catch { /* serveur pas encore là */ } await new Promise(r => setTimeout(r, 200)); }
 const LEAK = /serra|anjo|scryfall|"tst"|"17"|test set/i;      // le nom (toutes langues : « … de Serra », « Serra-Engel »…), l'extension, le numéro, Scryfall
 
-/** Page mobile ; test : window.MO_TEST ; native : appli Android simulée (faux AdMob, comme ads-e2e) ; ping : champs de /__ping remplacés. */
+/** Page mobile ; native : appli Android simulée (faux AdMob, comme ads-e2e) ; ping : champs de /__ping remplacés. */
 async function page(o = {}) {
   const pg = await newPage(browser, world, { goto: false, ctx: { timezoneId: 'Europe/Paris' } });
   await pg.p.route('https://www.gstatic.com/**', r => r.abort());      // SDK Firebase injoignable : compte connu tout de suite (signInFake)
   if (o.ping) await pg.p.route('**/__ping', async r => { const res = await r.fetch(); r.fulfill({ response: res, json: { ...(await res.json()), ...o.ping } }); });
-  await pg.p.addInitScript(t => { if (t) window.MO_TEST = true; window.__shared = []; try { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); } catch (e) { /* ignore */ } navigator.clipboard.writeText = async x => { window.__shared.push(x); }; }, o.test !== false);
+  await pg.p.addInitScript(() => { window.__shared = []; try { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); } catch (e) { /* ignore */ } navigator.clipboard.writeText = async x => { window.__shared.push(x); }; });
   if (o.native) await pg.p.addInitScript(() => {
     const L = {}, emit = (ev, d) => (L[ev] || []).forEach(f => f(d)); let banner = false, visible = false; const log = window.__ad = { calls: [] };
     const AdMob = { addListener: (ev, f) => { (L[ev] = L[ev] || []).push(f); return { remove: async () => {} }; }, requestConsentInfo: async () => ({ status: 'NOT_REQUIRED', canRequestAds: true }), showConsentForm: async () => ({ canRequestAds: true }), initialize: async () => {},
@@ -78,7 +78,7 @@ async function join_(p, shots, nick) {
 }
 
 { // 1) adresse normale : ouvert à tous ; serveur qui ne l'annonce pas : rien
-  const a = await page({ test: false });
+  const a = await page();
   await a.p.waitForFunction(() => CTX.proxy === true && CTX.daily === true, null, { timeout: 15000 });
   await a.p.waitForSelector('#btnDaily', { timeout: 8000 }); assert.ok(await a.p.$('#btnRanks'), 'adresse normale : les deux boutons (ouvert à tous depuis le 16 octobre)');
   await a.ctx.close();

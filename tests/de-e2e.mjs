@@ -15,7 +15,7 @@ const open = async locale => { const pg = await newPage(browser, world, { goto: 
 /* ── 1) téléphone allemand ─────────────────────────────────────────────────────────────────────── */
 const { p } = await open('de-DE');
 assert.deepEqual(await p.evaluate(() => [I18N.lang, LOC(), document.documentElement.lang, localStorage.getItem('deckdeal:lang'), navigator.webdriver]), ['de', 'de-DE', 'de', null, false], 'langue du téléphone, rien d\'enregistré');
-assert.equal(await p.evaluate(() => typeof I18N_ALL), 'undefined', 'dictionnaire lu depuis son bloc JSON');
+assert.deepEqual(await p.evaluate(() => [typeof I18N_ALL, Object.keys(I18N.got).join()]), ['undefined', 'de'], 'dictionnaire lu depuis son fichier (i18n/de.<empreinte>.js), lui seul');
 await toHome(p);
 assert.match(await txt(p, '#hmTrade'), /Tausch/); assert.equal(await txt(p, '#nav [data-nav="home"]'), await p.evaluate(() => T('Accueil'))); assert.notEqual(await txt(p, '#nav [data-nav="home"]'), 'Accueil');
 assert.equal(await p.evaluate(() => T('Réglages')), 'Einstellungen');
@@ -43,7 +43,7 @@ assert.match(await txt(p, '.sheet-wrap.open .sheet-head'), /Einstellungen/);
 const langs = await p.$$eval('#setLang option', o => o.map(x => [x.value, x.textContent]));
 assert.deepEqual(langs, await p.evaluate(() => i18nLangs()), 'la liste des langues livrées');
 assert.deepEqual(langs.slice(0, 3), [['fr', 'Français'], ['en', 'English'], ['de', 'Deutsch']]);
-assert.ok(!langs.some(([c]) => c === 'it' || c === 'pt') || await p.evaluate(() => !!document.getElementById('i18n-it')), 'italien, portugais : seulement avec leur dictionnaire');
+assert.ok(!langs.some(([c]) => c === 'it' || c === 'pt') || await p.evaluate(() => !!I18N_FILES.it), 'italien, portugais : seulement avec leur dictionnaire');
 assert.equal(await p.$eval('#setLang', s => s.value), 'de');
 await Promise.all([p.waitForEvent('load'), p.selectOption('#setLang', 'fr')]); await p.waitForTimeout(700);
 assert.deepEqual(await p.evaluate(() => [I18N.lang, localStorage.getItem('deckdeal:lang'), I18N.dict]), ['fr', 'fr', null]); await toHome(p); assert.equal(await txt(p, '#nav [data-nav="home"]'), 'Accueil');
@@ -55,13 +55,13 @@ ok('Réglages › Langue : « Deutsch » (chaque langue dans sa langue), passage
 
 /* ── 2) téléphone espagnol, téléphone italien ──────────────────────────────────────────────────── */
 const es = (await open('es-ES')).p;
-if (await es.evaluate(() => !!document.getElementById('i18n-es'))) {
+if (await es.evaluate(() => !!I18N_FILES.es)) {
   assert.deepEqual(await es.evaluate(() => [I18N.lang, LOC(), S.opts.lang, fmt(123456, 'EUR'), TN(1, '{n} carte', '{n} cartes'), TN(3, '{n} carte', '{n} cartes')]), ['es', 'es-ES', 'es', '1234,56 €', '1 carta', '3 cartas']);
   await toHome(es); assert.equal(await txt(es, '#nav [data-nav="home"]'), 'Inicio');
   ok('téléphone es-ES : interface espagnole, « 1234,56 € », cartes espagnoles');
 } else console.log('  (espagnol pas encore livré : vérification sautée)');
 const it = (await open('it-IT')).p;
-assert.deepEqual(await it.evaluate(() => [I18N.lang, S.opts.lang, i18nHas('it')]), [await it.evaluate(() => i18nHas('it') ? 'it' : 'en'), 'it', await it.evaluate(() => !!document.getElementById('i18n-it'))]);
+assert.deepEqual(await it.evaluate(() => [I18N.lang, S.opts.lang, i18nHas('it')]), [await it.evaluate(() => i18nHas('it') ? 'it' : 'en'), 'it', await it.evaluate(() => !!I18N_FILES.it)]);
 ok('téléphone it-IT : italien seulement s\'il est livré (sinon anglais), cartes italiennes dans les deux cas');
 
 assert.deepEqual(errsAll.flat(), []);
