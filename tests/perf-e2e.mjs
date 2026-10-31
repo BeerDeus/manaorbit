@@ -3,6 +3,8 @@
 // lecture des infos Scryfall, liste ouverte, 15 premières s : ~790 → ~2 000 cartes lues, tâches longues ~65 % → ~8 % du temps.
 // 20 oct. 2026 : tâches longues revenues à ~4,1 – 5,6 s (accueil caché repeint à chaque lot, liste d'échange recalculée, localeCompare(…, 'en'), Intl.NumberFormat
 // recréé à chaque image du chiffre de l'orbe, comptes de l'en-tête faits même pendant la lecture) → ~2,2 – 2,5 s.
+// 31 oct. 2026 : relevé des prix du jour (67 lots) et images dans la langue des cartes : chaque lot repeignait l'accueil (liste d'échange refaite et triée) ;
+// 15 premières s après le lancement, temps processeur du fil principal : JS (FunctionCall) 1 550 → 430 ms, minuteries 1 630 → 470 ms ; fermer la collection 726 → 89 ms.
 // Budgets avec ~3× de marge (CI plus lente) : ils attrapent un retour en arrière grossier (tri sans collator, liste repeinte à chaque lot), pas une variation.
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
