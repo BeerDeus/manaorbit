@@ -1502,6 +1502,7 @@ button,.btn,select,summary{touch-action:manipulation}
 #list.list,.coll-list,.panel,.cs-bars,.vl-box,.cs-tiles>div,textarea#deckText,.crow:not(.coll-list>.crow),.tr-box,.dk-own,.recap{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 #list.list,.coll-list{box-shadow:var(--shadow)}
 .btn.ghost,.fbtn,.fsearch,.sortsel,.icon-btn,.fopt:not([aria-pressed="true"]),.chip,.tools .link-btn:not(.strong){background-color:var(--glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.fpanel .fopt,.fpanel .sortsel{-webkit-backdrop-filter:none;backdrop-filter:none}      /* panneau des filtres : le fond derrière ses boutons est uni (--surface, opaque), le flou n'y changeait rien ; ~50 flous (« Plus de filtres ») coûtaient une passe de rendu chacun à chaque image (ouverture, défilement du panneau : ~15 au lieu de ~28 images/s dans Chromium sans GPU) */
 .seg{background:var(--glass-2);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px var(--line)}
 .seg.dv-seg{background:var(--surface-2)}      /* barre Mana / Prix / Type collée en haut du viewer : opaque, sinon les cartes défilent au travers */
 .seg-thumb{border:1.5px solid transparent;background:linear-gradient(var(--seg-thumb,var(--surface)),var(--seg-thumb,var(--surface))) padding-box,var(--foil-ring) border-box;box-shadow:0 6px 16px -8px rgba(127,176,255,.7)}

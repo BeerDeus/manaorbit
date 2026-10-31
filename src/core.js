@@ -717,9 +717,16 @@ function sanitizeSnap(x) {
 const newestSnap = (...a) => a.filter(Boolean).sort((p, q) => q.at - p.at)[0] || null;
 
 const TYPE_ORDER = ['Créatures', 'Planeswalkers', 'Batailles', 'Artefacts', 'Enchantements', 'Éphémères', 'Rituels', 'Terrains', 'Autres'];
-/** Famille d'une carte d'après sa ligne de type (Artifact Creature → Créatures ; Artifact Land → Terrains). */
+/** Famille d'une carte d'après sa ligne de type (Artifact Creature → Créatures ; Artifact Land → Terrains). Gardée par ligne de type (quelques milliers au plus) :
+ *  le filtre « Famille » la relit pour chaque carte à chaque pastille (20 000 cartes : ~40 ms de moins sur un téléphone moyen). */
+const TYPE_MEMO = new Map();
 function typeBucket(tl) {
-  const t = String(tl || '').toLowerCase();
+  const s = String(tl || ''); let b = TYPE_MEMO.get(s);
+  if (b === undefined) { b = typeBucketOf(s); if (TYPE_MEMO.size >= 5000) TYPE_MEMO.clear(); TYPE_MEMO.set(s, b); }
+  return b;
+}
+function typeBucketOf(tl) {
+  const t = tl.toLowerCase();
   if (t.includes('creature')) return 'Créatures';
   if (t.includes('planeswalker')) return 'Planeswalkers';
   if (t.includes('battle')) return 'Batailles';

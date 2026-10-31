@@ -42,31 +42,34 @@ function mountFilters(root, f, onChange, opts = {}) {
       <button class="link-btn link-inline freset" type="button">${T('Effacer les filtres')}</button></div>${ext ? '<div class="fext"></div>' : ''}`;
   const inp = root.querySelector('input'), clr = root.querySelector('.fclear'), btn = root.querySelector('.fbtn'), panel = root.querySelector('.fpanel'), badge = btn.querySelector('b'), sel = root.querySelector('.fset');
   const more = root.querySelector('.fmore'), mbox = root.querySelector('.fmore-box'), xbox = root.querySelector('.fext');
-  let msig = null;
+  let msig = null, icH = null;
+  // repeint à chaque filtre (deux fois dans la collection : ici puis collPaintBody) : seules les valeurs qui changent sont écrites. Réécrire textes, attributs et
+  // symbole à l'identique salissait la mise en page de tout le panneau, refaite aussitôt (collPaintBody lit le défilement) puis encore après la liste.
+  const txt = (el, v) => { v = String(v); if (el.textContent !== v) el.textContent = v; }, att = (el, k, v) => { v = String(v); if (el.getAttribute(k) !== v) el.setAttribute(k, v); }, hid = (el, h) => { h = !!h; if (el.hidden !== h) el.hidden = h; };
   const moreFill = () => { if (!ext || mbox.hidden) return; const s = ext.sig(); if (s === msig) return; msig = s; mbox.innerHTML = ext.groups(f); };      // groupes avancés (langues présentes, emplacements…) : repeints quand ils changent
   const moreSet = open => { if (!ext) return; mbox.hidden = !open; more.setAttribute('aria-expanded', String(open)); if (open) moreFill(); if (ext.open) ext.open(open); };
   const setOpts = () => {      // bouton « Extension » : celle choisie (symbole, nom) ; la fiche des extensions s'ouvre au toucher (fsetSheet)
     if (!sel) return; const c = f.set || '';
-    $('.fset-ic', sel).innerHTML = c && c !== '-' && typeof setIcHtml === 'function' ? setIcHtml(c) : '';
-    $('b', sel).textContent = !c ? T('Toutes') : c === '-' ? T('Sans édition') : (typeof setName === 'function' && setName(c)) || c.toUpperCase();
-    sel.setAttribute('aria-label', T('Extension : {name}', { name: $('b', sel).textContent }));
+    const ic = c && c !== '-' && typeof setIcHtml === 'function' ? setIcHtml(c) : ''; if (ic !== icH) { icH = ic; $('.fset-ic', sel).innerHTML = ic; }
+    txt($('b', sel), !c ? T('Toutes') : c === '-' ? T('Sans édition') : (typeof setName === 'function' && setName(c)) || c.toUpperCase());
+    att(sel, 'aria-label', T('Extension : {name}', { name: $('b', sel).textContent }));
   };
   let t = 0;
   const paint = () => {
     const n = filterCount(f);
-    badge.hidden = !n; badge.textContent = n; btn.classList.toggle('on', n > 0);
-    clr.hidden = !inp.value;
-    for (const b of root.querySelectorAll('.fcol')) b.setAttribute('aria-pressed', String(f.colors.has(b.dataset.c)));
-    for (const b of root.querySelectorAll('[data-t]')) b.setAttribute('aria-pressed', String(f.type === b.dataset.t));
-    for (const b of root.querySelectorAll('[data-x]')) b.setAttribute('aria-pressed', String(f.cmdr === b.dataset.x));
-    for (const b of root.querySelectorAll('[data-m]')) b.setAttribute('aria-pressed', String(f.cmc !== '' && f.cmc != null && Number(b.dataset.m) === f.cmc));
-    root.querySelector('.freset').hidden = !(n - (f.place ? 1 : 0));      // l'emplacement seul : son bandeau a son ✕
+    hid(badge, !n); txt(badge, n); btn.classList.toggle('on', n > 0);
+    hid(clr, !inp.value);
+    for (const b of root.querySelectorAll('.fcol')) att(b, 'aria-pressed', f.colors.has(b.dataset.c));
+    for (const b of root.querySelectorAll('[data-t]')) att(b, 'aria-pressed', f.type === b.dataset.t);
+    for (const b of root.querySelectorAll('[data-x]')) att(b, 'aria-pressed', f.cmdr === b.dataset.x);
+    for (const b of root.querySelectorAll('[data-m]')) att(b, 'aria-pressed', f.cmc !== '' && f.cmc != null && Number(b.dataset.m) === f.cmc);
+    hid(root.querySelector('.freset'), !(n - (f.place ? 1 : 0)));      // l'emplacement seul : son bandeau a son ✕
     setOpts();
     if (ext) {
       if (inp.value !== (f.q || '') && document.activeElement !== inp) { inp.value = f.q || ''; clr.hidden = !inp.value; }      // recherche enregistrée appliquée : son texte dans le champ
       moreFill();
-      for (const b of mbox.querySelectorAll('[data-fk]')) { const v = f[b.dataset.fk]; b.setAttribute('aria-pressed', String(v instanceof Set ? v.has(b.dataset.fv) : typeof v === 'boolean' ? v : v === b.dataset.fv)); }
-      const na = fltAdvCount(f), mb = more.querySelector('b'); mb.hidden = !na; mb.textContent = na;
+      for (const b of mbox.querySelectorAll('[data-fk]')) { const v = f[b.dataset.fk]; att(b, 'aria-pressed', v instanceof Set ? v.has(b.dataset.fv) : typeof v === 'boolean' ? v : v === b.dataset.fv); }
+      const na = fltAdvCount(f), mb = more.querySelector('b'); hid(mb, !na); txt(mb, na);
       ext.paint(xbox, f, api);
     }
   };
@@ -98,7 +101,35 @@ function mountFilters(root, f, onChange, opts = {}) {
   if (ext && ext.moreOpen && ext.moreOpen()) moreSet(true);      // « Plus de filtres » ouvert la dernière fois : il le reste
   const api = { paint, fire, reset() { f.q = ''; fltClear(f); inp.value = ''; paint(); } };
   paint();
+  fltWarmSoon(root, panel);
   return api;
+}
+/** Préchauffage du panneau des filtres, une fois par page, au repos : à la première ouverture, le style de ses ~200 boutons se calculait à froid et les symboles
+ *  de mana (SVG en fond, style.css › .fcol.mc-*) se créaient au toucher (~0,15 – 0,2 s sur un téléphone moyen, CPU ×4 : tests/perf-e2e.mjs). Groupe par groupe
+ *  (une tâche courte chacun), une copie invisible et hors du flux est stylée et mise en page puis retirée dans la même tâche : jamais peinte, rien ne bouge.
+ *  La copie garde l'attribut hidden (sinon densite.css › .coll-controls:has(.fpanel:not([hidden])) décollerait la barre le temps du calcul).
+ *  Panneau ouvert entre-temps : le reste se calcule à l'ouverture, comme avant ; écran fermé avant la fin : le prochain panneau monté reprend. */
+let fltWarm = 0;      // 0 : à faire · 1 : en cours · 2 : fait
+function fltWarmSoon(root, panel) {
+  if (fltWarm) return; fltWarm = 1;
+  const idle = fn => (typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 4000 }) : setTimeout(fn, 1500));
+  const parts = [...panel.children].flatMap(c => (!c.classList.contains('fmore-box') ? [[null, c]] : c.hidden ? [] : [...c.children].map(g => [c, g])));      // « Plus de filtres » fermé : vide
+  let i = 0;
+  const step = () => {
+    if (!root.isConnected) { fltWarm = 0; return; }
+    if (!panel.hidden || i >= parts.length) { fltWarm = 2; return; }
+    const [box, g] = parts[i++];
+    try {
+      const shell = panel.cloneNode(false), part = g.cloneNode(true);
+      if (box) { const b = box.cloneNode(false); b.hidden = false; b.appendChild(part); shell.appendChild(b); } else shell.appendChild(part);
+      for (const e of [shell, ...shell.querySelectorAll('[id]')]) e.removeAttribute('id');
+      shell.setAttribute('aria-hidden', 'true'); shell.inert = true;
+      shell.style.cssText = 'display:flex!important;position:absolute!important;left:0;right:0;top:0;visibility:hidden!important;pointer-events:none;animation:none!important';
+      root.appendChild(shell); void shell.offsetHeight; shell.remove();
+    } catch (e) { /* préchauffage seulement : sans effet sur le panneau */ }
+    idle(step);
+  };
+  idle(step);
 }
 /** Fiche « Extension » (filtre) : recherche en haut (nom, code, année), « Toutes », « Sans édition », puis chaque extension avec son symbole, son code, son année
  *  et son nombre de cartes, de la plus récente à la plus ancienne. list : [[code, nom, cartes]] (« - » : sans édition) ; onPick(code) ('' : toutes) ; sub(n) : sous-titre. */
