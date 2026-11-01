@@ -52,7 +52,7 @@ const pubOn = (p, who) => p.waitForFunction(w => { const el = document.querySele
   assert.equal(await p.$eval('#aplBar .apl-go', a => a.getAttribute('href')), intentOf('?p=ShareApl00000001'), 'intent://manaorbit.app/<chemin et paramètres>, paquet, fiche Play en repli');
   assert.deepEqual(await p.$eval('#aplBar .apl-get a', a => [a.getAttribute('href'), a.target, a.rel]), [PLAY, '_blank', 'noopener']);
   assert.equal(await p.evaluate(() => PLAY_URL), PLAY, 'une seule constante pour la fiche Play (help.js)');
-  assert.equal(await p.evaluate(() => [RATE_ASK, RATE.url].join('|')), 'false|', 'demande de note toujours coupée (RATE_ASK)');
+  assert.equal(await p.evaluate(() => [RATE_ASK, RATE.url].join('|')), 'true|' + PLAY, 'demande de note allumée depuis la production (RATE_ASK), vers la même fiche');
   assert.equal(await p.$eval('#aplBar .apl-x', b => b.getAttribute('aria-label')), 'Fermer');
   await p.waitForFunction(() => WGT_LAUNCH.done, null, { timeout: 8000 });
   assert.equal(await p.evaluate(() => location.search), '', 'handleLaunch a nettoyé l\'adresse : la barre garde le lien lu au chargement');

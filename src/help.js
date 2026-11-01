@@ -36,7 +36,7 @@ const DISCORD_URL = 'https://discord.gg/TTwrP94agb';
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=app.manaorbit';
 /** Demande automatique de note (rateMoment, rateSheet, In-App Review) : à passer à true une fois l'appli publiée (fiche publique) ; false = aucune demande.
  *  Sans effet sur « Laisser un avis sur Google Play » des réglages (toujours là, sauf sur iPhone et iPad). */
-const RATE_ASK = false;
+const RATE_ASK = true;      // fiche publique depuis le 31 octobre 2026 (production)
 /* Option « Supporter » (achat intégré) : volontairement absente, en attente de l'analyse Fan Content Policy / Google Play Billing. Point d'accroche prévu :
    const SUPPORTER_SKU = '';      // identifiant du produit Play Billing ; vide = rien d'affiché. Entrée sous « Signaler un bug ou une idée » dans helpSettings, appli Android seulement. */
 const HELP_MAIL = 'contact@manaorbit.app', HELP_SUBJECT = 'Mana Orbit · avis';      // objet fixe dans toutes les langues : les avis se trient d'un seul filtre

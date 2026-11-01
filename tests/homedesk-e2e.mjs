@@ -46,7 +46,13 @@ await p.click('.hm-dk-a[data-hm="build"]'); await p.waitForFunction(() => COLL.e
 await p.click('[data-hm="stats"]'); await p.waitForFunction(() => COLL.el && COLL.tab === 'stats'); await p.click('.nav-b[data-nav="home"]'); await p.waitForFunction(() => !COLL.el);
 ok('raccourcis : Importer, Prix d\'une liste, Decks à monter, Statistiques');
 
-for (const [k, t] of [['play', /Bientôt Appli Android · Google Play.*arrive très bientôt sur Google Play/], ['ios', /Bientôt Appli iPhone · App Store.*en préparation/]]) {
+{ // Google Play : l'appli est publiée (RATE_ASK vrai, help.js) : la fiche s'ouvre directement, plus de « Bientôt »
+  await p.evaluate(() => { window.__opened = []; window.open = (u, t, f) => { window.__opened.push([u, t, f]); return null; }; });
+  await p.click('[data-store="play"]'); await p.waitForFunction(() => window.__opened.length === 1);
+  assert.deepEqual(await p.evaluate(() => window.__opened[0]), [await p.evaluate(() => PLAY_URL), '_blank', 'noopener'], 'fiche Google Play, nouvel onglet');
+  assert.equal(await p.evaluate(() => sheets.length), 0, 'pas de feuille « Bientôt »');
+}
+for (const [k, t] of [['ios', /Bientôt Appli iPhone · App Store.*en préparation/]]) {
   await p.click(`[data-store="${k}"]`); await p.waitForFunction(() => sheets.length === 1);
   assert.match(await txt(p, '.sheet'), t); await p.click('.sheet-foot [data-close]'); await p.waitForFunction(() => !sheets.length);
 }
@@ -54,10 +60,10 @@ assert.deepEqual(await p.$$eval('#hmStores .hm-st-lg a', l => l.map(a => [a.getA
 await p.evaluate(() => { CTX.play = true; window.__open = []; window.open = (...a) => { window.__open.push(a); return null; }; });      // PLAY_PUBLIC=1 : fiche publique
 await p.click('[data-store="play"]'); await p.waitForTimeout(200);
 assert.deepEqual(await p.evaluate(() => [window.__open, sheets.length]), [[['https://play.google.com/store/apps/details?id=app.manaorbit', '_blank', 'noopener']], 0], 'fiche publique : Google Play ouvre la fiche');
-assert.equal(await p.evaluate(() => RATE.url), '', 'sans RATE_ASK : pas de demande de note');
+assert.equal(await p.evaluate(() => RATE.url), await p.evaluate(() => PLAY_URL), 'RATE_ASK vrai (production) : demande de note vers la fiche (appli Android seulement : rateOn)');
 await p.click('[data-store="ios"]'); await p.waitForFunction(() => sheets.length === 1); assert.match(await txt(p, '.sheet'), /en préparation/); await p.click('.sheet-foot [data-close]'); await p.waitForFunction(() => !sheets.length);
 await p.evaluate(() => { CTX.play = false; });
-ok('Google Play et App Store : fenêtre « Bientôt » ; fiche publique (PLAY_PUBLIC=1) : Google Play mène à la fiche, App Store toujours « Bientôt », pas de demande de note ; liens Confidentialité et Mentions légales');
+ok('Google Play : la fiche (appli publiée, RATE_ASK) ; App Store : fenêtre « Bientôt » ; fiche publique (PLAY_PUBLIC=1) : Google Play mène à la fiche, App Store toujours « Bientôt » ; liens Confidentialité et Mentions légales');
 
 await p.setViewportSize({ width: 900, height: 900 }); await p.waitForFunction(() => !document.querySelector('.hm-cols'));
 assert.deepEqual(await p.evaluate(() => [...document.querySelector('#viewHome').children].map(x => x.id || x.className.split(' ')[0])),

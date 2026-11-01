@@ -765,28 +765,28 @@ const sheetUp = p => p.$('.rate-sheet');
 const rateSt = p => p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:rate') || 'null'));
 async function ratePage(o = {}) {
   const pg = await page({ init: seedRate(o) + (o.web ? '' : shell) + (o.review ? review(o.review) : ''), ctx: o.ctx });
-  await pg.p.evaluate(url => { RATE.wait = 300; if (url) RATE.url = url; }, o.url === undefined ? PLAY : o.url);
+  await pg.p.evaluate(url => { RATE.wait = 300; RATE.url = url; }, o.url === undefined ? PLAY : o.url);
   await pg.p.evaluate(() => { document.addEventListener('click', e => { if (e.target.closest('[data-rate="go"]')) e.preventDefault(); }, true); });      // « Noter » : on garde la page (le lien est vérifié à part)
   await pg.p.evaluate(() => homeSoon(0)); await pg.p.waitForTimeout(300);                                                                               // premier relevé des decks complets (aucun)
   return pg;
 }
-{ // RATE_ASK faux (valeur livrée) : aucune demande, même dans l'appli et après un bon moment, alors que PLAY_URL est rempli (barre « Ouvrir dans l'appli », applink.js) ;
+{ // demande coupée (RATE.url vide : RATE_ASK faux) : aucune demande, même dans l'appli et après un bon moment, alors que PLAY_URL est rempli (barre « Ouvrir dans l'appli », applink.js) ;
   // « Laisser un avis sur Google Play » des réglages, lui, est là (lien vers la fiche, jamais In-App Review) et marque rateDone au clic
   const { p, ctx } = await ratePage({ url: '', review: 'ok' });
-  assert.equal(await p.evaluate(() => [RATE_ASK, PLAY_URL, RATE.url, isNativeApp()].join('|')), 'false|https://play.google.com/store/apps/details?id=app.manaorbit||true');
+  assert.equal(await p.evaluate(() => [RATE_ASK, PLAY_URL, RATE.url, isNativeApp()].join('|')), 'true|https://play.google.com/store/apps/details?id=app.manaorbit||true');      // RATE_ASK vrai depuis la production (31 octobre 2026) : coupée ici par RATE.url
   await mount(p, 'd1'); await p.waitForTimeout(1500);
-  assert.equal(await sheetUp(p), null, 'aucune demande'); assert.equal(await rateSt(p), null, 'rien d\'enregistré');
+  assert.equal(await sheetUp(p), null, 'aucune demande'); { const st = await rateSt(p) || {}; assert.ok(!st.n && !st.at && !st.done, 'aucune demande comptée (seul le relevé des decks complets, dk, peut exister)'); }
   assert.equal(await p.evaluate(() => window.__rv), 0, 'pas de carte In-App Review');
   await openMe(p, 'aide'); await p.waitForSelector('#helpBox .btn');
   assert.deepEqual(await p.$$eval('#helpBox .btn', b => b.map(x => x.textContent)), HELP_BTNS, 'appli Android : mêmes boutons que le navigateur');
   assert.equal(await p.$eval('#helpBox [data-help="rate"]', a => [a.getAttribute('href'), a.target, a.rel].join()), PLAY + ',_blank,noopener', 'appli Android : la fiche (la coque la confie à Android, qui ouvre l\'appli Play Store)');
   await p.evaluate(() => document.addEventListener('click', e => { if (e.target.closest('[data-help="rate"]')) e.preventDefault(); }, true));      // la page reste (l'adresse est vérifiée au-dessus)
   await p.click('#helpBox [data-help="rate"]'); await p.waitForTimeout(300);
-  assert.deepEqual(await rateSt(p), { done: 1 }, 'clic : rateDone, rien d\'autre (ni compteur, ni date)');
+  { const st = await rateSt(p); assert.deepEqual([st.done, st.n, st.at], [1, undefined, undefined], 'clic : rateDone, rien d\'autre (ni compteur, ni date)'); }
   assert.deepEqual(await p.evaluate(() => [window.__rv, prgC().fb || 0]), [0, 0], 'jamais In-App Review depuis le bouton ; pas de badge « Voix du peuple »');
   await ctx.close();
 }
-ok('note : demande coupée tant que RATE_ASK est faux ; « Laisser un avis sur Google Play » dans l\'appli : la fiche, rateDone au clic, ni In-App Review ni badge');
+ok('note : demande coupée sans fiche (RATE.url vide) ; « Laisser un avis sur Google Play » dans l\'appli : la fiche, rateDone au clic, ni In-App Review ni badge');
 { // appli Android, adresse de test : deck devenu complet → demande neutre, après la fermeture de la feuille ouverte
   const { p, ctx } = await ratePage({ ctx: { colorScheme: 'dark' } });
   assert.deepEqual((await rateSt(p)).dk, [], 'premier relevé des decks complets');
