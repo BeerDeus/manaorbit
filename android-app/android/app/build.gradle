@@ -7,8 +7,8 @@ android {
         applicationId "app.manaorbit"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 17
-        versionName "1.1.1"
+        versionCode 18
+        versionName "1.1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,10 +18,10 @@ android {
     }
     buildTypes {
         release {
-            // R8 (APK 1.1.1, versionCode 17) : code réduit et obscurci, exigé par la Play Console (« optimisation du code DEX », obscurcissement ≥ 25 %,
-            // d'ici février 2027). Mode prudent : sans optimisation (-dontoptimize dans proguard-rules.pro), mode full coupé (gradle.properties), pont
-            // Capacitor, plugins et app.manaorbit gardés en entier. 1.0.7 (R8 en mode full, optimisé, plus EdgeToEdge) : caméra du scan muette, voir
-            // docs/android.md › « APK 1.1.1 ». Version release à vérifier par le test interne AVANT toute promotion (Run ▶ installe la version debug, sans R8).
+            // R8 : code réduit, obscurci (APK 1.1.1, versionCode 17) et optimisé (1.1.2, versionCode 18), exigé par la Play Console (« optimisation du code DEX » :
+            // obscurcissement et optimisation ≥ 25 %, d'ici février 2027). Mode full coupé (gradle.properties) ; pont Capacitor, plugins et app.manaorbit gardés en
+            // entier (proguard-rules.pro). 1.0.7 (R8 en mode full, optimisé, plugins sans règles, plus EdgeToEdge) : caméra du scan muette, voir docs/android.md
+            // › « APK 1.1.1 » et « APK 1.1.2 ». Version release à vérifier par le test interne AVANT toute promotion (Run ▶ installe la version debug, sans R8).
             // shrinkResources reste éteint : des ressources sont lues par leur nom (google_app_id, camera_activity, frame_container…).
             // Le fichier de correspondance (mapping.txt, traces de plantage lisibles) part tout seul dans l'.aab.
             minifyEnabled true

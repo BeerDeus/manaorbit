@@ -99,7 +99,9 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.match(rel, /^\s*minifyEnabled true$/m, 'release : R8 allumé (1.1.1)');
   assert.match(rel, /^\s*proguardFiles getDefaultProguardFile\('proguard-android-optimize\.txt'\), 'proguard-rules\.pro'$/m, 'règles par défaut d\'Android + proguard-rules.pro');
   assert.match(props, /^android\.enableR8\.fullMode=false$/m, 'mode full de R8 coupé (filet : comme ProGuard)');
-  assert.match(pro, /^-dontoptimize$/m, 'pas d\'optimisation (cause probable de la caméra muette en 1.0.7)');
+  assert.doesNotMatch(pro, /^-dontoptimize$/m, 'optimisation allumée (1.1.2 : la Play Console la mesure, 0 % avec -dontoptimize)');
+  assert.match(pro, /^-keepclassmembers class \* extends androidx\.fragment\.app\.Fragment \{ public <init>\(\); \}$/m, 'fragments (CameraActivity) : constructeur sans argument');
+  assert.match(pro, /^-keep @interface com\.getcapacitor\.annotation\.\*\* \{ \*; \}$/m, 'annotations de Capacitor gardées (permissions lues à l\'exécution)');
   const ka = ((/^-keepattributes (.+)$/m.exec(pro) || [])[1] || '').split(',');
   for (const a of ['*Annotation*', 'Signature', 'InnerClasses', 'EnclosingMethod', 'SourceFile', 'LineNumberTable']) assert.ok(ka.includes(a), `-keepattributes ${a}`);
   assert.match(pro, /^-renamesourcefileattribute SourceFile$/m, 'traces de plantage : nom de fichier source masqué');
@@ -125,8 +127,8 @@ console.log(`✓ ${files.length} fichiers XML Android : commentaires valides`);
   assert.match(pro, /^-keep class com\.google\.firebase\.FirebaseApp \{ public static java\.util\.List getApps\(android\.content\.Context\); \}$/m, 'FirebaseApp.getApps (lu par réflexion)');
   assert.match(readFileSync('android-app/android/app/src/main/java/app/manaorbit/ManaOrbitPlugin.java', 'utf8'), /Class\.forName\("com\.google\.firebase\.FirebaseApp"\)/, 'ManaOrbitPlugin.hasFirebase : réflexion gardée par la règle');
   assert.match(pro, /^-dontwarn com\.facebook\.\*\*$/m, 'connexion Facebook du plugin compilée sans le SDK (sinon R8 s\'arrête)');
-  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 17, 'code natif changé : versionCode 17 et plus (1.1.1)');
-  console.log(`✓ APK 1.1.1 : R8 allumé en mode prudent (sans optimisation, mode full coupé), ${projects.length} projets Capacitor gardés en entier, Cordova, app.manaorbit, pont JavaScript, FirebaseApp.getApps, versionCode ≥ 17`);
+  assert.ok(Number((/versionCode (\d+)/.exec(gradle) || [])[1]) >= 18, 'code natif changé : versionCode 18 et plus (1.1.2 : optimisation)');
+  console.log(`✓ APK 1.1.1 / 1.1.2 : R8 allumé (optimisation comprise, mode full coupé, fragments et annotations de Capacitor gardés), ${projects.length} projets Capacitor gardés en entier, Cordova, app.manaorbit, pont JavaScript, FirebaseApp.getApps, versionCode ≥ 18`);
 }
 
 // APK 1.0.10 : écran gardé allumé pendant le scan (mise en veille automatique du téléphone), le WebView n'ayant pas navigator.wakeLock.

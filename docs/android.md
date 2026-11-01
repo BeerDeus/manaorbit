@@ -214,6 +214,52 @@ Au bon moment (5 cartes ou plus ajoutées d'un scan, deck tout juste complet ; a
 - Le Play Store refuse (appli installée hors du Play Store, Play Store absent) : notre feuille, comme avant. Avec **Run ▶**, la carte de Google peut ne rien afficher : c'est normal, elle ne marche que pour une appli installée depuis le Play Store (test interne ou fermé compris).
 - **Tout reste coupé tant que `RATE_ASK` vaut `false`** dans `src/help.js` (ni demande, ni bouton) : à passer à `true` à la mise en production.
 
+### APK 1.1.2 (versionCode 18) : optimisation R8 (1er novembre 2026)
+
+**Pourquoi** : avec la 1.1.1 en ligne, l'alerte de la Play Console a changé : l'obscurcissement est réglé (il n'est plus listé), mais « **Optimisation (0 %)** » reste sous le seuil de 25 % (échéance février 2027). C'est le `-dontoptimize` de la 1.1.1 : la Play Console lit les pourcentages dans le fichier `r8.json` de l'`.aab` (AGP 8.10 et plus), et sans optimisation il n'y a rien à compter.
+
+**Ce qui change (seulement `android-app/android`)** :
+- `app/proguard-rules.pro` : `-dontoptimize` retiré. Ajouts par prudence : le constructeur sans argument de chaque fragment (la caméra du scan, `CameraActivity`, en est un : Android le recrée par réflexion) et les annotations de Capacitor (`com.getcapacitor.annotation.**`, dont `@Permission` lue à l'exécution).
+- Inchangé depuis la 1.1.1 : mode full coupé (`android.enableR8.fullMode=false`), pont Capacitor, Cordova, **chaque plugin** (caméra comprise) et `app.manaorbit` gardés en entier, donc jamais réécrits. Ce qui manquait en 1.0.7 (plugins sans aucune règle, mode full) reste corrigé : seules les bibliothèques (androidx, Kotlin, services Google Play, Firebase, ML Kit, AdMob) sont optimisées, selon leurs propres règles.
+- `versionCode 18`, `versionName "1.1.2"` ; `tests/test-android-xml.mjs` vérifie l'absence de `-dontoptimize` et les deux nouvelles règles.
+
+**À faire (propriétaire)** :
+1. `git pull`, `npm run setup` dans `android-app`, Android Studio › **Sync Project with Gradle Files**, `.aab` signé (§ 4.1). Si R8 s'arrête (« Missing classes »), coller `app/build/outputs/mapping/release/missing_rules.txt` dans la conversation.
+2. **Test interne obligatoire** (l'optimisation est justement ce qui était allumé en 1.0.7) : installé depuis le lien du test interne, sur le Xiaomi :
+   - [ ] **scan : l'image de la caméra apparaît en moins de 2 s**, une carte française et une japonaise ;
+   - [ ] scan : tourner le téléphone pendant le scan, puis revenir (le fragment de la caméra est recréé) ;
+   - [ ] connexion Google, synchro ;
+   - [ ] une notification (« Partie enregistrée » ou alerte de prix) ;
+   - [ ] widgets « Valeur de la collection » et « QR code d'échange » ;
+   - [ ] bandeau AdMob ;
+   - [ ] raccourcis de l'icône, partage d'une liste vers l'appli, lien `https://manaorbit.app/?p=…` touché dans une messagerie ;
+   - [ ] demande de note ;
+   - [ ] bas des Réglages : « APK : 1.1.2 (18) », tous les plugins en ✓.
+3. Un point raté : ne pas promouvoir (la 1.1.1 reste en production), envoyer le Logcat filtré sur `CameraActivity|AndroidRuntime|Capacitor`.
+4. Tout va bien : promouvoir en production (déploiement progressif conseillé : 20 % puis 100 %). Notes de version :
+```
+<fr-FR>
+Appli plus rapide et plus légère. Rien ne change à l'usage. Merci pour vos retours !
+</fr-FR>
+<en-US>
+A faster, lighter app. Nothing changes in how you use it. Thanks for your feedback!
+</en-US>
+<de-DE>
+Eine schnellere, schlankere App. An der Bedienung ändert sich nichts. Danke für euer Feedback!
+</de-DE>
+<es-ES>
+Una app más rápida y ligera. Nada cambia al usarla. ¡Gracias por vuestros comentarios!
+</es-ES>
+<it-IT>
+Un'app più veloce e leggera. Nell'uso non cambia nulla. Grazie per i vostri feedback!
+</it-IT>
+<pt-BR>
+Um app mais rápido e leve. Nada muda no uso. Obrigado pelo feedback!
+</pt-BR>
+```
+5. **Pourcentage** : Play Console › Qualité › Android vitals (alerte « Optimisation du code DEX »), mis à jour avec la 1.1.2 ; vérifiable avant l'envoi : `unzip -p app-release.aab BUNDLE-METADATA/com.android.tools/r8.json`. Toujours sous 25 % : étape suivante possible, le mode full de R8 (retirer `android.enableR8.fullMode=false`), un essai à la fois, test interne à chaque fois.
+6. `APK_LATEST` à **18** sur Hostinger une fois la 1.1.2 à 100 % (facultatif).
+
 ### APK 1.1.1 (versionCode 17) : R8 (31 octobre 2026)
 
 **Pourquoi** : la Play Console alerte « Optimisation du code DEX inférieure au seuil, obscurcissement 1 % » (seuil 25 %, échéance février 2027). Il faut R8 dans la version release. Premier essai en 1.0.7 (R8 et `EdgeToEdge` ensemble) : caméra du scan muette dans la version du Play Store, retour arrière en 1.0.9.

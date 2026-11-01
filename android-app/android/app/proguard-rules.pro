@@ -6,10 +6,10 @@
 # qui suit les règles livrées par chaque bibliothèque. C'est ce reste qui fait le pourcentage d'obscurcissement de la Play Console (seuil 25 %).
 # Les bibliothèques sans règles (tous les plugins sauf capacitor-android) n'en ont plus besoin : leurs paquets sont gardés ici.
 
-# ── Mode prudent ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
-# Pas d'optimisation (ni inlining, ni fusion de classes, ni « type jamais instancié ») : seulement retrait du code mort et noms raccourcis.
-# Cause probable de la caméra cassée en 1.0.7 : l'optimisation du mode full sur les annotations lues à l'exécution (@CapacitorPlugin › permissions).
--dontoptimize
+# ── Optimisation (APK 1.1.2) ──────────────────────────────────────────────────────────────────────────────────────────────────
+# 1.1.1 avait -dontoptimize : obscurcissement réglé, mais la Play Console mesure aussi l'optimisation (0 % sans elle, seuil 25 %). Elle revient en 1.1.2,
+# mode compatible ProGuard gardé (gradle.properties) : tout ce que la 1.0.7 laissait sans protection (annotations @CapacitorPlugin / @Permission lues
+# à l'exécution, plugins sans règles) est gardé en entier ci-dessous, donc jamais réécrit ; seul le reste (bibliothèques) est optimisé.
 # Annotations (lues par Capacitor à l'exécution), génériques et classes internes gardés ; fichiers et numéros de ligne pour les traces de plantage
 # de la Play Console (lisibles avec le mapping.txt envoyé dans l'.aab), nom de fichier source remplacé par « SourceFile ».
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,Exceptions,SourceFile,LineNumberTable
@@ -55,6 +55,12 @@
 -keep class com.google.android.libraries.identity.googleid.** { *; }
 # Demande de note (In-App Review) : petit paquet, gardé par prudence en plus des règles de la bibliothèque.
 -keep class com.google.android.play.core.review.** { *; }
+
+# ── Filets pour l'optimisation (1.1.2) ────────────────────────────────────────────────────────────────────────────────────────
+# Fragments (la caméra du scan en est un : CameraActivity) recréés par Android par réflexion après un changement de configuration : constructeur sans argument.
+-keepclassmembers class * extends androidx.fragment.app.Fragment { public <init>(); }
+# Annotations de Capacitor (permissions, méthodes, callbacks) : types et valeurs gardés tels quels, où qu'elles soient posées.
+-keep @interface com.getcapacitor.annotation.** { *; }
 
 # ── Avertissements ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 # @capacitor-firebase/authentication : connexion Facebook compilée sans le SDK Facebook (compileOnly, rgcfaIncludeFacebook absent) ; jamais chargée,
