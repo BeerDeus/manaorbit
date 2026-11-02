@@ -261,10 +261,10 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (x.fl & 2 && set.br <= 2) return;
     const price = dwPrice(k, x), own = collQty(k) > 0;
     if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
-    if (X.pace && set.bud > 0 && price > Math.max(60, budLeft / slots * 2.5)) return;      // génération : budget réparti sur les places qui restent (sinon les premières cartes le mangent)
+    if (X.pace && set.bud > 0 && price > Math.max(60, Math.min(budLeft / slots * 8, budLeft - (slots - 1) * 30))) return;      // génération : une carte chère passe tant qu'il reste de quoi remplir les autres places (30 c chacune) ; petit budget : ~8 fois la part moyenne qui reste
     const v = dwVal(o); let s = v;
     if (own) s += set.own ? 0.35 : 0.08;
-    if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft)) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);
+    if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft) && budLeft / slots < 300) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);      // budget serré seulement (moins de ~3 € par place restante) : un gros budget est un plafond, pas une raison de prendre moins bien
     out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x });
   };
   for (const [k, o] of C) consider(k, o);

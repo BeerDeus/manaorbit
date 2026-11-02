@@ -7706,7 +7706,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '3ab8d467';
+const DD_BUILD = '4471a981';
 const I18N_FILES = {"de":"i18n/de.8e87771d.js","en":"i18n/en.ab1bd16c.js","es":"i18n/es.ec95dc71.js","it":"i18n/it.3dc374e9.js","pt":"i18n/pt.114b6976.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -27247,10 +27247,10 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (x.fl & 2 && set.br <= 2) return;
     const price = dwPrice(k, x), own = collQty(k) > 0;
     if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
-    if (X.pace && set.bud > 0 && price > Math.max(60, budLeft / slots * 2.5)) return;      // génération : budget réparti sur les places qui restent (sinon les premières cartes le mangent)
+    if (X.pace && set.bud > 0 && price > Math.max(60, Math.min(budLeft / slots * 8, budLeft - (slots - 1) * 30))) return;      // génération : une carte chère passe tant qu'il reste de quoi remplir les autres places (30 c chacune) ; petit budget : ~8 fois la part moyenne qui reste
     const v = dwVal(o); let s = v;
     if (own) s += set.own ? 0.35 : 0.08;
-    if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft)) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);
+    if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft) && budLeft / slots < 300) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);      // budget serré seulement (moins de ~3 € par place restante) : un gros budget est un plafond, pas une raison de prendre moins bien
     out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x });
   };
   for (const [k, o] of C) consider(k, o);
