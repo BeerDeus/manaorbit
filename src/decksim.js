@@ -1,4 +1,4 @@
-/* ── decksim.js : 1 000 débuts de partie joués seul avec un deck Commander (rapport du coach, fonctionnalité en test « deckwiz ») ───────────────
+/* ── decksim.js : 1 000 débuts de partie joués seul avec un deck Commander (rapport du coach) ───────────────
    Chaque partie : mélange, main de 7 (mulligan « London » si moins de 2 ou plus de 5 terrains, 2 au plus), puis 8 tours sans adversaire : un terrain
    par tour (celui qui apporte une couleur qui manque d'abord), le commandant dès qu'il est payable, la rampe ensuite (source de mana dès le tour suivant),
    puis les sorts les plus chers payables. Le paiement tient compte des couleurs : chaque symbole prend une source qui produit sa couleur (les sources

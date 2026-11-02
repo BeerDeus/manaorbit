@@ -1508,6 +1508,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .set-ver{margin:14px 0 0;text-align:center;font-family:var(--font-code);font-size:11.5px}
 .dv-acts{margin-top:2px}.dv-acts .btn,.tr-wacts .btn{flex:1 1 auto;height:44px;font-size:14px}
 .dv-acts .btn{flex-basis:calc(50% - 4px);min-width:min(100%,10.5em);height:auto;min-height:44px;padding:6px 10px;font-size:13.5px;line-height:1.15}      /* viewer d'un deck : deux boutons par ligne quand leurs libellés tiennent (sinon la ligne entière : min-width en em, police agrandie → jamais trois lignes), la liste des cartes remonte d'autant */
+.dv-acts .dv-ana{flex-basis:100%}      /* Coach (decks Commander) : toute la ligne, en tête */
 .tr-wacts{margin-bottom:10px}
 
 /* ── Identité « Arcane » (celle de l'accueil) sur toute l'appli : aurore de mana en fond, surfaces en verre, foil ─────────────
@@ -7802,8 +7803,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '3eb39a86';
-const I18N_FILES = {"de":"i18n/de.dfc3f0a3.js","en":"i18n/en.3f691f18.js","es":"i18n/es.e29df104.js","it":"i18n/it.e7b845cb.js","pt":"i18n/pt.be1074e7.js"};
+const DD_BUILD = '154744f4';
+const I18N_FILES = {"de":"i18n/de.8951c9f0.js","en":"i18n/en.c3a83d9c.js","es":"i18n/es.4ab05c66.js","it":"i18n/it.4c7a6f72.js","pt":"i18n/pt.cd05f020.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -13820,32 +13821,35 @@ function paintCollSwitch() {
 
 
 /* ── labs.js : « Fonctionnalités en test » (Compte et réglages › Préférences, compte de l'éditeur seulement) ─────────────────────────────
-   Chaque fonctionnalité encore en essai est cachée derrière un interrupteur. Allumé, il vaut jusqu'au prochain démarrage de l'appli : le choix est gardé dans
-   sessionStorage (survit à un rechargement de la page, une mise à jour ou le service worker ; oublié quand l'appli est fermée ou l'onglet refermé).
+   Chaque fonctionnalité encore en essai est cachée derrière un interrupteur. Allumé, il le reste jusqu'à ce qu'on l'éteigne : le choix est gardé dans
+   localStorage (survit à la fermeture de l'appli ; l'ancien choix gardé dans sessionStorage est repris une fois).
    La ligne ne s'affiche que pour le compte de l'éditeur (event.js › evAdmOn, même vérification que « Aperçu d'une fête ») ; labOn() ne regarde que le stockage :
    une fonctionnalité en test ne fait jamais rien tant que personne ne l'a allumée. */
 const LABS = [
-  { id: 'deckwiz', name: 'Assistant de deck Commander', desc: 'Nouveau deck : « J\'ai déjà ce deck » ou « Deck à construire » ; onglet Coach de l\'éditeur (jauges, suggestions, bracket, budget)' },
 ];
 const LAB_KEY = 'deckdeal:labs';
 const labMem = {};      // stockage refusé (navigation privée stricte) : le choix vaut pour cette page seulement
 function labAll() {
-  try { const o = JSON.parse(sessionStorage.getItem(LAB_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return labMem; }
+  try {
+    let v = localStorage.getItem(LAB_KEY);
+    if (v == null && typeof sessionStorage !== 'undefined') { v = sessionStorage.getItem(LAB_KEY); if (v) localStorage.setItem(LAB_KEY, v); }      // choix d'avant (gardé pour la session seulement) : repris
+    const o = JSON.parse(v || '{}'); return o && typeof o === 'object' ? o : {};
+  } catch (e) { return labMem; }
 }
 /** Fonctionnalité en test allumée ? */
 const labOn = id => !!labAll()[id];
 function labSet(id, on) {
   if (!LABS.some(l => l.id === id)) return;
   const o = { ...labAll() }; if (on) o[id] = 1; else delete o[id];
-  try { sessionStorage.setItem(LAB_KEY, JSON.stringify(o)); } catch (e) { if (on) labMem[id] = 1; else delete labMem[id]; }
+  try { localStorage.setItem(LAB_KEY, JSON.stringify(o)); } catch (e) { if (on) labMem[id] = 1; else delete labMem[id]; }
   if (typeof haptic === 'function') haptic('ok');
-  if (typeof toast === 'function') toast(on ? T('Fonctionnalité en test allumée jusqu\'au prochain démarrage') : T('Fonctionnalité en test éteinte'));
+  if (typeof toast === 'function') toast(on ? T('Fonctionnalité en test allumée') : T('Fonctionnalité en test éteinte'));
   if (typeof renderDecks === 'function') { try { renderDecks(); } catch (e) { /* écran pas encore prêt */ } }
 }
 /** Lignes de Préférences : un interrupteur par fonctionnalité (compte de l'éditeur seulement). */
 function labsRow() {
-  if (typeof evAdmOn !== 'function' || !evAdmOn()) return '';
-  return `<div class="me-row lab-h"><span class="me-t">${T('Fonctionnalités en test')}<small>${T('Admin · ton compte seulement, jusqu\'au prochain démarrage de l\'appli')}</small></span></div>`
+  if (!LABS.length || typeof evAdmOn !== 'function' || !evAdmOn()) return '';
+  return `<div class="me-row lab-h"><span class="me-t">${T('Fonctionnalités en test')}<small>${T('Admin · ton compte seulement')}</small></span></div>`
     + LABS.map(l => `<label class="me-row switch-row" for="setLab-${l.id}"><span class="me-t">${T(l.name)}<small>${T(l.desc)}</small></span><span class="switch"><input type="checkbox" id="setLab-${l.id}" data-lab="${l.id}" ${labOn(l.id) ? 'checked' : ''}><i></i></span></label>`).join('');
 }
 if (typeof document !== 'undefined') document.addEventListener('change', e => { const t = e.target; if (t && t.dataset && t.dataset.lab) labSet(t.dataset.lab, t.checked); });
@@ -18795,7 +18799,7 @@ function dvFrame(snap) {
       <div class="dv-age" data-age="${old ? 'old' : 'fresh'}"><span>${esc(when)}</span>${DV.live || ref ? '' : '<button class="link-btn" type="button" data-act="refresh">' + T('Actualiser') + '</button>'}</div>
       ${dvEvolution(snap, DV.dl)}${dvRefLine(items)}
       ${dvCurve(items)}${!DV.pub && DV.deckId && typeof puDeckStatHtml === 'function' ? puDeckStatHtml(DV.name) : ''}
-      <div class="tr-acts dv-acts">${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Modifier les cartes')}</button>` : ''}${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn ghost dv-ana" type="button" data-act="analyse" title="${T('État du deck et échanges conseillés (fonctionnalité en test)')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Analyser')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
+      <div class="tr-acts dv-acts">${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn dv-ana" type="button" data-act="analyse" title="${T('Note, échanges conseillés et simulation de parties')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Coach')}</button>` : ''}${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Modifier les cartes')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
     </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
     <div class="dv-main"><div id="dvCmd"></div>
     <div class="dv-tools"><div class="seg dv-seg" id="dvSeg"></div>${dvViewHtml()}</div>
@@ -27267,7 +27271,7 @@ function bdSave() {
    Données : la base du coach (/api/dkw, server/dkw-srv.mjs, générée par gen-deckdb.mjs) : rôle de chaque carte, cibles calculées sur des milliers de decks réels
    (médianes et quartiles : tous, par bracket, par thème, par commandant), cartes conseillées par commandant (inclusion et synergie EDHREC, thèmes approfondis).
    Les terrains suivent la formule de Frank Karsten (coût moyen et rampe/pioche pas chères du deck en cours) : voir docs/deckbuilder/recherche.md.
-   Sans la base (hors ligne, serveur sans données) : cibles du modèle de base (DW_BASE), sans suggestions. Rien ne s'affiche tant que labOn('deckwiz') est faux. */
+   Sans la base (hors ligne, serveur sans données) : cibles du modèle de base (DW_BASE), sans suggestions. */
 const DKW_ROLES = ['land', 'ramp', 'draw', 'removal', 'wipe', 'counter', 'tutor', 'protect', 'recursion', 'wincon'];
 const DW_RB = Object.fromEntries(DKW_ROLES.map((r, i) => [r, 1 << i]));
 /** Libellés des jauges (ordre d'affichage) et explication courte. */
@@ -27315,7 +27319,7 @@ const DW_BRACKETS = [
 ];
 const DW = { core: null, p: null, err: '', byKey: null, cmd: new Map(), cmdP: new Map(), th: new Map(), thP: new Map(), open: '', shown: 8, setOpen: false };
 const DW_KEY = 'dkw:core', DW_FRESH = DAY;
-const dwOn = () => typeof labOn === 'function' && labOn('deckwiz');
+const dwOn = () => true;      // le coach est pour tout le monde (n'est plus une fonctionnalité en test)
 /** Vignettes d'une feuille ou d'un écran du coach : l'image n'apparaît qu'une fois chargée (.thumb img.ok, style.css) ; en panne, la lettre reste. */
 function dwImgs(el) {
   el.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);

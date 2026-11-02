@@ -167,12 +167,12 @@ test('appli : formule des terrains (Karsten), symboles de mana, sources conseill
   assert.deepEqual(W.DW_BRACKETS.map(b => b[3]), [0, 0, 3, 99, 99], 'Game Changers permis par bracket');
 });
 
-test('fonctionnalités en test : allumées pour la session seulement', () => {
-  const store = {}; global.sessionStorage = { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
+test('fonctionnalités en test : gardées jusqu\'à ce qu\'on les éteigne, celles de la liste seulement', () => {
+  const store = {}, mk = () => ({ getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } });
+  global.localStorage = mk(); global.sessionStorage = mk();
   const L = require('../src/labs.js');
-  assert.equal(L.labOn('deckwiz'), false); L.labSet('deckwiz', true); assert.equal(L.labOn('deckwiz'), true); assert.match(store['deckdeal:labs'], /deckwiz/);
-  L.labSet('inconnue', true); assert.equal(L.labOn('inconnue'), false, 'seulement celles de la liste'); L.labSet('deckwiz', false); assert.equal(L.labOn('deckwiz'), false);
-  assert.ok(L.LABS.every(l => l.id && l.name && l.desc));
+  L.labSet('inconnue', true); assert.equal(L.labOn('inconnue'), false, 'seulement celles de la liste');
+  assert.ok(L.LABS.every(l => l.id && l.name && l.desc)); assert.ok(!L.LABS.some(l => l.id === 'deckwiz'), 'le coach n\'est plus en test');
 });
 
 test('prix du jour (relevé de l\'appli) : impression la moins chère par carte, euros puis dollars', () => {

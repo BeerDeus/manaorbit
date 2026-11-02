@@ -1,11 +1,11 @@
-/* ── deckwiz.js : assistant de deck Commander (fonctionnalité en test « deckwiz », labs.js) ─────────────────────────────────────
+/* ── deckwiz.js : assistant de deck Commander (pour tout le monde depuis le 2 novembre 2026) ─────────────────────────────────────
    1. Nouveau deck : « J'ai déjà ce deck » (scanner, coller la liste, à la main) ou « Deck à construire » (assistant : commandant, thèmes, bracket, budget).
    2. Onglet « Coach » de l'éditeur (builder.js), Commander seulement : jauges par catégorie (terrains, rampe, pioche, retraits, balayages…) face à des cibles,
       courbe de mana, sources de couleur, règles du bracket choisi, budget ; un appui sur une jauge propose les cartes qui manquent (ta collection d'abord).
    Données : la base du coach (/api/dkw, server/dkw-srv.mjs, générée par gen-deckdb.mjs) : rôle de chaque carte, cibles calculées sur des milliers de decks réels
    (médianes et quartiles : tous, par bracket, par thème, par commandant), cartes conseillées par commandant (inclusion et synergie EDHREC, thèmes approfondis).
    Les terrains suivent la formule de Frank Karsten (coût moyen et rampe/pioche pas chères du deck en cours) : voir docs/deckbuilder/recherche.md.
-   Sans la base (hors ligne, serveur sans données) : cibles du modèle de base (DW_BASE), sans suggestions. Rien ne s'affiche tant que labOn('deckwiz') est faux. */
+   Sans la base (hors ligne, serveur sans données) : cibles du modèle de base (DW_BASE), sans suggestions. */
 const DKW_ROLES = ['land', 'ramp', 'draw', 'removal', 'wipe', 'counter', 'tutor', 'protect', 'recursion', 'wincon'];
 const DW_RB = Object.fromEntries(DKW_ROLES.map((r, i) => [r, 1 << i]));
 /** Libellés des jauges (ordre d'affichage) et explication courte. */
@@ -53,7 +53,7 @@ const DW_BRACKETS = [
 ];
 const DW = { core: null, p: null, err: '', byKey: null, cmd: new Map(), cmdP: new Map(), th: new Map(), thP: new Map(), open: '', shown: 8, setOpen: false };
 const DW_KEY = 'dkw:core', DW_FRESH = DAY;
-const dwOn = () => typeof labOn === 'function' && labOn('deckwiz');
+const dwOn = () => true;      // le coach est pour tout le monde (n'est plus une fonctionnalité en test)
 /** Vignettes d'une feuille ou d'un écran du coach : l'image n'apparaît qu'une fois chargée (.thumb img.ok, style.css) ; en panne, la lettre reste. */
 function dwImgs(el) {
   el.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);

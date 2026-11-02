@@ -1,6 +1,6 @@
 # Assistant de deck Commander (« coach ») : architecture
 
-Fonctionnalité **en test** depuis le 2 novembre 2026 : invisible tant qu'elle n'est pas allumée dans **Compte et réglages › Préférences › Fonctionnalités en test** (compte de l'éditeur seulement, `src/labs.js`), et seulement jusqu'au prochain démarrage de l'appli.
+Pour tout le monde depuis le 2 novembre 2026 (d'abord fonctionnalité en test, `src/labs.js`, qui reste pour les prochaines). Dans l'aperçu d'un deck Commander, le bouton **Coach** (toute la ligne, en tête des actions) ouvre l'analyse : note, échanges conseillés, rapport et simulation de parties.
 
 Recherche (Karsten, Command Zone, EDHREC, brackets Wizards, étiquettes du Tagger) : [`recherche.md`](recherche.md). Étiquettes Scryfall Tagger par rôle : [`tagger-tags.json`](tagger-tags.json) (référence ; la liste retenue, sans les racines trop larges, est dans `gen-deckdb.mjs` › `TAG_RULES` et `taggerRoles`).
 

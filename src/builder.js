@@ -87,7 +87,7 @@ function openBuilder(o) {
   if (Array.isArray(o.swaps) && o.swaps.length) {      // échanges conseillés par l'analyse (deckana.js) : appliqués, à enregistrer
     for (const [ok, ik, nm] of o.swaps) { const c = BD.main.get(ok); if (!c || BD.main.has(ik)) continue; if (c.qty > 1) c.qty--; else BD.main.delete(ok); BD.main.set(ik, { key: ik, name: nm, qty: 1 }); BD.dirty = true; }
   }
-  const coach = typeof dwOn === 'function' && dwOn() && BD.fmt === 'commander';      // onglet Coach (fonctionnalité en test, deckwiz.js)
+  const coach = typeof dwOn === 'function' && dwOn() && BD.fmt === 'commander';      // onglet Coach (deckwiz.js)
   if (coach) BD.wiz = o.wiz ? { ...dwDefaults(), ...o.wiz } : dwSettingsFor(BD.id);
   collFrLoad();
   if (typeof EDH !== 'undefined' && !EDH.data && typeof edhLoad === 'function') edhLoad().then(() => { if (BD.el) bdList(); }, () => {});      // liste des Game Changers (pastille GC), dans les données EDHREC

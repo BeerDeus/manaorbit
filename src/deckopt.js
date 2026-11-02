@@ -1,4 +1,4 @@
-/* ── deckopt.js : note du coach (sur 100) et construction en plusieurs passes (fonctionnalité en test « deckwiz », labs.js) ─────────────────
+/* ── deckopt.js : note du coach (sur 100) et construction en plusieurs passes (pour tout le monde depuis le 2 novembre 2026) ─────────────────
    Note du coach : la même mesure pour la génération, l'analyse et le rapport. Rôles 30 (chaque catégorie face à sa cible), mana 25 (terrains face à la
    formule de Karsten, sources de chaque couleur face à son repère), courbe 10 (coût moyen face à sa cible), synergie 25 (part des sorts joués avec ce
    commandant ou très joués en Commander), règles et budget 10 (bracket, budget, 100 cartes).

@@ -1,4 +1,4 @@
-/* ── deckrep.js : « Rapport du coach » d'un deck Commander (fonctionnalité en test « deckwiz », labs.js) ─────────────────────────────
+/* ── deckrep.js : « Rapport du coach » d'un deck Commander (pour tout le monde depuis le 2 novembre 2026) ─────────────────────────────
    Pour quelqu'un qui découvre le deck : ce que fait le commandant, comment le deck gagne (thèmes, combos, conditions de victoire, pièces maîtresses),
    comment le jouer (main de départ, début, commandant, milieu, fin de partie), l'interaction, les points faibles, les combos à une carte près et le rôle
    de chaque carte. Tout vient du deck lui-même (rôles, coûts, synergies du commandant, combos de Commander Spellbook, cibles du coach) : rien d'écrit à

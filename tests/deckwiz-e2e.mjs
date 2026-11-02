@@ -46,18 +46,13 @@ await prep(p);
 await signInFake(p);
 await p.evaluate(() => { COLL.map = collFromText('1 Arcane Signet\n1 Swords to Plowshares'); collChanged(); });
 
-/* ── 1) Fonctionnalités en test : ligne réservée au compte de l'éditeur ; éteintes, rien ne change ── */
+/* ── 1) Le coach est pour tout le monde : plus de ligne « Fonctionnalités en test » (aucune en cours) ── */
 assert.equal(await p.evaluate(() => labsRow()), '', 'compte quelconque : pas de ligne');
-assert.match(await p.evaluate(() => { const a = EV.adm; EV.adm = EV.uid; const h = labsRow(); EV.adm = a; return h; }), /Fonctionnalités en test[\s\S]*Assistant de deck Commander/, 'compte de l\'éditeur : la ligne et son interrupteur');
-assert.equal(await p.evaluate(() => labOn('deckwiz')), false);
-await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
-await p.fill('#ndName', 'Sans coach'); await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo'); await p.waitForSelector('.bd.on');
-assert.equal(await p.$('#bdSeg .seg-opt[data-v="coach"]'), null, 'éteinte : pas d\'onglet Coach');
-await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
-ok('fonctionnalités en test : éteintes par défaut, ligne de l\'éditeur seulement');
+assert.equal(await p.evaluate(() => { const a = EV.adm; EV.adm = EV.uid; const h = labsRow(); EV.adm = a; return h; }), '', 'compte de l\'éditeur : aucune fonctionnalité en test');
+assert.equal(await p.evaluate(() => dwOn()), true);
+ok('coach pour tout le monde, sans interrupteur');
 
-/* ── 2) Allumée (pour la session) : « J'ai déjà ce deck » › « Coller la liste » ── */
-await p.evaluate(() => labSet('deckwiz', true)); assert.equal(await p.evaluate(() => sessionStorage.getItem('deckdeal:labs')), '{"deckwiz":1}');
+/* ── 2) « J'ai déjà ce deck » › « Coller la liste » ── */
 await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
 await p.fill('#ndName', 'Edgar collé'); await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo');
 await p.waitForSelector('.dw-start[data-v="have"]'); await one(p); await shot(p, 'nouveau'); assert.deepEqual(await p.$$eval('.dw-start b', b => b.map(x => x.textContent)), ['J\'ai déjà ce deck', 'Deck à construire']);

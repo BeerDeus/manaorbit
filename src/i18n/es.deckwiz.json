@@ -269,5 +269,8 @@
  "{n} cochés": "{n} marcados",
  "Petit budget : le coach garde l'essentiel (de quoi gagner, interaction, mana) mais certaines cartes ne seront pas les meilleures, et les couleurs moins bien servies qu'avec des terrains plus chers.": "Presupuesto pequeño: el coach mantiene lo esencial (una forma de ganar, interacción, maná) pero algunas cartas no serán las mejores, y los colores estarán peor cubiertos que con tierras más caras.",
  "Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.": "Tu comandante ya vale {p} de {b}: con este presupuesto, el mazo quedará incompleto o muy flojo. Sube el presupuesto o elige otro comandante.",
- "Le commandant compte dans le budget ({p}).": "El comandante cuenta en el presupuesto ({p})."
+ "Le commandant compte dans le budget ({p}).": "El comandante cuenta en el presupuesto ({p}).",
+ "Fonctionnalité en test allumée": "Función de prueba activada",
+ "Admin · ton compte seulement": "Admin · solo tu cuenta",
+ "Note, échanges conseillés et simulation de parties": "Nota, cambios aconsejados y partidas simuladas"
 }

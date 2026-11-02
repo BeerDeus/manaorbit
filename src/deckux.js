@@ -1,4 +1,4 @@
-/* ── deckux.js : confort du coach (fonctionnalité en test « deckwiz », labs.js) ─────────────────────────────────────
+/* ── deckux.js : confort du coach (pour tout le monde depuis le 2 novembre 2026) ─────────────────────────────────────
    - « Prochaines étapes » : en haut du Coach, les 1 à 3 actions les plus utiles, chacune avec son bouton (compléter, retirer, ajouter une catégorie,
      règles du bracket, terrains, sources de couleur) ; « Deck équilibré » et le rapport quand tout va bien.
    - « À retirer » : dès que le deck dépasse 100 cartes (une suggestion ajoutée à un deck plein…), les cartes à enlever d'abord, avec la raison.
