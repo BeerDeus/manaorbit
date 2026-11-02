@@ -76,6 +76,7 @@ await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edga
 await p.waitForSelector('#dwzGo'); await shot(p, 'assistant-2');
 assert.equal(await p.$eval('#dwzName', i => i.value), 'Edgar Markov');
 await p.click('[data-br="2"]'); await p.click('[data-bud="5000"]');
+assert.equal(await p.$eval('#dwzAuto', i => i.checked), true, '« Générer les 100 cartes tout de suite » : allumé par défaut'); await p.click('label[for="dwzAuto"]');      // ici : le coach seul (génération testée plus bas)
 assert.match(await txt(p, '.sheet-wrap:last-child .sheet-body'), /Core/);
 await p.click('#dwzGo'); await p.waitForSelector('.bd.on'); await p.waitForSelector('.dw-gauges .dw-g', { timeout: 15000 });
 assert.deepEqual(await p.evaluate(() => [BD.tab, BD.cmdr.map(c => c.key), BD.wiz.br, BD.wiz.bud]), ['coach', ['edgar markov'], 2, 5000]);
@@ -116,21 +117,52 @@ assert.match(await txt(p, '.dw-set-h'), /bracket 2/); assert.equal(await p.evalu
 await p.evaluate(() => bdClose(true));
 ok('bracket (Game Changers, destruction de terrains, combo à 2 cartes), terrains de base, réglages gardés avec le deck');
 
+/* ── 5 bis) Générer le deck : assistant avec génération, rôles jusqu'aux cibles puis plan puis terrains, couleurs, bracket, budget, annulable ── */
+await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
+await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo'); await p.waitForSelector('.dw-start[data-v="build"]'); await one(p);
+await p.click('.dw-start[data-v="build"]'); await p.waitForSelector('#dwzQ'); await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]'); await p.click('.dw-cmd[data-slug="edgar-markov"]');
+await p.waitForSelector('#dwzGo'); await p.click('[data-br="2"]'); await p.click('[data-bud="10000"]'); await p.click('#dwzGo');
+await p.waitForSelector('.bd.on'); await p.waitForFunction(() => BD.main.size > 3, null, { timeout: 15000 });
+const gen = await p.evaluate(() => { const m = new Map([...BD.main].map(([k, c]) => [k, c.qty])); let n = 0; for (const q of m.values()) n += q; return { keys: [...m.keys()], n, plains: m.get('plains') || 0, swamp: m.get('swamp') || 0, mountain: m.get('mountain') || 0, prof: (p => ({ land: p.land, ramp: p.ramp, cents: p.cents, gc: p.gc.length }))(dwProfile()) }; });
+for (const k of ['arcane signet', 'swords to plowshares', 'nights whisper', 'phyrexian arena', 'wrath of god', 'command tower']) assert.ok(gen.keys.includes(k), 'générée : ' + k);
+for (const k of ['sol ring', 'demonic tutor', 'rhystic study', 'llanowar elves', 'armageddon', 'gilded removal']) assert.ok(!gen.keys.includes(k), 'écartée (Game Changer, couleur, destruction de terrains ou budget) : ' + k);
+assert.equal(gen.prof.gc, 0); assert.ok(gen.prof.cents <= 10000, 'sous le budget de 100 €');
+assert.equal(gen.prof.land, await p.evaluate(() => dwTargets(dwProfile(), dwCmdOf(), DW.cmd.get('edgar-markov')).land[1]), 'terrains : la cible');
+assert.ok(gen.plains > 0 && gen.swamp > 0 && gen.mountain > 0, 'terrains de base des trois couleurs');
+assert.match(await p.$eval('#toast', t => t.textContent), /cartes ajoutées · \d+ \/ 100/);
+await p.evaluate(() => { const t = document.querySelector('#toast button'); if (t) t.click(); });
+await p.waitForFunction(() => BD.main.size === 0, null, { timeout: 5000 }); ok('génération annulée : deck vide');
+await p.click('[data-act="dw-auto"]'); await p.waitForFunction(() => BD.main.size > 3);
+assert.match(await txt(p, '[data-act="dw-auto"]'), /Compléter le deck jusqu'à 100 cartes/, 'deck incomplet (peu de cartes dans la base de test) : bouton Compléter');
+await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
+ok('générer le deck : rôles, plan, terrains, couleurs, bracket, budget ; annulable ; Compléter');
+
 /* ── 6) Analyser un deck (viewer) : bracket estimé, échanges conseillés, limite de prix, ouverture dans l'éditeur avec les échanges ── */
 await p.evaluate(() => putDeck('dk-ana', deckDoc({ name: 'Edgar à analyser', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian Arena\n1 Gilded Removal\n1 Command Tower\n30 Plains', opts: { ...S.opts } })));
 await p.evaluate(() => openDeckViewer({ id: 'dk-ana' })); await p.waitForSelector('.dv.on .dv-ana');
 await p.click('.dv-ana'); await p.waitForSelector('.da-sum', { timeout: 15000 });
 assert.match(await txt(p, '.da-sum'), /Bracket estimé 2 · Core/);
-await p.waitForSelector('.da-sw');
+assert.equal(await p.$('.da-sw'), null, 'réglages d\'abord : pas encore d\'échanges'); assert.equal(await txt(p, '#daGo'), 'Lancer l\'analyse');
+assert.equal(await p.$eval('[data-da-br="2"]', b => b.getAttribute('aria-pressed')), 'true', 'bracket visé préréglé sur le bracket estimé');
+await shot(p, 'analyse-reglages');
+await p.click('#daGo'); await p.waitForSelector('.da-sw');
 const swRows = () => p.$$eval('.da-sw', r => r.map(x => [...x.querySelectorAll('.da-c b')].map(b => b.textContent).join(' → ') + ' | ' + x.querySelector('.da-why').textContent).map(t => t.replace(/\s+/g, ' ')));
 let sws = await swRows();
 assert.equal(sws.length, 1, 'un seul échange utile : ' + sws.join(' | ')); assert.equal(sws[0], 'Weak One → Arcane Signet | Il manque : Rampe · 80 % des decks (contre 0 %) · −4,60 €');
+assert.match(await txt(p, '.dw-set-h'), /bracket 2 · Core · sans limite de prix · ma collection d'abord/);
+// vignettes : image de la fiche ou de Scryfall par le nom ; un toucher agrandit la carte (retirée, ajoutée…)
+assert.deepEqual(await p.$$eval('.da-sw .thumb', t => t.map(x => !!x.querySelector('img') && x.dataset.zoom)), ['da', 'da']);
+await p.click('.da-sw .da-c.in .thumb'); await p.waitForSelector('.imgv'); assert.equal(await p.evaluate(() => DA.off.size), 0, 'la vignette agrandit sans décocher');
+await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'));
+await p.click('[data-da-edit]'); await p.waitForSelector('#daBud');
 await p.fill('#daBud', '100'); await p.dispatchEvent('#daBud', 'change');
-await p.waitForFunction(() => document.querySelectorAll('.da-sw').length === 2);
+assert.equal(await p.$('.da-sw'), null, 'réglages : rien n\'est recalculé avant « Lancer l\'analyse »');
+await p.click('#daGo'); await p.waitForFunction(() => document.querySelectorAll('.da-sw').length === 2);
 sws = await swRows();
 assert.match(sws[0], /^Gilded Removal → Swords to Plowshares \| Même rôle, bien moins chère/, 'au-dessus de la limite : la carte chère d\'abord');
 assert.match(await txt(p, '#daGo'), /Ouvrir dans l'éditeur avec 2 échanges/); await shot(p, 'analyse');
-await p.click('.da-sw input[data-da-sw="1"]'); await p.waitForFunction(() => /avec 1 échange$/.test(document.querySelector('#daGo').textContent));
+await p.click('.da-sw:nth-child(2) .da-why');      // toute la ligne coche
+await p.waitForFunction(() => DA.off.has(1)); await p.waitForFunction(() => /avec 1 échange$/.test(document.querySelector('#daGo').textContent));
 await p.click('#daGo'); await p.waitForSelector('.bd.on'); await p.waitForSelector('.dw-gauges');
 assert.deepEqual(await p.evaluate(() => [BD.id, BD.tab, BD.dirty, BD.main.has('gilded removal'), BD.main.has('swords to plowshares'), BD.main.has('weak one'), BD.wiz.bud]), ['dk-ana', 'coach', true, false, true, true, 10000]);
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));

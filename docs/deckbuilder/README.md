@@ -18,6 +18,9 @@ Recherche (Karsten, Command Zone, EDHREC, brackets Wizards, étiquettes du Tagge
    - **cartes clés du commandant** (inclusion et synergie EDHREC, thèmes choisis) ;
    - **Compléter avec des terrains de base** : jusqu'à la cible, répartis selon les symboles de mana.
 
+3. **Générer le deck** (Coach, ou option de l'assistant) : complète jusqu'à 100 cartes (cartes présentes gardées) : rôles jusqu'aux cibles, plan du commandant, terrains (Karsten, non-base les plus joués jusqu'à un tiers, base selon les symboles), places restantes pour le plan ; budget réparti sur les places restantes (`BD.pace`) ; annulable (`deckwiz.js` › `dwAutoBuild`).
+4. **Analyser** (`deckana.js`) : réglages d'abord (bracket visé = estimé, limite de prix, thèmes, collection), puis échanges conseillés ; vignettes agrandies au toucher (`zoom.js` › liste `da`).
+
 ## Cibles
 
 - Plusieurs sources pondérées (médiane et quartiles des decks réels) : le commandant lui-même (≥ 8 decks, poids 3), chaque thème choisi (1,5), le bracket choisi (1,5), le nombre de couleurs (0,7), tous les decks récents (1). Sans la base : modèle de base `DW_BASE` (`src/deckwiz.js`), ajusté par bracket (`DW_BR_ADJ`).

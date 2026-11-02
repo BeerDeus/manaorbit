@@ -241,7 +241,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   if (!DW.byKey) return [];
   const set = X.wiz || dwDefaults(), ci = new Set([...(cmd ? cmd.ci : '')]), inDeck = k => X.main.has(k) || X.cmdr.some(c => c.key === k) || (X.skip && X.skip.has(k));
   const brMax = (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[3], gcLeft = brMax - prof.gc.length;
-  const budLeft = set.bud > 0 ? set.bud - prof.cents : Infinity, slots = Math.max(1, 99 - (prof.n - BD.cmdr.length));
+  const budLeft = set.bud > 0 ? set.bud - prof.cents : Infinity, slots = Math.max(1, 100 - prof.n);
   const C = X.info || dwInfo(pack, set);
   const fallback = C.size < 40;      // commandant inconnu de la base : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
   const out = [];
@@ -256,6 +256,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (x.fl & 2 && set.br <= 2) return;
     const price = dwPrice(k, x), own = collQty(k) > 0;
     if (!own && price > 0 && price > budLeft) return;
+    if (X.pace && set.bud > 0 && !own && price > Math.max(60, budLeft / slots * 2.5)) return;      // génération : budget réparti sur les places qui restent (sinon les premières cartes le mangent)
     const v = dwVal(o); let s = v;
     if (own) s += set.own ? 0.35 : 0.08;
     if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft)) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);
@@ -294,6 +295,11 @@ function dwCoachHtml() {
   if (DW.p && !DW.core) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement de la base du coach…')}</span></div>`;
   else if (DW.err) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(DW.err)}</span></div>`;
   h += dwSetHtml(cmd, pack);
+  if (DW.core && prof.n < 100) {
+    const ready = DW.cmd.has(cmd.slug), empty = prof.n <= BD.cmdr.length;
+    if (DW.autoNext && ready) { DW.autoNext = false; setTimeout(dwAutoBuild, 0); }
+    h += `<button class="btn block dw-auto" type="button" data-act="dw-auto"${ready ? '' : ' disabled'}>${empty ? T('Générer le deck (100 cartes)') : T('Compléter le deck jusqu\'à 100 cartes')}</button><p class="hint dw-auto-h">${T('Rôles jusqu\'aux cibles, puis le plan du commandant, puis les terrains ; dans tes couleurs, ton bracket et ton budget, ta collection d\'abord. Les cartes déjà là restent ; annulable.')}</p>`;
+  }
   h += `<div class="sec-title">${T('Équilibre du deck')}</div><div class="dw-gauges">${dwGaugesHtml(prof, tgt, cmd, pack)}</div>`;
   h += dwManaHtml(prof, tgt, cmd);
   h += dwBracketHtml(prof);
@@ -354,7 +360,7 @@ function dwSugHtml(role, cmd, pack, prof, tgt) {
   return full + `<div class="dw-sug">${list.map(s => dwSugRow(s, cmd)).join('')}</div>${list.length >= DW.shown ? `<button class="link-btn" type="button" data-act="dw-more">${T('Plus de suggestions')}</button>` : ''}`;
 }
 function dwSugRow(s, cmd) {
-  const k = s.k, m = bdMeta(k), x = COLL.map[k], nm = bdLabel(k, s.name), hue = hash32(k) % 360, img = m && m.im ? collImage(k, x ? x.l : '', m.im).src : '';
+  const k = s.k, m = bdMeta(k), x = COLL.map[k], nm = bdLabel(k, s.name), hue = hash32(k) % 360, img = m && m.im ? collImage(k, x ? x.l : '', m.im).src : zoomUrl(s.name, 'small');      // fiche pas encore lue : image Scryfall par le nom
   const why = dwWhy(s, cmd), price = s.price > 0 ? fmt(s.price, mkCur()) : '';
   return `<div class="crow bd-row dw-row" data-k="${esc(k)}" data-n="${esc(s.name)}" data-t="main"><span class="thumb" style="--h:${hue}"${zoomAt('bd', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${price ? `<span class="dw-px">${esc(price)}</span>` : ''}</span><span class="row-meta">${bdTags(k, 0, 'coll')}</span>${why ? `<span class="dw-why">${esc(why)}</span>` : ''}</span>
@@ -402,18 +408,48 @@ function dwPlanHtml(cmd, pack, prof, tgt) {
   return h + '</div>';
 }
 /** Terrains de base pour atteindre la cible : répartis selon les symboles de mana des sorts (au moins un par couleur utilisée). */
-function dwFillBasics() {
+function dwFillBasics(quiet) {
   const cmd = dwCmdOf(); if (!cmd || !cmd.ci) return;
   const prof = dwProfile(), tgt = dwTargets(prof, cmd, DW.cmd.get(cmd.slug) || null);
   const BK = { W: 'plains', U: 'island', B: 'swamp', R: 'mountain', G: 'forest' }, EN = { W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest' };
   const cols = [...cmd.ci], curB = cols.reduce((a, c) => a + ((BD.main.get(BK[c]) || {}).qty || 0), 0);
-  const want = Math.max(0, tgt.land[1] - (prof.land - curB)), room = 99 - (prof.n - BD.cmdr.length - curB), n = Math.max(0, Math.min(want, room));
+  const want = Math.max(0, tgt.land[1] - (prof.land - curB)), room = 100 - (prof.n - curB), n = Math.max(0, Math.min(want, room));
   const w = cols.map(c => Math.max(prof.pips[c] || 0, 0.5)), tot = w.reduce((a, b) => a + b, 0);
   const share = cols.map((c, i) => Math.floor(n * w[i] / tot)); let rest = n - share.reduce((a, b) => a + b, 0);
   for (let i = 0; rest > 0; i = (i + 1) % cols.length, rest--) share[i]++;
   cols.forEach((c, i) => { if (share[i] > 0) BD.main.set(BK[c], { key: BK[c], name: EN[c], qty: share[i] }); else BD.main.delete(BK[c]); });
-  BD.dirty = true; haptic('ok'); bdPaint(); bdMetaSoon();
+  BD.dirty = true; if (quiet) return n;
+  haptic('ok'); bdPaint(); bdMetaSoon();
   toast(TN(n, '{n} terrain de base dans le deck', '{n} terrains de base dans le deck'));
+  return n;
+}
+/** « Générer le deck » : complète jusqu'à 100 cartes (les cartes déjà là restent), avec les mêmes règles que les suggestions (couleurs, bracket, Game Changers,
+ *  budget, collection d'abord) : 1. chaque rôle jusqu'à sa cible (rampe, pioche, retraits, balayages, contresorts, protection, tuteurs, récursion) ;
+ *  2. le plan de jeu (cartes les plus jouées et en synergie avec le commandant et les thèmes) ; 3. les terrains : formule de Karsten sur le deck obtenu,
+ *  terrains non-base les plus joués avec ce commandant (un tiers au plus), puis terrains de base selon les symboles de mana. Annulable. */
+function dwAutoBuild() {
+  const cmd = dwCmdOf(); if (!cmd || !DW.core || !BD.el) return 0;
+  const pack = DW.cmd.get(cmd.slug) || null, before = new Map([...BD.main].map(([k, c]) => [k, { ...c }])), n0 = dwProfile().n; BD.pace = true;
+  const add = x => BD.main.set(x.k, { key: x.k, name: x.name, qty: 1 }), size = () => { let n = 0; for (const c of BD.main.values()) n += c.qty; return n; };
+  const slots = 100 - BD.cmdr.length;
+  let prof = dwProfile(), tgt = dwTargets(prof, cmd, pack);
+  const landsNow = () => prof.land, nonland = () => size() - landsNow();
+  const L0 = Math.max(tgt.land[1], prof.land), cap = () => slots - Math.max(L0, landsNow());
+  for (const r of ['ramp', 'draw', 'removal', 'wipe', 'counter', 'protect', 'tutor', 'recursion']) {
+    while (prof[r] < tgt[r][1] && nonland() < cap()) { const x = dwSuggest(r, cmd, pack, prof, tgt, 1)[0]; if (!x) break; add(x); prof = dwProfile(); }
+  }
+  while (nonland() < cap()) { const x = dwSuggest('', cmd, pack, prof, tgt, 1)[0]; if (!x) break; add(x); prof = dwProfile(); }
+  tgt = dwTargets(prof, cmd, pack);
+  const L = tgt.land[1], nb = Math.min(Math.max(0, L - prof.land), Math.round(L / 3) - (prof.land - [...BD.main.values()].filter(c => BASIC_NAMES.has(c.key)).reduce((a, c) => a + c.qty, 0)));
+  for (let i = 0; i < nb && size() < slots; i++) { const x = dwSuggest('land', cmd, pack, prof, tgt, 1)[0]; if (!x || (!x.own && (x.o.incl || 0) < 15 && !(x.o.rank && x.o.rank < 300))) break; add(x); prof = dwProfile(); }
+  dwFillBasics(true); prof = dwProfile();
+  while (size() < slots) { const x = dwSuggest('', cmd, pack, prof, tgt, 1)[0]; if (!x) break; add(x); prof = dwProfile(); }      // terrains revus à la baisse : places restantes pour le plan
+  BD.pace = false;
+  const added = size() - (n0 - BD.cmdr.length), total = size() + BD.cmdr.length; BD.dirty = true;
+  haptic('ok'); bdPaint(); bdMetaSoon(); prof = dwProfile();
+  const cur = mkCur(), msg = TN(added, '{n} carte ajoutée', '{n} cartes ajoutées') + ' · ' + T('{t} / 100', { t: total }) + (prof.cents ? ' · ' + T('valeur {p}', { p: fmt(prof.cents, cur) }) : '');
+  toast(total < 100 ? msg + ' · ' + T('budget ou cartes épuisés : complète à la main') : msg, { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
+  return added;
 }
 /** Clics de l'onglet Coach (bdClick de builder.js les lui passe) : vrai si l'action était la sienne. */
 function dwClick(b) {
@@ -425,6 +461,7 @@ function dwClick(b) {
   else if (act === 'dw-th') { const v = b.dataset.v, i = s.th.indexOf(v); if (i >= 0) s.th.splice(i, 1); else if (s.th.length < 3) { s.th.push(v); dwPack('t', v); } else { toast(T('3 thèmes au plus')); return true; } haptic('tap'); dwPersist(BD.id); bdList(); }
   else if (act === 'dw-br') { s.br = Number(b.dataset.v) || 3; haptic('tap'); dwPersist(BD.id); bdList(); }
   else if (act === 'dw-basics') dwFillBasics();
+  else if (act === 'dw-auto') dwAutoBuild();
   return true;
 }
 if (typeof document !== 'undefined') document.addEventListener('change', e => {
@@ -475,9 +512,9 @@ function openDeckPaste(name, fmt) {
 }
 
 /* ── Assistant « Deck à construire » (Commander) ──────────────────────────────────────────────────── */
-const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, name: '', cols: new Set(), pickTh: [] };
+const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), pickTh: [] };
 function openDeckWiz(name) {
-  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, name: name || '', cols: new Set(), pickTh: [] });
+  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), pickTh: [] });
   if (typeof edhLoad === 'function') edhLoad().catch(() => {});
   dwLoad().catch(() => {});
   openSheet(T('Ton commandant'), T('Assistant de deck · étape 1 sur 2'), api => {
@@ -538,9 +575,11 @@ function openDeckWiz2() {
         <p class="label">${T('Bracket')}</p><div class="dw-chips">${DW_BRACKETS.map(b => `<button type="button" class="chip${DWZ.br === b[0] ? ' on' : ''}" data-br="${b[0]}" aria-pressed="${DWZ.br === b[0]}">${b[0]} · ${esc(b[1])}</button>`).join('')}</div>
         <p class="hint">${esc(T((DW_BRACKETS.find(b => b[0] === DWZ.br) || DW_BRACKETS[2])[2]))}</p>
         <p class="label">${T('Budget du deck ({c})', { c: cur })}</p><div class="dw-chips">${[0, 5000, 10000, 25000, 50000, 100000].map(v => `<button type="button" class="chip${DWZ.bud === v ? ' on' : ''}" data-bud="${v}" aria-pressed="${DWZ.bud === v}">${v ? esc(fmt(v, cur).replace(/[.,]00(?=\D*$)/, '')) : T('Sans limite')}</button>`).join('')}</div>
-        <label class="me-row switch-row" for="dwzOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="dwzOwn" ${DWZ.own ? 'checked' : ''}><i></i></span></label>`;
+        <label class="me-row switch-row" for="dwzOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="dwzOwn" ${DWZ.own ? 'checked' : ''}><i></i></span></label>
+        <label class="me-row switch-row" for="dwzAuto"><span class="me-t">${T('Générer les 100 cartes tout de suite')}<small>${T('Le coach construit le deck avec ces réglages ; tu ajustes ensuite')}</small></span><span class="switch"><input type="checkbox" id="dwzAuto" ${DWZ.auto ? 'checked' : ''}><i></i></span></label>`;
       $('#dwzName', api.body).oninput = e => { DWZ.name = e.target.value; };
       $('#dwzOwn', api.body).onchange = e => { DWZ.own = e.target.checked; };
+      $('#dwzAuto', api.body).onchange = e => { DWZ.auto = e.target.checked; };
     };
     api.body.addEventListener('click', e => {
       const t = e.target.closest('[data-th]'); if (t) { const v = t.dataset.th, i = DWZ.th.indexOf(v); if (i >= 0) DWZ.th.splice(i, 1); else if (DWZ.th.length < 3) DWZ.th.push(v); else { toast(T('3 thèmes au plus')); return; } haptic('tap'); paint(); return; }
@@ -550,7 +589,7 @@ function openDeckWiz2() {
     api.setFoot(`<button class="btn ghost" type="button" id="dwzBack">${T('Retour')}</button><button class="btn" type="button" id="dwzGo">${T('Créer et ouvrir le coach')}</button>`);
     $('#dwzBack', api.foot).onclick = () => { api.close(); setTimeout(() => openDeckWiz(DWZ.name), 200); };
     $('#dwzGo', api.foot).onclick = () => {
-      const name = (DWZ.name || cm.names[0].split(',')[0]).trim().slice(0, 120); api.close(); haptic('ok');
+      const name = (DWZ.name || cm.names[0].split(',')[0]).trim().slice(0, 120); api.close(); haptic('ok'); DW.autoNext = DWZ.auto;      // génération dès que la base et les cartes du commandant sont là (dwCoachHtml)
       setTimeout(() => openBuilder({ name, fmt: 'commander', cmdr: cm.names.map((n, i) => ({ key: cm.keys[i] || ownKey(n), name: n })), wiz: { th: DWZ.th.slice(0, 3), br: DWZ.br, bud: DWZ.bud, own: DWZ.own }, tab: 'coach' }), 200);
     };
     paint();

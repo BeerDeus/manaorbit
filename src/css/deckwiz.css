@@ -87,3 +87,7 @@
 
 /* champ de budget (nombre) : même style que les champs texte de l'appli */
 .dw-set .field-in input[type="number"]{height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);font-size:14.5px;min-width:0;width:100%;color:var(--ink);font-family:inherit}
+.dw-set-h .me-v{white-space:nowrap;flex:none}
+.da-c b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25}
+.da-c .thumb{width:40px;height:56px}
+.da-sw .thumb{cursor:zoom-in}
