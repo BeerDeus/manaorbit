@@ -7754,7 +7754,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '3e9e5985';
+const DD_BUILD = '5e9ce6f3';
 const I18N_FILES = {"de":"i18n/de.1ead0653.js","en":"i18n/en.2ea81757.js","es":"i18n/es.695e2d97.js","it":"i18n/it.f0a82c43.js","pt":"i18n/pt.007cd8a0.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -27297,8 +27297,15 @@ function dwTargets(prof, cmd, pack, set = BD.wiz || dwDefaults()) {
   const mv = prof.nonland >= 25 ? prof.mv : out.mv[1], cheap = prof.nonland >= 25 ? prof.cheap : out.cheap[1];
   out.land = dwLandTarget(mv, cheap, set.br, model.d);
   if (cmd && !cmd.ci.includes('U')) out.counter = [0, 0, 0];
+  if (out.wincon && dwPlanWins(pack)) out.wincon = [0, 0, out.wincon[2]];      // les vrais decks de ce commandant gagnent par leur plan (combat, jetons…), sans « condition de victoire » au sens strict : rien à forcer
   for (const k of Object.keys(out)) if (k !== 'mv') out[k] = out[k].map(v => Math.round(v));
   return out;
+}
+/** Vrai si le commandant est bien connu de la base et qu'aucune carte jouée dans au moins 10 % de ses decks n'est une condition de victoire au sens strict. */
+function dwPlanWins(pack) {
+  if (!pack || !Array.isArray(pack.cards) || pack.cards.length < 40 || !DW.byKey) return false;
+  if (pack._win == null) pack._win = pack.cards.some(([nm, inc]) => inc >= 10 && ((dwCard(ownKey(nm)) || {}).roles || 0) & DW_RB.wincon);
+  return !pack._win;
 }
 /** Sources de couleur (Karsten 2022, colonne 99 cartes, ~90 % de lancer le sort au tour égal à son coût) : [symboles de la couleur][coût total] → sources. */
 const DW_SRC = { 1: [19, 19, 19, 18, 16, 15, 14], 2: [30, 30, 30, 28, 26, 23, 23], 3: [36, 36, 36, 36, 33, 30, 30], 4: [39, 39, 39, 39, 39, 39, 39] };
@@ -27592,7 +27599,7 @@ function dwAutoBuildRun(undoTo, quiet) {
   let prof = dwProfile(), tgt = dwTargets(prof, cmd, pack);
   const landsNow = () => prof.land, nonland = () => size() - landsNow();
   const L0 = Math.max(tgt.land[1], prof.land), cap = () => slots - Math.max(L0, landsNow());
-  const pick = role => { let x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; if (!x) { BD.wide = true; x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; BD.wide = false; } return x; };      // cartes du commandant, sinon les plus jouées dans ses couleurs (petit budget : les cartes conseillées sont vite trop chères)
+  const pick = role => { let x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; if (!x && !(role === 'wincon' && pack && (pack.cards || []).length >= 40)) { BD.wide = true; x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; BD.wide = false; } return x; };      // cartes du commandant, sinon les plus jouées dans ses couleurs (petit budget : les cartes conseillées sont vite trop chères)
   const bud = (BD.wiz || {}).bud || 0, share = nc <= 1 ? 0.04 : nc === 2 ? 0.12 : nc === 3 ? 0.2 : 0.25; BD.landRes = bud > 0 ? Math.round(Math.min(bud * share, Math.max(0, bud - prof.cents) * share)) : 0;      // sur ce qui reste (commandant et cartes déjà là déduits)      // budget : une part gardée pour les terrains (bicolores, tricolores), achetés après les sorts
   for (const r of ['wincon', 'ramp', 'draw', 'removal', 'wipe', 'counter', 'protect', 'tutor', 'recursion']) {      // de quoi gagner d'abord : même à petit budget, le deck doit pouvoir finir la partie
     if (!tgt[r]) continue;
@@ -27827,7 +27834,7 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
   const known = !!pack && info.size >= 40;      // commandant connu de la base : sinon aucun avis sur les cartes « faibles »
   const out = [], used = new Set(), skip = new Set(), Xs = { ...X, skip, info, wiz: { ...set, bud: 0 } };      // budget compté ici, échange par échange
   const lim = set.bud > 0 ? set.bud : 0; let total = prof.cents;
-  const gaugeRoles = DW_GAUGES.map(g => g[0]).filter(r => r !== 'land');
+  const gaugeRoles = [...DW_GAUGES.map(g => g[0]).filter(r => r !== 'land'), 'wincon'];      // condition de victoire : un rôle comme les autres (jamais retirée pour une carte « mieux jouée » d'un autre rôle)
   const mainRole = r => gaugeRoles.find(g => r & DW_RB[g]) || '';
   const cards = [...X.main.values()].filter(c => !BASIC_NAMES.has(c.key)).map(c => { const x = dwCard(c.key); return x ? { k: c.key, name: c.name, x, v: val(c.key), o: info.get(c.key) || null, price: dwPrice(c.key, x), roles: x.roles } : null; }).filter(Boolean);
   const nonland = cards.filter(c => !(c.roles & DW_RB.land));
@@ -27850,6 +27857,7 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
     // 3) cartes faibles pour ce commandant : une carte nettement mieux jouée, du même rôle (ou du plan de jeu)
     for (const W of weakest) {
       if (out.length >= max) break; if (used.has(W.k) || W.v >= 0.12) continue;
+      if (daRoleLow(W.roles, prof, tgt) && !mainRole(W.roles)) continue;
       const r = mainRole(W.roles), C = best(r, W, C => C.v >= W.v + 0.2); if (C) take(W, C, r ? 'mieux' : 'plan');
     }
     // 4) deck déjà solide : quelques améliorations, les cartes les moins jouées du deck contre une carte nettement plus jouée du même rôle
@@ -27858,7 +27866,13 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
       const r = mainRole(W.roles), C = best(r, W, C => C.v >= W.v + 0.15); if (C) take(W, C, r ? 'mieux' : 'plan');
     }
   }
-  return out;
+  // un échange conseillé ne fait jamais baisser la note du coach (deckopt.js) : chacun est essayé seul sur une copie du deck
+  if (typeof dsScore !== 'function' || !out.length) return out;
+  const base = dsScore(X, { cmd, pack, info }); if (!base) return out;
+  return out.filter(s => {
+    const m = new Map([...X.main].map(([k, c]) => [k, { ...c }])), o = m.get(s.out.k); if (o && o.qty > 1) o.qty--; else m.delete(s.out.k); m.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 });
+    const sc = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack, info }); return !sc || sc.raw >= base.raw - 0.05;
+  });
 }
 /** Raison d'un échange, en clair. */
 function daWhy(sw, cmd) {

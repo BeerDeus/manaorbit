@@ -228,8 +228,15 @@ function dwTargets(prof, cmd, pack, set = BD.wiz || dwDefaults()) {
   const mv = prof.nonland >= 25 ? prof.mv : out.mv[1], cheap = prof.nonland >= 25 ? prof.cheap : out.cheap[1];
   out.land = dwLandTarget(mv, cheap, set.br, model.d);
   if (cmd && !cmd.ci.includes('U')) out.counter = [0, 0, 0];
+  if (out.wincon && dwPlanWins(pack)) out.wincon = [0, 0, out.wincon[2]];      // les vrais decks de ce commandant gagnent par leur plan (combat, jetons…), sans « condition de victoire » au sens strict : rien à forcer
   for (const k of Object.keys(out)) if (k !== 'mv') out[k] = out[k].map(v => Math.round(v));
   return out;
+}
+/** Vrai si le commandant est bien connu de la base et qu'aucune carte jouée dans au moins 10 % de ses decks n'est une condition de victoire au sens strict. */
+function dwPlanWins(pack) {
+  if (!pack || !Array.isArray(pack.cards) || pack.cards.length < 40 || !DW.byKey) return false;
+  if (pack._win == null) pack._win = pack.cards.some(([nm, inc]) => inc >= 10 && ((dwCard(ownKey(nm)) || {}).roles || 0) & DW_RB.wincon);
+  return !pack._win;
 }
 /** Sources de couleur (Karsten 2022, colonne 99 cartes, ~90 % de lancer le sort au tour égal à son coût) : [symboles de la couleur][coût total] → sources. */
 const DW_SRC = { 1: [19, 19, 19, 18, 16, 15, 14], 2: [30, 30, 30, 28, 26, 23, 23], 3: [36, 36, 36, 36, 33, 30, 30], 4: [39, 39, 39, 39, 39, 39, 39] };
@@ -523,7 +530,7 @@ function dwAutoBuildRun(undoTo, quiet) {
   let prof = dwProfile(), tgt = dwTargets(prof, cmd, pack);
   const landsNow = () => prof.land, nonland = () => size() - landsNow();
   const L0 = Math.max(tgt.land[1], prof.land), cap = () => slots - Math.max(L0, landsNow());
-  const pick = role => { let x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; if (!x) { BD.wide = true; x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; BD.wide = false; } return x; };      // cartes du commandant, sinon les plus jouées dans ses couleurs (petit budget : les cartes conseillées sont vite trop chères)
+  const pick = role => { let x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; if (!x && !(role === 'wincon' && pack && (pack.cards || []).length >= 40)) { BD.wide = true; x = dwSuggest(role, cmd, pack, prof, tgt, 1)[0]; BD.wide = false; } return x; };      // cartes du commandant, sinon les plus jouées dans ses couleurs (petit budget : les cartes conseillées sont vite trop chères)
   const bud = (BD.wiz || {}).bud || 0, share = nc <= 1 ? 0.04 : nc === 2 ? 0.12 : nc === 3 ? 0.2 : 0.25; BD.landRes = bud > 0 ? Math.round(Math.min(bud * share, Math.max(0, bud - prof.cents) * share)) : 0;      // sur ce qui reste (commandant et cartes déjà là déduits)      // budget : une part gardée pour les terrains (bicolores, tricolores), achetés après les sorts
   for (const r of ['wincon', 'ramp', 'draw', 'removal', 'wipe', 'counter', 'protect', 'tutor', 'recursion']) {      // de quoi gagner d'abord : même à petit budget, le deck doit pouvoir finir la partie
     if (!tgt[r]) continue;

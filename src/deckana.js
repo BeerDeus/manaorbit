@@ -40,7 +40,7 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
   const known = !!pack && info.size >= 40;      // commandant connu de la base : sinon aucun avis sur les cartes « faibles »
   const out = [], used = new Set(), skip = new Set(), Xs = { ...X, skip, info, wiz: { ...set, bud: 0 } };      // budget compté ici, échange par échange
   const lim = set.bud > 0 ? set.bud : 0; let total = prof.cents;
-  const gaugeRoles = DW_GAUGES.map(g => g[0]).filter(r => r !== 'land');
+  const gaugeRoles = [...DW_GAUGES.map(g => g[0]).filter(r => r !== 'land'), 'wincon'];      // condition de victoire : un rôle comme les autres (jamais retirée pour une carte « mieux jouée » d'un autre rôle)
   const mainRole = r => gaugeRoles.find(g => r & DW_RB[g]) || '';
   const cards = [...X.main.values()].filter(c => !BASIC_NAMES.has(c.key)).map(c => { const x = dwCard(c.key); return x ? { k: c.key, name: c.name, x, v: val(c.key), o: info.get(c.key) || null, price: dwPrice(c.key, x), roles: x.roles } : null; }).filter(Boolean);
   const nonland = cards.filter(c => !(c.roles & DW_RB.land));
@@ -63,6 +63,7 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
     // 3) cartes faibles pour ce commandant : une carte nettement mieux jouée, du même rôle (ou du plan de jeu)
     for (const W of weakest) {
       if (out.length >= max) break; if (used.has(W.k) || W.v >= 0.12) continue;
+      if (daRoleLow(W.roles, prof, tgt) && !mainRole(W.roles)) continue;
       const r = mainRole(W.roles), C = best(r, W, C => C.v >= W.v + 0.2); if (C) take(W, C, r ? 'mieux' : 'plan');
     }
     // 4) deck déjà solide : quelques améliorations, les cartes les moins jouées du deck contre une carte nettement plus jouée du même rôle
@@ -71,7 +72,13 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
       const r = mainRole(W.roles), C = best(r, W, C => C.v >= W.v + 0.15); if (C) take(W, C, r ? 'mieux' : 'plan');
     }
   }
-  return out;
+  // un échange conseillé ne fait jamais baisser la note du coach (deckopt.js) : chacun est essayé seul sur une copie du deck
+  if (typeof dsScore !== 'function' || !out.length) return out;
+  const base = dsScore(X, { cmd, pack, info }); if (!base) return out;
+  return out.filter(s => {
+    const m = new Map([...X.main].map(([k, c]) => [k, { ...c }])), o = m.get(s.out.k); if (o && o.qty > 1) o.qty--; else m.delete(s.out.k); m.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 });
+    const sc = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack, info }); return !sc || sc.raw >= base.raw - 0.05;
+  });
 }
 /** Raison d'un échange, en clair. */
 function daWhy(sw, cmd) {
