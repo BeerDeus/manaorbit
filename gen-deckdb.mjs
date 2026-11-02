@@ -324,8 +324,12 @@ async function scryAll() {
   try {
     if (local && existsSync(local)) arr = JSON.parse((/\.gz$/.test(local) ? gunzipSync(readFileSync(local)) : readFileSync(local)).toString('utf8'));
     else {
-      const b = await getJson(SCRY + 'bulk-data/oracle-cards', { gap: 150 }); const uri = b && b.download_uri;
-      if (!uri) log('  Scryfall : bulk-data/oracle-cards sans adresse de téléchargement (' + (b ? 'réponse inattendue' : 'refusé ou introuvable') + ')');
+      let b = await getJson(SCRY + 'bulk-data/oracle-cards', { gap: 150 }), uri = b && b.download_uri;
+      if (!uri) {      // repli : la liste de tous les fichiers (une réponse différente a été vue depuis GitHub Actions)
+        log('  Scryfall : bulk-data/oracle-cards sans adresse de téléchargement (' + (b ? 'réponse inattendue : ' + JSON.stringify(b).slice(0, 200) : 'refusé ou introuvable') + ')');
+        const l = await getJson(SCRY + 'bulk-data', { gap: 150 }).catch(() => null), f = l && Array.isArray(l.data) ? l.data.find(x => x && x.type === 'oracle_cards') : null; uri = f && f.download_uri;
+        if (uri) log('  Scryfall : adresse trouvée dans la liste des fichiers');
+      }
       if (uri) { const r = await fetch(uri, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(300000) }); if (r.ok) arr = await r.json(); else log('  Scryfall : fichier oracle-cards HTTP ' + r.status); }
     }
   } catch (e) { log('  Scryfall : fichier oracle-cards illisible (' + e.message + ')'); }
