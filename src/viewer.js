@@ -127,7 +127,7 @@ function openCardViewer(items, index) {
   const wl0 = items.find(x => x.wl && x.plain && (x.lang || 'en') === 'en');
   if (wl0) { const ord = [...items.slice(idx), ...items.slice(0, idx)].filter(x => x.wl === wl0.wl && x.plain && (x.lang || 'en') === 'en'); langvLoad().then(() => langvPrefetch(ord.map(x => x.ln || x.name), wl0.wl)); }      // les suivantes sont déjà là quand on glisse
   const api = imgView = { close() {
-    if (imgView !== api) return; imgView = null; if (ctrl) ctrl.abort(); clearTimeout(varT);
+    if (imgView !== api) return; imgView = null; if (ctrl) ctrl.abort(); clearTimeout(varT); if (fitRO) fitRO.disconnect();
     if (idx === idx0 && fromEl && fromEl.isConnected) flipTo(card, fromEl.getBoundingClientRect(), 280);      // retour vers la vignette d'origine
     wrap.classList.remove('on'); document.removeEventListener('keydown', onKey, true);
     setTimeout(() => wrap.remove(), reduceMotion() ? 0 : 260);
@@ -157,7 +157,7 @@ function openCardViewer(items, index) {
   };
   const show = i => {                                            // charge l'image en arrière-plan puis fondu : jamais de carte à moitié dessinée
     face = i; wishPaint(); const probe = new Image(), mine = it;
-    probe.onload = () => { if (imgView !== api || it !== mine) return; img.src = probe.src; img.hidden = false; requestAnimationFrame(() => img.classList.add('ok')); card.dataset.busy = '0'; };
+    probe.onload = () => { if (imgView !== api || it !== mine) return; img.src = probe.src; img.hidden = false; requestAnimationFrame(() => img.classList.add('ok')); card.dataset.busy = '0'; setTimeout(repaint, 420); };
     probe.onerror = () => { if (imgView !== api || it !== mine) return; card.dataset.busy = '0'; if (urls[i] !== enBig) { urls = [enBig]; caption('en', lang === 'en' ? '' : noImg(lang)); show(0); flipB.hidden = true; } };
     img.classList.remove('ok'); card.dataset.busy = '1'; probe.src = urls[i];
   };
@@ -268,9 +268,26 @@ function openCardViewer(items, index) {
     if (flick && Math.abs(dx) > Math.abs(dy) * 1.6) step(dx < 0 ? 1 : -1);
   }, { passive: true });
   document.body.appendChild(wrap); holdApp();
+  // La carte garde toujours son format (672 × 936) : elle rétrécit en largeur pour laisser la place à la légende, aux boutons et aux illustrations,
+  // au lieu d'être écrasée en hauteur (l'image était alors rognée en haut et en bas). Recalculé quand un de ces blocs change de taille, ou l'écran.
+  const fit = () => {
+    if (!wrap.isConnected) return;
+    card.style.width = '';
+    const cs = getComputedStyle(wrap), gap = parseFloat(cs.rowGap) || 0, room = wrap.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+    const flow = [...wrap.children].filter(el => !el.hidden && getComputedStyle(el).position !== 'absolute' && getComputedStyle(el).display !== 'none');
+    const others = flow.filter(el => el !== card).reduce((a, el) => a + el.getBoundingClientRect().height, 0), avail = room - others - gap * (flow.length - 1);
+    const w = card.getBoundingClientRect().width, maxW = Math.floor(avail * 672 / 936);
+    if (maxW < w - 0.5) card.style.width = Math.max(110, maxW) + 'px';
+  };
+  // Safari (iOS) peint les grandes images par tuiles : une image posée pendant l'animation d'ouverture (carte encore toute petite) ne gardait que
+  // les tuiles peintes à ce moment (un coin de la carte). On force une nouvelle peinture de l'image à la fin de l'animation et après chaque chargement.
+  function repaint() { if (!wrap.isConnected) return; for (const im of [img, ph]) { if (im.hidden) continue; im.style.display = 'none'; void im.offsetHeight; im.style.display = ''; } }
+  const fitRO = typeof ResizeObserver === 'function' ? new ResizeObserver(() => requestAnimationFrame(fit)) : null;
+  if (fitRO) for (const el of [wrap, ...[...wrap.children].filter(el => el !== card)]) fitRO.observe(el);
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.imgv-x', wrap).focus({ preventScroll: true }); }));
-  haptic('tap'); go(idx);
-  flipFrom(card, from);      // la carte part de la vignette touchée
+  haptic('tap'); go(idx); fit();
+  const an = flipFrom(card, from);      // la carte part de la vignette touchée
+  if (an && an.finished) an.finished.then(repaint, () => {});
 }
 
 /* ── Deck viewer ──────────────────────────────────────────────────────────────────────────────── */

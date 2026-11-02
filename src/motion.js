@@ -25,8 +25,7 @@ function flipFrom(el, from, ms = 460) {
   const to = el.getBoundingClientRect(); el.style.transform = ''; void el.offsetWidth; el.style.transition = was;
   if (!to.width) return false;
   const dx = from.left + from.width / 2 - (to.left + to.width / 2), dy = from.top + from.height / 2 - (to.top + to.height / 2), s = from.width / to.width;
-  el.animate([{ transform: `translate(${dx}px,${dy}px) scale(${s})`, opacity: 0.5 }, { transform: 'none', opacity: 1 }], { duration: ms, easing: 'cubic-bezier(.22,1.12,.36,1)' });      // léger dépassement : la carte « se pose »
-  return true;
+  return el.animate([{ transform: `translate(${dx}px,${dy}px) scale(${s})`, opacity: 0.5 }, { transform: 'none', opacity: 1 }], { duration: ms, easing: 'cubic-bezier(.22,1.12,.36,1)' });      // léger dépassement : la carte « se pose » ; l'animation (vraie) est rendue : la carte en grand repeint son image à la fin
 }
 /** Retour vers le rectangle `to` (fermeture). */
 function flipTo(el, to, ms = 300) {
