@@ -50,7 +50,6 @@
  "Bracket {n} · {name}": "Bracket {n} · {name}",
  "Valeur du deck": "Deckwert",
  "Dont {p} à acheter (cartes que ta collection n'a pas).": "Davon {p} zu kaufen (Karten, die deine Sammlung nicht hat).",
- "Au-dessus du budget : les suggestions ne proposent plus que des cartes que tu possèdes.": "Über dem Budget: Die Vorschläge zeigen nur noch Karten, die du besitzt.",
  "Plan de jeu et synergies": "Spielplan und Synergien",
  "Cartes clés du commandant": "Schlüsselkarten des Kommandeurs",
  "les plus jouées et les plus en synergie avec lui": "die meistgespielten und mit der größten Synergie",
@@ -259,5 +258,8 @@
  "Réglages modifiés": "Einstellungen geändert",
  "Ce deck a été construit par le coach : il peut le reconstruire avec les nouveaux réglages (budget, bracket, thèmes). Annulable.": "Der Coach hat dieses Deck gebaut: Er kann es mit den neuen Einstellungen neu bauen (Budget, Bracket, Themen). Rückgängig machbar.",
  "Garder le deck": "Deck behalten",
- "Recréer le deck": "Deck neu bauen"
+ "Recréer le deck": "Deck neu bauen",
+ "Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.": "Über Budget: Vorschläge enthalten keine Karten mehr, die teurer sind als der Rest.",
+ "Reconstruire avec ce budget": "Mit diesem Budget neu bauen",
+ "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Neu bauen: Der Coach baut das Deck um den Kommandeur neu, in diesem Budget und mit deinen Einstellungen. Rückgängig machbar."
 }

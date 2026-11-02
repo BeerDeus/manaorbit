@@ -50,7 +50,6 @@
  "Bracket {n} · {name}": "Bracket {n} · {name}",
  "Valeur du deck": "Valor do deck",
  "Dont {p} à acheter (cartes que ta collection n'a pas).": "Dos quais {p} a comprar (cards que a sua coleção não tem).",
- "Au-dessus du budget : les suggestions ne proposent plus que des cartes que tu possèdes.": "Acima do orçamento: as sugestões só mostram cards que você tem.",
  "Plan de jeu et synergies": "Plano de jogo e sinergias",
  "Cartes clés du commandant": "Cards-chave do comandante",
  "les plus jouées et les plus en synergie avec lui": "os mais jogados e com mais sinergia com ele",
@@ -259,5 +258,8 @@
  "Réglages modifiés": "Ajustes alterados",
  "Ce deck a été construit par le coach : il peut le reconstruire avec les nouveaux réglages (budget, bracket, thèmes). Annulable.": "O treinador montou este deck: ele pode remontá-lo com os novos ajustes (orçamento, bracket, temas). Dá para desfazer.",
  "Garder le deck": "Manter o deck",
- "Recréer le deck": "Remontar o deck"
+ "Recréer le deck": "Remontar o deck",
+ "Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.": "Acima do orçamento: as sugestões não oferecem mais cards mais caros que o que resta.",
+ "Reconstruire avec ce budget": "Remontar com este orçamento",
+ "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Remontar: o treinador refaz o deck em torno do comandante, com este orçamento e seus ajustes. Dá para desfazer."
 }

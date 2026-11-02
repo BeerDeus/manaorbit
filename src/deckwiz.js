@@ -260,8 +260,8 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (x.fl & 4 && set.br <= 3) return;
     if (x.fl & 2 && set.br <= 2) return;
     const price = dwPrice(k, x), own = collQty(k) > 0;
-    if (!own && price > 0 && price > budLeft) return;
-    if (X.pace && set.bud > 0 && !own && price > Math.max(60, budLeft / slots * 2.5)) return;      // génération : budget réparti sur les places qui restent (sinon les premières cartes le mangent)
+    if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
+    if (X.pace && set.bud > 0 && price > Math.max(60, budLeft / slots * 2.5)) return;      // génération : budget réparti sur les places qui restent (sinon les premières cartes le mangent)
     const v = dwVal(o); let s = v;
     if (own) s += set.own ? 0.35 : 0.08;
     if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft)) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);
@@ -414,7 +414,7 @@ function dwBudgetHtml(prof, s = BD.wiz) {
   const cur = mkCur(); if (!(s.bud > 0) && !prof.cents) return '';
   const pct = s.bud > 0 ? Math.min(100, Math.round(prof.cents / s.bud * 100)) : 0, over = s.bud > 0 && prof.cents > s.bud;
   return `<div class="sec-title">${T('Budget')}</div><div class="dw-bud${over ? ' over' : ''}"><p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b>${s.bud > 0 ? `<small>/ ${esc(fmt(s.bud, cur))}</small>` : ''}</p>
-    ${s.bud > 0 ? `<span class="dw-bar"><i class="dw-val" style="width:${pct}%"></i></span>` : ''}<p class="hint">${esc(T('Dont {p} à acheter (cartes que ta collection n\'a pas).', { p: fmt(prof.buy, cur) }))}${over ? ' ' + esc(T('Au-dessus du budget : les suggestions ne proposent plus que des cartes que tu possèdes.')) : ''}</p></div>`;
+    ${s.bud > 0 ? `<span class="dw-bar"><i class="dw-val" style="width:${pct}%"></i></span>` : ''}<p class="hint">${esc(T('Dont {p} à acheter (cartes que ta collection n\'a pas).', { p: fmt(prof.buy, cur) }))}</p>${over ? `<p class="hint">${esc(T('Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.'))}</p>` : ''}${over && s === BD.wiz && BD.el && DW.core ? `<div class="dx-acts dw-bud-acts"><button class="btn ghost small" type="button" data-act="dw-goto" data-v="swaps">${T('Voir les échanges')}</button><button class="btn small" type="button" data-act="dw-regen">${T('Reconstruire avec ce budget')}</button></div><p class="hint">${esc(T('Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.'))}</p>` : ''}</div>`;
 }
 function dwPlanHtml(cmd, pack, prof, tgt) {
   const open = DW.open === 'plan';

@@ -50,7 +50,6 @@
  "Bracket {n} · {name}": "Bracket {n} · {name}",
  "Valeur du deck": "Valor del mazo",
  "Dont {p} à acheter (cartes que ta collection n'a pas).": "De ello, {p} por comprar (cartas que tu colección no tiene).",
- "Au-dessus du budget : les suggestions ne proposent plus que des cartes que tu possèdes.": "Por encima del presupuesto: las sugerencias solo ofrecen cartas que tienes.",
  "Plan de jeu et synergies": "Plan de juego y sinergias",
  "Cartes clés du commandant": "Cartas clave del comandante",
  "les plus jouées et les plus en synergie avec lui": "las más jugadas y con más sinergia con él",
@@ -259,5 +258,8 @@
  "Réglages modifiés": "Ajustes modificados",
  "Ce deck a été construit par le coach : il peut le reconstruire avec les nouveaux réglages (budget, bracket, thèmes). Annulable.": "El asesor construyó este mazo: puede reconstruirlo con los nuevos ajustes (presupuesto, bracket, temas). Se puede deshacer.",
  "Garder le deck": "Mantener el mazo",
- "Recréer le deck": "Rehacer el mazo"
+ "Recréer le deck": "Rehacer el mazo",
+ "Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.": "Por encima del presupuesto: las sugerencias ya no proponen cartas más caras que lo que queda.",
+ "Reconstruire avec ce budget": "Reconstruir con este presupuesto",
+ "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Reconstruir: el asesor rehace el mazo en torno al comandante, con este presupuesto y tus ajustes. Se puede deshacer."
 }

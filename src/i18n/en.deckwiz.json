@@ -50,7 +50,6 @@
  "Bracket {n} · {name}": "Bracket {n} · {name}",
  "Valeur du deck": "Deck value",
  "Dont {p} à acheter (cartes que ta collection n'a pas).": "Including {p} to buy (cards your collection doesn't have).",
- "Au-dessus du budget : les suggestions ne proposent plus que des cartes que tu possèdes.": "Over budget: suggestions now only offer cards you own.",
  "Plan de jeu et synergies": "Game plan and synergies",
  "Cartes clés du commandant": "Commander's key cards",
  "les plus jouées et les plus en synergie avec lui": "the most played and most synergistic with it",
@@ -259,5 +258,8 @@
  "Réglages modifiés": "Settings changed",
  "Ce deck a été construit par le coach : il peut le reconstruire avec les nouveaux réglages (budget, bracket, thèmes). Annulable.": "The coach built this deck: it can rebuild it with the new settings (budget, bracket, themes). Can be undone.",
  "Garder le deck": "Keep the deck",
- "Recréer le deck": "Rebuild the deck"
+ "Recréer le deck": "Rebuild the deck",
+ "Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.": "Over budget: suggestions no longer offer cards pricier than what's left.",
+ "Reconstruire avec ce budget": "Rebuild within this budget",
+ "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Rebuild: the coach remakes the deck around the commander, within this budget and your settings. Can be undone."
 }

@@ -144,10 +144,12 @@ assert.match(await txt(p, '.dx-steps'), /Il manque \d+ cartes Compléter/, 'deck
 // deck construit par le coach : changer le budget propose de le refaire (annulable)
 assert.equal(await p.evaluate(() => BD.wiz.gen), 1, 'deck construit de zéro par le coach');
 assert.equal(await p.$('.dx-regen'), null);
-await p.click('[data-act="dw-set"]'); await p.waitForSelector('#dwBud'); await p.fill('#dwBud', '5'); await p.dispatchEvent('#dwBud', 'change');
+await p.click('[data-act="dw-set"]'); await p.waitForSelector('#dwBud'); await p.fill('#dwBud', '8'); await p.dispatchEvent('#dwBud', 'change');
 await p.waitForSelector('.dx-regen'); const before5 = await p.evaluate(() => [...BD.main.keys()].sort().join());
-await p.click('[data-act="dw-regen"]'); await p.waitForFunction(() => !document.querySelector('.dx-regen') && BD.main.size > 3);
-assert.ok(await p.evaluate(() => !BD.main.has('phyrexian arena') && !BD.main.has('nights whisper')), 'budget de 5 € (commandant compris) : plus que les cartes possédées et les terrains');
+assert.ok(await p.$('.dw-bud [data-act="dw-regen"]'), 'au-dessus du budget : « Reconstruire avec ce budget » dans la section Budget');
+await p.click('.dx-regen [data-act="dw-regen"]'); await p.waitForFunction(() => !document.querySelector('.dx-regen') && BD.main.size > 3);
+assert.ok(await p.evaluate(() => dwProfile().cents <= 800), 'reconstruit sous 8 € : cartes possédées comprises dans la valeur');
+assert.equal(await p.$('.dw-bud [data-act="dw-regen"]'), null, 'sous le budget : plus de bouton');
 await p.evaluate(() => { const t = document.querySelector('#toast button'); if (t) t.click(); }); await p.waitForFunction(b => [...BD.main.keys()].sort().join() === b, before5);
 await p.fill('#dwBud', '100'); await p.dispatchEvent('#dwBud', 'change'); await p.waitForSelector('.dx-regen'); await p.click('[data-act="dw-keep"]'); await p.waitForFunction(() => !document.querySelector('.dx-regen'));
 await p.click('[data-act="dw-set"]');
