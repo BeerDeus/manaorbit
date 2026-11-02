@@ -2543,7 +2543,7 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 /* ── Assistant de deck Commander (deckwiz.js, fonctionnalité en test) : onglet Coach de l'éditeur, assistant de création ── */
 .dw-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
 .dw-chips .chip{cursor:pointer;-webkit-tap-highlight-color:transparent;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dw-chips .chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink,var(--accent))}
+.dw-chips .chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 .dw-chips .chip .pip{width:16px;height:16px}
 .dw-cols .chip{padding:0 10px}
 .dw-set-h{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:11px 14px;margin:2px 0 8px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font:inherit;color:var(--ink);text-align:left;cursor:pointer}
@@ -2626,6 +2626,9 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .da-why b.down{color:var(--good)}
 .da-delta{margin-top:6px}
 @media (max-width:380px){.da-pair{grid-template-columns:1fr}.da-arrow{display:none}}
+
+/* champ de budget (nombre) : même style que les champs texte de l'appli */
+.dw-set .field-in input[type="number"]{height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);font-size:14.5px;min-width:0;width:100%;color:var(--ink);font-family:inherit}
 
 /* ── densite.css : densité sur téléphone (densite.js) — collection (en-tête, outils en icônes, vues compacte / grille) et écran Échange (barre du lien, ligne des sous-onglets) ── */
 
@@ -7656,8 +7659,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'f4fc8083';
-const I18N_FILES = {"de":"i18n/de.861c5b91.js","en":"i18n/en.268ddd3a.js","es":"i18n/es.3c7c48a9.js","it":"i18n/it.23f55811.js","pt":"i18n/pt.492f6645.js"};
+const DD_BUILD = '7eafbd05';
+const I18N_FILES = {"de":"i18n/de.a8284739.js","en":"i18n/en.07ac279a.js","es":"i18n/es.ac99472b.js","it":"i18n/it.06b00dfc.js","pt":"i18n/pt.5829980c.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -21812,11 +21815,12 @@ function openEdhDeck(r) {
       <p class="hint dk-tap">${T('Touche une carte pour la voir en grand.')}</p>${dk.k === 'comm' && dk.pid ? (PD.tag && D.user && PD.tagUid === D.user.uid && dk.pid.startsWith(PD.tag + '_') ? `<p class="hint pub-own">${T('C\'est ton deck : le retirer ou le mettre à jour depuis Mes decks › le deck › Publier.')}${typeof pdDscBtn === 'function' ? ' ' + pdDscBtn() : ''}</p>` : `<p class="pub-report"><button class="link-btn" type="button" data-act="dkrep">${T('Signaler ce deck')}</button></p>`) : ''}`;      // Communauté : contenu publié par un joueur (règles Google Play : signalement dans l'appli)
     const rep = $('[data-act="dkrep"]', api.body); if (rep) rep.onclick = () => openPubReport(dk.pid, () => api.close());
     const dsb = $('[data-act="dkdsc"]', api.body); if (dsb) dsb.onclick = () => pdDscShare(dk.pid);      // son deck : « Partager sur Discord » (pubdecks.js)
-    $('.ci-sum', api.body).insertAdjacentHTML('afterend', `<div class="tr-acts dk-acts"><button class="btn ghost" type="button" data-act="dkview"><svg class="i"><use href="#i-grid"/></svg>${T('Voir le deck')}</button><button class="btn ghost" type="button" data-act="dkshare"><svg class="i"><use href="#i-share"/></svg>${T('Partager')}</button></div><div class="dk-acts2" role="group" aria-label="${T('Ce deck')}"></div>`);
+    $('.ci-sum', api.body).insertAdjacentHTML('afterend', `<div class="tr-acts dk-acts"><button class="btn ghost" type="button" data-act="dkview"><svg class="i"><use href="#i-grid"/></svg>${T('Voir le deck')}</button>${typeof dwOn === 'function' && dwOn() ? `<button class="btn ghost" type="button" data-act="dkana"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Analyser')}</button>` : ''}<button class="btn ghost" type="button" data-act="dkshare"><svg class="i"><use href="#i-share"/></svg>${T('Partager')}</button></div><div class="dk-acts2" role="group" aria-label="${T('Ce deck')}"></div>`);
     edhDeckActs(api, r, name);
     $('.dk-acts', api.body).onclick = e => {
       const b = e.target.closest('[data-act]'); if (!b) return; haptic('tap');
-      if (b.dataset.act === 'dkview') { api.close(); openDeckViewer({ text: edhDeckText(r.deck), name, saveAs: edhSaveName(r) }); }      // viewer : images, courbe, main de départ, partage, « Enregistrer dans mes decks » (même nom que la feuille)
+      if (b.dataset.act === 'dkview') { api.close(); openDeckViewer({ text: edhDeckText(r.deck), name, saveAs: edhSaveName(r) }); }
+      else if (b.dataset.act === 'dkana' && typeof openDeckAnalysis === 'function') { api.close(); setTimeout(() => openDeckAnalysis({ text: edhDeckText(r.deck), name: edhSaveName(r) }), 200); }      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)      // viewer : images, courbe, main de départ, partage, « Enregistrer dans mes decks » (même nom que la feuille)
       else shareDeck({ text: edhDeckText(r.deck), name });
     };
     let imgs = new Map(), settled = false;
@@ -27598,7 +27602,7 @@ function daPaint() {
   let h = DW.err ? `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(DW.err)}</span></div>` : '';
   h += `<div class="da-sum"><p class="dw-line"><span>${T('Commandant')}</span><b>${esc(cmd.names.join(' + '))}</b></p>
     <p class="dw-line"><span>${T('Bracket estimé')}</span><b>${est} · ${esc(bName)}</b></p>
-    <p class="dw-line"><span>${T('Équilibre')}</span><b>${esc(T('{a} catégories sur {b} dans la norme', { a: okN, b: gs.length }))}</b></p>
+    <p class="dw-line"><span>${T('Équilibre')}</span><b>${esc(TN(okN, '{n} catégorie sur {b} dans la norme', '{n} catégories sur {b} dans la norme', { b: gs.length }))}</b></p>
     <p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b><small>${esc(T('dont {p} à acheter', { p: fmt(prof.buy, cur) }))}</small></p></div>`;
   h += `<div class="dw-set"><p class="label">${T('Bracket visé')}</p><div class="dw-chips">${DW_BRACKETS.map(b => `<button type="button" class="chip${set.br === b[0] ? ' on' : ''}" data-da-br="${b[0]}" aria-pressed="${set.br === b[0]}">${b[0]} · ${esc(b[1])}</button>`).join('')}</div>
     <div class="field-in"><label class="label" for="daBud">${T('Limite de prix du deck ({c})', { c: cur })}</label><input type="number" id="daBud" inputmode="decimal" min="0" step="10" placeholder="${T('Sans limite')}" value="${set.bud > 0 ? Math.round(set.bud / 100) : ''}"></div>

@@ -127,7 +127,6 @@
  "Analyse du deck": "Analisi del mazzo",
  "Bracket estimé": "Bracket stimato",
  "Équilibre": "Equilibrio",
- "{a} catégories sur {b} dans la norme": "{a} categorie su {b} nella norma",
  "dont {p} à acheter": "di cui {p} da comprare",
  "Bracket visé": "Bracket obiettivo",
  "Limite de prix du deck ({c})": "Limite di prezzo del mazzo ({c})",
@@ -143,5 +142,7 @@
  "Ouvrir dans l'éditeur avec {n} échange": "Apri nell'editor con {n} scambio",
  "Ouvrir dans l'éditeur avec {n} échanges": "Apri nell'editor con {n} scambi",
  "État du deck et échanges conseillés (fonctionnalité en test)": "Stato del mazzo e scambi consigliati (funzione in prova)",
- "Analyser": "Analizza"
+ "Analyser": "Analizza",
+ "{n} catégorie sur {b} dans la norme": "{n} categoria su {b} nella norma",
+ "{n} catégories sur {b} dans la norme": "{n} categorie su {b} nella norma"
 }

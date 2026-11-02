@@ -127,7 +127,6 @@
  "Analyse du deck": "Deck analysis",
  "Bracket estimé": "Estimated bracket",
  "Équilibre": "Balance",
- "{a} catégories sur {b} dans la norme": "{a} of {b} categories in range",
  "dont {p} à acheter": "{p} to buy",
  "Bracket visé": "Target bracket",
  "Limite de prix du deck ({c})": "Deck price limit ({c})",
@@ -143,5 +142,7 @@
  "Ouvrir dans l'éditeur avec {n} échange": "Open in the editor with {n} swap",
  "Ouvrir dans l'éditeur avec {n} échanges": "Open in the editor with {n} swaps",
  "État du deck et échanges conseillés (fonctionnalité en test)": "Deck health and suggested swaps (feature in testing)",
- "Analyser": "Analyze"
+ "Analyser": "Analyze",
+ "{n} catégorie sur {b} dans la norme": "{n} of {b} categories in range",
+ "{n} catégories sur {b} dans la norme": "{n} of {b} categories in range"
 }

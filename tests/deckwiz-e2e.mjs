@@ -4,7 +4,11 @@
 // ajout au deck, terrains de base, Game Changers, réglages gardés avec le deck), base du coach absente (modèle de base). Faux edh.tsv et faux /api/dkw (routes Playwright).
 import './setup-env.mjs';
 import assert from 'node:assert/strict';
+import { mkdirSync } from 'node:fs';
 import { chromium, startWorld, newPage, txt, ok, signInFake, closeSheets } from './e2e-world.mjs';
+
+const SHOTS = process.env.DW_SHOTS || ''; if (SHOTS) mkdirSync(SHOTS, { recursive: true });      // captures (à relire) : DW_SHOTS=<dossier>
+const shot = async (p, name) => { if (!SHOTS) return; for (const cs of ['light', 'dark']) { await p.emulateMedia({ colorScheme: cs }); await p.waitForTimeout(300); await p.screenshot({ path: `${SHOTS}/${name}-${cs}.png` }); } await p.emulateMedia({ colorScheme: 'light' }); };
 
 const world = await startWorld({ port: 19840 });
 const browser = await chromium.launch({ executablePath: (process.env.CHROMIUM || '/opt/pw-browsers/chromium'), args: ['--no-sandbox'] });
@@ -52,7 +56,7 @@ ok('fonctionnalités en test : éteintes par défaut, ligne de l\'éditeur seule
 await p.evaluate(() => labSet('deckwiz', true)); assert.equal(await p.evaluate(() => sessionStorage.getItem('deckdeal:labs')), '{"deckwiz":1}');
 await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
 await p.fill('#ndName', 'Edgar collé'); await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo');
-await p.waitForSelector('.dw-start[data-v="have"]'); await one(p); assert.deepEqual(await p.$$eval('.dw-start b', b => b.map(x => x.textContent)), ['J\'ai déjà ce deck', 'Deck à construire']);
+await p.waitForSelector('.dw-start[data-v="have"]'); await one(p); await shot(p, 'nouveau'); assert.deepEqual(await p.$$eval('.dw-start b', b => b.map(x => x.textContent)), ['J\'ai déjà ce deck', 'Deck à construire']);
 await p.click('.dw-start[data-v="have"]'); await p.waitForSelector('.dw-start[data-v="paste"]'); await one(p);
 assert.deepEqual(await p.$$eval('.dw-start b', b => b.map(x => x.textContent)), ['Scanner le deck', 'Coller la liste', 'À la main']);
 await p.click('.dw-start[data-v="paste"]'); await p.waitForSelector('#dwPaste');
@@ -69,7 +73,7 @@ await p.click('.dw-start[data-v="build"]'); await p.waitForSelector('#dwzQ');
 await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]', { timeout: 15000 });
 await p.fill('#dwzQ', 'crater'); await p.waitForFunction(() => [...document.querySelectorAll('.dw-cmd')].map(b => b.dataset.slug).join() === 'craterhoof-behemoth');
 await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]'); await p.click('.dw-cmd[data-slug="edgar-markov"]');
-await p.waitForSelector('#dwzGo');
+await p.waitForSelector('#dwzGo'); await shot(p, 'assistant-2');
 assert.equal(await p.$eval('#dwzName', i => i.value), 'Edgar Markov');
 await p.click('[data-br="2"]'); await p.click('[data-bud="5000"]');
 assert.match(await txt(p, '.sheet-wrap:last-child .sheet-body'), /Core/);
@@ -81,7 +85,7 @@ assert.deepEqual(gauges.slice(0, 5), ['Terrains', 'Rampe', 'Pioche', 'Retraits c
 ok('assistant : commandant cherché, bracket 2, budget 50 €, coach ouvert');
 
 /* ── 4) Suggestions : identité de couleur, bracket (Game Changers), budget, collection d'abord ; ajout au deck ── */
-await p.click('.dw-gh[data-r="ramp"]'); await p.waitForSelector('.dw-g.open .dw-row');
+await shot(p, 'coach'); await p.click('.dw-gh[data-r="ramp"]'); await p.waitForSelector('.dw-g.open .dw-row'); await shot(p, 'coach-rampe');
 const ramp = await p.$$eval('.dw-g.open .dw-row', r => r.map(x => x.dataset.k));
 assert.deepEqual(ramp, ['arcane signet'], 'Sol Ring (Game Changer interdit en bracket 2) et Llanowar Elves (vert) écartés');
 await p.click('.dw-g.open .dw-row[data-k="arcane signet"] .dw-add button'); await p.waitForFunction(() => BD.main.has('arcane signet'));
@@ -124,7 +128,7 @@ await p.fill('#daBud', '100'); await p.dispatchEvent('#daBud', 'change');
 await p.waitForFunction(() => document.querySelectorAll('.da-sw').length === 2);
 sws = await swRows();
 assert.match(sws[0], /^Gilded Removal → Swords to Plowshares \| Même rôle, bien moins chère/, 'au-dessus de la limite : la carte chère d\'abord');
-assert.match(await txt(p, '#daGo'), /Ouvrir dans l'éditeur avec 2 échanges/);
+assert.match(await txt(p, '#daGo'), /Ouvrir dans l'éditeur avec 2 échanges/); await shot(p, 'analyse');
 await p.click('.da-sw input[data-da-sw="1"]'); await p.waitForFunction(() => /avec 1 échange$/.test(document.querySelector('#daGo').textContent));
 await p.click('#daGo'); await p.waitForSelector('.bd.on'); await p.waitForSelector('.dw-gauges');
 assert.deepEqual(await p.evaluate(() => [BD.id, BD.tab, BD.dirty, BD.main.has('gilded removal'), BD.main.has('swords to plowshares'), BD.main.has('weak one'), BD.wiz.bud]), ['dk-ana', 'coach', true, false, true, true, 10000]);

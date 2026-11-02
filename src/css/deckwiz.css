@@ -1,7 +1,7 @@
 /* ── Assistant de deck Commander (deckwiz.js, fonctionnalité en test) : onglet Coach de l'éditeur, assistant de création ── */
 .dw-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
 .dw-chips .chip{cursor:pointer;-webkit-tap-highlight-color:transparent;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dw-chips .chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink,var(--accent))}
+.dw-chips .chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 .dw-chips .chip .pip{width:16px;height:16px}
 .dw-cols .chip{padding:0 10px}
 .dw-set-h{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:11px 14px;margin:2px 0 8px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font:inherit;color:var(--ink);text-align:left;cursor:pointer}
@@ -84,3 +84,6 @@
 .da-why b.down{color:var(--good)}
 .da-delta{margin-top:6px}
 @media (max-width:380px){.da-pair{grid-template-columns:1fr}.da-arrow{display:none}}
+
+/* champ de budget (nombre) : même style que les champs texte de l'appli */
+.dw-set .field-in input[type="number"]{height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-3);font-size:14.5px;min-width:0;width:100%;color:var(--ink);font-family:inherit}

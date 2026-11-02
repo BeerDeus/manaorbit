@@ -127,7 +127,6 @@
  "Analyse du deck": "Deckanalyse",
  "Bracket estimé": "Geschätztes Bracket",
  "Équilibre": "Balance",
- "{a} catégories sur {b} dans la norme": "{a} von {b} Kategorien im Normbereich",
  "dont {p} à acheter": "davon {p} zu kaufen",
  "Bracket visé": "Ziel-Bracket",
  "Limite de prix du deck ({c})": "Preislimit des Decks ({c})",
@@ -143,5 +142,7 @@
  "Ouvrir dans l'éditeur avec {n} échange": "Mit {n} Tausch im Editor öffnen",
  "Ouvrir dans l'éditeur avec {n} échanges": "Mit {n} Tauschen im Editor öffnen",
  "État du deck et échanges conseillés (fonctionnalité en test)": "Zustand des Decks und empfohlene Tausche (Funktion im Test)",
- "Analyser": "Analysieren"
+ "Analyser": "Analysieren",
+ "{n} catégorie sur {b} dans la norme": "{n} von {b} Kategorien im Normbereich",
+ "{n} catégories sur {b} dans la norme": "{n} von {b} Kategorien im Normbereich"
 }
