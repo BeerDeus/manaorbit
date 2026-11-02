@@ -17,7 +17,7 @@
 // Incrémental : le corpus précédent (DECKDB_PREV, défaut <sortie>/corpus.json.gz) est repris ; chaque passage complète ce qui manque ou a vieilli, dans son budget de temps.
 // Variables : DECKDB_MIN (budget total en minutes, 170) · DECKDB_ARCH_K (decks par commandant, 12) · DECKDB_CMDS (commandants couverts, 1500) · DECKDB_THEMES (thèmes EDHREC par commandant, 3)
 //   DECKDB_EDH_DAYS (âge maximal d'une page EDHREC, 7) · DECKDB_ARCH_DAYS (âge maximal d'une recherche Archidekt, 21) · DECKDB_GLOBAL (decks les plus vus tous commandants, 1000)
-//   DECKDB_TAGGER (0 : sans recherches Tagger) · DECKDB_BULK (fichier oracle-cards local, facultatif ; 0 : sans, cartes lues par /cards/collection) · EDH_FILE (pwa/edh.bin.gz : liste des commandants et leurs thèmes) · bases : EDH_BASE, ARCH_BASE, SCRY_BASE.
+//   DECKDB_ARCH_OFF (1 : sans lecture d'Archidekt, passage court) · DECKDB_TAGGER (0 : sans recherches Tagger) · DECKDB_BULK (fichier oracle-cards local, facultatif ; 0 : sans, cartes lues par /cards/collection) · EDH_FILE (pwa/edh.bin.gz : liste des commandants et leurs thèmes) · bases : EDH_BASE, ARCH_BASE, SCRY_BASE.
 import { writeFileSync, readFileSync, existsSync, mkdirSync, appendFileSync, renameSync } from 'node:fs';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { createRequire } from 'node:module';
@@ -120,7 +120,7 @@ const q = (sorted, p) => { if (!sorted.length) return 0; const i = (sorted.lengt
 export function deckProfile(cards, info) {
   const p = { n: 0, mv: 0, cheap: 0, gc: 0, nonland: 0 }; for (const r of ROLES) p[r] = 0; let mvSum = 0;
   for (const [k, qty] of cards) {
-    const c = info(k); if (!c) continue; p.n += qty;
+    const c = info(k); p.n += qty; if (!c) continue;      // carte inconnue : comptée dans le deck, sans rôle
     for (const r of ROLES) if (c.roles & RB[r]) p[r] += qty;
     if (!(c.roles & RB.land)) { p.nonland += qty; mvSum += (c.cmc || 0) * qty; if ((c.roles & (RB.ramp | RB.draw)) && c.cmc <= 2) p.cheap += qty; }
     if (c.gc) p.gc += qty;
@@ -332,6 +332,9 @@ async function scryAll() {
   log(`  Scryfall : ${out.size} cartes (fichier oracle-cards)`);
   return out;
 }
+/** Fiches Scryfall gardées dans le corpus (texte raccourci) : un passage sans le fichier oracle-cards (panne, réseau) garde des couleurs et des coûts justes. */
+const scryPack = x => [x.name, x.ci, x.cmc, x.type, String(x.text || '').slice(0, 400), x.eur, x.gc, x.legal, x.prod, x.mc, x.rank];
+const scryUnpack = a => ({ name: a[0], ci: a[1], cmc: a[2], type: a[3], text: a[4], eur: a[5], gc: a[6], legal: a[7], prod: a[8], mc: a[9], rank: a[10] });
 /** Complète par /cards/collection (75 par requête) les cartes du corpus absentes (fichier indisponible, ou cartes toutes neuves). */
 async function scryFill(S, names) {
   const need = [...new Set(names)].filter(n => !S.has(normKey(n))); let got = 0;
@@ -344,12 +347,13 @@ async function scryFill(S, names) {
   if (need.length) log(`  Scryfall : ${got} cartes complétées sur ${need.length} absentes du fichier`);
 }
 /** Recherches Tagger (otag:) : nom normalisé → bits de rôle. Seulement les étiquettes « sûres » de chaque rôle. */
-async function taggerRoles() {
+async function taggerRoles(C) {
+  if (C && C.tagger && C.taggerAt && Date.now() - Date.parse(C.taggerAt) < 7 * DAY) { log(`  Tagger : ${Object.keys(C.tagger).length} cartes (passage du ${C.taggerAt.slice(0, 10)})`); return new Map(Object.entries(C.tagger)); }
   const Q = { ramp: ['mana-rock', 'mana-dork', 'land-ramp', 'mana-increaser', 'extra-land'], draw: ['draw-engine', 'burst-draw', 'repeatable-draw'], removal: ['spot-removal'], wipe: ['sweeper'], counter: ['counterspell'], protect: ['protects-creature', 'protects-all', 'protects-permanent'], recursion: ['reanimate', 'regrowth'] };      // étiquettes précises (une racine comme « ramp » ou « removal » contient trop de cas limites)
   const out = new Map(); let pages = 0; const t0 = Date.now(), cap = BUDGET_MS * 0.12;      // 12 % du budget au plus (pages lourdes) : les étiquettes des cartes jouées arrivent aussi par Archidekt
   if (!TAGGER) return out;
   for (const [role, tags] of Object.entries(Q)) for (const t of tags) {
-    if (Date.now() - t0 > cap) { log('  Tagger : plafond de temps atteint'); return out; }
+    if (Date.now() - t0 > cap) { log('  Tagger : plafond de temps atteint (relu au prochain passage)'); return out; }
     let url = SCRY + 'cards/search?' + new URLSearchParams({ q: `otag:${t} legal:commander`, unique: 'cards' }); let n = 0;
     while (url && Date.now() - t0 < cap && pages < 600) {
       let j = null; try { j = await getJson(url, { gap: 120 }); } catch { break; }
@@ -359,6 +363,7 @@ async function taggerRoles() {
     }
     log(`  Tagger otag:${t} → ${n} cartes`);
   }
+  if (C) { C.tagger = Object.fromEntries(out); C.taggerAt = new Date().toISOString(); }      // toutes les étiquettes lues : gardées une semaine dans le corpus
   return out;
 }
 
@@ -406,7 +411,8 @@ export function aggregate(C, S, tagger, cmds) {
   const cards = [], info = new Map();
   for (const k of keys) {
     const s = S.get(k), i = byKey.get(k), m = i === undefined ? {} : C.meta[i] || {};
-    const name = s ? s.name : C.names[i]; if (!name) continue;
+    if (!s) continue;      // sans fiche Scryfall : identité de couleur inconnue, jamais proposée (l'appli lit la fiche de la carte si elle est dans un deck)
+    const name = s.name;
     if (s && !s.legal && !/\bLegendary\b/.test(s.type)) continue;
     let roles = cardRoles({ dc: m.dc, tags: m.ot, votes: votes.get(i), decks: voted.get(i) || 0, scry: s ? { ...s } : (m.ty ? { name, type: m.ty, text: '' } : null) });
     roles |= tagger.get(k) || 0; if (roles & RB.wipe) roles &= ~RB.removal;
@@ -455,15 +461,17 @@ async function main() {
   if (!cmds.length) throw new Error('Aucun commandant (pwa/edh.bin.gz absent ou illisible)');
   log(`${cmds.length} commandants (pwa/edh.bin.gz)`);
   const S = await scryAll();
-  const tagger = await taggerRoles();
+  if (C.scry && typeof C.scry === 'object') { let n = 0; for (const [k, a] of Object.entries(C.scry)) if (!S.has(k) && Array.isArray(a)) { S.set(k, scryUnpack(a)); n++; } if (n) log(`  Scryfall : ${n} fiches reprises du corpus`); }
+  const tagger = await taggerRoles(C);
   await edhrecRun(C, cmds);
   const themeSlugs = new Set(); for (const c of cmds) for (const t of c.themes) themeSlugs.add(t[0]);
   for (const t of GENERAL_THEMES) themeSlugs.add(edhSlug(t.replace(/\+1\/\+1/g, 'plus-1-plus-1').replace(/-1\/-1/g, 'minus-1-minus-1')));
   await edhrecTags(C, [...themeSlugs]);
   await spellbook(C);
-  await archidektRun(C, cmds);
-  if (S.size < 20000) await scryFill(S, [...C.names, ...Object.values(C.edh).flatMap(e => (e.cards || []).map(x => x[0]))]);
+  if (process.env.DECKDB_ARCH_OFF !== '1') await archidektRun(C, cmds); else log('  Archidekt : sauté (DECKDB_ARCH_OFF)');
+  await scryFill(S, [...C.names, ...Object.values(C.edh).flatMap(e => (e.cards || []).map(x => x[0]))]);
   C.at = new Date().toISOString();
+  C.scry = {}; for (const [k, x] of S) C.scry[k] = scryPack(x);
   const D = aggregate(C, S, tagger, cmds);
   const corpusBuf = gzipSync(Buffer.from(JSON.stringify(C)), { level: 9 }), dkwBuf = gzipSync(Buffer.from(JSON.stringify(D)), { level: 9 });
   const nDecks = D.src.decks;
