@@ -346,12 +346,14 @@ function buildSnap() {
  *  c = valeur des q exemplaires (pas un coût d'achat) · ow = exemplaires libres dans la collection · ref : relevé de référence, jamais enregistré. */
 function refSnapOf(text, id, pub) {
   const pd = parseDeck(text); if (!pd.cards.length && !pd.basics.length) return null;
+  if (typeof pxRefEnsure === 'function') pxRefEnsure();      // relevé du jour : lu une fois, puis le viewer est redessiné
   const cmd = dkFormat(text) === 'standard' ? new Set() : commandersOf(text, pd.cards, c => dmOf(ownKey(c.key)));
   const items = [];
   for (const c of pd.cards) {
     const k = ownKey(c.key), m = dmOf(k) || {}, ow = pub ? 0 : Math.min(c.qty, engFree(collQty(k), XS.eng, k, id));
-    const it = { k: c.key, n: c.name, q: c.qty, s: Number.isFinite(m.eu) ? 'ok' : 'none' };
-    if (it.s === 'ok') it.c = Math.round(m.eu * c.qty);
+    const eu = m.eu > 0 ? m.eu : typeof pxRef === 'function' ? pxRef(ownKey(c.key)) : 0;      // fiche pas encore lue ou sans prix : relevé du jour (builder.js › pxRef)
+    const it = { k: c.key, n: c.name, q: c.qty, s: eu > 0 ? 'ok' : Number.isFinite(m.eu) ? 'ok' : 'none' };
+    if (it.s === 'ok') it.c = Math.round((eu > 0 ? eu : m.eu) * c.qty);
     if (m.cm != null) { it.cm = m.cm; it.mc = m.mc; it.tl = m.tl; it.cl = m.cl; }
     if (m.im) it.im = m.im;
     if (ow > 0) it.ow = ow;

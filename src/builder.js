@@ -20,7 +20,26 @@ async function dmFetch(list, basics) {
   try { const got = await scryCollection(need.map(c => c.name)); let n = 0; for (const [k, m] of got) if (m) { DM[k] = { eu: m.eu, ci: m.ci, cd: m.cd, im: m.im, cm: m.cm, mc: m.mc, tl: m.tl, cl: m.cl, ar: m.ar }; n++; } if (n) dmSave(); return n > 0; }
   catch (e) { return false; }      // hors ligne ou limite Scryfall : l'estimation reste partielle
 }
-const dmOf = k => COLL.meta[k] || DM[k] || null;
+/** Fiche d'une carte (collection, sinon lue pour les decks). Sans prix Cardmarket sur l'impression par défaut de Scryfall (réimpression récente pas encore cotée :
+ *  Sol Ring, Command Tower, Path to Exile…) : prix de l'impression la moins chère du relevé du jour (data.js › pxTable), comme le coach ; jamais « prix inconnu » si on le connaît. */
+const pxRef = k => { const p = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; return p && p.e > 0 ? p.e : 0; };
+const dmOf = k => {
+  const m = COLL.meta[k] || DM[k] || null; if (!m || m.eu > 0) return m;
+  const e = pxRef(k); if (e) return { ...m, eu: e };
+  pxRefEnsure(); return m;
+};
+let PXR_ASK = false;
+/** Relevé du jour pas encore lu : lu une fois, puis les écrans ouverts qui affichent des prix de référence sont redessinés. */
+function pxRefEnsure() {
+  if (PXR_ASK || (typeof PXT !== 'undefined' && PXT) || typeof pxTable !== 'function') return;
+  PXR_ASK = true;
+  pxTable().then(t => {
+    PXR_ASK = false; if (!t) return;
+    try { if (typeof DV !== 'undefined' && DV.el && DV.snap && DV.snap.ref) { dvRebuild(); dvRender(); } } catch (e) { /* viewer fermé entre-temps */ }
+    try { if (BD.el) bdList(); } catch (e) { /* éditeur fermé */ }
+    try { if (typeof dksPaint === 'function') dksPaint(); } catch (e) { /* écran « Mes decks » pas prêt */ }
+  }, () => { PXR_ASK = false; });
+}
 const liTried = new Set();
 /** Images, dans la langue de l'exemplaire, des cartes possédées de cette liste ([{ key, name }]) : lues sur Scryfall par lots de 12, une seule fois par carte (gardées 60 jours avec celles de la collection).
  *  Déjà connues, déjà tentées, anglaises ou non possédées : rien à lire. Retourne vrai si quelque chose est arrivé. */

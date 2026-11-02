@@ -14,9 +14,11 @@ pxAdd(m, card('Sol Ring', '0.05', null, { games: ['mtgo'] }));
 pxAdd(m, card('Foil Only', null, null, { ef: '3.00' }));
 pxAdd(m, card('Sans Prix', null, null));
 pxAdd(m, card('Token', '0.10', null, { layout: 'token' }));
+pxAdd(m, card('Swords', '1.30', '1.60')); pxAdd(m, card('Swords', '0.02', '2.10'));      // cote Cardmarket aberrante (100 fois moins que le prix en dollars) : ignorée
+pxAdd(m, card('Cheap', '0.02', '0.10'));      // carte vraiment bon marché : gardée
 assert.deepEqual(m.get('Sol Ring'), { e: 90, u: 120 }, 'moins cher par devise, impressions exotiques ignorées');
 assert.deepEqual(m.get('Foil Only'), { e: 300, u: 0 }, 'foil seulement : prix foil');
-assert.equal(m.has('Token'), false);
+assert.equal(m.has('Token'), false); assert.deepEqual(m.get('Swords'), { e: 130, u: 160 }, 'cote aberrante ignorée'); assert.deepEqual(m.get('Cheap'), { e: 2, u: 10 }); m.delete('Swords'); m.delete('Cheap');
 const t = pxText(m, '2026-10-08');
 assert.equal(t, '#MOPX1 2026-10-08 2\nFoil Only\t300\t\nSol Ring\t90\t120\n', 'cartes sans prix absentes, triées');
 console.log('✓ pxAdd / pxText : plus bas prix papier, bordures dorées / numériques / jetons ignorés');

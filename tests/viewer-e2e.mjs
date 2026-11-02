@@ -94,6 +94,8 @@ assert.equal(await txt(p, '.dv[aria-label^="Deck viewer"] .dv-title span'), '15 
 assert.deepEqual(await groups(p), ['m0', 'm1', 'm2', 'm4', 'm7', 'land'], 'mana, terrains');
 assert.deepEqual(await tileNames(p, 'm1'), ['Llanowar Elves, ×2, 0,40 €', "Ranger's Hawk, 0,05 €", 'Sol Ring, 1,50 €', 'Swords to Plowshares, 1,90 €']);
 assert.deepEqual(await tileNames(p, 'm0'), ['Phantom Card, prix inconnu']); assert.equal(await p.$eval('.dv-g[data-g="m0"] .dvc-p', e => e.className), 'dvc-p warn');
+assert.equal(await p.evaluate(() => { const o = PXT; PXT = { t: Date.now(), at: 'x', map: new Map([['phantom card', { e: 250, u: 0 }]]) }; const it = refSnapOf('1 Phantom Card', null, false).items[0]; PXT = o; return it.s + ':' + it.c; }), 'ok:250', 'sans prix sur l\'impression par défaut : prix du relevé du jour (impression la moins chère)');
+ok('prix inconnu de Scryfall : complété par le relevé du jour');
 assert.equal(await p.$$eval('.dv-bar', b => b.length), 8, 'courbe de mana'); assert.ok(await p.$('#dvF'), 'filtres');
 await p.waitForFunction(() => document.querySelectorAll('.dvc-art img.ok').length >= 5, null, { timeout: 8000 });
 assert.equal(await p.$eval('.dv-foot [data-act="refresh"]', e => e.hidden), false); assert.equal(await txt(p, '.dv-foot [data-act="refresh"]'), 'Chercher les offres');

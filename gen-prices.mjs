@@ -26,7 +26,9 @@ const cents = v => { const n = Math.round(parseFloat(v) * 100); return Number.is
 export function pxAdd(map, c) {
   if (!c || !c.name || c.digital || c.oversized || c.border_color === 'gold' || SKIP_SETS.has(c.set_type) || SKIP_LAYOUTS.has(c.layout)) return;
   if (Array.isArray(c.games) && !c.games.includes('paper')) return;
-  const p = c.prices || {}, e = cents(p.eur) || cents(p.eur_foil), u = cents(p.usd) || cents(p.usd_foil) || cents(p.usd_etched);
+  const p = c.prices || {}, u = cents(p.usd) || cents(p.usd_foil) || cents(p.usd_etched);
+  let e = cents(p.eur) || cents(p.eur_foil);
+  if (e && u >= 50 && e * 5 < u) e = 0;      // tendance Cardmarket aberrante sur cette impression (ex. Swords to Plowshares à 0,02 € quand elle vaut 1,50 $) : cote mal rattachée, ignorée
   if (!e && !u) { if (!map.has(c.name)) map.set(c.name, { e: 0, u: 0 }); return; }
   const cur = map.get(c.name);
   if (!cur) { map.set(c.name, { e, u }); return; }

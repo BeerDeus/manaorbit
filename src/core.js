@@ -1923,11 +1923,14 @@ class EdhRow {
   get missing() { edhDetail(this); return this.missing; }
   get owned() { edhDetail(this); return this.owned; }
   get gc() { edhDetail(this); return this.gc; }
+  get full() { edhDetail(this); return this.full; }
+  get fullNo() { edhDetail(this); return this.fullNo; }
 }
 function edhDetail(r) {
-  const e = r._e, own = r._o, hold = r._h, c = r.cmd, d = r.deck, missing = [], owned = [], gcs = [];
+  const e = r._e, own = r._o, hold = r._h, c = r.cmd, d = r.deck, missing = [], owned = [], gcs = []; let full = 0, fullNo = 0;      // full : prix du deck entier (cartes possédées comprises), calculé ici avec les prix du fichier complétés par le relevé du jour (edh.js › edhEur)
   const one = (id, q) => {
     if (e.bs[id]) return;
+    if (e.pr[id] > 0) full += e.pr[id] * q; else fullNo += q;
     const h = Math.min(q, own[id]), m = q - h, g = e.gcA[id] === 1; if (g) gcs.push(e.names[id]);
     if (m) { const u = e.pr[id]; missing.push({ k: e.keys[id], n: e.names[id], q: m, u: u > 0 ? u : null, gc: g }); }
     if (h) owned.push({ k: e.keys[id], n: e.names[id], q: h, gc: g, eg: h - Math.min(h, Math.max(0, own[id] - (hold ? hold[id] : 0))) });      // eg : parmi ces exemplaires, ceux déjà réservés par un deck monté
@@ -1935,7 +1938,7 @@ function edhDetail(r) {
   for (const id of c.ids) one(id, 1);
   for (let j = e.off[d.i], z = e.off[d.i + 1]; j < z; j++) one(e.ids[j], e.qty[j]);
   missing.sort((a, b) => ((b.u || 0) * b.q - (a.u || 0) * a.q) || a.n.localeCompare(b.n));
-  Object.defineProperties(r, { missing: { value: missing, configurable: true }, owned: { value: owned, configurable: true }, gc: { value: gcs, configurable: true } });
+  Object.defineProperties(r, { missing: { value: missing, configurable: true }, owned: { value: owned, configurable: true }, gc: { value: gcs, configurable: true }, full: { value: full, configurable: true }, fullNo: { value: fullNo, configurable: true } });
 }
 /** Decks EDHREC comparés à la collection. qty(clé) : exemplaires possédés. o : { held (clé → exemplaires réservés par des decks montés : sert à compter `eng`, les exemplaires possédés du deck déjà engagés ailleurs), cols:Set (identités de couleur permises : celle du commandant doit y tenir), mine (je possède un des commandants), budget (centimes, 0 = sans limite), tiers:Set ('S'…'D' : seulement ces tiers), themes:Set (identifiants de thèmes EDHREC : le commandant doit les avoir tous), sort: 'have' (le plus de cartes possédées) | 'miss' | 'cost' | 'pop' (meilleur rang : celui du mois si le fichier en a un), then (second tri, même choix : le premier se fait alors par paliers, voir EDH_SORT_STEP), kinds:Set (types de decks, voir EDH_KINDS), q (recherche : tous les mots), qm: 'cmd' (dans le nom du commandant) | 'card' (dans les cartes du deck, commandant compris, hors terrains de base) }.
  *  Terrains de base ignorés. Une ligne par deck : { deck, cmd, total, have, miss, cost, unpriced, mine, tier, rank, br (bracket estimé, 0 sans liste Game Changers), hit ([[clé, nom]] des cartes trouvées par une recherche « carte », sinon null), et à la demande : missing:[{ k, n, q, u, gc }], owned:[{ k, n, q, gc }], gc:[noms des Game Changers du deck, commandant compris] }.
