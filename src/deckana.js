@@ -133,7 +133,7 @@ function daPaint() {
     <p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b><small>${esc(T('dont {p} à acheter', { p: fmt(prof.buy, cur) }))}</small></p></div>`;
   if (DA.step === 'set') {
     h += sum('') + `<div class="sec-title">${T('Réglages de l\'analyse')}</div><p class="hint">${T('Les échanges conseillés tiendront compte de ces réglages.')}</p>` + daSetHtml(cmd, pack, set, cur);
-    const keep = body.scrollTop; body.innerHTML = h; body.scrollTop = keep; thumbsReady(body);
+    const keep = body.scrollTop; body.innerHTML = h; thumbsReady(body); body.scrollTop = keep;
     if (go) { go.disabled = false; go.textContent = T('Lancer l\'analyse'); }
     return;
   }
@@ -167,7 +167,7 @@ function daPaint() {
   }
   h += dwFoldHead('bal', DA.balOpen !== false, T('Équilibre du deck'), dwBalSum(prof, tgt, cmd), 'data-da-fold="bal"') + (DA.balOpen !== false ? `<div class="dw-gauges">${dwGaugesHtml(prof, tgt, cmd, pack, true)}</div>` : '');
   h += dwManaHtml(prof, tgt, cmd) + dwBracketHtml(prof, set) + dwBudgetHtml(prof, set);
-  const keep = body.scrollTop; body.innerHTML = h; body.scrollTop = keep; thumbsReady(body);      // case cochée, « Pourquoi ? » : les vignettes déjà chargées restent affichées (pas de clignotement)
+  const keep = body.scrollTop; body.innerHTML = h; thumbsReady(body); body.scrollTop = keep;      // case cochée, « Pourquoi ? » : les vignettes déjà chargées restent affichées (pas de clignotement)
   const n = DA.swaps.length - DA.off.size;
   if (go) { go.disabled = false; go.textContent = n > 0 ? TN(n, 'Ouvrir dans l\'éditeur avec {n} échange', 'Ouvrir dans l\'éditeur avec {n} échanges') : T('Ouvrir dans l\'éditeur'); }
 }

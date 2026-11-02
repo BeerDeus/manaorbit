@@ -118,7 +118,6 @@ Deck
 1 Butcher of Malakir
 1 Drana, Liberator of Malakir
 1 Olivia Voldaren
-1 Anowon, the Ruin Thief
 1 Stromkirk Noble
 1 Falkenrath Noble
 1 Necropolis Regent
