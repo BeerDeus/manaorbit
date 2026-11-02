@@ -146,5 +146,8 @@
  "{n} catégorie sur {b} dans la norme": "{n} von {b} Kategorien im Normbereich",
  "{n} catégories sur {b} dans la norme": "{n} von {b} Kategorien im Normbereich",
  "Deck complet : pour chaque carte ajoutée, retires-en une (« Analyser » dans le viewer propose des échanges).": "Deck voll: Für jede hinzugefügte Karte nimm eine heraus („Analysieren“ im Viewer schlägt Tausche vor).",
- "Réglages": "Einstellungen"
+ "Réglages": "Einstellungen",
+ "Combo à 2 cartes interdit en bracket {b} : {list}": "2-Karten-Kombo in Bracket {b} verboten: {list}",
+ "Combo à 2 cartes : pas avant le tour 6 en bracket 3 ({list})": "2-Karten-Kombo: in Bracket 3 nicht vor Zug 6 ({list})",
+ "Aucun combo à 2 cartes connu (Commander Spellbook)": "Keine bekannte 2-Karten-Kombo (Commander Spellbook)"
 }

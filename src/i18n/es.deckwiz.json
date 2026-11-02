@@ -146,5 +146,8 @@
  "{n} catégorie sur {b} dans la norme": "{n} de {b} categorías en rango",
  "{n} catégories sur {b} dans la norme": "{n} de {b} categorías en rango",
  "Deck complet : pour chaque carte ajoutée, retires-en une (« Analyser » dans le viewer propose des échanges).": "Mazo completo: por cada carta que añadas, quita una («Analizar» en el visor sugiere cambios).",
- "Réglages": "Ajustes"
+ "Réglages": "Ajustes",
+ "Combo à 2 cartes interdit en bracket {b} : {list}": "Combo de 2 cartas prohibido en el bracket {b}: {list}",
+ "Combo à 2 cartes : pas avant le tour 6 en bracket 3 ({list})": "Combo de 2 cartas: no antes del turno 6 en el bracket 3 ({list})",
+ "Aucun combo à 2 cartes connu (Commander Spellbook)": "Ningún combo de 2 cartas conocido (Commander Spellbook)"
 }

@@ -9,7 +9,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes } from '../gen-deckdb.mjs';
+import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes } from '../gen-deckdb.mjs';
 import { normKey } from '../gen-edhrec.mjs';
 import { dkwSplit, dkwMake } from '../server/dkw-srv.mjs';
 const require = createRequire(import.meta.url);
@@ -122,8 +122,16 @@ test('agrégats : table des cartes, cibles, commandants, thèmes', () => {
   assert.equal(typeBits('Legendary Creature — Phyrexian Angel Horror'), 2 | 256); assert.equal(typeBits('Land // Creature'), 1);
 });
 
+test('Commander Spellbook : combos à 2 cartes infinis ou gagnants seulement', () => {
+  const v = (uses, prod, req = []) => ({ uses: uses.map(n => ({ card: { name: n } })), produces: prod.map(n => ({ feature: { name: n } })), requires: req, bracketTag: 'R' });
+  assert.deepEqual(csbCombo(v(["Thassa's Oracle", 'Demonic Consultation'], ['Exile your library', 'Win the game'])), ["Thassa's Oracle", 'Demonic Consultation', 'Win the game', 'R']);
+  assert.deepEqual(csbCombo(v(['Sanguine Bond', 'Exquisite Blood'], ['Infinite lifegain triggers'])).slice(0, 3), ['Sanguine Bond', 'Exquisite Blood', 'Infinite lifegain triggers']);
+  assert.equal(csbCombo(v(['A', 'B', 'C'], ['Win the game'])), null, '3 cartes'); assert.equal(csbCombo(v(['A', 'B'], ['Card draw'])), null, 'ni infini ni victoire');
+  assert.equal(csbCombo(v(['A', 'B'], ['Infinite mana'], [{ template: 'a creature' }])), null, 'pièce en plus exigée'); assert.equal(csbCombo(null), null);
+});
+
 test('serveur : découpe, /api/dkw (cœur, commandant, thème), gzip, ETag, erreurs', async () => {
-  const D = { v: 1, at: '2026-11-01T00:00:00Z', roles: ROLES, cards: [['Sol Ring', '', 1, 4, 2, 150, 1, 'C', 1]], tg: { all: { n: 3 } }, cmd: { 'edgar-markov': { n: 9, cards: [['Sol Ring', 90, 1]] }, 'BAD SLUG': {} }, themes: { tokens: { n: 5, cards: [] } } };
+  const D = { v: 1, at: '2026-11-01T00:00:00Z', roles: ROLES, cards: [['Sol Ring', '', 1, 4, 2, 150, 1, 'C', 1]], tg: { all: { n: 3 } }, combos: [['A', 'B', 'Win the game', 'R']], cmd: { 'edgar-markov': { n: 9, cards: [['Sol Ring', 90, 1]] }, 'BAD SLUG': {} }, themes: { tokens: { n: 5, cards: [] } } };
   const s = dkwSplit(D); assert.equal(s.cmd.size, 1, 'adresse invalide écartée'); assert.equal(s.th.size, 1);
   assert.throws(() => dkwSplit({ v: 2 }));
   const dir = mkdtempSync(join(tmpdir(), 'dkw-')), file = join(dir, 'dkw.json.gz'); writeFileSync(file, gzipSync(Buffer.from(JSON.stringify(D))));
@@ -133,7 +141,7 @@ test('serveur : découpe, /api/dkw (cœur, commandant, thème), gzip, ETag, erre
   const call = async (q, hd = {}) => { const res = { st: 0, hd: {}, body: null, writeHead(st, h) { this.st = st; this.hd = h || {}; }, end(b) { this.body = b; } }; await S.api({ method: 'GET', headers: hd }, res, new URL('http://x/api/dkw' + q)); return res; };
   assert.equal((await call('')).st, 503, 'pas encore chargé'); S.start(); await new Promise(r => setTimeout(r, 80));
   const core = await call('', { 'accept-encoding': 'gzip' }); assert.equal(core.st, 200); assert.equal(core.hd['Content-Encoding'], 'gzip');
-  const cj = JSON.parse(gunzipSync(core.body)); assert.deepEqual(cj.cmds, ['edgar-markov']); assert.deepEqual(cj.themes, [['tokens', 5]]); assert.equal(cj.cards.length, 1); assert.equal(cj.cmd, undefined, 'paquets des commandants à part');
+  const cj = JSON.parse(gunzipSync(core.body)); assert.deepEqual(cj.cmds, ['edgar-markov']); assert.deepEqual(cj.themes, [['tokens', 5]]); assert.equal(cj.cards.length, 1); assert.equal(cj.cmd, undefined, 'paquets des commandants à part'); assert.deepEqual(cj.combos, [['A', 'B', 'Win the game', 'R']], 'combos dans le cœur');
   const c = await call('?c=edgar-markov'); assert.equal(c.st, 200); assert.equal(c.hd['Content-Encoding'], undefined, 'sans gzip demandé'); assert.equal(JSON.parse(c.body).cards[0][1], 90);
   assert.equal((await call('?c=edgar-markov', { 'if-none-match': c.hd.ETag })).st, 304);
   assert.equal((await call('?t=tokens')).st, 200); assert.equal((await call('?c=inconnu')).st, 404); assert.equal((await call('?c=../etc')).st, 400);

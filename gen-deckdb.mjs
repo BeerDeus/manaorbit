@@ -362,6 +362,30 @@ async function taggerRoles() {
   return out;
 }
 
+/* ── 4 bis) Commander Spellbook : combos à 2 cartes (règle des brackets 1 à 3) ─────────────────────────── */
+const CSB = process.env.CSB_BASE || 'https://backend.commanderspellbook.com/';
+/** Variante Commander Spellbook → [carte A, carte B, résultat, étiquette de bracket] si c'est un combo à 2 cartes infini ou gagnant, sinon null. */
+export function csbCombo(v) {
+  const uses = (v && Array.isArray(v.uses) ? v.uses : []).map(u => u && u.card && u.card.name).filter(Boolean);
+  const prod = (v && Array.isArray(v.produces) ? v.produces : []).map(x => x && x.feature && x.feature.name).filter(Boolean);
+  if (uses.length !== 2 || (v.requires && v.requires.length)) return null;
+  const win = prod.find(x => /win the game/i.test(x)) || prod.find(x => /^infinite/i.test(x)); if (!win) return null;
+  return [uses[0], uses[1], String(win).slice(0, 60), String(v.bracketTag || '').slice(0, 3)];
+}
+/** Les combos à 2 cartes les plus joués (une fois par semaine) : C.combos. */
+async function spellbook(C, max = 4000) {
+  if (C.comboAt && Date.now() - Date.parse(C.comboAt) < 7 * DAY && Array.isArray(C.combos) && C.combos.length) return;
+  const out = [], seen = new Set(); let url = CSB + 'variants/?' + new URLSearchParams({ q: 'cards=2 legal:commander', limit: '100', ordering: '-popularity' }), n = 0;
+  while (url && out.length < max && n < 80 && left() > BUDGET_MS * 0.5) {
+    let j = null; try { j = await getJson(url, { gap: 400 }); } catch (e) { log('  Commander Spellbook : ' + e.message); break; }
+    n++; if (!j) break;
+    for (const v of j.results || []) { const c = csbCombo(v); if (!c) continue; const k = [normKey(c[0]), normKey(c[1])].sort().join('|'); if (seen.has(k)) continue; seen.add(k); out.push(c); }
+    url = typeof j.next === 'string' && j.next.startsWith(CSB) ? j.next : '';
+  }
+  if (out.length) { C.combos = out; C.comboAt = new Date().toISOString(); }
+  log(`  Commander Spellbook : ${out.length} combos à 2 cartes (${n} pages)`);
+}
+
 /* ── 5) Agrégats ────────────────────────────────────────────────────────────────────────────────── */
 const TYPE_BITS = [['Land', 1], ['Creature', 2], ['Artifact', 4], ['Enchantment', 8], ['Instant', 16], ['Sorcery', 32], ['Planeswalker', 64], ['Battle', 128], ['Legendary', 256]];
 export const typeBits = t => TYPE_BITS.reduce((a, [w, b]) => a | (new RegExp('\\b' + w + '\\b').test(String(t || '').split(' // ')[0]) ? b : 0), 0);
@@ -418,7 +442,7 @@ export function aggregate(C, S, tagger, cmds) {
     cmd[c.slug] = { n: e ? e.n || 0 : 0, land: e ? e.land || 0 : 0, basic: e ? e.basic || 0 : 0, curve: e ? e.curve || null : null, br: e ? e.br || null : null, thl: e ? (e.thl || []).slice(0, 10) : [], cards: e ? (e.cards || []).slice(0, 320) : [], th, nd, xc: extra, tg: ps.length >= 8 ? statsOf(ps) : null };
   }
   const themes = {}; for (const [s, p] of Object.entries(C.tags)) if (p && p.cards && p.cards.length) themes[s] = { n: p.n, cards: p.cards.slice(0, 250), cmds: (p.cmds || []).slice(0, 40) };
-  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size } };
+  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, combos: Array.isArray(C.combos) ? C.combos : [], src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size } };
 }
 
 /* ── Principal ──────────────────────────────────────────────────────────────────────────────────── */
@@ -436,6 +460,7 @@ async function main() {
   const themeSlugs = new Set(); for (const c of cmds) for (const t of c.themes) themeSlugs.add(t[0]);
   for (const t of GENERAL_THEMES) themeSlugs.add(edhSlug(t.replace(/\+1\/\+1/g, 'plus-1-plus-1').replace(/-1\/-1/g, 'minus-1-minus-1')));
   await edhrecTags(C, [...themeSlugs]);
+  await spellbook(C);
   await archidektRun(C, cmds);
   if (S.size < 20000) await scryFill(S, [...C.names, ...Object.values(C.edh).flatMap(e => (e.cards || []).map(x => x[0]))]);
   C.at = new Date().toISOString();

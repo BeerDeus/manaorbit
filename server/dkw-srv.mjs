@@ -17,7 +17,7 @@ export function dkwSplit(D) {
   if (!D || D.v !== 1 || !Array.isArray(D.cards) || !D.tg) throw new Error('pas un fichier dkw v1');
   const pack = o => { const raw = Buffer.from(JSON.stringify(o)), gz = gzipSync(raw, { level: 9 }); return { gz, etag: etagOf(gz), n: raw.length }; };
   const cmds = Object.keys(D.cmd || {}).filter(s => SLUG.test(s)), ths = Object.keys(D.themes || {}).filter(s => SLUG.test(s));
-  const core = pack({ v: 1, at: D.at, roles: D.roles, cards: D.cards, tg: D.tg, cmds, themes: ths.map(s => [s, D.themes[s].n || 0]), src: D.src || {} });
+  const core = pack({ v: 1, at: D.at, roles: D.roles, cards: D.cards, tg: D.tg, combos: Array.isArray(D.combos) ? D.combos : [], cmds, themes: ths.map(s => [s, D.themes[s].n || 0]), src: D.src || {} });
   const cmd = new Map(cmds.map(s => [s, pack({ at: D.at, slug: s, ...D.cmd[s] })]));
   const th = new Map(ths.map(s => [s, pack({ at: D.at, slug: s, ...D.themes[s] })]));
   return { at: String(D.at || ''), core, cmd, th, cards: D.cards.length };

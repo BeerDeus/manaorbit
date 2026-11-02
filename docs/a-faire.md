@@ -24,7 +24,7 @@
 - [ ] Tester : Compte et réglages › Préférences › Fonctionnalités en test › « Assistant de deck Commander », puis Mes decks › + (Commander › Deck à construire), l'onglet Coach d'un deck existant, et « Analyser » dans le viewer d'un deck « À monter ».
 - [ ] Vérifier dans GitHub › Actions › « Base du coach » que le passage de la nuit est vert, et `/admin` (serveur) ou `https://manaorbit.app/api/dkw` (réponse JSON) après la synchronisation (6 h au plus, ou redémarrage du serveur).
 - [ ] Dire ce qui manque ou gêne (cibles trop hautes ou basses, suggestions, textes) avant d'ouvrir la fonctionnalité à tous.
-- [ ] Plus tard (idées) : combos à 2 cartes via Commander Spellbook (`estimate-bracket`), « Générer une base » (100 cartes d'un coup), anti-cimetière et conditions de victoire en jauges, autoriser `infinite-api.tcgplayer.com` pour relire les articles de Karsten dans le texte.
+- [ ] Plus tard (idées) : « Générer une base » (100 cartes d'un coup), anti-cimetière et conditions de victoire en jauges, autoriser `infinite-api.tcgplayer.com` pour relire les articles de Karsten dans le texte.
 
 ## Point du 31 octobre : R8 rallumé (APK 1.1.1, versionCode 17)
 **Fait (Claude)** : alerte Play Console « obscurcissement 1 % » (seuil 25 %, février 2027). R8 rallumé en mode prudent (sans optimisation, mode full coupé, pont Capacitor, chaque plugin et `app.manaorbit` gardés en entier) ; cause probable de la caméra muette des 1.0.7 / 1.0.8 : R8 optimisé en mode full sur la permission caméra lue dans l'annotation du plugin, pas `EdgeToEdge` (qui ne revient pas). Détails, liste à cocher et notes de version : `docs/android.md` › « APK 1.1.1 ».

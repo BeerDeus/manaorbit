@@ -13,7 +13,7 @@ Recherche (Karsten, Command Zone, EDHREC, brackets Wizards, étiquettes du Tagge
    - réglages (thèmes, bracket, budget, priorité collection), gardés par deck sur l'appareil (`localStorage` `deckdeal:dw:<id>`) ;
    - **jauges** : terrains, rampe, pioche, retraits ciblés, balayages, contresorts (si bleu), protection, tuteurs, récursion : compte du deck, cible et plage normale (quartiles) ; un appui ouvre les **suggestions** de ce rôle ;
    - **mana** : coût moyen, courbe, sources de chaque couleur face au besoin (Karsten) ;
-   - **bracket** : Game Changers (0, 0, 3, illimité), destruction massive de terrains, tours supplémentaires, tuteurs ; combos à 2 cartes non vérifiés (dit au joueur) ;
+   - **bracket** : Game Changers (0, 0, 3, illimité), destruction massive de terrains, tours supplémentaires, **combos à 2 cartes** (les 4 000 plus joués de Commander Spellbook, infinis ou gagnants : interdits en 1-2, pas avant le tour 6 en 3) ;
    - **budget** : valeur du deck face au plafond, part à acheter ; au-dessus, seules les cartes possédées sont proposées ;
    - **cartes clés du commandant** (inclusion et synergie EDHREC, thèmes choisis) ;
    - **Compléter avec des terrains de base** : jusqu'à la cible, répartis selon les symboles de mana.
@@ -36,18 +36,18 @@ Par ordre de confiance (`gen-deckdb.mjs` › `cardRoles`) :
 
 | Étape | Où | Quoi |
 |---|---|---|
-| `gen-deckdb.mjs` | GitHub Actions `deckdb.yml`, chaque nuit à 1 h 13 UTC, ~3 h | Scryfall (fichier oracle-cards, recherches Tagger), EDHREC (page de chaque commandant + ses 3 thèmes principaux, pages des thèmes généraux), Archidekt (1 000 decks les plus vus + 12 par commandant pour 1 500 commandants), incrémental |
+| `gen-deckdb.mjs` | GitHub Actions `deckdb.yml`, chaque nuit à 1 h 13 UTC, ~3 h | Scryfall (fichier oracle-cards, recherches Tagger), Commander Spellbook (combos à 2 cartes, chaque semaine), EDHREC (page de chaque commandant + ses 3 thèmes principaux, pages des thèmes généraux), Archidekt (1 000 decks les plus vus + 12 par commandant pour 1 500 commandants), incrémental |
 | Branche **`deck-corpus`** | GitHub (un seul commit, réécrit) | `corpus.json.gz` (base brute : reste sur GitHub, jamais envoyée à l'appli), `dkw.json.gz` (agrégats), `log.txt` |
 | `server/dkw-srv.mjs` | serveur (proxy) | relit `dkw.json.gz` au démarrage puis toutes les 6 h (ETag), copie dans `.data/` ; `GET /api/dkw` (cœur : table des cartes, cibles), `?c=<commandant>`, `?t=<thème>` ; gzip, ETag |
 | `src/deckwiz.js` | appli | cœur gardé 1 jour (copie plus ancienne hors ligne), paquets commandant / thème 7 jours (`Cache`) |
 
-`dkw.json.gz` : `{ v: 1, at, roles, cards: [[nom, identité, coût, types (bits), rôles (bits), prix € (centimes), drapeaux (1 Game Changer · 2 tour supplémentaire · 4 destruction massive de terrains · 8 tuteur), couleurs produites, rang EDHREC]], tg: { all, recent, br: {1..5}, th: {thème}, nc: {couleurs} }, cmd: { slug: { n, land, curve, br, thl, cards: [[nom, inclusion %, synergie %]], th: { thème: { n, land, cards } }, nd, xc: [[nom, % des decks Archidekt]], tg } }, themes: { slug: { n, cards, cmds } }, src }` ; statistiques : `{ n, <rôle | mv | cheap | gc>: [p25, médiane, p75] }`.
+`dkw.json.gz` : `{ v: 1, at, roles, combos: [[carte A, carte B, résultat, étiquette Spellbook]], cards: [[nom, identité, coût, types (bits), rôles (bits), prix € (centimes), drapeaux (1 Game Changer · 2 tour supplémentaire · 4 destruction massive de terrains · 8 tuteur), couleurs produites, rang EDHREC]], tg: { all, recent, br: {1..5}, th: {thème}, nc: {couleurs} }, cmd: { slug: { n, land, curve, br, thl, cards: [[nom, inclusion %, synergie %]], th: { thème: { n, land, cards } }, nd, xc: [[nom, % des decks Archidekt]], tg } }, themes: { slug: { n, cards, cmds } }, src }` ; statistiques : `{ n, <rôle | mv | cheap | gc>: [p25, médiane, p75] }`.
 
 Lancement manuel : GitHub › Actions › **Base du coach** › Run workflow (budget en minutes). En local : `NODE_USE_ENV_PROXY=1 DECKDB_MIN=10 DECKDB_CMDS=12 DECKDB_SMALL=1 node gen-deckdb.mjs deckdb-out` (voir l'en-tête du fichier pour les variables).
 
 ## Limites connues (à suivre pendant le test)
 
-- Combos à 2 cartes : non détectés (Commander Spellbook pourrait les fournir plus tard).
+- Combos : seulement ceux à 2 cartes nommées (sans pièce « n'importe quelle créature »), les 4 000 plus joués de Commander Spellbook.
 - Moxfield refuse les robots : corpus Archidekt + EDHREC seulement.
 - Prix : marché de l'appli si la carte est connue (fiche), sinon prix Cardmarket de la base (marché européen seulement).
 - Le premier passage ne couvre qu'une partie des commandants (budget de temps) ; la couverture se complète nuit après nuit.

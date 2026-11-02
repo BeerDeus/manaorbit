@@ -13,10 +13,10 @@
      un autre deck devient un nouveau deck. */
 const DA = { api: null, X: null, id: null, name: '', text: '', off: new Set(), brAuto: true, swaps: [] };
 /** Bracket estimé d'un deck d'après son profil (dwProfile) : 4 avec plus de 3 Game Changers ou une destruction massive de terrains ; 3 avec un Game Changer
- *  ou plusieurs tours supplémentaires ; 2 sinon (1 et 5 ne se devinent pas sur la liste ; les tuteurs ne comptent plus depuis octobre 2025). */
+ *  plusieurs tours supplémentaires ou un combo à 2 cartes ; 2 sinon (1 et 5 ne se devinent pas sur la liste ; les tuteurs ne comptent plus depuis octobre 2025). */
 function dwBracketOf(prof) {
   if (prof.gc.length > 3 || prof.mld.length) return 4;
-  if (prof.gc.length || prof.xt.length > 1) return 3;
+  if (prof.gc.length || prof.xt.length > 1 || prof.combos.length) return 3;      // combo à 2 cartes : interdit en 1 et 2
   return 2;
 }
 /** Deck à analyser d'après son texte : { main, cmdr } ; sans bloc « Commander », la première carte si elle peut être commandant. */

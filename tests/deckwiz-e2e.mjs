@@ -25,7 +25,7 @@ const CARDS = [['Edgar Markov', 'WBR', 4, 2 | 256, 0, 500, 0, '', 300], ['Sol Ri
   ['Weak One', 'B', 3, 2, 0, 500, 0, '', 5000], ['Plains', 'W', 0, 1, R.land, 0, 0, 'W', 0], ['Swamp', 'B', 0, 1, R.land, 0, 0, 'B', 0], ['Mountain', 'R', 0, 1, R.land, 0, 0, 'R', 0], ['Command Tower', '', 0, 1, R.land, 20, 0, 'WUBRG', 2]];
 const st = (lo, mid, hi) => [lo, mid, hi];
 const TG = { n: 500, land: st(35, 36, 37), ramp: st(9, 10, 12), draw: st(8, 10, 12), removal: st(7, 9, 11), wipe: st(2, 3, 4), counter: st(0, 1, 3), tutor: st(0, 1, 3), protect: st(2, 3, 5), recursion: st(1, 2, 4), wincon: st(1, 2, 3), mv: st(2.8, 3.1, 3.4), cheap: st(6, 9, 12), gc: st(0, 0, 1) };
-const CORE = { v: 1, at: '2026-11-01T00:00:00Z', roles: Object.keys(R).concat('wincon'), cards: CARDS, tg: { all: TG, recent: TG, br: {}, th: {}, nc: {} }, cmds: ['edgar-markov'], themes: [], src: { decks: 1234 } };
+const CORE = { v: 1, at: '2026-11-01T00:00:00Z', roles: Object.keys(R).concat('wincon'), cards: CARDS, tg: { all: TG, recent: TG, br: {}, th: {}, nc: {} }, combos: [['Sol Ring', 'Armageddon', 'Infinite fun', 'S']], cmds: ['edgar-markov'], themes: [], src: { decks: 1234 } };
 const PACK = { slug: 'edgar-markov', n: 12345, land: 36, thl: [['vampires', 'Vampires', 9000], ['aggro', 'Aggro', 2000]], cards: [['Sol Ring', 95, -2], ['Arcane Signet', 80, 5], ['Swords to Plowshares', 60, 10], ['Llanowar Elves', 50, 30], ['Night\'s Whisper', 40, 20], ['Phyrexian Arena', 30, 25], ['Gilded Removal', 30, 40], ['Wrath of God', 30, 5], ['Demonic Tutor', 25, 1], ['Armageddon', 5, 1], ['Command Tower', 90, 0], ...Array.from({ length: 40 }, (_, i) => ['Filler ' + i, 1, 0])], th: {}, xc: [], tg: null };      // ≥ 40 cartes : commandant connu (avis sur les cartes faibles)
 let dkwHits = 0, dkwOff = false;
 const one = p => p.waitForFunction(() => document.querySelectorAll('.sheet-wrap').length === 1);      // la feuille d'avant a fini de se fermer
@@ -101,6 +101,7 @@ ok('suggestions : couleurs, Game Changers, budget, raison affichée, ajout');
 await p.evaluate(() => { bdChange('main', 'sol ring', 'Sol Ring', 1); bdChange('main', 'armageddon', 'Armageddon', 1); });
 await p.waitForFunction(() => /Game Changers interdits/.test(document.querySelector('.dw-br').textContent));
 assert.match(await txt(p, '.dw-br'), /Destruction massive de terrains interdite en bracket 2 : Armageddon/);
+assert.match(await txt(p, '.dw-br'), /Combo à 2 cartes interdit en bracket 2 : Sol Ring \+ Armageddon \(Infinite fun\)/, 'combo à 2 cartes (Commander Spellbook)');
 await p.click('.dw-gh[data-r="land"]'); await p.waitForSelector('[data-act="dw-basics"]'); await p.click('[data-act="dw-basics"]');
 const basics = await p.evaluate(() => ['plains', 'swamp', 'mountain'].map(k => (BD.main.get(k) || {}).qty || 0));
 assert.equal(basics.reduce((a, b) => a + b, 0), await p.evaluate(() => dwTargets(dwProfile(), dwCmdOf(), DW.cmd.get('edgar-markov')).land[1]), 'terrains de base jusqu\'à la cible');
@@ -113,7 +114,7 @@ assert.deepEqual(await p.evaluate(id => JSON.parse(localStorage.getItem('deckdea
 await p.evaluate(id => openBuilder({ id }), id); await p.waitForSelector('.bd.on'); await p.click('#bdSeg .seg-opt[data-v="coach"]'); await p.waitForSelector('.dw-gauges');
 assert.match(await txt(p, '.dw-set-h'), /bracket 2/); assert.equal(await p.evaluate(() => BD.wiz.bud), 20000);
 await p.evaluate(() => bdClose(true));
-ok('bracket (Game Changers, destruction de terrains), terrains de base, réglages gardés avec le deck');
+ok('bracket (Game Changers, destruction de terrains, combo à 2 cartes), terrains de base, réglages gardés avec le deck');
 
 /* ── 6) Analyser un deck (viewer) : bracket estimé, échanges conseillés, limite de prix, ouverture dans l'éditeur avec les échanges ── */
 await p.evaluate(() => putDeck('dk-ana', deckDoc({ name: 'Edgar à analyser', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian Arena\n1 Gilded Removal\n1 Command Tower\n30 Plains', opts: { ...S.opts } })));
