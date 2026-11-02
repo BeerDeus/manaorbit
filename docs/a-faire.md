@@ -15,7 +15,7 @@
 ## Point du 2 novembre : assistant de deck Commander, coach et analyse (fonctionnalité en test)
 **Fait (Claude, nuit du 1er au 2)** : README › « Assistant de deck Commander, coach et analyse » ; architecture `docs/deckbuilder/README.md` ; recherche chiffrée et sourcée `docs/deckbuilder/recherche.md`.
 - « Fonctionnalités en test » (Préférences, compte de l'éditeur, jusqu'au prochain démarrage) ; nouveau deck « J'ai déjà ce deck / Deck à construire » ; assistant ; onglet Coach ; « Analyser » dans le viewer (échanges conseillés, limite de prix globale).
-- Base de données : `gen-deckdb.mjs` + Actions « Base du coach » (chaque nuit) → branche `deck-corpus` (corpus brut + agrégats), relue par le serveur (`/api/dkw`). Premier passage fait depuis la session de Claude la nuit du 2 novembre et poussé sur `deck-corpus` ; la couverture des commandants se complète nuit après nuit.
+- Base de données : `gen-deckdb.mjs` + Actions « Base du coach » (chaque nuit) → branche `deck-corpus` (corpus brut + agrégats), relue par le serveur (`/api/dkw`). Premier passage fait depuis la session de Claude la nuit du 2 novembre et poussé sur `deck-corpus` : 22 255 cartes classées, 1 500 commandants (pages EDHREC + 3 thèmes chacun), 3 513 decks Archidekt analysés (les 1 000 plus vus + 12 par commandant pour les 281 premiers), 3 032 combos à 2 cartes ; `dkw.json.gz` 9,5 Mo, cœur chargé par l'appli en ~1,5 s. Chaque nuit, ~400 commandants de plus côté Archidekt.
 - Tout est sur la branche `claude/deckbuilder-assistant-feature-u0c00l` (CI verte) : la session n'avait pas le droit de pousser sur `main` (déploiement en production).
 
 **Propriétaire**
