@@ -180,8 +180,8 @@ function dwProfile(X = BD) {
   for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips((m && m.mc) || (x && x.mc) || ''))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (x && x.fl & 1) p.gc.push(x.name); const e = dwPrice(c.key, x); if (e > 0) { p.cents += e; p.cmdCents += e; if (collQty(c.key) < 1) p.buy += e; } }
   p.mv = p.nonland ? mvSum / p.nonland : 0;
   if (DW.core && Array.isArray(DW.core.combos)) {      // combos à 2 cartes (Commander Spellbook) dont les deux cartes sont dans le deck
-    const has = k => X.main.has(k) || X.cmdr.some(c => c.key === k);
-    for (const c of DW.core.combos) if (has(ownKey(c[0])) && has(ownKey(c[1]))) p.combos.push(c);
+    const has = k => X.main.has(k) || X.cmdr.some(c => c.key === k), idx = dwComboIdx();
+    for (const k of [...X.main.keys(), ...X.cmdr.map(c => c.key)]) for (const e of idx.get(k) || []) if (k < e.p && has(e.p)) p.combos.push(e.c);      // par l'index (rapide : le score du coach relit souvent le profil)
   }
   p.need = {};      // sources voulues par couleur : le commandant, et le quart le plus exigeant des sorts (recherche § 8.2 : les cartes importantes)
   for (const col of 'WUBRG') { const l = (p.needs[col] || []).sort((a, b) => b - a), q = l.length ? l[Math.floor(l.length / 4)] : 0; p.need[col] = Math.max(q, p.cmdNeed[col] || 0); }
@@ -206,7 +206,7 @@ function dwLandTarget(mv, cheap, br, d = 0) {
 /** Modèle de recherche pour ce bracket et ces thèmes (§ 8.3, 8.4, 8.6) : { rôle: [min, cible, max], d: écart de terrains }. */
 function dwModel(set) {
   const m = { ...DW_BASE, ...(DW_BR_ADJ[set.br] || {}) }; let d = 0;
-  for (const t of set.th) { const a = DW_ARCH[t]; if (!a) continue; for (const [k, v] of Object.entries(a)) if (k === 'd') d += v; else m[k] = v; break; }      // le premier archétype choisi l'emporte
+  for (const t of set.arch && DW_ARCH[set.arch] ? [set.arch] : set.th) { const a = DW_ARCH[t]; if (!a) continue; for (const [k, v] of Object.entries(a)) if (k === 'd') d += v; else m[k] = v; break; }      // style choisi (version « agressive », « contrôle »), sinon le premier archétype parmi les thèmes
   m.d = d; return m;
 }
 /** Cibles [min, cible, max] par rôle : le modèle de recherche (poids 2), mêlé aux décks réels quand la base est là : le commandant lui-même (≥ 8 decks, poids 3),
@@ -222,7 +222,7 @@ function dwTargets(prof, cmd, pack, set = BD.wiz || dwDefaults()) {
   }
   const out = {};
   for (const k of Object.keys(DW_BASE)) {
-    const src = w.filter(([s]) => Array.isArray(s[k])), tot = src.reduce((a, [, x]) => a + x, 0);
+    const src = w.filter(([s]) => Array.isArray(s[k])).map(([s, x]) => [s, k === 'mv' && pack && s === pack.tg ? x * 3 : x]), tot = src.reduce((a, [, x]) => a + x, 0);      // courbe : les decks du commandant comptent triple (dragons, Eldrazi… : un coût moyen élevé est normal)
     out[k] = [0, 1, 2].map(i => src.reduce((a, [s, x]) => a + s[k][i] * x, 0) / tot);
   }
   const mv = prof.nonland >= 25 ? prof.mv : out.mv[1], cheap = prof.nonland >= 25 ? prof.cheap : out.cheap[1];
@@ -271,7 +271,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (role === 'land' ? !isLand : role ? !(x.roles & DW_RB[role]) : isLand) return;
     if (x.fl & 16) return;      // interdite en Commander
     if (x.fl & 1 && gcLeft <= 0) return;
-    if (combo) { const ps = combo.get(k); if (ps) for (const p of ps) if (inDeck(p)) return; }
+    if (combo) { const ps = combo.get(k); if (ps) for (const e of ps) if (inDeck(e.p)) return; }
     if (x.fl & 4 && set.br <= 3) return;
     if (x.fl & 2 && set.br <= 2) return;
     const price = dwPrice(k, x), own = collQty(k) > 0;
@@ -289,7 +289,9 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
       if (fix >= 2) s += 0.08 * Math.min(3, fix);
       if (!fix) s -= 0.15;      // terrain qui ne donne aucune couleur du deck (utilitaire incolore) : moins prioritaire en multicolore
     }
-    if (curveHi && !isLand && x.cmc >= 6) s -= 0.05 * (x.cmc - 5);      // génération : courbe déjà trop haute, les très gros sorts reculent
+    if (curveHi && !isLand && x.cmc >= 6) s -= 0.05 * (x.cmc - 5);
+    if (X.pace && set.arch === 'aggro' && !isLand) s -= 0.04 * Math.max(0, x.cmc - 3) - (x.ty & 2 ? 0.05 : 0);      // version « agressive » : sorts pas chers et créatures d'abord
+    if (X.pace && set.arch === 'control' && !isLand && x.roles & (DW_RB.removal | DW_RB.wipe | DW_RB.counter | DW_RB.draw)) s += 0.08;      // version « contrôle » : interaction et pioche d'abord      // génération : courbe déjà trop haute, les très gros sorts reculent
     out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x });
   };
   for (const [k, o] of C) consider(k, o);
@@ -305,11 +307,11 @@ function dwWidePool(ci) {
   for (const [k, r] of DW.byKey) if (r[8] > 0 && r[8] < 6000 && !(r[6] & 16) && [...String(r[1])].every(c => ok.has(c))) l.push([k, r]);
   DW.widePool.m.set(key, l); return l;
 }
-/** Combos à 2 cartes (Commander Spellbook) : clé de carte → clés des cartes qui le complètent. */
+/** Combos à 2 cartes (Commander Spellbook) : clé de carte → [{ p : clé de la carte qui le complète, c : le combo }]. */
 function dwComboIdx() {
   if (DW.comboIdx && DW.comboIdx.src === DW.core) return DW.comboIdx.m;
-  const m = new Map(), add = (a, b) => { (m.get(a) || m.set(a, new Set()).get(a)).add(b); };
-  for (const c of (DW.core && DW.core.combos) || []) { const a = ownKey(c[0]), b = ownKey(c[1]); if (a && b) { add(a, b); add(b, a); } }
+  const m = new Map(), add = (a, b, c) => { (m.get(a) || m.set(a, []).get(a)).push({ p: b, c }); };
+  for (const c of (DW.core && DW.core.combos) || []) { const a = ownKey(c[0]), b = ownKey(c[1]); if (a && b && a !== b) { add(a, b, c); add(b, a, c); } }
   DW.comboIdx = { src: DW.core, m }; return m;
 }
 /** Raison d'une suggestion : ce qui la fait remonter. */
@@ -347,9 +349,10 @@ function dwCoachHtml() {
     DW.lastN = prof.n;
     h += dwCutsHtml(prof, tgt, cmd, pack);
   }
+  if (DW.core && typeof dsScore === 'function' && prof.n > BD.cmdr.length + 20) h += dsScoreHtml(dsScore(BD, { cmd, pack }), { open: DW.scoreOpen });      // note du coach (deckopt.js) : dès que le deck prend forme
   h += dwSetHtml(cmd, pack);
   if (DW.core && typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-act="dw-report"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
-  if (DW.core && DW.autoNext && DW.cmd.has(cmd.slug)) { DW.autoNext = false; Promise.resolve(typeof pxTable === 'function' && pxTable()).catch(() => {}).then(() => setTimeout(dwAutoBuild, 0)); }      // prix du jour lus avant (budget)      // assistant : « Générer les 100 cartes tout de suite »
+  if (DW.core && DW.autoNext && DW.cmd.has(cmd.slug)) { DW.autoNext = false; setTimeout(() => dwBuild(), 0); }      // prix du jour lus d'abord (dwBuild)      // assistant : « Générer les 100 cartes tout de suite »
   if (DW.core && prof.n <= BD.cmdr.length) {
     const ready = DW.cmd.has(cmd.slug), empty = true;
     h += `<button class="btn block dw-auto" type="button" data-act="dw-auto"${ready ? '' : ' disabled'}>${empty ? T('Générer le deck (100 cartes)') : T('Compléter le deck jusqu\'à 100 cartes')}</button><p class="hint dw-auto-h">${T('Rôles jusqu\'aux cibles, puis le plan du commandant, puis les terrains ; dans tes couleurs, ton bracket et ton budget, ta collection d\'abord. Les cartes déjà là restent ; annulable.')}</p>`;
@@ -492,10 +495,10 @@ function dwFillBasics(quiet) {
  *  en manque (un quart à 60 % des terrains selon le nombre de couleurs), puis terrains de base ; 4. places restantes : plan, puis cartes très jouées dans les couleurs.
  *  Annulable. */
 /** undoTo : deck à remettre si on annule (« Recréer le deck » : le deck d'avant la reconstruction). */
-function dwAutoBuild(undoTo) {
-  try { return dwAutoBuildRun(undoTo); } finally { BD.pace = false; BD.wide = false; BD.landRes = 0; }      // une erreur ne laisse jamais le coach en mode génération (BD est partagé)
+function dwAutoBuild(undoTo, quiet) {
+  try { return dwAutoBuildRun(undoTo, quiet); } finally { BD.pace = false; BD.wide = false; BD.landRes = 0; }      // une erreur ne laisse jamais le coach en mode génération (BD est partagé)
 }
-function dwAutoBuildRun(undoTo) {
+function dwAutoBuildRun(undoTo, quiet) {
   const cmd = dwCmdOf(); if (!cmd || !DW.core || !BD.el) return 0;
   const pack = DW.cmd.get(cmd.slug) || null, before = undoTo || new Map([...BD.main].map(([k, c]) => [k, { ...c }])), n0 = dwProfile().n; BD.pace = true;
   const mine = new Set(BD.main.keys());      // cartes déjà là (gardées : jamais retirées pour faire de la place)
@@ -535,11 +538,14 @@ function dwAutoBuildRun(undoTo) {
   }
   BD.pace = false; BD.landRes = 0;
   const added = size() - (n0 - BD.cmdr.length), total = size() + BD.cmdr.length; BD.dirty = true;
+  if (quiet) return added;      // passes de la construction en plusieurs temps (deckopt.js) : ni affichage ni message
   haptic('ok'); bdPaint(); bdMetaSoon(); prof = dwProfile();
   const cur = mkCur(), msg = TN(added, '{n} carte ajoutée', '{n} cartes ajoutées') + ' · ' + T('{t} / 100', { t: total }) + (prof.cents ? ' · ' + T('valeur {p}', { p: fmt(prof.cents, cur) }) : '');
   toast(total < 100 ? msg + ' · ' + T('budget ou cartes épuisés : complète à la main') : msg, { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
   return added;
 }
+/** Construire le deck : en plusieurs passes avec versions au choix (deckopt.js), sinon en une passe. undoTo : deck à remettre si on annule. */
+function dwBuild(undoTo) { if (typeof dsBuild === 'function') return dsBuild(undoTo); return Promise.resolve(typeof pxTable === 'function' && pxTable()).catch(() => {}).then(() => dwAutoBuild(undoTo)); }
 /** Clics de l'onglet Coach (bdClick de builder.js les lui passe) : vrai si l'action était la sienne. */
 function dwClick(b) {
   const act = b.dataset.act; if (!/^dw-/.test(act)) return false;
@@ -551,9 +557,9 @@ function dwClick(b) {
   else if (act === 'dw-th') { const v = b.dataset.v, i = s.th.indexOf(v); if (i >= 0) s.th.splice(i, 1); else if (s.th.length < 3) { s.th.push(v); dwPack('t', v); } else { toast(T('3 thèmes au plus')); return true; } haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }
   else if (act === 'dw-br') { s.br = Number(b.dataset.v) || 3; haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }
   else if (act === 'dw-keep') { DW.changed = false; haptic('tap'); bdList(); }
-  else if (act === 'dw-regen') { const orig = new Map([...BD.main].map(([k, c]) => [k, { ...c }])); DW.changed = false; BD.main = new Map(); dwAutoBuild(orig); }      // tout refaire, l'ancien deck reste annulable
+  else if (act === 'dw-regen') { const orig = new Map([...BD.main].map(([k, c]) => [k, { ...c }])); DW.changed = false; BD.main = new Map(); dwBuild(orig); }      // tout refaire, l'ancien deck reste annulable
   else if (act === 'dw-basics') dwFillBasics();
-  else if (act === 'dw-auto') dwAutoBuild();
+  else if (act === 'dw-auto') dwBuild();
   else if (act === 'dw-report') openDeckReport(BD, BD.name.trim() || T('Nouveau deck'));
   return true;
 }

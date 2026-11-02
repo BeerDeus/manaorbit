@@ -134,6 +134,12 @@ function daPaint() {
   DA.swaps = DW.core ? dwSwaps(X, cmd, pack, prof, tgt) : [];
   const gs = DW_GAUGES.filter(([r]) => r !== 'counter' || cmd.ci.includes('U')), okN = gs.filter(([r]) => prof[r] >= tgt[r][0] && prof[r] <= tgt[r][2] + (r === 'land' ? 0 : 3)).length;
   h += sum(`<p class="dw-line"><span>${T('Équilibre')}</span><b>${esc(TN(okN, '{n} catégorie sur {b} dans la norme', '{n} catégories sur {b} dans la norme', { b: gs.length }))}</b></p>`);
+  if (typeof dsScore === 'function' && DW.core) {      // note du coach, et ce qu'elle devient avec les échanges cochés
+    const sc = dsScore(X, { cmd, pack }), on = DA.swaps.filter((s, i) => !DA.off.has(i));
+    let after = null;
+    if (on.length) { const m = new Map([...X.main].map(([k, c]) => [k, { ...c }])); for (const s of on) { const o = m.get(s.out.k); if (o && o.qty > 1) o.qty--; else m.delete(s.out.k); m.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 }); } after = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack }).total; }
+    h += dsScoreHtml(sc, { after });
+  }
   const th = dwThemeChoices(cmd, pack, set), setTxt = [T('bracket {n}', { n: set.br }) + ' · ' + (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[1], set.bud > 0 ? T('limite {p}', { p: fmt(set.bud, cur) }) : T('sans limite de prix'), ...(set.th.length ? [set.th.map(t => dwThemeLabel(t, th)).join(', ')] : []), ...(set.own ? [T('ma collection d\'abord')] : [])].join(' · ');
   if (typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-da-report><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
   h += `<button class="dw-set-h" type="button" data-da-edit><span><b>${T('Réglages de l\'analyse')}</b><small>${esc(setTxt)}</small></span><span class="me-v">${DA.setOpen ? '−' : T('Modifier')}</span></button>`;

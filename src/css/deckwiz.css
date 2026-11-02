@@ -136,3 +136,48 @@
 .dx-regen p span{color:var(--ink-2)}
 .da-sw-h{margin-top:14px}
 .dw-bud .hint.warn,.dw-wiz .hint.warn{color:var(--warn)}
+/* Note du coach (deckopt.js) */
+.ds-score{display:flex;align-items:center;gap:14px;padding:12px 14px;margin:10px 0 4px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.ds-n{display:flex;align-items:baseline;gap:2px;flex:none;min-width:64px}
+.ds-n b{font-size:32px;font-weight:750;line-height:1;font-variant-numeric:tabular-nums}
+.ds-n small,.ds-vn small,.ds-p b small{font-size:12px;color:var(--ink-2);font-weight:500}
+.ds-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ds-t b{font-size:14px;font-weight:650}
+.ds-t small{font-size:12.5px;color:var(--ink-2)}
+.ds-after{color:var(--good)}
+.ds-top .ds-n b,.ds-vn.ds-top{color:var(--good)}
+.ds-ok .ds-n b,.ds-vn.ds-ok{color:var(--accent)}
+.ds-mid .ds-n b,.ds-vn.ds-mid{color:var(--warn)}
+.ds-low .ds-n b,.ds-vn.ds-low{color:var(--bad)}
+.ds-parts{margin:0 0 10px;padding:0 4px}
+.ds-parts summary{cursor:pointer;font-size:13px;color:var(--ink-2);padding:6px 0}
+.ds-p{display:grid;grid-template-columns:minmax(90px,auto) 1fr auto;align-items:center;gap:10px;margin:6px 0;font-size:13px}
+.ds-p b{font-variant-numeric:tabular-nums;font-weight:650}
+.ds-bar,.ds-big{display:block;height:7px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.ds-bar i,.ds-big i{display:block;height:100%;border-radius:inherit;background:var(--accent);transition:width .35s ease}
+.ds-parts .bd-issues small{color:var(--ink-2);margin-left:4px}
+/* Construction en plusieurs passes */
+.ds-prog{display:flex;flex-direction:column;gap:10px;padding:4px 0}
+.ds-big{height:10px}
+.ds-now{margin:0;font-size:13px;color:var(--ink-2);min-height:1.3em}
+.ds-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ds-steps li{display:flex;flex-direction:column;gap:1px;padding-left:24px;position:relative;font-size:14px}
+.ds-steps li::before{content:'';position:absolute;left:2px;top:3px;width:12px;height:12px;border-radius:50%;border:2px solid var(--line)}
+.ds-steps li.done::before{background:var(--good);border-color:var(--good)}
+.ds-steps li.run::before{border-color:var(--accent);border-top-color:transparent;animation:dsspin .8s linear infinite}
+.ds-steps li.skip{color:var(--ink-2)}
+.ds-steps li.todo{color:var(--ink-2)}
+.ds-steps small{font-size:12px;color:var(--ink-2)}
+@keyframes dsspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.ds-steps li.run::before{animation:none}.ds-bar i,.ds-big i{transition:none}}
+.ds-vs{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.ds-v{display:flex;flex-direction:column;gap:4px;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:var(--surface);font:inherit;color:var(--ink);text-align:left;cursor:pointer}
+.ds-v.best{border-color:var(--accent)}
+.ds-vh{display:flex;align-items:center;gap:8px}
+.ds-vh b{font-size:15px;font-weight:650}
+.ds-vh em{font-style:normal;font-size:11px;font-weight:650;padding:2px 8px;border-radius:99px;background:var(--accent);color:var(--accent-ink)}
+.ds-vn{margin-left:auto;font-size:22px;font-weight:750;font-variant-numeric:tabular-nums}
+.ds-vd,.ds-vk,.ds-vr{font-size:12.5px;color:var(--ink-2)}
+.ds-vk{color:var(--ink)}
+.ds-sim li b{font-variant-numeric:tabular-nums;margin-right:2px}
+.ds-sim li small{color:var(--ink-2)}

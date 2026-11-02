@@ -25,7 +25,7 @@ const EN = merged('en');
 const SAME = {
   '*': ['Mana Orbit', 'OK', 'Commander', 'cEDH', 'Archidekt', 'Game Changer', '{n} Game Changer', '{n} Game Changers', 'Planeswalkers', 'Deck', 'Decks', 'deck', '{n} deck', '{n} decks',
     'Tier', 'Tier {t}', 'tier {t}', 'Halloween', 'Premium', 'Budget', 'Widget', 'Auto', 'Cache', 'Vibration', 'web', 'Version {v}', 'non-foil', 'Foil', 'foil', 'Playset (4)', 'Format', 'Stats', 'Standard', 'QR code', '{n} proxy', '{n} min', '+{n} XP', '{h} h {m}', 'Top 100', 'Streamer', 'Playset', '{n} XP', '{n} foil', '{n} foils', 'Madrid', 'Fan', 'Babel', 'Otaku', 'Bug', 'Bracket', 'bracket {n}', 'Bracket {n} · {name}'],
-  de: ['Coach', 'Berlin', 'Jackpot', 'Marathon', 'Profil', 'Liste', 'Mana', 'Decklist', 'Scan', 'Initiative', 'Partie', 'Cyborg', 'Arsenal', 'Shogun', 'Mentor', 'Saison', 'Flamme'],
+  de: ['Coach', 'Synergie', 'Berlin', 'Jackpot', 'Marathon', 'Profil', 'Liste', 'Mana', 'Decklist', 'Scan', 'Initiative', 'Partie', 'Cyborg', 'Arsenal', 'Shogun', 'Mentor', 'Saison', 'Flamme'],
   es: ['Niv. {n}', 'Rentable', 'de {name}', 'libre', 'Libre', 'Arsenal', 'Shogun', 'Mentor', 'Indestructible', 'Variantes'],
   it: ['Coach', 'Taipei', 'Tokyo', '{n} PV', 'Mana', 'Test…', 'non foil', 'Multicolore', 'Incolore', 'incolore', 'Cyborg', 'Shogun', '{n} badge', 'sec'],
   pt: ['Moscou', 'Vitrine', 'Variantes', 'bronze', 'de {name}', 'Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Cardmarket ou CardTrader', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}', 'Arsenal', 'Mentor'],

@@ -42,6 +42,7 @@ function drReportHtml(X) {
     <p class="dw-line"><span>${T('Bracket estimé')}</span><b>${est} · ${esc(bName(est))}</b></p>
     ${themes.length ? `<p class="dw-line"><span>${T('Thèmes')}</span><b>${esc(themes.map(t => dwThemeLabel(t, thChoices)).join(', '))}</b></p>` : ''}
     <p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b></p></div>`;
+  if (typeof dsScore === 'function') h += dsScoreHtml(dsScore(X, { cmd, pack }), { open: true });      // note du coach (deckopt.js), détail ouvert
   // Le commandant
   h += `<div class="sec-title">${T('Ce que fait ton commandant')}</div><div class="dr-cmd" id="drCmdTxt">${T('Lecture du texte de la carte…')}</div>`;
   // Comment le deck gagne
@@ -78,6 +79,8 @@ function drReportHtml(X) {
   for (const c of cmd.ci) { const need = prof.need && prof.need[c]; if (need && (prof.src[c] || 0) < need - 2) weak.push(T('Sources de {c} : {n} pour {m} conseillées', { c, n: Math.round(prof.src[c] || 0), m: need })); }
   if (prof.mv > 3.5) weak.push(T('Courbe haute (coût moyen {v}) : départs lents', { v: prof.mv.toFixed(2) }));
   h += `<div class="sec-title">${T('Points faibles')}</div>${weak.length ? `<ul class="bd-issues">${weak.map(w => `<li class="warn">${esc(w)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien d\'alarmant : le deck est dans la norme de chaque catégorie.')}</p>`}`;
+  // Simulation de 1 000 parties (decksim.js) : résultat gardé pour ce deck, sinon barre de progression pendant le calcul
+  if (typeof dsimHtml === 'function') h += `<div id="drSim">${DSIM.sig === dsimSig(X) && DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog)}</div>`;
   // Combos à une carte près
   if (DW.core && Array.isArray(DW.core.combos)) {
     const inDeck = k => X.main.has(k) || X.cmdr.some(c => c.key === k), ci = new Set([...cmd.ci]), all = [];
@@ -117,6 +120,7 @@ function drPaint() {
   if (!DW.core && DW.p) { b.innerHTML = `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement de la base du coach…')}</span></div>`; return; }
   const open = $('.dr-roles', b) && $('.dr-roles', b).open, keep = b.scrollTop;
   b.innerHTML = drReportHtml(DR.X); b.scrollTop = keep; if (open) $('.dr-roles', b).open = true;
+  if (typeof dsimEnsure === 'function' && DW.core) dsimEnsure(DR.X, () => { const el = DR.api && sheets.includes(DR.api) && $('#drSim', DR.api.body); if (el) el.innerHTML = DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog); });
   Promise.all(DR.X.cmdr.map(c => drCmdText(c.name))).then(txts => {
     const el = $('#drCmdTxt', b); if (!el) return;
     el.innerHTML = txts.some(Boolean) ? txts.map((t, i) => `${DR.X.cmdr.length > 1 ? `<b>${esc(DR.X.cmdr[i].name)}</b><br>` : ''}${esc(t || '—').replace(/\n/g, '<br>')}`).join('<br><br>') : esc(T('Texte de la carte indisponible (hors ligne).'));

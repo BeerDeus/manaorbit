@@ -129,17 +129,26 @@ await p.evaluate(() => openDeckNew()); await p.waitForSelector('#ndName');
 await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo'); await p.waitForSelector('.dw-start[data-v="build"]'); await one(p);
 await p.click('.dw-start[data-v="build"]'); await p.waitForSelector('#dwzQ'); await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]'); await p.click('.dw-cmd[data-slug="edgar-markov"]');
 await p.waitForSelector('#dwzGo'); await p.click('[data-br="2"]'); await p.click('[data-bud="10000"]'); await p.click('#dwzGo');
-await p.waitForSelector('.bd.on'); await p.waitForFunction(() => BD.main.size > 3, null, { timeout: 15000 });
+await p.waitForSelector('.bd.on');
+// construction en plusieurs passes : barre de progression, étapes, puis les versions au choix (note, valeur, courbe, rôles)
+await p.waitForSelector('.ds-sheet', { timeout: 15000 });
+await p.waitForSelector('.ds-v', { timeout: 30000 });
+const vers = await p.$$eval('.ds-v', l => l.map(x => x.querySelector('.ds-vh b').textContent + ' ' + x.querySelector('.ds-vn').textContent.replace(/\s+/g, '')));
+assert.ok(vers.length >= 3 && /^Équilibrée \d+\/100$/.test(vers[0]) && vers.some(v => /^Plus agressive/.test(v)) && vers.some(v => /^Plus contrôle/.test(v)), 'versions : ' + vers.join(' | '));
+assert.ok(await p.$('.ds-v.best em'), 'meilleure note signalée');
+await shot(p, 'versions');
+await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet'));
 const gen = await p.evaluate(() => { const m = new Map([...BD.main].map(([k, c]) => [k, c.qty])); let n = 0; for (const q of m.values()) n += q; return { keys: [...m.keys()], n, plains: m.get('plains') || 0, swamp: m.get('swamp') || 0, mountain: m.get('mountain') || 0, prof: (p => ({ land: p.land, ramp: p.ramp, cents: p.cents, gc: p.gc.length }))(dwProfile()) }; });
 for (const k of ['arcane signet', 'swords to plowshares', 'nights whisper', 'phyrexian arena', 'wrath of god', 'command tower']) assert.ok(gen.keys.includes(k), 'générée : ' + k);
 for (const k of ['sol ring', 'demonic tutor', 'rhystic study', 'llanowar elves', 'armageddon', 'gilded removal']) assert.ok(!gen.keys.includes(k), 'écartée (Game Changer, couleur, destruction de terrains ou budget) : ' + k);
 assert.equal(gen.prof.gc, 0); assert.ok(gen.prof.cents <= 10000, 'sous le budget de 100 €');
 assert.equal(gen.prof.land, await p.evaluate(() => dwTargets(dwProfile(), dwCmdOf(), DW.cmd.get('edgar-markov')).land[1]), 'terrains : la cible');
 assert.ok(gen.plains > 0 && gen.swamp > 0 && gen.mountain > 0, 'terrains de base des trois couleurs');
-assert.match(await p.$eval('#toast', t => t.textContent), /cartes ajoutées · \d+ \/ 100/);
+assert.match(await p.$eval('#toast', t => t.textContent), /Version « Équilibrée » · note \d+\/100 · \d+ \/ 100/);
+assert.match(await txt(p, '.bd .ds-score'), /^\d+ \/100 Note du coach/, 'note du coach dans l\'onglet Coach');
 await p.evaluate(() => { const t = document.querySelector('#toast button'); if (t) t.click(); });
 await p.waitForFunction(() => BD.main.size === 0, null, { timeout: 5000 }); ok('génération annulée : deck vide');
-await p.click('[data-act="dw-auto"]'); await p.waitForFunction(() => BD.main.size > 3);
+await p.click('[data-act="dw-auto"]'); await p.waitForSelector('.ds-v', { timeout: 30000 }); await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet') && BD.main.size > 3);
 assert.match(await txt(p, '.dx-steps'), /Il manque \d+ cartes Compléter/, 'deck incomplet (peu de cartes dans la base de test) : prochaine étape « Compléter »');
 // deck construit par le coach : changer le budget propose de le refaire (annulable)
 assert.equal(await p.evaluate(() => BD.wiz.gen), 1, 'deck construit de zéro par le coach');
@@ -147,7 +156,7 @@ assert.equal(await p.$('.dx-regen'), null);
 await p.click('[data-act="dw-set"]'); await p.waitForSelector('#dwBud'); await p.fill('#dwBud', '8'); await p.dispatchEvent('#dwBud', 'change');
 await p.waitForSelector('.dx-regen'); const before5 = await p.evaluate(() => [...BD.main.keys()].sort().join());
 assert.ok(await p.$('.dw-bud [data-act="dw-regen"]'), 'au-dessus du budget : « Reconstruire avec ce budget » dans la section Budget');
-await p.click('.dx-regen [data-act="dw-regen"]'); await p.waitForFunction(() => !document.querySelector('.dx-regen') && BD.main.size > 3);
+await p.click('.dx-regen [data-act="dw-regen"]'); await p.waitForSelector('.ds-v', { timeout: 30000 }); await p.click('.ds-v[data-ds-pick="0"]'); await p.waitForFunction(() => !document.querySelector('.ds-sheet') && !document.querySelector('.dx-regen') && BD.main.size > 3);
 assert.ok(await p.evaluate(() => dwProfile().cents <= 800), 'reconstruit sous 8 € : cartes possédées comprises dans la valeur');
 assert.equal(await p.$('.dw-bud [data-act="dw-regen"]'), null, 'sous le budget : plus de bouton');
 await p.evaluate(() => { const t = document.querySelector('#toast button'); if (t) t.click(); }); await p.waitForFunction(b => [...BD.main.keys()].sort().join() === b, before5);
@@ -160,6 +169,19 @@ await p.click('[data-act="dw-report"]'); await p.waitForSelector('.dr-body .da-s
 const rep = await txt(p, '.dr-body');
 for (const t of ['Ce que fait ton commandant', 'Comment le deck gagne', 'Comment le jouer', 'Main de départ', 'Interaction', 'Points faibles', 'Combos à une carte près', 'Rôle de chaque carte']) assert.ok(rep.includes(t), 'rapport : ' + t);
 assert.match(rep, /Tu as Sol Ring : avec Armageddon, Infinite fun/); assert.match(rep, /retraits? ciblés? : [^.]*Swords to Plowshares/);
+assert.match(rep, /\d+ \/100 Note du coach/, 'rapport : note du coach'); assert.ok(await p.$('.dr-body .ds-parts[open]'), 'rapport : détail de la note ouvert');
+// simulation de 1 000 parties : deck de test assez grand (37 terrains), résultats chiffrés, conseils ; même deck, mêmes résultats (graine fixe)
+const sim = await p.evaluate(async () => {
+  const X = { main: new Map([['plains', { key: 'plains', name: 'Plains', qty: 13 }], ['swamp', { key: 'swamp', name: 'Swamp', qty: 12 }], ['mountain', { key: 'mountain', name: 'Mountain', qty: 12 }], ['swords to plowshares', { key: 'swords to plowshares', name: 'Swords to Plowshares', qty: 31 }], ['phyrexian arena', { key: 'phyrexian arena', name: 'Phyrexian Arena', qty: 31 }]]), cmdr: [{ key: 'edgar markov', name: 'Edgar Markov' }], wiz: { th: [], br: 2, bud: 0 } };
+  const a = await dsimRun(X, 400), b = await dsimRun(X, 400), html = dsimHtml(a);
+  const none = await dsimRun({ main: new Map([['plains', { key: 'plains', name: 'Plains', qty: 10 }]]), cmdr: X.cmdr, wiz: X.wiz }, 100);
+  return { a, same: JSON.stringify(a) === JSON.stringify(b), html: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '), none };
+});
+assert.ok(sim.same, 'graine fixe : mêmes résultats'); assert.equal(sim.none, null, 'moins de 40 cartes : pas de simulation');
+assert.ok(sim.a.keep7 > 60 && sim.a.keep7 <= 100 && sim.a.lands0 > 2 && sim.a.lands0 < 4, 'mains gardées et terrains : ' + JSON.stringify(sim.a));
+assert.ok(sim.a.cmdT > 3 && sim.a.cmdT < 9 && sim.a.eff > 0 && sim.a.eff <= 100 && sim.a.cast6 > 0, 'commandant, mana, sorts : ' + JSON.stringify(sim.a));
+assert.match(sim.html, /Simulation de 1 000 parties .* % des mains de 7 cartes gardées .* commandant lancé à temps \(tour \d ou avant\)/);
+await p.waitForFunction(() => /Simulation de 1 000 parties|Note du coach/.test(document.querySelector('.dr-body').textContent));
 await shot(p, 'rapport');
 await p.click('.dr-body .dr-c[data-k="swords to plowshares"]'); await p.waitForSelector('.imgv'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'));
 await closeSheets(p);
@@ -203,6 +225,7 @@ assert.match(await txt(p, '[data-da-swt]'), /Échanges conseillés 2 échanges �
 await p.click('[data-da-swt]'); await p.waitForFunction(() => !document.querySelector('.da-sws'));
 assert.match(await txt(p, '[data-da-swt]'), /Afficher$/); assert.match(await txt(p, '#daGo'), /avec 1 échange$/, 'repliés : les échanges cochés restent');
 await p.click('[data-da-swt]'); await p.waitForSelector('.da-sws');
+assert.match(await txt(p, '.sheet-wrap.open:last-child .ds-score'), /^\d+ \/100 Note du coach/, 'analyse : note du coach');
 await p.click('#daGo'); await p.waitForSelector('.bd.on'); await p.waitForSelector('.dw-gauges');
 assert.deepEqual(await p.evaluate(() => [BD.id, BD.tab, BD.dirty, BD.main.has('gilded removal'), BD.main.has('swords to plowshares'), BD.main.has('weak one'), BD.wiz.bud]), ['dk-ana', 'coach', true, false, true, true, 10000]);
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
