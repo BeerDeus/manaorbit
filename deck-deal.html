@@ -1451,7 +1451,7 @@ button,.btn,select,summary{touch-action:manipulation}
 @media (hover:hover){.deck-main:hover .deck-art,.dvc:hover .dvc-art{box-shadow:0 2px 4px rgba(16,21,43,.18),0 18px 30px -14px rgba(16,21,43,.55)}}
 
 /* images : fondu et léger zoom arrière à l'arrivée (au lieu d'un simple fondu) */
-.thumb img,.dvc-art img{transform:scale(1.06);transition:opacity .45s var(--out),transform .7s var(--out)}
+.thumb img,.dvc-art img{transition:opacity .4s var(--out)}      /* fondu seul (plus de zoom à l'arrivée) : défilement de la grille 10 → 3 % d'images perdues, style et peinture divisés par deux */
 .thumb img.ok,.dvc-art img.ok{transform:none}
 
 /* cascades : les 14 premiers éléments arrivent l'un après l'autre */
@@ -1531,14 +1531,15 @@ button,.btn,select,summary{touch-action:manipulation}
   radial-gradient(58% 34% at -6% 34%,rgba(var(--mana-g),var(--mana-ga)),transparent 70%),
   var(--bg)}
 /* verre */
-#list.list,.coll-list,.panel,.cs-bars,.vl-box,.cs-tiles>div,textarea#deckText,.crow:not(.coll-list>.crow),.tr-box,.dk-own,.recap{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+#list.list,.panel,.cs-bars,.vl-box,.cs-tiles>div,textarea#deckText,.tr-box,.dk-own,.recap{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.coll-list,.crow:not(.coll-list>.crow){background:color-mix(in srgb,var(--surface) 92%,transparent)}      /* longues listes (collection, éditeur) sans flou : mesuré au défilement (CPU ×4), zones vides dans l'éditeur et 6 → 2,7 ms de compositeur par image
 #list.list,.coll-list{box-shadow:var(--shadow)}
 .btn.ghost,.fbtn,.fsearch,.sortsel,.icon-btn,.fopt:not([aria-pressed="true"]),.chip,.tools .link-btn:not(.strong){background-color:var(--glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .fpanel .fopt,.fpanel .sortsel{-webkit-backdrop-filter:none;backdrop-filter:none}      /* panneau des filtres : le fond derrière ses boutons est uni (--surface, opaque), le flou n'y changeait rien ; ~50 flous (« Plus de filtres ») coûtaient une passe de rendu chacun à chaque image (ouverture, défilement du panneau : ~15 au lieu de ~28 images/s dans Chromium sans GPU) */
 .seg{background:var(--glass-2);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px var(--line)}
 .seg.dv-seg{background:var(--surface-2)}      /* barre Mana / Prix / Type collée en haut du viewer : opaque, sinon les cartes défilent au travers */
 .seg-thumb{border:1.5px solid transparent;background:linear-gradient(var(--seg-thumb,var(--surface)),var(--seg-thumb,var(--surface))) padding-box,var(--foil-ring) border-box;box-shadow:0 6px 16px -8px rgba(127,176,255,.7)}
-.sheet{background:color-mix(in srgb,var(--surface) 90%,transparent);-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3)}
+.sheet{background:color-mix(in srgb,var(--surface) 96%,transparent)}      /* sans flou : ouverture d'une feuille 23 → 7 images perdues (fiche carte, CPU ×4) ; le flou ne se voyait presque pas derrière 90 % d'opacité */
 /* foil : valeurs mises en avant */
 .cs-tiles .cs-val{border:1.5px solid transparent;background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--foil-ring) border-box;box-shadow:0 12px 28px -18px rgba(146,156,255,.8)}
 .cs-tiles .cs-val b,.dv-amt,.hero-amt{background:var(--foil-ink);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:foilhue 7s linear infinite}
@@ -7852,7 +7853,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'aaef8f00';
+const DD_BUILD = '9e276a7c';
 const I18N_FILES = {"de":"i18n/de.8951c9f0.js","en":"i18n/en.c3a83d9c.js","es":"i18n/es.4ab05c66.js","it":"i18n/it.4c7a6f72.js","pt":"i18n/pt.cd05f020.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -14009,9 +14010,10 @@ function stagger(...els) {
 }
 
 /* ── En-têtes des écrans plein format ── */
+let MO_SCR = 0;
 document.addEventListener('scroll', e => {
-  const sc = e.target; if (!sc || !sc.classList || !sc.classList.contains('dv-scroll')) return;
-  const dv = sc.closest('.dv'); if (dv) dv.classList.toggle('scrolled', sc.scrollTop > 4);
+  const sc = e.target; if (!sc || !sc.classList || !sc.classList.contains('dv-scroll') || MO_SCR) return;
+  MO_SCR = requestAnimationFrame(() => { MO_SCR = 0; const dv = sc.closest('.dv'); if (dv) dv.classList.toggle('scrolled', sc.scrollTop > 4); });      // une lecture par image, pas à chaque événement (scrollTop forçait une mise en page : 20 à 30 ms par événement, CPU ×4)
 }, { capture: true, passive: true });
 
 
@@ -32891,10 +32893,9 @@ function cvwMount(wrap, md) {
     if (md === 'trade') box.insertAdjacentHTML('beforeend', `<button type="button" class="tr-setb" data-act="trset" aria-haspopup="dialog"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span></span><b hidden></b></button>`);
     row.appendChild(box);
   }
-  const sc = $('.dv-scroll', wrap); let on = false;
-  if (sc) sc.addEventListener('scroll', () => {      // titre resserré une fois la liste défilée (écart : pas d'aller-retour au bord)
-    const t = sc.scrollTop, room = sc.scrollHeight - sc.clientHeight > 96, nx = room && (on ? t > 6 : t > 28);
-    if (nx !== on) { on = nx; wrap.classList.toggle('scrolled', on); }
+  const sc = $('.dv-scroll', wrap); let on = false, raf = 0;
+  if (sc) sc.addEventListener('scroll', () => {      // titre resserré une fois la liste défilée (écart : pas d'aller-retour au bord) ; lu une fois par image, pas à chaque événement
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; const t = sc.scrollTop, room = sc.scrollHeight - sc.clientHeight > 96, nx = room && (on ? t > 6 : t > 28); if (nx !== on) { on = nx; wrap.classList.toggle('scrolled', on); } });
   }, { passive: true });
 }
 /** Après chaque peinture du corps : état des boutons (collection.js › collPaintBody). */

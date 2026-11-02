@@ -118,10 +118,9 @@ function cvwMount(wrap, md) {
     if (md === 'trade') box.insertAdjacentHTML('beforeend', `<button type="button" class="tr-setb" data-act="trset" aria-haspopup="dialog"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span></span><b hidden></b></button>`);
     row.appendChild(box);
   }
-  const sc = $('.dv-scroll', wrap); let on = false;
-  if (sc) sc.addEventListener('scroll', () => {      // titre resserré une fois la liste défilée (écart : pas d'aller-retour au bord)
-    const t = sc.scrollTop, room = sc.scrollHeight - sc.clientHeight > 96, nx = room && (on ? t > 6 : t > 28);
-    if (nx !== on) { on = nx; wrap.classList.toggle('scrolled', on); }
+  const sc = $('.dv-scroll', wrap); let on = false, raf = 0;
+  if (sc) sc.addEventListener('scroll', () => {      // titre resserré une fois la liste défilée (écart : pas d'aller-retour au bord) ; lu une fois par image, pas à chaque événement
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; const t = sc.scrollTop, room = sc.scrollHeight - sc.clientHeight > 96, nx = room && (on ? t > 6 : t > 28); if (nx !== on) { on = nx; wrap.classList.toggle('scrolled', on); } });
   }, { passive: true });
 }
 /** Après chaque peinture du corps : état des boutons (collection.js › collPaintBody). */
