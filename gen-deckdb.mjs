@@ -5,7 +5,7 @@
 //   corpus.json.gz : la base brute, gardée d'un passage à l'autre (decks Archidekt les plus vus, pages commandant et thèmes EDHREC, étiquettes des cartes).
 //                    Reste sur le serveur (branche) : sert à l'analyse et au calcul, l'appli n'en reçoit que les agrégats.
 //   dkw.json.gz    : les agrégats lus par le serveur (server/dkw-srv.mjs) : table des cartes ([nom, identité, coût, types (bits), rôles (bits), prix € en centimes,
-//                    drapeaux (1 Game Changer · 2 tour supplémentaire · 4 destruction massive de terrains · 8 tuteur), couleurs produites, rang EDHREC]), cibles par catégorie
+//                    drapeaux (1 Game Changer · 2 tour supplémentaire · 4 destruction massive de terrains · 8 tuteur · 16 interdite en Commander), couleurs produites, rang EDHREC, coût de mana]), cibles par catégorie
 //                    (toutes, par bracket, par thème, par nombre de couleurs), et pour chaque commandant / thème ses cartes conseillées.
 //   log.txt        : le journal.
 // Sources (lecture lente et polie, User-Agent qui s'annonce) :
@@ -325,13 +325,28 @@ async function scryAll() {
     if (local && existsSync(local)) arr = JSON.parse((/\.gz$/.test(local) ? gunzipSync(readFileSync(local)) : readFileSync(local)).toString('utf8'));
     else {
       const b = await getJson(SCRY + 'bulk-data/oracle-cards', { gap: 150 }); const uri = b && b.download_uri;
-      if (uri) { const r = await fetch(uri, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(300000) }); if (r.ok) arr = await r.json(); else log('  Scryfall : fichier oracle-cards HTTP ' + r.status); }
+      if (!uri) log('  Scryfall : bulk-data/oracle-cards sans adresse de téléchargement (' + (b ? 'réponse inattendue' : 'refusé ou introuvable') + ')');
+      if (uri) { const r = await fetch(uri, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(300000) }); if (r.ok) arr = await r.json(); else log('  Scryfall : fichier oracle-cards HTTP ' + r.status); }
     }
   } catch (e) { log('  Scryfall : fichier oracle-cards illisible (' + e.message + ')'); }
   const out = new Map();
   for (const c of Array.isArray(arr) ? arr : []) { const x = scryCard(c); if (x && (x.legal || /\bLegendary\b/.test(x.type))) out.set(normKey(x.name), x); }
   log(`  Scryfall : ${out.size} cartes (fichier oracle-cards)`);
   return out;
+}
+/** Prix du relevé quotidien de l'appli (branche data, gen-prices.mjs : impression papier la moins chère, Cardmarket puis TCGplayer) : mêmes prix que l'appli,
+ *  y compris pour les cartes dont l'impression par défaut de Scryfall n'a pas de prix en euros (Sol Ring, terrains…). DECKDB_PRICES='' : sans. */
+export function pricesParse(txt) {
+  const lines = String(txt || '').split('\n'); if (!/^#MOPX1/.test(lines[0] || '')) return null;
+  const m = new Map();
+  for (let i = 1; i < lines.length; i++) { const a = lines[i].split('\t'); if (a.length < 3) continue; const k = normKey(a[0]), e = Number(a[1]) || 0, u = Number(a[2]) || 0, c = m.get(k); if (!c) m.set(k, { e, u }); else { if (e && (!c.e || e < c.e)) c.e = e; if (u && (!c.u || u < c.u)) c.u = u; } }
+  return m;
+}
+async function pricesDaily() {
+  const url = process.env.DECKDB_PRICES === undefined ? 'https://raw.githubusercontent.com/BeerDeus/manaorbit/data/prices.tsv.gz' : process.env.DECKDB_PRICES;
+  if (!url) return null;
+  try { const r = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(120000) }); if (!r.ok) { log('  prix du jour : HTTP ' + r.status); return null; } const buf = Buffer.from(await r.arrayBuffer()); const m = pricesParse((/\.gz$/.test(url) ? gunzipSync(buf) : buf).toString('utf8')); log(`  prix du jour : ${m ? m.size : 0} cartes (relevé de l'appli)`); return m; }
+  catch (e) { log('  prix du jour illisibles (' + e.message + ')'); return null; }
 }
 /** Fiches Scryfall gardées dans le corpus (texte raccourci) : un passage sans le fichier oracle-cards (panne, réseau) garde des couleurs et des coûts justes. */
 const scryPack = x => [x.name, x.ci, x.cmc, x.type, String(x.text || '').slice(0, 400), x.eur, x.gc, x.legal, x.prod, x.mc, x.rank];
@@ -417,10 +432,11 @@ export function aggregate(C, S, tagger, cmds) {
     if (s && !s.legal && !/\bLegendary\b/.test(s.type)) continue;
     let roles = cardRoles({ dc: m.dc, tags: m.ot, votes: votes.get(i), decks: voted.get(i) || 0, scry: s ? { ...s } : (m.ty ? { name, type: m.ty, text: '' } : null) });
     roles |= tagger.get(k) || 0; if (roles & RB.wipe) roles &= ~RB.removal;
+    if (roles & RB.counter && roles & RB.removal && !/\b(destroy|exile) target|return target (creature|permanent|nonland)|sacrifices? an? /i.test(s.text || '')) roles &= ~RB.removal;      // contresort rangé « Removal » par les votes : pas un retrait
     if (s && /\bLand\b/.test(s.type) && !/\/\//.test(s.name)) roles = (roles & RB.ramp && /\{T\}: Add \{C\}\{C\}|Add \{C\}\{C\}/.test(s.text) ? RB.ramp : 0) | RB.land;
     const cmc = s ? s.cmc : Number(m.cmc) || 0, gc = (s && s.gc) || m.gc ? 1 : 0;
-    const flags = (gc ? 1 : 0) | (m.xt || /take an extra turn/i.test(s ? s.text : '') ? 2 : 0) | (m.mld ? 4 : 0) | (m.tu || roles & RB.tutor ? 8 : 0);
-    const row = [name, s ? s.ci : '', cmc, typeBits(s ? s.type : m.ty), roles, s ? s.eur : 0, flags, s && (/\bLand\b/.test(s.type) || roles & RB.ramp) ? s.prod : '', s && s.rank ? Math.min(65535, s.rank) : 0];
+    const flags = (gc ? 1 : 0) | (m.xt || /take an extra turn/i.test(s ? s.text : '') ? 2 : 0) | (m.mld ? 4 : 0) | (m.tu || roles & RB.tutor ? 8 : 0) | (s.legal ? 0 : 16);      // 16 : interdite en Commander (légendaire gardée pour lire les decks qui l'ont)
+    const row = [name, s ? s.ci : '', cmc, typeBits(s ? s.type : m.ty), roles, s ? s.eur : 0, flags, s && (/\bLand\b/.test(s.type) || roles & RB.ramp) ? s.prod : '', s && s.rank ? Math.min(65535, s.rank) : 0, s && !/\bLand\b/.test(String(s.type).split(' // ')[0]) ? String(s.mc || '').replace(/\s+\/\/\s+.*$/, '') : ''];      // [9] coût de mana (face avant) : symboles de couleur sans attendre la fiche
     cards.push(row); info.set(k, { roles, cmc, gc });
   }
   cards.sort((a, b) => (a[0] < b[0] ? -1 : 1));
@@ -472,6 +488,8 @@ async function main() {
   if (process.env.DECKDB_ARCH_OFF !== '1') await archidektRun(C, cmds); else log('  Archidekt : sauté (DECKDB_ARCH_OFF)');
   await scryFill(S, [...C.names, ...Object.values(C.edh).flatMap(e => (e.cards || []).map(x => x[0]))]);
   C.at = new Date().toISOString();
+  const px = await pricesDaily();
+  if (px) { let n = 0; for (const [k, x] of S) { const p = px.get(k); const e = p ? p.e || Math.round((p.u || 0) * 0.92) : 0; if (e > 0 && e !== x.eur) { x.eur = e; n++; } } log(`  prix du jour : ${n} prix mis à jour`); }
   C.scry = {}; for (const [k, x] of S) C.scry[k] = scryPack(x);
   const D = aggregate(C, S, tagger, cmds);
   const corpusBuf = gzipSync(Buffer.from(JSON.stringify(C)), { level: 9 }), dkwBuf = gzipSync(Buffer.from(JSON.stringify(D)), { level: 9 });

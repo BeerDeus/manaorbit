@@ -91,7 +91,7 @@ function openDeckAnalysis({ text, name, id } = {}) {
   if (!X.cmdr.length) { toast(T('Commandant introuvable : ajoute un bloc « Commander » à la liste')); return; }
   const saved = id ? (() => { try { return localStorage.getItem(DW_SET + id); } catch (e) { return null; } })() : null;
   X.wiz = id ? dwSettingsFor(id) : dwDefaults();
-  Object.assign(DA, { X, id: id || null, name: String(name || 'Deck'), text: String(text || ''), off: new Set(), brAuto: !saved, swaps: [], step: 'set', tries: 0, setOpen: false, why: new Set(), ctx: null });
+  Object.assign(DA, { X, id: id || null, name: String(name || 'Deck'), text: String(text || ''), off: new Set(), brAuto: !saved, swaps: [], step: 'set', tries: 0, setOpen: false, swOpen: undefined, why: new Set(), ctx: null });
   DW.shown = 8;
   dwLoad().catch(() => {}); if (typeof edhLoad === 'function') edhLoad().then(() => daPaint()).catch(() => {});
   DA.api = openSheet(T('Analyse du deck'), DA.name, api => {
@@ -138,8 +138,13 @@ function daPaint() {
   if (typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-da-report><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
   h += `<button class="dw-set-h" type="button" data-da-edit><span><b>${T('Réglages de l\'analyse')}</b><small>${esc(setTxt)}</small></span><span class="me-v">${DA.setOpen ? '−' : T('Modifier')}</span></button>`;
   if (DA.setOpen) h += `<p class="hint">${T('Chaque changement relance l\'analyse.')}</p>` + daSetHtml(cmd, pack, set, cur);      // réglages sur place : l'analyse suit chaque changement
-  h += `<div class="sec-title">${T('Échanges conseillés')}</div>`;
+  const swClosed = DA.swOpen === false && DA.swaps.length > 0;
+  if (DA.swaps.length) {      // en-tête repliable : nombre d'échanges, cochés, effet sur la valeur du deck
+    const on = DA.swaps.filter((s, i) => !DA.off.has(i)), dl = on.reduce((a, s) => a + s.in.price - s.out.price, 0);
+    h += `<button class="dw-set-h da-sw-h" type="button" data-da-swt aria-expanded="${!swClosed}"><span><b>${T('Échanges conseillés')}</b><small>${esc(TN(DA.swaps.length, '{n} échange', '{n} échanges') + ' · ' + TN(on.length, '{n} coché', '{n} cochés') + (dl ? ' · ' + (dl > 0 ? '+' : '−') + fmt(Math.abs(dl), cur) : ''))}</small></span><span class="me-v">${swClosed ? T('Afficher') : T('Masquer')}</span></button>`;
+  } else h += `<div class="sec-title">${T('Échanges conseillés')}</div>`;
   if (!DW.core) h += `<p class="hint">${T('Sans la base du coach, pas d\'échanges conseillés.')}</p>`;
+  else if (swClosed) { /* repliés : l'en-tête suffit */ }
   else if (!DA.swaps.length) h += `<p class="hint">${!pack ? T('Ce commandant n\'est pas encore dans la base du coach : pas d\'avis sur ses cartes.') : set.bud > 0 && prof.cents > set.bud ? T('Aucune carte moins chère du même rôle trouvée pour passer sous la limite.') : T('Rien à changer : les cartes du deck sont bien jouées avec ce commandant.')}</p>`;
   else {
     const on = DA.swaps.filter((s, i) => !DA.off.has(i)), delta = on.reduce((a, s) => a + s.in.price - s.out.price, 0);
@@ -189,6 +194,7 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.da = th => {
 function daClick(e) {
   if (e.target.closest('[data-da-report]')) { haptic('tap'); openDeckReport(DA.X, DA.name); return; }
   if (e.target.closest('[data-da-edit]')) { DA.setOpen = !DA.setOpen; haptic('tap'); daPaint(); return; }
+  if (e.target.closest('[data-da-swt]')) { DA.swOpen = DA.swOpen === false; haptic('tap'); daPaint(); return; }      // replier / déplier les échanges conseillés
   const w = e.target.closest('[data-da-why]'); if (w) { const i = Number(w.dataset.daWhy); DA.why = DA.why || new Set(); if (DA.why.has(i)) DA.why.delete(i); else DA.why.add(i); haptic('tap'); daPaint(); return; }
   const sw = e.target.closest('.da-sw'); if (sw && !e.target.closest('input, [data-zoom], .da-wd, button')) { const c = $('input[data-da-sw]', sw); if (c) { c.checked = !c.checked; c.dispatchEvent(new Event('change', { bubbles: true })); } return; }      // toute la ligne coche, sauf la vignette (agrandie)
   const b = e.target.closest('[data-da-br]'); if (b) { DA.X.wiz.br = Number(b.dataset.daBr) || 3; DA.brAuto = false; DA.off.clear(); haptic('tap'); daPersist(); return daPaint(); }

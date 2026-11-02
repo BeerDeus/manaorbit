@@ -261,5 +261,13 @@
  "Recréer le deck": "Ricrea il mazzo",
  "Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.": "Oltre il budget: i suggerimenti non propongono più carte più care di quanto resta.",
  "Reconstruire avec ce budget": "Ricostruisci con questo budget",
- "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Ricostruisci: il coach rifà il mazzo attorno al comandante, con questo budget e le tue impostazioni. Annullabile."
+ "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Ricostruisci: il coach rifà il mazzo attorno al comandante, con questo budget e le tue impostazioni. Annullabile.",
+ "Masquer": "Nascondi",
+ "{n} échange": "{n} scambio",
+ "{n} échanges": "{n} scambi",
+ "{n} coché": "{n} selezionato",
+ "{n} cochés": "{n} selezionati",
+ "Petit budget : le coach garde l'essentiel (de quoi gagner, interaction, mana) mais certaines cartes ne seront pas les meilleures, et les couleurs moins bien servies qu'avec des terrains plus chers.": "Budget ridotto: il coach tiene l'essenziale (un modo per vincere, interazione, mana) ma alcune carte non saranno le migliori, e i colori meno serviti che con terre più costose.",
+ "Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.": "Il tuo comandante vale già {p} su {b}: con questo budget il mazzo resterà incompleto o molto debole. Aumenta il budget o scegli un altro comandante.",
+ "Le commandant compte dans le budget ({p}).": "Il comandante rientra nel budget ({p})."
 }

@@ -508,7 +508,11 @@ async function main() {
   if (pending.length || decks.some(d => d.src === 'archidekt')) log('  ' + priceArchidekt(decks, pending, cmds, price));
   const gc = await gameChangers();
   const img = new Map(), priceByName = new Map();
-  for (const c of cmds) { const m = meta.get(normKey(c.names[0])); if (m) { if (m.img) img.set(c.slug, m.img); if (!c.ci && m.ci) c.ci = m.ci; } }
+  for (const c of cmds) {
+    const m = meta.get(normKey(c.names[0])); if (m && m.img) img.set(c.slug, m.img);
+    const cs = new Set([...String(c.ci || '')]); for (const n of c.names) { const x = meta.get(normKey(n)); if (x && x.ci) for (const ch of x.ci) cs.add(ch); }      // partenaires : EDHREC ne donne que l'identité du premier ; celle du duo est la réunion des deux
+    c.ci = [...cs].filter(ch => 'WUBRG'.includes(ch)).sort((a, b) => 'WUBRG'.indexOf(a) - 'WUBRG'.indexOf(b)).join('');
+  }
   const usedKeys = new Set(); for (const d of decks) for (const [n] of d.cards) usedKeys.add(normKey(n)); for (const c of cmds) for (const n of c.names) usedKeys.add(normKey(n));
   const dispName = new Map(); for (const d of decks) for (const [n] of d.cards) if (!dispName.has(normKey(n))) dispName.set(normKey(n), n); for (const c of cmds) for (const n of c.names) if (!dispName.has(normKey(n))) dispName.set(normKey(n), n);
   for (const k of usedKeys) if (price.has(k)) priceByName.set(dispName.get(k) || k, price.get(k));

@@ -884,8 +884,18 @@ function pxParse(txt) {
   }
   return { at: m[1], map };
 }
-async function pxTable(signal) {
-  if (PXT && Date.now() - PXT.t < TAB_TTL) return PXT;
+/** Relevé du jour : sans signal, une seule lecture à la fois (coach, Recherche, Commander…) et pas de nouvel essai pendant 5 min après un échec. */
+let PXT_P = null, PXT_FAIL = 0;
+function pxTable(signal) {
+  if (PXT && Date.now() - PXT.t < TAB_TTL) return Promise.resolve(PXT);
+  if (signal) return pxLoad(signal);
+  if (PXT_P) return PXT_P;
+  if (Date.now() - PXT_FAIL < 5 * 60e3) return Promise.resolve(PXT);
+  const asked = !!CTX.proxy;      // échec retenu seulement si le serveur a vraiment été interrogé (au démarrage, avant de le trouver, rien n'est bloqué)
+  PXT_P = pxLoad().then(t => { if (!t && asked) PXT_FAIL = Date.now(); return t; }, e => { if (asked) PXT_FAIL = Date.now(); throw e; }).finally(() => { PXT_P = null; });
+  return PXT_P;
+}
+async function pxLoad(signal) {
   let txt = await Cache.get('px:tab', TAB_TTL);
   if (!txt && CTX.proxy) {
     try { const r = await fetch('prices.tsv', { signal }); if (r.ok) { txt = await r.text(); if (pxParse(txt.slice(0, 200))) await Cache.set('px:tab', txt); else txt = null; } }

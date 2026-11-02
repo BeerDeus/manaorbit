@@ -261,5 +261,13 @@
  "Recréer le deck": "Deck neu bauen",
  "Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.": "Über Budget: Vorschläge enthalten keine Karten mehr, die teurer sind als der Rest.",
  "Reconstruire avec ce budget": "Mit diesem Budget neu bauen",
- "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Neu bauen: Der Coach baut das Deck um den Kommandeur neu, in diesem Budget und mit deinen Einstellungen. Rückgängig machbar."
+ "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Neu bauen: Der Coach baut das Deck um den Kommandeur neu, in diesem Budget und mit deinen Einstellungen. Rückgängig machbar.",
+ "Masquer": "Ausblenden",
+ "{n} échange": "{n} Tausch",
+ "{n} échanges": "{n} Tausche",
+ "{n} coché": "{n} ausgewählt",
+ "{n} cochés": "{n} ausgewählt",
+ "Petit budget : le coach garde l'essentiel (de quoi gagner, interaction, mana) mais certaines cartes ne seront pas les meilleures, et les couleurs moins bien servies qu'avec des terrains plus chers.": "Kleines Budget: Der Coach behält das Wesentliche (Siegbedingung, Interaktion, Mana), aber manche Karten sind nicht die besten, und die Farben sind schlechter abgedeckt als mit teureren Ländern.",
+ "Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.": "Dein Commander allein kostet schon {p} von {b}: Mit diesem Budget bleibt das Deck unvollständig oder sehr schwach. Erhöhe das Budget oder wähle einen anderen Commander.",
+ "Le commandant compte dans le budget ({p}).": "Der Commander zählt zum Budget ({p})."
 }

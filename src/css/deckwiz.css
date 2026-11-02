@@ -134,3 +134,5 @@
 .dx-regen{padding:12px 14px;margin:2px 0 10px;border:1.5px solid var(--warn);border-radius:16px;background:var(--warn-soft)}
 .dx-regen p{margin:0;display:flex;flex-direction:column;gap:3px;font-size:13.5px;line-height:1.4}
 .dx-regen p span{color:var(--ink-2)}
+.da-sw-h{margin-top:14px}
+.dw-bud .hint.warn,.dw-wiz .hint.warn{color:var(--warn)}

@@ -261,5 +261,13 @@
  "Recréer le deck": "Remontar o deck",
  "Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.": "Acima do orçamento: as sugestões não oferecem mais cards mais caros que o que resta.",
  "Reconstruire avec ce budget": "Remontar com este orçamento",
- "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Remontar: o treinador refaz o deck em torno do comandante, com este orçamento e seus ajustes. Dá para desfazer."
+ "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Remontar: o treinador refaz o deck em torno do comandante, com este orçamento e seus ajustes. Dá para desfazer.",
+ "Masquer": "Ocultar",
+ "{n} échange": "{n} troca",
+ "{n} échanges": "{n} trocas",
+ "{n} coché": "{n} marcado",
+ "{n} cochés": "{n} marcados",
+ "Petit budget : le coach garde l'essentiel (de quoi gagner, interaction, mana) mais certaines cartes ne seront pas les meilleures, et les couleurs moins bien servies qu'avec des terrains plus chers.": "Orçamento pequeno: o coach mantém o essencial (uma forma de ganhar, interação, mana) mas algumas cartas não serão as melhores, e as cores menos bem servidas do que com terrenos mais caros.",
+ "Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.": "O teu comandante já vale {p} de {b}: com este orçamento, o deck ficará incompleto ou muito fraco. Aumenta o orçamento ou escolhe outro comandante.",
+ "Le commandant compte dans le budget ({p}).": "O comandante conta para o orçamento ({p})."
 }

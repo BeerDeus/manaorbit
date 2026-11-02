@@ -261,5 +261,13 @@
  "Recréer le deck": "Rebuild the deck",
  "Au-dessus du budget : les suggestions ne proposent plus de cartes plus chères que ce qui reste.": "Over budget: suggestions no longer offer cards pricier than what's left.",
  "Reconstruire avec ce budget": "Rebuild within this budget",
- "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Rebuild: the coach remakes the deck around the commander, within this budget and your settings. Can be undone."
+ "Reconstruire : le coach refait le deck autour du commandant, dans ce budget et tes réglages. Annulable.": "Rebuild: the coach remakes the deck around the commander, within this budget and your settings. Can be undone.",
+ "Masquer": "Hide",
+ "{n} échange": "{n} swap",
+ "{n} échanges": "{n} swaps",
+ "{n} coché": "{n} checked",
+ "{n} cochés": "{n} checked",
+ "Petit budget : le coach garde l'essentiel (de quoi gagner, interaction, mana) mais certaines cartes ne seront pas les meilleures, et les couleurs moins bien servies qu'avec des terrains plus chers.": "Small budget: the coach keeps the essentials (a way to win, interaction, mana) but some cards won't be the best ones, and colors less well supported than with pricier lands.",
+ "Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.": "Your commander alone is worth {p} of {b}: with this budget, the deck will stay incomplete or very weak. Raise the budget or pick another commander.",
+ "Le commandant compte dans le budget ({p}).": "The commander counts toward the budget ({p})."
 }

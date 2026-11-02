@@ -198,10 +198,31 @@ assert.match(sws[0], /^Gilded Removal → Swords to Plowshares \| Même rôle, b
 assert.match(await txt(p, '#daGo'), /Ouvrir dans l'éditeur avec 2 échanges/); await shot(p, 'analyse');
 await p.click('.da-sw:nth-child(2) .da-why');      // toute la ligne coche
 await p.waitForFunction(() => DA.off.has(1)); await p.waitForFunction(() => /avec 1 échange$/.test(document.querySelector('#daGo').textContent));
+// échanges repliables : l'en-tête garde le nombre d'échanges, les cochés et l'effet sur la valeur
+assert.match(await txt(p, '[data-da-swt]'), /Échanges conseillés 2 échanges · 1 coché · −898,10 € Masquer/);
+await p.click('[data-da-swt]'); await p.waitForFunction(() => !document.querySelector('.da-sws'));
+assert.match(await txt(p, '[data-da-swt]'), /Afficher$/); assert.match(await txt(p, '#daGo'), /avec 1 échange$/, 'repliés : les échanges cochés restent');
+await p.click('[data-da-swt]'); await p.waitForSelector('.da-sws');
 await p.click('#daGo'); await p.waitForSelector('.bd.on'); await p.waitForSelector('.dw-gauges');
 assert.deepEqual(await p.evaluate(() => [BD.id, BD.tab, BD.dirty, BD.main.has('gilded removal'), BD.main.has('swords to plowshares'), BD.main.has('weak one'), BD.wiz.bud]), ['dk-ana', 'coach', true, false, true, true, 10000]);
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
 ok('analyse : bracket estimé, échanges (rôle qui manque, limite de prix), cochés appliqués dans l\'éditeur');
+
+/* ── 6 ter) Règles des suggestions : identité d'un duo de commandants, combo à 2 cartes refusé en bracket 1-2, carte interdite jamais proposée ── */
+assert.equal(await p.evaluate(() => dwCiOf(['edgar markov', 'llanowar elves'], 'WBR')), 'WBRG', 'duo : réunion des identités (EDHREC ne donne que celle du premier)');
+const rules = await p.evaluate(() => {
+  const core = DW.core, cmd = dwCmdOf({ cmdr: [{ key: 'edgar markov', name: 'Edgar Markov' }], main: new Map() }), pack = DW.cmd.get('edgar-markov');
+  const X = br => ({ main: new Map([['swords to plowshares', { key: 'swords to plowshares', name: 'Swords to Plowshares', qty: 1 }]]), cmdr: [{ key: 'edgar markov', name: 'Edgar Markov' }], wiz: { th: [], br, bud: 0, own: false } });
+  const sug = (br, role) => { const x = X(br), prof = dwProfile(x), tgt = dwTargets(prof, cmd, pack, x.wiz); return dwSuggest(role, cmd, pack, prof, tgt, 20, x).map(s => s.k); };
+  core.combos.push(['Swords to Plowshares', 'Wrath of God', 'Test combo', 'S']); DW.comboIdx = null;
+  const out = { br2: sug(2, 'wipe'), br3: sug(3, 'wipe') };
+  core.combos.pop(); DW.comboIdx = null;
+  const r = DW.byKey.get('phyrexian arena'), fl = r[6]; r[6] = fl | 16; out.ban = sug(3, 'draw'); r[6] = fl;
+  return out;
+});
+assert.ok(!rules.br2.includes('wrath of god') && rules.br3.includes('wrath of god'), 'combo à 2 cartes : refusé en bracket 2, permis en bracket 3 ' + JSON.stringify(rules));
+assert.ok(!rules.ban.includes('phyrexian arena'), 'carte interdite en Commander : jamais proposée');
+ok('règles des suggestions : duo de commandants, combo à 2 cartes (bracket 1-2), carte interdite');
 
 /* ── 6 bis) Confort du Coach : prochaines étapes, « À retirer » au-dessus de 100 cartes, échanges dans le Coach (« Pourquoi ? », Échanger, Annuler) ── */
 await p.evaluate(() => openBuilder({ name: 'Trop plein', fmt: 'commander', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian Arena\n1 Swords to Plowshares\n30 Plains\n34 Swamp\n34 Mountain', wiz: { th: [], br: 2, bud: 0, own: true }, tab: 'coach' }));

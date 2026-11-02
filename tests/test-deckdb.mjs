@@ -9,7 +9,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes } from '../gen-deckdb.mjs';
+import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse } from '../gen-deckdb.mjs';
 import { normKey } from '../gen-edhrec.mjs';
 import { dkwSplit, dkwMake } from '../server/dkw-srv.mjs';
 const require = createRequire(import.meta.url);
@@ -105,15 +105,19 @@ test('agrégats : table des cartes, cibles, commandants, thèmes', () => {
     ['forest', scryCard({ name: 'Forest', layout: 'normal', cmc: 0, type_line: 'Basic Land — Forest', oracle_text: '({T}: Add {G}.)', color_identity: ['G'], legalities: { commander: 'legal' }, produced_mana: ['G'] })],
     ['rhystic study', scryCard({ name: 'Rhystic Study', layout: 'normal', cmc: 3, type_line: 'Enchantment', oracle_text: 'Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.', color_identity: ['U'], legalities: { commander: 'legal' }, prices: { eur: '30' } })],
     ['banned thing', scryCard({ name: 'Banned Thing', layout: 'normal', cmc: 2, type_line: 'Sorcery', oracle_text: 'Counter target spell.', color_identity: ['U'], legalities: { commander: 'banned' } })],
+    ['banned legend', scryCard({ name: 'Banned Legend', layout: 'normal', cmc: 5, mana_cost: '{3}{U}{U}', type_line: 'Legendary Creature — Wizard', oracle_text: 'Flying', color_identity: ['U'], legalities: { commander: 'banned' } })],
+    ['counterspell', scryCard({ name: 'Counterspell', layout: 'normal', cmc: 2, mana_cost: '{U}{U}', type_line: 'Instant', oracle_text: 'Counter target spell.', color_identity: ['U'], legalities: { commander: 'legal' } })],
     ['cultivate', scryCard({ name: 'Cultivate', layout: 'normal', cmc: 3, type_line: 'Sorcery', oracle_text: 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.', color_identity: ['G'], legalities: { commander: 'legal' }, prices: { eur: '0.30' } })],
   ]);
   const cmds = [{ slug: 'atraxa-praetors-voice', names: ['Atraxa, Praetors\' Voice'], ci: 'WUBG', decks: 5000, themes: [['plus-1-plus-1-counters', '+1/+1 Counters', 300]] }];
-  const D = aggregate(C, S, new Map([['cultivate', RB.ramp]]), cmds);
+  const D = aggregate(C, S, new Map([['cultivate', RB.ramp], ['counterspell', RB.counter | RB.removal]]), cmds);
   const row = n => D.cards.find(r => r[0] === n);
   assert.deepEqual(D.roles, ROLES); assert.equal(row('Banned Thing'), undefined, 'bannie en Commander : hors table');
   assert.ok(row('Sol Ring')[4] & RB.ramp); assert.equal(row('Sol Ring')[5], 150); assert.equal(row('Sol Ring')[6] & 1, 1, 'Game Changer'); assert.equal(row('Sol Ring')[8], 1, 'rang EDHREC');
   assert.equal(row('Forest')[4], RB.land); assert.equal(row('Forest')[7], 'G'); assert.equal(row('Forest')[3] & 1, 1, 'type : terrain');
   assert.ok(row('Rhystic Study')[4] & RB.draw); assert.ok(row('Cultivate')[4] & RB.ramp, 'Tagger');
+  assert.equal(row('Banned Legend')[6] & 16, 16, 'légendaire interdite : gardée (decks qui l\'ont) mais marquée'); assert.equal(row('Sol Ring')[6] & 16, 0);
+  assert.equal(row('Counterspell')[4], RB.counter, 'contresort rangé aussi « retrait » : seulement contresort'); assert.equal(row('Counterspell')[9], '{U}{U}', 'coût de mana'); assert.equal(row('Forest')[9], '', 'terrain : sans coût');
   assert.equal(D.tg.all.n, 30); assert.deepEqual(D.tg.all.land, [36, 37, 38]); assert.equal(D.tg.all.ramp[1], 1); assert.equal(D.tg.br[2].n, 15); assert.equal(D.tg.br[4].n, 15); assert.equal(D.tg.br[3], undefined, 'moins de 15 decks : pas de statistiques');
   assert.equal(D.tg.th['plus-1-plus-1-counters'].n, 30, 'thème du commandant'); assert.equal(D.tg.nc[4].n, 30, 'quatre couleurs');
   const A = D.cmd['atraxa-praetors-voice']; assert.equal(A.nd, 30); assert.deepEqual(A.cards[0], ['Hardened Scales', 60, 42]); assert.deepEqual(Object.keys(A.th), ['infect']); assert.equal(A.tg.n, 30);
@@ -168,4 +172,10 @@ test('fonctionnalités en test : allumées pour la session seulement', () => {
   assert.equal(L.labOn('deckwiz'), false); L.labSet('deckwiz', true); assert.equal(L.labOn('deckwiz'), true); assert.match(store['deckdeal:labs'], /deckwiz/);
   L.labSet('inconnue', true); assert.equal(L.labOn('inconnue'), false, 'seulement celles de la liste'); L.labSet('deckwiz', false); assert.equal(L.labOn('deckwiz'), false);
   assert.ok(L.LABS.every(l => l.id && l.name && l.desc));
+});
+
+test('prix du jour (relevé de l\'appli) : impression la moins chère par carte, euros puis dollars', () => {
+  const m = pricesParse('#MOPX1 2026-11-02\nSol Ring\t180\t150\nSol Ring\t120\t0\nOvergrown Tomb\t0\t1500\nbad line\n');
+  assert.deepEqual(m.get('sol ring'), { e: 120, u: 150 }); assert.deepEqual(m.get('overgrown tomb'), { e: 0, u: 1500 }); assert.equal(m.size, 2);
+  assert.equal(pricesParse('pas un relevé'), null);
 });
