@@ -103,3 +103,31 @@
 .dr-roles{margin:14px 0 4px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:var(--surface)}
 .dr-roles summary{cursor:pointer;font-weight:650;font-size:14px}
 .da-sum .pip{display:inline-block;vertical-align:-2px;width:15px;height:15px;margin-left:3px}
+/* Confort du coach (deckux.js) : prochaines étapes, à retirer, échanges dans le coach, « Pourquoi ? » */
+.dx-next{padding:12px 14px;margin:2px 0 10px;border:1.5px solid var(--accent);border-radius:16px;background:var(--accent-soft)}
+.dx-score{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:13.5px}
+.dx-score b{font-size:14px}
+.dx-score .dw-bar{grid-column:1/-1;background:var(--surface)}
+.dx-score .dw-val{background:var(--good)}
+.dx-h{margin:10px 0 4px;font-size:12.5px;font-weight:650;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2)}
+.dx-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.dx-steps li{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:8px 10px;border-radius:12px;background:var(--surface);font-size:13.5px;line-height:1.3}
+.dx-steps li span{min-width:0}
+.dx-steps li .btn{flex:none;white-space:nowrap}
+.dx-steps li.ok span::before{content:"✓ ";color:var(--good);font-weight:700}
+.dx-cut .dw-why{white-space:normal}
+.dx-sw{padding:10px 0;border-bottom:1px solid var(--line)}
+.dx-sw:last-child{border-bottom:0}
+.dx-sw .da-why{display:block;margin-top:6px}
+.dx-acts{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:6px}
+.dx-why{margin:8px 0 0;padding:8px 10px;border-radius:10px;background:var(--surface-2,var(--surface));font-size:12.5px;line-height:1.45}
+.dx-why div{margin:0 0 6px}
+.dx-why div:last-child{margin:0}
+.dx-why dt{font-weight:650;color:var(--ink)}
+.dx-why dd{margin:0;color:var(--ink-2)}
+.da-wd{grid-column:2;display:block}
+.link-inline{display:inline;padding:0;margin-left:4px;font-size:12px}
+.dx-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-top:10px;padding:9px 12px;border:1px solid var(--accent);border-radius:12px;background:var(--accent-soft);font:inherit;font-size:13px;color:var(--ink);text-align:left;cursor:pointer}
+.dx-banner b{color:var(--accent)}
+.dx-banner.ok{border-color:var(--good);background:var(--good-soft)}
+.dx-banner.ok b{color:var(--good)}

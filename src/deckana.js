@@ -91,7 +91,7 @@ function openDeckAnalysis({ text, name, id } = {}) {
   if (!X.cmdr.length) { toast(T('Commandant introuvable : ajoute un bloc « Commander » à la liste')); return; }
   const saved = id ? (() => { try { return localStorage.getItem(DW_SET + id); } catch (e) { return null; } })() : null;
   X.wiz = id ? dwSettingsFor(id) : dwDefaults();
-  Object.assign(DA, { X, id: id || null, name: String(name || 'Deck'), text: String(text || ''), off: new Set(), brAuto: !saved, swaps: [], step: 'set', tries: 0 });
+  Object.assign(DA, { X, id: id || null, name: String(name || 'Deck'), text: String(text || ''), off: new Set(), brAuto: !saved, swaps: [], step: 'set', tries: 0, setOpen: false, why: new Set(), ctx: null });
   DW.shown = 8;
   dwLoad().catch(() => {}); if (typeof edhLoad === 'function') edhLoad().then(() => daPaint()).catch(() => {});
   DA.api = openSheet(T('Analyse du deck'), DA.name, api => {
@@ -130,13 +130,14 @@ function daPaint() {
     if (go) { go.disabled = false; go.textContent = T('Lancer l\'analyse'); }
     return;
   }
-  const tgt = dwTargets(prof, cmd, pack, set);
+  const tgt = dwTargets(prof, cmd, pack, set); DA.ctx = { prof, tgt };
   DA.swaps = DW.core ? dwSwaps(X, cmd, pack, prof, tgt) : [];
   const gs = DW_GAUGES.filter(([r]) => r !== 'counter' || cmd.ci.includes('U')), okN = gs.filter(([r]) => prof[r] >= tgt[r][0] && prof[r] <= tgt[r][2] + (r === 'land' ? 0 : 3)).length;
   h += sum(`<p class="dw-line"><span>${T('Équilibre')}</span><b>${esc(TN(okN, '{n} catégorie sur {b} dans la norme', '{n} catégories sur {b} dans la norme', { b: gs.length }))}</b></p>`);
   const th = dwThemeChoices(cmd, pack, set), setTxt = [T('bracket {n}', { n: set.br }) + ' · ' + (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[1], set.bud > 0 ? T('limite {p}', { p: fmt(set.bud, cur) }) : T('sans limite de prix'), ...(set.th.length ? [set.th.map(t => dwThemeLabel(t, th)).join(', ')] : []), ...(set.own ? [T('ma collection d\'abord')] : [])].join(' · ');
   if (typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-da-report><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
-  h += `<button class="dw-set-h" type="button" data-da-edit><span><b>${T('Réglages de l\'analyse')}</b><small>${esc(setTxt)}</small></span><span class="me-v">${T('Modifier')}</span></button>`;
+  h += `<button class="dw-set-h" type="button" data-da-edit><span><b>${T('Réglages de l\'analyse')}</b><small>${esc(setTxt)}</small></span><span class="me-v">${DA.setOpen ? '−' : T('Modifier')}</span></button>`;
+  if (DA.setOpen) h += `<p class="hint">${T('Chaque changement relance l\'analyse.')}</p>` + daSetHtml(cmd, pack, set, cur);      // réglages sur place : l'analyse suit chaque changement
   h += `<div class="sec-title">${T('Échanges conseillés')}</div>`;
   if (!DW.core) h += `<p class="hint">${T('Sans la base du coach, pas d\'échanges conseillés.')}</p>`;
   else if (!DA.swaps.length) h += `<p class="hint">${!pack ? T('Ce commandant n\'est pas encore dans la base du coach : pas d\'avis sur ses cartes.') : set.bud > 0 && prof.cents > set.bud ? T('Aucune carte moins chère du même rôle trouvée pour passer sous la limite.') : T('Rien à changer : les cartes du deck sont bien jouées avec ce commandant.')}</p>`;
@@ -166,23 +167,30 @@ function daThumb(k, nm) {
   const m = dmOf(k), x = COLL.map[k], src = m && m.im ? collImage(k, x ? x.l : '', m.im).src : zoomUrl(nm, 'small');
   return `<span class="thumb" style="--h:${hash32(k) % 360}" data-k="${esc(k)}" data-n="${esc(nm)}"${zoomAt('da', bdLabel(k, nm))}>${esc((nm.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(src)}"></span>`;
 }
-function daSwapRow(s, i, cmd) {
-  const cur = mkCur(), d = s.in.price - s.out.price, own = collQty(s.in.k) > 0;
-  return `<div class="da-sw${DA.off.has(i) ? ' off' : ''}"><input type="checkbox" data-da-sw="${i}" ${DA.off.has(i) ? '' : 'checked'} aria-label="${esc(T('Remplacer {a} par {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }))}">
-    <span class="da-pair"><span class="da-c out">${daThumb(s.out.k, s.out.name)}<span><small>${T('Retirer')}</small><b>${esc(bdLabel(s.out.k, s.out.name))}</b></span></span>
+/** Les deux cartes d'un échange (retirée → ajoutée), vignettes agrandies au toucher : analyse et Coach (deckux.js). */
+function daSwapPair(s) {
+  const own = collQty(s.in.k) > 0;
+  return `<span class="da-pair"><span class="da-c out">${daThumb(s.out.k, s.out.name)}<span><small>${T('Retirer')}</small><b>${esc(bdLabel(s.out.k, s.out.name))}</b></span></span>
     <span class="da-arrow" aria-hidden="true">→</span>
-    <span class="da-c in">${daThumb(s.in.k, s.in.name)}<span><small>${own ? T('Ajouter · dans ta collection') : T('Ajouter')}</small><b>${esc(bdLabel(s.in.k, s.in.name))}</b></span></span></span>
-    <span class="da-why">${esc(daWhy(s, cmd))}${d ? ` · <b class="${d > 0 ? 'up' : 'down'}">${esc((d > 0 ? '+' : '−') + fmt(Math.abs(d), cur))}</b>` : ''}</span></div>`;
+    <span class="da-c in">${daThumb(s.in.k, s.in.name)}<span><small>${own ? T('Ajouter · dans ta collection') : T('Ajouter')}</small><b>${esc(bdLabel(s.in.k, s.in.name))}</b></span></span></span>`;
+}
+function daSwapRow(s, i, cmd) {
+  const cur = mkCur(), d = s.in.price - s.out.price, open = DA.why && DA.why.has(i);
+  return `<div class="da-sw${DA.off.has(i) ? ' off' : ''}"><input type="checkbox" data-da-sw="${i}" ${DA.off.has(i) ? '' : 'checked'} aria-label="${esc(T('Remplacer {a} par {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }))}">
+    ${daSwapPair(s)}
+    <span class="da-why">${esc(daWhy(s, cmd))}${d ? ` · <b class="${d > 0 ? 'up' : 'down'}">${esc((d > 0 ? '+' : '−') + fmt(Math.abs(d), cur))}</b>` : ''} <button class="link-btn link-inline" type="button" data-da-why="${i}" aria-expanded="${!!open}">${T('Pourquoi ?')}</button></span>
+    ${open && typeof dwSwapWhyHtml === 'function' && DA.ctx ? `<span class="da-wd">${dwSwapWhyHtml(s, DA.ctx.prof, DA.ctx.tgt, cmd)}</span>` : ''}</div>`;
 }
 /** Carte en grand depuis l'analyse : toutes les vignettes des échanges, dans l'ordre affiché (retirée, ajoutée, retirée…). */
 if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.da = th => {
-  const box = th.closest('.da-sws'); if (!box) return null;
+  const box = th.closest('.da-sws, .dw-gb'); if (!box) return null;      // analyse, ou « Améliorer le deck » du Coach
   return zoomFrom($$('.thumb[data-zoom="da"]', box), th, t => zoomNamed(t.dataset.k, bdLabel(t.dataset.k, t.dataset.n), t.dataset.n, viewLang(t.dataset.k, true)));
 };
 function daClick(e) {
   if (e.target.closest('[data-da-report]')) { haptic('tap'); openDeckReport(DA.X, DA.name); return; }
-  if (e.target.closest('[data-da-edit]')) { DA.step = 'set'; haptic('tap'); daPaint(); DA.api.body.scrollTop = 0; return; }
-  const sw = e.target.closest('.da-sw'); if (sw && !e.target.closest('input, [data-zoom]')) { const c = $('input[data-da-sw]', sw); if (c) { c.checked = !c.checked; c.dispatchEvent(new Event('change', { bubbles: true })); } return; }      // toute la ligne coche, sauf la vignette (agrandie)
+  if (e.target.closest('[data-da-edit]')) { DA.setOpen = !DA.setOpen; haptic('tap'); daPaint(); return; }
+  const w = e.target.closest('[data-da-why]'); if (w) { const i = Number(w.dataset.daWhy); DA.why = DA.why || new Set(); if (DA.why.has(i)) DA.why.delete(i); else DA.why.add(i); haptic('tap'); daPaint(); return; }
+  const sw = e.target.closest('.da-sw'); if (sw && !e.target.closest('input, [data-zoom], .da-wd, button')) { const c = $('input[data-da-sw]', sw); if (c) { c.checked = !c.checked; c.dispatchEvent(new Event('change', { bubbles: true })); } return; }      // toute la ligne coche, sauf la vignette (agrandie)
   const b = e.target.closest('[data-da-br]'); if (b) { DA.X.wiz.br = Number(b.dataset.daBr) || 3; DA.brAuto = false; DA.off.clear(); haptic('tap'); daPersist(); return daPaint(); }
   const t = e.target.closest('[data-da-th]'); if (t) { const s = DA.X.wiz, v = t.dataset.daTh, i = s.th.indexOf(v); if (i >= 0) s.th.splice(i, 1); else if (s.th.length < 3) s.th.push(v); else { toast(T('3 thèmes au plus')); return; } DA.off.clear(); haptic('tap'); daPersist(); return daPaint(); }
 }

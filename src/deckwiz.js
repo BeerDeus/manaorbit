@@ -286,6 +286,7 @@ function dwCoachHtml() {
   if (!BD.wiz) BD.wiz = dwSettingsFor(BD.id);
   if (!DW.core && !DW.p && !DW.err) dwLoad().catch(() => {});
   if (typeof edhEnsure === 'function') edhEnsure();
+  if (DW.seenEl !== BD.el) { DW.seenEl = BD.el; DW.setOpen = false; DW.open = ''; DW.lastN = null; }      // autre deck ouvert : coach replié, pas de message « cartes de trop » à l'ouverture
   const cmd = dwCmdOf();
   if (!cmd) return `<div class="dw-empty"><p class="hint">${T('Choisis d\'abord ton commandant : le coach s\'appuie sur les decks qui le jouent.')}</p><button class="btn small" type="button" data-act="pick-cmdr">${T('Choisir un commandant')}</button></div>`;
   const pack = DW.core ? (DW.cmd.has(cmd.slug) ? DW.cmd.get(cmd.slug) : (dwPack('c', cmd.slug), null)) : null;
@@ -294,11 +295,17 @@ function dwCoachHtml() {
   let h = '';
   if (DW.p && !DW.core) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement de la base du coach…')}</span></div>`;
   else if (DW.err) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(DW.err)}</span></div>`;
+  if (DW.core && typeof dwNextHtml === 'function') {      // prochaines étapes (deckux.js) ; deck passé au-dessus de 100 : message « Que retirer ? »
+    h += dwNextHtml(prof, tgt, cmd, BD.wiz);
+    if (prof.n > 100 && (DW.lastN || 0) <= 100 && DW.lastN != null) setTimeout(() => toast(TN(prof.n - 100, '{n} carte de trop', '{n} cartes de trop'), { label: T('Que retirer ?'), fn: () => { const el = BD.el && $('#dwCuts', BD.el); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }), 0);
+    DW.lastN = prof.n;
+    h += dwCutsHtml(prof, tgt, cmd, pack);
+  }
   h += dwSetHtml(cmd, pack);
   if (DW.core && typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-act="dw-report"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
-  if (DW.core && prof.n < 100) {
-    const ready = DW.cmd.has(cmd.slug), empty = prof.n <= BD.cmdr.length;
-    if (DW.autoNext && ready) { DW.autoNext = false; setTimeout(dwAutoBuild, 0); }
+  if (DW.core && DW.autoNext && DW.cmd.has(cmd.slug)) { DW.autoNext = false; setTimeout(dwAutoBuild, 0); }      // assistant : « Générer les 100 cartes tout de suite »
+  if (DW.core && prof.n <= BD.cmdr.length) {
+    const ready = DW.cmd.has(cmd.slug), empty = true;
     h += `<button class="btn block dw-auto" type="button" data-act="dw-auto"${ready ? '' : ' disabled'}>${empty ? T('Générer le deck (100 cartes)') : T('Compléter le deck jusqu\'à 100 cartes')}</button><p class="hint dw-auto-h">${T('Rôles jusqu\'aux cibles, puis le plan du commandant, puis les terrains ; dans tes couleurs, ton bracket et ton budget, ta collection d\'abord. Les cartes déjà là restent ; annulable.')}</p>`;
   }
   h += `<div class="sec-title">${T('Équilibre du deck')}</div><div class="dw-gauges">${dwGaugesHtml(prof, tgt, cmd, pack)}</div>`;
@@ -306,6 +313,7 @@ function dwCoachHtml() {
   h += dwBracketHtml(prof);
   h += dwBudgetHtml(prof);
   if (DW.core) h += dwPlanHtml(cmd, pack, prof, tgt);
+  if (DW.core && typeof dwImproveHtml === 'function') h += dwImproveHtml(prof, tgt, cmd, pack);
   const src = DW.core && DW.core.src && DW.core.src.decks ? T('Cibles calculées sur {n} decks réels (Archidekt, EDHREC) et la formule des terrains de Frank Karsten.', { n: nf0(DW.core.src.decks) }) : T('Cibles du modèle de base (Command Zone, Frank Karsten, EDHREC).');
   h += `<p class="hint dw-src">${esc(src)}</p>`;
   return h;
@@ -455,6 +463,7 @@ function dwAutoBuild() {
 /** Clics de l'onglet Coach (bdClick de builder.js les lui passe) : vrai si l'action était la sienne. */
 function dwClick(b) {
   const act = b.dataset.act; if (!/^dw-/.test(act)) return false;
+  if (typeof dxClick === 'function' && dxClick(b, act)) return true;      // prochaines étapes, échanges, « Pourquoi ? » (deckux.js)
   const s = BD.wiz || (BD.wiz = dwSettingsFor(BD.id));
   if (act === 'dw-g') { DW.open = DW.open === b.dataset.r ? '' : b.dataset.r; DW.shown = 8; haptic('tap'); bdList(); }
   else if (act === 'dw-more') { DW.shown += 8; bdList(); }

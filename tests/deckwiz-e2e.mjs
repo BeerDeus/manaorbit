@@ -133,7 +133,7 @@ assert.match(await p.$eval('#toast', t => t.textContent), /cartes ajoutées · \
 await p.evaluate(() => { const t = document.querySelector('#toast button'); if (t) t.click(); });
 await p.waitForFunction(() => BD.main.size === 0, null, { timeout: 5000 }); ok('génération annulée : deck vide');
 await p.click('[data-act="dw-auto"]'); await p.waitForFunction(() => BD.main.size > 3);
-assert.match(await txt(p, '[data-act="dw-auto"]'), /Compléter le deck jusqu'à 100 cartes/, 'deck incomplet (peu de cartes dans la base de test) : bouton Compléter');
+assert.match(await txt(p, '.dx-steps'), /Il manque \d+ cartes Compléter/, 'deck incomplet (peu de cartes dans la base de test) : prochaine étape « Compléter »');
 // rapport du coach : sections, combo du deck, combos à une carte près, cartes touchables, copie
 await p.evaluate(() => { bdChange('main', 'sol ring', 'Sol Ring', 1); });      // Sol Ring + Armageddon (combo de la base de test) : à une carte près
 await p.click('[data-act="dw-report"]'); await p.waitForSelector('.dr-body .da-sum');
@@ -156,7 +156,7 @@ assert.equal(await p.$('.da-sw'), null, 'réglages d\'abord : pas encore d\'éch
 assert.equal(await p.$eval('[data-da-br="2"]', b => b.getAttribute('aria-pressed')), 'true', 'bracket visé préréglé sur le bracket estimé');
 await shot(p, 'analyse-reglages');
 await p.click('#daGo'); await p.waitForSelector('.da-sw');
-const swRows = () => p.$$eval('.da-sw', r => r.map(x => [...x.querySelectorAll('.da-c b')].map(b => b.textContent).join(' → ') + ' | ' + x.querySelector('.da-why').textContent).map(t => t.replace(/\s+/g, ' ')));
+const swRows = () => p.$$eval('.da-sw', r => r.map(x => [...x.querySelectorAll('.da-c b')].map(b => b.textContent).join(' → ') + ' | ' + x.querySelector('.da-why').textContent.replace(/\s*Pourquoi \?$/, '')).map(t => t.replace(/\s+/g, ' ').trim()));
 let sws = await swRows();
 assert.equal(sws.length, 1, 'un seul échange utile : ' + sws.join(' | ')); assert.equal(sws[0], 'Weak One → Arcane Signet | Il manque : Rampe · 80 % des decks (contre 0 %) · −4,60 €');
 assert.match(await txt(p, '.dw-set-h'), /bracket 2 · Core · sans limite de prix · ma collection d'abord/);
@@ -164,10 +164,14 @@ assert.match(await txt(p, '.dw-set-h'), /bracket 2 · Core · sans limite de pri
 assert.deepEqual(await p.$$eval('.da-sw .thumb', t => t.map(x => !!x.querySelector('img') && x.dataset.zoom)), ['da', 'da']);
 await p.click('.da-sw .da-c.in .thumb'); await p.waitForSelector('.imgv'); assert.equal(await p.evaluate(() => DA.off.size), 0, 'la vignette agrandit sans décocher');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'));
+// « Pourquoi ? » : les deux cartes et l'effet sur les jauges
+await p.click('.da-sw [data-da-why="0"]'); await p.waitForSelector('.da-sw .dx-why');
+assert.match(await txt(p, '.da-sw .dx-why'), /Retirer Weak One rôle : plan de jeu · absente des decks de Edgar Markov étudiés · 5,00 € Ajouter Arcane Signet rôle : Rampe · 80 % des decks de Edgar Markov .* Effet Rampe : 0 → 1 \(repère \d+\) Valeur du deck/);
+assert.equal(await p.evaluate(() => DA.off.size), 0, '« Pourquoi ? » ne décoche pas');
+// réglages modifiés sur place : l'analyse est relancée tout de suite
 await p.click('[data-da-edit]'); await p.waitForSelector('#daBud');
 await p.fill('#daBud', '100'); await p.dispatchEvent('#daBud', 'change');
-assert.equal(await p.$('.da-sw'), null, 'réglages : rien n\'est recalculé avant « Lancer l\'analyse »');
-await p.click('#daGo'); await p.waitForFunction(() => document.querySelectorAll('.da-sw').length === 2);
+await p.waitForFunction(() => document.querySelectorAll('.da-sw').length === 2);
 sws = await swRows();
 assert.match(sws[0], /^Gilded Removal → Swords to Plowshares \| Même rôle, bien moins chère/, 'au-dessus de la limite : la carte chère d\'abord');
 assert.match(await txt(p, '#daGo'), /Ouvrir dans l'éditeur avec 2 échanges/); await shot(p, 'analyse');
@@ -177,6 +181,31 @@ await p.click('#daGo'); await p.waitForSelector('.bd.on'); await p.waitForSelect
 assert.deepEqual(await p.evaluate(() => [BD.id, BD.tab, BD.dirty, BD.main.has('gilded removal'), BD.main.has('swords to plowshares'), BD.main.has('weak one'), BD.wiz.bud]), ['dk-ana', 'coach', true, false, true, true, 10000]);
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
 ok('analyse : bracket estimé, échanges (rôle qui manque, limite de prix), cochés appliqués dans l\'éditeur');
+
+/* ── 6 bis) Confort du Coach : prochaines étapes, « À retirer » au-dessus de 100 cartes, échanges dans le Coach (« Pourquoi ? », Échanger, Annuler) ── */
+await p.evaluate(() => openBuilder({ name: 'Trop plein', fmt: 'commander', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian Arena\n1 Swords to Plowshares\n30 Plains\n34 Swamp\n34 Mountain', wiz: { th: [], br: 2, bud: 0, own: true }, tab: 'coach' }));
+await p.waitForSelector('.dx-next'); await p.waitForFunction(() => DW.cmd.has('edgar-markov'));
+assert.match(await txt(p, '.dx-steps li:first-child'), /^2 cartes de trop Que retirer \?$/, 'prochaine étape : deck à 102 cartes'); await shot(p, 'coach-haut');
+assert.ok(await p.$('#dwCuts'), 'section « À retirer »');
+const cuts = await p.$$eval('.dx-cut', r => r.map(x => x.dataset.k + ' | ' + x.querySelector('.dw-why').textContent));
+assert.match(cuts[0], /^weak one \| Absente des decks de Edgar Markov étudiés$/, 'la moins utile d\'abord : ' + cuts.join(' / '));
+assert.ok(cuts.some(c => /^(plains|swamp|mountain) \| Terrains : 98 pour \d+ conseillés/.test(c)), 'trop de terrains : un terrain de base proposé');
+await p.click('.dx-cut[data-k="weak one"] .qstep button'); await p.waitForFunction(() => !BD.main.has('weak one'));
+assert.match(await txt(p, '.dx-steps li:first-child'), /^1 carte de trop/);
+await p.click('[data-act="dw-goto"][data-v="cuts"]');
+await p.click('#bdSeg .seg-opt[data-v="deck"]'); await p.waitForSelector('.dx-banner');
+assert.match(await txt(p, '.dx-banner'), /^Coach · 1 carte de trop/, 'bannière du coach dans les autres onglets');
+await p.click('.dx-banner'); await p.waitForFunction(() => BD.tab === 'coach'); await p.waitForSelector('.dx-next');
+await p.evaluate(() => { bdChange('main', 'weak one', 'Weak One', 1); bdChange('main', 'plains', 'Plains', -1); bdChange('main', 'swamp', 'Swamp', -1); bdChange('main', 'mountain', 'Mountain', -1); });
+await p.click('.dw-gh[data-r="swaps"]'); await p.waitForSelector('.dx-sw');
+assert.match(await txt(p, '.dx-sw .da-pair'), /Retirer Weak One/);
+await p.click('.dx-sw [data-act="dw-why"]'); await p.waitForSelector('.dx-sw .dx-why'); assert.match(await txt(p, '.dx-sw .dx-why'), /Effet/);
+const inK = await p.$eval('.dx-sw', x => x.querySelector('.da-c.in .thumb').dataset.k);
+await p.click('.dx-sw [data-act="dw-swap"]'); await p.waitForFunction(k => !BD.main.has('weak one') && BD.main.has(k), inK);
+await p.evaluate(() => { const t = document.querySelector('#toast button'); if (t) t.click(); }); await p.waitForFunction(k => BD.main.has('weak one') && !BD.main.has(k), inK);
+await shot(p, 'coach-etapes');
+await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
+ok('coach : prochaines étapes, à retirer (raisons, terrains en trop), échanges dans le coach (Pourquoi ?, Échanger, Annuler)');
 
 /* ── 7) Base du coach indisponible : modèle de base, pas de suggestions ── */
 dkwOff = true;

@@ -2645,6 +2645,34 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .dr-roles{margin:14px 0 4px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:var(--surface)}
 .dr-roles summary{cursor:pointer;font-weight:650;font-size:14px}
 .da-sum .pip{display:inline-block;vertical-align:-2px;width:15px;height:15px;margin-left:3px}
+/* Confort du coach (deckux.js) : prochaines étapes, à retirer, échanges dans le coach, « Pourquoi ? » */
+.dx-next{padding:12px 14px;margin:2px 0 10px;border:1.5px solid var(--accent);border-radius:16px;background:var(--accent-soft)}
+.dx-score{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:13.5px}
+.dx-score b{font-size:14px}
+.dx-score .dw-bar{grid-column:1/-1;background:var(--surface)}
+.dx-score .dw-val{background:var(--good)}
+.dx-h{margin:10px 0 4px;font-size:12.5px;font-weight:650;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2)}
+.dx-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.dx-steps li{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:8px 10px;border-radius:12px;background:var(--surface);font-size:13.5px;line-height:1.3}
+.dx-steps li span{min-width:0}
+.dx-steps li .btn{flex:none;white-space:nowrap}
+.dx-steps li.ok span::before{content:"✓ ";color:var(--good);font-weight:700}
+.dx-cut .dw-why{white-space:normal}
+.dx-sw{padding:10px 0;border-bottom:1px solid var(--line)}
+.dx-sw:last-child{border-bottom:0}
+.dx-sw .da-why{display:block;margin-top:6px}
+.dx-acts{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:6px}
+.dx-why{margin:8px 0 0;padding:8px 10px;border-radius:10px;background:var(--surface-2,var(--surface));font-size:12.5px;line-height:1.45}
+.dx-why div{margin:0 0 6px}
+.dx-why div:last-child{margin:0}
+.dx-why dt{font-weight:650;color:var(--ink)}
+.dx-why dd{margin:0;color:var(--ink-2)}
+.da-wd{grid-column:2;display:block}
+.link-inline{display:inline;padding:0;margin-left:4px;font-size:12px}
+.dx-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-top:10px;padding:9px 12px;border:1px solid var(--accent);border-radius:12px;background:var(--accent-soft);font:inherit;font-size:13px;color:var(--ink);text-align:left;cursor:pointer}
+.dx-banner b{color:var(--accent)}
+.dx-banner.ok{border-color:var(--good);background:var(--good-soft)}
+.dx-banner.ok b{color:var(--good)}
 
 /* ── densite.css : densité sur téléphone (densite.js) — collection (en-tête, outils en icônes, vues compacte / grille) et écran Échange (barre du lien, ligne des sous-onglets) ── */
 
@@ -7675,8 +7703,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'c8391552';
-const I18N_FILES = {"de":"i18n/de.4ee98846.js","en":"i18n/en.5fcb3e5b.js","es":"i18n/es.42fb136b.js","it":"i18n/it.f8a53bdc.js","pt":"i18n/pt.96e8d13e.js"};
+const DD_BUILD = 'd7936fa5';
+const I18N_FILES = {"de":"i18n/de.6e23e9c9.js","en":"i18n/en.52d3a00e.js","es":"i18n/es.5a83a01a.js","it":"i18n/it.96ebf020.js","pt":"i18n/pt.00583c4a.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
    · Navigateur : l'ancienne adresse sert une page de déménagement (proxy.mjs › oldPage) qui renvoie ici avec ses données dans l'adresse (#mig=…,
@@ -26793,7 +26821,7 @@ function bdSumHtml() {
   return `<div class="bd-top"><div class="bd-count ${st}"><b>${nf0(ck.n)}</b><span>${T('/ {n} cartes', { n: ck.size })}</span></div>${val ? `<div class="bd-val" title="${T('Prix tendance Cardmarket, cartes possédées comprises, terrains de base exclus')}">${esc(val)}</div>` : ''}${BD.fmt === 'standard' ? `<div class="bd-side${ck.side > DK_FORMATS.standard.side ? ' over' : ''}"><b>${nf0(ck.side)}</b><span>${T('/ {n} en réserve', { n: DK_FORMATS.standard.side })}</span></div>` : ''}</div>
     <div class="bd-bar ${st}"><i style="width:${pct}%"></i></div>
     ${ck.issues.length ? `<ul class="bd-issues">${list.map(i => `<li class="${i.lv}">${esc(i.t)}</li>`).join('')}</ul>${ck.issues.length > 3 ? `<button class="link-btn link-inline" type="button" data-act="issues">${BD.issuesOpen ? T('Réduire') : T('Voir les {n} autres alertes', { n: ck.issues.length - 3 })}</button>` : ''}`
-      : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}`;
+      : `<p class="bd-ok">${T('Deck complet et conforme.')}</p>`}${typeof dwBannerHtml === 'function' ? dwBannerHtml() : ''}`;      // prochaine étape du coach (deckux.js), hors de l'onglet Coach
 }
 /** Pastilles d'une carte : possédée ou non, engagée ailleurs. ctx : 'deck' (rangée du deck) · 'coll' / 'find' (liste de cartes à ajouter). */
 function bdTags(k, q, ctx) {
@@ -26891,7 +26919,7 @@ function bdTab(v) {
     if (v === 'find' && !BD.cat && !BD.catErr) collCatalog().then(c => { BD.cat = c; if (BD.el && BD.tab === 'find') bdList(); }).catch(e => { BD.catErr = e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'); if (BD.el && BD.tab === 'find') bdList(); });
     if (v === 'coll') { BD.idx = null; if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); }
   }
-  bdList();
+  bdList(); if (typeof dwBannerHtml === 'function' && dwOn()) $('#bdSum', el).innerHTML = bdSumHtml();      // bannière du coach : visible hors de l'onglet Coach
   const sc = $(BD.split ? '.bd-l' : '.dv-scroll', el); if (sc) sc.scrollTop = 0;
 }
 
@@ -27241,6 +27269,7 @@ function dwCoachHtml() {
   if (!BD.wiz) BD.wiz = dwSettingsFor(BD.id);
   if (!DW.core && !DW.p && !DW.err) dwLoad().catch(() => {});
   if (typeof edhEnsure === 'function') edhEnsure();
+  if (DW.seenEl !== BD.el) { DW.seenEl = BD.el; DW.setOpen = false; DW.open = ''; DW.lastN = null; }      // autre deck ouvert : coach replié, pas de message « cartes de trop » à l'ouverture
   const cmd = dwCmdOf();
   if (!cmd) return `<div class="dw-empty"><p class="hint">${T('Choisis d\'abord ton commandant : le coach s\'appuie sur les decks qui le jouent.')}</p><button class="btn small" type="button" data-act="pick-cmdr">${T('Choisir un commandant')}</button></div>`;
   const pack = DW.core ? (DW.cmd.has(cmd.slug) ? DW.cmd.get(cmd.slug) : (dwPack('c', cmd.slug), null)) : null;
@@ -27249,11 +27278,17 @@ function dwCoachHtml() {
   let h = '';
   if (DW.p && !DW.core) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement de la base du coach…')}</span></div>`;
   else if (DW.err) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(DW.err)}</span></div>`;
+  if (DW.core && typeof dwNextHtml === 'function') {      // prochaines étapes (deckux.js) ; deck passé au-dessus de 100 : message « Que retirer ? »
+    h += dwNextHtml(prof, tgt, cmd, BD.wiz);
+    if (prof.n > 100 && (DW.lastN || 0) <= 100 && DW.lastN != null) setTimeout(() => toast(TN(prof.n - 100, '{n} carte de trop', '{n} cartes de trop'), { label: T('Que retirer ?'), fn: () => { const el = BD.el && $('#dwCuts', BD.el); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }), 0);
+    DW.lastN = prof.n;
+    h += dwCutsHtml(prof, tgt, cmd, pack);
+  }
   h += dwSetHtml(cmd, pack);
   if (DW.core && typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-act="dw-report"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
-  if (DW.core && prof.n < 100) {
-    const ready = DW.cmd.has(cmd.slug), empty = prof.n <= BD.cmdr.length;
-    if (DW.autoNext && ready) { DW.autoNext = false; setTimeout(dwAutoBuild, 0); }
+  if (DW.core && DW.autoNext && DW.cmd.has(cmd.slug)) { DW.autoNext = false; setTimeout(dwAutoBuild, 0); }      // assistant : « Générer les 100 cartes tout de suite »
+  if (DW.core && prof.n <= BD.cmdr.length) {
+    const ready = DW.cmd.has(cmd.slug), empty = true;
     h += `<button class="btn block dw-auto" type="button" data-act="dw-auto"${ready ? '' : ' disabled'}>${empty ? T('Générer le deck (100 cartes)') : T('Compléter le deck jusqu\'à 100 cartes')}</button><p class="hint dw-auto-h">${T('Rôles jusqu\'aux cibles, puis le plan du commandant, puis les terrains ; dans tes couleurs, ton bracket et ton budget, ta collection d\'abord. Les cartes déjà là restent ; annulable.')}</p>`;
   }
   h += `<div class="sec-title">${T('Équilibre du deck')}</div><div class="dw-gauges">${dwGaugesHtml(prof, tgt, cmd, pack)}</div>`;
@@ -27261,6 +27296,7 @@ function dwCoachHtml() {
   h += dwBracketHtml(prof);
   h += dwBudgetHtml(prof);
   if (DW.core) h += dwPlanHtml(cmd, pack, prof, tgt);
+  if (DW.core && typeof dwImproveHtml === 'function') h += dwImproveHtml(prof, tgt, cmd, pack);
   const src = DW.core && DW.core.src && DW.core.src.decks ? T('Cibles calculées sur {n} decks réels (Archidekt, EDHREC) et la formule des terrains de Frank Karsten.', { n: nf0(DW.core.src.decks) }) : T('Cibles du modèle de base (Command Zone, Frank Karsten, EDHREC).');
   h += `<p class="hint dw-src">${esc(src)}</p>`;
   return h;
@@ -27410,6 +27446,7 @@ function dwAutoBuild() {
 /** Clics de l'onglet Coach (bdClick de builder.js les lui passe) : vrai si l'action était la sienne. */
 function dwClick(b) {
   const act = b.dataset.act; if (!/^dw-/.test(act)) return false;
+  if (typeof dxClick === 'function' && dxClick(b, act)) return true;      // prochaines étapes, échanges, « Pourquoi ? » (deckux.js)
   const s = BD.wiz || (BD.wiz = dwSettingsFor(BD.id));
   if (act === 'dw-g') { DW.open = DW.open === b.dataset.r ? '' : b.dataset.r; DW.shown = 8; haptic('tap'); bdList(); }
   else if (act === 'dw-more') { DW.shown += 8; bdList(); }
@@ -27648,7 +27685,7 @@ function openDeckAnalysis({ text, name, id } = {}) {
   if (!X.cmdr.length) { toast(T('Commandant introuvable : ajoute un bloc « Commander » à la liste')); return; }
   const saved = id ? (() => { try { return localStorage.getItem(DW_SET + id); } catch (e) { return null; } })() : null;
   X.wiz = id ? dwSettingsFor(id) : dwDefaults();
-  Object.assign(DA, { X, id: id || null, name: String(name || 'Deck'), text: String(text || ''), off: new Set(), brAuto: !saved, swaps: [], step: 'set', tries: 0 });
+  Object.assign(DA, { X, id: id || null, name: String(name || 'Deck'), text: String(text || ''), off: new Set(), brAuto: !saved, swaps: [], step: 'set', tries: 0, setOpen: false, why: new Set(), ctx: null });
   DW.shown = 8;
   dwLoad().catch(() => {}); if (typeof edhLoad === 'function') edhLoad().then(() => daPaint()).catch(() => {});
   DA.api = openSheet(T('Analyse du deck'), DA.name, api => {
@@ -27687,13 +27724,14 @@ function daPaint() {
     if (go) { go.disabled = false; go.textContent = T('Lancer l\'analyse'); }
     return;
   }
-  const tgt = dwTargets(prof, cmd, pack, set);
+  const tgt = dwTargets(prof, cmd, pack, set); DA.ctx = { prof, tgt };
   DA.swaps = DW.core ? dwSwaps(X, cmd, pack, prof, tgt) : [];
   const gs = DW_GAUGES.filter(([r]) => r !== 'counter' || cmd.ci.includes('U')), okN = gs.filter(([r]) => prof[r] >= tgt[r][0] && prof[r] <= tgt[r][2] + (r === 'land' ? 0 : 3)).length;
   h += sum(`<p class="dw-line"><span>${T('Équilibre')}</span><b>${esc(TN(okN, '{n} catégorie sur {b} dans la norme', '{n} catégories sur {b} dans la norme', { b: gs.length }))}</b></p>`);
   const th = dwThemeChoices(cmd, pack, set), setTxt = [T('bracket {n}', { n: set.br }) + ' · ' + (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[1], set.bud > 0 ? T('limite {p}', { p: fmt(set.bud, cur) }) : T('sans limite de prix'), ...(set.th.length ? [set.th.map(t => dwThemeLabel(t, th)).join(', ')] : []), ...(set.own ? [T('ma collection d\'abord')] : [])].join(' · ');
   if (typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-da-report><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
-  h += `<button class="dw-set-h" type="button" data-da-edit><span><b>${T('Réglages de l\'analyse')}</b><small>${esc(setTxt)}</small></span><span class="me-v">${T('Modifier')}</span></button>`;
+  h += `<button class="dw-set-h" type="button" data-da-edit><span><b>${T('Réglages de l\'analyse')}</b><small>${esc(setTxt)}</small></span><span class="me-v">${DA.setOpen ? '−' : T('Modifier')}</span></button>`;
+  if (DA.setOpen) h += `<p class="hint">${T('Chaque changement relance l\'analyse.')}</p>` + daSetHtml(cmd, pack, set, cur);      // réglages sur place : l'analyse suit chaque changement
   h += `<div class="sec-title">${T('Échanges conseillés')}</div>`;
   if (!DW.core) h += `<p class="hint">${T('Sans la base du coach, pas d\'échanges conseillés.')}</p>`;
   else if (!DA.swaps.length) h += `<p class="hint">${!pack ? T('Ce commandant n\'est pas encore dans la base du coach : pas d\'avis sur ses cartes.') : set.bud > 0 && prof.cents > set.bud ? T('Aucune carte moins chère du même rôle trouvée pour passer sous la limite.') : T('Rien à changer : les cartes du deck sont bien jouées avec ce commandant.')}</p>`;
@@ -27723,23 +27761,30 @@ function daThumb(k, nm) {
   const m = dmOf(k), x = COLL.map[k], src = m && m.im ? collImage(k, x ? x.l : '', m.im).src : zoomUrl(nm, 'small');
   return `<span class="thumb" style="--h:${hash32(k) % 360}" data-k="${esc(k)}" data-n="${esc(nm)}"${zoomAt('da', bdLabel(k, nm))}>${esc((nm.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(src)}"></span>`;
 }
-function daSwapRow(s, i, cmd) {
-  const cur = mkCur(), d = s.in.price - s.out.price, own = collQty(s.in.k) > 0;
-  return `<div class="da-sw${DA.off.has(i) ? ' off' : ''}"><input type="checkbox" data-da-sw="${i}" ${DA.off.has(i) ? '' : 'checked'} aria-label="${esc(T('Remplacer {a} par {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }))}">
-    <span class="da-pair"><span class="da-c out">${daThumb(s.out.k, s.out.name)}<span><small>${T('Retirer')}</small><b>${esc(bdLabel(s.out.k, s.out.name))}</b></span></span>
+/** Les deux cartes d'un échange (retirée → ajoutée), vignettes agrandies au toucher : analyse et Coach (deckux.js). */
+function daSwapPair(s) {
+  const own = collQty(s.in.k) > 0;
+  return `<span class="da-pair"><span class="da-c out">${daThumb(s.out.k, s.out.name)}<span><small>${T('Retirer')}</small><b>${esc(bdLabel(s.out.k, s.out.name))}</b></span></span>
     <span class="da-arrow" aria-hidden="true">→</span>
-    <span class="da-c in">${daThumb(s.in.k, s.in.name)}<span><small>${own ? T('Ajouter · dans ta collection') : T('Ajouter')}</small><b>${esc(bdLabel(s.in.k, s.in.name))}</b></span></span></span>
-    <span class="da-why">${esc(daWhy(s, cmd))}${d ? ` · <b class="${d > 0 ? 'up' : 'down'}">${esc((d > 0 ? '+' : '−') + fmt(Math.abs(d), cur))}</b>` : ''}</span></div>`;
+    <span class="da-c in">${daThumb(s.in.k, s.in.name)}<span><small>${own ? T('Ajouter · dans ta collection') : T('Ajouter')}</small><b>${esc(bdLabel(s.in.k, s.in.name))}</b></span></span></span>`;
+}
+function daSwapRow(s, i, cmd) {
+  const cur = mkCur(), d = s.in.price - s.out.price, open = DA.why && DA.why.has(i);
+  return `<div class="da-sw${DA.off.has(i) ? ' off' : ''}"><input type="checkbox" data-da-sw="${i}" ${DA.off.has(i) ? '' : 'checked'} aria-label="${esc(T('Remplacer {a} par {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }))}">
+    ${daSwapPair(s)}
+    <span class="da-why">${esc(daWhy(s, cmd))}${d ? ` · <b class="${d > 0 ? 'up' : 'down'}">${esc((d > 0 ? '+' : '−') + fmt(Math.abs(d), cur))}</b>` : ''} <button class="link-btn link-inline" type="button" data-da-why="${i}" aria-expanded="${!!open}">${T('Pourquoi ?')}</button></span>
+    ${open && typeof dwSwapWhyHtml === 'function' && DA.ctx ? `<span class="da-wd">${dwSwapWhyHtml(s, DA.ctx.prof, DA.ctx.tgt, cmd)}</span>` : ''}</div>`;
 }
 /** Carte en grand depuis l'analyse : toutes les vignettes des échanges, dans l'ordre affiché (retirée, ajoutée, retirée…). */
 if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.da = th => {
-  const box = th.closest('.da-sws'); if (!box) return null;
+  const box = th.closest('.da-sws, .dw-gb'); if (!box) return null;      // analyse, ou « Améliorer le deck » du Coach
   return zoomFrom($$('.thumb[data-zoom="da"]', box), th, t => zoomNamed(t.dataset.k, bdLabel(t.dataset.k, t.dataset.n), t.dataset.n, viewLang(t.dataset.k, true)));
 };
 function daClick(e) {
   if (e.target.closest('[data-da-report]')) { haptic('tap'); openDeckReport(DA.X, DA.name); return; }
-  if (e.target.closest('[data-da-edit]')) { DA.step = 'set'; haptic('tap'); daPaint(); DA.api.body.scrollTop = 0; return; }
-  const sw = e.target.closest('.da-sw'); if (sw && !e.target.closest('input, [data-zoom]')) { const c = $('input[data-da-sw]', sw); if (c) { c.checked = !c.checked; c.dispatchEvent(new Event('change', { bubbles: true })); } return; }      // toute la ligne coche, sauf la vignette (agrandie)
+  if (e.target.closest('[data-da-edit]')) { DA.setOpen = !DA.setOpen; haptic('tap'); daPaint(); return; }
+  const w = e.target.closest('[data-da-why]'); if (w) { const i = Number(w.dataset.daWhy); DA.why = DA.why || new Set(); if (DA.why.has(i)) DA.why.delete(i); else DA.why.add(i); haptic('tap'); daPaint(); return; }
+  const sw = e.target.closest('.da-sw'); if (sw && !e.target.closest('input, [data-zoom], .da-wd, button')) { const c = $('input[data-da-sw]', sw); if (c) { c.checked = !c.checked; c.dispatchEvent(new Event('change', { bubbles: true })); } return; }      // toute la ligne coche, sauf la vignette (agrandie)
   const b = e.target.closest('[data-da-br]'); if (b) { DA.X.wiz.br = Number(b.dataset.daBr) || 3; DA.brAuto = false; DA.off.clear(); haptic('tap'); daPersist(); return daPaint(); }
   const t = e.target.closest('[data-da-th]'); if (t) { const s = DA.X.wiz, v = t.dataset.daTh, i = s.th.indexOf(v); if (i >= 0) s.th.splice(i, 1); else if (s.th.length < 3) s.th.push(v); else { toast(T('3 thèmes au plus')); return; } DA.off.clear(); haptic('tap'); daPersist(); return daPaint(); }
 }
@@ -27885,6 +27930,143 @@ function drPaint() {
     el.innerHTML = txts.some(Boolean) ? txts.map((t, i) => `${DR.X.cmdr.length > 1 ? `<b>${esc(DR.X.cmdr[i].name)}</b><br>` : ''}${esc(t || '—').replace(/\n/g, '<br>')}`).join('<br><br>') : esc(T('Texte de la carte indisponible (hors ligne).'));
   });
   void cmd;
+}
+
+
+/* ── deckux.js : confort du coach (fonctionnalité en test « deckwiz », labs.js) ─────────────────────────────────────
+   - « Prochaines étapes » : en haut du Coach, les 1 à 3 actions les plus utiles, chacune avec son bouton (compléter, retirer, ajouter une catégorie,
+     règles du bracket, terrains, sources de couleur) ; « Deck équilibré » et le rapport quand tout va bien.
+   - « À retirer » : dès que le deck dépasse 100 cartes (une suggestion ajoutée à un deck plein…), les cartes à enlever d'abord, avec la raison.
+   - « Améliorer le deck » : les échanges conseillés de l'analyse (deckana.js › dwSwaps) dans le Coach, appliqués d'un toucher (annulable).
+   - « Pourquoi ? » sous chaque échange (Coach et analyse) : rôles, part des decks du commandant, synergie, prix des deux cartes, effet sur les jauges
+     et sur la valeur du deck. */
+const DX = { why: new Set() };
+/** Noms des rôles d'une carte (bits), dans l'ordre des jauges. */
+const dwRoleNames = bits => DW_GAUGES.filter(([r]) => r !== 'land' && bits & DW_RB[r]).map(([, l]) => T(l));
+
+/** Cartes à retirer d'abord : les moins utiles du deck pour ce commandant, en tenant compte des rôles en surplus ou en manque, du bracket et du budget.
+ *  → [{ k, name, why, s }] (s : plus bas = à retirer d'abord). Terrains de base proposés quand il y a trop de terrains. */
+function dwCuts(X, cmd, pack, prof, tgt, n) {
+  const set = X.wiz || dwDefaults(), info = dwInfo(pack, set), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], nm = cmd ? cmd.names[0].split(',')[0] : '';
+  const gcOver = prof.gc.length > b[3], over = set.bud > 0 && prof.cents > set.bud, out = [];
+  for (const c of X.main.values()) {
+    if (BASIC_NAMES.has(c.key)) continue;
+    const x = dwCard(c.key); if (!x || x.roles & DW_RB.land) continue;
+    const o = info.get(c.key) || {}; let s = dwVal(o), why = '', hard = true;
+    const low = DW_GAUGES.find(([r]) => r !== 'land' && x.roles & DW_RB[r] && prof[r] <= tgt[r][0]);
+    const sur = DW_GAUGES.find(([r]) => r !== 'land' && x.roles & DW_RB[r] && prof[r] > tgt[r][1]);
+    if (low) s += 0.5; if (sur) s -= 0.15;
+    const price = dwPrice(c.key, x);
+    if (x.fl & 1 && gcOver) { s -= 0.6; why = T('Game Changer en trop pour le bracket {b}', { b: b[0] }); }
+    else if (x.fl & 4 && set.br <= 3) { s -= 1; why = T('Destruction massive de terrains : interdite en bracket {b}', { b: b[0] }); }
+    else if (over && price > 500 && collQty(c.key) < 1) { s -= Math.min(0.5, price / Math.max(1, set.bud) * 2); why = T('Chère ({p}) alors que le deck dépasse le budget', { p: fmt(price, mkCur()) }); }
+    else if ((hard = false) || sur) why = T('{r} en surplus ({n} pour {m} conseillées)', { r: T(sur[1]), n: prof[sur[0]], m: tgt[sur[0]][1] });
+    else if (o.incl || o.syn) why = T('Peu jouée avec {name} ({p} % des decks)', { name: nm, p: o.incl || 0 });
+    else why = T('Absente des decks de {name} étudiés', { name: nm });
+    if (low && !hard) why += ' · ' + T('mais elle compte en {r}', { r: T(low[1]) });
+    out.push({ k: c.key, name: c.name, why, s });
+  }
+  if (prof.land > tgt.land[1]) {      // trop de terrains : le terrain de base de la couleur la moins demandée
+    const BK = { W: 'plains', U: 'island', B: 'swamp', R: 'mountain', G: 'forest' }, cols = [...(cmd ? cmd.ci : '')].filter(c => X.main.has(BK[c]));
+    const c = cols.sort((a, b) => ((prof.pips[a] || 0) / ((X.main.get(BK[a]) || {}).qty || 1)) - ((prof.pips[b] || 0) / ((X.main.get(BK[b]) || {}).qty || 1)))[0];
+    if (c) { const bc = X.main.get(BK[c]); out.push({ k: bc.key, name: bc.name, why: T('Terrains : {n} pour {m} conseillés', { n: prof.land, m: tgt.land[1] }), s: 0.02 }); }
+  }
+  return out.sort((a, b) => a.s - b.s).slice(0, n);
+}
+/** Prochaines étapes (3 au plus) : [{ t: texte, b: bouton, act, v, ok }]. */
+function dwNextSteps(prof, tgt, cmd, set) {
+  const st = [], b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], n = prof.n;
+  if (n > 100) st.push({ t: TN(n - 100, '{n} carte de trop', '{n} cartes de trop'), b: T('Que retirer ?'), act: 'dw-goto', v: 'cuts' });
+  if (prof.gc.length > b[3]) st.push({ t: T('{n} Game Changers pour {max} permis en bracket {b}', { n: prof.gc.length, max: b[3], b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
+  if ((prof.mld.length && set.br <= 3) || (prof.combos.length && set.br <= 2)) st.push({ t: T('Une carte enfreint les règles du bracket {b}', { b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
+  if (n < 100) st.push({ t: TN(100 - n, 'Il manque {n} carte', 'Il manque {n} cartes'), b: n <= BD.cmdr.length ? T('Générer le deck') : T('Compléter'), act: 'dw-auto' });
+  const def = DW_GAUGES.filter(([r]) => r !== 'land' && (r !== 'counter' || cmd.ci.includes('U')) && prof[r] < tgt[r][0]).map(([r, l]) => ({ r, l, miss: tgt[r][1] - prof[r], k: (tgt[r][1] - prof[r]) / Math.max(1, tgt[r][1]) })).sort((a, b) => b.k - a.k);
+  for (const d of def.slice(0, 2)) st.push({ t: T('{r} : il en manque {n}', { r: T(d.l), n: d.miss }), b: T('Voir les suggestions'), act: 'dw-goto', v: 'gauge:' + d.r });
+  if (n >= 90 && (prof.land < tgt.land[0] || prof.land > tgt.land[2])) st.push({ t: T('Terrains : {n} pour {m} conseillés', { n: prof.land, m: tgt.land[1] }), b: prof.land < tgt.land[0] ? T('Ajouter des terrains de base') : T('Que retirer ?'), act: prof.land < tgt.land[0] ? 'dw-basics' : 'dw-goto', v: 'cuts' });
+  for (const c of cmd.ci) if (n >= 90 && prof.need && prof.need[c] && (prof.src[c] || 0) < prof.need[c] - 3) { st.push({ t: T('Sources de {c} : {n} pour {m} conseillées', { c, n: Math.round(prof.src[c] || 0), m: prof.need[c] }), b: T('Voir'), act: 'dw-goto', v: 'mana' }); break; }
+  if (!st.length) st.push({ t: T('Deck équilibré : rien d\'urgent'), b: T('Rapport du coach'), act: 'dw-report', ok: true });
+  return st.slice(0, 3);
+}
+/** Carte « Prochaines étapes » (en haut du Coach). */
+function dwNextHtml(prof, tgt, cmd, set) {
+  const gs = DW_GAUGES.filter(([r]) => r !== 'counter' || cmd.ci.includes('U')), ok = gs.filter(([r]) => prof[r] >= tgt[r][0] && prof[r] <= tgt[r][2] + (r === 'land' ? 0 : 3)).length, pct = Math.round(ok / gs.length * 100);
+  const steps = dwNextSteps(prof, tgt, cmd, set);
+  return `<div class="dx-next"><div class="dx-score"><span>${T('Équilibre')}</span><b>${esc(T('{a} / {b} catégories', { a: ok, b: gs.length }))}</b><span class="dw-bar" aria-hidden="true"><i class="dw-val" style="width:${pct}%"></i></span></div>
+    <p class="dx-h">${T('Prochaines étapes')}</p><ol class="dx-steps">${steps.map(s => `<li class="${s.ok ? 'ok' : ''}"><span>${esc(s.t)}</span><button class="btn small ${s.ok ? 'ghost' : ''}" type="button" data-act="${s.act}"${s.v ? ` data-v="${esc(s.v)}"` : ''}>${esc(s.b)}</button></li>`).join('')}</ol></div>`;
+}
+/** Section « À retirer » : deck de plus de 100 cartes. */
+function dwCutsHtml(prof, tgt, cmd, pack) {
+  const over = prof.n - 100; if (over <= 0) return '';
+  const l = dwCuts(BD, cmd, pack, prof, tgt, Math.max(3, over + 2));
+  return `<div class="sec-title" id="dwCuts">${esc(TN(over, 'À retirer : {n} carte de trop', 'À retirer : {n} cartes de trop'))}</div><p class="hint">${T('Les moins utiles d\'abord pour ce commandant ; celles qui tiennent une catégorie juste sont gardées pour la fin.')}</p><div class="dw-sug">${l.map(c => {
+    const k = c.k, m = bdMeta(k), x = COLL.map[k], nm = bdLabel(k, c.name), img = m && m.im ? collImage(k, x ? x.l : '', m.im).src : BASIC_NAMES.has(k) ? '' : zoomUrl(c.name, 'small');
+    return `<div class="crow bd-row dw-row dx-cut" data-k="${esc(k)}" data-n="${esc(c.name)}" data-t="main"><span class="thumb" style="--h:${hash32(k) % 360}"${zoomAt('bd', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+      <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span><span class="dw-why">${esc(c.why)}</span></span>
+      <span class="qstep dw-add"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button></span></div>`;
+  }).join('')}</div>`;
+}
+/** Explication d'un échange (sw : dwSwaps) : les deux cartes, l'effet sur les jauges et la valeur. */
+function dwSwapWhyHtml(sw, prof, tgt, cmd) {
+  const cur = mkCur(), nm = cmd ? cmd.names[0].split(',')[0] : '', card = (c, o, x, price, own) => {
+    const r = dwRoleNames((x && x.roles) || 0), bits = [];
+    bits.push(r.length ? T('rôle : {r}', { r: r.join(', ') }) : T('rôle : plan de jeu'));
+    bits.push(o && o.incl ? T('{p} % des decks de {name}', { p: o.incl, name: nm }) : T('absente des decks de {name} étudiés', { name: nm }));
+    if (o && o.syn >= 5) bits.push(T('synergie +{p} %', { p: o.syn }));
+    if (price > 0) bits.push(fmt(price, cur));
+    if (own) bits.push(T('dans ta collection'));
+    return bits.join(' · ');
+  };
+  const eff = [];
+  for (const [r, l] of DW_GAUGES) {
+    if (r === 'land') continue; const a = sw.out.roles & DW_RB[r] ? 1 : 0, b = sw.in.x && sw.in.x.roles & DW_RB[r] ? 1 : 0; if (a === b) continue;
+    eff.push(T('{r} : {a} → {b} (repère {m})', { r: T(l), a: prof[r], b: prof[r] - a + b, m: tgt[r][1] }));
+  }
+  const d = sw.in.price - sw.out.price;
+  if (d) eff.push(T('Valeur du deck : {a} → {b}', { a: fmt(prof.cents, cur), b: fmt(prof.cents + d, cur) }));
+  return `<dl class="dx-why"><div><dt>${T('Retirer')} ${esc(bdLabel(sw.out.k, sw.out.name))}</dt><dd>${esc(card(sw.out, sw.out.o, sw.out.x, sw.out.price, collQty(sw.out.k) > 0))}</dd></div>
+    <div><dt>${T('Ajouter')} ${esc(bdLabel(sw.in.k, sw.in.name))}</dt><dd>${esc(card(sw.in, sw.in.o, sw.in.x, sw.in.price, sw.in.own))}</dd></div>
+    ${eff.length ? `<div><dt>${T('Effet')}</dt><dd>${eff.map(esc).join('<br>')}</dd></div>` : ''}</dl>`;
+}
+/** Section « Améliorer le deck » du Coach : échanges conseillés appliqués d'un toucher. */
+function dwImproveHtml(prof, tgt, cmd, pack) {
+  if (typeof dwSwaps !== 'function' || prof.n < 60) return '';
+  const open = DW.open === 'swaps';
+  let h = `<div class="sec-title">${T('Améliorer le deck')}</div><div class="dw-g${open ? ' open' : ''}"><button type="button" class="dw-gh" data-act="dw-g" data-r="swaps" aria-expanded="${open}"><span class="dw-gl"><b>${T('Échanges conseillés')}</b><small>${esc(T('une carte faible contre une meilleure, même rôle, dans tes réglages'))}</small></span><span class="me-v">${open ? '−' : '+'}</span></button>`;
+  if (open) {
+    const sws = DX.swaps = dwSwaps(BD, cmd, pack, prof, tgt, 8);
+    h += `<div class="dw-gb">${sws.length ? sws.map((s, i) => `<div class="dx-sw">${typeof daSwapPair === 'function' ? daSwapPair(s) : ''}<span class="da-why">${esc(daWhy(s, cmd))}</span>
+      <div class="dx-acts"><button class="link-btn" type="button" data-act="dw-why" data-v="${esc(s.out.k + '>' + s.in.k)}" aria-expanded="${DX.why.has(s.out.k + '>' + s.in.k)}">${T('Pourquoi ?')}</button><button class="btn small" type="button" data-act="dw-swap" data-v="${i}">${T('Échanger')}</button></div>
+      ${DX.why.has(s.out.k + '>' + s.in.k) ? dwSwapWhyHtml(s, prof, tgt, cmd) : ''}</div>`).join('') : `<p class="hint">${T('Rien à changer : les cartes du deck sont bien jouées avec ce commandant.')}</p>`}</div>`;
+  }
+  return h + '</div>';
+}
+/** Actions du confort (dwClick les lui passe) : vrai si l'action était la sienne. */
+function dxClick(b, act) {
+  if (act === 'dw-open') { $('#bdSeg', BD.el).setValue('coach'); bdTab('coach'); haptic('tap'); return true; }      // bannière du coach
+  if (act === 'dw-goto') {
+    const v = b.dataset.v || ''; haptic('tap');
+    if (v.startsWith('gauge:')) { DW.open = v.slice(6); DW.shown = 8; bdList(); }
+    const sel = v.startsWith('gauge:') ? `.dw-g.open` : v === 'cuts' ? '#dwCuts' : v === 'bracket' ? '.dw-br' : v === 'mana' ? '.dw-mana' : '';
+    const el = sel && BD.el && $(sel, BD.el); if (el) el.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
+    return true;
+  }
+  if (act === 'dw-why') { const v = b.dataset.v; if (DX.why.has(v)) DX.why.delete(v); else DX.why.add(v); haptic('tap'); bdList(); return true; }
+  if (act === 'dw-swap') {
+    const s = (DX.swaps || [])[Number(b.dataset.v)]; if (!s) return true;
+    const before = new Map([...BD.main].map(([k, c]) => [k, { ...c }])), c = BD.main.get(s.out.k);
+    if (c) { if (c.qty > 1) c.qty--; else BD.main.delete(s.out.k); }
+    BD.main.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 }); BD.dirty = true; haptic('ok'); bdPaint(); bdMetaSoon();
+    toast(T('{a} → {b}', { a: bdLabel(s.out.k, s.out.name), b: bdLabel(s.in.k, s.in.name) }), { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; bdPaint(); haptic('tap'); } });
+    return true;
+  }
+  return false;
+}
+/** Bannière sous le compteur de l'éditeur (hors onglet Coach) : la prochaine étape du coach ; un toucher ouvre le Coach. */
+function dwBannerHtml() {
+  if (!dwOn() || BD.fmt !== 'commander' || BD.tab === 'coach' || !DW.core || !BD.cmdr.length) return '';
+  const cmd = dwCmdOf(); if (!cmd) return '';
+  const pack = DW.cmd.get(cmd.slug) || null, prof = dwProfile(), tgt = dwTargets(prof, cmd, pack), st = dwNextSteps(prof, tgt, cmd, BD.wiz || dwDefaults())[0];
+  return st ? `<button class="dx-banner${st.ok ? ' ok' : ''}" type="button" data-act="dw-open"><span><b>${T('Coach')}</b> · ${esc(st.t)}</span><span class="me-v">›</span></button>` : '';
 }
 
 
