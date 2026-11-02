@@ -1,0 +1,548 @@
+{
+ "_meta": {
+  "source": "https://scryfall.com/docs/tagger-tags + https://api.scryfall.com/cards/search?q=otag:<tag> (total_cards) + tagger.scryfall.com/graphql (slug canonique, parent)",
+  "date": "2026-11-02",
+  "total_cards": "cartes uniques (oracle) renvoyées par otag:<tag>, toutes légalités",
+  "commander_legal": "idem avec legal:commander",
+  "hierarchy": "otag:<parent> inclut les descendants (vérifié : otag:mana-rock -otag:ramp = 0 résultat).",
+  "warning": "Données communautaires (Tagger), changent quotidiennement ; Scryfall recommande d'identifier les tags par UUID (bulk oracle_tags) plutôt que par slug.",
+  "slugs": "Slugs canoniques vérifiés via tagger.scryfall.com (aliasing:true) ; les alias donnent le même résultat dans la recherche Scryfall."
+ },
+ "ramp": [
+  {
+   "tag": "ramp",
+   "total_cards": 2326,
+   "commander_legal": 2155,
+   "aliases": [
+    "mana-ramp"
+   ],
+   "note": "Tag racine : inclut mana-producer, land-ramp, ritual, extra-land, mana-increaser, combat-ramp... Trop large seul (ex. Path to Exile y figure)."
+  },
+  {
+   "tag": "mana-producer",
+   "total_cards": 973,
+   "parent": "ramp"
+  },
+  {
+   "tag": "mana-rock",
+   "total_cards": 390,
+   "commander_legal": 357,
+   "parent": "mana-producer"
+  },
+  {
+   "tag": "mana-dork",
+   "total_cards": 449,
+   "commander_legal": 420,
+   "parent": "mana-producer"
+  },
+  {
+   "tag": "mana-dork-egg",
+   "total_cards": 27,
+   "parent": "mana-producer"
+  },
+  {
+   "tag": "land-ramp",
+   "total_cards": 638,
+   "commander_legal": 584,
+   "parent": "ramp",
+   "aliases": [
+    "rampant-growth"
+   ]
+  },
+  {
+   "tag": "extra-land",
+   "total_cards": 164,
+   "commander_legal": 153,
+   "parent": "ramp"
+  },
+  {
+   "tag": "ritual",
+   "total_cards": 69,
+   "commander_legal": 63,
+   "parent": "ramp",
+   "note": "Mana temporaire : ne pas compter comme rampe permanente."
+  },
+  {
+   "tag": "mana-increaser",
+   "total_cards": 57,
+   "commander_legal": 53,
+   "parent": "ramp",
+   "aliases": [
+    "mana-doubler"
+   ]
+  },
+  {
+   "tag": "cost-reducer",
+   "total_cards": 351,
+   "commander_legal": 301,
+   "note": "Pas enfant de ramp ; compter à part (rampe secondaire)."
+  }
+ ],
+ "card_draw": [
+  {
+   "tag": "draw",
+   "total_cards": 4337,
+   "commander_legal": 4081,
+   "parent": "card-advantage",
+   "note": "Tout ce qui pioche textuellement (inclut loot, wheel, cantrip)."
+  },
+  {
+   "tag": "cantrip",
+   "total_cards": 659,
+   "commander_legal": 627,
+   "parent": "draw",
+   "note": "Remplace la carte : ne pas compter comme avantage."
+  },
+  {
+   "tag": "burst-draw",
+   "total_cards": 652,
+   "commander_legal": 622,
+   "parent": "draw"
+  },
+  {
+   "tag": "repeatable-draw",
+   "total_cards": 1958,
+   "commander_legal": 1825,
+   "parent": "draw"
+  },
+  {
+   "tag": "draw-engine",
+   "total_cards": 1618,
+   "parent": "repeatable-draw"
+  },
+  {
+   "tag": "pure-draw",
+   "total_cards": 3346,
+   "parent": "draw"
+  },
+  {
+   "tag": "loot",
+   "total_cards": 424,
+   "parent": "draw"
+  },
+  {
+   "tag": "wheel",
+   "total_cards": 150,
+   "commander_legal": 136,
+   "parent": "draw"
+  }
+ ],
+ "card_advantage": [
+  {
+   "tag": "card-advantage",
+   "total_cards": 6334,
+   "commander_legal": 5820,
+   "note": "Racine : draw + impulse + impulsive-draw + regrowth + seek..."
+  },
+  {
+   "tag": "impulse",
+   "total_cards": 581,
+   "commander_legal": 555,
+   "parent": "card-advantage"
+  },
+  {
+   "tag": "impulsive-draw",
+   "total_cards": 268,
+   "commander_legal": 244,
+   "parent": "card-advantage",
+   "aliases": [
+    "impulse-draw"
+   ]
+  },
+  {
+   "tag": "repeatable-card-advantage",
+   "total_cards": 2784,
+   "parent": "card-advantage"
+  }
+ ],
+ "removal": [
+  {
+   "tag": "removal",
+   "total_cards": 6489,
+   "commander_legal": 6198,
+   "note": "Racine (inclut sweepers, burn-creature, pacifism...)."
+  },
+  {
+   "tag": "spot-removal",
+   "total_cards": 5433,
+   "commander_legal": 5182,
+   "parent": "removal"
+  },
+  {
+   "tag": "multi-removal",
+   "total_cards": 680,
+   "commander_legal": 661,
+   "parent": "removal"
+  },
+  {
+   "tag": "removal-creature",
+   "total_cards": 5545,
+   "commander_legal": 5292,
+   "parent": "removal",
+   "aliases": [
+    "creature-removal"
+   ]
+  },
+  {
+   "tag": "removal-artifact",
+   "total_cards": 1198,
+   "parent": "removal",
+   "aliases": [
+    "artifact-removal"
+   ]
+  },
+  {
+   "tag": "removal-enchantment",
+   "total_cards": 1043,
+   "parent": "removal",
+   "aliases": [
+    "enchantment-removal"
+   ]
+  },
+  {
+   "tag": "removal-planeswalker",
+   "total_cards": 1965,
+   "parent": "removal",
+   "aliases": [
+    "planeswalker-removal"
+   ]
+  },
+  {
+   "tag": "removal-land",
+   "total_cards": 510,
+   "parent": "removal",
+   "aliases": [
+    "land-removal"
+   ]
+  },
+  {
+   "tag": "removal-sacrifice",
+   "total_cards": 437,
+   "parent": "removal",
+   "aliases": [
+    "edict"
+   ]
+  },
+  {
+   "tag": "removal-exile",
+   "total_cards": 589,
+   "parent": "removal"
+  },
+  {
+   "tag": "removal-bounce",
+   "total_cards": 442,
+   "parent": "removal"
+  },
+  {
+   "tag": "disenchant-naturalize",
+   "total_cards": 237,
+   "parent": "removal-artifact + removal-enchantment"
+  },
+  {
+   "tag": "repeatable-removal",
+   "total_cards": 1748,
+   "parent": "removal"
+  }
+ ],
+ "board_wipe": [
+  {
+   "tag": "sweeper",
+   "total_cards": 952,
+   "commander_legal": 910,
+   "parent": "removal",
+   "aliases": [
+    "board-wipe",
+    "boardwipe",
+    "wipe",
+    "wrath-of-god",
+    "mass-removal"
+   ],
+   "note": "Slug canonique. board-wipe, boardwipe, wipe, wrath-of-god, mass-removal sont des alias (même total)."
+  },
+  {
+   "tag": "sweeper-one-sided",
+   "total_cards": 240,
+   "parent": "sweeper"
+  }
+ ],
+ "counterspell": [
+  {
+   "tag": "counterspell",
+   "total_cards": 553,
+   "commander_legal": 522
+  },
+  {
+   "tag": "counterspell-soft",
+   "total_cards": 141,
+   "parent": "counterspell"
+  },
+  {
+   "tag": "counterspell-free",
+   "total_cards": 13,
+   "parent": "counterspell"
+  }
+ ],
+ "tutor": [
+  {
+   "tag": "tutor",
+   "total_cards": 1177,
+   "commander_legal": 1120,
+   "note": "Racine : inclut tutor-land (recherche de terrains = rampe). Pour un vrai tuteur : otag:tutor -otag:tutor-land."
+  },
+  {
+   "tag": "tutor-land",
+   "total_cards": 602,
+   "commander_legal": 571,
+   "parent": "tutor"
+  },
+  {
+   "tag": "tutor-card",
+   "total_cards": 101,
+   "parent": "tutor",
+   "aliases": [
+    "tutor-any"
+   ]
+  },
+  {
+   "tag": "tutor-creature",
+   "total_cards": 207,
+   "parent": "tutor"
+  },
+  {
+   "tag": "tutor-to-hand",
+   "total_cards": 611,
+   "parent": "tutor"
+  }
+ ],
+ "protection": [
+  {
+   "tag": "protection",
+   "total_cards": 1229,
+   "commander_legal": 1185
+  },
+  {
+   "tag": "protects-creature",
+   "total_cards": 980,
+   "parent": "protection"
+  },
+  {
+   "tag": "protects-all",
+   "total_cards": 303,
+   "parent": "protection"
+  },
+  {
+   "tag": "protects-permanent",
+   "total_cards": 43,
+   "parent": "protection"
+  },
+  {
+   "tag": "gives-hexproof",
+   "total_cards": 164,
+   "parent": "protection"
+  },
+  {
+   "tag": "gives-indestructible",
+   "total_cards": 276,
+   "parent": "protection"
+  },
+  {
+   "tag": "gives-protection",
+   "total_cards": 121,
+   "parent": "protection"
+  },
+  {
+   "tag": "gives-player-hexproof",
+   "total_cards": 23,
+   "commander_legal": 22,
+   "parent": "protection"
+  },
+  {
+   "tag": "gives-shroud",
+   "total_cards": 48,
+   "parent": "protection"
+  },
+  {
+   "tag": "phasing",
+   "total_cards": 70
+  },
+  {
+   "tag": "fog",
+   "total_cards": 94
+  }
+ ],
+ "recursion": [
+  {
+   "tag": "recursion",
+   "total_cards": 2283,
+   "commander_legal": 2153
+  },
+  {
+   "tag": "reanimate",
+   "total_cards": 1082,
+   "commander_legal": 1008,
+   "parent": "recursion"
+  },
+  {
+   "tag": "regrowth",
+   "total_cards": 681,
+   "parent": "recursion"
+  },
+  {
+   "tag": "restock",
+   "total_cards": 230,
+   "parent": "recursion"
+  },
+  {
+   "tag": "mass-reanimation",
+   "total_cards": 75,
+   "parent": "reanimate"
+  }
+ ],
+ "graveyard_hate": [
+  {
+   "tag": "hate-graveyard",
+   "total_cards": 428,
+   "commander_legal": 409,
+   "aliases": [
+    "graveyard-hate"
+   ]
+  },
+  {
+   "tag": "sweeper-graveyard",
+   "total_cards": 83,
+   "parent": "hate-graveyard"
+  }
+ ],
+ "wincon": [
+  {
+   "tag": "alternate-win-condition",
+   "total_cards": 70,
+   "commander_legal": 62,
+   "aliases": [
+    "win-condition",
+    "automatic-win"
+   ],
+   "note": "Seul tag « victoire » ; win-condition et automatic-win sont des alias. Ne couvre PAS les finishers (Craterhoof...)."
+  },
+  {
+   "tag": "overrun",
+   "total_cards": 87,
+   "commander_legal": 81
+  },
+  {
+   "tag": "extra-combat-phase",
+   "total_cards": 46,
+   "commander_legal": 45,
+   "aliases": [
+    "extra-combat"
+   ]
+  },
+  {
+   "tag": "extra-turn",
+   "total_cards": 59,
+   "commander_legal": 53,
+   "note": "Contrôlé par les brackets (pas d'enchaînement en B2-B3, aucun en B1)."
+  },
+  {
+   "tag": "bottomless-mana-sink",
+   "total_cards": 791,
+   "aliases": [
+    "infinite-mana-sink"
+   ],
+   "parent": "mana-sink"
+  }
+ ],
+ "stax_denial": [
+  {
+   "tag": "mass-land-denial",
+   "total_cards": 111,
+   "commander_legal": 106,
+   "note": "Interdit en brackets 1-3."
+  },
+  {
+   "tag": "hatebear",
+   "total_cards": 66,
+   "commander_legal": 65
+  },
+  {
+   "tag": "tax",
+   "total_cards": 475
+  },
+  {
+   "tag": "pillowfort",
+   "total_cards": 63
+  },
+  {
+   "tag": "hand-disruption",
+   "total_cards": 715,
+   "commander_legal": 666
+  },
+  {
+   "tag": "theft",
+   "total_cards": 741,
+   "commander_legal": 668
+  }
+ ],
+ "synergy_misc": [
+  {
+   "tag": "sacrifice-outlet",
+   "total_cards": 1502,
+   "aliases": [
+    "sac-outlet",
+    "sacrifice-outlet"
+   ]
+  },
+  {
+   "tag": "repeatable-token-generator",
+   "total_cards": 1896
+  },
+  {
+   "tag": "repeatable-creature-tokens",
+   "total_cards": 1474,
+   "parent": "repeatable-token-generator"
+  },
+  {
+   "tag": "anthem",
+   "total_cards": 545
+  },
+  {
+   "tag": "landfall",
+   "total_cards": 297
+  },
+  {
+   "tag": "flicker",
+   "total_cards": 204,
+   "aliases": [
+    "blink"
+   ]
+  },
+  {
+   "tag": "mill-self",
+   "total_cards": 1091,
+   "aliases": [
+    "self-mill"
+   ]
+  },
+  {
+   "tag": "mill-opponent",
+   "total_cards": 459
+  },
+  {
+   "tag": "drain-life",
+   "total_cards": 428,
+   "aliases": [
+    "life-drain"
+   ]
+  },
+  {
+   "tag": "burn-player",
+   "total_cards": 1832
+  }
+ ],
+ "_not_tags": [
+  "wincon",
+  "stax",
+  "card-draw",
+  "treasure (renvoient HTTP 404 sur api.scryfall.com/cards/search)"
+ ]
+}

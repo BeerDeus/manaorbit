@@ -64,24 +64,28 @@ function openDeckNew() {
     const seg = $('#ndFmt', api.body), hint = $('#ndHint', api.body), name = $('#ndName', api.body);
     const paint = () => { const f = DK_FORMATS[seg._v || 'standard']; hint.textContent = f.hint; };
     mountSeg(seg, [{ v: 'standard', label: T('Standard') }, { v: 'commander', label: 'Commander' }], 'standard', paint); paint();
-    const go = () => { const fmt = seg._v || 'standard'; api.close(); setTimeout(() => openBuilder({ name: name.value.trim(), fmt }), 200); };
+    const go = () => { const fmt = seg._v || 'standard', nm = name.value.trim(); api.close(); setTimeout(() => (typeof dwOn === 'function' && dwOn() ? openDeckStart(nm, fmt) : openBuilder({ name: nm, fmt })), 200); };      // fonctionnalité en test : « J'ai déjà ce deck » / « Deck à construire » (deckwiz.js)
     $('#ndGo', api.foot).onclick = go; name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
     setTimeout(() => name.focus(), 380);
   });
 }
 
 /* ── Ouverture ────────────────────────────────────────────────────────────────────────────────── */
-/** Ouvre l'éditeur : un nouveau deck { name, fmt } ou un deck enregistré { id }. */
+/** Ouvre l'éditeur : un nouveau deck { name, fmt } ou un deck enregistré { id }. Coach (deckwiz.js) : text (liste collée), cmdr ([{ key, name }]), wiz (réglages du coach), tab ('coach'). */
 function openBuilder(o) {
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
-  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', scanPref: null });      // scanPref : cartes scannées (rangées à l'enregistrement)
-  if (prev) {
-    const p = dkParse(prev.text);
-    BD.fmt = p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
+  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', scanPref: null, wiz: null });      // scanPref : cartes scannées (rangées à l'enregistrement)
+  if (prev || o.text) {
+    const p = dkParse(prev ? prev.text : o.text);
+    BD.fmt = (!prev && (o.fmt === 'commander' || o.fmt === 'standard') ? o.fmt : '') || p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
+    if (!prev) BD.dirty = true;      // liste collée : à enregistrer
     p.main.forEach(c => BD.main.set(c.key, c)); p.side.forEach(c => BD.side.set(c.key, c)); BD.cmdr = p.cmdr; BD.cover = p.cover;      // la carte de présentation choisie est gardée
     if (BD.fmt === 'commander') BD.side.clear();      // pas de réserve en Commander
   } else BD.fmt = o.fmt === 'commander' ? 'commander' : 'standard';
+  if (!prev && Array.isArray(o.cmdr) && BD.fmt === 'commander') { BD.cmdr = o.cmdr.slice(0, 2).map(c => ({ key: c.key, name: c.name })); for (const c of BD.cmdr) BD.main.delete(c.key); BD.dirty = true; }
+  const coach = typeof dwOn === 'function' && dwOn() && BD.fmt === 'commander';      // onglet Coach (fonctionnalité en test, deckwiz.js)
+  if (coach) BD.wiz = o.wiz ? { ...dwDefaults(), ...o.wiz } : dwSettingsFor(BD.id);
   collFrLoad();
   BD.split = bdSplit();      // ordinateur (≥ 1 100 px, souris) : recherche à gauche, liste du deck à droite, toujours visible (zz-desktop.css) ; décidé à l'ouverture
   const wrap = document.createElement('div'); wrap.className = 'dv bd' + (BD.split ? ' split' : ''); wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Créateur de deck'));
@@ -109,7 +113,8 @@ function openBuilder(o) {
   document.addEventListener('keydown', onKey, true);
   wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
   wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
-  mountSeg($('#bdSeg', wrap), [...(BD.split ? [] : [{ v: 'deck', label: T('Deck') }]), { v: 'coll', label: T('Collection') }, { v: 'find', label: T('Chercher') }], BD.split ? 'coll' : 'deck', bdTab);
+  const tab0 = coach && o.tab === 'coach' ? 'coach' : BD.split ? 'coll' : 'deck';
+  mountSeg($('#bdSeg', wrap), [...(BD.split ? [] : [{ v: 'deck', label: T('Deck') }]), { v: 'coll', label: T('Collection') }, { v: 'find', label: T('Chercher') }, ...(coach ? [{ v: 'coach', label: T('Coach') }] : [])], tab0, bdTab);
   wrap.addEventListener('click', bdClick);
   wrap.addEventListener('input', e => {
     if (e.target.id === 'bdName') { BD.name = e.target.value; BD.dirty = true; bdHead(); }
@@ -117,7 +122,7 @@ function openBuilder(o) {
   });
   wrap.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'bdName') { e.preventDefault(); e.target.blur(); } });
   document.body.appendChild(wrap); holdApp();
-  bdTab(BD.split ? 'coll' : 'deck'); bdPaint(); bdMetaSoon();
+  bdTab(tab0); bdPaint(); bdMetaSoon();
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.dv-back', wrap).focus({ preventScroll: true }); }));
   haptic('tap');
 }
@@ -333,7 +338,7 @@ function bdFindHtml() {
 }
 function bdList() {
   const el = BD.el; if (!el) return;
-  $('#bdList', el).innerHTML = BD.tab === 'deck' ? bdDeckHtml() : BD.tab === 'coll' ? bdCollHtml() : bdFindHtml();
+  $('#bdList', el).innerHTML = BD.tab === 'deck' ? bdDeckHtml() : BD.tab === 'coll' ? bdCollHtml() : BD.tab === 'coach' && typeof dwCoachHtml === 'function' ? dwCoachHtml() : bdFindHtml();
   if (BD.split) $('#bdDeck', el).innerHTML = bdDeckHtml();      // ordinateur : la liste du deck reste affichée à droite
 }
 /** Ordinateur : écran large et souris (même requête que zz-desktop.css et la barre latérale, nav.js). */
@@ -351,6 +356,7 @@ function bdTab(v) {
   const ctl = $('#bdCtl', el); $('#bdSeg', el).setValue(v);
   const scanB = (cls, label) => `<button class="${label ? 'btn ghost' : 'icon-btn'} ${cls}" type="button" data-act="scan" aria-label="${T('Scanner des cartes')}" title="${T('Scanner des cartes')}"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${label ? `<span>${label}</span>` : ''}</button>`;      // scan en mode deck (bdScan)
   if (v === 'deck') ctl.innerHTML = bdNameCtl();
+  else if (v === 'coach') ctl.innerHTML = '';
   else {
     const opts = BD.fmt === 'commander' ? [{ v: 'main', label: T('Deck') }, { v: 'cmdr', label: T('Commandant') }] : [{ v: 'main', label: T('Deck') }, { v: 'side', label: T('Réserve') }];
     if (!opts.some(o => o.v === BD.tgt)) BD.tgt = 'main';
@@ -383,6 +389,7 @@ function bdClick(e) {
   }
   const b = e.target.closest('button[data-act]'); if (!b) return;
   const act = b.dataset.act;
+  if (typeof dwClick === 'function' && dwClick(b)) return;      // onglet Coach (deckwiz.js)
   if (act === 'close') bdClose();
   else if (act === 'save') bdSave();
   else if (act === 'issues') { BD.issuesOpen = !BD.issuesOpen; bdPaint(); }
@@ -402,6 +409,7 @@ function bdSave() {
   const doc = deckDoc({ name, text, opts: prev ? prev.opts : S.opts, history: prev ? prev.history : [], snap: prev && prev.snap, createdAt: prev && prev.createdAt });
   const id = prev ? prev.id : newIdFor();
   putDeck(id, doc);
+  if (typeof dwSaved === 'function') dwSaved(id);      // réglages du coach (thèmes, bracket, budget) gardés avec le deck
   let reserved = 0;
   if (prev) engRefresh(id, name, text);                                   // deck déjà monté : ses cartes réservées suivent la liste
   else { const q = engSnapshot(text, collQty); reserved = Object.values(q).reduce((a, x) => a + x, 0); if (reserved) engSet(id, name, text); }      // nouveau deck : monté automatiquement

@@ -8,6 +8,7 @@ import { join } from 'node:path';
 const root = new URL('../', import.meta.url).pathname;
 process.chdir(root);
 if (process.env.PRICES_SOURCE_URL === undefined) process.env.PRICES_SOURCE_URL = '';      // le proxy des tests ne va jamais chercher les prix sur GitHub
+if (process.env.DKW_SOURCE_URL === undefined) process.env.DKW_SOURCE_URL = '';      // ni la base du coach (dkw-srv.mjs) : deckwiz-e2e.mjs passe un fichier local (DKW_FILE)
 if (!process.env.EDH_DATA_DIR) {      // copies du serveur (prices.tsv.gz, edh.bin.gz, boot.json) : dossier temporaire ; un .data/ laissé par un « node server/proxy.mjs » lancé à la main changeait les prix des tests
   const d = mkdtempSync(join(tmpdir(), 'deckdeal-data-')); process.env.EDH_DATA_DIR = d;
   process.on('exit', () => { try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });

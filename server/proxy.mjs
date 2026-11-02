@@ -3695,6 +3695,17 @@ if (EVS && DSC && DSC.events) {
   setTimeout(() => { evDsc(); setInterval(evDsc, Number(process.env.DISCORD_EVENTS_TICK_MS) > 0 ? Number(process.env.DISCORD_EVENTS_TICK_MS) : 60e3).unref(); }, Number(process.env.DISCORD_EVENTS_FIRST_MS) >= 0 && process.env.DISCORD_EVENTS_FIRST_MS !== undefined ? Number(process.env.DISCORD_EVENTS_FIRST_MS) : 20e3).unref();
 }
 
+/* ── Coach de deck Commander (dkw-srv.mjs, appli : src/deckwiz.js) : agrégats de gen-deckdb.mjs, branche deck-corpus ─────────────────────────────
+   GET /api/dkw (cœur), ?c=<commandant>, ?t=<thème> ; relu toutes les 6 h (ETag), copie dans EDH_DATA_DIR. DKW_SOURCE_URL='' : pas de synchronisation (tests) ;
+   DKW_FILE : fichier local lu au démarrage. Aucune donnée personnelle : ouvert à tous, comme edh.bin.gz. */
+let DKW = null;
+try {
+  const { dkwMake } = await import('./dkw-srv.mjs');
+  DKW = dkwMake({ src: (process.env.DKW_SOURCE_URL === undefined ? 'https://raw.githubusercontent.com/BeerDeus/manaorbit/deck-corpus/dkw.json.gz' : process.env.DKW_SOURCE_URL).trim(), file: process.env.DKW_FILE || '',
+    dir: EDH_DIR, json, sec: SEC, firstMs: process.env.DKW_SYNC_FIRST_MS === undefined ? 9000 : Number(process.env.DKW_SYNC_FIRST_MS) });
+  DKW.start();
+} catch (e) { console.warn('Coach : module illisible (' + (e && e.message || e) + '), coupé'); DKW = null; }
+
 async function api(req, res, url) {
   const path = url.pathname.replace(/^\/api\//, '').replace(/\/+$/, '');
   // Serveur local sans compte : un POST d'une autre page (formulaire, text/plain : pas de pré-vérification CORS) ne doit rien déclencher.
@@ -3704,6 +3715,7 @@ async function api(req, res, url) {
   if (path === 'names/find') return namesApi(req, res, url);      // scan : noms imprimés des autres langues (catalogues publics)
   if (path === 'hist') return histApi(req, res, url);      // fiche d'une carte : ses prix « à partir de » des 30 derniers jours (relevés publics, rien de personnel)
   if (path === 'pubdecks') return pubApi(req, res, url);      // decks publics (« Communauté ») : liste ouverte à tous, sans token
+  if (path === 'dkw') return DKW ? DKW.api(req, res, url) : json(res, 404, { error: 'not_found' });      // coach de deck Commander : cartes, rôles, cibles, conseils par commandant (agrégats publics)
   if (path === 'alerts' || path.startsWith('alerts/')) return alertsApi(req, res, path, url);
   if (path === 'testeurs') return testersApi(req, res);      // inscription au test fermé (page /testeurs), ouverte à tous, bornée
   if (path === 'scan-report') return scanReportApi(req, res);      // « Signaler un problème de scan » : photo et lecture envoyées par l'utilisateur, sans compte exigé, bornées
