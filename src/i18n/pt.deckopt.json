@@ -45,7 +45,6 @@
  "coût moyen {v}": "custo médio {v}",
  "Version « {v} » · note {s}/100": "Versão «{v}» · nota {s}/100",
  "Simulation de {n} parties": "Simulação de {n} partidas",
- "Le coach a joué seul les 8 premiers tours avec ce deck, 1 000 fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.": "O coach jogou sozinho os 8 primeiros turnos com este deck, 1000 vezes: mãos iniciais, terrenos, cores, comandante. Regras simples e acaso, sem adversário.",
  "Parties en cours…": "Partidas em curso…",
  "des mains de 7 cartes gardées": "das mãos de 7 cartas mantidas",
  "{l} terrains en moyenne dans la main gardée": "{l} terrenos em média na mão mantida",
@@ -93,5 +92,6 @@
  "toutes les cartes Magic": "todas as cartas de Magic",
  "Rôle": "Função",
  "{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.": "{name}: a tua cópia está em «{deck}». Vai buscá-la lá quando jogares este deck, ou compra uma.",
- "un autre deck": "outro deck"
+ "un autre deck": "outro deck",
+ "Le coach a joué seul les 8 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.": "O coach jogou sozinho os 8 primeiros turnos com este deck, {n} vezes: mãos iniciais, terrenos, cores, comandante. Regras simples e acaso, sem adversário."
 }

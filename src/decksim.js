@@ -5,7 +5,7 @@
    les moins polyvalentes d'abord), le reste en mana générique ; un symbole hybride compte comme générique. Une partie sur deux commence (pas de pioche
    au tour 1). Résultats : mains gardées, commandant à temps, terrains manqués, mains bloquées par les couleurs, mana utilisé, sorts lancés. Graine fixe
    (même deck, mêmes résultats). Aucune IA : du hasard et des règles simples. */
-const DSIM = { sig: '', res: null, run: null };
+const DSIM = { sig: '', res: null, run: null }, DSIM_N = 10000;      // 10 000 parties : ≈ 2 s sur un téléphone moyen, pourcentages stables à ±1 point
 /** Cartes du deck X pour la simulation : bibliothèque (99 cartes ou moins) et commandant(s). */
 function dsimDeck(X) {
   const cmd = dwCmdOf(X), ci = cmd ? [...cmd.ci] : [], lib = [];
@@ -83,7 +83,7 @@ async function dsimRun(X, n = 1000, step) {
     const g = dsimGame(D, rnd, i % 2 === 0, stuck);
     acc.keep7 += g.mull === 0; acc.mull += g.mull; acc.lands0 += g.lands0; acc.cmdT += g.cmdTurn || 9; acc.cmdOn += g.cmdTurn && g.cmdTurn <= Math.max(1, cmv) ? 1 : 0; acc.cmdNever += !g.cmdTurn;
     acc.miss3 += g.missed3; acc.miss4 += g.missed4; acc.screw4 += g.screw4; acc.eff += g.eff; acc.cast6 += g.cast6;
-    if (i % 100 === 99) { if (step) step(i + 1, n); await new Promise(r => setTimeout(r, 0)); }
+    if (i % 250 === 249) { if (step) step(i + 1, n); await new Promise(r => setTimeout(r, 0)); }      // par paquets de 250 : l'écran reste fluide pendant le calcul
   }
   const pct = v => Math.round(v / n * 100);
   return { n, cmv, keep7: pct(acc.keep7), mull: acc.mull / n, lands0: acc.lands0 / n, cmdT: acc.cmdT / n, cmdOn: pct(acc.cmdOn), cmdNever: pct(acc.cmdNever), miss3: pct(acc.miss3), miss4: pct(acc.miss4), screw4: pct(acc.screw4), eff: Math.round(acc.eff / n * 100), cast6: acc.cast6 / n,
@@ -93,7 +93,7 @@ const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c =
 const dsimNum = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
 /** Section du rapport : résultats (ou barre de progression pendant le calcul). */
 function dsimHtml(r, prog) {
-  let h = `<div class="sec-title">${T('Simulation de {n} parties', { n: nf0(1000) })}</div><p class="hint">${T('Le coach a joué seul les 8 premiers tours avec ce deck, 1 000 fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.')}</p>`;
+  let h = `<div class="sec-title">${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</div><p class="hint">${T('Le coach a joué seul les 8 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.', { n: nf0(DSIM_N) })}</p>`;
   if (!r) return h + `<div class="ds-prog"><span class="ds-big"><i style="width:${Math.round((prog || 0) * 100)}%"></i></span><p class="ds-now">${T('Parties en cours…')}</p></div>`;
   const row = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b> ${esc(t)}${sub ? ` <small>${esc(sub)}</small>` : ''}</li>`;
   h += `<ul class="bd-issues ds-sim">
@@ -117,7 +117,8 @@ function dsimEnsure(X, done) {
   const sig = dsimSig(X);
   if (DSIM.sig === sig && (DSIM.res || DSIM.run)) return DSIM.res;
   DSIM.sig = sig; DSIM.res = null; DSIM.prog = 0;
-  const run = DSIM.run = dsimRun(X, 1000, (i, n) => { if (DSIM.run === run) { DSIM.prog = i / n; done(); } }).then(r => { if (DSIM.run === run) { DSIM.res = r || { none: true }; DSIM.run = null; done(); } }, () => { if (DSIM.run === run) DSIM.run = null; });
+  const tok = DSIM.run = {};      // jeton de cette simulation (créé avant : la 1re progression arrive avant que dsimRun rende la main)
+  dsimRun(X, DSIM_N, (i, n) => { if (DSIM.run === tok) { DSIM.prog = i / n; done(); } }).then(r => { if (DSIM.run === tok) { DSIM.res = r || { none: true }; DSIM.run = null; done(); } }, () => { if (DSIM.run === tok) { DSIM.run = null; DSIM.res = { none: true }; done(); } });
   return null;
 }
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { dsimPay, dsimRng });

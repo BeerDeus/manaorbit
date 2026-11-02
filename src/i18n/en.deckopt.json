@@ -45,7 +45,6 @@
  "coût moyen {v}": "average mana value {v}",
  "Version « {v} » · note {s}/100": "“{v}” version · score {s}/100",
  "Simulation de {n} parties": "Simulation of {n} games",
- "Le coach a joué seul les 8 premiers tours avec ce deck, 1 000 fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.": "The coach played the first 8 turns alone with this deck, 1,000 times: opening hands, lands, colors, commander. Simple rules and randomness, no opponent.",
  "Parties en cours…": "Games in progress…",
  "des mains de 7 cartes gardées": "of 7-card hands kept",
  "{l} terrains en moyenne dans la main gardée": "{l} lands on average in the kept hand",
@@ -93,5 +92,6 @@
  "toutes les cartes Magic": "every Magic card",
  "Rôle": "Role",
  "{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.": "{name}: your copy is in “{deck}”. Take it from there when you play this deck, or buy one.",
- "un autre deck": "another deck"
+ "un autre deck": "another deck",
+ "Le coach a joué seul les 8 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.": "The coach played the first 8 turns alone with this deck, {n} times: opening hands, lands, colors, commander. Simple rules and randomness, no opponent."
 }

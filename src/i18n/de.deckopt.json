@@ -45,7 +45,6 @@
  "coût moyen {v}": "durchschnittlicher Manawert {v}",
  "Version « {v} » · note {s}/100": "Version „{v}“ · Note {s}/100",
  "Simulation de {n} parties": "Simulation von {n} Partien",
- "Le coach a joué seul les 8 premiers tours avec ce deck, 1 000 fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.": "Der Coach hat die ersten 8 Züge mit diesem Deck allein gespielt, 1.000-mal: Starthände, Länder, Farben, Commander. Einfache Regeln und Zufall, ohne Gegner.",
  "Parties en cours…": "Partien laufen…",
  "des mains de 7 cartes gardées": "der Starthände mit 7 Karten behalten",
  "{l} terrains en moyenne dans la main gardée": "{l} Länder im Schnitt in der behaltenen Hand",
@@ -93,5 +92,6 @@
  "toutes les cartes Magic": "alle Magic-Karten",
  "Rôle": "Rolle",
  "{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.": "{name}: Dein Exemplar steckt in „{deck}“. Nimm es dort, wenn du dieses Deck spielst, oder kauf eins.",
- "un autre deck": "einem anderen Deck"
+ "un autre deck": "einem anderen Deck",
+ "Le coach a joué seul les 8 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.": "Der Coach hat die ersten 8 Züge mit diesem Deck allein gespielt, {n}-mal: Starthände, Länder, Farben, Commander. Einfache Regeln und Zufall, ohne Gegner."
 }

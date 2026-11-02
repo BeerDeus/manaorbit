@@ -174,13 +174,16 @@ assert.match(rep, /\d+ \/100 Note du coach/, 'rapport : note du coach'); assert.
 const sim = await p.evaluate(async () => {
   const X = { main: new Map([['plains', { key: 'plains', name: 'Plains', qty: 13 }], ['swamp', { key: 'swamp', name: 'Swamp', qty: 12 }], ['mountain', { key: 'mountain', name: 'Mountain', qty: 12 }], ['swords to plowshares', { key: 'swords to plowshares', name: 'Swords to Plowshares', qty: 31 }], ['phyrexian arena', { key: 'phyrexian arena', name: 'Phyrexian Arena', qty: 31 }]]), cmdr: [{ key: 'edgar markov', name: 'Edgar Markov' }], wiz: { th: [], br: 2, bud: 0 } };
   const a = await dsimRun(X, 400), b = await dsimRun(X, 400), html = dsimHtml(a);
+  DSIM.sig = ''; let ticks = 0; dsimEnsure(X, () => { ticks++; }); for (let i = 0; i < 100 && !DSIM.res; i++) await new Promise(r => setTimeout(r, 100));      // comme le rapport : la progression arrive avant que dsimRun rende la main
+  const ens = { done: !!(DSIM.res && DSIM.res.n === 10000), ticks };
   const none = await dsimRun({ main: new Map([['plains', { key: 'plains', name: 'Plains', qty: 10 }]]), cmdr: X.cmdr, wiz: X.wiz }, 100);
-  return { a, same: JSON.stringify(a) === JSON.stringify(b), html: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '), none };
+  return { a, same: JSON.stringify(a) === JSON.stringify(b), html: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '), none, ens };
 });
+assert.ok(sim.ens.done && sim.ens.ticks > 5, 'simulation du rapport (10 000 parties) menée à son terme, avec sa progression : ' + JSON.stringify(sim.ens));
 assert.ok(sim.same, 'graine fixe : mêmes résultats'); assert.equal(sim.none, null, 'moins de 40 cartes : pas de simulation');
 assert.ok(sim.a.keep7 > 60 && sim.a.keep7 <= 100 && sim.a.lands0 > 2 && sim.a.lands0 < 4, 'mains gardées et terrains : ' + JSON.stringify(sim.a));
 assert.ok(sim.a.cmdT > 3 && sim.a.cmdT < 9 && sim.a.eff > 0 && sim.a.eff <= 100 && sim.a.cast6 > 0, 'commandant, mana, sorts : ' + JSON.stringify(sim.a));
-assert.match(sim.html, /Simulation de 1 000 parties .* % des mains de 7 cartes gardées .* commandant lancé à temps \(tour \d ou avant\)/);
+assert.match(sim.html, /Simulation de 10 000 parties .* % des mains de 7 cartes gardées .* commandant lancé à temps \(tour \d ou avant\)/);
 await p.waitForFunction(() => /Simulation de 1 000 parties|Note du coach/.test(document.querySelector('.dr-body').textContent));
 await shot(p, 'rapport');
 await p.click('.dr-body .dr-c[data-k="swords to plowshares"]'); await p.waitForSelector('.imgv'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'));
