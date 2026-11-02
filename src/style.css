@@ -1589,3 +1589,43 @@ html.nat-cam .imgv{background:rgba(6,8,18,.96)}                                 
 html.nat-cam .dv.scan>:not(.sc-stage){background:var(--bg)}
 html.nat-cam .sc-video{visibility:hidden}      /* gardée en place : sa zone est celle de l'aperçu natif (scan.js › camRect) */
 html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
+/* ── Deck viewer : vues (grille, piles façon MTG Arena, piles compactes, bandeaux) et pastille Game Changer ── */
+.dv-tools{position:sticky;top:8px;z-index:3;display:flex;align-items:center;gap:8px}
+.dv-tools .dv-seg{position:static;flex:1;min-width:0}
+.dv-vw{flex:none;display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--surface-2);box-shadow:var(--shadow),inset 0 0 0 1px var(--line)}
+.dv-vw button{width:34px;height:34px;display:grid;place-items:center;padding:0;border:0;border-radius:11px;background:transparent;color:var(--ink-3);transition:background .15s,color .15s}
+.dv-vw button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
+.dv-vw button[aria-checked="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(16,21,43,.18)}
+.dvc-tl{position:absolute;top:14%;left:7%;z-index:1;display:flex;gap:4px;align-items:center}      /* sous la bande du titre, sur l'illustration : le nom reste lisible */
+.dvc-tl .dvc-l{position:static}
+.dvc-gc{flex:none;height:19px;padding:0 5px;display:inline-grid;place-items:center;border-radius:6px;background:linear-gradient(135deg,#6d3cff,#c43cff);color:#fff;font:700 10px/1 var(--font-mono);letter-spacing:.05em;box-shadow:0 0 0 1.5px rgba(255,255,255,.6),0 2px 6px rgba(80,20,160,.45)}
+/* Piles : colonnes côte à côte, défilement de côté ; chaque carte ne laisse dépasser que son titre (≈ 16 % de sa largeur), la dernière en entier */
+.dv-groups[data-view="piles"]{margin:0 -16px}
+.dv-piles{display:flex;gap:12px;overflow-x:auto;padding:2px 16px 12px;scroll-snap-type:x proximity;scroll-padding:0 16px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none}
+.dv-piles::-webkit-scrollbar{display:none}
+.dv-pile{flex:none;width:min(41vw,180px);scroll-snap-align:start}
+.dv-pile h3{flex-direction:column;align-items:flex-start;gap:1px;margin-bottom:8px;font-size:14.5px}
+.dvp{display:flex;flex-direction:column;min-width:0}
+.dvp>.dvc+.dvc{margin-top:-119%}
+.dvp>.dvc{position:relative;transition:transform .18s var(--out)}
+.dvp>.dvc:active{transform:translateY(-4px) scale(1)}
+.dvp .dvc-tl{top:5px;left:auto;right:5px}      /* piles : seule la bande du titre dépasse, la pastille s'y pose à droite */
+.dvp .dvc-q{right:auto;left:5px}
+.dvp .dvc-art i{top:6%;bottom:auto;left:9%;right:9%;text-align:left;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}      /* image pas encore là : le nom à la place du titre */
+/* Piles compactes : deux piles par groupe, sans défilement de côté (téléphone en portrait) */
+.dv-stk{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+/* Bandeaux : liste façon MTG Arena */
+.dv-strips{display:flex;flex-direction:column;gap:5px}
+.dvc.dvb{position:relative;display:flex;align-items:center;gap:8px;width:100%;min-height:46px;padding:0 10px 0 8px;border-radius:11px;overflow:hidden;background:hsl(var(--h) 22% 16%);color:#fff;font:inherit;text-align:left;box-shadow:0 1px 2px rgba(10,14,30,.25)}
+.dvb-art{position:absolute;top:0;bottom:0;right:0;width:62%}
+.dvb-art img{width:100%;height:100%;object-fit:cover;object-position:50% 30%;opacity:0;transition:opacity .3s}
+.dvb-art img.ok{opacity:1}
+.dvc.dvb::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,hsl(var(--h) 22% 13%) 38%,hsla(var(--h),22%,13%,.82) 58%,hsla(var(--h),22%,13%,.25))}
+.dvc.dvb>:not(.dvb-art){position:relative;z-index:2}
+.dvb-q{flex:none;min-width:20px;text-align:center;font:700 13px var(--font-mono);color:rgba(255,255,255,.78)}
+.dvb-n{flex:1;min-width:0;font-size:14px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.dvb-mc{flex:none;display:inline-flex;align-items:center}
+.dvc.dvb .dvc-p{position:static;transform:none;flex:none;max-width:none}
+.dvc.dvb .dvc-l{position:static;flex:none}
+.dvc.dvb:active{transform:scale(.985)}
+.dvc.dvb[data-s="none"],.dvc.dvb[data-s="nohub"],.dvc.dvb[data-s="nf"]{filter:saturate(.6)}

@@ -77,5 +77,11 @@
  "Plus d'interaction et de pioche, partie plus longue": "Más interacción y robo, partidas más largas",
  "Environ 55 % de la valeur de la version équilibrée": "Alrededor del 55 % del valor de la versión equilibrada",
  "va avec {card}": "va con {card}",
- "Banc d'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.": "Banco de pruebas: en {n} mazos reales que nunca aprendió, el coach encuentra el {p} % de las cartas quitadas en sus 20 primeras sugerencias."
+ "Banc d'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.": "Banco de pruebas: en {n} mazos reales que nunca aprendió, el coach encuentra el {p} % de las cartas quitadas en sus 20 primeras sugerencias.",
+ "Affichage": "Vista",
+ "Grille": "Cuadrícula",
+ "Piles": "Pilas",
+ "Piles compactes": "Pilas compactas",
+ "Bandeaux": "Franjas",
+ "Game Changer : compte pour le bracket": "Game Changer: cuenta para el bracket"
 }

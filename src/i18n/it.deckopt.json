@@ -77,5 +77,11 @@
  "Plus d'interaction et de pioche, partie plus longue": "Più interazione e pescaggio, partite più lunghe",
  "Environ 55 % de la valeur de la version équilibrée": "Circa il 55 % del valore della versione equilibrata",
  "va avec {card}": "va con {card}",
- "Banc d'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.": "Banco di prova: su {n} mazzi reali mai studiati, il coach ritrova il {p} % delle carte tolte nei suoi primi 20 suggerimenti."
+ "Banc d'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.": "Banco di prova: su {n} mazzi reali mai studiati, il coach ritrova il {p} % delle carte tolte nei suoi primi 20 suggerimenti.",
+ "Affichage": "Visualizzazione",
+ "Grille": "Griglia",
+ "Piles": "Pile",
+ "Piles compactes": "Pile compatte",
+ "Bandeaux": "Strisce",
+ "Game Changer : compte pour le bracket": "Game Changer: conta per il bracket"
 }

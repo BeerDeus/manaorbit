@@ -212,7 +212,8 @@ function mountSeg(root, options, value, onChange) {
     const i = Math.max(0, options.findIndex(o => o.v === v));
     root.style.setProperty('--idx', i);
     $$('.seg-opt', root).forEach((b, k) => b.setAttribute('aria-checked', String(k === i)));
-    root._v = options[i].v; fit();
+    root._v = options[i].v;
+    if (root._fitRaf) cancelAnimationFrame(root._fitRaf); root._fitRaf = requestAnimationFrame(() => { root._fitRaf = 0; fit(); });      // à l'image suivante : la mesure ne force plus une mise en page de tout l'écran au milieu de sa construction
     if (fire) haptic('tap');
     if (fire && onChange) onChange(options[i].v);
   };

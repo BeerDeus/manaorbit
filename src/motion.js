@@ -62,7 +62,8 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'scroll']) docum
 /** Rejoue l'arrivée en cascade des enfants de chaque conteneur (listes, grilles) : seulement à l'ouverture d'un écran, d'un onglet, d'un tri. */
 function stagger(...els) {
   if (motionOff()) return;
-  for (const el of els.flat()) { if (!el) continue; el.classList.remove('stg'); void el.offsetWidth; el.classList.add('stg'); }
+  const list = els.flat().filter(Boolean); for (const el of list) el.classList.remove('stg');
+  requestAnimationFrame(() => { for (const el of list) el.classList.add('stg'); });      // relancée à l'image suivante : plus de mise en page forcée (void offsetWidth) par élément
 }
 
 /* ── En-têtes des écrans plein format ── */

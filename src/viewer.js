@@ -297,7 +297,7 @@ function openCardViewer(items, index) {
 /* ── Deck viewer ──────────────────────────────────────────────────────────────────────────────── */
 const DV_SORT_KEY = 'deckdeal:dv-sort';
 const DV = { anim: false, el: null, sort: 'mana', snap: null, deckId: null, name: '', live: false, adhoc: false, pub: false, prevFocus: null, flat: [], f: newFilter(), framed: null, fb: null, text: '', loading: false, sb: [], saveName: '', savedId: '', savedName: '' };
-try { const v = localStorage.getItem(DV_SORT_KEY); if (['mana', 'price', 'type'].includes(v)) DV.sort = v; } catch (e) { /* stockage indisponible */ }
+try { const v = localStorage.getItem(DV_SORT_KEY); if (['mana', 'price', 'type', 'role'].includes(v)) DV.sort = v; } catch (e) { /* stockage indisponible */ }
 
 /** Deck Commander (bloc « Commander » ou format noté) : bouton « Analyser » (deckana.js). */
 const dvCommander = () => { try { return dkFmtOf(DV.text) === 'commander' || dkParse(DV.text).cmdr.length > 0 || commanderKeys(DV.text).length > 0; } catch (e) { return false; } };
@@ -445,7 +445,11 @@ const dvImg = it => (it.im ? it.im.replace('/small/', '/normal/') : '');
 const dvLetter = it => esc((it.n.trim()[0] || '?').toUpperCase());
 /** Écart notable d'une carte (≥ 5 % ou ≥ 0,20 € par exemplaire) : flèche sur la vignette. */
 const dvMoved = d => !!d && (Math.abs(d.diff) >= 20 || Math.abs(d.diff) >= d.prev * 0.05);
-function dvTile(it, i, snap, dl) {
+/** Carte de la liste officielle des Game Changers (brackets Commander) : données EDHREC de l'appli. */
+const dvGC = k => !!(typeof EDH !== 'undefined' && EDH.data && EDH.data.gc && EDH.data.gc.size && EDH.data.gc.has(ownKey(String(k).replace(/^sb:/, ''))));
+const dvGCBadge = () => `<span class="dvc-gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`;
+/** Morceaux communs aux vues : prix ou état, possession ou langue, quantité, Game Changer, libellé lu par le lecteur d'écran. */
+function dvBits(it, snap, dl) {
   const hue = hash32(it.k) % 360, art = dvImg(it), d = dl && dl.get(it.k), mv = dvMoved(d) ? `<em class="${d.diff < 0 ? 'dn' : 'up'}" aria-hidden="true">${d.diff < 0 ? '▼' : '▲'}</em>` : '';
   const ref = !!snap.ref || !!it.sb, full = ref && it.ow >= it.q;
   const tag = it.s === 'ok' ? `<span class="dvc-p">${esc(dvFmt(it.c))}${mv}</span>`
@@ -455,7 +459,17 @@ function dvTile(it, i, snap, dl) {
     : it.s === 'ok' && it.l && snap.lang && it.l !== snap.lang ? `<span class="dvc-l">${esc(it.l.toUpperCase())}</span>` : '';
   const q = it.q > 1 ? `<span class="dvc-q">×${it.q}</span>` : '';
   const label = `${it.n}${it.q > 1 ? ', ×' + it.q : ''}${it.s === 'ok' ? ', ' + dvFmt(it.c) : it.s === 'own' ? ', ' + T('dans ta collection') : it.s === 'nf' ? ', ' + T('introuvable') : it.s === 'basic' ? '' : ref ? ', ' + T('prix inconnu') : ', ' + T('aucune offre')}${it.sb ? ', ' + T('réserve') : ''}${ref && it.ow ? (full ? ', ' + T('possédée') : ', ' + TN(it.ow, '{n} possédée', '{n} possédées')) : ''}${d && dvMoved(d) ? (d.diff < 0 ? ', ' + T('en baisse') : ', ' + T('en hausse')) : ''}`;
-  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span>${q}${en}${tag}</button>`;
+  const gc = dvGC(it.k);
+  return { hue, art, tag, en, q, gc, label: label + (gc ? ', Game Changer' : '') };
+}
+function dvTile(it, i, snap, dl) {
+  const { hue, art, tag, en, q, gc, label } = dvBits(it, snap, dl);
+  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
+}
+/** Bandeau (vue « Bandeaux », façon liste de MTG Arena) : illustration à droite, quantité, nom, coût de mana, prix. */
+function dvStrip(it, i, snap, dl) {
+  const { hue, tag, en, gc, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
+  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
 }
 /** Courbe de mana : c = exemplaires par coût (0 à 7+). interactive : barres cliquables (le viewer saute au groupe). */
 function curveBars(c, interactive) {
@@ -491,6 +505,7 @@ function dvRefLine(items) {
 
 /** Cadre du viewer : résumé, bascule de tri, filtres. Reconstruit seulement quand le relevé change (la saisie ne doit pas perdre le focus). */
 function dvFrame(snap) {
+  DV.nodes = new Map();      // nouveau relevé (prix, possession) : vignettes refaites
   const el = DV.el, items = snap.items, found = items.filter(i => i.s === 'ok'), total = found.reduce((a, i) => a + i.c, 0);
   const copies = items.reduce((a, i) => a + i.q, 0), miss = items.filter(i => i.s === 'nf').length, none = items.filter(i => i.s === 'none' || i.s === 'nohub').length, own = items.filter(i => i.s === 'own').length;
   const ref = !!snap.ref, old = !ref && !DV.live && snapAge(snap) === 'old';
@@ -510,34 +525,91 @@ function dvFrame(snap) {
       <div class="tr-acts dv-acts">${typeof plcFetchSheet === 'function' ? `<button class="btn ghost dv-fetch" type="button" data-act="fetch" title="${DV.deckId && !DV.pub ? T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck') : T('Les cartes de ce deck que tu as, emplacement par emplacement')}"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>${T('Où trouver mes cartes')}</button>` : ''}${!DV.pub && DV.deckId && !DV.live && typeof openBuilder === 'function' ? `<button class="btn ghost dv-bld" type="button" data-act="builder"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>${T('Modifier les cartes')}</button>` : ''}${typeof dwOn === 'function' && dwOn() && !DV.live && dvCommander() ? `<button class="btn ghost dv-ana" type="button" data-act="analyse" title="${T('État du deck et échanges conseillés (fonctionnalité en test)')}"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg>${T('Analyser')}</button>` : ''}<button class="btn ghost dv-hand" type="button" data-act="hand"><svg class="i"><use href="#i-stack"/></svg>${T('Main de départ')}</button>${dvPubOk() ? `<button class="btn ghost dv-pubb" type="button" data-act="pub" title="${T('Publier ce deck dans la communauté (Decks › À monter)')}"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg>${T('Publier')}</button>` : ''}${dvMissing().length ? `<button class="btn ghost" type="button" data-act="cm" title="${T('Les cartes qui manquent, une ligne « 1 Sol Ring » par carte, à coller dans une Wants list Cardmarket')}"><svg class="i"><use href="#i-copy"/></svg>${DV.pub ? T('Copier pour Cardmarket') : T('Manquantes · Cardmarket')}</button>` : ''}${typeof ctWishSheet === 'function' && !mkUs() && !DV.live ? `<button class="btn ghost dv-ctw" type="button" data-act="ctw" title="${T('Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck')}"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Envoyer sur CardTrader')}</button>` : ''}</div>
     </section>${typeof dfSecHtml === 'function' ? dfSecHtml() : ''}</div>
     <div class="dv-main"><div id="dvCmd"></div>
-    <div class="seg dv-seg" id="dvSeg"></div>
+    <div class="dv-tools"><div class="seg dv-seg" id="dvSeg"></div>${dvViewHtml()}</div>
     <div id="dvF"></div>
     <div class="dv-groups"></div>${DV.pub && DV.sid ? `<p class="pub-report"><a href="${esc(trReportHref(DV.sid))}" rel="noopener">${T('Signaler ce partage')}</a></p>` : ''}</div>`;      // deck reçu par un lien : contenu choisi par quelqu'un d'autre (règles Google Play) ; dv-side / dv-main : deux colonnes sur ordinateur (zz-desktop.css), l'une sous l'autre ailleurs
   if (typeof dfMount === 'function') dfMount();      // « De ta collection pour ce deck » (deckfind.js) : calculé à l'ouverture de la section
-  mountSeg($('#dvSeg', el), [{ v: 'mana', label: T('Mana') }, { v: 'price', label: T('Prix') }, { v: 'type', label: T('Type') }], DV.sort, v => {
+  mountSeg($('#dvSeg', el), [{ v: 'mana', label: T('Mana') }, { v: 'price', label: T('Prix') }, { v: 'type', label: T('Type') }, { v: 'role', label: T('Rôle') }], DV.sort, v => {
     DV.sort = v; try { localStorage.setItem(DV_SORT_KEY, v); } catch (e) { /* ignore */ } haptic('tap'); DV.anim = true; dvGroups();
     const g = $('.dv-groups', DV.el), sc = $('.dv-scroll', DV.el); if (g && sc) sc.scrollTop = Math.min(sc.scrollTop, g.offsetTop - 8);
   });
   $('#dvSeg', el).setValue(DV.sort);
+  $('#dvView', el).onclick = e => {
+    const b = e.target.closest('[data-view]'); if (!b || b.dataset.view === DV.view) return;
+    DV.view = b.dataset.view; try { localStorage.setItem(DV_VIEW_KEY, DV.view); } catch (x) { /* ignore */ }
+    $$('[data-view]', $('#dvView', el)).forEach(x => x.setAttribute('aria-checked', String(x === b))); haptic('tap'); DV.anim = true; dvGroups();
+  };
   { const a = $('.dv-amt', el); a._v = DV.shownTotal == null ? 0 : DV.shownTotal; DV.shownTotal = total; tween(a, total); }      // le total défile depuis 0 à l'ouverture, puis d'une valeur à l'autre
   DV.fb = mountFilters($('#dvF', el), DV.f, () => dvGroups(), { placeholder: T('Rechercher dans le deck') });
 }
-/** Commandant + groupes de cartes, d'après le tri et les filtres. */
+/** Vues du deck : grille de vignettes, piles façon MTG Arena (colonnes côte à côte, seul le titre de chaque carte dépasse), piles en deux colonnes
+ *  (sans défilement de côté, pour le téléphone en portrait) et bandeaux (liste façon MTG Arena : illustration, nom, coût). Choix gardé sur l'appareil. */
+const DV_VIEWS = [['grid', 'Grille'], ['piles', 'Piles'], ['stacks', 'Piles compactes'], ['strips', 'Bandeaux']], DV_VIEW_KEY = 'deckdeal:dv-view';
+const DV_VIEW_ICON = {
+  grid: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>',
+  piles: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="5" height="18" rx="1.2"/><rect x="9.5" y="3" width="5" height="13" rx="1.2"/><rect x="16" y="3" width="5" height="9" rx="1.2"/><path d="M3 7h5M3 11h5M9.5 7h5M16 7h5"/></svg>',
+  stacks: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3" width="7.5" height="18" rx="1.5"/><rect x="13" y="3" width="7.5" height="14" rx="1.5"/><path d="M3.5 7.5h7.5M3.5 12h7.5M13 7.5h7.5"/></svg>',
+  strips: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="18" height="4" rx="1.5"/><rect x="3" y="16" width="18" height="4" rx="1.5"/></svg>',
+};
+function dvViewRead() { try { const v = localStorage.getItem(DV_VIEW_KEY); if (DV_VIEWS.some(x => x[0] === v)) return v; } catch (e) { /* ignore */ } return 'grid'; }
+const dvViewHtml = () => `<div class="dv-vw" id="dvView" role="radiogroup" aria-label="${T('Affichage')}">${DV_VIEWS.map(([v, l]) => `<button type="button" role="radio" data-view="${v}" aria-checked="${DV.view === v}" aria-label="${esc(T(l))}" title="${esc(T(l))}">${DV_VIEW_ICON[v]}</button>`).join('')}</div>`;
+/** Vignette d'une carte pour la vue en cours : construite une fois, puis déplacée d'un groupe à l'autre (tri, filtres) sans être refaite :
+ *  plus de reconstruction de tout le deck à chaque tri, et les images déjà chargées ne repassent pas par leur fondu. */
+function dvNode(it, i, snap, dl) {
+  const key = (DV.view === 'strips' ? 's|' : 't|') + it.k + (it.sb ? '|sb' : '') + (it.cmd ? '|c' : '');
+  let n = DV.nodes.get(key);
+  if (!n) { const t = document.createElement('template'); t.innerHTML = (DV.view === 'strips' ? dvStrip : dvTile)(it, i, snap, dl); n = t.content.firstElementChild; DV.nodes.set(key, n); }
+  n.dataset.i = i; return n;
+}
+/** Tri « Rôle » : les catégories du coach (base du coach, lue à la demande) ; une carte va dans un seul groupe, le plus parlant
+ *  (balayage avant retrait, retrait avant rampe…), sans rôle : « Plan de jeu ». Base pas encore là : groupes par coût, en attendant. */
+const DV_ROLE_GROUPS = [['ramp', 'Rampe'], ['draw', 'Pioche'], ['removal', 'Retraits ciblés'], ['wipe', 'Balayages'], ['counter', 'Contresorts'], ['protect', 'Protection'], ['tutor', 'Tuteurs'], ['recursion', 'Récursion'], ['wincon', 'Conditions de victoire'], ['plan', 'Plan de jeu'], ['land', 'Terrains']];
+const DV_ROLE_PICK = ['wipe', 'removal', 'counter', 'ramp', 'draw', 'tutor', 'protect', 'recursion', 'wincon'];
+function dvRoleOf(it) {
+  if (it.s === 'basic' || isLand(it)) return 'land';
+  const x = typeof dwCard === 'function' ? dwCard(ownKey(String(it.k).replace(/^sb:/, ''))) : null, r = x ? x.roles || 0 : 0;
+  if (r & DW_RB.land) return 'land';
+  return DV_ROLE_PICK.find(k => r & DW_RB[k]) || 'plan';
+}
+function dvRoleGroups(items, ref) {
+  if (typeof dwLoad !== 'function') return groupSnap(items, 'mana', ref);
+  if (!DW.byKey) { if (!DV.roleWait) { DV.roleWait = true; dwLoad().then(() => { DV.roleWait = false; if (DV.el && DV.sort === 'role') dvGroups(); }, () => { DV.roleWait = false; }); } return groupSnap(items, 'mana', ref); }
+  const list = items.filter(i => !i.sb), side = items.filter(i => i.sb), nf = list.filter(i => i.s === 'nf').sort(byName), rest = list.filter(i => i.s !== 'nf'), out = [];
+  const by = new Map(DV_ROLE_GROUPS.map(([k]) => [k, []])); for (const i of rest) by.get(dvRoleOf(i)).push(i);
+  const add = (id, label, arr) => { if (arr.length) out.push({ id, label, items: arr, ...sumGroup(arr) }); };
+  for (const [k, l] of DV_ROLE_GROUPS) add('r-' + k, T(l), by.get(k).sort((a, b) => (a.s === 'basic') - (b.s === 'basic') || byCmcName(a, b)));
+  add('sb', T('Réserve'), side.sort(byName)); add('nf', T('Introuvables'), nf);
+  return out;
+}
+/** Commandant + groupes de cartes, d'après le tri, les filtres et la vue. */
 function dvGroups() {
   const snap = DV.snap, el = DV.el; if (!snap || !el) return;
-  const sc = $('.dv-scroll', el), keep = sc ? sc.scrollTop : 0;
+  if (!DV.nodes) DV.nodes = new Map();
+  const first = !$('.dv-g', el), sc = $('.dv-scroll', el), keep = sc && !first ? sc.scrollTop : 0;      // première construction : rien à garder (lire scrollTop forcerait une mise en page)
   const all = snap.items.concat(DV.sb), filtered = filterItems(all, DV.f), act = filterActive(DV.f);
-  const cmds = filtered.filter(i => i.cmd), rest = filtered.filter(i => !i.cmd), dl = DV.dl;
+  const cmds = filtered.filter(i => i.cmd), rest = filtered.filter(i => !i.cmd), dl = DV.dl, view = DV.view;
   DV.flat = [];
   const flat = it => DV.flat.push(it) - 1;
   $('#dvCmd', el).innerHTML = cmds.length ? `<div class="dv-cmds">${cmds.map(c => dvHero(c, flat(c), snap, dl)).join('')}</div>` : '';
-  const groups = groupSnap(rest, DV.sort, !!snap.ref); let n = DV.flat.length;
+  const groups = DV.sort === 'role' ? dvRoleGroups(rest, !!snap.ref) : groupSnap(rest, DV.sort, !!snap.ref);
   const hidden = (DV.f.colors.size || DV.f.type || DV.f.cmc !== '') ? all.filter(i => !hasMeta(i)).length : 0;
-  $('.dv-groups', el).innerHTML = (act ? `<p class="hint dv-fcount">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: all.length })}${hidden ? ' · ' + (snap.ref ? T('{n} sans infos de type ou de coût (pas encore lues)', { n: hidden }) : T('{n} sans infos de type ou de coût (prix gardés avant cette version) : relance la recherche', { n: hidden })) : ''}</p>` : '')
-    + (groups.map(g => `<section class="dv-g" data-g="${esc(g.id)}"><h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix tendance') : ''}</small></h3><div class="dv-grid">${g.items.map(it => { flat(it); return dvTile(it, n++, snap, dl); }).join('')}</div></section>`).join('')
-      || (cmds.length ? '' : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'));
-  if (sc) sc.scrollTop = keep;
-  if (DV.anim) { DV.anim = false; stagger($$('.dv-grid', el), $('.dv-cmds', el)); }
+  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}${g.cost ? ' · ' + (g.id === 'sb' ? '≈ ' : '') + esc(dvFmt(g.cost)) : ''}${g.id === 'sb' ? ' · ' + T('prix tendance') : ''}</small></h3>`;
+  const cols = g => (view === 'stacks' ? Math.min(2, Math.max(1, g.items.length)) : 1);
+  const box = (gi, c = 0) => `<div class="${view === 'grid' ? 'dv-grid' : view === 'strips' ? 'dv-strips' : 'dvp'}" data-gi="${gi}" data-c="${c}"></div>`;
+  const body = !groups.length ? (cmds.length ? '' : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>')
+    : view === 'piles' ? `<div class="dv-piles">${groups.map((g, gi) => `<section class="dv-g dv-pile" data-g="${esc(g.id)}">${head(g)}${box(gi)}</section>`).join('')}</div>`
+    : groups.map((g, gi) => `<section class="dv-g" data-g="${esc(g.id)}">${head(g)}${view === 'stacks' ? `<div class="dv-stk">${Array.from({ length: cols(g) }, (_, c) => box(gi, c)).join('')}</div>` : box(gi)}</section>`).join('');
+  const gw = $('.dv-groups', el);
+  gw.dataset.view = view;
+  gw.innerHTML = (act ? `<p class="hint dv-fcount">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: all.length })}${hidden ? ' · ' + (snap.ref ? T('{n} sans infos de type ou de coût (pas encore lues)', { n: hidden }) : T('{n} sans infos de type ou de coût (prix gardés avant cette version) : relance la recherche', { n: hidden })) : ''}</p>` : '') + body;
+  let n = DV.flat.length;
+  groups.forEach((g, gi) => {
+    const nc = cols(g), per = Math.ceil(g.items.length / nc), frags = Array.from({ length: nc }, () => document.createDocumentFragment());
+    g.items.forEach((it, j) => { flat(it); frags[Math.min(nc - 1, Math.floor(j / per))].appendChild(dvNode(it, n++, snap, dl)); });      // piles compactes : la 1re moitié du groupe à gauche, la 2de à droite (lecture de haut en bas)
+    frags.forEach((f, c) => { const b = gw.querySelector(`[data-gi="${gi}"][data-c="${c}"]`); if (b) b.appendChild(f); });
+  });
+  if (sc && keep) sc.scrollTop = keep;
+  if (DV.anim) { DV.anim = false; stagger($$('.dv-grid, .dvp, .dv-strips', el).slice(0, 3), $('.dv-cmds', el)); }      // cascade sur les premiers groupes seulement (les suivants sont hors écran)
 }
 function dvRender() {
   const snap = DV.snap, el = DV.el; if (!el) return;
@@ -628,7 +700,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
   closeDeckViewer(); closeCardImage();
   const adhoc = !id && !live && typeof text === 'string', d = id ? findDeck(id) : null;
   DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null;
-  DV.snap = adhoc ? null : live ? buildSnap() : snapOf(d); DV.framed = null; DV.dl = null; DV.f = newFilter(); DV.anim = true; DV.shownTotal = null;
+  DV.snap = adhoc ? null : live ? buildSnap() : snapOf(d); DV.framed = null; DV.dl = null; DV.f = newFilter(); DV.anim = true; DV.shownTotal = null; DV.view = dvViewRead(); DV.nodes = new Map();
   DV.name = adhoc ? String(name || 'Deck') : d ? d.name : (live && findDeck(S.deckId) ? findDeck(S.deckId).name : T('Liste en cours'));
   if (live && !DV.snap) { toast(T('Lance une recherche pour voir le deck')); return; }
   // Pas de prix gardé (ou tout est possédé, donc rien à chiffrer) : même viewer, avec la valeur estimée du deck au prix tendance Cardmarket

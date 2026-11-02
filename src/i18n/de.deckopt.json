@@ -77,5 +77,11 @@
  "Plus d'interaction et de pioche, partie plus longue": "Mehr Interaktion und Kartenziehen, längere Partien",
  "Environ 55 % de la valeur de la version équilibrée": "Etwa 55 % des Werts der ausgewogenen Version",
  "va avec {card}": "passt zu {card}",
- "Banc d'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.": "Prüfstand: Bei {n} echten Decks, die er nie gelernt hat, findet der Coach {p} % der entfernten Karten in seinen ersten 20 Vorschlägen."
+ "Banc d'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.": "Prüfstand: Bei {n} echten Decks, die er nie gelernt hat, findet der Coach {p} % der entfernten Karten in seinen ersten 20 Vorschlägen.",
+ "Affichage": "Anzeige",
+ "Grille": "Raster",
+ "Piles": "Stapel",
+ "Piles compactes": "Kompakte Stapel",
+ "Bandeaux": "Streifen",
+ "Game Changer : compte pour le bracket": "Game Changer: zählt für das Bracket"
 }
