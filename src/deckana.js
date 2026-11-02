@@ -95,7 +95,7 @@ function openDeckAnalysis({ text, name, id } = {}) {
   DW.shown = 8;
   dwLoad().catch(() => {}); if (typeof edhLoad === 'function') edhLoad().then(() => daPaint()).catch(() => {});
   DA.api = openSheet(T('Analyse du deck'), DA.name, api => {
-    api.wrap.classList.add('da-sheet');
+    api.wrap.classList.add('da-sheet'); dwImgs(api.wrap);      // vignettes des échanges
     api.body.addEventListener('click', daClick); api.body.addEventListener('change', daChange);
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn" type="button" id="daGo" disabled>${T('Lancer l\'analyse')}</button>`);
     $('#daGo', api.foot).onclick = () => { if (DA.step === 'set') { DA.step = 'res'; DA.off.clear(); haptic('tap'); daPaint(); DA.api.body.scrollTop = 0; } else daApply(); };

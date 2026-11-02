@@ -44,6 +44,7 @@ function dwNextSteps(prof, tgt, cmd, set) {
   if (n > 100) st.push({ t: TN(n - 100, '{n} carte de trop', '{n} cartes de trop'), b: T('Que retirer ?'), act: 'dw-goto', v: 'cuts' });
   if (prof.gc.length > b[3]) st.push({ t: T('{n} Game Changers pour {max} permis en bracket {b}', { n: prof.gc.length, max: b[3], b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
   if ((prof.mld.length && set.br <= 3) || (prof.combos.length && set.br <= 2)) st.push({ t: T('Une carte enfreint les règles du bracket {b}', { b: b[0] }), b: T('Voir'), act: 'dw-goto', v: 'bracket' });
+  if (set.bud > 0 && prof.cents > set.bud && n >= 60) st.push({ t: T('Au-dessus du budget : {a} pour {b}', { a: fmt(prof.cents, mkCur()), b: fmt(set.bud, mkCur()) }), b: T('Voir les échanges'), act: 'dw-goto', v: 'swaps' });
   if (n < 100) st.push({ t: TN(100 - n, 'Il manque {n} carte', 'Il manque {n} cartes'), b: n <= BD.cmdr.length ? T('Générer le deck') : T('Compléter'), act: 'dw-auto' });
   const def = DW_GAUGES.filter(([r]) => r !== 'land' && (r !== 'counter' || cmd.ci.includes('U')) && prof[r] < tgt[r][0]).map(([r, l]) => ({ r, l, miss: tgt[r][1] - prof[r], k: (tgt[r][1] - prof[r]) / Math.max(1, tgt[r][1]) })).sort((a, b) => b.k - a.k);
   for (const d of def.slice(0, 2)) st.push({ t: T('{r} : il en manque {n}', { r: T(d.l), n: d.miss }), b: T('Voir les suggestions'), act: 'dw-goto', v: 'gauge:' + d.r });
@@ -111,7 +112,8 @@ function dxClick(b, act) {
   if (act === 'dw-goto') {
     const v = b.dataset.v || ''; haptic('tap');
     if (v.startsWith('gauge:')) { DW.open = v.slice(6); DW.shown = 8; bdList(); }
-    const sel = v.startsWith('gauge:') ? `.dw-g.open` : v === 'cuts' ? '#dwCuts' : v === 'bracket' ? '.dw-br' : v === 'mana' ? '.dw-mana' : '';
+    if (v === 'swaps') { DW.open = 'swaps'; bdList(); }
+    const sel = v.startsWith('gauge:') || v === 'swaps' ? `.dw-g.open` : v === 'cuts' ? '#dwCuts' : v === 'bracket' ? '.dw-br' : v === 'mana' ? '.dw-mana' : '';
     const el = sel && BD.el && $(sel, BD.el); if (el) el.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
     return true;
   }

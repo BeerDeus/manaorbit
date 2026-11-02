@@ -131,3 +131,6 @@
 .dx-banner b{color:var(--accent)}
 .dx-banner.ok{border-color:var(--good);background:var(--good-soft)}
 .dx-banner.ok b{color:var(--good)}
+.dx-regen{padding:12px 14px;margin:2px 0 10px;border:1.5px solid var(--warn);border-radius:16px;background:var(--warn-soft)}
+.dx-regen p{margin:0;display:flex;flex-direction:column;gap:3px;font-size:13.5px;line-height:1.4}
+.dx-regen p span{color:var(--ink-2)}

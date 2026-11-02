@@ -253,5 +253,11 @@
  "Il manque {n} cartes": "Mancano {n} carte",
  "À retirer : {n} carte de trop": "Da togliere: {n} carta di troppo",
  "À retirer : {n} cartes de trop": "Da togliere: {n} carte di troppo",
- "Chaque changement relance l'analyse.": "Ogni modifica riavvia l'analisi."
+ "Chaque changement relance l'analyse.": "Ogni modifica riavvia l'analisi.",
+ "Au-dessus du budget : {a} pour {b}": "Oltre il budget: {a} su {b}",
+ "Voir les échanges": "Vedi gli scambi",
+ "Réglages modifiés": "Impostazioni modificate",
+ "Ce deck a été construit par le coach : il peut le reconstruire avec les nouveaux réglages (budget, bracket, thèmes). Annulable.": "Questo mazzo l'ha costruito il coach: può ricostruirlo con le nuove impostazioni (budget, bracket, temi). Annullabile.",
+ "Garder le deck": "Tieni il mazzo",
+ "Recréer le deck": "Ricrea il mazzo"
 }

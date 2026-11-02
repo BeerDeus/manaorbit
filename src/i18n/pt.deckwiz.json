@@ -253,5 +253,11 @@
  "Il manque {n} cartes": "Faltam {n} cards",
  "À retirer : {n} carte de trop": "A remover: {n} card a mais",
  "À retirer : {n} cartes de trop": "A remover: {n} cards a mais",
- "Chaque changement relance l'analyse.": "Cada mudança refaz a análise."
+ "Chaque changement relance l'analyse.": "Cada mudança refaz a análise.",
+ "Au-dessus du budget : {a} pour {b}": "Acima do orçamento: {a} de {b}",
+ "Voir les échanges": "Ver as trocas",
+ "Réglages modifiés": "Ajustes alterados",
+ "Ce deck a été construit par le coach : il peut le reconstruire avec les nouveaux réglages (budget, bracket, thèmes). Annulable.": "O treinador montou este deck: ele pode remontá-lo com os novos ajustes (orçamento, bracket, temas). Dá para desfazer.",
+ "Garder le deck": "Manter o deck",
+ "Recréer le deck": "Remontar o deck"
 }

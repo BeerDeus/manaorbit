@@ -54,6 +54,11 @@ const DW_BRACKETS = [
 const DW = { core: null, p: null, err: '', byKey: null, cmd: new Map(), cmdP: new Map(), th: new Map(), thP: new Map(), open: '', shown: 8, setOpen: false };
 const DW_KEY = 'dkw:core', DW_FRESH = DAY;
 const dwOn = () => typeof labOn === 'function' && labOn('deckwiz');
+/** Vignettes d'une feuille ou d'un écran du coach : l'image n'apparaît qu'une fois chargée (.thumb img.ok, style.css) ; en panne, la lettre reste. */
+function dwImgs(el) {
+  el.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
+  el.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
+}
 
 /* ── Données ──────────────────────────────────────────────────────────────────────────────────────── */
 async function dwGet(q, same) {
@@ -286,7 +291,7 @@ function dwCoachHtml() {
   if (!BD.wiz) BD.wiz = dwSettingsFor(BD.id);
   if (!DW.core && !DW.p && !DW.err) dwLoad().catch(() => {});
   if (typeof edhEnsure === 'function') edhEnsure();
-  if (DW.seenEl !== BD.el) { DW.seenEl = BD.el; DW.setOpen = false; DW.open = ''; DW.lastN = null; }      // autre deck ouvert : coach replié, pas de message « cartes de trop » à l'ouverture
+  if (DW.seenEl !== BD.el) { DW.seenEl = BD.el; DW.setOpen = false; DW.open = ''; DW.lastN = null; DW.changed = false; }      // autre deck ouvert : coach replié, pas de message « cartes de trop » à l'ouverture
   const cmd = dwCmdOf();
   if (!cmd) return `<div class="dw-empty"><p class="hint">${T('Choisis d\'abord ton commandant : le coach s\'appuie sur les decks qui le jouent.')}</p><button class="btn small" type="button" data-act="pick-cmdr">${T('Choisir un commandant')}</button></div>`;
   const pack = DW.core ? (DW.cmd.has(cmd.slug) ? DW.cmd.get(cmd.slug) : (dwPack('c', cmd.slug), null)) : null;
@@ -296,6 +301,7 @@ function dwCoachHtml() {
   if (DW.p && !DW.core) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement de la base du coach…')}</span></div>`;
   else if (DW.err) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(DW.err)}</span></div>`;
   if (DW.core && typeof dwNextHtml === 'function') {      // prochaines étapes (deckux.js) ; deck passé au-dessus de 100 : message « Que retirer ? »
+    if (DW.changed && BD.wiz.gen && prof.n > BD.cmdr.length) h += `<div class="dx-regen"><p><b>${T('Réglages modifiés')}</b><span>${T('Ce deck a été construit par le coach : il peut le reconstruire avec les nouveaux réglages (budget, bracket, thèmes). Annulable.')}</span></p><div class="dx-acts"><button class="btn ghost small" type="button" data-act="dw-keep">${T('Garder le deck')}</button><button class="btn small" type="button" data-act="dw-regen">${T('Recréer le deck')}</button></div></div>`;      // deck généré par le coach : le refaire avec les nouveaux réglages
     h += dwNextHtml(prof, tgt, cmd, BD.wiz);
     if (prof.n > 100 && (DW.lastN || 0) <= 100 && DW.lastN != null) setTimeout(() => toast(TN(prof.n - 100, '{n} carte de trop', '{n} cartes de trop'), { label: T('Que retirer ?'), fn: () => { const el = BD.el && $('#dwCuts', BD.el); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }), 0);
     DW.lastN = prof.n;
@@ -436,9 +442,11 @@ function dwFillBasics(quiet) {
  *  budget, collection d'abord) : 1. chaque rôle jusqu'à sa cible (rampe, pioche, retraits, balayages, contresorts, protection, tuteurs, récursion) ;
  *  2. le plan de jeu (cartes les plus jouées et en synergie avec le commandant et les thèmes) ; 3. les terrains : formule de Karsten sur le deck obtenu,
  *  terrains non-base les plus joués avec ce commandant (un tiers au plus), puis terrains de base selon les symboles de mana. Annulable. */
-function dwAutoBuild() {
+/** undoTo : deck à remettre si on annule (« Recréer le deck » : le deck d'avant la reconstruction). */
+function dwAutoBuild(undoTo) {
   const cmd = dwCmdOf(); if (!cmd || !DW.core || !BD.el) return 0;
-  const pack = DW.cmd.get(cmd.slug) || null, before = new Map([...BD.main].map(([k, c]) => [k, { ...c }])), n0 = dwProfile().n; BD.pace = true;
+  const pack = DW.cmd.get(cmd.slug) || null, before = undoTo || new Map([...BD.main].map(([k, c]) => [k, { ...c }])), n0 = dwProfile().n; BD.pace = true;
+  if (n0 <= BD.cmdr.length) { BD.wiz = BD.wiz || dwDefaults(); BD.wiz.gen = 1; dwPersist(BD.id); }      // deck construit de zéro par le coach : un changement de réglages proposera de le refaire
   const add = x => BD.main.set(x.k, { key: x.k, name: x.name, qty: 1 }), size = () => { let n = 0; for (const c of BD.main.values()) n += c.qty; return n; };
   const slots = 100 - BD.cmdr.length;
   let prof = dwProfile(), tgt = dwTargets(prof, cmd, pack);
@@ -468,8 +476,10 @@ function dwClick(b) {
   if (act === 'dw-g') { DW.open = DW.open === b.dataset.r ? '' : b.dataset.r; DW.shown = 8; haptic('tap'); bdList(); }
   else if (act === 'dw-more') { DW.shown += 8; bdList(); }
   else if (act === 'dw-set') { DW.setOpen = !DW.setOpen; haptic('tap'); bdList(); }
-  else if (act === 'dw-th') { const v = b.dataset.v, i = s.th.indexOf(v); if (i >= 0) s.th.splice(i, 1); else if (s.th.length < 3) { s.th.push(v); dwPack('t', v); } else { toast(T('3 thèmes au plus')); return true; } haptic('tap'); dwPersist(BD.id); bdList(); }
-  else if (act === 'dw-br') { s.br = Number(b.dataset.v) || 3; haptic('tap'); dwPersist(BD.id); bdList(); }
+  else if (act === 'dw-th') { const v = b.dataset.v, i = s.th.indexOf(v); if (i >= 0) s.th.splice(i, 1); else if (s.th.length < 3) { s.th.push(v); dwPack('t', v); } else { toast(T('3 thèmes au plus')); return true; } haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }
+  else if (act === 'dw-br') { s.br = Number(b.dataset.v) || 3; haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }
+  else if (act === 'dw-keep') { DW.changed = false; haptic('tap'); bdList(); }
+  else if (act === 'dw-regen') { const orig = new Map([...BD.main].map(([k, c]) => [k, { ...c }])); DW.changed = false; BD.main = new Map(); dwAutoBuild(orig); }      // tout refaire, l'ancien deck reste annulable
   else if (act === 'dw-basics') dwFillBasics();
   else if (act === 'dw-auto') dwAutoBuild();
   else if (act === 'dw-report') openDeckReport(BD, BD.name.trim() || T('Nouveau deck'));
@@ -477,8 +487,8 @@ function dwClick(b) {
 }
 if (typeof document !== 'undefined') document.addEventListener('change', e => {
   const t = e.target; if (!BD.el || !t || !BD.wiz) return;
-  if (t.id === 'dwBud') { const v = Math.max(0, Math.round(Number(String(t.value).replace(',', '.')) || 0)); BD.wiz.bud = v * 100; dwPersist(BD.id); bdList(); }
-  else if (t.id === 'dwOwn') { BD.wiz.own = t.checked; dwPersist(BD.id); bdList(); }
+  if (t.id === 'dwBud') { const v = Math.max(0, Math.round(Number(String(t.value).replace(',', '.')) || 0)); BD.wiz.bud = v * 100; DW.changed = true; dwPersist(BD.id); bdList(); }
+  else if (t.id === 'dwOwn') { BD.wiz.own = t.checked; DW.changed = true; dwPersist(BD.id); bdList(); }
 });
 
 /* ── Nouveau deck : « J'ai déjà ce deck » ou « Deck à construire » ─────────────────────────────────── */
@@ -529,7 +539,7 @@ function openDeckWiz(name) {
   if (typeof edhLoad === 'function') edhLoad().catch(() => {});
   dwLoad().catch(() => {});
   openSheet(T('Ton commandant'), T('Assistant de deck · étape 1 sur 2'), api => {
-    api.wrap.classList.add('dw-wiz');
+    api.wrap.classList.add('dw-wiz'); dwImgs(api.wrap);
     const paint = () => {
       const E = typeof EDH !== 'undefined' && EDH.data, list = dwzCmds(E);
       api.body.innerHTML = `<div class="field-in"><label class="label" for="dwzQ">${T('Chercher un commandant')}</label><input type="search" id="dwzQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Atraxa, Edgar Markov…" value="${esc(DWZ.q)}"></div>
@@ -570,7 +580,7 @@ function dwzCmds(E) {
   return l.map(c => ({ c, s: own(c) * 2 + fit(c) * 3 + Math.log10(1 + c.decks) / 5 })).sort((a, b) => b.s - a.s).slice(0, 30).map(x => x.c);
 }
 function dwzCmdRow(c) {
-  const own = c.keys.some(k => collQty(k) > 0), img = c.img ? EDH_SMALL + c.img : '', hue = hash32(c.slug) % 360;
+  const own = c.keys.some(k => collQty(k) > 0), img = c.img ? EDH_SMALL + c.img : zoomUrl(c.names[0], 'small'), hue = hash32(c.slug) % 360;      // sans image dans le fichier EDHREC : Scryfall par le nom
   return `<button type="button" class="crow dw-cmd" data-slug="${esc(c.slug)}"><span class="thumb" style="--h:${hue}">${esc((c.names[0][0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(c.names.join(' + '))}</span></span><span class="row-meta">${[...(c.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}<span class="tag">${esc(TN(c.decks, '{n} deck', '{n} decks', { n: nf0(c.decks) }))}</span>${c.tier ? `<span class="tag">${esc(T('Tier {t}', { t: c.tier }))}</span>` : ''}${own ? `<span class="tag good">${T('Possédée')}</span>` : ''}</span></span><span class="me-v">›</span></button>`;
 }
@@ -578,7 +588,7 @@ function openDeckWiz2() {
   const E = EDH.data, cm = DWZ.cmd; if (!cm) return;
   const cur = mkCur();
   openSheet(cm.names.join(' + '), T('Assistant de deck · étape 2 sur 2'), api => {
-    api.wrap.classList.add('dw-wiz');
+    api.wrap.classList.add('dw-wiz'); dwImgs(api.wrap);
     const ths = (cm.th || []).map(([i]) => E.themes[i]).filter(Boolean).slice(0, 12);
     const paint = () => {
       api.body.innerHTML = `<div class="field-in"><label class="label" for="dwzName">${T('Nom du deck')}</label><input type="text" id="dwzName" maxlength="120" autocomplete="off" value="${esc(DWZ.name || cm.names[0].split(',')[0])}"></div>

@@ -29,7 +29,11 @@ const CORE = { v: 1, at: '2026-11-01T00:00:00Z', roles: Object.keys(R).concat('w
 const PACK = { slug: 'edgar-markov', n: 12345, land: 36, thl: [['vampires', 'Vampires', 9000], ['aggro', 'Aggro', 2000]], cards: [['Sol Ring', 95, -2], ['Arcane Signet', 80, 5], ['Swords to Plowshares', 60, 10], ['Llanowar Elves', 50, 30], ['Night\'s Whisper', 40, 20], ['Phyrexian Arena', 30, 25], ['Gilded Removal', 30, 40], ['Wrath of God', 30, 5], ['Demonic Tutor', 25, 1], ['Armageddon', 5, 1], ['Command Tower', 90, 0], ...Array.from({ length: 40 }, (_, i) => ['Filler ' + i, 1, 0])], th: {}, xc: [], tg: null };      // ≥ 40 cartes : commandant connu (avis sur les cartes faibles)
 let dkwHits = 0, dkwOff = false;
 const one = p => p.waitForFunction(() => document.querySelectorAll('.sheet-wrap').length === 1);      // la feuille d'avant a fini de se fermer
+const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="146" height="204"><rect width="146" height="204" rx="8" fill="#3a6"/></svg>';      // fausse image de carte (vignettes)
+let imgHits = 0;
 async function prep(p) {
+  await p.route('https://cards.scryfall.io/**', r => { imgHits++; return r.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/svg+xml', body: SVG }); });
+  await p.route(u => /api\.scryfall\.com\/cards\/named\?.*format=image/.test(String(u)), r => { imgHits++; return r.fulfill({ status: 200, contentType: 'image/svg+xml', body: SVG }); });
   await p.route('**/edh.tsv', r => r.fulfill({ status: 200, contentType: 'text/tab-separated-values; charset=utf-8', body: FILE }));
   await p.route('**/api/dkw*', r => {
     dkwHits++; if (dkwOff) return r.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' });
@@ -72,7 +76,9 @@ await p.click('#ndFmt .seg-opt[data-v="commander"]'); await p.click('#ndGo'); aw
 await p.click('.dw-start[data-v="build"]'); await p.waitForSelector('#dwzQ');
 await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]', { timeout: 15000 });
 await p.fill('#dwzQ', 'crater'); await p.waitForFunction(() => [...document.querySelectorAll('.dw-cmd')].map(b => b.dataset.slug).join() === 'craterhoof-behemoth');
-await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]'); await p.click('.dw-cmd[data-slug="edgar-markov"]');
+await p.fill('#dwzQ', 'edgar'); await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"]');
+await p.waitForSelector('.dw-cmd[data-slug="edgar-markov"] .thumb img.ok', { timeout: 10000 }); ok('« Ton commandant » : vignette du commandant affichée');
+await p.click('.dw-cmd[data-slug="edgar-markov"]');
 await p.waitForSelector('#dwzGo'); await shot(p, 'assistant-2');
 assert.equal(await p.$eval('#dwzName', i => i.value), 'Edgar Markov');
 await p.click('[data-br="2"]'); await p.click('[data-bud="5000"]');
@@ -89,6 +95,7 @@ ok('assistant : commandant cherché, bracket 2, budget 50 €, coach ouvert');
 await shot(p, 'coach'); await p.click('.dw-gh[data-r="ramp"]'); await p.waitForSelector('.dw-g.open .dw-row'); await shot(p, 'coach-rampe');
 const ramp = await p.$$eval('.dw-g.open .dw-row', r => r.map(x => x.dataset.k));
 assert.deepEqual(ramp, ['arcane signet'], 'Sol Ring (Game Changer interdit en bracket 2) et Llanowar Elves (vert) écartés');
+await p.waitForSelector('.dw-g.open .dw-row .thumb img.ok', { timeout: 10000 });      // vignette de la suggestion visible
 await p.click('.dw-g.open .dw-row[data-k="arcane signet"] .dw-add button'); await p.waitForFunction(() => BD.main.has('arcane signet'));
 assert.match(await txt(p, '.dw-g.open .dw-gn'), /^1 \/ 10$/); assert.equal(await p.$('.dw-g.open .dw-row[data-k="arcane signet"]'), null, 'ajoutée : plus suggérée');
 await p.click('.dw-gh[data-r="removal"]'); await p.waitForSelector('.dw-g.open .dw-row');
@@ -134,6 +141,17 @@ await p.evaluate(() => { const t = document.querySelector('#toast button'); if (
 await p.waitForFunction(() => BD.main.size === 0, null, { timeout: 5000 }); ok('génération annulée : deck vide');
 await p.click('[data-act="dw-auto"]'); await p.waitForFunction(() => BD.main.size > 3);
 assert.match(await txt(p, '.dx-steps'), /Il manque \d+ cartes Compléter/, 'deck incomplet (peu de cartes dans la base de test) : prochaine étape « Compléter »');
+// deck construit par le coach : changer le budget propose de le refaire (annulable)
+assert.equal(await p.evaluate(() => BD.wiz.gen), 1, 'deck construit de zéro par le coach');
+assert.equal(await p.$('.dx-regen'), null);
+await p.click('[data-act="dw-set"]'); await p.waitForSelector('#dwBud'); await p.fill('#dwBud', '5'); await p.dispatchEvent('#dwBud', 'change');
+await p.waitForSelector('.dx-regen'); const before5 = await p.evaluate(() => [...BD.main.keys()].sort().join());
+await p.click('[data-act="dw-regen"]'); await p.waitForFunction(() => !document.querySelector('.dx-regen') && BD.main.size > 3);
+assert.ok(await p.evaluate(() => !BD.main.has('phyrexian arena') && !BD.main.has('nights whisper')), 'budget de 5 € (commandant compris) : plus que les cartes possédées et les terrains');
+await p.evaluate(() => { const t = document.querySelector('#toast button'); if (t) t.click(); }); await p.waitForFunction(b => [...BD.main.keys()].sort().join() === b, before5);
+await p.fill('#dwBud', '100'); await p.dispatchEvent('#dwBud', 'change'); await p.waitForSelector('.dx-regen'); await p.click('[data-act="dw-keep"]'); await p.waitForFunction(() => !document.querySelector('.dx-regen'));
+await p.click('[data-act="dw-set"]');
+ok('deck du coach : budget changé → « Recréer le deck » (annulable) ou « Garder le deck »');
 // rapport du coach : sections, combo du deck, combos à une carte près, cartes touchables, copie
 await p.evaluate(() => { bdChange('main', 'sol ring', 'Sol Ring', 1); });      // Sol Ring + Armageddon (combo de la base de test) : à une carte près
 await p.click('[data-act="dw-report"]'); await p.waitForSelector('.dr-body .da-sum');
@@ -162,6 +180,7 @@ assert.equal(sws.length, 1, 'un seul échange utile : ' + sws.join(' | ')); asse
 assert.match(await txt(p, '.dw-set-h'), /bracket 2 · Core · sans limite de prix · ma collection d'abord/);
 // vignettes : image de la fiche ou de Scryfall par le nom ; un toucher agrandit la carte (retirée, ajoutée…)
 assert.deepEqual(await p.$$eval('.da-sw .thumb', t => t.map(x => !!x.querySelector('img') && x.dataset.zoom)), ['da', 'da']);
+await p.waitForFunction(() => document.querySelectorAll('.da-sw .thumb img.ok').length === 2, null, { timeout: 10000 });      // images chargées et visibles (classe ok), pas seulement présentes
 await p.click('.da-sw .da-c.in .thumb'); await p.waitForSelector('.imgv'); assert.equal(await p.evaluate(() => DA.off.size), 0, 'la vignette agrandit sans décocher');
 await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'));
 // « Pourquoi ? » : les deux cartes et l'effet sur les jauges
@@ -186,7 +205,7 @@ ok('analyse : bracket estimé, échanges (rôle qui manque, limite de prix), coc
 await p.evaluate(() => openBuilder({ name: 'Trop plein', fmt: 'commander', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian Arena\n1 Swords to Plowshares\n30 Plains\n34 Swamp\n34 Mountain', wiz: { th: [], br: 2, bud: 0, own: true }, tab: 'coach' }));
 await p.waitForSelector('.dx-next'); await p.waitForFunction(() => DW.cmd.has('edgar-markov'));
 assert.match(await txt(p, '.dx-steps li:first-child'), /^2 cartes de trop Que retirer \?$/, 'prochaine étape : deck à 102 cartes'); await shot(p, 'coach-haut');
-assert.ok(await p.$('#dwCuts'), 'section « À retirer »');
+assert.ok(await p.$('#dwCuts'), 'section « À retirer »'); await p.waitForSelector('.dx-cut[data-k="weak one"] .thumb img.ok', { timeout: 10000 });
 const cuts = await p.$$eval('.dx-cut', r => r.map(x => x.dataset.k + ' | ' + x.querySelector('.dw-why').textContent));
 assert.match(cuts[0], /^weak one \| Absente des decks de Edgar Markov étudiés$/, 'la moins utile d\'abord : ' + cuts.join(' / '));
 assert.ok(cuts.some(c => /^(plains|swamp|mountain) \| Terrains : 98 pour \d+ conseillés/.test(c)), 'trop de terrains : un terrain de base proposé');
@@ -197,7 +216,7 @@ await p.click('#bdSeg .seg-opt[data-v="deck"]'); await p.waitForSelector('.dx-ba
 assert.match(await txt(p, '.dx-banner'), /^Coach · 1 carte de trop/, 'bannière du coach dans les autres onglets');
 await p.click('.dx-banner'); await p.waitForFunction(() => BD.tab === 'coach'); await p.waitForSelector('.dx-next');
 await p.evaluate(() => { bdChange('main', 'weak one', 'Weak One', 1); bdChange('main', 'plains', 'Plains', -1); bdChange('main', 'swamp', 'Swamp', -1); bdChange('main', 'mountain', 'Mountain', -1); });
-await p.click('.dw-gh[data-r="swaps"]'); await p.waitForSelector('.dx-sw');
+await p.click('.dw-gh[data-r="swaps"]'); await p.waitForSelector('.dx-sw'); await p.waitForFunction(() => document.querySelectorAll('.dx-sw .thumb img.ok').length >= 2, null, { timeout: 10000 });
 assert.match(await txt(p, '.dx-sw .da-pair'), /Retirer Weak One/);
 await p.click('.dx-sw [data-act="dw-why"]'); await p.waitForSelector('.dx-sw .dx-why'); assert.match(await txt(p, '.dx-sw .dx-why'), /Effet/);
 const inK = await p.$eval('.dx-sw', x => x.querySelector('.da-c.in .thumb').dataset.k);

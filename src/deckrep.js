@@ -103,7 +103,7 @@ function openDeckReport(X, name) {
   DR.X = X; DR.name = name || '';
   if (!DW.core) dwLoad().then(() => drPaint()).catch(() => drPaint());
   DR.api = openSheet(T('Rapport du coach'), DR.name || null, api => {
-    api.wrap.classList.add('dr-sheet'); api.body.classList.add('dr-body');
+    api.wrap.classList.add('dr-sheet'); dwImgs(api.wrap); api.body.classList.add('dr-body');
     api.setFoot(`<button class="btn ghost" type="button" id="drCopy">${T('Copier le rapport')}</button><button class="btn" type="button" data-close>${T('Fermer')}</button>`);
     $('#drCopy', api.foot).onclick = () => { const b = $('.dr-roles', api.body); if (b) b.open = true; copyText(DR.name + '\n\n' + api.body.innerText.replace(/\n{3,}/g, '\n\n')).then(() => toast(T('Rapport copié'))).catch(() => {}); haptic('tap'); };
   });

@@ -253,5 +253,11 @@
  "Il manque {n} cartes": "Es fehlen {n} Karten",
  "À retirer : {n} carte de trop": "Zu entfernen: {n} Karte zu viel",
  "À retirer : {n} cartes de trop": "Zu entfernen: {n} Karten zu viel",
- "Chaque changement relance l'analyse.": "Jede Änderung startet die Analyse neu."
+ "Chaque changement relance l'analyse.": "Jede Änderung startet die Analyse neu.",
+ "Au-dessus du budget : {a} pour {b}": "Über Budget: {a} statt {b}",
+ "Voir les échanges": "Tausche ansehen",
+ "Réglages modifiés": "Einstellungen geändert",
+ "Ce deck a été construit par le coach : il peut le reconstruire avec les nouveaux réglages (budget, bracket, thèmes). Annulable.": "Der Coach hat dieses Deck gebaut: Er kann es mit den neuen Einstellungen neu bauen (Budget, Bracket, Themen). Rückgängig machbar.",
+ "Garder le deck": "Deck behalten",
+ "Recréer le deck": "Deck neu bauen"
 }

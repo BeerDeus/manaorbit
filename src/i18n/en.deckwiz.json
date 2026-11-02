@@ -253,5 +253,11 @@
  "Il manque {n} cartes": "{n} cards missing",
  "À retirer : {n} carte de trop": "To cut: {n} card too many",
  "À retirer : {n} cartes de trop": "To cut: {n} cards too many",
- "Chaque changement relance l'analyse.": "Each change reruns the analysis."
+ "Chaque changement relance l'analyse.": "Each change reruns the analysis.",
+ "Au-dessus du budget : {a} pour {b}": "Over budget: {a} for {b}",
+ "Voir les échanges": "See the swaps",
+ "Réglages modifiés": "Settings changed",
+ "Ce deck a été construit par le coach : il peut le reconstruire avec les nouveaux réglages (budget, bracket, thèmes). Annulable.": "The coach built this deck: it can rebuild it with the new settings (budget, bracket, themes). Can be undone.",
+ "Garder le deck": "Keep the deck",
+ "Recréer le deck": "Rebuild the deck"
 }
