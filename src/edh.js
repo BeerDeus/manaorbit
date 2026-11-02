@@ -128,7 +128,7 @@ async function edhRevalidate(rec) {
 }
 /** Index lu depuis un enregistrement du cache ({ buf } binaire ou { text } ancien format), ou null s'il est illisible. Les decks de la communauté (PD.comm, pubdecks.js) y sont ajoutés. */
 function edhRead(rec) {
-  try { const keep = edhKeep(), comm = PD.comm, d = rec && rec.buf ? parseEdhBin(rec.buf, keep, comm) : rec && rec.text ? parseEdh(rec.text, keep, comm) : null; return d && d.v === 1 && d.cmds.length ? (mkUs() ? edhUsd(d) : d) : null; } catch (e) { return null; }
+  try { const keep = edhKeep(), comm = PD.comm, d = rec && rec.buf ? parseEdhBin(rec.buf, keep, comm) : rec && rec.text ? parseEdh(rec.text, keep, comm) : null; return d && d.v === 1 && d.cmds.length ? (mkUs() ? edhUsd(d) : edhEur(d)) : null; } catch (e) { return null; }
 }
 /** Marché TCGplayer : les prix des cartes du fichier EDHREC (Cardmarket, en euros) remplacés par ceux du fichier de prix du jour (colonne $, data.js › pxTable,
  *  lu avant par edhLoad) ; carte absente ou fichier pas encore lu : prix inconnu, jamais un montant en euros. */
@@ -137,6 +137,13 @@ function edhUsd(d) {
   const m = typeof PXT !== 'undefined' && PXT && PXT.map, pr = new Uint32Array(d.pr.length); d.price = new Map();
   for (let i = 0; i < d.names.length; i++) { const p = m && m.get(ownKey(d.names[i])); if (p && p.e > 0) { pr[i] = p.e; d.price.set(d.keys[i], p.e); } }
   d.pr = pr; return d;
+}
+/** Cardmarket : une carte sans prix dans le fichier EDHREC (impression par défaut de Scryfall pas encore cotée, ex. Command Tower d'un précon récent)
+ *  prend celui du relevé du jour (impression la moins chère, data.js › pxTable) ; rien à faire tant que le relevé n'est pas lu (relancé par edhLoad). */
+function edhEur(d) {
+  const m = typeof PXT !== 'undefined' && PXT && PXT.map; if (!m || !d.pr || !d.names) return d;
+  for (let i = 0; i < d.names.length; i++) if (!(d.pr[i] > 0)) { const p = m.get(ownKey(d.names[i])); if (p && p.e > 0) { d.pr[i] = p.e; d.price.set(d.keys[i], p.e); } }
+  return d;
 }
 /** Charge les données : copie locale de moins de 1 jour (affichée tout de suite, puis contrôlée en arrière-plan : une version plus récente du site la remplace), sinon le fichier binaire du site, sinon l'ancien fichier texte ; une copie plus ancienne sert si le site ne répond pas. */
 function edhLoad() {
@@ -164,6 +171,7 @@ function edhLoad() {
     if (edhOff('edhrec')) { edhForget(); throw new Error('off'); }      // coupé pendant le chargement
     EDH.data = d; EDH.rec = src; EDH.at = at; EDH.memo = null;      // rec : relu si les decks de la communauté arrivent ou changent (pdApply)
     if (cached) edhRevalidate(rb);
+    if (!mkUs() && !(PXT && PXT.map)) pxTable().then(t => { if (t && EDH.data === d) { edhEur(d); EDH.memo = null; if (COLL.el) collPaintBody(true); } }).catch(() => {});      // prix manquants complétés dès que le relevé du jour est lu
     return d;
   })().catch(e => { if (e && e.message === 'off') throw e; EDH.err = e && e.message === 'absent' ? T('Données EDHREC indisponibles : le fichier edh.bin.gz n\'est pas encore généré ou le site est injoignable.') : T('Données EDHREC illisibles.'); throw e; })
     .finally(() => { EDH.p = null; if (COLL.el) collPaintBody(true); });
