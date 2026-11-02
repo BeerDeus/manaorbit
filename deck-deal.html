@@ -7344,7 +7344,7 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
 button.sync{position:relative}
 button.sync::before{content:"";position:absolute;inset:-8px 0}
 .tr-q .link-btn{position:relative}
-.tr-q .link-btn::before{content:"";position:absolute;inset:-9px -4px}
+.tr-q .link-btn::before{content:"";position:absolute;inset:-9px 0}      /* hauteur seulement : un débord de côté gonflait la largeur mesurée du libellé (menus-e2e : « texte coupé ») */
 .dv-vw button{position:relative}
 .dv-vw button::before{content:"";position:absolute;inset:-5px 0}
 .link-btn.link-inline{position:relative}
@@ -7852,7 +7852,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '2eb0f3e4';
+const DD_BUILD = 'aaef8f00';
 const I18N_FILES = {"de":"i18n/de.8951c9f0.js","en":"i18n/en.c3a83d9c.js","es":"i18n/es.4ab05c66.js","it":"i18n/it.4c7a6f72.js","pt":"i18n/pt.cd05f020.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.

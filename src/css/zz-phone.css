@@ -15,7 +15,7 @@
 button.sync{position:relative}
 button.sync::before{content:"";position:absolute;inset:-8px 0}
 .tr-q .link-btn{position:relative}
-.tr-q .link-btn::before{content:"";position:absolute;inset:-9px -4px}
+.tr-q .link-btn::before{content:"";position:absolute;inset:-9px 0}      /* hauteur seulement : un débord de côté gonflait la largeur mesurée du libellé (menus-e2e : « texte coupé ») */
 .dv-vw button{position:relative}
 .dv-vw button::before{content:"";position:absolute;inset:-5px 0}
 .link-btn.link-inline{position:relative}

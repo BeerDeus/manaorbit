@@ -231,7 +231,7 @@ for (const [w, h] of [[1280, 800], [1890, 900]]) {
   await q.waitForSelector('#bdList .bd-row');
   const B = await q.evaluate(() => { const b = s => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, r: r.right, h: r.height }; }; return { l: b('.bd-l'), r: b('.bd-r'), seg: b('#bdSeg'), sum: b('#bdSum'), sw: document.documentElement.scrollWidth, vw: innerWidth }; });
   assert.ok(B.l.r <= B.r.x, `${w} : recherche à gauche de la liste du deck (${JSON.stringify(B)})`); assert.ok(B.seg.r <= B.l.r + 1 && B.sum.x >= B.r.x - 1, 'onglets à gauche, résumé du deck à droite');
-  assert.deepEqual(await q.$$eval('#bdSeg .seg-opt', o => o.map(x => x.textContent)), ['Collection', 'Chercher'], 'la liste du deck est toujours affichée : pas d\'onglet Deck');
+  assert.deepEqual(await q.$$eval('#bdSeg .seg-opt', o => o.map(x => x.textContent)), ['Ajouter', 'Coach'], 'la liste du deck est toujours affichée : pas d\'onglet Deck (Ajouter : collection et toutes les cartes ; Coach)');
   assert.equal(await q.$eval('#bdName', i => i.value), 'Edgar'); assert.ok(B.sw <= B.vw);
   const cols = await q.$$eval('#bdDeck .bd-row', r => new Set(r.map(x => Math.round(x.getBoundingClientRect().left))).size);
   assert.ok(cols >= 2, 'liste du deck sur plusieurs colonnes : ' + cols);
