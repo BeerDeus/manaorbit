@@ -7803,7 +7803,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '154744f4';
+const DD_BUILD = '44961ab3';
 const I18N_FILES = {"de":"i18n/de.8951c9f0.js","en":"i18n/en.c3a83d9c.js","es":"i18n/es.4ab05c66.js","it":"i18n/it.4c7a6f72.js","pt":"i18n/pt.cd05f020.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -21723,7 +21723,7 @@ async function edhRevalidate(rec) {
 }
 /** Index lu depuis un enregistrement du cache ({ buf } binaire ou { text } ancien format), ou null s'il est illisible. Les decks de la communauté (PD.comm, pubdecks.js) y sont ajoutés. */
 function edhRead(rec) {
-  try { const keep = edhKeep(), comm = PD.comm, d = rec && rec.buf ? parseEdhBin(rec.buf, keep, comm) : rec && rec.text ? parseEdh(rec.text, keep, comm) : null; return d && d.v === 1 && d.cmds.length ? (mkUs() ? edhUsd(d) : d) : null; } catch (e) { return null; }
+  try { const keep = edhKeep(), comm = PD.comm, d = rec && rec.buf ? parseEdhBin(rec.buf, keep, comm) : rec && rec.text ? parseEdh(rec.text, keep, comm) : null; return d && d.v === 1 && d.cmds.length ? (mkUs() ? edhUsd(d) : edhEur(d)) : null; } catch (e) { return null; }
 }
 /** Marché TCGplayer : les prix des cartes du fichier EDHREC (Cardmarket, en euros) remplacés par ceux du fichier de prix du jour (colonne $, data.js › pxTable,
  *  lu avant par edhLoad) ; carte absente ou fichier pas encore lu : prix inconnu, jamais un montant en euros. */
@@ -21732,6 +21732,13 @@ function edhUsd(d) {
   const m = typeof PXT !== 'undefined' && PXT && PXT.map, pr = new Uint32Array(d.pr.length); d.price = new Map();
   for (let i = 0; i < d.names.length; i++) { const p = m && m.get(ownKey(d.names[i])); if (p && p.e > 0) { pr[i] = p.e; d.price.set(d.keys[i], p.e); } }
   d.pr = pr; return d;
+}
+/** Cardmarket : une carte sans prix dans le fichier EDHREC (impression par défaut de Scryfall pas encore cotée, ex. Command Tower d'un précon récent)
+ *  prend celui du relevé du jour (impression la moins chère, data.js › pxTable) ; rien à faire tant que le relevé n'est pas lu (relancé par edhLoad). */
+function edhEur(d) {
+  const m = typeof PXT !== 'undefined' && PXT && PXT.map; if (!m || !d.pr || !d.names) return d;
+  for (let i = 0; i < d.names.length; i++) if (!(d.pr[i] > 0)) { const p = m.get(ownKey(d.names[i])); if (p && p.e > 0) { d.pr[i] = p.e; d.price.set(d.keys[i], p.e); } }
+  return d;
 }
 /** Charge les données : copie locale de moins de 1 jour (affichée tout de suite, puis contrôlée en arrière-plan : une version plus récente du site la remplace), sinon le fichier binaire du site, sinon l'ancien fichier texte ; une copie plus ancienne sert si le site ne répond pas. */
 function edhLoad() {
@@ -21759,6 +21766,7 @@ function edhLoad() {
     if (edhOff('edhrec')) { edhForget(); throw new Error('off'); }      // coupé pendant le chargement
     EDH.data = d; EDH.rec = src; EDH.at = at; EDH.memo = null;      // rec : relu si les decks de la communauté arrivent ou changent (pdApply)
     if (cached) edhRevalidate(rb);
+    if (!mkUs() && !(PXT && PXT.map)) pxTable().then(t => { if (t && EDH.data === d) { edhEur(d); EDH.memo = null; if (COLL.el) collPaintBody(true); } }).catch(() => {});      // prix manquants complétés dès que le relevé du jour est lu
     return d;
   })().catch(e => { if (e && e.message === 'off') throw e; EDH.err = e && e.message === 'absent' ? T('Données EDHREC indisponibles : le fichier edh.bin.gz n\'est pas encore généré ou le site est injoignable.') : T('Données EDHREC illisibles.'); throw e; })
     .finally(() => { EDH.p = null; if (COLL.el) collPaintBody(true); });
@@ -26848,7 +26856,7 @@ function openBuilder(o) {
   if (Array.isArray(o.swaps) && o.swaps.length) {      // échanges conseillés par l'analyse (deckana.js) : appliqués, à enregistrer
     for (const [ok, ik, nm] of o.swaps) { const c = BD.main.get(ok); if (!c || BD.main.has(ik)) continue; if (c.qty > 1) c.qty--; else BD.main.delete(ok); BD.main.set(ik, { key: ik, name: nm, qty: 1 }); BD.dirty = true; }
   }
-  const coach = typeof dwOn === 'function' && dwOn() && BD.fmt === 'commander';      // onglet Coach (fonctionnalité en test, deckwiz.js)
+  const coach = typeof dwOn === 'function' && dwOn() && BD.fmt === 'commander';      // onglet Coach (deckwiz.js)
   if (coach) BD.wiz = o.wiz ? { ...dwDefaults(), ...o.wiz } : dwSettingsFor(BD.id);
   collFrLoad();
   if (typeof EDH !== 'undefined' && !EDH.data && typeof edhLoad === 'function') edhLoad().then(() => { if (BD.el) bdList(); }, () => {});      // liste des Game Changers (pastille GC), dans les données EDHREC
@@ -27264,7 +27272,7 @@ function bdSave() {
 }
 
 
-/* ── deckwiz.js : assistant de deck Commander (fonctionnalité en test « deckwiz », labs.js) ─────────────────────────────────────
+/* ── deckwiz.js : assistant de deck Commander (pour tout le monde depuis le 2 novembre 2026) ─────────────────────────────────────
    1. Nouveau deck : « J'ai déjà ce deck » (scanner, coller la liste, à la main) ou « Deck à construire » (assistant : commandant, thèmes, bracket, budget).
    2. Onglet « Coach » de l'éditeur (builder.js), Commander seulement : jauges par catégorie (terrains, rampe, pioche, retraits, balayages…) face à des cibles,
       courbe de mana, sources de couleur, règles du bracket choisi, budget ; un appui sur une jauge propose les cartes qui manquent (ta collection d'abord).
@@ -27997,7 +28005,7 @@ function openDeckWiz2() {
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { DKW_ROLES, DW_BASE, dwKarsten, dwLandTarget, dwModel, dwPips, dwSrcFor, DW_BRACKETS });
 
 
-/* ── deckana.js : « Analyser » un deck Commander (fonctionnalité en test « deckwiz », labs.js) ─────────────────────────────────────
+/* ── deckana.js : « Analyser » un deck Commander (pour tout le monde depuis le 2 novembre 2026) ─────────────────────────────────────
    Depuis le viewer (deck de Mes decks, deck « À monter » EDHREC ou Archidekt, deck de la communauté, deck reçu par un lien) : état du deck et échanges conseillés.
    Même moteur que le coach (deckwiz.js : rôles des cartes, cibles, cartes conseillées du commandant), sur la liste du deck sans l'ouvrir dans l'éditeur.
    - Bracket estimé (Game Changers, destruction massive de terrains, tours supplémentaires, tuteurs) ; c'est aussi le bracket visé par défaut.
@@ -28231,7 +28239,7 @@ function daApply() {
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { dwBracketOf });
 
 
-/* ── deckrep.js : « Rapport du coach » d'un deck Commander (fonctionnalité en test « deckwiz », labs.js) ─────────────────────────────
+/* ── deckrep.js : « Rapport du coach » d'un deck Commander (pour tout le monde depuis le 2 novembre 2026) ─────────────────────────────
    Pour quelqu'un qui découvre le deck : ce que fait le commandant, comment le deck gagne (thèmes, combos, conditions de victoire, pièces maîtresses),
    comment le jouer (main de départ, début, commandant, milieu, fin de partie), l'interaction, les points faibles, les combos à une carte près et le rôle
    de chaque carte. Tout vient du deck lui-même (rôles, coûts, synergies du commandant, combos de Commander Spellbook, cibles du coach) : rien d'écrit à
@@ -28362,7 +28370,7 @@ function drPaint() {
 }
 
 
-/* ── deckux.js : confort du coach (fonctionnalité en test « deckwiz », labs.js) ─────────────────────────────────────
+/* ── deckux.js : confort du coach (pour tout le monde depuis le 2 novembre 2026) ─────────────────────────────────────
    - « Prochaines étapes » : en haut du Coach, les 1 à 3 actions les plus utiles, chacune avec son bouton (compléter, retirer, ajouter une catégorie,
      règles du bracket, terrains, sources de couleur) ; « Deck équilibré » et le rapport quand tout va bien.
    - « À retirer » : dès que le deck dépasse 100 cartes (une suggestion ajoutée à un deck plein…), les cartes à enlever d'abord, avec la raison.
@@ -28501,7 +28509,7 @@ function dwBannerHtml() {
 }
 
 
-/* ── deckopt.js : note du coach (sur 100) et construction en plusieurs passes (fonctionnalité en test « deckwiz », labs.js) ─────────────────
+/* ── deckopt.js : note du coach (sur 100) et construction en plusieurs passes (pour tout le monde depuis le 2 novembre 2026) ─────────────────
    Note du coach : la même mesure pour la génération, l'analyse et le rapport. Rôles 30 (chaque catégorie face à sa cible), mana 25 (terrains face à la
    formule de Karsten, sources de chaque couleur face à son repère), courbe 10 (coût moyen face à sa cible), synergie 25 (part des sorts joués avec ce
    commandant ou très joués en Commander), règles et budget 10 (bracket, budget, 100 cartes).
@@ -28756,7 +28764,7 @@ if (typeof module !== 'undefined' && module.exports) Object.assign(module.export
 if (typeof document !== 'undefined') document.addEventListener('toggle', e => { const d = e.target; if (d && d.classList && d.classList.contains('ds-parts') && BD.el && BD.el.contains(d)) DW.scoreOpen = d.open; }, true);
 
 
-/* ── decksim.js : 1 000 débuts de partie joués seul avec un deck Commander (rapport du coach, fonctionnalité en test « deckwiz ») ───────────────
+/* ── decksim.js : 1 000 débuts de partie joués seul avec un deck Commander (rapport du coach) ───────────────
    Chaque partie : mélange, main de 7 (mulligan « London » si moins de 2 ou plus de 5 terrains, 2 au plus), puis 8 tours sans adversaire : un terrain
    par tour (celui qui apporte une couleur qui manque d'abord), le commandant dès qu'il est payable, la rampe ensuite (source de mana dès le tour suivant),
    puis les sorts les plus chers payables. Le paiement tient compte des couleurs : chaque symbole prend une source qui produit sa couleur (les sources
