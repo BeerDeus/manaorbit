@@ -15,7 +15,8 @@ const decks = async p => { if (!(await p.$('.dks.on'))) { await toHome(p); await
 const newDeck = async (p, name, fmt) => {
   await decks(p); await p.click('#btnNewDeck'); await p.waitForSelector('#ndName');
   await p.fill('#ndName', name); await p.click(`#ndFmt .seg-opt[data-v="${fmt}"]`);
-  await p.click('#ndGo'); await p.waitForSelector('.bd.on');
+  await p.click('#ndGo');      // le coach est pour tout le monde : « J'ai déjà ce deck » › « À la main » mène à l'éditeur vide
+  await p.click('.dw-start[data-v="have"]'); await p.click('.dw-start[data-v="hand"]'); await p.waitForSelector('.bd.on');
 };
 
 const { p, errs } = await newPage(browser, world, { init: seed('1 Sol Ring *EN*\n1 Edgar Markov *FR*\n2 Arcane Signet *FR*\n1 Swords to Plowshares *EN*') }); errsOf.push(errs);
