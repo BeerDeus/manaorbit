@@ -333,6 +333,21 @@ async function archidektRun(C, cmds) {
 }
 
 /* ── 4) Scryfall : toutes les cartes, et quelques recherches Tagger ──────────────────────────────── */
+/** Adresse d'un fichier en masse de Scryfall : download_uri (JSON, ancien nom) ou jsonl_download_uri (JSON Lines compressé, depuis novembre 2026), sinon tout champ « download… ». */
+export function bulkUri(b) {
+  if (!b || typeof b !== 'object') return '';
+  if (typeof b.download_uri === 'string') return b.download_uri;
+  if (typeof b.jsonl_download_uri === 'string') return b.jsonl_download_uri;
+  for (const [k, v] of Object.entries(b)) if (/download/i.test(k) && typeof v === 'string' && /^https:/.test(v)) return v;
+  return '';
+}
+/** Contenu d'un fichier en masse (gzip ou non) : tableau JSON ou JSON Lines (une carte par ligne) → tableau de cartes. */
+export function bulkParse(buf) {
+  const raw = buf.length > 1 && buf[0] === 0x1f && buf[1] === 0x8b ? gunzipSync(buf) : buf, txt = raw.toString('utf8').trim();
+  if (txt[0] === '[') return JSON.parse(txt);
+  const out = []; for (const l of txt.split('\n')) { const t = l.trim(); if (!t) continue; try { out.push(JSON.parse(t)); } catch (e) { /* ligne illisible : ignorée */ } }
+  return out;
+}
 /** Carte Scryfall (oracle) → { name, ci, cmc, type, text, eur (centimes), gc, legal, prod (couleurs produites), mc } ; null si hors Commander ou sans nom. */
 export function scryCard(c) {
   if (!c || typeof c.name !== 'string' || c.layout === 'art_series' || c.layout === 'token' || c.layout === 'double_faced_token' || c.layout === 'emblem') return null;
@@ -353,15 +368,15 @@ async function scryAll() {
   let arr = null;
   if (local === '0') { log('  Scryfall : fichier oracle-cards ignoré (DECKDB_BULK=0)'); return new Map(); }
   try {
-    if (local && existsSync(local)) arr = JSON.parse((/\.gz$/.test(local) ? gunzipSync(readFileSync(local)) : readFileSync(local)).toString('utf8'));
+    if (local && existsSync(local)) arr = bulkParse(readFileSync(local));
     else {
-      let b = await getJson(SCRY + 'bulk-data/oracle-cards', { gap: 150 }), uri = b && b.download_uri;
+      let b = await getJson(SCRY + 'bulk-data/oracle-cards', { gap: 150 }), uri = bulkUri(b);
       if (!uri) {      // repli : la liste de tous les fichiers (une réponse différente a été vue depuis GitHub Actions)
         log('  Scryfall : bulk-data/oracle-cards sans adresse de téléchargement (' + (b ? 'réponse inattendue : ' + JSON.stringify(b).slice(0, 200) : 'refusé ou introuvable') + ')');
-        const l = await getJson(SCRY + 'bulk-data', { gap: 150 }).catch(() => null), f = l && Array.isArray(l.data) ? l.data.find(x => x && x.type === 'oracle_cards') : null; uri = f && f.download_uri;
+        const l = await getJson(SCRY + 'bulk-data', { gap: 150 }).catch(() => null), f = l && Array.isArray(l.data) ? l.data.find(x => x && x.type === 'oracle_cards') : null; uri = bulkUri(f);
         if (uri) log('  Scryfall : adresse trouvée dans la liste des fichiers');
       }
-      if (uri) { const r = await fetch(uri, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(300000) }); if (r.ok) arr = await r.json(); else log('  Scryfall : fichier oracle-cards HTTP ' + r.status); }
+      if (uri) { const r = await fetch(uri, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(300000) }); if (r.ok) arr = bulkParse(Buffer.from(await r.arrayBuffer())); else log('  Scryfall : fichier oracle-cards HTTP ' + r.status); }
     }
   } catch (e) { log('  Scryfall : fichier oracle-cards illisible (' + e.message + ')'); }
   const out = new Map();
