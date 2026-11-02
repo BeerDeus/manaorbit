@@ -9,7 +9,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse, pairsOf, corpusFiles, corpusLoad, heldOut } from '../gen-deckdb.mjs';
+import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse, pairsOf, corpusFiles, corpusLoad, heldOut, bulkUri, bulkParse } from '../gen-deckdb.mjs';
 import { benchCoach, coachVm } from '../bench-coach.mjs';
 import { normKey } from '../gen-edhrec.mjs';
 import { dkwSplit, dkwMake } from '../server/dkw-srv.mjs';
@@ -173,6 +173,13 @@ test('fonctionnalités en test : gardées jusqu\'à ce qu\'on les éteigne, cell
   const L = require('../src/labs.js');
   L.labSet('inconnue', true); assert.equal(L.labOn('inconnue'), false, 'seulement celles de la liste');
   assert.ok(L.LABS.every(l => l.id && l.name && l.desc)); assert.ok(!L.LABS.some(l => l.id === 'deckwiz'), 'le coach n\'est plus en test');
+});
+
+test('fichier en masse de Scryfall : JSON ou JSON Lines compressé (jsonl_download_uri, novembre 2026)', async () => {
+  const { gzipSync } = await import('node:zlib'), cards = [{ name: 'Sol Ring' }, { name: 'Arcane Signet' }];
+  assert.equal(bulkUri({ jsonl_download_uri: 'https://data.scryfall.io/o.jsonl.gz' }), 'https://data.scryfall.io/o.jsonl.gz'); assert.equal(bulkUri({ download_uri: 'https://a' , jsonl_download_uri: 'https://b' }), 'https://a'); assert.equal(bulkUri(null), '');
+  assert.deepEqual(bulkParse(gzipSync(Buffer.from(cards.map(c => JSON.stringify(c)).join('\n') + '\n'))), cards, 'JSON Lines compressé');
+  assert.deepEqual(bulkParse(Buffer.from(JSON.stringify(cards))), cards, 'tableau JSON');
 });
 
 test('prix du jour (relevé de l\'appli) : impression la moins chère par carte, euros puis dollars', () => {
