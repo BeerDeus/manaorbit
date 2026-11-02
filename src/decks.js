@@ -179,6 +179,7 @@ function dvSoon(decks, delay) {
     const a = covers.length ? await dmFetch(covers) : false, b = miss.length ? await dmFetch(miss) : false;
     const c = await ownLangFetch(decks.map(d => dkCoverCard(d.text, dmOf)).filter(Boolean));      // carte de présentation possédée dans une autre langue : son image dans cette langue
     if ((a || b || c) && DKS.el) renderDecks();
+    else if (DKS.el && scryLeft() > 0 && decks.some(d => { const cv = dkCoverCard(d.text, dmOf); return cv && !dmOf(cv.key); })) dvSoon(decks, scryLeft() + 500);      // Scryfall en pause : couvertures redemandées à la fin de la pause, écran ouvert
   }, delay == null ? 900 : delay);
 }
 function paintSync() {
@@ -356,7 +357,7 @@ function openDeckSheet(id) {
     const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
     const paintCover = () => {      // carte de présentation : celle choisie, sinon le commandant, sinon la plus chère
       const cur = findDeck(id) || d, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/');
-      $('.cover-th', api.body).innerHTML = im ? `<img alt="" src="${esc(im)}">` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`;
+      imgKeep($('.cover-th', api.body), im ? `<img alt="" src="${esc(im)}">` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`);
       $('#dkCoverSub', api.body).textContent = cv ? `${cv.name} · ${cv.auto ? T('automatique') : T('choisie')}` : T('Aucune carte');
     };
     paintCover(); $('#dkCover', api.body).onclick = () => openCoverPicker(id, paintCover);
@@ -412,7 +413,7 @@ function openCoverPicker(id, done) {
     const paint = () => {
       const cur = dkCoverCard((findDeck(id) || d0).text, dmOf), chosen = cur && !cur.auto ? cur.key : '', f = q.value.trim().toLowerCase();
       const list = pool().filter(c => !f || c.name.toLowerCase().includes(f)).slice(0, 150);
-      grid.innerHTML = list.map(c => { const im = coverImg(c); return `<button type="button" class="cv-card" data-n="${esc(c.name)}" aria-pressed="${c.key === chosen}" aria-label="${c.cmd ? T('{name}, commandant', { name: esc(c.name) }) : esc(c.name)}"><span class="dvc-art" style="--h:${hash32(c.key) % 360}"><b>${esc((c.name.trim()[0] || '?').toUpperCase())}</b><i>${esc(c.name)}</i>${im ? `<img alt="" loading="lazy" decoding="async" src="${esc(im)}">` : ''}</span></button>`; }).join('') || '<p class="hint">' + T('Aucune carte de ce nom.') + '</p>';
+      imgKeep(grid, list.map(c => { const im = coverImg(c); return `<button type="button" class="cv-card" data-n="${esc(c.name)}" aria-pressed="${c.key === chosen}" aria-label="${c.cmd ? T('{name}, commandant', { name: esc(c.name) }) : esc(c.name)}"><span class="dvc-art" style="--h:${hash32(c.key) % 360}"><b>${esc((c.name.trim()[0] || '?').toUpperCase())}</b><i>${esc(c.name)}</i>${im ? `<img alt="" loading="lazy" decoding="async" src="${esc(im)}">` : ''}</span></button>`; }).join('') || '<p class="hint">' + T('Aucune carte de ce nom.') + '</p>');      // recherche : les images déjà là restent (pas de nouveau fondu à chaque lettre)
     };
     grid.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
     grid.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);

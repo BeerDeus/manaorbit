@@ -1,0 +1,43 @@
+/* ── zz-phone.css : finitions téléphone (360–380 px, police ×1 à ×1,3), audit de style du 2 novembre 2026 ; chargé après les autres feuilles (ordre alphabétique) ──
+   Contrastes (F1, F2) : directement dans style.css. Vérifié par tests/overflow-audit.mjs avant / après (28 → 2 cas « à regarder » sur 12 écrans, fr / de, 360 / 375, ×1 / ×1,3). */
+
+/* F3 — zones tactiles ≥ 44 px, sans rien changer à l'image (pseudo-élément ::before, comme .coll-dot, .srch-chip, .ev-pk) */
+.qstep{overflow:visible}      /* le « overflow:hidden » ne servait qu'à arrondir le fond :active des boutons, repris ci-dessous */
+.qstep>button{position:relative}
+.qstep>button::before{content:"";position:absolute;inset:-4px 0}
+.qstep>button:first-child{border-radius:11px 0 0 11px}
+.qstep>button:last-child{border-radius:0 11px 11px 0}
+:where(.dv-head,.sheet-head) :where(.icon-btn:not(.avatar)){position:relative}
+:where(.dv-head,.sheet-head) :where(.icon-btn:not(.avatar))::before{content:"";position:absolute;inset:-5px}
+.deck-more::before{content:"";position:absolute;inset:-5px;border-radius:50%}
+.dks-c{position:relative}
+.dks-c::before{content:"";position:absolute;inset:-3px;border-radius:50%}
+button.sync{position:relative}
+button.sync::before{content:"";position:absolute;inset:-8px 0}
+.tr-q .link-btn{position:relative}
+.tr-q .link-btn::before{content:"";position:absolute;inset:-9px 0}      /* hauteur seulement : un débord de côté gonflait la largeur mesurée du libellé (menus-e2e : « texte coupé ») */
+.dv-vw button{position:relative}
+.dv-vw button::before{content:"";position:absolute;inset:-5px 0}
+.link-btn.link-inline{position:relative}
+.link-btn.link-inline::before{content:"";position:absolute;inset:-13px 0}
+.fopt{position:relative}
+.fopt::before{content:"";position:absolute;inset:-5px 0}
+.bnd-sw .seg-opt{position:relative}
+.bnd-sw .seg-opt::before{content:"";position:absolute;inset:-6px 0}
+
+@media (max-width:380px){
+  /* F4 — barre du bas : la colonne du Scanner n'a besoin que de son rond (60 px) ; « Collection », « Sammlung », « Collezione » tiennent à ×1,3 */
+  .nav{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 62px minmax(0,1fr) minmax(0,1fr);padding-left:0;padding-right:0}
+  .nav-b{font-size:11px}
+  .nav-l{letter-spacing:-.01em}
+  /* F5 — choix segmentés à 3 options (page publique d'échange…) : « À échanger » ne laisse plus « À » seul sur sa ligne */
+  .seg-opt{padding-left:4px;padding-right:4px}
+  /* F6 — Échange : « À échanger | Je recherche » sur toute la largeur, le total passe sur la ligne du résumé */
+  .tr-top .tr-sub{grid-column:1/-1}
+  .tr-top .tr-sub .seg-opt{min-height:40px}
+  .tr-top .tr-sum em{grid-row:2}
+  .tr-top .tr-sum span{grid-column:2/3}
+}
+
+/* F7 — viewer : la barre collante (tri + vues) a un fond ; on ne lit plus la recherche ni les titres de groupe au travers en défilant */
+.dv-tools::before{content:"";position:absolute;z-index:-1;left:-16px;right:-16px;top:-8px;bottom:-6px;background:linear-gradient(var(--bg) 78%,transparent);pointer-events:none}

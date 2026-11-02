@@ -287,7 +287,7 @@ function scanEdFlow(done) {
     const nm = scanShown(it), n = ids.length, prints = Array.isArray(pr) ? pr : null, keep = edQKeep(wrap);
     if (qi !== i) { qi = i; q = ''; } else q = keep.q;
     const tile = (p, j) => { const px = pkEu(p), on = it.e === edKey(p.set, p.num); return `<button type="button" class="sc-ef-t" role="radio" aria-checked="${on}" data-ef="pick" data-i="${j}" aria-label="${esc([p.sn, edLabel(edKey(p.set, p.num)), p.y, px ? fmt(px, mkCur()) : ''].filter(Boolean).join(' · '))}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span class="sc-ask-c">${setIcHtml(p.set)}<b>${esc(p.set.toUpperCase())}</b> <small>${esc(p.y || '')}</small></span><em>${px ? esc(fmt(px, mkCur())) : '—'}</em></button>`; };
-    wrap.innerHTML = `<header class="dv-head"><button class="icon-btn" type="button" data-ef="close" aria-label="${T('Retour au scan')}"><svg class="i"><use href="#i-back"/></svg></button>
+    imgKeep(wrap, `<header class="dv-head"><button class="icon-btn" type="button" data-ef="close" aria-label="${T('Retour au scan')}"><svg class="i"><use href="#i-back"/></svg></button>
         <button class="btn ghost small" type="button" data-ef="skipall">${T('Laisser les autres sans édition')}</button></header>
       <div class="sc-ef-top"><div class="sc-ef-tt"><h2>${T('Éditions à choisir')}</h2><span class="sc-ef-n">${esc(T('{i} sur {n}', { i: i + 1, n }))}</span></div>
         <div class="sc-ef-bar" aria-hidden="true"><i style="width:${Math.round(100 * (i + 1) / n)}%"></i></div></div>
@@ -296,7 +296,7 @@ function scanEdFlow(done) {
         ${prints ? edQHtml(prints.length, q) : ''}
         ${prints ? (prints.length ? `<div class="sc-ef-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: nm }))}">${prints.map(tile).join('')}</div>` : `<p class="hint">${T('Aucune édition trouvée')}</p>`) : `<p class="hint">${T('Lecture des éditions…')}</p>`}
         <button class="btn ghost block sc-ef-none" type="button" data-ef="none">${T('Sans édition')}</button></div>
-      <footer class="dv-foot"><button class="btn ghost" type="button" data-ef="prev"${i ? '' : ' disabled'}>${T('Précédente')}</button><button class="btn" type="button" data-ef="next">${i + 1 < n ? T('Passer à la suivante') : T('Terminer')}</button></footer>`;
+      <footer class="dv-foot"><button class="btn ghost" type="button" data-ef="prev"${i ? '' : ' disabled'}>${T('Précédente')}</button><button class="btn" type="button" data-ef="next">${i + 1 < n ? T('Passer à la suivante') : T('Terminer')}</button></footer>`);
     const g = $('.sc-ef-grid', wrap); if (g && prints) edQApply(g, prints, q, '.sc-ef-t');
     keep.restore();
   }

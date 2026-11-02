@@ -17,9 +17,26 @@ async function dmFetch(list, basics) {
   const need = dmMissing(list, basics);
   if (!need.length || scryLeft() > 0) return false;
   need.forEach(c => dmTried.add(c.key));
-  try { const got = await scryCollection(need.map(c => c.name)); let n = 0; for (const [k, m] of got) if (m) { DM[k] = { eu: m.eu, ci: m.ci, cd: m.cd, im: m.im, cm: m.cm, mc: m.mc, tl: m.tl, cl: m.cl, ar: m.ar }; n++; } if (n) dmSave(); return n > 0; }
-  catch (e) { return false; }      // hors ligne ou limite Scryfall : l'estimation reste partielle
+  let n = 0;
+  for (let i = 0; i < need.length; i += 75) {      // un lot de 75 par requête : un lot refusé ne fait pas perdre les fiches des lots déjà lus
+    try { const got = await scryCollection(need.slice(i, i + 75).map(c => c.name)); for (const [k, m] of got) if (m) { DM[k] = { eu: m.eu, ci: m.ci, cd: m.cd, im: m.im, cm: m.cm, mc: m.mc, tl: m.tl, cl: m.cl, ar: m.ar }; n++; } }
+    catch (e) { need.slice(i).forEach(c => dmTried.delete(c.key)); break; }      // hors ligne ou limite Scryfall : l'estimation reste partielle ; ces cartes seront redemandées (sinon leur image ne venait jamais de la session)
+  }
+  if (n) dmSave(); return n > 0;
 }
+/** Vignettes : l'image n'apparaît qu'une fois chargée (.thumb img.ok, style.css) ; en panne, la lettre reste. Écouteurs en capture sur l'écran ou la feuille (éditeur, coach, analyse). */
+const thumbLoad = e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); };
+function thumbErr(e) {
+  const im = e.target; if (im.tagName !== 'IMG') return;
+  if (/^https:\/\/api\.scryfall\.com\//.test(im.src) && !im.dataset.again) {      // image par le nom (api.scryfall.com, limitée en débit : 429 pendant une rafale) : redemandée une fois après la pause, la lettre en attendant
+    im.dataset.again = '1'; const u = im.src;
+    setTimeout(() => { if (im.isConnected) { im.removeAttribute('src'); im.src = u; } }, Math.max(4000, scryLeft() + 500)); return;
+  }
+  im.remove();
+}
+/** Contenu tout juste redessiné (innerHTML) : les images déjà en cache sont montrées tout de suite. Sans cela chaque − / +, filtre ou case cochée refaisait partir
+ *  toutes les vignettes de l'opacité 0 (l'événement load arrive après le premier affichage) : la liste clignotait. */
+function thumbsReady(root) { if (root) for (const im of root.querySelectorAll('img:not(.ok)')) if (im.complete && im.naturalWidth) im.classList.add('ok'); }
 /** Fiche d'une carte (collection, sinon lue pour les decks). Sans prix Cardmarket sur l'impression par défaut de Scryfall (réimpression récente pas encore cotée :
  *  Sol Ring, Command Tower, Path to Exile…) : prix de l'impression la moins chère du relevé du jour (data.js › pxTable), comme le coach ; jamais « prix inconnu » si on le connaît. */
 const pxRef = k => { const p = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; return p && p.e > 0 ? p.e : 0; };
@@ -35,7 +52,7 @@ function pxRefEnsure() {
   PXR_ASK = true;
   pxTable().then(t => {
     PXR_ASK = false; if (!t) return;
-    try { if (typeof DV !== 'undefined' && DV.el && DV.snap && DV.snap.ref) { dvRebuild(); dvRender(); } } catch (e) { /* viewer fermé entre-temps */ }
+    try { if (typeof DV !== 'undefined' && DV.el && DV.snap && DV.snap.ref) dvRefresh(); } catch (e) { /* viewer fermé entre-temps */ }
     try { if (BD.el) bdList(); } catch (e) { /* éditeur fermé */ }
     try { if (typeof dksPaint === 'function') dksPaint(); } catch (e) { /* écran « Mes decks » pas prêt */ }
   }, () => { PXR_ASK = false; });
@@ -94,7 +111,7 @@ function openDeckNew() {
 function openBuilder(o) {
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
-  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', scanPref: null, wiz: null });      // scanPref : cartes scannées (rangées à l'enregistrement)
+  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
   if (prev || o.text) {
     const p = dkParse(prev ? prev.text : o.text);
     BD.fmt = (!prev && (o.fmt === 'commander' || o.fmt === 'standard') ? o.fmt : '') || p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
@@ -134,8 +151,8 @@ function openBuilder(o) {
     try { if (prevFocus && prevFocus.focus && prevFocus.isConnected) prevFocus.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
   };
   document.addEventListener('keydown', onKey, true);
-  wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
-  wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
+  wrap.addEventListener('load', thumbLoad, true);
+  wrap.addEventListener('error', thumbErr, true);
   const tab0 = coach && o.tab === 'coach' ? 'coach' : BD.split ? 'coll' : 'deck';
   BD.view = bdViewRead(); BD.sort = BD.sort || 'mana';
   mountSeg($('#bdSeg', wrap), [...(BD.split ? [] : [{ v: 'deck', label: T('Deck') }]), { v: 'coll', label: T('Ajouter') }, ...(coach ? [{ v: 'coach', label: T('Coach') }] : [])], tab0, bdTab);      // « Ajouter » : collection et toutes les cartes dans une seule recherche
@@ -165,12 +182,21 @@ function bdClose(force) {
 
 /* ── Données de la carte (couleurs, image) : collection d'abord, sinon Scryfall ───────────────── */
 function bdMetaSoon() {
-  clearTimeout(BD.metaT); BD.metaT = setTimeout(bdMetaLoad, 700);
+  clearTimeout(BD.metaT); BD.metaT = setTimeout(bdMetaLoad, Math.max(700, (BD.metaAt || 0) - Date.now()));      // après un échec : pas avant la nouvelle tentative prévue (le coach rappelle bdMetaSoon à chaque repeint)
+}
+/** Cartes dont l'éditeur montre l'image : deck, réserve, commandant, terrains de base (rangées toujours là), cartes proposées (recherche, coach, échanges conseillés). */
+function bdMetaList() {
+  const sw = typeof DX !== 'undefined' && DW.open === 'swaps' && Array.isArray(DX.swaps) ? DX.swaps.map(s => ({ key: s.in.k, name: s.in.name })) : [];      // « Améliorer le deck » du Coach (deckux.js) : cartes à ajouter
+  return [...BD.main.values(), ...BD.side.values(), ...BD.cmdr, ...BD_BASICS.map(([key, name]) => ({ key, name })), ...(BD.want || []), ...sw];
 }
 async function bdMetaLoad() {
   if (!BD.el) return;
-  const list = [...BD.main.values(), ...BD.cmdr, ...(BD.want || [])];
-  if (await dmFetch(list) && BD.el) bdPaint();
+  const el = BD.el; await dmLoad(); if (BD.el !== el) return;      // fiches gardées sur l'appareil d'abord
+  const list = bdMetaList(), got = await dmFetch(list, true); if (BD.el !== el) return;
+  if (got) { BD.metaN = 0; bdPaint(); }
+  if (!dmMissing(bdMetaList(), true).length) return;      // plus de 150 cartes inconnues, limite Scryfall, hors ligne : on y revient (images qui arrivent tard plutôt que jamais)
+  const wait = got ? 300 : Math.min(60000, Math.max(2500 * 2 ** Math.min(4, BD.metaN = (BD.metaN || 0) + 1), scryLeft() + 500));
+  BD.metaAt = Date.now() + wait; clearTimeout(BD.metaT); BD.metaT = setTimeout(bdMetaLoad, wait);
 }
 
 /* ── Modifications ────────────────────────────────────────────────────────────────────────────── */
@@ -422,9 +448,13 @@ function bdFindHtml() {
 }
 function bdList() {
   const el = BD.el; if (!el) return;
-  $('#bdList', el).innerHTML = BD.tab === 'deck' ? bdDeckHtml() : BD.tab === 'coll' ? bdAddHtml() : BD.tab === 'coach' && typeof dwCoachHtml === 'function' ? dwCoachHtml() : bdFindHtml();
-  if (BD.split) $('#bdDeck', el).innerHTML = bdDeckHtml();      // ordinateur : la liste du deck reste affichée à droite
+  const px = $('#bdList .dv-piles', el), left = px ? px.scrollLeft : 0;      // vue Piles : la position de côté est gardée au repeint (− / +, fiches et prix qui arrivent)
+  imgKeep($('#bdList', el), BD.tab === 'deck' ? bdDeckHtml() : BD.tab === 'coll' ? bdAddHtml() : BD.tab === 'coach' && typeof dwCoachHtml === 'function' ? dwCoachHtml() : bdFindHtml());      // images déjà affichées reprises : − / +, fiches et prix qui arrivent ne font plus clignoter les cartes (app.js)
+  if (BD.split) imgKeep($('#bdDeck', el), bdDeckHtml());      // ordinateur : la liste du deck reste affichée à droite
+  thumbsReady(el);      // images déjà en cache : visibles tout de suite, la liste ne clignote pas à chaque − / +
+  if (left) { const n = $('#bdList .dv-piles', el); if (n) n.scrollLeft = left; }
   const so = $('#bdSort', el); if (so) mountSeg(so, [{ v: 'mana', label: T('Mana') }, { v: 'type', label: T('Type') }, { v: 'role', label: T('Rôle') }], BD.sort, v => { BD.sort = v; bdList(); });
+  toolsFit($('#bdList .bd-tools', el));      // texte agrandi, langue longue : vues sous le tri (viewer.js)
 }
 /** Ordinateur : écran large et souris (même requête que zz-desktop.css et la barre latérale, nav.js). */
 const bdSplit = () => { try { return matchMedia('(min-width:1100px) and (hover:hover) and (pointer:fine)').matches; } catch (e) { return false; } };

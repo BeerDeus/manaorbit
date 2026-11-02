@@ -30,7 +30,7 @@ img{max-width:100%}
   --bg:#f1f3f8; --surface:#ffffff; --surface-2:#e8ecf4; --surface-3:#f5f7fb; --line:#d9dfeb;
   --ink:#10152b; --ink-2:#4a5470; --ink-3:#5a6480;      /* ink-3 : texte secondaire ≥ 4,5:1 (WCAG AA) sur bg, surface et surface-2 */
   --accent:#3a46d6; --accent-ink:#ffffff; --accent-soft:#e6e8fb; --ring:rgba(58,70,214,.28);
-  --eng:#ee8a1d; --good:#0b8a5e; --good-soft:#dff5ec; --warn:#a46606; --warn-soft:#fbefd6; --bad:#c23a4b; --bad-soft:#fbe4e7;
+  --eng:#ee8a1d; --good:#06774f; --good-soft:#dff5ec; --warn:#8f5905; --warn-soft:#fbefd6; --bad:#b0303f; --bad-soft:#fbe4e7;      /* texte ≥ 4,5:1 (WCAG AA) sur les surfaces et les fonds -soft */
   --bar-bg:rgba(241,243,248,.84); --scrim:rgba(10,14,30,.46);
   --shadow:0 1px 2px rgba(16,21,43,.06),0 10px 28px -14px rgba(16,21,43,.22);
   --thumb-l:90%; --thumb-ink:30%;
@@ -1375,7 +1375,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .deck-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:var(--font-display);font-weight:650;font-size:15px;line-height:1.2;letter-spacing:-.01em;text-wrap:balance}
 .deck-tags{display:flex;align-items:center;gap:7px;min-height:17px}
 .deck-meta{display:flex;flex-direction:column;gap:1px;font-size:12px;line-height:1.35;color:var(--ink-3)}
-.deck-ago{font-size:11.5px;opacity:.85}
+.deck-ago{font-size:11.5px}      /* sans opacité : contraste 4,5:1 */
 .deck-price{position:absolute;left:6px;right:6px;bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 .deck-price:empty{display:none}
 .deck-price b{padding:2px 8px;border-radius:99px;background:rgba(10,14,30,.84);color:#fff;font-size:11.5px;font-weight:600;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
@@ -1622,13 +1622,17 @@ html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
 /* ── Deck viewer : vues (grille, piles façon MTG Arena, piles compactes, bandeaux) et pastille Game Changer ── */
 .dv-tools{position:sticky;top:8px;z-index:3;display:flex;align-items:center;gap:8px}
 .dv-tools .dv-seg{position:static;flex:1;min-width:0}
-.dv-vw{flex:none;display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--surface-2);box-shadow:var(--shadow),inset 0 0 0 1px var(--line)}
-.dv-vw button{width:34px;height:34px;display:grid;place-items:center;padding:0;border:0;border-radius:11px;background:transparent;color:var(--ink-3);transition:background .15s,color .15s}
+.dv-tools .seg-opt,.bd-tools .seg-opt{padding-left:2px;padding-right:2px}      /* libellés courts : la place va au texte (sinon la grille du tri déborde sous les vues) */
+.dv-tools.t2,.bd-tools.t2{flex-wrap:wrap}      /* libellés du tri trop serrés (texte agrandi ×1,3, langue longue : toolsFit) : les vues passent dessous au lieu d'être recouvertes */
+.dv-tools.t2 .dv-seg,.bd-tools.t2 .bd-sort{flex-basis:100%}
+.dv-vw{flex:none;margin-left:auto;display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--surface-2);box-shadow:var(--shadow),inset 0 0 0 1px var(--line)}
+.dv-vw button{width:34px;height:40px;display:grid;place-items:center;padding:0;border:0;border-radius:11px;background:transparent;color:var(--ink-3);transition:background .15s,color .15s}
 .dv-vw button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
 .dv-vw button[aria-checked="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(16,21,43,.18)}
 .dvc-tl{position:absolute;top:14%;left:7%;z-index:1;display:flex;gap:4px;align-items:center}      /* sous la bande du titre, sur l'illustration : le nom reste lisible */
 .dvc-tl .dvc-l{position:static}
 .dvc-gc{flex:none;height:19px;padding:0 5px;display:inline-grid;place-items:center;border-radius:6px;background:linear-gradient(135deg,#6d3cff,#c43cff);color:#fff;font:700 10px/1 var(--font-mono);letter-spacing:.05em;box-shadow:0 0 0 1.5px rgba(255,255,255,.6),0 2px 6px rgba(80,20,160,.45)}
+.dv .fbtn,.dv .fsearch{-webkit-backdrop-filter:none;backdrop-filter:none;background-color:var(--surface)}      /* viewer et éditeur : fond plein (le flou d'arrière-plan sur des centaines de cartes coûte au défilement, et la WebView Android le dessinait parfois en rectangle vide) */
 /* Piles : colonnes côte à côte, défilement de côté ; chaque carte ne laisse dépasser que son titre (≈ 16 % de sa largeur), la dernière en entier */
 .dv-groups[data-view="piles"]{margin:0 -16px}
 .dv-piles{display:flex;gap:12px;overflow-x:auto;padding:2px 16px 12px;scroll-snap-type:x proximity;scroll-padding:0 16px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none}
@@ -2653,6 +2657,7 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .dw-cmds{display:flex;flex-direction:column;gap:2px;margin-top:6px}
 .dw-cmd{width:100%;border:0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
 .dw-cmd .row-meta .pip{width:13px;height:13px;margin-right:2px}
+.dw-cmd>.me-v{max-width:none;overflow:visible;display:block}      /* chevron « › » : la règle des réglages (me.css, 55 % au plus) le rognait à 3 px dans la colonne auto de la ligne */
 .dw-wiz textarea,#dwPaste{width:100%;min-height:180px;font:13px/1.4 var(--mono,ui-monospace,monospace);padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);resize:vertical}
 .lab-h .me-t{font-weight:650}
 /* Analyse du deck (deckana.js) */
@@ -2764,9 +2769,9 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .ds-vs{display:flex;flex-direction:column;gap:10px;margin-top:8px}
 .ds-v{display:flex;flex-direction:column;gap:4px;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:var(--surface);font:inherit;color:var(--ink);text-align:left;cursor:pointer}
 .ds-v.best{border-color:var(--accent)}
-.ds-vh{display:flex;align-items:center;gap:8px}
+.ds-vh{display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap}      /* texte agrandi : le badge passe dessous plutôt que de se casser en deux lignes */
 .ds-vh b{font-size:15px;font-weight:650}
-.ds-vh em{font-style:normal;font-size:11px;font-weight:650;padding:2px 8px;border-radius:99px;background:var(--accent);color:var(--accent-ink)}
+.ds-vh em{font-style:normal;white-space:nowrap;font-size:11px;font-weight:650;padding:2px 8px;border-radius:99px;background:var(--accent);color:var(--accent-ink)}
 .ds-vn{margin-left:auto;font-size:22px;font-weight:750;font-variant-numeric:tabular-nums}
 .ds-vd,.ds-vk,.ds-vr{font-size:12.5px;color:var(--ink-2)}
 .ds-vk{color:var(--ink)}
@@ -7321,6 +7326,50 @@ html[data-event="halloween"] .ob-np::before{background:radial-gradient(closest-s
   ::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px;border:2px solid var(--bg)}
   ::-webkit-scrollbar-track{background:transparent}
 }
+
+/* ── zz-phone.css : finitions téléphone (360–380 px, police ×1 à ×1,3), audit de style du 2 novembre 2026 ; chargé après les autres feuilles (ordre alphabétique) ──
+   Contrastes (F1, F2) : directement dans style.css. Vérifié par tests/overflow-audit.mjs avant / après (28 → 2 cas « à regarder » sur 12 écrans, fr / de, 360 / 375, ×1 / ×1,3). */
+
+/* F3 — zones tactiles ≥ 44 px, sans rien changer à l'image (pseudo-élément ::before, comme .coll-dot, .srch-chip, .ev-pk) */
+.qstep{overflow:visible}      /* le « overflow:hidden » ne servait qu'à arrondir le fond :active des boutons, repris ci-dessous */
+.qstep>button{position:relative}
+.qstep>button::before{content:"";position:absolute;inset:-4px 0}
+.qstep>button:first-child{border-radius:11px 0 0 11px}
+.qstep>button:last-child{border-radius:0 11px 11px 0}
+:where(.dv-head,.sheet-head) :where(.icon-btn:not(.avatar)){position:relative}
+:where(.dv-head,.sheet-head) :where(.icon-btn:not(.avatar))::before{content:"";position:absolute;inset:-5px}
+.deck-more::before{content:"";position:absolute;inset:-5px;border-radius:50%}
+.dks-c{position:relative}
+.dks-c::before{content:"";position:absolute;inset:-3px;border-radius:50%}
+button.sync{position:relative}
+button.sync::before{content:"";position:absolute;inset:-8px 0}
+.tr-q .link-btn{position:relative}
+.tr-q .link-btn::before{content:"";position:absolute;inset:-9px 0}      /* hauteur seulement : un débord de côté gonflait la largeur mesurée du libellé (menus-e2e : « texte coupé ») */
+.dv-vw button{position:relative}
+.dv-vw button::before{content:"";position:absolute;inset:-5px 0}
+.link-btn.link-inline{position:relative}
+.link-btn.link-inline::before{content:"";position:absolute;inset:-13px 0}
+.fopt{position:relative}
+.fopt::before{content:"";position:absolute;inset:-5px 0}
+.bnd-sw .seg-opt{position:relative}
+.bnd-sw .seg-opt::before{content:"";position:absolute;inset:-6px 0}
+
+@media (max-width:380px){
+  /* F4 — barre du bas : la colonne du Scanner n'a besoin que de son rond (60 px) ; « Collection », « Sammlung », « Collezione » tiennent à ×1,3 */
+  .nav{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 62px minmax(0,1fr) minmax(0,1fr);padding-left:0;padding-right:0}
+  .nav-b{font-size:11px}
+  .nav-l{letter-spacing:-.01em}
+  /* F5 — choix segmentés à 3 options (page publique d'échange…) : « À échanger » ne laisse plus « À » seul sur sa ligne */
+  .seg-opt{padding-left:4px;padding-right:4px}
+  /* F6 — Échange : « À échanger | Je recherche » sur toute la largeur, le total passe sur la ligne du résumé */
+  .tr-top .tr-sub{grid-column:1/-1}
+  .tr-top .tr-sub .seg-opt{min-height:40px}
+  .tr-top .tr-sum em{grid-row:2}
+  .tr-top .tr-sum span{grid-column:2/3}
+}
+
+/* F7 — viewer : la barre collante (tri + vues) a un fond ; on ne lit plus la recherche ni les titres de groupe au travers en défilant */
+.dv-tools::before{content:"";position:absolute;z-index:-1;left:-16px;right:-16px;top:-8px;bottom:-6px;background:linear-gradient(var(--bg) 78%,transparent);pointer-events:none}
 </style>
 </head>
 <body>
@@ -7803,7 +7852,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '4d71ba3d';
+const DD_BUILD = 'aaef8f00';
 const I18N_FILES = {"de":"i18n/de.8951c9f0.js","en":"i18n/en.c3a83d9c.js","es":"i18n/es.4ab05c66.js","it":"i18n/it.4c7a6f72.js","pt":"i18n/pt.cd05f020.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -12342,6 +12391,23 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let RM_MQ = null;      // une seule MediaQueryList (matches suit le réglage du téléphone) : reduceMotion est lu à chaque mouvement du doigt (motion.js › tiltMove)
 const reduceMotion = () => { try { return (RM_MQ || (RM_MQ = window.matchMedia('(prefers-reduced-motion: reduce)'))).matches; } catch (e) { return false; } };
+/** Image déjà chargée (cache, ou chargée hors du DOM : son « load » n'a atteint aucun écouteur) : .ok tout de suite, sans fondu depuis la lettre. */
+const imgDone = im => { if (im.complete && im.naturalWidth > 0 && !im.classList.contains('ok')) im.classList.add('ok'); };
+/** Repeint host par innerHTML sans faire clignoter ses images : chaque <img> du nouveau contenu dont l'adresse était déjà là reprend l'ancien nœud
+ *  (attributs du nouveau, .ok gardé : ni fondu depuis la lettre, ni chargement perdu) ; une image neuve déjà en cache est montrée tout de suite (imgDone). */
+function imgKeep(host, html) {
+  const old = new Map(); for (const im of host.getElementsByTagName('img')) { const u = im.getAttribute('src'); if (u && !old.has(u) && !(im.complete && !im.naturalWidth)) old.set(u, im); }      // image en erreur : pas reprise (le nouveau nœud refait son erreur, et l'écran sa lettre ou son repli)
+  host.innerHTML = html;
+  for (const im of [...host.getElementsByTagName('img')]) {
+    const u = im.getAttribute('src'), o = u ? old.get(u) : null;
+    if (!o) { imgDone(im); continue; }
+    old.delete(u); const ok = o.classList.contains('ok');
+    for (const a of [...o.attributes]) if (!im.hasAttribute(a.name)) o.removeAttribute(a.name);
+    for (const a of [...im.attributes]) if (o.getAttribute(a.name) !== a.value) o.setAttribute(a.name, a.value);      // src identique : rien n'est relu
+    if (ok) o.classList.add('ok');
+    im.replaceWith(o); imgDone(o);
+  }
+}
 // Noms des langues de cartes, déjà traduits (« français » / « French ») : on les insère dans des phrases traduites (T('Offres en {lang}', …)).
 const LANGS = { fr: T('français'), en: T('anglais'), de: T('allemand'), es: T('espagnol'), it: T('italien'), pt: T('portugais'), jp: T('japonais'), 'zh-CN': T('chinois simplifié'), ru: T('russe'), kr: T('coréen'), 'zh-TW': T('chinois traditionnel') };      // kr, zh-TW : codes CardTrader (comme jp, zh-CN)
 const FLAGS = {
@@ -13056,12 +13122,12 @@ function updateRow(el, c, v, st) {
   el.classList.toggle('is-missing', v.s === 'none' || v.s === 'notfound' || v.s === 'nohub');
   el.classList.toggle('is-own', v.s === 'own');
   if (v.s === 'loading') {
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="sk meta"></span></span><span class="row-price"><span class="sk price"></span></span>`;
+    imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="sk meta"></span></span><span class="row-price"><span class="sk price"></span></span>`);
   } else if (v.s === 'own') {
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${c.qty > 1 ? `<span class="tag accent">× ${c.qty}</span>` : ''}<span class="tag good">${T('Dans ta collection')}</span></span></span><span class="row-price"><span class="tag good">${T('Possédée')}</span></span>`;
+    imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${c.qty > 1 ? `<span class="tag accent">× ${c.qty}</span>` : ''}<span class="tag good">${T('Dans ta collection')}</span></span></span><span class="row-price"><span class="tag good">${T('Possédée')}</span></span>`);
   } else if (v.s === 'ok' && top.cm) {
     const n = pick.parts.reduce((a, p) => a + p.n, 0);
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}<span class="tag">${mkName()}</span>${top.set ? `<span class="tag">${esc(top.set.toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>` : ''}</span><span class="row-seller">${T('Tendance')}${n > 1 ? ' · ' + n + ' × ' + fmt(top.price) : ''}</span></span><span class="row-price"><b>${fmt(pick.cost)}</b></span>`;
+    imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}<span class="tag">${mkName()}</span>${top.set ? `<span class="tag">${esc(top.set.toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>` : ''}</span><span class="row-seller">${T('Tendance')}${n > 1 ? ' · ' + n + ' × ' + fmt(top.price) : ''}</span></span><span class="row-price"><b>${fmt(pick.cost)}</b></span>`);
   } else if (v.s === 'ok') {
     const tags = [];
     tags.push(`<span class="tag">${esc((top.set || '').toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>`);
@@ -13073,7 +13139,7 @@ function updateRow(el, c, v, st) {
     if (ri) tags.push(`<span class="tag ref ${ri.level}" title="${esc(T('Prix de référence Cardmarket par exemplaire (donné par Scryfall) : {ref}. Ton prix : {unit}.', { ref: fmt(ri.ref), unit: fmt(ri.unit) }))}">${mkAb()} ${esc(fmt(ri.ref))}${ri.level === 'warn' ? ' · +' + T('{n} %', { n: ri.pct }) : ''}</span>`);
     const n = pick.parts.reduce((a, p) => a + p.n, 0);
     const small = pick.parts.length === 1 && n > 1 ? `${n} × ${fmt(top.price, top.cur)}` : '';
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}${lnTag}${tags.join('')}</span><span class="row-seller">${esc(top.seller)}${top.country ? ' · ' + esc(top.country) : ''}</span></span><span class="row-price"><b${prevCost != null && prevCost !== pick.cost ? ' class="flash"' : ''}>${fmt(pick.cost, top.cur)}</b>${small ? `<small>${small}</small>` : ''}</span>`;
+    imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}${lnTag}${tags.join('')}</span><span class="row-seller">${esc(top.seller)}${top.country ? ' · ' + esc(top.country) : ''}</span></span><span class="row-price"><b${prevCost != null && prevCost !== pick.cost ? ' class="flash"' : ''}>${fmt(pick.cost, top.cur)}</b>${small ? `<small>${small}</small>` : ''}</span>`);
   } else {
     const msg = v.s === 'notfound' ? (c.amb ? (FRX.l === 'fr' ? T('Nom français de plusieurs cartes : {list}. Écris le nom anglais.', { list: c.amb.join(' · ') }) : T('Nom en {lang} de plusieurs cartes : {list}. Écris le nom anglais.', { list: c.amb.join(' · '), lang: LANGS[FRX.l] || FRX.l })) : T('Nom introuvable, vérifie l\'orthographe'))
       : v.s === 'none' && isCm() ? T('Pas de prix Cardmarket connu')
@@ -13081,7 +13147,7 @@ function updateRow(el, c, v, st) {
       : v.s === 'nohub' ? T('Aucune offre compatible Zero')
         : lnOn(c) ? lnMiss(c, st)      // « Aucune offre foil en français » : critères de la ligne
           : (st && st.fellBack ? T('Aucune offre, même en anglais') : T('Aucune offre en {lang}', { lang: langName }));
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span>${ownTag || lnTag ? `<span class="row-meta">${ownTag}${lnTag}</span>` : ''}<span class="row-miss">${esc(msg)}</span></span><span class="row-price">${v.s === 'stale' ? '' : `<span class="tag">${v.s === 'notfound' ? T('Erreur') : T('Voir')}</span>`}</span>`;
+    imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span>${ownTag || lnTag ? `<span class="row-meta">${ownTag}${lnTag}</span>` : ''}<span class="row-miss">${esc(msg)}</span></span><span class="row-price">${v.s === 'stale' ? '' : `<span class="tag">${v.s === 'notfound' ? T('Erreur') : T('Voir')}</span>`}</span>`);
   }
 }
 
@@ -13918,6 +13984,21 @@ function tiltMove(e) {
 document.addEventListener('pointermove', tiltMove, { passive: true });
 document.addEventListener('pointerdown', tiltMove, { passive: true });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'scroll']) document.addEventListener(ev, e => { if (ev !== 'pointerup' || e.pointerType !== 'mouse') { tiltReset(MO.tilt); MO.tilt = null; } }, { passive: true, capture: ev === 'scroll' });
+
+/* ── Images de cartes : une image déjà chargée revient sans fondu ; une vignette chargée hors du document est rattrapée ──
+   Les conteneurs posent la classe .ok sur l'événement load (écouteur en capture) : une vignette gardée puis déplacée (viewer, tri, filtre, changement de vue)
+   qui finit de charger pendant qu'elle est détachée rate cet événement et resterait transparente ; un repeint (innerHTML) refait chaque image et relançait son fondu. */
+const IMG_SEEN = new Set();
+document.addEventListener('load', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.naturalWidth) { if (IMG_SEEN.size > 4000) IMG_SEEN.clear(); IMG_SEEN.add(t.getAttribute('src')); } }, true);
+/** Attribut de classe d'une image de carte : « ok » d'emblée si cette adresse a déjà été chargée (cache du navigateur : pas de fondu, pas de clignotement). */
+const imgOkAttr = u => (u && IMG_SEEN.has(u) ? ' class="ok"' : '');
+/** Images d'un nœud remis dans le document : chargées entre-temps → .ok ; en échec → retirées (la lettre d'attente reste), comme le ferait l'écouteur error. */
+function imgSettle(root) {
+  for (const im of root.querySelectorAll('img')) {
+    if (!im.complete || im.classList.contains('ok') || !im.getAttribute('src') || im.ownerDocument !== document) continue;      // image d'un modèle (template) : jamais chargée, pas en échec
+    if (im.naturalWidth) im.classList.add('ok'); else im.remove();
+  }
+}
 
 /* ── Entrées en cascade ── */
 /** Rejoue l'arrivée en cascade des enfants de chaque conteneur (listes, grilles) : seulement à l'ouverture d'un écran, d'un onglet, d'un tri. */
@@ -17619,6 +17700,7 @@ function dvSoon(decks, delay) {
     const a = covers.length ? await dmFetch(covers) : false, b = miss.length ? await dmFetch(miss) : false;
     const c = await ownLangFetch(decks.map(d => dkCoverCard(d.text, dmOf)).filter(Boolean));      // carte de présentation possédée dans une autre langue : son image dans cette langue
     if ((a || b || c) && DKS.el) renderDecks();
+    else if (DKS.el && scryLeft() > 0 && decks.some(d => { const cv = dkCoverCard(d.text, dmOf); return cv && !dmOf(cv.key); })) dvSoon(decks, scryLeft() + 500);      // Scryfall en pause : couvertures redemandées à la fin de la pause, écran ouvert
   }, delay == null ? 900 : delay);
 }
 function paintSync() {
@@ -17796,7 +17878,7 @@ function openDeckSheet(id) {
     const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
     const paintCover = () => {      // carte de présentation : celle choisie, sinon le commandant, sinon la plus chère
       const cur = findDeck(id) || d, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/');
-      $('.cover-th', api.body).innerHTML = im ? `<img alt="" src="${esc(im)}">` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`;
+      imgKeep($('.cover-th', api.body), im ? `<img alt="" src="${esc(im)}">` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`);
       $('#dkCoverSub', api.body).textContent = cv ? `${cv.name} · ${cv.auto ? T('automatique') : T('choisie')}` : T('Aucune carte');
     };
     paintCover(); $('#dkCover', api.body).onclick = () => openCoverPicker(id, paintCover);
@@ -17852,7 +17934,7 @@ function openCoverPicker(id, done) {
     const paint = () => {
       const cur = dkCoverCard((findDeck(id) || d0).text, dmOf), chosen = cur && !cur.auto ? cur.key : '', f = q.value.trim().toLowerCase();
       const list = pool().filter(c => !f || c.name.toLowerCase().includes(f)).slice(0, 150);
-      grid.innerHTML = list.map(c => { const im = coverImg(c); return `<button type="button" class="cv-card" data-n="${esc(c.name)}" aria-pressed="${c.key === chosen}" aria-label="${c.cmd ? T('{name}, commandant', { name: esc(c.name) }) : esc(c.name)}"><span class="dvc-art" style="--h:${hash32(c.key) % 360}"><b>${esc((c.name.trim()[0] || '?').toUpperCase())}</b><i>${esc(c.name)}</i>${im ? `<img alt="" loading="lazy" decoding="async" src="${esc(im)}">` : ''}</span></button>`; }).join('') || '<p class="hint">' + T('Aucune carte de ce nom.') + '</p>';
+      imgKeep(grid, list.map(c => { const im = coverImg(c); return `<button type="button" class="cv-card" data-n="${esc(c.name)}" aria-pressed="${c.key === chosen}" aria-label="${c.cmd ? T('{name}, commandant', { name: esc(c.name) }) : esc(c.name)}"><span class="dvc-art" style="--h:${hash32(c.key) % 360}"><b>${esc((c.name.trim()[0] || '?').toUpperCase())}</b><i>${esc(c.name)}</i>${im ? `<img alt="" loading="lazy" decoding="async" src="${esc(im)}">` : ''}</span></button>`; }).join('') || '<p class="hint">' + T('Aucune carte de ce nom.') + '</p>');      // recherche : les images déjà là restent (pas de nouveau fondu à chaque lettre)
     };
     grid.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
     grid.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
@@ -18272,7 +18354,7 @@ function dksPaint() {
     else if (!shown.length) html += '<div class="deck-empty">' + T('Aucun deck ne correspond à ces filtres.') + '</div>';
   }
   const host = $('#deckList', el);
-  if (host.__html !== html) { host.innerHTML = html; host.__html = html; }
+  if (host.__html !== html) { imgKeep(host, html); host.__html = html; }      // couvertures déjà là : gardées telles quelles (prix ou date changés)
   shown.forEach(d => D.seen.add(d.id));
   dvSoon(all, DKS.fresh ? 120 : 900); DKS.fresh = false;
 }
@@ -18694,13 +18776,18 @@ async function dvMetaLoad(wrap) {
     DV.loading = !!(DV.snap && DV.snap.ref); DV.framed = null; dvRender();
     try { await dmFetch(list, true); } catch (e) { /* hors ligne : l'affichage reste partiel */ }
     if (DV.el !== wrap) return;
-    DV.loading = false; dvRebuild(); dvRender();
+    DV.loading = false; dvRefresh();
   }
   // cartes possédées dans une autre langue que l'anglais : leur image, dans cette langue, si Scryfall ne l'a pas encore donnée
   if (DV.pub) return;
   const pd = parseDeck(DV.text); let got = false;
   try { got = await ownLangFetch([...pd.cards, ...dkSideCards(DV.text)]); } catch (e) { /* ignore */ }
-  if (got && DV.el === wrap) { dvRebuild(); dvRender(); }
+  if (got && DV.el === wrap) dvRefresh();
+}
+/** Relevé recalculé et viewer redessiné une seule fois par image, même quand plusieurs choses arrivent ensemble (fiches Scryfall, images dans ta langue, relevé du jour). */
+function dvRefresh() {
+  if (DV.rf) return;
+  DV.rf = requestAnimationFrame(() => { DV.rf = 0; if (DV.el) { dvRebuild(); dvRender(); } });
 }
 /** Relevé de référence, réserve et images des terrains recalculés d'après les fiches connues (le relevé de prix, lui, ne change pas). */
 function dvRebuild() {
@@ -18746,12 +18833,12 @@ function dvBits(it, snap, dl) {
 }
 function dvTile(it, i, snap, dl) {
   const { hue, art, tag, en, q, gc, label } = dvBits(it, snap, dl);
-  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
+  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
 }
 /** Bandeau (vue « Bandeaux », façon liste de MTG Arena) : illustration à droite, quantité, nom, coût de mana, prix. */
 function dvStrip(it, i, snap, dl) {
   const { hue, tag, en, gc, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
-  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
+  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
 }
 /** Courbe de mana : c = exemplaires par coût (0 à 7+). interactive : barres cliquables (le viewer saute au groupe). */
 function curveBars(c, interactive) {
@@ -18765,7 +18852,7 @@ function dvHero(it, idx, snap, dl) {
   const art = dvImg(it), hue = hash32(it.k) % 360, d = dl && dl.get(it.k);
   const price = it.s === 'ok' ? `<b>${esc(dvFmt(it.c))}</b>${it.rf ? `<span class="cmd-ref">${T('Réf. Cardmarket {price}', { price: esc(dvFmt(it.rf)) })}</span>` : ''}${snap.ref && it.ow ? `<span class="cmd-ref">${it.ow >= it.q ? T('Dans ta collection') : T('Possédé en {n} ex.', { n: it.ow })}</span>` : ''}${d && dvMoved(d) ? `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${esc(dvFmt(Math.abs(d.tot)))}</span>` : ''}`
     : it.s === 'own' ? '<b class="own">' + T('Dans ta collection') + '</b>' : it.s === 'nf' ? '<b class="bad">' + T('Introuvable') + '</b>' : `<b class="warn">${snap.ref ? T('Prix inconnu') : T('Aucune offre')}</b>`;
-  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span>
+  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span>
     <span class="cmd-t"><small>${/planeswalker/i.test(it.tl || '') ? T('Planeswalker commandant') : T('Commandant')}</small><strong>${esc(it.n)}</strong>${it.tl ? `<span class="cmd-tl">${esc(it.tl)}</span>` : ''}${it.mc ? `<span class="cmd-mc">${manaHtml(it.mc)}</span>` : ''}<span class="cmd-p">${price}</span></span></button>`;
 }
 
@@ -18787,7 +18874,6 @@ function dvRefLine(items) {
 
 /** Cadre du viewer : résumé, bascule de tri, filtres. Reconstruit seulement quand le relevé change (la saisie ne doit pas perdre le focus). */
 function dvFrame(snap) {
-  DV.nodes = new Map();      // nouveau relevé (prix, possession) : vignettes refaites
   const el = DV.el, items = snap.items, found = items.filter(i => i.s === 'ok'), total = found.reduce((a, i) => a + i.c, 0);
   const copies = items.reduce((a, i) => a + i.q, 0), miss = items.filter(i => i.s === 'nf').length, none = items.filter(i => i.s === 'none' || i.s === 'nohub').length, own = items.filter(i => i.s === 'own').length;
   const ref = !!snap.ref, old = !ref && !DV.live && snapAge(snap) === 'old';
@@ -18815,7 +18901,7 @@ function dvFrame(snap) {
     DV.sort = v; try { localStorage.setItem(DV_SORT_KEY, v); } catch (e) { /* ignore */ } haptic('tap'); DV.anim = true; dvGroups();
     const g = $('.dv-groups', DV.el), sc = $('.dv-scroll', DV.el); if (g && sc) sc.scrollTop = Math.min(sc.scrollTop, g.offsetTop - 8);
   });
-  $('#dvSeg', el).setValue(DV.sort);
+  $('#dvSeg', el).setValue(DV.sort); toolsFit($('.dv-tools', el));
   $('#dvView', el).onclick = e => {
     const b = e.target.closest('[data-view]'); if (!b || b.dataset.view === DV.view) return;
     DV.view = b.dataset.view; try { localStorage.setItem(DV_VIEW_KEY, DV.view); } catch (x) { /* ignore */ }
@@ -18833,14 +18919,27 @@ const DV_VIEW_ICON = {
   stacks: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3" width="7.5" height="18" rx="1.5"/><rect x="13" y="3" width="7.5" height="14" rx="1.5"/><path d="M3.5 7.5h7.5M3.5 12h7.5M13 7.5h7.5"/></svg>',
   strips: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="18" height="4" rx="1.5"/><rect x="3" y="16" width="18" height="4" rx="1.5"/></svg>',
 };
+/** Barre tri + vues (viewer, éditeur) : sur une ligne tant que les libellés du tri tiennent ; sinon (texte agrandi, langue longue) les vues passent dessous. */
+function toolsFit(bar) {
+  if (!bar || !bar.isConnected) return;
+  bar.classList.remove('t2');
+  if ([...bar.querySelectorAll('.seg, .seg-opt')].some(o => o.scrollWidth > o.clientWidth + 1)) bar.classList.add('t2');      // colonnes du tri plus larges que sa place (la grille déborde) ou libellé coupé
+  if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(() => toolsFit(bar));      // polices pas encore là : mesure refaite avec les vraies
+}
 function dvViewRead() { try { const v = localStorage.getItem(DV_VIEW_KEY); if (DV_VIEWS.some(x => x[0] === v)) return v; } catch (e) { /* ignore */ } return 'grid'; }
 const dvViewHtml = () => `<div class="dv-vw" id="dvView" role="radiogroup" aria-label="${T('Affichage')}">${DV_VIEWS.map(([v, l]) => `<button type="button" role="radio" data-view="${v}" aria-checked="${DV.view === v}" aria-label="${esc(T(l))}" title="${esc(T(l))}">${DV_VIEW_ICON[v]}</button>`).join('')}</div>`;
 /** Vignette d'une carte pour la vue en cours : construite une fois, puis déplacée d'un groupe à l'autre (tri, filtres) sans être refaite :
  *  plus de reconstruction de tout le deck à chaque tri, et les images déjà chargées ne repassent pas par leur fondu. */
 function dvNode(it, i, snap, dl) {
-  const key = (DV.view === 'strips' ? 's|' : 't|') + it.k + (it.sb ? '|sb' : '') + (it.cmd ? '|c' : '');
-  let n = DV.nodes.get(key);
-  if (!n) { const t = document.createElement('template'); t.innerHTML = (DV.view === 'strips' ? dvStrip : dvTile)(it, i, snap, dl); n = t.content.firstElementChild; DV.nodes.set(key, n); }
+  const key = (DV.view === 'strips' ? 's|' : 't|') + it.k + (it.sb ? '|sb' : '') + (it.cmd ? '|c' : ''), html = (DV.view === 'strips' ? dvStrip : dvTile)(it, 0, snap, dl), h = html.replace(' class="ok"', '');
+  const old = DV.nodes.get(key); let n = old && old.h === h ? old.n : null;      // vignette gardée tant que son contenu (prix, image, possession…) ne change pas : nouveau relevé, rôles, prix du jour ne refont que celles qui changent
+  if (!n) {
+    const t = document.createElement('template'); t.innerHTML = html; n = t.content.firstElementChild;
+    const was = old && old.n.querySelector('img.ok'), im = n.querySelector('img');
+    if (was && im && was.getAttribute('src') === im.getAttribute('src')) im.replaceWith(was);      // même image (seul le prix a changé) : celle déjà affichée est reprise, sans fondu
+    DV.nodes.set(key, { h, n });
+  }
+  else imgSettle(n);      // vignette reprise : chargée (ou en échec) pendant qu'elle était détachée, l'événement load est passé sans elle
   n.dataset.i = i; return n;
 }
 /** Tri « Rôle » : les catégories du coach (base du coach, lue à la demande) ; une carte va dans un seul groupe, le plus parlant
@@ -18855,7 +18954,14 @@ function dvRoleOf(it) {
 }
 function dvRoleGroups(items, ref) {
   if (typeof dwLoad !== 'function') return groupSnap(items, 'mana', ref);
-  if (!DW.byKey) { if (!DV.roleWait) { DV.roleWait = true; dwLoad().then(() => { DV.roleWait = false; if (DV.el && DV.sort === 'role') dvGroups(); if (typeof BD !== 'undefined' && BD.el && BD.sort === 'role' && BD.tab === 'deck') bdList(); }, () => { DV.roleWait = false; }); } return groupSnap(items, 'mana', ref); }
+  if (!DW.byKey) {
+    if (!DV.roleWait) {
+      DV.roleWait = true;
+      const again = () => { DV.roleWait = false; if (DV.el && DV.sort === 'role') dvGroups(); if (typeof BD !== 'undefined' && BD.el && BD.sort === 'role' && BD.tab === 'deck') bdList(); };      // base arrivée (ou absente : groupes par coût, sans la ligne d'attente)
+      dwLoad().then(again, again);
+    }
+    return groupSnap(items, 'mana', ref);
+  }
   const list = items.filter(i => !i.sb), side = items.filter(i => i.sb), nf = list.filter(i => i.s === 'nf').sort(byName), rest = list.filter(i => i.s !== 'nf'), out = [];
   const by = new Map(DV_ROLE_GROUPS.map(([k]) => [k, []])); for (const i of rest) by.get(dvRoleOf(i)).push(i);
   const add = (id, label, arr) => { if (arr.length) out.push({ id, label, items: arr, ...sumGroup(arr) }); };
@@ -18881,9 +18987,10 @@ function dvGroups() {
   const body = !groups.length ? (cmds.length ? '' : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>')
     : view === 'piles' ? `<div class="dv-piles">${groups.map((g, gi) => `<section class="dv-g dv-pile" data-g="${esc(g.id)}">${head(g)}${box(gi)}</section>`).join('')}</div>`
     : groups.map((g, gi) => `<section class="dv-g" data-g="${esc(g.id)}">${head(g)}${view === 'stacks' ? `<div class="dv-stk">${Array.from({ length: cols(g) }, (_, c) => box(gi, c)).join('')}</div>` : box(gi)}</section>`).join('');
-  const gw = $('.dv-groups', el);
+  const gw = $('.dv-groups', el), px = $('.dv-piles', gw), left = DV.anim || view !== 'piles' ? 0 : px ? (gw.dataset.view === 'piles' ? px.scrollLeft : 0) : DV.left || 0; DV.left = 0;      // redessin venu d'ailleurs (prix, rôles, images) : la position dans les piles est gardée ; nouveau tri ou nouvelle vue : on repart du début
+  const wait = DV.sort === 'role' && DV.roleWait && groups.length ? `<p class="hint dv-fcount dv-wait">${T('Chargement de la base du coach…')}</p>` : '';      // tri « Rôle » : groupes par coût en attendant la base du coach, annoncés
   gw.dataset.view = view;
-  gw.innerHTML = (act ? `<p class="hint dv-fcount">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: all.length })}${hidden ? ' · ' + (snap.ref ? T('{n} sans infos de type ou de coût (pas encore lues)', { n: hidden }) : T('{n} sans infos de type ou de coût (prix gardés avant cette version) : relance la recherche', { n: hidden })) : ''}</p>` : '') + body;
+  gw.innerHTML = wait + (act ? `<p class="hint dv-fcount">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: all.length })}${hidden ? ' · ' + (snap.ref ? T('{n} sans infos de type ou de coût (pas encore lues)', { n: hidden }) : T('{n} sans infos de type ou de coût (prix gardés avant cette version) : relance la recherche', { n: hidden })) : ''}</p>` : '') + body;
   let n = DV.flat.length;
   groups.forEach((g, gi) => {
     const nc = cols(g), per = Math.ceil(g.items.length / nc), frags = Array.from({ length: nc }, () => document.createDocumentFragment());
@@ -18891,6 +18998,7 @@ function dvGroups() {
     frags.forEach((f, c) => { const b = gw.querySelector(`[data-gi="${gi}"][data-c="${c}"]`); if (b) b.appendChild(f); });
   });
   if (sc && keep) sc.scrollTop = keep;
+  if (left) $('.dv-piles', gw).scrollLeft = left;
   if (DV.anim) { DV.anim = false; stagger($$('.dv-grid, .dvp, .dv-strips', el).slice(0, 3), $('.dv-cmds', el)); }      // cascade sur les premiers groupes seulement (les suivants sont hors écran)
 }
 function dvRender() {
@@ -18901,7 +19009,7 @@ function dvRender() {
     $('.dv-body', el).innerHTML = '<div class="dv-empty"><b>' + T('Ce deck est vide') + '</b><p>' + T('Ajoute des cartes à la liste pour les voir ici.') + '</p></div>';
     $('.dv-title span', el).textContent = ''; foot.hidden = !DV.deckId; edit.hidden = DV.live || !DV.deckId; refresh.hidden = true; close.hidden = !DV.live && !DV.adhoc; dvSavePaint(); return;
   }
-  if (DV.framed !== snap) { dvFrame(snap); DV.framed = snap; dvPubPaint(); }
+  if (DV.framed !== snap) { const px = $('.dv-piles', el); DV.left = px ? px.scrollLeft : 0; dvFrame(snap); DV.framed = snap; dvPubPaint(); }      // cadre refait : la position dans les piles est reprise par dvGroups
   dvGroups();
   // relevé de référence : « Chercher les offres » seulement s'il reste des cartes à acheter (tout possédé : rien à chercher)
   const ref = !!snap.ref, todo = ref && snap.items.some(i => i.s !== 'basic' && i.q > (i.ow || 0));
@@ -19061,11 +19169,11 @@ function openHand() {
     let hand = [];
     const paint = () => {
       const lands = hand.filter(isLand).length, max = Math.max(...odds);
-      api.body.innerHTML = `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(it.n)}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? `<img alt="" decoding="async" src="${esc(dvImg(it))}">` : ''}</span></button>`).join('')}</div>
+      imgKeep(api.body, `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(it.n)}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? `<img alt="" decoding="async" src="${esc(dvImg(it))}">` : ''}</span></button>`).join('')}</div>
         <p class="hand-sum"><b>${TN(lands, '{n} terrain', '{n} terrains')}</b> · ${TN(7 - lands, '{n} sort', '{n} sorts')}</p>
         <h3 class="cs-h">${T('Terrains en main de départ')} <small>${T('sur 7 cartes')}</small></h3>
         <div class="odds" role="img" aria-label="${odds.map((p, k) => TN(k, '{n} terrain : {p}', '{n} terrains : {p}', { p: pctTxt(p) })).join(', ')}">${odds.map((p, k) => `<div class="odd${k === lands ? ' on' : ''}"><span>${k}</span><i style="--w:${(p / max * 100).toFixed(1)}%"></i><b>${pctTxt(p)}</b></div>`).join('')}</div>
-        <p class="hint">${T('Entre 2 et 4 terrains : {p} des mains.', { p: pctTxt(odds[2] + odds[3] + (odds[4] || 0)) })}${unknown ? ' ' + TN(unknown, '{n} carte au type pas encore lu, comptée comme sort.', '{n} cartes au type pas encore lu, comptées comme sorts.') : ''}</p>`;
+        <p class="hint">${T('Entre 2 et 4 terrains : {p} des mains.', { p: pctTxt(odds[2] + odds[3] + (odds[4] || 0)) })}${unknown ? ' ' + TN(unknown, '{n} carte au type pas encore lu, comptée comme sort.', '{n} cartes au type pas encore lu, comptées comme sorts.') : ''}</p>`);
     };
     const deal = () => { hand = drawHand(lib, 7); paint(); stagger($('.hand-grid', api.body)); };
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn" type="button" data-act="redeal">${T('Nouvelle main')}</button>`);
@@ -20406,19 +20514,19 @@ function collPaintBody(keep) {
   if (none && COLL.tab === 'list' && !COLL.place) host.innerHTML = collEmptyHtml();
   else if (none && COLL.tab === 'stats') host.innerHTML = collStatsEmptyHtml();
   else if (COLL.tab === 'decks' && edhGate() !== 'ok') { host.innerHTML = edhGateHtml(); vfTick(); }      // decks EDHREC réservés aux comptes (edh.js) ; vfTick : « Renvoyer » grisé pendant la minute qui suit un envoi
-  else if (COLL.tab === 'stats') { host.innerHTML = collStatsHtml(all); if (typeof valFit === 'function') valFit(host); }      // courbe de valeur à la taille de sa case sur ordinateur (value.js)
+  else if (COLL.tab === 'stats') { imgKeep(host, collStatsHtml(all)); if (typeof valFit === 'function') valFit(host); }      // courbe de valeur à la taille de sa case sur ordinateur (value.js)
   else if (COLL.tab === 'places') { host.innerHTML = plcTabHtml(); }      // Rangement (places.js) : emplacements et proxys
-  else if (COLL.tab === 'trade') { host.innerHTML = trPanelHtml(); trMount(host); }
-  else if (COLL.tab === 'decks') { const res = keep && EDH.data && document.activeElement && document.activeElement.id === 'dkQ' ? $('.dk-res', host) : null; if (res) { res.innerHTML = edhResHtml(); edhThemesSync(); } else { host.innerHTML = edhPanelHtml(); edhEnsure(); } }      // en pleine frappe : seuls les résultats se repeignent, le champ garde le focus
-  else if (typeof msActive === 'function' && msActive()) { host.innerHTML = msHtml(); msAfterPaint(); }      // masterset (masterset.js) : une extension, toutes ses cartes par numéro
+  else if (COLL.tab === 'trade') { imgKeep(host, trPanelHtml()); trMount(host); }
+  else if (COLL.tab === 'decks') { const res = keep && EDH.data && document.activeElement && document.activeElement.id === 'dkQ' ? $('.dk-res', host) : null; if (res) { imgKeep(res, edhResHtml()); edhThemesSync(); } else { imgKeep(host, edhPanelHtml()); edhEnsure(); } }      // en pleine frappe : seuls les résultats se repeignent, le champ garde le focus
+  else if (typeof msActive === 'function' && msActive()) { imgKeep(host, msHtml()); msAfterPaint(); }      // masterset (masterset.js) : une extension, toutes ses cartes par numéro
   else if (COLL.f.cmdr === 'played' && !EDH.data) { host.innerHTML = edhWaitHtml(); edhEnsure(); }
   else {
     const { filtered, sorted } = collListOf(v), shown = sorted.slice(0, COLL.shown), act = filterActive(COLL.f) || collWhenOn();
     const known = all.filter(i => i.tl != null || i.cm != null).length, hid = (COLL.f.colors.size || COLL.f.type || COLL.f.cmc !== '' || COLL.f.cmdr) && known < all.length;
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
-    host.innerHTML = `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
+    imgKeep(host, `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
       ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collRowsHtml(sorted, 0, shown.length)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
-      ${sorted.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, sorted.length - shown.length)), b: nf0(sorted.length - shown.length) })}</button>` : ''}`;
+      ${sorted.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, sorted.length - shown.length)), b: nf0(sorted.length - shown.length) })}</button>` : ''}`);
     COLL.painted = sorted;
   }
   if (sc) sc.scrollTop = pos;
@@ -21997,7 +22105,7 @@ async function edhImages(entries, seed) {
   return out;
 }
 function edhPaintThumbs(root, m) {
-  for (const th of $$('.thumb[data-ik]', root)) { const u = m.get(th.dataset.ik); if (u && !$('img', th)) { const im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.src = u; th.appendChild(im); } }
+  for (const th of $$('.thumb[data-ik]', root)) { const u = m.get(th.dataset.ik); if (u && !$('img', th) && !th.dataset.err) { const im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.src = u; th.appendChild(im); } }
 }
 const edhBracketNote = r => r.gc.length ? T('Game Changers : {list}', { list: r.gc.join(', ') }) : T('Aucun Game Changer');
 
@@ -22092,11 +22200,19 @@ function openEdhDeck(r) {
       else if (b.dataset.act === 'dkana' && typeof openDeckAnalysis === 'function') { api.close(); setTimeout(() => openDeckAnalysis({ text: edhDeckText(r.deck), name: edhSaveName(r) }), 200); }      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)      // viewer : images, courbe, main de départ, partage, « Enregistrer dans mes decks » (même nom que la feuille)
       else shareDeck({ text: edhDeckText(r.deck), name });
     };
-    let imgs = new Map(), settled = false;
+    let imgs = new Map(), settled = false, tries = 0;
     api.body.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
-    api.body.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
+    api.body.addEventListener('error', e => { const im = e.target; if (im.tagName !== 'IMG') return; if (im.parentNode && im.parentNode.dataset) im.parentNode.dataset.err = '1'; im.remove(); }, true);      // image absente : la lettre reste, sans nouvel essai
     const seed = new Map(); if (c.img) seed.set(c.keys[0], c.img);
-    edhImages([...r.missing, ...r.owned].map(x => [x.k, x.n]), seed).then(m => { imgs = m; settled = true; if (api.wrap.isConnected) edhPaintThumbs(api.body, m); });
+    const ents = [...r.missing, ...r.owned].map(x => [x.k, x.n]);
+    // Scryfall en pause (limite de débit) ou injoignable à l'ouverture : les aperçus manquants sont redemandés tant que la feuille est ouverte (4 fois au plus)
+    const load = () => edhImages(ents, seed).then(m => {
+      imgs = m; if (!api.wrap.isConnected) return;
+      edhPaintThumbs(api.body, m);
+      const left = ents.some(([k]) => !m.has(k) && EDH.im.get(k) === undefined);
+      settled = !left || tries >= 4; if (!settled) { tries++; setTimeout(load, Math.max(scryLeft(), 2500) + 500); }
+    });
+    load();
     const open = rw => {
       const u = imgs.get(rw.dataset.ik); if (!u) { toast(settled ? T('Pas d\'aperçu pour cette carte') : T('Aperçus en cours de chargement…')); return; }
       const items = []; let at = 0;
@@ -22157,7 +22273,7 @@ let edhQT = 0;
 function edhInput(e) {
   const i = e.target && e.target.closest && e.target.closest('#dkQ'); if (!i) return false;
   EDH.q = i.value; EDH.shown = 30; const x = $('.fclear', i.parentNode); if (x) x.hidden = !i.value;
-  clearTimeout(edhQT); edhQT = setTimeout(() => { const res = COLL.el && $('.dk-res', COLL.el); if (res && EDH.data) { res.innerHTML = edhResHtml(); edhThemesSync(); } }, 120);
+  clearTimeout(edhQT); edhQT = setTimeout(() => { const res = COLL.el && $('.dk-res', COLL.el); if (res && EDH.data) { imgKeep(res, edhResHtml()); edhThemesSync(); } }, 120);
   return true;
 }
 /** Filtre « Joués en commandant » sans données : chargement en cours, ou erreur avec repli sur « Peuvent l'être ». */
@@ -23777,7 +23893,7 @@ function csPaint() {
   if (CS.g && !(x && collLines(x).some(([g]) => g === CS.g))) CS.g = csLine(k, lineLang(CS.g));      // ligne fusionnée ou retirée : la ligne de la même langue, sinon la plus fournie
   const ae = document.activeElement, ar = ae && body.contains(ae) ? ae.closest('[data-g]') : null, top = body.scrollTop;
   const focus = ae && body.contains(ae) ? { g: ar ? ar.dataset.g : null, cs: ae.dataset.cs || '', act: ae.dataset.act || '', id: ae.dataset.id || '' } : null;
-  body.innerHTML = csHeadHtml(k, x, m) + csLinesHtml(k, x) + csPxHtml(k, x, m) + csDecksHtml(k) + csTradeHtml(k, x) + csActsHtml(k, x) + csOracleHtml();
+  imgKeep(body, csHeadHtml(k, x, m) + csLinesHtml(k, x) + csPxHtml(k, x, m) + csDecksHtml(k) + csTradeHtml(k, x) + csActsHtml(k, x) + csOracleHtml());      // la grande image reste le même nœud : elle ne refait pas son fondu à chaque lecture qui arrive
   csHistFit();
   body.scrollTop = top;
   if (focus) {      // focus clavier rendu à son équivalent après le repeint (le bouton touché, dans la même ligne)
@@ -24191,7 +24307,7 @@ function scanPaintList() {
   const miss = SC.miss.map(m => `<div class="sc-item miss" data-m="${m.id}">${pic(m.shot)}${th(m.thumb)}<span class="sc-n"><b>${esc(m.label)}</b><small>${T('Nom non reconnu')}${m.raw ? ' · ' + T('lu « {raw} »', { raw: esc(m.raw) }) : ''}</small>${typeof srMissBtn === 'function' ? srMissBtn(m) : ''}</span><button type="button" class="btn ghost small" data-a="type">${T('Saisir')}</button><button type="button" class="sc-x" data-a="rm" aria-label="${T('Ignorer {name}', { name: esc(m.label) })}"><svg class="i"><use href="#i-close"/></svg></button></div>`).join('');
   const head = (count, sub) => { $('.sc-count', el).textContent = count; $('.sc-sub', el).textContent = sub; };
   if (SC.pm) {      // prix rapide : la liste montre des prix, rien à ajouter
-    list.innerHTML = sssBandHtml() + pend + miss + (SC.pq.length ? SC.pq.map(scanPriceRow).join('') : pend || miss ? '' : '<p class="hint sc-empty">' + T('Prix rapide : cadre une carte et appuie sur le cercle. Tu vois sa tendance Cardmarket et l\'offre CardTrader la moins chère ; rien n\'est ajouté à ta collection (le bouton + le fait si tu la gardes).') + '</p>');
+    imgKeep(list, sssBandHtml() + pend + miss + (SC.pq.length ? SC.pq.map(scanPriceRow).join('') : pend || miss ? '' : '<p class="hint sc-empty">' + T('Prix rapide : cadre une carte et appuie sur le cercle. Tu vois sa tendance Cardmarket et l\'offre CardTrader la moins chère ; rien n\'est ajouté à ta collection (le bouton + le fait si tu la gardes).') + '</p>'));
     $('.sc-head [data-act="done"]', el).hidden = true;
     head(T('Prix rapide'), SC.pq.length ? TN(SC.pq.length, '{n} carte lue', '{n} cartes lues') : T('Rien n\'est ajouté à ta collection'));
     const tot = $('.sc-total', el); tot.hidden = !SC.pq.length; if (SC.pq.length) tot.innerHTML = scanLotHtml(scanLot());
@@ -24208,9 +24324,9 @@ function scanPaintList() {
   const sec = (h, cls, rows) => (rows.length ? (many || cls === ' apart' ? `<p class="sc-h${cls}">${esc(h)}</p>` : '') + rows.map(row).join('') : '');      // mises à part : toujours leur titre (où elles iront)
   const shown = rest.filter((x, i) => i < SC.show || x === SC.lastIt), more = rest.length - shown.length;      // longue session : les SC.show dernières (et la dernière touchée) ; le reste sur demande, la liste se repeint vite
   const ask = scanEdAsk();
-  list.innerHTML = sssBandHtml() + (ask ? scanEdAskHtml(ask) : '') + pend + miss + (arr.length ? sec(T('À vérifier'), ' warn', maybe) + sec(TN(todo.reduce((a, x) => a + x.q, 0), '{n} édition à choisir', '{n} éditions à choisir'), ' todo', todo) + dps.map(p => sec(T('À ranger dans « {place} »', { place: plcName(p) }), ' apart', apart.filter(x => scanDp(x) === p))).join('') + sec(T('Dans le scan'), '', shown)
+  imgKeep(list, sssBandHtml() + (ask ? scanEdAskHtml(ask) : '') + pend + miss + (arr.length ? sec(T('À vérifier'), ' warn', maybe) + sec(TN(todo.reduce((a, x) => a + x.q, 0), '{n} édition à choisir', '{n} éditions à choisir'), ' todo', todo) + dps.map(p => sec(T('À ranger dans « {place} »', { place: plcName(p) }), ' apart', apart.filter(x => scanDp(x) === p))).join('') + sec(T('Dans le scan'), '', shown)
       + (more > 0 ? `<button type="button" class="btn ghost block sc-more" data-a="more">${esc(TN(more, 'Afficher plus ({n} autre)', 'Afficher plus ({n} autres)'))}</button>` : '')
-    : pend || miss ? '' : '<p class="hint sc-empty">' + T('Les cartes reconnues apparaîtront ici avec leur miniature Scryfall. Tu peux corriger les quantités avant d\'ajouter.') + '</p>');
+    : pend || miss ? '' : '<p class="hint sc-empty">' + T('Les cartes reconnues apparaîtront ici avec leur miniature Scryfall. Tu peux corriger les quantités avant d\'ajouter.') + '</p>'));      // miniatures déjà là : gardées (la liste se repeint à chaque carte lue)
   if (keep && keep.row) {
     const rows = [...list.querySelectorAll('.sc-item')], r = (keep.row.dataset.id && rows.find(x => x.dataset.id === keep.row.dataset.id)) || rows.find(x => x.dataset.k && x.dataset.k === keep.row.dataset.k);
     const f = r && (keep.a ? $(`[data-a="${keep.a}"]`, r) : keep.cls ? $('.' + CSS.escape(keep.cls), r) : null); if (f) f.focus({ preventScroll: true });
@@ -26121,7 +26237,7 @@ function scanEdFlow(done) {
     const nm = scanShown(it), n = ids.length, prints = Array.isArray(pr) ? pr : null, keep = edQKeep(wrap);
     if (qi !== i) { qi = i; q = ''; } else q = keep.q;
     const tile = (p, j) => { const px = pkEu(p), on = it.e === edKey(p.set, p.num); return `<button type="button" class="sc-ef-t" role="radio" aria-checked="${on}" data-ef="pick" data-i="${j}" aria-label="${esc([p.sn, edLabel(edKey(p.set, p.num)), p.y, px ? fmt(px, mkCur()) : ''].filter(Boolean).join(' · '))}"><img alt="" loading="lazy" decoding="async" src="${esc(p.th)}"><span class="sc-ask-c">${setIcHtml(p.set)}<b>${esc(p.set.toUpperCase())}</b> <small>${esc(p.y || '')}</small></span><em>${px ? esc(fmt(px, mkCur())) : '—'}</em></button>`; };
-    wrap.innerHTML = `<header class="dv-head"><button class="icon-btn" type="button" data-ef="close" aria-label="${T('Retour au scan')}"><svg class="i"><use href="#i-back"/></svg></button>
+    imgKeep(wrap, `<header class="dv-head"><button class="icon-btn" type="button" data-ef="close" aria-label="${T('Retour au scan')}"><svg class="i"><use href="#i-back"/></svg></button>
         <button class="btn ghost small" type="button" data-ef="skipall">${T('Laisser les autres sans édition')}</button></header>
       <div class="sc-ef-top"><div class="sc-ef-tt"><h2>${T('Éditions à choisir')}</h2><span class="sc-ef-n">${esc(T('{i} sur {n}', { i: i + 1, n }))}</span></div>
         <div class="sc-ef-bar" aria-hidden="true"><i style="width:${Math.round(100 * (i + 1) / n)}%"></i></div></div>
@@ -26130,7 +26246,7 @@ function scanEdFlow(done) {
         ${prints ? edQHtml(prints.length, q) : ''}
         ${prints ? (prints.length ? `<div class="sc-ef-grid" role="radiogroup" aria-label="${esc(T('Édition de {name}', { name: nm }))}">${prints.map(tile).join('')}</div>` : `<p class="hint">${T('Aucune édition trouvée')}</p>`) : `<p class="hint">${T('Lecture des éditions…')}</p>`}
         <button class="btn ghost block sc-ef-none" type="button" data-ef="none">${T('Sans édition')}</button></div>
-      <footer class="dv-foot"><button class="btn ghost" type="button" data-ef="prev"${i ? '' : ' disabled'}>${T('Précédente')}</button><button class="btn" type="button" data-ef="next">${i + 1 < n ? T('Passer à la suivante') : T('Terminer')}</button></footer>`;
+      <footer class="dv-foot"><button class="btn ghost" type="button" data-ef="prev"${i ? '' : ' disabled'}>${T('Précédente')}</button><button class="btn" type="button" data-ef="next">${i + 1 < n ? T('Passer à la suivante') : T('Terminer')}</button></footer>`);
     const g = $('.sc-ef-grid', wrap); if (g && prints) edQApply(g, prints, q, '.sc-ef-t');
     keep.restore();
   }
@@ -26791,9 +26907,26 @@ async function dmFetch(list, basics) {
   const need = dmMissing(list, basics);
   if (!need.length || scryLeft() > 0) return false;
   need.forEach(c => dmTried.add(c.key));
-  try { const got = await scryCollection(need.map(c => c.name)); let n = 0; for (const [k, m] of got) if (m) { DM[k] = { eu: m.eu, ci: m.ci, cd: m.cd, im: m.im, cm: m.cm, mc: m.mc, tl: m.tl, cl: m.cl, ar: m.ar }; n++; } if (n) dmSave(); return n > 0; }
-  catch (e) { return false; }      // hors ligne ou limite Scryfall : l'estimation reste partielle
+  let n = 0;
+  for (let i = 0; i < need.length; i += 75) {      // un lot de 75 par requête : un lot refusé ne fait pas perdre les fiches des lots déjà lus
+    try { const got = await scryCollection(need.slice(i, i + 75).map(c => c.name)); for (const [k, m] of got) if (m) { DM[k] = { eu: m.eu, ci: m.ci, cd: m.cd, im: m.im, cm: m.cm, mc: m.mc, tl: m.tl, cl: m.cl, ar: m.ar }; n++; } }
+    catch (e) { need.slice(i).forEach(c => dmTried.delete(c.key)); break; }      // hors ligne ou limite Scryfall : l'estimation reste partielle ; ces cartes seront redemandées (sinon leur image ne venait jamais de la session)
+  }
+  if (n) dmSave(); return n > 0;
 }
+/** Vignettes : l'image n'apparaît qu'une fois chargée (.thumb img.ok, style.css) ; en panne, la lettre reste. Écouteurs en capture sur l'écran ou la feuille (éditeur, coach, analyse). */
+const thumbLoad = e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); };
+function thumbErr(e) {
+  const im = e.target; if (im.tagName !== 'IMG') return;
+  if (/^https:\/\/api\.scryfall\.com\//.test(im.src) && !im.dataset.again) {      // image par le nom (api.scryfall.com, limitée en débit : 429 pendant une rafale) : redemandée une fois après la pause, la lettre en attendant
+    im.dataset.again = '1'; const u = im.src;
+    setTimeout(() => { if (im.isConnected) { im.removeAttribute('src'); im.src = u; } }, Math.max(4000, scryLeft() + 500)); return;
+  }
+  im.remove();
+}
+/** Contenu tout juste redessiné (innerHTML) : les images déjà en cache sont montrées tout de suite. Sans cela chaque − / +, filtre ou case cochée refaisait partir
+ *  toutes les vignettes de l'opacité 0 (l'événement load arrive après le premier affichage) : la liste clignotait. */
+function thumbsReady(root) { if (root) for (const im of root.querySelectorAll('img:not(.ok)')) if (im.complete && im.naturalWidth) im.classList.add('ok'); }
 /** Fiche d'une carte (collection, sinon lue pour les decks). Sans prix Cardmarket sur l'impression par défaut de Scryfall (réimpression récente pas encore cotée :
  *  Sol Ring, Command Tower, Path to Exile…) : prix de l'impression la moins chère du relevé du jour (data.js › pxTable), comme le coach ; jamais « prix inconnu » si on le connaît. */
 const pxRef = k => { const p = typeof PXT !== 'undefined' && PXT && PXT.map ? PXT.map.get(k) : null; return p && p.e > 0 ? p.e : 0; };
@@ -26809,7 +26942,7 @@ function pxRefEnsure() {
   PXR_ASK = true;
   pxTable().then(t => {
     PXR_ASK = false; if (!t) return;
-    try { if (typeof DV !== 'undefined' && DV.el && DV.snap && DV.snap.ref) { dvRebuild(); dvRender(); } } catch (e) { /* viewer fermé entre-temps */ }
+    try { if (typeof DV !== 'undefined' && DV.el && DV.snap && DV.snap.ref) dvRefresh(); } catch (e) { /* viewer fermé entre-temps */ }
     try { if (BD.el) bdList(); } catch (e) { /* éditeur fermé */ }
     try { if (typeof dksPaint === 'function') dksPaint(); } catch (e) { /* écran « Mes decks » pas prêt */ }
   }, () => { PXR_ASK = false; });
@@ -26868,7 +27001,7 @@ function openDeckNew() {
 function openBuilder(o) {
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
-  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', scanPref: null, wiz: null });      // scanPref : cartes scannées (rangées à l'enregistrement)
+  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
   if (prev || o.text) {
     const p = dkParse(prev ? prev.text : o.text);
     BD.fmt = (!prev && (o.fmt === 'commander' || o.fmt === 'standard') ? o.fmt : '') || p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
@@ -26908,8 +27041,8 @@ function openBuilder(o) {
     try { if (prevFocus && prevFocus.focus && prevFocus.isConnected) prevFocus.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
   };
   document.addEventListener('keydown', onKey, true);
-  wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
-  wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
+  wrap.addEventListener('load', thumbLoad, true);
+  wrap.addEventListener('error', thumbErr, true);
   const tab0 = coach && o.tab === 'coach' ? 'coach' : BD.split ? 'coll' : 'deck';
   BD.view = bdViewRead(); BD.sort = BD.sort || 'mana';
   mountSeg($('#bdSeg', wrap), [...(BD.split ? [] : [{ v: 'deck', label: T('Deck') }]), { v: 'coll', label: T('Ajouter') }, ...(coach ? [{ v: 'coach', label: T('Coach') }] : [])], tab0, bdTab);      // « Ajouter » : collection et toutes les cartes dans une seule recherche
@@ -26939,12 +27072,21 @@ function bdClose(force) {
 
 /* ── Données de la carte (couleurs, image) : collection d'abord, sinon Scryfall ───────────────── */
 function bdMetaSoon() {
-  clearTimeout(BD.metaT); BD.metaT = setTimeout(bdMetaLoad, 700);
+  clearTimeout(BD.metaT); BD.metaT = setTimeout(bdMetaLoad, Math.max(700, (BD.metaAt || 0) - Date.now()));      // après un échec : pas avant la nouvelle tentative prévue (le coach rappelle bdMetaSoon à chaque repeint)
+}
+/** Cartes dont l'éditeur montre l'image : deck, réserve, commandant, terrains de base (rangées toujours là), cartes proposées (recherche, coach, échanges conseillés). */
+function bdMetaList() {
+  const sw = typeof DX !== 'undefined' && DW.open === 'swaps' && Array.isArray(DX.swaps) ? DX.swaps.map(s => ({ key: s.in.k, name: s.in.name })) : [];      // « Améliorer le deck » du Coach (deckux.js) : cartes à ajouter
+  return [...BD.main.values(), ...BD.side.values(), ...BD.cmdr, ...BD_BASICS.map(([key, name]) => ({ key, name })), ...(BD.want || []), ...sw];
 }
 async function bdMetaLoad() {
   if (!BD.el) return;
-  const list = [...BD.main.values(), ...BD.cmdr, ...(BD.want || [])];
-  if (await dmFetch(list) && BD.el) bdPaint();
+  const el = BD.el; await dmLoad(); if (BD.el !== el) return;      // fiches gardées sur l'appareil d'abord
+  const list = bdMetaList(), got = await dmFetch(list, true); if (BD.el !== el) return;
+  if (got) { BD.metaN = 0; bdPaint(); }
+  if (!dmMissing(bdMetaList(), true).length) return;      // plus de 150 cartes inconnues, limite Scryfall, hors ligne : on y revient (images qui arrivent tard plutôt que jamais)
+  const wait = got ? 300 : Math.min(60000, Math.max(2500 * 2 ** Math.min(4, BD.metaN = (BD.metaN || 0) + 1), scryLeft() + 500));
+  BD.metaAt = Date.now() + wait; clearTimeout(BD.metaT); BD.metaT = setTimeout(bdMetaLoad, wait);
 }
 
 /* ── Modifications ────────────────────────────────────────────────────────────────────────────── */
@@ -27196,9 +27338,13 @@ function bdFindHtml() {
 }
 function bdList() {
   const el = BD.el; if (!el) return;
-  $('#bdList', el).innerHTML = BD.tab === 'deck' ? bdDeckHtml() : BD.tab === 'coll' ? bdAddHtml() : BD.tab === 'coach' && typeof dwCoachHtml === 'function' ? dwCoachHtml() : bdFindHtml();
-  if (BD.split) $('#bdDeck', el).innerHTML = bdDeckHtml();      // ordinateur : la liste du deck reste affichée à droite
+  const px = $('#bdList .dv-piles', el), left = px ? px.scrollLeft : 0;      // vue Piles : la position de côté est gardée au repeint (− / +, fiches et prix qui arrivent)
+  imgKeep($('#bdList', el), BD.tab === 'deck' ? bdDeckHtml() : BD.tab === 'coll' ? bdAddHtml() : BD.tab === 'coach' && typeof dwCoachHtml === 'function' ? dwCoachHtml() : bdFindHtml());      // images déjà affichées reprises : − / +, fiches et prix qui arrivent ne font plus clignoter les cartes (app.js)
+  if (BD.split) imgKeep($('#bdDeck', el), bdDeckHtml());      // ordinateur : la liste du deck reste affichée à droite
+  thumbsReady(el);      // images déjà en cache : visibles tout de suite, la liste ne clignote pas à chaque − / +
+  if (left) { const n = $('#bdList .dv-piles', el); if (n) n.scrollLeft = left; }
   const so = $('#bdSort', el); if (so) mountSeg(so, [{ v: 'mana', label: T('Mana') }, { v: 'type', label: T('Type') }, { v: 'role', label: T('Rôle') }], BD.sort, v => { BD.sort = v; bdList(); });
+  toolsFit($('#bdList .bd-tools', el));      // texte agrandi, langue longue : vues sous le tri (viewer.js)
 }
 /** Ordinateur : écran large et souris (même requête que zz-desktop.css et la barre latérale, nav.js). */
 const bdSplit = () => { try { return matchMedia('(min-width:1100px) and (hover:hover) and (pointer:fine)').matches; } catch (e) { return false; } };
@@ -27352,10 +27498,10 @@ const DW_BRACKETS = [
 const DW = { core: null, p: null, err: '', byKey: null, cmd: new Map(), cmdP: new Map(), th: new Map(), thP: new Map(), open: '', shown: 8, setOpen: false };
 const DW_KEY = 'dkw:core', DW_FRESH = DAY;
 const dwOn = () => true;      // le coach est pour tout le monde (n'est plus une fonctionnalité en test)
-/** Vignettes d'une feuille ou d'un écran du coach : l'image n'apparaît qu'une fois chargée (.thumb img.ok, style.css) ; en panne, la lettre reste. */
+/** Vignettes d'une feuille ou d'un écran du coach : l'image n'apparaît qu'une fois chargée (.thumb img.ok, style.css) ; en panne, la lettre reste (builder.js › thumbLoad, thumbErr). */
 function dwImgs(el) {
-  el.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
-  el.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
+  el.addEventListener('load', thumbLoad, true);
+  el.addEventListener('error', thumbErr, true);
 }
 
 /* ── Données ──────────────────────────────────────────────────────────────────────────────────────── */
@@ -27680,7 +27826,7 @@ function dwCoachHtml() {
   h += dwBracketHtml(prof);
   h += dwBudgetHtml(prof);
   if (DW.core) h += dwPlanHtml(cmd, pack, prof, tgt);
-  if (DW.core && typeof dwImproveHtml === 'function') h += dwImproveHtml(prof, tgt, cmd, pack);
+  if (DW.core && typeof dwImproveHtml === 'function') { h += dwImproveHtml(prof, tgt, cmd, pack); if (DW.open === 'swaps' && typeof DX !== 'undefined' && dmMissing((DX.swaps || []).map(s => ({ key: s.in.k, name: s.in.name }))).length) bdMetaSoon(); }      // échanges dépliés : fiches (image de la carte) des cartes à ajouter
   const bch = DW.core && DW.core.bench && DW.core.bench.tuned;
   const src = (DW.core && DW.core.src && DW.core.src.decks ? T('Cibles calculées sur {n} decks réels (Archidekt, EDHREC) et la formule des terrains de Frank Karsten.', { n: nf0(DW.core.src.decks) }) : T('Cibles du modèle de base (Command Zone, Frank Karsten, EDHREC).'))
     + (bch ? ' ' + T('Banc d\'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.', { n: nf0(DW.core.bench.n), p: dsNumFr(bch.r20) }) : '');
@@ -27952,9 +28098,10 @@ function openDeckWiz(name) {
         <p class="label">${T('Ou d\'après un style de jeu')}</p><div class="dw-chips">${dwzThemeChips(E)}</div>
         <div class="dw-chips dw-cols">${[...'WUBRG'].map(c => `<button type="button" class="chip${DWZ.cols.has(c) ? ' on' : ''}" data-c="${c}" aria-pressed="${DWZ.cols.has(c)}"><i class="pip ${c}" aria-hidden="true"></i></button>`).join('')}</div>
         <div class="dw-cmds">${!E ? `<p class="hint">${EDH.err ? esc(EDH.err) : T('Chargement des commandants…')}</p>` : list.length ? list.map(dwzCmdRow).join('') : `<p class="hint">${T('Aucun commandant ne correspond.')}</p>`}</div>`;
+      thumbsReady(api.body);      // style ou couleur touché : les vignettes déjà chargées ne repartent pas de zéro
       const q = $('#dwzQ', api.body); q.oninput = () => { DWZ.q = q.value; const pos = q.selectionStart; paintList(); try { q.setSelectionRange(pos, pos); } catch (e) { /* ignore */ } };
     };
-    const paintList = () => { const E = typeof EDH !== 'undefined' && EDH.data, box = $('.dw-cmds', api.body); if (box && E) { const l = dwzCmds(E); box.innerHTML = l.length ? l.map(dwzCmdRow).join('') : `<p class="hint">${T('Aucun commandant ne correspond.')}</p>`; } };
+    const paintList = () => { const E = typeof EDH !== 'undefined' && EDH.data, box = $('.dw-cmds', api.body); if (box && E) { const l = dwzCmds(E); box.innerHTML = l.length ? l.map(dwzCmdRow).join('') : `<p class="hint">${T('Aucun commandant ne correspond.')}</p>`; thumbsReady(box); } };
     api.body.addEventListener('click', e => {
       const t = e.target.closest('[data-pt]'); if (t) { const v = t.dataset.pt, i = DWZ.pickTh.indexOf(v); if (i >= 0) DWZ.pickTh.splice(i, 1); else DWZ.pickTh.push(v); haptic('tap'); paint(); return; }
       const c = e.target.closest('[data-c]'); if (c) { const v = c.dataset.c; if (DWZ.cols.has(v)) DWZ.cols.delete(v); else DWZ.cols.add(v); haptic('tap'); paint(); return; }
@@ -27986,7 +28133,7 @@ function dwzCmds(E) {
   return l.map(c => ({ c, s: own(c) * 2 + fit(c) * 3 + Math.log10(1 + c.decks) / 5 })).sort((a, b) => b.s - a.s).slice(0, 30).map(x => x.c);
 }
 function dwzCmdRow(c) {
-  const own = c.keys.some(k => collQty(k) > 0), img = c.img ? EDH_SMALL + c.img : zoomUrl(c.names[0], 'small'), hue = hash32(c.slug) % 360;      // sans image dans le fichier EDHREC : Scryfall par le nom
+  const own = c.keys.some(k => collQty(k) > 0), img = c.img ? (/^https?:/.test(c.img) ? c.img : EDH_SMALL + c.img) : zoomUrl(c.names[0], 'small'), hue = hash32(c.slug) % 360;      // fichier EDH2 : adresse complète (préfixée une 2e fois, l'image était introuvable et la lettre restait) ; sans image : Scryfall par le nom
   return `<button type="button" class="crow dw-cmd" data-slug="${esc(c.slug)}"><span class="thumb" style="--h:${hue}">${esc((c.names[0][0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(c.names.join(' + '))}</span></span><span class="row-meta">${[...(c.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}<span class="tag">${esc(TN(c.decks, '{n} deck', '{n} decks', { n: nf0(c.decks) }))}</span>${c.tier ? `<span class="tag">${esc(T('Tier {t}', { t: c.tier }))}</span>` : ''}${own ? `<span class="tag good">${T('Possédée')}</span>` : ''}</span></span><span class="me-v">›</span></button>`;
 }
@@ -28145,7 +28292,7 @@ const daOpen = () => DA.api && sheets.includes(DA.api);
 function daMeta() {
   if (!daOpen()) return;
   const list = [...DA.X.main.values(), ...DA.X.cmdr, ...DA.swaps.map(s => ({ key: s.in.k, name: s.in.name }))];
-  dmFetch(list).then(n => { if (n) daPaint(); if (dmMissing(list).length && DA.tries++ < 5) setTimeout(daMeta, 2500); }).catch(() => {});
+  dmLoad().then(() => dmFetch(list)).then(n => { if (n) daPaint(); if (dmMissing(list).length && DA.tries++ < 5) setTimeout(daMeta, Math.max(2500, scryLeft() + 500)); }).catch(() => {});      // pause Scryfall (jusqu'à 30 s après un 429) : on attend sa fin
 }
 function daPaint() {
   if (!daOpen()) return;
@@ -28164,7 +28311,7 @@ function daPaint() {
     <p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b><small>${esc(T('dont {p} à acheter', { p: fmt(prof.buy, cur) }))}</small></p></div>`;
   if (DA.step === 'set') {
     h += sum('') + `<div class="sec-title">${T('Réglages de l\'analyse')}</div><p class="hint">${T('Les échanges conseillés tiendront compte de ces réglages.')}</p>` + daSetHtml(cmd, pack, set, cur);
-    const keep = body.scrollTop; body.innerHTML = h; body.scrollTop = keep;
+    const keep = body.scrollTop; body.innerHTML = h; thumbsReady(body); body.scrollTop = keep;
     if (go) { go.disabled = false; go.textContent = T('Lancer l\'analyse'); }
     return;
   }
@@ -28198,7 +28345,7 @@ function daPaint() {
   }
   h += dwFoldHead('bal', DA.balOpen !== false, T('Équilibre du deck'), dwBalSum(prof, tgt, cmd), 'data-da-fold="bal"') + (DA.balOpen !== false ? `<div class="dw-gauges">${dwGaugesHtml(prof, tgt, cmd, pack, true)}</div>` : '');
   h += dwManaHtml(prof, tgt, cmd) + dwBracketHtml(prof, set) + dwBudgetHtml(prof, set);
-  const keep = body.scrollTop; body.innerHTML = h; body.scrollTop = keep;
+  const keep = body.scrollTop; body.innerHTML = h; thumbsReady(body); body.scrollTop = keep;      // case cochée, « Pourquoi ? » : les vignettes déjà chargées restent affichées (pas de clignotement)
   const n = DA.swaps.length - DA.off.size;
   if (go) { go.disabled = false; go.textContent = n > 0 ? TN(n, 'Ouvrir dans l\'éditeur avec {n} échange', 'Ouvrir dans l\'éditeur avec {n} échanges') : T('Ouvrir dans l\'éditeur'); }
 }
@@ -29508,13 +29655,13 @@ function openPublicTrade(sh, preview, id, fr) {
   const paint = keep => {
     const sc = $('.dv-scroll', wrap), pos = keep && sc ? sc.scrollTop : 0;
     $('#pubF', wrap).hidden = P.sub === 'match';
-    if (P.sub === 'match') { bndPub(P, wrap, null); $('.pub-main', wrap).innerHTML = pubMatchHtml(P); }
+    if (P.sub === 'match') { bndPub(P, wrap, null); imgKeep($('.pub-main', wrap), pubMatchHtml(P)); }
     else {
       bndTake(sh);      // classeur publié : la liste reste par nom (binder.js)
       const all = (P.sub === 'want' ? sh.want : sh.have).map(pubItem), list = filterItems(all, P.f), shown = list.slice(0, P.shown);
-      if (!bndPub(P, wrap, all, list)) $('.pub-main', wrap).innerHTML = `${shown.length ? `<div class="coll-list">${shown.map(pubRow).join('')}</div>` : `<p class="hint listempty">${T(all.length ? 'Aucune carte ne correspond.' : P.sub === 'want' ? 'Aucune carte recherchée pour l\'instant.' : 'Aucune carte à échanger pour l\'instant.')}</p>`}
+      if (!bndPub(P, wrap, all, list)) imgKeep($('.pub-main', wrap), `${shown.length ? `<div class="coll-list">${shown.map(pubRow).join('')}</div>` : `<p class="hint listempty">${T(all.length ? 'Aucune carte ne correspond.' : P.sub === 'want' ? 'Aucune carte recherchée pour l\'instant.' : 'Aucune carte à échanger pour l\'instant.')}</p>`}
         ${list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TR_PAGE, list.length - shown.length)), left: nf0(list.length - shown.length) })}</button>` : ''}
-        ${shown.some(it => trPrice(it.k)) ? pubNote() : ''}`;
+        ${shown.some(it => trPrice(it.k)) ? pubNote() : ''}`);
     }
     if (sc) sc.scrollTop = pos;
     if (!keep) stagger($$('.pub-main .coll-list', wrap));
@@ -32918,7 +33065,7 @@ function lotPaintCard() {
   const edBtn = c.pick ? `${setIcHtml(set)}<span><b>${esc(sn || set.toUpperCase())}</b><small>${esc(set.toUpperCase())} · #${esc(c.pick.num)}${c.pick.fx.length ? ' · ' + esc(c.pick.fx.join(', ')) : ''}</small></span>`
     : `<span><b>${c.prints ? (c.prints.length ? T('Choisir l\'édition') : T('Aucune édition trouvée')) : c.err ? T('Éditions indisponibles') : T('Éditions…')}</b><small>${T('Édition non précisée')}</small></span>`;
   const own = collQty(c.k), edit = LOT.edit && LOT.list.find(x => x.id === LOT.edit);
-  el.innerHTML = `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" src="${esc(lotImg(c))}"></button>
+  imgKeep(el, `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" src="${esc(lotImg(c))}"></button>
       ${eu != null ? `<span class="lot-px">${set ? setIcHtml(set) : ''}<b>${esc(fmt(eu, mkCur()))}</b></span>` : ''}</div>
     <div class="lot-f">
       <div class="lot-name"><b>${esc(dn)}</b>${dn !== c.n ? `<small>${esc(c.n)}</small>` : ''}${own ? `<em>${T('{n} dans ta collection', { n: nf0(own) })}</em>` : ''}</div>
@@ -32928,7 +33075,7 @@ function lotPaintCard() {
       <div class="lot-row"><span>${T('Foil')} ✦</span><button type="button" class="lot-foil" data-act="foil" role="switch" aria-checked="${!!c.f}" aria-label="${T('Exemplaires foil')}"><span class="switch" aria-hidden="true"><i></i></span></button></div>
       <label class="lot-row lang"><span>${T('Langue')}</span><span class="sel"><select class="lot-lang" aria-label="${T('Langue des exemplaires ajoutés')}"><option value="">${T('Celle de la carte')}</option>${CARD_LANG_LIST.map(x => { const t = T(LANGS[x]); return `<option value="${x}"${x === c.l ? ' selected' : ''}>${esc(t[0].toUpperCase() + t.slice(1))}</option>`; }).join('')}</select></span></label>
       <div class="lot-go"><button class="btn" type="button" id="lotAdd" data-act="add">${edit ? T('Enregistrer') : '+ ' + T('Ajouter')}</button>${edit ? `<button class="btn ghost" type="button" data-act="cancel">${T('Annuler')}</button>` : ''}</div>
-    </div>`;
+    </div>`);
 }
 /** Choix de l'édition : toutes les impressions de la carte (dans sa langue, puis celles qui n'existent qu'en anglais), symbole, extension, numéro, prix ; « Sans édition ». */
 function lotEdSheet() {
@@ -33010,7 +33157,7 @@ function lotPaintList() {
   const el = LOT.el; if (!el) return;
   const box = $('.lot-list', el), h = $('.lot-lh', el);
   h.hidden = !LOT.list.length;
-  box.innerHTML = LOT.list.length ? LOT.list.map(lotRowHtml).join('') : `<p class="hint lot-empty">${T('Les cartes ajoutées apparaissent ici, avec leur édition et leur prix. Tu peux aussi les scanner.')}</p>`;
+  imgKeep(box, LOT.list.length ? LOT.list.map(lotRowHtml).join('') : `<p class="hint lot-empty">${T('Les cartes ajoutées apparaissent ici, avec leur édition et leur prix. Tu peux aussi les scanner.')}</p>`);
 }
 /** Suggestions sous le champ de recherche (mêmes que « Ajouter une carte »). */
 function lotSuggest() {
@@ -35640,7 +35787,7 @@ function trocPaint() {
   $('.trc-sub', w).textContent = ph === 'wait' ? T('En attente d\'un joueur') : ph === 'done' ? T('Échange terminé') : ph === 'end' ? T('Terminé') : T('avec {name}', { name: trocWho() });
   const code = $('.trc-code', w); code.textContent = trocFmtCode(s.c); code.hidden = ph === 'done' || ph === 'end';
   const body = $('.trc-body', w);
-  body.innerHTML = trocNb(ph === 'wait' ? trocWaitHtml(s) + trocZonesHtml(s) : ph === 'confirm' ? trocConfirmHtml(s) : ph === 'done' ? trocDoneHtml(s) : ph === 'end' ? trocEndHtml(s) : trocZonesHtml(s));
+  imgKeep(body, trocNb(ph === 'wait' ? trocWaitHtml(s) + trocZonesHtml(s) : ph === 'confirm' ? trocConfirmHtml(s) : ph === 'done' ? trocDoneHtml(s) : ph === 'end' ? trocEndHtml(s) : trocZonesHtml(s)));      // relevé toutes les 1,2 s : les vignettes déjà là restent (pas de clignotement)
   $('.trc-foot', w).innerHTML = trocFootHtml(s, ph, name);
   trocBright(ph === 'wait');
   if (ph === 'wait') trocQrFit();
@@ -35843,8 +35990,8 @@ function trocPicker({ title, sub, tabs, rows, onTap, kind }) {
       if (!sheets.includes(api)) return;
       const all = rows(tab), nq = trocNorm(q.trim()), list = nq ? all.filter(it => trocNorm(it.n).includes(nq) || trocNorm(it.dn).includes(nq) || (it.fn && trocNorm(it.fn).includes(nq))) : all, sh = list.slice(0, shown);
       const y = api.body.scrollTop;
-      box.innerHTML = sh.length ? `<div class="coll-list trc-plist">${sh.map(it => trocRowHtml(it, kind)).join('')}</div>${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-pk="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TRC_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`
-        : `<p class="hint listempty">${all.length ? T('Aucune carte ne correspond.') : tabs.find(t => t.v === tab).empty}</p>`;
+      imgKeep(box, sh.length ? `<div class="coll-list trc-plist">${sh.map(it => trocRowHtml(it, kind)).join('')}</div>${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-pk="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TRC_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`
+        : `<p class="hint listempty">${all.length ? T('Aucune carte ne correspond.') : tabs.find(t => t.v === tab).empty}</p>`);
       api.body.scrollTop = y;
     };
     if (tabs.length > 1) mountSeg($('.trc-tabs', api.body), tabs.map(t => ({ v: t.v, label: t.label, sub: t.sub })), tab, v => { tab = v; shown = TRC_PAGE; api.paint(); });

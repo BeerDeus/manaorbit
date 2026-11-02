@@ -3,7 +3,7 @@
   --bg:#f1f3f8; --surface:#ffffff; --surface-2:#e8ecf4; --surface-3:#f5f7fb; --line:#d9dfeb;
   --ink:#10152b; --ink-2:#4a5470; --ink-3:#5a6480;      /* ink-3 : texte secondaire ≥ 4,5:1 (WCAG AA) sur bg, surface et surface-2 */
   --accent:#3a46d6; --accent-ink:#ffffff; --accent-soft:#e6e8fb; --ring:rgba(58,70,214,.28);
-  --eng:#ee8a1d; --good:#0b8a5e; --good-soft:#dff5ec; --warn:#a46606; --warn-soft:#fbefd6; --bad:#c23a4b; --bad-soft:#fbe4e7;
+  --eng:#ee8a1d; --good:#06774f; --good-soft:#dff5ec; --warn:#8f5905; --warn-soft:#fbefd6; --bad:#b0303f; --bad-soft:#fbe4e7;      /* texte ≥ 4,5:1 (WCAG AA) sur les surfaces et les fonds -soft */
   --bar-bg:rgba(241,243,248,.84); --scrim:rgba(10,14,30,.46);
   --shadow:0 1px 2px rgba(16,21,43,.06),0 10px 28px -14px rgba(16,21,43,.22);
   --thumb-l:90%; --thumb-ink:30%;
@@ -1348,7 +1348,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .deck-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:var(--font-display);font-weight:650;font-size:15px;line-height:1.2;letter-spacing:-.01em;text-wrap:balance}
 .deck-tags{display:flex;align-items:center;gap:7px;min-height:17px}
 .deck-meta{display:flex;flex-direction:column;gap:1px;font-size:12px;line-height:1.35;color:var(--ink-3)}
-.deck-ago{font-size:11.5px;opacity:.85}
+.deck-ago{font-size:11.5px}      /* sans opacité : contraste 4,5:1 */
 .deck-price{position:absolute;left:6px;right:6px;bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 .deck-price:empty{display:none}
 .deck-price b{padding:2px 8px;border-radius:99px;background:rgba(10,14,30,.84);color:#fff;font-size:11.5px;font-weight:600;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
@@ -1595,13 +1595,17 @@ html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
 /* ── Deck viewer : vues (grille, piles façon MTG Arena, piles compactes, bandeaux) et pastille Game Changer ── */
 .dv-tools{position:sticky;top:8px;z-index:3;display:flex;align-items:center;gap:8px}
 .dv-tools .dv-seg{position:static;flex:1;min-width:0}
-.dv-vw{flex:none;display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--surface-2);box-shadow:var(--shadow),inset 0 0 0 1px var(--line)}
-.dv-vw button{width:34px;height:34px;display:grid;place-items:center;padding:0;border:0;border-radius:11px;background:transparent;color:var(--ink-3);transition:background .15s,color .15s}
+.dv-tools .seg-opt,.bd-tools .seg-opt{padding-left:2px;padding-right:2px}      /* libellés courts : la place va au texte (sinon la grille du tri déborde sous les vues) */
+.dv-tools.t2,.bd-tools.t2{flex-wrap:wrap}      /* libellés du tri trop serrés (texte agrandi ×1,3, langue longue : toolsFit) : les vues passent dessous au lieu d'être recouvertes */
+.dv-tools.t2 .dv-seg,.bd-tools.t2 .bd-sort{flex-basis:100%}
+.dv-vw{flex:none;margin-left:auto;display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--surface-2);box-shadow:var(--shadow),inset 0 0 0 1px var(--line)}
+.dv-vw button{width:34px;height:40px;display:grid;place-items:center;padding:0;border:0;border-radius:11px;background:transparent;color:var(--ink-3);transition:background .15s,color .15s}
 .dv-vw button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
 .dv-vw button[aria-checked="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(16,21,43,.18)}
 .dvc-tl{position:absolute;top:14%;left:7%;z-index:1;display:flex;gap:4px;align-items:center}      /* sous la bande du titre, sur l'illustration : le nom reste lisible */
 .dvc-tl .dvc-l{position:static}
 .dvc-gc{flex:none;height:19px;padding:0 5px;display:inline-grid;place-items:center;border-radius:6px;background:linear-gradient(135deg,#6d3cff,#c43cff);color:#fff;font:700 10px/1 var(--font-mono);letter-spacing:.05em;box-shadow:0 0 0 1.5px rgba(255,255,255,.6),0 2px 6px rgba(80,20,160,.45)}
+.dv .fbtn,.dv .fsearch{-webkit-backdrop-filter:none;backdrop-filter:none;background-color:var(--surface)}      /* viewer et éditeur : fond plein (le flou d'arrière-plan sur des centaines de cartes coûte au défilement, et la WebView Android le dessinait parfois en rectangle vide) */
 /* Piles : colonnes côte à côte, défilement de côté ; chaque carte ne laisse dépasser que son titre (≈ 16 % de sa largeur), la dernière en entier */
 .dv-groups[data-view="piles"]{margin:0 -16px}
 .dv-piles{display:flex;gap:12px;overflow-x:auto;padding:2px 16px 12px;scroll-snap-type:x proximity;scroll-padding:0 16px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none}

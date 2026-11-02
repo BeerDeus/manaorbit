@@ -345,7 +345,7 @@ function trocPaint() {
   $('.trc-sub', w).textContent = ph === 'wait' ? T('En attente d\'un joueur') : ph === 'done' ? T('Échange terminé') : ph === 'end' ? T('Terminé') : T('avec {name}', { name: trocWho() });
   const code = $('.trc-code', w); code.textContent = trocFmtCode(s.c); code.hidden = ph === 'done' || ph === 'end';
   const body = $('.trc-body', w);
-  body.innerHTML = trocNb(ph === 'wait' ? trocWaitHtml(s) + trocZonesHtml(s) : ph === 'confirm' ? trocConfirmHtml(s) : ph === 'done' ? trocDoneHtml(s) : ph === 'end' ? trocEndHtml(s) : trocZonesHtml(s));
+  imgKeep(body, trocNb(ph === 'wait' ? trocWaitHtml(s) + trocZonesHtml(s) : ph === 'confirm' ? trocConfirmHtml(s) : ph === 'done' ? trocDoneHtml(s) : ph === 'end' ? trocEndHtml(s) : trocZonesHtml(s)));      // relevé toutes les 1,2 s : les vignettes déjà là restent (pas de clignotement)
   $('.trc-foot', w).innerHTML = trocFootHtml(s, ph, name);
   trocBright(ph === 'wait');
   if (ph === 'wait') trocQrFit();
@@ -548,8 +548,8 @@ function trocPicker({ title, sub, tabs, rows, onTap, kind }) {
       if (!sheets.includes(api)) return;
       const all = rows(tab), nq = trocNorm(q.trim()), list = nq ? all.filter(it => trocNorm(it.n).includes(nq) || trocNorm(it.dn).includes(nq) || (it.fn && trocNorm(it.fn).includes(nq))) : all, sh = list.slice(0, shown);
       const y = api.body.scrollTop;
-      box.innerHTML = sh.length ? `<div class="coll-list trc-plist">${sh.map(it => trocRowHtml(it, kind)).join('')}</div>${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-pk="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TRC_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`
-        : `<p class="hint listempty">${all.length ? T('Aucune carte ne correspond.') : tabs.find(t => t.v === tab).empty}</p>`;
+      imgKeep(box, sh.length ? `<div class="coll-list trc-plist">${sh.map(it => trocRowHtml(it, kind)).join('')}</div>${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-pk="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TRC_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`
+        : `<p class="hint listempty">${all.length ? T('Aucune carte ne correspond.') : tabs.find(t => t.v === tab).empty}</p>`);
       api.body.scrollTop = y;
     };
     if (tabs.length > 1) mountSeg($('.trc-tabs', api.body), tabs.map(t => ({ v: t.v, label: t.label, sub: t.sub })), tab, v => { tab = v; shown = TRC_PAGE; api.paint(); });

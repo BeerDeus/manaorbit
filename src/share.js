@@ -548,13 +548,13 @@ function openPublicTrade(sh, preview, id, fr) {
   const paint = keep => {
     const sc = $('.dv-scroll', wrap), pos = keep && sc ? sc.scrollTop : 0;
     $('#pubF', wrap).hidden = P.sub === 'match';
-    if (P.sub === 'match') { bndPub(P, wrap, null); $('.pub-main', wrap).innerHTML = pubMatchHtml(P); }
+    if (P.sub === 'match') { bndPub(P, wrap, null); imgKeep($('.pub-main', wrap), pubMatchHtml(P)); }
     else {
       bndTake(sh);      // classeur publié : la liste reste par nom (binder.js)
       const all = (P.sub === 'want' ? sh.want : sh.have).map(pubItem), list = filterItems(all, P.f), shown = list.slice(0, P.shown);
-      if (!bndPub(P, wrap, all, list)) $('.pub-main', wrap).innerHTML = `${shown.length ? `<div class="coll-list">${shown.map(pubRow).join('')}</div>` : `<p class="hint listempty">${T(all.length ? 'Aucune carte ne correspond.' : P.sub === 'want' ? 'Aucune carte recherchée pour l\'instant.' : 'Aucune carte à échanger pour l\'instant.')}</p>`}
+      if (!bndPub(P, wrap, all, list)) imgKeep($('.pub-main', wrap), `${shown.length ? `<div class="coll-list">${shown.map(pubRow).join('')}</div>` : `<p class="hint listempty">${T(all.length ? 'Aucune carte ne correspond.' : P.sub === 'want' ? 'Aucune carte recherchée pour l\'instant.' : 'Aucune carte à échanger pour l\'instant.')}</p>`}
         ${list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TR_PAGE, list.length - shown.length)), left: nf0(list.length - shown.length) })}</button>` : ''}
-        ${shown.some(it => trPrice(it.k)) ? pubNote() : ''}`;
+        ${shown.some(it => trPrice(it.k)) ? pubNote() : ''}`);
     }
     if (sc) sc.scrollTop = pos;
     if (!keep) stagger($$('.pub-main .coll-list', wrap));
