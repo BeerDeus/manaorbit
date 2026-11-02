@@ -2,7 +2,7 @@
 
 Fonctionnalité **en test** depuis le 2 novembre 2026 : invisible tant qu'elle n'est pas allumée dans **Compte et réglages › Préférences › Fonctionnalités en test** (compte de l'éditeur seulement, `src/labs.js`), et seulement jusqu'au prochain démarrage de l'appli.
 
-Recherche (Karsten, Command Zone, EDHREC, brackets Wizards, étiquettes du Tagger) : [`recherche.md`](recherche.md). Étiquettes Scryfall Tagger par rôle : [`tagger-tags.json`](tagger-tags.json) (relu par le générateur).
+Recherche (Karsten, Command Zone, EDHREC, brackets Wizards, étiquettes du Tagger) : [`recherche.md`](recherche.md). Étiquettes Scryfall Tagger par rôle : [`tagger-tags.json`](tagger-tags.json) (référence ; la liste retenue, sans les racines trop larges, est dans `gen-deckdb.mjs` › `TAG_RULES` et `taggerRoles`).
 
 ## Ce que voit le joueur
 

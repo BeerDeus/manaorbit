@@ -55,18 +55,12 @@ const TAG_RULES = [
   ['recursion', /^(reanimate|reanimate-creature|reanimate-permanent|reanimate-artifact|reanimate-enchantment|regrowth|regrowth-creature|regrowth-permanent|regrowth-instant|regrowth-sorcery|recursion|raise dead|mass reanimate)$/],
   ['wincon', /^(finisher|wincon|alternate win condition|alt-win|win the game|extra combat|overrun|mass pump)$/],
 ];
-let EXTRA_TAGS = {};      // rôle → [étiquettes exactes] (docs/deckbuilder/tagger-tags.json, rédigé d'après le Tagger)
-try {
-  const j = JSON.parse(readFileSync(join(here, 'docs', 'deckbuilder', 'tagger-tags.json'), 'utf8'));
-  // une étiquette notée trop large, à part ou à ne pas compter (racine « ramp » qui contient Path to Exile, rituels…) n'est pas reprise
-  for (const [r, l] of Object.entries(j || {})) if (ROLES.includes(r) && Array.isArray(l)) EXTRA_TAGS[r] = l.filter(x => !(x && typeof x === 'object' && (x.skip || /trop large|ne pas compter|à part|pas un|exclu/i.test(String(x.note || ''))))).map(x => String(typeof x === 'object' && x ? x.tag || x.name || '' : x).toLowerCase()).filter(Boolean);
-} catch { /* facultatif */ }
-const tagNorm = t => String(t || '').toLowerCase().replace(/-/g, ' ').trim();
+// Les étiquettes retenues sont choisies à la main d'après docs/deckbuilder/tagger-tags.json (recherche) : ce fichier contient aussi des racines trop larges
+// (« removal » : 6 000 cartes, « tutor-land » : de la rampe), il n'est donc pas fusionné tel quel.
 /** Rôles d'une étiquette du Tagger (bits). */
 export function tagRoles(tag) {
   const t = String(tag || '').toLowerCase().trim(), s = t.replace(/ /g, '-'), sp = t.replace(/-/g, ' '); let b = 0;
   for (const [r, re] of TAG_RULES) if (re.test(t) || re.test(s) || re.test(sp)) b |= RB[r];
-  for (const [r, l] of Object.entries(EXTRA_TAGS)) if (l.some(x => tagNorm(x) === tagNorm(t))) b |= RB[r];
   return b;
 }
 /** Catégorie écrite par l'auteur d'un deck (libre : « Ramp & Reduction », « Card Draw », « Board Wipes », « Interaction »…) → rôle (bits ; 0 = type de carte ou plan du deck). */
@@ -351,8 +345,7 @@ async function scryFill(S, names) {
 }
 /** Recherches Tagger (otag:) : nom normalisé → bits de rôle. Seulement les étiquettes « sûres » de chaque rôle. */
 async function taggerRoles() {
-  const Q = { ramp: ['mana-rock', 'mana-dork', 'land-ramp', 'mana-increaser'], draw: ['draw-engine', 'burst-draw'], removal: ['spot-removal'], wipe: ['sweeper'], counter: ['counterspell'], tutor: [], protect: ['protects-creature', 'protects-permanent'], recursion: ['reanimate', 'regrowth'] };      // étiquettes précises (une racine comme « ramp » ou « removal » contient trop de cas limites)
-  for (const [r, l] of Object.entries(EXTRA_TAGS)) if (Q[r]) for (const t of l) { const s = String(t).replace(/ /g, '-'); if (!Q[r].includes(s) && Q[r].length < 6) Q[r].push(s); }
+  const Q = { ramp: ['mana-rock', 'mana-dork', 'land-ramp', 'mana-increaser', 'extra-land'], draw: ['draw-engine', 'burst-draw', 'repeatable-draw'], removal: ['spot-removal'], wipe: ['sweeper'], counter: ['counterspell'], protect: ['protects-creature', 'protects-all', 'protects-permanent'], recursion: ['reanimate', 'regrowth'] };      // étiquettes précises (une racine comme « ramp » ou « removal » contient trop de cas limites)
   const out = new Map(); let pages = 0; const t0 = Date.now(), cap = BUDGET_MS * 0.12;      // 12 % du budget au plus (pages lourdes) : les étiquettes des cartes jouées arrivent aussi par Archidekt
   if (!TAGGER) return out;
   for (const [role, tags] of Object.entries(Q)) for (const t of tags) {
@@ -392,7 +385,7 @@ export function aggregate(C, S, tagger, cmds) {
     const name = s ? s.name : C.names[i]; if (!name) continue;
     if (s && !s.legal && !/\bLegendary\b/.test(s.type)) continue;
     let roles = cardRoles({ dc: m.dc, tags: m.ot, votes: votes.get(i), decks: voted.get(i) || 0, scry: s ? { ...s } : (m.ty ? { name, type: m.ty, text: '' } : null) });
-    roles |= tagger.get(k) || 0;
+    roles |= tagger.get(k) || 0; if (roles & RB.wipe) roles &= ~RB.removal;
     if (s && /\bLand\b/.test(s.type) && !/\/\//.test(s.name)) roles = (roles & RB.ramp && /\{T\}: Add \{C\}\{C\}|Add \{C\}\{C\}/.test(s.text) ? RB.ramp : 0) | RB.land;
     const cmc = s ? s.cmc : Number(m.cmc) || 0, gc = (s && s.gc) || m.gc ? 1 : 0;
     const flags = (gc ? 1 : 0) | (m.xt || /take an extra turn/i.test(s ? s.text : '') ? 2 : 0) | (m.mld ? 4 : 0) | (m.tu || roles & RB.tutor ? 8 : 0);
