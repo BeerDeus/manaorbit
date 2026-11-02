@@ -97,14 +97,14 @@ function dsimHtml(r, prog) {
   if (!r) return h + `<div class="ds-prog"><span class="ds-big"><i style="width:${Math.round((prog || 0) * 100)}%"></i></span><p class="ds-now">${T('Parties en cours…')}</p></div>`;
   const row = (ok, big, t, sub) => `<li class="${ok ? 'ok' : 'warn'}"><b>${esc(big)}</b> ${esc(t)}${sub ? ` <small>${esc(sub)}</small>` : ''}</li>`;
   h += `<ul class="bd-issues ds-sim">
-    ${row(r.keep7 >= 80, r.keep7 + ' %', T('des mains de 7 cartes gardées'), T('{l} terrains en moyenne dans la main gardée', { l: dsimNum(r.lands0) }))}
+    ${row(r.keep7 >= 74, r.keep7 + ' %', T('des mains de 7 cartes gardées'), T('{l} terrains en moyenne dans la main gardée', { l: dsimNum(r.lands0) }))}
     ${r.cmv ? row(r.cmdOn >= 55, r.cmdOn + ' %', T('commandant lancé à temps (tour {t} ou avant)', { t: r.cmv }), T('tour {t} en moyenne', { t: dsimNum(r.cmdT) }) + (r.cmdNever ? ' · ' + T('jamais avant le tour 9 : {p} %', { p: r.cmdNever }) : '')) : ''}
     ${row(r.miss3 <= 20, r.miss3 + ' %', T('des parties sans terrain à poser avant le tour 4'), T('{p} % avant le tour 5', { p: r.miss4 }))}
     ${row(r.screw4 <= 10, r.screw4 + ' %', T('des parties bloquées par les couleurs au tour 4'), T('assez de mana, pas la bonne couleur'))}
     ${row(r.eff >= 70, r.eff + ' %', T('du mana disponible utilisé (tours 1 à 6)'), T('{n} sorts lancés en moyenne', { n: dsimNum(r.cast6) }))}</ul>`;
   if (r.stuck.length) h += `<p class="dr-p"><b>${T('Souvent bloquées par les couleurs')} :</b> ${r.stuck.map(([n, p]) => drCard(ownKey(n), n) + ` <small>(${p} %)</small>`).join(', ')}</p>`;
   const adv = [];
-  if (r.keep7 < 80) adv.push(T('Trop de mains à refaire : vise 36 à 38 terrains, ou ajoute de la rampe à 2 mana ou moins.'));
+  if (r.keep7 < 72) adv.push(T('Trop de mains à refaire : vise 36 à 38 terrains, ou ajoute de la rampe à 2 mana ou moins.'));
   if (r.miss3 > 20) adv.push(T('Terrains manqués trop souvent : un ou deux terrains de plus, ou de la pioche pas chère.'));
   if (r.screw4 > 10) adv.push(T('Couleurs mal servies : remplace des terrains de base par des terrains qui produisent plusieurs couleurs.'));
   if (r.cmv && r.cmdOn < 55) adv.push(T('Commandant souvent en retard : plus de rampe à 2 mana ou moins.'));

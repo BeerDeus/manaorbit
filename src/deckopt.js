@@ -110,6 +110,61 @@ async function dsOptimize(mine, ms, step) {
   return kept;
 }
 
+/* ── Ajustement par la simulation : le deck est joué (1 500 parties), et ses défauts de démarrage corrigés ─────────────────────────────
+   Trop de mains à refaire ou de terrains manqués : un sort faible contre de la rampe à 2 mana ou moins, sinon contre un terrain ; couleurs qui bloquent :
+   un terrain de base contre un terrain qui donne plusieurs couleurs du deck ; commandant en retard : de la rampe pas chère. Chaque correction est rejouée
+   et gardée seulement si la partie s'améliore nettement et que la note du coach ne baisse pas (plus de 1,5 point). 6 essais au plus. */
+const dsSimVal = r => r ? r.keep7 + 0.6 * r.cmdOn - r.miss3 - 1.5 * r.screw4 + 0.4 * r.eff : -1e9;
+async function dsSimTune(mine, step) {
+  const cmd = dwCmdOf(); if (!cmd) return { fixed: 0, r: null };
+  const set = BD.wiz || dwDefaults(), pack = DW.cmd.get(cmd.slug) || null, info = dwInfo(pack, set), N = 1500;
+  let r = await dsimRun(BD, N); if (!r) return { fixed: 0, r: null };
+  let val = dsSimVal(r), note = dsScore(BD, { cmd, pack, info }).raw, fixed = 0, tries = 0;
+  const BK = { W: 'plains', U: 'island', B: 'swamp', R: 'mountain', G: 'forest', C: 'wastes' };
+  const card = x => ({ key: x.k, name: x.name, qty: 1 });
+  const weakest = (prof, tgt, keep) => [...BD.main.values()].filter(c => !mine.has(c.key) && !BASIC_NAMES.has(c.key) && !keep(c.key)).map(c => { const x = dwCard(c.key) || {}, o = info.get(c.key); let w = o ? dwVal(o) : 0; if (x.roles & DW_RB.land) return null; for (const k of DKW_ROLES) if (k !== 'land' && x.roles & DW_RB[k] && tgt[k] && prof[k] <= tgt[k][0]) w += 1; if (x.roles & DW_RB.wincon) w += 0.5; return { c, w }; }).filter(Boolean).sort((a, b) => a.w - b.w)[0];
+  const fix = kind => {
+    const prof = dwProfile(), tgt = dwTargets(prof, cmd, pack, set);
+    if (kind === 'ramp') {      // un sort faible contre de la rampe à 2 mana ou moins
+      const out = weakest(prof, tgt, k => ((dwCard(k) || {}).roles || 0) & DW_RB.ramp); if (!out) return false;
+      BD.main.delete(out.c.key);
+      const x = dwSuggest('ramp', cmd, pack, dwProfile(), tgt, 30).find(c => c.x.cmc <= 2 && !(c.x.roles & DW_RB.land));
+      if (!x) { BD.main.set(out.c.key, out.c); return false; } BD.main.set(x.k, card(x)); return true;
+    }
+    if (kind === 'land') {      // un sort faible contre un terrain (celui de la couleur la plus en manque)
+      const out = weakest(prof, tgt, () => false); if (!out) return false;
+      BD.main.delete(out.c.key);
+      const cols = cmd.ci ? [...cmd.ci] : ['C'], c = cols.sort((a, b) => ((prof.src[a] || 0) - (prof.need[a] || 0)) - ((prof.src[b] || 0) - (prof.need[b] || 0)))[0], k = BK[c] || 'wastes', cur = BD.main.get(k);
+      BD.main.set(k, { key: k, name: k[0].toUpperCase() + k.slice(1), qty: (cur ? cur.qty : 0) + 1 }); return true;
+    }
+    if (kind === 'fix') {      // un terrain de base de la couleur la mieux servie contre un terrain qui donne plusieurs couleurs du deck
+      const cols = [...cmd.ci]; if (cols.length < 2) return false;
+      const rich = cols.filter(c => (BD.main.get(BK[c]) || {}).qty > 1).sort((a, b) => ((prof.src[b] || 0) - (prof.need[b] || 0)) - ((prof.src[a] || 0) - (prof.need[a] || 0)))[0]; if (!rich) return false;
+      BD.wide = true; let x = null;
+      try { x = dwSuggest('land', cmd, pack, prof, tgt, 12).find(l => new Set([...String(l.x.prod)].filter(ch => cols.includes(ch))).size >= 2); } finally { BD.wide = false; }
+      if (!x) return false; const b = BD.main.get(BK[rich]); b.qty--; BD.main.set(x.k, card(x)); return true;
+    }
+    return false;
+  };
+  while (tries < 6) {
+    const want = [];
+    if (r.keep7 < 74 || r.miss3 > 20) want.push('ramp', 'land');      // 74 % : avec 36 terrains, une main de 7 a 2 à 5 terrains 79 % du temps au mieux (loi hypergéométrique)
+    if (r.screw4 > 10) want.push('fix');
+    if (r.cmv && r.cmdOn < 55) want.push('ramp');
+    if (!want.length) break;
+    let better = false;
+    for (const kind of [...new Set(want)]) {
+      if (tries >= 6) break;
+      const snap = dsClone(BD.main); if (!fix(kind)) { BD.main = snap; continue; }
+      tries++; if (step) step(tries);
+      const r2 = await dsimRun(BD, N), n2 = dsScore(BD, { cmd, pack, info }).raw;
+      if (dsSimVal(r2) > val + 1.5 && n2 >= note - 1.5) { r = r2; val = dsSimVal(r2); note = Math.max(note, n2); fixed++; better = true; break; }
+      BD.main = snap;
+    }
+    if (!better) break;
+  }
+  return { fixed, r };
+}
 /* ── Construction en plusieurs passes : barre de progression, versions au choix ─────────────────────────────────────────────────── */
 const DS_VARIANTS = [{ id: 'eq', name: 'Équilibrée', d: 'Le meilleur compromis pour tes réglages' }, { id: 'agg', name: 'Plus agressive', d: 'Sorts moins chers, plus de créatures, pression rapide', arch: 'aggro' }, { id: 'ctl', name: 'Plus contrôle', d: 'Plus d\'interaction et de pioche, partie plus longue', arch: 'control' }, { id: 'eco', name: 'Moins chère', d: 'Environ 55 % de la valeur de la version équilibrée', eco: 0.55 }];
 const dsClone = m => new Map([...m].map(([k, c]) => [k, { ...c }]));
@@ -153,11 +208,14 @@ async function dsBuild(undoTo) {
       BD.main = dsClone(base); BD.wiz = { ...wiz0, bud, ...(v.arch ? { arch: v.arch } : {}) }; if (!v.arch) delete BD.wiz.arch;
       dwAutoBuild(undefined, true);
       set(v.id, 'run', T('amélioration'), f0 + span * 0.35, T('Amélioration : {v} (échanges carte à carte tant que la note monte)', { v: v.name }));
-      const kept = await dsOptimize(mine, empty ? 900 : 1600, n => { if (alive()) { frac = f0 + span * (0.35 + 0.6 * Math.min(1, n / 60)); paint(T('Amélioration : {v} · passe {n}', { v: v.name, n })); } });
+      const kept = await dsOptimize(mine, empty ? 900 : 1600, n => { if (alive()) { frac = f0 + span * (0.35 + 0.45 * Math.min(1, n / 60)); paint(T('Amélioration : {v} · passe {n}', { v: v.name, n })); } });
+      if (!alive()) return quit();
+      set(v.id, 'run', T('essais en partie'), f0 + span * 0.8, T('Essais en partie : {v} (mains de départ, terrains, couleurs)', { v: v.name }));
+      const tune = typeof dsimRun === 'function' ? await dsSimTune(mine, n => { if (alive()) { frac = f0 + span * (0.8 + 0.18 * Math.min(1, n / 6)); paint(T('Essais en partie : {v} · {n} séries de 1 500 parties', { v: v.name, n })); } }) : { fixed: 0, r: null };
       if (!alive()) return quit();
       const sc = dsScore(BD), prof = dwProfile();
-      res.push({ v, main: dsClone(BD.main), wiz: { ...BD.wiz }, sc, prof, kept });
-      set(v.id, 'done', T('note {n} · {p}', { n: sc.total, p: fmt(prof.cents, cur) }) + (kept ? ' · ' + TN(kept, '{n} échange', '{n} échanges') : ''), f0 + span);
+      res.push({ v, main: dsClone(BD.main), wiz: { ...BD.wiz }, sc, prof, kept, sim: tune.r, fixed: tune.fixed });
+      set(v.id, 'done', T('note {n} · {p}', { n: sc.total, p: fmt(prof.cents, cur) }) + (tune.r ? ' · ' + T('{p} % de mains gardées', { p: tune.r.keep7 }) : '') + (kept + tune.fixed ? ' · ' + TN(kept + tune.fixed, '{n} échange', '{n} échanges') : ''), f0 + span);
     }
     set('ok', 'done', '', 1, T('Terminé'));
     BD.wiz = wiz0; BD.main = dsClone(res[0].main);
@@ -173,6 +231,7 @@ function dsChoose(api, res, before, empty) {
       <span class="ds-vh"><b>${esc(r.v.name)}</b>${r.sc.total === best ? `<em>${T('Meilleure note')}</em>` : ''}<span class="ds-vn ds-${dsLevel(r.sc.total)}">${r.sc.total}<small>/100</small></span></span>
       ${r.v.d ? `<span class="ds-vd">${esc(r.v.d)}</span>` : ''}
       <span class="ds-vk">${esc([fmt(r.prof.cents, cur), T('coût moyen {v}', { v: dsNum(r.prof.mv) }), TN(r.prof.land, '{n} terrain', '{n} terrains')].join(' · '))}</span>
+      ${r.sim ? `<span class="ds-vd">${esc(T('En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %', { k: r.sim.keep7, c: r.sim.cmdOn, s: r.sim.screw4 }))}</span>` : ''}
       <span class="ds-vr">${esc(roles.map(x => dsRoleLabel(x) + ' ' + r.prof[x]).join(' · '))}</span></button>`).join('')}</div>`;
   api.setFoot('');
   let picked = false;

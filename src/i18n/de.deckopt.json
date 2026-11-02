@@ -93,5 +93,10 @@
  "Rôle": "Rolle",
  "{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.": "{name}: Dein Exemplar steckt in „{deck}“. Nimm es dort, wenn du dieses Deck spielst, oder kauf eins.",
  "un autre deck": "einem anderen Deck",
- "Le coach a joué seul les 8 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.": "Der Coach hat die ersten 8 Züge mit diesem Deck allein gespielt, {n}-mal: Starthände, Länder, Farben, Commander. Einfache Regeln und Zufall, ohne Gegner."
+ "Le coach a joué seul les 8 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.": "Der Coach hat die ersten 8 Züge mit diesem Deck allein gespielt, {n}-mal: Starthände, Länder, Farben, Commander. Einfache Regeln und Zufall, ohne Gegner.",
+ "essais en partie": "Testpartien",
+ "Essais en partie : {v} (mains de départ, terrains, couleurs)": "Testpartien: {v} (Starthände, Länder, Farben)",
+ "Essais en partie : {v} · {n} séries de 1 500 parties": "Testpartien: {v} · {n} Serien à 1.500 Partien",
+ "{p} % de mains gardées": "{p} % Starthände behalten",
+ "En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %": "Im Spiel: {k} % Starthände behalten · Commander rechtzeitig {c} % · durch Farben blockiert {s} %"
 }

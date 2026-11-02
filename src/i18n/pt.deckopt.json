@@ -93,5 +93,10 @@
  "Rôle": "Função",
  "{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.": "{name}: a tua cópia está em «{deck}». Vai buscá-la lá quando jogares este deck, ou compra uma.",
  "un autre deck": "outro deck",
- "Le coach a joué seul les 8 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.": "O coach jogou sozinho os 8 primeiros turnos com este deck, {n} vezes: mãos iniciais, terrenos, cores, comandante. Regras simples e acaso, sem adversário."
+ "Le coach a joué seul les 8 premiers tours avec ce deck, {n} fois : mains de départ, terrains, couleurs, commandant. Des règles simples et du hasard, sans adversaire.": "O coach jogou sozinho os 8 primeiros turnos com este deck, {n} vezes: mãos iniciais, terrenos, cores, comandante. Regras simples e acaso, sem adversário.",
+ "essais en partie": "partidas de teste",
+ "Essais en partie : {v} (mains de départ, terrains, couleurs)": "Partidas de teste: {v} (mãos iniciais, terrenos, cores)",
+ "Essais en partie : {v} · {n} séries de 1 500 parties": "Partidas de teste: {v} · {n} séries de 1500 partidas",
+ "{p} % de mains gardées": "{p} % de mãos mantidas",
+ "En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %": "Em jogo: {k} % de mãos mantidas · comandante a tempo {c} % · bloqueadas pelas cores {s} %"
 }

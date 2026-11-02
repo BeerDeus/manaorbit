@@ -1297,6 +1297,7 @@ button,.btn,select,summary{touch-action:manipulation}
 .bd-issues li::before{content:"";position:absolute;left:1px;top:.45em;width:7px;height:7px;border-radius:50%;background:var(--warn)}
 .bd-issues li.bad{color:var(--bad)}
 .bd-issues li.bad::before{background:var(--bad)}
+.bd-issues li.ok::before{background:var(--good)}      /* point vert : dans la norme (simulation, bracket…) */
 .bd-ok{margin:0;font-size:13px;color:var(--good);font-weight:600}
 .bd-ctl{display:flex;flex-direction:column;gap:10px}
 .bd-add{display:flex;align-items:center;gap:10px}
