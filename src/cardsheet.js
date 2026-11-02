@@ -262,7 +262,7 @@ function csPaint() {
   if (CS.g && !(x && collLines(x).some(([g]) => g === CS.g))) CS.g = csLine(k, lineLang(CS.g));      // ligne fusionnée ou retirée : la ligne de la même langue, sinon la plus fournie
   const ae = document.activeElement, ar = ae && body.contains(ae) ? ae.closest('[data-g]') : null, top = body.scrollTop;
   const focus = ae && body.contains(ae) ? { g: ar ? ar.dataset.g : null, cs: ae.dataset.cs || '', act: ae.dataset.act || '', id: ae.dataset.id || '' } : null;
-  body.innerHTML = csHeadHtml(k, x, m) + csLinesHtml(k, x) + csPxHtml(k, x, m) + csDecksHtml(k) + csTradeHtml(k, x) + csActsHtml(k, x) + csOracleHtml();
+  imgKeep(body, csHeadHtml(k, x, m) + csLinesHtml(k, x) + csPxHtml(k, x, m) + csDecksHtml(k) + csTradeHtml(k, x) + csActsHtml(k, x) + csOracleHtml());      // la grande image reste le même nœud : elle ne refait pas son fondu à chaque lecture qui arrive
   csHistFit();
   body.scrollTop = top;
   if (focus) {      // focus clavier rendu à son équivalent après le repeint (le bouton touché, dans la même ligne)

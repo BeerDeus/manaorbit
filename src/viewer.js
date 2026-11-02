@@ -414,13 +414,18 @@ async function dvMetaLoad(wrap) {
     DV.loading = !!(DV.snap && DV.snap.ref); DV.framed = null; dvRender();
     try { await dmFetch(list, true); } catch (e) { /* hors ligne : l'affichage reste partiel */ }
     if (DV.el !== wrap) return;
-    DV.loading = false; dvRebuild(); dvRender();
+    DV.loading = false; dvRefresh();
   }
   // cartes possédées dans une autre langue que l'anglais : leur image, dans cette langue, si Scryfall ne l'a pas encore donnée
   if (DV.pub) return;
   const pd = parseDeck(DV.text); let got = false;
   try { got = await ownLangFetch([...pd.cards, ...dkSideCards(DV.text)]); } catch (e) { /* ignore */ }
-  if (got && DV.el === wrap) { dvRebuild(); dvRender(); }
+  if (got && DV.el === wrap) dvRefresh();
+}
+/** Relevé recalculé et viewer redessiné une seule fois par image, même quand plusieurs choses arrivent ensemble (fiches Scryfall, images dans ta langue, relevé du jour). */
+function dvRefresh() {
+  if (DV.rf) return;
+  DV.rf = requestAnimationFrame(() => { DV.rf = 0; if (DV.el) { dvRebuild(); dvRender(); } });
 }
 /** Relevé de référence, réserve et images des terrains recalculés d'après les fiches connues (le relevé de prix, lui, ne change pas). */
 function dvRebuild() {
@@ -466,12 +471,12 @@ function dvBits(it, snap, dl) {
 }
 function dvTile(it, i, snap, dl) {
   const { hue, art, tag, en, q, gc, label } = dvBits(it, snap, dl);
-  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
+  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
 }
 /** Bandeau (vue « Bandeaux », façon liste de MTG Arena) : illustration à droite, quantité, nom, coût de mana, prix. */
 function dvStrip(it, i, snap, dl) {
   const { hue, tag, en, gc, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
-  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
+  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
 }
 /** Courbe de mana : c = exemplaires par coût (0 à 7+). interactive : barres cliquables (le viewer saute au groupe). */
 function curveBars(c, interactive) {
@@ -485,7 +490,7 @@ function dvHero(it, idx, snap, dl) {
   const art = dvImg(it), hue = hash32(it.k) % 360, d = dl && dl.get(it.k);
   const price = it.s === 'ok' ? `<b>${esc(dvFmt(it.c))}</b>${it.rf ? `<span class="cmd-ref">${T('Réf. Cardmarket {price}', { price: esc(dvFmt(it.rf)) })}</span>` : ''}${snap.ref && it.ow ? `<span class="cmd-ref">${it.ow >= it.q ? T('Dans ta collection') : T('Possédé en {n} ex.', { n: it.ow })}</span>` : ''}${d && dvMoved(d) ? `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${esc(dvFmt(Math.abs(d.tot)))}</span>` : ''}`
     : it.s === 'own' ? '<b class="own">' + T('Dans ta collection') + '</b>' : it.s === 'nf' ? '<b class="bad">' + T('Introuvable') + '</b>' : `<b class="warn">${snap.ref ? T('Prix inconnu') : T('Aucune offre')}</b>`;
-  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}</span>
+  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span>
     <span class="cmd-t"><small>${/planeswalker/i.test(it.tl || '') ? T('Planeswalker commandant') : T('Commandant')}</small><strong>${esc(it.n)}</strong>${it.tl ? `<span class="cmd-tl">${esc(it.tl)}</span>` : ''}${it.mc ? `<span class="cmd-mc">${manaHtml(it.mc)}</span>` : ''}<span class="cmd-p">${price}</span></span></button>`;
 }
 
@@ -507,7 +512,6 @@ function dvRefLine(items) {
 
 /** Cadre du viewer : résumé, bascule de tri, filtres. Reconstruit seulement quand le relevé change (la saisie ne doit pas perdre le focus). */
 function dvFrame(snap) {
-  DV.nodes = new Map();      // nouveau relevé (prix, possession) : vignettes refaites
   const el = DV.el, items = snap.items, found = items.filter(i => i.s === 'ok'), total = found.reduce((a, i) => a + i.c, 0);
   const copies = items.reduce((a, i) => a + i.q, 0), miss = items.filter(i => i.s === 'nf').length, none = items.filter(i => i.s === 'none' || i.s === 'nohub').length, own = items.filter(i => i.s === 'own').length;
   const ref = !!snap.ref, old = !ref && !DV.live && snapAge(snap) === 'old';
@@ -535,7 +539,7 @@ function dvFrame(snap) {
     DV.sort = v; try { localStorage.setItem(DV_SORT_KEY, v); } catch (e) { /* ignore */ } haptic('tap'); DV.anim = true; dvGroups();
     const g = $('.dv-groups', DV.el), sc = $('.dv-scroll', DV.el); if (g && sc) sc.scrollTop = Math.min(sc.scrollTop, g.offsetTop - 8);
   });
-  $('#dvSeg', el).setValue(DV.sort);
+  $('#dvSeg', el).setValue(DV.sort); toolsFit($('.dv-tools', el));
   $('#dvView', el).onclick = e => {
     const b = e.target.closest('[data-view]'); if (!b || b.dataset.view === DV.view) return;
     DV.view = b.dataset.view; try { localStorage.setItem(DV_VIEW_KEY, DV.view); } catch (x) { /* ignore */ }
@@ -553,14 +557,27 @@ const DV_VIEW_ICON = {
   stacks: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3" width="7.5" height="18" rx="1.5"/><rect x="13" y="3" width="7.5" height="14" rx="1.5"/><path d="M3.5 7.5h7.5M3.5 12h7.5M13 7.5h7.5"/></svg>',
   strips: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="18" height="4" rx="1.5"/><rect x="3" y="16" width="18" height="4" rx="1.5"/></svg>',
 };
+/** Barre tri + vues (viewer, éditeur) : sur une ligne tant que les libellés du tri tiennent ; sinon (texte agrandi, langue longue) les vues passent dessous. */
+function toolsFit(bar) {
+  if (!bar || !bar.isConnected) return;
+  bar.classList.remove('t2');
+  if ([...bar.querySelectorAll('.seg, .seg-opt')].some(o => o.scrollWidth > o.clientWidth + 1)) bar.classList.add('t2');      // colonnes du tri plus larges que sa place (la grille déborde) ou libellé coupé
+  if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(() => toolsFit(bar));      // polices pas encore là : mesure refaite avec les vraies
+}
 function dvViewRead() { try { const v = localStorage.getItem(DV_VIEW_KEY); if (DV_VIEWS.some(x => x[0] === v)) return v; } catch (e) { /* ignore */ } return 'grid'; }
 const dvViewHtml = () => `<div class="dv-vw" id="dvView" role="radiogroup" aria-label="${T('Affichage')}">${DV_VIEWS.map(([v, l]) => `<button type="button" role="radio" data-view="${v}" aria-checked="${DV.view === v}" aria-label="${esc(T(l))}" title="${esc(T(l))}">${DV_VIEW_ICON[v]}</button>`).join('')}</div>`;
 /** Vignette d'une carte pour la vue en cours : construite une fois, puis déplacée d'un groupe à l'autre (tri, filtres) sans être refaite :
  *  plus de reconstruction de tout le deck à chaque tri, et les images déjà chargées ne repassent pas par leur fondu. */
 function dvNode(it, i, snap, dl) {
-  const key = (DV.view === 'strips' ? 's|' : 't|') + it.k + (it.sb ? '|sb' : '') + (it.cmd ? '|c' : '');
-  let n = DV.nodes.get(key);
-  if (!n) { const t = document.createElement('template'); t.innerHTML = (DV.view === 'strips' ? dvStrip : dvTile)(it, i, snap, dl); n = t.content.firstElementChild; DV.nodes.set(key, n); }
+  const key = (DV.view === 'strips' ? 's|' : 't|') + it.k + (it.sb ? '|sb' : '') + (it.cmd ? '|c' : ''), html = (DV.view === 'strips' ? dvStrip : dvTile)(it, 0, snap, dl), h = html.replace(' class="ok"', '');
+  const old = DV.nodes.get(key); let n = old && old.h === h ? old.n : null;      // vignette gardée tant que son contenu (prix, image, possession…) ne change pas : nouveau relevé, rôles, prix du jour ne refont que celles qui changent
+  if (!n) {
+    const t = document.createElement('template'); t.innerHTML = html; n = t.content.firstElementChild;
+    const was = old && old.n.querySelector('img.ok'), im = n.querySelector('img');
+    if (was && im && was.getAttribute('src') === im.getAttribute('src')) im.replaceWith(was);      // même image (seul le prix a changé) : celle déjà affichée est reprise, sans fondu
+    DV.nodes.set(key, { h, n });
+  }
+  else imgSettle(n);      // vignette reprise : chargée (ou en échec) pendant qu'elle était détachée, l'événement load est passé sans elle
   n.dataset.i = i; return n;
 }
 /** Tri « Rôle » : les catégories du coach (base du coach, lue à la demande) ; une carte va dans un seul groupe, le plus parlant
@@ -575,7 +592,14 @@ function dvRoleOf(it) {
 }
 function dvRoleGroups(items, ref) {
   if (typeof dwLoad !== 'function') return groupSnap(items, 'mana', ref);
-  if (!DW.byKey) { if (!DV.roleWait) { DV.roleWait = true; dwLoad().then(() => { DV.roleWait = false; if (DV.el && DV.sort === 'role') dvGroups(); if (typeof BD !== 'undefined' && BD.el && BD.sort === 'role' && BD.tab === 'deck') bdList(); }, () => { DV.roleWait = false; }); } return groupSnap(items, 'mana', ref); }
+  if (!DW.byKey) {
+    if (!DV.roleWait) {
+      DV.roleWait = true;
+      const again = () => { DV.roleWait = false; if (DV.el && DV.sort === 'role') dvGroups(); if (typeof BD !== 'undefined' && BD.el && BD.sort === 'role' && BD.tab === 'deck') bdList(); };      // base arrivée (ou absente : groupes par coût, sans la ligne d'attente)
+      dwLoad().then(again, again);
+    }
+    return groupSnap(items, 'mana', ref);
+  }
   const list = items.filter(i => !i.sb), side = items.filter(i => i.sb), nf = list.filter(i => i.s === 'nf').sort(byName), rest = list.filter(i => i.s !== 'nf'), out = [];
   const by = new Map(DV_ROLE_GROUPS.map(([k]) => [k, []])); for (const i of rest) by.get(dvRoleOf(i)).push(i);
   const add = (id, label, arr) => { if (arr.length) out.push({ id, label, items: arr, ...sumGroup(arr) }); };
@@ -601,9 +625,10 @@ function dvGroups() {
   const body = !groups.length ? (cmds.length ? '' : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>')
     : view === 'piles' ? `<div class="dv-piles">${groups.map((g, gi) => `<section class="dv-g dv-pile" data-g="${esc(g.id)}">${head(g)}${box(gi)}</section>`).join('')}</div>`
     : groups.map((g, gi) => `<section class="dv-g" data-g="${esc(g.id)}">${head(g)}${view === 'stacks' ? `<div class="dv-stk">${Array.from({ length: cols(g) }, (_, c) => box(gi, c)).join('')}</div>` : box(gi)}</section>`).join('');
-  const gw = $('.dv-groups', el);
+  const gw = $('.dv-groups', el), px = $('.dv-piles', gw), left = DV.anim || view !== 'piles' ? 0 : px ? (gw.dataset.view === 'piles' ? px.scrollLeft : 0) : DV.left || 0; DV.left = 0;      // redessin venu d'ailleurs (prix, rôles, images) : la position dans les piles est gardée ; nouveau tri ou nouvelle vue : on repart du début
+  const wait = DV.sort === 'role' && DV.roleWait && groups.length ? `<p class="hint dv-fcount dv-wait">${T('Chargement de la base du coach…')}</p>` : '';      // tri « Rôle » : groupes par coût en attendant la base du coach, annoncés
   gw.dataset.view = view;
-  gw.innerHTML = (act ? `<p class="hint dv-fcount">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: all.length })}${hidden ? ' · ' + (snap.ref ? T('{n} sans infos de type ou de coût (pas encore lues)', { n: hidden }) : T('{n} sans infos de type ou de coût (prix gardés avant cette version) : relance la recherche', { n: hidden })) : ''}</p>` : '') + body;
+  gw.innerHTML = wait + (act ? `<p class="hint dv-fcount">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: all.length })}${hidden ? ' · ' + (snap.ref ? T('{n} sans infos de type ou de coût (pas encore lues)', { n: hidden }) : T('{n} sans infos de type ou de coût (prix gardés avant cette version) : relance la recherche', { n: hidden })) : ''}</p>` : '') + body;
   let n = DV.flat.length;
   groups.forEach((g, gi) => {
     const nc = cols(g), per = Math.ceil(g.items.length / nc), frags = Array.from({ length: nc }, () => document.createDocumentFragment());
@@ -611,6 +636,7 @@ function dvGroups() {
     frags.forEach((f, c) => { const b = gw.querySelector(`[data-gi="${gi}"][data-c="${c}"]`); if (b) b.appendChild(f); });
   });
   if (sc && keep) sc.scrollTop = keep;
+  if (left) $('.dv-piles', gw).scrollLeft = left;
   if (DV.anim) { DV.anim = false; stagger($$('.dv-grid, .dvp, .dv-strips', el).slice(0, 3), $('.dv-cmds', el)); }      // cascade sur les premiers groupes seulement (les suivants sont hors écran)
 }
 function dvRender() {
@@ -621,7 +647,7 @@ function dvRender() {
     $('.dv-body', el).innerHTML = '<div class="dv-empty"><b>' + T('Ce deck est vide') + '</b><p>' + T('Ajoute des cartes à la liste pour les voir ici.') + '</p></div>';
     $('.dv-title span', el).textContent = ''; foot.hidden = !DV.deckId; edit.hidden = DV.live || !DV.deckId; refresh.hidden = true; close.hidden = !DV.live && !DV.adhoc; dvSavePaint(); return;
   }
-  if (DV.framed !== snap) { dvFrame(snap); DV.framed = snap; dvPubPaint(); }
+  if (DV.framed !== snap) { const px = $('.dv-piles', el); DV.left = px ? px.scrollLeft : 0; dvFrame(snap); DV.framed = snap; dvPubPaint(); }      // cadre refait : la position dans les piles est reprise par dvGroups
   dvGroups();
   // relevé de référence : « Chercher les offres » seulement s'il reste des cartes à acheter (tout possédé : rien à chercher)
   const ref = !!snap.ref, todo = ref && snap.items.some(i => i.s !== 'basic' && i.q > (i.ow || 0));
@@ -781,11 +807,11 @@ function openHand() {
     let hand = [];
     const paint = () => {
       const lands = hand.filter(isLand).length, max = Math.max(...odds);
-      api.body.innerHTML = `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(it.n)}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? `<img alt="" decoding="async" src="${esc(dvImg(it))}">` : ''}</span></button>`).join('')}</div>
+      imgKeep(api.body, `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(it.n)}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? `<img alt="" decoding="async" src="${esc(dvImg(it))}">` : ''}</span></button>`).join('')}</div>
         <p class="hand-sum"><b>${TN(lands, '{n} terrain', '{n} terrains')}</b> · ${TN(7 - lands, '{n} sort', '{n} sorts')}</p>
         <h3 class="cs-h">${T('Terrains en main de départ')} <small>${T('sur 7 cartes')}</small></h3>
         <div class="odds" role="img" aria-label="${odds.map((p, k) => TN(k, '{n} terrain : {p}', '{n} terrains : {p}', { p: pctTxt(p) })).join(', ')}">${odds.map((p, k) => `<div class="odd${k === lands ? ' on' : ''}"><span>${k}</span><i style="--w:${(p / max * 100).toFixed(1)}%"></i><b>${pctTxt(p)}</b></div>`).join('')}</div>
-        <p class="hint">${T('Entre 2 et 4 terrains : {p} des mains.', { p: pctTxt(odds[2] + odds[3] + (odds[4] || 0)) })}${unknown ? ' ' + TN(unknown, '{n} carte au type pas encore lu, comptée comme sort.', '{n} cartes au type pas encore lu, comptées comme sorts.') : ''}</p>`;
+        <p class="hint">${T('Entre 2 et 4 terrains : {p} des mains.', { p: pctTxt(odds[2] + odds[3] + (odds[4] || 0)) })}${unknown ? ' ' + TN(unknown, '{n} carte au type pas encore lu, comptée comme sort.', '{n} cartes au type pas encore lu, comptées comme sorts.') : ''}</p>`);
     };
     const deal = () => { hand = drawHand(lib, 7); paint(); stagger($('.hand-grid', api.body)); };
     api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn" type="button" data-act="redeal">${T('Nouvelle main')}</button>`);

@@ -58,6 +58,21 @@ document.addEventListener('pointermove', tiltMove, { passive: true });
 document.addEventListener('pointerdown', tiltMove, { passive: true });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'scroll']) document.addEventListener(ev, e => { if (ev !== 'pointerup' || e.pointerType !== 'mouse') { tiltReset(MO.tilt); MO.tilt = null; } }, { passive: true, capture: ev === 'scroll' });
 
+/* ── Images de cartes : une image déjà chargée revient sans fondu ; une vignette chargée hors du document est rattrapée ──
+   Les conteneurs posent la classe .ok sur l'événement load (écouteur en capture) : une vignette gardée puis déplacée (viewer, tri, filtre, changement de vue)
+   qui finit de charger pendant qu'elle est détachée rate cet événement et resterait transparente ; un repeint (innerHTML) refait chaque image et relançait son fondu. */
+const IMG_SEEN = new Set();
+document.addEventListener('load', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.naturalWidth) { if (IMG_SEEN.size > 4000) IMG_SEEN.clear(); IMG_SEEN.add(t.getAttribute('src')); } }, true);
+/** Attribut de classe d'une image de carte : « ok » d'emblée si cette adresse a déjà été chargée (cache du navigateur : pas de fondu, pas de clignotement). */
+const imgOkAttr = u => (u && IMG_SEEN.has(u) ? ' class="ok"' : '');
+/** Images d'un nœud remis dans le document : chargées entre-temps → .ok ; en échec → retirées (la lettre d'attente reste), comme le ferait l'écouteur error. */
+function imgSettle(root) {
+  for (const im of root.querySelectorAll('img')) {
+    if (!im.complete || im.classList.contains('ok') || !im.getAttribute('src') || im.ownerDocument !== document) continue;      // image d'un modèle (template) : jamais chargée, pas en échec
+    if (im.naturalWidth) im.classList.add('ok'); else im.remove();
+  }
+}
+
 /* ── Entrées en cascade ── */
 /** Rejoue l'arrivée en cascade des enfants de chaque conteneur (listes, grilles) : seulement à l'ouverture d'un écran, d'un onglet, d'un tri. */
 function stagger(...els) {

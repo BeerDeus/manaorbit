@@ -1595,13 +1595,17 @@ html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
 /* ── Deck viewer : vues (grille, piles façon MTG Arena, piles compactes, bandeaux) et pastille Game Changer ── */
 .dv-tools{position:sticky;top:8px;z-index:3;display:flex;align-items:center;gap:8px}
 .dv-tools .dv-seg{position:static;flex:1;min-width:0}
-.dv-vw{flex:none;display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--surface-2);box-shadow:var(--shadow),inset 0 0 0 1px var(--line)}
-.dv-vw button{width:34px;height:34px;display:grid;place-items:center;padding:0;border:0;border-radius:11px;background:transparent;color:var(--ink-3);transition:background .15s,color .15s}
+.dv-tools .seg-opt,.bd-tools .seg-opt{padding-left:2px;padding-right:2px}      /* libellés courts : la place va au texte (sinon la grille du tri déborde sous les vues) */
+.dv-tools.t2,.bd-tools.t2{flex-wrap:wrap}      /* libellés du tri trop serrés (texte agrandi ×1,3, langue longue : toolsFit) : les vues passent dessous au lieu d'être recouvertes */
+.dv-tools.t2 .dv-seg,.bd-tools.t2 .bd-sort{flex-basis:100%}
+.dv-vw{flex:none;margin-left:auto;display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--surface-2);box-shadow:var(--shadow),inset 0 0 0 1px var(--line)}
+.dv-vw button{width:34px;height:40px;display:grid;place-items:center;padding:0;border:0;border-radius:11px;background:transparent;color:var(--ink-3);transition:background .15s,color .15s}
 .dv-vw button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
 .dv-vw button[aria-checked="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(16,21,43,.18)}
 .dvc-tl{position:absolute;top:14%;left:7%;z-index:1;display:flex;gap:4px;align-items:center}      /* sous la bande du titre, sur l'illustration : le nom reste lisible */
 .dvc-tl .dvc-l{position:static}
 .dvc-gc{flex:none;height:19px;padding:0 5px;display:inline-grid;place-items:center;border-radius:6px;background:linear-gradient(135deg,#6d3cff,#c43cff);color:#fff;font:700 10px/1 var(--font-mono);letter-spacing:.05em;box-shadow:0 0 0 1.5px rgba(255,255,255,.6),0 2px 6px rgba(80,20,160,.45)}
+.dv .fbtn,.dv .fsearch{-webkit-backdrop-filter:none;backdrop-filter:none;background-color:var(--surface)}      /* viewer et éditeur : fond plein (le flou d'arrière-plan sur des centaines de cartes coûte au défilement, et la WebView Android le dessinait parfois en rectangle vide) */
 /* Piles : colonnes côte à côte, défilement de côté ; chaque carte ne laisse dépasser que son titre (≈ 16 % de sa largeur), la dernière en entier */
 .dv-groups[data-view="piles"]{margin:0 -16px}
 .dv-piles{display:flex;gap:12px;overflow-x:auto;padding:2px 16px 12px;scroll-snap-type:x proximity;scroll-padding:0 16px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none}

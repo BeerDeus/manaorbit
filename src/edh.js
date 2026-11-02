@@ -397,7 +397,7 @@ async function edhImages(entries, seed) {
   return out;
 }
 function edhPaintThumbs(root, m) {
-  for (const th of $$('.thumb[data-ik]', root)) { const u = m.get(th.dataset.ik); if (u && !$('img', th)) { const im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.src = u; th.appendChild(im); } }
+  for (const th of $$('.thumb[data-ik]', root)) { const u = m.get(th.dataset.ik); if (u && !$('img', th) && !th.dataset.err) { const im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.src = u; th.appendChild(im); } }
 }
 const edhBracketNote = r => r.gc.length ? T('Game Changers : {list}', { list: r.gc.join(', ') }) : T('Aucun Game Changer');
 
@@ -492,11 +492,19 @@ function openEdhDeck(r) {
       else if (b.dataset.act === 'dkana' && typeof openDeckAnalysis === 'function') { api.close(); setTimeout(() => openDeckAnalysis({ text: edhDeckText(r.deck), name: edhSaveName(r) }), 200); }      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)      // viewer : images, courbe, main de départ, partage, « Enregistrer dans mes decks » (même nom que la feuille)
       else shareDeck({ text: edhDeckText(r.deck), name });
     };
-    let imgs = new Map(), settled = false;
+    let imgs = new Map(), settled = false, tries = 0;
     api.body.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
-    api.body.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
+    api.body.addEventListener('error', e => { const im = e.target; if (im.tagName !== 'IMG') return; if (im.parentNode && im.parentNode.dataset) im.parentNode.dataset.err = '1'; im.remove(); }, true);      // image absente : la lettre reste, sans nouvel essai
     const seed = new Map(); if (c.img) seed.set(c.keys[0], c.img);
-    edhImages([...r.missing, ...r.owned].map(x => [x.k, x.n]), seed).then(m => { imgs = m; settled = true; if (api.wrap.isConnected) edhPaintThumbs(api.body, m); });
+    const ents = [...r.missing, ...r.owned].map(x => [x.k, x.n]);
+    // Scryfall en pause (limite de débit) ou injoignable à l'ouverture : les aperçus manquants sont redemandés tant que la feuille est ouverte (4 fois au plus)
+    const load = () => edhImages(ents, seed).then(m => {
+      imgs = m; if (!api.wrap.isConnected) return;
+      edhPaintThumbs(api.body, m);
+      const left = ents.some(([k]) => !m.has(k) && EDH.im.get(k) === undefined);
+      settled = !left || tries >= 4; if (!settled) { tries++; setTimeout(load, Math.max(scryLeft(), 2500) + 500); }
+    });
+    load();
     const open = rw => {
       const u = imgs.get(rw.dataset.ik); if (!u) { toast(settled ? T('Pas d\'aperçu pour cette carte') : T('Aperçus en cours de chargement…')); return; }
       const items = []; let at = 0;
@@ -557,7 +565,7 @@ let edhQT = 0;
 function edhInput(e) {
   const i = e.target && e.target.closest && e.target.closest('#dkQ'); if (!i) return false;
   EDH.q = i.value; EDH.shown = 30; const x = $('.fclear', i.parentNode); if (x) x.hidden = !i.value;
-  clearTimeout(edhQT); edhQT = setTimeout(() => { const res = COLL.el && $('.dk-res', COLL.el); if (res && EDH.data) { res.innerHTML = edhResHtml(); edhThemesSync(); } }, 120);
+  clearTimeout(edhQT); edhQT = setTimeout(() => { const res = COLL.el && $('.dk-res', COLL.el); if (res && EDH.data) { imgKeep(res, edhResHtml()); edhThemesSync(); } }, 120);
   return true;
 }
 /** Filtre « Joués en commandant » sans données : chargement en cours, ou erreur avec repli sur « Peuvent l'être ». */

@@ -72,7 +72,7 @@ function dksPaint() {
     else if (!shown.length) html += '<div class="deck-empty">' + T('Aucun deck ne correspond à ces filtres.') + '</div>';
   }
   const host = $('#deckList', el);
-  if (host.__html !== html) { host.innerHTML = html; host.__html = html; }
+  if (host.__html !== html) { imgKeep(host, html); host.__html = html; }      // couvertures déjà là : gardées telles quelles (prix ou date changés)
   shown.forEach(d => D.seen.add(d.id));
   dvSoon(all, DKS.fresh ? 120 : 900); DKS.fresh = false;
 }

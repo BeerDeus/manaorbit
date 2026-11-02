@@ -4,6 +4,23 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let RM_MQ = null;      // une seule MediaQueryList (matches suit le réglage du téléphone) : reduceMotion est lu à chaque mouvement du doigt (motion.js › tiltMove)
 const reduceMotion = () => { try { return (RM_MQ || (RM_MQ = window.matchMedia('(prefers-reduced-motion: reduce)'))).matches; } catch (e) { return false; } };
+/** Image déjà chargée (cache, ou chargée hors du DOM : son « load » n'a atteint aucun écouteur) : .ok tout de suite, sans fondu depuis la lettre. */
+const imgDone = im => { if (im.complete && im.naturalWidth > 0 && !im.classList.contains('ok')) im.classList.add('ok'); };
+/** Repeint host par innerHTML sans faire clignoter ses images : chaque <img> du nouveau contenu dont l'adresse était déjà là reprend l'ancien nœud
+ *  (attributs du nouveau, .ok gardé : ni fondu depuis la lettre, ni chargement perdu) ; une image neuve déjà en cache est montrée tout de suite (imgDone). */
+function imgKeep(host, html) {
+  const old = new Map(); for (const im of host.getElementsByTagName('img')) { const u = im.getAttribute('src'); if (u && !old.has(u) && !(im.complete && !im.naturalWidth)) old.set(u, im); }      // image en erreur : pas reprise (le nouveau nœud refait son erreur, et l'écran sa lettre ou son repli)
+  host.innerHTML = html;
+  for (const im of [...host.getElementsByTagName('img')]) {
+    const u = im.getAttribute('src'), o = u ? old.get(u) : null;
+    if (!o) { imgDone(im); continue; }
+    old.delete(u); const ok = o.classList.contains('ok');
+    for (const a of [...o.attributes]) if (!im.hasAttribute(a.name)) o.removeAttribute(a.name);
+    for (const a of [...im.attributes]) if (o.getAttribute(a.name) !== a.value) o.setAttribute(a.name, a.value);      // src identique : rien n'est relu
+    if (ok) o.classList.add('ok');
+    im.replaceWith(o); imgDone(o);
+  }
+}
 // Noms des langues de cartes, déjà traduits (« français » / « French ») : on les insère dans des phrases traduites (T('Offres en {lang}', …)).
 const LANGS = { fr: T('français'), en: T('anglais'), de: T('allemand'), es: T('espagnol'), it: T('italien'), pt: T('portugais'), jp: T('japonais'), 'zh-CN': T('chinois simplifié'), ru: T('russe'), kr: T('coréen'), 'zh-TW': T('chinois traditionnel') };      // kr, zh-TW : codes CardTrader (comme jp, zh-CN)
 const FLAGS = {
@@ -718,12 +735,12 @@ function updateRow(el, c, v, st) {
   el.classList.toggle('is-missing', v.s === 'none' || v.s === 'notfound' || v.s === 'nohub');
   el.classList.toggle('is-own', v.s === 'own');
   if (v.s === 'loading') {
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="sk meta"></span></span><span class="row-price"><span class="sk price"></span></span>`;
+    imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="sk meta"></span></span><span class="row-price"><span class="sk price"></span></span>`);
   } else if (v.s === 'own') {
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${c.qty > 1 ? `<span class="tag accent">× ${c.qty}</span>` : ''}<span class="tag good">${T('Dans ta collection')}</span></span></span><span class="row-price"><span class="tag good">${T('Possédée')}</span></span>`;
+    imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${c.qty > 1 ? `<span class="tag accent">× ${c.qty}</span>` : ''}<span class="tag good">${T('Dans ta collection')}</span></span></span><span class="row-price"><span class="tag good">${T('Possédée')}</span></span>`);
   } else if (v.s === 'ok' && top.cm) {
     const n = pick.parts.reduce((a, p) => a + p.n, 0);
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}<span class="tag">${mkName()}</span>${top.set ? `<span class="tag">${esc(top.set.toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>` : ''}</span><span class="row-seller">${T('Tendance')}${n > 1 ? ' · ' + n + ' × ' + fmt(top.price) : ''}</span></span><span class="row-price"><b>${fmt(pick.cost)}</b></span>`;
+    imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}<span class="tag">${mkName()}</span>${top.set ? `<span class="tag">${esc(top.set.toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>` : ''}</span><span class="row-seller">${T('Tendance')}${n > 1 ? ' · ' + n + ' × ' + fmt(top.price) : ''}</span></span><span class="row-price"><b>${fmt(pick.cost)}</b></span>`);
   } else if (v.s === 'ok') {
     const tags = [];
     tags.push(`<span class="tag">${esc((top.set || '').toUpperCase())}${top.num ? ' ' + esc(top.num) : ''}</span>`);
@@ -735,7 +752,7 @@ function updateRow(el, c, v, st) {
     if (ri) tags.push(`<span class="tag ref ${ri.level}" title="${esc(T('Prix de référence Cardmarket par exemplaire (donné par Scryfall) : {ref}. Ton prix : {unit}.', { ref: fmt(ri.ref), unit: fmt(ri.unit) }))}">${mkAb()} ${esc(fmt(ri.ref))}${ri.level === 'warn' ? ' · +' + T('{n} %', { n: ri.pct }) : ''}</span>`);
     const n = pick.parts.reduce((a, p) => a + p.n, 0);
     const small = pick.parts.length === 1 && n > 1 ? `${n} × ${fmt(top.price, top.cur)}` : '';
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}${lnTag}${tags.join('')}</span><span class="row-seller">${esc(top.seller)}${top.country ? ' · ' + esc(top.country) : ''}</span></span><span class="row-price"><b${prevCost != null && prevCost !== pick.cost ? ' class="flash"' : ''}>${fmt(pick.cost, top.cur)}</b>${small ? `<small>${small}</small>` : ''}</span>`;
+    imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${qty}${ownTag}${lnTag}${tags.join('')}</span><span class="row-seller">${esc(top.seller)}${top.country ? ' · ' + esc(top.country) : ''}</span></span><span class="row-price"><b${prevCost != null && prevCost !== pick.cost ? ' class="flash"' : ''}>${fmt(pick.cost, top.cur)}</b>${small ? `<small>${small}</small>` : ''}</span>`);
   } else {
     const msg = v.s === 'notfound' ? (c.amb ? (FRX.l === 'fr' ? T('Nom français de plusieurs cartes : {list}. Écris le nom anglais.', { list: c.amb.join(' · ') }) : T('Nom en {lang} de plusieurs cartes : {list}. Écris le nom anglais.', { list: c.amb.join(' · '), lang: LANGS[FRX.l] || FRX.l })) : T('Nom introuvable, vérifie l\'orthographe'))
       : v.s === 'none' && isCm() ? T('Pas de prix Cardmarket connu')
@@ -743,7 +760,7 @@ function updateRow(el, c, v, st) {
       : v.s === 'nohub' ? T('Aucune offre compatible Zero')
         : lnOn(c) ? lnMiss(c, st)      // « Aucune offre foil en français » : critères de la ligne
           : (st && st.fellBack ? T('Aucune offre, même en anglais') : T('Aucune offre en {lang}', { lang: langName }));
-    el.innerHTML = `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span>${ownTag || lnTag ? `<span class="row-meta">${ownTag}${lnTag}</span>` : ''}<span class="row-miss">${esc(msg)}</span></span><span class="row-price">${v.s === 'stale' ? '' : `<span class="tag">${v.s === 'notfound' ? T('Erreur') : T('Voir')}</span>`}</span>`;
+    imgKeep(el, `${thumb}<span class="row-main"><span class="row-name">${esc(nm)}</span>${ownTag || lnTag ? `<span class="row-meta">${ownTag}${lnTag}</span>` : ''}<span class="row-miss">${esc(msg)}</span></span><span class="row-price">${v.s === 'stale' ? '' : `<span class="tag">${v.s === 'notfound' ? T('Erreur') : T('Voir')}</span>`}</span>`);
   }
 }
 

@@ -81,7 +81,7 @@ function lotPaintCard() {
   const edBtn = c.pick ? `${setIcHtml(set)}<span><b>${esc(sn || set.toUpperCase())}</b><small>${esc(set.toUpperCase())} · #${esc(c.pick.num)}${c.pick.fx.length ? ' · ' + esc(c.pick.fx.join(', ')) : ''}</small></span>`
     : `<span><b>${c.prints ? (c.prints.length ? T('Choisir l\'édition') : T('Aucune édition trouvée')) : c.err ? T('Éditions indisponibles') : T('Éditions…')}</b><small>${T('Édition non précisée')}</small></span>`;
   const own = collQty(c.k), edit = LOT.edit && LOT.list.find(x => x.id === LOT.edit);
-  el.innerHTML = `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" src="${esc(lotImg(c))}"></button>
+  imgKeep(el, `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" src="${esc(lotImg(c))}"></button>
       ${eu != null ? `<span class="lot-px">${set ? setIcHtml(set) : ''}<b>${esc(fmt(eu, mkCur()))}</b></span>` : ''}</div>
     <div class="lot-f">
       <div class="lot-name"><b>${esc(dn)}</b>${dn !== c.n ? `<small>${esc(c.n)}</small>` : ''}${own ? `<em>${T('{n} dans ta collection', { n: nf0(own) })}</em>` : ''}</div>
@@ -91,7 +91,7 @@ function lotPaintCard() {
       <div class="lot-row"><span>${T('Foil')} ✦</span><button type="button" class="lot-foil" data-act="foil" role="switch" aria-checked="${!!c.f}" aria-label="${T('Exemplaires foil')}"><span class="switch" aria-hidden="true"><i></i></span></button></div>
       <label class="lot-row lang"><span>${T('Langue')}</span><span class="sel"><select class="lot-lang" aria-label="${T('Langue des exemplaires ajoutés')}"><option value="">${T('Celle de la carte')}</option>${CARD_LANG_LIST.map(x => { const t = T(LANGS[x]); return `<option value="${x}"${x === c.l ? ' selected' : ''}>${esc(t[0].toUpperCase() + t.slice(1))}</option>`; }).join('')}</select></span></label>
       <div class="lot-go"><button class="btn" type="button" id="lotAdd" data-act="add">${edit ? T('Enregistrer') : '+ ' + T('Ajouter')}</button>${edit ? `<button class="btn ghost" type="button" data-act="cancel">${T('Annuler')}</button>` : ''}</div>
-    </div>`;
+    </div>`);
 }
 /** Choix de l'édition : toutes les impressions de la carte (dans sa langue, puis celles qui n'existent qu'en anglais), symbole, extension, numéro, prix ; « Sans édition ». */
 function lotEdSheet() {
@@ -173,7 +173,7 @@ function lotPaintList() {
   const el = LOT.el; if (!el) return;
   const box = $('.lot-list', el), h = $('.lot-lh', el);
   h.hidden = !LOT.list.length;
-  box.innerHTML = LOT.list.length ? LOT.list.map(lotRowHtml).join('') : `<p class="hint lot-empty">${T('Les cartes ajoutées apparaissent ici, avec leur édition et leur prix. Tu peux aussi les scanner.')}</p>`;
+  imgKeep(box, LOT.list.length ? LOT.list.map(lotRowHtml).join('') : `<p class="hint lot-empty">${T('Les cartes ajoutées apparaissent ici, avec leur édition et leur prix. Tu peux aussi les scanner.')}</p>`);
 }
 /** Suggestions sous le champ de recherche (mêmes que « Ajouter une carte »). */
 function lotSuggest() {
