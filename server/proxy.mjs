@@ -12,7 +12,7 @@ import { readFile, writeFile, mkdir, rename, stat, readdir, unlink } from 'node:
 import { createRequire } from 'node:module';
 import { gunzipSync, gzipSync, gzip, gunzip, brotliCompress, constants as zc } from 'node:zlib';
 import { promisify } from 'node:util';
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync, renameSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { reqMeter, reqFam, loadMeter, dirStat, memLimit, memNow, level as lvOf } from './srv-stat.mjs';      // santé du serveur (/admin › Serveur)
@@ -2875,7 +2875,7 @@ const DATA_BOOT = { first: 0, boots: 0, err: '', recent: [] };
   } catch (e) { /* premier démarrage avec ce dossier */ }
   let b = ''; try { b = PAGE ? (/const DD_BUILD = '([\w-]+)'/.exec(await readFile(PAGE, 'utf8')) || ['', ''])[1] : ''; } catch (e) { /* page absente */ }
   if (!DATA_BOOT.first) DATA_BOOT.first = now; DATA_BOOT.boots++; DATA_BOOT.recent.push({ t: now, b, v: await codeId() });
-  try { await mkdir(EDH_DIR, { recursive: true }); await writeFile(f, JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: now, recent: DATA_BOOT.recent })); } catch (e) { DATA_BOOT.err = String(e && e.code || e); }
+  try { await mkdir(EDH_DIR, { recursive: true }); await writeFile(f + '.tmp', JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: now, recent: DATA_BOOT.recent })); await rename(f + '.tmp', f); } catch (e) { DATA_BOOT.err = String(e && e.code || e); }      // écrit à côté puis renommé : jamais lu à moitié écrit
 })();
 /** Empreinte du code servi : commit git s'il est lisible (déploiement par import Git), sinon empreinte de la page et des modules du serveur (*.mjs, *.cjs). */
 async function codeId() {
@@ -2893,7 +2893,7 @@ async function codeId() {
 /** Arrêt propre (relance depuis hPanel, mise en veille ou redéploiement par l'hébergeur) : noté dans boot.json pour que le démarrage suivant ne compte pas comme imprévu. */
 function bootStop(sig) {
   const r = DATA_BOOT.recent[DATA_BOOT.recent.length - 1];
-  if (r && !r.s) { r.s = Date.now(); try { writeFileSync(join(EDH_DIR, 'boot.json'), JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: r.t, recent: DATA_BOOT.recent })); } catch (e) { /* disque indisponible */ } }
+  if (r && !r.s) { r.s = Date.now(); try { const f = join(EDH_DIR, 'boot.json'); writeFileSync(f + '.tmp', JSON.stringify({ first: DATA_BOOT.first, boots: DATA_BOOT.boots, last: r.t, recent: DATA_BOOT.recent })); renameSync(f + '.tmp', f); } catch (e) { /* disque indisponible */ } }
   process.removeAllListeners(sig); process.kill(process.pid, sig);      // arrêt immédiat comme sans écouteur (process.exit attendrait la compression en cours, plusieurs secondes)
 }
 for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => bootStop(sig));
