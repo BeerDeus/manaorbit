@@ -123,11 +123,12 @@ function openCardViewer(items, index) {
   const lk = l => ({ ja: 'jp', ko: 'kr', zhs: 'zh-CN', zht: 'zh-TW' }[l] || l);
   /** Note « version anglaise » dans la langue voulue l (texte français inchangé ; allemand, espagnol… nommés) ; miss : Scryfall n'a pas cette langue (sinon : image en échec). */
   const noImg = (l, miss) => { const c = lk(l); return c === 'fr' || !c ? T(miss ? 'Pas d\'image française sur Scryfall : version anglaise' : 'Image française indisponible : version anglaise') : T(miss ? 'Pas d\'image en {lang} sur Scryfall : version anglaise' : 'Image en {lang} indisponible : version anglaise', { lang: LANGS[c] ? T(LANGS[c]) : c }); };
-  let vl = 'en', idx = Math.max(0, Math.min(items.length - 1, index | 0)), ctrl = null, urls = [], face = 0, it = null, lang = 'en', enBig = '', where = '', shown = 'en', vars = [], canSave = false, wantOpen = false, varT = 0, pickAt = -1;
+  let hideT = 0, fitRO = null, vl = 'en', idx = Math.max(0, Math.min(items.length - 1, index | 0)), ctrl = null, urls = [], face = 0, it = null, lang = 'en', enBig = '', where = '', shown = 'en', vars = [], canSave = false, wantOpen = false, varT = 0, pickAt = -1;
   const wl0 = items.find(x => x.wl && x.plain && (x.lang || 'en') === 'en');
   if (wl0) { const ord = [...items.slice(idx), ...items.slice(0, idx)].filter(x => x.wl === wl0.wl && x.plain && (x.lang || 'en') === 'en'); langvLoad().then(() => langvPrefetch(ord.map(x => x.ln || x.name), wl0.wl)); }      // les suivantes sont déjà là quand on glisse
   const api = imgView = { close() {
-    if (imgView !== api) return; imgView = null; if (ctrl) ctrl.abort(); clearTimeout(varT); if (fitRO) fitRO.disconnect();
+    if (imgView !== api) return; imgView = null; if (ctrl) ctrl.abort(); clearTimeout(varT); clearTimeout(hideT); if (fitRO) fitRO.disconnect();
+    document.documentElement.classList.remove('imgv-open');      // l'écran d'en dessous réapparaît pendant que la carte se referme
     if (idx === idx0 && fromEl && fromEl.isConnected) flipTo(card, fromEl.getBoundingClientRect(), 280);      // retour vers la vignette d'origine
     wrap.classList.remove('on'); document.removeEventListener('keydown', onKey, true);
     setTimeout(() => wrap.remove(), reduceMotion() ? 0 : 260);
@@ -282,11 +283,14 @@ function openCardViewer(items, index) {
   // Safari (iOS) peint les grandes images par tuiles : une image posée pendant l'animation d'ouverture (carte encore toute petite) ne gardait que
   // les tuiles peintes à ce moment (un coin de la carte). On force une nouvelle peinture de l'image à la fin de l'animation et après chaque chargement.
   function repaint() { if (!wrap.isConnected) return; for (const im of [img, ph]) { if (im.hidden) continue; im.style.display = 'none'; void im.offsetHeight; im.style.display = ''; } }
-  const fitRO = typeof ResizeObserver === 'function' ? new ResizeObserver(() => requestAnimationFrame(fit)) : null;
+  fitRO = typeof ResizeObserver === 'function' ? new ResizeObserver(() => requestAnimationFrame(fit)) : null;
   if (fitRO) for (const el of [wrap, ...[...wrap.children].filter(el => el !== card)]) fitRO.observe(el);
   requestAnimationFrame(() => requestAnimationFrame(() => { wrap.classList.add('on'); $('.imgv-x', wrap).focus({ preventScroll: true }); }));
   haptic('tap'); go(idx); fit();
   const an = flipFrom(card, from);      // la carte part de la vignette touchée
+  // Une fois la carte posée, l'écran d'en dessous est masqué (le fond est déjà presque opaque) : ses calques floutés (éditeur, coach, fiches, boutons
+  // « verre ») ne prennent plus de mémoire graphique ; sur Android (WebView), ils en prenaient tant que des tuiles de la carte restaient vides.
+  hideT = setTimeout(() => { if (imgView !== api) return; document.documentElement.classList.add('imgv-open'); requestAnimationFrame(repaint); }, an ? 480 : 280);
   if (an && an.finished) an.finished.then(repaint, () => {});
 }
 

@@ -494,6 +494,7 @@ select option,select optgroup{background-color:var(--surface);color:var(--ink)} 
 .thumb:has(img.ok){cursor:zoom-in}
 .imgv{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(var(--top-in) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);background:rgba(6,8,18,.94);opacity:0;transition:opacity .25s}      /* sans flou d'arrière-plan : sur Android (WebView), le flou plein écran épuisait la mémoire graphique et des tuiles de la carte restaient vides */
 .imgv.on{opacity:1}
+html.imgv-open body>:not(.imgv):not(#toast):not(script){visibility:hidden}      /* carte en grand posée : l'écran d'en dessous n'est plus composé (mémoire graphique du WebView Android) */
 .imgv-x{position:absolute;top:calc(var(--top-in) + 12px);right:12px;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff}
 .imgv-card{position:relative;flex:none;width:min(88vw,calc((100dvh - 200px) * .7179),460px);aspect-ratio:672/936;border-radius:5% / 3.6%;overflow:hidden;background:#1b2033;box-shadow:0 24px 60px -12px rgba(0,0,0,.7);transform:scale(.92);transition:transform .38s cubic-bezier(.2,.85,.25,1)}
 .imgv.on .imgv-card{transform:none}
