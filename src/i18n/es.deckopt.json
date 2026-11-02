@@ -75,5 +75,7 @@
  "Le meilleur compromis pour tes réglages": "El mejor compromiso para tus ajustes",
  "Sorts moins chers, plus de créatures, pression rapide": "Hechizos más baratos, más criaturas, presión rápida",
  "Plus d'interaction et de pioche, partie plus longue": "Más interacción y robo, partidas más largas",
- "Environ 55 % de la valeur de la version équilibrée": "Alrededor del 55 % del valor de la versión equilibrada"
+ "Environ 55 % de la valeur de la version équilibrée": "Alrededor del 55 % del valor de la versión equilibrada",
+ "va avec {card}": "va con {card}",
+ "Banc d'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.": "Banco de pruebas: en {n} mazos reales que nunca aprendió, el coach encuentra el {p} % de las cartas quitadas en sus 20 primeras sugerencias."
 }

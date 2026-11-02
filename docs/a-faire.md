@@ -12,6 +12,11 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Point du 2 novembre (nuit) : coach entraîné sur un corpus massif
+
+- « Base du coach » toutes les 6 h (5 h 20 par passage) : le corpus Archidekt grossit d'environ 15 000 decks par passage ; à surveiller dans `log.txt` de la branche `deck-corpus` (taille des fichiers, erreurs Archidekt, ligne « Banc d'essai »). Une fois 150 000 à 200 000 decks atteints, repasser à un passage par nuit (`cron` de `.github/workflows/deckdb.yml`).
+- Banc d'essai et réglage automatique des poids du coach à chaque passage ; paires de cartes dans les suggestions. Détails : `docs/deckbuilder/README.md` › Entraînement.
+
 ## Point du 2 novembre (soir) : CardTrader ouvert à tous en lecture, liste de souhaits
 
 - Réponse du support CardTrader (Anthony) : API publique, usage commercial permis, limites d'appel documentées (200 requêtes / 10 s par token, 10/s sur `marketplace/products`), certains appels en cache 24 h.

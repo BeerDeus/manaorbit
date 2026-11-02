@@ -1,27 +1,29 @@
 # Base de l'assistant de deck Commander (coach, src/deckwiz.js) : corpus de decks réels (Archidekt, les plus vus), pages commandant et thèmes EDHREC,
 # rôle de chaque carte (catégories Archidekt, Scryfall Tagger, texte), cibles par catégorie et cartes conseillées (gen-deckdb.mjs).
-# Chaque nuit ; le corpus du passage précédent est repris (incrémental : ce qui manque ou a vieilli est relu dans le budget de temps).
+# Toutes les 6 h (passages de 5 h 20 : le corpus Archidekt grossit d'environ 15 000 decks par passage, pages suivantes des commandants les plus joués) ;
+# le corpus du passage précédent est repris (incrémental). Chaque passage finit par l'analyse : agrégats, paires de cartes, banc d'essai et réglage
+# des poids du coach (bench-coach.mjs). Dépôt public : minutes d'Actions gratuites, 6 h au plus par passage.
 # Publié sur la branche « deck-corpus » (un seul commit, réécrit à chaque passage : pas d'historique qui gonfle le dépôt) :
-#   corpus.json.gz (base brute, reste sur GitHub), dkw.json.gz (agrégats relus par le serveur toutes les 6 h : server/dkw-srv.mjs), log.txt.
+#   corpus.json.gz et decks-<n>.json.gz (base brute, reste sur GitHub, 60 000 decks par fichier), dkw.json.gz (agrégats relus par le serveur toutes les 6 h : server/dkw-srv.mjs), log.txt.
 # Lancement manuel : onglet Actions › « Base du coach » › Run workflow (minutes = budget du passage).
 name: Base du coach
 on:
   schedule:
-    - cron: '13 1 * * *'      # se termine avant « Commandants EDHREC » (lundi et jeudi 4 h 41) : jamais deux lectures d'Archidekt en même temps
+    - cron: '13 1,7,13,19 * * *'      # file d'attente « archidekt » partagée avec « Commandants EDHREC » (edhrec.yml) : jamais deux lectures d'Archidekt en même temps
   workflow_dispatch:
     inputs:
       minutes:
         description: 'Budget du passage (minutes)'
-        default: '190'
+        default: '320'
 permissions:
   contents: write
 concurrency:
-  group: deckdb
+  group: archidekt
   cancel-in-progress: false
 jobs:
   deckdb:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,10 +34,12 @@ jobs:
       - name: Corpus du passage précédent (branche deck-corpus)
         run: |
           mkdir -p out
-          (git fetch -q --depth 1 origin deck-corpus && git show FETCH_HEAD:corpus.json.gz > out/corpus.json.gz) || { rm -f out/corpus.json.gz; echo "pas encore de corpus : il commence aujourd'hui"; }
+          if git fetch -q --depth 1 origin deck-corpus; then
+            for f in $(git ls-tree --name-only FETCH_HEAD | grep -E '^(corpus|decks-[0-9]+)\.json\.gz$'); do git show "FETCH_HEAD:$f" > "out/$f"; done
+          else echo "pas encore de corpus : il commence aujourd'hui"; fi
       - name: Générer corpus.json.gz et dkw.json.gz
         env:
-          DECKDB_MIN: ${{ inputs.minutes || '190' }}
+          DECKDB_MIN: ${{ inputs.minutes || '320' }}
         run: node --max-old-space-size=6144 gen-deckdb.mjs out 2>&1 | tail -n 400; exit ${PIPESTATUS[0]}
       - name: Erreur (dernières lignes du journal en annotation)
         if: failure()
@@ -49,5 +53,5 @@ jobs:
           git init -q && git checkout -q -b deck-corpus
           git config user.name "deck-deal-bot"
           git config user.email "deck-deal-bot@users.noreply.github.com"
-          git add README.md corpus.json.gz dkw.json.gz log.txt && git commit -qm "Base du coach : $(date -u +%F)"
+          git add README.md corpus.json.gz decks-*.json.gz dkw.json.gz log.txt && git commit -qm "Base du coach : $(date -u +%F)"
           for i in 1 2 3; do git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" deck-corpus && exit 0; sleep $((i * 10)); done; exit 1

@@ -75,5 +75,7 @@
  "Le meilleur compromis pour tes réglages": "The best compromise for your settings",
  "Sorts moins chers, plus de créatures, pression rapide": "Cheaper spells, more creatures, fast pressure",
  "Plus d'interaction et de pioche, partie plus longue": "More interaction and card draw, longer games",
- "Environ 55 % de la valeur de la version équilibrée": "About 55% of the balanced version's value"
+ "Environ 55 % de la valeur de la version équilibrée": "About 55% of the balanced version's value",
+ "va avec {card}": "goes with {card}",
+ "Banc d'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.": "Test bench: on {n} real decks it never learned from, the coach finds {p}% of the removed cards in its first 20 suggestions."
 }

@@ -15,7 +15,7 @@
 //     pages des thèmes généraux (tags/<thème>).
 //   - Scryfall : fichier « oracle cards » (toutes les cartes : coût, types, identité, texte, prix, Game Changer) et quelques recherches Tagger (otag:) pour les rôles.
 // Incrémental : le corpus précédent (DECKDB_PREV, défaut <sortie>/corpus.json.gz) est repris ; chaque passage complète ce qui manque ou a vieilli, dans son budget de temps.
-// Variables : DECKDB_MIN (budget total en minutes, 170) · DECKDB_ARCH_K (decks par commandant, 12) · DECKDB_CMDS (commandants couverts, 1500) · DECKDB_THEMES (thèmes EDHREC par commandant, 3)
+// Variables : DECKDB_MIN (budget total en minutes, 290) · DECKDB_ARCH_K (decks par commandant à la première recherche, 40 ; ensuite, pages suivantes des plus joués) · DECKDB_CMDS (commandants couverts, 1500) · DECKDB_THEMES (thèmes EDHREC par commandant, 3)
 //   DECKDB_EDH_DAYS (âge maximal d'une page EDHREC, 7) · DECKDB_ARCH_DAYS (âge maximal d'une recherche Archidekt, 21) · DECKDB_GLOBAL (decks les plus vus tous commandants, 1000)
 //   DECKDB_ARCH_OFF (1 : sans lecture d'Archidekt, passage court) · DECKDB_TAGGER (0 : sans recherches Tagger) · DECKDB_BULK (fichier oracle-cards local, facultatif ; 0 : sans, cartes lues par /cards/collection) · EDH_FILE (pwa/edh.bin.gz : liste des commandants et leurs thèmes) · bases : EDH_BASE, ARCH_BASE, SCRY_BASE.
 import { writeFileSync, readFileSync, existsSync, mkdirSync, appendFileSync, renameSync } from 'node:fs';
@@ -28,7 +28,7 @@ import { normKey, edhSlug, cardviewsOf, archidektList, archDay, GENERAL_THEMES }
 const here = dirname(fileURLToPath(import.meta.url));
 const UA = 'DeckDeal-deckdb/1.0 (+https://github.com/BeerDeus/manaorbit)';
 const env = (k, d) => (process.env[k] === undefined || process.env[k] === '' ? d : Number(process.env[k]));
-const BUDGET_MS = env('DECKDB_MIN', 170) * 60000, ARCH_K = env('DECKDB_ARCH_K', 12), CMDS_MAX = env('DECKDB_CMDS', 1500), THEMES_K = env('DECKDB_THEMES', 3);
+const BUDGET_MS = env('DECKDB_MIN', 290) * 60000, ARCH_K = env('DECKDB_ARCH_K', 40), CMDS_MAX = env('DECKDB_CMDS', 1500), THEMES_K = env('DECKDB_THEMES', 3);
 const TAGGER = env('DECKDB_TAGGER', 1) !== 0, EDH_DAYS = env('DECKDB_EDH_DAYS', 7), ARCH_DAYS = env('DECKDB_ARCH_DAYS', 21), GLOBAL_N = env('DECKDB_GLOBAL', 1000);
 const EDH_BASE = process.env.EDH_BASE || 'https://json.edhrec.com/pages/', ARCH_BASE = process.env.ARCH_BASE || 'https://archidekt.com/api/', SCRY = process.env.SCRY_BASE || 'https://api.scryfall.com/';
 const GAP = process.env.DECKDB_GAP === undefined ? null : Number(process.env.DECKDB_GAP);      // tests : espacement imposé (0 = aucun)
@@ -161,9 +161,28 @@ async function getJson(url, { gap = 350, tries = 4 } = {}) {
 /** Corpus vide ou précédent. names : dictionnaire des cartes ; meta[i] : { dc, ot: [étiquettes], uv: { rôle: votes }, ud: decks catégorisés } ; decks : id → deck ; edh : slug → page ; tags : thème → page ; srch : slug → jour de la recherche Archidekt. */
 export function corpusNew() { return { v: 1, at: '', names: [], meta: [], decks: {}, edh: {}, tags: {}, srch: {}, global: '' }; }
 export function corpusLoad(file) {
-  try { const j = JSON.parse(gunzipSync(readFileSync(file)).toString('utf8')); if (j && j.v === 1 && Array.isArray(j.names)) return { ...corpusNew(), ...j }; } catch (e) { if (existsSync(file)) log('  corpus précédent illisible (' + e.message + ') : on repart de zéro'); }
+  try {
+    const j = JSON.parse(gunzipSync(readFileSync(file)).toString('utf8'));
+    if (j && j.v === 1 && Array.isArray(j.names)) {
+      const C = { ...corpusNew(), ...j }; C.decks = C.decks || {};
+      for (let i = 0; i < (j.shards || 0); i++) {      // decks rangés à part (decks-0.json.gz…) : chaque fichier reste loin des 100 Mo de GitHub
+        const f = join(dirname(file), 'decks-' + i + '.json.gz');
+        try { Object.assign(C.decks, JSON.parse(gunzipSync(readFileSync(f)).toString('utf8'))); } catch (e) { log('  ' + f + ' illisible (' + e.message + ') : ses decks seront relus'); }
+      }
+      delete C.shards; return C;
+    }
+  } catch (e) { if (existsSync(file)) log('  corpus précédent illisible (' + e.message + ') : on repart de zéro'); }
   return corpusNew();
 }
+/** Corpus → fichiers : corpus.json.gz (sans les decks) et decks-<n>.json.gz (60 000 decks chacun). */
+export function corpusFiles(C) {
+  const ids = Object.keys(C.decks), per = 60000, shards = Math.ceil(ids.length / per), out = [];
+  for (let i = 0; i < shards; i++) { const part = {}; for (const id of ids.slice(i * per, (i + 1) * per)) part[id] = C.decks[id]; out.push(['decks-' + i + '.json.gz', gzipSync(Buffer.from(JSON.stringify(part)), { level: 9 })]); }
+  out.unshift(['corpus.json.gz', gzipSync(Buffer.from(JSON.stringify({ ...C, decks: {}, shards })), { level: 9 })]);
+  return out;
+}
+/** Deck mis de côté pour le banc d'essai (5 %, d'après son identifiant) : jamais utilisé pour apprendre (cibles, cartes du corpus, paires). */
+export const heldOut = d => Number(d.id) % 20 === 7;
 function ixer(C) {
   const m = new Map(C.names.map((n, i) => [normKey(n), i]));
   return n => { const k = normKey(n); let i = m.get(k); if (i === undefined) { i = C.names.length; C.names.push(n); C.meta.push({}); m.set(k, i); } else if (!C.names[i].includes('//') && n.includes('//')) C.names[i] = n; return i; };
@@ -298,6 +317,18 @@ async function archidektRun(C, cmds) {
     C.srch[c.slug] = new Date().toISOString(); nC++;
     if (err > 60 && !nKeep) throw new Error('Archidekt ne répond pas');
   }
+  // c) budget restant : pages suivantes des commandants les plus joués (le corpus grossit chaque nuit, 10 pages de 60 au plus par commandant)
+  C.depth = C.depth || {}; let nP = 0;
+  for (let round = 0; round < 10 && left() > BUDGET_MS * 0.08; round++) {
+    for (const { c } of cmds.slice(0, CMDS_MAX).map((c, i) => ({ c, i })).filter(x => (C.depth[x.c.slug] || 1) <= round + 1)) {
+      if (left() < BUDGET_MS * 0.08) break;
+      const page = (C.depth[c.slug] || 1) + 1; if (page > 10) continue;
+      const l = (await search({ commanderName: c.names[0], page: String(page) })).filter(x => !x.size || (x.size >= 95 && x.size <= 105)); nS++; nP++;
+      C.depth[c.slug] = l.length ? page : 99;      // plus de page : ce commandant est épuisé
+      for (const x of l) { if (left() < BUDGET_MS * 0.06) break; await fetchDeck(x.id, x); }
+    }
+  }
+  if (nP) log(`  Archidekt : ${nP} pages suivantes lues (commandants les plus joués)`);
   log(`  Archidekt : ${nC} commandants cherchés, ${nS} recherches, ${nD} decks lus, ${nKeep} gardés, ${err} erreurs ; corpus : ${Object.values(C.decks).filter(x => !x.skip).length} decks`);
 }
 
@@ -414,6 +445,41 @@ async function spellbook(C, max = 4000) {
 /* ── 5) Agrégats ────────────────────────────────────────────────────────────────────────────────── */
 const TYPE_BITS = [['Land', 1], ['Creature', 2], ['Artifact', 4], ['Enchantment', 8], ['Instant', 16], ['Sorcery', 32], ['Planeswalker', 64], ['Battle', 128], ['Legendary', 256]];
 export const typeBits = t => TYPE_BITS.reduce((a, [w, b]) => a | (new RegExp('\\b' + w + '\\b').test(String(t || '').split(' // ')[0]) ? b : 0), 0);
+/** Cartes qui vont ensemble : paires bien plus souvent dans les mêmes decks que le hasard ne le voudrait (lift = P(a et b) / (P(a) × P(b)) ≥ 3, 8 decks au moins).
+ *  Ni terrains, ni cartes présentes dans plus de 8 % des decks (Sol Ring, Command Tower… : partout, donc avec rien en particulier), ni les decks du banc d'essai.
+ *  Compte des paires dans une table à adressage ouvert (2^24 cases, ~130 Mo) : rapide même avec des centaines de milliers de decks.
+ *  Sortie : [[i, [j, lift × 10, j, lift × 10…]]] (indices de la table des cartes), 8 partenaires au plus par carte, les plus fiables d'abord. */
+export function pairsOf(C, info, cards) {
+  const decks = Object.values(C.decks).filter(d => !d.skip && d.c && !heldOut(d)), N = decks.length;
+  if (N < 300 || C.names.length > 65535) return [];
+  const cnt = new Uint32Array(C.names.length), land = i => { const x = info.get(normKey(C.names[i])); return !x || (x.roles & RB.land); };
+  for (const d of decks) for (const [i] of d.c) cnt[i]++;
+  const minS = Math.max(15, Math.round(N * 0.001)), maxS = N * 0.08, ok = new Uint8Array(C.names.length);
+  for (let i = 0; i < cnt.length; i++) ok[i] = cnt[i] >= minS && cnt[i] <= maxS && !land(i) ? 1 : 0;
+  const SIZE = 1 << 24, MASK = SIZE - 1, keys = new Uint32Array(SIZE), vals = new Uint32Array(SIZE); let used = 0;
+  for (const d of decks) {
+    const l = [...new Set(d.c.map(x => x[0]).filter(i => ok[i]))].sort((a, b) => a - b);
+    for (let x = 0; x < l.length; x++) for (let y = x + 1; y < l.length; y++) {
+      const k = (l[x] * 65536 + l[y] + 1) >>> 0; let h = Math.imul(k, 2654435761) >>> 8 & MASK;
+      while (keys[h] && keys[h] !== k) h = (h + 1) & MASK;
+      if (!keys[h]) { if (used > SIZE * 0.75) continue; keys[h] = k; used++; }
+      vals[h]++;
+    }
+  }
+  const best = new Map(), push = (a, b, lift, n) => { const l = best.get(a) || best.set(a, []).get(a); l.push([b, lift, lift * Math.log2(n)]); };
+  for (let h = 0; h < SIZE; h++) {
+    const n = vals[h]; if (n < 8) continue;
+    const k = keys[h] - 1, a = Math.floor(k / 65536), b = k % 65536, lift = n * N / (cnt[a] * cnt[b]);
+    if (lift >= 3) { push(a, b, lift, n); push(b, a, lift, n); }
+  }
+  const row = new Map(cards.map((r, i) => [normKey(r[0]), i])), out = [];
+  for (const [a, l] of best) {
+    const ia = row.get(normKey(C.names[a])); if (ia === undefined) continue;
+    const top = l.sort((x, y) => y[2] - x[2]).slice(0, 8).map(([b, lift]) => [row.get(normKey(C.names[b])), Math.round(Math.min(lift, 99) * 10)]).filter(([ib]) => ib !== undefined);
+    if (top.length) out.push([ia, top.flat()]);
+  }
+  return out;
+}
 /** Table des cartes et agrégats → objet dkw (voir l'en-tête). */
 export function aggregate(C, S, tagger, cmds) {
   const at = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
@@ -447,7 +513,7 @@ export function aggregate(C, S, tagger, cmds) {
   // profils des decks du corpus
   const profs = [], byCmd = new Map(), cmdOf = new Map(); for (const c of cmds) for (const n of c.names) cmdOf.set(normKey(n), c);
   for (const d of Object.values(C.decks)) {
-    if (d.skip || !d.c) continue;
+    if (d.skip || !d.c || heldOut(d)) continue;      // decks du banc d'essai : jamais appris
     const p = deckProfile(d.c.map(([i, qq]) => [normKey(C.names[i]), qq]), k => info.get(k)); if (p.n < 90) continue;
     const cm = cmdOf.get(normKey(C.names[d.cmd[0]] || '')); p.br = d.br; p.slug = cm ? cm.slug : ''; p.th = cm ? cm.themes.slice(0, 2).map(t => t[0]) : []; p.nc = cm ? cm.ci.length : 0; p.u = d.u;
     profs.push(p); if (p.slug) (byCmd.get(p.slug) || byCmd.set(p.slug, []).get(p.slug)).push(p);
@@ -462,14 +528,15 @@ export function aggregate(C, S, tagger, cmds) {
     const e = C.edh[c.slug], ps = byCmd.get(c.slug) || [];
     if ((!e || !e.cards || !e.cards.length) && ps.length < 3) continue;
     const corpus = new Map(); let nd = 0;
-    for (const d of Object.values(C.decks)) if (!d.skip && d.c && normKey(C.names[d.cmd[0]] || '') === normKey(c.names[0])) { nd++; for (const [i] of d.c) corpus.set(i, (corpus.get(i) || 0) + 1); }
+    for (const d of Object.values(C.decks)) if (!d.skip && d.c && !heldOut(d) && normKey(C.names[d.cmd[0]] || '') === normKey(c.names[0])) { nd++; for (const [i] of d.c) corpus.set(i, (corpus.get(i) || 0) + 1); }
     const edhNames = new Set((e && e.cards || []).map(x => normKey(x[0])));
     const extra = nd >= 3 ? [...corpus].filter(([i, n]) => n / nd >= 0.25 && !edhNames.has(normKey(C.names[i]))).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([i, n]) => [C.names[i], Math.round(100 * n / nd)]) : [];
     const th = {}; if (e && e.th) for (const [ts, p] of Object.entries(e.th)) if (p && p.cards && p.cards.length) th[ts] = { n: p.n, land: p.land, cards: p.cards.slice(0, 220) };
     cmd[c.slug] = { n: e ? e.n || 0 : 0, land: e ? e.land || 0 : 0, basic: e ? e.basic || 0 : 0, curve: e ? e.curve || null : null, br: e ? e.br || null : null, thl: e ? (e.thl || []).slice(0, 10) : [], cards: e ? (e.cards || []).slice(0, 320) : [], th, nd, xc: extra, tg: ps.length >= 8 ? statsOf(ps) : null };
   }
+  const pairs = pairsOf(C, info, cards);
   const themes = {}; for (const [s, p] of Object.entries(C.tags)) if (p && p.cards && p.cards.length) themes[s] = { n: p.n, cards: p.cards.slice(0, 250), cmds: (p.cmds || []).slice(0, 40) };
-  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, combos: Array.isArray(C.combos) ? C.combos : [], src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size } };
+  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, pairs, combos: Array.isArray(C.combos) ? C.combos : [], src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size } };
 }
 
 /* ── Principal ──────────────────────────────────────────────────────────────────────────────────── */
@@ -496,13 +563,19 @@ async function main() {
   if (px) { let n = 0; for (const [k, x] of S) { const p = px.get(k); const e = p ? p.e || Math.round((p.u || 0) * 0.92) : 0; if (e > 0 && e !== x.eur) { x.eur = e; n++; } } log(`  prix du jour : ${n} prix mis à jour`); }
   C.scry = {}; for (const [k, x] of S) C.scry[k] = scryPack(x);
   const D = aggregate(C, S, tagger, cmds);
-  const corpusBuf = gzipSync(Buffer.from(JSON.stringify(C)), { level: 9 }), dkwBuf = gzipSync(Buffer.from(JSON.stringify(D)), { level: 9 });
+  try {      // banc d'essai : le coach de l'appli face aux decks mis de côté, et réglage de ses poids (bench-coach.mjs)
+    const { benchCoach, heldFromCorpus } = await import('./bench-coach.mjs'), t = Date.now(), r = benchCoach(D, heldFromCorpus(C, heldOut));
+    if (r) { const b = r.bench; D.bench = b; if (r.w) D.w = r.w; log(`  Banc d'essai : ${b.n} decks jamais appris, ${b.hide} sorts retirés chacun · retrouvés dans les 10 / 20 / 40 premières suggestions : ${b.base.r10} / ${b.base.r20} / ${b.base.r40} %` + (b.kept ? ` → réglage ${b.tuned.r10} / ${b.tuned.r20} / ${b.tuned.r40} % (poids ${JSON.stringify(r.w)})` : ' (poids d\'origine gardés)') + ` · ${Math.round((Date.now() - t) / 1000)} s`); }
+    else log('  Banc d\'essai : pas encore assez de decks mis de côté');
+  } catch (e) { log('  Banc d\'essai indisponible (' + e.message + ')'); }
+  log(`  paires de cartes : ${(D.pairs || []).length} cartes avec des partenaires`);
+  const files = corpusFiles(C), dkwBuf = gzipSync(Buffer.from(JSON.stringify(D)), { level: 9 }), corpusBuf = { length: files.reduce((a, [, b]) => a + b.length, 0) };
   const nDecks = D.src.decks;
   if (D.cards.length < 5000 && !process.env.DECKDB_SMALL) throw new Error(`Table des cartes trop maigre (${D.cards.length}) : rien de publié`);
-  for (const [f, b] of [['corpus.json.gz', corpusBuf], ['dkw.json.gz', dkwBuf]]) { const p = join(OUT, f); writeFileSync(p + '.tmp', b); renameSync(p + '.tmp', p); }
+  for (const [f, b] of [...files, ['dkw.json.gz', dkwBuf]]) { const p = join(OUT, f); writeFileSync(p + '.tmp', b); renameSync(p + '.tmp', p); }
   const rolesN = ROLES.map((r, i) => `${r} ${D.cards.filter(c => c[4] & (1 << i)).length}`).join(', ');
   log(`Terminé en ${Math.round((Date.now() - T0) / 60000)} min : ${D.cards.length} cartes (${rolesN}), ${nDecks} decks analysés, ${Object.keys(D.cmd).length} commandants, ${Object.keys(D.themes).length} thèmes`);
   log(`  cibles (tous decks, médianes) : ${STAT_KEYS.map(k => `${k} ${D.tg.all[k] ? D.tg.all[k][1] : '-'}`).join(' · ')}`);
-  log(`  corpus.json.gz ${(corpusBuf.length / 1048576).toFixed(2)} Mo · dkw.json.gz ${(dkwBuf.length / 1048576).toFixed(2)} Mo`);
+  log(`  corpus (${files.length} fichier${files.length > 1 ? 's' : ''}) ${(corpusBuf.length / 1048576).toFixed(2)} Mo · dkw.json.gz ${(dkwBuf.length / 1048576).toFixed(2)} Mo`);
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main().catch(e => { log('ERREUR : ' + (e && e.stack || e)); process.exit(1); });

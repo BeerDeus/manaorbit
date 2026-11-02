@@ -23,7 +23,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: edhrec-${{ inputs.probe && 'probe' || 'main' }}
+  group: ${{ inputs.probe && 'edhrec-probe' || 'archidekt' }}      # « archidekt » : partagé avec « Base du coach » (deckdb.yml), jamais deux lectures d'Archidekt en même temps
   cancel-in-progress: false
 jobs:
   edhrec:

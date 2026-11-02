@@ -9,7 +9,8 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse } from '../gen-deckdb.mjs';
+import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse, pairsOf, corpusFiles, corpusLoad, heldOut } from '../gen-deckdb.mjs';
+import { benchCoach, coachVm } from '../bench-coach.mjs';
 import { normKey } from '../gen-edhrec.mjs';
 import { dkwSplit, dkwMake } from '../server/dkw-srv.mjs';
 const require = createRequire(import.meta.url);
@@ -96,7 +97,7 @@ test('agrégats : table des cartes, cibles, commandants, thèmes', () => {
   const C = corpusNew(); C.ucats = ['ramp', 'draw'];
   C.names = ['Atraxa, Praetors\' Voice', 'Sol Ring', 'Forest', 'Rhystic Study', 'Bear', 'Hardened Scales'];
   C.meta = [{}, { dc: 'Ramp', gc: 1 }, {}, { dc: 'Draw' }, {}, {}];
-  for (let i = 0; i < 30; i++) C.decks[i] = { id: i, cmd: [0], v: 10, u: '2026-10-01', br: i < 15 ? 2 : 4, n: 99, c: [[1, 1, 0], [2, 36 + (i % 3), -1], [3, 1, 1], [4, 61 - (i % 3), -1]] };
+  for (let i = 0; i < 30; i++) C.decks[i] = { id: i * 20 + 1, cmd: [0], v: 10, u: '2026-10-01', br: i < 15 ? 2 : 4, n: 99, c: [[1, 1, 0], [2, 36 + (i % 3), -1], [3, 1, 1], [4, 61 - (i % 3), -1]] };
   C.decks[99] = { id: 99, skip: 1 };
   C.edh['atraxa-praetors-voice'] = { at: '2026-10-01', n: 5000, land: 36, cards: [['Hardened Scales', 60, 42], ['Sol Ring', 95, -3]], thl: [['infect', 'Infect', 900]], th: { infect: { n: 900, cards: [['Hardened Scales', 30, 10]] } } };
   C.tags['plus-1-plus-1-counters'] = { at: '2026-10-01', n: 9000, cards: [['Hardened Scales', 70, 50]], cmds: [['atraxa-praetors-voice', 2000]] };
@@ -178,4 +179,43 @@ test('prix du jour (relevé de l\'appli) : impression la moins chère par carte,
   const m = pricesParse('#MOPX1 2026-11-02\nSol Ring\t180\t150\nSol Ring\t120\t0\nOvergrown Tomb\t0\t1500\nbad line\n');
   assert.deepEqual(m.get('sol ring'), { e: 120, u: 150 }); assert.deepEqual(m.get('overgrown tomb'), { e: 0, u: 1500 }); assert.equal(m.size, 2);
   assert.equal(pricesParse('pas un relevé'), null);
+});
+
+test('corpus en plusieurs fichiers : decks à part, relus ensemble ; decks du banc d\'essai (5 %)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dkc-')), C = corpusNew(); C.names = ['A', 'B']; C.meta = [{}, {}];
+  for (let i = 0; i < 130; i++) C.decks[i] = { id: i, cmd: [0], c: [[1, 1, -1]] };
+  const files = corpusFiles(C); assert.deepEqual(files.map(f => f[0]), ['corpus.json.gz', 'decks-0.json.gz']);
+  for (const [f, b] of files) writeFileSync(join(dir, f), b);
+  const L = corpusLoad(join(dir, 'corpus.json.gz')); assert.equal(Object.keys(L.decks).length, 130); assert.deepEqual(L.decks[7], C.decks[7]); assert.equal(L.shards, undefined);
+  assert.equal(JSON.parse(gunzipSync(files[0][1])).decks && Object.keys(JSON.parse(gunzipSync(files[0][1])).decks).length, 0, 'corpus.json.gz sans les decks');
+  assert.ok(heldOut({ id: 27 }) && !heldOut({ id: 28 }));
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('paires de cartes : bien plus souvent ensemble que le hasard (lift), ni terrains, ni cartes partout, ni decks du banc', () => {
+  const C = corpusNew(); C.names = ['Cmd', 'Sanguine Bond', 'Exquisite Blood', 'Sol Ring', 'Forest', ...Array.from({ length: 60 }, (_, i) => 'Filler ' + i)]; C.meta = C.names.map(() => ({}));
+  let seed = 3; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 600; i++) {
+    const c = [[3, 1, -1], [4, 30, -1]];      // Sol Ring et Forest partout
+    if (i % 20 === 0) c.push([1, 1, -1], [2, 1, -1]);      // les deux ensemble dans 5 % des decks
+    for (let f = 5; f < C.names.length; f++) if (r() < 0.2) c.push([f, 1, -1]);
+    C.decks[i] = { id: i * 20 + 1, cmd: [0], c };      // aucun deck du banc (id % 20 === 1)
+  }
+  const info = new Map(C.names.map(n => [normKey(n), { roles: n === 'Forest' ? RB.land : 0 }])), cards = C.names.map(n => [n]);
+  const P = new Map(pairsOf(C, info, cards).map(([a, l]) => [cards[a][0], l]));
+  assert.ok(P.has('Sanguine Bond') && cards[P.get('Sanguine Bond')[0]][0] === 'Exquisite Blood' && P.get('Sanguine Bond')[1] >= 150, 'Sanguine Bond → Exquisite Blood, lift ≈ 20');
+  assert.ok(!P.has('Sol Ring') && !P.has('Forest'), 'carte partout et terrain : sans paire');
+  assert.ok(![...P.keys()].some(k => /^Filler/.test(k) && P.get(k).some((v, i) => i % 2 === 1 && v >= 30)), 'cartes au hasard : pas de paire forte');
+});
+
+test('banc d\'essai : le coach de l\'appli dans une vm retrouve les cartes retirées, réglage gardé seulement s\'il fait mieux', () => {
+  const ctx = coachVm(); assert.equal(typeof ctx.dwSuggest, 'function');
+  const R = 1 << 1, cards = [['Cmd', 'G', 3, 2, 0, 100, 0, '', 50], ...Array.from({ length: 120 }, (_, i) => ['Card ' + i, 'G', 2, 2, i % 3 ? 0 : R, 50, 0, '', 100 + i]), ['Forest', 'G', 0, 1, 1, 0, 0, 'G', 0]];
+  const pack = { n: 5000, cards: Array.from({ length: 100 }, (_, i) => ['Card ' + i, 90 - i * 0.8, i < 50 ? 20 : 0]), th: {}, xc: [], tg: null };
+  const D = { v: 1, cards, tg: null, cmd: { cmd: pack }, combos: [], pairs: [[1, [2, 50]], [2, [1, 50]]] };
+  const held = Array.from({ length: 90 }, (_, d) => ({ cmdNames: ['Cmd'], br: 3, cards: [['Forest', 36], ...Array.from({ length: 60 }, (_, i) => ['Card ' + ((i * 7 + d) % 100), 1])] }));
+  const r = benchCoach(D, held, { max: 80 });
+  assert.ok(r && r.bench.n === 80 && r.bench.hide === 10, 'cas du banc');
+  assert.ok(r.bench.base.r40 > 20, 'les cartes retirées sont dans les suggestions : ' + JSON.stringify(r.bench.base));
+  assert.ok(r.bench.kept ? r.bench.tuned.r20 >= r.bench.base.r20 : r.w === null, 'réglage gardé seulement s\'il fait mieux');
 });
