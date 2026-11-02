@@ -15,9 +15,12 @@
 ## Point du 2 novembre : assistant de deck Commander, coach et analyse (fonctionnalité en test)
 **Fait (Claude, nuit du 1er au 2)** : README › « Assistant de deck Commander, coach et analyse » ; architecture `docs/deckbuilder/README.md` ; recherche chiffrée et sourcée `docs/deckbuilder/recherche.md`.
 - « Fonctionnalités en test » (Préférences, compte de l'éditeur, jusqu'au prochain démarrage) ; nouveau deck « J'ai déjà ce deck / Deck à construire » ; assistant ; onglet Coach ; « Analyser » dans le viewer (échanges conseillés, limite de prix globale).
-- Base de données : `gen-deckdb.mjs` + Actions « Base du coach » (chaque nuit) → branche `deck-corpus` (corpus brut + agrégats), relue par le serveur (`/api/dkw`). Premier passage lancé à la main la nuit du 2 novembre ; la couverture des commandants se complète nuit après nuit.
+- Base de données : `gen-deckdb.mjs` + Actions « Base du coach » (chaque nuit) → branche `deck-corpus` (corpus brut + agrégats), relue par le serveur (`/api/dkw`). Premier passage fait depuis la session de Claude la nuit du 2 novembre et poussé sur `deck-corpus` ; la couverture des commandants se complète nuit après nuit.
+- Tout est sur la branche `claude/deckbuilder-assistant-feature-u0c00l` (CI verte) : la session n'avait pas le droit de pousser sur `main` (déploiement en production).
 
 **Propriétaire**
+- [ ] Fusionner `claude/deckbuilder-assistant-feature-u0c00l` dans `main` (ou demander à Claude de le faire) : Hostinger redéploie, le serveur lit la base `deck-corpus` dans les secondes qui suivent son démarrage.
+- [ ] Après la fusion : GitHub › Actions › « Base du coach » › Run workflow (facultatif : sinon le passage de 1 h 13 UTC s'en charge la nuit suivante).
 - [ ] Tester : Compte et réglages › Préférences › Fonctionnalités en test › « Assistant de deck Commander », puis Mes decks › + (Commander › Deck à construire), l'onglet Coach d'un deck existant, et « Analyser » dans le viewer d'un deck « À monter ».
 - [ ] Vérifier dans GitHub › Actions › « Base du coach » que le passage de la nuit est vert, et `/admin` (serveur) ou `https://manaorbit.app/api/dkw` (réponse JSON) après la synchronisation (6 h au plus, ou redémarrage du serveur).
 - [ ] Dire ce qui manque ou gêne (cibles trop hautes ou basses, suggestions, textes) avant d'ouvrir la fonctionnalité à tous.

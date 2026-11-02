@@ -144,5 +144,7 @@
  "État du deck et échanges conseillés (fonctionnalité en test)": "Estado do deck e trocas sugeridas (recurso em teste)",
  "Analyser": "Analisar",
  "{n} catégorie sur {b} dans la norme": "{n} de {b} categorias dentro do normal",
- "{n} catégories sur {b} dans la norme": "{n} de {b} categorias dentro do normal"
+ "{n} catégories sur {b} dans la norme": "{n} de {b} categorias dentro do normal",
+ "Deck complet : pour chaque carte ajoutée, retires-en une (« Analyser » dans le viewer propose des échanges).": "Deck completo: para cada card adicionado, tire um (“Analisar” no visualizador sugere trocas).",
+ "Réglages": "Ajustes"
 }

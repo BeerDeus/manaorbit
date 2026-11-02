@@ -144,5 +144,7 @@
  "État du deck et échanges conseillés (fonctionnalité en test)": "Deck health and suggested swaps (feature in testing)",
  "Analyser": "Analyze",
  "{n} catégorie sur {b} dans la norme": "{n} of {b} categories in range",
- "{n} catégories sur {b} dans la norme": "{n} of {b} categories in range"
+ "{n} catégories sur {b} dans la norme": "{n} of {b} categories in range",
+ "Deck complet : pour chaque carte ajoutée, retires-en une (« Analyser » dans le viewer propose des échanges).": "Deck full: for each card you add, cut one (“Analyze” in the viewer suggests swaps).",
+ "Réglages": "Settings"
 }

@@ -144,5 +144,7 @@
  "État du deck et échanges conseillés (fonctionnalité en test)": "Zustand des Decks und empfohlene Tausche (Funktion im Test)",
  "Analyser": "Analysieren",
  "{n} catégorie sur {b} dans la norme": "{n} von {b} Kategorien im Normbereich",
- "{n} catégories sur {b} dans la norme": "{n} von {b} Kategorien im Normbereich"
+ "{n} catégories sur {b} dans la norme": "{n} von {b} Kategorien im Normbereich",
+ "Deck complet : pour chaque carte ajoutée, retires-en une (« Analyser » dans le viewer propose des échanges).": "Deck voll: Für jede hinzugefügte Karte nimm eine heraus („Analysieren“ im Viewer schlägt Tausche vor).",
+ "Réglages": "Einstellungen"
 }

@@ -144,5 +144,7 @@
  "État du deck et échanges conseillés (fonctionnalité en test)": "Estado del mazo y cambios sugeridos (función en pruebas)",
  "Analyser": "Analizar",
  "{n} catégorie sur {b} dans la norme": "{n} de {b} categorías en rango",
- "{n} catégories sur {b} dans la norme": "{n} de {b} categorías en rango"
+ "{n} catégories sur {b} dans la norme": "{n} de {b} categorías en rango",
+ "Deck complet : pour chaque carte ajoutée, retires-en une (« Analyser » dans le viewer propose des échanges).": "Mazo completo: por cada carta que añadas, quita una («Analizar» en el visor sugiere cambios).",
+ "Réglages": "Ajustes"
 }

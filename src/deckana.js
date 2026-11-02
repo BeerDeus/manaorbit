@@ -7,6 +7,7 @@
        1. au-dessus de la limite de prix : les cartes chères qui pèsent peu → une carte du même rôle, au moins deux fois moins chère ;
        2. rôles sous la plage normale (rampe, pioche, retraits…) → à la place des cartes les plus faibles qui n'en remplissent aucun ;
        3. cartes faibles pour ce commandant (peu jouées, sans synergie) → une carte nettement mieux jouée, du même rôle ;
+       4. deck déjà solide : jusqu'à 5 améliorations (les cartes les moins jouées du deck contre une carte nettement plus jouée du même rôle) ;
      la limite de prix globale est respectée à chaque échange (ou l'échange fait baisser le prix).
    - « Ouvrir dans l'éditeur avec N échanges » : les échanges cochés appliqués, onglet Coach ; un deck de Mes decks est modifié (à enregistrer),
      un autre deck devient un nouveau deck. */
@@ -64,6 +65,11 @@ function dwSwaps(X, cmd, pack, prof, tgt, max = 12) {
       if (out.length >= max) break; if (used.has(W.k) || W.v >= 0.12) continue;
       const r = mainRole(W.roles), C = best(r, W, C => C.v >= W.v + 0.2); if (C) take(W, C, r ? 'mieux' : 'plan');
     }
+    // 4) deck déjà solide : quelques améliorations, les cartes les moins jouées du deck contre une carte nettement plus jouée du même rôle
+    for (const W of weakest.slice(0, 10)) {
+      if (out.length >= 5) break; if (used.has(W.k)) continue;
+      const r = mainRole(W.roles), C = best(r, W, C => C.v >= W.v + 0.15); if (C) take(W, C, r ? 'mieux' : 'plan');
+    }
   }
   return out;
 }
@@ -114,10 +120,6 @@ function daPaint() {
     <p class="dw-line"><span>${T('Bracket estimé')}</span><b>${est} · ${esc(bName)}</b></p>
     <p class="dw-line"><span>${T('Équilibre')}</span><b>${esc(TN(okN, '{n} catégorie sur {b} dans la norme', '{n} catégories sur {b} dans la norme', { b: gs.length }))}</b></p>
     <p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b><small>${esc(T('dont {p} à acheter', { p: fmt(prof.buy, cur) }))}</small></p></div>`;
-  h += `<div class="dw-set"><p class="label">${T('Bracket visé')}</p><div class="dw-chips">${DW_BRACKETS.map(b => `<button type="button" class="chip${set.br === b[0] ? ' on' : ''}" data-da-br="${b[0]}" aria-pressed="${set.br === b[0]}">${b[0]} · ${esc(b[1])}</button>`).join('')}</div>
-    <div class="field-in"><label class="label" for="daBud">${T('Limite de prix du deck ({c})', { c: cur })}</label><input type="number" id="daBud" inputmode="decimal" min="0" step="10" placeholder="${T('Sans limite')}" value="${set.bud > 0 ? Math.round(set.bud / 100) : ''}"></div>
-    ${dwThemeChoices(cmd, pack, set).length ? `<p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${dwThemeChoices(cmd, pack, set).map(([slug, label]) => `<button type="button" class="chip${set.th.includes(slug) ? ' on' : ''}" data-da-th="${esc(slug)}" aria-pressed="${set.th.includes(slug)}">${esc(label)}</button>`).join('')}</div>` : ''}
-    <label class="me-row switch-row" for="daOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="daOwn" ${set.own ? 'checked' : ''}><i></i></span></label></div>`;
   h += `<div class="sec-title">${T('Échanges conseillés')}</div>`;
   if (!DW.core) h += `<p class="hint">${T('Sans la base du coach, pas d\'échanges conseillés.')}</p>`;
   else if (!DA.swaps.length) h += `<p class="hint">${!pack ? T('Ce commandant n\'est pas encore dans la base du coach : pas d\'avis sur ses cartes.') : set.bud > 0 && prof.cents > set.bud ? T('Aucune carte moins chère du même rôle trouvée pour passer sous la limite.') : T('Rien à changer : les cartes du deck sont bien jouées avec ce commandant.')}</p>`;
@@ -127,6 +129,10 @@ function daPaint() {
     h += `<p class="dw-line da-delta"><span>${T('Après ces échanges')}</span><b>${esc(fmt(prof.cents + delta, cur))}</b><small>${esc((delta >= 0 ? '+' : '−') + fmt(Math.abs(delta), cur))}</small></p>`;
     BD.want = []; const want = DA.swaps.map(s => ({ key: s.in.k, name: s.in.name })); dmFetch(want).then(n => { if (n) daPaint(); }).catch(() => {});
   }
+  h += `<div class="sec-title">${T('Réglages')}</div><div class="dw-set"><p class="label">${T('Bracket visé')}</p><div class="dw-chips">${DW_BRACKETS.map(b => `<button type="button" class="chip${set.br === b[0] ? ' on' : ''}" data-da-br="${b[0]}" aria-pressed="${set.br === b[0]}">${b[0]} · ${esc(b[1])}</button>`).join('')}</div>
+    <div class="field-in"><label class="label" for="daBud">${T('Limite de prix du deck ({c})', { c: cur })}</label><input type="number" id="daBud" inputmode="decimal" min="0" step="10" placeholder="${T('Sans limite')}" value="${set.bud > 0 ? Math.round(set.bud / 100) : ''}"></div>
+    ${dwThemeChoices(cmd, pack, set).length ? `<p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${dwThemeChoices(cmd, pack, set).map(([slug, label]) => `<button type="button" class="chip${set.th.includes(slug) ? ' on' : ''}" data-da-th="${esc(slug)}" aria-pressed="${set.th.includes(slug)}">${esc(label)}</button>`).join('')}</div>` : ''}
+    <label class="me-row switch-row" for="daOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="daOwn" ${set.own ? 'checked' : ''}><i></i></span></label></div>`;
   h += `<div class="sec-title">${T('Équilibre du deck')}</div><div class="dw-gauges">${dwGaugesHtml(prof, tgt, cmd, pack, true)}</div>`;
   h += dwManaHtml(prof, tgt, cmd) + dwBracketHtml(prof, set) + dwBudgetHtml(prof, set);
   const keep = body.scrollTop; body.innerHTML = h; body.scrollTop = keep;
