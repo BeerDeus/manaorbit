@@ -1,0 +1,17 @@
+{
+ "Prix et offres CardTrader disponibles sans token (lus par le serveur Mana Orbit). Ajoute ton token pour remplir ton panier ou envoyer un deck sur CardTrader.": "CardTrader prices and offers available without a token (read by the Mana Orbit server). Add your token to fill your cart or send a deck to CardTrader.",
+ "Les prix CardTrader sont lus sans token, mais remplir ton panier demande ton token CardTrader (il agit sur ton compte).": "CardTrader prices are read without a token, but filling your cart needs your CardTrader token (it acts on your account).",
+ "Vider ton panier CardTrader demande ton token CardTrader (il agit sur ton compte).": "Emptying your CardTrader cart needs your CardTrader token (it acts on your account).",
+ "Choisis « CardTrader » sur Nouveau panier pour les offres réelles des vendeurs et leur port.": "Pick “CardTrader” on New cart for real seller offers and their shipping.",
+ "Prix sans token": "Prices without token",
+ "Envoyer un deck sur CardTrader demande ton token CardTrader : la liste de souhaits est créée sur ton compte.": "Sending a deck to CardTrader needs your CardTrader token: the wishlist is created on your account.",
+ "Rien à envoyer : ce deck n'a aucune carte (hors terrains de base).": "Nothing to send: this deck has no cards (basic lands excluded).",
+ "Envoyer sur CardTrader": "Send to CardTrader",
+ "Nom de la liste": "List name",
+ "{n} carte sera ajoutée à une liste de souhaits privée de ton compte CardTrader (terrains de base exclus). CardTrader y cherche ensuite les meilleures offres.": "{n} card will be added to a private wishlist on your CardTrader account (basic lands excluded). CardTrader then finds the best offers for it.",
+ "{n} cartes seront ajoutées à une liste de souhaits privée de ton compte CardTrader (terrains de base exclus). CardTrader y cherche ensuite les meilleures offres.": "{n} cards will be added to a private wishlist on your CardTrader account (basic lands excluded). CardTrader then finds the best offers for them.",
+ "À acheter ({n})": "To buy ({n})",
+ "Tout le deck ({n})": "Whole deck ({n})",
+ "Liste de souhaits « {name} » créée sur CardTrader.": "Wishlist “{name}” created on CardTrader.",
+ "Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck": "Creates a wishlist on your CardTrader account with this deck's cards"
+}

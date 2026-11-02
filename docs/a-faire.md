@@ -12,6 +12,13 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Point du 2 novembre (soir) : CardTrader ouvert à tous en lecture, liste de souhaits
+
+- Réponse du support CardTrader (Anthony) : API publique, usage commercial permis, limites d'appel documentées (200 requêtes / 10 s par token, 10/s sur `marketplace/products`), certains appels en cache 24 h.
+- **Lecture publique** (`CT_PUBLIC`, actif par défaut) : le token du serveur lit prix et offres pour tous les joueurs, sans token perso ; plafonds par client et global (README › « Prix », variables `CT_PUB_*`, `CT_BUDGET`). Panier et liste de souhaits : token de l'utilisateur. Rien à changer sur Hostinger (`CT_PUBLIC=0` pour revenir en arrière).
+- **Catalogues 24 h**, **« Envoyer sur CardTrader »** dans le viewer d'un deck (liste de souhaits privée, `src/ctwish.js`). Tests : `test-jobs` (lecture publique, plafonds), `test-proxy` (wishlists), `ctpub-e2e` (port 19850).
+- À surveiller après déploiement : `/admin › Serveur` (recherches refusées « serveur complet ») ; si CardTrader répond 429, baisser `JOB_RATE` ou `CT_BUDGET`.
+
 ## Point du 2 novembre : assistant de deck Commander, coach et analyse (fonctionnalité en test)
 **Fait (Claude, nuit du 1er au 2)** : README › « Assistant de deck Commander, coach et analyse » ; architecture `docs/deckbuilder/README.md` ; recherche chiffrée et sourcée `docs/deckbuilder/recherche.md`.
 - « Fonctionnalités en test » (Préférences, compte de l'éditeur, jusqu'au prochain démarrage) ; nouveau deck « J'ai déjà ce deck / Deck à construire » ; assistant ; onglet Coach ; « Analyser » dans le viewer (échanges conseillés, limite de prix globale).

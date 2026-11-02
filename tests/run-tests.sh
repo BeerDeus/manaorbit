@@ -51,6 +51,7 @@ BROWSER=(
   alerts-dm-e2e.mjs
   deckfind-e2e.mjs
   deckwiz-e2e.mjs
+  ctpub-e2e.mjs
 )
 T=("$@")
 if [ ${#T[@]} -eq 0 ]; then T=("${NODE[@]}" "${BROWSER[@]}"); elif [ "$1" = --node ]; then T=("${NODE[@]}"); fi

@@ -72,7 +72,7 @@ function mePaint() {
     ...(nat ? [meRow('widget', T('Widget'), '')] : []),
   ]);
   const price = meGroup(T('Prix'), [meRow('marche', T('Marché des prix'), esc(MKTS[MK.id].name + ' · ' + (MK.id === 'us' ? '$' : '€')) + (MK.pick ? '' : ' · ' + T('Auto'))),
-    ...(mkUs() ? [] : [meRow('prix', 'CardTrader', S.token ? T('Ton token') : typeof ctReady === 'function' && ctReady() ? T('Compte du serveur') : T('Sans token'))])]);      // marché TCGplayer : pas de CardTrader
+    ...(mkUs() ? [] : [meRow('prix', 'CardTrader', S.token ? T('Ton token') : typeof ctOwn === 'function' && ctOwn() ? T('Compte du serveur') : typeof ctReady === 'function' && ctReady() ? T('Prix sans token') : T('Sans token'))])]);      // marché TCGplayer : pas de CardTrader
   const more = meGroup(T('Plus'), [
     meRow('aide', T('Aide et avis'), ''),
     meRow('donnees', T('Données de l\'appareil'), ''),

@@ -263,18 +263,25 @@ const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost']);
 // Serveur local (lié à la boucle locale) : seuls ces noms d'hôte sont servis, contre le « DNS rebinding » (une page piégée qui se fait passer pour localhost).
 const LOCAL = LOOPBACK.has(HOST), LOCAL_HOSTS = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
 if (TOKEN && !LOOPBACK.has(HOST) && !APP_KEY && !AUTH_FB) {
-  console.error('Refus de démarrer : HOST=' + HOST + ' expose ton token CardTrader. Définis ALLOWED_UIDS=<ton uid Firebase> (recommandé) ou APP_KEY=un-secret.');
+  console.error('Refus de démarrer : HOST=' + HOST + ' expose ton panier CardTrader (token du serveur). Définis ALLOWED_UIDS=<ton uid Firebase> (recommandé) ou APP_KEY=un-secret.');
   process.exit(1);
 }
 
 // Routes relayées : méthode → chemins autorisés. Tout le reste (dont cart/purchase) répond 403.
 const ALLOW = {
   GET: new Set(['info', 'expansions', 'blueprints/export', 'marketplace/products', 'cart', 'shipping_methods']),
-  POST: new Set(['cart/add', 'cart/remove']),
+  POST: new Set(['cart/add', 'cart/remove', 'wishlists']),      // wishlists : « Envoyer sur CardTrader » d'un deck (liste de souhaits du compte du token)
 };
+/* Lecture publique avec le token du serveur (CT_PUBLIC, actif par défaut quand CARDTRADER_TOKEN est défini) : catalogues et offres des vendeurs,
+   pour tous les joueurs, sans token ni compte autorisé. Jamais le panier, la liste de souhaits ni « info » (ils agissent sur le compte du token) :
+   ceux-là demandent le token de l'utilisateur, ou un compte de ALLOWED_UIDS / APP_KEY. Plafonds : par client (réseau IP) et pour l'ensemble (CT_BUDGET). */
+const CT_PUB = !!TOKEN && process.env.CT_PUBLIC !== '0';
+const PUB_READ = new Set(['expansions', 'blueprints/export', 'marketplace/products']);
+const PUB_RATE = Number(process.env.CT_PUB_RATE_PER_MIN ?? 120), PUB_JOBS_H = Number(process.env.CT_PUB_JOBS_PER_H ?? 30), PUB_BPS_H = Number(process.env.CT_PUB_BPS_PER_H ?? 8000);
+const PUB_JOBS_MAX = Number(process.env.CT_PUB_JOBS_MAX) || 4;      // recherches publiques en cours en même temps (une par client) : le reste de JOB_MAX_RUNNING reste aux comptes autorisés et aux tokens perso
 
-// Cache mémoire des catalogues (lourds, quasi statiques).
-const CACHE_TTL = 6 * 3600 * 1000;
+// Cache mémoire des catalogues (lourds, quasi statiques) : 24 h, comme le cache de CardTrader lui-même (CACHE_TTL : fenêtre « token accepté »).
+const CACHE_TTL = 6 * 3600 * 1000, CAT_TTL = Number(process.env.CT_CATALOG_TTL_MS ?? 24 * 3600e3);
 const CACHE_MAX = (Number(process.env.CACHE_MAX_MB) || 48) * 1024 * 1024; // plafond mémoire : évite qu'un hébergeur tue le process
 const cache = new Map(); let cacheBytes = 0;
 function cacheSet(k, body) {
@@ -320,6 +327,18 @@ async function pace(tok = TOKEN) {
   const now = Date.now(), at = Math.max(now, p.at); p.at = at + 1000 / rate;
   if (at > now) await sleepMs(at - now);
 }
+/* Plafond global d'un token, toutes routes confondues (CardTrader : 200 requêtes / 10 s par token) : CT_BUDGET (180) par 10 s, avec de la marge.
+   Seau de jetons ; un jeton manquant est réservé d'avance (attente dans l'ordre d'arrivée). ctSlot(tok, maxWait) : false si l'attente dépasserait maxWait. */
+const CT_BUDGET = Math.min(195, Math.max(10, Number(process.env.CT_BUDGET) || 180)), BUDGET = new Map();
+async function ctSlot(tok = TOKEN, maxWait = Infinity) {
+  const k = tokHash(tok), now = Date.now(); let b = BUDGET.get(k);
+  if (!b) { for (const [kk, v] of BUDGET) if (now - v.t > 60e3 && v.n >= CT_BUDGET) BUDGET.delete(kk); b = { n: CT_BUDGET, t: now }; BUDGET.set(k, b); }
+  b.n = Math.min(CT_BUDGET, b.n + (now - b.t) * CT_BUDGET / 10e3); b.t = now;
+  const wait = b.n >= 1 ? 0 : (1 - b.n) * 10e3 / CT_BUDGET;
+  if (wait > maxWait) return false;
+  b.n--; if (wait) await sleepMs(wait);
+  return true;
+}
 const throttle = (tok, ms) => { const p = paceOf(tok); p.slow = 40; p.at = Math.max(p.at, Date.now() + ms); };   // 429 : pause puis cadence réduite pendant 40 requêtes
 /** Token CardTrader de l'utilisateur (en-tête X-CT-Token) : il cherche avec son propre compte, sans passer par le token du serveur. '' sinon. */
 const userTok = req => { const t = String(req.headers['x-ct-token'] || '').trim(); return /^[A-Za-z0-9._~+/=-]{20,4096}$/.test(t) ? t : ''; };
@@ -363,7 +382,7 @@ async function fetchProducts(bp, lang, foil, signal, tok = TOKEN) {
   const url = UPSTREAM + 'marketplace/products?' + qs, soft = m => Object.assign(new Error(m), { soft: true });
   for (let a = 0; ; a++) {
     if (signal.aborted) throw cancelled();
-    await pace(tok); await upGate();
+    await pace(tok); await ctSlot(tok); await upGate();
     if (signal.aborted) { upDone(); throw cancelled(); }
     const ctl = new AbortController(), onAbort = () => ctl.abort(), timer = setTimeout(() => ctl.abort(), 30000);
     signal.addEventListener('abort', onAbort, { once: true });
@@ -861,7 +880,7 @@ const JOB_BUSY = [];      // dates des recherches refusées parce que JOB_MAX_RU
 const jobs = new Map(); let jobBytes = 0;                            // jobBytes : résultats gardés par toutes les tâches (plafond JOB_RES_MAX)
 /** gs : [{ lang, foil, bps }] : les blueprints à lire dans cette langue et ce foil ; le premier groupe est celui de la recherche, les suivants (more) les lignes de la
  *  liste qui ont leur propre foil ou leur langue (« *F* », « *FR* ») : une seule tâche, une seule cadence. */
-function newJob({ gs, fresh, tok = TOKEN, th = '' }) {
+function newJob({ gs, fresh, tok = TOKEN, th = '', pub = '' }) {
   const sig = createHash('sha1').update([tok === TOKEN ? '' : tok, ...gs.flatMap((g, i) => [...(i ? ['|'] : []), g.lang, g.foil, ...g.bps.slice().sort((a, b) => a - b)])].join(',')).digest('hex');      // un token différent : une tâche à part (elle tourne avec ce token)
   const now = Date.now();
   let same = null;                                                    // la tâche la plus récente de même signature (en cours, ou terminée et encore valable)
@@ -870,9 +889,12 @@ function newJob({ gs, fresh, tok = TOKEN, th = '' }) {
   const running = [...jobs.values()].filter(j => j.status === 'running');
   if (running.length >= JOB_MAX_RUNNING) { JOB_BUSY.push(now); if (JOB_BUSY.length > 500) JOB_BUSY.shift(); return { busy: true }; }      // refus « serveur complet » : relevé pour le panneau (/admin › Serveur)
   if (th && running.filter(j => j.th === th).length >= JOB_PER_TOKEN) return { busy: true, mine: true };
+  // pub : réseau du client d'une recherche publique (token du serveur sans compte autorisé) : une seule en cours par client, PUB_JOBS_MAX en tout
+  if (pub && running.some(j => j.pub === pub)) return { busy: true, mine: true };
+  if (pub && running.filter(j => j.pub).length >= PUB_JOBS_MAX) { JOB_BUSY.push(now); if (JOB_BUSY.length > 500) JOB_BUSY.shift(); return { busy: true }; }
   // th : empreinte du token de l'utilisateur ('' : token du serveur) ; tok n'est gardé que le temps de la recherche (effacé dès la fin, l'échec ou l'annulation).
   const queue = gs.flatMap((g, i) => g.bps.map(bp => ({ bp, g: i })));
-  const job = { id: randomBytes(12).toString('hex'), sig, tok, th, gs: gs.map(({ lang, foil }) => ({ lang, foil })), fresh: !!fresh, queue, total: queue.length, results: [], bytes: 0, done: 0, cached: 0, cacheAge: 0, oldest: Infinity, errors: 0, sent: 0, stamps: [],
+  const job = { id: randomBytes(12).toString('hex'), sig, tok, th, pub, gs: gs.map(({ lang, foil }) => ({ lang, foil })), fresh: !!fresh, queue, total: queue.length, results: [], bytes: 0, done: 0, cached: 0, cacheAge: 0, oldest: Infinity, errors: 0, sent: 0, stamps: [],
     status: 'running', fatal: null, ctl: new AbortController(), t0: now, end: 0, pushes: [], seenEnd: false };
   jobs.set(job.id, job);
   runJob(job);
@@ -923,12 +945,12 @@ function gcJobs() {
 }
 if (JOBS_ON) setInterval(gcJobs, 30e3).unref();
 
-async function jobsApi(req, res, path, url, tok = TOKEN, th = '') {
+async function jobsApi(req, res, path, url, tok = TOKEN, th = '', pub = '') {
   if (!JOBS_ON) return json(res, 404, { error: 'jobs_disabled' });
   const m = /^jobs(?:\/([a-f0-9]{24}))?$/.exec(path);
   if (!m) return json(res, 404, { error: 'not_found' });
   if (req.method === 'POST' && !m[1]) {
-    if (th) { const wait = rateWait(req, 'jobs', USER_JOBS_H, 3600e3); if (wait) return tooMany(res, wait); }
+    if (th || pub) { const wait = th ? rateWait(req, 'jobs', USER_JOBS_H, 3600e3) : rateWait(req, 'pubjobs', PUB_JOBS_H, 3600e3); if (wait) return tooMany(res, wait); }
     let b; try { b = JSON.parse((await readBody(req)).toString('utf8') || '{}'); } catch (e) { return e.status === 413 ? tooLarge(res) : json(res, 400, { error: 'bad_request', message: 'JSON invalide' }); }
     // lang, foil, bps : le groupe de la recherche ; more (facultatif) : [{ lang, foil, bps }], lignes de la liste avec leur propre foil ou leur langue (résultats marqués g : 1, 2…)
     const grp = x => ({ lang: x && x.lang != null ? String(x.lang) : '', foil: x && x.foil != null ? String(x.foil) : 'any', bps: Array.isArray(x && x.bps) ? [...new Set(x.bps)] : [] });
@@ -936,7 +958,11 @@ async function jobsApi(req, res, path, url, tok = TOKEN, th = '') {
     if (!b || b.type !== 'offers' || !gs || gs.length > JOB_MAX_GROUPS || gs.reduce((a, g) => a + g.bps.length, 0) > JOB_MAX_BPS
       || !gs.every(g => /^([a-z]{2}(-[A-Za-z]{2})?)?$/.test(g.lang) && ['no', 'yes', 'any'].includes(g.foil) && g.bps.length && g.bps.every(x => Number.isSafeInteger(x) && x > 0)))
       return json(res, 400, { error: 'bad_request', message: 'Paramètres invalides (type, lang, foil, bps ou more).' });
-    const r = newJob({ gs, fresh: !!b.fresh, tok, th });
+    // lecture publique : budget de blueprints par client et par heure (une recherche déjà en cours ou en cache n'en consomme pas)
+    const nbp = gs.reduce((a, g) => a + g.bps.length, 0);
+    if (pub) { const wait = rateWait(req, 'pubbps', PUB_BPS_H, 3600e3, nbp, true); if (wait) return tooMany(res, wait); }
+    const r = newJob({ gs, fresh: !!b.fresh, tok, th, pub });
+    if (pub && !r.busy && !r.attached) rateWait(req, 'pubbps', PUB_BPS_H, 3600e3, nbp);
     if (r.busy) return json(res, 429, { error: 'busy', message: r.mine ? 'Trop de recherches en cours avec ce token.' : 'Trop de recherches en cours sur le serveur.' }, { 'Retry-After': '10' });
     const pu = parsePush(b.push);
     if (pu && r.job.status === 'running' && r.job.pushes.length < 3 && !r.job.pushes.some(x => pushKey(x.sub) === pushKey(pu.sub))) r.job.pushes.push(pu);
@@ -1003,14 +1029,14 @@ function netOf(ip) {
   return g.slice(0, 4).map(x => (parseInt(x, 16) || 0).toString(16)).join(':') + '::/64';
 }
 const clientOf = req => req.headers['x-forwarded-for'] ? netOf(ipOf(req)) : '';
-/** 0 : requête permise (un jeton consommé) ; sinon secondes à attendre. cap ≤ 0 : sans limite. */
-function rateWait(req, name, cap, per) {
+/** 0 : requête permise (n jetons consommés, 1 par défaut ; dry : rien de consommé) ; sinon secondes à attendre. cap ≤ 0 : sans limite. n > cap : refusé (le seau ne contient jamais plus de cap). */
+function rateWait(req, name, cap, per, n = 1, dry = false) {
   const c = clientOf(req); if (!c || !(cap > 0)) return 0;
   const k = name + ' ' + c, now = Date.now(); let b = BUCKETS.get(k);
   if (!b) { if (BUCKETS.size > 10000) for (const [kk, v] of BUCKETS) if (now - v.t > v.per) BUCKETS.delete(kk); b = { n: cap, t: now, per }; BUCKETS.set(k, b); }
   b.n = Math.min(cap, b.n + (now - b.t) * cap / per); b.t = now;
-  if (b.n >= 1) { b.n--; return 0; }
-  return Math.max(1, Math.ceil((1 - b.n) * per / cap / 1000));
+  if (n <= cap && b.n >= n) { if (!dry) b.n -= n; return 0; }
+  return Math.max(1, Math.ceil((Math.min(n, cap) - b.n) * per / cap / 1000));
 }
 const tooMany = (res, s) => json(res, 429, { error: 'rate_limited', message: 'Trop de requêtes depuis ce réseau : réessaie dans quelques minutes.', retry: s }, { 'Retry-After': String(s) });
 // Corps trop gros : réponse puis fermeture de la connexion (le reste du corps n'est jamais lu).
@@ -3732,21 +3758,27 @@ async function api(req, res, url) {
   if (path === 'event' || path.startsWith('event/')) return EVS ? EVS.api(req, res, path, url) : json(res, 404, { error: 'not_found' });      // événements saisonniers : cachettes du jour, objets trouvés (compte facultatif, jeton d'appareil)
   if (path === 'level' || path.startsWith('level/')) return DLY ? DLY.level(req, res, path, url) : json(res, 404, { error: 'not_found' });      // classement des niveaux de compte : XP envoyée par l'appli, plafonnée par jour      // Carte mystère : jeton Firebase (classé) ou sans compte (pour le plaisir), clé de partie ensuite
   // CardTrader : avec le token de l'utilisateur (X-CT-Token), ou celui du serveur pour les comptes autorisés (ALLOWED_UIDS / APP_KEY).
-  const ut = userTok(req);
-  if (!ut && !(await authorize(req, res))) return;
+  // Sans l'un ni l'autre : lecture publique (CT_PUB) des catalogues et des offres avec le token du serveur, plafonnée par client.
+  const ut = userTok(req), isJob = path === 'jobs' || path.startsWith('jobs/');
+  let pub = '';
+  if (!ut) {
+    const pubOk = CT_PUB && (isJob || (req.method === 'GET' && PUB_READ.has(path)));
+    if (!pubOk) { if (!(await authorize(req, res))) return; }
+    else if ((APP_KEY || AUTH_FB) && !((req.headers['x-app-key'] || req.headers['x-firebase-token']) && await serverOk(req))) pub = clientOf(req) || 'local';      // compte autorisé (ou serveur local ouvert) : sans les plafonds publics
+  }
   const tok = ut || TOKEN, th = ut ? tokHash(ut) : '';
   if (!tok) return json(res, 401, { error: 'no_token', message: 'Token CardTrader requis : ajoute le tien dans les réglages.' });
-  if (path === 'jobs' || path.startsWith('jobs/')) return jobsApi(req, res, path, url, tok, th);
+  if (isJob) return jobsApi(req, res, path, url, tok, th, pub);
   const allowed = ALLOW[req.method];
   if (!allowed) return json(res, 405, { error: 'method_not_allowed' });
   if (!allowed.has(path)) return json(res, 403, { error: 'blocked', message: 'Route non autorisée par le proxy : ' + path });
-  if (th) { const wait = rateWait(req, 'ct', 2 * USER_RATE, 120e3); if (wait) return tooMany(res, wait); }      // token d'un utilisateur : relais plafonnés par IP (USER_RATE par minute, rafale de 2 min)
+  if (th || pub) { const wait = th ? rateWait(req, 'ct', 2 * USER_RATE, 120e3) : rateWait(req, 'ctpub', 2 * PUB_RATE, 120e3); if (wait) return tooMany(res, wait); }      // token d'un utilisateur ou lecture publique : relais plafonnés par IP (par minute, rafale de 2 min)
 
   const target = UPSTREAM + path + url.search;
   const cacheable = req.method === 'GET' && (path === 'expansions' || path === 'blueprints/export');
   if (cacheable && tokOk(th)) {
     const hit = cache.get(target);
-    if (hit && Date.now() - hit.t < CACHE_TTL) {
+    if (hit && Date.now() - hit.t < CAT_TTL) {
       res.writeHead(200, { ...SEC, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'x-cache': 'HIT' });
       return res.end(hit.body);
     }
@@ -3759,6 +3791,7 @@ async function api(req, res, url) {
   }
   if (upQueue.length >= UP_QUEUE_MAX) return json(res, 503, { error: 'busy', message: 'Trop de requêtes en attente.' }, { 'Retry-After': '2' });
   if (path === 'marketplace/products') await pace(tok); // même budget que les tâches de fond
+  if (!(await ctSlot(tok, 15e3))) return json(res, 503, { error: 'busy', message: 'CardTrader est très sollicité : réessaie dans quelques secondes.' }, { 'Retry-After': '5' });      // plafond global du token (200 / 10 s chez CardTrader)
   await upGate();
   init.signal = AbortSignal.timeout(30000); // armé après l'attente en file, pas avant
   let up, body;
@@ -3906,7 +3939,7 @@ const server = http.createServer(async (req, res) => {
     if (FB_AUTH_PATH.test(url.pathname)) return await fbAuthRelay(req, res, url);      // fenêtre de connexion Google (domaine d'authentification manaorbit.app)
     if (url.pathname === '/__me') return json(res, 200, { server: await serverOk(req) });
     if (url.pathname === '/__prices') return json(res, 200, { source: PX_SRC ? 'GitHub' : '', ...PX_ST, hist: { source: PH_SRC ? 'GitHub' : '', ...PH_ST } });
-    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, play: PLAY_PUBLIC, build: await pageBuild() });
+    if (url.pathname === '/__ping') return json(res, 200, { ok: true, app: 'deckdeal', userToken: true, prices: !!PX_LIVE, needsKey: !!APP_KEY, needsLogin: AUTH_FB, hasToken: !!TOKEN, ctPub: CT_PUB, jobs: JOBS_ON, alerts: ALERTS_ON, push: PUSH_ON ? VAPID_PUB : '', adUnit: ADMOB_BANNER, fcm: FCM_ON, pub: PUB_ON, amis: AM_ON, troc: TROC_ON, partie: PT_ON, ...(PT_ON ? { ptk: ptCardKeys().pk } : {}), scanrep: SR_ON, daily: !!DLY, event: EVS ? EVS.ping() : null, evpush: !!(EVS && EVS.pushOn), feedback: DSC_ON, discordLink: !!(DSC && DSC.linkOn), off: OFF, apk: APK_LATEST, play: PLAY_PUBLIC, build: await pageBuild() });
     if (url.pathname === '/__edh') return json(res, 200, { source: EDH_SRC ? 'GitHub' : '', ...EDH_ST });
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (ADM_FILES.has(url.pathname)) {      // panneau d'administration : page sans données, jamais en cache ni indexée, CSP stricte
@@ -3955,7 +3988,7 @@ if (ALERTS_ON) await alLoad();                                  // abonnements e
 server.listen(PORT, HOST, () => {
   warmFiles();
   console.log(`Mana Orbit → http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
-  console.log(TOKEN ? 'Token CardTrader : OK' : '⚠ CARDTRADER_TOKEN manquant : mode démo uniquement');
+  console.log(TOKEN ? 'Token CardTrader : OK' + (CT_PUB ? ' (lecture des prix ouverte à tous ; panier : comptes autorisés)' : '') : '⚠ CARDTRADER_TOKEN manquant : mode démo uniquement');
   if (AUTH_FB) console.log(`Accès : compte Firebase « ${FB_PROJECT} » (${ALLOWED_UIDS.size} UID, ${ALLOWED_EMAILS.size} email${ALLOWED_EMAILS.size > 1 ? 's' : ''} vérifié${ALLOWED_EMAILS.size > 1 ? 's' : ''}).`);
   if (APP_KEY) console.log(AUTH_FB ? 'APP_KEY encore acceptée en secours : supprime-la une fois la connexion par compte validée.' : 'Clé d\'accès requise (APP_KEY) — à saisir dans Réglages.');
   if (APP_KEY && APP_KEY.length < 12) console.warn('⚠ APP_KEY courte (' + APP_KEY.length + ' caractères) : prends 16 caractères ou plus.');

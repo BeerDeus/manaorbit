@@ -616,8 +616,11 @@ function recompute() {
 
 /* ── Source des prix ──────────────────────────────────────────────────────────────────────────
    demo : prix simulés · ct : offres réelles CardTrader (ton token, ou celui du serveur si ton compte y a droit) · cm : prix tendance Cardmarket, sans token. */
-function ctReady() { return !mkUs() && (!!S.token || (CTX.proxy && CTX.hasToken && ((!CTX.needsLogin && !CTX.needsKey) || CTX.serverOk === true || (CTX.needsKey && !!CTX.appKey)))); }
-function priceSrc() { return S.demo ? 'demo' : S.src !== 'cm' && ctReady() ? 'ct' : 'cm'; }
+/** ctOwn : CardTrader au nom de l'utilisateur (son token, ou le compte du serveur pour un compte autorisé) : panier, liste de souhaits.
+ *  ctReady : lecture des prix et des offres, ctOwn ou lecture publique du serveur (ctPub, token du serveur pour tous, plafonnée). */
+function ctOwn() { return !mkUs() && (!!S.token || (CTX.proxy && CTX.hasToken && ((!CTX.needsLogin && !CTX.needsKey) || CTX.serverOk === true || (CTX.needsKey && !!CTX.appKey)))); }
+function ctReady() { return ctOwn() || (!mkUs() && !!CTX.proxy && !!CTX.ctPub); }
+function priceSrc() { return S.demo ? 'demo' : (S.src === 'ct' && ctReady()) || (S.src !== 'cm' && ctOwn()) ? 'ct' : 'cm'; }      // lecture publique : CardTrader seulement si choisi (Cardmarket par défaut)
 const isCm = () => !!S.run && S.run.src === 'cm';
 /** Ce compte peut-il chercher avec le token du serveur ? (réservé à ALLOWED_UIDS) Revérifié à chaque changement de compte. */
 async function checkServer() {
@@ -869,7 +872,7 @@ function openOfferSheet(key) {
       const o = (S.fo[key] || [])[0];
       api.body.innerHTML = `${o ? `<div class="cm-price"><b>${fmt(o.price)}</b><span>${T('Prix tendance Cardmarket de l\'impression la moins chère, par exemplaire.')}</span></div>` : `<p class="hint">${st.notFound ? T('Scryfall ne connaît pas ce nom. Corrige-le dans la liste.') : T('Aucun prix Cardmarket connu pour cette carte.')}</p>`}
         <a class="btn ghost small" href="${esc(mkUrl(c.name, userLang()))}" target="_blank" rel="noopener noreferrer" style="align-self:flex-start">${T('Voir sur Cardmarket ↗')}</a>
-        <p class="hint">${T('Les offres réelles des vendeurs, leur port et le remplissage du panier demandent ton token CardTrader (Réglages › Prix).')}</p>`;
+        <p class="hint">${ctReady() ? T('Choisis « CardTrader » sur Nouveau panier pour les offres réelles des vendeurs et leur port.') : T('Les offres réelles des vendeurs, leur port et le remplissage du panier demandent ton token CardTrader (Réglages › Prix).')}</p>`;
       ownBtn(api); alWatchBtn(api, c.name);
     });
     return;
@@ -1035,7 +1038,7 @@ function modeLabel() {
   const ask = src !== 'demo' && S.src === 'ct' && (!ctReady() || (g && g.dataset.keep === '1')), want = src === 'ct' || ask;      // CardTrader choisi sans token : l'encart du token à la place des critères CardTrader
   $('#viewInput').dataset.src = src === 'ct' && !ask ? 'ct' : 'cm';
   f.hidden = src === 'demo'; seg.hidden = mkUs();      // marché TCGplayer : pas de CardTrader (vendeurs européens, prix en euros), le prix du marché seul
-  if (!seg._init) { seg._init = true; mountSeg(seg, [{ v: 'cm', label: 'Cardmarket' }, { v: 'ct', label: 'CardTrader' }], want ? 'ct' : 'cm', v => { S.src = v === 'cm' ? 'cm' : ctReady() ? 'auto' : 'ct'; saveStore(); modeLabel(); }); }
+  if (!seg._init) { seg._init = true; mountSeg(seg, [{ v: 'cm', label: 'Cardmarket' }, { v: 'ct', label: 'CardTrader' }], want ? 'ct' : 'cm', v => { S.src = v === 'cm' ? 'cm' : ctOwn() ? 'auto' : 'ct'; saveStore(); modeLabel(); }); }
   else seg.setValue(want ? 'ct' : 'cm');
   if (g) {
     if (ask && g.hidden) { g.innerHTML = ctGetHtml('ctg'); ctGetWire(g, { onInput: () => { g.dataset.keep = '1'; if (typeof refreshDeck === 'function') refreshDeck(); }, onOk: () => { g.dataset.keep = ''; modeLabel(); } }); }
@@ -1049,8 +1052,8 @@ function modeLabel() {
 /* ── CardTrader sans token : « Obtenir mon token » (page API de CardTrader), le coller, « Tester » (Nouveau panier, tuile valeur des Stats, Réglages) ── */
 const ctApiUrl = () => ctShare(I18N.lang === 'fr' ? 'https://www.cardtrader.com/fr-FR/full_api_app' : 'https://www.cardtrader.com/en/full_api_app');
 const CT_TOKEN_WARN = 'Ce token donne accès à ton compte CardTrader : ne le partage avec personne. Mana Orbit le garde sur ton appareil et ne l\'envoie qu\'avec tes recherches CardTrader.';
-function ctGetHtml(pre) {
-  return `<p class="ct-get-t">${T('Pour voir les vrais prix CardTrader et remplir ton panier, il faut ton token CardTrader.')}</p>
+function ctGetHtml(pre, why) {
+  return `<p class="ct-get-t">${why ? esc(why) : T('Pour voir les vrais prix CardTrader et remplir ton panier, il faut ton token CardTrader.')}</p>
     <a class="btn small ct-get-a" href="${ctApiUrl()}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-ext"/></svg>${T('Obtenir mon token')}</a>
     <label class="label" for="${pre}Tok">${T('Ton token CardTrader')}</label>
     <div class="ct-get-row"><input type="password" id="${pre}Tok" autocomplete="off" spellcheck="false" placeholder="${esc(T('Colle ton token API'))}" value="${esc(S.token)}"><button class="btn ghost small" type="button" data-ctg="test">${T('Tester')}</button></div>
@@ -1072,11 +1075,11 @@ function ctGetWire(root, o = {}) {
   };
 }
 /** La même chose dans une feuille (tuile valeur des Stats, prix réels de la collection). done : appelé une fois le token validé. */
-function ctGetSheet(done) {
+function ctGetSheet(done, why) {
   if (mkUs()) return;      // marché TCGplayer : CardTrader n'est pas proposé
   openSheet('CardTrader', T('Offres réelles des vendeurs et panier'), api => {
     api.wrap.classList.add('ct-get-sheet');
-    api.body.innerHTML = `<div class="ct-get">${ctGetHtml('ctgs')}</div>`;
+    api.body.innerHTML = `<div class="ct-get">${ctGetHtml('ctgs', why)}</div>`;
     ctGetWire($('.ct-get', api.body), { onOk: () => { api.close(); if (done) done(); } });
   });
 }
@@ -1129,9 +1132,10 @@ function setPrixSheet() {
       const say = (ok, t) => { st.dataset.ok = ok ? '1' : '0'; m.textContent = t; };      // le choix Cardmarket / CardTrader se fait sur « Nouveau panier » : ici, seulement ce qui est disponible
       if (src === 'demo') say(false, T('Serveur injoignable : prix simulés en attendant.'));
       else if (mine) say(true, T('CardTrader actif avec ton token : choisis « CardTrader » sur Nouveau panier pour les offres réelles et le panier.'));
-      else if (ctReady()) say(true, T('CardTrader disponible avec le compte du serveur (ton compte Mana Orbit y est autorisé) : aucun token à saisir.'));
+      else if (ctOwn()) say(true, T('CardTrader disponible avec le compte du serveur (ton compte Mana Orbit y est autorisé) : aucun token à saisir.'));
+      else if (ctReady()) say(true, T('Prix et offres CardTrader disponibles sans token (lus par le serveur Mana Orbit). Ajoute ton token pour remplir ton panier ou envoyer un deck sur CardTrader.'));
       else say(true, T('Sans token, les prix viennent de Cardmarket. Ajoute ton token CardTrader pour les offres réelles et le panier.'));
-      $('#btnTest', b).hidden = !mine && !(CTX.proxy && CTX.hasToken);
+      $('#btnTest', b).hidden = !mine && !(CTX.proxy && CTX.hasToken && ctOwn());
       modeLabel();
     };
     status();
@@ -1188,7 +1192,7 @@ function setDataSheet() {
         + (d.failed.length ? `<div class="fail">${d.failed.slice(0, 6).map(f => `<span>${esc(f.name)} : ${esc(f.reason)}</span>`).join('')}</div>` : '')
         + `<button class="btn ghost small" type="button" id="btnCartAgain" style="align-self:flex-start">${T('Revérifier')}</button>`;
       else if (st === 'error') box.innerHTML = `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(d.msg)}</span></div><button class="btn ghost small" type="button" id="btnCartAgain" style="align-self:flex-start">${T('Réessayer')}</button>`;
-      const go = $('#btnCartClear', box) || $('#btnCartAgain', box); if (go) go.onclick = readCart;
+      const go = $('#btnCartClear', box) || $('#btnCartAgain', box); if (go) go.onclick = () => S.demo || ctOwn() ? readCart() : ctGetSheet(readCart, T('Vider ton panier CardTrader demande ton token CardTrader (il agit sur ton compte).'));
     };
     const cartErr = cartErrText;
     async function readCart() {
@@ -1293,7 +1297,7 @@ async function detectProxy(ms = 5000) {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
     const r = await fetch('__ping', { cache: 'no-store', signal: ctrl.signal }); clearTimeout(t);      // jamais en cache : la version du serveur décide de la mise à jour (pwa.js)
     if (!r.ok) return; const j = await r.json();
-    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.play = j.play === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.evpush = j.evpush === true; CTX.hasToken = j.hasToken !== false; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
+    if (j && j.ok && j.app === 'deckdeal') { CTX.proxy = true; CTX.needsKey = !!j.needsKey; CTX.needsLogin = !!j.needsLogin; CTX.jobs = !!j.jobs; CTX.alerts = !!j.alerts; CTX.vapid = typeof j.push === 'string' ? j.push : ''; CTX.fcm = j.fcm === true; CTX.pub = j.pub === true; CTX.amis = j.amis === true; CTX.troc = j.troc === true; CTX.partie = j.partie === true; CTX.scanrep = j.scanrep === true; CTX.feedback = j.feedback === true; CTX.discordLink = j.discordLink === true; CTX.play = j.play === true; CTX.daily = j.daily === true; CTX.event = j.event && typeof j.event === 'object' ? j.event : null; CTX.evpush = j.evpush === true; CTX.hasToken = j.hasToken !== false; CTX.ctPub = j.ctPub === true; CTX.prices = !!j.prices; CTX.off = Array.isArray(j.off) ? j.off.filter(x => typeof x === 'string') : []; S.proxy = true; if (S.demoPref == null) S.demo = false; checkServer(); edhOffApply(); CTX.build = typeof j.build === 'string' ? j.build : ''; updCheck(CTX.build); CTX.apk = Number(j.apk) || 0; if (typeof apkCheck === 'function') apkCheck(); }
     if (j && j.ok && typeof j.ptk === 'string' && typeof partiePkKeep === 'function') partiePkKeep(j.ptk);      // compteur de vie : clé publique des cartes joueur (vérifiées sans réseau, partie.js)
   } catch (e) { /* pas de proxy */ }
   finally { if (typeof splashWait === 'function') splashWait(false); }
@@ -1373,7 +1377,7 @@ function init() {
   $('#btnBack').onclick = () => { if (S.run && S.run.status === 'running') S.run.ctrl.abort(); showView('input'); };
   $('#btnCancel').onclick = () => { if (S.run) S.run.ctrl.abort(); };
   $('#btnCopy').onclick = () => { if (S.run) copyText(recapText()); };
-  $('#btnCart').onclick = () => isCm() ? cmCopyRun() : openCartSheet();
+  $('#btnCart').onclick = () => isCm() ? cmCopyRun() : S.demo || ctOwn() ? openCartSheet() : ctGetSheet(openCartSheet, T('Les prix CardTrader sont lus sans token, mais remplir ton panier demande ton token CardTrader (il agit sur ton compte).'));
   { const bar = $('.bar'); let sy = -1; const sync = () => { sy = -1; bar.classList.toggle('scrolled', window.scrollY > 4); }; window.addEventListener('scroll', () => { if (sy < 0) sy = requestAnimationFrame(sync); }, { passive: true }); sync(); }      // filet sous la barre seulement quand le contenu passe dessous
   $('#list').addEventListener('click', e => {
     const x = e.target.closest('.rx'); if (x) return removeCard(x.dataset.key);

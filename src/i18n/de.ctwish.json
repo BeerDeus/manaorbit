@@ -1,0 +1,17 @@
+{
+ "Prix et offres CardTrader disponibles sans token (lus par le serveur Mana Orbit). Ajoute ton token pour remplir ton panier ou envoyer un deck sur CardTrader.": "CardTrader-Preise und -Angebote ohne Token verfügbar (vom Mana-Orbit-Server gelesen). Füge deinen Token hinzu, um deinen Warenkorb zu füllen oder ein Deck an CardTrader zu senden.",
+ "Les prix CardTrader sont lus sans token, mais remplir ton panier demande ton token CardTrader (il agit sur ton compte).": "CardTrader-Preise werden ohne Token gelesen, aber zum Füllen deines Warenkorbs brauchst du deinen CardTrader-Token (er handelt in deinem Konto).",
+ "Vider ton panier CardTrader demande ton token CardTrader (il agit sur ton compte).": "Zum Leeren deines CardTrader-Warenkorbs brauchst du deinen CardTrader-Token (er handelt in deinem Konto).",
+ "Choisis « CardTrader » sur Nouveau panier pour les offres réelles des vendeurs et leur port.": "Wähle „CardTrader“ unter Neuer Warenkorb für echte Händlerangebote und deren Versand.",
+ "Prix sans token": "Preise ohne Token",
+ "Envoyer un deck sur CardTrader demande ton token CardTrader : la liste de souhaits est créée sur ton compte.": "Zum Senden eines Decks an CardTrader brauchst du deinen CardTrader-Token: Die Wunschliste wird in deinem Konto angelegt.",
+ "Rien à envoyer : ce deck n'a aucune carte (hors terrains de base).": "Nichts zu senden: Dieses Deck hat keine Karten (ohne Standardländer).",
+ "Envoyer sur CardTrader": "An CardTrader senden",
+ "Nom de la liste": "Name der Liste",
+ "{n} carte sera ajoutée à une liste de souhaits privée de ton compte CardTrader (terrains de base exclus). CardTrader y cherche ensuite les meilleures offres.": "{n} Karte wird einer privaten Wunschliste in deinem CardTrader-Konto hinzugefügt (ohne Standardländer). CardTrader sucht dann die besten Angebote dafür.",
+ "{n} cartes seront ajoutées à une liste de souhaits privée de ton compte CardTrader (terrains de base exclus). CardTrader y cherche ensuite les meilleures offres.": "{n} Karten werden einer privaten Wunschliste in deinem CardTrader-Konto hinzugefügt (ohne Standardländer). CardTrader sucht dann die besten Angebote dafür.",
+ "À acheter ({n})": "Zu kaufen ({n})",
+ "Tout le deck ({n})": "Ganzes Deck ({n})",
+ "Liste de souhaits « {name} » créée sur CardTrader.": "Wunschliste „{name}“ auf CardTrader erstellt.",
+ "Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck": "Erstellt eine Wunschliste in deinem CardTrader-Konto mit den Karten dieses Decks"
+}

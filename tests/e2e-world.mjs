@@ -35,7 +35,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0, daily
     image_uris: { small: `https://cards.scryfall.io/small/front/a/b/${slug(n)}.jpg` } }]; });
   const bps = CARDS.map(([n, bp]) => ({ id: bp, name: n, scryfall_id: 's-' + slug(n) }));
   // eds['cmm|400'] = { n: 'Sol Ring', langs: ['fr'] } : impression connue par son extension et son numéro (/cards/collection), avec ses langues (recherche « (set:cmm cn:400 or …) lang:fr ») ; edLangQ : ces recherches
-  const world = { hidden: {}, eds: {}, edLangQ: [], edPrice: {}, solo: {}, carted: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, symbols: {}, svgs: [], basics: false, en: {}, offers: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
+  const world = { hidden: {}, eds: {}, edLangQ: [], edPrice: {}, solo: {}, carted: [], wished: [], port, log, prices, prints, scry: [], delay: 0, extra: {}, big: bigCatalog, noFr: new Set(), variants: {}, psets: {}, symbols: {}, svgs: [], basics: false, en: {}, offers: {}, frPage: 0, frNew: new Set(), frFail: false, frFill: 600, frHits: [] };
   const up = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x'), path = u.pathname.replace('/api/v2/', ''); log.push({ path, q: Object.fromEntries(u.searchParams) });
     const send = (o, s = 200) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
@@ -50,6 +50,7 @@ export async function startWorld({ port = 18900, env = {}, bigCatalog = 0, daily
       const go = () => send({ [bp]: [...base, ...more] });
       return world.delay ? setTimeout(go, world.delay) : go();
     }
+    if (path === 'wishlists' && req.method === 'POST') { let b = ''; req.on('data', d => { b += d; }); req.on('end', () => { try { world.wished.push({ auth: req.headers.authorization, ...JSON.parse(b || '{}') }); } catch { /* ignore */ } send({ id: 4242, name: 'x' }); }); return; }      // « Envoyer sur CardTrader » (ctwish.js)
     if (path === 'cart/add') { let b = ''; req.on('data', d => { b += d; }); req.on('end', () => { try { world.carted.push(JSON.parse(b || '{}')); } catch { /* ignore */ } send({ ok: true }); }); return; }
     if (path === 'cart') return send({ subtotal: { cents: 350, currency: 'EUR' }, ct_zero_fee_amount: { cents: 25, currency: 'EUR' }, shipping_cost: { cents: 0, currency: 'EUR' }, subcarts: [] });
     send({ error: 'nope' }, 404);

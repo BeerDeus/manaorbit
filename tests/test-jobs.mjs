@@ -151,7 +151,7 @@ let r = await J(B, '/__ping'); assert.equal(r.o.jobs, true); console.log('✓ pi
 
 // 8) auth : sans clé 401 ; avec clé OK ; la cadence est partagée avec le relais direct
 {
-  const p2 = await start({ APP_KEY: 'k'.repeat(16) }, 18831); procs.push(p2); const B2 = 'http://127.0.0.1:18831';
+  const p2 = await start({ APP_KEY: 'k'.repeat(16), CT_PUBLIC: '0' }, 18831); procs.push(p2); const B2 = 'http://127.0.0.1:18831';
   r = await post(B2, { type: 'offers', lang: 'fr', foil: 'any', bps: [1] }); assert.equal(r.s, 401); assert.equal(r.o.error, 'auth_required');
   r = await J(B2, '/api/jobs/' + 'a'.repeat(24)); assert.equal(r.s, 401);
   r = await post(B2, { type: 'offers', lang: 'fr', foil: 'any', bps: [1, 2] }, { 'x-app-key': 'k'.repeat(16) }); assert.equal(r.s, 202);
@@ -173,6 +173,38 @@ let r = await J(B, '/__ping'); assert.equal(r.o.jobs, true); console.log('✓ pi
   r = await post(B, { type: 'offers', lang: 'fr', foil: 'any', bps: bpsOf(23000, 60) }, h); assert.equal(r.s, 202, 'annulées : de nouveau possible');
   await J(B, '/api/jobs/' + r.o.id, { method: 'DELETE' }); mode = {};
   console.log('✓ token d\'un utilisateur : 2 recherches en cours au plus ; token du serveur et autres utilisateurs non gênés');
+}
+
+// 8 bis 2) lecture publique avec le token du serveur (CT_PUBLIC, par défaut) : offres et catalogues pour tous, plafonnés par client ; panier, liste de souhaits, info : jamais
+{
+  const K = { 'x-app-key': 'k'.repeat(16) }, ip = x => ({ 'x-forwarded-for': x });
+  const pP = await start({ APP_KEY: 'k'.repeat(16), CT_PUB_JOBS_MAX: '2', CT_PUB_BPS_PER_H: '150', CT_PUB_RATE_PER_MIN: '3' }, 18836); procs.push(pP); const BP = 'http://127.0.0.1:18836';
+  r = await J(BP, '/__ping'); assert.equal(r.o.ctPub, true);
+  mode = { delay: 60 }; const ids = [];
+  r = await post(BP, { type: 'offers', lang: 'fr', foil: 'any', bps: bpsOf(30000, 60) }, ip('5.5.5.5')); assert.equal(r.s, 202, 'sans clé : recherche publique'); ids.push(r.o.id);
+  assert.equal(reqs.at(-1) && reqs.filter(x => x.bp >= 30000 && x.bp < 30060).every(x => x.auth === 'Bearer tok'), true, 'avec le token du serveur');
+  r = await post(BP, { type: 'offers', lang: 'fr', foil: 'any', bps: bpsOf(31000, 60) }, ip('5.5.5.5')); assert.equal(r.s, 429); assert.equal(r.o.error, 'busy'); assert.match(r.o.message, /ce token/, 'une seule recherche publique en cours par client');
+  r = await post(BP, { type: 'offers', lang: 'fr', foil: 'any', bps: bpsOf(30000, 60) }, ip('5.5.5.5')); assert.equal(r.s, 202); assert.equal(r.o.attached, true, 'même recherche : rattachée');
+  r = await post(BP, { type: 'offers', lang: 'fr', foil: 'any', bps: bpsOf(32000, 60) }, ip('5.5.5.6')); assert.equal(r.s, 202, 'autre client'); ids.push(r.o.id);
+  r = await post(BP, { type: 'offers', lang: 'fr', foil: 'any', bps: bpsOf(33000, 60) }, ip('5.5.5.7')); assert.equal(r.s, 429); assert.equal(r.o.error, 'busy'); assert.match(r.o.message, /serveur/, 'CT_PUB_JOBS_MAX publiques en tout');
+  r = await post(BP, { type: 'offers', lang: 'fr', foil: 'any', bps: bpsOf(34000, 60) }, { ...K, ...ip('5.5.5.5') }); assert.equal(r.s, 202, 'compte autorisé (clé) : sans les plafonds publics'); ids.push(r.o.id);
+  for (const id of ids) await J(BP, '/api/jobs/' + id, { method: 'DELETE' });
+  r = await post(BP, { type: 'offers', lang: 'fr', foil: 'any', bps: bpsOf(35000, 60) }, ip('5.5.5.5')); assert.equal(r.s, 202, '120 blueprints sur 150'); await J(BP, '/api/jobs/' + r.o.id, { method: 'DELETE' });
+  r = await post(BP, { type: 'offers', lang: 'fr', foil: 'any', bps: bpsOf(36000, 60) }, ip('5.5.5.5')); assert.equal(r.s, 429); assert.equal(r.o.error, 'rate_limited', 'budget de blueprints par heure épuisé');
+  mode = {};
+  for (const [m, path, body] of [['GET', '/api/info'], ['GET', '/api/cart'], ['POST', '/api/cart/add', '{"product_id":1,"quantity":1}'], ['POST', '/api/wishlists', '{"deck":{}}'], ['GET', '/api/shipping_methods?username=x']]) {
+    r = await J(BP, path, { method: m, body }, ip('5.5.5.8')); assert.equal(r.s, 401, path + ' sans clé'); assert.equal(r.o.error, 'auth_required', path);
+  }
+  r = await J(BP, '/api/marketplace/products?blueprint_id=7&language=fr', {}, ip('5.5.5.8')); assert.equal(r.s, 200, 'offres : publiques');
+  r = await J(BP, '/api/expansions', {}, ip('5.5.5.8')); assert.equal(r.s, 200, 'catalogue : public');
+  for (let i = 0; i < 4; i++) assert.equal((await J(BP, '/api/marketplace/products?blueprint_id=' + (8 + i), {}, ip('5.5.5.8'))).s, 200);
+  r = await J(BP, '/api/marketplace/products?blueprint_id=20', {}, ip('5.5.5.8')); assert.equal(r.s, 429, 'relais public plafonné par client (2 × CT_PUB_RATE_PER_MIN en rafale)');
+  r = await J(BP, '/api/marketplace/products?blueprint_id=20', {}, { ...K, ...ip('5.5.5.8') }); assert.equal(r.s, 200, 'compte autorisé : pas de plafond public');
+  console.log('✓ lecture publique : recherches et offres avec le token du serveur, 1 recherche par client, plafond global, budget horaire ; panier, liste de souhaits, info, port : compte exigé');
+  const pB = await start({ CT_BUDGET: '10' }, 18837); procs.push(pB); const BB = 'http://127.0.0.1:18837', t0 = Date.now();
+  const rs = await Promise.all(Array.from({ length: 13 }, (_, i) => J(BB, '/api/expansions?n=' + i)));
+  assert.ok(rs.every(x => x.s === 200)); const span = Date.now() - t0; assert.ok(span >= 2500, 'plafond global du token (CT_BUDGET par 10 s) : ' + span + ' ms');
+  console.log('✓ plafond global du token, toutes routes confondues (13 requêtes pour 10 / 10 s en', span, 'ms)');
 }
 
 // 8 ter) résultats gardés plafonnés (JOB_RESULTS_MB) : tâches terminées oubliées d'abord, puis la tâche en cours échoue (l'appli lit le reste elle-même)

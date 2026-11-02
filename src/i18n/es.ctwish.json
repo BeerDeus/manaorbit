@@ -1,0 +1,17 @@
+{
+ "Prix et offres CardTrader disponibles sans token (lus par le serveur Mana Orbit). Ajoute ton token pour remplir ton panier ou envoyer un deck sur CardTrader.": "Precios y ofertas de CardTrader disponibles sin token (leídos por el servidor de Mana Orbit). Añade tu token para llenar tu carrito o enviar un mazo a CardTrader.",
+ "Les prix CardTrader sont lus sans token, mais remplir ton panier demande ton token CardTrader (il agit sur ton compte).": "Los precios de CardTrader se leen sin token, pero llenar tu carrito requiere tu token de CardTrader (actúa en tu cuenta).",
+ "Vider ton panier CardTrader demande ton token CardTrader (il agit sur ton compte).": "Vaciar tu carrito de CardTrader requiere tu token de CardTrader (actúa en tu cuenta).",
+ "Choisis « CardTrader » sur Nouveau panier pour les offres réelles des vendeurs et leur port.": "Elige «CardTrader» en Nuevo carrito para las ofertas reales de los vendedores y su envío.",
+ "Prix sans token": "Precios sin token",
+ "Envoyer un deck sur CardTrader demande ton token CardTrader : la liste de souhaits est créée sur ton compte.": "Enviar un mazo a CardTrader requiere tu token de CardTrader: la lista de deseos se crea en tu cuenta.",
+ "Rien à envoyer : ce deck n'a aucune carte (hors terrains de base).": "Nada que enviar: este mazo no tiene cartas (sin contar las tierras básicas).",
+ "Envoyer sur CardTrader": "Enviar a CardTrader",
+ "Nom de la liste": "Nombre de la lista",
+ "{n} carte sera ajoutée à une liste de souhaits privée de ton compte CardTrader (terrains de base exclus). CardTrader y cherche ensuite les meilleures offres.": "{n} carta se añadirá a una lista de deseos privada de tu cuenta de CardTrader (tierras básicas excluidas). Luego CardTrader busca las mejores ofertas.",
+ "{n} cartes seront ajoutées à une liste de souhaits privée de ton compte CardTrader (terrains de base exclus). CardTrader y cherche ensuite les meilleures offres.": "{n} cartas se añadirán a una lista de deseos privada de tu cuenta de CardTrader (tierras básicas excluidas). Luego CardTrader busca las mejores ofertas.",
+ "À acheter ({n})": "Por comprar ({n})",
+ "Tout le deck ({n})": "Todo el mazo ({n})",
+ "Liste de souhaits « {name} » créée sur CardTrader.": "Lista de deseos «{name}» creada en CardTrader.",
+ "Crée une liste de souhaits sur ton compte CardTrader avec les cartes de ce deck": "Crea una lista de deseos en tu cuenta de CardTrader con las cartas de este mazo"
+}

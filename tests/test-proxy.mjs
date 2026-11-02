@@ -35,7 +35,7 @@ const JS = { 'Content-Type': 'application/json' };
 let p = await start({ CARDTRADER_TOKEN: 'tok123' }, 18787);
 let B = 'http://127.0.0.1:18787';
 let r = await j(B + '/__ping');      // champ par champ : d'autres fonctions peuvent ajouter les leurs
-for (const [k, v] of Object.entries({ ok: true, app: 'deckdeal', userToken: true, prices: false, needsKey: false, needsLogin: false, hasToken: true, jobs: true, alerts: false, push: '', adUnit: '', fcm: false, off: [] })) assert.deepEqual(r.o[k], v, '__ping.' + k);
+for (const [k, v] of Object.entries({ ok: true, app: 'deckdeal', userToken: true, prices: false, needsKey: false, needsLogin: false, hasToken: true, ctPub: true, jobs: true, alerts: false, push: '', adUnit: '', fcm: false, off: [] })) assert.deepEqual(r.o[k], v, '__ping.' + k);
 { const { readFileSync } = await import('node:fs'); assert.equal(r.o.build, /const DD_BUILD = '([\w-]+)'/.exec(readFileSync('deck-deal.html', 'utf8'))[1], '__ping.build : version de la page servie (mise à jour automatique de l\'appli)'); }
 console.log('✓ ping (adUnit vide : bandeau de test ; fcm : pas de compte de service ; off : aucune source coupée ; build : version de la page)');
 r = await j(B + '/'); assert.equal(r.s, 200); assert.match(r.o, /<title>Mana Orbit<\/title>/); console.log('✓ page servie');
@@ -331,6 +331,9 @@ p.kill();
   seen.length = 0; r = await j(BA + '/api/info', { headers: { 'x-ct-token': UT } }); assert.equal(r.s, 200); assert.equal(seen.at(-1).auth, 'Bearer ' + UT);
   r = await j(BA + '/api/cart/add', { method: 'POST', headers: { 'x-ct-token': UT, 'content-type': 'application/json' }, body: '{"product_id":1,"quantity":1}' }); assert.equal(r.s, 200); assert.equal(seen.at(-1).auth, 'Bearer ' + UT);
   r = await j(BA + '/api/cart/purchase', { method: 'POST', headers: { ...JS, 'x-ct-token': UT } }); assert.equal(r.s, 403);
+  r = await j(BA + '/api/wishlists', { method: 'POST', headers: { 'x-ct-token': UT, 'content-type': 'application/json' }, body: '{"deck":{"game_id":1,"name":"Atraxa","public":false,"deck_items_from_text_deck":"1 Sol Ring"}}' });
+  assert.equal(r.s, 200); assert.equal(seen.at(-1).auth, 'Bearer ' + UT); assert.equal(seen.at(-1).u, '/api/v2/wishlists'); assert.match(seen.at(-1).body, /Sol Ring/);
+  r = await j(BA + '/api/wishlists', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); assert.equal(r.s, 401, 'liste de souhaits : jamais avec le token du serveur sans compte autorisé');
   r = await j(BA + '/api/info', { headers: { 'x-ct-token': 'court' } }); assert.equal(r.s, 401, 'token mal formé : ignoré, accès refusé comme sans token');
   console.log('✓ X-CT-Token : sans compte autorisé, relayé avec le token de l\'utilisateur ; achat toujours bloqué ; token mal formé ignoré');
   // catalogues en cache (lus avec le token du serveur) : servis à un token d'utilisateur seulement après une réponse 2xx de CardTrader pour ce token
