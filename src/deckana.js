@@ -135,6 +135,7 @@ function daPaint() {
   const gs = DW_GAUGES.filter(([r]) => r !== 'counter' || cmd.ci.includes('U')), okN = gs.filter(([r]) => prof[r] >= tgt[r][0] && prof[r] <= tgt[r][2] + (r === 'land' ? 0 : 3)).length;
   h += sum(`<p class="dw-line"><span>${T('Équilibre')}</span><b>${esc(TN(okN, '{n} catégorie sur {b} dans la norme', '{n} catégories sur {b} dans la norme', { b: gs.length }))}</b></p>`);
   const th = dwThemeChoices(cmd, pack, set), setTxt = [T('bracket {n}', { n: set.br }) + ' · ' + (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[1], set.bud > 0 ? T('limite {p}', { p: fmt(set.bud, cur) }) : T('sans limite de prix'), ...(set.th.length ? [set.th.map(t => dwThemeLabel(t, th)).join(', ')] : []), ...(set.own ? [T('ma collection d\'abord')] : [])].join(' · ');
+  if (typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-da-report><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
   h += `<button class="dw-set-h" type="button" data-da-edit><span><b>${T('Réglages de l\'analyse')}</b><small>${esc(setTxt)}</small></span><span class="me-v">${T('Modifier')}</span></button>`;
   h += `<div class="sec-title">${T('Échanges conseillés')}</div>`;
   if (!DW.core) h += `<p class="hint">${T('Sans la base du coach, pas d\'échanges conseillés.')}</p>`;
@@ -179,6 +180,7 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.da = th => {
   return zoomFrom($$('.thumb[data-zoom="da"]', box), th, t => zoomNamed(t.dataset.k, bdLabel(t.dataset.k, t.dataset.n), t.dataset.n, viewLang(t.dataset.k, true)));
 };
 function daClick(e) {
+  if (e.target.closest('[data-da-report]')) { haptic('tap'); openDeckReport(DA.X, DA.name); return; }
   if (e.target.closest('[data-da-edit]')) { DA.step = 'set'; haptic('tap'); daPaint(); DA.api.body.scrollTop = 0; return; }
   const sw = e.target.closest('.da-sw'); if (sw && !e.target.closest('input, [data-zoom]')) { const c = $('input[data-da-sw]', sw); if (c) { c.checked = !c.checked; c.dispatchEvent(new Event('change', { bubbles: true })); } return; }      // toute la ligne coche, sauf la vignette (agrandie)
   const b = e.target.closest('[data-da-br]'); if (b) { DA.X.wiz.br = Number(b.dataset.daBr) || 3; DA.brAuto = false; DA.off.clear(); haptic('tap'); daPersist(); return daPaint(); }

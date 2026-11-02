@@ -295,6 +295,7 @@ function dwCoachHtml() {
   if (DW.p && !DW.core) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement de la base du coach…')}</span></div>`;
   else if (DW.err) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(DW.err)}</span></div>`;
   h += dwSetHtml(cmd, pack);
+  if (DW.core && typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-act="dw-report"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
   if (DW.core && prof.n < 100) {
     const ready = DW.cmd.has(cmd.slug), empty = prof.n <= BD.cmdr.length;
     if (DW.autoNext && ready) { DW.autoNext = false; setTimeout(dwAutoBuild, 0); }
@@ -462,6 +463,7 @@ function dwClick(b) {
   else if (act === 'dw-br') { s.br = Number(b.dataset.v) || 3; haptic('tap'); dwPersist(BD.id); bdList(); }
   else if (act === 'dw-basics') dwFillBasics();
   else if (act === 'dw-auto') dwAutoBuild();
+  else if (act === 'dw-report') openDeckReport(BD, BD.name.trim() || T('Nouveau deck'));
   return true;
 }
 if (typeof document !== 'undefined') document.addEventListener('change', e => {

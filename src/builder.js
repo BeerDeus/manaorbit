@@ -279,7 +279,8 @@ function bdTags(k, q, ctx) {
   if (BASIC_NAMES.has(k)) return '';
   const own = collQty(k), eg = engTotal(XS.eng, k, BD.id), out = [];
   if (ctx !== 'deck' && BD.cmdr.some(c => c.key === k)) out.push(`<span class="tag accent">${T('Commandant')}</span>`);
-  if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}</span>` : `<span class="tag">${T('À acheter')}</span>`);
+  const buy = () => { const m = bdMeta(k), u = m && Number.isFinite(m.eu) && m.eu > 0 ? m.eu : 0; return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (tendance du marché choisi), s'il est connu
+  if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
   else out.push(own ? `<span class="tag good">${TN(own, '× {n} possédée', '× {n} possédées', { n: own })}</span>` : `<span class="tag">${T('Pas dans ta collection')}</span>`);
   if (own && eg) out.push(`<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${TN(eg, '{n} engagée ailleurs', '{n} engagées ailleurs', { n: eg })}</span>`);
   return out.join('');

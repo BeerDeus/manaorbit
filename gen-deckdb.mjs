@@ -100,7 +100,8 @@ export function textRoles(card) {
 export function cardRoles({ dc, tags, votes, decks, scry }) {
   let b = 0, known = false;
   const d = DC_ROLE[String(dc || '').toLowerCase()]; if (d) { b |= RB[d]; known = true; } else if (dc) known = true;
-  for (const t of tags || []) { b |= tagRoles(t); known = true; }
+  let tb = 0; for (const t of tags || []) { tb |= tagRoles(t); known = true; } b |= tb;
+  if (tb & RB.counter && !(tb & RB.removal) && String(dc || '').toLowerCase() === 'removal') b &= ~RB.removal;      // Counterspell rangé « Removal » par Archidekt : un contresort, pas un retrait
   // « tutor-to-hand » de Cultivate ou Land Tax : un terrain cherché, c'est de la rampe, pas un tuteur
   if (b & RB.tutor && String(dc || '').toLowerCase() !== 'tutor' && (tags || []).some(t => /^tutor[- ]land/.test(t)) && !(tags || []).some(t => /^tutor([- ](card|creature|artifact|enchantment|instant|sorcery|permanent|planeswalker|equipment|aura))?$/.test(t))) b &= ~RB.tutor;
   if (votes && decks >= 4) for (const [r, n] of Object.entries(votes)) if (RB[r] && n >= 4 && n / decks >= 0.3) b |= RB[r];

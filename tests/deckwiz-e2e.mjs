@@ -134,6 +134,16 @@ await p.evaluate(() => { const t = document.querySelector('#toast button'); if (
 await p.waitForFunction(() => BD.main.size === 0, null, { timeout: 5000 }); ok('génération annulée : deck vide');
 await p.click('[data-act="dw-auto"]'); await p.waitForFunction(() => BD.main.size > 3);
 assert.match(await txt(p, '[data-act="dw-auto"]'), /Compléter le deck jusqu'à 100 cartes/, 'deck incomplet (peu de cartes dans la base de test) : bouton Compléter');
+// rapport du coach : sections, combo du deck, combos à une carte près, cartes touchables, copie
+await p.evaluate(() => { bdChange('main', 'sol ring', 'Sol Ring', 1); });      // Sol Ring + Armageddon (combo de la base de test) : à une carte près
+await p.click('[data-act="dw-report"]'); await p.waitForSelector('.dr-body .da-sum');
+const rep = await txt(p, '.dr-body');
+for (const t of ['Ce que fait ton commandant', 'Comment le deck gagne', 'Comment le jouer', 'Main de départ', 'Interaction', 'Points faibles', 'Combos à une carte près', 'Rôle de chaque carte']) assert.ok(rep.includes(t), 'rapport : ' + t);
+assert.match(rep, /Tu as Sol Ring : avec Armageddon, Infinite fun/); assert.match(rep, /retraits? ciblés? : [^.]*Swords to Plowshares/);
+await shot(p, 'rapport');
+await p.click('.dr-body .dr-c[data-k="swords to plowshares"]'); await p.waitForSelector('.imgv'); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.imgv'));
+await closeSheets(p);
+ok('rapport du coach : sections, combos, cartes agrandies');
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
 ok('générer le deck : rôles, plan, terrains, couleurs, bracket, budget ; annulable ; Compléter');
 
