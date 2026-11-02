@@ -17,18 +17,37 @@ const DW_GAUGES = [
   ['wipe', 'Balayages', 'Retraits de masse : remettent la table à zéro quand tu es en retard.'],
   ['counter', 'Contresorts', 'Contresorts (bleu) : interaction sur la pile, protection du plan.'],
   ['protect', 'Protection', 'Protège ton commandant ou tes pièces clés (hexproof, indestructible, phasing…).'],
-  ['tutor', 'Tuteurs', 'Cherchent une carte précise. Limités dans les brackets bas.'],
+  ['tutor', 'Tuteurs', 'Cherchent une carte précise. Plus de limite officielle depuis octobre 2025, mais trop de tuteurs rendent les parties répétitives.'],
   ['recursion', 'Récursion', 'Ramènent des cartes du cimetière.'],
 ];
-/** Modèle de base, sans la base du coach : [bas, cible, haut] (recherche : docs/deckbuilder/recherche.md › Cibles recommandées). */
-const DW_BASE = { land: [36, 37, 38], ramp: [9, 10, 12], draw: [9, 10, 12], removal: [7, 9, 11], wipe: [2, 3, 4], counter: [0, 2, 5], protect: [2, 4, 6], tutor: [0, 2, 4], recursion: [1, 3, 5], mv: [2.8, 3.1, 3.4], cheap: [6, 9, 12], gc: [0, 0, 1] };
-/** Ajustements du modèle de base par bracket (sans statistiques du corpus pour ce bracket). */
-const DW_BR_ADJ = { 1: { tutor: [0, 1, 2], wipe: [1, 2, 3] }, 2: { tutor: [0, 1, 3] }, 4: { ramp: [11, 12, 14], tutor: [3, 5, 8], removal: [8, 10, 12], counter: [2, 4, 7] }, 5: { land: [28, 31, 34], ramp: [14, 17, 20], tutor: [6, 9, 12], counter: [4, 7, 10], removal: [6, 8, 10], wipe: [0, 1, 2] } };
-/** Brackets officiels (Wizards, 2025) : nom, Game Changers permis, et ce qui est exclu. */
+/** Modèle de base : [min, cible, max] d'un deck casual (brackets 2-3), d'après docs/deckbuilder/recherche.md § 8.3 (Karsten, The Command Zone 2025, MTGGoldfish,
+ *  Draftsim, médianes des decks moyens EDHREC). Une carte compte dans toutes ses catégories ; les terrains suivent la formule de Karsten (dwLandTarget). */
+const DW_BASE = { land: [35, 38, 41], ramp: [8, 10, 15], draw: [8, 11, 18], removal: [5, 8, 12], wipe: [1, 3, 5], counter: [0, 2, 6], protect: [2, 4, 8], tutor: [0, 1, 3], recursion: [1, 2, 6], mv: [2.8, 3.0, 3.3], cheap: [5, 7, 12], gc: [0, 0, 0] };
+/** Écarts par bracket (§ 8.4) : remplacent la ligne du modèle de base. */
+const DW_BR_ADJ = {
+  1: { wipe: [1, 2, 4], tutor: [0, 0, 1], counter: [0, 1, 3], protect: [2, 3, 6] },
+  3: { tutor: [0, 2, 5] },
+  4: { ramp: [9, 12, 16], removal: [5, 7, 11], counter: [3, 4, 6], tutor: [2, 4, 6], mv: [2.6, 2.85, 3.1], gc: [0, 6, 99] },
+  5: { ramp: [12, 17, 20], draw: [8, 9, 12], removal: [4, 6, 9], wipe: [0, 1, 2], counter: [7, 9, 10], tutor: [7, 10, 12], protect: [2, 3, 5], mv: [2.1, 2.3, 2.5], gc: [0, 15, 99] },
+};
+/** Archétypes (thèmes EDHREC, § 8.6) : rôles qui changent, et écart de terrains (d) par rapport à la formule. */
+const DW_ARCH = {
+  aggro: { ramp: [8, 9, 10], draw: [7, 8, 10], wipe: [0, 1, 2], protect: [4, 5, 7], mv: [2.5, 2.8, 2.9], d: -1.5 },
+  control: { draw: [11, 14, 16], wipe: [3, 4, 5], counter: [4, 8, 10], protect: [2, 3, 4], d: -1 },
+  combo: { ramp: [10, 13, 15], counter: [3, 6, 8], tutor: [5, 8, 10], wipe: [1, 1, 2], protect: [2, 2, 3], mv: [2.2, 2.4, 2.7], d: -3.5 },
+  landfall: { ramp: [15, 20, 25], removal: [4, 5, 7], wipe: [1, 1, 2], recursion: [3, 6, 10], d: 3 },
+  'lands-matter': { ramp: [15, 20, 25], removal: [4, 5, 7], wipe: [1, 1, 2], recursion: [3, 6, 10], d: 3 },
+  spellslinger: { draw: [13, 17, 20], removal: [7, 9, 11], counter: [2, 4, 5], mv: [2.4, 2.6, 2.9], d: -1.5 },
+  voltron: { protect: [8, 12, 14], tutor: [2, 4, 6], mv: [2.4, 2.6, 2.9], d: -1 },
+  tokens: { ramp: [9, 10, 12], wipe: [1, 2, 3], d: -0.5 },
+  aristocrats: { recursion: [3, 5, 8], wipe: [2, 3, 4], draw: [9, 11, 14], d: -1 },
+  stax: { counter: [3, 5, 6], tutor: [3, 5, 6], d: -3 },
+};
+/** Brackets officiels (Wizards, mise à jour du 9 février 2026) : nom, ce qui est permis, Game Changers permis. Tuteurs : plus de limite depuis octobre 2025. */
 const DW_BRACKETS = [
-  [1, 'Exhibition', 'Decks à thème, très décontractés : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés.', 0],
-  [2, 'Core', 'Niveau d\'un deck préconstruit : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés, peu de tuteurs.', 0],
-  [3, 'Upgraded', 'Amélioré : jusqu\'à 3 Game Changers, pas de destruction massive de terrains, pas de combo à 2 cartes avant le milieu de partie, pas de tours supplémentaires enchaînés.', 3],
+  [1, 'Exhibition', 'Decks à thème, très décontractés, parties d\'au moins 9 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires.', 0],
+  [2, 'Core', 'Niveau d\'un deck préconstruit, parties d\'au moins 8 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires enchaînés.', 0],
+  [3, 'Upgraded', 'Amélioré, parties d\'au moins 6 tours : jusqu\'à 3 Game Changers, pas de destruction massive de terrains, pas de combo à 2 cartes avant le tour 6, pas de tours supplémentaires enchaînés.', 3],
   [4, 'Optimized', 'Optimisé : aucune restriction en dehors de la liste des cartes bannies.', 99],
   [5, 'cEDH', 'Compétitif (cEDH) : le meilleur deck possible, méta de tournoi.', 99],
 ];
@@ -105,15 +124,15 @@ function dwSaved(id) { if (dwOn() && BD.wiz) dwPersist(id); }
 
 /* ── Commandant du deck ────────────────────────────────────────────────────────────────────────────── */
 /** Commandant(s) du deck dans les données EDHREC de l'appli : { slug, names, ci, th } ou un repli d'après le nom. */
-function dwCmdOf() {
-  if (!BD.cmdr.length) return null;
-  const keys = BD.cmdr.map(c => c.key), E = typeof EDH !== 'undefined' && EDH.data;
+function dwCmdOf(X = BD) {
+  if (!X.cmdr.length) return null;
+  const keys = X.cmdr.map(c => c.key), E = typeof EDH !== 'undefined' && EDH.data;
   if (E) {
     const hit = keys.length > 1 ? E.cmds.find(c => c.keys.length === keys.length && keys.every(k => c.keys.includes(k))) : E.by.get(keys[0]);
     if (hit) return { slug: hit.slug, names: hit.names, ci: hit.ci, th: (hit.th || []).map(([i, n]) => [E.themes[i] ? E.themes[i].slug : '', E.themes[i] ? E.themes[i].label : '', n]).filter(t => t[0]) };
   }
   const ci = [...new Set(keys.flatMap(k => [...((dwCard(k) || {}).ci || ((dmOf(k) || {}).ci) || '')]))].sort((a, b) => 'WUBRG'.indexOf(a) - 'WUBRG'.indexOf(b)).join('');
-  return { slug: keys.map(k => k.replace(/ /g, '-')).join('-'), names: BD.cmdr.map(c => c.name), ci, th: [] };
+  return { slug: keys.map(k => k.replace(/ /g, '-')).join('-'), names: X.cmdr.map(c => c.name), ci, th: [] };
 }
 
 /* ── Profil du deck ───────────────────────────────────────────────────────────────────────────────── */
@@ -125,11 +144,11 @@ function dwPips(mc) {
   }
   return out;
 }
-/** Profil du deck en cours : comptes par rôle, courbe, coût moyen, rampe/pioche pas chère, sources et symboles par couleur, Game Changers, prix. */
-function dwProfile() {
-  const p = { n: 0, nonland: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, gc: [], xt: [], mld: [], cents: 0, buy: 0, unk: 0, cards: 0 };
+/** Profil d'un deck (X : { main: Map, cmdr: [] }, l'éditeur par défaut) : comptes par rôle, courbe, coût moyen, rampe/pioche pas chère, sources et symboles par couleur, Game Changers, prix. */
+function dwProfile(X = BD) {
+  const p = { n: 0, nonland: 0, mv: 0, cheap: 0, curve: [0, 0, 0, 0, 0, 0, 0, 0], src: {}, pips: {}, maxPip: {}, needs: {}, cmdNeed: {}, gc: [], xt: [], mld: [], cents: 0, buy: 0, unk: 0, cards: 0 };
   for (const r of DKW_ROLES) p[r] = 0;
-  let mvSum = 0; const all = [...BD.main.values()];
+  let mvSum = 0; const all = [...X.main.values()];
   for (const c of all) {
     const k = c.key, q = c.qty, x = dwCard(k); p.n += q; p.cards++;
     if (!x) { p.unk += q; continue; }
@@ -140,25 +159,41 @@ function dwProfile() {
       p.nonland += q; mvSum += (x.cmc || 0) * q; p.curve[Math.min(7, Math.floor(x.cmc || 0))] += q;
       if ((x.roles & (DW_RB.ramp | DW_RB.draw)) && (x.cmc || 0) <= 2) p.cheap += q;
       const m = dmOf(k), pips = dwPips(m && m.mc);
-      for (const [col, n] of Object.entries(pips)) { p.pips[col] = (p.pips[col] || 0) + n * q; p.maxPip[col] = Math.max(p.maxPip[col] || 0, Math.ceil(n)); }
+      for (const [col, n] of Object.entries(pips)) { p.pips[col] = (p.pips[col] || 0) + n * q; p.maxPip[col] = Math.max(p.maxPip[col] || 0, Math.ceil(n)); (p.needs[col] = p.needs[col] || []).push(dwSrcFor(n, x.cmc)); }
       if ((x.roles & DW_RB.ramp) && x.prod) for (const col of new Set([...x.prod].filter(ch => 'WUBRG'.includes(ch)))) p.src[col] = (p.src[col] || 0) + q * 0.5;      // rampe qui produit la couleur : demi-source (dork, rock ; recherche : Karsten)
     }
     if (x.fl & 1) p.gc.push(x.name); if (x.fl & 2) p.xt.push(x.name); if (x.fl & 4) p.mld.push(x.name);
     if (!BASIC_NAMES.has(k)) { const e = dwPrice(k, x); if (e > 0) { p.cents += e * q; const own = collQty(k); if (own < q) p.buy += e * (q - own); } }
   }
-  for (const c of BD.cmdr) { const x = dwCard(c.key); p.n++; if (x && x.fl & 1) p.gc.push(x.name); const e = dwPrice(c.key, x); if (e > 0) { p.cents += e; if (collQty(c.key) < 1) p.buy += e; } }
+  for (const c of X.cmdr) { const x = dwCard(c.key), m = dmOf(c.key); for (const [col, n] of Object.entries(dwPips(m && m.mc))) p.cmdNeed[col] = Math.max(p.cmdNeed[col] || 0, dwSrcFor(n, x ? x.cmc : (m && m.cm) || 4)); p.n++; if (x && x.fl & 1) p.gc.push(x.name); const e = dwPrice(c.key, x); if (e > 0) { p.cents += e; if (collQty(c.key) < 1) p.buy += e; } }
   p.mv = p.nonland ? mvSum / p.nonland : 0;
+  p.need = {};      // sources voulues par couleur : le commandant, et le quart le plus exigeant des sorts (recherche § 8.2 : les cartes importantes)
+  for (const col of 'WUBRG') { const l = (p.needs[col] || []).sort((a, b) => b - a), q = l.length ? l[Math.floor(l.length / 4)] : 0; p.need[col] = Math.max(q, p.cmdNeed[col] || 0); }
   return p;
 }
 /** Prix d'une carte : celui de l'appli (marché choisi) s'il est connu, sinon celui de la base (euros, marché européen seulement). */
 function dwPrice(k, x) { const m = dmOf(k); if (m && Number.isFinite(m.eu) && m.eu > 0) return m.eu; return !mkUs() && x && x.eur > 0 ? x.eur : 0; }
 
 /* ── Cibles ───────────────────────────────────────────────────────────────────────────────────────── */
-/** Terrains conseillés (Frank Karsten, 2022 : régression sur des decks de tournoi, transposée à 99 cartes) : 31,42 + 3,13 × coût moyen − 0,28 × rampe et pioche de coût ≤ 2. */
+/** Terrains conseillés (Frank Karsten, régression sur plus de 95 000 decks de tournoi, transposée à 99 cartes) : 31,42 + 3,13 × coût moyen − 0,28 × rampe et pioche de coût ≤ 2. */
 const dwKarsten = (mv, cheap) => 31.42 + 3.13 * mv - 0.28 * cheap;
-/** Cibles [bas, cible, haut] par rôle : statistiques du commandant (≥ 8 decks), des thèmes choisis, du bracket et de tous les decks, pondérées ; sinon le modèle de base. */
-function dwTargets(prof, cmd, pack) {
-  const tg = DW.core && DW.core.tg, w = [], set = BD.wiz || dwDefaults();
+/** [min, cible, max] des terrains (recherche § 8.1) : formule bornée à 34-42, écart de l'archétype ; cEDH : formule − 3,5, au plus 32. */
+function dwLandTarget(mv, cheap, br, d = 0) {
+  const raw = dwKarsten(mv, cheap);
+  if (br === 5) return [27, Math.round(Math.min(raw - 3.5, 32)), 33];
+  const t = Math.round(Math.min(Math.max(raw + d, d < -2 ? 31 : 34), 42));
+  return [Math.max(br === 4 ? 32 : d < -2 ? 30 : 34, t - 3), t, Math.min(t + 3, 44)];
+}
+/** Modèle de recherche pour ce bracket et ces thèmes (§ 8.3, 8.4, 8.6) : { rôle: [min, cible, max], d: écart de terrains }. */
+function dwModel(set) {
+  const m = { ...DW_BASE, ...(DW_BR_ADJ[set.br] || {}) }; let d = 0;
+  for (const t of set.th) { const a = DW_ARCH[t]; if (!a) continue; for (const [k, v] of Object.entries(a)) if (k === 'd') d += v; else m[k] = v; break; }      // le premier archétype choisi l'emporte
+  m.d = d; return m;
+}
+/** Cibles [min, cible, max] par rôle : le modèle de recherche (poids 2), mêlé aux décks réels quand la base est là : le commandant lui-même (≥ 8 decks, poids 3),
+ *  chaque thème choisi (1,5), le bracket (1,5), le nombre de couleurs (0,7), tous les decks récents (1). Terrains : formule de Karsten sur le deck en cours. */
+function dwTargets(prof, cmd, pack, set = BD.wiz || dwDefaults()) {
+  const tg = DW.core && DW.core.tg, model = dwModel(set), w = [[model, 2]];
   if (tg) {
     if (pack && pack.tg && pack.tg.n >= 8) w.push([pack.tg, 3]);
     for (const t of set.th) if (tg.th && tg.th[t]) w.push([tg.th[t], 1.5]);
@@ -168,32 +203,26 @@ function dwTargets(prof, cmd, pack) {
   }
   const out = {};
   for (const k of Object.keys(DW_BASE)) {
-    const adj = (DW_BR_ADJ[set.br] || {})[k], base = adj || DW_BASE[k];
-    const src = w.filter(([s]) => Array.isArray(s[k]));
-    if (!src.length || (adj && !(tg && tg.br && tg.br[set.br]))) { out[k] = base.slice(); continue; }
-    const tot = src.reduce((a, [, x]) => a + x, 0);
+    const src = w.filter(([s]) => Array.isArray(s[k])), tot = src.reduce((a, [, x]) => a + x, 0);
     out[k] = [0, 1, 2].map(i => src.reduce((a, [s, x]) => a + s[k][i] * x, 0) / tot);
   }
-  // terrains : Karsten sur le deck en cours (assez avancé), sinon sur les cibles ; bornés par ce que jouent les decks semblables
   const mv = prof.nonland >= 25 ? prof.mv : out.mv[1], cheap = prof.nonland >= 25 ? prof.cheap : out.cheap[1];
-  let L = dwKarsten(mv, cheap); if (set.br === 5) L -= 3;      // cEDH : courbe très basse et beaucoup de rampe à 0-1 mana, la formule casual surestime
-  const lo = Math.min(out.land[0], 33), hi = Math.max(out.land[2], 40); L = Math.max(lo, Math.min(hi, L));
-  out.land = [Math.round(L) - 1, Math.round(L), Math.round(L) + 1];
+  out.land = dwLandTarget(mv, cheap, set.br, model.d);
   if (cmd && !cmd.ci.includes('U')) out.counter = [0, 0, 0];
   for (const k of Object.keys(out)) if (k !== 'mv') out[k] = out[k].map(v => Math.round(v));
   return out;
 }
-/** Sources de couleur conseillées (Karsten, Commander 99 cartes, ~90 % de pouvoir lancer le sort à temps) d'après le symbole le plus exigeant de chaque couleur. */
-const DW_SRC_NEED = { 1: 15, 2: 20, 3: 24 };
-const dwSrcNeed = maxPip => DW_SRC_NEED[Math.min(3, Math.max(1, maxPip || 1))];
+/** Sources de couleur (Karsten 2022, colonne 99 cartes, ~90 % de lancer le sort au tour égal à son coût) : [symboles de la couleur][coût total] → sources. */
+const DW_SRC = { 1: [19, 19, 19, 18, 16, 15, 14], 2: [30, 30, 30, 28, 26, 23, 23], 3: [36, 36, 36, 36, 33, 30, 30], 4: [39, 39, 39, 39, 39, 39, 39] };
+/** Sources d'une couleur pour un sort : pips symboles de cette couleur, mv coût total. */
+const dwSrcFor = (pips, mv) => { const p = Math.min(4, Math.max(1, Math.ceil(pips || 1))), row = DW_SRC[p]; return row[Math.min(row.length - 1, Math.max(0, Math.round(mv || p)))]; };
 
 /* ── Suggestions ──────────────────────────────────────────────────────────────────────────────────── */
 /** Cartes candidates pour le commandant (EDHREC, thèmes choisis, corpus), notées ; role : rôle voulu ('' : plan / synergie ; 'land' : terrains). */
-function dwSuggest(role, cmd, pack, prof, tgt, n) {
-  if (!DW.byKey) return [];
-  const set = BD.wiz || dwDefaults(), ci = new Set([...(cmd ? cmd.ci : '')]), inDeck = k => BD.main.has(k) || BD.cmdr.some(c => c.key === k);
-  const brMax = (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[3], gcLeft = brMax - prof.gc.length;
-  const budLeft = set.bud > 0 ? set.bud - prof.cents : Infinity, slots = Math.max(1, 99 - (prof.n - BD.cmdr.length));
+/** Valeur d'une carte pour ce commandant (sans collection ni prix) : inclusion, synergie, thèmes choisis, decks Archidekt. */
+const dwVal = o => (o.incl || 0) / 100 + Math.max(0, o.syn || 0) / 100 * 0.8 + (o.th || 0) / 100 * 0.9 + (o.g || 0) / 100 * 0.4 + (o.cx || 0) / 100 * 0.5 + (o.rank ? Math.max(0, 1 - o.rank / 4000) * 0.5 : 0);
+/** Ce que la base sait de chaque carte pour ce commandant et ces thèmes : clé → { name, incl, syn, th, g, cx }. */
+function dwInfo(pack, set) {
   const C = new Map(), add = (name, f, v) => { const k = ownKey(name); if (!k) return; const o = C.get(k) || { name, incl: 0, syn: 0, th: 0, g: 0, cx: 0 }; o[f] = Math.max(o[f], v); C.set(k, o); };
   if (pack) {
     for (const [nm, inc, syn] of pack.cards || []) { add(nm, 'incl', inc); add(nm, 'syn', syn); }
@@ -201,6 +230,15 @@ function dwSuggest(role, cmd, pack, prof, tgt, n) {
     for (const [nm, inc] of pack.xc || []) add(nm, 'cx', inc);
   }
   for (const t of set.th) { const tp = DW.th.get(t); if (tp) for (const [nm, inc] of tp.cards || []) add(nm, 'g', inc); }
+  return C;
+}
+/** X : deck ({ main, cmdr, wiz, skip }) ; skip : clés déjà prises ailleurs (échanges de l'analyse). */
+function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
+  if (!DW.byKey) return [];
+  const set = X.wiz || dwDefaults(), ci = new Set([...(cmd ? cmd.ci : '')]), inDeck = k => X.main.has(k) || X.cmdr.some(c => c.key === k) || (X.skip && X.skip.has(k));
+  const brMax = (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[3], gcLeft = brMax - prof.gc.length;
+  const budLeft = set.bud > 0 ? set.bud - prof.cents : Infinity, slots = Math.max(1, 99 - (prof.n - BD.cmdr.length));
+  const C = X.info || dwInfo(pack, set);
   const fallback = C.size < 40;      // commandant inconnu de la base : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
   const out = [];
   const consider = (k, o) => {
@@ -214,11 +252,10 @@ function dwSuggest(role, cmd, pack, prof, tgt, n) {
     if (x.fl & 2 && set.br <= 2) return;
     const price = dwPrice(k, x), own = collQty(k) > 0;
     if (!own && price > 0 && price > budLeft) return;
-    let s = (o.incl || 0) / 100 + Math.max(0, o.syn || 0) / 100 * 0.8 + (o.th || 0) / 100 * 0.9 + (o.g || 0) / 100 * 0.4 + (o.cx || 0) / 100 * 0.5;
-    if (o.rank) s += Math.max(0, 1 - o.rank / 4000) * 0.5;
+    const v = dwVal(o); let s = v;
     if (own) s += set.own ? 0.35 : 0.08;
     if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft)) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);
-    out.push({ k, name: x.name, s, o, own, price, gc: !!(x.fl & 1), x });
+    out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x });
   };
   for (const [k, o] of C) consider(k, o);
   if (fallback) for (const [k, r] of DW.byKey) if (!C.has(k) && r[8] > 0 && r[8] < 6000) consider(k, { rank: r[8] });
@@ -276,23 +313,24 @@ function dwSetHtml(cmd, pack) {
   return h;
 }
 /** Thèmes proposés : ceux du commandant (EDHREC, du plus au moins joué), puis les thèmes généraux de la base. → [[slug, libellé]] */
-function dwThemeChoices(cmd, pack) {
+function dwThemeChoices(cmd, pack, set = BD.wiz) {
   const out = new Map();
   for (const t of (pack && pack.thl) || []) if (t[0]) out.set(t[0], t[1]);
   for (const t of (cmd && cmd.th) || []) if (t[0] && !out.has(t[0])) out.set(t[0], t[1]);
-  for (const t of (BD.wiz && BD.wiz.th) || []) if (!out.has(t)) out.set(t, t);
+  for (const t of (set && set.th) || []) if (!out.has(t)) out.set(t, t);
   return [...out].slice(0, 14).map(([s, l]) => [s, typeof edhThemeName === 'function' ? edhThemeName({ label: l }) : l]);
 }
 const dwThemeLabel = (slug, list) => { const f = list.find(t => t[0] === slug); return f ? f[1] : slug; };
-function dwGaugesHtml(prof, tgt, cmd, pack) {
+/** ro : lecture seule (analyse d'un deck) : pas de suggestions dépliables. */
+function dwGaugesHtml(prof, tgt, cmd, pack, ro) {
   return DW_GAUGES.filter(([r]) => r !== 'counter' || (cmd && cmd.ci.includes('U'))).map(([r, label, help]) => {
     const n = prof[r], [lo, mid, hi] = tgt[r], st = n < lo ? (n < lo - 3 ? 'bad' : 'low') : n > hi + (r === 'land' ? 0 : 3) ? 'high' : 'ok';
     const max = Math.max(hi + 2, n, 1), pct = v => Math.max(0, Math.min(100, v / max * 100));
-    const open = DW.open === r, miss = Math.max(0, mid - n);
+    const open = !ro && DW.open === r, miss = Math.max(0, mid - n), tag = ro ? 'div' : 'button';
     const lbl = st === 'ok' ? T('ok') : st === 'high' ? T('beaucoup') : TN(miss, 'il en manque {n}', 'il en manque {n}');
-    let h = `<div class="dw-g ${st}${open ? ' open' : ''}"><button type="button" class="dw-gh" data-act="dw-g" data-r="${r}" aria-expanded="${open}" title="${esc(T(help))}">
+    let h = `<div class="dw-g ${st}${open ? ' open' : ''}"><${tag} ${ro ? '' : `type="button" data-act="dw-g" data-r="${r}" aria-expanded="${open}" `}class="dw-gh" title="${esc(T(help))}">
       <span class="dw-gl"><b>${T(label)}</b><small>${esc(lbl)}</small></span><span class="dw-gn"><b>${nf0(n)}</b> / ${mid}</span>
-      <span class="dw-bar" aria-hidden="true"><i class="dw-rng" style="left:${pct(lo)}%;width:${Math.max(2, pct(hi) - pct(lo))}%"></i><i class="dw-val" style="width:${pct(n)}%"></i></span></button>`;
+      <span class="dw-bar" aria-hidden="true"><i class="dw-rng" style="left:${pct(lo)}%;width:${Math.max(2, pct(hi) - pct(lo))}%"></i><i class="dw-val" style="width:${pct(n)}%"></i></span></${tag}>`;
     if (open) h += `<div class="dw-gb"><p class="hint">${esc(T(help))} ${esc(T('Repère : {lo} à {hi}.', { lo, hi }))}</p>${r === 'land' ? dwLandHelp(prof, tgt, cmd) : ''}${dwSugHtml(r, cmd, pack, prof, tgt)}</div>`;
     return h + '</div>';
   }).join('');
@@ -326,24 +364,24 @@ function dwManaHtml(prof, tgt, cmd) {
   if (cols.length) {
     h += `<p class="label">${T('Sources de chaque couleur')}</p><div class="dw-src">`;
     for (const c of cols) {
-      const need = prof.pips[c] ? dwSrcNeed(prof.maxPip[c]) : 0, have = Math.round((prof.src[c] || 0) * 10) / 10, ok = !need || have >= need;
+      const need = prof.need[c] || 0, have = Math.round((prof.src[c] || 0) * 10) / 10, ok = !need || have >= need;
       h += `<span class="dw-sc ${ok ? 'ok' : 'low'}"><i class="pip ${c}" aria-hidden="true"></i><b>${nf0(have)}</b>${need ? `<small>/ ${need}</small>` : ''}</span>`;
     }
-    h += `</div><p class="hint">${T('Terrains et rampe qui produisent la couleur (rampe : une demi-source). Repère de Frank Karsten d\'après le symbole le plus exigeant : 15 sources pour {C}, 20 pour {C}{C}, 24 pour {C}{C}{C}.')}</p>`;
+    h += `</div><p class="hint">${T('Terrains et rampe qui produisent la couleur (rampe : une demi-source). Repère de Frank Karsten pour lancer à temps ton commandant et tes sorts les plus exigeants : 19 sources pour un sort à 1 symbole tôt dans la partie, 30 pour 2 symboles, 36 pour 3.')}</p>`;
   }
   return h + '</div>';
 }
-function dwBracketHtml(prof) {
-  const s = BD.wiz, b = DW_BRACKETS.find(x => x[0] === s.br) || DW_BRACKETS[2], out = [];
+function dwBracketHtml(prof, s = BD.wiz) {
+  const b = DW_BRACKETS.find(x => x[0] === s.br) || DW_BRACKETS[2], out = [];
   if (prof.gc.length > b[3]) out.push(['bad', b[3] ? T('{n} Game Changers pour {max} permis en bracket {b} : {list}', { n: prof.gc.length, max: b[3], b: b[0], list: prof.gc.join(', ') }) : T('Game Changers interdits en bracket {b} : {list}', { b: b[0], list: prof.gc.join(', ') })]);
   if (prof.mld.length && s.br <= 3) out.push(['bad', T('Destruction massive de terrains interdite en bracket {b} : {list}', { b: b[0], list: prof.mld.join(', ') })]);
-  if (prof.xt.length && s.br <= 3) out.push(['warn', T('Tours supplémentaires : à ne pas enchaîner en bracket {b} ({list})', { b: b[0], list: prof.xt.join(', ') })]);
-  if (s.br <= 2 && prof.tutor > 3) out.push(['warn', T('{n} tuteurs : beaucoup pour un bracket {b}', { n: prof.tutor, b: b[0] })]);
+  if (prof.xt.length && s.br === 1) out.push(['bad', T('Tours supplémentaires interdits en bracket 1 : {list}', { list: prof.xt.join(', ') })]);
+  else if (prof.xt.length && s.br <= 3) out.push(['warn', T('Tours supplémentaires : à ne pas enchaîner en bracket {b} ({list})', { b: b[0], list: prof.xt.join(', ') })]);
   if (s.br <= 3) out.push(['info', T('Les combos à 2 cartes ne sont pas vérifiés : à surveiller toi-même.')]);
   return `<div class="sec-title">${T('Bracket {n} · {name}', { n: b[0], name: b[1] })}</div><ul class="bd-issues dw-br">${out.length ? out.map(([lv, t]) => `<li class="${lv === 'info' ? '' : lv}">${esc(t)}</li>`).join('') : ''}<li class="ok">${esc(b[3] > 10 ? TN(prof.gc.length, '{n} Game Changer, sans limite dans ce bracket', '{n} Game Changers, sans limite dans ce bracket') : TN(prof.gc.length, '{n} Game Changer sur {max} permis', '{n} Game Changers sur {max} permis', { max: b[3] }))}</li></ul>`;
 }
-function dwBudgetHtml(prof) {
-  const s = BD.wiz, cur = mkCur(); if (!(s.bud > 0) && !prof.cents) return '';
+function dwBudgetHtml(prof, s = BD.wiz) {
+  const cur = mkCur(); if (!(s.bud > 0) && !prof.cents) return '';
   const pct = s.bud > 0 ? Math.min(100, Math.round(prof.cents / s.bud * 100)) : 0, over = s.bud > 0 && prof.cents > s.bud;
   return `<div class="sec-title">${T('Budget')}</div><div class="dw-bud${over ? ' over' : ''}"><p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b>${s.bud > 0 ? `<small>/ ${esc(fmt(s.bud, cur))}</small>` : ''}</p>
     ${s.bud > 0 ? `<span class="dw-bar"><i class="dw-val" style="width:${pct}%"></i></span>` : ''}<p class="hint">${esc(T('Dont {p} à acheter (cartes que ta collection n\'a pas).', { p: fmt(prof.buy, cur) }))}${over ? ' ' + esc(T('Au-dessus du budget : les suggestions ne proposent plus que des cartes que tu possèdes.')) : ''}</p></div>`;
@@ -509,4 +547,4 @@ function openDeckWiz2() {
     paint();
   });
 }
-if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { DKW_ROLES, DW_BASE, dwKarsten, dwPips, dwSrcNeed, DW_BRACKETS });
+if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { DKW_ROLES, DW_BASE, dwKarsten, dwLandTarget, dwModel, dwPips, dwSrcFor, DW_BRACKETS });

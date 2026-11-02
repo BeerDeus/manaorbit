@@ -147,7 +147,10 @@ test('appli : formule des terrains (Karsten), symboles de mana, sources conseill
   assert.equal(Math.round(W.dwKarsten(3, 10)), 38, 'coût moyen 3, 10 sorts pas chers : 38 terrains');
   assert.ok(W.dwKarsten(2.5, 14) < W.dwKarsten(3.5, 6));
   assert.deepEqual(W.dwPips('{2}{G}{G}'), { G: 2 }); assert.deepEqual(W.dwPips('{W/U}{B}'), { W: 0.5, U: 0.5, B: 1 }); assert.deepEqual(W.dwPips('{G/P}'), { G: 1 }); assert.deepEqual(W.dwPips(''), {});
-  assert.ok(W.dwSrcNeed(1) < W.dwSrcNeed(2) && W.dwSrcNeed(2) < W.dwSrcNeed(3)); assert.equal(W.dwSrcNeed(5), W.dwSrcNeed(3));
+  assert.deepEqual([W.dwSrcFor(1, 1), W.dwSrcFor(1, 2), W.dwSrcFor(1, 4), W.dwSrcFor(1, 9), W.dwSrcFor(2, 2), W.dwSrcFor(2, 3), W.dwSrcFor(3, 3), W.dwSrcFor(4, 4), W.dwSrcFor(0.5, 3)], [19, 19, 16, 14, 30, 28, 36, 39, 18], 'table de Karsten (99 cartes) ; hybride : un symbole');
+  assert.deepEqual(W.dwLandTarget(3, 10, 3), [35, 38, 41], 'casual : formule, ± 3'); assert.deepEqual(W.dwLandTarget(1.5, 0, 3), [34, 36, 39], 'plancher de 34'); assert.deepEqual(W.dwLandTarget(5, 0, 3), [39, 42, 44], 'plafond de 42');
+  assert.deepEqual(W.dwLandTarget(2.3, 14, 5), [27, 31, 33], 'cEDH : formule − 3,5'); assert.equal(W.dwLandTarget(3, 10, 3, 3)[1], 41, 'landfall : + 3');
+  assert.deepEqual(W.dwModel({ br: 3, th: ['voltron', 'tokens'] }).protect, [8, 12, 14], 'premier archétype choisi'); assert.equal(W.dwModel({ br: 5, th: [] }).tutor[1], 10, 'cEDH : tuteurs');
   assert.deepEqual(W.DW_BRACKETS.map(b => b[3]), [0, 0, 3, 99, 99], 'Game Changers permis par bracket');
 });
 

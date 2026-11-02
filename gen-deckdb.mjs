@@ -45,7 +45,7 @@ const DC_ROLE = { ramp: 'ramp', draw: 'draw', removal: 'removal', 'board wipe': 
 /** Étiquettes du Scryfall Tagger (oTags d'Archidekt, minuscules, espaces ; ou otag: de Scryfall, tirets) → rôle. Motifs stricts : « tutor-land-basic » est de la rampe, pas un tuteur ;
  *  « cantrip » seul n'est pas de la pioche (il remplace la carte, sans avantage). Complété par docs/deckbuilder/tagger-tags.json s'il existe. */
 const TAG_RULES = [
-  ['ramp', /^(ramp|mana rock|mana dork|land ramp|adds multiple mana|utility mana rock|mana rock with set's mechanic|repeatable treasures|ritual|cost reducer|extra land|mana doubler)$/],
+  ['ramp', /^(ramp|mana rock|mana dork|mana producer|land ramp|adds multiple mana|utility mana rock|mana rock with set's mechanic|repeatable treasures|extra land|mana doubler|mana increaser)$/],      // rituels (mana d'un tour) et réducteurs de coût : à part (recherche)
   ['draw', /^(draw engine|repeatable pure draw|burst draw|repeatable card advantage|wheel|impulse draw|repeatable impulsive draw|tome|life for cards|repeatable draw)$/],
   ['removal', /^(spot removal|removal-creature|removal-destroy|removal-exile|removal-nonland|removal-planeswalker|removal-sacrifice|removal-artifact|removal-enchantment|removal-toughness|removal-permanent|disenchant\/naturalize|burn creature|swap removal|removal-fight|edict)$/],
   ['wipe', /^(sweeper|sweeper-one-sided|board wipe|boardwipe|mass removal|wrath|sweeper-creature|sweeper-nonland|sweeper-artifact|sweeper-enchantment|mass bounce)$/],
@@ -56,7 +56,11 @@ const TAG_RULES = [
   ['wincon', /^(finisher|wincon|alternate win condition|alt-win|win the game|extra combat|overrun|mass pump)$/],
 ];
 let EXTRA_TAGS = {};      // rôle → [étiquettes exactes] (docs/deckbuilder/tagger-tags.json, rédigé d'après le Tagger)
-try { const j = JSON.parse(readFileSync(join(here, 'docs', 'deckbuilder', 'tagger-tags.json'), 'utf8')); for (const [r, l] of Object.entries(j || {})) if (ROLES.includes(r) && Array.isArray(l)) EXTRA_TAGS[r] = l.map(x => String(typeof x === 'object' && x ? x.tag || x.name || '' : x).toLowerCase()).filter(Boolean); } catch { /* facultatif */ }
+try {
+  const j = JSON.parse(readFileSync(join(here, 'docs', 'deckbuilder', 'tagger-tags.json'), 'utf8'));
+  // une étiquette notée trop large, à part ou à ne pas compter (racine « ramp » qui contient Path to Exile, rituels…) n'est pas reprise
+  for (const [r, l] of Object.entries(j || {})) if (ROLES.includes(r) && Array.isArray(l)) EXTRA_TAGS[r] = l.filter(x => !(x && typeof x === 'object' && (x.skip || /trop large|ne pas compter|à part|pas un|exclu/i.test(String(x.note || ''))))).map(x => String(typeof x === 'object' && x ? x.tag || x.name || '' : x).toLowerCase()).filter(Boolean);
+} catch { /* facultatif */ }
 const tagNorm = t => String(t || '').toLowerCase().replace(/-/g, ' ').trim();
 /** Rôles d'une étiquette du Tagger (bits). */
 export function tagRoles(tag) {
@@ -311,7 +315,12 @@ export function scryCard(c) {
   const text = (faces.length ? faces.map(f => f.oracle_text || '').join('\n') : c.oracle_text || '').slice(0, 1200);
   const type = String(c.type_line || f0.type_line || '').slice(0, 120);
   const eur = Number(c.prices && (c.prices.eur || c.prices.eur_foil)) || 0, usd = Number(c.prices && (c.prices.usd || c.prices.usd_foil)) || 0;
-  return { name: c.name, ci: (c.color_identity || []).join(''), cmc: Number(c.cmc) || 0, type, text, eur: Math.round((eur || usd * 0.92) * 100), gc: c.game_changer ? 1 : 0, legal: legal ? 1 : 0, prod: (c.produced_mana || []).join(''), mc: String(c.mana_cost || f0.mana_cost || '').slice(0, 60), rank: Number(c.edhrec_rank) || 0 };
+  let prod = (c.produced_mana || []).join('');
+  if (!prod && /\bLand\b/.test(type)) {      // terrain qui en cherche un autre (Evolving Wilds, fetchlands) : source des couleurs qu'il peut trouver
+    const m = /search your library for (?:an? |up to \w+ )?([^.]*?)cards?/i.exec(text);
+    if (m) prod = /basic land/i.test(m[1]) ? 'WUBRG' : [['Plains', 'W'], ['Island', 'U'], ['Swamp', 'B'], ['Mountain', 'R'], ['Forest', 'G']].filter(([w]) => m[1].includes(w)).map(x => x[1]).join('');
+  }
+  return { name: c.name, ci: (c.color_identity || []).join(''), cmc: Number(c.cmc) || 0, type, text, eur: Math.round((eur || usd * 0.92) * 100), gc: c.game_changer ? 1 : 0, legal: legal ? 1 : 0, prod, mc: String(c.mana_cost || f0.mana_cost || '').slice(0, 60), rank: Number(c.edhrec_rank) || 0 };
 }
 async function scryAll() {
   const local = process.env.DECKDB_BULK;
@@ -342,7 +351,7 @@ async function scryFill(S, names) {
 }
 /** Recherches Tagger (otag:) : nom normalisé → bits de rôle. Seulement les étiquettes « sûres » de chaque rôle. */
 async function taggerRoles() {
-  const Q = { ramp: ['ramp', 'mana-rock', 'mana-dork'], draw: ['card-advantage', 'draw'], removal: ['removal', 'spot-removal'], wipe: ['sweeper', 'board-wipe'], counter: ['counterspell'], tutor: ['tutor'], protect: ['protects-creature', 'protects-permanent'], recursion: ['reanimate', 'regrowth'] };
+  const Q = { ramp: ['mana-rock', 'mana-dork', 'land-ramp', 'mana-increaser'], draw: ['draw-engine', 'burst-draw'], removal: ['spot-removal'], wipe: ['sweeper'], counter: ['counterspell'], tutor: [], protect: ['protects-creature', 'protects-permanent'], recursion: ['reanimate', 'regrowth'] };      // étiquettes précises (une racine comme « ramp » ou « removal » contient trop de cas limites)
   for (const [r, l] of Object.entries(EXTRA_TAGS)) if (Q[r]) for (const t of l) { const s = String(t).replace(/ /g, '-'); if (!Q[r].includes(s) && Q[r].length < 6) Q[r].push(s); }
   const out = new Map(); let pages = 0; const t0 = Date.now(), cap = BUDGET_MS * 0.12;      // 12 % du budget au plus (pages lourdes) : les étiquettes des cartes jouées arrivent aussi par Archidekt
   if (!TAGGER) return out;

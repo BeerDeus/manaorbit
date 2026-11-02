@@ -84,6 +84,9 @@ function openBuilder(o) {
     if (BD.fmt === 'commander') BD.side.clear();      // pas de réserve en Commander
   } else BD.fmt = o.fmt === 'commander' ? 'commander' : 'standard';
   if (!prev && Array.isArray(o.cmdr) && BD.fmt === 'commander') { BD.cmdr = o.cmdr.slice(0, 2).map(c => ({ key: c.key, name: c.name })); for (const c of BD.cmdr) BD.main.delete(c.key); BD.dirty = true; }
+  if (Array.isArray(o.swaps) && o.swaps.length) {      // échanges conseillés par l'analyse (deckana.js) : appliqués, à enregistrer
+    for (const [ok, ik, nm] of o.swaps) { const c = BD.main.get(ok); if (!c || BD.main.has(ik)) continue; if (c.qty > 1) c.qty--; else BD.main.delete(ok); BD.main.set(ik, { key: ik, name: nm, qty: 1 }); BD.dirty = true; }
+  }
   const coach = typeof dwOn === 'function' && dwOn() && BD.fmt === 'commander';      // onglet Coach (fonctionnalité en test, deckwiz.js)
   if (coach) BD.wiz = o.wiz ? { ...dwDefaults(), ...o.wiz } : dwSettingsFor(BD.id);
   collFrLoad();

@@ -18,11 +18,11 @@ const CARDS = [['Edgar Markov', 'WBR', 4, 2 | 256, 0, 500, 0, '', 300], ['Sol Ri
   ['Swords to Plowshares', 'W', 1, 16, R.removal, 190, 0, '', 10], ['Wrath of God', 'W', 4, 32, R.wipe, 150, 0, '', 40], ['Llanowar Elves', 'G', 1, 2, R.ramp, 20, 0, 'G', 20],
   ['Rhystic Study', 'U', 3, 8, R.draw, 3000, 1, '', 5], ["Night's Whisper", 'B', 2, 32, R.draw, 30, 0, '', 50], ['Phyrexian Arena', 'B', 3, 8, R.draw, 400, 0, '', 60],
   ['Demonic Tutor', 'B', 2, 32, R.tutor, 3500, 9, '', 30], ['Armageddon', 'W', 4, 32, R.wipe, 900, 4, '', 900], ['Gilded Removal', 'W', 2, 16, R.removal, 90000, 0, '', 70],
-  ['Plains', 'W', 0, 1, R.land, 0, 0, 'W', 0], ['Swamp', 'B', 0, 1, R.land, 0, 0, 'B', 0], ['Mountain', 'R', 0, 1, R.land, 0, 0, 'R', 0], ['Command Tower', '', 0, 1, R.land, 20, 0, 'WUBRG', 2]];
+  ['Weak One', 'B', 3, 2, 0, 500, 0, '', 5000], ['Plains', 'W', 0, 1, R.land, 0, 0, 'W', 0], ['Swamp', 'B', 0, 1, R.land, 0, 0, 'B', 0], ['Mountain', 'R', 0, 1, R.land, 0, 0, 'R', 0], ['Command Tower', '', 0, 1, R.land, 20, 0, 'WUBRG', 2]];
 const st = (lo, mid, hi) => [lo, mid, hi];
 const TG = { n: 500, land: st(35, 36, 37), ramp: st(9, 10, 12), draw: st(8, 10, 12), removal: st(7, 9, 11), wipe: st(2, 3, 4), counter: st(0, 1, 3), tutor: st(0, 1, 3), protect: st(2, 3, 5), recursion: st(1, 2, 4), wincon: st(1, 2, 3), mv: st(2.8, 3.1, 3.4), cheap: st(6, 9, 12), gc: st(0, 0, 1) };
 const CORE = { v: 1, at: '2026-11-01T00:00:00Z', roles: Object.keys(R).concat('wincon'), cards: CARDS, tg: { all: TG, recent: TG, br: {}, th: {}, nc: {} }, cmds: ['edgar-markov'], themes: [], src: { decks: 1234 } };
-const PACK = { slug: 'edgar-markov', n: 12345, land: 36, thl: [['vampires', 'Vampires', 9000], ['aggro', 'Aggro', 2000]], cards: [['Sol Ring', 95, -2], ['Arcane Signet', 80, 5], ['Swords to Plowshares', 60, 10], ['Llanowar Elves', 50, 30], ['Night\'s Whisper', 40, 20], ['Phyrexian Arena', 30, 25], ['Gilded Removal', 30, 40], ['Wrath of God', 30, 5], ['Demonic Tutor', 25, 1], ['Armageddon', 5, 1], ['Command Tower', 90, 0]], th: {}, xc: [], tg: null };
+const PACK = { slug: 'edgar-markov', n: 12345, land: 36, thl: [['vampires', 'Vampires', 9000], ['aggro', 'Aggro', 2000]], cards: [['Sol Ring', 95, -2], ['Arcane Signet', 80, 5], ['Swords to Plowshares', 60, 10], ['Llanowar Elves', 50, 30], ['Night\'s Whisper', 40, 20], ['Phyrexian Arena', 30, 25], ['Gilded Removal', 30, 40], ['Wrath of God', 30, 5], ['Demonic Tutor', 25, 1], ['Armageddon', 5, 1], ['Command Tower', 90, 0], ...Array.from({ length: 40 }, (_, i) => ['Filler ' + i, 1, 0])], th: {}, xc: [], tg: null };      // ≥ 40 cartes : commandant connu (avis sur les cartes faibles)
 let dkwHits = 0, dkwOff = false;
 const one = p => p.waitForFunction(() => document.querySelectorAll('.sheet-wrap').length === 1);      // la feuille d'avant a fini de se fermer
 async function prep(p) {
@@ -111,7 +111,27 @@ assert.match(await txt(p, '.dw-set-h'), /bracket 2/); assert.equal(await p.evalu
 await p.evaluate(() => bdClose(true));
 ok('bracket (Game Changers, destruction de terrains), terrains de base, réglages gardés avec le deck');
 
-/* ── 6) Base du coach indisponible : modèle de base, pas de suggestions ── */
+/* ── 6) Analyser un deck (viewer) : bracket estimé, échanges conseillés, limite de prix, ouverture dans l'éditeur avec les échanges ── */
+await p.evaluate(() => putDeck('dk-ana', deckDoc({ name: 'Edgar à analyser', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian Arena\n1 Gilded Removal\n1 Command Tower\n30 Plains', opts: { ...S.opts } })));
+await p.evaluate(() => openDeckViewer({ id: 'dk-ana' })); await p.waitForSelector('.dv.on .dv-ana');
+await p.click('.dv-ana'); await p.waitForSelector('.da-sum', { timeout: 15000 });
+assert.match(await txt(p, '.da-sum'), /Bracket estimé 2 · Core/);
+await p.waitForSelector('.da-sw');
+const swRows = () => p.$$eval('.da-sw', r => r.map(x => [...x.querySelectorAll('.da-c b')].map(b => b.textContent).join(' → ') + ' | ' + x.querySelector('.da-why').textContent).map(t => t.replace(/\s+/g, ' ')));
+let sws = await swRows();
+assert.equal(sws.length, 1, 'un seul échange utile : ' + sws.join(' | ')); assert.equal(sws[0], 'Weak One → Arcane Signet | Il manque : Rampe · 80 % des decks (contre 0 %) · −4,60 €');
+await p.fill('#daBud', '100'); await p.dispatchEvent('#daBud', 'change');
+await p.waitForFunction(() => document.querySelectorAll('.da-sw').length === 2);
+sws = await swRows();
+assert.match(sws[0], /^Gilded Removal → Swords to Plowshares \| Même rôle, bien moins chère/, 'au-dessus de la limite : la carte chère d\'abord');
+assert.match(await txt(p, '#daGo'), /Ouvrir dans l'éditeur avec 2 échanges/);
+await p.click('.da-sw input[data-da-sw="1"]'); await p.waitForFunction(() => /avec 1 échange$/.test(document.querySelector('#daGo').textContent));
+await p.click('#daGo'); await p.waitForSelector('.bd.on'); await p.waitForSelector('.dw-gauges');
+assert.deepEqual(await p.evaluate(() => [BD.id, BD.tab, BD.dirty, BD.main.has('gilded removal'), BD.main.has('swords to plowshares'), BD.main.has('weak one'), BD.wiz.bud]), ['dk-ana', 'coach', true, false, true, true, 10000]);
+await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
+ok('analyse : bracket estimé, échanges (rôle qui manque, limite de prix), cochés appliqués dans l\'éditeur');
+
+/* ── 7) Base du coach indisponible : modèle de base, pas de suggestions ── */
 dkwOff = true;
 await p.evaluate(() => { DW.core = null; DW.byKey = null; DW.err = ''; DW.cmd.clear(); return Cache.set('dkw:core', null); });
 await p.evaluate(id => openBuilder({ id, tab: 'coach' }), id); await p.waitForSelector('.bd.on'); await p.click('#bdSeg .seg-opt[data-v="coach"]');
