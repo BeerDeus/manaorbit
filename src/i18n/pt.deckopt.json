@@ -83,5 +83,15 @@
  "Piles": "Pilhas",
  "Piles compactes": "Pilhas compactas",
  "Bandeaux": "Faixas",
- "Game Changer : compte pour le bracket": "Game Changer: conta para o bracket"
+ "Game Changer : compte pour le bracket": "Game Changer: conta para o bracket",
+ "{n} engagée dans « {deck} »": "{n} reservada em «{deck}»",
+ "{n} engagées dans « {deck} »": "{n} reservadas em «{deck}»",
+ "Ajoute des cartes depuis « Ajouter » : les tiennes d'abord, puis toutes les cartes Magic.": "Adiciona cartas em «Adicionar»: primeiro as tuas, depois todas as cartas de Magic.",
+ "Retirer un exemplaire du deck": "Retirar uma cópia do deck",
+ "Retirer du deck": "Retirar do deck",
+ "Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.": "As cartas da tua coleção que podem ser comandante, depois todas as outras.",
+ "toutes les cartes Magic": "todas as cartas de Magic",
+ "Rôle": "Função",
+ "{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.": "{name}: a tua cópia está em «{deck}». Vai buscá-la lá quando jogares este deck, ou compra uma.",
+ "un autre deck": "outro deck"
 }

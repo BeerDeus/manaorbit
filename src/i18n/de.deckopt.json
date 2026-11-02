@@ -83,5 +83,15 @@
  "Piles": "Stapel",
  "Piles compactes": "Kompakte Stapel",
  "Bandeaux": "Streifen",
- "Game Changer : compte pour le bracket": "Game Changer: zählt für das Bracket"
+ "Game Changer : compte pour le bracket": "Game Changer: zählt für das Bracket",
+ "{n} engagée dans « {deck} »": "{n} reserviert in „{deck}“",
+ "{n} engagées dans « {deck} »": "{n} reserviert in „{deck}“",
+ "Ajoute des cartes depuis « Ajouter » : les tiennes d'abord, puis toutes les cartes Magic.": "Füge Karten über „Hinzufügen“ hinzu: zuerst deine, dann alle Magic-Karten.",
+ "Retirer un exemplaire du deck": "Ein Exemplar aus dem Deck entfernen",
+ "Retirer du deck": "Aus dem Deck entfernen",
+ "Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.": "Karten aus deiner Sammlung, die Commander sein können, dann alle anderen.",
+ "toutes les cartes Magic": "alle Magic-Karten",
+ "Rôle": "Rolle",
+ "{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.": "{name}: Dein Exemplar steckt in „{deck}“. Nimm es dort, wenn du dieses Deck spielst, oder kauf eins.",
+ "un autre deck": "einem anderen Deck"
 }

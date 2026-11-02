@@ -212,6 +212,7 @@ textarea#deckText:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0
 .tag.warn{background:var(--warn-soft);color:var(--warn)}
 .tag.good{background:var(--good-soft);color:var(--good)}
 .tag.accent{background:var(--accent-soft);color:var(--accent)}
+.tag.gc{background:linear-gradient(135deg,#6d3cff,#c43cff);color:#fff;font-family:var(--font-mono);font-weight:700;letter-spacing:.05em}      /* Game Changer (brackets Commander) */
 .sk{border-radius:6px;background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3) 50%,var(--surface-2) 75%);background-size:300% 100%;animation:shimmer 1.3s linear infinite}
 .sk.name{height:14px;width:62%}
 .sk.meta{height:12px;width:38%}
@@ -1629,3 +1630,8 @@ html.nat-cam .dv.scan::before,html.nat-cam .dv.scan::after{display:none}
 .dvc.dvb .dvc-l{position:static;flex:none}
 .dvc.dvb:active{transform:scale(.985)}
 .dvc.dvb[data-s="none"],.dvc.dvb[data-s="nohub"],.dvc.dvb[data-s="nf"]{filter:saturate(.6)}
+/* Éditeur de deck : choix de la vue de l'onglet Deck (liste modifiable ou vues du deck viewer) */
+.bd-tools{display:flex;align-items:center;gap:8px;margin:2px 0 8px}
+.bd-tools .bd-sort{flex:1;min-width:0}
+.bd-tools-sp{flex:1}
+.bd-vis{margin-top:4px}

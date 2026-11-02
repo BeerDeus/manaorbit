@@ -83,5 +83,15 @@
  "Piles": "Piles",
  "Piles compactes": "Compact piles",
  "Bandeaux": "Strips",
- "Game Changer : compte pour le bracket": "Game Changer: counts toward the bracket"
+ "Game Changer : compte pour le bracket": "Game Changer: counts toward the bracket",
+ "{n} engagée dans « {deck} »": "{n} reserved in “{deck}”",
+ "{n} engagées dans « {deck} »": "{n} reserved in “{deck}”",
+ "Ajoute des cartes depuis « Ajouter » : les tiennes d'abord, puis toutes les cartes Magic.": "Add cards from “Add”: yours first, then every Magic card.",
+ "Retirer un exemplaire du deck": "Remove one copy from the deck",
+ "Retirer du deck": "Remove from the deck",
+ "Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.": "Cards from your collection that can be a commander, then all the others.",
+ "toutes les cartes Magic": "every Magic card",
+ "Rôle": "Role",
+ "{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.": "{name}: your copy is in “{deck}”. Take it from there when you play this deck, or buy one.",
+ "un autre deck": "another deck"
 }

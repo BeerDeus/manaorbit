@@ -40,8 +40,7 @@ await p.fill('#bdQ', 'sol'); assert.deepEqual(await p.$$eval('.bd-row', r => r.m
 await step(p, 'sol ring', 'main', 1); assert.equal(await qty(p, 'sol ring', 'main'), 1);
 await step(p, 'sol ring', 'main', 1); assert.equal(await qty(p, 'sol ring', 'main'), 1, 'singleton : 2e exemplaire refusé'); assert.match(await txt(p, '#toast'), /un seul exemplaire/);
 await p.fill('#bdQ', 'arcane'); await step(p, 'arcane signet', 'main', 1); await step(p, 'arcane signet', 'main', 1); assert.equal(await qty(p, 'arcane signet', 'main'), 1);
-await p.fill('#bdQ', ''); await tab(p, 'find');
-await p.waitForFunction(() => /Tape au moins 2 lettres/.test(document.querySelector('#bdList').textContent), null, { timeout: 8000 });
+await p.fill('#bdQ', '');      // onglet « Ajouter » : la même recherche trouve ensuite toutes les cartes Magic (à acheter), après celles de la collection
 await p.fill('#bdQ', 'crater'); await p.waitForSelector('.bd-row[data-k="craterhoof behemoth"]'); await step(p, 'craterhoof behemoth', 'main', 1);
 await p.fill('#bdQ', 'wrath'); await p.waitForSelector('.bd-row[data-k="wrath of god"]'); await step(p, 'wrath of god', 'main', 1);
 assert.match(await tc(p, '.bd-row[data-k="wrath of god"] .row-meta'), /Pas dans ta collection/);
@@ -71,7 +70,7 @@ await newDeck(p, 'Burn', 'standard');
 assert.match(await txt(p, '#bdSub'), /Standard · 0\/60/); assert.match(await txt(p, '#bdSum'), /0\s*\/ 15 en réserve/);
 await tab(p, 'coll'); assert.equal(await p.$eval('#bdTgt', e => e._v), 'main');
 assert.deepEqual(await p.$$eval('#bdTgt .seg-opt', b => b.map(x => x.dataset.v)), ['main', 'side'], 'Standard : Deck | Réserve');
-await p.fill('#bdQ', 'sol'); assert.match(await tc(p, '.bd-row[data-k="sol ring"] .row-meta'), /1 engagée ailleurs/, 'Sol Ring est monté dans le deck Commander');
+await p.fill('#bdQ', 'sol'); assert.match(await tc(p, '.bd-row[data-k="sol ring"] .row-meta'), /1 engagée dans « Vampires Boros v1 »/, 'Sol Ring est monté dans le deck Commander (son nom affiché)');
 await p.fill('#bdQ', 'arcane'); for (let i = 0; i < 5; i++) await step(p, 'arcane signet', 'main', 1);
 assert.equal(await qty(p, 'arcane signet', 'main'), 4, '4 exemplaires maximum'); assert.match(await txt(p, '#toast'), /4 exemplaires au maximum/);
 await p.click('#bdTgt .seg-opt[data-v="side"]'); await step(p, 'arcane signet', 'side', 1); assert.equal(await qty(p, 'arcane signet', 'side'), 0, 'réserve comprise dans les 4');
@@ -160,7 +159,7 @@ ok('deck créé : chargé dans la saisie comme un deck importé');
   assert.deepEqual(await deckQ(), { 'swords to plowshares': 4 }, '4 exemplaires au plus'); assert.deepEqual(await collQ(), c0, 'collection inchangée');
   assert.match(await txt(p, '#toast'), /4 cartes ajoutées au deck · 1 refusée \(règles du format\)/);
   // onglet Chercher : la zone choisie (Réserve)
-  await tab(p, 'find'); await p.click('#bdTgt .seg-opt[data-v="side"]'); await p.click('#bdCtl .bd-scan-ic'); await p.waitForSelector('.scan.on');
+  await tab(p, 'coll'); await p.click('#bdTgt .seg-opt[data-v="side"]'); await p.click('#bdCtl .bd-scan-ic'); await p.waitForSelector('.scan.on');
   await scanIn([['Llanowar Elves', 1]]); await p.waitForTimeout(300);
   await p.click('.scan .dv-foot [data-act="done"]'); await p.waitForSelector('.bd-sc-sheet.open'); assert.match(await txt(p, '.bd-sc-sheet .rc-facts'), /Zone Réserve/);
   await p.click('.bd-sc-opt[data-m="take"]'); await p.click('.bd-sc-sheet [data-ok]'); await p.waitForFunction(() => !document.querySelector('.scan'), null, { timeout: 4000 });

@@ -377,7 +377,7 @@ function dwCoachHtml() {
     const ready = DW.cmd.has(cmd.slug), empty = true;
     h += `<button class="btn block dw-auto" type="button" data-act="dw-auto"${ready ? '' : ' disabled'}>${empty ? T('Générer le deck (100 cartes)') : T('Compléter le deck jusqu\'à 100 cartes')}</button><p class="hint dw-auto-h">${T('Rôles jusqu\'aux cibles, puis le plan du commandant, puis les terrains ; dans tes couleurs, ton bracket et ton budget, ta collection d\'abord. Les cartes déjà là restent ; annulable.')}</p>`;
   }
-  h += `<div class="sec-title">${T('Équilibre du deck')}</div><div class="dw-gauges">${dwGaugesHtml(prof, tgt, cmd, pack)}</div>`;
+  h += dwFoldHead('bal', DW.balOpen !== false, T('Équilibre du deck'), dwBalSum(prof, tgt, cmd), 'data-act="dw-fold" data-v="bal"') + (DW.balOpen !== false ? `<div class="dw-gauges">${dwGaugesHtml(prof, tgt, cmd, pack)}</div>` : '');
   h += dwManaHtml(prof, tgt, cmd);
   h += dwBracketHtml(prof);
   h += dwBudgetHtml(prof);
@@ -388,6 +388,13 @@ function dwCoachHtml() {
     + (bch ? ' ' + T('Banc d\'essai : sur {n} vrais decks jamais appris, le coach retrouve {p} % des cartes retirées dans ses 20 premières suggestions.', { n: nf0(DW.core.bench.n), p: dsNumFr(bch.r20) }) : '');
   h += `<p class="hint dw-src">${esc(src)}</p>`;
   return h;
+}
+/** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
+const dwFoldHead = (id, open, title, sum, attr) => `<button class="dw-set-h dw-fold" type="button" ${attr} aria-expanded="${open}"><span><b>${esc(title)}</b>${sum ? `<small>${esc(sum)}</small>` : ''}</span><span class="me-v">${open ? T('Masquer') : T('Afficher')}</span></button>`;
+/** Résumé de l'équilibre : catégories dans la norme. */
+function dwBalSum(prof, tgt, cmd) {
+  const gs = DW_GAUGES.filter(([r]) => r !== 'counter' || (cmd && cmd.ci.includes('U'))), ok = gs.filter(([r]) => tgt[r] && prof[r] >= tgt[r][0] && prof[r] <= tgt[r][2] + (r === 'land' ? 0 : 3)).length;
+  return TN(ok, '{n} catégorie sur {b} dans la norme', '{n} catégories sur {b} dans la norme', { b: gs.length });
 }
 function dwSetHtml(cmd, pack) {
   const s = BD.wiz, th = dwThemeChoices(cmd, pack), cur = mkCur();
@@ -578,6 +585,7 @@ function dwClick(b) {
   else if (act === 'dw-set') { DW.setOpen = !DW.setOpen; haptic('tap'); bdList(); }
   else if (act === 'dw-th') { const v = b.dataset.v, i = s.th.indexOf(v); if (i >= 0) s.th.splice(i, 1); else if (s.th.length < 3) { s.th.push(v); dwPack('t', v); } else { toast(T('3 thèmes au plus')); return true; } haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }
   else if (act === 'dw-br') { s.br = Number(b.dataset.v) || 3; haptic('tap'); DW.changed = true; dwPersist(BD.id); bdList(); }
+  else if (act === 'dw-fold') { if (b.dataset.v === 'bal') DW.balOpen = DW.balOpen === false; haptic('tap'); bdList(); }      // « Équilibre du deck » replié ou déplié
   else if (act === 'dw-keep') { DW.changed = false; haptic('tap'); bdList(); }
   else if (act === 'dw-regen') { const orig = new Map([...BD.main].map(([k, c]) => [k, { ...c }])); DW.changed = false; BD.main = new Map(); dwBuild(orig); }      // tout refaire, l'ancien deck reste annulable
   else if (act === 'dw-basics') dwFillBasics();

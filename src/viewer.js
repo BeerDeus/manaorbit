@@ -573,7 +573,7 @@ function dvRoleOf(it) {
 }
 function dvRoleGroups(items, ref) {
   if (typeof dwLoad !== 'function') return groupSnap(items, 'mana', ref);
-  if (!DW.byKey) { if (!DV.roleWait) { DV.roleWait = true; dwLoad().then(() => { DV.roleWait = false; if (DV.el && DV.sort === 'role') dvGroups(); }, () => { DV.roleWait = false; }); } return groupSnap(items, 'mana', ref); }
+  if (!DW.byKey) { if (!DV.roleWait) { DV.roleWait = true; dwLoad().then(() => { DV.roleWait = false; if (DV.el && DV.sort === 'role') dvGroups(); if (typeof BD !== 'undefined' && BD.el && BD.sort === 'role' && BD.tab === 'deck') bdList(); }, () => { DV.roleWait = false; }); } return groupSnap(items, 'mana', ref); }
   const list = items.filter(i => !i.sb), side = items.filter(i => i.sb), nf = list.filter(i => i.s === 'nf').sort(byName), rest = list.filter(i => i.s !== 'nf'), out = [];
   const by = new Map(DV_ROLE_GROUPS.map(([k]) => [k, []])); for (const i of rest) by.get(dvRoleOf(i)).push(i);
   const add = (id, label, arr) => { if (arr.length) out.push({ id, label, items: arr, ...sumGroup(arr) }); };

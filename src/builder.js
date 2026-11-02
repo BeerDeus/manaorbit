@@ -90,6 +90,7 @@ function openBuilder(o) {
   const coach = typeof dwOn === 'function' && dwOn() && BD.fmt === 'commander';      // onglet Coach (fonctionnalité en test, deckwiz.js)
   if (coach) BD.wiz = o.wiz ? { ...dwDefaults(), ...o.wiz } : dwSettingsFor(BD.id);
   collFrLoad();
+  if (typeof EDH !== 'undefined' && !EDH.data && typeof edhLoad === 'function') edhLoad().then(() => { if (BD.el) bdList(); }, () => {});      // liste des Game Changers (pastille GC), dans les données EDHREC
   BD.split = bdSplit();      // ordinateur (≥ 1 100 px, souris) : recherche à gauche, liste du deck à droite, toujours visible (zz-desktop.css) ; décidé à l'ouverture
   const wrap = document.createElement('div'); wrap.className = 'dv bd' + (BD.split ? ' split' : ''); wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', T('Créateur de deck'));
   wrap.innerHTML = `<header class="dv-head"><button class="icon-btn dv-back" type="button" data-act="close" aria-label="${T('Fermer')}"><svg class="i"><use href="#i-back"/></svg></button>
@@ -117,7 +118,8 @@ function openBuilder(o) {
   wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
   wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
   const tab0 = coach && o.tab === 'coach' ? 'coach' : BD.split ? 'coll' : 'deck';
-  mountSeg($('#bdSeg', wrap), [...(BD.split ? [] : [{ v: 'deck', label: T('Deck') }]), { v: 'coll', label: T('Collection') }, { v: 'find', label: T('Chercher') }, ...(coach ? [{ v: 'coach', label: T('Coach') }] : [])], tab0, bdTab);
+  BD.view = bdViewRead(); BD.sort = BD.sort || 'mana';
+  mountSeg($('#bdSeg', wrap), [...(BD.split ? [] : [{ v: 'deck', label: T('Deck') }]), { v: 'coll', label: T('Ajouter') }, ...(coach ? [{ v: 'coach', label: T('Coach') }] : [])], tab0, bdTab);      // « Ajouter » : collection et toutes les cartes dans une seule recherche
   wrap.addEventListener('click', bdClick);
   wrap.addEventListener('input', e => {
     if (e.target.id === 'bdName') { BD.name = e.target.value; BD.dirty = true; bdHead(); }
@@ -279,10 +281,11 @@ function bdTags(k, q, ctx) {
   if (BASIC_NAMES.has(k)) return '';
   const own = collQty(k), eg = engTotal(XS.eng, k, BD.id), out = [];
   if (ctx !== 'deck' && BD.cmdr.some(c => c.key === k)) out.push(`<span class="tag accent">${T('Commandant')}</span>`);
+  if (typeof dvGC === 'function' && dvGC(k)) out.push(`<span class="tag gc" title="${T('Game Changer : compte pour le bracket')}">GC</span>`);      // liste officielle des Game Changers (brackets Commander)
   const buy = () => { const m = bdMeta(k), u = m && Number.isFinite(m.eu) && m.eu > 0 ? m.eu : 0; return u ? ' · ' + fmt(u * Math.max(1, q - own), mkCur()) : ''; };      // prix de ce qui manque (tendance du marché choisi), s'il est connu
   if (ctx === 'deck') out.push(own >= q ? `<span class="tag good">${T('Possédée')}</span>` : own > 0 ? `<span class="tag warn">${TN(own, '{n} possédée sur {q}', '{n} possédées sur {q}', { n: own, q })}${esc(buy())}</span>` : `<span class="tag">${T('À acheter')}${esc(buy())}</span>`);
   else out.push(own ? `<span class="tag good">${TN(own, '× {n} possédée', '× {n} possédées', { n: own })}</span>` : `<span class="tag">${T('Pas dans ta collection')}</span>`);
-  if (own && eg) out.push(`<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${TN(eg, '{n} engagée ailleurs', '{n} engagées ailleurs', { n: eg })}</span>`);
+  if (own && eg) { const ds = engDecksOf(XS.eng, k).filter(d => d.id !== BD.id); out.push(`<span class="tag warn" title="${T('Réservées par un autre deck monté')}">${ds.length === 1 && ds[0].n ? esc(TN(eg, '{n} engagée dans « {deck} »', '{n} engagées dans « {deck} »', { n: eg, deck: ds[0].n })) : TN(eg, '{n} engagée ailleurs', '{n} engagées ailleurs', { n: eg })}</span>`); }
   return out.join('');
 }
 function bdRow(k, name, q, tgt, ctx, label) {
@@ -292,16 +295,52 @@ function bdRow(k, name, q, tgt, ctx, label) {
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span>${tags ? `<span class="row-meta">${tags}</span>` : ''}</span>
     <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button><b>${q}</b><button type="button" data-d="1" aria-label="${T('Ajouter un exemplaire de {name}', { name: esc(nm) })}">+</button></span></div>`;
 }
+/** Vues de l'onglet Deck : la liste modifiable (− / +), ou les vues du deck viewer (grille, piles, piles compactes, bandeaux), triées par coût, type ou rôle ;
+ *  dans une vue en images, un toucher ouvre la carte en grand avec « Retirer du deck ». Choix gardé sur l'appareil. */
+const BD_VIEW_KEY = 'deckdeal:bd-view';
+function bdViewRead() { try { const v = localStorage.getItem(BD_VIEW_KEY); if (v === 'list' || DV_VIEWS.some(x => x[0] === v)) return v; } catch (e) { /* ignore */ } return 'list'; }
+const BD_LIST_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/></svg>';
+function bdToolsHtml() {
+  const views = [['list', 'Liste'], ...DV_VIEWS];
+  return `<div class="bd-tools">${BD.view !== 'list' ? `<div class="seg bd-sort" id="bdSort" role="radiogroup" aria-label="${T('Classer par')}"></div>` : '<span class="bd-tools-sp"></span>'}<div class="dv-vw" id="bdView" role="radiogroup" aria-label="${T('Affichage')}">${views.map(([v, l]) => `<button type="button" role="radio" data-bdview="${v}" aria-checked="${BD.view === v}" aria-label="${esc(T(l))}" title="${esc(T(l))}">${v === 'list' ? BD_LIST_ICON : DV_VIEW_ICON[v]}</button>`).join('')}</div></div>`;
+}
+/** Cartes de l'éditeur au format du deck viewer (prix de ce qui manque, possession), pour ses vues. */
+function bdViewItems() {
+  const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, ow = BASIC_NAMES.has(k) ? 0 : collQty(k), eu = Number.isFinite(m.eu) && m.eu > 0 ? m.eu : 0;
+    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
+  return [...[...BD.main.values()].map(c => one(c, 'main')), ...[...BD.side.values()].map(c => one(c, 'side'))];
+}
+function bdVisualHtml() {
+  const items = bdViewItems(), snap = { ref: true }, view = BD.view;
+  const groups = BD.sort === 'role' && typeof dvRoleGroups === 'function' ? dvRoleGroups(items, true) : groupSnap(items, BD.sort, true);
+  BD.vflat = []; let n = 0;
+  const tile = it => { BD.vflat.push(it); return (view === 'strips' ? dvStrip : dvTile)(it, n++, snap, null); };
+  const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}</small></h3>`;
+  const box = (cls, list) => `<div class="${cls}">${list.map(tile).join('')}</div>`;
+  if (!groups.length) return `<p class="hint">${T('Ajoute des cartes depuis « Ajouter » : les tiennes d\'abord, puis toutes les cartes Magic.')}</p>`;
+  const body = view === 'piles' ? `<div class="dv-piles">${groups.map(g => `<section class="dv-g dv-pile">${head(g)}${box('dvp', g.items)}</section>`).join('')}</div>`
+    : groups.map(g => { const half = Math.ceil(g.items.length / 2); return `<section class="dv-g">${head(g)}${view === 'stacks' ? `<div class="dv-stk">${box('dvp', g.items.slice(0, half))}${g.items.length > 1 ? box('dvp', g.items.slice(half)) : ''}</div>` : box(view === 'strips' ? 'dv-strips' : 'dv-grid', g.items)}</section>`; }).join('');
+  return `<div class="dv-groups bd-vis" data-view="${view}">${body}</div>`;
+}
+function bdCmdrHtml() {
+  if (BD.fmt !== 'commander') return '';
+  return `<div class="sec-title">${T(BD.cmdr.length > 1 ? 'Commandants' : 'Commandant')}</div>` + (BD.cmdr.length ? BD.cmdr.map(c => bdRow(c.key, c.name, 1, 'cmdr', 'deck')).join('') : `<button class="btn ghost small" type="button" data-act="pick-cmdr" style="align-self:flex-start">${T('Choisir un commandant')}</button>`);
+}
+/** Carte touchée dans une vue en images : en grand, avec « Retirer du deck » (et les autres cartes du deck en glissant). */
+function bdVisualOpen(i) {
+  const list = (BD.vflat || []).map(it => ({ key: it.key, lid: it.key + '|' + it.tgt, name: it.n, ln: it.name, wl: viewLang(it.key, true), small: it.im || zoomUrl(it.name, 'small'), lang: 'en', plain: true,
+    extra: it.ow ? TN(it.ow, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: it.ow }) : T('Pas dans ta collection'),
+    act: { label: it.q > 1 ? T('Retirer un exemplaire du deck') : T('Retirer du deck'), fn: () => { bdChange(it.tgt, it.key, it.name, -1); closeCardImage(); } } }));
+  if (list[i]) openCardViewer(list, i);
+}
 function bdDeckHtml() {
+  if (BD.view && BD.view !== 'list' && !BD.split) return bdToolsHtml() + bdCmdrHtml() + bdVisualHtml();
   const mainAll = [...BD.main.values()], basicKeys = new Set(BD_BASICS.map(b => b[0]));
   const spells = mainAll.filter(c => !BASIC_NAMES.has(c.key)).sort(bdCmp), others = mainAll.filter(c => BASIC_NAMES.has(c.key) && !basicKeys.has(c.key)).sort(bdCmp);
-  let h = '';
-  if (BD.fmt === 'commander') {
-    h += `<div class="sec-title">${T(BD.cmdr.length > 1 ? 'Commandants' : 'Commandant')}</div>`;
-    h += BD.cmdr.length ? BD.cmdr.map(c => bdRow(c.key, c.name, 1, 'cmdr', 'deck')).join('') : `<button class="btn ghost small" type="button" data-act="pick-cmdr" style="align-self:flex-start">${T('Choisir un commandant')}</button>`;
-  }
+  let h = BD.split ? '' : bdToolsHtml();
+  h += bdCmdrHtml();
   h += `<div class="sec-title">${T('Deck')} · ${nf0(bdCount(BD.main))}</div>`;
-  h += spells.length ? spells.map(c => bdRow(c.key, c.name, c.qty, 'main', 'deck')).join('') : `<p class="hint">${T('Ajoute des cartes depuis « Collection » (les tiennes) ou « Chercher » (toutes les cartes).')}</p>`;
+  h += spells.length ? spells.map(c => bdRow(c.key, c.name, c.qty, 'main', 'deck')).join('') : `<p class="hint">${T('Ajoute des cartes depuis « Ajouter » : les tiennes d\'abord, puis toutes les cartes Magic.')}</p>`;
   h += `<div class="sec-title">${T('Terrains de base')} · ${nf0(mainAll.filter(c => BASIC_NAMES.has(c.key)).reduce((a, c) => a + c.qty, 0))}</div>`;
   h += BD_BASICS.map(([k, en, fr]) => bdRow(k, en, (BD.main.get(k) || {}).qty || 0, 'main', 'deck', T(fr))).join('') + others.map(c => bdRow(c.key, c.name, c.qty, 'main', 'deck')).join('');
   if (BD.fmt === 'standard') {
@@ -332,6 +371,28 @@ function bdCollHtml() {
   if (items.length > shown.length) h += `<button class="link-btn more-decks" type="button" data-act="more">${T('Afficher {n} cartes de plus ({rest} restantes)', { n: Math.min(BD_PAGE, items.length - shown.length), rest: nf0(items.length - shown.length) })}</button>`;
   return h;
 }
+/** Onglet « Ajouter » : une seule recherche. D'abord tes cartes (nom français ou anglais, réservées ailleurs signalées), puis toutes les cartes Magic
+ *  qui correspondent et que tu n'as pas (à acheter). Sans recherche : ta collection. */
+function bdAddHtml() {
+  const q = BD.q.trim(), words = normPart(q).split(' ').filter(Boolean), has = collCount() > 0;
+  let own = has ? bdIndex().filter(it => words.every(w => it.s.includes(w))) : [];
+  if (BD.tgt === 'cmdr') own = own.filter(it => (COLL.meta[it.k] || {}).cd);
+  const shown = own.slice(0, BD.shown), mine = new Set(own.map(it => it.k));
+  let h = BD.tgt === 'cmdr' ? '<p class="hint">' + T('Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.') + (COLL.enrich ? ' ' + T('Lecture des cartes en cours…') : '') + '</p>' : '';
+  if (shown.length) h += `<div class="sec-title">${T('Dans ta collection')} · ${nf0(own.length)}</div>` + shown.map(it => bdAddRow(it.k, it.n, it.dn)).join('');
+  if (own.length > shown.length) h += `<button class="link-btn more-decks" type="button" data-act="more">${T('Afficher {n} cartes de plus ({rest} restantes)', { n: Math.min(BD_PAGE, own.length - shown.length), rest: nf0(own.length - shown.length) })}</button>`;
+  if (q.length >= 2) {
+    if (BD.catErr) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(BD.catErr)}</span></div>`;
+    else if (!BD.cat) h += `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement du catalogue (une seule fois)…')}</span></div>`;
+    else {
+      const sug = collSuggest(BD.cat, q, 24).filter(n => !mine.has(ownKey(n))).slice(0, 20); BD.want = sug.map(n => ({ key: ownKey(n), name: n })); bdMetaSoon();
+      if (sug.length) h += `<div class="sec-title">${T('À acheter')} · ${T('toutes les cartes Magic')}</div>` + sug.map(n => bdAddRow(ownKey(n), n)).join('');
+      else if (!own.length) h += `<p class="hint">${T('Aucune carte de ce nom. Vérifie l\'orthographe (nom anglais).')}</p>`;
+    }
+  } else if (!has) h += `<div class="deck-empty">${T('Tape au moins 2 lettres du nom (anglais) : toutes les cartes Magic sont cherchables ici.')}</div>`;
+  else if (!own.length && words.length) h += `<p class="hint">${T('Aucune carte de ta collection ne correspond.')}</p>`;
+  return h;
+}
 function bdFindHtml() {
   if (BD.catErr) return `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(BD.catErr)}</span></div>`;
   if (!BD.cat) return `<div class="status" data-ok="0"><span class="dot"></span><span>${T('Chargement du catalogue (une seule fois)…')}</span></div>`;
@@ -342,8 +403,9 @@ function bdFindHtml() {
 }
 function bdList() {
   const el = BD.el; if (!el) return;
-  $('#bdList', el).innerHTML = BD.tab === 'deck' ? bdDeckHtml() : BD.tab === 'coll' ? bdCollHtml() : BD.tab === 'coach' && typeof dwCoachHtml === 'function' ? dwCoachHtml() : bdFindHtml();
+  $('#bdList', el).innerHTML = BD.tab === 'deck' ? bdDeckHtml() : BD.tab === 'coll' ? bdAddHtml() : BD.tab === 'coach' && typeof dwCoachHtml === 'function' ? dwCoachHtml() : bdFindHtml();
   if (BD.split) $('#bdDeck', el).innerHTML = bdDeckHtml();      // ordinateur : la liste du deck reste affichée à droite
+  const so = $('#bdSort', el); if (so) mountSeg(so, [{ v: 'mana', label: T('Mana') }, { v: 'type', label: T('Type') }, { v: 'role', label: T('Rôle') }], BD.sort, v => { BD.sort = v; bdList(); });
 }
 /** Ordinateur : écran large et souris (même requête que zz-desktop.css et la barre latérale, nav.js). */
 const bdSplit = () => { try { return matchMedia('(min-width:1100px) and (hover:hover) and (pointer:fine)').matches; } catch (e) { return false; } };
@@ -365,9 +427,9 @@ function bdTab(v) {
     const opts = BD.fmt === 'commander' ? [{ v: 'main', label: T('Deck') }, { v: 'cmdr', label: T('Commandant') }] : [{ v: 'main', label: T('Deck') }, { v: 'side', label: T('Réserve') }];
     if (!opts.some(o => o.v === BD.tgt)) BD.tgt = 'main';
     ctl.innerHTML = `<div class="bd-add"><span>${T('Ajouter au')}</span><div class="seg" id="bdTgt" role="radiogroup" aria-label="${T('Ajouter au')}"></div>${scanB('icon-btn bd-scan-ic', '')}</div>
-      <div class="field-in"><label class="label" for="bdQ">${v === 'coll' ? T('Chercher dans ma collection') : T('Nom de la carte')}</label><input type="text" id="bdQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${v === 'coll' ? nmT('Nom français ou anglais', 'Nom en {lang} ou en anglais', 'Nom de la carte') : 'Sol Ring'}" enterkeyhint="search"></div>`;
+      <div class="field-in"><label class="label" for="bdQ">${T('Chercher une carte')}</label><input type="text" id="bdQ" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${nmT('Nom français ou anglais', 'Nom en {lang} ou en anglais', 'Nom de la carte')}" enterkeyhint="search"></div>`;
     mountSeg($('#bdTgt', ctl), opts, BD.tgt, t => { BD.tgt = t; BD.shown = BD_PAGE; bdList(); });
-    if (v === 'find' && !BD.cat && !BD.catErr) collCatalog().then(c => { BD.cat = c; if (BD.el && BD.tab === 'find') bdList(); }).catch(e => { BD.catErr = e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'); if (BD.el && BD.tab === 'find') bdList(); });
+    if (!BD.cat && !BD.catErr) collCatalog().then(c => { BD.cat = c; if (BD.el && BD.tab === 'coll' && BD.q.trim().length >= 2) bdList(); }).catch(e => { BD.catErr = e && e.code === 'rate' ? T('Scryfall demande une pause, réessaie dans une minute.') : T('Catalogue Scryfall injoignable : réessaie plus tard.'); if (BD.el && BD.tab === 'coll') bdList(); });      // catalogue de toutes les cartes : lu une fois, pour la 2e partie des résultats
     if (v === 'coll') { BD.idx = null; if ((collMissing().length || collLangMissingCount()) && !COLL.enrichErr) collEnrich(); }
   }
   bdList(); if (typeof dwBannerHtml === 'function' && dwOn()) $('#bdSum', el).innerHTML = bdSumHtml();      // bannière du coach : visible hors de l'onglet Coach
@@ -388,9 +450,18 @@ function bdClick(e) {
   if (st) {
     const row = st.closest('.bd-row'); if (!row) return;
     const d = Number(st.dataset.d), k = row.dataset.k, tgt = row.dataset.t;
-    if (bdChange(tgt, k, row.dataset.n, d)) haptic('tap');
+    if (bdChange(tgt, k, row.dataset.n, d)) {
+      haptic('tap');
+      if (d > 0 && BD.tab === 'coll' && tgt !== 'cmdr' && !BASIC_NAMES.has(k)) {      // carte possédée, mais tous ses exemplaires sont réservés par un autre deck monté : le dire tout de suite
+        const own = collQty(k), q = ((BD[tgt] && BD[tgt].get(k)) || {}).qty || 0, free = engFree(own, XS.eng, k, BD.id), ds = engDecksOf(XS.eng, k).filter(x => x.id !== BD.id);
+        if (own > 0 && q > free && ds.length) toast(T('{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.', { name: bdLabel(k, row.dataset.n), deck: ds[0].n || T('un autre deck') }));
+      }
+    }
     return;
   }
+  const vb = e.target.closest('[data-bdview]');
+  if (vb) { BD.view = vb.dataset.bdview; try { localStorage.setItem(BD_VIEW_KEY, BD.view); } catch (x) { /* ignore */ } haptic('tap'); bdList(); return; }
+  const tl = e.target.closest('.bd-vis .dvc'); if (tl) { bdVisualOpen(Number(tl.dataset.i)); return; }
   const b = e.target.closest('button[data-act]'); if (!b) return;
   const act = b.dataset.act;
   if (typeof dwClick === 'function' && dwClick(b)) return;      // onglet Coach (deckwiz.js)

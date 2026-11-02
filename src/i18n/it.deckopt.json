@@ -83,5 +83,15 @@
  "Piles": "Pile",
  "Piles compactes": "Pile compatte",
  "Bandeaux": "Strisce",
- "Game Changer : compte pour le bracket": "Game Changer: conta per il bracket"
+ "Game Changer : compte pour le bracket": "Game Changer: conta per il bracket",
+ "{n} engagée dans « {deck} »": "{n} riservata in «{deck}»",
+ "{n} engagées dans « {deck} »": "{n} riservate in «{deck}»",
+ "Ajoute des cartes depuis « Ajouter » : les tiennes d'abord, puis toutes les cartes Magic.": "Aggiungi carte da «Aggiungi»: prima le tue, poi tutte le carte Magic.",
+ "Retirer un exemplaire du deck": "Togli una copia dal mazzo",
+ "Retirer du deck": "Togli dal mazzo",
+ "Les cartes de ta collection qui peuvent être commandant, puis toutes les autres.": "Le carte della tua collezione che possono essere comandante, poi tutte le altre.",
+ "toutes les cartes Magic": "tutte le carte Magic",
+ "Rôle": "Ruolo",
+ "{name} : ton exemplaire est dans « {deck} ». À y reprendre quand tu joueras ce deck, ou à acheter.": "{name}: la tua copia è in «{deck}». Riprendila da lì quando giochi questo mazzo, oppure comprane una.",
+ "un autre deck": "un altro mazzo"
 }
