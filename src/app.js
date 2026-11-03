@@ -9,12 +9,12 @@ const imgDone = im => { if (im.complete && im.naturalWidth > 0 && !im.classList.
 /** Repeint host par innerHTML sans faire clignoter ses images : chaque <img> du nouveau contenu dont l'adresse était déjà là reprend l'ancien nœud
  *  (attributs du nouveau, .ok gardé : ni fondu depuis la lettre, ni chargement perdu) ; une image neuve déjà en cache est montrée tout de suite (imgDone). */
 function imgKeep(host, html) {
-  const old = new Map(); for (const im of host.getElementsByTagName('img')) { const u = im.getAttribute('src'); if (u && !old.has(u) && !(im.complete && !im.naturalWidth)) old.set(u, im); }      // image en erreur : pas reprise (le nouveau nœud refait son erreur, et l'écran sa lettre ou son repli)
+  const old = new Map(); for (const im of host.getElementsByTagName('img')) { const u = im.getAttribute('src'), lk = im.dataset.lk; if (u && !old.has(u) && !(im.complete && !im.naturalWidth)) { old.set(u, im); if (lk && !old.has('lk:' + lk)) old.set('lk:' + lk, im); } }      // lk : même carte dont la version traduite vient d'arriver (viewer.js › imgL) : l'ancienne reste affichée jusqu'à la nouvelle      // image en erreur : pas reprise (le nouveau nœud refait son erreur, et l'écran sa lettre ou son repli)
   host.innerHTML = html;
   for (const im of [...host.getElementsByTagName('img')]) {
-    const u = im.getAttribute('src'), o = u ? old.get(u) : null;
+    const u = im.getAttribute('src'), lk = im.dataset.lk, o = u ? old.get(u) || (lk ? old.get('lk:' + lk) : null) : null;
     if (!o) { imgDone(im); continue; }
-    old.delete(u); const ok = o.classList.contains('ok');
+    old.delete(o.getAttribute('src')); if (o.dataset.lk) old.delete('lk:' + o.dataset.lk); const ok = o.classList.contains('ok');
     for (const a of [...o.attributes]) if (!im.hasAttribute(a.name)) o.removeAttribute(a.name);
     for (const a of [...im.attributes]) if (o.getAttribute(a.name) !== a.value) o.setAttribute(a.name, a.value);      // src identique : rien n'est relu
     if (ok) o.classList.add('ok');
