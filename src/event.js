@@ -177,7 +177,11 @@ function evCaps() {
   if (typeof dlyOn === 'function' && dlyOn()) c |= C.daily;
   if (typeof SETS !== 'undefined' && Array.isArray(SETS.list) && SETS.list.length) c |= C.sets;
   if (typeof isNativeApp === 'function' && isNativeApp()) c |= C.nat;
-  return c;
+  // Capacités cumulées (par compte, sur cet appareil) : au démarrage, collection, decks ou extensions pas encore lus donneraient moins de capacités,
+  // et le serveur tirerait d'autres cachettes (elles changeaient à chaque redémarrage). Le tirage du jour reste ainsi le même ; seul « ordinateur » suit l'écran.
+  const who = (typeof D !== 'undefined' && D.user && D.user.uid) || 'anon', mem = evLs().caps && typeof evLs().caps === 'object' ? evLs().caps : {}, had = Number(mem[who]) || 0, all = (had & ~C.desk) | c;
+  if (all !== had && !EV.pv) evLsSet({ caps: { ...mem, [who]: all & ~C.desk } });
+  return all;
 }
 
 /* ── Objet posé dans sa cachette ──────────────────────────────────────────────────────────────────────────────────── */

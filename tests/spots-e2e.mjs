@@ -60,6 +60,7 @@ for (const [desk, acct] of [[false, false], [false, true], [true, false]]) {    
   if (acct) { await p.evaluate(tok => { window.__idTok = tok; }, F.jwt('uid-spots')); await signInFake(p); await p.waitForFunction(() => EV.st && EV.st.acct && EV.st.me, null, { timeout: 15000 }); }
   const caps = await p.evaluate(() => evCaps());
   assert.equal(caps & (2 | 4 | 32), 2 | 4 | 32, 'capacités : cartes, decks, échange (' + caps + ')'); assert.equal(!!(caps & 8), desk, 'ordinateur : ' + desk); assert.equal(!!(caps & 1), acct, 'compte : ' + acct);
+  assert.equal(await p.evaluate(() => { const m = COLL.map; COLL.map = {}; const c = evCaps(); COLL.map = m; return c & (2 | 32); }), 2 | 32, 'collection pas encore lue (démarrage) : capacités gardées, mêmes cachettes');
   for (const s of list) {
     const why = await check(p, s);
     if (why) bad.push(`${s.id} (${where}) : ${why}`); else ok(`${s.id} [${s.need}, niv. ${s.lvl}] : posée · « ${s.hint} »`);

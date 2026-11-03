@@ -7852,7 +7852,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'aaef8f00';
+const DD_BUILD = 'fb820970';
 const I18N_FILES = {"de":"i18n/de.8951c9f0.js","en":"i18n/en.c3a83d9c.js","es":"i18n/es.4ab05c66.js","it":"i18n/it.4c7a6f72.js","pt":"i18n/pt.cd05f020.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -40588,7 +40588,11 @@ function evCaps() {
   if (typeof dlyOn === 'function' && dlyOn()) c |= C.daily;
   if (typeof SETS !== 'undefined' && Array.isArray(SETS.list) && SETS.list.length) c |= C.sets;
   if (typeof isNativeApp === 'function' && isNativeApp()) c |= C.nat;
-  return c;
+  // Capacités cumulées (par compte, sur cet appareil) : au démarrage, collection, decks ou extensions pas encore lus donneraient moins de capacités,
+  // et le serveur tirerait d'autres cachettes (elles changeaient à chaque redémarrage). Le tirage du jour reste ainsi le même ; seul « ordinateur » suit l'écran.
+  const who = (typeof D !== 'undefined' && D.user && D.user.uid) || 'anon', mem = evLs().caps && typeof evLs().caps === 'object' ? evLs().caps : {}, had = Number(mem[who]) || 0, all = (had & ~C.desk) | c;
+  if (all !== had && !EV.pv) evLsSet({ caps: { ...mem, [who]: all & ~C.desk } });
+  return all;
 }
 
 /* ── Objet posé dans sa cachette ──────────────────────────────────────────────────────────────────────────────────── */
