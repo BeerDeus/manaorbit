@@ -125,8 +125,8 @@ async function edRefresh(all, signal) {
 function collLineImage(k, g, en) {
   const l = lineLang(g), e = lineEd(g);
   if (e) {
-    if (l && l !== 'en') { const u = COLL.li[liKey(l, k + '|' + e)]; if (u) return { src: u, lang: l }; }
-    const x = COLL.ed[e]; if (x && x.im) return { src: x.im, lang: 'en' };
+    if (l && l !== 'en') { const u = COLL.li[liKey(l, k + '|' + e)]; if (u) return { src: u, lang: l, lk: '' }; }
+    const x = COLL.ed[e]; if (x && x.im) return { src: x.im, lang: 'en', lk: '' };      // édition de la ligne : son impression exacte
   }
   return collImage(k, l, en);
 }
@@ -402,11 +402,11 @@ function collPickEd(it, p) {
 const liKey = (l, k) => l + '|' + k;
 /** Image à afficher : celle de la langue de la carte si Scryfall l'a, sinon l'anglaise. Retourne { src, lang } (lang : langue réellement montrée). */
 function collImage(k, l, en, name) {
-  if (l && l !== 'en') { const u = COLL.li[liKey(l, k)]; if (u) return { src: u, lang: l }; }
-  const al = l === 'en' ? '' : imgLang();      // exemplaire anglais précisé : il reste anglais ; sinon la langue de l'appli (viewer.js › imgL), l'anglais si Scryfall ne l'a pas
-  if (l === 'en' && en && imgLang()) return { src: en + '#en', lang: 'en' };      // « #en » (ignoré par le cache du navigateur) : adresse distincte, le remplacement sur place des lignes sans langue (imgLSwap, même image) ne la touche pas
-  if (al && en) { const u = imgL(name || (COLL.map[k] || {}).n || k, en, al); if (u !== en) return { src: u, lang: al }; }
-  return { src: en || '', lang: 'en' };
+  if (l && l !== 'en') { const u = COLL.li[liKey(l, k)]; if (u) return { src: u, lang: l, lk: '' }; }
+  const al = l ? '' : imgLang();      // langue de l'exemplaire précisée : la sienne, ou l'anglaise si Scryfall ne l'a pas (comme la carte en grand) ; sans langue : celle de l'appli (viewer.js › imgL), l'anglais à défaut
+  const nm = name || (COLL.map[k] || {}).n || k;
+  if (al && en) { const u = imgL(nm, en, al); if (u !== en) return { src: u, lang: al, lk: langvKey(al, nm) }; }
+  return { src: en || '', lang: 'en', lk: al && en ? langvKey(al, nm) : '' };      // lk : data-lk de la vignette (remplacée sur place quand la traduite arrive) ; '' : voulue telle quelle (exemplaire de langue précisée : jamais touchée par le remplacement sur place de la même image)
 }
 /** Langues à lire sur Scryfall : clés de cartes de langue ≠ anglais dont l'image n'a pas encore été cherchée. */
 function collLangMissing() {
@@ -1042,7 +1042,7 @@ function edBtn(it, nm) {
   return `<button type="button" class="row-ed${e ? ' on' : ''}${it.f ? ' foil' : ''}" data-act="ed" aria-label="${esc(lab)}" title="${esc(lab)}">${e ? ic || `<span class="ed-code">${esc(set.toUpperCase())}</span>` : ''}</button>`;      // sans édition : rond en pointillés dessiné en CSS (pas de SVG par ligne : 5 000 lignes se repeignent pendant la lecture) ; foil : étincelle en coin
 }
 function crowHtml(it) {
-  const g = it.g ?? it.l, nm = it.dn || it.n, hue = hash32(it.k) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase()), img = collLineImage(it.k, g, it.im).src, sub = it.li > 0;      // sub : 2e ligne (langue, édition) de la même carte
+  const g = it.g ?? it.l, nm = it.dn || it.n, hue = hash32(it.k) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase()), im0 = collLineImage(it.k, g, it.im), img = im0.src, sub = it.li > 0;      // sub : 2e ligne (langue, édition) de la même carte
   const tags = [];      // le drapeau suit le nom (à droite, loin de la vignette qu'on touche pour agrandir) ; « Langue ? » finit la rangée de tags
   if (it.f) tags.push(`<span class="tag foil" title="${T('Exemplaires foil : prix foil Cardmarket')}">✦ ${T('Foil')}</span>`);
   if (!sub && it.tl) tags.push(`<span class="tag">${esc(T(typeBucket(it.tl)))}</span>`);
@@ -1057,7 +1057,7 @@ function crowHtml(it) {
   if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${T('Cardmarket : prix tendance')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b></span>`);
   if (Number.isFinite(it.rp)) px.push(`<span class="px ct" title="${T('CardTrader : offre la plus basse')}"><i>CT</i> <b>${esc(fmt(it.rp, it.rc || 'EUR'))}</b></span>`);
   else if (it.rp === null && it.rt) px.push(`<span class="px ct none" title="${T('CardTrader : aucune offre')}"><i>CT</i> <b>${T('aucune offre')}</b></span>`);
-  return `<div class="crow ced${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow ced${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? langChip(it.k, it.l, it.n, '', g) : ''}</span>${tags.length ? `<span class="row-meta">${tags.join('')}</span>` : ''}</span>
     ${px.length ? `<span class="row-px">${px.join('')}</span>` : ''}${edBtn(it, nm)}
     <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button><b>${it.q}</b><button type="button" data-d="1" aria-label="${T('Ajouter un exemplaire de {name}', { name: esc(nm) })}">+</button></span></div>`;

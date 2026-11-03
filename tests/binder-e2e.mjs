@@ -375,7 +375,7 @@ const COLL_ED = ['1 Sol Ring *FR*', '2 Sol Ring (CMM) 400 *FR*', '1 Sol Ring (FO
 /** Prix des pochettes Sol Ring CMM 400 (faux Scryfall : 2,00 €, foil 6,00 €), une fois lus. */
 const CMM_PX = [['CMM 400', false, '2,00 €'], ['CMM 400', true, '6,00 €']], cmmPx = async (p, root) => { let got; for (let i = 0; i < 50; i++) { got = (await sleevePx(p, root, 'sol ring')).filter(x => x[0] === 'CMM 400'); if (JSON.stringify(got) === JSON.stringify(CMM_PX)) break; await sleep(200); } return got; };
 const OWN_ED = [['sol ring', '2X2 101', false, '×2', 'en/ed-2x2-101.jpg'], ['sol ring', 'CMM 400', false, '×2', 'fr/ed-cmm-400.jpg'], ['sol ring', 'CMM 400', true, '', 'fr/ed-cmm-400.jpg'],
-  ['llanowar elves', '', false, '', 'a/b/llanowar-elves.jpg'], ['llanowar elves', 'M21 103', false, '×2', 'en/ed-m21-103.jpg'], ['arcane signet', '', false, '×2', 'a/b/arcane-signet.jpg']];
+  ['llanowar elves', '', false, '', 'a/b/llanowar-elves.jpg'], ['llanowar elves', 'M21 103', false, '×2', 'en/ed-m21-103.jpg'], ['arcane signet', '', false, '×2', 'fr/arcane-signet.jpg']];      // exemplaire sans langue : image dans la langue de l'appli (français) ; Llanowar *EN* reste anglaise
 {
   const O = await owner({ coll: COLL_ED, sid: 'ShareBinderEds01', uid: 'u-binder-ed' }), q = O.p;
   await toTrade(q); await q.waitForSelector('.tr-list .tr-row');

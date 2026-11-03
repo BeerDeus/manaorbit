@@ -281,6 +281,7 @@ await sh.ctx.close();
 /* ── 11) grosse collection : « Afficher plus » ajoute sans tout repeindre, repaints de fond espacés ; Scryfall qui ne répond pas ───── */
 const bg = await newPage(browser, world), q = bg.p;
 const shownKeys = () => q.$$eval('.coll-list .crow', r => r.map(x => x.dataset.k + '|' + x.dataset.ln));
+const listedKeys = () => q.evaluate(() => (COLL.win ? COLL.win.sorted.slice(0, COLL.win.n) : null)?.flatMap(collRowItems).map(it => it.k + '|' + it.l) || [...document.querySelectorAll('.coll-list .crow')].map(x => x.dataset.k + '|' + x.dataset.ln));      // au-delà de 240 cartes, fenêtre glissante : la liste affichée, pas seulement les lignes dans la page
 const freshKeys = n => q.evaluate(n => collSorted(filterItems(collItems(), COLL.f)).slice(0, n).flatMap(collRowItems).map(it => it.k + '|' + it.l), n);      // ce qu'un repaint complet afficherait
 const quiet = () => q.waitForFunction(() => (FRN.map || FRN.fail) && !FRN.p && !COLL.enrich && !VAL.run && (EDH.data || EDH.err) && !EDH.p, null, { timeout: 8000 });      // rien ne repeint en tâche de fond (noms FR, infos, prix, EDHREC lus)
 await q.evaluate(() => {
@@ -299,7 +300,8 @@ assert.match(await txt(q, '.coll-more[data-act="more"]'), /^Afficher 60 de plus 
 const one = await q.$$eval('.coll-list .crow', r => r.find(x => x.querySelector('.qstep b').textContent === '1').dataset.k);
 await q.click(`.crow[data-k="${one}"] [data-d="-1"]`); await q.waitForSelector('.sheet [data-ok]'); await q.click('.sheet [data-ok]'); await q.waitForFunction(k => !document.querySelector(`.crow[data-k="${k}"]`), one);
 await q.click('.coll-more[data-act="more"]'); await q.waitForFunction(() => !document.querySelector('.coll-more[data-act="more"]'));
-assert.deepEqual(await shownKeys(), await freshKeys(360), 'après un retrait : tout affiché, rien de sauté'); assert.equal((await shownKeys()).length, 299);
+assert.deepEqual(await listedKeys(), await freshKeys(360), 'après un retrait : tout affiché, rien de sauté'); assert.equal((await listedKeys()).length, 299);
+assert.ok(await q.evaluate(() => !!COLL.win && document.querySelectorAll('.coll-list .crow').length < 299 && document.querySelectorAll('.coll-list > .coll-pad').length === 2), 'plus de 240 cartes : fenêtre glissante (lignes proches de l\'écran seulement, deux cales)');
 ok('« Afficher plus » : tranche ajoutée au bas de la liste (lignes gardées), même ordre qu\'un repaint ; repaint complet si la liste a changé');
 await quiet();
 const paints = await q.evaluate(async () => {

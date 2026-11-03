@@ -16,7 +16,7 @@ function cardImageItem(key) {
   const o = v.pick && v.pick.parts[0] ? v.pick.parts[0].offer : null, bp = (st.bps || [])[0] || {};
   const small = (o && o.img) || st.img || bp.img, set = o ? (o.sset || o.set) : bp.set; if (!small) return null;
   if (o && o.cm) return { key, name: c.dn || c.name, ln: c.name, small, lang: 'en', plain: true, wl: viewLang(key, c.own > 0), extra: '' };      // prix Cardmarket (ni extension ni numéro) : image de la carte, version dans la langue voulue cherchée par le nom
-  return { key, name: c.dn || c.name, ln: c.name, small, lang: o && o.lang ? o.lang : 'en', set, num: o ? o.num : bp.num, setName: o && o.setName, extra: '' };
+  return { key, name: c.dn || c.name, ln: c.name, small, lang: o && o.lang ? o.lang : 'en', set, num: o ? o.num : bp.num, setName: o && o.setName, extra: '', ...(o ? {} : { wl: viewLang(key, c.own > 0) }) };      // sans offre : la même carte dans la langue de l'appli si Scryfall l'a
 }
 /** Depuis la liste de résultats : la carte touchée, et on peut passer aux suivantes dans l'ordre affiché. */
 function openCardImage(key) {

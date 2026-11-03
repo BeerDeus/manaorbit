@@ -160,7 +160,7 @@ const toastTxt = p => p.evaluate(() => { const t = document.querySelector('#toas
   const spec = await p.evaluate(() => window.__share[0]);
   assert.equal(spec.kind, 'opening'); assert.equal(spec.name, 'Display Bloomburrow'); assert.equal(spec.n, 5); assert.equal(spec.paid, 5);
   assert.ok(Math.abs(spec.value * 100 - await p.evaluate(() => opnTotals(OPN.cur.rows).v)) < 1, 'valeur en euros'); assert.ok(spec.date > 0 && spec.best.length === 5);
-  assert.deepEqual(Object.keys(spec.best[0]).sort(), ['eur', 'img', 'name']); assert.equal(spec.best[0].name, 'Craterhoof Behemoth'); assert.equal(spec.best[0].eur, 9);
+  assert.deepEqual(Object.keys(spec.best[0]).sort(), ['eur', 'img', 'ln', 'name', 'wl']);      // ln, wl : nom anglais et langue voulue (image à partager dans la langue de l'appli, simg.js) assert.equal(spec.best[0].name, 'Craterhoof Behemoth'); assert.equal(spec.best[0].eur, 9);
   assert.match(spec.best[0].img, /^https:\/\/(cards\.scryfall\.io\/normal\/|api\.scryfall\.com\/cards\/named\?.*version=normal)/, 'image « normal »');
   await p.locator('.opn-end .opn-pick', { hasText: 'Llanowar Elves' }).click();
   assert.match(await txt(p, '.opn-end [data-opn="add"]'), /Ajouter 4 cartes/);

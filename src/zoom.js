@@ -33,8 +33,7 @@ const ZOOM_LISTS = {
     const row = th.closest('.rw'); if (!row || !S.run) return null;
     return zoomFrom($$('#list .rw').filter(r => !r.hidden), row, r => {
       const k = r.dataset.key, c = S.deck.cards.find(x => x.key === k), st = S.run.cards[k] || {}; if (!c || st.notFound) return null;
-      const v = cardView(c), o = v.pick && v.pick.parts[0] ? v.pick.parts[0].offer : null, ex = !!S.opts.exactEd && !!(c.eds && c.eds.length);
-      return (o || ex ? cardImageItem(k) : null) || { ...zoomNamed(k, c.dn || c.name, c.name, viewLang(k, c.own > 0)), ...(st.img ? { small: st.img, big: '' } : {}) };      // dn : nom tapé (« Foudre ») en titre, l'anglais pour l'image ; sans offre (possédée, aucune offre) : la carte dans la langue de l'appli, comme sa vignette (app.js › resImgAttr)
+      return cardImageItem(k) || zoomNamed(k, c.dn || c.name, c.name, viewLang(k, c.own > 0));      // dn : nom tapé (« Foudre ») en titre, l'anglais pour l'image ; sans offre : impression du catalogue, la carte cherchée dans la langue de l'appli (wl, viewer.js › cardImageItem)
     });
   },
   /* Collection : liste (une ligne par carte et par langue), « Les plus chères » et « Variations des prix » (Stats). */
