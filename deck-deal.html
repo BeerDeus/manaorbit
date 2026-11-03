@@ -842,6 +842,7 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .coll-status .track{height:6px}
 .coll-status .coll-wait{font-size:12px;color:var(--ink-2)}
 .coll-list{display:flex;flex-direction:column;gap:8px}
+.coll-pad{flex:none;pointer-events:none}      /* cales de la fenêtre glissante (collection.js › collListBody) */
 .crow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md)}
 .crow.has-px{grid-template-columns:40px minmax(0,1fr) auto;row-gap:4px}
 /* prix au-dessus du +/− dans la dernière colonne : le nom garde toute la largeur (sinon 24 à 75 px, « Sheoldred / , ») */
@@ -7853,7 +7854,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '9e276a7c';
+const DD_BUILD = 'ff2d5472';
 const I18N_FILES = {"de":"i18n/de.8951c9f0.js","en":"i18n/en.c3a83d9c.js","es":"i18n/es.4ab05c66.js","it":"i18n/it.4c7a6f72.js","pt":"i18n/pt.cd05f020.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -11775,7 +11776,7 @@ async function scryLangImages(names, lang, signal, onProgress, prio = false) {
   if (!sl || sl === 'en') return out;
   const uniq = [...new Map(names.map(n => [ownKey(n), String(n).split('//')[0].trim()])).entries()].filter(([, n]) => n && !n.includes('"'));
   for (let i = 0; i < uniq.length; i += 12) {
-    const chunk = uniq.slice(i, i + 12), q = '(' + chunk.map(([, n]) => '!"' + n + '"').join(' or ') + ') lang:' + sl;
+    const chunk = uniq.slice(i, i + 12), q = '(' + chunk.map(([, n]) => '!"' + n + '"').join(' or ') + ') lang:' + sl + ' prefer:notub';      // prefer:notub : une édition Magic plutôt qu'une Universes Beyond (Marvel, Final Fantasy…) quand la carte existe dans les deux
     let j; try { j = await httpJson(limScry, 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q) + '&unique=cards', SCRY_JSON, signal, 4, prio); }
     catch (e) { if (e.code === '404') j = { data: [] }; else throw e; }
     for (const c of j.data || []) { const u = imgOf(c); if (u) out.set(ownKey(c.name), u); }
@@ -17676,11 +17677,23 @@ const deckFmt = d => dkFmtOf(d.text);
 /** Image de la carte de présentation d'un deck (grande taille), '' tant que sa fiche n'est pas lue. */
 const coverImg = c => { if (!c) return ''; const o = ownLangImg(c.key), m = dmOf(c.key); return o ? o.src : (m && m.im) || ''; };      // carte possédée : dans la langue de l'exemplaire
 const coverUrl = c => coverImg(c).replace('/small/', '/normal/');
+/** Image d'une carte dans la langue voulue (viewer.js › imgL) → { src, lk } ; lk : clé data-lk (remplacée sur place à l'arrivée de la version traduite), '' si l'image reste telle quelle.
+ *  k : clé, n : nom anglais, u : image affichée jusqu'ici (anglaise sauf exemplaire de langue connue), l : langue de l'exemplaire ('' non précisée → langue de l'appli ; 'en' → anglaise ;
+ *  undefined → celle de ton exemplaire possédé, comme viewer.js › ownLangImg), fixed : impression précise (édition choisie, illustration recherchée, image d'un partage) gardée telle quelle. */
+function cardImgL(k, n, u, l, fixed) {
+  if (l === undefined) { const x = COLL.map[ownKey(k)]; l = x && x.q > 0 ? x.l || '' : ''; }
+  if (fixed || !u || !n || l === 'en' || (l && !SCRY_LANG[l])) return { src: u || '', lk: '' };      // langue que Scryfall n'a pas : l'image reste
+  if (l) { const o = collImage(ownKey(k), l, '').src; if (o) return { src: imgAtSize(o, imgSizeOf(u)), lk: '' }; }      // exemplaire de langue précisée : son image (collection.js › collImage), même taille
+  const w = l || imgLang(), sz = imgSizeOf(u); if (!w) return { src: u, lk: '' };
+  return { src: imgL(n, u, w), lk: sz && sz !== 'art_crop' ? langvKey(w, n) : '' };
+}
+/** Attributs src (+ data-lk) à écrire dans un <img …> : cardImgL. */
+const cardImgA = (k, n, u, l, fixed) => { const r = cardImgL(k, n, u, l, fixed); return `src="${esc(r.src)}"${r.lk ? ` data-lk="${esc(r.lk)}"` : ''}`; };
 function deckCard(d, i) {
   const dl = priceDelta(d.history), fresh = !D.seen.has(d.id), fk = deckFmt(d), dv = dkValue(d.text, dmOf), vt = dv.total && !dv.missing.length ? dkValueText(dv) : '';
   const cv = dkCoverCard(d.text, dmOf), art = coverUrl(cv), hue = hash32(d.id) % 360;
   return `<div class="deck${fresh ? ' fresh' : ''}" data-id="${esc(d.id)}" data-active="${d.id === S.deckId ? 1 : 0}" style="--i:${i}">
-    <button class="deck-main" type="button" data-act="open"><span class="dvc-art deck-art tilt" style="--h:${hue}"><b>${esc((d.name.trim()[0] || '?').toUpperCase())}</b>${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}<span class="deck-price">${dl ? `<b>${fmt(dl.total)}</b>${deltaChip(d.history)}` : ''}</span></span>
+    <button class="deck-main" type="button" data-act="open"><span class="dvc-art deck-art tilt" style="--h:${hue}"><b>${esc((d.name.trim()[0] || '?').toUpperCase())}</b>${art ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(cv.key, cv.name, art)}>` : ''}<span class="deck-price">${dl ? `<b>${fmt(dl.total)}</b>${deltaChip(d.history)}` : ''}</span></span>
       <span class="deck-top"><span class="deck-name">${esc(d.name)}</span></span>
       <span class="deck-tags">${fk ? `<span class="deck-fmt ${fk}">${DK_FORMATS[fk].label}</span>` : ''}${pips(d.text)}</span>
       <span class="deck-meta"><span class="deck-line">${esc(dkCountText(d.text))}${vt ? ' · <span title="' + T('Valeur estimée : prix tendance Cardmarket') + '">' + esc(vt) + '</span>' : ''}${engIsOn(d.id) ? ' · <b class="mounted">' + T('monté') + '</b>' : ''}</span><span class="deck-ago">${esc(relTime(d.updatedAt))}</span></span></button>
@@ -17880,7 +17893,7 @@ function openDeckSheet(id) {
     const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
     const paintCover = () => {      // carte de présentation : celle choisie, sinon le commandant, sinon la plus chère
       const cur = findDeck(id) || d, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/');
-      imgKeep($('.cover-th', api.body), im ? `<img alt="" src="${esc(im)}">` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`);
+      imgKeep($('.cover-th', api.body), im ? `<img alt="" ${cardImgA(cv.key, cv.name, im)}>` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`);
       $('#dkCoverSub', api.body).textContent = cv ? `${cv.name} · ${cv.auto ? T('automatique') : T('choisie')}` : T('Aucune carte');
     };
     paintCover(); $('#dkCover', api.body).onclick = () => openCoverPicker(id, paintCover);
@@ -17936,7 +17949,7 @@ function openCoverPicker(id, done) {
     const paint = () => {
       const cur = dkCoverCard((findDeck(id) || d0).text, dmOf), chosen = cur && !cur.auto ? cur.key : '', f = q.value.trim().toLowerCase();
       const list = pool().filter(c => !f || c.name.toLowerCase().includes(f)).slice(0, 150);
-      imgKeep(grid, list.map(c => { const im = coverImg(c); return `<button type="button" class="cv-card" data-n="${esc(c.name)}" aria-pressed="${c.key === chosen}" aria-label="${c.cmd ? T('{name}, commandant', { name: esc(c.name) }) : esc(c.name)}"><span class="dvc-art" style="--h:${hash32(c.key) % 360}"><b>${esc((c.name.trim()[0] || '?').toUpperCase())}</b><i>${esc(c.name)}</i>${im ? `<img alt="" loading="lazy" decoding="async" src="${esc(im)}">` : ''}</span></button>`; }).join('') || '<p class="hint">' + T('Aucune carte de ce nom.') + '</p>');      // recherche : les images déjà là restent (pas de nouveau fondu à chaque lettre)
+      imgKeep(grid, list.map(c => { const im = coverImg(c); return `<button type="button" class="cv-card" data-n="${esc(c.name)}" aria-pressed="${c.key === chosen}" aria-label="${c.cmd ? T('{name}, commandant', { name: esc(c.name) }) : esc(c.name)}"><span class="dvc-art" style="--h:${hash32(c.key) % 360}"><b>${esc((c.name.trim()[0] || '?').toUpperCase())}</b><i>${esc(c.name)}</i>${im ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.key, c.name, im)}>` : ''}</span></button>`; }).join('') || '<p class="hint">' + T('Aucune carte de ce nom.') + '</p>');      // recherche : les images déjà là restent (pas de nouveau fondu à chaque lettre)
     };
     grid.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
     grid.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
@@ -18393,28 +18406,28 @@ function openCardImage(key) {
 
 /* ── Aperçu en grand dans la langue voulue : la carte du même nom en français (ou la langue de la recherche), lue par lots sur Scryfall, une seule fois par carte, gardée 30 jours ───── */
 const LANGV = { m: new Map(), p: new Map(), loaded: null, t: 0 };
-/** Langue souhaitée pour l'aperçu d'une carte dont l'exemplaire n'impose pas la sienne : celle de la recherche (français par défaut) ; '' si anglais. */
-const wantLang = () => (S.opts.lang && S.opts.lang !== 'en' && SCRY_LANG[S.opts.lang] ? S.opts.lang : '');
+/** Langue souhaitée pour l'aperçu d'une carte dont l'exemplaire n'impose pas la sienne : celle de l'appli ; '' si anglais. */
+const wantLang = () => imgLang();      // langue de l'appli (aperçus partout dans cette langue, anglais si Scryfall ne l'a pas)
 /** Langue de l'aperçu en grand : celle de ton exemplaire s'il en a une précisée (anglais : on ne cherche rien d'autre), sinon la langue de la recherche. owned : la carte est dans ta collection. */
 function viewLang(k, owned) { const x = owned ? COLL.map[ownKey(k)] : null; return x && x.q > 0 && x.l ? (x.l === 'en' ? '' : x.l) : wantLang(); }
 const langvKey = (l, n) => l + '|' + ownKey(n);
 function langvLoad() {
-  if (!LANGV.loaded) LANGV.loaded = (async () => { try { const o = await Cache.get('dv:lang', 30 * DAY); if (o && typeof o === 'object' && !Array.isArray(o)) for (const k in o) if (!LANGV.m.has(k)) LANGV.m.set(k, o[k]); } catch (e) { /* cache absent */ } })();
+  if (!LANGV.loaded) LANGV.loaded = (async () => { try { const o = await Cache.get('dv:lang2', 30 * DAY); if (o && typeof o === 'object' && !Array.isArray(o)) for (const k in o) if (!LANGV.m.has(k)) LANGV.m.set(k, o[k]); } catch (e) { /* cache absent */ } })();
   return LANGV.loaded;
 }
 function langvSave() {
   clearTimeout(LANGV.t);
-  LANGV.t = setTimeout(() => { while (LANGV.m.size > 4000) LANGV.m.delete(LANGV.m.keys().next().value); try { Cache.set('dv:lang', Object.fromEntries(LANGV.m)); } catch (e) { /* ignore */ } }, 1200);
+  LANGV.t = setTimeout(() => { while (LANGV.m.size > 12000) LANGV.m.delete(LANGV.m.keys().next().value); try { Cache.set('dv:lang2', Object.fromEntries(LANGV.m)); } catch (e) { /* ignore */ } }, 1200);
 }
 /** Lance la lecture (lots de 12) des images de ces cartes (names : dans l'ordre où elles serviront) ; ne refait ni le connu ni l'en-cours. */
-function langvPrefetch(names, lang) {
+function langvPrefetch(names, lang, prio = true) {
   const todo = [], seen = new Set();
   for (const n of names) { const k = langvKey(lang, n); if (seen.has(k) || LANGV.m.has(k) || LANGV.p.has(k)) continue; seen.add(k); todo.push({ k, n, ok: ownKey(n) }); }
   if (!todo.length || scryLeft() > 0) return;
   for (let i = 0; i < todo.length; i += 12) {
     const chunk = todo.slice(i, i + 12);
     const pr = (async () => {
-      try { const got = await scryLangImages(chunk.map(c => c.n), lang, undefined, undefined, true); for (const c of chunk) LANGV.m.set(c.k, got.get(c.ok) || ''); langvSave(); }
+      try { const got = await scryLangImages(chunk.map(c => c.n), lang, undefined, undefined, prio); for (const c of chunk) LANGV.m.set(c.k, got.get(c.ok) || ''); langvSave(); }
       catch (e) { /* hors ligne ou limite Scryfall : l'aperçu reste anglais, réessayé à la prochaine ouverture */ }
       finally { for (const c of chunk) LANGV.p.delete(c.k); }
     })();
@@ -18426,6 +18439,63 @@ async function langvGet(name, lang) {
   await langvLoad(); const k = langvKey(lang, name);
   if (!LANGV.m.has(k)) { if (!LANGV.p.has(k)) langvPrefetch([name], lang); if (LANGV.p.has(k)) await LANGV.p.get(k); }
   return LANGV.m.has(k) ? LANGV.m.get(k) : null;
+}
+
+/* ── Aperçus dans la langue de l'appli : toutes les vignettes et images de cartes ──────────────────────────────────────────────
+   Une carte affichée avec son image anglaise (u) prend la version de la langue de l'appli quand Scryfall l'a (même taille), l'anglaise sinon.
+   Version pas encore connue : l'anglaise s'affiche, la version traduite est lue par lots (LANGV, gardée 30 jours), puis remplacée sur place dans la page
+   (img[data-lk]) sans repeindre l'écran. Une impression précise (édition choisie, carte scannée, langue de ton exemplaire) n'est pas concernée : l'écran ne passe pas par imgL. */
+/** Langue des aperçus : celle de l'appli quand Scryfall a des cartes dans cette langue ; '' en anglais. */
+const imgLang = () => { const l = (typeof I18N !== 'undefined' && I18N.lang) || ''; return l && l !== 'en' && SCRY_LANG[l] ? l : ''; };
+const IMGL = { q: new Map(), t: 0, en: new Map() };      // en : adresses anglaises affichées par carte (remplacées sur place, même sans data-lk)
+const IMGL_RE = /\/(small|normal|large|png|art_crop|border_crop)\//;
+const imgSizeOf = u => { const m = IMGL_RE.exec(u || ''); return m ? m[1] : ''; };
+/** Version traduite (adresse /small/ gardée par LANGV) à la taille voulue ; png → normal (même dessin, plus léger). */
+const imgAtSize = (v, size) => (!size || size === 'small' ? v : v.replace('/small/', '/' + (size === 'png' ? 'normal' : size) + '/').replace(/\.png(?=\?|$)/, '.jpg'));
+/** Adresse à afficher pour la carte n (nom anglais) dont l'image anglaise est u ; lang : langue voulue (défaut : celle de l'appli, '' : anglais). */
+function imgL(n, u, lang) {
+  const l = lang === undefined ? imgLang() : lang, size = imgSizeOf(u);
+  if (!u || !n || !l || !size || size === 'art_crop') return u || '';      // illustration seule (bandeaux) : sans texte, la langue n'y change rien
+  const k = langvKey(l, n);
+  if (LANGV.m.has(k)) { const v = LANGV.m.get(k); return v ? imgAtSize(v, size) : u; }
+  imgLAsk(n, l, u); return u;
+}
+/** Attributs src + data-lk d'une image de carte (à écrire dans un <img …>) : remplacée sur place quand sa version traduite arrive. */
+function imgLA(n, u, lang) {
+  const l = lang === undefined ? imgLang() : lang, src = imgL(n, u, l);
+  return `src="${esc(src)}"${l && n && imgSizeOf(u) && imgSizeOf(u) !== 'art_crop' ? ` data-lk="${esc(langvKey(l, n))}"` : ''}`;
+}
+function imgLAsk(n, l, u) {
+  const k = langvKey(l, n); IMGL.q.set(k, [l, n]);
+  if (u) { if (!IMGL.en.has(k)) { if (IMGL.en.size > 6000) IMGL.en.clear(); IMGL.en.set(k, new Set()); } IMGL.en.get(k).add(u); }
+  if (!IMGL.t) IMGL.t = setTimeout(imgLFlush, 200);
+}
+/** Lit les versions traduites demandées (120 cartes au plus par passage, débit Scryfall partagé, après une pause s'il y en a une), puis les pose dans la page. */
+async function imgLFlush() {
+  IMGL.t = 0; await langvLoad();
+  const all = [...IMGL.q.values()], now = all.slice(0, 120); IMGL.q = new Map(all.slice(120).map(x => [langvKey(x[0], x[1]), x]));
+  const by = new Map(); for (const [l, n] of now) { if (!by.has(l)) by.set(l, []); by.get(l).push(n); }
+  for (const [l, names] of by) {
+    imgLSwap(l, names.filter(n => LANGV.m.has(langvKey(l, n))));      // déjà dans le cache de l'appareil (lu juste après le premier affichage)
+    const todo = names.filter(n => !LANGV.m.has(langvKey(l, n))); if (!todo.length) continue;
+    if (scryLeft() > 0) { for (const n of todo) IMGL.q.set(langvKey(l, n), [l, n]); continue; }      // pause Scryfall : redemandées ensuite
+    langvPrefetch(todo, l, false);
+    await Promise.all(todo.map(n => LANGV.p.get(langvKey(l, n))).filter(Boolean));
+    imgLSwap(l, todo);
+  }
+  if (IMGL.q.size && !IMGL.t) IMGL.t = setTimeout(imgLFlush, Math.max(300, scryLeft()));
+}
+/** Pose les versions traduites connues sur les images de la page (même taille ; data-big : grande image d'une carte de pile, viewer.js › dvImgSizes). */
+function imgLSwap(l, names) {
+  if (typeof document === 'undefined') return;
+  for (const n of names) {
+    const k = langvKey(l, n), v = LANGV.m.get(k); if (!v) continue;
+    const sel = [`img[data-lk="${CSS.escape(k)}"]`, ...[...(IMGL.en.get(k) || [])].map(u => `img[src="${CSS.escape(u)}"]`)].join(','); IMGL.en.delete(k);
+    for (const im of document.querySelectorAll(sel)) {
+      if (im.dataset.big) im.dataset.big = imgAtSize(v, imgSizeOf(im.dataset.big));
+      const cur = im.getAttribute('src'), nu = imgAtSize(v, imgSizeOf(cur)); if (cur && nu !== cur && imgSizeOf(cur)) im.setAttribute('src', nu);      // l'anglaise reste affichée jusqu'à l'arrivée de la traduite
+    }
+  }
 }
 
 /* ── Illustration choisie pour une carte (dans la langue affichée) : gardée sur l'appareil, rejouée dans tous les aperçus d'une carte seule ───── */
@@ -18813,6 +18883,8 @@ function snapDrop(id) { const all = snapsRead(); if (!(id in all)) return; delet
 const snapOf = d => (d ? newestSnap(d.snap, sanitizeSnap(snapsRead()[d.id])) : null);
 
 const dvImg = it => (it.im ? it.im.replace('/small/', '/normal/') : '');
+/** Balise de l'image d'une carte du viewer : version de la langue de l'appli (imgL), sauf image d'un exemplaire possédé dans sa propre langue (ol, dvOwnIm). */
+const dvImgTag = (it, u, lazy = true) => { const l = it.ol ? '' : undefined, nm = it.name || it.n, src = imgL(nm, u, l); return `<img alt=""${lazy ? ' loading="lazy"' : ''} decoding="async"${imgOkAttr(src)} ${imgLA(nm, u, l)}>`; };
 const dvLetter = it => esc((it.n.trim()[0] || '?').toUpperCase());
 /** Écart notable d'une carte (≥ 5 % ou ≥ 0,20 € par exemplaire) : flèche sur la vignette. */
 const dvMoved = d => !!d && (Math.abs(d.diff) >= 20 || Math.abs(d.diff) >= d.prev * 0.05);
@@ -18833,14 +18905,25 @@ function dvBits(it, snap, dl) {
   const gc = dvGC(it.k);
   return { hue, art, tag, en, q, gc, label: label + (gc ? ', Game Changer' : '') };
 }
-function dvTile(it, i, snap, dl) {
-  const { hue, art, tag, en, q, gc, label } = dvBits(it, snap, dl);
-  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
+function dvTile(it, i, snap, dl, sm) {
+  const b = dvBits(it, snap, dl), { hue, tag, en, q, gc, label } = b, art = sm ? dvSmall(b.art) : b.art;      // sm : carte recouverte d'une pile (seul son titre dépasse) : petite image
+  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? dvImgTag(it, art) : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
 }
 /** Bandeau (vue « Bandeaux », façon liste de MTG Arena) : illustration à droite, quantité, nom, coût de mana, prix. */
+/** Petite image Scryfall (146 × 204) d'une adresse /normal/ : cartes recouvertes des piles. Une pile entière en /normal/ décodait ~140 Mo d'images
+ *  (88 cartes visibles en même temps), plus que le cache d'un Android modeste (≈ 60 Mo) : les cartes étaient redécodées sans cesse et disparaissaient un instant. */
+const dvSmall = u => String(u || '').replace('/normal/', '/small/');
+/** Vues en piles : petite image pour chaque carte recouverte, grande pour la dernière de chaque pile ; grande partout ailleurs (vignettes partagées entre vues). */
+function dvImgSizes(root, view) {
+  const pile = view === 'piles' || view === 'stacks';
+  for (const im of root.querySelectorAll('.dvc:not(.dvb) .dvc-art img')) {
+    const big = im.dataset.big || (im.dataset.big = im.getAttribute('src')), want = pile && im.closest('.dvc').nextElementSibling ? dvSmall(big) : big;
+    if (im.getAttribute('src') !== want) im.setAttribute('src', want);      // l'image affichée reste jusqu'à l'arrivée de l'autre taille : pas de trou
+  }
+}
 function dvStrip(it, i, snap, dl) {
   const { hue, tag, en, gc, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
-  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
+  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? dvImgTag(it, art) : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
 }
 /** Courbe de mana : c = exemplaires par coût (0 à 7+). interactive : barres cliquables (le viewer saute au groupe). */
 function curveBars(c, interactive) {
@@ -18854,7 +18937,7 @@ function dvHero(it, idx, snap, dl) {
   const art = dvImg(it), hue = hash32(it.k) % 360, d = dl && dl.get(it.k);
   const price = it.s === 'ok' ? `<b>${esc(dvFmt(it.c))}</b>${it.rf ? `<span class="cmd-ref">${T('Réf. Cardmarket {price}', { price: esc(dvFmt(it.rf)) })}</span>` : ''}${snap.ref && it.ow ? `<span class="cmd-ref">${it.ow >= it.q ? T('Dans ta collection') : T('Possédé en {n} ex.', { n: it.ow })}</span>` : ''}${d && dvMoved(d) ? `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${esc(dvFmt(Math.abs(d.tot)))}</span>` : ''}`
     : it.s === 'own' ? '<b class="own">' + T('Dans ta collection') + '</b>' : it.s === 'nf' ? '<b class="bad">' + T('Introuvable') + '</b>' : `<b class="warn">${snap.ref ? T('Prix inconnu') : T('Aucune offre')}</b>`;
-  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span>
+  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? dvImgTag(it, art) : ''}</span>
     <span class="cmd-t"><small>${/planeswalker/i.test(it.tl || '') ? T('Planeswalker commandant') : T('Commandant')}</small><strong>${esc(it.n)}</strong>${it.tl ? `<span class="cmd-tl">${esc(it.tl)}</span>` : ''}${it.mc ? `<span class="cmd-mc">${manaHtml(it.mc)}</span>` : ''}<span class="cmd-p">${price}</span></span></button>`;
 }
 
@@ -18938,7 +19021,7 @@ function dvNode(it, i, snap, dl) {
   if (!n) {
     const t = document.createElement('template'); t.innerHTML = html; n = t.content.firstElementChild;
     const was = old && old.n.querySelector('img.ok'), im = n.querySelector('img');
-    if (was && im && was.getAttribute('src') === im.getAttribute('src')) im.replaceWith(was);      // même image (seul le prix a changé) : celle déjà affichée est reprise, sans fondu
+    if (was && im && (was.dataset.big || was.getAttribute('src')) === im.getAttribute('src')) im.replaceWith(was);      // même image (seul le prix a changé) : celle déjà affichée est reprise, sans fondu
     DV.nodes.set(key, { h, n });
   }
   else imgSettle(n);      // vignette reprise : chargée (ou en échec) pendant qu'elle était détachée, l'événement load est passé sans elle
@@ -18999,6 +19082,7 @@ function dvGroups() {
     g.items.forEach((it, j) => { flat(it); frags[Math.min(nc - 1, Math.floor(j / per))].appendChild(dvNode(it, n++, snap, dl)); });      // piles compactes : la 1re moitié du groupe à gauche, la 2de à droite (lecture de haut en bas)
     frags.forEach((f, c) => { const b = gw.querySelector(`[data-gi="${gi}"][data-c="${c}"]`); if (b) b.appendChild(f); });
   });
+  dvImgSizes(gw, view);
   if (sc && keep) sc.scrollTop = keep;
   if (left) $('.dv-piles', gw).scrollLeft = left;
   if (DV.anim) { DV.anim = false; stagger($$('.dv-grid, .dvp, .dv-strips', el).slice(0, 3), $('.dv-cmds', el)); }      // cascade sur les premiers groupes seulement (les suivants sont hors écran)
@@ -19171,7 +19255,7 @@ function openHand() {
     let hand = [];
     const paint = () => {
       const lands = hand.filter(isLand).length, max = Math.max(...odds);
-      imgKeep(api.body, `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(it.n)}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? `<img alt="" decoding="async" src="${esc(dvImg(it))}">` : ''}</span></button>`).join('')}</div>
+      imgKeep(api.body, `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(it.n)}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? dvImgTag(it, dvImg(it), false) : ''}</span></button>`).join('')}</div>
         <p class="hand-sum"><b>${TN(lands, '{n} terrain', '{n} terrains')}</b> · ${TN(7 - lands, '{n} sort', '{n} sorts')}</p>
         <h3 class="cs-h">${T('Terrains en main de départ')} <small>${T('sur 7 cartes')}</small></h3>
         <div class="odds" role="img" aria-label="${odds.map((p, k) => TN(k, '{n} terrain : {p}', '{n} terrains : {p}', { p: pctTxt(p) })).join(', ')}">${odds.map((p, k) => `<div class="odd${k === lands ? ' on' : ''}"><span>${k}</span><i style="--w:${(p / max * 100).toFixed(1)}%"></i><b>${pctTxt(p)}</b></div>`).join('')}</div>
@@ -19698,8 +19782,10 @@ function collPickEd(it, p) {
 /* ── Langue des cartes : une langue par carte (la dernière scannée l'emporte), image dans cette langue ───── */
 const liKey = (l, k) => l + '|' + k;
 /** Image à afficher : celle de la langue de la carte si Scryfall l'a, sinon l'anglaise. Retourne { src, lang } (lang : langue réellement montrée). */
-function collImage(k, l, en) {
+function collImage(k, l, en, name) {
   if (l && l !== 'en') { const u = COLL.li[liKey(l, k)]; if (u) return { src: u, lang: l }; }
+  const al = l === 'en' ? '' : imgLang();      // exemplaire anglais précisé : il reste anglais ; sinon la langue de l'appli (viewer.js › imgL), l'anglais si Scryfall ne l'a pas
+  if (al && en) { const u = imgL(name || (COLL.map[k] || {}).n || k, en, al); if (u !== en) return { src: u, lang: al }; }
   return { src: en || '', lang: 'en' };
 }
 /** Langues à lire sur Scryfall : clés de cartes de langue ≠ anglais dont l'image n'a pas encore été cherchée. */
@@ -20498,6 +20584,62 @@ function collEmptyHtml() {
 /** Onglet « Stats » sans aucune carte. */
 const collStatsEmptyHtml = () => `<div class="dv-empty coll-empty"><b>${T('Pas encore de stats')}</b><p>${T('Valeur, courbe de mana et couleurs apparaissent dès tes premières cartes.')}</p>
     <div class="coll-cta"><button class="btn ghost" type="button" data-act="scan"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${T('Scanner des cartes')}</button></div></div>`;
+/* ── Grande liste (plus de 240 cartes affichées) : fenêtre glissante ────────────────────────────────────────────────────────────
+   Seules les tranches de 60 cartes proches de l'écran sont dans la page (≈ 2 écrans au-dessus, 3 au-dessous) ; les autres sont remplacées par deux cales
+   (.coll-pad) de leur hauteur mesurée (estimée tant qu'elles n'ont pas été vues). Mesuré sur 1 000 lignes (CPU ×4) : 50 % d'images perdues au défilement,
+   le fil principal occupé 28 s sur 33 (intersections de content-visibility, mise en page, peinture de chaque ligne). Vue en grille et ordinateur (grille à
+   deux colonnes) : tout reste dans la page (une tranche retirée décalerait les colonnes). La carte en grand ne parcourt que les cartes de la fenêtre. */
+const COLL_WIN = { size: 60, min: 240 };
+const collWinOk = () => COLL.tab === 'list' && !(typeof cvwView === 'function' && cvwView() === 'grid') && !(typeof bdSplit === 'function' && bdSplit());
+/** Corps de la liste : tout (petite liste), ou les tranches autour de la position pos (keep : hauteurs déjà mesurées de la même liste reprises). */
+function collListBody(sorted, n, keep, pos) {
+  const old = COLL.win; COLL.win = null;
+  if (n <= COLL_WIN.min || !collWinOk()) return collRowsHtml(sorted, 0, n);
+  const w = { sorted, n, size: COLL_WIN.size, h: keep && old && old.n <= n && old.sorted.length === sorted.length ? old.h : [], top: keep && old ? old.top : 0, a: 0, b: 0, first: new Map() };
+  const nc = Math.ceil(n / w.size), est = collWinAvg(w), at = Math.max(0, pos - w.top);
+  let y = 0, c0 = 0; for (; c0 < nc - 1 && y + (w.h[c0] || est) < at; c0++) y += w.h[c0] || est;
+  w.a = Math.max(0, c0 - 1); w.b = Math.min(nc, c0 + 3); COLL.win = w;
+  let html = `<div class="coll-pad" style="height:${collWinSum(w, 0, w.a)}px"></div>`;
+  for (let c = w.a; c < w.b; c++) html += collWinChunk(w, c);
+  return html + `<div class="coll-pad" style="height:${collWinSum(w, w.b, nc)}px"></div>`;
+}
+const collWinAvg = w => { const m = w.h.filter(x => x > 0); return m.length ? m.reduce((a, x) => a + x, 0) / m.length : w.size * 66; };      // ligne détaillée ≈ 66 px tant que rien n'est mesuré
+const collWinSum = (w, from, to) => { const est = collWinAvg(w); let s = 0; for (let c = from; c < to; c++) s += w.h[c] || est; return Math.round(s); };
+/** Tranche c (cartes c × 60 à c × 60 + 59) : son premier élément porte data-ch (repère pour la mesurer et la retirer). */
+const collWinChunk = (w, c) => collRowsHtml(w.sorted, c * w.size, Math.min(w.n, (c + 1) * w.size)).replace(/^<([a-z0-9]+)/, `<$1 data-ch="${c}"`);
+/** Après la peinture : cales et premiers éléments des tranches affichées. */
+function collWinMark(w, list) {
+  w.list = list; w.first = new Map(); const pads = $$(':scope > .coll-pad', list); if (pads.length !== 2) { COLL.win = null; return; }
+  w.pads = pads; for (const e of $$(':scope > [data-ch]', list)) w.first.set(Number(e.dataset.ch), e);
+}
+/** Hauteurs des tranches affichées (de leur premier élément au premier de la suivante, ou à la cale du bas). */
+function collWinMeasure(w) {
+  for (let c = w.a; c < w.b; c++) { const f = w.first.get(c), nx = c + 1 < w.b ? w.first.get(c + 1) : w.pads[1]; if (f && nx && f.isConnected) { const h = nx.getBoundingClientRect().top - f.getBoundingClientRect().top; if (h > 0) w.h[c] = h; } }
+}
+/** Au défilement (une fois par image) : retire les tranches loin de l'écran, ajoute celles qui en approchent ; la position affichée ne bouge pas (cales mesurées, ancrage du défilement). */
+function collWinSync() {
+  COLL.winRaf = 0;
+  const w = COLL.win, el = COLL.el; if (!w || !el || !w.list || !w.list.isConnected) return;
+  const sc = $('.dv-scroll', el); if (!sc) return;
+  collWinMeasure(w);
+  const r0 = sc.getBoundingClientRect().top, top = w.pads[0].getBoundingClientRect().top - r0 + sc.scrollTop; w.top = top;      // haut de la liste dans le défilement
+  const vh = sc.clientHeight, from = sc.scrollTop - top - vh * 2, to = sc.scrollTop - top + vh * 3, nc = Math.ceil(w.n / w.size), est = collWinAvg(w);
+  let y = 0, a = -1, b = 0;
+  for (let c = 0; c < nc; c++) { const h = w.h[c] || est; if (a < 0 && y + h >= from) a = c; if (y <= to) b = c + 1; y += h; }
+  if (a < 0) a = nc - 1; b = Math.max(b, a + 1);
+  if (a === w.a && b === w.b) return;
+  const drop = c => { let e = w.first.get(c); const end = c + 1 < w.b ? w.first.get(c + 1) : w.pads[1]; while (e && e !== end) { const nx = e.nextElementSibling; e.remove(); e = nx; } w.first.delete(c); };
+  const add = (c, before) => { const t = document.createElement('template'); t.innerHTML = collWinChunk(w, c); const f = t.content.firstElementChild; before.before(t.content); if (f) w.first.set(c, f); };
+  for (let c = w.a; c < w.b; c++) if (c < a || c >= b) drop(c);
+  const na = Math.max(a, 0), nb = Math.min(b, nc);
+  for (let c = Math.min(w.a, nb) - 1; c >= na; c--) add(c, w.first.get(c + 1) || w.pads[1]);      // au-dessus, de bas en haut
+  for (let c = Math.max(w.b, na); c < nb; c++) if (!w.first.has(c)) add(c, w.pads[1]);
+  w.a = na; w.b = nb;
+  w.pads[0].style.height = collWinSum(w, 0, w.a) + 'px'; w.pads[1].style.height = collWinSum(w, w.b, nc) + 'px';
+  for (const im of w.list.querySelectorAll('img:not(.ok)')) imgDone(im);      // tranche revenue : ses images, en cache, sans fondu
+}
+function collWinScroll() { if (COLL.win && !COLL.winRaf) COLL.winRaf = requestAnimationFrame(collWinSync); }
+
 /** Remplit la liste ou les stats selon l'onglet. keep : garder la position de défilement. */
 function collPaintBody(keep) {
   const el = COLL.el; if (!el) return;
@@ -20527,11 +20669,14 @@ function collPaintBody(keep) {
     const known = all.filter(i => i.tl != null || i.cm != null).length, hid = (COLL.f.colors.size || COLL.f.type || COLL.f.cmc !== '' || COLL.f.cmdr) && known < all.length;
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
     imgKeep(host, `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
-      ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collRowsHtml(sorted, 0, shown.length)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
+      ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collListBody(sorted, shown.length, keep, pos)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
       ${sorted.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, sorted.length - shown.length)), b: nf0(sorted.length - shown.length) })}</button>` : ''}`);
     COLL.painted = sorted;
   }
+  if (COLL.win && COLL.tab === 'list') { const lst = $('.coll-list', host); if (lst) collWinMark(COLL.win, lst); else COLL.win = null; } else COLL.win = null;
+  if (sc && COLL.win && !sc.__win) { sc.__win = true; sc.addEventListener('scroll', collWinScroll, { passive: true }); }      // fenêtre glissante : une écoute par écran
   if (sc) sc.scrollTop = pos;
+  if (COLL.win) collWinScroll();
   if (!keep) stagger($$('.coll-list, .cs-tiles, .dk-res', host));
   if (typeof tipSoon === 'function') tipSoon();      // astuces (tour.js) : classeur de l'Échange, « Partager en image » des Stats, « Ranger ces cartes… », options du masterset, rond de l'édition
 }
@@ -20542,7 +20687,9 @@ function collMore() {
   COLL.shown += COLL_PAGE;
   const sorted = list && btn && COLL.tab === 'list' && COLL.painted ? collListOf(collAll()).sorted : null;
   if (!sorted || sorted !== COLL.painted) { collPaintBody(true); return; }
-  list.insertAdjacentHTML('beforeend', collRowsHtml(sorted, from, COLL.shown));
+  if (COLL.win || (COLL.shown > COLL_WIN.min && collWinOk())) { collPaintBody(true); }      // fenêtre glissante (ou la liste y passe) : la tranche suivante entre par la fenêtre
+  else list.insertAdjacentHTML('beforeend', collRowsHtml(sorted, from, COLL.shown));
+  if (!btn.isConnected) return;
   const left = sorted.length - COLL.shown;
   if (left > 0) btn.textContent = T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, left)), b: nf0(left) }); else btn.remove();
 }
@@ -22081,7 +22228,7 @@ function edhRowHtml(r, i) {
   if (r.mine) tags.push(`<span class="tag good">${T('Commandant possédé')}</span>`);
   const right = r.miss ? `<b>${nf0(r.miss)}</b><small>${T('à acheter')}</small><em>${r.cost ? '≈ ' + esc(fmt(r.cost, mkCur())) : T('prix inconnu')}</em>${r.cost && r.unpriced ? `<small>${T('+ {n} sans prix', { n: nf0(r.unpriced) })}</small>` : ''}` : `<b class="ok">✓</b>${T('<small>complet</small>')}`;
   const aria = T('{name} : tier {tier}, {have} cartes sur {total}{eng}, {miss} à acheter', { name: esc(name), tier: esc(r.tier), have: r.have, total: r.total, miss: r.miss, eng: r.eng ? ' ' + TN(r.eng, '(dont {n} engagée dans un deck)', '(dont {n} engagées dans un deck)', { n: r.eng }) : '' });
-  return `<div class="crow dk" role="button" tabindex="0" data-dk="${i}" aria-label="${aria}">${r.tier ? `<i class="dk-tier t-${esc(r.tier.toLowerCase())}" aria-hidden="true">${esc(r.tier)}</i>` : ''}<span class="thumb" style="--h:${hash32(c.slug) % 360}">${esc((name.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow dk" role="button" tabindex="0" data-dk="${i}" aria-label="${aria}">${r.tier ? `<i class="dk-tier t-${esc(r.tier.toLowerCase())}" aria-hidden="true">${esc(r.tier)}</i>` : ''}<span class="thumb" style="--h:${hash32(c.slug) % 360}">${esc((name.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.keys[0], c.names[0], img)}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(name)}${c.rank && !c.comm ? ` <small class="dk-rank" title="${mo ? T('Rang de popularité du commandant sur EDHREC ce mois-ci') : T('Rang de popularité du commandant sur EDHREC')}">#${nf0(c.rank)}</small>` : ''}</span><span class="dk-pips">${edhPips(c.ci)}</span><span class="row-meta">${tags.join('')}</span><span class="dk-bar" aria-hidden="true"><i style="width:${pct}%"></i>${r.eng ? `<i class="eng" style="width:${pe}%"></i>` : ''}</span><span class="dk-have">${T('{have} / {total} possédées', { have: nf0(r.have), total: nf0(r.total) })}${r.eng ? ` <em class="dk-eng" title="${T('Exemplaires déjà réservés par un de tes decks montés')}">· ${TN(r.eng, 'dont {n} engagée', 'dont {n} engagées')}</em>` : ''}</span>${c.th.length ? `<span class="dk-th">${c.th.slice(0, 3).map(([i, n]) => { const t = EDH.data.themes[i]; return EDH.themes.has(t.slug) ? '<b>' + esc(edhThemeName(t)) + '</b>' : esc(edhThemeName(t)); }).join(' · ')}</span>` : ''}${r.hit ? `<span class="dk-lab dk-hitl">${T('Contient : {list}', { list: esc(r.hit.slice(0, 2).map(h => h[1]).join(' · ')) + (r.hit.length > 2 ? ' +' + (r.hit.length - 2) : '') })}</span>` : ''}</span>
     <span class="row-px dk-px">${right}</span></div>`;
 }
@@ -22106,8 +22253,12 @@ async function edhImages(entries, seed) {
   }
   return out;
 }
+/** Pose les aperçus (m : clé → image anglaise, ou celle de ton exemplaire) : dans la langue de l'appli, remplacés sur place à leur arrivée (decks.js › cardImgL). */
 function edhPaintThumbs(root, m) {
-  for (const th of $$('.thumb[data-ik]', root)) { const u = m.get(th.dataset.ik); if (u && !$('img', th) && !th.dataset.err) { const im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.src = u; th.appendChild(im); } }
+  for (const th of $$('.thumb[data-ik]', root)) {
+    const u = m.get(th.dataset.ik); if (!u || $('img', th) || th.dataset.err) continue;
+    const r = cardImgL(th.dataset.ik, (th.closest('[data-nm]') || th).dataset.nm || '', u), im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; if (r.lk) im.dataset.lk = r.lk; im.src = r.src; th.appendChild(im);      // data-nm : nom anglais de la carte (ligne)
+  }
 }
 const edhBracketNote = r => r.gc.length ? T('Game Changers : {list}', { list: r.gc.join(', ') }) : T('Aucun Game Changer');
 
@@ -22807,7 +22958,7 @@ function dfRowHtml(e, x, cname, canAdd) {
   const pct = pctTxt(x.r), price = dfPrice(e, x), pl = dfPlaces(x.k), own = collQty(x.k), free = engFree(own, XS.eng, x.k, DV.deckId), ds = engDecksOf(XS.eng, x.k).filter(d => d.id !== DV.deckId);
   const tags = [`<span class="tag df-pl" title="${esc(pl.join(' · '))}">${esc(pl[0] || T('Non rangé'))}${pl.length > 1 ? ' +' + (pl.length - 1) : ''}</span>`];
   if (ds.length) tags.push(`<span class="tag warn df-eng" title="${esc(ds.map(d => d.n).join(' · '))}">${free > 0 ? TN(own - free, '{n} engagée ailleurs', '{n} engagées ailleurs') : ds.length > 1 ? T('Réservée par {n} decks montés', { n: ds.length }) : T('Réservée par « {name} »', { name: esc(ds[0].n) })}</span>`);
-  return `<div class="crow df-row" data-k="${esc(x.k)}"><span class="thumb" style="--h:${hue}"${zoomAt('dfc', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow df-row" data-k="${esc(x.k)}"><span class="thumb" style="--h:${hue}"${zoomAt('dfc', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, it.n, img, it.l || '')}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="df-rate" title="${esc(T('{a} decks sur {b}', { a: nf0(x.n), b: nf0(Math.round(x.n / x.r)) }))}"><i style="width:${Math.max(3, Math.round(x.r * 100))}%"></i></span><span class="df-pct">${T('dans {p} des decks {name}', { p: pct, name: esc(cname) })}</span><span class="row-meta">${tags.join('')}</span></span>
     <span class="df-end"><b class="df-px">${price ? esc(fmt(price, mkCur())) : '—'}</b>${canAdd ? `<button class="btn ghost small df-add" type="button" data-df="add" aria-label="${esc(T('Ajouter {name} au deck', { name: nm }))}">${T('+ au deck')}</button>` : ''}</span></div>`;
 }
@@ -23740,7 +23891,7 @@ function csHeadHtml(k, x, m) {
   const set = e ? edSet(e) : '', sn = set ? setName(set) || (COLL.ed[e] || {}).sn || '' : '', r = (e && (COLL.ed[e] || {}).r) || (CS.or && CS.or.r) || '';
   const ls = collLines(x), langs = langLines(ls).length, loc = CS.or && CS.or.loc && CS.or.loc.l === l ? CS.or.loc.f[0] : null, tl = (loc && loc.tl) || (m && m.tl) || '';      // type imprimé dans la langue de la carte, sinon l'anglais
   const sum = x ? TN(x.q, '{n} exemplaire', '{n} exemplaires') + (langs > 1 ? ' · ' + TN(langs, '{n} langue', '{n} langues') : '') : T('Pas dans ta collection');
-  return `<div class="cs-hd"><button type="button" class="cs-img thumb${f ? ' foil' : ''}" data-cs="zoom" style="--h:${hue}" aria-label="${esc(T('Agrandir {name}', { name: nm }))}">${esc((nm.trim()[0] || '?').toUpperCase())}${im ? `<img alt="" decoding="async" src="${esc(im)}">` : ''}</button>
+  return `<div class="cs-hd"><button type="button" class="cs-img thumb${f ? ' foil' : ''}" data-cs="zoom" style="--h:${hue}" aria-label="${esc(T('Agrandir {name}', { name: nm }))}">${esc((nm.trim()[0] || '?').toUpperCase())}${im ? `<img alt="" decoding="async" ${cardImgA(k, CS.n, im, x ? l : '', !!e)}>` : ''}</button>
     <div class="cs-ht">${set ? `<span class="cs-ext">${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}<span>${esc([sn, edLabel(e)].filter(Boolean).join(' · '))}</span></span>` : ''}
       ${r ? `<span class="tag cs-rar ${esc(r)}">${esc(CS_RAR[r] || r)}</span>` : ''}${tl ? `<span class="cs-tline">${esc(tl)}</span>` : ''}
       <span class="cs-sum">${esc(sum)}</span></div></div>`;
@@ -23947,7 +24098,8 @@ function csZoom(k) {
   const items = ls.map(([g]) => collViewItem(k, g)).filter(Boolean);
   if (items.length) { const i = Math.max(0, items.findIndex(it => it.lid === k + '|' + CS.g)); openCardViewer(items, i); return; }
   const l = CS.g ? lineLang(CS.g) : (CS.o.l && !String(CS.o.l).includes('|') ? CS.o.l : '');
-  openCardViewer([m && m.im ? { key: k, name: frName(k, l) || CS.n, ln: CS.n, wl: l && l !== 'en' ? l : '', small: m.im, lang: 'en', plain: true, extra: '' } : zoomNamed(k, frName(k, l) || CS.n, CS.n, l)], 0);
+  const wl = l ? (l !== 'en' ? l : '') : wantLang();      // langue non précisée : celle de l'appli (anglaise si Scryfall ne l'a pas)
+  openCardViewer([m && m.im ? { key: k, name: frName(k, l) || CS.n, ln: CS.n, wl, small: m.im, lang: 'en', plain: true, extra: '' } : zoomNamed(k, frName(k, l) || CS.n, CS.n, wl)], 0);
 }
 /** « Suivre le prix » : alertes de prix (alerts.js), en hausse ET en baisse (u) ; le serveur qui ne connaît pas encore la hausse ne prévient que des baisses. */
 async function csWatch(k, b) {
@@ -27227,7 +27379,7 @@ function bdTags(k, q, ctx) {
 }
 function bdRow(k, name, q, tgt, ctx, label) {
   const x = COLL.map[k], m = bdMeta(k), l = x ? x.l : '', nm = label || bdLabel(k, name), hue = hash32(k) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase());
-  const img = m && m.im ? collImage(k, l, m.im).src : '', tags = bdTags(k, q, ctx);
+  const img = m && m.im ? collImage(k, l, m.im, name).src : '', tags = bdTags(k, q, ctx);
   return `<div class="crow bd-row" data-k="${esc(k)}" data-n="${esc(name)}" data-t="${tgt}"><span class="thumb" style="--h:${hue}"${zoomAt('bd', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span>${tags ? `<span class="row-meta">${tags}</span>` : ''}</span>
     <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button><b>${q}</b><button type="button" data-d="1" aria-label="${T('Ajouter un exemplaire de {name}', { name: esc(nm) })}">+</button></span></div>`;
@@ -27244,16 +27396,16 @@ function bdToolsHtml() {
 /** Cartes de l'éditeur au format du deck viewer (prix de ce qui manque, possession), pour ses vues. */
 function bdViewItems() {
   const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, ow = BASIC_NAMES.has(k) ? 0 : collQty(k), eu = Number.isFinite(m.eu) && m.eu > 0 ? m.eu : 0;
-    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
+    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im, c.name).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
   return [...[...BD.main.values()].map(c => one(c, 'main')), ...[...BD.side.values()].map(c => one(c, 'side'))];
 }
 function bdVisualHtml() {
   const items = bdViewItems(), snap = { ref: true }, view = BD.view;
   const groups = BD.sort === 'role' && typeof dvRoleGroups === 'function' ? dvRoleGroups(items, true) : groupSnap(items, BD.sort, true);
   BD.vflat = []; let n = 0;
-  const tile = it => { BD.vflat.push(it); return (view === 'strips' ? dvStrip : dvTile)(it, n++, snap, null); };
+  const tile = (it, sm) => { BD.vflat.push(it); return (view === 'strips' ? dvStrip : dvTile)(it, n++, snap, null, sm); };      // sm : carte recouverte d'une pile, petite image (viewer.js › dvSmall)
   const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}</small></h3>`;
-  const box = (cls, list) => `<div class="${cls}">${list.map(tile).join('')}</div>`;
+  const box = (cls, list) => `<div class="${cls}">${list.map((it, j) => tile(it, cls === 'dvp' && j < list.length - 1)).join('')}</div>`;
   if (!groups.length) return `<p class="hint">${T('Ajoute des cartes depuis « Ajouter » : les tiennes d\'abord, puis toutes les cartes Magic.')}</p>`;
   const body = view === 'piles' ? `<div class="dv-piles">${groups.map(g => `<section class="dv-g dv-pile">${head(g)}${box('dvp', g.items)}</section>`).join('')}</div>`
     : groups.map(g => { const half = Math.ceil(g.items.length / 2); return `<section class="dv-g">${head(g)}${view === 'stacks' ? `<div class="dv-stk">${box('dvp', g.items.slice(0, half))}${g.items.length > 1 ? box('dvp', g.items.slice(half)) : ''}</div>` : box(view === 'strips' ? 'dv-strips' : 'dv-grid', g.items)}</section>`; }).join('');
@@ -27380,7 +27532,7 @@ function bdTab(v) {
 /** Carte d'une rangée de l'éditeur pour la visionneuse (appui sur sa vignette) : image dans la langue possédée si Scryfall l'a donnée, sinon anglaise. */
 function bdViewItem(row) {
   const k = row.dataset.k, m = bdMeta(k); if (!m || !m.im) return null;
-  const x = COLL.map[k], l = x ? x.l : '', im = collImage(k, l, m.im), own = collQty(k);
+  const x = COLL.map[k], l = x ? x.l : '', im = collImage(k, l, m.im, row.dataset.n), own = collQty(k);
   return { key: k, lid: k + '|' + row.dataset.t, name: bdLabel(k, row.dataset.n), ln: row.dataset.n, wl: viewLang(k, true), small: im.src, lang: im.lang, plain: true,
     extra: `${own ? TN(own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: own }) : T('Pas dans ta collection')}${Number.isFinite(m.eu) ? ' · ' + T('réf. Cardmarket {p}', { p: fmt(m.eu, mkCur()) }) : ''}` };
 }
@@ -27895,7 +28047,7 @@ function dwSugHtml(role, cmd, pack, prof, tgt) {
 function dwSugRow(s, cmd) {
   const k = s.k, m = bdMeta(k), x = COLL.map[k], nm = bdLabel(k, s.name), hue = hash32(k) % 360, img = m && m.im ? collImage(k, x ? x.l : '', m.im).src : zoomUrl(s.name, 'small');      // fiche pas encore lue : image Scryfall par le nom
   const why = dwWhy(s, cmd), price = s.price > 0 ? fmt(s.price, mkCur()) : '';
-  return `<div class="crow bd-row dw-row" data-k="${esc(k)}" data-n="${esc(s.name)}" data-t="main"><span class="thumb" style="--h:${hue}"${zoomAt('bd', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow bd-row dw-row" data-k="${esc(k)}" data-n="${esc(s.name)}" data-t="main"><span class="thumb" style="--h:${hue}"${zoomAt('bd', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(k, s.name, img, x ? x.l || '' : '')}>` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${price ? `<span class="dw-px">${esc(price)}</span>` : ''}</span><span class="row-meta">${bdTags(k, 0, 'coll')}</span>${why ? `<span class="dw-why">${esc(why)}</span>` : ''}</span>
     <span class="qstep dw-add"><button type="button" data-d="1" aria-label="${T('Ajouter {name} au deck', { name: esc(nm) })}">+</button></span></div>`;
 }
@@ -28136,7 +28288,7 @@ function dwzCmds(E) {
 }
 function dwzCmdRow(c) {
   const own = c.keys.some(k => collQty(k) > 0), img = c.img ? (/^https?:/.test(c.img) ? c.img : EDH_SMALL + c.img) : zoomUrl(c.names[0], 'small'), hue = hash32(c.slug) % 360;      // fichier EDH2 : adresse complète (préfixée une 2e fois, l'image était introuvable et la lettre restait) ; sans image : Scryfall par le nom
-  return `<button type="button" class="crow dw-cmd" data-slug="${esc(c.slug)}"><span class="thumb" style="--h:${hue}">${esc((c.names[0][0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<button type="button" class="crow dw-cmd" data-slug="${esc(c.slug)}"><span class="thumb" style="--h:${hue}">${esc((c.names[0][0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.keys[0], c.names[0], img)}>` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(c.names.join(' + '))}</span></span><span class="row-meta">${[...(c.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}<span class="tag">${esc(TN(c.decks, '{n} deck', '{n} decks', { n: nf0(c.decks) }))}</span>${c.tier ? `<span class="tag">${esc(T('Tier {t}', { t: c.tier }))}</span>` : ''}${own ? `<span class="tag good">${T('Possédée')}</span>` : ''}</span></span><span class="me-v">›</span></button>`;
 }
 function openDeckWiz2() {
@@ -28360,10 +28512,10 @@ function daSetHtml(cmd, pack, set, cur) {
     ${th.length ? `<p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${th.map(([slug, label]) => `<button type="button" class="chip${set.th.includes(slug) ? ' on' : ''}" data-da-th="${esc(slug)}" aria-pressed="${set.th.includes(slug)}">${esc(label)}</button>`).join('')}</div>` : ''}
     <label class="me-row switch-row" for="daOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="daOwn" ${set.own ? 'checked' : ''}><i></i></span></label></div>`;
 }
-/** Vignette d'une carte : image de la fiche (langue de ton exemplaire), sinon l'image Scryfall par le nom ; un toucher l'agrandit (zoom.js › da). */
+/** Vignette d'une carte : image de la fiche (langue de ton exemplaire, sinon celle de l'appli : decks.js › cardImgA), sinon l'image Scryfall par le nom ; un toucher l'agrandit (zoom.js › da). */
 function daThumb(k, nm) {
   const m = dmOf(k), x = COLL.map[k], src = m && m.im ? collImage(k, x ? x.l : '', m.im).src : zoomUrl(nm, 'small');
-  return `<span class="thumb" style="--h:${hash32(k) % 360}" data-k="${esc(k)}" data-n="${esc(nm)}"${zoomAt('da', bdLabel(k, nm))}>${esc((nm.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(src)}"></span>`;
+  return `<span class="thumb" style="--h:${hash32(k) % 360}" data-k="${esc(k)}" data-n="${esc(nm)}"${zoomAt('da', bdLabel(k, nm))}>${esc((nm.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" ${cardImgA(k, nm, src, x ? x.l || '' : '')}></span>`;
 }
 /** Les deux cartes d'un échange (retirée → ajoutée), vignettes agrandies au toucher : analyse et Coach (deckux.js). */
 function daSwapPair(s) {
@@ -28611,7 +28763,7 @@ function dwCutsHtml(prof, tgt, cmd, pack) {
   const l = dwCuts(BD, cmd, pack, prof, tgt, Math.max(3, over + 2));
   return `<div class="sec-title" id="dwCuts">${esc(TN(over, 'À retirer : {n} carte de trop', 'À retirer : {n} cartes de trop'))}</div><p class="hint">${T('Les moins utiles d\'abord pour ce commandant ; celles qui tiennent une catégorie juste sont gardées pour la fin.')}</p><div class="dw-sug">${l.map(c => {
     const k = c.k, m = bdMeta(k), x = COLL.map[k], nm = bdLabel(k, c.name), img = m && m.im ? collImage(k, x ? x.l : '', m.im).src : BASIC_NAMES.has(k) ? '' : zoomUrl(c.name, 'small');
-    return `<div class="crow bd-row dw-row dx-cut" data-k="${esc(k)}" data-n="${esc(c.name)}" data-t="main"><span class="thumb" style="--h:${hash32(k) % 360}"${zoomAt('bd', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+    return `<div class="crow bd-row dw-row dx-cut" data-k="${esc(k)}" data-n="${esc(c.name)}" data-t="main"><span class="thumb" style="--h:${hash32(k) % 360}"${zoomAt('bd', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(k, c.name, img, x ? x.l || '' : '')}>` : ''}</span>
       <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span><span class="dw-why">${esc(c.why)}</span></span>
       <span class="qstep dw-add"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button></span></div>`;
   }).join('')}</div>`;
@@ -29444,7 +29596,7 @@ const trFoilTag = (fo, q, fu) => (fo > 0 ? `<span class="tag foil"${fu === null 
 function trHaveRow(x) {
   const ll = langLines(x.lines), it = trItem(x.k, x.n, x.q, ll[0] ? ll[0][0] : ''), nm = it.dn || it.n, th = bndThumb(x, it.l, it.im), img = th.src;      // par langue, éditions confondues ; vignette : l'impression de la 1re ligne (sa 1re pochette du classeur)
   const langs = ll.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${ll.length > 1 ? ' × ' + q : ''}</span>`).join('') + trFoilTag((x.lines || []).reduce((a, [g, q]) => a + (lineFoil(g) ? q : 0), 0), x.q, x.fu);
-  return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(it.l)}"${th.e ? ` data-e="${esc(th.e)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(it.l)}"${th.e ? ` data-e="${esc(th.e)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, x.n, img, it.l, !!th.e)}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${langs}${it.dn ? `<span class="tag">${esc(x.n)}</span>` : ''}</span></span>
     <span class="tr-q">${trQxHtml(x)}<button class="link-btn" type="button" data-act="tkeep" aria-label="${T('Garder {name} (ne plus la proposer)', { name: esc(nm) })}">${T('Garder')}</button></span></div>`;
 }
@@ -29452,7 +29604,7 @@ function trWantRow(x, mine) {
   const it = trItem(x.k, x.n, x.q, ''), nm = it.n, img = x.p ? scrySmall(x.p.i) : it.im || '';
   const tags = (x.p && x.p.w ? `<span class="tag accent" title="${T('Illustration recherchée')}">${x.p.l && x.p.l !== 'en' ? flag(x.p.l) + ' ' : ''}${esc(x.p.w)}</span>` : '') + (x.d ? `<span class="tag warn">${T('manque à tes decks')}${x.d > 1 ? ' × ' + x.d : ''}</span>` : '') + (x.w ? `<span class="tag accent">${T('souhait')}${x.w > 1 ? ' × ' + x.w : ''}</span>` : '') + (it.fn ? `<span class="tag">${esc(it.fn)}</span>` : '');
   const ctl = `<span class="tr-q">${mine && x.w ? `<span class="qstep tr-wq"><button type="button" data-act="wminus" aria-label="${T('Un de moins')}">−</button><b>${x.w}</b><button type="button" data-act="wplus" aria-label="${T('Un de plus')}">+</button></span>${trPxHtml(x)}` : trQxHtml(x)}</span>`;
-  return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(x.p && x.p.l || '')}"${x.p ? ` data-big="${esc(x.p.i)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(x.p && x.p.l || '')}"${x.p ? ` data-big="${esc(x.p.i)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, x.n, img, '', !!x.p)}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${tags}</span></span>${ctl}</div>`;
 }
 /** Corps de l'onglet : barre du lien (densite.js ; réserve et rangements dans « Réglages de l'échange », roue à côté de Filtres), sous-onglets « À échanger » / « Je recherche » et total estimé sur une ligne, tri et prix minimal, listes filtrées (barre de recherche et filtres de la collection). */
@@ -29771,7 +29923,7 @@ function pubMatchRow(x, side) {
     ? `<span class="tag accent">${T('tu la cherches × {n}', { n: x.w.q })}</span>${x.w.p && x.w.p.w ? `<span class="tag" title="${T('Illustration recherchée')}">${T('illustration souhaitée : {name}', { name: esc(x.w.p.w) })}</span>` : ''}`
     : `<span class="tag good">${T('tu peux l\'échanger × {n}', { n: x.s.q })}</span>${it.pw ? `<span class="tag accent" title="${T('Illustration recherchée')}">${esc(it.pw)}</span>` : ''}`;
   const val = x.v != null ? '≈ ' + fmt(x.v, mkCur()) : '', cap = TN(x.q, '{n} exemplaire', '{n} exemplaires') + (val ? ' · ' + val : '');
-  return `<div class="crow pub-row pm-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(x.k)}" data-ln="${esc(side === 'get' ? it.l || '' : '')}"${side === 'get' && it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(cap)}"><span class="thumb" style="--h:${hash32(x.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow pub-row pm-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(x.k)}" data-ln="${esc(side === 'get' ? it.l || '' : '')}"${side === 'get' && it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(cap)}"><span class="thumb" style="--h:${hash32(x.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, it.n, img, '', pubFixed(it))}>` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${ls.map(flag).join('')}</span><span class="row-meta">${tags}${alt ? `<span class="tag">${esc(alt)}</span>` : ''}</span></span>
     <span class="tr-q"><b>× ${x.q}</b>${val ? `<small>${esc(val)}</small>` : ''}</span></div>`;
 }
@@ -29782,6 +29934,8 @@ function pubFill(x) {
   for (const f of ['im', 'cm', 'tl', 'cl', 'mc']) if (it[f] == null && m[f] != null) it[f] = m[f];
   return it;
 }
+/** Image d'une carte d'un partage gardée telle quelle : langue de l'exemplaire précisée (image choisie par le propriétaire), édition ou illustration recherchée ; sinon langue de l'appli (decks.js › cardImgA). */
+const pubFixed = it => !!(it.l || it.e || it.pw);
 /** Cartes d'un onglet public, comptées par langue (une carte en deux éditions : une fois, comme avant les éditions). */
 const pubN = list => new Set((list || []).map(x => x.k + '|' + (x.l || ''))).size;
 /** Item public (onglets complets) : ce que le visiteur peut en faire, d'après ses doublons échangeables (pas le brut possédé : ses decks gardent leurs cartes). */
@@ -29797,7 +29951,7 @@ function pubRow(it) {
     ? (it.spare ? `<span class="tag good">${T('tu peux l\'échanger × {n}', { n: it.spare })}</span>` : it.own ? `<span class="tag">${T(it.used ? 'tu l\'as · dans tes decks' : 'tu l\'as · gardée')}</span>` : '')
     : (it.wq ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.wq })}</span>` : it.own ? `<span class="tag good">${T('déjà à toi × {n}', { n: it.own })}</span>` : '');
   const x = TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '') + (it.fo > 0 ? ' · ' + T('Foil') + ' ✦' : '') + (it.pw ? ' · ' + T('illustration {name}', { name: it.pw }) : '');
-  return `<div class="crow pub-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}"${it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow pub-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}"${it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(it.k, it.n, img, '', pubFixed(it))}>` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${pw}${it.e ? `<span class="tag">${esc(edLabel(it.e))}</span>` : ''}${trFoilTag(it.fo, it.q, px.fu)}${it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : ''}${sub}${mine}</span></span>
     <span class="tr-q">${trQxHtml({ q: it.q, u: it.fo >= it.q ? px.fu : px.u })}</span></div>`;      // prix à l'unité de l'appareil du visiteur (celui de l'impression s'il est publié : p, pf), comme sur l'onglet du propriétaire ; toutes foil : le prix foil
 }

@@ -29,28 +29,28 @@ function openCardImage(key) {
 
 /* ── Aperçu en grand dans la langue voulue : la carte du même nom en français (ou la langue de la recherche), lue par lots sur Scryfall, une seule fois par carte, gardée 30 jours ───── */
 const LANGV = { m: new Map(), p: new Map(), loaded: null, t: 0 };
-/** Langue souhaitée pour l'aperçu d'une carte dont l'exemplaire n'impose pas la sienne : celle de la recherche (français par défaut) ; '' si anglais. */
-const wantLang = () => (S.opts.lang && S.opts.lang !== 'en' && SCRY_LANG[S.opts.lang] ? S.opts.lang : '');
+/** Langue souhaitée pour l'aperçu d'une carte dont l'exemplaire n'impose pas la sienne : celle de l'appli ; '' si anglais. */
+const wantLang = () => imgLang();      // langue de l'appli (aperçus partout dans cette langue, anglais si Scryfall ne l'a pas)
 /** Langue de l'aperçu en grand : celle de ton exemplaire s'il en a une précisée (anglais : on ne cherche rien d'autre), sinon la langue de la recherche. owned : la carte est dans ta collection. */
 function viewLang(k, owned) { const x = owned ? COLL.map[ownKey(k)] : null; return x && x.q > 0 && x.l ? (x.l === 'en' ? '' : x.l) : wantLang(); }
 const langvKey = (l, n) => l + '|' + ownKey(n);
 function langvLoad() {
-  if (!LANGV.loaded) LANGV.loaded = (async () => { try { const o = await Cache.get('dv:lang', 30 * DAY); if (o && typeof o === 'object' && !Array.isArray(o)) for (const k in o) if (!LANGV.m.has(k)) LANGV.m.set(k, o[k]); } catch (e) { /* cache absent */ } })();
+  if (!LANGV.loaded) LANGV.loaded = (async () => { try { const o = await Cache.get('dv:lang2', 30 * DAY); if (o && typeof o === 'object' && !Array.isArray(o)) for (const k in o) if (!LANGV.m.has(k)) LANGV.m.set(k, o[k]); } catch (e) { /* cache absent */ } })();
   return LANGV.loaded;
 }
 function langvSave() {
   clearTimeout(LANGV.t);
-  LANGV.t = setTimeout(() => { while (LANGV.m.size > 4000) LANGV.m.delete(LANGV.m.keys().next().value); try { Cache.set('dv:lang', Object.fromEntries(LANGV.m)); } catch (e) { /* ignore */ } }, 1200);
+  LANGV.t = setTimeout(() => { while (LANGV.m.size > 12000) LANGV.m.delete(LANGV.m.keys().next().value); try { Cache.set('dv:lang2', Object.fromEntries(LANGV.m)); } catch (e) { /* ignore */ } }, 1200);
 }
 /** Lance la lecture (lots de 12) des images de ces cartes (names : dans l'ordre où elles serviront) ; ne refait ni le connu ni l'en-cours. */
-function langvPrefetch(names, lang) {
+function langvPrefetch(names, lang, prio = true) {
   const todo = [], seen = new Set();
   for (const n of names) { const k = langvKey(lang, n); if (seen.has(k) || LANGV.m.has(k) || LANGV.p.has(k)) continue; seen.add(k); todo.push({ k, n, ok: ownKey(n) }); }
   if (!todo.length || scryLeft() > 0) return;
   for (let i = 0; i < todo.length; i += 12) {
     const chunk = todo.slice(i, i + 12);
     const pr = (async () => {
-      try { const got = await scryLangImages(chunk.map(c => c.n), lang, undefined, undefined, true); for (const c of chunk) LANGV.m.set(c.k, got.get(c.ok) || ''); langvSave(); }
+      try { const got = await scryLangImages(chunk.map(c => c.n), lang, undefined, undefined, prio); for (const c of chunk) LANGV.m.set(c.k, got.get(c.ok) || ''); langvSave(); }
       catch (e) { /* hors ligne ou limite Scryfall : l'aperçu reste anglais, réessayé à la prochaine ouverture */ }
       finally { for (const c of chunk) LANGV.p.delete(c.k); }
     })();
@@ -62,6 +62,63 @@ async function langvGet(name, lang) {
   await langvLoad(); const k = langvKey(lang, name);
   if (!LANGV.m.has(k)) { if (!LANGV.p.has(k)) langvPrefetch([name], lang); if (LANGV.p.has(k)) await LANGV.p.get(k); }
   return LANGV.m.has(k) ? LANGV.m.get(k) : null;
+}
+
+/* ── Aperçus dans la langue de l'appli : toutes les vignettes et images de cartes ──────────────────────────────────────────────
+   Une carte affichée avec son image anglaise (u) prend la version de la langue de l'appli quand Scryfall l'a (même taille), l'anglaise sinon.
+   Version pas encore connue : l'anglaise s'affiche, la version traduite est lue par lots (LANGV, gardée 30 jours), puis remplacée sur place dans la page
+   (img[data-lk]) sans repeindre l'écran. Une impression précise (édition choisie, carte scannée, langue de ton exemplaire) n'est pas concernée : l'écran ne passe pas par imgL. */
+/** Langue des aperçus : celle de l'appli quand Scryfall a des cartes dans cette langue ; '' en anglais. */
+const imgLang = () => { const l = (typeof I18N !== 'undefined' && I18N.lang) || ''; return l && l !== 'en' && SCRY_LANG[l] ? l : ''; };
+const IMGL = { q: new Map(), t: 0, en: new Map() };      // en : adresses anglaises affichées par carte (remplacées sur place, même sans data-lk)
+const IMGL_RE = /\/(small|normal|large|png|art_crop|border_crop)\//;
+const imgSizeOf = u => { const m = IMGL_RE.exec(u || ''); return m ? m[1] : ''; };
+/** Version traduite (adresse /small/ gardée par LANGV) à la taille voulue ; png → normal (même dessin, plus léger). */
+const imgAtSize = (v, size) => (!size || size === 'small' ? v : v.replace('/small/', '/' + (size === 'png' ? 'normal' : size) + '/').replace(/\.png(?=\?|$)/, '.jpg'));
+/** Adresse à afficher pour la carte n (nom anglais) dont l'image anglaise est u ; lang : langue voulue (défaut : celle de l'appli, '' : anglais). */
+function imgL(n, u, lang) {
+  const l = lang === undefined ? imgLang() : lang, size = imgSizeOf(u);
+  if (!u || !n || !l || !size || size === 'art_crop') return u || '';      // illustration seule (bandeaux) : sans texte, la langue n'y change rien
+  const k = langvKey(l, n);
+  if (LANGV.m.has(k)) { const v = LANGV.m.get(k); return v ? imgAtSize(v, size) : u; }
+  imgLAsk(n, l, u); return u;
+}
+/** Attributs src + data-lk d'une image de carte (à écrire dans un <img …>) : remplacée sur place quand sa version traduite arrive. */
+function imgLA(n, u, lang) {
+  const l = lang === undefined ? imgLang() : lang, src = imgL(n, u, l);
+  return `src="${esc(src)}"${l && n && imgSizeOf(u) && imgSizeOf(u) !== 'art_crop' ? ` data-lk="${esc(langvKey(l, n))}"` : ''}`;
+}
+function imgLAsk(n, l, u) {
+  const k = langvKey(l, n); IMGL.q.set(k, [l, n]);
+  if (u) { if (!IMGL.en.has(k)) { if (IMGL.en.size > 6000) IMGL.en.clear(); IMGL.en.set(k, new Set()); } IMGL.en.get(k).add(u); }
+  if (!IMGL.t) IMGL.t = setTimeout(imgLFlush, 200);
+}
+/** Lit les versions traduites demandées (120 cartes au plus par passage, débit Scryfall partagé, après une pause s'il y en a une), puis les pose dans la page. */
+async function imgLFlush() {
+  IMGL.t = 0; await langvLoad();
+  const all = [...IMGL.q.values()], now = all.slice(0, 120); IMGL.q = new Map(all.slice(120).map(x => [langvKey(x[0], x[1]), x]));
+  const by = new Map(); for (const [l, n] of now) { if (!by.has(l)) by.set(l, []); by.get(l).push(n); }
+  for (const [l, names] of by) {
+    imgLSwap(l, names.filter(n => LANGV.m.has(langvKey(l, n))));      // déjà dans le cache de l'appareil (lu juste après le premier affichage)
+    const todo = names.filter(n => !LANGV.m.has(langvKey(l, n))); if (!todo.length) continue;
+    if (scryLeft() > 0) { for (const n of todo) IMGL.q.set(langvKey(l, n), [l, n]); continue; }      // pause Scryfall : redemandées ensuite
+    langvPrefetch(todo, l, false);
+    await Promise.all(todo.map(n => LANGV.p.get(langvKey(l, n))).filter(Boolean));
+    imgLSwap(l, todo);
+  }
+  if (IMGL.q.size && !IMGL.t) IMGL.t = setTimeout(imgLFlush, Math.max(300, scryLeft()));
+}
+/** Pose les versions traduites connues sur les images de la page (même taille ; data-big : grande image d'une carte de pile, viewer.js › dvImgSizes). */
+function imgLSwap(l, names) {
+  if (typeof document === 'undefined') return;
+  for (const n of names) {
+    const k = langvKey(l, n), v = LANGV.m.get(k); if (!v) continue;
+    const sel = [`img[data-lk="${CSS.escape(k)}"]`, ...[...(IMGL.en.get(k) || [])].map(u => `img[src="${CSS.escape(u)}"]`)].join(','); IMGL.en.delete(k);
+    for (const im of document.querySelectorAll(sel)) {
+      if (im.dataset.big) im.dataset.big = imgAtSize(v, imgSizeOf(im.dataset.big));
+      const cur = im.getAttribute('src'), nu = imgAtSize(v, imgSizeOf(cur)); if (cur && nu !== cur && imgSizeOf(cur)) im.setAttribute('src', nu);      // l'anglaise reste affichée jusqu'à l'arrivée de la traduite
+    }
+  }
 }
 
 /* ── Illustration choisie pour une carte (dans la langue affichée) : gardée sur l'appareil, rejouée dans tous les aperçus d'une carte seule ───── */
@@ -449,6 +506,8 @@ function snapDrop(id) { const all = snapsRead(); if (!(id in all)) return; delet
 const snapOf = d => (d ? newestSnap(d.snap, sanitizeSnap(snapsRead()[d.id])) : null);
 
 const dvImg = it => (it.im ? it.im.replace('/small/', '/normal/') : '');
+/** Balise de l'image d'une carte du viewer : version de la langue de l'appli (imgL), sauf image d'un exemplaire possédé dans sa propre langue (ol, dvOwnIm). */
+const dvImgTag = (it, u, lazy = true) => { const l = it.ol ? '' : undefined, nm = it.name || it.n, src = imgL(nm, u, l); return `<img alt=""${lazy ? ' loading="lazy"' : ''} decoding="async"${imgOkAttr(src)} ${imgLA(nm, u, l)}>`; };
 const dvLetter = it => esc((it.n.trim()[0] || '?').toUpperCase());
 /** Écart notable d'une carte (≥ 5 % ou ≥ 0,20 € par exemplaire) : flèche sur la vignette. */
 const dvMoved = d => !!d && (Math.abs(d.diff) >= 20 || Math.abs(d.diff) >= d.prev * 0.05);
@@ -469,14 +528,25 @@ function dvBits(it, snap, dl) {
   const gc = dvGC(it.k);
   return { hue, art, tag, en, q, gc, label: label + (gc ? ', Game Changer' : '') };
 }
-function dvTile(it, i, snap, dl) {
-  const { hue, art, tag, en, q, gc, label } = dvBits(it, snap, dl);
-  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
+function dvTile(it, i, snap, dl, sm) {
+  const b = dvBits(it, snap, dl), { hue, tag, en, q, gc, label } = b, art = sm ? dvSmall(b.art) : b.art;      // sm : carte recouverte d'une pile (seul son titre dépasse) : petite image
+  return `<button type="button" class="dvc" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}"><span class="dvc-art" style="--h:${hue}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${art ? dvImgTag(it, art) : ''}</span>${q}${gc || en ? `<span class="dvc-tl">${gc ? dvGCBadge() : ''}${en}</span>` : ''}${tag}</button>`;
 }
 /** Bandeau (vue « Bandeaux », façon liste de MTG Arena) : illustration à droite, quantité, nom, coût de mana, prix. */
+/** Petite image Scryfall (146 × 204) d'une adresse /normal/ : cartes recouvertes des piles. Une pile entière en /normal/ décodait ~140 Mo d'images
+ *  (88 cartes visibles en même temps), plus que le cache d'un Android modeste (≈ 60 Mo) : les cartes étaient redécodées sans cesse et disparaissaient un instant. */
+const dvSmall = u => String(u || '').replace('/normal/', '/small/');
+/** Vues en piles : petite image pour chaque carte recouverte, grande pour la dernière de chaque pile ; grande partout ailleurs (vignettes partagées entre vues). */
+function dvImgSizes(root, view) {
+  const pile = view === 'piles' || view === 'stacks';
+  for (const im of root.querySelectorAll('.dvc:not(.dvb) .dvc-art img')) {
+    const big = im.dataset.big || (im.dataset.big = im.getAttribute('src')), want = pile && im.closest('.dvc').nextElementSibling ? dvSmall(big) : big;
+    if (im.getAttribute('src') !== want) im.setAttribute('src', want);      // l'image affichée reste jusqu'à l'arrivée de l'autre taille : pas de trou
+  }
+}
 function dvStrip(it, i, snap, dl) {
   const { hue, tag, en, gc, label } = dvBits(it, snap, dl), art = it.im ? it.im.replace(/\/(small|normal|large|png|border_crop)\//, '/art_crop/').replace(/\.png(?=\?|$)/, '.jpg') : '';
-  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
+  return `<button type="button" class="dvc dvb" data-s="${it.s}" data-i="${i}" aria-label="${esc(label)}" style="--h:${hue}"><span class="dvb-art">${art ? dvImgTag(it, art) : ''}</span><span class="dvb-q">${it.q}</span><span class="dvb-n">${esc(it.n)}</span>${gc ? dvGCBadge() : ''}${en}<span class="dvb-mc">${it.mc ? manaHtml(it.mc) : ''}</span>${tag}</button>`;
 }
 /** Courbe de mana : c = exemplaires par coût (0 à 7+). interactive : barres cliquables (le viewer saute au groupe). */
 function curveBars(c, interactive) {
@@ -490,7 +560,7 @@ function dvHero(it, idx, snap, dl) {
   const art = dvImg(it), hue = hash32(it.k) % 360, d = dl && dl.get(it.k);
   const price = it.s === 'ok' ? `<b>${esc(dvFmt(it.c))}</b>${it.rf ? `<span class="cmd-ref">${T('Réf. Cardmarket {price}', { price: esc(dvFmt(it.rf)) })}</span>` : ''}${snap.ref && it.ow ? `<span class="cmd-ref">${it.ow >= it.q ? T('Dans ta collection') : T('Possédé en {n} ex.', { n: it.ow })}</span>` : ''}${d && dvMoved(d) ? `<span class="delta ${d.diff < 0 ? 'down' : 'up'}">${d.diff < 0 ? '−' : '+'}${esc(dvFmt(Math.abs(d.tot)))}</span>` : ''}`
     : it.s === 'own' ? '<b class="own">' + T('Dans ta collection') + '</b>' : it.s === 'nf' ? '<b class="bad">' + T('Introuvable') + '</b>' : `<b class="warn">${snap.ref ? T('Prix inconnu') : T('Aucune offre')}</b>`;
-  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? `<img alt="" loading="lazy" decoding="async"${imgOkAttr(art)} src="${esc(art)}">` : ''}</span>
+  return `<button type="button" class="dv-cmd" data-i="${idx}" aria-label="${T('Commandant : {name}', { name: esc(it.n) })}"><span class="dvc-art tilt" style="--h:${hue}"><b>${dvLetter(it)}</b>${art ? dvImgTag(it, art) : ''}</span>
     <span class="cmd-t"><small>${/planeswalker/i.test(it.tl || '') ? T('Planeswalker commandant') : T('Commandant')}</small><strong>${esc(it.n)}</strong>${it.tl ? `<span class="cmd-tl">${esc(it.tl)}</span>` : ''}${it.mc ? `<span class="cmd-mc">${manaHtml(it.mc)}</span>` : ''}<span class="cmd-p">${price}</span></span></button>`;
 }
 
@@ -574,7 +644,7 @@ function dvNode(it, i, snap, dl) {
   if (!n) {
     const t = document.createElement('template'); t.innerHTML = html; n = t.content.firstElementChild;
     const was = old && old.n.querySelector('img.ok'), im = n.querySelector('img');
-    if (was && im && was.getAttribute('src') === im.getAttribute('src')) im.replaceWith(was);      // même image (seul le prix a changé) : celle déjà affichée est reprise, sans fondu
+    if (was && im && (was.dataset.big || was.getAttribute('src')) === im.getAttribute('src')) im.replaceWith(was);      // même image (seul le prix a changé) : celle déjà affichée est reprise, sans fondu
     DV.nodes.set(key, { h, n });
   }
   else imgSettle(n);      // vignette reprise : chargée (ou en échec) pendant qu'elle était détachée, l'événement load est passé sans elle
@@ -635,6 +705,7 @@ function dvGroups() {
     g.items.forEach((it, j) => { flat(it); frags[Math.min(nc - 1, Math.floor(j / per))].appendChild(dvNode(it, n++, snap, dl)); });      // piles compactes : la 1re moitié du groupe à gauche, la 2de à droite (lecture de haut en bas)
     frags.forEach((f, c) => { const b = gw.querySelector(`[data-gi="${gi}"][data-c="${c}"]`); if (b) b.appendChild(f); });
   });
+  dvImgSizes(gw, view);
   if (sc && keep) sc.scrollTop = keep;
   if (left) $('.dv-piles', gw).scrollLeft = left;
   if (DV.anim) { DV.anim = false; stagger($$('.dv-grid, .dvp, .dv-strips', el).slice(0, 3), $('.dv-cmds', el)); }      // cascade sur les premiers groupes seulement (les suivants sont hors écran)
@@ -807,7 +878,7 @@ function openHand() {
     let hand = [];
     const paint = () => {
       const lands = hand.filter(isLand).length, max = Math.max(...odds);
-      imgKeep(api.body, `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(it.n)}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? `<img alt="" decoding="async" src="${esc(dvImg(it))}">` : ''}</span></button>`).join('')}</div>
+      imgKeep(api.body, `<div class="hand-grid">${hand.map((it, i) => `<button type="button" class="dvc hand-c" data-i="${i}" aria-label="${esc(it.n)}"><span class="dvc-art" style="--h:${hash32(it.k) % 360}"><b>${dvLetter(it)}</b><i>${esc(it.n)}</i>${dvImg(it) ? dvImgTag(it, dvImg(it), false) : ''}</span></button>`).join('')}</div>
         <p class="hand-sum"><b>${TN(lands, '{n} terrain', '{n} terrains')}</b> · ${TN(7 - lands, '{n} sort', '{n} sorts')}</p>
         <h3 class="cs-h">${T('Terrains en main de départ')} <small>${T('sur 7 cartes')}</small></h3>
         <div class="odds" role="img" aria-label="${odds.map((p, k) => TN(k, '{n} terrain : {p}', '{n} terrains : {p}', { p: pctTxt(p) })).join(', ')}">${odds.map((p, k) => `<div class="odd${k === lands ? ' on' : ''}"><span>${k}</span><i style="--w:${(p / max * 100).toFixed(1)}%"></i><b>${pctTxt(p)}</b></div>`).join('')}</div>

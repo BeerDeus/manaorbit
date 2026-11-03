@@ -153,11 +153,23 @@ const deckFmt = d => dkFmtOf(d.text);
 /** Image de la carte de présentation d'un deck (grande taille), '' tant que sa fiche n'est pas lue. */
 const coverImg = c => { if (!c) return ''; const o = ownLangImg(c.key), m = dmOf(c.key); return o ? o.src : (m && m.im) || ''; };      // carte possédée : dans la langue de l'exemplaire
 const coverUrl = c => coverImg(c).replace('/small/', '/normal/');
+/** Image d'une carte dans la langue voulue (viewer.js › imgL) → { src, lk } ; lk : clé data-lk (remplacée sur place à l'arrivée de la version traduite), '' si l'image reste telle quelle.
+ *  k : clé, n : nom anglais, u : image affichée jusqu'ici (anglaise sauf exemplaire de langue connue), l : langue de l'exemplaire ('' non précisée → langue de l'appli ; 'en' → anglaise ;
+ *  undefined → celle de ton exemplaire possédé, comme viewer.js › ownLangImg), fixed : impression précise (édition choisie, illustration recherchée, image d'un partage) gardée telle quelle. */
+function cardImgL(k, n, u, l, fixed) {
+  if (l === undefined) { const x = COLL.map[ownKey(k)]; l = x && x.q > 0 ? x.l || '' : ''; }
+  if (fixed || !u || !n || l === 'en' || (l && !SCRY_LANG[l])) return { src: u || '', lk: '' };      // langue que Scryfall n'a pas : l'image reste
+  if (l) { const o = collImage(ownKey(k), l, '').src; if (o) return { src: imgAtSize(o, imgSizeOf(u)), lk: '' }; }      // exemplaire de langue précisée : son image (collection.js › collImage), même taille
+  const w = l || imgLang(), sz = imgSizeOf(u); if (!w) return { src: u, lk: '' };
+  return { src: imgL(n, u, w), lk: sz && sz !== 'art_crop' ? langvKey(w, n) : '' };
+}
+/** Attributs src (+ data-lk) à écrire dans un <img …> : cardImgL. */
+const cardImgA = (k, n, u, l, fixed) => { const r = cardImgL(k, n, u, l, fixed); return `src="${esc(r.src)}"${r.lk ? ` data-lk="${esc(r.lk)}"` : ''}`; };
 function deckCard(d, i) {
   const dl = priceDelta(d.history), fresh = !D.seen.has(d.id), fk = deckFmt(d), dv = dkValue(d.text, dmOf), vt = dv.total && !dv.missing.length ? dkValueText(dv) : '';
   const cv = dkCoverCard(d.text, dmOf), art = coverUrl(cv), hue = hash32(d.id) % 360;
   return `<div class="deck${fresh ? ' fresh' : ''}" data-id="${esc(d.id)}" data-active="${d.id === S.deckId ? 1 : 0}" style="--i:${i}">
-    <button class="deck-main" type="button" data-act="open"><span class="dvc-art deck-art tilt" style="--h:${hue}"><b>${esc((d.name.trim()[0] || '?').toUpperCase())}</b>${art ? `<img alt="" loading="lazy" decoding="async" src="${esc(art)}">` : ''}<span class="deck-price">${dl ? `<b>${fmt(dl.total)}</b>${deltaChip(d.history)}` : ''}</span></span>
+    <button class="deck-main" type="button" data-act="open"><span class="dvc-art deck-art tilt" style="--h:${hue}"><b>${esc((d.name.trim()[0] || '?').toUpperCase())}</b>${art ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(cv.key, cv.name, art)}>` : ''}<span class="deck-price">${dl ? `<b>${fmt(dl.total)}</b>${deltaChip(d.history)}` : ''}</span></span>
       <span class="deck-top"><span class="deck-name">${esc(d.name)}</span></span>
       <span class="deck-tags">${fk ? `<span class="deck-fmt ${fk}">${DK_FORMATS[fk].label}</span>` : ''}${pips(d.text)}</span>
       <span class="deck-meta"><span class="deck-line">${esc(dkCountText(d.text))}${vt ? ' · <span title="' + T('Valeur estimée : prix tendance Cardmarket') + '">' + esc(vt) + '</span>' : ''}${engIsOn(d.id) ? ' · <b class="mounted">' + T('monté') + '</b>' : ''}</span><span class="deck-ago">${esc(relTime(d.updatedAt))}</span></span></button>
@@ -357,7 +369,7 @@ function openDeckSheet(id) {
     const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
     const paintCover = () => {      // carte de présentation : celle choisie, sinon le commandant, sinon la plus chère
       const cur = findDeck(id) || d, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/');
-      imgKeep($('.cover-th', api.body), im ? `<img alt="" src="${esc(im)}">` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`);
+      imgKeep($('.cover-th', api.body), im ? `<img alt="" ${cardImgA(cv.key, cv.name, im)}>` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`);
       $('#dkCoverSub', api.body).textContent = cv ? `${cv.name} · ${cv.auto ? T('automatique') : T('choisie')}` : T('Aucune carte');
     };
     paintCover(); $('#dkCover', api.body).onclick = () => openCoverPicker(id, paintCover);
@@ -413,7 +425,7 @@ function openCoverPicker(id, done) {
     const paint = () => {
       const cur = dkCoverCard((findDeck(id) || d0).text, dmOf), chosen = cur && !cur.auto ? cur.key : '', f = q.value.trim().toLowerCase();
       const list = pool().filter(c => !f || c.name.toLowerCase().includes(f)).slice(0, 150);
-      imgKeep(grid, list.map(c => { const im = coverImg(c); return `<button type="button" class="cv-card" data-n="${esc(c.name)}" aria-pressed="${c.key === chosen}" aria-label="${c.cmd ? T('{name}, commandant', { name: esc(c.name) }) : esc(c.name)}"><span class="dvc-art" style="--h:${hash32(c.key) % 360}"><b>${esc((c.name.trim()[0] || '?').toUpperCase())}</b><i>${esc(c.name)}</i>${im ? `<img alt="" loading="lazy" decoding="async" src="${esc(im)}">` : ''}</span></button>`; }).join('') || '<p class="hint">' + T('Aucune carte de ce nom.') + '</p>');      // recherche : les images déjà là restent (pas de nouveau fondu à chaque lettre)
+      imgKeep(grid, list.map(c => { const im = coverImg(c); return `<button type="button" class="cv-card" data-n="${esc(c.name)}" aria-pressed="${c.key === chosen}" aria-label="${c.cmd ? T('{name}, commandant', { name: esc(c.name) }) : esc(c.name)}"><span class="dvc-art" style="--h:${hash32(c.key) % 360}"><b>${esc((c.name.trim()[0] || '?').toUpperCase())}</b><i>${esc(c.name)}</i>${im ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.key, c.name, im)}>` : ''}</span></button>`; }).join('') || '<p class="hint">' + T('Aucune carte de ce nom.') + '</p>');      // recherche : les images déjà là restent (pas de nouveau fondu à chaque lettre)
     };
     grid.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
     grid.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);

@@ -66,7 +66,7 @@ function dwCutsHtml(prof, tgt, cmd, pack) {
   const l = dwCuts(BD, cmd, pack, prof, tgt, Math.max(3, over + 2));
   return `<div class="sec-title" id="dwCuts">${esc(TN(over, 'À retirer : {n} carte de trop', 'À retirer : {n} cartes de trop'))}</div><p class="hint">${T('Les moins utiles d\'abord pour ce commandant ; celles qui tiennent une catégorie juste sont gardées pour la fin.')}</p><div class="dw-sug">${l.map(c => {
     const k = c.k, m = bdMeta(k), x = COLL.map[k], nm = bdLabel(k, c.name), img = m && m.im ? collImage(k, x ? x.l : '', m.im).src : BASIC_NAMES.has(k) ? '' : zoomUrl(c.name, 'small');
-    return `<div class="crow bd-row dw-row dx-cut" data-k="${esc(k)}" data-n="${esc(c.name)}" data-t="main"><span class="thumb" style="--h:${hash32(k) % 360}"${zoomAt('bd', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+    return `<div class="crow bd-row dw-row dx-cut" data-k="${esc(k)}" data-n="${esc(c.name)}" data-t="main"><span class="thumb" style="--h:${hash32(k) % 360}"${zoomAt('bd', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(k, c.name, img, x ? x.l || '' : '')}>` : ''}</span>
       <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span><span class="dw-why">${esc(c.why)}</span></span>
       <span class="qstep dw-add"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button></span></div>`;
   }).join('')}</div>`;

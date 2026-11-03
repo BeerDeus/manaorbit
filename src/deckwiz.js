@@ -449,7 +449,7 @@ function dwSugHtml(role, cmd, pack, prof, tgt) {
 function dwSugRow(s, cmd) {
   const k = s.k, m = bdMeta(k), x = COLL.map[k], nm = bdLabel(k, s.name), hue = hash32(k) % 360, img = m && m.im ? collImage(k, x ? x.l : '', m.im).src : zoomUrl(s.name, 'small');      // fiche pas encore lue : image Scryfall par le nom
   const why = dwWhy(s, cmd), price = s.price > 0 ? fmt(s.price, mkCur()) : '';
-  return `<div class="crow bd-row dw-row" data-k="${esc(k)}" data-n="${esc(s.name)}" data-t="main"><span class="thumb" style="--h:${hue}"${zoomAt('bd', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow bd-row dw-row" data-k="${esc(k)}" data-n="${esc(s.name)}" data-t="main"><span class="thumb" style="--h:${hue}"${zoomAt('bd', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(k, s.name, img, x ? x.l || '' : '')}>` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${price ? `<span class="dw-px">${esc(price)}</span>` : ''}</span><span class="row-meta">${bdTags(k, 0, 'coll')}</span>${why ? `<span class="dw-why">${esc(why)}</span>` : ''}</span>
     <span class="qstep dw-add"><button type="button" data-d="1" aria-label="${T('Ajouter {name} au deck', { name: esc(nm) })}">+</button></span></div>`;
 }
@@ -690,7 +690,7 @@ function dwzCmds(E) {
 }
 function dwzCmdRow(c) {
   const own = c.keys.some(k => collQty(k) > 0), img = c.img ? (/^https?:/.test(c.img) ? c.img : EDH_SMALL + c.img) : zoomUrl(c.names[0], 'small'), hue = hash32(c.slug) % 360;      // fichier EDH2 : adresse complète (préfixée une 2e fois, l'image était introuvable et la lettre restait) ; sans image : Scryfall par le nom
-  return `<button type="button" class="crow dw-cmd" data-slug="${esc(c.slug)}"><span class="thumb" style="--h:${hue}">${esc((c.names[0][0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<button type="button" class="crow dw-cmd" data-slug="${esc(c.slug)}"><span class="thumb" style="--h:${hue}">${esc((c.names[0][0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.keys[0], c.names[0], img)}>` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(c.names.join(' + '))}</span></span><span class="row-meta">${[...(c.ci || 'C')].map(x => `<i class="pip ${x}" aria-hidden="true"></i>`).join('')}<span class="tag">${esc(TN(c.decks, '{n} deck', '{n} decks', { n: nf0(c.decks) }))}</span>${c.tier ? `<span class="tag">${esc(T('Tier {t}', { t: c.tier }))}</span>` : ''}${own ? `<span class="tag good">${T('Possédée')}</span>` : ''}</span></span><span class="me-v">›</span></button>`;
 }
 function openDeckWiz2() {

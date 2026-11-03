@@ -335,7 +335,7 @@ const trFoilTag = (fo, q, fu) => (fo > 0 ? `<span class="tag foil"${fu === null 
 function trHaveRow(x) {
   const ll = langLines(x.lines), it = trItem(x.k, x.n, x.q, ll[0] ? ll[0][0] : ''), nm = it.dn || it.n, th = bndThumb(x, it.l, it.im), img = th.src;      // par langue, éditions confondues ; vignette : l'impression de la 1re ligne (sa 1re pochette du classeur)
   const langs = ll.map(([l, q]) => `<span class="tag">${l ? flag(l) : T('sans langue')}${ll.length > 1 ? ' × ' + q : ''}</span>`).join('') + trFoilTag((x.lines || []).reduce((a, [g, q]) => a + (lineFoil(g) ? q : 0), 0), x.q, x.fu);
-  return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(it.l)}"${th.e ? ` data-e="${esc(th.e)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(it.l)}"${th.e ? ` data-e="${esc(th.e)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, x.n, img, it.l, !!th.e)}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${langs}${it.dn ? `<span class="tag">${esc(x.n)}</span>` : ''}</span></span>
     <span class="tr-q">${trQxHtml(x)}<button class="link-btn" type="button" data-act="tkeep" aria-label="${T('Garder {name} (ne plus la proposer)', { name: esc(nm) })}">${T('Garder')}</button></span></div>`;
 }
@@ -343,7 +343,7 @@ function trWantRow(x, mine) {
   const it = trItem(x.k, x.n, x.q, ''), nm = it.n, img = x.p ? scrySmall(x.p.i) : it.im || '';
   const tags = (x.p && x.p.w ? `<span class="tag accent" title="${T('Illustration recherchée')}">${x.p.l && x.p.l !== 'en' ? flag(x.p.l) + ' ' : ''}${esc(x.p.w)}</span>` : '') + (x.d ? `<span class="tag warn">${T('manque à tes decks')}${x.d > 1 ? ' × ' + x.d : ''}</span>` : '') + (x.w ? `<span class="tag accent">${T('souhait')}${x.w > 1 ? ' × ' + x.w : ''}</span>` : '') + (it.fn ? `<span class="tag">${esc(it.fn)}</span>` : '');
   const ctl = `<span class="tr-q">${mine && x.w ? `<span class="qstep tr-wq"><button type="button" data-act="wminus" aria-label="${T('Un de moins')}">−</button><b>${x.w}</b><button type="button" data-act="wplus" aria-label="${T('Un de plus')}">+</button></span>${trPxHtml(x)}` : trQxHtml(x)}</span>`;
-  return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(x.p && x.p.l || '')}"${x.p ? ` data-big="${esc(x.p.i)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow tr-row" data-k="${esc(x.k)}" data-ln="${esc(x.p && x.p.l || '')}"${x.p ? ` data-big="${esc(x.p.i)}"` : ''}><span class="thumb" style="--h:${hash32(x.k) % 360}"${zoomAt('tr', nm)}>${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, x.n, img, '', !!x.p)}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(nm)}</span><span class="row-meta">${tags}</span></span>${ctl}</div>`;
 }
 /** Corps de l'onglet : barre du lien (densite.js ; réserve et rangements dans « Réglages de l'échange », roue à côté de Filtres), sous-onglets « À échanger » / « Je recherche » et total estimé sur une ligne, tri et prix minimal, listes filtrées (barre de recherche et filtres de la collection). */
@@ -662,7 +662,7 @@ function pubMatchRow(x, side) {
     ? `<span class="tag accent">${T('tu la cherches × {n}', { n: x.w.q })}</span>${x.w.p && x.w.p.w ? `<span class="tag" title="${T('Illustration recherchée')}">${T('illustration souhaitée : {name}', { name: esc(x.w.p.w) })}</span>` : ''}`
     : `<span class="tag good">${T('tu peux l\'échanger × {n}', { n: x.s.q })}</span>${it.pw ? `<span class="tag accent" title="${T('Illustration recherchée')}">${esc(it.pw)}</span>` : ''}`;
   const val = x.v != null ? '≈ ' + fmt(x.v, mkCur()) : '', cap = TN(x.q, '{n} exemplaire', '{n} exemplaires') + (val ? ' · ' + val : '');
-  return `<div class="crow pub-row pm-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(x.k)}" data-ln="${esc(side === 'get' ? it.l || '' : '')}"${side === 'get' && it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(cap)}"><span class="thumb" style="--h:${hash32(x.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow pub-row pm-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(x.k)}" data-ln="${esc(side === 'get' ? it.l || '' : '')}"${side === 'get' && it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(cap)}"><span class="thumb" style="--h:${hash32(x.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(x.k, it.n, img, '', pubFixed(it))}>` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${ls.map(flag).join('')}</span><span class="row-meta">${tags}${alt ? `<span class="tag">${esc(alt)}</span>` : ''}</span></span>
     <span class="tr-q"><b>× ${x.q}</b>${val ? `<small>${esc(val)}</small>` : ''}</span></div>`;
 }
@@ -673,6 +673,8 @@ function pubFill(x) {
   for (const f of ['im', 'cm', 'tl', 'cl', 'mc']) if (it[f] == null && m[f] != null) it[f] = m[f];
   return it;
 }
+/** Image d'une carte d'un partage gardée telle quelle : langue de l'exemplaire précisée (image choisie par le propriétaire), édition ou illustration recherchée ; sinon langue de l'appli (decks.js › cardImgA). */
+const pubFixed = it => !!(it.l || it.e || it.pw);
 /** Cartes d'un onglet public, comptées par langue (une carte en deux éditions : une fois, comme avant les éditions). */
 const pubN = list => new Set((list || []).map(x => x.k + '|' + (x.l || ''))).size;
 /** Item public (onglets complets) : ce que le visiteur peut en faire, d'après ses doublons échangeables (pas le brut possédé : ses decks gardent leurs cartes). */
@@ -688,7 +690,7 @@ function pubRow(it) {
     ? (it.spare ? `<span class="tag good">${T('tu peux l\'échanger × {n}', { n: it.spare })}</span>` : it.own ? `<span class="tag">${T(it.used ? 'tu l\'as · dans tes decks' : 'tu l\'as · gardée')}</span>` : '')
     : (it.wq ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.wq })}</span>` : it.own ? `<span class="tag good">${T('déjà à toi × {n}', { n: it.own })}</span>` : '');
   const x = TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '') + (it.fo > 0 ? ' · ' + T('Foil') + ' ✦' : '') + (it.pw ? ' · ' + T('illustration {name}', { name: it.pw }) : '');
-  return `<div class="crow pub-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}"${it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow pub-row" role="button" tabindex="0" data-zoom="pub" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}"${it.e ? ` data-e="${esc(it.e)}"` : ''}${it.pw ? ' data-pw="1"' : ''} data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(it.k, it.n, img, '', pubFixed(it))}>` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${pw}${it.e ? `<span class="tag">${esc(edLabel(it.e))}</span>` : ''}${trFoilTag(it.fo, it.q, px.fu)}${it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : ''}${sub}${mine}</span></span>
     <span class="tr-q">${trQxHtml({ q: it.q, u: it.fo >= it.q ? px.fu : px.u })}</span></div>`;      // prix à l'unité de l'appareil du visiteur (celui de l'impression s'il est publié : p, pf), comme sur l'onglet du propriétaire ; toutes foil : le prix foil
 }
