@@ -404,6 +404,7 @@ const liKey = (l, k) => l + '|' + k;
 function collImage(k, l, en, name) {
   if (l && l !== 'en') { const u = COLL.li[liKey(l, k)]; if (u) return { src: u, lang: l }; }
   const al = l === 'en' ? '' : imgLang();      // exemplaire anglais précisé : il reste anglais ; sinon la langue de l'appli (viewer.js › imgL), l'anglais si Scryfall ne l'a pas
+  if (l === 'en' && en && imgLang()) return { src: en + '#en', lang: 'en' };      // « #en » (ignoré par le cache du navigateur) : adresse distincte, le remplacement sur place des lignes sans langue (imgLSwap, même image) ne la touche pas
   if (al && en) { const u = imgL(name || (COLL.map[k] || {}).n || k, en, al); if (u !== en) return { src: u, lang: al }; }
   return { src: en || '', lang: 'en' };
 }

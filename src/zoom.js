@@ -22,6 +22,8 @@ function zoomFrom(rows, row, make) {
   for (const r of rows) { const it = make(r); if (!it) continue; if (r === row) at = items.length; items.push(it); }
   return { items, at };
 }
+/** Langue voulue de la carte en grand pour un exemplaire de langue ln : la sienne (anglais : rien à chercher), celle de l'appli s'il n'en a pas (comme sa vignette, collection.js › collImage). */
+const zoomWl = ln => (ln ? (ln === 'en' ? '' : ln) : wantLang());
 const zoomImg = r => { const im = $('.thumb img', r); return im && im.classList.contains('ok') ? im.getAttribute('src') : ''; };      // image chargée de la vignette ('' : lettre seule)
 const zoomName = r => { const n = $('.row-name', r); return n ? n.textContent.trim() : ''; };
 
@@ -31,7 +33,8 @@ const ZOOM_LISTS = {
     const row = th.closest('.rw'); if (!row || !S.run) return null;
     return zoomFrom($$('#list .rw').filter(r => !r.hidden), row, r => {
       const k = r.dataset.key, c = S.deck.cards.find(x => x.key === k), st = S.run.cards[k] || {}; if (!c || st.notFound) return null;
-      return cardImageItem(k) || zoomNamed(k, c.dn || c.name, c.name, viewLang(k, c.own > 0));      // dn : nom tapé (« Foudre ») en titre, l'anglais pour l'image
+      const v = cardView(c), o = v.pick && v.pick.parts[0] ? v.pick.parts[0].offer : null, ex = !!S.opts.exactEd && !!(c.eds && c.eds.length);
+      return (o || ex ? cardImageItem(k) : null) || { ...zoomNamed(k, c.dn || c.name, c.name, viewLang(k, c.own > 0)), ...(st.img ? { small: st.img, big: '' } : {}) };      // dn : nom tapé (« Foudre ») en titre, l'anglais pour l'image ; sans offre (possédée, aucune offre) : la carte dans la langue de l'appli, comme sa vignette (app.js › resImgAttr)
     });
   },
   /* Collection : liste (une ligne par carte et par langue), « Les plus chères » et « Variations des prix » (Stats). */
@@ -39,7 +42,7 @@ const ZOOM_LISTS = {
     const row = th.closest('.crow'); if (!row) return null;
     return zoomFrom($$(':scope > .crow', row.parentNode), row, r => {
       const k = r.dataset.k, ln = r.dataset.ln || '', x = COLL.map[k];
-      return collViewItem(k, rowG(r)) || (x ? zoomNamed(k, zoomName(r) || x.n, x.n, ln || x.l) : null);
+      return collViewItem(k, rowG(r)) || (x ? zoomNamed(k, zoomName(r) || x.n, x.n, zoomWl(ln || x.l)) : null);
     });
   },
   /* Liste d'échange : doublons (langue de l'exemplaire ; édition de la vignette : son impression exacte) et cartes recherchées (illustration souhaitée montrée telle quelle). */
@@ -48,8 +51,8 @@ const ZOOM_LISTS = {
     return zoomFrom($$(':scope > .tr-row', row.parentNode), row, r => {
       const k = r.dataset.k, name = zoomName(r), en = (COLL.map[k] || {}).n || name, ln = r.dataset.ln || '', big = r.dataset.big, src = zoomImg(r);
       if (r.dataset.e) return zoomEd(k, name, en, ln, r.dataset.e, src);
-      if (!src) return zoomNamed(k, name, en, ln);
-      return { key: k, name, ln: en, wl: big ? '' : ln && ln !== 'en' ? ln : '', small: src, ...(big ? { big } : {}), lang: ln || 'en', plain: true, extra: '' };
+      if (!src) return zoomNamed(k, name, en, zoomWl(ln));
+      return { key: k, name, ln: en, wl: big ? '' : zoomWl(ln), small: src, ...(big ? { big } : {}), lang: ln || 'en', plain: true, extra: '' };
     });
   },
   /* Page publique d'une liste d'échange (la ligne entière est la vignette) : toutes les cartes affichées, blocs « Pour toi » compris. */
@@ -59,8 +62,8 @@ const ZOOM_LISTS = {
     return zoomFrom($$('.pub-row', wrap), row, r => {
       const k = r.dataset.k, name = zoomName(r), en = ens.get(k) || name, ln = r.dataset.ln || '', im = $('.thumb img', r);      // illustration recherchée (data-pw) : telle quelle, sans version française
       if (r.dataset.e && !r.dataset.pw) return zoomEd(k, name, en, ln, r.dataset.e, im ? im.getAttribute('src') : '', r.dataset.x);      // édition partagée : son impression exacte
-      if (!im) return zoomNamed(k, name, en, ln, r.dataset.x);
-      return { key: k, name, ln: en, wl: !r.dataset.pw && ln && ln !== 'en' ? ln : '', small: im.getAttribute('src'), lang: ln || 'en', plain: true, extra: r.dataset.x || '' };
+      if (!im) return zoomNamed(k, name, en, zoomWl(ln), r.dataset.x);
+      return { key: k, name, ln: en, wl: r.dataset.pw ? '' : zoomWl(ln), small: im.getAttribute('src'), lang: ln || 'en', plain: true, extra: r.dataset.x || '' };
     });
   },
   /* Scan : cartes reconnues ou liste du prix rapide, dans l'ordre affiché ; la photo prise reste sous une carte « à vérifier ». */

@@ -48,6 +48,10 @@ function opnSv() { return streamOn() ? opnTotals(OPN.cur.rows) : null; }
 function opnImg(r) { return r.im || collLineImage(r.k, r.g, (COLL.meta[r.k] || {}).im).src || scImg(r.n); }
 /** Grande image (partage, meilleures cartes) : même serveur d'images, taille « normal ». */
 function opnBig(r) { const s = r.im || collLineImage(r.k, r.g, (COLL.meta[r.k] || {}).im).src; return s ? s.replace('/small/', '/normal/') : 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(r.n) + '&format=image&version=normal'; }
+/** Langue où chercher la grande image : celle de l'appli pour une ligne sans langue ni édition (ni image du scan) dont l'image est encore l'anglaise, comme sa petite image (collection.js › collImage) ; '' : telle quelle. */
+const opnBigL = r => (!r.im && !lineEd(r.g) && lineLang(r.g) !== 'en' && collLineImage(r.k, r.g, (COLL.meta[r.k] || {}).im).lang === 'en' ? imgLang() : '');
+/** Attributs src de la grande image : remplacée sur place quand sa version traduite arrive (viewer.js › imgLA). */
+const opnBigA = r => imgLA(r.n, opnBig(r), opnBigL(r));
 const opnName = r => frName(r.k, lineLang(r.g)) || r.n;
 
 /* ── Cartes ajoutées pendant la session ─────────────────────────────────────────────────────────────────────────────────────── */

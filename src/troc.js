@@ -36,6 +36,8 @@ const trocNb = s => String(s).replace(/ ([;:!?»])/g, ' $1').replace(/« /g, '�
 const trocWho = () => (TRC.s && TRC.s.ot && TRC.s.ot.n) || T('l\'autre joueur');
 /** Image d'une carte de la session (forme courte, revérifiée) ; sinon Scryfall par le nom. */
 const trocSrc = x => { const u = x.i ? SCRY_IMG + x.i : ''; return u && SHARE_IMG_RE.test(u) ? u : scImg(x.n); };
+/** Attributs src (+ data-lk) de l'image d'une carte de la session : exemplaire de langue ou d'édition précisée (x.g) tel quel, sinon dans la langue de l'appli (decks.js › cardImgA) ; v : taille. */
+const trocImgA = (x, v) => { const u = trocSrc(x), l = lineLang(x.g); return cardImgA(ownKey(x.n), x.n, v ? u.replace('/small/', '/' + v + '/') : u, '', !!(l || lineEd(x.g))); };
 /** Nom affiché : l'imprimé de ma langue si l'exemplaire est dans cette langue (catalogue de l'appareil, sinon celui envoyé), sinon l'anglais. */
 function trocName(x) {
   const k = ownKey(x.n), l = lineLang(x.g);
@@ -379,7 +381,7 @@ function trocTile(x, side) {
   const k = ownKey(x.n), dn = trocName(x), l = lineLang(x.g), e = lineEd(x.g), fo = lineFoil(x.g);
   const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, trcCur()) : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ');
   return `<button class="trc-card${TRC.flash.has(x.id) ? ' new' : ''}${x.r ? ' pend' : ''}${fo ? ' foil' : ''}" type="button" data-id="${esc(x.id)}" data-side="${side}" aria-label="${esc(lab)}">
-    <span class="trc-art" style="--h:${hash32(k) % 360}"><b aria-hidden="true">${esc((dn.trim()[0] || '?').toUpperCase())}</b><img alt="" loading="lazy" decoding="async" src="${esc(trocSrc(x))}" data-n="${esc(x.n)}">
+    <span class="trc-art" style="--h:${hash32(k) % 360}"><b aria-hidden="true">${esc((dn.trim()[0] || '?').toUpperCase())}</b><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}">
       ${x.q > 1 ? `<i class="trc-q">×${x.q}</i>` : ''}${l && l !== 'en' ? `<i class="trc-fl">${flag(l)}</i>` : ''}${trocFo(x.g)}${x.a ? `<i class="trc-badge${x.r ? '' : ' on'}">${x.r ? T('Demandée') : T('Acceptée')}</i>` : ''}</span>
     <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? esc(fmt(x.u, trcCur())) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
 }
@@ -424,7 +426,7 @@ function trocMiniList(list) {
   const by = new Map();
   for (const x of list) { if (x.r) continue; const k = ownKey(x.n) + '|' + (x.g || ''), e = by.get(k); if (e) e.q += x.q; else by.set(k, { ...x }); }
   const meta = g => [lineLang(g) ? flag(lineLang(g)) : '', lineEd(g) ? esc(edLabel(lineEd(g))) : '', lineFoil(g) ? '✦ ' + T('Foil') : ''].filter(Boolean).join(' ');
-  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" src="${esc(trocSrc(x))}" data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, trcCur())) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
+  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, trcCur())) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
 }
 function trocConfirmHtml(s) {
   const sg = trocSum(s.ot.give), sv = trocSum(s.me.give), name = esc(trocWho());
@@ -498,7 +500,7 @@ function trocTileSheet(id, side) {
       const msg = side === 'ot' ? (cur.r ? T('Tu as demandé cette carte : {name} ne l\'a pas encore acceptée.', { name: who }) : T('Tu as demandé cette carte : {name} l\'a acceptée.', { name: who }))
         : cur.r ? T('{name} te demande cette carte.', { name: who }) : cur.a ? T('{name} t\'a demandé cette carte.', { name: who }) : '';
       const max = cur.a ? cur.q : Math.max(cur.q, own);
-      api.body.innerHTML = `<div class="trc-tsb"><span class="trc-big" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" src="${esc(trocSrc(cur).replace('/small/', '/normal/'))}" data-n="${esc(x.n)}"></span>
+      api.body.innerHTML = `<div class="trc-tsb"><span class="trc-big" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" ${trocImgA(cur, 'normal')} data-n="${esc(x.n)}"></span>
         <div class="trc-tsi">${msg ? `<p class="hint">${msg}</p>` : ''}${side === 'me' && !cur.r ? `<span class="label">${T('Exemplaires')}</span><span class="qstep trc-qs"><button type="button" data-q="-1" aria-label="${T('Un de moins')}">−</button><b>${cur.q}</b><button type="button" data-q="1" aria-label="${T('Un de plus')}"${cur.q >= max ? ' disabled' : ''}>+</button></span>
           ${own ? `<small class="hint">${T('Tu en as {n} dans cette langue et cette édition.', { n: own })}</small>` : ''}` : `<b class="trc-tq">× ${cur.q}</b>`}</div></div>`;
       api.setFoot(side === 'ot' ? `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn danger" type="button" data-ts="unask">${T('Annuler la demande')}</button>`
@@ -521,7 +523,7 @@ function trocTileSheet(id, side) {
 }
 /** Carte en grand (visionneuse de l'appli), avec ses voisines du même côté. */
 function trocZoom(list, x) {
-  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: '', plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) : ''].filter(Boolean).join(' · ') }));
+  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), ln: y.n, small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: lineLang(y.g) || lineEd(y.g) ? '' : wantLang(), plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) : ''].filter(Boolean).join(' · ') }));
   haptic('tap'); openCardViewer(items, Math.max(0, list.indexOf(x)));
 }
 
@@ -534,7 +536,8 @@ function trocRowHtml(it, kind) {
     const l = lineLang(g), e = lineEd(g), fo = lineFoil(g), had = trocIn(kind === 'ask' ? (TRC.s.ot || {}).give : TRC.s.me.give, it.k, g), full = had >= q;
     return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${esc(fmt(u, trcCur()))}</small>` : ''}</button>`;
   }).join('');
-  return `<div class="crow trc-prow" data-k="${esc(it.k)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((dn.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  const e0 = it.lines[0] ? lineEd(it.lines[0][0]) : '', ia = img ? cardImgA(it.k, it.n, img, kind === 'ask' ? '' : l0, !!(e0 || (kind === 'ask' && l0))) : '';      // image de la 1re ligne : ma carte dans sa langue (sinon celle de l'appli) ; la sienne, langue précisée, telle qu'envoyée
+  return `<div class="crow trc-prow" data-k="${esc(it.k)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((dn.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${ia}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(dn)}</span>${tags || dn !== it.n ? `<span class="row-meta">${tags}${dn !== it.n ? `<span class="tag">${esc(it.n)}</span>` : ''}</span>` : ''}<span class="trc-lns">${chips}</span></span>${it.u ? `<span class="trc-pp">${esc(fmt(it.u, trcCur()))}</span>` : ''}</div>`;
 }
 /** Feuille de choix commune (give, ask) : onglets, recherche (nom français ou anglais), liste par pages ; tap sur une pastille → onTap(item, ligne). */

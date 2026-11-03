@@ -144,11 +144,11 @@ function bndEdSoon() { bndEdLoad(bndEdOf((TR.st || trState()).have)).then(ch => 
 /* ── Composant : le classeur ─────────────────────────────────────────────────────────────────────── */
 const bndBig = u => String(u || '').replace('/small/', '/normal/');
 const bndCov = c => (BND_COVERS.some(x => x[0] === c) ? c : 'nuit');
-/** Pochette d'une carte : image (lettre et nom en attendant), pastilles ; foil : voile irisé sur l'image (binder.css) et pastille ✦ ; édition lue (« CMM 400 ») par les lecteurs d'écran. */
+/** Pochette d'une carte : image (langue de l'exemplaire, sinon celle de l'appli : decks.js › cardImgA ; édition, illustration recherchée, ou langue précisée d'un partage (sh) : telle quelle), lettre et nom en attendant, pastilles ; foil : voile irisé sur l'image (binder.css) et pastille ✦ ; édition lue (« CMM 400 ») par les lecteurs d'écran. */
 function bndCardHtml(x, i, mini) {
   const hue = hash32(x.k) % 360, nm = x.nm || x.n || '', im = mini ? x.sm || x.im : x.im;
   const lab = [nm, x.e ? edLabel(x.e) : '', x.foil ? T('Foil') : '', x.q > 1 ? '× ' + x.q : '', x.u > 0 ? fmt(x.u, mkCur()) : '', x.pin ? T('Épinglée') : ''].filter(Boolean).join(', ');
-  return `<button type="button" class="bnd-card${x.foil ? ' foil' : ''}" data-i="${i}" data-k="${esc(x.k)}" aria-label="${esc(lab)}"${mini ? ' tabindex="-1"' : ''}><span class="bnd-art" style="--h:${hue}"><b>${esc((nm.trim()[0] || '?').toUpperCase())}</b><i>${esc(nm)}</i>${im ? `<img alt="" loading="lazy" decoding="async" draggable="false" src="${esc(im)}">` : ''}</span>`
+  return `<button type="button" class="bnd-card${x.foil ? ' foil' : ''}" data-i="${i}" data-k="${esc(x.k)}" aria-label="${esc(lab)}"${mini ? ' tabindex="-1"' : ''}><span class="bnd-art" style="--h:${hue}"><b>${esc((nm.trim()[0] || '?').toUpperCase())}</b><i>${esc(nm)}</i>${im ? `<img alt="" loading="lazy" decoding="async" draggable="false" ${cardImgA(x.k, x.n, im, x.l || '', !!(x.fix || x.e || (x.sh && x.l)))}>` : ''}</span>`
     + (mini ? '' : `${x.pin || x.foil || x.q > 1 ? `<span class="bnd-tags">${x.pin ? `<span class="bnd-pin" title="${T('Épinglée')}">${BND_IC.pin}</span>` : ''}${x.foil ? `<span class="bnd-fo" title="${T('Foil')}"></span>` : ''}${x.q > 1 ? `<span class="bnd-q">×${x.q}</span>` : ''}</span>` : ''}${x.u > 0 ? `<span class="bnd-p">${esc(fmt(x.u, mkCur()))}</span>` : ''}`) + '</button>';      // en haut à droite (sur le coût de mana, jamais sur le nom)
 }
 /**
@@ -318,11 +318,12 @@ function bndMake(o) {
 }
 // fenêtre redimensionnée : une ou deux pages par vue (classeurs encore affichés seulement)
 if (typeof addEventListener === 'function') addEventListener('resize', () => { clearTimeout(BND.rt); if (!BND.live.size) return; BND.rt = setTimeout(() => { for (const b of [...BND.live]) { if (b.el.isConnected) b.fit(); else BND.live.delete(b); } }, 150); });
-/** Carte touchée : la carte en grand, avec ses voisines du classeur (60 de chaque côté) ; une pochette foil s'y montre foil ; une pochette avec édition, son impression exacte (zoomEd). */
+/** Carte touchée : la carte en grand, avec ses voisines du classeur (60 de chaque côté) ; une pochette foil s'y montre foil ; une pochette avec édition, son impression exacte (zoomEd) ;
+ *  langue non précisée : celle de l'appli (anglaise si Scryfall ne l'a pas). */
 function bndOpen(i, items) {
   const a = Math.max(0, i - 60), list = items.slice(a, i + 61).map(x => ({ ...(x.e && !x.fix ? zoomEd(x.k, x.nm, x.n, x.l, x.e, x.sm || x.im, x.x)
-    : x.sm || x.im ? { key: x.k, name: x.nm, ln: x.n, wl: !x.fix && x.l && x.l !== 'en' ? x.l : '', small: x.sm || x.im, ...(x.big ? { big: x.big } : {}), lang: x.l || 'en', plain: true, extra: x.x || '' }
-    : zoomNamed(x.k, x.nm, x.n, x.l, x.x)), ...(x.foil ? { foil: true } : {}) }));      // foil : étincelles de la carte en grand
+    : x.sm || x.im ? { key: x.k, name: x.nm, ln: x.n, wl: x.fix || x.l === 'en' ? '' : x.l || wantLang(), small: x.sm || x.im, ...(x.big ? { big: x.big } : {}), lang: x.l || 'en', plain: true, extra: x.x || '' }
+    : zoomNamed(x.k, x.nm, x.n, x.l || (x.fix ? '' : wantLang()), x.x)), ...(x.foil ? { foil: true } : {}) }));      // foil : étincelles de la carte en grand
   openCardViewer(list, i - a);
 }
 
@@ -373,7 +374,7 @@ function bndOwnMount(host) {
 /* ── « Mon classeur » : couleur, tri, cartes épinglées ───────────────────────────────────────────── */
 function bndOpenSettings() {
   const st = TR.st || trState();
-  const cards = st.have.map(x => { const ll = langLines(x.lines), l = ll[0] ? ll[0][0] : '', it = trItem(x.k, x.n, x.q, l); return { k: x.k, n: x.n, nm: it.dn || it.n, fn: it.fn || '', sm: bndThumb(x, l, it.im).src, u: trPrice(x.k) }; });
+  const cards = st.have.map(x => { const ll = langLines(x.lines), l = ll[0] ? ll[0][0] : '', it = trItem(x.k, x.n, x.q, l); const th = bndThumb(x, l, it.im); return { k: x.k, n: x.n, nm: it.dn || it.n, fn: it.fn || '', sm: th.src, l, e: th.e, u: trPrice(x.k) }; });
   const byK = new Map(cards.map(c => [c.k, c]));
   openSheet(T('Mon classeur'), T('Ce que voient les visiteurs de ton lien en mode classeur'), api => {
     api.wrap.classList.add('bnd-sheet-w');
@@ -386,7 +387,7 @@ function bndOpenSettings() {
       <p class="hint bnd-note">${TR.share ? T('Visible par tous ceux qui ont ton lien, en mode classeur.') : T('Crée le lien public pour montrer ton classeur à tes amis.')}</p>`;
     const mini = bndMake({ mini: true }), q = $('#bndQ', api.body);
     $('.bnd-mini-host', api.body).appendChild(mini.el);
-    const thumb = c => `<span class="thumb" style="--h:${hash32(c.k) % 360}">${esc((c.nm.trim()[0] || '?').toUpperCase())}${c.sm ? `<img alt="" loading="lazy" decoding="async" src="${esc(c.sm)}">` : ''}</span>`;
+    const thumb = c => `<span class="thumb" style="--h:${hash32(c.k) % 360}">${esc((c.nm.trim()[0] || '?').toUpperCase())}${c.sm ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.k, c.n, c.sm, c.l || '', !!c.e)}>` : ''}</span>`;
     const paint = () => {
       const c = bndCfg();
       mini.set(bndOwnItems(tradeView(st.have, { price: trRowPx }).rows, false), c.c);
@@ -461,7 +462,7 @@ function bndPub(P, wrap, all, list) {
   $('.bnd-cnt', bar).textContent = (filterActive(P.f) ? TN(n, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(pubN(all)) }) : TN(n, '{n} carte', '{n} cartes')) + ' · ' + TN(q, '{n} exemplaire', '{n} exemplaires');
   if (bndView('p', P.sh.bd && P.sh.bd.u ? 'binder' : 'list') !== 'binder' || !list.length) return false;
   const want = P.sub === 'want', items = bndFoil(filterItems(P.sh.bo[want ? 'want' : 'have'].map(pubItem), P.f).map(it => ({      // mêmes filtres que la liste, dans l'ordre du classeur ; foil à part
-    k: it.k, n: it.n, nm: it.dn || it.n, l: it.l || '', e: want ? '' : it.e || '', q: it.q, fo: want ? 0 : it.fo, ...(want ? { u: trPrice(it.k) } : trShPx(it)), sm: it.im || '', im: bndBig(it.im), pin: !want && P.sh.bpin.has(it.k), fix: !!it.pw, pw: it.pw || '' })))
+    k: it.k, n: it.n, nm: it.dn || it.n, l: it.l || '', e: want ? '' : it.e || '', q: it.q, fo: want ? 0 : it.fo, ...(want ? { u: trPrice(it.k) } : trShPx(it)), sm: it.im || '', im: bndBig(it.im), pin: !want && P.sh.bpin.has(it.k), fix: !!it.pw, pw: it.pw || '', sh: 1 })))      // sh : carte d'un partage (bndCardHtml)
     .map(it => ({ ...it, x: TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '') + (it.foil ? ' · ' + T('Foil') + ' ✦' : '') + (it.pw ? ' · ' + T('illustration {name}', { name: it.pw }) : '') }));
   const b = P.bnd || (P.bnd = bndMake({ open: bndOpen })), main = $('.pub-main', wrap);
   if (b.el.parentElement !== main) { main.textContent = ''; main.appendChild(b.el); } else for (const n of [...main.children]) if (n !== b.el) n.remove();

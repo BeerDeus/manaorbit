@@ -429,7 +429,7 @@ function trOpenImg(row) {
   for (const r of rows) {
     const im = $('img.ok', r), name = $('.row-name', r).textContent; if (!im) continue; if (r === row) at = list.length;
     list.push(r.dataset.e ? zoomEd(r.dataset.k, name, (COLL.map[r.dataset.k] || {}).n || name, r.dataset.ln, r.dataset.e, im.getAttribute('src'), '')      // édition : son impression exacte
-      : { key: r.dataset.k, name, wl: r.dataset.big ? '' : r.dataset.ln && r.dataset.ln !== 'en' ? r.dataset.ln : '', small: im.getAttribute('src'), ...(r.dataset.big ? { big: r.dataset.big } : {}), lang: r.dataset.ln || 'en', plain: true, extra: '' });
+      : { key: r.dataset.k, name, ln: (COLL.map[r.dataset.k] || {}).n || name, wl: r.dataset.big ? '' : r.dataset.ln ? (r.dataset.ln !== 'en' ? r.dataset.ln : '') : wantLang(), small: im.getAttribute('src'), ...(r.dataset.big ? { big: r.dataset.big } : {}), lang: r.dataset.ln || 'en', plain: true, extra: '' });
   }
   if (list.length) openCardViewer(list, at);
 }
@@ -580,11 +580,11 @@ function openPublicTrade(sh, preview, id, fr) {
     const vs = e.target.closest('.prg-chip[data-vs]');      // badge de la vitrine : sa progression face à la mienne (progress.js) ; aperçu : la fenêtre de mon badge
     if (vs) { haptic('tap'); const x = P.preview && prgBadges().find(y => y.b.id === vs.dataset.vs); if (x) prgBadgeSheet(x); else prgVsSheet(vs.dataset.vs, +vs.dataset.t, vs.dataset.v != null ? +vs.dataset.v : null, sh.by); return; }
     const row = e.target.closest('.pub-row'); if (!row) return;
-    const rows = $$('.pub-row', wrap), list = [], at = { i: 0 };      // illustration recherchée (data-pw) : montrée telle quelle, sans version française
+    const rows = $$('.pub-row', wrap), list = [], at = { i: 0 }, ens = new Map([...sh.have, ...sh.want].map(x => [x.k, x.n]));      // illustration recherchée (data-pw) : montrée telle quelle, sans version française ; ens : noms anglais (version dans la langue voulue)
     for (const r of rows) {
       const im = $('img', r), name = $('.row-name', r).textContent; if (!im) continue; if (r === row) at.i = list.length;
       list.push(r.dataset.e && !r.dataset.pw ? zoomEd(r.dataset.k, name, (sh.have.find(x => x.k === r.dataset.k) || {}).n || name, r.dataset.ln, r.dataset.e, im.getAttribute('src'), r.dataset.x)      // édition partagée : son impression exacte
-        : { key: r.dataset.k, name, wl: !r.dataset.pw && r.dataset.ln && r.dataset.ln !== 'en' ? r.dataset.ln : '', small: im.getAttribute('src'), lang: r.dataset.ln || 'en', plain: true, extra: r.dataset.x || '' });
+        : { key: r.dataset.k, name, ln: ens.get(r.dataset.k) || name, wl: r.dataset.pw ? '' : r.dataset.ln ? (r.dataset.ln !== 'en' ? r.dataset.ln : '') : wantLang(), small: im.getAttribute('src'), lang: r.dataset.ln || 'en', plain: true, extra: r.dataset.x || '' });      // langue non précisée : celle de l'appli
     }
     if (list.length) { haptic('tap'); openCardViewer(list, at.i); } else toast(T('Pas d\'aperçu pour cette carte'));
   });

@@ -86,7 +86,7 @@ function imgL(n, u, lang) {
 /** Attributs src + data-lk d'une image de carte (à écrire dans un <img …>) : remplacée sur place quand sa version traduite arrive. */
 function imgLA(n, u, lang) {
   const l = lang === undefined ? imgLang() : lang, src = imgL(n, u, l);
-  return `src="${esc(src)}"${l && n && imgSizeOf(u) && imgSizeOf(u) !== 'art_crop' ? ` data-lk="${esc(langvKey(l, n))}"` : ''}`;
+  return `src="${esc(src)}"${l && n && imgSizeOf(u) && imgSizeOf(u) !== 'art_crop' ? ` data-lk="${esc(langvKey(l, n))}"` : ' data-lk=""'}`;      // data-lk="" : image voulue telle quelle (anglaise, impression précise), jamais remplacée
 }
 function imgLAsk(n, l, u) {
   const k = langvKey(l, n); IMGL.q.set(k, [l, n]);
@@ -113,7 +113,7 @@ function imgLSwap(l, names) {
   if (typeof document === 'undefined') return;
   for (const n of names) {
     const k = langvKey(l, n), v = LANGV.m.get(k); if (!v) continue;
-    const sel = [`img[data-lk="${CSS.escape(k)}"]`, ...[...(IMGL.en.get(k) || [])].map(u => `img[src="${CSS.escape(u)}"]`)].join(','); IMGL.en.delete(k);
+    const sel = [`img[data-lk="${CSS.escape(k)}"]`, ...[...(IMGL.en.get(k) || [])].map(u => `img[src="${CSS.escape(u)}"]:not([data-lk])`)].join(',');      // par l'adresse : seulement les images qui ne disent pas laquelle elles veulent IMGL.en.delete(k);
     for (const im of document.querySelectorAll(sel)) {
       if (im.dataset.big) im.dataset.big = imgAtSize(v, imgSizeOf(im.dataset.big));
       const cur = im.getAttribute('src'), nu = imgAtSize(v, imgSizeOf(cur)); if (cur && nu !== cur && imgSizeOf(cur)) im.setAttribute('src', nu);      // l'anglaise reste affichée jusqu'à l'arrivée de la traduite

@@ -197,7 +197,7 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.dfc = th => {
   return zoomFrom($$('.df-row', row.parentNode), row, r => {
     const k = r.dataset.k, x = COLL.map[k]; if (!x) return null;
     const m = COLL.meta[k] || {}, nm = dfName(k), ex = $('.df-pct', r) ? $('.df-pct', r).textContent : '';
-    if (!m.im) return zoomNamed(k, nm, x.n, x.l, ex);
+    if (!m.im) return zoomNamed(k, nm, x.n, viewLang(k, true), ex);      // langue de ton exemplaire, sinon celle de l'appli
     const im = collImage(k, x.l, m.im);
     return { key: k, name: nm, ln: x.n, wl: viewLang(k, true), small: im.src, lang: im.lang, plain: true, extra: ex };
   });

@@ -7854,7 +7854,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'ff2d5472';
+const DD_BUILD = '296825ab';
 const I18N_FILES = {"de":"i18n/de.8951c9f0.js","en":"i18n/en.c3a83d9c.js","es":"i18n/es.4ab05c66.js","it":"i18n/it.4c7a6f72.js","pt":"i18n/pt.cd05f020.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -13108,6 +13108,16 @@ function lnMiss(c, st) {
   });
   return [...new Set(ms)].join(' · ');
 }
+/** Attributs src (+ data-lk) de la vignette d'une ligne de résultats ('' : pas d'image). Offre CardTrader retenue : son impression dans la langue de l'offre (anglaise : telle quelle) ;
+ *  édition exacte demandée : telle quelle ; sinon (prix Cardmarket, pas d'offre) la carte dans la langue de ton exemplaire ou de l'appli (viewer.js › imgLA), l'anglaise à défaut. */
+function resImgAttr(c, top, st) {
+  if (top && top.img && !top.cm) { const l = top.lang && top.lang !== 'en' && SCRY_LANG[top.lang] ? top.lang : ''; return imgLA(c.name, top.img, l); }      // une offre française reste française, même si l'appli est en allemand
+  const u = (st && st.img) || ''; if (!u) return '';
+  if (S.opts.exactEd && c.eds && c.eds.length) return `src="${esc(u)}"`;      // l'illustration de l'édition demandée
+  const l = viewLang(c.key, c.own > 0), cat = l && l === FRX.l && FRX.ix && FRX.ix.img ? FRX.ix.img.get(ownKey(c.key)) : '';
+  if (cat && u === (/^https?:/.test(cat) ? cat : FR_IMG + cat)) return `src="${esc(u)}"`;      // miniature du catalogue des noms : déjà dans cette langue (data.js › cmImages)
+  return imgLA(c.name, u, l);
+}
 function updateRow(el, c, v, st) {
   const pick = v.pick, ri = pick ? refInfo(pick.parts, st && st.bps) : null;
   const sig = v.s + '|' + (pick ? pick.parts.map(p => p.offer.id + ':' + p.n).join(',') : '') + '|' + (st && st.fellBack ? 1 : 0) + '|' + S.opts.lang + '|' + S.cur + '|' + (c.own || 0) + '|' + c.need + '|' + (ri ? ri.ref + ri.level : '') + '|' + (st && st.img ? 1 : 0) + '|' + (lnOn(c) ? c.ln.map(l => l.need + (l.f || '') + (l.l || '')).join() : '');
@@ -13116,8 +13126,8 @@ function updateRow(el, c, v, st) {
   const prevCost = el._cost; el._cost = v.s === 'ok' ? pick.cost : null;
   const nm = c.dn || c.name, hue = hash32(c.key) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase());      // nm : nom tapé en français, sinon l'anglais
   const top = pick && pick.parts[0] ? pick.parts[0].offer : null;
-  const img = (top && top.img) || (st && st.img);
-  const thumb = `<span class="thumb" style="--h:${hue}"${v.s === 'notfound' ? '' : zoomAt('res', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>`;
+  const img = resImgAttr(c, top, st);
+  const thumb = `<span class="thumb" style="--h:${hue}"${v.s === 'notfound' ? '' : zoomAt('res', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" ${img}>` : ''}</span>`;
   const qty = c.need > 1 ? `<span class="tag accent">× ${c.need}</span>` : '';
   const ownTag = c.own > 0 && c.need > 0 ? `<span class="tag good">${TN(c.own, '{n} possédée', '{n} possédées')}</span>` : '', lnTag = lnBadges(c);      // lnTag : critères de ligne (« FR · ✦ Foil »)
   const langName = LANGS[S.opts.lang] || S.opts.lang;
@@ -18463,7 +18473,7 @@ function imgL(n, u, lang) {
 /** Attributs src + data-lk d'une image de carte (à écrire dans un <img …>) : remplacée sur place quand sa version traduite arrive. */
 function imgLA(n, u, lang) {
   const l = lang === undefined ? imgLang() : lang, src = imgL(n, u, l);
-  return `src="${esc(src)}"${l && n && imgSizeOf(u) && imgSizeOf(u) !== 'art_crop' ? ` data-lk="${esc(langvKey(l, n))}"` : ''}`;
+  return `src="${esc(src)}"${l && n && imgSizeOf(u) && imgSizeOf(u) !== 'art_crop' ? ` data-lk="${esc(langvKey(l, n))}"` : ' data-lk=""'}`;      // data-lk="" : image voulue telle quelle (anglaise, impression précise), jamais remplacée
 }
 function imgLAsk(n, l, u) {
   const k = langvKey(l, n); IMGL.q.set(k, [l, n]);
@@ -18490,7 +18500,7 @@ function imgLSwap(l, names) {
   if (typeof document === 'undefined') return;
   for (const n of names) {
     const k = langvKey(l, n), v = LANGV.m.get(k); if (!v) continue;
-    const sel = [`img[data-lk="${CSS.escape(k)}"]`, ...[...(IMGL.en.get(k) || [])].map(u => `img[src="${CSS.escape(u)}"]`)].join(','); IMGL.en.delete(k);
+    const sel = [`img[data-lk="${CSS.escape(k)}"]`, ...[...(IMGL.en.get(k) || [])].map(u => `img[src="${CSS.escape(u)}"]:not([data-lk])`)].join(',');      // par l'adresse : seulement les images qui ne disent pas laquelle elles veulent IMGL.en.delete(k);
     for (const im of document.querySelectorAll(sel)) {
       if (im.dataset.big) im.dataset.big = imgAtSize(v, imgSizeOf(im.dataset.big));
       const cur = im.getAttribute('src'), nu = imgAtSize(v, imgSizeOf(cur)); if (cur && nu !== cur && imgSizeOf(cur)) im.setAttribute('src', nu);      // l'anglaise reste affichée jusqu'à l'arrivée de la traduite
@@ -19301,6 +19311,8 @@ function zoomFrom(rows, row, make) {
   for (const r of rows) { const it = make(r); if (!it) continue; if (r === row) at = items.length; items.push(it); }
   return { items, at };
 }
+/** Langue voulue de la carte en grand pour un exemplaire de langue ln : la sienne (anglais : rien à chercher), celle de l'appli s'il n'en a pas (comme sa vignette, collection.js › collImage). */
+const zoomWl = ln => (ln ? (ln === 'en' ? '' : ln) : wantLang());
 const zoomImg = r => { const im = $('.thumb img', r); return im && im.classList.contains('ok') ? im.getAttribute('src') : ''; };      // image chargée de la vignette ('' : lettre seule)
 const zoomName = r => { const n = $('.row-name', r); return n ? n.textContent.trim() : ''; };
 
@@ -19310,7 +19322,8 @@ const ZOOM_LISTS = {
     const row = th.closest('.rw'); if (!row || !S.run) return null;
     return zoomFrom($$('#list .rw').filter(r => !r.hidden), row, r => {
       const k = r.dataset.key, c = S.deck.cards.find(x => x.key === k), st = S.run.cards[k] || {}; if (!c || st.notFound) return null;
-      return cardImageItem(k) || zoomNamed(k, c.dn || c.name, c.name, viewLang(k, c.own > 0));      // dn : nom tapé (« Foudre ») en titre, l'anglais pour l'image
+      const v = cardView(c), o = v.pick && v.pick.parts[0] ? v.pick.parts[0].offer : null, ex = !!S.opts.exactEd && !!(c.eds && c.eds.length);
+      return (o || ex ? cardImageItem(k) : null) || { ...zoomNamed(k, c.dn || c.name, c.name, viewLang(k, c.own > 0)), ...(st.img ? { small: st.img, big: '' } : {}) };      // dn : nom tapé (« Foudre ») en titre, l'anglais pour l'image ; sans offre (possédée, aucune offre) : la carte dans la langue de l'appli, comme sa vignette (app.js › resImgAttr)
     });
   },
   /* Collection : liste (une ligne par carte et par langue), « Les plus chères » et « Variations des prix » (Stats). */
@@ -19318,7 +19331,7 @@ const ZOOM_LISTS = {
     const row = th.closest('.crow'); if (!row) return null;
     return zoomFrom($$(':scope > .crow', row.parentNode), row, r => {
       const k = r.dataset.k, ln = r.dataset.ln || '', x = COLL.map[k];
-      return collViewItem(k, rowG(r)) || (x ? zoomNamed(k, zoomName(r) || x.n, x.n, ln || x.l) : null);
+      return collViewItem(k, rowG(r)) || (x ? zoomNamed(k, zoomName(r) || x.n, x.n, zoomWl(ln || x.l)) : null);
     });
   },
   /* Liste d'échange : doublons (langue de l'exemplaire ; édition de la vignette : son impression exacte) et cartes recherchées (illustration souhaitée montrée telle quelle). */
@@ -19327,8 +19340,8 @@ const ZOOM_LISTS = {
     return zoomFrom($$(':scope > .tr-row', row.parentNode), row, r => {
       const k = r.dataset.k, name = zoomName(r), en = (COLL.map[k] || {}).n || name, ln = r.dataset.ln || '', big = r.dataset.big, src = zoomImg(r);
       if (r.dataset.e) return zoomEd(k, name, en, ln, r.dataset.e, src);
-      if (!src) return zoomNamed(k, name, en, ln);
-      return { key: k, name, ln: en, wl: big ? '' : ln && ln !== 'en' ? ln : '', small: src, ...(big ? { big } : {}), lang: ln || 'en', plain: true, extra: '' };
+      if (!src) return zoomNamed(k, name, en, zoomWl(ln));
+      return { key: k, name, ln: en, wl: big ? '' : zoomWl(ln), small: src, ...(big ? { big } : {}), lang: ln || 'en', plain: true, extra: '' };
     });
   },
   /* Page publique d'une liste d'échange (la ligne entière est la vignette) : toutes les cartes affichées, blocs « Pour toi » compris. */
@@ -19338,8 +19351,8 @@ const ZOOM_LISTS = {
     return zoomFrom($$('.pub-row', wrap), row, r => {
       const k = r.dataset.k, name = zoomName(r), en = ens.get(k) || name, ln = r.dataset.ln || '', im = $('.thumb img', r);      // illustration recherchée (data-pw) : telle quelle, sans version française
       if (r.dataset.e && !r.dataset.pw) return zoomEd(k, name, en, ln, r.dataset.e, im ? im.getAttribute('src') : '', r.dataset.x);      // édition partagée : son impression exacte
-      if (!im) return zoomNamed(k, name, en, ln, r.dataset.x);
-      return { key: k, name, ln: en, wl: !r.dataset.pw && ln && ln !== 'en' ? ln : '', small: im.getAttribute('src'), lang: ln || 'en', plain: true, extra: r.dataset.x || '' };
+      if (!im) return zoomNamed(k, name, en, zoomWl(ln), r.dataset.x);
+      return { key: k, name, ln: en, wl: r.dataset.pw ? '' : zoomWl(ln), small: im.getAttribute('src'), lang: ln || 'en', plain: true, extra: r.dataset.x || '' };
     });
   },
   /* Scan : cartes reconnues ou liste du prix rapide, dans l'ordre affiché ; la photo prise reste sous une carte « à vérifier ». */
@@ -19785,6 +19798,7 @@ const liKey = (l, k) => l + '|' + k;
 function collImage(k, l, en, name) {
   if (l && l !== 'en') { const u = COLL.li[liKey(l, k)]; if (u) return { src: u, lang: l }; }
   const al = l === 'en' ? '' : imgLang();      // exemplaire anglais précisé : il reste anglais ; sinon la langue de l'appli (viewer.js › imgL), l'anglais si Scryfall ne l'a pas
+  if (l === 'en' && en && imgLang()) return { src: en + '#en', lang: 'en' };      // « #en » (ignoré par le cache du navigateur) : adresse distincte, le remplacement sur place des lignes sans langue (imgLSwap, même image) ne la touche pas
   if (al && en) { const u = imgL(name || (COLL.map[k] || {}).n || k, en, al); if (u !== en) return { src: u, lang: al }; }
   return { src: en || '', lang: 'en' };
 }
@@ -23041,7 +23055,7 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.dfc = th => {
   return zoomFrom($$('.df-row', row.parentNode), row, r => {
     const k = r.dataset.k, x = COLL.map[k]; if (!x) return null;
     const m = COLL.meta[k] || {}, nm = dfName(k), ex = $('.df-pct', r) ? $('.df-pct', r).textContent : '';
-    if (!m.im) return zoomNamed(k, nm, x.n, x.l, ex);
+    if (!m.im) return zoomNamed(k, nm, x.n, viewLang(k, true), ex);      // langue de ton exemplaire, sinon celle de l'appli
     const im = collImage(k, x.l, m.im);
     return { key: k, name: nm, ln: x.n, wl: viewLang(k, true), small: im.src, lang: im.lang, plain: true, extra: ex };
   });
@@ -29690,7 +29704,7 @@ function trOpenImg(row) {
   for (const r of rows) {
     const im = $('img.ok', r), name = $('.row-name', r).textContent; if (!im) continue; if (r === row) at = list.length;
     list.push(r.dataset.e ? zoomEd(r.dataset.k, name, (COLL.map[r.dataset.k] || {}).n || name, r.dataset.ln, r.dataset.e, im.getAttribute('src'), '')      // édition : son impression exacte
-      : { key: r.dataset.k, name, wl: r.dataset.big ? '' : r.dataset.ln && r.dataset.ln !== 'en' ? r.dataset.ln : '', small: im.getAttribute('src'), ...(r.dataset.big ? { big: r.dataset.big } : {}), lang: r.dataset.ln || 'en', plain: true, extra: '' });
+      : { key: r.dataset.k, name, ln: (COLL.map[r.dataset.k] || {}).n || name, wl: r.dataset.big ? '' : r.dataset.ln ? (r.dataset.ln !== 'en' ? r.dataset.ln : '') : wantLang(), small: im.getAttribute('src'), ...(r.dataset.big ? { big: r.dataset.big } : {}), lang: r.dataset.ln || 'en', plain: true, extra: '' });
   }
   if (list.length) openCardViewer(list, at);
 }
@@ -29841,11 +29855,11 @@ function openPublicTrade(sh, preview, id, fr) {
     const vs = e.target.closest('.prg-chip[data-vs]');      // badge de la vitrine : sa progression face à la mienne (progress.js) ; aperçu : la fenêtre de mon badge
     if (vs) { haptic('tap'); const x = P.preview && prgBadges().find(y => y.b.id === vs.dataset.vs); if (x) prgBadgeSheet(x); else prgVsSheet(vs.dataset.vs, +vs.dataset.t, vs.dataset.v != null ? +vs.dataset.v : null, sh.by); return; }
     const row = e.target.closest('.pub-row'); if (!row) return;
-    const rows = $$('.pub-row', wrap), list = [], at = { i: 0 };      // illustration recherchée (data-pw) : montrée telle quelle, sans version française
+    const rows = $$('.pub-row', wrap), list = [], at = { i: 0 }, ens = new Map([...sh.have, ...sh.want].map(x => [x.k, x.n]));      // illustration recherchée (data-pw) : montrée telle quelle, sans version française ; ens : noms anglais (version dans la langue voulue)
     for (const r of rows) {
       const im = $('img', r), name = $('.row-name', r).textContent; if (!im) continue; if (r === row) at.i = list.length;
       list.push(r.dataset.e && !r.dataset.pw ? zoomEd(r.dataset.k, name, (sh.have.find(x => x.k === r.dataset.k) || {}).n || name, r.dataset.ln, r.dataset.e, im.getAttribute('src'), r.dataset.x)      // édition partagée : son impression exacte
-        : { key: r.dataset.k, name, wl: !r.dataset.pw && r.dataset.ln && r.dataset.ln !== 'en' ? r.dataset.ln : '', small: im.getAttribute('src'), lang: r.dataset.ln || 'en', plain: true, extra: r.dataset.x || '' });
+        : { key: r.dataset.k, name, ln: ens.get(r.dataset.k) || name, wl: r.dataset.pw ? '' : r.dataset.ln ? (r.dataset.ln !== 'en' ? r.dataset.ln : '') : wantLang(), small: im.getAttribute('src'), lang: r.dataset.ln || 'en', plain: true, extra: r.dataset.x || '' });      // langue non précisée : celle de l'appli
     }
     if (list.length) { haptic('tap'); openCardViewer(list, at.i); } else toast(T('Pas d\'aperçu pour cette carte'));
   });
@@ -30109,11 +30123,11 @@ function bndEdSoon() { bndEdLoad(bndEdOf((TR.st || trState()).have)).then(ch => 
 /* ── Composant : le classeur ─────────────────────────────────────────────────────────────────────── */
 const bndBig = u => String(u || '').replace('/small/', '/normal/');
 const bndCov = c => (BND_COVERS.some(x => x[0] === c) ? c : 'nuit');
-/** Pochette d'une carte : image (lettre et nom en attendant), pastilles ; foil : voile irisé sur l'image (binder.css) et pastille ✦ ; édition lue (« CMM 400 ») par les lecteurs d'écran. */
+/** Pochette d'une carte : image (langue de l'exemplaire, sinon celle de l'appli : decks.js › cardImgA ; édition, illustration recherchée, ou langue précisée d'un partage (sh) : telle quelle), lettre et nom en attendant, pastilles ; foil : voile irisé sur l'image (binder.css) et pastille ✦ ; édition lue (« CMM 400 ») par les lecteurs d'écran. */
 function bndCardHtml(x, i, mini) {
   const hue = hash32(x.k) % 360, nm = x.nm || x.n || '', im = mini ? x.sm || x.im : x.im;
   const lab = [nm, x.e ? edLabel(x.e) : '', x.foil ? T('Foil') : '', x.q > 1 ? '× ' + x.q : '', x.u > 0 ? fmt(x.u, mkCur()) : '', x.pin ? T('Épinglée') : ''].filter(Boolean).join(', ');
-  return `<button type="button" class="bnd-card${x.foil ? ' foil' : ''}" data-i="${i}" data-k="${esc(x.k)}" aria-label="${esc(lab)}"${mini ? ' tabindex="-1"' : ''}><span class="bnd-art" style="--h:${hue}"><b>${esc((nm.trim()[0] || '?').toUpperCase())}</b><i>${esc(nm)}</i>${im ? `<img alt="" loading="lazy" decoding="async" draggable="false" src="${esc(im)}">` : ''}</span>`
+  return `<button type="button" class="bnd-card${x.foil ? ' foil' : ''}" data-i="${i}" data-k="${esc(x.k)}" aria-label="${esc(lab)}"${mini ? ' tabindex="-1"' : ''}><span class="bnd-art" style="--h:${hue}"><b>${esc((nm.trim()[0] || '?').toUpperCase())}</b><i>${esc(nm)}</i>${im ? `<img alt="" loading="lazy" decoding="async" draggable="false" ${cardImgA(x.k, x.n, im, x.l || '', !!(x.fix || x.e || (x.sh && x.l)))}>` : ''}</span>`
     + (mini ? '' : `${x.pin || x.foil || x.q > 1 ? `<span class="bnd-tags">${x.pin ? `<span class="bnd-pin" title="${T('Épinglée')}">${BND_IC.pin}</span>` : ''}${x.foil ? `<span class="bnd-fo" title="${T('Foil')}"></span>` : ''}${x.q > 1 ? `<span class="bnd-q">×${x.q}</span>` : ''}</span>` : ''}${x.u > 0 ? `<span class="bnd-p">${esc(fmt(x.u, mkCur()))}</span>` : ''}`) + '</button>';      // en haut à droite (sur le coût de mana, jamais sur le nom)
 }
 /**
@@ -30283,11 +30297,12 @@ function bndMake(o) {
 }
 // fenêtre redimensionnée : une ou deux pages par vue (classeurs encore affichés seulement)
 if (typeof addEventListener === 'function') addEventListener('resize', () => { clearTimeout(BND.rt); if (!BND.live.size) return; BND.rt = setTimeout(() => { for (const b of [...BND.live]) { if (b.el.isConnected) b.fit(); else BND.live.delete(b); } }, 150); });
-/** Carte touchée : la carte en grand, avec ses voisines du classeur (60 de chaque côté) ; une pochette foil s'y montre foil ; une pochette avec édition, son impression exacte (zoomEd). */
+/** Carte touchée : la carte en grand, avec ses voisines du classeur (60 de chaque côté) ; une pochette foil s'y montre foil ; une pochette avec édition, son impression exacte (zoomEd) ;
+ *  langue non précisée : celle de l'appli (anglaise si Scryfall ne l'a pas). */
 function bndOpen(i, items) {
   const a = Math.max(0, i - 60), list = items.slice(a, i + 61).map(x => ({ ...(x.e && !x.fix ? zoomEd(x.k, x.nm, x.n, x.l, x.e, x.sm || x.im, x.x)
-    : x.sm || x.im ? { key: x.k, name: x.nm, ln: x.n, wl: !x.fix && x.l && x.l !== 'en' ? x.l : '', small: x.sm || x.im, ...(x.big ? { big: x.big } : {}), lang: x.l || 'en', plain: true, extra: x.x || '' }
-    : zoomNamed(x.k, x.nm, x.n, x.l, x.x)), ...(x.foil ? { foil: true } : {}) }));      // foil : étincelles de la carte en grand
+    : x.sm || x.im ? { key: x.k, name: x.nm, ln: x.n, wl: x.fix || x.l === 'en' ? '' : x.l || wantLang(), small: x.sm || x.im, ...(x.big ? { big: x.big } : {}), lang: x.l || 'en', plain: true, extra: x.x || '' }
+    : zoomNamed(x.k, x.nm, x.n, x.l || (x.fix ? '' : wantLang()), x.x)), ...(x.foil ? { foil: true } : {}) }));      // foil : étincelles de la carte en grand
   openCardViewer(list, i - a);
 }
 
@@ -30338,7 +30353,7 @@ function bndOwnMount(host) {
 /* ── « Mon classeur » : couleur, tri, cartes épinglées ───────────────────────────────────────────── */
 function bndOpenSettings() {
   const st = TR.st || trState();
-  const cards = st.have.map(x => { const ll = langLines(x.lines), l = ll[0] ? ll[0][0] : '', it = trItem(x.k, x.n, x.q, l); return { k: x.k, n: x.n, nm: it.dn || it.n, fn: it.fn || '', sm: bndThumb(x, l, it.im).src, u: trPrice(x.k) }; });
+  const cards = st.have.map(x => { const ll = langLines(x.lines), l = ll[0] ? ll[0][0] : '', it = trItem(x.k, x.n, x.q, l); const th = bndThumb(x, l, it.im); return { k: x.k, n: x.n, nm: it.dn || it.n, fn: it.fn || '', sm: th.src, l, e: th.e, u: trPrice(x.k) }; });
   const byK = new Map(cards.map(c => [c.k, c]));
   openSheet(T('Mon classeur'), T('Ce que voient les visiteurs de ton lien en mode classeur'), api => {
     api.wrap.classList.add('bnd-sheet-w');
@@ -30351,7 +30366,7 @@ function bndOpenSettings() {
       <p class="hint bnd-note">${TR.share ? T('Visible par tous ceux qui ont ton lien, en mode classeur.') : T('Crée le lien public pour montrer ton classeur à tes amis.')}</p>`;
     const mini = bndMake({ mini: true }), q = $('#bndQ', api.body);
     $('.bnd-mini-host', api.body).appendChild(mini.el);
-    const thumb = c => `<span class="thumb" style="--h:${hash32(c.k) % 360}">${esc((c.nm.trim()[0] || '?').toUpperCase())}${c.sm ? `<img alt="" loading="lazy" decoding="async" src="${esc(c.sm)}">` : ''}</span>`;
+    const thumb = c => `<span class="thumb" style="--h:${hash32(c.k) % 360}">${esc((c.nm.trim()[0] || '?').toUpperCase())}${c.sm ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.k, c.n, c.sm, c.l || '', !!c.e)}>` : ''}</span>`;
     const paint = () => {
       const c = bndCfg();
       mini.set(bndOwnItems(tradeView(st.have, { price: trRowPx }).rows, false), c.c);
@@ -30426,7 +30441,7 @@ function bndPub(P, wrap, all, list) {
   $('.bnd-cnt', bar).textContent = (filterActive(P.f) ? TN(n, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(pubN(all)) }) : TN(n, '{n} carte', '{n} cartes')) + ' · ' + TN(q, '{n} exemplaire', '{n} exemplaires');
   if (bndView('p', P.sh.bd && P.sh.bd.u ? 'binder' : 'list') !== 'binder' || !list.length) return false;
   const want = P.sub === 'want', items = bndFoil(filterItems(P.sh.bo[want ? 'want' : 'have'].map(pubItem), P.f).map(it => ({      // mêmes filtres que la liste, dans l'ordre du classeur ; foil à part
-    k: it.k, n: it.n, nm: it.dn || it.n, l: it.l || '', e: want ? '' : it.e || '', q: it.q, fo: want ? 0 : it.fo, ...(want ? { u: trPrice(it.k) } : trShPx(it)), sm: it.im || '', im: bndBig(it.im), pin: !want && P.sh.bpin.has(it.k), fix: !!it.pw, pw: it.pw || '' })))
+    k: it.k, n: it.n, nm: it.dn || it.n, l: it.l || '', e: want ? '' : it.e || '', q: it.q, fo: want ? 0 : it.fo, ...(want ? { u: trPrice(it.k) } : trShPx(it)), sm: it.im || '', im: bndBig(it.im), pin: !want && P.sh.bpin.has(it.k), fix: !!it.pw, pw: it.pw || '', sh: 1 })))      // sh : carte d'un partage (bndCardHtml)
     .map(it => ({ ...it, x: TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '') + (it.foil ? ' · ' + T('Foil') + ' ✦' : '') + (it.pw ? ' · ' + T('illustration {name}', { name: it.pw }) : '') }));
   const b = P.bnd || (P.bnd = bndMake({ open: bndOpen })), main = $('.pub-main', wrap);
   if (b.el.parentElement !== main) { main.textContent = ''; main.appendChild(b.el); } else for (const n of [...main.children]) if (n !== b.el) n.remove();
@@ -31130,7 +31145,7 @@ async function amCollSheet(f) {
       if (e.target.closest('[data-am="more"]')) { shown += AM_PAGE; paint(); return; }
       const row = e.target.closest('.am-crow'); if (!row) return;
       const rs = $$('.am-crow', api.body), list = []; let at = 0;
-      for (const x of rs) { const im = $('img', x); if (!im) continue; if (x === row) at = list.length; list.push({ key: x.dataset.k, name: $('.row-name', x).textContent, wl: x.dataset.ln && x.dataset.ln !== 'en' ? x.dataset.ln : '', small: im.getAttribute('src'), lang: x.dataset.ln || 'en', plain: true, extra: x.dataset.x || '' }); }
+      for (const x of rs) { const im = $('img', x); if (!im) continue; if (x === row) at = list.length; const ln = x.dataset.ln; list.push({ key: x.dataset.k, name: $('.row-name', x).textContent, ln: x.dataset.n, wl: ln ? (ln !== 'en' ? ln : '') : wantLang(), small: im.getAttribute('src'), lang: x.dataset.ln || 'en', plain: true, extra: x.dataset.x || '' }); }
       if (list.length) { haptic('tap'); openCardViewer(list, at); } else toast(T('Pas d\'aperçu pour cette carte'));
     });
     paint();
@@ -31140,7 +31155,7 @@ function amCollRow(it) {
   const nm = it.dn || it.n, img = it.im || '', alt = it.dn && it.dn !== it.n ? it.n : it.fn || '';
   const tags = (it.wq ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.wq })}</span>` : '') + (it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : '') + (alt ? `<span class="tag">${esc(alt)}</span>` : '');
   const x = TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '');
-  return `<div class="crow pub-row am-crow" role="button" tabindex="0" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}" data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow pub-row am-crow" role="button" tabindex="0" data-k="${esc(it.k)}" data-n="${esc(it.n)}" data-ln="${esc(it.l || '')}" data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(it.k, it.n, img, it.l || '')}>` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${tags}</span></span><span class="tr-q"><b>× ${it.q}</b></span></div>`;
 }
 
@@ -33181,6 +33196,8 @@ function lotImg(c) {
   const known = c.im || collLineImage(c.k, lotLine(c), (COLL.meta[c.k] || DM[c.k] || {}).im).src;
   return known ? known.replace('/small/', '/normal/') : 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(c.n) + '&format=image&version=normal';
 }
+/** Langue de la grande image : celle de l'appli (viewer.js › imgL) pour une carte sans édition ni langue (« Celle de la carte », absente de la collection) ; '' : telle quelle. */
+const lotImgL = c => (!c.pick && !c.e && !lotLangOf(c) ? imgLang() : '');
 /** Infos Scryfall des cartes qui viennent d'arriver dans le lot (image, prix…) : tout de suite, devant les lectures de fond. */
 async function lotMeta(keys) {
   const need = [...new Set(keys)].filter(k => COLL.map[k] && !COLL.meta[k]); if (!need.length) return;
@@ -33196,6 +33213,7 @@ async function lotPick(n, p, o = {}) {
   const k = ownKey(n); if (!k) return;
   const c = LOT.cur = { k, n, p: p || '', l: o.l !== undefined ? o.l : LOT.lang || (p && FRX.l !== 'en' ? FRX.l : ''), q: o.q || 1, e: o.e || '', f: !!o.f, im: o.im || '', pick: null, prints: null, err: '', id: ++LOT.seq };
   lotPaintCard(); frLoad();
+  const wl = lotImgL(c); if (wl) langvLoad().then(() => langvPrefetch([n], wl));      // version de la langue de l'appli lue avant les impressions : l'image passe sans étape anglaise
   await lotPrints(c, !o.e);
   if (o.e && LOT.cur === c && c.prints) { const x = c.prints.find(y => edKey(y.set, y.num) === o.e); if (x) { c.pick = x; lotPaintCard(); } }
 }
@@ -33220,7 +33238,7 @@ function lotPaintCard() {
   const edBtn = c.pick ? `${setIcHtml(set)}<span><b>${esc(sn || set.toUpperCase())}</b><small>${esc(set.toUpperCase())} · #${esc(c.pick.num)}${c.pick.fx.length ? ' · ' + esc(c.pick.fx.join(', ')) : ''}</small></span>`
     : `<span><b>${c.prints ? (c.prints.length ? T('Choisir l\'édition') : T('Aucune édition trouvée')) : c.err ? T('Éditions indisponibles') : T('Éditions…')}</b><small>${T('Édition non précisée')}</small></span>`;
   const own = collQty(c.k), edit = LOT.edit && LOT.list.find(x => x.id === LOT.edit);
-  imgKeep(el, `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" src="${esc(lotImg(c))}"></button>
+  imgKeep(el, `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" ${imgLA(c.n, lotImg(c), lotImgL(c))}></button>
       ${eu != null ? `<span class="lot-px">${set ? setIcHtml(set) : ''}<b>${esc(fmt(eu, mkCur()))}</b></span>` : ''}</div>
     <div class="lot-f">
       <div class="lot-name"><b>${esc(dn)}</b>${dn !== c.n ? `<small>${esc(c.n)}</small>` : ''}${own ? `<em>${T('{n} dans ta collection', { n: nf0(own) })}</em>` : ''}</div>
@@ -33403,7 +33421,7 @@ function openLot() {
     else if (act === 'foil' && c) { c.f = !c.f; haptic('tap'); lotPaintCard(); }
     else if (act === 'add') lotAdd();
     else if (act === 'cancel') { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
-    else if (act === 'zoom' && c) openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : lotImg(c), big: lotImg(c), lang: c.pick ? ({ ja: 'jp', zhs: 'zh-CN' }[c.pick.l] || c.pick.l) : 'en', plain: true, extra: '' }], 0);
+    else if (act === 'zoom' && c) { const wl = lotImgL(c); openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : imgL(c.n, lotImg(c), wl), big: lotImg(c), lang: c.pick ? ({ ja: 'jp', zhs: 'zh-CN' }[c.pick.l] || c.pick.l) : 'en', plain: true, wl, extra: '' }], 0); }      // wl : la version de la langue de l'appli, comme l'image du panneau
     else if (act === 'mobgo') mobStart();
     else if (act === 'mobstop') { haptic('tap'); mobStop(); }
     else if (act === 'unstick') { LOT.set = ''; lotSave(); haptic('tap'); lotPaintHead(); }
@@ -34631,7 +34649,14 @@ function simgPips(x, colors, a, y) {
 
 /* ── Les cinq images ──────────────────────────────────────────────────────────────────────────── */
 /** Images Scryfall de la liste, lues en parallèle : [{ name, eur, im }]. */
-const simgLoad = list => Promise.all((list || []).map(async c => ({ name: String(c && c.name || ''), eur: Number(c && c.eur) || 0, im: await simgImg(c && c.img) })));
+const simgLoad = list => Promise.all((list || []).map(async c => ({ name: String(c && c.name || ''), eur: Number(c && c.eur) || 0, im: await simgImg(await simgLangUrl(c)) })));
+/** Adresse à dessiner pour c { img, ln (nom anglais), wl (langue voulue : celle de l'appli pour une carte sans langue imposée) } : la version dans cette langue si Scryfall l'a
+ *  (cache de l'appareil, sinon lue : 2,5 s au plus), sinon c.img telle quelle (impression précise, exemplaire de langue précisée, rien à chercher). */
+async function simgLangUrl(c) {
+  if (!c || !c.img || !c.wl || !c.ln || typeof langvGet !== 'function') return c ? c.img : '';
+  const v = await Promise.race([langvGet(c.ln, c.wl).catch(() => null), sleep(2500).then(() => null)]);
+  return v || c.img;
+}
 
 async function simgDrawColl(x, s) {
   const top = await simgLoad((s.top || []).slice(0, 3));
@@ -34648,7 +34673,7 @@ async function simgDrawColl(x, s) {
   simgFoot(x);
 }
 async function simgDrawDeck(x, s) {
-  const [im] = await Promise.all([simgImg(s.img)]);
+  const [im] = await Promise.all([simgLangUrl(s).then(u => simgImg(u))]);
   if (im) {      // la carte, agrandie et floutée, en toile de fond
     x.save(); x.globalAlpha = 0.28; try { x.filter = 'blur(42px)'; } catch (e) { /* sans flou : plus discret encore */ } if (!x.filter || x.filter === 'none') x.globalAlpha = 0.12;
     x.drawImage(im, -180, 140, SIMG_W + 360, (SIMG_W + 360) * SIMG_RATIO); x.restore();
@@ -34867,7 +34892,7 @@ function simgShare(spec) {
 function simgColl() {
   const items = collAll().all; if (!items.length) { toast(T('Pas encore de cartes à montrer')); return null; }
   const ctOff = mkUs() || (!(typeof ctReady === 'function' && ctReady()) && !items.some(i => i.rp > 0)), st = collStats(items, ctOff ? 'cm' : COLL.src);
-  const top = st.topUnit.slice(0, 3).map(i => ({ name: i.dn || i.n, img: collImage(i.k, i.l, i.im).src, eur: i.up / 100 }));
+  const top = st.topUnit.slice(0, 3).map(i => { const ci = collImage(i.k, i.l, i.im); return { name: i.dn || i.n, img: ci.src, ln: i.n, wl: ci.lang === 'en' && i.l !== 'en' ? imgLang() : '', eur: i.up / 100 }; });      // wl : comme la vignette (collection.js › collImage), version de l'appli lue si besoin
   return simgShare({ kind: 'coll', value: st.valued ? st.value / 100 : 0, n: st.unique, copies: st.copies, top, date: Date.now() });
 }
 /** Deck enregistré ({ id }) ou liste ({ text, name }) : nom, commandant ou format, couleurs, carte de présentation, valeur estimée (tendance Cardmarket), cartes. */
@@ -34878,14 +34903,14 @@ function simgDeckSpec(o) {
   const ci = cmd.length ? [...new Set(cmd.flatMap(c => [...String((dmOf(ownKey(c.key)) || {}).ci || '')]))].join('') : '';
   const colors = [...'WUBRG'].filter(c => (ci || dkColors(text)).includes(c)).join('');
   const sub = cmd.length ? cmd.map(c => c.dn || c.name).join(' & ') : fk && DK_FORMATS[fk] ? DK_FORMATS[fk].label : '';
-  return { kind: 'deck', name, sub, colors, img: cv ? coverUrl(cv) : '', cover: cv ? cv.name : '', value: v.known ? v.cents / 100 : 0, part: v.known > 0 && v.known < v.total, n: pd.copies, date: Date.now(), ...(o && o.url ? { url: o.url } : {}) };
+  return { kind: 'deck', name, sub, colors, img: cv ? coverUrl(cv) : '', ...(cv && !ownLangImg(cv.key) ? { ln: cv.name, wl: imgLang() } : {}), cover: cv ? cv.name : '', value: v.known ? v.cents / 100 : 0, part: v.known > 0 && v.known < v.total, n: pd.copies, date: Date.now(), ...(o && o.url ? { url: o.url } : {}) };
 }
 const simgDeck = o => simgShare(simgDeckSpec(o));
 /** Échange (lien actif) : doublons à échanger, valeur estimée, cartes recherchées, les 3 doublons les plus chers, QR code du lien public. */
 function simgTrade() {
   if (!TR.share) return null;
   const st = TR.st || trState(), { rows, sum } = tradeView(st.have, { price: trRowPx, sort: 'price', min: 0 });
-  const top = rows.filter(r => r.u > 0).slice(0, 3).map(r => { const it = trItem(r.k, r.n, r.q, r.lines && r.lines[0] ? lineLang(r.lines[0][0]) : ''); return { name: it.dn || it.n, img: bndThumb(r, it.l, it.im).src || collImage(r.k, it.l, it.im).src, eur: r.u / 100 }; });      // l'impression de sa 1re ligne (comme la liste et le classeur)
+  const top = rows.filter(r => r.u > 0).slice(0, 3).map(r => { const it = trItem(r.k, r.n, r.q, r.lines && r.lines[0] ? lineLang(r.lines[0][0]) : ''); const bt = bndThumb(r, it.l, it.im), ci = bt.e ? null : collImage(r.k, it.l, it.im); return { name: it.dn || it.n, img: bt.src || collImage(r.k, it.l, it.im).src, ln: r.n, wl: ci && ci.lang === 'en' && it.l !== 'en' ? imgLang() : '', eur: r.u / 100 }; });      // l'impression de sa 1re ligne (comme la liste et le classeur)
   return simgShare({ kind: 'trade', by: profShare().by || '', n: sum.n, copies: sum.q, value: sum.v / 100, want: st.want.length, top, url: shareUrl(TR.share), date: Date.now() });
 }
 
@@ -35181,6 +35206,10 @@ function opnSv() { return streamOn() ? opnTotals(OPN.cur.rows) : null; }
 function opnImg(r) { return r.im || collLineImage(r.k, r.g, (COLL.meta[r.k] || {}).im).src || scImg(r.n); }
 /** Grande image (partage, meilleures cartes) : même serveur d'images, taille « normal ». */
 function opnBig(r) { const s = r.im || collLineImage(r.k, r.g, (COLL.meta[r.k] || {}).im).src; return s ? s.replace('/small/', '/normal/') : 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(r.n) + '&format=image&version=normal'; }
+/** Langue où chercher la grande image : celle de l'appli pour une ligne sans langue ni édition (ni image du scan) dont l'image est encore l'anglaise, comme sa petite image (collection.js › collImage) ; '' : telle quelle. */
+const opnBigL = r => (!r.im && !lineEd(r.g) && lineLang(r.g) !== 'en' && collLineImage(r.k, r.g, (COLL.meta[r.k] || {}).im).lang === 'en' ? imgLang() : '');
+/** Attributs src de la grande image : remplacée sur place quand sa version traduite arrive (viewer.js › imgLA). */
+const opnBigA = r => imgLA(r.n, opnBig(r), opnBigL(r));
 const opnName = r => frName(r.k, lineLang(r.g)) || r.n;
 
 /* ── Cartes ajoutées pendant la session ─────────────────────────────────────────────────────────────────────────────────────── */
@@ -35566,7 +35595,7 @@ function opnbResHtml(v, paid) {
 const opnbBest = rows => rows.map(r => ({ r, u: opnEu(r) || 0 })).filter(x => x.u > 0).sort((a, b) => b.u - a.u || b.r.t - a.r.t).slice(0, 5);
 function opnbTopHtml(rows) {
   const best = opnbBest(rows); if (!best.length) return '';
-  const card = ({ r, u }, i) => `<figure class="opnb-c${i ? '' : ' opnb-hero'}"><span class="opnb-im" style="--h:${hash32(r.k) % 360}"><img alt="" loading="lazy" decoding="async" src="${esc(opnBig(r))}"></span><figcaption><b>${esc(fmt(u, mkCur()))}</b><span>${esc(opnName(r))}</span></figcaption></figure>`;
+  const card = ({ r, u }, i) => `<figure class="opnb-c${i ? '' : ' opnb-hero'}"><span class="opnb-im" style="--h:${hash32(r.k) % 360}"><img alt="" loading="lazy" decoding="async" ${opnBigA(r)}></span><figcaption><b>${esc(fmt(u, mkCur()))}</b><span>${esc(opnName(r))}</span></figcaption></figure>`;
   return `<h3 class="cs-h">${T('Meilleures cartes')}</h3><div class="opnb-top${best.length > 1 ? '' : ' one'}">${card(best[0], 0)}${best.length > 1 ? `<div class="opnb-rest">${best.slice(1).map(card).join('')}</div>` : ''}</div>`;
 }
 /** Bloc du bilan (feuille « Terminer » d'opening.js) : prix payé, gain ou perte, meilleures cartes. */
@@ -35583,7 +35612,7 @@ function opnbBind(api, c, kept) {
 function opnbShare(c, rows) {
   if (typeof simgShare !== 'function') return;
   const t = opnTotals(rows);
-  try { simgShare({ kind: 'opening', name: c.name, date: c.at, n: t.n, value: t.v / 100, paid: c.paid != null ? c.paid / 100 : null, best: opnbBest(rows).map(({ r, u }) => ({ name: opnName(r), img: opnBig(r), eur: u / 100 })) }); }
+  try { simgShare({ kind: 'opening', name: c.name, date: c.at, n: t.n, value: t.v / 100, paid: c.paid != null ? c.paid / 100 : null, best: opnbBest(rows).map(({ r, u }) => ({ name: opnName(r), img: opnBig(r), ln: r.n, wl: opnBigL(r), eur: u / 100 })) }); }      // wl : version dans la langue de l'appli (simg.js › simgLangUrl)
   catch (e) { toast(T('Partage impossible pour l\'instant')); }
 }
 /** Mes ouvertures : gain ou perte d'une session ('' sans prix payé). */
@@ -35633,6 +35662,8 @@ const trocNb = s => String(s).replace(/ ([;:!?»])/g, ' $1').replace(/« /g, '�
 const trocWho = () => (TRC.s && TRC.s.ot && TRC.s.ot.n) || T('l\'autre joueur');
 /** Image d'une carte de la session (forme courte, revérifiée) ; sinon Scryfall par le nom. */
 const trocSrc = x => { const u = x.i ? SCRY_IMG + x.i : ''; return u && SHARE_IMG_RE.test(u) ? u : scImg(x.n); };
+/** Attributs src (+ data-lk) de l'image d'une carte de la session : exemplaire de langue ou d'édition précisée (x.g) tel quel, sinon dans la langue de l'appli (decks.js › cardImgA) ; v : taille. */
+const trocImgA = (x, v) => { const u = trocSrc(x), l = lineLang(x.g); return cardImgA(ownKey(x.n), x.n, v ? u.replace('/small/', '/' + v + '/') : u, '', !!(l || lineEd(x.g))); };
 /** Nom affiché : l'imprimé de ma langue si l'exemplaire est dans cette langue (catalogue de l'appareil, sinon celui envoyé), sinon l'anglais. */
 function trocName(x) {
   const k = ownKey(x.n), l = lineLang(x.g);
@@ -35976,7 +36007,7 @@ function trocTile(x, side) {
   const k = ownKey(x.n), dn = trocName(x), l = lineLang(x.g), e = lineEd(x.g), fo = lineFoil(x.g);
   const lab = [dn + (x.q > 1 ? ' × ' + x.q : ''), fo ? T('Foil') : '', x.u ? fmt(x.u, trcCur()) : '', x.r ? T('Demandée') : ''].filter(Boolean).join(' · ');
   return `<button class="trc-card${TRC.flash.has(x.id) ? ' new' : ''}${x.r ? ' pend' : ''}${fo ? ' foil' : ''}" type="button" data-id="${esc(x.id)}" data-side="${side}" aria-label="${esc(lab)}">
-    <span class="trc-art" style="--h:${hash32(k) % 360}"><b aria-hidden="true">${esc((dn.trim()[0] || '?').toUpperCase())}</b><img alt="" loading="lazy" decoding="async" src="${esc(trocSrc(x))}" data-n="${esc(x.n)}">
+    <span class="trc-art" style="--h:${hash32(k) % 360}"><b aria-hidden="true">${esc((dn.trim()[0] || '?').toUpperCase())}</b><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}">
       ${x.q > 1 ? `<i class="trc-q">×${x.q}</i>` : ''}${l && l !== 'en' ? `<i class="trc-fl">${flag(l)}</i>` : ''}${trocFo(x.g)}${x.a ? `<i class="trc-badge${x.r ? '' : ' on'}">${x.r ? T('Demandée') : T('Acceptée')}</i>` : ''}</span>
     <span class="trc-nm">${esc(dn)}</span><span class="trc-pu">${x.u ? esc(fmt(x.u, trcCur())) : '—'}${e ? `<small>${esc(edLabel(e))}</small>` : ''}</span></button>`;
 }
@@ -36021,7 +36052,7 @@ function trocMiniList(list) {
   const by = new Map();
   for (const x of list) { if (x.r) continue; const k = ownKey(x.n) + '|' + (x.g || ''), e = by.get(k); if (e) e.q += x.q; else by.set(k, { ...x }); }
   const meta = g => [lineLang(g) ? flag(lineLang(g)) : '', lineEd(g) ? esc(edLabel(lineEd(g))) : '', lineFoil(g) ? '✦ ' + T('Foil') : ''].filter(Boolean).join(' ');
-  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" src="${esc(trocSrc(x))}" data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, trcCur())) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
+  return `<ul class="trc-ml">${[...by.values()].map(x => `<li><span class="trc-mi" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" loading="lazy" decoding="async" ${trocImgA(x)} data-n="${esc(x.n)}"></span><span class="trc-mw"><span class="trc-mn">${esc(trocName(x))}${x.q > 1 ? ` <b>× ${x.q}</b>` : ''}</span>${meta(x.g) ? `<small class="trc-mt${lineFoil(x.g) ? ' fo' : ''}">${meta(x.g)}</small>` : ''}</span><span class="trc-mp">${x.u ? esc(fmt(x.u * x.q, trcCur())) : '—'}</span></li>`).join('') || `<li class="trc-mz">${T('rien')}</li>`}</ul>`;
 }
 function trocConfirmHtml(s) {
   const sg = trocSum(s.ot.give), sv = trocSum(s.me.give), name = esc(trocWho());
@@ -36095,7 +36126,7 @@ function trocTileSheet(id, side) {
       const msg = side === 'ot' ? (cur.r ? T('Tu as demandé cette carte : {name} ne l\'a pas encore acceptée.', { name: who }) : T('Tu as demandé cette carte : {name} l\'a acceptée.', { name: who }))
         : cur.r ? T('{name} te demande cette carte.', { name: who }) : cur.a ? T('{name} t\'a demandé cette carte.', { name: who }) : '';
       const max = cur.a ? cur.q : Math.max(cur.q, own);
-      api.body.innerHTML = `<div class="trc-tsb"><span class="trc-big" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" src="${esc(trocSrc(cur).replace('/small/', '/normal/'))}" data-n="${esc(x.n)}"></span>
+      api.body.innerHTML = `<div class="trc-tsb"><span class="trc-big" style="--h:${hash32(ownKey(x.n)) % 360}"><img alt="" ${trocImgA(cur, 'normal')} data-n="${esc(x.n)}"></span>
         <div class="trc-tsi">${msg ? `<p class="hint">${msg}</p>` : ''}${side === 'me' && !cur.r ? `<span class="label">${T('Exemplaires')}</span><span class="qstep trc-qs"><button type="button" data-q="-1" aria-label="${T('Un de moins')}">−</button><b>${cur.q}</b><button type="button" data-q="1" aria-label="${T('Un de plus')}"${cur.q >= max ? ' disabled' : ''}>+</button></span>
           ${own ? `<small class="hint">${T('Tu en as {n} dans cette langue et cette édition.', { n: own })}</small>` : ''}` : `<b class="trc-tq">× ${cur.q}</b>`}</div></div>`;
       api.setFoot(side === 'ot' ? `<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn danger" type="button" data-ts="unask">${T('Annuler la demande')}</button>`
@@ -36118,7 +36149,7 @@ function trocTileSheet(id, side) {
 }
 /** Carte en grand (visionneuse de l'appli), avec ses voisines du même côté. */
 function trocZoom(list, x) {
-  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: '', plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) : ''].filter(Boolean).join(' · ') }));
+  const items = list.map(y => ({ key: ownKey(y.n), name: trocName(y), ln: y.n, small: trocSrc(y), lang: lineLang(y.g) || 'en', wl: lineLang(y.g) || lineEd(y.g) ? '' : wantLang(), plain: true, foil: lineFoil(y.g), extra: [y.q > 1 ? '× ' + y.q : '', lineFoil(y.g) ? T('Foil') + ' ✦' : '', y.u ? fmt(y.u, trcCur()) : ''].filter(Boolean).join(' · ') }));
   haptic('tap'); openCardViewer(items, Math.max(0, list.indexOf(x)));
 }
 
@@ -36131,7 +36162,8 @@ function trocRowHtml(it, kind) {
     const l = lineLang(g), e = lineEd(g), fo = lineFoil(g), had = trocIn(kind === 'ask' ? (TRC.s.ot || {}).give : TRC.s.me.give, it.k, g), full = had >= q;
     return `<button class="trc-ln${had ? ' on' : ''}${fo ? ' fo' : ''}" type="button" data-g="${esc(g)}"${full ? ' disabled' : ''} aria-label="${esc((l ? (LANGS[l] || l) : fo ? '' : T('sans langue')) + (e ? ' ' + edLabel(e) : '') + (fo ? ' ' + T('Foil') : '') + ' · ' + (had ? had + '/' + q : '× ' + q))}">${l ? flag(l) : fo ? '' : `<span class="trc-nl">${T('sans langue')}</span>`}${e ? `<span>${esc(edLabel(e))}</span>` : ''}${fo ? '<i class="trc-lfo" aria-hidden="true">✦</i>' : ''}<b>${had ? had + '/' + q : '× ' + q}</b>${u ? `<small>${esc(fmt(u, trcCur()))}</small>` : ''}</button>`;
   }).join('');
-  return `<div class="crow trc-prow" data-k="${esc(it.k)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((dn.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  const e0 = it.lines[0] ? lineEd(it.lines[0][0]) : '', ia = img ? cardImgA(it.k, it.n, img, kind === 'ask' ? '' : l0, !!(e0 || (kind === 'ask' && l0))) : '';      // image de la 1re ligne : ma carte dans sa langue (sinon celle de l'appli) ; la sienne, langue précisée, telle qu'envoyée
+  return `<div class="crow trc-prow" data-k="${esc(it.k)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((dn.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${ia}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(dn)}</span>${tags || dn !== it.n ? `<span class="row-meta">${tags}${dn !== it.n ? `<span class="tag">${esc(it.n)}</span>` : ''}</span>` : ''}<span class="trc-lns">${chips}</span></span>${it.u ? `<span class="trc-pp">${esc(fmt(it.u, trcCur()))}</span>` : ''}</div>`;
 }
 /** Feuille de choix commune (give, ask) : onglets, recherche (nom français ou anglais), liste par pages ; tap sur une pastille → onTap(item, ligne). */
