@@ -214,7 +214,7 @@ assert.match(await txt(p, '.sheet-head p'), /^Tier S · n° 1 · 3 \/ 26 posséd
 assert.deepEqual(await p.$$eval('.sheet .crow[data-ik]:has(.tag.warn) .row-name', n => n.map(x => x.textContent).sort()), ['Arcane Signet', 'Command Tower', 'Swords to Plowshares', 'Wrath of God'], 'pastille « Game Changer »');
 assert.equal(await p.$$eval('.sheet .crow[data-ik]', n => n.length), 26, '23 à acheter + 3 possédées'); assert.equal(await p.$eval('.sheet .crow[data-ik="edgar markov"] .tag', e => e.textContent), 'Commandant');
 await p.waitForSelector('.sheet .thumb[data-ik="swords to plowshares"] img.ok', { timeout: 8000 }); await p.waitForSelector('.sheet .thumb[data-ik="wrath of god"] img.ok');
-assert.equal(await p.$eval('.sheet .thumb[data-ik="swords to plowshares"] img', i => i.src), 'https://cards.scryfall.io/small/front/a/b/swords-to-plowshares.jpg', 'image lue sur Scryfall pour une carte non possédée');
+assert.equal(await p.$eval('.sheet .thumb[data-ik="swords to plowshares"] img', i => i.src), 'https://cards.scryfall.io/small/front/fr/swords-to-plowshares.jpg', 'image lue sur Scryfall pour une carte non possédée, dans la langue de l\'appli (français)');
 const posts = () => world.scry.filter(x => x.startsWith('POST /cards/collection')).length, p0 = posts();
 await p.click('.sheet .crow[data-ik="swords to plowshares"]'); await p.waitForSelector('.imgv.on');
 assert.equal(await txt(p, '.imgv-cap b'), 'Swords to Plowshares'); assert.equal(await txt(p, '.imgv-count'), '2 / 6', '6 cartes ont une image (commandant en tête) : les autres sont sautées'); assert.match(await txt(p, '.imgv-extra'), /^À acheter · ≈ 1,90 €$/);

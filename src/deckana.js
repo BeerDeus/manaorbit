@@ -180,10 +180,10 @@ function daSetHtml(cmd, pack, set, cur) {
     ${th.length ? `<p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${th.map(([slug, label]) => `<button type="button" class="chip${set.th.includes(slug) ? ' on' : ''}" data-da-th="${esc(slug)}" aria-pressed="${set.th.includes(slug)}">${esc(label)}</button>`).join('')}</div>` : ''}
     <label class="me-row switch-row" for="daOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="daOwn" ${set.own ? 'checked' : ''}><i></i></span></label></div>`;
 }
-/** Vignette d'une carte : image de la fiche (langue de ton exemplaire), sinon l'image Scryfall par le nom ; un toucher l'agrandit (zoom.js › da). */
+/** Vignette d'une carte : image de la fiche (langue de ton exemplaire, sinon celle de l'appli : decks.js › cardImgA), sinon l'image Scryfall par le nom ; un toucher l'agrandit (zoom.js › da). */
 function daThumb(k, nm) {
   const m = dmOf(k), x = COLL.map[k], src = m && m.im ? collImage(k, x ? x.l : '', m.im).src : zoomUrl(nm, 'small');
-  return `<span class="thumb" style="--h:${hash32(k) % 360}" data-k="${esc(k)}" data-n="${esc(nm)}"${zoomAt('da', bdLabel(k, nm))}>${esc((nm.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" src="${esc(src)}"></span>`;
+  return `<span class="thumb" style="--h:${hash32(k) % 360}" data-k="${esc(k)}" data-n="${esc(nm)}"${zoomAt('da', bdLabel(k, nm))}>${esc((nm.trim()[0] || '?').toUpperCase())}<img alt="" loading="lazy" decoding="async" ${cardImgA(k, nm, src, x ? x.l || '' : '')}></span>`;
 }
 /** Les deux cartes d'un échange (retirée → ajoutée), vignettes agrandies au toucher : analyse et Coach (deckux.js). */
 function daSwapPair(s) {

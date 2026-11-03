@@ -107,7 +107,7 @@ function csHeadHtml(k, x, m) {
   const set = e ? edSet(e) : '', sn = set ? setName(set) || (COLL.ed[e] || {}).sn || '' : '', r = (e && (COLL.ed[e] || {}).r) || (CS.or && CS.or.r) || '';
   const ls = collLines(x), langs = langLines(ls).length, loc = CS.or && CS.or.loc && CS.or.loc.l === l ? CS.or.loc.f[0] : null, tl = (loc && loc.tl) || (m && m.tl) || '';      // type imprimé dans la langue de la carte, sinon l'anglais
   const sum = x ? TN(x.q, '{n} exemplaire', '{n} exemplaires') + (langs > 1 ? ' · ' + TN(langs, '{n} langue', '{n} langues') : '') : T('Pas dans ta collection');
-  return `<div class="cs-hd"><button type="button" class="cs-img thumb${f ? ' foil' : ''}" data-cs="zoom" style="--h:${hue}" aria-label="${esc(T('Agrandir {name}', { name: nm }))}">${esc((nm.trim()[0] || '?').toUpperCase())}${im ? `<img alt="" decoding="async" src="${esc(im)}">` : ''}</button>
+  return `<div class="cs-hd"><button type="button" class="cs-img thumb${f ? ' foil' : ''}" data-cs="zoom" style="--h:${hue}" aria-label="${esc(T('Agrandir {name}', { name: nm }))}">${esc((nm.trim()[0] || '?').toUpperCase())}${im ? `<img alt="" decoding="async" ${cardImgA(k, CS.n, im, x ? l : '', !!e)}>` : ''}</button>
     <div class="cs-ht">${set ? `<span class="cs-ext">${setIcHtml(set) || `<span class="ed-code">${esc(set.toUpperCase())}</span>`}<span>${esc([sn, edLabel(e)].filter(Boolean).join(' · '))}</span></span>` : ''}
       ${r ? `<span class="tag cs-rar ${esc(r)}">${esc(CS_RAR[r] || r)}</span>` : ''}${tl ? `<span class="cs-tline">${esc(tl)}</span>` : ''}
       <span class="cs-sum">${esc(sum)}</span></div></div>`;
@@ -314,7 +314,8 @@ function csZoom(k) {
   const items = ls.map(([g]) => collViewItem(k, g)).filter(Boolean);
   if (items.length) { const i = Math.max(0, items.findIndex(it => it.lid === k + '|' + CS.g)); openCardViewer(items, i); return; }
   const l = CS.g ? lineLang(CS.g) : (CS.o.l && !String(CS.o.l).includes('|') ? CS.o.l : '');
-  openCardViewer([m && m.im ? { key: k, name: frName(k, l) || CS.n, ln: CS.n, wl: l && l !== 'en' ? l : '', small: m.im, lang: 'en', plain: true, extra: '' } : zoomNamed(k, frName(k, l) || CS.n, CS.n, l)], 0);
+  const wl = l ? (l !== 'en' ? l : '') : wantLang();      // langue non précisée : celle de l'appli (anglaise si Scryfall ne l'a pas)
+  openCardViewer([m && m.im ? { key: k, name: frName(k, l) || CS.n, ln: CS.n, wl, small: m.im, lang: 'en', plain: true, extra: '' } : zoomNamed(k, frName(k, l) || CS.n, CS.n, wl)], 0);
 }
 /** « Suivre le prix » : alertes de prix (alerts.js), en hausse ET en baisse (u) ; le serveur qui ne connaît pas encore la hausse ne prévient que des baisses. */
 async function csWatch(k, b) {

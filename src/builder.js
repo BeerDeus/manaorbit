@@ -335,7 +335,7 @@ function bdTags(k, q, ctx) {
 }
 function bdRow(k, name, q, tgt, ctx, label) {
   const x = COLL.map[k], m = bdMeta(k), l = x ? x.l : '', nm = label || bdLabel(k, name), hue = hash32(k) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase());
-  const img = m && m.im ? collImage(k, l, m.im).src : '', tags = bdTags(k, q, ctx);
+  const img = m && m.im ? collImage(k, l, m.im, name).src : '', tags = bdTags(k, q, ctx);
   return `<div class="crow bd-row" data-k="${esc(k)}" data-n="${esc(name)}" data-t="${tgt}"><span class="thumb" style="--h:${hue}"${zoomAt('bd', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span></span>${tags ? `<span class="row-meta">${tags}</span>` : ''}</span>
     <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button><b>${q}</b><button type="button" data-d="1" aria-label="${T('Ajouter un exemplaire de {name}', { name: esc(nm) })}">+</button></span></div>`;
@@ -352,16 +352,16 @@ function bdToolsHtml() {
 /** Cartes de l'éditeur au format du deck viewer (prix de ce qui manque, possession), pour ses vues. */
 function bdViewItems() {
   const one = (c, tgt) => { const k = c.key, m = bdMeta(k) || {}, x = COLL.map[k], q = c.qty || 1, ow = BASIC_NAMES.has(k) ? 0 : collQty(k), eu = Number.isFinite(m.eu) && m.eu > 0 ? m.eu : 0;
-    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
+    return { k: (tgt === 'side' ? 'sb:' : '') + k, key: k, tgt, name: c.name, n: bdLabel(k, c.name), q, im: m.im ? collImage(k, x ? x.l : '', m.im, c.name).src : '', s: BASIC_NAMES.has(k) ? 'basic' : ow >= q ? 'own' : eu ? 'ok' : 'none', c: eu * Math.max(1, q - ow), ow, mc: m.mc || '', cm: m.cm, tl: m.tl || '', sb: tgt === 'side' }; };
   return [...[...BD.main.values()].map(c => one(c, 'main')), ...[...BD.side.values()].map(c => one(c, 'side'))];
 }
 function bdVisualHtml() {
   const items = bdViewItems(), snap = { ref: true }, view = BD.view;
   const groups = BD.sort === 'role' && typeof dvRoleGroups === 'function' ? dvRoleGroups(items, true) : groupSnap(items, BD.sort, true);
   BD.vflat = []; let n = 0;
-  const tile = it => { BD.vflat.push(it); return (view === 'strips' ? dvStrip : dvTile)(it, n++, snap, null); };
+  const tile = (it, sm) => { BD.vflat.push(it); return (view === 'strips' ? dvStrip : dvTile)(it, n++, snap, null, sm); };      // sm : carte recouverte d'une pile, petite image (viewer.js › dvSmall)
   const head = g => `<h3><span>${/^m\d$/.test(g.id) ? T('Coût {m}', { m: esc(T(g.label)) }) : esc(T(g.label))}</span><small>${TN(g.count, '{n} carte', '{n} cartes')}</small></h3>`;
-  const box = (cls, list) => `<div class="${cls}">${list.map(tile).join('')}</div>`;
+  const box = (cls, list) => `<div class="${cls}">${list.map((it, j) => tile(it, cls === 'dvp' && j < list.length - 1)).join('')}</div>`;
   if (!groups.length) return `<p class="hint">${T('Ajoute des cartes depuis « Ajouter » : les tiennes d\'abord, puis toutes les cartes Magic.')}</p>`;
   const body = view === 'piles' ? `<div class="dv-piles">${groups.map(g => `<section class="dv-g dv-pile">${head(g)}${box('dvp', g.items)}</section>`).join('')}</div>`
     : groups.map(g => { const half = Math.ceil(g.items.length / 2); return `<section class="dv-g">${head(g)}${view === 'stacks' ? `<div class="dv-stk">${box('dvp', g.items.slice(0, half))}${g.items.length > 1 ? box('dvp', g.items.slice(half)) : ''}</div>` : box(view === 'strips' ? 'dv-strips' : 'dv-grid', g.items)}</section>`; }).join('');
@@ -488,7 +488,7 @@ function bdTab(v) {
 /** Carte d'une rangée de l'éditeur pour la visionneuse (appui sur sa vignette) : image dans la langue possédée si Scryfall l'a donnée, sinon anglaise. */
 function bdViewItem(row) {
   const k = row.dataset.k, m = bdMeta(k); if (!m || !m.im) return null;
-  const x = COLL.map[k], l = x ? x.l : '', im = collImage(k, l, m.im), own = collQty(k);
+  const x = COLL.map[k], l = x ? x.l : '', im = collImage(k, l, m.im, row.dataset.n), own = collQty(k);
   return { key: k, lid: k + '|' + row.dataset.t, name: bdLabel(k, row.dataset.n), ln: row.dataset.n, wl: viewLang(k, true), small: im.src, lang: im.lang, plain: true,
     extra: `${own ? TN(own, '{n} exemplaire dans ta collection', '{n} exemplaires dans ta collection', { n: own }) : T('Pas dans ta collection')}${Number.isFinite(m.eu) ? ' · ' + T('réf. Cardmarket {p}', { p: fmt(m.eu, mkCur()) }) : ''}` };
 }

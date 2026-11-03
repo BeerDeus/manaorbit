@@ -514,7 +514,7 @@ async function scryLangImages(names, lang, signal, onProgress, prio = false) {
   if (!sl || sl === 'en') return out;
   const uniq = [...new Map(names.map(n => [ownKey(n), String(n).split('//')[0].trim()])).entries()].filter(([, n]) => n && !n.includes('"'));
   for (let i = 0; i < uniq.length; i += 12) {
-    const chunk = uniq.slice(i, i + 12), q = '(' + chunk.map(([, n]) => '!"' + n + '"').join(' or ') + ') lang:' + sl;
+    const chunk = uniq.slice(i, i + 12), q = '(' + chunk.map(([, n]) => '!"' + n + '"').join(' or ') + ') lang:' + sl + ' prefer:notub';      // prefer:notub : une édition Magic plutôt qu'une Universes Beyond (Marvel, Final Fantasy…) quand la carte existe dans les deux
     let j; try { j = await httpJson(limScry, 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q) + '&unique=cards', SCRY_JSON, signal, 4, prio); }
     catch (e) { if (e.code === '404') j = { data: [] }; else throw e; }
     for (const c of j.data || []) { const u = imgOf(c); if (u) out.set(ownKey(c.name), u); }

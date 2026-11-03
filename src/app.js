@@ -9,12 +9,12 @@ const imgDone = im => { if (im.complete && im.naturalWidth > 0 && !im.classList.
 /** Repeint host par innerHTML sans faire clignoter ses images : chaque <img> du nouveau contenu dont l'adresse était déjà là reprend l'ancien nœud
  *  (attributs du nouveau, .ok gardé : ni fondu depuis la lettre, ni chargement perdu) ; une image neuve déjà en cache est montrée tout de suite (imgDone). */
 function imgKeep(host, html) {
-  const old = new Map(); for (const im of host.getElementsByTagName('img')) { const u = im.getAttribute('src'); if (u && !old.has(u) && !(im.complete && !im.naturalWidth)) old.set(u, im); }      // image en erreur : pas reprise (le nouveau nœud refait son erreur, et l'écran sa lettre ou son repli)
+  const old = new Map(); for (const im of host.getElementsByTagName('img')) { const u = im.getAttribute('src'), lk = im.dataset.lk; if (u && !old.has(u) && !(im.complete && !im.naturalWidth)) { old.set(u, im); if (lk && !old.has('lk:' + lk)) old.set('lk:' + lk, im); } }      // lk : même carte dont la version traduite vient d'arriver (viewer.js › imgL) : l'ancienne reste affichée jusqu'à la nouvelle      // image en erreur : pas reprise (le nouveau nœud refait son erreur, et l'écran sa lettre ou son repli)
   host.innerHTML = html;
   for (const im of [...host.getElementsByTagName('img')]) {
-    const u = im.getAttribute('src'), o = u ? old.get(u) : null;
+    const u = im.getAttribute('src'), lk = im.dataset.lk, o = u ? old.get(u) || (lk ? old.get('lk:' + lk) : null) : null;
     if (!o) { imgDone(im); continue; }
-    old.delete(u); const ok = o.classList.contains('ok');
+    old.delete(o.getAttribute('src')); if (o.dataset.lk) old.delete('lk:' + o.dataset.lk); const ok = o.classList.contains('ok');
     for (const a of [...o.attributes]) if (!im.hasAttribute(a.name)) o.removeAttribute(a.name);
     for (const a of [...im.attributes]) if (o.getAttribute(a.name) !== a.value) o.setAttribute(a.name, a.value);      // src identique : rien n'est relu
     if (ok) o.classList.add('ok');
@@ -719,6 +719,16 @@ function lnMiss(c, st) {
   });
   return [...new Set(ms)].join(' · ');
 }
+/** Attributs src (+ data-lk) de la vignette d'une ligne de résultats ('' : pas d'image). Offre CardTrader retenue : son impression dans la langue de l'offre (anglaise : telle quelle) ;
+ *  édition exacte demandée : telle quelle ; sinon (prix Cardmarket, pas d'offre) la carte dans la langue de ton exemplaire ou de l'appli (viewer.js › imgLA), l'anglaise à défaut. */
+function resImgAttr(c, top, st) {
+  if (top && top.img && !top.cm) { const l = top.lang && top.lang !== 'en' && SCRY_LANG[top.lang] ? top.lang : ''; return imgLA(c.name, top.img, l); }      // une offre française reste française, même si l'appli est en allemand
+  const u = (st && st.img) || ''; if (!u) return '';
+  if (S.opts.exactEd && c.eds && c.eds.length) return `src="${esc(u)}"`;      // l'illustration de l'édition demandée
+  const l = viewLang(c.key, c.own > 0), cat = l && l === FRX.l && FRX.ix && FRX.ix.img ? FRX.ix.img.get(ownKey(c.key)) : '';
+  if (cat && u === (/^https?:/.test(cat) ? cat : FR_IMG + cat)) return `src="${esc(u)}"`;      // miniature du catalogue des noms : déjà dans cette langue (data.js › cmImages)
+  return imgLA(c.name, u, l);
+}
 function updateRow(el, c, v, st) {
   const pick = v.pick, ri = pick ? refInfo(pick.parts, st && st.bps) : null;
   const sig = v.s + '|' + (pick ? pick.parts.map(p => p.offer.id + ':' + p.n).join(',') : '') + '|' + (st && st.fellBack ? 1 : 0) + '|' + S.opts.lang + '|' + S.cur + '|' + (c.own || 0) + '|' + c.need + '|' + (ri ? ri.ref + ri.level : '') + '|' + (st && st.img ? 1 : 0) + '|' + (lnOn(c) ? c.ln.map(l => l.need + (l.f || '') + (l.l || '')).join() : '');
@@ -727,8 +737,8 @@ function updateRow(el, c, v, st) {
   const prevCost = el._cost; el._cost = v.s === 'ok' ? pick.cost : null;
   const nm = c.dn || c.name, hue = hash32(c.key) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase());      // nm : nom tapé en français, sinon l'anglais
   const top = pick && pick.parts[0] ? pick.parts[0].offer : null;
-  const img = (top && top.img) || (st && st.img);
-  const thumb = `<span class="thumb" style="--h:${hue}"${v.s === 'notfound' ? '' : zoomAt('res', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>`;
+  const img = resImgAttr(c, top, st);
+  const thumb = `<span class="thumb" style="--h:${hue}"${v.s === 'notfound' ? '' : zoomAt('res', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" ${img}>` : ''}</span>`;
   const qty = c.need > 1 ? `<span class="tag accent">× ${c.need}</span>` : '';
   const ownTag = c.own > 0 && c.need > 0 ? `<span class="tag good">${TN(c.own, '{n} possédée', '{n} possédées')}</span>` : '', lnTag = lnBadges(c);      // lnTag : critères de ligne (« FR · ✦ Foil »)
   const langName = LANGS[S.opts.lang] || S.opts.lang;

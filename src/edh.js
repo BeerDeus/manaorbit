@@ -371,7 +371,7 @@ function edhRowHtml(r, i) {
   if (r.mine) tags.push(`<span class="tag good">${T('Commandant possédé')}</span>`);
   const right = r.miss ? `<b>${nf0(r.miss)}</b><small>${T('à acheter')}</small><em>${r.cost ? '≈ ' + esc(fmt(r.cost, mkCur())) : T('prix inconnu')}</em>${r.cost && r.unpriced ? `<small>${T('+ {n} sans prix', { n: nf0(r.unpriced) })}</small>` : ''}` : `<b class="ok">✓</b>${T('<small>complet</small>')}`;
   const aria = T('{name} : tier {tier}, {have} cartes sur {total}{eng}, {miss} à acheter', { name: esc(name), tier: esc(r.tier), have: r.have, total: r.total, miss: r.miss, eng: r.eng ? ' ' + TN(r.eng, '(dont {n} engagée dans un deck)', '(dont {n} engagées dans un deck)', { n: r.eng }) : '' });
-  return `<div class="crow dk" role="button" tabindex="0" data-dk="${i}" aria-label="${aria}">${r.tier ? `<i class="dk-tier t-${esc(r.tier.toLowerCase())}" aria-hidden="true">${esc(r.tier)}</i>` : ''}<span class="thumb" style="--h:${hash32(c.slug) % 360}">${esc((name.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow dk" role="button" tabindex="0" data-dk="${i}" aria-label="${aria}">${r.tier ? `<i class="dk-tier t-${esc(r.tier.toLowerCase())}" aria-hidden="true">${esc(r.tier)}</i>` : ''}<span class="thumb" style="--h:${hash32(c.slug) % 360}">${esc((name.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(c.keys[0], c.names[0], img)}>` : ''}</span>
     <span class="row-main"><span class="row-name">${esc(name)}${c.rank && !c.comm ? ` <small class="dk-rank" title="${mo ? T('Rang de popularité du commandant sur EDHREC ce mois-ci') : T('Rang de popularité du commandant sur EDHREC')}">#${nf0(c.rank)}</small>` : ''}</span><span class="dk-pips">${edhPips(c.ci)}</span><span class="row-meta">${tags.join('')}</span><span class="dk-bar" aria-hidden="true"><i style="width:${pct}%"></i>${r.eng ? `<i class="eng" style="width:${pe}%"></i>` : ''}</span><span class="dk-have">${T('{have} / {total} possédées', { have: nf0(r.have), total: nf0(r.total) })}${r.eng ? ` <em class="dk-eng" title="${T('Exemplaires déjà réservés par un de tes decks montés')}">· ${TN(r.eng, 'dont {n} engagée', 'dont {n} engagées')}</em>` : ''}</span>${c.th.length ? `<span class="dk-th">${c.th.slice(0, 3).map(([i, n]) => { const t = EDH.data.themes[i]; return EDH.themes.has(t.slug) ? '<b>' + esc(edhThemeName(t)) + '</b>' : esc(edhThemeName(t)); }).join(' · ')}</span>` : ''}${r.hit ? `<span class="dk-lab dk-hitl">${T('Contient : {list}', { list: esc(r.hit.slice(0, 2).map(h => h[1]).join(' · ')) + (r.hit.length > 2 ? ' +' + (r.hit.length - 2) : '') })}</span>` : ''}</span>
     <span class="row-px dk-px">${right}</span></div>`;
 }
@@ -396,8 +396,12 @@ async function edhImages(entries, seed) {
   }
   return out;
 }
+/** Pose les aperçus (m : clé → image anglaise, ou celle de ton exemplaire) : dans la langue de l'appli, remplacés sur place à leur arrivée (decks.js › cardImgL). */
 function edhPaintThumbs(root, m) {
-  for (const th of $$('.thumb[data-ik]', root)) { const u = m.get(th.dataset.ik); if (u && !$('img', th) && !th.dataset.err) { const im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.src = u; th.appendChild(im); } }
+  for (const th of $$('.thumb[data-ik]', root)) {
+    const u = m.get(th.dataset.ik); if (!u || $('img', th) || th.dataset.err) continue;
+    const r = cardImgL(th.dataset.ik, (th.closest('[data-nm]') || th).dataset.nm || '', u), im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; if (r.lk) im.dataset.lk = r.lk; im.src = r.src; th.appendChild(im);      // data-nm : nom anglais de la carte (ligne)
+  }
 }
 const edhBracketNote = r => r.gc.length ? T('Game Changers : {list}', { list: r.gc.join(', ') }) : T('Aucun Game Changer');
 

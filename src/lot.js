@@ -42,6 +42,8 @@ function lotImg(c) {
   const known = c.im || collLineImage(c.k, lotLine(c), (COLL.meta[c.k] || DM[c.k] || {}).im).src;
   return known ? known.replace('/small/', '/normal/') : 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(c.n) + '&format=image&version=normal';
 }
+/** Langue de la grande image : celle de l'appli (viewer.js › imgL) pour une carte sans édition ni langue (« Celle de la carte », absente de la collection) ; '' : telle quelle. */
+const lotImgL = c => (!c.pick && !c.e && !lotLangOf(c) ? imgLang() : '');
 /** Infos Scryfall des cartes qui viennent d'arriver dans le lot (image, prix…) : tout de suite, devant les lectures de fond. */
 async function lotMeta(keys) {
   const need = [...new Set(keys)].filter(k => COLL.map[k] && !COLL.meta[k]); if (!need.length) return;
@@ -57,6 +59,7 @@ async function lotPick(n, p, o = {}) {
   const k = ownKey(n); if (!k) return;
   const c = LOT.cur = { k, n, p: p || '', l: o.l !== undefined ? o.l : LOT.lang || (p && FRX.l !== 'en' ? FRX.l : ''), q: o.q || 1, e: o.e || '', f: !!o.f, im: o.im || '', pick: null, prints: null, err: '', id: ++LOT.seq };
   lotPaintCard(); frLoad();
+  const wl = lotImgL(c); if (wl) langvLoad().then(() => langvPrefetch([n], wl));      // version de la langue de l'appli lue avant les impressions : l'image passe sans étape anglaise
   await lotPrints(c, !o.e);
   if (o.e && LOT.cur === c && c.prints) { const x = c.prints.find(y => edKey(y.set, y.num) === o.e); if (x) { c.pick = x; lotPaintCard(); } }
 }
@@ -81,7 +84,7 @@ function lotPaintCard() {
   const edBtn = c.pick ? `${setIcHtml(set)}<span><b>${esc(sn || set.toUpperCase())}</b><small>${esc(set.toUpperCase())} · #${esc(c.pick.num)}${c.pick.fx.length ? ' · ' + esc(c.pick.fx.join(', ')) : ''}</small></span>`
     : `<span><b>${c.prints ? (c.prints.length ? T('Choisir l\'édition') : T('Aucune édition trouvée')) : c.err ? T('Éditions indisponibles') : T('Éditions…')}</b><small>${T('Édition non précisée')}</small></span>`;
   const own = collQty(c.k), edit = LOT.edit && LOT.list.find(x => x.id === LOT.edit);
-  imgKeep(el, `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" src="${esc(lotImg(c))}"></button>
+  imgKeep(el, `<div class="lot-art"><button type="button" class="lot-img" data-act="zoom" aria-label="${T('Voir {name} en grand', { name: esc(dn) })}"><img alt="" decoding="async" ${imgLA(c.n, lotImg(c), lotImgL(c))}></button>
       ${eu != null ? `<span class="lot-px">${set ? setIcHtml(set) : ''}<b>${esc(fmt(eu, mkCur()))}</b></span>` : ''}</div>
     <div class="lot-f">
       <div class="lot-name"><b>${esc(dn)}</b>${dn !== c.n ? `<small>${esc(c.n)}</small>` : ''}${own ? `<em>${T('{n} dans ta collection', { n: nf0(own) })}</em>` : ''}</div>
@@ -264,7 +267,7 @@ function openLot() {
     else if (act === 'foil' && c) { c.f = !c.f; haptic('tap'); lotPaintCard(); }
     else if (act === 'add') lotAdd();
     else if (act === 'cancel') { LOT.edit = ''; LOT.cur = null; lotPaintCard(); }
-    else if (act === 'zoom' && c) openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : lotImg(c), big: lotImg(c), lang: c.pick ? ({ ja: 'jp', zhs: 'zh-CN' }[c.pick.l] || c.pick.l) : 'en', plain: true, extra: '' }], 0);
+    else if (act === 'zoom' && c) { const wl = lotImgL(c); openCardViewer([{ key: c.k, name: c.p || c.n, ln: c.n, small: c.pick ? c.pick.th : imgL(c.n, lotImg(c), wl), big: lotImg(c), lang: c.pick ? ({ ja: 'jp', zhs: 'zh-CN' }[c.pick.l] || c.pick.l) : 'en', plain: true, wl, extra: '' }], 0); }      // wl : la version de la langue de l'appli, comme l'image du panneau
     else if (act === 'mobgo') mobStart();
     else if (act === 'mobstop') { haptic('tap'); mobStop(); }
     else if (act === 'unstick') { LOT.set = ''; lotSave(); haptic('tap'); lotPaintHead(); }

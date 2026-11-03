@@ -82,7 +82,8 @@ function stagger(...els) {
 }
 
 /* ── En-têtes des écrans plein format ── */
+let MO_SCR = 0;
 document.addEventListener('scroll', e => {
-  const sc = e.target; if (!sc || !sc.classList || !sc.classList.contains('dv-scroll')) return;
-  const dv = sc.closest('.dv'); if (dv) dv.classList.toggle('scrolled', sc.scrollTop > 4);
+  const sc = e.target; if (!sc || !sc.classList || !sc.classList.contains('dv-scroll') || MO_SCR) return;
+  MO_SCR = requestAnimationFrame(() => { MO_SCR = 0; const dv = sc.closest('.dv'); if (dv) dv.classList.toggle('scrolled', sc.scrollTop > 4); });      // une lecture par image, pas à chaque événement (scrollTop forçait une mise en page : 20 à 30 ms par événement, CPU ×4)
 }, { capture: true, passive: true });

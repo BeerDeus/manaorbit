@@ -125,8 +125,8 @@ async function edRefresh(all, signal) {
 function collLineImage(k, g, en) {
   const l = lineLang(g), e = lineEd(g);
   if (e) {
-    if (l && l !== 'en') { const u = COLL.li[liKey(l, k + '|' + e)]; if (u) return { src: u, lang: l }; }
-    const x = COLL.ed[e]; if (x && x.im) return { src: x.im, lang: 'en' };
+    if (l && l !== 'en') { const u = COLL.li[liKey(l, k + '|' + e)]; if (u) return { src: u, lang: l, lk: '' }; }
+    const x = COLL.ed[e]; if (x && x.im) return { src: x.im, lang: 'en', lk: '' };      // édition de la ligne : son impression exacte
   }
   return collImage(k, l, en);
 }
@@ -401,9 +401,12 @@ function collPickEd(it, p) {
 /* ── Langue des cartes : une langue par carte (la dernière scannée l'emporte), image dans cette langue ───── */
 const liKey = (l, k) => l + '|' + k;
 /** Image à afficher : celle de la langue de la carte si Scryfall l'a, sinon l'anglaise. Retourne { src, lang } (lang : langue réellement montrée). */
-function collImage(k, l, en) {
-  if (l && l !== 'en') { const u = COLL.li[liKey(l, k)]; if (u) return { src: u, lang: l }; }
-  return { src: en || '', lang: 'en' };
+function collImage(k, l, en, name) {
+  if (l && l !== 'en') { const u = COLL.li[liKey(l, k)]; if (u) return { src: u, lang: l, lk: '' }; }
+  const al = l ? '' : imgLang();      // langue de l'exemplaire précisée : la sienne, ou l'anglaise si Scryfall ne l'a pas (comme la carte en grand) ; sans langue : celle de l'appli (viewer.js › imgL), l'anglais à défaut
+  const nm = name || (COLL.map[k] || {}).n || k;
+  if (al && en) { const u = imgL(nm, en, al); if (u !== en) return { src: u, lang: al, lk: langvKey(al, nm) }; }
+  return { src: en || '', lang: 'en', lk: al && en ? langvKey(al, nm) : '' };      // lk : data-lk de la vignette (remplacée sur place quand la traduite arrive) ; '' : voulue telle quelle (exemplaire de langue précisée : jamais touchée par le remplacement sur place de la même image)
 }
 /** Langues à lire sur Scryfall : clés de cartes de langue ≠ anglais dont l'image n'a pas encore été cherchée. */
 function collLangMissing() {
@@ -1039,7 +1042,7 @@ function edBtn(it, nm) {
   return `<button type="button" class="row-ed${e ? ' on' : ''}${it.f ? ' foil' : ''}" data-act="ed" aria-label="${esc(lab)}" title="${esc(lab)}">${e ? ic || `<span class="ed-code">${esc(set.toUpperCase())}</span>` : ''}</button>`;      // sans édition : rond en pointillés dessiné en CSS (pas de SVG par ligne : 5 000 lignes se repeignent pendant la lecture) ; foil : étincelle en coin
 }
 function crowHtml(it) {
-  const g = it.g ?? it.l, nm = it.dn || it.n, hue = hash32(it.k) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase()), img = collLineImage(it.k, g, it.im).src, sub = it.li > 0;      // sub : 2e ligne (langue, édition) de la même carte
+  const g = it.g ?? it.l, nm = it.dn || it.n, hue = hash32(it.k) % 360, letter = esc((nm.trim()[0] || '?').toUpperCase()), im0 = collLineImage(it.k, g, it.im), img = im0.src, sub = it.li > 0;      // sub : 2e ligne (langue, édition) de la même carte
   const tags = [];      // le drapeau suit le nom (à droite, loin de la vignette qu'on touche pour agrandir) ; « Langue ? » finit la rangée de tags
   if (it.f) tags.push(`<span class="tag foil" title="${T('Exemplaires foil : prix foil Cardmarket')}">✦ ${T('Foil')}</span>`);
   if (!sub && it.tl) tags.push(`<span class="tag">${esc(T(typeBucket(it.tl)))}</span>`);
@@ -1054,7 +1057,7 @@ function crowHtml(it) {
   if (Number.isFinite(it.eu)) px.push(`<span class="px cm" title="${T('Cardmarket : prix tendance')}"><i>${mkAb()}</i> <b>${esc(fmt(it.eu, mkCur()))}</b></span>`);
   if (Number.isFinite(it.rp)) px.push(`<span class="px ct" title="${T('CardTrader : offre la plus basse')}"><i>CT</i> <b>${esc(fmt(it.rp, it.rc || 'EUR'))}</b></span>`);
   else if (it.rp === null && it.rt) px.push(`<span class="px ct none" title="${T('CardTrader : aucune offre')}"><i>CT</i> <b>${T('aucune offre')}</b></span>`);
-  return `<div class="crow ced${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow ced${px.length ? ' has-px' : ''}${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? langChip(it.k, it.l, it.n, '', g) : ''}</span>${tags.length ? `<span class="row-meta">${tags.join('')}</span>` : ''}</span>
     ${px.length ? `<span class="row-px">${px.join('')}</span>` : ''}${edBtn(it, nm)}
     <span class="qstep"><button type="button" data-d="-1" aria-label="${T('Retirer un exemplaire de {name}', { name: esc(nm) })}">−</button><b>${it.q}</b><button type="button" data-d="1" aria-label="${T('Ajouter un exemplaire de {name}', { name: esc(nm) })}">+</button></span></div>`;
@@ -1201,6 +1204,62 @@ function collEmptyHtml() {
 /** Onglet « Stats » sans aucune carte. */
 const collStatsEmptyHtml = () => `<div class="dv-empty coll-empty"><b>${T('Pas encore de stats')}</b><p>${T('Valeur, courbe de mana et couleurs apparaissent dès tes premières cartes.')}</p>
     <div class="coll-cta"><button class="btn ghost" type="button" data-act="scan"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>${T('Scanner des cartes')}</button></div></div>`;
+/* ── Grande liste (plus de 240 cartes affichées) : fenêtre glissante ────────────────────────────────────────────────────────────
+   Seules les tranches de 60 cartes proches de l'écran sont dans la page (≈ 2 écrans au-dessus, 3 au-dessous) ; les autres sont remplacées par deux cales
+   (.coll-pad) de leur hauteur mesurée (estimée tant qu'elles n'ont pas été vues). Mesuré sur 1 000 lignes (CPU ×4) : 50 % d'images perdues au défilement,
+   le fil principal occupé 28 s sur 33 (intersections de content-visibility, mise en page, peinture de chaque ligne). Vue en grille et ordinateur (grille à
+   deux colonnes) : tout reste dans la page (une tranche retirée décalerait les colonnes). La carte en grand ne parcourt que les cartes de la fenêtre. */
+const COLL_WIN = { size: 60, min: 240 };
+const collWinOk = () => COLL.tab === 'list' && !(typeof cvwView === 'function' && cvwView() === 'grid') && !(typeof bdSplit === 'function' && bdSplit());
+/** Corps de la liste : tout (petite liste), ou les tranches autour de la position pos (keep : hauteurs déjà mesurées de la même liste reprises). */
+function collListBody(sorted, n, keep, pos) {
+  const old = COLL.win; COLL.win = null;
+  if (n <= COLL_WIN.min || !collWinOk()) return collRowsHtml(sorted, 0, n);
+  const w = { sorted, n, size: COLL_WIN.size, h: keep && old && old.n <= n && old.sorted.length === sorted.length ? old.h : [], top: keep && old ? old.top : 0, a: 0, b: 0, first: new Map() };
+  const nc = Math.ceil(n / w.size), est = collWinAvg(w), at = Math.max(0, pos - w.top);
+  let y = 0, c0 = 0; for (; c0 < nc - 1 && y + (w.h[c0] || est) < at; c0++) y += w.h[c0] || est;
+  w.a = Math.max(0, c0 - 1); w.b = Math.min(nc, c0 + 3); COLL.win = w;
+  let html = `<div class="coll-pad" style="height:${collWinSum(w, 0, w.a)}px"></div>`;
+  for (let c = w.a; c < w.b; c++) html += collWinChunk(w, c);
+  return html + `<div class="coll-pad" style="height:${collWinSum(w, w.b, nc)}px"></div>`;
+}
+const collWinAvg = w => { const m = w.h.filter(x => x > 0); return m.length ? m.reduce((a, x) => a + x, 0) / m.length : w.size * 66; };      // ligne détaillée ≈ 66 px tant que rien n'est mesuré
+const collWinSum = (w, from, to) => { const est = collWinAvg(w); let s = 0; for (let c = from; c < to; c++) s += w.h[c] || est; return Math.round(s); };
+/** Tranche c (cartes c × 60 à c × 60 + 59) : son premier élément porte data-ch (repère pour la mesurer et la retirer). */
+const collWinChunk = (w, c) => collRowsHtml(w.sorted, c * w.size, Math.min(w.n, (c + 1) * w.size)).replace(/^<([a-z0-9]+)/, `<$1 data-ch="${c}"`);
+/** Après la peinture : cales et premiers éléments des tranches affichées. */
+function collWinMark(w, list) {
+  w.list = list; w.first = new Map(); const pads = $$(':scope > .coll-pad', list); if (pads.length !== 2) { COLL.win = null; return; }
+  w.pads = pads; for (const e of $$(':scope > [data-ch]', list)) w.first.set(Number(e.dataset.ch), e);
+}
+/** Hauteurs des tranches affichées (de leur premier élément au premier de la suivante, ou à la cale du bas). */
+function collWinMeasure(w) {
+  for (let c = w.a; c < w.b; c++) { const f = w.first.get(c), nx = c + 1 < w.b ? w.first.get(c + 1) : w.pads[1]; if (f && nx && f.isConnected) { const h = nx.getBoundingClientRect().top - f.getBoundingClientRect().top; if (h > 0) w.h[c] = h; } }
+}
+/** Au défilement (une fois par image) : retire les tranches loin de l'écran, ajoute celles qui en approchent ; la position affichée ne bouge pas (cales mesurées, ancrage du défilement). */
+function collWinSync() {
+  COLL.winRaf = 0;
+  const w = COLL.win, el = COLL.el; if (!w || !el || !w.list || !w.list.isConnected) return;
+  const sc = $('.dv-scroll', el); if (!sc) return;
+  collWinMeasure(w);
+  const r0 = sc.getBoundingClientRect().top, top = w.pads[0].getBoundingClientRect().top - r0 + sc.scrollTop; w.top = top;      // haut de la liste dans le défilement
+  const vh = sc.clientHeight, from = sc.scrollTop - top - vh * 2, to = sc.scrollTop - top + vh * 3, nc = Math.ceil(w.n / w.size), est = collWinAvg(w);
+  let y = 0, a = -1, b = 0;
+  for (let c = 0; c < nc; c++) { const h = w.h[c] || est; if (a < 0 && y + h >= from) a = c; if (y <= to) b = c + 1; y += h; }
+  if (a < 0) a = nc - 1; b = Math.max(b, a + 1);
+  if (a === w.a && b === w.b) return;
+  const drop = c => { let e = w.first.get(c); const end = c + 1 < w.b ? w.first.get(c + 1) : w.pads[1]; while (e && e !== end) { const nx = e.nextElementSibling; e.remove(); e = nx; } w.first.delete(c); };
+  const add = (c, before) => { const t = document.createElement('template'); t.innerHTML = collWinChunk(w, c); const f = t.content.firstElementChild; before.before(t.content); if (f) w.first.set(c, f); };
+  for (let c = w.a; c < w.b; c++) if (c < a || c >= b) drop(c);
+  const na = Math.max(a, 0), nb = Math.min(b, nc);
+  for (let c = Math.min(w.a, nb) - 1; c >= na; c--) add(c, w.first.get(c + 1) || w.pads[1]);      // au-dessus, de bas en haut
+  for (let c = Math.max(w.b, na); c < nb; c++) if (!w.first.has(c)) add(c, w.pads[1]);
+  w.a = na; w.b = nb;
+  w.pads[0].style.height = collWinSum(w, 0, w.a) + 'px'; w.pads[1].style.height = collWinSum(w, w.b, nc) + 'px';
+  for (const im of w.list.querySelectorAll('img:not(.ok)')) imgDone(im);      // tranche revenue : ses images, en cache, sans fondu
+}
+function collWinScroll() { if (COLL.win && !COLL.winRaf) COLL.winRaf = requestAnimationFrame(collWinSync); }
+
 /** Remplit la liste ou les stats selon l'onglet. keep : garder la position de défilement. */
 function collPaintBody(keep) {
   const el = COLL.el; if (!el) return;
@@ -1230,11 +1289,14 @@ function collPaintBody(keep) {
     const known = all.filter(i => i.tl != null || i.cm != null).length, hid = (COLL.f.colors.size || COLL.f.type || COLL.f.cmc !== '' || COLL.f.cmdr) && known < all.length;
     const undated = isDateSort() ? all.filter(i => !i.d).length : 0;
     imgKeep(host, `${plcBarHtml()}${collNoLangHtml(v)}${undated ? `<p class="hint coll-count">${TN(undated, '{n} carte sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', '{n} cartes sans date d\'ajout (déjà là avant le suivi des dates) : {pos}, par nom.', { pos: COLL.sort === 'new' ? T('en bas') : T('en haut') })}</p>` : ''}${act ? `<p class="hint coll-count">${TN(filtered.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}${hid ? ' · ' + T('les cartes sans infos sont masquées par ces filtres') : ''}</p>` : ''}
-      ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collRowsHtml(sorted, 0, shown.length)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
+      ${shown.length ? `<div class="coll-list${typeof cvwCls === 'function' ? cvwCls() : ''}">${collListBody(sorted, shown.length, keep, pos)}</div>` : '<p class="hint listempty">' + T('Aucune carte ne correspond.') + '</p>'}
       ${sorted.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, sorted.length - shown.length)), b: nf0(sorted.length - shown.length) })}</button>` : ''}`);
     COLL.painted = sorted;
   }
+  if (COLL.win && COLL.tab === 'list') { const lst = $('.coll-list', host); if (lst) collWinMark(COLL.win, lst); else COLL.win = null; } else COLL.win = null;
+  if (sc && COLL.win && !sc.__win) { sc.__win = true; sc.addEventListener('scroll', collWinScroll, { passive: true }); }      // fenêtre glissante : une écoute par écran
   if (sc) sc.scrollTop = pos;
+  if (COLL.win) collWinScroll();
   if (!keep) stagger($$('.coll-list, .cs-tiles, .dk-res', host));
   if (typeof tipSoon === 'function') tipSoon();      // astuces (tour.js) : classeur de l'Échange, « Partager en image » des Stats, « Ranger ces cartes… », options du masterset, rond de l'édition
 }
@@ -1245,7 +1307,9 @@ function collMore() {
   COLL.shown += COLL_PAGE;
   const sorted = list && btn && COLL.tab === 'list' && COLL.painted ? collListOf(collAll()).sorted : null;
   if (!sorted || sorted !== COLL.painted) { collPaintBody(true); return; }
-  list.insertAdjacentHTML('beforeend', collRowsHtml(sorted, from, COLL.shown));
+  if (COLL.win || (COLL.shown > COLL_WIN.min && collWinOk())) { collPaintBody(true); }      // fenêtre glissante (ou la liste y passe) : la tranche suivante entre par la fenêtre
+  else list.insertAdjacentHTML('beforeend', collRowsHtml(sorted, from, COLL.shown));
+  if (!btn.isConnected) return;
   const left = sorted.length - COLL.shown;
   if (left > 0) btn.textContent = T('Afficher {a} de plus · {b} restantes', { a: nf0(Math.min(COLL_PAGE, left)), b: nf0(left) }); else btn.remove();
 }

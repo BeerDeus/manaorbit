@@ -183,7 +183,14 @@ function simgPips(x, colors, a, y) {
 
 /* ── Les cinq images ──────────────────────────────────────────────────────────────────────────── */
 /** Images Scryfall de la liste, lues en parallèle : [{ name, eur, im }]. */
-const simgLoad = list => Promise.all((list || []).map(async c => ({ name: String(c && c.name || ''), eur: Number(c && c.eur) || 0, im: await simgImg(c && c.img) })));
+const simgLoad = list => Promise.all((list || []).map(async c => ({ name: String(c && c.name || ''), eur: Number(c && c.eur) || 0, im: await simgImg(await simgLangUrl(c)) })));
+/** Adresse à dessiner pour c { img, ln (nom anglais), wl (langue voulue : celle de l'appli pour une carte sans langue imposée) } : la version dans cette langue si Scryfall l'a
+ *  (cache de l'appareil, sinon lue : 2,5 s au plus), sinon c.img telle quelle (impression précise, exemplaire de langue précisée, rien à chercher). */
+async function simgLangUrl(c) {
+  if (!c || !c.img || !c.wl || !c.ln || typeof langvGet !== 'function') return c ? c.img : '';
+  const v = await Promise.race([langvGet(c.ln, c.wl).catch(() => null), sleep(2500).then(() => null)]);
+  return v || c.img;
+}
 
 async function simgDrawColl(x, s) {
   const top = await simgLoad((s.top || []).slice(0, 3));
@@ -200,7 +207,7 @@ async function simgDrawColl(x, s) {
   simgFoot(x);
 }
 async function simgDrawDeck(x, s) {
-  const [im] = await Promise.all([simgImg(s.img)]);
+  const [im] = await Promise.all([simgLangUrl(s).then(u => simgImg(u))]);
   if (im) {      // la carte, agrandie et floutée, en toile de fond
     x.save(); x.globalAlpha = 0.28; try { x.filter = 'blur(42px)'; } catch (e) { /* sans flou : plus discret encore */ } if (!x.filter || x.filter === 'none') x.globalAlpha = 0.12;
     x.drawImage(im, -180, 140, SIMG_W + 360, (SIMG_W + 360) * SIMG_RATIO); x.restore();
@@ -419,7 +426,7 @@ function simgShare(spec) {
 function simgColl() {
   const items = collAll().all; if (!items.length) { toast(T('Pas encore de cartes à montrer')); return null; }
   const ctOff = mkUs() || (!(typeof ctReady === 'function' && ctReady()) && !items.some(i => i.rp > 0)), st = collStats(items, ctOff ? 'cm' : COLL.src);
-  const top = st.topUnit.slice(0, 3).map(i => ({ name: i.dn || i.n, img: collImage(i.k, i.l, i.im).src, eur: i.up / 100 }));
+  const top = st.topUnit.slice(0, 3).map(i => { const ci = collImage(i.k, i.l, i.im); return { name: i.dn || i.n, img: ci.src, ln: i.n, wl: ci.lang === 'en' && i.l !== 'en' ? imgLang() : '', eur: i.up / 100 }; });      // wl : comme la vignette (collection.js › collImage), version de l'appli lue si besoin
   return simgShare({ kind: 'coll', value: st.valued ? st.value / 100 : 0, n: st.unique, copies: st.copies, top, date: Date.now() });
 }
 /** Deck enregistré ({ id }) ou liste ({ text, name }) : nom, commandant ou format, couleurs, carte de présentation, valeur estimée (tendance Cardmarket), cartes. */
@@ -430,13 +437,13 @@ function simgDeckSpec(o) {
   const ci = cmd.length ? [...new Set(cmd.flatMap(c => [...String((dmOf(ownKey(c.key)) || {}).ci || '')]))].join('') : '';
   const colors = [...'WUBRG'].filter(c => (ci || dkColors(text)).includes(c)).join('');
   const sub = cmd.length ? cmd.map(c => c.dn || c.name).join(' & ') : fk && DK_FORMATS[fk] ? DK_FORMATS[fk].label : '';
-  return { kind: 'deck', name, sub, colors, img: cv ? coverUrl(cv) : '', cover: cv ? cv.name : '', value: v.known ? v.cents / 100 : 0, part: v.known > 0 && v.known < v.total, n: pd.copies, date: Date.now(), ...(o && o.url ? { url: o.url } : {}) };
+  return { kind: 'deck', name, sub, colors, img: cv ? coverUrl(cv) : '', ...(cv && !ownLangImg(cv.key) ? { ln: cv.name, wl: imgLang() } : {}), cover: cv ? cv.name : '', value: v.known ? v.cents / 100 : 0, part: v.known > 0 && v.known < v.total, n: pd.copies, date: Date.now(), ...(o && o.url ? { url: o.url } : {}) };
 }
 const simgDeck = o => simgShare(simgDeckSpec(o));
 /** Échange (lien actif) : doublons à échanger, valeur estimée, cartes recherchées, les 3 doublons les plus chers, QR code du lien public. */
 function simgTrade() {
   if (!TR.share) return null;
   const st = TR.st || trState(), { rows, sum } = tradeView(st.have, { price: trRowPx, sort: 'price', min: 0 });
-  const top = rows.filter(r => r.u > 0).slice(0, 3).map(r => { const it = trItem(r.k, r.n, r.q, r.lines && r.lines[0] ? lineLang(r.lines[0][0]) : ''); return { name: it.dn || it.n, img: bndThumb(r, it.l, it.im).src || collImage(r.k, it.l, it.im).src, eur: r.u / 100 }; });      // l'impression de sa 1re ligne (comme la liste et le classeur)
+  const top = rows.filter(r => r.u > 0).slice(0, 3).map(r => { const it = trItem(r.k, r.n, r.q, r.lines && r.lines[0] ? lineLang(r.lines[0][0]) : ''); const bt = bndThumb(r, it.l, it.im), ci = bt.e ? null : collImage(r.k, it.l, it.im); return { name: it.dn || it.n, img: bt.src || collImage(r.k, it.l, it.im).src, ln: r.n, wl: ci && ci.lang === 'en' && it.l !== 'en' ? imgLang() : '', eur: r.u / 100 }; });      // l'impression de sa 1re ligne (comme la liste et le classeur)
   return simgShare({ kind: 'trade', by: profShare().by || '', n: sum.n, copies: sum.q, value: sum.v / 100, want: st.want.length, top, url: shareUrl(TR.share), date: Date.now() });
 }

@@ -47,17 +47,17 @@ function cvwRow(it) {
   const v = cvwView(), g = it.g ?? it.l, id = it.k + '|' + g;
   if (v === 'detail') return crowHtml(it);
   if (CVW.open.has(id)) return `<div class="cvw-x">${crowHtml(it)}<button type="button" class="link-btn cvw-fold" data-act="cvwfold" aria-expanded="true">${T('Replier')}</button></div>`;
-  const nm = it.dn || it.n, img = collLineImage(it.k, g, it.im).src, letter = esc((nm.trim()[0] || '?').toUpperCase()), hue = hash32(it.k) % 360, px = cvwPrice(it), sub = it.li > 0;
+  const nm = it.dn || it.n, im0 = collLineImage(it.k, g, it.im), img = im0.src, letter = esc((nm.trim()[0] || '?').toUpperCase()), hue = hash32(it.k) % 360, px = cvwPrice(it), sub = it.li > 0;
   const lab = esc(T(cvwSheetOk() ? 'Ouvrir la fiche de {name}' : 'Afficher le détail de {name}', { name: nm }) + ' · × ' + it.q + (px ? ' · ' + px : ''));
   const hit = `<button type="button" class="cvw-hit" aria-label="${lab}"${cvwSheetOk() ? ' aria-haspopup="dialog"' : ' aria-expanded="false"'}></button>`;
   const data = `data-k="${esc(it.k)}" data-ln="${esc(it.l)}"${g !== it.l ? ` data-g="${esc(g)}"` : ''}`;
   if (v === 'grid') {
-    return `<div class="crow cvw-g${it.f ? ' foil' : ''}" ${data} style="--h:${hue}"><span class="cvw-art">${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+    return `<div class="crow cvw-g${it.f ? ' foil' : ''}" ${data} style="--h:${hue}"><span class="cvw-art">${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
       <span class="cvw-ov"><span class="row-name">${esc(nm)}</span><span class="cvw-gm">${it.q > 1 ? `<b>×${it.q}</b>` : ''}${px ? `<i>${esc(px)}</i>` : ''}</span></span>${it.l ? `<span class="cvw-fl">${flag(it.l)}</span>` : ''}${it.f ? '<span class="cvw-fo" aria-hidden="true">✦</span>' : ''}${hit}</div>`;
   }
   const p = plcOf(g), e = it.e || '';
   const meta = [it.f ? `<span class="cvw-fo">✦ ${T('Foil')}</span>` : '', e ? `<span class="cvw-ed">${esc(edSet(e).toUpperCase())}</span>` : '', p ? `<span class="cvw-plc"><i style="--c:${plcColor(p)}"></i>${esc(plcName(p))}</span>` : '', !it.l ? `<span class="cvw-nl">${T('Langue ?')}</span>` : ''].filter(Boolean).join('');
-  return `<div class="crow cvw-c${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" ${data}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow cvw-c${sub ? ' sub' : ''}${it.nl > 1 ? ' ml' : ''}" ${data}><span class="thumb" style="--h:${hue}"${zoomAt('coll', nm)}>${letter}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}" data-lk="${esc(im0.lk || '')}">` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span>${meta ? `<span class="cvw-sub">${meta}</span>` : ''}</span>
     <span class="cvw-r">${px ? `<b class="cvw-p">${esc(px)}</b>` : ''}<b class="cvw-q">×${it.q}</b></span>${hit}</div>`;
 }
@@ -118,10 +118,9 @@ function cvwMount(wrap, md) {
     if (md === 'trade') box.insertAdjacentHTML('beforeend', `<button type="button" class="tr-setb" data-act="trset" aria-haspopup="dialog"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span></span><b hidden></b></button>`);
     row.appendChild(box);
   }
-  const sc = $('.dv-scroll', wrap); let on = false;
-  if (sc) sc.addEventListener('scroll', () => {      // titre resserré une fois la liste défilée (écart : pas d'aller-retour au bord)
-    const t = sc.scrollTop, room = sc.scrollHeight - sc.clientHeight > 96, nx = room && (on ? t > 6 : t > 28);
-    if (nx !== on) { on = nx; wrap.classList.toggle('scrolled', on); }
+  const sc = $('.dv-scroll', wrap); let on = false, raf = 0;
+  if (sc) sc.addEventListener('scroll', () => {      // titre resserré une fois la liste défilée (écart : pas d'aller-retour au bord) ; lu une fois par image, pas à chaque événement
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; const t = sc.scrollTop, room = sc.scrollHeight - sc.clientHeight > 96, nx = room && (on ? t > 6 : t > 28); if (nx !== on) { on = nx; wrap.classList.toggle('scrolled', on); } });
   }, { passive: true });
 }
 /** Après chaque peinture du corps : état des boutons (collection.js › collPaintBody). */

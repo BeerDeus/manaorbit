@@ -815,6 +815,7 @@ i.mc.mc-c,.fcol.mc-c{background:#cbc5c0 url("data:image/svg+xml,<svg xmlns='http
 .coll-status .track{height:6px}
 .coll-status .coll-wait{font-size:12px;color:var(--ink-2)}
 .coll-list{display:flex;flex-direction:column;gap:8px}
+.coll-pad{flex:none;pointer-events:none}      /* cales de la fenêtre glissante (collection.js › collListBody) */
 .crow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md)}
 .crow.has-px{grid-template-columns:40px minmax(0,1fr) auto;row-gap:4px}
 /* prix au-dessus du +/− dans la dernière colonne : le nom garde toute la largeur (sinon 24 à 75 px, « Sheoldred / , ») */
@@ -1424,7 +1425,7 @@ button,.btn,select,summary{touch-action:manipulation}
 @media (hover:hover){.deck-main:hover .deck-art,.dvc:hover .dvc-art{box-shadow:0 2px 4px rgba(16,21,43,.18),0 18px 30px -14px rgba(16,21,43,.55)}}
 
 /* images : fondu et léger zoom arrière à l'arrivée (au lieu d'un simple fondu) */
-.thumb img,.dvc-art img{transform:scale(1.06);transition:opacity .45s var(--out),transform .7s var(--out)}
+.thumb img,.dvc-art img{transition:opacity .4s var(--out)}      /* fondu seul (plus de zoom à l'arrivée) : défilement de la grille 10 → 3 % d'images perdues, style et peinture divisés par deux */
 .thumb img.ok,.dvc-art img.ok{transform:none}
 
 /* cascades : les 14 premiers éléments arrivent l'un après l'autre */
@@ -1504,14 +1505,15 @@ button,.btn,select,summary{touch-action:manipulation}
   radial-gradient(58% 34% at -6% 34%,rgba(var(--mana-g),var(--mana-ga)),transparent 70%),
   var(--bg)}
 /* verre */
-#list.list,.coll-list,.panel,.cs-bars,.vl-box,.cs-tiles>div,textarea#deckText,.crow:not(.coll-list>.crow),.tr-box,.dk-own,.recap{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+#list.list,.panel,.cs-bars,.vl-box,.cs-tiles>div,textarea#deckText,.tr-box,.dk-own,.recap{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.coll-list,.crow:not(.coll-list>.crow){background:color-mix(in srgb,var(--surface) 92%,transparent)}      /* longues listes (collection, éditeur) sans flou : mesuré au défilement (CPU ×4), zones vides dans l'éditeur et 6 → 2,7 ms de compositeur par image
 #list.list,.coll-list{box-shadow:var(--shadow)}
 .btn.ghost,.fbtn,.fsearch,.sortsel,.icon-btn,.fopt:not([aria-pressed="true"]),.chip,.tools .link-btn:not(.strong){background-color:var(--glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .fpanel .fopt,.fpanel .sortsel{-webkit-backdrop-filter:none;backdrop-filter:none}      /* panneau des filtres : le fond derrière ses boutons est uni (--surface, opaque), le flou n'y changeait rien ; ~50 flous (« Plus de filtres ») coûtaient une passe de rendu chacun à chaque image (ouverture, défilement du panneau : ~15 au lieu de ~28 images/s dans Chromium sans GPU) */
 .seg{background:var(--glass-2);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px var(--line)}
 .seg.dv-seg{background:var(--surface-2)}      /* barre Mana / Prix / Type collée en haut du viewer : opaque, sinon les cartes défilent au travers */
 .seg-thumb{border:1.5px solid transparent;background:linear-gradient(var(--seg-thumb,var(--surface)),var(--seg-thumb,var(--surface))) padding-box,var(--foil-ring) border-box;box-shadow:0 6px 16px -8px rgba(127,176,255,.7)}
-.sheet{background:color-mix(in srgb,var(--surface) 90%,transparent);-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3)}
+.sheet{background:color-mix(in srgb,var(--surface) 96%,transparent)}      /* sans flou : ouverture d'une feuille 23 → 7 images perdues (fiche carte, CPU ×4) ; le flou ne se voyait presque pas derrière 90 % d'opacité */
 /* foil : valeurs mises en avant */
 .cs-tiles .cs-val{border:1.5px solid transparent;background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--foil-ring) border-box;box-shadow:0 12px 28px -18px rgba(146,156,255,.8)}
 .cs-tiles .cs-val b,.dv-amt,.hero-amt{background:var(--foil-ink);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:foilhue 7s linear infinite}

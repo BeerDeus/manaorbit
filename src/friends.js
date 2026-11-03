@@ -480,7 +480,7 @@ async function amCollSheet(f) {
       if (e.target.closest('[data-am="more"]')) { shown += AM_PAGE; paint(); return; }
       const row = e.target.closest('.am-crow'); if (!row) return;
       const rs = $$('.am-crow', api.body), list = []; let at = 0;
-      for (const x of rs) { const im = $('img', x); if (!im) continue; if (x === row) at = list.length; list.push({ key: x.dataset.k, name: $('.row-name', x).textContent, wl: x.dataset.ln && x.dataset.ln !== 'en' ? x.dataset.ln : '', small: im.getAttribute('src'), lang: x.dataset.ln || 'en', plain: true, extra: x.dataset.x || '' }); }
+      for (const x of rs) { const im = $('img', x); if (!im) continue; if (x === row) at = list.length; const ln = x.dataset.ln; list.push({ key: x.dataset.k, name: $('.row-name', x).textContent, ln: x.dataset.n, wl: ln ? (ln !== 'en' ? ln : '') : wantLang(), small: im.getAttribute('src'), lang: x.dataset.ln || 'en', plain: true, extra: x.dataset.x || '' }); }
       if (list.length) { haptic('tap'); openCardViewer(list, at); } else toast(T('Pas d\'aperçu pour cette carte'));
     });
     paint();
@@ -490,7 +490,7 @@ function amCollRow(it) {
   const nm = it.dn || it.n, img = it.im || '', alt = it.dn && it.dn !== it.n ? it.n : it.fn || '';
   const tags = (it.wq ? `<span class="tag accent">${T('tu la cherches × {n}', { n: it.wq })}</span>` : '') + (it.tl ? `<span class="tag">${esc(typeBucket(it.tl))}</span>` : '') + (alt ? `<span class="tag">${esc(alt)}</span>` : '');
   const x = TN(it.q, '{n} exemplaire', '{n} exemplaires') + (it.l ? ' · ' + (LANGS[it.l] || it.l) : '');
-  return `<div class="crow pub-row am-crow" role="button" tabindex="0" data-k="${esc(it.k)}" data-ln="${esc(it.l || '')}" data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" src="${esc(img)}">` : ''}</span>
+  return `<div class="crow pub-row am-crow" role="button" tabindex="0" data-k="${esc(it.k)}" data-n="${esc(it.n)}" data-ln="${esc(it.l || '')}" data-x="${esc(x)}"><span class="thumb" style="--h:${hash32(it.k) % 360}">${esc((nm.trim()[0] || '?').toUpperCase())}${img ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(it.k, it.n, img, it.l || '')}>` : ''}</span>
     <span class="row-main"><span class="row-top"><span class="row-name">${esc(nm)}</span>${it.l ? flag(it.l) : ''}</span><span class="row-meta">${tags}</span></span><span class="tr-q"><b>× ${it.q}</b></span></div>`;
 }
 

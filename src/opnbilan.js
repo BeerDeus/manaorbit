@@ -25,7 +25,7 @@ function opnbResHtml(v, paid) {
 const opnbBest = rows => rows.map(r => ({ r, u: opnEu(r) || 0 })).filter(x => x.u > 0).sort((a, b) => b.u - a.u || b.r.t - a.r.t).slice(0, 5);
 function opnbTopHtml(rows) {
   const best = opnbBest(rows); if (!best.length) return '';
-  const card = ({ r, u }, i) => `<figure class="opnb-c${i ? '' : ' opnb-hero'}"><span class="opnb-im" style="--h:${hash32(r.k) % 360}"><img alt="" loading="lazy" decoding="async" src="${esc(opnBig(r))}"></span><figcaption><b>${esc(fmt(u, mkCur()))}</b><span>${esc(opnName(r))}</span></figcaption></figure>`;
+  const card = ({ r, u }, i) => `<figure class="opnb-c${i ? '' : ' opnb-hero'}"><span class="opnb-im" style="--h:${hash32(r.k) % 360}"><img alt="" loading="lazy" decoding="async" ${opnBigA(r)}></span><figcaption><b>${esc(fmt(u, mkCur()))}</b><span>${esc(opnName(r))}</span></figcaption></figure>`;
   return `<h3 class="cs-h">${T('Meilleures cartes')}</h3><div class="opnb-top${best.length > 1 ? '' : ' one'}">${card(best[0], 0)}${best.length > 1 ? `<div class="opnb-rest">${best.slice(1).map(card).join('')}</div>` : ''}</div>`;
 }
 /** Bloc du bilan (feuille « Terminer » d'opening.js) : prix payé, gain ou perte, meilleures cartes. */
@@ -42,7 +42,7 @@ function opnbBind(api, c, kept) {
 function opnbShare(c, rows) {
   if (typeof simgShare !== 'function') return;
   const t = opnTotals(rows);
-  try { simgShare({ kind: 'opening', name: c.name, date: c.at, n: t.n, value: t.v / 100, paid: c.paid != null ? c.paid / 100 : null, best: opnbBest(rows).map(({ r, u }) => ({ name: opnName(r), img: opnBig(r), eur: u / 100 })) }); }
+  try { simgShare({ kind: 'opening', name: c.name, date: c.at, n: t.n, value: t.v / 100, paid: c.paid != null ? c.paid / 100 : null, best: opnbBest(rows).map(({ r, u }) => ({ name: opnName(r), img: opnBig(r), ln: r.n, wl: opnBigL(r), eur: u / 100 })) }); }      // wl : version dans la langue de l'appli (simg.js › simgLangUrl)
   catch (e) { toast(T('Partage impossible pour l\'instant')); }
 }
 /** Mes ouvertures : gain ou perte d'une session ('' sans prix payé). */
