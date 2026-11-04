@@ -59,7 +59,7 @@ Le coach raisonne sur le **classement par mécaniques** (`data/card-mech.json`, 
 | Mains de 7 gardées · commandant à temps · couleurs bloquées au tour 4 | 80 · 80 · 5 % | 81 · 82 · 5 % |
 | Part de staples (rang EDHREC < 300) · rang médian | 31 % · 1 085 | 21 % · 1 589 |
 | Decks en défaut (100 cartes, couleurs, doublons, interdites, bracket, budget, terrains, wincon, sources) | 0 / 127 | 0 / 128 |
-| Banc d'essai (rappel@20, garde-fou) | 29,0 % (30,5 % réglé) | BENCH |
+| Banc d'essai (rappel@20, garde-fou) | 29,0 % (30,5 % réglé) | 27,5 % (garde-fou : −1,5 point ; banc en 5 min, réglage borné à 3 min) |
 
 Commandants sans page : thème 0 % → 12-36 %, staples 65-74 % → 15-24 %. Plus de terrains en moyenne (+2) : Karsten compte moins de rampe et de pioche « pas chères » avec les rôles stricts ; la génération préfère désormais la rampe et la pioche à 2 mana. Relancer : `node tools/coach-eval.mjs --dkw <dkw.json.gz> [--src <dossier>] [--resim <mesure.json>] --out m.json` (vm Node, vrai code, sans interface ; `--resim` rejoue la simulation de decks d'une mesure précédente avec la base donnée). Base locale depuis le corpus, sans réseau : `DECKDB_OFFLINE=1 DECKDB_PREV=<corpus.json.gz> node gen-deckdb.mjs <dossier>` (~8 min).
 
