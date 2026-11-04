@@ -225,8 +225,15 @@ function dwTargets(prof, cmd, pack, set = BD.wiz || dwDefaults()) {
     const src = w.filter(([s]) => Array.isArray(s[k])).map(([s, x]) => [s, k === 'mv' && pack && s === pack.tg ? x * 3 : x]), tot = src.reduce((a, [, x]) => a + x, 0);      // courbe : les decks du commandant comptent triple (dragons, Eldrazi… : un coût moyen élevé est normal)
     out[k] = [0, 1, 2].map(i => src.reduce((a, [s, x]) => a + s[k][i] * x, 0) / tot);
   }
+  const real = pack && pack.tg && pack.tg.n >= 8 ? pack.tg : null;      // vrais decks de ce commandant (Archidekt)
+  for (const k of Object.keys(out)) if (k !== 'mv' && real && Array.isArray(real[k])) { out[k][0] = Math.min(out[k][0], real[k][0]); out[k][2] = Math.max(out[k][2], real[k][2]); }      // ce que font ses vrais decks n'est jamais « trop » ni « trop peu » (Urtet : 20 à 26 rampes)
   const mv = prof.nonland >= 25 ? prof.mv : out.mv[1], cheap = prof.nonland >= 25 ? prof.cheap : out.cheap[1];
-  out.land = dwLandTarget(mv, cheap, set.br, model.d);
+  const ramp3 = prof.nonland >= 25 ? Math.max(0, prof.ramp - prof.cheap - 4) : 0;      // rampe au-delà de celle à 2 mana ou moins (Karsten ne compte que celle-là) : Myr à 3 mana, mana rocks à 3… compte pour moitié
+  out.land = dwLandTarget(mv, cheap + ramp3 * 0.5, set.br, model.d);
+  if (real && Array.isArray(real.land)) {      // mêlée aux terrains des vrais decks du commandant (2/3) : ils intègrent déjà sa rampe et sa courbe
+    const t = Math.round(out.land[1] / 3 + real.land[1] * 2 / 3);
+    out.land = [Math.min(out.land[0], real.land[0], t - 2), t, Math.max(out.land[2], real.land[2], t + 2)];
+  }
   if (cmd && !cmd.ci.includes('U')) out.counter = [0, 0, 0];
   if (out.wincon && dwPlanWins(pack)) out.wincon = [0, 0, out.wincon[2]];      // les vrais decks de ce commandant gagnent par leur plan (combat, jetons…), sans « condition de victoire » au sens strict : rien à forcer
   for (const k of Object.keys(out)) if (k !== 'mv') out[k] = out[k].map(v => Math.round(v));
@@ -503,6 +510,20 @@ function dwFillBasics(quiet) {
   const prof = dwProfile(), tgt = dwTargets(prof, cmd, DW.cmd.get(cmd.slug) || null);
   const BK = { W: 'plains', U: 'island', B: 'swamp', R: 'mountain', G: 'forest', C: 'wastes' }, EN = { W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest', C: 'Wastes' };
   const cols = cmd.ci ? [...cmd.ci] : ['C'], qOf = c => (BD.main.get(BK[c]) || {}).qty || 0, curB = cols.reduce((a, c) => a + qOf(c), 0);
+  const cut = [], before = quiet ? null : new Map([...BD.main].map(([k, c]) => [k, { ...c }]));      // « Annuler » du message
+  if (!quiet && prof.land < tgt.land[1] && prof.n >= 100) {      // deck complet : les sorts les moins utiles (base du coach) cèdent leur place, sans passer un rôle sous son minimum ni retirer la dernière condition de victoire
+    const info = dwInfo(DW.cmd.get(cmd.slug) || null, BD.wiz || dwDefaults()), cnt = { ...prof }, cmdK = new Set(BD.cmdr.map(c => c.key));
+    const cand = [...BD.main.values()].filter(c => !cmdK.has(c.key) && !BASIC_NAMES.has(c.key)).map(c => ({ c, x: dwCard(c.key) })).filter(o => o.x && !(o.x.roles & DW_RB.land))
+      .map(o => ({ ...o, v: dwVal(info.get(o.c.key) || {}) })).sort((a, b) => a.v - b.v);
+    for (const o of cand) {
+      if (cut.length >= tgt.land[1] - prof.land) break;
+      const roles = DKW_ROLES.filter(r => r !== 'land' && o.x.roles & DW_RB[r]);
+      if (roles.some(r => cnt[r] - 1 < (tgt[r] ? tgt[r][0] : 0)) || (o.x.roles & DW_RB.wincon && cnt.wincon <= 1)) continue;
+      for (const r of roles) cnt[r]--;
+      cut.push(o.c.name); const q = o.c.qty || 1; if (q > 1) BD.main.set(o.c.key, { ...o.c, qty: q - 1 }); else BD.main.delete(o.c.key);
+    }
+    if (cut.length) prof.n -= cut.length;
+  }
   const want = Math.max(0, tgt.land[1] - (prof.land - curB)), room = 100 - (prof.n - curB), n = Math.max(0, Math.min(want, room));
   const src = Object.fromEntries(cols.map(c => [c, (prof.src[c] || 0) - qOf(c)])), share = Object.fromEntries(cols.map(c => [c, 0]));
   const pip = c => Math.max(prof.pips[c] || 0, 0.5), need = c => prof.need[c] || 0;
@@ -514,7 +535,9 @@ function dwFillBasics(quiet) {
   cols.forEach(c => { if (share[c] > 0) BD.main.set(BK[c], { key: BK[c], name: EN[c], qty: share[c] }); else BD.main.delete(BK[c]); });
   BD.dirty = true; if (quiet) return n;
   haptic('ok'); bdPaint(); bdMetaSoon();
-  toast(TN(n, '{n} terrain de base dans le deck', '{n} terrains de base dans le deck'));
+  if (cut.length) toast(TN(cut.length, '{n} terrain de base ajouté à la place de : {cards}', '{n} terrains de base ajoutés à la place de : {cards}', { cards: cut.join(', ') }), { label: T('Annuler'), fn: () => { BD.main = before; BD.dirty = true; haptic('tap'); bdPaint(); } });
+  else if (n > curB) toast(TN(n - curB, '{n} terrain de base ajouté', '{n} terrains de base ajoutés'));
+  else toast(prof.land >= tgt.land[1] ? T('Assez de terrains : rien à ajouter') : TN(n, '{n} terrain de base dans le deck', '{n} terrains de base dans le deck'));
   return n;
 }
 /** « Générer le deck » : complète jusqu'à 100 cartes (les cartes déjà là restent), avec les mêmes règles que les suggestions (couleurs, bracket, Game Changers,

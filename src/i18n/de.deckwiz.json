@@ -272,5 +272,10 @@
  "Le commandant compte dans le budget ({p}).": "Der Commander zählt zum Budget ({p}).",
  "Fonctionnalité en test allumée": "Testfunktion eingeschaltet",
  "Admin · ton compte seulement": "Admin · nur dein Konto",
- "Note, échanges conseillés et simulation de parties": "Wertung, empfohlene Tausche und simulierte Partien"
+ "Note, échanges conseillés et simulation de parties": "Wertung, empfohlene Tausche und simulierte Partien",
+ "{n} terrain de base ajouté à la place de : {cards}": "{n} Standardland statt {cards} hinzugefügt",
+ "{n} terrains de base ajoutés à la place de : {cards}": "{n} Standardländer statt {cards} hinzugefügt",
+ "{n} terrain de base ajouté": "{n} Standardland hinzugefügt",
+ "{n} terrains de base ajoutés": "{n} Standardländer hinzugefügt",
+ "Assez de terrains : rien à ajouter": "Genug Länder: nichts hinzuzufügen"
 }

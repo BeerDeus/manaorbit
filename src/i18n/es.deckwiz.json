@@ -272,5 +272,10 @@
  "Le commandant compte dans le budget ({p}).": "El comandante cuenta en el presupuesto ({p}).",
  "Fonctionnalité en test allumée": "Función de prueba activada",
  "Admin · ton compte seulement": "Admin · solo tu cuenta",
- "Note, échanges conseillés et simulation de parties": "Nota, cambios aconsejados y partidas simuladas"
+ "Note, échanges conseillés et simulation de parties": "Nota, cambios aconsejados y partidas simuladas",
+ "{n} terrain de base ajouté à la place de : {cards}": "{n} tierra básica añadida en lugar de: {cards}",
+ "{n} terrains de base ajoutés à la place de : {cards}": "{n} tierras básicas añadidas en lugar de: {cards}",
+ "{n} terrain de base ajouté": "{n} tierra básica añadida",
+ "{n} terrains de base ajoutés": "{n} tierras básicas añadidas",
+ "Assez de terrains : rien à ajouter": "Tierras suficientes: nada que añadir"
 }

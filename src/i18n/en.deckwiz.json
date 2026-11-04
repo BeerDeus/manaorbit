@@ -272,5 +272,10 @@
  "Le commandant compte dans le budget ({p}).": "The commander counts toward the budget ({p}).",
  "Fonctionnalité en test allumée": "Test feature on",
  "Admin · ton compte seulement": "Admin · your account only",
- "Note, échanges conseillés et simulation de parties": "Note, suggested swaps and simulated games"
+ "Note, échanges conseillés et simulation de parties": "Note, suggested swaps and simulated games",
+ "{n} terrain de base ajouté à la place de : {cards}": "{n} basic land added in place of: {cards}",
+ "{n} terrains de base ajoutés à la place de : {cards}": "{n} basic lands added in place of: {cards}",
+ "{n} terrain de base ajouté": "{n} basic land added",
+ "{n} terrains de base ajoutés": "{n} basic lands added",
+ "Assez de terrains : rien à ajouter": "Enough lands: nothing to add"
 }
