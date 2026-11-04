@@ -98,5 +98,14 @@
  "Essais en partie : {v} (mains de départ, terrains, couleurs)": "Partidas de teste: {v} (mãos iniciais, terrenos, cores)",
  "Essais en partie : {v} · {n} séries de 1 500 parties": "Partidas de teste: {v} · {n} séries de 1500 partidas",
  "{p} % de mains gardées": "{p} % de mãos mantidas",
- "En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %": "Em jogo: {k} % de mãos mantidas · comandante a tempo {c} % · bloqueadas pelas cores {s} %"
+ "En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %": "Em jogo: {k} % de mãos mantidas · comandante a tempo {c} % · bloqueadas pelas cores {s} %",
+ "{n} carte qui sert peu le plan": "{n} carta que pouco serve ao plano",
+ "{n} cartes qui servent peu le plan": "{n} cartas que pouco servem ao plano",
+ "Thème {m} : {n} cartes, {t} conseillées": "Tema {m}: {n} cartas, {t} recomendadas",
+ "Cartes fétiches comptées comme voulues, quel que soit leur niveau.": "Cartas favoritas contam como desejadas, seja qual for o nível delas.",
+ "Cibles adaptées au thème ({t}) : moins de retraits ou de balayages que d'habitude, c'est voulu.": "Metas adaptadas ao tema ({t}): menos remoções ou remoções em massa que o normal, é de propósito.",
+ "Aucune condition de victoire : ajoute une carte qui peut finir la partie": "Nenhuma condição de vitória: adicione uma carta que possa terminar a partida",
+ "Note de {n} : deck construit autour de tes choix (thème, cartes fétiches) plutôt que du deck moyen ; les conseils ci-dessous le renforcent sans trahir le thème.": "Nota {n}: deck montado em torno das suas escolhas (tema, cartas favoritas) em vez do deck médio; as dicas abaixo o reforçam sem trair o tema.",
+ "Plan : {p}": "Plano: {p}",
+ "{p} % des sorts en commun avec la version équilibrée": "{p}% das mágicas em comum com a versão equilibrada"
 }

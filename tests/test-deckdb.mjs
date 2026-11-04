@@ -157,6 +157,7 @@ test('serveur : découpe, /api/dkw (cœur, commandant, thème), gzip, ETag, erre
   const D = { v: 1, at: '2026-11-01T00:00:00Z', roles: ROLES, cards: [['Sol Ring', '', 1, 4, 2, 150, 1, 'C', 1]], tg: { all: { n: 3 } }, combos: [['A', 'B', 'Win the game', 'R']], cmd: { 'edgar-markov': { n: 9, cards: [['Sol Ring', 90, 1]] }, 'BAD SLUG': {} }, themes: { tokens: { n: 5, cards: [] } } };
   const s = dkwSplit(D); assert.equal(s.cmd.size, 1, 'adresse invalide écartée'); assert.equal(s.th.size, 1);
   assert.throws(() => dkwSplit({ v: 2 }));
+  { const core = JSON.parse(gunzipSync(dkwSplit({ ...D, mech: { v: 1, tags: ['treasure'], roles: ['ramp'] } }).core.gz).toString()); assert.deepEqual(core.mech.tags, ['treasure'], 'vocabulaire des mécaniques dans le cœur'); }
   const dir = mkdtempSync(join(tmpdir(), 'dkw-')), file = join(dir, 'dkw.json.gz'); writeFileSync(file, gzipSync(Buffer.from(JSON.stringify(D))));
   process.env.DKW_SMALL = '1';
   const json = (res, st, o) => { res.writeHead(st, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };

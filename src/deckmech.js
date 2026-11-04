@@ -14,7 +14,7 @@
 const DMX = { src: null, by: new Map(), ti: null, tribes: null, plan: new Map() };
 /** Libellés des mécaniques (groupes nominaux : « {m} pour {name} », « moteur {m} avec {card} », « thème {m} »). */
 const DMX_LABEL = {
-  'tokens-creature': 'jetons créature', treasure: 'Trésors', food: 'Nourritures', clue: 'Indices', 'tokens-other': 'autres jetons', 'token-doubling': 'jetons doublés', energy: 'énergie', 'the-ring': 'l\'Anneau', 'initiative-monarch': 'initiative et monarque',
+  'tokens-creature': 'jetons créature', treasure: 'Trésors', food: 'Nourritures', clue: 'jetons Indice', 'tokens-other': 'autres jetons', 'token-doubling': 'jetons doublés', energy: 'énergie', 'the-ring': 'l\'Anneau', 'initiative-monarch': 'initiative et monarque',
   'sacrifice-outlet': 'moyens de sacrifier', sacrifice: 'sacrifices', 'dies-trigger': 'morts de créatures', 'self-mill': 'cartes au cimetière', 'graveyard-cast': 'sorts lancés du cimetière', reanimation: 'réanimation', 'graveyard-hate': 'contrôle des cimetières',
   'discard-outlet': 'défausse', loot: 'pioche et défausse', wheel: 'mains renouvelées', etb: 'arrivées en jeu', blink: 'blink', landfall: 'atterrissage', 'extra-lands': 'terrains supplémentaires', 'lands-graveyard': 'terrains au cimetière',
   'counters-p1': 'marqueurs +1/+1', 'counters-m1': 'marqueurs -1/-1', 'counters-other': 'marqueurs', proliferate: 'prolifération', lifegain: 'gain de vie', drain: 'drain', burn: 'blessures directes', 'pay-life': 'points de vie payés',

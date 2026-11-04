@@ -31,7 +31,8 @@ function dsScore(X = BD, ctx = {}) {
   for (const c of cols) { const sc = Math.min(1, (prof.src[c] || 0) / prof.need[c]) ** 2; ss += sc; if (sc < 0.97) tips.push({ t: T('Sources de {c} : {n} pour {m} conseillées', { c, n: Math.round(prof.src[c] || 0), m: prof.need[c] }), gain: (1 - sc) * 15 / cols.length }); }
   const pMana = 10 * ls + 15 * (cols.length ? ss / cols.length : 1);
   // Courbe : coût moyen face à sa cible
-  const [mlo, , mhi] = tgt.mv, mv = prof.mv, dist = !prof.nonland ? 0 : mv < mlo ? mlo - mv : mv > mhi ? mv - mhi : 0, cs = Math.max(0, 1 - dist / 0.6);
+  const pl0 = info.plan, big = pl0 && typeof dmxTag === 'function' && pl0.P[dmxTag('big-creatures')] >= 1 ? 0.8 : 0;      // commandant qui veut de grosses créatures (Kaalia, Ur-Dragon : mises en jeu sans les payer) : courbe haute permise
+  const [mlo, , mhi0] = tgt.mv, mhi = mhi0 + big, mv = prof.mv, dist = !prof.nonland ? 0 : mv < mlo ? mlo - mv : mv > mhi ? mv - mhi : 0, cs = Math.max(0, 1 - dist / 0.6);
   if (cs < 1) tips.push({ t: mv > mhi ? T('Courbe haute : coût moyen {v} (repère {m})', { v: dsNum(mv), m: dsNum(tgt.mv[1], 1) }) : T('Courbe très basse : coût moyen {v} (repère {m})', { v: dsNum(mv), m: dsNum(tgt.mv[1], 1) }), gain: (1 - cs) * 10 });
   const pCurve = 10 * cs;
   // Synergie : utilité de chaque sort DANS CE PLAN (deckmech.js : ce qu'il fait pour le commandant, les thèmes et les autres cartes, son rôle, sa force), ou sa

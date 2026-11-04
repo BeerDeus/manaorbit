@@ -356,7 +356,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   const fallback = (C.npack != null ? C.npack : C.size) < 40 || X.wide;      // commandant inconnu de la base (ou génération à court de cartes : X.wide) : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
   const noCombo = set.br <= 2 || (set.avoid || []).includes('combo'), combo = DW.core && DW.core.combos ? dwComboIdx() : null, pairs = dwPairIdx(), wPair = w.pair;      // brackets 1-2 : jamais la 2e carte d'un combo à 2 cartes
   const cols = cmd ? [...cmd.ci] : [], short = role === 'land' ? cols.filter(c => (prof.src[c] || 0) < (prof.need[c] || 0)) : [];      // terrains : couleurs sous le repère de Karsten
-  const curveHi = X.pace && prof.nonland >= 20 && prof.mv > tgt.mv[2];
+  const curveHi = (X.pace || X.gen) && prof.nonland >= 20 && prof.mv > tgt.mv[2];
   const plan = C.plan || null, deck = plan ? dmxDeck(X) : null, st = plan ? DMX_STYLE[plan.style] : null, seed = set.seed || 0, tau = w.noise * (0.7 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100);
   const out = [];
   const consider = (k, o) => {
@@ -391,14 +391,14 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
       if (fix >= 2) s += 0.08 * Math.min(3, fix);
       if (!fix) s -= 0.15;      // terrain qui ne donne aucune couleur du deck (utilitaire incolore) : moins prioritaire en multicolore
     }
-    if (curveHi && !isLand && x.cmc >= 6) s -= 0.05 * (x.cmc - 5);      // génération : courbe déjà trop haute, les très gros sorts reculent
+    if (curveHi && !isLand && x.cmc >= 5) s -= 0.08 * (x.cmc - 4);      // génération : courbe déjà trop haute, les très gros sorts reculent
     if ((X.pace || X.gen) && !isLand && plan && x.cmc <= 2 && x.roles & (DW_RB.ramp | DW_RB.draw)) s += 0.1;      // rampe et pioche à 2 mana ou moins : moins de terrains nécessaires (formule de Karsten), démarrage plus sûr
     if ((X.pace || X.gen) && !isLand) {
       const arch = set.arch;
       if (st) { s += (x.ty & 2 ? st.cre : 0) + st.mv * Math.max(0, x.cmc - 3); if (st.cheap && price > 0) s += price < 150 ? st.cheap : price > 800 ? -st.cheap : 0; }      // style de la version (deckmech.js › DMX_STYLE)
       else if (arch === 'aggro') s -= 0.04 * Math.max(0, x.cmc - 3) - (x.ty & 2 ? 0.05 : 0);      // base sans classement : retouches d'avant
       else if (arch === 'control' && x.roles & (DW_RB.removal | DW_RB.wipe | DW_RB.counter | DW_RB.draw)) s += 0.08;
-      if (X.avoid) { const a = X.avoid.get(k); if (a) s -= w.avoid * a * (C.npack >= 40 ? 3 : 0.35); }      // déjà dans une autre version : recule (versions vraiment différentes ; écart à la mesure des valeurs : listes du commandant, ou réserve plate)
+      if (X.avoid) { const a = X.avoid.get(k); if (a) s -= w.avoid * a * (C.npack >= 40 ? 2.5 : 0.35); }      // déjà dans une autre version : recule (versions vraiment différentes ; écart à la mesure des valeurs : listes du commandant, ou réserve plate)
     }
     if (seed && (X.pace || X.gen)) s += tau * dwNoise(k, seed);      // tirage : départage les cartes proches (« Autre proposition »)
     out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x, m, pair: pair ? pair.n : '', combo: combo2 });
