@@ -7916,7 +7916,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'efa81ab0';
+const DD_BUILD = 'cc55ca2e';
 const I18N_FILES = {"de":"i18n/de.70b0b4b7.js","en":"i18n/en.2fd88bf1.js","es":"i18n/es.c0f4edbc.js","it":"i18n/it.7b76fa8c.js","pt":"i18n/pt.73406d2c.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -28585,19 +28585,17 @@ function openDeckWiz2() {
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { DKW_ROLES, DW_BASE, dwKarsten, dwLandTarget, dwModel, dwPips, dwSrcFor, DW_BRACKETS });
 
 
-/* ── deckana.js : « Analyser » un deck Commander (pour tout le monde depuis le 2 novembre 2026) ─────────────────────────────────────
-   Depuis le viewer (deck de Mes decks, deck « À monter » EDHREC ou Archidekt, deck de la communauté, deck reçu par un lien) : état du deck et échanges conseillés.
-   Même moteur que le coach (deckwiz.js : rôles des cartes, cibles, cartes conseillées du commandant), sur la liste du deck sans l'ouvrir dans l'éditeur.
-   - Bracket estimé (Game Changers, destruction massive de terrains, tours supplémentaires, tuteurs) ; c'est aussi le bracket visé par défaut.
-   - Équilibre (jauges en lecture seule), mana, règles du bracket visé, budget.
-   - Échanges conseillés, du plus utile au moins utile, chacun avec sa raison :
+/* ── deckana.js : le coach d'un deck Commander (pour tout le monde depuis le 2 novembre 2026 ; refonte de l'affichage le 4 novembre) ─────────────────
+   Depuis le viewer (bouton « Coach » : deck de Mes decks, deck « À monter » EDHREC ou Archidekt, deck de la communauté, deck reçu par un lien).
+   Même moteur que l'onglet Coach de l'éditeur (deckwiz.js : rôles des cartes, cibles, cartes conseillées du commandant ; deckopt.js : note) : cet écran ne fait que présenter.
+   L'écran s'adapte à l'état du deck (voir « Écran » plus bas) : bilan direct, « Compléter le deck » ou aperçu.
+   Échanges conseillés (dwSwaps), du plus utile au moins utile, chacun avec sa raison :
        1. au-dessus de la limite de prix : les cartes chères qui pèsent peu → une carte du même rôle, au moins deux fois moins chère ;
        2. rôles sous la plage normale (rampe, pioche, retraits…) → à la place des cartes les plus faibles qui n'en remplissent aucun ;
        3. cartes faibles pour ce commandant (peu jouées, sans synergie) → une carte nettement mieux jouée, du même rôle ;
        4. deck déjà solide : jusqu'à 5 améliorations (les cartes les moins jouées du deck contre une carte nettement plus jouée du même rôle) ;
      la limite de prix globale est respectée à chaque échange (ou l'échange fait baisser le prix).
-   - « Ouvrir dans l'éditeur avec N échanges » : les échanges cochés appliqués, onglet Coach ; un deck de Mes decks est modifié (à enregistrer),
-     un autre deck devient un nouveau deck. */
+   « Ouvrir dans l'éditeur avec N échanges » : les échanges cochés appliqués, onglet Coach ; un deck de Mes decks est modifié (à enregistrer). */
 const DA = { api: null, X: null, id: null, name: '', text: '', off: new Set(), brAuto: true, swaps: [] };
 /** Bracket estimé d'un deck d'après son profil (dwProfile) : 4 avec plus de 3 Game Changers ou une destruction massive de terrains ; 3 avec un Game Changer
  *  plusieurs tours supplémentaires ou un combo à 2 cartes ; 2 sinon (1 et 5 ne se devinent pas sur la liste ; les tuteurs ne comptent plus depuis octobre 2025). */
