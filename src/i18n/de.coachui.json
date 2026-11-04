@@ -109,5 +109,9 @@
  "Excellent": "Hervorragend",
  "Solide": "Solide",
  "Jouable": "Spielbar",
- "À retravailler": "Muss überarbeitet werden"
+ "À retravailler": "Muss überarbeitet werden",
+ "Deck complet : pour chaque carte ajoutée, retires-en une (« Coach » dans le viewer propose des échanges).": "Deck voll: Für jede hinzugefügte Karte nimm eine heraus („Coach“ im Viewer schlägt Tausche vor).",
+ "Échange appliqué : {a} → {b} · à enregistrer": "Tausch übernommen: {a} → {b} · noch speichern",
+ "{n} échange appliqué · à enregistrer": "{n} Tausch übernommen · noch speichern",
+ "{n} échanges appliqués · à enregistrer": "{n} Tausche übernommen · noch speichern"
 }

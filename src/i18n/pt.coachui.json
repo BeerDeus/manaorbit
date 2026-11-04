@@ -109,5 +109,9 @@
  "Excellent": "Excelente",
  "Solide": "Sólido",
  "Jouable": "Jogável",
- "À retravailler": "Precisa de ajustes"
+ "À retravailler": "Precisa de ajustes",
+ "Deck complet : pour chaque carte ajoutée, retires-en une (« Coach » dans le viewer propose des échanges).": "Deck completo: para cada card adicionado, tire um (“Treinador” no visualizador sugere trocas).",
+ "Échange appliqué : {a} → {b} · à enregistrer": "Troca aplicada: {a} → {b} · falta salvar",
+ "{n} échange appliqué · à enregistrer": "{n} troca aplicada · falta salvar",
+ "{n} échanges appliqués · à enregistrer": "{n} trocas aplicadas · falta salvar"
 }

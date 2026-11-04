@@ -139,10 +139,15 @@ const DA_ROLE = {
  *  Points estimés comme la note du coach (deckopt.js › dsScore), pour l'ordre seulement. */
 function daActions(prof, tgt, cmd, set, swaps) {
   const out = [], roles = [...DW_GAUGES.map(g => g[0]), 'wincon'].filter(r => r !== 'land' && DA_ROLE[r] && tgt[r] && tgt[r][2] > 0 && !(r === 'counter' && !cmd.ci.includes('U')));
+  const sw = (swaps || [])[0], swRole = sw && DA_ROLE[sw.why] ? sw.why : '';
+  const Xe = { ...DA.X, wiz: daEdWiz(set) };      // réglages que reçoit l'éditeur (daApply) : une catégorie n'est proposée que si le coach y a des cartes à suggérer
+  let swGain = 1.5;
   for (const r of roles) {
     const [lo, mid] = tgt[r], v = prof[r]; if (v >= lo) continue;
-    const sc = 0.75 * (lo ? v / lo : 1), n = Math.max(1, mid - v);
-    out.push({ k: r, sg: '+', t: TN(n, DA_ROLE[r][0], DA_ROLE[r][1]), s: T('{n} dans le deck, {m} conseillées', { n: v, m: mid }), gain: (1 - sc) * 30 / roles.length, issue: T(DA_ROLE[r][2]) });
+    const sc = 0.75 * (lo ? v / lo : 1), n = Math.max(1, mid - v), gain = (1 - sc) * 30 / roles.length, issue = T(DA_ROLE[r][2]);
+    if (r === swRole) { swGain = Math.max(swGain, gain); sw.issue = issue; continue; }      // l'échange conseillé comble ce manque : il passe à sa place
+    if (DW.byKey && !dwSuggest(r, cmd, pack, prof, tgt, 1, Xe).length) continue;      // rien à suggérer dans ces couleurs et ce bracket : pas d'action vide
+    out.push({ k: r, sg: '+', t: TN(n, DA_ROLE[r][0], DA_ROLE[r][1]), s: T('{n} dans le deck, {m} conseillées', { n: v, m: mid }), gain, issue });
   }
   const dl = prof.land - tgt.land[1];
   if (dl) out.push({ k: 'land', sg: dl > 0 ? '−' : '+', t: dl > 0 ? TN(dl, 'Retirer {n} terrain', 'Retirer {n} terrains') : TN(-dl, 'Ajouter {n} terrain', 'Ajouter {n} terrains'), s: T('{n} terrains, {m} conseillés', { n: prof.land, m: tgt.land[1] }), gain: Math.min(1, Math.abs(dl) * 0.12) * 10, issue: dl > 0 ? T('un peu trop de terrains') : T('un peu juste en terrains') });
@@ -152,8 +157,7 @@ function daActions(prof, tgt, cmd, set, swaps) {
   if (prof.combos.length && set.br <= 2) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 2 cartes'), s: T('Interdit en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
   if (set.bud > 0 && prof.cents > set.bud) out.push({ k: 'budget', sg: '−', t: T('Baisser le prix de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }), s: T('Limite : {p}', { p: fmt(set.bud, mkCur()) }), gain: Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), issue: T('au-dessus du budget') });
   if (prof.nonland && prof.mv > tgt.mv[2]) out.push({ k: 'curve', sg: '−', t: T('Baisser la courbe de mana'), s: T('Coût moyen {v}, repère {m}', { v: dsNum(prof.mv), m: dsNum(tgt.mv[1], 1) }), gain: Math.min(1, (prof.mv - tgt.mv[2]) / 0.6) * 10, issue: T('la courbe est un peu haute') });
-  const sw = (swaps || [])[0];
-  if (sw) out.push({ k: 'swap', sg: '⇄', t: T('Échanger {a} → {b}', { a: bdLabel(sw.out.k, sw.out.name), b: bdLabel(sw.in.k, sw.in.name) }), s: daWhy(sw, cmd), gain: 1.5, issue: '' });
+  if (sw) out.push({ k: 'swap', sg: '⇄', t: T('Échanger {a} → {b}', { a: bdLabel(sw.out.k, sw.out.name), b: bdLabel(sw.in.k, sw.in.name) }), s: daWhy(sw, cmd), gain: swGain, issue: sw.issue || '' });
   return out.sort((a, c) => c.gain - a.gain);
 }
 const DA_LEVEL = { top: 'Excellent', ok: 'Solide', mid: 'Jouable', low: 'À retravailler' };
@@ -328,20 +332,23 @@ function daActGo(a) {
 }
 /** Deck de Mes decks : réglages gardés comme ceux du coach (même deck, mêmes thèmes, bracket et budget). */
 function daPersist() { if (DA.id) dwSettingsSave(DA.id, DA.X.wiz); }
+/** Réglages passés à l'éditeur : le budget « valeur actuelle » du bilan n'y est pas une limite (sinon rien ne pourrait s'ajouter) ; un budget choisi, oui. */
+const daEdWiz = set => { const w = { ...set }; if (w.bv) w.bud = 0; return w; };
 /** Ouvre le deck dans l'éditeur, onglet Coach, avec les échanges cochés (role : suggestions de cette catégorie dépliées). Deck qui n'est pas à moi : nouveau deck. */
 function daApply(role) {
-  const sw = DA.swaps.filter((s, i) => !DA.off.has(i)).map(s => [s.out.k, s.in.k, s.in.name]), wiz = { ...DA.X.wiz };
-  const id = DA.id && findDeck(DA.id) ? DA.id : null, text = DA.text, name = DA.name;
+  const sw = DA.swaps.filter((s, i) => !DA.off.has(i)).map(s => [s.out.k, s.in.k, s.in.name]), wiz = daEdWiz(DA.X.wiz);
+  const id = DA.id && findDeck(DA.id) ? DA.id : null, text = DA.text, name = DA.name, label = sw.length === 1 ? DA.swaps.find(s => s.out.k === sw[0][0]) : null;
   if (DA.api) DA.api.close(); haptic('ok');
   if (typeof closeDeckViewer === 'function') closeDeckViewer();
   setTimeout(() => {
     openBuilder(id ? { id, swaps: sw, wiz, tab: 'coach' } : { name, fmt: 'commander', text, swaps: sw, wiz, tab: 'coach' });
-    if (role && role !== 'land') setTimeout(() => { if (!BD.el) return; DW.seenEl = BD.el; DW.open = role; DW.shown = 8; bdList(); const g = $(`[data-act="dw-g"][data-r="${role}"]`, BD.el); if (g) g.scrollIntoView({ block: 'center' }); }, 120);      // suggestions de la catégorie qui manque
+    if (sw.length) toast(label ? T('Échange appliqué : {a} → {b} · à enregistrer', { a: bdLabel(label.out.k, label.out.name), b: bdLabel(label.in.k, label.in.name) }) : TN(sw.length, '{n} échange appliqué · à enregistrer', '{n} échanges appliqués · à enregistrer'));
+    if (role) setTimeout(() => { if (!BD.el) return; DW.seenEl = BD.el; DW.open = role; DW.shown = 8; bdList(); const g = $(`[data-act="dw-g"][data-r="${role}"]`, BD.el); if (g) g.scrollIntoView({ block: 'center' }); }, 120);      // suggestions de la catégorie qui manque
   }, 260);
 }
 /** « Compléter le deck » : l'éditeur, onglet Coach, avec ces réglages, puis la construction du coach (deckopt.js › dsBuild : versions au choix, annulable). */
 function daBuild() {
-  const id = DA.id, wiz = { ...DA.X.wiz }; if (!id || !findDeck(id)) return;
+  const id = DA.id, wiz = daEdWiz(DA.X.wiz); if (!id || !findDeck(id)) return;
   daPersist(); if (DA.api) DA.api.close(); haptic('ok');
   if (typeof closeDeckViewer === 'function') closeDeckViewer();
   setTimeout(() => { DW.autoNext = true; openBuilder({ id, wiz, tab: 'coach' }); }, 260);      // construction lancée par l'onglet Coach dès que les cartes conseillées sont lues (deckwiz.js › dwCoachHtml)

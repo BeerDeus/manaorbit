@@ -109,5 +109,9 @@
  "Excellent": "Excelente",
  "Solide": "Sólido",
  "Jouable": "Jugable",
- "À retravailler": "Por mejorar"
+ "À retravailler": "Por mejorar",
+ "Deck complet : pour chaque carte ajoutée, retires-en une (« Coach » dans le viewer propose des échanges).": "Mazo completo: por cada carta que añadas, quita una («Asesor» en el visor sugiere cambios).",
+ "Échange appliqué : {a} → {b} · à enregistrer": "Cambio aplicado: {a} → {b} · falta guardar",
+ "{n} échange appliqué · à enregistrer": "{n} cambio aplicado · falta guardar",
+ "{n} échanges appliqués · à enregistrer": "{n} cambios aplicados · falta guardar"
 }

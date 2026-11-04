@@ -109,5 +109,9 @@
  "Excellent": "Excellent",
  "Solide": "Solid",
  "Jouable": "Playable",
- "À retravailler": "Needs work"
+ "À retravailler": "Needs work",
+ "Deck complet : pour chaque carte ajoutée, retires-en une (« Coach » dans le viewer propose des échanges).": "Deck full: for each card you add, cut one (“Coach” in the viewer suggests swaps).",
+ "Échange appliqué : {a} → {b} · à enregistrer": "Swap applied: {a} → {b} · save to keep",
+ "{n} échange appliqué · à enregistrer": "{n} swap applied · save to keep",
+ "{n} échanges appliqués · à enregistrer": "{n} swaps applied · save to keep"
 }

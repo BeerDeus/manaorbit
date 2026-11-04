@@ -798,7 +798,7 @@ function dvFetchId() {
 function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {}) {
   closeDeckViewer(); closeCardImage();
   const adhoc = !id && !live && typeof text === 'string', d = id ? findDeck(id) : null;
-  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.from = adhoc && /^(edh|pub)$/.test(from || '') ? from : '';      // from : À monter (edh), Communauté (pub) → noté sur la copie enregistrée DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null;
+  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.from = adhoc && /^(edh|pub)$/.test(from || '') ? from : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null;      // from : À monter (edh), Communauté (pub), noté sur la copie enregistrée
   DV.snap = adhoc ? null : live ? buildSnap() : snapOf(d); DV.framed = null; DV.dl = null; DV.f = newFilter(); DV.anim = true; DV.shownTotal = null; DV.view = dvViewRead(); DV.nodes = new Map();
   DV.name = adhoc ? String(name || 'Deck') : d ? d.name : (live && findDeck(S.deckId) ? findDeck(S.deckId).name : T('Liste en cours'));
   if (live && !DV.snap) { toast(T('Lance une recherche pour voir le deck')); return; }

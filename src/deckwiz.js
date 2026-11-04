@@ -443,7 +443,7 @@ function dwSugHtml(role, cmd, pack, prof, tgt) {
   const list = dwSuggest(role, cmd, pack, prof, tgt, DW.shown);
   if (!list.length) return `<p class="hint">${T('Aucune suggestion dans tes couleurs, ton bracket et ton budget.')}</p>`;
   BD.want = list.map(s => ({ key: s.k, name: s.name })); bdMetaSoon();
-  const full = prof.n >= 100 ? `<p class="hint">${T('Deck complet : pour chaque carte ajoutée, retires-en une (« Analyser » dans le viewer propose des échanges).')}</p>` : '';
+  const full = prof.n >= 100 ? `<p class="hint">${T('Deck complet : pour chaque carte ajoutée, retires-en une (« Coach » dans le viewer propose des échanges).')}</p>` : '';
   return full + `<div class="dw-sug">${list.map(s => dwSugRow(s, cmd)).join('')}</div>${list.length >= DW.shown ? `<button class="link-btn" type="button" data-act="dw-more">${T('Plus de suggestions')}</button>` : ''}`;
 }
 function dwSugRow(s, cmd) {

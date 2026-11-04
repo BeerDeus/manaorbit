@@ -109,5 +109,9 @@
  "Excellent": "Eccellente",
  "Solide": "Solido",
  "Jouable": "Giocabile",
- "À retravailler": "Da rivedere"
+ "À retravailler": "Da rivedere",
+ "Deck complet : pour chaque carte ajoutée, retires-en une (« Coach » dans le viewer propose des échanges).": "Mazzo completo: per ogni carta aggiunta, togline una (“Coach” nel viewer propone scambi).",
+ "Échange appliqué : {a} → {b} · à enregistrer": "Scambio applicato: {a} → {b} · da salvare",
+ "{n} échange appliqué · à enregistrer": "{n} scambio applicato · da salvare",
+ "{n} échanges appliqués · à enregistrer": "{n} scambi applicati · da salvare"
 }

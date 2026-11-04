@@ -187,19 +187,40 @@ ok('rapport du coach : sections, combos, cartes agrandies');
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
 ok('générer le deck : rôles, plan, terrains, couleurs, bracket, budget ; annulable ; Compléter');
 
-/* ── 6) Analyser un deck (viewer) : bracket estimé, échanges conseillés, limite de prix, ouverture dans l'éditeur avec les échanges ── */
-await p.evaluate(() => putDeck('dk-ana', deckDoc({ name: 'Edgar à analyser', text: 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian Arena\n1 Gilded Removal\n1 Command Tower\n30 Plains', opts: { ...S.opts } })));
+/* ── 6) Coach d'un deck (viewer) : il s'adapte à l'état du deck ─────────────────────────────────────────────────
+   incomplet → « Compléter le deck » ; complet → bilan direct (note, actions, échanges repliés, détail, réglages) ; pas à moi → aperçu + « Ajouter à mes decks ». */
+const EDGAR = n => 'Commander\n1 Edgar Markov\n\nDeck\n1 Weak One\n1 Phyrexian Arena\n1 Gilded Removal\n1 Command Tower\n' + n + ' Plains';
+// a) deck incomplet de Mes decks : réglages courts (bracket Auto = estimé), puis la construction de l'éditeur
+await p.evaluate(t => putDeck('dk-half', deckDoc({ name: 'Edgar à compléter', text: t, opts: { ...S.opts } })), EDGAR(30));
+await p.evaluate(() => openDeckViewer({ id: 'dk-half' })); await p.waitForSelector('.dv.on .dv-ana');
+await p.click('.dv-ana'); await p.waitForSelector('.cb-build', { timeout: 15000 });
+assert.match(await txt(p, '.cb-build'), /^35 \/100 cartes Il manque 65 cartes Bracket 2 · Core · estimé/);
+assert.equal(await txt(p, '#daGo'), 'Compléter le deck'); assert.equal(await p.$('.da-sw'), null, 'pas d\'échanges sur un deck incomplet');
+assert.equal(await p.$eval('[data-ds-br="auto"]', b => b.getAttribute('aria-pressed')), 'true', 'bracket automatique (estimé)'); assert.match(await txt(p, '[data-ds-br="auto"]'), /Auto · 2/);
+await shot(p, 'coach-completer');
+await p.click('[data-ds-br="3"]'); await p.waitForFunction(() => document.querySelector('[data-ds-br="3"]').getAttribute('aria-pressed') === 'true');
+assert.deepEqual(await p.evaluate(() => { const o = JSON.parse(localStorage.getItem(DW_SET + 'dk-half')); return [o.br, !!o.ba]; }), [3, false], 'bracket choisi : gardé pour ce deck');
+await p.click('#daGo'); await p.waitForSelector('.bd.on'); await p.waitForFunction(() => BD.tab === 'coach' && BD.id === 'dk-half');
+assert.equal(await p.evaluate(() => BD.wiz.br), 3, 'l\'éditeur reprend les réglages');
+await p.waitForFunction(() => !DW.autoNext, null, { timeout: 15000 });      // construction lancée par l'onglet Coach (deckopt.js › dsBuild)
+await p.waitForTimeout(400); await closeSheets(p); await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
+ok('coach d\'un deck incomplet : « Compléter le deck », réglages courts préremplis (Auto = bracket estimé), construction dans l\'éditeur');
+
+// b) deck complet de Mes decks : bilan tout de suite, sans question
+await p.evaluate(t => putDeck('dk-ana', deckDoc({ name: 'Edgar à analyser', text: t, opts: { ...S.opts } })), EDGAR(95));
 await p.evaluate(() => openDeckViewer({ id: 'dk-ana' })); await p.waitForSelector('.dv.on .dv-ana');
-await p.click('.dv-ana'); await p.waitForSelector('.da-sum', { timeout: 15000 });
-assert.match(await txt(p, '.da-sum'), /Bracket estimé 2 · Core/);
-assert.equal(await p.$('.da-sw'), null, 'réglages d\'abord : pas encore d\'échanges'); assert.equal(await txt(p, '#daGo'), 'Lancer l\'analyse');
-assert.equal(await p.$eval('[data-da-br="2"]', b => b.getAttribute('aria-pressed')), 'true', 'bracket visé préréglé sur le bracket estimé');
-await shot(p, 'analyse-reglages');
-await p.click('#daGo'); await p.waitForSelector('.da-sw');
+await p.click('.dv-ana'); await p.waitForSelector('.cb-head .cb-n', { timeout: 15000 });
+assert.match(await txt(p, '.cb-head'), /^\d+ \/100 .+ Bracket 2 · Core · estimé [\d\s,]+ €$/, 'note, phrase, bracket estimé, valeur');
+assert.equal(await p.$('[data-ds-br]'), null, 'aucune question : réglages repliés'); assert.equal(await p.$('.da-sws'), null, 'échanges repliés');
+const acts = await p.$$eval('.cb-act', a => a.map(x => x.querySelector('b').textContent));
+assert.ok(acts.length >= 1 && acts.length <= 3, '1 à 3 actions prioritaires : ' + acts.join(' | ')); assert.ok(acts.some(t => /^Ajouter \d+ cartes? de rampe$/.test(t)), 'catégorie qui manque : ' + acts.join(' | '));
+assert.match(await txt(p, '[data-da-swt]'), /^Échanges conseillés 1 échange · note \d+ → \d+ · −4,60 € Afficher$/, 'note avant → après dans l\'en-tête replié');
+assert.match(await txt(p, '.cb-set'), /^Réglages bracket 2 \(estimé\) · limite [\d\s,]+ € \(valeur actuelle\) Modifier$/, 'budget = valeur actuelle');
+await shot(p, 'coach-bilan');
+await p.click('[data-da-swt]'); await p.waitForSelector('.da-sw');
 const swRows = () => p.$$eval('.da-sw', r => r.map(x => [...x.querySelectorAll('.da-c b')].map(b => b.textContent).join(' → ') + ' | ' + x.querySelector('.da-why').textContent.replace(/\s*Pourquoi \?$/, '')).map(t => t.replace(/\s+/g, ' ').trim()));
 let sws = await swRows();
 assert.equal(sws.length, 1, 'un seul échange utile : ' + sws.join(' | ')); assert.equal(sws[0], 'Weak One → Arcane Signet | Il manque : Rampe · 80 % des decks (contre 0 %) · −4,60 €');
-assert.match(await txt(p, '.dw-set-h'), /bracket 2 · Core · sans limite de prix · ma collection d'abord/);
 // vignettes : image de la fiche ou de Scryfall par le nom ; un toucher agrandit la carte (retirée, ajoutée…)
 assert.deepEqual(await p.$$eval('.da-sw .thumb', t => t.map(x => !!x.querySelector('img') && x.dataset.zoom)), ['da', 'da']);
 await p.waitForFunction(() => document.querySelectorAll('.da-sw .thumb img.ok').length === 2, null, { timeout: 10000 });      // images chargées et visibles (classe ok), pas seulement présentes
@@ -209,25 +230,44 @@ await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.queryS
 await p.click('.da-sw [data-da-why="0"]'); await p.waitForSelector('.da-sw .dx-why');
 assert.match(await txt(p, '.da-sw .dx-why'), /Retirer Weak One rôle : plan de jeu · absente des decks de Edgar Markov étudiés · 5,00 € Ajouter Arcane Signet rôle : Rampe · 80 % des decks de Edgar Markov .* Effet Rampe : 0 → 1 \(repère \d+\) Valeur du deck/);
 assert.equal(await p.evaluate(() => DA.off.size), 0, '« Pourquoi ? » ne décoche pas');
-// réglages modifiés sur place : l'analyse est relancée tout de suite
+// détail replié : note partie par partie, équilibre, mana, simulation, rapport
+assert.equal(await p.$('.dw-gauges'), null);
+await p.click('[data-da-fold="det"]'); await p.waitForSelector('.cb-in .dw-gauges'); assert.ok(await p.$('.cb-in .cb-parts .ds-p')); assert.ok(await p.$('.cb-in [data-da-report]'));
+await p.waitForSelector('#daSimCard .cb-sts', { timeout: 20000 }); assert.match(await txt(p, '#daSimCard'), /^Simulation de 10 000 parties .* \d+ % mains de départ gardées/, 'simulation résumée dans le bilan');
+await p.click('[data-da-fold="det"]'); await p.waitForFunction(() => !document.querySelector('.cb-in .dw-gauges'));
+// réglages en bas : modifiés sur place, le bilan suit tout de suite
 await p.click('[data-da-edit]'); await p.waitForSelector('#daBud');
 await p.fill('#daBud', '100'); await p.dispatchEvent('#daBud', 'change');
 await p.waitForFunction(() => document.querySelectorAll('.da-sw').length === 2);
 sws = await swRows();
 assert.match(sws[0], /^Gilded Removal → Swords to Plowshares \| Même rôle, bien moins chère/, 'au-dessus de la limite : la carte chère d\'abord');
+assert.ok((await p.$$eval('.cb-act b', a => a.map(x => x.textContent))).some(t => /^Baisser le prix de /.test(t)), 'action : passer sous la limite');
+assert.deepEqual(await p.evaluate(() => { const o = JSON.parse(localStorage.getItem(DW_SET + 'dk-ana')); return [o.bud, !!o.bv]; }), [10000, false], 'limite gardée pour ce deck');
 assert.match(await txt(p, '#daGo'), /Ouvrir dans l'éditeur avec 2 échanges/); await shot(p, 'analyse');
 await p.click('.da-sw:nth-child(2) .da-why');      // toute la ligne coche
 await p.waitForFunction(() => DA.off.has(1)); await p.waitForFunction(() => /avec 1 échange$/.test(document.querySelector('#daGo').textContent));
-// échanges repliables : l'en-tête garde le nombre d'échanges, les cochés et l'effet sur la valeur
-assert.match(await txt(p, '[data-da-swt]'), /Échanges conseillés 2 échanges · 1 coché · −898,10 € Masquer/);
+assert.match(await txt(p, '[data-da-swt]'), /^Échanges conseillés 2 échanges · (note \d+ → \d+ · )?−898,10 € Masquer$/);
 await p.click('[data-da-swt]'); await p.waitForFunction(() => !document.querySelector('.da-sws'));
 assert.match(await txt(p, '[data-da-swt]'), /Afficher$/); assert.match(await txt(p, '#daGo'), /avec 1 échange$/, 'repliés : les échanges cochés restent');
-await p.click('[data-da-swt]'); await p.waitForSelector('.da-sws');
-assert.match(await txt(p, '.sheet-wrap.open:last-child .ds-score'), /^\d+ \/100 Note du coach/, 'analyse : note du coach');
 await p.click('#daGo'); await p.waitForSelector('.bd.on'); await p.waitForSelector('.dw-gauges');
 assert.deepEqual(await p.evaluate(() => [BD.id, BD.tab, BD.dirty, BD.main.has('gilded removal'), BD.main.has('swords to plowshares'), BD.main.has('weak one'), BD.wiz.bud]), ['dk-ana', 'coach', true, false, true, true, 10000]);
 await p.evaluate(() => bdClose(true)); await p.waitForFunction(() => !document.querySelector('.bd'));
-ok('analyse : bracket estimé, échanges (rôle qui manque, limite de prix), cochés appliqués dans l\'éditeur');
+// réouverture : bilan direct avec les réglages gardés (limite 100 €)
+await p.evaluate(() => openDeckAnalysis({ text: findDeck('dk-ana').text, name: 'Edgar à analyser', id: 'dk-ana' })); await p.waitForSelector('.cb-set');
+assert.match(await txt(p, '.cb-set'), /limite 100,00 € Modifier$/); await closeSheets(p);
+ok('coach d\'un deck complet : bilan direct (note, phrase, ≤ 3 actions, échanges repliés avec la note avant → après, détail, simulation), réglages en bas, échanges cochés appliqués dans l\'éditeur');
+
+// c) deck qui n'est pas à moi (À monter) : aperçu, points forts et faibles, « Ajouter à mes decks », pas d'échanges
+await p.evaluate(t => openDeckAnalysis({ text: t, name: 'Edgar EDHREC', from: 'edh' }), EDGAR(95)); await p.waitForSelector('.cb-pts', { timeout: 15000 });
+assert.equal(await p.$('[data-da-swt]'), null, 'pas d\'échanges tant que le deck n\'est pas à moi'); assert.equal(await txt(p, '#daGo'), 'Ajouter à mes decks');
+assert.deepEqual(await p.$$eval('.da-sheet .sec-title', t => t.map(x => x.textContent)), ['Points forts', 'Points faibles']);
+await shot(p, 'coach-apercu');
+const nDecks = await p.evaluate(() => allDecks().length);
+await p.click('#daGo'); await p.waitForSelector('[data-da-swt]');
+const added = await p.evaluate(() => { const d = allDecks().find(x => x.name === 'Edgar EDHREC'); return d && [DA.id === d.id, dkMeta(d.text, 'from'), dkTrack(d.text)]; });
+assert.deepEqual(added, [true, 'edh', false], 'ajouté à Mes decks, venu d\'À monter : cartes manquantes pas suivies'); assert.equal(await p.evaluate(() => allDecks().length), nDecks + 1);
+await closeSheets(p);
+ok('coach d\'un deck À monter : aperçu (note, points forts et faibles), « Ajouter à mes decks » → bilan, deck marqué « venu d\'À monter »');
 
 /* ── 6 ter) Règles des suggestions : identité d'un duo de commandants, combo à 2 cartes refusé en bracket 1-2, carte interdite jamais proposée ── */
 assert.equal(await p.evaluate(() => dwCiOf(['edgar markov', 'llanowar elves'], 'WBR')), 'WBRG', 'duo : réunion des identités (EDHREC ne donne que celle du premier)');
