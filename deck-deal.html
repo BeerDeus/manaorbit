@@ -6003,6 +6003,13 @@ html.opn-on .lot .lot-lh,html.opn-on .lot .lot-list{display:none}               
 :root[data-theme="dark"] .tag.plc em,:root[data-theme="dark"] .cex-flags button[aria-pressed="true"]{color:#e0c072}
 .plc-ic .i{width:16px;height:16px;stroke-width:2}      /* icône du type (sprite : classeur, boîte, à vendre, deck, autre) */
 .plc-prox .plc-ic .i{width:20px;height:20px}
+/* Couleur d'un emplacement (feuille « Modifier l'emplacement ») : mana, incolore, multicolore, couleurs libres */
+.plc-cl{margin-top:14px}
+.plc-cols{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.plc-col{width:34px;height:34px;border-radius:50%;border:0;padding:0;position:relative;background:var(--c);box-shadow:0 0 0 1px var(--line),inset 0 0 0 1px rgba(0,0,0,.16)}
+.plc-col[data-c="m"]{background:linear-gradient(135deg,#f2d77a,#d4af37 55%,#a8821e)}
+.plc-col[aria-checked="true"]{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
+.plc-col[aria-checked="true"]::after{content:"";position:absolute;inset:11px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
 
 /* Niveau et badges (progress.js) */
 .prg-pill{margin-left:8px;vertical-align:middle;height:20px;padding:0 8px;border-radius:99px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
@@ -7854,7 +7861,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'b43f322d';
+const DD_BUILD = 'f7053bdb';
 const I18N_FILES = {"de":"i18n/de.8951c9f0.js","en":"i18n/en.c3a83d9c.js","es":"i18n/es.4ab05c66.js","it":"i18n/it.4c7a6f72.js","pt":"i18n/pt.cd05f020.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -9437,17 +9444,22 @@ const PLACE_TYPES = ['binder', 'box', 'deck', 'sale', 'other'];
 /** Nom d'emplacement : une ligne, sans séparateur de CSV ni guillemet (le texte de la collection reste lisible comme avant), 40 caractères au plus. */
 const placeName = n => String(n == null ? '' : n).replace(/[\p{Cc}\p{Cf},;"]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
 const PLACE_TRADES = ['skip', 'all'];      // règle d'échange d'un emplacement (share.js › « Mes rangements ») : skip = jamais proposé (compte dans la réserve), all = tout part, même le dernier ; absent = classique
-/** Emplacement lu ou créé : { t (type), n (nom), x? (règle d'échange, jamais sur un deck monté), r? (deck monté : id du deck) } ; null si illisible. */
+/** Couleur choisie d'un emplacement (places.js › PLC_PAL) : clé courte. */
+const PLACE_COLOR = /^[a-z0-9]{1,2}$/;
+/** Emplacement lu ou créé : { t (type), n (nom), x? (règle d'échange, jamais sur un deck monté), r? (deck monté : id du deck), c? (couleur choisie, jamais sur un deck monté) } ; null si illisible.
+ *  Texte : la couleur passe dans la case du deck monté (« :c-u ») d'un emplacement qui n'est pas un deck ; une version plus ancienne de l'appli la garde telle quelle (r) et la renvoie. */
 function placeNorm(x) {
   if (!x) return null;
-  const n = placeName(x.n), t = PLACE_TYPES.includes(x.t) ? x.t : 'other', r = /^[A-Za-z0-9_-]{1,40}$/.test(x.r || '') ? x.r : '', tr = t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : '';
-  return n ? { t, n, ...(tr ? { x: tr } : {}), ...(r ? { r } : {}) } : null;
+  const n = placeName(x.n), t = PLACE_TYPES.includes(x.t) ? x.t : 'other', tr = t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : '';
+  let r = /^[A-Za-z0-9_-]{1,40}$/.test(x.r || '') ? x.r : '', c = t !== 'deck' && PLACE_COLOR.test(x.c || '') ? x.c : '';
+  if (t !== 'deck' && /^c-/.test(r)) { if (!c && PLACE_COLOR.test(r.slice(2))) c = r.slice(2); r = ''; }
+  return n ? { t, n, ...(tr ? { x: tr } : {}), ...(r ? { r } : {}), ...(c ? { c } : {}) } : null;
 }
 /** Règle d'échange d'un emplacement ('' : classique, aussi pour un deck monté ou un emplacement inconnu). */
 const placeTrade = (places, id) => { const x = id && places && places[id]; return x && x.t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : ''; };
 /** Nouvel identifiant d'emplacement : date en base 36 et deux caractères au hasard (deux appareils ne se croisent pas). */
 const placeNewId = () => (Math.floor(Date.now() / 1000).toString(36) + Math.floor(Math.random() * 1296).toString(36).padStart(2, '0')).slice(-12);
-const placesText = places => Object.keys(places || {}).sort().map(id => { const x = places[id]; return x ? '//@L ' + id + ' ' + x.t + (x.x ? '!' + x.x : '') + (x.r ? ':' + x.r : '') + ' ' + x.n : ''; }).filter(Boolean).join('\n');      // « //@L k3x9a box!skip Boîte à garder »
+const placesText = places => Object.keys(places || {}).sort().map(id => { const x = places[id]; return x ? '//@L ' + id + ' ' + x.t + (x.x ? '!' + x.x : '') + (x.r ? ':' + x.r : x.c ? ':c-' + x.c : '') + ' ' + x.n : ''; }).filter(Boolean).join('\n');      // « //@L k3x9a box!skip Boîte à garder », « //@L k3x9b binder:c-u Classeur bleu »
 /** Collection complète : { map (cartes), prox (proxys, même forme), places (id → emplacement) }. */
 const collDoc = (map, prox, places) => ({ map: map || {}, prox: prox || {}, places: places || {} });
 const collDocText = d => [collToText(d.map, true), collToText(d.prox, true).split('\n').filter(Boolean).map(x => '//@P ' + x).join('\n'), placesText(d.places)].filter(Boolean).join('\n');
@@ -21121,7 +21133,20 @@ const PLC_NONE = '#4a4f66';
 /** Emplacement d'une ligne s'il existe encore ('' : non rangé ; un emplacement supprimé ailleurs compte comme non rangé). */
 const plcOf = g => { const p = linePlace(g); return p && COLL.places[p] ? p : ''; };
 const plcAny = () => Object.keys(COLL.places).length > 0;
-const plcColor = id => { const x = id && COLL.places[id]; return !x ? PLC_NONE : x.t === 'deck' ? '#c79bff' : x.t === 'sale' ? '#e8b45e' : PLC_COL[hash32(id) % PLC_COL.length]; };
+/** Couleurs proposées (feuille d'un emplacement) : les 5 couleurs du mana, incolore, multicolore, puis des couleurs libres. [clé (core.js › PLACE_COLOR), couleur, nom]. */
+const PLC_PAL = [['w', '#f2e6c2', 'Blanc'], ['u', '#4f8fe0', 'Bleu'], ['b', '#3b3540', 'Noir'], ['r', '#e0533d', 'Rouge'], ['g', '#3fae6a', 'Vert'], ['c', '#a5a7b4', 'Incolore'], ['m', '#d4af37', 'Multicolore'],
+  ['1', '#f08bd0', 'Rose'], ['2', '#8a7bff', 'Violet'], ['3', '#5ec8e5', 'Turquoise'], ['4', '#ff9f5a', 'Orange']];
+const plcPal = c => PLC_PAL.find(p => p[0] === c);
+/** Couleur d'un emplacement : celle choisie, sinon celle de son type (deck monté, à vendre), sinon tirée de son identifiant (inchangée tant qu'on n'en choisit pas). */
+const plcColor = id => { const x = id && COLL.places[id], p = x && x.c && plcPal(x.c); return !x ? PLC_NONE : p ? p[1] : x.t === 'deck' ? '#c79bff' : x.t === 'sale' ? '#e8b45e' : PLC_COL[hash32(id) % PLC_COL.length]; };
+/** Couleur évidente d'après le nom (« Classeur blanc », « White », « Bleu »…) : clé de PLC_PAL ; plusieurs couleurs nommées : multicolore ; '' sinon. Mots de chaque langue de l'appli. */
+const PLC_WORDS = { w: 'blanc|blanche|white|wei(?:ß|ss)|bianc[oa]|blanc[oa]|branc[oa]', u: 'bleue?|blue|blau|blu|azul', b: 'noire?|black|schwarz|ner[oa]|negr[oa]|pret[oa]', r: 'rouge|red|rot|ross[oa]|roj[oa]|vermelh[oa]',
+  g: 'verte?|green|gr(?:ü|ue)n|verde', c: 'incolore|colou?rless|farblos|incolor[oa]?|grise?|gr[ae]y|grau|grigi[oa]|cinza', m: 'multicolore?|multicolou?r|mehrfarbig|gold|dor[ée]e?|or|oro|ouro|dorad[oa]|dourad[oa]' };
+const PLC_WRE = Object.entries(PLC_WORDS).map(([k, w]) => [k, new RegExp('(?:^|[^\\p{L}])(?:' + w + ')s?(?![\\p{L}])', 'u')]);
+function plcGuessColor(name) {
+  const n = String(name || '').toLowerCase().normalize('NFC'), hit = PLC_WRE.filter(([, re]) => re.test(n)).map(([k]) => k);
+  return hit.length === 1 ? hit[0] : hit.length > 1 ? 'm' : '';
+}
 const plcName = id => { const x = id && COLL.places[id]; return !x ? T('Non rangé') : x.t === 'deck' ? T('Deck : {name}', { name: x.n }) : x.n; };
 /** Icône d'un emplacement selon son type (sprite : classeur, boîte, à vendre, deck monté, autre ; non rangé : point d'interrogation). */
 const PLC_IC = { binder: 'i-binder', box: 'i-box', sale: 'i-tag', deck: 'i-layers', other: 'i-pin' };
@@ -21165,8 +21190,8 @@ function lineBump(map, k, g, d) {
   const nx = collFromLines(x || {}, lines.filter(y => y[1] > 0)), m = { ...map }; if (nx) m[k] = nx; else delete m[k];
   return m;
 }
-function plcCreate(t, n, r) {
-  const x = placeNorm({ t, n, r, x: t === 'sale' ? 'all' : '' }); if (!x) return '';      // « À vendre » : tout part dans l'échange d'office (règle modifiable dans Échange › Mes rangements)
+function plcCreate(t, n, r, c) {
+  const x = placeNorm({ t, n, r, c, x: t === 'sale' ? 'all' : '' }); if (!x) return '';      // « À vendre » : tout part dans l'échange d'office (règle modifiable dans Échange › Mes rangements)
   let id = placeNewId(); while (COLL.places[id]) id = placeNewId();
   COLL.places = { ...COLL.places, [id]: x }; collChanged();
   return id;
@@ -21192,17 +21217,25 @@ function plcRadioHtml(cur, prox) {
     <button type="button" class="plc-add" data-pn>${T('+ Nouvel emplacement')}</button>`;
 }
 /** Nouvel emplacement ou modification (nom, type) ; un deck monté garde son type. onDone(id) après création ou enregistrement. */
+/** Feuille « Nouvel emplacement » / « Modifier l'emplacement » : nom, type, couleur (pastilles). Nouvel emplacement : couleur devinée du nom tant qu'on n'en touche aucune ;
+ *  emplacement existant sans couleur choisie : la sienne (tirée de son identifiant) reste tant qu'on ne la change pas. Deck monté : nom seulement. */
 function plcEditSheet(id, onDone) {
-  const cur = id ? COLL.places[id] : null; let t = cur ? cur.t : 'binder';
-  openSheet(cur ? T('Modifier l\'emplacement') : T('Nouvel emplacement'), cur && cur.t === 'deck' ? T('Emplacement d\'un deck monté') : '', api => {
-    const types = cur && cur.t === 'deck' ? '' : `<div class="plc-types" role="radiogroup" aria-label="${T('Type')}">${['binder', 'box', 'sale', 'other'].map(x => `<button type="button" role="radio" data-t="${x}" aria-checked="${x === t}">${T(PLC_TYPE[x])}</button>`).join('')}</div>`;
-    api.body.innerHTML = `<div class="field-in"><label class="label" for="plcName">${T('Nom')}</label><input type="text" id="plcName" maxlength="40" autocomplete="off" value="${esc(cur ? cur.n : '')}" placeholder="${esc(T('Classeur rouge'))}"></div>${types}`;
+  const cur = id ? COLL.places[id] : null, deck = !!(cur && cur.t === 'deck'); let t = cur ? cur.t : 'binder', c = (cur && cur.c) || '', touched = !!c;
+  openSheet(cur ? T('Modifier l\'emplacement') : T('Nouvel emplacement'), deck ? T('Emplacement d\'un deck monté') : '', api => {
+    const types = deck ? '' : `<div class="plc-types" role="radiogroup" aria-label="${T('Type')}">${['binder', 'box', 'sale', 'other'].map(x => `<button type="button" role="radio" data-t="${x}" aria-checked="${x === t}">${T(PLC_TYPE[x])}</button>`).join('')}</div>`;
+    const cols = deck ? '' : `<p class="label plc-cl">${T('Couleur')}</p><div class="plc-cols" role="radiogroup" aria-label="${T('Couleur')}">${PLC_PAL.map(([k, v, nm]) => `<button type="button" role="radio" class="plc-col" data-c="${k}" style="--c:${v}" aria-checked="${k === c}" aria-label="${esc(T(nm))}" title="${esc(T(nm))}"></button>`).join('')}</div>`;
+    api.body.innerHTML = `<div class="field-in"><label class="label" for="plcName">${T('Nom')}</label><input type="text" id="plcName" maxlength="40" autocomplete="off" value="${esc(cur ? cur.n : '')}" placeholder="${esc(T('Classeur rouge'))}"></div>${types}${cols}`;
     api.setFoot(`${cur ? `<button class="btn ghost danger-txt" type="button" data-del>${T('Supprimer')}</button>` : `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>`}<button class="btn" type="button" data-ok>${cur ? T('Enregistrer') : T('Créer')}</button>`);
     const inp = $('#plcName', api.body);
-    api.body.addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; t = b.dataset.t; haptic('tap'); $$('[data-t]', api.body).forEach(x => x.setAttribute('aria-checked', String(x === b))); });
+    const paintCol = () => $$('[data-c]', api.body).forEach(x => x.setAttribute('aria-checked', String(x.dataset.c === c)));
+    if (!cur) inp.addEventListener('input', () => { if (!touched) { c = plcGuessColor(inp.value); paintCol(); } });      // couleur évidente d'après le nom, tant qu'aucune n'a été touchée
+    api.body.addEventListener('click', e => {
+      const k = e.target.closest('[data-c]'); if (k) { c = k.dataset.c; touched = true; haptic('tap'); paintCol(); return; }
+      const b = e.target.closest('[data-t]'); if (!b) return; t = b.dataset.t; haptic('tap'); $$('[data-t]', api.body).forEach(x => x.setAttribute('aria-checked', String(x === b)));
+    });
     const ok = () => {
       const n = placeName(inp.value); if (!n) { inp.focus(); return; }
-      let pid = id; if (cur) plcSave(id, { n, t }); else pid = plcCreate(t, n);
+      let pid = id; if (cur) plcSave(id, deck ? { n } : { n, t, c }); else pid = plcCreate(t, n, '', c);
       haptic('ok'); api.close(); if (onDone && pid) onDone(pid);
     };
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ok(); } });
@@ -21866,6 +21899,64 @@ document.addEventListener('click', e => {
   if (b.dataset.fold) { const g = b.closest('.fgrp'), shut = !g.classList.contains('shut'), o = srchFolds(); g.classList.toggle('shut', shut); b.setAttribute('aria-expanded', String(!shut)); if (shut) o[b.dataset.fold] = 1; else delete o[b.dataset.fold]; try { localStorage.setItem(SRCH_FOLD_KEY, JSON.stringify(o)); } catch (x) { /* stockage refusé : pour la session */ } return; }
   if (b.dataset.srch === 'lg') { SRCH.lgErr = ''; srchLgLoad(); } else { SRCH.rarErr = ''; srchRarLoad(); }
 });
+
+/* ── Listes d'un autre joueur (collection d'un ami, liste d'échange publique ou d'un ami) : le même panneau de filtres que ma collection ──────────────
+   Couleur, famille, coût, recherche (mountFilters), extension (édition publiée de chaque exemplaire), et dans « Plus de filtres » : rareté (lue sur Scryfall
+   par le nom, seulement quand on filtre dessus, gardée pour la session) et prix à l'unité (prix publié de l'impression, sinon le prix tendance de la carte).
+   Rien de ce qui ne vaut que pour ma collection (emplacements, decks, échange, ajout récent, recherches enregistrées). */
+const SRCHX = { rar: new Map(), run: null, err: '', again: null };
+/** Rareté connue d'une carte ('' : inconnue de Scryfall ; undefined : pas encore lue). */
+const srchxRar = k => (SRCHX.rar.has(k) ? SRCHX.rar.get(k) : COLL.meta[k] && COLL.meta[k].rr !== undefined ? COLL.meta[k].rr : undefined);
+/** Prépare les cartes pour le filtre : eds (extensions), sl (une ligne par extension : langue, foil, prix, rareté). px(it) : prix à l'unité (centimes) ou null. */
+function srchxPrep(items, px) {
+  for (const it of items) {
+    if (!it.eds) it.eds = it.sets && it.sets.length ? it.sets : [it.e ? edSet(it.e) : ''];
+    const u = px(it), r = srchxRar(it.k) || '';
+    it.sl = it.eds.map(s => ({ l: it.l || '', f: it.fo ? 1 : 0, u: u > 0 ? u : null, r, s }));
+  }
+  return items;
+}
+/** Extensions présentes (bouton « Extension ») : [[code, nom, cartes]], « Sans édition » en tête s'il en manque. */
+function srchxSets(items) {
+  const by = new Map(); let none = 0;
+  for (const it of items) for (const e of it.eds || ['']) { if (e) by.set(e, (by.get(e) || 0) + 1); else none++; }
+  const l = [...by].map(([c, k]) => [c, typeof setName === 'function' ? setName(c) : '', k]).sort((a, b) => (typeof setDate === 'function' ? setDate(b[0]).localeCompare(setDate(a[0])) : 0) || (a[1] || a[0]).localeCompare(b[1] || b[0]));
+  return none ? [['-', '', none], ...l] : l;
+}
+/** Raretés des cartes listées (4 000 au plus), par lots de 75 ; done() après chaque lot. */
+async function srchxRarLoad(items, done) {
+  if (SRCHX.run) return;
+  const need = [...new Map(items.filter(it => srchxRar(it.k) === undefined && !BASIC_NAMES.has(it.k)).map(it => [it.k, it.n])).entries()].slice(0, 4000);
+  if (!need.length) return;
+  if (collOffline()) { SRCHX.err = 'off'; done(); return; }
+  const st = SRCHX.run = { done: 0, total: need.length }; SRCHX.err = ''; done();
+  try {
+    for (let i = 0; i < need.length; i += 75) {
+      const chunk = need.slice(i, i + 75), got = await scryCollection(chunk.map(x => x[1]));
+      for (const [k] of chunk) SRCHX.rar.set(k, rarNorm((got.get(k) || {}).rr || ''));
+      st.done = Math.min(need.length, i + 75); done();
+    }
+  } catch (e) { SRCHX.err = e.offline || collOffline() ? 'off' : 'err'; }
+  finally { SRCHX.run = null; done(); }
+}
+/** Branchement dans mountFilters pour une liste d'un autre joueur : { ext, sets, setsSub } à passer en options. o : { items() (cartes affichables), repaint() }. */
+function srchxOpts(o) {
+  const ext = {
+    id: 'srchxMore', paint() {},
+    sig: () => [SRCHX.run ? SRCHX.run.done + '/' + SRCHX.run.total : '', SRCHX.err, I18N.lang].join('|'),
+    groups() {
+      const rh = SRCHX.run ? `<p class="hint srch-rh" role="status">${esc(T('Lecture des raretés… {a} / {b}', { a: nf0(SRCHX.run.done), b: nf0(SRCHX.run.total) }))}</p>`
+        : SRCHX.err ? `<p class="hint srch-rh" role="status">${esc(SRCHX.err === 'off' ? T('Hors ligne : raretés à lire au retour du réseau.') : T('Scryfall injoignable : raretés non lues.'))} <button type="button" class="link-btn link-inline" data-srchx="rar">${T('Réessayer')}</button></p>` : '';
+      return srchGrp(T('Rareté'), SRCH_RAR.map(([r, l]) => srchOpt('rar', r, `<i class="setv-r ${r}" aria-hidden="true"></i>${esc(T(l))}`)).join(''), rh)
+        + srchGrp(T('Prix à l\'unité'), SRCH_PX.map(([v, l]) => srchOpt('px', v, esc(T(l)))).join(''));
+    },
+  };
+  SRCHX.again = () => { SRCHX.err = ''; srchxRarLoad(o.items(), o.repaint); };
+  return { ext, sets: () => srchxSets(o.items()), setsSub: n => TN(n, '{n} extension dans cette liste', '{n} extensions dans cette liste') };
+}
+/** Filtre f d'une liste d'un autre joueur : raretés lues au premier filtre sur la rareté. */
+function srchxNeed(f, items, repaint) { if (f.rar && f.rar.size && !SRCHX.run && !SRCHX.err) srchxRarLoad(items, repaint); }
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-srchx="rar"]'); if (b && SRCHX.again) { haptic('tap'); SRCHX.again(); } });
 
 
 /* ── edh.js : commandants joués (EDHREC) et decks à compléter, depuis la collection ───────────────────────────
@@ -29825,7 +29916,8 @@ function openPublicTrade(sh, preview, id, fr) {
     if (P.sub === 'match') { bndPub(P, wrap, null); imgKeep($('.pub-main', wrap), pubMatchHtml(P)); }
     else {
       bndTake(sh);      // classeur publié : la liste reste par nom (binder.js)
-      const all = (P.sub === 'want' ? sh.want : sh.have).map(pubItem), list = filterItems(all, P.f), shown = list.slice(0, P.shown);
+      const all = pubAll(), list = filterItems(all, P.f), shown = list.slice(0, P.shown);
+      if (typeof srchxNeed === 'function') srchxNeed(P.f, all, () => { if (P.el === wrap) { pubFb.paint(); paint(true); } });      // rareté : lue au premier filtre dessus (search.js)
       if (!bndPub(P, wrap, all, list)) imgKeep($('.pub-main', wrap), `${shown.length ? `<div class="coll-list">${shown.map(pubRow).join('')}</div>` : `<p class="hint listempty">${T(all.length ? 'Aucune carte ne correspond.' : P.sub === 'want' ? 'Aucune carte recherchée pour l\'instant.' : 'Aucune carte à échanger pour l\'instant.')}</p>`}
         ${list.length > shown.length ? `<button class="btn ghost block coll-more" type="button" data-act="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(TR_PAGE, list.length - shown.length)), left: nf0(list.length - shown.length) })}</button>` : ''}
         ${shown.some(it => trPrice(it.k)) ? pubNote() : ''}`);
@@ -29834,8 +29926,10 @@ function openPublicTrade(sh, preview, id, fr) {
     if (!keep) stagger($$('.pub-main .coll-list', wrap));
   };
   P.paint = paint;
+  /** Cartes de l'onglet, prêtes pour les filtres (extension, rareté, prix à l'unité : search.js › srchxPrep). */
+  const pubAll = () => { const all = (P.sub === 'want' ? sh.want : sh.have).map(pubItem); return typeof srchxPrep === 'function' ? srchxPrep(all, it => trShPx(it).u) : all; };
   mountSeg($('#pubSub', wrap), [...(preview ? [] : [{ v: 'match', label: T('Pour toi'), sub: pubMatchSub(P) }]), { v: 'have', label: T('À échanger'), sub: nf0(pubN(sh.have)) }, { v: 'want', label: T('Recherchées'), sub: nf0(sh.want.length) }], P.sub, v => { P.sub = v; P.shown = TR_PAGE; paint(false); });
-  mountFilters($('#pubF', wrap), P.f, () => { P.shown = TR_PAGE; paint(true); }, { placeholder: T('Nom français ou anglais') });
+  const pubFb = mountFilters($('#pubF', wrap), P.f, () => { P.shown = TR_PAGE; paint(true); }, { placeholder: T('Nom français ou anglais'), ...(typeof srchxOpts === 'function' ? srchxOpts({ items: pubAll, repaint: () => { if (P.el === wrap) { pubFb.paint(); paint(true); } } }) : {}) });      // mêmes filtres que ma collection : extension, rareté, prix
   const onKey = e => { if (e.key === 'Escape' && !imgView && !sheets.length) { e.stopPropagation(); wrap.__close(); } };
   wrap.__close = () => {
     if (P.el !== wrap) return; P.el = null; document.removeEventListener('keydown', onKey, true); clearTimeout(P.t); clearInterval(P.tick);
@@ -30866,8 +30960,13 @@ function amPartOf(p) {
     for (const d of allDecks()) { const o = { n: String(d.name || 'Deck').slice(0, 120), t: String(d.text || '').slice(0, 60000) }, s = JSON.stringify(o).length + 1; if (size + s > AM_PART || out.length >= 150) break; out.push(o); size += s; }
     return { j: JSON.stringify(out), k: out.length };
   }
-  const rows = Object.values(COLL.map).map(x => (x.l && x.l !== 'en' ? [x.n, x.q, x.l] : [x.n, x.q])).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  let j = JSON.stringify(rows);
+  // [nom, exemplaires, langue?, extensions?] : extensions des exemplaires (« cmm,mh3 », 3 au plus) pour le filtre Extension de l'ami (ignorées par une version plus ancienne) ;
+  // collection trop grosse avec elles : envoyée sans, comme avant (aucune carte perdue pour elles)
+  const sets = x => [...new Set(collLines(x).map(([g]) => edSet(lineEd(g))).filter(Boolean))].slice(0, 3).join(',');
+  const rowOf = (x, ws) => { const l = x.l && x.l !== 'en' ? x.l : '', e = ws ? sets(x) : ''; return e ? [x.n, x.q, l, e] : l ? [x.n, x.q, l] : [x.n, x.q]; };
+  const all = Object.values(COLL.map).sort((a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : 0));
+  let rows = all.map(x => rowOf(x, true)), j = JSON.stringify(rows);
+  if (j.length > AM_PART) { rows = all.map(x => rowOf(x, false)); j = JSON.stringify(rows); }
   while (j.length > AM_PART && rows.length > 100) { rows.length = Math.floor(rows.length * 0.9); j = JSON.stringify(rows); }
   return { j, k: rows.length };
 }
@@ -31121,7 +31220,11 @@ async function amCollSheet(f) {
   try { r = await amPart(f.id, 'c'); } catch (e) { task.remove(); toast(amErrText(e.code)); return; }
   task.remove();
   let rows = []; try { rows = JSON.parse(r.j || '[]'); } catch (e) { rows = []; }
-  const items = (Array.isArray(rows) ? rows : []).slice(0, 40000).map(x => (Array.isArray(x) ? shareCard({ n: x[0], q: x[1], l: x[2] }) : null)).filter(Boolean);
+  const items = (Array.isArray(rows) ? rows : []).slice(0, 40000).map(x => {
+    const it = Array.isArray(x) ? shareCard({ n: x[0], q: x[1], l: x[2] || undefined }) : null;
+    if (it && typeof x[3] === 'string') { const s = x[3].split(',').map(c => c.trim().toLowerCase()).filter(c => /^[a-z0-9]{2,8}$/.test(c)).slice(0, 3); if (s.length) it.sets = s; }      // extensions de ses exemplaires (filtre Extension)
+    return it;
+  }).filter(Boolean);
   if (typeof collFrLoad === 'function') collFrLoad();
   const want = new Map(trState().want.map(x => [x.k, x])), copies = items.reduce((a, x) => a + x.q, 0);
   openSheet(T('Collection de {name}', { name: amName(f) }), TN(items.length, '{n} carte', '{n} cartes') + ' · ' + TN(copies, '{n} exemplaire', '{n} exemplaires'), api => {
@@ -31129,15 +31232,18 @@ async function amCollSheet(f) {
     api.body.innerHTML = `<div class="am-cf"></div><div class="am-cl"></div>`;
     const flt = newFilter(); let shown = AM_PAGE, dmRun = 0;
     const item = x => { const it = pubFill(x), fn = frOf(x.k); if (fn && fn !== it.n && !it.fn) it.fn = fn; if (it.l && frName(x.k, it.l)) it.dn = frName(x.k, it.l); it.wq = (want.get(x.k) || {}).q || 0; return it; };
+    const allOf = () => { const all = items.map(item); return typeof srchxPrep === 'function' ? srchxPrep(all, x => trPrice(x.k)) : all; };      // extension, rareté, prix à l'unité (search.js)
     const paint = () => {
-      const all = items.map(item), list = filterItems(all, flt), sh = list.slice(0, shown), box = $('.am-cl', api.body);
+      const all = allOf(), list = filterItems(all, flt), sh = list.slice(0, shown), box = $('.am-cl', api.body);
+      if (typeof srchxNeed === 'function') srchxNeed(flt, all, again);
       box.innerHTML = `${filterActive(flt) ? `<p class="hint coll-count">${TN(list.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}</p>` : ''}
         ${sh.length ? `<div class="coll-list">${sh.map(amCollRow).join('')}</div>` : `<p class="hint listempty">${T(all.length ? 'Aucune carte ne correspond.' : 'Collection vide pour l\'instant.')}</p>`}
         ${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-am="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(AM_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`;
       const need = sh.filter(x => !x.im).map(x => ({ key: x.k, name: x.n }));      // images des cartes affichées seulement
       if (need.length && dmRun < 3 && dmMissing(need).length) { dmRun++; dmFetch(need).then(got => { if (got && api.wrap.isConnected) paint(); }, () => {}); }
     };
-    mountFilters($('.am-cf', api.body), flt, () => { shown = AM_PAGE; paint(); }, { placeholder: T('Nom français ou anglais') });
+    const again = () => { if (api.wrap.isConnected) { fb.paint(); paint(); } };
+    const fb = mountFilters($('.am-cf', api.body), flt, () => { shown = AM_PAGE; paint(); }, { placeholder: T('Nom français ou anglais'), ...(typeof srchxOpts === 'function' ? srchxOpts({ items: allOf, repaint: again }) : {}) });      // mêmes filtres que ma collection
     api.wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
     api.wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
     api.body.addEventListener('click', e => {

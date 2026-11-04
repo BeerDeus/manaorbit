@@ -335,3 +335,61 @@ document.addEventListener('click', e => {
   if (b.dataset.fold) { const g = b.closest('.fgrp'), shut = !g.classList.contains('shut'), o = srchFolds(); g.classList.toggle('shut', shut); b.setAttribute('aria-expanded', String(!shut)); if (shut) o[b.dataset.fold] = 1; else delete o[b.dataset.fold]; try { localStorage.setItem(SRCH_FOLD_KEY, JSON.stringify(o)); } catch (x) { /* stockage refusé : pour la session */ } return; }
   if (b.dataset.srch === 'lg') { SRCH.lgErr = ''; srchLgLoad(); } else { SRCH.rarErr = ''; srchRarLoad(); }
 });
+
+/* ── Listes d'un autre joueur (collection d'un ami, liste d'échange publique ou d'un ami) : le même panneau de filtres que ma collection ──────────────
+   Couleur, famille, coût, recherche (mountFilters), extension (édition publiée de chaque exemplaire), et dans « Plus de filtres » : rareté (lue sur Scryfall
+   par le nom, seulement quand on filtre dessus, gardée pour la session) et prix à l'unité (prix publié de l'impression, sinon le prix tendance de la carte).
+   Rien de ce qui ne vaut que pour ma collection (emplacements, decks, échange, ajout récent, recherches enregistrées). */
+const SRCHX = { rar: new Map(), run: null, err: '', again: null };
+/** Rareté connue d'une carte ('' : inconnue de Scryfall ; undefined : pas encore lue). */
+const srchxRar = k => (SRCHX.rar.has(k) ? SRCHX.rar.get(k) : COLL.meta[k] && COLL.meta[k].rr !== undefined ? COLL.meta[k].rr : undefined);
+/** Prépare les cartes pour le filtre : eds (extensions), sl (une ligne par extension : langue, foil, prix, rareté). px(it) : prix à l'unité (centimes) ou null. */
+function srchxPrep(items, px) {
+  for (const it of items) {
+    if (!it.eds) it.eds = it.sets && it.sets.length ? it.sets : [it.e ? edSet(it.e) : ''];
+    const u = px(it), r = srchxRar(it.k) || '';
+    it.sl = it.eds.map(s => ({ l: it.l || '', f: it.fo ? 1 : 0, u: u > 0 ? u : null, r, s }));
+  }
+  return items;
+}
+/** Extensions présentes (bouton « Extension ») : [[code, nom, cartes]], « Sans édition » en tête s'il en manque. */
+function srchxSets(items) {
+  const by = new Map(); let none = 0;
+  for (const it of items) for (const e of it.eds || ['']) { if (e) by.set(e, (by.get(e) || 0) + 1); else none++; }
+  const l = [...by].map(([c, k]) => [c, typeof setName === 'function' ? setName(c) : '', k]).sort((a, b) => (typeof setDate === 'function' ? setDate(b[0]).localeCompare(setDate(a[0])) : 0) || (a[1] || a[0]).localeCompare(b[1] || b[0]));
+  return none ? [['-', '', none], ...l] : l;
+}
+/** Raretés des cartes listées (4 000 au plus), par lots de 75 ; done() après chaque lot. */
+async function srchxRarLoad(items, done) {
+  if (SRCHX.run) return;
+  const need = [...new Map(items.filter(it => srchxRar(it.k) === undefined && !BASIC_NAMES.has(it.k)).map(it => [it.k, it.n])).entries()].slice(0, 4000);
+  if (!need.length) return;
+  if (collOffline()) { SRCHX.err = 'off'; done(); return; }
+  const st = SRCHX.run = { done: 0, total: need.length }; SRCHX.err = ''; done();
+  try {
+    for (let i = 0; i < need.length; i += 75) {
+      const chunk = need.slice(i, i + 75), got = await scryCollection(chunk.map(x => x[1]));
+      for (const [k] of chunk) SRCHX.rar.set(k, rarNorm((got.get(k) || {}).rr || ''));
+      st.done = Math.min(need.length, i + 75); done();
+    }
+  } catch (e) { SRCHX.err = e.offline || collOffline() ? 'off' : 'err'; }
+  finally { SRCHX.run = null; done(); }
+}
+/** Branchement dans mountFilters pour une liste d'un autre joueur : { ext, sets, setsSub } à passer en options. o : { items() (cartes affichables), repaint() }. */
+function srchxOpts(o) {
+  const ext = {
+    id: 'srchxMore', paint() {},
+    sig: () => [SRCHX.run ? SRCHX.run.done + '/' + SRCHX.run.total : '', SRCHX.err, I18N.lang].join('|'),
+    groups() {
+      const rh = SRCHX.run ? `<p class="hint srch-rh" role="status">${esc(T('Lecture des raretés… {a} / {b}', { a: nf0(SRCHX.run.done), b: nf0(SRCHX.run.total) }))}</p>`
+        : SRCHX.err ? `<p class="hint srch-rh" role="status">${esc(SRCHX.err === 'off' ? T('Hors ligne : raretés à lire au retour du réseau.') : T('Scryfall injoignable : raretés non lues.'))} <button type="button" class="link-btn link-inline" data-srchx="rar">${T('Réessayer')}</button></p>` : '';
+      return srchGrp(T('Rareté'), SRCH_RAR.map(([r, l]) => srchOpt('rar', r, `<i class="setv-r ${r}" aria-hidden="true"></i>${esc(T(l))}`)).join(''), rh)
+        + srchGrp(T('Prix à l\'unité'), SRCH_PX.map(([v, l]) => srchOpt('px', v, esc(T(l)))).join(''));
+    },
+  };
+  SRCHX.again = () => { SRCHX.err = ''; srchxRarLoad(o.items(), o.repaint); };
+  return { ext, sets: () => srchxSets(o.items()), setsSub: n => TN(n, '{n} extension dans cette liste', '{n} extensions dans cette liste') };
+}
+/** Filtre f d'une liste d'un autre joueur : raretés lues au premier filtre sur la rareté. */
+function srchxNeed(f, items, repaint) { if (f.rar && f.rar.size && !SRCHX.run && !SRCHX.err) srchxRarLoad(items, repaint); }
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-srchx="rar"]'); if (b && SRCHX.again) { haptic('tap'); SRCHX.again(); } });

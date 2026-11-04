@@ -202,8 +202,13 @@ function amPartOf(p) {
     for (const d of allDecks()) { const o = { n: String(d.name || 'Deck').slice(0, 120), t: String(d.text || '').slice(0, 60000) }, s = JSON.stringify(o).length + 1; if (size + s > AM_PART || out.length >= 150) break; out.push(o); size += s; }
     return { j: JSON.stringify(out), k: out.length };
   }
-  const rows = Object.values(COLL.map).map(x => (x.l && x.l !== 'en' ? [x.n, x.q, x.l] : [x.n, x.q])).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  let j = JSON.stringify(rows);
+  // [nom, exemplaires, langue?, extensions?] : extensions des exemplaires (« cmm,mh3 », 3 au plus) pour le filtre Extension de l'ami (ignorées par une version plus ancienne) ;
+  // collection trop grosse avec elles : envoyée sans, comme avant (aucune carte perdue pour elles)
+  const sets = x => [...new Set(collLines(x).map(([g]) => edSet(lineEd(g))).filter(Boolean))].slice(0, 3).join(',');
+  const rowOf = (x, ws) => { const l = x.l && x.l !== 'en' ? x.l : '', e = ws ? sets(x) : ''; return e ? [x.n, x.q, l, e] : l ? [x.n, x.q, l] : [x.n, x.q]; };
+  const all = Object.values(COLL.map).sort((a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : 0));
+  let rows = all.map(x => rowOf(x, true)), j = JSON.stringify(rows);
+  if (j.length > AM_PART) { rows = all.map(x => rowOf(x, false)); j = JSON.stringify(rows); }
   while (j.length > AM_PART && rows.length > 100) { rows.length = Math.floor(rows.length * 0.9); j = JSON.stringify(rows); }
   return { j, k: rows.length };
 }
@@ -457,7 +462,11 @@ async function amCollSheet(f) {
   try { r = await amPart(f.id, 'c'); } catch (e) { task.remove(); toast(amErrText(e.code)); return; }
   task.remove();
   let rows = []; try { rows = JSON.parse(r.j || '[]'); } catch (e) { rows = []; }
-  const items = (Array.isArray(rows) ? rows : []).slice(0, 40000).map(x => (Array.isArray(x) ? shareCard({ n: x[0], q: x[1], l: x[2] }) : null)).filter(Boolean);
+  const items = (Array.isArray(rows) ? rows : []).slice(0, 40000).map(x => {
+    const it = Array.isArray(x) ? shareCard({ n: x[0], q: x[1], l: x[2] || undefined }) : null;
+    if (it && typeof x[3] === 'string') { const s = x[3].split(',').map(c => c.trim().toLowerCase()).filter(c => /^[a-z0-9]{2,8}$/.test(c)).slice(0, 3); if (s.length) it.sets = s; }      // extensions de ses exemplaires (filtre Extension)
+    return it;
+  }).filter(Boolean);
   if (typeof collFrLoad === 'function') collFrLoad();
   const want = new Map(trState().want.map(x => [x.k, x])), copies = items.reduce((a, x) => a + x.q, 0);
   openSheet(T('Collection de {name}', { name: amName(f) }), TN(items.length, '{n} carte', '{n} cartes') + ' · ' + TN(copies, '{n} exemplaire', '{n} exemplaires'), api => {
@@ -465,15 +474,18 @@ async function amCollSheet(f) {
     api.body.innerHTML = `<div class="am-cf"></div><div class="am-cl"></div>`;
     const flt = newFilter(); let shown = AM_PAGE, dmRun = 0;
     const item = x => { const it = pubFill(x), fn = frOf(x.k); if (fn && fn !== it.n && !it.fn) it.fn = fn; if (it.l && frName(x.k, it.l)) it.dn = frName(x.k, it.l); it.wq = (want.get(x.k) || {}).q || 0; return it; };
+    const allOf = () => { const all = items.map(item); return typeof srchxPrep === 'function' ? srchxPrep(all, x => trPrice(x.k)) : all; };      // extension, rareté, prix à l'unité (search.js)
     const paint = () => {
-      const all = items.map(item), list = filterItems(all, flt), sh = list.slice(0, shown), box = $('.am-cl', api.body);
+      const all = allOf(), list = filterItems(all, flt), sh = list.slice(0, shown), box = $('.am-cl', api.body);
+      if (typeof srchxNeed === 'function') srchxNeed(flt, all, again);
       box.innerHTML = `${filterActive(flt) ? `<p class="hint coll-count">${TN(list.length, '{n} carte sur {total}', '{n} cartes sur {total}', { total: nf0(all.length) })}</p>` : ''}
         ${sh.length ? `<div class="coll-list">${sh.map(amCollRow).join('')}</div>` : `<p class="hint listempty">${T(all.length ? 'Aucune carte ne correspond.' : 'Collection vide pour l\'instant.')}</p>`}
         ${list.length > sh.length ? `<button class="btn ghost block coll-more" type="button" data-am="more">${T('Afficher {n} de plus · {left} restantes', { n: nf0(Math.min(AM_PAGE, list.length - sh.length)), left: nf0(list.length - sh.length) })}</button>` : ''}`;
       const need = sh.filter(x => !x.im).map(x => ({ key: x.k, name: x.n }));      // images des cartes affichées seulement
       if (need.length && dmRun < 3 && dmMissing(need).length) { dmRun++; dmFetch(need).then(got => { if (got && api.wrap.isConnected) paint(); }, () => {}); }
     };
-    mountFilters($('.am-cf', api.body), flt, () => { shown = AM_PAGE; paint(); }, { placeholder: T('Nom français ou anglais') });
+    const again = () => { if (api.wrap.isConnected) { fb.paint(); paint(); } };
+    const fb = mountFilters($('.am-cf', api.body), flt, () => { shown = AM_PAGE; paint(); }, { placeholder: T('Nom français ou anglais'), ...(typeof srchxOpts === 'function' ? srchxOpts({ items: allOf, repaint: again }) : {}) });      // mêmes filtres que ma collection
     api.wrap.addEventListener('load', e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
     api.wrap.addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
     api.body.addEventListener('click', e => {

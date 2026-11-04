@@ -1401,17 +1401,22 @@ const PLACE_TYPES = ['binder', 'box', 'deck', 'sale', 'other'];
 /** Nom d'emplacement : une ligne, sans séparateur de CSV ni guillemet (le texte de la collection reste lisible comme avant), 40 caractères au plus. */
 const placeName = n => String(n == null ? '' : n).replace(/[\p{Cc}\p{Cf},;"]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
 const PLACE_TRADES = ['skip', 'all'];      // règle d'échange d'un emplacement (share.js › « Mes rangements ») : skip = jamais proposé (compte dans la réserve), all = tout part, même le dernier ; absent = classique
-/** Emplacement lu ou créé : { t (type), n (nom), x? (règle d'échange, jamais sur un deck monté), r? (deck monté : id du deck) } ; null si illisible. */
+/** Couleur choisie d'un emplacement (places.js › PLC_PAL) : clé courte. */
+const PLACE_COLOR = /^[a-z0-9]{1,2}$/;
+/** Emplacement lu ou créé : { t (type), n (nom), x? (règle d'échange, jamais sur un deck monté), r? (deck monté : id du deck), c? (couleur choisie, jamais sur un deck monté) } ; null si illisible.
+ *  Texte : la couleur passe dans la case du deck monté (« :c-u ») d'un emplacement qui n'est pas un deck ; une version plus ancienne de l'appli la garde telle quelle (r) et la renvoie. */
 function placeNorm(x) {
   if (!x) return null;
-  const n = placeName(x.n), t = PLACE_TYPES.includes(x.t) ? x.t : 'other', r = /^[A-Za-z0-9_-]{1,40}$/.test(x.r || '') ? x.r : '', tr = t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : '';
-  return n ? { t, n, ...(tr ? { x: tr } : {}), ...(r ? { r } : {}) } : null;
+  const n = placeName(x.n), t = PLACE_TYPES.includes(x.t) ? x.t : 'other', tr = t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : '';
+  let r = /^[A-Za-z0-9_-]{1,40}$/.test(x.r || '') ? x.r : '', c = t !== 'deck' && PLACE_COLOR.test(x.c || '') ? x.c : '';
+  if (t !== 'deck' && /^c-/.test(r)) { if (!c && PLACE_COLOR.test(r.slice(2))) c = r.slice(2); r = ''; }
+  return n ? { t, n, ...(tr ? { x: tr } : {}), ...(r ? { r } : {}), ...(c ? { c } : {}) } : null;
 }
 /** Règle d'échange d'un emplacement ('' : classique, aussi pour un deck monté ou un emplacement inconnu). */
 const placeTrade = (places, id) => { const x = id && places && places[id]; return x && x.t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : ''; };
 /** Nouvel identifiant d'emplacement : date en base 36 et deux caractères au hasard (deux appareils ne se croisent pas). */
 const placeNewId = () => (Math.floor(Date.now() / 1000).toString(36) + Math.floor(Math.random() * 1296).toString(36).padStart(2, '0')).slice(-12);
-const placesText = places => Object.keys(places || {}).sort().map(id => { const x = places[id]; return x ? '//@L ' + id + ' ' + x.t + (x.x ? '!' + x.x : '') + (x.r ? ':' + x.r : '') + ' ' + x.n : ''; }).filter(Boolean).join('\n');      // « //@L k3x9a box!skip Boîte à garder »
+const placesText = places => Object.keys(places || {}).sort().map(id => { const x = places[id]; return x ? '//@L ' + id + ' ' + x.t + (x.x ? '!' + x.x : '') + (x.r ? ':' + x.r : x.c ? ':c-' + x.c : '') + ' ' + x.n : ''; }).filter(Boolean).join('\n');      // « //@L k3x9a box!skip Boîte à garder », « //@L k3x9b binder:c-u Classeur bleu »
 /** Collection complète : { map (cartes), prox (proxys, même forme), places (id → emplacement) }. */
 const collDoc = (map, prox, places) => ({ map: map || {}, prox: prox || {}, places: places || {} });
 const collDocText = d => [collToText(d.map, true), collToText(d.prox, true).split('\n').filter(Boolean).map(x => '//@P ' + x).join('\n'), placesText(d.places)].filter(Boolean).join('\n');
