@@ -114,7 +114,8 @@ function themeShare(spells, want, mech, scry) {
   let ok = 0;
   for (const k of spells) {
     const m = mech.get(k), s = scry.get(k) || {};
-    const tags = m ? [...m.provides, ...m.wants, ...m.roles] : [], sub = String(s.type || '');
+    const sub = String(s.type || ''), f0 = sub.split(' // ')[0], tags = m ? [...m.provides, ...m.wants, ...m.roles] : [];
+    for (const [t, re] of [['spells', /\b(Instant|Sorcery)\b/], ['equipment', /\bEquipment\b/], ['auras', /\bAura\b/], ['enchantments', /\bEnchantment\b/], ['superfriends', /\bPlaneswalker\b/], ['artifacts', /\bArtifact\b/]]) if (re.test(f0)) tags.push(t);      // ce que fournit la ligne de type
     const hit = (want.tags || []).some(t => tags.includes(t)) || (want.tribe && (new RegExp('\\b' + want.tribe + '\\b').test(sub) || /Changeling/.test(s.text || '') || (m && m.tribes.includes(want.tribe))));
     if (hit) ok++;
   }
@@ -136,9 +137,18 @@ const med = a => { const s = a.filter(x => x != null && !Number.isNaN(x)).sort((
 const avg = a => { const s = a.filter(x => x != null && !Number.isNaN(x)); return s.length ? s.reduce((x, y) => x + y, 0) / s.length : null; };
 const r1 = x => x == null ? null : Math.round(x * 1000) / 10;
 
+/** Decks d'une mesure précédente rejoués (simulation) avec cette base : même étalon de rôles et de couleurs pour l'avant et l'après. */
+async function resim(ctx, D, prev, i) {
+  const g = prev.raw.find(x => x.i === i); if (!g) return null;
+  const cs = CASES[i], BD = ctx.BD, ckeys = cs.cmd.map(normKey);
+  BD.cmdr = cs.cmd.map((n, j) => ({ key: ckeys[j], name: n }));
+  for (const d of g.draws) for (const v of d.vers || []) { BD.main = new Map(v.main.map(([k, q]) => [k, { key: k, name: k, qty: q }])); const r = await ctx.dsimRun(BD, 1500); v.sim = r ? { keep7: r.keep7, cmdOn: r.cmdOn, screw4: r.screw4, miss3: r.miss3 } : null; }
+  return g;
+}
 async function worker(args) {
   const D = JSON.parse(gunzipSync(readFileSync(args.dkw)).toString('utf8')), ctx = coachCtx(args.src, D);
   const out = [];
+  if (args.resim) { const prev = JSON.parse(readFileSync(args.resim, 'utf8')); for (const i of args.idx) { const g = await resim(ctx, D, prev, i); if (g) out.push(g); } return out; }
   for (const i of args.idx) {
     const cs = CASES[i], t0 = Date.now(), draws = [];
     for (let s = 0; s < args.seeds; s++) { try { draws.push(await buildCase(ctx, D, cs, 1000 + s * 7919)); } catch (e) { draws.push({ err: String(e && e.stack || e).slice(0, 600) }); } }
@@ -150,11 +160,11 @@ if (process.env.COACH_EVAL_CHILD) {
   process.on('message', async a => { try { const r = await worker(a); process.send(JSON.parse(JSON.stringify(r)), () => process.exit(0)); } catch (e) { console.error(e); process.exit(1); } });
 } else if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const a = process.argv.slice(2), opt = (k, d) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : d; };
-  const dkw = opt('--dkw'), src = opt('--src', join(root, 'src')), outF = opt('--out', ''), seeds = Number(opt('--seeds', 2)), jobs = Number(opt('--jobs', 4));
+  const dkw = opt('--dkw'), src = opt('--src', join(root, 'src')), outF = opt('--out', ''), resimF = opt('--resim', ''), seeds = Number(opt('--seeds', 2)), jobs = Number(opt('--jobs', 4));
   const only = opt('--only', ''); const idx = only ? only.split(',').map(s => CASES.findIndex(c => c.id === s || String(CASES.indexOf(c)) === s)).filter(i => i >= 0) : CASES.map((c, i) => i);
   if (!dkw) { console.log('Usage : node tools/coach-eval.mjs --dkw <dkw.json.gz> [--src dir] [--out f.json] [--only id,id] [--seeds 2] [--jobs 4]'); process.exit(1); }
   const t0 = Date.now(), parts = Array.from({ length: jobs }, () => []); idx.forEach((i, j) => parts[j % jobs].push(i));
-  const got = (await Promise.all(parts.filter(p => p.length).map(p => new Promise((res, rej) => { const c = fork(fileURLToPath(import.meta.url), [], { env: { ...process.env, COACH_EVAL_CHILD: '1' }, execArgv: ['--max-old-space-size=4000'] }); c.on('message', res); c.on('error', rej); c.send({ dkw, src, seeds, idx: p }); })))).flat().sort((x, y) => x.i - y.i);
+  const got = (await Promise.all(parts.filter(p => p.length).map(p => new Promise((res, rej) => { const c = fork(fileURLToPath(import.meta.url), [], { env: { ...process.env, COACH_EVAL_CHILD: '1' }, execArgv: ['--max-old-space-size=4000'] }); c.on('message', res); c.on('error', rej); c.send({ dkw, src, seeds, idx: p, resim: resimF }); })))).flat().sort((x, y) => x.i - y.i);
   // mesures
   const D = JSON.parse(gunzipSync(readFileSync(dkw)).toString('utf8')), by = new Map(D.cards.map(r => [normKey(r[0]), r]));
   const mech = new Map([...readMech(join(root, 'data', 'card-mech.json')).cards].map(([n, m]) => [normKey(n), m]));

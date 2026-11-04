@@ -9,7 +9,8 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse, pairsOf, corpusFiles, corpusLoad, heldOut, bulkUri, bulkParse } from '../gen-deckdb.mjs';
+import { csbCombo, ROLES, RB, tagRoles, userCatRoles, textRoles, cardRoles, deckProfile, statsOf, edhPage, archDeckIn, corpusNew, aggregate, typeBits, scryCard, topThemes, pricesParse, pairsOf, corpusFiles, corpusLoad, heldOut, bulkUri, bulkParse, mechRow, subTypes, mechRoleBits } from '../gen-deckdb.mjs';
+import { taxonomy } from '../tools/card-mech-merge.mjs';
 import { benchCoach, coachVm } from '../bench-coach.mjs';
 import { normKey } from '../gen-edhrec.mjs';
 import { dkwSplit, dkwMake } from '../server/dkw-srv.mjs';
@@ -125,6 +126,23 @@ test('agrégats : table des cartes, cibles, commandants, thèmes', () => {
   assert.ok(A.xc.some(([n]) => n === 'Bear'), 'carte des decks Archidekt absente d\'EDHREC'); assert.ok(!A.xc.some(([n]) => n === 'Sol Ring'), 'déjà dans EDHREC');
   assert.deepEqual(D.themes['plus-1-plus-1-counters'].cmds, [['atraxa-praetors-voice', 2000]]);
   assert.equal(typeBits('Legendary Creature — Phyrexian Angel Horror'), 2 | 256); assert.equal(typeBits('Land // Creature'), 1);
+});
+
+test('agrégats : classement par mécaniques (rôles, [10] mécaniques, [11] sous-types ; carte non classée : ancienne méthode)', () => {
+  const tax = taxonomy(), C = corpusNew(); C.names = ['Rhystic Study', 'Elvish Archdruid']; C.meta = [{ dc: 'Draw' }, {}];
+  const S = new Map([
+    ['rhystic study', scryCard({ name: 'Rhystic Study', layout: 'normal', cmc: 3, type_line: 'Enchantment', oracle_text: 'Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.', color_identity: ['U'], legalities: { commander: 'legal' } })],
+    ['elvish archdruid', scryCard({ name: 'Elvish Archdruid', layout: 'normal', cmc: 3, mana_cost: '{1}{G}{G}', type_line: 'Creature — Elf Druid', oracle_text: 'Other Elf creatures you control get +1/+1. {T}: Add {G} for each Elf you control.', color_identity: ['G'], legalities: { commander: 'legal' }, produced_mana: ['G'] })],
+    ['mirror entity', scryCard({ name: 'Mirror Entity', layout: 'normal', cmc: 3, type_line: 'Creature — Shapeshifter', oracle_text: 'Changeling (This card is every creature type.)', color_identity: ['W'], legalities: { commander: 'legal' } })],
+  ]);
+  const by = new Map([['elvish archdruid', { roles: ['ramp'], provides: [], wants: ['tribal'], tribes: ['Elf'], power: 4 }], ['mirror entity', { roles: ['wincon'], provides: ['go-wide'], wants: [], tribes: [], power: 3 }]]);
+  const D = aggregate(C, S, new Map(), [], { by, tax, meta: { v: 1, at: '2026-11-04' } }), row = n => D.cards.find(r => r[0] === n);
+  assert.equal(row('Elvish Archdruid')[4], RB.ramp, 'rôles du classement'); assert.equal(row('Mirror Entity')[4], RB.wincon);
+  assert.deepEqual(row('Elvish Archdruid')[10], [1 << tax.roles.indexOf('ramp'), [], [tax.tags.indexOf('tribal')], ['Elf'], 4]); assert.equal(row('Elvish Archdruid')[11], 'Elf Druid');
+  assert.equal(row('Mirror Entity')[11], 'Shapeshifter Changeling', 'changelin'); assert.equal(row('Rhystic Study')[10], null, 'non classée : null'); assert.ok(row('Rhystic Study')[4] & RB.draw, 'non classée : ancienne méthode');
+  assert.deepEqual(D.mech.tags, tax.tags); assert.equal(D.mech.n, 2); assert.equal(D.src.mech, 2);
+  assert.equal(subTypes('Legendary Artifact — Equipment // Land', ''), 'Equipment'); assert.equal(mechRoleBits({ roles: ['fixing', 'stax', 'draw'] }), RB.draw, 'fixing et stax : seulement dans [10]');
+  assert.deepEqual(mechRow({ roles: [], provides: ['treasure', 'inconnue'], wants: [], tribes: [], power: 2 }, tax), [0, [tax.tags.indexOf('treasure')], [], 0, 2]);
 });
 
 test('Commander Spellbook : combos à 2 cartes infinis ou gagnants seulement', () => {

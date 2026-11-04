@@ -273,14 +273,17 @@ const dwSrcFor = (pips, mv) => { const p = Math.min(4, Math.max(1, Math.ceil(pip
 /** Poids d'origine ; la base peut en apporter d'autres, réglés chaque nuit par le banc d'essai (bench-coach.mjs : de vrais decks jamais appris, cartes retirées à retrouver). */
 /** Popularité (incl, syn, th, g, cx, rank, pair : réglés par le banc) ; mécaniques (deckmech.js : m = valeur pour le plan, q = force propre, noise = écart des tirages,
  *  avoid = recul d'une carte déjà prise par une autre version) : jamais réglés par le banc, qui mesure la ressemblance avec les decks des joueurs. */
-const DW_W0 = { incl: 1, syn: 0.8, th: 0.9, g: 0.4, cx: 0.5, rank: 0.5, pair: 0.04, m: 1, q: 0.3, noise: 0.09, avoid: 0.2 };
+const DW_W0 = { incl: 1, syn: 0.8, th: 0.9, g: 0.4, cx: 0.5, rank: 0.5, pair: 0.04, m: 0.6, q: 0.3, noise: 0.12, avoid: 0.1 };
 const dwW = () => { const w = DW.core && DW.core.w; return w && typeof w === 'object' ? { ...DW_W0, ...w } : DW_W0; };
 /** Popularité seule (EDHREC, decks Archidekt, rang) : signal de fiabilité. */
 const dwPop = (o, w = dwW()) => (o.incl || 0) / 100 * w.incl + Math.max(0, o.syn || 0) / 100 * w.syn + (o.th || 0) / 100 * w.th + (o.g || 0) / 100 * w.g + (o.cx || 0) / 100 * w.cx + (o.rank ? Math.max(0, 1 - o.rank / 4000) * w.rank : 0);
 /** Valeur d'une carte : popularité (réduite par le curseur « originalité » : o.k) + ce qu'elle fait pour le plan du deck (o.m) + sa force (o.q). */
-const dwVal = o => { const w = dwW(); return (o.k == null ? 1 : o.k) * dwPop(o, w) + (o.m || 0) * w.m + (o.q || 0) * w.q; };
+const dwVal = o => { const w = dwW(); return (o.k == null ? 1 : o.k) * dwPop(o, w) + ((o.m || 0) * w.m + (o.q || 0) * w.q) * (o.d == null ? 1 : o.d); };
 /** Part de la popularité gardée : 1 (classique) à 0,3 (trouvailles). */
 const dwPopK = set => 1 - 0.7 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100;
+/** Part de sa valeur mécanique qu'obtient une carte jamais jouée avec ce commandant (réserve élargie) : 0,4 (classique) à 1 (trouvailles). La popularité
+ *  n'y est pas une preuve de qualité, mais une carte éprouvée avec ce commandant est un pari plus sûr qu'une carte qui « devrait » marcher. */
+const dwPoolD = set => 0.4 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100;
 /** Style de jeu pour le plan (version choisie) : 'aggro', 'control', 'eco' ou ''. */
 const dwStyle = set => set.style === 'eco' ? 'eco' : set.arch || '';
 /** Cartes qui vont ensemble (base : paires bien plus souvent dans les mêmes decks que le hasard) : clé → [{ p : clé du partenaire, l : lift }]. */
@@ -308,9 +311,10 @@ function dwInfo(pack, set, cmd) {
   for (const t of set.th) { const tp = DW.th.get(t); if (tp) for (const [nm, inc] of tp.cards || []) add(nm, 'g', inc); }
   C.npack = C.size;
   if (plan) {
-    const k0 = dwPopK(set);
-    for (const [k, r] of dmxPool(cmd, plan)) if (!C.has(k)) C.set(k, { name: r[0], incl: 0, syn: 0, th: 0, g: 0, cx: 0, rank: r[8] || 0, pool: 1 });
-    for (const [k, o] of C) { const m = dmx(k); o.k = k0; if (!o.rank && !o.incl) { const r = DW.byKey && DW.byKey.get(k); if (r && r[8]) o.rank = r[8]; } if (m) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); } }
+    const ask = plan.user ? 1.5 : 1, k0 = dwPopK(set), d0 = (C.npack >= 40 ? dwPoolD(set) : 1) * ask;      // commandant sans liste : toutes les cartes sont « hors liste », rien à départager ; thème demandé par le joueur : les mécaniques comptent une fois et demie
+    C.ask = ask;
+    for (const [k, r] of dmxPool(cmd, plan)) if (!C.has(k)) C.set(k, { name: r[0], incl: 0, syn: 0, th: 0, g: 0, cx: 0, rank: C.npack >= 40 ? 0 : r[8] || 0, pool: 1, d: d0 });      // hors liste : sa popularité générale ne compte pas (c'est elle qui standardise les decks)
+    for (const [k, o] of C) { const m = dmx(k); o.k = k0; if (!o.pool) o.d = ask; if (m) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); const r = DW.byKey.get(k); if (r && r[4] & DW_RB.land) o.d *= 0.35; } }      // terrain : ses couleurs d'abord (un terrain utilitaire à mécanique ne passe pas devant un bicolore)
     C.plan = plan;
   }
   DW.infoC = { pack, sig, src: DW.core, C };
@@ -353,7 +357,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   const noCombo = set.br <= 2 || (set.avoid || []).includes('combo'), combo = DW.core && DW.core.combos ? dwComboIdx() : null, pairs = dwPairIdx(), wPair = w.pair;      // brackets 1-2 : jamais la 2e carte d'un combo à 2 cartes
   const cols = cmd ? [...cmd.ci] : [], short = role === 'land' ? cols.filter(c => (prof.src[c] || 0) < (prof.need[c] || 0)) : [];      // terrains : couleurs sous le repère de Karsten
   const curveHi = X.pace && prof.nonland >= 20 && prof.mv > tgt.mv[2];
-  const plan = C.plan || null, deck = plan ? dmxDeck(X) : null, st = plan ? DMX_STYLE[plan.style] : null, seed = X.pace && set.seed ? set.seed : 0, tau = w.noise * (0.7 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100);
+  const plan = C.plan || null, deck = plan ? dmxDeck(X) : null, st = plan ? DMX_STYLE[plan.style] : null, seed = set.seed || 0, tau = w.noise * (0.7 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100);
   const out = [];
   const consider = (k, o) => {
     if (inDeck(k) || BASIC_NAMES.has(k)) return;
@@ -377,7 +381,6 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     const m = plan ? dmx(k) : null;
     if (m && o.m == null) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); }      // carte de secours (rang) : sa valeur de base pour le plan
     const v = dwVal(o); let s = v, pair = null;
-    if (m) s += w.m * (dmxFit(m, plan, deck) - (o.m || 0));      // valeur pour le plan dans le deck en cours (au lieu de la valeur de base)
     const pr = pairs.get(k); if (pr) { let b = 0; for (const e of pr) if (inDeck(e.p)) { b += Math.log2(e.l); if (!pair || e.l > pair.l) pair = e; } s += Math.min(0.4, b * wPair); }      // va avec des cartes déjà dans le deck
     if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck
     if (own) s += set.own ? 0.35 : 0.08;
@@ -389,18 +392,23 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
       if (!fix) s -= 0.15;      // terrain qui ne donne aucune couleur du deck (utilitaire incolore) : moins prioritaire en multicolore
     }
     if (curveHi && !isLand && x.cmc >= 6) s -= 0.05 * (x.cmc - 5);      // génération : courbe déjà trop haute, les très gros sorts reculent
-    if (X.pace && !isLand) {
+    if ((X.pace || X.gen) && !isLand && plan && x.cmc <= 2 && x.roles & (DW_RB.ramp | DW_RB.draw)) s += 0.1;      // rampe et pioche à 2 mana ou moins : moins de terrains nécessaires (formule de Karsten), démarrage plus sûr
+    if ((X.pace || X.gen) && !isLand) {
       const arch = set.arch;
       if (st) { s += (x.ty & 2 ? st.cre : 0) + st.mv * Math.max(0, x.cmc - 3); if (st.cheap && price > 0) s += price < 150 ? st.cheap : price > 800 ? -st.cheap : 0; }      // style de la version (deckmech.js › DMX_STYLE)
       else if (arch === 'aggro') s -= 0.04 * Math.max(0, x.cmc - 3) - (x.ty & 2 ? 0.05 : 0);      // base sans classement : retouches d'avant
       else if (arch === 'control' && x.roles & (DW_RB.removal | DW_RB.wipe | DW_RB.counter | DW_RB.draw)) s += 0.08;
-      if (X.avoid) { const a = X.avoid.get(k); if (a) s -= w.avoid * a; }      // déjà dans une autre version : recule (versions vraiment différentes)
+      if (X.avoid) { const a = X.avoid.get(k); if (a) s -= w.avoid * a * (C.npack >= 40 ? 3 : 0.35); }      // déjà dans une autre version : recule (versions vraiment différentes ; écart à la mesure des valeurs : listes du commandant, ou réserve plate)
     }
-    if (seed) s += tau * dwNoise(k, seed);      // tirage : départage les cartes proches (« Autre proposition »)
-    out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x, pair: pair ? pair.n : '', combo: combo2 });
+    if (seed && (X.pace || X.gen)) s += tau * dwNoise(k, seed);      // tirage : départage les cartes proches (« Autre proposition »)
+    out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x, m, pair: pair ? pair.n : '', combo: combo2 });
   };
   for (const [k, o] of C) consider(k, o);
-  if (fallback) { const k0 = dwPopK(set); for (const [k, r] of dwWidePool(cmd ? cmd.ci : '')) if (!C.has(k)) consider(k, { rank: r[8], k: plan ? k0 : 1 }); }
+  if (fallback) { const k0 = dwPopK(set); for (const [k, r] of dwWidePool(cmd ? cmd.ci : '')) if (!C.has(k)) consider(k, { rank: r[8], k: plan ? k0 : 1, d: C.ask || 1 }); }
+  if (plan) {      // valeur pour le plan dans le deck EN COURS (au lieu de la valeur de base) : calculée pour les meilleures candidates seulement (rapide, même sur téléphone)
+    out.sort((a, b) => b.s - a.s);
+    for (const c of out.slice(0, Math.max(150, n * 4))) if (c.m) c.s += w.m * (dmxFit(c.m, plan, deck) - (c.o.m || 0)) * (c.o.d == null ? 1 : c.o.d);
+  }
   out.sort((a, b) => b.s - a.s || (a.name < b.name ? -1 : 1));
   return out.slice(0, n);
 }
@@ -728,7 +736,8 @@ function dwAutoBuildRun(undoTo, quiet) {
   const L = tgt.land[1], frac = nc <= 1 ? 0.25 : nc === 2 ? 0.4 : nc === 3 ? 0.5 : 0.6, basics = () => [...BD.main.values()].filter(c => BASIC_NAMES.has(c.key)).reduce((a, c) => a + c.qty, 0);
   const nb = Math.min(Math.max(0, L - prof.land), Math.round(L * frac) - (prof.land - basics()));
   BD.landRes = 0;
-  const rk = x => x.o.rank || x.x.rank || 0, landOk = x => x.own || (x.o.incl || 0) >= 15 || (rk(x) && rk(x) < 300) || (nc >= 2 && rk(x) && rk(x) < 3000 && new Set([...String(x.x.prod)].filter(c => cmd.ci.includes(c))).size >= 2);      // très joué, ou terrain bicolore et plus de ces couleurs
+  const rk = x => x.o.rank || x.x.rank || 0, ncol = x => new Set([...String(x.x.prod)].filter(c => cmd.ci.includes(c))).size;
+  const landOk = x => (nc < 2 || ncol(x) || x.own || (x.o.incl || 0) >= 30) && (x.own || (x.o.incl || 0) >= 15 || (rk(x) && rk(x) < 300) || (nc >= 2 && rk(x) && rk(x) < 3000 && ncol(x) >= 2));      // très joué, ou terrain bicolore et plus de ces couleurs ; deck multicolore : un terrain incolore seulement s'il est vraiment joué avec ce commandant
   BD.wide = true;      // terrains : toutes les cartes jouées dans les couleurs, pas seulement les listes du commandant (les terrains bicolores y manquent souvent)
   for (let i = 0; i < nb && size() < slots; i++) { const x = dwSuggest('land', cmd, pack, prof, tgt, 10).find(landOk); if (!x) break; add(x); prof = dwProfile(); }
   BD.wide = false;

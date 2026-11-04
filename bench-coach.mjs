@@ -64,9 +64,11 @@ export function benchCoach(D, held, opts = {}) {
   const train = cases.filter((c, i) => i % 2 === 0), val = cases.filter((c, i) => i % 2 === 1);
   let w = { ...W0 }, best = benchEval(ctx, D, train, w).r20;
   const keys = ['incl', 'syn', 'cx', 'rank', 'pair'];      // th, g : sans thème choisi sur les decks du banc, sans effet
+  const t0 = Date.now(), ms = opts.ms || 180000;      // réglage borné dans le temps (passage de nuit : 3 min au plus)
   for (let round = 0; round < 2; round++) for (const k of keys) {
     if (k === 'incl') continue;      // l'inclusion reste l'étalon (1) : les autres poids s'expriment par rapport à elle
     for (const m of [0.25, 0.5, 0.75, 1.5, 2, 3]) {
+      if (Date.now() - t0 > ms) break;
       const v = Math.round(Math.max(W0[k] * 0.25, Math.min(W0[k] * 4, w[k] * m)) * 1000) / 1000, w2 = { ...w, [k]: v }, r = benchEval(ctx, D, train, w2).r20;      // entre le quart et 4 fois le poids d'origine : la synergie ne disparaît jamais (sinon le coach copierait les decks moyens)
       if (r > best + 0.2) { best = r; w = w2; }
     }

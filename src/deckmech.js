@@ -51,8 +51,8 @@ const DMX_AVOID = [
 ];
 /** Styles des versions (deckopt.js › DS_VARIANTS) : mécaniques et rôles favorisés, créatures, courbe. */
 const DMX_STYLE = {
-  aggro: { tags: { attack: 0.7, 'combat-damage': 0.6, haste: 0.6, evasion: 0.5, 'extra-combat': 0.5, 'double-strike': 0.4, 'go-wide': 0.3, voltron: 0.3 }, roles: { protect: 0.15 }, cre: 0.12, mv: -0.06 },
-  control: { tags: { pillowfort: 0.4, steal: 0.3, hatebear: 0.25, flash: 0.3, 'draw-trigger': 0.2 }, roles: { removal: 0.22, wipe: 0.22, counter: 0.25, draw: 0.18 }, cre: -0.05, mv: 0 },
+  aggro: { tags: { attack: 0.6, 'combat-damage': 0.5, haste: 0.5, evasion: 0.4, 'extra-combat': 0.4, 'double-strike': 0.3, 'go-wide': 0.25, voltron: 0.25 }, roles: { protect: 0.12 }, cre: 0.1, mv: -0.05 },
+  control: { tags: { pillowfort: 0.4, steal: 0.3, hatebear: 0.25, flash: 0.3, 'draw-trigger': 0.2 }, roles: { removal: 0.15, wipe: 0.15, counter: 0.18, draw: 0.12 }, cre: -0.04, mv: 0 },
   eco: { tags: {}, roles: {}, cre: 0, mv: -0.02, cheap: 0.12 },
 };
 const dmxOn = () => !!(DW.core && DW.core.mech && Array.isArray(DW.core.mech.tags));
@@ -120,7 +120,7 @@ function dmxPlan(cmd, set = {}, style = '') {
   for (const k of keys) {      // ce que veulent les commandants : le deck doit le fournir ; ce qu'ils fournissent : les récompenses de ces mécaniques
     const m = dmx(k); if (!m) continue; cmdM.push(m);
     for (const i of m.w) add(i, 1.1, 0.4, 'cmd');
-    for (const i of m.p) add(i, 0.2, 0.8, 'cmd');
+    for (const i of m.p) add(i, 0.15, 0.5, 'cmd');
     for (const t of m.t) tribe(t, 1.1, 'cmd');
     if (m.tw && !m.t.length && m.cre) for (const t of m.subs) if (dmxTribes().has(t)) tribe(t, 0.8, 'cmd');      // « les créatures du type choisi » : le sien d'abord
   }
@@ -129,8 +129,8 @@ function dmxPlan(cmd, set = {}, style = '') {
     for (const r of DMX_THEME_ROLES[s] || []) roles[r] = Math.max(roles[r] || 0, 0.25);
     tribe(dmxTribeOfTheme(s), 1.3, 'th');
   }
-  for (const t of set.mech || []) add(dmxTag(t), 1.3, 1.3, 'me');      // mécaniques choisies par le joueur : sa demande passe avant tout
-  if (set.tribe) tribe(String(set.tribe), 1.6, 'me');
+  for (const t of set.mech || []) add(dmxTag(t), 1.6, 1.4, 'me');      // mécaniques choisies par le joueur : sa demande passe avant tout
+  if (set.tribe) tribe(String(set.tribe), 2, 'me');
   if (tribes.size) for (const i of [dmxTag('go-wide')]) add(i, 0.2, 0.5, '');      // tribal : les cartes « pour chaque créature » suivent
   const st = DMX_STYLE[style];
   if (st) { for (const [t, v] of Object.entries(st.tags)) add(dmxTag(t), v, v * 0.8, ''); for (const [r, v] of Object.entries(st.roles)) roles[r] = (roles[r] || 0) + v; }
@@ -163,7 +163,7 @@ function dmxFit(m, plan, deck) {
   if (!m || !plan) return 0;
   let f = 0;
   for (const i of m.p) if (plan.P[i]) f += plan.P[i] * (deck ? dmxSat(deck.prov[i], plan.cap[i]) : 1);      // fournit ce que veut le plan (de moins en moins quand le deck en a déjà beaucoup)
-  for (const i of m.ip) if (plan.P[i]) f += plan.P[i] * 0.45 * (deck ? dmxSat(deck.prov[i], 30) : 1);      // fournit par son type (artefact, éphémère…)
+  for (const i of m.ip) if (plan.P[i]) f += plan.P[i] * 0.85 * (deck ? dmxSat(deck.prov[i], 30) : 1);      // fournit par son type (artefact, éphémère… : ce que veut Talrand, Sram)
   for (const i of m.w) if (plan.W[i]) f += plan.W[i] * (deck ? dmxSat(deck.want[i], plan.cap[i] * 0.65) * Math.max(0.45, Math.min(1, (deck.prov[i] + 2) / 8)) : 0.8);      // profite de ce que fournit le plan : d'autant plus que le deck le nourrit
   if (plan.tribes.size) for (const [t, w] of plan.tribes) {
     if (m.t.includes(t)) f += w;      // seigneur, « chaque fois qu'un Elfe… »
