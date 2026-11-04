@@ -37,5 +37,4 @@ sa popularité (EDHREC, Archidekt). Base des synergies, moteurs, combos et decks
 Une carte pas encore classée garde l'ancienne méthode du coach (rôles du générateur, popularité).
 
 ## Utilisation
-Pas encore branché dans l'appli : prochaine étape, `gen-deckdb.mjs` le lit et ajoute des champs compacts à la base du coach (`dkw.json.gz`), puis le
-coach (src/deckwiz.js, src/deckopt.js) raisonne dessus (synergies fournit/veut, moteurs, thèmes automatiques du commandant, variété, versions).
+Branché le 4 novembre 2026 : `gen-deckdb.mjs` le lit (`mechLoad`, `DECKDB_MECH`) et ajoute à chaque carte de `dkw.json.gz` ses mécaniques ([10]) et ses sous-types ([11]) ; les rôles des jauges en viennent. Le coach raisonne dessus dans `src/deckmech.js` (plan du deck, valeur d'une carte, réserve élargie, explications) : voir `README.md` › « Cerveau du coach ». Le classement change → passage de « Base du coach » (ou `DECKDB_OFFLINE=1` en local) pour qu'il arrive dans l'appli.

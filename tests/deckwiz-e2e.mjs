@@ -113,7 +113,7 @@ await p.click('[data-act="dw-set"]'); await p.waitForSelector('#dwBud'); await p
 await p.waitForFunction(() => BD.wiz.bud === 20000);
 await p.click('#bdSave'); await p.waitForFunction(() => !document.querySelector('.bd'));
 const id = await p.evaluate(() => allDecks().find(d => d.name === 'Edgar Markov').id);
-assert.deepEqual(await p.evaluate(id => JSON.parse(localStorage.getItem('deckdeal:dw:' + id)), id), { th: [], br: 2, bud: 20000, own: true });
+assert.deepEqual(await p.evaluate(id => JSON.parse(localStorage.getItem('deckdeal:dw:' + id)), id), { th: [], br: 2, bud: 20000, own: true, mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: 30 });
 await p.evaluate(id => openBuilder({ id }), id); await p.waitForSelector('.bd.on'); await p.click('#bdSeg .seg-opt[data-v="coach"]'); await p.waitForSelector('.dw-gauges');
 assert.match(await txt(p, '.dw-set-h'), /bracket 2/); assert.equal(await p.evaluate(() => BD.wiz.bud), 20000);
 await p.evaluate(() => bdClose(true));

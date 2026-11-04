@@ -17,7 +17,7 @@ export const W0 = { incl: 1, syn: 0.8, th: 0.9, g: 0.4, cx: 0.5, rank: 0.5, pair
 const BASICS = new Set(['plains', 'island', 'swamp', 'mountain', 'forest', 'wastes', 'snow covered plains', 'snow covered island', 'snow covered swamp', 'snow covered mountain', 'snow covered forest']);
 
 /** Le coach de l'appli dans une vm : seules les fonctions de calcul servent (aucun affichage). */
-export function coachVm(src = readFileSync(join(here, 'src', 'deckwiz.js'), 'utf8')) {
+export function coachVm(src = ['deckwiz.js', 'deckmech.js'].map(f => readFileSync(join(here, 'src', f), 'utf8')).join('\n;\n')) {
   const ctx = { console, Map, Set, Math, Number, String, Object, Array, JSON, Date, Infinity, isFinite, Promise, setTimeout,
     DAY: 864e5, BASIC_NAMES: BASICS, ownKey: normKey, dmOf: () => null, collQty: () => 0, mkUs: () => false, PXT: null, T: s => s, TN: (n, a) => a,
     BD: { main: new Map(), cmdr: [] }, labOn: () => false, localStorage: null };
@@ -40,11 +40,11 @@ export function benchCases(ctx, D, held, { max = 1200, hide = 10, seed = 2026 } 
     if (spells.length < 30) continue;
     for (let i = spells.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [spells[i], spells[j]] = [spells[j], spells[i]]; }
     const hidden = spells.slice(0, hide).map(c => c.key); for (const k of hidden) main.delete(k);
-    const cmd = { slug, names: d.cmdNames, ci: 'WUBRG'.split('').filter(c => ci.has(c)).join('') };
+    const cmd = { slug, names: d.cmdNames, keys: ckeys, ci: 'WUBRG'.split('').filter(c => ci.has(c)).join('') };
     const X = { main, cmdr: d.cmdNames.map((n, i) => ({ key: ckeys[i], name: n })), wiz: { th: [], br: d.br || 3, bud: 0, own: false } };
     cases.push({ X, cmd, pack, hidden });
   }
-  for (const c of cases) { c.prof = ctx.dwProfile(c.X); c.tgt = ctx.dwTargets(c.prof, c.cmd, c.pack, c.X.wiz); c.X.info = ctx.dwInfo(c.pack, c.X.wiz); }
+  for (const c of cases) { c.prof = ctx.dwProfile(c.X); c.tgt = ctx.dwTargets(c.prof, c.cmd, c.pack, c.X.wiz); c.X.info = ctx.dwInfo(c.pack, c.X.wiz, c.cmd); }
   return cases;
 }
 /** Rappel@10, @20, @40 (en %) avec les poids w. */
@@ -64,9 +64,11 @@ export function benchCoach(D, held, opts = {}) {
   const train = cases.filter((c, i) => i % 2 === 0), val = cases.filter((c, i) => i % 2 === 1);
   let w = { ...W0 }, best = benchEval(ctx, D, train, w).r20;
   const keys = ['incl', 'syn', 'cx', 'rank', 'pair'];      // th, g : sans thème choisi sur les decks du banc, sans effet
+  const t0 = Date.now(), ms = opts.ms || 180000;      // réglage borné dans le temps (passage de nuit : 3 min au plus)
   for (let round = 0; round < 2; round++) for (const k of keys) {
     if (k === 'incl') continue;      // l'inclusion reste l'étalon (1) : les autres poids s'expriment par rapport à elle
     for (const m of [0.25, 0.5, 0.75, 1.5, 2, 3]) {
+      if (Date.now() - t0 > ms) break;
       const v = Math.round(Math.max(W0[k] * 0.25, Math.min(W0[k] * 4, w[k] * m)) * 1000) / 1000, w2 = { ...w, [k]: v }, r = benchEval(ctx, D, train, w2).r20;      // entre le quart et 4 fois le poids d'origine : la synergie ne disparaît jamais (sinon le coach copierait les decks moyens)
       if (r > best + 0.2) { best = r; w = w2; }
     }

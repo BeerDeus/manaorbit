@@ -31,19 +31,38 @@ function dsScore(X = BD, ctx = {}) {
   for (const c of cols) { const sc = Math.min(1, (prof.src[c] || 0) / prof.need[c]) ** 2; ss += sc; if (sc < 0.97) tips.push({ t: T('Sources de {c} : {n} pour {m} conseillées', { c, n: Math.round(prof.src[c] || 0), m: prof.need[c] }), gain: (1 - sc) * 15 / cols.length }); }
   const pMana = 10 * ls + 15 * (cols.length ? ss / cols.length : 1);
   // Courbe : coût moyen face à sa cible
-  const [mlo, , mhi] = tgt.mv, mv = prof.mv, dist = !prof.nonland ? 0 : mv < mlo ? mlo - mv : mv > mhi ? mv - mhi : 0, cs = Math.max(0, 1 - dist / 0.6);
+  const pl0 = info.plan, big = pl0 && typeof dmxTag === 'function' && pl0.P[dmxTag('big-creatures')] >= 1 ? 0.8 : 0;      // commandant qui veut de grosses créatures (Kaalia, Ur-Dragon : mises en jeu sans les payer) : courbe haute permise
+  const [mlo, , mhi0] = tgt.mv, mhi = mhi0 + big, mv = prof.mv, dist = !prof.nonland ? 0 : mv < mlo ? mlo - mv : mv > mhi ? mv - mhi : 0, cs = Math.max(0, 1 - dist / 0.6);
   if (cs < 1) tips.push({ t: mv > mhi ? T('Courbe haute : coût moyen {v} (repère {m})', { v: dsNum(mv), m: dsNum(tgt.mv[1], 1) }) : T('Courbe très basse : coût moyen {v} (repère {m})', { v: dsNum(mv), m: dsNum(tgt.mv[1], 1) }), gain: (1 - cs) * 10 });
   const pCurve = 10 * cs;
-  // Synergie : part des sorts joués avec ce commandant (ou, sans données sur lui, très joués en Commander)
+  // Synergie : utilité de chaque sort DANS CE PLAN (deckmech.js : ce qu'il fait pour le commandant, les thèmes et les autres cartes, son rôle, sa force), ou sa
+  // popularité avec ce commandant ; une carte fétiche compte comme voulue. Avec un plan : 20 points pour l'utilité, 5 pour la densité du thème (assez de cartes
+  // qui le font). Sans classement (ancienne base) : la popularité seule, sur 25. Un deck atypique n'est donc pas ramené vers le deck moyen.
   const spells = [...X.main.values()].filter(c => !BASIC_NAMES.has(c.key) && !(((dwCard(c.key) || {}).roles || 0) & DW_RB.land));
-  let good = 0, weak = 0;      // qualité de chaque sort pour ce commandant (inclusion, synergie, thèmes : dwVal) ; sans données sur lui, sa popularité en Commander
+  const plan = info.plan || null, deck = plan ? dmxDeck(X) : null, pets = new Set((set.pets || []).map(n => ownKey(n))), notes = [];
+  let good = 0, weak = 0;
   for (const c of spells) {
-    const o = info.get(c.key), x = dwCard(c.key) || {};
-    const q = o && dwVal(o) > 0 ? Math.min(1, dwVal(o) / 0.9) : x.rank > 0 && x.rank < 1500 ? (pack ? 0.4 : 0.8) : x.rank > 0 && x.rank < 4000 ? (pack ? 0.15 : 0.5) : 0;
+    const o = info.get(c.key), x = dwCard(c.key) || {}, pop = o ? dwPop(o) : 0;
+    let q = pop > 0 ? Math.min(1, pop / 0.9) : x.rank > 0 && x.rank < 1500 ? (pack ? 0.4 : 0.8) : x.rank > 0 && x.rank < 4000 ? (pack ? 0.15 : 0.5) : 0;
+    if (plan) {
+      const m = dmx(c.key), qq = dmxQ(m);
+      if (m) q = Math.max(q, Math.min(1, dmxFit(m, plan, deck) / 0.55) * (0.75 + 0.25 * qq), x.roles ? 0.45 + 0.35 * qq : 0, qq >= 0.75 ? 0.75 : qq >= 0.5 ? 0.5 : 0);
+      if (pets.has(c.key)) q = 1;
+    }
     good += q * c.qty; if (q < 0.25) weak += c.qty;
   }
-  const nsp = spells.reduce((a, c) => a + c.qty, 0), share = nsp ? good / nsp : 0, sy = Math.min(1, share / 0.8), pSyn = nsp ? 25 * sy : 0;
-  if (sy < 1 && weak) tips.push({ t: TN(weak, '{n} carte peu jouée avec ce commandant', '{n} cartes peu jouées avec ce commandant'), gain: (1 - sy) * 25 });
+  const nsp = spells.reduce((a, c) => a + c.qty, 0), share = nsp ? good / nsp : 0, sy = Math.min(1, share / 0.8);
+  let pSyn = nsp ? (plan ? 20 : 25) * sy : 0;
+  if (sy < 1 && weak) tips.push({ t: plan ? TN(weak, '{n} carte qui sert peu le plan', '{n} cartes qui servent peu le plan') : TN(weak, '{n} carte peu jouée avec ce commandant', '{n} cartes peu jouées avec ce commandant'), gain: (1 - sy) * (plan ? 20 : 25) });
+  if (plan) {      // densité du thème : les mécaniques principales du plan (demandées, ou voulues par le commandant) et le type de créature
+    const dens = [];
+    for (const i of plan.main.slice(0, 3)) { let k = 0; for (const c of spells) { const m = dmx(c.key); if (m && (m.p.includes(i) || m.w.includes(i))) k += c.qty; } dens.push([dmxLabel(DMX.tags[i]), k, 10]); }
+    for (const [t] of plan.tribes) { let k = 0; for (const c of spells) { const m = dmx(c.key); if (m && (dmxSubHas(m, t) || m.t.includes(t))) k += c.qty; } dens.push([t, k, plan.from.get('t:' + t) === 'me' || plan.from.get('t:' + t) === 'th' ? 18 : 12]); break; }
+    const d = dens.length ? dens.reduce((a, [, k, w]) => a + Math.min(1, k / w), 0) / dens.length : 1; pSyn += 5 * d;
+    for (const [lab, k, w] of dens) if (k < w) tips.push({ t: T('Thème {m} : {n} cartes, {t} conseillées', { m: lab, n: k, t: w }), gain: 5 * (1 - k / w) / dens.length });
+    if (pets.size) notes.push(T('Cartes fétiches comptées comme voulues, quel que soit leur niveau.'));
+  }
+  if (tgt.arch && ['group-hug', 'politics', 'pillow-fort', 'tribal', 'enchantress'].includes(tgt.arch)) notes.push(T('Cibles adaptées au thème ({t}) : moins de retraits ou de balayages que d\'habitude, c\'est voulu.', { t: tgt.arch === 'tribal' ? T('tribal') : dmxLabel(tgt.arch === 'pillow-fort' ? 'pillowfort' : tgt.arch === 'enchantress' ? 'enchantments' : tgt.arch) }));
   // Règles et budget
   const b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2]; let pr = 10;
   const rule = (bad, pts, t) => { if (bad) { pr -= pts; tips.push({ t, gain: pts }); } };
@@ -51,11 +70,14 @@ function dsScore(X = BD, ctx = {}) {
   rule(prof.mld.length && set.br <= 3, 5, T('Destruction massive de terrains interdite en bracket {b}', { b: b[0] }));
   rule(prof.xt.length && set.br === 1, 3, T('Tours supplémentaires interdits en bracket 1'));
   rule(prof.combos.length && set.br <= 2, 5, T('Combo à 2 cartes interdit en bracket {b}', { b: b[0] }));
+  rule(!prof.wincon && prof.n >= 60, 3, T('Aucune condition de victoire : ajoute une carte qui peut finir la partie'));      // obligatoire, thème ou pas
   if (set.bud > 0 && prof.cents > set.bud) rule(true, Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), T('Au-dessus du budget de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }));
   if (prof.n !== 100) rule(true, Math.min(5, Math.abs(100 - prof.n)), prof.n < 100 ? TN(100 - prof.n, 'Il manque {n} carte', 'Il manque {n} cartes') : TN(prof.n - 100, '{n} carte de trop', '{n} cartes de trop'));
   const pRules = Math.max(0, pr);
   const raw = pRoles + pMana + pCurve + pSyn + pRules, vals = { roles: pRoles, mana: pMana, curve: pCurve, syn: pSyn, rules: pRules };
-  return { total: Math.max(0, Math.min(100, Math.round(raw))), raw, parts: DS_PARTS.map(([k, label, max]) => ({ k, label: T(label), pts: vals[k], max })), tips: tips.sort((a, c) => c.gain - a.gain) };
+  const total = Math.max(0, Math.min(100, Math.round(raw)));
+  if (plan && plan.user && total < 85) notes.unshift(T('Note de {n} : deck construit autour de tes choix (thème, cartes fétiches) plutôt que du deck moyen ; les conseils ci-dessous le renforcent sans trahir le thème.', { n: total }));
+  return { total, raw, parts: DS_PARTS.map(([k, label, max]) => ({ k, label: T(label), pts: vals[k], max })), tips: tips.sort((a, c) => c.gain - a.gain), notes };
 }
 const dsLevel = n => n >= 85 ? 'top' : n >= 70 ? 'ok' : n >= 50 ? 'mid' : 'low';
 const dsVerdict = n => n >= 85 ? T('Excellent équilibre') : n >= 70 ? T('Bon deck, quelques réglages possibles') : n >= 50 ? T('Jouable, mais des manques nets') : T('Deck à retravailler');
@@ -65,6 +87,7 @@ function dsScoreHtml(sc, o = {}) {
   const tip = sc.tips[0] ? sc.tips[0].t : dsVerdict(sc.total);
   return `<div class="ds-score ds-${dsLevel(sc.total)}"><div class="ds-n"><b>${sc.total}</b><small>/100</small></div><div class="ds-t"><b>${T('Note du coach')}${o.after != null && o.after !== sc.total ? ` <span class="ds-after">→ ${o.after}</span>` : ''}</b><small>${esc(o.after != null && o.after !== sc.total ? T('avec les échanges cochés') : tip)}</small></div></div>
     <details class="ds-parts"${o.open ? ' open' : ''}><summary>${T('Détail de la note')}</summary>${sc.parts.map(p => `<p class="ds-p"><span>${esc(p.label)}</span><span class="ds-bar"><i style="width:${Math.round(p.pts / p.max * 100)}%"></i></span><b>${Math.round(p.pts)}<small>/${p.max}</small></b></p>`).join('')}
+    ${(sc.notes || []).length ? sc.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('') : ''}
     ${sc.tips.length ? `<p class="label">${T('Pour gagner des points')}</p><ul class="bd-issues">${sc.tips.slice(0, 5).map(t => `<li class="warn">${esc(t.t)} <small>+${Math.max(1, Math.round(t.gain))}</small></li>`).join('')}</ul>` : `<p class="hint">${T('Rien à gagner de plus : chaque partie est au maximum.')}</p>`}</details>`;
 }
 
@@ -78,6 +101,8 @@ async function dsOptimize(mine, ms, step) {
   let cur = score(), kept = 0, it = 0;
   const worth = (k, prof, tgt) => { const o = info.get(k), x = dwCard(k) || {}; let v = o ? dwVal(o) : x.rank > 0 ? Math.max(0, 1 - x.rank / 4000) * 0.5 : 0; for (const r of DKW_ROLES) if (r !== 'land' && x.roles & DW_RB[r] && tgt[r] && prof[r] <= tgt[r][0]) v += 1; return v; };
   const card = x => ({ key: x.k, name: x.name, qty: 1 });
+  BD.gen = true;      // candidates tirées comme à la construction (graine, style de la version, cartes des autres versions en recul)
+  try {
   while (Date.now() - t0 < ms && it < 90) {
     it++;
     const prof = dwProfile(), tgt = dwTargets(prof, cmd, pack, set), high = prof.nonland >= 20 && prof.mv > tgt.mv[2];      // courbe trop haute : les gros sorts peu utiles partent d'abord, des sorts moins chers les remplacent
@@ -92,6 +117,7 @@ async function dsOptimize(mine, ms, step) {
     if (best) { BD.main.set(best.k, card(best)); cur = bestS; kept++; tried.add(best.k); } else BD.main.set(out.key, out);
     if (it % 3 === 0) { if (step) step(it); await dsTick(); }
   }
+  } finally { BD.gen = false; }
   // terrains : un terrain de base de la couleur la mieux servie contre un terrain qui donne une couleur en manque
   const BK = { W: 'plains', U: 'island', B: 'swamp', R: 'mountain', G: 'forest' };
   for (let i = 0; i < 8 && Date.now() - t0 < ms * 1.5; i++) {
@@ -149,7 +175,7 @@ async function dsSimTune(mine, step) {
   while (tries < 6) {
     const want = [];
     if (r.keep7 < 74 || r.miss3 > 20) want.push('ramp', 'land');      // 74 % : avec 36 terrains, une main de 7 a 2 à 5 terrains 79 % du temps au mieux (loi hypergéométrique)
-    if (r.screw4 > 10) want.push('fix');
+    if (r.screw4 > 8) want.push('fix');
     if (r.cmv && r.cmdOn < 55) want.push('ramp');
     if (!want.length) break;
     let better = false;
@@ -166,13 +192,58 @@ async function dsSimTune(mine, step) {
   return { fixed, r };
 }
 /* ── Construction en plusieurs passes : barre de progression, versions au choix ─────────────────────────────────────────────────── */
-const DS_VARIANTS = [{ id: 'eq', name: 'Équilibrée', d: 'Le meilleur compromis pour tes réglages' }, { id: 'agg', name: 'Plus agressive', d: 'Sorts moins chers, plus de créatures, pression rapide', arch: 'aggro' }, { id: 'ctl', name: 'Plus contrôle', d: 'Plus d\'interaction et de pioche, partie plus longue', arch: 'control' }, { id: 'eco', name: 'Moins chère', d: 'Environ 55 % de la valeur de la version équilibrée', eco: 0.55 }];
+/** Versions : chacune a sa logique de choix (deckmech.js › DMX_STYLE : mécaniques et rôles favorisés, créatures, courbe, prix), ses cibles (DW_ARCH) et sa graine ;
+ *  une carte déjà prise par une version précédente recule (dwSuggest › avoid) : les versions partagent le cœur du plan, pas tout le deck. */
+const DS_VARIANTS = [{ id: 'eq', name: 'Équilibrée', d: 'Le meilleur compromis pour tes réglages' }, { id: 'agg', name: 'Plus agressive', d: 'Sorts moins chers, plus de créatures, pression rapide', arch: 'aggro', style: 'aggro' }, { id: 'ctl', name: 'Plus contrôle', d: 'Plus d\'interaction et de pioche, partie plus longue', arch: 'control', style: 'control' }, { id: 'eco', name: 'Moins chère', d: 'Environ 55 % de la valeur de la version équilibrée', eco: 0.55, style: 'eco' }];
 const dsClone = m => new Map([...m].map(([k, c]) => [k, { ...c }]));
-/** Construit le deck de l'éditeur (BD) en plusieurs passes. undoTo : deck à remettre si on annule (« Recréer le deck »). */
-async function dsBuild(undoTo) {
+/** Sorts (ni terrains ni terrains de base) d'un deck : clés. */
+const dsSpells = main => [...main.keys()].filter(k => !BASIC_NAMES.has(k) && !(((dwCard(k) || {}).roles || 0) & DW_RB.land));
+/** Part des sorts communs à deux decks (0 à 1). */
+const dsOverlap = (a, b) => { const A = new Set(dsSpells(a)), B = dsSpells(b); return A.size + B.length ? 2 * B.filter(k => A.has(k)).length / (A.size + B.length) : 0; };
+/** Nouvelle graine de tirage. */
+const dsSeed = () => 1 + Math.floor(Math.random() * 2e9);
+/** Construit les versions du deck de l'éditeur (BD), sans affichage : [{ v, main, wiz, sc, prof, kept, sim, fixed, story }].
+ *  o : { seed, empty (deck vide : 4 versions), list, step(v, phase, part, n), alive() }. BD revient à son deck d'origine (cartes du joueur et fétiches). */
+async function dsMake(o = {}) {
+  const cmd = dwCmdOf(); if (!cmd) return [];
+  const wiz0 = { ...(BD.wiz || dwDefaults()) }, seed = o.seed || wiz0.seed || dsSeed(), alive = o.alive || (() => true), step = o.step || (() => {});
+  const empty = o.empty != null ? o.empty : dwProfile().n <= BD.cmdr.length;
+  const X0 = { main: dsClone(BD.main), cmdr: BD.cmdr, wiz: wiz0 }; dwPetsInto(X0, cmd);      // cartes fétiches : dans toutes les versions, jamais retirées
+  const base = X0.main, mine = new Set(base.keys()), list = o.list || (empty ? DS_VARIANTS : [{ id: 'eq', name: 'Deck complété', d: '' }]);
+  const res = [], avoid = new Map(), hasMech = typeof dmxOn === 'function' && dmxOn();
+  try {
+    for (let i = 0; i < list.length; i++) {
+      const v = list[i];
+      let bud = wiz0.bud;
+      if (v.eco) {      // moins chère : 55 % de la version équilibrée, sauf si ce budget ne laisse presque rien après le commandant
+        const eqv = res[0] ? res[0].prof.cents : 0, cc = res[0] ? res[0].prof.cmdCents || 0 : 0; bud = Math.round((wiz0.bud > 0 ? Math.min(wiz0.bud, eqv) : eqv) * v.eco);
+        if (!(eqv > 3000) || cc >= bud * 0.5) { step(v, 'skip', 1, 0); continue; }
+      }
+      step(v, 'build', 0, 0); await dsTick(); if (!alive()) return null;
+      BD.main = dsClone(base); BD.wiz = { ...wiz0, bud, seed: seed + i * 7919, ...(v.arch ? { arch: v.arch } : {}), ...(v.style ? { style: v.style } : {}) };
+      if (!v.arch) delete BD.wiz.arch; if (!v.style) delete BD.wiz.style;
+      BD.avoid = empty && hasMech && avoid.size ? avoid : null;
+      dwAutoBuild(undefined, true);
+      step(v, 'opt', 0.35, 0);
+      const kept = await dsOptimize(mine, empty ? 900 : 1600, n => step(v, 'opt', 0.35 + 0.45 * Math.min(1, n / 60), n));
+      if (!alive()) return null;
+      step(v, 'sim', 0.8, 0);
+      const tune = typeof dsimRun === 'function' ? await dsSimTune(mine, n => step(v, 'sim', 0.8 + 0.18 * Math.min(1, n / 6), n)) : { fixed: 0, r: null };
+      if (!alive()) return null;
+      const sc = dsScore(BD), prof = dwProfile();
+      res.push({ v, main: dsClone(BD.main), wiz: { ...BD.wiz }, sc, prof, kept, sim: tune.r, fixed: tune.fixed, story: typeof dwDeckStory === 'function' ? dwDeckStory(BD) : null });
+      for (const k of dsSpells(BD.main)) if (!mine.has(k)) avoid.set(k, (avoid.get(k) || 0) + 1);
+      step(v, 'done', 1, 0);
+    }
+  } finally { BD.avoid = null; BD.wiz = { ...wiz0, seed }; BD.main = base; }
+  for (const r of res) r.common = res[0] && r !== res[0] ? dsOverlap(res[0].main, r.main) : null;      // part des sorts communs avec la version équilibrée
+  return res;
+}
+/** Construit le deck de l'éditeur (BD) en plusieurs passes. undoTo : deck à remettre si on annule (« Recréer le deck »). seed : graine du tirage (« Autre proposition »). */
+async function dsBuild(undoTo, seed) {
   const cmd = dwCmdOf(); if (!cmd || !DW.core || !BD.el) return;
   if (DS.api && sheets.includes(DS.api)) return;      // déjà en cours
-  const el = BD.el, before = undoTo || dsClone(BD.main), base = dsClone(BD.main), mine = new Set(base.keys()), wiz0 = { ...(BD.wiz || dwDefaults()) }, cur = mkCur();
+  const el = BD.el, before = undoTo || dsClone(BD.main), wiz0 = { ...(BD.wiz || dwDefaults()) }, cur = mkCur();
   const empty = dwProfile().n <= BD.cmdr.length, list = empty ? DS_VARIANTS.map(v => ({ ...v, name: T(v.name), d: T(v.d) })) : [{ id: 'eq', name: T('Deck complété'), d: '' }];
   const steps = [{ id: 'px', t: T('Prix du jour') }, { id: 'pk', t: T('Cartes conseillées pour {name}', { name: cmd.names.join(' + ') }) }, ...list.map(v => ({ id: v.id, t: empty ? T('Version « {v} »', { v: v.name }) : T('Construction et amélioration') })), { id: 'ok', t: T('Vérification') }];
   const st = Object.fromEntries(steps.map(s => [s.id, { s: 'todo', d: '' }]));
@@ -186,7 +257,7 @@ async function dsBuild(undoTo) {
   };
   const set = (id, s, d, f, now) => { st[id].s = s; if (d != null) st[id].d = d; if (f != null) frac = f; paint(now); };
   api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>`);
-  const quit = () => { if (BD.el === el) { BD.main = before; BD.wiz = wiz0; BD.pace = BD.wide = false; BD.landRes = 0; dwPersist(BD.id); bdPaint(); } };      // annulée : deck et réglages d'avant
+  const quit = () => { if (BD.el === el) { BD.main = before; BD.wiz = wiz0; BD.pace = BD.wide = BD.gen = false; BD.avoid = null; BD.landRes = 0; dwPersist(BD.id); bdPaint(); } };      // annulée : deck et réglages d'avant
   paint(T('Préparation…'));
   try {
     set('px', 'run', '', 0.02, T('Lecture des prix du jour…'));
@@ -195,34 +266,35 @@ async function dsBuild(undoTo) {
     set('pk', 'run', '', 0.1, T('Lecture des cartes conseillées…'));
     await Promise.all([dwPack('c', cmd.slug), ...wiz0.th.map(x => dwPack('t', x))]).catch(() => null);
     if (!alive()) return quit(); const pack = DW.cmd.get(cmd.slug); set('pk', 'done', pack ? T('{n} decks étudiés', { n: nf0(pack.n || pack.nd || 0) }) : T('commandant peu connu : cartes très jouées dans ses couleurs'), 0.16);
-    const res = [], span = 0.76 / list.length;
-    for (let i = 0; i < list.length; i++) {
-      const v = list[i], f0 = 0.16 + i * span;
-      let bud = wiz0.bud;
-      if (v.eco) {      // moins chère : 55 % de la version équilibrée, sauf si ce budget ne laisse presque rien après le commandant
-        const eqv = res[0] ? res[0].prof.cents : 0, cc = res[0] ? res[0].prof.cmdCents || 0 : 0; bud = Math.round((wiz0.bud > 0 ? Math.min(wiz0.bud, eqv) : eqv) * v.eco);
-        if (!(eqv > 3000) || cc >= bud * 0.5) { set(v.id, 'skip', T('déjà petit budget'), f0 + span); continue; }
-      }
-      set(v.id, 'run', T('construction'), f0, T('Construction : {v}', { v: v.name }));
-      await dsTick(); if (!alive()) return quit();
-      BD.main = dsClone(base); BD.wiz = { ...wiz0, bud, ...(v.arch ? { arch: v.arch } : {}) }; if (!v.arch) delete BD.wiz.arch;
-      dwAutoBuild(undefined, true);
-      set(v.id, 'run', T('amélioration'), f0 + span * 0.35, T('Amélioration : {v} (échanges carte à carte tant que la note monte)', { v: v.name }));
-      const kept = await dsOptimize(mine, empty ? 900 : 1600, n => { if (alive()) { frac = f0 + span * (0.35 + 0.45 * Math.min(1, n / 60)); paint(T('Amélioration : {v} · passe {n}', { v: v.name, n })); } });
-      if (!alive()) return quit();
-      set(v.id, 'run', T('essais en partie'), f0 + span * 0.8, T('Essais en partie : {v} (mains de départ, terrains, couleurs)', { v: v.name }));
-      const tune = typeof dsimRun === 'function' ? await dsSimTune(mine, n => { if (alive()) { frac = f0 + span * (0.8 + 0.18 * Math.min(1, n / 6)); paint(T('Essais en partie : {v} · {n} séries de 1 500 parties', { v: v.name, n })); } }) : { fixed: 0, r: null };
-      if (!alive()) return quit();
-      const sc = dsScore(BD), prof = dwProfile();
-      res.push({ v, main: dsClone(BD.main), wiz: { ...BD.wiz }, sc, prof, kept, sim: tune.r, fixed: tune.fixed });
-      set(v.id, 'done', T('note {n} · {p}', { n: sc.total, p: fmt(prof.cents, cur) }) + (tune.r ? ' · ' + T('{p} % de mains gardées', { p: tune.r.keep7 }) : '') + (kept + tune.fixed ? ' · ' + TN(kept + tune.fixed, '{n} échange', '{n} échanges') : ''), f0 + span);
-    }
+    const span = 0.76 / list.length, idx = new Map(list.map((v, i) => [v.id, i]));
+    BD.wiz = { ...wiz0, seed: seed || dsSeed() };
+    const res = await dsMake({ empty, list, seed: BD.wiz.seed, alive, step: (v, ph, part, n) => {
+      if (!alive()) return; const f0 = 0.16 + idx.get(v.id) * span, f = f0 + span * part;
+      if (ph === 'skip') return set(v.id, 'skip', T('déjà petit budget'), f);
+      if (ph === 'build') return set(v.id, 'run', T('construction'), f, T('Construction : {v}', { v: v.name }));
+      if (ph === 'opt') return set(v.id, 'run', T('amélioration'), f, n ? T('Amélioration : {v} · passe {n}', { v: v.name, n }) : T('Amélioration : {v} (échanges carte à carte tant que la note monte)', { v: v.name }));
+      if (ph === 'sim') return set(v.id, 'run', T('essais en partie'), f, n ? T('Essais en partie : {v} · {n} séries de 1 500 parties', { v: v.name, n }) : T('Essais en partie : {v} (mains de départ, terrains, couleurs)', { v: v.name }));
+    } });
+    if (!res || !alive()) return quit();
+    for (const r of res) set(r.v.id, 'done', T('note {n} · {p}', { n: r.sc.total, p: fmt(r.prof.cents, cur) }) + (r.sim ? ' · ' + T('{p} % de mains gardées', { p: r.sim.keep7 }) : '') + (r.kept + r.fixed ? ' · ' + TN(r.kept + r.fixed, '{n} échange', '{n} échanges') : ''));
     set('ok', 'done', '', 1, T('Terminé'));
-    BD.wiz = wiz0; BD.main = dsClone(res[0].main);
+    if (!res.length) { quit(); api.close(); return; }
+    BD.main = dsClone(res[0].main);
     if (res.length === 1) { dsApply(res[0], before, empty); api.close(); return; }
     done = true; DS.last = res; dsChoose(api, res, before, empty);
   } catch (e) { console.error(e); quit(); if (sheets.includes(api)) api.close(); toast(T('La construction a échoué : réessaie.')); }
-  finally { if (!done && BD.el === el) { BD.pace = BD.wide = false; BD.landRes = 0; } }
+  finally { if (!done && BD.el === el) { BD.pace = BD.wide = BD.gen = false; BD.avoid = null; BD.landRes = 0; } }
+}
+/** « Autre proposition » : tout reconstruire avec une nouvelle graine (mêmes réglages) ; le deck d'avant reste annulable. */
+function dsAgain(before) { const orig = before || dsClone(BD.main); BD.main = new Map(); dsBuild(orig, dsSeed()); }
+/** Résumé du plan d'une version (thème, tribu, moteur) : une ligne. */
+function dsStoryLine(st) {
+  if (!st) return '';
+  const bits = [];
+  if (st.tribe) bits.push(T('{t} ×{n}', { t: st.tribe.t, n: st.tribe.n }));
+  for (const t of st.tags.slice(0, 2)) bits.push(T('{m} ×{n}', { m: t.label, n: t.n }));
+  if (st.engines[0]) bits.push(st.engines[0].label);
+  return bits.length ? T('Plan : {p}', { p: bits.join(' · ') }) : '';
 }
 /** Choix de la version : note, valeur, courbe, rôles ; la meilleure note est signalée. Fermer sans choisir garde la version équilibrée. */
 function dsChoose(api, res, before, empty) {
@@ -232,8 +304,11 @@ function dsChoose(api, res, before, empty) {
       ${r.v.d ? `<span class="ds-vd">${esc(r.v.d)}</span>` : ''}
       <span class="ds-vk">${esc([fmt(r.prof.cents, cur), T('coût moyen {v}', { v: dsNum(r.prof.mv) }), TN(r.prof.land, '{n} terrain', '{n} terrains')].join(' · '))}</span>
       ${r.sim ? `<span class="ds-vd">${esc(T('En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %', { k: r.sim.keep7, c: r.sim.cmdOn, s: r.sim.screw4 }))}</span>` : ''}
-      <span class="ds-vr">${esc(roles.map(x => dsRoleLabel(x) + ' ' + r.prof[x]).join(' · '))}</span></button>`).join('')}</div>`;
-  api.setFoot('');
+      <span class="ds-vr">${esc(roles.map(x => dsRoleLabel(x) + ' ' + r.prof[x]).join(' · '))}</span>
+      ${dsStoryLine(r.story) ? `<span class="ds-vd">${esc(dsStoryLine(r.story))}</span>` : ''}${r.common != null ? `<span class="ds-vd">${esc(T('{p} % des sorts en commun avec la version équilibrée', { p: Math.round(r.common * 100) }))}</span>` : ''}</button>`).join('')}</div>`;
+  api.setFoot(`<button class="btn ghost" type="button" data-ds-again>${T('Autre proposition')}</button>`);
+  const again = api.foot && api.foot.querySelector('[data-ds-again]');
+  if (again) again.onclick = () => { picked = true; api.close(); setTimeout(() => dsAgain(before), 200); };      // nouvelle graine, mêmes réglages : d'autres cartes à qualité égale
   let picked = false;
   api.body.onclick = e => { const b = e.target.closest('[data-ds-pick]'); if (!b) return; picked = true; dsApply(res[Number(b.dataset.dsPick)], before, empty); api.close(); };
   const close0 = api.close; api.close = () => { api.close = close0; if (!picked) { picked = true; dsApply(res[0], before, empty); } close0(); };      // fermée sans choisir : la version équilibrée
@@ -243,6 +318,8 @@ function dsApply(r, before, empty) {
   if (!BD.el) return;
   BD.main = dsClone(r.main); BD.wiz = BD.wiz || dwDefaults();
   if (r.v.arch) BD.wiz.arch = r.v.arch; else delete BD.wiz.arch;
+  if (r.v.style) BD.wiz.style = r.v.style; else delete BD.wiz.style;      // style de la version : le coach continue à suggérer dans cet esprit
+  if (r.wiz && r.wiz.seed) BD.wiz.seed = r.wiz.seed;
   if (empty) BD.wiz.gen = 1;
   dwPersist(BD.id); BD.dirty = true; haptic('ok'); bdPaint(); bdMetaSoon();
   const n = r.prof.n, cur = mkCur(), msg = T('Version « {v} » · note {s}/100', { v: r.v.name, s: r.sc.total }) + ' · ' + T('{t} / 100', { t: n }) + (r.prof.cents ? ' · ' + T('valeur {p}', { p: fmt(r.prof.cents, cur) }) : '');

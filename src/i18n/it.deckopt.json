@@ -98,5 +98,14 @@
  "Essais en partie : {v} (mains de départ, terrains, couleurs)": "Partite di prova: {v} (mani iniziali, terre, colori)",
  "Essais en partie : {v} · {n} séries de 1 500 parties": "Partite di prova: {v} · {n} serie da 1.500 partite",
  "{p} % de mains gardées": "{p} % di mani tenute",
- "En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %": "In partita: {k} % di mani tenute · comandante in tempo {c} % · bloccate dai colori {s} %"
+ "En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %": "In partita: {k} % di mani tenute · comandante in tempo {c} % · bloccate dai colori {s} %",
+ "{n} carte qui sert peu le plan": "{n} carta che serve poco al piano",
+ "{n} cartes qui servent peu le plan": "{n} carte che servono poco al piano",
+ "Thème {m} : {n} cartes, {t} conseillées": "Tema {m}: {n} carte, {t} consigliate",
+ "Cartes fétiches comptées comme voulues, quel que soit leur niveau.": "Le carte preferite contano come volute, qualunque sia il loro livello.",
+ "Cibles adaptées au thème ({t}) : moins de retraits ou de balayages que d'habitude, c'est voulu.": "Obiettivi adattati al tema ({t}): meno rimozioni o rimozioni di massa del solito, è voluto.",
+ "Aucune condition de victoire : ajoute une carte qui peut finir la partie": "Nessuna condizione di vittoria: aggiungi una carta che può chiudere la partita",
+ "Note de {n} : deck construit autour de tes choix (thème, cartes fétiches) plutôt que du deck moyen ; les conseils ci-dessous le renforcent sans trahir le thème.": "Voto {n}: mazzo costruito attorno alle tue scelte (tema, carte preferite) invece che sul mazzo medio; i consigli qui sotto lo rafforzano senza tradire il tema.",
+ "Plan : {p}": "Piano: {p}",
+ "{p} % des sorts en commun avec la version équilibrée": "{p}% delle magie in comune con la versione equilibrata"
 }

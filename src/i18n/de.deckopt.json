@@ -98,5 +98,14 @@
  "Essais en partie : {v} (mains de départ, terrains, couleurs)": "Testpartien: {v} (Starthände, Länder, Farben)",
  "Essais en partie : {v} · {n} séries de 1 500 parties": "Testpartien: {v} · {n} Serien à 1.500 Partien",
  "{p} % de mains gardées": "{p} % Starthände behalten",
- "En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %": "Im Spiel: {k} % Starthände behalten · Commander rechtzeitig {c} % · durch Farben blockiert {s} %"
+ "En partie : {k} % de mains gardées · commandant à temps {c} % · couleurs bloquées {s} %": "Im Spiel: {k} % Starthände behalten · Commander rechtzeitig {c} % · durch Farben blockiert {s} %",
+ "{n} carte qui sert peu le plan": "{n} Karte, die dem Plan wenig bringt",
+ "{n} cartes qui servent peu le plan": "{n} Karten, die dem Plan wenig bringen",
+ "Thème {m} : {n} cartes, {t} conseillées": "Thema {m}: {n} Karten, {t} empfohlen",
+ "Cartes fétiches comptées comme voulues, quel que soit leur niveau.": "Lieblingskarten zählen als gewollt, egal wie stark sie sind.",
+ "Cibles adaptées au thème ({t}) : moins de retraits ou de balayages que d'habitude, c'est voulu.": "Ziele an das Thema angepasst ({t}): weniger Removal oder Boardwipes als üblich, das ist gewollt.",
+ "Aucune condition de victoire : ajoute une carte qui peut finir la partie": "Keine Siegbedingung: Füge eine Karte hinzu, die die Partie beenden kann",
+ "Note de {n} : deck construit autour de tes choix (thème, cartes fétiches) plutôt que du deck moyen ; les conseils ci-dessous le renforcent sans trahir le thème.": "Note {n}: Deck um deine Wahl (Thema, Lieblingskarten) gebaut statt um das Durchschnittsdeck; die Tipps unten stärken es, ohne das Thema zu verraten.",
+ "Plan : {p}": "Plan: {p}",
+ "{p} % des sorts en commun avec la version équilibrée": "{p} % der Zauber gemeinsam mit der ausgewogenen Version"
 }

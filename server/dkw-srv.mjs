@@ -1,6 +1,6 @@
 // ── Base de l'assistant de deck Commander (« coach », src/deckwiz.js) : agrégats générés par gen-deckdb.mjs (GitHub Actions, branche deck-corpus) ──
 // Le serveur récupère dkw.json.gz au démarrage puis toutes les 6 h (ETag), le garde en mémoire et dans .data/ (redémarrage sans réseau), et le sert découpé :
-//   GET /api/dkw            → le cœur : table des cartes (rôles, coût, couleurs, prix), cibles par catégorie, liste des commandants et des thèmes couverts
+//   GET /api/dkw            → le cœur : table des cartes (rôles, coût, couleurs, prix, mécaniques et sous-types), cibles par catégorie, vocabulaire des mécaniques (mech), liste des commandants et des thèmes couverts
 //   GET /api/dkw?c=<slug>   → un commandant : cartes EDHREC (inclusion, synergie), thèmes approfondis, statistiques du corpus
 //   GET /api/dkw?t=<thème>  → un thème général : ses cartes et ses commandants
 // Chaque morceau est compressé une fois (gzip), avec son ETag : un appareil qui l'a déjà reçoit un 304. Le corpus brut (corpus.json.gz) reste sur la branche :
@@ -17,7 +17,7 @@ export function dkwSplit(D) {
   if (!D || D.v !== 1 || !Array.isArray(D.cards) || !D.tg) throw new Error('pas un fichier dkw v1');
   const pack = o => { const raw = Buffer.from(JSON.stringify(o)), gz = gzipSync(raw, { level: 9 }); return { gz, etag: etagOf(gz), n: raw.length }; };
   const cmds = Object.keys(D.cmd || {}).filter(s => SLUG.test(s)), ths = Object.keys(D.themes || {}).filter(s => SLUG.test(s));
-  const core = pack({ v: 1, at: D.at, roles: D.roles, cards: D.cards, tg: D.tg, combos: Array.isArray(D.combos) ? D.combos : [], pairs: Array.isArray(D.pairs) ? D.pairs : [], w: D.w && typeof D.w === 'object' ? D.w : undefined, bench: D.bench || undefined, cmds, themes: ths.map(s => [s, D.themes[s].n || 0]), src: D.src || {} });
+  const core = pack({ v: 1, at: D.at, roles: D.roles, cards: D.cards, tg: D.tg, combos: Array.isArray(D.combos) ? D.combos : [], pairs: Array.isArray(D.pairs) ? D.pairs : [], w: D.w && typeof D.w === 'object' ? D.w : undefined, bench: D.bench || undefined, mech: D.mech && Array.isArray(D.mech.tags) ? D.mech : undefined, cmds, themes: ths.map(s => [s, D.themes[s].n || 0]), src: D.src || {} });
   const cmd = new Map(cmds.map(s => [s, pack({ at: D.at, slug: s, ...D.cmd[s] })]));
   const th = new Map(ths.map(s => [s, pack({ at: D.at, slug: s, ...D.themes[s] })]));
   return { at: String(D.at || ''), core, cmd, th, cards: D.cards.length };
