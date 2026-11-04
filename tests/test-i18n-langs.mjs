@@ -24,11 +24,11 @@ const EN = merged('en');
 // Game Changer, Tier…), mots identiques dans la langue. '*' : toutes les langues ; sinon la liste d'une langue. Un texte sans lettre ({a} → {b}, {n} %) passe toujours.
 const SAME = {
   '*': ['Mana Orbit', 'OK', 'Commander', 'cEDH', 'Archidekt', 'Game Changer', '{n} Game Changer', '{n} Game Changers', 'Planeswalkers', 'Deck', 'Decks', 'deck', '{n} deck', '{n} decks',
-    'Tier', 'Tier {t}', 'tier {t}', 'Halloween', 'Premium', 'Budget', 'Widget', 'Auto', 'Cache', 'Vibration', 'web', 'Version {v}', 'non-foil', 'Foil', 'foil', 'Playset (4)', 'Format', 'Stats', 'Standard', 'QR code', '{n} proxy', '{n} min', '+{n} XP', '{h} h {m}', 'Top 100', 'Streamer', 'Playset', '{n} XP', '{n} foil', '{n} foils', 'Madrid', 'Fan', 'Babel', 'Otaku', 'Bug', 'Bracket', 'bracket {n}', 'Bracket {n} · {name}'],
-  de: ['Coach', 'Synergie', 'Berlin', 'Jackpot', 'Marathon', 'Profil', 'Liste', 'Mana', 'Decklist', 'Scan', 'Initiative', 'Partie', 'Cyborg', 'Arsenal', 'Shogun', 'Mentor', 'Saison', 'Flamme'],
+    'Tier', 'Tier {t}', 'tier {t}', 'Halloween', 'Premium', 'Budget', 'Widget', 'Auto', 'Auto · {n}', 'Cache', 'Vibration', 'web', 'Version {v}', 'non-foil', 'Foil', 'foil', 'Playset (4)', 'Format', 'Stats', 'Standard', 'QR code', '{n} proxy', '{n} min', '+{n} XP', '{h} h {m}', 'Top 100', 'Streamer', 'Playset', '{n} XP', '{n} foil', '{n} foils', 'Madrid', 'Fan', 'Babel', 'Otaku', 'Bug', 'Bracket', 'bracket {n}', 'Bracket {n} · {name}'],
+  de: ['Coach', 'Tags', 'Orange', 'Solide', 'Synergie', 'Berlin', 'Jackpot', 'Marathon', 'Profil', 'Liste', 'Mana', 'Decklist', 'Scan', 'Initiative', 'Partie', 'Cyborg', 'Arsenal', 'Shogun', 'Mentor', 'Saison', 'Flamme'],
   es: ['Niv. {n}', 'Rentable', 'de {name}', 'libre', 'Libre', 'Arsenal', 'Shogun', 'Mentor', 'Indestructible', 'Variantes'],
   it: ['Coach', 'Taipei', 'Tokyo', '{n} PV', 'Mana', 'Test…', 'non foil', 'Multicolore', 'Incolore', 'incolore', 'Cyborg', 'Shogun', '{n} badge', 'sec'],
-  pt: ['Moscou', 'Vitrine', 'Variantes', 'bronze', 'de {name}', 'Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Cardmarket ou CardTrader', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}', 'Arsenal', 'Mentor'],
+  pt: ['Moscou', 'Tags', 'Vitrine', 'Variantes', 'bronze', 'de {name}', 'Mana', 'Decklist', 'E-mail', 'ou', 'deck de {name}', 'CardTrader ou Scryfall', 'Cardmarket ou CardTrader', 'Decks EDHREC', '{n} decks EDHREC', 'Standard ou Commander', 'Sol Ring ou Anneau solaire', 'Lightning Bolt ou {name}', 'Decks de {name}', 'Arsenal', 'Mentor'],
 };
 const sameOk = (l, k) => SAME['*'].includes(k) || (SAME[l] || []).includes(k) || !/\p{L}/u.test(k.replace(/\{\w+\}/g, '').replace(/<[^>]+>/g, ''));
 const vars = s => [...String(s).matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort();
