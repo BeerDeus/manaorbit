@@ -63,6 +63,7 @@ function alItems() {
   }
   if (AC.deck) {
     for (const d of allDecks()) {
+      if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
       for (const c of parseDeck(d.text).cards) {
         const k = ownKey(c.key); if (AC.mute[k] && !AC.watch[k]) continue;
         if (c.qty - engFree(collQty(k), XS.eng, k, d.id) <= 0) continue;

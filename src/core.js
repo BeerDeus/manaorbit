@@ -1039,6 +1039,12 @@ function dkSetMeta(text, w, v) {
 const dkTagClean = t => String(t || '').replace(/[\p{Cc}\p{Cf},;#]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
 function dkTags(text) { const seen = new Set(), out = []; for (const t of dkMeta(text, 'tags').split(',').map(dkTagClean)) { const k = t.toLowerCase(); if (t && !seen.has(k) && out.length < 8) { seen.add(k); out.push(t); } } return out; }
 const dkSetTags = (text, tags) => dkSetMeta(text, 'tags', dkTags('// Deck Deal tags : ' + (tags || []).map(dkTagClean).join(',')).join(', '));
+/** Texte d'un deck sans ses lignes « // Deck Deal <mot> : … » (image, tags, origine, suivi) : deux copies d'une même liste se reconnaissent. */
+const dkBody = text => String(text || '').split(/\r?\n/).filter(l => !/^\s*\/\/\s*Deck Deal \w+\s*:/i.test(l)).join('\n').trim();
+/** Suivi des cartes manquantes d'un deck (« Je recherche » de la liste d'échange, alertes de prix) : « // Deck Deal track : on | off » ;
+ *  sans choix : suivi, sauf un deck venu d'ailleurs (« // Deck Deal from : edh » À monter, « pub » Communauté) qui n'est pas encore le mien. */
+function dkTrack(text) { const v = dkMeta(text, 'track').toLowerCase(); return v ? v !== 'off' : !dkMeta(text, 'from'); }
+const dkSetTrack = (text, on) => dkSetMeta(text, 'track', on ? 'on' : 'off');
 /** Format noté (« // Deck Deal : commander ») ; fmt '' : ligne retirée (format deviné de la liste). */
 function dkSetFormat(text, fmt) {
   const lines = String(text || '').split(/\r?\n/), at = lines.findIndex(l => /^\s*\/\/\s*Deck Deal\s*:/i.test(l)), ln = fmt ? '// Deck Deal : ' + fmt : '';
@@ -2643,7 +2649,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
-    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkCount, dkCountText,
+    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }

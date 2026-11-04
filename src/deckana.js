@@ -227,13 +227,14 @@ function daPaint() {
     const strong = sc ? daStrong(sc, prof, tgt, cmd) : [], weak = acts.filter(a => a.k !== 'swap');
     h += `<div class="sec-title">${T('Points forts')}</div>${strong.length ? `<ul class="cb-pts good">${strong.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien qui ressorte nettement.')}</p>`}`;
     h += `<div class="sec-title">${T('Points faibles')}</div>${weak.length ? `<ul class="cb-pts warn">${weak.map(a => `<li><b>${esc(a.t)}</b> <small>${esc(a.s)}</small></li>`).join('')}</ul>` : `<p class="hint">${T('Aucun manque net.')}</p>`}`;
-    h += `<p class="hint">${T('Ajoute-le à tes decks pour voir les échanges conseillés et l\'améliorer.')}</p>`;
+    h += daSimCard() + `<p class="hint">${T('Ajoute-le à tes decks pour voir les échanges conseillés et l\'améliorer.')}</p>`;
     h += daFold('det', DA.detOpen, T('Détail'), T('Note, équilibre, mana, simulation'), sc ? daDetailHtml(sc, prof, tgt, cmd, pack, set) : '');
     h += daSetLine(cmd, pack, set, est);
     done(T('Ajouter à mes decks')); daSimRun(); return;
   }
   // bilan d'un deck de Mes decks
   h += `<div class="sec-title">${T('À faire en priorité')}</div>` + (acts.length ? `<div class="cb-acts">${acts.map(daActHtml).join('')}</div>` : `<p class="hint">${sc && sc.total >= 85 ? T('Rien d\'urgent : le deck est bien équilibré.') : T('Rien d\'urgent à changer.')}</p>`);
+  h += daSimCard();
   const on = DA.swaps.filter((s, i) => !DA.off.has(i));
   let after = null;
   if (sc && on.length) { const m = new Map([...X.main].map(([k, c]) => [k, { ...c }])); for (const s of on) { const o = m.get(s.out.k); if (o && o.qty > 1) o.qty--; else m.delete(s.out.k); m.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 }); } after = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack }).total; }
@@ -257,10 +258,23 @@ function daPaint() {
 }
 /** Section repliable du bilan (échanges, détail). */
 const daFold = (id, open, title, sum, inner, attr) => `<section class="cb-fold${open ? ' open' : ''}">${dwFoldHead(id, !!open, title, sum, attr || `data-da-fold="${id}"`)}${open ? `<div class="cb-in">${inner}</div>` : ''}</section>`;
-/** Simulation de parties : lancée quand le détail est ouvert, affichée sur place. */
+/** Simulation de parties (decksim.js) : lancée à l'ouverture du bilan ou de l'aperçu, résumée en trois chiffres sous les actions, en entier dans le détail et le rapport. */
 function daSimRun() {
-  if (!DA.detOpen || typeof dsimEnsure !== 'function' || !DW.core) return;
-  dsimEnsure(DA.X, () => { const el = daOpen() && $('#daSim', DA.api.body); if (el) el.innerHTML = DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog); });
+  if (typeof dsimEnsure !== 'function' || !DW.core) return;
+  dsimEnsure(DA.X, () => {
+    if (!daOpen()) return; const b = DA.api.body, el = $('#daSim', b), card = $('#daSimCard', b);
+    if (el) el.innerHTML = DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog);
+    if (card) card.outerHTML = daSimCard();
+  });
+}
+/** Résumé de la simulation : mains gardées, commandant à temps, couleurs ; « Rapport du coach » pour le reste. */
+function daSimCard() {
+  if (typeof dsimEnsure !== 'function' || !DW.core) return '';
+  const r = DSIM.sig === dsimSig(DA.X) ? DSIM.res : null; if (r && r.none) return '';
+  const tile = (ok, v, t) => `<span class="cb-st ${ok ? 'ok' : 'warn'}"><b>${esc(v)}</b><small>${esc(t)}</small></span>`;
+  const body = !r ? `<span class="ds-big"><i style="width:${Math.round((DSIM.prog || 0) * 100)}%"></i></span><small class="cb-sim-w">${T('Parties en cours…')}</small>`
+    : `<div class="cb-sts">${tile(r.keep7 >= 74, r.keep7 + ' %', T('mains de départ gardées'))}${r.cmv ? tile(r.cmdOn >= 55, r.cmdOn + ' %', T('commandant lancé à temps')) : tile(r.miss3 <= 20, r.miss3 + ' %', T('parties sans terrain avant le tour 4'))}${tile(r.screw4 <= 10, r.screw4 + ' %', T('parties bloquées par les couleurs'))}</div>`;
+  return `<div class="cb-sim" id="daSimCard"><p class="cb-sim-h"><b>${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</b><small>${T('8 premiers tours joués par le coach, sans adversaire')}</small></p>${body}${typeof openDeckReport === 'function' ? `<button class="link-btn link-inline cb-rep" type="button" data-da-report>${T('Rapport du coach et simulation complète')}</button>` : ''}</div>`;
 }
 /** Réglage changé (formulaire partagé) : bracket ou budget choisis ne suivent plus la liste ; gardés pour un deck de Mes decks ; le bilan suit. */
 function daSetChanged(kind) {

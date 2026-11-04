@@ -314,5 +314,5 @@ async function pdLaunch(id) {
   const d = (list || []).find(x => x && x.id === id);
   if (!d || !Array.isArray(d.cmd) || !d.cmd.length || !Array.isArray(d.cards)) { toast(list ? T('Ce deck n\'est plus dans la communauté.') : T('Deck injoignable : vérifie ta connexion puis recharge la page.')); return; }
   const name = d.cmd.join(' + ');
-  openDeckViewer({ text: pdText(d), name, saveAs: (name + ' · ' + T('deck de {name}', { name: String(d.by || '') })).slice(0, 120) });
+  openDeckViewer({ text: pdText(d), name, saveAs: (name + ' · ' + T('deck de {name}', { name: String(d.by || '') })).slice(0, 120), from: 'pub' });
 }

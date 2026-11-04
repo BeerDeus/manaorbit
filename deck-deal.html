@@ -2558,6 +2558,17 @@ html.streamer .dly-hb .dly-dot,html.streamer .dly-hb .dly-orb,html.streamer .dly
 .cb-pts.good li::before{content:"✓";color:var(--good)}
 .cb-pts.warn li::before{content:"!";color:var(--warn)}
 .cb-pts small{color:var(--ink-3)}
+/* Simulation de parties, mise en avant dans le bilan */
+.cb-sim{margin:4px 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.cb-sim-h{margin:0 0 10px;display:flex;flex-direction:column;gap:2px}
+.cb-sim-h b{font-size:14.5px}
+.cb-sim-h small,.cb-sim-w{font-size:12px;color:var(--ink-3)}
+.cb-sts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cb-st{display:flex;flex-direction:column;gap:3px;padding:10px 8px;border-radius:12px;background:var(--surface-2);min-width:0}
+.cb-st b{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.cb-st small{font-size:11.5px;line-height:1.3;color:var(--ink-2)}
+.cb-st.ok b{color:var(--good)}.cb-st.warn b{color:var(--warn)}
+.cb-rep{margin-top:10px;display:inline-block}
 
 /* ── deckfind.css : « De ta collection pour ce deck » (deckfind.js) ; « Où trouver mes cartes » : ce qui manque (places.js › plcFetchSheet) ── */
 .df{border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden}
@@ -7905,7 +7916,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '1013b886';
+const DD_BUILD = '80976d6e';
 const I18N_FILES = {"de":"i18n/de.8951c9f0.js","en":"i18n/en.c3a83d9c.js","es":"i18n/es.4ab05c66.js","it":"i18n/it.4c7a6f72.js","pt":"i18n/pt.cd05f020.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -9126,6 +9137,12 @@ function dkSetMeta(text, w, v) {
 const dkTagClean = t => String(t || '').replace(/[\p{Cc}\p{Cf},;#]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
 function dkTags(text) { const seen = new Set(), out = []; for (const t of dkMeta(text, 'tags').split(',').map(dkTagClean)) { const k = t.toLowerCase(); if (t && !seen.has(k) && out.length < 8) { seen.add(k); out.push(t); } } return out; }
 const dkSetTags = (text, tags) => dkSetMeta(text, 'tags', dkTags('// Deck Deal tags : ' + (tags || []).map(dkTagClean).join(',')).join(', '));
+/** Texte d'un deck sans ses lignes « // Deck Deal <mot> : … » (image, tags, origine, suivi) : deux copies d'une même liste se reconnaissent. */
+const dkBody = text => String(text || '').split(/\r?\n/).filter(l => !/^\s*\/\/\s*Deck Deal \w+\s*:/i.test(l)).join('\n').trim();
+/** Suivi des cartes manquantes d'un deck (« Je recherche » de la liste d'échange, alertes de prix) : « // Deck Deal track : on | off » ;
+ *  sans choix : suivi, sauf un deck venu d'ailleurs (« // Deck Deal from : edh » À monter, « pub » Communauté) qui n'est pas encore le mien. */
+function dkTrack(text) { const v = dkMeta(text, 'track').toLowerCase(); return v ? v !== 'off' : !dkMeta(text, 'from'); }
+const dkSetTrack = (text, on) => dkSetMeta(text, 'track', on ? 'on' : 'off');
 /** Format noté (« // Deck Deal : commander ») ; fmt '' : ligne retirée (format deviné de la liste). */
 function dkSetFormat(text, fmt) {
   const lines = String(text || '').split(/\r?\n/), at = lines.findIndex(l => /^\s*\/\/\s*Deck Deal\s*:/i.test(l)), ln = fmt ? '// Deck Deal : ' + fmt : '';
@@ -10730,7 +10747,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
-    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkCount, dkCountText,
+    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
@@ -17961,6 +17978,7 @@ function openDeckSheet(id) {
     }).join('');
     api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Modifier le deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
+      <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Suivre les cartes manquantes')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
       ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
       <div class="dk-val" id="dkVal"></div>
       <div class="sec-title">${T('Historique des prix')}</div>
@@ -17980,6 +17998,15 @@ function openDeckSheet(id) {
     paintCover(); $('#dkEdit', api.body).onclick = () => { haptic('tap'); openDeckEdit(id, paintCover); };
     dmLoad().then(() => dmFetch([dkCoverCard((findDeck(id) || d).text, dmOf)].filter(Boolean))).then(ok => ok && paintCover());
     engBindSwitch(id, $('#dkMount', api.body), $('#dkMountHint', api.body));
+    const trk = $('#dkTrack', api.body), trkHint = $('#dkTrackHint', api.body);      // cartes manquantes dans « Je recherche » et les alertes de prix (core.js › dkTrack ; deck venu d'À monter : éteint d'office)
+    const paintTrack = () => { const cur = findDeck(id) || d; trk.checked = dkTrack(cur.text); trkHint.textContent = trk.checked ? T('Ses cartes manquantes sont dans « Je recherche » et tes alertes de prix.') : T('Ses cartes manquantes ne sont ni dans « Je recherche » ni dans tes alertes de prix.'); };
+    paintTrack();
+    trk.onchange = () => {
+      const cur = findDeck(id); if (!cur) return; const text = dkSetTrack(cur.text, trk.checked);
+      putDeck(id, deckDoc({ ...cur, text }, (Number(cur.updatedAt) || Date.now()) + 1));      // le deck garde sa place
+      if (S.deckId === id && $('#deckText').value === cur.text) { $('#deckText').value = text; refreshDeck(); }
+      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes suivies') : T('Cartes manquantes plus suivies')); paintTrack();
+    };
     const valEl = $('#dkVal', api.body);      // valeur estimée du deck (Cardmarket), même monté : pas besoin de chercher des offres
     const paintVal = fetched => {
       const cur = findDeck(id) || d, v = dkValue(cur.text, dmOf), fk = deckFmt(cur);
@@ -19269,7 +19296,7 @@ function dvSavePaint() {
 /** Enregistre la liste telle qu'affichée (commandant, cartes, réserve) avec les critères de cet appareil, jamais ceux de l'auteur ; nom : celui donné par l'ouvreur (EDHREC : comme sa feuille), sinon celui du deck. */
 function dvSave() {
   if (!DV.adhoc || !DV.snap || dvCopy() || (D.hint && !D.authReady)) { dvSavePaint(); return; }
-  const doc = deckDoc({ name: DV.saveName || DV.name, text: DV.text, opts: { ...S.opts } }), id = newIdFor();
+  const doc = deckDoc({ name: DV.saveName || DV.name, text: DV.from ? dkSetMeta(DV.text, 'from', DV.from) : DV.text, opts: { ...S.opts } }), id = newIdFor();
   putDeck(id, doc);
   if (!cloudOn() && !localRead().some(x => x.id === id)) { dvSavePaint(); return; }      // stockage de l'appareil plein : le message de localWrite reste affiché
   DV.savedId = id; DV.savedName = doc.name; haptic('ok'); dvSavePaint();
@@ -19317,10 +19344,10 @@ function dvFetchId() {
 }
 /** Ouvre le viewer d'un deck enregistré ({ id }), de la recherche en cours ({ live: true }) ou d'une liste quelconque ({ text, name } : deck EDHREC ;
  *  pub : deck reçu par un lien public, en lecture seule, sans rien de la collection de cet appareil ; saveAs : nom de la copie enregistrée, si autre que name). */
-function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
+function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {}) {
   closeDeckViewer(); closeCardImage();
   const adhoc = !id && !live && typeof text === 'string', d = id ? findDeck(id) : null;
-  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null;
+  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.from = adhoc && /^(edh|pub)$/.test(from || '') ? from : '';      // from : À monter (edh), Communauté (pub) → noté sur la copie enregistrée DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null;
   DV.snap = adhoc ? null : live ? buildSnap() : snapOf(d); DV.framed = null; DV.dl = null; DV.f = newFilter(); DV.anim = true; DV.shownTotal = null; DV.view = dvViewRead(); DV.nodes = new Map();
   DV.name = adhoc ? String(name || 'Deck') : d ? d.name : (live && findDeck(S.deckId) ? findDeck(S.deckId).name : T('Liste en cours'));
   if (live && !DV.snap) { toast(T('Lance une recherche pour voir le deck')); return; }
@@ -19355,7 +19382,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
     const act = b.dataset.act, deck = DV.deckId;
     if (act === 'close') wrap.__close();
     else if (act === 'hand') openHand();
-    else if (act === 'analyse' && typeof openDeckAnalysis === 'function') openDeckAnalysis({ text: DV.text, name: DV.name, id: DV.deckId && !DV.pub && findDeck(DV.deckId) ? DV.deckId : null });      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)
+    else if (act === 'analyse' && typeof openDeckAnalysis === 'function') openDeckAnalysis({ text: DV.text, name: DV.saveName || DV.name, id: DV.deckId && !DV.pub && findDeck(DV.deckId) ? DV.deckId : DV.savedId && findDeck(DV.savedId) ? DV.savedId : null, from: DV.from });      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)
     else if (act === 'builder' && deck) { wrap.__close(); setTimeout(() => openBuilder({ id: deck }), 200); }      // éditeur du deck (builder.js), déplacé ici depuis la fiche du deck
     else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
     else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks
@@ -22495,7 +22522,7 @@ const EDH_WATCH_MIN = 100;      // 1 € : en dessous, une baisse n'atteint jama
 const EDH_BELL = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/></svg>';
 /** Nom du deck enregistré : le commandant, et le type s'il y a plusieurs listes possibles (« Edgar Markov · Budget »). */
 const edhSaveName = r => { const n = r.cmd.names.join(' + '), k = r.deck.k; return (k === 'comm' && r.deck.label ? n + ' · ' + T('deck de {name}', { name: r.deck.label }) : k && k !== 'avg' && EDH_KIND_NAMES[k] ? n + ' · ' + edhKindName(k) : n).slice(0, 120); };
-const edhSavedDeck = text => allDecks().find(d => String(d.text || '').trim() === text.trim()) || null;
+const edhSavedDeck = text => { const b = dkBody(text); return allDecks().find(d => dkBody(d.text) === b) || null; };      // origine, suivi, tags : ignorés
 /** Exemplaires à ajouter à « Je recherche » : pour chaque manquante, ce qui dépasse ce que la liste recherche déjà (decks enregistrés et souhaits) → [{ k, n, q }]. */
 function edhWishTodo(r) {
   let want = new Map(); try { want = new Map(trState().want.map(w => [w.k, w.q])); } catch (e) { /* liste d'échange pas encore prête */ }
@@ -22522,8 +22549,8 @@ function edhDeckActs(api, r, name) {
   el.onclick = async e => {
     const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return; const act = b.dataset.act;
     if (act === 'dksave') {
-      const nm = edhSaveName(r), id = newIdFor(); putDeck(id, deckDoc({ name: nm, text, opts: { ...S.opts } })); saved = nm; haptic('ok');
-      if (added.size) {      // le deck enregistré met lui-même ses manquantes dans « Je recherche » : les souhaits ajoutés juste avant feraient doublon
+      const nm = edhSaveName(r), id = newIdFor(); putDeck(id, deckDoc({ name: nm, text: dkSetMeta(text, 'from', 'edh'), opts: { ...S.opts } })); saved = nm; haptic('ok');      // venu d'À monter : cartes manquantes pas suivies tant qu'on n'allume pas « Suivre les cartes manquantes »
+      if (added.size && dkTrack(findDeck(id).text)) {      // le deck enregistré met lui-même ses manquantes dans « Je recherche » : les souhaits ajoutés juste avant feraient doublon
         for (const [k, q] of added) { const cur = TR.wish[k]; if (!cur) continue; if (cur.q > q) TR.wish[k] = { ...cur, q: cur.q - q }; else delete TR.wish[k]; }
         added.clear(); trChanged();
       }
@@ -22576,8 +22603,8 @@ function openEdhDeck(r) {
     edhDeckActs(api, r, name);
     $('.dk-acts', api.body).onclick = e => {
       const b = e.target.closest('[data-act]'); if (!b) return; haptic('tap');
-      if (b.dataset.act === 'dkview') { api.close(); openDeckViewer({ text: edhDeckText(r.deck), name, saveAs: edhSaveName(r) }); }
-      else if (b.dataset.act === 'dkana' && typeof openDeckAnalysis === 'function') { api.close(); setTimeout(() => openDeckAnalysis({ text: edhDeckText(r.deck), name: edhSaveName(r) }), 200); }      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)      // viewer : images, courbe, main de départ, partage, « Enregistrer dans mes decks » (même nom que la feuille)
+      if (b.dataset.act === 'dkview') { api.close(); openDeckViewer({ text: edhDeckText(r.deck), name, saveAs: edhSaveName(r), from: 'edh' }); }
+      else if (b.dataset.act === 'dkana' && typeof openDeckAnalysis === 'function') { api.close(); setTimeout(() => openDeckAnalysis({ text: edhDeckText(r.deck), name: edhSaveName(r), from: 'edh' }), 200); }      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)      // viewer : images, courbe, main de départ, partage, « Enregistrer dans mes decks » (même nom que la feuille)
       else shareDeck({ text: edhDeckText(r.deck), name });
     };
     let imgs = new Map(), settled = false, tries = 0;
@@ -23065,7 +23092,7 @@ async function pdLaunch(id) {
   const d = (list || []).find(x => x && x.id === id);
   if (!d || !Array.isArray(d.cmd) || !d.cmd.length || !Array.isArray(d.cards)) { toast(list ? T('Ce deck n\'est plus dans la communauté.') : T('Deck injoignable : vérifie ta connexion puis recharge la page.')); return; }
   const name = d.cmd.join(' + ');
-  openDeckViewer({ text: pdText(d), name, saveAs: (name + ' · ' + T('deck de {name}', { name: String(d.by || '') })).slice(0, 120) });
+  openDeckViewer({ text: pdText(d), name, saveAs: (name + ' · ' + T('deck de {name}', { name: String(d.by || '') })).slice(0, 120), from: 'pub' });
 }
 
 
@@ -23771,6 +23798,7 @@ function alItems() {
   }
   if (AC.deck) {
     for (const d of allDecks()) {
+      if (!dkTrack(d.text)) continue;      // « Suivre les cartes manquantes » éteint sur ce deck (feuille du deck, decks.js)
       for (const c of parseDeck(d.text).cards) {
         const k = ownKey(c.key); if (AC.mute[k] && !AC.watch[k]) continue;
         if (c.qty - engFree(collQty(k), XS.eng, k, d.id) <= 0) continue;
@@ -24242,7 +24270,7 @@ function csDecksHtml(k) {
 function csTrade(k, x) {
   if (BASIC_NAMES.has(k) || typeof TR === 'undefined') return null;
   const use = deckUse(trDeckTexts()), one = x ? { [k]: x } : {}, tl = tradeLists(one, use, TR.keep, TR.kept, COLL.places);
-  const w = tradeWant(one, new Map(use.has(k) ? [[k, use.get(k)]] : []), TR.wish[k] ? { [k]: TR.wish[k] } : {})[0] || null;
+  const wu = typeof trWantTexts === 'function' ? deckUse(trWantTexts()) : use, w = tradeWant(one, new Map(wu.has(k) ? [[k, wu.get(k)]] : []), TR.wish[k] ? { [k]: TR.wish[k] } : {})[0] || null;      // decks suivis seulement (« Suivre les cartes manquantes »)
   return { have: tl.have[0] || null, held: tl.held[0] || null, kept: TR.kept.has(k), want: w };
 }
 function csTradeHtml(k, x) {
@@ -28786,13 +28814,14 @@ function daPaint() {
     const strong = sc ? daStrong(sc, prof, tgt, cmd) : [], weak = acts.filter(a => a.k !== 'swap');
     h += `<div class="sec-title">${T('Points forts')}</div>${strong.length ? `<ul class="cb-pts good">${strong.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien qui ressorte nettement.')}</p>`}`;
     h += `<div class="sec-title">${T('Points faibles')}</div>${weak.length ? `<ul class="cb-pts warn">${weak.map(a => `<li><b>${esc(a.t)}</b> <small>${esc(a.s)}</small></li>`).join('')}</ul>` : `<p class="hint">${T('Aucun manque net.')}</p>`}`;
-    h += `<p class="hint">${T('Ajoute-le à tes decks pour voir les échanges conseillés et l\'améliorer.')}</p>`;
+    h += daSimCard() + `<p class="hint">${T('Ajoute-le à tes decks pour voir les échanges conseillés et l\'améliorer.')}</p>`;
     h += daFold('det', DA.detOpen, T('Détail'), T('Note, équilibre, mana, simulation'), sc ? daDetailHtml(sc, prof, tgt, cmd, pack, set) : '');
     h += daSetLine(cmd, pack, set, est);
     done(T('Ajouter à mes decks')); daSimRun(); return;
   }
   // bilan d'un deck de Mes decks
   h += `<div class="sec-title">${T('À faire en priorité')}</div>` + (acts.length ? `<div class="cb-acts">${acts.map(daActHtml).join('')}</div>` : `<p class="hint">${sc && sc.total >= 85 ? T('Rien d\'urgent : le deck est bien équilibré.') : T('Rien d\'urgent à changer.')}</p>`);
+  h += daSimCard();
   const on = DA.swaps.filter((s, i) => !DA.off.has(i));
   let after = null;
   if (sc && on.length) { const m = new Map([...X.main].map(([k, c]) => [k, { ...c }])); for (const s of on) { const o = m.get(s.out.k); if (o && o.qty > 1) o.qty--; else m.delete(s.out.k); m.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 }); } after = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack }).total; }
@@ -28816,10 +28845,23 @@ function daPaint() {
 }
 /** Section repliable du bilan (échanges, détail). */
 const daFold = (id, open, title, sum, inner, attr) => `<section class="cb-fold${open ? ' open' : ''}">${dwFoldHead(id, !!open, title, sum, attr || `data-da-fold="${id}"`)}${open ? `<div class="cb-in">${inner}</div>` : ''}</section>`;
-/** Simulation de parties : lancée quand le détail est ouvert, affichée sur place. */
+/** Simulation de parties (decksim.js) : lancée à l'ouverture du bilan ou de l'aperçu, résumée en trois chiffres sous les actions, en entier dans le détail et le rapport. */
 function daSimRun() {
-  if (!DA.detOpen || typeof dsimEnsure !== 'function' || !DW.core) return;
-  dsimEnsure(DA.X, () => { const el = daOpen() && $('#daSim', DA.api.body); if (el) el.innerHTML = DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog); });
+  if (typeof dsimEnsure !== 'function' || !DW.core) return;
+  dsimEnsure(DA.X, () => {
+    if (!daOpen()) return; const b = DA.api.body, el = $('#daSim', b), card = $('#daSimCard', b);
+    if (el) el.innerHTML = DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog);
+    if (card) card.outerHTML = daSimCard();
+  });
+}
+/** Résumé de la simulation : mains gardées, commandant à temps, couleurs ; « Rapport du coach » pour le reste. */
+function daSimCard() {
+  if (typeof dsimEnsure !== 'function' || !DW.core) return '';
+  const r = DSIM.sig === dsimSig(DA.X) ? DSIM.res : null; if (r && r.none) return '';
+  const tile = (ok, v, t) => `<span class="cb-st ${ok ? 'ok' : 'warn'}"><b>${esc(v)}</b><small>${esc(t)}</small></span>`;
+  const body = !r ? `<span class="ds-big"><i style="width:${Math.round((DSIM.prog || 0) * 100)}%"></i></span><small class="cb-sim-w">${T('Parties en cours…')}</small>`
+    : `<div class="cb-sts">${tile(r.keep7 >= 74, r.keep7 + ' %', T('mains de départ gardées'))}${r.cmv ? tile(r.cmdOn >= 55, r.cmdOn + ' %', T('commandant lancé à temps')) : tile(r.miss3 <= 20, r.miss3 + ' %', T('parties sans terrain avant le tour 4'))}${tile(r.screw4 <= 10, r.screw4 + ' %', T('parties bloquées par les couleurs'))}</div>`;
+  return `<div class="cb-sim" id="daSimCard"><p class="cb-sim-h"><b>${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</b><small>${T('8 premiers tours joués par le coach, sans adversaire')}</small></p>${body}${typeof openDeckReport === 'function' ? `<button class="link-btn link-inline cb-rep" type="button" data-da-report>${T('Rapport du coach et simulation complète')}</button>` : ''}</div>`;
 }
 /** Réglage changé (formulaire partagé) : bracket ou budget choisis ne suivent plus la liste ; gardés pour un deck de Mes decks ; le bilan suit. */
 function daSetChanged(kind) {
@@ -29711,9 +29753,11 @@ async function trPush() {
 
 /* ── Listes ────────────────────────────────────────────────────────────────────────────────────── */
 const trDeckTexts = () => allDecks().map(d => d.text || '');
+/** Decks dont les cartes manquantes sont suivies (« Je recherche ») : interrupteur « Suivre les cartes manquantes » (core.js › dkTrack) ; tous gardent leurs cartes possédées. */
+const trWantTexts = () => allDecks().filter(d => dkTrack(d.text)).map(d => d.text || '');
 function trState() {
   const use = deckUse(trDeckTexts()), { have, held } = tradeLists(COLL.map, use, TR.keep, TR.kept, COLL.places);
-  return { use, have, held, want: tradeWant(COLL.map, use, TR.wish), decks: allDecks().length };
+  return { use, have, held, want: tradeWant(COLL.map, deckUse(trWantTexts()), TR.wish), decks: allDecks().length };
 }
 /** Nombre de doublons et de cartes recherchées (carte « Échange » de l'accueil), gardé tant que la collection (COLL.seq : chaque changement), les emplacements, les decks
  *  et les réglages de l'échange (TR.u : chaque changement) restent les mêmes. L'accueil est repeint à chaque lot d'une lecture Scryfall (relevé des prix du jour, images
@@ -29723,7 +29767,7 @@ function trCounts() {
   const texts = trDeckTexts(), dk = texts.join('\u0000'), c = TR_CNT;
   if (c && c.map === COLL.map && c.seq === COLL.seq && c.pl === COLL.places && c.keep === TR.keep && c.kept === TR.kept && c.kn === TR.kept.size && c.wish === TR.wish && c.u === TR.u && c.dk === dk) return c;
   const use = deckUse(texts), { have } = tradeLists(COLL.map, use, TR.keep, TR.kept, COLL.places, true);
-  return (TR_CNT = { map: COLL.map, seq: COLL.seq, pl: COLL.places, keep: TR.keep, kept: TR.kept, kn: TR.kept.size, wish: TR.wish, u: TR.u, dk, have: have.length, want: tradeWant(COLL.map, use, TR.wish).length });
+  return (TR_CNT = { map: COLL.map, seq: COLL.seq, pl: COLL.places, keep: TR.keep, kept: TR.kept, kn: TR.kept.size, wish: TR.wish, u: TR.u, dk, have: have.length, want: tradeWant(COLL.map, deckUse(trWantTexts()), TR.wish).length });
 }
 /** Doublons à échanger d'une collection (decks et réglages de cet appareil) : colonne « Tradelist Count » de l'export CSV (collToCsv, core.js ; déclaration hoistée, jamais en zone morte). */
 function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, TR.kept, COLL.places).have; }

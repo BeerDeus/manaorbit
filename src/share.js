@@ -72,9 +72,11 @@ async function trPush() {
 
 /* ── Listes ────────────────────────────────────────────────────────────────────────────────────── */
 const trDeckTexts = () => allDecks().map(d => d.text || '');
+/** Decks dont les cartes manquantes sont suivies (« Je recherche ») : interrupteur « Suivre les cartes manquantes » (core.js › dkTrack) ; tous gardent leurs cartes possédées. */
+const trWantTexts = () => allDecks().filter(d => dkTrack(d.text)).map(d => d.text || '');
 function trState() {
   const use = deckUse(trDeckTexts()), { have, held } = tradeLists(COLL.map, use, TR.keep, TR.kept, COLL.places);
-  return { use, have, held, want: tradeWant(COLL.map, use, TR.wish), decks: allDecks().length };
+  return { use, have, held, want: tradeWant(COLL.map, deckUse(trWantTexts()), TR.wish), decks: allDecks().length };
 }
 /** Nombre de doublons et de cartes recherchées (carte « Échange » de l'accueil), gardé tant que la collection (COLL.seq : chaque changement), les emplacements, les decks
  *  et les réglages de l'échange (TR.u : chaque changement) restent les mêmes. L'accueil est repeint à chaque lot d'une lecture Scryfall (relevé des prix du jour, images
@@ -84,7 +86,7 @@ function trCounts() {
   const texts = trDeckTexts(), dk = texts.join('\u0000'), c = TR_CNT;
   if (c && c.map === COLL.map && c.seq === COLL.seq && c.pl === COLL.places && c.keep === TR.keep && c.kept === TR.kept && c.kn === TR.kept.size && c.wish === TR.wish && c.u === TR.u && c.dk === dk) return c;
   const use = deckUse(texts), { have } = tradeLists(COLL.map, use, TR.keep, TR.kept, COLL.places, true);
-  return (TR_CNT = { map: COLL.map, seq: COLL.seq, pl: COLL.places, keep: TR.keep, kept: TR.kept, kn: TR.kept.size, wish: TR.wish, u: TR.u, dk, have: have.length, want: tradeWant(COLL.map, use, TR.wish).length });
+  return (TR_CNT = { map: COLL.map, seq: COLL.seq, pl: COLL.places, keep: TR.keep, kept: TR.kept, kn: TR.kept.size, wish: TR.wish, u: TR.u, dk, have: have.length, want: tradeWant(COLL.map, deckUse(trWantTexts()), TR.wish).length });
 }
 /** Doublons à échanger d'une collection (decks et réglages de cet appareil) : colonne « Tradelist Count » de l'export CSV (collToCsv, core.js ; déclaration hoistée, jamais en zone morte). */
 function trSpare(map) { return tradeLists(map, deckUse(trDeckTexts()), TR.keep, TR.kept, COLL.places).have; }

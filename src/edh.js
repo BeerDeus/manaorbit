@@ -411,7 +411,7 @@ const EDH_WATCH_MIN = 100;      // 1 € : en dessous, une baisse n'atteint jama
 const EDH_BELL = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/></svg>';
 /** Nom du deck enregistré : le commandant, et le type s'il y a plusieurs listes possibles (« Edgar Markov · Budget »). */
 const edhSaveName = r => { const n = r.cmd.names.join(' + '), k = r.deck.k; return (k === 'comm' && r.deck.label ? n + ' · ' + T('deck de {name}', { name: r.deck.label }) : k && k !== 'avg' && EDH_KIND_NAMES[k] ? n + ' · ' + edhKindName(k) : n).slice(0, 120); };
-const edhSavedDeck = text => allDecks().find(d => String(d.text || '').trim() === text.trim()) || null;
+const edhSavedDeck = text => { const b = dkBody(text); return allDecks().find(d => dkBody(d.text) === b) || null; };      // origine, suivi, tags : ignorés
 /** Exemplaires à ajouter à « Je recherche » : pour chaque manquante, ce qui dépasse ce que la liste recherche déjà (decks enregistrés et souhaits) → [{ k, n, q }]. */
 function edhWishTodo(r) {
   let want = new Map(); try { want = new Map(trState().want.map(w => [w.k, w.q])); } catch (e) { /* liste d'échange pas encore prête */ }
@@ -438,8 +438,8 @@ function edhDeckActs(api, r, name) {
   el.onclick = async e => {
     const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return; const act = b.dataset.act;
     if (act === 'dksave') {
-      const nm = edhSaveName(r), id = newIdFor(); putDeck(id, deckDoc({ name: nm, text, opts: { ...S.opts } })); saved = nm; haptic('ok');
-      if (added.size) {      // le deck enregistré met lui-même ses manquantes dans « Je recherche » : les souhaits ajoutés juste avant feraient doublon
+      const nm = edhSaveName(r), id = newIdFor(); putDeck(id, deckDoc({ name: nm, text: dkSetMeta(text, 'from', 'edh'), opts: { ...S.opts } })); saved = nm; haptic('ok');      // venu d'À monter : cartes manquantes pas suivies tant qu'on n'allume pas « Suivre les cartes manquantes »
+      if (added.size && dkTrack(findDeck(id).text)) {      // le deck enregistré met lui-même ses manquantes dans « Je recherche » : les souhaits ajoutés juste avant feraient doublon
         for (const [k, q] of added) { const cur = TR.wish[k]; if (!cur) continue; if (cur.q > q) TR.wish[k] = { ...cur, q: cur.q - q }; else delete TR.wish[k]; }
         added.clear(); trChanged();
       }
@@ -492,8 +492,8 @@ function openEdhDeck(r) {
     edhDeckActs(api, r, name);
     $('.dk-acts', api.body).onclick = e => {
       const b = e.target.closest('[data-act]'); if (!b) return; haptic('tap');
-      if (b.dataset.act === 'dkview') { api.close(); openDeckViewer({ text: edhDeckText(r.deck), name, saveAs: edhSaveName(r) }); }
-      else if (b.dataset.act === 'dkana' && typeof openDeckAnalysis === 'function') { api.close(); setTimeout(() => openDeckAnalysis({ text: edhDeckText(r.deck), name: edhSaveName(r) }), 200); }      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)      // viewer : images, courbe, main de départ, partage, « Enregistrer dans mes decks » (même nom que la feuille)
+      if (b.dataset.act === 'dkview') { api.close(); openDeckViewer({ text: edhDeckText(r.deck), name, saveAs: edhSaveName(r), from: 'edh' }); }
+      else if (b.dataset.act === 'dkana' && typeof openDeckAnalysis === 'function') { api.close(); setTimeout(() => openDeckAnalysis({ text: edhDeckText(r.deck), name: edhSaveName(r), from: 'edh' }), 200); }      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)      // viewer : images, courbe, main de départ, partage, « Enregistrer dans mes decks » (même nom que la feuille)
       else shareDeck({ text: edhDeckText(r.deck), name });
     };
     let imgs = new Map(), settled = false, tries = 0;

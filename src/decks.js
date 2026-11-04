@@ -350,6 +350,7 @@ function openDeckSheet(id) {
     }).join('');
     api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Modifier le deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
+      <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Suivre les cartes manquantes')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
       ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
       <div class="dk-val" id="dkVal"></div>
       <div class="sec-title">${T('Historique des prix')}</div>
@@ -369,6 +370,15 @@ function openDeckSheet(id) {
     paintCover(); $('#dkEdit', api.body).onclick = () => { haptic('tap'); openDeckEdit(id, paintCover); };
     dmLoad().then(() => dmFetch([dkCoverCard((findDeck(id) || d).text, dmOf)].filter(Boolean))).then(ok => ok && paintCover());
     engBindSwitch(id, $('#dkMount', api.body), $('#dkMountHint', api.body));
+    const trk = $('#dkTrack', api.body), trkHint = $('#dkTrackHint', api.body);      // cartes manquantes dans « Je recherche » et les alertes de prix (core.js › dkTrack ; deck venu d'À monter : éteint d'office)
+    const paintTrack = () => { const cur = findDeck(id) || d; trk.checked = dkTrack(cur.text); trkHint.textContent = trk.checked ? T('Ses cartes manquantes sont dans « Je recherche » et tes alertes de prix.') : T('Ses cartes manquantes ne sont ni dans « Je recherche » ni dans tes alertes de prix.'); };
+    paintTrack();
+    trk.onchange = () => {
+      const cur = findDeck(id); if (!cur) return; const text = dkSetTrack(cur.text, trk.checked);
+      putDeck(id, deckDoc({ ...cur, text }, (Number(cur.updatedAt) || Date.now()) + 1));      // le deck garde sa place
+      if (S.deckId === id && $('#deckText').value === cur.text) { $('#deckText').value = text; refreshDeck(); }
+      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes suivies') : T('Cartes manquantes plus suivies')); paintTrack();
+    };
     const valEl = $('#dkVal', api.body);      // valeur estimée du deck (Cardmarket), même monté : pas besoin de chercher des offres
     const paintVal = fetched => {
       const cur = findDeck(id) || d, v = dkValue(cur.text, dmOf), fk = deckFmt(cur);
