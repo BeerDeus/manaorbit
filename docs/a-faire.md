@@ -12,6 +12,19 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Point du 4 novembre : coach qui s'adapte au deck, « Modifier le deck », suivi des cartes manquantes, couleur des emplacements, filtres d'un ami
+
+**Fait (Claude, 4 novembre)** — README › « Assistant de deck Commander, coach et analyse », « Mes decks », « Rangement », « Amis » :
+- **Coach** (`deckana.js`, affichage seulement : aucun calcul du coach modifié) : deck complet de Mes decks → **bilan direct** (note /100, phrase, ≤ 3 actions touchables, simulation de 10 000 parties en trois chiffres, échanges repliés avec la note avant → après, détail replié, réglages en bas) ; incomplet → **Compléter le deck** (réglages courts, construction de l'éditeur) ; pas à moi → **aperçu** (points forts / faibles, « Ajouter à mes decks »). Maquette avant / après validée par le propriétaire (planche en captures 393 px, clair et sombre).
+- Budget du bilan par défaut = **valeur actuelle** (`bv`), bracket par défaut = **estimé** (`ba`) ; l'éditeur ne reçoit la limite que si elle a été choisie (sinon aucune suggestion ne passait). Réglages gardés par deck (`dwSettingsFor`, `dwSettingsSave`).
+- **Modifier le deck** (feuille ⋯ › 1re ligne) : nom, image, format, tags (`// Deck Deal tags : …`), réglages du coach (Commander).
+- **Suivre les cartes manquantes** (feuille ⋯, sous « Deck monté ») sur **tous les decks** (choix du propriétaire) : allumé par défaut, éteint pour un deck enregistré depuis À monter ou la Communauté (`// Deck Deal from : edh | pub`, choix `// Deck Deal track : on | off`) ; éteint, ses manques sortent de « Je recherche » et des alertes de prix. Decks enregistrés depuis À monter **avant** ce changement : aucune marque d'origine, donc toujours suivis (à éteindre à la main si besoin).
+- **Couleur des emplacements** : pastilles (5 couleurs du mana, incolore, multicolore, 4 libres), devinée du nom d'un nouvel emplacement ; texte `:c-<clé>` compatible avec les versions d'avant.
+- **Filtres** de la collection d'un ami et des listes d'échange publiques : ceux de la collection (extension, couleur, famille, coût, rareté, prix) ; la collection envoyée aux amis porte maintenant les extensions des exemplaires (4e case, ignorée par une version plus ancienne ; envoyée sans si la collection devient trop grosse).
+- Tests : `deckwiz-e2e` (3 modes du coach), `dklist-e2e` (Modifier le deck, suivi), `places-e2e` (couleur), `trade-e2e` et `amis-e2e` (filtres), `test-i18n-langs` (module `coachui`).
+- [ ] À regarder sur téléphone : bilan d'un vrai deck (phrase de synthèse, actions), « Compléter le deck » jusqu'au choix de la version, aperçu d'un deck À monter puis « Ajouter à mes decks ».
+- [ ] Idée : filtre par tag dans Mes decks (les tags ne servent encore qu'à l'affichage).
+
 ## Point du 2 novembre (nuit) : coach entraîné sur un corpus massif
 
 - « Base du coach » toutes les 6 h (5 h 20 par passage) : le corpus Archidekt grossit d'environ 15 000 decks par passage ; à surveiller dans `log.txt` de la branche `deck-corpus` (taille des fichiers, erreurs Archidekt, ligne « Banc d'essai »). **Fait le 4 novembre** : 146 718 decks après le passage de 8 h UTC (165 000 environ après celui en cours) ; repassé à un passage par nuit (1 h 13 UTC). Banc d'essai stable autour de 31 % (rappel@20) depuis 70 000 decks : la suite se joue sur le coach lui-même (synergies, archétypes), plus sur le volume. Constat : un passage programmé qui tombe pendant un autre ne démarre pas toujours (file « archidekt »).
