@@ -5,7 +5,7 @@
 //   corpus.json.gz : la base brute, gardée d'un passage à l'autre (decks Archidekt les plus vus, pages commandant et thèmes EDHREC, étiquettes des cartes).
 //                    Reste sur le serveur (branche) : sert à l'analyse et au calcul, l'appli n'en reçoit que les agrégats.
 //   dkw.json.gz    : les agrégats lus par le serveur (server/dkw-srv.mjs) : table des cartes ([nom, identité, coût, types (bits), rôles (bits), prix € en centimes,
-//                    drapeaux (1 Game Changer · 2 tour supplémentaire · 4 destruction massive de terrains · 8 tuteur · 16 interdite en Commander), couleurs produites, rang EDHREC, coût de mana]), cibles par catégorie
+//                    drapeaux (1 Game Changer · 2 tour supplémentaire · 4 destruction massive de terrains · 8 tuteur · 16 interdite en Commander), couleurs produites, rang EDHREC, coût de mana, mécaniques (data/card-mech.json), sous-types]), cibles par catégorie
 //                    (toutes, par bracket, par thème, par nombre de couleurs), et pour chaque commandant / thème ses cartes conseillées.
 //   log.txt        : le journal.
 // Sources (lecture lente et polie, User-Agent qui s'annonce) :
@@ -17,6 +17,7 @@
 // Incrémental : le corpus précédent (DECKDB_PREV, défaut <sortie>/corpus.json.gz) est repris ; chaque passage complète ce qui manque ou a vieilli, dans son budget de temps.
 // Variables : DECKDB_MIN (budget total en minutes, 290) · DECKDB_ARCH_K (decks par commandant à la première recherche, 40 ; ensuite, pages suivantes des plus joués) · DECKDB_CMDS (commandants couverts, 1500) · DECKDB_THEMES (thèmes EDHREC par commandant, 3)
 //   DECKDB_EDH_DAYS (âge maximal d'une page EDHREC, 7) · DECKDB_ARCH_DAYS (âge maximal d'une recherche Archidekt, 21) · DECKDB_GLOBAL (decks les plus vus tous commandants, 1000)
+//   DECKDB_OFFLINE (1 : aucune lecture réseau, agrégats recalculés depuis le corpus de DECKDB_PREV ; seul dkw.json.gz est écrit) · DECKDB_MECH (classement des cartes, data/card-mech.json)
 //   DECKDB_ARCH_OFF (1 : sans lecture d'Archidekt, passage court) · DECKDB_TAGGER (0 : sans recherches Tagger) · DECKDB_BULK (fichier oracle-cards local, facultatif ; 0 : sans, cartes lues par /cards/collection) · EDH_FILE (pwa/edh.bin.gz : liste des commandants et leurs thèmes) · bases : EDH_BASE, ARCH_BASE, SCRY_BASE.
 import { writeFileSync, readFileSync, existsSync, mkdirSync, appendFileSync, renameSync } from 'node:fs';
 import { gzipSync, gunzipSync } from 'node:zlib';
@@ -24,6 +25,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normKey, edhSlug, cardviewsOf, archidektList, archDay, GENERAL_THEMES } from './gen-edhrec.mjs';
+import { readMech, taxonomy } from './tools/card-mech-merge.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const UA = 'DeckDeal-deckdb/1.0 (+https://github.com/BeerDeus/manaorbit)';
@@ -495,8 +497,34 @@ export function pairsOf(C, info, cards) {
   }
   return out;
 }
-/** Table des cartes et agrégats → objet dkw (voir l'en-tête). */
-export function aggregate(C, S, tagger, cmds) {
+/* ── Classement des cartes par mécaniques (data/card-mech.json : agents IA, chaque lot relu par un arbitre ; taxonomie data/card-mech-taxonomy.md) ──
+   Dans la table des cartes : [10] = [rôles (bits, ordre de mech.roles), provides (indices de mech.tags), wants (indices), types de créature soutenus (0 si aucun), force 1-5],
+   null pour une carte pas encore classée (extension sortie depuis : l'ancienne méthode garde la main) ; [11] = sous-types de la face avant (« Elf Druid »,
+   « Equipment », « Aura »… ; « Changeling » ajouté pour un changelin), lus sur la ligne de type (ce que le classement ne contient pas, volontairement). */
+const MECH_FILE = process.env.DECKDB_MECH || join(here, 'data', 'card-mech.json');
+/** { meta, tax, by: Map(clé → { roles, provides, wants, tribes, power }) } ; null si le fichier manque. */
+export function mechLoad(file = MECH_FILE) {
+  if (!existsSync(file)) return null;
+  const { meta, cards } = readMech(file), tax = taxonomy(), by = new Map();
+  for (const [n, m] of cards) { by.set(normKey(n), m); if (n.includes(' // ')) { const f = normKey(n.split(' // ')[0]); if (!by.has(f)) by.set(f, m); } }
+  return { meta, tax, by };
+}
+/** Rôles du coach (bits RB) d'après le classement : les 10 rôles communs (fixing et stax restent dans [10]). */
+export const mechRoleBits = m => m.roles.reduce((a, r) => a | (RB[r] || 0), 0);
+/** Ligne compacte [10] d'une carte classée. */
+export function mechRow(m, tax) {
+  const ri = tax._ri || (tax._ri = new Map(tax.roles.map((r, i) => [r, i]))), ti = tax._ti || (tax._ti = new Map(tax.tags.map((t, i) => [t, i])));
+  const rb = m.roles.reduce((a, r) => a | (ri.has(r) ? 1 << ri.get(r) : 0), 0), ix = l => l.map(t => ti.get(t)).filter(i => i !== undefined);
+  return [rb, ix(m.provides), ix(m.wants), m.tribes.length ? m.tribes : 0, m.power || 1];
+}
+/** Sous-types de la face avant (ligne de type), « Changeling » en plus pour un changelin. */
+export function subTypes(type, text) {
+  const f = String(type || '').split(' // ')[0], i = f.indexOf('—'), sub = i >= 0 ? f.slice(i + 1).trim() : '';
+  return (sub + (/\bChangeling\b/.test(String(text || '')) && /\b(Creature|Kindred|Tribal)\b/.test(f) ? ' Changeling' : '')).trim().slice(0, 60);
+}
+
+/** Table des cartes et agrégats → objet dkw (voir l'en-tête). mech : classement des cartes (mechLoad), facultatif. */
+export function aggregate(C, S, tagger, cmds, mech = null) {
   const at = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   // votes des auteurs : par carte, decks où elle a une catégorie d'auteur ; rôles votés
   const votes = new Map(), voted = new Map();
@@ -515,13 +543,15 @@ export function aggregate(C, S, tagger, cmds) {
     if (!s) continue;      // sans fiche Scryfall : identité de couleur inconnue, jamais proposée (l'appli lit la fiche de la carte si elle est dans un deck)
     const name = s.name;
     if (s && !s.legal && !/\bLegendary\b/.test(s.type)) continue;
-    let roles = cardRoles({ dc: m.dc, tags: m.ot, votes: votes.get(i), decks: voted.get(i) || 0, scry: s ? { ...s } : (m.ty ? { name, type: m.ty, text: '' } : null) });
-    roles |= tagger.get(k) || 0; if (roles & RB.wipe) roles &= ~RB.removal;
+    const mc = mech ? mech.by.get(k) : null;      // classée par mécaniques : ses rôles remplacent les sources d'avant (Archidekt, Tagger, votes, texte)
+    let roles = mc ? mechRoleBits(mc) | (/\bLand\b/.test(s.type) ? RB.land : 0) : cardRoles({ dc: m.dc, tags: m.ot, votes: votes.get(i), decks: voted.get(i) || 0, scry: s ? { ...s } : (m.ty ? { name, type: m.ty, text: '' } : null) });
+    if (!mc) roles |= tagger.get(k) || 0; if (roles & RB.wipe) roles &= ~RB.removal;
     if (roles & RB.counter && roles & RB.removal && !/\b(destroy|exile) target|return target (creature|permanent|nonland)|sacrifices? an? /i.test(s.text || '')) roles &= ~RB.removal;      // contresort rangé « Removal » par les votes : pas un retrait
-    if (s && /\bLand\b/.test(s.type) && !/\/\//.test(s.name)) roles = (roles & RB.ramp && /\{T\}: Add \{C\}\{C\}|Add \{C\}\{C\}/.test(s.text) ? RB.ramp : 0) | RB.land;
+    if (s && /\bLand\b/.test(s.type) && !/\/\//.test(s.name)) roles = (roles & RB.ramp && (mc || /\{T\}: Add \{C\}\{C\}|Add \{C\}\{C\}/.test(s.text)) ? RB.ramp : 0) | RB.land;
     const cmc = s ? s.cmc : Number(m.cmc) || 0, gc = (s && s.gc) || m.gc ? 1 : 0;
     const flags = (gc ? 1 : 0) | (m.xt || /take an extra turn/i.test(s ? s.text : '') ? 2 : 0) | (m.mld ? 4 : 0) | (m.tu || roles & RB.tutor ? 8 : 0) | (s.legal ? 0 : 16);      // 16 : interdite en Commander (légendaire gardée pour lire les decks qui l'ont)
     const row = [name, s ? s.ci : '', cmc, typeBits(s ? s.type : m.ty), roles, s ? s.eur : 0, flags, s && (/\bLand\b/.test(s.type) || roles & RB.ramp) ? s.prod : '', s && s.rank ? Math.min(65535, s.rank) : 0, s && !/\bLand\b/.test(String(s.type).split(' // ')[0]) ? String(s.mc || '').replace(/\s+\/\/\s+.*$/, '') : ''];      // [9] coût de mana (face avant) : symboles de couleur sans attendre la fiche
+    if (mech) row.push(mc ? mechRow(mc, mech.tax) : null, subTypes(s.type, s.text));      // [10] mécaniques, [11] sous-types
     cards.push(row); info.set(k, { roles, cmc, gc });
   }
   cards.sort((a, b) => (a[0] < b[0] ? -1 : 1));
@@ -538,12 +568,13 @@ export function aggregate(C, S, tagger, cmds) {
   for (let n = 0; n <= 5; n++) { const l = profs.filter(p => p.nc === n); if (l.length >= 15) tg.nc[n] = statsOf(l); }
   const thSet = new Set(profs.flatMap(p => p.th)); for (const t of thSet) { const l = profs.filter(p => p.th.includes(t)); if (l.length >= 15) tg.th[t] = statsOf(l); }
   // par commandant : cartes EDHREC (inclusion, synergie), thèmes approfondis, statistiques du corpus et cartes du corpus absentes d'EDHREC
-  const cmd = {};
+  const cmd = {}, decksBy = new Map();      // decks appris, rangés par leur premier commandant (une seule passe sur le corpus)
+  for (const d of Object.values(C.decks)) if (!d.skip && d.c && !heldOut(d)) { const k = normKey(C.names[d.cmd[0]] || ''); (decksBy.get(k) || decksBy.set(k, []).get(k)).push(d); }
   for (const c of cmds) {
     const e = C.edh[c.slug], ps = byCmd.get(c.slug) || [];
     if ((!e || !e.cards || !e.cards.length) && ps.length < 3) continue;
     const corpus = new Map(); let nd = 0;
-    for (const d of Object.values(C.decks)) if (!d.skip && d.c && !heldOut(d) && normKey(C.names[d.cmd[0]] || '') === normKey(c.names[0])) { nd++; for (const [i] of d.c) corpus.set(i, (corpus.get(i) || 0) + 1); }
+    for (const d of decksBy.get(normKey(c.names[0])) || []) { nd++; for (const [i] of d.c) corpus.set(i, (corpus.get(i) || 0) + 1); }
     const edhNames = new Set((e && e.cards || []).map(x => normKey(x[0])));
     const extra = nd >= 3 ? [...corpus].filter(([i, n]) => n / nd >= 0.25 && !edhNames.has(normKey(C.names[i]))).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([i, n]) => [C.names[i], Math.round(100 * n / nd)]) : [];
     const th = {}; if (e && e.th) for (const [ts, p] of Object.entries(e.th)) if (p && p.cards && p.cards.length) th[ts] = { n: p.n, land: p.land, cards: p.cards.slice(0, 220) };
@@ -551,7 +582,8 @@ export function aggregate(C, S, tagger, cmds) {
   }
   const pairs = pairsOf(C, info, cards);
   const themes = {}; for (const [s, p] of Object.entries(C.tags)) if (p && p.cards && p.cards.length) themes[s] = { n: p.n, cards: p.cards.slice(0, 250), cmds: (p.cmds || []).slice(0, 40) };
-  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, pairs, combos: Array.isArray(C.combos) ? C.combos : [], src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size } };
+  const mechMeta = mech ? { v: mech.meta.v, at: mech.meta.at, tax: mech.tax.version, roles: mech.tax.roles, tags: mech.tax.tags, n: cards.filter(r => r[10]).length } : undefined;
+  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, pairs, combos: Array.isArray(C.combos) ? C.combos : [], mech: mechMeta, src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size, mech: mechMeta ? mechMeta.n : 0 } };
 }
 
 /* ── Principal ──────────────────────────────────────────────────────────────────────────────────── */
@@ -563,21 +595,28 @@ async function main() {
   const cmds = cmdsFromEdh(process.env.EDH_FILE || join(here, 'pwa', 'edh.bin.gz')).slice(0, CMDS_MAX);
   if (!cmds.length) throw new Error('Aucun commandant (pwa/edh.bin.gz absent ou illisible)');
   log(`${cmds.length} commandants (pwa/edh.bin.gz)`);
-  const S = await scryAll();
+  const OFF = process.env.DECKDB_OFFLINE === '1';      // hors ligne : agrégats recalculés depuis le corpus seul (fiches Scryfall, étiquettes Tagger et combos qu'il garde), sans aucune lecture réseau
+  if (OFF) log('  hors ligne (DECKDB_OFFLINE) : aucune lecture réseau, agrégats depuis le corpus');
+  const S = OFF ? new Map() : await scryAll();
   if (C.scry && typeof C.scry === 'object') { let n = 0; for (const [k, a] of Object.entries(C.scry)) if (!S.has(k) && Array.isArray(a)) { S.set(k, scryUnpack(a)); n++; } if (n) log(`  Scryfall : ${n} fiches reprises du corpus`); }
-  const tagger = await taggerRoles(C);
-  await edhrecRun(C, cmds);
-  const themeSlugs = new Set(); for (const c of cmds) for (const t of c.themes) themeSlugs.add(t[0]);
-  for (const t of GENERAL_THEMES) themeSlugs.add(edhSlug(t.replace(/\+1\/\+1/g, 'plus-1-plus-1').replace(/-1\/-1/g, 'minus-1-minus-1')));
-  await edhrecTags(C, [...themeSlugs]);
-  await spellbook(C);
-  if (process.env.DECKDB_ARCH_OFF !== '1') await archidektRun(C, cmds); else log('  Archidekt : sauté (DECKDB_ARCH_OFF)');
-  await scryFill(S, [...C.names, ...Object.values(C.edh).flatMap(e => (e.cards || []).map(x => x[0]))]);
-  C.at = new Date().toISOString();
-  const px = await pricesDaily();
+  const tagger = OFF ? new Map(Object.entries(C.tagger || {})) : await taggerRoles(C);
+  if (!OFF) {
+    await edhrecRun(C, cmds);
+    const themeSlugs = new Set(); for (const c of cmds) for (const t of c.themes) themeSlugs.add(t[0]);
+    for (const t of GENERAL_THEMES) themeSlugs.add(edhSlug(t.replace(/\+1\/\+1/g, 'plus-1-plus-1').replace(/-1\/-1/g, 'minus-1-minus-1')));
+    await edhrecTags(C, [...themeSlugs]);
+    await spellbook(C);
+    if (process.env.DECKDB_ARCH_OFF !== '1') await archidektRun(C, cmds); else log('  Archidekt : sauté (DECKDB_ARCH_OFF)');
+    await scryFill(S, [...C.names, ...Object.values(C.edh).flatMap(e => (e.cards || []).map(x => x[0]))]);
+    C.at = new Date().toISOString();
+  }
+  const px = OFF ? null : await pricesDaily();
   if (px) { let n = 0; for (const [k, x] of S) { const p = px.get(k); const e = p ? p.e || Math.round((p.u || 0) * 0.92) : 0; if (e > 0 && e !== x.eur) { x.eur = e; n++; } } log(`  prix du jour : ${n} prix mis à jour`); }
   C.scry = {}; for (const [k, x] of S) C.scry[k] = scryPack(x);
-  const D = aggregate(C, S, tagger, cmds);
+  const mech = mechLoad();
+  log(mech ? `  mécaniques : ${mech.by.size} cartes classées (data/card-mech.json du ${mech.meta.at}, taxonomie v${mech.tax.version})` : '  mécaniques : data/card-mech.json absent (rôles d\'avant seulement)');
+  const D = aggregate(C, S, tagger, cmds, mech);
+  if (mech) log(`  mécaniques : ${D.mech.n} cartes de la table classées, ${D.cards.length - D.mech.n} sans classement (ancienne méthode)`);
   try {      // banc d'essai : le coach de l'appli face aux decks mis de côté, et réglage de ses poids (bench-coach.mjs)
     const { benchCoach, heldFromCorpus } = await import('./bench-coach.mjs'), t = Date.now(), r = benchCoach(D, heldFromCorpus(C, heldOut));
     if (r) { const b = r.bench; D.bench = b; if (r.w) D.w = r.w; log(`  Banc d'essai : ${b.n} decks jamais appris, ${b.hide} sorts retirés chacun · retrouvés dans les 10 / 20 / 40 premières suggestions : ${b.base.r10} / ${b.base.r20} / ${b.base.r40} %` + (b.kept ? ` → réglage ${b.tuned.r10} / ${b.tuned.r20} / ${b.tuned.r40} % (poids ${JSON.stringify(r.w)})` : ' (poids d\'origine gardés)') + ` · ${Math.round((Date.now() - t) / 1000)} s`); }
@@ -587,7 +626,7 @@ async function main() {
   const files = corpusFiles(C), dkwBuf = gzipSync(Buffer.from(JSON.stringify(D)), { level: 9 }), corpusBuf = { length: files.reduce((a, [, b]) => a + b.length, 0) };
   const nDecks = D.src.decks;
   if (D.cards.length < 5000 && !process.env.DECKDB_SMALL) throw new Error(`Table des cartes trop maigre (${D.cards.length}) : rien de publié`);
-  for (const [f, b] of [...files, ['dkw.json.gz', dkwBuf]]) { const p = join(OUT, f); writeFileSync(p + '.tmp', b); renameSync(p + '.tmp', p); }
+  for (const [f, b] of [...(OFF ? [] : files), ['dkw.json.gz', dkwBuf]]) { const p = join(OUT, f); writeFileSync(p + '.tmp', b); renameSync(p + '.tmp', p); }
   const rolesN = ROLES.map((r, i) => `${r} ${D.cards.filter(c => c[4] & (1 << i)).length}`).join(', ');
   log(`Terminé en ${Math.round((Date.now() - T0) / 60000)} min : ${D.cards.length} cartes (${rolesN}), ${nDecks} decks analysés, ${Object.keys(D.cmd).length} commandants, ${Object.keys(D.themes).length} thèmes`);
   log(`  cibles (tous decks, médianes) : ${STAT_KEYS.map(k => `${k} ${D.tg.all[k] ? D.tg.all[k][1] : '-'}`).join(' · ')}`);

@@ -42,7 +42,15 @@ const DW_ARCH = {
   tokens: { ramp: [9, 10, 12], wipe: [1, 2, 3], d: -0.5 },
   aristocrats: { recursion: [3, 5, 8], wipe: [2, 3, 4], draw: [9, 11, 14], d: -1 },
   stax: { counter: [3, 5, 6], tutor: [3, 5, 6], d: -3 },
+  // decks à thème (avec le classement par mécaniques) : moins de retraits et de balayages, c'est voulu ; la note ne les pénalise pas (deckopt.js › dsScore)
+  'group-hug': { removal: [3, 5, 8], wipe: [0, 1, 3], draw: [8, 10, 14], protect: [1, 3, 6] },
+  politics: { removal: [4, 6, 9], wipe: [1, 2, 3] },
+  'pillow-fort': { removal: [4, 6, 9], wipe: [2, 3, 5], protect: [1, 3, 5] },
+  enchantress: { draw: [6, 8, 12], removal: [5, 7, 10] },
+  tribal: { wipe: [0, 1, 3], removal: [5, 7, 10] },
 };
+/** Mécaniques choisies (assistant) → archétype de cibles. */
+const DW_ARCH_MECH = { 'group-hug': 'group-hug', politics: 'politics', pillowfort: 'pillow-fort', enchantments: 'enchantress', attack: 'aggro', voltron: 'voltron', spells: 'spellslinger', landfall: 'landfall', 'tokens-creature': 'tokens', sacrifice: 'aristocrats', 'dies-trigger': 'aristocrats' };
 /** Brackets officiels (Wizards, mise à jour du 9 février 2026) : nom, ce qui est permis, Game Changers permis. Tuteurs : plus de limite depuis octobre 2025. */
 const DW_BRACKETS = [
   [1, 'Exhibition', 'Decks à thème, très décontractés, parties d\'au moins 9 tours : aucun Game Changer, pas de destruction massive de terrains, pas de combo à 2 cartes, pas de tours supplémentaires.', 0],
@@ -119,10 +127,20 @@ const dwBasicColor = k => DW_BASIC_C[String(k).replace(/^snow covered /, '')] ||
 
 /* ── Réglages du deck (thèmes, bracket, budget) : gardés sur l'appareil par deck ───────────────────── */
 const DW_SET = 'deckdeal:dw:';
-const dwDefaults = () => ({ th: [], br: 3, bud: 0, own: true });
+/** Réglages : thèmes EDHREC (th), bracket, budget (centimes), priorité à la collection ; personnalisation : mécaniques choisies (mech), type de créature (tribe),
+ *  cartes fétiches à inclure (pets, noms), cartes à exclure (ban, noms), styles à exclure (avoid : DMX_AVOID), originalité 0-100 (orig : moins de staples,
+ *  plus de trouvailles), graine des tirages (seed : « Autre proposition »), style de la version choisie (style, arch). */
+const DW_ORIG0 = 30;
+const dwDefaults = () => ({ th: [], br: 3, bud: 0, own: true, mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0 });
+const dwArr = (v, n) => Array.isArray(v) ? v.filter(x => typeof x === 'string' && x).slice(0, n) : [];
+/** Réglages lus (stockage, assistant) : formes et bornes vérifiées. */
+function dwSane(o) {
+  const d = dwDefaults(); if (!o || typeof o !== 'object') return d;
+  return { ...d, ...o, th: dwArr(o.th, 3), mech: dwArr(o.mech, 4), pets: dwArr(o.pets, 20), ban: dwArr(o.ban, 40), avoid: dwArr(o.avoid, 12), tribe: typeof o.tribe === 'string' ? o.tribe.slice(0, 30) : '', orig: Number.isFinite(o.orig) ? Math.max(0, Math.min(100, Math.round(o.orig))) : DW_ORIG0 };
+}
 function dwSettingsFor(id) {
   if (!id) return dwDefaults();
-  try { const o = JSON.parse(localStorage.getItem(DW_SET + id) || 'null'); if (o && typeof o === 'object') return { ...dwDefaults(), ...o, th: Array.isArray(o.th) ? o.th.slice(0, 3) : [] }; } catch (e) { /* stockage refusé */ }
+  try { const o = JSON.parse(localStorage.getItem(DW_SET + id) || 'null'); if (o && typeof o === 'object') return dwSane(o); } catch (e) { /* stockage refusé */ }
   return dwDefaults();
 }
 function dwPersist(id) { if (!id || !BD.wiz) return; try { localStorage.setItem(DW_SET + id, JSON.stringify(BD.wiz)); } catch (e) { /* stockage refusé : pour cette session */ } }
@@ -134,11 +152,14 @@ function dwSaved(id) { if (dwOn() && BD.wiz) dwPersist(id); }
 function dwCmdOf(X = BD) {
   if (!X.cmdr.length) return null;
   const keys = X.cmdr.map(c => c.key), E = typeof EDH !== 'undefined' && EDH.data;
+  let out = null;
   if (E) {
     const hit = keys.length > 1 ? E.cmds.find(c => c.keys.length === keys.length && keys.every(k => c.keys.includes(k))) : E.by.get(keys[0]);
-    if (hit) return { slug: hit.slug, names: hit.names, ci: dwCiOf(keys, hit.ci), th: (hit.th || []).map(([i, n]) => [E.themes[i] ? E.themes[i].slug : '', E.themes[i] ? E.themes[i].label : '', n]).filter(t => t[0]) };
+    if (hit) out = { slug: hit.slug, names: hit.names, keys, ci: dwCiOf(keys, hit.ci), th: (hit.th || []).map(([i, n]) => [E.themes[i] ? E.themes[i].slug : '', E.themes[i] ? E.themes[i].label : '', n]).filter(t => t[0]) };
   }
-  return { slug: keys.map(k => k.replace(/ /g, '-')).join('-'), names: X.cmdr.map(c => c.name), ci: dwCiOf(keys, ''), th: [] };
+  if (!out) out = { slug: keys.map(k => k.replace(/ /g, '-')).join('-'), names: X.cmdr.map(c => c.name), keys, ci: dwCiOf(keys, ''), th: [] };
+  (DW.cmdOfSlug || (DW.cmdOfSlug = new Map())).set(out.slug, out); DW.lastCmd = out;      // dwInfo(pack, set) sans commandant (analyse, rapport) : celui de ce paquet
+  return out;
 }
 /** Identité de couleur du ou des commandants : réunion de celles de chaque carte (les données EDHREC ne donnent que celle du premier partenaire). */
 function dwCiOf(keys, base) {
@@ -206,7 +227,8 @@ function dwLandTarget(mv, cheap, br, d = 0) {
 /** Modèle de recherche pour ce bracket et ces thèmes (§ 8.3, 8.4, 8.6) : { rôle: [min, cible, max], d: écart de terrains }. */
 function dwModel(set) {
   const m = { ...DW_BASE, ...(DW_BR_ADJ[set.br] || {}) }; let d = 0;
-  for (const t of set.arch && DW_ARCH[set.arch] ? [set.arch] : set.th) { const a = DW_ARCH[t]; if (!a) continue; for (const [k, v] of Object.entries(a)) if (k === 'd') d += v; else m[k] = v; break; }      // style choisi (version « agressive », « contrôle »), sinon le premier archétype parmi les thèmes
+  const cand = set.arch && DW_ARCH[set.arch] ? [set.arch] : [...(set.mech || []).map(t => DW_ARCH_MECH[t]).filter(Boolean), ...(set.th || []), ...(set.tribe ? ['tribal'] : [])];
+  for (const t of cand) { const a = DW_ARCH[t]; if (!a) continue; for (const [k, v] of Object.entries(a)) if (k === 'd') d += v; else m[k] = v; m.arch = t; break; }      // style choisi (version « agressive », « contrôle »), sinon le premier archétype parmi les mécaniques et les thèmes
   m.d = d; return m;
 }
 /** Cibles [min, cible, max] par rôle : le modèle de recherche (poids 2), mêlé aux décks réels quand la base est là : le commandant lui-même (≥ 8 decks, poids 3),
@@ -228,8 +250,10 @@ function dwTargets(prof, cmd, pack, set = BD.wiz || dwDefaults()) {
   const mv = prof.nonland >= 25 ? prof.mv : out.mv[1], cheap = prof.nonland >= 25 ? prof.cheap : out.cheap[1];
   out.land = dwLandTarget(mv, cheap, set.br, model.d);
   if (cmd && !cmd.ci.includes('U')) out.counter = [0, 0, 0];
-  if (out.wincon && dwPlanWins(pack)) out.wincon = [0, 0, out.wincon[2]];      // les vrais decks de ce commandant gagnent par leur plan (combat, jetons…), sans « condition de victoire » au sens strict : rien à forcer
+  if (out.wincon) out.wincon = dwPlanWins(pack) ? [1, 1, Math.max(2, out.wincon[2])] : out.wincon.map((v, i) => i < 2 ? Math.max(1, v) : Math.max(2, v));      // au moins une vraie condition de victoire, toujours (deck à thème compris) ; un commandant qui gagne par son plan (combat, jetons…) : une seule suffit
+  for (const [a, r] of [['wipe', 'wipe'], ['counter', 'counter'], ['tutor', 'tutor']]) if ((set.avoid || []).includes(a)) out[r] = [0, 0, 0];      // style exclu par le joueur : plus de cible
   for (const k of Object.keys(out)) if (k !== 'mv') out[k] = out[k].map(v => Math.round(v));
+  out.arch = model.arch || '';
   return out;
 }
 /** Vrai si le commandant est bien connu de la base et qu'aucune carte jouée dans au moins 10 % de ses decks n'est une condition de victoire au sens strict. */
@@ -247,9 +271,18 @@ const dwSrcFor = (pips, mv) => { const p = Math.min(4, Math.max(1, Math.ceil(pip
 /** Cartes candidates pour le commandant (EDHREC, thèmes choisis, corpus), notées ; role : rôle voulu ('' : plan / synergie ; 'land' : terrains). */
 /** Valeur d'une carte pour ce commandant (sans collection ni prix) : inclusion, synergie, thèmes choisis, decks Archidekt. */
 /** Poids d'origine ; la base peut en apporter d'autres, réglés chaque nuit par le banc d'essai (bench-coach.mjs : de vrais decks jamais appris, cartes retirées à retrouver). */
-const DW_W0 = { incl: 1, syn: 0.8, th: 0.9, g: 0.4, cx: 0.5, rank: 0.5, pair: 0.04 };
+/** Popularité (incl, syn, th, g, cx, rank, pair : réglés par le banc) ; mécaniques (deckmech.js : m = valeur pour le plan, q = force propre, noise = écart des tirages,
+ *  avoid = recul d'une carte déjà prise par une autre version) : jamais réglés par le banc, qui mesure la ressemblance avec les decks des joueurs. */
+const DW_W0 = { incl: 1, syn: 0.8, th: 0.9, g: 0.4, cx: 0.5, rank: 0.5, pair: 0.04, m: 1, q: 0.3, noise: 0.09, avoid: 0.2 };
 const dwW = () => { const w = DW.core && DW.core.w; return w && typeof w === 'object' ? { ...DW_W0, ...w } : DW_W0; };
-const dwVal = o => { const w = dwW(); return (o.incl || 0) / 100 * w.incl + Math.max(0, o.syn || 0) / 100 * w.syn + (o.th || 0) / 100 * w.th + (o.g || 0) / 100 * w.g + (o.cx || 0) / 100 * w.cx + (o.rank ? Math.max(0, 1 - o.rank / 4000) * w.rank : 0); };
+/** Popularité seule (EDHREC, decks Archidekt, rang) : signal de fiabilité. */
+const dwPop = (o, w = dwW()) => (o.incl || 0) / 100 * w.incl + Math.max(0, o.syn || 0) / 100 * w.syn + (o.th || 0) / 100 * w.th + (o.g || 0) / 100 * w.g + (o.cx || 0) / 100 * w.cx + (o.rank ? Math.max(0, 1 - o.rank / 4000) * w.rank : 0);
+/** Valeur d'une carte : popularité (réduite par le curseur « originalité » : o.k) + ce qu'elle fait pour le plan du deck (o.m) + sa force (o.q). */
+const dwVal = o => { const w = dwW(); return (o.k == null ? 1 : o.k) * dwPop(o, w) + (o.m || 0) * w.m + (o.q || 0) * w.q; };
+/** Part de la popularité gardée : 1 (classique) à 0,3 (trouvailles). */
+const dwPopK = set => 1 - 0.7 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100;
+/** Style de jeu pour le plan (version choisie) : 'aggro', 'control', 'eco' ou ''. */
+const dwStyle = set => set.style === 'eco' ? 'eco' : set.arch || '';
 /** Cartes qui vont ensemble (base : paires bien plus souvent dans les mêmes decks que le hasard) : clé → [{ p : clé du partenaire, l : lift }]. */
 function dwPairIdx() {
   if (DW.pairIdx && DW.pairIdx.src === DW.core) return DW.pairIdx.m;
@@ -257,8 +290,15 @@ function dwPairIdx() {
   for (const [a, l] of (DW.core && DW.core.pairs) || []) { const ra = cards[a]; if (!ra || !Array.isArray(l)) continue; const ka = ownKey(ra[0]), out = []; for (let i = 0; i + 1 < l.length; i += 2) { const rb = cards[l[i]]; if (rb) out.push({ p: ownKey(rb[0]), n: rb[0], l: l[i + 1] / 10 }); } if (out.length) m.set(ka, out); }
   DW.pairIdx = { src: DW.core, m }; return m;
 }
-/** Ce que la base sait de chaque carte pour ce commandant et ces thèmes : clé → { name, incl, syn, th, g, cx }. */
-function dwInfo(pack, set) {
+/** Ce que la base sait de chaque carte pour ce commandant et ces thèmes : clé → { name, incl, syn, th, g, cx, rank, m, q, k }.
+ *  Avec le classement par mécaniques : toutes les cartes des couleurs qui servent le plan s'y ajoutent (dmxPool), même jamais jouées avec ce commandant ;
+ *  m : leur valeur pour le plan (deckmech.js › dmxFit), q : leur force, k : part de popularité gardée (originalité). C.npack : cartes venues des listes du commandant.
+ *  cmd : commandant (dwCmdOf), sinon le dernier vu pour ce paquet. Gardé tant que rien ne change (la génération le relit des centaines de fois). */
+function dwInfo(pack, set, cmd) {
+  cmd = cmd || (pack && DW.cmdOfSlug && DW.cmdOfSlug.get(pack.slug)) || DW.lastCmd || null;
+  const plan = typeof dmxPlan === 'function' && cmd ? dmxPlan(cmd, set, dwStyle(set)) : null;
+  const sig = [cmd ? (cmd.keys || cmd.names.map(n => ownKey(n))).join('+') : '', (set.th || []).map(t => t + (DW.th.has(t) ? 1 : 0)).join(','), plan ? plan.sig : '', dwPopK(set)].join('|');
+  if (DW.infoC && DW.infoC.pack === pack && DW.infoC.sig === sig && DW.infoC.src === DW.core) return DW.infoC.C;
   const C = new Map(), add = (name, f, v) => { const k = ownKey(name); if (!k) return; const o = C.get(k) || { name, incl: 0, syn: 0, th: 0, g: 0, cx: 0 }; o[f] = Math.max(o[f], v); C.set(k, o); };
   if (pack) {
     for (const [nm, inc, syn] of pack.cards || []) { add(nm, 'incl', inc); add(nm, 'syn', syn); }
@@ -266,20 +306,55 @@ function dwInfo(pack, set) {
     for (const [nm, inc] of pack.xc || []) add(nm, 'cx', inc);
   }
   for (const t of set.th) { const tp = DW.th.get(t); if (tp) for (const [nm, inc] of tp.cards || []) add(nm, 'g', inc); }
+  C.npack = C.size;
+  if (plan) {
+    const k0 = dwPopK(set);
+    for (const [k, r] of dmxPool(cmd, plan)) if (!C.has(k)) C.set(k, { name: r[0], incl: 0, syn: 0, th: 0, g: 0, cx: 0, rank: r[8] || 0, pool: 1 });
+    for (const [k, o] of C) { const m = dmx(k); o.k = k0; if (!o.rank && !o.incl) { const r = DW.byKey && DW.byKey.get(k); if (r && r[8]) o.rank = r[8]; } if (m) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); } }
+    C.plan = plan;
+  }
+  DW.infoC = { pack, sig, src: DW.core, C };
   return C;
 }
-/** X : deck ({ main, cmdr, wiz, skip }) ; skip : clés déjà prises ailleurs (échanges de l'analyse). */
+/** Graine d'une carte pour un tirage : bruit de Gumbel (même graine, même tirage). */
+function dwNoise(k, seed) { let h = (seed | 0) ^ 0x9e3779b9; for (let i = 0; i < k.length; i++) h = Math.imul(h ^ k.charCodeAt(i), 2654435761); h ^= h >>> 15; const u = ((h >>> 0) % 1e6 + 0.5) / 1e6; return -Math.log(-Math.log(u)) - 0.5772; }
+const DW_BANC = new WeakMap();
+/** Cartes exclues par le joueur (noms) et styles exclus : test sur une carte. */
+function dwExcluded(k, x, set) {
+  if (set.ban && set.ban.length) { let b = DW_BANC.get(set.ban); if (!b) DW_BANC.set(set.ban, b = new Set(set.ban.map(n => ownKey(n)))); if (b.has(k)) return true; }
+  const av = set.avoid; if (!av || !av.length) return false;
+  const m = typeof dmx === 'function' ? dmx(k) : null, has = t => !!m && m.p.includes(dmxTag(t));
+  for (const a of av) {
+    if (a === 'stax' && m && dmxRole(m, 'stax')) return true;
+    if (a === 'steal' && (has('steal') || has('cast-others'))) return true;
+    if (a === 'tutor' && (x.roles & DW_RB.tutor || x.fl & 8)) return true;
+    if (a === 'counter' && x.roles & DW_RB.counter) return true;
+    if (a === 'wipe' && x.roles & DW_RB.wipe) return true;
+    if (a === 'discard' && has('discard-opponents')) return true;
+    if (a === 'mill' && has('mill')) return true;
+    if (a === 'chaos' && has('coin-flip')) return true;
+    if (a === 'xturn' && (x.fl & 2 || has('extra-turn'))) return true;
+    if (a === 'gc' && x.fl & 1) return true;
+  }
+  return false;
+}
+/** X : deck ({ main, cmdr, wiz, skip, pace, wide, avoid }) ; skip : clés déjà prises ailleurs (échanges de l'analyse) ; avoid : clé → nombre d'autres versions qui l'ont déjà (construction).
+ *  Valeur : popularité (réduite par l'originalité) + ce que la carte fait pour le plan du deck EN COURS (deckmech.js : fournit ce que veulent le commandant, les thèmes
+ *  et les cartes déjà là, profite de ce qu'ils fournissent, rendements décroissants) + sa force ; paires « va avec » ; combos (bracket 4-5) ; collection, budget ;
+ *  à la génération, un tirage (graine) départage les cartes proches, et une carte déjà prise par une autre version recule. */
 function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
   if (!DW.byKey) return [];
   const set = X.wiz || dwDefaults(), ci = new Set([...(cmd ? cmd.ci : '')]), inDeck = k => X.main.has(k) || X.cmdr.some(c => c.key === k) || (X.skip && X.skip.has(k));
   const brMax = (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[3], gcLeft = brMax - prof.gc.length;
   const must = role === 'wincon' && !prof.wincon;      // la première condition de victoire passe avant tout (rythme et part des terrains)
   const budLeft = set.bud > 0 ? set.bud - prof.cents - (X.landRes && role !== 'land' && !must ? X.landRes : 0) : Infinity, slots = Math.max(1, 100 - prof.n);      // landRes : part du budget gardée pour les terrains pendant la génération
-  const C = X.info || dwInfo(pack, set);
-  const fallback = C.size < 40 || X.wide;      // commandant inconnu de la base (ou génération à court de cartes : X.wide) : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
-  const out = [], combo = set.br <= 2 ? dwComboIdx() : null, pairs = dwPairIdx(), wPair = dwW().pair;      // brackets 1-2 : jamais la 2e carte d'un combo à 2 cartes
+  const C = X.info || dwInfo(pack, set, cmd), w = dwW();
+  const fallback = (C.npack != null ? C.npack : C.size) < 40 || X.wide;      // commandant inconnu de la base (ou génération à court de cartes : X.wide) : les cartes les plus jouées en Commander dans ses couleurs (rang EDHREC)
+  const noCombo = set.br <= 2 || (set.avoid || []).includes('combo'), combo = DW.core && DW.core.combos ? dwComboIdx() : null, pairs = dwPairIdx(), wPair = w.pair;      // brackets 1-2 : jamais la 2e carte d'un combo à 2 cartes
   const cols = cmd ? [...cmd.ci] : [], short = role === 'land' ? cols.filter(c => (prof.src[c] || 0) < (prof.need[c] || 0)) : [];      // terrains : couleurs sous le repère de Karsten
   const curveHi = X.pace && prof.nonland >= 20 && prof.mv > tgt.mv[2];
+  const plan = C.plan || null, deck = plan ? dmxDeck(X) : null, st = plan ? DMX_STYLE[plan.style] : null, seed = X.pace && set.seed ? set.seed : 0, tau = w.noise * (0.7 + 0.6 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100);
+  const out = [];
   const consider = (k, o) => {
     if (inDeck(k) || BASIC_NAMES.has(k)) return;
     const x = dwCard(k); if (!x || !DW.byKey.has(k)) return;
@@ -288,32 +363,44 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     if (role === 'land' ? !isLand : role ? !(x.roles & DW_RB[role]) : isLand) return;
     if (x.fl & 16) return;      // interdite en Commander
     if (x.fl & 1 && gcLeft <= 0) return;
-    if (combo) { const ps = combo.get(k); if (ps) for (const e of ps) if (inDeck(e.p)) return; }
+    let combo2 = '';
+    if (combo) { const ps = combo.get(k); if (ps) for (const e of ps) if (inDeck(e.p)) { if (noCombo) return; combo2 = e.c[0] === x.name ? e.c[1] : e.c[0]; } }
     if (x.fl & 4 && set.br <= 3) return;
     if (x.fl & 2 && set.br <= 2) return;
+    if (dwExcluded(k, x, set)) return;      // cartes et styles exclus par le joueur
     const price = dwPrice(k, x), own = collQty(k) > 0;
     if (price > 0 && price > budLeft) return;      // budget = valeur du deck, cartes possédées comprises (« Valeur du deck 634 € / 100 € »)
     if (X.pace && set.bud > 0) {      // génération : une carte chère passe tant qu'il reste de quoi remplir les autres places ; plus le budget par place est petit, plus l'écart permis est faible
-      const per = budLeft / slots, k = per < 50 ? 2 : per < 150 ? 4 : 8, floor = Math.min(10, per * 0.5);
-      if (price > (must ? budLeft - (slots - 1) * floor : Math.max(Math.min(60, per * 2), Math.min(per * k, budLeft - (slots - 1) * floor)))) return;
+      const per = budLeft / slots, kk = per < 50 ? 2 : per < 150 ? 4 : 8, floor = Math.min(10, per * 0.5);
+      if (price > (must ? budLeft - (slots - 1) * floor : Math.max(Math.min(60, per * 2), Math.min(per * kk, budLeft - (slots - 1) * floor)))) return;
     }
+    const m = plan ? dmx(k) : null;
+    if (m && o.m == null) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); }      // carte de secours (rang) : sa valeur de base pour le plan
     const v = dwVal(o); let s = v, pair = null;
+    if (m) s += w.m * (dmxFit(m, plan, deck) - (o.m || 0));      // valeur pour le plan dans le deck en cours (au lieu de la valeur de base)
     const pr = pairs.get(k); if (pr) { let b = 0; for (const e of pr) if (inDeck(e.p)) { b += Math.log2(e.l); if (!pair || e.l > pair.l) pair = e; } s += Math.min(0.4, b * wPair); }      // va avec des cartes déjà dans le deck
+    if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck
     if (own) s += set.own ? 0.35 : 0.08;
     if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft) && budLeft / slots < 300) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);      // budget serré seulement (moins de ~3 € par place restante) : un gros budget est un plafond, pas une raison de prendre moins bien
     if (isLand && cols.length > 1) {      // terrains d'un deck multicolore : ceux qui produisent les couleurs en manque d'abord, puis ceux qui en produisent plusieurs
-      const pr = [...String(x.prod)].filter(c => cols.includes(c)), fix = new Set(pr).size;
-      if (short.length) s += 0.25 * pr.filter(c => short.includes(c)).length - (fix ? 0 : 0.3);
+      const pr2 = [...String(x.prod)].filter(c => cols.includes(c)), fix = new Set(pr2).size;
+      if (short.length) s += 0.25 * pr2.filter(c => short.includes(c)).length - (fix ? 0 : 0.3);
       if (fix >= 2) s += 0.08 * Math.min(3, fix);
       if (!fix) s -= 0.15;      // terrain qui ne donne aucune couleur du deck (utilitaire incolore) : moins prioritaire en multicolore
     }
-    if (curveHi && !isLand && x.cmc >= 6) s -= 0.05 * (x.cmc - 5);
-    if (X.pace && set.arch === 'aggro' && !isLand) s -= 0.04 * Math.max(0, x.cmc - 3) - (x.ty & 2 ? 0.05 : 0);      // version « agressive » : sorts pas chers et créatures d'abord
-    if (X.pace && set.arch === 'control' && !isLand && x.roles & (DW_RB.removal | DW_RB.wipe | DW_RB.counter | DW_RB.draw)) s += 0.08;      // version « contrôle » : interaction et pioche d'abord      // génération : courbe déjà trop haute, les très gros sorts reculent
-    out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x, pair: pair ? pair.n : '' });
+    if (curveHi && !isLand && x.cmc >= 6) s -= 0.05 * (x.cmc - 5);      // génération : courbe déjà trop haute, les très gros sorts reculent
+    if (X.pace && !isLand) {
+      const arch = set.arch;
+      if (st) { s += (x.ty & 2 ? st.cre : 0) + st.mv * Math.max(0, x.cmc - 3); if (st.cheap && price > 0) s += price < 150 ? st.cheap : price > 800 ? -st.cheap : 0; }      // style de la version (deckmech.js › DMX_STYLE)
+      else if (arch === 'aggro') s -= 0.04 * Math.max(0, x.cmc - 3) - (x.ty & 2 ? 0.05 : 0);      // base sans classement : retouches d'avant
+      else if (arch === 'control' && x.roles & (DW_RB.removal | DW_RB.wipe | DW_RB.counter | DW_RB.draw)) s += 0.08;
+      if (X.avoid) { const a = X.avoid.get(k); if (a) s -= w.avoid * a; }      // déjà dans une autre version : recule (versions vraiment différentes)
+    }
+    if (seed) s += tau * dwNoise(k, seed);      // tirage : départage les cartes proches (« Autre proposition »)
+    out.push({ k, name: x.name, s, v, o, own, price, gc: !!(x.fl & 1), x, pair: pair ? pair.n : '', combo: combo2 });
   };
   for (const [k, o] of C) consider(k, o);
-  if (fallback) for (const [k, r] of dwWidePool(cmd ? cmd.ci : '')) if (!C.has(k)) consider(k, { rank: r[8] });
+  if (fallback) { const k0 = dwPopK(set); for (const [k, r] of dwWidePool(cmd ? cmd.ci : '')) if (!C.has(k)) consider(k, { rank: r[8], k: plan ? k0 : 1 }); }
   out.sort((a, b) => b.s - a.s || (a.name < b.name ? -1 : 1));
   return out.slice(0, n);
 }
@@ -334,17 +421,21 @@ function dwComboIdx() {
 }
 const dsNumFr = v => Number(v).toLocaleString(LOC(), { maximumFractionDigits: 1 });
 /** Raison d'une suggestion : ce qui la fait remonter. */
-function dwWhy(sg, cmd) {
+function dwWhy(sg, cmd, X = BD) {
   const o = sg.o, w = [];
+  const C = X.info || (DW.infoC && DW.infoC.C), plan = C && C.plan;
+  if (typeof dmxReasons === 'function' && plan) w.push(...dmxReasons(sg.k, X, cmd, plan));      // ce que fait la carte pour ce deck (classement par mécaniques)
+  else if (sg.combo) w.push(T('combo avec {card}', { card: sg.combo }));
   if (sg.pair) w.push(T('va avec {card}', { card: sg.pair }));
+  if (o.pool && !o.incl && (o.m || 0) >= 0.55) w.push(T('trouvaille : peu jouée, en pleine synergie'));
   if (o.incl >= 5 && cmd) w.push(T('{p} % des decks de {name}', { p: o.incl, name: cmd.names[0].split(',')[0] }));
   if (o.syn >= 15) w.push(T('synergie +{p} %', { p: o.syn }));
   if (o.th >= 10) w.push(T('thème choisi'));
   else if (o.g >= 10) w.push(T('carte du thème'));
   if (o.cx >= 25) w.push(T('decks Archidekt les plus vus'));
-  if (o.rank && !o.incl) w.push(T('très jouée en Commander'));
+  if (o.rank && o.rank < 1500 && !o.incl && !w.length) w.push(T('très jouée en Commander'));
   if (sg.gc) w.push('Game Changer');
-  return w.slice(0, 3).join(' · ');
+  return [...new Set(w)].slice(0, 3).join(' · ');
 }
 
 /* ── Onglet Coach ─────────────────────────────────────────────────────────────────────────────────── */
@@ -370,6 +461,8 @@ function dwCoachHtml() {
     h += dwCutsHtml(prof, tgt, cmd, pack);
   }
   if (DW.core && typeof dsScore === 'function' && prof.n > BD.cmdr.length + 20) h += dsScoreHtml(dsScore(BD, { cmd, pack }), { open: DW.scoreOpen });      // note du coach (deckopt.js) : dès que le deck prend forme
+  if (DW.core && typeof dwDeckStory === 'function' && prof.n > BD.cmdr.length + 20) h += dwStoryHtml(dwDeckStory(BD));      // plan du deck : thèmes, tribu, moteurs, conditions de victoire (classement par mécaniques)
+  if (DW.core && BD.wiz.gen && prof.n > BD.cmdr.length + 20 && typeof dsAgain === 'function') h += `<button class="btn ghost block" type="button" data-act="dw-again">${T('Autre proposition')}</button><p class="hint">${T('Le coach reconstruit le deck avec les mêmes réglages et d\'autres cartes de qualité égale ; annulable.')}</p>`;
   h += dwSetHtml(cmd, pack);
   if (DW.core && typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-act="dw-report"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
   if (DW.core && DW.autoNext && DW.cmd.has(cmd.slug)) { DW.autoNext = false; setTimeout(() => dwBuild(), 0); }      // prix du jour lus d'abord (dwBuild)      // assistant : « Générer les 100 cartes tout de suite »
@@ -389,6 +482,14 @@ function dwCoachHtml() {
   h += `<p class="hint dw-src">${esc(src)}</p>`;
   return h;
 }
+/** Plan du deck (données : deckmech.js › dwDeckStory) : une ligne de thèmes, les moteurs, les conditions de victoire, les remarques. */
+function dwStoryHtml(st) {
+  if (!st) return '';
+  const bits = [...(st.tribe ? [T('{t} ×{n}', { t: st.tribe.t, n: st.tribe.n })] : []), ...st.tags.slice(0, 3).map(t => T('{m} ×{n}', { m: t.label, n: t.n }))];
+  const eng = st.engines.map(e => T('{e} ({c})', { e: e.label, c: e.cards.slice(0, 3).join(', ') }));
+  return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
+    <p class="hint">${esc(st.wincons.length ? T('Pour gagner : {c}', { c: st.wincons.slice(0, 4).join(', ') }) : T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
+}
 /** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
 const dwFoldHead = (id, open, title, sum, attr) => `<button class="dw-set-h dw-fold" type="button" ${attr} aria-expanded="${open}"><span><b>${esc(title)}</b>${sum ? `<small>${esc(sum)}</small>` : ''}</span><span class="me-v">${open ? T('Masquer') : T('Afficher')}</span></button>`;
 /** Résumé de l'équilibre : catégories dans la norme. */
@@ -399,15 +500,73 @@ function dwBalSum(prof, tgt, cmd) {
 function dwSetHtml(cmd, pack) {
   const s = BD.wiz, th = dwThemeChoices(cmd, pack), cur = mkCur();
   const brName = (DW_BRACKETS.find(b => b[0] === s.br) || DW_BRACKETS[2])[1];
-  const sum = [s.th.length ? s.th.map(t => dwThemeLabel(t, th)).join(', ') : T('aucun thème'), T('bracket {n}', { n: s.br }) + ' · ' + brName, s.bud > 0 ? T('budget {p}', { p: fmt(s.bud, cur) }) : T('sans budget')].join(' · ');
+  const sum = [s.th.length ? s.th.map(t => dwThemeLabel(t, th)).join(', ') : T('aucun thème'), T('bracket {n}', { n: s.br }) + ' · ' + brName, s.bud > 0 ? T('budget {p}', { p: fmt(s.bud, cur) }) : T('sans budget'), dwPersoSum(s)].filter(Boolean).join(' · ');
   let h = `<button class="dw-set-h" type="button" data-act="dw-set" aria-expanded="${DW.setOpen}"><span><b>${T('Réglages du coach')}</b><small>${esc(sum)}</small></span><span class="me-v">${DW.setOpen ? '−' : '+'}</span></button>`;
   if (!DW.setOpen) return h;
   h += `<div class="dw-set"><p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${th.length ? th.map(([slug, label]) => `<button type="button" class="chip${s.th.includes(slug) ? ' on' : ''}" data-act="dw-th" data-v="${esc(slug)}" aria-pressed="${s.th.includes(slug)}">${esc(label)}</button>`).join('') : `<span class="hint">${T('Thèmes pas encore chargés.')}</span>`}</div>
     <p class="label">${T('Bracket')}</p><div class="dw-chips">${DW_BRACKETS.map(b => `<button type="button" class="chip${s.br === b[0] ? ' on' : ''}" data-act="dw-br" data-v="${b[0]}" aria-pressed="${s.br === b[0]}">${b[0]} · ${esc(b[1])}</button>`).join('')}</div>
     <p class="hint">${esc(T((DW_BRACKETS.find(b => b[0] === s.br) || DW_BRACKETS[2])[2]))}</p>
     <div class="field-in"><label class="label" for="dwBud">${T('Budget du deck ({c})', { c: cur })}</label><input type="number" id="dwBud" inputmode="decimal" min="0" step="10" placeholder="${T('Sans limite')}" value="${s.bud > 0 ? Math.round(s.bud / 100) : ''}"></div>
-    <label class="me-row switch-row" for="dwOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="dwOwn" ${s.own ? 'checked' : ''}><i></i></span></label></div>`;
+    <label class="me-row switch-row" for="dwOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="dwOwn" ${s.own ? 'checked' : ''}><i></i></span></label>
+    <div class="dw-perso" data-perso="coach">${dwPersoHtml(s, cmd, 'dwp')}</div></div>`;
   return h;
+}
+/* ── Personnalisation (assistant et réglages du Coach) : mécaniques, type de créature, cartes fétiches, cartes et styles exclus, originalité ── */
+/** Bloc de personnalisation. s : réglages (DWZ ou BD.wiz) ; cmd : commandant ({ keys, names, ci }) ; px : préfixe des identifiants ('dwz' assistant, 'dwp' Coach). */
+function dwPersoHtml(s, cmd, px) {
+  if (typeof dmxOn !== 'function' || !dmxOn()) return `<p class="hint">${DW.core ? T('Personnalisation par mécaniques : arrive avec la prochaine base du coach.') : T('Chargement de la base du coach…')}</p>`;
+  const det = cmd ? dmxCmdTags(cmd) : [], all = s._allMech ? DMX_PICK : DMX_PICK.slice(0, 18), mech = [...new Set([...det, ...(s.mech || []), ...all])];
+  const chip = (attr, v, on, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}="${esc(v)}" aria-pressed="${on}">${esc(label)}</button>`;
+  const tribes = [...dmxTribes().keys()].slice(0, 120), ct = cmd ? dmxCmdTribes(cmd) : [];
+  const list = (l, attr) => l.length ? `<div class="dw-chips">${l.map(n => `<button type="button" class="chip on" ${attr}="${esc(n)}" aria-label="${esc(T('Retirer {name}', { name: n }))}">${esc(n)} ×</button>`).join('')}</div>` : '';
+  const o = Number.isFinite(s.orig) ? s.orig : DW_ORIG0;
+  return `<p class="label">${T('Mécaniques à mettre en avant (4 au plus)')}</p>${det.length ? `<p class="hint">${esc(T('Repérées pour ce commandant : {m}', { m: det.map(dmxLabel).join(', ') }))}</p>` : ''}
+    <div class="dw-chips">${mech.map(t => chip('data-pm', t, (s.mech || []).includes(t), dmxLabel(t))).join('')}${s._allMech ? '' : `<button type="button" class="chip" data-pm-all="1">${T('Toutes les mécaniques')}</button>`}</div>
+    <div class="field-in"><label class="label" for="${px}Tribe">${T('Type de créature (tribal)')}</label><input type="text" id="${px}Tribe" list="${px}TribeL" maxlength="30" autocomplete="off" placeholder="${esc(ct[0] || 'Elf, Dragon, Zombie…')}" value="${esc(s.tribe || '')}"><datalist id="${px}TribeL">${tribes.map(t => `<option value="${esc(t)}">`).join('')}</datalist></div>
+    ${ct.length && !s.tribe ? `<div class="dw-chips">${ct.slice(0, 3).map(t => chip('data-ptr', t, false, t)).join('')}</div>` : ''}
+    <div class="field-in"><label class="label" for="${px}PetQ">${T('Cartes fétiches à inclure')}</label><input type="search" id="${px}PetQ" data-pq="pets" autocomplete="off" spellcheck="false" placeholder="${T('Chercher une carte')}"></div><div class="dw-pres" data-pres="pets"></div>${list(s.pets || [], 'data-ppx')}
+    <div class="field-in"><label class="label" for="${px}BanQ">${T('Cartes à exclure')}</label><input type="search" id="${px}BanQ" data-pq="ban" autocomplete="off" spellcheck="false" placeholder="${T('Chercher une carte')}"></div><div class="dw-pres" data-pres="ban"></div>${list(s.ban || [], 'data-pbx')}
+    <p class="label">${T('Styles à éviter')}</p><div class="dw-chips">${DMX_AVOID.map(([id, l]) => chip('data-pa', id, (s.avoid || []).includes(id), T(l))).join('')}</div>
+    <div class="field-in"><label class="label" for="${px}Orig">${T('Originalité : {v} %', { v: o })}</label><input type="range" id="${px}Orig" min="0" max="100" step="10" value="${o}"><p class="hint">${esc(o <= 20 ? T('Classique : les cartes qui ont fait leurs preuves avec ce commandant.') : o >= 70 ? T('Trouvailles : moins de staples, des cartes peu jouées qui font exactement ce que veut ton deck.') : T('Équilibré : des valeurs sûres et quelques trouvailles.'))}</p></div>`;
+}
+/** Cartes trouvées pour une recherche (fétiches : dans les couleurs du commandant). → [[clé, nom]] */
+function dwPersoFind(q, cmd, kind) {
+  const w = ownKey(q || ''); if (!w || w.length < 2 || !DW.byKey) return [];
+  const ci = cmd ? new Set([...cmd.ci]) : null, out = [];
+  for (const [k, r] of DW.byKey) { if (!k.includes(w) || r[6] & 16) continue; if (kind === 'pets' && ci && [...String(r[1])].some(c => !ci.has(c))) continue; out.push([k, r[0], k.startsWith(w) ? 0 : 1, r[8] || 99999]); }
+  return out.sort((a, b) => a[2] - b[2] || a[3] - b[3]).slice(0, 6);
+}
+const dwPersoRes = (list, kind) => list.map(([, n]) => `<button type="button" class="chip" data-padd="${kind}" data-n="${esc(n)}">+ ${esc(n)}</button>`).join('');
+/** Clic dans le bloc : vrai si traité (s modifié). */
+function dwPersoClick(e, s) {
+  const t = e.target.closest('[data-pm],[data-pm-all],[data-ptr],[data-ppx],[data-pbx],[data-pa],[data-padd]'); if (!t) return false;
+  const tog = (l, v, max) => { const i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else if (l.length < max) l.push(v); else toast(T('{n} au plus', { n: max })); };
+  if (t.dataset.pmAll) s._allMech = true;
+  else if (t.dataset.pm) tog(s.mech = s.mech || [], t.dataset.pm, 4);
+  else if (t.dataset.ptr) s.tribe = t.dataset.ptr;
+  else if (t.dataset.ppx) s.pets = (s.pets || []).filter(n => n !== t.dataset.ppx);
+  else if (t.dataset.pbx) s.ban = (s.ban || []).filter(n => n !== t.dataset.pbx);
+  else if (t.dataset.pa) tog(s.avoid = s.avoid || [], t.dataset.pa, 12);
+  else if (t.dataset.padd) { const k = t.dataset.padd, l = s[k] = s[k] || []; if (!l.includes(t.dataset.n)) { if (l.length >= (k === 'pets' ? 20 : 40)) toast(T('{n} au plus', { n: k === 'pets' ? 20 : 40 })); else l.push(t.dataset.n); } }
+  haptic('tap'); return true;
+}
+/** Saisie dans le bloc (recherche de cartes, type de créature, originalité) : vrai si traitée ; repaint : vrai s'il faut redessiner. */
+function dwPersoInput(e, s, cmd) {
+  const t = e.target; if (!t || !t.id) return false;
+  if (t.dataset.pq) { const box = t.closest('.field-in') && t.closest('.field-in').nextElementSibling; if (box && box.dataset.pres) box.innerHTML = dwPersoRes(dwPersoFind(t.value, cmd, t.dataset.pq), t.dataset.pq); return 'live'; }
+  if (/Tribe$/.test(t.id)) { s.tribe = String(t.value || '').trim().slice(0, 30); return e.type === 'change'; }
+  if (/Orig$/.test(t.id)) { s.orig = Math.max(0, Math.min(100, Math.round(Number(t.value) || 0))); return e.type === 'change'; }
+  return false;
+}
+/** Résumé de la personnalisation (une ligne). */
+function dwPersoSum(s) {
+  const b = [];
+  if ((s.mech || []).length) b.push(s.mech.map(t => typeof dmxLabel === 'function' ? dmxLabel(t) : t).join(', '));
+  if (s.tribe) b.push(s.tribe);
+  if ((s.pets || []).length) b.push(TN(s.pets.length, '{n} carte fétiche', '{n} cartes fétiches'));
+  if ((s.ban || []).length || (s.avoid || []).length) b.push(TN((s.ban || []).length + (s.avoid || []).length, '{n} exclusion', '{n} exclusions'));
+  if (Number.isFinite(s.orig) && s.orig !== DW_ORIG0) b.push(T('originalité {v} %', { v: s.orig }));
+  return b.join(' · ');
 }
 /** Thèmes proposés : ceux du commandant (EDHREC, du plus au moins joué), puis les thèmes généraux de la base. → [[slug, libellé]] */
 function dwThemeChoices(cmd, pack, set = BD.wiz) {
@@ -523,6 +682,19 @@ function dwFillBasics(quiet) {
  *  sur le deck obtenu (des cartes ajoutées les moins utiles cèdent leur place si la cible monte), terrains non-base les plus joués et ceux qui comblent les couleurs
  *  en manque (un quart à 60 % des terrains selon le nombre de couleurs), puis terrains de base ; 4. places restantes : plan, puis cartes très jouées dans les couleurs.
  *  Annulable. */
+/** Cartes fétiches (réglages : pets) mises dans le deck X : celles qui respectent les couleurs, les cartes interdites et les règles du bracket. → { in: [noms], out: [noms] } */
+function dwPetsInto(X, cmd) {
+  const set = X.wiz || dwDefaults(), got = { in: [], out: [] }; if (!cmd || !(set.pets || []).length || !DW.byKey) return got;
+  const ci = new Set([...cmd.ci]), b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2], combo = set.br <= 2 ? dwComboIdx() : null;
+  for (const nm of set.pets) {
+    const k = ownKey(nm), x = dwCard(k); if (!k || X.main.has(k) || X.cmdr.some(c => c.key === k)) continue;
+    const prof = dwProfile(X), bad = !x || !DW.byKey.has(k) || [...String(x.ci)].some(c => !ci.has(c)) || x.fl & 16 || (x.fl & 1 && prof.gc.length >= b[3]) || (x.fl & 4 && set.br <= 3) || (x.fl & 2 && set.br <= 2)
+      || (combo && (combo.get(k) || []).some(e => X.main.has(e.p) || X.cmdr.some(c => c.key === e.p)));
+    if (bad) { got.out.push(nm); continue; }
+    X.main.set(k, { key: k, name: x.name, qty: 1 }); got.in.push(x.name);
+  }
+  return got;
+}
 /** undoTo : deck à remettre si on annule (« Recréer le deck » : le deck d'avant la reconstruction). */
 function dwAutoBuild(undoTo, quiet) {
   try { return dwAutoBuildRun(undoTo, quiet); } finally { BD.pace = false; BD.wide = false; BD.landRes = 0; }      // une erreur ne laisse jamais le coach en mode génération (BD est partagé)
@@ -530,6 +702,7 @@ function dwAutoBuild(undoTo, quiet) {
 function dwAutoBuildRun(undoTo, quiet) {
   const cmd = dwCmdOf(); if (!cmd || !DW.core || !BD.el) return 0;
   const pack = DW.cmd.get(cmd.slug) || null, before = undoTo || new Map([...BD.main].map(([k, c]) => [k, { ...c }])), n0 = dwProfile().n; BD.pace = true;
+  dwPetsInto(BD, cmd);      // cartes fétiches d'abord (gardées comme les cartes du joueur)
   const mine = new Set(BD.main.keys());      // cartes déjà là (gardées : jamais retirées pour faire de la place)
   if (n0 <= BD.cmdr.length) { BD.wiz = BD.wiz || dwDefaults(); BD.wiz.gen = 1; dwPersist(BD.id); }      // deck construit de zéro par le coach : un changement de réglages proposera de le refaire
   const add = x => BD.main.set(x.k, { key: x.k, name: x.name, qty: 1 }), size = () => { let n = 0; for (const c of BD.main.values()) n += c.qty; return n; };
@@ -578,6 +751,7 @@ function dwBuild(undoTo) { if (typeof dsBuild === 'function') return dsBuild(und
 /** Clics de l'onglet Coach (bdClick de builder.js les lui passe) : vrai si l'action était la sienne. */
 function dwClick(b) {
   const act = b.dataset.act; if (!/^dw-/.test(act)) return false;
+  if (act === 'dw-again') { if (typeof dsAgain === 'function') dsAgain(); return true; }      // « Autre proposition » : nouvelle graine, mêmes réglages
   if (typeof dxClick === 'function' && dxClick(b, act)) return true;      // prochaines étapes, échanges, « Pourquoi ? » (deckux.js)
   const s = BD.wiz || (BD.wiz = dwSettingsFor(BD.id));
   if (act === 'dw-g') { DW.open = DW.open === b.dataset.r ? '' : b.dataset.r; DW.shown = 8; haptic('tap'); bdList(); }
@@ -592,6 +766,10 @@ function dwClick(b) {
   else if (act === 'dw-auto') dwBuild();
   else if (act === 'dw-report') openDeckReport(BD, BD.name.trim() || T('Nouveau deck'));
   return true;
+}
+if (typeof document !== 'undefined') {      // personnalisation dans les réglages du Coach : clics, recherche de cartes, type de créature, originalité
+  document.addEventListener('click', e => { const box = e.target.closest && e.target.closest('[data-perso="coach"]'); if (!box || !BD.el || !BD.wiz || !BD.el.contains(box)) return; if (dwPersoClick(e, BD.wiz)) { e.stopPropagation(); DW.changed = true; dwPersist(BD.id); bdList(); } }, true);
+  for (const ev of ['input', 'change']) document.addEventListener(ev, e => { const box = e.target.closest && e.target.closest('[data-perso="coach"]'); if (!box || !BD.el || !BD.wiz) return; const r = dwPersoInput(e, BD.wiz, dwCmdOf()); if (r === true) { DW.changed = true; dwPersist(BD.id); bdList(); } });
 }
 if (typeof document !== 'undefined') document.addEventListener('change', e => {
   const t = e.target; if (!BD.el || !t || !BD.wiz) return;
@@ -641,9 +819,9 @@ function openDeckPaste(name, fmt) {
 }
 
 /* ── Assistant « Deck à construire » (Commander) ──────────────────────────────────────────────────── */
-const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), pickTh: [] };
+const DWZ = { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: '', cols: new Set(), pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false };
 function openDeckWiz(name) {
-  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), pickTh: [] });
+  Object.assign(DWZ, { q: '', cmd: null, th: [], br: 3, bud: 0, own: true, auto: true, name: name || '', cols: new Set(), pickTh: [], mech: [], tribe: '', pets: [], ban: [], avoid: [], orig: DW_ORIG0, perso: false, _allMech: false });
   if (typeof edhLoad === 'function') edhLoad().catch(() => {});
   dwLoad().catch(() => {});
   openSheet(T('Ton commandant'), T('Assistant de deck · étape 1 sur 2'), api => {
@@ -707,12 +885,18 @@ function openDeckWiz2() {
         <p class="label">${T('Budget du deck ({c})', { c: cur })}</p><div class="dw-chips">${[0, 5000, 10000, 25000, 50000, 100000].map(v => `<button type="button" class="chip${DWZ.bud === v ? ' on' : ''}" data-bud="${v}" aria-pressed="${DWZ.bud === v}">${v ? esc(fmt(v, cur).replace(/[.,]00(?=\D*$)/, '')) : T('Sans limite')}</button>`).join('')}</div>
         ${(() => { const cc = cm.names.reduce((a, n, i) => a + dwPrice(cm.keys[i] || ownKey(n), dwCard(cm.keys[i] || ownKey(n))), 0); return cc > 0 ? `<p class="hint${DWZ.bud > 0 && cc >= DWZ.bud * 0.6 ? ' warn' : ''}">${esc(DWZ.bud > 0 && cc >= DWZ.bud * 0.6 ? T('Ton commandant vaut déjà {p} sur {b} : avec ce budget, le deck restera incomplet ou très faible. Monte le budget ou choisis un autre commandant.', { p: fmt(cc, cur), b: fmt(DWZ.bud, cur) }) : T('Le commandant compte dans le budget ({p}).', { p: fmt(cc, cur) }))}</p>` : ''; })()}
         <label class="me-row switch-row" for="dwzOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="dwzOwn" ${DWZ.own ? 'checked' : ''}><i></i></span></label>
-        <label class="me-row switch-row" for="dwzAuto"><span class="me-t">${T('Générer les 100 cartes tout de suite')}<small>${T('Le coach construit le deck avec ces réglages ; tu ajustes ensuite')}</small></span><span class="switch"><input type="checkbox" id="dwzAuto" ${DWZ.auto ? 'checked' : ''}><i></i></span></label>`;
+        <label class="me-row switch-row" for="dwzAuto"><span class="me-t">${T('Générer les 100 cartes tout de suite')}<small>${T('Le coach construit le deck avec ces réglages ; tu ajustes ensuite')}</small></span><span class="switch"><input type="checkbox" id="dwzAuto" ${DWZ.auto ? 'checked' : ''}><i></i></span></label>
+        <button class="dw-set-h" type="button" data-perso-t aria-expanded="${DWZ.perso}"><span><b>${T('Personnaliser (facultatif)')}</b><small>${esc(dwPersoSum(DWZ) || T('mécaniques, type de créature, cartes fétiches, exclusions, originalité'))}</small></span><span class="me-v">${DWZ.perso ? '−' : '+'}</span></button>
+        ${DWZ.perso ? `<div class="dw-perso dw-set">${dwPersoHtml(DWZ, { keys: cm.keys, names: cm.names, ci: dwCiOf(cm.keys, cm.ci) }, 'dwz')}</div>` : ''}`;
       $('#dwzName', api.body).oninput = e => { DWZ.name = e.target.value; };
       $('#dwzOwn', api.body).onchange = e => { DWZ.own = e.target.checked; };
       $('#dwzAuto', api.body).onchange = e => { DWZ.auto = e.target.checked; };
     };
+    const cmz = { keys: cm.keys, names: cm.names, ci: dwCiOf(cm.keys, cm.ci) };
+    for (const ev of ['input', 'change']) api.body.addEventListener(ev, e => { if (e.target.closest('.dw-perso') && dwPersoInput(e, DWZ, cmz) === true) { const y = api.body.scrollTop; paint(); api.body.scrollTop = y; } });
     api.body.addEventListener('click', e => {
+      if (e.target.closest('[data-perso-t]')) { DWZ.perso = !DWZ.perso; haptic('tap'); paint(); return; }
+      if (e.target.closest('.dw-perso') && dwPersoClick(e, DWZ)) { const y = api.body.scrollTop; paint(); api.body.scrollTop = y; return; }
       const t = e.target.closest('[data-th]'); if (t) { const v = t.dataset.th, i = DWZ.th.indexOf(v); if (i >= 0) DWZ.th.splice(i, 1); else if (DWZ.th.length < 3) DWZ.th.push(v); else { toast(T('3 thèmes au plus')); return; } haptic('tap'); paint(); return; }
       const b = e.target.closest('[data-br]'); if (b) { DWZ.br = Number(b.dataset.br); haptic('tap'); paint(); return; }
       const u = e.target.closest('[data-bud]'); if (u) { DWZ.bud = Number(u.dataset.bud) || 0; haptic('tap'); paint(); }
@@ -721,7 +905,7 @@ function openDeckWiz2() {
     $('#dwzBack', api.foot).onclick = () => { api.close(); setTimeout(() => openDeckWiz(DWZ.name), 200); };
     $('#dwzGo', api.foot).onclick = () => {
       const name = (DWZ.name || cm.names[0].split(',')[0]).trim().slice(0, 120); api.close(); haptic('ok'); DW.autoNext = DWZ.auto;      // génération dès que la base et les cartes du commandant sont là (dwCoachHtml)
-      setTimeout(() => openBuilder({ name, fmt: 'commander', cmdr: cm.names.map((n, i) => ({ key: cm.keys[i] || ownKey(n), name: n })), wiz: { th: DWZ.th.slice(0, 3), br: DWZ.br, bud: DWZ.bud, own: DWZ.own }, tab: 'coach' }), 200);
+      setTimeout(() => openBuilder({ name, fmt: 'commander', cmdr: cm.names.map((n, i) => ({ key: cm.keys[i] || ownKey(n), name: n })), wiz: dwSane({ th: DWZ.th.slice(0, 3), br: DWZ.br, bud: DWZ.bud, own: DWZ.own, mech: DWZ.mech, tribe: DWZ.tribe, pets: DWZ.pets, ban: DWZ.ban, avoid: DWZ.avoid, orig: DWZ.orig }), tab: 'coach' }), 200);
     };
     paint();
     const again = () => { if (api.body.isConnected) paint(); };      // prix du commandant (indication de budget) : base et relevé du jour arrivés après l'ouverture
