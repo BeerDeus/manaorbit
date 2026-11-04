@@ -43,7 +43,7 @@ await p.evaluate(() => history.back()); await p.waitForFunction(() => !document.
 await p.waitForFunction(() => /\/fr\/sol-ring/.test((document.querySelector('.deck[data-id="d1"] .deck-art img') || {}).src || ''), null, { timeout: 8000 });
 await p.waitForFunction(() => /edgar-markov/.test((document.querySelector('.deck[data-id="d2"] .deck-art img') || {}).src || ''), null, { timeout: 8000 });
 assert.doesNotMatch(await src('.deck[data-id="d2"] .deck-art img'), /\/fr\//, 'Edgar possédé en anglais : image anglaise');
-await p.click('.deck[data-id="d1"] .deck-more'); await p.waitForSelector('#dkCover'); await p.click('#dkCover'); await p.waitForSelector('.cv-card img');
+await p.click('.deck[data-id="d1"] .deck-more'); await p.waitForSelector('#dkEdit'); await p.click('#dkEdit'); await p.waitForSelector('#dkCover'); await p.click('#dkCover'); await p.waitForSelector('.cv-card img');
 await p.waitForFunction(() => /\/fr\//.test((document.querySelector('.cv-card[data-n="Sol Ring"] img') || {}).src || ''), null, { timeout: 6000 });
 await p.keyboard.press('Escape');
 ok('image du deck : la carte possédée est montrée dans sa langue (liste et choix)');

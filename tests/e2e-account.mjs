@@ -147,7 +147,7 @@ const DECK4 = '1 Sol Ring\n1 Swords to Plowshares\n1 Ranger\'s Hawk\n1 Phantom C
   // renommer / dupliquer / supprimer
   await p.click('.deck-more'); await sheetOpen(p); await p.waitForTimeout(500);
   await shot(p, 'A3-deck-sheet-vide');
-  await p.fill('#dkName', 'Renommé'); await p.press('#dkName', 'Enter'); await p.waitForTimeout(250);
+  await p.click('#dkEdit'); await p.waitForSelector('#dkName'); await p.fill('#dkName', 'Renommé'); await p.click('#dkeOk'); await p.waitForTimeout(400);      // « Modifier le deck »
   assert.equal(await T(p, '.deck-name'), 'Renommé'); assert.equal(await T(p, '.sheet-head h2'), 'Renommé'); ok('renommer');
   assert.match(await T(p, '.sheet-body .hint:not(#dkMountHint)'), /Aucun relevé/); ok('sans relevé : message explicatif');
   await p.click('#dkDup'); await sheetGone(p); await p.waitForTimeout(200);

@@ -137,7 +137,7 @@ const DA_ROLE = {
 };
 /** Actions prioritaires (3 au plus), les plus rentables d'abord : { k (rôle, 'land', 'gc', 'mld', 'combo', 'budget', 'curve', 'swap'), t (titre), s (détail), gain (points estimés), issue (phrase de synthèse) }.
  *  Points estimés comme la note du coach (deckopt.js › dsScore), pour l'ordre seulement. */
-function daActions(prof, tgt, cmd, set, swaps) {
+function daActions(prof, tgt, cmd, set, swaps, pack) {
   const out = [], roles = [...DW_GAUGES.map(g => g[0]), 'wincon'].filter(r => r !== 'land' && DA_ROLE[r] && tgt[r] && tgt[r][2] > 0 && !(r === 'counter' && !cmd.ci.includes('U')));
   const sw = (swaps || [])[0], swRole = sw && DA_ROLE[sw.why] ? sw.why : '';
   const Xe = { ...DA.X, wiz: daEdWiz(set) };      // réglages que reçoit l'éditeur (daApply) : une catégorie n'est proposée que si le coach y a des cartes à suggérer
@@ -225,7 +225,7 @@ function daPaint() {
   }
   const sc = DW.core && typeof dsScore === 'function' ? dsScore(X, { cmd, pack }) : null; DA.sc = sc;
   DA.swaps = mode === 'bilan' && DW.core ? dwSwaps(X, cmd, pack, prof, tgt) : [];
-  const acts = DA.acts = sc ? daActions(prof, tgt, cmd, set, DA.swaps).slice(0, 3) : [];
+  const acts = DA.acts = sc ? daActions(prof, tgt, cmd, set, DA.swaps, pack).slice(0, 3) : [];
   if (sc) h += daHeadHtml(sc, acts, prof, set, est, pack, mode === 'bilan');
   if (mode === 'peek') {      // aperçu d'un deck qui n'est pas à moi
     const strong = sc ? daStrong(sc, prof, tgt, cmd) : [], weak = acts.filter(a => a.k !== 'swap');

@@ -213,7 +213,8 @@ await p.click('.dv-ana'); await p.waitForSelector('.cb-head .cb-n', { timeout: 1
 assert.match(await txt(p, '.cb-head'), /^\d+ \/100 .+ Bracket 2 · Core · estimé [\d\s,]+ €$/, 'note, phrase, bracket estimé, valeur');
 assert.equal(await p.$('[data-ds-br]'), null, 'aucune question : réglages repliés'); assert.equal(await p.$('.da-sws'), null, 'échanges repliés');
 const acts = await p.$$eval('.cb-act', a => a.map(x => x.querySelector('b').textContent));
-assert.ok(acts.length >= 1 && acts.length <= 3, '1 à 3 actions prioritaires : ' + acts.join(' | ')); assert.ok(acts.some(t => /^Ajouter \d+ cartes? de rampe$/.test(t)), 'catégorie qui manque : ' + acts.join(' | '));
+assert.ok(acts.length >= 1 && acts.length <= 3, '1 à 3 actions prioritaires : ' + acts.join(' | ')); assert.ok(acts.includes('Échanger Weak One → Arcane Signet'), 'la rampe manque : l\'échange conseillé la comble, à la place de « Ajouter de la rampe » : ' + acts.join(' | '));
+assert.equal(acts.some(t => /rampe/.test(t)), false);
 assert.match(await txt(p, '[data-da-swt]'), /^Échanges conseillés 1 échange · note \d+ → \d+ · −4,60 € Afficher$/, 'note avant → après dans l\'en-tête replié');
 assert.match(await txt(p, '.cb-set'), /^Réglages bracket 2 \(estimé\) · limite [\d\s,]+ € \(valeur actuelle\) Modifier$/, 'budget = valeur actuelle');
 await shot(p, 'coach-bilan');
