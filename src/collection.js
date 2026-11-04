@@ -579,6 +579,7 @@ function collFromCloud(uid, data, pending, fromCache, pulled) {
   else if (!sameDoc(collDocNow(), collDoc())) { COLL.base = null; collPush(); }      // pas de document : on y envoie la collection de l'appareil
   else { COLL.s = uid; COLL.base = collDoc(); collWrite(); }
   collPaintHead(); collAsideSoon();
+  if (typeof engSweepSoon === 'function') engSweepSoon();      // emplacements « Deck : … » de decks supprimés (extras.js › engSweep)
 }
 /** La collection de cet appareil vient de changer à cause du compte (autre appareil) : repeint, lit les infos des nouvelles cartes, prévient. before, after : collections complètes. */
 function collRemoteApplied(b0, a0, o = {}) {

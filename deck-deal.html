@@ -7916,7 +7916,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'cdca53d3';
+const DD_BUILD = '845aea82';
 const I18N_FILES = {"de":"i18n/de.599b7108.js","en":"i18n/en.c2e96ecd.js","es":"i18n/es.9c7d5ff7.js","it":"i18n/it.5b126712.js","pt":"i18n/pt.f4cd0bcd.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -10924,7 +10924,7 @@ function makeSum(m, db, col) {
   function legacyOn(E, s) {
     if (s.off || s.lu) return;
     const err = e => s.onErr && s.onErr(e);
-    if (s.kind === 'decks') s.lu = fs.onSnapshot(deckQ(E.uid), { includeMetadataChanges: true }, snap => s.onData(snap.docs.map(d => ({ id: d.id, data: d.data() })), snap.metadata.hasPendingWrites), err);
+    if (s.kind === 'decks') s.lu = fs.onSnapshot(deckQ(E.uid), { includeMetadataChanges: true }, snap => s.onData(snap.docs.map(d => ({ id: d.id, data: d.data() })), snap.metadata.hasPendingWrites, snap.metadata.fromCache), err);
     else s.lu = fs.onSnapshot(metaRef(E.uid, s.id), { includeMetadataChanges: true }, x => s.onData(x.exists() ? x.data() : null, x.metadata.hasPendingWrites, x.metadata.fromCache), err);
   }
   function toLegacy(E) {
@@ -11070,11 +11070,12 @@ function makeSum(m, db, col) {
       return { data };
     } catch (e) { if (c) emitMeta(E, id, c.data, c.pending, true); return null; }      // hors ligne : la copie locale, en attendant
   }
-  function emitDecks(E, docs, pending) {
-    const k = docs.map(x => x.id + ':' + stampOf(x.data)).join(',') + '|' + !!pending;
+  /** fromCache : liste lue sans l'accord du serveur (sommaire pas encore lu, hors ligne) ; peut manquer des decks créés ailleurs. */
+  function emitDecks(E, docs, pending, fromCache) {
+    const k = docs.map(x => x.id + ':' + stampOf(x.data)).join(',') + '|' + !!pending + '|' + !!fromCache;
     if (E.last.get('decks') === k) return;
     E.last.set('decks', k);
-    for (const s of E.subs) if (s.kind === 'decks' && !s.lu) safe(s.onData, docs.map(x => ({ id: x.id, data: x.data })), !!pending);
+    for (const s of E.subs) if (s.kind === 'decks' && !s.lu) safe(s.onData, docs.map(x => ({ id: x.id, data: x.data })), !!pending, !!fromCache);
   }
   async function decksNow(E, co) {
     const md = E.man && E.man.data, dm = md && md.v === SUM_V ? md.d || {} : null, trust = trusted(E, co);
@@ -11090,11 +11091,11 @@ function makeSum(m, db, col) {
         try {
           if (need.length > SUM.each) { const all = await fs.getDocsFromServer(col(E.uid)); for (const x of all.docs) have.set(x.id, x.data()); }      // nouvel appareil : une seule requête
           else for (const r of await Promise.all(need.map(id => fs.getDocFromServer(deckRef(E.uid, id))))) { if (r.exists()) have.set(r.id, r.data()); else have.delete(r.id); }
-        } catch (e) { emitDecks(E, list(), pend.size > 0); return null; }      // hors ligne : la copie locale
+        } catch (e) { emitDecks(E, list(), pend.size > 0, true); return null; }      // hors ligne : la copie locale
         if (E.stopped || E.mode === 'legacy') return null;
       }
     }
-    emitDecks(E, list(), pend.size > 0);
+    emitDecks(E, list(), pend.size > 0, !trust);
     return { data: null };
   }
   /** Scan mobile : écoute directe du document tant qu'une session est ouverte. */
@@ -17652,6 +17653,12 @@ const findDeck = id => (id ? allDecks().find(d => d.id === id) || null : null);
 const cloudOn = () => !!(D.user && D.cloud);
 /** Decks de cet appareil pas encore envoyés dans le compte. */
 const importable = () => (D.user ? D.localList.filter(d => !D.importing.has(d.id)) : []);
+/** Identifiants de tous les decks connus (compte et appareil), seulement quand la liste du compte vient du serveur et que rien n'est en cours d'envoi ; null sinon.
+ *  Hors compte : null (les decks du compte ne sont pas listés, leurs réservations restent sur l'appareil). */
+function deckIdsSure() {
+  if (!D.user || !D.listSure || D.pending || D.importing.size) return null;
+  return new Set([...D.list, ...D.localList].map(d => d.id));
+}
 
 function deckErr(err) {
   const c = (err && err.code) || '';
@@ -18330,6 +18337,7 @@ function importLocal() {
   items.forEach(x => D.importing.add(x.localId)); renderDecks(); paintAccount();
   toast(T('Import en cours…'));
   D.cloud.saveMany(uid, items.map(x => ({ id: x.id, data: x.data }))).then(() => {
+    if (typeof engRekey === 'function') engRekey(items.map(x => [x.localId, x.id]));      // deck monté : ses réservations et « Deck : … » suivent son nouvel identifiant
     const gone = new Set(items.map(x => x.localId));
     gone.forEach(i => D.importing.delete(i));
     D.localList = D.localList.filter(d => !gone.has(d.id));
@@ -18403,7 +18411,7 @@ function metaFlush() {
 function onUser(user) {
   const prev = D.uid;
   if (D.unsub) { try { D.unsub(); } catch (e) { /* ignore */ } D.unsub = null; }
-  D.user = user; D.uid = user ? user.uid : null; D.list = []; D.pending = false; D.listErr = ''; D.authReady = true;
+  D.user = user; D.uid = user ? user.uid : null; D.list = []; D.pending = false; D.listSure = false; D.listErr = ''; D.authReady = true;
   if (prev !== D.uid) pdUser();      // decks publiés : relus pour ce compte
   if (prev !== D.uid) { S.deckId = null; S.runDelta = null; D.seen.clear(); D.hold = null; }
   try {
@@ -18411,10 +18419,11 @@ function onUser(user) {
     else localStorage.removeItem(ACCT_KEY);
   } catch (e) { /* ignore */ }
   if (user) {
-    D.unsub = D.cloud.watch(user.uid, (docs, pending) => {
-      D.list = docs.map(x => readDeck(x.id, x.data)); D.pending = pending; D.listErr = ''; if (typeof prgAbsorbSoon === 'function') prgAbsorbSoon();      // decks du compte lus : leurs badges acquis sans bannière
+    D.unsub = D.cloud.watch(user.uid, (docs, pending, fromCache) => {
+      D.list = docs.map(x => readDeck(x.id, x.data)); D.pending = pending; D.listSure = !pending && fromCache === false; D.listErr = ''; if (typeof prgAbsorbSoon === 'function') prgAbsorbSoon();      // decks du compte lus : leurs badges acquis sans bannière
       if (S.deckId && !pending && !D.list.some(d => d.id === S.deckId)) S.deckId = null;
       renderDecks(); renderAccountBtn(); paintAccount(); refreshDeck();
+      if (D.listSure && typeof engSweepSoon === 'function') engSweepSoon();      // decks supprimés sans être démontés : réservations et « Deck : … » rendues
     }, err => {
       D.listErr = err && err.code === 'permission-denied' ? T('Règles Firestore à publier') : T('Synchronisation impossible');
       console.error(err); renderDecks(); paintAccount();
@@ -20134,6 +20143,7 @@ function collFromCloud(uid, data, pending, fromCache, pulled) {
   else if (!sameDoc(collDocNow(), collDoc())) { COLL.base = null; collPush(); }      // pas de document : on y envoie la collection de l'appareil
   else { COLL.s = uid; COLL.base = collDoc(); collWrite(); }
   collPaintHead(); collAsideSoon();
+  if (typeof engSweepSoon === 'function') engSweepSoon();      // emplacements « Deck : … » de decks supprimés (extras.js › engSweep)
 }
 /** La collection de cet appareil vient de changer à cause du compte (autre appareil) : repeint, lit les infos des nouvelles cartes, prévient. before, after : collections complètes. */
 function collRemoteApplied(b0, a0, o = {}) {
@@ -23542,14 +23552,14 @@ function valInit() {
    · Engagés et historique de valeur passent par le compte (users/{uid}/meta/engaged et /history) ; sans les règles Firestore à jour,
      tout reste sur l'appareil et un message le dit une fois. */
 const BUY_KEY = 'deckdeal:buy:v1', ENG_KEY = 'deckdeal:eng:v1';
-const XS = { buy: null, eng: {}, warned: false, hOther: null, hReset: 0, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
+const XS = { buy: null, eng: {}, engU: '', warned: false, hOther: null, hReset: 0, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
 
 function xsRead() {
   try { XS.buy = buyClean(JSON.parse(localStorage.getItem(BUY_KEY) || 'null')); } catch (e) { XS.buy = null; }
-  try { const r = JSON.parse(localStorage.getItem(ENG_KEY) || 'null'); XS.eng = engClean(r && r.d); } catch (e) { XS.eng = {}; }
+  try { const r = JSON.parse(localStorage.getItem(ENG_KEY) || 'null'); XS.eng = engClean(r && r.d); XS.engU = (r && typeof r.u === 'string' && r.u) || ''; } catch (e) { XS.eng = {}; }
 }
 function buyWrite() { try { if (XS.buy) localStorage.setItem(BUY_KEY, JSON.stringify(XS.buy)); else localStorage.removeItem(BUY_KEY); } catch (e) { /* stockage indisponible : le panier à valider ne survivra pas au rechargement */ } }
-function engWrite() { try { localStorage.setItem(ENG_KEY, JSON.stringify({ d: XS.eng })); } catch (e) { toast(T('Stockage plein : les cartes réservées n\'ont pas pu être enregistrées')); } }
+function engWrite() { try { localStorage.setItem(ENG_KEY, JSON.stringify({ d: XS.eng, ...(XS.engU ? { u: XS.engU } : {}) })); } catch (e) { toast(T('Stockage plein : les cartes réservées n\'ont pas pu être enregistrées')); } }
 
 /* ── « J'ai acheté » ──────────────────────────────────────────────────────────────────────────── */
 /** Après un remplissage de panier : garde les cartes réellement ajoutées (replace : panier vidé avant). */
@@ -23659,6 +23669,38 @@ function engBindSwitch(id, cb, hint) {
     paint();
   };
 }
+/** Deck local envoyé dans le compte sous un nouvel identifiant (decks.js › importLocal) : ses réservations et son « Deck : … » le suivent. pairs : [[ancien, nouveau]]. */
+function engRekey(pairs) {
+  let eng = XS.eng, pl = COLL.places, n = 0; const now = Date.now();
+  for (const [from, to] of pairs) {
+    if (!from || !to || from === to) continue;
+    if (eng[from] && Object.keys(eng[from].q).length) { eng = { ...eng, [to]: { ...eng[from], at: now }, [from]: { n: eng[from].n, at: now, q: {} } }; n++; }
+    for (const pid in pl) if (pl[pid].t === 'deck' && pl[pid].r === from) pl = { ...pl, [pid]: placeNorm({ ...pl[pid], r: to }) };
+  }
+  if (n) { XS.eng = eng; engSaved(); }
+  if (pl !== COLL.places) { COLL.places = pl; collChanged(); }
+}
+/* ── Decks supprimés sans être démontés : réservations et « Deck : … » orphelins ─────────────────
+   Un deck disparu de la liste du compte (supprimé avant que la suppression ne démonte, depuis une version d'avant, deck local importé sous un autre identifiant,
+   réservations d'un autre compte reprises sur cet appareil…) gardait ses cartes réservées : « × 8 · Elfe +1 » sur des cartes d'un seul deck en ×4, et ces
+   exemplaires comptés comme manquants dans le vrai deck. Rattrapage à chaque liste des decks lue du serveur : démonté comme engClear (trace vide, les autres
+   appareils l'apprennent), son emplacement « Deck : … » supprimé (les cartes retournent d'où elles venaient). Jamais hors compte ni sur une copie locale ;
+   une réservation de moins de 10 minutes est épargnée (deck créé sur un autre appareil, liste pas encore arrivée ici). */
+const ENG_ORPHAN_AGE = 10 * 60000;
+let engSweepT = 0;
+function engSweepSoon() { clearTimeout(engSweepT); engSweepT = setTimeout(engSweep, 2500); }
+/** Nombre de decks orphelins démontés et d'emplacements « Deck : … » rendus. */
+function engSweep() {
+  clearTimeout(engSweepT); engSweepT = 0;
+  const ids = typeof deckIdsSure === 'function' ? deckIdsSure() : null, doc = XS.docs.engaged;
+  if (!ids || doc.state !== 'ok' || doc.uid !== D.uid) return 0;      // liste des decks ou réservations du compte pas encore lues du serveur
+  const now = Date.now(), gone = Object.keys(XS.eng).filter(id => !ids.has(id) && engIsOn(id) && now - XS.eng[id].at >= ENG_ORPHAN_AGE);
+  if (gone.length) { const x = { ...XS.eng }; for (const id of gone) x[id] = { n: x[id].n, at: now, q: {} }; XS.eng = x; engSaved(); }
+  let pl = 0;
+  if (typeof plcDelete === 'function' && COLL.cloud === 'ok' && COLL.s === D.uid)      // collection du compte lue du serveur
+    for (const [pid, x] of Object.entries(COLL.places)) if (x.t === 'deck' && x.r && !ids.has(x.r) && !engIsOn(x.r)) { plcDelete(pid); pl++; }
+  return gone.length + pl;
+}
 /** Pastille d'une carte de la collection réservée par un ou plusieurs decks. */
 function engTag(k) {
   const ds = engDecksOf(XS.eng, k); if (!ds.length) return '';
@@ -23674,6 +23716,10 @@ function xsFail(id, err) {
 function xsUser(user) {
   for (const id in XS.docs) { const d = XS.docs[id]; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.state = 'off'; d.uid = ''; }
   XS.hOther = null; XS.hReset = 0;      // relevés de l'autre marché : inconnus tant que le compte n'a pas répondu (rien n'est envoyé avant, ils seraient perdus)
+  if (user && XS.engU !== user.uid) {      // decks montés d'un autre compte : restent dans ce compte-là (synchronisés), jamais versés dans celui-ci
+    if (XS.engU && Object.keys(XS.eng).length) { XS.eng = {}; engApplied(); }
+    XS.engU = user.uid; engWrite();
+  }
   if (!user || !D.cloud || !D.cloud.watchMeta) return;
   for (const id in XS.docs) {
     const d = XS.docs[id]; d.state = 'sync'; d.uid = user.uid;
@@ -23688,6 +23734,7 @@ function xsRemote(id, uid, data, pending, fromCache) {
     const remote = data ? engClean(data.decks) : {}, merged = engMerge(XS.eng, remote);
     if (!engSame(merged, XS.eng)) { XS.eng = merged; engWrite(); engApplied(); }
     if (!engSame(merged, remote)) xsPushSoon('engaged');
+    engSweepSoon();      // réservations du compte lues : celles des decks qui n'existent plus sont rendues
   } else if (id === 'prices') {
     if (mkUs()) return;                                                     // prix du jour partagés : Cardmarket seulement (le document n'a pas de devise)
     if (data && prcApply(data)) return;                                     // prix plus récents lus par un autre appareil : pris tels quels

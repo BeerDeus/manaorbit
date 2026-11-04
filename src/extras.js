@@ -5,14 +5,14 @@
    · Engagés et historique de valeur passent par le compte (users/{uid}/meta/engaged et /history) ; sans les règles Firestore à jour,
      tout reste sur l'appareil et un message le dit une fois. */
 const BUY_KEY = 'deckdeal:buy:v1', ENG_KEY = 'deckdeal:eng:v1';
-const XS = { buy: null, eng: {}, warned: false, hOther: null, hReset: 0, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
+const XS = { buy: null, eng: {}, engU: '', warned: false, hOther: null, hReset: 0, docs: { engaged: { unsub: null, uid: '', state: 'off', pushT: 0 }, history: { unsub: null, uid: '', state: 'off', pushT: 0 }, prices: { unsub: null, uid: '', state: 'off', pushT: 0 } } };      // prices : prix du jour partagés (value.js › prcApply)
 
 function xsRead() {
   try { XS.buy = buyClean(JSON.parse(localStorage.getItem(BUY_KEY) || 'null')); } catch (e) { XS.buy = null; }
-  try { const r = JSON.parse(localStorage.getItem(ENG_KEY) || 'null'); XS.eng = engClean(r && r.d); } catch (e) { XS.eng = {}; }
+  try { const r = JSON.parse(localStorage.getItem(ENG_KEY) || 'null'); XS.eng = engClean(r && r.d); XS.engU = (r && typeof r.u === 'string' && r.u) || ''; } catch (e) { XS.eng = {}; }
 }
 function buyWrite() { try { if (XS.buy) localStorage.setItem(BUY_KEY, JSON.stringify(XS.buy)); else localStorage.removeItem(BUY_KEY); } catch (e) { /* stockage indisponible : le panier à valider ne survivra pas au rechargement */ } }
-function engWrite() { try { localStorage.setItem(ENG_KEY, JSON.stringify({ d: XS.eng })); } catch (e) { toast(T('Stockage plein : les cartes réservées n\'ont pas pu être enregistrées')); } }
+function engWrite() { try { localStorage.setItem(ENG_KEY, JSON.stringify({ d: XS.eng, ...(XS.engU ? { u: XS.engU } : {}) })); } catch (e) { toast(T('Stockage plein : les cartes réservées n\'ont pas pu être enregistrées')); } }
 
 /* ── « J'ai acheté » ──────────────────────────────────────────────────────────────────────────── */
 /** Après un remplissage de panier : garde les cartes réellement ajoutées (replace : panier vidé avant). */
@@ -122,6 +122,38 @@ function engBindSwitch(id, cb, hint) {
     paint();
   };
 }
+/** Deck local envoyé dans le compte sous un nouvel identifiant (decks.js › importLocal) : ses réservations et son « Deck : … » le suivent. pairs : [[ancien, nouveau]]. */
+function engRekey(pairs) {
+  let eng = XS.eng, pl = COLL.places, n = 0; const now = Date.now();
+  for (const [from, to] of pairs) {
+    if (!from || !to || from === to) continue;
+    if (eng[from] && Object.keys(eng[from].q).length) { eng = { ...eng, [to]: { ...eng[from], at: now }, [from]: { n: eng[from].n, at: now, q: {} } }; n++; }
+    for (const pid in pl) if (pl[pid].t === 'deck' && pl[pid].r === from) pl = { ...pl, [pid]: placeNorm({ ...pl[pid], r: to }) };
+  }
+  if (n) { XS.eng = eng; engSaved(); }
+  if (pl !== COLL.places) { COLL.places = pl; collChanged(); }
+}
+/* ── Decks supprimés sans être démontés : réservations et « Deck : … » orphelins ─────────────────
+   Un deck disparu de la liste du compte (supprimé avant que la suppression ne démonte, depuis une version d'avant, deck local importé sous un autre identifiant,
+   réservations d'un autre compte reprises sur cet appareil…) gardait ses cartes réservées : « × 8 · Elfe +1 » sur des cartes d'un seul deck en ×4, et ces
+   exemplaires comptés comme manquants dans le vrai deck. Rattrapage à chaque liste des decks lue du serveur : démonté comme engClear (trace vide, les autres
+   appareils l'apprennent), son emplacement « Deck : … » supprimé (les cartes retournent d'où elles venaient). Jamais hors compte ni sur une copie locale ;
+   une réservation de moins de 10 minutes est épargnée (deck créé sur un autre appareil, liste pas encore arrivée ici). */
+const ENG_ORPHAN_AGE = 10 * 60000;
+let engSweepT = 0;
+function engSweepSoon() { clearTimeout(engSweepT); engSweepT = setTimeout(engSweep, 2500); }
+/** Nombre de decks orphelins démontés et d'emplacements « Deck : … » rendus. */
+function engSweep() {
+  clearTimeout(engSweepT); engSweepT = 0;
+  const ids = typeof deckIdsSure === 'function' ? deckIdsSure() : null, doc = XS.docs.engaged;
+  if (!ids || doc.state !== 'ok' || doc.uid !== D.uid) return 0;      // liste des decks ou réservations du compte pas encore lues du serveur
+  const now = Date.now(), gone = Object.keys(XS.eng).filter(id => !ids.has(id) && engIsOn(id) && now - XS.eng[id].at >= ENG_ORPHAN_AGE);
+  if (gone.length) { const x = { ...XS.eng }; for (const id of gone) x[id] = { n: x[id].n, at: now, q: {} }; XS.eng = x; engSaved(); }
+  let pl = 0;
+  if (typeof plcDelete === 'function' && COLL.cloud === 'ok' && COLL.s === D.uid)      // collection du compte lue du serveur
+    for (const [pid, x] of Object.entries(COLL.places)) if (x.t === 'deck' && x.r && !ids.has(x.r) && !engIsOn(x.r)) { plcDelete(pid); pl++; }
+  return gone.length + pl;
+}
 /** Pastille d'une carte de la collection réservée par un ou plusieurs decks. */
 function engTag(k) {
   const ds = engDecksOf(XS.eng, k); if (!ds.length) return '';
@@ -137,6 +169,10 @@ function xsFail(id, err) {
 function xsUser(user) {
   for (const id in XS.docs) { const d = XS.docs[id]; if (d.unsub) { try { d.unsub(); } catch (e) { /* ignore */ } d.unsub = null; } clearTimeout(d.pushT); d.pushT = 0; d.state = 'off'; d.uid = ''; }
   XS.hOther = null; XS.hReset = 0;      // relevés de l'autre marché : inconnus tant que le compte n'a pas répondu (rien n'est envoyé avant, ils seraient perdus)
+  if (user && XS.engU !== user.uid) {      // decks montés d'un autre compte : restent dans ce compte-là (synchronisés), jamais versés dans celui-ci
+    if (XS.engU && Object.keys(XS.eng).length) { XS.eng = {}; engApplied(); }
+    XS.engU = user.uid; engWrite();
+  }
   if (!user || !D.cloud || !D.cloud.watchMeta) return;
   for (const id in XS.docs) {
     const d = XS.docs[id]; d.state = 'sync'; d.uid = user.uid;
@@ -151,6 +187,7 @@ function xsRemote(id, uid, data, pending, fromCache) {
     const remote = data ? engClean(data.decks) : {}, merged = engMerge(XS.eng, remote);
     if (!engSame(merged, XS.eng)) { XS.eng = merged; engWrite(); engApplied(); }
     if (!engSame(merged, remote)) xsPushSoon('engaged');
+    engSweepSoon();      // réservations du compte lues : celles des decks qui n'existent plus sont rendues
   } else if (id === 'prices') {
     if (mkUs()) return;                                                     // prix du jour partagés : Cardmarket seulement (le document n'a pas de devise)
     if (data && prcApply(data)) return;                                     // prix plus récents lus par un autre appareil : pris tels quels

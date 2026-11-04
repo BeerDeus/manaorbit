@@ -150,7 +150,7 @@ function makeSum(m, db, col) {
   function legacyOn(E, s) {
     if (s.off || s.lu) return;
     const err = e => s.onErr && s.onErr(e);
-    if (s.kind === 'decks') s.lu = fs.onSnapshot(deckQ(E.uid), { includeMetadataChanges: true }, snap => s.onData(snap.docs.map(d => ({ id: d.id, data: d.data() })), snap.metadata.hasPendingWrites), err);
+    if (s.kind === 'decks') s.lu = fs.onSnapshot(deckQ(E.uid), { includeMetadataChanges: true }, snap => s.onData(snap.docs.map(d => ({ id: d.id, data: d.data() })), snap.metadata.hasPendingWrites, snap.metadata.fromCache), err);
     else s.lu = fs.onSnapshot(metaRef(E.uid, s.id), { includeMetadataChanges: true }, x => s.onData(x.exists() ? x.data() : null, x.metadata.hasPendingWrites, x.metadata.fromCache), err);
   }
   function toLegacy(E) {
@@ -296,11 +296,12 @@ function makeSum(m, db, col) {
       return { data };
     } catch (e) { if (c) emitMeta(E, id, c.data, c.pending, true); return null; }      // hors ligne : la copie locale, en attendant
   }
-  function emitDecks(E, docs, pending) {
-    const k = docs.map(x => x.id + ':' + stampOf(x.data)).join(',') + '|' + !!pending;
+  /** fromCache : liste lue sans l'accord du serveur (sommaire pas encore lu, hors ligne) ; peut manquer des decks créés ailleurs. */
+  function emitDecks(E, docs, pending, fromCache) {
+    const k = docs.map(x => x.id + ':' + stampOf(x.data)).join(',') + '|' + !!pending + '|' + !!fromCache;
     if (E.last.get('decks') === k) return;
     E.last.set('decks', k);
-    for (const s of E.subs) if (s.kind === 'decks' && !s.lu) safe(s.onData, docs.map(x => ({ id: x.id, data: x.data })), !!pending);
+    for (const s of E.subs) if (s.kind === 'decks' && !s.lu) safe(s.onData, docs.map(x => ({ id: x.id, data: x.data })), !!pending, !!fromCache);
   }
   async function decksNow(E, co) {
     const md = E.man && E.man.data, dm = md && md.v === SUM_V ? md.d || {} : null, trust = trusted(E, co);
@@ -316,11 +317,11 @@ function makeSum(m, db, col) {
         try {
           if (need.length > SUM.each) { const all = await fs.getDocsFromServer(col(E.uid)); for (const x of all.docs) have.set(x.id, x.data()); }      // nouvel appareil : une seule requête
           else for (const r of await Promise.all(need.map(id => fs.getDocFromServer(deckRef(E.uid, id))))) { if (r.exists()) have.set(r.id, r.data()); else have.delete(r.id); }
-        } catch (e) { emitDecks(E, list(), pend.size > 0); return null; }      // hors ligne : la copie locale
+        } catch (e) { emitDecks(E, list(), pend.size > 0, true); return null; }      // hors ligne : la copie locale
         if (E.stopped || E.mode === 'legacy') return null;
       }
     }
-    emitDecks(E, list(), pend.size > 0);
+    emitDecks(E, list(), pend.size > 0, !trust);
     return { data: null };
   }
   /** Scan mobile : écoute directe du document tant qu'une session est ouverte. */
