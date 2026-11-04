@@ -83,7 +83,7 @@ const BD_PAGE = 60;
 const BD_BASICS = [['plains', 'Plains', 'Plaine'], ['island', 'Island', 'Île'], ['swamp', 'Swamp', 'Marais'], ['mountain', 'Mountain', 'Montagne'], ['forest', 'Forest', 'Forêt']];
 const bdMeta = dmOf;
 const bdCount = m => { let n = 0; for (const c of m.values()) n += c.qty; return n; };
-const bdData = () => ({ fmt: BD.fmt, main: [...BD.main.values()], side: [...BD.side.values()], cmdr: BD.cmdr, cover: BD.cover });
+const bdData = () => ({ fmt: BD.fmt, main: [...BD.main.values()], side: [...BD.side.values()], cmdr: BD.cmdr, cover: BD.cover, meta: BD.dkMeta || [] });
 const bdTot = k => ((BD.main.get(k) || {}).qty || 0) + ((BD.side.get(k) || {}).qty || 0);
 /** Nom affiché : français si la carte est possédée en français (même règle que la collection), sinon anglais. */
 function bdLabel(k, name) { const x = COLL.map[k]; return (x && x.l && frName(k, x.l)) || name; }
@@ -111,12 +111,12 @@ function openDeckNew() {
 function openBuilder(o) {
   if (BD.el) return;
   const prev = o.id ? findDeck(o.id) : null;
-  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
+  Object.assign(BD, { id: prev ? prev.id : null, name: prev ? prev.name : (o.name || ''), tab: 'deck', tgt: 'main', q: '', shown: BD_PAGE, dirty: false, issuesOpen: false, idx: null, main: new Map(), side: new Map(), cmdr: [], cover: '', dkMeta: [], scanPref: null, wiz: null, metaN: 0, metaAt: 0 });      // scanPref : cartes scannées (rangées à l'enregistrement)
   if (prev || o.text) {
     const p = dkParse(prev ? prev.text : o.text);
     BD.fmt = (!prev && (o.fmt === 'commander' || o.fmt === 'standard') ? o.fmt : '') || p.fmt || (p.cmdr.length || p.main.reduce((a, c) => a + c.qty, 0) >= 99 ? 'commander' : 'standard');
     if (!prev) BD.dirty = true;      // liste collée : à enregistrer
-    p.main.forEach(c => BD.main.set(c.key, c)); p.side.forEach(c => BD.side.set(c.key, c)); BD.cmdr = p.cmdr; BD.cover = p.cover;      // la carte de présentation choisie est gardée
+    p.main.forEach(c => BD.main.set(c.key, c)); p.side.forEach(c => BD.side.set(c.key, c)); BD.cmdr = p.cmdr; BD.cover = p.cover; BD.dkMeta = p.meta;      // la carte de présentation choisie est gardée
     if (BD.fmt === 'commander') BD.side.clear();      // pas de réserve en Commander
   } else BD.fmt = o.fmt === 'commander' ? 'commander' : 'standard';
   if (!prev && Array.isArray(o.cmdr) && BD.fmt === 'commander') { BD.cmdr = o.cmdr.slice(0, 2).map(c => ({ key: c.key, name: c.name })); for (const c of BD.cmdr) BD.main.delete(c.key); BD.dirty = true; }

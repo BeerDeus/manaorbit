@@ -1,0 +1,43 @@
+/* ── deckcoach.css : « Modifier le deck » (decks.js › openDeckEdit), tags des decks, bilan du coach (deckana.js) ───────────────────── */
+.deck-tag{flex:none;font-size:10.5px;font-weight:600;line-height:1;padding:3px 7px;border-radius:99px;background:var(--surface-2);color:var(--ink-2);max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dke-sheet .seg{margin:4px 0 12px}
+.dke-sheet .label{margin-top:12px}
+.dke-tags{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}
+.dke-tag{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.dke-tag.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.dke-tag .i{width:14px;height:14px;margin-right:-4px}
+.dke-add input{width:100%}
+#dkeCoach .sec-title{margin-top:18px}
+/* Bilan du coach (deckana.js) : en-tête, actions prioritaires, sections repliées, réglages en bas */
+.cb-head{display:flex;align-items:center;gap:16px;padding:16px;margin:2px 0 6px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
+.cb-n{flex:none;display:flex;align-items:baseline;gap:2px}
+.cb-n b{font-family:var(--font-display,inherit);font-size:46px;line-height:1;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--accent)}
+.cb-n small{font-size:14px;color:var(--ink-3);font-weight:600}
+.ds-top .cb-n b{color:var(--good)}.ds-ok .cb-n b{color:var(--accent)}.ds-mid .cb-n b{color:var(--warn)}.ds-low .cb-n b{color:var(--bad)}
+.cb-build .cb-n b{color:var(--ink)}
+.cb-t{min-width:0;display:flex;flex-direction:column;gap:5px}
+.cb-t b{font-size:16px;line-height:1.3;font-weight:700}
+.cb-t span{font-size:12.5px;line-height:1.45;color:var(--ink-2)}
+.cb-note{margin:4px 2px 0}
+.cb-acts{display:flex;flex-direction:column;gap:8px;margin:6px 0 14px}
+.cb-act{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);text-align:left;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cb-act:active{transform:scale(.99)}
+.cb-ic{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:18px;font-weight:800;line-height:1}
+.cb-ic.in{background:var(--good-soft);color:var(--good)}
+.cb-ic.out{background:var(--bad-soft);color:var(--bad)}
+.cb-ic.sw{background:var(--accent-soft);color:var(--accent)}
+.cb-at{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cb-at b{font-size:14.5px;font-weight:650;line-height:1.3}
+.cb-at small{font-size:12px;color:var(--ink-3);line-height:1.35;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.cb-act .chev{flex:none;width:16px;height:16px;color:var(--ink-3)}
+.cb-fold{margin:8px 0}
+.cb-fold>.dw-set-h{margin:0}
+.cb-in{padding:6px 2px 4px}
+.cb-parts{margin:4px 0 8px}
+.cb-set{margin-top:14px}
+.cb-pts{list-style:none;margin:6px 0 12px;padding:0;display:flex;flex-direction:column;gap:6px}
+.cb-pts li{position:relative;padding:9px 12px 9px 34px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:13.5px;line-height:1.35}
+.cb-pts li::before{position:absolute;left:12px;top:9px;font-weight:800}
+.cb-pts.good li::before{content:"✓";color:var(--good)}
+.cb-pts.warn li::before{content:"!";color:var(--warn)}
+.cb-pts small{color:var(--ink-3)}

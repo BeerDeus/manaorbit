@@ -1026,6 +1026,25 @@ function dkSetCover(text, name) {
   if (n) { const at = lines.findIndex(l => /^\s*\/\/\s*Deck Deal\s*:/i.test(l)); lines.splice(at >= 0 ? at + 1 : 0, 0, COVER_LINE + n); }
   return lines.join('\n');
 }
+/** Ligne « // Deck Deal <mot> : valeur » du texte d'un deck (tags, origine, suivi des cartes manquantes) : synchronisée avec lui, comme l'image. */
+const dkMetaRe = w => new RegExp('^\\s*//\\s*Deck Deal ' + w + '\\s*:\\s*(.*?)\\s*$', 'i');
+function dkMeta(text, w) { const re = dkMetaRe(w); for (const l of String(text || '').split(/\r?\n/)) { const m = l.match(re); if (m) return m[1]; } return ''; }
+/** Texte avec cette ligne (après la ligne de format et l'image) ; v vide : la retire. */
+function dkSetMeta(text, w, v) {
+  const re = dkMetaRe(w), lines = String(text || '').split(/\r?\n/).filter(l => !re.test(l)), s = String(v == null ? '' : v).replace(/[\r\n]+/g, ' ').trim();
+  if (s) { let at = -1; lines.forEach((l, i) => { if (/^\s*\/\/\s*Deck Deal\b/i.test(l) && at === i - 1) at = i; }); lines.splice(at + 1, 0, '// Deck Deal ' + w + ' : ' + s); }
+  return lines.join('\n');
+}
+/** Tags d'un deck (« Aggro, Budget ») : 8 au plus, 24 caractères chacun, sans doublon (casse ignorée). */
+const dkTagClean = t => String(t || '').replace(/[\p{Cc}\p{Cf},;#]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
+function dkTags(text) { const seen = new Set(), out = []; for (const t of dkMeta(text, 'tags').split(',').map(dkTagClean)) { const k = t.toLowerCase(); if (t && !seen.has(k) && out.length < 8) { seen.add(k); out.push(t); } } return out; }
+const dkSetTags = (text, tags) => dkSetMeta(text, 'tags', dkTags('// Deck Deal tags : ' + (tags || []).map(dkTagClean).join(',')).join(', '));
+/** Format noté (« // Deck Deal : commander ») ; fmt '' : ligne retirée (format deviné de la liste). */
+function dkSetFormat(text, fmt) {
+  const lines = String(text || '').split(/\r?\n/), at = lines.findIndex(l => /^\s*\/\/\s*Deck Deal\s*:/i.test(l)), ln = fmt ? '// Deck Deal : ' + fmt : '';
+  if (at >= 0) { if (ln) lines[at] = ln; else lines.splice(at, 1); } else if (ln) lines.unshift(ln);
+  return lines.join('\n');
+}
 /** Carte qui illustre un deck : { key, name, auto } — celle choisie (si elle y est encore), sinon le commandant, sinon la carte la plus chère hors terrains (metaOf(clé) → { eu, tl }), sinon la première. null : deck vide. */
 function dkCoverCard(text, metaOf) {
   const pd = parseDeck(text), pool = [...pd.cards, ...dkSideCards(text)];
@@ -1044,9 +1063,10 @@ function dkCoverCard(text, metaOf) {
 }
 /** Liste du créateur → texte : { fmt, main:[{ name, qty }], side:[{ name, qty }], cmdr:[{ name }], cover (nom de la carte de présentation, facultatif) }.
  *  Même syntaxe que les exports du marché (en-tête « Commander », lignes « SB: ») : le reste de l'app la lit sans rien savoir du créateur. */
-function dkBuildText({ fmt, main, side, cmdr, cover }) {
+function dkBuildText({ fmt, main, side, cmdr, cover, meta }) {
   const out = ['// Deck Deal : ' + (fmt === 'commander' ? 'commander' : 'standard')];
   if (cover) out.push(COVER_LINE + cover);
+  for (const l of meta || []) out.push(l);      // autres lignes « // Deck Deal <mot> : … » (tags, origine, suivi) : gardées telles quelles
   if (fmt === 'commander' && cmdr && cmdr.length) { out.push('Commander'); cmdr.forEach(c => out.push('1 ' + c.name)); out.push(''); }
   out.push('Deck');
   (main || []).forEach(c => out.push(c.qty + ' ' + c.name));
@@ -1067,7 +1087,8 @@ function dkParse(text) {
     if (sec === 'cmdr') { const k = ownKey(p.name); if (!cmdr.some(c => c.key === k)) cmdr.push({ key: k, name: p.name }); }
     else add(sec === 'side' || sec === 'comp' ? side : main, p);
   }
-  return { fmt: dkFormat(text), main: [...main.values()], side: [...side.values()], cmdr, cover: dkCover(text) };
+  const meta = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(l => /^\/\/\s*Deck Deal \w+\s*:/i.test(l) && !COVER_RE.test(l));      // tags, origine, suivi des cartes manquantes
+  return { fmt: dkFormat(text), main: [...main.values()], side: [...side.values()], cmdr, cover: dkCover(text), meta };
 }
 /** Valeur estimée d'un deck : prix tendance Cardmarket (centimes) × exemplaires de chaque carte du deck, terrains de base et réserve exclus, cartes possédées comprises.
  *  metaOf(clé) → infos de la carte { eu } ; null/undefined = pas encore lue (à chercher : « missing »). → { cents, known (cartes chiffrées), total (cartes différentes), missing: [{ key, name }], noPrice (lues mais sans prix) } */
@@ -2622,7 +2643,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
-    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkCount, dkCountText,
+    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }
