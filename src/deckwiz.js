@@ -679,8 +679,8 @@ function dwFillBasics(quiet) {
   const cols = cmd.ci ? [...cmd.ci] : ['C'], qOf = c => (BD.main.get(BK[c]) || {}).qty || 0, curB = cols.reduce((a, c) => a + qOf(c), 0);
   const cut = [], before = quiet ? null : new Map([...BD.main].map(([k, c]) => [k, { ...c }]));      // « Annuler » du message
   if (!quiet && prof.land < tgt.land[1] && prof.n >= 100) {      // deck complet : les sorts les moins utiles (base du coach) cèdent leur place, sans passer un rôle sous son minimum ni retirer la dernière condition de victoire
-    const info = dwInfo(DW.cmd.get(cmd.slug) || null, BD.wiz || dwDefaults()), cnt = { ...prof }, cmdK = new Set(BD.cmdr.map(c => c.key));
-    const cand = [...BD.main.values()].filter(c => !cmdK.has(c.key) && !BASIC_NAMES.has(c.key)).map(c => ({ c, x: dwCard(c.key) })).filter(o => o.x && !(o.x.roles & DW_RB.land))
+    const info = dwInfo(DW.cmd.get(cmd.slug) || null, BD.wiz || dwDefaults(), cmd), cnt = { ...prof }, cmdK = new Set(BD.cmdr.map(c => c.key)), pets = new Set(((BD.wiz || {}).pets || []).map(n => ownKey(n)));
+    const cand = [...BD.main.values()].filter(c => !cmdK.has(c.key) && !BASIC_NAMES.has(c.key) && !pets.has(c.key))      // cartes fétiches : jamais retirées.map(c => ({ c, x: dwCard(c.key) })).filter(o => o.x && !(o.x.roles & DW_RB.land))
       .map(o => ({ ...o, v: dwVal(info.get(o.c.key) || {}) })).sort((a, b) => a.v - b.v);
     for (const o of cand) {
       if (cut.length >= tgt.land[1] - prof.land) break;

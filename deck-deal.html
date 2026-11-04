@@ -7916,7 +7916,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'bb7df1f1';
+const DD_BUILD = 'cdca53d3';
 const I18N_FILES = {"de":"i18n/de.599b7108.js","en":"i18n/en.c2e96ecd.js","es":"i18n/es.9c7d5ff7.js","it":"i18n/it.5b126712.js","pt":"i18n/pt.f4cd0bcd.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -28532,8 +28532,8 @@ function dwFillBasics(quiet) {
   const cols = cmd.ci ? [...cmd.ci] : ['C'], qOf = c => (BD.main.get(BK[c]) || {}).qty || 0, curB = cols.reduce((a, c) => a + qOf(c), 0);
   const cut = [], before = quiet ? null : new Map([...BD.main].map(([k, c]) => [k, { ...c }]));      // « Annuler » du message
   if (!quiet && prof.land < tgt.land[1] && prof.n >= 100) {      // deck complet : les sorts les moins utiles (base du coach) cèdent leur place, sans passer un rôle sous son minimum ni retirer la dernière condition de victoire
-    const info = dwInfo(DW.cmd.get(cmd.slug) || null, BD.wiz || dwDefaults()), cnt = { ...prof }, cmdK = new Set(BD.cmdr.map(c => c.key));
-    const cand = [...BD.main.values()].filter(c => !cmdK.has(c.key) && !BASIC_NAMES.has(c.key)).map(c => ({ c, x: dwCard(c.key) })).filter(o => o.x && !(o.x.roles & DW_RB.land))
+    const info = dwInfo(DW.cmd.get(cmd.slug) || null, BD.wiz || dwDefaults(), cmd), cnt = { ...prof }, cmdK = new Set(BD.cmdr.map(c => c.key)), pets = new Set(((BD.wiz || {}).pets || []).map(n => ownKey(n)));
+    const cand = [...BD.main.values()].filter(c => !cmdK.has(c.key) && !BASIC_NAMES.has(c.key) && !pets.has(c.key))      // cartes fétiches : jamais retirées.map(c => ({ c, x: dwCard(c.key) })).filter(o => o.x && !(o.x.roles & DW_RB.land))
       .map(o => ({ ...o, v: dwVal(info.get(o.c.key) || {}) })).sort((a, b) => a.v - b.v);
     for (const o of cand) {
       if (cut.length >= tgt.land[1] - prof.land) break;
