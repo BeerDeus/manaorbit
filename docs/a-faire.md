@@ -12,6 +12,12 @@
 - Pièges : un `// commentaire` inséré au milieu d'une ligne avale la suite (commentaires en fin de ligne, puis `node --check`) ; `--` interdit dans un commentaire XML Android (`tests/test-android-xml.mjs`) ; Firestore refuse les tableaux imbriqués.
 - Checklist de lancement (artefact, le propriétaire y coche) : https://claude.ai/artifact/Hcmx4KRojNrcC79iZuAjiY
 
+## Point du 4 novembre : toutes les cartes classées par mécaniques (IA)
+
+- `data/card-mech.json` : 32 103 cartes classées (rôles, ce qu'elles fournissent / veulent, types de créature soutenus, force 1-5) par agents IA, chaque lot relu par un arbitre. Détails, méthode et procédure pour les nouvelles extensions : `docs/deckbuilder/mecaniques.md`.
+- [ ] Brancher le classement dans `gen-deckdb.mjs` puis faire raisonner le coach dessus (session « cerveau du coach »).
+- [ ] À chaque nouvelle extension : classer les nouvelles cartes (`tools/card-mech-todo.mjs`, agents, `tools/card-mech-merge.mjs --into`).
+
 ## Point du 2 novembre (nuit) : coach entraîné sur un corpus massif
 
 - « Base du coach » toutes les 6 h (5 h 20 par passage) : le corpus Archidekt grossit d'environ 15 000 decks par passage ; à surveiller dans `log.txt` de la branche `deck-corpus` (taille des fichiers, erreurs Archidekt, ligne « Banc d'essai »). **Fait le 4 novembre** : 146 718 decks après le passage de 8 h UTC (165 000 environ après celui en cours) ; repassé à un passage par nuit (1 h 13 UTC). Banc d'essai stable autour de 31 % (rappel@20) depuis 70 000 decks : la suite se joue sur le coach lui-même (synergies, archétypes), plus sur le volume. Constat : un passage programmé qui tombe pendant un autre ne démarre pas toujours (file « archidekt »).
