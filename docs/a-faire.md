@@ -14,7 +14,7 @@
 
 ## Point du 2 novembre (nuit) : coach entraîné sur un corpus massif
 
-- « Base du coach » toutes les 6 h (5 h 20 par passage) : le corpus Archidekt grossit d'environ 15 000 decks par passage ; à surveiller dans `log.txt` de la branche `deck-corpus` (taille des fichiers, erreurs Archidekt, ligne « Banc d'essai »). Une fois 150 000 à 200 000 decks atteints, repasser à un passage par nuit (`cron` de `.github/workflows/deckdb.yml`).
+- « Base du coach » toutes les 6 h (5 h 20 par passage) : le corpus Archidekt grossit d'environ 15 000 decks par passage ; à surveiller dans `log.txt` de la branche `deck-corpus` (taille des fichiers, erreurs Archidekt, ligne « Banc d'essai »). **Fait le 4 novembre** : 146 718 decks après le passage de 8 h UTC (165 000 environ après celui en cours) ; repassé à un passage par nuit (1 h 13 UTC). Banc d'essai stable autour de 31 % (rappel@20) depuis 70 000 decks : la suite se joue sur le coach lui-même (synergies, archétypes), plus sur le volume. Constat : un passage programmé qui tombe pendant un autre ne démarre pas toujours (file « archidekt »).
 - Banc d'essai et réglage automatique des poids du coach à chaque passage ; paires de cartes dans les suggestions. Détails : `docs/deckbuilder/README.md` › Entraînement.
 
 ## Point du 2 novembre (soir) : CardTrader ouvert à tous en lecture, liste de souhaits

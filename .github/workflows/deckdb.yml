@@ -1,6 +1,6 @@
 # Base de l'assistant de deck Commander (coach, src/deckwiz.js) : corpus de decks réels (Archidekt, les plus vus), pages commandant et thèmes EDHREC,
 # rôle de chaque carte (catégories Archidekt, Scryfall Tagger, texte), cibles par catégorie et cartes conseillées (gen-deckdb.mjs).
-# Toutes les 6 h (passages de 5 h 20 : le corpus Archidekt grossit d'environ 15 000 decks par passage, pages suivantes des commandants les plus joués) ;
+# Chaque nuit à 1 h 13 UTC (passage de 5 h 20 : environ 18 000 decks Archidekt de plus, pages suivantes des commandants les plus joués ; toutes les 6 h du 2 au 4 novembre 2026, jusqu'à 150 000 decks) ;
 # le corpus du passage précédent est repris (incrémental). Chaque passage finit par l'analyse : agrégats, paires de cartes, banc d'essai et réglage
 # des poids du coach (bench-coach.mjs). Dépôt public : minutes d'Actions gratuites, 6 h au plus par passage.
 # Publié sur la branche « deck-corpus » (un seul commit, réécrit à chaque passage : pas d'historique qui gonfle le dépôt) :
@@ -9,7 +9,7 @@
 name: Base du coach
 on:
   schedule:
-    - cron: '13 1,7,13,19 * * *'      # file d'attente « archidekt » partagée avec « Commandants EDHREC » (edhrec.yml) : jamais deux lectures d'Archidekt en même temps
+    - cron: '13 1 * * *'      # file d'attente « archidekt » partagée avec « Commandants EDHREC » (edhrec.yml) : jamais deux lectures d'Archidekt en même temps
   workflow_dispatch:
     inputs:
       minutes:
