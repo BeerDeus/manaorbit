@@ -7916,7 +7916,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'fd543952';
+const DD_BUILD = '4c3c3b19';
 const I18N_FILES = {"de":"i18n/de.599b7108.js","en":"i18n/en.c2e96ecd.js","es":"i18n/es.9c7d5ff7.js","it":"i18n/it.5b126712.js","pt":"i18n/pt.f4cd0bcd.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -28139,7 +28139,7 @@ const dwW = () => { const w = DW.core && DW.core.w; return w && typeof w === 'ob
 const dwPop = (o, w = dwW()) => (o.incl || 0) / 100 * w.incl + Math.max(0, o.syn || 0) / 100 * w.syn + (o.th || 0) / 100 * w.th + (o.g || 0) / 100 * w.g + (o.cx || 0) / 100 * w.cx + (o.rank ? Math.max(0, 1 - o.rank / 4000) * w.rank : 0);
 /** Valeur d'une carte : popularité (réduite par le curseur « originalité » : o.k) + ce qu'elle fait pour le plan du deck (o.m) + sa force (o.q). */
 const DW_AI_V = [-0.5, 0.3, 0.6, 1];      // note de la fiche IA (0 : presque inutile ici, 3 : cœur du plan) → valeur
-const dwVal = o => { const w = dwW(); return (o.k == null ? 1 : o.k) * dwPop(o, w) + ((o.m || 0) * w.m + (o.q || 0) * w.q) * (o.d == null ? 1 : o.d) + (o.ai != null ? DW_AI_V[o.ai] * w.ai : 0) - (o.trap ? w.trap : 0); };
+const dwVal = o => { const w = dwW(); return (o.k == null ? 1 : o.k) * dwPop(o, w) + ((o.m || 0) * w.m + (o.q || 0) * w.q) * (o.d == null ? 1 : o.d) + (o.ai != null ? DW_AI_V[o.ai] * w.ai * (o.aiK == null ? 1 : o.aiK) : 0) - (o.trap ? w.trap : 0); };
 /** Part de la popularité gardée : 1 (classique) à 0,3 (trouvailles). */
 const dwPopK = set => 1 - 0.7 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100;
 /** Part de sa valeur mécanique qu'obtient une carte jamais jouée avec ce commandant (réserve élargie) : 0,4 (classique) à 1 (trouvailles). La popularité
@@ -28177,8 +28177,9 @@ function dwInfo(pack, set, cmd) {
     const ai = pack && pack.ai;
     if (ai) {      // fiche IA du commandant : notes de synergie (même pour des cartes jamais jouées avec lui), conditions de victoire et cartes conseillées en plus, pièges
       const put = (nm, f) => { const k = ownKey(nm), r = DW.byKey && DW.byKey.get(k); if (!r) return; let o = C.get(k); if (!o) { o = { name: r[0], incl: 0, syn: 0, th: 0, g: 0, cx: 0, rank: 0, pool: 1, d: d0 }; C.set(k, o); } f(o); };
-      for (const [nm, v] of ai.syn || []) put(nm, o => { o.ai = Math.max(o.ai == null ? 0 : o.ai, v); });
-      for (const nm of [...(ai.win || []), ...(ai.extra || [])]) put(nm, o => { o.ai = Math.max(o.ai == null ? 0 : o.ai, 2); });
+      const aiK = plan.user ? 0.5 : 1;      // le joueur a choisi un thème, une mécanique ou une tribu : sa demande passe avant la fiche
+      for (const [nm, v] of ai.syn || []) put(nm, o => { o.ai = Math.max(o.ai == null ? 0 : o.ai, v); o.aiK = aiK; });
+      for (const nm of [...(ai.win || []), ...(ai.extra || [])]) put(nm, o => { o.ai = Math.max(o.ai == null ? 0 : o.ai, 2); o.aiK = aiK; });
       for (const nm of ai.trap || []) put(nm, o => { o.trap = 1; });
       for (const [, cs] of ai.eng || []) for (const nm of cs) put(nm, o => { o.eng = (o.eng || []).concat([cs.map(n => ownKey(n))]); });
     }

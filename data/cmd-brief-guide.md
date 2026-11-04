@@ -26,6 +26,8 @@ connaissance des cartes (règles exactes), pas à leur popularité.
   sans), **2** = très bonne dans ce deck, **1** = bonne, **0** = presque inutile ici malgré les apparences (populaire mais hors plan). Ne note pas les
   cartes génériques que tout deck joue (Sol Ring, Arcane Signet, Command Tower…) : le coach les gère déjà. Une carte jamais vue (0 %) mais excellente
   ici mérite sa note : c'est précisément ce qu'on cherche (trouvailles).
+- Un piège va dans `traps` seulement (pas aussi dans `syn` à 0) ; il peut être hors candidates. Une carte générique forte qui est **particulièrement** bonne
+  avec ce commandant (Smothering Tithe pour un group hug) peut être notée. `tribes` vide si le deck n'est pas tribal.
 - Noms : EXACTEMENT comme dans `cands` (ou le nom anglais officiel complet pour `win`, `engines`, `traps`, `extra`). Pas de terrain de base.
 - Plusieurs plans possibles (ex. Atraxa : marqueurs, superfriends, infect) : décris le plan principal, cite les autres en une phrase dans `plan`,
   et mets dans `tags` celles du plan principal d'abord.
