@@ -7916,7 +7916,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'cc55ca2e';
+const DD_BUILD = 'd678745d';
 const I18N_FILES = {"de":"i18n/de.70b0b4b7.js","en":"i18n/en.2fd88bf1.js","es":"i18n/es.c0f4edbc.js","it":"i18n/it.7b76fa8c.js","pt":"i18n/pt.73406d2c.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -22549,8 +22549,8 @@ function edhDeckActs(api, r, name) {
   el.onclick = async e => {
     const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return; const act = b.dataset.act;
     if (act === 'dksave') {
-      const nm = edhSaveName(r), id = newIdFor(); putDeck(id, deckDoc({ name: nm, text: dkSetMeta(text, 'from', 'edh'), opts: { ...S.opts } })); saved = nm; haptic('ok');      // venu d'À monter : cartes manquantes pas suivies tant qu'on n'allume pas « Suivre les cartes manquantes »
-      if (added.size && dkTrack(findDeck(id).text)) {      // le deck enregistré met lui-même ses manquantes dans « Je recherche » : les souhaits ajoutés juste avant feraient doublon
+      const nm = edhSaveName(r), id = newIdFor(), doc = deckDoc({ name: nm, text: dkSetMeta(text, 'from', 'edh'), opts: { ...S.opts } }); putDeck(id, doc); saved = nm; haptic('ok');      // venu d'À monter : cartes manquantes pas suivies tant qu'on n'allume pas « Suivre les cartes manquantes »
+      if (added.size && dkTrack(doc.text)) {      // (deck suivi seulement) le deck enregistré met lui-même ses manquantes dans « Je recherche » : les souhaits ajoutés juste avant feraient doublon
         for (const [k, q] of added) { const cur = TR.wish[k]; if (!cur) continue; if (cur.q > q) TR.wish[k] = { ...cur, q: cur.q - q }; else delete TR.wish[k]; }
         added.clear(); trChanged();
       }

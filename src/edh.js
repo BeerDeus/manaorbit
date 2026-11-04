@@ -438,8 +438,8 @@ function edhDeckActs(api, r, name) {
   el.onclick = async e => {
     const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return; const act = b.dataset.act;
     if (act === 'dksave') {
-      const nm = edhSaveName(r), id = newIdFor(); putDeck(id, deckDoc({ name: nm, text: dkSetMeta(text, 'from', 'edh'), opts: { ...S.opts } })); saved = nm; haptic('ok');      // venu d'À monter : cartes manquantes pas suivies tant qu'on n'allume pas « Suivre les cartes manquantes »
-      if (added.size && dkTrack(findDeck(id).text)) {      // le deck enregistré met lui-même ses manquantes dans « Je recherche » : les souhaits ajoutés juste avant feraient doublon
+      const nm = edhSaveName(r), id = newIdFor(), doc = deckDoc({ name: nm, text: dkSetMeta(text, 'from', 'edh'), opts: { ...S.opts } }); putDeck(id, doc); saved = nm; haptic('ok');      // venu d'À monter : cartes manquantes pas suivies tant qu'on n'allume pas « Suivre les cartes manquantes »
+      if (added.size && dkTrack(doc.text)) {      // (deck suivi seulement) le deck enregistré met lui-même ses manquantes dans « Je recherche » : les souhaits ajoutés juste avant feraient doublon
         for (const [k, q] of added) { const cur = TR.wish[k]; if (!cur) continue; if (cur.q > q) TR.wish[k] = { ...cur, q: cur.q - q }; else delete TR.wish[k]; }
         added.clear(); trChanged();
       }
