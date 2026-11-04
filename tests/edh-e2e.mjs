@@ -188,13 +188,13 @@ assert.equal(Object.keys(wish).length, 24); assert.equal(wish['swords to plowsha
 assert.deepEqual((await acts())[1], ['dkwish', 'Manquantes dans Je recherche', 'Ta liste d\'échange les recherche déjà', true], 'fait : coché, inactif');
 assert.equal(await p.evaluate(() => trState().want.filter(x => /^filler /.test(x.k)).length), 20, '« Je recherche » de l\'onglet Échange : les 20 fillers y sont');
 await p.click('#toast .toast-act'); assert.deepEqual(Object.keys(await p.evaluate(() => TR.wish)).sort(), ['mana crypt', 'swords to plowshares'], 'Annuler : liste d\'avant'); assert.equal((await acts())[1][3], false);
-// ajoutées puis deck enregistré : le deck recherche lui-même ses manquantes, les souhaits ajoutés par la feuille sont retirés (pas de doublon)
+// ajoutées puis deck enregistré : venu d'À monter, le deck ne suit pas ses manquantes (« Suivre les cartes manquantes » éteint) : les souhaits ajoutés par la feuille restent
 await p.click('.dk-act[data-act="dkwish"]'); await p.click('.dk-act[data-act="dksave"]'); assert.equal(await txt(p, '#toast'), '« Edgar Markov » ajouté à Mes decks Voir');
 const saved = await p.evaluate(() => allDecks().map(d => ({ name: d.name, text: d.text, n: dkCountText(d.text), eng: engIsOn(d.id) })));
-assert.equal(saved.length, 1); assert.equal(saved[0].name, 'Edgar Markov'); assert.match(saved[0].text, /^Commander\n1 Edgar Markov\n\n1 Sol Ring\n/); assert.equal(saved[0].n, '34/100 cartes'); assert.equal(saved[0].eng, false, 'pas monté : ses cartes ne sont pas réservées');
+assert.equal(saved.length, 1); assert.equal(saved[0].name, 'Edgar Markov'); assert.match(saved[0].text, /^\/\/ Deck Deal from : edh\nCommander\n1 Edgar Markov\n\n1 Sol Ring\n/); assert.equal(saved[0].n, '34/100 cartes'); assert.equal(saved[0].eng, false, 'pas monté : ses cartes ne sont pas réservées');
 await p.waitForFunction(() => document.querySelector('.dk-act[data-act="dkwish"]').disabled, null, { timeout: 3000 });      // compte : le deck arrive dans « Mes decks » au retour de la synchro, la feuille se repeint alors
 assert.deepEqual(await acts(), [['dksave', 'Dans mes decks', 'Enregistré sous « Edgar Markov »', true], ['dkwish', 'Manquantes dans Je recherche', 'Ta liste d\'échange les recherche déjà', true]]);
-assert.deepEqual(Object.keys(await p.evaluate(() => TR.wish)).sort(), ['mana crypt', 'swords to plowshares'], 'souhaits ajoutés ici retirés');
+assert.equal(Object.keys(await p.evaluate(() => TR.wish)).length, 24, 'souhaits ajoutés ici gardés'); assert.equal(await p.evaluate(() => [dkMeta(allDecks()[0].text, 'from'), dkTrack(allDecks()[0].text)].join()), 'edh,false', 'deck marqué « venu d\'À monter »');
 assert.equal(await p.evaluate(() => trState().want.find(x => x.k === 'command tower').q), 1, 'Command Tower recherchée une fois, pas deux');
 await p.screenshot({ path: 'shots/edh-3b-actions.png' });
 await p.click('#toast .toast-act'); await p.waitForSelector('.dks.on .deck', { timeout: 4000 }); await p.waitForFunction(() => !document.querySelector('.sheet-wrap') && !document.querySelector('.coll'), null, { timeout: 3000 });

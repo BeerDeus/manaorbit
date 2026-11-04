@@ -1,16 +1,14 @@
-/* ── deckana.js : « Analyser » un deck Commander (pour tout le monde depuis le 2 novembre 2026) ─────────────────────────────────────
-   Depuis le viewer (deck de Mes decks, deck « À monter » EDHREC ou Archidekt, deck de la communauté, deck reçu par un lien) : état du deck et échanges conseillés.
-   Même moteur que le coach (deckwiz.js : rôles des cartes, cibles, cartes conseillées du commandant), sur la liste du deck sans l'ouvrir dans l'éditeur.
-   - Bracket estimé (Game Changers, destruction massive de terrains, tours supplémentaires, tuteurs) ; c'est aussi le bracket visé par défaut.
-   - Équilibre (jauges en lecture seule), mana, règles du bracket visé, budget.
-   - Échanges conseillés, du plus utile au moins utile, chacun avec sa raison :
+/* ── deckana.js : le coach d'un deck Commander (pour tout le monde depuis le 2 novembre 2026 ; refonte de l'affichage le 4 novembre) ─────────────────
+   Depuis le viewer (bouton « Coach » : deck de Mes decks, deck « À monter » EDHREC ou Archidekt, deck de la communauté, deck reçu par un lien).
+   Même moteur que l'onglet Coach de l'éditeur (deckwiz.js : rôles des cartes, cibles, cartes conseillées du commandant ; deckopt.js : note) : cet écran ne fait que présenter.
+   L'écran s'adapte à l'état du deck (voir « Écran » plus bas) : bilan direct, « Compléter le deck » ou aperçu.
+   Échanges conseillés (dwSwaps), du plus utile au moins utile, chacun avec sa raison :
        1. au-dessus de la limite de prix : les cartes chères qui pèsent peu → une carte du même rôle, au moins deux fois moins chère ;
        2. rôles sous la plage normale (rampe, pioche, retraits…) → à la place des cartes les plus faibles qui n'en remplissent aucun ;
        3. cartes faibles pour ce commandant (peu jouées, sans synergie) → une carte nettement mieux jouée, du même rôle ;
        4. deck déjà solide : jusqu'à 5 améliorations (les cartes les moins jouées du deck contre une carte nettement plus jouée du même rôle) ;
      la limite de prix globale est respectée à chaque échange (ou l'échange fait baisser le prix).
-   - « Ouvrir dans l'éditeur avec N échanges » : les échanges cochés appliqués, onglet Coach ; un deck de Mes decks est modifié (à enregistrer),
-     un autre deck devient un nouveau deck. */
+   « Ouvrir dans l'éditeur avec N échanges » : les échanges cochés appliqués, onglet Coach ; un deck de Mes decks est modifié (à enregistrer). */
 const DA = { api: null, X: null, id: null, name: '', text: '', off: new Set(), brAuto: true, swaps: [] };
 /** Bracket estimé d'un deck d'après son profil (dwProfile) : 4 avec plus de 3 Game Changers ou une destruction massive de terrains ; 3 avec un Game Changer
  *  plusieurs tours supplémentaires ou un combo à 2 cartes ; 2 sinon (1 et 5 ne se devinent pas sur la liste ; les tuteurs ne comptent plus depuis octobre 2025). */
@@ -88,26 +86,37 @@ function daWhy(sw, cmd) {
   return head + (b > a ? ' · ' + T('{b} % des decks (contre {a} %)', { a, b }) : '');
 }
 
-/* ── Écran ────────────────────────────────────────────────────────────────────────────────────────── */
-/** Analyse d'un deck (texte), depuis le viewer. id : deck de Mes decks (ses réglages du coach, échanges appliqués à ce deck).
- *  Deux temps : d'abord les réglages (bracket visé, préréglé sur le bracket estimé ; limite de prix ; thèmes ; priorité collection), puis « Lancer l'analyse »
- *  calcule les échanges avec ces réglages ; « Modifier les réglages » y revient. */
-function openDeckAnalysis({ text, name, id } = {}) {
+/* ── Écran : le coach s'adapte à l'état du deck ──────────────────────────────────────────────────────────────────────────────────────
+   · Deck de Mes decks complet (100 cartes) → bilan tout de suite, sans question : bracket estimé (dwBracketOf) ou celui enregistré pour le deck, budget = valeur
+     actuelle du deck ou celui enregistré. Dans l'ordre : note /100 et une phrase, 3 actions prioritaires au plus (cartes touchables), échanges conseillés
+     (repliés, note avant → après), détail replié (note, équilibre, mana, bracket, budget, simulation, rapport), réglages en une ligne en bas.
+   · Deck de Mes decks incomplet → « Compléter le deck » : réglages courts (déjà remplis), puis la construction de l'éditeur (deckopt.js › dsBuild, onglet Coach).
+   · Deck qui n'est pas à moi (À monter, communauté, lien) → aperçu : note, points forts et faibles, « Ajouter à mes decks » ; pas d'échanges.
+   Le calcul est celui du coach (dwProfile, dwTargets, dsScore, dwSwaps) : cet écran ne fait que le présenter. */
+/** id : deck de Mes decks ; from : origine notée sur le deck si on l'ajoute à Mes decks (« edh » : À monter). */
+function openDeckAnalysis({ text, name, id, from } = {}) {
   if (!dwOn()) return;
   const X = daDeckOf(String(text || ''));
   if (!X.cmdr.length) { toast(T('Commandant introuvable : ajoute un bloc « Commander » à la liste')); return; }
-  const saved = id ? (() => { try { return localStorage.getItem(DW_SET + id); } catch (e) { return null; } })() : null;
-  X.wiz = id ? dwSettingsFor(id) : dwDefaults();
-  Object.assign(DA, { X, id: id || null, name: String(name || 'Deck'), text: String(text || ''), off: new Set(), brAuto: !saved, swaps: [], step: 'set', tries: 0, setOpen: false, swOpen: undefined, why: new Set(), ctx: null });
+  Object.assign(DA, { X, id: null, name: String(name || 'Deck'), text: String(text || ''), from: from || '', off: new Set(), swaps: [], tries: 0, setOpen: false, swOpen: false, detOpen: false, why: new Set(), ctx: null, sc: null });
+  daOwn(id && findDeck(id) ? id : null);
   DW.shown = 8;
   dwLoad().catch(() => {}); if (typeof edhLoad === 'function') edhLoad().then(() => daPaint()).catch(() => {});
-  DA.api = openSheet(T('Analyse du deck'), DA.name, api => {
+  DA.api = openSheet(T('Coach'), DA.name, api => {
     api.wrap.classList.add('da-sheet'); dwImgs(api.wrap);      // vignettes des échanges
     api.body.addEventListener('click', daClick); api.body.addEventListener('change', daChange);
-    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn" type="button" id="daGo" disabled>${T('Lancer l\'analyse')}</button>`);
-    $('#daGo', api.foot).onclick = () => { if (DA.step === 'set') { DA.step = 'res'; DA.off.clear(); haptic('tap'); daPaint(); DA.api.body.scrollTop = 0; } else daApply(); };
+    daSetFormBind(api.body, DA.X.wiz, daSetChanged);
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Fermer')}</button><button class="btn" type="button" id="daGo" disabled>${T('Ouvrir dans l\'éditeur')}</button>`);
+    $('#daGo', api.foot).onclick = () => { const m = DA.mode; if (m === 'peek') daAdd(); else if (m === 'build') daBuild(); else daApply(); };
   });
   daPaint(); daMeta();
+}
+/** Le deck devient (ou est) celui de Mes decks id : ses réglages enregistrés, sinon bracket estimé et budget = valeur actuelle (bilan). */
+function daOwn(id) {
+  const saved = daSaved(id), w = id ? dwSettingsFor(id) : dwDefaults();
+  if (!saved) { w.ba = 1; w.bv = 1; }      // jamais réglé : bracket estimé (ba) et budget = valeur actuelle (bv), suivis tant qu'on n'en choisit pas
+  if (DA.X.wiz) { for (const k of Object.keys(DA.X.wiz)) delete DA.X.wiz[k]; Object.assign(DA.X.wiz, w); } else DA.X.wiz = w;      // même objet : le formulaire reste branché dessus
+  Object.assign(DA, { id, mine: !!id, brAuto: !!w.ba, budAuto: !!w.bv });
 }
 const daOpen = () => DA.api && sheets.includes(DA.api);
 /** Images et coûts des cartes du deck et des échanges : relus jusqu'à 5 fois si Scryfall demande une pause (la vignette a sinon l'image Scryfall par le nom). */
@@ -115,6 +124,82 @@ function daMeta() {
   if (!daOpen()) return;
   const list = [...DA.X.main.values(), ...DA.X.cmdr, ...DA.swaps.map(s => ({ key: s.in.k, name: s.in.name }))];
   dmLoad().then(() => dmFetch(list)).then(n => { if (n) daPaint(); if (dmMissing(list).length && DA.tries++ < 5) setTimeout(daMeta, Math.max(2500, scryLeft() + 500)); }).catch(() => {});      // pause Scryfall (jusqu'à 30 s après un 429) : on attend sa fin
+}
+/** Rôles du coach, au singulier et au pluriel : « Ajouter 2 pioches », et ce qui manque, en clair (« la pioche est un peu juste »). */
+const DA_ROLE = {
+  ramp: ['Ajouter {n} carte de rampe', 'Ajouter {n} cartes de rampe', 'la rampe est un peu juste'], draw: ['Ajouter {n} pioche', 'Ajouter {n} pioches', 'la pioche est un peu juste'],
+  removal: ['Ajouter {n} retrait ciblé', 'Ajouter {n} retraits ciblés', 'il manque des retraits ciblés'], wipe: ['Ajouter {n} balayage', 'Ajouter {n} balayages', 'il manque des balayages'],
+  counter: ['Ajouter {n} contresort', 'Ajouter {n} contresorts', 'il manque des contresorts'], protect: ['Ajouter {n} protection', 'Ajouter {n} protections', 'la protection est un peu juste'],
+  tutor: ['Ajouter {n} tuteur', 'Ajouter {n} tuteurs', 'il manque des tuteurs'], recursion: ['Ajouter {n} carte de récursion', 'Ajouter {n} cartes de récursion', 'il manque de la récursion'],
+  wincon: ['Ajouter {n} condition de victoire', 'Ajouter {n} conditions de victoire', 'il manque des conditions de victoire'],
+};
+/** Actions prioritaires (3 au plus), les plus rentables d'abord : { k (rôle, 'land', 'gc', 'mld', 'combo', 'budget', 'curve', 'swap'), t (titre), s (détail), gain (points estimés), issue (phrase de synthèse) }.
+ *  Points estimés comme la note du coach (deckopt.js › dsScore), pour l'ordre seulement. */
+function daActions(prof, tgt, cmd, set, swaps, pack) {
+  const out = [], roles = [...DW_GAUGES.map(g => g[0]), 'wincon'].filter(r => r !== 'land' && DA_ROLE[r] && tgt[r] && tgt[r][2] > 0 && !(r === 'counter' && !cmd.ci.includes('U')));
+  const sw = (swaps || [])[0], swRole = sw && DA_ROLE[sw.why] ? sw.why : '';
+  const Xe = { ...DA.X, wiz: daEdWiz(set) };      // réglages que reçoit l'éditeur (daApply) : une catégorie n'est proposée que si le coach y a des cartes à suggérer
+  let swGain = 1.5;
+  for (const r of roles) {
+    const [lo, mid] = tgt[r], v = prof[r]; if (v >= lo) continue;
+    const sc = 0.75 * (lo ? v / lo : 1), n = Math.max(1, mid - v), gain = (1 - sc) * 30 / roles.length, issue = T(DA_ROLE[r][2]);
+    if (r === swRole) { swGain = Math.max(swGain, gain); sw.issue = issue; continue; }      // l'échange conseillé comble ce manque : il passe à sa place
+    if (DW.byKey && !dwSuggest(r, cmd, pack, prof, tgt, 1, Xe).length) continue;      // rien à suggérer dans ces couleurs et ce bracket : pas d'action vide
+    out.push({ k: r, sg: '+', t: TN(n, DA_ROLE[r][0], DA_ROLE[r][1]), s: T('{n} dans le deck, {m} conseillées', { n: v, m: mid }), gain, issue });
+  }
+  const dl = prof.land - tgt.land[1];
+  if (dl) out.push({ k: 'land', sg: dl > 0 ? '−' : '+', t: dl > 0 ? TN(dl, 'Retirer {n} terrain', 'Retirer {n} terrains') : TN(-dl, 'Ajouter {n} terrain', 'Ajouter {n} terrains'), s: T('{n} terrains, {m} conseillés', { n: prof.land, m: tgt.land[1] }), gain: Math.min(1, Math.abs(dl) * 0.12) * 10, issue: dl > 0 ? T('un peu trop de terrains') : T('un peu juste en terrains') });
+  const b = DW_BRACKETS.find(x => x[0] === set.br) || DW_BRACKETS[2];
+  if (prof.gc.length > b[3]) out.push({ k: 'gc', sg: '−', t: TN(prof.gc.length - b[3], 'Retirer {n} Game Changer', 'Retirer {n} Game Changers'), s: T('Bracket {b} : {m} au plus', { b: b[0], m: b[3] }), gain: 5, issue: T('trop fort pour le bracket visé') });
+  if (prof.mld.length && set.br <= 3) out.push({ k: 'mld', sg: '−', t: T('Retirer la destruction de terrains'), s: T('Interdite en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
+  if (prof.combos.length && set.br <= 2) out.push({ k: 'combo', sg: '−', t: T('Casser le combo à 2 cartes'), s: T('Interdit en bracket {b}', { b: b[0] }), gain: 5, issue: T('trop fort pour le bracket visé') });
+  if (set.bud > 0 && prof.cents > set.bud) out.push({ k: 'budget', sg: '−', t: T('Baisser le prix de {p}', { p: fmt(prof.cents - set.bud, mkCur()) }), s: T('Limite : {p}', { p: fmt(set.bud, mkCur()) }), gain: Math.min(5, Math.ceil((prof.cents - set.bud) / set.bud * 20)), issue: T('au-dessus du budget') });
+  if (prof.nonland && prof.mv > tgt.mv[2]) out.push({ k: 'curve', sg: '−', t: T('Baisser la courbe de mana'), s: T('Coût moyen {v}, repère {m}', { v: dsNum(prof.mv), m: dsNum(tgt.mv[1], 1) }), gain: Math.min(1, (prof.mv - tgt.mv[2]) / 0.6) * 10, issue: T('la courbe est un peu haute') });
+  if (sw) out.push({ k: 'swap', sg: '⇄', t: T('Échanger {a} → {b}', { a: bdLabel(sw.out.k, sw.out.name), b: bdLabel(sw.in.k, sw.in.name) }), s: daWhy(sw, cmd), gain: swGain, issue: sw.issue || '' });
+  return out.sort((a, c) => c.gain - a.gain);
+}
+const DA_LEVEL = { top: 'Excellent', ok: 'Solide', mid: 'Jouable', low: 'À retravailler' };
+/** Phrase de synthèse : « Solide, la pioche est un peu juste ». */
+function daSummary(sc, acts) {
+  const lvl = T(DA_LEVEL[dsLevel(sc.total)]), a = acts.find(x => x.issue && x.gain >= 0.8);
+  return a ? T('{level}, {issue}', { level: lvl, issue: a.issue }) : sc.total >= 85 ? T('Excellent équilibre') : T('{level}, rien d\'urgent à changer', { level: lvl });
+}
+/** Deck atypique (synergie basse, le reste correct) : la note compare aux listes les plus jouées ; c'est assumé, sans reproche. */
+const daAtypical = (sc, pack) => !!pack && sc.parts.some(p => p.k === 'syn' && p.pts / p.max < 0.4) && sc.parts.some(p => p.k === 'roles' && p.pts / p.max >= 0.75);
+/** En-tête : note en grand, phrase, bracket et valeur. */
+function daHeadHtml(sc, acts, prof, set, est, pack, mine) {
+  const cur = mkCur(), b = DW_BRACKETS.find(x => x[0] === (DA.brAuto ? est : set.br)) || DW_BRACKETS[2];
+  const meta = [T('Bracket {n} · {name}', { n: b[0], name: b[1] }) + (DA.brAuto ? ' · ' + T('estimé') : ''), fmt(prof.cents, cur) + (!mine && prof.buy ? ' · ' + T('dont {p} à acheter', { p: fmt(prof.buy, cur) }) : '')];
+  return `<div class="cb-head ds-${dsLevel(sc.total)}"><div class="cb-n"><b>${sc.total}</b><small>/100</small></div><div class="cb-t"><b>${esc(daSummary(sc, acts))}</b><span>${meta.map(esc).join('<br>')}</span></div></div>`
+    + (daAtypical(sc, pack) ? `<p class="hint cb-note">${T('Deck atypique : la note le compare aux listes les plus jouées avec ce commandant. Un plan original la fait baisser, c\'est normal.')}</p>` : '');
+}
+/** Une action prioritaire (carte touchable). */
+const daActHtml = (a, i) => `<button type="button" class="cb-act" data-cb-act="${i}"><span class="cb-ic ${a.sg === '+' ? 'in' : a.sg === '⇄' ? 'sw' : 'out'}" aria-hidden="true">${a.sg}</span><span class="cb-at"><b>${esc(a.t)}</b><small>${esc(a.s)}</small></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>`;
+/** Ligne de réglages (bas du bilan) : « bracket 4 (estimé) · limite 580 € · thèmes » et « Modifier ». */
+function daSetLine(cmd, pack, set, est) {
+  const cur = mkCur(), th = dwThemeChoices(cmd, pack, set);
+  const txt = [T('bracket {n}', { n: DA.brAuto ? est : set.br }) + (DA.brAuto ? ' (' + T('estimé') + ')' : ''), set.bud > 0 ? T('limite {p}', { p: fmt(set.bud, cur) }) + (DA.budAuto ? ' (' + T('valeur actuelle') + ')' : '') : T('sans limite de prix'), ...(set.th.length ? [set.th.map(t => dwThemeLabel(t, th)).join(', ')] : [])].join(' · ');
+  return `<button class="dw-set-h cb-set" type="button" data-da-edit aria-expanded="${!!DA.setOpen}"><span><b>${T('Réglages')}</b><small>${esc(txt)}</small></span><span class="me-v">${DA.setOpen ? T('Fermer') : T('Modifier')}</span></button>`
+    + (DA.setOpen ? daSetFormHtml(cmd, pack, set, { est, val: DA.ctx ? DA.ctx.prof.cents : 0, pfx: 'da' }) : '');
+}
+/** Détail replié : note partie par partie, équilibre, mana, bracket, budget, simulation de parties, rapport. */
+function daDetailHtml(sc, prof, tgt, cmd, pack, set) {
+  let h = `<div class="cb-parts">${sc.parts.map(p => `<p class="ds-p"><span>${esc(p.label)}</span><span class="ds-bar"><i style="width:${Math.round(p.pts / p.max * 100)}%"></i></span><b>${Math.round(p.pts)}<small>/${p.max}</small></b></p>`).join('')}</div>`;
+  h += `<div class="sec-title">${T('Équilibre du deck')}</div><p class="hint">${esc(dwBalSum(prof, tgt, cmd))}</p><div class="dw-gauges">${dwGaugesHtml(prof, tgt, cmd, pack, true)}</div>`;
+  h += dwManaHtml(prof, tgt, cmd) + dwBracketHtml(prof, set) + dwBudgetHtml(prof, set);
+  if (typeof dsimEnsure === 'function') h += `<div id="daSim">${DSIM.res && DSIM.sig === dsimSig(DA.X) ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog)}</div>`;
+  if (typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-da-report><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
+  return h;
+}
+/** Points forts d'un deck (aperçu) : parties de la note au plus haut, catégories bien fournies. */
+function daStrong(sc, prof, tgt, cmd) {
+  const out = [], part = k => { const p = sc.parts.find(x => x.k === k); return p ? p.pts / p.max : 0; };
+  const ok = DW_GAUGES.filter(([r]) => r !== 'land' && tgt[r] && tgt[r][2] > 0 && !(r === 'counter' && !cmd.ci.includes('U')) && prof[r] >= tgt[r][1]).map(([, l]) => T(l).toLowerCase());
+  if (ok.length) out.push(ok.length >= 4 ? T('Bien fourni partout : {list}', { list: ok.slice(0, 3).join(', ') + '…' }) : T('Bien fourni : {list}', { list: ok.join(', ') }));
+  if (part('mana') >= 0.9) out.push(T('Mana bien réglé : terrains et couleurs'));
+  if (part('curve') >= 0.95) out.push(T('Courbe de mana fluide'));
+  if (part('syn') >= 0.8) out.push(T('Cartes très jouées avec ce commandant'));
+  return out.slice(0, 3);
 }
 function daPaint() {
   if (!daOpen()) return;
@@ -124,61 +209,79 @@ function daPaint() {
   const cmd = dwCmdOf(X), pack = DW.core ? (DW.cmd.has(cmd.slug) ? DW.cmd.get(cmd.slug) : null) : null;
   if (DW.core && !DW.cmd.has(cmd.slug)) { dwPack('c', cmd.slug).then(daPaint); return wait(T('Chargement des cartes conseillées…')); }
   for (const t of X.wiz.th) if (DW.core && !DW.th.has(t)) { dwPack('t', t).then(daPaint); return wait(T('Chargement des cartes conseillées…')); }
-  const prof = dwProfile(X), est = dwBracketOf(prof);
-  if (DA.brAuto) X.wiz.br = est;
-  const set = X.wiz, cur = mkCur(), bName = (DW_BRACKETS.find(b => b[0] === est) || DW_BRACKETS[2])[1];
-  let h = DW.err ? `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(DW.err)}</span></div>` : '';
-  const sum = extra => `<div class="da-sum"><p class="dw-line"><span>${T('Commandant')}</span><b>${esc(cmd.names.join(' + '))}</b></p>
-    <p class="dw-line"><span>${T('Bracket estimé')}</span><b>${est} · ${esc(bName)}</b></p>${extra}
-    <p class="dw-line"><span>${T('Valeur du deck')}</span><b>${esc(fmt(prof.cents, cur))}</b><small>${esc(T('dont {p} à acheter', { p: fmt(prof.buy, cur) }))}</small></p></div>`;
-  if (DA.step === 'set') {
-    h += sum('') + `<div class="sec-title">${T('Réglages de l\'analyse')}</div><p class="hint">${T('Les échanges conseillés tiendront compte de ces réglages.')}</p>` + daSetHtml(cmd, pack, set, cur);
-    const keep = body.scrollTop; body.innerHTML = h; thumbsReady(body); body.scrollTop = keep;
-    if (go) { go.disabled = false; go.textContent = T('Lancer l\'analyse'); }
-    return;
-  }
+  const prof = dwProfile(X), est = dwBracketOf(prof), set = X.wiz, mode = DA.mode = !DA.mine ? 'peek' : prof.n < 100 ? 'build' : 'bilan';
+  if (DA.brAuto) set.br = est;
+  if (DA.budAuto) set.bud = mode === 'build' ? 0 : prof.cents;      // bilan : budget = valeur actuelle (les échanges ne font pas monter le prix) ; à compléter : sans limite
   const tgt = dwTargets(prof, cmd, pack, set); DA.ctx = { prof, tgt };
-  DA.swaps = DW.core ? dwSwaps(X, cmd, pack, prof, tgt) : [];
-  const gs = DW_GAUGES.filter(([r]) => r !== 'counter' || cmd.ci.includes('U')), okN = gs.filter(([r]) => prof[r] >= tgt[r][0] && prof[r] <= tgt[r][2] + (r === 'land' ? 0 : 3)).length;
-  h += sum(`<p class="dw-line"><span>${T('Équilibre')}</span><b>${esc(TN(okN, '{n} catégorie sur {b} dans la norme', '{n} catégories sur {b} dans la norme', { b: gs.length }))}</b></p>`);
-  if (typeof dsScore === 'function' && DW.core) {      // note du coach, et ce qu'elle devient avec les échanges cochés
-    const sc = dsScore(X, { cmd, pack }), on = DA.swaps.filter((s, i) => !DA.off.has(i));
-    let after = null;
-    if (on.length) { const m = new Map([...X.main].map(([k, c]) => [k, { ...c }])); for (const s of on) { const o = m.get(s.out.k); if (o && o.qty > 1) o.qty--; else m.delete(s.out.k); m.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 }); } after = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack }).total; }
-    h += dsScoreHtml(sc, { after });
+  let h = DW.err ? `<div class="status" data-ok="0"><span class="dot"></span><span>${esc(DW.err)}</span></div>` : '';
+  const keep = body.scrollTop, done = label => { body.innerHTML = h; thumbsReady(body); body.scrollTop = keep; if (go) { go.disabled = false; go.textContent = label; } };
+  if (mode === 'build') {      // « Compléter le deck » : réglages courts, puis la construction de l'éditeur
+    const cur = mkCur();
+    h += `<div class="cb-head cb-build"><div class="cb-n"><b>${prof.n}</b><small>/100<br>${T('cartes')}</small></div><div class="cb-t"><b>${esc(TN(100 - prof.n, 'Il manque {n} carte', 'Il manque {n} cartes'))}</b><span>${esc(T('Bracket {n} · {name}', { n: est, name: (DW_BRACKETS.find(b => b[0] === est) || DW_BRACKETS[2])[1] }) + ' · ' + T('estimé'))}<br>${esc(fmt(prof.cents, cur))}</span></div></div>`;
+    h += `<div class="sec-title">${T('Compléter le deck')}</div><p class="hint">${T('Le coach ajoute les cartes qui manquent : rôles jusqu\'aux cibles, puis le plan du commandant, puis les terrains. Les cartes déjà là restent ; annulable.')}</p>` + daSetFormHtml(cmd, pack, set, { est, val: DA.ctx ? DA.ctx.prof.cents : 0, pfx: 'da' });
+    return done(T('Compléter le deck'));
   }
-  const th = dwThemeChoices(cmd, pack, set), setTxt = [T('bracket {n}', { n: set.br }) + ' · ' + (DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[1], set.bud > 0 ? T('limite {p}', { p: fmt(set.bud, cur) }) : T('sans limite de prix'), ...(set.th.length ? [set.th.map(t => dwThemeLabel(t, th)).join(', ')] : []), ...(set.own ? [T('ma collection d\'abord')] : [])].join(' · ');
-  if (typeof openDeckReport === 'function') h += `<button class="btn ghost block dw-rep" type="button" data-da-report><svg class="i" aria-hidden="true"><use href="#i-info"/></svg>${T('Rapport du coach')}</button>`;
-  h += `<button class="dw-set-h" type="button" data-da-edit><span><b>${T('Réglages de l\'analyse')}</b><small>${esc(setTxt)}</small></span><span class="me-v">${DA.setOpen ? '−' : T('Modifier')}</span></button>`;
-  if (DA.setOpen) h += `<p class="hint">${T('Chaque changement relance l\'analyse.')}</p>` + daSetHtml(cmd, pack, set, cur);      // réglages sur place : l'analyse suit chaque changement
-  const swClosed = DA.swOpen === false && DA.swaps.length > 0;
-  if (DA.swaps.length) {      // en-tête repliable : nombre d'échanges, cochés, effet sur la valeur du deck
-    const on = DA.swaps.filter((s, i) => !DA.off.has(i)), dl = on.reduce((a, s) => a + s.in.price - s.out.price, 0);
-    h += `<button class="dw-set-h da-sw-h" type="button" data-da-swt aria-expanded="${!swClosed}"><span><b>${T('Échanges conseillés')}</b><small>${esc(TN(DA.swaps.length, '{n} échange', '{n} échanges') + ' · ' + TN(on.length, '{n} coché', '{n} cochés') + (dl ? ' · ' + (dl > 0 ? '+' : '−') + fmt(Math.abs(dl), cur) : ''))}</small></span><span class="me-v">${swClosed ? T('Afficher') : T('Masquer')}</span></button>`;
-  } else h += `<div class="sec-title">${T('Échanges conseillés')}</div>`;
-  if (!DW.core) h += `<p class="hint">${T('Sans la base du coach, pas d\'échanges conseillés.')}</p>`;
-  else if (swClosed) { /* repliés : l'en-tête suffit */ }
-  else if (!DA.swaps.length) h += `<p class="hint">${!pack ? T('Ce commandant n\'est pas encore dans la base du coach : pas d\'avis sur ses cartes.') : set.bud > 0 && prof.cents > set.bud ? T('Aucune carte moins chère du même rôle trouvée pour passer sous la limite.') : T('Rien à changer : les cartes du deck sont bien jouées avec ce commandant.')}</p>`;
-  else {
-    const on = DA.swaps.filter((s, i) => !DA.off.has(i)), delta = on.reduce((a, s) => a + s.in.price - s.out.price, 0);
-    h += `<p class="hint">${esc(T('Coche ceux qui te plaisent, puis ouvre le deck dans l\'éditeur pour les appliquer. Touche une carte pour l\'agrandir.'))}</p><div class="da-sws">${DA.swaps.map((s, i) => daSwapRow(s, i, cmd)).join('')}</div>`;
-    h += `<p class="dw-line da-delta"><span>${T('Après ces échanges')}</span><b>${esc(fmt(prof.cents + delta, cur))}</b><small>${esc((delta >= 0 ? '+' : '−') + fmt(Math.abs(delta), cur))}</small></p>`;
-    if (DA.swaps.some(sw => !dmOf(sw.in.k))) { DA.tries = 0; setTimeout(daMeta, 0); }
+  const sc = DW.core && typeof dsScore === 'function' ? dsScore(X, { cmd, pack }) : null; DA.sc = sc;
+  DA.swaps = mode === 'bilan' && DW.core ? dwSwaps(X, cmd, pack, prof, tgt) : [];
+  const acts = DA.acts = sc ? daActions(prof, tgt, cmd, set, DA.swaps, pack).slice(0, 3) : [];
+  if (sc) h += daHeadHtml(sc, acts, prof, set, est, pack, mode === 'bilan');
+  if (mode === 'peek') {      // aperçu d'un deck qui n'est pas à moi
+    const strong = sc ? daStrong(sc, prof, tgt, cmd) : [], weak = acts.filter(a => a.k !== 'swap');
+    h += `<div class="sec-title">${T('Points forts')}</div>${strong.length ? `<ul class="cb-pts good">${strong.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : `<p class="hint">${T('Rien qui ressorte nettement.')}</p>`}`;
+    h += `<div class="sec-title">${T('Points faibles')}</div>${weak.length ? `<ul class="cb-pts warn">${weak.map(a => `<li><b>${esc(a.t)}</b> <small>${esc(a.s)}</small></li>`).join('')}</ul>` : `<p class="hint">${T('Aucun manque net.')}</p>`}`;
+    h += daSimCard() + `<p class="hint">${T('Ajoute-le à tes decks pour voir les échanges conseillés et l\'améliorer.')}</p>`;
+    h += daFold('det', DA.detOpen, T('Détail'), T('Note, équilibre, mana, simulation'), sc ? daDetailHtml(sc, prof, tgt, cmd, pack, set) : '');
+    h += daSetLine(cmd, pack, set, est);
+    done(T('Ajouter à mes decks')); daSimRun(); return;
   }
-  h += dwFoldHead('bal', DA.balOpen !== false, T('Équilibre du deck'), dwBalSum(prof, tgt, cmd), 'data-da-fold="bal"') + (DA.balOpen !== false ? `<div class="dw-gauges">${dwGaugesHtml(prof, tgt, cmd, pack, true)}</div>` : '');
-  h += dwManaHtml(prof, tgt, cmd) + dwBracketHtml(prof, set) + dwBudgetHtml(prof, set);
-  const keep = body.scrollTop; body.innerHTML = h; thumbsReady(body); body.scrollTop = keep;      // case cochée, « Pourquoi ? » : les vignettes déjà chargées restent affichées (pas de clignotement)
+  // bilan d'un deck de Mes decks
+  h += `<div class="sec-title">${T('À faire en priorité')}</div>` + (acts.length ? `<div class="cb-acts">${acts.map(daActHtml).join('')}</div>` : `<p class="hint">${sc && sc.total >= 85 ? T('Rien d\'urgent : le deck est bien équilibré.') : T('Rien d\'urgent à changer.')}</p>`);
+  h += daSimCard();
+  const on = DA.swaps.filter((s, i) => !DA.off.has(i));
+  let after = null;
+  if (sc && on.length) { const m = new Map([...X.main].map(([k, c]) => [k, { ...c }])); for (const s of on) { const o = m.get(s.out.k); if (o && o.qty > 1) o.qty--; else m.delete(s.out.k); m.set(s.in.k, { key: s.in.k, name: s.in.name, qty: 1 }); } after = dsScore({ main: m, cmdr: X.cmdr, wiz: X.wiz }, { cmd, pack }).total; }
+  const swSum = !DW.core ? T('Sans la base du coach, pas d\'échanges conseillés.') : !DA.swaps.length ? T('Aucun') : [TN(DA.swaps.length, '{n} échange', '{n} échanges'), sc && after != null && after !== sc.total ? T('note {a} → {b}', { a: sc.total, b: after }) : '', (() => { const dl = on.reduce((a, s) => a + s.in.price - s.out.price, 0); return dl ? (dl > 0 ? '+' : '−') + fmt(Math.abs(dl), mkCur()) : ''; })()].filter(Boolean).join(' · ');
+  let sw = '';
+  if (DA.swOpen) {
+    if (!DA.swaps.length) sw = `<p class="hint">${!pack ? T('Ce commandant n\'est pas encore dans la base du coach : pas d\'avis sur ses cartes.') : T('Rien à changer : les cartes du deck sont bien jouées avec ce commandant.')}</p>`;
+    else {
+      const delta = on.reduce((a, s) => a + s.in.price - s.out.price, 0), cur = mkCur();
+      sw = `<p class="hint">${esc(T('Coche ceux qui te plaisent, puis ouvre le deck dans l\'éditeur pour les appliquer. Touche une carte pour l\'agrandir.'))}</p><div class="da-sws">${DA.swaps.map((s, i) => daSwapRow(s, i, cmd)).join('')}</div>`
+        + `<p class="dw-line da-delta"><span>${T('Après ces échanges')}</span><b>${esc(fmt(prof.cents + delta, cur))}</b><small>${esc((delta >= 0 ? '+' : '−') + fmt(Math.abs(delta), cur))}</small></p>`;
+      if (DA.swaps.some(s => !dmOf(s.in.k))) { DA.tries = 0; setTimeout(daMeta, 0); }
+    }
+  }
+  h += daFold('sw', DA.swOpen, T('Échanges conseillés'), swSum, sw, 'data-da-swt');
+  h += daFold('det', DA.detOpen, T('Détail'), T('Note, équilibre, mana, simulation'), sc ? daDetailHtml(sc, prof, tgt, cmd, pack, set) : '');
+  h += daSetLine(cmd, pack, set, est);
   const n = DA.swaps.length - DA.off.size;
-  if (go) { go.disabled = false; go.textContent = n > 0 ? TN(n, 'Ouvrir dans l\'éditeur avec {n} échange', 'Ouvrir dans l\'éditeur avec {n} échanges') : T('Ouvrir dans l\'éditeur'); }
+  done(n > 0 ? TN(n, 'Ouvrir dans l\'éditeur avec {n} échange', 'Ouvrir dans l\'éditeur avec {n} échanges') : T('Ouvrir dans l\'éditeur'));
+  daSimRun();
 }
-/** Réglages de l'analyse : bracket visé (préréglé sur l'estimé), limite de prix, thèmes, priorité à la collection. */
-function daSetHtml(cmd, pack, set, cur) {
-  const th = dwThemeChoices(cmd, pack, set);
-  return `<div class="dw-set"><p class="label">${T('Bracket visé')}</p><div class="dw-chips">${DW_BRACKETS.map(b => `<button type="button" class="chip${set.br === b[0] ? ' on' : ''}" data-da-br="${b[0]}" aria-pressed="${set.br === b[0]}">${b[0]} · ${esc(b[1])}</button>`).join('')}</div>
-    <p class="hint">${esc(T((DW_BRACKETS.find(b => b[0] === set.br) || DW_BRACKETS[2])[2]))}</p>
-    <div class="field-in"><label class="label" for="daBud">${T('Limite de prix du deck ({c})', { c: cur })}</label><input type="number" id="daBud" inputmode="decimal" min="0" step="10" placeholder="${T('Sans limite')}" value="${set.bud > 0 ? Math.round(set.bud / 100) : ''}"></div>
-    ${th.length ? `<p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${th.map(([slug, label]) => `<button type="button" class="chip${set.th.includes(slug) ? ' on' : ''}" data-da-th="${esc(slug)}" aria-pressed="${set.th.includes(slug)}">${esc(label)}</button>`).join('')}</div>` : ''}
-    <label class="me-row switch-row" for="daOwn"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="daOwn" ${set.own ? 'checked' : ''}><i></i></span></label></div>`;
+/** Section repliable du bilan (échanges, détail). */
+const daFold = (id, open, title, sum, inner, attr) => `<section class="cb-fold${open ? ' open' : ''}">${dwFoldHead(id, !!open, title, sum, attr || `data-da-fold="${id}"`)}${open ? `<div class="cb-in">${inner}</div>` : ''}</section>`;
+/** Simulation de parties (decksim.js) : lancée à l'ouverture du bilan ou de l'aperçu, résumée en trois chiffres sous les actions, en entier dans le détail et le rapport. */
+function daSimRun() {
+  if (typeof dsimEnsure !== 'function' || !DW.core) return;
+  dsimEnsure(DA.X, () => {
+    if (!daOpen()) return; const b = DA.api.body, el = $('#daSim', b), card = $('#daSimCard', b);
+    if (el) el.innerHTML = DSIM.res ? (DSIM.res.none ? '' : dsimHtml(DSIM.res)) : dsimHtml(null, DSIM.prog);
+    if (card) card.outerHTML = daSimCard();
+  });
+}
+/** Résumé de la simulation : mains gardées, commandant à temps, couleurs ; « Rapport du coach » pour le reste. */
+function daSimCard() {
+  if (typeof dsimEnsure !== 'function' || !DW.core) return '';
+  const r = DSIM.sig === dsimSig(DA.X) ? DSIM.res : null; if (r && r.none) return '';
+  const tile = (ok, v, t) => `<span class="cb-st ${ok ? 'ok' : 'warn'}"><b>${esc(v)}</b><small>${esc(t)}</small></span>`;
+  const body = !r ? `<span class="ds-big"><i style="width:${Math.round((DSIM.prog || 0) * 100)}%"></i></span><small class="cb-sim-w">${T('Parties en cours…')}</small>`
+    : `<div class="cb-sts">${tile(r.keep7 >= 74, r.keep7 + ' %', T('mains de départ gardées'))}${r.cmv ? tile(r.cmdOn >= 55, r.cmdOn + ' %', T('commandant lancé à temps')) : tile(r.miss3 <= 20, r.miss3 + ' %', T('parties sans terrain avant le tour 4'))}${tile(r.screw4 <= 10, r.screw4 + ' %', T('parties bloquées par les couleurs'))}</div>`;
+  return `<div class="cb-sim" id="daSimCard"><p class="cb-sim-h"><b>${T('Simulation de {n} parties', { n: nf0(DSIM_N) })}</b><small>${T('8 premiers tours joués par le coach, sans adversaire')}</small></p>${body}${typeof openDeckReport === 'function' ? `<button class="link-btn link-inline cb-rep" type="button" data-da-report>${T('Rapport du coach et simulation complète')}</button>` : ''}</div>`;
+}
+/** Réglage changé (formulaire partagé) : bracket ou budget choisis ne suivent plus la liste ; gardés pour un deck de Mes decks ; le bilan suit. */
+function daSetChanged(kind) {
+  DA.brAuto = !!DA.X.wiz.ba; DA.budAuto = !!DA.X.wiz.bv;
+  DA.off.clear(); daPersist(); daPaint();
 }
 /** Vignette d'une carte : image de la fiche (langue de ton exemplaire, sinon celle de l'appli : decks.js › cardImgA), sinon l'image Scryfall par le nom ; un toucher l'agrandit (zoom.js › da). */
 function daThumb(k, nm) {
@@ -207,26 +310,93 @@ if (typeof ZOOM_LISTS !== 'undefined') ZOOM_LISTS.da = th => {
 function daClick(e) {
   if (e.target.closest('[data-da-report]')) { haptic('tap'); openDeckReport(DA.X, DA.name); return; }
   if (e.target.closest('[data-da-edit]')) { DA.setOpen = !DA.setOpen; haptic('tap'); daPaint(); return; }
-  if (e.target.closest('[data-da-fold]')) { DA.balOpen = DA.balOpen === false; haptic('tap'); daPaint(); return; }      // « Équilibre du deck » replié ou déplié
-  if (e.target.closest('[data-da-swt]')) { DA.swOpen = DA.swOpen === false; haptic('tap'); daPaint(); return; }      // replier / déplier les échanges conseillés
-  const w = e.target.closest('[data-da-why]'); if (w) { const i = Number(w.dataset.daWhy); DA.why = DA.why || new Set(); if (DA.why.has(i)) DA.why.delete(i); else DA.why.add(i); haptic('tap'); daPaint(); return; }
-  const sw = e.target.closest('.da-sw'); if (sw && !e.target.closest('input, [data-zoom], .da-wd, button')) { const c = $('input[data-da-sw]', sw); if (c) { c.checked = !c.checked; c.dispatchEvent(new Event('change', { bubbles: true })); } return; }      // toute la ligne coche, sauf la vignette (agrandie)
-  const b = e.target.closest('[data-da-br]'); if (b) { DA.X.wiz.br = Number(b.dataset.daBr) || 3; DA.brAuto = false; DA.off.clear(); haptic('tap'); daPersist(); return daPaint(); }
-  const t = e.target.closest('[data-da-th]'); if (t) { const s = DA.X.wiz, v = t.dataset.daTh, i = s.th.indexOf(v); if (i >= 0) s.th.splice(i, 1); else if (s.th.length < 3) s.th.push(v); else { toast(T('3 thèmes au plus')); return; } DA.off.clear(); haptic('tap'); daPersist(); return daPaint(); }
+  const f = e.target.closest('[data-da-fold]'); if (f) { if (f.dataset.daFold === 'det') DA.detOpen = !DA.detOpen; haptic('tap'); daPaint(); return; }      // « Détail » replié ou déplié
+  if (e.target.closest('[data-da-swt]')) { DA.swOpen = !DA.swOpen; haptic('tap'); daPaint(); return; }      // replier / déplier les échanges conseillés
+  const a = e.target.closest('[data-cb-act]'); if (a) { haptic('tap'); daActGo(DA.acts[Number(a.dataset.cbAct)]); return; }
+  const w = e.target.closest('[data-da-why]'); if (w) { const i = Number(w.dataset.daWhy); if (DA.why.has(i)) DA.why.delete(i); else DA.why.add(i); haptic('tap'); daPaint(); return; }
+  const sw = e.target.closest('.da-sw'); if (sw && !e.target.closest('input, [data-zoom], .da-wd, button')) { const c = $('input[data-da-sw]', sw); if (c) { c.checked = !c.checked; c.dispatchEvent(new Event('change', { bubbles: true })); } }      // toute la ligne coche, sauf la vignette (agrandie)
 }
 function daChange(e) {
   const t = e.target;
-  if (t.dataset && t.dataset.daSw != null) { const i = Number(t.dataset.daSw); if (t.checked) DA.off.delete(i); else DA.off.add(i); haptic('tap'); return daPaint(); }
-  if (t.id === 'daBud') { DA.X.wiz.bud = Math.max(0, Math.round(Number(String(t.value).replace(',', '.')) || 0)) * 100; DA.off.clear(); daPersist(); return daPaint(); }
-  if (t.id === 'daOwn') { DA.X.wiz.own = t.checked; DA.off.clear(); daPersist(); return daPaint(); }
+  if (t.dataset && t.dataset.daSw != null) { const i = Number(t.dataset.daSw); if (t.checked) DA.off.delete(i); else DA.off.add(i); haptic('tap'); daPaint(); }
+}
+/** Action prioritaire touchée : échange → l'éditeur avec lui ; catégorie qui manque → l'éditeur, onglet Coach, suggestions de cette catégorie ; prix au-dessus de la limite → les échanges ; le reste → le détail. */
+function daActGo(a) {
+  if (!a) return;
+  if (a.k === 'swap') { const i = DA.swaps.findIndex(s => s.out.k === DA.swaps[0].out.k); DA.off = new Set(DA.swaps.map((s, j) => j).filter(j => j !== i)); return daApply(); }
+  if (a.k === 'budget') { DA.swOpen = true; daPaint(); const el = $('[data-da-swt]', DA.api.body); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+  if (DA_ROLE[a.k] || a.k === 'land') { DA.off = new Set(DA.swaps.map((s, j) => j)); return daApply(a.k); }
+  DA.detOpen = true; daPaint(); const el = $('[data-da-fold="det"]', DA.api.body); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 /** Deck de Mes decks : réglages gardés comme ceux du coach (même deck, mêmes thèmes, bracket et budget). */
-function daPersist() { if (!DA.id) return; try { localStorage.setItem(DW_SET + DA.id, JSON.stringify(DA.X.wiz)); } catch (e) { /* stockage refusé */ } }
-function daApply() {
-  const sw = DA.swaps.filter((s, i) => !DA.off.has(i)).map(s => [s.out.k, s.in.k, s.in.name]), wiz = { ...DA.X.wiz };
-  const id = DA.id && findDeck(DA.id) ? DA.id : null, text = DA.text, name = DA.name;
+function daPersist() { if (DA.id) dwSettingsSave(DA.id, DA.X.wiz); }
+/** Réglages passés à l'éditeur : le budget « valeur actuelle » du bilan n'y est pas une limite (sinon rien ne pourrait s'ajouter) ; un budget choisi, oui. */
+const daEdWiz = set => { const w = { ...set }; if (w.bv) w.bud = 0; return w; };
+/** Ouvre le deck dans l'éditeur, onglet Coach, avec les échanges cochés (role : suggestions de cette catégorie dépliées). Deck qui n'est pas à moi : nouveau deck. */
+function daApply(role) {
+  const sw = DA.swaps.filter((s, i) => !DA.off.has(i)).map(s => [s.out.k, s.in.k, s.in.name]), wiz = daEdWiz(DA.X.wiz);
+  const id = DA.id && findDeck(DA.id) ? DA.id : null, text = DA.text, name = DA.name, label = sw.length === 1 ? DA.swaps.find(s => s.out.k === sw[0][0]) : null;
   if (DA.api) DA.api.close(); haptic('ok');
   if (typeof closeDeckViewer === 'function') closeDeckViewer();
-  setTimeout(() => openBuilder(id ? { id, swaps: sw, wiz, tab: 'coach' } : { name, fmt: 'commander', text, swaps: sw, wiz, tab: 'coach' }), 260);
+  setTimeout(() => {
+    openBuilder(id ? { id, swaps: sw, wiz, tab: 'coach' } : { name, fmt: 'commander', text, swaps: sw, wiz, tab: 'coach' });
+    if (sw.length) toast(label ? T('Échange appliqué : {a} → {b} · à enregistrer', { a: bdLabel(label.out.k, label.out.name), b: bdLabel(label.in.k, label.in.name) }) : TN(sw.length, '{n} échange appliqué · à enregistrer', '{n} échanges appliqués · à enregistrer'));
+    if (role) setTimeout(() => { if (!BD.el) return; DW.seenEl = BD.el; DW.open = role; DW.shown = 8; bdList(); const g = $(`[data-act="dw-g"][data-r="${role}"]`, BD.el); if (g) g.scrollIntoView({ block: 'center' }); }, 120);      // suggestions de la catégorie qui manque
+  }, 260);
+}
+/** « Compléter le deck » : l'éditeur, onglet Coach, avec ces réglages, puis la construction du coach (deckopt.js › dsBuild : versions au choix, annulable). */
+function daBuild() {
+  const id = DA.id, wiz = daEdWiz(DA.X.wiz); if (!id || !findDeck(id)) return;
+  daPersist(); if (DA.api) DA.api.close(); haptic('ok');
+  if (typeof closeDeckViewer === 'function') closeDeckViewer();
+  setTimeout(() => { DW.autoNext = true; openBuilder({ id, wiz, tab: 'coach' }); }, 260);      // construction lancée par l'onglet Coach dès que les cartes conseillées sont lues (deckwiz.js › dwCoachHtml)
+}
+/** « Ajouter à mes decks » (aperçu) : le deck rejoint Mes decks (origine notée : suivi des cartes manquantes), puis son bilan s'affiche ici. */
+function daAdd() {
+  let text = DA.text; if (DA.from && typeof dkSetMeta === 'function') text = dkSetMeta(text, 'from', DA.from);
+  if (typeof dkFormat === 'function' && !dkFormat(text)) text = dkSetFormat(text, 'commander');
+  const id = newIdFor(); putDeck(id, deckDoc({ name: DA.name.slice(0, 120), text, opts: { ...S.opts } })); DA.text = text;
+  haptic('ok'); toast(T('Ajouté à Mes decks'));
+  daOwn(id); DA.swOpen = false; daPaint(); DA.api.body.scrollTop = 0;
 }
 if (typeof module !== 'undefined' && module.exports) Object.assign(module.exports, { dwBracketOf });
+
+/* ── Réglages du coach d'un deck : formulaire partagé (bilan du coach, « Modifier le deck ») ─────────────────────────────────────────
+   Bracket visé (« Auto » : le bracket estimé de la liste, suivi tant qu'on n'en choisit pas un), limite de prix (vide : sans limite), thèmes (3 au plus),
+   priorité à la collection. Gardés par deck comme ceux de l'éditeur (deckwiz.js › dwSettingsFor ; ba : bracket automatique). */
+/** Des réglages ont-ils été enregistrés pour ce deck ? */
+const daSaved = id => { if (!id) return false; try { return !!localStorage.getItem(DW_SET + id); } catch (e) { return false; } };
+function dwSettingsSave(id, wiz) { if (!id || !wiz) return; try { localStorage.setItem(DW_SET + id, JSON.stringify(wiz)); } catch (e) { /* stockage refusé : pour cette session */ } }
+/** Formulaire (HTML). o : { est (bracket estimé, null si inconnu), val (valeur du deck, centimes : budget « valeur actuelle », bv), cur (devise), pfx (préfixe des identifiants), loading }. */
+function daSetFormHtml(cmd, pack, set, o = {}) {
+  const th = cmd ? dwThemeChoices(cmd, pack, set) : [], cur = o.cur || mkCur(), p = o.pfx || 'ds', auto = !!set.ba, br = auto && o.est ? o.est : set.br;
+  const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr} aria-pressed="${on}">${label}</button>`;
+  return `<div class="dw-set ds-form"><p class="label">${T('Bracket visé')}</p><div class="dw-chips">${chip(auto, 'data-ds-br="auto"', esc(o.est ? T('Auto · {n}', { n: o.est }) : T('Auto')))}${DW_BRACKETS.map(b => chip(!auto && set.br === b[0], `data-ds-br="${b[0]}"`, `${b[0]} · ${esc(b[1])}`)).join('')}</div>
+    <p class="hint">${esc(auto ? T('Le bracket estimé d\'après la liste, mis à jour quand elle change.') : T((DW_BRACKETS.find(b => b[0] === br) || DW_BRACKETS[2])[2]))}</p>
+    <div class="field-in"><label class="label" for="${p}Bud">${T('Limite de prix du deck ({c})', { c: cur })}</label><input type="number" id="${p}Bud" data-ds-bud inputmode="decimal" min="0" step="10" placeholder="${esc(set.bv && o.val ? T('Valeur actuelle : {p}', { p: fmt(o.val, cur) }) : T('Sans limite'))}" value="${set.bud > 0 && !set.bv ? Math.round(set.bud / 100) : ''}"></div>${set.bv && o.val ? `<p class="hint">${T('Vide : la valeur actuelle du deck, les échanges ne le font pas monter.')}</p>` : ''}
+    ${th.length ? `<p class="label">${T('Thèmes (3 au plus)')}</p><div class="dw-chips">${th.map(([slug, label]) => chip(set.th.includes(slug), `data-ds-th="${esc(slug)}"`, esc(label))).join('')}</div>` : cmd && !pack && o.loading ? `<p class="hint">${T('Chargement des thèmes…')}</p>` : ''}
+    <label class="me-row switch-row" for="${p}Own"><span class="me-t">${T('Priorité à ma collection')}<small>${T('Les cartes que tu possèdes passent devant dans les suggestions')}</small></span><span class="switch"><input type="checkbox" id="${p}Own" data-ds-own ${set.own ? 'checked' : ''}><i></i></span></label></div>`;
+}
+/** Branche le formulaire monté dans box sur set (modifié en place) ; change(kind) après chaque changement ('br', 'th', 'bud', 'own'). */
+function daSetFormBind(box, set, change) {
+  box.addEventListener('click', e => {
+    const b = e.target.closest('[data-ds-br]');
+    if (b) { const v = b.dataset.dsBr; if (v === 'auto') set.ba = 1; else { delete set.ba; set.br = Number(v) || 3; } haptic('tap'); change('br'); return; }
+    const t = e.target.closest('[data-ds-th]');
+    if (t) { const v = t.dataset.dsTh, i = set.th.indexOf(v); if (i >= 0) set.th.splice(i, 1); else if (set.th.length < 3) set.th.push(v); else { toast(T('3 thèmes au plus')); return; } haptic('tap'); change('th'); }
+  });
+  box.addEventListener('change', e => {
+    const t = e.target;
+    if (t.matches('[data-ds-bud]')) { const v = String(t.value).trim(); if (!v && set.bv) return; delete set.bv; set.bud = Math.max(0, Math.round(Number(v.replace(',', '.')) || 0)) * 100; change('bud'); }
+    else if (t.matches('[data-ds-own]')) { set.own = t.checked; change('own'); }
+  });
+}
+/** Commandant et cartes conseillées d'une liste, pour le formulaire : { X, cmd, pack, est } ; null sans commandant. ready() : rappelé quand ce qui manquait est lu. */
+function daSetCtx(text, ready) {
+  const X = daDeckOf(String(text || '')); if (!X.cmdr.length) return null;
+  if (!DW.core) { dwLoad().then(ready, () => {}); return { X, cmd: null, pack: null, est: null, loading: true }; }
+  const cmd = dwCmdOf(X), has = DW.cmd.has(cmd.slug);
+  if (!has) dwPack('c', cmd.slug).then(ready, () => {});
+  const prof = dwProfile(X);
+  return { X, cmd, pack: has ? DW.cmd.get(cmd.slug) : null, est: dwBracketOf(prof), val: prof.cents, loading: !has };
+}

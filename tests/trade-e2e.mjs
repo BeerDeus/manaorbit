@@ -248,6 +248,19 @@ const tradeId = [...shares.keys()][0];
   await V.p.fill('#pubF input', 'béhémoth'); await V.p.waitForFunction(() => document.querySelectorAll('.pub-row').length === 1);
   assert.match(await txt(V.p, '.pub-row'), /Craterhoof Behemoth/, 'recherche par nom français même pour une carte recherchée');
   await V.p.fill('#pubF input', '');
+  // mêmes filtres que ma collection : couleur, famille, coût, extension, et « Plus de filtres » : rareté, prix à l'unité
+  await V.p.click('#pubF .fbtn'); await V.p.waitForSelector('#pubF .fpanel:not([hidden])');
+  assert.ok(await V.p.$('#pubF .fset'), 'Extension'); assert.ok(await V.p.$('#pubF .fcol[data-c="G"]'), 'Couleur'); assert.ok(await V.p.$('#pubF .fopt[data-t]'), 'Famille');
+  await V.p.click('#pubF .fmore'); await V.p.waitForSelector('#pubF [data-fk="rar"][data-fv="rare"]'); assert.ok(await V.p.$('#pubF [data-fk="px"][data-fv="gt20"]'), 'Prix à l\'unité');
+  const pxWant = await V.p.evaluate(() => TR.pub.sh.want.map(pubItem).filter(it => { const u = trShPx(it).u; return u != null && u < 100; }).length);
+  await V.p.click('#pubF [data-fk="px"][data-fv="lt1"]'); await V.p.waitForFunction(n => document.querySelectorAll('.pub-row').length === n, pxWant);
+  assert.equal(await V.p.$eval('#pubF .fbtn b', b => b.textContent), '1', 'un filtre actif');
+  await V.p.click('#pubF [data-fk="px"][data-fv="lt1"]'); await V.p.waitForFunction(() => document.querySelectorAll('.pub-row').length === 5);
+  await V.p.click('#pubF [data-fk="rar"][data-fv="mythic"]'); await V.p.waitForFunction(() => !SRCHX.run && SRCHX.rar.size > 0, null, { timeout: 8000 });      // raretés lues sur Scryfall au premier filtre
+  const myth = await V.p.evaluate(() => TR.pub.sh.want.filter(x => SRCHX.rar.get(x.k) === 'mythic').length);
+  await V.p.waitForFunction(n => document.querySelectorAll('.pub-row').length === n || (n === 0 && document.querySelector('.pub-main .listempty')), myth);
+  await V.p.click('#pubF [data-fk="rar"][data-fv="mythic"]'); await V.p.waitForFunction(() => document.querySelectorAll('.pub-row').length === 5);
+  await V.p.click('#pubF .fbtn'); ok('liste d\'échange publique : mêmes filtres que la collection (extension, couleur, famille, rareté lue au premier filtre, prix à l\'unité)');
   await V.p.waitForFunction(() => document.querySelector('.pub-row[data-k="edgar markov"] img.ok'), null, { timeout: 8000 });
   await V.p.click('.pub-row[data-k="edgar markov"]'); await V.p.waitForSelector('.imgv'); await V.p.keyboard.press('Escape'); await V.p.waitForTimeout(400);
   assert.ok(!(await V.p.$('.coll-tools')) && !(await V.p.$('.pubv .qstep')) && !(await V.p.$('.pubv [data-act="tkeep"]')), 'aucun bouton de modification');

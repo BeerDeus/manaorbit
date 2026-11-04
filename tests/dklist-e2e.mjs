@@ -56,8 +56,10 @@ await p.click('.dks-reset'); assert.equal((await names()).length, 4); assert.equ
 ok('filtres : Commander / Standard, couleurs (toutes celles cochées), vide + « Tout afficher »');
 
 /* ── 3) carte de présentation : choisie dans la feuille du deck ─────────────────────────── */
-await p.click('.deck[data-id="d1"] .deck-more'); await p.waitForSelector('#dkCover');
-assert.match(await txt(p, '#dkCoverSub'), /^Sol Ring · automatique$/); assert.match(await txt(p, '.sheet-head p'), /^26 cartes · modifié /, 'feuille : même nombre que la liste et le viewer');
+await p.click('.deck[data-id="d1"] .deck-more'); await p.waitForSelector('#dkEdit');
+assert.match(await txt(p, '.sheet-head p'), /^26 cartes · modifié /, 'feuille : même nombre que la liste et le viewer'); assert.match(await txt(p, '#dkEdit'), /^Modifier le deck Nom, image, format, tags · Standard$/);
+await p.click('#dkEdit'); await p.waitForSelector('#dkCover');      // « Modifier le deck » : nom, image, format, tags
+assert.match(await txt(p, '#dkCoverSub'), /^Sol Ring · automatique$/);
 await p.click('#dkCover'); await p.waitForSelector('.cv-card'); await p.waitForFunction(() => document.querySelectorAll('.cv-card img.ok').length === 3, null, { timeout: 8000 });
 assert.deepEqual(await p.$$eval('.cv-card', c => c.map(x => x.dataset.n)), ['Swords to Plowshares', 'Sol Ring', 'Wrath of God'], 'cartes du deck et de la réserve, les plus chères d\'abord (égalité : ordre alphabétique)');
 assert.deepEqual(await p.$eval('#cvQ', e => [getComputedStyle(e).height, getComputedStyle(e).borderRadius]), ['44px', '12px'], 'recherche de la feuille : un champ de l\'appli (pas le champ brut du navigateur)');
@@ -67,15 +69,15 @@ assert.match(await txt(p, '#dkCoverSub'), /^Wrath of God · choisie$/);
 const d1 = await p.evaluate(() => findDeck('d1'));
 assert.match(d1.text, /^\/\/ Deck Deal : standard\n\/\/ Deck Deal cover : Wrath of God\nDeck\n/); assert.equal(d1.updatedAt, 41, 'le deck garde sa place (date + 1 : les autres appareils voient le changement, cloud.js › sommaire)'); assert.equal(await p.evaluate(() => deckFmt(findDeck('d1'))), 'standard');
 assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:decks:v1')).find(d => d.id === 'd1').text.includes('cover : Wrath of God')), true, 'gardé sur l\'appareil');
-await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
+await p.keyboard.press('Escape'); await p.waitForTimeout(300); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
 await p.waitForFunction(() => /wrath-of-god/.test((document.querySelector('.deck[data-id="d1"] .deck-art img') || {}).src || ''), null, { timeout: 8000 });
 assert.deepEqual(await names(), ['Rakdos', 'Edgar', 'Forêt', 'Mystère']); assert.equal(await p.$eval('.deck[data-id="d1"] .deck-fmt', e => e.textContent), 'Standard');
 // « Automatique » : retire le choix
-await p.click('.deck[data-id="d1"] .deck-more'); await p.waitForSelector('#dkCover'); await p.click('#dkCover'); await p.waitForSelector('.cv-card[aria-pressed="true"]'); assert.equal(await p.$eval('.cv-card[aria-pressed="true"]', e => e.dataset.n), 'Wrath of God');
+await p.click('.deck[data-id="d1"] .deck-more'); await p.waitForSelector('#dkEdit'); await p.click('#dkEdit'); await p.waitForSelector('#dkCover'); await p.click('#dkCover'); await p.waitForSelector('.cv-card[aria-pressed="true"]'); assert.equal(await p.$eval('.cv-card[aria-pressed="true"]', e => e.dataset.n), 'Wrath of God');
 await p.click('#cvAuto'); await p.waitForFunction(() => !document.querySelector('#cvGrid'), null, { timeout: 3000 }); assert.match(await txt(p, '#dkCoverSub'), /^Sol Ring · automatique$/);
 assert.equal(await p.evaluate(() => /cover/.test(findDeck('d1').text)), false);
 await p.click('#dkCover'); await p.click('.cv-card[data-n="Wrath of God"]'); await p.waitForFunction(() => !document.querySelector('#cvGrid'), null, { timeout: 3000 });
-await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
+await p.keyboard.press('Escape'); await p.waitForTimeout(300); await p.keyboard.press('Escape'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
 ok('carte de présentation : choisie (ligne « // Deck Deal cover » dans le texte, sans changer l\'ordre), image mise à jour, « Automatique »');
 
 /* ── 4) l'éditeur garde la carte choisie ────────────────────────────────────────────────── */
@@ -116,6 +118,49 @@ assert.match(await svHint(), /^7\/100 cartes · \S+ · \S+ min · (Zero|Direct)\
 await p.fill('#svName', 'Edgar CM'); await p.click('#svGo'); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
 assert.equal(await txt(p, '#toast'), 'Deck enregistré', 'alertes indisponibles (pas de clés de notification) : aucune question');
 ok('« Enregistrer » : « 7/100 cartes · prix Cardmarket. » en Cardmarket, critères CardTrader sinon ; toast simple sans alertes possibles');
+
+/* ── 8) « Modifier le deck » : nom, format, tags (une ligne du texte, synchronisée avec lui) ; Commander : réglages du coach ─────────────── */
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
+await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
+await p.evaluate(() => openDeckSheet('d4')); await p.waitForSelector('#dkEdit'); await p.click('#dkEdit'); await p.waitForSelector('#dkeTag');
+assert.equal(await p.$eval('#dkeFmt', e => e._v), 'standard', 'sans format noté : Standard'); assert.equal(await txt(p, '#dkeTags'), 'Aucun tag.');
+await p.fill('#dkName', 'Mystère 2'); await p.fill('#dkeTag', 'Budget'); await p.press('#dkeTag', 'Enter'); await p.fill('#dkeTag', 'aggro'); await p.press('#dkeTag', ',');
+await p.fill('#dkeTag', 'budget'); await p.press('#dkeTag', 'Enter');      // doublon (casse ignorée) : refusé
+assert.deepEqual(await p.$$eval('[data-tag-rm]', b => b.map(x => x.textContent)), ['Budget', 'aggro']);
+await p.click('[data-tag-rm="1"]'); assert.deepEqual(await p.$$eval('[data-tag-rm]', b => b.map(x => x.textContent)), ['Budget']);
+await p.click('#dkeFmt .seg-opt[data-v="commander"]'); await p.waitForSelector('#dkeCoach .sec-title');
+assert.match(await txt(p, '#dkeCoach'), /Ajoute un commandant à la liste pour régler le coach/, 'Commander sans commandant : le coach attend');
+await p.click('#dkeOk'); await p.waitForFunction(() => !document.querySelector('#dkeOk'), null, { timeout: 3000 });
+let d4 = await p.evaluate(() => findDeck('d4'));
+assert.equal(d4.name, 'Mystère 2'); assert.match(d4.text, /^\/\/ Deck Deal : commander\n\/\/ Deck Deal tags : Budget\n1 Sol Ring/); assert.deepEqual(await p.evaluate(() => dkTags(findDeck('d4').text)), ['Budget']);
+assert.equal(d4.updatedAt > 10, true); assert.match(await txt(p, '#dkEditSub'), /^Nom, image, format, tags · Commander · Budget$/);
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 });
+assert.match(await p.evaluate(() => deckCard(findDeck('d4'), 0)), /<span class="deck-tag">Budget<\/span>/, 'tag sur la carte du deck (Mes decks)');
+// tag proposé d'un toucher sur un autre deck ; les tags passent par l'éditeur sans se perdre
+await p.evaluate(() => openDeckSheet('d2')); await p.waitForSelector('#dkEdit'); await p.click('#dkEdit'); await p.waitForSelector('[data-tag-add="Budget"]');
+await p.click('[data-tag-add="Budget"]'); assert.deepEqual(await p.$$eval('[data-tag-rm]', b => b.map(x => x.textContent)), ['Budget']);
+await p.waitForSelector('#dkeCoach [data-ds-br="auto"]', { timeout: 10000 }); assert.equal(await p.$eval('#dkeCoach [data-ds-br="auto"]', b => b.getAttribute('aria-pressed')), 'true', 'Commander : bracket automatique tant qu\'il n\'est pas réglé');
+await p.click('#dkeCoach [data-ds-br="4"]'); await p.fill('#dkeBud', '150'); await p.dispatchEvent('#dkeBud', 'change');
+await p.click('#dkeOk'); await p.waitForFunction(() => !document.querySelector('#dkeOk'), null, { timeout: 3000 });
+assert.deepEqual(await p.evaluate(() => { const o = dwSettingsFor('d2'); return [o.br, o.bud, !!o.ba, !!o.bv]; }), [4, 15000, false, false], 'réglages du coach gardés pour ce deck');
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
+assert.equal(await p.evaluate(() => { const p0 = dkParse(findDeck('d2').text); return dkBuildText({ ...p0, fmt: 'commander' }).includes('// Deck Deal tags : Budget'); }), true, 'l\'éditeur garde les tags');
+ok('« Modifier le deck » : nom, format, tags (doublons refusés, proposés d\'un autre deck, sur la carte), réglages du coach d\'un deck Commander');
+
+/* ── 9) « Suivre les cartes manquantes » : allumé par défaut, éteint pour un deck venu d'À monter ; « Je recherche » et alertes suivent ─────── */
+const want = () => p.evaluate(() => trState().want.filter(w => w.d).map(w => w.k).sort());
+await p.evaluate(() => putDeck('d5', deckDoc({ name: 'Venu d\'À monter', text: '// Deck Deal from : edh\nDeck\n1 Rhystic Study' })));
+assert.equal(await p.evaluate(() => [dkTrack(findDeck('d1').text), dkTrack(findDeck('d5').text)].join()), 'true,false');
+assert.equal((await want()).includes('rhystic study'), false, 'venu d\'À monter : ses manques pas dans « Je recherche »');
+assert.equal(await p.evaluate(() => alItems().some(x => x.k === 'rhystic study')), false, 'ni dans les alertes');
+await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 3000 }); await p.evaluate(() => openDeckSheet('d5')); await p.waitForSelector('#dkTrack');
+assert.equal(await p.$eval('#dkTrack', c => c.checked), false); assert.match(await txt(p, '#dkTrackHint'), /ne sont ni dans « Je recherche » ni dans tes alertes de prix/);
+await p.click('label[for="dkTrack"]'); await p.waitForFunction(() => dkTrack(findDeck('d5').text));
+assert.equal((await want()).includes('rhystic study'), true, 'allumé : dans « Je recherche »'); assert.equal(await p.evaluate(() => alItems().some(x => x.k === 'rhystic study')), true, 'et dans les alertes');
+assert.match(await p.evaluate(() => findDeck('d5').text), /\/\/ Deck Deal track : on/);
+await p.click('label[for="dkTrack"]'); await p.waitForFunction(() => !dkTrack(findDeck('d5').text)); assert.equal((await want()).includes('rhystic study'), false, 'éteint : retiré');
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); });
+ok('« Suivre les cartes manquantes » : sur chaque deck, éteint d\'office pour un deck venu d\'À monter ; « Je recherche » et alertes de prix suivent');
 
 assert.deepEqual(errs, [], 'erreurs page : ' + errs.join(' | '));
 await browser.close(); world.stop();

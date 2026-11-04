@@ -1026,6 +1026,31 @@ function dkSetCover(text, name) {
   if (n) { const at = lines.findIndex(l => /^\s*\/\/\s*Deck Deal\s*:/i.test(l)); lines.splice(at >= 0 ? at + 1 : 0, 0, COVER_LINE + n); }
   return lines.join('\n');
 }
+/** Ligne « // Deck Deal <mot> : valeur » du texte d'un deck (tags, origine, suivi des cartes manquantes) : synchronisée avec lui, comme l'image. */
+const dkMetaRe = w => new RegExp('^\\s*//\\s*Deck Deal ' + w + '\\s*:\\s*(.*?)\\s*$', 'i');
+function dkMeta(text, w) { const re = dkMetaRe(w); for (const l of String(text || '').split(/\r?\n/)) { const m = l.match(re); if (m) return m[1]; } return ''; }
+/** Texte avec cette ligne (après la ligne de format et l'image) ; v vide : la retire. */
+function dkSetMeta(text, w, v) {
+  const re = dkMetaRe(w), lines = String(text || '').split(/\r?\n/).filter(l => !re.test(l)), s = String(v == null ? '' : v).replace(/[\r\n]+/g, ' ').trim();
+  if (s) { let at = -1; lines.forEach((l, i) => { if (/^\s*\/\/\s*Deck Deal\b/i.test(l) && at === i - 1) at = i; }); lines.splice(at + 1, 0, '// Deck Deal ' + w + ' : ' + s); }
+  return lines.join('\n');
+}
+/** Tags d'un deck (« Aggro, Budget ») : 8 au plus, 24 caractères chacun, sans doublon (casse ignorée). */
+const dkTagClean = t => String(t || '').replace(/[\p{Cc}\p{Cf},;#]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
+function dkTags(text) { const seen = new Set(), out = []; for (const t of dkMeta(text, 'tags').split(',').map(dkTagClean)) { const k = t.toLowerCase(); if (t && !seen.has(k) && out.length < 8) { seen.add(k); out.push(t); } } return out; }
+const dkSetTags = (text, tags) => dkSetMeta(text, 'tags', dkTags('// Deck Deal tags : ' + (tags || []).map(dkTagClean).join(',')).join(', '));
+/** Texte d'un deck sans ses lignes « // Deck Deal <mot> : … » (image, tags, origine, suivi) : deux copies d'une même liste se reconnaissent. */
+const dkBody = text => String(text || '').split(/\r?\n/).filter(l => !/^\s*\/\/\s*Deck Deal \w+\s*:/i.test(l)).join('\n').trim();
+/** Suivi des cartes manquantes d'un deck (« Je recherche » de la liste d'échange, alertes de prix) : « // Deck Deal track : on | off » ;
+ *  sans choix : suivi, sauf un deck venu d'ailleurs (« // Deck Deal from : edh » À monter, « pub » Communauté) qui n'est pas encore le mien. */
+function dkTrack(text) { const v = dkMeta(text, 'track').toLowerCase(); return v ? v !== 'off' : !dkMeta(text, 'from'); }
+const dkSetTrack = (text, on) => dkSetMeta(text, 'track', on ? 'on' : 'off');
+/** Format noté (« // Deck Deal : commander ») ; fmt '' : ligne retirée (format deviné de la liste). */
+function dkSetFormat(text, fmt) {
+  const lines = String(text || '').split(/\r?\n/), at = lines.findIndex(l => /^\s*\/\/\s*Deck Deal\s*:/i.test(l)), ln = fmt ? '// Deck Deal : ' + fmt : '';
+  if (at >= 0) { if (ln) lines[at] = ln; else lines.splice(at, 1); } else if (ln) lines.unshift(ln);
+  return lines.join('\n');
+}
 /** Carte qui illustre un deck : { key, name, auto } — celle choisie (si elle y est encore), sinon le commandant, sinon la carte la plus chère hors terrains (metaOf(clé) → { eu, tl }), sinon la première. null : deck vide. */
 function dkCoverCard(text, metaOf) {
   const pd = parseDeck(text), pool = [...pd.cards, ...dkSideCards(text)];
@@ -1044,9 +1069,10 @@ function dkCoverCard(text, metaOf) {
 }
 /** Liste du créateur → texte : { fmt, main:[{ name, qty }], side:[{ name, qty }], cmdr:[{ name }], cover (nom de la carte de présentation, facultatif) }.
  *  Même syntaxe que les exports du marché (en-tête « Commander », lignes « SB: ») : le reste de l'app la lit sans rien savoir du créateur. */
-function dkBuildText({ fmt, main, side, cmdr, cover }) {
+function dkBuildText({ fmt, main, side, cmdr, cover, meta }) {
   const out = ['// Deck Deal : ' + (fmt === 'commander' ? 'commander' : 'standard')];
   if (cover) out.push(COVER_LINE + cover);
+  for (const l of meta || []) out.push(l);      // autres lignes « // Deck Deal <mot> : … » (tags, origine, suivi) : gardées telles quelles
   if (fmt === 'commander' && cmdr && cmdr.length) { out.push('Commander'); cmdr.forEach(c => out.push('1 ' + c.name)); out.push(''); }
   out.push('Deck');
   (main || []).forEach(c => out.push(c.qty + ' ' + c.name));
@@ -1067,7 +1093,8 @@ function dkParse(text) {
     if (sec === 'cmdr') { const k = ownKey(p.name); if (!cmdr.some(c => c.key === k)) cmdr.push({ key: k, name: p.name }); }
     else add(sec === 'side' || sec === 'comp' ? side : main, p);
   }
-  return { fmt: dkFormat(text), main: [...main.values()], side: [...side.values()], cmdr, cover: dkCover(text) };
+  const meta = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(l => /^\/\/\s*Deck Deal \w+\s*:/i.test(l) && !COVER_RE.test(l));      // tags, origine, suivi des cartes manquantes
+  return { fmt: dkFormat(text), main: [...main.values()], side: [...side.values()], cmdr, cover: dkCover(text), meta };
 }
 /** Valeur estimée d'un deck : prix tendance Cardmarket (centimes) × exemplaires de chaque carte du deck, terrains de base et réserve exclus, cartes possédées comprises.
  *  metaOf(clé) → infos de la carte { eu } ; null/undefined = pas encore lue (à chercher : « missing »). → { cents, known (cartes chiffrées), total (cartes différentes), missing: [{ key, name }], noPrice (lues mais sans prix) } */
@@ -1401,17 +1428,22 @@ const PLACE_TYPES = ['binder', 'box', 'deck', 'sale', 'other'];
 /** Nom d'emplacement : une ligne, sans séparateur de CSV ni guillemet (le texte de la collection reste lisible comme avant), 40 caractères au plus. */
 const placeName = n => String(n == null ? '' : n).replace(/[\p{Cc}\p{Cf},;"]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
 const PLACE_TRADES = ['skip', 'all'];      // règle d'échange d'un emplacement (share.js › « Mes rangements ») : skip = jamais proposé (compte dans la réserve), all = tout part, même le dernier ; absent = classique
-/** Emplacement lu ou créé : { t (type), n (nom), x? (règle d'échange, jamais sur un deck monté), r? (deck monté : id du deck) } ; null si illisible. */
+/** Couleur choisie d'un emplacement (places.js › PLC_PAL) : clé courte. */
+const PLACE_COLOR = /^[a-z0-9]{1,2}$/;
+/** Emplacement lu ou créé : { t (type), n (nom), x? (règle d'échange, jamais sur un deck monté), r? (deck monté : id du deck), c? (couleur choisie, jamais sur un deck monté) } ; null si illisible.
+ *  Texte : la couleur passe dans la case du deck monté (« :c-u ») d'un emplacement qui n'est pas un deck ; une version plus ancienne de l'appli la garde telle quelle (r) et la renvoie. */
 function placeNorm(x) {
   if (!x) return null;
-  const n = placeName(x.n), t = PLACE_TYPES.includes(x.t) ? x.t : 'other', r = /^[A-Za-z0-9_-]{1,40}$/.test(x.r || '') ? x.r : '', tr = t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : '';
-  return n ? { t, n, ...(tr ? { x: tr } : {}), ...(r ? { r } : {}) } : null;
+  const n = placeName(x.n), t = PLACE_TYPES.includes(x.t) ? x.t : 'other', tr = t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : '';
+  let r = /^[A-Za-z0-9_-]{1,40}$/.test(x.r || '') ? x.r : '', c = t !== 'deck' && PLACE_COLOR.test(x.c || '') ? x.c : '';
+  if (t !== 'deck' && /^c-/.test(r)) { if (!c && PLACE_COLOR.test(r.slice(2))) c = r.slice(2); r = ''; }
+  return n ? { t, n, ...(tr ? { x: tr } : {}), ...(r ? { r } : {}), ...(c ? { c } : {}) } : null;
 }
 /** Règle d'échange d'un emplacement ('' : classique, aussi pour un deck monté ou un emplacement inconnu). */
 const placeTrade = (places, id) => { const x = id && places && places[id]; return x && x.t !== 'deck' && PLACE_TRADES.includes(x.x) ? x.x : ''; };
 /** Nouvel identifiant d'emplacement : date en base 36 et deux caractères au hasard (deux appareils ne se croisent pas). */
 const placeNewId = () => (Math.floor(Date.now() / 1000).toString(36) + Math.floor(Math.random() * 1296).toString(36).padStart(2, '0')).slice(-12);
-const placesText = places => Object.keys(places || {}).sort().map(id => { const x = places[id]; return x ? '//@L ' + id + ' ' + x.t + (x.x ? '!' + x.x : '') + (x.r ? ':' + x.r : '') + ' ' + x.n : ''; }).filter(Boolean).join('\n');      // « //@L k3x9a box!skip Boîte à garder »
+const placesText = places => Object.keys(places || {}).sort().map(id => { const x = places[id]; return x ? '//@L ' + id + ' ' + x.t + (x.x ? '!' + x.x : '') + (x.r ? ':' + x.r : x.c ? ':c-' + x.c : '') + ' ' + x.n : ''; }).filter(Boolean).join('\n');      // « //@L k3x9a box!skip Boîte à garder », « //@L k3x9b binder:c-u Classeur bleu »
 /** Collection complète : { map (cartes), prox (proxys, même forme), places (id → emplacement) }. */
 const collDoc = (map, prox, places) => ({ map: map || {}, prox: prox || {}, places: places || {} });
 const collDocText = d => [collToText(d.map, true), collToText(d.prox, true).split('\n').filter(Boolean).map(x => '//@P ' + x).join('\n'), placesText(d.places)].filter(Boolean).join('\n');
@@ -2617,7 +2649,7 @@ if (typeof module !== 'undefined' && module.exports) {
     hash32, mulberry32, makeDemoOffers, DEMO_SELLERS,
     sanitizeOpts, suggestName, sameKind, pushHistory, priceDelta, priceSeries, deckDoc, readDeck, relTime, newDeckId, HISTORY_MAX,
     sanitizeSnap, newestSnap, typeBucket, groupSnap, curveOf, snapAge, TYPE_ORDER, SNAP_MAX,
-    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkCount, dkCountText,
+    eurCents, minRef, refInfo, refTotals, unitOf, pvOf, snapDeltas, topMovers, commanderKeys, canLead, DK_FORMATS, dkMaxCopies, dkFormat, dkValue, dkColors, dkSideCards, dkBuildText, dkParse, dkCheck, dkFmtOf, dkMatch, dkCover, dkSetCover, dkCoverCard, dkMeta, dkSetMeta, dkTags, dkSetTags, dkSetFormat, dkTrack, dkSetTrack, dkBody, dkCount, dkCountText,
     ownKey, cardLang, langCode, merge3, sameEntry, unitPrice, cheapestOffer, pxSig, pxStale, parseCollection, mergeColl, unionColl, sameColl, collToText, collFromText, applyOwned, itemColors, itemType, filterItems, filterActive, collStats, srcPrice, canBeCommander, isCmdrType, cmdrClass, parseEdh, parseEdhBin, edhModelFromTsv, edhIndex, edhAddComm, pubFromText, pubClean, pubBad, pubNorm, PUB_MAX, PUB_SIZE, edhTokens, edhCmdHas, edhRank, EDH_KINDS, EDH_SORT_STEP, agoDay, edhThemeCounts, edhThemeOrder, edhDeckText, edhTier, edhBracket, EDH_TIERS, dayOf, histPush, histDelta, baseRoll, baseRef, pxMovers, buyMerge, buyClean, engClean, engTotal, engFree, engDecksOf, engSnapshot, engMerge, engSame, engActive, histMerge, histSame,
     lev, levw, nameIndex, lineVariants, matchName, frCatalog, frNames, fvCatalog, fvMatch, frFront, collLines, collFromLines, collDomLang, collMainLang, collSig, unionLines, edKey, edSet, edNum, edNorm, edLabel, lineKey, lineLang, lineEd, lineFoil, lineBase, langLines, langFoil, matchFr, bestOf, FR_IMG, spanMatches, ocrMatches, bestMatch, coverMap, makeFpsWatch, frWords, extractShared };
 }

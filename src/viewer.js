@@ -747,7 +747,7 @@ function dvSavePaint() {
 /** Enregistre la liste telle qu'affichée (commandant, cartes, réserve) avec les critères de cet appareil, jamais ceux de l'auteur ; nom : celui donné par l'ouvreur (EDHREC : comme sa feuille), sinon celui du deck. */
 function dvSave() {
   if (!DV.adhoc || !DV.snap || dvCopy() || (D.hint && !D.authReady)) { dvSavePaint(); return; }
-  const doc = deckDoc({ name: DV.saveName || DV.name, text: DV.text, opts: { ...S.opts } }), id = newIdFor();
+  const doc = deckDoc({ name: DV.saveName || DV.name, text: DV.from ? dkSetMeta(DV.text, 'from', DV.from) : DV.text, opts: { ...S.opts } }), id = newIdFor();
   putDeck(id, doc);
   if (!cloudOn() && !localRead().some(x => x.id === id)) { dvSavePaint(); return; }      // stockage de l'appareil plein : le message de localWrite reste affiché
   DV.savedId = id; DV.savedName = doc.name; haptic('ok'); dvSavePaint();
@@ -795,10 +795,10 @@ function dvFetchId() {
 }
 /** Ouvre le viewer d'un deck enregistré ({ id }), de la recherche en cours ({ live: true }) ou d'une liste quelconque ({ text, name } : deck EDHREC ;
  *  pub : deck reçu par un lien public, en lecture seule, sans rien de la collection de cet appareil ; saveAs : nom de la copie enregistrée, si autre que name). */
-function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
+function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs, from } = {}) {
   closeDeckViewer(); closeCardImage();
   const adhoc = !id && !live && typeof text === 'string', d = id ? findDeck(id) : null;
-  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null;
+  DV.live = !!live; DV.adhoc = adhoc; DV.pub = !!pub; DV.by = pub && by ? String(by) : ''; DV.sid = pub && sid ? String(sid) : ''; DV.saveName = adhoc && saveAs ? String(saveAs) : ''; DV.from = adhoc && /^(edh|pub)$/.test(from || '') ? from : ''; DV.savedId = ''; DV.savedName = ''; DV.deckId = adhoc ? null : id || (live ? S.deckId : null) || null;      // from : À monter (edh), Communauté (pub), noté sur la copie enregistrée
   DV.snap = adhoc ? null : live ? buildSnap() : snapOf(d); DV.framed = null; DV.dl = null; DV.f = newFilter(); DV.anim = true; DV.shownTotal = null; DV.view = dvViewRead(); DV.nodes = new Map();
   DV.name = adhoc ? String(name || 'Deck') : d ? d.name : (live && findDeck(S.deckId) ? findDeck(S.deckId).name : T('Liste en cours'));
   if (live && !DV.snap) { toast(T('Lance une recherche pour voir le deck')); return; }
@@ -833,7 +833,7 @@ function openDeckViewer({ id, live, text, name, pub, by, sid, saveAs } = {}) {
     const act = b.dataset.act, deck = DV.deckId;
     if (act === 'close') wrap.__close();
     else if (act === 'hand') openHand();
-    else if (act === 'analyse' && typeof openDeckAnalysis === 'function') openDeckAnalysis({ text: DV.text, name: DV.name, id: DV.deckId && !DV.pub && findDeck(DV.deckId) ? DV.deckId : null });      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)
+    else if (act === 'analyse' && typeof openDeckAnalysis === 'function') openDeckAnalysis({ text: DV.text, name: DV.saveName || DV.name, id: DV.deckId && !DV.pub && findDeck(DV.deckId) ? DV.deckId : DV.savedId && findDeck(DV.savedId) ? DV.savedId : null, from: DV.from });      // analyse et échanges conseillés (deckana.js, fonctionnalité en test)
     else if (act === 'builder' && deck) { wrap.__close(); setTimeout(() => openBuilder({ id: deck }), 200); }      // éditeur du deck (builder.js), déplacé ici depuis la fiche du deck
     else if (act === 'games' && typeof puHist === 'function') puHist('stats');      // parties jouées avec ce deck (partie-ui.js)
     else if (act === 'fetch') plcFetchSheet({ id: dvFetchId(), name: DV.name, text: DV.text });      // « Où trouver mes cartes » : tout deck ; monter n'est proposé qu'à un deck de Mes decks

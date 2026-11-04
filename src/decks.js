@@ -171,7 +171,7 @@ function deckCard(d, i) {
   return `<div class="deck${fresh ? ' fresh' : ''}" data-id="${esc(d.id)}" data-active="${d.id === S.deckId ? 1 : 0}" style="--i:${i}">
     <button class="deck-main" type="button" data-act="open"><span class="dvc-art deck-art tilt" style="--h:${hue}"><b>${esc((d.name.trim()[0] || '?').toUpperCase())}</b>${art ? `<img alt="" loading="lazy" decoding="async" ${cardImgA(cv.key, cv.name, art)}>` : ''}<span class="deck-price">${dl ? `<b>${fmt(dl.total)}</b>${deltaChip(d.history)}` : ''}</span></span>
       <span class="deck-top"><span class="deck-name">${esc(d.name)}</span></span>
-      <span class="deck-tags">${fk ? `<span class="deck-fmt ${fk}">${DK_FORMATS[fk].label}</span>` : ''}${pips(d.text)}</span>
+      <span class="deck-tags">${fk ? `<span class="deck-fmt ${fk}">${DK_FORMATS[fk].label}</span>` : ''}${pips(d.text)}${dkTags(d.text).slice(0, 3).map(t => `<span class="deck-tag">${esc(t)}</span>`).join('')}</span>
       <span class="deck-meta"><span class="deck-line">${esc(dkCountText(d.text))}${vt ? ' · <span title="' + T('Valeur estimée : prix tendance Cardmarket') + '">' + esc(vt) + '</span>' : ''}${engIsOn(d.id) ? ' · <b class="mounted">' + T('monté') + '</b>' : ''}</span><span class="deck-ago">${esc(relTime(d.updatedAt))}</span></span></button>
     <button class="deck-more" type="button" data-act="more" aria-label="${T('Options de {name}', { name: esc(d.name) })}"><svg class="i"><use href="#i-more"/></svg></button></div>`;
 }
@@ -348,9 +348,9 @@ function openDeckSheet(id) {
       const when = new Date(e.at).toLocaleString(LOC(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
       return `<span class="d">${esc(when)} · ${e.mode === 'cm' ? 'Cardmarket' : e.mode === 'us' ? 'TCGplayer' : e.mode === 'zero' ? 'Zero' : 'Direct'}</span><span class="delta ${df == null || df === 0 ? 'flat' : df < 0 ? 'down' : 'up'}">${df == null || df === 0 ? '' : (df < 0 ? '−' : '+') + fmt(Math.abs(df), modeCur(e.mode))}</span><span class="t">${fmt(e.total, modeCur(e.mode))}</span>`;
     }).join('');
-    api.body.innerHTML = `<div class="field-in"><label class="label" for="dkName">${T('Nom')}</label><input type="text" id="dkName" maxlength="120" autocomplete="off" value="${esc(d.name)}"></div>
-      <button class="coll-open dk-cover" type="button" id="dkCover"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Image du deck')}</b><span id="dkCoverSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+    api.body.innerHTML = `<button class="coll-open dk-cover dk-edit" type="button" id="dkEdit"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Modifier le deck')}</b><span id="dkEditSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       <label class="switch-row" for="dkMount"><span class="t"><b>${T('Deck monté')}</b><span class="hint" id="dkMountHint"></span></span><span class="switch"><input type="checkbox" id="dkMount"><i></i></span></label>
+      <label class="switch-row" for="dkTrack"><span class="t"><b>${T('Suivre les cartes manquantes')}</b><span class="hint" id="dkTrackHint"></span></span><span class="switch"><input type="checkbox" id="dkTrack"><i></i></span></label>
       ${typeof plcFetchSheet === 'function' ? `<button class="coll-open dk-find" type="button" id="dkFind"><span class="coll-ico" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span class="coll-t"><b>${T('Où trouver mes cartes')}</b><span>${T('Les cartes de ce deck que tu as, emplacement par emplacement ; monter le deck')}</span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>` : ''}
       <div class="dk-val" id="dkVal"></div>
       <div class="sec-title">${T('Historique des prix')}</div>
@@ -359,22 +359,26 @@ function openDeckSheet(id) {
       <button class="link-btn link-inline" type="button" id="dkDup">${T('Dupliquer ce deck')}</button>
       <button class="link-btn link-inline" type="button" id="dkOwn">${T('Ajouter ses cartes à ma collection')}</button>`;
     api.setFoot(`<button class="btn ghost-danger" type="button" id="dkDel">${T('Supprimer')}</button><button class="btn" type="button" id="dkOpen">${T('Ouvrir')}</button>`);
-    const name = $('#dkName', api.body);
-    name.onchange = () => {
-      const v = name.value.trim(); if (!v) { name.value = d.name; return; }
-      if (v !== d.name) { const cur = findDeck(id); if (cur) { putDeck(id, deckDoc({ ...cur, name: v })); $('.sheet-head h2', api.wrap).textContent = v; toast(T('Deck renommé')); } }
-    };
-    name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } };
     $('#dkOpen', api.foot).onclick = () => { api.close(); loadDeck(id); };
     const find = $('#dkFind', api.body); if (find) find.onclick = () => { const cur = findDeck(id) || d; haptic('tap'); plcFetchSheet({ id, name: cur.name, text: cur.text }); };      // par-dessus la feuille du deck (places.js)
-    const paintCover = () => {      // carte de présentation : celle choisie, sinon le commandant, sinon la plus chère
-      const cur = findDeck(id) || d, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/');
+    const paintCover = () => {      // « Modifier le deck » : image (celle choisie, sinon le commandant, sinon la plus chère), nom, format et tags
+      const cur = findDeck(id) || d, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/'), fk = deckFmt(cur), tg = dkTags(cur.text);
       imgKeep($('.cover-th', api.body), im ? `<img alt="" ${cardImgA(cv.key, cv.name, im)}>` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`);
-      $('#dkCoverSub', api.body).textContent = cv ? `${cv.name} · ${cv.auto ? T('automatique') : T('choisie')}` : T('Aucune carte');
+      $('#dkEditSub', api.body).textContent = [T('Nom, image, format, tags'), fk ? DK_FORMATS[fk].label : '', ...tg].filter(Boolean).join(' · ');
+      const h = $('.sheet-head h2', api.wrap); if (h && h.textContent !== cur.name) h.textContent = cur.name;
     };
-    paintCover(); $('#dkCover', api.body).onclick = () => openCoverPicker(id, paintCover);
+    paintCover(); $('#dkEdit', api.body).onclick = () => { haptic('tap'); openDeckEdit(id, paintCover); };
     dmLoad().then(() => dmFetch([dkCoverCard((findDeck(id) || d).text, dmOf)].filter(Boolean))).then(ok => ok && paintCover());
     engBindSwitch(id, $('#dkMount', api.body), $('#dkMountHint', api.body));
+    const trk = $('#dkTrack', api.body), trkHint = $('#dkTrackHint', api.body);      // cartes manquantes dans « Je recherche » et les alertes de prix (core.js › dkTrack ; deck venu d'À monter : éteint d'office)
+    const paintTrack = () => { const cur = findDeck(id) || d; trk.checked = dkTrack(cur.text); trkHint.textContent = trk.checked ? T('Ses cartes manquantes sont dans « Je recherche » et tes alertes de prix.') : T('Ses cartes manquantes ne sont ni dans « Je recherche » ni dans tes alertes de prix.'); };
+    paintTrack();
+    trk.onchange = () => {
+      const cur = findDeck(id); if (!cur) return; const text = dkSetTrack(cur.text, trk.checked);
+      putDeck(id, deckDoc({ ...cur, text }, (Number(cur.updatedAt) || Date.now()) + 1));      // le deck garde sa place
+      if (S.deckId === id && $('#deckText').value === cur.text) { $('#deckText').value = text; refreshDeck(); }
+      haptic(trk.checked ? 'ok' : 'tap'); toast(trk.checked ? T('Cartes manquantes suivies') : T('Cartes manquantes plus suivies')); paintTrack();
+    };
     const valEl = $('#dkVal', api.body);      // valeur estimée du deck (Cardmarket), même monté : pas besoin de chercher des offres
     const paintVal = fetched => {
       const cur = findDeck(id) || d, v = dkValue(cur.text, dmOf), fk = deckFmt(cur);
@@ -399,6 +403,70 @@ function openDeckSheet(id) {
       if (!armed) { armed = setTimeout(() => { armed = 0; del.textContent = T('Supprimer'); del.className = 'btn ghost-danger'; }, 4000); del.textContent = T('Confirmer'); del.className = 'btn danger'; return; }
       clearTimeout(armed); removeDeck(id); api.close(); toast(T('Deck supprimé'));
     };
+  });
+}
+
+/* ── Feuille : « Modifier le deck » (feuille ⋯ d'un deck) : nom, image, format, tags ; Commander : réglages du coach (deckana.js › daSetFormHtml) ─────── */
+/** Tags déjà donnés à mes autres decks (proposés en un toucher), les plus fréquents d'abord. */
+function dkTagPool(except) {
+  const n = new Map();
+  for (const d of allDecks()) for (const t of dkTags(d.text)) { const k = t.toLowerCase(); if (!except.some(x => x.toLowerCase() === k)) { const o = n.get(k) || { t, n: 0 }; o.n++; n.set(k, o); } }
+  return [...n.values()].sort((a, b) => b.n - a.n || a.t.localeCompare(b.t)).slice(0, 12).map(o => o.t);
+}
+function openDeckEdit(id, done) {
+  const d0 = findDeck(id); if (!d0) return;
+  let fmt = deckFmt(d0) || 'standard', tags = dkTags(d0.text), wizOn = false;
+  const fmt0 = fmt, wiz = typeof dwSettingsFor === 'function' ? dwSettingsFor(id) : null;
+  if (wiz && typeof daSaved === 'function' && !daSaved(id)) { wiz.ba = 1; wiz.bv = 1; }      // jamais réglé : bracket estimé, budget = valeur actuelle (deckana.js)
+  openSheet(T('Modifier le deck'), null, api => {
+    api.wrap.classList.add('dke-sheet');
+    api.body.innerHTML = `<div class="field-in"><label class="label" for="dkName">${T('Nom')}</label><input type="text" id="dkName" maxlength="120" autocomplete="off" value="${esc(d0.name)}"></div>
+      <button class="coll-open dk-cover" type="button" id="dkCover"><span class="cover-th" aria-hidden="true"></span><span class="coll-t"><b>${T('Image du deck')}</b><span id="dkCoverSub"></span></span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+      <p class="label">${T('Format')}</p><div class="seg" id="dkeFmt" role="radiogroup" aria-label="${T('Format')}"></div>
+      <p class="label">${T('Tags')}</p><div class="dke-tags" id="dkeTags"></div>
+      <div class="field-in dke-add"><input type="text" id="dkeTag" maxlength="24" autocomplete="off" enterkeyhint="done" aria-label="${esc(T('Ajouter un tag'))}" placeholder="${esc(T('Ajouter un tag (Aggro, Budget…)'))}"></div>
+      <div id="dkeCoach"></div>`;
+    api.setFoot(`<button class="btn ghost" type="button" data-close>${T('Annuler')}</button><button class="btn" type="button" id="dkeOk">${T('Enregistrer')}</button>`);
+    const b = api.body, name = $('#dkName', b), tagIn = $('#dkeTag', b);
+    const paintCover = () => {
+      const cur = findDeck(id) || d0, cv = dkCoverCard(cur.text, dmOf), im = coverUrl(cv).replace('/normal/', '/small/');
+      imgKeep($('.cover-th', b), im ? `<img alt="" ${cardImgA(cv.key, cv.name, im)}>` : `<b>${esc((cur.name.trim()[0] || '?').toUpperCase())}</b>`);
+      $('#dkCoverSub', b).textContent = cv ? `${cv.name} · ${cv.auto ? T('automatique') : T('choisie')}` : T('Aucune carte');
+    };
+    paintCover(); $('#dkCover', b).onclick = () => openCoverPicker(id, () => { paintCover(); if (done) done(); });      // l'image se choisit tout de suite, comme avant
+    const paintTags = () => {
+      const pool = dkTagPool(tags);
+      $('#dkeTags', b).innerHTML = (tags.length ? tags.map((t, i) => `<button type="button" class="chip on dke-tag" data-tag-rm="${i}" aria-label="${esc(T('Retirer le tag {t}', { t }))}">${esc(t)}<svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>`).join('') : `<span class="hint">${T('Aucun tag.')}</span>`)
+        + pool.map(t => `<button type="button" class="chip dke-tag" data-tag-add="${esc(t)}">+ ${esc(t)}</button>`).join('');
+    };
+    const addTag = v => { const t = dkTagClean(v); if (!t) return; if (tags.length >= 8) { toast(T('8 tags au plus')); return; } if (!tags.some(x => x.toLowerCase() === t.toLowerCase())) tags.push(t); haptic('tap'); paintTags(); };
+    const paintCoach = () => {      // Commander : réglages du coach de ce deck (bracket, budget, thèmes)
+      const box = $('#dkeCoach', b); if (!box) return;
+      if (fmt !== 'commander' || !wiz || typeof daSetFormHtml !== 'function') { box.innerHTML = ''; return; }
+      const ctx = daSetCtx((findDeck(id) || d0).text, () => { if (api.wrap.isConnected) paintCoach(); });
+      box.innerHTML = `<div class="sec-title">${T('Réglages du coach')}</div>` + (!ctx ? `<p class="hint">${T('Ajoute un commandant à la liste pour régler le coach.')}</p>`
+        : `<p class="hint">${T('Le coach en tient compte pour le bilan et les échanges conseillés.')}</p>` + daSetFormHtml(ctx.cmd, ctx.pack, wiz, { est: ctx.est, val: ctx.val, pfx: 'dke', loading: ctx.loading }));
+      box.__est = ctx && ctx.est;
+    };
+    if (wiz) daSetFormBind($('#dkeCoach', b), wiz, () => { wizOn = true; paintCoach(); });
+    mountSeg($('#dkeFmt', b), [{ v: 'standard', label: T('Standard') }, { v: 'commander', label: 'Commander' }], fmt, v => { fmt = v; haptic('tap'); paintCoach(); });
+    paintTags(); paintCoach();
+    b.addEventListener('click', e => {
+      const rm = e.target.closest('[data-tag-rm]'); if (rm) { tags.splice(Number(rm.dataset.tagRm), 1); haptic('tap'); paintTags(); return; }
+      const ad = e.target.closest('[data-tag-add]'); if (ad) addTag(ad.dataset.tagAdd);
+    });
+    tagIn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagIn.value); tagIn.value = ''; } });
+    tagIn.addEventListener('change', () => { if (tagIn.value.trim()) { addTag(tagIn.value); tagIn.value = ''; } });
+    $('#dkeOk', api.foot).onclick = () => {
+      const cur = findDeck(id); if (!cur) { api.close(); return; }
+      const nm = name.value.trim() || cur.name;
+      let text = fmt !== fmt0 ? dkSetFormat(cur.text, fmt) : cur.text; text = dkSetTags(text, tags);
+      if (nm !== cur.name || text !== cur.text) putDeck(id, deckDoc({ ...cur, name: nm, text }, text === cur.text ? undefined : (Number(cur.updatedAt) || Date.now()) + 1));      // métadonnées seules : le deck garde sa place
+      if (wiz && wizOn) { const est = $('#dkeCoach', b).__est; if (wiz.ba && est) wiz.br = est; dwSettingsSave(id, wiz); }
+      if (S.deckId === id && $('#deckText').value === cur.text) { $('#deckText').value = text; refreshDeck(); }      // deck chargé dans la saisie : elle suit
+      haptic('ok'); api.close(); toast(T('Deck modifié')); if (done) done();
+    };
+    name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } };
   });
 }
 

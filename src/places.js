@@ -8,7 +8,20 @@ const PLC_NONE = '#4a4f66';
 /** Emplacement d'une ligne s'il existe encore ('' : non rangé ; un emplacement supprimé ailleurs compte comme non rangé). */
 const plcOf = g => { const p = linePlace(g); return p && COLL.places[p] ? p : ''; };
 const plcAny = () => Object.keys(COLL.places).length > 0;
-const plcColor = id => { const x = id && COLL.places[id]; return !x ? PLC_NONE : x.t === 'deck' ? '#c79bff' : x.t === 'sale' ? '#e8b45e' : PLC_COL[hash32(id) % PLC_COL.length]; };
+/** Couleurs proposées (feuille d'un emplacement) : les 5 couleurs du mana, incolore, multicolore, puis des couleurs libres. [clé (core.js › PLACE_COLOR), couleur, nom]. */
+const PLC_PAL = [['w', '#f2e6c2', 'Blanc'], ['u', '#4f8fe0', 'Bleu'], ['b', '#3b3540', 'Noir'], ['r', '#e0533d', 'Rouge'], ['g', '#3fae6a', 'Vert'], ['c', '#a5a7b4', 'Incolore'], ['m', '#d4af37', 'Multicolore'],
+  ['1', '#f08bd0', 'Rose'], ['2', '#8a7bff', 'Violet'], ['3', '#5ec8e5', 'Turquoise'], ['4', '#ff9f5a', 'Orange']];
+const plcPal = c => PLC_PAL.find(p => p[0] === c);
+/** Couleur d'un emplacement : celle choisie, sinon celle de son type (deck monté, à vendre), sinon tirée de son identifiant (inchangée tant qu'on n'en choisit pas). */
+const plcColor = id => { const x = id && COLL.places[id], p = x && x.c && plcPal(x.c); return !x ? PLC_NONE : p ? p[1] : x.t === 'deck' ? '#c79bff' : x.t === 'sale' ? '#e8b45e' : PLC_COL[hash32(id) % PLC_COL.length]; };
+/** Couleur évidente d'après le nom (« Classeur blanc », « White », « Bleu »…) : clé de PLC_PAL ; plusieurs couleurs nommées : multicolore ; '' sinon. Mots de chaque langue de l'appli. */
+const PLC_WORDS = { w: 'blanc|blanche|white|wei(?:ß|ss)|bianc[oa]|blanc[oa]|branc[oa]', u: 'bleue?|blue|blau|blu|azul', b: 'noire?|black|schwarz|ner[oa]|negr[oa]|pret[oa]', r: 'rouge|red|rot|ross[oa]|roj[oa]|vermelh[oa]',
+  g: 'verte?|green|gr(?:ü|ue)n|verde', c: 'incolore|colou?rless|farblos|incolor[oa]?|grise?|gr[ae]y|grau|grigi[oa]|cinza', m: 'multicolore?|multicolou?r|mehrfarbig|gold|dor[ée]e?|or|oro|ouro|dorad[oa]|dourad[oa]' };
+const PLC_WRE = Object.entries(PLC_WORDS).map(([k, w]) => [k, new RegExp('(?:^|[^\\p{L}])(?:' + w + ')s?(?![\\p{L}])', 'u')]);
+function plcGuessColor(name) {
+  const n = String(name || '').toLowerCase().normalize('NFC'), hit = PLC_WRE.filter(([, re]) => re.test(n)).map(([k]) => k);
+  return hit.length === 1 ? hit[0] : hit.length > 1 ? 'm' : '';
+}
 const plcName = id => { const x = id && COLL.places[id]; return !x ? T('Non rangé') : x.t === 'deck' ? T('Deck : {name}', { name: x.n }) : x.n; };
 /** Icône d'un emplacement selon son type (sprite : classeur, boîte, à vendre, deck monté, autre ; non rangé : point d'interrogation). */
 const PLC_IC = { binder: 'i-binder', box: 'i-box', sale: 'i-tag', deck: 'i-layers', other: 'i-pin' };
@@ -52,8 +65,8 @@ function lineBump(map, k, g, d) {
   const nx = collFromLines(x || {}, lines.filter(y => y[1] > 0)), m = { ...map }; if (nx) m[k] = nx; else delete m[k];
   return m;
 }
-function plcCreate(t, n, r) {
-  const x = placeNorm({ t, n, r, x: t === 'sale' ? 'all' : '' }); if (!x) return '';      // « À vendre » : tout part dans l'échange d'office (règle modifiable dans Échange › Mes rangements)
+function plcCreate(t, n, r, c) {
+  const x = placeNorm({ t, n, r, c, x: t === 'sale' ? 'all' : '' }); if (!x) return '';      // « À vendre » : tout part dans l'échange d'office (règle modifiable dans Échange › Mes rangements)
   let id = placeNewId(); while (COLL.places[id]) id = placeNewId();
   COLL.places = { ...COLL.places, [id]: x }; collChanged();
   return id;
@@ -79,17 +92,25 @@ function plcRadioHtml(cur, prox) {
     <button type="button" class="plc-add" data-pn>${T('+ Nouvel emplacement')}</button>`;
 }
 /** Nouvel emplacement ou modification (nom, type) ; un deck monté garde son type. onDone(id) après création ou enregistrement. */
+/** Feuille « Nouvel emplacement » / « Modifier l'emplacement » : nom, type, couleur (pastilles). Nouvel emplacement : couleur devinée du nom tant qu'on n'en touche aucune ;
+ *  emplacement existant sans couleur choisie : la sienne (tirée de son identifiant) reste tant qu'on ne la change pas. Deck monté : nom seulement. */
 function plcEditSheet(id, onDone) {
-  const cur = id ? COLL.places[id] : null; let t = cur ? cur.t : 'binder';
-  openSheet(cur ? T('Modifier l\'emplacement') : T('Nouvel emplacement'), cur && cur.t === 'deck' ? T('Emplacement d\'un deck monté') : '', api => {
-    const types = cur && cur.t === 'deck' ? '' : `<div class="plc-types" role="radiogroup" aria-label="${T('Type')}">${['binder', 'box', 'sale', 'other'].map(x => `<button type="button" role="radio" data-t="${x}" aria-checked="${x === t}">${T(PLC_TYPE[x])}</button>`).join('')}</div>`;
-    api.body.innerHTML = `<div class="field-in"><label class="label" for="plcName">${T('Nom')}</label><input type="text" id="plcName" maxlength="40" autocomplete="off" value="${esc(cur ? cur.n : '')}" placeholder="${esc(T('Classeur rouge'))}"></div>${types}`;
+  const cur = id ? COLL.places[id] : null, deck = !!(cur && cur.t === 'deck'); let t = cur ? cur.t : 'binder', c = (cur && cur.c) || '', touched = !!c;
+  openSheet(cur ? T('Modifier l\'emplacement') : T('Nouvel emplacement'), deck ? T('Emplacement d\'un deck monté') : '', api => {
+    const types = deck ? '' : `<div class="plc-types" role="radiogroup" aria-label="${T('Type')}">${['binder', 'box', 'sale', 'other'].map(x => `<button type="button" role="radio" data-t="${x}" aria-checked="${x === t}">${T(PLC_TYPE[x])}</button>`).join('')}</div>`;
+    const cols = deck ? '' : `<p class="label plc-cl">${T('Couleur')}</p><div class="plc-cols" role="radiogroup" aria-label="${T('Couleur')}">${PLC_PAL.map(([k, v, nm]) => `<button type="button" role="radio" class="plc-col" data-c="${k}" style="--c:${v}" aria-checked="${k === c}" aria-label="${esc(T(nm))}" title="${esc(T(nm))}"></button>`).join('')}</div>`;
+    api.body.innerHTML = `<div class="field-in"><label class="label" for="plcName">${T('Nom')}</label><input type="text" id="plcName" maxlength="40" autocomplete="off" value="${esc(cur ? cur.n : '')}" placeholder="${esc(T('Classeur rouge'))}"></div>${types}${cols}`;
     api.setFoot(`${cur ? `<button class="btn ghost danger-txt" type="button" data-del>${T('Supprimer')}</button>` : `<button class="btn ghost" type="button" data-close>${T('Annuler')}</button>`}<button class="btn" type="button" data-ok>${cur ? T('Enregistrer') : T('Créer')}</button>`);
     const inp = $('#plcName', api.body);
-    api.body.addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; t = b.dataset.t; haptic('tap'); $$('[data-t]', api.body).forEach(x => x.setAttribute('aria-checked', String(x === b))); });
+    const paintCol = () => $$('[data-c]', api.body).forEach(x => x.setAttribute('aria-checked', String(x.dataset.c === c)));
+    if (!cur) inp.addEventListener('input', () => { if (!touched) { c = plcGuessColor(inp.value); paintCol(); } });      // couleur évidente d'après le nom, tant qu'aucune n'a été touchée
+    api.body.addEventListener('click', e => {
+      const k = e.target.closest('[data-c]'); if (k) { c = k.dataset.c; touched = true; haptic('tap'); paintCol(); return; }
+      const b = e.target.closest('[data-t]'); if (!b) return; t = b.dataset.t; haptic('tap'); $$('[data-t]', api.body).forEach(x => x.setAttribute('aria-checked', String(x === b)));
+    });
     const ok = () => {
       const n = placeName(inp.value); if (!n) { inp.focus(); return; }
-      let pid = id; if (cur) plcSave(id, { n, t }); else pid = plcCreate(t, n);
+      let pid = id; if (cur) plcSave(id, deck ? { n } : { n, t, c }); else pid = plcCreate(t, n, '', c);
       haptic('ok'); api.close(); if (onDone && pid) onDone(pid);
     };
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ok(); } });

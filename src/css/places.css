@@ -101,3 +101,10 @@
 :root[data-theme="dark"] .tag.plc em,:root[data-theme="dark"] .cex-flags button[aria-pressed="true"]{color:#e0c072}
 .plc-ic .i{width:16px;height:16px;stroke-width:2}      /* icône du type (sprite : classeur, boîte, à vendre, deck, autre) */
 .plc-prox .plc-ic .i{width:20px;height:20px}
+/* Couleur d'un emplacement (feuille « Modifier l'emplacement ») : mana, incolore, multicolore, couleurs libres */
+.plc-cl{margin-top:14px}
+.plc-cols{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.plc-col{width:34px;height:34px;border-radius:50%;border:0;padding:0;position:relative;background:var(--c);box-shadow:0 0 0 1px var(--line),inset 0 0 0 1px rgba(0,0,0,.16)}
+.plc-col[data-c="m"]{background:linear-gradient(135deg,#f2d77a,#d4af37 55%,#a8821e)}
+.plc-col[aria-checked="true"]{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
+.plc-col[aria-checked="true"]::after{content:"";position:absolute;inset:11px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)}

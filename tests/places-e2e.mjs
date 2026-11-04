@@ -20,7 +20,10 @@ assert.deepEqual(await p.$$eval('#collSeg .seg-opt', b => b.map(x => x.textConte
 await p.click('#collSeg [data-v="places"]'); await p.waitForSelector('.plc-prox');
 assert.match(await txt(p, '.coll-main'), /Classeurs, boîtes, decks montés/); assert.match(await txt(p, '.plc-prox'), /Mes proxys Aucun proxy pour l'instant/);
 await p.click('[data-act="plcnew"]'); await p.waitForSelector('#plcName');
-await p.fill('#plcName', 'Classeur rouge'); await p.click('.sheet [data-ok]');
+await p.fill('#plcName', 'Classeur rouge');
+assert.deepEqual(await p.$$eval('.plc-col', b => b.map(x => x.dataset.c).slice(0, 7)), ['w', 'u', 'b', 'r', 'g', 'c', 'm'], 'couleurs : les 5 du mana en tête, puis incolore et multicolore');
+assert.equal(await p.$eval('.plc-col[aria-checked="true"]', b => b.dataset.c), 'r', 'nouvel emplacement : couleur devinée du nom');
+await p.click('.sheet [data-ok]');
 await p.waitForFunction(() => document.querySelectorAll('.plc-card:not([data-p=""])').length === 1);
 const red = await p.evaluate(() => Object.keys(COLL.places)[0]);
 assert.match(await txt(p, '.plc-card'), /Classeur Classeur rouge 0 carte/); assert.match(await txt(p, '.plc-card[data-p=""]'), /Non rangé 3 cartes/);
@@ -120,7 +123,7 @@ ok('filtre « Ajoutées avant / depuis » : en tri par date seulement, heure pr�
 /* ── Enregistré avec la collection (même texte, lu par l'ancienne version) ───────────────────── */
 const stored = await p.evaluate(() => JSON.parse(localStorage.getItem('deckdeal:coll:v1')).t);
 assert.match(stored, new RegExp(`^1 Sol Ring \\(DETAILS\\) p${red}-cex-s(?: \\(D[0-9a-z]+\\))? \\*FR\\*$`, 'm'));
-assert.match(stored, new RegExp(`^//@L ${red} binder Classeur rouge$`, 'm'));
+assert.match(stored, new RegExp(`^//@L ${red} binder:c-r Classeur rouge$`, 'm'));      // couleur devinée du nom : rouge
 assert.equal(await p.evaluate(() => sameDoc(collDocFromText(collDocText(collDocNow())), collDocNow())), true);
 ok('stockage : détails et emplacements dans le texte de la collection');
 
@@ -177,6 +180,27 @@ await p.waitForFunction(() => sheets.length === 2); assert.match(await top(), /S
 await p.click('.sheet-wrap:last-child .btn.danger'); await p.waitForFunction(() => !sheets.length && !Object.keys(COLL.places).length);
 assert.deepEqual(await lines('sol ring'), [['fr', 1], ['fr#cex-s', 1]], 'détails gardés, emplacement retiré');
 ok('suppression : cartes non rangées, détails gardés');
+
+/* ── Couleur d'un emplacement : choisie, enregistrée avec la collection, gardée par une version plus ancienne ─────────────── */
+await p.evaluate(() => { while (sheets.length) sheets[sheets.length - 1].close(); }); const pid = await p.evaluate(() => plcCreate('box', 'Boîte du fond'));
+const hashCol = await p.evaluate(id => [COLL.places[id].c, plcColor(id) === PLC_COL[hash32(id) % PLC_COL.length]], pid);
+assert.deepEqual(hashCol, [undefined, true], 'sans couleur choisie : celle d\'avant (tirée de l\'identifiant)');
+await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 4000 }); await p.evaluate(id => plcEditSheet(id), pid); await p.waitForSelector('.plc-col');
+assert.equal(await p.$('.plc-col[aria-checked="true"]'), null, 'emplacement existant sans couleur : aucune pastille cochée');
+await p.click('.sheet [data-ok]'); await p.waitForFunction(() => !sheets.length, null, { timeout: 4000 });
+assert.equal(await p.evaluate(id => COLL.places[id].c, pid), undefined, 'enregistré sans toucher : couleur inchangée');
+await p.waitForFunction(() => !document.querySelector('.sheet-wrap'), null, { timeout: 4000 }); await p.evaluate(id => plcEditSheet(id), pid); await p.waitForSelector('.plc-col');
+await p.fill('#plcName', 'Boîte verte'); assert.equal(await p.$('.plc-col[aria-checked="true"]'), null, 'emplacement existant : le nom ne change pas la couleur');
+await p.click('.plc-col[data-c="u"]'); await p.click('.sheet [data-ok]'); await p.waitForFunction(() => !sheets.length, null, { timeout: 4000 });
+assert.deepEqual(await p.evaluate(id => [COLL.places[id].c, plcColor(id)], pid), ['u', '#4f8fe0']);
+const txtDoc = await p.evaluate(() => collDocText({ map: COLL.map, prox: COLL.prox, places: COLL.places }));
+assert.match(txtDoc, new RegExp('//@L ' + pid + ' box:c-u Boîte verte'));
+assert.deepEqual(await p.evaluate(t => collDocFromText(t).places, txtDoc), await p.evaluate(() => COLL.places), 'relu tel quel');
+// version d'avant : même lecture (« :c-u » pris pour un deck monté qu'elle ignore), qui le renvoie tel quel
+const old = await p.evaluate(t => { const ln = t.split('\n').find(l => l.includes('box:c-u')); const m = /^\/\/@L ([a-z0-9]{2,12}) ([a-z]+)(?:!([a-z]+))?(?::(\S+))? (.+)$/.exec(ln); return m && [m[2], m[4], m[5]]; }, txtDoc);
+assert.deepEqual(old, ['box', 'c-u', 'Boîte verte']);
+await p.evaluate(id => plcDelete(id), pid);
+ok('couleur : 5 couleurs du mana en tête, devinée du nom d\'un nouvel emplacement, choisie, enregistrée (« :c-u »), lue par une version plus ancienne ; sans choix : inchangée');
 
 console.log('erreurs page :', errs.length ? errs : 'aucune'); assert.deepEqual(errs, []);
 await browser.close(); world.stop(); console.log('\nPLACES E2E OK'); process.exit(0);

@@ -231,7 +231,7 @@ function csDecksHtml(k) {
 function csTrade(k, x) {
   if (BASIC_NAMES.has(k) || typeof TR === 'undefined') return null;
   const use = deckUse(trDeckTexts()), one = x ? { [k]: x } : {}, tl = tradeLists(one, use, TR.keep, TR.kept, COLL.places);
-  const w = tradeWant(one, new Map(use.has(k) ? [[k, use.get(k)]] : []), TR.wish[k] ? { [k]: TR.wish[k] } : {})[0] || null;
+  const wu = typeof trWantTexts === 'function' ? deckUse(trWantTexts()) : use, w = tradeWant(one, new Map(wu.has(k) ? [[k, wu.get(k)]] : []), TR.wish[k] ? { [k]: TR.wish[k] } : {})[0] || null;      // decks suivis seulement (« Suivre les cartes manquantes »)
   return { have: tl.have[0] || null, held: tl.held[0] || null, kept: TR.kept.has(k), want: w };
 }
 function csTradeHtml(k, x) {
