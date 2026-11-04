@@ -25,6 +25,15 @@
 - [ ] À regarder sur téléphone : bilan d'un vrai deck (phrase de synthèse, actions), « Compléter le deck » jusqu'au choix de la version, aperçu d'un deck À monter puis « Ajouter à mes decks ».
 - [ ] Idée : filtre par tag dans Mes decks (les tags ne servent encore qu'à l'affichage).
 
+## Chantier cerveau du coach, suite (lancé le 4 novembre au soir)
+
+État (mis à jour au fil de l'eau, pour reprendre après une coupure de session) :
+- [ ] **1. Fiches IA par commandant** : `data/cmd-brief.json` (plan, mécaniques, tribus, conditions de victoire, moteurs, pièges, note de synergie des candidates). Consigne : `data/cmd-brief-guide.md` ; lots : `node tools/cmd-brief-todo.mjs` (in/c-NNNN.json, 5 commandants par lot) ; agents → out/c-NNNN.json ; fusion : `node tools/cmd-brief-merge.mjs <dossier>`. Branché dans `gen-deckdb.mjs` (`cmd[slug].ai`) et le coach (plan, valeur des cartes, pièges, moteurs, texte du plan).
+- [ ] **2. Simulation qui joue le plan** (`src/decksim.js`) : effets des cartes d'après le classement (pioche, jetons, drain, blessures, conditions de victoire, moteur assemblé) → tour de victoire seul, tour du moteur, cartes piochées.
+- [ ] **3. Recherche plus longue** (`deckopt.js` › `dsMake`) : plusieurs tirages par version, le meilleur gardé (note + simulation).
+- Piste gardée de côté (**6. Apprendre des vrais decks sans les copier**) : mesurer sur le corpus (165 000 decks) quelles associations fournit/veut vont vraiment ensemble (lift par paire de mécaniques), combien de cartes de chaque mécanique jouent les decks à thème (saturation réelle au lieu de 14/24), et régler les poids du coach sur la note, la simulation et le thème plutôt que sur le rappel.
+- Pistes notées : 4 (combos à 3 cartes Spellbook, moteurs repérés par les mécaniques), 5 (« avis approfondi » IA en direct, bouton premium, clé d'API serveur), 7 (apprendre des suggestions acceptées / refusées).
+
 ## Point du 4 novembre : toutes les cartes classées par mécaniques (IA)
 
 - `data/card-mech.json` : 32 103 cartes classées (rôles, ce qu'elles fournissent / veulent, types de créature soutenus, force 1-5) par agents IA, chaque lot relu par un arbitre. Détails, méthode et procédure pour les nouvelles extensions : `docs/deckbuilder/mecaniques.md`.

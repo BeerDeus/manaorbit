@@ -110,9 +110,10 @@ const dmxSubHas = (m, T0) => m.subs.includes(T0) || (m.chg && m.cre);
 /* ── Plan du deck ─────────────────────────────────────────────────────────────────────────────────── */
 /** Plan : { P, W (Float64Array : valeur de fournir / d'en profiter, par mécanique), tribes: Map(type → poids), roles: { rôle: bonus }, from: Map(indice → origine), cmdM: [mécaniques des commandants],
  *  main: indices des mécaniques principales (thème du deck), style }. Gardé tant que la base, le commandant et les réglages ne changent pas. */
-function dmxPlan(cmd, set = {}, style = '') {
+function dmxPlan(cmd, set = {}, style = '', ai = undefined) {
   if (!dmxOn() || !cmd) return null; dmxIdx();
-  const keys = cmd.keys || cmd.names.map(n => ownKey(n)), sig = [keys.join('+'), (set.th || []).join(','), (set.mech || []).join(','), set.tribe || '', style].join('|');
+  if (ai === undefined) { const pk = DW.cmd && DW.cmd.get(cmd.slug); ai = pk && pk.ai || null; }      // fiche IA du commandant (base du coach : cmd[slug].ai)
+  const keys = cmd.keys || cmd.names.map(n => ownKey(n)), sig = [keys.join('+'), (set.th || []).join(','), (set.mech || []).join(','), set.tribe || '', style, ai ? 'ai' : ''].join('|');
   if (DMX.plan.has(sig)) return DMX.plan.get(sig);
   const n = DMX.tags.length, P = new Float64Array(n), W = new Float64Array(n), tribes = new Map(), roles = {}, from = new Map(), cmdM = [];
   const add = (i, p, w, why) => { if (i < 0 || i === DMX.tribalI) return; P[i] += p; W[i] += w; if (why && !from.has(i)) from.set(i, why); };
@@ -123,6 +124,10 @@ function dmxPlan(cmd, set = {}, style = '') {
     for (const i of m.p) add(i, 0.15, 0.5, 'cmd');
     for (const t of m.t) tribe(t, 1.1, 'cmd');
     if (m.tw && !m.t.length && m.cre) for (const t of m.subs) if (dmxTribes().has(t)) tribe(t, 0.8, 'cmd');      // « les créatures du type choisi » : le sien d'abord
+  }
+  if (ai) {      // fiche IA : le plan principal tel qu'un joueur expérimenté de ce commandant le décrit
+    (ai.tags || []).forEach((t, j) => add(dmxTag(t), j < 2 ? 1 : 0.7, j < 2 ? 0.9 : 0.6, 'ai'));
+    for (const t of ai.tribes || []) tribe(t, 1.3, 'ai');
   }
   for (const s of set.th || []) {      // thèmes choisis (EDHREC)
     const tt = DMX_THEMES[s]; if (tt) tt.forEach((t, j) => add(dmxTag(t), j ? 0.8 : 1.1, j ? 0.8 : 1.1, 'th'));
@@ -137,7 +142,7 @@ function dmxPlan(cmd, set = {}, style = '') {
   const cap = new Float64Array(n).fill(14);      // saturation : une mécanique demandée par le joueur (ou un thème choisi) en prend davantage
   for (let i = 0; i < n; i++) { P[i] *= DMX.broad[i]; const f = from.get(i); if (f === 'me' || f === 'th') cap[i] = 24; }
   const main = [...Array(n).keys()].filter(i => P[i] + W[i] >= 1.2 && from.get(i)).sort((a, b) => (P[b] + W[b]) - (P[a] + W[a])).slice(0, 5);
-  const plan = { P, W, cap, tribes, roles, from, cmdM, main, style, sig, user: (set.mech || []).length + (set.th || []).length + (set.tribe ? 1 : 0) };
+  const plan = { P, W, cap, tribes, roles, from, cmdM, main, style, sig, ai, user: (set.mech || []).length + (set.th || []).length + (set.tribe ? 1 : 0) };
   DMX.plan.set(sig, plan); if (DMX.plan.size > 40) DMX.plan.delete(DMX.plan.keys().next().value);
   return plan;
 }
@@ -203,7 +208,14 @@ function dmxReasons(k, X, cmd, plan) {
   const m = dmx(k), out = [], nm = cmd ? cmd.names[0].split(',')[0] : '', set = X.wiz || {};
   if ((set.pets || []).some(n => ownKey(n) === k)) out.push(T('ta carte fétiche'));
   if (DW.core && Array.isArray(DW.core.combos) && set.br >= 3) { for (const e of dwComboIdx().get(k) || []) if (X.main.has(e.p) || X.cmdr.some(c => c.key === e.p)) { out.push(T('combo avec {card}', { card: e.c[0] === (dwCard(k) || {}).name ? e.c[1] : e.c[0] })); break; } }
-  if (!m || !plan) return out;
+  if (plan && plan.ai) {      // fiche IA du commandant : cœur du plan, moteur, condition de victoire, piège
+    const ai = plan.ai, nmK = n => ownKey(n), has = n => X.main.has(nmK(n)) || X.cmdr.some(c => c.key === nmK(n));
+    const e = (ai.eng || []).find(([, cs]) => cs.some(n => nmK(n) === k) && cs.some(n => nmK(n) !== k && has(n)));
+    if (e) out.push(T('moteur {m} avec {card}', { m: e[0], card: e[1].find(n => nmK(n) !== k && has(n)) }));
+    if ((ai.win || []).some(n => nmK(n) === k)) out.push(T('fait gagner ce deck'));
+    const sy = (ai.syn || []).find(([n]) => nmK(n) === k); if (sy && sy[1] === 3) out.push(T('cœur du plan de {name}', { name: nm }));
+  }
+  if (!m || !plan) return out.slice(0, 3);
   const cm = plan.cmdM, tag = i => dmxLabel(DMX.tags[i]);
   for (const c of cm) { const i = m.p.find(t => c.w.includes(t)); if (i !== undefined) { out.push(T('{m} pour {name}', { m: tag(i), name: nm })); break; } }
   if (out.length < 3) for (const c of cm) { const i = m.w.find(t => c.p.includes(t)); if (i !== undefined) { out.push(T('profite des {m} de {name}', { m: tag(i), name: nm })); break; } }
@@ -244,7 +256,8 @@ function dwDeckStory(X = BD) {
   const notes = [];
   if (plan && plan.user && plan.main.length) notes.push(T('Plan suivi : {m}', { m: plan.main.slice(0, 3).map(i => dmxLabel(DMX.tags[i])).join(', ') }));
   if (petOut.length) notes.push(TN(petOut.length, 'Carte fétiche écartée (couleurs, bracket ou cartes interdites) : {c}', 'Cartes fétiches écartées (couleurs, bracket ou cartes interdites) : {c}', { c: petOut.join(', ') }));
-  return { tags, tribe, engines: engines.slice(0, 3), wincons, pets: { in: petIn, out: petOut }, notes, plan };
+  const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label, cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
+  return { tags, tribe, engines: [...aiEng, ...engines].slice(0, 3), wincons, pets: { in: petIn, out: petOut }, notes, plan, brief: ai ? ai.plan || '' : '' };
 }
 /** Mécaniques détectées pour un commandant (assistant : proposées en premier). → [étiquette] */
 function dmxCmdTags(cmd) {

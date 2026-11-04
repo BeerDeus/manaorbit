@@ -97,7 +97,7 @@ async function buildCase(ctx, D, cs, seed) {
   for (const r of res) {
     BD.main = r.main; BD.wiz = r.wiz;
     const prof = ctx.dwProfile(), tgt = ctx.dwTargets(prof, cmd, pack, r.wiz), sim = r.sim || await ctx.dsimRun(BD, 1500);
-    out.push({ id: r.v.id, main: [...r.main.values()].map(c => [c.key, c.qty]), sc: r.sc.total, parts: r.sc.parts.map(p => Math.round(p.pts * 10) / 10), sim: sim ? { keep7: sim.keep7, cmdOn: sim.cmdOn, screw4: sim.screw4, miss3: sim.miss3 } : null,
+    out.push({ id: r.v.id, main: [...r.main.values()].map(c => [c.key, c.qty]), sc: r.sc.total, parts: r.sc.parts.map(p => Math.round(p.pts * 10) / 10), sim: sim ? { keep7: sim.keep7, cmdOn: sim.cmdOn, screw4: sim.screw4, miss3: sim.miss3, kill10: sim.kill10, killT: sim.killT, eng: sim.eng, seen6: sim.seen6 } : null,
       prof: { n: prof.n, land: prof.land, mv: Math.round(prof.mv * 100) / 100, cents: prof.cents, gc: prof.gc.length, mld: prof.mld.length, xt: prof.xt.length, combos: prof.combos.length, wincon: prof.wincon, src: prof.src, need: prof.need }, tgt: { land: tgt.land, wincon: tgt.wincon },
       story: (() => { const st = typeof ctx.dwDeckStory === 'function' ? ctx.dwDeckStory(BD) : null; if (st) delete st.plan; return st && JSON.parse(JSON.stringify(st)); })() });
   }
@@ -142,7 +142,7 @@ async function resim(ctx, D, prev, i) {
   const g = prev.raw.find(x => x.i === i); if (!g) return null;
   const cs = CASES[i], BD = ctx.BD, ckeys = cs.cmd.map(normKey);
   BD.cmdr = cs.cmd.map((n, j) => ({ key: ckeys[j], name: n }));
-  for (const d of g.draws) for (const v of d.vers || []) { BD.main = new Map(v.main.map(([k, q]) => [k, { key: k, name: k, qty: q }])); const r = await ctx.dsimRun(BD, 1500); v.sim = r ? { keep7: r.keep7, cmdOn: r.cmdOn, screw4: r.screw4, miss3: r.miss3 } : null; }
+  for (const d of g.draws) for (const v of d.vers || []) { BD.main = new Map(v.main.map(([k, q]) => [k, { key: k, name: k, qty: q }])); const r = await ctx.dsimRun(BD, 1500); v.sim = r ? { keep7: r.keep7, cmdOn: r.cmdOn, screw4: r.screw4, miss3: r.miss3, kill10: r.kill10, killT: r.killT, eng: r.eng, seen6: r.seen6 } : null; }
   return g;
 }
 async function worker(args) {
@@ -169,7 +169,7 @@ if (process.env.COACH_EVAL_CHILD) {
   const D = JSON.parse(gunzipSync(readFileSync(dkw)).toString('utf8')), by = new Map(D.cards.map(r => [normKey(r[0]), r]));
   const mech = new Map([...readMech(join(root, 'data', 'card-mech.json')).cards].map(([n, m]) => [normKey(n), m]));
   let scry = new Map(); try { const C = JSON.parse(gunzipSync(readFileSync(join(dirname(dkw), 'corpus.json.gz'))).toString('utf8')); for (const [k, x] of Object.entries(C.scry || {})) scry.set(k, { type: x[3], text: x[4] }); } catch (e) { /* sans corpus : types d'après card-mech seulement */ }
-  const rows = [], agg = { draws: [], vers: [], theme: [], score: [], keep7: [], cmdOn: [], screw4: [], rank: [], staple: [], bad: 0, decks: 0, errs: 0 }, vAgg = {};
+  const rows = [], agg = { draws: [], vers: [], theme: [], score: [], keep7: [], cmdOn: [], screw4: [], kill10: [], killT: [], eng: [], seen6: [], rank: [], staple: [], bad: 0, decks: 0, errs: 0 }, vAgg = {};
   for (const g of got) {
     const cs = CASES[g.i], ok = g.draws.filter(d => d && d.vers);
     if (ok.length < g.draws.length) agg.errs += g.draws.length - ok.length;
@@ -185,14 +185,14 @@ if (process.env.COACH_EVAL_CHILD) {
       const x = { id: v.id, sc: v.sc, th: r1(th), rank: med(ranks), staple: r1(ranks.filter(r => r > 0 && r < 300).length / Math.max(1, ranks.length)), sim: v.sim, land: v.prof.land, mv: v.prof.mv, eur: Math.round(v.prof.cents / 100), bad, theme: v.story ? (v.story.tags || []).slice(0, 3).map(t => t.label + ' ' + t.n).join(', ') : '' };
       (vAgg[v.id] = vAgg[v.id] || { sc: [], th: [], keep7: [], cmdOn: [], screw4: [] });
       vAgg[v.id].sc.push(v.sc); vAgg[v.id].th.push(th); if (v.sim) { vAgg[v.id].keep7.push(v.sim.keep7); vAgg[v.id].cmdOn.push(v.sim.cmdOn); vAgg[v.id].screw4.push(v.sim.screw4); }
-      if (i === 0) { if (th != null) agg.theme.push(th); agg.score.push(v.sc); if (v.sim) { agg.keep7.push(v.sim.keep7); agg.cmdOn.push(v.sim.cmdOn); agg.screw4.push(v.sim.screw4); } agg.rank.push(x.rank); agg.staple.push(x.staple); }
+      if (i === 0) { if (th != null) agg.theme.push(th); agg.score.push(v.sc); if (v.sim) { agg.keep7.push(v.sim.keep7); agg.cmdOn.push(v.sim.cmdOn); agg.screw4.push(v.sim.screw4); agg.kill10.push(v.sim.kill10); agg.killT.push(v.sim.killT); agg.eng.push(v.sim.eng); agg.seen6.push(v.sim.seen6); } agg.rank.push(x.rank); agg.staple.push(x.staple); }
       return x;
     });
     rows.push(row);
   }
   const sum = { at: new Date().toISOString(), src, dkw, cases: got.length, seeds, s: Math.round((Date.now() - t0) / 1000),
     recouvrementTirages: r1(avg(agg.draws) / 100), recouvrementVersions: r1(avg(agg.vers) / 100), partTheme: r1(avg(agg.theme)), noteMed: med(agg.score), noteMoy: avg(agg.score) && Math.round(avg(agg.score) * 10) / 10,
-    keep7: avg(agg.keep7) && Math.round(avg(agg.keep7)), cmdOn: avg(agg.cmdOn) && Math.round(avg(agg.cmdOn)), screw4: avg(agg.screw4) && Math.round(avg(agg.screw4)), rangMed: med(agg.rank), partStaples: avg(agg.staple) && Math.round(avg(agg.staple) * 10) / 10,
+    keep7: avg(agg.keep7) && Math.round(avg(agg.keep7)), cmdOn: avg(agg.cmdOn) && Math.round(avg(agg.cmdOn)), screw4: avg(agg.screw4) && Math.round(avg(agg.screw4)), adversaireMort10: avg(agg.kill10) == null ? null : Math.round(avg(agg.kill10)), tourMort: avg(agg.killT) == null ? null : Math.round(avg(agg.killT) * 10) / 10, moteurEnPlace: avg(agg.eng) == null ? null : Math.round(avg(agg.eng)), cartesVues6: avg(agg.seen6) == null ? null : Math.round(avg(agg.seen6) * 10) / 10, rangMed: med(agg.rank), partStaples: avg(agg.staple) && Math.round(avg(agg.staple) * 10) / 10,
     decks: agg.decks, decksEnDefaut: agg.bad, erreurs: agg.errs,
     versions: Object.fromEntries(Object.entries(vAgg).map(([k, v]) => [k, { note: Math.round(avg(v.sc) * 10) / 10, theme: r1(avg(v.th)), keep7: Math.round(avg(v.keep7)), cmdOn: Math.round(avg(v.cmdOn)), screw4: Math.round(avg(v.screw4)) }])) };
   console.log(JSON.stringify(sum, null, 1));

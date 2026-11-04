@@ -7916,7 +7916,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = 'cdca53d3';
+const DD_BUILD = 'fd543952';
 const I18N_FILES = {"de":"i18n/de.599b7108.js","en":"i18n/en.c2e96ecd.js","es":"i18n/es.9c7d5ff7.js","it":"i18n/it.5b126712.js","pt":"i18n/pt.f4cd0bcd.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -28133,12 +28133,13 @@ const dwSrcFor = (pips, mv) => { const p = Math.min(4, Math.max(1, Math.ceil(pip
 /** Poids d'origine ; la base peut en apporter d'autres, réglés chaque nuit par le banc d'essai (bench-coach.mjs : de vrais decks jamais appris, cartes retirées à retrouver). */
 /** Popularité (incl, syn, th, g, cx, rank, pair : réglés par le banc) ; mécaniques (deckmech.js : m = valeur pour le plan, q = force propre, noise = écart des tirages,
  *  avoid = recul d'une carte déjà prise par une autre version) : jamais réglés par le banc, qui mesure la ressemblance avec les decks des joueurs. */
-const DW_W0 = { incl: 1, syn: 0.8, th: 0.9, g: 0.4, cx: 0.5, rank: 0.5, pair: 0.04, m: 0.6, q: 0.3, noise: 0.12, avoid: 0.1 };
+const DW_W0 = { incl: 1, syn: 0.8, th: 0.9, g: 0.4, cx: 0.5, rank: 0.5, pair: 0.04, m: 0.6, q: 0.3, noise: 0.12, avoid: 0.1, ai: 0.55, trap: 0.7, eng: 0.3 };
 const dwW = () => { const w = DW.core && DW.core.w; return w && typeof w === 'object' ? { ...DW_W0, ...w } : DW_W0; };
 /** Popularité seule (EDHREC, decks Archidekt, rang) : signal de fiabilité. */
 const dwPop = (o, w = dwW()) => (o.incl || 0) / 100 * w.incl + Math.max(0, o.syn || 0) / 100 * w.syn + (o.th || 0) / 100 * w.th + (o.g || 0) / 100 * w.g + (o.cx || 0) / 100 * w.cx + (o.rank ? Math.max(0, 1 - o.rank / 4000) * w.rank : 0);
 /** Valeur d'une carte : popularité (réduite par le curseur « originalité » : o.k) + ce qu'elle fait pour le plan du deck (o.m) + sa force (o.q). */
-const dwVal = o => { const w = dwW(); return (o.k == null ? 1 : o.k) * dwPop(o, w) + ((o.m || 0) * w.m + (o.q || 0) * w.q) * (o.d == null ? 1 : o.d); };
+const DW_AI_V = [-0.5, 0.3, 0.6, 1];      // note de la fiche IA (0 : presque inutile ici, 3 : cœur du plan) → valeur
+const dwVal = o => { const w = dwW(); return (o.k == null ? 1 : o.k) * dwPop(o, w) + ((o.m || 0) * w.m + (o.q || 0) * w.q) * (o.d == null ? 1 : o.d) + (o.ai != null ? DW_AI_V[o.ai] * w.ai : 0) - (o.trap ? w.trap : 0); };
 /** Part de la popularité gardée : 1 (classique) à 0,3 (trouvailles). */
 const dwPopK = set => 1 - 0.7 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100;
 /** Part de sa valeur mécanique qu'obtient une carte jamais jouée avec ce commandant (réserve élargie) : 0,4 (classique) à 1 (trouvailles). La popularité
@@ -28159,7 +28160,7 @@ function dwPairIdx() {
  *  cmd : commandant (dwCmdOf), sinon le dernier vu pour ce paquet. Gardé tant que rien ne change (la génération le relit des centaines de fois). */
 function dwInfo(pack, set, cmd) {
   cmd = cmd || (pack && DW.cmdOfSlug && DW.cmdOfSlug.get(pack.slug)) || DW.lastCmd || null;
-  const plan = typeof dmxPlan === 'function' && cmd ? dmxPlan(cmd, set, dwStyle(set)) : null;
+  const plan = typeof dmxPlan === 'function' && cmd ? dmxPlan(cmd, set, dwStyle(set), (pack && pack.ai) || null) : null;
   const sig = [cmd ? (cmd.keys || cmd.names.map(n => ownKey(n))).join('+') : '', (set.th || []).map(t => t + (DW.th.has(t) ? 1 : 0)).join(','), plan ? plan.sig : '', dwPopK(set)].join('|');
   if (DW.infoC && DW.infoC.pack === pack && DW.infoC.sig === sig && DW.infoC.src === DW.core) return DW.infoC.C;
   const C = new Map(), add = (name, f, v) => { const k = ownKey(name); if (!k) return; const o = C.get(k) || { name, incl: 0, syn: 0, th: 0, g: 0, cx: 0 }; o[f] = Math.max(o[f], v); C.set(k, o); };
@@ -28173,6 +28174,14 @@ function dwInfo(pack, set, cmd) {
   if (plan) {
     const ask = plan.user ? 1.5 : 1, k0 = dwPopK(set), d0 = (C.npack >= 40 ? dwPoolD(set) : 1) * ask;      // commandant sans liste : toutes les cartes sont « hors liste », rien à départager ; thème demandé par le joueur : les mécaniques comptent une fois et demie
     C.ask = ask;
+    const ai = pack && pack.ai;
+    if (ai) {      // fiche IA du commandant : notes de synergie (même pour des cartes jamais jouées avec lui), conditions de victoire et cartes conseillées en plus, pièges
+      const put = (nm, f) => { const k = ownKey(nm), r = DW.byKey && DW.byKey.get(k); if (!r) return; let o = C.get(k); if (!o) { o = { name: r[0], incl: 0, syn: 0, th: 0, g: 0, cx: 0, rank: 0, pool: 1, d: d0 }; C.set(k, o); } f(o); };
+      for (const [nm, v] of ai.syn || []) put(nm, o => { o.ai = Math.max(o.ai == null ? 0 : o.ai, v); });
+      for (const nm of [...(ai.win || []), ...(ai.extra || [])]) put(nm, o => { o.ai = Math.max(o.ai == null ? 0 : o.ai, 2); });
+      for (const nm of ai.trap || []) put(nm, o => { o.trap = 1; });
+      for (const [, cs] of ai.eng || []) for (const nm of cs) put(nm, o => { o.eng = (o.eng || []).concat([cs.map(n => ownKey(n))]); });
+    }
     for (const [k, r] of dmxPool(cmd, plan)) if (!C.has(k)) C.set(k, { name: r[0], incl: 0, syn: 0, th: 0, g: 0, cx: 0, rank: C.npack >= 40 ? 0 : r[8] || 0, pool: 1, d: d0 });      // hors liste : sa popularité générale ne compte pas (c'est elle qui standardise les decks)
     for (const [k, o] of C) { const m = dmx(k); o.k = k0; if (!o.pool) o.d = ask; if (m) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); const r = DW.byKey.get(k); if (r && r[4] & DW_RB.land) o.d *= 0.35; } }      // terrain : ses couleurs d'abord (un terrain utilitaire à mécanique ne passe pas devant un bicolore)
     C.plan = plan;
@@ -28243,6 +28252,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     const v = dwVal(o); let s = v, pair = null;
     const pr = pairs.get(k); if (pr) { let b = 0; for (const e of pr) if (inDeck(e.p)) { b += Math.log2(e.l); if (!pair || e.l > pair.l) pair = e; } s += Math.min(0.4, b * wPair); }      // va avec des cartes déjà dans le deck
     if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck
+    if (o.eng) for (const cs of o.eng) if (cs.some(p => p !== k && inDeck(p))) { s += w.eng; break; }      // moteur de la fiche IA dont une pièce est déjà là
     if (own) s += set.own ? 0.35 : 0.08;
     if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft) && budLeft / slots < 300) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);      // budget serré seulement (moins de ~3 € par place restante) : un gros budget est un plafond, pas une raison de prendre moins bien
     if (isLand && cols.length > 1) {      // terrains d'un deck multicolore : ceux qui produisent les couleurs en manque d'abord, puis ceux qui en produisent plusieurs
@@ -28355,7 +28365,8 @@ function dwStoryHtml(st) {
   if (!st) return '';
   const bits = [...(st.tribe ? [T('{t} ×{n}', { t: st.tribe.t, n: st.tribe.n })] : []), ...st.tags.slice(0, 3).map(t => T('{m} ×{n}', { m: t.label, n: t.n }))];
   const eng = st.engines.map(e => T('{e} ({c})', { e: e.label, c: e.cards.slice(0, 3).join(', ') }));
-  return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
+  const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // texte de la fiche IA : écrit en français
+  return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${st.brief && fr ? `<p class="hint">${esc(st.brief)}</p>` : ''}${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
     <p class="hint">${esc(st.wincons.length ? T('Pour gagner : {c}', { c: st.wincons.slice(0, 4).join(', ') }) : T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
 }
 /** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
@@ -28913,9 +28924,10 @@ const dmxSubHas = (m, T0) => m.subs.includes(T0) || (m.chg && m.cre);
 /* ── Plan du deck ─────────────────────────────────────────────────────────────────────────────────── */
 /** Plan : { P, W (Float64Array : valeur de fournir / d'en profiter, par mécanique), tribes: Map(type → poids), roles: { rôle: bonus }, from: Map(indice → origine), cmdM: [mécaniques des commandants],
  *  main: indices des mécaniques principales (thème du deck), style }. Gardé tant que la base, le commandant et les réglages ne changent pas. */
-function dmxPlan(cmd, set = {}, style = '') {
+function dmxPlan(cmd, set = {}, style = '', ai = undefined) {
   if (!dmxOn() || !cmd) return null; dmxIdx();
-  const keys = cmd.keys || cmd.names.map(n => ownKey(n)), sig = [keys.join('+'), (set.th || []).join(','), (set.mech || []).join(','), set.tribe || '', style].join('|');
+  if (ai === undefined) { const pk = DW.cmd && DW.cmd.get(cmd.slug); ai = pk && pk.ai || null; }      // fiche IA du commandant (base du coach : cmd[slug].ai)
+  const keys = cmd.keys || cmd.names.map(n => ownKey(n)), sig = [keys.join('+'), (set.th || []).join(','), (set.mech || []).join(','), set.tribe || '', style, ai ? 'ai' : ''].join('|');
   if (DMX.plan.has(sig)) return DMX.plan.get(sig);
   const n = DMX.tags.length, P = new Float64Array(n), W = new Float64Array(n), tribes = new Map(), roles = {}, from = new Map(), cmdM = [];
   const add = (i, p, w, why) => { if (i < 0 || i === DMX.tribalI) return; P[i] += p; W[i] += w; if (why && !from.has(i)) from.set(i, why); };
@@ -28926,6 +28938,10 @@ function dmxPlan(cmd, set = {}, style = '') {
     for (const i of m.p) add(i, 0.15, 0.5, 'cmd');
     for (const t of m.t) tribe(t, 1.1, 'cmd');
     if (m.tw && !m.t.length && m.cre) for (const t of m.subs) if (dmxTribes().has(t)) tribe(t, 0.8, 'cmd');      // « les créatures du type choisi » : le sien d'abord
+  }
+  if (ai) {      // fiche IA : le plan principal tel qu'un joueur expérimenté de ce commandant le décrit
+    (ai.tags || []).forEach((t, j) => add(dmxTag(t), j < 2 ? 1 : 0.7, j < 2 ? 0.9 : 0.6, 'ai'));
+    for (const t of ai.tribes || []) tribe(t, 1.3, 'ai');
   }
   for (const s of set.th || []) {      // thèmes choisis (EDHREC)
     const tt = DMX_THEMES[s]; if (tt) tt.forEach((t, j) => add(dmxTag(t), j ? 0.8 : 1.1, j ? 0.8 : 1.1, 'th'));
@@ -28940,7 +28956,7 @@ function dmxPlan(cmd, set = {}, style = '') {
   const cap = new Float64Array(n).fill(14);      // saturation : une mécanique demandée par le joueur (ou un thème choisi) en prend davantage
   for (let i = 0; i < n; i++) { P[i] *= DMX.broad[i]; const f = from.get(i); if (f === 'me' || f === 'th') cap[i] = 24; }
   const main = [...Array(n).keys()].filter(i => P[i] + W[i] >= 1.2 && from.get(i)).sort((a, b) => (P[b] + W[b]) - (P[a] + W[a])).slice(0, 5);
-  const plan = { P, W, cap, tribes, roles, from, cmdM, main, style, sig, user: (set.mech || []).length + (set.th || []).length + (set.tribe ? 1 : 0) };
+  const plan = { P, W, cap, tribes, roles, from, cmdM, main, style, sig, ai, user: (set.mech || []).length + (set.th || []).length + (set.tribe ? 1 : 0) };
   DMX.plan.set(sig, plan); if (DMX.plan.size > 40) DMX.plan.delete(DMX.plan.keys().next().value);
   return plan;
 }
@@ -29006,7 +29022,14 @@ function dmxReasons(k, X, cmd, plan) {
   const m = dmx(k), out = [], nm = cmd ? cmd.names[0].split(',')[0] : '', set = X.wiz || {};
   if ((set.pets || []).some(n => ownKey(n) === k)) out.push(T('ta carte fétiche'));
   if (DW.core && Array.isArray(DW.core.combos) && set.br >= 3) { for (const e of dwComboIdx().get(k) || []) if (X.main.has(e.p) || X.cmdr.some(c => c.key === e.p)) { out.push(T('combo avec {card}', { card: e.c[0] === (dwCard(k) || {}).name ? e.c[1] : e.c[0] })); break; } }
-  if (!m || !plan) return out;
+  if (plan && plan.ai) {      // fiche IA du commandant : cœur du plan, moteur, condition de victoire, piège
+    const ai = plan.ai, nmK = n => ownKey(n), has = n => X.main.has(nmK(n)) || X.cmdr.some(c => c.key === nmK(n));
+    const e = (ai.eng || []).find(([, cs]) => cs.some(n => nmK(n) === k) && cs.some(n => nmK(n) !== k && has(n)));
+    if (e) out.push(T('moteur {m} avec {card}', { m: e[0], card: e[1].find(n => nmK(n) !== k && has(n)) }));
+    if ((ai.win || []).some(n => nmK(n) === k)) out.push(T('fait gagner ce deck'));
+    const sy = (ai.syn || []).find(([n]) => nmK(n) === k); if (sy && sy[1] === 3) out.push(T('cœur du plan de {name}', { name: nm }));
+  }
+  if (!m || !plan) return out.slice(0, 3);
   const cm = plan.cmdM, tag = i => dmxLabel(DMX.tags[i]);
   for (const c of cm) { const i = m.p.find(t => c.w.includes(t)); if (i !== undefined) { out.push(T('{m} pour {name}', { m: tag(i), name: nm })); break; } }
   if (out.length < 3) for (const c of cm) { const i = m.w.find(t => c.p.includes(t)); if (i !== undefined) { out.push(T('profite des {m} de {name}', { m: tag(i), name: nm })); break; } }
@@ -29047,7 +29070,8 @@ function dwDeckStory(X = BD) {
   const notes = [];
   if (plan && plan.user && plan.main.length) notes.push(T('Plan suivi : {m}', { m: plan.main.slice(0, 3).map(i => dmxLabel(DMX.tags[i])).join(', ') }));
   if (petOut.length) notes.push(TN(petOut.length, 'Carte fétiche écartée (couleurs, bracket ou cartes interdites) : {c}', 'Cartes fétiches écartées (couleurs, bracket ou cartes interdites) : {c}', { c: petOut.join(', ') }));
-  return { tags, tribe, engines: engines.slice(0, 3), wincons, pets: { in: petIn, out: petOut }, notes, plan };
+  const ai = plan && plan.ai, aiEng = ai ? (ai.eng || []).map(([label, cs]) => ({ label, cards: cs.filter(n => X.main.has(ownKey(n)) || X.cmdr.some(c => c.key === ownKey(n))) })).filter(e => e.cards.length >= 2) : [];
+  return { tags, tribe, engines: [...aiEng, ...engines].slice(0, 3), wincons, pets: { in: petIn, out: petOut }, notes, plan, brief: ai ? ai.plan || '' : '' };
 }
 /** Mécaniques détectées pour un commandant (assistant : proposées en premier). → [étiquette] */
 function dmxCmdTags(cmd) {
@@ -29935,6 +29959,10 @@ const dsClone = m => new Map([...m].map(([k, c]) => [k, { ...c }]));
 const dsSpells = main => [...main.keys()].filter(k => !BASIC_NAMES.has(k) && !(((dwCard(k) || {}).roles || 0) & DW_RB.land));
 /** Part des sorts communs à deux decks (0 à 1). */
 const dsOverlap = (a, b) => { const A = new Set(dsSpells(a)), B = dsSpells(b); return A.size + B.length ? 2 * B.filter(k => A.has(k)).length / (A.size + B.length) : 0; };
+/** Tirages par version (deck vide, base avec classement) et temps total donné à la construction (ms) : au-delà, un seul tirage par version. */
+const DS_DRAWS = 3, DS_BUDGET = 20000;
+/** Jugement d'un tirage : la note du coach, puis la partie jouée (adversaire mort avant le tour 11, moteur en place, commandant à temps, mains, couleurs). */
+const dsJudge = (raw, r) => raw + (r ? 0.06 * (r.kill10 || 0) + 0.04 * (r.eng == null ? 50 : r.eng) + 0.04 * r.cmdOn + 0.03 * r.keep7 - 0.15 * r.screw4 : 0);
 /** Nouvelle graine de tirage. */
 const dsSeed = () => 1 + Math.floor(Math.random() * 2e9);
 /** Construit les versions du deck de l'éditeur (BD), sans affichage : [{ v, main, wiz, sc, prof, kept, sim, fixed, story }].
@@ -29945,7 +29973,7 @@ async function dsMake(o = {}) {
   const empty = o.empty != null ? o.empty : dwProfile().n <= BD.cmdr.length;
   const X0 = { main: dsClone(BD.main), cmdr: BD.cmdr, wiz: wiz0 }; dwPetsInto(X0, cmd);      // cartes fétiches : dans toutes les versions, jamais retirées
   const base = X0.main, mine = new Set(base.keys()), list = o.list || (empty ? DS_VARIANTS : [{ id: 'eq', name: 'Deck complété', d: '' }]);
-  const res = [], avoid = new Map(), hasMech = typeof dmxOn === 'function' && dmxOn();
+  const res = [], avoid = new Map(), hasMech = typeof dmxOn === 'function' && dmxOn(), t0 = Date.now();
   try {
     for (let i = 0; i < list.length; i++) {
       const v = list[i];
@@ -29954,14 +29982,23 @@ async function dsMake(o = {}) {
         const eqv = res[0] ? res[0].prof.cents : 0, cc = res[0] ? res[0].prof.cmdCents || 0 : 0; bud = Math.round((wiz0.bud > 0 ? Math.min(wiz0.bud, eqv) : eqv) * v.eco);
         if (!(eqv > 3000) || cc >= bud * 0.5) { step(v, 'skip', 1, 0); continue; }
       }
-      step(v, 'build', 0, 0); await dsTick(); if (!alive()) return null;
-      BD.main = dsClone(base); BD.wiz = { ...wiz0, bud, seed: seed + i * 7919, ...(v.arch ? { arch: v.arch } : {}), ...(v.style ? { style: v.style } : {}) };
-      if (!v.arch) delete BD.wiz.arch; if (!v.style) delete BD.wiz.style;
-      BD.avoid = empty && hasMech && avoid.size ? avoid : null;
-      dwAutoBuild(undefined, true);
-      step(v, 'opt', 0.35, 0);
-      const kept = await dsOptimize(mine, empty ? 900 : 1600, n => step(v, 'opt', 0.35 + 0.45 * Math.min(1, n / 60), n));
-      if (!alive()) return null;
+      // plusieurs tirages (graines) par version, chacun construit et amélioré, jugés sur la note et la partie jouée ; le meilleur continue
+      const K = empty && hasMech ? Math.max(1, Math.min(o.draws || DS_DRAWS, Date.now() - t0 > (o.budget || DS_BUDGET) * (i + 1) / list.length ? 1 : 9)) : 1;
+      let best = null;
+      for (let d = 0; d < K; d++) {
+        step(v, 'build', 0.3 * d / K, d); await dsTick(); if (!alive()) return null;
+        BD.main = dsClone(base); BD.wiz = { ...wiz0, bud, seed: seed + i * 7919 + d * 104729, ...(v.arch ? { arch: v.arch } : {}), ...(v.style ? { style: v.style } : {}) };
+        if (!v.arch) delete BD.wiz.arch; if (!v.style) delete BD.wiz.style;
+        BD.avoid = empty && hasMech && avoid.size ? avoid : null;
+        dwAutoBuild(undefined, true);
+        const kept0 = await dsOptimize(mine, empty ? (K > 1 ? 600 : 900) : 1600, n => step(v, 'opt', 0.3 * (d + 0.5) / K + 0.05 * Math.min(1, n / 60), n));
+        if (!alive()) return null;
+        const r0 = K > 1 && typeof dsimRun === 'function' ? await dsimRun(BD, 800) : null, j = dsJudge(dsScore(BD).raw, r0);
+        if (!best || j > best.j) best = { j, main: dsClone(BD.main), wiz: { ...BD.wiz }, kept: kept0 };
+        if (K > 1 && Date.now() - t0 > (o.budget || DS_BUDGET) * (i + 1) / list.length) break;      // temps de la version écoulé : on garde le meilleur tirage
+      }
+      BD.main = best.main; BD.wiz = best.wiz; const kept = best.kept;
+      step(v, 'opt', 0.8, 0);
       step(v, 'sim', 0.8, 0);
       const tune = typeof dsimRun === 'function' ? await dsSimTune(mine, n => step(v, 'sim', 0.8 + 0.18 * Math.min(1, n / 6), n)) : { fixed: 0, r: null };
       if (!alive()) return null;
@@ -30000,7 +30037,7 @@ async function dsBuild(undoTo, seed) {
     if (!alive()) return quit(); set('px', 'done', t ? T('{n} prix', { n: nf0(t.map.size) }) : T('prix de la base'), 0.08);
     set('pk', 'run', '', 0.1, T('Lecture des cartes conseillées…'));
     await Promise.all([dwPack('c', cmd.slug), ...wiz0.th.map(x => dwPack('t', x))]).catch(() => null);
-    if (!alive()) return quit(); const pack = DW.cmd.get(cmd.slug); set('pk', 'done', pack ? T('{n} decks étudiés', { n: nf0(pack.n || pack.nd || 0) }) : T('commandant peu connu : cartes très jouées dans ses couleurs'), 0.16);
+    if (!alive()) return quit(); const pack = DW.cmd.get(cmd.slug); set('pk', 'done', pack && (pack.n || pack.nd) ? T('{n} decks étudiés', { n: nf0(pack.n || pack.nd || 0) }) : T('commandant peu connu : cartes très jouées dans ses couleurs'), 0.16);
     const span = 0.76 / list.length, idx = new Map(list.map((v, i) => [v.id, i]));
     BD.wiz = { ...wiz0, seed: seed || dsSeed() };
     const res = await dsMake({ empty, list, seed: BD.wiz.seed, alive, step: (v, ph, part, n) => {
@@ -30066,6 +30103,11 @@ if (typeof document !== 'undefined') document.addEventListener('toggle', e => { 
 
 
 /* ── decksim.js : 1 000 débuts de partie joués seul avec un deck Commander (rapport du coach) ───────────────
+   Depuis le 4 novembre 2026, la partie joue aussi le PLAN (10 tours) : ce que fait chaque carte d'après le classement par mécaniques (deckmech.js) :
+   créatures qui attaquent un adversaire (force estimée d'après le coût), jetons (+1 par tour pour un permanent qui en crée), drain et blessures directes,
+   pioche (moteur : une carte tous les deux tours ; sort : 2 cartes), condition de victoire lancée (+10), moteur assemblé (une carte qui fournit une mécanique
+   principale du plan et une qui en profite, en jeu ensemble). Mesures : adversaire mort avant le tour 10 (seul, sans interaction : un repère de vitesse, pas
+   une prédiction), tour moyen, moteur en place, cartes vues au tour 6. Les mêmes estimations pour tous les decks : elles comparent, elles ne prédisent pas.
    Chaque partie : mélange, main de 7 (mulligan « London » si moins de 2 ou plus de 5 terrains, 2 au plus), puis 8 tours sans adversaire : un terrain
    par tour (celui qui apporte une couleur qui manque d'abord), le commandant dès qu'il est payable, la rampe ensuite (source de mana dès le tour suivant),
    puis les sorts les plus chers payables. Le paiement tient compte des couleurs : chaque symbole prend une source qui produit sa couleur (les sources
@@ -30076,6 +30118,7 @@ const DSIM = { sig: '', res: null, run: null }, DSIM_N = 10000;      // 10 000 p
 /** Cartes du deck X pour la simulation : bibliothèque (99 cartes ou moins) et commandant(s). */
 function dsimDeck(X) {
   const cmd = dwCmdOf(X), ci = cmd ? [...cmd.ci] : [], lib = [];
+  const plan = typeof dmxPlan === 'function' && cmd ? dmxPlan(cmd, X.wiz || dwDefaults()) : null, main = plan ? plan.main.slice(0, 3) : [];      // mécaniques principales du plan : moteur assemblé quand une carte qui les fournit et une qui en profite sont en jeu
   const spec = (k, name) => {
     const x = dwCard(k) || {}, m = dmOf(k) || {}, land = BASIC_NAMES.has(k) || !!((x.roles || 0) & DW_RB.land);
     const pv = dwPips(m.mc || x.mc || ''), pips = {}; let gen = 0;
@@ -30085,10 +30128,15 @@ function dsimDeck(X) {
     const ramp = !land && !!((x.roles || 0) & DW_RB.ramp);
     if (land && !prod.size) prod = new Set(['C']);      // terrain utilitaire : mana incolore
     if (ramp && !prod.size) prod = new Set(ci.length ? ci : ['C']);      // rampe qui cherche des terrains (Cultivate…) : les couleurs du deck
-    return { k, n: name, land, cmc, pips, gen: Math.round(gen), prod: [...prod], ramp };
+    // ce que fait la carte une fois en jeu (classement par mécaniques, rôles) : estimations simples, les mêmes pour tous les decks (comparaison, pas prédiction)
+    const mm = typeof dmx === 'function' ? dmx(k) : null, ty = x.ty || 0, perm = !(ty & 48) && !land, has = t => !!mm && mm.p.includes(dmxTag(t));
+    const pow = ty & 2 ? Math.min(6, Math.max(1, Math.round((cmc || 1) * 0.8))) : 0;      // force d'une créature d'après son coût (sans les caractéristiques exactes)
+    const dr = (x.roles || 0) & DW_RB.draw ? (perm ? 0.5 : 2) : 0, tok = has('tokens-creature') ? (perm ? 1 : 2) : 0, dmg = has('drain') || has('burn') ? (perm ? 1 : 3) : 0;
+    const win = !!((x.roles || 0) & DW_RB.wincon), ep = !!mm && main.some(i => mm.p.includes(i)), ew = !!mm && main.some(i => mm.w.includes(i));
+    return { k, n: name, land, cmc, pips, gen: Math.round(gen), prod: [...prod], ramp, perm, pow, dr, tok, dmg, win, ep, ew };
   };
   for (const c of X.main.values()) { const s = spec(c.key, c.name); for (let i = 0; i < c.qty; i++) lib.push(s); }
-  return { lib, cmdr: X.cmdr.map(c => spec(c.key, c.name)) };
+  return { lib, cmdr: X.cmdr.map(c => spec(c.key, c.name)), main: main.length };
 }
 /** Paie un sort avec les sources disponibles (tableau de listes de couleurs) : sources restantes, ou null si impossible. */
 function dsimPay(avail, s) {
@@ -30118,11 +30166,21 @@ function dsimGame(D, rnd, onPlay, stuck) {
     let bi = -1; hand.forEach((c, j) => { if (c.land === pickLand && (bi < 0 || (!pickLand && c.cmc > hand[bi].cmc))) bi = j; });
     if (bi < 0) bi = hand.length - 1; lib.push(hand.splice(bi, 1)[0]);
   }
-  const lands0 = hand.filter(c => c.land).length, field = [], pending = [];
+  const lands0 = hand.filter(c => c.land).length, field = [], pending = [], board = [], fresh = [];
   let cmdTurn = 0, missed3 = false, missed4 = false, screw4 = false, avail16 = 0, spent16 = 0, cast6 = 0;
+  let dmg = 0, killT = 0, engT = 0, winT = 0, tokP = 0, drawAcc = 0, seen6 = 7, dmg8 = 0;      // plan joué : blessures à un adversaire (combat, drain), moteur assemblé, condition de victoire lancée
   const cmdLeft = D.cmdr.slice();
-  for (let t = 1; t <= 8; t++) {
-    if (!(t === 1 && onPlay) && lib.length) hand.push(lib.shift());
+  const play = (s, t) => {      // effet d'une carte qui résout
+    if (s.perm) { (s.pow ? fresh : board).push(s); if (s.pow) board.push(s); } else { if (s.dr) { for (let i = 0; i < s.dr && lib.length; i++) hand.push(lib.shift()); if (t <= 6) seen6 += s.dr; } tokP += s.tok; dmg += s.dmg; }
+    if (s.win && !winT) { winT = t; dmg += 10; }      // condition de victoire lancée : la partie bascule (Craterhoof, Approach, gros drain…)
+  };
+  for (let t = 1; t <= 10; t++) {
+    if (!(t === 1 && onPlay) && lib.length) { hand.push(lib.shift()); if (t <= 6) seen6++; }
+    for (const s of board) if (s.perm && s.dr) drawAcc += s.dr;      // moteurs de pioche en jeu
+    while (drawAcc >= 1 && lib.length) { hand.push(lib.shift()); drawAcc--; if (t <= 6) seen6++; }
+    if (t >= 2) { let atk = tokP; for (const s of board) if (s.pow && !fresh.includes(s)) atk += s.pow; dmg += atk; }      // combat contre un adversaire (créatures arrivées avant ce tour, jetons)
+    fresh.length = 0;
+    for (const s of board) { if (s.perm) { tokP += s.tok; dmg += s.dmg; } }      // jetons et drain chaque tour
     field.push(...pending.splice(0));
     const lands = hand.filter(c => c.land);
     if (lands.length) {      // le terrain qui apporte une couleur demandée par la main et pas encore produite, sinon le plus polyvalent
@@ -30132,28 +30190,34 @@ function dsimGame(D, rnd, onPlay, stuck) {
     } else { if (t <= 3) missed3 = true; if (t <= 4) missed4 = true; }
     let avail = field.slice(); const total = avail.length; let spent = 0;
     const cast = s => { const r = dsimPay(avail, s); if (!r) return false; spent += avail.length - r.length; avail = r; return true; };
-    for (const c of cmdLeft.slice()) if (cast(c)) { cmdLeft.splice(cmdLeft.indexOf(c), 1); if (!cmdTurn) cmdTurn = t; }
-    for (const s of hand.filter(c => !c.land && c.ramp).sort((a, b) => a.cmc - b.cmc)) if (cast(s)) { hand.splice(hand.indexOf(s), 1); pending.push(s.prod); if (t <= 6) cast6++; }
-    for (const s of hand.filter(c => !c.land).sort((a, b) => b.cmc - a.cmc)) if (s.cmc <= avail.length && cast(s)) { hand.splice(hand.indexOf(s), 1); if (t <= 6) cast6++; }
+    for (const c of cmdLeft.slice()) if (cast(c)) { cmdLeft.splice(cmdLeft.indexOf(c), 1); if (!cmdTurn && t <= 8) cmdTurn = t; play(c, t); }      // tours 9 et 10 : le plan seulement (mesures de mana sur les 8 premiers)
+    for (const s of hand.filter(c => !c.land && c.ramp).sort((a, b) => a.cmc - b.cmc)) if (cast(s)) { hand.splice(hand.indexOf(s), 1); pending.push(s.prod); if (t <= 6) cast6++; play(s, t); }
+    for (const s of hand.filter(c => !c.land).sort((a, b) => b.cmc - a.cmc)) if (s.cmc <= avail.length && cast(s)) { hand.splice(hand.indexOf(s), 1); if (t <= 6) cast6++; play(s, t); }
+    if (!engT && D.main && board.some(s => s.ep) && board.some(s => s.ew)) engT = t;
+    if (!killT && dmg >= 40) killT = t;
+    if (t === 8) dmg8 = dmg;
     if (t === 4 || t === 5) for (const s of hand) if (!s.land && s.cmc <= total && !dsimPay(field.slice(), s)) { if (t === 4) screw4 = true; stuck.set(s.n, (stuck.get(s.n) || 0) + (t === 5 ? 1 : 0)); }      // assez de mana, pas les bonnes couleurs
     if (t <= 6) { avail16 += total; spent16 += Math.min(total, spent); }
   }
-  return { mull, lands0, cmdTurn, missed3, missed4, screw4, eff: avail16 ? spent16 / avail16 : 0, cast6 };
+  if (!killT && dmg >= 40) killT = 10;
+  return { mull, lands0, cmdTurn, missed3, missed4, screw4, eff: avail16 ? spent16 / avail16 : 0, cast6, killT, engT, winT, dmg8, seen6 };
 }
 /** n parties (par paquets de 100, sans bloquer l'écran) : résultats agrégés. step(fait, total) : progression. */
 async function dsimRun(X, n = 1000, step) {
   const D = dsimDeck(X); if (D.lib.length < 40) return null;
   let seed = 7; for (const k of D.lib.map(c => c.k).sort()) for (let i = 0; i < k.length; i++) seed = (seed * 31 + k.charCodeAt(i)) | 0;
   const rnd = dsimRng(seed), stuck = new Map(), cmv = Math.max(0, ...D.cmdr.map(c => c.cmc));
-  const acc = { keep7: 0, mull: 0, lands0: 0, cmdT: 0, cmdOn: 0, cmdNever: 0, miss3: 0, miss4: 0, screw4: 0, eff: 0, cast6: 0 };
+  const acc = { keep7: 0, mull: 0, lands0: 0, cmdT: 0, cmdOn: 0, cmdNever: 0, miss3: 0, miss4: 0, screw4: 0, eff: 0, cast6: 0, kill: 0, killT: 0, eng: 0, engT: 0, win8: 0, dmg8: 0, seen6: 0 };
   for (let i = 0; i < n; i++) {
     const g = dsimGame(D, rnd, i % 2 === 0, stuck);
     acc.keep7 += g.mull === 0; acc.mull += g.mull; acc.lands0 += g.lands0; acc.cmdT += g.cmdTurn || 9; acc.cmdOn += g.cmdTurn && g.cmdTurn <= Math.max(1, cmv) ? 1 : 0; acc.cmdNever += !g.cmdTurn;
     acc.miss3 += g.missed3; acc.miss4 += g.missed4; acc.screw4 += g.screw4; acc.eff += g.eff; acc.cast6 += g.cast6;
+    acc.kill += !!g.killT; acc.killT += g.killT || 11; acc.eng += !!g.engT; acc.engT += g.engT || 11; acc.win8 += !!(g.winT && g.winT <= 8); acc.dmg8 += g.dmg8; acc.seen6 += g.seen6;
     if (i % 250 === 249) { if (step) step(i + 1, n); await new Promise(r => setTimeout(r, 0)); }      // par paquets de 250 : l'écran reste fluide pendant le calcul
   }
   const pct = v => Math.round(v / n * 100);
   return { n, cmv, keep7: pct(acc.keep7), mull: acc.mull / n, lands0: acc.lands0 / n, cmdT: acc.cmdT / n, cmdOn: pct(acc.cmdOn), cmdNever: pct(acc.cmdNever), miss3: pct(acc.miss3), miss4: pct(acc.miss4), screw4: pct(acc.screw4), eff: Math.round(acc.eff / n * 100), cast6: acc.cast6 / n,
+    kill10: pct(acc.kill), killT: acc.killT / n, eng: D.main ? pct(acc.eng) : null, engT: acc.engT / n, win8: pct(acc.win8), dmg8: acc.dmg8 / n, seen6: acc.seen6 / n,
     stuck: [...stuck].filter(([, v]) => v / n >= 0.04).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, v]) => [name, pct(v)]) };
 }
 const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c => c.key + ':' + c.qty).sort()].join('|');
@@ -30168,7 +30232,10 @@ function dsimHtml(r, prog) {
     ${r.cmv ? row(r.cmdOn >= 55, r.cmdOn + ' %', T('commandant lancé à temps (tour {t} ou avant)', { t: r.cmv }), T('tour {t} en moyenne', { t: dsimNum(r.cmdT) }) + (r.cmdNever ? ' · ' + T('jamais avant le tour 9 : {p} %', { p: r.cmdNever }) : '')) : ''}
     ${row(r.miss3 <= 20, r.miss3 + ' %', T('des parties sans terrain à poser avant le tour 4'), T('{p} % avant le tour 5', { p: r.miss4 }))}
     ${row(r.screw4 <= 10, r.screw4 + ' %', T('des parties bloquées par les couleurs au tour 4'), T('assez de mana, pas la bonne couleur'))}
-    ${row(r.eff >= 70, r.eff + ' %', T('du mana disponible utilisé (tours 1 à 6)'), T('{n} sorts lancés en moyenne', { n: dsimNum(r.cast6) }))}</ul>`;
+    ${row(r.eff >= 70, r.eff + ' %', T('du mana disponible utilisé (tours 1 à 6)'), T('{n} sorts lancés en moyenne', { n: dsimNum(r.cast6) }))}
+    ${r.kill10 != null ? row(r.kill10 >= 25, r.kill10 + ' %', T('des parties où un adversaire tombe avant le tour 11 (seul, sans interaction)'), r.kill10 ? T('tour {t} en moyenne', { t: dsimNum(r.killT) }) : '') : ''}
+    ${r.eng != null ? row(r.eng >= 50, r.eng + ' %', T('des parties où le moteur du plan est en place avant le tour 11'), r.eng ? T('tour {t} en moyenne', { t: dsimNum(r.engT) }) : '') : ''}
+    ${r.seen6 != null ? row(r.seen6 >= 14, dsimNum(r.seen6), T('cartes vues au tour 6 (main, pioche, moteurs)'), '') : ''}</ul>`;
   if (r.stuck.length) h += `<p class="dr-p"><b>${T('Souvent bloquées par les couleurs')} :</b> ${r.stuck.map(([n, p]) => drCard(ownKey(n), n) + ` <small>(${p} %)</small>`).join(', ')}</p>`;
   const adv = [];
   if (r.keep7 < 72) adv.push(T('Trop de mains à refaire : vise 36 à 38 terrains, ou ajoute de la rampe à 2 mana ou moins.'));
@@ -30176,6 +30243,8 @@ function dsimHtml(r, prog) {
   if (r.screw4 > 10) adv.push(T('Couleurs mal servies : remplace des terrains de base par des terrains qui produisent plusieurs couleurs.'));
   if (r.cmv && r.cmdOn < 55) adv.push(T('Commandant souvent en retard : plus de rampe à 2 mana ou moins.'));
   if (r.eff < 70) adv.push(T('Mana souvent inutilisé : plus de sorts à 2 et 3 mana.'));
+  if (r.eng != null && r.eng < 50) adv.push(T('Moteur du plan rarement en place : plus de cartes qui le fournissent, ou un tuteur.'));
+  if (r.seen6 != null && r.seen6 < 13) adv.push(T('Peu de cartes vues : un ou deux moteurs de pioche de plus.'));
   if (adv.length) h += `<ul class="dr-ul">${adv.map(a => `<li>${esc(a)}</li>`).join('')}</ul>`;
   return h;
 }

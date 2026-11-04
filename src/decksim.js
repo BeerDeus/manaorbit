@@ -1,4 +1,9 @@
 /* ── decksim.js : 1 000 débuts de partie joués seul avec un deck Commander (rapport du coach) ───────────────
+   Depuis le 4 novembre 2026, la partie joue aussi le PLAN (10 tours) : ce que fait chaque carte d'après le classement par mécaniques (deckmech.js) :
+   créatures qui attaquent un adversaire (force estimée d'après le coût), jetons (+1 par tour pour un permanent qui en crée), drain et blessures directes,
+   pioche (moteur : une carte tous les deux tours ; sort : 2 cartes), condition de victoire lancée (+10), moteur assemblé (une carte qui fournit une mécanique
+   principale du plan et une qui en profite, en jeu ensemble). Mesures : adversaire mort avant le tour 10 (seul, sans interaction : un repère de vitesse, pas
+   une prédiction), tour moyen, moteur en place, cartes vues au tour 6. Les mêmes estimations pour tous les decks : elles comparent, elles ne prédisent pas.
    Chaque partie : mélange, main de 7 (mulligan « London » si moins de 2 ou plus de 5 terrains, 2 au plus), puis 8 tours sans adversaire : un terrain
    par tour (celui qui apporte une couleur qui manque d'abord), le commandant dès qu'il est payable, la rampe ensuite (source de mana dès le tour suivant),
    puis les sorts les plus chers payables. Le paiement tient compte des couleurs : chaque symbole prend une source qui produit sa couleur (les sources
@@ -9,6 +14,7 @@ const DSIM = { sig: '', res: null, run: null }, DSIM_N = 10000;      // 10 000 p
 /** Cartes du deck X pour la simulation : bibliothèque (99 cartes ou moins) et commandant(s). */
 function dsimDeck(X) {
   const cmd = dwCmdOf(X), ci = cmd ? [...cmd.ci] : [], lib = [];
+  const plan = typeof dmxPlan === 'function' && cmd ? dmxPlan(cmd, X.wiz || dwDefaults()) : null, main = plan ? plan.main.slice(0, 3) : [];      // mécaniques principales du plan : moteur assemblé quand une carte qui les fournit et une qui en profite sont en jeu
   const spec = (k, name) => {
     const x = dwCard(k) || {}, m = dmOf(k) || {}, land = BASIC_NAMES.has(k) || !!((x.roles || 0) & DW_RB.land);
     const pv = dwPips(m.mc || x.mc || ''), pips = {}; let gen = 0;
@@ -18,10 +24,15 @@ function dsimDeck(X) {
     const ramp = !land && !!((x.roles || 0) & DW_RB.ramp);
     if (land && !prod.size) prod = new Set(['C']);      // terrain utilitaire : mana incolore
     if (ramp && !prod.size) prod = new Set(ci.length ? ci : ['C']);      // rampe qui cherche des terrains (Cultivate…) : les couleurs du deck
-    return { k, n: name, land, cmc, pips, gen: Math.round(gen), prod: [...prod], ramp };
+    // ce que fait la carte une fois en jeu (classement par mécaniques, rôles) : estimations simples, les mêmes pour tous les decks (comparaison, pas prédiction)
+    const mm = typeof dmx === 'function' ? dmx(k) : null, ty = x.ty || 0, perm = !(ty & 48) && !land, has = t => !!mm && mm.p.includes(dmxTag(t));
+    const pow = ty & 2 ? Math.min(6, Math.max(1, Math.round((cmc || 1) * 0.8))) : 0;      // force d'une créature d'après son coût (sans les caractéristiques exactes)
+    const dr = (x.roles || 0) & DW_RB.draw ? (perm ? 0.5 : 2) : 0, tok = has('tokens-creature') ? (perm ? 1 : 2) : 0, dmg = has('drain') || has('burn') ? (perm ? 1 : 3) : 0;
+    const win = !!((x.roles || 0) & DW_RB.wincon), ep = !!mm && main.some(i => mm.p.includes(i)), ew = !!mm && main.some(i => mm.w.includes(i));
+    return { k, n: name, land, cmc, pips, gen: Math.round(gen), prod: [...prod], ramp, perm, pow, dr, tok, dmg, win, ep, ew };
   };
   for (const c of X.main.values()) { const s = spec(c.key, c.name); for (let i = 0; i < c.qty; i++) lib.push(s); }
-  return { lib, cmdr: X.cmdr.map(c => spec(c.key, c.name)) };
+  return { lib, cmdr: X.cmdr.map(c => spec(c.key, c.name)), main: main.length };
 }
 /** Paie un sort avec les sources disponibles (tableau de listes de couleurs) : sources restantes, ou null si impossible. */
 function dsimPay(avail, s) {
@@ -51,11 +62,21 @@ function dsimGame(D, rnd, onPlay, stuck) {
     let bi = -1; hand.forEach((c, j) => { if (c.land === pickLand && (bi < 0 || (!pickLand && c.cmc > hand[bi].cmc))) bi = j; });
     if (bi < 0) bi = hand.length - 1; lib.push(hand.splice(bi, 1)[0]);
   }
-  const lands0 = hand.filter(c => c.land).length, field = [], pending = [];
+  const lands0 = hand.filter(c => c.land).length, field = [], pending = [], board = [], fresh = [];
   let cmdTurn = 0, missed3 = false, missed4 = false, screw4 = false, avail16 = 0, spent16 = 0, cast6 = 0;
+  let dmg = 0, killT = 0, engT = 0, winT = 0, tokP = 0, drawAcc = 0, seen6 = 7, dmg8 = 0;      // plan joué : blessures à un adversaire (combat, drain), moteur assemblé, condition de victoire lancée
   const cmdLeft = D.cmdr.slice();
-  for (let t = 1; t <= 8; t++) {
-    if (!(t === 1 && onPlay) && lib.length) hand.push(lib.shift());
+  const play = (s, t) => {      // effet d'une carte qui résout
+    if (s.perm) { (s.pow ? fresh : board).push(s); if (s.pow) board.push(s); } else { if (s.dr) { for (let i = 0; i < s.dr && lib.length; i++) hand.push(lib.shift()); if (t <= 6) seen6 += s.dr; } tokP += s.tok; dmg += s.dmg; }
+    if (s.win && !winT) { winT = t; dmg += 10; }      // condition de victoire lancée : la partie bascule (Craterhoof, Approach, gros drain…)
+  };
+  for (let t = 1; t <= 10; t++) {
+    if (!(t === 1 && onPlay) && lib.length) { hand.push(lib.shift()); if (t <= 6) seen6++; }
+    for (const s of board) if (s.perm && s.dr) drawAcc += s.dr;      // moteurs de pioche en jeu
+    while (drawAcc >= 1 && lib.length) { hand.push(lib.shift()); drawAcc--; if (t <= 6) seen6++; }
+    if (t >= 2) { let atk = tokP; for (const s of board) if (s.pow && !fresh.includes(s)) atk += s.pow; dmg += atk; }      // combat contre un adversaire (créatures arrivées avant ce tour, jetons)
+    fresh.length = 0;
+    for (const s of board) { if (s.perm) { tokP += s.tok; dmg += s.dmg; } }      // jetons et drain chaque tour
     field.push(...pending.splice(0));
     const lands = hand.filter(c => c.land);
     if (lands.length) {      // le terrain qui apporte une couleur demandée par la main et pas encore produite, sinon le plus polyvalent
@@ -65,28 +86,34 @@ function dsimGame(D, rnd, onPlay, stuck) {
     } else { if (t <= 3) missed3 = true; if (t <= 4) missed4 = true; }
     let avail = field.slice(); const total = avail.length; let spent = 0;
     const cast = s => { const r = dsimPay(avail, s); if (!r) return false; spent += avail.length - r.length; avail = r; return true; };
-    for (const c of cmdLeft.slice()) if (cast(c)) { cmdLeft.splice(cmdLeft.indexOf(c), 1); if (!cmdTurn) cmdTurn = t; }
-    for (const s of hand.filter(c => !c.land && c.ramp).sort((a, b) => a.cmc - b.cmc)) if (cast(s)) { hand.splice(hand.indexOf(s), 1); pending.push(s.prod); if (t <= 6) cast6++; }
-    for (const s of hand.filter(c => !c.land).sort((a, b) => b.cmc - a.cmc)) if (s.cmc <= avail.length && cast(s)) { hand.splice(hand.indexOf(s), 1); if (t <= 6) cast6++; }
+    for (const c of cmdLeft.slice()) if (cast(c)) { cmdLeft.splice(cmdLeft.indexOf(c), 1); if (!cmdTurn && t <= 8) cmdTurn = t; play(c, t); }      // tours 9 et 10 : le plan seulement (mesures de mana sur les 8 premiers)
+    for (const s of hand.filter(c => !c.land && c.ramp).sort((a, b) => a.cmc - b.cmc)) if (cast(s)) { hand.splice(hand.indexOf(s), 1); pending.push(s.prod); if (t <= 6) cast6++; play(s, t); }
+    for (const s of hand.filter(c => !c.land).sort((a, b) => b.cmc - a.cmc)) if (s.cmc <= avail.length && cast(s)) { hand.splice(hand.indexOf(s), 1); if (t <= 6) cast6++; play(s, t); }
+    if (!engT && D.main && board.some(s => s.ep) && board.some(s => s.ew)) engT = t;
+    if (!killT && dmg >= 40) killT = t;
+    if (t === 8) dmg8 = dmg;
     if (t === 4 || t === 5) for (const s of hand) if (!s.land && s.cmc <= total && !dsimPay(field.slice(), s)) { if (t === 4) screw4 = true; stuck.set(s.n, (stuck.get(s.n) || 0) + (t === 5 ? 1 : 0)); }      // assez de mana, pas les bonnes couleurs
     if (t <= 6) { avail16 += total; spent16 += Math.min(total, spent); }
   }
-  return { mull, lands0, cmdTurn, missed3, missed4, screw4, eff: avail16 ? spent16 / avail16 : 0, cast6 };
+  if (!killT && dmg >= 40) killT = 10;
+  return { mull, lands0, cmdTurn, missed3, missed4, screw4, eff: avail16 ? spent16 / avail16 : 0, cast6, killT, engT, winT, dmg8, seen6 };
 }
 /** n parties (par paquets de 100, sans bloquer l'écran) : résultats agrégés. step(fait, total) : progression. */
 async function dsimRun(X, n = 1000, step) {
   const D = dsimDeck(X); if (D.lib.length < 40) return null;
   let seed = 7; for (const k of D.lib.map(c => c.k).sort()) for (let i = 0; i < k.length; i++) seed = (seed * 31 + k.charCodeAt(i)) | 0;
   const rnd = dsimRng(seed), stuck = new Map(), cmv = Math.max(0, ...D.cmdr.map(c => c.cmc));
-  const acc = { keep7: 0, mull: 0, lands0: 0, cmdT: 0, cmdOn: 0, cmdNever: 0, miss3: 0, miss4: 0, screw4: 0, eff: 0, cast6: 0 };
+  const acc = { keep7: 0, mull: 0, lands0: 0, cmdT: 0, cmdOn: 0, cmdNever: 0, miss3: 0, miss4: 0, screw4: 0, eff: 0, cast6: 0, kill: 0, killT: 0, eng: 0, engT: 0, win8: 0, dmg8: 0, seen6: 0 };
   for (let i = 0; i < n; i++) {
     const g = dsimGame(D, rnd, i % 2 === 0, stuck);
     acc.keep7 += g.mull === 0; acc.mull += g.mull; acc.lands0 += g.lands0; acc.cmdT += g.cmdTurn || 9; acc.cmdOn += g.cmdTurn && g.cmdTurn <= Math.max(1, cmv) ? 1 : 0; acc.cmdNever += !g.cmdTurn;
     acc.miss3 += g.missed3; acc.miss4 += g.missed4; acc.screw4 += g.screw4; acc.eff += g.eff; acc.cast6 += g.cast6;
+    acc.kill += !!g.killT; acc.killT += g.killT || 11; acc.eng += !!g.engT; acc.engT += g.engT || 11; acc.win8 += !!(g.winT && g.winT <= 8); acc.dmg8 += g.dmg8; acc.seen6 += g.seen6;
     if (i % 250 === 249) { if (step) step(i + 1, n); await new Promise(r => setTimeout(r, 0)); }      // par paquets de 250 : l'écran reste fluide pendant le calcul
   }
   const pct = v => Math.round(v / n * 100);
   return { n, cmv, keep7: pct(acc.keep7), mull: acc.mull / n, lands0: acc.lands0 / n, cmdT: acc.cmdT / n, cmdOn: pct(acc.cmdOn), cmdNever: pct(acc.cmdNever), miss3: pct(acc.miss3), miss4: pct(acc.miss4), screw4: pct(acc.screw4), eff: Math.round(acc.eff / n * 100), cast6: acc.cast6 / n,
+    kill10: pct(acc.kill), killT: acc.killT / n, eng: D.main ? pct(acc.eng) : null, engT: acc.engT / n, win8: pct(acc.win8), dmg8: acc.dmg8 / n, seen6: acc.seen6 / n,
     stuck: [...stuck].filter(([, v]) => v / n >= 0.04).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, v]) => [name, pct(v)]) };
 }
 const dsimSig = X => [...X.cmdr.map(c => c.key), ...[...X.main.values()].map(c => c.key + ':' + c.qty).sort()].join('|');
@@ -101,7 +128,10 @@ function dsimHtml(r, prog) {
     ${r.cmv ? row(r.cmdOn >= 55, r.cmdOn + ' %', T('commandant lancé à temps (tour {t} ou avant)', { t: r.cmv }), T('tour {t} en moyenne', { t: dsimNum(r.cmdT) }) + (r.cmdNever ? ' · ' + T('jamais avant le tour 9 : {p} %', { p: r.cmdNever }) : '')) : ''}
     ${row(r.miss3 <= 20, r.miss3 + ' %', T('des parties sans terrain à poser avant le tour 4'), T('{p} % avant le tour 5', { p: r.miss4 }))}
     ${row(r.screw4 <= 10, r.screw4 + ' %', T('des parties bloquées par les couleurs au tour 4'), T('assez de mana, pas la bonne couleur'))}
-    ${row(r.eff >= 70, r.eff + ' %', T('du mana disponible utilisé (tours 1 à 6)'), T('{n} sorts lancés en moyenne', { n: dsimNum(r.cast6) }))}</ul>`;
+    ${row(r.eff >= 70, r.eff + ' %', T('du mana disponible utilisé (tours 1 à 6)'), T('{n} sorts lancés en moyenne', { n: dsimNum(r.cast6) }))}
+    ${r.kill10 != null ? row(r.kill10 >= 25, r.kill10 + ' %', T('des parties où un adversaire tombe avant le tour 11 (seul, sans interaction)'), r.kill10 ? T('tour {t} en moyenne', { t: dsimNum(r.killT) }) : '') : ''}
+    ${r.eng != null ? row(r.eng >= 50, r.eng + ' %', T('des parties où le moteur du plan est en place avant le tour 11'), r.eng ? T('tour {t} en moyenne', { t: dsimNum(r.engT) }) : '') : ''}
+    ${r.seen6 != null ? row(r.seen6 >= 14, dsimNum(r.seen6), T('cartes vues au tour 6 (main, pioche, moteurs)'), '') : ''}</ul>`;
   if (r.stuck.length) h += `<p class="dr-p"><b>${T('Souvent bloquées par les couleurs')} :</b> ${r.stuck.map(([n, p]) => drCard(ownKey(n), n) + ` <small>(${p} %)</small>`).join(', ')}</p>`;
   const adv = [];
   if (r.keep7 < 72) adv.push(T('Trop de mains à refaire : vise 36 à 38 terrains, ou ajoute de la rampe à 2 mana ou moins.'));
@@ -109,6 +139,8 @@ function dsimHtml(r, prog) {
   if (r.screw4 > 10) adv.push(T('Couleurs mal servies : remplace des terrains de base par des terrains qui produisent plusieurs couleurs.'));
   if (r.cmv && r.cmdOn < 55) adv.push(T('Commandant souvent en retard : plus de rampe à 2 mana ou moins.'));
   if (r.eff < 70) adv.push(T('Mana souvent inutilisé : plus de sorts à 2 et 3 mana.'));
+  if (r.eng != null && r.eng < 50) adv.push(T('Moteur du plan rarement en place : plus de cartes qui le fournissent, ou un tuteur.'));
+  if (r.seen6 != null && r.seen6 < 13) adv.push(T('Peu de cartes vues : un ou deux moteurs de pioche de plus.'));
   if (adv.length) h += `<ul class="dr-ul">${adv.map(a => `<li>${esc(a)}</li>`).join('')}</ul>`;
   return h;
 }

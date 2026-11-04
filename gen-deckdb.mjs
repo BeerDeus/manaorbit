@@ -26,6 +26,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normKey, edhSlug, cardviewsOf, archidektList, archDay, GENERAL_THEMES } from './gen-edhrec.mjs';
 import { readMech, taxonomy } from './tools/card-mech-merge.mjs';
+import { readBriefs } from './tools/cmd-brief-merge.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const UA = 'DeckDeal-deckdb/1.0 (+https://github.com/BeerDeus/manaorbit)';
@@ -580,10 +581,12 @@ export function aggregate(C, S, tagger, cmds, mech = null) {
     const th = {}; if (e && e.th) for (const [ts, p] of Object.entries(e.th)) if (p && p.cards && p.cards.length) th[ts] = { n: p.n, land: p.land, cards: p.cards.slice(0, 220) };
     cmd[c.slug] = { n: e ? e.n || 0 : 0, land: e ? e.land || 0 : 0, basic: e ? e.basic || 0 : 0, curve: e ? e.curve || null : null, br: e ? e.br || null : null, thl: e ? (e.thl || []).slice(0, 10) : [], cards: e ? (e.cards || []).slice(0, 320) : [], th, nd, xc: extra, tg: ps.length >= 8 ? statsOf(ps) : null };
   }
+  const briefs = readBriefs(process.env.DECKDB_BRIEF || join(here, 'data', 'cmd-brief.json')).cmds;      // fiches des commandants écrites par IA (data/cmd-brief.json) : cmd[slug].ai
+  for (const [slug, b] of briefs) { if (!/^[a-z0-9][a-z0-9-]{0,120}$/.test(slug)) continue; if (!cmd[slug]) cmd[slug] = { n: 0, land: 0, basic: 0, curve: null, br: null, thl: [], cards: [], th: {}, nd: 0, xc: [], tg: null }; cmd[slug].ai = b; }
   const pairs = pairsOf(C, info, cards);
   const themes = {}; for (const [s, p] of Object.entries(C.tags)) if (p && p.cards && p.cards.length) themes[s] = { n: p.n, cards: p.cards.slice(0, 250), cmds: (p.cmds || []).slice(0, 40) };
   const mechMeta = mech ? { v: mech.meta.v, at: mech.meta.at, tax: mech.tax.version, roles: mech.tax.roles, tags: mech.tax.tags, n: cards.filter(r => r[10]).length } : undefined;
-  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, pairs, combos: Array.isArray(C.combos) ? C.combos : [], mech: mechMeta, src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size, mech: mechMeta ? mechMeta.n : 0 } };
+  return { v: 1, at, roles: ROLES, cards, tg, cmd, themes, pairs, combos: Array.isArray(C.combos) ? C.combos : [], mech: mechMeta, src: { decks: profs.length, edh: Object.keys(C.edh).length, tags: Object.keys(C.tags).length, scry: S.size, mech: mechMeta ? mechMeta.n : 0, briefs: briefs.size } };
 }
 
 /* ── Principal ──────────────────────────────────────────────────────────────────────────────────── */

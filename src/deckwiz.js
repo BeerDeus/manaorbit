@@ -280,12 +280,13 @@ const dwSrcFor = (pips, mv) => { const p = Math.min(4, Math.max(1, Math.ceil(pip
 /** Poids d'origine ; la base peut en apporter d'autres, réglés chaque nuit par le banc d'essai (bench-coach.mjs : de vrais decks jamais appris, cartes retirées à retrouver). */
 /** Popularité (incl, syn, th, g, cx, rank, pair : réglés par le banc) ; mécaniques (deckmech.js : m = valeur pour le plan, q = force propre, noise = écart des tirages,
  *  avoid = recul d'une carte déjà prise par une autre version) : jamais réglés par le banc, qui mesure la ressemblance avec les decks des joueurs. */
-const DW_W0 = { incl: 1, syn: 0.8, th: 0.9, g: 0.4, cx: 0.5, rank: 0.5, pair: 0.04, m: 0.6, q: 0.3, noise: 0.12, avoid: 0.1 };
+const DW_W0 = { incl: 1, syn: 0.8, th: 0.9, g: 0.4, cx: 0.5, rank: 0.5, pair: 0.04, m: 0.6, q: 0.3, noise: 0.12, avoid: 0.1, ai: 0.55, trap: 0.7, eng: 0.3 };
 const dwW = () => { const w = DW.core && DW.core.w; return w && typeof w === 'object' ? { ...DW_W0, ...w } : DW_W0; };
 /** Popularité seule (EDHREC, decks Archidekt, rang) : signal de fiabilité. */
 const dwPop = (o, w = dwW()) => (o.incl || 0) / 100 * w.incl + Math.max(0, o.syn || 0) / 100 * w.syn + (o.th || 0) / 100 * w.th + (o.g || 0) / 100 * w.g + (o.cx || 0) / 100 * w.cx + (o.rank ? Math.max(0, 1 - o.rank / 4000) * w.rank : 0);
 /** Valeur d'une carte : popularité (réduite par le curseur « originalité » : o.k) + ce qu'elle fait pour le plan du deck (o.m) + sa force (o.q). */
-const dwVal = o => { const w = dwW(); return (o.k == null ? 1 : o.k) * dwPop(o, w) + ((o.m || 0) * w.m + (o.q || 0) * w.q) * (o.d == null ? 1 : o.d); };
+const DW_AI_V = [-0.5, 0.3, 0.6, 1];      // note de la fiche IA (0 : presque inutile ici, 3 : cœur du plan) → valeur
+const dwVal = o => { const w = dwW(); return (o.k == null ? 1 : o.k) * dwPop(o, w) + ((o.m || 0) * w.m + (o.q || 0) * w.q) * (o.d == null ? 1 : o.d) + (o.ai != null ? DW_AI_V[o.ai] * w.ai : 0) - (o.trap ? w.trap : 0); };
 /** Part de la popularité gardée : 1 (classique) à 0,3 (trouvailles). */
 const dwPopK = set => 1 - 0.7 * (Number.isFinite(set.orig) ? set.orig : DW_ORIG0) / 100;
 /** Part de sa valeur mécanique qu'obtient une carte jamais jouée avec ce commandant (réserve élargie) : 0,4 (classique) à 1 (trouvailles). La popularité
@@ -306,7 +307,7 @@ function dwPairIdx() {
  *  cmd : commandant (dwCmdOf), sinon le dernier vu pour ce paquet. Gardé tant que rien ne change (la génération le relit des centaines de fois). */
 function dwInfo(pack, set, cmd) {
   cmd = cmd || (pack && DW.cmdOfSlug && DW.cmdOfSlug.get(pack.slug)) || DW.lastCmd || null;
-  const plan = typeof dmxPlan === 'function' && cmd ? dmxPlan(cmd, set, dwStyle(set)) : null;
+  const plan = typeof dmxPlan === 'function' && cmd ? dmxPlan(cmd, set, dwStyle(set), (pack && pack.ai) || null) : null;
   const sig = [cmd ? (cmd.keys || cmd.names.map(n => ownKey(n))).join('+') : '', (set.th || []).map(t => t + (DW.th.has(t) ? 1 : 0)).join(','), plan ? plan.sig : '', dwPopK(set)].join('|');
   if (DW.infoC && DW.infoC.pack === pack && DW.infoC.sig === sig && DW.infoC.src === DW.core) return DW.infoC.C;
   const C = new Map(), add = (name, f, v) => { const k = ownKey(name); if (!k) return; const o = C.get(k) || { name, incl: 0, syn: 0, th: 0, g: 0, cx: 0 }; o[f] = Math.max(o[f], v); C.set(k, o); };
@@ -320,6 +321,14 @@ function dwInfo(pack, set, cmd) {
   if (plan) {
     const ask = plan.user ? 1.5 : 1, k0 = dwPopK(set), d0 = (C.npack >= 40 ? dwPoolD(set) : 1) * ask;      // commandant sans liste : toutes les cartes sont « hors liste », rien à départager ; thème demandé par le joueur : les mécaniques comptent une fois et demie
     C.ask = ask;
+    const ai = pack && pack.ai;
+    if (ai) {      // fiche IA du commandant : notes de synergie (même pour des cartes jamais jouées avec lui), conditions de victoire et cartes conseillées en plus, pièges
+      const put = (nm, f) => { const k = ownKey(nm), r = DW.byKey && DW.byKey.get(k); if (!r) return; let o = C.get(k); if (!o) { o = { name: r[0], incl: 0, syn: 0, th: 0, g: 0, cx: 0, rank: 0, pool: 1, d: d0 }; C.set(k, o); } f(o); };
+      for (const [nm, v] of ai.syn || []) put(nm, o => { o.ai = Math.max(o.ai == null ? 0 : o.ai, v); });
+      for (const nm of [...(ai.win || []), ...(ai.extra || [])]) put(nm, o => { o.ai = Math.max(o.ai == null ? 0 : o.ai, 2); });
+      for (const nm of ai.trap || []) put(nm, o => { o.trap = 1; });
+      for (const [, cs] of ai.eng || []) for (const nm of cs) put(nm, o => { o.eng = (o.eng || []).concat([cs.map(n => ownKey(n))]); });
+    }
     for (const [k, r] of dmxPool(cmd, plan)) if (!C.has(k)) C.set(k, { name: r[0], incl: 0, syn: 0, th: 0, g: 0, cx: 0, rank: C.npack >= 40 ? 0 : r[8] || 0, pool: 1, d: d0 });      // hors liste : sa popularité générale ne compte pas (c'est elle qui standardise les decks)
     for (const [k, o] of C) { const m = dmx(k); o.k = k0; if (!o.pool) o.d = ask; if (m) { o.m = dmxFit(m, plan, null); o.q = dmxQ(m); const r = DW.byKey.get(k); if (r && r[4] & DW_RB.land) o.d *= 0.35; } }      // terrain : ses couleurs d'abord (un terrain utilitaire à mécanique ne passe pas devant un bicolore)
     C.plan = plan;
@@ -390,6 +399,7 @@ function dwSuggest(role, cmd, pack, prof, tgt, n, X = BD) {
     const v = dwVal(o); let s = v, pair = null;
     const pr = pairs.get(k); if (pr) { let b = 0; for (const e of pr) if (inDeck(e.p)) { b += Math.log2(e.l); if (!pair || e.l > pair.l) pair = e; } s += Math.min(0.4, b * wPair); }      // va avec des cartes déjà dans le deck
     if (combo2 && set.br >= 4) s += 0.4;      // bracket 4-5 : la pièce qui complète un combo du deck
+    if (o.eng) for (const cs of o.eng) if (cs.some(p => p !== k && inDeck(p))) { s += w.eng; break; }      // moteur de la fiche IA dont une pièce est déjà là
     if (own) s += set.own ? 0.35 : 0.08;
     if (!own && set.bud > 0 && price > 0 && Number.isFinite(budLeft) && budLeft / slots < 300) s -= Math.min(0.4, price / Math.max(100, budLeft / slots * 4) * 0.2);      // budget serré seulement (moins de ~3 € par place restante) : un gros budget est un plafond, pas une raison de prendre moins bien
     if (isLand && cols.length > 1) {      // terrains d'un deck multicolore : ceux qui produisent les couleurs en manque d'abord, puis ceux qui en produisent plusieurs
@@ -502,7 +512,8 @@ function dwStoryHtml(st) {
   if (!st) return '';
   const bits = [...(st.tribe ? [T('{t} ×{n}', { t: st.tribe.t, n: st.tribe.n })] : []), ...st.tags.slice(0, 3).map(t => T('{m} ×{n}', { m: t.label, n: t.n }))];
   const eng = st.engines.map(e => T('{e} ({c})', { e: e.label, c: e.cards.slice(0, 3).join(', ') }));
-  return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
+  const fr = typeof I18N === 'undefined' || !I18N.lang || I18N.lang === 'fr';      // texte de la fiche IA : écrit en français
+  return `<div class="dw-story"><p class="label">${T('Plan du deck')}</p>${st.brief && fr ? `<p class="hint">${esc(st.brief)}</p>` : ''}${bits.length ? `<p class="hint">${esc(bits.join(' · '))}</p>` : ''}${eng.length ? `<p class="hint">${esc(T('Moteurs : {e}', { e: eng.join(' · ') }))}</p>` : ''}
     <p class="hint">${esc(st.wincons.length ? T('Pour gagner : {c}', { c: st.wincons.slice(0, 4).join(', ') }) : T('Aucune condition de victoire claire : ajoute une carte qui peut finir la partie.'))}</p>${st.notes.map(n => `<p class="hint">${esc(n)}</p>`).join('')}</div>`;
 }
 /** En-tête repliable d'une section (Équilibre du deck…) : titre, résumé d'une ligne, « Masquer » / « Afficher ». attr : action du bouton (coach ou analyse). */
