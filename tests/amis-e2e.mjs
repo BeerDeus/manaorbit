@@ -133,6 +133,17 @@ assert.deepEqual(await pb.$$eval('.am-coll-sheet .am-crow', r => r.map(x => x.da
 assert.match(await tc(pb, '.am-coll-sheet .am-crow[data-k="sol ring"]'), /tu la cherches × 1/);
 await shot(pb, '08-collection-ami');
 await pb.fill('.am-coll-sheet .fsearch input', 'sol'); await pb.waitForFunction(() => document.querySelectorAll('.am-coll-sheet .am-crow').length === 1);
+await pb.fill('.am-coll-sheet .fsearch input', ''); await pb.waitForFunction(() => document.querySelectorAll('.am-coll-sheet .am-crow').length === 4);
+// mêmes filtres que ma collection : extension, rareté, prix (« Plus de filtres »)
+await pb.click('.am-coll-sheet .fbtn'); assert.ok(await pb.$('.am-coll-sheet .fset'), 'Extension'); await pb.click('.am-coll-sheet .fmore'); await pb.waitForSelector('.am-coll-sheet [data-fk="px"]');
+assert.ok(await pb.$('.am-coll-sheet [data-fk="rar"][data-fv="common"]'), 'Rareté');
+const dear = await pb.evaluate(() => $$('.am-coll-sheet .am-crow').map(r => r.dataset.k).filter(k => { const u = trPrice(k); return u != null && u >= 2000; }).length);
+await pb.click('.am-coll-sheet [data-fk="px"][data-fv="gt20"]'); await pb.waitForFunction(n => document.querySelectorAll('.am-coll-sheet .am-crow').length === n, dear);
+await pb.click('.am-coll-sheet [data-fk="px"][data-fv="gt20"]'); await pb.waitForFunction(() => document.querySelectorAll('.am-coll-sheet .am-crow').length === 4);
+// extensions de ses exemplaires : envoyées avec sa collection (4e case, ignorée par une version plus ancienne)
+const rows = await pa.evaluate(() => { const m0 = COLL.map; COLL.map = collFromText(['2 Sol Ring (CMM) 400 *EN*', '1 Llanowar Elves'].join(String.fromCharCode(10))); const r = JSON.parse(amPartOf('c').j); COLL.map = m0; return r; });
+assert.deepEqual(rows, [['Llanowar Elves', 1], ['Sol Ring', 2, '', 'cmm']]);
+assert.deepEqual(await pb.evaluate(r => r.map(x => { const it = shareCard({ n: x[0], q: x[1], l: x[2] || undefined }); if (typeof x[3] === 'string') it.sets = x[3].split(','); return srchxPrep([it], () => 0)[0].eds; }), rows), [[''], ['cmm']]);
 await closeSheets(pb);
 ok('Bob : page d\'Alice (« Ami », « Pour toi »), ses decks (viewer en lecture seule), sa collection (recherche, ce que Bob cherche signalé)');
 
