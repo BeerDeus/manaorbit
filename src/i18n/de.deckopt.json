@@ -107,5 +107,10 @@
  "Aucune condition de victoire : ajoute une carte qui peut finir la partie": "Keine Siegbedingung: Füge eine Karte hinzu, die die Partie beenden kann",
  "Note de {n} : deck construit autour de tes choix (thème, cartes fétiches) plutôt que du deck moyen ; les conseils ci-dessous le renforcent sans trahir le thème.": "Note {n}: Deck um deine Wahl (Thema, Lieblingskarten) gebaut statt um das Durchschnittsdeck; die Tipps unten stärken es, ohne das Thema zu verraten.",
  "Plan : {p}": "Plan: {p}",
- "{p} % des sorts en commun avec la version équilibrée": "{p} % der Zauber gemeinsam mit der ausgewogenen Version"
+ "{p} % des sorts en commun avec la version équilibrée": "{p} % der Zauber gemeinsam mit der ausgewogenen Version",
+ "Moteur du plan rarement en place : plus de cartes qui le fournissent, ou un tuteur.": "Der Motor des Plans steht selten: mehr Karten, die ihn liefern, oder ein Tutor.",
+ "Peu de cartes vues : un ou deux moteurs de pioche de plus.": "Wenige Karten gesehen: ein oder zwei Kartenzieh-Motoren mehr.",
+ "cartes vues au tour 6 (main, pioche, moteurs)": "gesehene Karten bis Zug 6 (Hand, Ziehen, Motoren)",
+ "des parties où le moteur du plan est en place avant le tour 11": "der Partien, in denen der Motor des Plans vor Zug 11 steht",
+ "des parties où un adversaire tombe avant le tour 11 (seul, sans interaction)": "der Partien, in denen ein Gegner vor Zug 11 fällt (allein, ohne Interaktion)"
 }

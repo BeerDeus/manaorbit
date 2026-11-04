@@ -108,5 +108,7 @@
  "Hasard (pile ou face, dés)": "Azar (monedas, dados)",
  "Tours supplémentaires": "Turnos adicionales",
  "Game Changers": "Game Changers",
- "jetons Indice": "fichas de Pista"
+ "jetons Indice": "fichas de Pista",
+ "fait gagner ce deck": "le da la victoria a este mazo",
+ "cœur du plan de {name}": "núcleo del plan de {name}"
 }

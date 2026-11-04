@@ -107,5 +107,10 @@
  "Aucune condition de victoire : ajoute une carte qui peut finir la partie": "No win condition: add a card that can end the game",
  "Note de {n} : deck construit autour de tes choix (thème, cartes fétiches) plutôt que du deck moyen ; les conseils ci-dessous le renforcent sans trahir le thème.": "Score {n}: deck built around your choices (theme, pet cards) rather than the average deck; the tips below strengthen it without betraying the theme.",
  "Plan : {p}": "Plan: {p}",
- "{p} % des sorts en commun avec la version équilibrée": "{p}% of spells shared with the balanced version"
+ "{p} % des sorts en commun avec la version équilibrée": "{p}% of spells shared with the balanced version",
+ "Moteur du plan rarement en place : plus de cartes qui le fournissent, ou un tuteur.": "The plan's engine rarely comes together: add more cards that enable it, or a tutor.",
+ "Peu de cartes vues : un ou deux moteurs de pioche de plus.": "Few cards seen: one or two more draw engines.",
+ "cartes vues au tour 6 (main, pioche, moteurs)": "cards seen by turn 6 (hand, draws, engines)",
+ "des parties où le moteur du plan est en place avant le tour 11": "of games where the plan's engine is in place before turn 11",
+ "des parties où un adversaire tombe avant le tour 11 (seul, sans interaction)": "of games where an opponent falls before turn 11 (solo, no interaction)"
 }

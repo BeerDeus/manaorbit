@@ -108,5 +108,7 @@
  "Hasard (pile ou face, dés)": "Zufall (Münzwürfe, Würfel)",
  "Tours supplémentaires": "Extrazüge",
  "Game Changers": "Game Changer",
- "jetons Indice": "Hinweis-Spielsteine"
+ "jetons Indice": "Hinweis-Spielsteine",
+ "fait gagner ce deck": "gewinnt die Partie für dieses Deck",
+ "cœur du plan de {name}": "Kern des Plans von {name}"
 }

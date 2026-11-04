@@ -108,5 +108,7 @@
  "Hasard (pile ou face, dés)": "Chance (coin flips, dice)",
  "Tours supplémentaires": "Extra turns",
  "Game Changers": "Game Changers",
- "jetons Indice": "Clue tokens"
+ "jetons Indice": "Clue tokens",
+ "fait gagner ce deck": "wins the game for this deck",
+ "cœur du plan de {name}": "core of {name}'s plan"
 }
