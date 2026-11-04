@@ -36,8 +36,9 @@ export function mergeBriefs(dir, tax = taxonomy(), known = null, cards = null) {
       const tags = [...new Set((Array.isArray(b.tags) ? b.tags : []).map(t => String(t).trim().toLowerCase()).filter(t => { if (T.has(t)) return true; st.badTags++; return false; }))].slice(0, 6);
       const syn = []; for (const e of Array.isArray(b.syn) ? b.syn : []) { if (!Array.isArray(e)) continue; const n = name(e[0]), v = Math.round(Number(e[1])); if (n && v >= 0 && v <= 3) syn.push([n, v]); }
       const eng = (Array.isArray(b.engines) ? b.engines : []).map(e => e && [String(e.label || '').slice(0, 60), names(e.cards).slice(0, 5)]).filter(e => e && e[0] && e[1].length).slice(0, 5);
+      const pos = new Set(syn.filter(([, v]) => v >= 1).map(([n]) => nk(n))), trap = names(b.traps).filter(n => !pos.has(nk(n)));      // notée positivement : pas un piège (contradiction relevée par les arbitres)
       out.set(s.slug, { plan: String(b.plan || '').replace(/\s+/g, ' ').trim().slice(0, 600), tags, tribes: [...new Set((Array.isArray(b.tribes) ? b.tribes : []).map(t => String(t).trim()).filter(Boolean))].slice(0, 4),
-        win: names(b.win).slice(0, 8), eng, trap: names(b.traps).slice(0, 10), syn: syn.slice(0, 120), extra: names(b.extra).slice(0, 15) });
+        win: names(b.win).slice(0, 8), eng, trap: trap.slice(0, 10), syn: syn.slice(0, 120), extra: names(b.extra).slice(0, 15) });
       st.cmds++; st.syn += syn.length;
     }
   }
