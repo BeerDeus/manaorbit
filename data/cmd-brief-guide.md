@@ -33,4 +33,6 @@ connaissance des cartes (règles exactes), pas à leur popularité.
   et mets dans `tags` celles du plan principal d'abord.
 - Ne mets que des cartes légales en Commander et dans l'identité de couleur `ci`.
 
+Doute sur le texte exact d'une carte (surtout récente) : `node <dossier des lots>/card.js "Nom 1" "Nom 2" …` affiche son texte Oracle ; ne te fie pas à ta mémoire.
+
 Écris le fichier de sortie d'un coup (JSON valide, sans commentaire), puis vérifie qu'il se relit (`node -e "JSON.parse(require('fs').readFileSync(...))"`).

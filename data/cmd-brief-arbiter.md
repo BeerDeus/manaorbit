@@ -10,4 +10,7 @@ dans out/<lot>, et CORRIGE ce qui est faux ou incohérent :
 - `traps` : chaque piège est-il justifié (anti-synergie réelle, règle mal lue) ? Retire les faux pièges (une carte simplement moyenne n'est pas un piège).
 - `syn` : notes 3 réservées au cœur du plan ; une carte notée haut qui ne fait rien avec ce commandant → baisse-la ; une carte hors couleurs ou interdite → retire-la.
 - `extra` : vraies cartes, dans l'identité de couleur, excellentes ici.
+**Vérifie sur le texte exact, pas de mémoire** : avant de garder ou corriger une affirmation de règle (moteur, condition de victoire, piège, note 3, plan),
+lis le texte Oracle des cartes concernées avec `node <dossier des lots>/card.js "Nom 1" "Nom 2" …` (texte des fiches Scryfall de la base du coach).
+Une carte « inconnue » est trop récente ou mal nommée : ne la juge pas de mémoire, retire-la sauf si son nom figure dans les candidates.
 Garde ce qui est juste : ne réécris pas pour le style. Écris la fiche corrigée complète (même format, même ordre) dans arb/<lot>, JSON valide vérifié avec node.
