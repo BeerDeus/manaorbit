@@ -24,6 +24,12 @@ const findDeck = id => (id ? allDecks().find(d => d.id === id) || null : null);
 const cloudOn = () => !!(D.user && D.cloud);
 /** Decks de cet appareil pas encore envoyés dans le compte. */
 const importable = () => (D.user ? D.localList.filter(d => !D.importing.has(d.id)) : []);
+/** Identifiants de tous les decks connus (compte et appareil), seulement quand la liste du compte vient du serveur et que rien n'est en cours d'envoi ; null sinon.
+ *  Hors compte : null (les decks du compte ne sont pas listés, leurs réservations restent sur l'appareil). */
+function deckIdsSure() {
+  if (!D.user || !D.listSure || D.pending || D.importing.size) return null;
+  return new Set([...D.list, ...D.localList].map(d => d.id));
+}
 
 function deckErr(err) {
   const c = (err && err.code) || '';
@@ -702,6 +708,7 @@ function importLocal() {
   items.forEach(x => D.importing.add(x.localId)); renderDecks(); paintAccount();
   toast(T('Import en cours…'));
   D.cloud.saveMany(uid, items.map(x => ({ id: x.id, data: x.data }))).then(() => {
+    if (typeof engRekey === 'function') engRekey(items.map(x => [x.localId, x.id]));      // deck monté : ses réservations et « Deck : … » suivent son nouvel identifiant
     const gone = new Set(items.map(x => x.localId));
     gone.forEach(i => D.importing.delete(i));
     D.localList = D.localList.filter(d => !gone.has(d.id));
@@ -775,7 +782,7 @@ function metaFlush() {
 function onUser(user) {
   const prev = D.uid;
   if (D.unsub) { try { D.unsub(); } catch (e) { /* ignore */ } D.unsub = null; }
-  D.user = user; D.uid = user ? user.uid : null; D.list = []; D.pending = false; D.listErr = ''; D.authReady = true;
+  D.user = user; D.uid = user ? user.uid : null; D.list = []; D.pending = false; D.listSure = false; D.listErr = ''; D.authReady = true;
   if (prev !== D.uid) pdUser();      // decks publiés : relus pour ce compte
   if (prev !== D.uid) { S.deckId = null; S.runDelta = null; D.seen.clear(); D.hold = null; }
   try {
@@ -783,10 +790,11 @@ function onUser(user) {
     else localStorage.removeItem(ACCT_KEY);
   } catch (e) { /* ignore */ }
   if (user) {
-    D.unsub = D.cloud.watch(user.uid, (docs, pending) => {
-      D.list = docs.map(x => readDeck(x.id, x.data)); D.pending = pending; D.listErr = ''; if (typeof prgAbsorbSoon === 'function') prgAbsorbSoon();      // decks du compte lus : leurs badges acquis sans bannière
+    D.unsub = D.cloud.watch(user.uid, (docs, pending, fromCache) => {
+      D.list = docs.map(x => readDeck(x.id, x.data)); D.pending = pending; D.listSure = !pending && fromCache === false; D.listErr = ''; if (typeof prgAbsorbSoon === 'function') prgAbsorbSoon();      // decks du compte lus : leurs badges acquis sans bannière
       if (S.deckId && !pending && !D.list.some(d => d.id === S.deckId)) S.deckId = null;
       renderDecks(); renderAccountBtn(); paintAccount(); refreshDeck();
+      if (D.listSure && typeof engSweepSoon === 'function') engSweepSoon();      // decks supprimés sans être démontés : réservations et « Deck : … » rendues
     }, err => {
       D.listErr = err && err.code === 'permission-denied' ? T('Règles Firestore à publier') : T('Synchronisation impossible');
       console.error(err); renderDecks(); paintAccount();

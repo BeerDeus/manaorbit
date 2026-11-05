@@ -128,6 +128,46 @@ const errsOf = [];
   await p.context().close();
 }
 
+/* ── C2) Decks supprimés sans être démontés : réservations et « Deck : … » orphelins rendus ─────────── */
+{
+  const decks = [{ id: 'elfe', name: 'Elfe', text: '4 Llanowar Elves', updatedAt: Date.now() }];
+  const { p, errs } = await newPage(browser, world, { init: seed('8 Llanowar Elves', decks) }); errsOf.push(errs);
+  const st = () => p.evaluate(() => ({ eng: Object.fromEntries(Object.entries(XS.eng).map(([id, e]) => [id, e.q['llanowar elves'] || 0])), places: Object.values(COLL.places).filter(x => x.t === 'deck').map(x => x.r).sort(), tag: engTag('llanowar elves').replace(/<[^>]+>/g, '') }));
+  await p.evaluate(() => {
+    window.__w = {}; window.__saved = [];
+    D.cloud = { ...(D.cloud || {}), watchMeta: (uid, id, cb) => { window.__w[id] = cb; return () => {}; }, saveMeta: async (uid, id, doc) => { window.__saved.push([uid, id, JSON.parse(JSON.stringify(doc))]); } };
+    D.user = { uid: 'u1', email: 'x@y.z' }; D.uid = 'u1'; xsUser(D.user);
+    engSet('elfe', 'Elfe', '4 Llanowar Elves'); plcMount('elfe', 'Elfe', '4 Llanowar Elves');
+    XS.eng = { ...XS.eng, old: { n: 'Elfe', at: Date.now() - 30 * 86400000, q: { 'llanowar elves': 4 } } }; plcMount('old', 'Elfe', '4 Llanowar Elves');      // deck « Elfe » d'avant, supprimé sans être démonté
+    XS.eng = { ...XS.eng, fresh: { n: 'Neuf', at: Date.now(), q: { 'llanowar elves': 1 } } };      // monté à l'instant sur un autre appareil, liste pas encore arrivée
+    window.__w.engaged({ decks: JSON.parse(JSON.stringify(XS.eng)), updatedAt: Date.now() }, false, false);
+  });
+  assert.deepEqual((await st()).places, ['elfe', 'old']); assert.match((await st()).tag, /× 9 · Elfe \+2/, 'avant : « × 9 · Elfe +2 » sur des cartes d\'un seul deck en ×4');
+  assert.equal(await p.evaluate(() => engSweep()), 0, 'liste des decks pas encore lue du serveur : rien n\'est touché');
+  await p.evaluate(() => { D.listSure = true; D.pending = false; COLL.cloud = 'off'; });
+  assert.equal(await p.evaluate(() => engSweep()), 1, 'liste sûre, collection pas encore lue : réservation orpheline seulement');
+  await p.evaluate(() => { COLL.cloud = 'ok'; COLL.s = 'u1'; });
+  assert.equal(await p.evaluate(() => engSweep()), 1, 'puis son emplacement « Deck : Elfe »');
+  const after = await st();
+  assert.deepEqual(after.eng, { elfe: 4, old: 0, fresh: 1 }, 'orphelin démonté (trace vide pour les autres appareils), deck récent épargné');
+  assert.deepEqual(after.places, ['elfe'], 'emplacement du deck supprimé retiré');
+  assert.equal(await p.evaluate(() => Object.values(COLL.map['llanowar elves'] ? collLines(COLL.map['llanowar elves']) : []).reduce((t, [, q]) => t + q, 0)), 8, 'aucun exemplaire perdu');
+  assert.equal(await p.evaluate(() => engFree(collQty('llanowar elves'), XS.eng, 'llanowar elves', 'elfe')), 7, 'le vrai deck retrouve ses cartes');
+  assert.equal(await p.evaluate(() => engSweep()), 0, 'rien de plus au passage suivant');
+  await p.waitForTimeout(1300);
+  const sent = await p.evaluate(() => window.__saved.filter(s => s[1] === 'engaged').pop());
+  assert.deepEqual(sent[2].decks.old.q, {}, 'démontage envoyé au compte');
+  // deck local importé dans le compte : ses réservations et son emplacement suivent le nouvel identifiant
+  await p.evaluate(() => { XS.eng = { ...XS.eng, loc: { n: 'Local', at: Date.now(), q: { 'llanowar elves': 1 } } }; plcMount('loc', 'Local', '1 Llanowar Elves'); engRekey([['loc', 'cloudId']]); });
+  const rk = await st();
+  assert.equal(rk.eng.cloudId, 1); assert.equal(rk.eng.loc, 0); assert.ok(rk.places.includes('cloudId') && !rk.places.includes('loc'), 'import : réservations et « Deck : … » sous le nouvel identifiant');
+  // autre compte sur l'appareil : les decks montés du précédent ne le suivent pas
+  await p.evaluate(() => { D.user = { uid: 'u2', email: 'a@b.c' }; D.uid = 'u2'; xsUser(D.user); });
+  assert.deepEqual(await p.evaluate(() => [Object.keys(XS.eng).length, XS.engU, JSON.parse(localStorage.getItem('deckdeal:eng:v1')).u]), [0, 'u2', 'u2'], 'réservations du compte précédent laissées à ce compte-là');
+  ok('decks supprimés sans être démontés : réservations et emplacements orphelins rendus, deck récent épargné, import local, changement de compte');
+  await p.context().close();
+}
+
 /* ── D) Scan « prix rapide » ──────────────────────────────────────────────────────────────── */
 {
   const { p, errs } = await newPage(browser, world, { init: seed('1 Sol Ring *FR*') }); errsOf.push(errs);
