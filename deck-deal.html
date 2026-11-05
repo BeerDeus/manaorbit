@@ -7978,7 +7978,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { splashMo
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tasks" id="tasks" aria-live="polite"></div>
 <script>
-const DD_BUILD = '821bf0f2';
+const DD_BUILD = 'd4b8fad5';
 const I18N_FILES = {"de":"i18n/de.30ab8901.js","en":"i18n/en.97a9f564.js","es":"i18n/es.093fd6ab.js","it":"i18n/it.d77cf968.js","pt":"i18n/pt.9bbc1d0b.js"};
 /* ── migrate.js : déménagement de card.m2s-photo.fr vers manaorbit.app (12 octobre 2026) — lu avant tout le reste ─────────────────────
    Les données gardées par le navigateur (localStorage « deckdeal:* » : collection, decks, échange, réglages…) dépendent de l'adresse du site.
@@ -30140,7 +30140,7 @@ async function dsOptimize(mine, ms, step) {
   } finally { BD.gen = false; }
   // terrains : un terrain de base de la couleur la mieux servie contre un terrain qui donne une couleur en manque
   const BK = { W: 'plains', U: 'island', B: 'swamp', R: 'mountain', G: 'forest' };
-  for (let i = 0; i < 8 && Date.now() - t0 < ms * 1.5; i++) {
+  for (let i = 0; i < 8; i++) {      // sans limite de temps (8 tours au plus, seulement tant qu'une couleur manque) : sur un appareil lent ou chargé, la boucle d'avant prenait tout le temps et les couleurs n'étaient plus corrigées (Gimli : rouge 21 sources pour 23)
     const prof = dwProfile(), tgt = dwTargets(prof, cmd, pack, set), short = [...cmd.ci].filter(c => prof.need[c] && (prof.src[c] || 0) < prof.need[c]);
     if (!short.length) break;
     const rich = [...cmd.ci].filter(c => !short.includes(c) && (BD.main.get(BK[c]) || {}).qty > 1).sort((a, b) => ((prof.src[b] || 0) - (prof.need[b] || 0)) - ((prof.src[a] || 0) - (prof.need[a] || 0)))[0];

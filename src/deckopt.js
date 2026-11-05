@@ -121,7 +121,7 @@ async function dsOptimize(mine, ms, step) {
   } finally { BD.gen = false; }
   // terrains : un terrain de base de la couleur la mieux servie contre un terrain qui donne une couleur en manque
   const BK = { W: 'plains', U: 'island', B: 'swamp', R: 'mountain', G: 'forest' };
-  for (let i = 0; i < 8 && Date.now() - t0 < ms * 1.5; i++) {
+  for (let i = 0; i < 8; i++) {      // sans limite de temps (8 tours au plus, seulement tant qu'une couleur manque) : sur un appareil lent ou chargé, la boucle d'avant prenait tout le temps et les couleurs n'étaient plus corrigées (Gimli : rouge 21 sources pour 23)
     const prof = dwProfile(), tgt = dwTargets(prof, cmd, pack, set), short = [...cmd.ci].filter(c => prof.need[c] && (prof.src[c] || 0) < prof.need[c]);
     if (!short.length) break;
     const rich = [...cmd.ci].filter(c => !short.includes(c) && (BD.main.get(BK[c]) || {}).qty > 1).sort((a, b) => ((prof.src[b] || 0) - (prof.need[b] || 0)) - ((prof.src[a] || 0) - (prof.need[a] || 0)))[0];
