@@ -7,7 +7,7 @@
    blessures directes, pioche (moteur : une carte tous les deux tours ; sort : 2 cartes), condition de victoire lancée (10 blessures à chaque adversaire),
    moteur assemblé (une carte qui fournit une mécanique principale du plan et une qui en profite, en jeu ensemble).
    La TABLE (depuis le 5 novembre 2026, DSIM_OPP) : 3 adversaires à 40 points de vie ; 21 blessures d'un même commandant éliminent. Leur plateau grandit :
-   à chacun de leurs tours (dès le 2e), chacun pose un bloqueur 60 % du temps (5 au plus), de force et d'endurance 1 + tour / 2 (2 au tour 2, 4 au tour 6),
+   à chacun de leurs tours (dès le 2e), chacun pose un bloqueur 45 % du temps (4 au plus), de force et d'endurance 1 + 0,4 × tour (2 au tour 2, 3 au tour 4, 4 au tour 8),
    un sur quatre vole. Tes créatures attaquent l'adversaire le plus bas en vie, avec leurs vraies force et endurance (colonne [12] de la base, sinon
    estimées d'après le coût) et leurs mots-clés : évasion (vol, menace, imblocable… : seuls les bloqueurs volants les arrêtent), piétinement, célérité,
    double initiative, contact mortel, indestructible, défense talismanique ; les cartes qui DONNENT évasion, célérité ou double initiative (classement)
